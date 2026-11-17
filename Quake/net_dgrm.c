@@ -1472,6 +1472,23 @@ void Datagram_Listen (qboolean state)
 // address on another port is that player back from a crash (his game sends moves every frame while it runs)
 #define QVR_GHOST_SILENCE 3.0
 
+// QVR: (B25) vr_mp_clientkey made up when empty (16 hex digits from the clock and this process; kept in the config, so
+// the same game after a crash and a restart sends the same)
+static void ClientKeyMade (void)
+{
+	char		key[24];
+	unsigned	a, b;
+	double		t;
+
+	if (Cvar_VariableString ("vr_mp_clientkey")[0])
+		return;
+	t = Sys_DoubleTime ();
+	a = (unsigned) (t * 1000003.0) ^ ((unsigned) (uintptr_t) &key << 7) ^ (unsigned) (long long) (t * 1e9);
+	b = (unsigned) rand () * 2654435761u ^ (unsigned) (uintptr_t) &t ^ (unsigned) (t * 1e6);
+	q_snprintf (key, sizeof (key), "%08x%08x", a, b);
+	Cvar_Set ("vr_mp_clientkey", key);
+}
+
 // QVR: (B23) a datagram of the listening socket's that isn't a client's (in net_message: its length `len`, from `from`)
 static qsocket_t *_Datagram_ControlRequest (sys_socket_t acceptsock, const struct qsockaddr *from, int len)
 {
@@ -1484,6 +1501,7 @@ static qsocket_t *_Datagram_ControlRequest (sys_socket_t acceptsock, const struc
 	int			ret;
 	int			qvrVersion = 0; // QVR
 	char		qvrName[32] = {0}; // QVR: the player's name (a loaded coop game's slot)
+	char		qvrKey[24] = {0}; // QVR: (B25) his game's vr_mp_clientkey ("": an older client's request)
 
 	if (len < (int) sizeof(int))
 		return NULL;
@@ -1615,6 +1633,8 @@ static qsocket_t *_Datagram_ControlRequest (sys_socket_t acceptsock, const struc
 			qvrVersion = MSG_ReadLong();
 			if (msg_readcount < net_message.cursize)
 				q_strlcpy(qvrName, MSG_ReadString(), sizeof(qvrName));
+			if (msg_readcount < net_message.cursize)
+				q_strlcpy(qvrKey, MSG_ReadString(), sizeof(qvrKey));
 		}
 		reason[0] = 0;
 		if (sv.active && (sv.protocolflags & PRFL_QUAKEVR) && qvrVersion != QVR_NET_VERSION)
@@ -1675,7 +1695,12 @@ static qsocket_t *_Datagram_ControlRequest (sys_socket_t acceptsock, const struc
 		// player (his connect request's name) and his old connection has been silent a while (a game in play sends 72
 		// moves a second): that is him back, and his old connection is closed as below (his things kept for him by
 		// name: vr/vr_coopsave.cpp).
-		if (ret == 1 && qvrName[0] && !Q_strcmp (qvrName, s->qvrName) && net_time - s->lastMessageTime > QVR_GHOST_SILENCE)
+		// (B25) and the same game: his request's key (vr_mp_clientkey) his old connection's. By the name alone, a second
+		// game on that address by the same name (the default "player": two players behind one router, the harness's
+		// games) closed a live player's connection that a hitch had left silent over 3 s (a busy machine: the suite's
+		// joins under load) -- a real player kicked, the newcomer's connection request unanswered.
+		if (ret == 1 && qvrName[0] && !Q_strcmp (qvrName, s->qvrName) && qvrKey[0] && !Q_strcmp (qvrKey, s->qvrKey) &&
+			net_time - s->lastMessageTime > QVR_GHOST_SILENCE)
 		{
 			Con_Printf ("%s back from %s (his old connection silent %.1f s): the old one closed\n", qvrName,
 				dfunc.AddrToString (&clientaddr), net_time - s->lastMessageTime);
@@ -1730,6 +1755,7 @@ static qsocket_t *_Datagram_ControlRequest (sys_socket_t acceptsock, const struc
 	sock->addr = clientaddr;
 	sock->qvrNetVersion = qvrVersion; // QVR
 	q_strlcpy(sock->qvrName, qvrName, sizeof(sock->qvrName)); // QVR
+	q_strlcpy(sock->qvrKey, qvrKey, sizeof(sock->qvrKey)); // QVR: (B25)
 	Q_strcpy(sock->address, dfunc.AddrToString(&clientaddr));
 
 	// send him back the info about the server connection he has been allocated
@@ -1995,6 +2021,7 @@ static qsocket_t *_Datagram_Connect (const char *host)
 	Con_Printf("trying...\n");
 	SCR_UpdateScreen ();
 	start_time = net_time;
+	ClientKeyMade ();
 
 	for (reps = 0; reps < tries; reps++)
 	{
@@ -2009,6 +2036,7 @@ static qsocket_t *_Datagram_Connect (const char *host)
 		MSG_WriteLong(&net_message, COM_CheckParm("-mpnetversion") && COM_CheckParm("-mpnetversion") + 1 < com_argc
 			? Q_atoi(com_argv[COM_CheckParm("-mpnetversion") + 1]) : QVR_NET_VERSION);
 		MSG_WriteString(&net_message, cl_name.string); // QVR: a loaded coop game gives him his saved slot by it
+		MSG_WriteString(&net_message, Cvar_VariableString ("vr_mp_clientkey")); // QVR: (B25) this game's, for "back from a crash"
 		*((int *)net_message.data) = BigLong(NETFLAG_CTL | (net_message.cursize & NETFLAG_LENGTH_MASK));
 		dfunc.Write (newsock, net_message.data, net_message.cursize, &sendaddr);
 		SZ_Clear(&net_message);

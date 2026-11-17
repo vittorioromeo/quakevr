@@ -179,6 +179,7 @@ typedef struct qsocket_s
 	unsigned int	qvrStaleRead;	// QVR: ... how many were
 	int		qvrNetVersion;	// QVR: the peer's Quake VR network version from its connect request (0: none; net_dgrm.c)
 	char		qvrName[32];	// QVR: the player's name from its connect request ("": none): a loaded coop game's slot by it
+	char		qvrKey[24];	// QVR: (B25) his game's vr_mp_clientkey from its connect request ("": none): "back from a crash" only by it
 	qboolean	qvrShared;	// QVR: (B23) a server's client on the server's listening socket (net_dgrm.c): its datagrams
 					// are read from there and queued for it (qvrIn), its socket is not its own to close
 	dgrmqueue_t	qvrIn;		// QVR: ... its queued datagrams, oldest first

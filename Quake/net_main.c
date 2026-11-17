@@ -170,6 +170,7 @@ qsocket_t *NET_NewQSocket (void)
 	sock->fastResent = false;
 	sock->qvrNetVersion = 0; // QVR
 	sock->qvrName[0] = 0; // QVR
+	sock->qvrKey[0] = 0; // QVR: (B25)
 	sock->qvrUnreliableRead = sock->qvrUnreliableSkipped = sock->qvrResent = 0; // QVR: (B13) the net HUD's
 	sock->qvrAcceptStale = false; sock->qvrStaleRead = 0; // QVR: (B20) SV_ReadClientMessage opts in for a remote client
 	sock->qvrBytesIn = sock->qvrBytesOut = 0;
