@@ -1,7 +1,7 @@
 // vr_alloc_sites [frames] [lines] [peak]: main-thread heap events and optional busiest-frame stacks.
 // Stack capture distorts timing; use ordinary profiling for performance comparisons.
 
-// vr_heap [stats | collect | test | stress [threads] [ms]]: the process's C heap (mimalloc, vr_crtheap.c).
+// vr_heap [stats | collect | live [rows] | test | stress [threads] [ms]]: the process's C heap (mimalloc, vr_crtheap.c).
 
 #include "vr_random.hpp"
 #include "vr_engine.hpp"
@@ -9,6 +9,7 @@
 #include "vr_alloccount.h"
 #include "vr_crtheap.h"
 #include "vr_cvars.hpp"
+#include "vr_jobs.hpp"
 #include <new>
 #include <stdint.h>
 #include <stdlib.h>
@@ -17,6 +18,7 @@
 #include <malloc.h>
 #endif
 
+#include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Chrono/Clock.hpp"
 #include "Zancle/Chrono/Time.hpp"
@@ -369,9 +371,60 @@ void heapPrint(const char* text, void*)
     Con_Printf("%s", text);
 }
 
+// vr_heap live [rows]: the live blocks by block size, the most bytes first (VR_CrtHeapLiveBySize). A leak shows as a
+// size whose live bytes keep growing between two of these.
+constexpr int liveRowsMax = 1024;
+VR_CrtHeapSizeRow_t liveRows[liveRowsMax];
+
+void heapLive(int shown)
+{
+    const int n = VR_CrtHeapLiveBySize(liveRows, liveRowsMax);
+    unsigned long long live = 0, committed = 0, blocks = 0, reserved = 0, pages = 0, emptyPages = 0, empty = 0;
+    unsigned long long emptyAbandoned = 0, emptyOther = 0;
+    for(int i = 0; i < n; ++i)
+    {
+        live += liveRows[i].liveBytes;
+        committed += liveRows[i].committedBytes;
+        blocks += liveRows[i].blocks;
+        reserved += liveRows[i].reservedBytes;
+        pages += liveRows[i].pages;
+        emptyPages += liveRows[i].emptyPages;
+        empty += liveRows[i].emptyBytes;
+        emptyAbandoned += liveRows[i].emptyAbandonedBytes;
+        emptyOther += liveRows[i].emptyOtherBytes;
+        for(int j = i; j > 0 && liveRows[j].liveBytes > liveRows[j - 1].liveBytes; --j) // (insertion sort, n is small)
+        {
+            const VR_CrtHeapSizeRow_t t = liveRows[j];
+            liveRows[j] = liveRows[j - 1];
+            liveRows[j - 1] = t;
+        }
+    }
+    constexpr double mb = 1024.0 * 1024.0;
+    Con_Printf("vr_heap live: %.1f MB in %llu blocks of %d sizes; %llu pages of %.1f MB (%.1f MB of blocks made), "
+               "%llu of them empty (%.1f MB: abandoned %.1f, other threads' %.1f); workers' tidies %llu after jobs (%.3f ms each), %llu idle (%.3f ms each)\n",
+        static_cast<double>(live) / mb, blocks, n, pages, static_cast<double>(reserved) / mb,
+        static_cast<double>(committed) / mb, emptyPages, static_cast<double>(empty) / mb,
+        static_cast<double>(emptyAbandoned) / mb, static_cast<double>(emptyOther) / mb, VR_CrtHeapThreadTidies(0),
+        static_cast<double>(VR_CrtHeapThreadTidyMicroseconds(0)) / 1000.0 / static_cast<double>(za::max(VR_CrtHeapThreadTidies(0), 1ull)),
+        VR_CrtHeapThreadTidies(1),
+        static_cast<double>(VR_CrtHeapThreadTidyMicroseconds(1)) / 1000.0 / static_cast<double>(za::max(VR_CrtHeapThreadTidies(1), 1ull)));
+    for(int i = 0; i < za::min(n, shown); ++i)
+    {
+        const VR_CrtHeapSizeRow_t& r = liveRows[i];
+        Con_Printf("vr_heap_live: size=%llu pages=%llu blocks=%llu live_kb=%llu committed_kb=%llu reserved_kb=%llu "
+                   "empty=%llu\n", r.blockSize, r.pages, r.blocks, r.liveBytes / 1024, r.committedBytes / 1024,
+            r.reservedBytes / 1024, r.emptyPages);
+    }
+}
+
 void heap_f()
 {
     const char* const what = Cmd_Argc() > 1 ? Cmd_Argv(1) : "";
+    if(!q_strcasecmp(what, "live"))
+    {
+        heapLive(Cmd_Argc() > 2 ? za::clamp(Q_atoi(Cmd_Argv(2)), 0, liveRowsMax) : 20);
+        return;
+    }
     if(!q_strcasecmp(what, "stats"))
     {
         VR_CrtHeapPrintStats(heapPrint, nullptr);
@@ -394,15 +447,63 @@ void heap_f()
     }
     else if(what[0])
     {
-        Con_Printf("vr_heap [stats | collect | test | stress [threads] [ms]]\n");
+        Con_Printf("vr_heap [stats | collect | live [rows] | test | stress [threads] [ms]]\n");
         return;
     }
     heapSummary();
 }
 
+// vr_heap_sites <min bytes> [max bytes] | stop [lines]: every thread's blocks of that size from now to the stop, by the
+// call stack that allocated them; the stop lists the sites whose blocks are still live, the most bytes first (a leak:
+// the site whose live bytes grow with the time traced).
+void heapSites_f()
+{
+    const char* const what = Cmd_Argc() > 1 ? Cmd_Argv(1) : "";
+    if(!q_strcasecmp(what, "stop"))
+    {
+        if(!alloccount::liveTracing())
+        {
+            Con_Printf("vr_heap_sites: not tracing\n");
+            return;
+        }
+        za::U64 allocs = 0, live = 0, dropped = 0, total = 0, full = 0;
+        alloccount::liveEnd(allocs, live, dropped);
+        za::Vector<alloccount::Site> sites = alloccount::traceSites(total, full);
+        za::quickSort(sites.begin(), sites.end(), [](const alloccount::Site& a, const alloccount::Site& b) { return a.bytes > b.bytes; });
+        za::U64 bytes = 0;
+        for(const alloccount::Site& s : sites) bytes += s.bytes;
+        Con_Printf("vr_heap_sites: %llu blocks traced, %llu still live (%.2f MB) at %d sites, %llu not placed\n",
+            static_cast<unsigned long long>(allocs), static_cast<unsigned long long>(live),
+            static_cast<double>(bytes) / (1024.0 * 1024.0), static_cast<int>(sites.size()), static_cast<unsigned long long>(dropped));
+        const int lines = Cmd_Argc() > 2 ? za::max(Q_atoi(Cmd_Argv(2)), 1) : 15;
+        for(int i = 0; i < za::min(lines, static_cast<int>(sites.size())); ++i)
+        {
+            const alloccount::Site& s = sites[static_cast<za::SizeT>(i)];
+            Con_Printf("vr_heap_site: live=%llu kb=%llu %s\n              <- %s\n", static_cast<unsigned long long>(s.count),
+                static_cast<unsigned long long>(s.bytes / 1024), s.where.cStr(), s.via.empty() ? "?" : s.via.cStr());
+        }
+        return;
+    }
+    if(!what[0])
+    {
+        Con_Printf("vr_heap_sites <min bytes> [max bytes] | stop [lines]\n");
+        return;
+    }
+    if(framesLeft > 0 || alloccount::liveTracing())
+    {
+        Con_Printf("vr_heap_sites: a trace is already under way\n");
+        return;
+    }
+    const za::U64 lo = static_cast<za::U64>(za::max(Q_atoi(what), 1));
+    const za::U64 hi = Cmd_Argc() > 2 ? static_cast<za::U64>(za::max(Q_atoi(Cmd_Argv(2)), 1)) : ~za::U64{0};
+    Con_Printf(alloccount::liveBegin(lo, hi) ? "vr_heap_sites: tracing every thread's blocks of %llu..%llu bytes\n"
+                                             : "vr_heap_sites: not on this platform (%llu..%llu)\n",
+        static_cast<unsigned long long>(lo), static_cast<unsigned long long>(hi));
+}
+
 void command_f()
 {
-    if(framesLeft > 0)
+    if(framesLeft > 0 || alloccount::liveTracing())
     {
         Con_Printf("vr_alloc_sites: already tracing (%d frames left)\n", framesLeft);
         return;
@@ -425,9 +526,11 @@ void registerCommands()
     Cmd_AddCommand("vr_alloc_sites", command_f);
     Cmd_AddCommand("vr_alloc_test", test_f);
     Cmd_AddCommand("vr_heap", heap_f);
+    Cmd_AddCommand("vr_heap_sites", heapSites_f);
     VR_CrtHeapHooks(); // (again: on Windows the first allocation installed them; elsewhere this does)
     // A change applies at once (the start-up value: vr_crtheap.c, 0, or MIMALLOC_PURGE_DELAY).
     Cvar_SetCallback(&vr_heap_purge_delay, [](cvar_t* var) { VR_CrtHeapSetPurgeDelay(static_cast<long>(var->value)); });
+    Cvar_SetCallback(&vr_heap_thread_tidy, [](cvar_t* var) { jobs::setHeapTidy(static_cast<int>(var->value)); });
 }
 
 void frameEnd()

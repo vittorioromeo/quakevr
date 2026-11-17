@@ -7,11 +7,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #if defined(QVR_MIMALLOC)
 
 #include "mimalloc.h"
 #include "mimalloc-stats.h"
+#include "mimalloc/internal.h" // (vr_heap live: an empty page's owner)
 
 static char qvrHeapName[64];
 
@@ -171,6 +173,141 @@ void VR_CrtHeapCollect(void)
     }
 }
 
+// VR_CrtHeapThreadTidy: each thread's last collect (ms of TIME_UTC), and the period (vr_heap_thread_tidy).
+static long qvrTidyMs = 1000;
+static _Thread_local long long qvrTidyLast;
+static unsigned long long qvrTidies[2], qvrTidyUs[2]; // (vr_heap live: how many so far, their time; [1] idle)
+
+// After a job: mimalloc's normal collect (the pages emptied go back; quick, on the job's thread). Idle: forced (its full
+// pages visited too, and the arenas' purges: ~0.2 ms, nothing waits on an idle worker).
+static void qvrTidyTimed(int idle)
+{
+    struct timespec t0, t1;
+    timespec_get(&t0, TIME_UTC);
+    mi_collect(idle != 0);
+    timespec_get(&t1, TIME_UTC);
+    const long long us = ((long long)t1.tv_sec - t0.tv_sec) * 1000000 + (t1.tv_nsec - t0.tv_nsec) / 1000;
+    __atomic_fetch_add(&qvrTidies[idle], 1, __ATOMIC_RELAXED);
+    __atomic_fetch_add(&qvrTidyUs[idle], (unsigned long long)(us > 0 ? us : 0), __ATOMIC_RELAXED);
+}
+
+void VR_CrtHeapSetThreadTidy(long milliseconds)
+{
+    __atomic_store_n(&qvrTidyMs, milliseconds, __ATOMIC_RELAXED);
+}
+
+void VR_CrtHeapThreadTidy(void)
+{
+    const long period = __atomic_load_n(&qvrTidyMs, __ATOMIC_RELAXED);
+    if(period <= 0 || !VR_CrtHeapIsMimalloc())
+    {
+        return;
+    }
+    struct timespec ts;
+    timespec_get(&ts, TIME_UTC);
+    const long long now = (long long)ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
+    if(now - qvrTidyLast < period)
+    {
+        return;
+    }
+    qvrTidyLast = now;
+    qvrTidyTimed(0);
+}
+
+void VR_CrtHeapIdleTidy(void)
+{
+    if(__atomic_load_n(&qvrTidyMs, __ATOMIC_RELAXED) <= 0 || !VR_CrtHeapIsMimalloc())
+    {
+        return;
+    }
+    qvrTidyTimed(1);
+}
+
+unsigned long long VR_CrtHeapThreadTidyMicroseconds(int idle)
+{
+    return __atomic_load_n(&qvrTidyUs[idle != 0], __ATOMIC_RELAXED);
+}
+
+long VR_CrtHeapThreadTidyPeriod(void)
+{
+    return __atomic_load_n(&qvrTidyMs, __ATOMIC_RELAXED);
+}
+
+unsigned long long VR_CrtHeapThreadTidies(int idle)
+{
+    return __atomic_load_n(&qvrTidies[idle != 0], __ATOMIC_RELAXED);
+}
+
+// VR_CrtHeapLiveBySize: one row per block size (the pages' counts, not a walk of their blocks).
+typedef struct
+{
+    VR_CrtHeapSizeRow_t* rows;
+    int maxRows, used;
+} QvrLiveVisit;
+
+static bool qvrLivePage(const mi_heap_t* heap, const mi_heap_area_t* area, void* block, size_t blockSize, void* arg)
+{
+    (void)heap;
+    (void)block;
+    QvrLiveVisit* v = (QvrLiveVisit*)arg;
+    int i = 0;
+    while(i < v->used && v->rows[i].blockSize != blockSize)
+    {
+        ++i;
+    }
+    if(i == v->used)
+    {
+        if(v->used == v->maxRows)
+        {
+            i = v->maxRows - 1; // (full: the rest go to the last row)
+        }
+        else
+        {
+            memset(&v->rows[i], 0, sizeof(v->rows[i]));
+            v->rows[i].blockSize = blockSize;
+            ++v->used;
+        }
+    }
+    VR_CrtHeapSizeRow_t* r = &v->rows[i];
+    r->pages++;
+    r->blocks += area->used;
+    r->liveBytes += (unsigned long long)area->used * area->full_block_size;
+    r->committedBytes += area->committed;
+    r->reservedBytes += area->reserved;
+    if(area->used == 0)
+    {
+        r->emptyPages++;
+        r->emptyBytes += area->reserved;
+        const mi_page_t* page = (const mi_page_t*)area->reserved1;
+        if(mi_page_is_abandoned(page))
+        {
+            r->emptyAbandonedBytes += area->reserved;
+        }
+        else if(mi_page_thread_id(page) != _mi_thread_id())
+        {
+            r->emptyOtherBytes += area->reserved;
+        }
+    }
+    return true;
+}
+
+static bool qvrLiveHeap(mi_heap_t* heap, void* arg)
+{
+    mi_heap_visit_blocks(heap, false, &qvrLivePage, arg);
+    return true;
+}
+
+int VR_CrtHeapLiveBySize(VR_CrtHeapSizeRow_t* rows, int maxRows)
+{
+    if(!VR_CrtHeapIsMimalloc() || maxRows <= 0)
+    {
+        return 0;
+    }
+    QvrLiveVisit v = {rows, maxRows, 0};
+    mi_subproc_visit_heaps(mi_subproc_main(), &qvrLiveHeap, &v);
+    return v.used;
+}
+
 #else // !QVR_MIMALLOC
 
 const char* VR_CrtHeapName(void)
@@ -214,6 +351,43 @@ void VR_CrtHeapLoadHold(int on, long milliseconds)
 
 void VR_CrtHeapCollect(void)
 {
+}
+
+void VR_CrtHeapSetThreadTidy(long milliseconds)
+{
+    (void)milliseconds;
+}
+
+void VR_CrtHeapThreadTidy(void)
+{
+}
+
+unsigned long long VR_CrtHeapThreadTidies(int idle)
+{
+    (void)idle;
+    return 0;
+}
+
+void VR_CrtHeapIdleTidy(void)
+{
+}
+
+unsigned long long VR_CrtHeapThreadTidyMicroseconds(int idle)
+{
+    (void)idle;
+    return 0;
+}
+
+long VR_CrtHeapThreadTidyPeriod(void)
+{
+    return 0;
+}
+
+int VR_CrtHeapLiveBySize(VR_CrtHeapSizeRow_t* rows, int maxRows)
+{
+    (void)rows;
+    (void)maxRows;
+    return 0;
 }
 
 #endif

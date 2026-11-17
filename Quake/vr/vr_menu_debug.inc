@@ -828,6 +828,11 @@ za::Vector<Item> pageDebugProfiling()
             .help("vr_heap stress [threads] [ms]: 8 threads allocating and freeing for 2 s (a quarter freed by another "
                   "thread), each block checked: million operations a second, the heap's contention. Stalls the game."),
         row(opt::vr_heap_purge_delay),
+        row(opt::vr_heap_thread_tidy),
+        command("Heap: Live By Size", "vr_heap live 20")
+            .help("vr_heap live [rows]: the heap's blocks in use by block size, the most bytes first, with its pages "
+                  "(held, blocks made, empty). Two of these apart: a size that keeps growing is a leak; "
+                  "vr_heap_sites <min> <max> ... vr_heap_sites stop: where that size's live blocks were allocated."),
         command("Heap: Return Free Memory", "vr_heap collect")
             .help("vr_heap collect: mimalloc returns the memory it holds unused to the system, then vr_heap."),
         header("Startup (GL safe mode)"),
