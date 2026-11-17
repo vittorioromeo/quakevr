@@ -4900,3 +4900,29 @@ His decision (2026-11-17, after the kit's `work\ericw\FINDINGS.md`): ship a fork
   that a map change mostly does not give back, and not Box3D's (8.8 MB at most): MP_PLAN B21, next phase B22.
 - Shipping: the SP part is commit 8cee842ae; on next's base `agent/b21-box3dmem` (24b7ce728): scenario_check 136/0,
   load_models 4/0, vr_run_check 12/0, ThinLTO 0 warnings.
+
+## MP B22: the dedicated server's heap; idle workers' pages; B21's two flakes (agent/mp, 2026-11-17)
+
+- **Not a leak: idle job workers' empty heap pages** (single player too). mimalloc's pages belong to the thread that
+  made them, and only that thread gives back the ones that frees on other threads emptied. A job worker that made
+  blocks (a map load's hulls, nav tiles, a fight's jobs) and then went idle kept them all, committed: after e1m1's
+  load, 285 empty pages (120-150 MB), every one a worker's; a 16-player dm3 server's committed heap grew 1237 -> 1432
+  MB in 20 minutes in steps while its live blocks grew 19 MB.
+- **The fix** (`vr_jobs.cpp`, `vr_crtheap_info.c`, Zancle's `ThreadPool::setIdleHook`, new): each worker tidies its
+  own heap, a normal mi_collect after a job at most once a `vr_heap_thread_tidy` (new, 1000 ms; ~6 us) and a forced
+  one once it has had no job that long (~0.5 ms, idle). Single player e1m1: committed 1382 -> 1095 MB, empty pages 0.
+  The server: 1016 -> 1029 MB over 16 minutes (was 1237 -> 1432 over 20), its live blocks +16 MB, tapering (the hit
+  model's and the ragdolls' skinned caches filling: bounded, `vr_heap_sites`).
+- **Diagnostics** (Debug > Profiling and Memory: Heap: Live By Size, Heap: Worker Tidy): `vr_heap live [rows]` (the live
+  blocks by block size; the pages held, made, empty and whose); `vr_heap_sites <min> [max]` ... `vr_heap_sites stop`
+  (every thread's blocks of that size kept by call stack until freed: the sites still holding them).
+- **The soak** (`mp_test.py soak`): the server's live heap by size each minute (soak_live.txt), `--heap-sites MIN:MAX`
+  (soak_sites.txt), the bots added again after `--soak-change`'s change.
+- **B21's flakes:** mp_rejoin's "C has the shotgun A let fall" took another weapon (anywhere on the map) for the dropped
+  shotgun before the let-go reached the server: it now waits for the hand empty and the weapon by it; mp_held's carried
+  hotspots (0.62 > 0.5) were compared before the shotgun settled into the off hand: it now waits for them to settle.
+- **Checks:** the MP suite 3 runs, 3 clean; the 40-minute soak 23/0 (the server's heap 1020 -> 1044 MB by minute 30,
+  was 1211 -> 1447; 1009 after the change).
+- Shipping: the SP part is commit 120427f2c; on next's base `agent/b22-heaptidy` (6e5fc7980): scenario_check 136/0,
+  load_models 4/0, vr_run_check 12/0, ThinLTO 0 warnings.
+- **In VR:** nothing to see; the game's memory after a map load is ~300 MB lower (commit charge; the working set less).

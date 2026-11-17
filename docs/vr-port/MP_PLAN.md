@@ -3404,3 +3404,44 @@ too), suspects the server-only stores (the snapshots' sent logs, lag compensatio
 QuakeC's per-function records while vr_profile is on) and the bots' clients; the soak's change could re-add the bots
 (impulse 100) so its minutes after a change stay busy. His: B10v's VR checks, internet play with two machines, the
 rendezvous service decision.
+
+### B22 results: the server's heap was idle workers' empty pages; B21's two flakes (2026-11-17, dev no-LTO build, loopback, low impact; NAT step 1 skipped: his OK)
+
+- **What grew:** `vr_heap live` (new: the live blocks by block size, mimalloc's pages held, made and empty, and whose)
+  each soak minute. 16 players on dm3, 22 minutes: mimalloc's committed 1237 -> 1432 MB (steps: +131 MB at minute 6,
+  +16 at 10, ...) while the live blocks grew 877 -> 897 MB and the working set 657 -> 681: committed memory nobody used.
+  In single player after e1m1's load: 285 empty pages, 120-150 MB, every one owned by another thread than the main one.
+- **Why:** mimalloc's pages belong to the thread that made them, and only that thread gives back a page that frees on
+  other threads emptied. The job workers make blocks (a load's hulls, nav tiles, a fight's jobs: the hit model's
+  skinned bounds, the held weapons' meshes, Box3D's hulls) that the main thread frees; a worker that then went idle,
+  or never allocated in that size again, kept its emptied pages committed for good. A changelevel did not help (the
+  pages are the workers', not the map's): B21's "64 of 236 MB back".
+- **The fix (single player too; commit 120427f2c, on next's base `agent/b22-heaptidy`):** each worker tidies its own
+  heap: mimalloc's normal collect after a job at most once a `vr_heap_thread_tidy` (new, 1000 ms; ~6 us), and a forced
+  one once it has had no job that long (Zancle's `ThreadPool::setIdleHook`, new: a worker's timed wait; ~0.5 ms on an
+  idle thread). e1m1: committed 1382 -> 1095 MB, empty pages 0. The server over 16 minutes: committed 1016 -> 1029 MB
+  (was 1237 -> 1432 over 20), live 861 -> 878 MB, flat over the last 4 minutes.
+- **The live blocks' slow growth** (+16 MB in 16 minutes, tapering): `vr_heap_sites 1000 70000` (new: every thread's
+  blocks of a size range kept by call stack until freed) from minute 2 to 16: 9.5 MB still live at 32 sites, the most
+  the hit model's skinned bounds (`refit`, 155 blocks, 3.2 MB: `skinTrees`, at most 256 then all begun again), the
+  held weapons' drawn meshes (751 blocks, 1.4 MB) and the ragdolls' skinned vertices (155, 2.6 MB): caches filling,
+  bounded. No leak found.
+- **mp_rejoin "C has the shotgun A let fall"** (B21 run 2): `lying()` took the weapon lying nearest A's hand before the
+  let-go reached the server: another weapon anywhere on the map (2600 units off in the failure; in the passing runs a
+  weapon 340 units off, within B's view by luck). It now waits for the hand empty (`drawn=0`) and a weapon within 96
+  units of it.
+- **mp_held "the carried shotgun's hotspots"** (B21 run 3, 0.62 > 0.5): compared as soon as the hand-off showed in both
+  reports, before the shotgun settled into the off hand; the wait now also waits for the hotspots within the slack (a
+  shotgun that never settles still fails).
+- **The soak** (`mp_test.py soak`): `soak_live.txt` (the server's live blocks by size each minute and just after the
+  change), `--heap-sites MIN:MAX` (soak_sites.txt), the bots added again after `--soak-change`'s change.
+- **Checks:** the full MP suite (dev) 3 runs, 3 clean (mp_rejoin 15/0 and mp_held 14/0 each). The 40-minute soak
+  (`soak --soak-minutes 40 --soak-change 30`, the bots again after the change) 23/0: the server's committed heap 1020
+  MB at minute 2, 1040 at 20, 1044 at 30 (B21: 1211 -> 1447), 1009 after the change, 1035 at 40 with the bots back;
+  its live blocks 857 -> 883 -> 849. On next's base (`agent/b22-heaptidy`, 6e5fc7980): scenario_check 136/0,
+  load_models 4/0, vr_run_check 12/0, vr_alloc_test and vr_heap stress PASS, ThinLTO 0 warnings; agent/mp dev 0
+  warnings.
+
+Next phase: B23 -- NAT step 1 if he agrees; else the lift's DIST_EPSILON misses (the client's replay against
+SV_PushMove's carry, B21 item 3) and a 60-minute soak with the change twice (the caches' bounds: `vr_heap_sites`);
+his: B10v's VR checks, internet play with two machines, the rendezvous service decision.
