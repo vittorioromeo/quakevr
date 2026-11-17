@@ -57,6 +57,20 @@ static PollProcedure	slistSendProcedure = {NULL, 0.0, Slist_Send};
 static PollProcedure	slistPollProcedure = {NULL, 0.0, Slist_Poll};
 
 sizebuf_t	net_message;
+// QVR: net_message's own buffer. A snapshot's records are parsed with net_message pointed at each (vr_netsnap.cpp), and
+// a Host_Error inside one (a damaged record: mp_fuzz) left it there: the next connection's request overflowed its few
+// bytes (SZ_GetSpace, "B joined again 1 times"). Host_Error puts it back (NET_RestoreMessage).
+static sizebuf_t	net_message_own;
+
+void NET_RestoreMessage (void)
+{
+	if (!net_message_own.data)
+		return;
+	net_message = net_message_own;
+	SZ_Clear (&net_message);
+	msg_readcount = 0;
+	msg_badread = false;
+}
 int		net_activeconnections		= 0;
 
 int		messagesSent			= 0;
@@ -801,6 +815,7 @@ void NET_Init (void)
 
 	// allocate space for network message buffer
 	SZ_Alloc (&net_message, NET_MAXMESSAGE);
+	net_message_own = net_message; // QVR
 
 	Cvar_RegisterVariable (&net_messagetimeout);
 	Cvar_RegisterVariable (&hostname);
