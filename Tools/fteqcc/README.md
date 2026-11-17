@@ -20,7 +20,8 @@ and `QC/build.sh` on Windows). It is FTEQCC with a few speed patches: on Quake V
   changes: the target stays `standard` (no extension opcodes), the `-Fwasm` listing is identical and the compile log
   differs in two lines (no "Globals exceeds 32k" notice, "fte format" in the last line). Stock FTEQCC warns that the pragma's flag is unknown and writes version 6;
   `qvr_checks progs_format` (QC/build.sh, the Visual Studio build, the flatpak) then fails the build. The
-  flatpak's manifest applies the patch to upstream `f937b9d88` (it applies there too).
+  flatpak's fteqcc module (`Misc/linux/flatpak/fteqcc.json`, which the Linux CMake build reads too) applies the patch
+  to upstream `f937b9d88` (it applies there too).
 - **Output** without the flag is byte-identical to stock FTEQCC `f937b9d88` (git-6729): `progs.dat`, the `-Fwasm`
   listing and the compile log, checked on our QC. The binary is stamped with the upstream revision
   (`git-6729-f937b9d88`, 2026-06-04) on purpose: FTEQCC writes its version string into `progs.dat`, so a different

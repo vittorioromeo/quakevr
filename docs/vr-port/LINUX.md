@@ -11,24 +11,43 @@ rejects ("Unhandled graphics binding type 1000023000"). VR on Linux needs the na
 
 ## Build
 
-Packages (Arch): `clang lld cmake ninja sdl2 mesa libx11 libglvnd openxr` (`openxr`: the loader and headers, found with
-pkg-config). Debian/Ubuntu: `clang cmake ninja-build libsdl2-dev libgl-dev libx11-dev libopenxr-dev libopenxr-loader1`.
+Packages (Arch): `clang lld cmake ninja sdl2 mesa libx11 libglvnd openxr patch make` (`openxr`: the loader and
+headers, found with pkg-config; `sdl2-compat` serves for `sdl2`). Debian/Ubuntu: `clang cmake ninja-build libsdl2-dev
+libgl-dev libx11-dev libopenxr-dev libopenxr-loader1 zlib1g-dev patch make`.
 
-    cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
-    cmake --build build
+    cmake --preset linux-release
+    cmake --build --preset linux-release
+
+That builds everything: the engine (`build/ironwail`) and the QuakeC (`quakevr/progs.dat`). `linux-debug` is the same
+in `build-debug/`, unoptimised with the asserts on. Without the presets (CMake before 3.21):
+`cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++`.
 
 - Configure prints `Quake VR: OpenXR backend on (loader ..., GLX binding)` (the EGL binding needs no package);
   without pkg-config `openxr` (or with
   `-DQVR_OPENXR=OFF`) the build has the mock backend alone.
 - **clang**, not gcc: gcc 15/16 rejects Zancle's `__decay` builtin in function signatures (`vr_jobs.hpp`, "use of
   built-in trait ... in function signature") and instantiates a defaulted `za::Pair::operator==` eagerly
-  (`vr_motion.cpp`). Both are in vendored Zancle (no local changes), so gcc stays unsupported.
-- The QuakeC (`quakevr/progs.dat`) and the game data are the same as on Windows: build QC on Windows (or with fteqcc on
-  Linux), run with `-basedir <folder with id1 and quakevr>`.
+  (`vr_motion.cpp`). Both are in vendored Zancle (no local changes), so gcc stays unsupported: configure stops with a
+  message when the compiler is gcc (`-DQVR_ALLOW_GCC=ON` tries it anyway).
+- **The QuakeC** (`Misc/cmake/QuakeC.cmake`): the build compiles it with `QC/build.sh` (its flags and checks) whenever
+  a QC source changes, its output in `build/qc-build.log`. The compiler is FTEQCC with the `fte32` flag
+  (`Tools/fteqcc/README.md`; a stock FTEQCC fails the format check): the first build downloads the source pinned in
+  `Misc/linux/flatpak/fteqcc.json` (the Flatpak's fteqcc module, the one place the URL, checksum and patch are written;
+  checksum checked), applies its patch (`Tools/fteqcc/fte32.patch`) and builds it in `build/fteqcc` (network once,
+  `make`, `patch` and zlib). `-DQVR_FTEQCC=<path>` uses your own instead; `-DQVR_QC=OFF` leaves `progs.dat` alone;
+  `-DQVR_QC_RELEASE=ON` compiles the release flavour (`-DQVR_NO_TESTS`, `QC/build.sh`'s `QVR_QC_RELEASE=1`), as the
+  Flatpak does.
 - The build number shows `build 0 (unknown)` when git can't read the checkout (a Windows worktree seen from WSL).
 
 ## Run
 
+From the repository, with your Quake folder first and the repository (its `quakevr` folder) last:
+
+    ./build/ironwail -basedir ~/.local/share/Steam/steamapps/common/Quake -basedir . -game quakevr
+
+- **Steam's and GOG's Quake** as they are: the original release's paks are named in upper case (`id1/PAK0.PAK`), which
+  the engine matches on Linux too (`Sys_MatchFileCase`: a `pakN.pak` not found by its own name is looked for ignoring
+  case). The `rerelease` folder (`.../Quake/rerelease`) works as a base dir as well.
 - Flat or mock: `vr_backend mock` (or `-novr`, as on Windows). SDL picks X11 or Wayland.
 - VR: `vr_backend openxr`, with an OpenXR runtime: Monado, WiVRn, SteamVR for Linux (the loader finds the active one
   in `~/.config/openxr/1/active_runtime.json`, `/etc/xdg/openxr/1/`, `/etc/openxr/1/`, or `XR_RUNTIME_JSON`).
@@ -62,8 +81,9 @@ Arcane Dimensions' or the expansions' is in it: it reads the player's own Quake 
   bundle as the run's artifact `QuakeVR-<branch>-<hash>` (30 days: the Actions tab, the run, Artifacts). No release is
   published.
 - **Files** (`Misc/linux/flatpak/`): the manifest `io.github.vittorioromeo.QuakeVR.yml` (modules: fteqcc at the commit of
-  the author's `fteqcc64.exe`, for the build only; the OpenXR loader; Quake VR), `build.sh` (in the sandbox: the QuakeC,
-  CMake, the install; the game folder is what git would track under `quakevr/`, less `.gitignore` and `motions/`, as
+  the author's `fteqcc64.exe`, for the build only, in its own file `fteqcc.json`, which the CMake build reads its pin
+  from too; the OpenXR loader; Quake VR), `build.sh` (in the sandbox: the CMake build, the engine and the QuakeC's
+  release flavour with the module's fteqcc, then the install; the game folder is what git would track under `quakevr/`, less `.gitignore` and `motions/`, as
   `Windows/package-quakevr.ps1` has it), `quakevr.sh` (the launcher), the desktop entry, the AppStream metadata and the
   icon (the installer's logo). The build number: CI writes `.qvr-buildinfo` ("<commit count> <hash>"), which
   `qvr_buildinfo.cmake` reads when the copy has no `.git`; a local build says `build 0 (unknown)`.
@@ -173,7 +193,7 @@ Asked for in #82. Feasible; not built here because it needs a tool CI doesn't fe
   container's 2.31), clang from apt.llvm.org there (gcc can't build vendored Zancle).
 - **CI**: a second job in `flatpak.yml` (or `appimage.yml`), `ubuntu-22.04`: apt (`clang`, `cmake`, `ninja-build`,
   `libsdl2-dev`, `libx11-dev`, `libgl-dev`), the OpenXR loader and fteqcc from the same pinned sources as the Flatpak
-  manifest, `Misc/linux/flatpak/build.sh`'s steps with `/app` as an AppDir prefix, then `appimagetool` (pinned) into
+  manifest (fteqcc: the CMake build's own, from `fteqcc.json`), `Misc/linux/flatpak/build.sh`'s steps with `/app` as an AppDir prefix, then `appimagetool` (pinned) into
   `QuakeVR-<branch>-<hash>-x86_64.AppImage`, uploaded as the run's artifact like the Flatpak. About a day's work with
   one CI iteration loop; no signing, no update information (zsync) at first.
 

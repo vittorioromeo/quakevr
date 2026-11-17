@@ -113,6 +113,12 @@ int Sys_FileType (const char *path);
 /* returns an FS entity type, i.e. FS_ENT_FILE or FS_ENT_DIRECTORY.
  * returns FS_ENT_NONE (0) if no such file or directory is present. */
 
+// QVR: a pak named in other letter case (Steam's and GOG's original Quake: id1/PAK0.PAK) found as pak0.pak on a
+// case-sensitive file system. When path does not exist, an entry of its folder whose name matches its last component
+// ignoring case replaces that component in place (the same length: an ASCII match). Returns whether path names an
+// existing file or folder afterwards. Only the last component is matched, not the folders. Windows: whether it exists.
+qboolean Sys_MatchFileCase (char *path);
+
 qboolean Sys_IsDebuggerPresent (void);
 qboolean Sys_GraphicsDebuggerPresent (void); // QVR: RenderDoc or Nsight Graphics in the process (Windows)
 
