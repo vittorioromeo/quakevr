@@ -793,4 +793,27 @@ void R_UpdateLiquidAlpha (void); // QVR: the liquids' alphas from the settings, 
 #define GL_DrawElementsIndirectFunc(mode, type, indirect) (++vr_profcounts.drawcalls, GL_DrawElementsIndirectFunc (mode, type, indirect))
 #define GL_MultiDrawElementsIndirectFunc(mode, type, indirect, n, stride) (++vr_profcounts.drawcalls, GL_MultiDrawElementsIndirectFunc (mode, type, indirect, n, stride))
 
+// QVR: the calls that make the CPU wait for the GPU, counted (vr_gl_sync_count, vr_gl_sync_report; vr/vr_glsafe.cpp): the
+// Quest's frames serialised CPU and GPU (2026-11-17). A query's or a program's status read counts only when it waits.
+enum { VR_GLSYNC_FINISH, VR_GLSYNC_FENCE, VR_GLSYNC_QUERY, VR_GLSYNC_READPIXELS, VR_GLSYNC_TEXIMAGE, VR_GLSYNC_MAP, VR_GLSYNC_LINK, VR_GLSYNC_KINDS };
+#ifdef __cplusplus
+extern "C"
+#endif
+void VR_GLSyncNote (int kind);
+#ifdef __cplusplus
+extern "C"
+#endif
+int VR_GLQueryWaits (GLuint id); // counting: its result not available yet (reading it waits)
+#define VR_GLSYNC_IF(cond, kind) ((cond) ? VR_GLSyncNote (kind) : (void) 0)
+#define glFinish() (VR_GLSyncNote (VR_GLSYNC_FINISH), glFinish ())
+#define glReadPixels(x, y, w, h, format, type, data) (VR_GLSyncNote (VR_GLSYNC_READPIXELS), glReadPixels (x, y, w, h, format, type, data))
+#define glGetTexImage(target, level, format, type, data) (VR_GLSyncNote (VR_GLSYNC_TEXIMAGE), glGetTexImage (target, level, format, type, data))
+#define GL_ClientWaitSyncFunc(sync, flags, timeout) (VR_GLSyncNote (VR_GLSYNC_FENCE), GL_ClientWaitSyncFunc (sync, flags, timeout))
+#define GL_GetQueryObjectivFunc(id, pname, params) (VR_GLSYNC_IF ((pname) == GL_QUERY_RESULT && VR_GLQueryWaits (id), VR_GLSYNC_QUERY), GL_GetQueryObjectivFunc (id, pname, params))
+#define GL_GetQueryObjectuivFunc(id, pname, params) (VR_GLSYNC_IF ((pname) == GL_QUERY_RESULT && VR_GLQueryWaits (id), VR_GLSYNC_QUERY), GL_GetQueryObjectuivFunc (id, pname, params))
+#define GL_GetQueryObjecti64vFunc(id, pname, params) (VR_GLSYNC_IF ((pname) == GL_QUERY_RESULT && VR_GLQueryWaits (id), VR_GLSYNC_QUERY), GL_GetQueryObjecti64vFunc (id, pname, params))
+#define GL_GetQueryObjectui64vFunc(id, pname, params) (VR_GLSYNC_IF ((pname) == GL_QUERY_RESULT && VR_GLQueryWaits (id), VR_GLSYNC_QUERY), GL_GetQueryObjectui64vFunc (id, pname, params))
+#define GL_MapBufferRangeFunc(target, offset, length, access) (VR_GLSYNC_IF (!((access) & (GL_MAP_UNSYNCHRONIZED_BIT | GL_MAP_PERSISTENT_BIT)), VR_GLSYNC_MAP), GL_MapBufferRangeFunc (target, offset, length, access))
+#define GL_GetProgramivFunc(program, pname, params) (VR_GLSYNC_IF ((pname) == GL_LINK_STATUS, VR_GLSYNC_LINK), GL_GetProgramivFunc (program, pname, params))
+
 #endif	/* GLQUAKE_H */
