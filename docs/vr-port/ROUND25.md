@@ -4749,3 +4749,22 @@ His request: bake all 27 title wordings (9 sections x 3) to pick from.
   Details, the open shells item and what a public beta still needs: MP_PLAN.md, "B15 results".
 - **In VR:** with a friend on a dedicated coop server, quit your game mid-level and join again with the same name: your
   weapons and ammo are back. Kill your game from the task manager and restart it: you get your own player back at once.
+
+## MP B16: a vanished server at its client; the players' multiplayer guide (agent/mp, 2026-11-17)
+
+- **Not frozen for 5 minutes any more:** joined to a server that stops answering (crash, unplugged), after 3 s the
+  console, a centre print and a top-right line "SERVER NOT RESPONDING n s" say so (gone when it answers again); at
+  `vr_mp_client_timeout` (new, 30 s; Debug > Reports > Network: Server Timeout; 0: NetQuake's 300 s) the game ends
+  with the server browser open and "Server stopped responding" under it. Three times as long while joining (the
+  server may be loading). The silence is the lesser of game time and the wall clock. A listen host, single player and
+  demos never take the path (loopback). Files: vr_nethud.cpp, cl_main.c, net_main.c, menu.c.
+- `mp_vanish` (new, 8/0): B's link cut through the proxy (notice at 3.1 s, the link back, B plays on; A the listen host
+  untouched), then A's game killed: B out at its 8 s timeout with the reason and the browser open.
+- **mp_armed's rate flake was the test's:** reliable chunks counted as datagrams, and the poses' order by distance alone
+  (the code also doubles what's ahead of the view). The proxy counts datagrams; the client reports each humanoid's
+  weight; the check orders by it. 18/0 alone and in the suite.
+- **Docs:** docs/vr-port/MULTIPLAYER.md is now the players' guide; its old server/client design content is
+  MP_DESIGN.md (references updated outside the round notes: older ROUND notes' "MULTIPLAYER.md" mean MP_DESIGN.md).
+  PATCH_NOTES_1.1.1.md (new): a "Multiplayer beta" section.
+- **In VR:** join a friend's game, have him kill his game: within 3 s your view says the server is not responding,
+  in 30 s you're back at the server browser. Read MULTIPLAYER.md as a player would.

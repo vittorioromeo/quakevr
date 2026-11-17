@@ -3097,3 +3097,49 @@ Next phase: B16 -- the client's side of a vanished server (a "not responding" no
 3 s of silence, a client timeout of its own well under net_messagetimeout's 300 s, back to the menu with the reason;
 `mp_rejoin` grown: the server killed, C told within the bound), then the player-facing multiplayer guide and the
 release notes' beta section; the shells open item above. B10v's VR checks and the ICE/NAT rendezvous service are his.
+
+### B16 results: a vanished server at its client; mp_armed's rate flake; the players' guide (2026-11-17, dev no-LTO build, loopback; `mp_vanish` 8/0)
+
+- **A vanished server** (vr_nethud.cpp `silenceCheck`, cl_main.c `CL_CheckServerSilence`, net_main.c
+  `NET_QvrSilence`): after each frame's reads, a client joined to a remote server measures the server's silence as the
+  lesser of the game time (`realtime - cl.last_received_message`) and the wall clock since the connection's last
+  message, so neither a hitch of the client's own (a level's load counts once) nor a fast-mode test's frames time it
+  out early. After 3 s in the game: the console ("Server not responding (3 s): waiting up to 30 s"), a centre print,
+  and a first line at the top right "SERVER NOT RESPONDING n s" whether or not the net HUD is on; it goes when the
+  server is heard again ("Server responding again"). At `vr_mp_client_timeout` (new, 30 s, archived; Debug > Reports >
+  Network: Server Timeout; 0: NetQuake's net_messagetimeout alone, 300 s) the client leaves the game (Host_EndGame:
+  `clc_disconnect` sent, the connection closed) with the server browser open, "Server stopped responding" under its
+  list (menu.c `M_ServerLost`: m_return_reason) and the reason in the console. While joining (`cls.signon < SIGNONS`:
+  the server may be loading its level; it sends a nop every 5 s meanwhile) the bound is three times as long and there
+  is no notice. A listen host's own client, single player and demos never take the path (a loopback connection:
+  `NET_QvrSilence` 0, and `remote()` needs `!sv.active`).
+- `mp_vanish` (new, 8 checks): A hosts a listen server, B joins through the proxy, both `vr_mp_client_timeout 8`; the
+  proxy's new `blackout` cuts B's link down: B's notice after 3.1 s (console, the HUD's line, its report's
+  `notice_line`), the link back and B plays on, A untouched (no notice, remote 0, still in); A's game killed: B's
+  notice after 2.7 s, out at 7.7 s (from the kill's return) with the reason, the server browser open (`vr_mp_status`'s
+  new `menu=` field), his game running. Its waits are on B's console lines; the silence is real time by design.
+- **mp_armed's rate flake** -- the test's, not the code's: (1) "a snapshot in every datagram" counted the proxy's
+  packets down, reliable chunks included (a fight's many: 318 of 360); the proxy now counts the unreliable datagrams
+  (`NETFLAG_UNRELIABLE`, `window()`'s `datagrams`) and the check is snapshots sent >= datagrams (357 datagrams of 360
+  packets, 371 snapshots); (2) "the nearest poses more often" ordered the humanoids by distance alone, while
+  `weightOf` doubles a record within 60 degrees of the player's view: the failing run's 0.72 was a grunt at 145 units
+  beside or behind B (0.64) against one ahead at 279 (0.96). The client now reports each humanoid's mean weight as it
+  read its poses (`mp_netprio:` `weight=`, from its own view), and the check orders them by it (highest two 1.68x the
+  lowest two, wanted 1.37, weights 1.74); weights within 1.15 of each other aren't told apart.
+- **Docs:** docs/vr-port/MULTIPLAYER.md is now the players' guide (hosting and UDP 26000, joining and the server
+  browser, coop, deathmatch and bots, voice chat, single-player only, when something goes wrong, known issues); the
+  server/client design it held moved to MP_DESIGN.md (references updated, the round notes left as history).
+  PATCH_NOTES_1.1.1.md (new) has a self-contained "Multiplayer beta" section.
+- **Checks:** MP suite (dev) 38 of 42 clean: mp_vanish 8/0 and mp_armed 18/0 in it (and alone 18/0); mp_ground 12/3
+  (B's grip hotspot on the dropped shotgun: -1), mp_rejoin 14/1 (A's shotgun never let fall: its grip's setup, "entity
+  0"), mp_disarm 34/1 (the pouch's shell) and mp_dm 20/2 (vr_dm_test 3's parry, 6's fist 14.5 cm off): the known hand
+  placement flakes (B10b, B8j, B14d), none in this phase's code; alone mp_ground 15/0, mp_rejoin 15/0, mp_dm 22/0,
+  mp_disarm 34/1 (another check: the nail magazine's port) then 35/0. SP: scenario_check PASS (136/0), load_models
+  4/0, vr_run_check 12/0, autosavenow 4/0. Dev and ThinLTO builds 0 warnings.
+- **Open:** the shells after a return (B15's); the notice is a 2D canvas line and a centre print (in VR the centre
+  print may go to the wrist hologram): his look in a headset; LAN discovery and the ICE/NAT rendezvous need his
+  machines and his OK.
+
+Next phase: B17 -- B15's shells item (a level change's parms with a shotgun magazine: counted twice?), a dedicated
+server's comforts (a server.cfg example in the guide, `status`'s pings), then the ICE/NAT rendezvous as a design for
+his OK (no service run). B10v's VR checks, the guide's read-through and internet play with two machines are his.
