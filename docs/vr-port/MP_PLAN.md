@@ -3364,8 +3364,37 @@ rendezvous service decision.
   is rarely uniform: the depth's 2 s window and the cap are worth a look with his two machines (`depth`, `wait_sum`
   in a server's `vr_mp_status`).
 
-Next phase: B21 -- NAT step 1 if he agrees (one server socket for every client); else the dedicated server's heap
-growth in the 16-player soak (`soak --soak-minutes 40`: bounded at the fights' peak or a leak; vr_alloc_sites on
-Box3D's mesh manifolds), the client's replay against SV_PushMove's carry of a rider (the lift's DIST_EPSILON misses) and the snapshots' own reordering at the client (an
-overtaken snapshot dropped: whether reading it helps interpolation under jitter); his: B10v's VR checks, internet play
-with two machines, the rendezvous service decision.
+### B21 results: the server's heap over a 40-minute soak; Box3D's memory (2026-11-17, dev no-LTO build, loopback, low impact; NAT step 1 skipped: his OK)
+
+- **Box3D is not the server's growth.** `vr_physics_mem` (new; Debug > Profiling and Memory): Box3D's live bytes,
+  its world's, the contact manifolds' pools and long arrays, the engine's hull caches; the soak's rows carry it each
+  minute (`mp_box3dmem`). 16 players on dm3, 30 minutes: Box3D 5.1 -> 8.8 MB, the manifold pools 1.4 MB, the longest
+  manifold array 8 (upstream's per-count pools would hold ~5 MB at that). B20's busiest site, `b3GrowAlloc` from
+  `b3ComputeMeshManifolds`, is the mesh contacts' triangle caches, freed with their contacts.
+- **The server's heap** (mimalloc's committed after a collect): 1211 MB at minute 2, 1447 at minute 30: steps of
+  +55 to +60 MB at minutes 9, 13 and 17, +10 to +13 at minutes 20-22, 0.2-1 MB a minute between; A and B flat
+  (1509 -> 1518, 1519 -> 1523). **The map again at minute 30** (`soak --soak-change 30`: changelevel dm3, A and B
+  back): Box3D 8.8 -> 3.1 MB, the heap 1447 -> 1383 MB: 64 of the 236 MB came back. Not pools settling at the
+  fights' peak (the steps keep coming, the change returns little): a server-side leak or a cache outliving the map,
+  in ~55 MB lumps; not Box3D. FrikBot's bots don't follow a changelevel: minutes 31-40 had A and B alone (flat).
+  The run's two FAILs: the heap check (1211 -> 1383) and "nobody left" (the change's own leaves: now excluded).
+- **Found on the way, single player too** (commit 8cee842ae; on next's base: branch `agent/b21-box3dmem`, 24b7ce728):
+  the prop hulls' cache (`propHulls`, keyed by each thing's drawn box) grew all map long: 1912 hulls by minute 30 on
+  the server, 3940 over the arena's 32 waves (`vr_arena_test 6`: Box3D 5.3 -> 10.5 MB); it is trimmed past 1024 now
+  (`trimPropHulls`; the actors' hulls stay), and the same arena soak holds at ~5.7 MB. Box3D's manifold arrays
+  longer than 4 come from the heap (a guard: upstream's per-count pools are quadratic in the longest; Box3D
+  README). On next's base: scenario_check PASS (136/0), load_models 4/0, vr_run_check 12/0, ThinLTO 0 warnings.
+  Arena test 6 fails "a wave clear's drops go vr_arena_item_waves clears on" (18 > 15) before and after the change.
+- **The client's overtaken snapshots** (item 2): not done. A snapshot overtaken on the way is one sample between two
+  the interpolation already joins with a line; its datagram's other contents (svc_time, sounds, temp entities,
+  prints) cannot be replayed out of order, and its entities' samples would need inserting into the histories by time.
+  Small gain (a midpoint for curved motion under reordering), not cheap: left.
+- **The lift's DIST_EPSILON misses** (item 3): not trivial (the client's replay against SV_PushMove's carry): left.
+
+Next phase: B22 -- NAT step 1 if he agrees; else the dedicated server's ~55 MB heap steps (16 players, dm3; not
+Box3D; 64 of 236 MB back at a map change): a live-bytes-by-size snapshot of mimalloc's heaps (`mi_heap_visit_blocks`)
+before and after a step, then the allocation sites of the grown size (vr_alloc_sites on the server's other threads
+too), suspects the server-only stores (the snapshots' sent logs, lag compensation, netmoves, the profiler's and
+QuakeC's per-function records while vr_profile is on) and the bots' clients; the soak's change could re-add the bots
+(impulse 100) so its minutes after a change stay busy. His: B10v's VR checks, internet play with two machines, the
+rendezvous service decision.

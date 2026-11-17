@@ -4880,3 +4880,23 @@ His decision (2026-11-17, after the kit's `work\ericw\FINDINGS.md`): ship a fork
 - **Tests:** `mp_jitter` (new, in the suite); `predict --part` takes `--jitter`/`--loss`. Checks: MP_PLAN.md, "B20".
 - **In VR:** nothing new in single player; in multiplayer over Wi-Fi or a busy link, others' movement should be
   steadier and lifts should not jolt under you.
+
+## MP B21: the server's heap in a 40-minute soak; Box3D's memory; the prop hulls' cache (agent/mp, 2026-11-17)
+
+- **`vr_physics_mem`** (Debug > Profiling and Memory): Box3D's live bytes (all of it, `b3GetByteCount`), its
+  world's, the bodies and contacts, the contact manifolds' pools (`b3World_GetManifoldMemory`, a local Box3D change)
+  and long arrays, the longest manifold array seen, and the engine's hull caches (prop, corpse, gun, mover, retired).
+  `vr_arena_test 6` prints it every 4 waves; the MP soak each minute (`mp_box3dmem`).
+- **The prop hulls' cache** (`propHulls`, `vr_box3d_mesh.cpp`): keyed by model, frame and the thing's drawn box, so
+  gibs, heads and dropped things of every size added hulls all map long (3940 over the arena's 32 waves, Box3D
+  5.3 -> 10.5 MB; ~0.2 MB a minute on a 16-player server). `trimPropHulls` (`vr_box3d_props.cpp`, each sync) lets
+  the non-actor hulls go once it holds more than 1024 (the actors' frame -1 hulls stay: `Slot::hull` keeps them; the
+  others are read only as a body is made, the world copying the hull); `vr_physics_hull_stats` counts them. The
+  arena soak now holds at ~5.7 MB.
+- **Box3D's manifold arrays** longer than 4 come from b3Alloc, not a pool of their own count (upstream: a pool of
+  512 arrays for every count up to the longest a mesh contact ever had, kept until the world goes; quadratic). The
+  longest measured: 6 in the arena, 8 on dm3 with 16 players: a guard (Box3D README).
+- **The server's heap** over 40 minutes (`mp_test.py soak --soak-minutes 40 --soak-change 30`): steps of ~55 MB
+  that a map change mostly does not give back, and not Box3D's (8.8 MB at most): MP_PLAN B21, next phase B22.
+- Shipping: the SP part is commit 8cee842ae; on next's base `agent/b21-box3dmem` (24b7ce728): scenario_check 136/0,
+  load_models 4/0, vr_run_check 12/0, ThinLTO 0 warnings.
