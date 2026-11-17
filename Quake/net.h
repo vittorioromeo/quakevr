@@ -109,6 +109,8 @@ int NET_SlistEntry (int n, const char **name, const char **map, const char **add
 // QVR: (B13) a connection's counts (the net HUD's, vr_nethud.cpp; qsocket_t's): unreliable datagrams read and skipped,
 // reliable chunks resent, bytes in and out; its reliable chunks' smoothed round trip in seconds (0: none yet)
 void NET_QvrLinkCounts (struct qsocket_s *sock, unsigned int counts[5], double *reliableRtt);
+// QVR: (B16) the wall-clock seconds since the connection last read a message (0: a loopback one, never silent)
+double NET_QvrSilence (struct qsocket_s *sock);
 
 
 /* FIXME: driver related, but public:

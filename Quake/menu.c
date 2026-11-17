@@ -9157,6 +9157,12 @@ qboolean M_ForcedCenterPrint (float *alpha)
 	return forced;
 }
 
+void M_ServerLost (const char *reason)
+{
+	M_Menu_ServerList_f ();
+	q_strlcpy (m_return_reason, reason, sizeof (m_return_reason));
+}
+
 qboolean M_ForcedUnderwater (void)
 {
 	return key_dest == key_menu && M_GetBaseState (m_state) == m_options && M_Options_ForcedUnderwater ();

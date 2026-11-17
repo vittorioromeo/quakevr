@@ -832,6 +832,24 @@ QVR: a lockstep client's waiting frame (vr_mp_lockstep_ahead, vr_mptest.cpp B14e
 one that lets its next move go (or that ends its signon), nothing relinked, no time passing; its signon replies sent.
 ===============
 */
+/*
+===============
+CL_CheckServerSilence
+
+QVR: (B16) a vanished server: a remote server silent past vr_mp_client_timeout (a crash, a lost link: NetQuake's own
+net_messagetimeout is 5 minutes) ends the game here, back to the server browser with the reason (vr/vr_nethud.cpp: the
+notice before it). Never a listen host's or single player's game (a loopback connection).
+===============
+*/
+static void CL_CheckServerSilence (void)
+{
+	if (cls.state != ca_connected || VR_ServerSilence () < 2)
+		return;
+	Con_Printf ("%s\n", VR_ServerSilenceReason ());
+	M_ServerLost ("Server stopped responding");
+	Host_EndGame ("%s", VR_ServerSilenceReason ());
+}
+
 void CL_ReadLockstep (void)
 {
 	int ret;
@@ -848,6 +866,7 @@ void CL_ReadLockstep (void)
 		VR_NoteServerMessage (ret);
 		CL_ParseServerMessage ();
 	}
+	CL_CheckServerSilence (); // QVR: (B16)
 	if (cls.state == ca_connected && cls.signon < SIGNONS && cls.message.cursize && NET_CanSendMessage (cls.netcon))
 	{
 		if (NET_SendMessage (cls.netcon, &cls.message) == -1)
@@ -894,6 +913,7 @@ int CL_ReadFromServer (void)
 
 	if (cl_shownet.value)
 		Con_Printf ("\n");
+	CL_CheckServerSilence (); // QVR: (B16)
 
 	VR_ProfileBegin ("relink"); // QVR: profile
 	CL_RelinkEntities ();

@@ -104,6 +104,8 @@ int VR_BrowserRowRecent (int row);
 void VR_BrowserToggleFavourite (int row);
 void VR_BrowserForget (int row);	// off the recent list
 void VR_BrowserJoin (int row);		// connect to its address
+int VR_ServerSilence (void);			// (B16) after reading the server's messages: 0 heard, 1 silent over 3 s (the notice), 2 silent past vr_mp_client_timeout (the client drops it: VR_ServerSilenceReason; vr_nethud.cpp): cl_main.c
+const char *VR_ServerSilenceReason (void);	// (B16) the console's line of that drop
 const char *VR_NetHudLine (int line);	// (B13) the net HUD's line (vr_net_hud; NULL: none; vr_nethud.cpp): gl_screen.c
 int VR_IsActive (void);		// nonzero while vr_enabled is set and a backend session is running: the
 							// runtime paces frames (no frame cap, no sleeping when unfocused)

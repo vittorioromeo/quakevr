@@ -1164,6 +1164,10 @@ za::Vector<Item> pageDebugReports()
             .help("vr_mp_rejoin_keep: hosting a coop game, a player who leaves (quits, crashes or loses his link) and "
                   "joins again by the same name gets back his weapons, ammo, health and armour, in his old slot, until the "
                   "game ends. Off: he comes back as a new player."),
+        slider("Network: Server Timeout", vr_mp_client_timeout, 0.f, 120.f, 5.f, "%.0f s")
+            .help("vr_mp_client_timeout: joined to a remote server that stops answering (it crashed, its link dropped), "
+                  "after 3 s the top right and the view say it is not responding; after this many seconds you are taken "
+                  "back to the server browser with the reason. 0: wait as long as NetQuake did (5 minutes)."),
         toggle("Network: Draw Player Hands", vr_mp_avatar_draw)
             .help("vr_mp_avatar_draw: the other players' hands (their fingers too) and held weapons drawn where their own "
                   "games drew them; off: not drawn."),

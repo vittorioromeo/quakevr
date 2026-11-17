@@ -353,10 +353,11 @@ void traceFrame()
 void status_f()
 {
     // (intermission, health: this client's view, cl.intermission and its health stat: the coop exit and death, B4b)
-    Con_Printf("mp_status: t=%lld dedicated=%d server=%d clients=%d connected=%d map=%s self=%d intermission=%d health=%d\n",
+    Con_Printf("mp_status: t=%lld dedicated=%d server=%d clients=%d connected=%d map=%s self=%d intermission=%d health=%d "
+               "menu=%d\n",
         wallMs(), isDedicated ? 1 : 0, sv.active ? 1 : 0, sv.active ? svs.maxclients : 0, signedOn() ? 1 : 0,
         signedOn() ? cl.mapname : "-", signedOn() ? cl.viewentity : 0, signedOn() ? cl.intermission : 0,
-        signedOn() ? cl.stats[STAT_HEALTH] : 0);
+        signedOn() ? cl.stats[STAT_HEALTH] : 0, key_dest == key_menu ? 1 : 0);
     // (a remote server's snapshots read, undecodable ones, records; the interpolation buffer: on, its delay, the frames
     // its time passed the newest message; B7b)
     const qvr::netsnap::ClientCounts cs = qvr::netsnap::clientCounts();

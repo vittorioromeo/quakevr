@@ -47,8 +47,16 @@ struct State
     bool predicts{false};
     int reportAfter{0}; // vr_net_hud_report <n>: the windows left before it prints
     char lines[2][lineLength]{};
+    // (B16) the server's silence: seconds of it (VR_ServerSilence's last), the notice up, its line, the drop's reason
+    double silence{0.0};
+    bool notice{false};
+    char noticeLine[lineLength]{};
+    char reason[128]{};
 };
 State state;
+
+constexpr double noticeSeconds = 3.0; // (B16) the server silent this long: "not responding" (a game in play hears it every frame)
+constexpr double joiningFactor = 3.0; // ... while joining (cls.signon < SIGNONS: the server may be loading its level) the timeout's this times
 
 void printReport();
 
@@ -140,10 +148,55 @@ void report_f()
 void printReport()
 {
     Con_Printf("mp_nethud: on=%d remote=%d window=%d ping=%d ping_last=%d predicts=%d loss=%.2f fix_rate=%.2f "
-               "fix_mean=%.3f in=%.2f out=%.2f resent=%.2f line0=\"%s\" line1=\"%s\"\n",
+               "fix_mean=%.3f in=%.2f out=%.2f resent=%.2f silence=%.1f notice=%d line0=\"%s\" line1=\"%s\" "
+               "notice_line=\"%s\"\n",
         static_cast<int>(vr_net_hud.value), remote() ? 1 : 0, state.haveWindow ? 1 : 0, state.pingMs, state.pingLastMs,
         state.predicts ? 1 : 0, state.lossPct, state.fixRate, state.fixMean, state.inKBs, state.outKBs, state.resentRate,
-        state.lines[0], state.lines[1]);
+        state.silence, state.notice ? 1 : 0, state.lines[0], state.lines[1], state.notice ? state.noticeLine : "");
+}
+
+// (B16) The server's silence after this frame's reads: the lesser of the game time (realtime: in a fast-mode test a
+// frame's fixed step; a long frame of our own, a level's load, counts once) and the wall clock since its last message
+// (the connection's), so neither a hitch of ours nor a fast run's frames time it out early.
+int silenceCheck()
+{
+    if(!remote())
+    {
+        state.silence = 0.0;
+        state.notice = false;
+        return 0;
+    }
+    const double game = realtime - static_cast<double>(cl.last_received_message);
+    state.silence = za::max(0.0, za::min(game, NET_QvrSilence(cls.netcon)));
+    const bool joined = cls.signon == SIGNONS;
+    const double timeout = static_cast<double>(vr_mp_client_timeout.value) * (joined ? 1.0 : joiningFactor);
+    if(timeout > 0.0 && state.silence >= timeout)
+    {
+        q_snprintf(state.reason, sizeof(state.reason), "Server not responding for %.0f s: disconnected (%s)",
+            state.silence, joined ? "in the game" : "while joining");
+        state.notice = false;
+        return 2;
+    }
+    const bool silent = joined && state.silence >= noticeSeconds;
+    if(silent != state.notice)
+    {
+        state.notice = silent;
+        if(silent)
+        {
+            Con_Printf("Server not responding (%.0f s)%s\n", state.silence,
+                timeout > 0.0 ? va(": waiting up to %.0f s", timeout) : "");
+            SCR_CenterPrintFor("Server not responding", 4.f);
+        }
+        else
+        {
+            Con_Printf("Server responding again\n");
+        }
+    }
+    if(silent)
+    {
+        q_snprintf(state.noticeLine, lineLength, "SERVER NOT RESPONDING %3.0f s", state.silence);
+    }
+    return silent ? 1 : 0;
 }
 
 } // namespace
@@ -163,10 +216,27 @@ extern "C" const char* VR_NetHudLine(int line)
     {
         nethud::update();
     }
+    // (B16) the server's silence first, whether or not the HUD is on
+    const int notice = nethud::state.notice && nethud::state.sock ? 1 : 0;
+    if(line == 0 && notice)
+    {
+        return nethud::state.noticeLine;
+    }
+    line -= notice;
     const int lines = vr_net_hud.value >= 2.f ? 2 : vr_net_hud.value > 0.f ? 1 : 0;
     if(line < 0 || line >= lines || !nethud::state.sock)
     {
         return nullptr;
     }
     return nethud::state.lines[line];
+}
+
+extern "C" int VR_ServerSilence()
+{
+    return nethud::silenceCheck();
+}
+
+extern "C" const char* VR_ServerSilenceReason()
+{
+    return nethud::state.reason;
 }

@@ -312,7 +312,7 @@ class Session:
             p.stop()
             self.note(p.summary())
             if p.first is not None and p.last is not None and p.last > p.first:
-                w = p.window((p.first, {d: [0, 0, 0, 0] for d in ("up", "down")}), (p.last, p.stats))
+                w = p.window((p.first, {d: [0, 0, 0, 0, 0] for d in ("up", "down")}), (p.last, p.stats))
                 self.metric("link_%d" % p.listen_port, w)
                 w["kinds"] = kind_rates(kinds, w["down"]["bytes_s"])
                 LINKS.append((self.test, w))

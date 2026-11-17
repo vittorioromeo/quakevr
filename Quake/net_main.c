@@ -409,6 +409,14 @@ void NET_QvrLinkCounts (struct qsocket_s *sock, unsigned int counts[5], double *
 	*reliableRtt = sock->reliableRtt;
 }
 
+// QVR: (B16) a client's vanished server (vr_nethud.cpp; net.h)
+double NET_QvrSilence (struct qsocket_s *sock)
+{
+	if (!sock || IS_LOOP_DRIVER (sock->driver))
+		return 0.0;
+	return SetNetTime () - sock->lastMessageTime;
+}
+
 
 static void Slist_Send (void *unused)
 {

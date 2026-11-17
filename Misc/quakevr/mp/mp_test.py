@@ -84,6 +84,9 @@ Tests:
              sent the same in both runs (the server's vr_mp_lockstep_movelog), every edict field compared.
     lockstep_throw (B14e) the same on e1m1 with props thrown: B's shotgun from his main hand, A's axe from his
              off hand, given into a gripping hand and swung up hard as it lets go; held at 36, 72, 144, 216, 432.
+    vanish   (B16) a vanished server at its client: B's link down cut, "not responding" after 3 s, the link back; A,
+             the listen host, untouched; A's game killed: B told, then out at his vr_mp_client_timeout to the server
+             browser with the reason.
     suite    coop, coop with B at 150 ms each way and 2% loss, bandwidth, armed, retransmit, version, avatar, avatarcal, body, prefs, grab,
              teleport, held, ground, campaign, campaign_listen, flow, rejoin, download, pickup, forcegrab, melee, moves, climb,
              rules, cosmetics, flatbody, loss, predict, predictclimb, lagcomp, disarm, voice, voice with B 50 ms (30 ms
@@ -317,8 +320,8 @@ def net_window(s, srv, b, label, packets=IDLE_PACKETS):
     b.cmd("vr_net_bytes poses")
     _, line = b.wait(r"mp_netbytes: ", 10, since)
     b.wait(r"mp_netprio: done", 10, since)
-    prio = [(float(fields(l)["dist"]), int(fields(l)["entries"]), int(fields(l)["ent"])) for l in b.lines[since:]
-            if l.startswith("mp_netprio: ent=")]
+    prio = [(float(fields(l)["dist"]), int(fields(l)["entries"]), int(fields(l)["ent"]), float(fields(l)["weight"]))
+            for l in b.lines[since:] if l.startswith("mp_netprio: ent=")]
     kinds = kind_rates(fields(line), w["down"]["bytes_s"])
     ops = [tuple(int(x) for x in p.split("/")) for p in fields(line).get("ent_ops", "0/0,0/0,0/0,0/0").split(",")]
     s.metric("armed_%s" % label, {"link": w, "kinds": kinds, "prio": prio, "ent_ops": ops})
@@ -490,29 +493,35 @@ def armed(s):
             int(sn["waited"]) > int(sn0.get("waited", 0)), "%s" % sn)
     s.check("under vr_net_rate %d: B's link down within %g of it" % (ARMED_RATE, RATE_SLACK),
             down <= ARMED_RATE * RATE_SLACK, "%d B/s, mean %d B" % (down, w["down"]["mean_B"]))
+    # (B16) the datagrams down in the window (the proxy's count of unreliable packets: B13d's flake counted the
+    # reliable chunks too, a busy fight's many, as datagrams without a snapshot)
     sent = int(sn["sent"]) - int(sn0["sent"]) if sn and sn0 else 0
-    s.check("under it: a snapshot (his own state) still in every datagram", sent >= 0.9 * IDLE_PACKETS,
-            "%d snapshots in %d datagrams or more" % (sent, IDLE_PACKETS))
+    grams = w["down"]["datagrams"]
+    s.check("under it: a snapshot (his own state) still in every datagram", grams > 0 and sent >= grams,
+            "%d snapshots sent from before the window to after it; %d datagrams in it (of %d packets)" % (
+                sent, grams, w["down"]["pkts"]))
     # (B12c) only the humanoids alive at the window's end (alive through it: they don't come back): one killed in it
     # sent poses only until it fell (a near one killed early read as the rate's fault: 5 and 10 entries against 60)
     every = prio
-    prio = [p for p in prio if alive(srv, p[2])]
-    near = [e for d, e, _ in prio[:2]]
-    far = [e for d, e, _ in prio[-2:]]
-    # (B12b) by how much depends on how far apart they stood: a record's weight is 256 / (256 + distance)
-    # (vr_netsnap.cpp weightOf), so the nearest two's share over the farthest two's should be at least half way to
-    # their weights' ratio (the fixed 1.2 failed with the six close together once the entities cost less)
-    def weight(d):
-        return 256.0 / (256.0 + d)
-    ratio = (sum(weight(p[0]) for p in prio[:2]) / max(1e-6, sum(weight(p[0]) for p in prio[-2:]))) if len(prio) >= 4 else 1.0
+    # (B16) ordered by their weights for B as he read them (vr_netsnap.cpp weightOf: 256 / (256 + distance), twice
+    # within 60 degrees of his view): B13d's flake ordered them by distance alone, and in the fight a near one beside
+    # or behind him (weight 0.64 at 145 units) rightly came less often than a far one ahead (0.96 at 279)
+    prio = sorted((p for p in prio if alive(srv, p[2])), key=lambda p: -p[3])
+    near = [p[1] for p in prio[:2]]
+    far = [p[1] for p in prio[-2:]]
+    # (B12b) by how much depends on how far apart they stood: the highest two weights' share over the lowest two's
+    # should be at least half way to their weights' ratio (the fixed 1.2 failed with the six close together once the
+    # entities cost less)
+    ratio = (sum(p[3] for p in prio[:2]) / max(1e-6, sum(p[3] for p in prio[-2:]))) if len(prio) >= 4 else 1.0
     want = 1.0 + 0.5 * (ratio - 1.0)
     if len(prio) < 4:
         # (the fight killed too many in the window to compare two and two: noted, not failed)
         s.note("under it: the nearest humanoids' poses against the farthest's not measured: %d alive at the end of %s" % (
             len(prio), every))
-    s.check("under it: the nearest humanoids' poses come more often than the farthest's (half way to their weights' ratio)",
-            len(prio) < 4 or (sum(near) > want * sum(far) and sum(near) > sum(far)),
-            "nearest two %s, farthest two %s: %.2f, wanted %.2f (weights %.2f; the living of %s)" % (
+    s.check("under it: the humanoids weighted most (near, ahead) have their poses more often than the least (half way "
+            "to their weights' ratio; weights within 1.15 of each other: not told apart)",
+            len(prio) < 4 or ratio < 1.15 or sum(near) > want * sum(far),
+            "highest two %s, lowest two %s: %.2f, wanted %.2f (weights %.2f; dist, entries, ent, weight of %s)" % (
                 near, far, sum(near) / max(1, sum(far)), want, ratio, every))
     cs = client_snap_status(b)
     s.check("under it: none undecodable", cs and int(cs["undecodable"]) == 0, "%s" % cs)
@@ -5120,6 +5129,69 @@ NETHUD_LAG_MS = 50
 NETHUD_LOSS = 0.05
 
 
+VANISH_TIMEOUT = 8  # (B16) B's vr_mp_client_timeout in mp_vanish, s (its default 30: the test's real-time wait shorter)
+
+
+def vanish(s):
+    """(B16) A vanished server, at its client: A hosts a listen server (his own client on the loopback), B joins
+    through a proxy, both with vr_mp_client_timeout VANISH_TIMEOUT. B's link down cut (the proxy drops it): after 3 s
+    B's net HUD and view say the server is not responding, A's own game is untouched (no notice, still in it); the
+    link back: B says so and plays on. Then A's game is killed (a crash: behind B's proxy no port unreachable reaches
+    B, as over the internet): B says not responding, then at VANISH_TIMEOUT (not net_messagetimeout's 300 s) leaves the
+    game with the reason, the server browser open, his game still running. (The waits are on B's console lines: the
+    silence is real time, the lesser of the wall clock and the game's.)"""
+    srv, a, b, ea, eb = join(s, listen=True)
+    for inst in (a, b):
+        inst.cmd("vr_mp_client_timeout %d" % VANISH_TIMEOUT)
+    since_a, since_b = a.mark(), b.mark()
+    b.proxy.blackout = True
+    cut = time.monotonic()
+    s.note("B's link down cut")
+    notice = wait_quietly(b, r"^Server not responding \(", 15, since_b, "B's notice")
+    after = time.monotonic() - cut
+    fb = nethud_report(b, 0, "B's net HUD silent")
+    fa = nethud_report(a, 0, "A's net HUD (the host)")
+    b.proxy.blackout = False
+    s.check("B's link cut: after 3 s he is told the server is not responding (console, HUD line, the view's centre "
+            "print)", notice is not None and 2.5 <= after <= 6.0 and fb["notice"] == "1" and
+            fb["notice_line"].startswith("SERVER NOT RESPONDING"),
+            "%s after %.1f s; HUD notice %s line '%s', silence %s s" % (
+                notice[1].strip() if notice else "no notice", after, fb["notice"], fb["notice_line"], fb["silence"]))
+    back = wait_quietly(b, r"^Server responding again", 15, since_b, "B hearing the server again")
+    own_b = own_status(b)
+    s.check("the link back: B says so and is still in the game", back is not None and own_b.get("connected") == "1",
+            "%s; connected %s" % ("told" if back else "not told", own_b.get("connected")))
+    own_a = own_status(a)
+    s.check("A, the listen host, untouched meanwhile: no notice, his own game on", fa["notice"] == "0" and
+            fa["remote"] == "0" and a.find(r"Server not responding", since_a) is None and own_a.get("connected") == "1",
+            "notice %s remote %s; connected %s" % (fa["notice"], fa["remote"], own_a.get("connected")))
+
+    # A's game crashes (killed): B hears nothing more from it
+    since_b = b.mark()
+    a.proc.kill()
+    a.proc.wait()
+    killed = time.monotonic()
+    s.instances.remove(a)
+    s.note("A's game (the host) killed")
+    notice = wait_quietly(b, r"^Server not responding \(", 15, since_b, "B's notice of the dead host")
+    noticed = time.monotonic() - killed
+    dropped = wait_quietly(b, r"^Server not responding for \d+ s: disconnected", VANISH_TIMEOUT + 20, since_b,
+                           "B dropping the dead host")
+    gone = time.monotonic() - killed
+    left = wait_quietly(b, r"mp_event: .* left", 10, since_b, "B out of the game")
+    own_b = own_status(b)
+    s.metric("vanish_notice_s", round(noticed, 2))
+    s.metric("vanish_drop_s", round(gone, 2))
+    s.check("the host gone: B told it is not responding after 3 s", notice is not None and 2.0 <= noticed <= 6.0,
+            "%s after %.1f s" % (notice[1].strip() if notice else "no notice", noticed))
+    s.check("then at his timeout (%d s, not 300) B leaves the game with the reason, back at the server browser, his "
+            "game running" % VANISH_TIMEOUT, dropped is not None and VANISH_TIMEOUT - 1.0 <= gone <= VANISH_TIMEOUT + 5 and
+            left is not None and own_b.get("connected") == "0" and own_b.get("menu") == "1" and b.proc.poll() is None,
+            "%s after %.1f s; left %s; connected %s menu %s" % (dropped[1].strip() if dropped else "not dropped", gone,
+                                                                "yes" if left else "no", own_b.get("connected"),
+                                                                own_b.get("menu")))
+
+
 def nethud_report(inst, windows, what):
     since = inst.mark()
     inst.cmd("vr_net_hud_report %d" % windows)
@@ -5127,6 +5199,7 @@ def nethud_report(inst, windows, what):
     f = fields(line.split(" line0=")[0])
     f["line0"] = line.split('line0="', 1)[1].split('"', 1)[0]
     f["line1"] = line.split('line1="', 1)[1].split('"', 1)[0]
+    f["notice_line"] = line.split('notice_line="', 1)[1].split('"', 1)[0] if 'notice_line="' in line else ""
     return f
 
 
@@ -5412,6 +5485,8 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             browser(s)
         elif test == "mp_nethud":
             nethud(s)
+        elif test == "mp_vanish":
+            vanish(s)
         elif test == "mp_soak":
             soak(s)
         elif test == "mp_lockstep_throw":
@@ -5446,7 +5521,7 @@ def print_bytes_table():
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "soak", "suite"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "soak", "suite"])
     ap.add_argument("--base", required=True, help="the game folder (id1, quakevr...)")
     ap.add_argument("--exe", default=EXE)
     ap.add_argument("--out", default=os.path.join(REPO, "scratch", "mp"))
@@ -5484,7 +5559,7 @@ def main():
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
     elif args.test in ("bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground",
-                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "soak"):
+                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "soak"):
         ok = run(args, "mp_" + args.test)
     elif args.test == "voice":
         ok = run(args, "mp_voice", args.lag, args.jitter, args.loss)
@@ -5530,6 +5605,7 @@ def main():
         ok = run(args, "mp_lockstep_throw") and ok
         ok = run(args, "mp_browser") and ok
         ok = run(args, "mp_nethud") and ok
+        ok = run(args, "mp_vanish") and ok
         # B's link per scenario (MP_PLAN B7: byte counts against mp_bandwidth's): what the next phases cut.
         print_bytes_table()
         print("mp_suite: %s" % ("passed" if ok else "FAILED"))

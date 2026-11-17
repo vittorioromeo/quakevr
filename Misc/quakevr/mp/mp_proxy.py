@@ -25,6 +25,7 @@ import time
 NETFLAG_CTL = 0x80000000
 NETFLAG_DATA = 0x00010000  # a reliable message's chunk (net_dgrm.c)
 NETFLAG_ACK = 0x00020000   # its ack
+NETFLAG_UNRELIABLE = 0x00100000  # a datagram (the snapshot's)
 CCREP_ACCEPT = 0x81
 HOST = "127.0.0.1"
 
@@ -56,7 +57,9 @@ class Proxy:
         self.stop_flag = False
         self.thread = None
         # Stats, per direction: packets, bytes (UDP payload), dropped; first and last packet time.
-        self.stats = {"up": [0, 0, 0, 0], "down": [0, 0, 0, 0]}  # packets, bytes, dropped, largest
+        self.stats = {"up": [0, 0, 0, 0, 0], "down": [0, 0, 0, 0, 0]}  # packets, bytes, dropped, largest, datagrams
+        # (B16) the server gone silent: every packet down dropped while set (a crashed server, a link cut)
+        self.blackout = False
         self.first = None
         self.last = None
         # (B12b) reliable chunks down to drop (drop_reliable_down): how many more; each dropped one's sequence and time,
@@ -124,6 +127,9 @@ class Proxy:
 
     def schedule(self, sock, addr, pkt, direction, control):
         st = self.stats[direction]
+        if direction == "down" and self.blackout:
+            st[2] += 1
+            return
         if direction == "down" and self.reliable_down(pkt):
             st[2] += 1
             return
@@ -133,6 +139,8 @@ class Proxy:
         st[0] += 1
         st[1] += len(pkt)
         st[3] = max(st[3], len(pkt))
+        if not control_or_short(pkt) and int.from_bytes(pkt[0:4], "big") & NETFLAG_UNRELIABLE:
+            st[4] += 1
         now = time.monotonic()
         self.first = self.first if self.first is not None else now
         self.last = now
@@ -209,14 +217,15 @@ class Proxy:
         for d in ("up", "down"):
             n = b[1][d][0] - a[1][d][0]
             by = b[1][d][1] - a[1][d][1]
-            out[d] = {"pkts_s": round(n / span, 1), "bytes_s": round(by / span), "mean_B": by // max(n, 1)}
+            out[d] = {"pkts_s": round(n / span, 1), "bytes_s": round(by / span), "mean_B": by // max(n, 1),
+                      "pkts": n, "datagrams": b[1][d][4] - a[1][d][4]}
         return out
 
     def summary(self):
         span = (self.last - self.first) if self.first is not None and self.last is not None else 0.0
         parts = []
         for d in ("up", "down"):
-            n, b, dropped, most = self.stats[d]
+            n, b, dropped, most = self.stats[d][:4]
             rate = b / span / 1024.0 if span > 0 else 0.0
             parts.append("%s %d pkts %d B (%.1f KB/s, mean %d B, largest %d B) dropped %d" % (
                 d, n, b, rate, b // max(n, 1), most, dropped))

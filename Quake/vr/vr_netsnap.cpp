@@ -637,6 +637,9 @@ za::Vector<za::I32> byPrio;  // (... the entries in priority order)
 constexpr int headMost = 3;  // an entry's head: a key's step under 2^19
 za::Vector<int> poseEntries; // the client: the pose entries read of each entity (vr_net_bytes poses; the rate's priorities)
 za::Vector<float> poseDists; // ... and the sum of its distances from us at each (their mean: where it was meanwhile)
+za::Vector<float> poseWeights; // ... and of its weights for us at each (weightOf's, from our view: near and ahead; B16)
+constexpr float nearUnits = 256.f; // a record's weight: 1 here, halving each this much farther ...
+constexpr float aheadWeight = 2.f; // ... twice ahead of his view (within 60 degrees), twice again another player's
 long long entOps[4][2]{};    // the client: the entities' entries read by op (gone, whole, delta, fields): count, bytes
 // The server: its snapshots' entity entries written, by entity number (vr_net_classes: by classname; B12c's gib storms)
 struct SentTally
@@ -884,14 +887,21 @@ bool decode(const Snapshot* base, int bodyLen, Snapshot& out, unsigned pflags, c
                 {
                     poseEntries.resize(static_cast<za::SizeT>(e) + 1, 0);
                     poseDists.resize(static_cast<za::SizeT>(e) + 1, 0.f);
+                    poseWeights.resize(static_cast<za::SizeT>(e) + 1, 0.f);
                 }
                 poseEntries[static_cast<za::SizeT>(e)]++;
                 if(e < cl.num_entities && cl.viewentity > 0 && cl.viewentity < cl.num_entities)
                 {
                     const float* o = cl_entities[e].origin;
                     const float* me = cl_entities[cl.viewentity].origin;
-                    poseDists[static_cast<za::SizeT>(e)] += sqrtf((o[0] - me[0]) * (o[0] - me[0]) + (o[1] - me[1]) * (o[1] - me[1]) +
-                                                                  (o[2] - me[2]) * (o[2] - me[2]));
+                    const float d[3]{o[0] - me[0], o[1] - me[1], o[2] - me[2]};
+                    const float dist = sqrtf(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]);
+                    poseDists[static_cast<za::SizeT>(e)] += dist;
+                    vec3_t fwd, right, up;
+                    AngleVectors(cl.viewangles, fwd, right, up);
+                    const float dot = d[0] * fwd[0] + d[1] * fwd[1] + d[2] * fwd[2];
+                    poseWeights[static_cast<za::SizeT>(e)] +=
+                        nearUnits / (nearUnits + dist) * (dot > 0.5f * dist ? aheadWeight : 1.f);
                 }
             }
         }
@@ -1020,8 +1030,6 @@ void logSent(ServerSlot& s, const Snapshot& sent)
 
 constexpr double rateBurst = 0.1;  // s of his rate the bucket holds (at least a full datagram)
 constexpr int netHeader = 8;       // NetQuake's datagram header (the bytes his link carries a datagram besides ours)
-constexpr float nearUnits = 256.f; // a record's weight: 1 here, halving each this much farther ...
-constexpr float aheadWeight = 2.f; // ... twice ahead of his view (within 60 degrees), twice again another player's
 
 // A record's index in his waits (-1: his own state, never waiting): entities, avatars, poses by entity.
 [[nodiscard]] int waitIndex(int key)
@@ -2318,6 +2326,7 @@ void init()
             bytesReset();
             poseEntries.clear();
             poseDists.clear();
+            poseWeights.clear();
         }
         bytesReport();
         if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "poses"))
@@ -2328,8 +2337,9 @@ void init()
             {
                 if(poseEntries[e] > 0)
                 {
-                    Con_Printf("mp_netprio: ent=%d dist=%.0f entries=%d\n", static_cast<int>(e),
-                        e < poseDists.size() ? poseDists[e] / static_cast<float>(poseEntries[e]) : 0.f, poseEntries[e]);
+                    Con_Printf("mp_netprio: ent=%d dist=%.0f entries=%d weight=%.3f\n", static_cast<int>(e),
+                        e < poseDists.size() ? poseDists[e] / static_cast<float>(poseEntries[e]) : 0.f, poseEntries[e],
+                        e < poseWeights.size() ? poseWeights[e] / static_cast<float>(poseEntries[e]) : 0.f);
                 }
             }
             Con_Printf("mp_netprio: done\n");
