@@ -430,8 +430,10 @@ static void CL_ParseServerInfoRun (void)
 	// copy the naked name of the map file to the cl structure -- O.S
 	COM_StripExtension (COM_SkipPath(model_precache[1]), cl.mapname, sizeof(cl.mapname));
 
+	VR_StepBegin ("client: models precached"); // QVR: the start-up trace (vr_startlog.cpp)
 	for (i = 1; i < nummodels; i++)
 	{
+		VR_StepProgress ("model %d of %d: %s", i, nummodels - 1, model_precache[i]); // QVR
 		cl.model_precache[i] = Mod_ForName (model_precache[i], false);
 		if (cl.model_precache[i] == NULL)
 		{
@@ -442,8 +444,10 @@ static void CL_ParseServerInfoRun (void)
 
 	S_BeginPrecaching ();
 	VR_TimeMark ("client: models precached"); // QVR
+	VR_StepBegin ("client: sounds precached"); // QVR
 	for (i = 1; i < numsounds; i++)
 	{
+		VR_StepProgress ("sound %d of %d: %s", i, numsounds - 1, sound_precache[i]); // QVR
 		cl.sound_precache[i] = S_PrecacheGameSound (sound_precache[i]); // QVR: (forgotten at a game switch)
 		CL_KeepaliveMessage ();
 	}
@@ -453,8 +457,9 @@ static void CL_ParseServerInfoRun (void)
 // local state
 	cl_entities[0].model = cl.worldmodel = cl.model_precache[1];
 
+	VR_StepBegin ("client: R_NewMap"); // QVR
 	R_NewMap ();
-	VR_TimeMark ("client: R_NewMap end"); // QVR
+	VR_TimeMark ("client: R_NewMap"); // QVR
 
 	//johnfitz -- clear out string; we don't consider identical
 	//messages to be duplicates if the map has changed in between

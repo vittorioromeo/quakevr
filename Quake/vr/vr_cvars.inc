@@ -514,6 +514,10 @@ QVR_CVAR(vr_glsafe, "0", CVAR_ARCHIVE)
 // GL vendor workarounds at start-up: 1 on AMD/ATI bindless textures off (as -nobindless: 1.0.0 crashed in AMD's driver
 // at start-up on an RX 7900 XTX, and started with it), 0 every feature the driver offers.
 QVR_CVAR(vr_gl_workarounds, "1", CVAR_ARCHIVE)
+// The start-up trace (vr_startlog.cpp): 1 each step of the start-up and the first map's load in the console (logcat on
+// Android) as it begins and ends, with a "still in" line every 2 s while one runs past 2 s; 0 quiet (quakevr/startup.log
+// is still written). Read from the config once it ran: the lines before it always print.
+QVR_CVAR(vr_startup_log, "1", CVAR_ARCHIVE)
 
 // The OpenXR runtime (vr_xr_runtime.hpp; an XR_RUNTIME_JSON the game was started with wins): 4 Auto, the one whose app is
 // running (Virtual Desktop's Streamer: VDXR, or SteamVR when VD's own setting says so; SteamVR; Meta's OVRServer), else the system's active one; 0 the system's

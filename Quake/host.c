@@ -1840,6 +1840,7 @@ void _Host_Frame (double time)
 
 // process console commands
 	VR_ProfileBegin ("commands"); // QVR: profile
+	if (host_framecount == 0) VR_StepBegin ("first frame: configs, autoexec"); // QVR: the start-up trace
 	Cbuf_Execute ();
 	VR_ProfileEnd (); // QVR
 	if (host_framecount == 0) VR_TimeMark ("first frame: configs, autoexec"); // QVR
@@ -2035,6 +2036,7 @@ Host_Init
 void Host_Init (void)
 {
 	// QVR: no big block for the hunk any more (-heapsize, -minmemory: ignored): the hunk is the heap (ROUND25.md, "nohunk")
+	VR_StepBegin ("filesystem (paks, game dirs)"); // QVR: the start-up trace (vr_startlog.cpp; this stage's VR_TimeMark ends it)
 	Memory_Init ();
 	AsyncQueue_Init (&async_queue, 1024);
 	Cbuf_Init ();
@@ -2045,12 +2047,15 @@ void Host_Init (void)
 	COM_Init ();
 	COM_InitFilesystem ();
 	VR_SetCrashDir (com_gamedir); // QVR: crash reports in <game folder>/crash (quakevr/crash; vr_crash.cpp)
+	VR_StartupLogOpen (); // QVR: the start-up trace's file, quakevr/startup.log (vr_startlog.cpp)
 	VR_LogsBegin (); // QVR: every run's logs in <game folder>/logs/<date>_<time>; -bugreport makes the report and exits (vr/vr_runlogs.cpp)
 	VR_DiagnosticsBegin (); // QVR: -diagnostics: everything in <game folder>/diagnostics/<date>_<time> (vr/vr_diagnostics.cpp)
 	VR_TimeMark ("filesystem (paks, game dirs)"); // QVR
+	VR_StepBegin ("cvars, commands, gfx.wad"); // QVR
 	Host_InitLocal ();
 	W_LoadWadFile (); //johnfitz -- filename is now hard-coded for honesty
 	VR_TimeMark ("cvars, commands, gfx.wad"); // QVR
+	VR_StepBegin ("console, progs, models, net, server init"); // QVR
 	if (cls.state != ca_dedicated)
 	{
 		Key_Init ();
@@ -2061,6 +2066,7 @@ void Host_Init (void)
 	NET_Init ();
 	SV_Init ();
 	VR_TimeMark ("console, progs, models, net, server init"); // QVR
+	VR_StepBegin ("VR init (cvars, commands)"); // QVR
 	VR_Init (); // QVR
 	VR_MpTestInit (); // QVR: -cmdinbox, vr_mp_mark, vr_mp_status (vr/vr_mptest.cpp)
 	VR_ServerStatusInit (); // QVR: vr_sv_status_now (vr/vr_svstatus.cpp)
@@ -2071,6 +2077,7 @@ void Host_Init (void)
 
 	if (cls.state != ca_dedicated)
 	{
+		VR_StepBegin ("colormap, view, menu init"); // QVR
 		host_colormap = (byte *)COM_LoadHunkFile ("gfx/colormap.lmp", NULL);
 		if (!host_colormap)
 			Sys_Error ("Couldn't load gfx/colormap.lmp");
@@ -2079,21 +2086,29 @@ void Host_Init (void)
 		Chase_Init ();
 		M_Init ();
 		VR_TimeMark ("colormap, view, menu init"); // QVR
+		VR_StepBegin ("video (window, GL context, the engine's shaders)"); // QVR
 		VID_Init ();
 		VR_TimeMark ("video (window, GL context, the engine's shaders)"); // QVR
+		VR_StepBegin ("input (SDL game controllers)"); // QVR
 		IN_Init ();
 		VR_TimeMark ("input (SDL game controllers)"); // QVR
+		VR_StepBegin ("texture manager"); // QVR
 		TexMgr_Init (); //johnfitz
 		VR_TimeMark ("texture manager"); // QVR
+		VR_StepBegin ("draw init (conchars, pics)"); // QVR
 		Draw_Init ();
 		VR_TimeMark ("draw init (conchars, pics)"); // QVR
+		VR_StepBegin ("menu images (banner)"); // QVR
 		VR_MenuBrandPreload (); // QVR: the menus' images (a 40 ms first menu frame otherwise)
 		VR_TimeMark ("menu images (banner)"); // QVR
+		VR_StepBegin ("screen, renderer init"); // QVR
 		SCR_Init ();
 		R_Init ();
 		VR_TimeMark ("screen, renderer init"); // QVR
+		VR_StepBegin ("sound init"); // QVR
 		S_Init ();
 		VR_TimeMark ("sound init"); // QVR
+		VR_StepBegin ("audio, status bar, client, lists, mods"); // QVR
 		CDAudio_Init ();
 		BGM_Init();
 		Sbar_Init ();

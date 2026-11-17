@@ -6312,6 +6312,10 @@ QVR_TOGGLE(vr_glsafe, "GL Safe Mode",
     "vr_glsafe, from the next start: the optional GL features off (persistent mapped buffers, bindless textures, "
     "multi-bind, clip control, layered shadow casters, debug output, MSAA, the 8192 shadow atlas), each one "
     "logged. Also -glsafe, and on by itself after a start that crashed before its first map.")
+QVR_TOGGLE(vr_startup_log, "Startup Trace in the Console",
+    "vr_startup_log: each step of the start-up and of the first map's load in the console (and logcat on the Quest) as "
+    "it begins and ends, with the time since the game started, and a \"still in\" line every 2 s while one step takes "
+    "longer. Off: quiet. quakevr/startup.log is written either way.")
 QVR_TOGGLE(vr_gl_workarounds, "AMD Workarounds",
     "vr_gl_workarounds, from the next start: on AMD/ATI GPUs bindless textures off, as -nobindless (1.0.0 crashed "
     "in AMD's driver at start-up with them). Off: every feature the driver offers.")

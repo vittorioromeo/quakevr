@@ -213,6 +213,14 @@ void VR_ParallelFor (int site, int count, int chunk, void (*body) (int begin, in
 void VR_TimeAdd (const char *what, double seconds);	// time spent in a kind of work (model loads, normal maps...), summed per stage group
 #define VR_TIMED(what, statement) do { double vr_timed_t0 = Sys_DoubleTime (); statement; VR_TimeAdd (what, Sys_DoubleTime () - vr_timed_t0); } while (0) // the statement's time, as VR_TimeAdd
 void VR_TimeFrameEnd (int signedon, int idle);	// end of _Host_Frame: the first frame ends the start-up, the first signed on a load; idle (no server, not connected) ends a load that failed
+// The start-up trace (vr_startlog.cpp, vr_startup_log; quakevr/startup.log): steps of the start-up and the first map's
+// load, each logged as it begins and ends with the time since the process started; a watchdog's "still in" line every
+// 2 s while one runs past 2 s. Main thread only (calls elsewhere, or after the trace's end, do nothing).
+void VR_StepBegin (const char *step);	// a step begins; VR_StepEnd, or a VR_TimeMark of the same name, ends it
+void VR_StepEnd (void);	// the innermost step ends: its time logged
+void VR_StepProgress (const char *fmt, ...) FUNC_PRINTF(1,2);	// where the innermost step is ("models 12/40: progs/ogre.mdl"): the heartbeat says it
+void VR_StepNote (const char *fmt, ...) FUNC_PRINTF(1,2);	// a line in the trace (a pak's files, progs.dat's size and CRC)
+void VR_StartupLogOpen (void);	// Host_Init after the file system: <game folder>/startup.log made anew, the trace so far written to it
 
 // The loose files' presence while the game starts and a map loads (vr_fscache.cpp; COM_FindFile, Sys_fopen).
 int VR_FileCacheHas (const char *path);	// 1 a file, 0 none, -1 not known (ask the file system)
