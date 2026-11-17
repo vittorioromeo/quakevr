@@ -277,7 +277,7 @@ void CL_ParseTEnt (void)
 		break;
 
 	default:
-		Sys_Error ("CL_ParseTEnt: bad type");
+		Host_Error ("CL_ParseTEnt: bad type %i", type); // QVR (MP_PLAN B18): a bad server message ends the game, not the program
 	}
 }
 

@@ -555,8 +555,8 @@ void CL_ParseUpdate (int bits)
 		ent->colormap = vid.colormap;
 	else
 	{
-		if (i > cl.maxclients)
-			Sys_Error ("i >= cl.maxclients");
+		if (i > cl.maxclients) // QVR (MP_PLAN B18): a bad server message ends the game, not the program
+			Host_Error ("CL_ParseUpdate: colormap %i > cl.maxclients", i);
 		ent->colormap = cl.scores[i-1].translations;
 	}
 	if (bits & U_SKIN)
@@ -927,8 +927,8 @@ void CL_NewTranslation (int slot)
 	int		top, bottom;
 	byte	*dest, *source;
 
-	if (slot > cl.maxclients)
-		Sys_Error ("CL_NewTranslation: slot > cl.maxclients");
+	if (slot < 0 || slot >= cl.maxclients) // QVR (MP_PLAN B18): was > and Sys_Error
+		Host_Error ("CL_NewTranslation: slot %i >= cl.maxclients", slot);
 	dest = cl.scores[slot].translations;
 	source = vid.colormap;
 	memcpy (dest, vid.colormap, sizeof(cl.scores[slot].translations));
@@ -1230,7 +1230,7 @@ void CL_ParseServerMessage (void)
 		case svc_lightstyle:
 			i = MSG_ReadByte ();
 			if (i >= MAX_LIGHTSTYLES)
-				Sys_Error ("svc_lightstyle > MAX_LIGHTSTYLES");
+				Host_Error ("svc_lightstyle > MAX_LIGHTSTYLES"); // QVR (MP_PLAN B18): was Sys_Error
 			CL_SetLightstyle (i, MSG_ReadString ());
 			break;
 
@@ -1329,7 +1329,7 @@ void CL_ParseServerMessage (void)
 		case svc_updatestat:
 			i = MSG_ReadByte ();
 			if (i < 0 || i >= MAX_CL_STATS)
-				Sys_Error ("svc_updatestat: %i is invalid", i);
+				Host_Error ("svc_updatestat: %i is invalid", i); // QVR (MP_PLAN B18): was Sys_Error
 			cl.stats[i] = MSG_ReadLong ();
 			cl.statsf[i] = cl.stats[i];
 			break;
