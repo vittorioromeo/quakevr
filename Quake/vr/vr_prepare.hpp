@@ -8,8 +8,10 @@
 // The work a first start would otherwise do in the headset, done by the installer (Installer/, GamePreparation.cs) with
 // the game hidden: Quake VR's first maps loaded once each (vrcalibration, vrtutorial, vrstart: their compiled hulls,
 // ambient occlusion and normal maps written to the disk caches, cache/; vrstart's hulls are 10 s of a cold load), then,
-// with -preparerelight, every map relit (vr_relight_batch everything, as the installer's first-start marker did: the
-// same files, so the game's first start finds them current and relights nothing). Then it quits. Not the hub, the
+// with -preparerelight, the stock game's and the official packs' maps relit (vr_relight_batch official, as the
+// installer's first-start marker does: the same files, so the game's first start finds them current and relights
+// nothing; not the Map Library's nor Arcane Dimensions' maps, 1-2 minutes each: Graphics > Relighting relights those).
+// Then it quits. Not the hub, the
 // tutorial or the first-start relight: quake.rc's vr_startgame starts this instead (VR_StartGame_f). No tips either
 // (vr_tips 0: one shown to the mock headset would be marked seen for the player).
 //

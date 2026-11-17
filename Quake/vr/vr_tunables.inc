@@ -581,7 +581,7 @@ QVR_TUNABLE(vr_throw_point_spin, "3") // turns/s across the blade as it leaves t
 QVR_TUNABLE(vr_throw_point_damp, "1") // its damping of the tumble across the blade (1: critical, no overshoot)
 // The dagger's own (his note 2026-11-16): a blade more lenient than the swords (weapons.txt throw_point above 1: the
 // dagger) takes the five above times these (1: as now, the swords' times its throw_point)
-QVR_TUNABLE(vr_throw_point_dagger_align, "1")
+QVR_TUNABLE(vr_throw_point_dagger_align, "0.35") // his tuning (tunables.cfg 2026-11-16): gentler than the swords'
 QVR_TUNABLE(vr_throw_point_dagger_time, "1")
 QVR_TUNABLE(vr_throw_point_dagger_angle, "1")
 QVR_TUNABLE(vr_throw_point_dagger_spin, "1")

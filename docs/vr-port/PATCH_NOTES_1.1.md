@@ -150,7 +150,7 @@ old default move to the new one, and values you changed stay yours.
   reversed blade off a table or out of a body; catch a tossed dagger blade down and you hold it reversed. Held in two
   hands, it flips only with both hands on the handle (not with the other hand on the blade or anywhere else).
 - Thrown swords and daggers come round point first; a blade thrown blade first sinks deep and kills whole.
-- The thrown dagger settles point first much more readily, however it leaves the hand.
+- The thrown dagger settles point first more readily, however it leaves the hand, with a gentler pull than a sword's.
 - Thrown swords and daggers hit hard but never gib, however fast or whichever way they strike (Quad still does).
 - One consistent throw for props and weapons.
 - Grab floating pickups out of the air, and catch things in mid-air.
@@ -328,6 +328,10 @@ old default move to the new one, and values you changed stay yours.
 - Create Bug Report (Options, VR Settings > Headset, and a Start menu shortcut) zips your logs, crash reports and
   settings; every run keeps its logs.
 - The installer offers a settings page after installing, and an optional Arcane Dimensions download.
+- Installer: a found Arcane Dimensions shows "ready (experimental)" (another release than 1.80 patch 1 says it isn't
+  played); the relight lights the biggest maps first, so it no longer ends waiting on one big map, and relights only
+  Quake's and the official mission packs' maps (Map Library and Arcane Dimensions maps: in the game, Graphics >
+  Relighting).
 
 ### Campaigns, maps and modes
 

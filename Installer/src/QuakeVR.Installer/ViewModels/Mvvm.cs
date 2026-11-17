@@ -226,7 +226,7 @@ public sealed class ExpansionRow(Core.Detection.ExpansionInfo info)
     public CheckStatus Status => info.State switch
     {
         Core.Detection.ExpansionState.Ready => CheckStatus.Ok,
-        Core.Detection.ExpansionState.Incomplete => CheckStatus.Warning,
+        Core.Detection.ExpansionState.Incomplete or Core.Detection.ExpansionState.OtherVersion => CheckStatus.Warning,
         Core.Detection.ExpansionState.DetectedNotSupported => CheckStatus.NotYet,
         _ => CheckStatus.Absent,
     };

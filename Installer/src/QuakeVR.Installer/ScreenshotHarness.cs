@@ -139,7 +139,7 @@ static class ScreenshotHarness
             (LogLevel.Info, "Prepared the calibration room (2.2 s)."),
             (LogLevel.Info, "Prepared the tutorial (0.8 s)."),
             (LogLevel.Info, "Prepared the hub (13.5 s)."),
-            (LogLevel.Info, "Relighting every map with ericw-tools (the game's own relight, as at its first start)."),
+            (LogLevel.Info, "Relighting Quake's and the official mission packs' maps with ericw-tools (the game's own relight, as at its first start; the Map Library's and Arcane Dimensions' maps: the game's Graphics > Relighting)."),
         ]);
         await Save(view, Path.Combine(dir, "4-preparing.png"));
         report.AppendLine($"preparing: cancel button '{vm.CancelText}'");

@@ -4229,3 +4229,113 @@ His timing notes (extra scope):
   0.1 ms). A program remake alone moves a frozen scene by up to 0.6 ms: switches that rebuild shaders need consistent rounds.
 - SpaceWarp: `XR_FB_space_warp` is offered by the runtime; feasible (motion and depth swapchains, a motion pass), not done.
 - PC: dev and LTO builds 0 warnings; gles_render_test 21/0; scenario_check PASS; load_models_test 4/0. Details: QUEST_PLAN.md 6ze.
+## introfix: the titles under a proxy, the intro's cost (agent/introfix, 2026-11-16)
+
+His report: previewing the QVR Intro Title lags and never shows the whole picture (Smart cache, Timeline Proxy
+Resolution Half/Quarter, proxies on); a full render works but takes over a minute for 5.6 s.
+- **The proxy bug (both titles).** The macros measure the text image (its Width and DataWindow: real pixels, so half
+  of them under a Half proxy) and fed those numbers to built-in tools whose pixel inputs are full-resolution pixels
+  that Fusion scales by the proxy itself: Crop offsets/sizes, the crops' canvas Backgrounds, the grime and splatter
+  FastNoise sizes, the rule's canvas, and every blur (`G.Res*...`). Under a proxy of scale K they were scaled by K
+  twice: at Half the crops were a quarter of the text from the wrong origin (the letters cut off, the metal, blood and
+  rule misplaced) and the glows, shadows and relief blurs half size. Fix: a `ProxyProbe` Background 1024 wide measures
+  K (`G1.K`, the feature title's `Lgt.K`); the built-in tools get measured pixels divided by K (`/G.K`, blurs
+  `G.FR = Res/K`); the Custom tools keep real pixels (`w1`, `G.Res`). K is 1 without a proxy, also at a lower frame
+  size, so the final picture is unchanged: the intro's 7 stills (frames 20-280) at 1080p and 2 at 960x540, and the
+  feature title's 3 at 1080p, are pixel-identical before/after.
+- **Not reproduced in Resolve itself**: no scripting reaches Playback > Timeline Proxy Resolution or a proxied
+  render (Edit-page title comps report `COMPB_Proxy` false and ignore SetAttrs; the Fusion page takes it but its
+  viewer can't be read back; `comp.Render` with a Saver on an Edit-page title comp **crashed Resolve 21.1**: never
+  again), and GUI control was declined. The fix follows Fusion's proxy rule; **he should check it**: the intro at
+  Half and Quarter vs Full, paused on a hold frame. The lag with Smart cache is Resolve showing what it has while it
+  renders in the background (the cost below).
+- **Cost** (Deliver renders, s/frame, frames 40-99; this session's numbers, ~10% noise): intro 0.46-0.48 at 1080p,
+  0.46 at 960x540, 0.42 at 480x270, 0.69 at 4K (60-89; titlespeed measured 1.9 there in another session); feature 0.145
+  at 1080p. **The cost is per frame, not per pixel** below 4K: passing all 8 Custom tools through drops 0.46 to 0.16,
+  yet a quarter of the pixels saves nothing. So a proxy won't make the titles real-time, and neither did two lossless
+  per-pixel cuts I measured and dropped: L2Cov's per-column hashes, waves and pool width moved into a one-row
+  lookup (24 sines a pixel to none; stills within 7 levels) 0.59 s, L2Cov's unread green channel zeroed 0.52 s, and
+  a Draft switch skipping the relief tools (Dissolve to a flat key light) 0.475 vs 0.467. Untested lead: the per-frame
+  cost may be the ~30 `G1`/`G2` expressions reading `L1Text.Output[0]` / `L2Text.Output[0]` (each a request of the
+  text at frame 0) that every Custom tool's inputs pull in; freezing them would tell.
+- Regenerated (`make_intro_title.py`: 92 tools), installed, and in "QVR Titles Preview" on a test trailer: apply
+  (`--rebuild`) placed both (334 and 360 frames), `--bake` rendered both in 219 s (ap4h, 1920x1080, yuva444p12le);
+  that run left the intro at the timeline's start unplaced ("could not be placed at 216000", apply_titles said so),
+  the next `--bake` reused it and placed it (0.2 s). Test timelines, bin and clips removed; his "v1_1trailer" saved
+  before and reopened after.
+- After it ships: run `install_titles.py`, restart Resolve, `apply_titles.py --rebuild`.
+
+## titlevariants: the trailer's feature-title variants baked (agent/titlevariants, 2026-11-16)
+
+His request: bake all 27 title wordings (9 sections x 3) to pick from.
+- `Misc/trailer/titles/bake_variants.py variants.txt --out <dir> [--project P]`: each line `section | n | title |
+  subtitle` made as apply_titles makes a section's title (make_section_timeline, set_title, the template's defaults:
+  top-right, 6 s) and rendered by apply_titles' render_bakes (one batch, Draft off, only its jobs removed), ProRes 4444
+  with alpha, `<section>_v<n> - <title>.mov` (characters Windows refuses dropped: "No Headset No Problem"); clips
+  already there are kept. Its timelines and bin are removed afterwards. `--project` saves the open (saved) project,
+  bakes in P and reopens it. ffmpeg then writes `contact sheet.png` (the frame at 4 s over dark grey, labelled, 3 a
+  row) and `all variants.mp4`.
+- Run: his v1_1trailer (Timeline 2, 1920x1080 at 60) saved, "QVR Titles Preview" opened, 27 rendered in one batch in
+  1635 s (1671 s in all, ~0.17 s a frame), sheet 3 s, reel 40 s (9720 frames = 27 x 360), v1_1trailer reopened on
+  Timeline 2 (its own render job left alone). Output `C:\Users\vittorio\Videos\QVR Title Variants\`: 27 clips (ap4h,
+  yuva444p12le, 360 frames), the sheet, the reel. A one-clip trial went to the worktree's scratch first.
+
+## promote1116: his ticked items retired, his tuning promoted for 1.1 (agent/promote1116, 2026-11-16)
+
+- **Checklist**: 8 ticked lines retired from checklist.txt (no voice notes after 12:00 to keep any for; ticks match the
+  live line with its `{test:...}` tag stripped): flat B next ammo, disarm off by default, Dagger Settling, clean
+  recording, two trailer-title lines, the flip-grip gate, hard throws. Scenes `flipgrip` and `throw_hard` moved out
+  (nothing else used them); `flat_ammo_key` kept (flat_ammo_key_test.sh plays it). checklist_tests_check 24/0,
+  scenario_check PASS (136 files, 19 tags, 0 missing).
+- **Promoted**: tunables.cfg `vr_throw_point_dagger_align` 1 -> 0.35 (Dagger Settling: Strength, a gentler spring than
+  the swords'); `weapons_data.py promote`: 18 values, slot 24 (the super axe, `vr_wofs_*_25`): its blade shape (bl_org,
+  bl_width, bl_s1..s5 off/side, bl_near added) and muzzle. Poses: `pose_defaults.py`: 0 keys or grips off the defaults.
+  Cvars: nothing gameplay off its default; the rest is personal (calibration, bodycal, menu layout and level, toolgun
+  and rig studio state, window/spectator view, vr_foveated, vr_flat_taa, vr_flat_tp_fov, vr_gore_dents, vr_notes,
+  vr_xr_runtime, version counters, vr_prop_id_72-76).
+- **Test**: `vr_embed_test 47`'s "any way" dagger check asked for at least the swords' count (8 of 8): at 0.35 the
+  daggers come round in 6 of 8 (0 with the settling off). It now asks for most of them (half - 2) and more than off:
+  12/12. PATCH_NOTES: the dagger "settles point first more readily ... with a gentler pull than a sword's".
+- Checks: dev and ReleaseLTO (`QvrReleaseVersion=1.1.0`) 0 warnings; load_models_test 4/0; make_release.ps1 -DryRun:
+  "tunables.cfg: nothing to promote".
+
+## installerfix: AD "ready (experimental)", the relight's speed (agent/installerfix, 2026-11-16)
+
+- **AD label**: `ExpansionDetector.Campaign` has `Experimental` (AD's row; the engine's `qvr::ad::campaignIndex`): a
+  found, intact AD is `Ready`, "ready (experimental)" (GUI expansion rows, the CLI and the detection report). A copy that
+  isn't 1.80 patch 1 is the new `ExpansionState.OtherVersion` (a warning row): "another release (its pak2.pak isn't
+  1.80 patch 1's): only 1.80 patch 1 is played" or "1.80 or older (no pak2.pak): ...". The self-test "readiness
+  matches the engine" also checks the experimental row against `static_assert(qvr::ad::campaignIndex == N)` and the
+  engine's "experimental" label, and both AD wrong-version labels. The engine's `vr_campaign_status` said "installed;
+  native support in progress" for AD: now "ready (experimental)".
+- **Relight**: the installer's relight is the game's own (`-preparerelight`: `vr_relight_batch everything`), already
+  parallel (2 maps at once from 8 cores, the cores shared out) and already skipping maps relit with the same settings.
+  Measured on 32 cores (light 2.0.0-alpha11, the default look: -extra4, bounce, dirt), six of id's maps: one at a time
+  at 31 threads 28 s of light; six at once at 6 threads each 27 s (each map 2-4x slower); two at once ~23 s. light
+  keeps the cores busy by itself, so more maps at once was not taken (memory: hundreds of MB a light). Changes: the
+  batch lights the biggest maps first (after the map in play: LPT, so it never ends with one big map in one slot while
+  the other idles), and the threads are rounded up (2 x 16, was 2 x 15). Where the time goes: "everything" includes
+  the Library's and AD's maps; AD's are 1-2 minutes each (ad_mountain 104 s at 15 threads): with AD there, 111 maps
+  took over 20 minutes here before the run was stopped. Not changed (his call): leaving the Library's/AD's maps out of
+  the installer's relight.
+- **Output**: light is not byte-deterministic even run to run at the same settings (the faces' lightmaps are packed
+  in its threads' finishing order: 95% of e3m2.lit's bytes move between two sequential runs), so "byte-identical" was
+  checked as the lightmaps' sorted byte values: sequential vs sequential and sequential vs parallel are identical (0
+  of 401,100 differ).
+- Checks: installer 0 warnings, self-tests 41/41; engine dev and ReleaseLTO built.
+
+## relightscope: the installer relights the official maps only (agent/relightscope, 2026-11-17)
+
+- His decision (2026-11-17, "leave them out"): the installer's relight (the preparation run's `-preparerelight` and the
+  first-start marker's fallback; install and update, GUI and CLI) is a new batch set, `vr_relight_batch official`
+  (`maps::Set::Official`): the search path's maps of `gameOrder` (id1, hipnotic, rogue; dopa, mg1, mg3 when on the
+  path) and quakevr's (its own maps pass over as before). Not the Map Library's, AD's or another mod's. The Relighting
+  page's Maps choices are unchanged (`vr_relight_batch_set` 0-4; `official` is the command's word only).
+- Measured (`-list`, the test base): `everything` 111 maps, 481.5 MB (id1 38, hipnotic 18, rogue 17, ad 38); `official`
+  73 maps, 99.1 MB. A player's installed Library packages were in `everything` too.
+- The Library's and AD's maps: no automatic relight at first play exists (none did before either: the marker's batch
+  was the only automatic one). They keep their own light until the player relights them: Graphics > Relighting,
+  Relight This Map, or Many Maps > Map Library / Every Map.
+- Wording: the options page's relight line, the preparation's log lines, the CLI's prepare help and line, the marker
+  file's text, INSTALLER.md (Relit maps, First-start relight, Preparation run). Self-test "game preparation" checks
+  the engine sources use `official` in both places. Installer 0 warnings, self-tests 41/41; engine dev built 0 warnings.

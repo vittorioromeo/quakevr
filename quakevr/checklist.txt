@@ -7,18 +7,16 @@
 # Lines are only for something new or changed you can see or feel: one line per flow, never "works as before". History of the sorts: git log of this file and docs/vr-port/CHECKLIST_REORG.md (latest: 2026-11-14 release audit, 94 lines down to 68, 71 with three from a later ship: the [New] section sorted, near-duplicates merged, every line cut to what to do and what to see, 3 new scenes; 2026-11-15: 17 ticked lines retired, the [New] section sorted). Misc/quakevr/checklist_tests_check.py checks every tag's scene file and the format (no "(agent/", "Test:", scratch or qvr-agents paths, .sh names; sections in order).
 
 [New: not yet sorted]
-Flat-screen: press B with the rocket launcher, grenade launcher or thunderbolt: it switches to its other ammo; B again switches back. {test:flat_ammo_key}
 Installer: the desktop now also gets a "Quake VR Unleashed (Flat Screen)" shortcut (own checkbox on the options page, on by default; check the Start menu, desktop and an uninstall).
-Let grunts shoot at your held gun and enemies hit it with default settings: it is never knocked out of your hand (You Can Be Disarmed is now off by default); turn it on in Combat > Armed Grunts and it is knocked out as before.
-Throw the dagger a few times, then set Debug > Tunables > Dagger Settling: Strength to 0 and throw it again: the dagger no longer comes round point first while a thrown sword still does; back at 1 both are as before.
-Turn on Ghost Hands, hold a heavy gun off your controller so a ghost shows, then start an OBS recording from the menu: the ghost hands, tips and wrist messages disappear while it records and come back when it stops; with Graphics > Recording > No Ghost Hands While Recording off the ghost stays.
 On the Quest Pro via Virtual Desktop with eye tracking forwarded to the PC: turn on Eye-Tracked Foveation (VR Settings, Graphics), restart VR and set vr_foveated_debug 1: the sharp area follows your eyes, and the log says eye tracking is on.
-Trailer titles: intro holds ~3 s with all lines; feature subtitle comes ~1 s after the title; --bake, plain rerun keeps them baked, --unbake restores live
 Flat-screen: walk forward into the tutorial's rung ladder (lesson 3): your hands take the rungs and you climb hand over hand at a steady pace, and climb over the top onto the platform. {test:flat_ladder}
 Flat-screen: on the tutorial ladder's top, back off the edge facing away from the drop: you are lowered onto the rungs; hold back (or forward while looking down) to climb down to the floor, and jump on the ladder to push off it. {test:flat_ladder}
 Flat-screen: walking into plain walls, single ledges and stairs never starts a ladder climb, and the jump mantle still works as before. {test:flat_ladder}
 Sliding (VR, experimental; VR Settings > Locomotion): while running, pull the turning stick firmly straight down: you slide as on the desktop screen (faster at first, slowing to a stop; let go to stop, jump to keep the speed), with the slide's scrape and your drawn legs out in front. Check snap and smooth turns never slide, and that the pull feels neither too stiff nor too loose (Slide Stick Pull and Angle). {test:vr_slide}
 Flat-screen: hip-fire (no right button) at a grunt seen through a see-through teleporter, from well back and from right in front of the gate: the shots hit what the crosshair is on beyond it, as they do with the sights up. {test:flat_gate_hipfire}
+Run the installer with Arcane Dimensions 1.80 patch 1 in your Quake folder: the expansions list shows Arcane Dimensions as "ready (experimental)" with a check mark; an older AD copy shows a warning saying only 1.80 patch 1 is played.
+Install with the relight on and watch Relighting the maps: the big maps go first and the bar ends on small ones; note the total time in the log, and whether Skip still stops it at once.
+Installer: relighting covers Quake and the mission packs only (Map Library and Arcane Dimensions keep their own lighting; Graphics > Relighting relights them on demand)
 
 [1. Flat-screen: weapons and hands]
 
@@ -30,8 +28,6 @@ Installer: install into a fresh folder and pick Snap 45, Left-handed and Medium 
 [4. VR: body and gear]
 
 [5. VR: melee and embedded blades]
-Hold the dagger in your main hand and grab it near the tip with your other hand, then press B (Y): the grip no longer flips (just a light tap in the hand); do the same with the knight's sword held anywhere on it or by its blade (half-sword), then put the other hand on the handle's two-handed hotspot or let go of it with that hand: now it flips. {test:flipgrip}
-Throw the sword and the dagger as hard as you can at a grunt, a knight and an ogre, point first and any other way: nothing is gibbed; point first the blade stays in the body, flat or handle first it strikes as a blunt blow. {test:throw_hard}
 
 [6. VR: weapons and grips]
 

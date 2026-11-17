@@ -299,6 +299,8 @@ G1 = [
     ("OW", "(L1Lead.Output[0].DataWindow[3] - L1Lead.Output[0].DataWindow[1])"),
     ("OH", "(L1Lead.Output[0].DataWindow[4] - L1Lead.Output[0].DataWindow[2])"),
     ("Res", "W/1920"),
+    ("K", "ProxyProbe.Output[0].Width/1024"),
+    ("FR", "Res/K"),
     ("OL", "0.029*L1Text.Size*W"),
     ("OB", "(L1Text.Center.Y + L1Lead.Output[0].DataWindow[2]/L1Lead.Output[0].Height - 0.5)*H"),
     ("LX", "(X1 - 0.3*(X2 - X1) + Ctl.USweep*1.6*(X2 - X1))/W"),
@@ -310,16 +312,24 @@ G1 = [
     ("CX0", "PX0/W"), ("CY0", "PY0/H"), ("CW", "PW/W"), ("CH", "PH/H"),
     ("CY", "(Y1 + Y2)/2/H"),
 ]
+# Proxy: Fusion's proxy (Resolve's Timeline Proxy Resolution, the Fusion page's proxy) makes images smaller (the text's
+# Width and DataWindow above are its real pixels) while the built-in tools' pixel inputs (Crop, Background/FastNoise
+# sizes, blurs) stay full-resolution pixels that the tool scales down itself. ProxyProbe, 1024 wide at full resolution,
+# comes out 1024*K wide: K is the proxy scale (1 without proxy, also at a lower frame size). Measured pixels go to the
+# built-in tools divided by K (G.FR = Res/K for blurs); the Custom tools work in real pixels (w1, G.Res) as before.
+# Before, under proxy those sizes were scaled twice: the crops and their canvases came out a quarter of the text at
+# Half (half the letters cut off, the lit metal and blood misplaced) and every blur, glow and shadow too small.
+tool("ProxyProbe", "Background", {"Width": 1024, "Height": 4, "TopLeftAlpha": 0}, (110, -500))
 tool("G1", "Background", dict([("Width", 16), ("Height", 16)] + [(k, "=" + v) for k, v in G1]), (110, -460),
      holder_controls([k for k, _ in G1]))
-tool("L1Crop", "Crop", {"Input": ("L1Text", "Output"), "XOffset": "=G1.PX0", "YOffset": "=G1.PY0",
-                        "XSize": "=G1.PW", "YSize": "=G1.PH"}, (0, -340))
+tool("L1Crop", "Crop", {"Input": ("L1Text", "Output"), "XOffset": "=G1.PX0/G1.K", "YOffset": "=G1.PY0/G1.K",
+                        "XSize": "=G1.PW/G1.K", "YSize": "=G1.PH/G1.K"}, (0, -340))
 
 
 def full(prefix, G, pos):
     """The crop over a transparent canvas of its size: a full data window, so Custom tools fill the whole crop."""
     x, y = pos
-    tool(prefix + "Canvas", "Background", {"Width": "=%s.PW" % G, "Height": "=%s.PH" % G, "TopLeftAlpha": 0}, (x, y - 40))
+    tool(prefix + "Canvas", "Background", {"Width": "=%s.PW/%s.K" % (G, G), "Height": "=%s.PH/%s.K" % (G, G), "TopLeftAlpha": 0}, (x, y - 40))
     tool(prefix + "Full", "Merge", {"Background": (prefix + "Canvas", "Output"), "Foreground": (prefix + "Crop", "Output"),
                                     "PerformDepthMerge": 0}, (x, y))
 
@@ -372,12 +382,13 @@ def relief(name, src, G, strength, step, spec_exp, spec_amb, key, light_gain, lh
         "Image1": (src, "Output"), "Image2": (gate_src, "Output")}, pos)
 
 
+
 tool("L1Height", "Blur", {"Input": ("L1Tail", "Output"),
-                          "XBlurSize": "=G1.Res*(5 + 7*min(Ctl.Relief, 2))*(1 - Ctl.Draft)"}, (220, -340))
+                          "XBlurSize": "=G1.FR*(5 + 7*min(Ctl.Relief, 2))*(1 - Ctl.Draft)"}, (220, -340))
 # gate: L1Color's coverage i1 > 0 (Image2 = its Image1)
 relief("L1Relief", "L1Height", "G1", "2.8*Ctl.Relief", 2.4, 22, 0.35, 0.75, "1.6", 0.12, 0.3, (330, -380),
        "r2 > 0.02*a2", "L1Tail")
-tool("L1Grime", "FastNoise", {"Width": "=G1.PW", "Height": "=G1.PH", "Detail": 7, "Contrast": 1.8,
+tool("L1Grime", "FastNoise", {"Width": "=G1.PW/G1.K", "Height": "=G1.PH/G1.K", "Detail": 7, "Contrast": 1.8,
                               "XScale": "=30*G1.CW"}, (330, -420))
 tool("L1Color", "Custom", {
     "NumberIn1": "=Ctl.MetalRed", "NumberIn2": "=Ctl.MetalGreen", "NumberIn3": "=Ctl.MetalBlue",
@@ -403,18 +414,18 @@ def shadow(prefix, alpha, soft, off, blur_extra, pos):
     tool(prefix + "ShadowShift", "Transform", {"Input": (prefix + "ShadowFill", "Output"),
          "Center": "=Point(0.5 + %s*Ctl.ShadowOffset/1920, 0.5 - %s*Ctl.ShadowOffset/1080)" % (off, off)}, (x + 110, y))
     tool(prefix + "ShadowBlur", "Blur", {"Input": (prefix + "ShadowShift", "Output"),
-         "XBlurSize": "=G1.Res*(%s*Ctl.ShadowSoftness + %s)" % (soft, blur_extra)}, (x + 220, y))
+         "XBlurSize": "=G1.FR*(%s*Ctl.ShadowSoftness + %s)" % (soft, blur_extra)}, (x + 220, y))
 
 
 shadow("L1", "L1Alpha", "1", "1", "Ctl.Intensity*14*(1 - Ctl.E1)^2 + 8*Ctl.EOut", (660, -460))
 tool("L1InkFill", "Background", {"EffectMask": ("L1Alpha", "Mask"), "UseFrameFormatSettings": 1, "Width": 1920,
                                  "Height": 1080, "TopLeftRed": "=Ctl.AccentRed", "TopLeftGreen": "=Ctl.AccentGreen",
                                  "TopLeftBlue": "=Ctl.AccentBlue"}, (660, -300))
-tool("L1Glow", "Blur", {"Input": ("L1InkFill", "Output"), "XBlurSize": "=34*G1.Res"}, (770, -340))
+tool("L1Glow", "Blur", {"Input": ("L1InkFill", "Output"), "XBlurSize": "=34*G1.FR"}, (770, -340))
 tool("L1Ink", "Blur", {"Input": ("L1InkFill", "Output"),
-                       "XBlurSize": "=G1.Res*(1 + Ctl.Intensity*9*(1 - Ctl.E1) + 6*Ctl.EOut)"}, (770, -300))
+                       "XBlurSize": "=G1.FR*(1 + Ctl.Intensity*9*(1 - Ctl.E1) + 6*Ctl.EOut)"}, (770, -300))
 tool("L1Blur", "Blur", {"Input": ("L1Place", "Output"),
-                        "XBlurSize": "=G1.Res*(Ctl.Intensity*14*(1 - Ctl.E1)^2 + 8*Ctl.EOut)"}, (660, -380))
+                        "XBlurSize": "=G1.FR*(Ctl.Intensity*14*(1 - Ctl.E1)^2 + 8*Ctl.EOut)"}, (660, -380))
 tool("L1MA", "Merge", {"EffectMask": ("L1Mask", "Mask"), "Background": ("Blank", "Output"),
                        "Foreground": ("L1ShadowBlur", "Output"), "Blend": "=Ctl.ShadowOpacity*(1 - Ctl.EOut)",
                        "PerformDepthMerge": 0}, (990, -460))
@@ -431,7 +442,7 @@ tool("L1Slam", "Transform", {"Input": ("L1MD", "Output"), "Center": "=Point(0.5,
 
 # ======================================================================================================================
 # The rule: a tapered metal blade slicing out from the centre, a hot spark at each front.
-tool("RuleCanvas", "Background", {"Width": "=2*ceil((Ctl.RuleWidth + 0.06)*G1.W/2)", "Height": "=2*ceil(0.05*G1.H/2)",
+tool("RuleCanvas", "Background", {"Width": "=2*ceil((Ctl.RuleWidth + 0.06)*G1.W/G1.K/2)", "Height": "=2*ceil(0.05*G1.H/G1.K/2)",
                                   "TopLeftAlpha": 0}, (0, 380))
 tool("RuleGrit", "FastNoise", {"Width": "=RuleCanvas.Width", "Height": "=RuleCanvas.Height", "Detail": 6,
                                "Contrast": 2, "LockXY": 0, "XScale": 140, "YScale": 10}, (110, 420))
@@ -440,7 +451,7 @@ RULE_C = ("i4*({m}*{s}*(0.3 + 0.7*r2) + {k}*(0.22*2.718^(0 - (i2/(0.8*n6))*(i2/(
           " + {g}*n7*(2.718^(0 - ((i1 - n1)/(5*n6))*((i1 - n1)/(5*n6)) - (i2/(2.2*n6))*(i2/(2.2*n6))) + 0.5*2.718^(0 - ((i1 - n1)/(30*n6))*((i1 - n1)/(30*n6)) - (i2/(5*n6))*(i2/(5*n6))))")
 tool("RuleCol", "Custom", {
     "NumberIn1": "=0.5*Ctl.RuleWidth*G1.W*Ctl.ER*(1 - Ctl.EOut)", "NumberIn2": "=0.5*Ctl.RuleWidth*G1.W",
-    "NumberIn3": "=0.0052*G1.H", "NumberIn4": "=0.5 + (Ctl.USweep - 0.5)*1.2*Ctl.RuleWidth*G1.W/RuleCanvas.Width",
+    "NumberIn3": "=0.0052*G1.H", "NumberIn4": "=0.5 + (Ctl.USweep - 0.5)*1.2*Ctl.RuleWidth*G1.W/G1.K/RuleCanvas.Width",
     "NumberIn5": "=Ctl.LightEnv", "NumberIn6": "=G1.Res",
     "NumberIn7": "=Ctl.Intensity*iif(Ctl.PR > 0, 1, 0)*(1 - Ctl.PR)^0.6",
     "PointIn1": "=Point(Ctl.MetalRed, Ctl.MetalGreen)", "PointIn2": "=Point(Ctl.MetalBlue, 0)",
@@ -469,6 +480,8 @@ G2 = [
     ("X1", "L2Text.Output[0].DataWindow[1]"), ("X2", "L2Text.Output[0].DataWindow[3]"),
     ("Y1", "L2Text.Output[0].DataWindow[2]"), ("Y2", "L2Text.Output[0].DataWindow[4]"),
     ("Res", "W/1920"),
+    ("K", "G1.K"),
+    ("FR", "Res/K"),
     ("LX", "(X1 - 0.3*(X2 - X1) + Ctl.USweep*1.6*(X2 - X1))/W"),
     ("LY", "(Y1 + 0.7*(Y2 - Y1))/H"),
     ("PX0", "floor(max(0, X1 - 0.06*W))"),
@@ -481,15 +494,15 @@ G2 = [
 ]
 tool("G2", "Background", dict([("Width", 16), ("Height", 16)] + [(k, "=" + v) for k, v in G2]), (110, -120),
      holder_controls([k for k, _ in G2]))
-tool("L2Crop", "Crop", {"Input": ("L2Text", "Output"), "XOffset": "=G2.PX0", "YOffset": "=G2.PY0",
-                        "XSize": "=G2.PW", "YSize": "=G2.PH"}, (0, 0))
+tool("L2Crop", "Crop", {"Input": ("L2Text", "Output"), "XOffset": "=G2.PX0/G2.K", "YOffset": "=G2.PY0/G2.K",
+                        "XSize": "=G2.PW/G2.K", "YSize": "=G2.PH/G2.K"}, (0, 0))
 full("L2", "G2", (55, 40))
 tool("L2Smear", "DirectionalBlur", {"Input": ("L2Full", "Output"), "Type": 0, "Angle": 90,
                                     "ClippingMode": ("fuid", "None"),
                                     "Length": "=max(0.0001, G2.DripMax*Ctl.Grow/G2.PW)"}, (110, 0))
-tool("L2Near", "Blur", {"Input": ("L2Full", "Output"), "XBlurSize": "=40*G2.Res", "ClippingMode": ("fuid", "None")},
+tool("L2Near", "Blur", {"Input": ("L2Full", "Output"), "XBlurSize": "=40*G2.FR", "ClippingMode": ("fuid", "None")},
      (110, 40))
-tool("SplatNoise", "FastNoise", {"Width": "=G2.PW", "Height": "=G2.PH", "Detail": 3, "Contrast": 2.4,
+tool("SplatNoise", "FastNoise", {"Width": "=G2.PW/G2.K", "Height": "=G2.PH/G2.K", "Detail": 3, "Contrast": 2.4,
                                  "XScale": "=G2.PW/(30*G2.Res)"}, (110, 80))
 tool("SplatCov", "Custom", {
     "NumberIn1": "=Ctl.Splash", "NumberIn2": "=min(Ctl.Blood, 2)", "NumberIn3": "=G2.Res",
@@ -524,9 +537,9 @@ tool("L2Cov", "Custom", {
     "RedExpression": "max(max(r1, %s)*%s, max(%s, r3))" % (DRIP, FLOOD, POOL),
     "GreenExpression": "r1*%s" % FLOOD, "BlueExpression": "0", "AlphaExpression": "1",
     "Image1": ("L2Full", "Output"), "Image2": ("L2Smear", "Output"), "Image3": ("SplatCov", "Output")}, (330, 0))
-tool("L2CovBlur", "Blur", {"Input": ("L2Cov", "Output"), "XBlurSize": "=G2.Res*2", "ClippingMode": ("fuid", "None")},
+tool("L2CovBlur", "Blur", {"Input": ("L2Cov", "Output"), "XBlurSize": "=G2.FR*2", "ClippingMode": ("fuid", "None")},
      (440, 0))
-tool("L2Height", "Blur", {"Input": ("L2Cov", "Output"), "XBlurSize": "=G2.Res*6", "ClippingMode": ("fuid", "None")},
+tool("L2Height", "Blur", {"Input": ("L2Cov", "Output"), "XBlurSize": "=G2.FR*6", "ClippingMode": ("fuid", "None")},
      (440, 40))
 # gate: L2Color's coverage i1 > 0 (Image2 = its Image1)
 relief("L2Relief", "L2Height", "G2", "5", 1.6, 60, 0.6, 0.7, "1.8", 0.1, 0.26, (550, 40), "r2 > 0.3", "L2CovBlur")
@@ -548,8 +561,8 @@ tool("L2Mould", "Background", {"EffectMask": ("L2TextAlpha", "Mask"), "UseFrameF
                                "Height": 1080, "TopLeftRed": 0.035, "TopLeftGreen": 0.012, "TopLeftBlue": 0.01},
      (220, -80))
 shadow("L2", "L2Alpha", "1", "1", "6*Ctl.EOut", (880, 40))
-tool("L2Blur", "Blur", {"Input": ("L2Place", "Output"), "XBlurSize": "=G2.Res*7*Ctl.EOut"}, (880, 0))
-tool("L2MouldBlur", "Blur", {"Input": ("L2Mould", "Output"), "XBlurSize": "=G2.Res*(1 + 6*(1 - Ctl.Mold) + 7*Ctl.EOut)"},
+tool("L2Blur", "Blur", {"Input": ("L2Place", "Output"), "XBlurSize": "=G2.FR*7*Ctl.EOut"}, (880, 0))
+tool("L2MouldBlur", "Blur", {"Input": ("L2Mould", "Output"), "XBlurSize": "=G2.FR*(1 + 6*(1 - Ctl.Mold) + 7*Ctl.EOut)"},
      (330, -80))
 tool("L2MA", "Merge", {"EffectMask": ("L2Mask", "Mask"), "Background": ("Blank", "Output"),
                        "Foreground": ("L2ShadowBlur", "Output"), "Blend": "=Ctl.ShadowOpacity*Ctl.Mold*(1 - Ctl.EOut)",
@@ -572,7 +585,7 @@ tool("L3Text", "TextPlus", d, (0, 460))
 tool("L3Alpha", "BitmapMask", {"Image": ("L3Text", "Output"), "Channel": ("fuid", "Alpha")}, (110, 500))
 shadow("L3", "L3Alpha", "0.5", "0.5", "Ctl.Intensity*8*(1 - Ctl.E3)^2 + 5*Ctl.EOut", (220, 500))
 tool("L3Blur", "Blur", {"Input": ("L3Text", "Output"),
-                        "XBlurSize": "=G1.Res*(Ctl.Intensity*9*(1 - Ctl.E3)^2 + 5*Ctl.EOut)"}, (110, 460))
+                        "XBlurSize": "=G1.FR*(Ctl.Intensity*9*(1 - Ctl.E3)^2 + 5*Ctl.EOut)"}, (110, 460))
 
 # ======================================================================================================================
 # the stack (on transparent), the impact shake, over the scrim/backdrop

@@ -584,7 +584,8 @@ const char* campaignStatus(int i)
 {
     return campaigns[i].status == 0 ? "missing" : campaigns[i].status == 2 ? "incomplete/corrupt" :
         campaigns[i].status == 3 ? "another version: only the latest (1.80 patch 1) is played" : // (AD support)
-        campaigns[i].nativeReady ? (i >= 3 && Cvar_FindVar("language") && missingLanguage(i) ? "installed; language data incomplete" : "ready") : "installed; native support in progress";
+        campaigns[i].nativeReady ? (i >= 3 && Cvar_FindVar("language") && missingLanguage(i) ? "installed; language data incomplete" : "ready") :
+        i == qvr::ad::campaignIndex ? "ready (experimental)" : "installed; native support in progress";
 }
 
 void reportCampaigns()
