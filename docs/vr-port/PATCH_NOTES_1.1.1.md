@@ -43,6 +43,8 @@ The guide: [MULTIPLAYER.md](MULTIPLAYER.md).
 - The host's gameplay rules govern the game; each player keeps his own comfort, hand and display settings.
 - **Dedicated servers** (`ironwail.exe -dedicated 8`): `server.cfg` read at start, a console status line with the
   players' pings every minute (`vr_sv_status`), pings in `status`, nobody can pause them.
+- **Hardened against broken packets**: a malformed message from a player drops only him; a malformed one from a
+  server ends that game with the reason instead of closing Quake VR (also a damaged demo in single player).
 
 **Single player only**: time scale and bullet time, saving at will (the host's level-start coop autosave instead),
 the crates Quake VR places about maps, Dimension of the Past and Dimension of the Machine.

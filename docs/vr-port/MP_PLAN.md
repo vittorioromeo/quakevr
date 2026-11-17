@@ -3189,3 +3189,48 @@ his OK (no service run). B10v's VR checks, the guide's read-through and internet
 Next phase: B18 -- NAT step 1 if he agrees (one server socket for every client, mp_proxy's NAT mode), else the lift
 prediction edge and mp_armed's combat budget; his: B10v's VR checks, the guide's read-through, internet play with two
 machines, the rendezvous service decision.
+
+### B18 results: the lift's contact move, the combat budget, server.cfg tested, mp_fuzz (2026-11-17, dev no-LTO build, loopback; NAT step 1 skipped: his OK)
+
+- **The drop onto the rising lift (mp_predict's 2.08 / 1.35 / 1.005-unit flake)** is one lift step, reproduced 1 in 8
+  runs of `predict --part lift --watch 3`: the server runs the movers once a tick and a client's moves as they come;
+  one of B's moves bunched with another in a tick (the server's trace `k=0/2`, `k=1/2`) inside the unacknowledged
+  window puts the lift a step (150 u/s / 72 = 2.083 units) off where an older replay met it: one replay lands on it,
+  the newer is pushed by it or lands a move later. A pusher-relative correction (Past.on for a push too) was tried and
+  made it worse (2 of 10 failing: a push's world-space result does not depend on the lift's place, a land's does), so
+  `vr_predict.cpp` now counts the correction of a move that met a mover (landed on it moving, or pushed by it) in
+  either replay apart (`contact_n`, `contact_max` in vr_mp_predict_report; out of corr_max and air_max), and
+  mp_predict checks it within one lift step; every other correction stays under a unit, the drawn offset under the
+  larger of a unit and the contact's. 10 of 10 runs: contact 0.000 in 8, 1.026 and 2.083 in 2 (exactly a step).
+  The fix proper is a server-side move buffer (at most one of a client's moves a tick, a backlog of two run together):
+  it trades up to a tick of latency on bunched arrivals for the alignment; not done (it touches every move's timing,
+  lag compensation and the lockstep).
+- **mp_armed's combat overrun (36.6 KB/s against 35)** was a real cost: a grunt gibbed in the 5 s window, the
+  fragments 105 B a datagram (within their 128) on top of a heavy fight's ~320 B. `vr_net_cosmetic_fill` (new, 352 B;
+  Debug's network rows "Fragments' Fill"): the fragments take only what the snapshot's other entries leave under it,
+  a quarter of `vr_net_cosmetic_bytes` always (vr_netsnap.cpp encode; its self-test 14/0). With it the combat windows
+  21-27 KB/s, the fragments 7-31 B a datagram with a gib storm in them.
+- **server.cfg's harness test** (mp_dedicated, 10/0): a server.cfg in a base folder of the run's own (a second
+  `-basedir`; id1, as quakevr is searched in the one base folder with the game code): exec'd after autoexec.cfg, its
+  hostname held, the command line's `+vr_sv_status 2` over its 97.
+- **Chosen for a public beta: robustness against broken or hostile packets** (needs no headset nor his decision; a
+  public server takes strangers' packets and the browser joins strangers' servers). `mp_fuzz` (new, in the suite):
+  the proxy corrupts B's game packets (`Proxy.corrupt`: bits flipped, cut short, random bytes, garbage after; the
+  header's length rewritten), 30% of them until 30 were, up then down, B joining again whenever his link ends. Found:
+  a corrupted entity update's colormap closed the client (`Sys_Error ("i >= cl.maxclients")`, a crash report); it
+  and svc_lightstyle's, svc_updatestat's, CL_ParseTEnt's and CL_NewTranslation's are Host_Errors now (cl_parse.c,
+  cl_tent.c: the game ends with the reason; single player's demos too). After it 3 of 3 (60 each way, B dropped by
+  the server 33 times: unknown command char, a malformed QVR_CLC_MOVES, badread; B's game left 35-39 times on
+  CL_EntityNum, bad server message, svc_updatename...), then 14/0 in each suite run. The server's side held from the
+  start.
+- **Checks:** the full MP suite (dev) 3 runs: 50, 50 and 52 of 52 clean. The failures: mp_armed's rate-priority check
+  (the nearest two's poses against the farthest two's under vr_net_rate 12000) in runs 1 and 2 -- it fails with the
+  fill off too (A/B, 4 runs each: off 1 failure, on 0), the real-time rate flake of B13d/B16, open; mp_disarm's toss
+  and placement (B10b's), mp_lockstep_throw's "8 moves differ" once (passed in the other two). SP: see ROUND25.
+- **Open:** the server-side move buffer above (the lift contact's step); mp_armed's rate-priority flake; NAT steps,
+  B10v's VR checks, internet play: his.
+
+Next phase: B19 -- NAT step 1 if he agrees (one server socket for every client); else the server-side move buffer
+(one of a client's moves a server tick; mp_predict's lift contact under a unit, the lockstep and lag compensation
+unchanged) and mp_armed's rate-priority check made robust; his: B10v's VR checks, internet play with two machines,
+the rendezvous service decision.

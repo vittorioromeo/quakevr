@@ -4820,3 +4820,22 @@ His decision (2026-11-17, after the kit's `work\ericw\FINDINGS.md`): ship a fork
   rendezvous with hole punching); nothing built.
 - **In VR / for him:** decide the NAT steps (MP_DESIGN.md); host with `ironwail.exe -dedicated 8` and a server.cfg
   and watch its console's status line while a friend joins.
+
+## MP B18: the lift's landing, the combat budget, server.cfg tested, broken packets (agent/mp, 2026-11-17)
+
+- **Broken packets can't close the game** (chosen as the phase's beta item: a public server takes strangers' packets,
+  the browser joins strangers' servers). `mp_fuzz` (new, in the suite) corrupts B's packets both ways through the
+  proxy; it found a client crash (a corrupted entity update: `Sys_Error`, a crash report). That and four more of id's
+  Sys_Errors on server data are Host_Errors (cl_parse.c, cl_tent.c: the game ends with the reason; a damaged demo in
+  single player too; its own commit, SP-relevant). The server already dropped a malformed player cleanly.
+- **The drop onto a rising lift's flake** is exactly one lift step: a move bunched with another in a server tick puts
+  the lift a step off where the replay met it. Inherent to running moves as they come; measured apart now
+  (`contact_max`, within one step), everything else under a unit. The real fix (a server-side move buffer) is the next
+  phase's.
+- **Combat bandwidth:** a gib storm in a heavy fight overran 35 KB/s; `vr_net_cosmetic_fill` (352 B) gives the
+  fragments only what the rest of the snapshot leaves.
+- **server.cfg** has a harness test (mp_dedicated, in a run's own second -basedir).
+- Checks: MP suite 50, 50, 52 of 52 (mp_armed's old rate-priority flake twice: also with the fill off; mp_disarm's
+  placement, mp_lockstep_throw once); mp_fuzz 14/0 every run; `predict --part lift` 10 of 10. SP: scenario_check PASS
+  (136/0), load_models 4/0, vr_run_check 12/0, autosavenow 4/0; dev and ThinLTO builds 0 warnings. MP_PLAN.md, "B18".
+- **In VR:** nothing new to feel; gibs in a big multiplayer fight may update a little less often.
