@@ -6836,12 +6836,13 @@ void M_Quit_Draw (void) //johnfitz -- modified for new quit message
 /* LAN CONFIG MENU */
 
 int		lanConfig_cursor = -1;
-int		lanConfig_cursor_table [] = {72, 92, 124};
-#define NUM_LANCONFIG_CMDS	3
+int		lanConfig_cursor_table [] = {72, 92, 124, 156}; // QVR: (B23) 156: the room code
+#define NUM_LANCONFIG_CMDS	4
 
 int 	lanConfig_port;
 char	lanConfig_portname[6];
 char	lanConfig_joinname[22];
+char	lanConfig_roomcode[7]; // QVR: (B23) a room code to join by (net_dgrm.c: "connect @CODE")
 
 void M_Menu_LanConfig_f (void)
 {
@@ -6907,6 +6908,9 @@ void M_LanConfig_Draw (void)
 		M_Print (basex, 108, "Join game at:");
 		M_DrawTextBox (basex+8, lanConfig_cursor_table[2]-8, 22, 1);
 		M_Print (basex+16, lanConfig_cursor_table[2], lanConfig_joinname);
+		M_Print (basex, 140, "Join by room code:"); // QVR: (B23) the host's Host Game page shows it
+		M_DrawTextBox (basex+8, lanConfig_cursor_table[3]-8, 6, 1);
+		M_Print (basex+16, lanConfig_cursor_table[3], lanConfig_roomcode);
 	}
 	else
 	{
@@ -6922,8 +6926,11 @@ void M_LanConfig_Draw (void)
 	if (lanConfig_cursor == 2)
 		M_DrawTextCursor (basex+16 + 8*strlen(lanConfig_joinname), lanConfig_cursor_table [2]);
 
+	if (lanConfig_cursor == 3)
+		M_DrawTextCursor (basex+16 + 8*strlen(lanConfig_roomcode), lanConfig_cursor_table [3]);
+
 	if (*m_return_reason)
-		M_PrintWhite (basex, 148, m_return_reason);
+		M_PrintWhite (basex, 180, m_return_reason); // QVR: (B23; NetQuake's 148: the room code's row now)
 }
 
 
@@ -6987,6 +6994,17 @@ void M_LanConfig_Key (int key)
 			break;
 		}
 
+		if (lanConfig_cursor == 3 && lanConfig_roomcode[0]) // QVR: (B23)
+		{
+			m_return_state = m_state;
+			m_return_onerror = true;
+			IN_Activate();
+			key_dest = key_game;
+			m_state = m_none;
+			Cbuf_AddText ( va ("connect \"@%s\"\n", lanConfig_roomcode) );
+			break;
+		}
+
 		break;
 
 	case K_BACKSPACE:
@@ -7001,10 +7019,13 @@ void M_LanConfig_Key (int key)
 			if (strlen(lanConfig_joinname))
 				lanConfig_joinname[strlen(lanConfig_joinname)-1] = 0;
 		}
+
+		if (lanConfig_cursor == 3 && lanConfig_roomcode[0]) // QVR: (B23)
+			lanConfig_roomcode[strlen(lanConfig_roomcode)-1] = 0;
 		break;
 	}
 
-	if (StartingGame && lanConfig_cursor == 2)
+	if (StartingGame && lanConfig_cursor >= 2) // QVR: (B23) the room code's row too
 	{
 		if (key == K_UPARROW)
 			lanConfig_cursor = 1;
@@ -7045,20 +7066,32 @@ void M_LanConfig_Char (int key)
 			lanConfig_joinname[l] = key;
 		}
 		break;
+	case 3: // QVR: (B23) a room code: its letters, upper case
+		if (key >= 'a' && key <= 'z')
+			key -= 'a' - 'A';
+		if (key < 'A' || key > 'Z')
+			return;
+		l = strlen(lanConfig_roomcode);
+		if (l < 6)
+		{
+			lanConfig_roomcode[l+1] = 0;
+			lanConfig_roomcode[l] = key;
+		}
+		break;
 	}
 }
 
 
 textmode_t M_LanConfig_TextEntry (void)
 {
-	return (lanConfig_cursor == 0 || lanConfig_cursor == 2) ? TEXTMODE_ON : TEXTMODE_OFF;
+	return (lanConfig_cursor == 0 || lanConfig_cursor == 2 || lanConfig_cursor == 3) ? TEXTMODE_ON : TEXTMODE_OFF;
 }
 
 
 void M_LanConfig_Mousemove (float cx, float cy)
 {
 	int prev = lanConfig_cursor;
-	M_UpdateCursorWithTable (cy, lanConfig_cursor_table, NUM_LANCONFIG_CMDS - StartingGame, &lanConfig_cursor);
+	M_UpdateCursorWithTable (cy, lanConfig_cursor_table, StartingGame ? 2 : NUM_LANCONFIG_CMDS, &lanConfig_cursor);
 	if (lanConfig_cursor != prev)
 		M_MouseSound ("misc/menu1.wav");
 }
@@ -7335,6 +7368,14 @@ void M_GameOptions_Draw (void)
 		M_Print (160, 128, levels[episodes[startepisode].firstLevel + startlevel].name);
 	}
 
+	// QVR: (B23) hosting with a room code (net_dgrm.c): the code players join by, and how to copy it
+	if (sv.active && NET_RoomCode ()[0])
+	{
+		M_Print (0, 184, "       Room Code");
+		M_PrintWhite (160, 184, NET_RoomCode ());
+		M_Print (160 + 8 * 7, 184, "(C: copy)");
+	}
+
 // line cursor
 	M_DrawArrowCursor (144, gameoptions_cursor_table[gameoptions_cursor]);
 
@@ -7457,6 +7498,12 @@ void M_GameOptions_Key (int key)
 {
 	switch (key)
 	{
+	case 'c': // QVR: (B23) the room code copied
+	case 'C':
+		if (sv.active && NET_RoomCode ()[0])
+			Cbuf_AddText ("vr_mp_roomcode copy\n");
+		break;
+
 	case K_ESCAPE:
 	case K_BBUTTON:
 	case K_MOUSE4:

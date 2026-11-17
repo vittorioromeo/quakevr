@@ -136,6 +136,8 @@ qsocket_t *NET_NewQSocket (void)
 	Q_strcpy (sock->address,"UNSET ADDRESS");
 	sock->driver = net_driverlevel;
 	sock->socket = 0;
+	sock->qvrShared = false; // QVR: (B23)
+	memset (&sock->qvrIn, 0, sizeof (sock->qvrIn));
 	sock->driverdata = NULL;
 	sock->canSend = true;
 	sock->sendNext = false;

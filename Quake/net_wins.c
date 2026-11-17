@@ -31,6 +31,16 @@ static struct sockaddr_in broadcastaddr;
 
 static in_addr_t	myAddr;
 
+// QVR: (B23, tests) -natgateway <port>: every datagram by way of the multiplayer harness's NAT simulator on
+// 127.0.0.1:<port> (Misc/quakevr/mp/mp_nat.py), the real address before it in 6 bytes (IPv4 and port, network order)
+// both ways; a datagram from anywhere else is dropped (only the NAT reaches this game)
+static struct sockaddr_in	natGateway;
+static byte	natBuffer[NET_DATAGRAMSIZE + 6];
+
+#ifndef SIO_UDP_CONNRESET
+#define SIO_UDP_CONNRESET	_WSAIOW(IOC_VENDOR, 12)
+#endif
+
 #include "net_wins.h"
 
 int winsock_initialized = 0;
@@ -120,6 +130,15 @@ sys_socket_t WINS_Init (void)
 	if (COM_CheckParm ("-noudp"))
 		return -1;
 
+	i = COM_CheckParm ("-natgateway"); // QVR: (B23, tests)
+	if (i && i + 1 < com_argc)
+	{
+		natGateway.sin_family = AF_INET;
+		natGateway.sin_addr.s_addr = htonl (INADDR_LOOPBACK);
+		natGateway.sin_port = htons ((unsigned short) Q_atoi (com_argv[i + 1]));
+		Con_SafePrintf ("UDP: every datagram through the NAT simulator on 127.0.0.1:%s\n", com_argv[i + 1]);
+	}
+
 	if (winsock_initialized == 0)
 	{
 		err = WSAStartup(MAKEWORD(1,1), &winsockdata);
@@ -204,6 +223,16 @@ void WINS_Listen (qboolean state)
 		WINS_GetLocalAddress();
 		if ((net_acceptsocket = WINS_OpenSocket (net_hostport)) == INVALID_SOCKET)
 			Sys_Error ("WINS_Listen: Unable to open accept socket");
+		// QVR: (B23) every client's datagrams come to this socket now (net_dgrm.c): a client gone makes Windows report
+		// the ICMP "port unreachable" of the server's next datagram to him as an error of this socket's next read, which
+		// would cut the read of everyone else's datagrams short -- off; and room for a few frames of 16 clients' moves
+		{
+			BOOL	report = FALSE;
+			DWORD	unused = 0;
+			int	size = 1 << 20;
+			WSAIoctl (net_acceptsocket, SIO_UDP_CONNRESET, &report, sizeof (report), NULL, 0, &unused, NULL, NULL);
+			setsockopt (net_acceptsocket, SOL_SOCKET, SO_RCVBUF, (const char *) &size, sizeof (size));
+		}
 		return;
 	}
 
@@ -333,17 +362,9 @@ int WINS_Connect (sys_socket_t socketid, struct qsockaddr *addr)
 
 sys_socket_t WINS_CheckNewConnections (void)
 {
-	char		buf[4096];
-
-	if (net_acceptsocket == INVALID_SOCKET)
-		return INVALID_SOCKET;
-
-	if (recvfrom (net_acceptsocket, buf, sizeof(buf), MSG_PEEK, NULL, NULL)
-								!= SOCKET_ERROR)
-	{
-		return net_acceptsocket;
-	}
-	return INVALID_SOCKET;
+	// QVR: (B23) the listening socket whenever listening: net_dgrm.c reads it for every client, and keeps the host's room
+	// (NetQuake's peek of 4096 bytes also failed on a larger datagram, which then blocked the socket)
+	return net_acceptsocket;
 }
 
 //=============================================================================
@@ -352,6 +373,30 @@ int WINS_Read (sys_socket_t socketid, byte *buf, int len, struct qsockaddr *addr
 {
 	socklen_t addrlen = sizeof(struct qsockaddr);
 	int ret;
+
+	while (natGateway.sin_port) // QVR: (B23, tests) through the NAT simulator
+	{
+		struct sockaddr_in	from;
+		socklen_t	fromlen = sizeof (from);
+		ret = recvfrom (socketid, (char *) natBuffer, sizeof (natBuffer), 0, (struct sockaddr *) &from, &fromlen);
+		if (ret == SOCKET_ERROR)
+		{
+			int err = SOCKETERRNO;
+			if (err == NET_EWOULDBLOCK || err == NET_ECONNREFUSED || err == WSAECONNRESET || err == WSAEMSGSIZE)
+				return 0;
+			Con_SafePrintf ("WINS_Read, recvfrom: %s\n", socketerror(err));
+			return ret;
+		}
+		if (ret < 6 || from.sin_port != natGateway.sin_port || from.sin_addr.s_addr != natGateway.sin_addr.s_addr)
+			continue;
+		memset (addr, 0, sizeof (*addr));
+		addr->qsa_family = AF_INET;
+		memcpy (&((struct sockaddr_in *) addr)->sin_addr, natBuffer, 4);
+		memcpy (&((struct sockaddr_in *) addr)->sin_port, natBuffer + 4, 2);
+		ret = q_min (ret - 6, len);
+		memcpy (buf, natBuffer + 6, ret);
+		return ret;
+	}
 
 	ret = recvfrom (socketid, (char *)buf, len, 0, (struct sockaddr *)addr, &addrlen);
 	if (ret == SOCKET_ERROR)
@@ -410,6 +455,15 @@ int WINS_Broadcast (sys_socket_t socketid, byte *buf, int len)
 int WINS_Write (sys_socket_t socketid, byte *buf, int len, struct qsockaddr *addr)
 {
 	int	ret;
+
+	if (natGateway.sin_port && len >= 0 && len <= NET_DATAGRAMSIZE) // QVR: (B23, tests) through the NAT simulator
+	{
+		memcpy (natBuffer, &((struct sockaddr_in *) addr)->sin_addr, 4);
+		memcpy (natBuffer + 4, &((struct sockaddr_in *) addr)->sin_port, 2);
+		memcpy (natBuffer + 6, buf, len);
+		ret = sendto (socketid, (char *) natBuffer, len + 6, 0, (struct sockaddr *) &natGateway, sizeof (natGateway));
+		return ret == SOCKET_ERROR ? 0 : len;
+	}
 
 	ret = sendto (socketid, (char *)buf, len, 0, (struct sockaddr *)addr,
 							sizeof(struct qsockaddr));

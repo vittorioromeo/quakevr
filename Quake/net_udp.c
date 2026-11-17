@@ -143,6 +143,11 @@ void UDP_Listen (qboolean state)
 			return;
 		if ((net_acceptsocket = UDP_OpenSocket (net_hostport)) == INVALID_SOCKET)
 			Sys_Error ("UDP_Listen: Unable to open accept socket");
+		// QVR: (B23) every client's datagrams come to this socket now (net_dgrm.c): room for a few frames of 16 clients'
+		{
+			int	size = 1 << 20;
+			setsockopt (net_acceptsocket, SOL_SOCKET, SO_RCVBUF, (const char *) &size, sizeof (size));
+		}
 		return;
 	}
 
@@ -262,24 +267,9 @@ int UDP_Connect (sys_socket_t socketid, struct qsockaddr *addr)
 
 sys_socket_t UDP_CheckNewConnections (void)
 {
-	int		available;
-	struct sockaddr_in	from;
-	socklen_t	fromlen;
-	char		buff[1];
-
-	if (net_acceptsocket == INVALID_SOCKET)
-		return INVALID_SOCKET;
-
-	if (ioctl (net_acceptsocket, FIONREAD, &available) == -1)
-	{
-		int err = SOCKETERRNO;
-		Sys_Error ("UDP: ioctlsocket (FIONREAD) failed (%s)", socketerror(err));
-	}
-	if (available)
-		return net_acceptsocket;
-	// quietly absorb empty packets
-	recvfrom (net_acceptsocket, buff, 0, 0, (struct sockaddr *) &from, &fromlen);
-	return INVALID_SOCKET;
+	// QVR: (B23) the listening socket whenever listening: net_dgrm.c reads it for every client, and keeps the host's room
+	// (an empty datagram reads as none there)
+	return net_acceptsocket;
 }
 
 //=============================================================================

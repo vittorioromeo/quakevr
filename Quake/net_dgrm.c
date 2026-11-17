@@ -26,6 +26,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "net_defs.h"
 #include "net_dgrm.h"
 #include "vr/vr_api.h" // QVR: PRFL_QUAKEVR, QVR_NET_VERSION
+#include "q_ctype.h" // QVR: (B23) room codes
 
 // This is enables a simple IP banning mechanism
 #define BAN_TEST
@@ -57,6 +58,484 @@ static int myDriverLevel;
 
 extern qboolean m_return_onerror;
 extern char m_return_reason[32];
+
+// QVR: (B23) one server socket for every client (docs/vr-port/MP_DESIGN.md "NAT traversal", step 1). NetQuake's server
+// opened a socket on a new port for each client and named that port in its accept: behind a router that doesn't keep a
+// port's number outside, that socket's mapping got another, and a host who had forwarded his port still couldn't be
+// joined. The server now talks to every client from its listening socket and tells them apart by address and port:
+// that socket's datagrams are read here and queued for their client (qsocket_t's qvrIn, which its Datagram_GetMessage
+// takes), the rest (connect requests, queries, the room service's) for _Datagram_CheckNewConnections. Bounded: past
+// a queue's most its oldest datagram goes, as a full socket buffer would drop one.
+#define DGRM_QUEUE_CLIENT	256	// 3.5 s of a client's moves
+#define DGRM_QUEUE_CONTROL	64
+
+typedef struct dgrmpacket_s
+{
+	struct dgrmpacket_s	*next;
+	struct qsockaddr	from;
+	int		length;
+	byte	data[4];	// (length bytes: allocated so)
+} dgrmpacket_t;
+
+static dgrmqueue_t	controlQueue[MAX_NET_DRIVERS];	// each LAN driver's listening socket's
+static byte		sharedBuffer[NET_DATAGRAMSIZE];
+static int		sharedQueueDrops;	// datagrams dropped from a full queue (net_stats)
+
+static void QueuePush (dgrmqueue_t *q, int most, const byte *data, int length, const struct qsockaddr *from)
+{
+	dgrmpacket_t *p = (dgrmpacket_t *) malloc (sizeof (dgrmpacket_t) + length);
+	if (!p)
+		return;
+	p->next = NULL;
+	p->from = *from;
+	p->length = length;
+	memcpy (p->data, data, length);
+	if (q->last)
+		q->last->next = p;
+	else
+		q->first = p;
+	q->last = p;
+	if (++q->count > most)
+	{
+		dgrmpacket_t *old = q->first;
+		q->first = old->next;
+		q->count--;
+		free (old);
+		sharedQueueDrops++;
+	}
+}
+
+// The oldest datagram into `out` (at most `size` bytes) -> its length; 0: none
+static int QueuePop (dgrmqueue_t *q, byte *out, int size, struct qsockaddr *from)
+{
+	dgrmpacket_t *p = q->first;
+	int length;
+	if (!p)
+		return 0;
+	q->first = p->next;
+	if (!q->first)
+		q->last = NULL;
+	q->count--;
+	length = q_min (p->length, size);
+	memcpy (out, p->data, length);
+	*from = p->from;
+	free (p);
+	return length;
+}
+
+static void QueueClear (dgrmqueue_t *q)
+{
+	struct qsockaddr unused;
+	while (QueuePop (q, sharedBuffer, 0, &unused))
+		;
+}
+
+// QVR: (B23) hosting and joining by room code (MP_DESIGN.md "NAT traversal", step 2; the service: Misc/rendezvous/).
+// A host whose vr_mp_room is on registers with the room service (vr_mp_rendezvous) from his listening socket every
+// ROOM_REGISTER_EVERY seconds: the service sees his router's outside address and port for that socket and gives him
+// a room code. A joiner asks the service for the room's host from the socket he will play on; the service tells each
+// the other's outside address, and both send at once -- the joiner his connect requests, the host ROOM_PUNCH
+// datagrams -- so each router sees its side's datagram go out first and lets the other's in (UDP hole punching: cone
+// NATs; a symmetric NAT on either side maps each destination to another port and the join fails with the reason).
+// The wire format (Misc/rendezvous/qvr_rendezvous.py has the service's side): "QVRR", version, type, two zero bytes,
+// then the type's fields; requests are ROOM_REQUEST bytes, replies ROOM_REPLY (a reply never outgrows its request).
+#define ROOM_MAGIC	"QVRR"
+#define ROOM_VERSION	1
+#define ROOM_REQUEST	64
+#define ROOM_REPLY	32
+#define ROOM_CODE_LEN	6
+#define ROOM_REGISTER	0x01	// host -> service: code wanted (6 bytes or zeros) at 8, nonce at 14
+#define ROOM_JOIN	0x02	// joiner -> service: code at 8, nonce at 14
+#define ROOM_REGISTERED	0x81	// -> host: code at 8, nonce at 14, his outside IPv4 at 18, port at 22
+#define ROOM_PEER	0x82	// -> joiner: code, nonce, the host's outside address
+#define ROOM_INCOMING	0x83	// -> host: code, 0, the joiner's outside address (punch it)
+#define ROOM_NOROOM	0x84	// -> joiner: code, nonce: no such room
+#define ROOM_REFUSED	0x85	// -> host: code, nonce, why at 18 (1: the service is full)
+#define ROOM_BADVERSION	0x86	// -> either: the service's version at 18
+#define ROOM_PUNCH	0x90	// host -> joiner: opens the host's router to him (the joiner ignores it)
+#define ROOM_DEFAULT_PORT	26100
+#define ROOM_REGISTER_EVERY	20.0	// s (the service forgets a room 120 s after its last registration)
+#define ROOM_RETRY_EVERY	2.0	// s, until the first reply
+#define ROOM_PUNCH_FOR		8.0	// s a host punches towards a joiner
+#define ROOM_PUNCH_EVERY	0.1	// s
+#define ROOM_JOIN_WAIT		3.0	// s a joiner waits for the service's answer
+#define ROOM_CONNECT_TRIES	32	// a room's connect requests (punches), ROOM_CONNECT_EVERY apart
+#define ROOM_CONNECT_EVERY	0.25	// s
+#define ROOM_PEERS	8
+
+typedef struct
+{
+	struct qsockaddr	addr;
+	double	until;
+	double	next;
+} roompeer_t;
+
+static struct
+{
+	char	service[64];		// vr_mp_rendezvous as last resolved ("": none)
+	struct qsockaddr	serviceAddr;
+	qboolean	resolved;
+	double	resolveAt;		// a failed lookup's next try
+	char	code[ROOM_CODE_LEN + 1];	// this host's room ("": none yet)
+	unsigned int	nonce;
+	double	nextRegister;
+	double	firstSent;		// the first unanswered registration's time (0: answered)
+	qboolean	toldUnanswered;
+	roompeer_t	peers[ROOM_PEERS];
+} room;
+
+static const char roomLetters[] = "ABCDEFGHJKLMNPQRSTUVWXYZ"; // (no I or O: read as 1 and 0)
+
+static const char *RoomServiceName (void)
+{
+	return Cvar_VariableString ("vr_mp_rendezvous");
+}
+
+// vr_mp_rendezvous ("host[:port]") resolved into `out` -> 0; -1 none set or not found
+static int RoomResolve (const char *name, struct qsockaddr *out)
+{
+	char	host[64];
+	char	*colon;
+	int		port = ROOM_DEFAULT_PORT;
+
+	q_strlcpy (host, name, sizeof (host));
+	if (!host[0])
+		return -1;
+	if ((colon = strrchr (host, ':')) != NULL)
+	{
+		*colon = 0;
+		port = Q_atoi (colon + 1);
+	}
+	if (port <= 0 || port > 65535 || dfunc.GetAddrFromName (host, out) == -1)
+		return -1;
+	dfunc.SetSocketPort (out, port);
+	return 0;
+}
+
+static void RoomWrite (sys_socket_t s, int type, const char *code, unsigned int nonce, int size,
+	const struct qsockaddr *to)
+{
+	byte	pkt[ROOM_REQUEST];
+
+	memset (pkt, 0, sizeof (pkt));
+	memcpy (pkt, ROOM_MAGIC, 4);
+	pkt[4] = ROOM_VERSION;
+	pkt[5] = (byte) type;
+	if (code)
+		memcpy (pkt + 8, code, q_min ((int) strlen (code), ROOM_CODE_LEN));
+	pkt[14] = (byte) (nonce >> 24);
+	pkt[15] = (byte) (nonce >> 16);
+	pkt[16] = (byte) (nonce >> 8);
+	pkt[17] = (byte) nonce;
+	dfunc.Write (s, pkt, size, (struct qsockaddr *) to);
+}
+
+static qboolean IsRoomPacket (const byte *data, int length)
+{
+	return length >= 8 && memcmp (data, ROOM_MAGIC, 4) == 0;
+}
+
+static unsigned int RoomNonce (const byte *pkt)
+{
+	return ((unsigned int) pkt[14] << 24) | ((unsigned int) pkt[15] << 16) | ((unsigned int) pkt[16] << 8) | pkt[17];
+}
+
+// The address a reply carries (IPv4 at 18, port at 22, network order)
+static void RoomAddr (const byte *pkt, struct qsockaddr *out)
+{
+	memset (out, 0, sizeof (*out));
+	out->qsa_family = AF_INET;
+	memcpy (&((struct sockaddr_in *) out)->sin_addr, pkt + 18, 4);
+	memcpy (&((struct sockaddr_in *) out)->sin_port, pkt + 22, 2);
+}
+
+// A room code typed by a player ("abc-def", " ABCDEF") made the service's -> qtrue
+static qboolean RoomCleanCode (const char *in, char *out)
+{
+	int n = 0;
+	for (; *in; in++)
+	{
+		char c = (char) q_toupper (*in);
+		if (c == ' ' || c == '-')
+			continue;
+		if (n >= ROOM_CODE_LEN || !strchr (roomLetters, c))
+			return false;
+		out[n++] = c;
+	}
+	out[n] = 0;
+	return n == ROOM_CODE_LEN;
+}
+
+const char *NET_RoomCode (void)
+{
+	return room.code;
+}
+
+// A host's datagram from the room service (on his listening socket) -> qtrue: taken (any datagram of the room format
+// is: a stray one is dropped)
+static qboolean RoomHostRead (sys_socket_t acceptsock, const byte *pkt, int length, struct qsockaddr *from)
+{
+	int i;
+	struct qsockaddr peer;
+
+	if (!IsRoomPacket (pkt, length))
+		return false;
+	if (!room.resolved || length < ROOM_REPLY || dfunc.AddrCompare (from, &room.serviceAddr) != 0)
+		return true;
+	switch (pkt[5])
+	{
+	case ROOM_REGISTERED:
+		if (RoomNonce (pkt) != room.nonce)
+			break;
+		room.firstSent = 0;
+		room.toldUnanswered = false;
+		if (memcmp (room.code, pkt + 8, ROOM_CODE_LEN) != 0)
+		{
+			memcpy (room.code, pkt + 8, ROOM_CODE_LEN);
+			room.code[ROOM_CODE_LEN] = 0;
+			RoomAddr (pkt, &peer);
+			Con_Printf ("Room code: %s (players join with it at Multiplayer > Join Game; you are %s to the room "
+				"service %s)\n", room.code, dfunc.AddrToString (&peer), room.service);
+		}
+		room.nextRegister = net_time + ROOM_REGISTER_EVERY;
+		break;
+	case ROOM_INCOMING:
+		if (memcmp (room.code, pkt + 8, ROOM_CODE_LEN) != 0)
+			break;
+		RoomAddr (pkt, &peer);
+		for (i = 0; i < ROOM_PEERS; i++)
+			if (room.peers[i].until < net_time || dfunc.AddrCompare (&room.peers[i].addr, &peer) == 0)
+				break;
+		if (i == ROOM_PEERS)
+			break; // (8 joiners in the last 8 s: the next gets punched for at his retry)
+		room.peers[i].addr = peer;
+		room.peers[i].until = net_time + ROOM_PUNCH_FOR;
+		room.peers[i].next = net_time;
+		Con_DPrintf ("Room %s: %s is joining\n", room.code, dfunc.AddrToString (&peer));
+		break;
+	case ROOM_REFUSED:
+		if (!room.toldUnanswered)
+			Con_Printf ("The room service %s has no room for this game now (players can still join by your IP address)\n",
+				room.service);
+		room.toldUnanswered = true;
+		room.nextRegister = net_time + 60.0;
+		break;
+	case ROOM_BADVERSION:
+		if (!room.toldUnanswered)
+			Con_Printf ("The room service %s speaks version %d, this game %d: no room code\n", room.service, pkt[18],
+				ROOM_VERSION);
+		room.toldUnanswered = true;
+		room.nextRegister = net_time + 600.0;
+		break;
+	}
+	return true;
+}
+
+// A host's room each server frame: registered (again), its joiners punched for
+static void RoomHostTick (sys_socket_t acceptsock)
+{
+	const char	*name = RoomServiceName ();
+	qsocket_t	*s;
+	int		i;
+
+	if (!Cvar_VariableValue ("vr_mp_room") || !name[0])
+	{
+		room.code[0] = 0;
+		room.service[0] = 0;
+		room.resolved = false;
+		return;
+	}
+	if (Q_strcmp (name, room.service) != 0)
+	{
+		q_strlcpy (room.service, name, sizeof (room.service));
+		room.resolved = false;
+		room.resolveAt = 0;
+		room.code[0] = 0;
+		room.nextRegister = 0;
+		room.firstSent = 0;
+		room.toldUnanswered = false;
+	}
+	if (!room.resolved)
+	{
+		if (net_time < room.resolveAt)
+			return;
+		if (RoomResolve (room.service, &room.serviceAddr) == -1)
+		{
+			if (room.resolveAt == 0)
+				Con_Printf ("The room service %s was not found: no room code (players can still join by your IP "
+					"address)\n", room.service);
+			room.resolveAt = net_time + 60.0;
+			return;
+		}
+		room.resolved = true;
+	}
+	if (net_time >= room.nextRegister)
+	{
+		room.nonce = (unsigned int) rand () ^ ((unsigned int) rand () << 15) ^ ((unsigned int) (net_time * 1000.0));
+		RoomWrite (acceptsock, ROOM_REGISTER, room.code, room.nonce, ROOM_REQUEST, &room.serviceAddr);
+		if (room.firstSent == 0)
+			room.firstSent = net_time;
+		room.nextRegister = net_time + (room.code[0] ? ROOM_REGISTER_EVERY / 4 : ROOM_RETRY_EVERY);
+		if (net_time - room.firstSent > 3 * ROOM_RETRY_EVERY && !room.toldUnanswered)
+		{
+			Con_Printf ("The room service %s does not answer: no room code yet (players can still join by your IP "
+				"address)\n", room.service);
+			room.toldUnanswered = true;
+		}
+		if (net_time - room.firstSent > 60.0)
+			room.nextRegister = net_time + ROOM_REGISTER_EVERY; // (gone a minute: asked less often)
+	}
+	for (i = 0; i < ROOM_PEERS; i++)
+	{
+		roompeer_t *p = &room.peers[i];
+		if (p->until < net_time || p->next > net_time)
+			continue;
+		for (s = net_activeSockets; s; s = s->next)
+			if (s->qvrShared && dfunc.AddrCompare (&s->addr, &p->addr) == 0)
+				break;
+		if (s)
+		{
+			p->until = 0; // (joined)
+			continue;
+		}
+		RoomWrite (acceptsock, ROOM_PUNCH, room.code, 0, ROOM_REPLY, &p->addr);
+		p->next = net_time + ROOM_PUNCH_EVERY;
+	}
+}
+
+// The listening socket's datagrams read: each client's queued for him, the room service's taken, the rest queued for
+// _Datagram_CheckNewConnections
+static void ReadShared (int landriver, sys_socket_t acceptsock)
+{
+	struct qsockaddr	from;
+	int		length;
+	unsigned int	head;
+	qsocket_t	*s;
+	net_landriver_t	*driver = &net_landrivers[landriver];
+
+	net_landriverlevel = landriver; // (dfunc: RoomHostRead's)
+
+	while ((length = driver->Read (acceptsock, sharedBuffer, sizeof (sharedBuffer), &from)) > 0)
+	{
+		if (RoomHostRead (acceptsock, sharedBuffer, length, &from))
+			continue;
+		head = length >= 4 ? ((unsigned int) sharedBuffer[0] << 24) : 0;
+		if (length >= NET_HEADERSIZE && !(head & NETFLAG_CTL))
+		{
+			for (s = net_activeSockets; s; s = s->next)
+				if (s->qvrShared && s->landriver == landriver && driver->AddrCompare (&from, &s->addr) == 0)
+					break;
+			if (s)
+				QueuePush (&s->qvrIn, DGRM_QUEUE_CLIENT, sharedBuffer, length, &from);
+			continue; // (nobody's: a client gone)
+		}
+		QueuePush (&controlQueue[landriver], DGRM_QUEUE_CONTROL, sharedBuffer, length, &from);
+	}
+}
+
+// A connection's next datagram into packetBuffer -> its length (0 none, -1 an error)
+static int ReadDatagram (qsocket_t *sock, struct qsockaddr *from)
+{
+	if (!sock->qvrShared)
+		return sfunc.Read (sock->socket, (byte *)&packetBuffer, NET_DATAGRAMSIZE, from);
+	ReadShared (sock->landriver, sock->socket);
+	return QueuePop (&sock->qvrIn, (byte *)&packetBuffer, NET_DATAGRAMSIZE, from);
+}
+
+// QVR: (B23) joining by room code: the room's host asked of the room service from the joiner's socket -> qtrue, his
+// outside address in `host`; qfalse: m_return_reason says why (the console the whole of it)
+static qboolean RoomJoin (sys_socket_t sock, const char *typed, struct qsockaddr *host)
+{
+	char	code[ROOM_CODE_LEN + 1];
+	struct qsockaddr	service;
+	struct qsockaddr	from;
+	const char	*name = RoomServiceName ();
+	unsigned int	nonce;
+	double	start, sent;
+	int		length;
+
+	if (!RoomCleanCode (typed, code))
+	{
+		Con_Printf ("\"%s\" is not a room code: a room code is %d letters (the host's Multiplayer > Host Game page "
+			"shows it)\n", typed, ROOM_CODE_LEN);
+		q_strlcpy (m_return_reason, "A room code is 6 letters", sizeof (m_return_reason));
+		return false;
+	}
+	if (!name[0])
+	{
+		Con_Printf ("No room service set (vr_mp_rendezvous): join by the host's IP address\n");
+		q_strlcpy (m_return_reason, "No room service set", sizeof (m_return_reason));
+		return false;
+	}
+	if (RoomResolve (name, &service) == -1)
+	{
+		Con_Printf ("The room service %s was not found (no internet?): join by the host's IP address\n", name);
+		q_strlcpy (m_return_reason, "Room service not found", sizeof (m_return_reason));
+		return false;
+	}
+	Con_Printf ("Looking up room %s at %s...\n", code, name);
+	SCR_UpdateScreen ();
+	nonce = (unsigned int) rand () ^ ((unsigned int) rand () << 15) ^ ((unsigned int) (Sys_DoubleTime () * 1000.0));
+	start = SetNetTime ();
+	sent = -1.0;
+	while (SetNetTime () - start < ROOM_JOIN_WAIT)
+	{
+		if (sent < 0 || net_time - sent >= 0.5)
+		{
+			RoomWrite (sock, ROOM_JOIN, code, nonce, ROOM_REQUEST, &service);
+			sent = net_time;
+		}
+		length = dfunc.Read (sock, net_message.data, net_message.maxsize, &from);
+		if (length <= 0)
+		{
+			Sys_Sleep (1);
+			continue;
+		}
+		if (length < ROOM_REPLY || !IsRoomPacket (net_message.data, length) || dfunc.AddrCompare (&from, &service) != 0)
+			continue;
+		if (net_message.data[5] == ROOM_BADVERSION)
+		{
+			Con_Printf ("The room service %s speaks version %d, this game %d: join by the host's IP address\n", name,
+				net_message.data[18], ROOM_VERSION);
+			q_strlcpy (m_return_reason, "Room service: other version", sizeof (m_return_reason));
+			return false;
+		}
+		if (RoomNonce (net_message.data) != nonce || memcmp (net_message.data + 8, code, ROOM_CODE_LEN) != 0)
+			continue;
+		if (net_message.data[5] == ROOM_NOROOM)
+		{
+			Con_Printf ("No room %s at %s: check the code (a room ends 2 minutes after its game)\n", code, name);
+			q_strlcpy (m_return_reason, "No room with that code", sizeof (m_return_reason));
+			return false;
+		}
+		if (net_message.data[5] == ROOM_PEER)
+		{
+			RoomAddr (net_message.data, host);
+			Con_Printf ("Room %s: the host is %s\n", code, dfunc.AddrToString (host));
+			return true;
+		}
+	}
+	Con_Printf ("The room service %s does not answer: try again later, or join by the host's IP address\n", name);
+	q_strlcpy (m_return_reason, "Room service not answering", sizeof (m_return_reason));
+	return false;
+}
+
+static void NET_RoomCode_f (void)
+{
+	if (!room.code[0])
+	{
+		Con_Printf ("No room code: %s\n", !sv.active ? "not hosting a multiplayer game"
+			: !Cvar_VariableValue ("vr_mp_room") ? "vr_mp_room is 0"
+			: !RoomServiceName ()[0] ? "no room service (vr_mp_rendezvous)" : "the room service has not answered yet");
+		return;
+	}
+	Con_Printf ("Room code: %s\n", room.code);
+	if (cls.state != ca_dedicated && Cmd_Argc () > 1 && !Q_strcmp (Cmd_Argv (1), "copy"))
+	{
+		if (SDL_SetClipboardText (room.code) == 0)
+			Con_Printf ("(copied to the clipboard)\n");
+	}
+}
 
 
 static char *StrAddr (struct qsockaddr *addr)
@@ -381,8 +860,7 @@ int	Datagram_GetMessage (qsocket_t *sock)
 
 	while (1)
 	{
-		length = (unsigned int) sfunc.Read(sock->socket, (byte *)&packetBuffer,
-							NET_DATAGRAMSIZE, &readaddr);
+		length = (unsigned int) ReadDatagram (sock, &readaddr); // QVR: (B23) a server's client's from his queue
 
 	//	if ((rand() & 255) > 220)
 	//		continue;
@@ -395,6 +873,11 @@ int	Datagram_GetMessage (qsocket_t *sock)
 			Con_Printf("Read error\n");
 			return -1;
 		}
+
+		// QVR: (B23) a room's host's punches still coming after the join, the room service's answer to a JOIN sent again
+		// (net_dgrm.c's room codes): not game datagrams
+		if (IsRoomPacket ((const byte *)&packetBuffer, (int) length))
+			continue;
 
 		if (sfunc.AddrCompare(&readaddr, &sock->addr) != 0)
 		{
@@ -582,6 +1065,7 @@ static void NET_Stats_f (void)
 		Con_Printf("receivedDuplicateCount     = %i\n", receivedDuplicateCount);
 		Con_Printf("shortPacketCount           = %i\n", shortPacketCount);
 		Con_Printf("droppedDatagrams           = %i\n", droppedDatagrams);
+		Con_Printf("server queue drops         = %i\n", sharedQueueDrops); // QVR (B23)
 	}
 	else if (Q_strcmp(Cmd_Argv(1), "*") == 0)
 	{
@@ -916,6 +1400,7 @@ int Datagram_Init (void)
 	myDriverLevel = net_driverlevel;
 
 	Cmd_AddCommand ("net_stats", NET_Stats_f);
+	Cmd_AddCommand ("vr_mp_roomcode", NET_RoomCode_f); // QVR: (B23) this host's room code ("vr_mp_roomcode copy": copied)
 
 	if (safemode || COM_CheckParm("-nolan"))
 		return -1;
@@ -964,7 +1449,10 @@ void Datagram_Shutdown (void)
 
 void Datagram_Close (qsocket_t *sock)
 {
-	sfunc.Close_Socket(sock->socket);
+	if (sock->qvrShared) // QVR: (B23) the server's listening socket: not his to close
+		QueueClear (&sock->qvrIn);
+	else
+		sfunc.Close_Socket(sock->socket);
 }
 
 
@@ -984,28 +1472,19 @@ void Datagram_Listen (qboolean state)
 // address on another port is that player back from a crash (his game sends moves every frame while it runs)
 #define QVR_GHOST_SILENCE 3.0
 
-static qsocket_t *_Datagram_CheckNewConnections (void)
+// QVR: (B23) a datagram of the listening socket's that isn't a client's (in net_message: its length `len`, from `from`)
+static qsocket_t *_Datagram_ControlRequest (sys_socket_t acceptsock, const struct qsockaddr *from, int len)
 {
-	struct qsockaddr clientaddr;
+	struct qsockaddr clientaddr = *from;
 	struct qsockaddr newaddr;
-	sys_socket_t		newsock;
-	sys_socket_t		acceptsock;
 	qsocket_t	*sock;
 	qsocket_t	*s;
-	int			len;
 	int			command;
 	int			control;
 	int			ret;
 	int			qvrVersion = 0; // QVR
 	char		qvrName[32] = {0}; // QVR: the player's name (a loaded coop game's slot)
 
-	acceptsock = dfunc.CheckNewConnections();
-	if (acceptsock == INVALID_SOCKET)
-		return NULL;
-
-	SZ_Clear(&net_message);
-
-	len = dfunc.Read (acceptsock, net_message.data, net_message.maxsize, &clientaddr);
 	if (len < (int) sizeof(int))
 		return NULL;
 	net_message.cursize = len;
@@ -1243,24 +1722,10 @@ static qsocket_t *_Datagram_CheckNewConnections (void)
 		return NULL;
 	}
 
-	// allocate a network socket
-	newsock = dfunc.Open_Socket(0);
-	if (newsock == INVALID_SOCKET)
-	{
-		NET_FreeQSocket(sock);
-		return NULL;
-	}
-
-	// connect to the client
-	if (dfunc.Connect (newsock, &clientaddr) == -1)
-	{
-		dfunc.Close_Socket(newsock);
-		NET_FreeQSocket(sock);
-		return NULL;
-	}
-
-	// everything is allocated, just fill in the details
-	sock->socket = newsock;
+	// QVR: (B23) no socket of his own: the listening one (net_dgrm.c's ReadShared). The accept still names its port (a
+	// NetQuake client switches to it); a Quake VR client of network version 36 or later keeps the address it reached.
+	sock->socket = acceptsock;
+	sock->qvrShared = true;
 	sock->landriver = net_landriverlevel;
 	sock->addr = clientaddr;
 	sock->qvrNetVersion = qvrVersion; // QVR
@@ -1272,7 +1737,7 @@ static qsocket_t *_Datagram_CheckNewConnections (void)
 	// save space for the header, filled in later
 	MSG_WriteLong(&net_message, 0);
 	MSG_WriteByte(&net_message, CCREP_ACCEPT);
-	dfunc.GetSocketAddr(newsock, &newaddr);
+	dfunc.GetSocketAddr(acceptsock, &newaddr);
 	MSG_WriteLong(&net_message, dfunc.GetSocketPort(&newaddr));
 	MSG_WriteLong(&net_message, QVR_NET_VERSION); // QVR: (B13) a Quake VR server's network layer (selective acks)
 //	MSG_WriteString(&net_message, dfunc.AddrToString(&newaddr));
@@ -1281,6 +1746,31 @@ static qsocket_t *_Datagram_CheckNewConnections (void)
 	SZ_Clear(&net_message);
 
 	return sock;
+}
+
+// QVR: (B23) the listening socket read (its clients' datagrams queued for them), the host's room kept, then its other
+// datagrams answered until one is a new connection
+static qsocket_t *_Datagram_CheckNewConnections (void)
+{
+	struct qsockaddr	from;
+	qsocket_t	*sock;
+	int		len;
+	sys_socket_t	acceptsock = dfunc.CheckNewConnections ();
+
+	if (acceptsock == INVALID_SOCKET)
+		return NULL;
+	ReadShared (net_landriverlevel, acceptsock);
+	RoomHostTick (acceptsock);
+	while (1)
+	{
+		SZ_Clear (&net_message);
+		len = QueuePop (&controlQueue[net_landriverlevel], net_message.data, net_message.maxsize, &from);
+		if (len <= 0)
+			return NULL;
+		sock = _Datagram_ControlRequest (acceptsock, &from, len);
+		if (sock)
+			return sock;
+	}
 }
 
 qsocket_t *Datagram_CheckNewConnections (void)
@@ -1471,9 +1961,12 @@ static qsocket_t *_Datagram_Connect (const char *host)
 	double		start_time;
 	int			control;
 	const char		*reason;
+	const qboolean	byRoom = host[0] == '@'; // QVR: (B23) "connect @CODE": a room's host, by the room service
+	const int		tries = byRoom ? ROOM_CONNECT_TRIES : 3;
+	const double	tryFor = byRoom ? ROOM_CONNECT_EVERY : 2.5;
 
 	// see if we can resolve the host name
-	if (dfunc.GetAddrFromName(host, &sendaddr) == -1)
+	if (!byRoom && dfunc.GetAddrFromName(host, &sendaddr) == -1)
 	{
 		Con_Printf("Could not resolve %s\n", host);
 		return NULL;
@@ -1489,6 +1982,11 @@ static qsocket_t *_Datagram_Connect (const char *host)
 	sock->socket = newsock;
 	sock->landriver = net_landriverlevel;
 
+	// QVR: (B23) the room's host asked of the service from this socket: its outside address and port for it is the one
+	// the host punches towards while the connect requests below punch his router
+	if (byRoom && !RoomJoin (newsock, host + 1, &sendaddr))
+		goto ErrorReturn; // (RoomJoin's reason given)
+
 	// connect to the host
 	if (dfunc.Connect (newsock, &sendaddr) == -1)
 		goto ErrorReturn;
@@ -1498,7 +1996,7 @@ static qsocket_t *_Datagram_Connect (const char *host)
 	SCR_UpdateScreen ();
 	start_time = net_time;
 
-	for (reps = 0; reps < 3; reps++)
+	for (reps = 0; reps < tries; reps++)
 	{
 		SZ_Clear(&net_message);
 		// save space for the header, filled in later
@@ -1558,15 +2056,31 @@ static qsocket_t *_Datagram_Connect (const char *host)
 					continue;
 				}
 			}
+			else if (byRoom)
+				Sys_Sleep (1); // QVR: (B23) (NetQuake's loop spins)
 		}
-		while (ret == 0 && (SetNetTime() - start_time) < 2.5);
+		while (ret == 0 && (SetNetTime() - start_time) < tryFor);
 
 		if (ret)
 			break;
 
-		Con_Printf("still trying...\n");
-		SCR_UpdateScreen ();
+		if (!byRoom || reps % 4 == 3)
+		{
+			Con_Printf("still trying...\n");
+			SCR_UpdateScreen ();
+		}
 		start_time = SetNetTime();
+	}
+
+	if (ret == 0 && byRoom)
+	{
+		// QVR: (B23) punched for 8 s without an answer: a router on the way maps each destination to another port
+		// (a symmetric NAT), or drops what it hasn't seen asked for whatever was sent
+		Con_Printf ("No answer from the room's host at %s: his router or yours doesn't allow a direct link. The host "
+			"can forward UDP port %d to his PC (then join by his IP address), or use a virtual LAN.\n",
+			dfunc.AddrToString (&sendaddr), DEFAULTnet_hostport);
+		q_strlcpy (m_return_reason, "No direct link to the host", sizeof (m_return_reason));
+		goto ErrorReturn;
 	}
 
 	if (ret == 0)
@@ -1601,6 +2115,11 @@ static qsocket_t *_Datagram_Connect (const char *host)
 		// QVR: (B13) a Quake VR server's network version after the port (selective acks: net_dgrm.c), none from NetQuake's
 		if (msg_readcount + 4 <= net_message.cursize)
 			sock->qvrNetVersion = MSG_ReadLong();
+		// QVR: (B23) one socket for every client from network version 36: the server goes on at the address it was
+		// reached at (the port it names is its own inside its router: another outside it, behind a router that
+		// doesn't keep port numbers or by a room code)
+		if (sock->qvrNetVersion >= 36)
+			Q_memcpy (&sock->addr, &sendaddr, sizeof (struct qsockaddr));
 	}
 	else
 	{

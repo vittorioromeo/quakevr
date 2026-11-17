@@ -130,6 +130,14 @@ CCREP_RULE_INFO
 #define NET_RELIABLE_WINDOW	16 // QVR: reliable chunks in flight at most (net_dgrm.c)
 #define NET_RELIABLE_CHUNK	1200 // QVR: a reliable chunk's bytes at most (net_dgrm.c)
 
+// QVR: (B23) datagrams queued for a reader (net_dgrm.c: a server's clients on its one socket), oldest first
+typedef struct
+{
+	struct dgrmpacket_s	*first;
+	struct dgrmpacket_s	*last;
+	int		count;
+} dgrmqueue_t;
+
 typedef struct qsocket_s
 {
 	struct qsocket_s	*next;
@@ -171,6 +179,9 @@ typedef struct qsocket_s
 	unsigned int	qvrStaleRead;	// QVR: ... how many were
 	int		qvrNetVersion;	// QVR: the peer's Quake VR network version from its connect request (0: none; net_dgrm.c)
 	char		qvrName[32];	// QVR: the player's name from its connect request ("": none): a loaded coop game's slot by it
+	qboolean	qvrShared;	// QVR: (B23) a server's client on the server's listening socket (net_dgrm.c): its datagrams
+					// are read from there and queued for it (qvrIn), its socket is not its own to close
+	dgrmqueue_t	qvrIn;		// QVR: ... its queued datagrams, oldest first
 	unsigned int	unreliableSendSequence;
 	int		sendMessageLength;
 	byte		sendMessage [NET_MAXMESSAGE];

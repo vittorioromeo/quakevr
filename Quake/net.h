@@ -51,6 +51,8 @@ extern	int		net_activeconnections;
 void	NET_Init (void);
 void	NET_Shutdown (void);
 
+const char	*NET_RoomCode (void); // QVR: (B23) this host's room code ("": none; net_dgrm.c)
+
 struct qsocket_s	*NET_CheckNewConnections (void);
 // returns a new connection number if there is one pending, else -1
 
