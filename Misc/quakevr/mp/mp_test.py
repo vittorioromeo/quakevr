@@ -5320,8 +5320,10 @@ def deathmatch(s):
     srv.start()
     # (B25: no fraglimit until A's frags: the bots play by themselves meanwhile and once reached it in the QC tests' steps
     # under load -- the intermission, the level again, the bots gone: dmtest 7 and 8 found no bot, 7 checks failed. The
-    # QC's StartFrame reads fraglimit every frame: set below, before A's kills.)
-    srv.cmd("coop 0; deathmatch 1; fraglimit 0; timelimit %d; skill 1; map %s; vr_mp_status" % (DM_TIMELIMIT, DM_MAP))
+    # QC's StartFrame reads fraglimit every frame: set below, before A's kills.) (noexit 1: and dm4's exit kills, not
+    # changes the level: a bot that wandered into it had the level start again, the bots gone, in the same steps)
+    srv.cmd("coop 0; deathmatch 1; noexit 1; fraglimit 0; timelimit %d; skill 1; map %s; vr_mp_status" % (
+        DM_TIMELIMIT, DM_MAP))
     srv.wait(r"mp_server: map=%s" % DM_MAP, 120, what="the server on %s" % DM_MAP)
     a = s.client("A").start()
     b = s.client("B", proxy=True).start()
