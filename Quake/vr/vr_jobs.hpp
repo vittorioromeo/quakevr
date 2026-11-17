@@ -320,6 +320,9 @@ void init(int workers = 0);
 void shutdown();
 // Made again with that many workers (vr_jobs_threads): whatever is queued runs first.
 void restart(int workers);
+// vr_heap_thread_tidy (B22): each worker tidies its own heap (vr_crtheap.h) after a job at most once in `milliseconds`,
+// and once when it has had no job for that long (Zancle's idle hook); 0: never.
+void setHeapTidy(int milliseconds);
 [[nodiscard]] Pool* pool() noexcept; // null outside init .. shutdown
 [[nodiscard]] int workers() noexcept;  // the game pool's (0 without one)
 [[nodiscard]] int hardwareThreads() noexcept;
