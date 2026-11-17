@@ -19,7 +19,12 @@ b3ComputeMeshManifolds asks the pre-solve callback for a mesh's contact points t
 path, once a contact), so that a prop passing through a teleporter does not collide with the wall behind it
 (`vr_box3d.cpp` preSolve, the portal copies), and in `src/hull.c` and `include/box3d/collision.h` b3CreateHullWith:
 b3CreateHull with its working memory and result from the caller's allocator (b3CreateHull calls the same code with
-b3Alloc / b3Free), so that the disarm hulls made each frame use a scratch arena (`vr_disarmhull.cpp`). Upstream's samples, tests, benchmarks, docs, shared code and CMake files are left out.
+b3Alloc / b3Free), so that the disarm hulls made each frame use a scratch arena (`vr_disarmhull.cpp`), and in `src/physics_world.h`
+and `src/physics_world.c` the contact manifolds' arrays longer than `B3_POOLED_MANIFOLD_COUNT` (4) come from b3Alloc
+instead of a block allocator of their own count (upstream makes one pool for every count up to the longest a mesh
+contact ever had, each 512 arrays of its count, kept until the world goes: memory quadratic in that count), freed at
+the world's end, counted in `b3World_DumpMemoryStats`, and `b3World_GetManifoldMemory` (`include/box3d/box3d.h`;
+`vr_physics_mem`; `docs/vr-port/MP_PLAN.md` B21). Upstream's samples, tests, benchmarks, docs, shared code and CMake files are left out.
 
 Quake VR uses it in `Quake/vr/vr_box3d.cpp` (see `docs/vr-port/ROUND21.md`, "Box3D
 physics"). Build settings (`Windows/VisualStudio/quakevr.props`, `Quake/vr/vr.cmake`):

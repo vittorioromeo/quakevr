@@ -477,6 +477,11 @@ void b3DestroyWorld( b3WorldId worldId )
 			{
 				b3Array_Destroy( contact->meshContact.triangleCache );
 			}
+
+			// QVR (local change, README.md): a long manifold array is the heap's (b3AllocateManifolds), not a pool's
+			b3FreeManifolds( world, contact->manifolds, contact->manifoldCount );
+			contact->manifolds = NULL;
+			contact->manifoldCount = 0;
 		}
 	}
 
@@ -2466,12 +2471,14 @@ static uint64_t b3GetWorldByteCount( b3World* world, bool log )
 		manifoldBlockBytes += allocator->blocks.count * B3_BLOCK_SIZE * allocator->elementSize;
 	}
 	total += (uint64_t)manifoldArrayBytes + manifoldBlockBytes;
+	total += (uint64_t)world->manifoldLargeBytes; // QVR (local change, README.md): the long arrays, the heap's
 
 	if ( log )
 	{
 		b3Log( "manifold allocators" );
 		b3Log( "allocator array: %d", manifoldArrayBytes );
 		b3Log( "blocks: %d", manifoldBlockBytes );
+		b3Log( "long arrays: %d (%d)", (int)world->manifoldLargeBytes, world->manifoldLargeCount ); // QVR
 	}
 
 	// solver sets
@@ -2678,6 +2685,30 @@ b3Counters b3World_GetCounters( b3WorldId worldId )
 	}
 
 	return s;
+}
+
+// QVR (local change, README.md): the contact manifolds' memory (vr_physics_mem): the pools' blocks (each count's kept
+// at its peak until the world goes), the arrays live in them, the long arrays from the heap, the longest count seen.
+void b3World_GetManifoldMemory( b3WorldId worldId, b3ManifoldMemory* out )
+{
+	*out = (b3ManifoldMemory){ 0 };
+	b3World* world = b3GetUnlockedWorldFromId( worldId );
+	if ( world == NULL )
+	{
+		return;
+	}
+
+	out->pools = world->manifoldAllocators.count;
+	for ( int i = 0; i < world->manifoldAllocators.count; ++i )
+	{
+		b3BlockAllocator* allocator = world->manifoldAllocators.data + i;
+		out->poolBytes += (int64_t)allocator->blocks.count * B3_BLOCK_SIZE * allocator->elementSize;
+		out->pooledArrays += allocator->allocationCount;
+	}
+	out->longArrays = world->manifoldLargeCount;
+	out->longBytes = world->manifoldLargeBytes;
+	out->longestCount = world->manifoldLongestCount;
+	out->manifoldBytes = (int)sizeof( b3Manifold );
 }
 
 typedef struct WorldQueryContext

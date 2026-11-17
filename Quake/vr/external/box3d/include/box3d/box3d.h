@@ -241,6 +241,21 @@ B3_API b3Profile b3World_GetProfile( b3WorldId worldId );
 /// Get world counters and sizes
 B3_API b3Counters b3World_GetCounters( b3WorldId worldId );
 
+/// QVR (local change, README.md): the contact manifolds' memory
+typedef struct b3ManifoldMemory
+{
+	int pools;			  ///< the pools, one per manifold count up to B3_POOLED_MANIFOLD_COUNT
+	int64_t poolBytes;	  ///< their blocks (each pool's kept at its peak until the world goes)
+	int pooledArrays;	  ///< the arrays live in them
+	int longArrays;		  ///< the longer arrays, live, from the heap
+	int64_t longBytes;	  ///< their bytes
+	int longestCount;	  ///< the longest array (a contact's manifold count) the world has seen
+	int manifoldBytes;	  ///< sizeof( b3Manifold )
+} b3ManifoldMemory;
+
+/// QVR (local change, README.md): the contact manifolds' memory
+B3_API void b3World_GetManifoldMemory( b3WorldId worldId, b3ManifoldMemory* out );
+
 /// Get max capacity. This can be used with b3WorldDef to avoid run-time allocations and copies
 B3_API b3Capacity b3World_GetMaxCapacity( b3WorldId worldId );
 

@@ -177,6 +177,9 @@ void struggleDraw(const glm::vec3& eye);
 
 // The profiler's counts: Box3D's bodies, those awake, the contacts the solver works on (0 without a world).
 void profileCounts(int& bodies, int& awake, int& contacts);
+// Box3D's memory as one console line, `<tag>: ...` (vr_physics_mem; mp_edicts's mp_box3dmem): all of Box3D's live bytes,
+// the world's own, its contacts, and the contact manifolds' pools and long arrays (MP_PLAN B21).
+void printMemory(const char* tag);
 // The awake bodies by what they are (the bench's counts: what keeps the solver busy).
 struct AwakeKinds
 {

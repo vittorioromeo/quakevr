@@ -1233,6 +1233,40 @@ void profileCounts(int& bodies, int& awake, int& contacts)
     }
 }
 
+void printMemory(const char* tag)
+{
+    constexpr double mb = 1.0 / 1048576.0;
+    if(!world)
+    {
+        Con_Printf("%s: box3d=%.2f MB (no world)\n", tag, static_cast<double>(b3GetByteCount()) * mb);
+        return;
+    }
+    const b3Counters c = b3World_GetCounters(world->id);
+    b3ManifoldMemory m;
+    b3World_GetManifoldMemory(world->id, &m);
+    // (the hulls the engine keeps from Box3D outside its world: by model, frame and scale, until the map changes)
+    int corpse = 0, guns = 0, movers = 0;
+    for(const auto& [key, hulls] : world->corpseHulls)
+    {
+        corpse += static_cast<int>(hulls.size());
+    }
+    for(const auto& [key, hulls] : world->gunPieces)
+    {
+        guns += static_cast<int>(hulls.size());
+    }
+    for(const auto& [key, hulls] : world->moverHulls)
+    {
+        movers += static_cast<int>(hulls.size());
+    }
+    Con_Printf("%s: box3d=%.2f MB world=%.2f MB bodies=%d contacts=%d manifold_pools=%d pool_mb=%.2f pooled=%d long=%d "
+               "long_mb=%.3f longest=%d manifold_bytes=%d prop_hulls=%d corpse_keys=%d corpse_hulls=%d gun_hulls=%d "
+               "mover_hulls=%d retired_hulls=%d\n",
+        tag, static_cast<double>(b3GetByteCount()) * mb, static_cast<double>(c.byteCount) * mb, c.bodyCount,
+        c.contactCount, m.pools, static_cast<double>(m.poolBytes) * mb, m.pooledArrays, m.longArrays,
+        static_cast<double>(m.longBytes) * mb, m.longestCount, m.manifoldBytes, static_cast<int>(world->propHulls.size()),
+        static_cast<int>(world->corpseHulls.size()), corpse, guns, movers, static_cast<int>(world->retiredHulls.size()));
+}
+
 void profileAwakeKinds(AwakeKinds& out)
 {
     out = {};
