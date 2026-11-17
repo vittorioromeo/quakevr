@@ -3143,3 +3143,49 @@ release notes' beta section; the shells open item above. B10v's VR checks and th
 Next phase: B17 -- B15's shells item (a level change's parms with a shotgun magazine: counted twice?), a dedicated
 server's comforts (a server.cfg example in the guide, `status`'s pings), then the ICE/NAT rendezvous as a design for
 his OK (no service run). B10v's VR checks, the guide's read-through and internet play with two machines are his.
+
+### B17 results: the suite clean; a return without a level change's floors; dedicated servers' comforts; a NAT proposal (2026-11-17, dev no-LTO build, loopback; the full MP suite 3 runs of 3 clean)
+
+- **The suite's hand-placement flakes had no one shared cause in the code: they were the harness acting on state the
+  load delayed**, each a different race, plus one fragile mock placement:
+  - `vr_mock_hand_to` stepped the hand from its last *drawn* place. That place lags the commands by a frame or two
+    and is held out by walls and floors: in mp_ground B's view still drew the shotgun held when the server had it
+    fallen, "the weapon lying nearest" was another 25 m away, and the hand, sent there and stopped by the walls, came
+    back a unit a command (30 tries: not enough); in mp_disarm a hand that had reached the floor for a shell went to
+    the pouch 8 units low (its drawn place held up by the floor), the shell let go outside it. The harness's clients
+    now place hands from the play space's place (`vr_mock_hand_to_absolute 1`, the mode the SP grab tests use), and
+    mp_ground waits for B's own view to have let the shotgun go.
+  - mp_rejoin's `lying()` took the report *before* the let-go reached the server ("none", speed -1) for a weapon at
+    rest: "entity 0 at the origin". It now wants a weapon.
+  - mp_dm: A and B connected at once; under load B came first, and the server's QC tests take the first human as
+    theirs, while mp_test poses A's hands: B's crowbar fell from his open hand (vr_dm_test 3's "parry: none"), the bot
+    reached for his shotgun (6). A connects first now (checked: A's entity is the lower).
+  - Found on the way: mp_ground's sword placed exactly 6 cm over its handle met it lying on its edge (7.5 cm into it,
+    the grip not yet pressed: shoved 2 m away): 12 cm now. mp_predict's swim waited for a big correction's line, which
+    never came when B's prediction started on e1m4 after the put: it waits for his own place now. mp_climb's mantle
+    play (real-time keyframes) took no hold once under load (B8j's flake): up to 3 plays, as a player tries again.
+- **A return without a level change's floors** (vr_coopsave.cpp `VR_CoopNoteLeave`): B15's "a magazine more" was id's
+  SetChangeParms raising shells to 25 (and health to half the capacity) on a level change: a free top-up for leaving
+  and coming back. The leaver's parms keep his shells and health as they were (the health cap still applies; a dead
+  player's new parms untouched). `mp_rejoin` checks both exactly (B hurt to 30, 17 shells, before his crash).
+- **Dedicated servers** (host.c, host_cmd.c, vr/vr_svstatus.cpp new): `server.cfg` in the game folder exec'd by itself
+  (after autoexec.cfg, before the command line's +commands); `pausable 0` its default; a console status line every
+  `vr_sv_status` seconds (new, 60; 0 off) and when a player comes or goes ("status: e1m1 (coop, skill 1) | 2 of 8
+  players: A 42 ms, B 85 ms | map 0:12:03, up 1:02:03"; `vr_sv_status_now`); `status` prints each player's ping.
+  `mp_dedicated` (new, 8 checks): the lines at the start, A's join and leave and every 2 s; status's ping; pause refused.
+  MULTIPLAYER.md's "A dedicated server" (command line, a server.cfg example, the console), PATCH_NOTES_1.1.1.md.
+- **NAT traversal: a proposal for his OK** (MP_DESIGN.md, "NAT traversal"): (1) one server socket for every client
+  (NetQuake opens one per client on a new port, which only port-preserving routers map: a forwarded host behind
+  another kind can't be joined today), (2) a plain-UDP rendezvous with room codes and hole punching (~200 lines of
+  our own, no libraries), (3) the service run somewhere (his) and the menus, (4) a relay only if needed. Not ICE/WebRTC
+  (DTLS libraries, TURN servers). Nothing built.
+- **Checks:** the full MP suite (dev) 3 runs of 3 clean (43 scenarios each, mp_dedicated in), after a first set
+  (1 clean of 2: mp_armed's combat link 36620 B/s against its 35840 budget once, and the climb flake fixed above);
+  SP: scenario_check PASS (136/0), load_models 4/0, vr_run_check 12/0, autosavenow 4/0. Dev and ThinLTO builds 0 warnings.
+- **Open:** mp_armed's combat budget overran by 2% once (a real-time fight's variance; not chased); mp_predict's drop
+  onto the rising lift (2.08 units in the air, once alone: B8's mover prediction edge, not chased); `server.cfg`'s
+  auto-exec has no harness test (the shared base can't hold one safely); the ICE/NAT steps wait for his decision.
+
+Next phase: B18 -- NAT step 1 if he agrees (one server socket for every client, mp_proxy's NAT mode), else the lift
+prediction edge and mp_armed's combat budget; his: B10v's VR checks, the guide's read-through, internet play with two
+machines, the rendezvous service decision.

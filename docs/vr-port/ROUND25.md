@@ -4804,3 +4804,19 @@ His decision (2026-11-17, after the kit's `work\ericw\FINDINGS.md`): ship a fork
   136/136 PASS.
 - Seen, not fixed: `map ad_mountain` run from `vr_relight_whendone` right after a relight (games hipnotic, rogue, ad,
   quakevr) said "Couldn't spawn server"; the same map loads from a script at start.
+
+## MP B17: the MP suite clean; a coop return's exact things; dedicated servers; a NAT proposal (agent/mp, 2026-11-17)
+
+- **The suite's flakes were the harness's**, each a race the load exposed, not hand placement in the game: the mock's
+  `vr_mock_hand_to` stepped from the hand's lagging, wall-held drawn place (now absolute for the harness's clients),
+  a report read before the let-go arrived, two clients connecting at once (the QC tests' "first human" was B). Plus
+  three smaller ones (a sword placed into, a swim wait on a correction line, the climb play's no-hold). The full MP
+  suite is clean 3 runs of 3.
+- **Coming back to coop** gives exactly what you had: no more 25-shell and half-health floors of a level change
+  (vr_coopsave.cpp).
+- **Dedicated servers:** `server.cfg` read at start, a console status line with each player's ping (`vr_sv_status`,
+  60 s), pings in `status`, nobody can pause. MULTIPLAYER.md has a server.cfg example.
+- **NAT traversal:** a written proposal in MP_DESIGN.md for his OK (one server socket first, then a room-code
+  rendezvous with hole punching); nothing built.
+- **In VR / for him:** decide the NAT steps (MP_DESIGN.md); host with `ironwail.exe -dedicated 8` and a server.cfg
+  and watch its console's status line while a friend joins.
