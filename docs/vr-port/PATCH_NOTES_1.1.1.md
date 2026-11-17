@@ -41,11 +41,12 @@ The guide: [MULTIPLAYER.md](MULTIPLAYER.md).
 - **Your link**: a net HUD (ping, loss, corrections; Debug > Reports > Network: Net HUD) and a rate cap
   (`vr_net_rate`) that keeps what is near and ahead of you up to date first on a slow connection.
 - The host's gameplay rules govern the game; each player keeps his own comfort, hand and display settings.
+- **Dedicated servers** (`ironwail.exe -dedicated 8`): `server.cfg` read at start, a console status line with the
+  players' pings every minute (`vr_sv_status`), pings in `status`, nobody can pause them.
 
 **Single player only**: time scale and bullet time, saving at will (the host's level-start coop autosave instead),
 the crates Quake VR places about maps, Dimension of the Past and Dimension of the Machine.
 
 **Known issues**: little real internet play yet (latency and loss tested through a simulated link); no NAT
 punch-through or relay (the host needs a forwarded port, or a virtual LAN); custom maps that aren't Map Library
-packages aren't sent to joining players; a player back in a coop game may have a shotgun magazine of shells more than
-when he left.
+packages aren't sent to joining players.

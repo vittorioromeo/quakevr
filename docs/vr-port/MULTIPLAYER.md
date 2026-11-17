@@ -33,8 +33,37 @@ How it is built (what runs on the server and on each client) is in [MP_DESIGN.md
    physics, ammo and reload rules and the like) are the host's. Joining players keep their own comfort, hand,
    holster and display settings, and get their own back when they leave.
 
-A **dedicated server** (no player of its own) runs with the game started as `ironwail.exe -dedicated 8 +coop 1 +map e1m1` (or `+deathmatch 1
-+map dm4`); the same port rule applies.
+### A dedicated server
+
+A **dedicated server** is a game with no player of its own, no window and no headset: a console that runs the world
+for the others. Any PC with Quake VR installed can run one (the same port rule applies):
+
+    ironwail.exe -dedicated 8
+
+- `-dedicated 8`: up to 8 players (2-16). Without a map (from `server.cfg` or `+map e1m1` on the command line) it
+  starts Quake's `start` map in deathmatch, as Quake did.
+- **`server.cfg`** in the `quakevr` folder is read by itself when there is one (after `autoexec.cfg`; the command
+  line's `+commands` come last and win). An example:
+
+      // server.cfg: a Quake VR dedicated server
+      hostname "Friday coop"     // its name in the Server Browser
+      coop 1                     // cooperative (for deathmatch: coop 0; deathmatch 1; fraglimit 20; timelimit 15)
+      deathmatch 0
+      skill 1                    // 0 easy .. 3 nightmare
+      teamplay 0
+      vr_mp_rejoin_keep 1        // a player who comes back by the same name gets what he had (the default)
+      vr_sv_status 60            // the console's status line every 60 s (0: off; the default)
+      map e1m1                   // the level to start on (last: the settings above apply to it)
+
+- **The console** says every minute (and whenever a player comes or goes) what the server runs and who is in:
+
+      status: e1m1 (coop, skill 1) | 2 of 8 players: A 42 ms, B 85 ms | map 0:12:03, up 1:02:03
+
+  Type `status` for the players' list (frags, time in, ping, address), `kick <name>`, `changelevel <map>`,
+  `map <map>` (a new game), `quit`. `vr_sv_status_now` prints the status line at once.
+- Nobody can pause a dedicated server (`pausable 0` is its default; a `pausable 1` in `server.cfg` allows it).
+- The gameplay settings (damage, disarming, ammo rules...) are the server's own: set them in `server.cfg` as in a
+  player's console, or copy the ones from your own game's `ironwail.cfg`.
 
 ## Joining a game
 
@@ -49,7 +78,8 @@ A **dedicated server** (no player of its own) runs with the game started as `iro
   (through the Map Library's own downloads and checks; `vr_mp_download`, on by default). Other custom maps must be
   copied by hand.
 - **Coming back**: in a coop game, if you leave or your game crashes and you join again with the **same name**, you
-  get your old slot back with your weapons, ammo, health and armour (as a level change would carry them).
+  get your old slot back with the weapons, ammo, health and armour you had (keys and powerups are dropped, as a level
+  change drops them).
 
 ## Coop
 
@@ -103,6 +133,5 @@ These stay off in multiplayer (the world can't slow down or stop for one player)
 - Little real internet play yet: lag over 150 ms, packet loss and NATs are tested on one PC through a simulated link,
   not across the world. Feedback welcome.
 - No NAT punch-through or relay: the host needs a forwarded port (or a VPN such as a virtual LAN between the players).
-- A player who comes back to a coop game may have up to one shotgun magazine of shells more than when he left.
 - Custom maps that aren't Map Library packages aren't sent to joining players.
 - The Multiplayer menus, the Server Browser and voice chat have not yet been checked in a headset by the author.

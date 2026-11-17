@@ -395,6 +395,55 @@ Results:
 - **Everything else in this document comes from reading the code** (marked [code] or [inf]). Not run: grabbing,
   melee, climbing, the grapple or Box3D with two players. The mock has no second-player input script.
 
+## NAT traversal: a proposal (B17, 2026-11-17; for his OK, nothing built)
+
+**Today.** A host forwards UDP 26000 on his router, or the players use a virtual LAN. NetQuake's server also answers
+each connect with a **new socket on a new port** (net_dgrm.c `_Datagram_CheckNewConnections`: `Open_Socket(0)`, its
+port in CCREP_ACCEPT) and the client talks to that port from then on. That port is not the forwarded one: it works
+only because the server's first messages on it open a mapping in his router that most home routers make on the same
+port number ("port preserving"); behind a router that picks another port (carrier-grade NAT, many mobile links, some
+business routers) a forwarded host still can't be joined. So the first step is useful on its own.
+
+**The proposal, in four steps; each ships alone.**
+
+1. **One socket for every client** (engine only, no service): the server keeps talking from its listening socket
+   (26000) and tells its clients apart by their address and port (a table address -> qsocket, as QuakeWorld's `qport`
+   does for a client behind one NAT). CCREP_ACCEPT then names 26000; old Quake VR clients still follow the port they
+   are given, so nothing else changes. Fixes the forwarded host behind a non-preserving router, and is what the punch
+   below needs (the punched mapping is the one of the socket that sent). Cost: a lookup per datagram (16 clients: a
+   linear scan is fine). Tests: every MP scenario as it is; `mp_proxy.py` grown a **NAT mode** (it maps each inside
+   port to a random outside one and drops what comes to an outside port from an address it never sent to: a
+   port-restricted cone NAT), the host behind it with 26000 forwarded: joined; today's per-client socket: refused.
+2. **A rendezvous protocol** (engine + a small script, no third-party code): plain UDP, a few message types --
+   a host's `REGISTER <room>` every 20 s from its game socket (the service sees his public address and port: that is
+   the point), a joiner's `JOIN <room>`, and the service's `INTRODUCE <the other's public address:port>` to both. On
+   it, both sides send short **punch** datagrams to each other for up to 5 s (the client its connect requests, the
+   server a CTL "punch" the client ignores); the first that arrives opens both routers' mappings and the join goes on
+   as today. Room codes: 6 letters, made by the service, gone 2 minutes after the last REGISTER. If the punch fails
+   (a symmetric NAT on either side: a minority of home routers, more often mobile and carrier-grade NATs), the joiner is told "your router or the host's doesn't allow a
+   direct link: forward UDP 26000 on the host, or use a virtual LAN". The service is ~200 lines of Python (or C++ in
+   Tools/), stateless but for the room table, with per-address rate limits; it never carries game traffic. Tests: the
+   script run locally by the harness, A hosting behind one NAT proxy, B joining by room code behind another: joined;
+   both behind symmetric ones: the message, within the bound.
+3. **The service running somewhere** (his: a small VPS or any always-on machine, its address in a cvar, e.g.
+   `vr_mp_rendezvous "rv.quakevr.example:26100"`, empty = off) and the menus: Host Game > "Internet: room code"
+   (shown in the host's game and on his wrist), Join Game > "Room code". The Server Browser could list the registered
+   public rooms too (a master server: an opt-in `vr_mp_public 1`). Privacy: the service sees each player's IP address
+   and a room code, keeps nothing after the room ends; say so in MULTIPLAYER.md.
+4. **A relay for the symmetric NATs** (optional, later): the service forwards the datagrams of a pair that couldn't
+   punch (a TURN-like relay). It carries game traffic (~25 KB/s down per player: 16 players ~400 KB/s, a VPS's link
+   is enough for a few games) and adds a hop of latency; only if step 2's failures matter in practice.
+
+**Why not ICE/WebRTC** (QuakeSpasm-VR's `Quake/ice`): it needs DTLS (GnuTLS or OpenSSL vendored, large and
+security-sensitive), a signalling server anyway, STUN/TURN servers (public STUN ones exist; TURN must be run), and
+its gain over step 2 is the TURN relay and IPv6/multi-interface candidate gathering. Steps 1-2 get the common case
+(cone NATs) with a few hundred lines of our own code and no new libraries; IPv6 (no NAT at all) is a cheaper later
+addition where both players have it.
+
+**Needs his decision:** (a) step 1 now (no service, no risk to LAN or forwarded play: recommended); (b) whether a
+rendezvous service is wanted at all, who runs it and where (cost, the address, privacy wording); (c) step 4 only
+after step 2 has been tried over the internet with his machines.
+
 ## Open items moved from BACKLOG.md (2026-11-12)
 
 BACKLOG.md keeps a one-line pointer to each; remove an item here when it ships.
