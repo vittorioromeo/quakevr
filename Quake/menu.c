@@ -8450,9 +8450,33 @@ static void UI_Mouse_f (cvar_t *cvar)
 	}
 }
 
+// QVR: (B24) Multiplayer > Join Game and Host Game straight from the console ("menu_joingame [CODE]" fills the room
+// code's box; the harness's room-code screenshots, mp_test.py roomui)
+static void M_Menu_JoinGame_f (void)
+{
+	m_multiplayer_cursor = 0; // (JoiningGame)
+	m_net_cursor = 1; // (TCPIPConfig)
+	lanConfig_cursor = -1;
+	M_Menu_LanConfig_f ();
+	if (Cmd_Argc () > 1)
+	{
+		q_strlcpy (lanConfig_roomcode, Cmd_Argv (1), sizeof (lanConfig_roomcode));
+		lanConfig_cursor = 3;
+	}
+}
+
+static void M_Menu_HostGame_f (void)
+{
+	m_multiplayer_cursor = 1; // (StartingGame)
+	m_net_cursor = 1;
+	M_Menu_GameOptions_f ();
+}
+
 void M_Init (void)
 {
 	Cmd_AddCommand ("togglemenu", M_ToggleMenu_f);
+	Cmd_AddCommand ("menu_joingame", M_Menu_JoinGame_f); // QVR: (B24)
+	Cmd_AddCommand ("menu_hostgame", M_Menu_HostGame_f); // QVR: (B24)
 
 	Cmd_AddCommand ("menu_main", M_Menu_Main_f);
 	Cmd_AddCommand ("menu_singleplayer", M_Menu_SinglePlayer_f);

@@ -167,6 +167,7 @@ class Instance:
         # commands are not checked here, its NET SAFETY lines expected; the engine's fence is still on)
         self.net_guard_test = net_guard_test
         self.net_state = None
+        self.size = (480, 270)  # (the window: a readable screenshot sets more before start(); mp_test.py roomui)
         self.log = os.path.join(session.out, name + ".log")
         self.inbox = os.path.join(session.out, name + ".inbox")
         self.proc = None
@@ -182,7 +183,7 @@ class Instance:
         if self.dedicated:
             a += ["-dedicated", str(self.dedicated)]
         else:
-            a += ["-window", "-width", "480", "-height", "270"]
+            a += ["-window", "-width", str(self.size[0]), "-height", str(self.size[1])]
             if self.flat:
                 a += ["-flatscreenmode"]
         # (run before the first frame, after the configs: "+cmd args" on the command line)

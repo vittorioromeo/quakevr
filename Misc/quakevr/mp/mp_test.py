@@ -749,6 +749,45 @@ def netsafe(s):
     g.cmd("vr_mp_room 0")
 
 
+def roomui(s):
+    """(B24, not in the suite) The room-code menus as a player sees them, flatscreen: a listen host (4 players) with the
+    room service run here gets his code; his Host Game page shows it (host_roomcode.png); a player's Join Game page with
+    that code typed in its box (joiner_roomcode.png); then the player joins by it."""
+    rport = s.take_port()
+    service = subprocess.Popen([sys.executable, os.path.join(RENDEZVOUS, "qvr_rendezvous.py"), "--bind", "127.0.0.1",
+                                "--port", str(rport), "--report", "0"],
+                               stdout=open(os.path.join(s.out, "rendezvous.log"), "w"), stderr=subprocess.STDOUT)
+    try:
+        room = ["+vr_mp_room", "1", "+vr_mp_rendezvous", "127.0.0.1:%d" % rport]
+        h = s.server(dedicated=False, flat=True, name="host", extra=room)
+        h.size = (960, 540)  # (the menus readable)
+        h.start()
+        h.cmd("disconnect; maxplayers 4; listen 1; coop 1; deathmatch 0; skill 1; map e1m1")
+        _, line = h.wait(r"Room code: [A-Z]{6} ", 120, what="the host's room code")
+        code = re.search(r"Room code: ([A-Z]{6})", line).group(1)
+        s.check("the listen host gets a room code from the local service", True, line.strip())
+        since = h.mark()
+        h.cmd("con_notifytime 0; menu_hostgame; wait; wait; wait; echo roomui_menu_open")  # (drawn before the shot)
+        h.wait(r"roomui_menu_open", 30, since, "the host's menu open")
+        shot = h.screenshot("roomcode")
+        s.note("Host Game page: %s" % shot)
+        j = s.client("joiner", flat=True, extra=room)
+        j.size = (960, 540)
+        j.start()
+        j.wait(r"UDP Initialized", 60, what="the joiner up")
+        since = j.mark()
+        j.cmd("con_notifytime 0; menu_joingame %s; wait; wait; wait; echo roomui_menu_open" % code)
+        j.wait(r"roomui_menu_open", 30, since, "the joiner's menu open")
+        shot = j.screenshot("roomcode")
+        s.note("Join Game page: %s" % shot)
+        j.cmd("togglemenu; name J; connect @%s" % code)
+        j.wait(r"mp_event: .*joined map=e1m1", 120, what="the joiner in by the code")
+        s.check("the player joins by the code typed on the Join Game page", True)
+    finally:
+        service.terminate()
+        service.wait(10)
+
+
 STATUS_EVERY_S = 2  # the test's vr_sv_status (the default: 60)
 
 
@@ -6130,6 +6169,8 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             nat(s)
         elif test == "mp_netsafe":
             netsafe(s)
+        elif test == "mp_roomui":
+            roomui(s)
         elif test == "mp_soak":
             soak(s)
         elif test == "mp_lockstep_throw":
@@ -6164,7 +6205,7 @@ def print_bytes_table():
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "dedicated", "soak", "jitter", "nat", "netsafe", "suite"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite"])
     ap.add_argument("--base", required=True, help="the game folder (id1, quakevr...)")
     ap.add_argument("--exe", default=EXE)
     ap.add_argument("--out", default=os.path.join(REPO, "scratch", "mp"))
@@ -6210,7 +6251,7 @@ def main():
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
     elif args.test in ("bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground",
-                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "dedicated", "soak", "jitter", "nat", "netsafe"):
+                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui"):
         ok = run(args, "mp_" + args.test)
     elif args.test == "voice":
         ok = run(args, "mp_voice", args.lag, args.jitter, args.loss)
