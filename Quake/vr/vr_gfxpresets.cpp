@@ -219,10 +219,15 @@ struct QuestMust
     cvar_t* var;
     const char* value;
     const char* why;
+    bool atMost; // a ceiling (lower values kept), not the one value
 };
 const QuestMust questMusts[] = {
-    {&vid_fsaa, "0", "MSAA goes through memory on the Quest 3: ~100 ms a frame (QUEST_PLAN.md, C4e)"},
-    {&vr_bloom, "0", "the bloom's chain draws coloured squares or black views on the Quest (C4f)"},
+    {&vid_fsaa, "0", "MSAA goes through memory on the Quest 3: ~100 ms a frame (QUEST_PLAN.md, C4e)", false},
+    {&vr_bloom, "0", "the bloom's chain draws coloured squares or black views on the Quest (C4f)", false},
+    // his saved config's two PC values against the Quest preset (adb session of 2026-11-17: 44 fps of 72 with both,
+    // 51 with the first set back, 63 with both)
+    {&vr_shadow_dlights, "0", "the dynamic lights' shadow maps cost the Quest 3 ~4 ms a frame (44 -> 51 fps, his saved config)", true},
+    {&vr_dynres_min, "0.55", "the dynamic resolution's floor above the Quest preset's keeps fights GPU-bound (51 -> 63 fps)", true},
 };
 
 // vr_quest_check (Android starts, after the saved config; Debug > Startup): the Quest rows that differ from the nearest
@@ -238,7 +243,7 @@ void questCheckCmd()
     questKind.printStatus();
     for(const QuestMust& m : questMusts)
     {
-        if(!q_strcasecmp(m.var->string, m.value))
+        if(m.atMost ? m.var->value <= Q_atof(m.value) : !q_strcasecmp(m.var->string, m.value))
         {
             continue;
         }

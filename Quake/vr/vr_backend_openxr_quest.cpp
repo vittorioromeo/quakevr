@@ -151,6 +151,13 @@ void QuestExtensions::apply(XrSession session, const XrSwapchain (&eyes)[2])
             xrruntime::note("OpenXR: refresh rate %g Hz requested (vr_xr_refresh_rate %g): %s\n", static_cast<double>(rate),
                 static_cast<double>(refresh), XR_SUCCEEDED(result) ? "done" : va("failed (%d)", static_cast<int>(result)));
         }
+        else
+        {
+            // (his adb session, 2026-11-17: a saved vid_refreshrate 90 ran at 72 with no line saying why)
+            xrruntime::note("OpenXR: refresh rate left to the runtime (vr_xr_refresh_rate 0; 72 Hz unless the headset's "
+                            "setting says otherwise); vid_refreshrate %g is the desktop window's and is ignored in the headset\n",
+                static_cast<double>(Cvar_VariableValue("vid_refreshrate")));
+        }
     }
 
     // The CPU and GPU levels (0: left as they are; the runtime's own from the next VR start).

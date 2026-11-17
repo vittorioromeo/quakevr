@@ -78,8 +78,23 @@ struct State
     bool mapSpawned = false;
     int framesSinceMap = 0;
     int frames = 0;
+    int shaderSets = 0;        // GL_CreateShaders runs this session (VR_GLShadersBegin)
+    double shaderSetMs = 0.0;  // the running one's start (nowMs)
+    double shaderMsTotal = 0.0; // the start's sets' time
+    double aliveMs = 0.0;      // the last "== alive" line (VR_GLFrame)
+    bool liteFirstTaken = false; // VR_GLESWorldLiteFirst gave the first set's form
+    bool keptBuffersLogged = false;
 };
 State glsafe;
+
+constexpr double aliveEveryMs = 5000.0; // "== alive at" in gl_startup.log while the start runs (how long a stopped start lived)
+// A start that never reached its first map counts against the full renderer (automatic safe mode next time) only when
+// it crashed (the crash handler's "== crashed"), or died quickly after its shaders without a report (a driver killing
+// the process): never when stopped during a shader compile, after a slow compile, or after living on a while (the
+// Quest's long first compiles were stopped by hand, and the next start's safe mode recompiled everything at 1/4 of the
+// frame rate: his adb session of 2026-11-17).
+constexpr double slowShadersMs = 10000.0; // a start whose shader sets took this long: stopped by hand, not counted
+constexpr double quickDeathMs = 20000.0;  // counted only when it died within this of its shaders' end
 
 double nowMs()
 {
@@ -110,9 +125,88 @@ struct LastStart
     bool exists = false;
     bool ended = false;
     bool retry = false;
-    bool autoSafe = false; // it ran in automatic safe mode
+    bool autoSafe = false;  // it ran in automatic safe mode
+    bool crashed = false;   // "== crashed" (the crash handler)
+    bool inShaders = false; // its last step inside a shader set (begun, not done; or a compile, link or binary step)
+    bool inSet = false;     // a set begun, not done
+    double shaderMs = 0.0;  // its shader sets' time (a running one's up to its last step)
+    double shadersDoneMs = 0.0; // its last set's end
+    double shaderBeganMs = 0.0; // the running set's start
+    double lastMs = 0.0;    // its last step's or "alive" line's time
     char lastStep[stepLength]{};
 };
+
+constexpr const char* setBegun = "shaders: set ";  // "shaders: set N begun (why)" / "shaders: set N done in X ms ..."
+constexpr const char* aliveLine = "== alive at ";
+constexpr const char* crashedLine = "== crashed";
+
+// One line of gl_startup.log into r (the file's text a line at a time; the decision test's lines too).
+void parseLastStartLine(LastStart& r, const char* line)
+{
+    r.exists = true;
+    if(!strncmp(line, endLine, strlen(endLine)))
+    {
+        r.ended = true;
+        return;
+    }
+    if(!strncmp(line, retryLine, strlen(retryLine)))
+    {
+        r.retry = true;
+        return;
+    }
+    if(!strncmp(line, crashedLine, strlen(crashedLine)))
+    {
+        r.crashed = true;
+        return;
+    }
+    if(!strncmp(line, aliveLine, strlen(aliveLine)))
+    {
+        r.lastMs = za::max(r.lastMs, atof(line + strlen(aliveLine)));
+        return;
+    }
+    if(!line[0] || !strncmp(line, "==", 2))
+    {
+        return;
+    }
+    // a step: "%9.1f ms  <text>"
+    char* end = nullptr;
+    const double ms = strtod(line, &end);
+    const char* text = end && !strncmp(end, " ms  ", 5) ? end + 5 : line;
+    r.lastMs = za::max(r.lastMs, ms);
+    if(strstr(text, "safe mode: on (automatic"))
+    {
+        r.autoSafe = true;
+    }
+    if(!strncmp(text, setBegun, strlen(setBegun)) && strstr(text, " begun"))
+    {
+        r.inSet = true;
+        r.shaderBeganMs = ms;
+    }
+    else if(!strncmp(text, setBegun, strlen(setBegun)) && strstr(text, " done"))
+    {
+        r.inSet = false;
+        r.shaderMs += ms - r.shaderBeganMs;
+        r.shadersDoneMs = ms;
+    }
+    // inside a set, or a compile, link or binary step last (VR_PrecompilePrograms' after the set, a log from before
+    // the sets' lines)
+    const bool compileStep = !strncmp(text, "compile ", 8) || !strncmp(text, "link ", 5) || !strncmp(text, "program ", 8);
+    r.inShaders = r.inSet || compileStep;
+    q_strlcpy(r.lastStep, text, sizeof(r.lastStep));
+}
+
+void parseLastStartText(LastStart& r, const char* text)
+{
+    char line[512];
+    while(*text)
+    {
+        const size_t n = strcspn(text, "\r\n");
+        q_strlcpy(line, text, za::min(n + 1, sizeof(line)));
+        parseLastStartLine(r, line);
+        text += n;
+        text += strspn(text, "\r\n");
+    }
+}
 
 LastStart readLastStart(const char* path)
 {
@@ -125,27 +219,49 @@ LastStart readLastStart(const char* path)
     char line[512];
     while(fgets(line, sizeof(line), f))
     {
-        r.exists = true;
         line[strcspn(line, "\r\n")] = 0;
-        if(!strncmp(line, endLine, strlen(endLine)))
-        {
-            r.ended = true;
-        }
-        else if(!strncmp(line, retryLine, strlen(retryLine)))
-        {
-            r.retry = true;
-        }
-        else if(strstr(line, "safe mode: on (automatic"))
-        {
-            r.autoSafe = true;
-        }
-        if(line[0] && strncmp(line, "==", 2))
-        {
-            q_strlcpy(r.lastStep, line, sizeof(r.lastStep));
-        }
+        parseLastStartLine(r, line);
     }
     fclose(f);
     return r;
+}
+
+// What the last start says about this one: 1 automatic safe mode, 0 not (`why` says which and why; "" nothing to say).
+int judgeLastStart(const LastStart& last, char* why, size_t whySize)
+{
+    why[0] = 0;
+    if(!last.exists || last.ended)
+    {
+        return 0;
+    }
+    if(last.crashed)
+    {
+        q_snprintf(why, whySize, "on (automatic: the last start crashed before its first map, in \"%s\")",
+            last.lastStep[0] ? last.lastStep : "?");
+        return 1;
+    }
+    const double shaderMs = last.shaderMs + (last.inSet ? last.lastMs - last.shaderBeganMs : 0.0);
+    if(last.inShaders)
+    {
+        q_snprintf(why, whySize, "off (the last start was stopped during a shader compile, %.0f s in, in \"%s\": not counted)",
+            last.lastMs / 1000.0, last.lastStep[0] ? last.lastStep : "?");
+        return 0;
+    }
+    if(shaderMs >= slowShadersMs)
+    {
+        q_snprintf(why, whySize, "off (the last start was stopped before its first map after %.0f s of shader compiles: a slow "
+                                 "start, not counted)", shaderMs / 1000.0);
+        return 0;
+    }
+    if(last.lastMs - last.shadersDoneMs >= quickDeathMs)
+    {
+        q_snprintf(why, whySize, "off (the last start lived %.0f s past its shaders and was stopped before its first map, "
+                                 "without a crash: not counted)", (last.lastMs - last.shadersDoneMs) / 1000.0);
+        return 0;
+    }
+    q_snprintf(why, whySize, "on (automatic: the last start ended %.0f s in, before its first map, without a crash report, "
+                             "after \"%s\")", last.lastMs / 1000.0, last.lastStep[0] ? last.lastStep : "?");
+    return 1;
 }
 
 const char* featureName(int feature)
@@ -278,6 +394,8 @@ extern "C" void VR_GLStartupBegin(void)
     const LastStart last = readLastStart(glsafe.logPath);
 
     const bool autoAllowed = !COM_CheckParm("-noglsafe") && (!testRun() || COM_CheckParm("-glsafeauto"));
+    char judged[sizeof(glsafe.why)];
+    const int counted = judgeLastStart(last, judged, sizeof(judged));
     if(COM_CheckParm("-glsafe"))
     {
         glsafe.safe = 1;
@@ -288,12 +406,15 @@ extern "C" void VR_GLStartupBegin(void)
         glsafe.safe = 1;
         q_strlcpy(glsafe.why, "on (vr_glsafe 1)", sizeof(glsafe.why));
     }
-    else if(autoAllowed && last.exists && !last.ended)
+    else if(autoAllowed && counted)
     {
         glsafe.safe = 1;
         glsafe.safeAuto = true;
-        q_snprintf(glsafe.why, sizeof(glsafe.why), "on (automatic: the last start ended before its first map, after \"%s\")",
-            last.lastStep[0] ? last.lastStep : "?");
+        q_strlcpy(glsafe.why, judged, sizeof(glsafe.why));
+    }
+    else if(autoAllowed && judged[0])
+    {
+        q_strlcpy(glsafe.why, judged, sizeof(glsafe.why)); // "off (...: not counted)"
     }
     else if(autoAllowed && last.ended && last.autoSafe && !last.retry && !VR_VersionIsDev())
     {
@@ -318,7 +439,12 @@ extern "C" void VR_GLStartupBegin(void)
     VR_GLStep("safe mode: %s", glsafe.why);
     if(glsafe.safe)
     {
-        Con_Printf("\x02GL safe mode %s: optional GL features off (gl_startup.log; Debug > Startup)\n", glsafe.why + 3);
+        Con_Printf("\x02GL safe mode %s: optional GL features off (gl_startup.log; Debug > Startup; vr_glsafe_retry, "
+                   "or delete gl_startup.log, tries the full renderer again)\n", glsafe.why + 3);
+    }
+    else if(strcmp(glsafe.why, "off") != 0)
+    {
+        Con_Printf("GL safe mode %s\n", glsafe.why); // (a stopped start that was not counted: said)
     }
 }
 
@@ -981,13 +1107,30 @@ extern "C" int VR_GLESShaderError(const char* message)
     return 1;
 }
 
+// Safe mode under OpenGL ES (the Quest; -glescompat) keeps persistent mapped buffers: without them every GL_Upload is
+// a synchronous copy into a buffer the GPU still reads (Adreno: 34% of the main thread, 19 fps of 72 in his adb session
+// of 2026-11-17), and the safety they'd buy is a desktop driver's (the AMD crash). Safe mode never costs 4x.
+namespace
+{
+bool safeKeeps(int feature)
+{
+    return glsafe.esCompat && feature == VR_GLSAFE_BUFFER_STORAGE;
+}
+} // namespace
+
 extern "C" int VR_GLSafeOff(int feature)
 {
-    const bool off = glsafe.safe || (glsafe.vendorOff & static_cast<unsigned>(feature));
+    if(glsafe.safe && safeKeeps(feature) && !glsafe.keptBuffersLogged)
+    {
+        glsafe.keptBuffersLogged = true;
+        VR_GLStep("safe mode: %s kept (OpenGL ES: every upload would wait on the GPU)", featureName(feature));
+        Con_SafePrintf("GL safe mode: %s kept (OpenGL ES: without them every upload waits on the GPU)\n", featureName(feature));
+    }
+    const bool off = (glsafe.safe && !safeKeeps(feature)) || (glsafe.vendorOff & static_cast<unsigned>(feature));
     if(off && !(glsafe.logged & static_cast<unsigned>(feature)))
     {
         glsafe.logged |= static_cast<unsigned>(feature);
-        const char* why = glsafe.safe                                                         ? "safe mode"
+        const char* why = glsafe.safe && !safeKeeps(feature)                                  ? "safe mode"
                           : glsafe.esCompat && (esCompatOff & static_cast<unsigned>(feature)) ? "GLES compat"
                                                                                               : "vendor workaround";
         VR_GLStep("%s: %s off", why, featureName(feature));
@@ -1105,6 +1248,13 @@ extern "C" void VR_GLFrame(void)
     {
         VR_GLStep("frame %d: swap", glsafe.frames);
     }
+    if(const double ms = nowMs(); glsafe.log && ms - glsafe.aliveMs >= aliveEveryMs)
+    {
+        glsafe.aliveMs = ms; // (how long a start stopped before its first map lived: judgeLastStart)
+        char line[64];
+        q_snprintf(line, sizeof(line), "%s%.1f ms\n", aliveLine, ms);
+        writeLog(line);
+    }
     if(glsafe.mapSpawned && ++glsafe.framesSinceMap >= framesAfterMap)
     {
         endStartup("the first map drawn");
@@ -1124,6 +1274,100 @@ extern "C" void VR_GLMapSpawned(const char* map)
 extern "C" void VR_GLStartupShutdown(int error)
 {
     endStartup(error ? "an error (Sys_Error)" : "a quit before the first map");
+}
+
+extern "C" void VR_GLStartupCrashed(void)
+{
+    if(glsafe.log && !glsafe.ended)
+    {
+        writeLog("== crashed\n");
+    }
+}
+
+namespace
+{
+// "-gltestdie shaders|aftershaders" (tests): the process ends at once (no shutdown, no crash report: as the Quest's
+// system stopping it) inside the first shader set, or right after it: the next start's judgeLastStart seen for real.
+void testDie(const char* where)
+{
+    const int at = COM_CheckParm("-gltestdie");
+    if(at && at < com_argc - 1 && !strcmp(com_argv[at + 1], where) && glsafe.shaderSets == 1)
+    {
+        VR_GLStep("-gltestdie %s: the process ends here", where);
+        fflush(nullptr);
+        _Exit(3);
+    }
+}
+
+// gl_shader_set.txt (beside gl_startup.log): the lite form the last set was made with, for the next start's first set
+// (VID_Init's, before the config: made with the form the config's settings will ask for, not the defaults', so that
+// the config's exec makes nothing again). OpenGL ES only (the PC's lite form is always 0).
+za::String shaderSetPath()
+{
+    char path[1024];
+    q_snprintf(path, sizeof(path), "%s/crash/gl_shader_set.txt", com_gamedir);
+    return za::String{path};
+}
+} // namespace
+
+extern "C" int VR_GLESWorldLiteFirst(void)
+{
+    const int now = VR_GLESWorldLite();
+    if(glsafe.liteFirstTaken || !VR_GLESForm(VR_GLES_FORM_GLSL) || (testRun() && !COM_CheckParm("-glesshaderset")))
+    {
+        glsafe.liteFirstTaken = true;
+        return now;
+    }
+    glsafe.liteFirstTaken = true;
+    int kept = now;
+    if(FILE* f = fopen(shaderSetPath().cStr(), "rb"))
+    {
+        if(fscanf(f, "lite %d", &kept) != 1)
+        {
+            kept = now;
+        }
+        fclose(f);
+    }
+    if(kept != now)
+    {
+        VR_GLStep("shaders: the first set as the last session's (lite form %d; the settings so far %d)", kept, now);
+        Con_DPrintf("GL shaders: the first set made with the last session's lite form %d (the defaults' %d)\n", kept, now);
+    }
+    return kept;
+}
+
+extern "C" void VR_GLShadersBegin(const char* why)
+{
+    glsafe.shaderSets++;
+    glsafe.shaderSetMs = nowMs();
+    VR_GLStep("%s%d begun (%s)", setBegun, glsafe.shaderSets, why ? why : "?");
+    testDie("shaders");
+}
+
+extern "C" void VR_GLShadersEnd(int lite, int programs)
+{
+    const double ms = nowMs() - glsafe.shaderSetMs;
+    glsafe.shaderMsTotal += ms;
+    int hits = 0, misses = 0;
+    char cache[96] = "the program cache off";
+    if(VR_ProgCacheOn())
+    {
+        VR_ProgCacheCounts(&hits, &misses);
+        q_snprintf(cache, sizeof(cache), "%d from the program cache, %d compiled", hits, misses);
+    }
+    VR_GLStep("%s%d done in %.0f ms (%d programs; %s; lite form %d)", setBegun, glsafe.shaderSets, ms, programs, cache, lite);
+    VR_StepNote("GL shaders: set %d this run, %d programs in %.0f ms (%s)", glsafe.shaderSets, programs, ms, cache);
+    Con_SafePrintf("GL shaders: set %d this run, %d programs in %.0f ms (%s; lite form %d)\n", glsafe.shaderSets, programs,
+        ms, cache, lite);
+    if(VR_GLESForm(VR_GLES_FORM_GLSL) && (!testRun() || COM_CheckParm("-glesshaderset")))
+    {
+        if(FILE* f = fopen(shaderSetPath().cStr(), "wb"))
+        {
+            fprintf(f, "lite %d\n", lite);
+            fclose(f);
+        }
+    }
+    testDie("aftershaders");
 }
 
 namespace
@@ -1150,8 +1394,10 @@ void status_f()
     Con_Printf("GL safe mode: %s\n", VR_GLSafeDescribe());
     for(int bit = 1; bit <= VR_GLSAFE_SHADOW_ATLAS; bit <<= 1)
     {
-        const bool off = glsafe.safe || (glsafe.vendorOff & static_cast<unsigned>(bit));
-        Con_Printf("  %-60s %s\n", featureName(bit), off ? (glsafe.safe ? "off (safe mode)" : "off (vendor workaround)") : "allowed");
+        const bool bySafe = glsafe.safe && !safeKeeps(bit);
+        const bool off = bySafe || (glsafe.vendorOff & static_cast<unsigned>(bit));
+        Con_Printf("  %-60s %s\n", featureName(bit), off ? (bySafe ? "off (safe mode)" : "off (vendor workaround)")
+                                                          : glsafe.safe ? "kept (safe mode under OpenGL ES)" : "allowed");
     }
     Con_Printf("Start-up log: %s\n", glsafe.logPath);
     char recent[stepCount * (stepLength + 24)];
@@ -1235,6 +1481,42 @@ void readbackTest_f()
         passed + failed - textures - envmap);
     testkit::verdict("vr_gles_readback_test", passed, failed);
 }
+
+// vr_glsafe_judge_test (a test: Debug > Tests): judgeLastStart on made-up gl_startup.log texts: a crash counts, a
+// start stopped during a shader compile or after a slow one does not, a quick death after the shaders does.
+void judgeTest_f()
+{
+    struct Case
+    {
+        const char* name;
+        const char* log;
+        int counted;
+    };
+    const Case cases[] = {
+        {"ended well", "    0.0 ms  safe mode: off\n  900.0 ms  shaders: set 1 begun (start-up)\n== ended: the first map drawn\n", 0},
+        {"crashed in the shaders", "    0.0 ms  safe mode: off\n  500.0 ms  shaders: set 1 begun (start-up)\n  600.0 ms  compile world vertex shader\n== crashed\n", 1},
+        {"stopped in a compile", "    0.0 ms  safe mode: off\n  500.0 ms  shaders: set 1 begun (start-up)\n 61000.0 ms  compile world fragment shader\n", 0},
+        {"stopped in the second set", "  500.0 ms  shaders: set 1 begun (start-up)\n 3000.0 ms  shaders: set 1 done in 2500 ms\n 9000.0 ms  shaders: set 2 begun (the settings changed the lite form)\n 9100.0 ms  link world\n", 0},
+        {"stopped after a slow compile", "  500.0 ms  shaders: set 1 begun (start-up)\n 50500.0 ms  shaders: set 1 done in 50000 ms\n 50600.0 ms  framebuffers (GL_CreateFrameBuffers)\n", 0},
+        {"lived on, then stopped", "  500.0 ms  shaders: set 1 begun (start-up)\n 2500.0 ms  shaders: set 1 done in 2000 ms\n 2600.0 ms  frame 1: swap\n== alive at 40000.0 ms\n", 0},
+        {"died quickly after the shaders", "  500.0 ms  shaders: set 1 begun (start-up)\n 2500.0 ms  shaders: set 1 done in 2000 ms\n 2600.0 ms  framebuffers (GL_CreateFrameBuffers)\n", 1},
+        {"died before the shaders", "    0.0 ms  safe mode: off\n   80.0 ms  GL_VENDOR x; GL_RENDERER y; GL_VERSION z\n", 1},
+        {"an old log stopped in a compile", "    0.0 ms  safe mode: off\n 45000.0 ms  compile alias fragment shader\n", 0},
+        {"an old log, a quick death", "    0.0 ms  safe mode: off\n  700.0 ms  link world\n  800.0 ms  framebuffers (GL_CreateFrameBuffers)\n", 1},
+    };
+    testkit::Tally t;
+    for(const Case& c : cases)
+    {
+        LastStart r;
+        parseLastStartText(r, c.log);
+        char why[256];
+        const int counted = judgeLastStart(r, why, sizeof(why));
+        Con_Printf("  %-32s %s\n", c.name, why[0] ? why : "(nothing to say)");
+        t.check(counted == c.counted, "vr_glsafe_judge_test", va("%s: %s, not %s", c.name, counted ? "counted" : "not counted",
+                                                                  c.counted ? "counted" : "not counted"));
+    }
+    t.verdict("vr_glsafe_judge_test");
+}
 } // namespace
 
 extern "C" void VR_GLSafeInit(void)
@@ -1243,5 +1525,6 @@ extern "C" void VR_GLSafeInit(void)
     Cmd_AddCommand("vr_glsafe_status", status_f);
     Cmd_AddCommand("vr_gles_report", glesReport_f);
     Cmd_AddCommand("vr_gles_readback_test", readbackTest_f);
+    Cmd_AddCommand("vr_glsafe_judge_test", judgeTest_f);
     Cmd_AddCommand("vr_gl_sync_report", syncReport_f);
 }

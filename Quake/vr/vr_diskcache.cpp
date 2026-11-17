@@ -562,26 +562,35 @@ extern "C" void VR_NormalCacheChecked(int same, const char* name)
 // cache folder); the driver gives each one back (glProgramBinary) from one pack file per driver identity (vendor,
 // renderer, version: another driver, or an update of it, never reads it), read once a session. A program's key hashes
 // the very text the driver compiles (VR_GLShaderHash: the ES rewrite and its switches included). Pack: "QVPB", its
-// layout's version, the count, then each program's key (8 bytes), format, length and binary. Main thread only (GL).
+// layout's version, the count, the session's number (version 2), then each program's key (8 bytes), format, length,
+// the last session that used it (version 2) and binary. Main thread only (GL).
+// Several shader sets live side by side (2026-11-17, his adb session: safe mode on and off, vr_shadow_dlights, MSAA
+// each a set of ~120 programs, 45-75 s to compile on the Quest 3): a program is dropped only when no session used it
+// for progKeepSessions sessions, or the oldest first past progMaxBytes (a version 1 pack is read: its programs as
+// last used by the session before).
 // (From harness4's stash: on the PC it saved nothing, 273 vs 296 ms, so it is off there by default.)
 namespace
 {
 
 constexpr char progMagic[4] = {'Q', 'V', 'P', 'B'};
-constexpr unsigned progVersion = 1;
+constexpr unsigned progVersion = 2;
+constexpr unsigned progKeepSessions = 24;                 // a set unused this many sessions goes
+constexpr size_t progMaxBytes = size_t{128} * 1024 * 1024; // the pack's binaries at most (the oldest go first)
 
 struct ProgEntry
 {
     unsigned long long key;
     unsigned format;
     za::Vector<char> data;
-    bool used; // asked for, or made, this session
+    bool used;        // asked for, or made, this session
+    unsigned session; // the last session that used it
 };
 
 struct ProgCache
 {
     za::Vector<ProgEntry> entries;
     unsigned long long driver = 0; // the pack's driver identity (its file's name)
+    unsigned session = 1;          // this session's number (the pack's, plus one)
     bool loaded = false;
     bool batch = false; // inside GL_CreateShaders: written at its end
     bool dirty = false;
@@ -600,6 +609,7 @@ za::String progPath(unsigned long long driver)
 void progLoad()
 {
     progCache.entries.clear();
+    progCache.session = 1;
     za::Vector<char> bytes;
     if(!qvr::files::readBytes(progPath(progCache.driver).cStr(), bytes))
     {
@@ -613,25 +623,44 @@ void progLoad()
     }
     unsigned header[2];
     memcpy(header, bytes.data() + 4, sizeof(header));
-    if(header[0] != progVersion)
+    if(header[0] != progVersion && header[0] != 1)
     {
         progCache.loadNote = "the pack is an older layout: every program made again";
         return;
     }
-    progCache.loadNote = "read";
+    const bool stamped = header[0] >= 2; // version 2: the session's number, and each program's last session
+    unsigned packSession = 0;
     size_t at = 12;
+    if(stamped)
+    {
+        if(bytes.size() < 16)
+        {
+            progCache.loadNote = "the pack is not one (cut short or damaged): every program made again";
+            return;
+        }
+        memcpy(&packSession, bytes.data() + 12, 4);
+        at = 16;
+    }
+    progCache.session = packSession + 1;
+    progCache.loadNote = stamped ? "read" : "read (version 1: its programs kept as the last session's)";
+    const size_t entryHead = stamped ? 20 : 16;
     for(unsigned i = 0; i < header[1]; i++)
     {
         ProgEntry e{};
         unsigned length = 0;
-        if(at + 16 > bytes.size())
+        if(at + entryHead > bytes.size())
         {
             break;
         }
         memcpy(&e.key, bytes.data() + at, 8);
         memcpy(&e.format, bytes.data() + at + 8, 4);
         memcpy(&length, bytes.data() + at + 12, 4);
-        at += 16;
+        e.session = packSession;
+        if(stamped)
+        {
+            memcpy(&e.session, bytes.data() + at + 16, 4);
+        }
+        at += entryHead;
         if(length > bytes.size() - at)
         {
             break;
@@ -643,43 +672,72 @@ void progLoad()
     }
 }
 
-void progWrite()
+// The programs kept: those used in the last progKeepSessions sessions (each shader set a session used: safe mode on
+// and off, the lite forms, MSAA), then the most recently used first up to progMaxBytes. Returns how many went.
+int progPrune()
 {
-    // (Programs not used this session are dropped once they are as many as the used: old sources' binaries don't pile
-    // up, and the few made later in play (the decals' retro programs) are kept meanwhile.)
-    int used = 0;
-    for(const ProgEntry& e : progCache.entries)
+    const unsigned now = progCache.session;
+    za::Vector<ProgEntry> kept;
+    int dropped = 0;
+    for(ProgEntry& e : progCache.entries)
     {
-        used += e.used;
-    }
-    if(static_cast<int>(progCache.entries.size()) > 2 * used)
-    {
-        za::Vector<ProgEntry> kept;
-        for(ProgEntry& e : progCache.entries)
+        if(e.used || now - e.session < progKeepSessions)
         {
-            if(e.used)
+            kept.pushBack(static_cast<ProgEntry&&>(e));
+        }
+        else
+        {
+            dropped++;
+        }
+    }
+    size_t total = 0;
+    for(const ProgEntry& e : kept)
+    {
+        total += e.data.size();
+    }
+    while(total > progMaxBytes)
+    {
+        size_t oldest = kept.size();
+        for(size_t i = 0; i < kept.size(); i++)
+        {
+            if(!kept[i].used && (oldest == kept.size() || kept[i].session < kept[oldest].session))
             {
-                kept.pushBack(static_cast<ProgEntry&&>(e));
+                oldest = i;
             }
         }
-        progCache.entries = static_cast<za::Vector<ProgEntry>&&>(kept);
+        if(oldest == kept.size())
+        {
+            break; // (this session's own: all kept)
+        }
+        total -= kept[oldest].data.size();
+        kept.erase(kept.begin() + oldest);
+        dropped++;
     }
+    progCache.entries = static_cast<za::Vector<ProgEntry>&&>(kept);
+    return dropped;
+}
+
+void progWrite()
+{
+    progPrune();
     za::Vector<char> bytes;
-    const unsigned header[2] = {progVersion, static_cast<unsigned>(progCache.entries.size())};
-    bytes.resize(12);
+    const unsigned header[3] = {progVersion, static_cast<unsigned>(progCache.entries.size()), progCache.session};
+    bytes.resize(16);
     memcpy(bytes.data(), progMagic, 4);
     memcpy(bytes.data() + 4, header, sizeof(header));
     for(const ProgEntry& e : progCache.entries)
     {
         const size_t at = bytes.size();
         const unsigned length = static_cast<unsigned>(e.data.size());
-        bytes.resize(at + 16 + length);
+        const unsigned session = e.used ? progCache.session : e.session;
+        bytes.resize(at + 20 + length);
         memcpy(bytes.data() + at, &e.key, 8);
         memcpy(bytes.data() + at + 8, &e.format, 4);
         memcpy(bytes.data() + at + 12, &length, 4);
+        memcpy(bytes.data() + at + 16, &session, 4);
         if(length)
         {
-            memcpy(bytes.data() + at + 16, e.data.data(), length);
+            memcpy(bytes.data() + at + 20, e.data.data(), length);
         }
     }
     qvr::files::createDirectories((rootDir() + "/programs").cStr());
@@ -780,7 +838,7 @@ extern "C" void VR_ProgCacheAdd(unsigned long long key, unsigned format, const v
     ProgEntry* e = progFind(key);
     if(!e)
     {
-        progCache.entries.pushBack(ProgEntry{key, 0, {}, true});
+        progCache.entries.pushBack(ProgEntry{key, 0, {}, true, progCache.session});
         e = &progCache.entries.back();
     }
     e->format = format;
@@ -813,4 +871,10 @@ extern "C" void VR_ProgCacheEnd(void)
     {
         progWrite();
     }
+}
+
+extern "C" void VR_ProgCacheCounts(int* hits, int* misses)
+{
+    *hits = progCache.hits;
+    *misses = progCache.misses;
 }

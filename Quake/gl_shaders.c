@@ -907,8 +907,12 @@ static void GL_DeferredCheck (void)
 
 static void GL_CreateShadersAll (void);
 
+static const char *gl_shaders_why = "start-up"; // QVR: why the next GL_CreateShaders runs (VR_GLShadersBegin: the start-up's sets counted)
+
 void GL_CreateShaders (void)
 {
+	VR_GLShadersBegin (gl_shaders_why); // QVR: a set's begin and end in gl_startup.log (a start stopped mid-compile is no failed start)
+	gl_shaders_why = "start-up";
 	gl_shaders_deferred = gl_parallel_compile_able; // QVR: the driver's threads (GL_DeferredCheck at the end)
 	gl_progcache_on = VR_ProgCacheOn () != 0; // QVR: the program cache (vr_program_cache; vr/vr_diskcache.cpp)
 	if (gl_progcache_on)
@@ -918,6 +922,7 @@ void GL_CreateShaders (void)
 	gl_shaders_deferred = false;
 	if (gl_progcache_on)
 		VR_ProgCacheEnd (); // (the pack written when a program was made)
+	VR_GLShadersEnd (gl_world_lite, gl_num_programs); // QVR
 }
 
 /*
@@ -1039,11 +1044,16 @@ ones made before. Never on the PC's own GLSL (VR_GLESWorldLite 0 there).
 */
 void GL_WorldLiteCheck (void)
 {
-	int lite = VR_GLESWorldLite ();
-	qboolean defines = VR_GLESDefineChanged (); // QVR: vr_gles_define's probes (C4m)
-	if ((lite == gl_world_lite && !defines) || !gl_num_programs)
+	int lite;
+	qboolean defines;
+	if (!host_initialized || host_framecount == 0 || cbuf_executing || !gl_num_programs) // the start-up's (first frame's) or a config's commands not all run: their settings all in first (a print mid-exec draws: one remake after them, not one a print)
+		return;
+	lite = VR_GLESWorldLite ();
+	defines = VR_GLESDefineChanged (); // QVR: vr_gles_define's probes (C4m)
+	if (lite == gl_world_lite && !defines)
 		return;
 	Con_DPrintf ("world programs' lite form %d -> %d%s: shaders made again\n", gl_world_lite, lite, defines ? ", vr_gles_define changed" : "");
+	gl_shaders_why = defines ? "vr_gles_define changed" : "the settings changed the lite form";
 	GL_DeleteShaders ();
 	GL_CreateShaders ();
 }
@@ -1052,7 +1062,7 @@ static void GL_CreateShadersAll (void)
 {
 	int palettize, dither, mode, alphatest, warp, oit;
 
-	gl_world_lite = VR_GLESWorldLite (); // QVR
+	gl_world_lite = VR_GLESWorldLiteFirst (); // QVR: the start's first set: the lite form the last session made last (its settings come with the config after it)
 
 	glprogs.gui = GL_CreateProgram (gui_vertex_shader, gui_fragment_shader, "gui");
 	glprogs.viewblend = GL_CreateProgram (viewblend_vertex_shader, viewblend_fragment_shader, "viewblend");
@@ -1205,6 +1215,7 @@ the same frame (e.g. paused), for image diffs and timings.
 void GL_ReloadShaders_f (void)
 {
 	gl_shader_ab = Cmd_Argc () > 1 ? atoi (Cmd_Argv (1)) : 0;
+	gl_shaders_why = "vr_shader_reload";
 	GL_DeleteShaders ();
 	GL_CreateShaders ();
 	Con_Printf ("shaders compiled again (QVR_SHADER_AB %d)\n", gl_shader_ab);

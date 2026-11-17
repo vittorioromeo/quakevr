@@ -243,6 +243,7 @@ const void *VR_ProgCacheFind (unsigned long long key, unsigned *format, int *len
 void VR_ProgCacheReject (unsigned long long key); // the driver refused it (dropped; made again)
 void VR_ProgCacheAdd (unsigned long long key, unsigned format, const void *data, int length);
 void VR_ProgCacheEnd (void); // GL_CreateShaders' end: the pack written when one was added (later adds: at once)
+void VR_ProgCacheCounts (int *hits, int *misses); // the last batch's programs given back / compiled
 unsigned long long VR_GLShaderHash (unsigned long long h, int count, const char *const *strings); // vr_glsafe.cpp: the text VR_GLShaderSource gives the driver
 void VR_NormalCacheChecked (int same, const char *name);	// vr_normalmap_cache 2: a map made again against its file	// end of _Host_Frame: the first frame drawn ends the start-up, and a load once signed on
 
@@ -286,6 +287,10 @@ int VR_GLESForm (int form);	// nonzero: -glescompat takes the ES form of `form` 
 #define VR_ALIAS_SKIN_NEEDS (1 | 4 | 8) // C4y: ... and its skin form (skin tone, gloves, nails too: your body, bare hands)
 int VR_GLESDefineChanged (void);	// vr_glsafe.cpp: vr_gles_define changed since the ES shaders were made (C4m; GL_WorldLiteCheck)
 int VR_GLESWorldLite (void);	// vr_glsafe.cpp: the world programs' lite form under the ES profile (bits: 1 no parallax, 2 no carved decals; 0 the whole)
+int VR_GLESWorldLiteFirst (void);	// the lite form a set is made with: the start's first set takes the one the last session made last (gl_shader_set.txt), later sets VR_GLESWorldLite
+void VR_GLShadersBegin (const char *why);	// GL_CreateShaders' start: a set counted, gl_startup.log's "shaders: set N begun" (a start stopped there is no failed start)
+void VR_GLShadersEnd (int lite, int programs);	// GL_CreateShaders' end: its time, the program cache's hits; the lite form kept for the next start
+void VR_GLStartupCrashed (void);	// the crash handler: "== crashed" in gl_startup.log while the game starts (the next start's safe mode)
 void VR_GLStep (const char *fmt, ...) FUNC_PRINTF(1,2);	// a breadcrumb, before the GL call it names: the crash report's last steps; gl_startup.log while the game starts
 int VR_GLRecentSteps (char *out, int outSize, int count);	// vr_crash.cpp: the last `count` breadcrumbs, a line each; how many
 // Every run's logs (vr_runlogs.cpp): <game folder>/logs/<date>_<time>/, the last 5 runs kept; the bug report.

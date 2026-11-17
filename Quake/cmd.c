@@ -291,6 +291,8 @@ Cbuf_Execute
 Spike: reworked 'wait' for renderer/server rate independance
 ============
 */
+int cbuf_executing; // QVR: Cbuf_Execute's depth: a config's commands running (GL_WorldLiteCheck waits for their end; Host_Frame's abort resets it)
+
 void Cbuf_Execute (void)
 {
 	int		i, len; // QVR: len
@@ -299,6 +301,7 @@ void Cbuf_Execute (void)
 	char	*line;
 	int		quotes, comment;
 
+	cbuf_executing++; // QVR
 	while (cmd_text.cursize > cbuf_start && !cmd_wait) // QVR: from the read position (cbuf_start)
 	{
 // find a \n or ; line break
@@ -342,6 +345,7 @@ void Cbuf_Execute (void)
 		if (line != stackline) // QVR
 			VR_HeapFree (line);
 	}
+	cbuf_executing--; // QVR
 	if (cbuf_start >= cmd_text.cursize) // QVR: all of it run
 		cmd_text.cursize = cbuf_start = 0;
 }

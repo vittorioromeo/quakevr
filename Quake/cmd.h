@@ -56,6 +56,7 @@ void Cbuf_TailToFront (int bytes);	// QVR: its last `bytes` moved to run next (v
 // commands.
 
 void Cbuf_Execute (void);
+extern int cbuf_executing; // QVR: nonzero inside Cbuf_Execute (a config's commands running)
 // Pulls off \n terminated lines of text from the command buffer and sends
 // them through Cmd_ExecuteString.  Stops when the buffer is empty.
 // Normally called once per frame, but may be explicitly invoked.

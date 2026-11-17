@@ -1693,6 +1693,7 @@ void _Host_Frame (double time)
 	if (setjmp (host_abortserver) )
 	{
 		VR_TracyAbort();
+		cbuf_executing = 0; // QVR: a Host_Error out of a command left Cbuf_Execute's depth up (cmd.c)
 		return;			// something bad happened, or the server disconnected
 	}
 

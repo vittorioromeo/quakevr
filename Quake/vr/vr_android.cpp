@@ -121,6 +121,42 @@ void copyPath(char (&out)[maxPath], const char* a, const char* b = "")
     q_snprintf(out, sizeof out, "%s%s", a, b);
 }
 
+// vr_android_export's source: an absolute path as given; else the first that exists of <game folder>/<path> and
+// <internal files>/<path>, and for "profile/<rest>" (the PC's folder of the profiler's files) <internal files>/<rest>:
+// what the game writes outside the game folder on Android (files/perf/: the perf recorder's CSVs; his adb session
+// of 2026-11-17 asked for "profile/perf" and got "failed, 0 bytes"). False: none exists (`out` the first tried).
+bool resolveExport(char (&out)[maxPath], const char* path, const char* gameDir, const char* internal)
+{
+    if(path[0] == '/')
+    {
+        copyPath(out, path);
+        return Sys_FileType(out) != FS_ENT_NONE;
+    }
+    const char* rest = !strncmp(path, "profile/", 8) ? path + 8 : nullptr;
+    const char* const tries[][2] = {{gameDir, path}, {internal, path}, {internal, rest}};
+    bool first = true;
+    for(const auto& tr : tries)
+    {
+        if(!tr[0] || !tr[1] || !tr[1][0])
+        {
+            continue;
+        }
+        char at[maxPath];
+        q_snprintf(at, sizeof at, "%s/%s", tr[0], tr[1]);
+        if(first)
+        {
+            copyPath(out, at);
+            first = false;
+        }
+        if(Sys_FileType(at) != FS_ENT_NONE)
+        {
+            copyPath(out, at);
+            return true;
+        }
+    }
+    return false;
+}
+
 bool fakeRequested(int argc, char** argv)
 {
 #ifdef QVR_FAKE_ANDROID
@@ -237,6 +273,16 @@ void test_f()
     }
     t.check(!noConfigIn(cfgDir), name, "a config not seen");
 
+    // vr_android_export's sources: the game folder's first, then the app's files (cfgDir standing in for them), and
+    // "profile/<rest>" there as <rest>; a path in neither not found.
+    char found[maxPath];
+    t.check(resolveExport(found, CONFIG_NAME, android.crashDir, cfgDir) && strstr(found, "config_test"), name,
+        va("export: %s not found in the app's files (%s)", CONFIG_NAME, found));
+    t.check(resolveExport(found, "profile/" CONFIG_NAME, android.crashDir, cfgDir) && strstr(found, "config_test"), name,
+        va("export: profile/%s not taken as the app's %s (%s)", CONFIG_NAME, CONFIG_NAME, found));
+    t.check(resolveExport(found, "config_test", android.crashDir, nullptr), name, "export: a game-folder path not found");
+    t.check(!resolveExport(found, "no_such_file.txt", android.crashDir, cfgDir), name, "export: a missing file found");
+
     Con_Printf("vr_android_test: base %s, crash reports %s, first run %d\n", android.base, VR_CrashReportDir(),
         android.firstRun ? 1 : 0);
     t.verdict(name);
@@ -244,12 +290,14 @@ void test_f()
 
 // vr_android_export <path> (Debug > Startup): a file or a folder's files under the game folder (eyeshots, a save,
 // a log) copied into the app's internal files folder's export/, which a debuggable APK's `adb shell run-as` reads
-// (what the game writes in its external folder is 0660 to adb's shell: section 6i of QUEST_PLAN.md).
+// (what the game writes in its external folder is 0660 to adb's shell: section 6i of QUEST_PLAN.md). Also what the
+// game writes in the app's own files (resolveExport: "perf", the perf recorder's CSVs).
 void export_f()
 {
     if(Cmd_Argc() < 2)
     {
-        Con_Printf("vr_android_export <file or folder under the game folder>: copied to the app's internal export/\n");
+        Con_Printf("vr_android_export <file or folder under the game folder, or the app's files (perf)>: copied to the "
+                   "app's internal export/\n");
         return;
     }
 #ifdef __ANDROID__
@@ -266,7 +314,12 @@ void export_f()
     copyPath(to, internal, "/export");
     Sys_mkdir(to);
     char from[maxPath];
-    q_snprintf(from, sizeof from, "%s/%s", com_gamedir, Cmd_Argv(1));
+    if(!resolveExport(from, Cmd_Argv(1), com_gamedir, internal))
+    {
+        Con_Printf("vr_android_export: %s not found (under the game folder %s, nor the app's files %s)\n", Cmd_Argv(1),
+            com_gamedir, internal);
+        return;
+    }
     const auto copyOne = [&](const char* src, const char* name) {
         char dst[maxPath];
         q_snprintf(dst, sizeof dst, "%s/%s", to, name);
@@ -286,7 +339,8 @@ void export_f()
         {
             fclose(in);
         }
-        Con_Printf("vr_android_export: %s -> %s (%s, %d bytes)\n", src, dst, out ? "copied" : "failed", static_cast<int>(bytes));
+        Con_Printf("vr_android_export: %s -> %s (%s, %d bytes)\n", src, dst,
+            out ? "copied" : in ? "failed: the export folder cannot be written" : "failed: cannot be read", static_cast<int>(bytes));
     };
     if(Sys_FileType(from) & FS_ENT_DIRECTORY)
     {
