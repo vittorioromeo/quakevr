@@ -1385,6 +1385,8 @@ za::Vector<Item> pageDebugTools()
             .help("maps_page_pick <row> [source]: the Map Library open with that row picked (its detail; a Slipseer map's page read). Source: 0 both, 1 Quaddicted, 2 Slipseer."),
         command("Search Flash Test", "vr_menu_flash_test")
             .help("vr_menu_flash_test: a Search result opened (Campaign Gap on Menu Look) lands on its row, which flashes and sits in the list's middle; the flash over after its time; none with Search Result Flash 0. Prints a verdict."),
+        command("Search Filter Test", "vr_menu_search_filter_test")
+            .help("vr_menu_search_filter_test: Search's filter row (Show: Both, Cvars, Tunables): each choice's results, then chosen by the mouse, the laser and the sticks; a release build: no row. Prints a verdict."),
         command("Menu Stops Walking Test", "vr_menu_stop_test")
             .help("vr_menu_stop_test: on e1m1, +forward walks; the VR Settings opened over the running game (live preview): no movement button held, the move 0, he comes to rest; closed, nothing resumes. Plays e1m1. Prints a verdict."),
         command("Continue Rows Test", "vr_continue_rows_test")
