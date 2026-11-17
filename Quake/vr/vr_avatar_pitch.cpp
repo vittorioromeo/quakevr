@@ -52,16 +52,7 @@ BodyPitch bodyPitch;
 // `easeTime`: seconds to cover 95% of a step.
 void easePitch(float& angle, float& rate, float target, float easeTime, float dt)
 {
-    if(dt <= 0.f)
-    {
-        return;
-    }
-    const float omega = 4.74f / za::max(0.05f, easeTime); // 1 - (1 + x) e^-x = 0.95 at x = 4.74
-    const float x = angle - target;
-    const float temp = (rate + omega * x) * dt;
-    const float decay = za::exp(-omega * dt);
-    rate = (rate - omega * temp) * decay;
-    angle = target + (x + temp) * decay;
+    geom::easeCritical(angle, rate, target, za::max(0.05f, easeTime), dt);
 }
 
 float swimPitchTarget(const SwimPitchIn& in)

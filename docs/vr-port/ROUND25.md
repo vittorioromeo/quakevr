@@ -3881,6 +3881,46 @@ His decision (2026-11-17, after the kit's `work\ericw\FINDINGS.md`): ship a fork
 - Seen, not fixed: `map ad_mountain` run from `vr_relight_whendone` right after a relight (games hipnotic, rogue, ad,
   quakevr) said "Couldn't spawn server"; the same map loads from a script at start.
 
+## VR slide: the flat slide's body and eye height (branch agent/vrslide2, 2026-11-17)
+
+His decision: "Sliding pose should be the same as flat screen, and the camera should smoothly but very quickly move to
+the actual sliding head height even in VR. Perhaps add an option." Before, a headset's slide kept his view at his real
+head and hung the flat pose from it (the hips at the flat slide's height off the box's floor, the legs bent up to the
+play-space floor 3 units over it).
+
+**The view** (`slide::viewDrop`, called from `vr_hands.cpp` placeTracked once the tracking is placed): while this
+machine's player slides (`server.slide[1].on`, off a ledge mid-slide too), the whole tracked frame (head, eyes, hands,
+trackers, so the body hung from them) is let down by an eased drop, and `headHeight` with it. As the slide starts it
+takes his real eyes over the box's floor (over the client's origin: the server's moves a unit up into the crouched box
+a frame before); the drop takes them to `slideEye()` (46 less `vr_flat_crouch_drop` and `vr_flat_slide_drop`: 22, the
+flat slide's eyes), his head's own moves since one to one on top (an eye already under it: no drop). Eased by a
+critically damped spring (`geom::easeCritical`, new in `vr_geom.hpp`: avatar's `easePitch` now calls it) that covers
+95% in `vr_slide_camera_time` (0.15 s), no overshoot; back up the same way when the slide ends. The comfort vignette
+counts the drop easing as a move (`viewDropMoving`, `vr_input.cpp` updateComfort). No lying down for 0.5 s after a
+headset slide ends (`slide::headsetRising`, `vr_hull.cpp`): the slide's eyes are `vr_prone_eye`'s own 22 at the
+defaults, and a nod coming back up would have laid him down.
+
+**The body:** the same code as flat's (`vr_avatar_pitch.cpp`'s slide pitch from the eyes over the box, `solveLeg`'s
+legs out in front), now from the flat slide's eyes; the neck back (`vr_flat_slide_neck_back`) too
+(`flatmove::slideNeckBack` for `slide::headsetPose`). The body's floor goes where the flat slide's is, by the drop's
+share (`viewDropShare`): Quake's standing eyes (46 over the box's floor) less the flat body's eye height
+(`units::flatBodyEyeHeight`, `vr_flat_body_height`: 2.8 under the box's floor at the defaults), not
+`vr_floor_offset`'s play-space floor. Not shared: the flat slide's legs turned to the slide's way and the chest back to
+the view (`vr_flat_slide_legs`, flatplay's poseHands: a headset's body yaw is the tracked one), the arms (tracked), and
+the legs' length (a headset's are fitted to the height he stands at: `legFit`).
+
+**Settings:** `vr_slide_camera` 1 (Slide View; 0: the view stays at the real head and the body hangs from it, as
+before), `vr_slide_camera_time` 0.15 (Slide View Time, 0.05..0.5 s), both CVAR_ARCHIVE, in VR Settings > Locomotion
+after Slide Body Pose.
+
+**Tests:** `bash Misc/quakevr/vrslide_test.sh <agent>`: `vr_slide_test` gains the view's checks and a case with
+`vr_slide_camera 0`: straight down, the view from 55.6 (the mock's eyes) to 22.0, lowest 22.0 (no overshoot), 95% in
+0.139 s, back up to 55.6 95% in 0.139 s after it (the let-go case too); with `vr_slide_camera 0` it stays at 55.6
+(55.6 to 56.0). 24 passed. Then `vr_slide_pose_test` (new, `-flatscreenmode`) slides from the same spot and both print
+the body 0.5 s into the slide (`printPose`: the body's floor, the head, the hips, knees and ankles off the head along
+the view and over the box's floor), the headset's sized as the flat one (`vr_height_calibration 1.55`): floor -2.8 and
+-2.8, head 22.0 and 22.1, hips (1.7, +-2.7, 3.7) and (1.6, +-2.7, 3.7), ankles at -0.4 both: worst 0.1 units off. The
+knees and ankles reach further out in the headset (the mock stands taller than 1.55 m: its legs fitted to it).
 ## searchfilter: Search's filter row, Both / Cvars / Tunables (agent/searchfilter, 2026-11-17)
 
 - His request (2026-11-17): a filter on the Search page for cvars only, tunables only, or both (the default); none in

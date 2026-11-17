@@ -5126,9 +5126,10 @@ void updateCrouchBox(edict_t* ent, const glm::vec3& head, bool flatscreenCrouch)
     }
     // (Not in a flat-screen slide: his eyes, sent a frame behind, sit low and a stair's step up drops them under the
     // limit for a frame -- it lay him down and ended the slide on the first step. Nor off a ledge mid-slide: no lying
-    // down until the slide is over, his bug of 2026-11-10.)
+    // down until the slide is over, his bug of 2026-11-10. Nor a headset's eyes coming back up from the slide's view drop,
+    // vr_slide_camera: at the slide's eyes, vr_prone_eye's own height, a nod would lay him down: slide::headsetRising.)
     else if(proneOn() && eye < proneEyeLimit(sv.worldmodel) && (!flatscreen || flatscreenCrouch) && ent->v.waterlevel < 2 &&
-            !slide::onServer(ent))
+            !slide::onServer(ent) && !slide::headsetRising(ent))
     {
         prone = true;
         float levels[maxCrouchLevels];
