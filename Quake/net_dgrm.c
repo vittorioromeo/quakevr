@@ -2077,8 +2077,8 @@ static qsocket_t *_Datagram_Connect (const char *host)
 		// QVR: (B23) punched for 8 s without an answer: a router on the way maps each destination to another port
 		// (a symmetric NAT), or drops what it hasn't seen asked for whatever was sent
 		Con_Printf ("No answer from the room's host at %s: his router or yours doesn't allow a direct link. The host "
-			"can forward UDP port %d to his PC (then join by his IP address), or use a virtual LAN.\n",
-			dfunc.AddrToString (&sendaddr), DEFAULTnet_hostport);
+			"can forward his game's UDP port (26000 unless he set another) to his PC and be joined by his IP address, or "
+			"you both use a virtual LAN.\n", dfunc.AddrToString (&sendaddr));
 		q_strlcpy (m_return_reason, "No direct link to the host", sizeof (m_return_reason));
 		goto ErrorReturn;
 	}

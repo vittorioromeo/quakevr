@@ -99,7 +99,7 @@ Tests:
     suite    coop, coop with B at 150 ms each way and 2% loss, bandwidth, armed, retransmit, version, avatar, avatarcal, body, prefs, grab,
              teleport, held, ground, campaign, campaign_listen, flow, rejoin, download, pickup, forcegrab, melee, moves, climb,
              rules, cosmetics, flatbody, loss, predict, predictclimb, lagcomp, disarm, voice, voice with B 50 ms (30 ms
-             jitter, 5% loss) away, dm, lockstep, lockstep_throw.
+             jitter, 5% loss) away, dm, lockstep, lockstep_throw, nat (B23: room codes through simulated routers).
 
 The base folder is a Quake folder with id1 (and hipnotic, rogue, quakevr: -game as the kit's runs). Its
 id1/autoexec.cfg runs in every game: --reset-autoexec empties it first (the kit's test bases: a run's script).
@@ -117,7 +117,9 @@ import traceback
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
-from mp_harness import LINKS, Session, StepFailed, fields, format_kinds, kind_rates  # noqa: E402
+from mp_harness import LINKS, Instance, Session, StepFailed, fields, format_kinds, kind_rates  # noqa: E402
+from mp_nat import Nat  # noqa: E402
+import subprocess  # noqa: E402
 
 REPO = os.path.normpath(os.path.join(HERE, "..", "..", ".."))
 EXE = os.path.join(REPO, "Windows", "VisualStudio", "Build-ironwail", "bin", "x64", "Release", "ironwail.exe")
@@ -605,6 +607,93 @@ def version(s):
     a.cmd(s.connect_cmd(a))
     a.wait(r"mp_event: .*joined map=e1m1", 120, what="A joined e1m1")
     s.check("a client of the same network version joins", True)
+
+
+RENDEZVOUS = os.path.join(REPO, "Misc", "rendezvous")
+
+
+def nat(s):
+    """(B23) NAT traversal. The room service's own test (Misc/rendezvous/test_rendezvous.py: its protocol and abuse
+    limits). Then the service run locally and games behind simulated routers (mp_nat.py, -natgateway):
+    1. One server socket: a host behind a router that doesn't keep port numbers, his port forwarded to another
+       outside, is joined by his outside address (NetQuake's socket per client named a port of his own inside the
+       accept, which led nowhere outside).
+    2. Room codes: a host behind a cone NAT (non-port-preserving) gets a room code; A behind another cone NAT joins
+       by it (both punch); B behind a symmetric NAT is told there's no direct link; an unknown code and a service that
+       doesn't answer are told so."""
+    out = subprocess.run([sys.executable, os.path.join(RENDEZVOUS, "test_rendezvous.py")], capture_output=True,
+                         text=True, timeout=120)
+    verdict = [l for l in out.stdout.splitlines() if l.startswith("rendezvous_test:")]
+    s.check("the room service's protocol and limits (test_rendezvous.py)", out.returncode == 0 and verdict,
+            verdict[0] if verdict else out.stdout[-300:])
+    rport = s.take_port()
+    service = subprocess.Popen([sys.executable, os.path.join(RENDEZVOUS, "qvr_rendezvous.py"), "--bind", "127.0.0.1",
+                                "--port", str(rport), "--report", "0", "--verbose"],
+                               stdout=open(os.path.join(s.out, "rendezvous.log"), "w"), stderr=subprocess.STDOUT)
+    nats = []
+    try:
+        def router(ip, kind, seed):
+            n = Nat(ip, kind, seed=seed).start()
+            nats.append(n)
+            s.note(n.describe())
+            return n
+        room = ["+vr_mp_room", "1", "+vr_mp_rendezvous", "127.0.0.1:%d" % rport]
+        # 1. A forwarded host behind a non-preserving router, joined by his outside address
+        fwd = router("127.0.0.2", "cone", 1)
+        fport = s.take_port()
+        outside = fwd.forward(fport, s.port)
+        srv = s.server(dedicated=True, extra=["-natgateway", str(fwd.gateway_port)])
+        srv.start()
+        srv.cmd("coop 1; deathmatch 0; skill 1; map e1m1; vr_mp_status")
+        srv.wait(r"mp_server: map=e1m1", 120, what="the forwarded server on e1m1")
+        c = s.client("C").start()
+        c.cmd("name C; connect 127.0.0.2:%d" % outside)
+        c.wait(r"mp_event: .*joined map=e1m1", 120, what="C joined the forwarded host")
+        s.check("a host behind a router that doesn't keep port numbers, his port %d forwarded to %d outside, is joined "
+                "at 127.0.0.2:%d (one server socket)" % (s.port, outside, outside), True)
+        c.stop()
+        srv.stop()
+        # 2. Room codes through cone NATs
+        hnat = router("127.0.0.3", "cone", 2)
+        h = Instance(s, "host", s.take_port(), dedicated=4, extra=["-natgateway", str(hnat.gateway_port)] + room)
+        s.instances.append(h)
+        h.start()
+        h.cmd("coop 1; deathmatch 0; skill 1; map e1m1; vr_mp_status")
+        h.wait(r"mp_server: map=e1m1", 120, what="the room's host on e1m1")
+        _, line = h.wait(r"Room code: [A-Z]{6} ", 30, what="the host's room code")
+        code = re.search(r"Room code: ([A-Z]{6})", line).group(1)
+        outside_h = hnat.outside_port(h.port)
+        s.check("the host behind a cone NAT gets a room code, the service seeing his router's outside port",
+                outside_h and outside_h != h.port and ("127.0.0.3:%d" % outside_h) in line, line.strip())
+        anat = router("127.0.0.4", "cone", 3)
+        a = s.client("A", extra=["-natgateway", str(anat.gateway_port)] + room).start()
+        a.cmd("name A; connect @%s" % code.lower())
+        a.wait(r"mp_event: .*joined map=e1m1", 120, what="A joined by the room code")
+        s.check("A behind another cone NAT joins by the room code (hole punching: %d of the routers' datagrams in "
+                "filtered)" % (hnat.stats["filtered"] + anat.stats["filtered"]), True)
+        bnat = router("127.0.0.5", "symmetric", 4)
+        b = s.client("B", extra=["-natgateway", str(bnat.gateway_port)] + room).start()
+        t0 = time.monotonic()
+        b.cmd("name B; connect @%s" % code)
+        _, why = b.wait(r"doesn't allow a direct link", 60, what="B's no-direct-link reason")
+        s.check("B behind a symmetric NAT is told there is no direct link, within %.0f s" % (time.monotonic() - t0),
+                time.monotonic() - t0 < 30, why.strip())
+        since = b.mark()
+        b.cmd("connect @%s" % ("ZZZZZZ" if code != "ZZZZZZ" else "YYYYYY"))
+        _, why = b.wait(r"No room [A-Z]{6} at", 30, since, "B's unknown-code reason")
+        s.check("an unknown room code is told so", True, why.strip())
+        since = b.mark()
+        b.cmd("vr_mp_rendezvous 127.0.0.1:%d; connect @%s" % (s.take_port(), code))
+        _, why = b.wait(r"does not answer", 30, since, "B's no-service reason")
+        s.check("a room service that doesn't answer is told so", True, why.strip())
+        a.cmd("vr_mp_roomcode")
+        s.metric("nat", {n.outside_ip: dict(n.stats) for n in nats})
+    finally:
+        for n in nats:
+            s.note(n.summary())
+            n.stop()
+        service.terminate()
+        service.wait(10)
 
 
 STATUS_EVERY_S = 2  # the test's vr_sv_status (the default: 60)
@@ -5984,6 +6073,8 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             jitter_lift(s)
         elif test == "mp_fuzz":
             fuzz(s)
+        elif test == "mp_nat":
+            nat(s)
         elif test == "mp_soak":
             soak(s)
         elif test == "mp_lockstep_throw":
@@ -6018,7 +6109,7 @@ def print_bytes_table():
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "dedicated", "soak", "jitter", "suite"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "dedicated", "soak", "jitter", "nat", "suite"])
     ap.add_argument("--base", required=True, help="the game folder (id1, quakevr...)")
     ap.add_argument("--exe", default=EXE)
     ap.add_argument("--out", default=os.path.join(REPO, "scratch", "mp"))
@@ -6064,7 +6155,7 @@ def main():
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
     elif args.test in ("bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground",
-                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "dedicated", "soak", "jitter"):
+                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "dedicated", "soak", "jitter", "nat"):
         ok = run(args, "mp_" + args.test)
     elif args.test == "voice":
         ok = run(args, "mp_voice", args.lag, args.jitter, args.loss)
@@ -6114,6 +6205,7 @@ def main():
         ok = run(args, "mp_vanish") and ok
         ok = run(args, "mp_fuzz") and ok
         ok = run(args, "mp_jitter") and ok
+        ok = run(args, "mp_nat") and ok
         # B's link per scenario (MP_PLAN B7: byte counts against mp_bandwidth's): what the next phases cut.
         print_bytes_table()
         print("mp_suite: %s" % ("passed" if ok else "FAILED"))
