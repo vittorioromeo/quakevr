@@ -2102,6 +2102,7 @@ static void SV_SpawnServerRun (const char *server)
 
 	PR_SwitchQCVM(vm);
 // load progs to get entity field count
+	VR_StepBegin ("server: progs"); // QVR
 	VR_TRACY_DETAIL (1, "spawn: load progs", PR_LoadProgs ("progs.dat", true)); // QVR: (profiling builds: a zone)
 	VR_TimeMark ("server: progs"); // QVR
 
@@ -2141,6 +2142,7 @@ static void SV_SpawnServerRun (const char *server)
 
 	q_strlcpy (sv.name, server, sizeof(sv.name));
 	q_snprintf (sv.modelname, sizeof(sv.modelname), "maps/%s.bsp", server);
+	VR_StepBegin ("server: world model (BSP)"); // QVR: the start-up trace (vr_startlog.cpp)
 	sv.worldmodel = Mod_ForName (sv.modelname, false);
 	if (!sv.worldmodel)
 	{
@@ -2187,6 +2189,7 @@ static void SV_SpawnServerRun (const char *server)
 
 	VR_TRACY_DETAIL (1, "spawn: VR before load", VR_OnSpawnServerBeforeLoad ()); // QVR
 	VR_TimeMark ("server: submodels, VR before load"); // QVR
+	VR_StepBegin ("server: entities spawned"); // QVR
 	VR_TRACY_DETAIL (1, "spawn: entities", ED_LoadFromFile (sv.worldmodel->entities)); // QVR: (profiling builds: a zone)
 	VR_TRACY_DETAIL (1, "spawn: VR spawned", VR_OnSpawnServerSpawned ()); // QVR
 	VR_TimeMark ("server: entities spawned"); // QVR
@@ -2198,6 +2201,7 @@ static void SV_SpawnServerRun (const char *server)
 
 // run two frames to allow everything to settle
 	host_frametime = 0.1;
+	VR_StepBegin ("server: 2 frames (Box3D world, ledges...)"); // QVR
 	VR_TRACY_DETAIL (1, "spawn: 2 physics frames", { SV_Physics (); SV_Physics (); }); // QVR: (profiling builds: a zone)
 	VR_TimeMark ("server: 2 frames (Box3D world, ledges...)"); // QVR
 

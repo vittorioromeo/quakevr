@@ -20,6 +20,7 @@
 
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
+#include "vr_startlog.hpp"
 #include "vr_api.h"
 
 #include <cstdarg>
@@ -170,6 +171,7 @@ extern "C" void VR_GLStep(const char* fmt, ...)
     q_vsnprintf(s.text, sizeof(s.text), fmt, args);
     va_end(args);
     glsafe.total++;
+    qvr::startlog::glStep(s.text); // the start-up trace's heartbeat: the last GL step (vr_startlog.cpp)
     if(glsafe.log)
     {
         char line[stepLength + 32];

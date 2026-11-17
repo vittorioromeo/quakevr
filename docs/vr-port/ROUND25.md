@@ -3978,3 +3978,66 @@ hardware here; diagnosis and plan in LINUX.md, "SteamVR" and "AppImage (plan, no
 - Open: the failure outside the sandbox is unexplained until a player's log has the loader's lines and SteamVR's
   `vrclient_*.txt`; the Flatpak sandbox case not run (no flatpak here); the AppImage needs `appimagetool` in CI (a new
   pinned download): plan only.
+
+## startuplog: the start-up trace and its heartbeat, PC and Quest (branch agent/startuplog, 2026-11-17)
+
+His Quest 3 report: after an install and a new data push, minutes of Meta's three dots; logcat's last game line
+"Using protocol 999", then only VrApi lines. Now every start says where it is, on the PC and the Quest alike.
+
+- `vr/vr_startlog.cpp` (one path for both): each step of the start-up and of the first map's load logged as it begins
+  and ends, with the wall clock since the process started (`[startup +1.234s] video (...) begin` / `... end (took
+  577.0 ms)`, nested steps indented); a stage that only ends (a `VR_TimeMark` with no step of its name open) as
+  `<stage> done (X ms since "<previous>")`; notes: each pak read (its files, its ms), progs.dat's size and CRC; `first
+  frame shown (the start-up took X ms)` and a summary line: the six slowest steps and the four costliest kinds of work
+  (vr_startup_times' `VR_TimeAdd` sums: shader compiles, model loads, normal maps; on the Quest the program cache's
+  "programs from their binaries" / "program binaries refused" sums). Lines go through `Con_SafePrintf` (no screen update
+  per line while loading; before the console, `Sys_Printf`): the terminal, the run's log, and on Android logcat under
+  `QuakeVR`, a line at a time (the quest branch's `Sys_Printf` -> `VR_AndroidLog`). Also `<game folder>/startup.log`
+  (quakevr/startup.log), made anew at each start right after the file system starts (the lines before it kept and
+  written then), each line flushed; on the Quest in the app's files folder (`vr_android_export startup.log`).
+- The heartbeat: a watchdog thread (detached; stops at the trace's end) reads a seqlock snapshot of what the main thread
+  is in (no lock the main thread waits on) and, while one step runs past 2 s, says every 2 s `[startup +Xs] still in
+  <step> (<progress>; GL step N: <last breadcrumb>) (Y s so far)`. Progress: `model 12 of 40: progs/ogre.mdl`, `sound
+  ...`, `pak <path>`, a load's `N frames so far, waiting for the signon: k of 4`; the last `VR_GLStep` breadcrumb
+  (every shader compile and link, the OpenXR calls, the quest branch's "program X from its binary") with its count.
+- Steps: Host_Init's stages (begin calls beside the existing `VR_TimeMark`s, which end them), the first frame's
+  configs/autoexec, the VR backend's start and OpenXR's instance, system, session, spaces, actions and swapchains,
+  the map load (from `VR_TimeLoadBegin` to its first frame drawn, or "failed"), the server's progs, world model,
+  entities, 2 frames, the client's model and sound precaches (per-item progress), R_NewMap (its mark renamed "client:
+  R_NewMap") and each `VR_NewMap` prewarm step. A step left open at a frame's end (a Host_Error's longjmp) is closed
+  there, said so. The trace runs to the first frame drawn and, when no map loaded in the start-up, on to the first
+  map's first frame (a second summary), then stops.
+- `vr_startup_log` (archived, default 1): 0 quiet (no console or logcat lines; the file is still written). Read once
+  the config ran (the lines before it always print). Debug > Startup: the toggle and "Startup Trace Summary"
+  (`vr_startup_trace`: the file and the last summary). Test aid: `vr_startup_trace stall <s>` (the main thread sleeps
+  inside a step), `vr_startup_trace check` (verdict `startuplog: N passed, M failed`: file made, start-up summed up, no
+  step left open, 2+ heartbeat lines after a 5 s stall). Run: `run.sh <tree> -Script "vr_startup_trace stall 5;wait;
+  vr_startup_trace check;toggleconsole;quit" -QuitOn "startuplog: \d+ passed"` (the stall is real time by nature).
+- What runs after "Using protocol 999" (CL_ParseServerInfo), by reading the code: the precache lists, then each model's
+  `Mod_ForName` (the alias models' skins, their normal maps from the derived-data cache or made, the GL uploads), the
+  sounds, `R_NewMap` (lightmaps, brush buffers, then `VR_NewMap`'s prewarm steps: view models, gun anchors, rigs...),
+  then the frames to the signon (`VR_SignonPrewarm`: translucent decal programs). Nothing prints there without
+  developer 1, so logcat stops at that line. While the main thread is inside one of these no `xrEndFrame` runs; the
+  frames to the signon draw no world and submit no layer: both show Meta's dots. Suspects on the Quest: (1) the program
+  cache: its key hashes the exact shader text (and the pack is per driver identity), so a build whose shaders changed
+  (the 1.1.0 merge) misses every program: the comment in vr_diskcache.cpp measures ~51 s for the start's ~120 programs
+  on the Adreno, and the map's own (VR programs, decal and multiview variants) follow at the load; (2) the derived-data
+  cache rebuilt after new data (the PC's e1m1: 1384 skins' normal maps, 1.5 s on 16 threads; many times that on the
+  XR2); (3) the external files folder read through FUSE. The trace tells them apart: `still in client: R_NewMap` /
+  `VR_NewMap: <step>` with `GL step N: compile/link <program>` climbing = compiles; `still in client: models precached
+  (model k of n ...)` = model and skin work; `still in map load (...) (N frames so far, waiting for the signon: k of
+  4)` = frames running but the signon stuck (a protocol or server-side problem, not loading); a step whose "so far"
+  grows with neither progress nor GL steps moving = a blocking call (a file read, a lock).
+- Headless PC run (e1m1 from the script, mock headset): 130 lines; the start-up 5.3 s with the map; slowest: the
+  first frame's configs 4.1 s (the map's load inside it), the map load 1.7 s, the server's entities 1.08 s, video
+  0.51 s; work: GL_CreateShaders 297 ms; the map's: skins' normal maps from the cache 1522 ms (1384), alias models
+  1005 ms (307). Seen in passing: the file system reads the same paks several times during its start (each under
+  0.3 ms here; on the Quest's FUSE worth a look), and the first frame's configs take ~2 s before any map command.
+- Not done (follow-up): a "Loading: <step>" quad in the headset. The long steps block the main thread (no frame loop
+  at all), so it needs either the loops above to pump an OpenXR frame with the quest backend's panel quad between
+  items (models, programs) or a second thread with its own GL context submitting frames; neither is cheap. The
+  quest branch's program cache can name a miss's reason (a new driver identity vs a changed text) with a `VR_StepNote`
+  in `VR_ProgCacheBegin` once it merges this.
+- Checks: dev and ReleaseLTO 0 warnings; no local NDK (ANDROID_NDK_HOME unset): the Android build not run (the code is
+  portable C++, no `__ANDROID__` paths of its own); `vr_startup_trace check` 4 passed, 0 failed (3 heartbeat lines);
+  scenario_check and load_models_test below.
