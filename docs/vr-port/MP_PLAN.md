@@ -3081,7 +3081,9 @@ game's slot stays a ghost for `net_messagetimeout` (300 s) while he comes back a
   is dropped at once anyway (Windows answers the dead port: the server's read fails); the ghost path is for NATs and
   other machines.
 - **Checks:** MP suite (dev) 39 of 41 clean: mp_rejoin 15/0 in it; mp_armed 17/1 (its rate-cap pose ratio under
-  `vr_net_rate 6000`, B13d's open flake) and mp_climb 10/1 (A's mantle: no hold taken by his play, B8j's flake).
+  `vr_net_rate 6000`, B13d's open flake) and mp_climb 10/1 (A's mantle: no hold taken by his play, B8j's flake), then
+  alone 18/0 and 11/0. SP: scenario_check PASS (136/0), load_models 4/0, vr_run_check 12/0, autosavenow 4/0. Dev and
+  ThinLTO builds 0 warnings.
 
 **What a first public multiplayer beta still needs** (in order): (1) his VR checks in a headset of the Multiplayer
 menus' host and join flow, the server browser and voice chat (B10v), never seen by him; (2) a player-facing guide (how
