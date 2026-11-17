@@ -4568,3 +4568,18 @@ His Quest 3 report: after an install and a new data push, minutes of Meta's thre
   logged; `vr_android_export perf` exports the app's perf CSVs. Package `<kit>/scratch/quest_apk3/`.
 - PC: behaviour unchanged (the remake deferral and safe mode's kept buffers act only on the ES path; the crash marker
   and the set lines are log-only). One PC-visible change: a Host_Error now resets `cbuf_executing` (new counter).
+
+## questshaders: the game boots with a progress panel while the shaders compile (branch agent/quest, 2026-11-18)
+
+- Why so long: ~145 programs a set, 15.8 MB of GLSL (über-shaders, ~109 KB each); Adreno ~0.35-0.5 s a program; the
+  program cache makes later starts fast (QUEST_PLAN.md 6zi).
+- Under the ES profile (the Quest, `-glescompat`) the set is queued (`GL_CreateShadersAsync`) and made frame by frame
+  (`GL_ShadersPump`: 8 ms of submits, the driver's parallel compile polled with `GL_COMPLETION_STATUS_KHR`, never
+  waited for; one at a time without it). Meanwhile each frame shows the loading panel (`vr/vr_shaderload.cpp`: "Compiling
+  shaders: N / M", a bar; CPU-drawn, the OpenXR quad layer and the window) and nothing else runs; no time passes.
+  The settings' remakes go the same way. `-shadersasync 0|1` / `QVR_SHADERS_ASYNC`; `-noparallelshaders`;
+  `-shaderloadshot <tga>`; `-shadersasynctest` (verdict `shaders_async_test`). Program cache flushed every 10 s.
+- PC (`-glescompat -fakeandroid`): 145 programs in 0.65 s over 37 frames (longest frame's work 12.7 ms); cache cold
+  6-9 s, warm 0.6 s; one at a time 0.65 s; 4/0 each. The PC's own GLSL unchanged (one call). gles_render_test's PC run
+  now queues its shaders too (`QVR_SHADERS_ASYNC=1`: the same start, the scrap's pics in the same order).
+- Debug > Startup > Recompile Shaders (Loading Panel) (`vr_shader_reload_queued`). Package `<kit>/scratch/quest_apk4/`.

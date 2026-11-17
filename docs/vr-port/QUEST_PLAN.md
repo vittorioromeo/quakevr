@@ -1722,6 +1722,54 @@ with the session's near monsters; `c4y_fz1..4.sh`), `c4y_pcskin.sh` / `c4y_pcvl.
 - Package `<kit>/scratch/quest_apk3/` (README: what changed, clearing a stuck safe mode). PC: dev build 0 warnings;
   gles_render_test 21/0; scenario_check PASS (136, 0 failed); load_models_test 4/0; APK 0 warnings, check_apk 18/0.
 
+## 6zi. The shaders queued: the game boots with a progress panel; the fourth package (2026-11-18; no headset here)
+
+- **Why so long** (his question): every start-up set is ~145 programs (ES path: 145; C4d's Quest count 103 before the
+  lite/plain/gore/skin forms), and their sources are big über-shaders: **15.8 MB of GLSL** per cold set (~109 KB a
+  program, the world's and the models' with every feature's code under `#if`). Adreno's compiler (`libllvm-qgl`) takes
+  ~0.35-0.5 s each: 51 s (C4d, 103 programs), 45-75 s (his adb session). Standalone games ship Vulkan pipeline caches
+  or small specialised shaders, and the driver's blob cache warms them (`EGL_ANDROID_blob_cache`: not wired, C4d); ours
+  is the program cache (warm: 103 programs in 126 ms on the Quest). So: the first start after an update compiles, and
+  now shows it.
+- **Queued set** (`gl_shaders.c`: `GL_CreateShadersAsync`, `GL_ShadersPump`): the programs' GL names made at once (the
+  renderer keeps them as before), each one queued; once a frame the pump checks those the driver finished
+  (`GL_COMPLETION_STATUS_KHR`: never waits; statuses and errors as before, the binary to the program cache) and hands
+  it more for 8 ms (one at least, at most 64 with the driver). With `GL_KHR/ARB_parallel_shader_compile` the driver's
+  threads compile them; without it (`-noparallelshaders` tests that) one at a time, each compile on the frame that
+  submits it. Quake VR's own programs (`VR_PrecompileProgramsBegin/Poll`) go to the driver at once and are polled too.
+  The program cache's pack is written every 10 s meanwhile (`VR_ProgCacheFlush`: a start stopped mid-set keeps them).
+- **The loading panel** (`vr/vr_shaderload.cpp`): while the set is pending `_Host_Frame` does the input, `VR_BeginFrame`
+  (the OpenXR session starts and runs: no Meta dots) and the panel only: "QUAKE VR / Compiling shaders: N / M", a bar,
+  the last program's name, the seconds; drawn on the CPU in the console font (no shader needed) into a 768x192 image,
+  uploaded into the runtime's panel (the OpenXR quad layer) and blitted into the window (PC). No time passes and no
+  random number is drawn meanwhile (the commands, server and client wait): what follows is the same however long the
+  compile took. `SCR_UpdateScreen` draws nothing while pending (a print's redraw shows the panel). The trace: step
+  "shaders queued: the loading panel's frames"; "GL shaders queued: N programs (H from the program cache, C compiled: K
+  KB of sources) in T ms over F frames, the driver's threads|one at a time; the longest frame's work W ms (a submit, a
+  check, the end), longest between frames; slowest: <4 programs>". `-shaderloadshot <file.tga>`: the panel's image.
+- **On** under the OpenGL ES profile (the Quest; `-glescompat`), also for the settings' remakes (`GL_WorldLiteCheck`:
+  the panel instead of a frozen frame); `-shadersasync 0|1` or `QVR_SHADERS_ASYNC` choose; the PC's own GLSL keeps the
+  one-call set (its default unchanged). `vr_shader_reload` stays one call (same-frame A/B tests).
+- **Priorities: not split.** The game waits for the whole set (the renderer's ~140 programs have no per-draw "not ready"
+  path; a skipped draw per program is a large change): the menu and the first map come after it. On the Quest a warm
+  cache makes the wait ~0.2 s; a cold one shows the panel for the compile's length. Next, if wanted: draw the menu as
+  soon as `gui`/postprocess are done, the rest behind.
+- **PC tests** (`-glescompat -fakeandroid`, `-shadersasynctest`: "shaders_async_test: N passed, M failed": >100
+  programs, frames flowed, the progress moved, no frame's work over 50 ms): no program cache (the PC's default) 145
+  programs in 648 ms over 37 frames, longest frame work 12.7 ms; `+vr_program_cache 2` cold 6.0-8.7 s (AMD compiles
+  retrievable programs more slowly) over 1331-2027 frames, longest 25-39 ms (one earlier cold run 1.56 s: not seen
+  again), warm 145 from the cache in 602-672 ms, 14 ms; `-noparallelshaders` 651 ms over 49 frames, 14.8 ms. 4/0 each.
+  First loading frame at +0.55 s from the process start (was: the first frame after the whole compile).
+- Debug > Startup > Recompile Shaders (Loading Panel) (`vr_shader_reload_queued`): the panel on demand (in e1m1 on the
+  PC: set 2, 145 programs in 467 ms over 35 frames, the scene the same after).
+- Package `<kit>/scratch/quest_apk4/` (bf2b1e90d; README: what changed, the log line to send). APK 0 warnings,
+  check_apk 18/0. PC dev build 0 warnings; scenario_check PASS (136, 0 failed); load_models_test 4/0;
+  gles_render_test 21/0 (its PC run queued too, `QVR_SHADERS_ASYNC=1`: the 2D pics fill the scrap in
+  the same order as the ES run's).
+- To check on the Quest (his launches): the log's "GL shaders queued" line (with "the driver's threads" and the longest
+  frame's work: if Adreno compiles on the submitting thread, the submit times show it: then a shared-context compile
+  thread is the next step), the panel in the headset from the first second, no dots.
+
 ## 7. Installs (done 2026-11-14 at his approval, by the coordinator)
 
 Installed under `F:\QuakeVRDev` (`env.sh` / `env.ps1` there set `JAVA_HOME`, `ANDROID_HOME`, `ANDROID_SDK_ROOT`,
@@ -1765,4 +1813,4 @@ Sizes are approximate download sizes [I]; versions are the current stable ones a
 
 Also: a Quest 3 (or 3S) in developer mode (Meta Horizon app, an organisation account), a USB-C cable.
 
-Next phase: C4z (after 6zh; first his launches with the third package: one shader set per start, no safe mode, ~63/72 with the guard's rows; then the audio mix off the render thread, 6zh) — no installs, the headset needed: measure on the frozen live fight (`c4y_frozen.sh`, every round consistent beyond the ~0.5 ms a program remake brings); the models' fragment shading (~2.8-3.3 ms over a constant with every model plain, near monsters filling the view) is neither their light's math nor their look: next suspects the varyings and the instance-buffer reads per pixel (a minimal plain form: texture, vertex light, fog), and the ~1 ms of geometry (the body's 14.6k triangles with its pre-pass, the vertex shader's motion-vector writes); his look call on `vr_rig_lights_world 0`; SpaceWarp (`XR_FB_space_warp`, offered) optional and off. Still open from before: C2h (the world textures' memory under the ES profile), Adreno's wrong derivatives with the retro code out (NORETRO). Waiting on his call: the Android Gradle Plugin download (section 7), the armed humanoids' CPU cost (section 6d), shadowless dynamic lights on the Quest (6w).
+Next phase: C4z (after 6zi; first his launches with the fourth package: the loading panel from the first second and the "GL shaders queued" line (the driver's threads? the longest frame's work), one shader set per start, no safe mode, ~63/72 with the guard's rows; then the audio mix off the render thread, 6zh) — no installs, the headset needed: measure on the frozen live fight (`c4y_frozen.sh`, every round consistent beyond the ~0.5 ms a program remake brings); the models' fragment shading (~2.8-3.3 ms over a constant with every model plain, near monsters filling the view) is neither their light's math nor their look: next suspects the varyings and the instance-buffer reads per pixel (a minimal plain form: texture, vertex light, fog), and the ~1 ms of geometry (the body's 14.6k triangles with its pre-pass, the vertex shader's motion-vector writes); his look call on `vr_rig_lights_world 0`; SpaceWarp (`XR_FB_space_warp`, offered) optional and off. Still open from before: C2h (the world textures' memory under the ES profile), Adreno's wrong derivatives with the retro code out (NORETRO). Waiting on his call: the Android Gradle Plugin download (section 7), the armed humanoids' CPU cost (section 6d), shadowless dynamic lights on the Quest (6w).
