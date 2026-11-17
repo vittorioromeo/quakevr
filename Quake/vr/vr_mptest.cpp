@@ -628,6 +628,7 @@ void edicts_f()
                "rag_dead_awake=%d gibs_awake=%d props_awake=%d other_awake=%d\n",
         bodies, awake, contacts, k.ragdollsLiving, k.ragdollsDead, k.ragLivingAwake, k.ragDeadAwake, k.gibsAwake,
         k.propsAwake, k.otherAwake);
+    qvr::box3d::printMemory("mp_box3dmem"); // (B21: the soak's Box3D memory)
 }
 
 // vr_hurt <damage> [<slot>] [<attacker>]: the player (hosting: the one in that slot) takes that much damage from the

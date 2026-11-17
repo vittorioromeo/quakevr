@@ -5725,6 +5725,7 @@ def soak(s):
 
 
 SOAK_MINUTES = 0           # (B20) --soak-minutes: the long soak after the window (0: none)
+SOAK_CHANGE = 0            # (B21) --soak-change: the map again after this minute of it (0: never)
 SOAK_LONG_SAMPLE = 60.0    # its samples, a minute of the server's game time apart
 SOAK_LONG_WARMUP = 2       # ... the memory measured from the end of this many (the first minutes fill caches)
 SOAK_LONG_GROWTH_MB = 48   # each game's private bytes may grow by at most this after the warm-up
@@ -5755,6 +5756,7 @@ def soak_long(s, srv, a, b, minutes):
     the warm-up, the edicts stay bounded, the server keeps pace every minute, B's link stays under its bound, B's moves
     are not lost, nobody left. Samples: soak_long.txt."""
     rows = []
+    changed = {}  # (B21) each client's lines over the map change (--soak-change)
     p_prev = b.proxy.snapshot()
     for m in range(1, minutes + 1):
         t0 = time.monotonic()
@@ -5767,6 +5769,7 @@ def soak_long(s, srv, a, b, minutes):
         _, ed = srv.wait(r"mp_edicts: ", 30, since, "the server's edicts")
         _, bx = srv.wait(r"mp_box3d: ", 30, since, "the server's Box3D bodies")
         _, nm = srv.wait(r"mp_netmoves: slot=1 ", 30, since, "B's moves at the server")
+        _, bm = srv.wait(r"mp_box3dmem: ", 30, since, "the server's Box3D memory")
         p = b.proxy.snapshot()
         w = b.proxy.window(p_prev, p)
         p_prev = p
@@ -5774,6 +5777,11 @@ def soak_long(s, srv, a, b, minutes):
         row = {"minute": m, "pace": round(SOAK_LONG_SAMPLE / span, 3), "edicts": int(fields(ed)["used"]),
                "bodies": int(fields(bx)["bodies"]), "down": int(w["down"]["bytes_s"]), "up": int(w["up"]["bytes_s"]),
                "b_lost": int(fn.get("lost", 0)), "b_run": int(fn.get("run", 0)), "b_depth": int(fn.get("depth", 0))}
+        # (B21) Box3D's live memory at the server, its contact manifolds' pools, the longest manifold count seen
+        fm = fields(bm)
+        row.update({"box3d_mb": float(fm.get("box3d", -1)), "pool_mb": float(fm.get("pool_mb", -1)),
+                    "long_mb": float(fm.get("long_mb", -1)), "longest": int(fm.get("longest", -1)),
+                    "prop_hulls": int(fm.get("prop_hulls", -1)), "gun_hulls": int(fm.get("gun_hulls", -1))})
         for inst in (srv, a, b):
             row["mem_" + inst.name] = round(private_mb(inst), 1)
             # (mimalloc's committed bytes after it returned its cached pages: the heap's own use. The private bytes
@@ -5785,6 +5793,27 @@ def soak_long(s, srv, a, b, minutes):
             row["heap_" + inst.name] = float(hm.group(1)) if hm else -1.0
         rows.append(row)
         s.note("soak minute %d: %s" % (m, " ".join("%s=%s" % kv for kv in row.items() if kv[0] != "minute")))
+        if m == SOAK_CHANGE:
+            # (B21) the map again mid-soak: what the old map's Box3D world and the rest held comes back
+            since_a, since_b, since = a.mark(), b.mark(), srv.mark()
+            srv.cmd("changelevel %s; vr_mp_status" % SOAK_MAP)
+            a.wait(r"mp_event: .*joined map=%s" % SOAK_MAP, 120, since_a, "A on %s again" % SOAK_MAP)
+            b.wait(r"mp_event: .*joined map=%s" % SOAK_MAP, 120, since_b, "B on %s again" % SOAK_MAP)
+            changed[a.name] = (since_a, a.mark())  # (their "left" at the change is the change's, not a drop)
+            changed[b.name] = (since_b, b.mark())
+            since = srv.mark()
+            srv.cmd("vr_physics_mem; vr_heap collect")
+            _, bm = srv.wait(r"vr_physics_mem: ", 30, since, "the server's Box3D memory after the change")
+            _, hl = srv.wait(r"vr_heap: process working set", 30, since, "the server's heap after the change")
+            hm = re.search(r"mimalloc reserved [\d.]+ MB, committed ([\d.]+) MB", hl)
+            after = float(hm.group(1)) if hm else -1.0
+            s.metric("soak_long_change_heap_before_mb", row["heap_server"])
+            s.metric("soak_long_change_heap_after_mb", after)
+            s.metric("soak_long_change_box3d_after_mb", float(fields(bm).get("box3d", -1)))
+            s.note("soak: the map again after minute %d: the server's heap %.1f -> %.1f MB, Box3D %.2f -> %s MB" % (
+                m, row["heap_server"], after, row["box3d_mb"], fields(bm).get("box3d", "?")))
+            s.check("the map change gives the old map's Box3D memory back (under 8 MB after it)",
+                    0.0 <= float(fields(bm).get("box3d", -1)) < 8.0, bm.strip())
     with open(os.path.join(s.out, "soak_long.txt"), "w", encoding="utf-8") as f:
         for row in rows:
             f.write(" ".join("%s=%s" % kv for kv in row.items()) + "\n")
@@ -5811,7 +5840,8 @@ def soak_long(s, srv, a, b, minutes):
     runs = last["b_run"] + last["b_lost"]
     s.check("B's moves lost at the server under 1%", runs > 0 and last["b_lost"] <= runs * 0.01,
             "%d lost of %d" % (last["b_lost"], runs))
-    left = [l for inst in (a, b) for l in inst.lines if l.startswith("mp_event:") and l.rstrip().endswith(" left")]
+    left = [l for inst in (a, b) for i, l in enumerate(inst.lines) if l.startswith("mp_event:") and
+            l.rstrip().endswith(" left") and not changed.get(inst.name, (0, 0))[0] <= i < changed.get(inst.name, (0, 0))[1]]
     s.check("nobody left the game over the long soak", not left, "%s" % left[:3])
 
 
@@ -5955,7 +5985,10 @@ def main():
     ap.add_argument("--repeat", type=int, default=1, help="predict --part: takes in one run (lift: one)")
     ap.add_argument("--watch", type=int, default=1, help="predict --part: vr_mp_watch on the server and B (3: corrections over 0.05 traced)")
     ap.add_argument("--soak-minutes", type=int, default=0, help="soak: keep going this many minutes of the server's game time after the window, sampled each minute (B20: leaks, drift)")
+    ap.add_argument("--soak-change", type=int, default=0, help="soak --soak-minutes: the map again after this minute (B21: does the memory come back)")
     args = ap.parse_args()
+    global SOAK_CHANGE
+    SOAK_CHANGE = max(0, args.soak_change)
     global PART, PART_REPEAT, PART_WATCH, PART_JITTER, PART_LOSS, AMMO_PART, PERMOVE_SKIP, TRACELOG, SOAK_MINUTES
     PART, PART_REPEAT, PART_WATCH = args.part, max(1, args.repeat), max(1, args.watch)
     PART_JITTER, PART_LOSS = args.jitter, args.loss
