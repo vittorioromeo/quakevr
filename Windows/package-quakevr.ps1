@@ -97,8 +97,9 @@ if ($modified) { Write-Warning "tracked game files differ from the commit; their
 # debugger with it. The build names itself (VR_BuildVersion: the console, the VR Settings page, the report).
 $engineFiles = @(Get-ChildItem $bin -File -ErrorAction SilentlyContinue | Where-Object { $_.Extension -in ".exe", ".dll", ".pak" -or $_.Name -eq "ironwail.pdb" })
 $toolFiles = @("relight_maps.py", "vis_maps.py", "quakepak.py", "quakeimage.py", "relight_probe.py")
-# ericw-tools' light (below): QVR_ERICW_TOOLS, or the author's copy, is the extracted release zip's folder.
-$ericw = if ($env:QVR_ERICW_TOOLS) { $env:QVR_ERICW_TOOLS } else { "C:\OHWorkspace\ericw-tools-2.0.0-alpha11-win64" }
+# ericw-tools' light (below): Quake VR's fork, committed in Tools\ericw-tools (its README.md: source, patches,
+# hashes), or QVR_ERICW_TOOLS (a folder laid out the same: an extracted ericw-tools Windows zip).
+$ericw = if ($env:QVR_ERICW_TOOLS) { $env:QVR_ERICW_TOOLS } else { Join-Path $root "Tools\ericw-tools" }
 $ericwFiles = @("light.exe", "embree4.dll", "tbb12.dll", "tbbmalloc.dll", "gpl_v3.txt", "LICENSE-embree.txt", "README.md")
 $haveEricw = Test-Path (Join-Path $ericw "light.exe")
 
@@ -153,10 +154,15 @@ foreach ($f in $toolFiles) {
 }
 
 # ericw-tools' light, for the in-game relighting (vr_relight.cpp, which looks in quakevr\tools\ericw-tools first):
-# GPL-3, run as a separate program, never linked (docs/RELIGHTING.md, "ericw-tools' licence"). Shipped unchanged from
-# its release zip with its licence texts and a notice saying where its source is; the release page must offer
-# ericw-tools-2.0.0-alpha11-src.zip (that tag's source) beside the package. QVR_ERICW_TOOLS: the extracted zip's folder.
+# GPL-3, run as a separate program, never linked (docs/RELIGHTING.md, "ericw-tools' licence"). Quake VR's fork
+# (2.0.0-alpha11-qvr1: -bounceextra, about twice as fast with bounced light), shipped unchanged from Tools\ericw-tools
+# with its licence texts, its README and a notice saying where its source is; the release notes link ericw-tools-2.0.0-alpha11-qvr1-src.zip
+# (the support release's: support_assets.json's ericw_source). QVR_ERICW_TOOLS: the extracted zip's folder.
 if ($haveEricw) {
+    # (the fork's light has its option's name in it; stock ericw-tools' still works, at the full cost of the bounce)
+    if (-not (Select-String -LiteralPath (Join-Path $ericw "light.exe") -Pattern "bounceextra" -SimpleMatch -Quiet)) {
+        Write-Warning "$ericw\light.exe is not Quake VR's ericw-tools fork (no -bounceextra): relighting with bounced light is about twice as slow"
+    }
     $ericwDist = Join-Path $tools "ericw-tools"
     New-Item -ItemType Directory -Force $ericwDist | Out-Null
     foreach ($f in $ericwFiles) {

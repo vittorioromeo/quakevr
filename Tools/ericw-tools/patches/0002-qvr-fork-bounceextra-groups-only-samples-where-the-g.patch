@@ -1,0 +1,175 @@
+From eca94e85e63b024cf8261672ab0681f6f374035f Mon Sep 17 00:00:00 2001
+From: vittorioromeo <mail@vittorioromeo.com>
+Date: Tue, 17 Nov 2026 00:33:06 +0100
+Subject: [PATCH 2/3] qvr fork: -bounceextra groups only samples where the grid
+ puts them (edges traced on their own); -bouncegate (experimental, rejected)
+
+---
+ include/light/light.hh |  1 +
+ light/light.cc         |  2 ++
+ light/ltface.cc        | 72 ++++++++++++++++++++++++++++++------------
+ 3 files changed, 55 insertions(+), 20 deletions(-)
+
+diff --git a/include/light/light.hh b/include/light/light.hh
+index 92c9f31a..f09baec0 100644
+--- a/include/light/light.hh
++++ b/include/light/light.hh
+@@ -422,6 +422,7 @@ public:
+     setting_int32 facestyles;
+     setting_int32 bounceextra; // qvr fork
+     setting_int32 rtpackets; // qvr fork
++    setting_scalar bouncegate; // qvr fork
+     setting_bool exportobj;
+     setting_int32 lmshift;
+     setting_bool lightgrid;
+diff --git a/light/light.cc b/light/light.cc
+index b77d412e..51fec8e6 100644
+--- a/light/light.cc
++++ b/light/light.cc
+@@ -382,6 +382,8 @@ light_settings::light_settings()
+           "qvr fork: bounced light traced from N x N samples per luxel (0: as -extra); must divide -extra"},
+       rtpackets{this, "rtpackets", 0, 0, 3, &performance_group,
+           "qvr fork: occlusion rays in packets of 8 (2), also flagged coherent (3); 0: one at a time"},
++      bouncegate{this, "bouncegate", 0.0, 0.0, 255.0, &performance_group,
++          "qvr fork: bounced light weaker than this is skipped (0: as stock, 0.01)"},
+       exportobj{this, "exportobj", false, &output_group, "export an .OBJ for inspection"},
+       lmshift{this, "lmshift", 4, &output_group,
+           "force a specified lmshift to be applied to the entire map; this is useful if you want to re-light a map with higher quality BSPX lighting without the sources. Will add the LMSHIFT lump to the BSP."},
+diff --git a/light/ltface.cc b/light/ltface.cc
+index e9288bb0..54aea3c9 100644
+--- a/light/ltface.cc
++++ b/light/ltface.cc
+@@ -1998,7 +1998,11 @@ LightFace_SurfaceLight(const mbsp_t *bsp, lightsurf_t *lightsurf, lightmapdict_t
+     std::optional<size_t> bounce_depth, float standard_scale, float sky_scale, float hotspot_clamp)
+ {
+     const settings::worldspawn_keys &cfg = *lightsurf->cfg;
+-    const float surflight_gate = light_options.emissivequality.value() == emissivequality_t::HIGH ? 0.0f : 0.01f;
++    const float cull_gate = light_options.emissivequality.value() == emissivequality_t::HIGH ? 0.0f : 0.01f;
++    // qvr fork: -bouncegate G: a bounced light's ray to a sample is skipped when it would bring less than G (the
++    // whole-face sphere cull keeps the stock gate: it estimates at the face's far side, so a big gate there drops light)
++    const float surflight_gate =
++        (bounce_depth.has_value() && light_options.bouncegate.value() > 0) ? light_options.bouncegate.value() : cull_gate;
+ 
+     // check lighting channels (currently surface lights are always on CHANNEL_MASK_DEFAULT)
+     if (!(lightsurf->object_channel_mask & CHANNEL_MASK_DEFAULT)) {
+@@ -2008,16 +2012,23 @@ LightFace_SurfaceLight(const mbsp_t *bsp, lightsurf_t *lightsurf, lightmapdict_t
+     // qvr fork: -bounceextra K traces the bounced light from K x K samples per luxel instead of -extra's E x E: one
+     // sample of each (E/K) x (E/K) block (the unoccluded one nearest its centre) stands for the block, and its light is
+     // given to the block's other unoccluded samples (with their own dirt). Bounced light is smooth, so this is
+-    // (E/K)^2 times fewer rays for a change well under a luxel.
++    // (E/K)^2 times fewer rays for a change well under a luxel. A sample that isn't where the grid puts it (moved off
++    // the face, another face, another normal: corners and edges) is traced on its own.
+     const int extra = light_options.extra.value();
+     const int bounceextra = light_options.bounceextra.value();
+     const int stride = (bounce_depth.has_value() && bounceextra > 0 && bounceextra < extra && extra % bounceextra == 0)
+                            ? extra / bounceextra
+                            : 1;
+     const int lsw = lightsurf->width, lsh = lightsurf->height;
+-    thread_local std::vector<int> reps;
++    thread_local std::vector<int> reps; // each group's traced sample
++    thread_local std::vector<int> grp_off; // group g's members: grp_mem[grp_off[g] .. grp_off[g + 1])
++    thread_local std::vector<int> grp_mem;
+     reps.clear();
++    grp_off.clear();
++    grp_mem.clear();
+     if (stride > 1) {
++        const float spacing = (lightsurf->lightmapscale > 0 ? lightsurf->lightmapscale : 16.f) / extra;
++        const float maxd2 = (1.5f * stride * spacing) * (1.5f * stride * spacing);
+         const float c = (stride - 1) * 0.5f;
+         for (int bt = 0; bt < lsh; bt += stride) {
+             for (int bs = 0; bs < lsw; bs += stride) {
+@@ -2035,10 +2046,34 @@ LightFace_SurfaceLight(const mbsp_t *bsp, lightsurf_t *lightsurf, lightmapdict_t
+                         }
+                     }
+                 }
+-                if (best >= 0)
+-                    reps.push_back(best);
++                if (best < 0)
++                    continue;
++                const auto &rep = lightsurf->samples[best];
++                reps.push_back(best);
++                grp_off.push_back(static_cast<int>(grp_mem.size()));
++                thread_local std::vector<int> own;
++                own.clear();
++                for (int t = bt; t < std::min(bt + stride, lsh); t++) {
++                    for (int s = bs; s < std::min(bs + stride, lsw); s++) {
++                        const int i = t * lsw + s;
++                        const auto &m = lightsurf->samples[i];
++                        if (m.occluded)
++                            continue;
++                        if (i == best || (m.realfacenum == rep.realfacenum && qv::dot(m.normal, rep.normal) > 0.95f &&
++                                             qv::length2(m.point - rep.point) <= maxd2))
++                            grp_mem.push_back(i);
++                        else
++                            own.push_back(i);
++                    }
++                }
++                for (int i : own) {
++                    reps.push_back(i);
++                    grp_off.push_back(static_cast<int>(grp_mem.size()));
++                    grp_mem.push_back(i);
++                }
+             }
+         }
++        grp_off.push_back(static_cast<int>(grp_mem.size()));
+     }
+     const int numcandidates = stride > 1 ? static_cast<int>(reps.size()) : static_cast<int>(lightsurf->samples.size());
+ 
+@@ -2049,7 +2084,7 @@ LightFace_SurfaceLight(const mbsp_t *bsp, lightsurf_t *lightsurf, lightmapdict_t
+ 
+             if (vpl_setting.bounce_level != bounce_depth)
+                 continue;
+-            else if (SurfaceLight_SphereCull(&vpl, lightsurf, vpl_setting, surflight_gate, hotspot_clamp))
++            else if (SurfaceLight_SphereCull(&vpl, lightsurf, vpl_setting, cull_gate, hotspot_clamp))
+                 continue;
+             else if (SurfaceLight_VisCull(bsp, &lightsurf->pvs, surf_ptr))
+                 continue;
+@@ -2087,7 +2122,7 @@ LightFace_SurfaceLight(const mbsp_t *bsp, lightsurf_t *lightsurf, lightmapdict_t
+                     const qvec3f indirect = GetSurfaceLighting(cfg, vpl, vpl_setting, dir, dist, lightsurf_normal,
+                         use_normal, standard_scale, sky_scale, hotspot_clamp);
+                     if (!qv::gate(indirect, surflight_gate)) { // Each point contributes very little to the final result
+-                        rs.pushRay(i, pos, dir, dist, &indirect);
++                        rs.pushRay(stride > 1 ? ci : i, pos, dir, dist, &indirect); // (qvr fork: the group)
+                     }
+                 }
+ 
+@@ -2115,18 +2150,13 @@ LightFace_SurfaceLight(const mbsp_t *bsp, lightsurf_t *lightsurf, lightmapdict_t
+                     // Q_assert(!std::isnan(indirect[0]));
+ 
+                     if (stride > 1) {
+-                        // qvr fork: the block this sample stands for
+-                        const int bs = (i % lsw) / stride * stride, bt = (i / lsw) / stride * stride;
+-                        for (int t = bt; t < std::min(bt + stride, lsh); t++) {
+-                            for (int s = bs; s < std::min(bs + stride, lsw); s++) {
+-                                const int m = t * lsw + s;
+-                                if (lightsurf->samples[m].occluded)
+-                                    continue;
+-                                const qvec3f indirect = raycolor * Dirt_GetScaleFactor(
+-                                                                       cfg, lightsurf->samples[m].occlusion, nullptr, 0.0, lightsurf);
+-                                lightmap->samples[m].color += indirect;
+-                                lightmap->bounce_color += indirect;
+-                            }
++                        // qvr fork: the samples this group's ray stands for (i: the group)
++                        for (int k = grp_off[i]; k < grp_off[i + 1]; k++) {
++                            const int m = grp_mem[k];
++                            const qvec3f indirect = raycolor * Dirt_GetScaleFactor(
++                                                                   cfg, lightsurf->samples[m].occlusion, nullptr, 0.0, lightsurf);
++                            lightmap->samples[m].color += indirect;
++                            lightmap->bounce_color += indirect;
+                         }
+                         hit = true;
+                         continue;
+@@ -2160,7 +2190,9 @@ LightPoint_SurfaceLight(const mbsp_t *bsp, const std::vector<uint8_t> *pvs, rays
+     float standard_scale, float sky_scale, float hotspot_clamp, const qvec3f &surfpoint, lightgrid_samples_t &result)
+ {
+     const settings::worldspawn_keys &cfg = light_options;
+-    const float surflight_gate = light_options.emissivequality.value() == emissivequality_t::HIGH ? 0 : 0.01f;
++    float surflight_gate = light_options.emissivequality.value() == emissivequality_t::HIGH ? 0 : 0.01f;
++    if (bounce && light_options.bouncegate.value() > 0) // qvr fork: -bouncegate
++        surflight_gate = light_options.bouncegate.value();
+ 
+     if (qvr_ray_packets >= 2) {
+         // qvr fork: every surface light point's ray to this grid point in one stream (traced in packets), added in
+-- 
+2.42.0.windows.2
+

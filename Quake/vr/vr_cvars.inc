@@ -1994,7 +1994,7 @@ QVR_CVAR(vr_relit_maps, "1", CVAR_ARCHIVE)           // maps re-lit by Misc/quak
 QVR_CVAR(vr_relight_use, "1", CVAR_ARCHIVE)          // maps relit in the game (relit_custom/) over relight_maps.py's (next map; 0: not used)
 QVR_CVAR(vr_relight_tool, "", CVAR_ARCHIVE)          // ericw-tools' light.exe ("": the one shipped in quakevr/tools/ericw-tools, ERICW_LIGHT, PATH)
 QVR_CVAR(vr_relight_tool_dir, "", CVAR_NONE)         // testing: the folder vr_relight_get_tool downloads ericw-tools into and the only one light.exe is looked for in ("": quakevr/tools/ericw-tools in the user's base dir, then the usual lookup)
-QVR_CVAR(vr_relight_tool_url, "", CVAR_NONE)         // testing: where vr_relight_get_tool downloads from, mirrors separated by spaces tried in order ("": the pinned ones, Quake VR's support-files release then ericw-tools' own; any other must serve the same file, its sha256 is checked)
+QVR_CVAR(vr_relight_tool_url, "", CVAR_NONE)         // testing: where vr_relight_get_tool downloads from, mirrors separated by spaces tried in order ("": the pinned one, Quake VR's support-files release (its ericw-tools fork); any other must serve the same file, its sha256 is checked)
 QVR_CVAR(vr_relight_strength, "1.2", CVAR_ARCHIVE)   // all light from textures (lamps, glowing panels, lava), times relight_textures.cfg's strengths (1.2: the author's, 2026-10-06; relight_maps.py's default too)
 QVR_CVAR(vr_relight_lamps, "1", CVAR_ARCHIVE)        // ... the lamps and light panels' (fixtures), times that
 QVR_CVAR(vr_relight_glows, "1", CVAR_ARCHIVE)        // ... glowing buttons, panels, runes and teleporters', times that
@@ -2005,6 +2005,7 @@ QVR_CVAR(vr_relight_bounce, "1.2", CVAR_ARCHIVE)       // bounced light (light -
 QVR_CVAR(vr_relight_ao, "0.5", CVAR_ARCHIVE)         // ambient occlusion in corners (light -dirt -dirtscale; 0 none)
 QVR_CVAR(vr_relight_minlight, "64", CVAR_ARCHIVE)     // Ambient Light Level: light added everywhere (on top of the worldspawn's own minlight, not darkened by the AO; 0 the map's own)
 QVR_CVAR(vr_relight_quality, "1", CVAR_ARCHIVE)      // shadows' edges: 1 smooth (-extra4, relight_maps.py's), 0 fast (-extra)
+QVR_CVAR(vr_relight_bounceextra, "2", CVAR_NONE)     // bounced light traced from N x N of -extra4's 4 x 4 samples per luxel (light -bounceextra, Quake VR's ericw-tools fork: about twice as fast, nearly the same look; given only with bounced light and to a light that knows it; 0: every sample, as stock ericw-tools)
 QVR_CVAR(vr_relight_seethrough, "1", CVAR_ARCHIVE)   // id's maps relit with see-through water, slime and teleporters: VisPatch's water-vised visibility put in (vr_relight_vis.cpp; needs its data files, quakevr/tools/vispatch; 0: the map's own, liquids opaque)
 QVR_CVAR(vr_relight_vispatch_dir, "", CVAR_NONE)     // testing: the only folder the VisPatch data (id1.vis, hipnotic.vis, rogue.vis) is looked for in ("": tools/vispatch in each game folder, then QUAKEVR_VISPATCH)
 QVR_CVAR(vr_relight_reload, "1", CVAR_ARCHIVE)       // a relit map in play reloaded where you are (a save and load; the map restarted where the game can't save; 0: from its next start)

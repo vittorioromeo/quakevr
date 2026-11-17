@@ -56,8 +56,13 @@ def read_support_assets(path):
     return sa
 
 
+def support_tag(sa, key):
+    """The support release a file is on: its own "tag" (a file published on a later support release), else the list's."""
+    return sa["files"][key].get("tag", sa["tag"])
+
+
 def support_url(sa, key):
-    return sa["url"].replace("{tag}", sa["tag"]).replace("{file}", sa["files"][key]["file"])
+    return sa["url"].replace("{tag}", support_tag(sa, key)).replace("{file}", sa["files"][key]["file"])
 
 
 def hosted_feed_file(sa, key, bases):
@@ -66,7 +71,7 @@ def hosted_feed_file(sa, key, bases):
     e = sa["files"][key]
     urls = [support_url(sa, key)]
     for b in bases:
-        u = b.replace("{tag}", sa["tag"]).replace("{file}", e["file"])
+        u = b.replace("{tag}", support_tag(sa, key)).replace("{file}", e["file"])
         if b != GITHUB and not LOOPBACK.match(b) and u not in urls:
             urls.append(u)
     return {"file": e["file"], "size": int(e["size"]), "sha256": e["sha256"], "urls": urls}
