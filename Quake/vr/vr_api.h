@@ -243,6 +243,9 @@ const void *VR_ProgCacheFind (unsigned long long key, unsigned *format, int *len
 void VR_ProgCacheReject (unsigned long long key); // the driver refused it (dropped; made again)
 void VR_ProgCacheAdd (unsigned long long key, unsigned format, const void *data, int length);
 void VR_ProgCacheEnd (void); // GL_CreateShaders' end: the pack written when one was added (later adds: at once)
+void VR_ProgCacheFlush (void); // GL_ShadersPump: a queued set's programs done so far written (every few seconds)
+void VR_ShadersLoaded (int programs, int frames, double ms, double maxwork, double maxgap); // GL_ShadersPump: a queued set done (vr_shaderload.cpp: its trace mark, the test's verdict)
+int VR_ShadersLoadingFrame (void); // host.c, SCR_UpdateScreen: while the shaders are queued, the set pumped and (still pending: nonzero) the loading panel's frame (vr_shaderload.cpp)
 void VR_ProgCacheCounts (int *hits, int *misses); // the last batch's programs given back / compiled
 unsigned long long VR_GLShaderHash (unsigned long long h, int count, const char *const *strings); // vr_glsafe.cpp: the text VR_GLShaderSource gives the driver
 void VR_NormalCacheChecked (int same, const char *name);	// vr_normalmap_cache 2: a map made again against its file	// end of _Host_Frame: the first frame drawn ends the start-up, and a load once signed on

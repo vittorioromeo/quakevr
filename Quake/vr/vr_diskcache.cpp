@@ -873,6 +873,16 @@ extern "C" void VR_ProgCacheEnd(void)
     }
 }
 
+// A queued set's programs (gl_shaders.c GL_ShadersPump): those done so far written every few seconds while it is
+// pending, so a start stopped mid-set keeps them.
+extern "C" void VR_ProgCacheFlush(void)
+{
+    if(progCache.dirty)
+    {
+        progWrite();
+    }
+}
+
 extern "C" void VR_ProgCacheCounts(int* hits, int* misses)
 {
     *hits = progCache.hits;

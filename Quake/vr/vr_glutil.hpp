@@ -25,6 +25,8 @@ namespace qvr::gfx
 // nothing, a safety net.) Without the extension they do nothing.
 void beginDeferredChecks();
 void endDeferredChecks();
+// Whether the driver has finished every deferred program (GL_COMPLETION_STATUS_KHR: never waits); true when none.
+[[nodiscard]] bool deferredComplete();
 
 // Called by a program's owner right after making it (`program` and `failed`, null if it has no flag, are its own
 // variables, alive until endDeferredChecks): while the checks are deferred, if the program turns out to have failed,

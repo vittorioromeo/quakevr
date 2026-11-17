@@ -33,7 +33,9 @@ run() { # run <mode> [env...]: the scene, its outputs copied to $S/<mode>
     cp "$GAME/envmap.tga" "$S/$mode/envmap.tga"
     cp "$GAME/imagehash.txt" "$S/$mode/imagehash.txt"
 }
-run pc
+# (the PC run's shaders queued as the ES ones are, QUEST_PLAN.md 6zi: the same start-up, so the 2D pics fill the scrap
+# in the same order; the PC's default, one call, is every other test's)
+run pc QVR_SHADERS_ASYNC=1
 run es QVR_GLES_COMPAT=1 QVR_GLES_CLIP_CONTROL=1
 SCRIPT="vr_world_texarrays 0; $BASE"
 mkdir -p "$S/esoff"; run esoff QVR_GLES_COMPAT=1 QVR_GLES_CLIP_CONTROL=1

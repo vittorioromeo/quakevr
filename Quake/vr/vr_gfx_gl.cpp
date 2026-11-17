@@ -2589,10 +2589,8 @@ void destroyTexture(Texture texture)
     GL_ClearBindings();
 }
 
-void precompilePrograms()
+static void submitPrograms() // (precompilePrograms; VR_PrecompileProgramsBegin)
 {
-    // (made at their first draw, the first muzzle wisp's was a 16.7 ms hitch in a fight: TRACY session 2026-11-07)
-    gfx::beginDeferredChecks(); // (the driver's threads compile them all: statuses read at the end)
     for(int s = 0; s < shadeCount; s++)
     {
         (void)programFor(static_cast<Shade>(s), false, false);
@@ -2641,6 +2639,13 @@ void precompilePrograms()
     temporal::precompilePrograms();
     upscale::precompilePrograms();
     water::precompilePrograms();
+}
+
+void precompilePrograms()
+{
+    // (made at their first draw, the first muzzle wisp's was a 16.7 ms hitch in a fight: TRACY session 2026-11-07)
+    gfx::beginDeferredChecks(); // (the driver's threads compile them all: statuses read at the end)
+    submitPrograms();
     gfx::endDeferredChecks();
 }
 
@@ -2649,6 +2654,31 @@ void precompilePrograms()
 extern "C" void VR_PrecompilePrograms(void)
 {
     qvr::gfx::precompilePrograms();
+}
+
+// The queued start-up (gl_shaders.c GL_CreateShadersAsync, QUEST_PLAN.md 6zi): submitted, not waited for; polled each
+// frame of the loading panel (GL_COMPLETION_STATUS_KHR), their statuses read once all are done. Without the driver's
+// parallel compile they are made here, one at a time (as VR_PrecompilePrograms).
+extern "C" int VR_PrecompileProgramsBegin(void)
+{
+    qvr::gfx::beginDeferredChecks();
+    qvr::gfx::submitPrograms();
+    if(qvr::gfx::deferredComplete())
+    {
+        qvr::gfx::endDeferredChecks();
+        return 0;
+    }
+    return 1;
+}
+
+extern "C" int VR_PrecompileProgramsPoll(void)
+{
+    if(!qvr::gfx::deferredComplete())
+    {
+        return 1;
+    }
+    qvr::gfx::endDeferredChecks();
+    return 0;
 }
 
 namespace

@@ -665,6 +665,13 @@ extern glprogs_t glprogs;
 void GL_UseProgram (GLuint program);
 void GL_ClearCachedProgram (void);
 void GL_CreateShaders (void);
+qboolean GL_ShadersAsyncOn (void); // QVR: the set queued, made over the loading panel's frames (gl_shaders.c; QUEST_PLAN.md 6zi)
+void GL_CreateShadersAsync (qboolean vrprograms); // QVR
+qboolean GL_ShadersPending (void); // QVR: a queued set not done yet: nothing draws, the frames show the loading panel
+qboolean GL_ShadersPump (double budget); // QVR: once a frame while pending (vr/vr_shaderload.cpp): false once done
+void GL_ShadersProgress (int *done, int *total, const char **last); // QVR
+void VID_LoadingSize (int *w, int *h); // QVR: the loading panel's frames in the window (gl_vidsdl.c)
+void VID_LoadingSwap (void); // QVR
 void GL_WorldLiteCheck (void); // QVR: the shaders made again when the ES lite world no longer fits the settings
 void GL_DeleteShaders (void);
 GLuint GL_WorldDecalRetroProgram (int oit, int dither, qboolean pdo); // QVR
@@ -684,6 +691,7 @@ int GL_MultiviewPrepare (int async); // QVR: every ported program's twin begun n
 int GL_MultiviewPending (void); // QVR: ... how many are still compiling (async)
 int GL_MultiviewCheck (void (*report) (const char *name, int ported, int ok, const char *log, void *ctx), void *ctx); // QVR: vr_multiview_check
 void GL_ReloadShaders_f (void); // QVR: tests (vr_shader_reload)
+void GL_ReloadShadersQueued_f (void); // QVR: vr_shader_reload_queued (the loading panel; Debug > Startup)
 
 typedef struct glframebufs_s {
 	GLint			max_color_tex_samples;

@@ -539,6 +539,21 @@ void ownDeferred(GLuint& program, bool* failed)
     }
 }
 
+bool deferredComplete()
+{
+    constexpr GLenum completionStatus = 0x91B1; // GL_COMPLETION_STATUS_KHR (ARB's the same)
+    for(const DeferredProgram& d : deferredPrograms)
+    {
+        GLint done = GL_FALSE;
+        GL_GetProgramivFunc(d.program, completionStatus, &done);
+        if(!done)
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
 void endDeferredChecks()
 {
     deferring = false;

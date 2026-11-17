@@ -876,6 +876,9 @@ za::Vector<Item> pageDebugProfiling()
                   "(quakevr/crash/gl_startup.log has the start-up's)."),
         command("Retry the Full Renderer", "vr_glsafe_retry")
             .help("vr_glsafe_retry: the automatic safe mode (kept after a start that crashed) off from the next start."),
+        command("Recompile Shaders (Loading Panel)", "vr_shader_reload_queued")
+            .help("vr_shader_reload_queued: the engine's shaders compiled again as at a start under OpenGL ES: queued, the "
+                  "loading panel (Compiling shaders: N / M) shown until done; the timings in the console."),
         command("OpenGL ES Report", "vr_gles_report")
             .help("vr_gles_report: the Quest (OpenGL ES 3.2) profile: what -glescompat turns off, the desktop-only GL "
                   "calls given their ES form and those still pending, and the shader errors an ES compile gave."),

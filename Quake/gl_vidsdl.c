@@ -1507,7 +1507,9 @@ static void GL_Init (void)
 	// as many as it likes, every status read at GL_CreateShaders' end (not after each)
 	{
 		qboolean khr = GL_FindExtension ("GL_KHR_parallel_shader_compile");
-		if (khr || GL_FindExtension ("GL_ARB_parallel_shader_compile"))
+		if (COM_CheckParm ("-noparallelshaders")) // QVR: tests: the drivers without it (one program at a time)
+			Con_SafePrintf ("-noparallelshaders: the driver's parallel shader compile not used\n");
+		else if (khr || GL_FindExtension ("GL_ARB_parallel_shader_compile"))
 		{
 			void (APIENTRY *maxthreads) (GLuint count) = (void (APIENTRY *) (GLuint)) SDL_GL_GetProcAddress (khr ? "glMaxShaderCompilerThreadsKHR" : "glMaxShaderCompilerThreadsARB");
 			if (maxthreads)
@@ -1517,8 +1519,13 @@ static void GL_Init (void)
 			}
 		}
 	}
-	VR_TIMED ("shaders compiled and linked (GL_CreateShaders)", GL_CreateShaders ()); // QVR: start-up timing (vr_startup_times)
-	VR_TIMED ("VR programs compiled and linked (VR_PrecompilePrograms)", VR_PrecompilePrograms ()); // QVR: none at a first draw in play
+	if (GL_ShadersAsyncOn ()) // QVR: queued: made over the loading panel's frames (GL_ShadersPump; QUEST_PLAN.md 6zi)
+		VR_TIMED ("shaders and VR programs queued (GL_CreateShadersAsync)", GL_CreateShadersAsync (true));
+	else
+	{
+		VR_TIMED ("shaders compiled and linked (GL_CreateShaders)", GL_CreateShaders ()); // QVR: start-up timing (vr_startup_times)
+		VR_TIMED ("VR programs compiled and linked (VR_PrecompilePrograms)", VR_PrecompilePrograms ()); // QVR: none at a first draw in play
+	}
 	VR_GLStep ("framebuffers (GL_CreateFrameBuffers)"); // QVR: breadcrumbs (vr/vr_glsafe.cpp)
 	GL_CreateFrameBuffers ();
 	VR_GLStep ("light tiles (GLLight_CreateResources)");
@@ -1599,6 +1606,24 @@ void GL_EndRendering (void)
 	}
 }
 
+
+/*
+=================
+VID_LoadingSize, VID_LoadingSwap -- QVR
+
+The loading panel's frames (vr/vr_shaderload.cpp: the shaders queued): the window's drawable size, its image shown.
+=================
+*/
+void VID_LoadingSize (int *w, int *h)
+{
+	SDL_GL_GetDrawableSize (draw_context, w, h);
+}
+
+void VID_LoadingSwap (void)
+{
+	if (!VR_NoWindow () && !VR_SkipSwap ())
+		SDL_GL_SwapWindow (draw_context);
+}
 
 void	VID_Shutdown (void)
 {
@@ -1850,6 +1875,7 @@ void	VID_Init (void)
 	Cmd_AddCommand ("vid_describecurrentmode", VID_DescribeCurrentMode_f);
 	Cmd_AddCommand ("vid_describemodes", VID_DescribeModes_f);
 	Cmd_AddCommand ("vr_shader_reload", GL_ReloadShaders_f); // QVR: tests (gl_shaders.c)
+	Cmd_AddCommand ("vr_shader_reload_queued", GL_ReloadShadersQueued_f); // QVR: the loading panel (gl_shaders.c; Debug > Startup)
 
 	putenv (vid_center);	/* SDL_putenv is problematic in versions <= 1.2.9 */
 

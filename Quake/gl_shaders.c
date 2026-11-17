@@ -25,6 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "gl_shaders.h"
 #include "q_ctype.h"
 #include "vr/vr_api.h"
+#include "vr/vr_api_render.h" // QVR: VR_PrecompileProgramsBegin, VR_PrecompileProgramsPoll
 
 glprogs_t glprogs;
 static GLuint gl_programs[256]; // QVR: 256 (the multiview twins)
@@ -91,28 +92,36 @@ static void GL_ProgramRegister (GLuint program)
 	gl_num_programs++;
 }
 
-static GLuint GL_ProgramFromCache (unsigned long long key, const char *name)
-{
+static qboolean GL_ProgramBinaryInto (GLuint program, unsigned long long key, const char *name)
+{ // QVR: program `program` (made, not linked) given its binary from the program cache; false: none, or refused
 	unsigned format = 0;
 	int length = 0;
 	GLint status = GL_FALSE;
-	GLuint program;
 	double t0;
 	const void *data = VR_ProgCacheFind (key, &format, &length);
 	if (!data)
-		return 0;
+		return false;
 	VR_GLStep ("program %s from its binary", name); // (breadcrumbs, vr/vr_glsafe.cpp)
 	t0 = Sys_DoubleTime ();
-	program = GL_CreateProgramFunc ();
-	GL_ObjectLabelFunc (GL_PROGRAM, program, -1, name);
 	GL_ProgramBinaryFunc (program, (GLenum) format, data, length);
 	GL_GetProgramivFunc (program, GL_LINK_STATUS, &status);
 	VR_TimeAdd (status == GL_TRUE ? "  programs from their binaries (the program cache)" : "  program binaries refused (made again)",
 		Sys_DoubleTime () - t0); // load timing (vr_startup_times)
 	if (status != GL_TRUE) // (the driver refused it: made from the sources, its new binary kept)
 	{
-		GL_DeleteProgramFunc (program);
 		VR_ProgCacheReject (key);
+		return false;
+	}
+	return true;
+}
+
+static GLuint GL_ProgramFromCache (unsigned long long key, const char *name)
+{
+	GLuint program = GL_CreateProgramFunc (); // (a miss: deleted again, cheap)
+	GL_ObjectLabelFunc (GL_PROGRAM, program, -1, name);
+	if (!GL_ProgramBinaryInto (program, key, name))
+	{
+		GL_DeleteProgramFunc (program);
 		return 0;
 	}
 	GL_ProgramRegister (program);
@@ -380,6 +389,160 @@ static GLuint GL_CreateProgramFromShaders (const GLuint *shaders, int numshaders
 }
 
 /*
+=============
+GL_DeferredCheckOne -- QVR
+
+A deferred program's statuses (gl_shaders_deferred; the queued set's, GL_ShadersPump): its shaders' compile, then its
+link; a failure reported as GL_CreateShader and GL_CreateProgramFromShaders would have; its binary to the program cache.
+=============
+*/
+static void GL_DeferredCheckOne (const gldeferred_t *d)
+{
+	int j;
+	GLint status;
+	char infolog[1024];
+	for (j = 0; j < d->numshaders; j++)
+	{
+		GL_GetShaderivFunc (d->shaders[j], GL_COMPILE_STATUS, &status);
+		if (status != GL_TRUE)
+		{
+			GLint type = 0;
+			GL_GetShaderivFunc (d->shaders[j], GL_SHADER_TYPE, &type);
+			memset (infolog, 0, sizeof (infolog));
+			GL_GetShaderInfoLogFunc (d->shaders[j], sizeof (infolog), NULL, infolog);
+			GL_InitError ("Error compiling %s %s shader:\n\n%s", d->name,
+				type == GL_VERTEX_SHADER ? "vertex" : type == GL_FRAGMENT_SHADER ? "fragment" : "compute", infolog);
+		}
+	}
+	GL_GetProgramivFunc (d->program, GL_LINK_STATUS, &status);
+	if (status != GL_TRUE)
+	{
+		memset (infolog, 0, sizeof (infolog));
+		GL_GetProgramInfoLogFunc (d->program, sizeof (infolog), NULL, infolog);
+		GL_InitError ("Error linking %s program:\n\n%s", d->name, infolog);
+	}
+	if (d->key) // QVR: the program cache
+		GL_ProgramToCache (d->program, d->key);
+}
+
+/*
+=============
+The queued shader set -- QVR (QUEST_PLAN.md 6zi)
+
+GL_CreateShadersAsync: the set's programs made (their GL names, as the renderer keeps them) but neither compiled nor
+linked: each one queued. GL_ShadersPump, once a frame while the set is pending (host.c _Host_Frame, the loading
+panel's frames: vr/vr_shaderload.cpp), hands them to the driver a few milliseconds' worth at a time (from the program
+cache, or compiled and linked: by the driver's threads with GL_KHR_parallel_shader_compile, polled with
+GL_COMPLETION_STATUS_KHR, never waited for; without it one by one, each compile on the frame that submits it), and
+reads each one's statuses once the driver says it is done. Nothing draws while the set is pending: the frames show
+the loading panel; the commands, the server and the client wait.
+=============
+*/
+typedef struct {
+	gldeferred_t	d;			// the program, its shaders (attached), its name, its cache key
+	int				count;
+	const GLchar	*sources[2];
+	GLenum			types[2];
+	qboolean		emptyfrag;	// an ES graphics program without a fragment shader: an empty one
+	char			macros[1024];
+	int				state;		// 0 queued, 1 with the driver, 2 done
+	qboolean		cached;		// from the program cache
+	int				bytes;		// its sources' size
+	double			t0, ms;		// handed to the driver, how long until done
+} glqueued_t;
+static glqueued_t gl_queue[192];
+static int gl_num_queue, gl_queue_submitted, gl_queue_done, gl_queue_compiling;
+static qboolean gl_shaders_queueing; // GL_CreateProgramFromSources queues (GL_CreateShadersAsync)
+static qboolean gl_queue_active; // a queued set pending (GL_ShadersPending)
+static double gl_queue_t0, gl_queue_last, gl_queue_maxwork, gl_queue_maxgap; // its start, the last pump, the longest pump's work and gap between pumps (ms)
+static double gl_queue_flushed; // the program cache's pack last written meanwhile (VR_ProgCacheFlush)
+static double gl_queue_maxsubmit, gl_queue_maxcheck; // the longest submit, status check (ms)
+static int gl_queue_frames;
+static qboolean gl_vr_programs_pending; // VR_PrecompileProgramsBegin's programs compiling (VR_PrecompileProgramsPoll)
+
+static GLuint GL_QueueProgram (int count, const GLchar **sources, const GLenum *types, const char *macros, const char *name, qboolean emptyfrag)
+{
+	glqueued_t *q;
+	int i;
+	if (gl_num_queue == (int) countof (gl_queue))
+		Sys_Error ("gl_queue overflow");
+	q = &gl_queue[gl_num_queue++];
+	memset (q, 0, sizeof (*q));
+	q->count = count;
+	for (i = 0; i < count; i++)
+	{
+		q->sources[i] = sources[i];
+		q->types[i] = types[i];
+		q->bytes += sources[i] ? (int) strlen (sources[i]) : 0;
+	}
+	q->emptyfrag = emptyfrag;
+	q_strlcpy (q->macros, macros, sizeof (q->macros));
+	q_strlcpy (q->d.name, name, sizeof (q->d.name));
+	q->d.program = GL_CreateProgramFunc ();
+	GL_ObjectLabelFunc (GL_PROGRAM, q->d.program, -1, name);
+	GL_ProgramRegister (q->d.program);
+	return q->d.program;
+}
+
+static void GL_QueuedDone (glqueued_t *q)
+{
+	q->state = 2;
+	q->ms = (Sys_DoubleTime () - q->t0) * 1000.0;
+	gl_queue_done++;
+	VR_StepProgress ("shaders %d/%d: %s", gl_queue_done, gl_num_queue, q->d.name);
+}
+
+static void GL_QueuedSubmit (glqueued_t *q)
+{
+	unsigned long long key = 0;
+	GLuint shaders[2];
+	int i, n = 0;
+	const char *emptysource = "void main() {}\n";
+	q->t0 = Sys_DoubleTime ();
+	if (gl_progcache_on)
+	{
+		for (i = 0; i < q->count; i++)
+			if (q->sources[i])
+				key = GL_ProgramKey (key, q->types[i], q->sources[i], q->macros);
+		if (q->emptyfrag)
+			key = GL_ProgramKey (key, GL_FRAGMENT_SHADER, emptysource, q->macros);
+		if (GL_ProgramBinaryInto (q->d.program, key, q->d.name))
+		{
+			q->cached = true;
+			GL_QueuedDone (q);
+			return;
+		}
+	}
+	gl_shaders_deferred = true; // (no status read here: GL_DeferredCheckOne once done)
+	for (i = 0; i < q->count; i++)
+		if (q->sources[i])
+			shaders[n++] = GL_CreateShader (q->types[i], q->sources[i], q->macros, q->d.name);
+	if (q->emptyfrag)
+		shaders[n++] = GL_CreateShader (GL_FRAGMENT_SHADER, emptysource, q->macros, q->d.name);
+	gl_shaders_deferred = false;
+	q->d.numshaders = n;
+	q->d.key = key;
+	for (i = 0; i < n; i++)
+	{
+		q->d.shaders[i] = shaders[i];
+		GL_AttachShaderFunc (q->d.program, shaders[i]);
+		GL_DeleteShaderFunc (shaders[i]); // (kept while attached, its status still there to read)
+	}
+	VR_GLStep ("link %s", q->d.name); // (breadcrumbs, vr/vr_glsafe.cpp)
+	if (key)
+		GL_ProgramParameteriFunc (q->d.program, GL_PROGRAM_BINARY_RETRIEVABLE_HINT, GL_TRUE);
+	GL_LinkProgramFunc (q->d.program);
+	q->state = 1;
+	gl_queue_compiling++;
+	if (!gl_parallel_compile_able) // (compiled by now, or the status read waits: one at a time)
+	{
+		GL_DeferredCheckOne (&q->d);
+		gl_queue_compiling--;
+		GL_QueuedDone (q);
+	}
+}
+
+/*
 ====================
 GL_CreateProgramFromSources
 ====================
@@ -438,7 +601,9 @@ static GLuint GL_CreateProgramFromSources (int count, const GLchar **sources, co
 		GLuint program = 0;
 		const double perft0 = vr_perf_recording ? Sys_DoubleTime () : 0.0; // QVR: the perf recorder (a mid-game compile is a hitch)
 		qboolean compiled = false;
-		if (gl_progcache_on && !gl_multiview_compile && !gl_arrays_compile && !gl_multiview_async) // QVR: the program cache
+		if (gl_shaders_queueing && !gl_multiview_compile && !gl_arrays_compile && !gl_multiview_async) // QVR: the queued set (GL_ShadersPump)
+			program = GL_QueueProgram (count, sources, types, macros, name, emptyfrag);
+		else if (gl_progcache_on && !gl_multiview_compile && !gl_arrays_compile && !gl_multiview_async) // QVR: the program cache
 		{
 			for (i = 0; i < count; i++)
 				if (sources[i])
@@ -460,7 +625,7 @@ static GLuint GL_CreateProgramFromSources (int count, const GLchar **sources, co
 			gl_progcache_key = 0;
 			compiled = true;
 		}
-		if (vr_perf_recording)
+		if (vr_perf_recording && !gl_shaders_queueing)
 			VR_PerfEvent (compiled ? VR_PERF_SHADER : VR_PERF_SHADERBIN, (Sys_DoubleTime () - perft0) * 1000.0, name);
 		if (count == 2 && !gl_multiview_compile && gl_num_progsources < (int) countof (gl_progsources))
 		{
@@ -872,36 +1037,9 @@ its link; the first failure reported as GL_CreateShader and GL_CreateProgramFrom
 */
 static void GL_DeferredCheck (void)
 {
-	int i, j;
-	GLint status;
-	char infolog[1024];
-
+	int i;
 	for (i = 0; i < gl_num_deferred; i++)
-	{
-		const gldeferred_t *d = &gl_deferred[i];
-		for (j = 0; j < d->numshaders; j++)
-		{
-			GL_GetShaderivFunc (d->shaders[j], GL_COMPILE_STATUS, &status);
-			if (status != GL_TRUE)
-			{
-				GLint type = 0;
-				GL_GetShaderivFunc (d->shaders[j], GL_SHADER_TYPE, &type);
-				memset (infolog, 0, sizeof (infolog));
-				GL_GetShaderInfoLogFunc (d->shaders[j], sizeof (infolog), NULL, infolog);
-				GL_InitError ("Error compiling %s %s shader:\n\n%s", d->name,
-					type == GL_VERTEX_SHADER ? "vertex" : type == GL_FRAGMENT_SHADER ? "fragment" : "compute", infolog);
-			}
-		}
-		GL_GetProgramivFunc (d->program, GL_LINK_STATUS, &status);
-		if (status != GL_TRUE)
-		{
-			memset (infolog, 0, sizeof (infolog));
-			GL_GetProgramInfoLogFunc (d->program, sizeof (infolog), NULL, infolog);
-			GL_InitError ("Error linking %s program:\n\n%s", d->name, infolog);
-		}
-		if (d->key) // QVR: the program cache
-			GL_ProgramToCache (d->program, d->key);
-	}
+		GL_DeferredCheckOne (&gl_deferred[i]);
 	gl_num_deferred = 0;
 }
 
@@ -909,20 +1047,190 @@ static void GL_CreateShadersAll (void);
 
 static const char *gl_shaders_why = "start-up"; // QVR: why the next GL_CreateShaders runs (VR_GLShadersBegin: the start-up's sets counted)
 
-void GL_CreateShaders (void)
+static void GL_CreateShadersBegin (void)
 {
 	VR_GLShadersBegin (gl_shaders_why); // QVR: a set's begin and end in gl_startup.log (a start stopped mid-compile is no failed start)
 	gl_shaders_why = "start-up";
-	gl_shaders_deferred = gl_parallel_compile_able; // QVR: the driver's threads (GL_DeferredCheck at the end)
 	gl_progcache_on = VR_ProgCacheOn () != 0; // QVR: the program cache (vr_program_cache; vr/vr_diskcache.cpp)
 	if (gl_progcache_on)
 		VR_ProgCacheBegin (gl_vendor, gl_renderer, gl_version);
-	GL_CreateShadersAll ();
-	GL_DeferredCheck ();
-	gl_shaders_deferred = false;
+}
+
+static void GL_CreateShadersEnd (void)
+{
 	if (gl_progcache_on)
 		VR_ProgCacheEnd (); // (the pack written when a program was made)
 	VR_GLShadersEnd (gl_world_lite, gl_num_programs); // QVR
+}
+
+void GL_CreateShaders (void)
+{
+	GL_CreateShadersBegin ();
+	gl_shaders_deferred = gl_parallel_compile_able; // QVR: the driver's threads (GL_DeferredCheck at the end)
+	GL_CreateShadersAll ();
+	GL_DeferredCheck ();
+	gl_shaders_deferred = false;
+	GL_CreateShadersEnd ();
+}
+
+/*
+=============
+GL_ShadersAsyncOn -- QVR
+
+Whether the start-up's set, and the settings' remakes (GL_WorldLiteCheck), are queued (GL_CreateShadersAsync) instead
+of made in one call: under the OpenGL ES profile (the Quest; -glescompat), unless "-shadersasync 0"; "-shadersasync"
+(1) on the PC's own GLSL too; else the environment's QVR_SHADERS_ASYNC (0 or 1) when set.
+=============
+*/
+qboolean GL_ShadersAsyncOn (void)
+{
+	int i = COM_CheckParm ("-shadersasync");
+	const char *env = getenv ("QVR_SHADERS_ASYNC"); // (tests: gles_render_test's PC run as its ES one)
+	if (i)
+		return i + 1 < com_argc && com_argv[i + 1][0] != '-' ? atoi (com_argv[i + 1]) != 0 : true;
+	if (env && *env)
+		return atoi (env) != 0;
+	return VR_GLESForm (VR_GLES_FORM_GLSL) != 0;
+}
+
+/*
+=============
+GL_CreateShadersAsync -- QVR
+
+The set queued (above: GL_ShadersPump makes it, frame by frame); with `vrprograms`, Quake VR's own passes' programs too
+(VR_PrecompileProgramsBegin: the driver's threads compile them meanwhile, polled at each pump).
+=============
+*/
+void GL_CreateShadersAsync (qboolean vrprograms)
+{
+	GL_CreateShadersBegin ();
+	gl_num_queue = gl_queue_submitted = gl_queue_done = gl_queue_compiling = 0;
+	gl_shaders_queueing = true;
+	GL_CreateShadersAll ();
+	gl_shaders_queueing = false;
+	gl_queue_active = true;
+	gl_queue_t0 = gl_queue_last = gl_queue_flushed = Sys_DoubleTime ();
+	gl_queue_maxwork = gl_queue_maxgap = gl_queue_maxsubmit = gl_queue_maxcheck = 0.0;
+	gl_queue_frames = 0;
+	gl_vr_programs_pending = vrprograms && VR_PrecompileProgramsBegin ();
+}
+
+qboolean GL_ShadersPending (void)
+{
+	return gl_queue_active;
+}
+
+/*
+=============
+GL_ShadersProgress -- QVR
+
+The pending set's programs done and in all (Quake VR's own counted as one batch), and the last one done's name.
+=============
+*/
+void GL_ShadersProgress (int *done, int *total, const char **last)
+{
+	int i;
+	*done = gl_queue_done;
+	*total = gl_num_queue;
+	*last = "";
+	for (i = gl_num_queue - 1; i >= 0; i--)
+		if (gl_queue[i].state == 2)
+		{
+			*last = gl_queue[i].d.name;
+			break;
+		}
+}
+
+static void GL_ShadersFinish (void)
+{
+	const double ms = (Sys_DoubleTime () - gl_queue_t0) * 1000.0;
+	double t0, endms;
+	int i, j, cached = 0, bytes = 0, slow[4] = {-1, -1, -1, -1};
+	char slowest[400];
+	gl_queue_active = false;
+	for (i = 0; i < gl_num_queue; i++)
+	{
+		const glqueued_t *q = &gl_queue[i];
+		cached += q->cached;
+		bytes += q->cached ? 0 : q->bytes;
+		for (j = 0; j < (int) countof (slow); j++)
+			if (slow[j] < 0 || q->ms > gl_queue[slow[j]].ms)
+			{
+				memmove (&slow[j + 1], &slow[j], sizeof (slow[0]) * (countof (slow) - 1 - j));
+				slow[j] = i;
+				break;
+			}
+	}
+	slowest[0] = 0;
+	for (j = 0; j < (int) countof (slow) && slow[j] >= 0; j++)
+		q_strlcat (slowest, va ("%s%s %.0f ms", j ? ", " : "", gl_queue[slow[j]].d.name, gl_queue[slow[j]].ms), sizeof (slowest));
+	t0 = Sys_DoubleTime ();
+	GL_CreateShadersEnd ();
+	endms = (Sys_DoubleTime () - t0) * 1000.0;
+	VR_StepNote ("GL shaders queued: %d programs (%d from the program cache, %d compiled: %d KB of sources) in %.0f ms over %d frames, %s; "
+		"the longest frame's work %.1f ms (a submit %.1f ms, a check %.1f ms; the end %.1f ms), longest between frames %.1f ms; slowest: %s",
+		gl_num_queue, cached, gl_num_queue - cached, bytes / 1024, ms, gl_queue_frames, gl_parallel_compile_able ? "the driver's threads" : "one at a time",
+		gl_queue_maxwork, gl_queue_maxsubmit, gl_queue_maxcheck, endms, gl_queue_maxgap, slowest);
+	Con_SafePrintf ("GL shaders queued: %d programs (%d cached, %d compiled, %d KB) in %.0f ms over %d frames (%s); longest frame work %.1f ms "
+		"(submit %.1f, check %.1f, end %.1f), gap %.1f ms\n", gl_num_queue, cached, gl_num_queue - cached, bytes / 1024, ms, gl_queue_frames,
+		gl_parallel_compile_able ? "parallel" : "one at a time", gl_queue_maxwork, gl_queue_maxsubmit, gl_queue_maxcheck, endms, gl_queue_maxgap);
+	gl_queue_maxwork = q_max (gl_queue_maxwork, endms); // (this frame's: GL_ShadersPump adds the rest after)
+	Con_DPrintf ("GL shaders queued: slowest %s\n", slowest);
+	VR_ShadersLoaded (gl_num_queue, gl_queue_frames, ms, gl_queue_maxwork, gl_queue_maxgap);
+}
+
+/*
+=============
+GL_ShadersPump -- QVR
+
+Once a frame while the queued set is pending: the programs the driver finished checked (statuses, the program cache),
+more handed to it for up to `budget` seconds (one at least); the set finished when all are done (and Quake VR's own:
+VR_PrecompileProgramsPoll). Returns whether it is still pending.
+=============
+*/
+qboolean GL_ShadersPump (double budget)
+{
+	const double t0 = Sys_DoubleTime ();
+	int i, submitted = 0;
+	if (!gl_queue_active)
+		return false;
+	if (gl_queue_frames++) // (not the first: the rest of the start-up, Host_Init, before it)
+		gl_queue_maxgap = q_max (gl_queue_maxgap, (t0 - gl_queue_last) * 1000.0);
+	for (i = 0; i < gl_queue_submitted && gl_queue_compiling > 0; i++)
+	{
+		glqueued_t *q = &gl_queue[i];
+		GLint done = GL_FALSE;
+		if (q->state != 1)
+			continue;
+		GL_GetProgramivFunc (q->d.program, GL_COMPLETION_STATUS_KHR, &done);
+		if (done)
+		{
+			const double c0 = Sys_DoubleTime ();
+			GL_DeferredCheckOne (&q->d);
+			gl_queue_maxcheck = q_max (gl_queue_maxcheck, (Sys_DoubleTime () - c0) * 1000.0);
+			gl_queue_compiling--;
+			GL_QueuedDone (q);
+		}
+	}
+	while (gl_queue_submitted < gl_num_queue && gl_queue_compiling < 64 && (!submitted || Sys_DoubleTime () - t0 < budget))
+	{
+		const double s0 = Sys_DoubleTime ();
+		GL_QueuedSubmit (&gl_queue[gl_queue_submitted++]);
+		gl_queue_maxsubmit = q_max (gl_queue_maxsubmit, (Sys_DoubleTime () - s0) * 1000.0);
+		submitted++;
+	}
+	if (gl_progcache_on && t0 - gl_queue_flushed > 10.0) // the binaries made so far kept (a start stopped mid-set keeps them)
+	{
+		gl_queue_flushed = t0;
+		VR_ProgCacheFlush ();
+	}
+	if (gl_vr_programs_pending)
+		gl_vr_programs_pending = VR_PrecompileProgramsPoll () != 0;
+	if (gl_queue_done == gl_num_queue && !gl_vr_programs_pending)
+		GL_ShadersFinish ();
+	gl_queue_last = Sys_DoubleTime ();
+	gl_queue_maxwork = q_max (gl_queue_maxwork, (gl_queue_last - t0) * 1000.0);
+	return gl_queue_active;
 }
 
 /*
@@ -1055,7 +1363,10 @@ void GL_WorldLiteCheck (void)
 	Con_DPrintf ("world programs' lite form %d -> %d%s: shaders made again\n", gl_world_lite, lite, defines ? ", vr_gles_define changed" : "");
 	gl_shaders_why = defines ? "vr_gles_define changed" : "the settings changed the lite form";
 	GL_DeleteShaders ();
-	GL_CreateShaders ();
+	if (GL_ShadersAsyncOn ()) // QVR: queued: the loading panel's frames until done (SCR_UpdateScreen draws nothing meanwhile)
+		GL_CreateShadersAsync (false);
+	else
+		GL_CreateShaders ();
 }
 
 static void GL_CreateShadersAll (void)
@@ -1196,6 +1507,8 @@ void GL_DeleteShaders (void)
 	gl_progsources_dropped = 0; // QVR
 	gl_multiview_pending = 0; // QVR
 	gl_arrays_merge_tried = false; // QVR
+	gl_num_queue = gl_queue_submitted = gl_queue_done = gl_queue_compiling = 0; // QVR: a queued set's (its programs among gl_programs)
+	gl_queue_active = false; // QVR
 
 	GL_UseProgramFunc (0);
 	gl_current_program = 0;
@@ -1219,4 +1532,21 @@ void GL_ReloadShaders_f (void)
 	GL_DeleteShaders ();
 	GL_CreateShaders ();
 	Con_Printf ("shaders compiled again (QVR_SHADER_AB %d)\n", gl_shader_ab);
+}
+
+/*
+=============
+GL_ReloadShadersQueued_f
+
+QVR: "vr_shader_reload_queued" (Debug > Startup): the set made again as a start under OpenGL ES makes it (queued, the
+loading panel until done: QUEST_PLAN.md 6zi), on any profile; its timings in the "GL shaders queued" line.
+=============
+*/
+void GL_ReloadShadersQueued_f (void)
+{
+	if (gl_queue_active)
+		return;
+	gl_shaders_why = "vr_shader_reload_queued";
+	GL_DeleteShaders ();
+	GL_CreateShadersAsync (false);
 }
