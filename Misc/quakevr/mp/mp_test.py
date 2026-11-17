@@ -1784,7 +1784,11 @@ def held(s):
         wpn = by_ent(lines, "mp_avatar_sv").get(eb, {}).get("wpn", [])
         own0 = drawn_report(b, "mp_drawn_own").get((eb, 0), {})
         sv0 = drawn_report(srv, "mp_drawn_sv").get((eb, 0), {})
-        if own0.get("carrying") == 1 and sv0.get("carrying") == 1 and wpn and int(wpn[0]) == 0:
+        # (B22: and the hotspots settled -- the two reports are a frame or more apart, and the carried shotgun still
+        # moving into the off hand's hold made B21's 0.62 units off, a flake)
+        settled = spots_off(own0, sv0)
+        if own0.get("carrying") == 1 and sv0.get("carrying") == 1 and wpn and int(wpn[0]) == 0 and \
+                settled is not None and settled <= HOTSPOT_SLACK:
             break
     s.note("after the hand-off: the server's main weapon of B %s; B's own off hand %s; the server's %s" % (wpn, own0, sv0))
     # (B's view draws the weapons the server gives his hands: the shotgun drawn in his off hand is the server's hand-off)
@@ -1826,6 +1830,9 @@ def ground_report(inst, prefix):
                 "rev": (int(rev.group(1)), int(rev.group(2)), float(rev.group(3))),
                 "hand": [float(hand.group(i)) for i in (1, 2, 3)],
                 "rot": [float(rot.group(i)) for i in (1, 2, 3)]}
+            dr = re.search(r"\bdrawn=(\d+)", l)
+            if dr:
+                out[(int(m.group(1)), int(m.group(2)))]["drawn"] = int(dr.group(1))
             ns = re.search(r"\bnspeed=(-?[\d.]+)", l)
             if ns:
                 out[(int(m.group(1)), int(m.group(2)))]["nspeed"] = float(ns.group(1))
@@ -2643,6 +2650,9 @@ def put_at(srv, inst, ent, at, yaw=None, tries=60):
     raise StepFailed("%s never put at %s (the server has him at %s)" % (inst.name, at, got))
 
 
+LYING_REACH = 96.0  # (B22) a weapon let fall lies within this of the hand that held it (a gentle drop: ~30 units)
+
+
 def lying(srv, ent, tries=100):
     """The weapon lying nearest player `ent`'s main hand on the server, at rest in two reports running ->
     (its entity, its origin) (a definite end: `tries` reports)."""
@@ -2650,8 +2660,12 @@ def lying(srv, ent, tries=100):
     for _ in range(tries):
         g = ground_report(srv, "mp_drawn_sv").get((ent, 1), {})
         # (a weapon: the reports before the let-go reached the server say none, nspeed -1 -- B16's mp_rejoin flake took
-        # "entity 0 at the origin" for the shotgun at rest when the suite's load delayed the let-go)
-        still = still + 1 if g.get("rev", (0,))[0] > 0 and g.get("norg") and 0.0 <= g.get("nspeed", -1.0) < 0.5 else 0
+        # "entity 0 at the origin" for the shotgun at rest when the suite's load delayed the let-go. B22: and the hand
+        # empty, the weapon by it -- before the let-go reached the server, the nearest lying weapon was another one,
+        # anywhere on the map (an armed grunt's, 2600 units off: B21's mp_rejoin "C has the shotgun" flake))
+        near = g.get("norg") and g.get("hand") and math.dist(g["norg"], g["hand"]) <= LYING_REACH
+        still = still + 1 if g.get("rev", (0,))[0] > 0 and near and g.get("drawn", 1) == 0 and \
+            0.0 <= g.get("nspeed", -1.0) < 0.5 else 0
         if still >= 2:
             return g["rev"][0], g["norg"]
     raise StepFailed("no weapon at rest by player %d's hand: %s" % (ent, g))
@@ -5595,6 +5609,15 @@ def profile_lines(inst, seconds, what):
     return [l.rstrip() for l in inst.lines[since:] if l.strip()]
 
 
+def add_bots(a, since=0):
+    """SOAK_BOTS FrikBot bots added by A (impulse 100), each named at A in its lines from `since` (a definite end: each
+    named within 15 s)."""
+    for i in range(SOAK_BOTS):
+        a.cmd("impulse 100")
+        while len(frag_table(a, since)) < 3 + i:  # (a bot's own line: frags lines repeat the named ones)
+            a.wait(r"mp_frags: .*named=1", 15, a.mark(), "bot %d named at A" % (i + 1))
+
+
 def soak(s):
     """(B13) The CPU of many players: a dedicated deathmatch server (no frag or time limit) on dm3 with A, B (through a
     proxy: his link counted) and 14 FrikBot bots: 16 players. Once all are listed, a window of 10 s of the server's game
@@ -5613,11 +5636,7 @@ def soak(s):
     b.cmd(s.connect_cmd(b))
     a.wait(r"mp_event: .*joined map=%s" % SOAK_MAP, 120, what="A joined")
     b.wait(r"mp_event: .*joined map=%s" % SOAK_MAP, 120, what="B joined")
-    for i in range(SOAK_BOTS):
-        since = a.mark()
-        a.cmd("impulse 100")
-        while len(frag_table(a)) < 3 + i:  # (a bot's own line: frags lines repeat the named ones)
-            a.wait(r"mp_frags: .*named=1", 15, a.mark(), "bot %d named at A" % (i + 1))
+    add_bots(a)
     for inst, what in ((a, "A"), (b, "B")):
         while len(frag_table(inst)) < 2 + SOAK_BOTS:
             inst.wait(r"mp_frags: .*named=1", 15, inst.mark(), "the bots named at %s" % what)
@@ -5726,6 +5745,7 @@ def soak(s):
 
 SOAK_MINUTES = 0           # (B20) --soak-minutes: the long soak after the window (0: none)
 SOAK_CHANGE = 0            # (B21) --soak-change: the map again after this minute of it (0: never)
+SOAK_HEAP_SITES = ""       # (B22) --heap-sites MIN:MAX: the server's live blocks of that size by call stack (soak_sites.txt)
 SOAK_LONG_SAMPLE = 60.0    # its samples, a minute of the server's game time apart
 SOAK_LONG_WARMUP = 2       # ... the memory measured from the end of this many (the first minutes fill caches)
 SOAK_LONG_GROWTH_MB = 48   # each game's private bytes may grow by at most this after the warm-up
@@ -5749,6 +5769,22 @@ def private_mb(inst):
     return pmc.PrivateUsage / (1024.0 * 1024.0)
 
 
+def heap_live(inst, out, minute):
+    """(B22) A game's live heap blocks by size (vr_heap live): appends (minute, size, pages, blocks, live_kb,
+    committed_kb) rows to `out`; returns the live MB."""
+    since = inst.mark()
+    inst.cmd("vr_heap live 1024; echo heap_live_done")
+    _, head = inst.wait(r"vr_heap live: ", 30, since, "%s's live heap" % inst.name)
+    inst.wait(r"heap_live_done", 30, since, "%s's live heap rows" % inst.name)
+    for l in inst.lines[since:]:
+        if l.startswith("vr_heap_live:"):
+            f = fields(l)
+            out.append((minute, int(f["size"]), int(f["pages"]), int(f["blocks"]), int(f["live_kb"]),
+                        int(f["committed_kb"]), int(f.get("reserved_kb", 0)), int(f.get("empty", 0))))
+    hm = re.search(r"vr_heap live: ([\d.]+) MB", head)
+    return float(hm.group(1)) if hm else -1.0
+
+
 def soak_long(s, srv, a, b, minutes):
     """(B20) The soak kept going `minutes` minutes of the server's game time, sampled each minute: each game's private
     bytes, the server's edicts and Box3D bodies, its pace (game time a second of wall clock), B's link down, B's moves as
@@ -5756,6 +5792,7 @@ def soak_long(s, srv, a, b, minutes):
     the warm-up, the edicts stay bounded, the server keeps pace every minute, B's link stays under its bound, B's moves
     are not lost, nobody left. Samples: soak_long.txt."""
     rows = []
+    live_rows = []  # (B22) (minute, size, pages, blocks, live_kb, committed_kb): soak_live.txt
     changed = {}  # (B21) each client's lines over the map change (--soak-change)
     p_prev = b.proxy.snapshot()
     for m in range(1, minutes + 1):
@@ -5791,6 +5828,11 @@ def soak_long(s, srv, a, b, minutes):
             _, hl = inst.wait(r"vr_heap: process working set", 30, since, "%s's heap" % inst.name)
             hm = re.search(r"mimalloc reserved [\d.]+ MB, committed ([\d.]+) MB", hl)
             row["heap_" + inst.name] = float(hm.group(1)) if hm else -1.0
+        # (B22) the server's live blocks by size each minute (soak_live.txt): a leak is a size that keeps growing
+        row["live_server"] = heap_live(srv, live_rows, m)
+        if SOAK_HEAP_SITES and m == SOAK_LONG_WARMUP:
+            # (B22) --heap-sites MIN:MAX: the server's blocks of that size traced from here to the end, by call stack
+            srv.cmd("vr_heap_sites %s %s" % tuple(SOAK_HEAP_SITES.split(":")))
         rows.append(row)
         s.note("soak minute %d: %s" % (m, " ".join("%s=%s" % kv for kv in row.items() if kv[0] != "minute")))
         if m == SOAK_CHANGE:
@@ -5799,6 +5841,8 @@ def soak_long(s, srv, a, b, minutes):
             srv.cmd("changelevel %s; vr_mp_status" % SOAK_MAP)
             a.wait(r"mp_event: .*joined map=%s" % SOAK_MAP, 120, since_a, "A on %s again" % SOAK_MAP)
             b.wait(r"mp_event: .*joined map=%s" % SOAK_MAP, 120, since_b, "B on %s again" % SOAK_MAP)
+            # (B22: FrikBot's bots do not follow a changelevel: added again, the minutes after the change stay busy)
+            add_bots(a, since_a)
             changed[a.name] = (since_a, a.mark())  # (their "left" at the change is the change's, not a drop)
             changed[b.name] = (since_b, b.mark())
             since = srv.mark()
@@ -5807,6 +5851,7 @@ def soak_long(s, srv, a, b, minutes):
             _, hl = srv.wait(r"vr_heap: process working set", 30, since, "the server's heap after the change")
             hm = re.search(r"mimalloc reserved [\d.]+ MB, committed ([\d.]+) MB", hl)
             after = float(hm.group(1)) if hm else -1.0
+            heap_live(srv, live_rows, -m)  # (soak_live.txt's minute -m: just after the change)
             s.metric("soak_long_change_heap_before_mb", row["heap_server"])
             s.metric("soak_long_change_heap_after_mb", after)
             s.metric("soak_long_change_box3d_after_mb", float(fields(bm).get("box3d", -1)))
@@ -5817,6 +5862,15 @@ def soak_long(s, srv, a, b, minutes):
     with open(os.path.join(s.out, "soak_long.txt"), "w", encoding="utf-8") as f:
         for row in rows:
             f.write(" ".join("%s=%s" % kv for kv in row.items()) + "\n")
+    if SOAK_HEAP_SITES:
+        since = srv.mark()
+        srv.cmd("vr_heap_sites stop 30; echo heap_sites_done")
+        n, _ = srv.wait(r"heap_sites_done", 120, since, "the server's live heap sites")
+        with open(os.path.join(s.out, "soak_sites.txt"), "w", encoding="utf-8") as f:
+            f.write("\n".join(srv.lines[since:n]) + "\n")
+    with open(os.path.join(s.out, "soak_live.txt"), "w", encoding="utf-8") as f:
+        for r in live_rows:
+            f.write("minute=%d size=%d pages=%d blocks=%d live_kb=%d committed_kb=%d reserved_kb=%d empty=%d\n" % r)
     warm = rows[min(SOAK_LONG_WARMUP, len(rows)) - 1]
     last = rows[-1]
     for inst in (srv, a, b):
@@ -5985,10 +6039,12 @@ def main():
     ap.add_argument("--repeat", type=int, default=1, help="predict --part: takes in one run (lift: one)")
     ap.add_argument("--watch", type=int, default=1, help="predict --part: vr_mp_watch on the server and B (3: corrections over 0.05 traced)")
     ap.add_argument("--soak-minutes", type=int, default=0, help="soak: keep going this many minutes of the server's game time after the window, sampled each minute (B20: leaks, drift)")
+    ap.add_argument("--heap-sites", default="", help="soak --soak-minutes: MIN:MAX, the server's live blocks of that size by call stack from the warm-up on (B22: vr_heap_sites)")
     ap.add_argument("--soak-change", type=int, default=0, help="soak --soak-minutes: the map again after this minute (B21: does the memory come back)")
     args = ap.parse_args()
-    global SOAK_CHANGE
+    global SOAK_CHANGE, SOAK_HEAP_SITES
     SOAK_CHANGE = max(0, args.soak_change)
+    SOAK_HEAP_SITES = args.heap_sites
     global PART, PART_REPEAT, PART_WATCH, PART_JITTER, PART_LOSS, AMMO_PART, PERMOVE_SKIP, TRACELOG, SOAK_MINUTES
     PART, PART_REPEAT, PART_WATCH = args.part, max(1, args.repeat), max(1, args.watch)
     PART_JITTER, PART_LOSS = args.jitter, args.loss
