@@ -43,6 +43,7 @@ extern cvar_t		hostname;
 
 extern	double		net_time;
 extern	sizebuf_t	net_message;
+void NET_RestoreMessage (void); // QVR: net_message back on its own buffer, emptied (Host_Error: a parse that pointed it elsewhere, MP_PLAN B19)
 extern	int		net_activeconnections;
 
 
