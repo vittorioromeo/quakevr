@@ -823,7 +823,7 @@ def avatar(s):
         sv, got, own = by_ent(lines_s, "mp_avatar_sv"), by_ent(lines_b, "mp_avatar"), by_ent(lines_a, "mp_avatar_own")
         if ea in got and sum(got[ea]["curl0"][:15]) / 15.0 >= CLOSED_CURL and ea in sv and ea in own and \
                 own[ea]["wmdl"][1] > 0 and got[ea]["wmdl"][1] > 0 and \
-                max(abs(x - y) for x, y in zip(got[ea]["curl0"], sv[ea]["curl0"])) <= CURL_STEP + 1e-4 and \
+                max(abs(x - y) for k in ("curl0", "curl1") for x, y in zip(got[ea][k], sv[ea][k])) <= CURL_STEP + 1e-4 and \
                 (1, "weapon") in drawn_at(lines_b, ea):
             # (B13c: and B's last drawn frame had it: the avatar with the weapon can arrive after the frame B's report
             # describes was drawn -- under load the suite's flake, "drawn: None" with the model indices equal)
