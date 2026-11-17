@@ -42,6 +42,8 @@ grep.exe.stackdump
 quakevr/maps/vrfiringrange_recovered_20261012.bsp
 quakevr/maps/vrfiringrange_recovered_20261012.lit
 quakevr/maps/vrfiringrange_recovered_20261012.lux
+# The start-up trace, made anew at each start (vr/vr_startlog.cpp)
+quakevr/startup.log
 .env
 
 # The Flatpak build's build number and hash (Quake/vr/qvr_buildinfo.cmake; written by .github/workflows/flatpak.yml)

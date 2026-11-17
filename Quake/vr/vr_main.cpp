@@ -304,7 +304,10 @@ void startBackend()
         return;
     }
 
-    if(!backend->start())
+    VR_StepBegin(va("VR backend start (%s)", backend->name())); // the start-up trace (vr_startlog.cpp)
+    const bool started = backend->start();
+    VR_StepEnd();
+    if(!started)
     {
         Con_Warning("VR: failed to start %s backend (vr_restart to retry)\n", backend->name());
         backend->stop();
@@ -1995,6 +1998,7 @@ extern "C" void VR_NewMap()
     for(const PrewarmStep& step : prewarmSteps)
     {
         QVR_PROFILE(step.name);
+        VR_StepBegin(va("VR_NewMap: %s", step.name)); // the start-up trace (its VR_TimeMark below ends it)
         const double start = Sys_DoubleTime();
         step.prepare();
         const double ms = (Sys_DoubleTime() - start) * 1000.0;
