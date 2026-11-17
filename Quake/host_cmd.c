@@ -1745,7 +1745,8 @@ static void Host_Status_f (void)
 		}
 		else
 			hours = 0;
-		print_fn ("#%-2u %-16.16s  %3i  %2i:%02i:%02i\n", j+1, client->name, (int)client->edict->v.frags, hours, minutes, seconds);
+		// QVR (MP_PLAN B17): each player's ping too, the server's measure of his moves (as `ping`'s)
+		print_fn ("#%-2u %-16.16s  %3i  %2i:%02i:%02i  %4i ms\n", j+1, client->name, (int)client->edict->v.frags, hours, minutes, seconds, VR_ClientPingMs (j));
 		print_fn ("   %s\n", NET_QSocketGetAddressString(client->netconnection));
 	}
 }

@@ -1832,6 +1832,7 @@ void _Host_Frame (double time)
 //check the stdin for commands (dedicated servers)
 	Host_GetConsoleCommands ();
 	VR_MpTestFrame (); // QVR: a test harness's inbox (-cmdinbox) read; vr_mp_watch's prints (vr/vr_mptest.cpp)
+	VR_ServerStatusFrame (); // QVR: a dedicated server's status line (vr_sv_status; vr/vr_svstatus.cpp)
 
 // process console commands
 	VR_ProfileBegin ("commands"); // QVR: profile
@@ -2058,6 +2059,7 @@ void Host_Init (void)
 	VR_TimeMark ("console, progs, models, net, server init"); // QVR
 	VR_Init (); // QVR
 	VR_MpTestInit (); // QVR: -cmdinbox, vr_mp_mark, vr_mp_status (vr/vr_mptest.cpp)
+	VR_ServerStatusInit (); // QVR: vr_sv_status_now (vr/vr_svstatus.cpp)
 	VR_TimeMark ("VR init (cvars, commands)"); // QVR
 
 	Con_Printf ("Quake VR %s\n", VR_BuildInfo ()); // QVR: "1.1.0-dev build 4321 (abc1234) 2026-10-17 14:05"
@@ -2131,7 +2133,13 @@ void Host_Init (void)
 
 	if (cls.state == ca_dedicated)
 	{
+		// QVR (MP_PLAN B17): a dedicated server's defaults -- no player can pause the game for everyone (pausable 0) --
+		// then its own settings: server.cfg in the game's folder if there is one (after autoexec.cfg, before the
+		// command line's +commands, which have the last word; docs/vr-port/MULTIPLAYER.md has an example)
+		Cvar_SetQuick (&pausable, "0");
 		Cbuf_AddText ("exec autoexec.cfg\n");
+		if (COM_FileExists ("server.cfg", NULL))
+			Cbuf_AddText ("exec server.cfg\n");
 		Cbuf_AddText ("stuffcmds");
 		Cbuf_Execute ();
 		if (!sv.active)

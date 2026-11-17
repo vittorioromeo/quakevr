@@ -70,6 +70,9 @@ void VR_StopDownloads (void);	// Host_Shutdown, before NET_Shutdown (curl_global
 void VR_BeginFrame (void);	// once per host frame, after input events and before console commands
 void VR_MpTestInit (void);	// Host_Init, after VR_Init: the multiplayer test aids (vr_mptest.cpp: -cmdinbox, vr_mp_*)
 void VR_MpTestFrame (void);	// once per host frame, before console commands: the inbox's new lines; vr_mp_watch
+void VR_ServerStatusInit (void);	// Host_Init: vr_sv_status_now (vr_svstatus.cpp, B17)
+void VR_ServerStatusFrame (void);	// once per host frame: a dedicated server's status line (vr_sv_status)
+int VR_ClientPingMs (int slot);	// the server's mean ping of player `slot` in ms (ping_times): status, the status line
 // The harness's lockstep (vr_mp_lockstep, vr_mptest.cpp; MP_PLAN B14b). Server: VR_LockstepFrameBegin decides at a
 // frame's start whether the world steps (every client's next move read, the clients in, vr_mp_lockstep_until not reached);
 // VR_LockstepHolds: it does not (no client thinks, no physics, no VR frame end); VR_LockstepRunMove: SV_RunClients, a
