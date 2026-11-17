@@ -302,7 +302,7 @@ class Session:
                 self.metric("netbytes_%s" % inst.name, kinds)
             except StepFailed:
                 pass
-        # Clients first, the server last (its exit code: a clean quit, MULTIPLAYER.md's old crash on quit).
+        # Clients first, the server last (its exit code: a clean quit, MP_DESIGN.md's old crash on quit).
         for inst in sorted(self.instances, key=lambda i: 1 if i.name == "server" else 0):
             code = inst.stop()
             crashed = any("ENGINE CRASH" in l for l in inst.lines)

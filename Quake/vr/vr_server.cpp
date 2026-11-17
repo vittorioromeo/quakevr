@@ -1360,7 +1360,7 @@ extern "C" void VR_ClearHeldBroadcast(int slot)
 
 // SV_SendClientMessages, before sv.reliable_datagram is copied to the clients (vr_debug_net 2).
 // ----------------------------------------------------------------------------
-// vr_net_stats: what each client's datagrams carry of the entities (the debris' cost in multiplayer: MULTIPLAYER.md).
+// vr_net_stats: what each client's datagrams carry of the entities (the debris' cost in multiplayer: MP_DESIGN.md).
 
 namespace
 {

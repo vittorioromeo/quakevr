@@ -69,7 +69,7 @@ Status: **current** (checked, nothing wrong), **fixed** (outdated, corrected in 
 | `IRONWAIL_DIFF.md` | fixed (partly) | Added the current totals (91 files, +5209 -722, 749 hunks) and noted `progs.h` is modified again. The per-file table is still the 74-file state: regenerate it when Ironwail is next merged. |
 | `PORTING.md` | fixed (partly) | Size and language corrected (C++23 on Zancle, ~200k lines, 91 engine files); its other counts (70 files, 14,000 lines reused, `vr_gfx_gl.cpp` 400 lines, now 1703) are from September. Rewrite only if a vkQuake port becomes real. |
 | `PLAN.md` | snapshot (labelled) | Status table is 2026-09-25 ("untested on HMD", "not ported: menu laser, model shadows"): marked as a snapshot pointing to FEATURES.md. Keep with `inventory/` as the port's history. |
-| `MULTIPLAYER.md` | fixed | The 72 Hz tick recommendation and P0-6's tick item marked done (`host_fixedtick`). P0-6's crash site (`vr_imgprefetch.cpp` `workers`) no longer exists: whether the dedicated server's crash on quit is gone is unverified. |
+| `MP_DESIGN.md` | fixed | The 72 Hz tick recommendation and P0-6's tick item marked done (`host_fixedtick`). P0-6's crash site (`vr_imgprefetch.cpp` `workers`) no longer exists: whether the dedicated server's crash on quit is gone is unverified. |
 | `GRAPHICS.md` | fixed | `relight_textures.cfg` path; "why it looks flat today" labelled as before round 15. Research background: keep. |
 | `LIGHTING.md` | fixed | `vr_dlight_uncapped` defaults to 1. Missing `vr_shadow_head` (1, your shadow's head) in its table. |
 | `HULLS.md` | current | |
@@ -149,7 +149,7 @@ place the knowledge lives.
 3. **An architecture overview of the VR layer** (`docs/vr-port/ARCHITECTURE.md`): the module's parts (`vr_api.h`, the
    OpenXR and mock backends, rendering, input, body/IK, Box3D physics, props, menus, effects, audio, the thread
    pool), how the engine calls in (the `// QVR` hooks), the QuakeC side (builtins, the progs ABI, spawn parms), the
-   client/server split (with MULTIPLAYER.md), and where state lives (CODE_STYLE). PLAN.md and PORTING.md hold
+   client/server split (with MP_DESIGN.md), and where state lives (CODE_STYLE). PLAN.md and PORTING.md hold
    September pieces of this.
 4. **Gameplay systems notes**, one each, from ROUND21:
    - `RAGDOLLS.md` (ragdolls 1-6, masses, grabbing limbs; absorb KNOCKDOWNS);

@@ -166,7 +166,7 @@ Each verified by an unchanged physics hash, melee eval and `vr_menu_path_check`.
 - **Dynamic spawns: pick ideas** (2026-11-09): go through DYNAMIC_SPAWNS.md with him (its idea list and "Systems ideas
   from the 2026-11-09 audit"); the prerequisites are built.
 - **Multiplayer update** (after 1.1): co-op rules, NAT traversal, voice chat, our VR systems synchronised, from
-  Quakespasm-VR (GPL): MULTIPLAYER.md, "Open items moved from BACKLOG.md".
+  Quakespasm-VR (GPL): MP_DESIGN.md, "Open items moved from BACKLOG.md".
 - **Seated play** (2026-10-18): holster and pouch zones laid out for a seated body, picked from the seated calibration.
 - **Easier modelling** (2026-11-05): weapons have source .blends with export on save (MODELS_IN_BLENDER.md); left: the
   format audit and the other models.

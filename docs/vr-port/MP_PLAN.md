@@ -8,12 +8,12 @@ dictated by the server; proximity voice chat on the spatial audio; deterministic
 bespoke delta compression with general compression on top; client prediction for VR responsiveness; all of it test
 driven, with end-to-end tests of several real games at once under simulated lag and loss.
 
-This file is the plan. MULTIPLAYER.md (2026-09-30) is the older audit, file by file; where the two differ, this file
+This file is the plan. MP_DESIGN.md (2026-09-30) is the older audit, file by file; where the two differ, this file
 is the newer (each claim below was re-checked on 2026-11-14 at `origin/next` 17de8a86, branch `agent/mp`).
 
 - **[run]**: measured with the harness (below) on 2026-11-14.
 - **[code]**: re-read in the code on 2026-11-14 (file:line at that commit).
-- **[old]**: from MULTIPLAYER.md, not re-checked.
+- **[old]**: from MP_DESIGN.md, not re-checked.
 
 ## 1. Verified state
 
@@ -27,7 +27,7 @@ is the newer (each claim below was re-checked on 2026-11-14 at `origin/next` 17d
 | Seeing others move | Another player's step off from rest shows 40-64 ms after his input on loopback, and his own 44-68 ms (a round trip: there is no prediction) | [run] (section 4) |
 | Under lag | Client B behind 150 ms each way and 2% loss: B sees A move off after 214-221 ms, A sees B after 206-214 ms, B sees himself after 357-368 ms (2 x 150 + the loopback's 60) | [run] |
 | Level changes | `changelevel e1m2` on the server takes both clients along; they see each other again | [run] |
-| Dedicated server quit | Exits 0 (MULTIPLAYER.md's crash on quit, `vr_imgprefetch` workers, is gone) | 6 runs [run] |
+| Dedicated server quit | Exits 0 (MP_DESIGN.md's crash on quit, `vr_imgprefetch` workers, is gone) | 6 runs [run] |
 | Flat with VR | A flatscreen client (`-flatscreenmode`) joins a VR host, walks (+forward), is seen; the server knows him per player (`.vr_flatscreen`, the flat crouch bit) | `vr_server.cpp:795-819` [code]; listen run [run] |
 | Server rules | Every balance setting (1856: the balance pages', the gameplay preset's, the melee timing, Locomotion's crouch speed, its scale and slope walking; B6, B6c) goes to every client (`QVR_SVC_RULES`); a remote client plays by them while joined (his own kept, back when he leaves) and his menu shows them dimmed | `vr_serverrules.cpp:17-27` [code] |
 | Late precaches | Broadcast to every client (`QVR_SVC_PRECACHE_*`) | `vr_server.cpp:1253-1254` [code] |
@@ -78,7 +78,7 @@ is the newer (each claim below was re-checked on 2026-11-14 at `origin/next` 17d
   bytes per second. ezQuake adds better prediction of other players and smoother interpolation.
 - **FTEQW / QSS (and QSS-M)**: protocol extensions negotiated per client (FTE's `PEXT_*`, replacement deltas against
   acknowledged frames), chunked downloads, CSQC with input frames for prediction in game code. Quakespasm-VR
-  (ObeseCatLord, GPL, MULTIPLAYER.md's reference) ships a shared pmove with CSQC prediction, co-op rules, ICE/WebRTC
+  (ObeseCatLord, GPL, MP_DESIGN.md's reference) ships a shared pmove with CSQC prediction, co-op rules, ICE/WebRTC
   NAT traversal and Opus voice chat with VAD, a jitter buffer and 3D placement: the closest prior art, to borrow from
   with its headers and credit.
 - **DarkPlaces**: an entity frame database per client (deltas against acknowledged frames), client movement

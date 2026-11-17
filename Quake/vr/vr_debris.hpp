@@ -11,7 +11,7 @@
 //
 // Limits: vr_debris_max a map, vr_debris_area_max an area, vr_debris_spacing between spots, and never more than leaves
 // vr_debris_edicts_left entities free. In multiplayer at most vr_debris_mp_max (-1: as single player; server entities:
-// each in sight costs every remote client's 1400-byte datagram; MULTIPLAYER.md, "Debris"). None in the maps of
+// each in sight costs every remote client's 1400-byte datagram; MP_DESIGN.md, "Debris"). None in the maps of
 // vr_debris_exclude, or in a map whose worldspawn has "_vr_debris" "0" (another number scales the chance).
 
 #pragma once

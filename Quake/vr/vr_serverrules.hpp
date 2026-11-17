@@ -1,4 +1,4 @@
-// vr_serverrules.hpp -- server rules: settings the server's QC judges by for every player (docs/vr-port/MULTIPLAYER.md,
+// vr_serverrules.hpp -- server rules: settings the server's QC judges by for every player (docs/vr-port/MP_DESIGN.md,
 // "Server rules"; MP_PLAN.md, B6: "settings in three kinds", the first). Every balance setting is one: the settings on
 // the balance pages of the menus (Advanced VR Options > Combat, Carrying and Throwing, Arcane Dimensions, World; Movement's
 // Climbing, Grappling Hook, Swimming and hitboxes; VR Settings > Gameplay), the gameplay preset's switches and the melee
