@@ -1665,6 +1665,31 @@ with the session's near monsters; `c4y_fz1..4.sh`), `c4y_pcskin.sh` / `c4y_pcvl.
   launching (Unknown Sources, `am start` with `--es args`), logcat, and `vr_android_export` + `run-as` for crash files.
 - PC: dev build 0 warnings (QC 0); gles_render_test 21/0; scenario_check PASS (136 run, 0 failed); load_models_test 4/0.
 
+## 6zg. The slow frames after the first launch; the second package (2026-11-17; his headset, no adb here)
+
+- **His report** (the 6zf package, Quest 3, 72 Hz): the first launch after the install smooth (90/90); later launches
+  `FPS=19/72`, App (GPU) 11.8 ms, CPU&GPU 38 ms, GPU% 0.31, CPU% 0.23, the main thread at ~37% of a core, the other
+  game threads idle. **The cause is a value in his saved config**: the same launch with `-noconfigwrite +exec
+  default.cfg +vr_quest_preset 0` (his config still executed first by quake.rc) ran smooth. So the value is among
+  default.cfg's (binds, gamma, contrast, vid_fsaa, volume, viewsize, vr_defaults.cfg's) or the Low preset's and Quest
+  rows. Which one: open (his config, or the two-launch bisect in the package README).
+- **Not a GL sync**: `vr_gl_sync_count N` / `vr_gl_sync_report` (new; glquake.h's wrappers: glFinish, fence waits,
+  query results not yet available, pixel and texture reads, synchronised maps, link status reads) on the PC's
+  `-glescompat -fakeandroid` path: 1.00 a frame (the frame ring's fence) with the Quest preset, and 1.00 with Ultra,
+  vid_fsaa 4, TAA, OIT, bloom, vr_tonemap 1, dynres off at scale 1. The engine's diff of the 1.1.0 merge was relight and
+  installer code only. His numbers (GPU and CPU both mostly idle) point to a wait off the GL: a sleep, I/O or a join.
+  His smooth launch also had no sound (being asked): `-nosound` is the next launch to try.
+- **`vr_quest_check`** (each Android start after the saved config; Debug > Startup): the Quest rows that differ from
+  the nearest Quest preset in the log, and MSAA (`vid_fsaa`: ~100 ms a frame, C4e) and bloom (squares, C4f) set back
+  to 0, each said; `vr_quest_guard 0` only says. PC runs untouched (Android or `-fakeandroid` only).
+- **The program cache's reason** in the start-up trace (`VR_StepNote`): "no pack for this driver yet", a damaged or
+  older pack, "N from their binaries, M compiled (... their shaders changed since: a new build)". The 6zf install's
+  first launch compiled everything (every program's text changed with the merge): the minute of dots.
+- origin/next merged twice (the startup trace included); the Android build passes `-DQVR_QC=OFF` (the CMake build's
+  new QuakeC step needs make and patch for FTEQCC). Package `<kit>/scratch/quest_apk2/` (README: what changed, the
+  slow-frames steps). PC: dev build 0 warnings; gles_render_test 21/0; scenario_check PASS (136, 0 failed);
+  load_models_test 4/0; APK 0 warnings, check_apk 18/0.
+
 ## 7. Installs (done 2026-11-14 at his approval, by the coordinator)
 
 Installed under `F:\QuakeVRDev` (`env.sh` / `env.ps1` there set `JAVA_HOME`, `ANDROID_HOME`, `ANDROID_SDK_ROOT`,
@@ -1708,4 +1733,4 @@ Sizes are approximate download sizes [I]; versions are the current stable ones a
 
 Also: a Quest 3 (or 3S) in developer mode (Meta Horizon app, an organisation account), a USB-C cable.
 
-Next phase: C4z (after 6ze) — no installs, the headset needed: measure on the frozen live fight (`c4y_frozen.sh`, every round consistent beyond the ~0.5 ms a program remake brings); the models' fragment shading (~2.8-3.3 ms over a constant with every model plain, near monsters filling the view) is neither their light's math nor their look: next suspects the varyings and the instance-buffer reads per pixel (a minimal plain form: texture, vertex light, fog), and the ~1 ms of geometry (the body's 14.6k triangles with its pre-pass, the vertex shader's motion-vector writes); his look call on `vr_rig_lights_world 0`; SpaceWarp (`XR_FB_space_warp`, offered) optional and off. Still open from before: C2h (the world textures' memory under the ES profile), Adreno's wrong derivatives with the retro code out (NORETRO). Waiting on his call: the Android Gradle Plugin download (section 7), the armed humanoids' CPU cost (section 6d), shadowless dynamic lights on the Quest (6w).
+Next phase: C4z (after 6zg; first the saved-config stall's value from his log or config, 6zg) — no installs, the headset needed: measure on the frozen live fight (`c4y_frozen.sh`, every round consistent beyond the ~0.5 ms a program remake brings); the models' fragment shading (~2.8-3.3 ms over a constant with every model plain, near monsters filling the view) is neither their light's math nor their look: next suspects the varyings and the instance-buffer reads per pixel (a minimal plain form: texture, vertex light, fog), and the ~1 ms of geometry (the body's 14.6k triangles with its pre-pass, the vertex shader's motion-vector writes); his look call on `vr_rig_lights_world 0`; SpaceWarp (`XR_FB_space_warp`, offered) optional and off. Still open from before: C2h (the world textures' memory under the ES profile), Adreno's wrong derivatives with the retro code out (NORETRO). Waiting on his call: the Android Gradle Plugin download (section 7), the armed humanoids' CPU cost (section 6d), shadowless dynamic lights on the Quest (6w).

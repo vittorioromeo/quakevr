@@ -4543,3 +4543,12 @@ His Quest 3 report: after an install and a new data push, minutes of Meta's thre
 - Checks: dev and ReleaseLTO 0 warnings; no local NDK (ANDROID_NDK_HOME unset): the Android build not run (the code is
   portable C++, no `__ANDROID__` paths of its own); `vr_startup_trace check` 4 passed, 0 failed (3 heartbeat lines);
   scenario_check 136/136 PASS; load_models_test 4 passed, 0 failed.
+
+## questsync: the Quest's slow frames after the first launch (branch agent/quest, 2026-11-17)
+
+- His Quest 3: the first launch after the 1.1.0 package smooth, later ones 19/72 with CPU and GPU mostly idle; a launch
+  with `+exec default.cfg +vr_quest_preset 0` smooth: a value in his saved config (QUEST_PLAN.md 6zg; which one: open).
+- New: `vr_gl_sync_count N` / `vr_gl_sync_report` (GL calls that make the CPU wait, per frame; PC ES path 1.00, the
+  frame fence, with any settings: not a GL sync); `vr_quest_check` at each Android start (the differing Quest rows
+  logged; MSAA and bloom set back, `vr_quest_guard`); the program cache's miss reason in the start-up trace; the
+  Android build's `-DQVR_QC=OFF`. Package `<kit>/scratch/quest_apk2/`. PC defaults and behaviour unchanged.
