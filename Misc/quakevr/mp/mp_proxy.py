@@ -60,6 +60,8 @@ class Proxy:
         self.stats = {"up": [0, 0, 0, 0, 0], "down": [0, 0, 0, 0, 0]}  # packets, bytes, dropped, largest, datagrams
         # (B16) the server gone silent: every packet down dropped while set (a crashed server, a link cut)
         self.blackout = False
+        # (B25) the client gone silent at the server: every packet up dropped while set (a game hitched or stalled)
+        self.blackout_up = False
         # (B18) game packets corrupted, each direction: the chance a packet is (mp_test.py fuzz: a hostile or broken
         # peer); how many were, by kind (bits flipped, cut short, random bytes, garbage after). The NetQuake header's
         # flags and sequence are kept, its length rewritten to the packet's: what reaches the message parsers.
@@ -156,7 +158,7 @@ class Proxy:
         st = self.stats[direction]
         if not control_or_short(pkt):
             pkt = self.mangle(pkt, direction)
-        if direction == "down" and self.blackout:
+        if (direction == "down" and self.blackout) or (direction == "up" and self.blackout_up):
             st[2] += 1
             return
         if direction == "down" and self.reliable_down(pkt):

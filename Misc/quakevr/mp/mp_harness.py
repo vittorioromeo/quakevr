@@ -8,7 +8,7 @@ lines (Instance.wait: a regex and a safety timeout); the clients print, wall-clo
 they join a map, first see each player, see one start moving from rest. Checks add up to a verdict line,
 "<test>: N passed, M failed". Docs: docs/vr-port/MP_PLAN.md, "Test harness".
 
-The games are hidden (QVR_TEST_HIDDEN), run at below-normal priority (idle while the author's own game runs), use
+The games are hidden (QVR_TEST_HIDDEN), run at normal priority (B25; idle while the author's own game runs), use
 small mock eyes, write no config (-noconfigwrite) and keep real time: several processes talking over UDP share the
 wall clock, so these tests are real-time by nature (vr_fixed_frames 0); every wait is still on a condition.
 """
@@ -22,6 +22,7 @@ import time
 from mp_proxy import Proxy
 
 GAMES = ["-game", "hipnotic", "-game", "rogue", "-game", "quakevr"]
+NORMAL = 0x00000020
 BELOW_NORMAL = 0x00004000
 IDLE = 0x00000040
 NO_WINDOW = 0x08000000
@@ -168,6 +169,9 @@ class Instance:
         self.net_guard_test = net_guard_test
         self.net_state = None
         self.size = (480, 270)  # (the window: a readable screenshot sets more before start(); mp_test.py roomui)
+        # (B25: each game its own vr_mp_clientkey, as two real games have; a game "back from a crash" (mp_rejoin's B2)
+        # is started with the crashed one's)
+        self.clientkey = ("qvrtest%s%d" % (re.sub(r"\W", "", name), port))[:23]
         self.log = os.path.join(session.out, name + ".log")
         self.inbox = os.path.join(session.out, name + ".inbox")
         self.proc = None
@@ -194,7 +198,8 @@ class Instance:
         # (B23: vr_mp_room 0: a test's host never registers with the shipped room service, an internet host; mp_nat
         # turns it on with a local service)
         a += ["+vr_backend", "mock", "+sv_autosave", "0", "+vr_log_flush_frames", "1", "+vr_fixed_frames", "0",
-              "+vr_mock_eye_size", "256", "+vr_mp_watch", "1", "+vr_mock_hand_to_absolute", "1", "+vr_mp_room", "0"]
+              "+vr_mock_eye_size", "256", "+vr_mp_watch", "1", "+vr_mock_hand_to_absolute", "1", "+vr_mp_room", "0",
+              "+vr_mp_clientkey", self.clientkey]
         a = a + self.extra
         # (B24: the engine's fence, last so nothing in `extra` can take it out)
         return a[:1] + ["-loopbackonly"] + a[1:]
@@ -210,7 +215,11 @@ class Instance:
             pass
         env = dict(os.environ, QVR_TEST_HIDDEN="1", QVR_NO_ERROR_DIALOG="1", QVR_TEST_BACKGROUND="1",
                    SDL_ASSERT="abort")
-        flags = (IDLE if self.s.low_impact else BELOW_NORMAL) | NO_WINDOW
+        # (B25: normal priority, as the kit's runs: below normal, every build and fast-mode test of other work on the
+        # machine came first and these real-time games went without -- under mp_load's busy workers a dedicated server
+        # did not print its first lines in 60 s; QVR_MP_PRIORITY=below for the old way)
+        below = os.environ.get("QVR_MP_PRIORITY") == "below"
+        flags = (IDLE if self.s.low_impact else BELOW_NORMAL if below else NORMAL) | NO_WINDOW
         self.proc = subprocess.Popen(args, cwd=self.s.base, env=env, creationflags=flags,
                                      stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         self.s.note("%s: started (pid %d, port %d%s)" % (

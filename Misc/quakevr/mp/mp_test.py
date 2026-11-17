@@ -100,6 +100,9 @@ Tests:
              teleport, held, ground, campaign, campaign_listen, flow, rejoin, download, pickup, forcegrab, melee, moves, climb,
              rules, cosmetics, flatbody, loss, predict, predictclimb, lagcomp, disarm, voice, voice with B 50 ms (30 ms
              jitter, 5% loss) away, dm, lockstep, lockstep_throw, nat (B23: room codes through simulated routers).
+             (B25) --only a,b runs just those; --suite-repeat N runs them N times over; --load N (any test) keeps N
+             busy CPU workers at normal priority running meanwhile (mp_load.py: the machine busy with other work, as
+             in the suite's real runs; --load-duty the share of time each spins).
 
 The base folder is a Quake folder with id1 (and hipnotic, rogue, quakevr: -game as the kit's runs). Its
 id1/autoexec.cfg runs in every game: --reset-autoexec empties it first (the kit's test bases: a run's script).
@@ -119,6 +122,7 @@ sys.path.insert(0, HERE)
 
 from mp_harness import LINKS, Instance, Session, StepFailed, fields, format_kinds, kind_rates  # noqa: E402
 from mp_nat import Nat  # noqa: E402
+from mp_load import Load  # noqa: E402
 import subprocess  # noqa: E402
 
 REPO = os.path.normpath(os.path.join(HERE, "..", "..", ".."))
@@ -2125,6 +2129,15 @@ def ground(s):
     for _ in range(30):
         if drawn_report(b, "mp_drawn_own").get((eb, 1), {}).get("drawn", 1) == 0:
             break
+    # (B25: and come to rest on the server first, as the sword below: under load the hand was put on its hotspot while it
+    # still slid at 12-23 u/s, and its jumps after it knocked it 1.5 m away at 95 u/s (a "blow"), no take; the sword's
+    # checks then found the shotgun nearest)
+    shotgun = 0
+    for _ in range(30):
+        shotgun = ground_report(srv, "mp_drawn_sv").get((eb, 1), {}).get("rev", (0,))[0]
+        if shotgun > 0:
+            break
+    at_rest(srv, (eb, 1), shotgun)
 
     # His main hand over its grip hotspot as it lies (placed again each report: it may still slide), within the view's
     # reach of a ground spot (15 cm).
@@ -2175,10 +2188,14 @@ def ground(s):
     # through it, flinging it at 473 u/s, 3 runs of 3)
     # (B17: 12 cm over its handle, not 6: placed exactly there (vr_mock_hand_to_absolute), the turned fist 6 cm over a
     # sword lying on its edge was 7.5 cm into it, its grip not yet pressed, and shoved it 2 m away, 1 suite run in 1)
+    # (B25: turned at head height, not 0.35 m down and 1 m out: that place is 5 units over the sword lying by him, and
+    # while the turned hand waited there for its placement over the handle (longer under load: the echo's frames) it
+    # touched the sword and turned it on the floor: his view chose reversed (cos -0.91), the take came at cos 0.61,
+    # upright, a suite run under load)
     def over(turn):
         def place():
             since = b.mark()
-            b.cmd("vr_mock_hand off -0.1 1.0 -0.35 %s; echo mp_over_turned" % turn)
+            b.cmd("vr_mock_hand off -0.1 0.4 0.0 %s; echo mp_over_turned" % turn)
             b.wait(r"mp_over_turned", 10, since, "B's off hand turned")
             b.cmd("vr_mock_hand_to off spot -1 12")
         return place
@@ -2187,12 +2204,20 @@ def ground(s):
         """B's own and the server's reports of his off hand until the server has the hand where his view has it (its
         angles within 3 degrees: the move with the new turn arrived) and the same choice, its cosine within 0.2 (the sword
         as B draws it caught up with the server's: -0.84 against -0.6 once, the same hand angles) (at most 20 reports each)."""
+        # (B25: and the server's cosine the same as in its report before, within 0.05: the sword lying on its edge tipped
+        # over slowly after the hand's turn, its origin still (nspeed 0): B's own cosine -0.91, -0.72, 0.02, 0.68 at the
+        # same hand, the take upright under load; at most 40 reports each)
         o = v = {}
-        for _ in range(20):
+        prev = None
+        for _ in range(40):
             o = ground_report(b, "mp_drawn_own").get((eb, 0), {})
             v = ground_report(srv, "mp_drawn_sv").get((eb, 0), {})
-            if o.get("rev", (0, -1, 0))[0] > 0 and v.get("rev", (0,))[0] == o["rev"][0] and v["rev"][1] == o["rev"][1] \
-                    and angle_diff(o["rot"], v["rot"]) <= 3.0 and abs(v["rev"][2] - o["rev"][2]) <= 0.2:
+            still = prev is not None and v.get("rev", (0, -1, 9))[:2] == prev[:2] and \
+                abs(v.get("rev", (0, -1, 9))[2] - prev[2]) <= 0.05
+            prev = v.get("rev", (0, -1, 9))
+            if still and o.get("rev", (0, -1, 0))[0] > 0 and v.get("rev", (0,))[0] == o["rev"][0] and \
+                    v["rev"][1] == o["rev"][1] and angle_diff(o["rot"], v["rot"]) <= 3.0 and \
+                    abs(v["rev"][2] - o["rev"][2]) <= 0.2:
                 break
         return o, v
 
@@ -2669,6 +2694,37 @@ def rejoin(s):
             fresh.get(sb, {}).get("nails") == 0 and fresh[sb].get("health") == 100 and not fresh[sb]["items"] & 2,
             "%s" % fresh.get(sb))
 
+    # (B25) Another game by B's name from his address while B's link up is silent over QVR_GHOST_SILENCE (a hitch, a
+    # busy machine): not B back from a crash (its own vr_mp_clientkey), B's connection kept, the other given a slot of
+    # its own. (By the name alone the server closed a live player's connection: the suite's joins under load, where
+    # every harness game was "player".)
+    b.proxy.blackout_up = True
+    t0 = server_time(srv)
+    server_time_past(srv, t0 + 4.0)
+    since_srv = srv.mark()
+    d = s.client("D")
+    d.start()
+    d.cmd("name B; " + s.connect_cmd(d))
+    _, jd = d.wait(r"mp_event: .*joined map=e1m1", 120, what="the other game by B's name joined")
+    b.proxy.blackout_up = False
+    ghost = srv.find(r"B back from .* the old one closed", since_srv)
+    since_b = b.mark()
+    b.cmd("vr_mp_status")
+    _, st_b = b.wait(r"mp_status: ", 30, since_b, "B's status after his link came back")
+    srv_status = status(srv)
+    s.check("another game by B's name from his address, his link silent 4 s: B's connection kept (not 'back from a "
+            "crash': its own key), it given a slot of its own",
+            ghost is None and int(fields(jd)["self"]) not in (ea, eb) and
+            org_of(srv_status, "mp_client", "slot", sb) is not None and fields(st_b).get("connected") == "1",
+            "ghost %s; the other's entity %s; B's slot on the server %s; B's status %s" % (
+                ghost, fields(jd)["self"], org_of(srv_status, "mp_client", "slot", sb), st_b.strip()))
+    # (renamed before it leaves: a coop leaver's things are kept by his name, and B's return below must find B's)
+    d.cmd("name D")
+    names_until(srv, ("A", "B", "C", "D"))
+    d.cmd("disconnect")
+    d.stop()
+    s.instances.remove(d)
+
     # B's game crashes (killed behind his proxy: his old connection silent, no port unreachable to the server); he comes
     # back from another port, by the same name, with what he had (given again after his suicide)
     # (hurt to 30 and his shells 17: under a level change's floors, 50 and 25, that a return must not apply)
@@ -2680,7 +2736,9 @@ def rejoin(s):
     killed = time.monotonic()
     s.instances.remove(b)
     s.note("B's game killed (a crash): his old connection silent from now")
-    b2 = s.client("B2").start()
+    b2 = s.client("B2")
+    b2.clientkey = b.clientkey  # (B25: the same game, restarted: its vr_mp_clientkey kept in its config)
+    b2.start()
     since = b2.mark()
     b2.cmd("vr_mp_status")
     b2.wait(r"mp_status: ", 120, since, "B's game started again")
@@ -2995,8 +3053,15 @@ def hand_at(srv, inst, ent, target, tries=60):
 def grab_weapon_of(s, srv, taker, victim, et, ev, label):
     """`taker`'s empty main hand onto the shotgun `victim` holds out (its grip hotspot as the server places it), the grip
     pressed once the server has the hand there -> the server's "takes hold" line (None: no hold)."""
-    sv = drawn_report(srv, "mp_drawn_sv").get((ev, 1), {})
-    spots = [v[1:] for v in sv.get("spots", {}).values() if int(v[0]) == 1] or [v[1:] for v in sv.get("spots", {}).values()]
+    # (B25: until the server draws it in his hand: the shotgun given (weapon_until: his inventory's) was not yet drawn
+    # there in a suite run under load, {'drawn': 0, 'slot': -1}; at most 40 reports)
+    spots = []
+    for _ in range(40):
+        sv = drawn_report(srv, "mp_drawn_sv").get((ev, 1), {})
+        spots = [v[1:] for v in sv.get("spots", {}).values() if int(v[0]) == 1] or \
+            [v[1:] for v in sv.get("spots", {}).values()]
+        if spots:
+            break
     if not spots:
         raise StepFailed("%s: no hotspot of %s's shotgun on the server: %s" % (label, victim.name, sv))
     taker.cmd("vr_mock_play; vr_mock_button main grip 0")
@@ -3202,11 +3267,17 @@ def make_room(s, srv, inst, ent, wid, what):
         server_time_past(srv, server_time(srv) + 1.5)  # (it falls and settles away from him)
     else:
         inst.cmd("vr_mock_hand main 0.15 1.2 -0.40 70 0 0")  # (the mock's level gun: 70 degrees up from its rest)
-        for _ in range(4):  # (the launcher holds a few: one shot each, its refire time between)
-            if clip() <= 0:
+        # (B25: the trigger held until the server's magazine is down by one, not 0.1 s of the server's time: under load
+        # B's game ran +attack and -attack in one frame, no shot, the magazine left at 1 after the 4 tries)
+        for _ in range(6):  # (the launcher holds a few: one shot each, its refire time between)
+            before = clip()
+            if before <= 0:
                 break
             inst.cmd("+attack")
-            server_time_past(srv, server_time(srv) + 0.1)
+            for _ in range(40):
+                server_time_past(srv, server_time(srv) + 0.05)
+                if clip() < before:
+                    break
             inst.cmd("-attack")
             server_time_past(srv, server_time(srv) + 1.0)
     left = clip()
@@ -4658,8 +4729,10 @@ LAGCOMP_LEG_SHOTS = 4      # ... B's test shots at him in each (the first of a l
 LAGCOMP_SHOT_MOST = 800.0   # ms: and his test shot (a reliable command, after the move that would carry a real shot) at most
 LAGCOMP_HIT_LEAST = 0.8    # of the counted shots, judged where B saw him, this many hit him at least
 LAGCOMP_BACK = (250.0, 500.0)  # ms: how far back the others were put for B's shots (his round trip and his buffer's delay)
-LAGCOMP_HOLDS = (3, 6)     # (B13c) the held legs: A's updates to B wait this many snapshots in each one more (the
+LAGCOMP_HOLDS = (3, 6, 3, 6)  # (B13c) the held legs: A's updates to B wait this many snapshots in each one more (the
                            # server's vr_net_test_hold: as B's rate's waits leave them; 6 past his buffer's rest gap)
+                           # (B25: four, not two: whether a shot finds the frames' rewind off depends on where in the
+                           # hold's cycle B's view was, a matter of wall-clock timing; the check takes the worst of 12)
 LAGCOMP_ERR_MEAN = 2.0     # units: A put back at most this far from where B drew him, on average ...
 LAGCOMP_ERR_MOST = 6.0     # ... and at most (the shot's command a frame after his draw; coordinates' rounding)
 LAGCOMP_CAP_SHOWS = 3.0    # units: under the cap the frames' rewind (before B13c) is off by this much more on average
@@ -4722,9 +4795,13 @@ def lagcomp(s):
     s.check("A's updates held %s snapshots (as under B's rate cap) too: at the places B was sent" % (LAGCOMP_HOLDS,),
             bool(cap_errs) and mean(cap_errs) <= LAGCOMP_ERR_MEAN and max(cap_errs) <= LAGCOMP_ERR_MOST,
             "mean %.2f, most %.2f: %s" % (mean(cap_errs), max(cap_errs or [99]), cap_errs))
-    s.check("the server's frames at his view time (the rewind before B13c) are off by more there",
-            mean(cap_frame_errs) >= mean(cap_errs) + LAGCOMP_CAP_SHOWS,
-            "frames' mean %.2f vs %.2f: %s" % (mean(cap_frame_errs), mean(cap_errs), cap_frame_errs))
+    # (B25: by the worst shot, not the mean: a held shot's frames' rewind is off only when B's view fell between two of
+    # A's held updates, not on one -- the hold's phase against his shot's, wall-clock timing: the mean of 6 was 1.09 and
+    # 2.69 in two suite runs under load (their worst 4.94 and 12.75), 4-8 alone)
+    s.check("the server's frames at his view time (the rewind before B13c) are off by more there (the worst held shot)",
+            bool(cap_frame_errs) and max(cap_frame_errs) >= max(cap_errs or [99]) + LAGCOMP_CAP_SHOWS,
+            "frames' worst %.2f vs %.2f (means %.2f, %.2f): %s" % (max(cap_frame_errs or [0]), max(cap_errs or [99]),
+                                                                  mean(cap_frame_errs), mean(cap_errs), cap_frame_errs))
     s.metric("lagcomp_punch", {"counted": punches, "rewound": p_rewound, "plain": p_plain})
     s.note("B's punches at A: %d counted, %d landed where B saw him, %d where the server has him now" % (
         punches, p_rewound, p_plain))
@@ -5241,8 +5318,10 @@ def deathmatch(s):
     the intermission at both clients, their scoreboards the same."""
     srv = s.server(dedicated=True)
     srv.start()
-    srv.cmd("coop 0; deathmatch 1; fraglimit %d; timelimit %d; skill 1; map %s; vr_mp_status" % (
-        DM_FRAGLIMIT, DM_TIMELIMIT, DM_MAP))
+    # (B25: no fraglimit until A's frags: the bots play by themselves meanwhile and once reached it in the QC tests' steps
+    # under load -- the intermission, the level again, the bots gone: dmtest 7 and 8 found no bot, 7 checks failed. The
+    # QC's StartFrame reads fraglimit every frame: set below, before A's kills.)
+    srv.cmd("coop 0; deathmatch 1; fraglimit 0; timelimit %d; skill 1; map %s; vr_mp_status" % (DM_TIMELIMIT, DM_MAP))
     srv.wait(r"mp_server: map=%s" % DM_MAP, 120, what="the server on %s" % DM_MAP)
     a = s.client("A").start()
     b = s.client("B", proxy=True).start()
@@ -5270,12 +5349,15 @@ def deathmatch(s):
     b.wait(r"mp_frags: .*named=1", 10, since_b, "the bots named at B")
     # (B19: B's first bot's name was waited for, the second's not: B listed three once in a suite run; up to 10
     # more of B's name lines, until he lists four)
-    for _ in range(10):
-        if len(frag_table(b)) >= 4:
-            break
-        since_b = b.mark()
-        if not wait_quietly(b, r"mp_frags: .*named=1", 2, since_b, "another name at B"):
-            break
+    # (B25: A's too: under load A listed three, a bot's name not yet his ({3: 'FrikBot'}, slot 2 missing), and the
+    # bots' list came out short)
+    for c in (a, b):
+        for _ in range(10):
+            if len(frag_table(c)) >= 4 and all(n != "FrikBot" for n, _ in frag_table(c).values()):
+                break
+            since_c = c.mark()
+            if not wait_quietly(c, r"mp_frags: .*named=1", 5, since_c, "another name at %s" % c.name):
+                break
     ta, tb = frag_table(a), frag_table(b)
     bots = sorted(slot for slot in ta if slot not in (ea - 1, eb - 1))
     s.check("both clients list four players (A, B, two bots)", len(ta) == 4 and len(tb) == 4 and len(bots) == 2,
@@ -5414,12 +5496,16 @@ def deathmatch(s):
     # (B14c) A frags the bots (the server's vr_hurt with A as attacker) until his frags reach the fraglimit: the bots'
     # own frags can't get there for sure, as dm4's lava takes one off a bot every few seconds (FrikBot's falls, B14b's
     # failing runs: 17 of them in a minute against the test's 5 kills)
+    # (B25: the fraglimit set now, above everyone's frags so far: A's kills reach it, not a bot's frags at once)
+    limit = max([DM_FRAGLIMIT] + [f + 1 for _, f in frag_table(a).values()])
+    srv.cmd("fraglimit %d" % limit)
+    server_time_past(srv, server_time(srv) + 0.1)
     a_kills = 0
-    for i in range(DM_FRAGLIMIT * 3):
+    for i in range(limit * 3):
         if a.find(r"mp_event: .*intermission=[1-9]", since_a):
             break
         mine = frag_table(a).get(ea - 1, ("", 0))[1]
-        if mine >= DM_FRAGLIMIT:
+        if mine >= limit:
             break
         since_f = a.mark()
         srv.cmd("vr_hurt 1000 %d %d" % (bots[i % 2], ea))  # (a bot dead in the lava now: the other one next)
@@ -5433,7 +5519,7 @@ def deathmatch(s):
     ta, tb = frag_table(a), frag_table(b)
     top = max(f for _, f in ta.values()) if ta else 0
     s.metric("dm_frags", {"A": ta, "B": tb})
-    s.check("the fraglimit (%d) reached: the intermission at A and B" % DM_FRAGLIMIT, top >= DM_FRAGLIMIT,
+    s.check("the fraglimit (%d) reached: the intermission at A and B" % limit, top >= limit,
             "A's scoreboard %s" % ta)
     s.check("A's and B's scoreboards agree", ta == tb, "A %s; B %s" % (ta, tb))
 
@@ -6207,6 +6293,56 @@ def print_bytes_table():
             g("snap_hdr"), g("sound", "tent"), g("rest"), g("reliable")))
 
 
+SUITE = [
+    ("mp_coop", ()),
+    ("mp_coop_lag", (150, 0, 0.02)),
+    ("mp_bandwidth", ()),
+    ("mp_armed", ()),
+    ("mp_retransmit", ()),
+    ("mp_version", ()),
+    ("mp_dedicated", ()),
+    ("mp_avatar", ()),
+    ("mp_avatarcal", ()),
+    ("mp_body", ()),
+    ("mp_prefs", ()),
+    ("mp_grab", ()),
+    ("mp_teleport", ()),
+    ("mp_held", ()),
+    ("mp_ground", ()),
+    ("mp_campaign", ()),
+    ("mp_campaign_listen", ()),
+    ("mp_flow", ()),
+    ("mp_rejoin", ()),
+    ("mp_download", ()),
+    ("mp_pickup", ()),
+    ("mp_forcegrab", ()),
+    ("mp_melee", ()),
+    ("mp_moves", ()),
+    ("mp_climb", ()),
+    ("mp_rules", ()),
+    ("mp_cosmetics", ()),
+    ("mp_flatbody", ()),
+    ("mp_loss", ()),
+    ("mp_predict", ()),
+    ("mp_predictclimb", ()),
+    ("mp_predictslide", ()),
+    ("mp_lagcomp", ()),
+    ("mp_disarm", ()),
+    ("mp_voice", ()),
+    ("mp_voice_lossy", (50, 30, 0.05)),
+    ("mp_dm", ()),
+    ("mp_lockstep", ()),
+    ("mp_lockstep_dm", ()),
+    ("mp_lockstep_throw", ()),
+    ("mp_browser", ()),
+    ("mp_nethud", ()),
+    ("mp_vanish", ()),
+    ("mp_fuzz", ()),
+    ("mp_jitter", ()),
+    ("mp_nat", ()),
+]  # (mp_netsafe runs first, before these; the rest in this order. The tuples: lag ms, jitter ms, loss)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite"])
@@ -6232,7 +6368,20 @@ def main():
     ap.add_argument("--soak-minutes", type=int, default=0, help="soak: keep going this many minutes of the server's game time after the window, sampled each minute (B20: leaks, drift)")
     ap.add_argument("--heap-sites", default="", help="soak --soak-minutes: MIN:MAX, the server's live blocks of that size by call stack from the warm-up on (B22: vr_heap_sites)")
     ap.add_argument("--soak-change", default="", help="soak --soak-minutes: the map again after this minute, or these (\"20,40\") (B21: does the memory come back)")
+    ap.add_argument("--only", default="", help="suite: just these scenarios, comma-separated (\"mp_dm,mp_lagcomp\"; mp_netsafe always first)")
+    ap.add_argument("--suite-repeat", type=int, default=1, help="suite: its scenarios this many times over in one run")
+    ap.add_argument("--load", type=int, default=0, help="(B25) N busy CPU workers at normal priority for the whole run "
+                    "(mp_load.py: other builds and tests on the machine, the suite's real condition; 0: none)")
+    ap.add_argument("--load-duty", type=float, default=1.0, help="--load: each worker busy this share of the time")
     args = ap.parse_args()
+    load = Load(args.load, args.load_duty).start()
+    try:
+        main_run(args)
+    finally:
+        load.stop()
+
+
+def main_run(args):
     global SOAK_CHANGE, SOAK_HEAP_SITES
     SOAK_CHANGE = [int(x) for x in args.soak_change.split(",") if x.strip() and int(x) > 0]
     SOAK_HEAP_SITES = args.heap_sites
@@ -6260,56 +6409,19 @@ def main():
     elif args.test == "voice":
         ok = run(args, "mp_voice", args.lag, args.jitter, args.loss)
     else:
-        ok = run(args, "mp_netsafe")  # (B24: first: the fences that keep every game off the internet)
+        only =[x.strip() for x in args.only.split(",") if x.strip()]
+        unknown = [x for x in only if x not in [n for n, _ in SUITE] + ["mp_netsafe"]]
+        if unknown:
+            print("mp_suite: --only names no suite scenario: %s" % unknown)
+            sys.exit(2)
+        ok = run(args, "mp_netsafe")  # (B24: first: the fences that keep every game off the internet; always)
         if not ok:
             print("mp_suite: FAILED (mp_netsafe: the network fences are broken; nothing else run)")
             sys.exit(1)
-        ok = run(args, "mp_coop") and ok
-        ok = run(args, "mp_coop_lag", 150, 0, 0.02) and ok
-        ok = run(args, "mp_bandwidth") and ok
-        ok = run(args, "mp_armed") and ok
-        ok = run(args, "mp_retransmit") and ok
-        ok = run(args, "mp_version") and ok
-        ok = run(args, "mp_dedicated") and ok
-        ok = run(args, "mp_avatar") and ok
-        ok = run(args, "mp_avatarcal") and ok
-        ok = run(args, "mp_body") and ok
-        ok = run(args, "mp_prefs") and ok
-        ok = run(args, "mp_grab") and ok
-        ok = run(args, "mp_teleport") and ok
-        ok = run(args, "mp_held") and ok
-        ok = run(args, "mp_ground") and ok
-        ok = run(args, "mp_campaign") and ok
-        ok = run(args, "mp_campaign_listen") and ok
-        ok = run(args, "mp_flow") and ok
-        ok = run(args, "mp_rejoin") and ok
-        ok = run(args, "mp_download") and ok
-        ok = run(args, "mp_pickup") and ok
-        ok = run(args, "mp_forcegrab") and ok
-        ok = run(args, "mp_melee") and ok
-        ok = run(args, "mp_moves") and ok
-        ok = run(args, "mp_climb") and ok
-        ok = run(args, "mp_rules") and ok
-        ok = run(args, "mp_cosmetics") and ok
-        ok = run(args, "mp_flatbody") and ok
-        ok = run(args, "mp_loss") and ok
-        ok = run(args, "mp_predict") and ok
-        ok = run(args, "mp_predictclimb") and ok
-        ok = run(args, "mp_predictslide") and ok
-        ok = run(args, "mp_lagcomp") and ok
-        ok = run(args, "mp_disarm") and ok
-        ok = run(args, "mp_voice") and ok
-        ok = run(args, "mp_voice_lossy", 50, 30, 0.05) and ok
-        ok = run(args, "mp_dm") and ok
-        ok = run(args, "mp_lockstep") and ok
-        ok = run(args, "mp_lockstep_dm") and ok
-        ok = run(args, "mp_lockstep_throw") and ok
-        ok = run(args, "mp_browser") and ok
-        ok = run(args, "mp_nethud") and ok
-        ok = run(args, "mp_vanish") and ok
-        ok = run(args, "mp_fuzz") and ok
-        ok = run(args, "mp_jitter") and ok
-        ok = run(args, "mp_nat") and ok
+        for _ in range(max(1, args.suite_repeat)):
+            for name, link in SUITE:
+                if not only or name in only:
+                    ok = run(args, name, *link) and ok
         # B's link per scenario (MP_PLAN B7: byte counts against mp_bandwidth's): what the next phases cut.
         print_bytes_table()
         print("mp_suite: %s" % ("passed" if ok else "FAILED"))
