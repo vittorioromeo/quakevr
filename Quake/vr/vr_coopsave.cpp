@@ -372,6 +372,7 @@ extern "C" void VR_CoopNoteLeave(int slot)
     // What he has now, as a level change carries it (QC's SetChangeParms on his player; dead: a new player's).
     const qvr::progs::ServerVm vm;
     const int self = pr_global_struct->self;
+    const float healthBefore = c.edict->v.health; // (SetChangeParms raises it to its floor in place)
     pr_global_struct->time = qcvm->time;
     pr_global_struct->self = EDICT_TO_PROG(c.edict);
     PR_ExecuteProgram(pr_global_struct->SetChangeParms);
@@ -379,6 +380,21 @@ extern "C" void VR_CoopNoteLeave(int slot)
     for(int j = 0; j < NUM_SPAWN_PARMS; j++)
     {
         l.nowParms[j] = (&pr_global_struct->parm1)[j];
+    }
+    // A return is not a level change: no floors (B17). A level change carries at least 25 shells and half the health
+    // capacity (id's SetChangeParms), which here would be a top-up for leaving and coming back (B15's "a magazine more":
+    // 17 shells back as 25). The cap above (the health capacity) stays; a dead player's new parms are left alone.
+    if(healthBefore > 0.f)
+    {
+        if(l.nowParms[1] > healthBefore)
+        {
+            l.nowParms[1] = healthBefore;
+        }
+        const float shells = c.edict->v.ammo_shells; // (after SetChangeParms: a shell in his hand back in the reserve)
+        if(l.nowParms[3] > shells && l.nowParms[3] <= 25.f)
+        {
+            l.nowParms[3] = shells;
+        }
     }
     VR_StoreSpawnParms(slot); // (the globals parm17.. into his slot's store, read back here, then his own again)
     memcpy(l.nowExt, ext, sizeof(l.nowExt));
