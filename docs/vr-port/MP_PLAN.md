@@ -247,6 +247,13 @@ The engine's aids (`Quake/vr/vr_mptest.cpp`):
   ground); `vr_mp_predict_probe <label>`: `mp_predict_moved:` when his own drawn entity first moves (moves sent, frames,
   ms since); with `vr_mp_watch 1` each correction over a unit prints `mp_predict_corr:` (the state, both places, notes).
 - A dedicated server started with `QVR_TEST_HIDDEN` opens no console window (`sys_sdl_win.c`).
+- **No test talks to the internet** (B24): every harness game runs with `-loopbackonly` (net_main.c: names other than
+  "localhost" never looked up, nothing resolved to or sent outside 127.0.0.0/8, no reverse lookups, IPX or add-on
+  downloads; each refusal prints `NET SAFETY:`); the harness refuses to start a game, or send it a command, that points
+  it elsewhere (vr_mp_room on with a non-loopback vr_mp_rendezvous, a `connect` elsewhere, a room-code join through a
+  service elsewhere); each scenario ends with the check "every game kept to loopback" (each live game's vr_mp_room and
+  vr_mp_rendezvous asked, every log read for `NET SAFETY:`). `mp_netsafe` (first in the suite; the suite stops if it
+  fails) tests all three.
 
 Running it (the kit's base for this worktree; `--reset-autoexec` empties its `id1/autoexec.cfg`, which the kit's
 runs leave with their script):

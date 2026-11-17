@@ -5928,7 +5928,7 @@ def soak(s):
 
 
 SOAK_MINUTES = 0           # (B20) --soak-minutes: the long soak after the window (0: none)
-SOAK_CHANGE = 0            # (B21) --soak-change: the map again after this minute of it (0: never)
+SOAK_CHANGE = []           # (B21) --soak-change: the map again after these minutes of it (B24: "20,40"; none: never)
 SOAK_HEAP_SITES = ""       # (B22) --heap-sites MIN:MAX: the server's live blocks of that size by call stack (soak_sites.txt)
 SOAK_LONG_SAMPLE = 60.0    # its samples, a minute of the server's game time apart
 SOAK_LONG_WARMUP = 2       # ... the memory measured from the end of this many (the first minutes fill caches)
@@ -6019,7 +6019,7 @@ def soak_long(s, srv, a, b, minutes):
             srv.cmd("vr_heap_sites %s %s" % tuple(SOAK_HEAP_SITES.split(":")))
         rows.append(row)
         s.note("soak minute %d: %s" % (m, " ".join("%s=%s" % kv for kv in row.items() if kv[0] != "minute")))
-        if m == SOAK_CHANGE:
+        if m in SOAK_CHANGE:
             # (B21) the map again mid-soak: what the old map's Box3D world and the rest held comes back
             since_a, since_b, since = a.mark(), b.mark(), srv.mark()
             srv.cmd("changelevel %s; vr_mp_status" % SOAK_MAP)
@@ -6027,8 +6027,9 @@ def soak_long(s, srv, a, b, minutes):
             b.wait(r"mp_event: .*joined map=%s" % SOAK_MAP, 120, since_b, "B on %s again" % SOAK_MAP)
             # (B22: FrikBot's bots do not follow a changelevel: added again, the minutes after the change stay busy)
             add_bots(a, since_a)
-            changed[a.name] = (since_a, a.mark())  # (their "left" at the change is the change's, not a drop)
-            changed[b.name] = (since_b, b.mark())
+            # (their "left" at a change is the change's, not a drop)
+            changed.setdefault(a.name, []).append((since_a, a.mark()))
+            changed.setdefault(b.name, []).append((since_b, b.mark()))
             since = srv.mark()
             srv.cmd("vr_physics_mem; vr_heap collect")
             _, bm = srv.wait(r"vr_physics_mem: ", 30, since, "the server's Box3D memory after the change")
@@ -6036,9 +6037,9 @@ def soak_long(s, srv, a, b, minutes):
             hm = re.search(r"mimalloc reserved [\d.]+ MB, committed ([\d.]+) MB", hl)
             after = float(hm.group(1)) if hm else -1.0
             heap_live(srv, live_rows, -m)  # (soak_live.txt's minute -m: just after the change)
-            s.metric("soak_long_change_heap_before_mb", row["heap_server"])
-            s.metric("soak_long_change_heap_after_mb", after)
-            s.metric("soak_long_change_box3d_after_mb", float(fields(bm).get("box3d", -1)))
+            s.metric("soak_long_change%d_heap_before_mb" % m, row["heap_server"])
+            s.metric("soak_long_change%d_heap_after_mb" % m, after)
+            s.metric("soak_long_change%d_box3d_after_mb" % m, float(fields(bm).get("box3d", -1)))
             s.note("soak: the map again after minute %d: the server's heap %.1f -> %.1f MB, Box3D %.2f -> %s MB" % (
                 m, row["heap_server"], after, row["box3d_mb"], fields(bm).get("box3d", "?")))
             s.check("the map change gives the old map's Box3D memory back (under 8 MB after it)",
@@ -6079,7 +6080,7 @@ def soak_long(s, srv, a, b, minutes):
     s.check("B's moves lost at the server under 1%", runs > 0 and last["b_lost"] <= runs * 0.01,
             "%d lost of %d" % (last["b_lost"], runs))
     left = [l for inst in (a, b) for i, l in enumerate(inst.lines) if l.startswith("mp_event:") and
-            l.rstrip().endswith(" left") and not changed.get(inst.name, (0, 0))[0] <= i < changed.get(inst.name, (0, 0))[1]]
+            l.rstrip().endswith(" left") and not any(lo <= i < hi for lo, hi in changed.get(inst.name, []))]
     s.check("nobody left the game over the long soak", not left, "%s" % left[:3])
 
 
@@ -6230,10 +6231,10 @@ def main():
     ap.add_argument("--watch", type=int, default=1, help="predict --part: vr_mp_watch on the server and B (3: corrections over 0.05 traced)")
     ap.add_argument("--soak-minutes", type=int, default=0, help="soak: keep going this many minutes of the server's game time after the window, sampled each minute (B20: leaks, drift)")
     ap.add_argument("--heap-sites", default="", help="soak --soak-minutes: MIN:MAX, the server's live blocks of that size by call stack from the warm-up on (B22: vr_heap_sites)")
-    ap.add_argument("--soak-change", type=int, default=0, help="soak --soak-minutes: the map again after this minute (B21: does the memory come back)")
+    ap.add_argument("--soak-change", default="", help="soak --soak-minutes: the map again after this minute, or these (\"20,40\") (B21: does the memory come back)")
     args = ap.parse_args()
     global SOAK_CHANGE, SOAK_HEAP_SITES
-    SOAK_CHANGE = max(0, args.soak_change)
+    SOAK_CHANGE = [int(x) for x in args.soak_change.split(",") if x.strip() and int(x) > 0]
     SOAK_HEAP_SITES = args.heap_sites
     global PART, PART_REPEAT, PART_WATCH, PART_JITTER, PART_LOSS, AMMO_PART, PERMOVE_SKIP, TRACELOG, SOAK_MINUTES
     PART, PART_REPEAT, PART_WATCH = args.part, max(1, args.repeat), max(1, args.watch)
