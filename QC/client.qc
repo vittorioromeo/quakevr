@@ -1061,6 +1061,19 @@ float(entity spot) VR_DMSpotBeside =
     return FALSE;
 };
 
+// VR (B13b): the spot a respawn beside `spot` takes: vr_dm_beside at vr_dm_beside_at (VR_DMSpotBeside's), facing as `spot`.
+entity(entity spot) VR_BesideSpotTake =
+{
+    if(!vr_dm_beside || vr_dm_beside.classname != "vr_dm_beside")
+    {
+        vr_dm_beside = spawn();
+        vr_dm_beside.classname = "vr_dm_beside";
+    }
+    vr_dm_beside.origin = vr_dm_beside_at;
+    vr_dm_beside.angles = spot.angles;
+    return vr_dm_beside;
+};
+
 // VR (B13b): the first deathmatch start (from `from` on, round) with a clear place beside it (VR_DMSpotBeside), as the spot
 // a respawn takes (vr_dm_beside, facing as the start); world if none.
 entity(entity from) VR_DMBesideSpot =
@@ -1079,16 +1092,9 @@ entity(entity from) VR_DMBesideSpot =
         }
         if(VR_DMSpotBeside(spot))
         {
-            if(!vr_dm_beside || vr_dm_beside.classname != "vr_dm_beside")
-            {
-                vr_dm_beside = spawn();
-                vr_dm_beside.classname = "vr_dm_beside";
-            }
-            vr_dm_beside.origin = vr_dm_beside_at;
-            vr_dm_beside.angles = spot.angles;
             dprint(sprintf("dm spawn: every start taken; beside one at %s (%.0f units from it)\n", vtos(vr_dm_beside_at),
                 vlen(vr_dm_beside_at - spot.origin)));
-            return vr_dm_beside;
+            return VR_BesideSpotTake(spot);
         }
         if(spot == from)
             return world;
@@ -1114,6 +1120,70 @@ float() VR_DMSpotClear =
         spot = find(spot, classname, "info_player_deathmatch");
     }
     return VR_DMBesideSpot(lastspawn) != world;
+};
+
+// VR (B25b, MP_PLAN): the coop start after `from` as stock Quake cycled them (the info_player_coop after it, else the
+// info_player_start), and VR_CoopSpotRound's step: every coop start then the player start, round, from any of them.
+entity(entity from) VR_CoopSpotNext =
+{
+    entity s = find(from, classname, "info_player_coop");
+    if(!s)
+        s = find(world, classname, "info_player_start");
+    return s;
+};
+
+entity(entity from) VR_CoopSpotRound =
+{
+    entity s = world;
+    if(from.classname == "info_player_coop")
+        s = find(from, classname, "info_player_coop");
+    else if(from.classname != "info_player_start")
+        s = find(world, classname, "info_player_coop");
+    if(!s && from.classname == "info_player_coop")
+        s = find(world, classname, "info_player_start");
+    if(!s)
+        s = find(world, classname, "info_player_coop");
+    if(!s)
+        s = find(world, classname, "info_player_start");
+    return s;
+};
+
+// VR (B25b, MP_PLAN): a coop spawn's start. Stock Quake took the next start in turn, a player standing on it or not, and
+// the spawn telefragged him: a player joining a coop game in progress (or back from a crash) killed the one at the next
+// start (mp_rejoin: "C was telefragged by B" once another join had moved the turn on). The next start in turn if no
+// living player is within 64 units of it (VR_DMPlaceBlocked, deathmatch's rule), else the next clear one round, else a
+// clear place beside one (VR_DMSpotBeside), else the next in turn as stock Quake (the telefrag). world: no coop start.
+entity() VR_CoopSpawnPoint =
+{
+    entity first = VR_CoopSpotNext(lastspawn);
+    if(!first)
+        return world;
+    entity s = first;
+    for(float k = 0; k < 64; k++)
+    {
+        if(!VR_DMSpotBlocked(s))
+        {
+            lastspawn = s;
+            return s;
+        }
+        s = VR_CoopSpotRound(s);
+        if(!s || s == first)
+            break;
+    }
+    lastspawn = first;
+    s = first;
+    for(float j = 0; j < 64; j++)
+    {
+        if(VR_DMSpotBeside(s))
+        {
+            dprint(sprintf("coop spawn: every start taken; beside one at %s\n", vtos(vr_dm_beside_at)));
+            return VR_BesideSpotTake(s);
+        }
+        s = VR_CoopSpotRound(s);
+        if(!s || s == first)
+            break;
+    }
+    return first;
 };
 
 entity() SelectSpawnPoint =
@@ -1157,11 +1227,10 @@ entity() SelectSpawnPoint =
             } while(c && c != first);
             return find(world, classname, "info_player_start");
         }
-        lastspawn = find(lastspawn, classname, "info_player_coop");
-        if(lastspawn == world)
-            lastspawn = find(lastspawn, classname, "info_player_start");
-        if(lastspawn != world)
-            return lastspawn;
+        spot = VR_CoopSpawnPoint();
+        if(spot != world)
+            return spot;
+        lastspawn = world;
     }
     else if(deathmatch)
     {

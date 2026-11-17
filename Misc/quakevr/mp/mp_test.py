@@ -2695,10 +2695,12 @@ def rejoin(s):
     # (B25) Another game by B's name from his address while B's link up is silent over QVR_GHOST_SILENCE (a hitch, a
     # busy machine): not B back from a crash (its own vr_mp_clientkey), B's connection kept, the other given a slot of
     # its own. (By the name alone the server closed a live player's connection: the suite's joins under load, where
-    # every harness game was "player".) (`rejoin --part samename`, alone: in the suite's run it left B's return below
-    # with health 0 and his shells twice, not understood yet: MP_PLAN B25's open items)
+    # every harness game was "player".) (B25b: back in the default run. B25 split it out: B's return below came back
+    # with health 0 and his shells twice: D's join had moved the coop starts' turn on, B's return took the start C
+    # stood on and telefragged him, B then dying and taking C's backpack; coop spawns now skip a taken start,
+    # VR_CoopSpawnPoint. `--part samename` stops after it.)
+    rejoin_same_name(s, srv, b, ea, eb, sb)
     if PART == "samename":
-        rejoin_same_name(s, srv, b, ea, eb, sb)
         return
 
     # B's game crashes (killed behind his proxy: his old connection silent, no port unreachable to the server); he comes
@@ -2769,6 +2771,10 @@ def rejoin_crash(s, srv, a, b, c, ea, eb, sb):
     s.check("B, back from his crash, has what he had (health 30 and 17 shells: no level change's floors)",
             back is not None and not diff and inv_b.get(sb, {}).get("health") == 30,
             "before %s; now %s (differ %s)" % (inv_b.get(sb), now.get(sb), diff))
+    srv.mark()
+    tele = srv.find(r"telefragged")
+    s.check("(B25b) no coop join or return telefragged a player standing at a start (VR_CoopSpawnPoint)", tele is None,
+            tele[1].strip() if tele else "none")
     players = names_until(srv, ("A", "B", "C"))
     s.check("no ghost: A, B and C each in one slot", all(len(players.get(n, [])) == 1 for n in ("A", "B", "C")),
             "%s" % players)
