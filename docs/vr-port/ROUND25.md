@@ -4552,3 +4552,19 @@ His Quest 3 report: after an install and a new data push, minutes of Meta's thre
   frame fence, with any settings: not a GL sync); `vr_quest_check` at each Android start (the differing Quest rows
   logged; MSAA and bloom set back, `vr_quest_guard`); the program cache's miss reason in the start-up trace; the
   Android build's `-DQVR_QC=OFF`. Package `<kit>/scratch/quest_apk2/`. PC defaults and behaviour unchanged.
+
+## questN: the safe-mode loop and the shader recompiles (branch agent/quest, 2026-11-17)
+
+- His adb findings: the 19 fps was automatic GL safe mode after a start stopped during a long shader compile; the dots
+  were full recompiles per shader-set change (QUEST_PLAN.md 6zh).
+- Automatic safe mode now needs a crash (the handler writes `== crashed` to gl_startup.log) or a death within 20 s of
+  the shaders; a start stopped in a compile, after a slow one or after living on is not counted, and the log says so.
+  Under OpenGL ES safe mode keeps persistent mapped buffers. `vr_glsafe_judge_test` (Debug > Tests) 10/0.
+- Shader sets: none remade while commands run or before the first frame's commands (`cbuf_executing`, cmd.c); the
+  first set takes the last session's lite form (ES only): one set per start with a stable config. Each set logged
+  ("GL shaders: set N this run ..."). The program cache keeps several sets (pack v2: per-program last session; 24
+  sessions or 128 MB).
+- `vr_quest_check` also caps `vr_shadow_dlights` (0) and `vr_dynres_min` (0.55); the Quest's refresh-rate choice is
+  logged; `vr_android_export perf` exports the app's perf CSVs. Package `<kit>/scratch/quest_apk3/`.
+- PC: behaviour unchanged (the remake deferral and safe mode's kept buffers act only on the ES path; the crash marker
+  and the set lines are log-only). One PC-visible change: a Host_Error now resets `cbuf_executing` (new counter).

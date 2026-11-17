@@ -1690,6 +1690,38 @@ with the session's near monsters; `c4y_fz1..4.sh`), `c4y_pcskin.sh` / `c4y_pcvl.
   slow-frames steps). PC: dev build 0 warnings; gles_render_test 21/0; scenario_check PASS (136, 0 failed);
   load_models_test 4/0; APK 0 warnings, check_apk 18/0.
 
+## 6zh. The safe-mode loop, the shader sets, the guard's two rows; the third package (2026-11-17; his adb findings)
+
+- **His adb session** (laptop, Quest 3, the 6zf package): the 19/72 launches were **automatic GL safe mode** (persistent
+  mapped buffers off: 34% of the main thread in Adreno's synchronous `GL_Upload` per draw); the minutes of dots were
+  **full shader recompiles** (45-75 s each) whenever the shader set changed (safe mode on/off, `vr_shadow_dlights`, MSAA;
+  also mid-exec: `Cmd_Exec_f -> Con_Printf -> SCR_UpdateScreen -> GL_CreateShaders`); a start stopped during the compile
+  put the next in safe mode: the loop. Without safe mode his saved config ran 44/72; `vr_shadow_dlights 0` 51,
+  `vr_dynres_min 0.55` too 63.
+- **Safe mode judged** (`vr_glsafe.cpp judgeLastStart`): gl_startup.log carries each shader set's begin and end, `== alive
+  at` every 5 s and the crash handler's `== crashed`. A start that missed its map counts only when it crashed or died
+  within 20 s of its shaders without a report; stopped in a compile, after >= 10 s of compiles, or after living on: not
+  counted, said ("GL safe mode off (...: not counted)"). Under OpenGL ES safe mode **keeps persistent mapped buffers**.
+  `vr_glsafe_judge_test` 10/0; real stopped starts (`-gltestdie shaders|aftershaders`, PC `-glescompat -fakeandroid
+  -glsafeauto`): stopped in the compile -> next start off (not counted); dead right after -> next on (automatic), its
+  buffers "kept (safe mode under OpenGL ES)"; the start after that off (a dev build).
+- **One shader set per start**: `GL_WorldLiteCheck` waits while commands run (`cbuf_executing`) and through the first
+  frame; the start's first set takes the lite form the last session made last (`crash/gl_shader_set.txt`, ES only). PC
+  ES path: a stable config 1 set (145 programs, 0.5 s from the cache); two lite changes mid-exec with prints between: 2
+  sets (one after the exec, not one a print). Each set in the console and the trace: "GL shaders: set N this run, ...
+  (H from the program cache, M compiled)".
+- **The program cache keeps several sets**: pack version 2 (a session number, each program's last session); a program
+  goes when unused 24 sessions or past 128 MB, oldest first; version 1 packs read. Four lite forms in turn, then the
+  first again: 145 of 145 from the cache.
+- **`vr_quest_check`** also caps `vr_shadow_dlights` at 0 and `vr_dynres_min` at 0.55 (said). **Refresh rate**: the
+  Quest's is `vr_xr_refresh_rate`'s (0: the runtime's 72); `vid_refreshrate` is the window's, ignored, now said in the log.
+- **`vr_android_export`**: paths in the app's own files too (`perf`; `profile/perf` as the app's perf); "not found"
+  instead of "failed, 0 bytes"; vr_android_test 16/0.
+- Open: the audio mixing on the render thread (~15% of the main thread: S_Update -> VR_SndPaint -> Mixer::render) to a
+  thread of its own; compiling in the background after the first frame (not cheap: the first frame needs the set).
+- Package `<kit>/scratch/quest_apk3/` (README: what changed, clearing a stuck safe mode). PC: dev build 0 warnings;
+  gles_render_test 21/0; scenario_check PASS (136, 0 failed); load_models_test 4/0; APK 0 warnings, check_apk 18/0.
+
 ## 7. Installs (done 2026-11-14 at his approval, by the coordinator)
 
 Installed under `F:\QuakeVRDev` (`env.sh` / `env.ps1` there set `JAVA_HOME`, `ANDROID_HOME`, `ANDROID_SDK_ROOT`,
@@ -1733,4 +1765,4 @@ Sizes are approximate download sizes [I]; versions are the current stable ones a
 
 Also: a Quest 3 (or 3S) in developer mode (Meta Horizon app, an organisation account), a USB-C cable.
 
-Next phase: C4z (after 6zg; first the saved-config stall's value from his log or config, 6zg) — no installs, the headset needed: measure on the frozen live fight (`c4y_frozen.sh`, every round consistent beyond the ~0.5 ms a program remake brings); the models' fragment shading (~2.8-3.3 ms over a constant with every model plain, near monsters filling the view) is neither their light's math nor their look: next suspects the varyings and the instance-buffer reads per pixel (a minimal plain form: texture, vertex light, fog), and the ~1 ms of geometry (the body's 14.6k triangles with its pre-pass, the vertex shader's motion-vector writes); his look call on `vr_rig_lights_world 0`; SpaceWarp (`XR_FB_space_warp`, offered) optional and off. Still open from before: C2h (the world textures' memory under the ES profile), Adreno's wrong derivatives with the retro code out (NORETRO). Waiting on his call: the Android Gradle Plugin download (section 7), the armed humanoids' CPU cost (section 6d), shadowless dynamic lights on the Quest (6w).
+Next phase: C4z (after 6zh; first his launches with the third package: one shader set per start, no safe mode, ~63/72 with the guard's rows; then the audio mix off the render thread, 6zh) — no installs, the headset needed: measure on the frozen live fight (`c4y_frozen.sh`, every round consistent beyond the ~0.5 ms a program remake brings); the models' fragment shading (~2.8-3.3 ms over a constant with every model plain, near monsters filling the view) is neither their light's math nor their look: next suspects the varyings and the instance-buffer reads per pixel (a minimal plain form: texture, vertex light, fog), and the ~1 ms of geometry (the body's 14.6k triangles with its pre-pass, the vertex shader's motion-vector writes); his look call on `vr_rig_lights_world 0`; SpaceWarp (`XR_FB_space_warp`, offered) optional and off. Still open from before: C2h (the world textures' memory under the ES profile), Adreno's wrong derivatives with the retro code out (NORETRO). Waiting on his call: the Android Gradle Plugin download (section 7), the armed humanoids' CPU cost (section 6d), shadowless dynamic lights on the Quest (6w).
