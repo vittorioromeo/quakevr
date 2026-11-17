@@ -1068,6 +1068,15 @@ extern "C" void VR_WriteMoveExtras(sizebuf_t* buf, int forward, int side, int up
             m.up = up;
             m.buttons = buttons;
             m.impulse = impulse;
+            if(vr_mp_lockstep_ahead.value >= 1.f && netmove::clientSent() == 0)
+            {
+                // (the harness's lockstep, B19: the hands' throw history from the first move on. The frames before it,
+                // loading and joining, are as many as the machine's timing makes them, and the history's samples from
+                // them (the hands before he was put) gave the first eight moves' throw estimate (.throwPos, .throwAge)
+                // apart between two runs: mp_lockstep_throw's "8 moves differ")
+                throwing::reset();
+                thrownValid[0] = thrownValid[1] = false;
+            }
             m.vr = buildMove();
             buf->cursize = 0;
             netmove::writeMoves(buf, m, !cls.demoplayback && cl.movemessages >= 2); // (CL_SendMove dumps the first two)

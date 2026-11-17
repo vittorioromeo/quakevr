@@ -90,6 +90,7 @@ int VR_LockstepWaits (void);
 int VR_LockstepReadHeld (void);
 int VR_LockstepReadsMore (void);
 int VR_LockstepSkipsDatagram (int slot);
+void VR_RunBufferedMoves (struct client_s *client); // SV_RunClients, after his messages: the move buffer's tick (vr_net_movebuffer, MP_PLAN B19)
 void VR_MpNoteConnect (const char *host);	// CL_EstablishConnection: the address a client that leaves for the server's map package joins again (vr_mpdownload.cpp)
 void VR_MpWritePackage (struct sizebuf_s *msg);	// SV_SendServerinfo, to a remote client: QVR_SVC_PACKAGE, the server's map package (vr_mpdownload.cpp)
 // (B13) The server browser (vr_serverbrowser.cpp; menu.c's server list, Multiplayer > Join Game > Server Browser): the

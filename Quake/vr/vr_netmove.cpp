@@ -314,7 +314,8 @@ ClientState clientState;
 struct ServerSlot
 {
     za::U32 last{0};
-    za::U32 low{0}; // the lockstep's first move: the oldest read before one ran (0: none read)
+    za::U32 low{0};  // the lockstep's and the buffer's first move: the oldest read before one ran (0: none read)
+    za::U32 read{0}; // the move buffer's newest move read (B19: kept until a tick runs it; 0: none)
     za::U32 seqs[ring]{};
     Quant moves[ring];
     ServerCounts counts;
@@ -557,6 +558,60 @@ bool clientMoveAt(za::U32 seq, WireMove& m)
     return true;
 }
 
+namespace
+{
+// (B19) The move buffer: on unless the harness's lockstep runs the moves by number.
+[[nodiscard]] bool buffering()
+{
+    return vr_net_movebuffer.value >= 1.f && vr_mp_lockstep.value < 1.f;
+}
+
+// The oldest move kept after the last one run, run (a gap before it: lost) -> false: none kept.
+bool runOldest(client_t* client, ServerSlot& slot, ApplyFn apply)
+{
+    if(slot.read == 0 || slot.read <= slot.last)
+    {
+        return false;
+    }
+    za::U32 from = slot.last != 0 ? slot.last + 1 : slot.low;
+    if(from == 0 || from > slot.read)
+    {
+        return false;
+    }
+    if(slot.read - from >= static_cast<za::U32>(ring))
+    {
+        from = slot.read - static_cast<za::U32>(ring) + 1; // (older ones gone from the ring)
+    }
+    za::U32 s = from;
+    while(s <= slot.read && slot.seqs[s % ring] != s)
+    {
+        s++;
+    }
+    if(s > slot.read)
+    {
+        return false;
+    }
+    if(slot.last != 0)
+    {
+        slot.counts.lost += static_cast<int>(s - slot.last - 1);
+    }
+    slot.last = s;
+    slot.counts.run++;
+    WireMove m;
+    dequantize(slot.moves[s % ring], m);
+    apply(client, m, s == slot.read);
+    return true;
+}
+
+// The kept moves run until at most `keep` wait (by number: a lost one between counts).
+void runWaiting(client_t* client, ServerSlot& slot, ApplyFn apply, za::U32 keep)
+{
+    while(slot.read > slot.last && slot.read - slot.last > keep && runOldest(client, slot, apply))
+    {
+    }
+}
+} // namespace
+
 bool serverRead(client_t* client, ApplyFn apply)
 {
     const int slotNum = static_cast<int>(client - svs.clients);
@@ -582,6 +637,11 @@ bool serverRead(client_t* client, ApplyFn apply)
     }
     Quant cur;
     const bool lockstep = vr_mp_lockstep.value >= 1.f;
+    const bool buffered = buffering();
+    if(!buffered && slot->read > slot->last)
+    {
+        runWaiting(client, *slot, apply, 0); // (the buffer just turned off: what it kept runs first, in order)
+    }
     for(int i = 0; i < count; i++)
     {
         const za::U32 s = first + static_cast<za::U32>(i);
@@ -606,6 +666,20 @@ bool serverRead(client_t* client, ApplyFn apply)
                 slot->low = s;
             }
             continue; // (kept: the world's step runs it, serverRunNext)
+        }
+        if(buffered)
+        {
+            // (B19: kept for the ticks to run, serverRunBuffered; read = the newest, acknowledged)
+            if(s > slot->last && s > slot->read)
+            {
+                if(slot->last == 0 && (slot->low == 0 || s < slot->low))
+                {
+                    slot->low = s;
+                }
+                slot->counts.recovered += i == count - 1 ? 0 : 1;
+                slot->read = s;
+            }
+            continue;
         }
         if(s <= slot->last)
         {
@@ -636,7 +710,7 @@ void serverWriteAck(sizebuf_t* msg, int slotNum)
     }
     MSG_WriteByte(msg, protocol::svc_quakevr);
     MSG_WriteByte(msg, protocol::QVR_SVC_MOVEACK);
-    MSG_WriteLong(msg, static_cast<int>(slot->last));
+    MSG_WriteLong(msg, static_cast<int>(slot->read > slot->last ? slot->read : slot->last)); // (kept: read, B19)
 }
 
 bool serverSends(int slotNum)
@@ -716,12 +790,44 @@ bool serverRunNext(client_t* client, ApplyFn apply)
     return true;
 }
 
+void serverRunBuffered(client_t* client, ApplyFn apply)
+{
+    ServerSlot* slot = slotOf(static_cast<int>(client - svs.clients), false);
+    if(!slot || !slot->sends || vr_mp_lockstep.value >= 1.f)
+    {
+        return;
+    }
+    if(!buffering())
+    {
+        runWaiting(client, *slot, apply, 0); // (turned off: what it kept, at once)
+        return;
+    }
+    if(!runOldest(client, *slot, apply))
+    {
+        slot->counts.ticksNone++;
+        return;
+    }
+    const za::U32 keep = static_cast<za::U32>(za::clamp(vr_net_movebuffer.value, 1.f, static_cast<float>(ring / 2)));
+    const int before = slot->counts.run;
+    runWaiting(client, *slot, apply, keep);
+    if(slot->counts.run != before)
+    {
+        slot->counts.ticksMore++;
+    }
+    else
+    {
+        slot->counts.ticksOne++;
+    }
+    slot->counts.waitSum += slot->read > slot->last ? slot->read - slot->last : 0;
+}
+
 void serverReset(int slotNum)
 {
     if(ServerSlot* slot = slotOf(slotNum, false))
     {
         slot->last = 0;
         slot->low = 0;
+        slot->read = 0;
         memset(slot->seqs, 0, sizeof(slot->seqs));
         slot->counts = {};
         slot->sends = false;

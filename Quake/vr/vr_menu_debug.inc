@@ -1259,6 +1259,10 @@ za::Vector<Item> pageDebugReports()
             .help("vr_net_cosmetic_fill: hosting, the fragments take only what a remote player's snapshot's other "
                   "updates leave under this many bytes (a quarter of their budget at least): a heavy fight leaves a gib "
                   "storm less, his link in combat under ~35 KB/s (MP_PLAN B18). 0: no such limit."),
+        slider("Network: Move Buffer", vr_net_movebuffer, 0.f, 8.f, 1.f, "%.0f")
+            .help("vr_net_movebuffer: hosting, a remote player's moves run one a server tick in order, at most this many "
+                  "waiting (more run together): his packets bunched on the way, a lift still meets each move where his "
+                  "game's prediction met it (MP_PLAN B19). 0: run as they come."),
         open("Voice Chat", pageIndex(pageVoiceChat))
             .help("VR Settings > HUD, Haptics and Sound > Voice Chat: its settings, each player's mute and volume, its "
                   "Report and Self-Test (MP_PLAN B10v)."),

@@ -1759,6 +1759,16 @@ extern "C" void VR_LockstepRunMove(client_t* client)
     (void)netmove::serverRunNext(client, applyNetMove);
 }
 
+extern "C" void VR_RunBufferedMoves(client_t* client)
+{
+    // (B19: a remote client's moves one a tick, in order, as the buffer kept them; vr_net_movebuffer)
+    if(!vrProtocol() || !client->edict)
+    {
+        return;
+    }
+    netmove::serverRunBuffered(client, applyNetMove);
+}
+
 // The status bar's ammo count (STAT_AMMO). With the Quake VR progs .currentammo is the main hand's ammo *type* (AID_*:
 // 1 shells, 2 nails, ...), and the classic client data message wrote it as the count: the status bar read 1 with a
 // shotgun in hand and 17 shells, 2 with the nail gun (his report 2026-11-05: "the HUD seems to report wrong ammunition

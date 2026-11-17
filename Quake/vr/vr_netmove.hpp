@@ -77,7 +77,8 @@ void clientClear();
 // malformed message (the client dropped).
 using ApplyFn = void (*)(client_t* client, const WireMove& m, bool newest);
 [[nodiscard]] bool serverRead(client_t* client, ApplyFn apply);
-// The acknowledgement into the client's datagram (QVR_SVC_MOVEACK: the newest move read), once it sent QVR_CLC_MOVES.
+// The acknowledgement into the client's datagram (QVR_SVC_MOVEACK: the newest move read, kept by the buffer or run),
+// once it sent QVR_CLC_MOVES.
 void serverWriteAck(sizebuf_t* msg, int slot);
 void serverReset(int slot);
 [[nodiscard]] bool serverSends(int slot); // it sent QVR_CLC_MOVES since its connection or map began (its snapshots too)
@@ -86,12 +87,20 @@ void serverReset(int slot);
 // step runs the next one by number (the first: the oldest read since the slot's reset). serverHasNext: it was read.
 [[nodiscard]] bool serverHasNext(int slot);
 bool serverRunNext(client_t* client, ApplyFn apply);
+// (B19) The move buffer (vr_net_movebuffer; not under the lockstep): serverRead keeps the moves (acknowledging them) and
+// each server tick runs the oldest kept, in order, then more while over vr_net_movebuffer wait: his moves meet the
+// movers a tick apart as his replay of them did, however his packets bunch on the way. Off: what it kept runs at once.
+void serverRunBuffered(client_t* client, ApplyFn apply);
 // vr_mp_status: moves run, lost (never came, repeats included), recovered (run from a repeat), undecodable (the base
 // gone), bytes read.
+// (B19) The move buffer's ticks: those that ran one move, more than one (a backlog over vr_net_movebuffer), none (none
+// kept: a late move, or his moves slower than the ticks), and the moves left waiting after them, summed.
 struct ServerCounts
 {
     int run{0}, lost{0}, recovered{0}, undecodable{0};
     long long bytes{0};
+    int ticksOne{0}, ticksMore{0}, ticksNone{0};
+    long long waitSum{0};
 };
 [[nodiscard]] ServerCounts serverCounts(int slot);
 

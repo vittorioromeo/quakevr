@@ -724,6 +724,7 @@ void SV_RunClients (void)
 			SV_DropClient (false);	// client misbehaved...
 			continue;
 		}
+		VR_RunBufferedMoves (host_client); // QVR: his moves one a tick, in order, as they were kept (vr/vr_netmove.cpp, B19)
 
 		if (!host_client->spawned)
 		{

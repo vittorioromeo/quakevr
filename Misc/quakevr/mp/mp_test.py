@@ -514,20 +514,25 @@ def armed(s):
     prio = sorted((p for p in prio if alive(srv, p[2])), key=lambda p: -p[3])
     near = [p[1] for p in prio[:2]]
     far = [p[1] for p in prio[-2:]]
-    # (B12b) by how much depends on how far apart they stood: the highest two weights' share over the lowest two's
-    # should be at least half way to their weights' ratio (the fixed 1.2 failed with the six close together once the
-    # entities cost less)
+    # (B12b) by how much depends on how far apart they stood. (B19) And on how tight the rate is in the window: a
+    # record's priority is its weight times one plus the frames it waited, so it waits whole frames; when the fight's
+    # other updates leave room for most poses every frame or two, every pose comes every frame or two whatever its
+    # weight (the share flattens towards 1), and only a tight budget gives shares near the weights' ratio. The fight's
+    # traffic is real time (the grunts' shots and moves): B12b's "half way to the weights' ratio" failed 1 run in 4 at
+    # 1.10-1.36 against 1.16-1.49 wanted, with the order right in every one. The check: the order (the highest two
+    # weights' poses more often than the lowest two's); the share against the ratio a metric.
     ratio = (sum(p[3] for p in prio[:2]) / max(1e-6, sum(p[3] for p in prio[-2:]))) if len(prio) >= 4 else 1.0
-    want = 1.0 + 0.5 * (ratio - 1.0)
+    share = sum(near) / max(1, sum(far))
+    s.metric("armed_rate_share", {"share": round(share, 3), "weights": round(ratio, 3)})
     if len(prio) < 4:
         # (the fight killed too many in the window to compare two and two: noted, not failed)
         s.note("under it: the nearest humanoids' poses against the farthest's not measured: %d alive at the end of %s" % (
             len(prio), every))
-    s.check("under it: the humanoids weighted most (near, ahead) have their poses more often than the least (half way "
-            "to their weights' ratio; weights within 1.15 of each other: not told apart)",
-            len(prio) < 4 or ratio < 1.15 or sum(near) > want * sum(far),
-            "highest two %s, lowest two %s: %.2f, wanted %.2f (weights %.2f; dist, entries, ent, weight of %s)" % (
-                near, far, sum(near) / max(1, sum(far)), want, ratio, every))
+    s.check("under it: the humanoids weighted most (near, ahead) have their poses more often than the least (weights "
+            "within 1.15 of each other: not told apart)",
+            len(prio) < 4 or ratio < 1.15 or sum(near) > sum(far),
+            "highest two %s, lowest two %s: %.2f (weights %.2f; dist, entries, ent, weight of %s)" % (
+                near, far, share, ratio, every))
     cs = client_snap_status(b)
     s.check("under it: none undecodable", cs and int(cs["undecodable"]) == 0, "%s" % cs)
 
@@ -2862,14 +2867,29 @@ def disarm(s):
     gun, spot = lying(srv, ea)
     at = org_of(status(srv), "mp_client", "slot", ea - 1)
     s.note("toss: %s; the shotgun (entity %d) lies at %s, A at %s" % (thrown[1].strip() if thrown else None, gun, spot, at))
-    s.check("toss: B's shotgun leaves his hand thrown towards A and lands within reach of him (64 units)",
-            thrown is not None and gone[-1] == 0 and math.hypot(spot[0] - at[0], spot[1] - at[1]) <= 64,
-            "B's main weapon %s; it lies %.0f units from A" % (gone, math.hypot(spot[0] - at[0], spot[1] - at[1])))
-    # (A steps up to it: 20 units short of it on his side, as hand_over's taker; a toss lands within a step, not a reach)
+    # (B19) Within a step and a reach of him (96 units). The play's release falls at a real-time point of B's swing
+    # (the throw's age 0.06-0.27 s after its fastest sample, his frames as the machine runs them): the earliest is the
+    # highest lob (60 u/s up against 47-55), and one such (B18's suite, 1 run of 3) slid on to lie 71 units off, by the
+    # start room's south wall, past the 64 asked; the landings otherwise 26-45 units from him.
+    far = math.hypot(spot[0] - at[0], spot[1] - at[1])
+    s.metric("toss_lands_from_a", round(far, 1))
+    s.check("toss: B's shotgun leaves his hand thrown towards A and lands within a step and a reach of him (96 units)",
+            thrown is not None and gone[-1] == 0 and far <= 96, "B's main weapon %s; it lies %.0f units from A" % (gone, far))
+    # (A steps up to it: 20 units short of it on his side, as hand_over's taker; a toss lands within a step, not a reach.
+    # B19: lying by a wall, that spot can be in it (B18's "A never put at": SV_CheckStuck put him back), so 32 and 44
+    # short after it)
     d = [spot[0] - at[0], spot[1] - at[1]]
     n = math.hypot(d[0], d[1]) or 1.0
-    if n > 20:
-        put_at(srv, a, ea, (spot[0] - d[0] / n * 20, spot[1] - d[1] / n * 20, at[2]))
+    for short in (20.0, 32.0, 44.0):
+        if n <= short:
+            break
+        try:
+            put_at(srv, a, ea, (spot[0] - d[0] / n * short, spot[1] - d[1] / n * short, at[2]), tries=20)
+            break
+        except StepFailed:
+            if short == 44.0:
+                raise
+            s.note("toss: A not put %.0f units short of the shotgun (a wall there?): further back" % short)
     since = srv.mark()
     a.cmd("vr_mock_button main grip 1")
     srv.wait(r"grip: A's main hand pressed at", 10, since, "A's grip on the server")
@@ -3292,14 +3312,29 @@ def swing(s, srv, att, dfd, ea, ed, label, guard, open_dmg=None):
     return dmg, drp, (grd[1].strip() if grd else None)
 
 
+def buffer_ticks(srv, ent):
+    """(B19) The server's move buffer for player `ent`: its ticks that ran more than one of his moves and those that ran
+    none (vr_mp_status `tick_more=`, `tick_none=`) -> (more, none), or None."""
+    for l in status(srv):
+        m = re.match(r"mp_netmoves: slot=(\d+) .*tick_more=(\d+) tick_none=(\d+)", l)
+        if m and int(m.group(1)) == ent - 1:
+            return int(m.group(2)), int(m.group(3))
+    return None
+
+
 def merged_moves(srv, ent):
-    """Player `ent`'s moves merged on the server so far (vr_mp_status `merged=`: a move in a frame with one of his
-    already), -1: none."""
+    """Player `ent`'s moves bunched on the server so far: merged (vr_mp_status `merged=`: a move in a frame with one of
+    his already) plus, under the move buffer (B19), the moves it kept waiting a tick (`wait_sum=`) and its ticks with
+    none to run (`tick_none=`: a late move's); -1: none."""
+    merged, kept = -1, 0
     for l in status(srv):
         m = re.match(r"mp_client: slot=(\d+) .*merged=(\d+)", l)
         if m and int(m.group(1)) == ent - 1:
-            return int(m.group(2))
-    return -1
+            merged = int(m.group(2))
+        m = re.match(r"mp_netmoves: slot=(\d+) .*tick_none=(\d+) wait_sum=(\d+)", l)
+        if m and int(m.group(1)) == ent - 1:
+            kept = int(m.group(2)) + int(m.group(3))
+    return merged + kept if merged >= 0 else -1
 
 
 def blade(s, srv, a, b, ea, eb):
@@ -3331,8 +3366,8 @@ def blade(s, srv, a, b, ea, eb):
     ref, got = clean.get("B"), swing.strength
     s.metric("swing_jitter_strength", got if got is not None else -1)
     s.metric("swing_jitter_merged", m1 - m0)
-    s.check("B's moves came bunched at %d ms jitter (merged on the server during the swing)" % JITTER_MS, m1 > m0,
-            "%d of his moves merged (%d -> %d)" % (m1 - m0, m0, m1))
+    s.check("B's moves came bunched at %d ms jitter (merged, or kept by the move buffer, during the swing)" % JITTER_MS,
+            m1 > m0, "%d of his moves merged or kept (%d -> %d)" % (m1 - m0, m0, m1))
     # (its strength: the damage less the zone's multiplier, which is where on A the blade met him: 0.6 an arm, 1.5 the
     # head; a few units either way at the same swing)
     s.check("B's swing at %d ms jitter lands as without (its strength within %d%%)" % (JITTER_MS, JITTER_SLACK * 100),
@@ -3848,9 +3883,15 @@ def predict_lift(s, srv, a, b, ea, eb):
     put_at(srv, b, eb, LIFT_DROP, 90)
     b.wait(r"mp_predict_corr: c=\d{3,}", 20, since, "B's prediction put over the lift")
     b.cmd("vr_mp_predict_report reset")
+    t0 = buffer_ticks(srv, eb)
     pr = predict_segment(s, b, "falling onto the lift and riding it", "", 36,
                          ("", "", "", "vr_mock_stick off 0.3 0", "vr_mock_stick off 0 0"), reset=False)
+    t1 = buffer_ticks(srv, eb)
     s.metric("b_predict_lift", pr)
+    # (B19) the server's move buffer: its ticks that ran more than one of B's moves or none during the segment (a backlog
+    # over vr_net_movebuffer, or none kept to run: the lift a step off where his replay met it, as before the buffer)
+    off = (t1[0] - t0[0]) + (t1[1] - t0[1]) if t0 and t1 else -1
+    s.metric("b_predict_lift_buffer_off", off)
     s.check("B fell onto the lift while it rose (a landing on it moving)", int(pr.get("land_moving", 0)) >= 1,
             "%s landings" % pr.get("land_moving"))
     sv = org_of(status(srv), "mp_client", "slot", eb - 1)
@@ -3859,9 +3900,14 @@ def predict_lift(s, srv, a, b, ea, eb):
             "%s, %s states" % (sv, pr.get("ride_n")))
     predict_corr_check(s, "falling onto the lift and riding it", pr)
     # (B18) the move that met it: within one of its steps (one of his moves bunched with another in a server tick, or
-    # a tick without one, in the moves not yet acknowledged: the lift a step off where his replay met it)
-    s.check("B's correction where he met the lift within one of its steps (%.2f units)" % LIFT_STEP,
-            float(pr.get("contact_max", 99)) <= LIFT_STEP + 0.1, "%s over %s" % (pr.get("contact_max"), pr.get("contact_n")))
+    # a tick without one, in the moves not yet acknowledged: the lift a step off where his replay met it). (B19) The
+    # server's move buffer runs his moves one a tick: under a unit, and the lift's own predicted place too, unless the
+    # buffer itself ran a tick with more than one or none (then within one of its steps)
+    most = PREDICT_CORR_MOST if off == 0 else LIFT_STEP + 0.1
+    s.check("B's correction where he met the lift, and the lift's predicted place, under %.2f units (the buffer's ticks "
+            "off one a tick: %d)" % (most, off),
+            off >= 0 and float(pr.get("contact_max", 99)) < most and float(pr.get("lift_max", 99)) < most,
+            "contact %s over %s, the lift's place %s" % (pr.get("contact_max"), pr.get("contact_n"), pr.get("lift_max")))
     own = org_of(status(b), "mp_player", "self", 1)
     gap = dist(own, sv) if own and sv else 99.0
     s.check("on the lift at rest B stands where the server has him (within 1 unit)", gap <= 1.0,
