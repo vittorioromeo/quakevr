@@ -1184,6 +1184,11 @@ void CL_ParseServerMessage (void)
 		case svc_time:
 			cl.mtime[1] = cl.mtime[0];
 			cl.mtime[0] = MSG_ReadFloat ();
+			// QVR: a damaged message's time (NaN, negative, past ~115 days) ends the game, not the program: it made
+			// the texture animations' and light styles' frame negative (R_TextureAnimation's Sys_Error, an
+			// out-of-bounds light style read; mp_fuzz)
+			if (!(cl.mtime[0] >= 0.0 && cl.mtime[0] < 1.0e7))
+				Host_Error ("CL_ParseServerMessage: bad svc_time %g", cl.mtime[0]);
 			cl.fixangle = false;
 			break;
 
