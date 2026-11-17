@@ -2041,6 +2041,8 @@ void Host_Init (void)
 		Cbuf_AddText ("\n\nvid_unlock\n");
 		if (VR_AndroidFirstRun ()) // QVR: Android's first run (no config yet): the Quest 3's graphics settings (vr_android.cpp)
 			Cbuf_AddText ("vr_quest_preset 0\n");
+		else if (VR_Android ()) // QVR: later runs: the saved settings checked against the Quest's (vr/vr_gfxpresets.cpp)
+			Cbuf_AddText ("vr_quest_check\n");
 	}
 
 	if (cls.state == ca_dedicated)

@@ -213,6 +213,46 @@ void questPresetCmd()
     Con_Printf("vr_quest_preset: %s (the Low preset and %d rows)\n", questLevelNames[level], questTable.rowCount);
 }
 
+// The Quest's must-haves (vr_quest_check): saved settings that break the headset's frames, whatever the config says.
+struct QuestMust
+{
+    cvar_t* var;
+    const char* value;
+    const char* why;
+};
+const QuestMust questMusts[] = {
+    {&vid_fsaa, "0", "MSAA goes through memory on the Quest 3: ~100 ms a frame (QUEST_PLAN.md, C4e)"},
+    {&vr_bloom, "0", "the bloom's chain draws coloured squares or black views on the Quest (C4f)"},
+};
+
+// vr_quest_check (Android starts, after the saved config; Debug > Startup): the Quest rows that differ from the nearest
+// Quest preset printed (the log names what a slow start runs with), and the must-haves above set back, each said; with
+// vr_quest_guard 0 only printed.
+void questCheckCmd()
+{
+    if(!VR_GLESCompat() && !VR_Android())
+    {
+        Con_Printf("vr_quest_check: the Quest's settings, only under -glescompat (or on Android)\n");
+        return;
+    }
+    questKind.printStatus();
+    for(const QuestMust& m : questMusts)
+    {
+        if(!q_strcasecmp(m.var->string, m.value))
+        {
+            continue;
+        }
+        if(vr_quest_guard.value == 0.f)
+        {
+            Con_Printf("vr_quest_check: %s %s kept (vr_quest_guard 0): %s\n", m.var->name, m.var->string, m.why);
+            continue;
+        }
+        Con_Printf("vr_quest_check: %s %s -> %s: %s (vr_quest_guard 0 keeps it)\n", m.var->name, m.var->string, m.value,
+            m.why);
+        Cvar_SetQuick(m.var, m.value);
+    }
+}
+
 // vr_graphics_preset: 0..4 applies that preset, 5 My Settings; then back to -1 (a button: the state is
 // vr_graphics_preset_status's, and the menu's).
 void onPresetCvar(cvar_t* var)
@@ -327,6 +367,7 @@ void init()
     Cmd_AddCommand("vr_graphics_preset_save", saveCmd);
     Cmd_AddCommand("vr_graphics_preset_status", statusCmd);
     Cmd_AddCommand("vr_quest_preset", questPresetCmd);
+    Cmd_AddCommand("vr_quest_check", questCheckCmd);
 }
 
 } // namespace qvr::gfxpresets

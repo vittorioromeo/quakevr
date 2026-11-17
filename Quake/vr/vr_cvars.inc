@@ -567,6 +567,9 @@ QVR_CVAR(vr_xr_eye_scale, "1", CVAR_ARCHIVE)
 // vr_xr_gpu_level (XR_EXT_performance_settings): 1 power savings, 2 sustained low, 3 sustained high, 4 boost.
 // vr_xr_foveation (XR_FB_foveation): the eye images' fixed foveation, 1 low, 2 medium, 3 high (dynamic: off).
 QVR_CVAR(vr_xr_refresh_rate, "0", CVAR_ARCHIVE)
+// vr_quest_check (each Android start, after the saved config; vr_gfxpresets.cpp): 1 the settings that break the Quest's
+// frames (MSAA, bloom) set back, each said in the log; 0 only said.
+QVR_CVAR(vr_quest_guard, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_xr_cpu_level, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_xr_gpu_level, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_xr_foveation, "0", CVAR_ARCHIVE)

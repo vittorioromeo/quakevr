@@ -883,6 +883,12 @@ za::Vector<Item> pageDebugProfiling()
             .help("vr_quest_preset 0 (1: Quest 3 at 90 Hz, 2: Quest 2; mine: back as before): the Low graphics preset, "
                   "then the Quest's draft rows (resolution, MSAA, shadows, bloom, particles, marks, bodies). Only under "
                   "-glescompat: the PC's settings stay."),
+        command("Quest Settings Check", "vr_quest_check")
+            .help("vr_quest_check (each Android start runs it after the saved config): the Quest rows that differ from "
+                  "the nearest Quest preset, and MSAA and bloom set back (vr_quest_guard 0: only said)."),
+        command("GL Sync Report", "vr_gl_sync_report")
+            .help("vr_gl_sync_report: the GL calls that made the CPU wait for the GPU since the last report, per frame "
+                  "(vr_gl_sync_count N: every N seconds)."),
         command("ES Texture Read-Back Test", "vr_gles_readback_test")
             .help("vr_gles_readback_test: every texture, the envmap and the shadow atlases read back by glGetTexImage "
                   "and by its OpenGL ES form (a framebuffer and glReadPixels), compared byte for byte; the verdict to "
