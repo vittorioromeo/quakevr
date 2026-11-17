@@ -3234,3 +3234,71 @@ Next phase: B19 -- NAT step 1 if he agrees (one server socket for every client);
 (one of a client's moves a server tick; mp_predict's lift contact under a unit, the lockstep and lag compensation
 unchanged) and mp_armed's rate-priority check made robust; his: B10v's VR checks, internet play with two machines,
 the rendezvous service decision.
+
+### B19 results: the server-side move buffer; broken packets; the suite's flakes (2026-11-17, dev no-LTO build, loopback; NAT step 1 skipped: his OK)
+
+- **The move buffer** (vr_netmove.cpp `serverRunBuffered`, called by SV_RunClients after a client's messages;
+  `vr_net_movebuffer`, new, 2; Debug's network rows "Move Buffer"): a remote client's QVR_CLC_MOVES are kept as read
+  (and acknowledged at once: the delta base and the net HUD's ping as before) and each server tick runs the oldest kept,
+  in order, then more only while over `vr_net_movebuffer` wait. The whole move waits (its hands, buttons and walk
+  together), so `serverLast` is the newest *run* and his predict state's move number needs no change. A bunched pair
+  (B18's `k=0/2`, `k=1/2`) now runs a tick apart: each move meets the lift where his replay met it (the replay's first
+  move against the newest message's movers, each later one a tick on). 0 runs as they come (what was kept runs at
+  once). The lockstep keeps its own by-number run (the buffer is off under it); lag compensation goes by the absolute
+  times his moves carry (unchanged by when they run).
+  - Measured, `predict --part lift --watch 3` (B on the proxy, 150 ms each way): before, 10 runs: the lift's own
+    predicted place moved under him (`lift_max`) 2.07-4.01 in every run, the replay's result for a state's move against
+    the server's (`exact_max`) 1.94-2.12 in 9 of 10; with the buffer at 1, 10 runs: `lift_max` 0.05-0.21 in 8, 2.1 in 2,
+    `exact_max` 0.03-0.11 in 8; at 2 (the default), 8 runs: `lift_max` 0.054-0.138 and `exact_max` 0.033-0.156 in all 8.
+    `contact_max` 0.000 in all (B18's 1.026 and 2.083 came 2 runs in 10). The buffer's ticks over a run (224 moves):
+    at 1, 4 ran two and 5 none (the transitions that put the lift a step off); at 2, 1 and 1; 0.7 moves waiting on
+    average (about 10 ms).
+  - The cost: at most `vr_net_movebuffer` ticks (2: 28 ms) more before the server runs his move, ~10 ms on average on
+    the proxy's link; nothing for himself (he predicts), the others see him that much later.
+  - `mp_netmoves:` (vr_mp_status) gains `tick_one`, `tick_more`, `tick_none`, `wait_sum`. mp_predict's lift check: the
+    contact and the lift's predicted place under a unit when the buffer ran one move a tick through the segment, else
+    within one lift step (`b_predict_lift_buffer_off`). mp_blade's "moves came bunched" counts the moves the buffer kept.
+  - Still open: `exact_miss` stays ~9 a lift run, by hundredths (0.03-0.16): the client's mover place (its message's
+    origin plus its speed times the moves' time) against SV_PushMove's own steps; under the corrections' notice.
+- **mp_armed's rate-priority flake (B13d, B16, B18)**: a record's priority is its weight times one plus the frames it
+  waited, so it waits whole frames, and when the fight's other updates leave room for most poses every frame or two the
+  share between the highest and lowest weights flattens towards 1; only a tight budget gives shares near the weights'
+  ratio, and the fight's traffic is real time (B18's four failures: shares 1.10-1.36 against 1.16-1.49 wanted). Nor are
+  the entries B read a measure of the priorities at all: a pose goes only when it changed, and a humanoid idle in the
+  window changes less (a B19 suite run: weights 0.517 and 0.498, 58 and 132 entries: the order itself failed). The
+  check is now the server's own: `vr_net_posewaits <slot>` (new, a server command, vr_netsnap.cpp) tallies one slot's
+  pose records as they went, the frames each waited plus one and its weight then; the highest two weights' mean wait no
+  longer than the lowest two's, shorter once those wait at all (3 runs: 2.09 against 5.12 and alike). The client's
+  share is a metric (`armed_rate_share`).
+- **mp_fuzz found two more client faults (SP-relevant, own commits):** a corrupted entity update's U_MODEL2 high byte
+  (model numbers up to 65535) read past `cl.model_precache` (an access violation in CL_ParseUpdate); the same for a
+  baseline's model and STAT_WEAPON (clientdata, svc_updatestat; view.c indexes the models by it): Host_Errors now
+  (cl_parse.c). And a Host_Error inside a snapshot's record (vr_netsnap.cpp `apply` points net_message at each) left
+  net_message there: the next connection's request overflowed it (SZ_GetSpace: B never joined again). Host_Error and
+  Host_EndGame put it back on its own buffer (net_main.c `NET_RestoreMessage`). mp_fuzz then 14/0 in 5 runs alone.
+- **mp_dm** read B's player list once the first bot's name reached him, not the second's (3 of 4 listed once): it
+  waits for both.
+- **mp_predictclimb's hold take not counted (trans_n 0, once)**: the client's flag for a climb's transition (a hold
+  taken, the hang's mantle begun; the hook come off) was set by each state read, so two states read in one frame, the
+  second already hanging, lost it. Both flags now last until a replay takes them (vr_predict.cpp).
+- **mp_disarm's toss (B18 run 1)**: the play's release falls at a real-time point of B's swing (the throw's age
+  0.06-0.27 s): the earliest is the highest lob (60 u/s up against 47-55), and it slid on to lie 71 units from A by the
+  start room's south wall, past the 64 asked; "A never put at" followed: the spot 20 units short of it was in the wall
+  (SV_CheckStuck put him back). The check is within a step and a reach (96; `toss_lands_from_a`), and A is put 20, 32
+  or 44 units short.
+- **mp_lockstep_throw's "8 moves differ" (B18 run 2)**: explained from its log: moves 0-7 of A differed only in both
+  hands' throw estimate (`.throwPos`, `.throwAge`: fields 37-40 and 66-69), one run's from a place 4000 units off and a
+  sample older. The hands' throw history is sampled every client frame, and the frames before the lockstep's first
+  move (loading, joining) are as many as the machine makes them. A lockstep client (`vr_mp_lockstep_ahead`) now clears
+  that history at its first move (vr_client.cpp; play outside the harness unchanged).
+- **Checks:** the full MP suite (dev) 3 runs of 3 clean (52 scenarios each), after sets that found the faults above
+  (mp_fuzz's crash and stranded rejoin, mp_armed's order, mp_dm's list, mp_predictclimb's flag: each fixed, then its
+  scenario 3-5 runs alone); SP: scenario_check PASS (136/0), load_models 4/0, vr_run_check 12/0, autosavenow 4/0. Dev
+  and ThinLTO builds 0 warnings.
+- **Open:** NAT steps, B10v's VR checks, internet play: his. The buffer's latency on a real internet link (its
+  `wait_sum` in a server's `vr_mp_status`) is worth a look when he plays with two machines.
+
+Next phase: B20 -- NAT step 1 if he agrees (one server socket for every client); else the remaining exact misses of a
+mover's place (the client's mover against SV_PushMove's steps) and a soak of the buffer under mp_proxy's jitter
+(`--jitter 30`: its latency and the lift's contact); his: B10v's VR checks, internet play with two machines, the
+rendezvous service decision.

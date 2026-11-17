@@ -4839,3 +4839,26 @@ His decision (2026-11-17, after the kit's `work\ericw\FINDINGS.md`): ship a fork
   placement, mp_lockstep_throw once); mp_fuzz 14/0 every run; `predict --part lift` 10 of 10. SP: scenario_check PASS
   (136/0), load_models 4/0, vr_run_check 12/0, autosavenow 4/0; dev and ThinLTO builds 0 warnings. MP_PLAN.md, "B18".
 - **In VR:** nothing new to feel; gibs in a big multiplayer fight may update a little less often.
+
+## MP B19: the server-side move buffer; broken packets; the suite's flakes (agent/mp, 2026-11-17)
+
+- **A lift meets your moves where your game predicted** (vr_netmove.cpp; `vr_net_movebuffer`, 2, Debug's network rows
+  "Move Buffer"): a remote player's moves are kept as they come and run one a server tick in order (at most 2 left
+  waiting; 0 off). Packets bunched on the way no longer run two moves in one tick, so a mover is no longer a step off
+  where his replay met it: on e1m1's rising lift the lift's own predicted-place error went from ~2.1 units every run to
+  0.05-0.14 (8 runs), the move contact error 0 throughout. Cost: about 10 ms average (28 ms at most) before the server
+  runs a move; nothing felt by the player himself. The lockstep and the lag compensation are unchanged.
+- **A broken server packet can no longer crash or strand the client** (SP-relevant: damaged demos too): a model
+  number past the precache list (entity update, baseline, weapon stat) is a Host_Error, and a Host_Error inside a
+  snapshot's records puts the network buffer back (it stayed pointed at the record: the next connect overflowed).
+  Found by mp_fuzz.
+- **Test flakes fixed:** mp_armed's rate-priority check (now on the server's own pose waits by weight,
+  `vr_net_posewaits`: the entries a client read depend on how often each pose changed); mp_dm (B's list read before
+  the second bot's name came); mp_disarm's toss (a real-time release's high lob slid
+  to a wall: within 96 units, A put further back if the spot is in the wall); mp_lockstep_throw's "8 moves differ" (the
+  hands' throw history held the joining frames' samples: a lockstep client clears it at its first move); mp_predictclimb
+  (a climb's transition flag lost when two states came in one frame: kept until a replay takes it, vr_predict.cpp).
+- Checks: MP suite 3 runs of 3 clean (52 each); mp_fuzz 14/0 in 5 runs alone; SP: scenario_check PASS (136/0),
+  load_models 4/0, vr_run_check 12/0, autosavenow 4/0; dev and ThinLTO builds 0 warnings. MP_PLAN.md, "B19".
+- **In VR:** nothing new to feel in single player; in multiplayer, riding lifts and doors as a remote player should
+  show no small jolt when you land on a moving one.
