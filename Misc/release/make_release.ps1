@@ -312,7 +312,9 @@ if ($Textures -and $NoTextures) { throw "-Textures and -NoTextures together: pic
 $supportPath = Join-Path $PSScriptRoot "support_assets.json"
 $support = Get-Content -Raw -LiteralPath $supportPath | ConvertFrom-Json
 function SupportFile([string]$key) { $support.files.$key }
-function SupportUrl([string]$key) { $support.url.Replace("{tag}", $support.tag).Replace("{file}", (SupportFile $key).file) }
+# A file's own "tag" (published on a later support release, as ericw-tools' fork on assets-2026-11-17), else the list's.
+function SupportTag([string]$key) { $e = SupportFile $key; if ($e.PSObject.Properties["tag"] -and $e.tag) { "$($e.tag)" } else { "$($support.tag)" } }
+function SupportUrl([string]$key) { $support.url.Replace("{tag}", (SupportTag $key)).Replace("{file}", (SupportFile $key).file) }
 $hostedTextures = -not $Textures -and -not $NoTextures
 
 function Say([string]$text) { Write-Host $text }
@@ -688,10 +690,10 @@ if ($RunTests) {
 
 # Optional inputs.
 if ($Textures -and -not (Test-Path -LiteralPath $Textures -PathType Leaf)) { Problem "-Textures: no file $Textures" }
-if ($hostedTextures) { Say "HD textures: hosted $((SupportFile 'hdtextures').file) ($(Size (SupportFile 'hdtextures').size), $($support.tag)): latest.json points at it, nothing uploaded" }
+if ($hostedTextures) { Say "HD textures: hosted $((SupportFile 'hdtextures').file) ($(Size (SupportFile 'hdtextures').size), $(SupportTag 'hdtextures')): latest.json points at it, nothing uploaded" }
 elseif ($NoTextures) { Say "HD textures: none (-NoTextures): latest.json has no hdtextures component" }
 foreach ($a in $Assets) { if (-not (Test-Path -LiteralPath $a -PathType Leaf)) { Problem "-Assets: no file $a" } }
-$ericwTools = if ($env:QVR_ERICW_TOOLS) { $env:QVR_ERICW_TOOLS } else { "C:\OHWorkspace\ericw-tools-2.0.0-alpha11-win64" }
+$ericwTools = if ($env:QVR_ERICW_TOOLS) { $env:QVR_ERICW_TOOLS } else { Join-Path $root "Tools\ericw-tools" } # (Quake VR's fork, committed)
 $shipsEricw = Test-Path (Join-Path $ericwTools "light.exe")
 if (-not $shipsEricw) { Warn "ericw-tools not found in $ericwTools (QVR_ERICW_TOOLS): the package will have no light.exe" }
 elseif (-not $EricwSource) { Say "ericw-tools' source (GPL-3, light.exe ships): hosted, linked from the release notes: $(SupportUrl 'ericw_source')" }
@@ -701,16 +703,21 @@ elseif (-not (Test-Path -LiteralPath $EricwSource -PathType Leaf)) { Problem "-E
 $hostedKeys = @(@($(if ($hostedTextures) { "hdtextures" })) + @($(if ($shipsEricw -and -not $EricwSource) { "ericw_source" })) | Where-Object { $_ })
 if ($hostedKeys.Count -and -not $DryRun -and -not $Local) {
     [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
-    try {
-        $rel = Invoke-RestMethod -UseBasicParsing -TimeoutSec 30 -Headers @{ Accept = "application/vnd.github+json" } `
-            -Uri "https://api.github.com/repos/$($support.repo)/releases/tags/$($support.tag)"
-        foreach ($k in $hostedKeys) {
+    $releases = @{} # (each support release's API answer, read once)
+    foreach ($k in $hostedKeys) {
+        $tag = SupportTag $k
+        try {
+            if (-not $releases.ContainsKey($tag)) {
+                $releases[$tag] = Invoke-RestMethod -UseBasicParsing -TimeoutSec 30 -Headers @{ Accept = "application/vnd.github+json" } `
+                    -Uri "https://api.github.com/repos/$($support.repo)/releases/tags/$tag"
+            }
+            $rel = $releases[$tag]
             $e = SupportFile $k
             $a = @($rel.assets | Where-Object { $_.name -eq $e.file }) | Select-Object -First 1
-            if (-not $a) { Problem "support release $($support.tag) has no $($e.file)" -OnlineOnly; continue }
+            if (-not $a) { Problem "support release $tag has no $($e.file)" -OnlineOnly; continue }
             $digest = if ($a.PSObject.Properties["digest"] -and $a.digest) { "$($a.digest)" } else { "" }
             if ([long]$a.size -ne [long]$e.size -or ($digest -and $digest -ne "sha256:$($e.sha256)")) {
-                Problem "$($e.file) on $($support.tag) is $($a.size) bytes, $digest; support_assets.json says $($e.size), sha256:$($e.sha256)" -OnlineOnly
+                Problem "$($e.file) on $tag is $($a.size) bytes, $digest; support_assets.json says $($e.size), sha256:$($e.sha256)" -OnlineOnly
                 continue
             }
             $u = SupportUrl $k
@@ -718,8 +725,8 @@ if ($hostedKeys.Count -and -not $DryRun -and -not $Local) {
                 $r = Invoke-WebRequest -UseBasicParsing -Method Head -TimeoutSec 30 -Uri $u
                 Say "hosted ${k}: $u answers ($($r.StatusCode)); $($a.size) bytes, $(if ($digest) { 'digest matches' } else { 'no digest from GitHub' })"
             } catch { Problem "hosted ${k}: $u does not answer ($($_.Exception.Message))" -OnlineOnly }
-        }
-    } catch { Problem "could not read the support release $($support.tag) from GitHub's API ($($_.Exception.Message))" -OnlineOnly }
+        } catch { Problem "could not read the support release $tag from GitHub's API ($($_.Exception.Message))" -OnlineOnly }
+    }
 }
 # The Quake for the smoke launch: -QuakeDir, QVR_QUAKE_DIR, else the one the installer picks by itself (its Steam, GOG
 # and Epic detection: qvr-setup detect, the folder it names for its expansions). Only read: the paks are linked.
@@ -1054,7 +1061,7 @@ $body = (($notesText -split "\r?\n") | Where-Object { -not $_.StartsWith($draftM
 $table = "## Files`n`nBuild: Quake VR $versionText, commit $commit.`n`n| File | Size | SHA-256 |`n|---|---|---|`n" +
     (($files | Where-Object { $_.Name -ne "SHA256SUMS.txt" } | ForEach-Object { "| ``$($_.Name)`` | $(Size $_.Length) | ``$((Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant())`` |" }) -join "`n") +
     "`n`n" + $(if ($hostedTextures) { "HD texture pack (the installer's optional HD textures; not attached here): [``$((SupportFile 'hdtextures').file)``]($(SupportUrl 'hdtextures')), $(Size (SupportFile 'hdtextures').size), SHA-256 ``$((SupportFile 'hdtextures').sha256)``.`n`n" } else { "" }) +
-    $(if ($shipsEricw) { "Source of ericw-tools' light.exe (GPL-3; QuakeVR.zip ships light.exe): $(if ($EricwSource) { "https://github.com/$Repo/releases/download/$tag/$(Split-Path -Leaf $EricwSource)" } else { SupportUrl 'ericw_source' })`n`n" } else { "" }) +
+    $(if ($shipsEricw) { "Source of ericw-tools' light.exe (Quake VR's fork, 2.0.0-alpha11-qvr1; GPL-3; QuakeVR.zip ships light.exe): $(if ($EricwSource) { "https://github.com/$Repo/releases/download/$tag/$(Split-Path -Leaf $EricwSource)" } else { SupportUrl 'ericw_source' })`n`n" } else { "" }) +
     "The installer and the game are not code-signed: Windows SmartScreen may say ""Windows protected your PC"" (More info > Run anyway). Check a download with ``Get-FileHash <file>`` against the table."
 $bodyPath = Join-Path $outDir "release-body.md"
 [System.IO.File]::WriteAllText($bodyPath, ($body.Trim() + "`n`n" + $table + "`n"), (New-Object System.Text.UTF8Encoding $false))

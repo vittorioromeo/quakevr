@@ -1,0 +1,28 @@
+From 4e0f8c9f4bef2c64cc9f8bd83646d093524f75ca Mon Sep 17 00:00:00 2001
+From: vittorioromeo <mail@vittorioromeo.com>
+Date: Tue, 17 Nov 2026 00:55:59 +0100
+Subject: [PATCH 3/3] qvr fork: version label 2.0.0-alpha11-qvr1 (set in
+ CMakeLists.txt: the source zip has no git history)
+
+---
+ CMakeLists.txt | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index e6cfeb5c..49ed0d5c 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -26,6 +26,10 @@ if(NOT GIT_DESCRIBE)
+ 	endif()
+ endif()
+ 
++# qvr fork: the fork's version label, wherever it is built (its source zip has no git history to describe)
++set(GIT_DESCRIBE "2.0.0-alpha11-qvr1")
++message(STATUS "qvr fork: version label \"${GIT_DESCRIBE}\"")
++
+ if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND CMAKE_CXX_SIMULATE_ID STREQUAL "MSVC")
+ 	add_compile_options(/EHsc)
+ 	message(STATUS "working around exceptions not being enabled by default on clang-cl")
+-- 
+2.42.0.windows.2
+

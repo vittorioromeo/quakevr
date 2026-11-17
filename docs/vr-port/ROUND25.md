@@ -4768,3 +4768,39 @@ His request: bake all 27 title wordings (9 sections x 3) to pick from.
   PATCH_NOTES_1.1.1.md (new): a "Multiplayer beta" section.
 - **In VR:** join a friend's game, have him kill his game: within 3 s your view says the server is not responding,
   in 30 s you're back at the server browser. Read MULTIPLAYER.md as a player would.
+## Relighting about twice as fast: Quake VR's ericw-tools fork (branch agent/ericwfork, 2026-11-17)
+
+His decision (2026-11-17, after the kit's `work\ericw\FINDINGS.md`): ship a fork of ericw-tools' `light`,
+2.0.0-alpha11-qvr1. It is the shipped light, behind nothing.
+
+- **The fork** (`Tools/ericw-tools/`: light.exe, the stock release's embree4.dll / tbb12.dll / tbbmalloc.dll, the
+  licence texts, `patches/0001-0003`, README.md in Tools/fteqcc's style; source branch `qvr-fast` of
+  https://github.com/vittorioromeo/ericw-tools, tag `2.0.0-alpha11-qvr1`, not yet pushed): deterministic lightmap
+  packing (two runs byte-identical), `-bounceextra N` (bounce traced from N x N of -extra4's 4 x 4 samples per luxel,
+  shared with the block), a version label patch (0003, `CMakeLists.txt`: the source zip builds the same label).
+  Without `-bounceextra` it lights as stock: face-by-face 0 bytes different (e1m1, e3m5 with bounce 1.2), same light
+  grid. With `-bounceextra 2`: mean |d| 0.25-0.31 per lightmap byte, 0.3-0.7% > 2, max 12-17; .lux and grid unchanged.
+- **Game:** `vr_relight_bounceextra` (2, CVAR_NONE; 0 = stock) adds `-bounceextra N` to each light run when bounce > 0
+  and the light.exe has the option's name in its bytes (`bounceExtraFor`, vr_relight.cpp; stock light: a console line,
+  full cost). Not in the batch's lookKey: maps relit before stay "done". The in-game download (`vr_relight_tool.cpp`)
+  pins the fork zip (13,277,988 bytes, sha256 afbd29bf...39d8e7) on the support release `assets-2026-11-17` (its only
+  URL: ericwa's release does not have it); the NOTICE texts name the fork and its source. The page's button is
+  "Download ericw-tools (13.3 MB)" (menu_paths.txt updated by hand: the row has no cvar, no board names it).
+- **Scripts:** `relight_maps.py --bounceextra` (2) the same rule; `package-quakevr.ps1` and `make_release.ps1` take
+  light from the repo's `Tools/ericw-tools` (QVR_ERICW_TOOLS still wins) and warn if it is not the fork;
+  `support_assets.json` files may carry their own `tag` (ericw_source / ericw_win64 -> `assets-2026-11-17`; the HD pack
+  stays on `assets-2026-10-08`); make_release.py/.ps1 build URLs and the online check per file's tag.
+- **Release artefacts** (kit `work\ericw\release\`, SHA256SUMS.txt): `ericw-tools-2.0.0-alpha11-qvr1-win64.zip`
+  (13,277,988, afbd29bf...), `ericw-tools-2.0.0-alpha11-qvr1-src.zip` (86,728,577, d56d651e...: the stock source zip,
+  .git included, `git am` of the patches, `patches\`, README-qvr.md). The binary was built from that source tree.
+  RELEASING.md "Support files" has his `gh release create` steps.
+- **Times** (the game's own relight, 31 threads, bounce 1.2, stock -> fork): e1m1 8.0 -> 4.0 s, e3m5 20.6 -> 8.5 s,
+  ad_mountain 95.3 / 113.2 -> 50.6 / 49.8 s; the installer's set (`vr_relight_batch official`, 73 maps, 2 at once,
+  forced) 9:04 -> 5:58 (small maps' fixed costs dilute it). In-game screenshots of the same views, stock vs fork
+  (kit `scratch\ericwfork_shots\ericwfork_contact_sheet.png`): mean max-channel difference 0.03-0.27 of 255,
+  0.01-0.11% of pixels over 8 (ad_mountain, e3m5, e1m1). The in-game download tested from a local server: installed,
+  then relit e1m1 with it (3.4 s, -bounceextra given).
+- **Checks:** dev and ReleaseLTO builds 0 warnings; installer self-tests 41/41; load_models_test 4/4; scenario_check
+  136/136 PASS.
+- Seen, not fixed: `map ad_mountain` run from `vr_relight_whendone` right after a relight (games hipnotic, rogue, ad,
+  quakevr) said "Couldn't spawn server"; the same map loads from a script at start.

@@ -1,0 +1,320 @@
+From d975e352fdd4433ab75975e6d5bfdbe7fb96feca Mon Sep 17 00:00:00 2001
+From: vittorioromeo <mail@vittorioromeo.com>
+Date: Tue, 17 Nov 2026 00:26:53 +0100
+Subject: [PATCH 1/3] qvr fork: deterministic lightmap packing; -bounceextra;
+ -rtpackets (packet occlusion rays, batched lightgrid surface-light rays)
+
+---
+ include/light/light.hh        |   2 +
+ include/light/trace_embree.hh |  39 ++++++++++++-
+ light/light.cc                |   6 ++
+ light/ltface.cc               | 102 +++++++++++++++++++++++++++++++++-
+ light/trace_embree.cc         |   1 +
+ light/write.cc                |  21 +++++--
+ 6 files changed, 161 insertions(+), 10 deletions(-)
+
+diff --git a/include/light/light.hh b/include/light/light.hh
+index 0e3cb7f5..92c9f31a 100644
+--- a/include/light/light.hh
++++ b/include/light/light.hh
+@@ -420,6 +420,8 @@ public:
+     setting_bool litonly;
+     setting_bool nolights;
+     setting_int32 facestyles;
++    setting_int32 bounceextra; // qvr fork
++    setting_int32 rtpackets; // qvr fork
+     setting_bool exportobj;
+     setting_int32 lmshift;
+     setting_bool lightgrid;
+diff --git a/include/light/trace_embree.hh b/include/light/trace_embree.hh
+index 3f4856c5..e7534eb7 100644
+--- a/include/light/trace_embree.hh
++++ b/include/light/trace_embree.hh
+@@ -29,6 +29,9 @@
+ #include <embree4/rtcore.h>
+ #include <embree4/rtcore_ray.h>
+ 
++// qvr fork: -rtpackets (0: one ray at a time as stock; 2: occlusion rays in packets of 8; 3: also flagged coherent)
++extern int qvr_ray_packets;
++
+ struct mbsp_t;
+ class modelinfo_t;
+ struct mface_t;
+@@ -282,8 +285,40 @@ public:
+ 
+         ray_source_info ctx2(this, self, shadowmask);
+         RTCOccludedArguments embree4_args = ctx2.setup_occluded_arguments();
+-        for (auto &ray : _rays)
+-            rtcOccluded1(scene, &ray.ray.ray, &embree4_args);
++        const size_t n = _rays.size();
++        if (qvr_ray_packets < 2 || n < 4) {
++            for (auto &ray : _rays)
++                rtcOccluded1(scene, &ray.ray.ray, &embree4_args);
++            return;
++        }
++        // qvr fork (-rtpackets): the stream's rays (one light or one bounce point to one face's samples: coherent)
++        // in packets of 8; same rays, same results.
++        if (qvr_ray_packets >= 3)
++            embree4_args.flags = static_cast<RTCRayQueryFlags>(embree4_args.flags | RTC_RAY_QUERY_FLAG_COHERENT);
++        for (size_t j = 0; j < n; j += 8) {
++            alignas(32) RTCRay8 r8;
++            alignas(32) int valid[8];
++            const size_t m = std::min<size_t>(8, n - j);
++            for (size_t k = 0; k < 8; k++) {
++                const RTCRay &r = _rays[j + (k < m ? k : 0)].ray.ray;
++                valid[k] = k < m ? -1 : 0;
++                r8.org_x[k] = r.org_x;
++                r8.org_y[k] = r.org_y;
++                r8.org_z[k] = r.org_z;
++                r8.tnear[k] = r.tnear;
++                r8.dir_x[k] = r.dir_x;
++                r8.dir_y[k] = r.dir_y;
++                r8.dir_z[k] = r.dir_z;
++                r8.time[k] = r.time;
++                r8.tfar[k] = r.tfar;
++                r8.mask[k] = r.mask;
++                r8.id[k] = r.id;
++                r8.flags[k] = r.flags;
++            }
++            rtcOccluded8(valid, scene, &r8, &embree4_args);
++            for (size_t k = 0; k < m; k++)
++                _rays[j + k].ray.ray.tfar = r8.tfar[k];
++        }
+     }
+ 
+     inline bool getPushedRayOccluded(size_t j) const { return (_rays[j].ray.ray.tfar < 0.0f); }
+diff --git a/light/light.cc b/light/light.cc
+index a065f820..b77d412e 100644
+--- a/light/light.cc
++++ b/light/light.cc
+@@ -378,6 +378,10 @@ light_settings::light_settings()
+       litonly{this, "litonly", false, &output_group, "only write .lit file, don't modify BSP"},
+       nolights{this, "nolights", false, &output_group, "ignore light entities (only sunlight/minlight)"},
+       facestyles{this, "facestyles", 4, &output_group, "max amount of styles per face; requires BSPX lump if > 4"},
++      bounceextra{this, "bounceextra", 0, 0, 4, &performance_group,
++          "qvr fork: bounced light traced from N x N samples per luxel (0: as -extra); must divide -extra"},
++      rtpackets{this, "rtpackets", 0, 0, 3, &performance_group,
++          "qvr fork: occlusion rays in packets of 8 (2), also flagged coherent (3); 0: one at a time"},
+       exportobj{this, "exportobj", false, &output_group, "export an .OBJ for inspection"},
+       lmshift{this, "lmshift", 4, &output_group,
+           "force a specified lmshift to be applied to the entire map; this is useful if you want to re-light a map with higher quality BSPX lighting without the sources. Will add the LMSHIFT lump to the BSP."},
+@@ -486,6 +490,8 @@ void light_settings::initialize(int argc, const char **argv)
+ 
+ void light_settings::light_postinitialize(int argc, const char **argv)
+ {
++    qvr_ray_packets = rtpackets.value();
++
+     if (gate.value() > 1) {
+         logging::print("WARNING: -gate value greater than 1 may cause artifacts\n");
+     }
+diff --git a/light/ltface.cc b/light/ltface.cc
+index 4634e54e..e9288bb0 100644
+--- a/light/ltface.cc
++++ b/light/ltface.cc
+@@ -2005,6 +2005,43 @@ LightFace_SurfaceLight(const mbsp_t *bsp, lightsurf_t *lightsurf, lightmapdict_t
+         return;
+     }
+ 
++    // qvr fork: -bounceextra K traces the bounced light from K x K samples per luxel instead of -extra's E x E: one
++    // sample of each (E/K) x (E/K) block (the unoccluded one nearest its centre) stands for the block, and its light is
++    // given to the block's other unoccluded samples (with their own dirt). Bounced light is smooth, so this is
++    // (E/K)^2 times fewer rays for a change well under a luxel.
++    const int extra = light_options.extra.value();
++    const int bounceextra = light_options.bounceextra.value();
++    const int stride = (bounce_depth.has_value() && bounceextra > 0 && bounceextra < extra && extra % bounceextra == 0)
++                           ? extra / bounceextra
++                           : 1;
++    const int lsw = lightsurf->width, lsh = lightsurf->height;
++    thread_local std::vector<int> reps;
++    reps.clear();
++    if (stride > 1) {
++        const float c = (stride - 1) * 0.5f;
++        for (int bt = 0; bt < lsh; bt += stride) {
++            for (int bs = 0; bs < lsw; bs += stride) {
++                int best = -1;
++                float bestd = 1e30f;
++                for (int t = bt; t < std::min(bt + stride, lsh); t++) {
++                    for (int s = bs; s < std::min(bs + stride, lsw); s++) {
++                        const int i = t * lsw + s;
++                        if (lightsurf->samples[i].occluded)
++                            continue;
++                        const float d = (s - bs - c) * (s - bs - c) + (t - bt - c) * (t - bt - c);
++                        if (d < bestd) {
++                            bestd = d;
++                            best = i;
++                        }
++                    }
++                }
++                if (best >= 0)
++                    reps.push_back(best);
++            }
++        }
++    }
++    const int numcandidates = stride > 1 ? static_cast<int>(reps.size()) : static_cast<int>(lightsurf->samples.size());
++
+     for (const auto &surf_ptr : EmissiveLightSurfaces()) {
+         auto &vpl = *surf_ptr->vpl.get();
+ 
+@@ -2022,7 +2059,8 @@ LightFace_SurfaceLight(const mbsp_t *bsp, lightsurf_t *lightsurf, lightmapdict_t
+             for (int c = 0; c < vpl.points.size(); c++) {
+                 rs.clearPushedRays();
+ 
+-                for (int i = 0; i < lightsurf->samples.size(); i++) {
++                for (int ci = 0; ci < numcandidates; ci++) {
++                    const int i = stride > 1 ? reps[ci] : ci;
+                     const auto &sample = lightsurf->samples[i];
+ 
+                     if (sample.occluded)
+@@ -2072,14 +2110,32 @@ LightFace_SurfaceLight(const mbsp_t *bsp, lightsurf_t *lightsurf, lightmapdict_t
+ 
+                     const ray_io &ray = rs.getRay(j);
+                     const int i = ray.index;
+-                    qvec3f indirect = rs.getPushedRayColor(j);
++                    const qvec3f raycolor = rs.getPushedRayColor(j);
+ 
+                     // Q_assert(!std::isnan(indirect[0]));
+ 
++                    if (stride > 1) {
++                        // qvr fork: the block this sample stands for
++                        const int bs = (i % lsw) / stride * stride, bt = (i / lsw) / stride * stride;
++                        for (int t = bt; t < std::min(bt + stride, lsh); t++) {
++                            for (int s = bs; s < std::min(bs + stride, lsw); s++) {
++                                const int m = t * lsw + s;
++                                if (lightsurf->samples[m].occluded)
++                                    continue;
++                                const qvec3f indirect = raycolor * Dirt_GetScaleFactor(
++                                                                       cfg, lightsurf->samples[m].occlusion, nullptr, 0.0, lightsurf);
++                                lightmap->samples[m].color += indirect;
++                                lightmap->bounce_color += indirect;
++                            }
++                        }
++                        hit = true;
++                        continue;
++                    }
++
+                     // Use dirt scaling on the surface lighting.
+                     const float dirtscale =
+                         Dirt_GetScaleFactor(cfg, lightsurf->samples[i].occlusion, nullptr, 0.0, lightsurf);
+-                    indirect *= dirtscale;
++                    qvec3f indirect = raycolor * dirtscale;
+ 
+                     lightsample_t &sample = lightmap->samples[i];
+                     sample.color += indirect;
+@@ -2106,6 +2162,46 @@ LightPoint_SurfaceLight(const mbsp_t *bsp, const std::vector<uint8_t> *pvs, rays
+     const settings::worldspawn_keys &cfg = light_options;
+     const float surflight_gate = light_options.emissivequality.value() == emissivequality_t::HIGH ? 0 : 0.01f;
+ 
++    if (qvr_ray_packets >= 2) {
++        // qvr fork: every surface light point's ray to this grid point in one stream (traced in packets), added in
++        // the same order as below: the same result.
++        rs.clearPushedRays();
++        for (const auto &surf : EmissiveLightSurfaces()) {
++            const surfacelight_t &vpl = *surf->vpl;
++            if (SurfaceLight_VisCull(bsp, pvs, surf)) {
++                continue;
++            }
++            for (int c = 0; c < vpl.points.size(); c++) {
++                for (auto &vpl_settings : vpl.styles) {
++                    if (vpl_settings.bounce_level.has_value() != bounce)
++                        continue;
++                    const qvec3f pos = vpl.points[c];
++                    qvec3f dir = surfpoint - pos;
++                    const float dist = qv::length(dir);
++                    if (dist == 0.0f)
++                        dir = {0, 0, 1};
++                    else
++                        dir /= dist;
++                    const qvec3f indirect = GetSurfaceLighting(
++                        cfg, vpl, vpl_settings, dir, dist, qvec3f(), false, standard_scale, sky_scale, hotspot_clamp);
++                    if (!qv::gate(indirect, surflight_gate)) {
++                        const qvec3f back = -dir;
++                        rs.pushRay(vpl_settings.style, pos, dir, dist, &indirect, &back);
++                    }
++                }
++            }
++        }
++        rs.tracePushedRaysOcclusion(nullptr, CHANNEL_MASK_DEFAULT);
++        const int numrays = rs.numPushedRays();
++        for (int j = 0; j < numrays; j++) {
++            if (rs.getPushedRayOccluded(j))
++                continue;
++            const ray_io &ray = rs.getRay(j);
++            result.add(rs.getPushedRayColor(j), ray.index, ray.normalcontrib, 1.0f);
++        }
++        return;
++    }
++
+     for (const auto &surf : EmissiveLightSurfaces()) {
+         const surfacelight_t &vpl = *surf->vpl;
+ 
+diff --git a/light/trace_embree.cc b/light/trace_embree.cc
+index 38561716..78dc008d 100644
+--- a/light/trace_embree.cc
++++ b/light/trace_embree.cc
+@@ -28,6 +28,7 @@
+ #include <climits>
+ #include <set>
+ 
++int qvr_ray_packets = 0;
+ sceneinfo skygeom; // sky. always occludes.
+ sceneinfo solidgeom; // solids. always occludes.
+ sceneinfo filtergeom; // conditional occluders.. needs to run ray intersection filter
+diff --git a/light/write.cc b/light/write.cc
+index f19fc4f9..139ddbf9 100644
+--- a/light/write.cc
++++ b/light/write.cc
+@@ -710,6 +710,8 @@ struct lightmap_intermediate_data_t
+ {
+     std::vector<const lightmap_t *> sorted;
+     int lightofs = -1, vanilla_lightofs = -1;
++    // qvr fork: the sizes asked for (-1: none), given their offsets afterwards in face order (deterministic output)
++    int64_t size = -1, vanilla_size = -1;
+ };
+ 
+ // temp
+@@ -1071,8 +1073,7 @@ void SaveLightmapSurfaces(bspdata_t *bspdata, const fs::path &source)
+                     CalculateLightmapStyles(bsp, f, nullptr, &surf, surf.extents, lightmap_size, intermediate_data[i]);
+ 
+                 if (!light_options.novanilla.value()) {
+-                    intermediate_data[i].vanilla_lightofs =
+-                        GetFileSpace(lightmap_size, surf.vanilla_extents.numsamples() * num_styles);
++                    intermediate_data[i].vanilla_size = surf.vanilla_extents.numsamples() * num_styles;
+                 }
+             } else if (faces_sup.empty()) {
+                 num_styles =
+@@ -1083,12 +1084,11 @@ void SaveLightmapSurfaces(bspdata_t *bspdata, const fs::path &source)
+             } else {
+                 num_styles =
+                     CalculateLightmapStyles(bsp, f, nullptr, &surf, surf.extents, lightmap_size, intermediate_data[i]);
+-                intermediate_data[i].vanilla_lightofs =
+-                    GetFileSpace(lightmap_size, surf.vanilla_extents.numsamples() * num_styles);
++                intermediate_data[i].vanilla_size = surf.vanilla_extents.numsamples() * num_styles;
+             }
+ 
+             if (num_styles) {
+-                intermediate_data[i].lightofs = GetFileSpace(lightmap_size, surf.extents.numsamples() * num_styles);
++                intermediate_data[i].size = surf.extents.numsamples() * num_styles;
+             }
+ 
+             if (Lightsurf_HasColor(surf)) {
+@@ -1096,6 +1096,17 @@ void SaveLightmapSurfaces(bspdata_t *bspdata, const fs::path &source)
+             }
+         });
+ 
++        // qvr fork: the faces' lightmaps are packed in face order, not in the threads' finishing order, so two runs
++        // with the same input write the same bytes.
++        for (auto &id : intermediate_data) {
++            if (id.vanilla_size >= 0) {
++                id.vanilla_lightofs = GetFileSpace(lightmap_size, id.vanilla_size);
++            }
++            if (id.size >= 0) {
++                id.lightofs = GetFileSpace(lightmap_size, id.size);
++            }
++        }
++
+         // auto-generate .lit file if appropriate
+         logging::print(logging::flag::STAT, "map uses color: {}\n", static_cast<bool>(has_color));
+         if (has_color) {
+-- 
+2.42.0.windows.2
+

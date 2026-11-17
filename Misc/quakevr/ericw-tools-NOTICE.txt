@@ -1,11 +1,16 @@
 ericw-tools' light, shipped with Quake VR for the in-game relighting
 ====================================================================
 
-The files in this folder (light.exe, embree4.dll, tbb12.dll, tbbmalloc.dll) are ericw-tools 2.0.0-alpha11's
-light and the libraries it needs, unchanged, from its Windows release:
+The files in this folder (light.exe, embree4.dll, tbb12.dll, tbbmalloc.dll) are light from ericw-tools
+2.0.0-alpha11-qvr1, Quake VR's fork of ericw-tools 2.0.0-alpha11, and the libraries it needs:
 
-    https://github.com/ericwa/ericw-tools/releases/tag/2.0.0-alpha11
-    (ericw-tools-2.0.0-alpha11-win64.zip)
+    https://github.com/vittorioromeo/quakevr/releases/tag/assets-2026-11-17
+    (ericw-tools-2.0.0-alpha11-qvr1-win64.zip)
+
+The fork changes only light: deterministic lightmap packing (two runs write the same bytes) and the option
+-bounceextra (the bounced light traced from fewer samples: about twice as fast, the look nearly the same). Without
+-bounceextra it lights exactly as ericw-tools 2.0.0-alpha11. Its README.md says more. The DLLs are those of
+ericw-tools' own 2.0.0-alpha11 Windows release, unchanged.
 
 Quake VR runs light.exe as a separate program (VR Settings > Advanced VR Options > Graphics > Relighting), giving it
 a copy of a map and reading the files it writes. It is not linked into Quake VR, and Quake VR does not depend on it
@@ -14,15 +19,20 @@ pointed at another copy with vr_relight_tool).
 
 ericw-tools
 -----------
-Copyright (C) Eric Wasylishen, Kevin Shanahan (Tyrann), David Walton (Spike) and the ericw-tools contributors.
+Copyright (C) Eric Wasylishen, Kevin Shanahan (Tyrann), David Walton (Spike) and the ericw-tools contributors;
+the fork's changes Copyright (C) Vittorio Romeo.
 Licensed under the GNU General Public License, version 3 or later: gpl_v3.txt in this folder.
 
-Its source code (the Corresponding Source of these binaries) is the 2.0.0-alpha11 tag of ericw-tools:
+Its source code (the Corresponding Source of these binaries) is ericw-tools' 2.0.0-alpha11 tag with the fork's
+patches applied, with the patches and how to build it:
 
-    https://github.com/ericwa/ericw-tools/tree/2.0.0-alpha11
+    https://github.com/vittorioromeo/quakevr/releases/tag/assets-2026-11-17
+    (ericw-tools-2.0.0-alpha11-qvr1-src.zip)
 
-and is also offered beside the Quake VR download that contains this folder (ericw-tools-2.0.0-alpha11-src.zip,
-the same release page). If neither can be reached, ask the Quake VR author for it.
+and as git history: https://github.com/vittorioromeo/ericw-tools, branch qvr-fast (tag 2.0.0-alpha11-qvr1).
+
+The unchanged upstream tag is https://github.com/ericwa/ericw-tools/tree/2.0.0-alpha11. If the source cannot be
+reached, ask the Quake VR author for it.
 
 Embree (embree4.dll)
 --------------------

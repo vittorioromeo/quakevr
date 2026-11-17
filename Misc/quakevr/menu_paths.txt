@@ -2369,7 +2369,7 @@ vr_light_cap_soft|1|Graphics - Relighting|Maximum Light Softness|Advanced VR Opt
 vr_relight_quality|1|Graphics - Relighting|Shadow Quality|Advanced VR Options > Graphics > Relighting > Shadow Quality
 vr_relight_seethrough|1|Graphics - Relighting|See-Through Liquids|Advanced VR Options > Graphics > Relighting > See-Through Liquids
 |1|Graphics - Relighting|Defaults|Advanced VR Options > Graphics > Relighting > Defaults
-|1|Graphics - Relighting|Download ericw-tools (27.5 MB)|Advanced VR Options > Graphics > Relighting > Download ericw-tools (27.5 MB)
+|1|Graphics - Relighting|Download ericw-tools (13.3 MB)|Advanced VR Options > Graphics > Relighting > Download ericw-tools (13.3 MB)
 |2|Graphics - Relighting|Status in the Console|Advanced VR Options > Graphics > Relighting > Status in the Console
 |2|Graphics - Relighting|Tool Lookup in the Console|Advanced VR Options > Graphics > Relighting > Tool Lookup in the Console
 |2|Graphics - Relighting|See-Through Data in the Console|Advanced VR Options > Graphics > Relighting > See-Through Data in the Console

@@ -2186,9 +2186,9 @@ int relightToolState = -1;
 #ifdef _WIN32 // (the release's light.exe: elsewhere, build ericw-tools and set vr_relight_tool)
         if(!found)
         {
-            list.pushBack(command("Download ericw-tools (27.5 MB)", "vr_relight_get_tool")
-                    .help("Relighting needs ericw-tools' light, which this copy of Quake VR does not have. Downloads ericw-tools "
-                          "2.0.0-alpha11 from its GitHub release (27.5 MB, checked against its known SHA-256) into "
+            list.pushBack(command("Download ericw-tools (13.3 MB)", "vr_relight_get_tool")
+                    .help("Relighting needs ericw-tools' light, which this copy of Quake VR does not have. Downloads Quake VR's ericw-tools "
+                          "2.0.0-alpha11-qvr1 (a fork: the same light, faster with bounced light) from Quake VR's GitHub release (13.3 MB, checked against its known SHA-256) into "
                           "quakevr/tools/ericw-tools: light.exe, its libraries and their licences (GPL-3, Apache-2.0)."));
         }
 #endif
