@@ -21,7 +21,7 @@ MINGW*|MSYS*|CYGWIN*)
     B="${QVR_NOPCH_DIR:-$TREE/build/nopch}"
     if [ ! -f "$B/build.ninja" ] && [ ! -f "$B/Makefile" ]; then
         G=; command -v ninja > /dev/null && G="-G Ninja"
-        cmake -S "$TREE" -B "$B" $G -DCMAKE_BUILD_TYPE=Release -DQVR_PCH=OFF ${CMAKE_EXTRA:-} > "$LOG" 2>&1 || { tail -20 "$LOG"; echo "no-PCH build: FAILED (configure)"; exit 1; }
+        cmake -S "$TREE" -B "$B" $G -DCMAKE_BUILD_TYPE=Release -DQVR_PCH=OFF -DQVR_QC=OFF ${CMAKE_EXTRA:-} > "$LOG" 2>&1 || { tail -20 "$LOG"; echo "no-PCH build: FAILED (configure)"; exit 1; }
     fi
     cmake --build "$B" -j "$(nproc)" >> "$LOG" 2>&1
     rc=$?

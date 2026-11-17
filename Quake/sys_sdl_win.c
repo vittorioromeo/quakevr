@@ -299,6 +299,11 @@ qboolean Sys_FileExists (const char *path)
 	return attr != INVALID_FILE_ATTRIBUTES && !(attr & (FILE_ATTRIBUTE_DIRECTORY|FILE_ATTRIBUTE_DEVICE));
 }
 
+qboolean Sys_MatchFileCase (char *path) // QVR (sys.h): Windows' file names match in any case
+{
+	return Sys_FileType (path) != FS_ENT_NONE;
+}
+
 qboolean Sys_GetFileTime (const char *path, time_t *out)
 {
 	wchar_t		wpath[MAX_PATH];

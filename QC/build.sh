@@ -11,7 +11,10 @@ cd "$(dirname "$0")"
 if [ -z "$FTEQCC" ] && [ -f ../Tools/fteqcc/fteqcc64.exe ]; then
     case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) FTEQCC=../Tools/fteqcc/fteqcc64.exe ;; esac
 fi
-"${FTEQCC:-fteqcc}" -O3 -Fautoproto -Olo -Fiffloat -Fifvector -Fvectorlogic -Flo -Fsubscope -Wall -Wextra -Wno-F209 -Wno-F208
+# QVR_QC_RELEASE=1: the release flavour, as the packages ship it (-DQVR_NO_TESTS: no QC tests; the CMake build's
+# -DQVR_QC_RELEASE=ON, the Flatpak's).
+[ -n "$QVR_QC_RELEASE" ] && set -- -DQVR_NO_TESTS || set --
+"${FTEQCC:-fteqcc}" "$@" -O3 -Fautoproto -Olo -Fiffloat -Fifvector -Fvectorlogic -Flo -Fsubscope -Wall -Wextra -Wno-F209 -Wno-F208
 PY=$(command -v python3 || command -v python || true)
 CHK=../build/qvr_checks/qvr_checks.exe
 [ -x "$CHK" ] || CHK=

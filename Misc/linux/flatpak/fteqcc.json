@@ -1,0 +1,22 @@
+{
+  "name": "fteqcc",
+  "buildsystem": "simple",
+  "build-commands": [
+    "make -C engine/qclib qcc",
+    "install -Dm755 engine/qclib/fteqcc.bin /app/bin/fteqcc"
+  ],
+  "cleanup": [
+    "*"
+  ],
+  "sources": [
+    {
+      "type": "archive",
+      "url": "https://github.com/fte-team/fteqw/archive/f937b9d88f71fc4429db5fe56c6a98d922711b2e.tar.gz",
+      "sha256": "d8aede03b56a37eafaf3e11d2ca63fe6a84e45ee602afff72ffd152d18bafef3"
+    },
+    {
+      "type": "patch",
+      "path": "../../../Tools/fteqcc/fte32.patch"
+    }
+  ]
+}

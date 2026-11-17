@@ -229,6 +229,7 @@ int inspectPack(const char* game, const char* const* resources, size_t count, co
         {
             char path[MAX_OSPATH];
             q_snprintf(path, sizeof(path), "%s/pak%d.pak", folder, pak);
+            Sys_MatchFileCase(path); // or PAK0.PAK (sys.h)
             FILE* file = fopen(path, "rb");
             if(!file) { break; }
             gameData = true;
@@ -331,6 +332,7 @@ za::U64 packSignature(const char* game, const char* const* resources, size_t cou
         for(int pak = 0; pak < 100; ++pak)
         {
             q_snprintf(path, sizeof(path), "%s/pak%d.pak", folder, pak);
+            Sys_MatchFileCase(path); // or PAK0.PAK (sys.h)
             if(Sys_FileType(path) != FS_ENT_FILE) { break; }
             file(path);
         }
@@ -454,6 +456,7 @@ void addEpicRoots(za::Vector<za::String>& roots)
             else
             {
                 q_snprintf(path, sizeof(path), "%s/id1/pak0.pak", location);
+                Sys_MatchFileCase(path); // or PAK0.PAK (sys.h)
                 if(Sys_FileType(path) == FS_ENT_FILE) { roots.pushBack(za::String{location}); }
             }
         }
@@ -717,6 +720,7 @@ extern "C" char* VR_LoadOwnedLocalization(const char* name)
         for(int pak = 0; pak < 2048; ++pak)
         {
             q_snprintf(path, sizeof(path), "%s/id1/pak%d.pak", roots[r].cStr(), pak);
+            Sys_MatchFileCase(path); // or PAK0.PAK (sys.h)
             FILE* file = fopen(path, "rb");
             if(!file) { break; }
             fclose(file);
@@ -725,6 +729,7 @@ extern "C" char* VR_LoadOwnedLocalization(const char* name)
         for(int pak = last; pak >= 0; --pak)
         {
             q_snprintf(path, sizeof(path), "%s/id1/pak%d.pak", roots[r].cStr(), pak);
+            Sys_MatchFileCase(path); // or PAK0.PAK (sys.h)
             FILE* file = fopen(path, "rb");
             if(!file) { continue; }
             fseek(file, 0, SEEK_END);
@@ -789,7 +794,7 @@ extern "C" const char* VR_GameDirectoryRoot(const char* dir, int index)
             }
             folder = folder < 0 ? i : folder;
             if(Sys_FileType(va("%s/%s/progs.dat", com_basedirs[i], dir)) == FS_ENT_FILE ||
-                Sys_FileType(va("%s/%s/pak0.pak", com_basedirs[i], dir)) == FS_ENT_FILE)
+                Sys_MatchFileCase(va("%s/%s/pak0.pak", com_basedirs[i], dir))) // or PAK0.PAK (sys.h)
             {
                 only = i;
             }
@@ -1549,6 +1554,7 @@ void readOwnedIndex(OwnedIndex& index, const char* folder)
     for(int pak = 0; pak < 64; ++pak)
     {
         q_snprintf(path, sizeof(path), "%s/pak%d.pak", folder, pak);
+        Sys_MatchFileCase(path); // or PAK0.PAK (sys.h)
         if(Sys_FileType(path) != FS_ENT_FILE) { break; }
         index.paks.pushBack(za::String{path});
     }
@@ -1667,6 +1673,7 @@ extern "C" int VR_OwnedFile(const char* name, char* out, int size, int* offset, 
     for(int pak = 0; pak < 64; ++pak)
     {
         q_snprintf(path, sizeof(path), "%s/%s/pak%d.pak", campaigns[c].root, campaigns[c].folder, pak);
+        Sys_MatchFileCase(path); // or PAK0.PAK (sys.h)
         if(Sys_FileType(path) != FS_ENT_FILE) { break; }
         last = pak;
     }
@@ -1674,6 +1681,7 @@ extern "C" int VR_OwnedFile(const char* name, char* out, int size, int* offset, 
     for(int pak = last; pak >= 0; --pak)
     {
         q_snprintf(path, sizeof(path), "%s/%s/pak%d.pak", campaigns[c].root, campaigns[c].folder, pak);
+        Sys_MatchFileCase(path); // or PAK0.PAK (sys.h)
         FILE* f = fopen(path, "rb");
         if(!f) { continue; }
         fseek(f, 0, SEEK_END);

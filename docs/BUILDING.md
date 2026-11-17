@@ -6,6 +6,10 @@ understand the code, start with [vr-port/PLAN.md](vr-port/PLAN.md) (design and s
 
 ## What you need
 
+**On Linux**, the packages and two commands in [vr-port/LINUX.md](vr-port/LINUX.md#build) build the engine (OpenXR VR
+included) and the QuakeC: `cmake --preset linux-release`, then `cmake --build --preset linux-release`. The rest of this
+section is Windows.
+
 - **Windows x64** and **Visual Studio 2022** with the C++ desktop workload and its **C++ Clang tools for Windows**
   (the ClangCL toolset: the whole engine is built by clang-cl and linked by lld-link). The VR code is C++23, and the
   engine is C (C11).
@@ -80,12 +84,13 @@ engine. In Debug the switch **`QVR_ZANCLE_DEBUG`** chooses:
 Set it with `msbuild ... -p:QVR_ZANCLE_DEBUG=false` (an MSBuild property: `zancle.vcxproj` defaults it to `true`),
 `cmake -DQVR_ZANCLE_DEBUG=OFF`, or `make DEBUG=1 QVR_ZANCLE_DEBUG=0`.
 
-**CMake** also works, for development: the top-level `CMakeLists.txt` includes `Quake/vr/vr.cmake`, which adds the
-VR module and, on Windows x64, OpenXR. On Windows configure it for clang-cl (`-T ClangCL`); MSVC's `cl` stops with a
-message.
+**CMake** also works: the top-level `CMakeLists.txt` includes `Quake/vr/vr.cmake`, which adds the VR module and
+OpenXR (on Windows x64 the vendored loader; on Linux the system's, through pkg-config), and `Misc/cmake/QuakeC.cmake`,
+which compiles the QuakeC outside Windows. On Windows configure it for clang-cl (`-T ClangCL`); MSVC's `cl` stops with
+a message. On Linux use clang (`CMakePresets.json`: `linux-release`, `linux-debug`); gcc stops with a message too.
 
-**Other platforms:** the Makefile builds (Linux, macOS, MinGW) compile the VR module with the mock backend only. The
-OpenXR backend binds to OpenGL through WGL, so there is no VR outside Windows x64 yet.
+**Linux** is the CMake build with OpenXR (GLX or EGL binding): [vr-port/LINUX.md](vr-port/LINUX.md). **Other
+platforms:** the Makefile builds (macOS, MinGW) compile the VR module with the mock backend only.
 
 ## Building the QuakeC
 
@@ -94,6 +99,10 @@ FTEQCC on `QC\progs.src` into `quakevr\progs.dat` when a `.qc` file or `progs.sr
 error fails the build. The compiler's path is the MSBuild property `QvrQcCompiler` (its default is the author's
 `C:\OHWorkspace\quakevr\QC\fteqcc64.exe`; elsewhere pass `-p:QvrQcCompiler=C:\path\to\fteqcc64.exe`). Without the
 compiler the build warns and keeps the old `progs.dat`. It does not run the checks below.
+
+**The CMake build compiles it outside Windows** (`Misc/cmake/QuakeC.cmake`): it runs `QC/build.sh`, checks included,
+when a QC source changes, with FTEQCC built from the pinned source and `fte32.patch` on the first build, or yours with
+`-DQVR_FTEQCC=<path>` ([vr-port/LINUX.md](vr-port/LINUX.md#build)).
 
 On its own, or with the checks:
 

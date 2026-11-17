@@ -1381,7 +1381,7 @@ static qboolean Modlist_Check (const char *modname, const char *base)
 	q_snprintf (modpath, sizeof (modpath), "%s/%s", base, modname);
 
 	q_snprintf (itempath, sizeof (itempath), "%s/pak0.pak", modpath);
-	if (Sys_FileExists (itempath))
+	if (Sys_MatchFileCase (itempath)) // QVR: or PAK0.PAK
 		return true;
 
 	q_snprintf (itempath, sizeof (itempath), "%s/progs.dat", modpath);
