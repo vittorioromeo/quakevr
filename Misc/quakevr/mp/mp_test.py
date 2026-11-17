@@ -5776,6 +5776,13 @@ def soak_long(s, srv, a, b, minutes):
                "b_lost": int(fn.get("lost", 0)), "b_run": int(fn.get("run", 0)), "b_depth": int(fn.get("depth", 0))}
         for inst in (srv, a, b):
             row["mem_" + inst.name] = round(private_mb(inst), 1)
+            # (mimalloc's committed bytes after it returned its cached pages: the heap's own use. The private bytes
+            # above also hold the GPU driver's and the allocator's caches, ~100 MB steps either way: a metric only)
+            since = inst.mark()
+            inst.cmd("vr_heap collect")
+            _, hl = inst.wait(r"vr_heap: process working set", 30, since, "%s's heap" % inst.name)
+            hm = re.search(r"mimalloc reserved [\d.]+ MB, committed ([\d.]+) MB", hl)
+            row["heap_" + inst.name] = float(hm.group(1)) if hm else -1.0
         rows.append(row)
         s.note("soak minute %d: %s" % (m, " ".join("%s=%s" % kv for kv in row.items() if kv[0] != "minute")))
     with open(os.path.join(s.out, "soak_long.txt"), "w", encoding="utf-8") as f:
@@ -5784,10 +5791,11 @@ def soak_long(s, srv, a, b, minutes):
     warm = rows[min(SOAK_LONG_WARMUP, len(rows)) - 1]
     last = rows[-1]
     for inst in (srv, a, b):
-        k = "mem_" + inst.name
+        s.metric("soak_long_mem_%s_growth_mb" % inst.name, round(last["mem_" + inst.name] - warm["mem_" + inst.name], 1))
+        k = "heap_" + inst.name
         grow = last[k] - warm[k]
         s.metric("soak_long_%s_growth_mb" % k, round(grow, 1))
-        s.check("%s's memory after the warm-up grows by at most %d MB over %d minutes" % (
+        s.check("%s's heap (mimalloc's committed, collected) after the warm-up grows by at most %d MB over %d minutes" % (
             inst.name, SOAK_LONG_GROWTH_MB, minutes), grow <= SOAK_LONG_GROWTH_MB,
             "%.1f -> %.1f MB (minute %d to %d)" % (warm[k], last[k], warm["minute"], last["minute"]))
     s.metric("soak_long_edicts_max", max(r["edicts"] for r in rows))

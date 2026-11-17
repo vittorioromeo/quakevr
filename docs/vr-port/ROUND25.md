@@ -4862,3 +4862,21 @@ His decision (2026-11-17, after the kit's `work\ericw\FINDINGS.md`): ship a fork
   load_models 4/0, vr_run_check 12/0, autosavenow 4/0; dev and ThinLTO builds 0 warnings. MP_PLAN.md, "B19".
 - **In VR:** nothing new to feel in single player; in multiplayer, riding lifts and doors as a remote player should
   show no small jolt when you land on a moving one.
+
+## MP B20: the move buffer under jitter; a 20-minute soak (agent/mp, 2026-11-17)
+
+- **A jittery link no longer loses a player's moves** (net_dgrm.c, sv_user.c): NetQuake dropped a datagram that a
+  newer one overtook, so packets reordered on the way lost moves outright (6-11 a lift run at 30 ms of jitter, 50-70 at
+  60, with no packet lost). The host now reads a remote player's overtaken datagrams, their moves only. Multiplayer
+  only: single player and a listen host's own client never take this path.
+- **The move buffer's depth follows each player's jitter** (vr_netmove.cpp; `vr_net_movebuffer_max`, new, 10; Debug's
+  network rows "Move Buffer Most"): from 2 moves on a steady link up to 10 as his jitter needs, so his moves still run
+  one a tick. At 30 ms of jitter: his corrections 0 (were up to 4 units), the lift's predicted place within 0.11 (was
+  2-4 units), at a cost of about 35 ms before the server runs his moves (others see him that much later). At 60 ms:
+  corrections under 0.03 (were 9-33 units).
+- **A 20-minute soak with 16 players** (mp_test.py `soak --soak-minutes N`): pace, edicts, Box3D bodies, bandwidth
+  and the move buffer flat for 20 minutes, none of B's 86,680 moves lost; the clients' heaps flat, the dedicated
+  server's grew 150 MB in steps (open: a leak or Box3D's pools at the fights' peak; MP_PLAN.md, "B20").
+- **Tests:** `mp_jitter` (new, in the suite); `predict --part` takes `--jitter`/`--loss`. Checks: MP_PLAN.md, "B20".
+- **In VR:** nothing new in single player; in multiplayer over Wi-Fi or a busy link, others' movement should be
+  steadier and lifts should not jolt under you.

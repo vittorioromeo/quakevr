@@ -3302,3 +3302,70 @@ Next phase: B20 -- NAT step 1 if he agrees (one server socket for every client);
 mover's place (the client's mover against SV_PushMove's steps) and a soak of the buffer under mp_proxy's jitter
 (`--jitter 30`: its latency and the lift's contact); his: B10v's VR checks, internet play with two machines, the
 rendezvous service decision.
+
+### B20 results: the move buffer under jitter; the lift's leftover misses; a 20-minute soak (2026-11-17, dev no-LTO build, loopback; NAT step 1 skipped: his OK)
+
+- **Jitter measured first** (`predict --part lift --watch 3`, B 150 ms behind each way; `--part` now takes `--jitter`
+  and `--loss`): with B19's buffer (depth 2), at `--jitter 30` the lift's predicted place moved 2.2-4.3 units in 3 of 4
+  runs (the buffer's ticks off one a tick 50-68 a run); at 60, B's corrections in the air 9-27 units and he missed the
+  lift in 4 of 4. The server's `mp_netmoves` gave the cause: **B's moves lost with no packet lost** (6-11 a run at 30 ms,
+  48-71 at 60). NetQuake's datagram layer drops an unreliable datagram that a newer one overtook ("a stale datagram");
+  each move rides in three (`repeats` 2), and the proxy's uniform jitter reorders past that.
+- **The server reads a remote client's overtaken datagrams** (net_dgrm.c: `qsocket_t.qvrAcceptStale`, set by
+  SV_ReadClientMessage for a client that sends QVR_CLC_MOVES while the buffer is on; `net_stalemessage`): only their
+  QVR_CLC_MOVES (each move idempotent by its number; the snapshot acknowledgement in it is older and ignored), anything
+  else in such a datagram dropped as before. A client's own reading (snapshots) is unchanged.
+- **The buffer waits for a gap and its depth follows the client's jitter** (vr_netmove.cpp `bufferDepth`): a missing
+  move before the oldest kept (a reordered one) is waited for while the moves kept are within the depth (`tick_gap`);
+  the depth is the spread of his moves' lateness (the buffer's tick less the move's number, as each first came) over
+  the last 2 s, from `vr_net_movebuffer` (2) up to `vr_net_movebuffer_max` (new, 10; Debug's network rows "Move Buffer
+  Most"; at or under vr_net_movebuffer a fixed depth). The level settles at what the jitter needs and no more: a
+  steady link's depth is the least again 2 s after a spike (the moves over it then run together).
+  - Measured (lift runs; latency = `wait_sum`/moves run): **jitter 30**, 4 runs: corrections 0.000-0.006, the lift's
+    place 0.03-0.11, exact misses 0.01-0.04, moves lost 0-1 (the join's first ticks), depth 5-6, waiting 2.2-2.8 moves
+    (31-39 ms). The same with the fixed depth 2: the lift's place 2.1-4.3 in 3 of 3, depth's ticks off 76-82 a run,
+    waiting 0.9 (13 ms). **Jitter 60** (cap 10), 3 runs: corrections 0.003-0.027 (before: 9-33), lost 0-3 (before
+    48-71), depth 9-10, waiting 4.5-5 moves (63-69 ms); the fixed depth 2 there: corrections 4-14, lost 38-41. **30 ms
+    and 5% loss**, 3 runs: corrections 0, the lift's place 0.04-0.08, lost 0-1. **No jitter**: depth 2 after the join's
+    first 2 s (its startup burst measures 5-6), as B19.
+  - `predict --part lift` at 60 ms still fails "B rode the lift up": he lands beside it at the bottom, his prediction
+    agreeing (the scenario's drop timing at 360 ms and more round trip), not a fault.
+  - Decided: adaptive on by default (clearly better from 30 ms up; the same as B19 on a steady link); the cap 10 covers
+    a 60 ms jitter's spread (9-10). The cost is the others seeing a jittery player later by about half his jitter's
+    range; his own play is predicted.
+- **`mp_jitter`** (new, in the suite; 13/0): B at 150 ms give or take 30 falls onto the rising lift: moves lost 2 at
+  most, the depth to 3 at least, the lift's predicted place under a unit. `mp_netmoves` gains `tick_gap`, `depth`,
+  `depth_max`, `spread_max`; `mp_netmove_skip` lines under vr_mp_watch 3.
+- **The lift's leftover exact misses (0.03-0.16)**: tried sending the movers' exact origins with the predict state
+  (the entity update's coordinates are to 1/16 unit): no change (3 runs: exact_max 0.04-0.12, 7-10 misses), so it was
+  reverted (no protocol change). The misses' pattern (`mp_predict_exact_miss` on a ride): every other move his replay
+  has him 0.033-0.042 units above the server, the others within 0.0002: about DIST_EPSILON (0.03125), a trace's
+  stand-off from the lift's top. The server's SV_PushMove carries a rider by the lift's move exactly; the client's
+  replay, on alternate moves, lands him on it by a trace. Under every notice (the drawn offset 0.02); open, low value.
+- **The 20-minute soak** (`soak --soak-minutes 20`, new: sampled each minute; QVR_MP_LOW_IMPACT=1, idle priority):
+  16 players on dm3, the server's pace 0.999-1.0 every minute, its edicts 484-557 and Box3D bodies 186-246 (no
+  drift), B's link down 9.9-19.3 KB/s, up 2.7-2.9 KB/s, B's moves 86,680 run and none lost, the buffer at depth 2-3
+  all along. The processes' private bytes moved in ~100 MB steps either way (A +173 then -83 at minute 7, B +87 and the
+  server +96 at minute 15; A and B +100 MB from minute 2 to 20): mimalloc's segments and the GPU driver's, not a
+  trend between the steps (0.6-0.9 MB a minute). The check now measures the heap itself (mimalloc's committed after
+  `vr_heap collect`); its 20-minute run (21/1): A's heap 1529 -> 1538 MB and B's 1550 -> 1556 MB over minutes 2-20
+  (flat: 0.3-0.5 MB a minute, while their private bytes still stepped ~100 MB), **the server's 1228 -> 1379 MB**
+  (FAIL: 48 at most): 2.6-8 MB a minute over minutes 2-7, flat (0.2-0.6) over 9-17, then +37 and +17 at minutes 18-19
+  after the run's peak of Box3D bodies (299 at minute 16); 66 MB of it at minute 8 was a `vr_alloc_sites 720` trace
+  I asked of the running server (its own storage). That trace (10 s): Box3D's `b3GrowAlloc` from
+  `b3ComputeMeshManifolds` the busiest site (3.45 mallocs a frame against 0.31 frees at its own site; the other frees
+  go through the contacts' and islands' destruction), 215 more mallocs than frees in 720 frames. Not found: whether
+  the server's heap grows without bound or settles at the busiest fights' peak (Box3D's pools keep their most);
+  the next phase's first item.
+- **Checks:** the full MP suite (dev) 3 runs: 53, 53 and 52 of 53 clean (run 3: mp_disarm's nail magazine port, 34/1,
+  B16's known hand-placement flake; alone again: see ROUND25). mp_jitter 13/0 in each. SP: scenario_check PASS
+  (136/0), load_models 4/0, vr_run_check 12/0, autosavenow 4/0. Dev and ThinLTO builds 0 warnings.
+- **Open:** the lift's DIST_EPSILON misses above; NAT steps, B10v's VR checks, internet play: his. Real links' jitter
+  is rarely uniform: the depth's 2 s window and the cap are worth a look with his two machines (`depth`, `wait_sum`
+  in a server's `vr_mp_status`).
+
+Next phase: B21 -- NAT step 1 if he agrees (one server socket for every client); else the dedicated server's heap
+growth in the 16-player soak (`soak --soak-minutes 40`: bounded at the fights' peak or a leak; vr_alloc_sites on
+Box3D's mesh manifolds), the client's replay against SV_PushMove's carry of a rider (the lift's DIST_EPSILON misses) and the snapshots' own reordering at the client (an
+overtaken snapshot dropped: whether reading it helps interpolation under jitter); his: B10v's VR checks, internet play
+with two machines, the rendezvous service decision.
