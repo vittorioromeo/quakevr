@@ -103,8 +103,12 @@ class Instance:
             if self.flat:
                 a += ["-flatscreenmode"]
         # (run before the first frame, after the configs: "+cmd args" on the command line)
+        # (B17: vr_mock_hand_to puts the hand at its point from the play space's place, not by a step from the hand's
+        # last drawn place. That place lags the commands under load and is held out by walls and floors: a hand sent at
+        # a far weapon its view still drew as lying came back a unit a command (mp_ground), a hand reaching the floor
+        # for a shell went to the pouch 8 units low (mp_disarm); the suite's flakes, alone they passed.)
         a += ["+vr_backend", "mock", "+sv_autosave", "0", "+vr_log_flush_frames", "1", "+vr_fixed_frames", "0",
-              "+vr_mock_eye_size", "256", "+vr_mp_watch", "1"]
+              "+vr_mock_eye_size", "256", "+vr_mp_watch", "1", "+vr_mock_hand_to_absolute", "1"]
         return a + self.extra
 
     def start(self):

@@ -18,6 +18,8 @@ Tests:
     armed    (B12) six armed humanoids ahead of B in vrtesthall, idle and in combat: B's link down by kind (vr_net_bytes)
              with their poses outside his snapshot (vr_net_snapposes 0) and in it, under the budgets; under vr_net_rate
              6000: his link within it, a snapshot every datagram, the nearest poses more often than the farthest.
+    dedicated  (B17) a dedicated server's status line (vr_sv_status) at the start, as A comes and goes and every 2 s;
+             status's pings; pausable 0.
     version  a client of another Quake VR network version (-mpnetversion 1) is rejected with the reason; one of the
              same version joins.
     avatar   B has A's avatar (QVR_SVC_AVATAR): head and drawn hands within 2 units of the server's, the main hand's
@@ -575,6 +577,46 @@ def version(s):
     a.cmd(s.connect_cmd(a))
     a.wait(r"mp_event: .*joined map=e1m1", 120, what="A joined e1m1")
     s.check("a client of the same network version joins", True)
+
+
+STATUS_EVERY_S = 2  # the test's vr_sv_status (the default: 60)
+
+
+def dedicated(s):
+    """(B17) A dedicated server's comforts: its console's status line (vr_sv_status: the map, the mode, the players
+    with their pings, its uptime) at the map's start, when A joins and leaves, and every STATUS_EVERY_S seconds;
+    `status` gives A's ping; no player can pause it (pausable 0 by default on a dedicated server)."""
+    srv = s.server(dedicated=True, extra=["+vr_sv_status", str(STATUS_EVERY_S)])
+    srv.start()
+    srv.cmd("coop 1; deathmatch 0; skill 1; map e1m1; vr_mp_status")
+    srv.wait(r"mp_server: map=e1m1", 120, what="the server on e1m1")
+    _, empty = srv.wait(r"status: e1m1 \(coop, skill 1\) \| 0 of 4 players \| map ", 30, what="the empty server's status line")
+    s.check("the dedicated server's status line at the map's start (map, mode, players, times)", True, empty.strip())
+    a = s.client("A").start()
+    since = srv.mark()
+    a.cmd("name A; " + s.connect_cmd(a))
+    a.wait(r"mp_event: .*joined map=e1m1", 120, what="A joined e1m1")
+    _, joined = srv.wait(r"status: .* 1 of 4 players: A \d+ ms", 30, since, "the status line with A in")
+    s.check("a status line when A comes in, with his ping", True, joined.strip())
+    # (the next ones come every STATUS_EVERY_S seconds of real time: two more, their ping measured by then)
+    n, _ = srv.wait(r"status: .* 1 of 4 players: A \d+ ms", 30, srv.mark(), "the next status line")
+    t0 = time.monotonic()
+    srv.wait(r"status: .* 1 of 4 players: A \d+ ms", 30, n + 1, "the one after")
+    gap = time.monotonic() - t0
+    s.check("the status line again every %d s" % STATUS_EVERY_S, STATUS_EVERY_S * 0.5 <= gap <= STATUS_EVERY_S * 3,
+            "%.2f s apart" % gap)
+    since = srv.mark()
+    srv.cmd("status")
+    _, row = srv.wait(r"^#1\s+A\s+.* \d+ ms", 10, since, "status's row for A")
+    s.check("status gives each player's ping", True, row.strip())
+    since = a.mark()
+    a.cmd("pause")
+    _, refused = a.wait(r"Pause not allowed", 10, since, "A's pause refused")
+    s.check("no player can pause a dedicated server (pausable 0)", True, refused.strip())
+    since = srv.mark()
+    a.cmd("disconnect")
+    _, left = srv.wait(r"status: .* 0 of 4 players \|", 30, since, "the status line when A left")
+    s.check("a status line when A leaves", True, left.strip())
 
 
 AVATAR_UNITS = 2.0  # B's copy of A's head and hands against the server's: quantized to an eighth, a frame or so apart
@@ -1839,6 +1881,11 @@ def ground(s):
     let_go_still(srv, b, "main")
     seen = weapon_until(s, srv, eb, 0)
     s.check("B's shotgun falls from his opened hand", seen[-1] == 0, "B's main weapon by report: %s" % seen)
+    # (B17: and gone from B's own hand in his view -- the server's report comes first; a hand sent to "the weapon lying
+    # nearest" while his view still drew it held went to another one 25 m away, the suite's flake)
+    for _ in range(30):
+        if drawn_report(b, "mp_drawn_own").get((eb, 1), {}).get("drawn", 1) == 0:
+            break
 
     # His main hand over its grip hotspot as it lies (placed again each report: it may still slide), within the view's
     # reach of a ground spot (15 cm).
@@ -2274,7 +2321,8 @@ def flow(s):
 WENT = re.compile(r"mp_went: n=(\d+) m=(\S+) f=(-?\d+) sk=(-?\d+) o=(\S+) (\S+) (\S+)")
 # (shells apart: a shotgun's magazine filled from them at a fresh spawn can come back in the reserve as well, MP_PLAN
 # B15 open item; checked not fewer)
-REJOIN_KEYS = ("health", "armor", "items", "nails", "rockets", "cells", "weapon")
+REJOIN_KEYS = ("health", "armor", "items", "shells", "nails", "rockets", "cells", "weapon")  # (B17: shells and health
+#   exact -- a return is not a level change: no 25-shell floor, no 50-health floor)
 
 
 def world_of(inst):
@@ -2369,8 +2417,7 @@ def rejoin(s):
     now, _ = inventories_until(srv, lambda inv, m: sb in inv and inv[sb].get("nails") == 77, 30)
     diff = carried(inv.get(sb, {}), now.get(sb, {}), REJOIN_KEYS, change=False)
     s.check("B, back after leaving, is in his old slot with what he had (weapons, ammo, health 70)",
-            left is not None and back is not None and int(fields(jb)["self"]) == eb and not diff and
-            now.get(sb, {}).get("shells", 0) >= inv.get(sb, {}).get("shells", 0),
+            left is not None and back is not None and int(fields(jb)["self"]) == eb and not diff,
             "self %s (was %d); before %s; now %s (differ %s)" % (fields(jb).get("self"), eb, inv.get(sb),
                                                                  now.get(sb), diff))
     since_b = b.mark()
@@ -2383,8 +2430,10 @@ def rejoin(s):
 
     # B's game crashes (killed behind his proxy: his old connection silent, no port unreachable to the server); he comes
     # back from another port, by the same name, with what he had (given again after his suicide)
+    # (hurt to 30 and his shells 17: under a level change's floors, 50 and 25, that a return must not apply)
     b.cmd("give 7; give r 9")
-    inv_b, _ = inventories_until(srv, lambda inv, m: sb in inv and inv[sb].get("rockets") == 9)
+    srv.cmd("vr_hurt 70 %d" % sb)
+    inv_b, _ = inventories_until(srv, lambda inv, m: sb in inv and inv[sb].get("rockets") == 9 and inv[sb].get("health") == 30)
     b.proc.kill()
     b.proc.wait()
     killed = time.monotonic()
@@ -2407,8 +2456,8 @@ def rejoin(s):
     s.check("B, back from a crash on another port, takes his own slot at once (his silent old connection closed)",
             ghost is not None and int(fields(jb)["self"]) == eb,
             "%s; self %s (was %d)" % (ghost[1].strip() if ghost else "no 'back from' line", fields(jb).get("self"), eb))
-    s.check("B, back from his crash, has what he had", back is not None and not diff and
-            now.get(sb, {}).get("shells", 0) >= inv_b.get(sb, {}).get("shells", 0),
+    s.check("B, back from his crash, has what he had (health 30 and 17 shells: no level change's floors)",
+            back is not None and not diff and inv_b.get(sb, {}).get("health") == 30,
             "before %s; now %s (differ %s)" % (inv_b.get(sb), now.get(sb), diff))
     players = names_until(srv, ("A", "B", "C"))
     s.check("no ghost: A, B and C each in one slot", all(len(players.get(n, [])) == 1 for n in ("A", "B", "C")),
@@ -2550,7 +2599,9 @@ def lying(srv, ent, tries=100):
     still, g = 0, {}
     for _ in range(tries):
         g = ground_report(srv, "mp_drawn_sv").get((ent, 1), {})
-        still = still + 1 if g.get("norg") and g.get("nspeed", 1.0) < 0.5 else 0
+        # (a weapon: the reports before the let-go reached the server say none, nspeed -1 -- B16's mp_rejoin flake took
+        # "entity 0 at the origin" for the shotgun at rest when the suite's load delayed the let-go)
+        still = still + 1 if g.get("rev", (0,))[0] > 0 and g.get("norg") and 0.0 <= g.get("nspeed", -1.0) < 0.5 else 0
         if still >= 2:
             return g["rev"][0], g["norg"]
     raise StepFailed("no weapon at rest by player %d's hand: %s" % (ent, g))
@@ -4844,15 +4895,18 @@ def deathmatch(s):
     srv.wait(r"mp_server: map=%s" % DM_MAP, 120, what="the server on %s" % DM_MAP)
     a = s.client("A").start()
     b = s.client("B", proxy=True).start()
+    # (A first, B once A is in: the server's QC tests take the first human in the players' list as theirs, and mp_test
+    # poses A's hands -- B16's suite run had B connect first under the load, its crowbar falling from his open hand in
+    # vr_dm_test 3, his shotgun out of the bot's reach in 6)
     a.cmd(s.connect_cmd(a))
-    b.cmd(s.connect_cmd(b))
     _, ja = a.wait(r"mp_event: .*joined map=%s" % DM_MAP, 120, what="A joined %s" % DM_MAP)
+    b.cmd(s.connect_cmd(b))
     _, jb = b.wait(r"mp_event: .*joined map=%s" % DM_MAP, 120, what="B joined %s" % DM_MAP)
     ea, eb = int(fields(ja)["self"]), int(fields(jb)["self"])
     _, sa = a.wait(r"mp_seen: .*self=1", 20, what="A seeing himself")
     _, sb = b.wait(r"mp_seen: .*self=1", 20, what="B seeing himself")
     oa, ob = sa.split("org=")[1].strip(), sb.split("org=")[1].strip()
-    s.check("A and B joined the deathmatch at two starts", ea != eb and oa != ob, "A (%d) at %s, B (%d) at %s" % (
+    s.check("A and B joined the deathmatch at two starts, A first (the QC tests' human)", ea < eb and oa != ob, "A (%d) at %s, B (%d) at %s" % (
         ea, oa, eb, ob))
 
     # two bots (FrikBot: impulse 100 on the server through A)
@@ -5485,6 +5539,8 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             browser(s)
         elif test == "mp_nethud":
             nethud(s)
+        elif test == "mp_dedicated":
+            dedicated(s)
         elif test == "mp_vanish":
             vanish(s)
         elif test == "mp_soak":
@@ -5521,7 +5577,7 @@ def print_bytes_table():
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "soak", "suite"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "dedicated", "soak", "suite"])
     ap.add_argument("--base", required=True, help="the game folder (id1, quakevr...)")
     ap.add_argument("--exe", default=EXE)
     ap.add_argument("--out", default=os.path.join(REPO, "scratch", "mp"))
@@ -5559,7 +5615,7 @@ def main():
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
     elif args.test in ("bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground",
-                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "soak"):
+                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "dedicated", "soak"):
         ok = run(args, "mp_" + args.test)
     elif args.test == "voice":
         ok = run(args, "mp_voice", args.lag, args.jitter, args.loss)
@@ -5570,6 +5626,7 @@ def main():
         ok = run(args, "mp_armed") and ok
         ok = run(args, "mp_retransmit") and ok
         ok = run(args, "mp_version") and ok
+        ok = run(args, "mp_dedicated") and ok
         ok = run(args, "mp_avatar") and ok
         ok = run(args, "mp_avatarcal") and ok
         ok = run(args, "mp_body") and ok
