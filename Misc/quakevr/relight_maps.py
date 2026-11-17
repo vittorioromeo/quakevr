@@ -1007,9 +1007,26 @@ def light_version(light):
         return "sha1 " + hashlib.sha1(f.read()).hexdigest()
 
 
-def light_command(light, args):
+def knows_option(light, name):
+    """Whether `light` has the option `name` (its name is in the executable: Quake VR's fork of ericw-tools,
+    2.0.0-alpha11-qvr1, has -bounceextra; stock ericw-tools stops at an option it does not know)."""
+    try:
+        with open(light, "rb") as f:
+            return name.encode("ascii") in f.read()
+    except OSError:
+        return False
+
+
+def light_command(light, args, bounceextra=0):
     """`light` and its options, less those an old `light` does not know (v0.18 has no -lightgrid): with a
-    warning, once."""
+    warning, once. With bounced light, -bounceextra N (the game's vr_relight_bounceextra: about twice as fast, the
+    look nearly the same) when `light` is Quake VR's fork."""
+    if bounceextra > 0 and "-bounce" in args:
+        if knows_option(light, "bounceextra"):
+            args = args + ["-bounceextra", str(bounceextra)]
+        else:
+            print("%s has no -bounceextra (not Quake VR's ericw-tools 2.0.0-alpha11-qvr1): bounced light at its full "
+                  "cost" % light)
     version = light_version(light)
     if not version.startswith("ericw-tools 2") and "-lightgrid" in args:
         print("%s: not ericw-tools 2: no -lightgrid (the maps get no light grid)" % version)
@@ -1069,6 +1086,9 @@ def main():
                              "default QUAKEVR_VISPATCH, else the vispatch folder beside this script if there is one")
     parser.add_argument("--bright", action="store_true",
                         help="the look before round 10: bounced light, weaker ambient occlusion, twice the glow")
+    parser.add_argument("--bounceextra", type=int, default=2,
+                        help="with bounced light, light's -bounceextra N (Quake VR's ericw-tools fork only: about "
+                             "twice as fast; the game's vr_relight_bounceextra; 0: off, as stock; default %(default)s)")
     parser.add_argument("--ambient", "--minlight", dest="ambient", type=float, default=64.0,
                         help="a basic ambient light level: no place darker than this (light units, as a "
                              "worldspawn's \"light\": 32 a dim fill, 64 a clear one, the default (2026-10-30); 0: the maps' own minimum). The worldspawn's minlight raised to it, not "
@@ -1090,7 +1110,7 @@ def main():
         for folder in search.folders():
             print("  " + folder)
     light_args = args.light_args.split() + [a for a in OUTPUT_ARGS.split() if a not in args.light_args.split()]
-    command, version = light_command(light, light_args) if light else ([], "")
+    command, version = light_command(light, light_args, args.bounceextra) if light else ([], "")
     if light:
         print("relighting with %s (%s)" % (version, light))
     total = done = failed = 0

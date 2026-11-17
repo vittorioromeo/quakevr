@@ -11,7 +11,8 @@
 //   strengths (vr_relight_strength, _lamps, _glows, _liquids);
 // - the map's own lights, as bright as Map Lights says (vr_relight_maplights: "light" and the linear falloff's "wait"
 //   scaled together: as bright, as far), and its sunlight as Sunlight says (vr_relight_sunlight);
-// - the look's options: ambient occlusion (vr_relight_ao: -dirt -dirtscale), bounced light (vr_relight_bounce),
+// - the look's options: ambient occlusion (vr_relight_ao: -dirt -dirtscale), bounced light (vr_relight_bounce; with
+//   -bounceextra, vr_relight_bounceextra: Quake VR's fork of light, about twice as fast: bounceExtraFor),
 //   an ambient light level (vr_relight_minlight: added to the worldspawn's minlight, undarkened), smooth or fast shadows (vr_relight_quality: -extra4 or -extra), the light
 //   grid and the light directions (-lightgrid -lux) and coloured light (-lit), as relight_maps.py gives them.
 //
@@ -213,6 +214,7 @@ struct Batch
     Look look;
     za::String lookText; // settingsText: the .relight's line, the page
     za::String lookKey;  // the settings, light's options and relight_textures.cfg: hashed with each map's file
+    int bounceExtra{0};  // light's -bounceextra (bounceExtraFor; 0: not given): a speed-up, not in lookKey
     double started{0.0};
     double ended{0.0};
     double nextPoll{0.0};
@@ -342,6 +344,38 @@ struct Fnv
                            line.substrByPosLen(line.size() - n, n) == za::StringView{id});
     });
     return same;
+}
+
+// light's -bounceextra N for a batch (vr_relight_bounceextra; 0: not given). Quake VR's fork of ericw-tools
+// (2.0.0-alpha11-qvr1, docs/RELIGHTING.md) traces the bounced light from N x N of -extra4's 4 x 4 samples per luxel and
+// shares it with their neighbours: about twice as fast, the look nearly the same (a mean change under one step of 255).
+// Given only with bounced light, and only to a light that knows the option (its name is in the program's bytes: stock
+// ericw-tools stops at an unknown option). Not in the batch's lookKey: maps relit before still count as done.
+[[nodiscard]] int bounceExtraFor(const za::String& tool, const Look& look)
+{
+    const int n = za::min(static_cast<int>(vr_relight_bounceextra.value), 4);
+    if(n <= 0 || look.bounce <= 0.f)
+    {
+        return 0;
+    }
+    za::Vector<unsigned char> bytes;
+    if(!files::readBytes(tool.cStr(), bytes))
+    {
+        return 0;
+    }
+    constexpr char option[] = "bounceextra";
+    constexpr za::SizeT length = sizeof(option) - 1;
+    for(za::SizeT i = 0; i + length <= bytes.size(); i++)
+    {
+        if(bytes[i] == 'b' && !memcmp(bytes.data() + i, option, length))
+        {
+            return n;
+        }
+    }
+    Con_Printf("Relight: %s has no -bounceextra (not Quake VR's ericw-tools 2.0.0-alpha11-qvr1): bounced light at its "
+               "full cost\n",
+        tool.cStr());
+    return 0;
 }
 
 // ericw-tools' light: vr_relight_tool, else the one Quake VR ships or downloaded (tools/ericw-tools/ in a game folder),
@@ -744,6 +778,11 @@ enum class Started
     args.pushBack(za::String{"-threads"});
     args.pushBack(za::String{va("%d", batch.threads)});
     lookOptions(args, batch.look);
+    if(batch.bounceExtra > 0)
+    {
+        args.pushBack(za::String{"-bounceextra"});
+        args.pushBack(za::String{va("%d", batch.bounceExtra)});
+    }
     args.pushBack(bsp);
     za::String error;
     slot.started = Sys_DoubleTime();
@@ -1259,6 +1298,7 @@ void startBatch(za::Vector<maps::Source> sources, bool single, bool force, int a
     }
     batch.lookKey += "\n";
     batch.lookKey += rulesText();
+    batch.bounceExtra = bounceExtraFor(tool, batch.look);
 
     // The map in play first, when it is one of them: it is the one whose light you see.
     char current[MAX_QPATH];

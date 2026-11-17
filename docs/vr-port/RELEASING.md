@@ -162,16 +162,40 @@ The installer takes the same feed from `QVR_SETUP_FEED` (one URL, or several sep
 
 ## Support files
 
-The HD texture pack and ericw-tools' zips are hosted once, on their own GitHub release
-[`assets-2026-10-08`](https://github.com/vittorioromeo/quakevr/releases/tag/assets-2026-10-08) (not marked latest),
-and every game release links them instead of uploading them again. `Misc\release\support_assets.json` lists that
-release's tag, its URL template and each file's size and SHA-256 (as GitHub reports them):
+The HD texture pack and ericw-tools' zips are hosted once, on their own GitHub releases (not marked latest):
+[`assets-2026-10-08`](https://github.com/vittorioromeo/quakevr/releases/tag/assets-2026-10-08) (the HD pack) and
+[`assets-2026-11-17`](https://github.com/vittorioromeo/quakevr/releases/tag/assets-2026-11-17) (Quake VR's fork of
+ericw-tools' light, 2.0.0-alpha11-qvr1: docs/RELIGHTING.md, "Quake VR's fork of light"), and every game release links
+them instead of uploading them again. `Misc\release\support_assets.json` lists the release's tag (a file's own `tag`
+wins: a file published on a later support release), its URL template and each file's size and SHA-256 (as GitHub
+reports them):
 
 | Key | File | Used by |
 |---|---|---|
 | `hdtextures` | `quakevr-hq-textures-png-2026-10-03.zip` (614,919,925 bytes) | latest.json's `hdtextures` component (the installer's HD textures), and the installer's built-in copy of it (below) |
-| `ericw_source` | `ericw-tools-2.0.0-alpha11-src.zip` (86,236,331 bytes) | the release notes' "Source of ericw-tools' light.exe" link (GPL-3: the package ships `light.exe`) |
-| `ericw_win64` | `ericw-tools-2.0.0-alpha11-win64.zip` (27,503,991 bytes, = ericw's own download) | the in-game Download ericw-tools' first mirror (`vr_relight_tool.cpp` pins it separately) |
+| `ericw_source` | `ericw-tools-2.0.0-alpha11-qvr1-src.zip` (86,728,577 bytes, `assets-2026-11-17`) | the release notes' "Source of ericw-tools' light.exe" link (GPL-3: the package ships the fork's `light.exe`) |
+| `ericw_win64` | `ericw-tools-2.0.0-alpha11-qvr1-win64.zip` (13,277,988 bytes, `assets-2026-11-17`) | the in-game Download ericw-tools (its only URL: `vr_relight_tool.cpp` pins it separately); the package takes the same binaries from `Tools\ericw-tools` (committed, its README.md) |
+
+**Publishing `assets-2026-11-17` (once, before the first release that ships the fork).** The files are in the kit's
+`work\ericw\release\` (with `SHA256SUMS.txt`); the game, `support_assets.json` and the release scripts already pin
+them, so until this release exists the in-game download fails (the package's own `light.exe` is unaffected):
+
+```powershell
+$r = "C:\OHWorkspace\qvr-kit\work\ericw\release"
+Get-FileHash "$r\ericw-tools-2.0.0-alpha11-qvr1-win64.zip", "$r\ericw-tools-2.0.0-alpha11-qvr1-src.zip"  # = SHA256SUMS.txt
+gh release create assets-2026-11-17 --repo vittorioromeo/quakevr --target master --latest=false `
+  --title "Support files 2026-11-17: ericw-tools 2.0.0-alpha11-qvr1" `
+  --notes "Quake VR's fork of ericw-tools' light (2.0.0-alpha11 + deterministic lightmap packing and -bounceextra; GPL-3): the Windows zip the game downloads and ships, and its Corresponding Source (README-qvr.md inside says what changed and how to build it)." `
+  "$r\ericw-tools-2.0.0-alpha11-qvr1-win64.zip" "$r\ericw-tools-2.0.0-alpha11-qvr1-src.zip"
+gh api repos/vittorioromeo/quakevr/releases/tags/assets-2026-11-17 --jq '.assets[] | [.name, .size, .digest] | @tsv'
+```
+
+The `gh api` line must print the sizes and `sha256:` digests of `support_assets.json`; then
+`vr_relight_get_tool` in a game without `quakevr\tools\ericw-tools` downloads and unpacks it. The package needs
+nothing from it: `package-quakevr.ps1` and `make_release.ps1` take the fork's `light.exe` and DLLs from the repo's
+`Tools\ericw-tools` (or `QVR_ERICW_TOOLS`; they warn if the `light.exe` they find is not the fork). Its source
+branch must be public first: the src-fork repo's `qvr-fast` branch and `2.0.0-alpha11-qvr1` tag pushed to
+https://github.com/vittorioromeo/ericw-tools (Tools/ericw-tools/README.md names it). Keep `assets-2026-10-08`'s ericw-tools files: older game builds pin them.
 
 - By default the script writes latest.json's `hdtextures` from that file (the hosted URL first, then each `-UrlBase`
   that is not GitHub's or local, with the support tag), and links the source zip from the release notes. Before a
