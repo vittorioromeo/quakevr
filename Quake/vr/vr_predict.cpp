@@ -447,11 +447,16 @@ struct ClientPredict
     struct Mover
     {
         int num{0};
+        vec3_t at{0.f, 0.f, 0.f}; // (B24) its exact origin at the state
         vec3_t vel{0.f, 0.f, 0.f};
         float left{0.f};
     };
     Mover movers[maxMovers]; // the movers near him in motion (B8e)
     int numMovers{0};
+    // (B24) the server's tick, seconds: a mover goes on by one a move in his replay (the server's move buffer runs one of
+    // his moves a tick), not by his move's own time (his frames' clock: a few percent off the server's, a lift's step
+    // with it); 0: an older state, the move's time
+    float serverTick{0.f};
     float holdLeft{0.f};  // .teleport_time less the message's time
     float jumpDir[2]{0.f, 0.f}; // .movedir's x, y (a water jump's push)
     int waterLevel{0}, waterType{CONTENTS_EMPTY}; // the water his last move found (B11b part 2)
@@ -560,13 +565,21 @@ float moverVel(int num, vec3_t out)
     return 0.f;
 }
 
-// ... where it will be `t` seconds of moves after the newest message (B8e: a lift or door goes on to its stop; the
-// server runs a move before the movers of its frame, so the replay's first move meets them where the message has them).
+// ... where it will be `t` seconds of the server's ticks after the newest message (B8e: a lift or door goes on to its
+// stop; the server runs a move before the movers of its frame, so the replay's first move meets them where the message
+// has them). (B24) From its exact place in the state (the entity update's is to 1/16 unit: a replay's lift up to 1/32
+// off, his place on it with it).
 void moverAt(int num, float t, vec3_t out)
 {
-    vec3_t v;
-    const float left = moverVel(num, v);
-    VectorMA(cl_entities[num].msg_origins[0], q_min(t, left), v, out);
+    for(int k = 0; k < cp.numMovers; k++)
+    {
+        if(cp.movers[k].num == num)
+        {
+            VectorMA(cp.movers[k].at, q_min(t, cp.movers[k].left), cp.movers[k].vel, out);
+            return;
+        }
+    }
+    VectorCopy(cl_entities[num].msg_origins[0], out);
 }
 
 // The client's world as a move sees it: the map's hull 1 and the brush models (doors, lifts) where they will be.
@@ -899,12 +912,13 @@ bool replay(vec3_t out, vec3_t before)
         vec3_t liftAt;
         b.pushedNow = false;
         b.pushedBy = 0;
-        const int on = b.moversAfter(in.dt, liftAt);
+        const float step = cp.serverTick > 0.f ? cp.serverTick : in.dt; // (B24: the movers go on by the server's tick)
+        const int on = b.moversAfter(step, liftAt);
         cp.pushN += b.pushedNow && cp.fresh ? 1 : 0;
         vec3_t onVel;
         landedMoving = landedMoving || (inAir && on > 0 && moverVel(on, onVel) > b.moveTime && VectorLength(onVel) > 0.f);
-        lastDt = in.dt;
-        b.moveTime += in.dt;
+        lastDt = step;
+        b.moveTime += step;
         if(b.jumpedNow && s != cp.jumpTraced && vr_mp_watch.value != 0.f)
         {
             cp.jumpTraced = s; // (each move's jump once: a replay that moves it to another move prints that one)
@@ -1335,6 +1349,10 @@ void parseState()
         movers[k].num = MSG_ReadShort();
         for(int i = 0; i < 3; i++)
         {
+            movers[k].at[i] = MSG_ReadFloat();
+        }
+        for(int i = 0; i < 3; i++)
+        {
             movers[k].vel[i] = MSG_ReadFloat();
         }
         movers[k].left = MSG_ReadFloat();
@@ -1343,6 +1361,7 @@ void parseState()
             movers[k].num = 0;
         }
     }
+    const float serverTick = MSG_ReadFloat(); // (B24)
     if(msg_badread || (cp.have && seq < cp.seq))
     {
         return; // (an older one: the snapshot's base kept past the room)
@@ -1397,6 +1416,7 @@ void parseState()
     cp.waterType = waterOfCode((climbBits >> 6) & 3);
     cp.numMovers = numMovers;
     memcpy(cp.movers, movers, sizeof(movers));
+    cp.serverTick = serverTick > 0.f && serverTick < 0.1f ? serverTick : 0.f;
     if(bits & bitWaterJump)
     {
         cp.wjN++;
@@ -2200,10 +2220,17 @@ extern "C" void VR_WritePredict(sizebuf_t* msg, client_t* client)
         MSG_WriteShort(msg, nums[k]);
         for(int i = 0; i < 3; i++)
         {
+            MSG_WriteFloat(msg, m->v.origin[i]);
+        }
+        for(int i = 0; i < 3; i++)
+        {
             MSG_WriteFloat(msg, m->v.velocity[i]);
         }
         MSG_WriteFloat(msg, m->v.nextthink > m->v.ltime ? m->v.nextthink - m->v.ltime : moverNoStop);
     }
+    // (B24) the server's tick (its last: a dedicated server's are all host_netinterval, a listen host's follow his
+    // headset's frames by a little)
+    MSG_WriteFloat(msg, n > 0 ? static_cast<float>(host_frametime) : 0.f);
     VR_SnapTake(msg, at, stateKey); // (a snapshot record: an idle player's costs a few bytes)
 }
 
@@ -2215,7 +2242,7 @@ extern "C" void VR_PredictRelink(int num, float* origin)
         {
             // (the lift he stands on: where his replay has it, between his newest move's start and end as he is drawn)
             const float t = cp.riddenBefore + cp.drawFrac * (cp.riddenAfter - cp.riddenBefore);
-            VectorMA(cl_entities[num].msg_origins[0], q_min(t, cp.riddenLeft), cp.riddenVel, origin);
+            moverAt(num, t, origin);
             VectorAdd(origin, cp.liftError, origin);
         }
         return;

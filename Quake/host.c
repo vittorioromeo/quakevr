@@ -281,7 +281,9 @@ Host_FixedTicks -- QVR: host_fixedtick's ticks for this frame: how many (*len se
 static int Host_FixedTicks (double *accum, double *len, double frametime)
 {
 	const double interval = host_netinterval;
-	const double tol = CLAMP (0.0, (double)host_fixedtick_tolerance.value, interval * 0.25);
+	// QVR: (B24) a dedicated server has no headset to keep pace with: its ticks are all exactly host_netinterval (a
+	// lift's step the same every tick, as the clients' replays of their moves have it: MP_PLAN B24)
+	const double tol = cls.state == ca_dedicated ? 0.0 : CLAMP (0.0, (double)host_fixedtick_tolerance.value, interval * 0.25);
 	const int maxticks = CLAMP (1, (int)host_fixedtick_max.value, 64);
 	const double pace = CLAMP (0.0, frametime, 0.2) / interval;
 	double rest;
