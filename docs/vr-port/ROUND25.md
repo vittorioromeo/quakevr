@@ -4040,4 +4040,4 @@ His Quest 3 report: after an install and a new data push, minutes of Meta's thre
   in `VR_ProgCacheBegin` once it merges this.
 - Checks: dev and ReleaseLTO 0 warnings; no local NDK (ANDROID_NDK_HOME unset): the Android build not run (the code is
   portable C++, no `__ANDROID__` paths of its own); `vr_startup_trace check` 4 passed, 0 failed (3 heartbeat lines);
-  scenario_check and load_models_test below.
+  scenario_check 136/136 PASS; load_models_test 4 passed, 0 failed.
