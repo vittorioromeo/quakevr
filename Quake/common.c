@@ -2657,7 +2657,7 @@ static pack_t *COM_InvalidPackFile (const char *packfile, int handle)
     return NULL;
 }
 
-static pack_t *COM_LoadPackFile (const char *packfile)
+static pack_t *COM_LoadPackFileRead (const char *packfile)
 {
 	dpackheader_t	header;
 	int		i;
@@ -2736,6 +2736,18 @@ static pack_t *COM_LoadPackFile (const char *packfile)
 	COM_PackIndex (pack); // QVR
 
 	//Sys_Printf ("Added packfile %s (%i files)\n", packfile, numpackfiles);
+	return pack;
+}
+
+// QVR: the start-up trace (vr_startlog.cpp): the pak being read, then its files and time
+static pack_t *COM_LoadPackFile (const char *packfile)
+{
+	double t0 = Sys_DoubleTime ();
+	pack_t *pack;
+	VR_StepProgress ("pak %s", packfile);
+	pack = COM_LoadPackFileRead (packfile);
+	if (pack)
+		VR_StepNote ("pak %s: %d files (%.1f ms)", packfile, pack->numfiles, (Sys_DoubleTime () - t0) * 1000.0);
 	return pack;
 }
 

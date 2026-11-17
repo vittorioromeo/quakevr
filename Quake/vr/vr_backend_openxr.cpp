@@ -118,8 +118,16 @@ bool OpenXrBackend::start()
 
 bool OpenXrBackend::startRuntime()
 {
-    if(!(createInstance() && createSystem() && createSession() && createSpaces() &&
-           createActions() && createSwapchains()))
+    // Each a step of the start-up trace (vr_startlog.cpp): a runtime that hangs in one shows which.
+    const auto traced = [this](const char* what, bool (OpenXrBackend::*create)()) {
+        VR_StepBegin(va("OpenXR: %s", what));
+        const bool ok = (this->*create)();
+        VR_StepEnd();
+        return ok;
+    };
+    if(!(traced("instance", &OpenXrBackend::createInstance) && traced("system", &OpenXrBackend::createSystem) &&
+           traced("session", &OpenXrBackend::createSession) && traced("spaces", &OpenXrBackend::createSpaces) &&
+           traced("actions", &OpenXrBackend::createActions) && traced("swapchains", &OpenXrBackend::createSwapchains)))
     {
         return false;
     }

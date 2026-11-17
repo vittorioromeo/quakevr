@@ -835,6 +835,10 @@ za::Vector<Item> pageDebugProfiling()
         header("Startup (GL safe mode)"),
         row(opt::vr_glsafe),
         row(opt::vr_gl_workarounds),
+        row(opt::vr_startup_log),
+        command("Startup Trace Summary", "vr_startup_trace")
+            .help("vr_startup_trace: where this start's trace is (quakevr/startup.log: each step's begin and end, the "
+                  "\"still in\" lines of a slow one) and its summary: the slowest steps."),
         command("GL Safe Mode Status", "vr_glsafe_status")
             .help("vr_glsafe_status: whether this run is in safe mode and why, each feature, and the last GL steps "
                   "(quakevr/crash/gl_startup.log has the start-up's)."),

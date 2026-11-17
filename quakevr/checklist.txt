@@ -20,6 +20,8 @@ Installer: relighting covers Quake and the mission packs only (Map Library and A
 Graphics > Relighting, Relight This Map in e1m1 and in a big map (Arcane Dimensions' ad_mountain) with Bounced Light on: it should take about half as long as before and look the same as the old relight (corners, bounced colour, no blotches on small faces).
 Sliding in VR: your view now dips quickly but smoothly down to the desktop screen's sliding eye height while you slide and comes back up when it ends, your own head still moving one to one; check it feels comfortable (Slide View Time in VR Settings > Locomotion; Slide View off keeps the view at your real head) and that your drawn body lies back with its legs out on the floor as on the desktop screen. {test:vr_slide}
 Linux #82: Flatpak with SteamVR running: VR starts, or qvr_openxr.txt has OpenXR loader output lines for the report
+Flat-screen or VR: start the game and open the console: the start-up's steps are listed as "[startup +Xs] ... begin / end (took X ms)" with a summary of the slowest steps at the end, and quakevr/startup.log has the same lines; Debug > Startup > Startup Trace Summary repeats the summary.
+On the Quest, start the game with "adb logcat -s QuakeVR" running: each start-up step appears as it begins and ends, and during a long step a "still in <step>" line every 2 seconds says what it is doing; vr_android_export startup.log copies the file out.
 
 [1. Flat-screen: weapons and hands]
 

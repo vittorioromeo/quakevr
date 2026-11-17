@@ -2368,6 +2368,7 @@ qboolean PR_LoadProgs (const char *filename, qboolean fatal)
 	Con_DPrintf ("Programs occupy %" SDL_PRIs64 "K.\n", com_filesize/1024);
 
 	qcvm->crc = CRC_Block (qcvm->progs, com_filesize);
+	VR_StepNote ("%s: %" SDL_PRIs64 " bytes, CRC %u", filename, com_filesize, (unsigned) qcvm->crc); // QVR: the start-up trace
 
 	// byte swap the header
 	for (i = 0; i < (int) sizeof(*qcvm->progs) / 4; i++)
