@@ -19,8 +19,15 @@ Quake VR's multiplayer, rebuilt for VR: play the campaigns together or against e
 weapons, bodies and voices. It is a **beta**: tested on every build, but with little play over the internet yet.
 The guide: [MULTIPLAYER.md](MULTIPLAYER.md).
 
-- **Coop and deathmatch, up to 16 players**, from Multiplayer > Host Game; everyone needs this version of Quake VR. A
-  host on the internet forwards UDP port 26000 to his PC.
+- **Coop and deathmatch, up to 16 players**, from Multiplayer > Host Game; everyone needs this version of Quake VR.
+- **Join by room code**: the host's Host Game page shows a 6-letter room code (C copies it); the others type it at
+  Join Game > Join by room code (or `connect @CODE`). Quake VR's room service only introduces the two games (UDP hole
+  punching): no port forwarding through most home routers, and the game goes directly between the players. Behind a
+  router that doesn't allow it (a symmetric NAT) the joiner is told so, and the host forwards UDP port 26000 as before.
+  The service sees the players' IP addresses only while the room lives and logs none; `vr_mp_room 0` hosts without a
+  code, `vr_mp_rendezvous` names another service.
+- **One server socket**: the host talks to every player from his one port (26000), so a forwarded port works behind
+  routers that change port numbers too (Quake gave each player a port of his own).
 - **You see each other as you are**: heads, hands, fingers, held weapons and bodies sized by each player's own
   calibration, moving smoothly between the server's updates.
 - **Everything you can do alone works together**: grabbing, throwing, melee and parries, climbing and mantling, the
@@ -51,9 +58,9 @@ The guide: [MULTIPLAYER.md](MULTIPLAYER.md).
 **Single player only**: time scale and bullet time, saving at will (the host's level-start coop autosave instead),
 the crates Quake VR places about maps, Dimension of the Past and Dimension of the Machine.
 
-**Known issues**: little real internet play yet (latency and loss tested through a simulated link); no NAT
-punch-through or relay (the host needs a forwarded port, or a virtual LAN); custom maps that aren't Map Library
-packages aren't sent to joining players.
+**Known issues**: little real internet play yet (latency, loss and routers tested through simulated links); no relay
+for the routers hole punching can't get through (the host forwards his port, or a virtual LAN); custom maps that
+aren't Map Library packages aren't sent to joining players.
 
 ## Movement
 

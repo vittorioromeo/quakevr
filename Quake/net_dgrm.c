@@ -522,9 +522,9 @@ static qboolean RoomJoin (sys_socket_t sock, const char *typed, struct qsockaddr
 
 static void NET_RoomCode_f (void)
 {
-	if (!room.code[0])
+	if (!room.code[0] || !sv.active)
 	{
-		Con_Printf ("No room code: %s\n", !sv.active ? "not hosting a multiplayer game"
+		Con_Printf ("No room code: %s\n", !sv.active || svs.maxclients < 2 ? "not hosting a multiplayer game"
 			: !Cvar_VariableValue ("vr_mp_room") ? "vr_mp_room is 0"
 			: !RoomServiceName ()[0] ? "no room service (vr_mp_rendezvous)" : "the room service has not answered yet");
 		return;

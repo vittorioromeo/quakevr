@@ -397,6 +397,12 @@ Results:
 
 ## NAT traversal: a proposal (B17, 2026-11-17; for his OK, nothing built)
 
+**Status (B23, 2026-11-17, his OK):** steps 1-3 built. One server socket (net_dgrm.c `ReadShared`, QVR_NET_VERSION
+36); the room service `Misc/rendezvous/qvr_rendezvous.py` (UDP 26100, protocol version 1: 64-byte requests, 32-byte
+replies) for `vittorioromeo.com:26100` (`vr_mp_rendezvous`; `vr_mp_room` 1); room codes in Host Game / Join Game and
+`connect @CODE`; tested by `mp_test.py nat` through simulated routers (`mp_nat.py`, `-natgateway`). Step 4 (relay) a
+design note in `Misc/rendezvous/README.md`. The text below is the proposal as written.
+
 **Today.** A host forwards UDP 26000 on his router, or the players use a virtual LAN. NetQuake's server also answers
 each connect with a **new socket on a new port** (net_dgrm.c `_Datagram_CheckNewConnections`: `Open_Socket(0)`, its
 port in CCREP_ACCEPT) and the client talks to that port from then on. That port is not the forwarded one: it works

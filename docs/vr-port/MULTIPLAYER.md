@@ -13,7 +13,9 @@ How it is built (what runs on the server and on each client) is in [MP_DESIGN.md
   plain Quake clients can't join.
 - **One player hosts** (Multiplayer > Host Game) and plays in his own game; the others **join** (Multiplayer > Join
   Game: the Server Browser, or the host's address).
-- **Over the internet the host forwards UDP port 26000** on his router to his PC. On a LAN nothing is needed.
+- **Over the internet: a room code.** The host's Host Game page shows a 6-letter room code; the others type it at
+  Join Game. Most home routers need nothing more; when they do, the host forwards UDP port 26000. On a LAN nothing is
+  needed.
 - Coop or deathmatch, up to 16 players; bots for deathmatch; proximity voice chat.
 
 ## Hosting a game
@@ -24,11 +26,21 @@ How it is built (what runs on the server and on each client) is in [MP_DESIGN.md
    - **Skill** (coop), **Frag Limit** and **Time Limit** (deathmatch), **Teamplay**.
    - The episode and level to start on, then **begin game**.
 2. **Let your friends reach you.** On a LAN they find you in their Server Browser. Over the internet:
-   - Forward **UDP port 26000** on your router to your PC (your router's "port forwarding" page; the port is
-     `-port` / `net_hostport` if you changed it), and allow Quake VR through the Windows firewall when it asks.
-   - Give them your public address (search "what is my IP" in a browser), or a dynamic-DNS name.
-   - Quake VR has no relay or NAT punch-through yet: without the forwarded port, players outside your network can't
-     join you.
+   - **The room code** (the easy way): once your game has started, Multiplayer > Host Game shows **Room Code ABCDEF**
+     (press **C** there to copy it; the console's `vr_mp_roomcode` prints it too). Send it to your friends: they type
+     it at Join Game > **Join by room code**. Quake VR's room service (`vittorioromeo.com`, UDP 26100) only introduces
+     your games to each other -- each learns the other's public address and both open their routers to each other at
+     the same moment ("hole punching") -- and the game itself then goes directly between you. It works through most
+     home routers without any setup. Allow Quake VR through the Windows firewall when it asks.
+   - **When a friend is told "no direct link"**: one of your routers gives every destination a different port (a
+     "symmetric NAT": some mobile, carrier-grade and business connections), which hole punching can't get through.
+     Then forward **UDP port 26000** on your router to your PC (your router's "port forwarding" page; the port is
+     `-port` / `net_hostport` if you changed it) and give them your public address (search "what is my IP" in a
+     browser) or a dynamic-DNS name; or use a virtual LAN between you.
+   - Privacy: while you host, the room service sees your public IP address and your room code, and the joining
+     player's; it keeps them only while your game runs (two minutes after it ends they are gone) and logs no
+     addresses. `vr_mp_room 0` hosts without a room code (nothing is sent to the service); `vr_mp_rendezvous` names
+     another service (`Misc/rendezvous/` in the source has the service and how to run your own).
 3. **Your rules are the game's rules.** The gameplay settings that change the game for everyone (damage, disarming,
    physics, ammo and reload rules and the like) are the host's. Joining players keep their own comfort, hand,
    holster and display settings, and get their own back when they leave.
@@ -74,6 +86,9 @@ for the others. Any PC with Quake VR installed can run one (the same port rule a
 
   each with its map, players and ping. **A** joins, **X** searches again.
 - Or type the host's address in **Join Game** (`host` or `host:port`), or `connect <address>` in the console.
+- Or his **room code** in Join Game's **Join by room code** (or `connect @ABCDEF` in the console). If the code is
+  wrong or his game ended you are told "No room with that code"; if the room service can't be reached, "Room service
+  not answering" (join by his address instead).
 - **A map you don't have**: if the server's map is a Map Library package, it is installed for you before you join
   (through the Map Library's own downloads and checks; `vr_mp_download`, on by default). Other custom maps must be
   copied by hand.
@@ -129,13 +144,15 @@ These stay off in multiplayer (the world can't slow down or stop for one player)
   needs (up to about 140 ms) and runs them one a tick, so his movement stays even for everyone and lifts meet him where
   his game showed; on a steady link it is about 28 ms at most. The others see a jittery player that much later. (Debug
   > Network: Move Buffer and Move Buffer Most, `vr_net_movebuffer` and `vr_net_movebuffer_max`, on the host.)
-- **Can't connect over the internet**: almost always the host's port forwarding (UDP 26000, to the right PC) or a
-  firewall. Try from the same LAN first.
+- **Can't connect over the internet**: by a room code, the message says why ("No direct link to the host": one of
+  your routers doesn't allow hole punching; the host forwards UDP 26000). By address: almost always the host's port
+  forwarding (UDP 26000, to the right PC) or a firewall. Try from the same LAN first.
 
 ## Known issues (beta)
 
 - Little real internet play yet: lag over 150 ms, packet loss and NATs are tested on one PC through a simulated link,
   not across the world. Feedback welcome.
-- No NAT punch-through or relay: the host needs a forwarded port (or a VPN such as a virtual LAN between the players).
+- Room codes are new: tested through simulated routers on one PC, not yet across real ones. No relay: behind a
+  symmetric NAT the host still needs a forwarded port (or a virtual LAN between the players).
 - Custom maps that aren't Map Library packages aren't sent to joining players.
 - The Multiplayer menus, the Server Browser and voice chat have not yet been checked in a headset by the author.
