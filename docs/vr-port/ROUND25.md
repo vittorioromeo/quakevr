@@ -4991,3 +4991,37 @@ knees and ankles reach further out in the headset (the mock stands taller than 1
 - Checks: dev and ReleaseLTO (`-p:QvrReleaseVersion=1.1.0`) 0 warnings; menu_paths.txt regenerated (9934 entries:
   the new Debug row plus earlier rounds' unregenerated rows); `vr_menu_path_check maps/vrcalibration.map` 0 missing;
   scenario_check 136/136 PASS; load_models_test 4/4.
+
+## MP B23: NAT traversal: one server socket, room codes, the room service (agent/mp, 2026-11-17)
+
+- **One server socket** (`net_dgrm.c` ReadShared, QVR_NET_VERSION 36): the server talks to every client from its
+  listening port and tells them apart by address and port (each client's datagrams queued for it, at most 256; the
+  rest for the connect/query handling, 64). NetQuake opened a port per client and named it in the accept: behind a
+  router that doesn't keep port numbers, a forwarded host couldn't be joined. A v36 client keeps the address it
+  reached. Windows: the listening socket ignores ICMP port-unreachable (`SIO_UDP_CONNRESET`, else one client gone cut
+  everyone's reads short), 1 MB receive buffer. `net_stats`: "server queue drops".
+- **Room codes**: a host (listen server of 2+ players or dedicated, `vr_mp_room` 1, new) registers every 20 s with the
+  room service `vr_mp_rendezvous` (new, `vittorioromeo.com:26100`) from his game socket, gets a 6-letter code
+  (console "Room code: ...", Host Game page "Room Code ABCDEF (C: copy)", `vr_mp_roomcode [copy]`). A joiner:
+  Join Game > "Join by room code" or `connect @CODE`: the service introduces both, the host punches the joiner for 8 s
+  while the joiner's connect requests (every 0.25 s, 32) punch the host's router. Messages: "No room with that code",
+  "Room service not answering", "No direct link to the host" (symmetric NAT: forward UDP 26000), each with the whole
+  reason on the console.
+- **The service** `Misc/rendezvous/`: `qvr_rendezvous.py` (Python 3 stdlib, one UDP socket, protocol version 1:
+  64-byte requests, 32-byte replies, no amplification; per-address token bucket 5/s burst 20; 20000 rooms, 8 per
+  address, 50000 tracked addresses, 20 introductions per room in 10 s; rooms gone 120 s after the last registration;
+  no addresses logged), `test_rendezvous.py` (20 checks: protocol, every limit, a real exchange on 127.0.0.1),
+  `qvr-rendezvous.service` (hardened systemd unit), `deploy.sh <host> [user]` (scp + ssh/sudo; ufw), `README.md`
+  (deploy, logs, update, local mode, the relay as a design note).
+- **Tests**: `mp_test.py nat` (in the suite): the service's test; a forwarded host behind a non-port-preserving router
+  joined at its outside port; a host behind a cone NAT gets a code (the service sees the outside port); A behind
+  another cone NAT joins by it; B behind a symmetric NAT gets the reason; an unknown code and a dead service get
+  theirs. Routers: `mp_nat.py` (cone / symmetric, port-preserving or not, forwards) on 127.0.0.2-5, the games sending
+  through it by `-natgateway <port>` (net_wins.c, tests only). The harness's games run with `vr_mp_room 0` (never the
+  internet service). mp_avatar now waits for the off hand's curls too (it raced a closing hand: 2 fails, then 2/2).
+- **Checks**: dev 0 warnings; MP suite run 1: mp_armed's combat field-share (passed alone) and mp_avatar (fixed
+  above); runs 2 and 3: 3 clean each (46 scenarios, mp_nat 12/0). SP: scenario_check 136/0, load_models 4/0 (vr_run_check not run: no canonical script; nothing SP-side changed but the Join Game page). ThinLTO 0 warnings.
+- **For him**: deploy (`bash Misc/rendezvous/deploy.sh vittorioromeo.com [user]`, UDP 26100 open in any cloud
+  firewall); then host with two real routers and join by code. Note: the first smoke run of this session (mp_coop,
+  before the harness got `vr_mp_room 0`) let its dedicated server look up vittorioromeo.com and send a few REGISTER
+  datagrams to UDP 26100 there (nothing listens yet).

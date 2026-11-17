@@ -3445,3 +3445,24 @@ rendezvous service decision.
 Next phase: B23 -- NAT step 1 if he agrees; else the lift's DIST_EPSILON misses (the client's replay against
 SV_PushMove's carry, B21 item 3) and a 60-minute soak with the change twice (the caches' bounds: `vr_heap_sites`);
 his: B10v's VR checks, internet play with two machines, the rendezvous service decision.
+
+### B23 results: NAT traversal: one server socket, room codes, the room service (2026-11-17, dev no-LTO build, loopback; his OK of 11-17)
+
+- **Step 1, one server socket** (net_dgrm.c `ReadShared`/`ReadDatagram`, `_Datagram_ControlRequest`; QVR_NET_VERSION
+  36): every client on the listening socket, demultiplexed by address and port into per-client queues (256) and a
+  control queue (64); a v36 client keeps the address it reached (the accept's port is the server's inside one). The
+  drivers' CheckNewConnections return the listening socket whenever listening (no peek). Windows: SIO_UDP_CONNRESET
+  off and SO_RCVBUF 1 MB on it (net_udp.c: the buffer).
+- **Steps 2-3, room codes** (net_dgrm.c "room codes"; MP_DESIGN.md's proposal, status line added): `vr_mp_rendezvous`
+  (`vittorioromeo.com:26100`), `vr_mp_room` (1); `connect @CODE`, Join Game's "Join by room code", Host Game's
+  "Room Code" (C copies), `vr_mp_roomcode [copy]`. The service: `Misc/rendezvous/` (qvr_rendezvous.py, its test,
+  systemd unit, deploy.sh, README with the relay design note).
+- **Tests**: `mp_test.py nat` (12 checks; in the suite: 47 scenarios); `mp_nat.py` NAT routers through `-natgateway`;
+  `Misc/rendezvous/test_rendezvous.py` 20/0. The harness: `vr_mp_room 0` for every game.
+- **Checks**: MP suite x3: run 1 two fails (mp_armed's combat field share once, alone 18/0; mp_avatar's off-hand curls
+  raced: the wait now includes them, 2/2), runs 2 and 3: 3 clean each (46 scenarios, mp_nat 12/0). SP: scenario_check 136/0, load_models 4/0 (vr_run_check not run: no canonical script; nothing SP-side changed but the Join Game page). ThinLTO 0 warnings.
+- **Open**: real routers (his two machines; a symmetric NAT gives the message, no relay); IPv6; a public room list
+  (`vr_mp_public`) not built; the menus not seen in a headset.
+
+Next phase: B24 -- his: deploy the room service and try a room code between two real routers; ours: the lift's
+DIST_EPSILON misses (B21 item 3) and a 60-minute soak with the change twice; a relay only if real punches fail often.
