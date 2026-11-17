@@ -3501,7 +3501,14 @@ DIST_EPSILON misses (B21 item 3) and a 60-minute soak with the change twice; a r
 - **mp_armed's combat field share**: the encoder sends each entity update the smaller way, so the share by fields
   follows the fight (80-97%, B23's fail 79.9% at 6.5 B a record); the check is now on the bytes (mean under 9 B) with
   the share over half.
-- **Checks**: SUITE_RESULTS
+- **Checks**: the MP suite (48 scenarios) x3, then x3 again after a fix. First batch: mp_download failed in all three
+  (its local HTTP mirror refused by the first `-loopbackonly`: downloads from a literal loopback host are now allowed,
+  every connection checked; mp_download alone 9/0) plus mp_disarm's magazine round once (alone 36/0). Second batch: run
+  2 one fail, runs 1 and 3 several unrelated ones (mp_lagcomp's rewind-frames comparison twice, mp_dm's bot checks,
+  mp_ground's sword grip, mp_disarm twice), none of them in the first batch on the same engine code (only the download
+  check changed), so read as load on the machine; alone: mp_lagcomp 15/0, mp_dm 23/0, mp_disarm 36/0. mp_netsafe 8/0,
+  mp_predict and mp_jitter passed in all six. SP: scenario_check 136/0, load_models 4/0, vr_run_check 12/0
+  (`scratch/b10v2_runcheck.sh`, run B `3 1 0 1 0`); dev and ThinLTO builds 0 warnings.
 - **Open**: his: deploy the room service, a room code between two real routers; IPv6; a public room list.
 
 Next phase: B25 -- his: deploy the room service (`Misc/rendezvous/deploy.sh`) and try a room code between two real
