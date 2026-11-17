@@ -60,6 +60,11 @@ class Proxy:
         self.stats = {"up": [0, 0, 0, 0, 0], "down": [0, 0, 0, 0, 0]}  # packets, bytes, dropped, largest, datagrams
         # (B16) the server gone silent: every packet down dropped while set (a crashed server, a link cut)
         self.blackout = False
+        # (B18) game packets corrupted, each direction: the chance a packet is (mp_test.py fuzz: a hostile or broken
+        # peer); how many were, by kind (bits flipped, cut short, random bytes, garbage after). The NetQuake header's
+        # flags and sequence are kept, its length rewritten to the packet's: what reaches the message parsers.
+        self.corrupt = {"up": 0.0, "down": 0.0}
+        self.corrupted = {"up": [0, 0, 0, 0], "down": [0, 0, 0, 0]}
         self.first = None
         self.last = None
         # (B12b) reliable chunks down to drop (drop_reliable_down): how many more; each dropped one's sequence and time,
@@ -125,8 +130,32 @@ class Proxy:
             return True
         return False
 
+    def mangle(self, pkt, direction):
+        """(B18) A game packet corrupted at the direction's chance: its payload's bits flipped, cut short, replaced
+        with random bytes, or random bytes added after it; the header's length made the packet's again."""
+        if self.corrupt[direction] <= 0 or len(pkt) < 9 or self.rng.random() >= self.corrupt[direction]:
+            return pkt
+        kind = self.rng.randrange(4)
+        body = bytearray(pkt[8:])
+        if kind == 0:
+            for _ in range(self.rng.randint(1, 8)):
+                i = self.rng.randrange(len(body))
+                body[i] ^= 1 << self.rng.randrange(8)
+        elif kind == 1:
+            body = body[:self.rng.randrange(len(body))]
+        elif kind == 2:
+            body = bytearray(self.rng.getrandbits(8) for _ in range(len(body)))
+        else:
+            body += bytearray(self.rng.getrandbits(8) for _ in range(self.rng.randint(1, 64)))
+        self.corrupted[direction][kind] += 1
+        head = int.from_bytes(pkt[0:4], "big")
+        size = 8 + len(body)
+        return ((head & 0xFFFF0000) | size).to_bytes(4, "big") + pkt[4:8] + bytes(body)
+
     def schedule(self, sock, addr, pkt, direction, control):
         st = self.stats[direction]
+        if not control_or_short(pkt):
+            pkt = self.mangle(pkt, direction)
         if direction == "down" and self.blackout:
             st[2] += 1
             return

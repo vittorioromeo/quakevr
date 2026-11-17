@@ -431,6 +431,7 @@ struct Past
     vec3_t vel{0.f, 0.f, 0.f};    // (B14: his move's result, compared bit for bit with the server's)
     int on{0};                    // the mover he stood on after it (0: none) ...
     vec3_t liftAt{0.f, 0.f, 0.f}; // ... where the replay had it
+    bool contact{false};          // this move landed him on a moving mover or one pushed him (B18)
 };
 
 struct ClientPredict
@@ -491,6 +492,8 @@ struct ClientPredict
     int states{0}, frames{0}, unpredicted{0}, unWalked{0};
     long long depthSum{0};
     int corrN{0}, flatN{0}, airN{0}, rideN{0}; // (rideN: states a lift under him moved since the last)
+    int contactN{0};                           // (B18: corrections of a move that met a mover, apart) ...
+    float contactMax{0.f};                     // ... the longest
     int swimN{0}, wjN{0}, landMovingN{0}, pushN{0}; // (states swimming, in a water jump; replays landing him on a
                                                  // brush model still moving; replayed moves a mover pushed him)
     int crawlN{0};                               // (states lying down: the lying box, B8g)
@@ -635,6 +638,7 @@ struct ClientBody final : pmove::Body
             else
             {
                 pushedNow = true;
+                pushedBy = k;
             }
             for(int i = 0; i < 3; i++)
             {
@@ -644,6 +648,7 @@ struct ClientBody final : pmove::Body
         return on;
     }
     bool pushedNow{false}; // (vr_mp_watch's trace)
+    int pushedBy{0};       // (B18) ... the mover that pushed him in this move
 
     trace_t trace(const float* start, const float* end) override
     {
@@ -893,6 +898,7 @@ bool replay(vec3_t out, vec3_t before)
         // The lift under him goes on after his move, carrying him; one moving into him pushes him.
         vec3_t liftAt;
         b.pushedNow = false;
+        b.pushedBy = 0;
         const int on = b.moversAfter(in.dt, liftAt);
         cp.pushN += b.pushedNow && cp.fresh ? 1 : 0;
         vec3_t onVel;
@@ -918,6 +924,8 @@ bool replay(vec3_t out, vec3_t before)
         VectorCopy(b.velocity, p.vel);
         p.on = on;
         VectorCopy(liftAt, p.liftAt);
+        // (B18) his move's meeting with a mover: landed on one moving or pushed by one (see the correction's use)
+        p.contact = (inAir && on > 0 && VectorLength(onVel) > 0.f) || b.pushedBy > 0;
         depth++;
     }
     VectorCopy(b.origin, out);
@@ -1016,7 +1024,17 @@ bool replay(vec3_t out, vec3_t before)
                 corrTotals.n++;
                 corrTotals.sum += c;
             }
-            cp.corrMax = q_max(cp.corrMax, c);
+            // (B18) The move that met a mover (landed on it moving, or pushed by it) in either replay: the server runs
+            // the movers once a tick and his moves as they come, so one of his moves bunched with another in a tick
+            // (or a tick without one) inside the unacknowledged window puts the mover a step off where the replay met
+            // it -- a land against a push, up to one step of it (2.08 units for e1m1's lift at 72 Hz). Measured apart.
+            const bool contact = was.contact || now.contact;
+            if(contact)
+            {
+                cp.contactN++;
+                cp.contactMax = q_max(cp.contactMax, c);
+            }
+            cp.corrMax = contact ? cp.corrMax : q_max(cp.corrMax, c);
             if(cp.grapple.on)
             {
                 cp.grappleMax = q_max(cp.grappleMax, c); // (the grapple's rope in his moves: B8j part 4)
@@ -1030,7 +1048,7 @@ bool replay(vec3_t out, vec3_t before)
             if(notes.air)
             {
                 cp.airN++;
-                cp.airMax = q_max(cp.airMax, c);
+                cp.airMax = contact ? cp.airMax : q_max(cp.airMax, c);
             }
             if(liftMoved)
             {
@@ -1411,6 +1429,8 @@ void clientClear()
     cp.airN = keep.airN;
     cp.rideN = keep.rideN;
     cp.airMax = keep.airMax;
+    cp.contactN = keep.contactN;
+    cp.contactMax = keep.contactMax;
     cp.errMax = keep.errMax;
     cp.swimN = keep.swimN;
     cp.swimMax = keep.swimMax;
@@ -1451,14 +1471,15 @@ void report()
                "err_max=%.3f maxspeed=%.1f box=%.1f jump=%.0f swim_n=%d swim_max=%.3f wj_n=%d land_moving=%d "
                "lift_max=%.3f pushed=%d lying=%d arms=%d crawl_n=%d slide_n=%d mantle_n=%d hang_n=%d hang_rise=%.2f trans_n=%d trans_max=%.3f "
                "wclimb=%d wclimb_n=%d grapple=%d grapple_n=%d grapple_max=%.3f grapple_off_n=%d grapple_off_max=%.3f "
-               "exact_n=%d exact_miss=%d exact_max=%.6f vel_miss=%d exact_held=%d hash_sv=%016llx hash_cl=%016llx seq=%u newest=%u\n",
+               "exact_n=%d exact_miss=%d exact_max=%.6f vel_miss=%d exact_held=%d contact_n=%d contact_max=%.3f "
+               "hash_sv=%016llx hash_cl=%016llx seq=%u newest=%u\n",
         vr_net_predict.value != 0.f && netmove::clientUses() ? 1 : 0, cp.bits & bitWalked ? 1 : 0, cp.states, cp.frames,
         cp.unpredicted, cp.unWalked, cp.frames > 0 ? static_cast<double>(cp.depthSum) / cp.frames : 0.0, cp.corrN, cp.corrMax,
         cp.corrN > 0 ? cp.corrSum / cp.corrN : 0.f, cp.flatN, cp.flatMax, cp.airN, cp.airMax, cp.rideN, VectorLength(cp.error),
         cp.errMax, cp.rules.maxspeed, cp.rules.boxHeight, cp.rules.jumpSpeed, cp.swimN, cp.swimMax, cp.wjN,
         cp.landMovingN, cp.liftMax, cp.pushN, cp.bits & bitLying ? 1 : 0, cp.rules.crawl ? 1 : 0, cp.crawlN, cp.slideN, cp.mantleN, cp.hangN, cp.hangRise, cp.transN, cp.transMax,
         cp.rules.waterClimb ? 1 + cp.rules.climbHands : 0, cp.wclimbN, cp.grapple.on ? 1 : 0, cp.grappleN, cp.grappleMax, cp.grappleOffN, cp.grappleOffMax, cp.exactN, cp.exactMiss, cp.exactMax, cp.velMiss, cp.exactHeld,
-        static_cast<unsigned long long>(cp.hashSv), static_cast<unsigned long long>(cp.hashCl), cp.seq,
+        cp.contactN, cp.contactMax, static_cast<unsigned long long>(cp.hashSv), static_cast<unsigned long long>(cp.hashCl), cp.seq,
         netmove::clientNewest());
     if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(0), "vr_mp_predict_report") && !q_strcasecmp(Cmd_Argv(1), "reset"))
     {
@@ -1466,7 +1487,8 @@ void report()
         cp.frames = cp.unpredicted = cp.unWalked = cp.corrN = cp.flatN = cp.airN = cp.rideN = 0;
         cp.swimN = cp.wjN = cp.landMovingN = cp.pushN = cp.crawlN = cp.slideN = cp.mantleN = cp.hangN = cp.wclimbN = cp.grappleN = cp.grappleOffN = 0;
         cp.hangRise = cp.transMax = cp.grappleMax = cp.grappleOffMax = 0.f;
-        cp.transN = cp.exactN = cp.exactMiss = cp.velMiss = cp.exactHeld = 0;
+        cp.transN = cp.exactN = cp.exactMiss = cp.velMiss = cp.exactHeld = cp.contactN = 0;
+        cp.contactMax = 0.f;
         cp.hashSv = cp.hashCl = 14695981039346656037ull;
         cp.exactMax = 0.f;
         cp.depthSum = 0;

@@ -19,7 +19,10 @@ Tests:
              with their poses outside his snapshot (vr_net_snapposes 0) and in it, under the budgets; under vr_net_rate
              6000: his link within it, a snapshot every datagram, the nearest poses more often than the farthest.
     dedicated  (B17) a dedicated server's status line (vr_sv_status) at the start, as A comes and goes and every 2 s;
-             status's pings; pausable 0.
+             status's pings; pausable 0. (B18) its server.cfg (in a base folder of the run's own) read after
+             autoexec.cfg, the command line's +commands over it.
+    fuzz     (B18) B's packets up corrupted (the proxy's bit flips, cuts, random bytes): the server runs on, A plays
+             on; then the server's packets down to B: B's game runs on (left with an error or playing).
     version  a client of another Quake VR network version (-mpnetversion 1) is rejected with the reason; one of the
              same version joins.
     avatar   B has A's avatar (QVR_SVC_AVATAR): head and drawn hands within 2 units of the server's, the main hand's
@@ -585,9 +588,29 @@ STATUS_EVERY_S = 2  # the test's vr_sv_status (the default: 60)
 def dedicated(s):
     """(B17) A dedicated server's comforts: its console's status line (vr_sv_status: the map, the mode, the players
     with their pings, its uptime) at the map's start, when A joins and leaves, and every STATUS_EVERY_S seconds;
-    `status` gives A's ping; no player can pause it (pausable 0 by default on a dedicated server)."""
-    srv = s.server(dedicated=True, extra=["+vr_sv_status", str(STATUS_EVERY_S)])
+    `status` gives A's ping; no player can pause it (pausable 0 by default on a dedicated server). (B18) Its server.cfg
+    read by itself, after autoexec.cfg and before the command line's +commands: one in a base folder of the run's own
+    (a second -basedir: the shared base holds none; its id1, as quakevr is searched in one base folder only, the one
+    with the game code), whose vr_sv_status the command line's overrides."""
+    user = os.path.join(s.out, "server_user")
+    os.makedirs(os.path.join(user, "id1"), exist_ok=True)
+    with open(os.path.join(user, "id1", "server.cfg"), "w", newline="\n") as f:
+        f.write("// mp_test.py dedicated (B18)\nhostname \"qvr servercfg test\"\nvr_sv_status 97\n"
+                "echo mp_servercfg: read\n")
+    srv = s.server(dedicated=True, extra=["-basedir", user, "+vr_sv_status", str(STATUS_EVERY_S)])
     srv.start()
+    srv.wait(r"mp_servercfg: read", 60, what="the server's server.cfg read")
+    execs = [l.strip() for l in srv.lines if l.startswith("execing ")]
+    order = [l.split()[1] for l in execs]
+    s.check("server.cfg exec'd by itself, after autoexec.cfg", "server.cfg" in order and "autoexec.cfg" in order and
+            order.index("autoexec.cfg") < order.index("server.cfg"), "%s" % execs)
+    since = srv.mark()
+    srv.cmd("hostname; vr_sv_status")
+    _, host = srv.wait(r'"hostname" is "', 10, since, "the hostname")
+    _, every = srv.wait(r'"vr_sv_status" is "', 10, since, "vr_sv_status")
+    s.check("server.cfg's settings hold (its hostname), the command line's +commands over them (vr_sv_status %d, "
+            "not its 97)" % STATUS_EVERY_S, "qvr servercfg test" in host and '"%d"' % STATUS_EVERY_S in every.split(" is ")[1],
+            "%s; %s" % (host.strip(), every.strip()))
     srv.cmd("coop 1; deathmatch 0; skill 1; map e1m1; vr_mp_status")
     srv.wait(r"mp_server: map=e1m1", 120, what="the server on e1m1")
     _, empty = srv.wait(r"status: e1m1 \(coop, skill 1\) \| 0 of 4 players \| map ", 30, what="the empty server's status line")
@@ -3756,16 +3779,21 @@ def predict_exact_check(s, what, pr, least=20):
 
 
 def predict_corr_check(s, what, pr, least=20):
-    """The segment's corrections and drawn offset under PREDICT_CORR_MOST (at least `least` states compared)."""
+    """The segment's corrections and drawn offset under PREDICT_CORR_MOST (at least `least` states compared). (B18) A
+    move that met a mover is measured apart (contact_max: predict_lift's check); the drawn offset eases it in, so it
+    may reach it."""
+    contact = float(pr.get("contact_max", 0))
     s.check("B's corrections %s under %.1f unit (and his drawn offset)" % (what, PREDICT_CORR_MOST),
             int(pr.get("corr_n", 0)) >= least and float(pr.get("corr_max", 99)) < PREDICT_CORR_MOST and
-            float(pr.get("err_max", 99)) < PREDICT_CORR_MOST,
-            "max %s over %s states (in the air: %s over %s), drawn offset at most %s" % (
-                pr.get("corr_max"), pr.get("corr_n"), pr.get("air_max"), pr.get("air_n"), pr.get("err_max")))
+            float(pr.get("err_max", 99)) < max(PREDICT_CORR_MOST, contact + 0.1),
+            "max %s over %s states (in the air: %s over %s), drawn offset at most %s; meeting a mover %s over %s" % (
+                pr.get("corr_max"), pr.get("corr_n"), pr.get("air_max"), pr.get("air_n"), pr.get("err_max"),
+                pr.get("contact_max"), pr.get("contact_n")))
 
 
 # e1m1's lift (func_plat *7, at the bottom until a player stands on it: 150 units up at 150 u/s, held up while he stays)
 LIFT_TOP = 31.0 + 24.0               # his origin on it at the top
+LIFT_STEP = 150.0 / 72               # its move in a server tick, units
 # A on its one half at the bottom (its top -119) starts it; B over its other half, 60 units over his place on it at
 # the top, falls onto it as it rises (B8e: a fall onto a moving lift)
 LIFT_A = (-584.0, 2656.0, -94.0)
@@ -3830,6 +3858,10 @@ def predict_lift(s, srv, a, b, ea, eb):
             bool(sv) and abs(sv[2] - LIFT_TOP) < 2.0 and int(pr.get("ride_n", 0)) >= 12,
             "%s, %s states" % (sv, pr.get("ride_n")))
     predict_corr_check(s, "falling onto the lift and riding it", pr)
+    # (B18) the move that met it: within one of its steps (one of his moves bunched with another in a server tick, or
+    # a tick without one, in the moves not yet acknowledged: the lift a step off where his replay met it)
+    s.check("B's correction where he met the lift within one of its steps (%.2f units)" % LIFT_STEP,
+            float(pr.get("contact_max", 99)) <= LIFT_STEP + 0.1, "%s over %s" % (pr.get("contact_max"), pr.get("contact_n")))
     own = org_of(status(b), "mp_player", "self", 1)
     gap = dist(own, sv) if own and sv else 99.0
     s.check("on the lift at rest B stands where the server has him (within 1 unit)", gap <= 1.0,
@@ -5204,6 +5236,105 @@ NETHUD_LOSS = 0.05
 VANISH_TIMEOUT = 8  # (B16) B's vr_mp_client_timeout in mp_vanish, s (its default 30: the test's real-time wait shorter)
 
 
+FUZZ_RATE = 0.3      # the chance each of B's game packets is corrupted while fuzzing (mp_proxy.py mangle)
+FUZZ_PACKETS = 30    # ... until this many were, each way (B joining again each time his link ends: ~2 min)
+FUZZ_CAP_S = 300     # ... a safety net, s
+
+
+def fuzz_until(s, b, direction, what):
+    """B's packets `direction` corrupted until FUZZ_PACKETS were (FUZZ_CAP_S at most). Each time his link ends (the
+    server dropped him for a malformed message, or his game left on an illegible one: no packet that way for 2 s) he
+    joins again, uncorrupted while he does -> (how many, his joins)."""
+    p = b.proxy
+    t0 = time.monotonic()
+    joins = 0
+    while sum(p.corrupted[direction]) < FUZZ_PACKETS and time.monotonic() - t0 < FUZZ_CAP_S:
+        p.corrupt[direction] = FUZZ_RATE
+        last, still = -1, time.monotonic()
+        while sum(p.corrupted[direction]) < FUZZ_PACKETS and time.monotonic() - t0 < FUZZ_CAP_S:
+            n = p.stats[direction][0]
+            if n != last:
+                last, still = n, time.monotonic()
+            elif time.monotonic() - still > 2:
+                break
+            time.sleep(0.05)
+        p.corrupt[direction] = 0.0
+        if sum(p.corrupted[direction]) >= FUZZ_PACKETS or b.proc.poll() is not None:
+            break
+        if p.stats[direction][0] == last:  # (his link ended: in again)
+            since = b.mark()
+            b.cmd("disconnect; " + s.connect_cmd(b))
+            if wait_quietly(b, r"mp_event: .*joined map=e1m1", 60, since, "B joined again") is None:
+                break
+            joins += 1
+    n = sum(p.corrupted[direction])
+    s.note("%s: %d packets corrupted (bits flipped, cut short, random, garbage after: %s) in %.1f s; B joined again "
+           "%d times" % (what, n, p.corrupted[direction], time.monotonic() - t0, joins))
+    return n, joins
+
+
+def alive_check(s, inst, what):
+    """`inst`'s game still running and answering its console -> True."""
+    if inst.proc.poll() is not None:
+        s.check("%s: still running" % what, False, "exited with %s" % inst.proc.returncode)
+        return False
+    since = inst.mark()
+    inst.cmd("echo mp_fuzz_alive")
+    ok = wait_quietly(inst, r"^mp_fuzz_alive", 30, since, what) is not None
+    s.check("%s: still running and answering" % what, ok, "answered" if ok else "no answer in 30 s")
+    return ok
+
+
+def fuzz(s):
+    """(B18) A broken or hostile peer can't crash a game: a public server takes strangers' packets, and its players'
+    games take a stranger server's. On a dedicated server with A and B (through his proxy), each walking: B's packets up
+    corrupted (bits flipped, cut short, random bytes, garbage after; FUZZ_RATE of them until FUZZ_PACKETS were; B
+    joining again each time the server drops him): the server still runs and answers, A plays on (his place on the
+    server moves, his game connected). Then the server's packets down to B, the same way: B's game still runs and
+    answers (each illegible message a Host_Error back to the menu, not a crash), the server and A untouched."""
+    srv, a, b, ea, eb = join(s)
+    for inst in (a, b):
+        inst.cmd("god; notarget")
+    a.cmd("vr_mock_stick off 0.3 0.6")
+
+    def a_plays(what):
+        before = org_of(status(srv), "mp_client", "slot", ea - 1)
+        a.cmd("vr_mock_stick off -0.3 -0.6")
+        moved = None
+        for _ in range(60):
+            now = org_of(status(srv), "mp_client", "slot", ea - 1)
+            if before and now and dist(before, now) > 16.0:
+                moved = now
+                break
+        a.cmd("vr_mock_stick off 0.3 0.6")
+        own = own_status(a)
+        s.check("%s: A plays on (the server moves him, his game connected)" % what,
+                moved is not None and own.get("connected") == "1",
+                "from %s to %s; connected %s" % (before, moved, own.get("connected")))
+
+    sv_since = srv.mark()
+    n, joins = fuzz_until(s, b, "up", "B's packets up")
+    srv.read()
+    drops = [l.strip() for l in srv.lines[sv_since:] if l.startswith("SV_ReadClientMessage")]
+    s.note("the server dropped B %d times: %s" % (len(drops), sorted(set(drops))[:6]))
+    s.check("B's malformed messages up are dropped with a reason (the server's console)", len(drops) > 0,
+            "%d" % len(drops))
+    s.check("B's packets up corrupted: %d" % FUZZ_PACKETS, n >= FUZZ_PACKETS, "%d (B joined again %d times)" % (n, joins))
+    if alive_check(s, srv, "the server after B's corrupt packets up"):
+        a_plays("B's packets up corrupted")
+    alive_check(s, b, "B's game after his corrupt packets up")
+
+    b_since = b.mark()
+    n, joins = fuzz_until(s, b, "down", "the server's packets down to B")
+    errs = [l.strip() for l in b.lines[b_since:] if l.startswith("Host_Error")]
+    s.note("B's game left %d times: %s" % (len(errs), sorted(set(errs))[:6]))
+    s.check("the server's packets down to B corrupted: %d" % FUZZ_PACKETS, n >= FUZZ_PACKETS,
+            "%d (B joined again %d times)" % (n, joins))
+    alive_check(s, b, "B's game after corrupt packets down")
+    if alive_check(s, srv, "the server after B's corrupt packets down"):
+        a_plays("B's packets down corrupted")
+
+
 def vanish(s):
     """(B16) A vanished server, at its client: A hosts a listen server (his own client on the loopback), B joins
     through a proxy, both with vr_mp_client_timeout VANISH_TIMEOUT. B's link down cut (the proxy drops it): after 3 s
@@ -5561,6 +5692,8 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             dedicated(s)
         elif test == "mp_vanish":
             vanish(s)
+        elif test == "mp_fuzz":
+            fuzz(s)
         elif test == "mp_soak":
             soak(s)
         elif test == "mp_lockstep_throw":
@@ -5595,7 +5728,7 @@ def print_bytes_table():
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "dedicated", "soak", "suite"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "dedicated", "soak", "suite"])
     ap.add_argument("--base", required=True, help="the game folder (id1, quakevr...)")
     ap.add_argument("--exe", default=EXE)
     ap.add_argument("--out", default=os.path.join(REPO, "scratch", "mp"))
@@ -5633,7 +5766,7 @@ def main():
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
     elif args.test in ("bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground",
-                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "dedicated", "soak"):
+                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "dedicated", "soak"):
         ok = run(args, "mp_" + args.test)
     elif args.test == "voice":
         ok = run(args, "mp_voice", args.lag, args.jitter, args.loss)
@@ -5681,6 +5814,7 @@ def main():
         ok = run(args, "mp_browser") and ok
         ok = run(args, "mp_nethud") and ok
         ok = run(args, "mp_vanish") and ok
+        ok = run(args, "mp_fuzz") and ok
         # B's link per scenario (MP_PLAN B7: byte counts against mp_bandwidth's): what the next phases cut.
         print_bytes_table()
         print("mp_suite: %s" % ("passed" if ok else "FAILED"))
