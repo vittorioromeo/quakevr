@@ -1075,7 +1075,7 @@ bool replay(vec3_t out, vec3_t before)
             break;
         }
         cp.fresh = false;
-        cp.transNow = false;
+        cp.transNow = cp.grappleOffNow = false;
     }
     memcpy(cp.past, cp.cur, sizeof(cp.past));
     return true;
@@ -1376,11 +1376,12 @@ void parseState()
     cp.mantle = mantle;
     cp.mantleN += mantle.on ? 1 : 0;
     // (a hold taken, or the hang's mantle begun: the server's searches, once a frame: the replay learns of them now)
-    cp.transNow = (mantle.on && cp.hang.on) || (hang.on && !cp.hang.on);
+    // (B19: until a replay takes it -- two states read in one frame, the second already hanging, lost the take's)
+    cp.transNow = cp.transNow || (mantle.on && cp.hang.on) || (hang.on && !cp.hang.on);
     cp.hang = hang;
     cp.take = take;
     cp.takeMem = takeMem;
-    cp.grappleOffNow = cp.grapple.on && !grapple.on; // (the hook come off: the server's, once a frame)
+    cp.grappleOffNow = cp.grappleOffNow || (cp.grapple.on && !grapple.on); // (the hook come off: the server's, once a frame)
     cp.grapple = grapple;
     cp.grappleN += grapple.on ? 1 : 0;
     if(hang.on && (bits & bitWalked))

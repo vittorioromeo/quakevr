@@ -27,7 +27,8 @@ The guide: [MULTIPLAYER.md](MULTIPLAYER.md).
   grapple, holsters and pouches, reloads, force grab; hand weapons and ammo to each other, knock weapons out of other
   players' hands in deathmatch.
 - **Your own movement predicted**: walking, jumping, swimming, climbing and the grapple respond at once, with the server
-  correcting them smoothly; hits are judged where you saw the others when you fired (lag compensation).
+  correcting them smoothly; hits are judged where you saw the others when you fired (lag compensation). The server
+  runs your moves one a tick even when your packets arrive bunched, so lifts and doors meet you where your game showed.
 - **Deathmatch with bots** (FrikBot: `impulse 100`) that fight, swing and grab with their hands like players.
 - **Proximity voice chat** (Opus, with RNNoise noise suppression): push-to-talk or voice activation, heard at the
   talker's head; per-player mute and volume (VR Settings > HUD, Haptics and Sound > Sound > Voice Chat).
