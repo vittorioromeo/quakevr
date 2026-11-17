@@ -3921,3 +3921,28 @@ the body 0.5 s into the slide (`printPose`: the body's floor, the head, the hips
 the view and over the box's floor), the headset's sized as the flat one (`vr_height_calibration 1.55`): floor -2.8 and
 -2.8, head 22.0 and 22.1, hips (1.7, +-2.7, 3.7) and (1.6, +-2.7, 3.7), ankles at -0.4 both: worst 0.1 units off. The
 knees and ankles reach further out in the headset (the mock stands taller than 1.55 m: its legs fitted to it).
+## searchfilter: Search's filter row, Both / Cvars / Tunables (agent/searchfilter, 2026-11-17)
+
+- His request (2026-11-17): a filter on the Search page for cvars only, tunables only, or both (the default); none in
+  release builds, which have no tunables.
+- `vr_menu_search.inc`: "Show: [Both] [Cvars] [Tunables]" over the text box (the left column's top; the box, keys and
+  recent list a row lower; the results column unchanged). `searchPageLayout()` wraps `searchLayout()` (the Map Library
+  keeps its own layout, no row). Each `SearchEntry` has `tunable` (on the Tunables page or a Tunables submenu, the page
+  itself too); `runSearch` skips what the choice leaves out, so the results update at once. Cvars = every result not a
+  tunable (the menus' settings, actions and pages). The chosen button is lit with a bar under its label.
+- Input on the shared menu paths (flat mouse and VR laser: `searchMouse` hover, `K_MOUSE1` click; sticks: up from the
+  keys' top row onto the nearest button, across, A or Enter chooses, down back to the keys, up to the corner's buttons;
+  from the corner's buttons down: the chosen filter). Its own help line.
+- Not saved: kept in memory while the game runs, as the typed text is (the page's other UI state is not saved either;
+  only the recent list is, in search_recent.txt).
+- Release builds (`QVR_RELEASE`: the Tunables pages are compiled out): `searchFilterShown` is a `constexpr false`, so
+  no row is laid out or drawn, `searchFilterPasses` lets everything through, and `vr_menu_search -filter` says
+  "no filter".
+- `vr_menu_search [-filter both|cvars|tunables] [-open] <text>`: sets the row (kept) and prints its buttons' spots;
+  the results' line names the choice. New `vr_menu_search_filter_test` (Debug > Tools > Search Filter Test): the counts
+  for "recoil" under each choice (Both 18 = Cvars 12 + Tunables 6, each only its kind), then the mouse's click on
+  Tunables, the laser's trigger on Cvars, the sticks (up, across, A, down); puts the filter and text back; 11/11. In a
+  release build: no row, no tunable indexed, 12 results whatever the filter; 3/3.
+- Checks: dev and ReleaseLTO (`-p:QvrReleaseVersion=1.1.0`) 0 warnings; menu_paths.txt regenerated (9934 entries:
+  the new Debug row plus earlier rounds' unregenerated rows); `vr_menu_path_check maps/vrcalibration.map` 0 missing;
+  scenario_check 136/136 PASS; load_models_test 4/4.

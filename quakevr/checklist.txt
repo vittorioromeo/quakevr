@@ -25,6 +25,7 @@ Graphics > Relighting, Relight This Map in e1m1 and in a big map (Arcane Dimensi
 
 [3. Flat-screen: menus, campaigns and the Map Library]
 Installer: install into a fresh folder and pick Snap 45, Left-handed and Medium on "Set up the game": the game has them. Change Turning in the game, run Update, change only Turn Speed: Turning stays yours.
+Flat-screen or VR: open Search (the corner's button), type "recoil", then pick Show: Cvars, Tunables and Both in the new row over the text box (mouse, laser and sticks): the results change at once and only show that kind, Both shows all of them.
 
 [4. VR: body and gear]
 
