@@ -456,6 +456,13 @@ int WINS_Write (sys_socket_t socketid, byte *buf, int len, struct qsockaddr *add
 {
 	int	ret;
 
+	if (net_loopbackonly && !NET_LoopbackAddr (((struct sockaddr_in *)addr)->sin_addr.s_addr)) // QVR: (B24, tests)
+	{
+		if (((struct sockaddr_in *)addr)->sin_addr.s_addr != INADDR_BROADCAST) // (a LAN broadcast: dropped quietly)
+			NET_LoopbackRefused (WINS_AddrToString (addr));
+		return len; // (as if sent and lost)
+	}
+
 	if (natGateway.sin_port && len >= 0 && len <= NET_DATAGRAMSIZE) // QVR: (B23, tests) through the NAT simulator
 	{
 		memcpy (natBuffer, &((struct sockaddr_in *) addr)->sin_addr, 4);
@@ -529,8 +536,8 @@ int WINS_GetNameFromAddr (struct qsockaddr *addr, char *name)
 {
 	struct hostent *hostentry;
 
-	hostentry = gethostbyaddr ((char *)&((struct sockaddr_in *)addr)->sin_addr,
-						sizeof(struct in_addr), AF_INET);
+	hostentry = net_loopbackonly ? NULL // QVR: (B24, tests) no reverse lookups
+		: gethostbyaddr ((char *)&((struct sockaddr_in *)addr)->sin_addr, sizeof(struct in_addr), AF_INET);
 	if (hostentry)
 	{
 		Q_strncpy (name, (char *)hostentry->h_name, NET_NAMELEN - 1);
@@ -548,7 +555,22 @@ int WINS_GetAddrFromName (const char *name, struct qsockaddr *addr)
 	struct hostent *hostentry;
 
 	if (name[0] >= '0' && name[0] <= '9')
-		return PartialIPAddress (name, addr);
+	{
+		if (PartialIPAddress (name, addr) == -1)
+			return -1;
+		if (net_loopbackonly && !NET_LoopbackAddr (((struct sockaddr_in *)addr)->sin_addr.s_addr)) // QVR: (B24, tests)
+		{
+			NET_LoopbackRefused (name);
+			return -1;
+		}
+		return 0;
+	}
+
+	if (net_loopbackonly && q_strcasecmp (name, "localhost")) // QVR: (B24, tests) never looked up
+	{
+		NET_LoopbackRefused (name);
+		return -1;
+	}
 
 	hostentry = gethostbyname (name);
 	if (!hostentry)

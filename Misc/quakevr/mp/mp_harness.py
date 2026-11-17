@@ -76,14 +76,97 @@ class StepFailed(Exception):
     pass
 
 
+# --- (B24) No test talks to the internet --------------------------------------------------------------------------
+# A B23 run's dedicated server looked up the shipped room service (vittorioromeo.com) and sent it datagrams. Three
+# fences: every game starts with -loopbackonly (net_main.c: the engine resolves and sends to 127.0.0.0/8 only, prints
+# "NET SAFETY:" for each refusal); the harness refuses to start a game, or send it a command, that would point it at
+# another host (net_safety_problem: vr_mp_room on with vr_mp_rendezvous elsewhere, a "connect" elsewhere, a room-code
+# join through a service elsewhere); and each scenario's end asks every game its vr_mp_room and vr_mp_rendezvous and
+# reads every log for "NET SAFETY:" (a failed check: "every game kept to loopback"). Names are never looked up here: only
+# a literal 127.x.y.z or "localhost" counts as loopback.
+
+ROOM_SERVICE_DEFAULT = "vittorioromeo.com:26100"  # (vr_mp_rendezvous's default: a game that never set it)
+LOOPBACK_HOST = re.compile(r"^(127\.\d{1,3}\.\d{1,3}\.\d{1,3}|localhost)\.?$", re.I)
+NET_SAFETY_LINE = "NET SAFETY:"
+
+
+def loopback_endpoint(value):
+    """A "host[:port]" (as vr_mp_rendezvous or connect take it) on this machine -> True; "" (none) also True."""
+    host = value.strip().strip('"').strip()
+    if not host:
+        return True
+    if host.count(":") == 1:
+        host = host.split(":", 1)[0]
+    return bool(LOOPBACK_HOST.match(host))
+
+
+def room_on(value):
+    try:
+        return float(value.strip().strip('"') or "0") != 0
+    except ValueError:
+        return True  # (unreadable: assume on)
+
+
+def net_safety_problem(room, rendezvous):
+    """The reason a game with these values would contact a host off this machine (None: it would not)."""
+    if room_on(room) and not loopback_endpoint(rendezvous):
+        return "vr_mp_room %s with vr_mp_rendezvous %s (not loopback)" % (room, rendezvous)
+    return None
+
+
+def launch_net_values(args):
+    """A command line's effective vr_mp_room and vr_mp_rendezvous ("+cvar value", the last one wins)."""
+    room, rendezvous = "1", ROOM_SERVICE_DEFAULT
+    for i, a in enumerate(args[:-1]):
+        if a.lower() == "+vr_mp_room":
+            room = args[i + 1]
+        elif a.lower() == "+vr_mp_rendezvous":
+            rendezvous = args[i + 1]
+    return room, rendezvous
+
+
+COMMAND_SPLIT = re.compile(r';|\n')
+
+
+def command_net_problem(text, state):
+    """Console text (';' separated) a game will run -> the reason it would contact a host off this machine (None: it
+    would not). `state` ({"room", "rendezvous"}) follows its vr_mp_room / vr_mp_rendezvous settings."""
+    for part in COMMAND_SPLIT.split(text):
+        words = part.strip().split(None, 1)
+        if not words:
+            continue
+        name, rest = words[0].lower(), (words[1].strip() if len(words) > 1 else "")
+        if name == "vr_mp_room" and rest:
+            state["room"] = rest.split()[0]
+        elif name == "vr_mp_rendezvous" and rest:
+            state["rendezvous"] = rest.split()[0].strip('"')
+        elif name == "connect" and rest:
+            target = rest.split()[0].strip('"')
+            if target.startswith("@"):
+                if not loopback_endpoint(state["rendezvous"]):
+                    return "connect %s through the room service %s (not loopback)" % (target, state["rendezvous"])
+            elif not loopback_endpoint(target):
+                return "connect %s (not loopback)" % target
+        else:
+            continue
+        problem = net_safety_problem(state["room"], state["rendezvous"])
+        if problem:
+            return problem
+    return None
+
+
 class Instance:
-    def __init__(self, session, name, port, dedicated=0, flat=False, extra=()):
+    def __init__(self, session, name, port, dedicated=0, flat=False, extra=(), net_guard_test=False):
         self.s = session
         self.name = name
         self.port = port
         self.dedicated = dedicated
         self.flat = flat
         self.extra = list(extra)
+        # (B24) mp_netsafe's own game: pointed off this machine on purpose to see -loopbackonly refuse it (its launch and
+        # commands are not checked here, its NET SAFETY lines expected; the engine's fence is still on)
+        self.net_guard_test = net_guard_test
+        self.net_state = None
         self.log = os.path.join(session.out, name + ".log")
         self.inbox = os.path.join(session.out, name + ".inbox")
         self.proc = None
@@ -111,15 +194,23 @@ class Instance:
         # turns it on with a local service)
         a += ["+vr_backend", "mock", "+sv_autosave", "0", "+vr_log_flush_frames", "1", "+vr_fixed_frames", "0",
               "+vr_mock_eye_size", "256", "+vr_mp_watch", "1", "+vr_mock_hand_to_absolute", "1", "+vr_mp_room", "0"]
-        return a + self.extra
+        a = a + self.extra
+        # (B24: the engine's fence, last so nothing in `extra` can take it out)
+        return a[:1] + ["-loopbackonly"] + a[1:]
 
     def start(self):
+        args = self.args()
+        room, rendezvous = launch_net_values(args)
+        self.net_state = {"room": room, "rendezvous": rendezvous}
+        problem = net_safety_problem(room, rendezvous)
+        if problem and not self.net_guard_test:
+            raise StepFailed("NET SAFETY: %s would start with %s: not started" % (self.name, problem))
         with open(self.inbox, "w", encoding="ascii"):
             pass
         env = dict(os.environ, QVR_TEST_HIDDEN="1", QVR_NO_ERROR_DIALOG="1", QVR_TEST_BACKGROUND="1",
                    SDL_ASSERT="abort")
         flags = (IDLE if self.s.low_impact else BELOW_NORMAL) | NO_WINDOW
-        self.proc = subprocess.Popen(self.args(), cwd=self.s.base, env=env, creationflags=flags,
+        self.proc = subprocess.Popen(args, cwd=self.s.base, env=env, creationflags=flags,
                                      stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         self.s.note("%s: started (pid %d, port %d%s)" % (
             self.name, self.proc.pid, self.port,
@@ -128,6 +219,12 @@ class Instance:
 
     def cmd(self, text):
         """Console commands (';' separates them), run at this game's next frame."""
+        if self.net_state is not None and not self.net_guard_test:
+            state = dict(self.net_state)
+            problem = command_net_problem(text, state)
+            if problem:
+                raise StepFailed("NET SAFETY: %s: not sent (%r would %s)" % (self.name, text, problem))
+            self.net_state = state
         with open(self.inbox, "a", encoding="ascii") as f:
             f.write(text + "\n")
 
@@ -295,9 +392,37 @@ class Session:
     def metric(self, name, value):
         self.metrics[name] = value
 
+    def check_net_safety(self):
+        """(B24) Every game kept to this machine: each live game's vr_mp_room and vr_mp_rendezvous as it holds them now
+        (a config or a command may have set them), and no "NET SAFETY:" refusal in any log (-loopbackonly's)."""
+        problems = []
+        for inst in self.instances:
+            if inst.net_guard_test:
+                continue
+            if inst.proc and inst.proc.poll() is None:
+                try:
+                    since = inst.mark()
+                    inst.cmd("vr_mp_room; vr_mp_rendezvous")
+                    _, room_line = inst.wait(r'^"vr_mp_room" is ', 10, since, "its vr_mp_room")
+                    _, rv_line = inst.wait(r'^"vr_mp_rendezvous" is ', 10, since, "its vr_mp_rendezvous")
+                    room = room_line.split('" is "', 1)[1].split('"', 1)[0]
+                    rendezvous = rv_line.split('" is "', 1)[1].split('"', 1)[0]
+                    problem = net_safety_problem(room, rendezvous)
+                    if problem:
+                        problems.append("%s: %s" % (inst.name, problem))
+                except (StepFailed, IndexError) as e:
+                    self.note("%s: its room settings not read (%s)" % (inst.name, e))
+            inst.read()
+            refused = [l for l in inst.lines if NET_SAFETY_LINE in l]
+            if refused:
+                problems.append("%s: %d refusal(s), the first: %s" % (inst.name, len(refused), refused[0].strip()))
+        self.check("every game kept to loopback (vr_mp_room/vr_mp_rendezvous, no NET SAFETY refusals)", not problems,
+                   "; ".join(problems))
+
     def finish(self, failure=None):
         if failure:
             self.check("scenario", False, str(failure))
+        self.check_net_safety()
         # B12's byte table: what each proxied client read, by kind (vr_net_bytes), before the games stop.
         kinds = {}
         for inst in self.instances:

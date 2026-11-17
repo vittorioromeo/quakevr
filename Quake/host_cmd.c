@@ -658,6 +658,12 @@ qboolean Download (const char *url, download_t *download)
 	download->response = 0;
 	download->error = NULL;
 
+	if (COM_CheckParm ("-loopbackonly")) // QVR: (B24, tests) net_main.c: never an internet host
+	{
+		download->error = "NET SAFETY: refused a download (-loopbackonly)";
+		return false;
+	}
+
 	multi_handle = curl_multi_init ();
 	if (!multi_handle)
 	{

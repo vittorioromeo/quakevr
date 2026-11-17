@@ -43,6 +43,9 @@ extern cvar_t		hostname;
 
 extern	double		net_time;
 extern	sizebuf_t	net_message;
+extern	qboolean	net_loopbackonly; // QVR: (B24, tests) -loopbackonly: 127.0.0.0/8 only (net_main.c)
+void NET_LoopbackRefused (const char *what); // QVR: (B24) prints "NET SAFETY: refused <what>" (the first 16)
+qboolean NET_LoopbackAddr (unsigned int netorder_ipv4); // QVR: (B24) in 127.0.0.0/8
 extern	qboolean	net_stalemessage; // QVR: (B20) the message just read was overtaken on the way (only a remote client's moves are read so)
 void NET_RestoreMessage (void); // QVR: net_message back on its own buffer, emptied (Host_Error: a parse that pointed it elsewhere, MP_PLAN B19)
 extern	int		net_activeconnections;

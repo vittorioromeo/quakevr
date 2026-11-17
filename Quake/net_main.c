@@ -59,6 +59,25 @@ static PollProcedure	slistPollProcedure = {NULL, 0.0, Slist_Poll};
 
 sizebuf_t	net_message;
 qboolean	net_stalemessage; // QVR: (B20) the message NET_GetMessage just read came overtaken (qsocket_t.qvrAcceptStale)
+
+// QVR: (B24, tests) -loopbackonly: this game's network talks to 127.0.0.0/8 only. The multiplayer harness starts every
+// game with it (a B23 run's dedicated server once looked up the shipped room service and sent it datagrams): a name other
+// than "localhost" is never looked up, an address outside 127.0.0.0/8 never resolved nor sent to (a LAN broadcast is
+// dropped quietly), no reverse lookups, no IPX, no add-on downloads. Each refusal prints "NET SAFETY:" (the first 16),
+// which fails the harness's run.
+qboolean	net_loopbackonly;
+static int	net_loopbackrefusals;
+
+void NET_LoopbackRefused (const char *what)
+{
+	if (++net_loopbackrefusals <= 16)
+		Con_SafePrintf ("NET SAFETY: refused %s (-loopbackonly: 127.0.0.0/8 only)\n", what);
+}
+
+qboolean NET_LoopbackAddr (unsigned int netorder_ipv4)
+{
+	return ((const unsigned char *) &netorder_ipv4)[0] == 127; // (network order: the first octet first)
+}
 // QVR: net_message's own buffer. A snapshot's records are parsed with net_message pointed at each (vr_netsnap.cpp), and
 // a Host_Error inside one (a damaged record: mp_fuzz) left it there: the next connection's request overflowed its few
 // bytes (SZ_GetSpace, "B joined again 1 times"). Host_Error puts it back (NET_RestoreMessage).
@@ -849,6 +868,10 @@ void NET_Init (void)
 {
 	int			i;
 	qsocket_t	*s;
+
+	net_loopbackonly = COM_CheckParm ("-loopbackonly") != 0; // QVR: (B24, tests) before the drivers start
+	if (net_loopbackonly)
+		Con_SafePrintf ("NET: -loopbackonly: 127.0.0.0/8 only\n");
 
 	i = COM_CheckParm ("-port");
 	if (!i)

@@ -696,6 +696,59 @@ def nat(s):
         service.wait(10)
 
 
+def netsafe(s):
+    """(B24) No test talks to the internet (mp_harness.py, "No test talks to the internet"). The harness's own rule: a
+    game it would start, or a command it would send, pointed off this machine is refused before it happens. Then the
+    engine's fence (-loopbackonly, which every harness game has): a dedicated server hosting a room with its room
+    service at a link-local address (169.254.0.1: never routed, so even a broken fence reaches no internet host) and
+    then at a name under .invalid (never looked up) prints NET SAFETY refusals and sends nothing."""
+    from mp_harness import command_net_problem, launch_net_values, net_safety_problem
+    unsafe = [
+        ("a default game with vr_mp_room 1", net_safety_problem(*launch_net_values(["x", "+vr_mp_room", "1"]))),
+        ("vr_mp_room 1 with a rendezvous by name", net_safety_problem("1", "example.invalid:26100")),
+        ("a command setting vr_mp_room 1 on a default game",
+         command_net_problem("map e1m1; vr_mp_room 1", {"room": "0", "rendezvous": "vittorioromeo.com:26100"})),
+        ("a room-code join through the default service",
+         command_net_problem("connect @ABCDEF", {"room": "0", "rendezvous": "vittorioromeo.com:26100"})),
+        ("a connect to a name", command_net_problem("connect example.invalid:26000", {"room": "0", "rendezvous": ""})),
+        ("a connect to a LAN address", command_net_problem("connect 192.168.1.2", {"room": "0", "rendezvous": ""})),
+    ]
+    safe = [
+        ("the harness's games (vr_mp_room 0)", net_safety_problem(*launch_net_values(["x", "+vr_mp_room", "0"]))),
+        ("vr_mp_room 1 with a local service", net_safety_problem("1", "127.0.0.1:27600")),
+        ("a room-code join through a local service",
+         command_net_problem("vr_mp_rendezvous 127.0.0.1:27601; connect @ABCDEF", {"room": "0",
+                                                                                  "rendezvous": "vittorioromeo.com:26100"})),
+        ("connects to 127.x and localhost", command_net_problem("connect 127.0.0.2:27500; connect localhost:27500",
+                                                                {"room": "0", "rendezvous": ""})),
+    ]
+    s.check("the harness refuses every setting or command that points a game off this machine",
+            all(p for _, p in unsafe), "%d of %d refused%s" % (
+                sum(1 for _, p in unsafe if p), len(unsafe), "".join("; NOT: " + n for n, p in unsafe if not p)))
+    s.check("and lets the loopback ones through", not any(p for _, p in safe),
+            "; ".join("%s: %s" % (n, p) for n, p in safe if p))
+    try:
+        Instance(s, "unsafe", s.take_port(), dedicated=2, extra=["+vr_mp_room", "1"]).start()
+        started = True
+    except StepFailed:
+        started = False
+    s.check("a game the harness would start with vr_mp_room 1 and the default service is not started", not started)
+    g = Instance(s, "fence", s.take_port(), dedicated=2, net_guard_test=True,
+                 extra=["+vr_mp_room", "1", "+vr_mp_rendezvous", "169.254.0.1:26100"])
+    s.instances.append(g)
+    g.start()
+    s.check("every harness game starts with -loopbackonly", "-loopbackonly" in g.args())
+    g.cmd("coop 1; deathmatch 0; map e1m1")
+    g.wait(r"NET: -loopbackonly", 60, what="its -loopbackonly line")
+    _, line = g.wait(r"NET SAFETY: refused 169\.254\.0\.1", 120, what="the link-local service refused")
+    s.check("-loopbackonly refuses a room service at a non-loopback address", True, line.strip())
+    since = g.mark()
+    g.cmd("vr_mp_rendezvous qvr-netsafe.invalid:26100")
+    _, line = g.wait(r"NET SAFETY: refused qvr-netsafe\.invalid", 30, since, "the named service refused")
+    s.check("-loopbackonly refuses a name without looking it up", True, line.strip())
+    g.cmd("vr_mp_room 0")
+
+
 STATUS_EVERY_S = 2  # the test's vr_sv_status (the default: 60)
 
 
@@ -6075,6 +6128,8 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             fuzz(s)
         elif test == "mp_nat":
             nat(s)
+        elif test == "mp_netsafe":
+            netsafe(s)
         elif test == "mp_soak":
             soak(s)
         elif test == "mp_lockstep_throw":
@@ -6109,7 +6164,7 @@ def print_bytes_table():
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "dedicated", "soak", "jitter", "nat", "suite"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "dedicated", "soak", "jitter", "nat", "netsafe", "suite"])
     ap.add_argument("--base", required=True, help="the game folder (id1, quakevr...)")
     ap.add_argument("--exe", default=EXE)
     ap.add_argument("--out", default=os.path.join(REPO, "scratch", "mp"))
@@ -6155,12 +6210,16 @@ def main():
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
     elif args.test in ("bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground",
-                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "dedicated", "soak", "jitter", "nat"):
+                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "dedicated", "soak", "jitter", "nat", "netsafe"):
         ok = run(args, "mp_" + args.test)
     elif args.test == "voice":
         ok = run(args, "mp_voice", args.lag, args.jitter, args.loss)
     else:
-        ok = run(args, "mp_coop")
+        ok = run(args, "mp_netsafe")  # (B24: first: the fences that keep every game off the internet)
+        if not ok:
+            print("mp_suite: FAILED (mp_netsafe: the network fences are broken; nothing else run)")
+            sys.exit(1)
+        ok = run(args, "mp_coop") and ok
         ok = run(args, "mp_coop_lag", 150, 0, 0.02) and ok
         ok = run(args, "mp_bandwidth") and ok
         ok = run(args, "mp_armed") and ok
