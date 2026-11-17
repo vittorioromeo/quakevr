@@ -54,8 +54,8 @@ void hullStats_f()
 {
     const HullBuildStats& s = hullBuilds;
     Con_Printf("vr_physics_hull_stats: %d props' and actors' hulls made, %.1f ms of the sync (the slowest %.2f ms); %d "
-               "built ahead on the pool, %d of them taken\n",
-        s.built, s.ms, s.mostMs, s.posted, s.ahead);
+               "built ahead on the pool, %d of them taken; %d let go of (the cache past its most)\n",
+        s.built, s.ms, s.mostMs, s.posted, s.ahead, s.trimmed);
     for(const HullBuildStats::Slow& slow : s.slowest)
     {
         if(slow.ms > 0.0)
@@ -650,6 +650,12 @@ void gunPiecesCacheStats_f()
                "differed\n",
         vr_gun_pieces_cache.value, d.read.load(), d.cut.load(), d.written.load(), d.checked.load(), d.differed.load());
 }
+
+// vr_physics_mem: Box3D's memory, one line (Debug > Profiling and Memory; MP_PLAN B21's soaks).
+void physicsMem_f()
+{
+    qvr::box3d::printMemory("vr_physics_mem");
+}
 } // namespace
 
 void registerCommands()
@@ -666,6 +672,7 @@ void registerCommands()
                                      : "SSE2 kernels (4 lanes; vr_box3d_avx2 0)");
         Cmd_AddCommand("vr_physics_player", player_f);
         Cmd_AddCommand("vr_gun_pieces_cache_stats", gunPiecesCacheStats_f);
+        Cmd_AddCommand("vr_physics_mem", physicsMem_f);
         Cmd_AddCommand("vr_physics_stack", stack_f);
         Cmd_AddCommand("vr_physics_pyramid", pyramid_f);
         Cmd_AddCommand("vr_physics_list", list_f);

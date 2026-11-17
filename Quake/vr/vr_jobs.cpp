@@ -1,6 +1,7 @@
 // vr_jobs.cpp -- see vr_jobs.hpp. No engine headers here.
 
 #include "vr_jobs.hpp"
+#include "vr_crtheap.h"
 #include "vr_tracy.h"
 #ifdef QVR_TRACY
 #include <atomic>
@@ -112,6 +113,7 @@ void Pool::post(detail::JobPtr<detail::Job> job)
         VR_TracyPlot("Job queue entries", tracyQueued.fetch_sub(1, std::memory_order_relaxed) - 1);
 #endif
         job->claimAndRun();
+        VR_CrtHeapThreadTidy(); // (the worker's own heap, at most once a vr_heap_thread_tidy: vr_crtheap.h)
     });
 }
 
@@ -267,6 +269,10 @@ void Pool::parallelFor(za::SizeT count, za::SizeT chunk, FunctionRef<void(za::Si
             {
                 mine++;
             }
+            else
+            {
+                VR_CrtHeapThreadTidy(); // (a helper's own heap, at most once a vr_heap_thread_tidy)
+            }
         },
         chunk);
     ZA_ASSERT(mine <= chunks);
@@ -289,6 +295,7 @@ void init(int workers)
         return;
     }
     const int n = workers > 0 ? workers : za::min(static_cast<int>(za::ThreadPool::getOptimalWorkerCount()), 31);
+    setHeapTidy(VR_CrtHeapThreadTidyPeriod()); // (before the workers start: they take the idle hook from the first wait)
     game.storeSeqCst(new Pool{n});
 }
 
@@ -302,6 +309,12 @@ void restart(int workers)
 {
     shutdown();
     init(workers);
+}
+
+void setHeapTidy(int milliseconds)
+{
+    VR_CrtHeapSetThreadTidy(milliseconds);
+    za::ThreadPool::setIdleHook(milliseconds > 0 ? &VR_CrtHeapIdleTidy : nullptr, milliseconds);
 }
 
 Pool* pool() noexcept

@@ -3,8 +3,11 @@
 
 #include "vr_alloccount.hpp"
 #include "vr_alloccount.h"
+#include "vr_crtheap.h"
 
 #include "Zancle/Algorithm/Sort.hpp"
+#include "Zancle/Concurrency/AtomicMutex.hpp"
+#include "Zancle/Concurrency/LockGuard.hpp"
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -304,7 +307,7 @@ namespace
     constexpr const char* prefixes[] = {"operator new", "operator delete", "VR_Heap",
         "`anonymous namespace'::heapAllocate", "`anonymous namespace'::heapFree", "b3Alloc", "b3Free",
         "`anonymous namespace'::account", "`anonymous namespace'::deallocate", "`anonymous namespace'::allocate",
-        "`anonymous namespace'::record",
+        "`anonymous namespace'::record", "`anonymous namespace'::live", "qvrTraced",
         "za::", "std::", "ankerl::", "malloc", "qvr::mem::"};
     for(const char* p : prefixes)
     {
@@ -318,6 +321,169 @@ namespace
 }
 
 } // namespace
+
+// ---- The live-block trace (vr_heap_sites) ----------------------------------------------------------------------------
+// Every thread's blocks of a size range, from liveBegin to liveEnd, each kept by its address with its stack's place in
+// traceTable until it is freed: traceTable's count and bytes are each stack's blocks still live (peakCount marks a slot
+// taken; the table is vr_alloc_sites', the two never run together). Allocation-free (it runs inside malloc): the
+// address table is VirtualAlloc's, made once and kept.
+namespace
+{
+
+struct LiveBlock
+{
+    void* p; // null: free (linear probing, deletion by backward shift)
+    za::U32 stack;
+    za::U64 size;
+};
+constexpr za::SizeT liveSlots = za::SizeT{1} << 21; // (a power of two)
+LiveBlock* liveTable = nullptr;
+za::SizeT liveUsed = 0;
+za::U64 liveMin = 0, liveMax = 0, liveDropped = 0, liveAllocs = 0;
+bool liveOn = false;
+za::AtomicMutex liveLock;
+
+[[nodiscard]] za::SizeT liveHash(const void* p)
+{
+    return static_cast<za::SizeT>((reinterpret_cast<za::U64>(p) >> 4) * 0x9e3779b97f4a7c15ull >> 40) & (liveSlots - 1);
+}
+
+[[nodiscard]] za::I32 liveStack()
+{
+#ifdef _WIN32
+    void* pc[traceDepth];
+    ULONG hash = 0;
+    const za::U32 depth = RtlCaptureStackBackTrace(2, traceDepth, pc, &hash); // (past liveStack and liveHook)
+    for(za::SizeT i = hash & (traceSlots - 1), probes = 0; probes < traceSlots; i = (i + 1) & (traceSlots - 1), probes++)
+    {
+        TracedStack& t = traceTable[i];
+        if(t.peakCount == 0)
+        {
+            memcpy(t.pc, pc, sizeof(void*) * depth);
+            t.depth = depth;
+            t.hash = hash;
+            t.kind = qvr::alloccount::Kind::Malloc;
+            t.peakCount = 1;
+            return static_cast<za::I32>(i);
+        }
+        if(t.hash == hash && t.depth == depth && memcmp(t.pc, pc, sizeof(void*) * depth) == 0)
+        {
+            return static_cast<za::I32>(i);
+        }
+    }
+#endif
+    return -1;
+}
+
+void liveForget(void* p)
+{
+    za::SizeT i = liveHash(p);
+    while(liveTable[i].p && liveTable[i].p != p)
+    {
+        i = (i + 1) & (liveSlots - 1);
+    }
+    if(!liveTable[i].p)
+    {
+        return; // (not traced)
+    }
+    TracedStack& t = traceTable[liveTable[i].stack];
+    t.count--;
+    t.bytes -= liveTable[i].size;
+    --liveUsed;
+    // backward shift: the entries after it that probed past it move up
+    for(za::SizeT j = (i + 1) & (liveSlots - 1); liveTable[j].p; j = (j + 1) & (liveSlots - 1))
+    {
+        const za::SizeT home = liveHash(liveTable[j].p);
+        if(((j - home) & (liveSlots - 1)) >= ((j - i) & (liveSlots - 1)))
+        {
+            liveTable[i] = liveTable[j];
+            i = j;
+        }
+    }
+    liveTable[i].p = nullptr;
+}
+
+void liveHook(void* p, size_t size)
+{
+    za::LockGuard guard{liveLock};
+    if(!liveOn)
+    {
+        return;
+    }
+    if(size == 0)
+    {
+        liveForget(p);
+        return;
+    }
+    if(size < liveMin || size > liveMax)
+    {
+        return; // (a new block: never in the table, its address's last block was forgotten as it was freed)
+    }
+    ++liveAllocs;
+    const za::I32 s = liveStack();
+    if(s < 0 || liveUsed * 4 >= liveSlots * 3)
+    {
+        ++liveDropped;
+        return;
+    }
+    za::SizeT i = liveHash(p);
+    while(liveTable[i].p && liveTable[i].p != p)
+    {
+        i = (i + 1) & (liveSlots - 1);
+    }
+    if(!liveTable[i].p)
+    {
+        ++liveUsed;
+    }
+    liveTable[i] = LiveBlock{p, static_cast<za::U32>(s), size};
+    traceTable[s].count++;
+    traceTable[s].bytes += size;
+}
+
+} // namespace
+
+bool liveBegin(za::U64 minSize, za::U64 maxSize)
+{
+#ifdef _WIN32
+    if(!liveTable)
+    {
+        liveTable = static_cast<LiveBlock*>(VirtualAlloc(nullptr, liveSlots * sizeof(LiveBlock), MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE));
+        if(!liveTable) return false;
+    }
+    {
+        za::LockGuard guard{liveLock};
+        memset(traceTable, 0, sizeof(traceTable));
+        memset(liveTable, 0, liveSlots * sizeof(LiveBlock));
+        traceTotal = traceDropped = 0;
+        liveUsed = 0;
+        liveDropped = liveAllocs = 0;
+        liveMin = minSize;
+        liveMax = maxSize;
+        liveOn = true;
+    }
+    VR_CrtHeapSetTrace(&liveHook);
+    return true;
+#else
+    (void)minSize;
+    (void)maxSize;
+    return false;
+#endif
+}
+
+void liveEnd(za::U64& allocs, za::U64& live, za::U64& dropped)
+{
+    VR_CrtHeapSetTrace(nullptr);
+    za::LockGuard guard{liveLock};
+    liveOn = false;
+    allocs = liveAllocs;
+    live = liveUsed;
+    dropped = liveDropped;
+}
+
+bool liveTracing()
+{
+    return liveOn;
+}
 
 za::Vector<Site> traceSites(za::U64& total, za::U64& dropped, bool peakFrame)
 {

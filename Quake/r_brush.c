@@ -74,7 +74,14 @@ texture_t *R_TextureAnimation (texture_t *base, int frame)
 	if (!base->anim_total)
 		return base;
 
-	relative = (int)(cl.time*10) % base->anim_total;
+	{
+		// QVR: a damaged server message's time (svc_time: negative, huge or NaN; mp_fuzz) made `relative` negative, no
+		// frame of the cycle matched it and the game ended in Sys_Error ("infinite cycle"): such a time draws frame 0
+		double tenths = cl.time * 10.0;
+		if (!(tenths >= 0.0 && tenths < 2147483647.0))
+			tenths = 0.0;
+		relative = (int)tenths % base->anim_total;
+	}
 
 	count = 0;
 	while (base->anim_min > relative || base->anim_max <= relative)

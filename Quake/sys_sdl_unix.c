@@ -234,6 +234,36 @@ int Sys_FileType (const char *path)
 	return FS_ENT_NONE;
 }
 
+qboolean Sys_MatchFileCase (char *path) // QVR (sys.h)
+{
+	char *name;
+	DIR *dir;
+	struct dirent *ent;
+	qboolean found = false;
+
+	if (access (path, F_OK) == 0)
+		return true;
+	name = strrchr (path, '/');
+	if (!name || name == path || !name[1])
+		return false;
+	*name = 0;
+	dir = opendir (path);
+	*name++ = '/';
+	if (!dir)
+		return false;
+	while ((ent = readdir (dir)) != NULL)
+	{
+		if (!q_strcasecmp (ent->d_name, name)) // ASCII: the same length
+		{
+			memcpy (name, ent->d_name, strlen (name));
+			found = true;
+			break;
+		}
+	}
+	closedir (dir);
+	return found;
+}
+
 qboolean Sys_GetFileTime (const char *path, time_t *out)
 {
 	struct stat st;

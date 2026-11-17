@@ -1768,6 +1768,7 @@ void() VR_AT6_Frame =
         {
             dprint(sprintf("arena: t6 wave %g edicts %g drops %g bodies %g guns %g (stuck %g) score %g\n", ar_wave, n,
                            VR_AT6_Drops(), VR_AT6_Bodies(), VR_AT6_CountClass("thrown_weapon"), VR_AT6_Stuck(), ar_score));
+            localcmd("vr_physics_mem\n"); // (Box3D's memory as the soak goes: its contact manifolds' pools, MP_PLAN B21)
         }
         if(ar_wave >= AR_T6_WAVES) { VR_AT6_Finish(); return; }
     }

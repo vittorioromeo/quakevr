@@ -850,10 +850,18 @@ za::Vector<Item> pageDebugProfiling()
                   "process's working set and commit, mimalloc's reserved and committed memory, pages, threads and arenas."),
         command("Heap Statistics", "vr_heap stats")
             .help("vr_heap stats: mimalloc's own statistics table and options in the console. Long output."),
+        command("Physics Memory", "vr_physics_mem")
+            .help("vr_physics_mem: Box3D's live memory, its world's own, the bodies and contacts, and the contact "
+                  "manifolds' pools (kept at their peak until the map changes) and long arrays, with the longest seen."),
         command("Heap Stress", "vr_heap stress 8 2000")
             .help("vr_heap stress [threads] [ms]: 8 threads allocating and freeing for 2 s (a quarter freed by another "
                   "thread), each block checked: million operations a second, the heap's contention. Stalls the game."),
         row(opt::vr_heap_purge_delay),
+        row(opt::vr_heap_thread_tidy),
+        command("Heap: Live By Size", "vr_heap live 20")
+            .help("vr_heap live [rows]: the heap's blocks in use by block size, the most bytes first, with its pages "
+                  "(held, blocks made, empty). Two of these apart: a size that keeps growing is a leak; "
+                  "vr_heap_sites <min> <max> ... vr_heap_sites stop: where that size's live blocks were allocated."),
         command("Heap: Return Free Memory", "vr_heap collect")
             .help("vr_heap collect: mimalloc returns the memory it holds unused to the system, then vr_heap."),
         header("Startup (GL safe mode)"),
@@ -911,6 +919,7 @@ za::Vector<Item> pageDebugProfiling()
         row(opt::vr_xr_guard),
         row(opt::vr_xr_api_layers),
         row(opt::vr_xr_skip_incompatible_layers),
+        row(opt::vr_xr_debug),
     };
 }
 
@@ -1445,6 +1454,8 @@ za::Vector<Item> pageDebugTools()
             .help("maps_page_pick <row> [source]: the Map Library open with that row picked (its detail; a Slipseer map's page read). Source: 0 both, 1 Quaddicted, 2 Slipseer."),
         command("Search Flash Test", "vr_menu_flash_test")
             .help("vr_menu_flash_test: a Search result opened (Campaign Gap on Menu Look) lands on its row, which flashes and sits in the list's middle; the flash over after its time; none with Search Result Flash 0. Prints a verdict."),
+        command("Search Filter Test", "vr_menu_search_filter_test")
+            .help("vr_menu_search_filter_test: Search's filter row (Show: Both, Cvars, Tunables): each choice's results, then chosen by the mouse, the laser and the sticks; a release build: no row. Prints a verdict."),
         command("Menu Stops Walking Test", "vr_menu_stop_test")
             .help("vr_menu_stop_test: on e1m1, +forward walks; the VR Settings opened over the running game (live preview): no movement button held, the move 0, he comes to rest; closed, nothing resumes. Plays e1m1. Prints a verdict."),
         command("Continue Rows Test", "vr_continue_rows_test")

@@ -25,6 +25,9 @@ finish-args:
   - --share=ipc
   # GPU (dri) and the headset's USB/HID devices (and controllers): --device=all includes dri.
   - --device=all
+  # The host's /dev/shm: --device=all alone gives the sandbox its own (a tmpfs), where SteamVR's vrclient finds none of
+  # its server's shared memory and reports the runtime unavailable (GitHub #82; LINUX.md, "SteamVR").
+  - --device=shm
   - --socket=pulseaudio
   # The update check (vr_update.cpp), OBS's websocket (vr_obs.cpp, localhost), multiplayer.
   - --share=network
@@ -49,20 +52,9 @@ finish-args:
 
 modules:
   # The QuakeC compiler, for the build only (the commit of the author's fteqcc64.exe: "git-6729-f937b9d88"), with its
-  # fte32 flag (Tools/fteqcc/fte32.patch: the 32-bit progs QC/defs.qc asks for).
-  - name: fteqcc
-    buildsystem: simple
-    build-commands:
-      - make -C engine/qclib qcc
-      - install -Dm755 engine/qclib/fteqcc.bin /app/bin/fteqcc
-    cleanup:
-      - '*'
-    sources:
-      - type: archive
-        url: https://github.com/fte-team/fteqw/archive/f937b9d88f71fc4429db5fe56c6a98d922711b2e.tar.gz
-        sha256: d8aede03b56a37eafaf3e11d2ca63fe6a84e45ee602afff72ffd152d18bafef3
-      - type: patch
-        path: ../../../Tools/fteqcc/fte32.patch
+  # fte32 flag (Tools/fteqcc/fte32.patch: the 32-bit progs QC/defs.qc asks for). Its own file: the one place the
+  # compiler's source is pinned. The CMake build reads its URL, checksum and patch from it too (Misc/cmake/QuakeC.cmake).
+  - fteqcc.json
 
   # The OpenXR loader (not in the freedesktop runtime): libopenxr_loader.so and pkg-config openxr for the engine.
   - name: openxr-loader

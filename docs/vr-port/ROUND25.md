@@ -4346,3 +4346,137 @@ His request: bake all 27 title wordings (9 sections x 3) to pick from.
   20.8 MB). A self-contained package for a Linux laptop: the APK, the game folder as one tar (395 MB, no id data) and a
   README with the adb commands (install, paks, data, launch, logcat, crash files). Details: QUEST_PLAN.md 6zf.
 - PC: dev build 0 warnings (QC 0); gles_render_test 21/0; scenario_check PASS (136 run, 0 failed); load_models_test 4/0.
+## Relighting about twice as fast: Quake VR's ericw-tools fork (branch agent/ericwfork, 2026-11-17)
+
+His decision (2026-11-17, after the kit's `work\ericw\FINDINGS.md`): ship a fork of ericw-tools' `light`,
+2.0.0-alpha11-qvr1. It is the shipped light, behind nothing.
+
+- **The fork** (`Tools/ericw-tools/`: light.exe, the stock release's embree4.dll / tbb12.dll / tbbmalloc.dll, the
+  licence texts, `patches/0001-0003`, README.md in Tools/fteqcc's style; source branch `qvr-fast` of
+  https://github.com/vittorioromeo/ericw-tools, tag `2.0.0-alpha11-qvr1`, not yet pushed): deterministic lightmap
+  packing (two runs byte-identical), `-bounceextra N` (bounce traced from N x N of -extra4's 4 x 4 samples per luxel,
+  shared with the block), a version label patch (0003, `CMakeLists.txt`: the source zip builds the same label).
+  Without `-bounceextra` it lights as stock: face-by-face 0 bytes different (e1m1, e3m5 with bounce 1.2), same light
+  grid. With `-bounceextra 2`: mean |d| 0.25-0.31 per lightmap byte, 0.3-0.7% > 2, max 12-17; .lux and grid unchanged.
+- **Game:** `vr_relight_bounceextra` (2, CVAR_NONE; 0 = stock) adds `-bounceextra N` to each light run when bounce > 0
+  and the light.exe has the option's name in its bytes (`bounceExtraFor`, vr_relight.cpp; stock light: a console line,
+  full cost). Not in the batch's lookKey: maps relit before stay "done". The in-game download (`vr_relight_tool.cpp`)
+  pins the fork zip (13,277,988 bytes, sha256 afbd29bf...39d8e7) on the support release `assets-2026-11-17` (its only
+  URL: ericwa's release does not have it); the NOTICE texts name the fork and its source. The page's button is
+  "Download ericw-tools (13.3 MB)" (menu_paths.txt updated by hand: the row has no cvar, no board names it).
+- **Scripts:** `relight_maps.py --bounceextra` (2) the same rule; `package-quakevr.ps1` and `make_release.ps1` take
+  light from the repo's `Tools/ericw-tools` (QVR_ERICW_TOOLS still wins) and warn if it is not the fork;
+  `support_assets.json` files may carry their own `tag` (ericw_source / ericw_win64 -> `assets-2026-11-17`; the HD pack
+  stays on `assets-2026-10-08`); make_release.py/.ps1 build URLs and the online check per file's tag.
+- **Release artefacts** (kit `work\ericw\release\`, SHA256SUMS.txt): `ericw-tools-2.0.0-alpha11-qvr1-win64.zip`
+  (13,277,988, afbd29bf...), `ericw-tools-2.0.0-alpha11-qvr1-src.zip` (86,728,577, d56d651e...: the stock source zip,
+  .git included, `git am` of the patches, `patches\`, README-qvr.md). The binary was built from that source tree.
+  RELEASING.md "Support files" has his `gh release create` steps.
+- **Times** (the game's own relight, 31 threads, bounce 1.2, stock -> fork): e1m1 8.0 -> 4.0 s, e3m5 20.6 -> 8.5 s,
+  ad_mountain 95.3 / 113.2 -> 50.6 / 49.8 s; the installer's set (`vr_relight_batch official`, 73 maps, 2 at once,
+  forced) 9:04 -> 5:58 (small maps' fixed costs dilute it). In-game screenshots of the same views, stock vs fork
+  (kit `scratch\ericwfork_shots\ericwfork_contact_sheet.png`): mean max-channel difference 0.03-0.27 of 255,
+  0.01-0.11% of pixels over 8 (ad_mountain, e3m5, e1m1). The in-game download tested from a local server: installed,
+  then relit e1m1 with it (3.4 s, -bounceextra given).
+- **Checks:** dev and ReleaseLTO builds 0 warnings; installer self-tests 41/41; load_models_test 4/4; scenario_check
+  136/136 PASS.
+- Seen, not fixed: `map ad_mountain` run from `vr_relight_whendone` right after a relight (games hipnotic, rogue, ad,
+  quakevr) said "Couldn't spawn server"; the same map loads from a script at start.
+
+## VR slide: the flat slide's body and eye height (branch agent/vrslide2, 2026-11-17)
+
+His decision: "Sliding pose should be the same as flat screen, and the camera should smoothly but very quickly move to
+the actual sliding head height even in VR. Perhaps add an option." Before, a headset's slide kept his view at his real
+head and hung the flat pose from it (the hips at the flat slide's height off the box's floor, the legs bent up to the
+play-space floor 3 units over it).
+
+**The view** (`slide::viewDrop`, called from `vr_hands.cpp` placeTracked once the tracking is placed): while this
+machine's player slides (`server.slide[1].on`, off a ledge mid-slide too), the whole tracked frame (head, eyes, hands,
+trackers, so the body hung from them) is let down by an eased drop, and `headHeight` with it. As the slide starts it
+takes his real eyes over the box's floor (over the client's origin: the server's moves a unit up into the crouched box
+a frame before); the drop takes them to `slideEye()` (46 less `vr_flat_crouch_drop` and `vr_flat_slide_drop`: 22, the
+flat slide's eyes), his head's own moves since one to one on top (an eye already under it: no drop). Eased by a
+critically damped spring (`geom::easeCritical`, new in `vr_geom.hpp`: avatar's `easePitch` now calls it) that covers
+95% in `vr_slide_camera_time` (0.15 s), no overshoot; back up the same way when the slide ends. The comfort vignette
+counts the drop easing as a move (`viewDropMoving`, `vr_input.cpp` updateComfort). No lying down for 0.5 s after a
+headset slide ends (`slide::headsetRising`, `vr_hull.cpp`): the slide's eyes are `vr_prone_eye`'s own 22 at the
+defaults, and a nod coming back up would have laid him down.
+
+**The body:** the same code as flat's (`vr_avatar_pitch.cpp`'s slide pitch from the eyes over the box, `solveLeg`'s
+legs out in front), now from the flat slide's eyes; the neck back (`vr_flat_slide_neck_back`) too
+(`flatmove::slideNeckBack` for `slide::headsetPose`). The body's floor goes where the flat slide's is, by the drop's
+share (`viewDropShare`): Quake's standing eyes (46 over the box's floor) less the flat body's eye height
+(`units::flatBodyEyeHeight`, `vr_flat_body_height`: 2.8 under the box's floor at the defaults), not
+`vr_floor_offset`'s play-space floor. Not shared: the flat slide's legs turned to the slide's way and the chest back to
+the view (`vr_flat_slide_legs`, flatplay's poseHands: a headset's body yaw is the tracked one), the arms (tracked), and
+the legs' length (a headset's are fitted to the height he stands at: `legFit`).
+
+**Settings:** `vr_slide_camera` 1 (Slide View; 0: the view stays at the real head and the body hangs from it, as
+before), `vr_slide_camera_time` 0.15 (Slide View Time, 0.05..0.5 s), both CVAR_ARCHIVE, in VR Settings > Locomotion
+after Slide Body Pose.
+
+**Tests:** `bash Misc/quakevr/vrslide_test.sh <agent>`: `vr_slide_test` gains the view's checks and a case with
+`vr_slide_camera 0`: straight down, the view from 55.6 (the mock's eyes) to 22.0, lowest 22.0 (no overshoot), 95% in
+0.139 s, back up to 55.6 95% in 0.139 s after it (the let-go case too); with `vr_slide_camera 0` it stays at 55.6
+(55.6 to 56.0). 24 passed. Then `vr_slide_pose_test` (new, `-flatscreenmode`) slides from the same spot and both print
+the body 0.5 s into the slide (`printPose`: the body's floor, the head, the hips, knees and ankles off the head along
+the view and over the box's floor), the headset's sized as the flat one (`vr_height_calibration 1.55`): floor -2.8 and
+-2.8, head 22.0 and 22.1, hips (1.7, +-2.7, 3.7) and (1.6, +-2.7, 3.7), ankles at -0.4 both: worst 0.1 units off. The
+knees and ankles reach further out in the headset (the mock stands taller than 1.55 m: its legs fitted to it).
+## searchfilter: Search's filter row, Both / Cvars / Tunables (agent/searchfilter, 2026-11-17)
+
+- His request (2026-11-17): a filter on the Search page for cvars only, tunables only, or both (the default); none in
+  release builds, which have no tunables.
+- `vr_menu_search.inc`: "Show: [Both] [Cvars] [Tunables]" over the text box (the left column's top; the box, keys and
+  recent list a row lower; the results column unchanged). `searchPageLayout()` wraps `searchLayout()` (the Map Library
+  keeps its own layout, no row). Each `SearchEntry` has `tunable` (on the Tunables page or a Tunables submenu, the page
+  itself too); `runSearch` skips what the choice leaves out, so the results update at once. Cvars = every result not a
+  tunable (the menus' settings, actions and pages). The chosen button is lit with a bar under its label.
+- Input on the shared menu paths (flat mouse and VR laser: `searchMouse` hover, `K_MOUSE1` click; sticks: up from the
+  keys' top row onto the nearest button, across, A or Enter chooses, down back to the keys, up to the corner's buttons;
+  from the corner's buttons down: the chosen filter). Its own help line.
+- Not saved: kept in memory while the game runs, as the typed text is (the page's other UI state is not saved either;
+  only the recent list is, in search_recent.txt).
+- Release builds (`QVR_RELEASE`: the Tunables pages are compiled out): `searchFilterShown` is a `constexpr false`, so
+  no row is laid out or drawn, `searchFilterPasses` lets everything through, and `vr_menu_search -filter` says
+  "no filter".
+- `vr_menu_search [-filter both|cvars|tunables] [-open] <text>`: sets the row (kept) and prints its buttons' spots;
+  the results' line names the choice. New `vr_menu_search_filter_test` (Debug > Tools > Search Filter Test): the counts
+  for "recoil" under each choice (Both 18 = Cvars 12 + Tunables 6, each only its kind), then the mouse's click on
+  Tunables, the laser's trigger on Cvars, the sticks (up, across, A, down); puts the filter and text back; 11/11. In a
+  release build: no row, no tunable indexed, 12 results whatever the filter; 3/3.
+- Checks: dev and ReleaseLTO (`-p:QvrReleaseVersion=1.1.0`) 0 warnings; menu_paths.txt regenerated (9934 entries:
+  the new Debug row plus earlier rounds' unregenerated rows); `vr_menu_path_check maps/vrcalibration.map` 0 missing;
+  scenario_check 136/136 PASS; load_models_test 4/4.
+
+## SteamVR on Linux: the -51 explained, loader messages logged, the Flatpak's /dev/shm (branch agent/linuxsteamvr, 2026-11-17)
+
+GitHub #82 (Fedora 45, Steam Frame, the Flatpak: "SteamVR: not running", then `xrCreateInstance failed: (-51)`). No
+hardware here; diagnosis and plan in LINUX.md, "SteamVR" and "AppImage (plan, not built)". The reply draft:
+`qvr-kit/scratch/issue82_reply.md` (not posted).
+
+- Failure lines name the XrResult from the specification's list (`oxr::resultText`, `openxr_reflection.h`; the runtime's
+  `xrResultToString` only for codes not in it): a failed `xrCreateInstance` has no instance, so it printed `failed:  (-51)`.
+  Now `XR_ERROR_RUNTIME_UNAVAILABLE (-51)` (check, the frame calls' stall lines, the bindings' suggestion, the
+  enumerate's failure in the log).
+- Linux: the loader's stdout and stderr caught while it loads a runtime (`xrEnumerateInstanceExtensionProperties`,
+  `xrCreateInstance`: `xrruntime::captureLoaderOutput` / `endLoaderOutput`, dup2 onto a `tmpfile`) into
+  `qvr_openxr.txt` as "OpenXR loader output (<call>): ..." lines; a failed `xrCreateInstance`'s error lines (deduplicated:
+  with XR_LOADER_DEBUG the loader writes each to both) to the console, at most 8.
+- `vr_xr_debug` (default 0, archived; Debug > Startup, "OpenXR Loader Log"): XR_LOADER_DEBUG=all before VR starts (on
+  Linux before video init, read from the config early with the other vr_xr_* in gl_vidsdl.c); kept when set outside.
+- `XR_ERROR_RUNTIME_UNAVAILABLE` says what to try (`xrruntime::runtimeUnavailable`): SteamVR on Linux: start it first,
+  in a sandbox without the host's /dev/shm the `flatpak override --user --device=shm` line, the logs, Monado/WiVRn;
+  other runtimes: their service; Windows: start the runtime's app.
+- SteamVR detection on Linux: `vrserver`, `vrcompositor`, `vrmonitor` matched by `comm`, the executable's name and
+  argv[0]/argv[1]'s (`processNames`); in a Flatpak sandbox (`/.flatpak-info`) the report says "can't tell" (Auto: as
+  not running); the report also lists the sandbox's devices, whether /dev/shm is the host's, and the /dev/shm entries
+  that look like SteamVR's/OpenVR's/Steam's (to learn their names from players' logs).
+- Flatpak manifest: `--device=shm` (`--device=all` alone gives a tmpfs /dev/shm of the sandbox's own: the likely -51).
+- Checks: Windows dev and ReleaseLTO 0 warnings; the WSL Linux build 0 new warnings; WSL run (`scratch/ls_wsl_fail.sh`:
+  a SteamVR manifest with a missing library, a fake `vrcompositor` started through ld.so): report "SteamVR:
+  vrcompositor running", the loader's 4 error lines in the console and 14 lines in qvr_openxr.txt with vr_xr_debug,
+  `XR_ERROR_RUNTIME_UNAVAILABLE (-51)`, the hint; xr_runtime_test.sh 103 PASS, 0 FAIL; scenario_check 136/136 PASS.
+- Open: the failure outside the sandbox is unexplained until a player's log has the loader's lines and SteamVR's
+  `vrclient_*.txt`; the Flatpak sandbox case not run (no flatpak here); the AppImage needs `appimagetool` in CI (a new
+  pinned download): plan only.

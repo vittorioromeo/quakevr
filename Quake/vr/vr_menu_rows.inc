@@ -2531,7 +2531,14 @@ QVR_SLIDER(vr_slide_stick_angle, "Slide Stick Angle", 5.f, 45.f, 1.f, "%.0f deg"
     "turns well clear of it (vr_slide_stick_angle).")
 QVR_TOGGLE(vr_slide_body, "Slide Body Pose",
     "Sliding (VR): your drawn body leans back with its legs out in front while you slide, as on the desktop screen; "
-    "your own head and view are left as they are (vr_slide_body).")
+    "with Slide View on it is the desktop screen's slide pose, hung from the lowered view (vr_slide_body).")
+QVR_TOGGLE(vr_slide_camera, "Slide View",
+    "Sliding (VR): your view moves quickly but smoothly down to the desktop screen's sliding eye height while you slide "
+    "and back up when it ends, on top of your own head's movement (still one to one). Off: the view stays at your real "
+    "head (vr_slide_camera).")
+QVR_SLIDER(vr_slide_camera_time, "Slide View Time", 0.05f, 0.5f, 0.01f, "%.2f s", noExt,
+    "Sliding (VR): how long the view takes down into the slide and back up after it, eased without overshoot "
+    "(vr_slide_camera_time).")
 QVR_CYCLE(vr_snap_turn, "Turning",
     "Smooth: the turning stick turns you steadily (Turn Speed). Snap: each push turns you at once by the angle.",
     {0.f, "Smooth"}, {30.f, "Snap 30"}, {45.f, "Snap 45"}, {90.f, "Snap 90"})
@@ -6294,6 +6301,10 @@ QVR_CYCLE_BYNAME(vr_memstats_glscan, "Memory Log: GL Count",
 QVR_TOGGLE(vr_memstats_log_gpu, "Memory Log: GPU",
     "Also sample the GPU for the Memory Log (its clocks, slowdowns, and each program's use of it: SteamVR, "
     "Virtual Desktop), on a thread of its own. Off: only while profiling (Performance Profile, the Profiler Panel or its CSV Capture).")
+QVR_CYCLE_BYNAME(vr_heap_thread_tidy, "Heap: Worker Tidy",
+    "vr_heap_thread_tidy: how often each job worker gives back its own heap pages that frees on other threads "
+    "emptied (only the thread that made a page can). Never: a busy server holds more and more of them.",
+    {0.f, "Never"}, {100.f, "100 ms"}, {1000.f, "1 s"}, {10000.f, "10 s"})
 QVR_CYCLE_BYNAME(vr_heap_purge_delay, "Heap: Purge Delay",
     "vr_heap_purge_delay: how long the heap (mimalloc) keeps freed memory before giving it back to the system. "
     "At once: the smallest working set. 1 s, mimalloc's own default: map loads about 15% quicker, 0.3 to 1 GB "
@@ -6318,6 +6329,10 @@ QVR_TOGGLE(vr_xr_guard, "Runtime Crash Guard",
     "vr_xr_guard: a crash inside the OpenXR runtime while the game makes its eye images or stops it is caught "
     "and logged (qvr_openxr.txt): that VR start fails, Auto tries the next runtime, else the game plays flat. "
     "Off: the game crashes with its report.")
+QVR_TOGGLE(vr_xr_debug, "OpenXR Loader Log",
+    "vr_xr_debug, from the next game start (or before VR first starts): XR_LOADER_DEBUG=all, every message of "
+    "the OpenXR loader (the runtime it reads, the library it loads, why that fails) in qvr_openxr.txt on Linux; "
+    "on Windows in diagnostics mode's debug_output.log. Its errors are logged on Linux without it too.")
 QVR_TOGGLE(vr_xr_api_layers, "OpenXR API Layers",
     "vr_xr_api_layers, from the next VR start: off turns off every implicit OpenXR API layer installed "
     "(overlays, toolkits, capture tools between the game and the runtime) by its own switch. "

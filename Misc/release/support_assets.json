@@ -1,5 +1,5 @@
 {
-  "_comment": "The long-lived support files, hosted once on their own GitHub release (not marked latest) and linked by every game release: make_release.ps1 / make_release.py read this file (docs/vr-port/RELEASING.md, 'Support files'). Sizes and SHA-256 as GitHub reports them (gh api repos/vittorioromeo/quakevr/releases/tags/assets-2026-10-08: each asset's size and digest). Quake/vr/vr_relight_tool.cpp pins ericw_win64 separately.",
+  "_comment": "The long-lived support files, hosted once on their own GitHub release (not marked latest) and linked by every game release: make_release.ps1 / make_release.py read this file (docs/vr-port/RELEASING.md, 'Support files'). Sizes and SHA-256 as GitHub reports them (gh api repos/vittorioromeo/quakevr/releases/tags/assets-2026-10-08: each asset's size and digest). A file with its own \"tag\" is on that later support release (ericw-tools' fork, 2.0.0-alpha11-qvr1: assets-2026-11-17). Quake/vr/vr_relight_tool.cpp pins ericw_win64 separately.",
   "repo": "vittorioromeo/quakevr",
   "tag": "assets-2026-10-08",
   "url": "https://github.com/vittorioromeo/quakevr/releases/download/{tag}/{file}",
@@ -10,15 +10,16 @@
       "sha256": "0c0df0e7b19525ba3fabfd1a88cce871b4b1321a5cae0134d5ae21636116b706"
     },
     "ericw_source": {
-      "file": "ericw-tools-2.0.0-alpha11-src.zip",
-      "size": 86236331,
-      "sha256": "551cf5df6ca71b79b3221775f27c55bdd7d9ed71abac5f38591255a886da3bcd"
+      "file": "ericw-tools-2.0.0-alpha11-qvr1-src.zip",
+      "tag": "assets-2026-11-17",
+      "size": 86728577,
+      "sha256": "d56d651e0be4b155247e68c1acf19ee2d367810bae2db5e915d50005dc4cb251"
     },
     "ericw_win64": {
-      "file": "ericw-tools-2.0.0-alpha11-win64.zip",
-      "size": 27503991,
-      "sha256": "4e5ea11be2194a1c4acac6d6da9d5b5b9f65324fda2d67efa0731d1fd8e0745f",
-      "mirrors": ["https://github.com/ericwa/ericw-tools/releases/download/2.0.0-alpha11/ericw-tools-2.0.0-alpha11-win64.zip"]
+      "file": "ericw-tools-2.0.0-alpha11-qvr1-win64.zip",
+      "tag": "assets-2026-11-17",
+      "size": 13277988,
+      "sha256": "afbd29bf3282a34341c928a6ac322357de71be137158f06a5d37c05bc239d8e7"
     }
   },
   "_thirdParty": "Optional components downloaded from their authors' own hosts, never hosted or mirrored on our releases (so not in 'files'): the installer pins the same values (Installer BuiltInComponents; its self-test compares them). latest.json's components.<name> may override one.",

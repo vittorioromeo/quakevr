@@ -33,18 +33,18 @@ namespace qvr::relight::tool
 namespace
 {
 
-// The one file: ericw-tools 2.0.0-alpha11's Windows release (27,503,991 bytes; the sha256 of that file as GitHub serves
-// it), from its mirrors in order: Quake VR's support-files release (Misc/release/support_assets.json, the same file),
-// then ericw-tools' own release. A mirror that fails (no answer, or not this file) passes to the next. The URLs can be
-// pointed elsewhere for a test (vr_relight_tool_url: one, or several separated by spaces): whatever they serve must still be this file.
-constexpr const char* version = "2.0.0-alpha11";
+// The one file: Quake VR's fork of ericw-tools, 2.0.0-alpha11-qvr1's Windows zip (13,277,988 bytes; its sha256), from
+// Quake VR's support-files release (Misc/release/support_assets.json's ericw_win64: the same file; ericw-tools' own
+// releases do not have it). The fork's light lights as stock 2.0.0-alpha11 does, plus -bounceextra (vr_relight.cpp's
+// bounceExtraFor). A mirror that fails (no answer, or not this file) passes to the next. The URLs can be pointed
+// elsewhere for a test (vr_relight_tool_url: one, or several separated by spaces): whatever they serve must still be this file.
+constexpr const char* version = "2.0.0-alpha11-qvr1";
 constexpr const char* releaseUrls[] = {
-    "https://github.com/vittorioromeo/quakevr/releases/download/assets-2026-10-08/ericw-tools-2.0.0-alpha11-win64.zip",
-    "https://github.com/ericwa/ericw-tools/releases/download/2.0.0-alpha11/ericw-tools-2.0.0-alpha11-win64.zip",
+    "https://github.com/vittorioromeo/quakevr/releases/download/assets-2026-11-17/ericw-tools-2.0.0-alpha11-qvr1-win64.zip",
 };
 constexpr int releaseUrlCount = static_cast<int>(sizeof(releaseUrls) / sizeof(releaseUrls[0]));
-constexpr const char* releaseSha = "4e5ea11be2194a1c4acac6d6da9d5b5b9f65324fda2d67efa0731d1fd8e0745f";
-constexpr za::U64 releaseBytes = 27503991;
+constexpr const char* releaseSha = "afbd29bf3282a34341c928a6ac322357de71be137158f06a5d37c05bc239d8e7";
+constexpr za::U64 releaseBytes = 13277988;
 constexpr za::U64 maxBytes = 64ull * 1024 * 1024; // a server sending more is stopped
 constexpr za::U64 maxFileBytes = 48ull * 1024 * 1024; // (embree4.dll, the largest, is 37 MB)
 
@@ -60,21 +60,25 @@ constexpr const char* noticeText =
     "ericw-tools' light, downloaded by Quake VR for the in-game relighting\n"
     "======================================================================\n"
     "\n"
-    "The files in this folder (light.exe, embree4.dll, tbb12.dll, tbbmalloc.dll) are ericw-tools 2.0.0-alpha11's\n"
-    "light and the libraries it needs, unchanged, from its Windows release, downloaded by Quake VR (VR Settings >\n"
-    "Graphics > Relighting > Download ericw-tools) and checked against the release's SHA-256:\n"
+    "The files in this folder (light.exe, embree4.dll, tbb12.dll, tbbmalloc.dll) are light from ericw-tools\n"
+    "2.0.0-alpha11-qvr1, Quake VR's fork of ericw-tools 2.0.0-alpha11, and the libraries it needs, downloaded by\n"
+    "Quake VR (VR Settings > Graphics > Relighting > Download ericw-tools) and checked against the zip's SHA-256:\n"
     "\n"
-    "    https://github.com/ericwa/ericw-tools/releases/tag/2.0.0-alpha11\n"
-    "    (ericw-tools-2.0.0-alpha11-win64.zip,\n"
-    "     sha256 4e5ea11be2194a1c4acac6d6da9d5b5b9f65324fda2d67efa0731d1fd8e0745f)\n"
+    "    https://github.com/vittorioromeo/quakevr/releases/tag/assets-2026-11-17\n"
+    "    (ericw-tools-2.0.0-alpha11-qvr1-win64.zip,\n"
+    "     sha256 afbd29bf3282a34341c928a6ac322357de71be137158f06a5d37c05bc239d8e7)\n"
+    "\n"
+    "The fork changes only light: deterministic lightmap packing and the option -bounceextra (the bounced light traced\n"
+    "from fewer samples: about twice as fast, the look nearly the same); without it, it lights as 2.0.0-alpha11. The\n"
+    "DLLs are those of ericw-tools' own 2.0.0-alpha11 Windows release, unchanged.\n"
     "\n"
     "Quake VR runs light.exe as a separate program; it is not linked into Quake VR. Delete this folder and the game\n"
     "works as before (only the in-game relighting needs light).\n"
     "\n"
     "ericw-tools: Copyright (C) Eric Wasylishen, Kevin Shanahan (Tyrann), David Walton (Spike) and the ericw-tools\n"
-    "contributors. GNU General Public License, version 3 or later: gpl_v3.txt in this folder. Its source code is the\n"
-    "2.0.0-alpha11 tag, https://github.com/ericwa/ericw-tools/tree/2.0.0-alpha11, also offered beside the Quake VR\n"
-    "release (ericw-tools-2.0.0-alpha11-src.zip).\n"
+    "contributors; the fork's changes Copyright (C) Vittorio Romeo. GNU General Public License, version 3 or later:\n"
+    "gpl_v3.txt in this folder. Its source code is the 2.0.0-alpha11 tag with the fork's patches, with the patches and\n"
+    "how to build it: ericw-tools-2.0.0-alpha11-qvr1-src.zip, on the same release page.\n"
     "\n"
     "Embree (embree4.dll): Copyright (C) Intel Corporation. Apache License, Version 2.0: LICENSE-embree.txt.\n"
     "oneTBB (tbb12.dll, tbbmalloc.dll): Copyright (C) Intel Corporation. Apache License, Version 2.0 (the same text).\n";

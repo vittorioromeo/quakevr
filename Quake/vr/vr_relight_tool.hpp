@@ -47,6 +47,6 @@ void finish();
 void command();
 
 // The Windows release's size, for the page's button.
-constexpr const char* sizeText = "27.5 MB";
+constexpr const char* sizeText = "13.3 MB";
 
 } // namespace qvr::relight::tool

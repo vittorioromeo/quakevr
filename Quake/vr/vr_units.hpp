@@ -31,6 +31,9 @@ inline constexpr float modelEyeHeight = 1.646f;
 // 2026-11-08: the body, its poses and the held weapons were tuned at 1.55 m and a headset's Height changed them); 0
 // outside the mode (vr_flatplay.cpp).
 [[nodiscard]] float flatEyeHeight();
+// vr_flat_body_height as the mode takes it, in or out of the mode (a headset's slide sets its body's floor by it:
+// vr_hands.cpp placeTracked).
+[[nodiscard]] float flatBodyEyeHeight();
 
 // The player's eye height in metres: calibrated (vr_height_calibration) in the headset, vr_flat_body_height playing on
 // the desktop screen.

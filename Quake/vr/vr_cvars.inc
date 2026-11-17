@@ -490,6 +490,10 @@ QVR_CVAR(vr_diagnostics, "0", CVAR_ARCHIVE)
 // verbose ones in diagnostics mode only): 1 the XR_EXT_debug_utils messenger once the instance is made; 2 also chained to
 // its creation (the loader's messages while it is made); 0 none.
 QVR_CVAR(vr_diagnostics_xr, "1", CVAR_NONE)
+// 1: XR_LOADER_DEBUG=all before VR starts (vr_xr_runtime.hpp, loaderDebug): every OpenXR loader message (which runtime it
+// reads, the library it loads, why it fails) in qvr_openxr.txt on Linux (its stdout and stderr caught), in diagnostics
+// mode's debug_output.log on Windows. The loader reads it once: from the next game start if VR already started.
+QVR_CVAR(vr_xr_debug, "0", CVAR_ARCHIVE)
 // Diagnostics mode's OpenXR core validation layer (Khronos', shipped in quakevr/xr_layers): 1 every OpenXR call checked
 // against the specification, the findings in openxr_validation.log; 0 not loaded (from the next VR start). Never loaded
 // outside diagnostics mode.
@@ -1173,6 +1177,7 @@ QVR_CVAR(vr_ar_play_loop, "1", CVAR_ARCHIVE)     // 1: again and again (blended 
 QVR_CVAR(vr_ar_play_blend, "0.25", CVAR_ARCHIVE) // seconds blended in from the game's own pose at the start, and out at the end
 QVR_CVAR(vr_ar_play_smoothed, "1", CVAR_ARCHIVE) // 1: a recording's smoothed file when it has one (<name>.smooth.anim)
 QVR_CVAR(vr_memstats_log_gpu, "0", CVAR_NONE)  // 1: the memory log's GPU columns (clocks, slowdowns, each program's GPU use: a sampling thread) always; 0: only while profiling (vr_profile, vr_profile_overlay, vr_profile_csv)
+QVR_CVAR(vr_heap_thread_tidy, "1000", CVAR_ARCHIVE)  // ms: a job worker tidies its own heap pages after a job at most this often, and once when it has had no job this long (mi_collect, vr_crtheap.h): the pages that frees on other threads emptied go back (an idle worker kept them: ~140-290 MB after a map load). 0: never (B22)
 QVR_CVAR(vr_heap_purge_delay, "0", CVAR_ARCHIVE)  // ms mimalloc (the heap, vr_crtheap.c) keeps freed memory before giving it back to the system: 0 at once (the smallest working set), 1000 mimalloc's own default (loads ~15% quicker, 0.3-1 GB more held after them), -1 never. MIMALLOC_PURGE_DELAY sets the start-up value
 QVR_CVAR(vr_memstats_log, "0", CVAR_NONE)      // seconds between rows of quakevr/profile/memstats_<date>.csv (and one after each map load; 0: off) (60 before vr_cfg_version 202)
 QVR_CVAR(vr_memstats_glscan, "1", CVAR_NONE)       // the memory log's GL object count at each map load (vr_main.cpp countGlForLog): 1 the names glGen* hands out (no object, by the GL spec) not asked about (the same count, 5 ms), 0 every name asked up to 4096 past the last object (13 ms), 2 both, compared (printed)
@@ -2026,7 +2031,7 @@ QVR_CVAR(vr_relit_maps, "1", CVAR_ARCHIVE)           // maps re-lit by Misc/quak
 QVR_CVAR(vr_relight_use, "1", CVAR_ARCHIVE)          // maps relit in the game (relit_custom/) over relight_maps.py's (next map; 0: not used)
 QVR_CVAR(vr_relight_tool, "", CVAR_ARCHIVE)          // ericw-tools' light.exe ("": the one shipped in quakevr/tools/ericw-tools, ERICW_LIGHT, PATH)
 QVR_CVAR(vr_relight_tool_dir, "", CVAR_NONE)         // testing: the folder vr_relight_get_tool downloads ericw-tools into and the only one light.exe is looked for in ("": quakevr/tools/ericw-tools in the user's base dir, then the usual lookup)
-QVR_CVAR(vr_relight_tool_url, "", CVAR_NONE)         // testing: where vr_relight_get_tool downloads from, mirrors separated by spaces tried in order ("": the pinned ones, Quake VR's support-files release then ericw-tools' own; any other must serve the same file, its sha256 is checked)
+QVR_CVAR(vr_relight_tool_url, "", CVAR_NONE)         // testing: where vr_relight_get_tool downloads from, mirrors separated by spaces tried in order ("": the pinned one, Quake VR's support-files release (its ericw-tools fork); any other must serve the same file, its sha256 is checked)
 QVR_CVAR(vr_relight_strength, "1.2", CVAR_ARCHIVE)   // all light from textures (lamps, glowing panels, lava), times relight_textures.cfg's strengths (1.2: the author's, 2026-10-06; relight_maps.py's default too)
 QVR_CVAR(vr_relight_lamps, "1", CVAR_ARCHIVE)        // ... the lamps and light panels' (fixtures), times that
 QVR_CVAR(vr_relight_glows, "1", CVAR_ARCHIVE)        // ... glowing buttons, panels, runes and teleporters', times that
@@ -2037,6 +2042,7 @@ QVR_CVAR(vr_relight_bounce, "1.2", CVAR_ARCHIVE)       // bounced light (light -
 QVR_CVAR(vr_relight_ao, "0.5", CVAR_ARCHIVE)         // ambient occlusion in corners (light -dirt -dirtscale; 0 none)
 QVR_CVAR(vr_relight_minlight, "64", CVAR_ARCHIVE)     // Ambient Light Level: light added everywhere (on top of the worldspawn's own minlight, not darkened by the AO; 0 the map's own)
 QVR_CVAR(vr_relight_quality, "1", CVAR_ARCHIVE)      // shadows' edges: 1 smooth (-extra4, relight_maps.py's), 0 fast (-extra)
+QVR_CVAR(vr_relight_bounceextra, "2", CVAR_NONE)     // bounced light traced from N x N of -extra4's 4 x 4 samples per luxel (light -bounceextra, Quake VR's ericw-tools fork: about twice as fast, nearly the same look; given only with bounced light and to a light that knows it; 0: every sample, as stock ericw-tools)
 QVR_CVAR(vr_relight_seethrough, "1", CVAR_ARCHIVE)   // id's maps relit with see-through water, slime and teleporters: VisPatch's water-vised visibility put in (vr_relight_vis.cpp; needs its data files, quakevr/tools/vispatch; 0: the map's own, liquids opaque)
 QVR_CVAR(vr_relight_vispatch_dir, "", CVAR_NONE)     // testing: the only folder the VisPatch data (id1.vis, hipnotic.vis, rogue.vis) is looked for in ("": tools/vispatch in each game folder, then QUAKEVR_VISPATCH)
 QVR_CVAR(vr_relight_reload, "1", CVAR_ARCHIVE)       // a relit map in play reloaded where you are (a save and load; the map restarted where the game can't save; 0: from its next start)
@@ -4329,6 +4335,8 @@ QVR_CVAR(vr_slide, "0", CVAR_ARCHIVE)                   // experimental: a heads
 QVR_CVAR(vr_slide_stick_threshold, "0.85", CVAR_ARCHIVE) // vr_slide: how far down the turning stick must be pulled (0.5..0.99 of its reach), from the middle
 QVR_CVAR(vr_slide_stick_angle, "20", CVAR_ARCHIVE)      // vr_slide: within this many degrees of straight down (5..45; a turn swept round to it never counts)
 QVR_CVAR(vr_slide_body, "1", CVAR_ARCHIVE)              // vr_slide: the drawn body takes the flat slide's pose (the trunk leant back, the legs out in front); 0 none
+QVR_CVAR(vr_slide_camera, "1", CVAR_ARCHIVE)            // vr_slide: the view (the head, eyes, hands and body with it) eases down to the flat slide's eye height while sliding and back up after, on top of the tracked head (vr_slide.cpp viewDrop); 0 the view stays at the real head
+QVR_CVAR(vr_slide_camera_time, "0.15", CVAR_ARCHIVE)    // vr_slide_camera: seconds (0.05..0.5) the view takes down and back up (95% of the way; critically damped, no overshoot)
 QVR_CVAR(vr_flat_speed_fov, "1", CVAR_ARCHIVE)          // flatscreen play: faster than the run along the floor (a slide, a bunny hop chain) the view widens, eased (vr_flat_speed_fov_*; vr_flatspeedfov.cpp); 0 off
 QVR_CVAR(vr_flat_speed_fov_max, "1.2", CVAR_ARCHIVE)    // the speed FOV: the field of view times this at vr_flat_speed_fov_top and faster (1..1.5)
 QVR_CVAR(vr_flat_speed_fov_from, "340", CVAR_ARCHIVE)   // the speed FOV: none up to this speed along the floor (units/s; 320: the run, sv_maxspeed)

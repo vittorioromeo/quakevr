@@ -2861,6 +2861,7 @@ void COM_AddGameDirectory (const char *dir)
 		for (i = 0; ; i++)
 		{
 			q_snprintf (pakfile, sizeof(pakfile), "%s/pak%i.pak", com_gamedir, i);
+			Sys_MatchFileCase (pakfile); // QVR: or PAK0.PAK
 			pak = COM_LoadPackFile (pakfile);
 			if (!pak)
 				break;
@@ -3163,7 +3164,7 @@ static qboolean COM_SetBaseDir (const char *path)
 
 	memcpy (pakpath, path, i);
 	memcpy (pakpath + i, pak0, sizeof (pak0));
-	if (!Sys_FileExists (pakpath))
+	if (!Sys_MatchFileCase (pakpath)) // QVR: or id1/PAK0.PAK (Steam's original Quake on Linux)
 		return false;
 
 	memcpy (com_basedirs[0], path, i);

@@ -11,24 +11,43 @@ rejects ("Unhandled graphics binding type 1000023000"). VR on Linux needs the na
 
 ## Build
 
-Packages (Arch): `clang lld cmake ninja sdl2 mesa libx11 libglvnd openxr` (`openxr`: the loader and headers, found with
-pkg-config). Debian/Ubuntu: `clang cmake ninja-build libsdl2-dev libgl-dev libx11-dev libopenxr-dev libopenxr-loader1`.
+Packages (Arch): `clang lld cmake ninja sdl2 mesa libx11 libglvnd openxr patch make` (`openxr`: the loader and
+headers, found with pkg-config; `sdl2-compat` serves for `sdl2`). Debian/Ubuntu: `clang cmake ninja-build libsdl2-dev
+libgl-dev libx11-dev libopenxr-dev libopenxr-loader1 zlib1g-dev patch make`.
 
-    cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
-    cmake --build build
+    cmake --preset linux-release
+    cmake --build --preset linux-release
+
+That builds everything: the engine (`build/ironwail`) and the QuakeC (`quakevr/progs.dat`). `linux-debug` is the same
+in `build-debug/`, unoptimised with the asserts on. Without the presets (CMake before 3.21):
+`cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++`.
 
 - Configure prints `Quake VR: OpenXR backend on (loader ..., GLX binding)` (the EGL binding needs no package);
   without pkg-config `openxr` (or with
   `-DQVR_OPENXR=OFF`) the build has the mock backend alone.
 - **clang**, not gcc: gcc 15/16 rejects Zancle's `__decay` builtin in function signatures (`vr_jobs.hpp`, "use of
   built-in trait ... in function signature") and instantiates a defaulted `za::Pair::operator==` eagerly
-  (`vr_motion.cpp`). Both are in vendored Zancle (no local changes), so gcc stays unsupported.
-- The QuakeC (`quakevr/progs.dat`) and the game data are the same as on Windows: build QC on Windows (or with fteqcc on
-  Linux), run with `-basedir <folder with id1 and quakevr>`.
+  (`vr_motion.cpp`). Both are in vendored Zancle (no local changes), so gcc stays unsupported: configure stops with a
+  message when the compiler is gcc (`-DQVR_ALLOW_GCC=ON` tries it anyway).
+- **The QuakeC** (`Misc/cmake/QuakeC.cmake`): the build compiles it with `QC/build.sh` (its flags and checks) whenever
+  a QC source changes, its output in `build/qc-build.log`. The compiler is FTEQCC with the `fte32` flag
+  (`Tools/fteqcc/README.md`; a stock FTEQCC fails the format check): the first build downloads the source pinned in
+  `Misc/linux/flatpak/fteqcc.json` (the Flatpak's fteqcc module, the one place the URL, checksum and patch are written;
+  checksum checked), applies its patch (`Tools/fteqcc/fte32.patch`) and builds it in `build/fteqcc` (network once,
+  `make`, `patch` and zlib). `-DQVR_FTEQCC=<path>` uses your own instead; `-DQVR_QC=OFF` leaves `progs.dat` alone;
+  `-DQVR_QC_RELEASE=ON` compiles the release flavour (`-DQVR_NO_TESTS`, `QC/build.sh`'s `QVR_QC_RELEASE=1`), as the
+  Flatpak does.
 - The build number shows `build 0 (unknown)` when git can't read the checkout (a Windows worktree seen from WSL).
 
 ## Run
 
+From the repository, with your Quake folder first and the repository (its `quakevr` folder) last:
+
+    ./build/ironwail -basedir ~/.local/share/Steam/steamapps/common/Quake -basedir . -game quakevr
+
+- **Steam's and GOG's Quake** as they are: the original release's paks are named in upper case (`id1/PAK0.PAK`), which
+  the engine matches on Linux too (`Sys_MatchFileCase`: a `pakN.pak` not found by its own name is looked for ignoring
+  case). The `rerelease` folder (`.../Quake/rerelease`) works as a base dir as well.
 - Flat or mock: `vr_backend mock` (or `-novr`, as on Windows). SDL picks X11 or Wayland.
 - VR: `vr_backend openxr`, with an OpenXR runtime: Monado, WiVRn, SteamVR for Linux (the loader finds the active one
   in `~/.config/openxr/1/active_runtime.json`, `/etc/xdg/openxr/1/`, `/etc/openxr/1/`, or `XR_RUNTIME_JSON`).
@@ -62,8 +81,9 @@ Arcane Dimensions' or the expansions' is in it: it reads the player's own Quake 
   bundle as the run's artifact `QuakeVR-<branch>-<hash>` (30 days: the Actions tab, the run, Artifacts). No release is
   published.
 - **Files** (`Misc/linux/flatpak/`): the manifest `io.github.vittorioromeo.QuakeVR.yml` (modules: fteqcc at the commit of
-  the author's `fteqcc64.exe`, for the build only; the OpenXR loader; Quake VR), `build.sh` (in the sandbox: the QuakeC,
-  CMake, the install; the game folder is what git would track under `quakevr/`, less `.gitignore` and `motions/`, as
+  the author's `fteqcc64.exe`, for the build only, in its own file `fteqcc.json`, which the CMake build reads its pin
+  from too; the OpenXR loader; Quake VR), `build.sh` (in the sandbox: the CMake build, the engine and the QuakeC's
+  release flavour with the module's fteqcc, then the install; the game folder is what git would track under `quakevr/`, less `.gitignore` and `motions/`, as
   `Windows/package-quakevr.ps1` has it), `quakevr.sh` (the launcher), the desktop entry, the AppStream metadata and the
   icon (the installer's logo). The build number: CI writes `.qvr-buildinfo` ("<commit count> <hash>"), which
   `qvr_buildinfo.cmake` reads when the copy has no `.git`; a local build says `build 0 (unknown)`.
@@ -106,19 +126,82 @@ Arcane Dimensions' or the expansions' is in it: it reads the player's own Quake 
   - **Monado or WiVRn from distribution packages**: their manifests (`/usr/share/openxr/1`, `/etc/xdg/openxr/1`) name a
     library under the host's `/usr`, which the sandbox does not see (its `/usr` is the runtime's): no runtime found. Use
     the native build.
-  - **SteamVR**: its manifest and `vrclient` are in the Steam folder (shared read-only), and the game asks SDL for
-    X11/GLX. Not tried; the likely limits: SteamVR's library expecting the Steam Runtime's libraries, and the sandbox
-    hides the host's processes, so the game's "SteamVR is running" detection (`vrserver` in `/proc`) sees nothing.
+  - **SteamVR**: its manifest and `vrclient` are in the Steam folder (shared read-only), the game asks SDL for
+    X11/GLX, and the host's `/dev/shm` is shared (`--device=shm`, since 2026-11-17). Not working yet for the two players
+    who tried (GitHub #82: `XR_ERROR_RUNTIME_UNAVAILABLE`): see "SteamVR" below.
   - Any manifest by hand: `flatpak run --env=XR_RUNTIME_JSON=/path/to/manifest.json io.github.vittorioromeo.QuakeVR`
     (the manifest and its library readable in the sandbox).
 - **Not in it**: the relighting scripts (`quakevr/tools`, Python: in the repository), ericw-tools, the HD texture pack,
   debug symbols (the binary is stripped: a crash report's offsets need that CI build's unstripped binary, not kept). No
   real headset has run the Flatpak yet.
 
+## SteamVR (GitHub #82, 2026-11-17)
+
+Reports: Fedora 45 with a Steam Frame, SteamVR running and the headset connected first, the Flatpak (and "outside its
+sandbox", how unknown): `SteamVR: not running` in the report, then `xrCreateInstance failed: (-51)` for
+`~/.local/share/Steam/steamapps/common/SteamVR/steamxr_linux64.json`. Another player: SteamVR took the game once (the
+Frame didn't offer it), then the same error. No hardware here: what follows is from the code, the Flatpak's sandbox
+and the OpenXR loader, checked headless in WSL (a SteamVR manifest whose library is missing).
+
+- **-51 is `XR_ERROR_RUNTIME_UNAVAILABLE`** (failure lines now name the result: `xrCreateInstance failed:
+  XR_ERROR_RUNTIME_UNAVAILABLE (-51)`; before, the name came from `xrResultToString`, which needs the instance a failed
+  `xrCreateInstance` doesn't have). The loader returns it when the runtime's library doesn't load (`dlopen`: a missing
+  file or dependency) or its `xrNegotiateLoaderRuntimeInterface` / `xrCreateInstance` fails: SteamVR's `vrclient.so`
+  fails when it can't reach its server (`vrserver`) and can't start it.
+- **"SteamVR: not running" in the Flatpak** is the sandbox: it has its own PID namespace, its `/proc` lists its own
+  processes only. The report now says "can't tell: the Flatpak sandbox hides the host's processes"; Auto treats it as not
+  running (a sole or active SteamVR is tried anyway, as in the report). No file tells reliably that SteamVR runs
+  (`openvrpaths.vrpath` lists the installs, the logs stay after it stops); asking the host (`flatpak-spawn --host`)
+  needs `--talk-name=org.freedesktop.Flatpak`, a full sandbox escape: not taken. Outside a sandbox the detection reads
+  every process's `comm`, its executable's name and its argv[0]/argv[1]'s (a program started through `ld.so` or a
+  shell, as the Steam Linux Runtime's container may start SteamVR's) for `vrserver`, `vrcompositor`, `vrmonitor`.
+- **The Flatpak's `/dev/shm`**: `--device=all` alone mounts a tmpfs of the sandbox's own there (Flatpak shares the
+  host's only with `--device=shm`). OpenVR's client finds its server's shared memory there: without it, `vrclient`
+  sees no server, tries to start one from inside the sandbox and fails: the likeliest cause of -51 in the Flatpak. The
+  manifest has `--device=shm` from 2026-11-17; an older install: `flatpak override --user --device=shm
+  io.github.vittorioromeo.QuakeVR`. The runtime report lists the sandbox's devices, whether `/dev/shm` is the host's,
+  and the `/dev/shm` entries that look like SteamVR's, OpenVR's or Steam's (to learn their names from players' logs).
+- **Not explained yet**: the same error outside the sandbox. The loader's own errors (which file it tried, the `dlopen`
+  message) went to stderr only; they are in `qvr_openxr.txt` now, and a failed start prints them. What a player's next
+  log should show: the loader's lines, and SteamVR's `~/.local/share/Steam/logs/vrclient_*.txt` (the Flatpak can't
+  write it: the Steam folder is read-only there) and `vrserver.txt`.
+- **A failed SteamVR start says what to try** (`runtimeUnavailable`): start SteamVR first and wait for the headset,
+  then `vr_restart`; in the Flatpak without the host's `/dev/shm`, the override; the logs; Monado or WiVRn instead.
+- **`vr_xr_debug 1`** (Debug > Startup, "OpenXR Loader Log"; saved): `XR_LOADER_DEBUG=all` before VR starts (on Linux
+  before video init, the config read early), every loader message in `qvr_openxr.txt`. The loader reads the variable
+  once, at its first message: from the next game start when VR already started. `flatpak run
+  --env=XR_LOADER_DEBUG=all io.github.vittorioromeo.QuakeVR` does the same from outside.
+- **Other runtimes for a SteamVR headset**: WiVRn streams to the standalone headsets its client runs on, Monado drives
+  the headsets it has drivers for (LINUX.md, "Run"); xrizer is the other way round (OpenVR games on an OpenXR runtime),
+  not needed for this game, which speaks OpenXR.
+
+## AppImage (plan, not built)
+
+Asked for in #82. Feasible; not built here because it needs a tool CI doesn't fetch yet (`appimagetool`, or
+`linuxdeploy`, from their GitHub releases: a new download, pinned by version and checksum).
+
+- **Why it helps VR**: an AppImage runs unsandboxed on the host: the host's `/usr/share/openxr/1` manifests and their
+  libraries (Monado, WiVRn from distribution packages), the host's processes (SteamVR's detection), `/dev/shm` and
+  `/tmp` as any native program. The OpenXR runtime discovery is the loader's ordinary one (`XR_RUNTIME_JSON`,
+  `~/.config/openxr`, `/etc/xdg/openxr`, `/etc/openxr`): nothing to configure.
+- **What it bundles**: `ironwail` (Release, clang, the ThinLTO build), `libopenxr_loader.so.1` (1.1.65, built from
+  source as the Flatpak's module), `libSDL2` (or sdl2-compat) and what `ldd` shows beyond the AppImage exclude list;
+  never `libGL`, `libEGL`, `libvulkan`, `libX11`, glibc (the host's driver stack). The `quakevr` game folder and the
+  compiled QuakeC as the Flatpak's `build.sh` assembles them. `AppRun`: the Flatpak's `quakevr.sh` with the paths
+  changed (the data folder `~/.local/share/QuakeVR/quakevr`, the same Quake search, no `XDG_CONFIG_DIRS` change).
+- **Compatibility**: build on the oldest glibc to support (Ubuntu 22.04's 2.35, or the Steam Runtime 3 "sniper"
+  container's 2.31), clang from apt.llvm.org there (gcc can't build vendored Zancle).
+- **CI**: a second job in `flatpak.yml` (or `appimage.yml`), `ubuntu-22.04`: apt (`clang`, `cmake`, `ninja-build`,
+  `libsdl2-dev`, `libx11-dev`, `libgl-dev`), the OpenXR loader and fteqcc from the same pinned sources as the Flatpak
+  manifest (fteqcc: the CMake build's own, from `fteqcc.json`), `Misc/linux/flatpak/build.sh`'s steps with `/app` as an AppDir prefix, then `appimagetool` (pinned) into
+  `QuakeVR-<branch>-<hash>-x86_64.AppImage`, uploaded as the run's artifact like the Flatpak. About a day's work with
+  one CI iteration loop; no signing, no update information (zsync) at first.
+
 | Permission | Why |
 |---|---|
 | `--socket=wayland`, `--socket=x11`, `--share=ipc` | the window; X11 always (not `fallback-x11`): SteamVR has only the GLX binding, so with it the game asks SDL for X11 (XWayland); ipc: X11 shared memory |
 | `--device=all` | the GPU (dri) and the headset's and controllers' USB/HID devices |
+| `--device=shm` | the host's `/dev/shm` (`--device=all` alone mounts the sandbox's own there): SteamVR's client looks there for its server |
 | `--socket=pulseaudio` | sound (PipeWire's Pulse server too) |
 | `--share=network` | the update check, OBS's websocket, multiplayer |
 | `--filesystem=home:ro` | the player's Quake, Steam libraries and GOG folders under home, read in place |
@@ -137,7 +220,8 @@ Arcane Dimensions' or the expansions' is in it: it reads the player's own Quake 
 | Diagnostics mode (`vr_diagnostics.cpp`) | the logs copied; no debug-output capture (OutputDebugString is Windows') and no core validation layer (the shipped layer is a Windows DLL). |
 | Opening a folder (bug report, diagnostics) | `xdg-open` on the folder. |
 | RenderDoc (`vr_renderdoc.cpp`) | `librenderdoc.so` when RenderDoc loaded it (`dlopen` with `RTLD_NOLOAD`). |
-| OpenXR runtime detection (`vr_xr_runtime.cpp`) | active runtime from `active_runtime.json` (XDG config dirs, `/etc`), available manifests in `/usr/share/openxr/1` and `/usr/local/share/openxr/1`, running processes from `/proc/*/comm` (SteamVR's `vrserver`); `XR_RUNTIME_JSON` set with `setenv`. No implicit-layer switch (that reads the Windows registry). |
+| OpenXR runtime detection (`vr_xr_runtime.cpp`) | active runtime from `active_runtime.json` (XDG config dirs, `/etc`), available manifests in `/usr/share/openxr/1` and `/usr/local/share/openxr/1`, running processes from `/proc` (SteamVR's `vrserver`, `vrcompositor`, `vrmonitor`: by `comm`, the executable's name or argv[0]/argv[1]'s; in a Flatpak sandbox "can't tell"); `XR_RUNTIME_JSON` set with `setenv`. No implicit-layer switch (that reads the Windows registry). |
+| OpenXR loader messages | the loader writes its errors to stderr (all its messages to stdout with `XR_LOADER_DEBUG`): caught while it loads a runtime, into `qvr_openxr.txt` ("OpenXR loader output (...)" lines), a failed `xrCreateInstance`'s errors to the console. `vr_xr_debug 1` sets `XR_LOADER_DEBUG=all`. |
 | Runtime crash guard (`vr_xr_guard`) | none: a crash inside the runtime is a crash report (no structured exceptions). |
 | mimalloc | the process heap as on Windows; its own `operator new/delete` renamed away (`vr.cmake`) so `vr_alloccount.cpp`'s count. |
 | QC profiler ticks (`pr_exec.c`) | `__rdtsc` from `x86intrin.h`; the monotonic clock on ARM. |

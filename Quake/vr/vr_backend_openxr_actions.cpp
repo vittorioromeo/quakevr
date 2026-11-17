@@ -183,7 +183,7 @@ bool OpenXrBackend::suggest(const char* profile, za::InitializerList<Binding> bi
     }
 
     char result[XR_MAX_RESULT_STRING_SIZE] = "";
-    xrResultToString(instance, whole, result);
+    resultText(instance, whole, result);
     za::Vector<XrActionSuggestedBinding> kept;
     za::Vector<int> dropped; // indexes into bindings
     bool lastTurnedDown = false;

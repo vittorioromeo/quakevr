@@ -35,11 +35,14 @@ game or every map, in the background (see [Relighting in the game](#relighting-i
    `pip`.
 3. **ericw-tools 2.0.0-alpha11**, the tools that compute the light. The package has its `light.exe` in
    `quakevr\tools\ericw-tools\` (and the game can download it: see [Relighting in the game](#relighting-in-the-game)):
-   pass that to `--light`. Otherwise download
-   `ericw-tools-2.0.0-alpha11-win64.zip` (27.5 MB) from
-   [its release page](https://github.com/ericwa/ericw-tools/releases/tag/2.0.0-alpha11) and extract it to a folder of
-   its own, for example `C:\tools\ericw-tools-2.0.0-alpha11-win64`. `light.exe` should be directly in that folder.
-   Use this exact version to get the same light as the author. Other versions can light the maps differently.
+   pass that to `--light`. It is Quake VR's fork, 2.0.0-alpha11-qvr1 ([below](#quake-vrs-fork-of-light)): the same
+   light, and with bounced light (`--bright`) about twice as fast. Otherwise download
+   `ericw-tools-2.0.0-alpha11-qvr1-win64.zip` (13.3 MB) from Quake VR's
+   [support-files release](https://github.com/vittorioromeo/quakevr/releases/tag/assets-2026-11-17), or ericw-tools'
+   own `ericw-tools-2.0.0-alpha11-win64.zip` from
+   [its release page](https://github.com/ericwa/ericw-tools/releases/tag/2.0.0-alpha11), and extract it to a folder of
+   its own, for example `C:\tools\ericw-tools-2.0.0-alpha11-qvr1-win64`. `light.exe` should be directly in that folder.
+   Use 2.0.0-alpha11 (either) to get the same light as the author. Other versions can light the maps differently.
 4. **The VisPatch data files**, for see-through water. Download these three files from the VisPatch project on
    SourceForge, in [vispatch data/1.0](https://sourceforge.net/projects/vispatch/files/vispatch%20data/1.0/):
 
@@ -238,11 +241,11 @@ background, while you keep playing. Quake VR's package has it in `quakevr\tools\
 uses `vr_relight_tool` (the full path of a `light.exe`), the `ERICW_LIGHT` environment variable or a `light.exe` on
 `PATH`. The page's Tool line says which one it found.
 
-When it finds none, the page offers **Download ericw-tools (27.5 MB)** (the console: `vr_relight_get_tool`). The game
-downloads ericw-tools 2.0.0-alpha11's Windows release zip from Quake VR's
-[support-files release](https://github.com/vittorioromeo/quakevr/releases/tag/assets-2026-10-08), then, if that
-fails, from [ericw-tools' own release](https://github.com/ericwa/ericw-tools/releases/tag/2.0.0-alpha11); always that exact file:
-it checks its size and SHA-256 (`4e5ea11b...0745f`) and unpacks nothing from a file that does not match. It keeps
+When it finds none, the page offers **Download ericw-tools (13.3 MB)** (the console: `vr_relight_get_tool`). The game
+downloads Quake VR's fork of ericw-tools, 2.0.0-alpha11-qvr1 ([below](#quake-vrs-fork-of-light)), as its Windows zip
+from Quake VR's [support-files release](https://github.com/vittorioromeo/quakevr/releases/tag/assets-2026-11-17);
+always that exact file: it checks its size and SHA-256 (`afbd29bf...39d8e7`) and unpacks nothing from a file that does
+not match. It keeps
 only what `light` needs and the licence texts (`light.exe`, `embree4.dll`, `tbb12.dll`, `tbbmalloc.dll`,
 `gpl_v3.txt`, `LICENSE-embree.txt`, `README.md`) plus a `NOTICE.txt`, in `quakevr\tools\ericw-tools\` of the folder
 the game saves to (normally the Quake VR folder: where the package puts them). The bar shows how far it is; **Cancel Download** (or
@@ -365,9 +368,30 @@ What shipping it takes (GPL-3 section 6, for the binaries; Apache-2.0 for the li
   `tbb12.dll` and `tbbmalloc.dll` are Apache-2.0 too), and `NOTICE.txt` saying what they are and where their source is
   (`Misc/quakevr/ericw-tools-NOTICE.txt`). `Windows/package-quakevr.ps1` copies them with the program; the in-game
   download (Relighting in the game, above) unpacks the same texts and writes its own `NOTICE.txt`.
-- **Its source, offered the same way as the download:** the release page that offers the Quake VR package must also
-  offer ericw-tools 2.0.0-alpha11's source (`ericw-tools-2.0.0-alpha11-src.zip`: the
-  [2.0.0-alpha11 tag](https://github.com/ericwa/ericw-tools/tree/2.0.0-alpha11) with its submodules). A link to
-  ericw-tools' own GitHub alone is allowed by section 6(d) only while it stays up: a copy next to the package is the safe
-  way.
-- **Unchanged:** if it is ever patched, the patched source is what must be offered.
+- **Its source, offered the same way as the download:** Quake VR ships its fork (below), so what must be offered is
+  the fork's source: `ericw-tools-2.0.0-alpha11-qvr1-src.zip` (the
+  [2.0.0-alpha11 tag](https://github.com/ericwa/ericw-tools/tree/2.0.0-alpha11) with its submodules and git history,
+  the fork's patches applied and committed, the patches themselves in `patches\` and `README-qvr.md` saying what
+  changed and how to build it), hosted on the support-files release `assets-2026-11-17` beside the binary zip and
+  linked from every release's notes (`Misc/release/support_assets.json`'s `ericw_source`).
+
+### Quake VR's fork of light
+
+`ericw-tools 2.0.0-alpha11-qvr1` is ericw-tools 2.0.0-alpha11 with three small patches to `light` (the source zip's
+`patches\`, also in the repo's `Tools/ericw-tools/` with the binaries the package ships and a README: hashes, how it
+was built; source branch `qvr-fast` of https://github.com/vittorioromeo/ericw-tools):
+
+- **Deterministic lightmap packing:** faces get their place in the lightmap in face order, not in the order the threads
+  finish, so two runs write byte-identical `.bsp`/`.lit`/`.lux`. The light itself is the same as stock's (a face by
+  face comparison: 0 bytes differ).
+- **`-bounceextra N`** (off by default: without it the fork lights exactly as stock): the bounced light is traced from
+  N x N of `-extra4`'s 4 x 4 samples per luxel and shared with the block, about twice as fast with the same look
+  (a mean change of a quarter of a step in 255; a few small faces up to ~15). The game passes `-bounceextra 2` whenever
+  it relights with bounced light (`vr_relight_bounceextra`, default 2; 0: stock behaviour), and only to a `light.exe`
+  that knows the option (stock ericw-tools would stop at it: the game then relights at the full cost and says so in
+  the console). `relight_maps.py --bounceextra` does the same. The option is not in a map's settings hash: maps relit
+  before keep counting as done.
+- **The version label** (`2.0.0-alpha11-qvr1`, which `light` prints at its start).
+
+Relight times with the defaults (bounced light 1.2), stock -> fork, through the game's own relight, 31 threads:
+e1m1 8.0 -> 4.0 s, e3m5 20.6 -> 8.5 s, ad_mountain 95-113 -> 50 s (ROUND25.md, "ericw-tools fork").
