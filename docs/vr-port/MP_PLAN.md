@@ -215,6 +215,7 @@ player unchanged.
 | **B11 part 2** | The rest of B11: deathmatch 1 and 2's item rules with VR weapons (a level weapon taken and respawned, or staying; `vr_item_objects`, force grab), the VR melee and armed systems between players and bots in deathmatch (a blade's hit, a disarm), bots' bodies and hands as the clients draw them, FrikBot's walk through the shared movement (`vr_pmove`), names in the harness | `mp_dm` grown |
 | **B12** (B14 part 1 done: the moves' results client against server, the thread audit; the world's hashes are B14b) | Determinism: Box3D, navmesh and pathfinding hashes equal across runs with several clients; the server-thread audit in multiplayer | hash scenarios |
 | **B13** (done: the browser, the net HUD, B13b's 16 players at real time, B13c's rewind at the places sent and send rate; ICE/NAT on his OK) | Polish and performance: ICE/NAT traversal (optional), server browser, latency HUD, CPU of many players | soak tests |
+| **B15** (done) | In and out of a coop game in progress: a late joiner's world as the others have it; a leaver's things kept for his return by name; a crashed game's ghost closed when he connects again; the server's quit seen by its clients | `mp_rejoin` |
 
 ## 4. Test harness
 
@@ -3041,4 +3042,56 @@ Open items:
 Open items: mp_armed's rate-cap checks under `vr_net_rate 6000` flake (two different checks, a busy PC); LAN discovery
 and ICE/NAT need his machines and his OK.
 
-Next phase: B11 part 2 -- deathmatch 1 and 2's item rules with VR weapons (level weapons taken and respawned or staying, `vr_item_objects`, force grab), the VR melee and armed systems between players and bots (a blade's hit, a disarm), bots' bodies and hands as clients draw them, FrikBot's walk through vr_pmove, names in the harness (`mp_dm` grown). B10v's VR checks and the ICE/NAT rendezvous service are his.
+(B13d's next-phase line named B11 part 2: already done, in B11 parts 1-4.)
+
+### B15 results: in and out of a coop game in progress (2026-11-17, dev no-LTO build, loopback; `mp_rejoin` 15/0)
+
+**Why this phase:** with B2-B14 done, what a first public beta meets first and no test covered was players coming and
+going mid-game: a friend joining a game already under way, a player whose game crashes or whose link drops coming
+back. NetQuake handles both badly in coop: a returning player starts over with a shotgun and 25 shells, and a crashed
+game's slot stays a ghost for `net_messagetimeout` (300 s) while he comes back as another player beside it.
+
+- **A late joiner's world** (`vr_mp_world`, a client report: each entity of the last message after the players' --
+  model, frame, skin, place -- then the model and sound precaches, static entities and a hash of the light styles):
+  after A's shotgun was let fall on e1m1's floor and B was given weapons and hurt, C joins and has every entity at rest
+  in B's view as B has it (the shotgun among them, within a unit), and the same precaches, statics and light styles.
+  No code change was needed: VR_WriteClientSpawnState already sends the world texts, tips, rules, armour, x-ray and
+  avatar calibrations, and the snapshots start whole.
+- **A leaver's things kept for his return** (vr_coopsave.cpp `VR_CoopNoteLeave`/`VR_CoopRejoinParms`/
+  `VR_CoopRejoinSpawn`; `vr_mp_rejoin_keep` 1, Debug > Network: Keep a Leaver's Things): a spawned player leaving a coop
+  (non-deathmatch) game in progress -- `disconnect`, a crash, a timeout -- has QC's SetChangeParms run on him (what a
+  level change carries: weapons and their magazines, ammo, health clamped to 50-100, armour; keys and powerups dropped)
+  and his level-start parms kept, by name. A player of that name connecting again gets his old slot if free (his entity
+  number and colours), spawns with what he had, and a respawn gives his level-start things (`setspawnparms`), not those.
+  Kept through level changes, forgotten when the server shuts down (a new game, a load). A listen host's own client
+  and single player never take this path (`svs.maxclients > 1`, `sv.active`: a shutdown's drops are not leaves).
+- **A crashed game's ghost** (net_dgrm.c): a connect request from a known address on another port (the same machine,
+  or the same NAT) whose name is that connection's, while that connection has been silent over 3 s
+  (`QVR_GHOST_SILENCE`: a game in play sends a move every frame), is him back: the old connection is closed as
+  NetQuake closed a same-port one, his retry 2.5 s later joins (and gets his things back). Two players behind one
+  router with the same name are told apart while both play (neither is silent). Without a name or within 3 s: as before.
+- **The server's quit** reaches its clients: C sees it ("mp_event: left"), is out of the game, his game still running.
+- `mp_rejoin` (15 checks): the late joiner's world (3), B's leave and return (his slot, weapons, nails, health 70;
+  shells not fewer) and his suicide's level-start things, B's crash (killed behind his proxy: no port unreachable reaches
+  the server, as over a NAT) and return on another port (the ghost closed in the "back from" line, his slot and things,
+  no ghost in the list), the server's quit.
+- **Open:** shells after a return can be up to a magazine more than before (17 -> 25: a fresh spawn's shotgun magazine,
+  filled from the reserve, seems counted back into it by the round trip through the parms; nails, rockets, cells and
+  weapons exact): not chased, a level change may do the same -- check with a changelevel. On loopback a crashed client
+  is dropped at once anyway (Windows answers the dead port: the server's read fails); the ghost path is for NATs and
+  other machines.
+- **Checks:** MP suite (dev) 39 of 41 clean: mp_rejoin 15/0 in it; mp_armed 17/1 (its rate-cap pose ratio under
+  `vr_net_rate 6000`, B13d's open flake) and mp_climb 10/1 (A's mantle: no hold taken by his play, B8j's flake).
+
+**What a first public multiplayer beta still needs** (in order): (1) his VR checks in a headset of the Multiplayer
+menus' host and join flow, the server browser and voice chat (B10v), never seen by him; (2) a player-facing guide (how
+to host: UDP port 26000 forwarded, `maxplayers`, coop or deathmatch, `vr_mp_download`, what is single-player only) and a
+"multiplayer beta" section in the release notes with the known issues; (3) a client that notices a vanished server:
+`net_messagetimeout` is 300 s, so a crashed or unplugged server freezes its clients' worlds for 5 minutes -- a "server
+not responding" notice after a few seconds and a shorter client timeout; (4) two machines over the internet (his):
+latency, NAT; the ICE/NAT rendezvous needs his OK; (5) mp_armed's rate-cap flake.
+
+Next phase: B16 -- the client's side of a vanished server (a "not responding" notice in the net HUD and the view after
+3 s of silence, a client timeout of its own well under net_messagetimeout's 300 s, back to the menu with the reason;
+`mp_rejoin` grown: the server killed, C told within the bound), then the player-facing multiplayer guide and the
+release notes' beta section; the shells open item above. B10v's VR checks and the ICE/NAT rendezvous service are his.

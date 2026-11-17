@@ -4731,3 +4731,21 @@ His request: bake all 27 title wordings (9 sections x 3) to pick from.
 - Wording: the options page's relight line, the preparation's log lines, the CLI's prepare help and line, the marker
   file's text, INSTALLER.md (Relit maps, First-start relight, Preparation run). Self-test "game preparation" checks
   the engine sources use `official` in both places. Installer 0 warnings, self-tests 41/41; engine dev built 0 warnings.
+
+## MP B15: in and out of a coop game in progress (agent/mp, 2026-11-17)
+
+- **The choice:** MP_PLAN's last "next phase" (B11 part 2) was already done. What a first public beta meets first and no
+  test covered: players coming and going mid-game. NetQuake's coop gives a returning player a fresh start (shotgun, 25
+  shells) and leaves a crashed game's slot as a ghost for 300 s while he joins as another player.
+- **A leaver's things kept** (`vr_mp_rejoin_keep` 1, Debug > Network: Keep a Leaver's Things; vr_coopsave.cpp): a player
+  who leaves a coop game in progress (quit, crash, timeout) and joins again by the same name gets his old slot and
+  what a level change would carry (weapons and magazines, ammo, health, armour); a respawn still gives his level-start
+  things. Forgotten when the server shuts down. Single player and the listen host never take the path.
+- **A crashed game's ghost** (net_dgrm.c): a connect from a known address on another port, with that connection's
+  name, while it has been silent over 3 s, is him back: the old connection is closed at once.
+- **A late joiner's world** checked (`vr_mp_world`, a client report): the same entities, precaches, statics and light
+  styles as a player there from the start; no change was needed.
+- `mp_rejoin` 15/0 (in the suite too). MP suite 39 of 41 clean (mp_armed's rate flake, mp_climb's mantle flake: known).
+  Details, the open shells item and what a public beta still needs: MP_PLAN.md, "B15 results".
+- **In VR:** with a friend on a dedicated coop server, quit your game mid-level and join again with the same name: your
+  weapons and ammo are back. Kill your game from the task manager and restart it: you get your own player back at once.
