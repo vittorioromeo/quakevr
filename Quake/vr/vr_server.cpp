@@ -1575,6 +1575,9 @@ void dumpPlayer_f()
 void resetClients()
 {
     clientMoves.clear();
+    // The sound loops (by entity and sound number) forgotten too: a restart, a loaded game or a changelevel of the same map
+    // keeps sv.worldmodel and sv.name, but its sounds' precache order may differ (skill, Randomized Enemies).
+    soundLoops.world = nullptr;
 }
 
 const VrMove* clientMove(edict_t* player)
