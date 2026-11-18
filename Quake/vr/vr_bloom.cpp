@@ -77,6 +77,9 @@ void main()
     vec2 t = Params.zw;
     vec3 c = max(max(texture(Scene, uv + vec2(-t.x, -t.y)).rgb, texture(Scene, uv + vec2(t.x, -t.y)).rgb),
                  max(texture(Scene, uv + vec2(-t.x, t.y)).rgb, texture(Scene, uv + vec2(t.x, t.y)).rgb));
+    // An Inf texel (the float scene overflowed: RGBA16F or R11F_G11F_B10F, many additive lights on one spot) made finite
+    // first: below, Inf * (2 / Inf) and Inf / Inf are NaN, which no clamp is defined to remove (GLSL). 65504: half's largest.
+    c = min(c, vec3(65504.0));
     float bright = max(c.r, max(c.g, c.b));
     c *= min(bright, 2.0) / max(bright, 1e-3); // the float scene (vr_tonemap) glows by at most 2: no flicker from specks
     bright = min(bright, 2.0);
