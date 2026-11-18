@@ -425,12 +425,18 @@ void R_MarkSurfaces (void)
 	VR_WaterMarkVis (vis); // QVR: the geometric waves' faces seen (vr/vr_water.cpp)
 	R_MarkVisSurfaces (vis);
 	R_AddStaticModels (vis);
-	{ // QVR: kept (the vis buffers are reused): a light lights no pixel of this view unless it reaches a leaf in it
+	// QVR: kept (the vis buffers are reused): a light lights no pixel of this view unless it reaches a leaf in it. Its
+	// readers are the ES profile's (VR_WorldLightsCheck: the unlit world; R_MarkSurfacesLate: the split by surface):
+	// not copied every view on the PC.
+	if (glprogs.world_unlit[0][0] || gl_bmodel_litcmd_first >= 0)
+	{
 		size_t size = (((cl.worldmodel->numleafs + 7) >> 3) + VIS_ALIGN_MASK) & ~VIS_ALIGN_MASK; // (as the vis buffers)
 		if (r_lightsvissize < size)
 		{
 			free (r_lightsvis);
 			r_lightsvis = (byte *) malloc (size);
+			if (!r_lightsvis)
+				Sys_Error ("R_MarkSurfaces: out of memory (the view's PVS, %d bytes)", (int) size);
 			r_lightsvissize = size;
 		}
 		memcpy (r_lightsvis, vis, size);

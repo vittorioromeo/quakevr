@@ -1358,8 +1358,18 @@ extern "C" void VR_GLShadersEnd(int lite, int programs)
     }
     VR_GLStep("%s%d done in %.0f ms (%d programs; %s; lite form %d)", setBegun, glsafe.shaderSets, ms, programs, cache, lite);
     VR_StepNote("GL shaders: set %d this run, %d programs in %.0f ms (%s)", glsafe.shaderSets, programs, ms, cache);
-    Con_SafePrintf("GL shaders: set %d this run, %d programs in %.0f ms (%s; lite form %d)\n", glsafe.shaderSets, programs,
-        ms, cache, lite);
+    // (the console's under the ES profile, whose sets and lite forms are the Quest's to watch; the PC's developer only,
+    // as before the Quest work)
+    const char* const shadersLine = va("GL shaders: set %d this run, %d programs in %.0f ms (%s; lite form %d)\n",
+        glsafe.shaderSets, programs, ms, cache, lite);
+    if(VR_GLESForm(VR_GLES_FORM_GLSL))
+    {
+        Con_SafePrintf("%s", shadersLine);
+    }
+    else
+    {
+        Con_DPrintf("%s", shadersLine);
+    }
     if(VR_GLESForm(VR_GLES_FORM_GLSL) && (!testRun() || COM_CheckParm("-glesshaderset")))
     {
         if(FILE* f = fopen(shaderSetPath().cStr(), "wb"))

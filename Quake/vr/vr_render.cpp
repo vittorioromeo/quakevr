@@ -28,6 +28,7 @@
 #include "vr_rig2.hpp"
 #include "vr_rigstudio.hpp"
 #include "vr_strings.hpp"
+#include "vr_api.h" // (VR_GLESForm)
 #include "vr_dirparryviz.hpp"
 #include "vr_hitreact.hpp"
 #include "vr_flamewobble.hpp"
@@ -294,7 +295,9 @@ extern "C" int VR_AliasDepthPrepass(const entity_t* e)
 // an opaque draw of anything not morphing never needs one. r_alias.c keeps a morphing entity out of others' batches.
 extern "C" int VR_AliasOpaqueForm(const entity_t* e)
 {
-    if(vr_gl_alias_opaque.value == 0.f || !e)
+    // (no opaque form outside the ES profile: 0 there, so the batches don't split on a morph for no program's sake,
+    // R_Alias_CanAddToBatch, and Auto means what its text says)
+    if(vr_gl_alias_opaque.value == 0.f || !e || !VR_GLESForm(VR_GLES_FORM_GLSL))
     {
         return 0;
     }
