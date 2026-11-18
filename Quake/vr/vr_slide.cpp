@@ -601,6 +601,11 @@ Slide& state(int num)
     return server.slide[num >= 0 && num < slots ? num : 0];
 }
 
+void resetServer()
+{
+    server = ServerState{};
+}
+
 int clientSlot(const edict_t* ent)
 {
     if(!sv.active || !ent || ent->free)

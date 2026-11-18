@@ -27,6 +27,7 @@
 #include "vr_footsteps.hpp"
 #include "vr_physsound.hpp"
 #include "vr_server.hpp"
+#include "vr_slide.hpp"
 #include "vr_srvrandom.hpp"
 #include "vr_walltorch.hpp"
 #include "vr_flashlight.hpp"
@@ -578,6 +579,7 @@ void resetServerWorld()
     qvr::props::resetModelCache(); // (the models' names may be others' now)
     qvr::hitmodel::reset();
     qvr::scenario::worldReset(); // (a checklist test scene ends at another map or a load, not at its own)
+    qvr::slide::resetServer(); // (by client number: a slide held through a load or a restart doesn't carry on)
     resetBuiltinState();
 }
 
