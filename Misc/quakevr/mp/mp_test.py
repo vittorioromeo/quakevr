@@ -112,6 +112,7 @@ The last line is the verdict, "mp_<test>: N passed, M failed".
 import argparse
 import math
 import os
+import random
 import re
 import sys
 import time
@@ -5702,7 +5703,7 @@ def fuzz_until(s, b, direction, what):
                 break
             joins += 1
     n = sum(p.corrupted[direction])
-    s.note("%s: %d packets corrupted (bits flipped, cut short, random, garbage after: %s) in %.1f s; B joined again "
+    s.note("%s: %d packets corrupted (bits flipped, cut short, random, garbage after, a command after: %s) in %.1f s; B joined again "
            "%d times" % (what, n, p.corrupted[direction], time.monotonic() - t0, joins))
     return n, joins
 
@@ -5719,6 +5720,115 @@ def alive_check(s, inst, what):
     return ok
 
 
+FUZZ_SEED = 0              # (B26) --seed: the proxy's corruptions (0: a new one each run, printed)
+FUZZ_SIGNON_JOINS = 40     # (B26) fuzz --part signon: B's joins (--repeat N: N instead)
+FUZZ_SIGNON_RATE = 0.2     # ... each of the server's packets down corrupted at this chance through each join
+
+
+# (B26) Hostile server commands, each after one game packet's message down to B (mp_proxy.py inject): the values a
+# client's parsers must check. The suite's run takes these; `fuzz --part inject` every command code with garbage.
+FUZZ_HOSTILE = [
+    ("svc_setview 32767", bytes([5, 0xFF, 0x7F])),  # B25b's crash: the view entity past the client's array
+    ("svc_setview -1", bytes([5, 0xFF, 0xFF])),
+    ("svc_setview -32768", bytes([5, 0x00, 0x80])),
+    ("svc_updatestat 255", bytes([3, 255, 1, 0, 0, 0])),
+    ("svc_updatefrags 255", bytes([14, 255, 1, 0])),
+    ("svc_updatecolors 255", bytes([17, 255, 1])),
+    ("svc_updatename 255", bytes([13, 255, 0x41, 0])),
+    ("svc_lightstyle 255", bytes([12, 255, 0x61, 0])),
+]
+
+
+def fuzz_sweep():
+    """Every server command code, and every svc_quakevr sub-command, with all-0xFF and all-0x7F arguments."""
+    out = []
+    for fill in (0xFF, 0x7F):
+        for cmd in range(57):
+            if cmd in (2, 11):  # (svc_disconnect, svc_serverinfo: B leaves or starts a map; their own checks)
+                continue
+            out.append(("svc %d, args 0x%02X" % (cmd, fill), bytes([cmd]) + bytes([fill] * 12)))
+        for sub in range(64):
+            out.append(("svc_quakevr %d, args 0x%02X" % (sub, fill), bytes([39, sub]) + bytes([fill] * 12)))
+    return out
+
+
+def fuzz_inject(s, b, hostile):
+    """(B26) Each of `hostile` (name, bytes) after one packet's message down to B, B in the game: his game runs on
+    (each a Host_Error back to the menu, or taken and checked); B joins again whenever he left. -> how many left."""
+    p = b.proxy
+    left, notes = 0, []
+    for i, (name, data) in enumerate(hostile):
+        since = b.mark()
+        before = p.injected["down"]
+        p.inject["down"].append(data)
+        t0 = time.monotonic()
+        while p.injected["down"] == before and time.monotonic() - t0 < 10:
+            time.sleep(0.02)
+        b.cmd("echo mp_fuzz_inject_%d" % i)
+        b.cmd("echo mp_fuzz_inject_%d_after" % i)  # (a frame after the packet's: its parse done)
+        hit = wait_quietly(b, r"^mp_fuzz_inject_%d_after" % i, 30, since, "B after %s" % name)
+        if b.proc.poll() is not None:
+            s.check("B's game survives the hostile command %s" % name, False, "exited with %s" % b.proc.returncode)
+            return left
+        if hit is None:
+            s.check("B's game answers after the hostile command %s" % name, False, "no answer in 30 s")
+            return left
+        b.read()
+        err = next((l.strip() for l in b.lines[since:] if l.startswith("Host_Error")), None)
+        if err or own_status(b).get("connected") != "1":
+            left += 1
+            notes.append("%s: %s" % (name, err[:70] if err else "left"))
+            js = b.mark()
+            b.cmd("disconnect; " + s.connect_cmd(b))
+            if wait_quietly(b, r"mp_event: .*joined map=e1m1", 60, js, "B joined again") is None:
+                s.check("B joins again after the hostile command %s" % name, False, "not in 60 s")
+                return left
+    s.note("hostile commands down: %d sent, B left %d times: %s" % (len(hostile), left, notes[:12]))
+    s.check("B's game survives %d hostile commands down" % len(hostile), b.proc.poll() is None, "running")
+    return left
+
+
+def fuzz_signon(s, srv, b):
+    """(B26) B25b's crash: B's game exited 0xC0000005 after a corrupt packet down in a join's signon (a garbage
+    svc_setview: the view entity out of the client's array, read by the hands' next frame). B joins FUZZ_SIGNON_JOINS
+    times (--repeat N) with the server's packets down corrupted from his connect until he is in the game or his game
+    leaves it (Host_Error, the illegible message's reason); each join must end one way or the other, his game running.
+    Then B still answers and joins clean, the server still answers."""
+    p = b.proxy
+    joins = PART_REPEAT if PART_REPEAT > 1 else FUZZ_SIGNON_JOINS
+    outcome = {"joined": 0, "left": 0, "stalled": 0}
+    reasons = set()
+    crashed = False
+    for _ in range(joins):
+        since = b.mark()
+        b.cmd("disconnect")
+        p.corrupt["down"] = FUZZ_SIGNON_RATE
+        b.cmd(s.connect_cmd(b))
+        hit = wait_quietly(b, r"mp_event: .*joined map=e1m1|^Host_Error", 30, since, "B's fuzzed join")
+        p.corrupt["down"] = 0.0
+        if b.proc.poll() is not None:
+            crashed = True
+            break
+        if hit is None:
+            outcome["stalled"] += 1
+        elif hit[1].startswith("Host_Error"):
+            outcome["left"] += 1
+            reasons.add(hit[1].strip()[:90])
+        else:
+            outcome["joined"] += 1
+    s.note("signon fuzz: %s; %d packets down corrupted %s; reasons (first 6): %s" % (
+        outcome, sum(p.corrupted["down"]), p.corrupted["down"], sorted(reasons)[:6]))
+    s.check("B's game survives %d joins under corrupt packets down" % joins, not crashed,
+            "exited with %s" % b.proc.returncode if crashed else "running")
+    s.check("each fuzzed join ends (in the game or left with a reason)", outcome["stalled"] == 0, str(outcome))
+    if alive_check(s, b, "B's game after the fuzzed joins"):
+        since = b.mark()
+        b.cmd("disconnect; " + s.connect_cmd(b))
+        ok = wait_quietly(b, r"mp_event: .*joined map=e1m1", 60, since, "B's clean join") is not None
+        s.check("B joins clean afterwards", ok, "joined" if ok else "not in 60 s")
+    alive_check(s, srv, "the server after B's fuzzed joins")
+
+
 def fuzz(s):
     """(B18) A broken or hostile peer can't crash a game: a public server takes strangers' packets, and its players'
     games take a stranger server's. On a dedicated server with A and B (through his proxy), each walking: B's packets up
@@ -5727,6 +5837,17 @@ def fuzz(s):
     server moves, his game connected). Then the server's packets down to B, the same way: B's game still runs and
     answers (each illegible message a Host_Error back to the menu, not a crash), the server and A untouched."""
     srv, a, b, ea, eb = join(s)
+    seed = FUZZ_SEED or random.randrange(1, 1 << 31)
+    b.proxy.set_fuzz_seed(seed)
+    s.note("fuzz seed %d (--seed %d: the same corruptions in the same packets' order)" % (seed, seed))
+    if PART == "signon":
+        fuzz_signon(s, srv, b)
+        return
+    if PART == "inject":
+        fuzz_inject(s, b, FUZZ_HOSTILE + fuzz_sweep())
+        alive_check(s, srv, "the server after the hostile commands")
+        return
+    fuzz_inject(s, b, FUZZ_HOSTILE)
     for inst in (a, b):
         inst.cmd("god; notarget")
     a.cmd("vr_mock_stick off 0.3 0.6")
@@ -6399,8 +6520,9 @@ def main():
     ap.add_argument("--permove-skip", type=int, default=0,
                     help="predictclimb: the server's vr_net_permove_skip (1 the hands' climb out, 2 the grapple: left to "
                          "QuakeC once a frame; its part should then fail)")
-    ap.add_argument("--part", default="", choices=["", "lift", "waterjump", "swim", "crawl", "hang", "mantle", "airgrab", "waterclimb", "grapple", "give", "use", "samename"],
+    ap.add_argument("--part", default="", choices=["", "lift", "waterjump", "swim", "crawl", "hang", "mantle", "airgrab", "waterclimb", "grapple", "give", "use", "samename", "signon", "inject"],
                     help="predict: only this segment (traced with vr_mp_watch 1; --watch 2); predictclimb: hang, mantle, airgrab, waterclimb or grapple; disarm: give or use, the rounds alone")
+    ap.add_argument("--seed", type=int, default=0, help="fuzz: the proxy's corruptions from this seed (0: a new one, printed)")
     ap.add_argument("--tracelog", type=int, default=0, help="lockstep: both sides' traces of B's move N (vr_mp_predict_tracelog)")
     ap.add_argument("--repeat", type=int, default=1, help="predict --part: takes in one run (lift: one)")
     ap.add_argument("--watch", type=int, default=1, help="predict --part: vr_mp_watch on the server and B (3: corrections over 0.05 traced)")
@@ -6430,6 +6552,8 @@ def main_run(args):
     SOAK_MINUTES = max(0, args.soak_minutes)
     PERMOVE_SKIP = args.permove_skip
     TRACELOG = args.tracelog
+    global FUZZ_SEED
+    FUZZ_SEED = args.seed
     AMMO_PART = args.part if args.part in ("give", "use") else ""
     autoexec = os.path.join(args.base, "id1", "autoexec.cfg")
     if args.reset_autoexec:

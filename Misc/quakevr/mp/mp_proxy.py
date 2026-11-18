@@ -28,6 +28,9 @@ NETFLAG_ACK = 0x00020000   # its ack
 NETFLAG_UNRELIABLE = 0x00100000  # a datagram (the snapshot's)
 CCREP_ACCEPT = 0x81
 HOST = "127.0.0.1"
+# (B26) The fixed argument bytes of server commands (protocol.h svc_*), for the fuzz's "a command after": the whole
+# command, so the client's checks on its values are what meets it (not the message's end)
+SVC_ARG_BYTES = {1: 0, 3: 5, 5: 2, 7: 4, 14: 3, 16: 2, 17: 2, 24: 1, 25: 1, 27: 0, 28: 0, 30: 0, 32: 2, 33: 0, 40: 0}
 
 
 def control_or_short(pkt):
@@ -66,7 +69,14 @@ class Proxy:
         # peer); how many were, by kind (bits flipped, cut short, random bytes, garbage after). The NetQuake header's
         # flags and sequence are kept, its length rewritten to the packet's: what reaches the message parsers.
         self.corrupt = {"up": 0.0, "down": 0.0}
-        self.corrupted = {"up": [0, 0, 0, 0], "down": [0, 0, 0, 0]}
+        self.corrupted = {"up": [0, 0, 0, 0, 0], "down": [0, 0, 0, 0, 0]}
+        # (B26) the corruption's own generator (set_fuzz_seed: a run's seed, printed; the link's loss and jitter keep
+        # theirs)
+        self.fuzz_rng = random.Random(seed)
+        # (B26) given commands after the next game packets' messages, each way (mp_test.py fuzz's hostile commands:
+        # one each, in order); how many went
+        self.inject = {"up": [], "down": []}
+        self.injected = {"up": 0, "down": 0}
         self.first = None
         self.last = None
         # (B12b) reliable chunks down to drop (drop_reliable_down): how many more; each dropped one's sequence and time,
@@ -132,23 +142,47 @@ class Proxy:
             return True
         return False
 
+    @staticmethod
+    def append(pkt, extra):
+        """A game packet with `extra` after its message, the header's length made the packet's again."""
+        size = len(pkt) + len(extra)
+        return ((int.from_bytes(pkt[0:4], "big") & 0xFFFF0000) | size).to_bytes(4, "big") + pkt[4:] + bytes(extra)
+
+    def set_fuzz_seed(self, seed):
+        """(B26) The corruption's generator from `seed` (a fuzz run's, printed: its choices again)."""
+        self.fuzz_rng = random.Random(seed)
+
     def mangle(self, pkt, direction):
         """(B18) A game packet corrupted at the direction's chance: its payload's bits flipped, cut short, replaced
         with random bytes, or random bytes added after it; the header's length made the packet's again."""
-        if self.corrupt[direction] <= 0 or len(pkt) < 9 or self.rng.random() >= self.corrupt[direction]:
+        rng = self.fuzz_rng
+        if self.corrupt[direction] <= 0 or len(pkt) < 9 or rng.random() >= self.corrupt[direction]:
             return pkt
-        kind = self.rng.randrange(4)
+        kind = rng.randrange(5)
         body = bytearray(pkt[8:])
         if kind == 0:
-            for _ in range(self.rng.randint(1, 8)):
-                i = self.rng.randrange(len(body))
-                body[i] ^= 1 << self.rng.randrange(8)
+            for _ in range(rng.randint(1, 8)):
+                i = rng.randrange(len(body))
+                body[i] ^= 1 << rng.randrange(8)
         elif kind == 1:
-            body = body[:self.rng.randrange(len(body))]
+            body = body[:rng.randrange(len(body))]
         elif kind == 2:
-            body = bytearray(self.rng.getrandbits(8) for _ in range(len(body)))
+            body = bytearray(rng.getrandbits(8) for _ in range(len(body)))
+        elif kind == 3:
+            body += bytearray(rng.getrandbits(8) for _ in range(rng.randint(1, 64)))
         else:
-            body += bytearray(self.rng.getrandbits(8) for _ in range(self.rng.randint(1, 64)))
+            # (B26) one whole command after the message, random arguments: a command code the parser takes (svc 0-56,
+            # svc_quakevr 39 with a sub-command; clc 0-15) so its own reads meet the bad values, and the message ending
+            # right after (B25b's crash: a garbage svc_setview's entity, nothing after it to fail on first)
+            if direction == "down" and rng.random() < 0.3:
+                body += bytes([39, rng.randrange(64)])
+                n = rng.randint(0, 12)
+            else:
+                cmd = rng.randrange(57 if direction == "down" else 16)
+                body += bytes([cmd])
+                fixed = SVC_ARG_BYTES.get(cmd) if direction == "down" else None
+                n = fixed if fixed is not None and rng.random() < 0.7 else rng.randint(0, 12)
+            body += bytearray(rng.getrandbits(8) for _ in range(n))
         self.corrupted[direction][kind] += 1
         head = int.from_bytes(pkt[0:4], "big")
         size = 8 + len(body)
@@ -158,6 +192,9 @@ class Proxy:
         st = self.stats[direction]
         if not control_or_short(pkt):
             pkt = self.mangle(pkt, direction)
+            if self.inject[direction]:
+                pkt = self.append(pkt, self.inject[direction].pop(0))
+                self.injected[direction] += 1
         if (direction == "down" and self.blackout) or (direction == "up" and self.blackout_up):
             st[2] += 1
             return

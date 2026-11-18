@@ -16,6 +16,7 @@ wall clock, so these tests are real-time by nature (vr_fixed_frames 0); every wa
 import json
 import os
 import re
+import shutil
 import subprocess
 import time
 
@@ -355,12 +356,39 @@ class Session:
         self.checks = []
         self.metrics = {}
         self.notes = []
+        self.crash_dir = os.path.join(self.base, "quakevr", "crash")  # (B26: crash_reports)
+        self.crashes_before = self.crash_listing()
         self.low_impact = author_game_running()
         if self.low_impact:
             self.note("the author's game is running: idle priority (timings are not representative)")
         elif os.environ.get("QVR_MP_LOW_IMPACT") == "1":  # (B20: a long soak asked to keep out of the machine's way)
             self.low_impact = True
             self.note("QVR_MP_LOW_IMPACT: idle priority (timings are not representative)")
+
+    def crash_listing(self):
+        try:
+            return set(os.listdir(self.crash_dir))
+        except OSError:
+            return set()
+
+    def crash_reports(self):
+        """(B26) The games' crash reports written in this run (vr_crash.cpp: <base>/quakevr/crash, a .txt with the
+        stack and a .dmp beside it): copied into the run's folder, the exception line printed (`mp_crash:`)."""
+        for name in sorted(self.crash_listing() - self.crashes_before):
+            path = os.path.join(self.crash_dir, name)
+            if not name.endswith(".txt"):
+                continue
+            head = ""
+            try:
+                with open(path, encoding="utf-8", errors="replace") as f:
+                    lines = f.readlines()
+                head = next((l.strip() for l in lines if l.startswith("Exception") or l.startswith("Fatal")), "")
+                shutil.copy(path, os.path.join(self.out, "crash_" + name))
+            except OSError:
+                pass
+            dump = path[:-4] + ".dmp"
+            print("mp_crash: %s: %s (dump %s)" % (path, head, dump if os.path.exists(dump) else "none"), flush=True)
+            self.note("crash report %s: %s" % (path, head))
 
     def note(self, text):
         self.notes.append(text)
@@ -452,6 +480,7 @@ class Session:
             crashed = any("ENGINE CRASH" in l for l in inst.lines)
             self.check("%s quits cleanly" % inst.name, code == 0 and not crashed,
                        "exit %s%s" % (code, ", ENGINE CRASH in its log" if crashed else ""))
+        self.crash_reports()
         for p in self.proxies:
             p.stop()
             self.note(p.summary())
