@@ -326,10 +326,13 @@ void PF_weapondrawnpose()
         // hand holds it away from its handle (view::gripFlipBlocked, ROUND25.md "flipgate"), 0 none>'.
         glm::vec3 forward{0.f}, up{0.f};
         float flip = 0.f;
-        const bool local = sv.active && cls.state == ca_connected;
+        // The listen server's own player only (edict 1: his hands as drawn here). Another's, or any on a dedicated server, the
+        // engine can't see: z 1, the flip allowed without the two-handed gate (QC VR_RevGrip_Flip still checks the weapon), x
+        // and y 0. (agent/mp reads every player's from his slot, heldpose::slotHand: the gate for all, when it merges.)
+        const bool local = sv.active && cls.state == ca_connected && NUM_FOR_EDICT(player) == 1;
         (void)(local && view::heldWeaponAxes(hand, forward, up, flip));
         // (z: 1 in flat play too, the flat holster menu's FLIP GRIP button's: view::heldGripFlippable)
-        const float flippable = !local || !view::heldGripFlippable(hand) ? 0.f : view::gripFlipBlocked(hand) ? -1.f : 1.f;
+        const float flippable = !local ? 1.f : !view::heldGripFlippable(hand) ? 0.f : view::gripFlipBlocked(hand) ? -1.f : 1.f;
         progs::returnVec({flip, local && view::heldMayReverse(hand) ? 1.f : 0.f, flippable});
         return;
     }
