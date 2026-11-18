@@ -22,7 +22,8 @@
 #if !defined(QVR_SIMD_SCALAR) && (defined(__SSE2__) || defined(_M_X64) || (defined(_M_IX86_FP) && _M_IX86_FP >= 2))
 #define QVR_SIMD_SSE2 1
 #include <emmintrin.h>
-#elif !defined(QVR_SIMD_SCALAR) && (defined(__ARM_NEON) || defined(__aarch64__) || defined(_M_ARM64))
+#elif !defined(QVR_SIMD_SCALAR) && (defined(__aarch64__) || defined(_M_ARM64)) // (AArch64 only: 32-bit ARM's NEON has no
+                                                                                  // vdivq_f32 and flushes denormals: Scalar)
 #define QVR_SIMD_NEON 1
 #include <arm_neon.h>
 #endif
