@@ -83,6 +83,13 @@ void modelBox(const qmodel_t* model, const glm::vec3& scale, const glm::vec3& sc
 // relative to its origin. False: no alias or brush model.
 bool drawnBox(int num, glm::vec3& lo, glm::vec3& hi);
 
+// Client side: how much the hands, and a round and the gun, are drawn kept apart as the round `roundHand` holds (a
+// shell, a magazine: view::heldRoundRef's point) comes to the loading port of the gun in the other hand: 1 well away,
+// eased to 0 within vr_reload_collide_leniency's reach of it (MP B27: pushed apart there, the drawn round and the drawn
+// port, the one the server tests it against, each moved off where the server has them). 1 if that hand holds no round.
+[[nodiscard]] float roundPortEase(const hands::State& s, int roundHand);
+
+
 // Client side: a prop held in both hands (vr_carry2h.hpp) is drawn from both, and each hand on its grip on it: `pos`
 // and `angles`, the controller's pose of `hand`, are moved there (vr_view.cpp draws the hand from them); let go of, a
 // hand eases back onto its controller. False (unchanged) otherwise.
