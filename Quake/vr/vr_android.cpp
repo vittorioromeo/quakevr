@@ -326,21 +326,23 @@ void export_f()
         FILE* in = fopen(src, "rb");
         FILE* out = in ? fopen(dst, "wb") : nullptr;
         size_t bytes = 0;
+        bool written = out != nullptr;
         char buf[16384];
         for(size_t n = 0; out && (n = fread(buf, 1, sizeof buf, in)) > 0; bytes += n)
         {
-            fwrite(buf, 1, n, out);
+            written = written && fwrite(buf, 1, n, out) == n;
         }
         if(out)
         {
-            fclose(out);
+            written = fclose(out) == 0 && written;
         }
         if(in)
         {
             fclose(in);
         }
         Con_Printf("vr_android_export: %s -> %s (%s, %d bytes)\n", src, dst,
-            out ? "copied" : in ? "failed: the export folder cannot be written" : "failed: cannot be read", static_cast<int>(bytes));
+            written ? "copied" : out ? "failed: not all written (the storage full?)"
+            : in ? "failed: the export folder cannot be written" : "failed: cannot be read", static_cast<int>(bytes));
     };
     if(Sys_FileType(from) & FS_ENT_DIRECTORY)
     {

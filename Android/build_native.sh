@@ -28,5 +28,5 @@ config="${2:-Release}"
 	-DQVR_QC=OFF # (progs.dat: the PC build's, staged with the game folder; no FTEQCC build for the device)
 keep=()
 [ "${QVR_ANDROID_KEEP_GOING:-0}" = "1" ] && keep=(-- -k 0)
-"$cmakeDir/cmake$exe" --build "$(win "$out")" --target ironwail SDL2 "${keep[@]}"
+"$cmakeDir/cmake$exe" --build "$(win "$out")" --target ironwail SDL2 ${keep[@]+"${keep[@]}"}
 echo "built: $out/libquakevr.so, $out/sdl2/libSDL2.so"

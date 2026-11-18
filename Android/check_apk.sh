@@ -31,20 +31,20 @@ badging="$("$aapt2" dump badging "$(win "$apk")" 2>&1)"
 manifest="$("$aapt2" dump xmltree --file AndroidManifest.xml "$(win "$apk")" 2>&1)"
 listing="$(unzip -l "$apk" 2>&1)"
 
-echo "$badging" | grep -q "package: name='com.vittorioromeo.quakevr'"; check "the package name" $?
-echo "$badging" | grep -q "native-code: 'arm64-v8a'"; check "arm64-v8a native code" $?
-echo "$badging" | grep -q "uses-gl-es: '0x30002'"; check "OpenGL ES 3.2" $?
-echo "$badging" | grep -q "launchable-activity: name='com.vittorioromeo.quakevr.QuakeVRActivity'"; check "the launchable activity" $?
+grep -q "package: name='com.vittorioromeo.quakevr'" <<< "$badging"; check "the package name" $?
+grep -q "native-code: 'arm64-v8a'" <<< "$badging"; check "arm64-v8a native code" $?
+grep -q "uses-gl-es: '0x30002'" <<< "$badging"; check "OpenGL ES 3.2" $?
+grep -q "launchable-activity: name='com.vittorioromeo.quakevr.QuakeVRActivity'" <<< "$badging"; check "the launchable activity" $?
 for so in libquakevr.so libSDL2.so libopenxr_loader.so; do
-	echo "$listing" | grep -q "lib/arm64-v8a/$so"; check "lib/arm64-v8a/$so in the APK" $?
+	grep -q "lib/arm64-v8a/$so" <<< "$listing"; check "lib/arm64-v8a/$so in the APK" $?
 done
-echo "$manifest" | grep -q "org.khronos.openxr.permission.OPENXR\""; check "the OPENXR permission" $?
-echo "$manifest" | grep -q "org.khronos.openxr.runtime_broker"; check "the runtime broker's query" $?
-echo "$manifest" | grep -q "org.khronos.openxr.OpenXRRuntimeService"; check "the runtime service's query" $?
+grep -q "org.khronos.openxr.permission.OPENXR\"" <<< "$manifest"; check "the OPENXR permission" $?
+grep -q "org.khronos.openxr.runtime_broker" <<< "$manifest"; check "the runtime broker's query" $?
+grep -q "org.khronos.openxr.OpenXRRuntimeService" <<< "$manifest"; check "the runtime service's query" $?
 vrLines=0
 for line in com.oculus.intent.category.VR org.khronos.openxr.intent.category.IMMERSIVE_HMD \
 	android.hardware.vr.headtracking com.oculus.vr.focusaware; do
-	if echo "$manifest" | grep -q "\"$line\""; then vrLines=$((vrLines + 1)); fi
+	if grep -q "\"$line\"" <<< "$manifest"; then vrLines=$((vrLines + 1)); fi
 done
 if [ "$kind" = "flat" ]; then
 	[ "$vrLines" = "0" ]; check "no VR lines in the flat-panel manifest ($vrLines found)" $?
@@ -55,7 +55,7 @@ if [ -f "$lib" ]; then
 	"$llvm/llvm-readelf$exe" -d "$(win "$lib")" | grep -q "NEEDED.*\[libopenxr_loader.so\]"; check "libquakevr.so needs libopenxr_loader.so" $?
 	undefined="$("$llvm/llvm-nm$exe" -D --undefined-only "$(win "$lib")")"
 	for sym in xrGetInstanceProcAddr xrCreateInstance xrCreateSession xrCreateSwapchain SDL_AndroidGetActivity SDL_AndroidGetJNIEnv; do
-		echo "$undefined" | grep -q " $sym$"; check "libquakevr.so imports $sym" $?
+		grep -q " $sym$" <<< "$undefined"; check "libquakevr.so imports $sym" $?
 	done
 else
 	check "the unstripped $lib" 1

@@ -60,7 +60,7 @@ def main():
     hashes = [os.path.join(d, "imagehash.txt") for d in (pc, es)]
     if all(os.path.exists(h) for h in hashes):
         a, b = (sorted(open(h, encoding="utf-8", errors="replace").read().splitlines()) for h in hashes)
-        print("imagehash", len(a), len(set(a) ^ set(b)) // 2 + abs(len(a) - len(b)) // 2)
+        print("imagehash", len(a), max(len(set(a) - set(b)), len(set(b) - set(a))))  # (changed or missing, either side)
     else:
         print("imagehash -1 -1")
 

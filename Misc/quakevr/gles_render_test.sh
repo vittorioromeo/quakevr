@@ -28,10 +28,16 @@ FILTER="Wrote|imagehash|shader errors|need|GLES compat|rror|world arrays|texarra
 
 run() { # run <mode> [env...]: the scene, its outputs copied to $S/<mode>
     local mode=$1; shift
+    # (the outputs this run writes, not an earlier run's: a run that dies first leaves none, and its checks fail)
+    rm -f "$GAME/envmap.tga" "$GAME/imagehash.txt" "$S/$mode/eye.png" "$S/$mode/envmap.tga" "$S/$mode/imagehash.txt"
+    local before after
+    before=$(ls -t "$GAME"/eyeshots/*_L.png 2>/dev/null | head -1)
     env "$@" bash $KIT/run.sh $AGENT -Timeout 300 -Filter "$FILTER" -Script "$SCRIPT" > "$S/$mode.log" 2>&1
-    cp "$(ls -t "$GAME"/eyeshots/*_L.png | head -1)" "$S/$mode/eye.png"
-    cp "$GAME/envmap.tga" "$S/$mode/envmap.tga"
-    cp "$GAME/imagehash.txt" "$S/$mode/imagehash.txt"
+    after=$(ls -t "$GAME"/eyeshots/*_L.png 2>/dev/null | head -1)
+    if [ -n "$after" ] && [ "$after" != "$before" ]; then cp "$after" "$S/$mode/eye.png"; else echo "run $mode: no new eyeshot ($S/$mode.log)"; fi
+    [ -f "$GAME/envmap.tga" ] && cp "$GAME/envmap.tga" "$S/$mode/envmap.tga"
+    [ -f "$GAME/imagehash.txt" ] && cp "$GAME/imagehash.txt" "$S/$mode/imagehash.txt"
+    return 0
 }
 # (the PC run's shaders queued as the ES ones are, QUEST_PLAN.md 6zi: the same start-up, so the 2D pics fill the scrap
 # in the same order; the PC's default, one call, is every other test's)
