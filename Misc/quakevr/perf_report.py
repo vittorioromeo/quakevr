@@ -96,7 +96,8 @@ def frame_cause(r, prev, budget):
         if k:
             names = [e for e in row.get("events", "").split("|") if e.startswith(k + ":")]
             return "event:" + k, "%.1f ms%s %s" % (ms, where, " ".join(names[:3])[:160])
-    if num(r.get("ev_work_ms")) >= 0.3 * excess:
+    # (some work this frame: a frame the runtime says missed within the budget has excess <= 0, which 0 ms would meet)
+    if num(r.get("ev_work_n")) > 0 and num(r.get("ev_work_ms")) >= 0.3 * excess:
         return "event:work", r.get("events", "")[:160]
     busy, span = num(r["busy"]), num(r["gpu_span"])
     evs = (" | events: " + r["events"][:80]) if r.get("events") else ""
