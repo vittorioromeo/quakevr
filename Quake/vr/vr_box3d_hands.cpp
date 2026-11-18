@@ -434,8 +434,12 @@ void syncHands(float dt)
             {
                 if(B3_IS_NON_NULL(hb.body))
                 {
+                    // (The fist's own fields only: the reach body, its key and what it ignores are syncReach's, which
+                    // destroys that body itself.)
                     b3DestroyBody(hb.body);
-                    hb = World::HandBody{};
+                    hb.body = b3_nullBodyId;
+                    hb.armed = false;
+                    hb.fist.clear();
                 }
                 continue;
             }
