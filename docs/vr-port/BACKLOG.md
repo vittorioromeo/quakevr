@@ -167,6 +167,17 @@ Each verified by an unchanged physics hash, melee eval and `vr_menu_path_check`.
   from the 2026-11-09 audit"); the prerequisites are built.
 - **Multiplayer update** (after 1.1): co-op rules, NAT traversal, voice chat, our VR systems synchronised, from
   Quakespasm-VR (GPL): MP_DESIGN.md, "Open items moved from BACKLOG.md".
+- **Discord Rich Presence** (2026-11-18, his request): show what he's playing on Discord (campaign/map, mode: single
+  player, co-op, deathmatch, Arena wave, VR or flat screen; a "join" button for multiplayer later, via room codes).
+  Needs the Discord Game SDK or the RPC over its local IPC pipe (licence/download check first); off-able in settings.
+- **Ranger helmet and biosuit visor view** (2026-11-18, his words): "having the Quake Marine Helmet also viewable as an
+  option? You can put a little bit of lag to simulate being inside a helmet when moving the head and maybe use it to
+  get some geometry culling going on for an extra bit of performance. The question also extends to the biosuit, since
+  it has a visor it would be cool to see the liquids dripping from it when leaving a body of liquid or simulating
+  thin film interference when light hits the biosuit visor." Ideas: an optional helmet interior at the view's edges
+  (comfort first: the lag only on the helmet shell, never on the view), its edges usable as a cheaper view mask for
+  culling/foveation (Quest); the biosuit's visor overlay with drips after leaving a liquid and a thin-film tint where
+  lights hit it.
 - **Seated play** (2026-10-18): holster and pouch zones laid out for a seated body, picked from the seated calibration.
 - **Easier modelling** (2026-11-05): weapons have source .blends with export on save (MODELS_IN_BLENDER.md); left: the
   format audit and the other models.
