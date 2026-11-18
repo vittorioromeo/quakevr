@@ -517,8 +517,8 @@ void mockLook_f()
 // gun's load point on the pouch's rounds' top, units above them (pouch reloading); "pouchmag <slot> [<up> [<left>
 // [<out>]]]": on that magazine's top as drawn in the pouch, moved by those units; "holster <0..5>": at that holster's
 // point (body::Holster); "grenadepouch": at the grenade pouch (vr_handgrenade); "vr_mock_hand_to <main|off> lport
-// [<units>]": what the hand holds (a shell's middle, a magazine's top: view::heldRoundRef) at the loading port of the gun the
-// other hand holds, `units` below it; "lportmid": its middle there (a magazine's too: the top-of-the-magazine tests).
+// [<units> [<dx> <dy> <dz>]]": what the hand holds (a shell's middle, a magazine's top: view::heldRoundRef) at the loading
+// port of the gun the other hand holds, `units` below it, moved by dx dy dz in the world; "lportmid": its middle there (a magazine's too: the top-of-the-magazine tests).
 // "vr_mock_hand_to <main|off> mag <along> [<out>]": on the attached magazine of the other hand's gun, `along` its length
 // (1 its feed end, 0 its middle, -1 its far end), `out` units off its side (vr_reload.qc: grips and hits on its box);
 // "magpalm": the palm's middle there instead of the hand's point, "magheld" the middle of what it holds (the solid
@@ -1020,7 +1020,11 @@ void handToAmmoOrLoadPort(int hand, bool ammoPouch, bool loadPortMid)
             const entity_t& e = cl_entities[num]; // (lportmid: its middle, not its reference point)
             target -= geom::vec(e.origin) - st.pos[hand];
         }
-        target.z -= Cmd_Argc() == 4 ? Q_atof(Cmd_Argv(3)) : 0.f;
+        target.z -= Cmd_Argc() >= 4 ? Q_atof(Cmd_Argv(3)) : 0.f;
+        if(Cmd_Argc() == 7) // (a correction in the world, units: mp_disarm's eye on the server's round and port)
+        {
+            target += glm::vec3{Q_atof(Cmd_Argv(4)), Q_atof(Cmd_Argv(5)), Q_atof(Cmd_Argv(6))};
+        }
     }
     moveHandTo(hand, target);
 }
@@ -1177,7 +1181,8 @@ void mockHandTo_f()
     const bool nearestOf = Cmd_Argc() >= 4 && !q_strcasecmp(Cmd_Argv(2), "nearest");
     const bool ammoPouch = Cmd_Argc() == 3 && !q_strcasecmp(Cmd_Argv(2), "ammopouch");
     const bool loadPortMid = Cmd_Argc() == 3 && !q_strcasecmp(Cmd_Argv(2), "lportmid");
-    const bool loadPort = ((Cmd_Argc() == 3 || Cmd_Argc() == 4) && !q_strcasecmp(Cmd_Argv(2), "lport")) || loadPortMid;
+    const bool loadPort =
+        ((Cmd_Argc() == 3 || Cmd_Argc() == 4 || Cmd_Argc() == 7) && !q_strcasecmp(Cmd_Argv(2), "lport")) || loadPortMid;
     const bool magPalm = Cmd_Argc() >= 4 && !q_strcasecmp(Cmd_Argv(2), "magpalm");
     const bool magHeld = Cmd_Argc() >= 4 && !q_strcasecmp(Cmd_Argv(2), "magheld");
     if(Cmd_Argc() >= 4 && (!q_strcasecmp(Cmd_Argv(2), "mag") || magPalm || magHeld) && hand >= 0)
@@ -1293,7 +1298,7 @@ void mockHandTo_f()
                    "       vr_mock_hand_to <main|off> pouchmag <slot> [<up> [<left> [<out>]]]\n"
                    "       vr_mock_hand_to <main|off> holster <0..5>\n"
                    "       vr_mock_hand_to <main|off> grenadepouch\n"
-                   "       vr_mock_hand_to <main|off> lport [<units below it>]\n"
+                   "       vr_mock_hand_to <main|off> lport [<units below it> [<dx> <dy> <dz>]]\n"
                    "       vr_mock_hand_to <main|off> lportmid\n");
         return;
     }

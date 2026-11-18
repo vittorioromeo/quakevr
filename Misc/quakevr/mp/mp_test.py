@@ -3385,23 +3385,43 @@ def ammo_load(s, srv, b, eb, what, key, ready, mine0):
         # (B25b: each placement waited for at B's game (its echo) before the server's 0.2 s, and the whole tried again
         # from the start pose twice: in 2 full suite runs of 6 the magazine stopped 2.5 units off the port (leniency 2)
         # and stayed there, the port and the round each a unit apart from where B's previous placement had them.)
+        # (B26: why. The gun moves as the off hand comes to it: its port shifted 0.6-1.3 units between the hand's start
+        # pose, 6 under the port and at it (the server's reload rows, debug 2), so a placement aimed at the port seen
+        # before it lands that far off, and each new one moves the gun again. A player watches the magazine and the well
+        # and corrects: so does the test now, by the server's own rows (the round's place and the port's, after each
+        # placement at it): the next placement moved by their gap (`lport 0 dx dy dz`), up to 4 at the port.)
         seat = r"reload: (.* seated \(hand 1|1 into the gun \(hand 1)"
+        row = re.compile(r"reload: a held round ([\d.]+) units from the port \(leniency ([\d.]+)\): at (\S+) (\S+) (\S+), "
+                         r"the port (\S+) (\S+) (\S+)")
+        srv.cmd("vr_reload_debug 2")
+        gaps = []
         for attempt in range(3):
             if attempt:
                 s.note("%s's %s not in his gun yet: placed again (try %d)" % (b.name, what, attempt + 1))
             b.cmd("vr_mock_hand main 0.15 1.0 -0.40 140 0 0; vr_mock_hand off -0.15 1.0 -0.40 70 0 0")
             server_time_past(srv, server_time(srv) + THROW_SETTLE_S)
-            for below in (6, 0, 0):
+            off = [0.0, 0.0, 0.0]
+            for below in (6, 0, 0, 0, 0):
                 srv.mark()  # (read the log so far)
                 if srv.find(seat, since):
                     break
                 mark_b = b.mark()
-                b.cmd("vr_mock_hand_to off lport %d; echo mp_lport_placed" % below)
+                b.cmd("vr_mock_hand_to off lport %d %.2f %.2f %.2f; echo mp_lport_placed" % (below, off[0], off[1], off[2]))
                 b.wait(r"mp_lport_placed", 20, mark_b, "%s's hand placed at the port" % b.name)
+                mark_s = srv.mark()
                 server_time_past(srv, server_time(srv) + 0.2)
+                if below == 0:
+                    rows = [m for m in (row.search(l) for l in srv.lines[mark_s:]) if m]
+                    if rows:
+                        v = [float(x) for x in rows[-1].groups()]
+                        gaps.append(v[0])
+                        off = [off[i] + v[5 + i] - v[2 + i] for i in range(3)]
             loaded = wait_quietly(srv, seat, 5, since, "%s's %s into his gun" % (b.name, what))
             if loaded:
                 break
+        srv.cmd("vr_reload_debug %d" % int(os.environ.get("QVR_RELOAD_DEBUG", "1")))
+        s.note("%s's %s at the port: the server's gaps after each placement at it %s" % (
+            b.name, what, ", ".join("%.1f" % g for g in gaps)))
     inv, _ = inventories(srv)
     mine = inv.get(eb - 1, {}).get(key, 0)
     clip = inv.get(eb - 1, {}).get("clip", 0)
