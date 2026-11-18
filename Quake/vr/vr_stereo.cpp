@@ -1333,9 +1333,12 @@ extern "C" int VR_RenderView()
         temporal::endEye();
         stereosingle::endEye();
         R_AliasEyeCacheBegin(0);
-        // vr_xr_direct: the scene went into the image when it needed no scene target (R_SetupGL); the composite target
-        // gets its own colour back either way.
-        const bool drawnDirect = direct && eyeImage && !GL_NeedsSceneEffects();
+        // vr_xr_direct: the scene is in the image either way: drawn there when it needed no scene target (R_SetupGL),
+        // else put there by R_WarpScaleView (its target, the composite's framebuffer, has the image attached: an eye
+        // always post-processes, GL_NeedsPostprocess). Neither is post-processed (direct's design); the composite's
+        // own colour wasn't drawn this frame, so the post-process reading it would put an old picture over the image.
+        // The composite target gets its own colour back.
+        const bool drawnDirect = direct && eyeImage;
         if(directOwn)
         {
             framebufs.composite.fbo = stereo::eyeTargets.fb.composite.fbo;

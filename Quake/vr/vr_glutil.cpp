@@ -140,6 +140,39 @@ void lookUpDesktopOnly()
         desktopOnly.clearTexImage = reinterpret_cast<ClearTexImageFn>(SDL_GL_GetProcAddress("glClearTexImage"));
     }
 }
+
+// readBuffer's ES form for a buffer mapped already (the persistent, coherent upload rings: GL_Upload's, kept under ES):
+// mapped again it can't be (GL_INVALID_OPERATION), so its range is copied into a buffer of its own and that one read.
+using GetBufferParameterivFn = void(APIENTRY*)(GLenum, GLenum, GLint*);
+using CopyBufferSubDataFn = void(APIENTRY*)(GLenum, GLenum, GLintptr, GLintptr, GLsizeiptr);
+struct EsBufferCalls // (ES 3.0's core, looked up on first use: not in the engine's table)
+{
+    bool looked{false};
+    GetBufferParameterivFn getBufferParameteriv{nullptr};
+    CopyBufferSubDataFn copyBufferSubData{nullptr};
+};
+EsBufferCalls esBuffer;
+
+bool readMappedCopy(GLenum target, GLintptr offset, GLsizeiptr size, void* out)
+{
+    GLint previous = 0;
+    glGetIntegerv(GL_COPY_WRITE_BUFFER_BINDING, &previous);
+    GLuint copy = 0;
+    GL_GenBuffersFunc(1, &copy);
+    GL_BindBufferFunc(GL_COPY_WRITE_BUFFER, copy);
+    GL_BufferDataFunc(GL_COPY_WRITE_BUFFER, size, nullptr, GL_STREAM_READ);
+    esBuffer.copyBufferSubData(target, GL_COPY_WRITE_BUFFER, offset, 0, size);
+    const void* p = GL_MapBufferRangeFunc(GL_COPY_WRITE_BUFFER, 0, size, GL_MAP_READ_BIT);
+    bool read = false;
+    if(p)
+    {
+        memcpy(out, p, static_cast<size_t>(size));
+        read = GL_UnmapBufferFunc(GL_COPY_WRITE_BUFFER) == GL_TRUE;
+    }
+    GL_BindBufferFunc(GL_COPY_WRITE_BUFFER, static_cast<GLuint>(previous));
+    GL_DeleteBuffersFunc(1, &copy);
+    return read;
+}
 } // namespace
 
 void drawNoColour()
@@ -152,6 +185,22 @@ bool readBuffer(GLenum target, GLintptr offset, GLsizeiptr size, void* out)
 {
     if(VR_GLESCompat())
     {
+        if(!esBuffer.looked)
+        {
+            esBuffer.looked = true;
+            esBuffer.getBufferParameteriv =
+                reinterpret_cast<GetBufferParameterivFn>(SDL_GL_GetProcAddress("glGetBufferParameteriv"));
+            esBuffer.copyBufferSubData = reinterpret_cast<CopyBufferSubDataFn>(SDL_GL_GetProcAddress("glCopyBufferSubData"));
+        }
+        GLint mapped = GL_FALSE;
+        if(esBuffer.getBufferParameteriv)
+        {
+            esBuffer.getBufferParameteriv(target, GL_BUFFER_MAPPED, &mapped);
+        }
+        if(mapped && esBuffer.copyBufferSubData)
+        {
+            return readMappedCopy(target, offset, size, out);
+        }
         const void* p = GL_MapBufferRangeFunc(target, offset, size, GL_MAP_READ_BIT);
         if(!p)
         {
@@ -181,7 +230,19 @@ void clearTexture(GLuint tex, const float rgba[4])
         GL_FramebufferTexture2DFunc(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex, 0);
         const GLenum colour = GL_COLOR_ATTACHMENT0;
         GL_DrawBuffersFunc(1, &colour);
+        // (glClearTexImage, the call this stands for, ignores the scissor and the colour mask; a framebuffer clear
+        // follows both: the whole texture, every channel, then they are put back, as readDepthBits does)
+        GLboolean colourMask[4] = {GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE};
+        glGetBooleanv(GL_COLOR_WRITEMASK, colourMask);
+        const GLboolean scissor = glIsEnabled(GL_SCISSOR_TEST);
+        glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+        glDisable(GL_SCISSOR_TEST);
         GL_ClearBufferfvFunc(GL_COLOR, 0, rgba);
+        glColorMask(colourMask[0], colourMask[1], colourMask[2], colourMask[3]);
+        if(scissor)
+        {
+            glEnable(GL_SCISSOR_TEST);
+        }
         GL_BindFramebufferFunc(GL_DRAW_FRAMEBUFFER, static_cast<GLuint>(previous));
         GL_DeleteFramebuffersFunc(1, &fbo);
         return;

@@ -1655,7 +1655,8 @@ static void R_DrawLiquidMesh (int baseinst, qboolean translucent, unsigned state
 			cmd->count = ranges[k * 2 + 1];
 			cmd->instanceCount = 1;
 			cmd->baseVertex = 0;
-			cmd->baseInstance = baseinst;
+			// QVR: ES's field is reservedMustBeZero; the instance comes from the call there (no bindless)
+			cmd->baseInstance = VR_GLESForm (VR_GLES_FORM_GLSL) ? 0 : baseinst;
 			R_AddBModelCall (0, baseinst, 1, R_TextureAnimation (t, 0), false, &cl_entities[0]);
 		}
 	}

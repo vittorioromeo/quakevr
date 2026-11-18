@@ -2335,7 +2335,11 @@ DRAW_ELEMENTS_INDIRECT_COMMAND
 "		return;\n"
 "	DrawRemap remap = remap_data[thread_id];\n"
 "	DrawElementsIndirectCommand cmd = src_cmds[remap.src_call];\n"
+"#ifdef GL_ES\n" // QVR: ES 3.1's field is reservedMustBeZero (a nonzero one: undefined); ES has no bindless, whose gl_BaseInstanceARB read it, and these draws have no instanced attribute
+"	cmd.baseInstance = 0u;\n"
+"#else\n"
 "	cmd.baseInstance = remap.instance_data / MAX_INSTANCES;\n"
+"#endif\n"
 "	cmd.instanceCount = (remap.instance_data % MAX_INSTANCES) + 1u;\n"
 "	if (cmd.count == 0u)\n"
 "		cmd.instanceCount = 0u;\n"
