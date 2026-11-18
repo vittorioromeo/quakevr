@@ -322,9 +322,81 @@ void endStartup(const char* how)
 }
 } // namespace
 
+// The GL calls that make the CPU wait for the GPU (VR_GLSyncNote: glquake.h's wrappers), counted
+// between reports (vr_gl_sync_count, vr_gl_sync_report): the Quest's frames serialised CPU and GPU (2026-11-17).
+namespace
+{
+constexpr const char* syncNames[VR_GLSYNC_KINDS] = {
+    "finish", "fence wait", "query result", "pixel read", "texture read", "synced map", "link status"};
+struct GlSyncs
+{
+    unsigned long long counts[VR_GLSYNC_KINDS]{};
+    int frames = 0;
+    double since = 0.0;
+    bool asked = false;    // a vr_gl_sync_report started a count
+    bool counting = false; // the queries' availability checked (VR_GLQueryWaits): asked, or vr_gl_sync_count on
+} glSyncs;
+
+void syncReport(const char* who)
+{
+    unsigned long long all = 0;
+    for(unsigned long long c : glSyncs.counts)
+    {
+        all += c;
+    }
+    const double frames = static_cast<double>(za::max(1, glSyncs.frames));
+    char parts[256];
+    parts[0] = '\0';
+    for(int k = 0; k < VR_GLSYNC_KINDS; k++)
+    {
+        if(glSyncs.counts[k])
+        {
+            q_strlcat(parts, va(" %s %.2f", syncNames[k], static_cast<double>(glSyncs.counts[k]) / frames), sizeof(parts));
+        }
+    }
+    Con_Printf("%s: %d frames, %.2f GL syncs a frame%s%s\n", who, glSyncs.frames, static_cast<double>(all) / frames,
+        parts[0] ? ":" : "", parts);
+    const bool asked = glSyncs.asked;
+    glSyncs = GlSyncs{};
+    glSyncs.since = Sys_DoubleTime();
+    glSyncs.asked = asked;
+    glSyncs.counting = true;
+}
+
+void syncReport_f()
+{
+    glSyncs.asked = true;
+    syncReport("vr_gl_sync_report");
+}
+} // namespace
+
+extern "C" void VR_GLSyncNote(int kind)
+{
+    glSyncs.counts[za::clamp(kind, 0, VR_GLSYNC_KINDS - 1)]++;
+}
+
+// A query's result read waits only when it is not there yet (the profiler's reads come after an availability check);
+// checked only while counting (vr_gl_sync_count, or after a vr_gl_sync_report): one more query call a read.
+extern "C" int VR_GLQueryWaits(GLuint id)
+{
+    if(!glSyncs.counting)
+    {
+        return 0;
+    }
+    GLint available = 0;
+    GL_GetQueryObjectivFunc(id, GL_QUERY_RESULT_AVAILABLE, &available);
+    return available ? 0 : 1;
+}
+
 // GL_EndRendering, before the swap: the first frames named; the start-up's end, frames after the first map spawned.
 extern "C" void VR_GLFrame(void)
 {
+    glSyncs.frames++;
+    glSyncs.counting = glSyncs.asked || qvr::vr_gl_sync_count.value > 0.f; // (no longer sticky once the cvar is 0)
+    if(qvr::vr_gl_sync_count.value > 0.f && Sys_DoubleTime() - glSyncs.since >= qvr::vr_gl_sync_count.value)
+    {
+        syncReport("vr_gl_sync_count");
+    }
     if(glsafe.ended)
     {
         return;
@@ -393,4 +465,5 @@ extern "C" void VR_GLSafeInit(void)
 {
     Cmd_AddCommand("vr_glsafe_retry", retry_f);
     Cmd_AddCommand("vr_glsafe_status", status_f);
+    Cmd_AddCommand("vr_gl_sync_report", syncReport_f);
 }
