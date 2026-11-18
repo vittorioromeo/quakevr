@@ -748,6 +748,7 @@ extern "C" void VR_OnSpawnServerSpawned()
     }
     qvr::hull::spawned(); // the monsters' compiled hulls (their widths now known), on the pool
     probesEnd(probes);
+    qvr::server::learnSoundLoops(); // (every sound precached by now read for a loop while the map loads: not mid-fight)
 }
 
 extern "C" void VR_OnEdictFree(edict_t* ed)

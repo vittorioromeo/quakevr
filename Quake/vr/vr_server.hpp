@@ -29,6 +29,10 @@ void rebaseHands(struct edict_s* player);
 // Forgets every client's VR move (a new server).
 void resetClients();
 
+// Every sound precached so far read for a loop (its cue point) now, while the map loads (VR_OnSpawnServerSpawned), not at
+// its first play in the game (a whole file read from disk there). A sound precached later still reads at its first play.
+void learnSoundLoops();
+
 // Head angles of `player`'s latest move, as a vec3_t (nullptr without one).
 [[nodiscard]] float* clientHeadAngles(struct edict_s* player);
 

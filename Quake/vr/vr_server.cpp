@@ -1572,6 +1572,20 @@ void dumpPlayer_f()
         ent->v.weapon, fieldFloatOr(ent, f.weapon2, 0.f));
 }
 
+void learnSoundLoops()
+{
+    const double t0 = Sys_DoubleTime();
+    soundLoopsFor();
+    for(int num = 1; num < MAX_SOUNDS && sv.sound_precache[num]; num++)
+    {
+        if(soundLoops.isLoop[static_cast<za::SizeT>(num)] < 0)
+        {
+            (void)soundLoops_(num);
+        }
+    }
+    VR_TimeAdd("  the sounds read for their loops (vr_snd_loops)", Sys_DoubleTime() - t0); // (a fixed label: summed by it)
+}
+
 void resetClients()
 {
     clientMoves.clear();
