@@ -221,7 +221,8 @@ class Instance:
         # did not print its first lines in 60 s; QVR_MP_PRIORITY=below for the old way)
         below = os.environ.get("QVR_MP_PRIORITY") == "below"
         flags = (IDLE if self.s.low_impact else BELOW_NORMAL if below else NORMAL) | NO_WINDOW
-        self.proc = subprocess.Popen(args, cwd=self.s.base, env=env, creationflags=flags,
+        # (Linux too: Windows' priority and no-window flags are Windows' only; Popen refuses them elsewhere)
+        self.proc = subprocess.Popen(args, cwd=self.s.base, env=env, creationflags=flags if os.name == "nt" else 0,
                                      stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         self.s.note("%s: started (pid %d, port %d%s)" % (
             self.name, self.proc.pid, self.port,
