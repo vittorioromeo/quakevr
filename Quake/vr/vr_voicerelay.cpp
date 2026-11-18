@@ -68,7 +68,7 @@ bool serverRead(client_s* client)
     }
     RelaySlot* r = slot >= 0 && slot < MAX_SCOREBOARD ? &relay[slot] : nullptr;
     const bool take = r && relaying() && client->spawned;
-    const double now = qcvm ? qcvm->time : realtime;
+    const double now = realtime; // (not the game's clock: it stands still while the server is paused)
     if(take)
     {
         // (his own flood guard: frames a second, a bucket)
@@ -135,7 +135,7 @@ void serverWrite(sizebuf_t* msg, client_s* client)
         return;
     }
     RelaySlot& l = relay[to];
-    const double now = qcvm->time;
+    const double now = realtime; // (as serverRead's)
     // (his voice budget: vr_net_voice_bytes, at most a share of his vr_net_rate; a bucket)
     double rate = vr_net_voice_bytes.value;
     const int netRate = client->edict ? static_cast<int>(clientprefs::value(clientprefs::indexOf(&vr_net_rate), &vr_net_rate, client->edict)) : 0;
