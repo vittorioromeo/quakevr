@@ -5556,11 +5556,15 @@ extern "C" void VR_SetupViewEntities()
     }
 
     // Flatscreen play's third-person camera near his head (a wall pulled it in): the body, hands and weapons fade, so the
-    // view is not filled by the back of his head (vr_flat_tp_fade; vr_flattp.cpp). 1 otherwise: nothing is touched.
+    // view is not filled by the back of his head (vr_flat_tp_fade; vr_flattp.cpp). 1 otherwise: nothing is touched. His own
+    // only (worn): not the weapons lying round (their idle screens and buttons, set up above).
     if(const float fade = flattp::bodyAlpha(); fade < 1.f)
     {
         forEachEntity([fade](view::ViewEntity& ve) {
-            ve.ent.alpha = ENTALPHA_ENCODE(ENTALPHA_DECODE(ve.ent.alpha) * fade);
+            if(worn(ve))
+            {
+                ve.ent.alpha = ENTALPHA_ENCODE(ENTALPHA_DECODE(ve.ent.alpha) * fade);
+            }
         });
     }
 
