@@ -675,6 +675,18 @@ void VID_LoadingSwap (void); // QVR
 void GL_WorldLiteCheck (void); // QVR: the shaders made again when the ES lite world no longer fits the settings
 void GL_DeleteShaders (void);
 GLuint GL_WorldDecalRetroProgram (int oit, int dither, qboolean pdo); // QVR
+// QVR: these groups' variants, made when first asked for under the ES profile (the PC makes them all at the start):
+// gl_shaders.c, GL_ShadersLazyStart
+enum { ALIASFORM_OPAQUE, ALIASFORM_PLAIN, ALIASFORM_GORE, ALIASFORM_SKIN, ALIASFORM_COUNT };
+qboolean GL_ShadersLazyStart (int oit, int dither, int mode); // made at the start (all on the PC; the defaults under ES)
+GLuint GL_WorldProgram (int oit, int dither, int mode);
+GLuint GL_AliasProgram (int oit, int mode, int alphatest, int poseverttype);
+qboolean GL_AliasFormAvailable (int form); // the form exists here (the ES profile's; plain, gore, skin: with the lite models' bits)
+GLuint GL_AliasFormProgram (int form, int mode, int poseverttype); // 0: not available
+GLuint GL_WaterProgram (int oit, int dither);
+GLuint GL_ParticlesProgram (int oit, int dither);
+int R_AliasShaderMode (void); // QVR: r_alias.c: the models' ALIASSHADER_* for the software emulation's settings
+void R_PrewarmSelectedPrograms (void); // QVR: r_world.c: the ES profile's variants the settings draw with, at a map's load
 GLuint GL_WorldArraysProgram (GLuint program, qboolean *depthonly); // QVR: the world's textures in arrays (vr/vr_worldarrays.cpp)
 GLuint GL_WorldArraysMergeProgram (void); // QVR
 int GL_WorldRigLightsOff (void); // QVR: the world's programs skip the rig's small lights (C4v; vr_rig_lights_world 0)

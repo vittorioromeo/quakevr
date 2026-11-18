@@ -192,6 +192,10 @@ bool readFile(const za::String& path, const char (&magic)[5], unsigned& a, unsig
 // bytes), as before its first write.
 za::Vector<qvr::jobs::Future<void>> writes;
 constexpr za::SizeT writesMost = 64;
+// The program pack's write under way (progWrite): one at a time, each waiting for the last (two on the pool at once,
+// the older renamed into place after the newer would win). Finished with the others (VR_TexCacheFinishWrites).
+qvr::jobs::Future<void> progWriting;
+std::atomic<bool> progWriteFailed{false}; // (a worker's failure, said on the main thread: the console isn't a worker's)
 
 constexpr char normalMagic[5] = "QVRN";
 
@@ -550,6 +554,7 @@ extern "C" void VR_NoteModelLoad(const char* name, double seconds)
 extern "C" void VR_TexCacheFinishWrites(void)
 {
     writes.clear(); // (each Future waits for its write)
+    progWriting.wait(); // (the program pack's)
 }
 
 extern "C" void VR_NormalCacheChecked(int same, const char* name)
@@ -740,12 +745,24 @@ void progWrite()
             memcpy(bytes.data() + at + 20, e.data.data(), length);
         }
     }
-    qvr::files::createDirectories((rootDir() + "/programs").cStr());
-    const qvr::diskcache::Part part{bytes.data(), bytes.size()};
-    if(!qvr::diskcache::writeAtomic(progPath(progCache.driver), &part, 1))
+    // The file written on the game's pool (the pack is up to 128 MB: a program made in play, or a queued set's
+    // every-10-s save, waited for it on the main thread); its bytes made here, from the entries the main thread changes.
+    const za::String dir = rootDir() + "/programs";
+    const za::String path = progPath(progCache.driver);
+    if(progWriteFailed.exchange(false))
     {
-        Con_DPrintf("vr_program_cache: %s not written\n", progPath(progCache.driver).cStr());
+        Con_DPrintf("vr_program_cache: %s not written (the last time)\n", path.cStr());
     }
+    progWriting.wait(); // (the last pack's write done first)
+    progWriting = qvr::jobs::async([dir, path, bytes = ZA_MOVE(bytes)] {
+        QVR_TRACY_SCOPE(tracyScope, "program pack write async");
+        qvr::files::createDirectories(dir.cStr()); // (thread-safe: the map installer's workers call it)
+        const qvr::diskcache::Part part{bytes.data(), bytes.size()};
+        if(!qvr::diskcache::writeAtomic(path, &part, 1))
+        {
+            progWriteFailed.store(true);
+        }
+    });
     progCache.dirty = false;
 }
 

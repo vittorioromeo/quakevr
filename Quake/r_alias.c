@@ -690,13 +690,34 @@ void R_SetupAliasLighting (entity_t	*e)
 
 /*
 =================
+R_AliasShaderMode -- QVR
+
+The models' shader mode (ALIASSHADER_*) the software emulation's settings choose: R_FlushAliasInstances' and the map
+load's prewarm of the ES profile's programs (R_PrewarmSelectedPrograms).
+=================
+*/
+int R_AliasShaderMode (void)
+{
+	extern cvar_t r_softemu_mdl_warp;
+	switch (softemu)
+	{
+	case SOFTEMU_BANDED:
+		return r_softemu_mdl_warp.value != 0.f ? ALIASSHADER_NOPERSP : ALIASSHADER_STANDARD;
+	case SOFTEMU_COARSE:
+		return r_softemu_mdl_warp.value > 0.f ? ALIASSHADER_NOPERSP : ALIASSHADER_DITHER;
+	default:
+		return r_softemu_mdl_warp.value > 0.f ? ALIASSHADER_NOPERSP : ALIASSHADER_STANDARD;
+	}
+}
+
+/*
+=================
 R_FlushAliasInstances
 =================
 */
 void R_FlushAliasInstances (qboolean showtris)
 {
 	VR_TRACY_SCOPE ("alias flush"); // QVR: the batch's upload and draw (profiling builds)
-	extern cvar_t r_softemu_mdl_warp;
 	qmodel_t* model;
 	aliashdr_t* mainhdr, *hdr;
 	qboolean	alphatest, translucent, oit;
@@ -757,29 +778,18 @@ void R_FlushAliasInstances (qboolean showtris)
 	oit = translucent && R_GetEffectiveAlphaMode () == ALPHAMODE_OIT;
 	if (oit) // QVR: the OIT targets cleared at their first draw
 		R_PrepareOITDraw (1);
-	switch (softemu)
-	{
-	case SOFTEMU_BANDED:
-		mode = r_softemu_mdl_warp.value != 0.f ? ALIASSHADER_NOPERSP : ALIASSHADER_STANDARD;
-		break;
-	case SOFTEMU_COARSE:
-		mode = r_softemu_mdl_warp.value > 0.f ? ALIASSHADER_NOPERSP : ALIASSHADER_DITHER;
-		break;
-	default:
-		mode = r_softemu_mdl_warp.value > 0.f ? ALIASSHADER_NOPERSP : ALIASSHADER_STANDARD;
-		break;
-	}
+	mode = R_AliasShaderMode ();
 	depthonly = aliasdepth && !alphatest && !translucent; // QVR: a shadow map's opaque casters: no fragment shader (holey skins keep theirs)
-	shadeprog = glprogs.alias[oit][mode][alphatest][poseverttype];
-	if (!translucent && !alphatest && !aliasdepth && !aliasxray && !showtris && glprogs.alias_opaque[mode][poseverttype] && VR_AliasOpaqueForm (ibuf.ent))
+	shadeprog = GL_AliasProgram (oit, mode, alphatest, poseverttype); // QVR: made when first asked for under ES (GL_ShadersLazyStart)
+	if (!translucent && !alphatest && !aliasdepth && !aliasxray && !showtris && GL_AliasFormAvailable (ALIASFORM_OPAQUE) && VR_AliasOpaqueForm (ibuf.ent))
 	{
-		shadeprog = glprogs.alias_opaque[mode][poseverttype]; // QVR: no discard: hidden pixels rejected before shading on a tiler (vr_gl_alias_opaque)
-		if (glprogs.alias_plain[mode][poseverttype] && VR_AliasPlainUse (aliasneeds))
-			shadeprog = glprogs.alias_plain[mode][poseverttype]; // QVR: ... nor the features none of its instances has (vr_gl_alias_plain)
-		else if (glprogs.alias_gore[mode][poseverttype] && VR_AliasGoreUse (aliasneeds))
-			shadeprog = glprogs.alias_gore[mode][poseverttype]; // QVR: ... or all but the wounds and dents (vr_gl_alias_gore)
-		else if (glprogs.alias_skin[mode][poseverttype] && VR_AliasSkinUse (aliasneeds))
-			shadeprog = glprogs.alias_skin[mode][poseverttype]; // QVR: ... or all but those and the skin tone (vr_gl_alias_skin)
+		shadeprog = GL_AliasFormProgram (ALIASFORM_OPAQUE, mode, poseverttype); // QVR: no discard: hidden pixels rejected before shading on a tiler (vr_gl_alias_opaque)
+		if (GL_AliasFormAvailable (ALIASFORM_PLAIN) && VR_AliasPlainUse (aliasneeds))
+			shadeprog = GL_AliasFormProgram (ALIASFORM_PLAIN, mode, poseverttype); // QVR: ... nor the features none of its instances has (vr_gl_alias_plain)
+		else if (GL_AliasFormAvailable (ALIASFORM_GORE) && VR_AliasGoreUse (aliasneeds))
+			shadeprog = GL_AliasFormProgram (ALIASFORM_GORE, mode, poseverttype); // QVR: ... or all but the wounds and dents (vr_gl_alias_gore)
+		else if (GL_AliasFormAvailable (ALIASFORM_SKIN) && VR_AliasSkinUse (aliasneeds))
+			shadeprog = GL_AliasFormProgram (ALIASFORM_SKIN, mode, poseverttype); // QVR: ... or all but those and the skin tone (vr_gl_alias_skin)
 	}
 	if (depthonly)
 		GL_UseProgram (layered ? glprogs.alias_depth_layered[poseverttype] : glprogs.alias_depth[poseverttype]);
@@ -967,7 +977,7 @@ void R_FlushAliasInstances (qboolean showtris)
 			GL_DrawElementsInstancedFunc (GL_TRIANGLES, hdr->numindexes, GL_UNSIGNED_SHORT, (void*)hdr->eboofs, drawcount);
 		}
 		glColorMask (GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-		GL_UseProgram (glprogs.alias[oit][mode][alphatest][poseverttype]);
+		GL_UseProgram (GL_AliasProgram (oit, mode, alphatest, poseverttype));
 		GL_SetState ((state | GLS_BLEND_ALPHA_OIT | GLS_NO_ZWRITE) & ~GLS_CULL_BACK);
 		VR_GPUZoneEnd ();
 	}

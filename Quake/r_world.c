@@ -1220,10 +1220,12 @@ static void R_PrewarmArrayTwins (void)
 	const int dither = R_WorldDither ();
 	qboolean depthonly;
 	int oit, alphatest;
-	for (oit = 0; oit < 2; oit++)
+	// (under ES the OIT ones only while OIT is on: they are made when first asked for, GL_ShadersLazyStart)
+	const int oits = GL_ShadersLazyStart (1, 0, 0) || R_GetEffectiveAlphaMode () == ALPHAMODE_OIT ? 2 : 1;
+	for (oit = 0; oit < oits; oit++)
 	{
 		for (alphatest = 0; alphatest < 2; alphatest++)
-			GL_WorldArraysProgram (glprogs.world[oit][dither][alphatest], &depthonly);
+			GL_WorldArraysProgram (GL_WorldProgram (oit, dither, alphatest), &depthonly);
 		if (glprogs.world_decal_retro[oit][dither])
 			GL_WorldArraysProgram (glprogs.world_decal_retro[oit][dither], &depthonly);
 	}
@@ -1256,6 +1258,40 @@ void R_PrewarmTranslucentDecalPrograms (void)
 		R_PrewarmArrayTwins ();
 }
 
+/*
+=============
+R_PrewarmSelectedPrograms -- QVR
+
+At a map's load (R_NewMap): the ES profile's variants the current settings draw with (the world's, the liquids', the
+models' and their forms, the particles'), which it makes when first asked for (GL_ShadersLazyStart): compiled in the
+load, not at the first frames' draws. Nothing on the PC (made at the start).
+=============
+*/
+void R_PrewarmSelectedPrograms (void)
+{
+	const int dither = R_WorldDither ();
+	const int oits = R_GetEffectiveAlphaMode () == ALPHAMODE_OIT ? 2 : 1;
+	const int coarse = softemu == SOFTEMU_COARSE;
+	const int amode = R_AliasShaderMode ();
+	int oit, mode, alphatest, poseverttype, form;
+	if (GL_ShadersLazyStart (1, 1, 1))
+		return;
+	for (oit = 0; oit < oits; oit++)
+	{
+		for (mode = 0; mode < 3; mode++)
+			GL_WorldProgram (oit, dither, mode);
+		GL_WorldProgram (oit, q_max (0, (int)softemu - 1), WORLDSHADER_WATER);
+		GL_WaterProgram (oit, coarse);
+		GL_ParticlesProgram (oit, coarse);
+		for (alphatest = 0; alphatest < 2; alphatest++)
+			for (poseverttype = 0; poseverttype < 3; poseverttype++)
+				GL_AliasProgram (oit, amode, alphatest, poseverttype);
+	}
+	for (form = 0; form < ALIASFORM_COUNT; form++)
+		for (poseverttype = 0; poseverttype < 3; poseverttype++)
+			GL_AliasFormProgram (form, amode, poseverttype);
+}
+
 static GLuint R_ChooseBModelProgram (qboolean oit, qboolean alphatest, qboolean pdo)
 {
 	const int dither = R_WorldDither ();
@@ -1265,7 +1301,7 @@ static GLuint R_ChooseBModelProgram (qboolean oit, qboolean alphatest, qboolean 
 		return glprogs.world_pdo[dither];
 	if (!oit && glprogs.world_unlit[dither][alphatest] && VR_WorldUnlit ()) // QVR: no light reaches the world: no lights' loop (C4t, ES only)
 		return glprogs.world_unlit[dither][alphatest];
-	return glprogs.world[oit][dither][alphatest];
+	return GL_WorldProgram (oit, dither, alphatest); // QVR: made when first asked for under ES
 }
 
 typedef enum {
@@ -1414,7 +1450,7 @@ static void R_DrawBrushModels_Real (entity_t **ents, int count, brushpass_t pass
 	case BP_SHOWTRIS:
 		texbegin = 0;
 		texend = TEXTYPE_COUNT;
-		program = glprogs.world[0][0][0];
+		program = GL_WorldProgram (0, 0, 0);
 		break;
 	}
 
@@ -1728,9 +1764,9 @@ void R_DrawBrushModels_Water (entity_t **ents, int count, qboolean translucent)
 
 	oit = translucent && R_GetEffectiveAlphaMode () == ALPHAMODE_OIT;
 	if (cl.worldmodel->haslitwater && r_litwater.value)
-		program = glprogs.world[oit][q_max(0, (int)softemu - 1)][WORLDSHADER_WATER];
+		program = GL_WorldProgram (oit, q_max(0, (int)softemu - 1), WORLDSHADER_WATER);
 	else
-		program = glprogs.water[oit][softemu == SOFTEMU_COARSE];
+		program = GL_WaterProgram (oit, softemu == SOFTEMU_COARSE);
 
 	R_ResetBModelCalls (program);
 	GL_SetState (state);

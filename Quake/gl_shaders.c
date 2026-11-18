@@ -46,6 +46,7 @@ typedef struct {
 	const char	*sources[2];
 	GLuint		arraytwin;	// its twin with the world's textures in arrays (GL_WorldArraysProgram; 0: none)
 	qboolean	arraytried;
+	unsigned long long	twinkey;	// its multiview twin's program cache key, kept once its background link is done (0: none)
 	char		macros[1024];
 	char		name[128];
 } glprogsource_t;
@@ -63,6 +64,7 @@ static int gl_multiview_pending; // twins compiling in the background (GL_Multiv
 static int gl_world_lite; // QVR: the world programs' lite form they were made with (VR_GLESWorldLite; GL_WorldLiteCheck)
 qboolean gl_multiview_draw; // GL_UseProgram: the multiview pass draws (twins)
 static int gl_arrays_compile; // QVR: GL_WorldArraysProgram's twin compiling (1; a failure reported, not fatal: 2)
+static qboolean gl_shaders_lazy; // QVR: the ES profile makes some groups' variants when asked for (GL_ShadersLazyStart)
 static qboolean gl_arrays_merge_tried; // QVR: GL_WorldArraysMergeProgram's made (or failed to be)
 static FUNC_PRINTF(2,3) GLuint GL_CreateComputeProgram (const GLchar *source, const char *name, ...); // QVR: (GL_WorldArraysMergeProgram)
 
@@ -155,6 +157,31 @@ static unsigned long long GL_ProgramKey (unsigned long long key, GLenum type, co
 	int numstrings = GL_ShaderStrings (type, source, extradefs, header, sizeof (header), strings);
 	q_snprintf (typestr, sizeof (typestr), "%x", type);
 	return VR_GLShaderHash (VR_ProgCacheKey (key, typestr), numstrings, strings);
+}
+
+/*
+=============
+GL_TwinProgramKey -- QVR
+
+A twin's program cache key (an array twin, GL_WorldArraysProgram; a multiview twin, GL_MultiviewMake): called while
+gl_arrays_compile or gl_multiview_compile is set, as GL_ShaderStrings reads it (the multiview header), over the text
+the driver gets (`macros` with the twin's defines), the empty fragment shader too where it is added. 0 when the cache
+is off. (Without it the twins were compiled at every start: the arrays' at each session's first map, seconds on the
+Quest.)
+=============
+*/
+static unsigned long long GL_TwinProgramKey (const GLchar *const *sources, const char *macros, qboolean emptyfrag)
+{
+	unsigned long long key = 0;
+	if (!gl_progcache_on)
+		return 0;
+	if (sources[0])
+		key = GL_ProgramKey (key, GL_VERTEX_SHADER, sources[0], macros);
+	if (sources[1])
+		key = GL_ProgramKey (key, GL_FRAGMENT_SHADER, sources[1], macros);
+	if (emptyfrag)
+		key = GL_ProgramKey (key, GL_FRAGMENT_SHADER, "void main() {}\n", macros);
+	return key;
 }
 
 /*
@@ -685,6 +712,16 @@ GLuint GL_WorldArraysProgram (GLuint program, qboolean *depthonly)
 		return 0;
 	q_snprintf (macros, sizeof (macros), "%s#define QVR_WORLD_ARRAYS 1\n", src->macros);
 	gl_arrays_compile = 1;
+	{
+		const qboolean emptyfrag = !src->sources[1] && VR_GLESForm (VR_GLES_FORM_GLSL);
+		const unsigned long long key = GL_TwinProgramKey (src->sources, macros, emptyfrag);
+		if (key && (src->arraytwin = GL_ProgramFromCache (key, src->name)) != 0) // (the program cache)
+		{
+			gl_arrays_compile = 0;
+			return src->arraytwin;
+		}
+		gl_progcache_key = key; // (its binary kept once linked: GL_CreateProgramFromShaders)
+	}
 	for (i = 0, realcount = 0; i < 2; i++)
 		if (src->sources[i])
 			shaders[realcount++] = GL_CreateShader (types[i], src->sources[i], macros, src->name);
@@ -695,6 +732,7 @@ GLuint GL_WorldArraysProgram (GLuint program, qboolean *depthonly)
 	else
 		for (i = 0; i < realcount; i++)
 			GL_DeleteShaderFunc (shaders[i]);
+	gl_progcache_key = 0;
 	if (gl_arrays_compile != 1)
 		src->arraytwin = 0;
 	gl_arrays_compile = 0;
@@ -742,9 +780,21 @@ static void GL_MultiviewMake (glprogsource_t *src, qboolean async)
 	GLenum types[2] = {GL_VERTEX_SHADER, GL_FRAGMENT_SHADER};
 	GLuint shaders[2];
 	int j, realcount;
+	const qboolean emptyfrag = !src->sources[1] && VR_GLESForm (VR_GLES_FORM_GLSL);
+	unsigned long long key;
 	src->tried = true;
 	gl_multiview_compile = 1;
+	key = GL_TwinProgramKey (src->sources, src->macros, emptyfrag); // (the multiview header in: gl_multiview_compile)
+	src->twinkey = 0;
+	if (key && (src->twin = GL_ProgramFromCache (key, src->name)) != 0) // (the program cache)
+	{
+		src->pending = false;
+		gl_multiview_compile = 0;
+		return;
+	}
 	gl_multiview_async = async;
+	gl_progcache_key = async ? 0 : key; // (a background link's binary is read when it is done: GL_MultiviewPending)
+	src->twinkey = async ? key : 0;
 	for (j = 0, realcount = 0; j < 2; j++)
 		if (src->sources[j])
 			shaders[realcount++] = GL_CreateShader (types[j], src->sources[j], src->macros, src->name);
@@ -755,6 +805,7 @@ static void GL_MultiviewMake (glprogsource_t *src, qboolean async)
 	else
 		for (j = 0; j < realcount; j++)
 			GL_DeleteShaderFunc (shaders[j]);
+	gl_progcache_key = 0;
 	if (gl_multiview_compile != 1)
 		src->twin = 0;
 	src->pending = async && src->twin;
@@ -857,6 +908,9 @@ int GL_MultiviewPending (void)
 			Con_Printf ("multiview twin of %s: link:\n%s\n", src->name, infolog);
 			src->twin = 0;
 		}
+		else if (src->twinkey) // QVR: its binary kept, now that it is linked (the program cache)
+			GL_ProgramToCache (src->twin, src->twinkey);
+		src->twinkey = 0;
 	}
 	return gl_multiview_pending;
 }
@@ -1375,7 +1429,7 @@ void GL_WorldLiteCheck (void)
 
 static void GL_CreateShadersAll (void)
 {
-	int palettize, dither, mode, alphatest, warp, oit;
+	int palettize, dither, mode, alphatest, warp, oit, form;
 
 	gl_world_lite = VR_GLESWorldLiteFirst (); // QVR: the start's first set: the lite form the last session made last (its settings come with the config after it)
 
@@ -1389,11 +1443,12 @@ static void GL_CreateShadersAll (void)
 	for (mode = 0; mode < 2; mode++)
 		glprogs.oit_resolve[mode] = GL_CreateProgram (oit_resove_vertex_shader, oit_resove_fragment_shader, "oit resolve|MSAA %d", mode);
 
+	gl_shaders_lazy = VR_GLESForm (VR_GLES_FORM_GLSL); // QVR: the ES profile's start set (GL_ShadersLazyStart)
 	for (oit = 0; oit < 2; oit++)
 		for (dither = 0; dither < 3; dither++)
 			for (mode = 0; mode < 3; mode++)
-				glprogs.world[oit][dither][mode] = GL_CreateProgram (world_vertex_shader, world_fragment_shader, "world|OIT %d; DITHER %d; MODE %d%s%s", oit, dither, mode,
-					mode == WORLDSHADER_SOLID ? "; NO_DECAL_RETRO 1" : "", GL_WorldLiteDefines ()); // QVR: the decals' retro textures' code: GL_WorldDecalRetroProgram's; the ES lite form
+				if (GL_ShadersLazyStart (oit, dither, 0))
+					GL_WorldProgram (oit, dither, mode);
 	for (dither = 0; dither < 3; dither++) // QVR: the world without the lights' loop, for views no light reaches its surfaces in (C4t, QUEST_PLAN.md 6z: Adreno pays ~4 ms for the loop compiled in)
 		for (mode = 0; mode < 2; mode++)
 			glprogs.world_unlit[dither][mode] = VR_GLESForm (VR_GLES_FORM_GLSL)
@@ -1407,8 +1462,11 @@ static void GL_CreateShadersAll (void)
 	{
 		for (oit = 0; oit < 2; oit++)
 		{
-			glprogs.water[oit][dither] = GL_CreateProgram (water_vertex_shader, water_fragment_shader, "water|OIT %d; DITHER %d", oit, dither);
-			glprogs.particles[oit][dither] = GL_CreateProgram (particles_vertex_shader, particles_fragment_shader, "particles|OIT %d; DITHER %d", oit, dither);
+			if (GL_ShadersLazyStart (oit, dither, 0))
+			{
+				GL_WaterProgram (oit, dither);
+				GL_ParticlesProgram (oit, dither);
+			}
 		}
 		for (mode = 0; mode < 2; mode++)
 			glprogs.skycubemap[mode][dither] = GL_CreateProgram (sky_cubemap_vertex_shader, sky_cubemap_fragment_shader, "sky cubemap|ANIM %d; DITHER %d", mode, dither);
@@ -1424,29 +1482,14 @@ static void GL_CreateShadersAll (void)
 	for (oit = 0; oit < 2; oit++)
 		for (mode = 0; mode < 3; mode++)
 			for (alphatest = 0; alphatest < 2; alphatest++)
-				for (poseverttype = 0; poseverttype < 3; poseverttype++) 
-					glprogs.alias[oit][mode][alphatest][poseverttype] =
-					GL_CreateProgram (alias_vertex_shader, alias_fragment_shader, "alias|OIT %d; MODE %d; ALPHATEST %d; POSEVERTTYPE %d%s", oit, mode, alphatest, poseverttype, GL_AliasLiteDefines ()); // QVR: the ES lite form
-	if (VR_GLESForm (VR_GLES_FORM_GLSL)) // QVR: the opaque models' form without discard (vr_gl_alias_opaque: a tiler's early depth rejection; QUEST_PLAN.md 6p)
+				for (poseverttype = 0; poseverttype < 3; poseverttype++)
+					if (GL_ShadersLazyStart (oit, 0, mode))
+						GL_AliasProgram (oit, mode, alphatest, poseverttype);
+	for (form = 0; form < ALIASFORM_COUNT; form++) // QVR: the opaque models' forms (GL_AliasFormProgram; the ES profile's)
 		for (mode = 0; mode < 3; mode++)
 			for (poseverttype = 0; poseverttype < 3; poseverttype++)
-				glprogs.alias_opaque[mode][poseverttype] =
-					GL_CreateProgram (alias_vertex_shader, alias_fragment_shader, "alias opaque|OIT 0; MODE %d; ALPHATEST 0; POSEVERTTYPE %d; QVR_ALIAS_OPAQUE 1%s", mode, poseverttype, GL_AliasLiteDefines ());
-	if (VR_GLESForm (VR_GLES_FORM_GLSL) && (gl_world_lite >> 9)) // QVR: ... and without the per-model features a batch leaves off (vr_gl_alias_plain; QUEST_PLAN.md 6r)
-		for (mode = 0; mode < 3; mode++)
-			for (poseverttype = 0; poseverttype < 3; poseverttype++)
-				glprogs.alias_plain[mode][poseverttype] =
-					GL_CreateProgram (alias_vertex_shader, alias_fragment_shader, "alias plain|OIT 0; MODE %d; ALPHATEST 0; POSEVERTTYPE %d; QVR_ALIAS_OPAQUE 1%s%s", mode, poseverttype, GL_AliasLiteDefines (), GL_AliasPlainDefines (0));
-	if (VR_GLESForm (VR_GLES_FORM_GLSL) && (gl_world_lite >> 9)) // QVR: ... the gore form, keeping the wounds and dents (vr_gl_alias_gore; C4x, QUEST_PLAN.md 6zd)
-		for (mode = 0; mode < 3; mode++)
-			for (poseverttype = 0; poseverttype < 3; poseverttype++)
-				glprogs.alias_gore[mode][poseverttype] =
-					GL_CreateProgram (alias_vertex_shader, alias_fragment_shader, "alias gore|OIT 0; MODE %d; ALPHATEST 0; POSEVERTTYPE %d; QVR_ALIAS_OPAQUE 1%s%s", mode, poseverttype, GL_AliasLiteDefines (), GL_AliasPlainDefines (VR_ALIAS_GORE_NEEDS));
-	if (VR_GLESForm (VR_GLES_FORM_GLSL) && (gl_world_lite >> 9)) // QVR: ... the skin form, keeping the skin tone too (vr_gl_alias_skin; C4y, QUEST_PLAN.md 6ze)
-		for (mode = 0; mode < 3; mode++)
-			for (poseverttype = 0; poseverttype < 3; poseverttype++)
-				glprogs.alias_skin[mode][poseverttype] =
-					GL_CreateProgram (alias_vertex_shader, alias_fragment_shader, "alias skin|OIT 0; MODE %d; ALPHATEST 0; POSEVERTTYPE %d; QVR_ALIAS_OPAQUE 1%s%s", mode, poseverttype, GL_AliasLiteDefines (), GL_AliasPlainDefines (VR_ALIAS_SKIN_NEEDS));
+				if (GL_AliasFormAvailable (form) && GL_ShadersLazyStart (0, 0, mode))
+					GL_AliasFormProgram (form, mode, poseverttype);
 	for (poseverttype = 0; poseverttype < 3; poseverttype++) // QVR; MODE 0 (standard) in these: an undefined name in #if is an error in GLSL (strict drivers)
 		glprogs.alias_depth[poseverttype] = GL_CreateProgram (alias_vertex_shader, NULL, "alias depth|MODE 0; POSEVERTTYPE %d", poseverttype);
 	for (poseverttype = 0; poseverttype < 3; poseverttype++) // QVR: into all their faces at once (vr/vr_lighting.cpp)
@@ -1490,6 +1533,99 @@ GLuint GL_WorldDecalRetroProgram (int oit, int dither, qboolean pdo)
 		else
 			*program = GL_CreateProgram (world_vertex_shader, world_fragment_shader, "world decal retro|OIT %d; DITHER %d; MODE %d%s", oit, dither, WORLDSHADER_SOLID, GL_WorldLiteDefines ());
 	}
+	return *program;
+}
+
+/*
+=============
+GL_ShadersLazyStart, GL_WorldProgram, GL_AliasProgram, GL_AliasFormProgram, GL_WaterProgram, GL_ParticlesProgram -- QVR
+
+The ES profile (the Quest) makes these groups' variants when they are first asked for, not all at the start: of its
+~148 programs the Quest preset never uses about half (OIT's, the other dithers and model modes; 0.35-0.5 s each to
+compile on Adreno, tens of seconds of a cold start). Its start set is the defaults' (no OIT, no dither, the standard
+model mode); R_PrewarmSelectedPrograms makes the current settings' at each map's load; a setting changed in play
+makes its variant at its first draw (once: the program cache keeps it). The PC makes them all at the start, as before
+(gl_shaders_lazy 0: these only return what GL_CreateShadersAll made). Each is named and defined as it always was.
+=============
+*/
+qboolean GL_ShadersLazyStart (int oit, int dither, int mode)
+{
+	return !gl_shaders_lazy || (oit == 0 && dither == 0 && mode == 0);
+}
+
+GLuint GL_WorldProgram (int oit, int dither, int mode)
+{
+	GLuint *program = &glprogs.world[oit][dither][mode];
+	if (!*program)
+		*program = GL_CreateProgram (world_vertex_shader, world_fragment_shader, "world|OIT %d; DITHER %d; MODE %d%s%s", oit, dither, mode,
+			mode == WORLDSHADER_SOLID ? "; NO_DECAL_RETRO 1" : "", GL_WorldLiteDefines ()); // the decals' retro textures' code: GL_WorldDecalRetroProgram's; the ES lite form
+	return *program;
+}
+
+GLuint GL_AliasProgram (int oit, int mode, int alphatest, int poseverttype)
+{
+	GLuint *program = &glprogs.alias[oit][mode][alphatest][poseverttype];
+	if (!*program)
+		*program = GL_CreateProgram (alias_vertex_shader, alias_fragment_shader, "alias|OIT %d; MODE %d; ALPHATEST %d; POSEVERTTYPE %d%s",
+			oit, mode, alphatest, poseverttype, GL_AliasLiteDefines ()); // the ES lite form
+	return *program;
+}
+
+// The opaque models' forms are the ES profile's: without discard (vr_gl_alias_opaque: a tiler's early depth rejection;
+// QUEST_PLAN.md 6p), and with the lite world's model bits, without the per-model features a batch leaves off (plain,
+// vr_gl_alias_plain, 6r), keeping the wounds and dents (gore, vr_gl_alias_gore, 6zd) or the skin tone too (skin,
+// vr_gl_alias_skin, 6ze).
+qboolean GL_AliasFormAvailable (int form)
+{
+	if (!VR_GLESForm (VR_GLES_FORM_GLSL))
+		return false;
+	return form == ALIASFORM_OPAQUE || (gl_world_lite >> 9) != 0;
+}
+
+GLuint GL_AliasFormProgram (int form, int mode, int poseverttype)
+{
+	GLuint *program;
+	if (!GL_AliasFormAvailable (form))
+		return 0;
+	switch (form)
+	{
+	case ALIASFORM_OPAQUE:
+		program = &glprogs.alias_opaque[mode][poseverttype];
+		if (!*program)
+			*program = GL_CreateProgram (alias_vertex_shader, alias_fragment_shader, "alias opaque|OIT 0; MODE %d; ALPHATEST 0; POSEVERTTYPE %d; QVR_ALIAS_OPAQUE 1%s", mode, poseverttype, GL_AliasLiteDefines ());
+		return *program;
+	case ALIASFORM_PLAIN:
+		program = &glprogs.alias_plain[mode][poseverttype];
+		if (!*program)
+			*program = GL_CreateProgram (alias_vertex_shader, alias_fragment_shader, "alias plain|OIT 0; MODE %d; ALPHATEST 0; POSEVERTTYPE %d; QVR_ALIAS_OPAQUE 1%s%s", mode, poseverttype, GL_AliasLiteDefines (), GL_AliasPlainDefines (0));
+		return *program;
+	case ALIASFORM_GORE:
+		program = &glprogs.alias_gore[mode][poseverttype];
+		if (!*program)
+			*program = GL_CreateProgram (alias_vertex_shader, alias_fragment_shader, "alias gore|OIT 0; MODE %d; ALPHATEST 0; POSEVERTTYPE %d; QVR_ALIAS_OPAQUE 1%s%s", mode, poseverttype, GL_AliasLiteDefines (), GL_AliasPlainDefines (VR_ALIAS_GORE_NEEDS));
+		return *program;
+	case ALIASFORM_SKIN:
+		program = &glprogs.alias_skin[mode][poseverttype];
+		if (!*program)
+			*program = GL_CreateProgram (alias_vertex_shader, alias_fragment_shader, "alias skin|OIT 0; MODE %d; ALPHATEST 0; POSEVERTTYPE %d; QVR_ALIAS_OPAQUE 1%s%s", mode, poseverttype, GL_AliasLiteDefines (), GL_AliasPlainDefines (VR_ALIAS_SKIN_NEEDS));
+		return *program;
+	}
+	return 0;
+}
+
+GLuint GL_WaterProgram (int oit, int dither)
+{
+	GLuint *program = &glprogs.water[oit][dither];
+	if (!*program)
+		*program = GL_CreateProgram (water_vertex_shader, water_fragment_shader, "water|OIT %d; DITHER %d", oit, dither);
+	return *program;
+}
+
+GLuint GL_ParticlesProgram (int oit, int dither)
+{
+	GLuint *program = &glprogs.particles[oit][dither];
+	if (!*program)
+		*program = GL_CreateProgram (particles_vertex_shader, particles_fragment_shader, "particles|OIT %d; DITHER %d", oit, dither);
 	return *program;
 }
 

@@ -614,6 +614,7 @@ void R_NewMap (void)
 	R_ParseWorldspawn (); //ericw -- wateralpha, lavaalpha, telealpha, slimealpha in worldspawn
 	VR_TimeMark ("R_NewMap: sky, fog, worldspawn"); // QVR
 	VR_NewMap (); // QVR: the VR modules' per-map data rebuilt
+	R_PrewarmSelectedPrograms (); // QVR: the ES profile's variants the settings draw with (made when asked for: GL_ShadersLazyStart)
 
 	// Load pointfile if map has no vis data and either developer mode is on or the game was started from a map editing tool
 	if (developer.value || map_checks.value)
