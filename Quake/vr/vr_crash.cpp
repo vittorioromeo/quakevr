@@ -1382,13 +1382,15 @@ void writeReport (const char *what, void *const *frames, int count, int skip)
 	}
 	else
 		reportPath[0] = 0;
-	writeAll (2, "\n", 1);
-	writeAll (2, report, reportLen);
+	// (the terminal's stderr even while the OpenXR loader's output is caught: a crash inside xrCreateInstance; VR_TerminalFd)
+	const int err = VR_TerminalFd (2) >= 0 ? VR_TerminalFd (2) : 2;
+	writeAll (err, "\n", 1);
+	writeAll (err, report, reportLen);
 	if (reportPath[0])
 	{
-		writeAll (2, "Crash report: ", 14);
-		writeAll (2, reportPath, strlen (reportPath));
-		writeAll (2, "\n", 1);
+		writeAll (err, "Crash report: ", 14);
+		writeAll (err, reportPath, strlen (reportPath));
+		writeAll (err, "\n", 1);
 	}
 	if (testRun)
 	{

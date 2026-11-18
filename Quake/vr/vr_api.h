@@ -267,6 +267,7 @@ int VR_GLRecentSteps (char *out, int outSize, int count);	// vr_crash.cpp: the l
 void VR_LogsBegin (void);	// Host_Init after the filesystem: the run's folder, console.log; -bugreport: the report made, exit
 void VR_LogsEnd (void);	// Host_Shutdown: the OpenXR messages' summary
 void VR_LogsSystemLine (const char *line);	// a line of the run's system.txt (the GPU, the runtime)
+int VR_TerminalFd (int fd);	// Linux: the terminal's stdout (1) / stderr (2) while the OpenXR loader's output is caught, else -1 (vr_xr_runtime.cpp; signal-safe)
 void VR_LogsIncident (const char *what);	// a VR start failed, a runtime crash caught, the game crashed: the runtimes' logs copied in
 void VR_LogsInit (void);	// VR_Init: bugreport
 // Diagnostics mode (vr_diagnostics.cpp): -diagnostics or vr_diagnostics 1.
