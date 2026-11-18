@@ -699,10 +699,12 @@ static void GL_CreateShadersAll (void);
 
 void GL_CreateShaders (void)
 {
+	VR_GLShadersBegin (); // QVR: the set's begin and end in gl_startup.log (a start stopped mid-compile is no failed start)
 	gl_shaders_deferred = gl_parallel_compile_able; // QVR: the driver's threads (GL_DeferredCheck at the end)
 	GL_CreateShadersAll ();
 	GL_DeferredCheck ();
 	gl_shaders_deferred = false;
+	VR_GLShadersEnd (gl_num_programs); // QVR
 }
 
 static void GL_CreateShadersAll (void)

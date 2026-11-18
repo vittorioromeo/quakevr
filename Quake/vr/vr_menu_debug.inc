@@ -847,6 +847,9 @@ za::Vector<Item> pageDebugProfiling()
                   "(quakevr/crash/gl_startup.log has the start-up's)."),
         command("Retry the Full Renderer", "vr_glsafe_retry")
             .help("vr_glsafe_retry: the automatic safe mode (kept after a start that crashed) off from the next start."),
+        command("Safe Mode Judge Test", "vr_glsafe_judge_test")
+            .help("vr_glsafe_judge_test: which stopped starts turn on automatic GL safe mode (a crash, a quick death "
+                  "after the shaders) and which don't (stopped in a shader compile, after a slow one, after living on)."),
         header("Diagnostics"),
         command("Game Code and Folders", "vr_gamecode")
             .help("vr_gamecode: the folders the game reads from (its base dirs, game dirs and search path) and where its "
