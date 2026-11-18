@@ -11,6 +11,7 @@
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
 #include "vr_api.h"
+#include "vr_profile.hpp"
 
 #ifdef QVR_HAVE_OPENXR
 
@@ -949,6 +950,9 @@ bool OpenXrBackend::pollEvents()
                 const auto& changed = reinterpret_cast<const XrEventDataSessionStateChanged&>(event);
                 sessionState = changed.state;
                 noteState(stateName(sessionState));
+                // (the perf recorder: a frame by a session change is the runtime's, e.g. the unworn headset asleep
+                // and woken; perf_report.py's "xr:session")
+                VR_PerfEvent(VR_PERF_MARK, 0.0, va("xr session %s", stateName(sessionState)));
                 xrstall::note(va("%s session %s%s\n", wallClock(), stateName(sessionState), // (Tracy too)
                     sessionState == XR_SESSION_STATE_VISIBLE
                         ? (vr_xr_unfocused.value != 0.f ? " (no input focus, e.g. the runtime's menu: the last frame "
