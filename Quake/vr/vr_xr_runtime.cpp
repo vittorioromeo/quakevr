@@ -418,6 +418,26 @@ struct Environment
     return false;
 }
 
+// SteamVR's logs folder (~/.local/share/Steam/logs, the native Steam's): "writable", "read-only" or "none" (no such
+// folder). vrclient, loaded in the game's process, writes its log there (vrclient_ironwail.txt) and fails to start
+// without it (-51; GitHub #82): the Flatpak shares the Steam folder read-only, its logs folder written (the manifest's
+// --filesystem=xdg-data/Steam/logs, from 2026-11-18). (HOME, not XDG_DATA_HOME: the Flatpak points that at its own.)
+[[nodiscard]] const char* steamLogsAccess()
+{
+    const char* home = getenv("HOME");
+    if(!home || !*home)
+    {
+        return "none";
+    }
+    const char* dir = va("%s/.local/share/Steam/logs", home);
+    struct stat st{};
+    if(stat(dir, &st) != 0 || !S_ISDIR(st.st_mode))
+    {
+        return "none";
+    }
+    return access(dir, W_OK) == 0 ? "writable" : "read-only";
+}
+
 // The /dev/shm entries that look like SteamVR's, OpenVR's or Steam's (for the report: what a running SteamVR leaves
 // there, as seen from the game; "none" when nothing is).
 [[nodiscard]] za::String vrShmEntries()
@@ -1360,6 +1380,12 @@ void describe()
             sandboxSharesShm() ? "shared with the host"
                                : "the sandbox's own (SteamVR's IPC needs the host's: flatpak override --user "
                                  "--device=shm io.github.vittorioromeo.QuakeVR)");
+        const char* logs = steamLogsAccess();
+        note("  Flatpak sandbox: SteamVR's logs folder (~/.local/share/Steam/logs) %s\n",
+            !strcmp(logs, "read-only") ? "read-only (SteamVR's client needs to write it: flatpak override --user "
+                                         "--filesystem=xdg-data/Steam/logs io.github.vittorioromeo.QuakeVR)"
+            : !strcmp(logs, "none")    ? "not found (no native Steam's SteamVR)"
+                                       : "writable");
     }
     note("  /dev/shm, SteamVR's or OpenVR's: %s\n", vrShmEntries().cStr());
 #endif
@@ -1655,9 +1681,15 @@ void runtimeUnavailable(const Attempt& attempt)
         note("  The Flatpak sandbox has its own /dev/shm, where SteamVR's client looks for its server: run 'flatpak "
              "override --user --device=shm io.github.vittorioromeo.QuakeVR' and start the game again.\n");
     }
+    const bool logsReadOnly = env.sandbox && !strcmp(steamLogsAccess(), "read-only");
+    if(logsReadOnly)
+    {
+        note("  The Flatpak can't write SteamVR's logs folder, which SteamVR's client needs: run 'flatpak override "
+             "--user --filesystem=xdg-data/Steam/logs io.github.vittorioromeo.QuakeVR' and start the game again.\n");
+    }
     note("  The loader's messages: qvr_openxr.txt (all of them with vr_xr_debug 1, set before VR starts); SteamVR's: "
          "~/.local/share/Steam/logs (vrserver.txt, vrclient_*.txt)%s.\n",
-        env.sandbox ? ", which the Flatpak only reads" : "");
+        logsReadOnly ? ", which the Flatpak only reads" : "");
     note("  Other runtimes: Monado, WiVRn (docs/vr-port/LINUX.md, \"SteamVR\").\n");
 #endif
 }
