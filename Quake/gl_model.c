@@ -3688,6 +3688,7 @@ static void Mod_LoadAliasModel (qmodel_t *mod, void *buffer)
 			VR_TracyEnd (); // QVR
 			if (loaded) {
 				VR_TimeAdd ("  their replacements (md5, md3) looked for and loaded", Sys_DoubleTime () - t0); // QVR
+				Mod_AliasSortKey (mod); // QVR: a replaced model's key too (else 0: drawn interleaved, a batch each)
 				return;
 			}
 		}

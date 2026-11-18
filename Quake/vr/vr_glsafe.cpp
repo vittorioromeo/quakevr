@@ -1238,8 +1238,19 @@ extern "C" int VR_GLQueryWaits(GLuint id)
 // GL_EndRendering, before the swap: the first frames named; the start-up's end, frames after the first map spawned.
 extern "C" void VR_GLFrame(void)
 {
-    glSyncs.frames++;
+    const bool wasCounting = glSyncs.counting;
     glSyncs.counting = glSyncs.asked || qvr::vr_gl_sync_count.value > 0.f; // (no longer sticky once the cvar is 0)
+    if(glSyncs.counting && !wasCounting)
+    {
+        // vr_gl_sync_count set just now: its first report counts from here (not the frames since the game started, without
+        // the query waits counted then)
+        const bool asked = glSyncs.asked;
+        glSyncs = GlSyncs{};
+        glSyncs.since = Sys_DoubleTime();
+        glSyncs.asked = asked;
+        glSyncs.counting = true;
+    }
+    glSyncs.frames++;
     if(qvr::vr_gl_sync_count.value > 0.f && Sys_DoubleTime() - glSyncs.since >= qvr::vr_gl_sync_count.value)
     {
         syncReport("vr_gl_sync_count");

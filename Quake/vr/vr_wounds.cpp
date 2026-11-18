@@ -3857,7 +3857,8 @@ float wetCoat(const entity_t* e, bool& whole)
     bool weapon = false;
     const int hand = view::handOf(part ? part : e, weapon);
     // The shine follows the wetness drips keeps (a load restores that: no state of its own): the seconds of drying it stands for.
-    const float dripLeft = (drips::wetOf(e) > 0.f ? drips::wetOf(e) : drips::wetOf(part)) * dryTime();
+    const float wetE = drips::wetOf(e); // (a scan of drips' wet things: once)
+    const float dripLeft = (wetE > 0.f ? wetE : drips::wetOf(part)) * dryTime();
     if(hand >= 0 && weapon)
     {
         whole = true;

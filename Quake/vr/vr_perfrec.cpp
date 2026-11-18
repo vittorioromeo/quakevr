@@ -107,7 +107,9 @@ Recorder rec;
 void appendDetail(Pending& p, const char* kind, const char* name, double ms)
 {
     char item[96];
-    const int n = q_snprintf(item, sizeof item, "%s%s:%s:%.1f", p.detailLen ? "|" : "", kind, name ? name : "", ms);
+    const int wanted = q_snprintf(item, sizeof item, "%s%s:%s:%.1f", p.detailLen ? "|" : "", kind, name ? name : "", ms);
+    // (q_snprintf returns the length the text would have had: a long name, vr_perf_mark's, is cut at item's end)
+    const int n = za::min(wanted, static_cast<int>(sizeof item) - 1);
     if(n <= 0 || p.detailLen + n >= detailSize - 1)
     {
         ++p.dropped;

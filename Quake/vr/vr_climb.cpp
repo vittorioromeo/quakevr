@@ -3318,7 +3318,12 @@ void flatLadder(edict_t* ent, Climber& c, const VrMove* move, double time)
     const glm::vec3 fwd{za::cos(yaw), za::sin(yaw), 0.f};
     if(ground && dir < 0)
     {
-        // Backing off a ladder's top (facing away from its drop): lowered onto it.
+        // Backing off a ladder's top (facing away from its drop): lowered onto it. The back key only: forward looking down
+        // (ladderDir's -1 too) walks on, away from the drop. (ladderDir checked the client.)
+        if(svs.clients[NUM_FOR_EDICT(ent) - 1].cmd.forwardmove >= -1.f)
+        {
+            return;
+        }
         if(!flatLadderMount(ent, c, *move, fwd, time))
         {
             c.flatLadderMiss = time;

@@ -205,11 +205,10 @@ RateImage& rateImage(int eye, int width, int height)
     double pixels[3] = {0.0, 0.0, 0.0};
     computeRates(width, height, tileWidth, tileHeight, lens, centre, inner, outer, texels, pixels);
     GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, img.texture);
-    GLint alignment = 4;
-    glGetIntegerv(GL_UNPACK_ALIGNMENT, &alignment);
+    // (no glGet of the alignment: each tile the gaze moves would read GL state back; 4 is the engine's, as vr_detail and vr_water)
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, tilesX, tilesY, GL_RED_INTEGER, GL_UNSIGNED_BYTE, texels);
-    glPixelStorei(GL_UNPACK_ALIGNMENT, alignment);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
 
     img.width = width;
     img.height = height;

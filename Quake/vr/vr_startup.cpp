@@ -173,15 +173,7 @@ za::String workLine(const Group& g)
     {
         top.pushBack(&w);
     }
-    for(size_t i = 1; i < top.size(); i++)
-    {
-        for(size_t j = i; j > 0 && top[j]->ms > top[j - 1]->ms; j--)
-        {
-            const Group::Sum* t = top[j];
-            top[j] = top[j - 1];
-            top[j - 1] = t;
-        }
-    }
+    za::insertionSort(top.begin(), top.end(), [](const Group::Sum* a, const Group::Sum* b) { return a->ms > b->ms; });
     za::String line;
     for(size_t i = 0; i < top.size() && i < 4; i++)
     {
