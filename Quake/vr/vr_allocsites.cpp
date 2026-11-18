@@ -392,13 +392,9 @@ void heapLive(int shown)
         empty += liveRows[i].emptyBytes;
         emptyAbandoned += liveRows[i].emptyAbandonedBytes;
         emptyOther += liveRows[i].emptyOtherBytes;
-        for(int j = i; j > 0 && liveRows[j].liveBytes > liveRows[j - 1].liveBytes; --j) // (insertion sort, n is small)
-        {
-            const VR_CrtHeapSizeRow_t t = liveRows[j];
-            liveRows[j] = liveRows[j - 1];
-            liveRows[j - 1] = t;
-        }
     }
+    za::insertionSort(liveRows, liveRows + za::max(n, 0),
+        [](const VR_CrtHeapSizeRow_t& a, const VR_CrtHeapSizeRow_t& b) { return a.liveBytes > b.liveBytes; }); // (n is small)
     constexpr double mb = 1024.0 * 1024.0;
     Con_Printf("vr_heap live: %.1f MB in %llu blocks of %d sizes; %llu pages of %.1f MB (%.1f MB of blocks made), "
                "%llu of them empty (%.1f MB: abandoned %.1f, other threads' %.1f); workers' tidies %llu after jobs (%.3f ms each), %llu idle (%.3f ms each)\n",
