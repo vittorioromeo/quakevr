@@ -10,7 +10,9 @@
 #include "vr_held.hpp"
 #include "vr_heldpose.hpp"
 #include "vr_tunables_api.hpp"
+#include "Zancle/Base/IsFinite.hpp"
 #include "Zancle/Math/Abs.hpp"
+#include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 
 #include <math.h>
@@ -176,6 +178,8 @@ void resolve()
     return slot >= 0 && slot < svs.maxclients && slot < MAX_SCOREBOARD && state.slotHas[slot] ? slot : -1;
 }
 
+constexpr float prefMost = 1e9f; // a preference's magnitude at most (none is near it)
+
 // "vr_prefs <version> <count> <value>...": a client's preferences (send), kept for his slot.
 void prefs_f()
 {
@@ -192,7 +196,9 @@ void prefs_f()
     for(int i = 0; i < prefCount; i++)
     {
         const float v = Q_atof(Cmd_Argv(3 + i));
-        state.slot[slot][i] = v == v ? v : 0.f; // (not a number: 0)
+        // (not finite: 0 -- Q_atof gives infinity for a number of 40 digits; and within what an int holds: the rates
+        // are cast to one, vr_netsnap.cpp, vr_voicerelay.cpp)
+        state.slot[slot][i] = ZA_ISFINITE(v) ? za::clamp(v, -prefMost, prefMost) : 0.f;
     }
     state.slotHas[slot] = true;
 }

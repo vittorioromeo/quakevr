@@ -262,6 +262,7 @@ void takeOpened()
     if(o.id)
     {
         cap.device = o.id;
+        cap.retryAt = 0.0; // (the wait is a failed open's: one closed again, a level change, opens at once)
         Con_Printf("Voice chat: microphone open\n");
     }
     else if(!cap.noMicSaid)
@@ -513,6 +514,7 @@ void captureFrame()
     const bool want = active();
     if(!want)
     {
+        takeOpened(); // (an open still in flight when voice chat went off: taken, so it is closed here and not left recording)
         if(cap.device || cap.sending)
         {
             closeMic(false);
