@@ -22,6 +22,8 @@ Sliding in VR: your view now dips quickly but smoothly down to the desktop scree
 Linux #82: Flatpak with SteamVR running: VR starts, or qvr_openxr.txt has OpenXR loader output lines for the report
 Flat-screen or VR: start the game and open the console: the start-up's steps are listed as "[startup +Xs] ... begin / end (took X ms)" with a summary of the slowest steps at the end, and quakevr/startup.log has the same lines; Debug > Startup > Startup Trace Summary repeats the summary.
 On the Quest, start the game with "adb logcat -s QuakeVR" running: each start-up step appears as it begins and ends, and during a long step a "still in <step>" line every 2 seconds says what it is doing; vr_android_export startup.log copies the file out.
+Reloading in VR: bring a round or magazine to the loading port: the gun and the off hand no longer shove each other apart near the port, so it seats where you aim
+A fight with several armed grunts and ragdolls: poses and limbs correct (posed models now batched)
 
 [1. Flat-screen: weapons and hands]
 

@@ -1270,7 +1270,7 @@ the other cores; (6) the preset tuned from the numbers; (7, optional, off) Space
   textures uploaded (`TexMgr_LoadImage32`), models (`Mod_LoadModel`), sounds (`S_LoadSound`), runtime lightmaps, map
   load commands, saves, decal bakes (tagged profiler scopes), navmesh jobs landing (their waits), the QuakeC (the
   outermost `quakec` scopes, now timed while recording too) and Box3D steps, and `VR_TimeAdd`'s work (`work`).
-- **`Misc/quakevr/quest/perf_report.py <csv>`**: the frame's mean/p50/p95/p99, frames over budget (CPU, GPU), the
+- **`Misc/quakevr/perf_report.py <csv>`**: the frame's mean/p50/p95/p99, frames over budget (CPU, GPU), the
   hitches (over 1.5 display periods, or periods missed) ranked by cause (the frame's or the frame before's events when
   their time explains 30% of the excess, else the CPU's or the GPU's costliest phase, else the runtime), every event
   kind's totals, the phases' means, the slowest seconds. Frames over 2 s (the app paused: the unworn headset asleep)

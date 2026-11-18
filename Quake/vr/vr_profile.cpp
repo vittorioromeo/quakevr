@@ -350,13 +350,12 @@ void beginPhase(const char* name, bool gpu)
 {
     const PhaseTag pt = phaseOf(name);
     PhaseOpen o{pt.phase, 0, -1, pt.tag >= 0 && perfrec::scopeBegin(pt.tag) ? pt.tag : -1};
-    if(o.tag >= 0)
+    if(o.tag >= 0 || o.phase >= 0)
     {
         o.start = za::Clock::nowNanoseconds();
     }
     if(o.phase >= 0)
     {
-        o.start = o.start ? o.start : za::Clock::nowNanoseconds();
         PhaseGpuSlot& s = phaseSlots[phaseSlot];
         if(gpu && phaseInfo[o.phase].gpu && phaseGpuMade && s.used + 2 + phaseGpuOpen <= phaseGpuQueries)
         {
@@ -1206,18 +1205,15 @@ namespace
 unsigned gpuFrameCount = 0; // VR_ProfileFrame's frames: the GPU is timed on one in vr_profile_gpu
 
 // vr_gl_passes (Debug > Profiling): one frame's draw framebuffer binds in order, each with the draws made into it and
-// the profiler's innermost scope at the bind (vr_profile on): a tiler's render passes (each switch stores the tiles
-// and may load them again: QUEST_PLAN.md 6o).
+// the profiler's innermost scope at the bind (vr_profile on), and each alias batch drawn (R_FlushAliasInstances): its
+// model, instances, draws, depth or shading pass, first entity's number (-1: not a network entity), skin and
+// triangles (from agent/quest: a tiler's render passes, the monsters' draws per model).
 struct PassBind
 {
     unsigned fbo;
     int draws0;
     const char* scope;
 };
-za::Vector<PassBind> passBinds;
-
-// ... and each alias batch drawn (R_FlushAliasInstances): its model, instances, draws, the depth form or the shading,
-// its first entity's number (-1: not a network entity) and skin (QUEST_PLAN.md 6zc: the monsters' draws per model).
 struct AliasBatch
 {
     const char* model;
@@ -1226,29 +1222,33 @@ struct AliasBatch
     int depth;
     int ent;
     int skin;
-    int form;
+    int form; // the program (the Quest's lite forms)
     int needs;
     int tris;
 };
-za::Vector<AliasBatch> aliasBatches;
+struct GlPasses
+{
+    za::Vector<PassBind> binds;
+    za::Vector<AliasBatch> batches;
+} glPasses;
 
 void printPasses()
 {
     Con_Printf("vr_gl_passes: %d alias batches (model, instances, draws, pass, first entity, skin, program, needs, "
                "triangles each)\n",
-        static_cast<int>(aliasBatches.size()));
+        static_cast<int>(glPasses.batches.size()));
     static constexpr const char* forms[] = {"depth", "full", "opaque", "plain", "gore", "skin", "?", "?"};
-    for(const AliasBatch& a : aliasBatches)
+    for(const AliasBatch& a : glPasses.batches)
     {
         Con_Printf("  alias %-28s %3d inst %2d draws %s ent %d skin %d %s needs %d tris %d\n", a.model, a.instances,
             a.draws, a.depth ? "depth" : "shade", a.ent, a.skin, forms[a.form & 7], a.needs, a.tris);
     }
     Con_Printf("vr_gl_passes: %d draw framebuffer binds in the frame (fbo, draws into it, the scope at the bind)\n",
-        static_cast<int>(passBinds.size()));
-    for(za::SizeT i = 0; i < passBinds.size(); i++)
+        static_cast<int>(glPasses.binds.size()));
+    for(za::SizeT i = 0; i < glPasses.binds.size(); i++)
     {
-        const PassBind& b = passBinds[i];
-        const int end = i + 1 < passBinds.size() ? passBinds[i + 1].draws0 : vr_profcounts.drawcalls;
+        const PassBind& b = glPasses.binds[i];
+        const int end = i + 1 < glPasses.binds.size() ? glPasses.binds[i + 1].draws0 : vr_profcounts.drawcalls;
         Con_Printf("  %3d fbo %3u %5d draws  %s\n", static_cast<int>(i), b.fbo, end - b.draws0, b.scope ? b.scope : "-");
     }
 }
@@ -1259,14 +1259,13 @@ extern "C" int vr_glpass_trace = 0;
 extern "C" void VR_GLPassBind(unsigned fbo)
 {
     using namespace qvr::profile;
-    passBinds.pushBack({fbo, vr_profcounts.drawcalls, stack.empty() ? nullptr : nodes[stack.back().node].name});
+    glPasses.binds.pushBack({fbo, vr_profcounts.drawcalls, stack.empty() ? nullptr : nodes[stack.back().node].name});
 }
 
 extern "C" void VR_GLAliasBatch(
     const char* model, int instances, int draws0, int depth, int ent, int skin, int form, int needs, int tris)
 {
-    using namespace qvr::profile;
-    aliasBatches.pushBack({model, instances, vr_profcounts.drawcalls - draws0, depth, ent, skin, form, needs, tris});
+    glPasses.batches.pushBack({model, instances, vr_profcounts.drawcalls - draws0, depth, ent, skin, form, needs, tris});
 }
 
 extern "C" void VR_ProfileFrame()
@@ -1282,8 +1281,8 @@ extern "C" void VR_ProfileFrame()
     else if(vr_gl_passes.value != 0.f)
     {
         Cvar_SetValueQuick(&vr_gl_passes, 0.f);
-        passBinds.clear();
-        aliasBatches.clear();
+        glPasses.binds.clear();
+        glPasses.batches.clear();
         vr_glpass_trace = 1;
     }
     if(nodes.empty() || cls.state == ca_dedicated)

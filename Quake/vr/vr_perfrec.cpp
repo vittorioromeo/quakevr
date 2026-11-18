@@ -125,7 +125,7 @@ void appendDetail(Pending& p, const char* kind, const char* name, double ms)
 {
     const alloccount::Stats s = alloccount::statsThisThread();
     za::U64 sum = 0;
-    for(int k = 0; k < 6; k++)
+    for(int k = 0; k < static_cast<int>(sizeof(s.calls) / sizeof(s.calls[0])); k++) // (the allocations: not the frees)
     {
         if(k != static_cast<int>(alloccount::Kind::Delete) && k != static_cast<int>(alloccount::Kind::Free))
         {
@@ -154,10 +154,10 @@ void writeHeader()
     char when[64];
     strftime(when, sizeof when, "%Y-%m-%d %H:%M:%S", localtime(&now));
     fprintf(f, "# Quake VR perf recording (vr_perf_record), %s; GL %s\n", when, gl_renderer ? gl_renderer : "?");
-    fprintf(f, "# settings:");
     // (the Quest's: tuning constants mostly, found by their stand-ins: C4q, Cvar_FindVar never found them)
     const char* const quest[] = {"vr_gles_define", "vr_dlight_falloff", "vr_gl_lights_lite", "vr_gl_lights_plain",
         "vr_gl_alias_plain_mask", "vr_gl_world_lite", "vr_xr_foveation", "vr_xr_direct"};
+    fprintf(f, "# settings:");
     for(const char* name : profile::settingCvars)
     {
         if(const cvar_t* v = Cvar_FindVar(name))
@@ -469,7 +469,64 @@ void gpu(za::U64 serial, const double* phaseMs, double spanMs)
     drain(0);
 }
 
-void testDlights_f();
+// vr_test_dlights [<count> [<radius> [<distance>]]]: lasting dynamic lights as big as an explosion's, in a row before
+// the eyes, so the cost of big lights is measured on a still scene (a fight's explosions come and go); 0 removes them
+// (from agent/quest).
+void testDlights_f()
+{
+    constexpr int key = -0x5E00;
+    constexpr int maxLights = 8;
+    const int count = Cmd_Argc() > 1 ? za::clamp(Q_atoi(Cmd_Argv(1)), 0, maxLights) : 1;
+    const float radius = Cmd_Argc() > 2 ? static_cast<float>(Q_atof(Cmd_Argv(2))) : 350.f;
+    const float dist = Cmd_Argc() > 3 ? static_cast<float>(Q_atof(Cmd_Argv(3))) : 160.f;
+    if(!cl.worldmodel)
+    {
+        Con_Printf("vr_test_dlights: no map\n");
+        return;
+    }
+    for(dlight_t& d : cl_dlights) // (the last ones out: only ours, never another light's slot taken to clear it)
+    {
+        if(d.key <= key && d.key > key - maxLights)
+        {
+            d.die = 0.f;
+            d.radius = 0.f;
+        }
+    }
+    vec3_t fwd, right, up;
+    AngleVectors(cl.viewangles, fwd, right, up);
+    for(int i = 0; i < count; i++)
+    {
+        dlight_t* dl = CL_AllocDlight(key - i);
+        VectorMA(r_refdef.vieworg, dist, fwd, dl->origin);
+        VectorMA(dl->origin, (static_cast<float>(i) - static_cast<float>(count - 1) * 0.5f) * 48.f, right, dl->origin);
+        dl->radius = radius;
+        dl->die = static_cast<float>(cl.time + 100000.0);
+        dl->decay = 0.f;
+        VR_TuneDlight(QVR_DLIGHT_EXPLOSION, 0, dl);
+    }
+    Con_Printf("vr_test_dlights: %d of radius %.0f, %.0f ahead\n", count, static_cast<double>(radius), static_cast<double>(dist));
+}
+
+// vr_dlights_list: the live dynamic lights, to tell whose lights a scene pays for (a negative key is the VR code's:
+// vr_emissive.cpp's kinds, the hands' screens, the flashlight; 0 an effect's; a positive one an entity's).
+void dlightsList_f()
+{
+    int n = 0;
+    for(const dlight_t& d : cl_dlights)
+    {
+        if(d.die < cl.time || d.radius <= 0.f)
+        {
+            continue;
+        }
+        vec3_t to;
+        VectorSubtract(d.origin, r_refdef.vieworg, to);
+        Con_Printf("vr_dlights_list: key %d radius %.0f distance %.0f colour %.2f %.2f %.2f\n", d.key,
+            static_cast<double>(d.radius), static_cast<double>(VectorLength(to)), static_cast<double>(d.color[0]),
+            static_cast<double>(d.color[1]), static_cast<double>(d.color[2]));
+        n++;
+    }
+    Con_Printf("vr_dlights_list: %d live\n", n);
+}
 
 void init()
 {
@@ -481,63 +538,7 @@ void init()
         }
     });
     Cmd_AddCommand("vr_test_dlights", testDlights_f);
-    // C4u (QUEST_PLAN.md 6za): the live dynamic lights, to tell whose lights a scene pays for (a negative key is the VR
-    // code's: vr_emissive.cpp's kinds, the hands' screens, the flashlight; 0 an effect's; a positive one an entity's).
-    Cmd_AddCommand("vr_dlights_list", [] {
-        int n = 0;
-        for(const dlight_t& d : cl_dlights)
-        {
-            if(d.die < cl.time || d.radius <= 0.f)
-            {
-                continue;
-            }
-            vec3_t to;
-            VectorSubtract(d.origin, r_refdef.vieworg, to);
-            Con_Printf("vr_dlights_list: key %d (-0x%x) radius %.0f distance %.0f colour %.2f %.2f %.2f\n", d.key,
-                static_cast<unsigned>(-d.key), static_cast<double>(d.radius),
-                static_cast<double>(VectorLength(to)), static_cast<double>(d.color[0]),
-                static_cast<double>(d.color[1]), static_cast<double>(d.color[2]));
-            n++;
-        }
-        Con_Printf("vr_dlights_list: %d live\n", n);
-    });
-}
-
-// C4p (QUEST_PLAN.md 6w): lasting dynamic lights as big as an explosion's, in a row before the eyes, so the cost of
-// big lights is measured on a still scene (a fight's explosions come and go). 0 removes them.
-void testDlights_f()
-{
-    {
-        constexpr int key = -0x5E00;
-        constexpr int maxLights = 8;
-        const int count = Cmd_Argc() > 1 ? za::clamp(Q_atoi(Cmd_Argv(1)), 0, maxLights) : 1;
-        const float radius = Cmd_Argc() > 2 ? static_cast<float>(Q_atof(Cmd_Argv(2))) : 350.f;
-        const float dist = Cmd_Argc() > 3 ? static_cast<float>(Q_atof(Cmd_Argv(3))) : 160.f;
-        if(!cl.worldmodel)
-        {
-            Con_Printf("vr_test_dlights: no map\n");
-            return;
-        }
-        vec3_t fwd, right, up;
-        AngleVectors(cl.viewangles, fwd, right, up);
-        for(int i = 0; i < maxLights; i++)
-        {
-            dlight_t* dl = CL_AllocDlight(key - i);
-            if(i >= count)
-            {
-                dl->die = 0.f;
-                dl->radius = 0.f;
-                continue;
-            }
-            VectorMA(r_refdef.vieworg, dist, fwd, dl->origin);
-            VectorMA(dl->origin, (static_cast<float>(i) - static_cast<float>(count - 1) * 0.5f) * 48.f, right, dl->origin);
-            dl->radius = radius;
-            dl->die = static_cast<float>(cl.time + 100000.0);
-            dl->decay = 0.f;
-            VR_TuneDlight(QVR_DLIGHT_EXPLOSION, 0, dl);
-        }
-        Con_Printf("vr_test_dlights: %d of radius %.0f, %.0f ahead\n", count, static_cast<double>(radius), static_cast<double>(dist));
-    }
+    Cmd_AddCommand("vr_dlights_list", dlightsList_f);
 }
 
 void xrFrame(int missed, double periodMs)

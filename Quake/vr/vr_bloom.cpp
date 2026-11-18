@@ -83,7 +83,7 @@ void main()
     float x = clamp((bright - Params.x) / max(1.0 - Params.x, 1e-3), 0.0, 1.0);
     float saturation = (bright - min(c.r, min(c.g, c.b))) / max(bright, 1e-3);
     float weight = mix(Weights.x, Weights.y, smoothstep(0.15, 0.6, saturation));
-    Out = vec4(clamp(c * (x * x * 4.0 * weight), 0.0, 1e4), 1.0); // (clamped: no NaN or Inf goes down the chain, C4i)
+    Out = vec4(clamp(c * (x * x * 4.0 * weight), 0.0, 1e4), 1.0); // no Inf spreads down the chain
 }
 )";
 

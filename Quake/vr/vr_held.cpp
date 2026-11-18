@@ -543,6 +543,24 @@ glm::vec3 drawnPoint(const qmodel_t* model, const glm::vec3& scale, const glm::v
     return DrawnTransform{model, scale, scaleOrigin, offset}.modelPoint(point);
 }
 
+float roundPortEase(const hands::State& s, int roundHand)
+{
+    const int num = roundHand == 0 || roundHand == 1 ? heldEntity(roundHand) : 0;
+    const qmodel_t* m = num > 0 && num < cl_max_edicts ? cl_entities[num].model : nullptr;
+    glm::vec3 ref{0.f};
+    if(!m || !modelmeta::isRound(m) || !s.loadPortValid[1 - roundHand] || !view::heldRoundRef(roundHand, ref))
+    {
+        return 1.f;
+    }
+    const float within = za::max(vr_reload_collide_leniency.value, 0.f) * 0.01f * units::metresToUnits();
+    if(within <= 0.f)
+    {
+        return 1.f; // (Collision Leniency 0: kept apart even at the port, as asked: reload_test.sh)
+    }
+    const float near = within * 1.6f + 2.f;
+    return geom::smoothstep(near, near * 2.f + 2.f, glm::distance(ref, s.loadPort[1 - roundHand]));
+}
+
 bool drawnBox(int num, glm::vec3& lo, glm::vec3& hi)
 {
     const entity_t& e = cl_entities[num];
@@ -2302,6 +2320,11 @@ void meetFrame(const hands::State& s)
         if(meet.weapon && (isRound(a) || isRound(b)))
         {
             depth = za::max(0.f, depth - za::max(vr_reload_collide_leniency.value, 0.f) * units::metresToUnits() / 100.f);
+            // And none at all as the round comes to the port (MP B27): pushed apart there, the round was drawn off its
+            // place in the hand (where the server has it, and tests it) while the gun's drawn port (the one the server
+            // tests it against: the move's) moved away, 0.6-1.3 units each: a magazine drawn at the well did not seat,
+            // and one placed by its drawn port missed (mp_disarm).
+            depth *= held::roundPortEase(s, isRound(a) ? 0 : 1);
         }
         // Its seated magazine's own box (none of the leniency: its well is taken), where it is deeper.
         if(haveMagA || haveMagB)

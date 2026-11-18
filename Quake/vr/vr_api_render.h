@@ -260,6 +260,7 @@ int VR_FlatModelFovEntity (const struct entity_s *e); // r_alias.c: e is the pla
 int VR_FlatModelFovUncull (const struct entity_s *e); // r_alias.c: e is, and the scale draws it inwards: its true place outside the view says nothing
 int VR_AliasCullPosedOn (const struct entity_s *e, int depth); // r_alias.c: cull e (IK-posed) by its bones' box: 0 no, 1 yes, 2 yes and checked (vr_alias_cull_posed; never your body in the eyes while the bare hands take its light)
 int VR_AliasSolidGhost (const struct entity_s *e); // r_alias.c: e is a Ghost Hands hand: its depth drawn first, then only its nearest surface blended
+int VR_AliasBatchPosed (void); // r_alias.c: the world's posed models batched, their bones one buffer (vr_alias_batch_posed)
 int VR_AliasDepthPrepass (const struct entity_s *e); // r_alias.c: e drawn into the eye's depth before it is shaded (your body and its mirror image, the world's models)
 int VR_WorldLitSkip (void); // r_world.c: the split by surface draws only the lit commands a reaching light can fill (vr_gl_world_lit_skip, C4w)
 int VR_AliasBatchPosed (void); // r_alias.c: the world's posed models batched, their bones one buffer (vr_alias_batch_posed)

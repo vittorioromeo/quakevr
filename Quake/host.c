@@ -1895,7 +1895,11 @@ void _Host_Frame (double time)
 	}
 
 	VR_TRACY_DETAIL (1, "frame: end", VR_HostFrameEnd ()); // QVR: the motion recorder's row
-	VR_TimeFrameEnd (cls.signon == SIGNONS, cls.state != ca_connected && !sv.active); // QVR: start-up and load timing
+	// QVR: start-up and load timing. A dedicated server has no signon of its own: its load ends at its first frame with
+	// the map running (MP_PLAN B26: was never, its load window open for the whole game: the file cache and the heap's
+	// load hold kept, the start-up trace's "still in map load" every 2 s)
+	VR_TimeFrameEnd (cls.signon == SIGNONS || (cls.state == ca_dedicated && sv.active),
+		cls.state != ca_connected && !sv.active);
 	host_framecount++;
 	VR_TRACY_DETAIL (1, "frame: profile end", VR_ProfileFrameEnd ()); // QVR
 }

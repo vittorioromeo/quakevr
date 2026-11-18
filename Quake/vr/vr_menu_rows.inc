@@ -4894,8 +4894,14 @@ QVR_TOGGLE(vr_xr_vendor_profiles, "Vendor Controller Profiles",
     "Pico, HTC Vive Cosmos and Focus 3, HP Reverb G2 and Samsung Odyssey controllers get their own buttons, "
     "menu button included, when the runtime offers them. Off: they go as the runtime emulates them (the "
     "1.0.0 way, if your hands' angle changed). From the next VR start.")
+QVR_TOGGLE(vr_alias_prepass_world, "World Models Pre-pass",
+    "vr_alias_prepass_world: the world's models (monsters, items) drawn into the depth first, then shaded once a "
+    "pixel (On, as before), or shaded as drawn (Off: one draw a batch less). The same images either way.")
+QVR_TOGGLE(vr_alias_batch_posed, "Batch Posed Models",
+    "vr_alias_batch_posed: the world's posed models of one model and skin (armed grunts, their armour, ragdolls) "
+    "drawn as one batch, their bones in one buffer (On), or a batch each (Off, as before). The same images.")
 QVR_TOGGLE(vr_perf_record, "Perf Recorder",
-    "Every frame's CPU, GPU and OpenXR times and its events (shader compiles, uploads, loads, saves) to a CSV while on: profile/perf/ (on the Quest the app's files/perf/). Misc/quakevr/quest/perf_report.py ranks the hitches.")
+    "Every frame's CPU, GPU and OpenXR times and its events (shader compiles, uploads, loads, saves) to a CSV while on: profile/perf/ (on the Quest the app's files/perf/). Misc/quakevr/perf_report.py ranks the hitches.")
 QVR_TOGGLE(vr_xr_log_timing, "OpenXR Timing Log",
     "A line a second in quakevr/qvr_openxr.txt while VR runs: frames rendered, frames missed, each OpenXR call's time and the session's state.")
 QVR_TOGGLE(vr_visibility_mask, "Hide Lens Corners",
@@ -6166,16 +6172,10 @@ QVR_TOGGLE(vr_alias_prepass_own, "Own Models Pre-pass",
     "vr_alias_prepass_own: your hands and what they hold drawn into the depth first, then shaded once a "
     "pixel (On; not while a gun morphs), or shaded as drawn (Off, as before): the glove over the hand, the "
     "fingers over the palm and a gun's own parts shaded once. The same images either way.")
-QVR_TOGGLE(vr_alias_prepass_world, "World Models Pre-pass",
-    "vr_alias_prepass_world: the world's models (monsters, items) drawn into the depth first, then shaded once a "
-    "pixel (On, as before), or shaded as drawn (Off: one draw a batch less). The same images either way.")
 QVR_TOGGLE(vr_gl_world_lit_skip, "Skip Empty Lit Commands (Quest)",
     "vr_gl_world_lit_skip: with the world split by surface (Unlit World Shader By Surface, the Quest), only the "
     "textures with a surface a reaching light touches get their lit draw (On), or every texture (Off, as before). "
     "The same picture, fewer draws.")
-QVR_TOGGLE(vr_alias_batch_posed, "Batch Posed Models",
-    "vr_alias_batch_posed: the world's posed models of one model and skin (armed grunts, their armour, ragdolls) "
-    "drawn as one batch, their bones in one buffer (On), or a batch each (Off, as before). The same images.")
 QVR_CYCLE(vr_shadow_setup_share, "Shadow Caster Set-up Shared",
     "vr_shadow_setup_share: each animated shadow caster set up once for all the frame's shadow lights (its "
     "whole instance copied into each light's draw, drawn without textures) and the first eye taking the "

@@ -295,6 +295,9 @@ za::Vector<Item> pageDebugViews()
         command("Print Navmesh Info", "vr_nav_info")
             .help("vr_nav_info: the map's navmesh input (brushes, clip brushes, triangles) and each monster size class's "
                   "mesh: tiles, polygons, size, built or read from disk and how long it took; the paths found."),
+        command("Print Navmesh Hash", "vr_nav_hash")
+            .help("vr_nav_hash: one hash of the navmesh (its tiles, as doors, lifts and props left them) and one of the "
+                  "monsters' paths, bit for bit: two runs of the same play print the same (determinism tests)."),
         command("Crowd Stall Test (40 s)", "vr_nav_crowdtest 40")
             .help("vr_nav_crowdtest 40: every walker comes at you; each half second one moved under 8 units while over 128 "
                   "away is a stall, given its cause (a monster or a wall in the way, a ledge, in a wall, no chase...). The "
@@ -486,6 +489,19 @@ za::Vector<Item> pageDebugProfiling()
     return {
         header("Profiling"),
         row(opt::vr_perf_record),
+        row(opt::vr_alias_prepass_world),
+        row(opt::vr_alias_batch_posed),
+        command("Add 3 Big Test Lights", "vr_test_dlights 3")
+            .help("vr_test_dlights 3: three lasting dynamic lights as big as an explosion's (radius 350), in a row 160 units "
+                  "ahead: the cost of big lights on a still scene (vr_test_dlights <count> <radius> <distance>; 0 removes "
+                  "them)."),
+        command("Remove the Test Lights", "vr_test_dlights 0").help("vr_test_dlights 0: removes the test lights."),
+        command("List the Dynamic Lights", "vr_dlights_list")
+            .help("vr_dlights_list: every live dynamic light in the console: its key (who made it), radius, distance from "
+                  "your eyes and colour."),
+        command("List the Frame's Render Passes", "vr_gl_passes 1")
+            .help("vr_gl_passes 1: the next frame's framebuffer binds in the console, in order, each with the draws made "
+                  "into it (and the profiler's scope at the bind with vr_profile on), and its alias batches."),
         row(opt::vr_profile_overlay),
         row(opt::vr_profile_csv),
         row(opt::vr_profile_hitch),
@@ -499,11 +515,6 @@ za::Vector<Item> pageDebugProfiling()
             .help("vr_xr_direct 1 (a probe, the Quest only): each eye's scene drawn straight into the headset's image, no "
                   "post-process (no tone curve: bright colours clip), single-pass stereo off; vr_xr_foveation then reaches "
                   "the scene. vr_xr_direct 0 and vr_stereo_single 1 undo it."),
-        command("Add 3 Big Test Lights", "vr_test_dlights 3")
-            .help("vr_test_dlights 3: three lasting dynamic lights as big as an explosion's (radius 350), in a row 160 units "
-                  "ahead: the cost of big lights on a still scene (vr_test_dlights <count> <radius> <distance>; 0 removes "
-                  "them)."),
-        command("Remove the Test Lights", "vr_test_dlights 0").help("vr_test_dlights 0: removes the test lights."),
         command("Rig Lights Off the Walls (Quest)", "vr_rig_lights_world 0")
             .help("vr_rig_lights_world 0: under the ES profile's plain lights' loop (the Quest), the small lights of your "
                   "own gear (the guns' screens, the wrist gadget) light your hands and gear only, not the walls: cheaper "
@@ -511,13 +522,6 @@ za::Vector<Item> pageDebugProfiling()
         command("Rig Lights on the Walls", "vr_rig_lights_world 1")
             .help("vr_rig_lights_world 1 (the default): the rig's small lights light the walls too."),
         row(opt::vr_gl_world_lit_skip),
-        command("List the Dynamic Lights", "vr_dlights_list")
-            .help("vr_dlights_list: every live dynamic light in the console: its key (who made it), radius, distance from "
-                  "the view and colour (QUEST_PLAN.md 6za: which lights a scene's GPU time pays for)."),
-        command("List the Frame's Render Passes", "vr_gl_passes 1")
-            .help("vr_gl_passes 1: the next frame's framebuffer binds in the console, in order, each with the draws made "
-                  "into it and the profiler's scope at the bind (Profiling on for the names). On a tiled GPU (the Quest) "
-                  "each switch stores the tiles to memory and may read them back: fewer is cheaper."),
         command("Capture Frame (RenderDoc)", "vr_renderdoc_capture")
             .help("vr_renderdoc_capture: a RenderDoc capture of the next frame (both eyes: the desktop window's present ends "
                   "the frame), after the delay below; the console and a message show the file's path. Only when the game "
@@ -675,8 +679,6 @@ za::Vector<Item> pageDebugProfiling()
         row(opt::vr_alias_cull_posed),
         row(opt::vr_alias_player_first),
         row(opt::vr_alias_prepass_own),
-        row(opt::vr_alias_prepass_world),
-        row(opt::vr_alias_batch_posed),
         command("Lazy OIT Clear Stats", "vr_oit_stats")
             .help("vr_oit_stats: since the last time, the views with a translucent pass, how many drew something "
                   "translucent (water, slime, lava, a translucent model or particles) and how many skipped the clear."),

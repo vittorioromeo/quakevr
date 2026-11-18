@@ -595,11 +595,11 @@ void addCap(Caps& out, const glm::vec3& a, const glm::vec3& b, float r)
         }
         // A hand holding a round from the ammo pouch (a shell, a magazine) near the loading port or well of the other
         // hand's gun: the hands go through each other there (the author: the hand stopped short of the port; and
-        // pushed, the gun's port moved away from the round), fully within vr_reload_collide_leniency cm of it.
-        if(s.loadPortValid[j] && holdsRound(k))
+        // pushed, the gun's port moved away from the round), by the round's own point (a magazine's top: its hand is a
+        // magazine's length under the well; MP B27: the off forearm pushed the gun 5 cm as the round came up to it).
+        if(holdsRound(k))
         {
-            const float within = za::max(vr_reload_collide_leniency.value, 0.f) * 0.01f * units::metresToUnits();
-            w *= smooth(within, within * 1.6f + 2.f, glm::distance(s.pos[k], s.loadPort[j]));
+            w *= held::roundPortEase(s, k);
         }
     }
     return w;

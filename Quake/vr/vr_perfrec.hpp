@@ -1,5 +1,5 @@
 // vr_perfrec.hpp -- the perf recorder (vr_perf_record; QUEST_PLAN.md, C4n): every frame of a played session, one CSV row
-// each, for finding the hitches and the sustained costs on the headset afterwards (Misc/quakevr/quest/perf_report.py).
+// each, for finding the hitches and the sustained costs on the headset afterwards (Misc/quakevr/perf_report.py).
 //
 // A row: the frame's serial and time, the map, its period (start to the next start), the host frame and our CPU work in
 // it (less the runtime's and the swap's waits), the runtime's display period and the display periods it missed

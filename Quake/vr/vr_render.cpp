@@ -271,7 +271,7 @@ extern "C" int VR_AliasDepthPrepass(const entity_t* e)
     // cost more than it saved (GPU benchmark, BENCHMARKS.md).
     if(e && !VR_IsViewEntity(e))
     {
-        return vr_alias_prepass_world.value != 0.f ? 1 : 0;
+        return vr_alias_prepass_world.value != 0.f ? 1 : 0; // (the A/B switch: 0 shaded as drawn, a draw a batch less)
     }
     const int group = VR_ViewEntityGroup(e);
     if(group == VR_DRAW_BODY || group == VR_DRAW_MIRROR)

@@ -621,13 +621,6 @@ QVR_CVAR(vr_alias_player_first, "1", CVAR_NONE)
 // Debug > Profiling and Memory > Own Models Pre-pass: 1 your hands and what they hold drawn into the depth first (as your
 // body and the world's models are), then shaded once a pixel (not while a gun morphs); 0 shaded as drawn (the A/B).
 QVR_CVAR(vr_alias_prepass_own, "1", CVAR_NONE)
-// Debug > Profiling and Memory > World Models Pre-pass: 1 the world's models (monsters, items) drawn into the depth
-// first, then shaded once a pixel (as before); 0 shaded as drawn: a draw a batch less (the A/B; QUEST_PLAN.md 6zc).
-QVR_CVAR(vr_alias_prepass_world, "1", CVAR_NONE)
-// Debug > Profiling and Memory > Batch Posed Models: 1 the world's posed models of one model and skin (armed grunts on
-// the authored rig, their armour, ragdolls) drawn as one batch, their bones in one buffer; 0 a batch each, as before
-// (the A/B; QUEST_PLAN.md 6zc).
-QVR_CVAR(vr_alias_batch_posed, "1", CVAR_NONE)
 // Debug > Profiling and Memory > Keep Light Casters: 1 each dynamic light's world shadow casters kept between frames
 // while it stays inside the sphere they were collected for (a moving light's collected 24 units wider; vr_lighting.cpp
 // collectWorldCached; vr_shadow_caster_stats); 0 collected again for each light each frame; 2 (a check) the wider set
@@ -645,6 +638,14 @@ QVR_CVAR(vr_stereo_single_passes, "3", CVAR_NONE)
 QVR_CVAR(vr_xr_log_timing, "0", CVAR_NONE) // (1 before vr_cfg_version 202)
 // Debug > Profiling: the perf recorder (vr_perfrec.hpp): 1 writes every frame's times and events to a CSV (on Android the
 // app's internal files/perf/, else <game>/profile/perf/) until set back to 0 (a new file each time); not saved.
+// Debug > Profiling > World Models Pre-pass: 1 the world's models (monsters, items) drawn into the depth first, then
+// shaded once a pixel (as before); 0 shaded as drawn: a draw a batch less (the A/B; from agent/quest).
+QVR_CVAR(vr_alias_prepass_world, "1", CVAR_NONE)
+// Debug > Profiling > Batch Posed Models: 1 the world's posed models of one model and skin (armed grunts on the
+// authored rig, their armour, ragdolls) drawn as one batch, their bones in one buffer (PC ThinLTO: ragdolls_32_active
+// -0.11 ms GPU, combat_48 even; ROUND25); 0 a batch each, as before.
+QVR_CVAR(vr_alias_batch_posed, "1", CVAR_NONE)
+QVR_CVAR(vr_gl_passes, "0", CVAR_NONE)            // 1: the next frame's draw framebuffer binds and alias batches listed in the console (vr_profile.cpp; back to 0 after)
 QVR_CVAR(vr_perf_record, "0", CVAR_NONE)
 // Tests of the choice without the real runtimes (docs/vr-port/TESTING.md, "OpenXR runtime choice"): vr_xr_test 1 reads
 // the installed runtimes (manifests, comma-separated), the active one and the running processes from these instead of
@@ -2182,7 +2183,7 @@ QVR_CVAR(vr_retrolight_shadow_soft, "0", CVAR_ARCHIVE)      // their levels' edg
 QVR_CVAR(vr_profile, "0", CVAR_NONE)                   // profiler (vr_profile.cpp): 1 time the frame's scopes, CPU and GPU, into <gamedir>/profile/; 2 also show the panel over the wrist
 QVR_CVAR(vr_gl_markers, "0", CVAR_NONE)               // GL debug groups for frame debuggers (RenderDoc, Nsight): each GPU profile scope (eye L/R, depth prepass, world, shadow maps, post, 2D, xr submit ...) and the engine's own groups (GL_BeginGroup); 1 on, 2 only with a debugger or frame debugger in the process, 0 off (-glmarkers and -gldebug: on). Latched each frame (1 before 2026-10-25)
 QVR_CVAR(vr_gl_sync_count, "0", CVAR_NONE)            // N: every N seconds the GL calls that make the CPU wait for the GPU, per frame, printed (glFinish, fence waits, query results, pixel reads, synchronised maps, link status reads; vr_glsafe.cpp; vr_gl_sync_report for tests); 0 off
-QVR_CVAR(vr_profile_interval, "5", CVAR_NONE)         // seconds between its reports (0: only on vr_profile_dump)
+QVR_CVAR(vr_profile_interval, "5", CVAR_NONE)          // seconds between its reports (0: only on vr_profile_dump)
 QVR_CVAR(vr_profile_overlay, "0", CVAR_NONE)           // the profiler's panel (vr_profile_systems.cpp): each system's ms a frame with a bar; 1 over the wrist gadget's hand, 2 floating in front
 QVR_CVAR(vr_profile_gpu, "4", CVAR_NONE)               // the profiler's GPU times: its GPU scopes' timer queries on one frame in this many (each stalls the GPU a little: 1 every frame, 4 a quarter of the cost; 0 none, the CPU's times alone)
 QVR_CVAR(vr_profile_detail, "1", CVAR_NONE)            // 2: the profiler also times every trace (SV_Move) and every QuakeC builtin call apart (dearer)
@@ -2380,7 +2381,6 @@ QVR_CVAR(vr_specular, "0.2", CVAR_ARCHIVE)           // sheen of dynamic lights 
 QVR_CVAR(vr_specular_aa, "1", CVAR_ARCHIVE)            // specular anti-aliasing: the sheen (and the water's glints) widened where bumps are smaller than a pixel, so it doesn't sparkle as the head moves (0 off; 2 stronger)
 QVR_CVAR(vr_normalmap_cache, "1", CVAR_NONE)       // the normal maps made from skins kept on disk (cache/normalmaps: the same texels, 0.2 s less in the first load); 0 made every time; 2 made and compared with the file (vr_diskcache.cpp)
 QVR_CVAR(vr_gl_foveation_parts, "1", CVAR_NONE)   // vr_gl_foveation's attachments (the Quest): 1 the eyes' scene colours, 2 their depth/stencil, 4 the OIT targets (the colours always); an incomplete framebuffer turns foveation off (vr_stereo.cpp; QUEST_PLAN.md 6v)
-QVR_CVAR(vr_gl_passes, "0", CVAR_NONE)            // 1: the next frame's draw framebuffer binds listed in the console, each with its draws and the profiler's scope (vr_profile on): a tiled GPU's render passes (vr_profile.cpp; QUEST_PLAN.md 6o)
 QVR_CVAR(vr_program_cache, "1", CVAR_ARCHIVE)      // the GL programs' binaries kept on disk (cache/programs, vr_diskcache.cpp; read before the window opens: a change applies at the next start): 1 on under OpenGL ES (the Quest: ~51 s of shader compiles at every start), 2 also on the PC, 0 off
 QVR_CVAR(vr_cache_dir, "", CVAR_NONE)              // the derived-data cache's root (vr_diskcache.hpp, docs/vr-port/CACHES.md): empty <base>/cache (shared by every game folder); a folder: that one (tests: an empty folder is a first-ever session)
 QVR_CVAR(vr_mdl_dequant_cache, "1", CVAR_NONE)     // .mdl dequantisations kept on disk (cache/dequant, vr_mdldequant.cpp: the same offsets and normals read back); 0 computed at every load; 2 computed and compared with the file
