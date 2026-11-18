@@ -45,7 +45,7 @@ The guide: [MULTIPLAYER.md](MULTIPLAYER.md).
   little longer, as long as your link's jitter needs), so lifts and doors meet you where your game showed.
 - **Deathmatch with bots** (FrikBot: `impulse 100`) that fight, swing and grab with their hands like players.
 - **Bots with a flat-screen player's hands**: they dual wield, swing melee weapons overhead and parry blows by their
-  skill; **co-op bots** (Maps > Add Co-op Bot) fight the monsters beside you and follow you to the next level.
+  skill; **co-op bots** (VR Settings > Play > Add Co-op Bot) fight the monsters beside you and follow you to the next level.
 - **Proximity voice chat** (Opus, with RNNoise noise suppression): push-to-talk or voice activation, heard at the
   talker's head; per-player mute and volume (VR Settings > HUD, Haptics and Sound > Sound > Voice Chat).
 - **Server Browser** (Multiplayer > Join Game): favourites, the servers you joined last and the LAN's, with their

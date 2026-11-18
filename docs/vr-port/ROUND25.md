@@ -5276,3 +5276,34 @@ and MP-only parts left on their branches.
   runs came in both arms (on 6+3+9, off 3+10): the machine's, not the batching's. It helps where it applies and costs
   nothing elsewhere: on by default on the PC too (0: a batch each, as before). Review: when an instance's bone count disagreed, the batch copied the first instance's bones through a pointer a later
   VR_AliasBonePoses call may have reused: it copies the first's copy. The world-lit-skip split (ES) left behind.
+
+## MP bots phase 1: a flat-screen player's hands -- dual wield, the overhead swing and the guard; coop bots (agent/mp, 2026-11-18; never shipped by the coordinator)
+
+- **SP-relevant**: `vr_flatplay.cpp` gains `poseBot` (a bot's hands posed by flat play's own functions: targetOffset,
+  aimRotAtCrosshair, overheadSwing, parryPose, the melee hold), switched by a file-scope `bot` pointer set for that call
+  only: with it null every changed function reads as before (bodyPose, heldWid, heldIn, armSpan, propInFist, the
+  support hand's wall let-go, the swing's clock, the guard's share). Merged origin/next f2f11c10e: `vr_goto_exit` /
+  `vr_hurt` once, in `vr_cheats.cpp` (MP's parts on top: a bot's slot, the attacker argument, a dedicated server's
+  console in deathmatch, the player's name in the lines); `vr_nav_hash` next's (diskcache::fnv).
+- **Bots (QC frikbot/bot_fight.qc, weapons.qc)**: their hands each frame from `botflatpose` (one gun or two off the
+  shoulders, turned at the enemy's middle; the melee hold). A melee weapon's button is a flat player's overhead swing
+  (`W_Fire_Melee` for a bot: 0.8 s a swing, its windup strikes nothing (`.handsynth`), the strike's blow the melee's
+  sweep). The guard: a blow seen coming within 110 units (a bot's swing, a headset player's melee hand over 2 m/s, a
+  flat player's button, a melee monster attacking it) raises the flat guard by skill (`vr_bot_parry_chance`, default -1:
+  25/50/75/90 % for skills 0-3, after 0.3/0.2/0.12/0.06 s, held 0.6 s, one roll a blow); `VR_Parry` reads a bot's
+  hand lines, so players' and monsters' blows are parried by it. Dual wield (`vr_bot_dual_wield`, default 1): a gun in
+  the main hand and one of its own that pairs (`VR_AG_Pairs`, with ammo) goes into the off hand and both fire; a gun
+  its off hand takes off the floor becomes its own, kept if it pairs, else put away (B11's fire-and-drop is the 0
+  setting).
+- **Coop**: FrikBot's own coop rules (monsters its only enemies, players followed by its roaming, no shots through a
+  teammate, back on the next level by its bot_return); new: what it had at the change kept by its name as a leaver's
+  (`vr_coopsave.cpp` `VR_CoopNoteBots` in SV_SaveSpawnparms, `botcarryparms` in BotConnect). VR Settings > Play >
+  Add Co-op Bot (impulse 100). Not done: anything for doors and lifts beyond FrikBot's own.
+- **Tests**: vr_dm_test 9 (a bot at skill 3, chance 100, parries another's overhead blow; chance 0: it lands), 10 (dual
+  wield fires both), 11 (coop: a grunt brought to the bot is killed, no player its enemy); tests 2-3 place the bot by
+  the human's head yaw (`v_viewangle`: a headset player's aim follows his hand) and test 3's guard is level
+  (mp_test.py `LEVEL_GUARD`, square to an overhead blow); tests 4-6 run with `vr_bot_dual_wield 0` (an empty off
+  hand). mp_dm 25/0, new mp_coopbots 13/0 (the bot back on e1m2 with its super nailgun), mp_lockstep_dm 23/0.
+- **In VR**: a deathmatch with bots: give one a sword (it swings overhead; hold your weapon level across to parry);
+  swing at a bot holding a melee weapon (it raises its guard more often at a higher `skill`); give it two pairing guns.
+  Coop: Add Co-op Bot, play e1m1 to the exit: it fights beside you and is on e1m2 with what it had.
