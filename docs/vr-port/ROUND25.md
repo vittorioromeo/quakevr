@@ -5173,3 +5173,21 @@ His Quest 3 report: after an install and a new data push, minutes of Meta's thre
   mp_lagcomp run with the machine over-busy. MP_PLAN B25b has the per-run tallies; B26 takes the crash first.
 - **Checks**: dev and ThinLTO 0 warnings; scenario_check 136/0, load_models 4/0, vr_run_check 12/0.
 - **In VR**: single player unchanged. Coop: a friend joining no longer kills the player standing at a start.
+
+## MP B26: svc_setview checked (B25b's crash); a dedicated server's load window; the suite's acceptance (agent/mp, 2026-11-18; never shipped by the coordinator)
+
+- **SP-relevant fix (branch `agent/mp-next-fixes`, on origin/next, commit 2c2563ee3)**: cl_parse.c's svc_setview took
+  any entity number; a corrupt or hostile one put the view outside `cl_entities` and the next frame's hands read it (an
+  access violation: B25b's mp_fuzz crash, whose report was in the harness base's `quakevr/crash` all along). Now a
+  Host_Error; the start-sound entity check `>=`; Rogue's team swatch only for a player's own view.
+- **Dedicated server (commit 4d44dedcf, same branch)**: its map load ends at its first frame with the map running
+  (was never: file cache and heap hold for the whole game, "still in map load" every 2 s). SP and listen unchanged.
+- **Harness**: mp_proxy's hostile-command injection and a structured "command after" corruption with its own seed;
+  `fuzz --part inject` (246 commands: crashed B before the fix, 246/246 after) and `--part signon`; crash reports
+  copied into the run's folder (`mp_crash:`). mp_disarm's magazine load corrects each placement by the server's own
+  reload rows (the gun moves 0.6-1.3 units as the off hand comes near; the server's round lands up to 3.1 units from
+  where B's game aimed it): a player watching the well; the leniency unchanged. Open (B27): those two gaps themselves.
+- **Runs**: 3 consecutive clean full suites plain, then 3 under `--load 16` (6 of 6).
+- **Checks**: dev and ThinLTO 0 warnings; scenario_check 136/0, load_models 4/0, vr_run_check 12/0.
+- **In VR**: nothing to see in single player. MP: a remote player loading a magazine may see it at the well 1-3 units
+  before it seats (B27).

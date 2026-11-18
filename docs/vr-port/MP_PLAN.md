@@ -3634,9 +3634,14 @@ if real punches fail often; IPv6 or a public room list if he wants them; B10v's 
   failed there). Open: why the gun moves as the off hand nears it, and the 3-unit gap between B's view of the held
   round and the server's (the remote client's drawn held round against the server's grip offset?): in VR a remote
   player may see the magazine at the well 1-3 units before it seats.
-- **Runs**: RUNS_PLACEHOLDER
+- **Runs (the acceptance)**: full suite (47 scenarios) 3 consecutive clean plain runs, then 3 consecutive clean under
+  `--load 16` (scratch/b26_c1_chain.txt: 6 of 6, 0 checks failed; ~21 min each). The magazine seated at the first
+  placement at the port in all six (gaps 0.3-1.5), mp_fuzz's hostile commands survived in all six, no crash report.
 - **Checks**: dev and ThinLTO 0 warnings; scenario_check 136/0 (a first run 135/1: bench_crowd_ad "what it placed is
   gone", B8d's known flake, while a --load 16 run went), load_models 4/0 (a first run without a verdict under the same
   load, then 4/0 alone), vr_run_check 12/0.
 
-Next phase: NEXT_PLACEHOLDER
+Next phase: B27 -- ours: the held magazine's gap between a remote client's view and the server (up to 3 units) and the
+gun moving as the off hand nears it (mp_disarm's debug-2 rows); a wider structured fuzz up (clc commands with fixed
+argument sizes, as B26's down). His: deploy the room service (`Misc/rendezvous/deploy.sh`) and try a room code between
+two real routers; a relay only if real punches fail often; IPv6 or a public room list if he wants them; B10v's VR checks.
