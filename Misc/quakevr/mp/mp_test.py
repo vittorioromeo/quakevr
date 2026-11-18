@@ -84,6 +84,9 @@ Tests:
              his voice bytes; RNNoise on; no microphone. --lag/--jitter/--loss: B's link; --listen: A hosts.
     dm       (B11) a dedicated deathmatch server on dm4 (fraglimit 3): A and B join at deathmatch starts; two FrikBot bots
              added (impulse 100): four players listed at both, the bots move; A killed by a bot (vr_hurt) and respawned by his trigger, then A frags the bots (vr_hurt) to the fraglimit; the fraglimit ends the match: the intermission at both, their scoreboards the same.
+    coopbots (MP bots phase 1) a dedicated coop server on e1m1: A adds a bot (impulse 100); the server's QC test brings a
+             grunt in front of it: it kills it, never taking a player for its enemy; A through e1m1's exit: on e1m2 the
+             bot is back with what it had (its super nailgun).
     lockstep (B14b) two runs of the same play on a lockstep server (vr_mp_lockstep: one move of each client a world
              step, by number; vr_fixed_frames 1, sv_random_seed 1; its clients vr_mp_lockstep_ahead 4): A and B join
              e1m1, the world held at steps 36, 360 and 720 (vr_mp_lockstep_until) for the inputs (B walks north, A's
@@ -2261,6 +2264,7 @@ def ground(s):
 
 INV_KEYS = ("health", "armor", "items", "shells", "nails", "rockets", "cells", "weapon", "clip")  # (clip: the main hand's gun's)
 IT_ROCKET_LAUNCHER = 32
+IT_SUPER_NAILGUN = 8
 
 
 def inventories(srv):
@@ -2480,6 +2484,70 @@ def saved_text(s, relname, t0, tries=50):
 def own_status(inst):
     """inst's own `mp_status:` fields (its map, intermission, health as its client sees them)."""
     return fields(next((l for l in status(inst) if l.startswith("mp_status:")), ""))
+
+
+def coopbots(s):
+    """(MP bots phase 1) Bots in a coop game (FrikBot's coop rules, the hands of a flat-screen player): on a dedicated
+    coop server on e1m1 A adds a bot (impulse 100): three players listed at A; the server's QC test (vr_dm_test 11)
+    brings a grunt of the map in front of the bot: the bot kills it and never takes a player for its enemy, and is given
+    a super nailgun; then A in e1m1's exit (vr_goto_exit), his trigger through the intermission: on e1m2 the bot is back
+    (FrikBot's bot_return) with what it had (vr_coopsave.cpp: kept by its name as a leaver's, given back as it connects:
+    its super nailgun)."""
+    srv, a, b, ea, eb = join(s)
+    sa, sb = ea - 1, eb - 1
+    srv.cmd("developer 1")
+    a.cmd("impulse 100")
+    table = {}
+    for _ in range(20):
+        since_a = a.mark()
+        table = frag_table(a)
+        if len(table) >= 3:
+            break
+        wait_quietly(a, r"mp_frags: ", 3, since_a, "A's scoreboard")
+    bots = sorted(slot for slot in table if slot not in (sa, sb))
+    s.check("A adds a coop bot (impulse 100): three players listed at A", len(table) == 3 and len(bots) == 1,
+            "%s" % table)
+    if len(bots) != 1:
+        return
+    since_srv = srv.mark()
+    srv.cmd("god; vr_dm_test 11")
+    _, verdict = srv.wait(r"dmtest: \d+ passed, \d+ failed", 60, since_srv, "vr_dm_test 11's verdict")
+    got = [l.strip() for l in srv.lines[since_srv:] if "dmtest: " in l]
+    s.check("the coop bot kills a grunt brought in front of it, never taking a player for its enemy (vr_dm_test 11)",
+            " 0 failed" in verdict, "%s %s" % (verdict.strip(), got[-5:]))
+    inv0, _ = inventories_until(srv, lambda inv, m: sa in inv and sb in inv)
+    hurt0 = {k: inv0.get(k, {}).get("health", 0) for k in (sa, sb)}
+
+    since_a, since_b, since_srv = a.mark(), b.mark(), srv.mark()
+    srv.cmd("vr_goto_exit %d" % sa)
+    got = wait_quietly(srv, r"vr_goto_exit: .* in the exit to e1m2", 10, since_srv, "A in e1m1's exit")
+    s.check("the server puts A in e1m1's exit (vr_goto_exit)", got is not None, "no 'vr_goto_exit: ... e1m2' line")
+    a.cmd("vr_mock_button main trigger 1")
+    ja = wait_quietly(a, r"mp_event: .*joined map=e1m2", 60, since_a, "A on e1m2")
+    jb = wait_quietly(b, r"mp_event: .*joined map=e1m2", 60, since_b, "B on e1m2")
+    a.cmd("vr_mock_button main trigger 0")
+    s.check("A's trigger press ends the intermission: A and B on e1m2", ja is not None and jb is not None,
+            "A %s; B %s" % (ja and ja[1], jb and jb[1]))
+    if ja is None or jb is None:
+        return
+    back = wait_quietly(srv, r"coop: bot (.+) is back with what it had \(health \S+, items (\d+)\)", 30, since_srv,
+                        "the bot back on e1m2")
+    # (read after the "back" line: the server's log read up to it)
+    kept = srv.find(r"coop: bot (.+)'s things kept for the next level \(health \S+, items (\d+)\)", since_srv)
+    s.check("the bot's things kept at the level change (vr_coopsave.cpp VR_CoopNoteBots)", kept is not None,
+            "no 'coop: bot ... kept' line")
+    items = int(re.search(r"items (\d+)", back[1]).group(1)) if back else 0
+    s.check("the bot is back on e1m2 with what it had: its super nailgun (items %d)" % items,
+            back is not None and items & IT_SUPER_NAILGUN != 0, back[1].strip() if back else "no 'is back' line")
+    table = {}
+    for _ in range(20):
+        since_a = a.mark()
+        table = frag_table(a)
+        if len(table) >= 3:
+            break
+        wait_quietly(a, r"mp_frags: ", 3, since_a, "A's scoreboard on e1m2")
+    s.check("three players listed at A on e1m2 (the bot came along)", len(table) == 3, "%s" % table)
+    s.note("A and B's health on e1m1 before the exit: %s (god on the server's QC test only)" % hurt0)
 
 
 def flow(s):
@@ -3608,6 +3676,9 @@ SWING_READY = "vr_mock_hand main 0.95 1.25 -0.15 0 -100 0"
 # The other's crowbar held upright in front, across a level swing's way (square to its blade and its way: the
 # directional parry's), its grip under the blade's height.
 UPRIGHT = "vr_mock_hand main -0.50 1.05 -0.45 90 0 0"
+# (MP bots phase 1) The crowbar held level across in front, pointing to his right, over his chest: square to an overhead
+# blow's blade and its way down (a bot's swing: a flat-screen player's overhead swing), across its way.
+LEVEL_GUARD = "vr_mock_hand main -0.45 1.45 -0.50 0 -90 0"
 JITTER_MS = 30.0  # B's link's jitter for the swing at it (sub-tick samples)
 JITTER_SLACK = 0.2  # the jittered swing's strength within this share of the clean one's
 
@@ -5467,7 +5538,8 @@ def deathmatch(s):
 
     # (B11 part 3, part 3) a bot's sword swing at A, its hand swinging it across its front (bot_setvrfields), its blade's
     # line read by the directional parry as a player's swing: A's crowbar (given by the test) held low at his side, the
-    # blow lands (vr_dm_test 2); held upright across its way, parried (vr_dm_test 3). The bot walks through the players'
+    # blow lands (vr_dm_test 2); held level across its way, parried (vr_dm_test 3). (MP bots phase 1: the bot's swing is a
+    # flat-screen player's overhead swing, its blow the melee's sweep.) The bot walks through the players'
     # moves meanwhile (vr_pmove_bots).
     # (his grip held, as a given weapon held through a pose's change wants: the test empties his hand first, then gives
     # the crowbar into the gripping hand, grip_then_give's order)
@@ -5476,7 +5548,7 @@ def deathmatch(s):
     a.cmd("vr_mock_button main grip 1; %s" % EMPTY_HAND)
     srv.wait(r"grip: .*main hand pressed at", 10, since_g, "A's main grip on the server")
     for test, pose, what in ((2, EMPTY_HAND, "at his side: the bot's swing lands"),
-                             (3, UPRIGHT, "upright across its way: the bot's swing parried")):
+                             (3, LEVEL_GUARD, "level across its way: the bot's overhead swing parried")):
         a.cmd(pose)
         since_p = srv.mark()
         srv.cmd("vr_dm_test %d" % test)
@@ -5508,6 +5580,17 @@ def deathmatch(s):
         _, verdict = srv.wait(r"dmtest: \d+ passed, \d+ failed", 30, since_p, "vr_dm_test %d's verdict" % test)
         got = [l.strip() for l in srv.lines[since_p:] if "dmtest: " in l]
         s.check("%s (vr_dm_test %d)" % (what, test), " 0 failed" in verdict, "%s %s" % (verdict.strip(), got[-5:]))
+    # (MP bots phase 1) the bots' hands as a flat-screen player's (vr_flatplay.cpp poseBot): a bot at skill 3 with
+    # vr_bot_parry_chance 100 raises the flat guard against the other bot's overhead sword swing (parried), at chance 0
+    # the blow lands (9); a bot holding a nailgun and a super nailgun of its own takes the second gun into its off hand
+    # and fires both at A (10)
+    for test, what in ((9, "a bot parries the other bot's timed overhead blow (its chance 100), the blow lands at 0"),
+                       (10, "a bot dual wields a nailgun and a super nailgun and fires both at A")):
+        since_p = srv.mark()
+        srv.cmd("vr_dm_test %d" % test)
+        _, verdict = srv.wait(r"dmtest: \d+ passed, \d+ failed", 30, since_p, "vr_dm_test %d's verdict" % test)
+        got = [l.strip() for l in srv.lines[since_p:] if "dmtest: " in l or "botparry: " in l or "botdual: " in l]
+        s.check("%s (vr_dm_test %d)" % (what, test), " 0 failed" in verdict, "%s %s" % (verdict.strip(), got[-6:]))
     srv.cmd("vr_debug_carry 0; developer 0; vr_debug_shots 0")
 
     # (seen by A or by B: B's start may see neither bot for a while, out of his sight)
@@ -6647,6 +6730,8 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             lockstep_throw(s)
         elif test == "mp_dm":
             deathmatch(s)
+        elif test == "mp_coopbots":
+            coopbots(s)
         elif test in ("mp_voice", "mp_voice_lossy"):
             voice(s, args.listen, lag, jitter, loss)
         else:
@@ -6711,6 +6796,7 @@ SUITE = [
     ("mp_voice", ()),
     ("mp_voice_lossy", (50, 30, 0.05)),
     ("mp_dm", ()),
+    ("mp_coopbots", ()),
     ("mp_lockstep", ()),
     ("mp_lockstep_dm", ()),
     ("mp_lockstep_throw", ()),
@@ -6726,7 +6812,7 @@ SUITE = [
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "voice", "dm", "coopbots", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite"])
     ap.add_argument("--base", required=True, help="the game folder (id1, quakevr...)")
     ap.add_argument("--exe", default=EXE)
     ap.add_argument("--out", default=os.path.join(REPO, "scratch", "mp"))
@@ -6788,7 +6874,7 @@ def main_run(args):
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
     elif args.test in ("bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground",
-                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui"):
+                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "dm", "coopbots", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui"):
         ok = run(args, "mp_" + args.test)
     elif args.test == "voice":
         ok = run(args, "mp_voice", args.lag, args.jitter, args.loss)
