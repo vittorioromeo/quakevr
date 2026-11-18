@@ -307,6 +307,14 @@ void OpenXrBackend::step(const char* format, ...)
     setCrashVr(text);
 }
 
+void OpenXrBackend::traceFrame(const char* call, const char* detail)
+{
+    if(traceFramesLeft > 0)
+    {
+        step("frame %d: %s%s", tracedFrame, call, detail);
+    }
+}
+
 void OpenXrBackend::destroySpace(XrSpace& space)
 {
     if(space != XR_NULL_HANDLE)
@@ -899,6 +907,8 @@ void OpenXrBackend::beginSession()
     sessionRunning = check(xrBeginSession(session, &beginInfo), "xrBeginSession");
     if(sessionRunning)
     {
+        traceFramesLeft = tracedFrames; // (traceFrame: the session's first frames' calls as steps)
+        tracedFrame = 1;
         // (Usually none yet: runtimes pick them at the first xrSyncActions, and say so with an event.)
         updateControllers();
         xrruntime::logLine(va("OpenXR: controller profiles at the session's start: left %s, right %s\n",

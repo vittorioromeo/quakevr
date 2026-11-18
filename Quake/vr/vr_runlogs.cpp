@@ -483,11 +483,16 @@ int sources(Source* out, int max)
     add(va("%s/crash/gl_startup.log", com_gamedir), "gl_startup.log", true, false);
     add(xrruntime::logPath(), "qvr_openxr.txt", false, false);
 #ifndef _WIN32
-    // SteamVR for Linux: under ~/.local/share/Steam (Monado logs to its own stdout: nothing to copy).
+    // SteamVR for Linux: under ~/.local/share/Steam (Monado logs to its own stdout: nothing to copy). Its OpenXR
+    // client, in the game's process, logs to xrclient_<executable>.txt (vrclient_ is its OpenVR client's: GitHub #82,
+    // where xrclient_ironwail.txt had what the others lacked: the client's PID, the helpers it started, its asserts);
+    // vrmonitor.txt has the helpers' side.
     if(const char* home = getenv("HOME"))
     {
         add(va("%s/.local/share/Steam/logs/vrserver.txt", home), "steamvr_vrserver.txt", false, true);
         add(va("%s/.local/share/Steam/logs/vrcompositor.txt", home), "steamvr_vrcompositor.txt", false, true);
+        add(va("%s/.local/share/Steam/logs/vrmonitor.txt", home), "steamvr_vrmonitor.txt", false, true);
+        add(va("%s/.local/share/Steam/logs/xrclient_ironwail.txt", home), "steamvr_xrclient_ironwail.txt", false, true);
         add(va("%s/.local/share/Steam/logs/vrclient_ironwail.txt", home), "steamvr_vrclient_ironwail.txt", false, true);
     }
 #else
@@ -499,6 +504,7 @@ int sources(Source* out, int max)
         add(va("%s/logs/vrserver.txt", steam), "steamvr_vrserver.txt", false, true);
         add(va("%s/logs/vrcompositor.txt", steam), "steamvr_vrcompositor.txt", false, true);
         add(va("%s/logs/vrmonitor.txt", steam), "steamvr_vrmonitor.txt", false, true);
+        add(va("%s/logs/xrclient_ironwail.txt", steam), "steamvr_xrclient_ironwail.txt", false, true); // (its OpenXR client's)
         add(va("%s/logs/vrclient_ironwail.txt", steam), "steamvr_vrclient_ironwail.txt", false, true);
         add(va("%s/logs/vrstartup.txt", steam), "steamvr_vrstartup.txt", false, true);
     }
