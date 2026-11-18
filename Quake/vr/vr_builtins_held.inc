@@ -337,8 +337,10 @@ void PF_weapondrawnpose()
     {
         // weapondrawnpose(player, hand, 47): the flip grip (ROUND25.md "flipgrip"): how this listen server's own `hand` takes the
         // weapon its other hand carries off its handle now (QC VRTakeCarriedWeapon), as 43 (view::carriedGripChoice).
+        // Another player's (not the listen server's own, edict 1): the engine can't tell, '0 0 1' (QC keeps his grip), as 49/50.
         float cosine = 1.f;
-        const int choice = sv.active && cls.state == ca_connected ? view::carriedGripChoice(hand, cosine) : -1;
+        const bool local = sv.active && cls.state == ca_connected && NUM_FOR_EDICT(player) == 1;
+        const int choice = local ? view::carriedGripChoice(hand, cosine) : -1;
         progs::returnVec({choice > 0 ? 1.f : 0.f, choice >= 0 ? 1.f : 0.f, cosine});
         return;
     }
