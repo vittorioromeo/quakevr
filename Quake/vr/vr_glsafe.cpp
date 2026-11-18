@@ -352,6 +352,17 @@ extern "C" void VR_GLStartupBegin(void)
         glsafe.safeAuto = true;
         q_strlcpy(glsafe.why, judged, sizeof(glsafe.why));
     }
+    else if(autoAllowed && !last.ended && last.autoSafe && !last.retry && !VR_VersionIsDev())
+    {
+        // The last start ran in automatic safe mode and was stopped before its end (Task Manager, Steam's Stop, the OS
+        // closing it): not counted against the full renderer (judgeLastStart), but no evidence the full renderer works
+        // either: safe mode kept, as after a safe start that ended (below).
+        glsafe.safe = 1;
+        glsafe.safeAuto = true;
+        q_strlcpy(glsafe.why, "on (automatic, kept: the last start, in safe mode, was stopped before it ended; "
+                              "vr_glsafe_retry tries the full renderer again)",
+            sizeof(glsafe.why));
+    }
     else if(autoAllowed && judged[0])
     {
         q_strlcpy(glsafe.why, judged, sizeof(glsafe.why)); // "off (...: not counted)"

@@ -1731,6 +1731,13 @@ void statusLines(za::Vector<za::String>& out)
     const char* runtimeKind = !vr ? "" : mock ? "no runtime" : (strstr(rt, "SteamVR") ? "SteamVR" : (strstr(rt, "VirtualDesktop") || strstr(rt, "VDXR")) ? "VDXR" : "other runtime");
     q_snprintf(line, sizeof(line), "%s%s%s", !vr ? "Flat screen" : mock ? "Mock VR" : "VR", vr ? " - " : "", runtimeKind);
     out.pushBack(za::String{line});
+    // GL safe mode (vr_glsafe.cpp): a warning line (white on red), the graphics' optional features off this run; the reason
+    // in the console and gl_startup.log, Debug > Startup's Retry Full Renderer (vr_glsafe_retry) to leave it.
+    if(VR_GLSafeMode())
+    {
+        out.pushBack(za::String{"! GL safe mode: reduced graphics"});
+        out.pushBack(za::String{"! Debug > Startup: why, and retry"});
+    }
     if(vr && !mock)
     {
         q_snprintf(line, sizeof(line), "%s", rt);
