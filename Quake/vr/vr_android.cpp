@@ -8,6 +8,7 @@
 
 #include "vr_api.h"
 #include "vr_engine.hpp"
+#include "vr_files.hpp"
 #include "vr_testkit.hpp"
 
 #include <cstdint>
@@ -265,7 +266,7 @@ void test_f()
     t.check(noConfigIn(android.crashDir), name, "a config seen where there is none");
     char cfgDir[maxPath];
     copyPath(cfgDir, android.crashDir, "/config_test");
-    Sys_mkdir(cfgDir);
+    (void)qvr::files::createDirectories(cfgDir);
     if(FILE* f = fopen(va("%s/%s", cfgDir, CONFIG_NAME), "wb"))
     {
         fputs("// vr_android_test\n", f);
@@ -282,6 +283,11 @@ void test_f()
         va("export: profile/%s not taken as the app's %s (%s)", CONFIG_NAME, CONFIG_NAME, found));
     t.check(resolveExport(found, "config_test", android.crashDir, nullptr), name, "export: a game-folder path not found");
     t.check(!resolveExport(found, "no_such_file.txt", android.crashDir, cfgDir), name, "export: a missing file found");
+
+    // (the test's files out of the crash folder again: a bug report's zip takes every file there)
+    (void)qvr::files::remove(probe);
+    (void)qvr::files::remove(va("%s/%s", cfgDir, CONFIG_NAME));
+    (void)qvr::files::remove(cfgDir);
 
     Con_Printf("vr_android_test: base %s, crash reports %s, first run %d\n", android.base, VR_CrashReportDir(),
         android.firstRun ? 1 : 0);
@@ -312,7 +318,11 @@ void export_f()
     }
     char to[maxPath];
     copyPath(to, internal, "/export");
-    Sys_mkdir(to);
+    if(!qvr::files::createDirectories(to)) // (not Sys_mkdir: a failure ends the game)
+    {
+        Con_Printf("vr_android_export: the export folder %s can't be made\n", to);
+        return;
+    }
     char from[maxPath];
     if(!resolveExport(from, Cmd_Argv(1), com_gamedir, internal))
     {
@@ -390,9 +400,16 @@ extern "C" const char* VR_AndroidStart(int argc, char** argv)
     copyPath(android.base, given ? given : external ? external : ".");
     char quakevr[maxPath];
     copyPath(quakevr, android.base, "/quakevr");
-    Sys_mkdir(quakevr);
     copyPath(android.crashDir, quakevr, "/crash");
-    Sys_mkdir(android.crashDir);
+    // (not Sys_mkdir: its failure is a Sys_Error, before the crash handler and SDL are up: an adb-pushed quakevr folder
+    // the app can't write ended the start there, QUEST_PLAN.md 6i. Said in logcat; the missing pak's line or the
+    // engine's own error follows with what to do.)
+    if(!qvr::files::createDirectories(android.crashDir))
+    {
+        char line[maxPath + 96];
+        q_snprintf(line, sizeof line, "Quake VR: %s can't be made (the folder not writable by the app?)", android.crashDir);
+        os::log(line, true);
+    }
     VR_SetCrashDir(quakevr); // (vr_crash.cpp's reports in <base>/quakevr/crash, before Host_Init sets the game's)
     char pak[maxPath];
     copyPath(pak, android.base, "/id1/pak0.pak");

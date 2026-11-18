@@ -58,7 +58,9 @@ bool OpenXrBackend::beginFrame(TrackingState& tracking, FrameState& frame)
         xrruntime::note("OpenXR: new eye swapchains for vr_xr_foveation %g\n", static_cast<double>(vr_xr_foveation.value));
         if(!createEyeSwapchains())
         {
-            return true;
+            // (no eye swapchains now: a frame would submit none; VR stops, sessionEnded, rather than limp on)
+            xrruntime::warn("OpenXR: the new eye swapchains could not be made: VR stops\n");
+            return false;
         }
         const XrSwapchain freshHandles[2] = {swapchains[0].handle, swapchains[1].handle};
         quest.apply(session, freshHandles);
