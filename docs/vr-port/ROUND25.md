@@ -5191,3 +5191,20 @@ His Quest 3 report: after an install and a new data push, minutes of Meta's thre
 - **Checks**: dev and ThinLTO 0 warnings; scenario_check 136/0, load_models 4/0, vr_run_check 12/0.
 - **In VR**: nothing to see in single player. MP: a remote player loading a magazine may see it at the well 1-3 units
   before it seats (B27).
+
+## MP B27: held rounds agree with the server (the port's drawn pushes; a remote client's held place sent) (agent/mp, 2026-11-18; never shipped by the coordinator)
+
+- **SP-relevant fix (branch `agent/mp-next-fixes-b27`, on origin/next: f943eee34, 04da5cffe)**: a round held from the
+  ammo pouch and the gun in the other hand were drawn pushed apart near the loading port (the held props' meet, the off
+  forearm against the gun): the gun's drawn port, which the server tests the round against, moved 0.6-1.3 units while
+  the server held the round unpushed, so a magazine drawn at the well could miss. `held::roundPortEase` eases both out
+  by the round's own point as it comes to the port; Collision Leniency 0 still keeps them apart.
+- **MP (agent/mp)**: QVR_SVC_HELDPLACE, the server's place of what a remote client's hands hold (a snapshot record);
+  his held things are drawn there from the first frame, not guessed from a delayed message (was 0.5-3 units off, worse
+  under load). Network version 38. mp_disarm checks B's view against the server's (under 0.5: 0.04-0.25 now).
+- **Unfinished**: `mp_fuzz --part injectup` (hostile client commands up); its bytes are not parsed yet (B28). Found:
+  NetQuake lets a coop guest kick others and ban addresses (B28: refuse, a server setting to allow).
+- **Checks**: dev 0 warnings; reload_test 116/0, front 34/0, magcollide 11/0, pouch 29/0, scenario_check 136/0,
+  load_models 4/0, vr_run_check 12/0; the MP acceptance in MP_PLAN.md's B27 results.
+- **In VR**: single player: load a magazine or a shell from the pouch: the gun should not shift as the round nears the
+  well or port, and a round seen in the well seats. MP: the same for a remote player.

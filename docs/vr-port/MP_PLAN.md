@@ -3645,3 +3645,42 @@ Next phase: B27 -- ours: the held magazine's gap between a remote client's view 
 gun moving as the off hand nears it (mp_disarm's debug-2 rows); a wider structured fuzz up (clc commands with fixed
 argument sizes, as B26's down). His: deploy the room service (`Misc/rendezvous/deploy.sh`) and try a room code between
 two real routers; a relay only if real punches fail often; IPv6 or a public room list if he wants them; B10v's VR checks.
+
+### B27 results: the held round agrees with the server; a guest's commands up (unfinished) (2026-11-18, dev no-LTO, loopback)
+
+- **The gun moving as the off hand nears it: the drawn pushes (single player's code too).** B's carry and body-collide
+  traces (`QVR_RELOAD_DEBUG=3`): the held props' meet (vr_held.cpp meetFrame) pushed the round and the gun apart by up
+  to 2.8 cm each at the 6-under pose (a rocket; a magazine 1.4), and the off forearm blocked the gun by 5.2 cm
+  (vr_selfcollide.cpp betweenHands, eased by the hand's distance to the port: a magazine's length under the well). Looks
+  only, but the gun's drawn port is the one the move sends and the server tests against, while the server holds the round
+  unpushed. Now `held::roundPortEase`: both eased out by the round's own point (heldRoundRef) from twice the old reach of
+  the port; Collision Leniency 0 still keeps them apart (reload_test.sh's check). Commits f943eee34 + 04da5cffe on
+  origin/next (branch `agent/mp-next-fixes-b27`), merged into agent/mp.
+- **The round's 0.5-3 unit gap: the remote client's guess of its place in the hand.** For 0.1 s after taking it B took
+  its place from where the server had it and this frame's controller, the server's hand a network delay older: a round
+  taken up on the move was drawn off by the hand's travel in that delay (0.55, 1.35, 2.75 units in three plain runs of the
+  same take; more under load), for as long as it was held. Now the server sends each remote client his hands' held things
+  and their places in his hands (QVR_SVC_HELDPLACE, a snapshot record after the predict state: unchanged, free;
+  integers), and holdFrame takes it from the first frame (and its changes: a regrip, Held Object Offsets). Single player
+  and a listen host: as before. Network version 38.
+- **mp_disarm**: a new check, B's drawn round and port against the server's rows at each still pose (under 0.5): round
+  0.08 / 0.25, port 0.04 / 0.06 (magazine / rocket), the same under `--load 16` (were 0.5-2.9 and 0.6-1.3). The magazine
+  seats at the first placement at the port (gap 0.0-0.1; the rocket 0.2-0.3: what is left of the meet's push at 6 under).
+- **Fuzz up (unfinished)**: `fuzz --part injectup` (FUZZ_HOSTILE_UP: the string commands a client may send with values
+  their parsers must check, kick and ban; `fuzz_sweep_up`: every clc code but disconnect with 0xFF/0x7F x 0, 12, 64
+  bytes, 136 in all). Its run: the server and A untouched, but only the first clc 0 drew a drop and B's "kick #1" did not
+  reach A: the bytes appended after one of B's packets' messages up are not what the server parses yet (B26's down
+  injection works). Not in the suite. NetQuake lets any coop client `kick` the others and `ban` addresses (host_cmd.c
+  Host_Kick_f, net_dgrm.c NET_Ban_f: refused only in deathmatch): a room-code stranger could empty a coop game.
+- **Runs (the acceptance)**: full suite 3 consecutive clean plain runs, then 3 clean under `--load 16`
+  (scratch/b27_c3_chain.txt: 6 of 6, 0 checks failed; ~21 min each); mp_disarm's view gaps in all six: round 0.05-0.25,
+  port 0.04-0.06. (Two earlier chains void: the SP tests beside the first, then its orphaned games holding the port.)
+- **Checks**: dev and ThinLTO 0 warnings; reload_test 116/0, front 34/0, magcollide 11/0, pouch 29/0,
+  scenario_check 136/0, load_models 4/0, vr_run_check 12/0. (A first chain was void: the kit's run.sh writes its script
+  into the same base's autoexec.cfg (`bases/mp/qbase`), and the SP tests ran beside it: never run both at once.)
+
+Next phase: B28 -- ours: why bytes injected up are not parsed (mp_proxy's append on B's packets: their reliable or
+unreliable framing), then `fuzz --part injectup` into the suite; a guest's kick and ban refused (src_client, not the
+listen host's own: conservative, a server setting to allow them). His: deploy the room service
+(`Misc/rendezvous/deploy.sh`) and try a room code between two real routers; a relay only if real punches fail often;
+IPv6 or a public room list if he wants them; B10v's VR checks.
