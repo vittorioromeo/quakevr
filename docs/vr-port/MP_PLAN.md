@@ -3601,3 +3601,42 @@ Next phase: B26 -- ours first: mp_fuzz's client crash on corrupt packets down at
 `QVR_RELOAD_DEBUG=2`); the dedicated server's load window; then 3 consecutive clean runs plain and under --load 16.
 His: deploy the room service (`Misc/rendezvous/deploy.sh`) and try a room code between two real routers; a relay only
 if real punches fail often; IPv6 or a public room list if he wants them; B10v's VR checks.
+
+### B26 results: B25b's crash found and fixed; a dedicated server's load window; the magazine's placement (2026-11-18, dev no-LTO, loopback)
+
+- **The crash: svc_setview took any number (a game bug, single player's code too).** B25b's "no dump" was wrong: the
+  report and .dmp were in the harness base's `quakevr/crash` (`2026-11-18_04-53-44`): an access violation in
+  `qvr::hands::current` reading `cl_entities[cl.viewentity]`. cl_parse.c's svc_setview took the server's short as sent;
+  a corrupt packet (or a hostile server) put the view entity outside the array, read by the next frame. Now a Host_Error
+  as CL_EntityNum's (0 to cl_max_edicts - 1); the start-sound entity check `>=` (was `>`, one past the array); Rogue's
+  team swatch reads the scoreboard only for a player's own view. Commit 2c2563ee3 on origin/next (branch
+  `agent/mp-next-fixes`), merged into agent/mp.
+- **Reproduced, deterministically**: mp_proxy.py `inject` (given bytes after the next packets' messages) and a fifth
+  corruption, a whole command after the message (a code the parser takes, its fixed argument bytes: the parser's own
+  checks meet the values, the message ending right after, as the crash needed); the corruptions' own seed, printed
+  (`fuzz --seed N`). `fuzz --part inject`: every svc code (but disconnect and serverinfo) and every svc_quakevr
+  sub-command with all-0xFF and all-0x7F arguments, 246: before the fix B crashed at the address of B25b's report;
+  after it 246 of 246, B running (144 left with a reason and joined again). The suite's mp_fuzz sends FUZZ_HOSTILE (the
+  three setviews, the scoreboard and stat indices) too. `fuzz --part signon` (--repeat N): B's joins under corrupt
+  packets down (60 joins: every one ended, in the game or left with its reason). The harness now copies any crash
+  report written during a run into its folder and prints `mp_crash:` (the exception line, the .dmp's path).
+- **The dedicated server's load window**: host.c's VR_TimeFrameEnd now ends a dedicated server's load at its first frame
+  with `sv.active` (was `cls.signon == SIGNONS`, never: the file cache and the heap's load hold kept for the whole game,
+  the start-up trace's "still in map load" every 2 s: 129 lines in one mp_fuzz server log before, 0 after; "map load
+  (map e1m1) end (took 328 ms)"). Commit 4d44dedcf on `agent/mp-next-fixes`; single player and listen servers unchanged.
+- **mp_disarm's magazine (4 of 18 in B25b): the placement's, not the seating's.** The server's reload rows (debug 2)
+  show the gun's port moving 0.6-1.3 units as B's off hand comes to it (once 1.2 sideways and back), and the round
+  landing up to 3.1 units from where B's game aimed it (along his facing, at the start of the placement); an open-loop
+  placement then misses the leniency (port radius + magazine radius, 2: unchanged) and each new placement moves the gun
+  again. A player watching the magazine and the well corrects: the test now does, from the server's last row after
+  each placement at the port (`vr_mock_hand_to off lport 0 dx dy dz`, the mock's new world offset), up to 4 at the
+  port, the gaps noted. Under --load 16, 4 of 4 seat (one at the 4th placement: gaps 3.7, 3.7, 3.1, 1.0: the old test
+  failed there). Open: why the gun moves as the off hand nears it, and the 3-unit gap between B's view of the held
+  round and the server's (the remote client's drawn held round against the server's grip offset?): in VR a remote
+  player may see the magazine at the well 1-3 units before it seats.
+- **Runs**: RUNS_PLACEHOLDER
+- **Checks**: dev and ThinLTO 0 warnings; scenario_check 136/0 (a first run 135/1: bench_crowd_ad "what it placed is
+  gone", B8d's known flake, while a --load 16 run went), load_models 4/0 (a first run without a verdict under the same
+  load, then 4/0 alone), vr_run_check 12/0.
+
+Next phase: NEXT_PLACEHOLDER
