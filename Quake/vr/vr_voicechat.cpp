@@ -514,6 +514,7 @@ void captureFrame()
     const bool want = active();
     if(!want)
     {
+        takeOpened(); // (an open still in flight when voice chat went off: taken, so it is closed here and not left recording)
         if(cap.device || cap.sending)
         {
             closeMic(false);
