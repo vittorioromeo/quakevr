@@ -3684,3 +3684,49 @@ unreliable framing), then `fuzz --part injectup` into the suite; a guest's kick 
 listen host's own: conservative, a server setting to allow them). His: deploy the room service
 (`Misc/rendezvous/deploy.sh`) and try a room code between two real routers; a relay only if real punches fail often;
 IPv6 or a public room list if he wants them; B10v's VR checks.
+
+### B28 results: a guest can't kick or pause; the hostile commands up parsed (2026-11-18, dev no-LTO, loopback)
+
+- **Why B27's bytes up went unread: they followed acks.** mp_proxy appended the next command to the next game packet
+  either way; up, most of B's packets are acks of the server's reliable chunks, whose bytes after the header
+  Datagram_GetMessage never reads (a reliable chunk's would join the next chunk's). Now only after an unreliable
+  datagram's message (B sends one each frame in the game). And fuzz_inject_up judged a drop by B's own game, which is
+  told only when his connection can take the svc_disconnect then (SV_DropClient): now by the server's slots
+  (vr_mp_status's mp_client rows). With both: `fuzz --part injectup` 138 sent (35 hostile string commands, every clc
+  code with 0xFF/0x7F x 0, 12, 64 bytes), B dropped 98 times, each with the server's reason (unknown command char 74,
+  badread 12, malformed QVR_CLC_MOVES 6, malformed QVR_CLC_VOICE 6); the server and A untouched, no crash.
+- **Its first run: a guest's `kick # 1` kicked A** (NetQuake's Host_Kick_f refuses a client only in deathmatch; B27's
+  `kick #1` was one token, a player named "#1"). The audit of every client-executable command (Cmd_AddCommand_ClientCommand:
+  status, god, notarget, fly, name, noclip, setpos, say, say_team, tell, color, kill, pause, spawn, begin, prespawn,
+  kick, ping, give, vr_scene_clean/count and the vr_* state reports; cmd.c refuses any other from a client, `ban`
+  too: map, changelevel, restart never reach the server from a client): **kick, pause and vr_scene_clean** act on
+  everyone's game. Now `VR_GuestMay` (vr_server.cpp): a guest (every player but a listen host's own, the loopback's;
+  a dedicated server's every one) is refused them and told so ("kick: refused, only the host may (this server's
+  vr_mp_guest_admin is 0)"), unless `vr_mp_guest_admin 1` (default 0, archived; Debug > Network: Guests May Kick and
+  Pause); the server's console always may. A client's `ban` (the console's own command) is answered now (cmd.c).
+  **Talk**: say, say_team and tell from a guest under QuakeWorld's flood guard (more than 4 in 8 s: silent 10 s, told).
+  **Self-only cheats** (god, notarget, fly, noclip, give, setpos) stay NetQuake's in coop (refused in deathmatch):
+  they change only the player's own game; sv_cheats (the rerelease's) is not consulted.
+- **setpos (single player's code too)**: `setpos 1e30 -1e30 1e30` kept the player at 1e30 (his origin sent to every
+  client; `setpos nan` was reset by SV_CheckVelocity); a huge angle overflowed the integer casts writing it. Now
+  refused, told why, unless finite, within 4096 units of the world's bounds and 36000 degrees. Commit 1e3594c65 on
+  origin/next (branch `agent/mp-next-fixes-b28`), merged into agent/mp (with origin/next's 4 new commits).
+- **Tests**: new suite scenario `mp_guests` (a listen host and a guest: the guest's kick, pause, vr_scene_clean and ban
+  refused and told, A in, the game not paused; the host pauses and unpauses; the guest's 4 messages then silenced,
+  the host's own talk not held; `vr_mp_guest_admin 1`: the guest's pause goes; the host kicks the guest): 13/0. The
+  suite's mp_fuzz now sends the 138 commands up too (after the hostile commands down, ~3 min).
+- **Runs (the acceptance), unfinished at the session's end**: the chain (`scratch/b28_all.sh`: 3 plain suites, then 3
+  under `--load 16`; tallies in `scratch/b28_all.txt`) was left running. Its first plain suite (48 scenarios): all
+  clean but mp_guests' last check, "the host kicks a guest" judged by B's "Kicked by" line, which B's game gets only
+  when his reliable channel is free (SV_DropClient): the check now reads the server (B's slot gone, A's kept); the
+  second suite ran the old check, the rest the new. mp_fuzz (with the 138 up) 17/0 there.
+- **Checks**: dev and ThinLTO 0 warnings; scenario_check 136/0, load_models 4/0, vr_run_check 12/0.
+- **Open (minor)**: `kick # N` with no message prints "Kicked by X: " and an empty message (NetQuake's parse of the
+  number's tail); a dropped client whose connection was busy learns of it only at his timeout (vr_mp_client_timeout).
+
+Next phase: B29 -- ours: a dropped client told even when his reliable channel is busy (an unreliable notice beside
+SV_DropClient's svc_disconnect: now he learns at vr_mp_client_timeout); name and colour change floods (each broadcast
+to every client: the talk guard's for guests); a structured fuzz of B's join up (his signon messages corrupted, as
+B26's down). His: deploy the room service (`Misc/rendezvous/deploy.sh`) and try a room code between two real routers;
+a relay only if real punches fail often; IPv6 or a public room list if he wants them; B10v's VR checks; whether a
+guest's self-only cheats (god, noclip, give...) in coop should follow sv_cheats too.

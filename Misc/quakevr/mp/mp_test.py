@@ -6097,11 +6097,15 @@ def guests(s):
     s.check("vr_mp_guest_admin 1: a guest's pause and unpause go", g1 is not None and g2 is not None, "%s; %s" % (
         g1[1].strip() if g1 else "refused", g2[1].strip() if g2 else "not unpaused"))
     a.cmd("vr_mp_guest_admin 0")
-    since_b = b.mark()
+    # (the server's word: B's game is told "Kicked by" only when his reliable channel is free then -- SV_DropClient's
+    # svc_disconnect; else he learns at his timeout: B29)
+    since_a = a.mark()
     a.cmd("kick # %d" % eb)
-    kicked = wait_quietly(b, r"^Kicked by ", 20, since_b, "B kicked by the host")
-    s.check("the host kicks a guest", kicked is not None,
-            kicked[1].strip().encode("ascii", "replace").decode() if kicked else "B not kicked")
+    kicked = wait_quietly(a, r"^Client .* removed", 20, since_a, "B removed by the host's kick")
+    rows = status(a)
+    slots = set(int(m.group(1)) for m in (re.match(r"mp_client: slot=(\d+)", l) for l in rows) if m)
+    s.check("the host kicks a guest", kicked is not None and eb - 1 not in slots and ea - 1 in slots,
+            "removed %s; slots %s" % (kicked is not None, sorted(slots)))
 
 
 def vanish(s):

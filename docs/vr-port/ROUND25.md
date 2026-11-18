@@ -5208,3 +5208,19 @@ His Quest 3 report: after an install and a new data push, minutes of Meta's thre
   load_models 4/0, vr_run_check 12/0; the MP acceptance in MP_PLAN.md's B27 results.
 - **In VR**: single player: load a magazine or a shell from the pouch: the gun should not shift as the round nears the
   well or port, and a round seen in the well seats. MP: the same for a remote player.
+
+## MP B28: a guest can't kick or pause; hostile client commands up fuzzed (agent/mp, 2026-11-18; never shipped by the coordinator)
+
+- **SP-relevant fix (branch `agent/mp-next-fixes-b28`, on origin/next: 1e3594c65)**: `setpos` refuses a value not
+  finite, more than 4096 units off the map's bounds or an angle past 36000 degrees (a client's `setpos 1e30 ...` kept
+  him at 1e30, sent to every client; huge angles overflowed integer casts), and says why.
+- **MP (agent/mp)**: `vr_mp_guest_admin` (default 0; Debug > Network: Guests May Kick and Pause): a guest (any player
+  but the listen host's own) is refused kick, pause and vr_scene_clean and told so (NetQuake let any coop client kick
+  the others). A client's `ban` is answered (cmd.c). Guests' say/say_team/tell: QuakeWorld's flood guard (more than 4
+  in 8 s: 10 s silent). Self-only cheats unchanged (coop allows them, as NetQuake).
+- **Harness**: mp_proxy injects after unreliable datagrams only (B27's bytes up followed acks: never read); the suite's
+  mp_fuzz sends 138 hostile commands up (server and A untouched; 98 drops, each with a reason); new scenario mp_guests.
+- **Checks**: dev and ThinLTO 0 warnings; scenario_check 136/0, load_models 4/0, vr_run_check 12/0; the MP acceptance
+  in MP_PLAN.md's B28 results (left running).
+- **In VR**: host a coop game with a friend: his `kick` and `pause` are refused with a message, yours work; Debug >
+  Network: Guests May Kick and Pause lets his pause go.
