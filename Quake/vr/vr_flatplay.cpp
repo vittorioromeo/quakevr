@@ -2476,11 +2476,12 @@ void frame()
     flatsweep::frame(); // vr_flat_sweep's next step, when one runs: before the pose reads the look
     flickTestFrame();   // vr_flat_flick_test's next flick, when one runs: likewise
     flataimsens::frame(); // vr_flat_aim_sens_test's next step, when one runs
+    flattp::frame(on); // the third-person camera's field of view, its test (vr_flat_tp; vr_flattp.cpp): while the fly camera
+                       // flies too, its view's field of view back to 1 (flattp::on is false then)
     if(!frozen)
     {
         flatsight::frame(); // the ironsight's key edge, and the eases; it resets itself when the mode is off
         flatspeedfov::frame(on); // the speed FOV's ease (vr_flat_speed_fov); gone at once when the mode is off
-        flattp::frame(on); // the third-person camera's field of view, its test (vr_flat_tp; vr_flattp.cpp)
         flathit::frame();   // a hit's punch of the view: this frame's part of it into the aim, before the pose reads the look
     }
     if(on && !frozen)
