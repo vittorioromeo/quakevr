@@ -1551,7 +1551,10 @@ void Sbar_DrawFace (void)
 
 // PGM 01/19/97 - team color drawing
 // PGM 03/02/97 - fixed so color swatch only appears in CTF modes
-	if (rogue && (cl.maxclients != 1) && (teamplay.value>3) && (teamplay.value<7))
+	// QVR (MP_PLAN B26): only for a player's view (the scoreboard has cl.maxclients entries; a camera entity's view or a
+	// bad svc_setview read before the array's start or past its end)
+	if (rogue && (cl.maxclients != 1) && (teamplay.value>3) && (teamplay.value<7) && cl.viewentity >= 1 &&
+		cl.viewentity <= cl.maxclients)
 	{
 		int	top, bottom;
 		int	xofs;
