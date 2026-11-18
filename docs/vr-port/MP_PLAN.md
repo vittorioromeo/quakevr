@@ -3562,3 +3562,42 @@ gestures (mp_disarm's yank and toss, the ammo pouch) fail -- not a target; `--lo
 Next phase: B26 -- his: deploy the room service (`Misc/rendezvous/deploy.sh`) and try a room code between two real
 routers (the screenshots in B24 show the pages); ours: a relay only if real punches fail often; IPv6 or a public room
 list (`vr_mp_public`) if he wants them; B10v's VR checks are his.
+
+### B25b results: B25's acceptance; a coop join's telefrag; mp_dm's restart (2026-11-18, dev no-LTO, loopback)
+
+- **mp_ground** (B25's revert of the head-height turn): 16/0 alone, then in every full run below.
+- **mp_rejoin's crash return after the same-name step: a game bug, not the harness.** D's join (B's name) moved the coop
+  starts' turn on; B's return then took the start C stood on and telefragged him ("C was telefragged by B"; B died in
+  the burst and took C's backpack: health 0, shells 34). Stock Quake's coop `SelectSpawnPoint` takes the next start in
+  turn whoever stands on it: any coop join or return in progress can telefrag a player at a start. Now
+  `VR_CoopSpawnPoint` (client.qc): the next start in turn if no living player is within 64 units (deathmatch's
+  `VR_DMPlaceBlocked`), else the next clear one round (every coop start and the player start), else a clear place
+  beside one (`VR_DMSpotBeside`), else stock. The same-name step is back in the default run, plus a check that nothing
+  in mp_rejoin was telefragged (18 checks). Coop only: single player never takes this path.
+- **mp_dm under load: vr_dm_test 7 set `deathmatch` 0 for 3 frames** (its caps out of deathmatch); a player's respawn
+  in them took respawn()'s single-player way, `restart`: dm4 started again and 7 checks failed. Now a test flag
+  (`vr_dml_test_off`, vr_dmloose.qc) turns the caps off; the game stays in deathmatch.
+- **mp_melee's jittered swing**: the clean reference is vr_mock_play's real-time gesture; one clean take under load was
+  4.98 against 3.92-3.98 in every other run. The clean swing is taken again once when the two differ.
+- **mp_disarm's magazine load** (use part): each placement now waits for B's echo, and the whole is tried again from the
+  start pose twice. Not enough: the magazine stopped ~2.5 units from the port (leniency 2) in 4 of 18 full runs (2 with the retries) and
+  every retry stopped there too; `disarm --part use` alone passed 4 of 4 under load. Open.
+- **Runs (full suite, 47 scenarios)**: before B25b's fixes, plain 2 clean then mp_lagcomp (B's move view times 418-556
+  ms, the machine busy beyond --load 16: every other run 350-415) and mp_disarm; load 1 (melee, disarm), then 2 clean.
+  After the disarm/melee changes: plain 3 of 3 clean; load 1 clean, mp_dm (the restart above), 1 clean. After the
+  dm fix: plain clean 1 of 3 (mp_predictslide one move 1.65 units off; mp_disarm + mp_fuzz), load 2 of 3 clean
+  (mp_disarm). So: 3 consecutive clean plain runs once (b25b2), never 3 consecutive under load (2 at most).
+- **A crash: mp_fuzz, B's game exited 0xC0000005** after the server's corrupted packets down, during a rejoin's signon
+  (its log ends at "signon prewarm"), 1 run of 18; no dump. Open, first for B26.
+- **Dedicated servers' load window never closes** (next's code, not B25b's): host.c passes `cls.signon == SIGNONS` to
+  VR_TimeFrameEnd, never true on a dedicated server, so its map load stays open (the file cache and the heap's load
+  hold on for the whole game; since startuplog a "still in map load" line every 2 s). Probably
+  `|| (isDedicated && sv.active)`; not changed here (it shifts every dedicated scenario's timing: wants its own runs).
+- **Checks**: dev and ThinLTO 0 warnings; scenario_check 136/0, load_models 4/0, vr_run_check 12/0 (after the coop
+  spawn change).
+
+Next phase: B26 -- ours first: mp_fuzz's client crash on corrupt packets down at signon (reproduce with
+`suite --only mp_fuzz --suite-repeat N`); mp_disarm's magazine stopping 2.5 units off the port (reload debug 2:
+`QVR_RELOAD_DEBUG=2`); the dedicated server's load window; then 3 consecutive clean runs plain and under --load 16.
+His: deploy the room service (`Misc/rendezvous/deploy.sh`) and try a room code between two real routers; a relay only
+if real punches fail often; IPv6 or a public room list if he wants them; B10v's VR checks.

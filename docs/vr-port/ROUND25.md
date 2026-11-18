@@ -5158,3 +5158,18 @@ His Quest 3 report: after an install and a new data push, minutes of Meta's thre
 - Checks: dev and ReleaseLTO 0 warnings; no local NDK (ANDROID_NDK_HOME unset): the Android build not run (the code is
   portable C++, no `__ANDROID__` paths of its own); `vr_startup_trace check` 4 passed, 0 failed (3 heartbeat lines);
   scenario_check 136/136 PASS; load_models_test 4 passed, 0 failed.
+
+## MP B25b: B25's acceptance; a coop join's telefrag; mp_dm's restart (agent/mp, 2026-11-18; never shipped by the coordinator)
+
+- **Coop telefrag (MP only)**: a player joining or coming back to a coop game took the next start in turn and
+  telefragged whoever stood on it (stock Quake). Coop spawns now skip a start a living player stands on
+  (`VR_CoopSpawnPoint`, client.qc): mp_rejoin's same-name step is back in its default run (B25 had split it out:
+  its later crash return came back dead with C's backpack).
+- **mp_dm's restart**: vr_dm_test 7 set `deathmatch` 0 for 3 frames; a respawn there restarted dm4. A test flag now.
+- **Harness**: mp_melee's jittered swing against a retaken clean one when they differ; mp_disarm's magazine load waits
+  for each placement and retries (not enough: still open).
+- **Runs** (full suite): 3 consecutive clean plain runs once; under `--load 16` 2 consecutive at most. Failing: mp_disarm's
+  magazine (4 of 18), one mp_fuzz client crash (0xC0000005 after corrupt packets down), one mp_predictslide move, one
+  mp_lagcomp run with the machine over-busy. MP_PLAN B25b has the per-run tallies; B26 takes the crash first.
+- **Checks**: dev and ThinLTO 0 warnings; scenario_check 136/0, load_models 4/0, vr_run_check 12/0.
+- **In VR**: single player unchanged. Coop: a friend joining no longer kills the player standing at a start.
