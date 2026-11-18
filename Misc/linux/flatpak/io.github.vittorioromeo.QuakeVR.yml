@@ -49,6 +49,9 @@ finish-args:
   - --filesystem=xdg-data/Steam:ro
   - --filesystem=~/.steam:ro
   - --filesystem=xdg-config/openvr:ro
+  # SteamVR's logs folder written: vrclient, in the game's process, writes its log there (vrclient_ironwail.txt) and
+  # fails to start without it (-51, XR_ERROR_RUNTIME_UNAVAILABLE; GitHub #82, a PSVR2 player). The rest stays read-only.
+  - --filesystem=xdg-data/Steam/logs
 
 modules:
   # The QuakeC compiler, for the build only (the commit of the author's fteqcc64.exe: "git-6729-f937b9d88"), with its

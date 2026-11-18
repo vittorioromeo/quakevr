@@ -171,6 +171,28 @@ and the OpenXR loader, checked headless in WSL (a SteamVR manifest whose library
   before video init, the config read early), every loader message in `qvr_openxr.txt`. The loader reads the variable
   once, at its first message: from the next game start when VR already started. `flatpak run
   --env=XR_LOADER_DEBUG=all io.github.vittorioromeo.QuakeVR` does the same from outside.
+- **A PSVR2 on SteamVR 2.19.3 (2026-11-18; Ubuntu 26.04 on a PS5's Oberon, Mesa 26.2.7, GNOME 50 on Wayland; the
+  Flatpak at 5187f3e, before `--device=shm`)**: the player's logs (the bug report's zip) and what they tried:
+  - **SteamVR's logs folder must be writable**: with the Steam folder read-only, `vrclient` failed to start (-51);
+    writing `~/.local/share/Steam/logs` fixed it. The manifest writes that folder alone from 2026-11-18
+    (`--filesystem=xdg-data/Steam/logs`); an older install: `flatpak override --user
+    --filesystem=xdg-data/Steam/logs io.github.vittorioromeo.QuakeVR`. The runtime report and a failed start say
+    whether the folder is writable.
+  - **With `--device=shm` too, the game's side worked**: `xrCreateSession` (GLX: display, drawable, context, FBConfig and
+    visual all set; the context current on the main thread for every call), the eye and panel swapchains, `OpenXR:
+    started`, the session READY; SteamVR's compositor logged the game's connection ("External connection from
+    /app/lib/quakevr/ironwail"). 3.5 s later every SteamVR process disconnected at once and the compositor's log
+    stopped without a shutdown: GNOME Shell had crashed (an X `BadWindow`, SIGABRT) and logged the player out, which
+    ended the session's processes, the game too. Not the game's crash: the game changes nothing of its window when VR
+    starts, and SteamVR's compositor drives the headset through GNOME's DRM lease (`wp_drm_lease_device_v1`) at that
+    moment. A GNOME or SteamVR fault; worth a report to them with GNOME Shell's journal.
+  - **With wider permissions**: SIGABRT in `vrclient.so`, a SIGSEGV at 0x60 in `xrBeginFrame` (`libvulkan_radeon.so`
+    and `vrclient.so` on the stack), SteamVR starting more of its helpers though one ran, a `vrwebhelper` crash. No
+    logs of those runs. The likeliest common cause is the sandbox's own PID namespace: SteamVR names its shared
+    resources after `vrserver`'s PID ("CSharedResourceNamespaceServer sent namespace data: <pid>"), which means
+    another process, or none, inside the sandbox; a client that decides its server is gone starts SteamVR again. The
+    sandbox can't share the host's PIDs (Flatpak always has its own namespace), so **SteamVR is for the native build**
+    (LINUX.md, "Build": two commands) until the AppImage below; the Flatpak for Monado and WiVRn.
 - **Other runtimes for a SteamVR headset**: WiVRn streams to the standalone headsets its client runs on, Monado drives
   the headsets it has drivers for (LINUX.md, "Run"); xrizer is the other way round (OpenVR games on an OpenXR runtime),
   not needed for this game, which speaks OpenXR.
