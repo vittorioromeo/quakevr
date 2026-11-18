@@ -133,6 +133,7 @@ Staying here by his decision (2026-11-05): pickup thinks, heart gib and berserk 
 
 - **Tester feedback, "Joyeuse" (Discord, 2026-11-18), comfort and controls:**
   - Sprint as a toggle on the thumbstick click (an option; today it's hold-to-sprint).
+  - Run by double-tapping the locomotion stick: two quick pushes in the same direction start running (his idea, 2026-11-18; an option next to the sprint toggle).
   - Ledge climbing: an option so the climb-over (mantle) waits for releasing the grab or pressing jump, instead of
     happening automatically once the body is raised high enough.
   - Ammo pouch height has no slider among the holster sliders (she had to use the drag-and-drop Holster Setup, which
