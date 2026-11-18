@@ -41,7 +41,7 @@
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/String/String.hpp"
 #include "vr_zancle.hpp"
-#include <emmintrin.h> // (SSE2: x64's baseline)
+#include "vr_simd.hpp" // (the filters four lanes at a time: SSE2 on x64, NEON on ARM)
 #include <stdio.h>
 
 namespace qvr::audio::detail

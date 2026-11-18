@@ -53,7 +53,10 @@
 #include "SDL.h"
 #endif
 
-#include <immintrin.h> // (the bake's rays: SSE2, x64's baseline, four at a time; AVX, when there, eight)
+#include "vr_simd.hpp" // (the bake's rays four at a time: SSE2 on x64, NEON on ARM)
+#if defined(QVR_SIMD_SSE2)
+#include <immintrin.h> // (AVX, when there: eight at a time)
+#endif
 #include <stdio.h>
 #include <string.h>
 #include "vr_tracy.h"
@@ -1121,43 +1124,53 @@ struct RayInput
     float* best;
 };
 
-void raysSse(const RayInput& in)
+// Four rays at a time on any backend of vr_simd.hpp (Native: SSE2 on x64, NEON on ARM; vr_simd_test runs it on Scalar
+// too). The operations and their order are the SSE2 kernel's before vr_simd.hpp, and so are the bits.
+template<class V>
+void raysX4(const RayInput& in)
 {
+    using F4 = typename V::F4;
     const PoseScratch& s = *in.s;
-    const __m128 vtmin = _mm_set1_ps(in.tmin), vzero = _mm_setzero_ps(), vone = _mm_set1_ps(1.f);
-    const __m128 vtiny = _mm_set1_ps(1e-9f), absMask = _mm_castsi128_ps(_mm_set1_epi32(0x7fffffff));
+    const F4 vtmin = V::set1(in.tmin), vzero = V::zero(), vone = V::set1(1.f);
+    const F4 vtiny = V::set1(1e-9f);
     for(int r = 0; r < RAYS; r += 4)
     {
-        const __m128 ddx = _mm_load_ps(in.dx + r), ddy = _mm_load_ps(in.dy + r), ddz = _mm_load_ps(in.dz + r);
-        __m128 vbest = _mm_set1_ps(in.reach);
+        const F4 ddx = V::load(in.dx + r), ddy = V::load(in.dy + r), ddz = V::load(in.dz + r);
+        F4 vbest = V::set1(in.reach);
         for(int c = 0; c < in.nc; c++)
         {
-            const __m128 e1x = _mm_set1_ps(s.e1x[c]), e1y = _mm_set1_ps(s.e1y[c]), e1z = _mm_set1_ps(s.e1z[c]);
-            const __m128 e2x = _mm_set1_ps(s.e2x[c]), e2y = _mm_set1_ps(s.e2y[c]), e2z = _mm_set1_ps(s.e2z[c]);
+            const F4 e1x = V::set1(s.e1x[c]), e1y = V::set1(s.e1y[c]), e1z = V::set1(s.e1z[c]);
+            const F4 e2x = V::set1(s.e2x[c]), e2y = V::set1(s.e2y[c]), e2z = V::set1(s.e2z[c]);
             // pv = cross(d, e2); det = dot(e1, pv)
-            const __m128 pvx = _mm_sub_ps(_mm_mul_ps(ddy, e2z), _mm_mul_ps(e2y, ddz));
-            const __m128 pvy = _mm_sub_ps(_mm_mul_ps(ddz, e2x), _mm_mul_ps(e2z, ddx));
-            const __m128 pvz = _mm_sub_ps(_mm_mul_ps(ddx, e2y), _mm_mul_ps(e2x, ddy));
-            const __m128 det = _mm_add_ps(_mm_add_ps(_mm_mul_ps(e1x, pvx), _mm_mul_ps(e1y, pvy)), _mm_mul_ps(e1z, pvz));
-            __m128 ok = _mm_cmpnlt_ps(_mm_and_ps(det, absMask), vtiny);
-            const __m128 inv = _mm_div_ps(vone, det);
+            const F4 pvx = V::sub(V::mul(ddy, e2z), V::mul(e2y, ddz));
+            const F4 pvy = V::sub(V::mul(ddz, e2x), V::mul(e2z, ddx));
+            const F4 pvz = V::sub(V::mul(ddx, e2y), V::mul(e2x, ddy));
+            const F4 det = V::add(V::add(V::mul(e1x, pvx), V::mul(e1y, pvy)), V::mul(e1z, pvz));
+            F4 ok = V::cmpNotLt(V::abs(det), vtiny);
+            const F4 inv = V::div(vone, det);
             // u = dot(s, pv) * inv
-            const __m128 sx = _mm_set1_ps(s.sx[c]), sy = _mm_set1_ps(s.sy[c]), sz = _mm_set1_ps(s.sz[c]);
-            const __m128 u = _mm_mul_ps(_mm_add_ps(_mm_add_ps(_mm_mul_ps(sx, pvx), _mm_mul_ps(sy, pvy)), _mm_mul_ps(sz, pvz)), inv);
-            ok = _mm_and_ps(ok, _mm_and_ps(_mm_cmpnlt_ps(u, vzero), _mm_cmpngt_ps(u, vone)));
+            const F4 sx = V::set1(s.sx[c]), sy = V::set1(s.sy[c]), sz = V::set1(s.sz[c]);
+            const F4 u = V::mul(V::add(V::add(V::mul(sx, pvx), V::mul(sy, pvy)), V::mul(sz, pvz)), inv);
+            ok = V::bitAnd(ok, V::bitAnd(V::cmpNotLt(u, vzero), V::cmpNotGt(u, vone)));
             // v = dot(d, q) * inv
-            const __m128 qx = _mm_set1_ps(s.qx[c]), qy = _mm_set1_ps(s.qy[c]), qz = _mm_set1_ps(s.qz[c]);
-            const __m128 v = _mm_mul_ps(_mm_add_ps(_mm_add_ps(_mm_mul_ps(ddx, qx), _mm_mul_ps(ddy, qy)), _mm_mul_ps(ddz, qz)), inv);
-            ok = _mm_and_ps(ok, _mm_and_ps(_mm_cmpnlt_ps(v, vzero), _mm_cmpngt_ps(_mm_add_ps(u, v), vone)));
+            const F4 qx = V::set1(s.qx[c]), qy = V::set1(s.qy[c]), qz = V::set1(s.qz[c]);
+            const F4 v = V::mul(V::add(V::add(V::mul(ddx, qx), V::mul(ddy, qy)), V::mul(ddz, qz)), inv);
+            ok = V::bitAnd(ok, V::bitAnd(V::cmpNotLt(v, vzero), V::cmpNotGt(V::add(u, v), vone)));
             // dist = dot(e2, q) * inv
-            const __m128 dist = _mm_mul_ps(_mm_set1_ps(s.e2q[c]), inv);
-            ok = _mm_and_ps(ok, _mm_and_ps(_mm_cmpgt_ps(dist, vtmin), _mm_cmplt_ps(dist, vbest)));
-            vbest = _mm_or_ps(_mm_and_ps(ok, dist), _mm_andnot_ps(ok, vbest));
+            const F4 dist = V::mul(V::set1(s.e2q[c]), inv);
+            ok = V::bitAnd(ok, V::bitAnd(V::cmpGt(dist, vtmin), V::cmpLt(dist, vbest)));
+            vbest = V::bitOr(V::bitAnd(ok, dist), V::bitAndNot(ok, vbest));
         }
-        _mm_store_ps(in.best + r, vbest);
+        V::store(in.best + r, vbest);
     }
 }
 
+void raysSse(const RayInput& in)
+{
+    raysX4<simd::Native>(in);
+}
+
+#if defined(QVR_SIMD_SSE2)
 #if defined(__clang__) || defined(__GNUC__)
 #define QVR_TARGET_AVX __attribute__((target("avx")))
 #else
@@ -1204,6 +1217,13 @@ QVR_TARGET_AVX void raysAvx(const RayInput& in)
 
 // Whether raysAvx may run (the processor and the system: SDL's check). Made before main, read by the bake's threads.
 const bool cpuHasAvx = SDL_HasAVX() == SDL_TRUE;
+#else
+void raysAvx(const RayInput& in) // (x86 only: never chosen elsewhere)
+{
+    raysSse(in);
+}
+constexpr bool cpuHasAvx = false;
+#endif
 
 // One pose: for each vertex, the share of cosine-weighted rays over its hemisphere that the model's own triangles
 // stop within `reach` (a hit counts less the farther it is: 1 - t / reach). The same bytes as testing every triangle

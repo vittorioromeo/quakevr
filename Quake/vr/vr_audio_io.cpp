@@ -264,24 +264,21 @@ float fullBandAt(const short* x, int length, int loop, double pos)
     float y = 0.f;
     if(first >= 0 && first + interpTaps <= length)
     {
-        // Eight taps at a time (SSE2): two sums of four lanes, added at the end (the same taps as one by one, summed in
-        // another order: within a few units in the last place).
+        // Eight taps at a time (vr_simd.hpp: SSE2 on x64, NEON on ARM): two sums of four lanes, added at the end (the
+        // same taps as one by one, summed in another order: within a few units in the last place).
         static_assert(interpTaps % 8 == 0);
+        using V = simd::Native;
         const short* s = x + first;
-        __m128 acc0 = _mm_setzero_ps();
-        __m128 acc1 = _mm_setzero_ps();
+        V::F4 acc0 = V::zero();
+        V::F4 acc1 = V::zero();
         for(int j = 0; j < interpTaps; j += 8)
         {
-            const __m128i v = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s + j));
-            const __m128 lo = _mm_cvtepi32_ps(_mm_srai_epi32(_mm_unpacklo_epi16(v, v), 16));
-            const __m128 hi = _mm_cvtepi32_ps(_mm_srai_epi32(_mm_unpackhi_epi16(v, v), 16));
-            acc0 = _mm_add_ps(acc0, _mm_mul_ps(_mm_loadu_ps(row + j), lo));
-            acc1 = _mm_add_ps(acc1, _mm_mul_ps(_mm_loadu_ps(row + j + 4), hi));
+            V::F4 lo, hi;
+            V::widenS16(s + j, lo, hi);
+            acc0 = V::add(acc0, V::mul(V::loadu(row + j), lo));
+            acc1 = V::add(acc1, V::mul(V::loadu(row + j + 4), hi));
         }
-        __m128 sum = _mm_add_ps(acc0, acc1);
-        sum = _mm_add_ps(sum, _mm_movehl_ps(sum, sum));
-        sum = _mm_add_ss(sum, _mm_shuffle_ps(sum, sum, 1));
-        return _mm_cvtss_f32(sum);
+        return V::hsum(V::add(acc0, acc1));
     }
     // Past the end: the loop's start again (or silence); before the start: a loop from 0's end (or silence).
     const int loopLen = loop >= 0 && loop < length ? length - loop : 0;
