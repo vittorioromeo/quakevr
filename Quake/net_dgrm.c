@@ -125,9 +125,14 @@ static int QueuePop (dgrmqueue_t *q, byte *out, int size, struct qsockaddr *from
 
 static void QueueClear (dgrmqueue_t *q)
 {
-	struct qsockaddr unused;
-	while (QueuePop (q, sharedBuffer, 0, &unused))
-		;
+	while (q->first)
+	{
+		dgrmpacket_t *p = q->first;
+		q->first = p->next;
+		free (p);
+	}
+	q->last = NULL;
+	q->count = 0;
 }
 
 // QVR: (B23) hosting and joining by room code (MP_DESIGN.md "NAT traversal", step 2; the service: Misc/rendezvous/).
