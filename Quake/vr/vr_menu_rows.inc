@@ -4894,6 +4894,12 @@ QVR_TOGGLE(vr_xr_vendor_profiles, "Vendor Controller Profiles",
     "Pico, HTC Vive Cosmos and Focus 3, HP Reverb G2 and Samsung Odyssey controllers get their own buttons, "
     "menu button included, when the runtime offers them. Off: they go as the runtime emulates them (the "
     "1.0.0 way, if your hands' angle changed). From the next VR start.")
+QVR_TOGGLE(vr_alias_prepass_world, "World Models Pre-pass",
+    "vr_alias_prepass_world: the world's models (monsters, items) drawn into the depth first, then shaded once a "
+    "pixel (On, as before), or shaded as drawn (Off: one draw a batch less). The same images either way.")
+QVR_TOGGLE(vr_alias_batch_posed, "Batch Posed Models",
+    "vr_alias_batch_posed: the world's posed models of one model and skin (armed grunts, their armour, ragdolls) "
+    "drawn as one batch, their bones in one buffer (On), or a batch each (Off, as before). The same images.")
 QVR_TOGGLE(vr_perf_record, "Perf Recorder",
     "Every frame's CPU, GPU and OpenXR times and its events (shader compiles, uploads, loads, saves) to a CSV while on: profile/perf/. Misc/quakevr/perf_report.py ranks the hitches.")
 QVR_TOGGLE(vr_xr_log_timing, "OpenXR Timing Log",

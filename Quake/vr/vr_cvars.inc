@@ -613,6 +613,12 @@ QVR_CVAR(vr_stereo_single_passes, "3", CVAR_NONE)
 QVR_CVAR(vr_xr_log_timing, "0", CVAR_NONE) // (1 before vr_cfg_version 202)
 // Debug > Profiling: the perf recorder (vr_perfrec.hpp): 1 writes every frame's times and events to a CSV (on Android the
 // app's internal files/perf/, else <game>/profile/perf/) until set back to 0 (a new file each time); not saved.
+// Debug > Profiling > World Models Pre-pass: 1 the world's models (monsters, items) drawn into the depth first, then
+// shaded once a pixel (as before); 0 shaded as drawn: a draw a batch less (the A/B; from agent/quest).
+QVR_CVAR(vr_alias_prepass_world, "1", CVAR_NONE)
+// Debug > Profiling > Batch Posed Models: 1 the world's posed models of one model and skin (armed grunts on the
+// authored rig, their armour, ragdolls) drawn as one batch, their bones in one buffer; 0 a batch each, as before.
+QVR_CVAR(vr_alias_batch_posed, "0", CVAR_NONE)
 QVR_CVAR(vr_gl_passes, "0", CVAR_NONE)            // 1: the next frame's draw framebuffer binds and alias batches listed in the console (vr_profile.cpp; back to 0 after)
 QVR_CVAR(vr_perf_record, "0", CVAR_NONE)
 // Tests of the choice without the real runtimes (docs/vr-port/TESTING.md, "OpenXR runtime choice"): vr_xr_test 1 reads

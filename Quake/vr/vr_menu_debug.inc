@@ -489,6 +489,8 @@ za::Vector<Item> pageDebugProfiling()
     return {
         header("Profiling"),
         row(opt::vr_perf_record),
+        row(opt::vr_alias_prepass_world),
+        row(opt::vr_alias_batch_posed),
         command("Add 3 Big Test Lights", "vr_test_dlights 3")
             .help("vr_test_dlights 3: three lasting dynamic lights as big as an explosion's (radius 350), in a row 160 units "
                   "ahead: the cost of big lights on a still scene (vr_test_dlights <count> <radius> <distance>; 0 removes "
