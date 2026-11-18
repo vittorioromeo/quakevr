@@ -5834,6 +5834,69 @@ def fuzz_inject(s, b, hostile):
     return left
 
 
+# (B27) Hostile client commands up, each after one of B's packets' messages (mp_proxy.py inject "up"): the string
+# commands the server takes from a client (sv_user.c's list) with values its parsers must check, and the admin ones a
+# guest must not have (kick, ban: NetQuake let any coop client kick the others, ban addresses).
+def _cmd_up(text):
+    return bytes([4]) + text.encode("latin-1") + b"\0"
+
+
+FUZZ_HOSTILE_UP = [(t[:40], _cmd_up(t)) for t in [
+    "kick #1", "kick A", "ban 127.0.0.1", "name " + "x" * 1000, "color 999999 -5", "say " + "%s%n" * 60,
+    "tell #99 hi", "tell \x01\xff\xfe", "give h 2147483647", "give a -2147483648", "setpos nan nan nan",
+    "setpos 1e30 -1e30 1e30 1e30 1e30 1e30", "ping", "status", "pause", "kill", "prespawn", "spawn", "begin",
+    "vr_avatarcal " + "99999 " * 64, "vr_avatarcal -1 -1", "vr_prefs " + "\xff" * 300, "vr_prefs 99999 nan inf",
+    "vr_rig " + "1e39 " * 40, "vr_rigframe 9 9 " + "nan " * 30, "vr_rigframe -1 -1 0", "vr_heldpose 99 " + "1e30 " * 40,
+    "vr_heldpose -5 nan", "vr_grabspot -1 99999", "vr_grabspot 99999 -1", "vr_magpoll 255 255 255",
+    "vr_lagcomp_shot 1e30 nan 0 0 0 0", "vr_lagcomp_punch -1 99999 0", "vr_scene_count " + "9" * 400]]
+
+
+def fuzz_sweep_up():
+    """(B27) Every client command code (clc 0-17, but clc_disconnect), with all-0xFF and all-0x7F arguments of 0, 12
+    and 64 bytes (clc_move's, QVR_CLC_MOVES' and QVR_CLC_VOICE's own reads meet them)."""
+    out = []
+    for fill in (0xFF, 0x7F):
+        for cmd in range(18):
+            if cmd == 2:
+                continue
+            for n in (0, 12, 64):
+                out.append(("clc %d, %d args 0x%02X" % (cmd, n, fill), bytes([cmd]) + bytes([fill] * n)))
+    return out
+
+
+def fuzz_inject_up(s, srv, a, b, hostile):
+    """(B27) Each of `hostile` (name, bytes) after one of B's packets' message up, B in the game: the server runs on
+    (each a drop of B with a reason, or taken and checked), A stays in it (no guest's kick or ban reaches him); B joins
+    again whenever he was dropped. -> how many drops."""
+    p = b.proxy
+    dropped, notes = 0, []
+    for i, (name, data) in enumerate(hostile):
+        before = p.injected["up"]
+        p.inject["up"].append(data)
+        t0 = time.monotonic()
+        while p.injected["up"] == before and time.monotonic() - t0 < 10:
+            time.sleep(0.02)
+        server_time_past(srv, server_time(srv) + 0.1)  # (read and run by the server)
+        if srv.proc.poll() is not None:
+            s.check("the server survives the hostile command up %s" % name, False, "exited with %s" % srv.proc.returncode)
+            return dropped
+        if own_status(a).get("connected") != "1":
+            s.check("A stays in the game after B's hostile command up %s" % name, False, "A not connected")
+            return dropped
+        if own_status(b).get("connected") != "1":
+            dropped += 1
+            notes.append(name)
+            js = b.mark()
+            b.cmd("disconnect; " + s.connect_cmd(b))
+            if wait_quietly(b, r"mp_event: .*joined map=e1m1", 60, js, "B joined again") is None:
+                s.check("B joins again after the hostile command up %s" % name, False, "not in 60 s")
+                return dropped
+    s.note("hostile commands up: %d sent, B dropped %d times: %s" % (len(hostile), dropped, notes[:12]))
+    s.check("the server survives %d hostile commands up, A in the game" % len(hostile), srv.proc.poll() is None and
+            own_status(a).get("connected") == "1", "running")
+    return dropped
+
+
 def fuzz_signon(s, srv, b):
     """(B26) B25b's crash: B's game exited 0xC0000005 after a corrupt packet down in a join's signon (a garbage
     svc_setview: the view entity out of the client's array, read by the hands' next frame). B joins FUZZ_SIGNON_JOINS
@@ -5892,6 +5955,12 @@ def fuzz(s):
     if PART == "inject":
         fuzz_inject(s, b, FUZZ_HOSTILE + fuzz_sweep())
         alive_check(s, srv, "the server after the hostile commands")
+        return
+    if PART == "injectup":
+        # (B27, unfinished: of 136 only clc 0's first drew a drop, B's "kick #1" did not reach A: the bytes after one
+        # of B's packets' messages up are not yet what the server parses (B28 finds why); not in the suite until then)
+        fuzz_inject_up(s, srv, a, b, FUZZ_HOSTILE_UP + fuzz_sweep_up())
+        alive_check(s, b, "B's game after his hostile commands up")
         return
     fuzz_inject(s, b, FUZZ_HOSTILE)
     for inst in (a, b):
@@ -6566,7 +6635,7 @@ def main():
     ap.add_argument("--permove-skip", type=int, default=0,
                     help="predictclimb: the server's vr_net_permove_skip (1 the hands' climb out, 2 the grapple: left to "
                          "QuakeC once a frame; its part should then fail)")
-    ap.add_argument("--part", default="", choices=["", "lift", "waterjump", "swim", "crawl", "hang", "mantle", "airgrab", "waterclimb", "grapple", "give", "use", "samename", "signon", "inject"],
+    ap.add_argument("--part", default="", choices=["", "lift", "waterjump", "swim", "crawl", "hang", "mantle", "airgrab", "waterclimb", "grapple", "give", "use", "samename", "signon", "inject", "injectup"],
                     help="predict: only this segment (traced with vr_mp_watch 1; --watch 2); predictclimb: hang, mantle, airgrab, waterclimb or grapple; disarm: give or use, the rounds alone")
     ap.add_argument("--seed", type=int, default=0, help="fuzz: the proxy's corruptions from this seed (0: a new one, printed)")
     ap.add_argument("--tracelog", type=int, default=0, help="lockstep: both sides' traces of B's move N (vr_mp_predict_tracelog)")
