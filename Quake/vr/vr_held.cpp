@@ -553,6 +553,10 @@ float roundPortEase(const hands::State& s, int roundHand)
         return 1.f;
     }
     const float within = za::max(vr_reload_collide_leniency.value, 0.f) * 0.01f * units::metresToUnits();
+    if(within <= 0.f)
+    {
+        return 1.f; // (Collision Leniency 0: kept apart even at the port, as asked: reload_test.sh)
+    }
     const float near = within * 1.6f + 2.f;
     return geom::smoothstep(near, near * 2.f + 2.f, glm::distance(ref, s.loadPort[1 - roundHand]));
 }
