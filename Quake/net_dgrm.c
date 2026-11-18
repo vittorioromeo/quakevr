@@ -848,6 +848,7 @@ int	Datagram_GetMessage (qsocket_t *sock)
 	struct qsockaddr readaddr;
 	unsigned int	sequence;
 	unsigned int	count;
+	unsigned int	received;
 	unsigned int	slot;
 
 	if (!sock->canSend)
@@ -898,12 +899,21 @@ int	Datagram_GetMessage (qsocket_t *sock)
 			continue;
 		}
 
+		received = length;
 		length = BigLong(packetBuffer.length);
 		flags = length & (~NETFLAG_LENGTH_MASK);
 		length &= NETFLAG_LENGTH_MASK;
 
 		if (flags & NETFLAG_CTL)
 			continue;
+
+		// QVR: the header's length is the peer's word: never less than a header (the data's length below would be
+		// negative: a copy of 4 GB) nor more than what came (the last datagram's bytes read as this one's)
+		if (length < NET_HEADERSIZE || length > received)
+		{
+			shortPacketCount++;
+			continue;
+		}
 
 		sequence = BigLong(packetBuffer.sequence);
 		packetsReceived++;
