@@ -34,6 +34,10 @@ def style_entry(stem):
     "taper"}
     (fields left out: their defaults)."""
     src = open(os.path.join(ROOT, "Quake", "vr", "vr_screenstyle.cpp"), encoding="utf-8").read()
+    # An alias (the `aliases` table: {"lava", "nail"}): the entry it takes, read in its place.
+    a = re.search(r'\{"%s",\s*"(\w+)"\s*\}' % re.escape(stem), src)
+    if a:
+        return style_entry(a.group(1))
     m = re.search(r'\{"%s",(.*?)\n\s*(?:\{"|\};)' % re.escape(stem), src, re.S)  # (up to the next entry or the end)
     if not m:
         return None
