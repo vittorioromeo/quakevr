@@ -5548,7 +5548,8 @@ extern "C" void VR_SetupViewEntities()
     if(vr_body_powerups.value && (cl.items & IT_INVISIBILITY))
     {
         forEachEntity([](view::ViewEntity& ve) {
-            if(&ve != &entities.gadget && &ve != &entities.gadgetStrap[0] && &ve != &entities.gadgetStrap[1])
+            // (his own only, worn: not the weapons lying round, their idle screens and buttons set up above)
+            if(worn(ve) && &ve != &entities.gadget && &ve != &entities.gadgetStrap[0] && &ve != &entities.gadgetStrap[1])
             {
                 ve.ent.alpha = ENTALPHA_ENCODE(0.3f);
             }
