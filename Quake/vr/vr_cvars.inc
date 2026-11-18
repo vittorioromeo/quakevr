@@ -668,6 +668,17 @@ QVR_CVAR(vr_stereo_single_passes, "3", CVAR_NONE)
 // 1: a line a second in qvr_openxr.txt while VR runs: the frames (rendered, the last one shown again, without layers),
 // the display periods missed, and each OpenXR call's time (average and worst), the session's state; 0 none.
 QVR_CVAR(vr_xr_log_timing, "0", CVAR_NONE) // (1 before vr_cfg_version 202)
+// Debug > Profiling: the perf recorder (vr_perfrec.hpp): 1 writes every frame's times and events to a CSV (on Android the
+// app's internal files/perf/, else <game>/profile/perf/) until set back to 0 (a new file each time); not saved.
+// Debug > Profiling > World Models Pre-pass: 1 the world's models (monsters, items) drawn into the depth first, then
+// shaded once a pixel (as before); 0 shaded as drawn: a draw a batch less (the A/B; from agent/quest).
+QVR_CVAR(vr_alias_prepass_world, "1", CVAR_NONE)
+// Debug > Profiling > Batch Posed Models: 1 the world's posed models of one model and skin (armed grunts on the
+// authored rig, their armour, ragdolls) drawn as one batch, their bones in one buffer (PC ThinLTO: ragdolls_32_active
+// -0.11 ms GPU, combat_48 even; ROUND25); 0 a batch each, as before.
+QVR_CVAR(vr_alias_batch_posed, "1", CVAR_NONE)
+QVR_CVAR(vr_gl_passes, "0", CVAR_NONE)            // 1: the next frame's draw framebuffer binds and alias batches listed in the console (vr_profile.cpp; back to 0 after)
+QVR_CVAR(vr_perf_record, "0", CVAR_NONE)
 // Tests of the choice without the real runtimes (docs/vr-port/TESTING.md, "OpenXR runtime choice"): vr_xr_test 1 reads
 // the installed runtimes (manifests, comma-separated), the active one and the running processes from these instead of
 // the registry and the system (and never loads the real active runtime). vr_xr_test_fail: runtimes (parts of their
@@ -2198,6 +2209,7 @@ QVR_CVAR(vr_retrolight_shadow_block, "0.5", CVAR_ARCHIVE)     // shadows looked 
 QVR_CVAR(vr_retrolight_shadow_soft, "0", CVAR_ARCHIVE)      // their levels' edges blurred over this share of a level
 QVR_CVAR(vr_profile, "0", CVAR_NONE)                   // profiler (vr_profile.cpp): 1 time the frame's scopes, CPU and GPU, into <gamedir>/profile/; 2 also show the panel over the wrist
 QVR_CVAR(vr_gl_markers, "0", CVAR_NONE)               // GL debug groups for frame debuggers (RenderDoc, Nsight): each GPU profile scope (eye L/R, depth prepass, world, shadow maps, post, 2D, xr submit ...) and the engine's own groups (GL_BeginGroup); 1 on, 2 only with a debugger or frame debugger in the process, 0 off (-glmarkers and -gldebug: on). Latched each frame (1 before 2026-10-25)
+QVR_CVAR(vr_gl_sync_count, "0", CVAR_NONE)            // N: every N seconds the GL calls that make the CPU wait for the GPU, per frame, printed (glFinish, fence waits, query results, pixel reads, synchronised maps, link status reads; vr_glsafe.cpp; vr_gl_sync_report for tests); 0 off
 QVR_CVAR(vr_profile_interval, "5", CVAR_NONE)          // seconds between its reports (0: only on vr_profile_dump)
 QVR_CVAR(vr_profile_overlay, "0", CVAR_NONE)           // the profiler's panel (vr_profile_systems.cpp): each system's ms a frame with a bar; 1 over the wrist gadget's hand, 2 floating in front
 QVR_CVAR(vr_profile_gpu, "4", CVAR_NONE)               // the profiler's GPU times: its GPU scopes' timer queries on one frame in this many (each stalls the GPU a little: 1 every frame, 4 a quarter of the cost; 0 none, the CPU's times alone)

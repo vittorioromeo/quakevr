@@ -721,7 +721,7 @@ void PF_botflatpose()
         const int slot = in.wid[h] != WID_FIST && models[h][0] ? weapons::slotForName(models[h]) : -1;
         in.slot[h] = slot >= 0 && slot != weapons::fistSlot() ? slot : -1;
     }
-    in.now = sv.time;
+    in.now = qcvm->time;
     in.swingAt = G_FLOAT(OFS_PARM2) > 0.f ? static_cast<double>(G_FLOAT(OFS_PARM2)) : -1e9;
     in.parry = za::clamp(G_FLOAT(OFS_PARM3), 0.f, 1.f);
     // (its standing eyes over its feet, as its body is drawn: vr_server.cpp's avatar of a bot)

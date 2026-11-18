@@ -4,6 +4,7 @@
 
 #include "vr_backend_openxr_internal.hpp"
 #include "vr_cvars.hpp"
+#include "vr_perfrec.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/Math/MinMax.hpp"
@@ -329,6 +330,7 @@ void OpenXrBackend::noteWaited()
     {
         const XrTime steps = (frameState.predictedDisplayTime - timing.lastDisplay + period / 2) / period;
         timing.missed += steps > 1 ? static_cast<int>(steps - 1) : 0;
+        perfrec::xrFrame(steps > 1 ? static_cast<int>(steps - 1) : 0, static_cast<double>(period) * 1e-6);
     }
     VR_TracyDisplay(static_cast<double>(period) * 1e-6, timing.missed);
     timing.lastDisplay = frameState.predictedDisplayTime;

@@ -338,7 +338,11 @@ const char *VR_GLSafeDescribe (void);	// "off", "on (-glsafe)", ...
 void VR_GLFrame (void);	// GL_EndRendering, before the swap
 void VR_GLMapSpawned (const char *map);	// VR_NoteMapSpawn
 void VR_GLStartupShutdown (int error);	// Host_Shutdown: the start-up's log ended (a quit, an error)
+void VR_GLStartupCrashed (void);	// the crash handler: "== crashed" in gl_startup.log while the game starts (counted: the next start's safe mode)
+void VR_GLShadersBegin (void);	// GL_CreateShaders' start: "shaders: set N begun" in gl_startup.log (a start stopped in it is not counted)
+void VR_GLShadersEnd (int programs);	// GL_CreateShaders' end: the set's time
 void VR_GLSafeInit (void);	// VR_Init: vr_glsafe_retry, vr_glsafe_status
+void VR_SimdTestInit (void);	// VR_Init: vr_simd_test (vr_simd_test.cpp)
 unsigned VR_DescribeCallers (char *out, int outSize, int skip, int depth);	// vr_crash.cpp: the caller's stack as one line ("fn (file.c:12) < caller ..."); a hash of it (0: none; not Windows)
 const char *VR_ModelFile (const char *name);	// Mod_LoadModel, Mod_LoadLighting: the file to load a model from (relit maps)
 int VR_ModelReplacementOk (const char *name, const char *md5mesh);	// loadMd5Replacement: 0 refuses a jointed hand the rig can't use (vr_handrig.cpp)

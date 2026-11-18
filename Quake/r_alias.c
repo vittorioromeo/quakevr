@@ -93,6 +93,12 @@ struct ibuf_s {
 	aliasinstance_t inst[MAX_ALIAS_INSTANCES];
 } ibuf;
 
+// QVR: a batch of posed models (R_AliasPosedJoin: the world's, vr_alias_batch_posed): each instance's entity, and the
+// batch's bones, each instance's after the last's (its poses offset to them: R_FlushAliasInstances)
+static const entity_t *aliasinstents[MAX_ALIAS_INSTANCES];
+static bonepose_t *aliasbatchbones;
+static int aliasbatchbonescap;
+
 // QVR: the layered shadow casters' (R_DrawAliasModelsDepthLayered): each batched instance's faces, and the shader's
 // FaceBuffer (gl_shaders.h): the faces' view-projections, then a draw per instance and face (its index | face << 16)
 static unsigned char aliasinstfaces[MAX_ALIAS_INSTANCES];
@@ -713,9 +719,11 @@ void R_FlushAliasInstances (qboolean showtris)
 	int			numvrbones;	// QVR
 	GLuint		vrbonebuf;	// QVR
 	GLbyte		*vrboneofs;	// QVR
+	int			draws0;		// QVR: the draw count before the batch (vr_gl_passes)
 
 	if (!ibuf.count)
 		return;
+	draws0 = vr_profcounts.drawcalls; // QVR: vr_gl_passes' alias batches
 
 	model = ibuf.ent->model;
 	mainhdr = (aliashdr_t*)Mod_Extradata (model);
@@ -810,11 +818,35 @@ void R_FlushAliasInstances (qboolean showtris)
 		ibuf.global.fog[0] = ibuf.global.fog[1] = ibuf.global.fog[2] = 0.f;
 	ibuf.global.dither = r_framedata.screendither;
 
+	numvrbones = poseverttype == PV_IQM ? (aliasdepth ? VR_AliasShadowBonePoses (ibuf.ent, &vrbones) : VR_AliasBonePoses (ibuf.ent, &vrbones)) : 0; // QVR: the shadow maps' with your head
+	if (numvrbones && ibuf.count > 1) // QVR: posed models batched (R_AliasPosedJoin): each instance's bones after the last's
+	{
+		if (aliasbatchbonescap < numvrbones * ibuf.count)
+		{
+			aliasbatchbonescap = numvrbones * ibuf.count;
+			aliasbatchbones = (bonepose_t *) realloc (aliasbatchbones, sizeof (bonepose_t) * aliasbatchbonescap);
+			if (!aliasbatchbones)
+				Sys_Error ("R_FlushAliasInstances: out of memory for %d bones", aliasbatchbonescap);
+		}
+		for (i = 0; i < ibuf.count; i++)
+		{
+			const float *bones = NULL;
+			const int n = i == 0 ? numvrbones : aliasdepth ? VR_AliasShadowBonePoses (aliasinstents[i], &bones) : VR_AliasBonePoses (aliasinstents[i], &bones);
+			if (i == 0)
+				bones = vrbones; // (the first's: asked once, above)
+			if (n != numvrbones || !bones)
+				bones = (const float *) aliasbatchbones; // (R_AliasPosedJoin checked the counts: never; the first's copy, not a pointer a later call may have reused)
+			memcpy (aliasbatchbones + i * numvrbones, bones, sizeof (bonepose_t) * numvrbones);
+			ibuf.inst[i].pose1 += i * numvrbones;
+			ibuf.inst[i].pose2 += i * numvrbones;
+		}
+		vrbones = (const float *) aliasbatchbones;
+		numvrbones *= ibuf.count;
+	}
 	ibuf_size = sizeof (ibuf.global) + sizeof (ibuf.inst[0]) * ibuf.count;
 	GL_Upload (GL_SHADER_STORAGE_BUFFER, &ibuf.global, ibuf_size, &buf, &ofs);
 	vr_profcounts.aliasdrawn += drawcount; // QVR: profile (a model drawn into a view: layered, once per face)
 
-	numvrbones = poseverttype == PV_IQM ? (aliasdepth ? VR_AliasShadowBonePoses (ibuf.ent, &vrbones) : VR_AliasBonePoses (ibuf.ent, &vrbones)) : 0; // QVR: the shadow maps' with your head
 	if (numvrbones) // QVR
 		GL_Upload (GL_SHADER_STORAGE_BUFFER, vrbones, sizeof (bonepose_t) * numvrbones, &vrbonebuf, &vrboneofs);
 
@@ -1030,6 +1062,14 @@ void R_FlushAliasInstances (qboolean showtris)
 		glDisable (GL_DEPTH_CLAMP);
 
 	glDisable (GL_CLIP_DISTANCE1);
+	if (vr_glpass_trace) // QVR
+	{
+		int tris = 0;
+		for (hdr = mainhdr; hdr; hdr = Mod_NextSurface (hdr))
+			tris += hdr->numindexes / 3;
+		VR_GLAliasBatch (model->name, ibuf.count, draws0, aliasdepth, ibuf.ent >= cl_entities && ibuf.ent < cl_entities + cl_max_edicts ? (int)(ibuf.ent - cl_entities) : -1,
+			ibuf.ent->skinnum, tris);
+	}
 	ibuf.count = 0;
 	GL_EndGroup ();
 }
@@ -1039,6 +1079,31 @@ void R_FlushAliasInstances (qboolean showtris)
 R_Alias_CanAddToBatch
 =================
 */
+/*
+=================
+R_AliasPosedJoin -- QVR
+
+Whether posed e joins the batch of posed ibuf.ent (vr_alias_batch_posed: the world's, as an armed grunt on the authored
+rig, its armour, a ragdoll): the same model and skin (checked by the caller), both posed with as many bones, the same
+surfaces and skin mask; its bones go after the others' in the batch's bone buffer (R_FlushAliasInstances). Your own
+models (the hands, the body, its armour plates) keep a batch each, as before.
+=================
+*/
+static qboolean R_AliasPosedJoin (const entity_t *e)
+{
+	aliashdr_t *hdr;
+	int n;
+	if (!VR_AliasBatchPosed () || aliasxray || VR_IsViewEntity (ibuf.ent) || VR_IsViewEntity (e))
+		return false;
+	n = aliasdepth ? VR_AliasShadowBonePoses (e, NULL) : VR_AliasBonePoses (e, NULL);
+	if (!n || n != (aliasdepth ? VR_AliasShadowBonePoses (ibuf.ent, NULL) : VR_AliasBonePoses (ibuf.ent, NULL)))
+		return false;
+	hdr = (aliashdr_t *) Mod_Extradata (e->model);
+	if (VR_AliasSurfaceFirst (e, hdr) != VR_AliasSurfaceFirst (ibuf.ent, hdr))
+		return false;
+	return VR_AliasSkinMask (e) == VR_AliasSkinMask (ibuf.ent);
+}
+
 static qboolean R_Alias_CanAddToBatch (const entity_t *e)
 {
 	// empty batch
@@ -1059,7 +1124,7 @@ static qboolean R_Alias_CanAddToBatch (const entity_t *e)
 
 	if (VR_AliasMirrored (ibuf.ent) != VR_AliasMirrored (e)) // QVR
 		return false;
-	if (VR_AliasBonePoses (ibuf.ent, NULL) || VR_AliasBonePoses (e, NULL)) // QVR: bone matrices are per entity
+	if ((VR_AliasBonePoses (ibuf.ent, NULL) || VR_AliasBonePoses (e, NULL)) && !R_AliasPosedJoin (e)) // QVR: bone matrices are per entity (a posed batch: R_AliasPosedJoin)
 		return false;
 	if (!aliasdepth && VR_AliasDepthPrepass (ibuf.ent) != VR_AliasDepthPrepass (e)) // QVR: the batch's depth pre-pass is the first's
 		return false;
@@ -1779,6 +1844,7 @@ cull:
 	}
 
 	aliasinstfaces[ibuf.count] = facemask; // QVR: layered shadow casters: its faces (a posed one's: those its box reaches)
+	aliasinstents[ibuf.count] = e; // QVR: (a posed batch's bones: R_AliasPosedJoin)
 	instance = &ibuf.inst[ibuf.count++];
 
 	if (cached && cachehit && cached->instok) // QVR: the pass's first set-up of it (vr_shadow_setup_share), its swing rows added to this batch
@@ -1920,7 +1986,9 @@ instanced:
 		VR_DebugAliasPose (e, paliashdr, lerpdata.pose1, lerpdata.pose2, lerpdata.blend, model_matrix); // QVR: vr_debug_pose_check
 	if (portal_split)
 	{
-		aliasinstance_t* copy = &ibuf.inst[ibuf.count++];
+		aliasinstance_t* copy;
+		aliasinstents[ibuf.count] = e; // QVR
+		copy = &ibuf.inst[ibuf.count++];
 		*copy = *instance; // exact current pose, bone buffer, skin and wounds
 		copy->motion[0] = copy->motion[1] = -1; // QVR: (the gate's other side: no slots of its own)
 		memcpy (instance->vr.portalclip, source_clip, sizeof(source_clip));
