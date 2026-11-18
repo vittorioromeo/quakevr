@@ -327,13 +327,16 @@ static GLuint GL_CreateProgramFromSources (int count, const GLchar **sources, co
 
 	name = eval;
 
-	realcount = 0;
-	for (i = 0; i < count; i++)
-		if (sources[i])
-			shaders[realcount++] = GL_CreateShader (types[i], sources[i], macros, name);
-
 	{ // QVR: a graphics program's sources kept for its multiview twin (GL_MultiviewProgram)
-		GLuint program = GL_CreateProgramFromShaders (shaders, realcount, name);
+		const double perft0 = vr_perf_recording ? Sys_DoubleTime () : 0.0; // QVR: the perf recorder (a mid-game compile is a hitch)
+		GLuint program;
+		realcount = 0;
+		for (i = 0; i < count; i++)
+			if (sources[i])
+				shaders[realcount++] = GL_CreateShader (types[i], sources[i], macros, name);
+		program = GL_CreateProgramFromShaders (shaders, realcount, name);
+		if (vr_perf_recording)
+			VR_PerfEvent (VR_PERF_SHADER, (Sys_DoubleTime () - perft0) * 1000.0, name);
 		if (count == 2 && !gl_multiview_compile && gl_num_progsources < (int) countof (gl_progsources))
 		{
 			glprogsource_t *src = &gl_progsources[gl_num_progsources++];

@@ -488,6 +488,18 @@ za::Vector<Item> pageDebugProfiling()
 {
     return {
         header("Profiling"),
+        row(opt::vr_perf_record),
+        command("Add 3 Big Test Lights", "vr_test_dlights 3")
+            .help("vr_test_dlights 3: three lasting dynamic lights as big as an explosion's (radius 350), in a row 160 units "
+                  "ahead: the cost of big lights on a still scene (vr_test_dlights <count> <radius> <distance>; 0 removes "
+                  "them)."),
+        command("Remove the Test Lights", "vr_test_dlights 0").help("vr_test_dlights 0: removes the test lights."),
+        command("List the Dynamic Lights", "vr_dlights_list")
+            .help("vr_dlights_list: every live dynamic light in the console: its key (who made it), radius, distance from "
+                  "your eyes and colour."),
+        command("List the Frame's Render Passes", "vr_gl_passes 1")
+            .help("vr_gl_passes 1: the next frame's framebuffer binds in the console, in order, each with the draws made "
+                  "into it (and the profiler's scope at the bind with vr_profile on), and its alias batches."),
         row(opt::vr_profile_overlay),
         row(opt::vr_profile_csv),
         row(opt::vr_profile_hitch),

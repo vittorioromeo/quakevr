@@ -1662,15 +1662,21 @@ bool landsNow(jobs::Future<void>& job, za::U64 due, const char* what, const NavC
     {
         return false;
     }
+    double waited = 0.0;
     if(!job.ready())
     {
         const auto t0 = za::Clock::nowNanoseconds();
         job.wait();
         const double ms = msSince(t0);
+        waited = ms;
         ++jobClock.waits;
         jobClock.waitMs += ms;
         jobClock.worstWaitMs = za::max(jobClock.worstWaitMs, ms);
         Con_DPrintf("nav: job: class r%.0f h%.0f: %s not done by its frame: waited %.2f ms\n", c.radius, c.height, what, ms);
+    }
+    if(vr_perf_recording) // the perf recorder: a job landing (its wait, if any)
+    {
+        VR_PerfEvent(VR_PERF_NAV, waited, what);
     }
     return true;
 }

@@ -713,9 +713,11 @@ void R_FlushAliasInstances (qboolean showtris)
 	int			numvrbones;	// QVR
 	GLuint		vrbonebuf;	// QVR
 	GLbyte		*vrboneofs;	// QVR
+	int			draws0;		// QVR: the draw count before the batch (vr_gl_passes)
 
 	if (!ibuf.count)
 		return;
+	draws0 = vr_profcounts.drawcalls; // QVR: vr_gl_passes' alias batches
 
 	model = ibuf.ent->model;
 	mainhdr = (aliashdr_t*)Mod_Extradata (model);
@@ -1030,6 +1032,14 @@ void R_FlushAliasInstances (qboolean showtris)
 		glDisable (GL_DEPTH_CLAMP);
 
 	glDisable (GL_CLIP_DISTANCE1);
+	if (vr_glpass_trace) // QVR
+	{
+		int tris = 0;
+		for (hdr = mainhdr; hdr; hdr = Mod_NextSurface (hdr))
+			tris += hdr->numindexes / 3;
+		VR_GLAliasBatch (model->name, ibuf.count, draws0, aliasdepth, ibuf.ent >= cl_entities && ibuf.ent < cl_entities + cl_max_edicts ? (int)(ibuf.ent - cl_entities) : -1,
+			ibuf.ent->skinnum, tris);
+	}
 	ibuf.count = 0;
 	GL_EndGroup ();
 }
