@@ -3776,14 +3776,24 @@ float(float xHand) W_CheckNoAmmo =
 // The axe, the swords, the crowbar and the Super Axe: swung by the tracked hands themselves; untracked, a swing.
 void(float xHand, float* xOutAttackFinished) W_Fire_Melee =
 {
+    if(!self.ishuman && xHand == cVR_MainHand && (self.flags & FL_CLIENT))
+    {
+        // A bot (MP bots phase 1): a flat-screen player's overhead swing (frikbot/bot_fight.qc bot_setvrfields,
+        // botflatpose), its blow the melee's sweep as a flat player's is -- not player_axe*'s traced one. None while its
+        // guard is up (bot_parry_frame) or its last swing goes on.
+        if(self.vr_botparry > 0 || (self.vr_botswing > 0 && time - self.vr_botswing < BOT_SWING_LEN))
+        {
+            return;
+        }
+        VR_SoundVaried(self, VRGetGunChannel(xHand), "weapons/ax1.wav", 1, ATTN_NORM);
+        self.vr_botswing = time;
+        *xOutAttackFinished = time + BOT_SWING_LEN;
+        return;
+    }
     if(!VRHandsTracked(self) ||
        !self.ishuman)
     {
         VR_SoundVaried(self, VRGetGunChannel(xHand), "weapons/ax1.wav", 1, ATTN_NORM);
-        if(!self.ishuman && xHand == cVR_MainHand)
-        {
-            self.vr_botswing = time; // (a bot's hand swings it: bot_setvrfields, its blow at player_axe*3's frame)
-        }
         float r = random();
         if(r < 0.25)
             player_axe1(xHand);

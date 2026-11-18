@@ -1013,6 +1013,7 @@ void(float whichteam, float whatbot, float whatskill) BotConnect =
     self.team = self.b_pants + 1;
     UpdateClient(self);
     SetNewParms();
+    botcarryparms(self); // QVR (MP bots phase 1): back on the next level of a coop game with what it had (as a player)
     self.ishuman = 2;
     ClientConnect();
     PutClientInServer();

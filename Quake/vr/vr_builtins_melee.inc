@@ -697,6 +697,54 @@ void PF_botmovewalk()
     predict::botWalk(PROG_TO_EDICT(pr_global_struct->self), G_VECTOR(OFS_RETURN));
 }
 
+// float botflatpose(entity e, vector target, float swingAt, float parry): bot `e`'s hands posed by flat-screen play's
+// own code (flatplay::poseBot; MP bots phase 1): its weapons' places off its shoulders, one or two, each turned at
+// `target` ('0 0 0': along its view), its main hand's overhead swing begun at `swingAt` (the server's time; 0: none) and
+// its guard's share `parry` (0..1) -> .handpos/.handrot, .offhandpos/.offhandrot. Returns the swing's phase: 0 none, 1
+// its windup (strikes nothing), 2 the strike and after it.
+void PF_botflatpose()
+{
+    edict_t* e = G_EDICT(OFS_PARM0);
+    const FieldOffsets& f = fields();
+    flatplay::BotPoseIn in;
+    in.origin = geom::vec(e->v.origin);
+    in.eye = in.origin + geom::vec(e->v.view_ofs);
+    in.aim = geom::vec(e->v.v_angle);
+    in.target = geom::vec(G_VECTOR(OFS_PARM1));
+    in.hasTarget = in.target != glm::vec3{0.f};
+    const char* models[2] = {f.weaponmodel2 >= 0 && fieldInt(e, f.weaponmodel2) ? PR_GetString(fieldInt(e, f.weaponmodel2)) : "",
+        e->v.weaponmodel ? PR_GetString(e->v.weaponmodel) : ""};
+    in.wid[HAND_OFF] = static_cast<int>(fieldFloatOr(e, f.weapon2, 0.f));
+    in.wid[HAND_MAIN] = static_cast<int>(e->v.weapon);
+    for(int h = 0; h < HAND_COUNT; h++)
+    {
+        const int slot = in.wid[h] != WID_FIST && models[h][0] ? weapons::slotForName(models[h]) : -1;
+        in.slot[h] = slot >= 0 && slot != weapons::fistSlot() ? slot : -1;
+    }
+    in.now = sv.time;
+    in.swingAt = G_FLOAT(OFS_PARM2) > 0.f ? static_cast<double>(G_FLOAT(OFS_PARM2)) : -1e9;
+    in.parry = za::clamp(G_FLOAT(OFS_PARM3), 0.f, 1.f);
+    // (its standing eyes over its feet, as its body is drawn: vr_server.cpp's avatar of a bot)
+    in.eyeHeight = za::max(1.f, (e->v.view_ofs[2] - e->v.mins[2]) / units::metresToUnits());
+    flatplay::BotPoseOut out;
+    flatplay::poseBot(in, out);
+    for(int h = 0; h < HAND_COUNT; h++)
+    {
+        setFieldVec(e, handFields(h).pos, out.pos[h]);
+        setFieldVec(e, handFields(h).rot, out.rot[h]);
+    }
+    G_FLOAT(OFS_RETURN) = static_cast<float>(out.swingPhase);
+}
+
+// float botcarryparms(entity e): bot `e` connecting (FrikBot's BotConnect, after SetNewParms): in a coop game, what a bot of
+// its name had at the last level change (vr_coopsave.cpp VR_CoopNoteBots, the leavers' rules) into the parm globals -> 1;
+// 0: none kept, the new player's parms stand.
+void PF_botcarryparms()
+{
+    edict_t* e = G_EDICT(OFS_PARM0);
+    G_FLOAT(OFS_RETURN) = static_cast<float>(VR_CoopBotParms(NUM_FOR_EDICT(e) - 1, e->v.netname ? PR_GetString(e->v.netname) : ""));
+}
+
 // embedsay(text): a line on Embedded Blades' debug panel.
 void PF_embedsay()
 {

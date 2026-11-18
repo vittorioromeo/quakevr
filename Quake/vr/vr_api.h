@@ -723,6 +723,8 @@ int VR_CoopPickSlot (const char *name);				// SV_CheckForNewClients: the slot a 
 void VR_CoopNoteLeave (int slot);					// SV_DropClient (B15): a player leaving a coop game in progress: what he has kept for his return by name
 void VR_CoopRejoinParms (int slot, const char *name);	// SV_ConnectClient, a new player: one back by name gets his level-start parms (a respawn's)
 void VR_CoopRejoinSpawn (int slot);					// Host_Spawn_f, the parms in the globals: one back by name gets what he had when he left
+void VR_CoopNoteBots (void);						// SV_SaveSpawnparms (MP bots): a coop game's bots at a level change: what each has kept by name, as a leaver's
+int VR_CoopBotParms (int slot, const char *name);	// QC botcarryparms (FrikBot's BotConnect, after SetNewParms): a bot of that name kept so -> what it had in the parm globals (1)
 void VR_CoopForgetLeavers (void);					// Host_ShutdownServer: the leavers' things forgotten (a new game or a load)
 int VR_ServerIntermission (void);					// Host_Savegame_f: the server's QC is in its intermission (intermission_running; vr_progs.cpp)
 int VR_ArenaNoSave (void);								// in Arena Mode (vrarena): no saving of any kind

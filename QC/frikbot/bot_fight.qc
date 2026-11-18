@@ -380,15 +380,94 @@ void(float brange) bot_weapon_switch =
     W_SetCurrentAmmo();
 };
 
-// Its melee swing's shape (bot_setvrfields): wound up from the swing's start, across from FROM to TO (s), back at rest
-// at END; the arc's degrees, its hand's reach from the body's middle, its height over the origin and its drop across.
-float BOT_SWING_FROM = 0.1;
-float BOT_SWING_TO = 0.3;
-float BOT_SWING_END = 0.45; // (vr_util.qc VR_BUTTONSWING_LEN)
-float BOT_SWING_ARC = 160;
-float BOT_SWING_REACH = 18;
-float BOT_SWING_Z = 12;
-float BOT_SWING_DROP = 8;
+// QVR (MP bots phase 1): its melee weapon's guard, as a flat-screen player's (the right button held: vr_flatplay.cpp's
+// parry pose, botflatpose; any blow from the front parried, VR_Parry_FlatGuard). The AI decides: a blow seen coming at it
+// -- a player's or a bot's swing, a monster's melee -- raises it, by its skill's chance (vr_bot_parry_chance, -1: 25, 50,
+// 75, 90 percent for skills 0-3) after its reaction's delay (0.3, 0.2, 0.12, 0.06 s), held BOT_PARRY_HOLD, one roll a
+// blow. Only with a melee weapon in its main hand (the flat guard's rule); no swing while it is up.
+float BOT_PARRY_NEAR = 110;   // units: a blow from this near (origin to origin)
+float BOT_PARRY_HOLD = 0.6;   // s: its guard up
+float BOT_PARRY_SWING = 0.45; // s: another's swing seen coming for this long from its start (its strike at 0.36)
+float BOT_PARRY_HANDV = 2;    // m/s: a headset player's melee hand moving this fast swings
+
+// Whether `a` is starting a blow at the bot (self).
+float(entity a) bot_blow_coming =
+{
+    if(!a || a == self || a.health <= 0 || vlen(a.origin - self.origin) > BOT_PARRY_NEAR)
+    {
+        return FALSE;
+    }
+    if(a.flags & FL_CLIENT)
+    {
+        if(!a.ishuman)
+        {
+            return a.vr_botswing > 0 && time - a.vr_botswing < BOT_PARRY_SWING;
+        }
+        if(VR_AG_Class(VRGetEntWeapon(a, cVR_MainHand)) == VR_AG_CLASS_MELEE && VRHandsTracked(a) && !VR_FlatPlay(a) &&
+           vlen(a.handvel) > BOT_PARRY_HANDV)
+        {
+            return TRUE; // (a headset's swing)
+        }
+        return VR_HandMotionAction(a, cVR_MainHand) || VR_HandMotionAction(a, cVR_OffHand); // (a flat player's button)
+    }
+    return (a.flags & FL_MONSTER) && a.enemy == self && VR_Parry_MeleeMonster(a) && a.attack_state == AS_MELEE;
+};
+
+// Once a frame (bot_setvrfields): a blow looked for, its guard eased up or down.
+void() bot_parry_frame =
+{
+    float melee = VR_AG_Class(VRGetEntWeapon(self, cVR_MainHand)) == VR_AG_CLASS_MELEE;
+    if(self.health <= 0 || !melee)
+    {
+        self.vr_botparry = 0;
+        self.vr_botparry_until = 0;
+        return;
+    }
+    if(time >= self.vr_botparry_next && self.vr_botparry_until < time)
+    {
+        entity a = world;
+        if(bot_blow_coming(self.enemy))
+        {
+            a = self.enemy;
+        }
+        else
+        {
+            for(entity p = findradius(self.origin, BOT_PARRY_NEAR); p && !a; p = p.chain)
+            {
+                if(((p.flags & FL_CLIENT) && (deathmatch || teamplay)) || (p.flags & FL_MONSTER))
+                {
+                    a = bot_blow_coming(p) ? p : world;
+                }
+            }
+        }
+        if(a)
+        {
+            float sk = max(0, min(3, self.b_skill));
+            float chance = cvar_hget(cvarh_vr_bot_parry_chance);
+            if(chance < 0)
+            {
+                chance = sk == 0 ? 25 : sk == 1 ? 50 : sk == 2 ? 75 : 90;
+            }
+            self.vr_botparry_next = time + BOT_PARRY_SWING; // (this blow rolled once)
+            if(random() * 100 < chance)
+            {
+                float delay = sk == 0 ? 0.3 : sk == 1 ? 0.2 : sk == 2 ? 0.12 : 0.06;
+                self.vr_botparry_at = time + delay;
+                self.vr_botparry_until = time + delay + BOT_PARRY_HOLD;
+                dprint(sprintf("botparry: %s sees %s's blow coming: its guard up in %.2f s (skill %g, chance %g)\n",
+                    self.netname, a.classname == "player" ? a.netname : a.classname, delay, sk, chance));
+            }
+        }
+    }
+    float want = time >= self.vr_botparry_at && time < self.vr_botparry_until;
+    float ease = cvar_hget(want ? cvarh_vr_flat_parry_in_time : cvarh_vr_flat_parry_out_time);
+    float was = self.vr_botparry;
+    self.vr_botparry = ease > 0 ? min(1, max(0, self.vr_botparry + (want ? frametime : -frametime) / ease)) : (want ? 1 : 0);
+    if(was < 0.5 && self.vr_botparry >= 0.5)
+    {
+        self.vr_botparries = self.vr_botparries + 1;
+    }
+};
 
 // QVR (MP B11 part 4): its off hand as a player's. It punches (its fist thrust at an enemy close by, struck by the
 // melee's sweep as a player's punch: vr_melee.qc), reaches for what lies near (a dropped gun, a backpack: taken by its
@@ -580,43 +659,50 @@ void() bot_setvrfields =
     if(self.ishuman)
         return;
 
-    self.handrot = self.v_angle;
-    self.offhandrot = self.v_angle;
-
-    // Its hands apart, as a player holds his (MP B11 part 3): the main hand on its right, the off hand on its left, at
-    // the chest, each weapon pointing along its aim from there (the disarms' and the grab's lines of its weapons, its
-    // shots' start).
     // (v_forward left the aim's, as makeforward left it; the callers' v_right and v_up kept, as it kept them)
     vector wasR = v_right, wasU = v_up;
+    float fresh = self.vr_botvr_t != time;
+    if(fresh)
+    {
+        bot_parry_frame(); // (its guard: up when a blow comes, by its skill)
+    }
+
+    // Its hands as a flat-screen player's (MP bots phase 1, his words 2026-11-18: the flat player's code for the weapon
+    // placement and the melee): flat play's own poses (botflatpose: vr_flatplay.cpp poseBot) with its AI's decisions for
+    // the mouse and the keys -- a gun or two off its shoulders, each turned so its shot goes at its enemy; a melee
+    // weapon's overhead swing (W_Fire_Melee's button), whose blow is the melee's sweep as a flat player's is (the
+    // windup strikes nothing: .handsynth, as flat play's move sends it); its guard. The clients draw them (its
+    // controllers), its weapons' lines each frame (VR_Parry_GuardFrame) are what a player's directional parry reads.
+    self.v_viewangle = self.v_angle; // (its view as a client's move sends his: the flat guard's cone, VR_Parry_FlatGuard)
+    vector aimAt = '0 0 0';
+    if(self.enemy && self.enemy.health > 0 && self.enemy != self)
+    {
+        aimAt = (self.enemy.absmin + self.enemy.absmax) * 0.5;
+    }
+    self.vr_botswing_ph = botflatpose(self, aimAt, self.vr_botswing, self.vr_botparry);
+    float synth = 0;
+    if(self.vr_botswing_ph == 1)
+    {
+        synth = VR_HANDSYNTH_MAIN;
+    }
+    else if(self.vr_botswing_ph == 2)
+    {
+        synth = VR_HANDACTION_MAIN;
+    }
+    if(self.vr_botparry >= 0.5 && VR_AG_Class(VRGetEntWeapon(self, cVR_MainHand)) == VR_AG_CLASS_MELEE)
+    {
+        synth = synth | VR_HANDGUARD_MAIN; // (the flat guard's: any blow from the front parried, VR_Parry_FlatGuard)
+    }
+    self.handsynth = synth;
+    makevectors(self.handrot);
+    self.muzzlepos = self.handpos + (v_forward * 24);
+    makevectors(self.offhandrot);
+    self.offmuzzlepos = self.offhandpos + (v_forward * 24);
     makevectors(self.v_angle);
     vector chest = self.origin + '0 0 16' + (v_forward * 8);
 
-    self.handpos = chest + (v_right * 7);
-    self.offhandpos = chest - (v_right * 7);
-
-    self.muzzlepos = self.handpos + (v_forward * 24);
-    self.offmuzzlepos = self.offhandpos + (v_forward * 24);
-
-    // Its melee swing (MP B11 part 3, part 3; W_Fire_Melee's button swing, player_axe*: its blow at the third frame,
-    // 0.2 s in): the main hand raised on its right, then swung level across its front to its left, the weapon pointing
-    // out along the arc, straight ahead at the blow -- as a player swings his. The clients draw it so (its controllers),
-    // and its weapon's line each frame (VR_Parry_GuardFrame) is what a player's directional parry reads its blow by.
-    float st = time - self.vr_botswing;
-    if(self.vr_botswing > 0 && st >= 0 && st < BOT_SWING_END)
-    {
-        float k = min(1, max(0, (st - BOT_SWING_FROM) / (BOT_SWING_TO - BOT_SWING_FROM)));
-        float ang = BOT_SWING_ARC * (0.5 - k) * 0.0174533; // (radians: its right, ahead at the blow, its left)
-        makevectors(self.v_angle_y * '0 1 0');
-        vector out = (v_forward * cos(ang)) + (v_right * sin(ang));
-        self.handpos = self.origin + '0 0 1' * (BOT_SWING_Z + BOT_SWING_DROP * (0.5 - k)) + (out * BOT_SWING_REACH);
-        self.handrot = vectoangles(out);
-        self.muzzlepos = self.handpos + (out * 24);
-        makevectors(self.v_angle);
-    }
-
     // Its off hand (MP B11 part 4): once a frame its reach goes on (bot_reach_frame: its grip with it) and a punch over
     // ends; each call places the hand as the state says.
-    float fresh = self.vr_botvr_t != time;
     if(fresh)
     {
         self.vr_botvr_t = time;
@@ -696,6 +782,23 @@ void() bot_shoot =
     self.button3 = ((ow != WID_FIST) && (VR_AG_Class(ow) != VR_AG_CLASS_MELEE));
 };
 
+// QVR (MP bots phase 1): the gun its off hand would hold beside `mw` (dual wielding), the best first: one of its own, not
+// `mw` itself, that pairs with it (VR_AG_Pairs) and has ammo; WID_FIST: none.
+float(float mw, float mf) bot_dual_pick =
+{
+    float w;
+    for(float i = 0; i < 8; i++)
+    {
+        w = i == 0 ? WID_SUPER_NAILGUN : i == 1 ? WID_SUPER_SHOTGUN : i == 2 ? WID_NAILGUN : i == 3 ? WID_LIGHTNING :
+            i == 4 ? WID_SHOTGUN : i == 5 ? WID_GRENADE_LAUNCHER : i == 6 ? WID_NAILPISTOL : WID_REVOLVER;
+        if(w != mw && VR_WeaponUtil_EntHasWeapon(self, w) && VR_AG_Pairs(mw, mf, w, 0) && PlayerHasAmmoForWeapon(self, w, 0))
+        {
+            return w;
+        }
+    }
+    return WID_FIST;
+};
+
 // QVR (MP B11 part 4): what its off hand does next, when it does nothing (BotAI, after its fight's choices): an enemy
 // close by punched -- or, a player with a weapon in his hand and PvP disarms on, his weapon taken hold of and pulled
 // away; else a gun or a backpack lying in its reach taken. A gun its off hand holds is let go of once spent.
@@ -706,8 +809,29 @@ void() bot_offhand_ai =
         return;
     }
     float ow = VRGetEntWeapon(self, cVR_OffHand);
+    float mw = VRGetEntWeapon(self, cVR_MainHand);
+    float mf = VRGetEntWeaponFlags(self, cVR_MainHand);
+    float dual = cvar_hget(cvarh_vr_bot_dual_wield) != 0;
     if(ow != WID_FIST)
     {
+        // QVR (MP bots phase 1): a second gun held as a player dual wields: kept while it pairs with its main weapon
+        // (VR_AG_Pairs: the players' and armed humanoids' rule) and has ammo, both fired (bot_shoot); one its hand took
+        // off the floor is its own (its inventory, as a player's pickup). Else let go of: its own put away (the hand
+        // emptied), one not its own dropped. vr_bot_dual_wield 0: MP B11 part 4's (fired until spent, then dropped).
+        float of = VRGetEntWeaponFlags(self, cVR_OffHand);
+        if(dual && VR_AG_Class(ow) != VR_AG_CLASS_MELEE)
+        {
+            if(!VR_WeaponUtil_EntHasWeapon(self, ow))
+            {
+                VR_WeaponUtil_EntAddWeapon(self, ow);
+            }
+            if(ow != mw && VR_AG_Pairs(mw, mf, ow, of) && PlayerHasAmmoForWeapon(self, ow, of))
+            {
+                return;
+            }
+            VRGiveEntWeapon(self, cVR_OffHand, WID_FIST, 0, 0);
+            return;
+        }
         entity os = self;
         if(VR_AG_Class(ow) != VR_AG_CLASS_MELEE && !W_CheckNoAmmo(cVR_OffHand))
         {
@@ -719,6 +843,18 @@ void() bot_offhand_ai =
     if(!VR_Hand_Free(self, cVR_OffHand, VR_HANDFREE_LOCKED))
     {
         return;
+    }
+    // (MP bots phase 1) a gun in its main hand: a second of its own that pairs with it, into the off hand (dual wielding)
+    if(dual && self.health > 0 && VR_AG_DualGun(mw, mf))
+    {
+        float pick = bot_dual_pick(mw, mf);
+        if(pick != WID_FIST)
+        {
+            VRGiveEntWeapon(self, cVR_OffHand, pick, 0, 0);
+            dprint(sprintf("botdual: %s holds its %s beside its %s\n", self.netname, WeaponIdToWeaponName(pick),
+                WeaponIdToWeaponName(mw)));
+            return;
+        }
     }
     makevectors(self.v_angle);
     vector chest = self.origin + '0 0 16' + (v_forward * 8);

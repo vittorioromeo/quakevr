@@ -1877,6 +1877,7 @@ void SV_SaveSpawnparms (void)
 			host_client->spawn_parms[j] = (&pr_global_struct->parm1)[j];
 		VR_StoreSpawnParms (i); // QVR
 	}
+	VR_CoopNoteBots (); // QVR: (MP bots) a coop game's bots: what they have, for their return on the next level
 }
 
 typedef enum

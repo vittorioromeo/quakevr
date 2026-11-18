@@ -446,6 +446,82 @@ extern "C" void VR_CoopRejoinSpawn(int slot)
     l = Leaver{};
 }
 
+// (MP bots phase 1) A coop game's bots follow a level change by the leavers' rules: FrikBot puts them back on the next
+// level (bot_return, its scratch cvars), each a new player; what each had (QC's SetChangeParms on it, as on a player at
+// the change) is kept here by its name and given back as it connects (VR_CoopBotParms). A bot's slot is never active (its
+// player is FrikBot's), so SV_SaveSpawnparms' loop leaves it out.
+extern "C" void VR_CoopNoteBots(void)
+{
+    if(!keepsLeavers())
+    {
+        return;
+    }
+    for(int slot = 0; slot < svs.maxclients && slot < MAX_SCOREBOARD; slot++)
+    {
+        edict_t* e = EDICT_NUM(slot + 1);
+        if(svs.clients[slot].active || e->free || strcmp(PR_GetString(e->v.classname), "player") != 0 || !e->v.netname)
+        {
+            continue;
+        }
+        const char* name = PR_GetString(e->v.netname);
+        int k = name[0] ? leaverNamed(name) : -2;
+        for(int i = 0; i < MAX_SCOREBOARD && k == -1; i++)
+        {
+            k = leavers[i].used ? -1 : i;
+        }
+        if(k < 0)
+        {
+            continue;
+        }
+        Leaver& l = leavers[k];
+        l = Leaver{};
+        l.used = true;
+        l.slot = slot;
+        q_strlcpy(l.name, name, sizeof(l.name));
+        const int self = pr_global_struct->self;
+        pr_global_struct->self = EDICT_TO_PROG(e);
+        PR_ExecuteProgram(pr_global_struct->SetChangeParms);
+        pr_global_struct->self = self;
+        for(int j = 0; j < NUM_SPAWN_PARMS; j++)
+        {
+            l.nowParms[j] = l.startParms[j] = (&pr_global_struct->parm1)[j];
+        }
+        float* ext = qvr::progs::clientExtParms(slot);
+        float keep[qvr::progs::numExtSpawnParms];
+        memcpy(keep, ext, sizeof(keep));
+        VR_StoreSpawnParms(slot); // (the globals parm17.. into its slot's store, read back here, then the store as it was)
+        memcpy(l.nowExt, ext, sizeof(l.nowExt));
+        memcpy(l.startExt, ext, sizeof(l.startExt));
+        memcpy(ext, keep, sizeof(keep));
+        Con_Printf("coop: bot %s's things kept for the next level (health %g, items %d)\n", l.name,
+            static_cast<double>(l.nowParms[1]), static_cast<int>(l.nowParms[0]));
+    }
+}
+
+extern "C" int VR_CoopBotParms(int slot, const char* name)
+{
+    const int k = keepsLeavers() && slot >= 0 && slot < MAX_SCOREBOARD ? leaverNamed(name) : -1;
+    if(k < 0)
+    {
+        return 0;
+    }
+    Leaver& l = leavers[k];
+    for(int j = 0; j < NUM_SPAWN_PARMS; j++)
+    {
+        (&pr_global_struct->parm1)[j] = l.nowParms[j];
+    }
+    float* ext = qvr::progs::clientExtParms(slot);
+    float keep[qvr::progs::numExtSpawnParms];
+    memcpy(keep, ext, sizeof(keep));
+    memcpy(ext, l.nowExt, sizeof(l.nowExt));
+    VR_RestoreSpawnParms(slot); // (parm17.. from its slot's store into the globals)
+    memcpy(ext, keep, sizeof(keep));
+    Con_Printf("coop: bot %s is back with what it had (health %g, items %d)\n", l.name, static_cast<double>(l.nowParms[1]),
+        static_cast<int>(l.nowParms[0]));
+    l = Leaver{};
+    return 1;
+}
+
 extern "C" void VR_CoopForgetLeavers(void)
 {
     for(int i = 0; i < MAX_SCOREBOARD; i++)

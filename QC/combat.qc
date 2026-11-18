@@ -2989,7 +2989,7 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
         pvpLine = VR_DRP_PvpApplies(attacker, vr_melee_blowhand);
     }
     if(inflictor != attacker || (!pvp && (!(attacker.flags & FL_MONSTER) || !VR_Parry_MeleeMonster(attacker))) ||
-       damage <= 0 || !cvar_hget(cvarh_vr_parry) || targ.classname != "player" || !VRHandsTracked(targ))
+       damage <= 0 || !cvar_hget(cvarh_vr_parry) || targ.classname != "player" || !VR_HandLinesKept(targ)) // (a bot's guard too)
     {
         return damage;
     }

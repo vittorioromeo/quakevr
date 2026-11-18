@@ -142,6 +142,13 @@
 .float vr_movewaterclimb; // ... or the hands' climb out (PlayerPreThink: bit 0 on, bits 1-2 the empty hands, as
                           // VR_WaterClimb_FreeHands; CheckWaterJump leaves it to the moves, MP_PLAN B8j part 3)
 .float vr_botswing; // a bot's melee swing began at this time (W_Fire_Melee; bot_setvrfields swings its main hand: MP B11 part 3, part 3)
+// A bot's hands as a flat-screen player's (MP bots phase 1; botflatpose, frikbot/bot_fight.qc bot_setvrfields):
+.float vr_botswing_ph;    // its swing's phase this frame: 0 none, 1 the windup (strikes nothing), 2 the strike and after
+.float vr_botparry;       // its guard's share (0 at rest .. 1 up), eased as vr_flat_parry_in_time / _out_time ease a player's
+.float vr_botparry_at;    // when its guard goes up (a blow seen coming, after its reaction's delay)
+.float vr_botparry_until; // and comes down
+.float vr_botparry_next;  // no blow looked at again before this (one roll a blow)
+.float vr_botparries;     // its guards raised (the tests)
 // A bot's off hand as a player's (MP B11 part 4; frikbot/bot_fight.qc bot_offhand_ai decides, bot_setvrfields moves it):
 .float vr_botpunch;       // its punch began at this time (0: none)
 .entity vr_botpunch_of;   // ... at whom

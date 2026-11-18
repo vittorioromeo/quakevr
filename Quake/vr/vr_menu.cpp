@@ -620,6 +620,9 @@ const char* campaignContinueAge(int index)
         command("Melee Recording Room", "map vrmelee-recording"),
         // (no Survival Arena here: Official Campaigns > Arena Mode, through its own Run Setup; his call 2026-11-15)
         header("Bots (Multiplayer)"),
+        action("Add Co-op Bot", addBotTeam0)
+            .help("In a co-op game (coop 1): a bot that fights the monsters beside you, never the players, follows you "
+                  "loosely and comes along to the next level with what it has (impulse 100)."),
         action("Add Bot (Team 0)", addBotTeam0),
         action("Add Bot (Team 1)", addBotTeam1),
         action("Kick Bot", kickBot),
