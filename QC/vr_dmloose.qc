@@ -63,10 +63,14 @@ entity() VR_DMLoose_OldestWeapon =
     return oldest;
 };
 
+// vr_dm_test 7: the caps as out of deathmatch, the game itself left in it. (B25b: the test set `deathmatch` 0 for 3 frames,
+// and a player's respawn in them took the out-of-deathmatch way, "restart": dm4 started again, a suite run under load.)
+float vr_dml_test_off;
+
 // StartFrame: in deathmatch, the oldest over each cap go (at the frame's start: nothing is using them).
 void() VR_DMLoose_Frame =
 {
-    if(!deathmatch)
+    if(!deathmatch || vr_dml_test_off)
     {
         return;
     }

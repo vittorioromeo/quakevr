@@ -51,6 +51,7 @@ void() VR_DMT_End =
     cvar_set("vr_player_disarm", ftos(vr_dmt_pve));
     cvar_set("vr_player_disarm_pvp", ftos(vr_dmt_pvp));
     deathmatch = vr_dmt_dm;
+    vr_dml_test_off = FALSE;
     if(vr_dmt_human && vr_dmt_human.takedamage == DAMAGE_NO)
     {
         vr_dmt_human.takedamage = DAMAGE_AIM;
@@ -884,7 +885,8 @@ void(float ask) VR_DMT_Loose =
         {
             cvar_set("vr_dm_gibs_max", "4");
             cvar_set("vr_dm_weapons_max", "3");
-            deathmatch = 0; // (out of deathmatch first: nothing goes)
+            vr_dml_test_off = TRUE; // (the caps as out of deathmatch first: nothing goes; B25b: not `deathmatch` 0, a
+                                    // respawn then restarted the level)
             VR_DMT_LayLoose();
             VR_DMT_To(41, 3);
         }
@@ -908,7 +910,7 @@ void(float ask) VR_DMT_Loose =
     {
         VR_Test_Check(VR_DMT_GibsLeft(0, 8) == 8 && VR_DMT_WeaponsLeft(0, 5) == 5, sprintf("out of deathmatch the caps "
             "take nothing: %g of 8 gibs and %g of 5 weapons there", VR_DMT_GibsLeft(0, 8), VR_DMT_WeaponsLeft(0, 5)));
-        deathmatch = vr_dmt_dm;
+        vr_dml_test_off = FALSE;
         vr_dmt_wgone = vr_dml_weapons_gone;
         VR_DMT_To(42, 3);
         return;
