@@ -378,7 +378,7 @@ void PF_weapondrawnpose()
         // 51 its forward (from the wrist to the knuckles), 52 its up (the back of the hand); '0 0 0' not drawn. Tests: QC
         // vr_flipgrip_test.qc (the flip grip's helping hand, ROUND25.md "flipgrip2").
         glm::vec3 pos{0.f}, rot{0.f};
-        if(!(sv.active && cls.state == ca_connected && view::drawnHandPose(hand, pos, rot)))
+        if(!(sv.active && cls.state == ca_connected && NUM_FOR_EDICT(player) == 1 && view::drawnHandPose(hand, pos, rot)))
         {
             progs::returnVec(glm::vec3{0.f});
             return;
