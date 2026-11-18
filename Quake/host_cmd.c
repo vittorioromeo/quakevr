@@ -1966,6 +1966,9 @@ Host_SetPos_f
 adapted from fteqw, originally by Alex Shadowalker
 ====================
 */
+#define SETPOS_MARGIN		4096	// QVR: setpos: how far outside the world's bounds a place may be
+#define SETPOS_MAX_ANGLE	36000	// QVR: setpos: an angle's largest size (degrees)
+
 static void Host_SetPos_f(void)
 {
 	int		i, numargs;
@@ -2003,6 +2006,21 @@ static void Host_SetPos_f(void)
 			Q_rint (sv_player->v.v_angle[1]),
 			Q_rint (sv_player->v.v_angle[2]));
 		return;
+	}
+
+	// QVR: a value not finite, a place far off the map or an angle past any turn refused (a client's "setpos nan" was
+	// reset by SV_CheckVelocity, but "setpos 1e30 ..." kept him there, his origin sent to every client; its angles
+	// overflowed the integer casts writing them)
+	for (i = 0; i < numargs; i++)
+	{
+		if (!isfinite (args[i]) ||
+			(i < 3 && sv.worldmodel && (args[i] < sv.worldmodel->mins[i] - SETPOS_MARGIN || args[i] > sv.worldmodel->maxs[i] + SETPOS_MARGIN)) ||
+			(i >= 3 && fabs (args[i]) > SETPOS_MAX_ANGLE))
+		{
+			SV_ClientPrintf ("setpos: refused, a value not finite, off the map (more than %d units) or past %d degrees\n",
+				SETPOS_MARGIN, SETPOS_MAX_ANGLE);
+			return;
+		}
 	}
 
 	if (sv_player->v.movetype != MOVETYPE_NOCLIP)
