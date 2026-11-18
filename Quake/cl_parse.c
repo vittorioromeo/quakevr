@@ -197,7 +197,7 @@ void CL_ParseStartSoundPacket(void)
 		Host_Error ("CL_ParseStartSoundPacket: %i > MAX_SOUNDS", sound_num);
 	//johnfitz
 
-	if (ent > cl_max_edicts) //johnfitz -- no more MAX_EDICTS
+	if (ent >= cl_max_edicts) //johnfitz -- no more MAX_EDICTS (QVR (MP_PLAN B26): >=, was >)
 		Host_Error ("CL_ParseStartSoundPacket: ent = %i", ent);
 
 	for (i = 0; i < 3; i++)
@@ -1244,7 +1244,12 @@ void CL_ParseServerMessage (void)
 			break;
 
 		case svc_setview:
-			cl.viewentity = MSG_ReadShort ();
+			// QVR (MP_PLAN B26): checked, was taken as sent: a corrupt or hostile number put the view entity outside
+			// cl_entities, read by the next frame's view and hands (an access violation, mp_fuzz)
+			i = MSG_ReadShort ();
+			if (i < 0 || i >= cl_max_edicts)
+				Host_Error ("svc_setview: %i is an invalid entity", i);
+			cl.viewentity = i;
 			break;
 
 		case svc_lightstyle:
