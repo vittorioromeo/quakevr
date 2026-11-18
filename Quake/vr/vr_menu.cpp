@@ -2493,6 +2493,12 @@ void applyFolds(int page, za::Vector<Item>& list)
             ui().cursors[page] = weaponOffsetsSightFocusRow;
         }
     }
+    // Never past the list's end: the rebuild above keeps the row of the panel that asked for it only, and another
+    // panel on the same page (New Panel opens on it) may find the list shorter than where its cursor was left.
+    if(int& cursor = ui().cursors[page]; cursor >= static_cast<int>(built[page].size()))
+    {
+        cursor = q_max(static_cast<int>(built[page].size()) - 1, 0);
+    }
     return built[page];
 }
 
