@@ -689,7 +689,16 @@ void(float ask) VR_DMT_Hands =
         self = bot;
         if(!VRIsHandWeaponless(bot, cVR_OffHand))
         {
-            DropWeaponInHand(bot, cVR_OffHand, VRGetEntWeapon(bot, cVR_OffHand), VRGetEntWeaponFlags(bot, cVR_OffHand));
+            if(VR_WeaponUtil_EntHasWeapon(bot, VRGetEntWeapon(bot, cVR_OffHand)))
+            {
+                // (MP bots phase 1: a second gun of its own, held as it dual wields, put away -- dropped, it lay at its
+                // feet for its reach to take instead of the test's nailgun: mp_dm's vr_dm_test 5, 1 in 6 suites)
+                VRGiveEntWeapon(bot, cVR_OffHand, WID_FIST, 0, 0);
+            }
+            else
+            {
+                DropWeaponInHand(bot, cVR_OffHand, VRGetEntWeapon(bot, cVR_OffHand), VRGetEntWeaponFlags(bot, cVR_OffHand));
+            }
         }
         self = os;
         bot.vr_botreach_next = time + 1; // (nothing begun before the test's start)

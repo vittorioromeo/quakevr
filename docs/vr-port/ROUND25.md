@@ -5303,7 +5303,11 @@ and MP-only parts left on their branches.
   wield fires both), 11 (coop: a grunt brought to the bot is killed, no player its enemy); tests 2-3 place the bot by
   the human's head yaw (`v_viewangle`: a headset player's aim follows his hand) and test 3's guard is level
   (mp_test.py `LEVEL_GUARD`, square to an overhead blow); tests 4-6 run with `vr_bot_dual_wield 0` (an empty off
-  hand). mp_dm 25/0, new mp_coopbots 13/0 (the bot back on e1m2 with its super nailgun), mp_lockstep_dm 23/0.
+  hand; a bot's own second gun put away, not dropped). mp_dm 25/0, new mp_coopbots 13/0 (the bot back on e1m2 with
+  its super nailgun), mp_lockstep_dm 23/0. MP acceptance (B28's owed one too): 3 clean plain and 3 clean `--load 16`
+  suites (MP_PLAN.md, "Bots phase 1 results"). SP: scenario_check 136/0, load_models 4/0, vr_run_check 12/0, the
+  flat tests clean but flatswing's knight trials (7-8 of 11 land, 9 wanted: the knight off its spot; not this
+  phase's code, which is bot only).
 - **In VR**: a deathmatch with bots: give one a sword (it swings overhead; hold your weapon level across to parry);
   swing at a bot holding a melee weapon (it raises its guard more often at a higher `skill`); give it two pairing guns.
   Coop: Add Co-op Bot, play e1m1 to the exit: it fights beside you and is on e1m2 with what it had.
