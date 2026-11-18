@@ -6,6 +6,7 @@
 #include "vr_flatplay.hpp"
 #include "vr_flatsight.hpp"
 #include "vr_flycam.hpp"
+#include "vr_geom.hpp"
 #include "vr_nailslide.hpp"
 #include "vr_cvars.hpp"
 #include "vr_tunables.hpp"
@@ -748,8 +749,7 @@ bool handleLine(int slot, glm::vec3& axis, glm::vec3& pivot)
     {
         return glm::mat3{1.f};
     }
-    const float k = za::min(flip, 1.f);
-    const float eased = k * k * (3.f - 2.f * k);
+    const float eased = geom::smooth01(flip);
     const glm::vec3 o = weaponAngleOffsets(slot, mirrored);
     glm::vec3 along{1.f, 0.f, 0.f};
     if(const ReverseGeometry* g = reverseGeometryOf(slot))
@@ -771,8 +771,7 @@ bool handleLine(int slot, glm::vec3& axis, glm::vec3& pivot)
 
 [[nodiscard]] float reverseEased(float flip)
 {
-    const float k = za::clamp(flip, 0.f, 1.f);
-    return k * k * (3.f - 2.f * k);
+    return geom::smooth01(flip);
 }
 
 [[nodiscard]] glm::vec3 reverseTweak(int slot, bool mirrored, float flip)
