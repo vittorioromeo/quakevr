@@ -689,9 +689,9 @@ bool serverRead(client_t* client, ApplyFn apply, bool stale)
         netsnap::serverAck(slotNum, snapAck); // (B20: an overtaken one's is older)
     }
     const int count = MSG_ReadByte();
-    if(count < 1 || count > repeats + 1 || !readVarint(first) || first == 0)
+    if(count < 1 || count > repeats + 1 || !readVarint(first) || first == 0 || first > 0x7FFFFFFFu)
     {
-        return false;
+        return false; // (a number past any game's: the sums below would wrap, and runOldest's search with them)
     }
     slot->sends = true;
     bool decodable = base == 0 || slot->seqs[base % ring] == base;
