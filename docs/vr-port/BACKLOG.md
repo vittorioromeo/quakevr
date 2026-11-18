@@ -6,6 +6,14 @@ Staying here by his decision (2026-11-05): pickup thinks, heart gib and berserk 
 
 ## 1. Open bugs and failing tests
 
+- **Hand-to-hand weapon swap: the old hand keeps aiming** (tester "Joyeuse", Discord, 2026-11-18): hold a weapon in
+  one hand, grab it with the other, let go with the first: the game still treats the released hand as the one
+  directing the weapon and the new (only) holding hand as the support grip. The remaining hand must become the main
+  (aiming) hand at once.
+- **Tossing a weapon from one hand to the other drops it** (same tester): the weapon doesn't get the hand's momentum on
+  a short toss and falls straight down instead of flying to the other hand (a short throw below the throw threshold?
+  check the release velocity used for small, quick tosses).
+
 - **AD-only tests** (ran 2026-11-13 with `-game ad`, ROUND25.md "adtests"): `vr_flatswap_test 4` 48/0 on `map start`
   (one earlier run of two failed with faulty-frame counts on the blades' stance cases while it timed out under the
   default 240 s: a one-off, not reproduced; watch it), visor_test 37/0 with AD's two custom keys counted, `vr_agrunt_test
@@ -123,6 +131,13 @@ Staying here by his decision (2026-11-05): pickup thinks, heart gib and berserk 
 
 ## 7. Combat and feel
 
+- **Tester feedback, "Joyeuse" (Discord, 2026-11-18), comfort and controls:**
+  - Sprint as a toggle on the thumbstick click (an option; today it's hold-to-sprint).
+  - Ledge climbing: an option so the climb-over (mantle) waits for releasing the grab or pressing jump, instead of
+    happening automatically once the body is raised high enough.
+  - Ammo pouch height has no slider among the holster sliders (she had to use the drag-and-drop Holster Setup, which
+    felt fiddly): add Ammo Pouch position sliders like the holsters'.
+
 - **Crossed-sword parry** (2026-10-18): two blades crossed in front of the body count as a parry. After the AD melee work.
 - **Blades embedded in props** (2026-11-05): done 2026-11-12 (ROUND25.md "propblade": a joint at the handle, shared with
   the ragdolls' handle hold). Left: his VR check; a test of a re-grip off the handle; the crate carried by the other hand
@@ -214,6 +229,15 @@ Each verified by an unchanged physics hash, melee eval and `vr_menu_path_check`.
     headless map-change crash, f67ccf0); CI that compiles every shader with glslang.
 
 ## 11. Performance and parked
+
+- **Frame drops close to active-ragdoll enemies** (tester "Joyeuse", Discord, 2026-11-18, a lower-end PC): melee range
+  against active ragdolls drops the frame rate and makes melee hard. Profile a melee fight with 2-4 active ragdolls
+  up close on a mid/low GPU+CPU setting (Box3D contacts with the hands/blade, ragdoll solver iterations, gore/dents,
+  hit-box traces); consider a cheaper close-range mode or a quality setting.
+- **Linux Flatpak needed Steam folder access** (same tester): it worked once she granted access to
+  ~/.local/share/Steam (she had first installed the Windows build there to try Proton). The manifest has
+  `--filesystem=home:ro`, which should cover it: find why it didn't (a Flatpak'd Steam's path, a symlinked library,
+  host vs sandbox paths) and make the launcher say exactly which override to run when it finds no Quake.
 
 - **Performance, only when a capture makes one the top cost:** decals (PERF_DECISIONS.md 15), parallax option B and
   depth write, hit-box traces, shadows in crowded light, teleporter views, model loading in parallel, kept level copies:
