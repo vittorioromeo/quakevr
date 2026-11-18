@@ -1177,6 +1177,9 @@ za::Vector<Item> pageDebugReports()
             .help("vr_mp_rejoin_keep: hosting a coop game, a player who leaves (quits, crashes or loses his link) and "
                   "joins again by the same name gets back his weapons, ammo, health and armour, in his old slot, until the "
                   "game ends. Off: he comes back as a new player."),
+        toggle("Network: Guests May Kick and Pause", vr_mp_guest_admin)
+            .help("vr_mp_guest_admin: hosting, the other players (guests) may kick players, pause the game and clean the "
+                  "scene, as NetQuake let any coop player. Off: only you (the host) may; a guest who tries is told so."),
         slider("Network: Server Timeout", vr_mp_client_timeout, 0.f, 120.f, 5.f, "%.0f s")
             .help("vr_mp_client_timeout: joined to a remote server that stops answering (it crashed, its link dropped), "
                   "after 3 s the top right and the view say it is not responding; after this many seconds you are taken "

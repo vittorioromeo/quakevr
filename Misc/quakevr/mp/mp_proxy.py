@@ -192,7 +192,10 @@ class Proxy:
         st = self.stats[direction]
         if not control_or_short(pkt):
             pkt = self.mangle(pkt, direction)
-            if self.inject[direction]:
+            # (B28) only after an unreliable datagram's message: the receiver parses it whole. An ack's bytes after its
+            # header are never read, and a reliable chunk's join the next chunk's (or a resend is taken as a duplicate):
+            # up, most of B's packets are acks of the server's reliable chunks, so B27's injections went unread
+            if self.inject[direction] and int.from_bytes(pkt[0:4], "big") & NETFLAG_UNRELIABLE:
                 pkt = self.append(pkt, self.inject[direction].pop(0))
                 self.injected[direction] += 1
         if (direction == "down" and self.blackout) or (direction == "up" and self.blackout_up):

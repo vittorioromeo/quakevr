@@ -5842,7 +5842,7 @@ def _cmd_up(text):
 
 
 FUZZ_HOSTILE_UP = [(t[:40], _cmd_up(t)) for t in [
-    "kick #1", "kick A", "ban 127.0.0.1", "name " + "x" * 1000, "color 999999 -5", "say " + "%s%n" * 60,
+    "kick # 1", "kick # 2", "kick A", "ban 127.0.0.1", "ban 127.0.0.1 off","name " + "x" * 1000, "color 999999 -5", "say " + "%s%n" * 60,
     "tell #99 hi", "tell \x01\xff\xfe", "give h 2147483647", "give a -2147483648", "setpos nan nan nan",
     "setpos 1e30 -1e30 1e30 1e30 1e30 1e30", "ping", "status", "pause", "kill", "prespawn", "spawn", "begin",
     "vr_avatarcal " + "99999 " * 64, "vr_avatarcal -1 -1", "vr_prefs " + "\xff" * 300, "vr_prefs 99999 nan inf",
@@ -5864,34 +5864,51 @@ def fuzz_sweep_up():
     return out
 
 
-def fuzz_inject_up(s, srv, a, b, hostile):
+def fuzz_inject_up(s, srv, a, b, ea, eb, hostile):
     """(B27) Each of `hostile` (name, bytes) after one of B's packets' message up, B in the game: the server runs on
     (each a drop of B with a reason, or taken and checked), A stays in it (no guest's kick or ban reaches him); B joins
     again whenever he was dropped. -> how many drops."""
     p = b.proxy
     dropped, notes = 0, []
+    reasons = {}
     for i, (name, data) in enumerate(hostile):
         before = p.injected["up"]
+        sv_since = srv.mark()
         p.inject["up"].append(data)
         t0 = time.monotonic()
         while p.injected["up"] == before and time.monotonic() - t0 < 10:
             time.sleep(0.02)
+        if p.injected["up"] == before:
+            # (B28: only after an unreliable datagram: B sends one each frame in the game)
+            s.check("the hostile command up %s went (after one of B's datagrams)" % name, False, "not in 10 s")
+            return dropped
         server_time_past(srv, server_time(srv) + 0.1)  # (read and run by the server)
         if srv.proc.poll() is not None:
             s.check("the server survives the hostile command up %s" % name, False, "exited with %s" % srv.proc.returncode)
             return dropped
-        if own_status(a).get("connected") != "1":
-            s.check("A stays in the game after B's hostile command up %s" % name, False, "A not connected")
+        # (B28) the server's word (its clients' slots), not A's or B's games': a dropped client is told only when his
+        # connection can take a message then (SV_DropClient), else his game finds out at its timeout
+        slots = set(int(m.group(1)) for m in (re.match(r"mp_client: slot=(\d+)", l) for l in status(srv)) if m)
+        srv.read()
+        sv_lines = [l.strip() for l in srv.lines[sv_since:]]
+        if ea - 1 not in slots:
+            s.check("A stays in the game after B's hostile command up %s" % name, False, "A's slot gone: %s" % [
+                l for l in sv_lines if not l.startswith("mp_")][-4:])
             return dropped
-        if own_status(b).get("connected") != "1":
+        if eb - 1 not in slots:
             dropped += 1
+            why = next((l for l in sv_lines if l.startswith("SV_ReadClientMessage")), "removed")
+            reasons[why] = reasons.get(why, 0) + 1
             notes.append(name)
             js = b.mark()
             b.cmd("disconnect; " + s.connect_cmd(b))
-            if wait_quietly(b, r"mp_event: .*joined map=e1m1", 60, js, "B joined again") is None:
+            hit = wait_quietly(b, r"mp_event: .*joined map=e1m1", 60, js, "B joined again")
+            if hit is None:
                 s.check("B joins again after the hostile command up %s" % name, False, "not in 60 s")
                 return dropped
-    s.note("hostile commands up: %d sent, B dropped %d times: %s" % (len(hostile), dropped, notes[:12]))
+            eb = int(fields(hit[1])["self"])
+    s.note("hostile commands up: %d sent, B dropped %d times: %s; the server's reasons %s" % (
+        len(hostile), dropped, notes[:12], reasons))
     s.check("the server survives %d hostile commands up, A in the game" % len(hostile), srv.proc.poll() is None and
             own_status(a).get("connected") == "1", "running")
     return dropped
@@ -5957,12 +5974,13 @@ def fuzz(s):
         alive_check(s, srv, "the server after the hostile commands")
         return
     if PART == "injectup":
-        # (B27, unfinished: of 136 only clc 0's first drew a drop, B's "kick #1" did not reach A: the bytes after one
-        # of B's packets' messages up are not yet what the server parses (B28 finds why); not in the suite until then)
-        fuzz_inject_up(s, srv, a, b, FUZZ_HOSTILE_UP + fuzz_sweep_up())
+        # (B27; B28: the bytes now after one of B's datagrams' messages, not an ack's: the server parses them)
+        fuzz_inject_up(s, srv, a, b, ea, eb, FUZZ_HOSTILE_UP + fuzz_sweep_up())
         alive_check(s, b, "B's game after his hostile commands up")
         return
     fuzz_inject(s, b, FUZZ_HOSTILE)
+    # (B28) and up: the hostile client commands and every clc code with garbage (fuzz --part injectup's), B in the game
+    fuzz_inject_up(s, srv, a, b, ea, eb, FUZZ_HOSTILE_UP + fuzz_sweep_up())
     for inst in (a, b):
         inst.cmd("god; notarget")
     a.cmd("vr_mock_stick off 0.3 0.6")
@@ -6003,6 +6021,87 @@ def fuzz(s):
     alive_check(s, b, "B's game after corrupt packets down")
     if alive_check(s, srv, "the server after B's corrupt packets down"):
         a_plays("B's packets down corrupted")
+
+
+GUEST_TALK_BURST = 4  # (B28) vr_server.cpp talkBurst: a guest's messages taken in its window before he is silenced
+
+
+def guests(s):
+    """(B28) A guest may not run the host's commands: NetQuake let any coop client kick the others (Host_Kick_f refused
+    only in deathmatch) and pause everyone's game. A hosts a listen server (pausable 1), B joins (a guest): with
+    vr_mp_guest_admin 0 (the default) B's kick of A, pause and vr_scene_clean are refused and he is told so, his ban
+    too (the server console's own), A still in and the game not paused; A, the host, pauses and unpauses. B's talk:
+    GUEST_TALK_BURST messages, then he is silenced (told), A sees no more; the host's own talk is not held. Then
+    vr_mp_guest_admin 1: B's pause and unpause go (as NetQuake's); and the host kicks B. Each wait is on the line its
+    step must print."""
+    srv, a, b, ea, eb = join(s, listen=True)
+    a.cmd("pausable 1; vr_mp_guest_admin 0")
+    since_a, since_b = a.mark(), b.mark()
+    for c in ("kick # %d" % ea, "pause", "vr_scene_clean gibs", "ban 127.0.0.1"):
+        b.cmd(c)
+    told = []
+    for what in ("kick", "pause", "vr_scene_clean"):
+        hit = wait_quietly(b, r"^%s: refused, only the host may" % what, 20, since_b, "B told: %s refused" % what)
+        told.append(hit is not None)
+    banned = wait_quietly(b, r"^ban: refused, only the server's console may", 20, since_b, "B told: ban refused")
+    s.check("a guest's kick, pause and scene cleaning refused, each told so (vr_mp_guest_admin 0)", all(told),
+            "told %s" % dict(zip(("kick", "pause", "vr_scene_clean"), told)))
+    since = a.mark()
+    a.cmd("ban; echo mp_guests_ban")
+    a.wait(r"^mp_guests_ban", 10, since, "the host's ban list")
+    s.check("a guest's ban refused (the server console's own), told so, no address banned", banned is not None and
+            a.find(r"^Banning not active", since) is not None, "told %s; host: %s" % (
+                banned is not None, "not active" if a.find(r"^Banning not active", since) else "a ban active"))
+    rows = status(a)
+    slots = set(int(m.group(1)) for m in (re.match(r"mp_client: slot=(\d+)", l) for l in rows) if m)
+    paused = a.find(r"paused the game", since_a)
+    s.check("A still in, the game not paused", ea - 1 in slots and eb - 1 in slots and paused is None,
+            "slots %s; %s" % (sorted(slots), "paused" if paused else "not paused"))
+
+    # the host's own pause
+    since_b = b.mark()
+    a.cmd("pause")
+    p1 = wait_quietly(b, r"paused the game", 20, since_b, "B told the host paused")
+    a.cmd("pause")
+    p2 = wait_quietly(b, r"unpaused the game", 20, since_b, "B told the host unpaused")
+    s.check("the host pauses and unpauses", p1 is not None and p2 is not None, "%s; %s" % (
+        p1[1].strip() if p1 else "no pause", p2[1].strip() if p2 else "no unpause"))
+
+    # a guest's talk flood, the host's own talk
+    since_a, since_b = a.mark(), b.mark()
+    for i in range(GUEST_TALK_BURST + 2):
+        b.cmd("say flood_%d" % (i + 1))
+    silenced = wait_quietly(b, r"^You can't talk for \d+ more seconds \(more than", 20, since_b, "B silenced")
+    since = a.mark()
+    a.cmd("echo mp_guests_talk")  # (B's messages before his notice came in the same frame as it, or none)
+    a.wait(r"^mp_guests_talk", 10, since, "A's console after B's talk")
+    a.read()
+    seen = sorted(set(int(m.group(1)) for m in (re.search(r"flood_(\d+)", l) for l in a.lines[since_a:]) if m))
+    s.check("a guest's talk: %d messages, then he is silenced and told so" % GUEST_TALK_BURST,
+            silenced is not None and seen == list(range(1, GUEST_TALK_BURST + 1)),
+            "A saw %s; B %s" % (seen, "told" if silenced else "not told"))
+    since_b = b.mark()
+    for i in range(GUEST_TALK_BURST + 2):
+        a.cmd("say hostsays_%d" % (i + 1))
+    last = wait_quietly(b, r"hostsays_%d" % (GUEST_TALK_BURST + 2), 20, since_b, "B seeing the host's talk")
+    s.check("the host's own talk is not held", last is not None, "B saw all %d" % (GUEST_TALK_BURST + 2) if last else
+            "B missed the last")
+
+    # the host allows guests: B's pause goes; then the host kicks B
+    a.cmd("vr_mp_guest_admin 1")
+    since_a = a.mark()
+    b.cmd("pause")
+    g1 = wait_quietly(a, r"paused the game", 20, since_a, "B's pause allowed")
+    b.cmd("pause")
+    g2 = wait_quietly(a, r"unpaused the game", 20, since_a, "B's unpause")
+    s.check("vr_mp_guest_admin 1: a guest's pause and unpause go", g1 is not None and g2 is not None, "%s; %s" % (
+        g1[1].strip() if g1 else "refused", g2[1].strip() if g2 else "not unpaused"))
+    a.cmd("vr_mp_guest_admin 0")
+    since_b = b.mark()
+    a.cmd("kick # %d" % eb)
+    kicked = wait_quietly(b, r"^Kicked by ", 20, since_b, "B kicked by the host")
+    s.check("the host kicks a guest", kicked is not None,
+            kicked[1].strip().encode("ascii", "replace").decode() if kicked else "B not kicked")
 
 
 def vanish(s):
@@ -6530,6 +6629,8 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             jitter_lift(s)
         elif test == "mp_fuzz":
             fuzz(s)
+        elif test == "mp_guests":
+            guests(s)
         elif test == "mp_nat":
             nat(s)
         elif test == "mp_netsafe":
@@ -6613,6 +6714,7 @@ SUITE = [
     ("mp_nethud", ()),
     ("mp_vanish", ()),
     ("mp_fuzz", ()),
+    ("mp_guests", ()),
     ("mp_jitter", ()),
     ("mp_nat", ()),
 ]  # (mp_netsafe runs first, before these; the rest in this order. The tuples: lag ms, jitter ms, loss)
@@ -6620,7 +6722,7 @@ SUITE = [
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite"])
     ap.add_argument("--base", required=True, help="the game folder (id1, quakevr...)")
     ap.add_argument("--exe", default=EXE)
     ap.add_argument("--out", default=os.path.join(REPO, "scratch", "mp"))
@@ -6682,7 +6784,7 @@ def main_run(args):
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
     elif args.test in ("bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground",
-                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui"):
+                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui"):
         ok = run(args, "mp_" + args.test)
     elif args.test == "voice":
         ok = run(args, "mp_voice", args.lag, args.jitter, args.loss)

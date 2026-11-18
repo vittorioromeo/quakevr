@@ -83,6 +83,20 @@ struct ClientMove
 };
 za::Vector<ClientMove> clientMoves;
 
+// (B28) Per client slot: a guest's say, say_team and tell flood guard (QuakeWorld's fp_messages: more than talkBurst
+// messages in talkWindow seconds silences him for talkSilence; realtime): his last messages' times, a ring
+constexpr int talkBurst = 4;
+constexpr double talkWindow = 8.0;
+constexpr double talkSilence = 10.0;
+struct TalkGuard
+{
+    double times[talkBurst]{};
+    int next{0};
+    int count{0};
+    double silentUntil{0.0};
+};
+za::Vector<TalkGuard> talkGuards;
+
 // Per client slot: its avatar as last sent (writeAvatars: an unchanged one waits for its keyframe); and the counts.
 constexpr int avatarMaxBytes = 260; // (2 + 2 + 1 + 12 + 8 + 2 * 47 + 8 + 2 * 7 holds + 3 + 6 * 16 holsters + 1 = 241 at most)
 struct AvatarSent
@@ -1574,6 +1588,69 @@ extern "C" void VR_ClientReset(client_t* client)
     mpavatar::serverReset(clientNum); // (his avatar calibration gone; the clients told)
     voicechat::serverReset(clientNum); // (his voice frames and budget, B10v)
     clientprefs::serverReset(clientNum); // (and his preferences: the server's until the next player's come)
+    if(clientNum >= 0 && clientNum < static_cast<int>(talkGuards.size()))
+    {
+        talkGuards[clientNum] = {}; // (B28: a new player's talk starts clean)
+    }
+}
+
+namespace
+{
+
+// (B28) The listen host's own client: the loopback's, whose server side's address is "LOCAL" (vr_netsnap.cpp's test).
+bool isHostsOwn(const client_t* client)
+{
+    return client->netconnection && strcmp(NET_QSocketGetAddressString(client->netconnection), "LOCAL") == 0;
+}
+
+} // namespace
+
+extern "C" int VR_GuestMay(const char* what)
+{
+    // (the server's console and the listen host's own player always; a guest -- any remote player, a dedicated server's
+    // every one -- only when the host allows: NetQuake let any coop player kick the others, a room-code stranger too)
+    if(cmd_source != src_client || !host_client || isHostsOwn(host_client) || vr_mp_guest_admin.value != 0.f)
+    {
+        return 1;
+    }
+    SV_ClientPrintf("%s: refused, only the host may (this server's vr_mp_guest_admin is 0)\n", what);
+    Con_Printf("%s tried to %s: refused, a guest (vr_mp_guest_admin 0)\n", host_client->name, what);
+    return 0;
+}
+
+extern "C" int VR_GuestMayTalk()
+{
+    if(cmd_source != src_client || !host_client || isHostsOwn(host_client))
+    {
+        return 1;
+    }
+    const int slot = static_cast<int>(host_client - svs.clients);
+    if(slot < 0 || slot >= svs.maxclientslimit)
+    {
+        return 1;
+    }
+    if(slot >= static_cast<int>(talkGuards.size()))
+    {
+        talkGuards.resize(slot + 1);
+    }
+    TalkGuard& g = talkGuards[slot];
+    if(realtime < g.silentUntil)
+    {
+        SV_ClientPrintf("You can't talk for %d more seconds.\n", static_cast<int>(ceil(g.silentUntil - realtime)));
+        return 0;
+    }
+    if(g.count >= talkBurst && realtime - g.times[g.next] < talkWindow)
+    {
+        g.silentUntil = realtime + talkSilence;
+        SV_ClientPrintf("You can't talk for %d more seconds (more than %d messages in %d seconds).\n",
+            static_cast<int>(talkSilence), talkBurst, static_cast<int>(talkWindow));
+        Con_Printf("%s silenced for %d seconds (talk flood)\n", host_client->name, static_cast<int>(talkSilence));
+        return 0;
+    }
+    g.times[g.next] = realtime;
+    g.next = (g.next + 1) % talkBurst;
+    g.count = za::min(g.count + 1, talkBurst);
+    return 1;
 }
 
 namespace

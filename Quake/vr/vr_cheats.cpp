@@ -136,6 +136,10 @@ void serverParts(int bits, bool clear)
         SV_ClientPrintf("scene: not in deathmatch\n");
         return;
     }
+    if(clear && !VR_GuestMay("vr_scene_clean"))
+    {
+        return; // (B28: it clears everyone's scene; counting is anyone's)
+    }
     const func_t fn = progs::bindings().Scene_Clean;
     if(!fn)
     {

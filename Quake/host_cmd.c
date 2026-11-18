@@ -3099,6 +3099,8 @@ static void Host_Say(qboolean teamonly)
 
 	if (Cmd_Argc () < 2)
 		return;
+	if (!fromServer && !VR_GuestMayTalk ()) // QVR: (B28) a guest's flood guard (QuakeWorld's: 4 messages in 8 s)
+		return;
 
 	save = host_client;
 
@@ -3179,6 +3181,8 @@ static void Host_Tell_f(void)
 	}
 
 	if (Cmd_Argc () < 3)
+		return;
+	if (!VR_GuestMayTalk ()) // QVR: (B28) a guest's flood guard (Host_Say's)
 		return;
 
 	p = Cmd_Args();
@@ -3323,6 +3327,8 @@ static void Host_Pause_f (void)
 	}
 	if (!pausable.value)
 		SV_ClientPrintf ("Pause not allowed.\n");
+	else if (!VR_GuestMay ("pause")) // QVR: (B28) a guest's pause stops everyone's game: the host's own (vr_mp_guest_admin)
+		;
 	else
 	{
 		sv.paused ^= 1;
@@ -3582,6 +3588,8 @@ static void Host_Kick_f (void)
 		}
 	}
 	else if (pr_global_struct->deathmatch)
+		return;
+	else if (!VR_GuestMay ("kick")) // QVR: (B28) NetQuake let any coop client kick the others: the host's own (vr_mp_guest_admin)
 		return;
 
 	save = host_client;
