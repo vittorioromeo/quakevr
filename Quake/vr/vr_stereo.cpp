@@ -35,11 +35,16 @@
 #include "vr_profile.hpp"
 #include "vr_stereo.hpp"
 #include "vr_stereo_single.hpp"
-#include "SDL.h"
 #include "vr_text3d.hpp"
 #include "vr_takes.hpp"
 #include "vr_temporal.hpp"
 #include "vr_tonemap.hpp"
+
+#if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
+#include <SDL2/SDL.h>
+#else
+#include "SDL.h"
+#endif
 #include "vr_tracy.h"
 #include "vr_tunables.hpp"
 #include "vr_upscale.hpp"
@@ -113,10 +118,10 @@ DirectTarget directTarget;
 
 void bindDirectTarget(GLuint image, int width, int height)
 {
-    using GenFn = void (*)(GLsizei, GLuint*);
-    using BindFn = void (*)(GLenum, GLuint);
-    using StorageFn = void (*)(GLenum, GLenum, GLsizei, GLsizei);
-    using AttachFn = void (*)(GLenum, GLenum, GLenum, GLuint);
+    using GenFn = void(APIENTRY*)(GLsizei, GLuint*);
+    using BindFn = void(APIENTRY*)(GLenum, GLuint);
+    using StorageFn = void(APIENTRY*)(GLenum, GLenum, GLsizei, GLsizei);
+    using AttachFn = void(APIENTRY*)(GLenum, GLenum, GLenum, GLuint);
     DirectTarget& d = directTarget;
     if(!d.fbo)
     {

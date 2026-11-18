@@ -104,11 +104,6 @@ static int aliasbatchbonescap;
 // FaceBuffer (gl_shaders.h): the faces' view-projections, then a draw per instance and face (its index | face << 16)
 static unsigned char aliasinstfaces[MAX_ALIAS_INSTANCES];
 
-// QVR: a batch of posed models (R_AliasPosedJoin: the world's, vr_alias_batch_posed): each instance's entity, and the
-// batch's bones, each instance's after the last's (its poses offset to them: R_FlushAliasInstances)
-static const entity_t *aliasinstents[MAX_ALIAS_INSTANCES];
-static bonepose_t *aliasbatchbones;
-static int aliasbatchbonescap;
 static struct {
 	float		viewproj[6][16];
 	uint32_t	draws[MAX_ALIAS_INSTANCES * 6];
@@ -735,7 +730,6 @@ void R_FlushAliasInstances (qboolean showtris)
 
 	model = ibuf.ent->model;
 	mainhdr = (aliashdr_t*)Mod_Extradata (model);
-	draws0 = vr_profcounts.drawcalls; // QVR: vr_gl_passes' alias batches
 
 	// QVR: layered shadow casters: a draw per instance and face it reaches (the faces in aliasinstfaces)
 	layered = aliasdepth && aliasfaces && glprogs.alias_depth_layered[mainhdr->poseverttype];

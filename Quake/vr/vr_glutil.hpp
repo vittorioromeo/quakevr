@@ -52,7 +52,8 @@ void clearTexture(GLuint tex, const float rgba[4]);
 // the pack alignment kept), waiting for the GPU. With `esForm` (VR_GLGetTexImage under -glescompat) the OpenGL ES
 // form, since ES has no glGetTexImage: each layer attached to a framebuffer and read with glReadPixels in the
 // format ES guarantees (RGBA bytes from normalized textures, RGBA floats from float ones), then converted; a depth
-// texture (2D) copied first, bit for bit, into an R32UI one (ES reads no depth). False, `out` zeroed, when it cannot:
+// texture (2D) copied first, bit for bit, into an R32UI one (ES reads no depth). False when it cannot (`out` zeroed
+// when `format` and `type` are ones listed):
 // an integer, compressed or not colour-renderable texture under the ES form, or a format or type not listed.
 [[nodiscard]] bool readTexImage(GLenum target, GLint level, GLenum format, GLenum type, void* out, bool esForm);
 

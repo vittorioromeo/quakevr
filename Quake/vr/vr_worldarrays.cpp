@@ -433,6 +433,8 @@ extern "C" void VR_WorldArraysNewMap(void)
     st.wanted = true;
     st.stale = false;
     st.rebuilds = 0;
+    st.builtFrame = -1; // (R_NewMap starts r_framecount again: the last map's frame numbers would skip this one's)
+    st.statFrame = -1;
 }
 
 // GL_DeleteBModelBuffers

@@ -1169,7 +1169,7 @@ void endStartup(const char* how)
 }
 } // namespace
 
-// The GL calls that make the CPU wait for the GPU (VR_GLSyncNote: glquake.h's wrappers and gl_vidsdl.c's), counted
+// The GL calls that make the CPU wait for the GPU (VR_GLSyncNote: glquake.h's wrappers), counted
 // between reports (vr_gl_sync_count, vr_gl_sync_report): the Quest's frames serialised CPU and GPU (2026-11-17).
 namespace
 {

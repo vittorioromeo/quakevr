@@ -665,6 +665,7 @@ GLuint GL_WorldArraysProgram (GLuint program, qboolean *depthonly)
 	glprogsource_t *src = NULL;
 	int i, realcount;
 
+	*depthonly = false;
 	for (i = 0; i < gl_num_progsources && !src; i++)
 		if (gl_progsources[i].program == program)
 			src = &gl_progsources[i];
@@ -697,6 +698,11 @@ GLuint GL_WorldArraysProgram (GLuint program, qboolean *depthonly)
 	return src->arraytwin;
 }
 
+int GL_WorldRigLightsOff (void) // QVR: the world's programs skip the rig's small lights (C4v; vr_rig_lights_world 0)
+{
+	return (gl_world_lite & (1 << 27)) != 0;
+}
+
 /*
 ====================
 GL_WorldArraysMergeProgram -- QVR
@@ -705,11 +711,6 @@ The compute program putting a draw's calls' indices one after another (world_arr
 first time it is needed (only the bound path with the world's textures in arrays uses it).
 ====================
 */
-int GL_WorldRigLightsOff (void) // QVR: the world's programs skip the rig's small lights (C4v; vr_rig_lights_world 0)
-{
-	return (gl_world_lite & (1 << 27)) != 0;
-}
-
 GLuint GL_WorldArraysMergeProgram (void)
 {
 	if (!glprogs.world_arrays_merge && !gl_arrays_merge_tried)

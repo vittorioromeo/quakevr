@@ -389,7 +389,6 @@ struct TemporalBlock // std140: QVR_TEMPORAL_BLOCK (vr_glsl.h)
     float size[4];   // xy 1 / the eye's size
 };
 
-
 // ---------------------------------------------------------------------------------------------------------------------
 // Helpers
 
@@ -811,8 +810,13 @@ void registerCommands()
             }
             std::uint32_t stats[statsViews * 4] = {};
             GL_BindBuffer(GL_SHADER_STORAGE_BUFFER, state.statsBuffer);
-            (void)gfx::readBuffer(GL_SHADER_STORAGE_BUFFER, 0, sizeof(stats), stats); // (zeros if it can't)
+            const bool read = gfx::readBuffer(GL_SHADER_STORAGE_BUFFER, 0, sizeof(stats), stats);
             GL_BindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+            if(!read)
+            {
+                Con_Printf("vr_temporal_error: the statistics could not be read back\n");
+                return;
+            }
             for(int eye = state.flat ? flatView : 0; eye < (state.flat ? statsViews : 2); eye++)
             {
                 const std::uint32_t* s = stats + eye * 4;

@@ -235,7 +235,7 @@ void VR_NoteModelLoad (const char *name, double seconds); // a model's load from
 void VR_TexCacheFinishWrites (void); // the cache files still being written finished (VR_Shutdown)
 // The GL programs' binaries (gl_shaders.c; vr_diskcache.cpp; QUEST_PLAN.md, C4d): one pack file per GL driver under the
 // cache root (<root>/programs/<driver hash>.bin), read once, written when a program was made: the Quest's ~51 s of
-// shader compiles at every start. vr_program_cache (default 1: on under OpenGL ES; 2 also on the PC; 0 off).
+// shader compiles at every start. vr_program_cache (default 1: on on Android; 2 also on the PC; 0 off).
 int VR_ProgCacheOn (void);
 unsigned long long VR_ProgCacheKey (unsigned long long h, const char *text); // a program's key, part by part (h 0: the first)
 void VR_ProgCacheBegin (const char *vendor, const char *renderer, const char *version); // GL_CreateShaders' start

@@ -285,7 +285,8 @@ void probeFbo(const char* what, unsigned fbo, int w, int h)
     const double n = static_cast<double>(texels);
     Con_Printf("  %s: fbo %u status 0x%x samples %d (read format 0x%x) %dx%d: %.2f%% not black, mean %.4f (rgb %.3f %.3f %.3f)%s\n",
         what, fbo, status, samples, format, w, h, 100.0 * static_cast<double>(lit) / n, sum / n, rgb[0] / n, rgb[1] / n,
-        rgb[2] / n, err != GL_NO_ERROR ? va(" (read error 0x%x)", err) : "");}
+        rgb[2] / n, err != GL_NO_ERROR ? va(" (read error 0x%x)", err) : "");
+}
 } // namespace
 
 namespace
@@ -509,6 +510,8 @@ void glProbe(int eye, int stage, unsigned sceneFbo, unsigned compositeFbo, unsig
     if(stage == 0 && eye == 0) // the self-test: a cleared RGBA8 framebuffer read back
     {
         GLuint tex = 0, fbo = 0;
+        GLint drawBefore = 0;
+        glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &drawBefore);
         glGenTextures(1, &tex);
         GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, tex);
         GL_TexStorage2DFunc(GL_TEXTURE_2D, 1, GL_RGBA8, 4, 4);
@@ -518,7 +521,7 @@ void glProbe(int eye, int stage, unsigned sceneFbo, unsigned compositeFbo, unsig
         const GLfloat colour[4] = {1.f, 0.5f, 0.25f, 1.f};
         GL_ClearBufferfvFunc(GL_COLOR, 0, colour);
         probeFbo("self-test (cleared to 1 0.5 0.25: mean 0.58)", fbo, 4, 4);
-        GL_BindFramebufferFunc(GL_DRAW_FRAMEBUFFER, 0);
+        GL_BindFramebufferFunc(GL_DRAW_FRAMEBUFFER, static_cast<GLuint>(drawBefore));
         GL_DeleteFramebuffersFunc(1, &fbo);
         GL_DeleteNativeTexture(tex);
     }

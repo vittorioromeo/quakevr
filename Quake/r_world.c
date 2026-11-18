@@ -1210,8 +1210,8 @@ void R_PrewarmDecalPrograms (qboolean pdo)
 R_PrewarmArrayTwins -- QVR
 
 The array twins (vr/vr_worldarrays.cpp, GL_WorldArraysProgram) of the world programs this view's settings draw with
-(its dither; opaque and OIT, solid and fence, the parallax depth write's, the pre-passes, the decals' retro ones made
-so far), compiled when the arrays are made at the map's load: a twin made in play stalls a frame (a world shader:
+(its dither; opaque and OIT, solid and fence, the unlit ones (the ES profile's vr_gl_world_unlit), the parallax depth
+write's, the pre-passes, the decals' retro ones made so far), compiled when the arrays are made at the map's load: a twin made in play stalls a frame (a world shader:
 over a second on this PC).
 =============
 */
@@ -1227,6 +1227,9 @@ static void R_PrewarmArrayTwins (void)
 		if (glprogs.world_decal_retro[oit][dither])
 			GL_WorldArraysProgram (glprogs.world_decal_retro[oit][dither], &depthonly);
 	}
+	for (alphatest = 0; alphatest < 2; alphatest++)
+		if (glprogs.world_unlit[dither][alphatest]) // (the split's batch program: R_AddBModelPassCallsSplit)
+			GL_WorldArraysProgram (glprogs.world_unlit[dither][alphatest], &depthonly);
 	GL_WorldArraysProgram (glprogs.world_pdo[dither], &depthonly);
 	if (glprogs.world_pdo_decal_retro[dither])
 		GL_WorldArraysProgram (glprogs.world_pdo_decal_retro[dither], &depthonly);

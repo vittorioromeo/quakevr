@@ -310,7 +310,7 @@ Program easuProgram, composeProgram, nisProgram;
     {
         return nisProgram.id;
     }
-    if(VR_GLESCompat()) // NIS's GLSL leans on desktop GLSL's implicit conversions throughout: not on ES (FSR instead)
+    if(VR_GLESForm(VR_GLES_FORM_GLSL)) // NIS's GLSL leans on desktop GLSL's implicit conversions throughout: not on ES (FSR instead)
     {
         nisProgram.failed = true;
         return 0;
