@@ -3246,7 +3246,7 @@ def ammo_give(s, srv, a, b, ea, eb):
     armed with a shotgun first."""
     for inst in (srv, a, b):
         inst.cmd("vr_reload_mode 3")
-    srv.cmd("developer 1; vr_reload_debug 1")
+    srv.cmd("developer 1; vr_reload_debug %d" % int(os.environ.get("QVR_RELOAD_DEBUG", "1")))
     for kind in AMMO_KINDS:
         if AMMO_PART in ("", "give"):
             ammo_give_one(s, srv, a, b, ea, eb, kind[1] != 4, *kind)
@@ -3381,13 +3381,26 @@ def ammo_load(s, srv, b, eb, what, key, ready, mine0):
     if ready:
         # (The gun held up as front_test's launcher, its muzzle 70 degrees up; the round in the off hand as it was taken
         # up lying along his facing, turned as much: along the barrel, its butt to the muzzle.)
-        b.cmd("vr_mock_hand main 0.15 1.0 -0.40 140 0 0; vr_mock_hand off -0.15 1.0 -0.40 70 0 0")
-        server_time_past(srv, server_time(srv) + THROW_SETTLE_S)
-        for below in (6, 0, 0):
-            b.cmd("vr_mock_hand_to off lport %d" % below)
-            server_time_past(srv, server_time(srv) + 0.2)
-        loaded = wait_quietly(srv, r"reload: (.* seated \(hand 1|1 into the gun \(hand 1)", 5, since,
-                              "%s's %s into his gun" % (b.name, what))
+        # (B25b: each placement waited for at B's game (its echo) before the server's 0.2 s, and the whole tried again
+        # from the start pose twice: in 2 full suite runs of 6 the magazine stopped 2.5 units off the port (leniency 2)
+        # and stayed there, the port and the round each a unit apart from where B's previous placement had them.)
+        seat = r"reload: (.* seated \(hand 1|1 into the gun \(hand 1)"
+        for attempt in range(3):
+            if attempt:
+                s.note("%s's %s not in his gun yet: placed again (try %d)" % (b.name, what, attempt + 1))
+            b.cmd("vr_mock_hand main 0.15 1.0 -0.40 140 0 0; vr_mock_hand off -0.15 1.0 -0.40 70 0 0")
+            server_time_past(srv, server_time(srv) + THROW_SETTLE_S)
+            for below in (6, 0, 0):
+                srv.mark()  # (read the log so far)
+                if srv.find(seat, since):
+                    break
+                mark_b = b.mark()
+                b.cmd("vr_mock_hand_to off lport %d; echo mp_lport_placed" % below)
+                b.wait(r"mp_lport_placed", 20, mark_b, "%s's hand placed at the port" % b.name)
+                server_time_past(srv, server_time(srv) + 0.2)
+            loaded = wait_quietly(srv, seat, 5, since, "%s's %s into his gun" % (b.name, what))
+            if loaded:
+                break
     inv, _ = inventories(srv)
     mine = inv.get(eb - 1, {}).get(key, 0)
     clip = inv.get(eb - 1, {}).get("clip", 0)
@@ -3712,9 +3725,16 @@ def blade(s, srv, a, b, ea, eb):
             m1 > m0, "%d of his moves merged or kept (%d -> %d)" % (m1 - m0, m0, m1))
     # (its strength: the damage less the zone's multiplier, which is where on A the blade met him: 0.6 an arm, 1.5 the
     # head; a few units either way at the same swing)
+    # (B25b: the clean reference taken again once when the two differ: the swing is vr_mock_play's real-time gesture,
+    # and under load one clean take came out at 4.98 against 3.92-3.98 in every other run, the jittered one 3.92)
+    within = lambda r: got is not None and r is not None and abs(got - r) <= JITTER_SLACK * r
+    refs = [ref]
+    if not within(ref):
+        swing(s, srv, b, a, eb, ea, "B's sword on A again without jitter (the reference again)", None)
+        refs.append(swing.strength)
+        s.note("B's clean swing taken again: strength %s (the first %s)" % (swing.strength, ref))
     s.check("B's swing at %d ms jitter lands as without (its strength within %d%%)" % (JITTER_MS, JITTER_SLACK * 100),
-            got is not None and ref is not None and abs(got - ref) <= JITTER_SLACK * ref,
-            "strength %s (damage %s), without jitter %s" % (got, dmg, ref))
+            within(refs[-1]), "strength %s (damage %s), without jitter %s" % (got, dmg, refs))
 
 
 def melee(s, only_blade=False):
