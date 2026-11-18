@@ -1013,7 +1013,7 @@ QVR_WORLD_FS_ALPHA // QVR: alpha to coverage; the liquid's alpha and refraction
 "	out_fragcolor.rgb = sqrt(out_fragcolor.rgb);\n"
 "	float luma = dot(out_fragcolor.rgb, vec3(.25, .625, .125));\n"
 "	float nearnoise = tri(whitenoise01(lmuv * lmsize)) * luma * TextureDither;\n"
-"	float farnoise = Fog.w > 0. ? SCREEN_SPACE_NOISE() * ScreenDither : 0.;\n"
+"	float farnoise = Fog.w > 0. && ScreenDither != 0. ? SCREEN_SPACE_NOISE() * ScreenDither : 0.;\n"
 "	out_fragcolor.rgb += mix(nearnoise, farnoise, farblend);\n"
 "	out_fragcolor.rgb *= out_fragcolor.rgb;\n"
 "#endif // DITHER == 1\n"
@@ -1021,7 +1021,7 @@ QVR_WORLD_FS_ALPHA // QVR: alpha to coverage; the liquid's alpha and refraction
 "	// nuke extra precision in 10-bit framebuffer\n"
 "	out_fragcolor.rgb = floor(out_fragcolor.rgb * 255. + 0.5) * (1./255.);\n"
 "#elif DITHER == 0\n"
-"	out_fragcolor.rgb += SUPPRESS_BANDING() * ScreenDither;\n"
+"	if (ScreenDither != 0.) out_fragcolor.rgb += SUPPRESS_BANDING() * ScreenDither; // QVR: 0 in the eyes (vr_dither: VR_SceneDither): no noise made to be multiplied by 0\n"
 "#endif\n"
 "#if QVR_PDO\n"
 "	if (Parallax2.w > 1.5) // QVR: vr_parallax_debug 1: red how deep below the surface its depth was written, of the full depth; green how high over it (ParallaxPlane); blue the surface's own (no hit)\n"
@@ -1139,11 +1139,11 @@ QVR_TEMPORAL_FS_OUTPUT
 "	if (Fog.w > 0.)\n"
 "	{\n"
 "		out_fragcolor.rgb = sqrt(out_fragcolor.rgb);\n"
-"		out_fragcolor.rgb += SCREEN_SPACE_NOISE() * ScreenDither;\n"
+"		if (ScreenDither != 0.) out_fragcolor.rgb += SCREEN_SPACE_NOISE() * ScreenDither; // QVR: 0 in the eyes (vr_dither: VR_SceneDither): no noise made to be multiplied by 0\n"
 "		out_fragcolor.rgb *= out_fragcolor.rgb;\n"
 "	}\n"
 "#else\n"
-"	out_fragcolor.rgb += SUPPRESS_BANDING() * ScreenDither;\n"
+"	if (ScreenDither != 0.) out_fragcolor.rgb += SUPPRESS_BANDING() * ScreenDither; // QVR: 0 in the eyes (vr_dither: VR_SceneDither): no noise made to be multiplied by 0\n"
 "#endif\n"
 "}\n";
 
@@ -1233,7 +1233,7 @@ NOISE_FUNCTIONS
 "	result.rgb = mix(result.rgb, layer.rgb, layer.a);\n"
 "	result.rgb = mix(result.rgb, SkyFog.rgb, SkyFog.a);\n"
 "	out_fragcolor = result;\n"
-"	out_fragcolor.rgb += SUPPRESS_BANDING() * ScreenDither;\n"
+"	if (ScreenDither != 0.) out_fragcolor.rgb += SUPPRESS_BANDING() * ScreenDither; // QVR: 0 in the eyes (vr_dither: VR_SceneDither): no noise made to be multiplied by 0\n"
 "}\n";
 
 ////////////////////////////////////////////////////////////////
@@ -1297,10 +1297,10 @@ NOISE_FUNCTIONS
 "	out_fragcolor.rgb = mix(out_fragcolor.rgb, SkyFog.rgb, SkyFog.a);\n"
 "#if DITHER\n"
 "	out_fragcolor.rgb = sqrt(out_fragcolor.rgb);\n"
-"	out_fragcolor.rgb += SCREEN_SPACE_NOISE() * ScreenDither;\n"
+"	if (ScreenDither != 0.) out_fragcolor.rgb += SCREEN_SPACE_NOISE() * ScreenDither; // QVR: 0 in the eyes (vr_dither: VR_SceneDither): no noise made to be multiplied by 0\n"
 "	out_fragcolor.rgb *= out_fragcolor.rgb;\n"
 "#else\n"
-"	out_fragcolor.rgb += SUPPRESS_BANDING() * ScreenDither;\n"
+"	if (ScreenDither != 0.) out_fragcolor.rgb += SUPPRESS_BANDING() * ScreenDither; // QVR: 0 in the eyes (vr_dither: VR_SceneDither): no noise made to be multiplied by 0\n"
 "#endif\n"
 "}\n";
 
@@ -1349,10 +1349,10 @@ NOISE_FUNCTIONS
 "	out_fragcolor.rgb = mix(out_fragcolor.rgb, Fog.rgb, Fog.w);\n"
 "#if DITHER\n"
 "	out_fragcolor.rgb = sqrt(out_fragcolor.rgb);\n"
-"	out_fragcolor.rgb += SCREEN_SPACE_NOISE() * ScreenDither;\n"
+"	if (ScreenDither != 0.) out_fragcolor.rgb += SCREEN_SPACE_NOISE() * ScreenDither; // QVR: 0 in the eyes (vr_dither: VR_SceneDither): no noise made to be multiplied by 0\n"
 "	out_fragcolor.rgb *= out_fragcolor.rgb;\n"
 "#else\n"
-"	out_fragcolor.rgb += SUPPRESS_BANDING() * ScreenDither;\n"
+"	if (ScreenDither != 0.) out_fragcolor.rgb += SUPPRESS_BANDING() * ScreenDither; // QVR: 0 in the eyes (vr_dither: VR_SceneDither): no noise made to be multiplied by 0\n"
 "#endif\n"
 "}\n";
 
@@ -1724,11 +1724,11 @@ QVR_ALIAS_FS_GLOW // QVR: fullbrights, wounds' glow, force grab's glow, morphs
 "	if (abs(Fog.w) > 0.)\n"
 "	{\n"
 "		out_fragcolor.rgb = sqrt(out_fragcolor.rgb);\n"
-"		out_fragcolor.rgb += SCREEN_SPACE_NOISE() * ScreenDither;\n"
+"		if (ScreenDither != 0.) out_fragcolor.rgb += SCREEN_SPACE_NOISE() * ScreenDither; // QVR: 0 in the eyes (vr_dither: VR_SceneDither): no noise made to be multiplied by 0\n"
 "		out_fragcolor.rgb *= out_fragcolor.rgb;\n"
 "	}\n"
 "#else\n"
-"	out_fragcolor.rgb += SUPPRESS_BANDING() * ScreenDither;\n"
+"	if (ScreenDither != 0.) out_fragcolor.rgb += SUPPRESS_BANDING() * ScreenDither; // QVR: 0 in the eyes (vr_dither: VR_SceneDither): no noise made to be multiplied by 0\n"
 "#endif\n"
 "}\n";
 
@@ -1777,12 +1777,14 @@ QVR_RETRO_GLSL(QS_STRINGIFY (QVR_RETRO_LUT_UNIT_SPRITE)) // QVR: retro textures 
 QVR_BEHIND_SHOWN_GATE // QVR: behind a teleporter shown in this view
 "void main()\n"
 "{\n"
-"	if (BehindShownGate(in_pos + EyePos)) // QVR: hidden by the view through the gate (a see-through surface: no depth)\n"
-"		discard;\n"
 "	vec2 duvdx = dFdx(in_uv), duvdy = dFdy(in_uv); // QVR: retro textures\n"
 "	vec3 dpdx = dFdx(in_pos), dpdy = dFdy(in_pos);\n"
 "	RetroBegin(RetroSprite.x, RetroSprite.yz, duvdx, duvdy, dpdx, dpdy, normalize(cross(dpdx, dpdy)));\n"
 "	vec4 result = Retro > 0 ? RetroSample(Tex, in_uv, duvdx, duvdy, true) : texture(Tex, in_uv);\n"
+"	// QVR: hidden by the view through the gate (a see-through surface: no depth); after the derivatives and the\n"
+"	// texture read, which a discard before them leaves undefined\n"
+"	if (BehindShownGate(in_pos + EyePos))\n"
+"		discard;\n"
 "	if (result.a < 0.666)\n"
 "		discard;\n"
 "	result.rgb = ApplyFog(result.rgb, in_pos);\n"
@@ -1791,11 +1793,11 @@ QVR_BEHIND_SHOWN_GATE // QVR: behind a teleporter shown in this view
 "	if (Fog.w > 0.)\n"
 "	{\n"
 "		out_fragcolor.rgb = sqrt(out_fragcolor.rgb);\n"
-"		out_fragcolor.rgb += SCREEN_SPACE_NOISE() * ScreenDither;\n"
+"		if (ScreenDither != 0.) out_fragcolor.rgb += SCREEN_SPACE_NOISE() * ScreenDither; // QVR: 0 in the eyes (vr_dither: VR_SceneDither): no noise made to be multiplied by 0\n"
 "		out_fragcolor.rgb *= out_fragcolor.rgb;\n"
 "	}\n"
 "#else\n"
-"	out_fragcolor.rgb += SUPPRESS_BANDING() * ScreenDither;\n"
+"	if (ScreenDither != 0.) out_fragcolor.rgb += SUPPRESS_BANDING() * ScreenDither; // QVR: 0 in the eyes (vr_dither: VR_SceneDither): no noise made to be multiplied by 0\n"
 "#endif\n"
 QVR_SPRITES_FS_SOFT // QVR: soft sprites, fading out close in front of the scene
 "}\n";
@@ -1820,6 +1822,7 @@ FRAMEDATA_BUFFER
 "#define ProjScale	Params.xy\n"
 "#define UVScale	Params.z\n"
 "\n"
+QVR_BEHIND_SHOWN_GATE // QVR: behind a teleporter shown in this view
 "void main()\n"
 "{\n"
 "	// figure the current corner: (-1, -1), (-1, 1), (1, -1) or (1, 1)\n"
@@ -1841,6 +1844,11 @@ FRAMEDATA_BUFFER
 "#if OIT\n"
 "	out_color.a *= 0.9;\n"
 "#endif\n"
+"	// QVR: hidden by the view through a shown gate (a see-through surface: no depth): the whole particle, tested once\n"
+"	// a corner (in_pos is its centre at every corner: the fragments' test was the same for all), its quad outside the\n"
+"	// clip volume; no discard in the fragment shader (its fwidth after one was undefined)\n"
+"	if (BehindShownGate(in_pos))\n"
+"		gl_Position = vec4(2.0, 2.0, 2.0, 1.0);\n"
 "}\n";
 
 ////////////////////////////////////////////////////////////////
@@ -1858,12 +1866,9 @@ QVR_RETRO_GLSL(QS_STRINGIFY (QVR_RETRO_LUT_UNIT_SPRITE)) // QVR: retro textures 
 "\n"
 OIT_OUTPUT (out_fragcolor)
 "\n"
-QVR_BEHIND_SHOWN_GATE // QVR: behind a teleporter shown in this view
 "void main()\n"
 "{\n"
-"	if (BehindShownGate(in_pos + EyePos)) // QVR: hidden by the view through the gate (a see-through surface: no depth)\n"
-"		discard;\n"
-"	out_fragcolor = in_color;\n"
+"	out_fragcolor = in_color; // (QVR: a particle behind a shown gate isn't drawn: its vertex shader)\n"
 "	float radius = length(in_uv);\n"
 "	int rs = int(RetroParticles + 0.5); // QVR: retro textures: snapped, a square (as Quake drew them); its colour in\n"
 "	if (rs > 0 && rs < 64 && RetroInfo.x > 0.0 && RetroSets[rs * 3 + 2].w < 0.5) // the palette, dithered by where it is\n"
@@ -1883,11 +1888,11 @@ QVR_BEHIND_SHOWN_GATE // QVR: behind a teleporter shown in this view
 "	if (Fog.w > 0.)\n"
 "	{\n"
 "		out_fragcolor.rgb = sqrt(out_fragcolor.rgb);\n"
-"		out_fragcolor.rgb += SCREEN_SPACE_NOISE() * ScreenDither;\n"
+"		if (ScreenDither != 0.) out_fragcolor.rgb += SCREEN_SPACE_NOISE() * ScreenDither; // QVR: 0 in the eyes (vr_dither: VR_SceneDither): no noise made to be multiplied by 0\n"
 "		out_fragcolor.rgb *= out_fragcolor.rgb;\n"
 "	}\n"
 "#else\n"
-"	out_fragcolor.rgb += SUPPRESS_BANDING() * ScreenDither;\n"
+"	if (ScreenDither != 0.) out_fragcolor.rgb += SUPPRESS_BANDING() * ScreenDither; // QVR: 0 in the eyes (vr_dither: VR_SceneDither): no noise made to be multiplied by 0\n"
 "#endif\n"
 "}\n";
 

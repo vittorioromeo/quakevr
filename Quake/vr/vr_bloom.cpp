@@ -39,6 +39,9 @@ GLuint brightProgram = 0;
 GLuint downProgram = 0;
 GLuint upProgram = 0;
 GLuint meanProgram = 0;
+// The bright pass's sampler: its four taps are bilinear by design (each on a texel corner, the 4x4 block in four
+// reads), and the scene it reads is made GL_NEAREST (gl_rmain.c's composite): without it each tap read one texel.
+GLuint linearSampler = 0;
 bool failed = false;
 
 // This eye's result, for GL_PostProcess (VR_PostProcessBloom).
@@ -272,9 +275,19 @@ void scopeEnd()
     const float spread = za::clamp(vr_bloom_radius.value, 0.25f, 4.f);
 
     scopeBegin("bloom bright");
+    if(!linearSampler)
+    {
+        GL_GenSamplersFunc(1, &linearSampler);
+        GL_SamplerParameteriFunc(linearSampler, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        GL_SamplerParameteriFunc(linearSampler, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        GL_SamplerParameteriFunc(linearSampler, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        GL_SamplerParameteriFunc(linearSampler, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    }
     GL_UseProgram(brightProgram);
     GL_Uniform2fFunc(1, za::max(0.f, vr_bloom_white.value), za::max(0.f, vr_bloom_color.value));
+    GL_BindSamplerFunc(0, linearSampler);
     pass(down[0], brightProgram, sceneTex, threshold, 0.f, 1.f / width, 1.f / height);
+    GL_BindSamplerFunc(0, 0);
     scopeEnd();
     for(int l = 1; l < levels; l++)
     {
@@ -348,6 +361,11 @@ void shutdown()
             GL_DeleteProgramFunc(*p);
             *p = 0;
         }
+    }
+    if(linearSampler)
+    {
+        GL_DeleteSamplersFunc(1, &linearSampler);
+        linearSampler = 0;
     }
     resultValid = false;
     failed = false;
