@@ -43,6 +43,7 @@ inline constexpr int ring = 32;           // snapshots each side keeps (an ackno
 inline constexpr int avatarKey = 1 << 16; // + a player's entity: his avatar's record
 inline constexpr int clientdataKey = 0;   // the player's own state (svc_clientdata)
 inline constexpr int predictKey = 2 << 16; // his walk's state (QVR_SVC_PREDICT, vr_predict.cpp)
+inline constexpr int heldKey = predictKey + 1; // what his hands hold, and where (QVR_SVC_HELDPLACE, vr_held.cpp, B27)
 inline constexpr int poseKey = 3 << 16;    // + an armed humanoid's entity: its pose this frame (QVR_SVC_ARMPOSE, B12)
 inline constexpr int keyLimit = 4 << 16;   // every key below this
 

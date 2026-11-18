@@ -24,6 +24,8 @@
 #include "vr_physics.hpp"
 #include "vr_progs.hpp"
 #include "vr_props.hpp"
+#include "vr_netmove.hpp"
+#include "vr_netsnap.hpp"
 #include "vr_protocol.hpp"
 #include "vr_throw.hpp"
 #include "vr_trace.hpp"
@@ -1925,20 +1927,34 @@ struct Box
 // frame's controller instead, a hand or a body on the move (the server runs at 72 Hz, the headset faster; the
 // player's origin is interpolated) left it that far off the hand for as long as it was held (a force grab caught on
 // the move; ROUND21.md, "Held props: no gap after two hands"). False: a remote server (or not there).
+[[nodiscard]] bool serverPlaceOf(edict_t* player, edict_t* ed, int h, bool brush, glm::vec3& pos, glm::mat3& rot);
+
 [[nodiscard]] bool serverInHand(int ent, int h, const qmodel_t* model, glm::vec3& pos, glm::mat3& rot)
 {
-    using namespace progs;
-    const FieldOffsets& f = fields();
-    const int posField = h == 0 ? f.offhandpos : f.handpos;
-    const int rotField = h == 0 ? f.offhandrot : f.handrot;
     edict_t* ed = progs::edictAt(ent);
     edict_t* player = progs::edictAt(cl.viewentity);
-    if(!ed || !player || posField < 0 || rotField < 0)
+    if(!ed || !player)
     {
         return false;
     }
     const int index = static_cast<int>(ed->v.modelindex);
     if(index <= 0 || index >= MAX_MODELS || sv.models[index] != model)
+    {
+        return false;
+    }
+    return serverPlaceOf(player, ed, h, model->type == mod_brush, pos, rot);
+}
+
+// Server side: where `player`'s hand `h` (0 off, 1 main) holds `ed`: its place and turn in the server's hand (forward,
+// left, up), as the server's last frame left them (serverInHand: a listen server's own player; QVR_SVC_HELDPLACE: a
+// remote one's, MP B27). False: no hand fields.
+[[nodiscard]] bool serverPlaceOf(edict_t* player, edict_t* ed, int h, bool brush, glm::vec3& pos, glm::mat3& rot)
+{
+    using namespace progs;
+    const FieldOffsets& f = fields();
+    const int posField = h == 0 ? f.offhandpos : f.handpos;
+    const int rotField = h == 0 ? f.offhandrot : f.handrot;
+    if(posField < 0 || rotField < 0)
     {
         return false;
     }
@@ -1955,7 +1971,31 @@ struct Box
     {
         pos = glm::transpose(hand) * (geom::vec(ed->v.origin) - fieldVec(player, posField));
     }
-    rot = glm::transpose(hand) * held::axesFromAngles(ed->v.angles, model->type == mod_brush);
+    rot = glm::transpose(hand) * held::axesFromAngles(ed->v.angles, brush);
+    return true;
+}
+
+// A remote server's places of what the local player's hands hold, in its hands (QVR_SVC_HELDPLACE, MP B27: a snapshot
+// record, as its last frame left them). Taken from where it had the thing and this frame's controller instead (the
+// hand's place the server used was the network's delay older), a round taken up on the move was drawn up to 3 units
+// off where the server had it, the whole time it was held: a magazine drawn at the well missed it (mp_disarm).
+struct NetPlace
+{
+    int ent{0}; // 0: none
+    glm::vec3 pos{0.f};
+    glm::mat3 rot{1.f};
+};
+NetPlace netPlaces[2];
+
+[[nodiscard]] bool netPlace(int ent, int h, glm::vec3& pos, glm::mat3& rot)
+{
+    const NetPlace& p = netPlaces[h];
+    if(!ent || p.ent != ent || cls.state != ca_connected || sv.active)
+    {
+        return false;
+    }
+    pos = p.pos;
+    rot = p.rot;
     return true;
 }
 
@@ -1967,6 +2007,7 @@ void reset()
         easing[h] = Easing{};
         handEase[h] = HandEase{};
         bothRelease[h] = BothRelease{};
+        netPlaces[h] = NetPlace{};
     }
     both = Both{};
     meet = Meet{};
@@ -2135,9 +2176,9 @@ void holdFrame(int h, const hands::State& s, int bothEnt)
     }
     if(!hd.placed || cl.time - hd.since < placeTime)
     {
-        if(!serverInHand(hd.ent, h, e.model, hd.pos, hd.rot))
+        if(!serverInHand(hd.ent, h, e.model, hd.pos, hd.rot) && !netPlace(hd.ent, h, hd.pos, hd.rot))
         {
-            // A remote server: from where it has it, and this frame's controller.
+            // A remote server without its place yet: from where it has it, and this frame's controller.
             const glm::vec3 o{e.msg_origins[0][0], e.msg_origins[0][1], e.msg_origins[0][2]};
             hd.pos = glm::transpose(hand) * (o - s.pos[h]);
             hd.rot = glm::transpose(hand) * held::axesFromAngles(e.msg_angles[0], brush);
@@ -2145,6 +2186,10 @@ void holdFrame(int h, const hands::State& s, int bothEnt)
         hd.model = e.model;
         hd.placed = true;
         hd.generation = props::settingsGeneration();
+    }
+    else if(netPlace(hd.ent, h, hd.pos, hd.rot))
+    {
+        hd.generation = props::settingsGeneration(); // (a remote server's place as it sends it: its changes too)
     }
     else if(hd.generation != props::settingsGeneration())
     {
@@ -3236,3 +3281,105 @@ extern "C" void VR_RelinkHeld(void)
         bothCentre = (held::drawnCentre(bothEnt) - (s.pos[0] + s.pos[1]) * 0.5f) / units::metresToUnits();
     }
 }
+
+// QVR_SVC_HELDPLACE (MP B27): [byte hands: 1 off, 2 main] then each one's [short entity][short3 place * 64: forward,
+// left, up][short3 its forward * 32767][short3 its left * 32767], in the server's hand. Integers: nothing a corrupt or
+// hostile one can make infinite.
+namespace
+{
+constexpr float placeScale = 64.f;
+constexpr float axisScale = 32767.f;
+} // namespace
+
+// A remote client's datagram, in his snapshot (a record: unchanged, it costs nothing): what his hands hold, and where.
+extern "C" void VR_WriteHeldPlaces(sizebuf_t* msg, client_t* client)
+{
+    const int slot = static_cast<int>(client - svs.clients);
+    edict_t* player = client->edict;
+    if(!sv.active || !player || !netmove::serverSends(slot) || msg->cursize + 64 > msg->maxsize)
+    {
+        return;
+    }
+    int ents[2]{0, 0};
+    glm::vec3 pos[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+    glm::mat3 rot[2]{glm::mat3{1.f}, glm::mat3{1.f}};
+    int mask = 0;
+    for(int h = 0; h < 2; h++)
+    {
+        const int ofs = progs::handFields(h).held;
+        const int v = ofs >= 0 ? progs::fieldInt(player, ofs) : 0;
+        edict_t* e = v ? PROG_TO_EDICT(v) : nullptr;
+        const int index = e && !e->free ? static_cast<int>(e->v.modelindex) : 0;
+        const qmodel_t* model = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
+        if(model && serverPlaceOf(player, e, h, model->type == mod_brush, pos[h], rot[h]))
+        {
+            ents[h] = NUM_FOR_EDICT(e);
+            mask |= 1 << h;
+        }
+    }
+    const auto toShort = [](float f) { return static_cast<int>(za::clamp(f, -32767.f, 32767.f) + (f < 0.f ? -0.5f : 0.5f)); };
+    const int at = msg->cursize;
+    MSG_WriteByte(msg, protocol::svc_quakevr);
+    MSG_WriteByte(msg, protocol::QVR_SVC_HELDPLACE);
+    MSG_WriteByte(msg, mask);
+    for(int h = 0; h < 2; h++)
+    {
+        if(!(mask & (1 << h)))
+        {
+            continue;
+        }
+        MSG_WriteShort(msg, ents[h]);
+        for(int i = 0; i < 3; i++)
+        {
+            MSG_WriteShort(msg, toShort(pos[h][i] * placeScale));
+        }
+        for(int c = 0; c < 2; c++)
+        {
+            for(int i = 0; i < 3; i++)
+            {
+                MSG_WriteShort(msg, toShort(rot[h][c][i] * axisScale));
+            }
+        }
+    }
+    VR_SnapTake(msg, at, netsnap::heldKey);
+}
+
+namespace qvr::held
+{
+
+void parsePlaces()
+{
+    const int mask = MSG_ReadByte();
+    for(int h = 0; h < 2; h++)
+    {
+        NetPlace& p = netPlaces[h];
+        if(mask < 0 || !(mask & (1 << h)))
+        {
+            p = NetPlace{};
+            continue;
+        }
+        const int ent = MSG_ReadShort();
+        glm::vec3 v[3];
+        for(glm::vec3& c : v)
+        {
+            for(int i = 0; i < 3; i++)
+            {
+                c[i] = static_cast<float>(MSG_ReadShort());
+            }
+        }
+        const glm::vec3 f = v[1] / axisScale;
+        const glm::vec3 l = v[2] / axisScale - f * glm::dot(f, v[2] / axisScale) / za::max(glm::dot(f, f), 1e-6f);
+        if(msg_badread || ent <= 0 || ent >= cl_max_edicts || glm::length(f) < 0.5f || glm::length(l) < 0.5f)
+        {
+            p = NetPlace{}; // (a corrupt or hostile one: none, its place taken as before)
+            continue;
+        }
+        const glm::vec3 fn = glm::normalize(f);
+        const glm::vec3 ln = glm::normalize(l);
+        p.ent = ent;
+        p.pos = v[0] / placeScale;
+        p.rot = glm::mat3{fn, ln, glm::cross(fn, ln)};
+    }
+}
+
+} // namespace qvr::held

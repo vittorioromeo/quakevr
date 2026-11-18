@@ -3046,6 +3046,7 @@ def forcegrab(s):
 
 HOLD_OUT = "vr_mock_hand main 0.15 1.2 -0.45 0 0 0"  # mp_disarm: a gun held out in front at the chest
 B10_GAP = 48.0  # mp_disarm: units between the two players, face to face (a hand reaches the other's held gun)
+VIEW_GAP = 0.5  # (B27) mp_disarm: B's drawn round and port against the server's, still (were 0.5-2.9 and 0.6-1.3)
 # The pulls (rel: from where the hand is, metres in tracking space; +z towards the puller): gently, 0.3 m in 1.5 s
 # (0.2 m/s: it slips off), and a yank, 0.3 m in 0.1 s (3 m/s; vr_player_disarm_pull 1.5).
 GENTLE_PULL = ("0.000 rel main 0 0 0", "1.500 rel main 0 0 0.3", "2.000 rel main 0 0 0.3")
@@ -3394,20 +3395,37 @@ def ammo_load(s, srv, b, eb, what, key, ready, mine0):
         row = re.compile(r"reload: a held round ([\d.]+) units from the port \(leniency ([\d.]+)\): at (\S+) (\S+) (\S+), "
                          r"the port (\S+) (\S+) (\S+)")
         srv.cmd("vr_reload_debug 2")
+        if int(os.environ.get("QVR_RELOAD_DEBUG", "1")) >= 3:
+            b.cmd("vr_debug_carry 1; vr_debug_body_collide 1; developer 1")  # (B27: B's drawn meets and pushes, beside the server's rows)
         gaps = []
+        # (B27: B's view against the server's, each still pose before a placement: the gun's port and the held round's
+        # point as B draws them (his lport's print) against the server's last row there. The gun moved as the round
+        # came near it (the drawn meets' pushes) and B's round was drawn up to 3 units off the server's (its place in
+        # his hand taken from where the server had it a delay before): now none of either, the place sent.)
+        b_port = re.compile(r"vr_mock_hand_to: the other hand's gun's loading port: (\S+) (\S+) (\S+)")
+        b_ref = re.compile(r"vr_mock_hand_to: held \d+ at .* its reference (\S+) (\S+) (\S+)")
+        views = []  # (round gap, port gap) per still pose
         for attempt in range(3):
             if attempt:
                 s.note("%s's %s not in his gun yet: placed again (try %d)" % (b.name, what, attempt + 1))
             b.cmd("vr_mock_hand main 0.15 1.0 -0.40 140 0 0; vr_mock_hand off -0.15 1.0 -0.40 70 0 0")
+            mark_s = srv.mark()
             server_time_past(srv, server_time(srv) + THROW_SETTLE_S)
             off = [0.0, 0.0, 0.0]
             for below in (6, 0, 0, 0, 0):
                 srv.mark()  # (read the log so far)
                 if srv.find(seat, since):
                     break
+                last = [m for m in (row.search(l) for l in srv.lines[mark_s:]) if m]
                 mark_b = b.mark()
                 b.cmd("vr_mock_hand_to off lport %d %.2f %.2f %.2f; echo mp_lport_placed" % (below, off[0], off[1], off[2]))
                 b.wait(r"mp_lport_placed", 20, mark_b, "%s's hand placed at the port" % b.name)
+                bp = [m for m in (b_port.search(l) for l in b.lines[mark_b:]) if m]
+                br = [m for m in (b_ref.search(l) for l in b.lines[mark_b:]) if m]
+                if last and bp and br:
+                    v = [float(x) for x in last[-1].groups()]
+                    seen_r, seen_p = [float(x) for x in br[0].groups()], [float(x) for x in bp[0].groups()]
+                    views.append((math.dist(seen_r, v[2:5]), math.dist(seen_p, v[5:8])))
                 mark_s = srv.mark()
                 server_time_past(srv, server_time(srv) + 0.2)
                 if below == 0:
@@ -3422,6 +3440,14 @@ def ammo_load(s, srv, b, eb, what, key, ready, mine0):
         srv.cmd("vr_reload_debug %d" % int(os.environ.get("QVR_RELOAD_DEBUG", "1")))
         s.note("%s's %s at the port: the server's gaps after each placement at it %s" % (
             b.name, what, ", ".join("%.1f" % g for g in gaps)))
+        worst_r = max((r for r, _ in views), default=-1.0)
+        worst_p = max((p for _, p in views), default=-1.0)
+        s.metric("ammo_view_gap_%s_round" % key, round(worst_r, 2))
+        s.metric("ammo_view_gap_%s_port" % key, round(worst_p, 2))
+        s.check("use: %s draws the %s in his hand and his gun's port where the server has them (each still pose, under "
+                "%.1f units)" % (b.name, what, VIEW_GAP), views and worst_r < VIEW_GAP and worst_p < VIEW_GAP,
+                "the most apart: round %.2f, port %.2f (%d poses: %s)" % (worst_r, worst_p, len(views), ", ".join(
+                    "%.2f/%.2f" % v for v in views)))
     inv, _ = inventories(srv)
     mine = inv.get(eb - 1, {}).get(key, 0)
     clip = inv.get(eb - 1, {}).get("clip", 0)

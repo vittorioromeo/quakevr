@@ -89,6 +89,10 @@ bool drawnBox(int num, glm::vec3& lo, glm::vec3& hi);
 // port, the one the server tests it against, each moved off where the server has them). 1 if that hand holds no round.
 [[nodiscard]] float roundPortEase(const hands::State& s, int roundHand);
 
+// Client side: QVR_SVC_HELDPLACE, a remote server's places of what the local player's hands hold, in his hands (MP B27;
+// the server's side: VR_WriteHeldPlaces). Drawn there from the first frame held, not taken from where the server had it
+// and this frame's hand (the network's delay apart).
+void parsePlaces();
 
 // Client side: a prop held in both hands (vr_carry2h.hpp) is drawn from both, and each hand on its grip on it: `pos`
 // and `angles`, the controller's pose of `hand`, are moved there (vr_view.cpp draws the hand from them); let go of, a

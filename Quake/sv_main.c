@@ -1331,6 +1331,7 @@ qboolean SV_SendClientDatagram (client_t *client)
 	snap = VR_SnapBegin (client); // QVR: a remote client's: its player state and entities as a snapshot (vr/vr_netsnap.cpp)
 	SV_WriteClientdataToMessage (client->edict, &msg);
 	VR_WritePredict (&msg, client); // QVR: a remote client's state after the newest of his moves run (vr/vr_predict.cpp, B8)
+	VR_WriteHeldPlaces (&msg, client); // QVR: ... and where the server has what his hands hold (vr/vr_held.cpp, B27)
 
 	SV_WriteEntitiesToClient (client->edict, &msg);
 	if (snap)

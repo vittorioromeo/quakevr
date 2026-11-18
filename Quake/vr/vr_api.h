@@ -51,7 +51,7 @@ int VR_NoLiquidEffects(struct qmodel_s* model, const float* point);
 // Quake VR's network version, sent after NetQuake's in the connect request ("QVR", then this long; net_dgrm.c): a
 // server whose protocol is the VR one rejects a client without it or with another, with the reason (MP_PLAN.md, B2).
 // Raise it with any change to what client and server send each other.
-#define QVR_NET_VERSION				37 // (37: the movers' exact places and the server's tick in the predict state, B24; 36: one server socket for every client, B23; 35: bots' hands solved by the clients, B11 part 3; 34: B13's selective acks, the version in the accept reply)
+#define QVR_NET_VERSION				38 // (38: what a remote client's hands hold, and where (QVR_SVC_HELDPLACE), B27; 37: the movers' exact places and the server's tick in the predict state, B24; 36: one server socket for every client, B23; 35: bots' hands solved by the clients, B11 part 3; 34: B13's selective acks, the version in the accept reply)
 // A remote client's moves (vr/vr_netmove.hpp: quantized deltas with repeats; the loopback's stay clc_move; MP_PLAN.md, B7).
 #define QVR_CLC_MOVES				16
 // A client's voice frames (vr/vr_voicechat.hpp: Opus, 20 ms each; MP_PLAN.md, B10v), after his move.
@@ -470,6 +470,7 @@ int VR_PredictWalks (struct edict_s *ent);			// SV_Physics_Client: this frame's 
 void VR_PredictPhysics (struct edict_s *ent);		// SV_Physics_Client, walking: his queued moves through vr_pmove.cpp (gravity, the walk, the room-scale walk)
 void VR_PmoveTrace (struct edict_s *ent);			// SV_Physics_Client's end: vr_pmove_trace's line for this player (B11b)
 void VR_WritePredict (struct sizebuf_s *msg, struct client_s *client); // SV_SendClientDatagram, in the snapshot: QVR_SVC_PREDICT
+void VR_WriteHeldPlaces (struct sizebuf_s *msg, struct client_s *client); // SV_SendClientDatagram, in the snapshot: QVR_SVC_HELDPLACE (vr_held.cpp, B27)
 void VR_PredictRelink (int num, float *origin);		// CL_RelinkEntities, each entity placed: our own predicted, the lift we stand on at its newest
 int VR_FlatHudOn (void);						// Sbar_Draw, the modern status bar at hudstyle 1: 1 while flatscreen play draws its own layout (vr_flat_hud; vr_flathud.cpp)
 int VR_VisorOn (void);							// Sbar_Draw, SCR_CalcRefdef: 1 while flatscreen play's visor is the HUD (vr_flat_visor; vr_visor.cpp): no status bar, no room kept for it
