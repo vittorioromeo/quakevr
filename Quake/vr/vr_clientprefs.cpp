@@ -49,6 +49,29 @@ constexpr const char* prefNames[] = {
     // his link: the most the server sends him a second (B12, vr_netsnap.cpp)
     "vr_net_rate"};
 constexpr int prefCount = static_cast<int>(sizeof(prefNames) / sizeof(prefNames[0]));
+// A preference's place in prefNames by name, at compile time (-1: none).
+[[nodiscard]] constexpr int prefIndex(const char* name)
+{
+    for(int i = 0; i < prefCount; i++)
+    {
+        const char* a = prefNames[i];
+        const char* b = name;
+        while(*a && *a == *b)
+        {
+            a++;
+            b++;
+        }
+        if(*a == *b)
+        {
+            return i;
+        }
+    }
+    return -1;
+}
+// vr_net_rate's place: asked for each client every server frame (vr_netsnap.cpp, vr_voicerelay.cpp), so indexOf answers
+// it without the search.
+constexpr int netRatePref = prefIndex("vr_net_rate");
+static_assert(netRatePref >= 0, "vr_net_rate is a per-player preference");
 constexpr int prefsCommandVersion = 1; // "vr_prefs <version> <count> <values>": another version's or count's is ignored
 
 // The rig (B3): each hand's fist as this client poses it (held::fist: spheres in the hand's frame, world units), in
@@ -591,6 +614,10 @@ void prefsQc_f()
 
 int indexOf(const cvar_t* var)
 {
+    if(var == &vr_net_rate)
+    {
+        return netRatePref; // (the per-frame one: no search)
+    }
     resolve();
     for(int i = 0; i < prefCount; i++)
     {
