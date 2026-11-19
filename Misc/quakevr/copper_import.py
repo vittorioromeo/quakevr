@@ -66,8 +66,9 @@ PATCHES = [
     for f in ("m_ogre.qc", "m_shalrath.qc")
 ] + [
     # The precedence patches (qvr_checks qc_precedence), as ad_import.py's: parenthesised the way fteqcc's QC priorities
-    # read them (Copper's own compile and ours), so behaviour stays Copper's as shipped; the ones that look like Copper
-    # bugs are marked "Copper as shipped" (P1b decides, with AD's).
+    # read them (Copper's own compile and ours), so behaviour stays Copper's as shipped. A look-alike bug follows the
+    # imports' one rule (DWELL.md 9.7, AD's bugs 4 and 5 the precedent): kept as shipped, unless the shipped reading
+    # changes what a Quake VR player gets and the mod's intent is plain, then fixed as meant ("bug fixed as meant").
     (f, old, new, n, P) for f, old, new, n in (
         ("weapons.qc", "if (self.items & weap == 0)", "if ((self.items & weap) == 0)", 1),
         ("ai.qc", "if (self.flags & (FL_FLY|FL_SWIM) == 0)", "if ((self.flags & (FL_FLY|FL_SWIM)) == 0)", 2),
@@ -90,10 +91,12 @@ PATCHES = [
         ("client.qc", "if (time > self.air_finished ||", "if ((time > self.air_finished ||", 1),
         ("client.qc", "time > self.air_finished - 10 && self.dmg)",
          "time > self.air_finished - 10) && self.dmg) // QVR: Copper as shipped (QC reads `a || b && c` as `(a || b) && c`)", 1),
-        # `x = a && b && c` is `(x = a) && b && c` (the other terms' cvar reads have no effect): Copper as shipped.
+        # (as shipped by the rule: Copper's WaterMove never runs in Quake VR, our player's does)
+        # `x = a && b && c` is `(x = a) && b && c`: fixed as meant by the rule. As shipped, a coop game with
+        # gl_cshiftpercent under 90 put func_void's darkening in the CSQC stat fields, which nothing draws here.
         ("t_void.qc", "noTint = (cvar(\"gl_cshiftpercent\") < CSHIFT_CUTOFF) && cvar(\"gl_farclip\") && !coop;",
-         "noTint = (cvar(\"gl_cshiftpercent\") < CSHIFT_CUTOFF); // QVR: Copper as shipped: QC reads `x = a && b` as "
-         "`(x = a) && b` (&& cvar(\"gl_farclip\") && !coop)", 1),
+         "noTint = ((cvar(\"gl_cshiftpercent\") < CSHIFT_CUTOFF) && cvar(\"gl_farclip\") && !coop); // QVR: Copper's bug "
+         "fixed as meant (QC reads `x = a && b` as `(x = a) && b`): in coop the tint is stuffed", 1),
     )
 ] + [
     # The bridge (QC/vr_copper_bridge.qc, DWELL.md P1b): Copper's code meets ours in a Copper map.
@@ -109,7 +112,7 @@ PATCHES = [
      "\t\tstuffcmd_float(client, color_x * (icantsee + 1));\n\t\tstuffcmd(client, \" \");\n"
      "\t\tstuffcmd_float(client, color_y * (icantsee + 1));\n\t\tstuffcmd(client, \" \");\n"
      "\t\tstuffcmd_float(client, color_z * (icantsee + 1));\n\t\tstuffcmd(client, \"\\n\");\n",
-     "\t\tMG_SetFog(client, density, color * (icantsee + 1)); // QVR: the one fog path (svc_fog, vr_mg_fog.qc), as MG's "
+     "\t\tVR_Fog_Set(client, density, color * (icantsee + 1)); // QVR: the one fog path (svc_fog, vr_fog.qc), as MG's "
      "and AD's\n", 1, "bridge: Copper's fog (worldspawn, its fog blends) by our svc_fog path, not a stuffed command"),
     ("ai.qc", "void() path_corner_touch =\n{\n",
      "void() path_corner_touch =\n{\n\tif (VR_Rules_PathCornerTouch()) return; // QVR: our monsters follow it as ours "
@@ -183,7 +186,7 @@ def main():
                      "Source: github.com/itslunaranyo/copper master 379dd5d, sha256 (progs.src and *.qc) " + PINNED,
                      "Map keys: %d (its /*QUAKED keys and Dwell's maps' keys)" % len(keys)])
     mod.keep_prefixes = ("VR_CU_",)  # the bridge's functions the patches call (QC/vr_copper_bridge.qc): never renamed
-    mod.qvr_names = {"MG_SetFog", "VR_Rules_PathCornerTouch", "VR_ModelOr"}  # Quake VR's own the patches call (vr_mg_fog.qc, ...)
+    mod.qvr_names = {"VR_Fog_Set", "VR_Rules_PathCornerTouch", "VR_ModelOr"}  # Quake VR's own the patches call (vr_fog.qc, ...)
     if args.check:
         mod.write_dir = qc_import.check_dir(mod, args.check)
     beam_ids = qc_import.beam_id_bytes(src)  # (mechanical, every import's: the beam id byte after a beam's entity)

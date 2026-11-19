@@ -734,6 +734,45 @@ frame sequences; reading aids only, nothing pasted). Files `QC/dwell/` (GPL-2, h
   d2end PASS, d1end PASS. `dwell_maps.sh` 28/0, `scenario_check` PASS (136 run, 0 failed), the spawn census against
   origin/next identical on the 168 maps (the test's counters `nosave`).
 
+### 9.7 Built: P4, first part: the deferred items of P1b-P2c (2026-11-19, branch `agent/dwell4`)
+
+- **S6, one numbers table** (`QC/vr_rules_numbers.qc`, `VR_RN[]`: one row a ruleset in `VR_RULES_*` order; ID, MG and
+  AD rows are Quake's numbers). Our own code reads it; no Copper branch in a touch: `armor_touch` and the worn-armour
+  check (`VR_Armor_IsBetter`) take the protection (`VR_RN_ArmorType`: Copper's 0.3/0.5/0.7, Quake's 0.3/0.6/0.8) and
+  the pickup rule (`VR_RN_ArmorTake`: Quake's type x value, or Copper's breakpoints 40/60/100, part of a bigger weaker
+  store kept, capped 500); `health_touch` the megahealth rot (Copper's one rot a player from 5 s after the last
+  megahealth, `VR_RN_MegaRot`/`VR_RN_PlayerFrame` in PlayerPostThink; AD's own `AD_MegaRot` first, unchanged);
+  `key_touch` the key stack (Copper's 16 of a colour, counted in the player's `.worldtype` as Copper's doors read and
+  take them: `VR_RN_KeyTake`); `VR_SF_MonsterPrepare` our monsters' health (Copper's grunt, dog, fish 35, knight 72;
+  only where the spawn function left Quake's, so an armed grunt's or a variant's own stays); the enforcer's laser
+  (Copper's 12). **Placed backpacks** need no row: `item_backpack` has no Quake VR spawn function, so in a Copper map it
+  is Copper's own (its excess ammo to armour by its `armor_give`, the same protection values as the row). Test
+  `rules_numbers_test.sh` (vr_ad_test 209): e1m1 12/0 (Quake's), Dwell's d1m1 12/0 (Copper's).
+- **The imports' one rule for precedence look-alike bugs** (`copper_import.py`, `ad_import.py` comments): kept as the
+  mod shipped it (its own compile read it the same way), unless the shipped reading changes what a Quake VR player
+  gets and the mod's intent is plain; then fixed as meant, marked "bug fixed as meant" (AD's bugs 4 and 5, the
+  precedent: its tints are drawn here). So `WaterMove`'s gasp stays as shipped (Copper's WaterMove never runs: our
+  player's does), and `t_void`'s `noTint` is fixed (`(a && farclip && !coop)`): as shipped, a coop game with
+  `gl_cshiftpercent` under 90 put func_void's darkening into CSQC stat fields nothing draws here; single player is
+  unchanged (gl_farclip is never 0). AD's four "as shipped" ones stay (none reaches the player differently here).
+- **S5, one fog path**: `QC/vr_mg_fog.qc` is `QC/vr_fog.qc`, its API `VR_Fog_Set`, `VR_Fog_InfoEntity`,
+  `VR_Fog_PushFrom` (MG's entities, AD's `VR_AD_Fog`, Copper's import patch in `cu_fog.qc` for its fog commands and
+  blends). The MG fields (`MG_fog_valid`...) keep their names (saves). `copper_import --check` 0 of 63 differ.
+- **The Sculptor's ring** (`DW_D2_FightBox`): Dwell's 50-odd small hit boxes are our precise hits on its model (shots
+  meet its triangles inside its box, vr_hitmodel.cpp): the fighting box grows from 96 to 288 units so the ring's stones
+  (120-140 units out) are inside it; the gaps between stones let shots through; it moves noclip, so the box never
+  stops it. The fighting model has a solid core (no hole: all 49 shots inside the old box hit). Test vr_ad_test 210
+  (d2end): turned three ways, 93-142 hits past the old box and 98-147 shots flying on between its stones, 7/0.
+- **d2m8's cost** (QC instructions, `profile`, deterministic; no timings: his game was running): 720 frames after 120
+  of settling, d2m8 (4,826 edicts) 385.6 M instructions, 536 k a frame; AD's biggest map `ad_tears` (4,011 edicts)
+  25.8 M, 36 k a frame. The difference is our armed grunts: d2m8 has 251 (Dwell's grunts replaced; AD's soldiers are
+  AD's own), and `VR_AGP_Pose`, `VR_AGG_Frame`, `VR_AGS_Projectiles`, `VR_AG_Rotate`, `VR_AGPar_Frame`... lead the
+  list, about 2 k instructions a grunt a frame; Dwell's own code is not in the top 25. No single hot spot to fix
+  without changing the armed grunts' behaviour (a key feature); 536 k instructions is about 1 ms a frame. A later
+  step if the headset shows it: a cheaper pose for armed grunts far out of sight (`VR_AGP_Lod` exists).
+- **Left**: Copper's ogre rocket drop, nightmare refire, infight give-up and the other monster rules of 2.4 (behaviour,
+  not numbers); item respawn by `wait`/`count` on our items in Copper maps.
+
 ---
 
 ## 10. Open questions for Vittorio (real decisions only)

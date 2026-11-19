@@ -70,6 +70,7 @@ float() VR_Rules_PathCornerTouch =
 float(void() start) VR_SF_MonsterPrepare =
 {
     VR_Rules_MonsterThCheck(self);
+    VR_RN_MonsterNumbers(self); // the ruleset's health for our vanilla monster (vr_rules_numbers.qc)
     if(!VR_SF_Bit(VR_Ruleset(), VR_SF_MON_DELAYED))
     {
         return FALSE; // (Quake's and MG's rulesets: MG_MonsterPrepare's own)

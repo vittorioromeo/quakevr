@@ -27,7 +27,7 @@ void() MG_TestFrame = {
     entity oother = other;
     entity p = VR_Player();
     if(!p) { dprint("mgworldtest: no player\n"); return; }
-    entity fog = MG_GetFogInfoEntity(world);
+    entity fog = VR_Fog_InfoEntity(world);
     dprint(sprintf("mgworldtest: map %s world fog %.6f %v; player fog %.6f %v\n",
         mapname, fog.fog_density, fog.fog_color, p.fog_density, p.fog_color));
     if(request == 1) return;

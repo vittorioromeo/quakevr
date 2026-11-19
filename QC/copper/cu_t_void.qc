@@ -416,7 +416,7 @@ void() cu_void_trigger_touch =
 	// gl_cshiftpercent isn't native to OG quake, so the cvar call fails and returns 0 
 	// in winquake/weird engines because the cvar doesn't exist, so use a cvar introduced
 	// at the same time to determine if that 0 is valid
-	cu_noTint = (cvar("gl_cshiftpercent") < cu_CSHIFT_CUTOFF); // QVR: Copper as shipped: QC reads `x = a && b` as `(x = a) && b` (&& cvar("gl_farclip") && !coop)
+	cu_noTint = ((cvar("gl_cshiftpercent") < cu_CSHIFT_CUTOFF) && cvar("gl_farclip") && !coop); // QVR: Copper's bug fixed as meant (QC reads `x = a && b` as `(x = a) && b`): in coop the tint is stuffed
 	// doesn't work in coop bc the server's values will be used to determine tint/fog for clients
 }
 

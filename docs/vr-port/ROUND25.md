@@ -4320,6 +4320,17 @@ shot at 0.2 s), in flat and VR alike. QC `DW_WeaponModel` through `AD_WeaponMode
 `scratch/dwell_vrmodels_vr.png` and `dwell_vrmodels_flat.png`. Seen while testing, not this work's: `vr_ad_test 141`
 (adplasma) fails 0/6 with origin/next's QC too (the off hand's model is `progs/hand.mdl` after 0.5 s).
 
+## Dwell P4, first part: rulesets' numbers table, fog API, the Sculptor's ring (dwell4, 2026-11-20, `agent/dwell4`)
+
+DWELL.md 9.7 has the detail. `QC/vr_rules_numbers.qc`: one row a ruleset (S6), read by our armour, megahealth, key and
+monster-start code: Copper's armour protection and pickup rule, one megahealth rot a player, key stacks of 16, grunt,
+dog, fish 35 and knight 72, the laser's 12; ID/MG/AD rows Quake's. The imports' one rule for precedence look-alikes
+(as shipped unless it changes what a Quake VR player gets): Copper's `t_void` noTint fixed as meant (coop only), its
+WaterMove gasp as shipped (never runs). `vr_mg_fog.qc` is `vr_fog.qc` (`VR_Fog_Set`, `VR_Fog_InfoEntity`,
+`VR_Fog_PushFrom`). The Sculptor's fighting box 288 units, its ring hit by our precise hits (`DW_D2_FightBox`). d2m8's
+QC cost: 536 k instructions a frame (251 armed grunts) vs ad_tears 36 k; no single hot spot. Tests:
+`Misc/quakevr/rules_numbers_test.sh` (vr_ad_test 209) 4/0; vr_ad_test 210 (d2end, the ring) 7/0; census vs origin/next
+168 identical.
 ## AD weapon tests adplasma (141) and adwidow (149) held their gun again (adoffhand, 2026-11-19, `agent/adoffhand`)
 
 Both gave the off hand its gun (`VRGiveEntWeapon`) with the mock's grip unpressed: under `vr_weapon_grip_mode 0`

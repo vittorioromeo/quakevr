@@ -61,7 +61,7 @@ void() Laser_Touch =
     org = self.origin - 8*normalize(self.velocity);
     // VR: every projectile's hit (weapons.qc VR_Proj_Begin): the prop or ragdoll it hit (or flew through) pushed, where
     // it struck, a kill at the head or a limb popped by chance (vr_decap_pop_laser; vr_limbs.qc), ended by VR_Proj_End.
-    float dmg = self.vr_laser_damage ? self.vr_laser_damage : 15; // VR: an enforcer's rifle's (vr_enemyguns.qc)
+    float dmg = self.vr_laser_damage ? self.vr_laser_damage : VR_RN_LaserDamage(); // VR: an enforcer's rifle's (vr_enemyguns.qc); else the ruleset's (15, Copper's 12)
     VR_Proj_Begin(QVR_PROJ_LASER, dmg);
     if(cvar_hget(cvarh_vr_debug_shots))
     {

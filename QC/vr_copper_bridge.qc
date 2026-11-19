@@ -10,7 +10,7 @@
 //   StartFrame did (CU_Frame);
 // - our monsters: Copper's delayed, angry and quiet spawns (vr_rules_monsters.qc) and its coop bits
 //   (VR_SF_SpawnInhibited), read through the spawnflag table (vr_spawnflags.qc);
-// - fog: Copper's fog commands go through our svc_fog path (MG_SetFog, a reviewed patch), as MG's and AD's;
+// - fog: Copper's fog commands go through our svc_fog path (VR_Fog_Set, a reviewed patch), as MG's and AD's;
 // - target_autosave: our autosave (VR_CU_Autosave, a reviewed patch).
 
 // Copper's code owns `e`'s damage and death: its own damageable entities (not a player, none of our monsters).

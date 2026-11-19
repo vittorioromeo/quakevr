@@ -16,9 +16,15 @@
 
     See file, 'COPYING', for details.
 */
+// vr_fog.qc -- the one fog path (DWELL.md S5): a client's fog by svc_fog, for every ruleset. Machine Games' fog
+// entities (info_fog, trigger_fog, trigger_fog_transition, below), AD's stuffed fog (vr_ad_bridge.qc) and Copper's
+// fog commands and blends (a reviewed import patch in cu_fog.qc) all go through VR_Fog_Set.
+//   VR_Fog_Set(client, density, colour, transition s)  - sets it (Ironwail filters stuffed fog commands)
+//   VR_Fog_InfoEntity(e, field)                         - the info_fog an entity's field names, else world
+//   VR_Fog_PushFrom(client, source, transition s)       - the fog of the info_fog `source` names, if it sets one
 const float MG_FORCE_SET_FOG = 1;
 const float MG_SPAWNFLAG_NOTOUCH = 1;
-void(entity client, float density, vector color, float transitionTime = 0) MG_SetFog = {
+void(entity client, float density, vector color, float transitionTime = 0) VR_Fog_Set = {
     client.MG_fog_valid = TRUE;
     client.fog_density = density;
     client.fog_color = color;
@@ -34,7 +40,7 @@ void(entity client, float density, vector color, float transitionTime = 0) MG_Se
     msg_entity = oldmsg;
 }
 
-entity(entity e, .string field = fog_info_entity) MG_GetFogInfoEntity = {
+entity(entity e, .string field = fog_info_entity) VR_Fog_InfoEntity = {
 	if(e.field != "")
 	{
 		e = find(world, targetname, e.field);
@@ -46,13 +52,13 @@ entity(entity e, .string field = fog_info_entity) MG_GetFogInfoEntity = {
 	return world;
 }
 
-float(entity client, entity source, float transitionTime) MG_FogPushSettingsFrom = {
+float(entity client, entity source, float transitionTime) VR_Fog_PushFrom = {
 	if(client.classname != "player") return FALSE;
-	source = MG_GetFogInfoEntity(source);
+	source = VR_Fog_InfoEntity(source);
 	if(!source) return FALSE;
 	if(source.fog_density || source.fog_color || (source.spawnflags & MG_FORCE_SET_FOG))
 	{
-		MG_SetFog(client, source.fog_density, source.fog_color, transitionTime);
+		VR_Fog_Set(client, source.fog_density, source.fog_color, transitionTime);
 		return TRUE;
 	}
 	return FALSE;
@@ -82,7 +88,7 @@ void() MG_trigger_fog_activate = {
 	if (other.classname != "player") // Yoder add, 27/09/2020 to fix crash
 		return;
 	other.fog_active_fog_trigger = self;
-	MG_FogPushSettingsFrom(other, self, self.delay);
+	VR_Fog_PushFrom(other, self, self.delay);
 }
 
 /*QUAKED trigger_fog (0.5 .5 .8) (? ? ?) (? ? ?)
@@ -148,13 +154,13 @@ void() MG_trigger_fog_transition_touch = {
 	
 	float tween = MG_trigger_fog_transition_touch_get_tween(other);
 	
-	entity fog1 = MG_GetFogInfoEntity(self);
-	entity fog2 = MG_GetFogInfoEntity(self, target);
+	entity fog1 = VR_Fog_InfoEntity(self);
+	entity fog2 = VR_Fog_InfoEntity(self, target);
 
 	float density = ((1 - tween) * fog1.fog_density) + (tween * fog2.fog_density);
 	vector color = ((1 - tween) * fog1.fog_color) + (tween * fog2.fog_color);
 
-	MG_SetFog(other, density, color);
+	VR_Fog_Set(other, density, color);
 }
 
 /*QUAKED trigger_fog_transition (0.5 .5 .8) (? ? ?) (? ? ?)
