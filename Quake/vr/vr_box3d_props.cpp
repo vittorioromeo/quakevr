@@ -315,7 +315,6 @@ void freeRetiredHulls()
 // few MB, growing wave after wave until the map changed; MP_PLAN B21). The actors' (frame -1) stay: their slots keep
 // them (Slot::hull). The others are only read as a body is made (the world copies a shape's hull): made again on demand.
 constexpr za::SizeT propHullsMax = 1024;
-za::Vector<PropHullKey> propHullsGone; // (trimPropHulls' scratch)
 
 void trimPropHulls()
 {
@@ -323,7 +322,7 @@ void trimPropHulls()
     {
         return;
     }
-    za::Vector<PropHullKey>& gone = propHullsGone;
+    za::Vector<PropHullKey>& gone = scratch.propHullsGone;
     gone.clear();
     for(auto& [key, hull] : world->propHulls)
     {

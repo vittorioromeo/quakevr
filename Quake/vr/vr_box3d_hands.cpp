@@ -1309,8 +1309,6 @@ constexpr float braceAgainst = -0.75f; // a support's normal into the prop again
 constexpr float braceGap = 0.01f;      // m: a support this near holds it
 constexpr int braceDepth = 3;          // props in a stack braced through
 
-za::Vector<b3ContactData> braceContacts; // (supportsOf: every contact, not the first few: a drawn fist touches in dozens)
-
 void addSupport(za::Array<glm::vec3, 4>& out, int& count, const glm::vec3& into)
 {
     for(int i = 0; i < count; i++)
@@ -1330,7 +1328,7 @@ void addSupport(za::Array<glm::vec3, 4>& out, int& count, const glm::vec3& into)
 // through `depth` props more, one resting on a prop held so the same way.
 void supportsOf(b3BodyId prop, za::Array<glm::vec3, 4>& out, int& count, int depth)
 {
-    za::Vector<b3ContactData>& contacts = braceContacts;
+    za::Vector<b3ContactData>& contacts = scratch.braceContacts;
     contacts.resize(static_cast<za::SizeT>(za::max(b3Body_GetContactCapacity(prop), 1)));
     const int n = b3Body_GetContactData(prop, contacts.data(), static_cast<int>(contacts.size()));
     struct Under
