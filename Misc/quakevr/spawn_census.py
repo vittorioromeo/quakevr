@@ -3,7 +3,7 @@
 
     python Misc/quakevr/spawn_census.py maps OUTDIR     each campaign's map list (maps/*.bsp in its paks, AD's loose maps
                                                          too) into OUTDIR/maps_<campaign>.txt; spawn_census.sh calls it
-    python Misc/quakevr/spawn_census.py compare A B [ignored_global ...]
+    python Misc/quakevr/spawn_census.py compare A B [ignored_global ... | prefix* ...]
                                                          every save in census folder A against B's of the same name:
                                                          the globals (minus cvarh_* and the names given) and each edict's
                                                          fields, as the save writes them (function names, string text)
@@ -17,7 +17,8 @@ import struct
 import sys
 
 STEAM = "C:/Program Files (x86)/Steam/steamapps/common/Quake"
-KIT = "C:/OHWorkspace/qvr-kit"
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from qvrtest import KIT  # noqa: E402
 # The campaigns in spawn_census.sh's order (its run groups), each with the paks that hold its maps.
 PAKS = {
     "id1": [KIT + "/qbase/id1/pak0.pak", KIT + "/qbase/id1/pak1.pak"],
@@ -79,14 +80,17 @@ def compare(a, b, ignore):
         ga, ea = parse(os.path.join(a, f))
         gb, eb = parse(os.path.join(b, f))
         msgs = []
+
+        def ignored(k):  # (a global or field named, or matching a prefix* given: an import's new names)
+            return k in ignore or any(k.startswith(p[:-1]) for p in ignore if p.endswith("*"))
         for k in sorted(set(ga) | set(gb)):
-            if k not in ignore and not k.startswith("cvarh_") and ga.get(k) != gb.get(k):
+            if not ignored(k) and not k.startswith("cvarh_") and ga.get(k) != gb.get(k):
                 msgs.append("global %s: %s -> %s" % (k, ga.get(k), gb.get(k)))
         if len(ea) != len(eb):
             msgs.append("edicts %d -> %d" % (len(ea), len(eb)))
         for i, (x, y) in enumerate(zip(ea, eb)):
-            if x != y:
-                ks = sorted(k for k in set(x) | set(y) if x.get(k) != y.get(k))
+            ks = sorted(k for k in set(x) | set(y) if x.get(k) != y.get(k) and not ignored(k))
+            if ks:
                 msgs.append("edict %d %s: %s" % (i, x.get("classname", y.get("classname")),
                             ", ".join("%s %s->%s" % (k, x.get(k), y.get(k)) for k in ks[:4])))
         if msgs:
