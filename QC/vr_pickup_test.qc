@@ -1133,6 +1133,10 @@ void() VR_PickupTest_Frame =
     {
         VR_AmmoRollTest_Run(); // (the ammo boxes' weapon roll: once a box, against the player: vr_itemrules_test.qc)
     }
+    else if(ask == 21)
+    {
+        VR_CtfParmsTest_Run(); // (CTF's level change carries nothing: vr_itemrules_test.qc)
+    }
     self = oself;
 };
 #endif

@@ -331,6 +331,10 @@ Notes on them:
 - **Recommended fix:** `parm22 = self.steam; return;` after `SetNewParms()` in that branch.
 - **Drawbacks:** `parm49` (the next weapon id), `parm74` and `parm75` are then not carried either, as for a dead
   player; left to the author since CTF could not be played here.
+- **Status (2026-11-19): fixed** as recommended. The three parms checked: `parm49` is carried anyway (SetNewParms
+  writes `qvr_weaponinst_next`, the same value); `parm74` (bullet time's meter, single player only) and `parm75` (the
+  armour plates shown: CTF carries no armour) start afresh, as a dead player's; the grapple (parm18) is SetNewParms's
+  CTF loadout. Test: `vr_pickup_test 21`.
 
 ### 17. `readytime` is one global shared by all players
 

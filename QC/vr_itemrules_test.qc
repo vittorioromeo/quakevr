@@ -194,4 +194,31 @@ void() VR_AmmoRollTest_Run =
     remove(box);
     VR_Test_Verdict();
 };
+// vr_pickup_test 21 (vr_itemrules_test.qc): CTF's level change (client.qc SetChangeParms, teamplay 4): nothing carried, as
+// a dead player's: the weapons' flags, magazines and ids are a new game's (0; the hip shotgun's own magazine, parm36, as
+// SetNewParms fills it), the team kept (parm22), the next weapon id SetNewParms's. The player's weapons are given
+// flags and a magazine first (their records have ids); teamplay is put back. Verdict "ctfparms: N passed, M failed". Single player (e1m1).
+void() VR_CtfParmsTest_Run =
+{
+    VR_Test_BeginFlags("ctfparms", VR_TEST_LOUD);
+    entity p = self;
+    float oldTeamplay = cvar_hget(cvarh_teamplay);
+    p.weaponflags = 1; p.weaponflags2 = 1; p.holsterweaponflags2 = 1;
+    if(p.holsterweaponinst2) { p.holsterweaponinst2.wi_clip = 7; } // (the axe's record; the holsters' ids are theirs)
+    p.steam = 2;
+    cvar_set("teamplay", ftos(TEAM_CTF));
+    SetChangeParms();
+    cvar_set("teamplay", ftos(oldTeamplay));
+    float bad = 0;
+    if(parm23 || parm24 || parm25 || parm26 || parm27 || parm28 || parm29 || parm30) { bad = bad + 1; }
+    if(parm31 || parm32 || parm33 || parm34 || parm35 || parm37 || parm38) { bad = bad + 2; }
+    if(parm41 || parm42 || parm43 || parm44 || parm45 || parm46 || parm47 || parm48) { bad = bad + 4; }
+    VR_Test_Check(bad == 0, sprintf("the weapons' flags, magazines and ids are a new game's (wrong groups %g)", bad));
+    VR_Test_Check(parm8 == WID_FIST && parm14 == WID_SHOTGUN && parm13 == WID_AXE,
+        sprintf("the loadout is a new game's (hand %g, holsters %g %g)", parm8, parm13, parm14));
+    VR_Test_Check(parm22 == 2, sprintf("the team is kept (parm22 %g)", parm22));
+    VR_Test_Check(parm49 == qvr_weaponinst_next, sprintf("the next weapon id is kept (parm49 %g, %g)", parm49,
+        qvr_weaponinst_next));
+    VR_Test_Verdict();
+};
 #endif

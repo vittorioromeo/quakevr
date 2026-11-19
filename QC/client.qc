@@ -84,7 +84,11 @@ void() SetChangeParms =
     teamplay = cvar_hget(cvarh_teamplay);
     if(teamplay >= TEAM_CTF)
     {
+        // As a dead player's: a new game's parms, the team kept (the weapons' flags, magazines and ids below are the old
+        // weapons'; the next weapon id, parm49, is SetNewParms's; bullet time's meter and the plates start afresh).
         SetNewParms();
+        parm22 = self.steam;
+        return;
     }
     else
     {
