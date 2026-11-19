@@ -652,10 +652,29 @@ frame sequences; reading aids only, nothing pasted). Files `QC/dwell/` (GPL-2, h
   0), then a save and load (each still Dwell's, then fired at fresh grunts held on its line, the mock's hands levelled:
   the Rifle 63 to one and none past it, the Rotary 50 of its 20 pellets, the Lance 188 to each of two: Dwell's 50, 40
   and 150 with our bonus on an unaware target) or a level change to e1m2 (each still Dwell's): 4 passed, 0 failed.
-- **Left for P3's second part**: Dwell's own view models as VR models (`v_shot3`, `v_rail`, `v_rifle` through
+- **P3, second part (2026-11-19, `agent/dwell3`, dwell3b)**: merged with next (P2b: `DW_PositionalHead` gone, P2b's
+  section 9.4, this one 9.5) and verified: `dwell_maps.sh` 28/0, `dwell_weapons_test.sh`, `dwell_monsters_test.sh`
+  11/0, `saveload_test.sh` 30/0, `scenario_check.sh` PASS, the spawn census against a fresh origin/next build (the
+  168 non-Copper maps), 0 warnings dev and ReleaseLTO. Then:
+  - **Armed grunts**: a grunt taking a Dwell weapon already kept its record (`VR_AG_TakeUp` hands it to `VR_AG_Arm`),
+    but fired our weapon's shot (the Rotary the Widowmaker's: `AD_Widowmaker` is true for it). `VR_AG_ShootProp` now
+    fires Dwell's (`DW_FireVariant`, the player's own code: its clip spent as your ammo, as every grunt gun), the
+    Lance's beam drawn from the grunt's prop (`dw_beam_prop`, disambiguator 0 as its lightning); its prop is named
+    as Dwell's (`VR_AG_NameOf`, `DW_VariantName`). Its drop carries the record, so the variant comes back to you.
+  - **Screen tints**: Dwell stuffs `v_cshift` (its `client.qc`: Haste 255 255 0 at 10, Berserk 255 0 0 at 20, both
+    255 128 0 at 20, the Wetsuit none); ours go through AD's tint (`VR_AD_Tint`: a stat the engine eases in, times
+    VR Settings' Screen Tints), never over an AD debuff's own (`.vr_dw_tinted`), cleared when they end.
+  - **Test**: `vr_ad_test 204` (in `dwell_weapons_test.sh`): two grunts armed from Dwell records (named, record and
+    variant kept, one Dwell shot each: a shell, 6 cells), the tints (yellow, orange, none): 9 passed, 0 failed;
+    the script 6 passed, 0 failed.
+  - **Not done, decided**: the variant's name in the flat holster menu (the flat wheel) and the VR wrist follows its
+    model: the client names a held or holstered weapon by its id and flags (`notectx::weaponName`), and AD's
+    Widowmaker is named "super shotgun" there too. Naming by the view model (`#vr` model index -> name) covers AD's
+    and Dwell's at once, once Dwell's own VR models exist; a variant stat now would be a second path to remove.
+- **Left for P3's third part**: Dwell's own view models as VR models (`v_shot3`, `v_rail`, `v_rifle` through
   `vr_adweapons.cpp` recipes: measured grips, muzzles, the arm cut off; until then the variants show our models),
-  the Rotary's drawn barrel spin with them, screen tints for the powerups, a variant name on the weapon wheel, and a
-  variant kept when an armed grunt takes the weapon (grunts carry only `wi_adup`).
+  the Rotary's drawn barrel spin with them (Dwell's `v_shot3.mdl` shares AD's Widowmaker's file name: its recipe must
+  pin Dwell's release by its counts, as AD's are pinned), and the variant names named by those models.
 
 ---
 

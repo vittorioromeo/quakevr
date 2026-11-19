@@ -12,7 +12,8 @@ that ships in 1.1.1.
   weapons and powerups work for now as variants of ours (their own VR models come in a later update). Dwell's weapons
   now stay what they are in your holsters, through saves, level changes and coop rejoins; the Rotary Shotgun reloads
   and spins up as the Widowmaker; Haste, Berserk and the Wetsuit show their seconds left on the wrist (and the flat
-  visor). Fixed: the Crystal Lance's first shot ended the game with a network error.
+  visor), and Haste and Berserk tint the screen in Dwell's colours. An armed grunt that picks up one of Dwell's
+  weapons fires it as Dwell's. Fixed: the Crystal Lance's first shot ended the game with a network error.
 
 ## Graphics
 
