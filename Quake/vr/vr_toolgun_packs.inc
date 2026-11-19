@@ -202,7 +202,7 @@ QVR_PACK("Monsters", "Dwell", "Brute", "dw_monster_brute", "progs/e2/mon_brute.m
 QVR_PACK("Monsters", "Dwell", "Construct", "dw_monster_excavator", "progs/e2/mon_excavator.mdl", 16.f, nullptr, 0.f, 0, 1, nullptr, 0)
 QVR_PACK("Monsters", "Dwell", "The Awoken (boss)", "dw_monster_d1boss", "progs/mon_d1boss.mdl", 96.f, nullptr, 0.f, 0, 1, nullptr, 0)
 QVR_PACK("Monsters", "Dwell", "The Sculptor (boss)", "dw_monster_d2boss", "progs/mon_d2boss.mdl", 64.f, nullptr, 0.f, 0, 1, nullptr, 0)
-QVR_PACK("Weapons", "Dwell", "Rotary Shotgun", "dw_weapon_quad_shotgun", "progs/g_shot3.mdl", 0.f, nullptr, 0.f, 0, 1, nullptr, 0)
+QVR_PACK("Weapons", "Dwell", "Rotary Shotgun", "dw_weapon_quad_shotgun", "progs/g_shot3.mdl", 0.f, nullptr, 0.f, 0, 1, "progs/e1/mon_kami.mdl", 0) // (the rerelease has a g_shot3 too: probe a file only Dwell has)
 QVR_PACK("Weapons", "Dwell", "Crystal Lance", "dw_weapon_railgun", "progs/g_rail.mdl", 0.f, nullptr, 0.f, 0, 1, nullptr, 0)
 QVR_PACK("Weapons", "Dwell", "Rifle", "dw_weapon_rifle", "progs/v_rifle.mdl", 0.f, nullptr, 0.f, 0, 1, nullptr, 0)
 QVR_PACK("Items", "Dwell", "Haste", "dw_item_artifact_haste", "progs/e2/item_haste.mdl", 24.f, nullptr, 0.f, 0, 1, nullptr, 0)
