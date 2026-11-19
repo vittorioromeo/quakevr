@@ -4649,29 +4649,45 @@ PREDICT_EXACT_MISS_MOST = 0.01  # B14: a share of his moves' results off the ser
 PREDICT_EXACT_OFF_MOST = 0.001  # ... and how far, units (an ulp on a step: the client's trace and SV_Move's)
 
 
-def predict_exact_check(s, what, pr, least=20):
+def predict_exact_check(s, what, pr, least=20, lost=0):
     """MP_PLAN B14: his moves are deterministic -- his replay's result for the move each new state is after against the
     server's, bit for bit (the origin; hash_sv and hash_cl, FNV-1a over the states compared, equal when all are): at
-    least `least` compared, at most PREDICT_EXACT_MISS_MOST of them off, none by PREDICT_EXACT_OFF_MOST."""
+    least `least` compared, at most PREDICT_EXACT_MISS_MOST of them off, none by PREDICT_EXACT_OFF_MOST. `lost`: moves
+    the server never had in the segment (each of its packets lost: moves_lost): the state after one is a move short of
+    his replay, so up to that many more off, by at most LOST_MOVE_MOST."""
     n, miss = int(pr.get("exact_n", 0)), int(pr.get("exact_miss", 999))
+    off_most = LOST_MOVE_MOST if lost else PREDICT_EXACT_OFF_MOST
     s.check("B's moves' results equal the server's bit for bit %s (an ulp at most, rarely)" % what,
-            n >= least and miss <= PREDICT_EXACT_MISS_MOST * (n + miss) and
-            float(pr.get("exact_max", 99)) < PREDICT_EXACT_OFF_MOST and (miss > 0 or pr.get("hash_sv") == pr.get("hash_cl")),
-            "%s equal, %s not (by %s at most; velocity: %s not; %s held to the server's clock, not compared), hashes %s %s" % (
-                n, miss, pr.get("exact_max"), pr.get("vel_miss"), pr.get("exact_held"), pr.get("hash_sv"), pr.get("hash_cl")))
+            n >= least and miss <= PREDICT_EXACT_MISS_MOST * (n + miss) + lost and
+            float(pr.get("exact_max", 99)) < off_most and (miss > 0 or pr.get("hash_sv") == pr.get("hash_cl")),
+            "%s equal, %s not (by %s at most; velocity: %s not; %s held to the server's clock, not compared; %d of his "
+            "moves the server never had), hashes %s %s" % (n, miss, pr.get("exact_max"), pr.get("vel_miss"),
+                                                          pr.get("exact_held"), lost, pr.get("hash_sv"), pr.get("hash_cl")))
 
 
-def predict_corr_check(s, what, pr, least=20):
+def predict_corr_check(s, what, pr, least=20, lost=0):
     """The segment's corrections and drawn offset under PREDICT_CORR_MOST (at least `least` states compared). (B18) A
     move that met a mover is measured apart (contact_max: predict_lift's check); the drawn offset eases it in, so it
-    may reach it."""
+    may reach it. `lost` (predict_exact_check's): a move the server never had is corrected by its length, at most
+    LOST_MOVE_MOST."""
     contact = float(pr.get("contact_max", 0))
-    s.check("B's corrections %s under %.1f unit (and his drawn offset)" % (what, PREDICT_CORR_MOST),
-            int(pr.get("corr_n", 0)) >= least and float(pr.get("corr_max", 99)) < PREDICT_CORR_MOST and
-            float(pr.get("err_max", 99)) < max(PREDICT_CORR_MOST, contact + 0.1),
-            "max %s over %s states (in the air: %s over %s), drawn offset at most %s; meeting a mover %s over %s" % (
-                pr.get("corr_max"), pr.get("corr_n"), pr.get("air_max"), pr.get("air_n"), pr.get("err_max"),
-                pr.get("contact_max"), pr.get("contact_n")))
+    most = LOST_MOVE_MOST if lost else PREDICT_CORR_MOST
+    s.check("B's corrections %s under %.1f unit (and his drawn offset)" % (what, most),
+            int(pr.get("corr_n", 0)) >= least and float(pr.get("corr_max", 99)) < most and
+            float(pr.get("err_max", 99)) < max(most, contact + 0.1),
+            "max %s over %s states (in the air: %s over %s), drawn offset at most %s; meeting a mover %s over %s; %d of "
+            "his moves the server never had" % (pr.get("corr_max"), pr.get("corr_n"), pr.get("air_max"), pr.get("air_n"),
+                                                pr.get("err_max"), pr.get("contact_max"), pr.get("contact_n"), lost))
+
+
+# A move the server never had (every packet carrying it lost): his replay ran it, the server did not -- his correction
+# and that state's miss a move's travel at most: a slide's top speed (twice a run's 320 u/s, with room) for 1/72 s.
+LOST_MOVE_MOST = 2.0 * 320.0 / 72.0 + 1.0
+
+
+def moves_lost(srv, ent):
+    """The server's count of player `ent`'s moves it never had (mp_netmoves lost=: every packet carrying one lost)."""
+    return int(netmoves_of(srv, ent).get("lost", 0))
 
 
 # e1m1's lift (func_plat *7, at the bottom until a player stands on it: 150 units up at 150 u/s, held up while he stays)
@@ -4938,15 +4954,17 @@ def predict_slide(s):
     for k, (what, legs) in enumerate(takes):
         put_at(srv, b, eb, OPEN_SPOT, 90)
         b.quiet(r"mp_predict_corr: ", 1.0, 20, "B settled at his spot")
+        lost_from = moves_lost(srv, eb)
         pr = predict_segment(s, b, "sliding, %s" % what, "vr_mock_stick off 0 1", 36, legs)
+        lost = moves_lost(srv, eb) - lost_from  # (5% lost each way: now and then a move's every copy)
         s.metric("b_predict_slide%d" % (k + 1), pr)
         s.check("B slid (%s): the server's slide in his states, every one walked move by move" % what,
                 int(pr.get("slide_n", 0)) >= 10 and int(pr.get("unwalked", 1)) == 0 and
                 int(pr.get("unpredicted", 1)) == 0,
                 "%s states sliding, %s unwalked, %s unpredicted" % (pr.get("slide_n"), pr.get("unwalked"),
                                                                      pr.get("unpredicted")))
-        predict_corr_check(s, "sliding (%s)" % what, pr)
-        predict_exact_check(s, "(sliding, %s)" % what, pr)
+        predict_corr_check(s, "sliding (%s)" % what, pr, lost=lost)
+        predict_exact_check(s, "(sliding, %s)" % what, pr, lost=lost)
         own = org_of(status(b), "mp_player", "self", 1)
         sv = org_of(status(srv), "mp_client", "slot", eb - 1)
         gap = dist(own, sv) if own and sv else 99.0
