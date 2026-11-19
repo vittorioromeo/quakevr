@@ -1056,6 +1056,10 @@ struct TargetsTest
     int frame = 0;
     long long hiddenUploads[2] = {};
     int underMade = 0;
+    unsigned eyeGeneration = 0; // the eye targets' at begin (made again: another)
+    int renderTargetsMade = 0;  // gfx::targetsMade at begin (the resample target, the glow's chain, the particles')
+    int dynresChanges = 0;
+    int drawnWidth = 0;
 };
 TargetsTest targetsTest;
 constexpr const char* targetsTestName = "stereo_targets";
@@ -1079,6 +1083,10 @@ void targetsTest_f()
             t.hiddenUploads[eye] = hiddenMeshes[eye].triangles.uploads;
         }
         t.underMade = gfx::underTargetsMade();
+        t.eyeGeneration = eyeTargets.generation;
+        t.renderTargetsMade = gfx::targetsMade;
+        t.dynresChanges = dynres::changes();
+        t.drawnWidth = eyeTargets.drawnWidth;
         Con_Printf("%s: begun (hidden area uploads %lld %lld, reverse-order framebuffers %d)\n", targetsTestName,
             t.hiddenUploads[0], t.hiddenUploads[1], t.underMade);
     }
@@ -1102,6 +1110,19 @@ void targetsTest_f()
                 va("reverse-order particles' framebuffers not made again (%d at begin, %d now)", t.underMade,
                     gfx::underTargetsMade()));
         }
+    }
+    else if(!q_strcasecmp(step, "stepped"))
+    {
+        // (after dynamic resolution stepped: vr_dynres 2 and a load, vr_dynres_test_load)
+        targetsCheck(dynres::changes() > t.dynresChanges, va("dynamic resolution stepped since begin (%d steps)",
+            dynres::changes() - t.dynresChanges));
+        targetsCheck(eyeTargets.drawnWidth != t.drawnWidth && eyeTargets.drawnWidth < eyeTargets.allocatedWidth,
+            va("the eyes drawn at another size, a part of their targets (%dx%d of %dx%d; %d wide at begin)", eyeTargets.drawnWidth,
+                eyeTargets.drawnHeight, eyeTargets.allocatedWidth, eyeTargets.allocatedHeight, t.drawnWidth));
+        targetsCheck(eyeTargets.generation == t.eyeGeneration, va("the eyes' targets not made again (generation %u at begin, %u now)",
+            t.eyeGeneration, eyeTargets.generation));
+        targetsCheck(gfx::targetsMade == t.renderTargetsMade, va("no render target made again (%d made at begin, %d now: %s)",
+            t.renderTargetsMade, gfx::targetsMade, gfx::targetsMadeByName().cStr()));
     }
     else if(!q_strcasecmp(step, "released"))
     {
@@ -1130,7 +1151,7 @@ void targetsTest_f()
     }
     else
     {
-        Con_Printf("vr_stereo_targets_test begin | steady | released | verdict\n");
+        Con_Printf("vr_stereo_targets_test begin | steady | stepped | released | verdict\n");
     }
 }
 
