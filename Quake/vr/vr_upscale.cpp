@@ -46,13 +46,7 @@ namespace
 // ---------------------------------------------------------------------------------------------------------------------
 // Shaders
 
-constexpr const char* fullscreenVs = R"(#version 430
-void main()
-{
-    ivec2 v = ivec2(gl_VertexID & 1, gl_VertexID >> 1);
-    gl_Position = vec4(vec2(v) * 4.0 - 1.0, 0.0, 1.0);
-}
-)";
+constexpr const char* fullscreenVs = gfx::fullscreenTriangleVs;
 
 // What ffx_fsr1.h needs of ffx_a.h (A_GPU, A_GLSL, 32-bit only): the same definitions, trimmed to those it uses.
 constexpr const char* ffxA = R"(
@@ -148,7 +142,7 @@ layout(binding = 0) uniform sampler2D Source;
 layout(binding = 1) uniform sampler2D Up;
 layout(location = 0) uniform vec4 Lens;
 layout(location = 1) uniform vec2 Radius; // x <= 0: everywhere
-layout(location = 2) uniform vec2 InvSize; // 1 / the image's size
+layout(location = 2) uniform vec2 InvSize; // the image's pixels to the source's uv (1 / the image's size, times the source's drawn part)
 layout(location = 3) uniform float RcasSharpness; // FsrRcasCon's con[0]
 layout(location = 4) uniform int Mode;
 layout(location = 0) out vec4 Out;
@@ -372,25 +366,49 @@ GLuint coefUsm = 0;
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-// FsrEasuCon (ffx_fsr1.h): viewport = the whole input.
-void easuConstants(float inW, float inH, float outW, float outH, float con[16])
+// FsrEasuCon (ffx_fsr1.h): the input's viewport (the drawn part, from the corner) inW x inH of a texture texW x texH.
+void easuConstants(float inW, float inH, float texW, float texH, float outW, float outH, float con[16])
 {
     const auto u = [](float f) { return f; }; // AU1_AF1: the shader takes the floats' bits
     con[0] = u(inW / outW);
     con[1] = u(inH / outH);
     con[2] = u(0.5f * inW / outW - 0.5f);
     con[3] = u(0.5f * inH / outH - 0.5f);
-    con[4] = u(1.f / inW);
-    con[5] = u(1.f / inH);
-    con[6] = u(1.f / inW);
-    con[7] = u(-1.f / inH);
-    con[8] = u(-1.f / inW);
-    con[9] = u(2.f / inH);
-    con[10] = u(1.f / inW);
-    con[11] = u(2.f / inH);
+    con[4] = u(1.f / texW);
+    con[5] = u(1.f / texH);
+    con[6] = u(1.f / texW);
+    con[7] = u(-1.f / texH);
+    con[8] = u(-1.f / texW);
+    con[9] = u(2.f / texH);
+    con[10] = u(1.f / texW);
+    con[11] = u(2.f / texH);
     con[12] = u(0.f);
-    con[13] = u(4.f / inH);
+    con[13] = u(4.f / texH);
     con[14] = con[15] = 0.f;
+}
+
+// The source's drawn part (width x height of its texture, allocated allocatedWidth x allocatedHeight: larger under
+// dynamic resolution, its ceiling) edged with copies of its last column and row, kEdge texels wide (as far as the
+// texture goes): what the filters read past the edge (EASU's and NIS's taps, RCAS's neighbours at scale 1, the
+// bilinear blit and taps) is then what clamp-to-edge gave them when the part was the whole texture.
+constexpr int kEdge = 4;
+void edgeDrawnPart(GLuint sourceFbo, int width, int height, int allocatedWidth, int allocatedHeight)
+{
+    if(width >= allocatedWidth && height >= allocatedHeight)
+    {
+        return;
+    }
+    GL_BindFramebufferFunc(GL_READ_FRAMEBUFFER, sourceFbo);
+    GL_BindFramebufferFunc(GL_DRAW_FRAMEBUFFER, sourceFbo);
+    const int x1 = za::min(width + kEdge, allocatedWidth), y1 = za::min(height + kEdge, allocatedHeight);
+    if(x1 > width) // the last column, stretched (rows 0 .. height)
+    {
+        GL_BlitFramebufferFunc(width - 1, 0, width, height, width, 0, x1, height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+    }
+    if(y1 > height) // the last row with its edge, stretched
+    {
+        GL_BlitFramebufferFunc(0, height - 1, x1, height, 0, height, x1, y1, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+    }
 }
 
 // vr_upscale_sharpness (0 none .. 1 most) as RCAS's stops of reduction (0 = RCAS's most): 1 -> 0, 0.5 -> 1, 0.1 -> 1.8.
@@ -458,9 +476,10 @@ float radiusTangent()
     return za::tan(glm::radians(degrees));
 }
 
-void resample(int eye, GLuint source, GLuint sourceFbo, int width, int height, GLuint target, int imageWidth,
-    int imageHeight)
+void resample(int eye, GLuint source, GLuint sourceFbo, int width, int height, int allocatedWidth, int allocatedHeight,
+    GLuint target, int imageWidth, int imageHeight)
 {
+    edgeDrawnPart(sourceFbo, width, height, allocatedWidth, allocatedHeight);
     int mode = za::clamp(static_cast<int>(vr_upscale.value), 0, 2);
     const bool upscaling = width < imageWidth && height < imageHeight;
     const bool native = width == imageWidth && height == imageHeight;
@@ -477,8 +496,8 @@ void resample(int eye, GLuint source, GLuint sourceFbo, int width, int height, G
     NISConfig config{};
     // NIS's own slider at half ours: its 0.5 oversharpens (dark halos by text) where FSR's RCAS at our 0.5 doesn't.
     if(mode == 2 &&
-        (!NVScalerUpdateConfig(config, 0.5f * sharpness(), 0, 0, width, height, width, height, 0, 0, imageWidth, imageHeight,
-             imageWidth, imageHeight) ||
+        (!NVScalerUpdateConfig(config, 0.5f * sharpness(), 0, 0, width, height, allocatedWidth, allocatedHeight, 0, 0, imageWidth,
+             imageHeight, imageWidth, imageHeight) ||
             !nis()))
     {
         mode = 1; // NIS scales by 1 to 2 per side only (or its shader failed): FSR instead
@@ -520,8 +539,8 @@ void resample(int eye, GLuint source, GLuint sourceFbo, int width, int height, G
         if(mode == 1)
         {
             float con[16];
-            easuConstants(static_cast<float>(width), static_cast<float>(height), static_cast<float>(imageWidth),
-                static_cast<float>(imageHeight), con);
+            easuConstants(static_cast<float>(width), static_cast<float>(height), static_cast<float>(allocatedWidth),
+                static_cast<float>(allocatedHeight), static_cast<float>(imageWidth), static_cast<float>(imageHeight), con);
             GL_BindFramebufferFunc(GL_FRAMEBUFFER, upFbo);
             glViewport(0, 0, imageWidth, imageHeight);
             glEnable(GL_SCISSOR_TEST);
@@ -578,7 +597,9 @@ void resample(int eye, GLuint source, GLuint sourceFbo, int width, int height, G
     GL_BindNative(GL_TEXTURE1, GL_TEXTURE_2D, upscaled);
     GL_Uniform4fFunc(0, l.centre.x, l.centre.y, invPpt.x, invPpt.y);
     GL_Uniform2fFunc(1, radius, radius * 0.92f);
-    GL_Uniform2fFunc(2, 1.f / imageWidth, 1.f / imageHeight);
+    // (the image's pixels to the source's uv: its drawn part over its texture, 1 when whole)
+    GL_Uniform2fFunc(2, (static_cast<float>(width) / static_cast<float>(allocatedWidth)) / imageWidth,
+        (static_cast<float>(height) / static_cast<float>(allocatedHeight)) / imageHeight);
     GL_Uniform1fFunc(3, rcasConstant(sharpness()));
     GL_Uniform1iFunc(4, rcas ? 1 : 0);
     glDrawArrays(GL_TRIANGLES, 0, 3);
@@ -591,6 +612,17 @@ void precompilePrograms()
     (void)easu();
     (void)compose();
     (void)nis();
+}
+
+void releaseTargets()
+{
+    if(upTex)
+    {
+        GL_DeleteFramebuffersFunc(1, &upFbo);
+        GL_DeleteNativeTexture(upTex);
+    }
+    upTex = upFbo = 0;
+    upWidth = upHeight = 0;
 }
 
 } // namespace qvr::upscale

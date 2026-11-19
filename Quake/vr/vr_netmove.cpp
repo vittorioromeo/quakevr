@@ -8,6 +8,7 @@
 #include "vr_protocol.hpp"
 #include "vr_testkit.hpp"
 #include "vr_melee_shared.h"
+#include "vr_mem.hpp"
 
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/IsFinite.hpp"
@@ -528,6 +529,12 @@ void clientClear()
     c.rtt = c.rttLast = 0.0;
     memset(c.seqs, 0, sizeof(c.seqs));
 }
+
+namespace
+{
+// Forgotten when the client's state is cleared (vr_mem.hpp's resets): no acknowledged move: the next sent whole, B7.
+mem::Reset clientStateReset{"netmove", mem::ResetEvent::ClientState, mem::ResetPhase::State, &clientClear};
+} // namespace
 
 double clientRoundTrip(double* newest)
 {

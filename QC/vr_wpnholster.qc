@@ -1726,7 +1726,7 @@ void(entity ent, float xHand,
     float startedHandGrabbing = VR_HandGrabUtil_StartedHandGrabbing(ent, xHand);
     float handReloadFlicking = VR_HandGrabUtil_IsHandReloadFlicking(ent, xHand);
 
-    if(!deathmatch && time < readytime)
+    if(!deathmatch && time < ent.vr_readytime)
     {
         // Do not do anything if the player is not "ready" yet, after spawning.
         return;

@@ -9,15 +9,23 @@
 //   vr_config_test newdefault; exec <sparse>.cfg; vr_config_test checkdefault   a changed default reaches it
 //   vr_config_test done                                              "config_test: N passed, M failed"
 // "vr_config_test dumpfull <name>" writes every archived setting (the full config's lines) for comparing builds.
+// The config's tracking (vr_cvars.cpp ConfigTrack; REVIEW_NEXT_2026-11-18.md, finding 4): "vr_config_test tracked"
+// right after a writeconfig (nothing changed, the tracking as the file and the settings read afresh); "vr_config_test
+// trackedit" its writes, a failed one and a name two settings share; "vr_config_test cost [n]" a menu close's no-change
+// test timed, saveConfigNow's against the map of every setting it made until 2026-11-19.
 
+#include "vr_alloccount.hpp"
 #include "vr_api.h"
 #include "vr_config.hpp"
 #include "vr_engine.hpp"
 #include "vr_files.hpp"
 #include "vr_testkit.hpp"
 
+#include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/Strncmp.hpp"
+#include "Zancle/Chrono/Clock.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
+#include "Zancle/Math/MinMax.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/String/StringView.hpp"
 #include "Zancle/Vocabulary/Span.hpp"
@@ -375,6 +383,155 @@ void hasLine()
     configTest.tally.check(strstr(all.cStr(), want.cStr()) != nullptr, testName, va("%s has no line %s", name, want.cStr() + 1));
 }
 
+// A check's line either way: "config_test: PASS|FAIL <what>".
+void expect(bool ok, const char* what)
+{
+    if(configTest.tally.check(ok, testName, what))
+    {
+        Con_Printf("%s: PASS %s\n", testName, what);
+    }
+}
+
+// The no-change test's count (saveConfigNow's) and the map's (as it was counted until 2026-11-19), both `want`.
+void expectChanged(int want, const char* when)
+{
+    const int now = configChangedCount(), byMap = configChangedCountByMap();
+    expect(now == want && byMap == want, va("%s: %d changed (the map's count %d), %d expected", when, now, byMap, want));
+}
+
+// The tracking as the config and the settings read afresh (what VR_ConfigWritten read back until 2026-11-19), but for
+// `hereDiffers` settings changed since.
+void expectTracked(const char* path, int hereDiffers, const char* when)
+{
+    const ConfigTrackCheck c = configTrackCheck(path);
+    expect(c.on && c.fileDiffers == 0 && c.hereDiffers == hereDiffers,
+        va("%s: the tracking as read afresh (file %d differ%s%s, here %d of %d expected%s%s)", when, c.fileDiffers,
+            c.fileDiffers ? ", first " : "", c.firstFile.cStr(), c.hereDiffers, hereDiffers, c.hereDiffers ? ", first " : "",
+            c.firstHere.cStr()));
+}
+
+void tracked()
+{
+    expectChanged(0, "tracked");
+    expectTracked(va("%s/%s", com_gamedir, CONFIG_NAME), 0, "tracked");
+}
+
+// The tracking through writes: two settings changed (a cvar, a stand-in) and counted; a write that fails (its temporary
+// file can't be made; the config not replaced after it was written) leaves them counted and the tracking as the file still is; a write
+// that succeeds tracks them. Then a name two settings share (a stand-in renamed to the cvar's name for the test, the
+// tracking read again): the stand-in is the setting the map kept (the last), in the count and through three writes
+// (both changed, the cvar only, neither: the file's value is the last line's, else the first's default). Every value,
+// name and the tracking put back after.
+void trackEdit()
+{
+    const za::String path{va("%s/%s", com_gamedir, CONFIG_NAME)};
+    if(!configTest.tally.check(configTrackCheck(path.cStr()).on, testName, "trackedit: the game folder's config not tracked"))
+    {
+        return;
+    }
+    cvar_t* var = nullptr;
+    for(cvar_t* v = firstArchived(); v && !var; v = Cvar_FindVarAfter(v->name, CVAR_ARCHIVE))
+    {
+        var = plain(v) && !isSlot(v) && isNumber(v->default_string) && !strcmp(v->string, v->default_string)
+                      && !strstr(v->name, "_version")
+                  ? v
+                  : nullptr;
+    }
+    cvar_t* standIn = nullptr;
+    for(cvar_t& v : standInTables()[0])
+    {
+        standIn = standIn ? standIn : isNumber(v.default_string) && !strcmp(v.string, v.default_string) ? &v : nullptr;
+    }
+    if(!configTest.tally.check(var && standIn, testName, "trackedit: no settings to change"))
+    {
+        return;
+    }
+    Con_Printf("%s: trackedit: %s and %s\n", testName, var->name, standIn->name);
+    const auto write = [] { return Host_WriteConfigurationToFile(CONFIG_NAME) != 0; };
+    const auto bump = [](cvar_t* v, double by) { Cvar_SetQuick(v, va("%g", Q_atof(v->default_string) + by)); };
+
+    expect(write(), "trackedit: the config written");
+    expectChanged(0, "after a write");
+    expectTracked(path.cStr(), 0, "after a write");
+
+    bump(var, 1.5);
+    bump(standIn, 2.5);
+    expectChanged(2, "a cvar and a stand-in changed");
+
+    // (b) Writes that fail: VR_ConfigWritten not called, so the settings are still counted changed.
+    const za::String tmp = path + ".tmp";
+    files::createDirectories(tmp.cStr()); // (its temporary file: a directory there)
+    expect(!write(), "the config's temporary file not made: the write fails");
+    files::remove(tmp.cStr());
+    expectChanged(2, "after a write that failed to begin");
+    expectTracked(path.cStr(), 2, "after a write that failed to begin");
+    // (A write that failed after its settings were written to the temporary file, as when it can't replace the config:
+    // VR_ConfigNoteWrite called, VR_ConfigWritten not.)
+    VR_ConfigNoteWrite();
+    expectChanged(2, "after a write that failed to replace the config");
+    expectTracked(path.cStr(), 2, "after a write that failed to replace the config");
+    expect(write(), "written once it can be");
+    expectChanged(0, "after it");
+    expectTracked(path.cStr(), 0, "after it");
+
+    // (a) A name two settings have: the stand-in's is the setting (the last of them), as in the map.
+    Cvar_SetQuick(var, var->default_string);
+    Cvar_SetQuick(standIn, standIn->default_string);
+    const char* const standInName = standIn->name;
+    standIn->name = var->name;
+    configTrackAgain(path.cStr());
+    expect(configTrackCheck(path.cStr()).sharedNames == 2, "a name two settings have: tracked as shared");
+    bump(var, 1.5);
+    expectChanged(0, "the cvar of a shared name changed (the stand-in is the setting)");
+    bump(standIn, 2.5);
+    expectChanged(1, "the stand-in of a shared name changed");
+    expect(write(), "a shared name: both lines written");
+    expectChanged(0, "a shared name, both changed, after a write");
+    expectTracked(path.cStr(), 0, "a shared name, both changed, after a write");
+    Cvar_SetQuick(standIn, standIn->default_string);
+    expectChanged(1, "the stand-in of a shared name back to its default");
+    expect(write(), "a shared name: the cvar's line only");
+    expectTracked(path.cStr(), 0, "a shared name, the cvar's line only, after a write");
+    Cvar_SetQuick(var, var->default_string);
+    expectChanged(0, "the cvar of a shared name back to its default (the stand-in is the setting)");
+    expect(write(), "a shared name: no line");
+    expectChanged(0, "a shared name, no line, after a write");
+    expectTracked(path.cStr(), 0, "a shared name, no line, after a write");
+
+    standIn->name = standInName;
+    configTrackAgain(path.cStr());
+    expect(write(), "trackedit: the config written again as it was");
+    expectChanged(0, "trackedit: put back");
+    expectTracked(path.cStr(), 0, "trackedit: put back");
+}
+
+// A menu close's no-change test, `n` times each way: its time and heap allocations on this thread.
+void cost(int n)
+{
+    const auto measure = [n](const char* what, auto&& count) {
+        const alloccount::Stats before = alloccount::statsThisThread();
+        const za::I64 t0 = za::Clock::nowNanoseconds();
+        int changed = 0;
+        for(int i = 0; i < n; i++)
+        {
+            changed += count();
+        }
+        const za::I64 t1 = za::Clock::nowNanoseconds();
+        const alloccount::Stats after = alloccount::statsThisThread();
+        za::U64 allocations = 0;
+        for(const alloccount::Kind k : {alloccount::Kind::New, alloccount::Kind::Malloc, alloccount::Kind::Calloc,
+                alloccount::Kind::Realloc})
+        {
+            allocations += after.calls[static_cast<int>(k)] - before.calls[static_cast<int>(k)];
+        }
+        Con_Printf("%s: cost: %s: %.3f ms and %.0f allocations (%.0f KiB asked) a call, %d changed\n", testName, what,
+            za::nanosecondsToMilliseconds(t1 - t0) / n, static_cast<double>(allocations) / n,
+            static_cast<double>(after.requestedBytes - before.requestedBytes) / 1024.0 / n, changed / n);
+    };
+    measure("saveConfigNow's walk", [] { return configChangedCount(); });
+    measure("the map (until 2026-11-19)", [] { return configChangedCountByMap(); });
+}
+
 void test_f()
 {
     const char* step = Cmd_Argc() > 1 ? Cmd_Argv(1) : "";
@@ -419,6 +576,18 @@ void test_f()
     {
         dumpFull(arg);
     }
+    else if(!strcmp(step, "tracked"))
+    {
+        tracked();
+    }
+    else if(!strcmp(step, "trackedit"))
+    {
+        trackEdit();
+    }
+    else if(!strcmp(step, "cost"))
+    {
+        cost(*arg ? za::max(Q_atoi(arg), 1) : 20);
+    }
     else if(!strcmp(step, "done"))
     {
         configTest.tally.verdict(testName);
@@ -427,7 +596,8 @@ void test_f()
     else
     {
         Con_Printf("vr_config_test snap | checkfile <name.cfg> | scramble | compare | newdefault | checkdefault | "
-                   "othercopy | checkmerge | dumpfull <name> | hasline <file> <word>... <value> | done\n");
+                   "othercopy | checkmerge | dumpfull <name> | hasline <file> <word>... <value> | tracked | trackedit | "
+                   "cost [n] | done\n");
     }
 }
 

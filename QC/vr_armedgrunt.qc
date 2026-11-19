@@ -3441,7 +3441,7 @@ void() monster_vr_hknight =
 void(float want, float flags, entity inst, float want2, float flags2) VR_AM_ArmAll;
 void(float kind) VR_AM_Spawn =
 {
-    if(MG_MonsterInhibited()) return;
+    if(VR_SF_SpawnInhibited()) return;
     self.vr_ag_kind = kind;
     if(deathmatch)
     {

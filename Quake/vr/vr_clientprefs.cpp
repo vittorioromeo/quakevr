@@ -13,6 +13,7 @@
 #include "vr_moveguard.hpp"
 #include "vr_progs.hpp"
 #include "vr_tunables_api.hpp"
+#include "vr_mem.hpp"
 #include "Zancle/Base/IsFinite.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -712,6 +713,12 @@ void clientClear()
     state.frameWasSent[0] = state.frameWasSent[1] = false;
     heldpose::clientClear();
 }
+
+namespace
+{
+// Forgotten when the client's state is cleared (vr_mem.hpp's resets): ours go up to the new server again.
+mem::Reset clientStateReset{"clientprefs", mem::ResetEvent::ClientState, mem::ResetPhase::State, &clientClear};
+} // namespace
 
 void serverReset(int slot)
 {

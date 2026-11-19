@@ -19,6 +19,7 @@
 #include "vr_tunables.hpp"
 #include "vr_engine.hpp"
 #include "vr_gfx.hpp"
+#include "vr_glutil.hpp"
 #include "vr_main.hpp"
 #include "vr_menuui.hpp"
 #include "vr_progs.hpp"
@@ -96,7 +97,7 @@ struct CardsState
 
     int pickPending{-1}; // a card picked by a trigger or a key, passed to the QC in the host frame
 
-    gfx::Target target;
+    gfx::RenderTarget target;
 };
 CardsState cs;
 
@@ -590,8 +591,12 @@ void render()
         return;
     }
     toolgun::icons::makePending(2);
-    gfx::ensureTarget(cs.target, static_cast<int>(panelWidth) * texelsPerPixel, static_cast<int>(panelHeight) * texelsPerPixel,
-        true, "arena cards");
+    if(!cs.target.ensure(static_cast<int>(panelWidth) * texelsPerPixel, static_cast<int>(panelHeight) * texelsPerPixel,
+           gfx::RenderTargetFormat{.mipmaps = true, .fboName = "vr canvas"}, "arena cards"))
+    {
+        Con_Warning("VR: the arena cards' framebuffer is incomplete\n");
+        return;
+    }
     gfx::begin2D(cs.target, static_cast<int>(panelWidth), static_cast<int>(panelHeight));
     drawPanel();
     gfx::end2D();
@@ -599,7 +604,7 @@ void render()
 
 void drawInEye(const hands::State& s)
 {
-    if(!shown() || !cs.placed || qvr::renderdoc::hidingPanel() || !cs.target.texture || !s.valid)
+    if(!shown() || !cs.placed || qvr::renderdoc::hidingPanel() || !cs.target.tex || !s.valid)
     {
         return;
     }
@@ -610,7 +615,7 @@ void drawInEye(const hands::State& s)
         {corner + xAxis + yAxis, {1.f, 1.f}, white}, {corner + yAxis, {0.f, 1.f}, white}};
     const gfx::Vertex quadTris[6] = {c[0], c[1], c[2], c[0], c[2], c[3]};
     gfx::draw(quadTris, gfx::sceneViewProjection(),
-        {.shade = gfx::Shade::Texture, .blend = gfx::Blend::Opaque, .depthTest = false, .depthWrite = false}, cs.target.texture);
+        {.shade = gfx::Shade::Texture, .blend = gfx::Blend::Opaque, .depthTest = false, .depthWrite = false}, cs.target.tex);
 
     // Both hands' lasers: to where they meet the panel, a short stub when they don't.
     for(int h = 0; h < 2; h++)

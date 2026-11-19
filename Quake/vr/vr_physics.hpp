@@ -113,4 +113,8 @@ void swimRules(edict_t* ent, float& shallow, float& wade, float& swim, float& gl
 // VR_AfterWaterMove's strokes alone (the glide and the stick's swim ran in his moves): once a server frame after them.
 void swimStrokes(edict_t* ent, float forwardmove, float sidemove, float upmove);
 
+// VR_OnHostError (vr_hosterror.cpp): compatibility mode's shot point (VR_BeforePlayerPostThink) forgotten when the
+// error jumped out of PlayerPostThink before VR_AfterPlayerPostThink. Whether one was set.
+bool onHostError();
+
 } // namespace qvr::physics

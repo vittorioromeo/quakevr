@@ -1,6 +1,7 @@
 // vr_lagcomp.cpp -- lag compensation (vr_lagcomp.hpp; MP_PLAN.md, B8b).
 
 #include "vr_lagcomp.hpp"
+#include "vr_mem.hpp"
 #include "vr_moveguard.hpp"
 
 #include "vr_api.h"
@@ -410,6 +411,12 @@ void reset()
     saved.on = false;
     saved.of.clear();
 }
+
+namespace
+{
+// Forgotten with the server's world (vr_mem.hpp's resets): the targets kept (this world's from its first frame).
+mem::Reset serverWorldReset{"lagcomp", mem::ResetEvent::ServerWorld, mem::ResetPhase::State, &reset};
+} // namespace
 
 bool begin(edict_t* shooter, double most)
 {

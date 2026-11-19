@@ -479,6 +479,7 @@ void Host_Quit_f (void);
 void Host_ClientCommands (const char *fmt, ...) FUNC_PRINTF(1,2);
 void Host_ShutdownServer (qboolean crash);
 qboolean Host_WriteConfiguration (void); // QVR: true when the config and tunables.cfg are on disk as they are now
+qboolean Host_WriteConfigurationToFile (const char *name); // QVR: one config file (vr_config_test: the game folder's, failing on purpose)
 void Host_Resetdemos (void);
 
 void Host_SavegameComment (char text[SAVEGAME_COMMENT_LENGTH + 1]);

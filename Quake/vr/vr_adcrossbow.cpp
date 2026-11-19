@@ -4,6 +4,7 @@
 
 #include "vr_backend.hpp"
 #include "vr_cvars.hpp"
+#include "vr_mem.hpp"
 #include "vr_tunables.hpp"
 #include "vr_engine.hpp"
 #include "vr_hands.hpp"
@@ -379,6 +380,12 @@ void clear()
     }
     known = Known{};
 }
+
+namespace
+{
+// Forgotten when the client's state is cleared (vr_mem.hpp's resets): the crossbow's hands (AD support).
+mem::Reset clientStateReset{"adcrossbow", mem::ResetEvent::ClientState, mem::ResetPhase::State, &clear};
+} // namespace
 
 void registerCommands()
 {

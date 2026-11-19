@@ -492,7 +492,7 @@ inline void returnVec(const glm::vec3& v)
 // Binds the VR builtins declared "= #0" in QC (vr_builtins.cpp).
 void bindBuiltins();
 
-// Clears per-map builtin state (world text, ...) when a new server spawns.
+// Clears per-map builtin state (the QC's cvar handles, the wounds sent) with the server's world (its mem::Reset).
 void resetBuiltinState();
 // ED_Free (VR_OnEdictFree): a wounded entity's removal sent to the clients (QVR_SVC_WOUNDCLEAR).
 void onEdictFree(edict_t* ed);

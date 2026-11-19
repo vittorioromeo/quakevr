@@ -71,6 +71,7 @@ declared there, defined where they were) and a `registerDiagCommands()` called f
 | vr_brushes_diag.cpp | vr_brush_selftest, vr_brush_trace |
 | vr_animsmooth_diag.cpp | vr_anim_smooth_pin/_info/_check/_trace |
 | vr_zancle_diag.cpp | vr_zancle_math_test (no internal header: it shares nothing) |
+| vr_mem_diag.cpp | vr_resets (the registered resets: list, trace, record, check, test; not a move: new with them, 2026-11-19; vr_mem.hpp's own functions, no internal header) |
 | vr_ragdoll_diag.cpp | vr_drawn_motion_test (its recorder, recordMotion, and report) and vr_ragdoll_info; still registered in vr_box3d_diag.cpp |
 
 The build systems take the new files by wildcard (vr.cmake and vr.mk glob `vr/*.cpp`; the VS project's quakevr.props
@@ -90,7 +91,7 @@ vr_tunables.inc recompiled them all. Each part now has its header; a file includ
 | vr_monstervalues.hpp | the monsters' per-class values by name (`monsterValues[]`) | vr_monsterdata.inc |
 | vr_weaponvalues.hpp | the named per-weapon values (`weaponStandIns[]`) | vr_weapons.inc, vr_weaponvalues.inc |
 | vr_cvars_util.hpp | `cvars::forEach`, `cvars::Override`, `cvars::Snapshot` | none |
-| vr_config.hpp | `registerCvars`, `sameSettingValue`, `saveConfigNow`, `configFrame`, `standInTables`, `registerConfigDiag` | none |
+| vr_config.hpp | `registerCvars`, `sameSettingValue`, `saveConfigNow`, `configFrame`, the tracking's checks (`configChangedCount`, `configChangedCountByMap`, `configTrackCheck`, `configTrackAgain`), `standInTables`, `registerConfigDiag` | none |
 
 The engine hooks (vr_api.h, vr_api_render.h) left quakedef.h and vr_engine.hpp (so the PCHs) the same way: each
 Ironwail and VR file that calls or defines a hook includes them.

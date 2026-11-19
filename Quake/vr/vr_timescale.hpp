@@ -51,4 +51,9 @@ void init(); // the vr_slowmo command
 // up, nor while a menu is open (the hands are the controllers'), nor in Sandevistan. The head is never slowed.
 void filterHands(TrackingState& t);
 
+// VR_OnHostError (vr_hosterror.cpp): an entity's turn in the player's time that the error jumped out of
+// (VR_PhysicsEntityBegin without its End) ended, so that nothing after it (the server's shutdown, the next map) runs in
+// the player's time. Whether one was open.
+bool onHostError();
+
 } // namespace qvr::timescale

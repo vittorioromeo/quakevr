@@ -415,7 +415,7 @@ fight. Needs the Dawn of the Machine data (its model is read from it in place), 
 */
 void() monster_ranged_knight =
 {
-    if(MG_MonsterInhibited()) return;
+    if(VR_SF_SpawnInhibited()) return;
     if(deathmatch)
     {
         remove(self);

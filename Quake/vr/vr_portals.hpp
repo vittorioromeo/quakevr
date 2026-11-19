@@ -175,6 +175,13 @@ int lightGates(const glm::vec3& light, float radius, LightGate* out, int capacit
 // destination in the open: its aperture is only where things come out) splits only what moves out of it (`velocity`,
 // units a second; none: nothing): else a prop resting where a gate leads was cut there.
 bool splitBounds(const glm::vec3& lo, const glm::vec3& hi, LightGate& gate, float margin = 0.f, const glm::vec3* velocity = nullptr);
+// The gates as built now: a number that changes whenever they are built again (0: nothing walks through gates). What
+// nearGate said of a box holds while it stays the same.
+[[nodiscard]] unsigned gatesStamp();
+// A box across a gate's plane over its aperture (either face, `margin` as splitBounds'), whether its trigger is active or
+// not and whatever the box's speed: false, and splitBounds finds no gate for that box whatever the triggers do
+// (syncPortalCopies: a prop asleep away from every gate is not looked at again).
+[[nodiscard]] bool nearGate(const glm::vec3& lo, const glm::vec3& hi, float margin);
 // A point gone from `from` to `to` (world units, a step) in through a gate: its plane crossed from the front over the
 // aperture, the gate active (as VR_PortalToss takes what flies). Its mapping in `gate`. (A ragdoll's pelvis: the whole
 // ragdoll is carried, box3d.)

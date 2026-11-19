@@ -439,14 +439,6 @@ void() worldspawn =
     precache_model("progs/eyes.mdl");
     precache_model("progs/h_player.mdl");
 
-    if(vr_have_playham)
-    {
-        //HIPNOTIC
-        //MED 12/03/96 added player with hammer
-        precache_model("progs/playham.mdl");
-
-    }
-
     precache_model("progs/gib1.mdl");
     precache_model("progs/gib2.mdl");
     precache_model("progs/gib3.mdl");

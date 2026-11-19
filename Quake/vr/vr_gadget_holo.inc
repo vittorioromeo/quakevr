@@ -149,7 +149,7 @@ unsigned nextId = 1;
 za::String latestCentre;              // the latest centre print's text (SCR_CenterPrint's)
 za::Vector<HoloMessage> holoMessages; // this frame's, oldest first
 int holoCollected = -1;                // the host frame they were collected in
-gfx::Target holoTarget;
+gfx::RenderTarget holoTarget;
 za::Vector<HoloBlock> holoDrawn; // what the image holds
 za::String holoDrawnKey;
 
@@ -543,7 +543,7 @@ void renderHologram()
         key += m.text;
         key += '\x1f';
     }
-    if(key == holoDrawnKey && holoTarget.texture)
+    if(key == holoDrawnKey && holoTarget.tex)
     {
         return;
     }
@@ -551,7 +551,11 @@ void renderHologram()
     imageDraws++;
 
     QVR_GPU_PROFILE("gadget hologram");
-    gfx::ensureTarget(holoTarget, holoWidth * holoTexels, holoHeight * holoTexels, true, "gadget hologram");
+    if(!holoTarget.ensure(holoWidth * holoTexels, holoHeight * holoTexels, gfx::RenderTargetFormat{.mipmaps = true, .fboName = "vr canvas"}, "gadget hologram"))
+    {
+        Con_Warning("VR: the gadget hologram's framebuffer is incomplete\n");
+        return;
+    }
     gfx::begin2D(holoTarget, holoWidth, holoHeight);
     fill(0.f, 0.f, holoWidth, holoHeight, glm::vec3{0.f});
     gfx::draw2D::color(white);
@@ -625,7 +629,7 @@ void layoutHologram()
         shown = 0.f;
     }
     holo.shown = shown;
-    if(shown <= 0.f || holoMessages.empty() || !holoTarget.texture || holoDrawn.empty())
+    if(shown <= 0.f || holoMessages.empty() || !holoTarget.tex || holoDrawn.empty())
     {
         return;
     }

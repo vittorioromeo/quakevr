@@ -6,6 +6,7 @@
 #include "vr_tracy.h"
 #include "vr_color.hpp"
 #include "vr_gfx.hpp"
+#include "vr_glutil.hpp"
 #include "vr_engine.hpp"
 #include "vr_shadows.hpp"
 #include "vr_decals.hpp"
@@ -101,7 +102,7 @@ constexpr int maxScreenImages = 64; // the hands', the holsters' and the nearest
                                     // vr_weapon_world_attach_max: up to 48; made only once wanted)
 struct ScreenImage
 {
-    gfx::Target target;
+    gfx::RenderTarget target;
     int width{0}, height{0}; // its virtual screen (font pixels), 0 before it is drawn
     int frame{-1};           // the host frame it was last wanted in
     za::String drawn;       // what is drawn in it: the text, its alignment and the palette (redrawn when they change)
@@ -293,7 +294,7 @@ struct Board
     double changed{-100.0};           // realtime its text last changed
     bool wanted{false};               // laid out this frame
     bool panel{false};                // a panel board (worldtext::isPanel): the gadget's image, none of its own
-    gfx::Target target;
+    gfx::RenderTarget target;
     int width{0}, height{0};          // its image's virtual screen (font pixels), 0 before it is drawn
     za::String drawn;                // the text in its image
     glm::vec4 drawnPalette{-1.f};     // and the palette it was drawn in
@@ -322,7 +323,7 @@ struct TipImage
     za::String text;            // drawn in it
     glm::vec4 palette{-1.f};
     int font{-1};               // the font's style it was drawn in (fontstyle::generation(World))
-    gfx::Target target;
+    gfx::RenderTarget target;
     int width{0}, height{0};    // its virtual screen (font pixels), 0 before it is drawn
     int frame{-1};              // the host frame it was last wanted in
 };
@@ -736,7 +737,7 @@ struct ScreenLook
     for(int i = 0; i < maxScreenImages; i++)
     {
         const ScreenImage& image = screenImages[static_cast<size_t>(i)];
-        if(image.width == fit.width && image.height == fit.height && image.target.texture && image.drawnAlign == align &&
+        if(image.width == fit.width && image.height == fit.height && image.target.tex && image.drawnAlign == align &&
             image.drawnFace == look.face && image.drawnText == look.text && image.drawnFont == look.font &&
             image.drawnGlyphs == key && image.drawnRest == rest && image.drawn == text)
         {
@@ -855,7 +856,7 @@ void layout(za::StringView text, const glm::vec3& posIn, const glm::vec3& angles
             }
         }
         const ScreenImage* image = slot >= 0 ? &screenImages[static_cast<size_t>(slot)] : nullptr;
-        imaged = crt > 0.f && image && image->width > 0 && image->target.texture;
+        imaged = crt > 0.f && image && image->width > 0 && image->target.tex;
         if(imaged)
         {
             // The image is last frame's (the 2D pass comes after the eyes), stretched over this one's
@@ -868,7 +869,7 @@ void layout(za::StringView text, const glm::vec3& posIn, const glm::vec3& angles
             screenQuads.pushBack({.vertices = {v[0], v[1], v[2], v[0], v[2], v[3]},
                 .params = {time, crt, gadget::glitch(realtime + offset) * za::min(crt, 1.f), gadget::textGlow()},
                 .size = {static_cast<float>(image->width), static_cast<float>(image->height), 1.f},
-                .texture = image->target.texture,
+                .texture = image->target.tex,
                 .trueColor = image->trueColor,
                 .frame = styled ? glm::vec4{style.radius * fit.k, style.bevel * fit.k, style.vignette, style.sheen}
                                 : glm::vec4{0.f},
@@ -927,7 +928,7 @@ void layoutBoard(size_t index, const worldtext::WorldText& wt)
     Board& b = boards[index];
     if(b.generation != worldtext::clientGeneration())
     {
-        gfx::Target kept = b.target;
+        gfx::RenderTarget kept = b.target;
         b = Board{};
         b.target = kept;
         b.generation = worldtext::clientGeneration();
@@ -993,7 +994,7 @@ void layoutBoard(size_t index, const worldtext::WorldText& wt)
     const glm::vec3 tl = c - right * (halfW + pad) + up * (halfH + pad);
 
     const glm::vec3 textColor = b.panel ? gadget::panelBoardPhosphor() : boardText();
-    const gfx::Texture image = b.panel ? gadget::panelBoardTexture() : b.width > 0 ? b.target.texture : 0;
+    const gfx::Texture image = b.panel ? gadget::panelBoardTexture() : b.width > 0 ? b.target.tex : 0;
     if(image)
     {
         // Its own moments (offset by its handle), and a burst as its page turns (not a panel's: its numbers move every
@@ -1027,7 +1028,7 @@ void layoutBoard(size_t index, const worldtext::WorldText& wt)
 
 // A board's image (a tip screen's too): `text` on the face, its lines aligned in `columns` and the page centred in
 // `rows`, into `target` (made with mipmaps: the glow, and far away), boardPad font pixels round it.
-void drawBoardImage(gfx::Target& target, za::StringView boardText, int columns, int rows, Align align, const glm::vec3& text,
+void drawBoardImage(gfx::RenderTarget& target, za::StringView boardText, int columns, int rows, Align align, const glm::vec3& text,
     const glm::vec3& face, const char* name)
 {
     const int width = columns * 8 + boardPad * 2;
@@ -1036,7 +1037,11 @@ void drawBoardImage(gfx::Target& target, za::StringView boardText, int columns, 
     const float fit = za::sqrt(boardTexels / static_cast<float>(width * height));
     const int scale = za::clamp(static_cast<int>(fit), 2, 8);
     worldImageDraws++;
-    gfx::ensureTarget(target, width * scale, height * scale, true, name);
+    if(!target.ensure(width * scale, height * scale, gfx::RenderTargetFormat{.mipmaps = true, .fboName = "vr canvas"}, name))
+    {
+        Con_Warning("VR: a board's framebuffer is incomplete (%s)\n", name);
+        return;
+    }
     gfx::begin2D(target, width, height);
     gfx::draw2D::fill(0.f, 0.f, static_cast<float>(width), static_cast<float>(height), face);
     gfx::draw2D::color(glm::vec4{text, 1.f});
@@ -1067,7 +1072,7 @@ void renderTipImages()
         TipImage* image = nullptr;
         for(TipImage& candidate : tipImages)
         {
-            if(candidate.text == t.text && candidate.target.texture)
+            if(candidate.text == t.text && candidate.target.tex)
             {
                 image = &candidate;
             }
@@ -1081,7 +1086,7 @@ void renderTipImages()
             }
         }
         image->frame = host_framecount;
-        if(image->target.texture && image->text == t.text && image->palette == palette && image->font == style)
+        if(image->target.tex && image->text == t.text && image->palette == palette && image->font == style)
         {
             continue;
         }
@@ -1143,7 +1148,7 @@ void layoutTipScreen(const TipScreen& t)
     const TipImage* image = nullptr;
     for(const TipImage& candidate : tipImages)
     {
-        if(candidate.text == t.text && candidate.target.texture && candidate.width > 0)
+        if(candidate.text == t.text && candidate.target.tex && candidate.width > 0)
         {
             image = &candidate;
         }
@@ -1151,7 +1156,7 @@ void layoutTipScreen(const TipScreen& t)
     const float crt = boardCrt() > 0.f ? boardCrt() : 1.f;
     if(image)
     {
-        d.texture = image->target.texture;
+        d.texture = image->target.tex;
         d.params = {static_cast<float>(za::fmod(realtime, 1000.0)), crt,
             gadget::glitch(realtime + 23.7) * za::min(crt, 1.f), gadget::textGlow()};
         d.size = {static_cast<float>(image->width), static_cast<float>(image->height), 1.f};
@@ -1259,9 +1264,9 @@ void renderBoards()
         if(b.generation != worldtext::clientGeneration())
         {
             b.wanted = false;
-            if(b.target.texture)
+            if(b.target.tex)
             {
-                gfx::releaseTarget(b.target);
+                b.target.destroy();
             }
         }
     }
@@ -1295,7 +1300,7 @@ void renderBoards()
         }
         const int width = b.columns * 8 + boardPad * 2;
         const int height = b.rows * 8 + boardPad * 2;
-        if(b.target.texture && b.drawn == b.text && b.drawnPalette == palette && b.drawnFont == style && b.width == width &&
+        if(b.target.tex && b.drawn == b.text && b.drawnPalette == palette && b.drawnFont == style && b.width == width &&
             b.height == height)
         {
             continue;
@@ -1555,7 +1560,7 @@ void renderScreens()
             {
                 continue;
             }
-            if(image.target.texture && image.target.width == width * screenScale && image.target.height == height * screenScale &&
+            if(image.target.tex && image.target.width == width * screenScale && image.target.height == height * screenScale &&
                 (sameSize < 0 || image.frame < screenImages[static_cast<size_t>(sameSize)].frame))
             {
                 sameSize = i;
@@ -1600,8 +1605,12 @@ void renderScreens()
             "ammo screen 52", "ammo screen 53", "ammo screen 54", "ammo screen 55", "ammo screen 56", "ammo screen 57",
             "ammo screen 58", "ammo screen 59", "ammo screen 60", "ammo screen 61", "ammo screen 62", "ammo screen 63",
             "ammo screen 64"};
-        gfx::ensureTarget(image.target, image.width * screenScale, image.height * screenScale, true,
-            names[slot]); // mipmaps: the glow
+        if(!image.target.ensure(image.width * screenScale, image.height * screenScale,
+               gfx::RenderTargetFormat{.mipmaps = true, .fboName = "vr canvas"}, names[slot])) // mipmaps: the glow
+        {
+            Con_Warning("VR: an ammo screen's framebuffer is incomplete\n");
+            continue;
+        }
         gfx::begin2D(image.target, image.width, image.height);
         gfx::draw2D::fill(0.f, 0.f, static_cast<float>(image.width), static_cast<float>(image.height), look.face);
         gfx::draw2D::color(glm::vec4{look.text, 1.f});

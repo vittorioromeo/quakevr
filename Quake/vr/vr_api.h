@@ -159,6 +159,9 @@ void VR_PhysicsEntityEnd (struct edict_s *ent, int num, double world); // ... it
 double VR_ThinkFrame (double frametime); // SV_RunThink: how far ahead a think is due (the world's frame, also
 							// for an entity in the player's time)
 void VR_HostFrameEnd (void);	// end of _Host_Frame, after the screen and the sound (the motion recorder's row)
+void VR_OnHostError (void);	// Host_Error, Host_EndGame, before the server's shutdown and the longjmp: the frame-scoped
+							// state the jump leaves open put back (cvars::Override scopes, slow motion's pair, the
+							// profiler's scopes: vr/vr_hosterror.cpp)
 
 // The frame cap (vr_sleep.cpp).
 int VR_HiResSleepUntil (double endtime, double *now); // Sys_WaitUntil: sleeps on a high-resolution timer until its lateness before endtime; 0 without one
@@ -324,6 +327,7 @@ int VR_GLRecentSteps (char *out, int outSize, int count);	// vr_crash.cpp: the l
 void VR_LogsBegin (void);	// Host_Init after the filesystem: the run's folder, console.log; -bugreport: the report made, exit
 void VR_LogsEnd (void);	// Host_Shutdown: the OpenXR messages' summary
 void VR_LogsSystemLine (const char *line);	// a line of the run's system.txt (the GPU, the runtime)
+int VR_TerminalFd (int fd);	// Linux: the terminal's stdout (1) / stderr (2) while the OpenXR loader's output is caught, else -1 (vr_xr_runtime.cpp; signal-safe)
 void VR_LogsIncident (const char *what);	// a VR start failed, a runtime crash caught, the game crashed: the runtimes' logs copied in
 void VR_LogsInit (void);	// VR_Init: bugreport
 // Diagnostics mode (vr_diagnostics.cpp): -diagnostics or vr_diagnostics 1.
@@ -367,7 +371,7 @@ void VR_Footsteps_Frame (void);		// SV_Physics, after the edicts: the enemies' f
 void VR_MonsterHealth_Frame (void);	// SV_Physics, after the edicts: Monster Health's cut on monsters seen first (vr_mgroups.cpp)
 int VR_AD_PelletsPass (const struct edict_s *mover, const struct edict_s *target); // AD support: projectile pellets pass one another
 int VR_AD_RulesOn (void);				// AD support (vr_ad.cpp): the map spawning plays by Arcane Dimensions' rules
-int VR_AD_OwnsClassname (const char *classname, int ours);	// AD support: AD's ad_<classname> spawns it, not Quake VR's
+const char *VR_Rules_SpawnName (const char *classname, int ours);	// the spawn function's name by the map's ruleset (vr_rules.cpp): Quake VR's, an imported ruleset's (ad_<classname>) or NULL
 int VR_AD_SpawnsOutside (const char *classname);	// AD support: outside AD's rules, AD's ad_<classname> spawns it (an artifact, a pickup, a ladder)
 int VR_AD_ToolgunSpawnsOutside (const char *classname); // AD support: and the toolgun's (AD's backpacks too)
 int VR_AD_SpawnOutsideNow (void);				// AD support: AD's world setup once a map, before the first such
@@ -489,6 +493,8 @@ int VR_FlatHudHand (int left, int *count, int *ammoPic);	// that layout's counte
 int VR_FlatHudTime (float *level, int *state);			// its bullet time bar: 0 while bullet time is off (vr_bullettime_enabled); the meter 0..1 and its state (0 filling, 1 ready, 2 running, 3 cooling)
 void VR_WriteDemoState (struct sizebuf_s *msg);			// CL_Record_f, recording mid-game
 void VR_AdjustMove (float *forwardmove, float *sidemove, float *upmove); // CL_SendCmd: thumbstick locomotion
+void VR_SpeedPressed (void);						// IN_SpeedDown, on the speed button's going down (not a second key's, not a repeat): vr_sprint_toggle's switch
+int VR_SpeedButton (int held);						// every run-or-walk choice (cl_input.c, in_sdl.c, VR_AdjustMove): the speed button's state, held (in_speed's) in, vr_sprint_toggle's switch out while it is on
 void VR_ReadMoveExtras (struct client_s *client);		// end of SV_ReadClientMove
 void VR_NoteEntitiesBegin (void);				// SV_WriteEntitiesToClient: a client's walk of the entities begins
 void VR_NoteEntityInSight (int ent);				// ... this one is in its PVS (its messages go to it: VR_WriteScoped)
@@ -784,7 +790,8 @@ void VR_MenuBounds (int *left, int *top, int *width, int *height);	// M_UpdateBo
 void VR_MenuSavePositions (void);						// Host_WriteConfigurationToFile: each VR page's selection and scroll into vr_menu_positions
 void VR_ConfigMergeOthers (const char *path);			// Host_WriteConfigurationToFile, the game folder's config: another copy's changes in it kept (vr_cvars.cpp)
 void VR_FlatKeysForConfigWrite (void);					// Host_WriteConfigurationToFile, before Key_WriteBindings: flatscreen play's Ctrl bind (+flatcrouch, the crouch key that does not fire: vr_flat_crouch_fire) given back, so the config keeps the plain game's CTRL (vr_flatplay.cpp)
-void VR_ConfigWritten (const char *path);				// and after writing it
+void VR_ConfigNoteWrite (void);						// Host_WriteConfigurationToFile, the game folder's config: its settings as just written (kept for VR_ConfigWritten)
+void VR_ConfigWritten (const char *path);				// and after writing it (in place: not after a failed write)
 int VR_ConfigSaves (const struct cvar_s *var);			// Cvar_WriteVariables, an archived cvar: nonzero if the config gets its line (a vr_ one only if changed from its default)
 void VR_ServerRulesConfigWrite (int begin);		// around Cvar_WriteVariables: a remote server's rules written as the player's own (vr_serverrules.cpp)
 void VR_ServerRulesLeft (void);				// CL_Disconnect: a remote server's rules no longer govern: the player's own back (vr_serverrules.cpp)
@@ -863,7 +870,7 @@ void VR_SndStopAll (void);							// S_StopAllSounds, the channels cleared: every
 int VR_SndHoldsSfx (const sfx_t *sfx);				// S_ForgetGameSounds: nonzero: the game-time render still plays it (kept)
 void VR_SndRebase (int delta);						// S_RebaseSoundTime: paintedtime moved back by delta (its wrap): the voices' carried render with it
 int VR_SndKeepStatics (void);						// S_Update: nonzero: the static sounds of one sample not combined (each has its place)
-int VR_SndMixEnd (int paintedtime, int endtime);	// S_Update_: the mix-ahead's end, rounded down to whole frames of the voices
+int VR_SndMixEnd (int painted, int endtime);		// S_Update_ (its paintedtime): the mix-ahead's end, rounded down to whole frames of the voices
 void VR_SndPaint (portable_samplepair_t *buffer, int start, int end);	// S_PaintChannels, each chunk: the voices' mix added
 int VR_SndOwns (const channel_t *ch);				// S_PaintChannels: nonzero for a channel a voice renders (Quake skips it)
 void VR_SndBus (portable_samplepair_t *buffer, int count);		// S_PaintChannels, the effects' sum: clipped (wider with vr_snd_limiter), then halved
@@ -882,6 +889,8 @@ void VR_SndBandLimit (const unsigned char *data, int width, int samples, int loo
 double VR_SndBenchNow (void);						// vr_snd_bench (vr_audiobench.cpp): the time, 0 when no bench is recording
 int VR_SndJobPost (void (*fn) (void *));			// S_MixKick: fn on the game's thread pool (one at a time); 0 without a pool (not posted)
 void VR_SndJobWait (void);							// S_MixJoin: the posted fn done (run here if no worker has started it)
+void VR_SndMixRace (const char *file, int line);	// S_MixCheckAt (development builds): the channels read at file:line
+							// on the main thread with the mix on the pool, unjoined: the crash report (vr_snd_mixcheck_test counts it)
 void VR_SndBenchAdd (int stage, double since);		// vr_snd_bench: now - since into this frame's stage (VR_SNDBENCH_*: vr_audiobench.hpp's Stage)
 enum { VR_SNDBENCH_PAINT = 3, VR_SNDBENCH_QUAKE = 12, VR_SNDBENCH_FILTERS = 13 };
 

@@ -49,6 +49,7 @@
 #include "vr_geom.hpp"
 #include "vr_slide.hpp"
 #include "vr_flatplay.hpp"
+#include "vr_mem.hpp"
 
 #include "Zancle/Base/IsFinite.hpp"
 #include "Zancle/Base/Swap.hpp"
@@ -508,6 +509,50 @@ float autorunBlend = 0.f;
     const float walk = moveRamp(moveTopSpeed(false), moveCurve(za::min(1.f, m / threshold), power), floor);
     const float run = moveRamp(moveTopSpeed(true), moveCurve(m, power), floor);
     return walk + (za::max(run, walk) - walk) * CLAMP(0.f, blend, 1.f);
+}
+
+// The speed button as a toggle (vr_sprint_toggle): each press switches to the other speed (VR_SpeedPressed); the
+// switch ends by itself (sprintToggleFrame) when you stop after moving with it: nothing asked to move across the ground
+// for sprintToggleIdleSeconds (a stick flicked through its deadzone, forward to back, keeps it; a press while standing
+// waits for you to move), at death, the intermission, a new map (input::resetSprintToggle), a menu opening over the
+// game (as the held buttons let go: VR_AdjustMove), or the setting's going off. The main thread's (commands, the move).
+constexpr double sprintToggleIdleSeconds = 0.3;
+
+struct SprintToggle
+{
+    bool on{false};          // switched to the other speed
+    bool moved{false};       // moved across the ground since (only then does stopping end it)
+    double stillSince{-1.0}; // realtime the last move ended (-1: moving, or not yet moved)
+};
+SprintToggle sprintToggle;
+
+// Once a move (VR_AdjustMove): moving, whether anything asks to move across the ground (the stick past its deadzone,
+// keys, a gamepad).
+void sprintToggleFrame(bool moving)
+{
+    SprintToggle& t = sprintToggle;
+    if(vr_sprint_toggle.value == 0.f || cl.stats[STAT_HEALTH] <= 0 || cl.intermission)
+    {
+        t = {};
+        return;
+    }
+    if(!t.on)
+    {
+        return;
+    }
+    if(moving)
+    {
+        t.moved = true;
+        t.stillSince = -1.0;
+    }
+    else if(t.moved && t.stillSince < 0.0)
+    {
+        t.stillSince = realtime;
+    }
+    else if(t.moved && realtime - t.stillSince >= sprintToggleIdleSeconds)
+    {
+        t = {};
+    }
 }
 
 // The stick's horizontal speed last asked of the server (VR_AdjustMove; the test and vr_debug_stick).
@@ -2077,6 +2122,21 @@ bool primaryHeld(int hand)
 
 } // namespace qvr::input
 
+// The speed button's going down (IN_SpeedDown): with vr_sprint_toggle, a switch to the other speed, or back.
+extern "C" void VR_SpeedPressed()
+{
+    if(vr_sprint_toggle.value != 0.f)
+    {
+        sprintToggle = {!sprintToggle.on};
+    }
+}
+
+// The speed button's state for every run-or-walk choice: held (in_speed's), or with vr_sprint_toggle its switch.
+extern "C" int VR_SpeedButton(int held)
+{
+    return vr_sprint_toggle.value != 0.f ? sprintToggle.on : held != 0;
+}
+
 // Thumbstick locomotion. Running or walking as with the keyboard (walking: cl_alwaysrun 0, the
 // default; the speed button switches): running is cl_movespeedkey times the speed, and the stick, being
 // analog, moves at cl_forwardspeed in every direction (as the old engine did), on the response curve and never past
@@ -2095,8 +2155,10 @@ extern "C" void VR_AdjustMove(float* forwardmove, float* sidemove, float* upmove
     if(menuOver && !menuWasOver)
     {
         CL_ReleaseMoveButtons();
+        sprintToggle = {};
     }
     menuWasOver = menuOver;
+    sprintToggleFrame(!menuOver && (moveAxes != glm::vec2{0.f} || *forwardmove != 0.f || *sidemove != 0.f));
     // The Weapon Studio's window owns his move keys while it is open -- W A S D and Q E fly its drawn camera there
     // (vr_weaponstudio.cpp) -- so his own walking is paused for those frames, whatever his keys and his sticks were
     // pressed to. Nothing here is kept, so the window's Close gives the walking back exactly as it was; his looking is
@@ -2112,7 +2174,7 @@ extern "C" void VR_AdjustMove(float* forwardmove, float* sidemove, float* upmove
     }
 
     const float m = glm::length(moveAxes);
-    const bool running = ((in_speed.state & 1) != 0) != (cl_alwaysrun.value != 0.f);
+    const bool running = (VR_SpeedButton(in_speed.state & 1) != 0) != (cl_alwaysrun.value != 0.f);
     const float threshold = CLAMP(0.1f, vr_move_autorun_threshold.value, 1.f);
     const float dt = CLAMP(0.f, static_cast<float>(host_frametime), 0.1f);
     autorunBlend = !autorunOn(running) || m == 0.f ? 0.f
@@ -2214,6 +2276,18 @@ void roomscaleJump(const hands::State& s)
         Cbuf_AddText(rising ? "+jump\n" : "-jump\n");
     }
 }
+
+void resetSprintToggle()
+{
+    sprintToggle = {};
+}
+
+namespace
+{
+// Forgotten when the client's state is cleared (vr_mem.hpp's resets): the sprint toggle (a new map or a load waits for
+// you to move again).
+mem::Reset clientStateReset{"input", mem::ResetEvent::ClientState, mem::ResetPhase::State, &resetSprintToggle};
+} // namespace
 
 void parseHaptic()
 {

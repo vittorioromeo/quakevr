@@ -697,6 +697,12 @@ void reset()
 
 namespace
 {
+// Forgotten with the server's world (vr_mem.hpp's resets): the last map's plan.
+mem::Reset serverWorldReset{"crates", mem::ResetEvent::ServerWorld, mem::ResetPhase::State, &reset};
+} // namespace
+
+namespace
+{
 bool commandsRegistered = false; // (vr_crates_list, vr_crates_goto: registered on the first call)
 } // namespace
 

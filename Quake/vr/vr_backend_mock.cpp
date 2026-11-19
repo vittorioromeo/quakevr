@@ -2094,6 +2094,13 @@ public:
     {
     }
 
+    // As OpenXR's: a frame finished (the eyes submitted, or the panel's frame) is not rendered again by a second
+    // SCR_UpdateScreen in the same host frame (a loading plaque's).
+    [[nodiscard]] bool frameActive() const override
+    {
+        return frameBegun;
+    }
+
     // The runtime's panel as a runtime shows it while the eyes are not rendered (menus before a map), placed as
     // OpenXR's is: no image, but the menus' laser pointer meets it (tests of it with vr_mock_hand).
     void endFrame(bool rendered) override

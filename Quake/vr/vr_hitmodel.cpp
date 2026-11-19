@@ -1624,6 +1624,12 @@ void reset()
     resetZones();
 }
 
+namespace
+{
+// Forgotten with the server's world (vr_mem.hpp's resets): the hit models by model index, the tracks.
+mem::Reset serverWorldReset{"hitmodel", mem::ResetEvent::ServerWorld, mem::ResetPhase::State, &reset};
+} // namespace
+
 void debugDraw()
 {
     if(!vr_debug_hits.value || events.empty())

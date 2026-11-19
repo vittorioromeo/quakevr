@@ -623,6 +623,19 @@ void(entity w) VR_DRP_DebugLine =
 };
 
 // VR_AGP_Pose, every frame `g` holds the melee weapon `w` (before its swing's pose and blow): its swing's strike met
+// `g`'s held-back blow (an armed humanoid's, VR_DRP_Blow) dropped unresolved: no damage, no parry. Counted as an end
+// (vr_drp_held_done: vr_pd_test 2's "every held blow ends"). Its swing cut short (VR_DRP_Frame), its axe put away for
+// its gun (VR_AGR_GunAxe: nothing reads the axe's line after, so the blow would stay held until the axe came back).
+void(entity g, string why) VR_DRP_DropHeld =
+{
+    if(g.vr_drp_pend > 0)
+    {
+        vr_drp_held_done = vr_drp_held_done + 1; // (dropped: an end too)
+        dprint(sprintf("dirparry: %s's held blow dropped: %s\n", g.classname, why));
+    }
+    g.vr_drp_pend = 0;
+};
+
 // your weapon held across it: parried now (VR_Parry, forced), the swing stopped.
 void(entity g, entity w) VR_DRP_Frame =
 {
@@ -636,13 +649,8 @@ void(entity g, entity w) VR_DRP_Frame =
                pl && (pl.flags & FL_CLIENT) && pl.health > 0 && VRHandsTracked(pl);
     if(!live)
     {
-        if(g.vr_drp_pend > 0)
-        {
-            vr_drp_held_done = vr_drp_held_done + 1; // (dropped: an end too)
-            dprint(sprintf("dirparry: %s's held blow dropped: its swing cut short\n", g.classname));
-        }
         w.vr_drp_t0 = 0;
-        g.vr_drp_pend = 0; // (its swing cut short: a held blow dropped)
+        VR_DRP_DropHeld(g, "its swing cut short");
         return;
     }
     VR_AGP_Times(g);

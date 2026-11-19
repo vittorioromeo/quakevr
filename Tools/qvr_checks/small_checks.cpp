@@ -277,4 +277,51 @@ int checkBuiltins(const Ctx& ctx, const Args&, Out& out)
     return 0;
 }
 
+// toolgun_weapons: every weapon id (Quake/vr/vr_weapon_ids.h) has a row in the toolgun's Weapons section.
+//
+// The spawn lists are hand-kept (vr_toolgun.cpp, vr_toolgun_packs.inc, vr_ad_spawnguns.inc); a new weapon id (WID_*)
+// with no row is a weapon the toolgun cannot spawn (the grappling gun was). A row spells its id as `"weapon", <n>.f`
+// or as QVR_AD_GUN's third argument. WID_FIST (0) is the empty hand, WID_ADELIMINATOR (24) is gone.
+int checkToolgunWeapons(const Ctx& ctx, const Args&, Out& out)
+{
+    const std::set<int> exempt = {0, 24};
+    std::set<int> rows;
+    const std::regex plainRe(R"re("weapon"\s*,\s*(\d+)\.f)re");
+    const std::regex adRe(R"re(QVR_AD_GUN\([^,]*,[^,]*,\s*(\d+)\s*,)re");
+    for(const char* f : {"Quake/vr/vr_toolgun.cpp", "Quake/vr/vr_toolgun_packs.inc", "Quake/vr/vr_ad_spawnguns.inc"})
+    {
+        const std::string text = readText(ctx.tree / f);
+        for(const std::regex* re : {&plainRe, &adRe})
+        {
+            for(std::sregex_iterator it(text.begin(), text.end(), *re), end; it != end; ++it)
+            {
+                rows.insert(std::stoi((*it)[1].str()));
+            }
+        }
+    }
+    const std::string ids = readText(ctx.tree / "Quake/vr/vr_weapon_ids.h");
+    const std::regex idRe(R"re(#define\s+(WID_\w+)\s+(\d+))re");
+    int checked = 0, missing = 0;
+    for(std::sregex_iterator it(ids.begin(), ids.end(), idRe), end; it != end; ++it)
+    {
+        const int n = std::stoi((*it)[2].str());
+        if(exempt.contains(n))
+        {
+            continue;
+        }
+        ++checked;
+        if(!rows.contains(n))
+        {
+            out.line("check_toolgun_weapons: {} ({}) has no row in the toolgun's Weapons section", (*it)[1].str(), n);
+            ++missing;
+        }
+    }
+    if(missing)
+    {
+        return 1;
+    }
+    out.line("check_toolgun_weapons: {} weapon ids, all in the toolgun", checked);
+    return 0;
+}
+
 } // namespace qvrc

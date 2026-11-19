@@ -1,6 +1,7 @@
 // vr_foegrab.cpp -- holding enemies: see vr_foegrab.hpp.
 
 #include "vr_foegrab_internal.hpp"
+#include "vr_mem.hpp"
 #include "vr_modelcollide.hpp"
 #include "vr_progs.hpp"
 #include "vr_physics.hpp"
@@ -2604,6 +2605,13 @@ void qvr::foegrab::reset()
         });
     }
 }
+
+namespace
+{
+// Forgotten with the server's world (vr_mem.hpp's resets): the holders (a saved game's held monsters let go).
+qvr::mem::Reset serverWorldReset{
+    "foegrab", qvr::mem::ResetEvent::ServerWorld, qvr::mem::ResetPhase::State, &qvr::foegrab::reset};
+} // namespace
 
 void qvr::foegrab::preThink(edict_t* ent)
 {

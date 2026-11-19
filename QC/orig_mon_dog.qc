@@ -346,7 +346,7 @@ float()    DogCheckAttack =
 */
 void() monster_dog =
 {
-    if(MG_MonsterInhibited()) return;
+    if(VR_SF_SpawnInhibited()) return;
     if(deathmatch)
     {
         remove(self);

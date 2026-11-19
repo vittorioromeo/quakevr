@@ -13,6 +13,7 @@
 #include "vr_engine.hpp"
 #include "vr_backend.hpp"
 #include "vr_cvars.hpp"
+#include "vr_mem.hpp"
 #include "vr_tunables.hpp"
 #include "vr_protocol.hpp"
 #include "vr_twohand.hpp"
@@ -338,5 +339,11 @@ void reset()
     lastTime = -1.0;
     lastSpinTime = -1.0;
 }
+
+namespace
+{
+// Forgotten when the client's state is cleared (vr_mem.hpp's resets): the flicks and pries.
+mem::Reset clientStateReset{"flick", mem::ResetEvent::ClientState, mem::ResetPhase::State, &reset};
+} // namespace
 
 } // namespace qvr::flick

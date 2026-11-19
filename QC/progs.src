@@ -171,6 +171,8 @@ vr_hitreact_test.qc
 vr_burning.qc
 vr_burning_test.qc
 vr_systems_test.qc
+// vr_hosterror_test: a QuakeC error raised from C++ (Quake/vr/vr_hosterror.cpp).
+vr_hosterror_test.qc
 // The flare gun (after vr_burning.qc: its flares set things on fire).
 vr_flaregun.qc
 // Incandescent blades (after vr_burning.qc and vr_walltorch.qc: it sets on fire, it finds their flames).
@@ -196,6 +198,7 @@ vr_playerplates_test.qc
 vr_embed_edge_test.qc
 vr_embed_1108_test.qc
 vr_embed_1108b_test.qc
+vr_skewerlist_test.qc // the skewered gibs' list the shots walk (vr_embed_test 49-51)
 vr_embed_prop_test.qc
 vr_dagger_test.qc
 vr_revgrip_test.qc
@@ -219,6 +222,7 @@ vr_flatblood_test.qc // blood at point blank (vr_flatblood_test)
 vr_flatswap_test.qc // the flat-screen swap key (vr_flatswap_test)
 vr_run_test.qc // the run mutators Randomized Pickups and Ironman (vr_runpickups_test, vr_ironman_test)
 vr_meleeonly_test.qc // Melee Only's refusals (vr_pickup_test 14)
+vr_itemrules_test.qc // the items' rules: targets fired only when taken, the ammo boxes' roll (vr_pickup_test 19, 20); CTF's level parms (21); each player's readiness (22); Mjolnir's player model (23)
 vr_melee_sweep_test.qc
 vr_blade_test.qc
 world.qc

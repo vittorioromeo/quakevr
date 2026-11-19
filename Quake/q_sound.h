@@ -194,6 +194,18 @@ extern	int		soundtime;
 extern	int		paintedtime;
 extern	int		s_rawend;
 
+/* QVR: development builds (all but a release, QVR_RELEASE): the VR module's C++ reads the channels and the mix's clock
+ * through S_MixCheckAt: on the main thread only with no mix on the pool (S_MixKick .. S_MixJoin), else the game ends
+ * with the crash report naming the reader's file and line (vr/vr_audio.cpp VR_SndMixRace); off the main thread, the
+ * mix's own reads (S_MixJob and its hooks) pass. A channel_t kept by pointer is not checked. Ironwail's C files join by
+ * hand (S_MixJoin). docs/vr-port/CODE_STYLE.md, "Threads". */
+void S_MixCheckAt (const char *file, int line);
+#if defined (__cplusplus) && !defined (QVR_RELEASE)
+#define snd_channels	(S_MixCheckAt (__FILE__, __LINE__), snd_channels)
+#define paintedtime	(S_MixCheckAt (__FILE__, __LINE__), paintedtime)
+#define soundtime	(S_MixCheckAt (__FILE__, __LINE__), soundtime)
+#endif
+
 extern	vec3_t		listener_origin;
 extern	vec3_t		listener_forward;
 extern	vec3_t		listener_right;

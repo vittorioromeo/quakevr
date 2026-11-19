@@ -360,6 +360,7 @@ void GL_PostProcess (void)
 	GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 0, gl_palette_buffer[palidx], 0, 256 * sizeof (GLuint));
 	if (variant != 2) // some AMD drivers optimize out the uniform in variant #2
 		GL_Uniform4fFunc (0, gamma, contrast, 1.f/r_refdef.scale, dither);
+	VR_PostProcessView (); // QVR: the view's drawn and allocated sizes (vr/vr_stereo.cpp: under dynamic resolution, a part of the targets is drawn)
 	GL_Uniform1fFunc (1, VR_PostProcessBloom ()); // QVR: an eye's glow (vr_bloom.cpp)
 	VR_PostProcessWater (); // QVR: an eye's underwater wobble (vr/vr_water.cpp)
 	if (variant == 0)

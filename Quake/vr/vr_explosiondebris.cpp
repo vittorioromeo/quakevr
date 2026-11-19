@@ -32,6 +32,7 @@
 #include "vr_engine.hpp"
 #include "vr_cvars.hpp"
 #include "vr_lighting.hpp"
+#include "vr_mem.hpp"
 #include "vr_modelmetadata.hpp"
 #include "vr_particles.hpp"
 #include "vr_progs.hpp"
@@ -660,6 +661,13 @@ void serverReset()
                                                              : srvrandom::derivedSeed(0xE7037ED1A0B428DBull)}; // (the server's seed: fixed with sv_random_seed)
 }
 
+namespace
+{
+// Forgotten with the server's world (vr_mem.hpp's resets): the server's chunks (a loaded game's found again at its
+// first frame).
+mem::Reset serverWorldReset{"explosiondebris", mem::ResetEvent::ServerWorld, mem::ResetPhase::State, &serverReset};
+} // namespace
+
 void serverClear()
 {
     if(!sv.active)
@@ -712,6 +720,12 @@ void clear()
         }
     }
 }
+
+namespace
+{
+// Forgotten when the client's state is cleared (vr_mem.hpp's resets): the chunks seen and their lights.
+mem::Reset clientStateReset{"explosiondebris", mem::ResetEvent::ClientState, mem::ResetPhase::State, &clear};
+} // namespace
 
 void registerCommands()
 {

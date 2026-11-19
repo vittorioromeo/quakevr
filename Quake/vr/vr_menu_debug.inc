@@ -860,7 +860,8 @@ za::Vector<Item> pageDebugProfiling()
             .help("vr_glsafe_status: whether this run is in safe mode and why, each feature, and the last GL steps "
                   "(quakevr/crash/gl_startup.log has the start-up's)."),
         command("Retry the Full Renderer", "vr_glsafe_retry")
-            .help("vr_glsafe_retry: the automatic safe mode (kept after a start that crashed) off from the next start."),
+            .help("vr_glsafe_retry: the automatic safe mode (kept after a start that crashed, or a safe start that was stopped) "
+                  "off from the next start."),
         command("Safe Mode Judge Test", "vr_glsafe_judge_test")
             .help("vr_glsafe_judge_test: which stopped starts turn on automatic GL safe mode (a crash, a quick death "
                   "after the shaders) and which don't (stopped in a shader compile, after a slow one, after living on)."),

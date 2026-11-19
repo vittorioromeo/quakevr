@@ -41,6 +41,8 @@ template <typename F>
 void forEachWithKind(F&& fn);
 
 // A cvar set for a scope (RAII): `value` now, its string before put back when the Override goes (a test's setting).
+// The main thread's (cvars are). Never held across a call that can run QuakeC or reach Host_Error (CODE_STYLE.md,
+// "Threads"): the error's longjmp skips the destructor; VR_OnHostError puts back the ones it skipped (putBackAll).
 class Override
 {
 public:
@@ -50,9 +52,14 @@ public:
     Override(const Override&) = delete;
     Override& operator=(const Override&) = delete;
 
+    // VR_OnHostError (vr_hosterror.cpp): every Override still alive put back, the newest first, as their scopes' ends
+    // would have (each named in the console). Returns how many.
+    static int putBackAll();
+
 private:
     cvar_t& var;
     za::String was;
+    Override* older{nullptr}; // the Override made before this one and still alive (a list: putBackAll)
 };
 
 // Cvars' values kept before a run changes them (a playback, a scenario) and put back by restore(): the latest kept

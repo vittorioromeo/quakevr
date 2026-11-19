@@ -16,6 +16,7 @@
 
 #include "vr_comfortfade.hpp"
 #include "vr_cvars.hpp"
+#include "vr_mem.hpp"
 #include "vr_tunables.hpp"
 #include "vr_engine.hpp"
 #include "vr_flatplay.hpp"
@@ -357,6 +358,12 @@ void clear()
     state = State{};
     ragdoll::hideHeadOf(0);
 }
+
+namespace
+{
+// Forgotten when the client's state is cleared (vr_mem.hpp's resets): the death view.
+mem::Reset clientStateReset{"deathview", mem::ResetEvent::ClientState, mem::ResetPhase::State, &clear};
+} // namespace
 
 void registerCommands()
 {

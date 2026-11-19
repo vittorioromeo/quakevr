@@ -14,6 +14,7 @@
 #include "vr_physics.hpp"
 #include "vr_progs.hpp"
 #include "vr_protocol.hpp"
+#include "vr_mem.hpp"
 
 #include "Zancle/Math/Clamp.hpp"
 
@@ -1485,6 +1486,12 @@ void clientClear()
     cp.grappleN = keep.grappleN;
     cp.grappleMax = keep.grappleMax;
 }
+
+namespace
+{
+// Forgotten when the client's state is cleared (vr_mem.hpp's resets): no state from the server: his own walk drawn as it comes until one, B8.
+mem::Reset clientStateReset{"predict", mem::ResetEvent::ClientState, mem::ResetPhase::State, &clientClear};
+} // namespace
 
 void correctionTotals(za::U64& n, double& sum)
 {

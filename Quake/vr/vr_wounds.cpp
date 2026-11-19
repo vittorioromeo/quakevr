@@ -563,6 +563,10 @@ void subtract(int layer, const glm::vec4& amount, bool ownOnly = false)
         glBlendFunc(GL_ONE, GL_ONE);
         GL_BlendEquationFunc(GL_FUNC_REVERSE_SUBTRACT);
         GL_Uniform4fvFunc(0, 1, &amount.x);
+        // The view blend's blood (uniforms 2 and 4, vr_blood.h) off: the program keeps what V_PolyBlend's
+        // VR_BloodBind last set, and its blood-mixed colour would be subtracted instead of `amount`.
+        GL_Uniform4fFunc(2, 0.f, 0.f, 0.f, 0.f);
+        GL_Uniform4fFunc(4, 0.f, 0.f, 0.f, 0.f);
         glDrawArrays(GL_TRIANGLES, 0, 3);
         glBlendFunc(GL_ONE, GL_ZERO);
     }
@@ -3457,6 +3461,12 @@ void clear()
     }
 }
 
+namespace
+{
+// Forgotten when the client's state is cleared (vr_mem.hpp's resets): the wounds, with the dents.
+mem::Reset clientStateReset{"wounds", mem::ResetEvent::ClientState, mem::ResetPhase::State, &clear};
+} // namespace
+
 int liveCount()
 {
     return static_cast<int>(maskOf.size());
@@ -3857,7 +3867,8 @@ float wetCoat(const entity_t* e, bool& whole)
     bool weapon = false;
     const int hand = view::handOf(part ? part : e, weapon);
     // The shine follows the wetness drips keeps (a load restores that: no state of its own): the seconds of drying it stands for.
-    const float dripLeft = (drips::wetOf(e) > 0.f ? drips::wetOf(e) : drips::wetOf(part)) * dryTime();
+    const float wetE = drips::wetOf(e); // (a scan of drips' wet things: once)
+    const float dripLeft = (wetE > 0.f ? wetE : drips::wetOf(part)) * dryTime();
     if(hand >= 0 && weapon)
     {
         whole = true;

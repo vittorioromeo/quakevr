@@ -174,13 +174,17 @@ void nudgeWalkedRagdolls(float dt)
         const float legs = lo.z + 0.5f * (hi.z - lo.z); // (his legs: the lower half of his box)
         const float target = za::min(speed * walkNudgeShare, walkNudgeSpeed); // m/s
         const float g = -b3World_GetGravity(world->id).z;
-        for(size_t num = svs.maxclients + 1; num < world->slots.size(); num++)
+        // (the ragdolls, not every slot; a player's own is not nudged. In the list's order, not the edicts': each part
+        // takes its own impulse, the same either way.)
+        for(const RagdollBodies& rag : world->ragdolls)
         {
-            const RagdollBodies* r = ragdollOf(static_cast<int>(num));
-            if(!r) { continue; } // (its parts are dynamic bodies whatever Corpse Collision is)
+            const int num = rag.num;
+            const RagdollBodies* r = ragdollOf(num); // (none for a free entry, 0, or a player's)
+            if(r != &rag) { continue; } // (its parts are dynamic bodies whatever Corpse Collision is)
             int nudged = 0;
             for(int part = 0; part < r->count; part++)
             {
+                if(partCut(*r, part)) { continue; } // (its entry names the part it was cut from: that one's own turn)
                 const b3BodyId b = r->body[static_cast<za::SizeT>(part)];
                 const b3AABB box = b3Body_ComputeAABB(b);
                 const glm::vec3 a = world->toU(box.lowerBound), z = world->toU(box.upperBound);
@@ -198,7 +202,7 @@ void nudgeWalkedRagdolls(float dt)
             if(nudged && vr_debug_box3d.value >= 2.f)
             {
                 Con_Printf("box3d: player %d walking at %.1f m/s nudges %d parts of %d towards %.2f m/s\n", player, speed, nudged,
-                    static_cast<int>(num), target);
+                    num, target);
             }
         }
     }
@@ -225,6 +229,7 @@ void shoveBumped(float dt)
         float mb = 0.f;
         for(int k = 0; k < (rag ? rag->count : 1); k++)
         {
+            if(rag && partCut(*rag, k)) { continue; } // (a cut part's entry names the part it was cut from: counted once)
             mb += b3Body_GetMass(rag ? rag->body[static_cast<za::SizeT>(k)] : body);
         }
         mb = za::max(mb, 0.1f);
@@ -252,6 +257,7 @@ void shoveBumped(float dt)
         {
             for(int k = 0; k < rag->count; k++)
             {
+                if(partCut(*rag, k)) { continue; }
                 const b3BodyId part = rag->body[static_cast<za::SizeT>(k)];
                 b3Body_ApplyLinearImpulse(part, b3v(b.dir * (impulse * b3Body_GetMass(part) / mb)), b3Body_GetWorldCenter(part), true);
             }

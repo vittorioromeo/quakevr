@@ -38,7 +38,7 @@ const glm::vec3 visorBlack{0.f};    // (the face: clear on the screen)
 
 struct VisorState
 {
-    za::Array<gfx::Target, VisorPanelCount> targets{};
+    za::Array<gfx::RenderTarget, VisorPanelCount> targets{};
     za::Array<bool, VisorPanelCount> shown{};
     int logLines{0};
     VisorSides sides; // (the side panels' layout: the report's)
@@ -550,9 +550,14 @@ void visorRender(const VisorInput& in)
             visor.shown[p] = false; // (the centre print's popup with nothing to show)
             continue;
         }
-        gfx::Target& t = visor.targets[p];
+        gfx::RenderTarget& t = visor.targets[p];
         const int texels = p == VisorSideLeft || p == VisorSideRight ? visorSideTexels : visorTexels;
-        gfx::ensureTarget(t, w * texels, h * texels, true, "visor panel"); // mipmaps: for its text's glow
+        if(!t.ensure(w * texels, h * texels, gfx::RenderTargetFormat{.mipmaps = true, .fboName = "vr canvas"}, "visor panel")) // mipmaps: for its text's glow
+        {
+            Con_Warning("VR: a visor panel's framebuffer is incomplete\n");
+            visor.shown[p] = false;
+            continue;
+        }
         const auto contents = [&] {
             fill(0.f, 0.f, static_cast<float>(w), static_cast<float>(h), visorBlack);
             switch(p)
@@ -577,12 +582,12 @@ void visorRender(const VisorInput& in)
         gfx::draw2D::beginSignature();
         contents();
         const unsigned long long signature = gfx::draw2D::endSignature();
-        if(visor.shown[p] && visor.signatures[p] == signature && visor.drawnInto[p] == t.texture && vr_flat_visor_cache.value != 0.f)
+        if(visor.shown[p] && visor.signatures[p] == signature && visor.drawnInto[p] == t.tex && vr_flat_visor_cache.value != 0.f)
         {
             continue;
         }
         visor.signatures[p] = signature;
-        visor.drawnInto[p] = t.texture;
+        visor.drawnInto[p] = t.tex;
         visor.versions[p]++;
         gfx::begin2D(t, w, h);
         contents();

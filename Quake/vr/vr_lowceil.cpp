@@ -6,6 +6,7 @@
 #include "vr_engine.hpp"
 #include "vr_hands.hpp"
 #include "vr_hull.hpp"
+#include "vr_mem.hpp"
 #include "vr_text3d.hpp"
 #include "vr_units.hpp"
 
@@ -72,6 +73,13 @@ void clear()
     messageShown = false;
     comfortfade::hold(0.f);
 }
+
+namespace
+{
+// Forgotten when the client's state is cleared (vr_mem.hpp's resets): the low ceiling's share (and its hold on the
+// comfort fade, which the fade's own reset sets to none too).
+mem::Reset clientStateReset{"lowceil", mem::ResetEvent::ClientState, mem::ResetPhase::State, &clear};
+} // namespace
 
 void registerCommands()
 {

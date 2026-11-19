@@ -39,6 +39,7 @@
 #include "vr_carry2h.hpp"
 #include "vr_client.hpp"
 #include "vr_cvars.hpp"
+#include "vr_mem.hpp"
 #include "vr_tunables.hpp"
 #include "vr_flatplay.hpp"
 #include "vr_flatfgrab.hpp"
@@ -1366,6 +1367,12 @@ void reset()
     fastShare = 0.f;
     stickiness = 1.f;
 }
+
+namespace
+{
+// Forgotten when the client's state is cleared (vr_mem.hpp's resets): the two-handed grips.
+mem::Reset clientStateReset{"twohand", mem::ResetEvent::ClientState, mem::ResetPhase::State, &reset};
+} // namespace
 
 bool carrying(int hand)
 {

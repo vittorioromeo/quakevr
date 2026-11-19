@@ -1032,6 +1032,16 @@ What the game does now (`pollEvents` in `vr_backend_openxr.cpp`, `sessionEnded` 
   runtime went away; vr_restart, VR Settings > Restart VR, starts VR again)`. There is no automatic reconnect. A
   runtime that went away needs `xrCreateInstance` again, and polling for it each frame would stall the game. Restart VR
   does it on demand.
+- **`XR_ERROR_SESSION_LOST` / `XR_ERROR_INSTANCE_LOST` with no event first** (since 2026-11-19, review of next
+  finding 2: a runtime that dies without queuing the loss, a crashed compositor), returned by `xrPollEvent`,
+  `xrWaitFrame`, `xrBeginFrame` or `xrEndFrame` (`lostBy`): the same flat end (`endReason` Lost; `beginFrame` false at
+  once, or at the next frame for `xrEndFrame`'s). The states end on `XR_ERROR_SESSION_LOST` or
+  `XR_ERROR_INSTANCE_LOST`, and `qvr_openxr.txt` names the call: `xrWaitFrame: XR_ERROR_SESSION_LOST: the session is
+  lost, no loss event came first`. Before, `VR` stayed on for good with the frames unpaced. A runtime that returned it
+  for a passing fault would now drop to flat where it went on before (none is known to).
+- **Frames with no `xrWaitFrame`** (the session IDLE, between STOPPING and READY, a failed wait) are held to about a
+  display period after the last such frame (`paceUnwaited`: the last wait's period, 1/90 s without one): the swap
+  interval is 0 while VR runs, so they spun at `host_maxfps` (unbounded with 0).
 - Every end prints `VR: the session's last states: ...`, the last 12 states as the runtime gave them, to the console
   and to `qvr_openxr.txt`. Example: `IDLE > READY > SYNCHRONIZED > VISIBLE > FOCUSED > VISIBLE > SYNCHRONIZED >
   STOPPING > IDLE > EXITING`. The OpenXR log also gets `the runtime asks the game to exit (states: ...)`, `session loss

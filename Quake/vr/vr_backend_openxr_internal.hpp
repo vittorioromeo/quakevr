@@ -272,6 +272,8 @@ private:
     XrSpace handSpaces[2]{XR_NULL_HANDLE, XR_NULL_HANDLE};
     Swapchain swapchains[2];
     Swapchain panel;
+    int32_t panelFailedWidth{0}; // the size its swapchain failed at in this session, or is being made at (ensurePanelSwapchain)
+    int32_t panelFailedHeight{0};
     int64_t colorFormat{GL_RGBA8};
     bool panelPending{false}; // an image was released for the frame being finished
     bool panelShown{false};   // the panel was in the last submitted frame (keeps its place)
@@ -289,6 +291,10 @@ private:
     bool sessionRunning{false};
     bool swapIntervalChanged{false};
     bool frameBegun{false};
+    // The session's first frames traced (traceFrame): frames left, and the one now (1 = the first).
+    static constexpr int tracedFrames = 10;
+    int traceFramesLeft{0};
+    int tracedFrame{0};
     XrFrameState frameState{XR_TYPE_FRAME_STATE};
     XrView views[2]{{XR_TYPE_VIEW}, {XR_TYPE_VIEW}};
     XrViewConfigurationView configViews[2]{{XR_TYPE_VIEW_CONFIGURATION_VIEW}, {XR_TYPE_VIEW_CONFIGURATION_VIEW}};
@@ -373,6 +379,7 @@ private:
         int held{0};              // with the last ones again (vr_xr_unfocused)
         int empty{0};             // without a layer
         int panels{0};            // with the runtime's panel (a quad layer)
+        int endedLate{0};         // finished by the next beginFrame (the screen not drawn: a load)
         int noRender{0};          // shouldRender false
         int missed{0};            // display periods skipped (predictedDisplayTime moved on by more than one)
         int periodNs{0};          // predictedDisplayPeriod
@@ -387,6 +394,18 @@ private:
 
     // After xrWaitFrame: the frame period, the display periods missed, and once a second the log's line.
     void noteWaited();
+
+    // XR_ERROR_SESSION_LOST or XR_ERROR_INSTANCE_LOST from xrPollEvent, xrWaitFrame, xrBeginFrame or xrEndFrame: the
+    // headset or the runtime gone without its loss event first (a crashed compositor). True for those codes: the
+    // session ends as for the events (beginFrame false, endReason Lost: flat); said once, in the log and the states.
+    bool lostBy(XrResult result, const char* call);
+    bool lostByResult{false}; // (xrEndFrame's ends the session at the next beginFrame)
+
+    // A frame the runtime did not pace (no xrWaitFrame: the session IDLE, between STOPPING and READY, a failed wait):
+    // held to about a display period after the last such frame, as xrWaitFrame holds one, so the loop does not spin
+    // with the swap interval 0 (at host_maxfps, or unbounded with host_maxfps 0).
+    void paceUnwaited();
+    double unwaitedLast{0.0}; // when the last such frame went on (Sys_DoubleTime)
 
     // The local time, for the log (hh:mm:ss.mmm).
     [[nodiscard]] static const char* wallClock();
@@ -408,6 +427,10 @@ private:
     // A line in the start's breadcrumbs before the call it names (the crash report's "Last GL steps", gl_startup.log
     // while the game starts), in qvr_openxr.txt, and in the crash report's VR line.
     void step(const char* format, ...);
+    // The session's first tracedFrames frames: a step before each frame call ("frame 2: xrBeginFrame"), so a crash
+    // inside the runtime's call says which call and which frame (GitHub #82: SteamVR's client crashed in the first
+    // xrBeginFrame, or on its own thread by the fourth frame, and the report's last step was the panel's swapchain).
+    void traceFrame(const char* call, const char* detail = "");
 
     // An OpenXR call under vr_xr_guard's handler: a crash inside the runtime is logged and returned as a failure, the
     // runtime marked as crashed (this start fails; the stop's destroy calls, guarded too, are all it gets after).
@@ -451,7 +474,7 @@ private:
     // The GL texture of the swapchain's next image, acquired and waited for; 0 on failure.
     [[nodiscard]] unsigned acquireImage(const Swapchain& sc);
 
-    bool releaseImage(const Swapchain& sc) const;
+    bool releaseImage(const Swapchain& sc);
 
     static void destroySpace(XrSpace& space);
 

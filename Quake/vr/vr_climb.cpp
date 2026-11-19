@@ -121,7 +121,8 @@
 // box's middle is over it (it stands on the top, not on its edge over the drop). With no room on top (a ceiling, a top
 // too thin), it hangs on, and the holding hands feel a soft buzz as the pull over the top starts; the push over the top
 // that follows doesn't push it back off the face (the pull that brought the hands in was owed, above), and at most
-// straightens the arms.
+// straightens the arms. With vr_climb_mantle_trigger the mantle waits there, high enough, for the last holding hand to
+// let go or for a jump (triggeredMantle): he can hang and look over the top first; let go lower, he falls as ever.
 //
 // Letting go of everything: the player falls, flung by the hands' release (vr_climb_fling, capped). No new hold for
 // `regrabDelay` seconds after letting go of everything or mantling; holds lower than vr_climb_min_height above the
@@ -1139,6 +1140,7 @@ struct Climber
     glm::vec3 lastOrigin{0.f}; // where the climb put the body (moved otherwise: let go)
     glm::vec3 owed{0.f};       // the pull the body couldn't make (made up first by a pull the other way)
     bool noRoom{false};        // pulling over the top of a ledge with no room to mantle (felt once)
+    bool mantleJumpWas{false}; // the jump key at the last frame (vr_climb_mantle_trigger: a new press mantles)
     // Climbing stamina (see "Climbing stamina" below).
     bool draining{false};      // this frame's hang spent stamina
     double slipStart{0.0};
@@ -1494,13 +1496,24 @@ void hangGripOf(const Grip& g, pmove::HangGrip& hg)
     hg.missTop = g.missTop;
 }
 
+// What starts a mantle once grip and head are high enough (vr_climb_mantle_trigger): 0 that alone (pmove::hangMantle,
+// each step of the hang); otherwise these bits (triggeredMantle, before the grips let go).
+constexpr int mantleOnLetGo = 1; // the last holding hand lets go of its grip
+constexpr int mantleOnJump = 2;  // a jump press
+
+[[nodiscard]] int mantleTrigger()
+{
+    return za::clamp(static_cast<int>(vr_climb_mantle_trigger.value), 0, mantleOnLetGo | mantleOnJump);
+}
+
 // The body's box and the mantle's rules, for the hang's steps.
 void hangBox(const edict_t* ent, pmove::Hang& h)
 {
     h.minsZ = ent->v.mins[2];
     h.maxsXY[0] = ent->v.maxs[0];
     h.maxsXY[1] = ent->v.maxs[1];
-    h.mantleTime = mantleTime;
+    // (vr_climb_mantle_trigger: the mantle waits for the release or the jump, triggeredMantle; no test in the steps)
+    h.mantleTime = mantleTrigger() == 0 ? mantleTime : 0.f;
     h.mantleHeight = za::clamp(vr_climb_mantle_height.value, 0.f, 40.f);
     h.mantleSlope = za::clamp(vr_climb_mantle_slope.value, 0.f, 60.f);
     h.verbose = debug();
@@ -2421,6 +2434,7 @@ static void climbPreThink(edict_t* ent);
 namespace
 {
 void flatMantle(edict_t* ent, Climber& c, const VrMove* move, double time); // (below)
+void triggeredMantle(edict_t* ent, Climber& c, const VrMove* move, bool enabled);
 void flatLadder(edict_t* ent, Climber& c, const VrMove* move, double time);
 }
 
@@ -2469,6 +2483,7 @@ static void climbPreThink(edict_t* ent)
     const bool held[2] = {c.grips[0].active, c.grips[1].active};
     const bool inMoves = climb::takesInMoves(ent); // (a remote client's moves take, one by one: climb::moveTake)
     followProps(ent, c);
+    triggeredMantle(ent, c, move, enabled); // (vr_climb_mantle_trigger: before the grips let go)
     for(int h = 0; h < 2; h++)
     {
         if(c.flatLadder && c.hanging())
@@ -2938,24 +2953,73 @@ void beginMantle(edict_t* ent, Climber& c, int k, const pmove::Mantle& m)
     startMantle(ent, c, g, vec(m.from), vec(m.mid), vec(m.to), m.headAbove);
 }
 
+// A grip high enough to mantle from (pmove::hangMantle's test, for triggeredMantle): its hand (`rel`, relative to the
+// body) pulled down by `mantlePull` since it took hold, the head `headAbove` its top by at least vr_climb_mantle_height,
+// and not slipping. (Under the height, he can lean up and down over the ledge without mantling.)
+[[nodiscard]] bool highEnough(const Climber& c, const Grip& g, const glm::vec3& rel, float headAbove)
+{
+    return g.active && c.phase != Phase::Slipping && g.relAtGrab.z - rel.z >= pmove::mantlePull &&
+           headAbove >= za::clamp(vr_climb_mantle_height.value, 0.f, 40.f);
+}
+
+// The mantle from hand `h`'s grip (high enough; triggeredMantle): true when it started; `noRoom` set when there's no
+// room on top. The search's record of no room is pmove::hangMantle's (the grip's missed, missAge, ...).
+bool mantleFrom(edict_t* ent, Climber& c, int h, float headAbove, bool& noRoom)
+{
+    Grip& g = c.grips[h];
+    // No room found here lately, the body and the hold where they were: none yet (searched again after
+    // pmove::mantleRetry, or once either moves).
+    const glm::vec3 now = vec(ent->v.origin), holdAt = holdNow(g);
+    if(g.missed && g.missAge < pmove::mantleRetry && glm::distance(now, g.missOrigin) <= pmove::mantleRetryMove &&
+        holdAt == g.missHold && topNow(g) == g.missTop)
+    {
+        if(vr_climb_debug.value >= 4.f)
+        {
+            Con_Printf("climbcost mantle %s: no room (searched %.3f s ago)\n", handName(h), g.missAge);
+        }
+        noRoom = true;
+        return false;
+    }
+    glm::vec3 mid, to;
+    const bool found = findMantle(ent, g, mid, to);
+    g.missed = !found;
+    if(!found)
+    {
+        g.missAge = 0.f;
+        g.missOrigin = now;
+        g.missHold = holdAt;
+        g.missTop = topNow(g);
+        noRoom = true;
+        return false;
+    }
+    startMantle(ent, c, g, now, mid, to, headAbove);
+    return true;
+}
+
+// No room on top: a soft buzz in the holding hands.
+void feelNoRoom(edict_t* ent, const Climber& c)
+{
+    for(int h = 0; h < 2; h++)
+    {
+        if(c.grips[h].active)
+        {
+            server::sendHaptic(ent, h, 0.f, 0.12f, 40.f, 0.25f);
+        }
+    }
+    if(debug())
+    {
+        Con_Printf("climb: no room to mantle at (%.1f %.1f %.1f)\n", ent->v.origin[0], ent->v.origin[1],
+            ent->v.origin[2]);
+    }
+}
+
 // No room on top: a soft buzz as the pull over the top starts (the body stays on the face: the pull into it is owed, so
 // the push over the top doesn't push it back off).
 void noRoomBuzz(edict_t* ent, Climber& c, bool noRoom)
 {
     if(noRoom && !c.noRoom)
     {
-        for(int h = 0; h < 2; h++)
-        {
-            if(c.grips[h].active)
-            {
-                server::sendHaptic(ent, h, 0.f, 0.12f, 40.f, 0.25f);
-            }
-        }
-        if(debug())
-        {
-            Con_Printf("climb: no room to mantle at (%.1f %.1f %.1f)\n", ent->v.origin[0], ent->v.origin[1],
-                ent->v.origin[2]);
-        }
+        feelNoRoom(ent, c);
     }
     c.noRoom = noRoom;
 }
@@ -2986,6 +3050,55 @@ void flatMantleHands(edict_t* ent, Climber& c, const VrMove* move, const Grip& g
     if(debug())
     {
         Con_Printf("climb: flat mantle's hands on the ledge: off %d, main %d\n", c.flatHolds[0].on ? 1 : 0, c.flatHolds[1].on ? 1 : 0);
+    }
+}
+
+// The mantle on a trigger (vr_climb_mantle_trigger), from climbPreThink before the grips let go: high enough over a
+// ledge (pmove::hangMantle's test, the body and hands as the last frame left them), the last holding hand letting go of its
+// grip, or a jump pressed, pulls the body up onto it. Lower, or with no room on top, a release lets go as ever (the
+// fall); a jump with no room buzzes and it hangs on. Flatscreen play's ladder keeps its own top (flatLadderFrame).
+void triggeredMantle(edict_t* ent, Climber& c, const VrMove* move, bool enabled)
+{
+    const bool jump = ent->v.button2 != 0.f;
+    const bool jumpPress = jump && !c.mantleJumpWas; // (a jump held as the hand took hold waits for the next press)
+    c.mantleJumpWas = jump;
+    const int trigger = mantleTrigger();
+    if(trigger == 0 || !enabled || !move || !c.hanging() || c.flatLadder)
+    {
+        return;
+    }
+    bool lastLetsGo = true; // no holding hand keeps its grip pressed
+    for(int h = 0; h < 2; h++)
+    {
+        lastLetsGo = lastLetsGo && !(c.grips[h].active && (move->vrBits0 & grabBit[h]));
+    }
+    const bool onLetGo = (trigger & mantleOnLetGo) && lastLetsGo;
+    const bool onJump = (trigger & mantleOnJump) && jumpPress;
+    if(!onLetGo && !onJump)
+    {
+        return;
+    }
+    bool noRoom = false;
+    for(int h = 0; h < 2; h++)
+    {
+        const float headAbove = move->headPos.z - topNow(c.grips[h]);
+        if(highEnough(c, c.grips[h], handRel(ent, *move, h), headAbove) && mantleFrom(ent, c, h, headAbove, noRoom))
+        {
+            if(onJump)
+            {
+                // (the jump key held onto the top doesn't jump there: QC PlayerJump waits for its release)
+                ent->v.flags = static_cast<float>(static_cast<int>(ent->v.flags) & ~FL_JUMPRELEASED);
+            }
+            if(debug())
+            {
+                Con_Printf("climb: mantle on %s (Mantle When %d)\n", onLetGo ? "letting go" : "a jump", trigger);
+            }
+            return;
+        }
+    }
+    if(noRoom && !onLetGo)
+    {
+        feelNoRoom(ent, c);
     }
 }
 
@@ -3218,7 +3331,12 @@ void flatLadder(edict_t* ent, Climber& c, const VrMove* move, double time)
     const glm::vec3 fwd{za::cos(yaw), za::sin(yaw), 0.f};
     if(ground && dir < 0)
     {
-        // Backing off a ladder's top (facing away from its drop): lowered onto it.
+        // Backing off a ladder's top (facing away from its drop): lowered onto it. The back key only: forward looking down
+        // (ladderDir's -1 too) walks on, away from the drop. (ladderDir checked the client.)
+        if(svs.clients[NUM_FOR_EDICT(ent) - 1].cmd.forwardmove >= -1.f)
+        {
+            return;
+        }
         if(!flatLadderMount(ent, c, *move, fwd, time))
         {
             c.flatLadderMiss = time;
@@ -4046,6 +4164,13 @@ void qvr::climb::reset()
         c = Climber{};
     }
 }
+
+namespace
+{
+// Forgotten with the server's world (vr_mem.hpp's resets): the climbers' holds.
+qvr::mem::Reset serverWorldReset{
+    "climb", qvr::mem::ResetEvent::ServerWorld, qvr::mem::ResetPhase::State, &qvr::climb::reset};
+} // namespace
 
 void qvr::climb::init()
 {

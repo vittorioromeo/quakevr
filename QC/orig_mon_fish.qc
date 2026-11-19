@@ -175,7 +175,7 @@ void(entity attacker, float damage)    fish_pain =
 */
 void() monster_fish =
 {
-    if(MG_MonsterInhibited()) return;
+    if(VR_SF_SpawnInhibited()) return;
     if(deathmatch)
     {
         remove(self);

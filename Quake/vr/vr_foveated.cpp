@@ -204,11 +204,10 @@ RateImage& rateImage(int eye, int width, int height)
     double pixels[3] = {0.0, 0.0, 0.0};
     computeRates(width, height, tileWidth, tileHeight, lens, centre, inner, outer, texels, pixels);
     GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, img.texture);
-    GLint alignment = 4;
-    glGetIntegerv(GL_UNPACK_ALIGNMENT, &alignment);
+    // (no glGet of the alignment: each tile the gaze moves would read GL state back; 4 is the engine's, as vr_detail and vr_water)
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, tilesX, tilesY, GL_RED_INTEGER, GL_UNSIGNED_BYTE, texels);
-    glPixelStorei(GL_UNPACK_ALIGNMENT, alignment);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
 
     img.width = width;
     img.height = height;
@@ -277,13 +276,7 @@ void APIENTRY watchedBindFramebuffer(GLenum target, GLuint framebuffer)
 GLuint debugProgram = 0;
 bool debugFailed = false;
 
-constexpr const char* debugVs = R"(#version 430
-void main()
-{
-    ivec2 v = ivec2(gl_VertexID & 1, gl_VertexID >> 1);
-    gl_Position = vec4(vec2(v) * 4.0 - 1.0, 0.0, 1.0);
-}
-)";
+constexpr const char* debugVs = gfx::fullscreenTriangleVs;
 
 constexpr const char* debugFs = R"(#version 430
 layout(binding = 0) uniform usampler2D Rates;

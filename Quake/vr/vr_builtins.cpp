@@ -1258,8 +1258,12 @@ void resetBuiltinState()
 {
     cvarHandles.clear();
     woundsSent.clear();
-    worldtext::serverReset();
-    tips::serverReset();
 }
+
+namespace
+{
+// Forgotten with the server's world (vr_mem.hpp's resets): the QC's cvar handles, the wounds sent.
+mem::Reset serverWorldReset{"builtins", mem::ResetEvent::ServerWorld, mem::ResetPhase::State, &resetBuiltinState};
+} // namespace
 
 } // namespace qvr::progs

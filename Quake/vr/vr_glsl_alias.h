@@ -959,7 +959,7 @@ SPECULAR_AA_FUNCTIONS
 "{\n" \
 "	ivec3 size = textureSize(WoundMasksFine, 0);\n" \
 "	vec2 p = clamp(clamp(uv, 0.0, 1.0) * wi.yz, vec2(0.5), wi.yz - 0.5) / vec2(size.xy);\n" \
-"	return texture(WoundMasksFine, vec3(p, in_woundside > 0.5 ? float(size.z - 1) : -wi.x - 1.0));\n" \
+"	return textureLod(WoundMasksFine, vec3(p, in_woundside > 0.5 ? float(size.z - 1) : -wi.x - 1.0), 0.0); // (one level: in a per-pixel branch)\n" \
 "}\n" \
 "\n" \
 "// The blood on a fine mask that isn't its own (WoundBloodFine: the same layers).\n" \
@@ -967,7 +967,7 @@ SPECULAR_AA_FUNCTIONS
 "{\n" \
 "	ivec3 size = textureSize(WoundBloodFine, 0);\n" \
 "	vec2 p = clamp(clamp(uv, 0.0, 1.0) * wi.yz, vec2(0.5), wi.yz - 0.5) / vec2(size.xy);\n" \
-"	return texture(WoundBloodFine, vec3(p, in_woundside > 0.5 ? float(size.z - 1) : -wi.x - 1.0)).r;\n" \
+"	return textureLod(WoundBloodFine, vec3(p, in_woundside > 0.5 ? float(size.z - 1) : -wi.x - 1.0), 0.0).r; // (one level)\n" \
 "}\n" \
 "\n" \
 "// A fine mask's relief in units: blood sunk into the skin (a little at its edge, most at a wound's core), char\n" \
@@ -1027,8 +1027,8 @@ SPECULAR_AA_FUNCTIONS
 "		if (m == vec4(0.0))\n" \
 "			return w;\n" \
 "		ivec2 it = ivec2(t) & 3;\n" \
-"		const float bayer[16] = float[16](0., 8., 2., 10., 12., 4., 14., 6., 3., 11., 1., 9., 15., 7., 13., 5.);\n" \
-"		float d = (bayer[it.y * 4 + it.x] + 0.5) / 16.0;\n" \
+QVR_BAYER4_GLSL \
+"		float d = (QVR_BAYER4(it) + 0.5) / 16.0;\n" \
 "		h = WoundHash(t);\n" \
 "		w.burn = step(0.16 + 0.28 * d, m.g);\n" \
 "		w.blood = step(0.2 + 0.24 * d, m.r);\n" \

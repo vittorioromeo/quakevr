@@ -287,13 +287,17 @@ QVR_ZFIX_FUNCTION \
 "	float speed = kind == 1u ? 0.25 : kind == 2u ? 0.4 : 1.0;\n"\
 "	float amp = Water2.w * (kind == 1u ? 1.3 : kind == 2u ? 0.6 : 1.0);\n"\
 "	const vec2 dirs[3] = vec2[3](vec2(0.96, 0.28), vec2(-0.45, 0.89), vec2(0.6, -0.8));\n"\
-"	const float lens[3] = float[3](173., 109., 71.);\n"\
+"	// the wavelengths 173, 109, 71 as constants: k = 2 pi / (length * scale), its speed sqrt(200 k) (no division or root\n"\
+"	// a wave a pixel: the kind's scale once)\n"\
+"	const float ks[3] = float[3](6.2831853 / 173., 6.2831853 / 109., 6.2831853 / 71.);\n"\
+"	const float ws[3] = float[3](sqrt(200. * 6.2831853 / 173.), sqrt(200. * 6.2831853 / 109.), sqrt(200. * 6.2831853 / 71.));\n"\
 "	const float shares[3] = float[3](0.5, 0.3, 0.2);\n"\
+"	float inv = 1.0 / scale, rootinv = sqrt(inv);\n"\
 "	vec3 r = vec3(0.);\n"\
 "	for (int i = 0; i < 3; i++)\n"\
 "	{\n"\
-"		float k = 6.2831853 / (lens[i] * scale);\n"\
-"		float x = dot(dirs[i], p) * k + Time * sqrt(200. * k) * speed + float(i) * 2.3;\n"\
+"		float k = ks[i] * inv;\n"\
+"		float x = dot(dirs[i], p) * k + Time * (ws[i] * rootinv) * speed + float(i) * 2.3;\n"\
 "		float h = amp * shares[i];\n"\
 "		r.xy += dirs[i] * (h * k * cos(x));\n"\
 "		r.z += h * sin(x);\n"\
@@ -401,14 +405,20 @@ LIQUID_SWELL \
 "	float speed = kind == 1u ? 0.12 : kind == 2u ? 0.4 : 0.8;\n"\
 "	float steep = kind == 1u ? 0.05 : kind == 2u ? 0.06 : 0.07;\n"\
 "	const vec2 dirs[5] = vec2[5](vec2(0.87, 0.49), vec2(-0.57, 0.82), vec2(0.17, -0.98), vec2(-0.94, -0.33), vec2(0.62, 0.78));\n"\
-"	const float lens[5] = float[5](67., 41., 26., 16., 10.);\n"\
+"	// the wavelengths 67, 41, 26, 16, 10 as constants: k = 2 pi / (length * scale), its speed sqrt(200 k), 1 / k (no\n"\
+"	// division or root a wave a pixel: the kind's scale once)\n"\
+"	const float ks[5] = float[5](6.2831853 / 67., 6.2831853 / 41., 6.2831853 / 26., 6.2831853 / 16., 6.2831853 / 10.);\n"\
+"	const float ws[5] = float[5](sqrt(200. * 6.2831853 / 67.), sqrt(200. * 6.2831853 / 41.), sqrt(200. * 6.2831853 / 26.),\n"\
+"		sqrt(200. * 6.2831853 / 16.), sqrt(200. * 6.2831853 / 10.));\n"\
+"	const float ls[5] = float[5](67. / 6.2831853, 41. / 6.2831853, 26. / 6.2831853, 16. / 6.2831853, 10. / 6.2831853);\n"\
+"	float inv = 1.0 / scale, rootinv = sqrt(inv);\n"\
 "	vec3 r = vec3(0.);\n"\
 "	for (int i = 0; i < 5; i++)\n"\
 "	{\n"\
-"		float k = 6.2831853 / (lens[i] * scale);\n"\
-"		float x = dot(dirs[i], p) * k + Time * sqrt(200. * k) * speed + float(i) * 1.7;\n"\
+"		float k = ks[i] * inv;\n"\
+"		float x = dot(dirs[i], p) * k + Time * (ws[i] * rootinv) * speed + float(i) * 1.7;\n"\
 "		r.xy += dirs[i] * (steep * cos(x));\n"\
-"		r.z += steep / k * sin(x);\n"\
+"		r.z += steep * (ls[i] * scale) * sin(x);\n"\
 "	}\n"\
 "	r *= Water.x;\n"\
 "	if (a.z >= a.x && a.z >= a.y)\n"\
@@ -474,7 +484,7 @@ LIQUID_SWELL \
 "        vec2 waver = vec2(sin(Time * 1.9 + dot(pos, vec3(0.071, 0.053, 0.089))), cos(Time * 1.6 + dot(pos, vec3(0.047, 0.083, 0.061))));\n"\
 "        vec2 uv = (gl_FragCoord.xy * PortalUV.zw + PortalUV.xy) / size + waver * 0.0012;\n"\
 "        eye = dot(EyePos, PortalPlane[i].xyz) - PortalPlane[i].w;\n"\
-"        return vec4(texture(PortalScene, vec3(uv, float(i))).rgb, PortalMin[i].w);\n"\
+"        return vec4(textureLod(PortalScene, vec3(uv, float(i)), 0.0).rgb, PortalMin[i].w); // (one level: textureLod, no derivatives in this loop)\n"\
 "    }\n"\
 "    eye = 0.;\n"\
 "    return vec4(0.);\n"\
@@ -547,7 +557,8 @@ LIQUID_SWELL \
 "// four pixels).\n"\
 "float LiquidSceneDistance(vec2 p)\n"\
 "{\n"\
-"	return texelFetch(LiquidDepth, clamp(ivec2(p * 0.5), ivec2(0), textureSize(LiquidDepth, 0) - 1), 0).r;\n"\
+"	ivec2 last = min(textureSize(LiquidDepth, 0), ivec2((SceneViewport.xy + SceneViewport.zw + 1.0) * 0.5)) - 1; // (the scene's part)\n"\
+"	return texelFetch(LiquidDepth, clamp(ivec2(p * 0.5), ivec2(0), last), 0).r;\n"\
 "}\n"\
 "vec2 LiquidSceneHere = vec2(0.); // ... at this pixel, read once (the foam's and the refraction's); y 1 once read\n"\
 "float LiquidSceneDistanceHere()\n"\
@@ -571,7 +582,8 @@ LIQUID_SWELL \
 "	vec3 d = (n - facing) * (Water.z * min(dist * 0.08, 12.0) * (kind == 2u ? 0.5 : 1.0));\n"\
 "	vec4 c0 = ViewProj * vec4(pos, 1.0);\n"\
 "	vec4 c1 = c0 + ViewProj * vec4(d, 0.0);\n"\
-"	vec2 size = vec2(textureSize(LiquidScene, 0));\n"\
+"	vec2 size = SceneViewport.zw; // the view's pixels (its targets may be larger: dynamic resolution's ceiling)\n"\
+"	vec2 tsize = vec2(textureSize(LiquidScene, 0));\n"\
 "	vec2 shift = (c1.xy / c1.w - c0.xy / c0.w) * 0.5;\n"\
 "	if (CausticsScale.w != 0.)\n"\
 "	{\n"\
@@ -579,7 +591,11 @@ LIQUID_SWELL \
 "		if (LiquidSceneDistance(gl_FragCoord.xy + shift * size) < c0.w)\n"\
 "			shift *= LiquidSceneDistance(gl_FragCoord.xy + shift * (0.3 * size)) < c0.w ? 0.0 : 0.3;\n"\
 "	}\n"\
-"	vec3 behind = texture(LiquidScene, gl_FragCoord.xy / size + shift).rgb;\n"\
+"	vec2 vlo = (SceneViewport.xy + 0.5) / tsize, vhi = (SceneViewport.xy + SceneViewport.zw - 0.5) / tsize; // its texels' centres\n"\
+"	vec2 buv = gl_FragCoord.xy / size + shift; // (the view the whole texture: as before)\n"\
+"	if (any(notEqual(size, tsize)) || any(notEqual(SceneViewport.xy, vec2(0.0)))) // a part of it: kept on the part's texels, as clamp-to-edge kept the whole's\n"\
+"		buv = clamp(gl_FragCoord.xy / tsize + shift * (size / tsize), vlo, vhi);\n"\
+"	vec3 behind = textureLod(LiquidScene, buv, 0.0).rgb; // (no mips: textureLod, after an early return)\n"\
 "	return vec4(mix(behind, c.rgb, c.a), 1.0);\n"\
 "}\n"\
 "\n"\
@@ -718,7 +734,7 @@ LIQUID_SWELL \
 "{\n"\
 "	if (Water2.y <= 0.)\n"\
 "		return 1.0;\n"\
-"	float wet = texture(LiquidVolume, (pos + facing * CausticsOrigin.w - CausticsOrigin.xyz) * CausticsScale.xyz).r; // a cell out\n"\
+"	float wet = textureLod(LiquidVolume, (pos + facing * CausticsOrigin.w - CausticsOrigin.xyz) * CausticsScale.xyz, 0.0).r; // a cell out (one level: textureLod, also after the alpha test's discard)\n"\
 "	if (wet <= 0.004)\n"\
 "		return 1.0;\n"\
 "	vec2 p = (pos.xy + pos.z * vec2(0.35, 0.25)) * 0.09;\n"\

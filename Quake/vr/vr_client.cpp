@@ -15,7 +15,6 @@
 #include "vr_client.hpp"
 #include "vr_handsource.hpp"
 #include "vr_adcrossbow.hpp"
-#include "vr_adweapons.hpp"
 #include "vr_adguns.hpp"
 #include "vr_blood.hpp"
 #include "vr_bttrails.hpp"
@@ -30,7 +29,6 @@
 #include "vr_flatsight.hpp"
 #include "vr_flatxhair.hpp"
 #include "vr_flycam.hpp"
-#include "vr_painknock.hpp"
 #include "vr_particles.hpp"
 #include "vr_fireparticles.hpp"
 #include "vr_flamewobble.hpp"
@@ -46,6 +44,7 @@
 #include "vr_input.hpp"
 #include "vr_lighting.hpp"
 #include "vr_main.hpp"
+#include "vr_mem.hpp"
 #include "vr_modelcollide.hpp"
 #include "vr_selfcollide.hpp"
 #include "vr_move.hpp"
@@ -56,7 +55,6 @@
 #include "vr_serverrules.hpp"
 #include "vr_shells.hpp"
 #include "vr_gunsfx.hpp"
-#include "vr_autopump.hpp"
 #include "vr_explosiondebris.hpp"
 #include "vr_shock.hpp"
 #include "vr_stealth.hpp"
@@ -77,7 +75,6 @@
 #include "vr_worldtext.hpp"
 #include "vr_wounds.hpp"
 #include "vr_goresound.hpp"
-#include "vr_bloodprints.hpp"
 #include "vr_hitreact.hpp"
 #include "vr_rigseq.hpp"
 #include "vr_srvrandom.hpp"
@@ -601,6 +598,16 @@ za::Vector<client::EntityVr> entityData;
 // Brush models precached after the map loaded (parsePrecacheModel): not drawn (client::lateBrushModel).
 za::InPlaceVector<const qmodel_t*, 32> lateBrushModels;
 
+// This file's own state of the map (the entities' VR data, the late brush models, the thrown hands' samples),
+// forgotten when the client's state is cleared (vr_mem.hpp's resets).
+void forgetClientState()
+{
+    entityData.clear();
+    lateBrushModels.clear();
+    thrownValid[0] = thrownValid[1] = false;
+}
+mem::Reset clientStateReset{"client", mem::ResetEvent::ClientState, mem::ResetPhase::State, &forgetClientState};
+
 [[nodiscard]] bool vrProtocol()
 {
     return (cl.protocolflags & PRFL_QUAKEVR) != 0;
@@ -986,53 +993,12 @@ extern "C" void VR_WriteDemoState(sizebuf_t* msg)
     }
 }
 
+// CL_ParseServerInfo after CL_ClearState, and VR_OnClearMemory: every system's client state of the old map forgotten
+// (cl_entities and cl.time start over). A system with such state registers its reset next to it (mem::Reset,
+// ResetEvent::ClientState: vr_mem.hpp).
 extern "C" void VR_OnClientClearState()
 {
-    rigseq::clientClear(); // (the sequences drawn: the server tells the new map's)
-    entityData.clear();
-    lateBrushModels.clear();
-    mpavatar::clear(); // (the other players' avatars: the new server's come)
-    netmove::clientClear(); // (no acknowledged move: the next sent whole, B7)
-    predict::clientClear(); // (no state from the server: his own walk drawn as it comes until one, B8)
-    netsnap::clientClear(); // (no snapshot read: the server's next whole, B7b; the interpolation buffer empty)
-    clientprefs::clientClear(); // (ours go up to it again)
-    particles::clear();
-    decals::clear();
-    worldtext::clientReset();
-    tips::clientReset();
-    throwing::reset();
-    thrownValid[0] = thrownValid[1] = false;
-    twohand::reset();
-    held::resetClientState();
-    flick::reset();
-    handpose::reset();
-    modelcollide::reset();
-    selfcollide::reset();
-    shells::clear();
-    gunsfx::clear();
-    goresound::clear();
-    bloodprints::clear();
-    autopump::clear();
-    explosiondebris::clear();
-    collectfx::clear();
-    fireparticles::clear();
-    flamewobble::clear();
-    shock::clear();
-    smoulder::clear();
-    comfortfade::clear();
-    lowceil::clear();
-    blood::clear();
-    deathview::clear();
-    weaponfx::clear();
-    adcrossbow::clear(); // AD support
-    adweapons::clear();  // AD support
-    bttrails::clear();
-    wounds::clear();
-    rope::forget();
-    chainsaw::reset();
-    view::resetClientState();
-    painknock::reset();
-    hands::resetClientState();
+    mem::resetAll(mem::ResetEvent::ClientState);
 }
 
 extern "C" int VR_MoveMainFire(int lmb)

@@ -77,6 +77,12 @@
                                     <Run Text="{Binding AdSizeText, Mode=OneWay}" />
                                 </TextBlock>
                             </CheckBox>
+                            <CheckBox IsChecked="{Binding InstallDwell}" Margin="0,8,0,0" Visibility="{Binding ShowAddDwell, Converter={StaticResource BoolToVis}}">
+                                <TextBlock Style="{StaticResource Small}" TextWrapping="Wrap">
+                                    <Run Text="Add Dwell (free, by Fairweather and the Dwell team):" />
+                                    <Run Text="{Binding DwellSizeText, Mode=OneWay}" />
+                                </TextBlock>
+                            </CheckBox>
                             <TextBlock Text="{Binding OtherInstallsText}" Style="{StaticResource Small}" Foreground="{StaticResource Faint}" Margin="0,6,0,0"
                                        TextWrapping="Wrap" Visibility="{Binding HasOtherInstalls, Converter={StaticResource BoolToVis}}" />
                             <WrapPanel Margin="0,8,0,0">

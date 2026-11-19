@@ -24,6 +24,7 @@
 // listen server's edicts, changed between its frames (as a console command does).
 
 #include "vr_agpose_shared.h"
+#include "vr_mem.hpp"
 #include "vr_testkit.hpp"
 #include "vr_toolgun.hpp"
 #include "vr_toolgun_brush.hpp"
@@ -1003,6 +1004,12 @@ void reset()
     spawnTrace = {};
     toolgun::brushtool::reset();
 }
+
+namespace
+{
+// Forgotten with the server's world (vr_mem.hpp's resets): what the tools hold, by entity number.
+mem::Reset serverWorldReset{"toolgun", mem::ResetEvent::ServerWorld, mem::ResetPhase::State, &reset};
+} // namespace
 
 void forget(int num)
 {

@@ -53,7 +53,8 @@ namespace
 {
 
 // The GPU scopes' GL debug groups (vr_gl_markers): bit k set while the main thread's scope at depth k pushed one.
-// Scopes deeper than 64 push none; a frame's start closes what a Host_Error left open (VR_ProfileFrame).
+// Scopes deeper than 64 push none; a Host_Error's are closed before its longjmp (onHostError), what else is left open
+// at a frame's start then (VR_ProfileFrame).
 struct GlMarkerStack
 {
     za::U64 pushed = 0;
@@ -62,7 +63,7 @@ struct GlMarkerStack
     int frameDeepest = 0;
     int lastGroups = 0; // the last whole frame's (vr_gl_markers_report)
     int lastDeepest = 0;
-    int lastLeftOpen = 0; // scopes still open at the frame's start (a Host_Error, a modal dialog's frames): closed then
+    int lastLeftOpen = 0; // scopes still open at the frame's start (a modal dialog's frames): closed then
 };
 GlMarkerStack glMarkerStack;
 int glMarkerTool = -1; // a graphics debugger or a debugger in the process (vr_gl_markers 2), checked once with the GL
@@ -455,7 +456,7 @@ bool resolvePhases(PhaseGpuSlot& s)
 void endPhaseFrame(za::I64 now, za::I64 start, za::I64 end)
 {
     phaseGpuOpen = 0;
-    phaseStack.clear(); // a Host_Error jumped out of them, or a dialog's frame inside one
+    phaseStack.clear(); // a dialog's frame inside one (a Host_Error's were ended before its longjmp: onHostError)
     const double period = start > 0 ? static_cast<double>(now - start) / 1e6 : 0.0;
     const bool keep = start > 0 && period <= hitchMs;
     PhaseGpuSlot& s = phaseSlots[phaseSlot];
@@ -1163,6 +1164,24 @@ void end()
     endScope();
 }
 
+int openScopes()
+{
+    return glMarkerStack.depth; // (each main-thread begin pushes a level, whatever vr_profile is)
+}
+
+int onHostError()
+{
+    const int open = glMarkerStack.depth;
+    while(glMarkerStack.depth > 0) // (as end, each: Tracy's own stack is VR_TracyAbort's, after the longjmp)
+    {
+        glMarkerPop();
+        endPhase();
+        endScope();
+    }
+    vr_profile_inqc = 0; // (PR_ExecuteProgram's "quakec" scope among them)
+    return open;
+}
+
 void init()
 {
     VR_TracyInit();
@@ -1275,7 +1294,7 @@ extern "C" void VR_ProfileFrame()
     endPhaseFrame(now, frameStart, frameEnded ? frameEnd : now);
     const vr_profcounts_t counts = vr_profcounts; // the frame's (counted whatever vr_profile is)
     vr_profcounts = vr_profcounts_t{};
-    vr_profile_inqc = 0; // a Host_Error may have jumped out of a timed PR_ExecuteProgram
+    vr_profile_inqc = 0; // (a Host_Error's jump out of a timed PR_ExecuteProgram: onHostError cleared it already)
 
     if(cl.mapname[0])
     {
@@ -1288,7 +1307,7 @@ extern "C" void VR_ProfileFrame()
 
     if(active)
     {
-        while(!stack.empty()) // a Host_Error jumped out of them
+        while(!stack.empty()) // left open (a Host_Error's were ended before its longjmp: onHostError)
         {
             endScope();
         }

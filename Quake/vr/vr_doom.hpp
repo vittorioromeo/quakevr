@@ -19,6 +19,8 @@
 #include "vr_gfx.hpp"
 #include "vr_hands.hpp"
 
+#include "Zancle/String/String.hpp"
+
 namespace qvr::doom
 {
 
@@ -37,7 +39,7 @@ void closeFromButton();
 // The texture the gadget's screen shows meanwhile (renderScreen made it; 0: none yet) and its virtual screen's size.
 [[nodiscard]] gfx::Texture gadgetTexture();
 // Its target (vr_gadget_screen_dump writes it while Doom shows).
-[[nodiscard]] const gfx::Target& screenTarget();
+[[nodiscard]] const gfx::RenderTarget& screenTarget();
 // Draws Doom's screen into its texture, in the 2D pass (gadget::renderScreen): only while the gadget is shown.
 void renderScreen();
 // The floating panel (vr_doom_panel 1), in each eye's scene after the opaque entities (with the gadget's screen).
@@ -51,6 +53,8 @@ void drawPanel();
 // best found"), each row's text and help (its path), and picking one (vr_doom_wad; Doom restarted on it if running).
 [[nodiscard]] const char* menuStatus();
 [[nodiscard]] int wadCount();
+[[nodiscard]] int wadGeneration();     // the searches made so far (vr_doom_wads, Search Again): the page rebuilt after one
+[[nodiscard]] za::String dropInFolder(); // quakevr/doom/wads, where a player drops his WADs (the menu's test)
 [[nodiscard]] const char* wadRow(int i);
 [[nodiscard]] const char* wadHelp(int i);
 void pickWad(int i);

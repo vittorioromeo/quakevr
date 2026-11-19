@@ -45,6 +45,9 @@ void resetClients();
 
 // The avatars (QVR_SVC_AVATAR) this server has sent, those left unsent as unchanged (vr_net_avatar_keyframe), their bytes.
 void avatarCounts(int& sent, int& skipped, long long& bytes);
+// Every sound precached so far read for a loop (its cue point) now, while the map loads (VR_OnSpawnServerSpawned), not at
+// its first play in the game (a whole file read from disk there). A sound precached later still reads at its first play.
+void learnSoundLoops();
 
 // Head angles of `player`'s latest move, as a vec3_t (nullptr without one).
 [[nodiscard]] float* clientHeadAngles(struct edict_s* player);

@@ -24,6 +24,7 @@ void() HIP_powerup_touch =
     if(other.health <= 0)
         return;
 
+    item_taken = TRUE; // (itemTouch fires its targets: Hipnotic's own call here fired them a second time)
     sprint(other, "You got the ");
     sprint(other, self.netname);
     sprint(other,"\n");
@@ -58,9 +59,6 @@ void() HIP_powerup_touch =
       other.empathy_time = 1;
       other.empathy_finished = time + 30;
     }
-
-    activator = other;
-    SUB_UseTargets();                // fire all targets / killtargets
 };
 
 
@@ -111,6 +109,7 @@ void() horn_touch =
 
     self.solid = SOLID_NOT;
     self.model = string_null;
+    item_taken = ITEM_TAKEN_FIRED; // (taken; its targets fired here, charmed: itemTouch doesn't fire them again uncharmed)
    sprint(other, "You got the Horn of Conjuring\n");
    sound(other, CHAN_VOICE, self.noise, 1, ATTN_NONE);
     stuffcmd(other, "bf\n");

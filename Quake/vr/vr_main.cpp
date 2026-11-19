@@ -69,6 +69,7 @@
 #include "vr_handpose.hpp"
 #include "vr_held.hpp"
 #include "vr_holsterzones.hpp"
+#include "vr_hosterror.hpp"
 #include "vr_hotblade.hpp"
 #include "vr_carry2h.hpp"
 #include "vr_highlights.hpp"
@@ -87,11 +88,13 @@
 #include "vr_modelwatch.hpp"
 #include "vr_blender.hpp"
 #include "vr_ad.hpp"
+#include "vr_rules.hpp"
 #include "vr_mapinstall.hpp"
 #include "vr_mpdownload.hpp"
 #include "vr_relight.hpp"
 #include "vr_relight_tool.hpp"
 #include "vr_stealth.hpp"
+#include "vr_stereo.hpp"
 #include "vr_stereo_single.hpp"
 #include "vr_text3d.hpp"
 #include "vr_tips.hpp"
@@ -166,6 +169,7 @@
 #include "vr_foveated.hpp"
 #include "vr_jobs.hpp"
 #include "vr_gfx.hpp"
+#include "vr_glutil.hpp"
 #include "vr_monsterdata.hpp"
 #include "vr_props.hpp"
 #include "vr_propthink.hpp"
@@ -231,10 +235,6 @@
 using namespace qvr;
 
 extern "C" void TexMgr_MemStats(int* count, int* normalmaps, double* megabytes); // gl_texmgr.c
-namespace qvr::gfx
-{
-extern int targetsMade; // vr_gfx_gl.cpp
-}
 extern "C" int r_numactiveparticles; // r_part.c
 extern "C" cvar_t host_maxfps, vid_vsync, vid_refreshrate; // host.c, gl_vidsdl.c (the menu's status box)
 
@@ -283,6 +283,7 @@ void stopBackend()
     Con_Printf("VR: stopping %s backend\n", state->backend->name());
     state->backend->stop();
     state->backend.reset();
+    stereo::releaseTargets(); // the eye-sized GL objects (made again when the eyes are next drawn)
 }
 
 void startBackend()
@@ -380,7 +381,7 @@ void VR_Restart_f()
 }
 
 // vr_startgame's start, queued (Cbuf_InsertText): with VR enabled, the vrstart hub (tutorial, settings and the mission
-// packs' portals) as the old engine did, or the calibration room at a first start; otherwise the attract demos. A map or
+// packs' portals) as the old engine did, or the calibration room at a first start; otherwise (flat) the main menu. A map or
 // demo started from the command line runs instead of any.
 void startGameCommands()
 {
@@ -406,7 +407,12 @@ void startGameCommands()
         return;
     }
 
-    Cbuf_InsertText("startdemos demo1 demo2 demo3\n");
+    // No attract demos (the author's decision, 2026-11-19): flat goes straight to the main menu.
+    if(!sv.active && !cls.demoplayback && cls.state != ca_connected)
+    {
+        cls.demonum = -1; // not in a demo loop (CL_NextDemo after an explicit playdemo stays idle)
+        Cbuf_InsertText("menu_main\n");
+    }
 }
 
 // quake.rc's last command (startGameCommands), then the installer's first-start relight.
@@ -839,7 +845,7 @@ void sampleCounts()
     {
         c.beams += b.model && b.endtime >= cl.time ? 1.0 : 0.0;
     }
-    S_MixJoin(); // (the pool's mix done first: S_MixKick)
+    S_MixJoin(); // (a read of the channels on the main thread: the pool's mix done first, S_MixKick)
     for(int i = 0; i < MAX_DYNAMIC_CHANNELS + NUM_AMBIENTS && i < total_channels; i++)
     {
         c.channels += snd_channels[i].sfx ? 1.0 : 0.0;
@@ -1064,6 +1070,8 @@ void VR_MemStats_f()
         static_cast<double>(held.scratchBytes) / 1024.0, held.scratchSets, static_cast<double>(held.cacheBytes) / 1024.0,
         held.cacheSets);
     mem::printLargest(6);
+    Con_Printf("  VR    resets: %d with the server's world, %d with the client's state (vr_resets lists them in order)\n",
+        mem::resetCount(mem::ResetEvent::ServerWorld), mem::resetCount(mem::ResetEvent::ClientState));
 
     // Per frame since the last vr_memstats: the phases' times and the counts, as the log's columns.
     drainPhases();
@@ -1733,6 +1741,13 @@ void statusLines(za::Vector<za::String>& out)
     const char* runtimeKind = !vr ? "" : mock ? "no runtime" : (strstr(rt, "SteamVR") ? "SteamVR" : (strstr(rt, "VirtualDesktop") || strstr(rt, "VDXR")) ? "VDXR" : "other runtime");
     q_snprintf(line, sizeof(line), "%s%s%s", !vr ? "Flat screen" : mock ? "Mock VR" : "VR", vr ? " - " : "", runtimeKind);
     out.pushBack(za::String{line});
+    // GL safe mode (vr_glsafe.cpp): a warning line (white on red), the graphics' optional features off this run; the reason
+    // in the console and gl_startup.log, Debug > Startup's Retry Full Renderer (vr_glsafe_retry) to leave it.
+    if(VR_GLSafeMode())
+    {
+        out.pushBack(za::String{"! GL safe mode: reduced graphics"});
+        out.pushBack(za::String{"! Debug > Startup: why, and retry"});
+    }
     if(vr && !mock)
     {
         q_snprintf(line, sizeof(line), "%s", rt);
@@ -1889,13 +1904,7 @@ void statusLines(za::Vector<za::String>& out)
 
 int scaledEyeSize(int image, int max)
 {
-    const float scale = dynres::scale(); // (vr_render_scale's, or dynamic resolution's: vr_dynres.cpp)
-    int size = static_cast<int>(za::lround(static_cast<double>(image) * scale));
-    if(max > 0)
-    {
-        size = q_min(size, max);
-    }
-    return q_max(size, 16);
+    return dynres::eyeSize(image, max, dynres::scale()); // (vr_render_scale's, or dynamic resolution's: vr_dynres.cpp)
 }
 
 } // namespace qvr
@@ -2307,6 +2316,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_gun_wall_depth", handpose::gunWallDepth_f);
     hitmodel::registerDiagCommands(); // vr_hitmodel_bench, _stats, _check, vr_hitzones_check (vr_hitmodel_diag.cpp)
     qza::registerDiagCommands(); // vr_zancle_math_test (vr_zancle_diag.cpp)
+    mem::registerDiagCommands(); // vr_resets: the registered resets listed, traced, checked (vr_mem_diag.cpp)
     Cmd_AddCommand("vr_body_collide_bench", selfcollide::bench_f);
     wounds::registerDiagCommands(); // vr_wounds_test, _info, _dump, vr_gore_hands_*, vr_gore_wash_test... (vr_wounds_diag.cpp)
     Cmd_AddCommand("vr_gore_dents_info", dents::info_f);
@@ -2359,6 +2369,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_foveated_gaze_test", foveated::gazeTest_f); // (vr_foveated.cpp: eye-tracked foveation)
     allocsites::registerCommands(); // vr_alloc_sites
     Cmd_AddCommand("vr_crash_test", VR_CrashTest_f);
+    hosterror::registerCommands(); // vr_hosterror_test (vr_hosterror.cpp)
     lighting::init();
     gfxpresets::init(); // vr_graphics_preset, My Settings (vr_gfxpresets.cpp)
     gorepresets::init(); // vr_gore_preset, vr_gore_preset_status, vr_gore_preset_test (vr_gorepresets.cpp)
@@ -2367,6 +2378,7 @@ extern "C" void VR_Init()
     flatlook::init(); // vr_flatlook_info (vr_flatlook.cpp)
     visor::init();    // vr_flat_visor_report, vr_flat_visor_fx (vr_visor.cpp)
     stereosingle::init(); // vr_stereo_single_info
+    stereo::init(); // vr_stereo_targets_test
     timescale::init(); // vr_slowmo
     Cvar_SetCallback(&vr_map_liquid_alpha, [](cvar_t*) { R_UpdateLiquidAlpha(); }); // gl_rmisc.c: the liquids' alphas again
     envmap::init(); // vr_envmap_dump
@@ -2382,6 +2394,7 @@ extern "C" void VR_Init()
     modelwatch::registerCommands(); // vr_model_watch_status (vr_modelwatch.cpp)
     blender::registerCommands(); // vr_edit_in_blender, vr_model_show, vr_blender_test (vr_blender.cpp)
     ad::registerCommands(); // vr_ad_info (vr_ad.cpp: Arcane Dimensions)
+    rules::registerCommands(); // vr_ruleset_info (vr_rules.cpp: the map's ruleset)
     mapinstall::registerCommands(); // maps_get, maps_install, maps_installed, maps_uninstall
     mapinstall::start(); // the installed-map list read (vr_mapinstall.cpp): nothing is downloaded here: nothing here waits
     relight::registerCommands(); // vr_relight, vr_relight_cancel, vr_relight_revert... (vr_relight.cpp)

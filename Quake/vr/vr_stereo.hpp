@@ -2,8 +2,36 @@
 
 #pragma once
 
+#include <glm/glm.hpp>
+
+struct glframebufs_s; // (the engine's: glquake.h; at global scope, also where this header is included before it)
+
 namespace qvr::stereo
 {
+
+void init(); // its commands (vr_stereo_targets_test)
+
+// VR stopped (vr_main.cpp stopBackend: vr_enabled 0, the session lost, a restart): every eye-sized GL object freed (the
+// eyes' and the spectator camera's scene targets, the views through teleporters', the resample target, single-pass
+// stereo's arrays, the particles', TAA's, the glow's, the haze's, the scene distances', the upscaler's), made again
+// when the eyes are next drawn.
+void releaseTargets();
+
+// The view being drawn (an eye, the spectator camera, a view through a gate; outside them, the window's): the size its
+// targets are allocated at, and the bottom left part of them this frame draws. They differ under dynamic resolution
+// (vr_dynres.hpp: the eyes' targets allocated once at its ceiling, a smaller part drawn below it). While the view is
+// drawn the engine holds them in vid.width/vid.height (allocated: the size its framebuffers are made and read at) and
+// glwidth/glheight, r_refdef.vrect (drawn: the viewports); a pass reads the one it means here.
+struct ViewSize
+{
+    int allocatedWidth = 0, allocatedHeight = 0;
+    int drawnWidth = 0, drawnHeight = 0;
+};
+[[nodiscard]] ViewSize viewSize();
+
+// QvrViewUV's map (vr_viewuv_glsl.h) of a texture allocatedWidth x allocatedHeight of which the bottom left drawnWidth x
+// drawnHeight is read: drawn / allocated (exactly 1 when whole), half a texel, in its uv.
+[[nodiscard]] glm::vec4 viewUvMap(int drawnWidth, int drawnHeight, int allocatedWidth, int allocatedHeight);
 
 [[nodiscard]] bool isRenderingEye();
 [[nodiscard]] int eye(); // 0 left, 1 right; valid while rendering an eye
@@ -23,7 +51,7 @@ namespace qvr::stereo
 void setCurrentEye(int eye);
 void drawHiddenAreaOf(int eye);
 void eyeSceneFormats(unsigned& color, unsigned& depth);
-[[nodiscard]] const struct glframebufs_s& eyeFramebufs();
+[[nodiscard]] const ::glframebufs_s& eyeFramebufs();
 [[nodiscard]] unsigned eyeTargetsGeneration();
 
 } // namespace qvr::stereo

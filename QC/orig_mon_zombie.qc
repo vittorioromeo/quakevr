@@ -743,7 +743,7 @@ If crucified, stick the bounding box 12 pixels back into a wall to look right.
 */
 void() monster_zombie =
 {
-    if(MG_MonsterInhibited()) return;
+    if(VR_SF_SpawnInhibited()) return;
     VR_Knockdown_SetupOwn(cvarh_vr_knockdown_chance_zombie, $paine12, zombie_paine13); // VR: knocked down (vr_knockdown.qc): lying: paine13 on rises
     if(deathmatch)
     {

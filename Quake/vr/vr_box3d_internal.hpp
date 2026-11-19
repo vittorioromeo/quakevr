@@ -105,6 +105,29 @@ using qvr::b3glm::toB3;
 
 using qvr::geom::smooth01;
 
+// The hulls made for models, by what they were made from (and the world's scale).
+struct PropHullKey
+{
+    const qmodel_t* model;
+    int frame;
+    za::Array<float, 6> box;
+    bool operator==(const PropHullKey&) const = default;
+};
+
+struct PropHullKeyHash
+{
+    [[nodiscard]] za::U64 operator()(const PropHullKey& k) const
+    {
+        za::U64 h = ankerl::unordered_dense::hash<const void*>{}(k.model) ^ (static_cast<za::U64>(static_cast<za::U32>(k.frame)) * 0x9E3779B97F4A7C15ull);
+        for(const float f : k.box)
+        {
+            // (+ 0.f: -0 and +0 are one key, as they are equal)
+            h = (h ^ ZA_BIT_CAST(za::U32, f + 0.f)) * 0x100000001B3ull;
+        }
+        return h;
+    }
+};
+
 // The sync's buffers (the server's frame: the main thread; Box3D steps with one worker, the caller's).
 struct Box3dScratch
 {
@@ -116,7 +139,15 @@ struct Box3dScratch
     za::Vector<glm::vec4> palmPatch;   // a hand's palm, points on its skin (handFit: a limb taken; in the world, w: -radius)
     za::Vector<glm::vec4> fistPatch;   // and its closed hand's spheres (held::fist), the same
     za::Vector<glm::vec3> magVerts;    // a gun's seated magazine's drawn vertices (magazineHull)
-    auto members() { return qvr::mem::list(propVerts, actorVerts, corners, carried, pushContacts, palmPatch, fistPatch, magVerts); }
+    // A prop's contacts, all of them (supportsOf, noteBraces: a drawn fist touches in dozens; its recursion asks after its
+    // loop, when the buffer is free again).
+    za::Vector<b3ContactData> braceContacts;
+    za::Vector<PropHullKey> propHullsGone; // the prop hulls' keys let go (trimPropHulls)
+    auto members()
+    {
+        return qvr::mem::list(propVerts, actorVerts, corners, carried, pushContacts, palmPatch, fistPatch, magVerts, braceContacts,
+            propHullsGone);
+    }
 };
 inline mem::Scratch<Box3dScratch> scratch{"box3d"};
 
@@ -241,6 +272,12 @@ struct Slot // what one edict is in the world (by its number)
     // frame changes is the same corpse).
     glm::vec3 lastMid{0.f};
     bool midKnown{false};
+    // Its body asleep away from every gate (syncPortalCopies; portals::nearGate): that body, where it lay and the gates as
+    // built then. While all three stay so, no gate can take it: it is not looked at (no box, no gate test) until it
+    // wakes or something moves it. A body asleep astride a gate is looked at every step, as an awake one (its copy).
+    b3BodyId restBody{b3_nullBodyId};
+    b3WorldTransform restPose{};
+    unsigned restGates{0};
 
     // Props, held and fixtures: the settings (shapeGeneration) and the entity's box its drawn box and Mass were last
     // found the same at (stale): looked at again only when one of them changes.
@@ -422,31 +459,10 @@ struct Recovery
 [[nodiscard]] bool partCut(const RagdollBodies& r, int b);
 [[nodiscard]] int partsLeft(const RagdollBodies& r);
 
-// The most shapes a body has (a gun's convex pieces: vr_box3d_gun_pieces, at most this).
+// The most shapes a body has: a gun's convex pieces (vr_box3d_gun_pieces, at most maxGunPieces) and its seated magazine's
+// hull; a thrown blade's pieces and the skewered gibs' spheres on it (addSkeweredShapes: none past this).
 constexpr int maxBodyShapes = 32;
-
-// The hulls made for models, by what they were made from (and the world's scale).
-struct PropHullKey
-{
-    const qmodel_t* model;
-    int frame;
-    za::Array<float, 6> box;
-    bool operator==(const PropHullKey&) const = default;
-};
-
-struct PropHullKeyHash
-{
-    [[nodiscard]] za::U64 operator()(const PropHullKey& k) const
-    {
-        za::U64 h = ankerl::unordered_dense::hash<const void*>{}(k.model) ^ (static_cast<za::U64>(static_cast<za::U32>(k.frame)) * 0x9E3779B97F4A7C15ull);
-        for(const float f : k.box)
-        {
-            // (+ 0.f: -0 and +0 are one key, as they are equal)
-            h = (h ^ ZA_BIT_CAST(za::U32, f + 0.f)) * 0x100000001B3ull;
-        }
-        return h;
-    }
-};
+constexpr int maxGunPieces = maxBodyShapes - 1; // (the magazine's one more)
 
 // The guns' convex pieces (gunPieces) as made, in model units, kept from map to map (made again only when the models'
 // slots or the VR models change: their pointers are the keys): a gun first picked up on a map took 35 to 60 ms to cut
@@ -915,6 +931,7 @@ inline ToolRecords toolRecords;
 constexpr za::SizeT stepSamplesMax = 1u << 16; // vr_physics_steptime's frames kept (15 minutes at 72 Hz)
 inline double serverPhysicsStart = 0.0; // SV_Physics's world's turn this frame (Sys_DoubleTime; noteServerPhysicsStart)
 inline bool frameTiming = false;        // vr_physics_frametime asked for once: its samples kept from then on
+inline bool stepTiming = false;         // vr_physics_steptime asked for once: its samples kept from then on (512 KB a world)
 inline double frameLastWall = 0.0;      // vr_physics_frametime: the wall clock when it last printed
 inline int frameLastHostFrame = 0;      // and at which host frame
 void* enqueueStepTask(b3TaskCallback* fn, void* context, void* user, const char* /*name*/);
@@ -1038,7 +1055,7 @@ void joinHeldGuns(const qmodel_t* model, bool all);
 template <typename Corners>
 [[nodiscard]] const za::Vector<b3HullData*>& gunPieces(const PropHullKey& key, Corners&& corners)
 {
-    const int most = za::min(static_cast<int>(vr_box3d_gun_pieces.value), maxBodyShapes);
+    const int most = za::min(static_cast<int>(vr_box3d_gun_pieces.value), maxGunPieces);
     if(most != world->gunPiecesMost) // (the setting changed: made again, for the guns made from now on)
     {
         for(auto& [made, hulls] : world->gunPieces)
@@ -1448,6 +1465,10 @@ void pressTest_f();    // vr_prop_press_test (vr_box3d_presstest.cpp)
 void pressTestFrame(); // (its next step, each server frame)
 void strikeTest_f();    // vr_prop_strike_test (vr_box3d_striketest.cpp)
 void strikeTestFrame(); // (its next step, each server frame)
+void portalSleepTest_f();    // vr_physics_portal_sleep_test (vr_box3d_portaltest.cpp)
+void portalSleepTestFrame(); // (its next phase, each server frame)
+void gunShapesTest_f();      // vr_physics_gun_shapes_test (vr_box3d_portaltest.cpp)
+void gunShapesTestFrame();   // (its next phase, each server frame)
 [[nodiscard]] bool wanted();
 [[nodiscard]] b3BodyId toolJointBody(int num);
 void syncToolJoints();

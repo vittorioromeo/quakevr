@@ -12,7 +12,13 @@ void() itemTouch =
         return;
 
     //self.touch = self.th_die;
+    item_taken = FALSE;
     self.th_die();
+
+    // Not taken (full health, ammo at the cap, a key held, a hand that doesn't grip): nothing fires, no secret is found
+    // and no respawn is set (id's pickups fired their targets only once they took the item).
+    if(!item_taken)
+        return;
 
     if(VR_GameUtil_EnableHoneyExtensions())
     {
@@ -36,6 +42,9 @@ void() itemTouch =
         self.nextthink2 = time + self.wait;
         self.think2 = SUB_regen;
     }
+
+    if(item_taken == ITEM_TAKEN_FIRED)
+        return; // (its pickup fired them: the horn's)
 
     activator = other;
     SUB_UseTargets();                // fire all targets / killtargets

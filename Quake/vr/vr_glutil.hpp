@@ -4,8 +4,21 @@
 
 #include "vr_engine.hpp"
 
+#include "Zancle/String/String.hpp"
+
 namespace qvr::gfx
 {
+
+// The full-screen triangle's vertex shader (no inputs: gl_VertexID's three corners cover the viewport), the one the
+// VR module's full-screen passes share (bloom, dynres, flatlook, foveated, the mirror, TAA's apply, upscale, the visor,
+// the water's distances).
+inline constexpr const char* fullscreenTriangleVs = R"(#version 430
+void main()
+{
+    ivec2 v = ivec2(gl_VertexID & 1, gl_VertexID >> 1);
+    gl_Position = vec4(vec2(v) * 4.0 - 1.0, 0.0, 1.0);
+}
+)";
 
 // Links a program of vertex shader `vs` and fragment (or compute) shader `fs` (either may be 0: not attached), then
 // deletes the shaders. A failed link warns with the info log, deletes the program and gives 0; else the program,
@@ -34,10 +47,11 @@ void ownDeferred(GLuint& program, bool* failed);
 // Whether the framebuffer bound to GL_FRAMEBUFFER is complete.
 [[nodiscard]] bool boundFramebufferComplete();
 
-// How a RenderTarget's texture is made (one level, bilinear).
+// How a RenderTarget's texture is made (one level, bilinear; or with mipmaps, trilinear).
 struct RenderTargetFormat
 {
     GLenum internalFormat{GL_RGBA8};
+    bool mipmaps{false};          // a whole mipmap chain (filtered trilinearly; rebuilt by its user: end2D, Shade::Screen's glow)
     bool depth{false};            // a depth texture: the depth attachment, no draw or read buffer
     bool shadowCompare{false};    // sampled as a shadow map (compared to the reference: lit where GEQUAL)
     bool clampToEdge{true};       // else the default wrap (repeat)
@@ -45,18 +59,26 @@ struct RenderTargetFormat
     const char* fboName{nullptr}; // the framebuffer's label (none: unlabelled)
 };
 
-// A texture with a framebuffer drawing into it, made for a size (the effects' offscreen targets).
+// A texture with a framebuffer drawing into it, made for a size (the effects' offscreen targets, the panels' canvases,
+// the in-world screens and boards).
 struct RenderTarget
 {
     GLuint tex{0};
     GLuint fbo{0};
     int width{0};
     int height{0};
+    int levels{1}; // its mipmap levels (RenderTargetFormat::mipmaps: more than 1)
 
-    // Made for width x height (kept when it already is; texture unit 0 left unbound, its framebuffer left bound),
-    // `name` the texture's label. False, and empty, when the framebuffer is incomplete (the caller warns).
+    // Made for width x height (kept when it already is, with as many levels; texture unit 0 left unbound, its
+    // framebuffer left bound), `name` (a literal) the texture's label and what it counts as (targetsMadeByName). False,
+    // and empty, when the framebuffer is incomplete (the caller warns).
     [[nodiscard]] bool ensure(int w, int h, const RenderTargetFormat& format, const char* name);
     void destroy();
 };
+
+// How many times RenderTargets were (re)made so far (vr_memstats: steady in play, not a frame), and by name, as
+// "name:count" words.
+extern int targetsMade;
+[[nodiscard]] za::String targetsMadeByName();
 
 } // namespace qvr::gfx

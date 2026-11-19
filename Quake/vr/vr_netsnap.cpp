@@ -11,6 +11,7 @@
 #include "vr_protocol.hpp"
 #include "vr_progs.hpp"
 #include "vr_testkit.hpp"
+#include "vr_mem.hpp"
 
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -1761,6 +1762,12 @@ void clientClear()
         h.model = nullptr;
     }
 }
+
+namespace
+{
+// Forgotten when the client's state is cleared (vr_mem.hpp's resets): no snapshot read: the server's next whole, B7b; the interpolation buffer empty.
+mem::Reset clientStateReset{"netsnap", mem::ResetEvent::ClientState, mem::ResetPhase::State, &clientClear};
+} // namespace
 
 ClientCounts clientCounts()
 {

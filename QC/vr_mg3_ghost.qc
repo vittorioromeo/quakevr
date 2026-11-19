@@ -176,7 +176,7 @@ Dawn of the Machine's ghost: a player's ghost drifting about where it stands ('w
 */
 void() monster_ghost =
 {
-    if(MG_MonsterInhibited()) return;
+    if(VR_SF_SpawnInhibited()) return;
     if(deathmatch)
     {
         remove(self);

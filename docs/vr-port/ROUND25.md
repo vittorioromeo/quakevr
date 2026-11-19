@@ -5311,3 +5311,80 @@ and MP-only parts left on their branches.
 - **In VR**: a deathmatch with bots: give one a sword (it swings overhead; hold your weapon level across to parry);
   swing at a bot holding a melee weapon (it raises its guard more often at a higher `skill`); give it two pairing guns.
   Coop: Add Co-op Bot, play e1m1 to the exit: it fights beside you and is on e1m2 with what it had.
+## Shader quick wins reviewed (branch shader-quick-wins / agent/shaderwins, 2026-11-19)
+
+- Image check, fixed frames, seeded particles and server (start, e1m1 + Quake and particle2 explosions, e1m3, e2m1,
+  vrteleporters at a gate, e1m1 under water), merge base 0e973d4ae vs the branch, 960x540 shots: bloom off, TAA off
+  max diff 1 (identical); TAA on max 3 (the 3x3's summation order); bloom on (0.08): max 60, mean -0.03..-0.16
+  levels, darker only: the bright pass's taps now bilinear (the max of four 2x2 means, as its comment meant), so a
+  one-texel highlight blooms a quarter as much (torches, explosions). Intended; the only visible change.
+- Checked by reading: the Bayer formula (all 16 entries), the wave constants (k, sqrt(200 k), 1/k), dither gates on a
+  uniform (0 times the noise is 0), gamma 1 without pow, the water branch's colour, the TAA gather (b and b+1, R32F
+  clamp-to-edge, one level), the textureLod targets (wounds, haze copy, portal array, resolved scene, liquid volume:
+  one level each), the particles' gate in the VS (world centre = the FS's in_pos + EyePos), sprites' discard after
+  the derivatives, the wound subtract's blood uniforms (QvrBloodAlpha exactly 0).
+- Fix: the virtual screen's screen() called textureQueryLod directly, a line agent/quest's merge would have taken
+  silently (ES has none; quest uses queryLod()). One helper, sharpLod(), on the line quest changed: the merge stops
+  there. Merging quest now conflicts in gl_shaders.c (GL_DeferredCheck: keep quest's GL_DeferredCheckOne and add the
+  storage-block limits to its link message) and vr_gfx_gl.cpp (sharpLod: quest's queryLod()).
+## No attract demos; the hand-off reports closed (branch agent/nodemos, 2026-11-19)
+
+- His decision: the attract demos never play (PC and Quest, VR and flat). `Host_Startdemos_f` (host_cmd.c) only
+  queues `menu_main` and leaves `cls.demonum` -1, whatever `cl_startdemos` says (the cvar stays registered so old
+  configs load; ignored); it covers id1's or a mod's quake.rc. Our quake.rc's `vr_startgame` (startGameCommands,
+  vr_main.cpp) no longer queues `startdemos` when flat: `menu_main`, `cls.demonum` -1. The menu's "Start Demos"
+  row is removed (menu.c). Ironwail has no menu-idle demo timer; `CL_NextDemo` (after a demo, Host_EndGame) stays
+  idle with `demonum` -1. `playdemo`, `timedemo` and the console's `demos` still work.
+- Check (flat, mock): `vr_enabled 0; vr_startgame; startdemos demo1 demo2 demo3`: "3 demo(s) in loop", no
+  "Playing demo"; then `timedemo demo1`: 1834 frames, 72.0 fps (fixed frames).
+- BACKLOG.md section 1: the tester's two hand-off reports closed (checked: the designed `vr_2h_handoff`, kept by his
+  decision, no hints; the toss not reproduced), a short "checked, by design" note in the header.
+
+## Dwell and Copper, Phase 0: analysis, plan, probe, simplification audit (branch agent/dwell, 2026-11-19)
+
+- `docs/vr-port/DWELL.md` (new, modelled on ARCANE_DIMENSIONS.md): licence (no Dwell licence text, ripped Serious Sam
+  models in the credits: read in place only, never hosted; Copper GPL-2), source strategy (ask the Dwell team, rebuild
+  Dwell's entities on Copper's public source, the fteqcc decompile as behaviour reference only), inventory, Copper's
+  rules, assets, music, detection, the probe, the installer, the simplification audit (S1-S7) and the phased plan.
+- `Misc/quakevr/dwell_scan.py` (new): the Dwell/Copper tables (classes, per map, assets, music, detection over official,
+  AD and installed package maps, decompile vs Copper functions). Raw output in scratch, not committed.
+- Probe (headless, fast mode): an unknown `-game dwell` folder is dropped by the campaign switch at `map` (a campaign
+  entry is needed); with Dwell packed into the agent's id1 for the probe, 23/24 maps load and run 300 frames, `d2end`
+  stops on `Host_Error: ED_ParseEdict` (a `"think" "bmodel_vanish"` key naming a QC function we lack), 2,594 placements
+  of 42 classnames have no spawn function.
+- Found on the way: `origin/next` 0247871ec did not build (clang `-Wunused-lambda-capture`, vr_menu.cpp's Doom page
+  `wadRows` capturing a constant `page`): `[&]` now.
+
+## Rulesets: Dwell P0.5, the amalgamation simplification S1-S3 (branch agent/rulesets, 2026-11-19)
+
+- His answers to DWELL.md section 10 ("Yes, all six") are DWELL.md section 11. What was built is DWELL.md 8.1.
+- **One ruleset id**: `vr_ruleset` (0 Quake, 1 MG, 2 AD, 3 Copper), found before each spawn by `Quake/vr/vr_rules.cpp`:
+  the campaign's own ruleset, else every detecting row's signals scored together (AD's old detector is its row; Copper's
+  row detects nothing yet). QC `VR_Ruleset()`/`VR_RULES_*`; `AD_Rules()`, `MG_WorldCampaign()` read it; `vr_ad_rules`
+  stays as AD's row. `vr_ruleset_info` prints the verdict and each row's signals.
+- **One spawn rule**: `VR_Rules_SpawnName` picks the version of a classname for `ED_SpawnFunction` and the toolgun.
+- **One spawn filter**: `VR_SF_SpawnInhibited()` (the map ruleset's coop bits from `VR_SF_Bit`, MG3's runes) replaces
+  `MG_MonsterInhibited()`; Copper's spawnflag column is in the table, inert.
+- **Proof**: an A/B spawn census (scratch `rs_census.sh`, `rs_compare.py`: every campaign's maps and AD's, 168 saves 3
+  frames after spawn with `sv_random_seed 7`, compared field by field, cvar-handle globals aside): two base runs
+  identical, then S1, S2, S3 each identical to the base; MG's 58 maps in coop identical before and after S3. No MG or
+  Dopa map has an AD signal (so the campaign-first order changes nothing).
+- Skipped: S4 (the status cvars carry four states read by menus and tests: a bitmask would be added, not replace them)
+  and `MG_WorldGuard` as an engine row (a silent QC removal would become a refused spawn function).
+## Installer: the Dwell component (agent/dwellinstall, 2026-11-19)
+
+- `Packaging/ModComponent.cs` is the one third-party mod path (spec + install/plan/add-async/uninstall clearing);
+  `ArcaneDimensions` and the new `Dwell` are specs over it (no AD behaviour change; its types renamed
+  `ModAction`/`ModOutcome`/`ModCopy`/`ModCopyState`). CLI (`--ad`, `--dwell`) and the window's VM share one step each.
+- Dwell: `BuiltInComponents.Dwell()` (= `support_assets.json` `thirdParty.dwell`), `Dwell.OnByDefault = false` (the one
+  flag), install into `dwell/` with `Track107.ogg` renamed, existing-copy check by progs.dat SHA-256. Details: Installer
+  README "Dwell". Self-tests: 4 new `dwell:` tests (the real zip is read from `qvr-kit/downloads/dwell/`, no network).
+- Known, not mine: self-test `packs: ... hipnotic list from the engine's .inc: expected <100>, got <99>` fails on this base.
+
+## toolgunspawns
+- The toolgun's Weapons list lacked the grappling gun (WID_GRAPPLE 1): added "Grappling Gun" (vr_toolgun_packs.inc,
+  appended so numbers stay; spawn-all test: alive). Audit of the QC spawn functions against the lists (id, Hipnotic,
+  Rogue, MG1/MG3, AD, VR's own): nothing else a player would place was missing. Left out on purpose: bosses
+  (monster_boss, oldone, Chthon), item_flag*/time machine (Rogue map pieces), item_head_hellknight (MG3 campaign trophy),
+  monster_decoy (made by its Hipnotic weapon). New `qvr_checks toolgun_weapons`: every WID_* has a Weapons row (exempt:
+  fist, AD eliminator).

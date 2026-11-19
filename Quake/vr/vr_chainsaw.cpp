@@ -590,6 +590,13 @@ void reset()
     cord.hide();
 }
 
+namespace
+{
+// Forgotten when the client's state is cleared (vr_mem.hpp's resets): the chainsaw (its handle keyed by a model a new
+// map may load elsewhere).
+mem::Reset clientStateReset{"chainsaw", mem::ResetEvent::ClientState, mem::ResetPhase::State, &reset};
+} // namespace
+
 bool holds(int hand)
 {
     return st.holder == hand;

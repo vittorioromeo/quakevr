@@ -160,6 +160,7 @@ qboolean SNDDMA_Init (dma_t *dma)
 		SDL_AudioSpec defspec;
 		memset (&snd_default, 0, sizeof (snd_default));
 		SDL_zero (defspec);
+#if SDL_VERSION_ATLEAST (2, 24, 0) // (SDL_GetDefaultAudioInfo: older system SDLs, e.g. Ubuntu 22.04's 2.0.20, name the first device)
 		if (SDL_GetDefaultAudioInfo (&defname, &defspec, SDL_FALSE) == 0)
 		{
 			q_strlcpy (snd_default.name, defname ? defname : "(default)", sizeof (snd_default.name));
@@ -168,6 +169,10 @@ qboolean SNDDMA_Init (dma_t *dma)
 			SDL_free (defname);
 		}
 		else
+#else
+		(void)defname;
+		(void)defspec;
+#endif
 		{
 			device = SDL_GetAudioDeviceName (0, SDL_FALSE);
 			q_strlcpy (snd_default.name, device ? device : "(UNKNOWN)", sizeof (snd_default.name));

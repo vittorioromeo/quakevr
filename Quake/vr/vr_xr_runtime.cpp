@@ -27,6 +27,7 @@
 #include <unistd.h>
 #endif
 
+#include <atomic>
 #include <ctype.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -416,6 +417,26 @@ struct Environment
         }
     }
     return false;
+}
+
+// SteamVR's logs folder (~/.local/share/Steam/logs, the native Steam's): "writable", "read-only" or "none" (no such
+// folder). vrclient, loaded in the game's process, writes its log there (vrclient_ironwail.txt) and fails to start
+// without it (-51; GitHub #82): the Flatpak shares the Steam folder read-only, its logs folder written (the manifest's
+// --filesystem=xdg-data/Steam/logs, from 2026-11-18). (HOME, not XDG_DATA_HOME: the Flatpak points that at its own.)
+[[nodiscard]] const char* steamLogsAccess()
+{
+    const char* home = getenv("HOME");
+    if(!home || !*home)
+    {
+        return "none";
+    }
+    const char* dir = va("%s/.local/share/Steam/logs", home);
+    struct stat st{};
+    if(stat(dir, &st) != 0 || !S_ISDIR(st.st_mode))
+    {
+        return "none";
+    }
+    return access(dir, W_OK) == 0 ? "writable" : "read-only";
 }
 
 // The /dev/shm entries that look like SteamVR's, OpenVR's or Steam's (for the report: what a running SteamVR leaves
@@ -1352,6 +1373,12 @@ void describe()
             sandboxSharesShm() ? "shared with the host"
                                : "the sandbox's own (SteamVR's IPC needs the host's: flatpak override --user "
                                  "--device=shm io.github.vittorioromeo.QuakeVR)");
+        const char* logs = steamLogsAccess();
+        note("  Flatpak sandbox: SteamVR's logs folder (~/.local/share/Steam/logs) %s\n",
+            !strcmp(logs, "read-only") ? "read-only (SteamVR's client needs to write it: flatpak override --user "
+                                         "--filesystem=xdg-data/Steam/logs io.github.vittorioromeo.QuakeVR)"
+            : !strcmp(logs, "none")    ? "not found (no native Steam's SteamVR)"
+                                       : "writable");
     }
     note("  /dev/shm, SteamVR's or OpenVR's: %s\n", vrShmEntries().cStr());
 #endif
@@ -1514,7 +1541,7 @@ za::String foreignArch(const char* manifest)
 bool loaderDebugSet = false;
 
 #ifndef _WIN32
-// Linux: the loader's (and the runtime's) stdout and stderr while it loads a runtime, caught in a temporary file
+// Linux: the loader's (and the runtime's) stdout and stderr while it loads a runtime, caught in qvr_openxr_loader.txt
 // (captureLoaderOutput .. endLoaderOutput).
 struct LoaderCapture
 {
@@ -1523,6 +1550,10 @@ struct LoaderCapture
     int savedErr = -1;
 };
 LoaderCapture loaderCapture;
+// The terminal's stdout and stderr (the dups) while they are caught, -1 otherwise: VR_TerminalFd's, read by the start-up
+// watchdog's thread and the crash handler (a lock-free int: signal-safe).
+std::atomic<int> terminalOut{-1};
+std::atomic<int> terminalErr{-1};
 #endif
 
 } // namespace
@@ -1551,7 +1582,12 @@ void loaderDebug()
 #endif
 }
 
-void captureLoaderOutput()
+const char* loaderOutputPath()
+{
+    return va("%s/qvr_openxr_loader.txt", com_gamedir);
+}
+
+void captureLoaderOutput(const char* call)
 {
 #ifndef _WIN32
     LoaderCapture& c = loaderCapture;
@@ -1561,15 +1597,27 @@ void captureLoaderOutput()
     }
     fflush(stdout);
     fflush(stderr);
-    c.file = tmpfile();
+    c.file = fopen(loaderOutputPath(), "w+b");
     if(!c.file)
     {
         return;
     }
+    char when[32] = "";
+    const time_t now = time(nullptr);
+    if(const tm* t = localtime(&now))
+    {
+        strftime(when, sizeof(when), "%Y-%m-%d %H:%M:%S", t);
+    }
+    fprintf(c.file, "== %s, %s: the OpenXR loader's and the runtime's stdout and stderr while it runs\n", call, when);
+    fflush(c.file);
     c.savedOut = dup(STDOUT_FILENO);
     c.savedErr = dup(STDERR_FILENO);
+    terminalOut.store(c.savedOut, std::memory_order_release); // (before the redirect: the terminal stays reachable)
+    terminalErr.store(c.savedErr, std::memory_order_release);
     dup2(fileno(c.file), STDOUT_FILENO);
     dup2(fileno(c.file), STDERR_FILENO);
+#else
+    (void)call;
 #endif
 }
 
@@ -1586,13 +1634,22 @@ void endLoaderOutput(const char* call, bool failed)
     if(c.savedOut >= 0)
     {
         dup2(c.savedOut, STDOUT_FILENO);
-        close(c.savedOut);
     }
     if(c.savedErr >= 0)
     {
         dup2(c.savedErr, STDERR_FILENO);
+    }
+    terminalOut.store(-1, std::memory_order_release); // (fds 1 and 2 the terminal's again: the dups no longer needed)
+    terminalErr.store(-1, std::memory_order_release);
+    if(c.savedOut >= 0)
+    {
+        close(c.savedOut);
+    }
+    if(c.savedErr >= 0)
+    {
         close(c.savedErr);
     }
+    fflush(c.file);
     rewind(c.file);
     char line[1024];
     char last[1024] = "";
@@ -1600,8 +1657,9 @@ void endLoaderOutput(const char* call, bool failed)
     while(fgets(line, sizeof(line), c.file))
     {
         line[strcspn(line, "\r\n")] = 0;
-        // (With XR_LOADER_DEBUG the loader writes each error to stderr and stdout both: once.)
-        if(!line[0] || !strcmp(line, last))
+        // (With XR_LOADER_DEBUG the loader writes each error to stderr and stdout both: once. The file's own header
+        // line, "== <call>, <time>: ...", not.)
+        if(!line[0] || !strcmp(line, last) || !strncmp(line, "== ", 3))
         {
             continue;
         }
@@ -1647,9 +1705,15 @@ void runtimeUnavailable(const Attempt& attempt)
         note("  The Flatpak sandbox has its own /dev/shm, where SteamVR's client looks for its server: run 'flatpak "
              "override --user --device=shm io.github.vittorioromeo.QuakeVR' and start the game again.\n");
     }
+    const bool logsReadOnly = env.sandbox && !strcmp(steamLogsAccess(), "read-only");
+    if(logsReadOnly)
+    {
+        note("  The Flatpak can't write SteamVR's logs folder, which SteamVR's client needs: run 'flatpak override "
+             "--user --filesystem=xdg-data/Steam/logs io.github.vittorioromeo.QuakeVR' and start the game again.\n");
+    }
     note("  The loader's messages: qvr_openxr.txt (all of them with vr_xr_debug 1, set before VR starts); SteamVR's: "
          "~/.local/share/Steam/logs (vrserver.txt, vrclient_*.txt)%s.\n",
-        env.sandbox ? ", which the Flatpak only reads" : "");
+        logsReadOnly ? ", which the Flatpak only reads" : "");
     note("  Other runtimes: Monado, WiVRn (docs/vr-port/LINUX.md, \"SteamVR\").\n");
 #endif
 }
@@ -1932,3 +1996,23 @@ const char* statusLine()
 }
 
 } // namespace qvr::xrruntime
+
+// The terminal's own stdout (1) or stderr (2) while the OpenXR loader's output is caught (captureLoaderOutput): the
+// start-up watchdog's "still in" lines and the crash report reach it during a hang or a crash inside the call; -1 when
+// nothing is caught (fds 1 and 2 are the terminal's then). Signal-safe (an atomic int's load).
+extern "C" int VR_TerminalFd(int fd)
+{
+#ifndef _WIN32
+    if(fd == 1)
+    {
+        return qvr::xrruntime::terminalOut.load(std::memory_order_acquire);
+    }
+    if(fd == 2)
+    {
+        return qvr::xrruntime::terminalErr.load(std::memory_order_acquire);
+    }
+#else
+    (void)fd;
+#endif
+    return -1;
+}

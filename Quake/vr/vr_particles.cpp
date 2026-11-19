@@ -854,6 +854,12 @@ void clear()
     }
 }
 
+namespace
+{
+// Forgotten when the client's state is cleared (vr_mem.hpp's resets): the particles.
+mem::Reset clientStateReset{"particles", mem::ResetEvent::ClientState, mem::ResetPhase::State, &clear};
+} // namespace
+
 
 // ---- Shoreline foam particles (vr_water_foam_particles, vr_lava_foam_*, vr_slime_foam_*) ---------------------------
 // Small puffs of foam (CellFoam, facing the view) along the shore, where the shader's foam band (LiquidFoam) meets the

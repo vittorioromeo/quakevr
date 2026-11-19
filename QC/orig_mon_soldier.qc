@@ -362,7 +362,7 @@ void() monster_army_precache =
 */
 void() monster_army =
 {
-    if(MG_MonsterInhibited()) return;
+    if(VR_SF_SpawnInhibited()) return;
     if(deathmatch)
     {
         remove(self);

@@ -3,16 +3,12 @@
 Work the author approved or asked about, not yet done, one or two lines each, with the doc that holds the detail.
 Remove an item when it ships (git history keeps it); keep new ones as short. Last cleanup 2026-11-12 (ROUND25.md).
 Staying here by his decision (2026-11-05): pickup thinks, heart gib and berserk pack, TAA/DLSS.
+Checked, by design (2026-11-19, tester "Joyeuse"'s two hand-off reports, closed): the old hand "keeps aiming"
+after a hand-to-hand swap is the designed two-handed hand-off (vr_2h_handoff 1: the gun hangs from its foregrip until
+the free hand grips the handle), kept as is by his decision, no hints; a toss to the other hand isn't reproduced (the
+mock toss keeps the hand's speed; a slow toss may hit the open palm after the 0.2 s vr_box3d_throw_grace).
 
 ## 1. Open bugs and failing tests
-
-- **Hand-to-hand weapon swap: the old hand keeps aiming** (tester "Joyeuse", Discord, 2026-11-18): hold a weapon in
-  one hand, grab it with the other, let go with the first: the game still treats the released hand as the one
-  directing the weapon and the new (only) holding hand as the support grip. The remaining hand must become the main
-  (aiming) hand at once.
-- **Tossing a weapon from one hand to the other drops it** (same tester): the weapon doesn't get the hand's momentum on
-  a short toss and falls straight down instead of flying to the other hand (a short throw below the throw threshold?
-  check the release velocity used for small, quick tosses).
 
 - **AD-only tests** (ran 2026-11-13 with `-game ad`, ROUND25.md "adtests"): `vr_flatswap_test 4` 48/0 on `map start`
   (one earlier run of two failed with faulty-frame counts on the blades' stance cases while it timed out under the
@@ -246,4 +242,4 @@ Each verified by an unchanged physics hash, melee eval and `vr_menu_path_check`.
 - **Stealth AI limits:** STEALTH.md, "Open items moved from BACKLOG.md".
 - **Dawn of the Machine's co-op and dm1** (MG3.md, decision 6): later.
 - **Old QuakeC notes** (TECHDEBT_2026-10-09.md 10): Rogue's teamplay variants don't work in VR (item handling
-  commented out); `readytime` is one for every client (one co-op player's spawn holds the others).
+  commented out). (`readytime`, one for every client, is each player's `.vr_readytime` since 2026-11-19.)

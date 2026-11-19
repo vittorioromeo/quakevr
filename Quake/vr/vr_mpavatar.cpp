@@ -32,6 +32,7 @@
 #include "vr_seated.hpp"
 #include "vr_server.hpp"
 #include "vr_view.hpp"
+#include "vr_mem.hpp"
 
 namespace qvr::mpavatar
 {
@@ -1348,6 +1349,12 @@ void clear()
     }
     cal.sent = false; // (this client's own goes up again)
 }
+
+namespace
+{
+// Forgotten when the client's state is cleared (vr_mem.hpp's resets): the other players' avatars: the new server's come.
+mem::Reset clientStateReset{"mpavatar", mem::ResetEvent::ClientState, mem::ResetPhase::State, &clear};
+} // namespace
 
 void init()
 {

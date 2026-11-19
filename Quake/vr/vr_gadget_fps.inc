@@ -48,7 +48,7 @@ constexpr double fpsGraphEvery = 0.05;
 constexpr float fpsLateOver = 1.25f;    // periods over this many refreshes missed one (as the memory log's slow frames)
 constexpr float fpsAssumedHz = 90.f;    // the budget when the runtime doesn't tell its refresh (the mock)
 
-gfx::Target fpsTarget;
+gfx::RenderTarget fpsTarget;
 za::String fpsDrawn; // Basic: the text the image holds
 int fpsDrawnMode = 0; // the mode the image is of (0: none)
 int fpsDrawnFont = -1; // the font's style it was drawn in (fontstyle::generation(Gadget))
@@ -173,7 +173,7 @@ void renderFpsDetailed()
     const bool figures = fpsFiguresAt < 0.0 || now < fpsFiguresAt || now - fpsFiguresAt >= fpsFiguresEvery;
     const bool graph = figures || now < fpsGraphAt || now - fpsGraphAt >= fpsGraphEvery;
     const int style = fontstyle::generation(fontstyle::Surface::Gadget);
-    if(fpsDrawnMode == 2 && fpsTarget.texture && !graph && fpsDrawnFont == style)
+    if(fpsDrawnMode == 2 && fpsTarget.tex && !graph && fpsDrawnFont == style)
     {
         return;
     }
@@ -191,7 +191,11 @@ void renderFpsDetailed()
     const FpsFigures& f = fpsFigures;
 
     QVR_GPU_PROFILE("gadget fps");
-    gfx::ensureTarget(fpsTarget, fpsWidth * fpsTexels, fpsHeight * fpsTexels, true, "gadget fps");
+    if(!fpsTarget.ensure(fpsWidth * fpsTexels, fpsHeight * fpsTexels, gfx::RenderTargetFormat{.mipmaps = true, .fboName = "vr canvas"}, "gadget fps"))
+    {
+        Con_Warning("VR: the gadget's fps readout's framebuffer is incomplete\n");
+        return;
+    }
     gfx::begin2D(fpsTarget, fpsWidth, fpsHeight);
     fill(0.f, 0.f, static_cast<float>(fpsWidth), static_cast<float>(fpsHeight), glm::vec3{0.f});
     const glm::vec4 word{0.6f, 0.6f, 0.6f, 1.f};
@@ -330,7 +334,7 @@ void renderFps()
     q_snprintf(figures[2], sizeof(figures[2]), known && r.gpuMs >= 0.f ? "%5.1f" : "    -", za::min(r.gpuMs, 999.9f));
     const za::String text = za::String{figures[0]} + figures[1] + figures[2];
     const int style = fontstyle::generation(fontstyle::Surface::Gadget);
-    if(text == fpsDrawn && fpsDrawnMode == 1 && fpsTarget.texture && fpsDrawnFont == style)
+    if(text == fpsDrawn && fpsDrawnMode == 1 && fpsTarget.tex && fpsDrawnFont == style)
     {
         return;
     }
@@ -342,7 +346,11 @@ void renderFps()
     fpsHeight = fpsBasicHeight;
 
     QVR_GPU_PROFILE("gadget fps");
-    gfx::ensureTarget(fpsTarget, fpsWidth * fpsTexels, fpsHeight * fpsTexels, true, "gadget fps");
+    if(!fpsTarget.ensure(fpsWidth * fpsTexels, fpsHeight * fpsTexels, gfx::RenderTargetFormat{.mipmaps = true, .fboName = "vr canvas"}, "gadget fps"))
+    {
+        Con_Warning("VR: the gadget's fps readout's framebuffer is incomplete\n");
+        return;
+    }
     gfx::begin2D(fpsTarget, fpsWidth, fpsHeight);
     fill(0.f, 0.f, static_cast<float>(fpsWidth), static_cast<float>(fpsHeight), glm::vec3{0.f});
     const glm::vec4 word{0.6f, 0.6f, 0.6f, 1.f};
@@ -371,7 +379,7 @@ void layoutFps()
     }
     fps.frame = host_framecount;
     fps.quad.clear();
-    if(!fpsOn() || !current.valid || !fpsTarget.texture || fpsDrawnMode != fpsMode())
+    if(!fpsOn() || !current.valid || !fpsTarget.tex || fpsDrawnMode != fpsMode())
     {
         return;
     }
@@ -413,5 +421,5 @@ void drawFps()
     gfx::draw(fps.quad, gfx::sceneViewProjection(),
         {.shade = gfx::Shade::Hologram, .blend = gfx::Blend::Premultiplied, .depthTest = false, .depthWrite = false,
             .params = {fps.time, 0.35f * za::min(hologramEffect(), 1.f), 0.f, 0.f}, .screen = {static_cast<float>(fpsWidth), static_cast<float>(fpsHeight), 0.5f}, .flatModelFov = true},
-        fpsTarget.texture);
+        fpsTarget.tex);
 }

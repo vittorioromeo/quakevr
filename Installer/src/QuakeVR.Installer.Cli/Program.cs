@@ -15,7 +15,7 @@ const string Usage = """
                       (--target <dir> [--shortcuts-dir <dir>] | --sandbox <dir>) [--quake <dir>]
                       [--textures <zip>] [--relight] [--vispatch <id1_vis.tgz>...] [--unverified]
                       [--setup-from <QuakeVR-Setup.exe>] [--registry-file <json> | --register] --accept-statement
-                      [--hd] [--no-feed] [--dry-run] [--prepare] [--ad [--ad-zip <zip>] [--no-stores]]
+                      [--hd] [--no-feed] [--dry-run] [--prepare] [--ad [--ad-zip <zip>]] [--dwell [--dwell-zip <zip>]] [--no-stores]
                       (--feed: the package downloaded as the window does; QVR_SETUP_FEED is the default feed. --hd: the
                        HD textures, the feed's hdtextures, else the installer's built-in pack (also with --package: the feed
                        is asked, and not needed; --no-feed never asks it). --dry-run: prints what would be downloaded and
@@ -27,7 +27,7 @@ const string Usage = """
                        against the pin. Never fatal: a failed AD step leaves the install as it is)
     qvr-setup update [--target <dir> | --sandbox <dir>] [--package <zip|folder> | --feed <url>] [--no-feed] [--dry-run]
                       [--downloads <dir>] [--quake <dir>] [--shortcuts-dir <dir>] [--setup-from <QuakeVR-Setup.exe>]
-                      [--registry-file <json> | --register] [--prepare] [--ad [--ad-zip <zip>] [--no-stores]]
+                      [--registry-file <json> | --register] [--prepare] [--ad [--ad-zip <zip>]] [--dwell [--dwell-zip <zip>]] [--no-stores]
                       (the install found as detect prints it; a newer package (or another build) updates, the same or an
                        older one repairs (never a downgrade); --ad adds Arcane Dimensions when it is not installed. Only program files that differ are copied; your files are
                        kept; files you changed are backed up first; HD textures only when the pack changed; the relight
@@ -153,38 +153,47 @@ string? AlreadyDownloaded(string downloads, FeedFile file)
            string.Equals(PackageManifest.HashFile(path), file.Sha256, StringComparison.OrdinalIgnoreCase) ? path : null;
 }
 
-// Arcane Dimensions (--ad, --ad-zip <zip>): a copy of 1.80 patch 1 in the owned Quake roots (the stores' unless
-// --no-stores, and the Quake folder's) is used where it is; otherwise the zip (the feed's ad, else the built-in pin) is
-// downloaded, checked and unpacked into <install>\ad. Never fatal: a failure leaves the install as it is.
-bool WantAd() => Flag("ad") || Opt("ad-zip") is not null;
-AdCopy? FoundAd(string quake) => ArcaneDimensions.FindExisting(ArcaneDimensions.SearchRoots(
-    Flag("no-stores") ? [] : ExpansionDetector.StoreRoots(new QuakeDetector(new WindowsSystemProbe())), quake));
-string AdPlanText(AdCopy? found, ResolvedComponent? c) =>
-    Opt("ad-zip") is { } z ? $"ad: {z} (local; checked against {c?.File.File ?? "the pin"})" :
-    found is { Usable: true } ? $"ad: {ArcaneDimensions.Describe(found)}" :
-    c is null ? "ad: no ad component, in the feed or built in" :
-    $"ad: {(found is null ? "" : ArcaneDimensions.Describe(found) + " ")}{c.File.File} {c.SourceText} ({PathUtil.FormatSize(c.File.Size)} download, " +
-    $"about {PathUtil.FormatSize(ArcaneDimensions.InstalledSize)} on disk, sha256 {c.File.Sha256}) from {string.Join(" then ", c.File.Urls)}";
-async Task<int> AdStep(HttpClient http, ReleaseFeed? feed, string target, string quake, string downloads)
+// The third-party mod components, one code path for both (ModComponent): Arcane Dimensions (--ad, --ad-zip <zip>) and
+// Dwell (--dwell, --dwell-zip <zip>; also by default once Dwell.OnByDefault is flipped, --no-dwell skips it). A copy of
+// the release the game plays in the owned Quake roots (the stores' unless --no-stores, and the Quake folder's) is used
+// where it is; otherwise the zip (the feed's, else the built-in pin) is downloaded, checked and unpacked into
+// <install>\<folder>. Never fatal: a failure leaves the install as it is.
+ModKind[] Mods = [
+    new("ad", ArcaneDimensions.Spec, ArcaneDimensions.InstalledSize,
+        (roots, q) => ArcaneDimensions.FindExisting(ArcaneDimensions.SearchRoots(roots, q)), ArcaneDimensions.Describe, false),
+    new("dwell", Dwell.Spec, Dwell.InstalledSize,
+        (roots, q) => Dwell.FindExisting(Dwell.SearchRoots(roots, q)), Dwell.Describe, Dwell.OnByDefault),
+];
+bool WantMod(ModKind m) => Flag(m.Name) || Opt(m.Name + "-zip") is not null || (m.OnByDefault && !Flag("no-" + m.Name));
+bool WantAd() => Mods.Any(WantMod);
+ModCopy? FoundMod(ModKind m, string quake) => m.Find(
+    Flag("no-stores") ? [] : ExpansionDetector.StoreRoots(new QuakeDetector(new WindowsSystemProbe())), quake);
+string ModPlanText(ModKind m, ModCopy? found, ResolvedComponent? c) =>
+    Opt(m.Name + "-zip") is { } z ? $"{m.Name}: {z} (local; checked against {c?.File.File ?? "the pin"})" :
+    found is { Usable: true } ? $"{m.Name}: {m.Describe(found)}" :
+    c is null ? $"{m.Name}: no {m.Name} component, in the feed or built in" :
+    $"{m.Name}: {(found is null ? "" : m.Describe(found) + " ")}{c.File.File} {c.SourceText} ({PathUtil.FormatSize(c.File.Size)} download, " +
+    $"about {PathUtil.FormatSize(m.InstalledSize)} on disk, sha256 {c.File.Sha256}) from {string.Join(" then ", c.File.Urls)}";
+async Task<int> ModStep(ModKind m, HttpClient http, ReleaseFeed? feed, string target, string quake, string downloads)
 {
-    var found = FoundAd(quake);
-    var c = new InstallerSettings().Component(feed, Components.ArcaneDimensions);
+    var found = FoundMod(m, quake);
+    var c = new InstallerSettings().Component(feed, m.Spec.Component);
     if (found is not null)
     {
-        Console.WriteLine($"Arcane Dimensions: {ArcaneDimensions.Describe(found)}");
+        Console.WriteLine($"{m.Spec.Title}: {m.Describe(found)}");
     }
-    if (found is { Usable: true } && Opt("ad-zip") is null)
+    if (found is { Usable: true } && Opt(m.Name + "-zip") is null)
     {
         return 0;
     }
     if (c is null)
     {
-        Console.WriteLine("warning: Arcane Dimensions: no ad component, in the feed or built in: not installed");
+        Console.WriteLine($"warning: {m.Spec.Title}: no {m.Name} component, in the feed or built in: not installed");
         return 1;
     }
-    var outcome = await ArcaneDimensions.AddAsync(http, target, c.File, downloads, Opt("ad-zip"), log,
+    var outcome = await ModComponent.AddAsync(m.Spec, http, target, c.File, downloads, Opt(m.Name + "-zip"), log,
         new SyncProgress<DownloadProgress>(p => Console.Write($"\r  {p.Source}: {PathUtil.FormatSize(p.Received)} / {PathUtil.FormatSize(p.Total ?? c.File.Size)}   ")),
-        CancellationToken.None, Opt("ad-attempts") is { } n ? int.Parse(n) : 2);
+        CancellationToken.None, Opt(m.Name + "-attempts") is { } n ? int.Parse(n) : 2);
     Console.WriteLine(outcome.Installed ? outcome.Message : $"warning: {outcome.Message}");
     return outcome.Installed ? 0 : 1;
 }
@@ -263,8 +272,11 @@ async Task<int> InstallCommand(FoundInstall? reinstallOf, ReinstallOptions? rein
         Console.WriteLine(textures is not null ? $"hdtextures: {textures} (local)"
             : hd is null ? "hdtextures: none"
             : $"hdtextures: {hd.File.File} {hd.SourceText} ({PathUtil.FormatSize(hd.File.Size)}, {hd.File.Size} bytes, sha256 {hd.File.Sha256}) from {string.Join(" then ", hd.File.Urls)}");
-        Console.WriteLine(!WantAd() ? "ad: not asked for (--ad)"
-            : AdPlanText(Opt("quake") is { } dq ? FoundAd(dq) : null, new InstallerSettings().Component(feed, Components.ArcaneDimensions)));
+        foreach (var m in Mods)
+        {
+            Console.WriteLine(!WantMod(m) ? $"{m.Name}: not asked for (--{m.Name})"
+                : ModPlanText(m, Opt("quake") is { } dq ? FoundMod(m, dq) : null, new InstallerSettings().Component(feed, m.Spec.Component)));
+        }
         Console.WriteLine("dry run: nothing downloaded or installed");
         return 0;
     }
@@ -329,10 +341,10 @@ async Task<int> InstallCommand(FoundInstall? reinstallOf, ReinstallOptions? rein
     var record = engine.Install(plan, log, CancellationToken.None);
     Console.WriteLine($"installed {record.Files.Count} files, {record.Shortcuts.Count} shortcuts{(engine.LastBackup is { } b ? $"; backup: {b.Dir} ({b.Files.Count} files)" : "")}");
     var prepared = Flag("prepare") ? Prepare(target, quake, record.RelightPending) : 0;
-    // Arcane Dimensions last: its download failing or stopped never undoes the install (the exit code stays 0).
-    if (WantAd())
+    // The mod components last: a download failing or stopped never undoes the install (the exit code stays 0).
+    foreach (var m in Mods.Where(WantMod))
     {
-        await AdStep(http, feed, target, quake, downloads);
+        await ModStep(m, http, feed, target, quake, downloads);
     }
     return prepared;
 }
@@ -380,7 +392,7 @@ async Task<int> UpdateCommand()
     using var http = Downloader.CreateClient();
     ReleaseFeed? feed = null;
     var hasHd = install.Record.Files.Any(f => f.Component == Components.HdTextures);
-    var hasAd = install.Record.Files.Any(f => f.Component == Components.ArcaneDimensions);
+    var hasAd = Mods.Any(m => install.Record.Files.Any(f => f.Component == m.Spec.Component));
     if (!Flag("no-feed") && (package is null || hasHd || hasAd || WantAd()))
     {
         try
@@ -415,11 +427,18 @@ async Task<int> UpdateCommand()
     var (hdAction, hdText) = MaintenancePlanner.HdTextures(install.Dir, install.Record, hdTarget?.File, verify: mode == InstallMode.Repair);
     Console.WriteLine(hdText);
     var getHd = hdAction is HdTexturesAction.Replace or HdTexturesAction.Restore && hdTarget is not null;
-    // Arcane Dimensions: kept, replaced (another pinned zip), restored (a repair, a file damaged), or added (--ad).
-    var adTarget = new InstallerSettings().Component(feed, Components.ArcaneDimensions);
-    var (adAction, adText) = ArcaneDimensions.Plan(install.Dir, install.Record, adTarget?.File, verify: mode == InstallMode.Repair);
-    var getAd = (adAction is AdAction.Replace or AdAction.Restore && adTarget is not null) || (adAction == AdAction.NotInstalled && WantAd());
-    Console.WriteLine(adAction == AdAction.NotInstalled && WantAd() ? AdPlanText(FoundAd(Opt("quake") ?? install.Record.QuakeDir), adTarget) : adText);
+    // The mod components: each kept, replaced (another pinned zip), restored (a repair, a file damaged), or added (its flag).
+    var modsToGet = new List<ModKind>();
+    foreach (var m in Mods)
+    {
+        var mt = new InstallerSettings().Component(feed, m.Spec.Component);
+        var (ma, mtext) = ModComponent.Plan(m.Spec, install.Dir, install.Record, mt?.File, verify: mode == InstallMode.Repair);
+        if ((ma is ModAction.Replace or ModAction.Restore && mt is not null) || (ma == ModAction.NotInstalled && WantMod(m)))
+        {
+            modsToGet.Add(m);
+        }
+        Console.WriteLine(ma == ModAction.NotInstalled && WantMod(m) ? ModPlanText(m, FoundMod(m, Opt("quake") ?? install.Record.QuakeDir), mt) : mtext);
+    }
     if (package is null)
     {
         // A dry run from the feed: the package is not downloaded, so the file plan cannot be made.
@@ -474,9 +493,9 @@ async Task<int> UpdateCommand()
     Console.WriteLine($"{mode.ToString().ToLowerInvariant()}: {record.Version}, {engine.LastPlan?.ToCopy.Count() ?? 0} files copied, {record.Files.Count} recorded" +
                       $"{(engine.LastBackup is { } b ? $"; backup: {b.Dir} ({b.Files.Count} files)" : "")}");
     var prepared = Flag("prepare") ? Prepare(install.Dir, quake, record.RelightPending) : 0;
-    if (getAd)
+    foreach (var m in modsToGet)
     {
-        await AdStep(http, feed, install.Dir, quake, downloads);
+        await ModStep(m, http, feed, install.Dir, quake, downloads);
     }
     return prepared;
 }
@@ -730,3 +749,8 @@ catch (Exception e) when (e is InstallException or ArgumentException or IOExcept
     Console.Error.WriteLine($"error: {e.Message}");
     return 1;
 }
+
+/// <summary>One third-party mod component of the CLI (<c>--name</c>, <c>--name-zip</c>): its shared-path spec, how it finds
+/// an existing copy and describes it.</summary>
+sealed record ModKind(string Name, ModSpec Spec, long InstalledSize, Func<IReadOnlyList<string>, string, ModCopy?> Find,
+    Func<ModCopy, string> Describe, bool OnByDefault);
