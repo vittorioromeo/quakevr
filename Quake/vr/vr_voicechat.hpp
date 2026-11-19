@@ -10,8 +10,10 @@
 // move datagram (QVR_CLC_VOICE, unreliable). The host's own player goes the same way (his loopback client).
 //
 // Relaying (vr_voicerelay.cpp): the server keeps each speaker's last frames and puts the others' into each client's
-// datagram (QVR_SVC_VOICE) under his voice budget (vr_net_voice_bytes, at most half his vr_net_rate), oldest first;
-// frames that wait too long are dropped.
+// datagram (QVR_SVC_VOICE) under his voice budget (vr_net_voice_bytes, at most half his vr_net_rate): every speaker's new
+// frames first, from a slot that rotates, then the last datagram's again with what remains; frames that wait too long
+// are dropped. A client tells the server the speakers he muted and whether his voice chat is off (vr_voicechat_listen):
+// those are not sent him.
 //
 // Receiving: per speaker, a jitter buffer by sequence number (its delay from the measured jitter, set at each spurt's
 // start), Opus's FEC for a lost frame whose next came, its packet-loss concealment otherwise; decoded just ahead of the
@@ -24,6 +26,9 @@
 
 #include "vr_engine.hpp"
 
+#include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Vocabulary/FunctionRef.hpp"
+
 struct client_s;
 
 namespace qvr::voicechat
@@ -35,6 +40,29 @@ inline constexpr int maxFrameBytes = 160; // an Opus frame's bytes at most (64 k
 inline constexpr int maxFramesPerMessage = 6;
 inline constexpr int flagSpurtStart = 1;  // the first frame of a talk spurt
 inline constexpr int flagSpurtEnd = 2;    // a talk spurt's end marker (no data)
+
+// One voice frame as it goes up (QVR_CLC_VOICE), is relayed (QVR_SVC_VOICE) and waits in a jitter buffer: on the wire
+// [short seq][byte flags][byte len][len bytes].
+struct Frame
+{
+    za::U16 seq{0};
+    za::U8 flags{0};
+    za::U8 len{0};
+    za::U8 data[maxFrameBytes]{};
+};
+inline constexpr int frameHeaderBytes = 4;
+
+// `f` written into `msg`.
+void writeFrame(sizebuf_t* msg, const Frame& f);
+// The next frame of net_message into `f`: false a bad read or one longer than maxFrameBytes (its bytes read past, so the
+// message's next frame is still in step).
+[[nodiscard]] bool readFrame(Frame& f);
+
+// Sequence number `a` after `b` (> 0), before (< 0), modulo 2^16.
+[[nodiscard]] inline int seqDiff(za::U16 a, za::U16 b)
+{
+    return static_cast<za::I16>(static_cast<za::U16>(a - b));
+}
 
 void init();
 void shutdown();
@@ -74,5 +102,26 @@ void serverWrite(sizebuf_t* msg, client_s* client);
 void serverReset(int slot);
 void serverInit();
 void serverReport();
+// vr_voicechat_selftest's relay part (synthetic speakers and a listener: no client slot touched).
+void serverSelftest(za::FunctionRef<void(bool ok, const char* what)> check);
+
+// (the self-tests) net_message pointed at a buffer of their own to read with MSG_Read* (readFrame), then put back.
+struct WireRead
+{
+    sizebuf_t saved;
+    int savedCount;
+    qboolean savedBad;
+    explicit WireRead(const sizebuf_t& from) : saved{net_message}, savedCount{msg_readcount}, savedBad{msg_badread}
+    {
+        net_message = from;
+        MSG_BeginReading();
+    }
+    void restore()
+    {
+        net_message = saved;
+        msg_readcount = savedCount;
+        msg_badread = savedBad;
+    }
+};
 
 } // namespace qvr::voicechat

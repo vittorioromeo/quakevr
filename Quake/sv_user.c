@@ -660,6 +660,8 @@ nextmsg:
 					ret = 1; // QVR: Debug > Cheats and Recording's (vr_cheats.cpp: not in deathmatch)
 				else if (q_strncasecmp(s, "vr_avatarcal ", 13) == 0)
 					ret = 1; // QVR: the player's avatar calibration, kept and passed on (vr_mpavatar.cpp)
+				else if (q_strncasecmp(s, "vr_voicechat_listen ", 20) == 0)
+					ret = 1; // QVR: the voices he muted and his voice chat off: the relay skips them for him (vr_voicerelay.cpp)
 				else if (q_strncasecmp(s, "vr_prefs ", 9) == 0)
 					ret = 1; // QVR: the player's per-player preferences, kept for his slot (vr_clientprefs.cpp)
 				else if (q_strncasecmp(s, "vr_rig ", 7) == 0)

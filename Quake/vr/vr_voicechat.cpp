@@ -21,10 +21,12 @@
 #include "SDL.h"
 #endif
 
+#include "Zancle/Algorithm/Fill.hpp"
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/String/String.hpp"
 
 #include "opus.h"
 #include "rnnoise.h"
@@ -62,6 +64,8 @@ constexpr int maxConcealed = 8;                // frames concealed in a row befo
 constexpr double idleStop = 2.0;               // s silent before a speaker's sound channel is let go
 constexpr double ringSeconds = 2.0;            // the looping sound's length
 constexpr double historySeconds = 1.0;         // the played samples kept for vr_voicechat_report
+constexpr double historyKeep = 30.0;           // s the history is written after a vr_voicechat_report (the tests' reports)
+constexpr za::SizeT catchUpMost = sampleRate / 10; // captured samples taken at most a frame (a hitch's older backlog dropped)
 constexpr double talkingHold = 0.25;           // s the indicator stays after the last frame heard
 constexpr int hangFrames = 20;                 // voice activation: frames sent on after the voice drops (0.4 s)
 constexpr int voiceEntChannel = 1000;          // the voices' sound channel on the speaker's entity (none of the game's)
@@ -73,24 +77,12 @@ constexpr double meterLevelFloor = -50.0, meterLevelSpan = 30.0; // dBFS: denois
         .count();
 }
 
-[[nodiscard]] int seqDiff(za::U16 a, za::U16 b)
-{
-    return static_cast<za::I16>(static_cast<za::U16>(a - b));
-}
-
 // ---- Sending -------------------------------------------------------------------------------------------------------
-
-struct OutFrame
-{
-    za::U16 seq{0};
-    za::U8 flags{0};
-    za::U8 len{0};
-    za::U8 data[maxFrameBytes]{};
-};
 
 struct Opened
 {
     SDL_AudioDeviceID id = 0;
+    za::String error; // (the worker's SDL_GetError when it failed: SDL's error is per thread)
 };
 
 struct Capture
@@ -113,8 +105,8 @@ struct Capture
     bool sending = false;
     int hang = 0;
     za::U16 seq = 0;
-    OutFrame out[outQueue];
-    OutFrame again[maxFramesPerMessage]; // the last datagram's new frames, sent once more
+    Frame out[outQueue];
+    Frame again[maxFramesPerMessage]; // the last datagram's new frames, sent once more
     int againCount = 0;
     int outHead = 0, outCount = 0; // (a ring: the oldest at outHead)
     double toneLast = -1.0;
@@ -127,6 +119,16 @@ struct Capture
 Capture cap;
 bool pttHeld = false;
 bool pttByHand = false;
+
+// What this client last told the server it hears (vr_voicechat_listen, tellListen): the speakers he muted, his voice
+// chat off. Told again at each signon (the server forgets it with his slot) and on each change.
+struct ListenSent
+{
+    bool valid = false;
+    unsigned muted = 0;
+    bool off = false;
+};
+ListenSent listenSent;
 
 } // namespace
 } // namespace qvr::voicechat
@@ -158,10 +160,7 @@ MenuText menuText;
 struct JitterSlot
 {
     bool has{false};
-    za::U16 seq{0};
-    za::U8 flags{0};
-    za::U8 len{0};
-    za::U8 data[maxFrameBytes]{};
+    Frame frame;
 };
 
 struct Speaker
@@ -188,6 +187,7 @@ struct Speaker
     long long wraps = 0;
     int lastPos = 0;
     double written = 0.0;  // W: output samples written (unwrapped)
+    long long cleared = 0; // the ring zeroed up to here (unwrapped): what the mix has read (pump)
     double resamplePhase = 0.0;
     float lastSample = 0.f;
     double idleSince = -1.0;
@@ -195,9 +195,11 @@ struct Speaker
     double lastHeard = -1.0;
     double lastVoiced = -1.0; // realtime his last frame with a voice arrived (muted or not: the Voice Chat page)
     bool firstSaid = false;
-    char name[32]{};       // the player's name these settings are for
-    float volume = 1.f;    // his volume (vr_voicechat_player_volume)
+    // his settings (vr_voicechat_player_volume, vr_voicechat_mute): the slot's player's, kept through a rename, reset when
+    // the slot empties (watchSlot) or you leave the game
+    float volume = 1.f;
     bool muted = false;
+    bool present = false;  // a player in the slot when last seen in the game (watchSlot)
     za::Vector<float> history; // the played 48 kHz samples, a ring (historySeconds)
     za::SizeT historyAt = 0;
     long long historyCount = 0;
@@ -215,6 +217,18 @@ void advance(Speaker& sp, za::U8 how)
     sp.nextSeq++;
 }
 bool clockOnly = false; // (the self-test: the play-out on the clock, no sound)
+
+// The played samples' history (emit), written only while vr_voicechat_report is in use: realtime of its last report.
+struct History
+{
+    double askedAt = -1.0;
+};
+History history;
+
+[[nodiscard]] bool historyOn()
+{
+    return history.askedAt >= 0.0 && realtime - history.askedAt < historyKeep;
+}
 
 // (scratch: the frame's decoded samples, a captured block's)
 struct Scratch
@@ -268,7 +282,7 @@ void takeOpened()
     else if(!cap.noMicSaid)
     {
         cap.noMicSaid = true;
-        Con_Printf("Voice chat: no microphone (%s)\n", SDL_GetError());
+        Con_Printf("Voice chat: no microphone (%s)\n", o.error.cStr());
     }
 }
 
@@ -344,6 +358,10 @@ void openMic()
             {
                 SDL_PauseAudioDevice(o.id, 0);
             }
+            else
+            {
+                o.error = za::String{SDL_GetError()};
+            }
             return o;
         });
 }
@@ -358,7 +376,7 @@ void queueFrame(const unsigned char* data, int len, za::U8 flags)
         cap.outCount--;
         cap.framesDropped++;
     }
-    OutFrame& f = cap.out[(cap.outHead + cap.outCount) % outQueue];
+    Frame& f = cap.out[(cap.outHead + cap.outCount) % outQueue];
     f.seq = cap.seq++;
     f.flags = flags;
     f.len = static_cast<za::U8>(za::clamp(len, 0, maxFrameBytes));
@@ -509,6 +527,12 @@ void block(const float* in)
     }
 }
 
+// Where a frame's capture starts in `pending` samples waiting: the newest catchUpMost.
+[[nodiscard]] za::SizeT catchUpFrom(za::SizeT pending)
+{
+    return pending > catchUpMost ? pending - catchUpMost : 0;
+}
+
 void captureFrame()
 {
     const bool want = active();
@@ -570,9 +594,9 @@ void captureFrame()
             cap.pending.clear();
         }
     }
-    // (half a second at most waiting: a hitch's backlog dropped)
-    const za::SizeT most = sampleRate / 2;
-    za::SizeT at = cap.pending.size() > most ? cap.pending.size() - most : 0;
+    // (100 ms at most taken a frame: a hitch's older backlog dropped, old speech is worthless and its RNNoise and Opus
+    // work would land on a frame that is already late)
+    za::SizeT at = catchUpFrom(cap.pending.size());
     for(; at + blockSamples <= cap.pending.size(); at += blockSamples)
     {
         memcpy(scratch.block, cap.pending.data() + at, sizeof(float) * blockSamples);
@@ -644,6 +668,7 @@ void startOutput(Speaker& sp, int slot)
     sp.wraps = 0;
     sp.lastPos = 0;
     sp.written = 0.0;
+    sp.cleared = 0;
     sp.resamplePhase = 0.0;
     sp.t0 = realtime;
     sp.channel = -1;
@@ -707,19 +732,23 @@ void stopOutput(Speaker& sp, int slot)
     return (realtime - sp.t0) * outRate();
 }
 
-// 20 ms of 48 kHz samples into the output (resampled to the mix's rate, at his volume) and the history.
+// 20 ms of 48 kHz samples into the output (resampled to the mix's rate, at his volume) and the history (while
+// vr_voicechat_report is in use).
 void emit(Speaker& sp, const float* pcm, bool silent)
 {
-    if(sp.history.empty())
+    if(historyOn())
     {
-        sp.history.resize(static_cast<za::SizeT>(historySeconds * sampleRate), 0.f);
+        if(sp.history.empty())
+        {
+            sp.history.resize(static_cast<za::SizeT>(historySeconds * sampleRate), 0.f);
+        }
+        for(int i = 0; i < frameSamples; i++)
+        {
+            sp.history[sp.historyAt] = silent ? 0.f : pcm[i];
+            sp.historyAt = sp.historyAt + 1 == sp.history.size() ? 0 : sp.historyAt + 1;
+        }
+        sp.historyCount += frameSamples;
     }
-    for(int i = 0; i < frameSamples; i++)
-    {
-        sp.history[sp.historyAt] = silent ? 0.f : pcm[i];
-        sp.historyAt = (sp.historyAt + 1) % sp.history.size();
-    }
-    sp.historyCount += frameSamples;
     sfxcache_t* sc = ringOf(sp);
     const double step = static_cast<double>(sampleRate) / outRate();
     const float gain = 32767.f * za::clamp(vr_voicechat_volume.value * sp.volume, 0.f, 4.f);
@@ -747,17 +776,17 @@ void decodeNext(Speaker& sp, int slot)
 {
     float* pcm = scratch.pcm;
     JitterSlot& s = sp.jb[sp.nextSeq % jitterSlots];
-    if(s.has && s.seq == sp.nextSeq)
+    if(s.has && s.frame.seq == sp.nextSeq)
     {
         s.has = false;
-        if(s.len == 0)
+        if(s.frame.len == 0)
         {
             sp.playing = false; // (the end marker)
             emit(sp, pcm, true);
             advance(sp, 1);
             return;
         }
-        const int n = opus_decode_float(sp.dec, s.data, s.len, pcm, frameSamples, 0);
+        const int n = opus_decode_float(sp.dec, s.frame.data, s.frame.len, pcm, frameSamples, 0);
         emit(sp, pcm, n != frameSamples);
         sp.played++;
         sp.concealRun = 0;
@@ -776,12 +805,12 @@ void decodeNext(Speaker& sp, int slot)
     bool newer = false;
     for(const JitterSlot& j : sp.jb)
     {
-        newer = newer || (j.has && seqDiff(j.seq, sp.nextSeq) > 0);
+        newer = newer || (j.has && seqDiff(j.frame.seq, sp.nextSeq) > 0);
     }
     const JitterSlot& next = sp.jb[static_cast<za::U16>(sp.nextSeq + 1) % jitterSlots];
-    if(next.has && next.seq == static_cast<za::U16>(sp.nextSeq + 1) && next.len > 0)
+    if(next.has && next.frame.seq == static_cast<za::U16>(sp.nextSeq + 1) && next.frame.len > 0)
     {
-        const int n = opus_decode_float(sp.dec, next.data, next.len, pcm, frameSamples, 1);
+        const int n = opus_decode_float(sp.dec, next.frame.data, next.frame.len, pcm, frameSamples, 1);
         emit(sp, pcm, n != frameSamples);
         sp.recovered++;
         sp.concealRun = 0;
@@ -803,6 +832,24 @@ void decodeNext(Speaker& sp, int slot)
     advance(sp, 2);
 }
 
+// A ring of `length` samples zeroed from `from` to `to` (unwrapped positions), across its end.
+void zeroRing(short* ring, int length, long long from, long long to)
+{
+    if(to <= from || length <= 0)
+    {
+        return;
+    }
+    if(to - from >= length)
+    {
+        memset(ring, 0, sizeof(short) * static_cast<size_t>(length));
+        return;
+    }
+    const long long at = from % length, n = to - from;
+    const long long first = za::min(n, length - at);
+    memset(ring + at, 0, sizeof(short) * static_cast<size_t>(first));
+    memset(ring, 0, sizeof(short) * static_cast<size_t>(n - first));
+}
+
 // A speaker's output kept `lead` ahead of its reader.
 void pump(Speaker& sp, int slot)
 {
@@ -810,6 +857,7 @@ void pump(Speaker& sp, int slot)
     {
         return;
     }
+    S_MixJoin(); // (the pool's mix done: its channel's position read, the ring and the channel written)
     double r = readPos(sp, slot);
     if(r < 0.0)
     {
@@ -817,6 +865,13 @@ void pump(Speaker& sp, int slot)
         startOutput(sp, slot);
         r = readPos(sp, slot);
         sp.startAt = sp.written;
+    }
+    // (what the mix has read since the last pump zeroed: it paints up to _snd_mixahead past its read position, beyond
+    // what is written `lead` ahead, and the ring loops, so it read the speech of 2 s before there; now silence)
+    if(sfxcache_t* sc = ringOf(sp); sc && static_cast<long long>(r) > sp.cleared)
+    {
+        zeroRing(reinterpret_cast<short*>(sc->data), sc->length, sp.cleared, static_cast<long long>(r));
+        sp.cleared = static_cast<long long>(r);
     }
     const double rate = outRate();
     if(sp.written < r)
@@ -829,13 +884,13 @@ void pump(Speaker& sp, int slot)
     int buffered = 0;
     for(const JitterSlot& j : sp.jb)
     {
-        buffered += j.has && seqDiff(j.seq, sp.nextSeq) >= 0 ? 1 : 0;
+        buffered += j.has && seqDiff(j.frame.seq, sp.nextSeq) >= 0 ? 1 : 0;
     }
     const int most = static_cast<int>(jitterMax / frameSeconds) + 3;
     if(sp.playing && buffered > most)
     {
         JitterSlot& s = sp.jb[sp.nextSeq % jitterSlots];
-        if(s.has && s.seq == sp.nextSeq && s.len > 0)
+        if(s.has && s.frame.seq == sp.nextSeq && s.frame.len > 0)
         {
             s.has = false;
             advance(sp, 2);
@@ -912,28 +967,22 @@ void resetSpeaker(Speaker& sp, int slot, bool keepSettings)
     }
     if(!keepSettings)
     {
-        sp.name[0] = 0;
         sp.volume = 1.f;
         sp.muted = false;
     }
 }
 
 // A frame arrived from slot `slot`.
-void receive(int slot, za::U16 seq, za::U8 flags, const za::U8* data, int len)
+void receive(int slot, const Frame& f)
 {
+    const za::U16 seq = f.seq;
+    const int len = f.len;
     Speaker& sp = speakers[slot];
-    // (another player in his slot: his own settings)
-    const char* name = slot < cl.maxclients ? cl.scores[slot].name : "";
-    if(q_strcasecmp(sp.name, name) != 0)
-    {
-        resetSpeaker(sp, slot, false);
-        q_strlcpy(sp.name, name, sizeof(sp.name));
-    }
     sp.received += len > 0 ? 1 : 0;
     const double now = realtime;
     // (RFC 3550's jitter: the arrival's transit against the sequence's clock)
     const double transit = now - seq * frameSeconds;
-    if(sp.haveTransit && !(flags & flagSpurtStart))
+    if(sp.haveTransit && !(f.flags & flagSpurtStart))
     {
         const double d = fabs(transit - sp.prevTransit);
         sp.jitter += (za::min(d, 1.0) - sp.jitter) / 16.0;
@@ -960,7 +1009,7 @@ void receive(int slot, za::U16 seq, za::U8 flags, const za::U8* data, int len)
     }
     JitterSlot& s = sp.jb[seq % jitterSlots];
     const bool given = sp.doneHow[seq % jitterSlots] != 0 && sp.doneSeq[seq % jitterSlots] == seq;
-    if((s.has && s.seq == seq) || (given && sp.doneHow[seq % jitterSlots] == 1))
+    if((s.has && s.frame.seq == seq) || (given && sp.doneHow[seq % jitterSlots] == 1))
     {
         sp.dups++; // (each frame comes twice: its next datagram's copy)
         return;
@@ -980,21 +1029,16 @@ void receive(int slot, za::U16 seq, za::U8 flags, const za::U8* data, int len)
         }
         sp.nextSeq = seq;
     }
-    if(s.has && s.seq != seq && (!sp.playing || seqDiff(s.seq, sp.nextSeq) >= 0))
+    if(s.has && s.frame.seq != seq && (!sp.playing || seqDiff(s.frame.seq, sp.nextSeq) >= 0))
     {
         sp.overflow++;
     }
     s.has = true;
-    s.seq = seq;
-    s.flags = flags;
-    s.len = static_cast<za::U8>(len);
-    if(len > 0)
-    {
-        memcpy(s.data, data, static_cast<size_t>(len));
-    }
+    s.frame = f;
     if(!sp.playing && len > 0)
     {
         // a spurt starts (its first frame, or the first that came): after its jitter delay
+        S_MixJoin(); // (the pool's mix done: the channel started, its position read)
         if(!sp.active)
         {
             startOutput(sp, slot);
@@ -1012,13 +1056,13 @@ void receive(int slot, za::U16 seq, za::U8 flags, const za::U8* data, int len)
         // (frames of this spurt before it, already here: from the oldest)
         for(JitterSlot& j : sp.jb)
         {
-            if(j.has && seqDiff(j.seq, seq) <= -jitterSlots / 2)
+            if(j.has && seqDiff(j.frame.seq, seq) <= -jitterSlots / 2)
             {
                 j.has = false; // (an older spurt's, never played: muted, or its end lost)
             }
-            else if(j.has && seqDiff(j.seq, sp.nextSeq) < 0 && j.len > 0)
+            else if(j.has && seqDiff(j.frame.seq, sp.nextSeq) < 0 && j.frame.len > 0)
             {
-                sp.nextSeq = j.seq;
+                sp.nextSeq = j.frame.seq;
             }
         }
     }
@@ -1080,14 +1124,20 @@ void indicators()
     return -1;
 }
 
-void ownSettings(int slot)
+// A slot's settings against its player (`inGame`: you in the game, its names all known; `named`: a player in the slot):
+// reset when the slot empties, so the next player in it starts heard at full volume. A rename keeps them (a mute is
+// not escaped by a new name); a level change (names not known until you are in the game again) changes nothing.
+void watchSlot(Speaker& sp, int slot, bool inGame, bool named)
 {
-    Speaker& sp = speakers[slot];
-    if(q_strcasecmp(sp.name, cl.scores[slot].name) != 0)
+    if(!inGame)
+    {
+        return;
+    }
+    if(sp.present && !named)
     {
         resetSpeaker(sp, slot, false);
-        q_strlcpy(sp.name, cl.scores[slot].name, sizeof(sp.name));
     }
+    sp.present = named;
 }
 
 void mute_f()
@@ -1103,7 +1153,6 @@ void mute_f()
         Con_Printf("Voice chat: no player \"%s\"\n", Cmd_Argv(1));
         return;
     }
-    ownSettings(slot);
     setMuted(slot, Cmd_Argc() > 2 ? atoi(Cmd_Argv(2)) != 0 : !speakers[slot].muted);
 }
 
@@ -1132,9 +1181,8 @@ void players_f()
             continue;
         }
         const Speaker& sp = speakers[i];
-        const bool mine = q_strcasecmp(sp.name, cl.scores[i].name) == 0;
-        Con_Printf("%2d %-16s %s volume %.2f%s\n", i + 1, cl.scores[i].name, mine && sp.muted ? "muted" : "heard",
-            mine ? sp.volume : 1.f, talking(i) ? "  talking" : "");
+        Con_Printf("%2d %-16s %s volume %.2f%s\n", i + 1, cl.scores[i].name, sp.muted ? "muted" : "heard", sp.volume,
+            talking(i) ? "  talking" : "");
     }
 }
 
@@ -1160,6 +1208,15 @@ void toneOf(const float* x, int n, double hz, double& share, double& freq, doubl
 
 void report_f()
 {
+    if(!historyOn())
+    {
+        // (the history starts now: its tone figures from a whole window of it)
+        for(Speaker& sp : speakers)
+        {
+            sp.historyCount = 0;
+        }
+    }
+    history.askedAt = realtime;
     const double hz = Cmd_Argc() > 1 ? Q_atof(Cmd_Argv(1)) : 0.0;
     const int window = sampleRate / 2;
     Con_Printf("mp_voice_send: active=%d sending=%d mic=%d frames=%lld bytes=%lld dropped=%lld spurts=%lld level=%.3f queued=%d\n",
@@ -1420,11 +1477,19 @@ void selftest_f()
             }
             else
             {
-                receive(slot, static_cast<za::U16>(g + 100), g == 0 ? flagSpurtStart : 0, packets[g], lens[g]);
+                Frame fr;
+                fr.seq = static_cast<za::U16>(g + 100);
+                fr.flags = static_cast<za::U8>(g == 0 ? flagSpurtStart : 0);
+                fr.len = static_cast<za::U8>(lens[g]);
+                memcpy(fr.data, packets[g], static_cast<size_t>(lens[g]));
+                receive(slot, fr);
             }
             pump(sp, slot);
         }
-        receive(slot, static_cast<za::U16>(frames + 100), flagSpurtEnd, nullptr, 0);
+        Frame end;
+        end.seq = static_cast<za::U16>(frames + 100);
+        end.flags = flagSpurtEnd;
+        receive(slot, end);
         for(int k = 0; k < 20; k++)
         {
             realtime += frameSeconds;
@@ -1439,9 +1504,148 @@ void selftest_f()
         clockOnly = false;
         sp.sfx = savedSfx;
     }
+
+    // 5. The wire format (writeFrame / readFrame, every voice message's): a frame back as it was written; one longer
+    //    than maxFrameBytes refused with its bytes read past, the next one still read in step.
+    {
+        za::U8 bytes[1024];
+        sizebuf_t buf{};
+        buf.data = bytes;
+        buf.maxsize = sizeof(bytes);
+        Frame a;
+        a.seq = 0xfffe;
+        a.flags = flagSpurtStart;
+        a.len = 3;
+        a.data[0] = 7;
+        a.data[1] = 8;
+        a.data[2] = 9;
+        writeFrame(&buf, a);
+        MSG_WriteShort(&buf, 5);
+        MSG_WriteByte(&buf, 0);
+        MSG_WriteByte(&buf, maxFrameBytes + 1);
+        for(int k = 0; k <= maxFrameBytes; k++)
+        {
+            MSG_WriteByte(&buf, k);
+        }
+        Frame b;
+        b.seq = 6;
+        b.flags = flagSpurtEnd;
+        writeFrame(&buf, b);
+        WireRead read{buf};
+        Frame ra, rlong, rb;
+        const bool okA = readFrame(ra), okLong = readFrame(rlong), okB = readFrame(rb);
+        const int atEnd = msg_readcount == buf.cursize;
+        read.restore();
+        check(okA && ra.seq == a.seq && ra.flags == a.flags && ra.len == 3 && ra.data[2] == 9 && !okLong && okB && rb.seq == 6 &&
+                  rb.flags == flagSpurtEnd && rb.len == 0 && atEnd,
+            "the wire: a frame read back as written; one over 160 bytes refused, the next still read in step");
+        check(seqDiff(2, 0xfffe) == 4 && seqDiff(0xfffe, 2) == -4, "seqDiff across the 16-bit wrap");
+    }
+
+    // 6. The play-out's ring (a looping sound of 2 s): the mix reads up to _snd_mixahead past its position, beyond what is
+    //    written `lead` ahead; what it has read is zeroed at each pump (zeroRing), so a read past the written end is
+    //    silence, not the speech of a lap before. A ring of 1000 samples, silent at its start (startOutput), 2.5 laps of
+    //    a reader 70 samples a pump with the writer 40 ahead of it, all speech: the reads past the written end, up to 100
+    //    ahead, all 0 (before: the lap before's speech from the second lap on).
+    {
+        constexpr int length = 1000, step = 70, ahead = 40, overRead = 100;
+        short ring[length]{};
+        long long cleared = 0, written = 0, stale = 0, checked = 0;
+        for(long long r = 0; r < length * 5 / 2; r += step)
+        {
+            zeroRing(ring, length, cleared, r);
+            cleared = r;
+            written = za::max(written, r); // (behind its reader: caught up, as pump's underrun)
+            for(; written < r + ahead; written++)
+            {
+                ring[written % length] = 1;
+            }
+            for(long long p = written; p < r + overRead; p++, checked++)
+            {
+                stale += ring[p % length] != 0 ? 1 : 0;
+            }
+        }
+        check(stale == 0 && checked > 0, va("the play-out's ring: a read past the written end silent (%lld of %lld samples stale)",
+                                               stale, checked));
+    }
+
+    // 7. A player's settings belong to his slot's player: a rename keeps his mute and volume (no escaping a mute by a new
+    //    name), a level change (names not known until in the game again) too; the slot emptied resets them.
+    {
+        Speaker& sp = speakers[MAX_SCOREBOARD - 1];
+        const int slot = MAX_SCOREBOARD - 1;
+        const bool savedMuted = sp.muted, savedPresent = sp.present;
+        const float savedVolume = sp.volume;
+        sp.present = true;
+        sp.muted = true;
+        sp.volume = 0.5f;
+        watchSlot(sp, slot, true, true); // (renamed: a player still in the slot)
+        const bool renamedKeeps = sp.muted && sp.volume == 0.5f;
+        watchSlot(sp, slot, false, false); // (a level change: his name not yet known)
+        const bool levelKeeps = sp.muted && sp.volume == 0.5f;
+        watchSlot(sp, slot, true, false); // (he left)
+        const bool leftResets = !sp.muted && sp.volume == 1.f;
+        watchSlot(sp, slot, true, true); // (a new player in his slot)
+        check(renamedKeeps && levelKeeps && leftResets && !sp.muted,
+            va("a player's mute and volume kept through a rename (%d) and a level change (%d), reset when his slot empties (%d)",
+                renamedKeeps ? 1 : 0, levelKeeps ? 1 : 0, leftResets ? 1 : 0));
+        sp.muted = savedMuted;
+        sp.present = savedPresent;
+        sp.volume = savedVolume;
+    }
+
+    // 8. The capture's catch-up after a hitch: 100 ms at most taken (half a second waiting: the newest 4800 samples, 10
+    //    RNNoise blocks, 5 Opus frames); the played history written only while vr_voicechat_report is in use.
+    {
+        const za::SizeT from = catchUpFrom(sampleRate / 2), none = catchUpFrom(sampleRate / 20);
+        Speaker& sp = speakers[MAX_SCOREBOARD - 1];
+        sfx_t* const savedSfx = sp.sfx;
+        const History savedHistory = history;
+        sp.sfx = nullptr;
+        za::fill(scratch.pcm, 0.25f);
+        history.askedAt = -1.0;
+        const long long before = sp.historyCount;
+        emit(sp, scratch.pcm, false);
+        const long long off = sp.historyCount - before;
+        history.askedAt = realtime;
+        emit(sp, scratch.pcm, false);
+        const long long on = sp.historyCount - before - off;
+        history = savedHistory;
+        sp.sfx = savedSfx;
+        check(sampleRate / 2 - from == sampleRate / 10 && none == 0 && off == 0 && on == frameSamples,
+            va("the capture's catch-up: %d of %d samples waiting taken (%d of %d); the history: %lld samples written without a "
+               "report, %lld with", static_cast<int>(sampleRate / 2 - from), sampleRate / 2, static_cast<int>(sampleRate / 20 - none),
+                sampleRate / 20, off, on));
+    }
+
+    // 9. The server's relay (vr_voicerelay.cpp): its fairness between speakers, the rotation, the mutes and voice off.
+    serverSelftest(check);
     opus_encoder_destroy(enc);
     opus_decoder_destroy(dec);
     testkit::verdict("vr_voicechat_selftest", tally.passed, tally.failed);
+}
+
+// The server told the speakers this client muted and whether his voice chat is off (the relay sends him none of theirs).
+void tellListen()
+{
+    if(cls.state != ca_connected || cls.signon != SIGNONS || cl.maxclients <= 1 || cls.demoplayback)
+    {
+        listenSent.valid = false;
+        return;
+    }
+    unsigned bits = 0;
+    for(int slot = 0; slot < MAX_SCOREBOARD && slot < 32; slot++)
+    {
+        bits |= muted(slot) ? 1u << slot : 0u;
+    }
+    const bool off = vr_voicechat.value == 0.f;
+    if(listenSent.valid && listenSent.muted == bits && listenSent.off == off)
+    {
+        return;
+    }
+    MSG_WriteByte(&cls.message, clc_stringcmd);
+    MSG_WriteString(&cls.message, va("vr_voicechat_listen %u %d", bits, off ? 1 : 0));
+    listenSent = ListenSent{true, bits, off};
 }
 
 } // namespace
@@ -1473,22 +1677,20 @@ const char* playerLine(int slot)
         return line;
     }
     const Speaker& sp = speakers[slot];
-    const bool mine = q_strcasecmp(sp.name, cl.scores[slot].name) == 0; // (his settings: else a new player's, unmuted)
-    const bool isMuted = mine && sp.muted;
-    const bool voiced = mine && sp.lastVoiced >= 0.0 && realtime - sp.lastVoiced < talkingHold;
-    q_snprintf(line, sizeof(menuText.players[0]), "%s   %.0f%%%s", cl.scores[slot].name,
-        (mine ? sp.volume : 1.f) * 100.f, isMuted ? (voiced ? "   muted, talking" : "   muted") : talking(slot) ? "   ((o)) talking" : "");
+    const bool isMuted = sp.muted;
+    const bool voiced = sp.lastVoiced >= 0.0 && realtime - sp.lastVoiced < talkingHold;
+    q_snprintf(line, sizeof(menuText.players[0]), "%s   %.0f%%%s", cl.scores[slot].name, sp.volume * 100.f, isMuted ? (voiced ? "   muted, talking" : "   muted") : talking(slot) ? "   ((o)) talking" : "");
     return line;
 }
 
 bool muted(int slot)
 {
-    return listed(slot) && q_strcasecmp(speakers[slot].name, cl.scores[slot].name) == 0 && speakers[slot].muted;
+    return listed(slot) && speakers[slot].muted;
 }
 
 float playerVolume(int slot)
 {
-    return listed(slot) && q_strcasecmp(speakers[slot].name, cl.scores[slot].name) == 0 ? speakers[slot].volume : 1.f;
+    return listed(slot) ? speakers[slot].volume : 1.f;
 }
 
 void setMuted(int slot, bool on)
@@ -1497,7 +1699,6 @@ void setMuted(int slot, bool on)
     {
         return;
     }
-    ownSettings(slot);
     Speaker& sp = speakers[slot];
     sp.muted = on;
     if(sp.muted)
@@ -1513,7 +1714,6 @@ void setPlayerVolume(int slot, float volume)
     {
         return;
     }
-    ownSettings(slot);
     speakers[slot].volume = za::clamp(volume, 0.f, 4.f);
     Con_Printf("Voice chat: %s at %.2f\n", cl.scores[slot].name, speakers[slot].volume);
 }
@@ -1587,19 +1787,24 @@ void frame()
 {
     captureFrame();
     const bool on = cls.state == ca_connected && cl.maxclients > 1;
+    const bool inGame = on && cls.signon == SIGNONS;
     for(int slot = 0; slot < MAX_SCOREBOARD; slot++)
     {
         Speaker& sp = speakers[slot];
         if(!on)
         {
-            if(sp.active || sp.playing)
+            const bool left = cls.state != ca_connected; // (out of the game: every slot's settings gone)
+            if(sp.active || sp.playing || (left && (sp.present || sp.muted || sp.volume != 1.f)))
             {
-                resetSpeaker(sp, slot, true);
+                resetSpeaker(sp, slot, !left);
+                sp.present = sp.present && !left;
             }
             continue;
         }
+        watchSlot(sp, slot, inGame, slot < cl.maxclients && cl.scores[slot].name[0] != 0);
         pump(sp, slot);
     }
+    tellListen();
     indicators();
 }
 
@@ -1614,18 +1819,18 @@ void writeClient(sizebuf_t* buf)
     // (NetQuake drops a datagram that comes after a newer one: a frame in two survives most reordering and a loss),
     // then the new ones
     int bytes = 2, again = 0, fresh = 0;
-    for(; again < cap.againCount && buf->cursize + bytes + 4 + cap.again[again].len <= buf->maxsize; again++)
+    for(; again < cap.againCount && buf->cursize + bytes + frameHeaderBytes + cap.again[again].len <= buf->maxsize; again++)
     {
-        bytes += 4 + cap.again[again].len;
+        bytes += frameHeaderBytes + cap.again[again].len;
     }
     for(; fresh < cap.outCount && again + fresh < maxFramesPerMessage; fresh++)
     {
-        const OutFrame& f = cap.out[(cap.outHead + fresh) % outQueue];
-        if(buf->cursize + bytes + 4 + f.len > buf->maxsize)
+        const Frame& f = cap.out[(cap.outHead + fresh) % outQueue];
+        if(buf->cursize + bytes + frameHeaderBytes + f.len > buf->maxsize)
         {
             break;
         }
-        bytes += 4 + f.len;
+        bytes += frameHeaderBytes + f.len;
     }
     if(again + fresh == 0)
     {
@@ -1634,20 +1839,14 @@ void writeClient(sizebuf_t* buf)
     }
     MSG_WriteByte(buf, QVR_CLC_VOICE);
     MSG_WriteByte(buf, again + fresh);
-    const auto write = [&](const OutFrame& f) {
-        MSG_WriteShort(buf, f.seq);
-        MSG_WriteByte(buf, f.flags);
-        MSG_WriteByte(buf, f.len);
-        SZ_Write(buf, f.data, f.len);
-    };
     for(int i = 0; i < again; i++)
     {
-        write(cap.again[i]);
+        writeFrame(buf, cap.again[i]);
     }
     cap.againCount = 0;
     for(int i = 0; i < fresh; i++)
     {
-        write(cap.out[cap.outHead]);
+        writeFrame(buf, cap.out[cap.outHead]);
         cap.again[cap.againCount++] = cap.out[cap.outHead];
         cap.outHead = (cap.outHead + 1) % outQueue;
         cap.outCount--;
@@ -1659,19 +1858,16 @@ void parse()
     // [byte slot][byte count] x ([short seq][byte flags][byte len][len bytes])
     const int slot = MSG_ReadByte();
     const int count = MSG_ReadByte();
+    if(count == 0 && !msg_badread && slot >= 0 && slot < MAX_SCOREBOARD)
+    {
+        speakers[slot].lastVoiced = realtime; // (a speaker you muted talks: the server sends his frames no more)
+    }
     for(int i = 0; i < count && !msg_badread; i++)
     {
-        const za::U16 seq = static_cast<za::U16>(MSG_ReadShort());
-        const za::U8 flags = static_cast<za::U8>(MSG_ReadByte());
-        const int len = MSG_ReadByte();
-        za::U8 data[255];
-        for(int k = 0; k < len; k++)
+        Frame f;
+        if(readFrame(f) && slot >= 0 && slot < MAX_SCOREBOARD && slot + 1 != cl.viewentity)
         {
-            data[k] = static_cast<za::U8>(MSG_ReadByte());
-        }
-        if(!msg_badread && slot >= 0 && slot < MAX_SCOREBOARD && slot + 1 != cl.viewentity && len <= maxFrameBytes)
-        {
-            receive(slot, seq, flags, data, len);
+            receive(slot, f);
         }
     }
 }
@@ -1703,6 +1899,31 @@ bool offhandButton(bool pressed)
 bool deviceBusy()
 {
     return deviceJobsBusy();
+}
+
+void writeFrame(sizebuf_t* msg, const Frame& f)
+{
+    MSG_WriteShort(msg, f.seq);
+    MSG_WriteByte(msg, f.flags);
+    MSG_WriteByte(msg, f.len);
+    SZ_Write(msg, f.data, f.len);
+}
+
+bool readFrame(Frame& f)
+{
+    f.seq = static_cast<za::U16>(MSG_ReadShort());
+    f.flags = static_cast<za::U8>(MSG_ReadByte());
+    const int len = MSG_ReadByte();
+    f.len = static_cast<za::U8>(za::clamp(len, 0, maxFrameBytes));
+    for(int k = 0; k < len; k++)
+    {
+        const int b = MSG_ReadByte();
+        if(k < maxFrameBytes)
+        {
+            f.data[k] = static_cast<za::U8>(b);
+        }
+    }
+    return !msg_badread && len >= 0 && len <= maxFrameBytes;
 }
 
 } // namespace qvr::voicechat
