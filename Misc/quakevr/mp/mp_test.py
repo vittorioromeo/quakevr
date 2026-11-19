@@ -4173,6 +4173,13 @@ def guard_counts(srv):
 
 
 GUARD_CHEAT_S = 2.0  # mp_guard: seconds B's moves lie
+# mp_guard: A's main hand from the mock's standing pose straight up over his head (the launcher pointing up), out ahead
+# at arm's length, across to his left (pointing left), out ahead again: 0.4 s a move, 0.5 s held at each (at most
+# 3.7 m/s, 3.5 rad/s).
+GUARD_ARM_PLAY = ("0.000 main 0.2 1.3 -0.4 0 0 0", "0.400 main 0.15 2.75 -0.1 80 0 0", "0.900 main 0.15 2.75 -0.1 80 0 0",
+                  "1.300 main 0.1 1.6 -0.8 0 0 0", "1.800 main 0.1 1.6 -0.8 0 0 0", "2.200 main -0.6 1.7 -0.4 0 80 0",
+                  "2.700 main -0.6 1.7 -0.4 0 80 0", "3.100 main 0.1 1.6 -0.8 0 0 0", "3.300 main 0.1 1.6 -0.8 0 0 0")
+GUARD_ARM_S = 3.4  # (the play's length and a frame or few)
 
 
 def guard(s):
@@ -4190,14 +4197,12 @@ def guard(s):
     a.cmd("vr_height_calibration 1.95; vr_mock_hand head 0 1.95 0")
     wpn = arm_with(s, srv, a, ea, 10, "")
     s.check("A holds the rocket launcher (the server's report)", wpn and wpn[-1] == 10, "A's main weapon: %s" % wpn)
-    poses = [
-        "vr_mock_hand main 0.15 2.75 -0.1 80 0 0",   # straight up over his head, the launcher pointing up
-        "vr_mock_hand main 0.1 1.6 -0.8 0 0 0",      # out ahead at arm's length
-        "vr_mock_hand main -0.6 1.7 -0.4 0 80 0",    # across to his left, pointing left
-    ]
-    for pose in poses:
-        a.cmd(pose)
-        server_time_past(srv, server_time(srv) + 0.5)
+    # His arm carries the launcher from pose to pose as an arm does, 0.4 s a move (a play: the mock's jump in one frame
+    # reads as 1.5 m in its 50 ms, 30 m/s, and the launcher's turn as a flick at its length: a throw's estimate over the
+    # 40 m/s bound in 3 runs of 4 once the frames came faster), held 0.5 s at each.
+    a_play = play(s, a, "guard_arm", GUARD_ARM_PLAY)
+    s.note("A's arm's play: %s" % a_play)
+    server_time_past(srv, server_time(srv) + GUARD_ARM_S)
     own = drawn_report(a, "mp_drawn_own").get((ea, 1), {})
     grips = sorted(i for i, v in own.get("spots", {}).items() if int(v[0]) == 1)
     if grips:  # (his off hand on its grip: held in both)
