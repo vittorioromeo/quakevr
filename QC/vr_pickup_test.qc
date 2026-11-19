@@ -1145,6 +1145,10 @@ void() VR_PickupTest_Frame =
     {
         VR_ReadyTest_Start(); // (each player's readiness his own: vr_itemrules_test.qc; VR_ReadyTest_Frame runs it on)
     }
+    else if(ask == 23)
+    {
+        VR_MjolnirModelTest_Run(); // (a player holding Mjolnir is player.mdl: vr_itemrules_test.qc)
+    }
     self = oself;
 };
 #endif

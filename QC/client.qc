@@ -1,4 +1,4 @@
-float modelindex_eyes, modelindex_player, modelindex_hammer;
+float modelindex_eyes, modelindex_player;
 
 //
 //
@@ -1233,13 +1233,6 @@ void() PutClientInServer =
 
     // oh, this is a hack!
 
-    modelindex_hammer = 0;
-    if(vr_have_playham) // (Hipnotic's third-person player holding Mjolnir: the weapon itself is Quake VR's)
-    {
-        setmodel(self, "progs/playham.mdl");
-        modelindex_hammer = self.modelindex;
-    }
-
     setmodel(self, "progs/eyes.mdl");
     modelindex_eyes = self.modelindex;
 
@@ -2068,9 +2061,6 @@ void() CheckPowerups =
         self.frame = 0;
         self.modelindex = modelindex_eyes;
     }
-//MED 12/04/96 added mjolnir stuff
-    else if(self.weapon == WID_MJOLNIR)
-        self.modelindex = modelindex_hammer;   // don't use eyes
     else
         self.modelindex = modelindex_player;    // don't use eyes
 

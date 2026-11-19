@@ -188,6 +188,13 @@ Notes on them:
   set, and the Mjolnir frame macros in `player.qc` (and `player_die_ham1`) gated on `vr_have_playham`.
 - **Drawbacks:** without the gate the fallback plays `playham.mdl`'s frame numbers on `player.mdl` (wrong poses),
   so both halves are needed; the swing then shows the axe's animation.
+- **Status (2026-11-19): fixed by the author's choice, not the fallback:** `playham.mdl` is not used at all (players
+  are drawn with the VR body). Gone: `modelindex_hammer`, its `setmodel`, `CheckPowerups`' Mjolnir branch, the precache,
+  `vr_have_playham`, the Hipnotic pack check's entry, Mjolnir's stand, run, pain and death frames (`player_hampain*`,
+  `player_die_ham*`): a player holding it is `player.mdl` with the generic frames, as with the other melee weapons
+  but the axe; the untracked swing (`player_hammer*`, `player_mjolnir*`, which carry `HIP_FireMjolnir`) plays the
+  axe's swings, as `W_Fire_Melee`'s. agent/mp has the same code untouched (no reader of its own). Test:
+  `vr_pickup_test 23`, with and without Hipnotic.
 
 ### 8. `Host_Error`'s `longjmp` crosses C++ frames
 

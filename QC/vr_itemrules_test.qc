@@ -284,4 +284,28 @@ void() VR_ReadyTest_Frame =
         VR_Test_Verdict();
     }
 };
+// vr_pickup_test 23 (vr_itemrules_test.qc): a player holding Mjolnir is player.mdl, as with any weapon (Hipnotic's
+// playham.mdl, the third-person player holding it, is not used: without Hipnotic its model index was 0, the player
+// invisible to others). Mjolnir given to the main hand, CheckPowerups (which picks the model each frame) and the pain
+// frames run: his model index is player.mdl's, not 0. Verdict "mjolnirmodel: N passed, M failed". Single player, with or
+// without Hipnotic's data (e1m1).
+void() VR_MjolnirModelTest_Run =
+{
+    VR_Test_BeginFlags("mjolnirmodel", VR_TEST_LOUD);
+    entity p = self;
+    VRGiveEntWeapon(p, cVR_MainHand, WID_MJOLNIR, 0, 0);
+    p.weapon = WID_MJOLNIR;
+    CheckPowerups();
+    VR_Test_Check(p.modelindex != 0 && p.modelindex == modelindex_player,
+        sprintf("holding Mjolnir: model index %g (player.mdl's %g)", p.modelindex, modelindex_player));
+    float hadHealth = p.health;
+    p.pain_finished = 0;
+    player_pain(world, 1);
+    p.think();
+    VR_Test_Check(p.modelindex == modelindex_player, sprintf("in pain holding Mjolnir: model index %g", p.modelindex));
+    p.health = hadHealth;
+    VRSetEntWeapon(p, cVR_MainHand, WID_FIST);
+    p.weapon = WID_FIST;
+    VR_Test_Verdict();
+};
 #endif

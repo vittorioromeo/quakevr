@@ -87,7 +87,8 @@ was therefore discarded as dependency evidence. It also hit an unrelated map-ind
 `-noaddons`; all valid measurements above used `-nomapindex`.
 
 Static resource lookup against original id1 plus this worktree's loose VR assets finds these absent, unconditional
-worldspawn models: Hipnotic supplies `progs/playham.mdl`; Rogue supplies `progs/rockup.mdl`, `rockup_d.mdl`,
+worldspawn models: Hipnotic supplies `progs/playham.mdl` (no longer used since 2026-11-19: a player holding Mjolnir is
+`player.mdl`); Rogue supplies `progs/rockup.mdl`, `rockup_d.mdl`,
 `lspike.mdl`, `shield.mdl`, `p_shield.mdl`, and `plasma.mdl`. VR already supplies several other expansion view models,
 so checking only `v_hammer.mdl` or `v_lava.mdl` would incorrectly report that the packs are available. Required
 sounds include Hipnotic's `hipweap/*` and Rogue's `lavagun/snail.wav`, `plasma/*`, `shield/hit.wav`, `belt/use.wav`.
