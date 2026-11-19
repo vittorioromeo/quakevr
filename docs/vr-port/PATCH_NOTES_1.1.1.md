@@ -9,7 +9,10 @@ that ships in 1.1.1.
   play, by Copper's rules: Select Campaign > Dwell, and the Map Library's Copper maps. The installer offers Dwell
   (free, by Fairweather and the Dwell team), ticked by default. Dwell's own monsters (the Kamikaze, the Brute, the
   Construct and both bosses) fight in its maps, and, with Dwell installed, in any map and from the toolgun; its
-  weapons and powerups work for now as variants of ours (their own VR models come in a later update). Dwell's weapons
+  weapons and powerups work as variants of ours. Dwell's Rotary Shotgun, Crystal Lance and Rifle look like themselves
+  in your hands, holsters and on armed grunts (made from Dwell's own models, with a grip to hold), the Rotary's four
+  barrels turning as you fire; the holster menu (flat and on the wrist) names them, and AD's Widowmaker, Shadow Axe
+  and Plasma Gun too. Dwell's weapons
   now stay what they are in your holsters, through saves, level changes and coop rejoins; the Rotary Shotgun reloads
   and spins up as the Widowmaker; Haste, Berserk and the Wetsuit show their seconds left on the wrist (and the flat
   visor), and Haste and Berserk tint the screen in Dwell's colours. An armed grunt that picks up one of Dwell's

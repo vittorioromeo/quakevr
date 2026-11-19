@@ -30,6 +30,10 @@ namespace qvr::notectx
 // The same for a weapon with its flags `flags`: a WID_SWORD is the dagger or an AD monster's melee weapon by its kind (QC
 // VR_ADMelee_Name's names), else weaponName(wid).
 [[nodiscard]] const char* weaponName(int wid, int flags);
+// The same for a weapon drawn with the model `model` (its name; null or "" none): a variant drawn with its own VR model
+// is named by it (AD's Shadow Axe, Widowmaker and Plasma Gun; Dwell's Rotary Shotgun, Crystal Lance and Rifle: QC
+// AD_UPGRADES' and DW_VariantName's names), else weaponName(wid, flags). The holster menu (flat and the wrist's).
+[[nodiscard]] const char* weaponName(int wid, int flags, const char* model);
 
 void frame(); // once a host frame (voicenotes::frame): the frame time ring
 

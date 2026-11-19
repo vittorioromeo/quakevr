@@ -4289,3 +4289,16 @@ build, 0 warnings dev and ReleaseLTO. Then: an armed grunt holding a Dwell weapo
 screen in Dwell's colours through AD's tint (`VR_AD_Tint`). Test: `vr_ad_test 204` in `dwell_weapons_test.sh` (6/0).
 Left: Dwell's view models as VR models (`vr_adweapons.cpp` recipes; Dwell's `v_shot3.mdl` shares AD's file name), the
 Rotary's drawn spin, and the variant names in the flat holster menu and on the wrist by those models.
+
+## Dwell P3, third part: Dwell's weapons as VR models (dwell3c, 2026-11-19, `agent/dwell3c`)
+
+DWELL.md 9.6 has the detail. The Rotary Shotgun, Crystal Lance and Rifle are drawn as themselves: `vr_adweapons.cpp`
+recipes (`progs/dw_shot3.mdl#vr`, `dw_rail`, `dw_rifle`) made from Dwell's view models read in place from its folder
+(`Source::folder` -> `owned/dwell/<path>`, counts pinning v2.2: AD's `v_shot3.mdl` stays the Widowmaker's), levelled,
+inside the base model's corner, our grip on; weapons.txt slots 52-54 (`numSlots` 55) copy the base weapon's values,
+their muzzles their own. The Rotary's four barrels turn (27 "quad" frames; the Widowmaker's spin code, a barrel a
+shot at 0.2 s), in flat and VR alike. QC `DW_WeaponModel` through `AD_WeaponModel`/`AD_SyncModel`. The holster menu
+(flat and the wrist's) names a weapon by its model: `notectx::weaponName(wid, flags, model)` (AD's three too). Test:
+`Misc/quakevr/dwell_vrmodels_test.sh` (vr_ad_test 205-208): 13 passed, 0 failed; screenshots in the worktree's
+`scratch/dwell_vrmodels_vr.png` and `dwell_vrmodels_flat.png`. Seen while testing, not this work's: `vr_ad_test 141`
+(adplasma) fails 0/6 with origin/next's QC too (the off hand's model is `progs/hand.mdl` after 0.5 s).

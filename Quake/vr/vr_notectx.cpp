@@ -66,6 +66,31 @@ constexpr const char* swordKindNames[] = {"sword", "Death Fury's sword", "Death 
     return weaponName(wid);
 }
 
+// The variants drawn with their own VR models (vr_adweapons.cpp recipes), named by them.
+struct ModelName
+{
+    const char* model;
+    const char* name;
+};
+constexpr ModelName variantNames[] = {{"progs/v_shadaxe3.mdl#vr", "Shadow Axe"}, {"progs/v_shot3.mdl#vr", "Widowmaker"},
+    {"progs/v_plasma.mdl#vr", "Plasma Gun"}, {"progs/dw_shot3.mdl#vr", "Rotary Shotgun"},
+    {"progs/dw_rail.mdl#vr", "Crystal Lance"}, {"progs/dw_rifle.mdl#vr", "Rifle"}};
+
+[[nodiscard]] const char* weaponName(int wid, int flags, const char* model)
+{
+    if(model && model[0])
+    {
+        for(const ModelName& v : variantNames)
+        {
+            if(!q_strcasecmp(model, v.model))
+            {
+                return v.name;
+            }
+        }
+    }
+    return weaponName(wid, flags);
+}
+
 namespace
 {
 
