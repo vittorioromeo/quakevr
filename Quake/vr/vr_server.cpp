@@ -2,6 +2,7 @@
 
 #include "vr_rigseq.hpp"
 #include "vr_disarmviz.hpp"
+#include "vr_mem.hpp"
 #include "vr_rigstudio.hpp"
 #include "vr_fatigue.hpp"
 #include "vr_axestick.hpp"
@@ -1593,6 +1594,12 @@ void resetClients()
     // keeps sv.worldmodel and sv.name, but its sounds' precache order may differ (skill, Randomized Enemies).
     soundLoops.world = nullptr;
 }
+
+namespace
+{
+// Forgotten with the server's world (vr_mem.hpp's resets): the clients' moves, the sounds' loops.
+mem::Reset serverWorldReset{"server", mem::ResetEvent::ServerWorld, mem::ResetPhase::State, &resetClients};
+} // namespace
 
 const VrMove* clientMove(edict_t* player)
 {

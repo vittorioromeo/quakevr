@@ -32,6 +32,7 @@
 #include "vr_engine.hpp"
 #include "vr_cvars.hpp"
 #include "vr_lighting.hpp"
+#include "vr_mem.hpp"
 #include "vr_modelmetadata.hpp"
 #include "vr_particles.hpp"
 #include "vr_progs.hpp"
@@ -659,6 +660,13 @@ void serverReset()
     s.rng = za::FastNonCryptoRng{vr_particle_seed.value > 0.f ? static_cast<za::U64>(vr_particle_seed.value)
                                                              : srvrandom::derivedSeed(0xE7037ED1A0B428DBull)}; // (the server's seed: fixed with sv_random_seed)
 }
+
+namespace
+{
+// Forgotten with the server's world (vr_mem.hpp's resets): the server's chunks (a loaded game's found again at its
+// first frame).
+mem::Reset serverWorldReset{"explosiondebris", mem::ResetEvent::ServerWorld, mem::ResetPhase::State, &serverReset};
+} // namespace
 
 void serverClear()
 {

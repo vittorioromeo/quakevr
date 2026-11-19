@@ -3948,6 +3948,13 @@ void qvr::climb::reset()
     }
 }
 
+namespace
+{
+// Forgotten with the server's world (vr_mem.hpp's resets): the climbers' holds.
+qvr::mem::Reset serverWorldReset{
+    "climb", qvr::mem::ResetEvent::ServerWorld, qvr::mem::ResetPhase::State, &qvr::climb::reset};
+} // namespace
+
 void qvr::climb::init()
 {
     Cmd_AddCommand("vr_climb_probe", probe_f);

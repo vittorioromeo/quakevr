@@ -562,25 +562,11 @@ namespace
 // The world reset: every server subsystem's state of the old world forgotten (a new map, a changelevel, a loaded game,
 // a disconnect). What the server keeps across frames about entities is kept by entity number and forgotten here and
 // when the entity is removed (onEdictFree); an entity number kept past a load would name another entity of the loaded
-// world. A subsystem with such state adds its reset here.
+// world. A subsystem with such state registers its reset next to it (mem::Reset, ResetEvent::ServerWorld: vr_mem.hpp),
+// in its phase.
 void resetServerWorld()
 {
-    qvr::server::resetClients();
-    qvr::physics::resetRigidBodies(); // (with the two-handed holds)
-    qvr::box3d::reset();
-    qvr::toolgun::reset(); // (what its tools hold, by entity number)
-    qvr::brushes::reset(); // (the boxes made in the game: the map's)
-    qvr::ropesim::reset();
-    qvr::climb::reset();
-    qvr::foegrab::reset();
-    qvr::debris::reset();
-    qvr::explosiondebris::serverReset(); // (a loaded game's chunks found again at its first frame)
-    qvr::crates::reset();
-    qvr::props::resetModelCache(); // (the models' names may be others' now)
-    qvr::hitmodel::reset();
-    qvr::scenario::worldReset(); // (a checklist test scene ends at another map or a load, not at its own)
-    qvr::slide::resetServer(); // (by client number: a slide held through a load or a restart doesn't carry on)
-    resetBuiltinState();
+    qvr::mem::resetAll(qvr::mem::ResetEvent::ServerWorld);
 }
 
 // The pool's jobs that read the world model (its pointer captured at their post), finished: the hull's brushes and

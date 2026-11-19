@@ -2003,6 +2003,12 @@ void reset()
     registry.loadedSave = false;
 }
 
+namespace
+{
+// Forgotten with the server's world (vr_mem.hpp's resets): the boxes made in the game, the map's.
+mem::Reset serverWorldReset{"brushes", mem::ResetEvent::ServerWorld, mem::ResetPhase::State, &reset};
+} // namespace
+
 void edictFreed(int num)
 {
     const int id = ofEntity(num);

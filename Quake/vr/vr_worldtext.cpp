@@ -2,6 +2,7 @@
 
 #include "vr_worldtext.hpp"
 #include "vr_arenacards.hpp"
+#include "vr_mem.hpp"
 #include "vr_waveeditor.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
@@ -144,6 +145,12 @@ void serverReset()
 {
     serverTexts.clear();
 }
+
+namespace
+{
+// Forgotten with the server's world (vr_mem.hpp's resets): the texts the server sent.
+mem::Reset serverWorldReset{"worldtext", mem::ResetEvent::ServerWorld, mem::ResetPhase::State, &serverReset};
+} // namespace
 
 int serverMake()
 {

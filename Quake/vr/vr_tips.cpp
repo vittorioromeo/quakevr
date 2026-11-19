@@ -651,6 +651,12 @@ void serverReset()
     serverTips.clear();
 }
 
+namespace
+{
+// Forgotten with the server's world (vr_mem.hpp's resets): the tips the server sent.
+mem::Reset serverWorldReset{"tips", mem::ResetEvent::ServerWorld, mem::ResetPhase::State, &serverReset};
+} // namespace
+
 void serverMapStarted(bool fromSave)
 {
     // The worldspawn's "_vr_tips_reset_on_start" 1 (vrtutorial): a play of the map from its start shows every tip of

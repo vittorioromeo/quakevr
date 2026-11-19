@@ -1,4 +1,5 @@
 #include "vr_alloccount.h"
+#include "vr_mem.hpp"
 #include "vr_progs.hpp"
 #include "vr_geom.hpp"
 // vr_box3d_api.cpp -- the API: loads, pins, tool joints, blasts, pushes, shots and rays, held boxes, ropes and level
@@ -82,6 +83,12 @@ void reset()
     toolRecords.pinned.clear();
     toolRecords.joints.clear();
 }
+
+namespace
+{
+// Destroyed with the server's world (vr_mem.hpp's resets), first: whatever holds its ids forgets them after.
+mem::Reset serverWorldReset{"box3d", mem::ResetEvent::ServerWorld, mem::ResetPhase::World, &reset};
+} // namespace
 
 // ---------------------------------------------------------------------------------------------------------------------
 // The toolgun's pins and joints (vr_toolgun.cpp).
