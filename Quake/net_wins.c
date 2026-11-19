@@ -356,10 +356,18 @@ sys_socket_t WINS_CheckNewConnections (void)
 
 int WINS_Read (sys_socket_t socketid, byte *buf, int len, struct qsockaddr *addr)
 {
-	socklen_t addrlen = sizeof(struct qsockaddr);
+	socklen_t addrlen;
 	int ret;
+	int empty = 0;
 
-	ret = recvfrom (socketid, (char *)buf, len, 0, (struct sockaddr *)addr, &addrlen);
+	// QVR: an empty datagram is skipped, not returned: its 0 is "nothing waiting" to every caller, so one from anyone
+	// ended the drain of the server's one socket for every client (MP review finding 5); bounded (NET_EMPTY_READS)
+	do
+	{
+		addrlen = sizeof(struct qsockaddr);
+		ret = recvfrom (socketid, (char *)buf, len, 0, (struct sockaddr *)addr, &addrlen);
+	}
+	while (ret == 0 && ++empty < NET_EMPTY_READS);
 	if (ret == SOCKET_ERROR)
 	{
 		int err = SOCKETERRNO;

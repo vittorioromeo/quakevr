@@ -96,6 +96,9 @@ Tests:
     vanish   (B16) a vanished server at its client: B's link down cut, "not responding" after 3 s, the link back; A,
              the listen host, untouched; A's game killed: B told, then out at his vr_mp_client_timeout to the server
              browser with the reason.
+    emptyflood  (review 2026-11-18, finding 5) empty UDP datagrams (EMPTY_FLOOD_RATE a second, from a stranger's
+             socket) at the server's one socket while A and B play: each still sees the other walk off within the bound,
+             nobody leaves (an empty datagram's read of 0 used to end the drain of every client's datagrams).
     suite    coop, coop with B at 150 ms each way and 2% loss, bandwidth, armed, retransmit, version, avatar, avatarcal, body, prefs, grab,
              teleport, held, ground, campaign, campaign_listen, flow, rejoin, download, pickup, forcegrab, melee, moves, climb,
              rules, cosmetics, flatbody, loss, predict, predictclimb, lagcomp, disarm, voice, voice with B 50 ms (30 ms
@@ -6548,6 +6551,74 @@ def soak_long(s, srv, a, b, minutes):
     s.check("nobody left the game over the long soak", not left, "%s" % left[:3])
 
 
+EMPTY_FLOOD_RATE = 20000  # empty datagrams a second at the server (finding 5: far more than its reads of the socket)
+EMPTY_FLOOD_BOUND = 600   # ms: a player seen walking off during the flood (BASE_MS and room for the busy machine)
+
+
+class Flood:
+    """(finding 5) A stranger's UDP datagrams at `port` on this machine, `rate` a second, from a thread: `payload` each
+    (b"": empty ones); `sent` counts them."""
+
+    def __init__(self, port, rate, payload=b""):
+        import socket
+        import threading
+        self.to = ("127.0.0.1", port)
+        self.rate = rate
+        self.payload = payload
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.sock.bind(("127.0.0.1", 0))
+        self.sent = 0
+        self.stop_flag = False
+        self.thread = threading.Thread(target=self.run, daemon=True)
+
+    def run(self):
+        start = time.monotonic()
+        while not self.stop_flag:
+            due = int((time.monotonic() - start) * self.rate)
+            while self.sent < due:
+                try:
+                    self.sock.sendto(self.payload, self.to)
+                except OSError:
+                    pass
+                self.sent += 1
+            time.sleep(0.001)
+
+    def start(self):
+        self.thread.start()
+        return self
+
+    def stop(self):
+        self.stop_flag = True
+        self.thread.join(2)
+        self.sock.close()
+
+
+def emptyflood(s):
+    """(review 2026-11-18, finding 5) Empty datagrams at the server's one socket while A and B play. recvfrom's 0 for
+    an empty datagram read as "nothing waiting": each one ended a drain of the socket every client's datagrams come to,
+    so a stream of them faster than the server's reads queued everyone's moves behind them until the socket's buffer
+    dropped them. Now each read skips them (NET_EMPTY_READS at most a call): both players still see each other walk
+    off within EMPTY_FLOOD_BOUND ms during the flood, and nobody leaves."""
+    srv, a, b, ea, eb = join(s)
+    since_a, since_b = a.mark(), b.mark()
+    flood = Flood(s.port, EMPTY_FLOOD_RATE).start()
+    t0 = time.monotonic()
+    try:
+        time.sleep(1.0)  # (the socket's buffer full of them before the walks, as a stream of them would leave it)
+        walk(s, b, a, eb, "b_walks_flooded", EMPTY_FLOOD_BOUND, EMPTY_FLOOD_BOUND + 400)
+        walk(s, a, b, ea, "a_walks_flooded", EMPTY_FLOOD_BOUND, EMPTY_FLOOD_BOUND + 400)
+    finally:
+        flood.stop()
+    took = time.monotonic() - t0
+    s.note("flood: %d empty datagrams in %.1f s (%.0f a second)" % (flood.sent, took, flood.sent / max(took, 1e-3)))
+    s.check("the flood ran at %d a second or more" % (EMPTY_FLOOD_RATE // 2), flood.sent / max(took, 1e-3) >=
+            EMPTY_FLOOD_RATE // 2, "%.0f a second" % (flood.sent / max(took, 1e-3)))
+    left = [l.strip() for inst, since in ((a, since_a), (b, since_b)) for l in inst.lines[since:]
+            if l.startswith("mp_event:") and l.rstrip().endswith(" left")]
+    s.check("nobody left the game during the flood", not left, "%s" % left[:2])
+    walk(s, b, a, eb, "b_walks_after", BASE_MS + 200, BASE_MS + 400)
+
+
 def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
     s = Session(args.exe, args.base, args.out, test, port=args.port)
     s.server_extra = args.server_set.split() if args.server_set else []  # (B13c: e.g. "+vr_net_sendhz 36")
@@ -6637,6 +6708,8 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             guests(s)
         elif test == "mp_nat":
             nat(s)
+        elif test == "mp_emptyflood":
+            emptyflood(s)
         elif test == "mp_netsafe":
             netsafe(s)
         elif test == "mp_roomui":
@@ -6721,12 +6794,13 @@ SUITE = [
     ("mp_guests", ()),
     ("mp_jitter", ()),
     ("mp_nat", ()),
+    ("mp_emptyflood", ()),
 ]  # (mp_netsafe runs first, before these; the rest in this order. The tuples: lag ms, jitter ms, loss)
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood", "suite"])
     ap.add_argument("--base", required=True, help="the game folder (id1, quakevr...)")
     ap.add_argument("--exe", default=EXE)
     ap.add_argument("--out", default=os.path.join(REPO, "scratch", "mp"))
@@ -6788,7 +6862,7 @@ def main_run(args):
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
     elif args.test in ("bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground",
-                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui"):
+                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood"):
         ok = run(args, "mp_" + args.test)
     elif args.test == "voice":
         ok = run(args, "mp_voice", args.lag, args.jitter, args.loss)

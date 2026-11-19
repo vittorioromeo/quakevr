@@ -558,15 +558,15 @@ static struct
 static int NatRead (sys_socket_t socketid, byte *buf, int len, struct qsockaddr *addr)
 {
 	struct qsockaddr	from;
-	int		ret;
+	int		ret, skipped;
 
-	for (;;)
+	for (skipped = 0; skipped < NET_EMPTY_READS; skipped++)
 	{
 		ret = nat.read (socketid, nat.buffer, sizeof (nat.buffer), &from);
 		if (ret <= 0)
 			return ret;
-		if (ret < 6 || net_landrivers[0].AddrCompare (&from, &nat.gateway) != 0)
-			continue;
+		if (ret <= 6 || net_landrivers[0].AddrCompare (&from, &nat.gateway) != 0)
+			continue; // (an empty one skipped as the drivers' Read does; another sender's dropped)
 		memset (addr, 0, sizeof (*addr));
 		addr->qsa_family = AF_INET;
 		memcpy (&((struct sockaddr_in *) addr)->sin_addr, nat.buffer, 4);
@@ -575,6 +575,7 @@ static int NatRead (sys_socket_t socketid, byte *buf, int len, struct qsockaddr 
 		memcpy (buf, nat.buffer + 6, ret);
 		return ret;
 	}
+	return 0;
 }
 
 static int NatWrite (sys_socket_t socketid, byte *buf, int len, struct qsockaddr *addr)

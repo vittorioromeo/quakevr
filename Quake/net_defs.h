@@ -129,6 +129,7 @@ CCREP_RULE_INFO
 
 #define NET_RELIABLE_WINDOW	16 // QVR: reliable chunks in flight at most (net_dgrm.c)
 #define NET_RELIABLE_CHUNK	1200 // QVR: a reliable chunk's bytes at most (net_dgrm.c)
+#define NET_EMPTY_READS	256 // QVR: empty datagrams a driver's Read skips at most in one call (one past them: none waiting)
 
 // QVR: (B23) datagrams queued for a reader (net_dgrm.c: a server's clients on its one socket), oldest first
 typedef struct
