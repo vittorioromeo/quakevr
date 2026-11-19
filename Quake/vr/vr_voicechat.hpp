@@ -24,6 +24,8 @@
 
 #include "vr_engine.hpp"
 
+#include "Zancle/Base/IntTypes.hpp"
+
 struct client_s;
 
 namespace qvr::voicechat
@@ -35,6 +37,29 @@ inline constexpr int maxFrameBytes = 160; // an Opus frame's bytes at most (64 k
 inline constexpr int maxFramesPerMessage = 6;
 inline constexpr int flagSpurtStart = 1;  // the first frame of a talk spurt
 inline constexpr int flagSpurtEnd = 2;    // a talk spurt's end marker (no data)
+
+// One voice frame as it goes up (QVR_CLC_VOICE), is relayed (QVR_SVC_VOICE) and waits in a jitter buffer: on the wire
+// [short seq][byte flags][byte len][len bytes].
+struct Frame
+{
+    za::U16 seq{0};
+    za::U8 flags{0};
+    za::U8 len{0};
+    za::U8 data[maxFrameBytes]{};
+};
+inline constexpr int frameHeaderBytes = 4;
+
+// `f` written into `msg`.
+void writeFrame(sizebuf_t* msg, const Frame& f);
+// The next frame of net_message into `f`: false a bad read or one longer than maxFrameBytes (its bytes read past, so the
+// message's next frame is still in step).
+[[nodiscard]] bool readFrame(Frame& f);
+
+// Sequence number `a` after `b` (> 0), before (< 0), modulo 2^16.
+[[nodiscard]] inline int seqDiff(za::U16 a, za::U16 b)
+{
+    return static_cast<za::I16>(static_cast<za::U16>(a - b));
+}
 
 void init();
 void shutdown();

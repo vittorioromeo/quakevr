@@ -25,6 +25,7 @@
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/String/String.hpp"
 
 #include "opus.h"
 #include "rnnoise.h"
@@ -73,24 +74,12 @@ constexpr double meterLevelFloor = -50.0, meterLevelSpan = 30.0; // dBFS: denois
         .count();
 }
 
-[[nodiscard]] int seqDiff(za::U16 a, za::U16 b)
-{
-    return static_cast<za::I16>(static_cast<za::U16>(a - b));
-}
-
 // ---- Sending -------------------------------------------------------------------------------------------------------
-
-struct OutFrame
-{
-    za::U16 seq{0};
-    za::U8 flags{0};
-    za::U8 len{0};
-    za::U8 data[maxFrameBytes]{};
-};
 
 struct Opened
 {
     SDL_AudioDeviceID id = 0;
+    za::String error; // (the worker's SDL_GetError when it failed: SDL's error is per thread)
 };
 
 struct Capture
@@ -113,8 +102,8 @@ struct Capture
     bool sending = false;
     int hang = 0;
     za::U16 seq = 0;
-    OutFrame out[outQueue];
-    OutFrame again[maxFramesPerMessage]; // the last datagram's new frames, sent once more
+    Frame out[outQueue];
+    Frame again[maxFramesPerMessage]; // the last datagram's new frames, sent once more
     int againCount = 0;
     int outHead = 0, outCount = 0; // (a ring: the oldest at outHead)
     double toneLast = -1.0;
@@ -158,10 +147,7 @@ MenuText menuText;
 struct JitterSlot
 {
     bool has{false};
-    za::U16 seq{0};
-    za::U8 flags{0};
-    za::U8 len{0};
-    za::U8 data[maxFrameBytes]{};
+    Frame frame;
 };
 
 struct Speaker
@@ -268,7 +254,7 @@ void takeOpened()
     else if(!cap.noMicSaid)
     {
         cap.noMicSaid = true;
-        Con_Printf("Voice chat: no microphone (%s)\n", SDL_GetError());
+        Con_Printf("Voice chat: no microphone (%s)\n", o.error.cStr());
     }
 }
 
@@ -344,6 +330,10 @@ void openMic()
             {
                 SDL_PauseAudioDevice(o.id, 0);
             }
+            else
+            {
+                o.error = za::String{SDL_GetError()};
+            }
             return o;
         });
 }
@@ -358,7 +348,7 @@ void queueFrame(const unsigned char* data, int len, za::U8 flags)
         cap.outCount--;
         cap.framesDropped++;
     }
-    OutFrame& f = cap.out[(cap.outHead + cap.outCount) % outQueue];
+    Frame& f = cap.out[(cap.outHead + cap.outCount) % outQueue];
     f.seq = cap.seq++;
     f.flags = flags;
     f.len = static_cast<za::U8>(za::clamp(len, 0, maxFrameBytes));
@@ -747,17 +737,17 @@ void decodeNext(Speaker& sp, int slot)
 {
     float* pcm = scratch.pcm;
     JitterSlot& s = sp.jb[sp.nextSeq % jitterSlots];
-    if(s.has && s.seq == sp.nextSeq)
+    if(s.has && s.frame.seq == sp.nextSeq)
     {
         s.has = false;
-        if(s.len == 0)
+        if(s.frame.len == 0)
         {
             sp.playing = false; // (the end marker)
             emit(sp, pcm, true);
             advance(sp, 1);
             return;
         }
-        const int n = opus_decode_float(sp.dec, s.data, s.len, pcm, frameSamples, 0);
+        const int n = opus_decode_float(sp.dec, s.frame.data, s.frame.len, pcm, frameSamples, 0);
         emit(sp, pcm, n != frameSamples);
         sp.played++;
         sp.concealRun = 0;
@@ -776,12 +766,12 @@ void decodeNext(Speaker& sp, int slot)
     bool newer = false;
     for(const JitterSlot& j : sp.jb)
     {
-        newer = newer || (j.has && seqDiff(j.seq, sp.nextSeq) > 0);
+        newer = newer || (j.has && seqDiff(j.frame.seq, sp.nextSeq) > 0);
     }
     const JitterSlot& next = sp.jb[static_cast<za::U16>(sp.nextSeq + 1) % jitterSlots];
-    if(next.has && next.seq == static_cast<za::U16>(sp.nextSeq + 1) && next.len > 0)
+    if(next.has && next.frame.seq == static_cast<za::U16>(sp.nextSeq + 1) && next.frame.len > 0)
     {
-        const int n = opus_decode_float(sp.dec, next.data, next.len, pcm, frameSamples, 1);
+        const int n = opus_decode_float(sp.dec, next.frame.data, next.frame.len, pcm, frameSamples, 1);
         emit(sp, pcm, n != frameSamples);
         sp.recovered++;
         sp.concealRun = 0;
@@ -829,13 +819,13 @@ void pump(Speaker& sp, int slot)
     int buffered = 0;
     for(const JitterSlot& j : sp.jb)
     {
-        buffered += j.has && seqDiff(j.seq, sp.nextSeq) >= 0 ? 1 : 0;
+        buffered += j.has && seqDiff(j.frame.seq, sp.nextSeq) >= 0 ? 1 : 0;
     }
     const int most = static_cast<int>(jitterMax / frameSeconds) + 3;
     if(sp.playing && buffered > most)
     {
         JitterSlot& s = sp.jb[sp.nextSeq % jitterSlots];
-        if(s.has && s.seq == sp.nextSeq && s.len > 0)
+        if(s.has && s.frame.seq == sp.nextSeq && s.frame.len > 0)
         {
             s.has = false;
             advance(sp, 2);
@@ -919,8 +909,10 @@ void resetSpeaker(Speaker& sp, int slot, bool keepSettings)
 }
 
 // A frame arrived from slot `slot`.
-void receive(int slot, za::U16 seq, za::U8 flags, const za::U8* data, int len)
+void receive(int slot, const Frame& f)
 {
+    const za::U16 seq = f.seq;
+    const int len = f.len;
     Speaker& sp = speakers[slot];
     // (another player in his slot: his own settings)
     const char* name = slot < cl.maxclients ? cl.scores[slot].name : "";
@@ -933,7 +925,7 @@ void receive(int slot, za::U16 seq, za::U8 flags, const za::U8* data, int len)
     const double now = realtime;
     // (RFC 3550's jitter: the arrival's transit against the sequence's clock)
     const double transit = now - seq * frameSeconds;
-    if(sp.haveTransit && !(flags & flagSpurtStart))
+    if(sp.haveTransit && !(f.flags & flagSpurtStart))
     {
         const double d = fabs(transit - sp.prevTransit);
         sp.jitter += (za::min(d, 1.0) - sp.jitter) / 16.0;
@@ -960,7 +952,7 @@ void receive(int slot, za::U16 seq, za::U8 flags, const za::U8* data, int len)
     }
     JitterSlot& s = sp.jb[seq % jitterSlots];
     const bool given = sp.doneHow[seq % jitterSlots] != 0 && sp.doneSeq[seq % jitterSlots] == seq;
-    if((s.has && s.seq == seq) || (given && sp.doneHow[seq % jitterSlots] == 1))
+    if((s.has && s.frame.seq == seq) || (given && sp.doneHow[seq % jitterSlots] == 1))
     {
         sp.dups++; // (each frame comes twice: its next datagram's copy)
         return;
@@ -980,18 +972,12 @@ void receive(int slot, za::U16 seq, za::U8 flags, const za::U8* data, int len)
         }
         sp.nextSeq = seq;
     }
-    if(s.has && s.seq != seq && (!sp.playing || seqDiff(s.seq, sp.nextSeq) >= 0))
+    if(s.has && s.frame.seq != seq && (!sp.playing || seqDiff(s.frame.seq, sp.nextSeq) >= 0))
     {
         sp.overflow++;
     }
     s.has = true;
-    s.seq = seq;
-    s.flags = flags;
-    s.len = static_cast<za::U8>(len);
-    if(len > 0)
-    {
-        memcpy(s.data, data, static_cast<size_t>(len));
-    }
+    s.frame = f;
     if(!sp.playing && len > 0)
     {
         // a spurt starts (its first frame, or the first that came): after its jitter delay
@@ -1012,13 +998,13 @@ void receive(int slot, za::U16 seq, za::U8 flags, const za::U8* data, int len)
         // (frames of this spurt before it, already here: from the oldest)
         for(JitterSlot& j : sp.jb)
         {
-            if(j.has && seqDiff(j.seq, seq) <= -jitterSlots / 2)
+            if(j.has && seqDiff(j.frame.seq, seq) <= -jitterSlots / 2)
             {
                 j.has = false; // (an older spurt's, never played: muted, or its end lost)
             }
-            else if(j.has && seqDiff(j.seq, sp.nextSeq) < 0 && j.len > 0)
+            else if(j.has && seqDiff(j.frame.seq, sp.nextSeq) < 0 && j.frame.len > 0)
             {
-                sp.nextSeq = j.seq;
+                sp.nextSeq = j.frame.seq;
             }
         }
     }
@@ -1262,6 +1248,25 @@ void alignedSnr(const za::Vector<float>& ref, const za::Vector<float>& out, int 
     snr = 10.0 * log10(sig / za::max(err, 1e-12));
 }
 
+// (the self-test) net_message pointed at a buffer of its own to read with MSG_Read*, then put back as it was.
+struct WireRead
+{
+    sizebuf_t saved;
+    int savedCount;
+    qboolean savedBad;
+    explicit WireRead(const sizebuf_t& from) : saved{net_message}, savedCount{msg_readcount}, savedBad{msg_badread}
+    {
+        net_message = from;
+        MSG_BeginReading();
+    }
+    void restore()
+    {
+        net_message = saved;
+        msg_readcount = savedCount;
+        msg_badread = savedBad;
+    }
+};
+
 void selftest_f()
 {
     SelftestScratch& t = selftestScratch;
@@ -1420,11 +1425,19 @@ void selftest_f()
             }
             else
             {
-                receive(slot, static_cast<za::U16>(g + 100), g == 0 ? flagSpurtStart : 0, packets[g], lens[g]);
+                Frame fr;
+                fr.seq = static_cast<za::U16>(g + 100);
+                fr.flags = static_cast<za::U8>(g == 0 ? flagSpurtStart : 0);
+                fr.len = static_cast<za::U8>(lens[g]);
+                memcpy(fr.data, packets[g], static_cast<size_t>(lens[g]));
+                receive(slot, fr);
             }
             pump(sp, slot);
         }
-        receive(slot, static_cast<za::U16>(frames + 100), flagSpurtEnd, nullptr, 0);
+        Frame end;
+        end.seq = static_cast<za::U16>(frames + 100);
+        end.flags = flagSpurtEnd;
+        receive(slot, end);
         for(int k = 0; k < 20; k++)
         {
             realtime += frameSeconds;
@@ -1438,6 +1451,43 @@ void selftest_f()
         resetSpeaker(sp, slot, true);
         clockOnly = false;
         sp.sfx = savedSfx;
+    }
+
+    // 5. The wire format (writeFrame / readFrame, every voice message's): a frame back as it was written; one longer
+    //    than maxFrameBytes refused with its bytes read past, the next one still read in step.
+    {
+        za::U8 bytes[1024];
+        sizebuf_t buf{};
+        buf.data = bytes;
+        buf.maxsize = sizeof(bytes);
+        Frame a;
+        a.seq = 0xfffe;
+        a.flags = flagSpurtStart;
+        a.len = 3;
+        a.data[0] = 7;
+        a.data[1] = 8;
+        a.data[2] = 9;
+        writeFrame(&buf, a);
+        MSG_WriteShort(&buf, 5);
+        MSG_WriteByte(&buf, 0);
+        MSG_WriteByte(&buf, maxFrameBytes + 1);
+        for(int k = 0; k <= maxFrameBytes; k++)
+        {
+            MSG_WriteByte(&buf, k);
+        }
+        Frame b;
+        b.seq = 6;
+        b.flags = flagSpurtEnd;
+        writeFrame(&buf, b);
+        WireRead read{buf};
+        Frame ra, rlong, rb;
+        const bool okA = readFrame(ra), okLong = readFrame(rlong), okB = readFrame(rb);
+        const int atEnd = msg_readcount == buf.cursize;
+        read.restore();
+        check(okA && ra.seq == a.seq && ra.flags == a.flags && ra.len == 3 && ra.data[2] == 9 && !okLong && okB && rb.seq == 6 &&
+                  rb.flags == flagSpurtEnd && rb.len == 0 && atEnd,
+            "the wire: a frame read back as written; one over 160 bytes refused, the next still read in step");
+        check(seqDiff(2, 0xfffe) == 4 && seqDiff(0xfffe, 2) == -4, "seqDiff across the 16-bit wrap");
     }
     opus_encoder_destroy(enc);
     opus_decoder_destroy(dec);
@@ -1614,18 +1664,18 @@ void writeClient(sizebuf_t* buf)
     // (NetQuake drops a datagram that comes after a newer one: a frame in two survives most reordering and a loss),
     // then the new ones
     int bytes = 2, again = 0, fresh = 0;
-    for(; again < cap.againCount && buf->cursize + bytes + 4 + cap.again[again].len <= buf->maxsize; again++)
+    for(; again < cap.againCount && buf->cursize + bytes + frameHeaderBytes + cap.again[again].len <= buf->maxsize; again++)
     {
-        bytes += 4 + cap.again[again].len;
+        bytes += frameHeaderBytes + cap.again[again].len;
     }
     for(; fresh < cap.outCount && again + fresh < maxFramesPerMessage; fresh++)
     {
-        const OutFrame& f = cap.out[(cap.outHead + fresh) % outQueue];
-        if(buf->cursize + bytes + 4 + f.len > buf->maxsize)
+        const Frame& f = cap.out[(cap.outHead + fresh) % outQueue];
+        if(buf->cursize + bytes + frameHeaderBytes + f.len > buf->maxsize)
         {
             break;
         }
-        bytes += 4 + f.len;
+        bytes += frameHeaderBytes + f.len;
     }
     if(again + fresh == 0)
     {
@@ -1634,20 +1684,14 @@ void writeClient(sizebuf_t* buf)
     }
     MSG_WriteByte(buf, QVR_CLC_VOICE);
     MSG_WriteByte(buf, again + fresh);
-    const auto write = [&](const OutFrame& f) {
-        MSG_WriteShort(buf, f.seq);
-        MSG_WriteByte(buf, f.flags);
-        MSG_WriteByte(buf, f.len);
-        SZ_Write(buf, f.data, f.len);
-    };
     for(int i = 0; i < again; i++)
     {
-        write(cap.again[i]);
+        writeFrame(buf, cap.again[i]);
     }
     cap.againCount = 0;
     for(int i = 0; i < fresh; i++)
     {
-        write(cap.out[cap.outHead]);
+        writeFrame(buf, cap.out[cap.outHead]);
         cap.again[cap.againCount++] = cap.out[cap.outHead];
         cap.outHead = (cap.outHead + 1) % outQueue;
         cap.outCount--;
@@ -1661,17 +1705,10 @@ void parse()
     const int count = MSG_ReadByte();
     for(int i = 0; i < count && !msg_badread; i++)
     {
-        const za::U16 seq = static_cast<za::U16>(MSG_ReadShort());
-        const za::U8 flags = static_cast<za::U8>(MSG_ReadByte());
-        const int len = MSG_ReadByte();
-        za::U8 data[255];
-        for(int k = 0; k < len; k++)
+        Frame f;
+        if(readFrame(f) && slot >= 0 && slot < MAX_SCOREBOARD && slot + 1 != cl.viewentity)
         {
-            data[k] = static_cast<za::U8>(MSG_ReadByte());
-        }
-        if(!msg_badread && slot >= 0 && slot < MAX_SCOREBOARD && slot + 1 != cl.viewentity && len <= maxFrameBytes)
-        {
-            receive(slot, seq, flags, data, len);
+            receive(slot, f);
         }
     }
 }
@@ -1703,6 +1740,31 @@ bool offhandButton(bool pressed)
 bool deviceBusy()
 {
     return deviceJobsBusy();
+}
+
+void writeFrame(sizebuf_t* msg, const Frame& f)
+{
+    MSG_WriteShort(msg, f.seq);
+    MSG_WriteByte(msg, f.flags);
+    MSG_WriteByte(msg, f.len);
+    SZ_Write(msg, f.data, f.len);
+}
+
+bool readFrame(Frame& f)
+{
+    f.seq = static_cast<za::U16>(MSG_ReadShort());
+    f.flags = static_cast<za::U8>(MSG_ReadByte());
+    const int len = MSG_ReadByte();
+    f.len = static_cast<za::U8>(za::clamp(len, 0, maxFrameBytes));
+    for(int k = 0; k < len; k++)
+    {
+        const int b = MSG_ReadByte();
+        if(k < maxFrameBytes)
+        {
+            f.data[k] = static_cast<za::U8>(b);
+        }
+    }
+    return !msg_badread && len >= 0 && len <= maxFrameBytes;
 }
 
 } // namespace qvr::voicechat

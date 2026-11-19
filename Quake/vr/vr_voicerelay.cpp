@@ -12,8 +12,6 @@
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 
-#include <string.h>
-
 namespace qvr::voicechat
 {
 namespace
@@ -27,11 +25,8 @@ constexpr int netShare = 2;            // his voice budget at most his vr_net_ra
 
 struct RelayFrame
 {
-    za::U16 seq{0};
-    za::U8 flags{0};
-    za::U8 len{0};
-    za::U8 data[maxFrameBytes]{};
-    double at{0.0};
+    Frame frame;
+    double at{0.0}; // (realtime it was taken)
 };
 
 struct RelaySlot
@@ -79,19 +74,8 @@ bool serverRead(client_s* client)
     }
     for(int i = 0; i < count; i++)
     {
-        const za::U16 seq = static_cast<za::U16>(MSG_ReadShort());
-        const za::U8 flags = static_cast<za::U8>(MSG_ReadByte());
-        const int len = MSG_ReadByte();
-        if(len > maxFrameBytes || msg_badread)
-        {
-            return false;
-        }
-        za::U8 data[maxFrameBytes];
-        for(int k = 0; k < len; k++)
-        {
-            data[k] = static_cast<za::U8>(MSG_ReadByte());
-        }
-        if(msg_badread)
+        Frame in;
+        if(!readFrame(in))
         {
             return false;
         }
@@ -99,7 +83,7 @@ bool serverRead(client_s* client)
         {
             continue;
         }
-        if(r->haveLast && static_cast<za::I16>(static_cast<za::U16>(seq - r->lastSeq)) <= 0)
+        if(r->haveLast && seqDiff(in.seq, r->lastSeq) <= 0)
         {
             r->inCopies++; // (the copy his next datagram carries, or one overtaken)
             continue;
@@ -111,15 +95,9 @@ bool serverRead(client_s* client)
         }
         r->inTokens -= 1.0;
         r->haveLast = true;
-        r->lastSeq = seq;
+        r->lastSeq = in.seq;
         RelayFrame& f = r->ring[r->written % relayRing];
-        f.seq = seq;
-        f.flags = flags;
-        f.len = static_cast<za::U8>(len);
-        if(len > 0)
-        {
-            memcpy(f.data, data, static_cast<size_t>(len));
-        }
+        f.frame = in;
         f.at = now;
         r->written++;
         r->in++;
@@ -143,7 +121,7 @@ void serverWrite(sizebuf_t* msg, client_s* client)
     {
         rate = za::min(rate, static_cast<double>(netRate) / netShare);
     }
-    const double most = za::max(rate * voiceBurst, static_cast<double>(4 + 2 * (4 + maxFrameBytes)));
+    const double most = za::max(rate * voiceBurst, static_cast<double>(4 + 2 * (frameHeaderBytes + maxFrameBytes)));
     l.tokens = l.filledAt < 0.0 || now < l.filledAt ? most : za::min(most, l.tokens + rate * (now - l.filledAt));
     l.filledAt = now;
     // (a quarter of the datagram at most)
@@ -182,7 +160,7 @@ void serverWrite(sizebuf_t* msg, client_s* client)
         int fresh = 0, again = 0, bytes = 4;
         for(long long k = next; k < sp.written && fresh < maxFramesPerMessage; k++, fresh++)
         {
-            const int add = 4 + sp.ring[k % relayRing].len;
+            const int add = frameHeaderBytes + sp.ring[k % relayRing].frame.len;
             if(used + bytes + add > room || bytes + add > l.tokens)
             {
                 break;
@@ -191,7 +169,7 @@ void serverWrite(sizebuf_t* msg, client_s* client)
         }
         for(long long k = from; k < until && fresh + again < maxFramesPerMessage; k++, again++)
         {
-            const int add = 4 + sp.ring[k % relayRing].len;
+            const int add = frameHeaderBytes + sp.ring[k % relayRing].frame.len;
             if(used + bytes + add > room || bytes + add > l.tokens)
             {
                 break;
@@ -206,19 +184,13 @@ void serverWrite(sizebuf_t* msg, client_s* client)
         MSG_WriteByte(msg, protocol::QVR_SVC_VOICE);
         MSG_WriteByte(msg, s);
         MSG_WriteByte(msg, fresh + again);
-        const auto write = [&](const RelayFrame& f) {
-            MSG_WriteShort(msg, f.seq);
-            MSG_WriteByte(msg, f.flags);
-            MSG_WriteByte(msg, f.len);
-            SZ_Write(msg, f.data, f.len);
-        };
         for(int i = 0; i < again; i++)
         {
-            write(sp.ring[(from + i) % relayRing]);
+            writeFrame(msg, sp.ring[(from + i) % relayRing].frame);
         }
         for(int i = 0; i < fresh; i++)
         {
-            write(sp.ring[(next + i) % relayRing]);
+            writeFrame(msg, sp.ring[(next + i) % relayRing].frame);
         }
         from = next;
         until = next + fresh;
