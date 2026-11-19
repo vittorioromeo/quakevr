@@ -78,8 +78,17 @@ CATEGORIES = [
     ("func_", "Brush entities"),
     ("trigger_", "Triggers"),
     ("vr_", "Quake VR"),
+    ("\0copper", "Copper: its own entities (they spawn in a map Copper's rules play: DWELL.md)"),
     ("", "Other point entities"),
 ]
+# Copper's imported QuakeC (QC/copper, copper_import.py): its spawn functions are cu_<classname> and its comments
+# /*cu:QUAKED <classname>; a classname only Copper has gets an entry (group "Copper"), named as maps place it.
+COPPER_DIR = "copper/"
+COPPER_PREFIX = "cu_"
+COPPER_QUAKED_RE = re.compile(r"/\*cu:QUAKED\s+([A-Za-z_]\w*)\s*(.*?)\*/", re.S)
+COPPER_NAMES = set()  # (qc_entities: the classnames whose entry is Copper's)
+ORIGINS["copper/cu"] = ("From Copper (Lunaran): spawns in a map played by Copper's rules (Copper's and Dwell's maps), "
+                        "or by the toolgun as cu_<classname> there.")
 
 
 # ------------------------------------------------------------------------------------------------------------------
@@ -407,12 +416,15 @@ def load_qc():
     consts = {}
     funcs = {}                        # name -> (file, args, body, is_frame)
     assigned = set()
-    quaked = {}
+    quaked, copper_quaked = {}, {}
     for f in qc_files():
         with open(os.path.join(QC_DIR, f), encoding="latin1") as fh:
             raw = fh.read()
         for m in QUAKED_RE.finditer(raw):
             quaked.setdefault(m.group(1), (f, parse_quaked(m.group(2))))
+        if f.startswith(COPPER_DIR):
+            for m in COPPER_QUAKED_RE.finditer(raw):
+                copper_quaked.setdefault(m.group(1), (f, parse_quaked(m.group(2))))
         code = strip_comments(raw)
         for m in CONST_RE.finditer(code):
             v = int(m.group(3)) if m.group(3) else m.group(2)
@@ -437,6 +449,14 @@ def load_qc():
             name = m.group(2)
             if name not in funcs:
                 funcs[name] = (f, m.group(1).strip(), code[start:j + 1], bool(m.group(4)))
+    # Copper's own classnames (no Quake VR spawn function of that name): its cu_<classname>'s entry, as <classname>.
+    COPPER_NAMES.clear()
+    for name, (f, q) in copper_quaked.items():
+        cu = funcs.get(COPPER_PREFIX + name)
+        if name not in funcs and cu and not cu[1] and not cu[3]:
+            funcs[name] = cu
+            quaked[name] = (f, q)
+            COPPER_NAMES.add(name)
     return consts, funcs, assigned, quaked
 
 
@@ -573,6 +593,8 @@ def directives(text):
 
 
 def category(name):
+    if name in COPPER_NAMES:
+        return next(i for i, (prefix, _) in enumerate(CATEGORIES) if prefix == "\0copper")
     for i, (prefix, _) in enumerate(CATEGORIES):
         if prefix == "light" and (name == "light" or name.startswith("light_")):
             return i
@@ -647,7 +669,7 @@ def build():
         for bit, const in e.flag_bits.items():
             if bit not in flags:
                 label = const
-                for pre in ("HONEY_SPAWNFLAG_", "SPAWNFLAG_", "SF_"):
+                for pre in (COPPER_PREFIX, "HONEY_SPAWNFLAG_", "SPAWNFLAG_", "SF_"):
                     if label.startswith(pre):
                         label = label[len(pre):]
                 flags[bit] = label.replace("_", " ").lower().capitalize() if label else "Flag %d" % bit

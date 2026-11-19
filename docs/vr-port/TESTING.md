@@ -234,6 +234,16 @@ run; each counts frames as `wait` does (a server tick each) and goes on at once 
 A fixed wait that a check measures across (frames, seconds, distances after it) is the check's own: replace only waits
 that end on an event (the ragdoll settled, the line printed), and prove the suite again.
 
+## The spawn census: "no behaviour change" in one command (2026-11-19)
+
+`bash Misc/quakevr/spawn_census.sh <label> [coop]` loads all 168 maps of id1, Hipnotic, Rogue, Dopa, MG1, MG3 and AD
+(`sv_random_seed 7`, skill 1, `-nomapindex -noaddons`), saves each 3 frames after spawn into
+`scratch/census_<label>/` (about 3 minutes; `coop`: Machine Games' campaigns in coop). Run it on the base build and on
+the change, then `python Misc/quakevr/spawn_census.py compare scratch/census_<base> scratch/census_<change>`: every
+save's globals and every edict's fields; the verdict `census: N identical, M different, K only in one` must say 0
+different and 0 only in one. Two runs of one build are identical (the rulesets' S1-S3 and Copper's import were proven
+with it, DWELL.md 8.1).
+
 ## Index of the feature recipes (archive/TESTING_RECIPES.md)
 
 Each line is a `##` section of [archive/TESTING_RECIPES.md](archive/TESTING_RECIPES.md); grep it for a cvar, command or script name.

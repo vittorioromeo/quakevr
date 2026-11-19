@@ -670,7 +670,11 @@ from Ironwail. Anything in shared engine or QC code carries a clear `// AD suppo
     `python Misc/quakevr/ad_import.py --release <dir> --check` (writes to `scratch/ad_check`, diffs it against
     `QC/ad/` and `progs.src`; must say `0 of N files differ`). The Steam copy of AD 1.80p1
     (`steamapps/common/Quake/ad`) holds the pinned paks and works as `--release` (read only). The 2026-10-16 cleanup
-    moved the earlier hand edits (melee arc, melee space, AD guns' effects, toolgun live torches) into the importer.
+    moved the earlier hand edits (melee arc, melee space, AD guns' effects, toolgun live torches) into the importer;
+    the 2026-11-19 one (Copper's import) moved 17 files' later hand edits (leap deaths, Melee Only, the knights' bolt
+    speed, the rocket soldier's tube effects, lightning on water, no blood on non-flesh, the axe-hit voice).
+  - Since 2026-11-19 the import itself is `Misc/quakevr/qc_import.py`, shared with Copper's (`copper_import.py`,
+    `QC/copper/`, DWELL.md 9.1); `ad_import.py` is AD's configuration on it, and its output is unchanged.
 - `QC/vr_ad_bridge.qc` holds the two switches, `VR_Pack_AD()` and `AD_Rules()`. Both return FALSE until P1b.
 - CREDITS.md credits AD's QC (GPL-2.0-or-later).
 
