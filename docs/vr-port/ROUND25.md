@@ -5406,3 +5406,10 @@ and MP-only parts left on their branches.
   (monster_boss, oldone, Chthon), item_flag*/time machine (Rogue map pieces), item_head_hellknight (MG3 campaign trophy),
   monster_decoy (made by its Hipnotic weapon). New `qvr_checks toolgun_weapons`: every WID_* has a Weapons row (exempt:
   fist, AD eliminator).
+
+## MP ready for next? (agent/mp, 2026-11-19)
+
+- flatswing's knight table is the same on agent/mp and origin/next (5/0 both, 10 of 11 land): not an MP change.
+- mp_dm: vr_dm_test 5 clears other loose guns and backpacks within 160 units of the bot before laying its nailgun;
+  tests 2/3 hold the bots' flat guards down (`VR_DMT_HoldGuards`); `respawn_if_dead` before the grip step. 26/0 x3.
+- Details, the suite runs and what blocks the merge: MP_PLAN.md, "mpready results" and "Ready for next?".

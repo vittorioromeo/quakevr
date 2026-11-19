@@ -3751,3 +3751,65 @@ guest's self-only cheats (god, noclip, give...) in coop should follow sv_cheats 
 
 Next phase: B29 as planned (a dropped client told when his reliable channel is busy; name and colour floods; B's
 signon fuzzed), and bots phase 2 if he wants it (reloads, doors and lifts in coop, a bot's two-handed grip).
+
+### mpready results: the open items before next (2026-11-19, LTO build, loopback)
+
+- **flatswing 4/1: not agent/mp's.** On today's agent/mp (b67c7f8eb, origin/next merged) and on origin/next
+  (1dc69cc10) the knight table is the same, line for line, run after run (`sv_random_seed 1`): 10 of 11 land (raised 22:
+  the knight walked off to 43.5; default 24: one blow, 25 damage), 5/0 on both. Bots phase 1's 8 of 11 was the random
+  sequence of the tree before origin/next's merges; nothing MP-only moves the knight. The trials stay random against
+  every change that draws a random number elsewhere (a margin of 1 today): no bisect (it does not fail on agent/mp).
+- **vr_dm_test 5: the test's.** The rv1119 suite's failure ("Shotgun taken into the off hand, 8.9 units from its
+  handle"): the bot's reach takes the nearest gun lying within 48 units, and a shotgun lay nearer than the test's
+  nailgun (one its off hand had taken earlier, dropped at its feet by the test's hold, or A's knocked out by test 1).
+  The test now takes away every other gun and backpack within 160 units of the bot as it lays the nailgun (printed:
+  "3 other things lying near the bot taken away" in a run that would have failed). Two more mp_dm flakes seen while
+  repeating it, both the test's: **vr_dm_test 3** (2 passed 3 failed: "the bot's sword swing begun" false: A's crowbar
+  brought into his pose moves fast enough to read as a headset's swing, the held bot raised its flat guard (chance by
+  skill) and W_Fire_Melee refuses a swing while the guard is up; tests 2 and 3 now hold the bots' guards down, test 9
+  tests the guard) and **the grip step** ("A's main grip on the server" timed out: a bot's nailgun killed A after
+  test 1; `respawn_if_dead` brings him back by his trigger first, a check). mp_dm 26/0 in 3 of 3 after.
+- **REVIEW_MP_2026-11-18**: every finding has its status line (1-16 done; 17's items done by their groups and the
+  integrator). Nothing small is left open there. Still open from the phases (not the review's): B28's `kick # N` with
+  no message ("Kicked by X: " and nothing), B29 (a dropped client told when his reliable channel is busy; name and
+  colour floods; B's signon fuzzed), the S_MixJoin calls and the voice ring's zeroing not run against the real mixer
+  (the harness is `-nosound`), the drawn hands, holsters and pouch outside the move guard (others' drawing only).
+- **Runs**: RUNS_PENDING
+
+### Ready for next?
+
+**What still blocks the merge (his):**
+- His headset checks: B10v and B10v part 2 (voice in VR: the off hand at the mouth, `((o))`, the Voice Chat page, a
+  real microphone and both spatial mixers, none run headless), the room-code pages in a headset (B23-B24), a remote
+  player's body, hands and held things seen from a headset (B2d-B12), melee and parry between two headsets.
+- **A room code between two real networks**: deploy the room service (`Misc/rendezvous/deploy.sh`; protocol 2 since
+  the review's finding 11: the deployed service must be this one before a build with it ships) and join a host behind
+  another router. Only simulated routers (`mp_nat.py`, `-natgateway`) and loopback have been run.
+- **The NAT decision**: whether a relay is built for symmetric NATs (today they are told, no relay: README's design
+  note), and IPv6 or a public room list. Until he decides, `vr_mp_room 1` and `vr_mp_rendezvous vittorioromeo.com:26100`
+  are the defaults: every multiplayer host registers with his service (a dead service costs nothing: the lookup is
+  off the game thread with back-off, finding 6).
+- Optional: whether a guest's self-only cheats in coop follow sv_cheats (B28), bots phase 2.
+
+**What the merge touches** (372 commits; 195 files and about 31k lines outside the vendored code, plus Opus and
+RNNoise vendored: 237 files, 213k lines, two new VS projects): the datagram layer (`net_dgrm.c` one server socket,
+room codes, per-connection secrets: QVR_NET_VERSION 39: builds before it and after it refuse each other in multiplayer, told why),
+`sv_main.c`/`sv_user.c`/`host_cmd.c` (snapshots, moves, guest gating, command budgets), `host.c`, `menu.c` (Host/Join
+Game), the QC (client.qc, combat.qc, weapons.qc, the player disarm grab, FrikBot's hands and walk), and about 60
+`Quake/vr` modules (new: netsnap, netmove, predict, pmove, lagcomp, moveguard, clientprefs, heldpose, mpavatar,
+coopsave, voicechat/voicerelay, serverbrowser, netlookup...; changed: climb, view_body, avatar, held, slide, physics,
+the cvar table's QVR_RULE/QVR_PREF/QVR_OWN flags on 880 rows).
+
+**Risks for single player** (each checked by the SP runs above, none seen failing; his play is the real test):
+- `vr_pmove_own 1` (his call, B11b): single player walks through `vr_pmove.cpp`, not sv_phys.c's walk. Frame-identical
+  in the traces (pmtrace_all.sh); the hands' swim strokes and crawl pulls push one frame later; the room-scale walk
+  not traced (the mock does not walk). Fallback: Debug > Network, "Movement: Own Walk Through Moves" off.
+- The own player through per-player state: the body, hands and held weapons posed through per-slot swaps (B2d,
+  B11c), the own player read from `progs::hostSlot` (finding 3), `cvar_hget` stopping at a player `self` (finding 13:
+  a touch function whose `self` is the player no longer reads `other`'s preference).
+- Settings: the server-rule and preference lists now come from the cvar table's flags (finding 14); a setting tagged
+  wrong would be overwritten by a host's value only in multiplayer, never in single player.
+- `setpos`, `svc_setview` and the start-sound entity checks are stricter (on next already); the dedicated server's
+  load window (host.c) changes no listen or single-player path.
+- Size and start-up: Opus and RNNoise are linked into the exe (RNNoise's model is a 141k-line table); voice chat opens
+  nothing unless used.
