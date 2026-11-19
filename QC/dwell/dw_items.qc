@@ -64,7 +64,13 @@ void(string mdl, string nm, string snd, float kind) dw_powerup =
     StartItem();
 };
 
+/*dw:QUAKED item_artifact_haste (0 .5 .8) (-16 -16 -24) (16 16 32)
+Dwell's Haste: 20 s, weapons refire in 0.6 of their time.
+*/
 void() dw_item_artifact_haste = { dw_powerup("progs/e2/item_haste.mdl", "Haste", "items/haste1.wav", DW_PW_HASTE); };
+/*dw:QUAKED item_artifact_berserk (0 .5 .8) (-16 -16 -24) (16 16 32)
+Dwell's Berserk: 30 s, melee 11 times as hard, half the damage taken.
+*/
 void() dw_item_artifact_berserk = { dw_powerup("progs/item_berserk.mdl", "Berserk", "items/axe_powerup.wav", DW_PW_BERSERK); };
 void() dw_item_artifact_wetsuit = { dw_powerup("progs/item_diving.mdl", "Wetsuit", "items/wetsuit.wav", DW_PW_WETSUIT); };
 
@@ -116,8 +122,17 @@ void(string mdl, float wid, float xVar, string nm) dw_weapon =
     self.netname = nm;
 };
 
+/*dw:QUAKED weapon_quad_shotgun (0 .5 .8) (-16 -16 0) (16 16 32)
+Dwell's Rotary Shotgun (for now a super shotgun firing Dwell's 20 pellets).
+*/
 void() dw_weapon_quad_shotgun = { dw_weapon("progs/g_shot3.mdl", WID_SUPER_SHOTGUN, DW_VAR_ROTARY, "Rotary Shotgun"); };
+/*dw:QUAKED weapon_railgun (0 .5 .8) (-16 -16 0) (16 16 32)
+Dwell's Crystal Lance (for now a lightning gun firing Dwell's piercing beam: 150 each, 6 cells).
+*/
 void() dw_weapon_railgun = { dw_weapon("progs/g_rail.mdl", WID_LIGHTNING, DW_VAR_LANCE, "Crystal Lance"); };
+/*dw:QUAKED weapon_rifle (0 .5 .8) (-16 -16 0) (16 16 32)
+Dwell's Rifle (for now a shotgun firing one 50 bullet).
+*/
 void() dw_weapon_rifle = { dw_weapon("progs/v_rifle.mdl", WID_SHOTGUN, DW_VAR_RIFLE, "Rifle"); };
 
 // weapon_touch: the pickup's variant on the weapon it gave (none: a plain one).
@@ -218,6 +233,11 @@ float(float xHand, float* xOutAttackFinished) DW_FireVariant =
 // a player comes near: `alpha` near, `alpha2` far, between 192 and 384 units; used, it fades out or back), and
 // info_storycamera (used, its message and its sound: Dwell's camera flight is P4's).
 
+/*dw:QUAKED misc_crystal (0 .5 .8) (-8 -8 -8) (8 8 8)
+Dwell: a crystal cluster.
+style: 1-8, its shape
+mangle: its angles
+*/
 void() dw_misc_crystal =
 {
     if(!DW_Data()) { remove(self); return; }
@@ -259,6 +279,12 @@ void() dw_fade_use =
 {
     self.state = !self.state;
 };
+/*dw:QUAKED func_fade (0 .5 .8) ?
+Dwell: a brush fading in as a player comes near (192-384 units).
+alpha: near
+alpha2: far
+speed: fade speed
+*/
 void() dw_func_fade =
 {
     if(!DW_Data()) { remove(self); return; }
@@ -299,6 +325,9 @@ void() dw_storycam_use =
     self.cnt = 0;
     dw_storycam_page();
 };
+/*dw:QUAKED info_storycamera (0 .5 .8) (-8 -8 -8) (8 8 8)
+Dwell: used, shows its pages (message, noise, noise1..noise4), 5 s each, then fires its targets.
+*/
 void() dw_info_storycamera =
 {
     if(!DW_Data()) { remove(self); return; }

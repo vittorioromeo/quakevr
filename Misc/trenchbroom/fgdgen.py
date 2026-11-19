@@ -79,6 +79,7 @@ CATEGORIES = [
     ("trigger_", "Triggers"),
     ("vr_", "Quake VR"),
     ("\0copper", "Copper: its own entities (they spawn in a map Copper's rules play: DWELL.md)"),
+    ("\0dwell", "Dwell: its own entities (they spawn in any map while Dwell's data is installed: DWELL.md P2a)"),
     ("", "Other point entities"),
 ]
 # Copper's imported QuakeC (QC/copper, copper_import.py): its spawn functions are cu_<classname> and its comments
@@ -87,6 +88,13 @@ COPPER_DIR = "copper/"
 COPPER_PREFIX = "cu_"
 COPPER_QUAKED_RE = re.compile(r"/\*cu:QUAKED\s+([A-Za-z_]\w*)\s*(.*?)\*/", re.S)
 COPPER_NAMES = set()  # (qc_entities: the classnames whose entry is Copper's)
+# Dwell's own entities, rebuilt (QC/dwell): dw_<classname>, their comments /*dw:QUAKED <classname>; as Copper's.
+DWELL_DIR = "dwell/"
+DWELL_PREFIX = "dw_"
+DWELL_QUAKED_RE = re.compile(r"/\*dw:QUAKED\s+([A-Za-z_]\w*)\s*(.*?)\*/", re.S)
+DWELL_NAMES = set()
+ORIGINS["dwell/dw"] = ("From Dwell (rebuilt on Copper and Quake VR): spawns in any map while Dwell's data is installed, "
+                       "or by the toolgun as dw_<classname>.")
 ORIGINS["copper/cu"] = ("From Copper (Lunaran): spawns in a map played by Copper's rules (Copper's and Dwell's maps), "
                         "or by the toolgun as cu_<classname> there.")
 
@@ -416,7 +424,7 @@ def load_qc():
     consts = {}
     funcs = {}                        # name -> (file, args, body, is_frame)
     assigned = set()
-    quaked, copper_quaked = {}, {}
+    quaked, copper_quaked, dwell_quaked = {}, {}, {}
     for f in qc_files():
         with open(os.path.join(QC_DIR, f), encoding="latin1") as fh:
             raw = fh.read()
@@ -425,6 +433,9 @@ def load_qc():
         if f.startswith(COPPER_DIR):
             for m in COPPER_QUAKED_RE.finditer(raw):
                 copper_quaked.setdefault(m.group(1), (f, parse_quaked(m.group(2))))
+        if f.startswith(DWELL_DIR):
+            for m in DWELL_QUAKED_RE.finditer(raw):
+                dwell_quaked.setdefault(m.group(1), (f, parse_quaked(m.group(2))))
         code = strip_comments(raw)
         for m in CONST_RE.finditer(code):
             v = int(m.group(3)) if m.group(3) else m.group(2)
@@ -457,6 +468,13 @@ def load_qc():
             funcs[name] = cu
             quaked[name] = (f, q)
             COPPER_NAMES.add(name)
+    DWELL_NAMES.clear()
+    for name, (f, q) in dwell_quaked.items():
+        dw = funcs.get(DWELL_PREFIX + name)
+        if name not in funcs and dw and not dw[1] and not dw[3]:
+            funcs[name] = dw
+            quaked[name] = (f, q)
+            DWELL_NAMES.add(name)
     return consts, funcs, assigned, quaked
 
 
@@ -595,6 +613,8 @@ def directives(text):
 def category(name):
     if name in COPPER_NAMES:
         return next(i for i, (prefix, _) in enumerate(CATEGORIES) if prefix == "\0copper")
+    if name in DWELL_NAMES:
+        return next(i for i, (prefix, _) in enumerate(CATEGORIES) if prefix == "\0dwell")
     for i, (prefix, _) in enumerate(CATEGORIES):
         if prefix == "light" and (name == "light" or name.startswith("light_")):
             return i

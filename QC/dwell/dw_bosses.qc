@@ -171,6 +171,12 @@ void(entity attacker, float damage) dw_d1_pain =
 
 void() dw_d1_walk = { DW_Seq(0, 22, DW_AI_WALK, 16, __NULL__, __NULL__); };
 
+/*dw:QUAKED monster_d1boss (1 0 0) (-32 -32 -96) (32 32 96)
+Dwell's first boss, the Awoken: 1400 health, three phases.
+target, target2, target3: fired as each phase ends
+target4: fired at its death
+include: where it wakes after a phase
+*/
 void() dw_monster_d1boss =
 {
     if(!DW_SpawnOk()) { return; }
@@ -360,6 +366,16 @@ void() dw_d2_die =
     DW_Seq(16, 80, DW_AI_NONE, 0, dw_d2_deathev, dw_d2_dead);
 };
 
+/*dw:QUAKED monster_d2boss (1 0 0) (-48 -48 -48) (48 48 48)
+Dwell's second boss, the Sculptor: dormant until used.
+strength: health (1000)
+speed: flight speed (300)
+wait: rest after a phase (40)
+include: its first path corner
+target: fired as each phase ends
+target2: its arena's centre
+target4: fired at its death
+*/
 void() dw_monster_d2boss =
 {
     if(!DW_SpawnOk()) { return; }
@@ -412,6 +428,9 @@ void() dw_killboss_use =
     b.dw_marked = TRUE;
     b.health = 666;
 };
+/*dw:QUAKED trigger_killboss (.5 .5 .5) (-8 -8 -8) (8 8 8)
+Dwell: used, marks the boss its target names to die next time (666 health left).
+*/
 void() dw_trigger_killboss =
 {
     if(!DW_Data()) { remove(self); return; }
@@ -473,6 +492,10 @@ void() dw_bullethell_use =
     }
 };
 
+/*dw:QUAKED target_bullethell (.5 .5 .5) (-8 -8 -8) (8 8 8)
+Dwell: used, a pattern of slow bullets (5 to a player).
+style: 1 line, 2 two lines, 3 ring, 4 spiral, 5 wheel
+*/
 void() dw_target_bullethell =
 {
     if(!DW_Data()) { remove(self); return; }

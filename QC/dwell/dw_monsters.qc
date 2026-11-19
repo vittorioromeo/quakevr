@@ -73,6 +73,9 @@ void(entity attacker, float damage) dw_kami_pain =
 
 void() dw_kami_walk = { DW_Seq(11, 23, DW_AI_WALK, 3, __NULL__, __NULL__); };
 
+/*dw:QUAKED monster_kamikaze (1 0 0) (-16 -16 -24) (16 16 24) AMBUSH
+Dwell's Kamikaze: 40 health; runs screaming at its enemy and bursts on contact (60 near, nothing at 190 units).
+*/
 void() dw_monster_kamikaze =
 {
     if(!DW_SpawnOk()) { return; }
@@ -221,6 +224,9 @@ void() dw_brute_die =
     else               { DW_Seq(221, 233, DW_AI_NONE, 0, dw_brute_dieev, DW_Lie); }
 };
 
+/*dw:QUAKED monster_brute (1 0 0) (-32 -32 -24) (32 32 64) AMBUSH
+Dwell's Brute: 600 health; punches (60, throwing up) and lobs grenade volleys; drops 3 rockets.
+*/
 void() dw_monster_brute =
 {
     if(!DW_SpawnOk()) { return; }
@@ -342,6 +348,9 @@ void(entity attacker, float damage) dw_exca_pain =
     DW_Seq(66, 71, DW_AI_NONE, 0, __NULL__, DW_Run);
 };
 
+/*dw:QUAKED monster_excavator (1 0 0) (-32 -32 -16) (32 32 72) AMBUSH
+Dwell's Construct: a flyer, 600 health; fires crystals (40); below 340 health it dives and bursts (60 around).
+*/
 void() dw_monster_excavator =
 {
     if(!DW_SpawnOk()) { return; }

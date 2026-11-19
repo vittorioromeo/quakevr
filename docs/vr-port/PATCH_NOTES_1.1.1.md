@@ -7,8 +7,9 @@ that ships in 1.1.1.
 
 - **Dwell (experimental).** Dwell's two episodes, and custom maps made for Copper (such as Underdark Overbright), now
   play, by Copper's rules: Select Campaign > Dwell, and the Map Library's Copper maps. The installer offers Dwell
-  (free, by Fairweather and the Dwell team), ticked by default. Dwell's own new monsters, weapons and powerups come in
-  a later update.
+  (free, by Fairweather and the Dwell team), ticked by default. Dwell's own monsters (the Kamikaze, the Brute, the
+  Construct and both bosses) fight in its maps, and, with Dwell installed, in any map and from the toolgun; its
+  weapons and powerups work for now as variants of ours (their own VR weapons come in a later update).
 
 ## Graphics
 
