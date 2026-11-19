@@ -210,7 +210,8 @@ static struct
 	char	service[64];		// vr_mp_rendezvous as last resolved ("": none)
 	struct qsockaddr	serviceAddr;
 	qboolean	resolved;
-	double	resolveAt;		// a failed lookup's next try
+	double	resolveAt;		// the next look at the lookup (finding 6: its own back-off, vr_netlookup.cpp)
+	qboolean	toldNotFound;
 	char	code[ROOM_CODE_LEN + 1];	// this host's room ("": none yet)
 	unsigned int	nonce;
 	double	nextRegister;
@@ -226,25 +227,57 @@ static const char *RoomServiceName (void)
 	return Cvar_VariableString ("vr_mp_rendezvous");
 }
 
-// vr_mp_rendezvous ("host[:port]") resolved into `out` -> 0; -1 none set or not found
-static int RoomResolve (const char *name, struct qsockaddr *out)
+// QVR: (review 2026-11-18, finding 6) "host[:port]" (the port `port` when none is given) into `out` -> 1; 0 a name still
+// being looked up (on a worker: vr_netlookup.cpp; none started unless `mayStart`); -1 not found, refused or malformed.
+// An address in figures is read at once; a name is never looked up on the game thread (gethostbyname held the frame
+// for the resolver's timeout, seconds, with no working DNS).
+static int LookupAddr (const char *text, int port, struct qsockaddr *out, qboolean mayStart)
 {
 	char	host[64];
 	char	*colon;
-	int		port = ROOM_DEFAULT_PORT;
+	unsigned int	ip;
+	int		found;
 
-	q_strlcpy (host, name, sizeof (host));
+	q_strlcpy (host, text, sizeof (host));
 	if (!host[0])
 		return -1;
+	if (net_landriverlevel != 0) // (not the IPv4 driver: IPX's names are its own, read at once)
+		return dfunc.GetAddrFromName (host, out) == -1 ? -1 : 1;
 	if ((colon = strrchr (host, ':')) != NULL)
 	{
 		*colon = 0;
 		port = Q_atoi (colon + 1);
 	}
-	if (port <= 0 || port > 65535 || dfunc.GetAddrFromName (host, out) == -1)
+	if (port <= 0 || port > 65535)
 		return -1;
+	if (host[0] >= '0' && host[0] <= '9')
+	{
+		if (dfunc.GetAddrFromName (host, out) == -1)
+			return -1;
+	}
+	else
+	{
+		if (NET_LoopbackRefusesName (host, NULL))
+			return -1;
+		found = VR_NetLookup (host, &ip, mayStart);
+		if (found != 1)
+			return found;
+		memset (out, 0, sizeof (*out));
+		out->qsa_family = AF_INET;
+		((struct sockaddr_in *) out)->sin_addr.s_addr = ip;
+	}
 	dfunc.SetSocketPort (out, port);
-	return 0;
+	return 1;
+}
+
+// QVR: (finding 6) a lookup may start: no remote client is connected (a hosted game in play keeps its worker)
+static qboolean LookupMayStart (void)
+{
+	qsocket_t *s;
+	for (s = net_activeSockets; s; s = s->next)
+		if (s->qvrShared)
+			return false;
+	return true;
 }
 
 static void RoomWrite (sys_socket_t s, int type, const char *code, unsigned int nonce, int size,
@@ -385,6 +418,7 @@ static void RoomHostTick (sys_socket_t acceptsock)
 		q_strlcpy (room.service, name, sizeof (room.service));
 		room.resolved = false;
 		room.resolveAt = 0;
+		room.toldNotFound = false;
 		room.code[0] = 0;
 		room.nextRegister = 0;
 		room.firstSent = 0;
@@ -392,14 +426,19 @@ static void RoomHostTick (sys_socket_t acceptsock)
 	}
 	if (!room.resolved)
 	{
+		int found;
 		if (net_time < room.resolveAt)
 			return;
-		if (RoomResolve (room.service, &room.serviceAddr) == -1)
+		// (finding 6: on a worker, none started while remote clients are connected; a failed name tried again after
+		// the lookup's back-off)
+		found = LookupAddr (room.service, ROOM_DEFAULT_PORT, &room.serviceAddr, LookupMayStart ());
+		if (found != 1)
 		{
-			if (room.resolveAt == 0)
+			if (found == -1 && !room.toldNotFound)
 				Con_Printf ("The room service %s was not found: no room code (players can still join by your IP "
 					"address)\n", room.service);
-			room.resolveAt = net_time + 60.0;
+			room.toldNotFound |= found == -1;
+			room.resolveAt = net_time + (found == -1 ? 1.0 : 0.1);
 			return;
 		}
 		room.resolved = true;
@@ -502,7 +541,12 @@ static qboolean RoomJoin (sys_socket_t sock, const char *typed, struct qsockaddr
 		q_strlcpy (m_return_reason, "No room service set", sizeof (m_return_reason));
 		return false;
 	}
-	if (RoomResolve (name, &service) == -1)
+	// (finding 6: looked up on a worker, waited for at most ROOM_JOIN_WAIT: a resolver with no network held the
+	// connect for its own timeout)
+	start = SetNetTime ();
+	while ((length = LookupAddr (name, ROOM_DEFAULT_PORT, &service, true)) == 0 && SetNetTime () - start < ROOM_JOIN_WAIT)
+		Sys_Sleep (5);
+	if (length != 1)
 	{
 		Con_Printf ("The room service %s was not found (no internet?): join by the host's IP address\n", name);
 		q_strlcpy (m_return_reason, "Room service not found", sizeof (m_return_reason));
@@ -1544,6 +1588,7 @@ int Datagram_Init (void)
 
 	Cmd_AddCommand ("net_stats", NET_Stats_f);
 	Cmd_AddCommand ("vr_mp_roomcode", NET_RoomCode_f); // QVR: (B23) this host's room code ("vr_mp_roomcode copy": copied)
+	VR_NetLookupInit (); // QVR: (review finding 6) net_lookups
 
 	if (safemode || COM_CheckParm("-nolan"))
 		return -1;
@@ -1576,6 +1621,8 @@ int Datagram_Init (void)
 void Datagram_Shutdown (void)
 {
 	int i;
+
+	VR_NetLookupShutdown (); // QVR: (review finding 6) a lookup under way waited for
 
 //
 // shutdown the lan drivers
@@ -2030,16 +2077,15 @@ static void _Datagram_SearchForHosts (qboolean xmit)
 		MSG_WriteByte(&net_message, NET_PROTOCOL_VERSION);
 		*((int *)net_message.data) = BigLong(NETFLAG_CTL | (net_message.cursize & NETFLAG_LENGTH_MASK));
 		dfunc.Broadcast(dfunc.controlSock, net_message.data, net_message.cursize);
-		// QVR: (B13) the browser's addresses (a host name is looked up here: as connect's, it may block a moment)
+		// QVR: (B13) the browser's addresses; (finding 6) a host name looked up on a worker, asked once it is found (a
+		// search sends twice, 0.75 s apart; the browser searches again)
 		sa->count = 0;
 		asked = VR_BrowserAddressCount ();
 		for (i = 0; i < asked && sa->count < HOSTCACHESIZE; i++)
 		{
 			struct qsockaddr *to = &sa->addr[sa->count];
-			if (dfunc.GetAddrFromName (VR_BrowserAddress (i), to) == -1)
+			if (LookupAddr (VR_BrowserAddress (i), net_hostport, to, LookupMayStart ()) != 1)
 				continue;
-			if (dfunc.GetSocketPort (to) == 0)
-				dfunc.SetSocketPort (to, net_hostport);
 			dfunc.Write (dfunc.controlSock, net_message.data, net_message.cursize, to);
 			sa->index[sa->count++] = i;
 		}

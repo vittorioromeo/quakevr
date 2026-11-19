@@ -99,6 +99,12 @@ void VR_MpWritePackage (struct sizebuf_s *msg);	// SV_SendServerinfo, to a remot
 int VR_BrowserAddressCount (void);	// net_dgrm.c: the addresses asked besides the broadcast ...
 const char *VR_BrowserAddress (int i);	// ... each ("" out of range)
 void VR_BrowserSearchDone (void);	// net_main.c: the search ended (its rows printed when vr_mp_browse asked)
+// (review 2026-11-18, finding 6) A host name looked up on a worker, never on the game thread (vr_netlookup.cpp):
+// 1 found (*netorder_ipv4 set), 0 not yet (under way, or none started: !mayStart), -1 failed (tried again after a
+// back-off doubling from 2 s to 5 min). net_dgrm.c: the room service's name, the server browser's favourites.
+int VR_NetLookup (const char *name, unsigned int *netorder_ipv4, int mayStart);
+void VR_NetLookupInit (void);		// net_dgrm.c Datagram_Init: net_lookups
+void VR_NetLookupShutdown (void);	// net_dgrm.c Datagram_Shutdown: a lookup under way waited for
 void VR_BrowserRefresh (void);		// a new search
 int VR_BrowserSearching (void);
 int VR_BrowserCount (void);		// the rows (built again from the search's replies and the lists)

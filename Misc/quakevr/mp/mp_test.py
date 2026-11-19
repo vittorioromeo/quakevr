@@ -108,11 +108,16 @@ Tests:
              timed resends of its reliable message space out past 1 s to 4 s (not the window every second for 300 s),
              and the message after it arrives once the acks come back; the server's vr_net_rate_max over B's
              vr_net_rate (his 0: the server's; under it: his own; the server's 0: no ceiling).
+    lookup   (review 2026-11-18, finding 6) host names looked up on a worker: the room service's name looked up for 3 s
+             (-netlookupdelay) while the dedicated server answers its console within 0.5 s, then registered with;
+             every lookup failing (-netlookupfail): one "not found" line, the tries 2 s, 4 s, 8 s apart (net_lookups),
+             none while a remote client is in, one again once he left; a favourite by name (localhost) in the
+             server browser is asked once looked up.
     suite    coop, coop with B at 150 ms each way and 2% loss, bandwidth, armed, retransmit, version, avatar, avatarcal, body, prefs, grab,
              teleport, held, ground, campaign, campaign_listen, flow, rejoin, download, pickup, forcegrab, melee, moves, climb,
              rules, cosmetics, flatbody, loss, predict, predictclimb, lagcomp, disarm, voice, voice with B 50 ms (30 ms
              jitter, 5% loss) away, dm, lockstep, lockstep_throw, nat (B23: room codes through simulated routers).
-             The network layer's review checks (2026-11-18): emptyflood, spoof, backoff.
+             The network layer's review checks (2026-11-18): emptyflood, spoof, backoff, lookup.
              (B25) --only a,b runs just those; --suite-repeat N runs them N times over; --load N (any test) keeps N
              busy CPU workers at normal priority running meanwhile (mp_load.py: the machine busy with other work, as
              in the suite's real runs; --load-duty the share of time each spins).
@@ -6822,6 +6827,173 @@ def backoff(s):
     b.cmd("vr_net_rate 80000")
 
 
+class FakeRoomService:
+    """(review 2026-11-18, findings 6 and 11) A stand-in for the room service on 127.0.0.1:`port` (the wire format of
+    Misc/rendezvous/qvr_rendezvous.py): it records every datagram (time, bytes, source) and answers only as the test
+    says (send)."""
+
+    REGISTER, REGISTERED, REFUSED, BADVERSION, COOKIE = 0x01, 0x81, 0x85, 0x86, 0x87
+
+    def __init__(self, port):
+        import socket
+        import threading
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.sock.bind(("127.0.0.1", port))
+        self.sock.settimeout(0.1)
+        self.requests = []
+        self.stop_flag = False
+        self.thread = threading.Thread(target=self.run, daemon=True)
+
+    def run(self):
+        while not self.stop_flag:
+            try:
+                data, src = self.sock.recvfrom(2048)
+            except OSError:
+                continue
+            self.requests.append((time.monotonic(), data, src))
+
+    def start(self):
+        self.thread.start()
+        return self
+
+    def stop(self):
+        self.stop_flag = True
+        self.thread.join(2)
+        self.sock.close()
+
+    def wait_request(self, kind, after=0, timeout=10.0, test=None):
+        """The first request of `kind` from index `after` on (and test(data) true) -> (index, time, data, src); None."""
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            for i in range(after, len(self.requests)):
+                t, data, src = self.requests[i]
+                if len(data) >= 18 and data[0:4] == b"QVRR" and data[5] == kind and (test is None or test(data)):
+                    return i, t, data, src
+            time.sleep(0.02)
+        return None
+
+    def send(self, kind, to, nonce, code=b"\0" * 6, extra=None, cookie=None, version=2):
+        out = bytearray(32)
+        out[0:4] = b"QVRR"
+        out[4] = version
+        out[5] = kind
+        out[8:14] = code
+        out[14:18] = nonce
+        out[18:22] = bytes(int(x) for x in to[0].split("."))
+        out[22:24] = to[1].to_bytes(2, "big")
+        if extra is not None:
+            out[18] = extra
+        if cookie is not None:
+            out[24:32] = cookie
+        self.sock.sendto(bytes(out), to)
+
+
+def lookups_of(inst):
+    """net_lookups on `inst` -> {name: fields}."""
+    since = inst.mark()
+    inst.cmd("net_lookups")
+    inst.wait(r"net_lookups: \d+ names", 10, since, "%s's net_lookups" % inst.name)
+    return {fields(l)["name"]: fields(l) for l in inst.lines[since:] if l.startswith("net_lookup: ")}
+
+
+LOOKUP_DELAY = 3.0  # s each lookup waits on its worker (-netlookupdelay: a slow resolver)
+LOOKUP_FRAME = 0.5  # s the server answers its console within meanwhile
+
+
+def lookup(s):
+    """(review 2026-11-18, finding 6) Host names are looked up on a worker (vr_netlookup.cpp), never on the game
+    thread: with no working DNS each gethostbyname held a host's frame for the resolver's timeout, seconds.
+    1. The room service named "localhost" (a name: the lookup's path), each lookup slowed to LOOKUP_DELAY s: while it
+       runs, the dedicated server answers its console within LOOKUP_FRAME s; then it registers with the service.
+    2. Every lookup failing (-netlookupfail): "not found" said once, the tries 2 s then 4 s apart (doubling); a remote
+       client in: no try however overdue; he leaves: the next try at once.
+    3. A server browser favourite by name (localhost:port) is asked once looked up (a search or two)."""
+    rport = s.take_port()
+    fake = FakeRoomService(rport).start()
+    try:
+        srv = s.server(dedicated=True, extra=["-netlookupdelay", str(LOOKUP_DELAY)])
+        srv.start()
+        srv.cmd("coop 1; deathmatch 0; skill 1; map e1m1; vr_mp_status")
+        srv.wait(r"mp_server: map=e1m1", 120, what="the server on e1m1")
+        t0 = time.monotonic()
+        srv.cmd("vr_mp_rendezvous localhost:%d; vr_mp_room 1" % rport)
+        worst, n = 0.0, 0
+        while time.monotonic() - t0 < LOOKUP_DELAY - 0.5:
+            since = srv.mark()
+            sent = time.monotonic()
+            srv.cmd("echo mp_lookup_ping %d" % n)
+            srv.wait(r"^mp_lookup_ping %d" % n, 10, since, "the server's echo")
+            worst = max(worst, time.monotonic() - sent)
+            n += 1
+            time.sleep(0.2)
+        looking = lookups_of(srv).get("localhost", {})
+        reg = fake.wait_request(FakeRoomService.REGISTER, 0, LOOKUP_DELAY + 10)
+        s.check("the room service's name looked up on a worker (%.0f s): the server answered its console within %.1f s "
+                "meanwhile (%d echoes), then registered" % (LOOKUP_DELAY, LOOKUP_FRAME, n),
+                worst <= LOOKUP_FRAME and n >= 3 and looking.get("state") == "looking" and reg is not None and
+                reg[1] - t0 >= LOOKUP_DELAY - 0.5,
+                "worst echo %.2f s; the lookup %s; REGISTER %s" % (worst, looking.get("state"),
+                                                                    "%.1f s after" % (reg[1] - t0) if reg else "none"))
+        srv.cmd("vr_mp_room 0")
+        code = srv.stop()
+        s.instances.remove(srv)
+        s.check("the first server quits cleanly", code == 0, "exit %s" % code)
+
+        # 2. failing lookups: the back-off, and none while a remote client is in
+        srv = s.server(dedicated=True, extra=["-netlookupfail"], name="server2")  # (a log of its own)
+        srv.start()
+        srv.cmd("coop 1; deathmatch 0; skill 1; map e1m1; vr_mp_status")
+        srv.wait(r"mp_server: map=e1m1", 120, what="the failing server on e1m1")
+        since = srv.mark()
+        srv.cmd("vr_mp_rendezvous localhost:%d; vr_mp_room 1" % rport)
+        seen = []
+        for _ in range(9):
+            e = lookups_of(srv).get("localhost", {})
+            if e and (not seen or seen[-1] != (e.get("tries"), e.get("wait"))):
+                seen.append((e.get("tries"), e.get("wait")))
+            time.sleep(1.0)
+        waits = [float(w) for _, w in seen if float(w) > 0]
+        told = [l for l in srv.lines[since:] if "was not found" in l]
+        s.check("failing lookups tried again 2 s, then 4 s apart (doubling), said once",
+                waits[:2] == [2.0, 4.0] and len(told) == 1, "tries/waits %s; %d lines" % (seen, len(told)))
+        a = s.client("A").start()
+        a.cmd("name A; " + s.connect_cmd(a))
+        a.wait(r"mp_event: .*joined map=e1m1", 120, what="A joined")
+        e = lookups_of(srv).get("localhost", {})
+        tries, due = int(e.get("tries", 0)), float(e.get("next", 0))
+        time.sleep(min(due, 40.0) + 1.5)
+        e2 = lookups_of(srv).get("localhost", {})
+        s.check("a remote client in: no lookup started however overdue", int(e2.get("tries", -1)) == tries and
+                float(e2.get("next", -1)) == 0.0, "tries %s then %s; next %s then %s" % (
+                    tries, e2.get("tries"), due, e2.get("next")))
+        a.cmd("disconnect")
+        again = None
+        for _ in range(30):
+            e3 = lookups_of(srv).get("localhost", {})
+            if int(e3.get("tries", 0)) > tries:
+                again = e3
+                break
+            time.sleep(0.2)
+        s.check("he left: the next try at once", again is not None, "%s" % (again or e3))
+        srv.cmd("vr_mp_room 0")
+
+        # 3. a favourite by name in A's server browser
+        here = "localhost:%d" % s.port
+        since = a.mark()
+        a.cmd('vr_mp_recent ""; vr_mp_favourites ""; vr_mp_favourite %s' % here)
+        a.wait(r"mp_browser: favourite %s on" % re.escape(here), 60, since, "the favourite set")
+        answered = None
+        for k in range(4):
+            r = row_of(browse(a, "A's search %d" % k)[0], here)
+            if r and r["answered"] == "1":
+                answered = k + 1
+                break
+        s.check("a favourite by name (%s) answers A's search once looked up" % here, answered is not None,
+                "after %s searches" % answered)
+    finally:
+        fake.stop()
+
+
 def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
     s = Session(args.exe, args.base, args.out, test, port=args.port)
     s.server_extra = args.server_set.split() if args.server_set else []  # (B13c: e.g. "+vr_net_sendhz 36")
@@ -6917,6 +7089,8 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             spoof(s)
         elif test == "mp_backoff":
             backoff(s)
+        elif test == "mp_lookup":
+            lookup(s)
         elif test == "mp_netsafe":
             netsafe(s)
         elif test == "mp_roomui":
@@ -7004,12 +7178,13 @@ SUITE = [
     ("mp_emptyflood", ()),
     ("mp_spoof", ()),
     ("mp_backoff", ()),
+    ("mp_lookup", ()),
 ]  # (mp_netsafe runs first, before these; the rest in this order. The tuples: lag ms, jitter ms, loss)
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood", "spoof", "backoff", "suite"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood", "spoof", "backoff", "lookup", "suite"])
     ap.add_argument("--base", required=True, help="the game folder (id1, quakevr...)")
     ap.add_argument("--exe", default=EXE)
     ap.add_argument("--out", default=os.path.join(REPO, "scratch", "mp"))
@@ -7071,7 +7246,7 @@ def main_run(args):
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
     elif args.test in ("bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground",
-                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood", "spoof", "backoff"):
+                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood", "spoof", "backoff", "lookup"):
         ok = run(args, "mp_" + args.test)
     elif args.test == "voice":
         ok = run(args, "mp_voice", args.lag, args.jitter, args.loss)
