@@ -381,10 +381,10 @@ void(float brange) bot_weapon_switch =
 };
 
 // Its melee swing's shape (bot_setvrfields): wound up from the swing's start, across from FROM to TO (s), back at rest
-// at END; the arc's degrees, its hand's reach from the body's middle, its height over the origin and its drop across.
+// at vr_util.qc's VR_BUTTONSWING_LEN (the swing whose sweep strikes nothing); the arc's degrees, its hand's reach from
+// the body's middle, its height over the origin and its drop across.
 float BOT_SWING_FROM = 0.1;
 float BOT_SWING_TO = 0.3;
-float BOT_SWING_END = 0.45; // (vr_util.qc VR_BUTTONSWING_LEN)
 float BOT_SWING_ARC = 160;
 float BOT_SWING_REACH = 18;
 float BOT_SWING_Z = 12;
@@ -603,7 +603,7 @@ void() bot_setvrfields =
     // out along the arc, straight ahead at the blow -- as a player swings his. The clients draw it so (its controllers),
     // and its weapon's line each frame (VR_Parry_GuardFrame) is what a player's directional parry reads its blow by.
     float st = time - self.vr_botswing;
-    if(self.vr_botswing > 0 && st >= 0 && st < BOT_SWING_END)
+    if(self.vr_botswing > 0 && st >= 0 && st < VR_BUTTONSWING_LEN)
     {
         float k = min(1, max(0, (st - BOT_SWING_FROM) / (BOT_SWING_TO - BOT_SWING_FROM)));
         float ang = BOT_SWING_ARC * (0.5 - k) * 0.0174533; // (radians: its right, ahead at the blow, its left)
