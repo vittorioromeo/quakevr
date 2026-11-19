@@ -85,15 +85,41 @@ void(float f, float bit, string what) dw_powerup_end =
         sprint(self, " is wearing off\n");
     }
 };
+// The screen tint, Dwell's v_cshift colours (its client.qc: both orange, Berserk red, Haste yellow; the Wetsuit none)
+// through AD's tint (VR_AD_Tint: a stat the engine eases in, times VR Settings' Screen Tints), never over AD's own.
+void() dw_powerup_tint =
+{
+    float h = self.dw_haste_finished > time, b = self.dw_berserk_finished > time;
+    if(h || b)
+    {
+        if(self.vr_ad_tintden && !self.vr_dw_tinted) { return; } // (an AD debuff's own: kept)
+        if(h && b)  { VR_AD_Tint(self, '255 128 0', 20, FALSE); }
+        else if(b)  { VR_AD_Tint(self, '255 0 0', 20, FALSE); }
+        else        { VR_AD_Tint(self, '255 255 0', 10, FALSE); }
+        self.vr_dw_tinted = TRUE;
+    }
+    else if(self.vr_dw_tinted)
+    {
+        VR_AD_Tint(self, '0 0 0', 0, FALSE);
+        self.vr_dw_tinted = FALSE;
+    }
+};
+
 void() DW_PowerupFrame =
 {
-    if(!self.dw_haste_finished && !self.dw_berserk_finished && !self.dw_wetsuit_finished) { self.vr_dw_hud = 0; return; }
+    if(!self.dw_haste_finished && !self.dw_berserk_finished && !self.dw_wetsuit_finished)
+    {
+        self.vr_dw_hud = 0;
+        if(self.vr_dw_tinted) { dw_powerup_tint(); }
+        return;
+    }
     dw_powerup_end(self.dw_haste_finished, DW_PW_HASTE, "Haste");
     dw_powerup_end(self.dw_berserk_finished, DW_PW_BERSERK, "Berserk");
     dw_powerup_end(self.dw_wetsuit_finished, DW_PW_WETSUIT, "The Wetsuit");
     if(self.dw_haste_finished < time) { self.dw_haste_finished = 0; }
     if(self.dw_berserk_finished < time) { self.dw_berserk_finished = 0; }
     if(self.dw_wetsuit_finished < time) { self.dw_wetsuit_finished = 0; }
+    dw_powerup_tint();
     // The wrist gadget's row (and the flat visor's): each one's seconds left, 8 bits each (vr_gadget.cpp infoRows).
     self.vr_dw_hud = (self.dw_haste_finished ? min(255, ceil(self.dw_haste_finished - time)) : 0) +
                      (self.dw_berserk_finished ? min(255, ceil(self.dw_berserk_finished - time)) : 0) * 256 +
@@ -151,6 +177,14 @@ void(entity xPickup, entity p, float xHand) DW_VariantGiven =
     {
         VRSetEntWeaponClip(p, xHand, VR_ClipSizeOf(WID_SUPER_SHOTGUN, inst));
     }
+};
+
+// A variant's name (an armed grunt's prop, the log).
+string(float xVar) DW_VariantName =
+{
+    if(xVar == DW_VAR_ROTARY) { return "Rotary Shotgun"; }
+    if(xVar == DW_VAR_LANCE) { return "Crystal Lance"; }
+    return "Rifle";
 };
 
 // The variant a weapon of kind `xWid` can be (0: none).
@@ -213,8 +247,8 @@ void(float xHand) dw_fire_lance =
     }
     WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
     WriteByte(MSG_BROADCAST, TE_LIGHTNING2);
-    WriteEntity(MSG_BROADCAST, self);
-    WriteByte(MSG_BROADCAST, xHand); /* disambiguator (the beam per hand: without it the client misread the message) */
+    WriteEntity(MSG_BROADCAST, dw_beam_prop ? dw_beam_prop : self); // (an armed grunt's: from its gun, as its lightning)
+    WriteByte(MSG_BROADCAST, dw_beam_prop ? 0 : xHand); /* disambiguator (the beam per hand: without it the client misread the message) */
     WriteVec3(MSG_BROADCAST, start);
     WriteVec3(MSG_BROADCAST, trace_endpos);
 };
@@ -237,6 +271,7 @@ float(float xHand, float* xOutAttackFinished) DW_FireVariant =
         }
         sound(self, VRGetGunChannel(xHand), "weapons/lhit.wav", 1, ATTN_NORM);
         dw_fire_lance(xHand);
+        dw_variant_shots++;
         self.punchangle_x = -3;
         weaponfired(self, xHand);
         VRGunHaptic(xHand, 0.7, 80, 1.0);
@@ -269,6 +304,7 @@ float(float xHand, float* xOutAttackFinished) DW_FireVariant =
     }
     vr_decap_weapon = 0;
     vr_pellet_damage = 0;
+    dw_variant_shots++;
     weaponfired(self, xHand);
     VRGunHaptic(xHand, 0.4, 70, 0.8);
     ejectcasings(xHand, QVR_CASING_SHOTGUNSHELL, 1, 0.3, 0);

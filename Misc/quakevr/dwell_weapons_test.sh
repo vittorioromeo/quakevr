@@ -6,7 +6,8 @@
 # the Rifle's 50, the Rotary Shotgun's pellets of 2, the Crystal Lance's 150 through two (the mock's hands levelled:
 # they point at the floor; positional damage off: exact numbers). Checks per case: the QC
 # verdict, and the run ended on it. Needs Dwell v2.2 in the base dir (<base>/dwellv2p2): without it the pickups'
-# models are missing but the weapons still fire (the variants are ours). Exits 1 on a failure.
+# models are missing but the weapons still fire (the variants are ours). Then vr_ad_test 204 (an armed grunt arming a
+# Dwell weapon's record, the powerups' screen tints). Exits 1 on a failure.
 AGENT=$1
 source "$(dirname "$0")/qvrtest.sh"
 for mode in load level; do
@@ -21,5 +22,11 @@ for mode in load level; do
     expect_verdict "$log" dwweapons "$mode: Dwell's weapons kept and fired"
     check $(grep -q "exit=quit-on" <<<"$log" && echo 1 || echo 0) "$mode: the run ended on the verdict"
 done
+# vr_ad_test 204: an armed grunt arming a Dwell weapon's record (named, the variant kept, Dwell's shot), the powerups' tints.
+log=$(bash $KIT/run.sh $AGENT -Script "map e1m1;wait10;vr_ad_test 204" -QuitOn "dwgrunt: [0-9]+ passed" -Timeout 300 \
+    -Filter "dwgrunt|rror|exit=" 2>&1 | tr -d '\r')
+echo "$log" | grep -E "FAIL" | head -6
+expect_verdict "$log" dwgrunt "an armed grunt keeps a Dwell weapon; the powerups' tints"
+check $(grep -q "exit=quit-on" <<<"$log" && echo 1 || echo 0) "grunt: the run ended on the verdict"
 verdict
 exit $fail

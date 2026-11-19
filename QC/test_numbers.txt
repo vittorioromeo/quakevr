@@ -137,6 +137,7 @@ vr_ad_test       198      vr_ad_test.qc                    armed humanoids in AD
 vr_ad_test       199      vr_rules_test.qc                 our monster on AD's and Copper's path_corners follows them as ours (think never NULL); the th_* guard names a NULL th_die (any map)
 vr_ad_test       200      dwell/dw_test.qc                 the map's Dwell boss (d1end, d2end) woken as its map does and fought through every phase to its death
 vr_ad_test       201-203  dwell/dw_test.qc                 Dwell's weapons (Rotary Shotgun, Crystal Lance, Rifle) kept through a level change or a save and load (parm76), then fired: the Rifle's 50, the Rotary's pellets of 2, the Lance's 150 through two (dwell_weapons_test.sh)
+vr_ad_test       204      dwell/dw_test.qc                 an armed grunt arming a Dwell weapon's record: its name, the variant kept, Dwell's shot fired (Rotary, Lance)
 
 vr_agrunt_test   1        vr_armedgrunt_test.qc            every weapon in turn ahead of you
 vr_agrunt_test   2        vr_armedgrunt_test.qc            reload, disarm, re-arm, drop (the sequence)

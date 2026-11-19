@@ -207,8 +207,93 @@ void() DW_WeaponsTest_Think =
     dw_wt_step++;
 };
 
+// vr_ad_test 204 (DWELL.md P3): an armed grunt arming a Dwell weapon's record, as it takes one you threw (VR_AG_TakeUp
+// hands the record to VR_AG_Arm): its prop named as Dwell's, the variant kept, and its shot Dwell's (DW_FireVariant
+// through VR_AG_ShootProp: a shell for the Rotary Shotgun's, not the Widowmaker's; 6 cells for the Crystal Lance's), at a
+// grunt held 128 units ahead of it. Frames: 0 spawned (fists), armed; 4 fired, checked; then the powerups' screen
+// tints (Haste yellow, Haste and Berserk orange, none when they end). "dwgrunt: N passed, M failed".
+entity dw_gt_g[2], dw_gt_t[2];
+void() DW_GruntTest_Think =
+{
+    self.nextthink = time + 0.05;
+    self.cnt = self.cnt + 1;
+    if(self.cnt < 4) { return; }
+    float k;
+    for(k = 0; k < 2; k++)
+    {
+        entity g = dw_gt_g[k];
+        entity pr = g.vr_ag_prop;
+        entity inst = pr.weaponinst;
+        float before = dw_variant_shots, clip = inst.wi_clip;
+        entity oldself = self;
+        self = g;
+        g.enemy = dw_gt_t[k];
+        pr.vr_ag_hk = 0;
+        VR_AG_ShootProp(pr);
+        self = oldself;
+        VR_Test_Check(dw_variant_shots == before + 1 && inst.wi_clip == clip - (k ? 6 : 1),
+            sprintf("%s: Dwell's shot fired (%g shots, clip %g -> %g)", pr.netname, dw_variant_shots - before, clip, inst.wi_clip));
+        remove(dw_gt_t[k]);
+    }
+    // The powerups' screen tints (dw_powerup_tint: Dwell's colours through AD's tint): Haste, both, none.
+    entity p = self.owner;
+    entity os = self;
+    self = p;
+    p.dw_haste_finished = time + 5;
+    DW_PowerupFrame();
+    float t1 = p.vr_ad_tint, d1 = p.vr_ad_tintden;
+    p.dw_berserk_finished = time + 5;
+    DW_PowerupFrame();
+    float t2 = p.vr_ad_tint, d2 = p.vr_ad_tintden;
+    p.dw_haste_finished = p.dw_berserk_finished = time - 1;
+    DW_PowerupFrame();
+    DW_PowerupFrame();
+    self = os;
+    VR_Test_Check(t1 == 255 * 65536 + 255 * 256 && d1 == 10, sprintf("Haste tints yellow (%g, %g)", t1, d1));
+    VR_Test_Check(t2 == 255 * 65536 + 128 * 256 && d2 == 20, sprintf("Haste and Berserk tint orange (%g, %g)", t2, d2));
+    VR_Test_Check(!p.vr_ad_tintden && !p.vr_dw_tinted, sprintf("both ended: no tint (%g)", p.vr_ad_tintden));
+    VR_Test_Verdict();
+    remove(self);
+};
+
+void(entity p) DW_GruntTest =
+{
+    VR_Test_BeginFlags("dwgrunt", VR_TEST_LOUD);
+    p.flags = p.flags | FL_GODMODE | FL_NOTARGET;
+    vr_agt_player = p;
+    float k;
+    for(k = 0; k < 2; k++)
+    {
+        float wid = k ? WID_LIGHTNING : WID_SUPER_SHOTGUN;
+        makevectors(p.angles);
+        entity g = VR_AGT_Spawn(-1, 220 + 140 * k);
+        entity inst = WeaponInst_New(0);
+        inst.wi_dwvar = DW_VariantFor(wid);
+        inst.wi_clip = 30;
+        VR_AG_Arm(g, wid, 0, inst);
+        entity pr = g.vr_ag_prop;
+        VR_Test_Check(pr && pr.weaponinst == inst && inst.wi_dwvar == DW_VariantFor(wid),
+            sprintf("%s armed: its record and variant kept (variant %g)", DW_VariantName(DW_VariantFor(wid)), inst.wi_dwvar));
+        VR_Test_Check(pr.netname == DW_VariantName(inst.wi_dwvar), sprintf("named %s", pr.netname));
+        makevectors(g.angles);
+        dw_gt_g[k] = g;
+        dw_gt_t[k] = VR_Test_Spawn(world, 0, g.origin + v_forward * 128 + '0 0 8', g.angles_y + 180);
+        DW_WeaponsTest_Hold(dw_gt_t[k], dw_gt_t[k].origin);
+    }
+    entity t = spawn();
+    t.classname = "dw_grunttest";
+    t.owner = p;
+    t.think = DW_GruntTest_Think;
+    t.nextthink = time;
+};
+
 void(entity p, float xRequest) DW_WeaponsTest =
 {
+    if(xRequest == 204)
+    {
+        DW_GruntTest(p);
+        return;
+    }
     if(xRequest == 201)
     {
         DW_WeaponsTest_Give(p);
