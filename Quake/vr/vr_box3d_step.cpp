@@ -16,6 +16,7 @@
 #include "vr_timescale.hpp"
 #include "vr_cvars.hpp"
 #include "vr_tunables.hpp"
+#include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -1282,7 +1283,10 @@ void callRagImpacts()
 // boxes are the contact.) Each pair once a frame, after the step; the QC judges it (the weights, the momentum, its
 // cooldown). vr_kdtrig_flung: a body no hand holds, flung by anything (a blast, a fall, a kick), strikes by the same
 // rule: its momentum, not who threw it. A wall-mounted thing (QC .vr_mount: a wall torch) is met too: its mount's
-// detach rule judges the strike (QC vr_mount.qc VR_Mount_BodyHit).
+// detach rule judges the strike (QC vr_mount.qc VR_Mount_BodyHit). What it may meet: Quake's area grid over its parts'
+// box (SV_AreaEdictsUnordered: every solid and trigger linked; a living monster is a linked solid, a mounted torch is
+// SOLID_NOT_BUT_TOUCHABLE, linked as it is put on its wall), in edict order as the old walk of every edict, the box grown
+// by bodyHitMargin and by its middle's move in the frame (a fast body meets a monster it would pass between two frames).
 struct BodyHit
 {
     int body{0};
@@ -1292,8 +1296,9 @@ struct BodyHit
 };
 constexpr int bodyHitsMost = 16;
 constexpr float thrownKeep = 0.85f; // a thrown body's strike: this share of its fastest since the throw at least
+constexpr float bodyHitMargin = 4.f; // units round its parts' box, at least (and its middle's move in the frame)
 
-void callBodyHits()
+void callBodyHits(float dt)
 {
     if(vr_kdtrig.value == 0.f || vr_kdtrig_thrown_on.value == 0.f || world->ragdolls.empty())
     {
@@ -1309,6 +1314,9 @@ void callBodyHits()
     const int mountField = fields().vr_mount;
     za::Array<BodyHit, bodyHitsMost> hits{};
     int count = 0;
+    const int mark = Temp_Mark(); // (the temporary stack: zone.h; one query's finds, each edict once)
+    const int space = qcvm->num_edicts;
+    edict_t** list = static_cast<edict_t**>(Temp_Alloc(static_cast<size_t>(space) * sizeof(edict_t*)));
     for(RagdollBodies& r : world->ragdolls)
     {
         if(r.num <= 0 || !r.rig || r.num >= qcvm->num_edicts || count >= bodyHitsMost)
@@ -1362,10 +1370,17 @@ void callBodyHits()
         {
             vel *= thrownKeep * r.thrownPeak / speed;
         }
-        for(int n = 1; n < qcvm->num_edicts && count < bodyHitsMost; n++)
+        const float margin = za::max(bodyHitMargin, speed * dt);
+        const float qlo[3] = {lo.x - margin, lo.y - margin, lo.z - margin};
+        const float qhi[3] = {hi.x + margin, hi.y + margin, hi.z + margin};
+        int found = 0;
+        SV_AreaEdictsUnordered(qlo, qhi, list, &found, space); // (their boxes against the grown one, edges included)
+        za::quickSort(list, list + found); // edict order (the edicts are one array)
+        for(int i = 0; i < found && count < bodyHitsMost; i++)
         {
-            edict_t* e = EDICT_NUM(n);
-            if(n == num || e->free)
+            edict_t* e = list[i];
+            const int n = NUM_FOR_EDICT(e);
+            if(n == num || n < 1 || e->free)
             {
                 continue;
             }
@@ -1375,14 +1390,10 @@ void callBodyHits()
             {
                 continue;
             }
-            if(lo.x > e->v.absmax[0] || hi.x < e->v.absmin[0] || lo.y > e->v.absmax[1] || hi.y < e->v.absmin[1] ||
-                lo.z > e->v.absmax[2] || hi.z < e->v.absmin[2])
-            {
-                continue;
-            }
             hits[static_cast<za::SizeT>(count++)] = {num, n, mass, vel};
         }
     }
+    Temp_FreeToMark(mark);
     for(int i = 0; i < count; i++)
     {
         const BodyHit& h = hits[static_cast<za::SizeT>(i)];
@@ -1733,7 +1744,7 @@ extern "C" void VR_PhysicsFrameEnd(void)
         callFalls();
         callRagImpacts();
         callFlailHits(); // AD support (vr_box3d_flail.cpp)
-        callBodyHits();
+        callBodyHits(dt);
         watchInside();
         physsound::frameEnd(); // the frame's knocks and scrapes
 
