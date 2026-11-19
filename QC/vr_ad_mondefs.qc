@@ -14,7 +14,16 @@ float VR_ADM_MELEE = 2;  // strikes in melee: parried (VR_Parry_MeleeMonster)
 float VR_ADM_ARMOUR = 4; // in plate or metal: a blunt blow sounds on armour (VR_Hit_Armoured)
 float VR_ADM_ZOMBIE = 8; // a zombie: only gibbing or beheading kills it for good
 float VR_ADM_NOHEAD = 16; // never beheaded (its own death throws its head: the skull wizard's); its head zone kept
-.float vr_ad_mon;        // VR_ADM_* bits; 0: not one of AD's monsters (or one with none of Quake VR's treatment)
+float VR_ADM_OURS = 32;  // the row's data only: Quake VR's own monster code runs it (pain, death, run; Dwell's monsters,
+                         // dw_common.qc DW_MonsterRow), never AD's (VR_AD_Code)
+.float vr_ad_mon;        // VR_ADM_* bits: the monster row (DWELL.md 8 S7: AD's monsters and Dwell's share it; head zone,
+                         // head gib, corpse, knockdown, melee, armour); 0: none (our own monsters' data is by class)
+
+// AD's own code runs it (its pain, Killed and th_run): a row without VR_ADM_OURS.
+float(entity e) VR_AD_Code =
+{
+    return e.vr_ad_mon && !(e.vr_ad_mon & VR_ADM_OURS);
+};
 .float vr_ad_parried;    // one of AD's with none of Quake VR's treatment whose melee is still parried (the Christmas
                          // pack's elf, reindeer, Santa, snowman: VR_AD_MonsterSetup; VR_Parry_MeleeMonster)
 .float vr_ad_headf;      // its head zone (PositionalHead): forward, up, radius (0: none) on its stand frame

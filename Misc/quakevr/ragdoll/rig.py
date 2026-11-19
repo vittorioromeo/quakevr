@@ -48,7 +48,10 @@ LOOSE_PIECES = {'player'}
 
 name = sys.argv[1]
 mpath = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../../../quakevr/progs/%s.mdl' % name)
-if not os.path.exists(mpath) and os.environ.get('RIG_PAK'):
+if os.environ.get('RIG_MDL'):
+    # A loose model of another game's folder (Dwell's progs/e2/mon_brute.mdl): RIG_MDL=<its path> rig.py mon_brute ...
+    mpath = os.environ['RIG_MDL']
+elif not os.path.exists(mpath) and os.environ.get('RIG_PAK'):
     # A mission pack's monster (the gremlin's grem, the mummy): read from its pak (RIG_PAK=<...>/hipnotic/pak0.pak)
     import struct
     pak = open(os.environ['RIG_PAK'], 'rb').read()

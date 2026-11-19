@@ -531,6 +531,31 @@ constexpr Seed shamblerBloodSeeds[] = {
     {"shin_r", 11, Joint::Hinge, {5.2f, -15.7f, -18.f}, {7.1f, -12.6f, -9.3f}, {4.6f, -16.6f, -20.7f}, 5.f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
 };
 
+// Dwell's Brute (Dwell's progs/e2/mon_brute.mdl, read from Dwell's folder: 876 vertices, 235 frames, unnamed; QC
+// dwell/dw_monsters.qc; DWELL.md P2b). The rest pose (frame 0): x forward, y left, z up; a hunched giant (head 52-73 up),
+// a grenade cannon on his left forearm held across his front, his right fist under it. Measured with
+// Misc/quakevr/ragdoll/rig.py (RIG_MDL=<Dwell>/progs/e2/mon_brute.mdl rig.py mon_brute 22, mon_brute_bones.json; 22
+// clusters: 1.06 units rms; bones 1.31): the shambler's 13 bones; the cannon (its muzzle pieces too) the left hand, the
+// right forearm's spike the right hand's. Wrists set by hand (the fit put them at his belly: few frames bend them):
+// hand_l's pivot 14 20 22 (between the forearm's and the cannon's middles), hand_r's 11 -15 24.5. Seed centres by hand (the
+// engine gives each cluster to the nearest seed: the fit's left hand_r none): the chest 0.6 0 46 (its clusters' middle; the
+// shoulders go with the upper arms), hand_r the fist's cluster 11.3 -13.4 26. Deaths 199-211, 221-233.
+constexpr Seed dwBruteSeeds[] = {
+    {"pelvis", -1, Joint::Root, {-1.8f, -1.7f, 24.6f}, {-1.8f, -1.7f, 24.6f}, {-1.2f, -1.6f, 45.3f}, 0.f, 0.f, 0.f, 0.f, {}},
+    {"chest", 0, Joint::Ball, {0.6f, 0.f, 46.f}, {-1.2f, -1.6f, 45.3f}, {0.2f, -0.4f, 57.1f}, 0.f, 35.f, 25.f, 0.f, {}},
+    {"head", 1, Joint::Ball, {6.1f, -0.3f, 60.9f}, {0.2f, -0.4f, 57.1f}, {12.f, -0.2f, 64.7f}, 0.f, 30.f, 30.f, 0.f, {}},
+    {"upperarm_l", 1, Joint::Ball, {-5.8f, 22.1f, 41.8f}, {-1.f, 17.6f, 53.f}, {-1.9f, 24.5f, 29.6f}, 0.f, 85.f, 45.f, 0.f, {}},
+    {"forearm_l", 3, Joint::Hinge, {7.1f, 16.8f, 19.8f}, {-1.9f, 24.5f, 29.6f}, {14.f, 20.f, 22.f}, 0.f, 0.f, 0.f, 145.f, {0.f, -1.f, 0.f}},
+    {"hand_l", 4, Joint::Ball, {21.5f, 23.7f, 25.3f}, {14.f, 20.f, 22.f}, {29.f, 27.4f, 28.6f}, 0.f, 40.f, 30.f, 0.f, {}},
+    {"upperarm_r", 1, Joint::Ball, {-0.6f, -24.9f, 42.5f}, {-1.6f, -17.6f, 51.1f}, {12.5f, -24.2f, 28.2f}, 0.f, 85.f, 45.f, 0.f, {}},
+    {"forearm_r", 6, Joint::Hinge, {10.9f, -16.2f, 23.3f}, {12.5f, -24.2f, 28.2f}, {11.f, -15.f, 24.5f}, 0.f, 0.f, 0.f, 145.f, {0.f, -1.f, 0.f}},
+    {"hand_r", 7, Joint::Ball, {11.3f, -13.4f, 26.f}, {11.f, -15.f, 24.5f}, {14.f, -12.f, 32.f}, 0.f, 40.f, 30.f, 0.f, {}},
+    {"thigh_l", 0, Joint::Ball, {2.3f, 13.3f, 3.5f}, {-2.7f, 7.1f, 17.2f}, {0.9f, 13.4f, -2.1f}, 5.5f, 70.f, 30.f, 0.f, {}},
+    {"shin_l", 9, Joint::Hinge, {-1.5f, 15.f, -14.7f}, {0.9f, 13.4f, -2.1f}, {-2.3f, 15.5f, -18.9f}, 5.f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
+    {"thigh_r", 0, Joint::Ball, {0.1f, -13.9f, -2.3f}, {-1.4f, -8.7f, 6.7f}, {-5.2f, -8.1f, -16.6f}, 5.5f, 70.f, 30.f, 0.f, {}},
+    {"shin_r", 11, Joint::Hinge, {-1.2f, -16.5f, -19.5f}, {-5.2f, -8.1f, -16.6f}, {-1.9f, -15.f, -18.9f}, 5.f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
+};
+
 // The player (Quake VR's progs/player.mdl: 733 vertices, 144 frames; ROUND21.md, "Player ragdolls"). The rest pose
 // ($axrun1, frame 0): x forward, y left, z up; mid-stride, his left leg forward, his right one back, his left arm swung
 // back, the axe in his right hand and the gun on his back. His axe and gun are pieces of their own (each in his hands or
@@ -586,6 +611,7 @@ constexpr SeedTable seedTables[] = {
     {modelmeta::Id::Mg3Rknight, 1155, rknightSeeds, static_cast<int>(sizeof(rknightSeeds) / sizeof(rknightSeeds[0])), 2, {42, 54}, {53, 62}},
     {modelmeta::Id::Mg3OgreRocket, 982, ogreRocketSeeds, static_cast<int>(sizeof(ogreRocketSeeds) / sizeof(ogreRocketSeeds[0])), 2, {112, 126}, {125, 135}},
     {modelmeta::Id::Mg3ShamblerBlood, 1076, shamblerBloodSeeds, static_cast<int>(sizeof(shamblerBloodSeeds) / sizeof(shamblerBloodSeeds[0])), 1, {83, 0}, {93, 0}, 24},
+    {modelmeta::Id::DwBrute, 876, dwBruteSeeds, static_cast<int>(sizeof(dwBruteSeeds) / sizeof(dwBruteSeeds[0])), 2, {199, 221}, {211, 233}, 22},
     {modelmeta::Id::Player, 733, playerSeeds, static_cast<int>(sizeof(playerSeeds) / sizeof(playerSeeds[0])), 2, {50, 61}, {60, 69}, 18, false, true},
 };
 

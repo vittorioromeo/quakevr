@@ -35,4 +35,7 @@ float(entity targ, entity attacker, float damage, float isVRMelee) DW_DamageScal
 void(entity xPickup, entity p, float xHand) DW_VariantGiven;                      // weapon_touch
 float(float xHand, float* xOutAttackFinished) DW_FireVariant;                     // W_Fire_*: TRUE fired
 void() DW_PowerupFrame;                                                           // CheckPowerups
-float(entity e) DW_PositionalHead;                                                // PositionalHead
+void() dw_monster_kamikaze; // the debug spawner's 70..73 (buttons.qc VR_EnemyDispenser_Spawn; DWELL.md P2b)
+void() dw_monster_brute;
+void() dw_monster_excavator;
+void() dw_monster_d1boss;

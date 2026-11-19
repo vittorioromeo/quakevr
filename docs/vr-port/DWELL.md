@@ -596,6 +596,34 @@ frame sequences; reading aids only, nothing pasted). Files `QC/dwell/` (GPL-2, h
   died: PASS; d2end: the Sculptor used as its relay does, 3 phases, marked by the map's counter and killboss, died:
   PASS). e1m1 `vr_toolgun_spawn_test`: the 11 Dwell rows spawned.
 
+### 9.4 Built: P2b, Dwell's monsters VR-native (2026-11-19, branch `agent/dwell2b`)
+
+- **S7 measured, one row format**: AD's registration (`VR_AD_Mon`/`VR_AD_MonKd`: bits, head zone, head gib, corpse
+  health, knockdown) was already the generic part; what made it AD's was 7 dispatches into AD's code (pain, run,
+  Killed). Those now ask `VR_AD_Code(e)` (a row without the new bit `VR_ADM_OURS`), so any monster on our own code can
+  be a row: Dwell's are (`DW_MonsterRow`, `dw_common.qc`), and `weapons.qc`'s Dwell head hook and `DW_PositionalHead`
+  went. Our own and MG3's monsters keep their per-class chains (`PositionalHead`, `VR_Decap_HeadModel`,
+  `VR_Corpse_Parts`: about 40 rows over 3 functions): moving them would trade each chain line for a row line (no code
+  removed), so not now. The engine's per-class alias table (`vr_ad_monsters.cpp`) and monster groups (`vr_mgroups.cpp`)
+  took Dwell's rows the same way.
+- **Kamikaze**: head zone 0 19 6 (`headfit.py`), never beheaded (it bursts), no rig (no death frames); stealth all ears
+  (hear 1.2, sight 0.8); grab mass 90 (thrown as a knight); monster group Spawns.
+- **Brute**: rigged (`dwBruteSeeds`, `vr_ragdoll.cpp`; `rig.py` on Dwell's model with the new `RIG_MDL`, 22 clusters,
+  13 bones 1.32 rms; the cannon the left hand; wrists and two seed centres set by hand), head zone 5 61 10, beheading
+  (Dwell's `h_brute` thrown), limbs, knockdowns (its deaths backwards; the shambler's chance), corpse gibbing (the
+  shambler's health), its punch parried (`VR_ADM_MELEE`), ragdoll settings and grab mass the shambler's, monster group
+  Mini Bosses, stealth the ogre's senses.
+- **Construct** (decided): no head zone (a crystal-and-stone machine), no rig (it breaks into its four pieces), blunt
+  blows sound on armour; grab mass 600; monster group Scrags (a flyer).
+- **The Awoken**: head zone 0 125 16 (its model is 248 units tall: the box now reaches 140 up, so shots at its head hit;
+  movement still the shambler-size hull); a boss: never beheaded, no knockdown, no corpse; stealth off (bosses keep
+  Quake's AI, as the Sculptor); grab mass 5000.
+- **Test**: `Misc/quakevr/dwell_monsters_test.sh <agent>` (the AD bestiary's cases through `vr_ad_mtest`, whose frame now
+  finds Dwell's monsters; the debug spawner's 70-73), verdict by `dwell_monsters_check.py`: 11 passed, 0 failed.
+- **Left (P2b part two)**: Dwell's own bullet-hell programs (`m_d2boss_hell.qc` in the decompile: one line, two lines,
+  circle, two spirals, moving wheel, rocket barrage, pulse, with fades) restored where fair in VR, and the Sculptor's
+  motion; the Awoken's scale reviewed in the headset.
+
 ---
 
 ## 10. Open questions for Vittorio (real decisions only)

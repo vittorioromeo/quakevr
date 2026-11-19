@@ -2832,7 +2832,7 @@ void(entity m, entity p, float xStagger) VR_Parry_InterruptFor =
     else if((m.th_pain || m.vr_ad_mon) && m.classname != "monster_tarbaby" && m.classname != "monster_morph")
     {
         m.pain_finished = 0;
-        if(m.vr_ad_mon)
+        if(VR_AD_Code(m))
         {
             VR_AD_Pain(m, p, 1000, 0); // AD support: AD's pain function (vr_ad_monsters.qc)
         }

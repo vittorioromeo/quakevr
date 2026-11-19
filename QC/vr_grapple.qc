@@ -250,6 +250,13 @@ float(entity m) VR_Grapple_MonsterMass =
     if(c == "monster_super_wrath")   { return 450; }
     if(c == "monster_shambler")      { return 600; }
     if(c == "monster_super_shambler") { return 800; } // (Dawn of the Machine's: bigger)
+    // Dwell's (DWELL.md P2b): the Kamikaze a light runner (grabbed and thrown as a knight; its box would make it 134),
+    // the Brute and the Construct the shambler's (their boxes: 980), its bosses as Chthon.
+    if(c == "monster_kamikaze")      { return 90; }
+    if(c == "monster_brute")         { return 600; }
+    if(c == "monster_excavator")     { return 600; }
+    if(c == "monster_d1boss")        { return 5000; }
+    if(c == "monster_d2boss")        { return 5000; }
     if(c == "monster_lava_man")      { return 3000; }
     if(c == "monster_dragon")        { return 3000; }
     if(c == "monster_armagon")       { return 3000; }
