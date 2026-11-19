@@ -52,10 +52,11 @@ QVR_TONE_GLSL
 
 // under water, the view wobbled and blurred; the bloom added
 #define QVR_POSTPROCESS_WATER_BLOOM \
-"	vec2 buv = gl_FragCoord.xy / vec2(textureSize(GammaTexture, 0)); // QVR\n" \
+"	vec2 pp_size = vec2(textureSize(GammaTexture, 0)); // QVR: the image's size (QVR_POSTPROCESS_GRADE_DITHER's too)\n" \
+"	vec2 buv = gl_FragCoord.xy / pp_size;\n" \
 "	if (WaterParams.y + WaterParams.z > 0.0) // QVR: under water: a slow wobble of the direction looked in, in the world\n" \
 "	{ // (the same in both eyes, fixed to the world as the head turns), and a little blur\n" \
-"		vec2 size = vec2(textureSize(GammaTexture, 0));\n" \
+"		vec2 size = pp_size;\n" \
 "		vec2 ndc = buv * 2.0 - 1.0;\n" \
 "		vec3 dir = normalize(WaterFwd + WaterLeft * ((ndc.x - WaterProj.x) / WaterProj.y) + WaterUp * ((ndc.y - WaterProj.z) / WaterProj.w));\n" \
 "		float t = WaterParams.x;\n" \
@@ -70,11 +71,11 @@ QVR_TONE_GLSL
 "	if (BloomStrength > 0.0) // QVR: by one bilinear tap, the smoothing done at the quarter (vr_bloom.cpp)\n" \
 "		out_fragcolor.rgb += texture(BloomTexture, buv).rgb * BloomStrength;\n"
 
-// graded (vr_grade) and dithered into the 8-bit image
+// graded (vr_grade) and dithered into the 8-bit image (after QVR_POSTPROCESS_WATER_BLOOM: its pp_size)
 #define QVR_POSTPROCESS_GRADE_DITHER \
 "	if (SlowLook.x > 0.0) // QVR: bullet time's look: the colour drained towards grey, tinted, the edges darkened\n" \
 "	{\n" \
-"		vec2 sv = gl_FragCoord.xy / vec2(textureSize(GammaTexture, 0)) * 2.0 - 1.0;\n" \
+"		vec2 sv = gl_FragCoord.xy / pp_size * 2.0 - 1.0;\n" \
 "		float luma = dot(out_fragcolor.rgb, vec3(0.299, 0.587, 0.114));\n" \
 "		vec3 c = mix(out_fragcolor.rgb, vec3(luma), SlowLook.x * SlowLook.y);\n" \
 "		c *= mix(vec3(1.0), SlowTint, SlowLook.x);\n" \
@@ -89,7 +90,7 @@ QVR_TONE_GLSL
 "	}\n" \
 "	if (SlowLook.w > 0.0) // QVR: the comfort vignette (vr_comfort_vignette): the edges darkened while the sticks move or\n" \
 "	{ // turn you, the clear middle narrower the stronger it is\n" \
-"		vec2 cv = gl_FragCoord.xy / vec2(textureSize(GammaTexture, 0)) * 2.0 - 1.0;\n" \
+"		vec2 cv = gl_FragCoord.xy / pp_size * 2.0 - 1.0;\n" \
 "		float r0 = mix(2.0, 0.1, SlowLook.w);\n" \
 "		out_fragcolor.rgb *= 1.0 - smoothstep(r0, r0 + 0.6, dot(cv, cv));\n" \
 "	}\n" \
@@ -212,6 +213,15 @@ QVR_STEREO_VIEWS \
 // The shaders' pieces by family, in their old order (the head above and the tail below stay here).
 #include "vr_glsl_lighting.h"
 #include "vr_glsl_surface.h"
+// The 4x4 Bayer matrix's entry (0 .. 15, as a float) at it (0 .. 3 each): 4 B2(it & 1) + B2(it >> 1), B2(x, y) =
+// ((x ^ y) << 1) | y; the same as the table {0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5} by rows, without an
+// array indexed per pixel (on some mobile compilers in scratch memory). A GLSL macro, defined once whichever shader
+// splices it first (the world's BoxWounds, the alias' WoundsAt).
+#define QVR_BAYER4_GLSL \
+"#ifndef QVR_BAYER4\n" \
+"#define QVR_BAYER4(it) float(4 * (((((it).x ^ (it).y) & 1) << 1) | ((it).y & 1)) + ((((((it).x ^ (it).y) >> 1) & 1) << 1) | (((it).y >> 1) & 1)))\n" \
+"#endif\n"
+
 #include "vr_glsl_world.h"
 #include "vr_glsl_alias.h"
 

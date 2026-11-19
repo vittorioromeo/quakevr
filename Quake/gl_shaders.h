@@ -332,7 +332,12 @@ QVR_POSTPROCESS_UNIFORMS // QVR: the eyes' bloom (vr_bloom.cpp), under-water vie
 "	float contrast = Params.y;\n"
 "	float scale = Params.z;\n"
 "	float dither = Params.w;\n"
+"#if PALETTIZE\n"
 "	out_fragcolor = texelFetch(GammaTexture, ivec2(gl_FragCoord), 0);\n"
+"#else\n"
+"	if (!(WaterParams.y + WaterParams.z > 0.0)) // QVR: under water the four taps below are the colour (alpha: 1 below)\n"
+"		out_fragcolor = texelFetch(GammaTexture, ivec2(gl_FragCoord), 0);\n"
+"#endif\n"
 QVR_POSTPROCESS_WATER_BLOOM // QVR: under water, the view wobbled and blurred; the bloom added
 "#if PALETTIZE == 1\n"
 "	vec2 noiseuv = floor(gl_FragCoord.xy * scale) + 0.5;\n"
@@ -348,7 +353,9 @@ QVR_POSTPROCESS_WATER_BLOOM // QVR: under water, the view wobbled and blurred; t
 "	out_fragcolor.rgb *= contrast;\n"
 "	if (Tone.x > 0.0) // QVR: the eye's float scene rolled off instead of clipped (vr_tonemap)\n"
 "		out_fragcolor.rgb = QvrTonemap(out_fragcolor.rgb * Tone.x, Tone.yz);\n"
-"	out_fragcolor = vec4(pow(out_fragcolor.rgb, vec3(gamma)), 1.0);\n"
+"	if (gamma != 1.0) // QVR: the eyes' (vr_gamma) is 1: no pow for every pixel\n"
+"		out_fragcolor.rgb = pow(out_fragcolor.rgb, vec3(gamma));\n"
+"	out_fragcolor.a = 1.0;\n"
 QVR_POSTPROCESS_GRADE_DITHER // QVR: graded (vr_grade) and dithered into the 8-bit image
 "#endif // PALETTIZE\n"
 "}\n";

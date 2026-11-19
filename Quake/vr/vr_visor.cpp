@@ -415,13 +415,7 @@ void drawGlass(float aspect)
 // composite applies the lens, the zoom and the sway (each depth its own share of it) and the fades, with the moving
 // scanlines over the panels alone (vr_flat_visor_scanlines, _scanline_speed, _scanline_width) and the frosted glass behind
 // the mounts (vr_flat_visor_glass_*).
-constexpr const char* layerVs = R"(#version 430
-void main()
-{
-    ivec2 v = ivec2(gl_VertexID & 1, gl_VertexID >> 1);
-    gl_Position = vec4(vec2(v) * 4.0 - 1.0, 0.0, 1.0);
-}
-)";
+constexpr const char* layerVs = gfx::fullscreenTriangleVs;
 // One panel's pixels (scissored to where it can be). Each view pixel's layer point (layerOf: the lens and the zoom
 // undone; ceil(ss / 2)^2 of them, each a bilinear tap: at ss 2 the mean of the 2 x 2 texels it covers), each depth's
 // slot read there less its sway, composited back to front (premultiplied) and faded. Over what the panels cover, dark
@@ -461,13 +455,8 @@ vec4 slot(vec2 corner, vec2 q, float scale)
         return vec4(0.0);
     return textureLod(Atlas, (corner + t * scale) / vec2(textureSize(Atlas, 0)), 0.0);
 }
-float shapes(vec2 q)
-{
-    float plate = slot(SlotC.xy, q - ShiftA.xy, 1.0).r, face = slot(SlotC.xy, q - ShiftB.xy, 1.0).g;
-    return ShiftB.z * (face + (1.0 - face) * plate);
-}
-// (its gradient's: both read with the face's sway, one tap -- exact at rest, a few pixels off for the back plate's
-// edges while it lags)
+// The panel's shapes at q (the glass's coverage: main's, the face over the back plate): their gradient's, both read
+// with the face's sway, one tap (exact at rest, a few pixels off for the back plate's edges while it lags)
 float shapesNear(vec2 q)
 {
     vec2 s = slot(SlotC.xy, q - ShiftB.xy, 1.0).rg;
@@ -477,7 +466,9 @@ void main()
 {
     vec2 p = gl_FragCoord.xy - Rect.xy;
     vec2 v = vec2(p.x, Rect.w - p.y); // (view pixels, y down)
-    if (slot(SlotC.xy, layerOf(v) - ShiftB.xy, 1.0).b <= 0.0)
+    vec2 here = layerOf(v);
+    vec4 shape = slot(SlotC.xy, here - ShiftB.xy, 1.0); // (b: anything here; g: the face, shapes()'s, kept for the glass)
+    if (shape.b <= 0.0)
         discard; // (nothing of the panel can be here)
     int n = (int(SlotC.z) + 1) / 2;
     vec4 c = vec4(0.0);
@@ -511,8 +502,8 @@ void main()
     }
     if (GlassP.x > 0.0)
     {
-        vec2 q = layerOf(v);
-        float m = shapes(q);
+        vec2 q = here;
+        float m = ShiftB.z * (shape.g + (1.0 - shape.g) * slot(SlotC.xy, q - ShiftA.xy, 1.0).r); // the face (read above) over the back plate
         if (m > 0.0)
         {
             float e = GlassC.w / Lens.w;
