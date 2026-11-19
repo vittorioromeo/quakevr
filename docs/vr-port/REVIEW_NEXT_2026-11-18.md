@@ -324,6 +324,17 @@ Notes on them:
 - **Drawbacks:** the viewport way touches every pass that assumes the target's size is `vid.width/height`
   (`drawReverseOrder` does), a large change for a hitch nobody has measured; releasing on stop makes a quick
   off/on of VR pay the allocation again.
+- **Status (2026-11-19): fixed as recommended, both halves.** On stop: `stereo::releaseTargets` from `stopBackend`
+  frees every eye-sized GL object (`fd8780ce2`). Dynres: the eyes' targets are allocated once at its ceiling
+  (`dynres::allocationScale`; decided: the ceiling's memory held throughout) and a bucket draws their bottom left part;
+  a view's two sizes are named apart (`stereo::ViewSize`: allocated, the engine's `vid.width/height` while it is
+  drawn; drawn, `glwidth/glheight` and `r_refdef.vrect`), and every pass that sized or read by the whole texture keeps
+  to the drawn part (the post-process's snippets, the glow's chain, the upscalers, the window mirror, TAA, the
+  liquids' refraction and distances, the particles' half-size blend, the haze's copies, the gates' views, single-pass
+  stereo's arrays, foveation's callers): CODE_STYLE.md, "A view's two sizes". A step makes no GL object
+  (`vr_stereo_targets_test stepped`, `Misc/quakevr/dynres_ceiling_test.sh`); the images drawn at the floor of the
+  ceiling's targets match those of the same scale with dynres off (TAA's history and the smoothed mirror within a few
+  levels: the texture unit's rounding of the scaled coordinates).
 
 ### 15. Whole-`slots` scans every frame where `nextActiveSlot` exists
 

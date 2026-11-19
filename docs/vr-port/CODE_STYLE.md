@@ -216,6 +216,28 @@ freed when VR stops (`stereo::releaseTargets`, from `stopBackend`: `vr_enabled 0
 again when the eyes are next drawn: a new eye-sized target gets its line there. `vid_restart` keeps the GL
 context (only the engine's framebuffers are made again), so the VR module's GL objects live on.
 
+## A view's two sizes: allocated and drawn
+
+Under dynamic resolution (`vr_dynres`, vr_dynres.hpp) the eyes' targets are allocated once at its ceiling and a frame
+draws their bottom left part, smaller at a lower bucket. So a view (an eye, the spectator camera, a view through a gate)
+has two sizes, `stereo::ViewSize` (vr_stereo.hpp, `viewSize()`): **allocated** (`allocatedWidth/Height`: the textures'
+size; what the engine's `vid.width`/`vid.height` hold while the view is drawn, as its framebuffers are made and read at
+it) and **drawn** (`drawnWidth/Height`: the part drawn; the engine's `glwidth`/`glheight` and `r_refdef.vrect`, the
+viewports). They are equal but for that, and for the window's flat view's `r_scale` corner, which the engine already
+draws so.
+
+- A pass that sizes something by the view (its own target) sizes it by the **allocated** size, and draws the **drawn**
+  part of it: not made again when the drawn size changes.
+- A pass that reads a view's texture by a uv over the view (0..1) scales it by drawn / allocated and keeps its taps on
+  the drawn part's texels, where clamp-to-edge kept them when the part was the whole texture: `QvrViewUV`
+  (vr_viewuv_glsl.h, its map made on the CPU by `stereo::viewUvMap`: the post-process's `SceneMap` and `BloomMap`, the mirror's), a `Drawn` uniform of the texels'
+  centres (the glow's chain, the half-size particles), the scene's viewport (`SceneViewport` in the frame data: the
+  liquids' refraction and distances), `ViewSize` (TAA), or the drawn part's edge copied outward (`upscale::resample`,
+  for the vendors' filters). Written so that with the two sizes equal it is the same uv and the same taps: the images
+  are the same as before.
+- A pixel-addressed read (`texelFetch(gl_FragCoord)`, `R_SceneViewport`'s viewport) needs nothing.
+- Never `vid.width` for the drawn size: `viewSize().drawnWidth`.
+
 ## Rendering stays multiview-ready
 
 Both stereo paths stay (two-pass and single-pass, `vr_stereo_single`; [STEREO.md](STEREO.md)), but the standalone

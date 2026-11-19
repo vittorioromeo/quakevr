@@ -158,6 +158,9 @@ One implementation each; the full tables with signatures are in CODE_STYLE.md, "
   become defaults with `Misc/quakevr/tune_promote.py` (CODE_STYLE.md, "Settings and the config").
 - **Debug and test aids**: in the Debug menu pages; tests in QC `*_test.qc` under `#ifdef QVR_TESTS`, or C++
   `_diag.cpp` commands; a numbered test claims its number in `QC/test_numbers.txt`.
+- **A view's sizes**: a pass that sizes or reads by the view takes its allocated or its drawn size from
+  `stereo::viewSize()` (CODE_STYLE.md, "A view's two sizes": dynamic resolution draws a part of targets allocated at
+  its ceiling), never `vid.width` for the drawn one.
 - **Rendering**: multiview-ready (CODE_STYLE.md, "Rendering stays multiview-ready"): per-view values through
   `QvrStereoUBO`, a new program in gl_shaders.c with a twin that builds (`vr_multiview_check`), a new pass placed
   against the multiview pass in `R_RenderScene`, a new desktop-only GL feature noted with its GLES/Vulkan way.
