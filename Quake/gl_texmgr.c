@@ -2561,6 +2561,7 @@ void GL_DeleteNativeTexture (GLuint texnum)
 	for (i = 0; i < countof(currenttexture); i++)
 		if (texnum == currenttexture[i])
 			currenttexture[i] = 0;
+	VR_NativeTextureDeleted (texnum); // QVR: the framebuffers the VR module keeps with it attached go too (vr/vr_gfx_gl.cpp)
 	glDeleteTextures (1, &texnum);
 }
 

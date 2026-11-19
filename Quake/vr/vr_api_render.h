@@ -336,6 +336,7 @@ unsigned VR_ExtMapsCall (const struct texture_s *t, struct gltexture_s **normalm
 unsigned VR_OpaqueSceneTexture (void);					// the opaque scene's colours translucent liquids can read (0: none)
 void VR_BindOpaqueScene (void);							// R_DrawBrushModels_Water: ... on unit 6, resolved first with MSAA
 unsigned VR_SceneTarget (unsigned *color, unsigned *depth, int *samples, int viewport[4]); // the scene's framebuffer, textures (0: the window's), viewport
+void VR_NativeTextureDeleted (unsigned texnum);					// GL_DeleteNativeTexture: framebuffers kept with it attached deleted (a name GL hands out again is another texture)
 
 // Model loading (vr_modelload.cpp; gl_model.c). `mod` is the model loading, `hdr` its aliashdr_t.
 void VR_LoadLux (struct qmodel_s *mod, lump_t *l);		// Mod_LoadLighting: the light's directions (a .lux beside the .lit; deluxemaps)

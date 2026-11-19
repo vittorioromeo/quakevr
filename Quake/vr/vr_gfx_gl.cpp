@@ -21,6 +21,7 @@
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
+#include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
@@ -829,17 +830,38 @@ constexpr float halfDepthTolerance = 0.1f; // a texel is at a pixel's distance w
 // on top, first) into a target of their own, the scene's depth and stencil attached, and blended over the scene once.
 // Between batches the pixels already opaque are marked in the stencil (bits no one else uses), and the later batches
 // (the particles under them) skip them: the same image (compositing is associative), less fill.
-struct UnderTarget
+// Its colour: one texture for each size (the eyes', the spectator camera's), cleared at each use.
+struct UnderColor
 {
     GLuint texture = 0;
+    int width = 0, height = 0;
+};
+za::Array<UnderColor, 2> underColors;
+int underColorNext = 0;
+// Its framebuffers: one for each colour texture and scene depth texture (the eyes', each eye's own with single-pass
+// stereo, a teleporter view's, the spectator camera's), attached and checked once, kept while both are, so the views
+// taking turns don't attach and check again each time. The stencil's marks are the depth texture's.
+struct UnderTarget
+{
+    GLuint texture = 0; // the colour (an UnderColor's)
     GLuint fbo = 0;     // the colour and the scene's depth/stencil
     GLuint markFbo = 0; // the scene's depth/stencil alone (the marking pass reads the colour)
-    GLuint depth = 0;   // the depth/stencil texture attached
-    int width = 0, height = 0;
+    GLuint depth = 0;   // the depth/stencil texture attached (0: a free slot)
     int generation = 0; // the stencil value (underStencilBits) of the last draw's marks
 };
-UnderTarget underTargets[2];
+za::Array<UnderTarget, 6> underTargets;
 int underTargetNext = 0;
+int underTargetsMadeCount = 0; // framebuffers attached and checked so far (vr_stereo_targets_test)
+
+void freeUnderTarget(UnderTarget& t)
+{
+    if(t.fbo)
+    {
+        GL_DeleteFramebuffersFunc(1, &t.fbo);
+        GL_DeleteFramebuffersFunc(1, &t.markFbo);
+    }
+    t = UnderTarget{};
+}
 GLuint underMarkProgram = 0;
 GLuint underCompositeProgram = 0;
 bool underFailed = false; // its programs
@@ -1603,50 +1625,62 @@ namespace
         }
     }
 
-    // Its target: the scene's size.
+    // Its colour: the scene's size.
+    UnderColor* colour = nullptr;
+    for(UnderColor& c : underColors)
+    {
+        if(c.texture && c.width == width && c.height == height)
+        {
+            colour = &c;
+        }
+    }
+    if(!colour)
+    {
+        colour = &underColors[underColorNext];
+        underColorNext ^= 1;
+        if(colour->texture)
+        {
+            const GLuint old = colour->texture;
+            colour->texture = 0;
+            GL_DeleteNativeTexture(old); // (its framebuffers with it: VR_NativeTextureDeleted)
+        }
+        glGenTextures(1, &colour->texture);
+        GL_BindNative(underTextureUnit, GL_TEXTURE_2D, colour->texture);
+        GL_TexStorage2DFunc(GL_TEXTURE_2D, 1, GL_RGBA16F, width, height);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
+        GL_ObjectLabelFunc(GL_TEXTURE, colour->texture, -1, "vr particles (reverse order)"); // (vr_vram_report)
+        colour->width = width;
+        colour->height = height;
+    }
+
+    // Its framebuffer: that colour with the scene's depth/stencil (made and checked once for the pair).
     UnderTarget* target = nullptr;
     for(UnderTarget& t : underTargets)
     {
-        if(t.texture && t.width == width && t.height == height)
+        if(t.depth == depth && t.texture == colour->texture)
         {
             target = &t;
         }
     }
     if(!target)
     {
-        target = &underTargets[underTargetNext];
-        underTargetNext ^= 1;
-        if(target->texture)
-        {
-            GL_DeleteFramebuffersFunc(1, &target->fbo);
-            GL_DeleteFramebuffersFunc(1, &target->markFbo);
-            GL_DeleteNativeTexture(target->texture);
-        }
-        glGenTextures(1, &target->texture);
-        GL_BindNative(underTextureUnit, GL_TEXTURE_2D, target->texture);
-        GL_TexStorage2DFunc(GL_TEXTURE_2D, 1, GL_RGBA16F, width, height);
-        GL_ObjectLabelFunc(GL_TEXTURE, target->texture, -1, "particle under target"); // (vr_vram_report)
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
-        GL_ObjectLabelFunc(GL_TEXTURE, target->texture, -1, "vr particles (reverse order)");
+        target = &underTargets[static_cast<za::SizeT>(underTargetNext)];
+        underTargetNext = (underTargetNext + 1) % static_cast<int>(underTargets.size());
+        freeUnderTarget(*target);
+        ++underTargetsMadeCount;
         GL_GenFramebuffersFunc(1, &target->fbo);
         GL_GenFramebuffersFunc(1, &target->markFbo);
         GL_BindFramebufferFunc(GL_FRAMEBUFFER, target->fbo);
-        GL_FramebufferTexture2DFunc(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, target->texture, 0);
-        target->width = width;
-        target->height = height;
-        target->depth = 0;
-    }
-    if(target->depth != depth)
-    {
-        GL_BindFramebufferFunc(GL_FRAMEBUFFER, target->fbo);
+        GL_FramebufferTexture2DFunc(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, colour->texture, 0);
         GL_FramebufferTexture2DFunc(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, depth, 0);
         const bool complete = GL_CheckFramebufferStatusFunc(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE;
         GL_BindFramebufferFunc(GL_FRAMEBUFFER, target->markFbo);
         GL_FramebufferTexture2DFunc(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, depth, 0);
         glDrawBuffer(GL_NONE);
         glReadBuffer(GL_NONE);
+        target->texture = colour->texture;
         target->depth = depth;
         target->generation = underGenerations; // its marks unknown: cleared before the next use
         if(!complete || GL_CheckFramebufferStatusFunc(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
@@ -1657,7 +1691,7 @@ namespace
                 Con_Warning("VR: reverse-order particles: incomplete framebuffer, drawn as before\n");
                 underWarned = true;
             }
-            target->depth = 0;
+            freeUnderTarget(*target);
             GL_BindFramebufferFunc(GL_FRAMEBUFFER, sceneFbo);
             return false;
         }
@@ -1937,6 +1971,11 @@ void drawParticles(const ParticleBatch& batch, bool pull, const State& state, Te
 int halfTargetsMade()
 {
     return halfTargetsMadeCount;
+}
+
+int underTargetsMade()
+{
+    return underTargetsMadeCount;
 }
 
 bool drawParticlesHalf(const ParticleBatch& batch, bool pull, Texture texture, const ParticleSplit& split,
@@ -2731,4 +2770,22 @@ extern "C" unsigned VR_SceneTarget(unsigned* color, unsigned* depth, int* sample
     *color = framebufs.composite.color_tex;
     *depth = framebufs.composite.depth_stencil_tex;
     return framebufs.composite.fbo;
+}
+
+// A texture deleted (GL_DeleteNativeTexture): the reverse-order particles' framebuffers with it attached go too. GL
+// hands its name out again, and a framebuffer still holding the deleted texture would be taken for one holding the new
+// (and would keep the old one's memory).
+extern "C" void VR_NativeTextureDeleted(unsigned texnum)
+{
+    if(texnum == 0)
+    {
+        return;
+    }
+    for(qvr::gfx::UnderTarget& t : qvr::gfx::underTargets)
+    {
+        if(t.fbo && (t.depth == texnum || t.texture == texnum))
+        {
+            qvr::gfx::freeUnderTarget(t);
+        }
+    }
 }

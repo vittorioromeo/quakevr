@@ -934,6 +934,7 @@ struct TargetsTest
     testkit::Tally tally;
     int frame = 0;
     long long hiddenUploads[2] = {};
+    int underMade = 0;
 };
 TargetsTest targetsTest;
 constexpr const char* targetsTestName = "stereo_targets";
@@ -956,7 +957,9 @@ void targetsTest_f()
         {
             t.hiddenUploads[eye] = hiddenMeshes[eye].triangles.uploads;
         }
-        Con_Printf("%s: begun (hidden area uploads %lld %lld)\n", targetsTestName, t.hiddenUploads[0], t.hiddenUploads[1]);
+        t.underMade = gfx::underTargetsMade();
+        Con_Printf("%s: begun (hidden area uploads %lld %lld, reverse-order framebuffers %d)\n", targetsTestName,
+            t.hiddenUploads[0], t.hiddenUploads[1], t.underMade);
     }
     else if(!q_strcasecmp(step, "steady"))
     {
@@ -971,6 +974,12 @@ void targetsTest_f()
                 targetsCheck(uploads == t.hiddenUploads[eye], va("eye %d's hidden area not uploaded again (%lld at begin, %lld now)",
                     eye, t.hiddenUploads[eye], uploads));
             }
+        }
+        if(vr_particle_saturate.value != 0.f)
+        {
+            targetsCheck(gfx::underTargetsMade() > 0 && gfx::underTargetsMade() == t.underMade,
+                va("reverse-order particles' framebuffers not made again (%d at begin, %d now)", t.underMade,
+                    gfx::underTargetsMade()));
         }
     }
     else if(!q_strcasecmp(step, "verdict"))
