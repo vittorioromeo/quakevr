@@ -1741,6 +1741,7 @@ float cvarh_vr_revolver_volume;
 float cvarh_vr_rig2anim_check_failed;
 float cvarh_vr_rig2anim_check_passed;
 float cvarh_vr_rogue_status;
+float cvarh_vr_ruleset;
 float cvarh_vr_run_armoredfoes;
 float cvarh_vr_run_enemycount;
 float cvarh_vr_run_enemyrandom;
@@ -3843,6 +3844,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_rig2anim_check_failed = VR_CVar_Make("vr_rig2anim_check_failed");
     cvarh_vr_rig2anim_check_passed = VR_CVar_Make("vr_rig2anim_check_passed");
     cvarh_vr_rogue_status = VR_CVar_Make("vr_rogue_status");
+    cvarh_vr_ruleset = VR_CVar_Make("vr_ruleset");
     cvarh_vr_run_armoredfoes = VR_CVar_Make("vr_run_armoredfoes");
     cvarh_vr_run_enemycount = VR_CVar_Make("vr_run_enemycount");
     cvarh_vr_run_enemyrandom = VR_CVar_Make("vr_run_enemyrandom");

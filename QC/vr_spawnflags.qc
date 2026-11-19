@@ -5,7 +5,7 @@
 // and Honey's own meanings on their own classnames: id1's ruleset, the same bits as ever), Machine Games' (Dimension of
 // the Past, of the Machine, Dawn of the Machine) or Arcane Dimensions'. The same bit is a statue in Rogue, a trigger
 // spawn in Hipnotic, AD's "no spawn effect" on a monster and MG's own. So:
-// - one ruleset a map (VR_SF_MapRuleset: AD's where AD's rules play, MG's in MG's campaigns, else Quake's) and one an
+// - one ruleset a map (VR_Ruleset, vr_packutil.qc: the engine's, its campaign's or its signals') and one an
 //   entity (VR_SF_Ruleset: AD's own entities AD's in any map, their own classnames; the rest the map's);
 // - flags with a meaning shared by every ruleset (AMBUSH 1 on monsters, the skill and deathmatch bits the engine reads)
 //   are read as they are;
@@ -16,12 +16,8 @@
 //   delayed and angry monster spawns, its items' STARTOFF and RESPAWN, its exits' inventory reset) are read so, only
 //   in AD maps.
 // Backwards compatible: Quake's, Hipnotic's, Rogue's and MG's maps read exactly the bits they did (their rulesets'
-// tables add nothing); the A/B spawn census proves it (scratch ab_campaigns.sh). A new ruleset (Quoth, Copper) is a
-// table and a map rule here, no gate anywhere else.
-
-float VR_SF_ID = 0; // Quake's (Hipnotic's, Rogue's, Honey's meanings on their own classnames)
-float VR_SF_MG = 1; // Machine Games'
-float VR_SF_AD = 2; // Arcane Dimensions'
+// tables add nothing); the A/B spawn census proves it (DWELL.md section 8). A new ruleset (Quoth, Copper) is a row in
+// the engine's table (vr_rules.cpp) and a column here, no gate anywhere else.
 
 // The named meanings of rulesets other than Quake's (VR_SF_Has).
 float VR_SF_MON_DELAYED = 1;   // a monster waits, unseen, for its trigger to appear (AD 64)
@@ -31,35 +27,21 @@ float VR_SF_STARTOFF = 4;      // an item or an exit starts off, until triggered
 float VR_SF_ITEM_RESPAWN = 5;  // an item comes back after it is taken (AD 16)
 float VR_SF_EXIT_RESETINV = 6; // an exit resets the inventory (AD's trigger_changelevel 2)
 
-// The ruleset the map now spawning or running was made for.
-float() VR_SF_MapRuleset =
-{
-    if(AD_Rules())
-    {
-        return VR_SF_AD;
-    }
-    if(MG_WorldCampaign())
-    {
-        return VR_SF_MG;
-    }
-    return VR_SF_ID;
-};
-
 // Whose meaning entity `e`'s spawnflags have: AD's own entities (AD's code runs them: its classnames) AD's in any map;
 // the rest the map's.
 float(entity e) VR_SF_Ruleset =
 {
     if(AD_Run(e))
     {
-        return VR_SF_AD;
+        return VR_RULES_AD;
     }
-    return VR_SF_MapRuleset();
+    return VR_Ruleset();
 };
 
-// The bit meaning `m` has in ruleset `r` (0: none there).
+// The bit meaning `m` has in ruleset `r` (VR_RULES_*; 0: none there).
 float(float r, float m) VR_SF_Bit =
 {
-    if(r == VR_SF_AD) // (QC/ad/ad_defscustom.qc: MON_SPAWN_*, ENT_STARTOFF, ITEM_RESPAWN; ad_triggers.qc TRIG_CMAPRESETINV)
+    if(r == VR_RULES_AD) // (QC/ad/ad_defscustom.qc: MON_SPAWN_*, ENT_STARTOFF, ITEM_RESPAWN; ad_triggers.qc TRIG_CMAPRESETINV)
     {
         if(m == VR_SF_MON_DELAYED) return 64;
         if(m == VR_SF_MON_ANGRY) return 128;
@@ -82,5 +64,5 @@ float(entity e, float m) VR_SF_Has =
 // entities give them are off (statues, trigger spawns, silent wake-ups...): the 76 VR_OtherFlags gates (decision 19).
 float() VR_OtherFlags =
 {
-    return VR_SF_MapRuleset() != VR_SF_ID;
+    return VR_Ruleset() != VR_RULES_ID;
 };

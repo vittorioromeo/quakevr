@@ -387,3 +387,18 @@ Total: about 37-61 agent-days. P0.5 is the gate: it proves the generic mechanism
 5. **Installer default timing**: on by default from P1b's build (proposed), or immediately (385 MB of maps that do not
    play yet)?
 6. **Run S1-S3 first** (the simplification before Dwell; about 4-6 agent-days), or start P1a in parallel?
+
+---
+
+## 11. Vittorio's decisions (2026-11-19)
+
+He answered section 10 with "Yes, all six": every proposal is taken.
+
+| # | Question | Decision | Phase |
+|---|---|---|---|
+| 1 | Weapons and monsters in Copper maps | **Ours everywhere** (our weapons, our vanilla monsters with VR melee, limbs, knockdowns), with Copper's keys, spawnflags and numbers applied to them in Copper maps. Copper's own code runs only the world logic (triggers, doors, trains, targets). | P1b |
+| 2 | Source | Vittorio contacts Fairweather/Khreathor for Dwell's source and their OK. Meanwhile Dwell is rebuilt on Copper's public source; the decompile is a behaviour reference only, never shipped. | P2 |
+| 3 | Clashes `item_artifact_wetsuit`, `monster_morph` | **Dwell's own in Copper/Dwell maps**, the current owner (Hipnotic's/AD's, Rogue's) elsewhere; Dwell's version spawnable anywhere as `dw_<name>` by the toolgun. | P2/P3 |
+| 4 | Dwell content outside Dwell maps | **Keeps its own Dwell/Copper behaviour** (content, not rules: AD's decision 9). | P2 |
+| 5 | Installer default | **On by default from P1b's build** (when Dwell's maps play), not before. | P1b |
+| 6 | Order | **S1-S3 land before Copper's import** (P0.5 before P1a). His standing direction with it: fewer special cases and bespoke branches. | P0.5 |

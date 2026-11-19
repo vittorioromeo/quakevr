@@ -20,6 +20,7 @@
 #include "vr_engine.hpp"
 #include "vr_protocol.hpp"
 #include "vr_progs.hpp"
+#include "vr_rules.hpp"
 #include "vr_sha256.hpp"
 
 #include "Zancle/Container/Vector.hpp"
@@ -63,13 +64,6 @@ constexpr const char* adOwnedClashes[] = {
     "weapon_axe", // (Quake VR has a weapon_axe since 2026-11-08: a grabbable axe; AD maps keep AD's pickup)
 };
 
-// Classnames that are not AD signals although only AD has them (shared with Quoth, Copper, compilers; id's stray
-// item_weapon): detection's exclusions (section 5.1).
-constexpr const char* notSignals[] = {
-    "func_group", "info_target", "item_weapon", "misc_external_map", "trigger_ladder",
-};
-constexpr const char* notSignalPrefixes[] = {"func_detail", "misc_particle"};
-
 // The AD-only classnames that spawn in any map while AD's data is mounted, outside AD's rules too (decisions 16 and 26,
 // ARCANE_DIMENSIONS.md section 16): the new artifacts, the custom pickups that override none of Quake VR's pickups or
 // rules, the ladders. AD's others (its monsters, its world logic, its backpacks: Quake's backpack's rules) only in AD
@@ -86,20 +80,11 @@ constexpr const char* everywhereClasses[] = {
     // (the health vials and gems are Quake VR's pickups with AD's look: QC vr_ad_items.qc item_healthvial)
 };
 
-// AD's worldspawn keys (section 6): each one present is a signal.
-constexpr const char* worldSignals[] = {
-    "bodyfadeaway", "bodyflrcheck", "fog_dpextra", "give_weapons", "knight_defskin", "no_bigprojectiles",
-    "no_item_offset", "no_liquiddmg", "no_sgprojectile", "no_zaware", "particlemax", "reset_health",
-    "sprite_particles", "take_weapons", "upgrade_axe", "upgrade_ghook", "upgrade_lg", "upgrade_ssg", "water_alpha",
-};
-
-// The map now spawning (beforeLoad): whether AD's rules are on, why, and how its entities spawned.
+// The map now spawning (beforeLoad): whether AD's rules are on (its ruleset: vr_rules.cpp, which detects it), and how
+// its entities spawned.
 struct MapState
 {
     bool rules = false;
-    bool campaign = false;
-    int signals = 0;
-    char firstSignals[256] = {};
     int adSpawns = 0;   // entities spawned with AD's function
     int oursShared = 0; // shared classnames whose Quake VR version spawned
     bool mounted = false;
@@ -119,56 +104,6 @@ template <size_t N>
     return false;
 }
 
-[[nodiscard]] bool adFolderMounted()
-{
-    for(const searchpath_t* s = com_searchpaths; s; s = s->next)
-    {
-        char name[MAX_OSPATH];
-        VR_GameFolderName(s->pack ? s->pack->filename : s->filename, name, sizeof(name));
-        if(!q_strcasecmp(name, "ad")) { return true; }
-    }
-    return false;
-}
-
-void addSignal(const char* what)
-{
-    ++mapState.signals;
-    if(strlen(mapState.firstSignals) + strlen(what) + 3 < sizeof(mapState.firstSignals))
-    {
-        if(mapState.firstSignals[0]) { q_strlcat(mapState.firstSignals, ", ", sizeof(mapState.firstSignals)); }
-        q_strlcat(mapState.firstSignals, what, sizeof(mapState.firstSignals));
-    }
-}
-
-// The AD signals of the map's entity text: AD-only classnames (an ad_ spawn function and no Quake VR one), each name
-// once, and AD's worldspawn keys.
-void countSignals(const char* data)
-{
-    mapState.signals = 0;
-    mapState.firstSignals[0] = 0;
-    za::Vector<za::String> seen;
-    bool world = true;
-    char key[256];
-    while((data = COM_Parse(data)) && com_token[0] == '{')
-    {
-        while((data = COM_Parse(data)) && com_token[0] != '}')
-        {
-            q_strlcpy(key, com_token, sizeof(key));
-            if(!(data = COM_Parse(data))) { return; }
-            if(world && listed(worldSignals, key)) { addSignal(key); }
-            if(strcmp(key, "classname") || listed(notSignals, com_token)) { continue; }
-            bool excluded = false;
-            for(const char* p : notSignalPrefixes) { excluded |= qvr::strings::startsWith(com_token, p); }
-            if(excluded || VR_ED_FindFunction(com_token) || !VR_ED_FindFunction(va("ad_%s", com_token))) { continue; }
-            bool dup = false;
-            for(const za::String& s : seen) { dup |= !strcmp(s.cStr(), com_token); }
-            if(!dup) { seen.pushBack(za::String{com_token}); addSignal(com_token); }
-        }
-        world = false;
-        if(!data) { return; }
-    }
-}
-
 void statusCommand()
 {
     Con_Printf("Arcane Dimensions: data %s (vr_ad_status %d); campaign %s\n",
@@ -176,9 +111,10 @@ void statusCommand()
         qvr::vr_ad_status.value == 3.f ? "another version: install ad_v1_80p1final.zip" :
         qvr::vr_ad_status.value == 2.f ? "incomplete/corrupt" : "missing",
         static_cast<int>(qvr::vr_ad_status.value), VR_ActiveCampaign() == qvr::ad::campaignIndex ? "active" : "not active");
+    const int signals = qvr::rules::signals(qvr::rules::AD);
     Con_Printf("AD rules on this map: %s (%s; %d signals%s%s)\n", mapState.rules ? "on" : "off",
-        mapState.campaign ? "the AD campaign" : "detection", mapState.signals, mapState.signals ? ": " : "",
-        mapState.firstSignals);
+        mapState.rules && qvr::rules::byCampaign() ? "the AD campaign" : "detection", signals, signals ? ": " : "",
+        qvr::rules::firstSignals(qvr::rules::AD));
     Con_Printf("AD spawns: %d entities with AD's function, %d shared classnames with Quake VR's, %d AD entities outside "
                "AD's rules\n", mapState.adSpawns, mapState.oursShared, mapState.outsideSpawns);
 }
@@ -263,22 +199,25 @@ bool skipOutside(const char* filename)
     return !(qvr::strings::startsWith(filename, "maps/") && strchr(filename + 5, '/'));
 }
 
+bool folderMounted()
+{
+    for(const searchpath_t* s = com_searchpaths; s; s = s->next)
+    {
+        char name[MAX_OSPATH];
+        VR_GameFolderName(s->pack ? s->pack->filename : s->filename, name, sizeof(name));
+        if(!q_strcasecmp(name, "ad")) { return true; }
+    }
+    return false;
+}
+
 void beforeLoad()
 {
-    mapState.campaign = VR_ActiveCampaign() == campaignIndex;
     mapState.adSpawns = mapState.oursShared = mapState.outsideSpawns = 0;
     mapState.outsideReady = false;
-    countSignals(sv.worldmodel ? sv.worldmodel->entities : "");
-    const bool mounted = adFolderMounted();
-    mapState.mounted = mounted;
-    mapState.rules = mapState.campaign || (mapState.signals >= 2 && mounted);
+    mapState.mounted = folderMounted();
+    mapState.rules = qvr::rules::current() == qvr::rules::AD; // (vr_rules.cpp, just before: the AD campaign or its signals)
     Cvar_SetROM("vr_ad_rules", mapState.rules ? "1" : "0");
-    Cvar_SetROM("vr_ad_mounted", mounted ? "1" : "0");
-    if(mapState.rules)
-    {
-        Con_DPrintf("VR: Arcane Dimensions rules on (%s; %d signals)\n", mapState.campaign ? "campaign" : "detected",
-            mapState.signals);
-    }
+    Cvar_SetROM("vr_ad_mounted", mapState.mounted ? "1" : "0");
 }
 
 void registerCommands()

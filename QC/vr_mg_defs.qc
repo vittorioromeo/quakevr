@@ -28,7 +28,7 @@
 .string fog_info_entity;
 .string endtext;
 float() Dopa_Campaign = { return cvar_hget(cvarh_vr_campaign) == VR_CAMPAIGN_DOPA; };
-float() MG_WorldCampaign = { float c = cvar_hget(cvarh_vr_campaign); return c >= VR_CAMPAIGN_DOPA && c <= VR_CAMPAIGN_MG3; };
+float() MG_WorldCampaign = { return VR_Ruleset() == VR_RULES_MG; }; // (MG's campaigns: their ruleset, vr_rules.cpp)
 // MG maps may set a mover's direction with a "movedir" key: kept as given (SetMovedir, doors, buttons).
 float() MG_ExplicitMoveDir = { return MG_WorldCampaign() && self.movedir != '0 0 0'; };
 float() MG_WorldGuard = { if(MG_WorldCampaign()) return TRUE; remove(self); return FALSE; };

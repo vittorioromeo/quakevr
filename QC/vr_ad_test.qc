@@ -660,7 +660,7 @@ void(float request, entity p) AD_RulesTest =
         art.spawnflags = 16;
         art.ad_classtype = ad_CT_ARTJUMPBOOTS;
         bprint(sprintf("adrules: spawnflags map %g other %g; ours delayed %g angry %g nofx %g; item respawn %g startoff %g;",
-            VR_SF_MapRuleset(), VR_OtherFlags(), VR_SF_Has(mon, VR_SF_MON_DELAYED), VR_SF_Has(mon, VR_SF_MON_ANGRY),
+            VR_Ruleset(), VR_OtherFlags(), VR_SF_Has(mon, VR_SF_MON_DELAYED), VR_SF_Has(mon, VR_SF_MON_ANGRY),
             VR_SF_Has(mon, VR_SF_MON_NOSPAWNFX), VR_SF_Has(item, VR_SF_ITEM_RESPAWN), VR_SF_Has(item, VR_SF_STARTOFF)));
         bprint(sprintf(" AD's artifact %g respawn %g\n", VR_SF_Ruleset(art), VR_SF_Has(art, VR_SF_ITEM_RESPAWN)));
         remove(mon);
