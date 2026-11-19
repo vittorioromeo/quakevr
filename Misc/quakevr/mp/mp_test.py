@@ -67,7 +67,8 @@ Tests:
     disarm   (B10) A holds a shotgun out; B's hand closes on it and pulls gently: it slips off; B yanks: it is his. B tosses
              it to A, who takes it. B's holsters as A draws them (a shotgun in each slot, one drawn, after his death). A
              shell, a nail magazine and a rocket from A's pouch let fall: B's hand takes each up and lets it go at his
-             pouch (his reserve up by A's loss); a nail magazine and a rocket B loads into his own gun (B8h). --part
+             pouch (his reserve up by A's loss); a nail magazine and a rocket B loads into his own gun (B8h). A
+             holding a shotgun out leaves: B's grip on it in his body's hand takes no hold (review finding 7). --part
              give|use: the rounds alone.
     predictclimb  (B8h, B8i, B8j) on vrclimb, B 150 ms behind each way hangs from the ledge, pulls himself up and lets
              go, then mantles onto it: the hang's steps, the mantle's test and the mantle run in his moves, his replay's
@@ -3270,7 +3271,50 @@ def disarm(s):
     server_time_past(srv, server_time(srv) + 1.0)
     holsters_synced(s, a, b, eb, "after B's death and respawn")
     ammo_give(s, srv, a, b, ea, eb)
+    disarm_leaver(s, srv, a, b, ea, eb)
     srv.cmd("vr_debug_carry 0; developer 0")
+
+
+def disarm_leaver(s, srv, a, b, ea, eb):
+    """(REVIEW_MP_2026-11-18 finding 7) A player who left can't be disarmed: A holds a shotgun out and leaves the coop
+    game (his body stays: ClientDisconnect's set_suicide_frame, DEAD_DEAD, with his health, FL_CLIENT and the gun in his
+    frozen hand); B's empty hand closes on the gun's hotspot where the server had it: no hold (before: B took it, and A
+    back by his name had it again, vr_mp_rejoin_keep)."""
+    b.cmd("vr_mock_play; vr_mock_button main grip 0; vr_mock_button off grip 0")
+    put_at(srv, b, eb, side_spot(srv, ea))  # (out of A's spot first: ammo_give leaves B where A stood)
+    put_at(srv, a, ea, OPEN_SPOT, 90)
+    put_at(srv, b, eb, (OPEN_SPOT[0], OPEN_SPOT[1] + B10_GAP, OPEN_SPOT[2]), 270)
+    a.cmd("vr_mock_play; vr_mock_button main grip 0; vr_mock_button off grip 0")  # (a fresh press for the give)
+    server_time_past(srv, server_time(srv) + GRIP_REPRESS_S)
+    grip_then_give(srv, a, "%s; vr_mock_button main grip 1" % HOLD_OUT)
+    held = weapon_until(s, srv, ea, 4)
+    empty = weapon_until(s, srv, eb, 0)
+    # (A's main hand where the server has it: on the gun's line from butt to tip, which stays on his body's frozen hand;
+    # its hotspots are his client's drawn ones, gone with his slot's held pose when he leaves)
+    grip = None
+    for _ in range(40):
+        grip = ground_report(srv, "mp_drawn_sv").get((ea, 1), {}).get("hand")
+        if grip:
+            break
+    s.check("leaver: A holds a shotgun out, B's main hand empty (the server's reports)",
+            held[-1] == 4 and empty[-1] == 0 and grip, "A's main weapon %s, B's %s; A's hand %s" % (held, empty, grip))
+    if not grip:
+        return
+    since = srv.mark()
+    a.cmd("disconnect")
+    left = wait_quietly(srv, r"coop: A left|Client A removed", 20, since, "A leaving")
+    hand_at(srv, b, eb, grip)
+    server_time_past(srv, server_time(srv) + GRIP_REPRESS_S)
+    since = srv.mark()
+    b.cmd("vr_mock_button main grip 1")
+    # (his body's netname is empty once he left: SV_DropClient clears the name it points to)
+    hold = wait_quietly(srv, r"pdisarm: B's hand 1 takes hold of ", 3, since, "no hold on A's body's gun")
+    mine = weapon_until(s, srv, eb, 0, 5)
+    s.check("leaver: B's grip on the shotgun in the hand of A's body (A gone) takes no hold; B's hand stays empty",
+            left is not None and hold is None and mine[-1] == 0,
+            "A left: %s; server: %s; B's main weapon %s" % (left[1].strip() if left else None,
+                                                           hold[1].strip() if hold else "no hold", mine))
+    b.cmd("vr_mock_button main grip 0")
 
 
 # The rounds handed over (MP B10b): (what, the main hand's weapon whose pouch kind it is, its give, the reserve's key,

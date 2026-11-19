@@ -455,8 +455,9 @@ float(entity e, float vh) bot_reach_valid =
 {
     if(e.flags & FL_CLIENT)
     {
-        return e.health > 0 && !VRIsHandWeaponless(e, vh) && cvar_hget(cvarh_vr_player_disarm_pvp) &&
-               cvar_hget(cvarh_vr_player_disarm_grab);
+        // (deadflag: a player who left keeps his body's health, DEAD_DEAD: VR_PDG_Try's test)
+        return e.health > 0 && e.deadflag == DEAD_NO && !VRIsHandWeaponless(e, vh) &&
+               cvar_hget(cvarh_vr_player_disarm_pvp) && cvar_hget(cvarh_vr_player_disarm_grab);
     }
     return e.handtouch != __NULL__;
 };

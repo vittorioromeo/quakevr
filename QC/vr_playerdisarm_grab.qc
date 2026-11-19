@@ -65,7 +65,10 @@ float(entity pl, float h) VR_PDG_Try =
     entity v = VR_Player();
     while(v)
     {
-        if(v != pl && (v.flags & FL_CLIENT) && v.health > 0 && vlen(v.origin - pl.origin) < 200)
+        // (alive and in the game: a leaver's body keeps his health and FL_CLIENT, ClientDisconnect's set_suicide_frame
+        // only makes it DEAD_DEAD, and with vr_mp_rejoin_keep he takes his weapon back on his return)
+        if(v != pl && (v.flags & FL_CLIENT) && v.health > 0 && v.deadflag == DEAD_NO &&
+            vlen(v.origin - pl.origin) < 200)
         {
             for(float vh = 0; vh < 2; vh++)
             {
@@ -123,9 +126,9 @@ void(entity pl) VR_PDG_Hold =
         VR_PDG_End(pl, "let go");
         return;
     }
-    if(v.health <= 0 || !(v.flags & FL_CLIENT) || VRIsHandWeaponless(v, vh))
+    if(v.health <= 0 || v.deadflag != DEAD_NO || !(v.flags & FL_CLIENT) || VRIsHandWeaponless(v, vh))
     {
-        VR_PDG_End(pl, ""); // (dead, gone, or it left his hand some other way)
+        VR_PDG_End(pl, ""); // (dead, gone -- a leaver's body is DEAD_DEAD --, or it left his hand some other way)
         return;
     }
     float m2u = VRMetersToUnits();
