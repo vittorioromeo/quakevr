@@ -740,4 +740,5 @@ dwell/dw_common.qc
 dwell/dw_items.qc
 dwell/dw_monsters.qc
 dwell/dw_bosses.qc
+dwell/dw_test.qc
 vr_rules_test.qc

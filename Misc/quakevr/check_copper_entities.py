@@ -27,6 +27,7 @@ from check_mg3_entities import DEFAULT_QC, engine_key, qc_names  # noqa: E402
 
 DEFAULT_MAPS = "C:/OHWorkspace/qvr-kit/downloads/dwell/ex/dwellv2p2/maps"
 PREFIX = "cu_"
+DW_PREFIX = "dw_"  # Dwell's own, rebuilt (QC/dwell, DWELL.md P2a)
 
 
 def entities(path):
@@ -57,7 +58,7 @@ def main():
     if a.map:
         maps = [m for m in maps if m[:-4].lower() == a.map.lower()]
 
-    classes, ours, copper, missing = (collections.Counter() for _ in range(4))
+    classes, ours, copper, missing, dwell = (collections.Counter() for _ in range(5))
     missing_maps = collections.defaultdict(set)
     missing_fields = collections.Counter()
     for mp in maps:
@@ -68,6 +69,8 @@ def main():
             classes[cls] += 1
             if cls in funcs:
                 ours[cls] += 1
+            elif DW_PREFIX + cls in funcs:
+                dwell[cls] += 1
             elif PREFIX + cls in funcs:
                 copper[cls] += 1
                 cc[cls] += 1
@@ -93,8 +96,8 @@ def main():
         if missing_fields:
             print("unknown keys (uses): " + " ".join("%s:%d" % kv for kv in sorted(missing_fields.items())))
     placements = sum(missing.values())
-    print("%s: maps %d classes %d ours %d copper %d missing %d placements %d fields %d field_uses %d" % (
-        tag, len(maps), len(classes), len(ours), len(copper), len(missing), placements, len(missing_fields),
+    print("%s: maps %d classes %d ours %d copper %d dwell %d missing %d placements %d fields %d field_uses %d" % (
+        tag, len(maps), len(classes), len(ours), len(copper), len(dwell), len(missing), placements, len(missing_fields),
         sum(missing_fields.values())))
     bad = ((a.expect_missing is not None and a.expect_missing != len(missing)) or
            (a.expect_placements is not None and a.expect_placements != placements) or

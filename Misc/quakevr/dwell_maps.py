@@ -87,7 +87,7 @@ def main():
         sav = os.path.join(saves, "dwc_%s.sav" % mp)
         live, waiting, coop, _ = save_census(sav) if os.path.isfile(sav) else (-1, -1, -1, -1)
         errs = [e for e in errors if e[0] == mp]
-        ok = not bad and coop == 0 and mp in ran and ruleset.get(mp) == "Copper" and not errs
+        ok = not bad and not own and coop == 0 and mp in ran and ruleset.get(mp) == "Copper" and not errs  # (P2a: Dwell's own spawn too)
         passed += ok
         failed += not ok
         print("%-9s %-7s %8d %8d %6d %s / %d%s%s" % (mp, ruleset.get(mp, "?"), live, waiting, coop, bad or "0", own,

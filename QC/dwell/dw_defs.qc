@@ -17,6 +17,7 @@
 .void() dw_ev;
 .void() dw_after;
 .float dw_mon; // a Dwell monster (DW_MON_*: its kind)
+.float dw_marked; // the Sculptor marked by trigger_killboss: it dies next time
 
 // Dwell's powerups on the player (dw_items.qc): when each ends.
 .float dw_haste_finished, dw_berserk_finished, dw_wetsuit_finished;

@@ -326,7 +326,7 @@ void() dw_d2_intro =
 // Its health run out: unmarked, it resets (its target, shielded, resting); marked, it dies.
 float() dw_d2_survive =
 {
-    if(self.lip) { return FALSE; } // (trigger_killboss's mark)
+    if(self.dw_marked) { return FALSE; } // (trigger_killboss's mark)
     activator = self.enemy.classname == "player" ? self.enemy : activator;
     dprint("dwboss: d2boss phase over\n");
     DW_UseNamed(self.target);
@@ -409,7 +409,7 @@ void() dw_killboss_use =
     entity b = find(world, targetname, self.target);
     if(!b) { return; }
     dprint("dwboss: d2boss marked\n");
-    b.lip = TRUE;
+    b.dw_marked = TRUE;
     b.health = 666;
 };
 void() dw_trigger_killboss =

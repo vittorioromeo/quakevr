@@ -276,15 +276,31 @@ void() dw_func_fade =
     self.nextthink = time + 0.1;
 };
 
+// Its pages (message, then noise, noise1..noise4: Dwell keeps the story's text there) to whoever used it, 5 s each,
+// then its targets.
+void() dw_storycam_page =
+{
+    string s = self.cnt == 0 ? self.message : self.cnt == 1 ? self.noise : self.cnt == 2 ? self.noise1 :
+               self.cnt == 3 ? self.noise2 : self.cnt == 4 ? self.noise3 : self.cnt == 5 ? self.noise4 : "";
+    if(s == "" || !self.enemy)
+    {
+        activator = self.enemy;
+        SUB_UseTargets();
+        return;
+    }
+    centerprint(self.enemy, s);
+    self.cnt = self.cnt + 1;
+    self.think = dw_storycam_page;
+    self.nextthink = time + 5;
+};
 void() dw_storycam_use =
 {
-    if(self.message != "") { centerprint(activator, self.message); }
-    if(self.noise != "") { sound(activator, CHAN_VOICE, self.noise, 1, ATTN_NONE); }
-    SUB_UseTargets();
+    self.enemy = activator;
+    self.cnt = 0;
+    dw_storycam_page();
 };
 void() dw_info_storycamera =
 {
     if(!DW_Data()) { remove(self); return; }
-    if(self.noise != "") { precache_sound(self.noise); }
     self.use = dw_storycam_use;
 };
