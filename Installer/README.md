@@ -52,6 +52,14 @@ Linux (the CLI only for now; INSTALLER.md, "Cross-platform"): the core builds fo
 is the portable build with `-p:QvrPortable=true`: `dotnet build src/QuakeVR.Installer.Cli -p:QvrPortable=true` (checks
 it compiles), `dotnet publish src/QuakeVR.Installer.Cli -c Release -p:QvrPortable=true -r linux-x64 --self-contained`.
 
+The window in Avalonia (`src/QuakeVR.Installer.Avalonia`, Windows and Linux; the WPF window stays the default until it
+reaches parity: INSTALLER.md, "GUI on Linux"): `dotnet publish src/QuakeVR.Installer.Avalonia -c Release -r linux-x64
+--self-contained` (Skia's and HarfBuzz's `.so` beside the program). It shares the WPF project's view models, sounds
+and generated textures. `QuakeVR-Setup --screenshots <dir>` renders every page headless (no display needed: Linux
+servers and WSL too). It is not in `QuakeVR.Installer.sln` (the build switch: the release builds the solution, which stays without NuGet
+packages); build it by its project. Its packages: Avalonia 12.1.6; the project switches off Avalonia's build statistics. In WSL: `tests/linux/wsl_cli_check.sh` (the console: detect, feed, a sandboxed install,
+verify, uninstall) and `tests/linux/wsl_gui_check.sh` (the window's pages, headless).
+
 ### Command line (the window)
 
 | Option | What |

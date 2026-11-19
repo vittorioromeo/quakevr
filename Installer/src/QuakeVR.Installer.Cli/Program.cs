@@ -615,7 +615,8 @@ try
                 using var http = Downloader.CreateClient();
                 feed = await ReleaseFeed.FetchAsync(http, Feeds("url"), CancellationToken.None);
             }
-            Console.WriteLine($"version {feed.Version}; package {feed.Package?.File} {PathUtil.FormatSize(feed.Package?.Size ?? 0)}; components: {string.Join(", ", feed.Components.Keys)}");
+            Console.WriteLine($"version {feed.Version}; package {feed.Package?.File} {PathUtil.FormatSize(feed.Package?.Size ?? 0)}; components: {string.Join(", ", feed.Components.Keys)}" +
+                              $"; this host's ({HostPlatform.CurrentRid}): {(feed.PackageFor(HostPlatform.CurrentRid) is { } own ? $"{own.File} {PathUtil.FormatSize(own.Size)}" : "none")}");
             if (Opt("assets") is { } assetsDir)
             {
                 // Each file the feed names, beside it: the size and SHA-256 the installer will check after downloading.

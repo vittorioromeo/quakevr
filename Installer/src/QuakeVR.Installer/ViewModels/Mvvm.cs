@@ -1,8 +1,6 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
-using System.Windows;
 using System.Windows.Input;
-using System.Windows.Media;
 
 namespace QuakeVR.Installer.ViewModels;
 
@@ -40,10 +38,16 @@ public sealed class RelayCommand(Action<object?> execute, Func<object?, bool>? c
     {
     }
 
+    // WPF: CommandManager's requery (input events, UiHost.Requery); elsewhere UiHost's own (UiHost.Requery only).
     public event EventHandler? CanExecuteChanged
     {
+#if QVR_AVALONIA
+        add => UiHost.RequerySuggested += value;
+        remove => UiHost.RequerySuggested -= value;
+#else
         add => CommandManager.RequerySuggested += value;
         remove => CommandManager.RequerySuggested -= value;
+#endif
     }
 
     public bool CanExecute(object? parameter) => canExecute?.Invoke(parameter) ?? true;
@@ -67,7 +71,7 @@ public enum CheckStatus
 /// <summary>Brushes and icon glyphs for each status, from the theme.</summary>
 public static class StatusLook
 {
-    public static Brush Brush(CheckStatus s) => (Brush)Application.Current.FindResource(s switch
+    public static object? Brush(CheckStatus s) => UiHost.Look(s switch
     {
         CheckStatus.Ok => "Ok",
         CheckStatus.Warning => "Warn",
@@ -97,7 +101,7 @@ public sealed class CheckItem(CheckStatus status, string title, string detail, s
     public string Detail { get; } = detail;
     public string? Hint { get; } = hint;
     public bool HasHint => !string.IsNullOrEmpty(Hint);
-    public Brush Brush => StatusLook.Brush(Status);
+    public object? Brush => StatusLook.Brush(Status);
     public string Glyph => StatusLook.Glyph(Status);
     public string? ActionText { get; init; }
     public ICommand? Action { get; init; }
@@ -133,10 +137,10 @@ public sealed class StepItem(int number, string title) : ObservableObject
     public bool IsCurrent => State == StepState.Current;
     public bool IsDone => State == StepState.Done;
     public string Marker => IsDone ? "\uE73E" : Number.ToString();
-    public FontFamily MarkerFont => IsDone ? (FontFamily)Application.Current.FindResource("IconFont") : (FontFamily)Application.Current.FindResource("CondensedFont");
-    public Brush TitleBrush => (Brush)Application.Current.FindResource(State switch { StepState.Upcoming => "Faint", StepState.Done => "Subtle", _ => "Text" });
-    public Brush MarkerBrush => (Brush)Application.Current.FindResource(State switch { StepState.Current => "Accent", StepState.Done => "Brass", _ => "Card" });
-    public Brush MarkerText => State == StepState.Upcoming ? (Brush)Application.Current.FindResource("Faint") : (Brush)Application.Current.FindResource("DarkText");
+    public object? MarkerFont => UiHost.Look(IsDone ? "IconFont" : "CondensedFont");
+    public object? TitleBrush => UiHost.Look(State switch { StepState.Upcoming => "Faint", StepState.Done => "Subtle", _ => "Text" });
+    public object? MarkerBrush => UiHost.Look(State switch { StepState.Current => "Accent", StepState.Done => "Brass", _ => "Card" });
+    public object? MarkerText => UiHost.Look(State == StepState.Upcoming ? "Faint" : "DarkText");
 }
 
 /// <summary>One claim of the Statement page as a YES/NO switch that starts with neither (radio buttons: once one is
@@ -184,7 +188,7 @@ public sealed class LogLine(Core.Packaging.LogLevel level, string text)
 {
     public Core.Packaging.LogLevel Level { get; } = level;
     public string Text { get; } = text;
-    public Brush Brush => StatusLook.Brush(Level switch
+    public object? Brush => StatusLook.Brush(Level switch
     {
         Core.Packaging.LogLevel.Success => CheckStatus.Ok,
         Core.Packaging.LogLevel.Warning => CheckStatus.Warning,
@@ -230,7 +234,7 @@ public sealed class ExpansionRow(Core.Detection.ExpansionInfo info)
         Core.Detection.ExpansionState.DetectedNotSupported => CheckStatus.NotYet,
         _ => CheckStatus.Absent,
     };
-    public Brush Brush => StatusLook.Brush(Status);
+    public object? Brush => StatusLook.Brush(Status);
     public string Glyph => StatusLook.Glyph(Status);
-    public Brush TitleBrush => (Brush)Application.Current.FindResource(Status == CheckStatus.Absent ? "Subtle" : "Text");
+    public object? TitleBrush => UiHost.Look(Status == CheckStatus.Absent ? "Subtle" : "Text");
 }

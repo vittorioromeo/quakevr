@@ -1,0 +1,5 @@
+<Project>
+  <!-- Imported after the packages' targets: Avalonia.BuildServices' anonymous build statistics (the AvaloniaStats
+       target) replaced by nothing, whatever AVALONIA_TELEMETRY_OPTOUT says. -->
+  <Target Name="AvaloniaStats" />
+</Project>

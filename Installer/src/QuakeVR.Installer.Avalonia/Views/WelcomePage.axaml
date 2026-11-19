@@ -1,0 +1,156 @@
+<UserControl x:Class="QuakeVR.Installer.Views.WelcomePage"
+             xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:skin="using:QuakeVR.Installer.Skin">
+    <UserControl.Styles>
+        <!-- A feature's icon: a small riveted iron plate with an ember glyph. -->
+        <Style Selector="Border.FeatureIcon">
+            <Setter Property="Width" Value="40" />
+            <Setter Property="Height" Value="40" />
+            <Setter Property="CornerRadius" Value="3" />
+            <Setter Property="Background" Value="{DynamicResource SkinTrimBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource RaisedEdge}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="VerticalAlignment" Value="Top" />
+            <Setter Property="Margin" Value="0,0,16,0" />
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect OffsetX="1.414" OffsetY="1.414" Color="Black" BlurRadius="6" Opacity="0.8"/>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style Selector="TextBlock.FeatureGlyph">
+            <Setter Property="FontSize" Value="18" />
+            <Setter Property="Foreground" Value="{StaticResource AccentHover}" />
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect OffsetX="0" OffsetY="0" Color="#FFFF7A20" BlurRadius="10" Opacity="1"/>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Styles>
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel>
+            <!-- The logo, over its own fire. -->
+            <Grid Height="190" ClipToBounds="True">
+                <skin:FireView Heat="0.85" CellSize="4" EmberCount="26" FireOpacity="0.9" Glow="0.2" />
+                <Image Source="avares://QuakeVR-Setup/Assets/logo_wide.png" Height="172" Margin="0,8,0,0" VerticalAlignment="Top"
+                       HorizontalAlignment="Center" RenderOptions.BitmapInterpolationMode="HighQuality">
+                    <Image.Effect>
+                        <DropShadowEffect OffsetX="0" OffsetY="0" Color="Black" BlurRadius="22" Opacity="0.95"/>
+                    </Image.Effect>
+                </Image>
+            </Grid>
+            <TextBlock Classes="PageTitle" FontSize="32" Margin="0,8,0,0" ><Run Text="Quake, "/><Run Text="UNLEASHED"/><Run Text=" "/><Run Text="in virtual reality"/></TextBlock>
+            <TextBlock Classes="PageSubtitle" FontSize="15" MaxWidth="640" HorizontalAlignment="Left">
+                Full-body IK, dual wielding, a modern physics engine, visceral melee combat, and many other VR-unique features and interactions -- built on the Ironwail engine. This installer sets
+                everything up in a few clicks.
+            </TextBlock>
+
+            <!-- An existing install: the Update screen. The footer's one primary button updates (or repairs); Install
+                 again from scratch and Remove are the secondary choices. -->
+            <Border Classes="CardBorder" Margin="0,24,0,0" BorderBrush="{StaticResource Accent}"
+                    IsVisible="{Binding HasExisting}">
+                <StackPanel>
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right" Content="Remove…" Classes="GhostButton" Command="{Binding UninstallCommand}"
+                                VerticalAlignment="Top" Margin="12,0,0,0" />
+                        <StackPanel>
+                            <TextBlock Text="{Binding ExistingTitle}" Classes="Body" FontWeight="SemiBold" FontSize="17" />
+                            <TextBlock Text="{Binding ExistingText}" Classes="Body" Margin="0,6,0,0" TextWrapping="Wrap" />
+                            <TextBlock Classes="Small" Margin="0,6,0,0"
+                                       IsVisible="{Binding ExistingNeedsPackage}">
+                                <InlineUIContainer BaselineAlignment="TextBottom"><Button Classes="InlineLink" Command="{Binding BrowsePackageCommand}" Content="Pick a package…" /></InlineUIContainer>
+                                <Run Text="   " />
+                                <InlineUIContainer BaselineAlignment="TextBottom"><Button Classes="InlineLink" Command="{Binding RetryFeedCommand}" Content="Try again" /></InlineUIContainer>
+                            </TextBlock>
+                            <TextBlock Text="{Binding ExistingDetail}" Classes="Small" Margin="0,8,0,0" TextWrapping="Wrap" />
+                            <!-- Arcane Dimensions added to an install (the retry after a failed download): the footer's Update adds it. -->
+                            <CheckBox IsChecked="{Binding InstallAd}" Margin="0,8,0,0" IsVisible="{Binding ShowAddAd}">
+                                <TextBlock Classes="Small" TextWrapping="Wrap">
+                                    <Run Text="Add Arcane Dimensions (experimental, free, by sock and team):" />
+                                    <Run Text="{Binding AdSizeText, Mode=OneWay}" />
+                                </TextBlock>
+                            </CheckBox>
+                            <TextBlock Text="{Binding OtherInstallsText}" Classes="Small" Foreground="{StaticResource Faint}" Margin="0,6,0,0"
+                                       TextWrapping="Wrap" IsVisible="{Binding HasOtherInstalls}" />
+                            <WrapPanel Margin="0,8,0,0">
+                                <TextBlock Classes="Small" VerticalAlignment="Center" Margin="0,0,24,0">
+                                    <InlineUIContainer BaselineAlignment="TextBottom"><Button Classes="InlineLink" Command="{Binding ToggleReinstallCommand}" Content="Install again from scratch…" /></InlineUIContainer>
+                                    <Run Text="   " />
+                                    <InlineUIContainer BaselineAlignment="TextBottom"><Button Classes="InlineLink" Command="{Binding BrowseExistingCommand}" Content="Use another install…" /></InlineUIContainer>
+                                </TextBlock>
+                                <!-- A clean start in one tick: the three choices below ticked, and the footer's button installs again. -->
+                                <CheckBox IsChecked="{Binding StartClean}" VerticalAlignment="Center"
+                                          ToolTip.Tip="Like a new install: your settings, saves, maps, screenshots and voice notes are moved into a backup, then everything is installed again.">
+                                    <TextBlock Classes="Small" Text="Start clean (wipe my settings, saves and files; backed up)" />
+                                </CheckBox>
+                            </WrapPanel>
+                        </StackPanel>
+                    </DockPanel>
+                    <!-- Install again from scratch: three choices, a backup first, then the whole wizard. -->
+                    <StackPanel Margin="0,14,0,0" IsVisible="{Binding ShowReinstall}">
+                        <TextBlock Text="INSTALL AGAIN FROM SCRATCH" Classes="SectionTitle" />
+                        <TextBlock Classes="Small" TextWrapping="Wrap"
+                                   Text="Every program file is copied again, and you pick the options again. Only what you tick here is reset or removed:" />
+                        <CheckBox IsChecked="{Binding ResetSettings}" Margin="0,10,0,0">
+                            <TextBlock Text="{Binding ReinstallSettingsText}" Classes="Body" />
+                        </CheckBox>
+                        <CheckBox IsChecked="{Binding RemoveSaves}" Margin="0,6,0,0">
+                            <TextBlock Text="{Binding ReinstallSavesText}" Classes="Body" />
+                        </CheckBox>
+                        <CheckBox IsChecked="{Binding RemovePersonal}" Margin="0,6,0,0">
+                            <TextBlock Text="{Binding ReinstallPersonalText}" Classes="Body" TextWrapping="Wrap" />
+                        </CheckBox>
+                        <TextBlock Text="{Binding BackupText}" Classes="Small" Foreground="{StaticResource Faint}" Margin="0,8,0,0" TextWrapping="Wrap" />
+                        <Button Content="Install again…" Classes="GhostButton" Command="{Binding ReinstallCommand}"
+                                HorizontalAlignment="Left" Margin="0,10,0,0" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <StackPanel Margin="0,24,0,0">
+                <DockPanel Margin="0,0,0,16">
+                    <Border Classes="FeatureIcon">
+                        <TextBlock Text="&#xE721;" Classes="Glyph FeatureGlyph" />
+                    </Border>
+                    <StackPanel>
+                        <TextBlock Text="Finds your Quake" Classes="Body" FontWeight="SemiBold" />
+                        <TextBlock Classes="Small" Margin="0,3,0,0"
+                                   Text="Steam, GOG or Epic, the original or the 2021 rerelease, and the expansions you own." />
+                    </StackPanel>
+                </DockPanel>
+                <DockPanel Margin="0,0,0,16">
+                    <Border Classes="FeatureIcon">
+                        <TextBlock Text="&#xE72E;" Classes="Glyph FeatureGlyph" />
+                    </Border>
+                    <StackPanel>
+                        <TextBlock Text="Leaves your Quake untouched" Classes="Body" FontWeight="SemiBold" />
+                        <TextBlock Classes="Small" Margin="0,3,0,0"
+                                   Text="Quake VR goes in its own folder and reads your game files, music included, where they are." />
+                    </StackPanel>
+                </DockPanel>
+                <DockPanel Margin="0,0,0,16">
+                    <Border Classes="FeatureIcon">
+                        <TextBlock Text="&#xE793;" Classes="Glyph FeatureGlyph" />
+                    </Border>
+                    <StackPanel>
+                        <TextBlock Classes="Body" FontWeight="SemiBold" ><Run Text="Enhances maps and graphics"/></TextBlock>
+                        <TextBlock Classes="Small" Margin="0,3,0,0"
+                                   ><Run Text="HD textures"/><Run Text=", "/><Run Text="relit maps"/><Run Text=", dynamic lights, and parallax mapping, all filtered through customisable retro shaders"/><Run Text="."/></TextBlock>
+                    </StackPanel>
+                </DockPanel>
+                <DockPanel>
+                    <Border Classes="FeatureIcon">
+                        <TextBlock Text="&#xE7FC;" Classes="Glyph FeatureGlyph" />
+                    </Border>
+                    <StackPanel>
+                        <TextBlock Text="Works with your headset" Classes="Body" FontWeight="SemiBold" />
+                        <TextBlock Classes="Small" Margin="0,3,0,0"
+                                   Text="Any OpenXR runtime: Virtual Desktop, SteamVR, Meta Quest Link." />
+                    </StackPanel>
+                </DockPanel>
+            </StackPanel>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

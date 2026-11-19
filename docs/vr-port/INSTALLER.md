@@ -620,7 +620,7 @@ His request (2026-11-17): the same installer on Linux, from the same code; later
   scripts); `-p:QvrPortable=true` builds it as net9.0. Linux: `dotnet publish src/QuakeVR.Installer.Cli -c Release
   -p:QvrPortable=true -r linux-x64 --self-contained -p:PublishSingleFile=true` (needs the linux-x64 runtime and apphost
   packs: see "Downloads to approve").
-- The window (WPF) stays Windows only: see "GUI on Linux" below.
+- The window: WPF (Windows, the default) and `QuakeVR.Installer.Avalonia` (Windows and Linux, net9.0): see "GUI on Linux" below.
 
 ### Every Windows dependency, and what it is on Linux
 
@@ -677,12 +677,60 @@ the Linux engine look for `pak0.pak`), the mount point for the disk check, the r
   and Epic, Lutris, XDG folders, active_runtime.json; the .desktop plan, quoting, round trip, uninstall, system folders,
   the feed's linux-x64 package and an old feed). Installer 0 warnings; the portable CLI builds (0 CA1416).
 - `qvr-setup detect` from the net9.0-windows and the portable net9.0 build print the same report on Windows.
-- **Not run on Linux yet:** WSL has no .NET, and publishing self-contained for linux-x64 needs the runtime packs (a
-  download, waiting for approval). Then: publish, `wsl -d archlinux -- <publish dir>/qvr-setup detect`, a sandboxed
-  install of a Linux test package (made from the kit's WSL engine build + the worktree's quakevr folder +
-  `qvr-setup manifest`), `verify`, `uninstall`.
+### Run on Linux (phase 2, 2026-11-19)
 
-### GUI on Linux: Avalonia (plan, not started)
+- Published on Windows, run in WSL (Arch, nothing installed there): `dotnet publish src/QuakeVR.Installer.Cli -c Release
+  -p:QvrPortable=true -r linux-x64 --self-contained -p:PublishSingleFile=true -p:EnableSingleFileAnalyzer=false`
+  (the single-file analyser needs the ILLink package, which is not among the approved downloads: off). One 71 MB
+  `qvr-setup` ELF.
+- Checked (`Installer/tests/linux/wsl_cli_check.sh`, run in WSL; the window: `wsl_gui_check.sh`): `detect` (no Quake, no OpenXR runtime, VC++ "not needed"),
+  `manifest` of a **small test package** (there is no Linux game package yet: the kit's WSL engine build `ironwail`, the
+  worktree's `quakevr/*.cfg` and a `quakevr/tools/hello.sh`), a local `latest.json` with `packages.linux-x64` served by
+  `qvr-setup serve` on 127.0.0.1, `feed --file` (now also prints this host's package), `install --feed ... --sandbox`
+  (downloaded, SHA-256 checked, 10 files, 8 `.desktop` entries: Desktop and the menu folder), `ironwail` and the tools'
+  `.sh` installed 0755, `detect --sandbox` finds the install, `verify` "all files intact", `uninstall` (10 files and 8
+  shortcuts removed, folder removed, the menu folder too).
+- Found: an install target under `/var` is refused as a system folder (by design: the test sandbox lives in `~`).
+- Still not done: the case-insensitive `id1/PAK0.PAK`, the disk check's mount point, the running-game check (above), and
+  `Setup`'s own copy in a Linux install (no Apps & Features record is written without it: `qvr-setup uninstall` works).
+
+### GUI on Linux: Avalonia (phase 2, 2026-11-19: ported, behind a build switch)
+
+**Status.** `src/QuakeVR.Installer.Avalonia` (net9.0, `QuakeVR-Setup`) is the window in Avalonia 12.1.6 for Windows and
+Linux. One codebase: it compiles the WPF project's `ViewModels/*.cs`, `Audio/*.cs`, `Skin/Procedural.cs` and
+`SetupRelaunch.cs` with `QVR_AVALONIA`; the view models no longer use WPF (`ViewModels/UiHost.cs`: theme lookups,
+prompts, folder/file pickers, clipboard, credits, shutdown, command requery are set by `WpfUiHost` or
+`AvaloniaUiHost`; the pickers and prompts are async). Its own: `Themes/Theme.axaml` (every Theme.xaml style as
+selectors: AccentButton, GhostButton, Ko-fi/Discord plates, links, IconToggle, CheckBox, ChoiceCard, ChoicePill,
+TreeHeader, Slider, TextBox, ProgressBar with lava, ScrollBar, ToolTip, Badge/CheckItem templates), the nine views
+(converted from the WPF XAML by `scratch/xi2_convert.py`, triggers rewritten as classes), `Skin/Skin.cs` (FireView with
+the same Doom-fire simulation, LavaView, Fx.Enter/Pulse, the generated textures as tiled brushes), and a headless
+screenshot harness (`QuakeVR-Setup --screenshots <dir>`: Avalonia.Headless + Skia, 12 pages and report.txt, plus the
+Statement page's checks: switches start unanswered, Continue only with every YES, the button follows the command).
+The default font is the embedded Barlow (a Linux without fonts, such as WSL's Arch, has no system default and Avalonia
+stopped at the first text). Avalonia.BuildServices' build statistics are switched off by the project
+(`Directory.Build.targets` replaces its `AvaloniaStats` target) and by AVALONIA_TELEMETRY_OPTOUT=1.
+
+**The build switch:** the project is not in `QuakeVR.Installer.sln`, so the release (make_release.ps1 builds the
+solution) and its offline build are unchanged; `dotnet build src/QuakeVR.Installer.Avalonia` builds the window.
+
+**Verified:** installer solution and the Avalonia project 0 warnings; self-tests 43/43; the WPF harness renders as before; the Avalonia harness
+PASS on Windows and, published self-contained for linux-x64 (`libSkiaSharp.so`, `libHarfBuzzSharp.so` beside it), PASS
+headless in WSL (no display used: WSLg exists, but a window on the desktop is not for unattended runs).
+
+**Missing before the WPF window can go (why WPF stays the Windows default):**
+- Icons: the glyphs are Segoe Fluent Icons; Linux has no such font (boxes). Ship an OFL icon font or paths.
+- The Quake skin (SkinLoader/SkinAssets: the player's own textures, Quake's status-bar digits, the palette's fire
+  ramp): the Avalonia window uses the generated textures only.
+- Sound on Linux (SDL2 audio queue); Windows plays through the shared winmm engine.
+- Animations: hover glows are instant (no storyboards); the check mark's pop, the page entrance's rise.
+- The settings page's choice pills: after a programmatic change (the harness's) no pill shows picked; to check with
+  real clicks.
+- The WPF harness's extra cases (offline, nothing found, installed, 150 %, the fit report, the mute check, the real
+  install with --package), the dark title bar, single-file publish of the window.
+- On Linux the Detect page still lists Virtual Desktop and shows "Visual C++ runtime: installed." (view-model texts).
+
+Original plan (2026-11-17):
 
 WPF is Windows only; Avalonia is the closest port (XAML, bindings, styles), MIT, and draws with Skia on Windows, Linux
 and macOS. The view models stay (`ViewModels/`: `Mvvm.cs` is plain INotifyPropertyChanged/ICommand; `MainViewModel`
@@ -754,7 +802,12 @@ offer to download Google's platform-tools (licence shown, pinned hash) into the 
 the window: connect (USB or Wi-Fi), driver and developer-mode help, then install/update with progress. Reconsider (b)
 only if the process approach's progress reporting is not good enough (adb push prints none when not on a terminal).
 
-### Downloads to approve (none made)
+### Downloads (approved 2026-11-19; the list below was the request)
+
+Restored by the coordinator into the kit's `downloads/nuget` and used as the only package source (a nuget.config with
+`<clear/>`): Avalonia, .Desktop, .Themes.Simple, .Headless 12.1.6 and their dependencies, the linux-x64 and win-x64
+runtime packs. Builds from this machine pass `--configfile` with that config (the repository has no nuget.config:
+elsewhere nuget.org).
 
 - For the WSL check of the portable CLI (one of):
   - NuGet `Microsoft.NETCore.App.Runtime.linux-x64` and `Microsoft.NETCore.App.Host.linux-x64`, version 9.0.21 (the

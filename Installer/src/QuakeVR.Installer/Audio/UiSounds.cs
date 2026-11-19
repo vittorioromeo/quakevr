@@ -1,9 +1,17 @@
 using System.IO;
 using System.Text.Json;
+#if QVR_AVALONIA
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
+using Avalonia.Input;
+using Avalonia.Interactivity;
+#else
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
+#endif
 using QuakeVR.Installer.Core.Assets;
 using QuakeVR.Installer.Core.Audio;
 using QuakeVR.Installer.ViewModels;
@@ -92,11 +100,18 @@ public static class UiSounds
     };
     const float AmbienceVolume = 0.10f;
 
+#if QVR_AVALONIA
+    public static readonly AttachedProperty<Sfx> KindProperty = AvaloniaProperty.RegisterAttached<Control, Sfx>("Kind", typeof(UiSounds), Sfx.Click);
+
+    public static Sfx GetKind(AvaloniaObject d) => d.GetValue(KindProperty);
+    public static void SetKind(AvaloniaObject d, Sfx value) => d.SetValue(KindProperty, value);
+#else
     public static readonly DependencyProperty KindProperty = DependencyProperty.RegisterAttached(
         "Kind", typeof(Sfx), typeof(UiSounds), new PropertyMetadata(Sfx.Click));
 
     public static Sfx GetKind(DependencyObject d) => (Sfx)d.GetValue(KindProperty);
     public static void SetKind(DependencyObject d, Sfx value) => d.SetValue(KindProperty, value);
+#endif
 
     static SoundEngine? _engine;
     static Dictionary<Sfx, SoundClip> _clips = [];
@@ -117,9 +132,10 @@ public static class UiSounds
     internal static SoundEngine? Engine => _engine;
 
     /// <summary>Opens the device, makes the synthesized sounds and hooks the controls (the real window only).</summary>
-    public static void Start(string? settingsPath) => Start(settingsPath, new SoundEngine());
+    public static void Start(string? settingsPath) => Start(settingsPath, OperatingSystem.IsWindows() ? new SoundEngine() : null);
 
-    internal static void Start(string? settingsPath, SoundEngine engine)
+    /// <summary>No engine (Linux: winmm is Windows only; an SDL2 audio queue is the plan): silent, the settings still kept.</summary>
+    internal static void Start(string? settingsPath, SoundEngine? engine)
     {
         _settingsPath = settingsPath;
         try
@@ -142,6 +158,18 @@ public static class UiSounds
             return;
         }
         _hooked = true;
+#if QVR_AVALONIA
+        Button.ClickEvent.AddClassHandler<Button>((b, e) => OnClick(b, e));
+        InputElement.TextInputEvent.AddClassHandler<TextBox>((_, _) => Play(Sfx.Type), RoutingStrategies.Tunnel);
+        InputElement.KeyDownEvent.AddClassHandler<TextBox>((t, e) =>
+        {
+            if (e.Key is Key.Back or Key.Delete && !t.IsReadOnly)
+            {
+                Play(Sfx.Type);
+            }
+        }, RoutingStrategies.Tunnel);
+    }
+#else
         EventManager.RegisterClassHandler(typeof(ButtonBase), ButtonBase.ClickEvent, new RoutedEventHandler(OnClick));
         EventManager.RegisterClassHandler(typeof(TextBoxBase), UIElement.PreviewTextInputEvent, new TextCompositionEventHandler((_, _) => Play(Sfx.Type)));
         EventManager.RegisterClassHandler(typeof(TextBoxBase), UIElement.PreviewKeyDownEvent, new KeyEventHandler((s, e) =>
@@ -152,6 +180,7 @@ public static class UiSounds
             }
         }));
     }
+#endif
 
     public static void Stop()
     {
@@ -270,6 +299,19 @@ public static class UiSounds
         _engine.Play(clip, volume, pitch);
     }
 
+#if QVR_AVALONIA
+    static void OnClick(Button sender, RoutedEventArgs e)
+    {
+        if (!ReferenceEquals(sender, e.Source))
+        {
+            return;
+        }
+        var kind = sender.IsSet(KindProperty) || GetKind(sender) is not Sfx.Click
+            ? GetKind(sender)
+            : sender is ToggleButton ? Sfx.Toggle : Sfx.Click;
+        Play(kind);
+    }
+#else
     static void OnClick(object sender, RoutedEventArgs e)
     {
         if (!ReferenceEquals(sender, e.OriginalSource) && !ReferenceEquals(sender, e.Source))
@@ -282,4 +324,5 @@ public static class UiSounds
             : sender is ToggleButton ? Sfx.Toggle : Sfx.Click;
         Play(kind);
     }
+#endif
 }

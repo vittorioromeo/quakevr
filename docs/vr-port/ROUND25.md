@@ -4118,3 +4118,24 @@ and MP-only parts left on their branches.
   runs came in both arms (on 6+3+9, off 3+10): the machine's, not the batching's. It helps where it applies and costs
   nothing elsewhere: on by default on the PC too (0: a batch each, as before). Review: when an instance's bone count disagreed, the batch copied the first instance's bones through a pointer a later
   VR_AliasBonePoses call may have reused: it copies the first's copy. The world-lit-skip split (ES) left behind.
+
+
+## The installer on Linux, phase 2: run in WSL, the window in Avalonia (branch agent/xinstaller, 2026-11-19)
+
+- **The CLI on Linux:** self-contained linux-x64 `qvr-setup` (published on Windows from the approved local packages;
+  `-p:EnableSingleFileAnalyzer=false`, the analyser needs ILLink) run in WSL with nothing installed:
+  `Installer/tests/linux/wsl_cli_check.sh` does detect, manifest of a small test package (the kit's WSL `ironwail`
+  build + `quakevr/*.cfg` + a tools script: no Linux game package exists yet), a local feed with `packages.linux-x64`
+  served by `qvr-setup serve`, a sandboxed install from that feed (8 `.desktop` entries, `ironwail` 0755), detect,
+  verify, uninstall: all as on Windows. Nothing broke; `feed` now also prints the host's own package.
+- **The window in Avalonia 12.1.6** (`Installer/src/QuakeVR.Installer.Avalonia`, net9.0, Windows and Linux): the view
+  models are shared and toolkit-free (`ViewModels/UiHost.cs`, set by `WpfUiHost`/`AvaloniaUiHost`; the pickers and
+  prompts became async); Theme.axaml ports every Theme.xaml style; the nine views converted (triggers as classes);
+  FireView/LavaView/Fx ported; a headless screenshot harness with the Statement page's checks. PASS on Windows and in
+  WSL (headless: no window on the desktop, though WSLg exists). The embedded Barlow is the default font (WSL's Arch has
+  no system font: Avalonia stopped). Avalonia's build statistics are off (`Directory.Build.targets`, plus
+  AVALONIA_TELEMETRY_OPTOUT=1 in every build).
+- **WPF stays the Windows default** (the Avalonia project is outside `QuakeVR.Installer.sln`, so releases are unchanged): missing for parity are the
+  icon font on Linux, the Quake skin (the player's textures, digits, palette), Linux sound, the hover/press
+  animations, the WPF harness's extra cases, and the settings page's pills after a programmatic change (INSTALLER.md,
+  "GUI on Linux"). Self-tests 43/43, installer 0 warnings, the WPF harness unchanged.

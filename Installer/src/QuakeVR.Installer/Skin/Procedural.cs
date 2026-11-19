@@ -1,5 +1,7 @@
+#if !QVR_AVALONIA
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+#endif
 
 namespace QuakeVR.Installer.Skin;
 
@@ -92,12 +94,14 @@ static class Procedural
         bgra[i * 4 + 3] = (byte)Math.Clamp(alpha * 255, 0, 255);
     }
 
+#if !QVR_AVALONIA
     public static BitmapSource ToBitmap(byte[] bgra, int size)
     {
         var b = BitmapSource.Create(size, size, 96, 96, PixelFormats.Pbgra32, null, bgra, size * 4);
         b.Freeze();
         return b;
     }
+#endif
 
     // ---- Textures ----
 

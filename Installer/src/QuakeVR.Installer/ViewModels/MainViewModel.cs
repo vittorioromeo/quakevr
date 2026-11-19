@@ -2,7 +2,6 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
-using System.Windows;
 using System.Windows.Input;
 using QuakeVR.Installer.Audio;
 using QuakeVR.Installer.Core;
@@ -218,22 +217,22 @@ public sealed class MainViewModel : ObservableObject
                 c.Refresh();
             }
             Raise(nameof(FooterHint));
-            CommandManager.InvalidateRequerySuggested();
+            UiHost.Requery();
         };
 
         NextCommand = new RelayCommand(Next, CanNext);
         BackCommand = new RelayCommand(Back, () => ShowBack);
         CancelCommand = new RelayCommand(() => _cts?.Cancel(), () => Installing);
         RescanCommand = new RelayCommand(() => _ = _detection = DetectAsync(), () => !Detecting);
-        BrowseQuakeCommand = new RelayCommand(BrowseQuake);
+        BrowseQuakeCommand = new RelayCommand(() => _ = BrowseQuake());
         SelectQuakeCommand = new RelayCommand(p => SelectedQuake = p as QuakeChoice ?? SelectedQuake);
-        BrowseInstallDirCommand = new RelayCommand(BrowseInstallDir);
-        BrowsePackageCommand = new RelayCommand(() => BrowsePackage());
-        BrowseTexturesCommand = new RelayCommand(BrowseTextures);
+        BrowseInstallDirCommand = new RelayCommand(() => _ = BrowseInstallDir());
+        BrowsePackageCommand = new RelayCommand(() => _ = BrowsePackage());
+        BrowseTexturesCommand = new RelayCommand(() => _ = BrowseTextures());
         LaunchVrCommand = new RelayCommand(() => Launch(LaunchVariant.Vr), () => Record is not null);
         LaunchFlatCommand = new RelayCommand(() => Launch(LaunchVariant.Flat), () => Record is not null);
         OpenFolderCommand = new RelayCommand(() => OpenUrl(InstallDir));
-        CopySteamOptionsCommand = new RelayCommand(() => Clipboard.SetText(SteamLaunchOptions));
+        CopySteamOptionsCommand = new RelayCommand(() => UiHost.CopyText(SteamLaunchOptions));
         UninstallCommand = new RelayCommand(() => _ = UninstallAsync(), () => _existing is not null && !Installing);
         ToggleReinstallCommand = new RelayCommand(() => ShowReinstall = !ShowReinstall);
         ReinstallCommand = new RelayCommand(() =>
@@ -241,19 +240,19 @@ public sealed class MainViewModel : ObservableObject
             Reinstall = true;
             GoTo(Page.Statement);
         }, () => _existing is not null && !Installing);
-        BrowseExistingCommand = new RelayCommand(BrowseExisting, () => !Installing);
+        BrowseExistingCommand = new RelayCommand(() => _ = BrowseExisting(), () => !Installing);
         OpenUrlCommand = new RelayCommand(p => OpenUrl(p as string ?? ""));
         OpenAdHomeCommand = new RelayCommand(() => OpenUrl(_adFound is { Usable: true } f && File.Exists(Path.Combine(f.Folder, ArcaneDimensions.ReadmeFile))
             ? Path.Combine(f.Folder, ArcaneDimensions.ReadmeFile) : ArcaneDimensions.HomeUrl));
         OpenKofiCommand = new RelayCommand(() => OpenUrl(KofiUrl));
         OpenDiscordCommand = new RelayCommand(() => OpenUrl(DiscordUrl));
-        ShowCreditsCommand = new RelayCommand(() => new Views.CreditsWindow(Application.Current.MainWindow).ShowDialog());
+        ShowCreditsCommand = new RelayCommand(() => UiHost.ShowCredits());
         RetryFeedCommand = new RelayCommand(() => _ = CheckFeedAsync(), () => !HasLocalPackage && _feedState != FeedState.Checking);
-        PickPackageAndInstallCommand = new RelayCommand(() =>
+        PickPackageAndInstallCommand = new RelayCommand(async () =>
         {
-            if (BrowsePackage())
+            if (await BrowsePackage())
             {
-                _ = InstallAsync();
+                await InstallAsync();
             }
         }, () => !Installing);
         LoadExisting();
@@ -371,7 +370,7 @@ public sealed class MainViewModel : ObservableObject
         }
         Raise(nameof(ShowNext));
         // The buttons' enabled state follows the new page at once (the Statement page's Continue starts disabled).
-        CommandManager.InvalidateRequerySuggested();
+        UiHost.Requery();
     }
 
     bool CanNext() => Page switch
@@ -426,7 +425,7 @@ public sealed class MainViewModel : ObservableObject
                 GoTo(Page.Support);
                 break;
             case Page.Support:
-                Application.Current.Shutdown();
+                UiHost.Shutdown();
                 break;
         }
     }
@@ -604,7 +603,7 @@ public sealed class MainViewModel : ObservableObject
     void RaiseReinstallChoice()
     {
         Raise(nameof(StartClean), nameof(ReinstallChosen), nameof(NextText), nameof(FooterHint));
-        CommandManager.InvalidateRequerySuggested();
+        UiHost.Requery();
     }
 
     static string Files(int n) => $"{n} file{(n == 1 ? "" : "s")}";
@@ -648,24 +647,23 @@ public sealed class MainViewModel : ObservableObject
         Raise(nameof(HasExisting), nameof(ShowAddAd), nameof(ExistingTitle), nameof(ExistingText), nameof(ExistingDetail), nameof(OfferedMode), nameof(QuickUpdate),
             nameof(ExistingNeedsPackage), nameof(OtherInstallsText), nameof(HasOtherInstalls), nameof(ReinstallSettingsText), nameof(ReinstallSavesText),
             nameof(ReinstallPersonalText), nameof(ReinstallChosen), nameof(BackupText), nameof(NextText), nameof(FooterHint), nameof(InstallTitle));
-        CommandManager.InvalidateRequerySuggested();
+        UiHost.Requery();
     }
 
     /// <summary>Use another install (one moved by hand, or a second one): a folder with install.json.</summary>
-    void BrowseExisting()
+    async Task BrowseExisting()
     {
-        var dialog = new Microsoft.Win32.OpenFolderDialog { Title = $"Where is {ProductName} installed?" };
-        if (dialog.ShowDialog() != true)
+        if (await UiHost.PickFolder($"Where is {ProductName} installed?") is not { } folder)
         {
             return;
         }
-        if (!File.Exists(Path.Combine(dialog.FolderName, InstallRecord.FileName)))
+        if (!File.Exists(Path.Combine(folder, InstallRecord.FileName)))
         {
-            MessageBox.Show($"No {ProductName} install was found in {dialog.FolderName} (it has no {InstallRecord.FileName}).", ProductName,
-                MessageBoxButton.OK, MessageBoxImage.Information);
+            await UiHost.ShowAsync($"No {ProductName} install was found in {folder} (it has no {InstallRecord.FileName}).", ProductName,
+                UiButtons.OK, UiIcon.Information);
             return;
         }
-        InstallDir = PathUtil.TryNormalize(dialog.FolderName) ?? dialog.FolderName;
+        InstallDir = PathUtil.TryNormalize(folder) ?? folder;
     }
 
     /// <summary>The Install page's title: what the run does.</summary>
@@ -797,14 +795,14 @@ public sealed class MainViewModel : ObservableObject
         {
             Installing = false;
             Raise(nameof(ShowNext));
-            CommandManager.InvalidateRequerySuggested();
+            UiHost.Requery();
         }
     }
 
     /// <summary>The Apps &amp; Features entry's registry: a made-up root (--registry-file), the real HKCU for a real install,
     /// none for test installs (--shortcuts-dir) and the screenshot harness.</summary>
     public static IRegistryWriter? RegistryFor(StartupOptions o) =>
-        o.RegistryFile is { } f ? new JsonFileRegistry(f) : o.Screenshots is null && o.ShortcutsDir is null && o.Sandbox is null ? new WindowsRegistryWriter() : null;
+        o.RegistryFile is { } f ? new JsonFileRegistry(f) : o.Screenshots is null && o.ShortcutsDir is null && o.Sandbox is null ? HostPlatform.CreateUserRegistry(HostPlatform.CreateProbe()) : null;
 
     /// <summary>This Setup's own files, for its copy in the install (SetupCopy).</summary>
     // IL3000 (the single-file publish's analyser): an empty Location is exactly the test here, "am I a single file?".
@@ -820,7 +818,7 @@ public sealed class MainViewModel : ObservableObject
         await UninstallAsync();
         if (_existing is null)
         {
-            Application.Current.Shutdown();
+            UiHost.Shutdown();
         }
     }
 
@@ -834,28 +832,28 @@ public sealed class MainViewModel : ObservableObject
         if (!_options.FromTemp && Environment.ProcessPath is { } self && PathUtil.IsInside(self, InstallDir))
         {
             SetupRelaunch.Start(_options.UninstallArguments(InstallDir));
-            Application.Current.Shutdown();
+            UiHost.Shutdown();
             return;
         }
-        if (MessageBox.Show($"Remove Quake VR: Unleashed from {InstallDir}?\n\nYour settings, saves, screenshots and relit maps are kept, and your Quake folder is not touched.",
-                "Remove Quake VR: Unleashed", MessageBoxButton.OKCancel, MessageBoxImage.Question) != MessageBoxResult.OK)
+        if (await UiHost.ShowAsync($"Remove Quake VR: Unleashed from {InstallDir}?\n\nYour settings, saves, screenshots and relit maps are kept, and your Quake folder is not touched.",
+                "Remove Quake VR: Unleashed", UiButtons.OKCancel, UiIcon.Question) != UiResult.OK)
         {
             return;
         }
         var textures = _existing.Files.Any(f => f.Component == Components.HdTextures) &&
-                       MessageBox.Show("Also remove the HD textures (about 0.6 GB)?", "Remove Quake VR: Unleashed", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes;
+                       await UiHost.ShowAsync("Also remove the HD textures (about 0.6 GB)?", "Remove Quake VR: Unleashed", UiButtons.YesNo, UiIcon.Question) == UiResult.Yes;
         try
         {
             var dir = InstallDir;
             var registry = RegistryFor(_options);
             var result = await Task.Run(() => Uninstaller.Uninstall(dir, new UninstallOptions { RemoveHdTextures = textures, Registry = registry }));
             var left = result.PlayerFilesLeft.Count > 0 ? $"\n\n{result.PlayerFilesLeft.Count} of your own files are still in {dir} (settings, saves...): delete the folder yourself if you no longer want them." : "";
-            MessageBox.Show($"Quake VR: Unleashed was removed: {result.FilesRemoved} files and {result.ShortcutsRemoved} shortcuts.{left}", "Remove Quake VR: Unleashed",
-                MessageBoxButton.OK, MessageBoxImage.Information);
+            await UiHost.ShowAsync($"Quake VR: Unleashed was removed: {result.FilesRemoved} files and {result.ShortcutsRemoved} shortcuts.{left}", "Remove Quake VR: Unleashed",
+                UiButtons.OK, UiIcon.Information);
         }
         catch (Exception e) when (e is InstallException or IOException or UnauthorizedAccessException or InvalidDataException)
         {
-            MessageBox.Show(e.Message, "Remove Quake VR: Unleashed", MessageBoxButton.OK, MessageBoxImage.Error);
+            await UiHost.ShowAsync(e.Message, "Remove Quake VR: Unleashed", UiButtons.OK, UiIcon.Error);
         }
         LoadExisting();
     }
@@ -935,22 +933,21 @@ public sealed class MainViewModel : ObservableObject
             _detected = true;
             Detecting = false;
             Raise(nameof(NoQuake));
-            CommandManager.InvalidateRequerySuggested();
+            UiHost.Requery();
         }
     }
 
-    void BrowseQuake()
+    async Task BrowseQuake()
     {
-        var dialog = new Microsoft.Win32.OpenFolderDialog { Title = "Pick your Quake folder (the one with id1)" };
-        if (dialog.ShowDialog() != true)
+        if (await UiHost.PickFolder("Pick your Quake folder (the one with id1)") is not { } folder)
         {
             return;
         }
-        var q = QuakeDetector.DescribeManual(dialog.FolderName);
+        var q = QuakeDetector.DescribeManual(folder);
         if (!q.Playable)
         {
-            MessageBox.Show($"No full Quake in {q.InstallDir}: {q.Summary}.\n\nPick the folder that contains id1 (with PAK0.PAK and PAK1.PAK), or a 2021 rerelease folder.",
-                ProductName, MessageBoxButton.OK, MessageBoxImage.Warning);
+            await UiHost.ShowAsync($"No full Quake in {q.InstallDir}: {q.Summary}.\n\nPick the folder that contains id1 (with PAK0.PAK and PAK1.PAK), or a 2021 rerelease folder.",
+                ProductName, UiButtons.OK, UiIcon.Warning);
             return;
         }
         var choice = new QuakeChoice(q);
@@ -1097,12 +1094,10 @@ public sealed class MainViewModel : ObservableObject
         Raise(nameof(DiskText));
     }
 
-    void BrowseInstallDir()
+    async Task BrowseInstallDir()
     {
-        var dialog = new Microsoft.Win32.OpenFolderDialog { Title = "Where should Quake VR go?" };
-        if (dialog.ShowDialog() == true)
+        if (await UiHost.PickFolder("Where should Quake VR go?") is { } picked)
         {
-            var picked = dialog.FolderName;
             // An empty folder is used as is; otherwise a QuakeVR folder inside it.
             InstallDir = Directory.Exists(picked) && Directory.EnumerateFileSystemEntries(picked).Any() &&
                          !File.Exists(Path.Combine(picked, InstallRecord.FileName)) ? Path.Combine(picked, "QuakeVR") : picked;
@@ -1275,20 +1270,16 @@ public sealed class MainViewModel : ObservableObject
     }
 
     /// <summary>Picks a package (a zip, or a folder's manifest.json). True when one was accepted.</summary>
-    bool BrowsePackage()
+    async Task<bool> BrowsePackage()
     {
-        var dialog = new Microsoft.Win32.OpenFileDialog
-        {
-            Title = $"Pick a {ProductName} package",
-            Filter = $"{ProductName} package (*.zip; manifest.json)|*.zip;manifest.json|All files|*.*",
-        };
-        if (dialog.ShowDialog() != true)
+        if (await UiHost.PickFile($"Pick a {ProductName} package",
+                [new($"{ProductName} package (*.zip; manifest.json)", ["*.zip", PackageManifest.FileName]), new("All files", ["*"])]) is not { } file)
         {
             return false;
         }
-        var path = Path.GetFileName(dialog.FileName).Equals(PackageManifest.FileName, StringComparison.OrdinalIgnoreCase)
-            ? Path.GetDirectoryName(dialog.FileName)!
-            : dialog.FileName;
+        var path = Path.GetFileName(file).Equals(PackageManifest.FileName, StringComparison.OrdinalIgnoreCase)
+            ? Path.GetDirectoryName(file)!
+            : file;
         return UsePackage(path);
     }
 
@@ -1307,12 +1298,11 @@ public sealed class MainViewModel : ObservableObject
         return true;
     }
 
-    void BrowseTextures()
+    async Task BrowseTextures()
     {
-        var dialog = new Microsoft.Win32.OpenFileDialog { Title = "Pick the HD texture pack", Filter = "Texture pack (*.zip)|*.zip" };
-        if (dialog.ShowDialog() == true)
+        if (await UiHost.PickFile("Pick the HD texture pack", [new("Texture pack (*.zip)", ["*.zip"])]) is { } file)
         {
-            _options.Textures = dialog.FileName;
+            _options.Textures = file;
             Raise(nameof(TexturesSizeText));
         }
     }
@@ -1513,7 +1503,7 @@ public sealed class MainViewModel : ObservableObject
         {
             Installing = false;
             Raise(nameof(ShowNext));
-            CommandManager.InvalidateRequerySuggested();
+            UiHost.Requery();
         }
     }
 
@@ -1920,7 +1910,7 @@ public sealed class MainViewModel : ObservableObject
         Preparing = false;
         PrepareResult = prepared;
         Installing = false;
-        CommandManager.InvalidateRequerySuggested();
+        UiHost.Requery();
         Record = record;
         BuildDoneNotes();
         GoTo(Page.Done);

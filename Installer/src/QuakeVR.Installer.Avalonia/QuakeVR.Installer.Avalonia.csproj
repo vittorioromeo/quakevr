@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The installer's window in Avalonia: Windows and Linux from one build (docs/vr-port/INSTALLER.md, "Cross-platform",
+       "GUI on Linux"). The view models, the sounds' logic and the generated textures are the WPF project's own files,
+       compiled here with QVR_AVALONIA; the views, the theme and the skin's drawing are this project's. The WPF window
+       (QuakeVR.Installer) stays the Windows default until this one reaches parity (INSTALLER.md lists what is missing).
+       Packages: Avalonia 12.1.6 (MIT), approved 2026-11-19. -->
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <OutputType>WinExe</OutputType>
+    <AssemblyName>QuakeVR-Setup</AssemblyName>
+    <RootNamespace>QuakeVR.Installer</RootNamespace>
+    <DefineConstants>$(DefineConstants);QVR_AVALONIA</DefineConstants>
+    <ApplicationManifest>..\QuakeVR.Installer\app.manifest</ApplicationManifest>
+    <ApplicationIcon>..\QuakeVR.Installer\Assets\app.ico</ApplicationIcon>
+    <!-- Bindings by reflection, as WPF's (the shared view models have no x:DataType annotations). -->
+    <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
+    <!-- The single-file analyser needs the ILLink package (not in the approved set). -->
+    <EnableSingleFileAnalyzer>false</EnableSingleFileAnalyzer>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="12.1.6" />
+    <PackageReference Include="Avalonia.Desktop" Version="12.1.6" />
+    <PackageReference Include="Avalonia.Themes.Simple" Version="12.1.6" />
+    <PackageReference Include="Avalonia.Headless" Version="12.1.6" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- One codebase: the WPF project's toolkit-free files. -->
+    <Compile Include="..\QuakeVR.Installer\ViewModels\*.cs" Link="Shared\ViewModels\%(Filename)%(Extension)" />
+    <Compile Include="..\QuakeVR.Installer\Audio\*.cs" Link="Shared\Audio\%(Filename)%(Extension)" />
+    <Compile Include="..\QuakeVR.Installer\Skin\Procedural.cs" Link="Shared\Skin\Procedural.cs" />
+    <Compile Include="..\QuakeVR.Installer\SetupRelaunch.cs" Link="Shared\SetupRelaunch.cs" />
+    <AvaloniaResource Include="..\QuakeVR.Installer\Fonts\*.ttf" Link="Fonts\%(Filename)%(Extension)" />
+    <AvaloniaResource Include="..\QuakeVR.Installer\Assets\*.png" Link="Assets\%(Filename)%(Extension)" />
+    <AvaloniaResource Include="..\QuakeVR.Installer\Assets\*.jpg" Link="Assets\%(Filename)%(Extension)" />
+    <AvaloniaResource Include="..\QuakeVR.Installer\Assets\app.ico" Link="Assets\app.ico" />
+    <AvaloniaResource Include="..\QuakeVR.Installer\Fonts\OFL-*.txt" Link="Fonts\%(Filename)%(Extension)" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\QuakeVR.Installer.Core\QuakeVR.Installer.Core.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,111 @@
+<UserControl x:Class="QuakeVR.Installer.Views.StatementPage"
+             xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <UserControl.Styles>
+        <!-- One half of a YES/NO switch: a slot of cold iron; the picked half glows in its colour (Tag). Neither is lit
+             until the player picks one, and radio buttons cannot be un-picked: no way back to neither. -->
+        <Style Selector="RadioButton.SwitchHalf">
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FontFamily" Value="{StaticResource CondensedFont}" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="Foreground" Value="{StaticResource Faint}" />
+            <Setter Property="Width" Value="62" />
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border Name="Bd" Background="Transparent" BorderBrush="Transparent" BorderThickness="1" CornerRadius="2" Padding="0,6">
+                        <ContentPresenter Content="{TemplateBinding Content}" Foreground="{TemplateBinding Foreground}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+        <Style Selector="RadioButton.SwitchHalf:pointerover"><Setter Property="Foreground" Value="{StaticResource Text}" /></Style>
+        <Style Selector="RadioButton.SwitchHalf:pointerover /template/ Border#Bd"><Setter Property="Background" Value="{StaticResource CardHover}" /></Style>
+        <Style Selector="RadioButton.SwitchHalf:checked"><Setter Property="Foreground" Value="{StaticResource DarkText}" /></Style>
+        <Style Selector="RadioButton.SwitchHalf:checked /template/ Border#Bd">
+            <Setter Property="Background" Value="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}" />
+            <Setter Property="BorderBrush" Value="#70FFE6C0" />
+            <Setter Property="Effect"><DropShadowEffect OffsetX="0" OffsetY="0" Color="Black" BlurRadius="8" Opacity="0.8" /></Setter>
+        </Style>
+        <Style Selector="RadioButton.SwitchHalf:focus-visible /template/ Border#Bd"><Setter Property="BorderBrush" Value="{StaticResource Text}" /></Style>
+        <!-- A claim answered: its card's edge and its rune in the answer's colour (WPF: DataTriggers on IsYes/IsNo). -->
+        <Style Selector="Border.Row.yes"><Setter Property="BorderBrush" Value="{StaticResource Ok}" /></Style>
+        <Style Selector="Border.Row.no"><Setter Property="BorderBrush" Value="{StaticResource Error}" /></Style>
+        <Style Selector="Rectangle.Rune.yes"><Setter Property="Fill" Value="{StaticResource Ok}" /></Style>
+        <Style Selector="Rectangle.Rune.no"><Setter Property="Fill" Value="{StaticResource Error}" /></Style>
+    </UserControl.Styles>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel>
+            <TextBlock Text="{Binding StatementTitle}" Classes="PageTitle" />
+            <TextBlock Text="{Binding StatementSubtitle}" Classes="PageSubtitle" />
+
+            <!-- The paragraphs, and the author's photo to their right, top-aligned. Docked first, the photo keeps its
+                 size and the text wraps in what is left (at most 700 wide). The column is at most the text's 700 and
+                 the photo's 174: the photo's edge lines up with the claims' below at the default size, and stays
+                 beside the text in a wide window instead of drifting to the far edge. -->
+            <Grid Margin="0,14,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" MaxWidth="874" />
+                </Grid.ColumnDefinitions>
+                <DockPanel>
+                    <Border DockPanel.Dock="Right" Width="150" Height="188" VerticalAlignment="Top" Margin="24,3,0,10" CornerRadius="3"
+                            BorderBrush="{StaticResource CardEdge}" BorderThickness="1" Background="{StaticResource Card}"
+                            AutomationProperties.Name="Photo of Vittorio Romeo">
+                        <Border.Effect>
+                            <DropShadowEffect OffsetX="1.414" OffsetY="1.414" Color="Black" BlurRadius="10" Opacity="0.6"/>
+                        </Border.Effect>
+                        <Border CornerRadius="2">
+                            <Border.Background>
+                                <ImageBrush Source="avares://QuakeVR-Setup/Assets/author.jpg" Stretch="UniformToFill" />
+                            </Border.Background>
+                        </Border>
+                    </Border>
+                    <ItemsControl ItemsSource="{Binding StatementParagraphs}" Focusable="False">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding}" Classes="Body" FontSize="15" LineHeight="21.5" Margin="0,0,0,10" MaxWidth="700"
+                                           HorizontalAlignment="Left" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </DockPanel>
+            </Grid>
+
+            <ItemsControl ItemsSource="{Binding StatementChoices}" Margin="0,6,0,0" Focusable="False">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border x:Name="Row" Classes="CardBorder Row" Classes.yes="{Binding IsYes}" Classes.no="{Binding IsNo}" Padding="12,8" Margin="0,0,0,7">
+                            <DockPanel>
+                                <!-- The switch: YES | NO in a sunken slot. -->
+                                <Border DockPanel.Dock="Right" VerticalAlignment="Center" Margin="14,0,0,0" Padding="2" CornerRadius="3"
+                                        Background="#FF0B0907" BorderBrush="{StaticResource SunkenEdge}" BorderThickness="1">
+                                    <StackPanel Orientation="Horizontal">
+                                        <RadioButton Content="YES" Classes="SwitchHalf" Tag="{StaticResource Ok}"
+                                                     IsChecked="{Binding IsYes, Mode=TwoWay}"
+                                                     AutomationProperties.Name="Yes" AutomationProperties.HelpText="{Binding Text}" />
+                                        <RadioButton Content="NO" Classes="SwitchHalf" Tag="{StaticResource Error}"
+                                                     IsChecked="{Binding IsNo, Mode=TwoWay}"
+                                                     AutomationProperties.Name="No" AutomationProperties.HelpText="{Binding Text}" />
+                                    </StackPanel>
+                                </Border>
+                                <!-- A rune: the claim's number while unanswered, a check for YES, a cross for NO. -->
+                                <Grid Width="26" Height="26" VerticalAlignment="Center" Margin="0,0,12,0">
+                                    <Rectangle x:Name="Rune" Classes="Rune" Classes.yes="{Binding IsYes}" Classes.no="{Binding IsNo}" Width="18" Height="18" Fill="{StaticResource Card}" Stroke="#FF5C4A3B" StrokeThickness="1"
+                                               RadiusX="2" RadiusY="2">
+                                        <Rectangle.RenderTransform><RotateTransform Angle="45" /></Rectangle.RenderTransform>
+                                    </Rectangle>
+                                    <Panel IsVisible="{Binding !IsNo}"><Panel IsVisible="{Binding !IsYes}"><TextBlock x:Name="Mark" Text="{Binding Number}" FontFamily="{StaticResource CondensedFont}" FontSize="12.5"
+                                               FontWeight="Bold" Foreground="{StaticResource Faint}" HorizontalAlignment="Center" VerticalAlignment="Center" /></Panel></Panel>
+                                    <TextBlock Text="&#xE73E;" Classes="Glyph" FontSize="12.5" Foreground="{StaticResource DarkText}" IsVisible="{Binding IsYes}" />
+                                    <TextBlock Text="&#xE711;" Classes="Glyph" FontSize="12.5" Foreground="{StaticResource DarkText}" IsVisible="{Binding IsNo}" />
+                                </Grid>
+                                <TextBlock Classes="Body" VerticalAlignment="Center"><Run Text="{Binding TextBefore, Mode=OneWay}" /><Run Text="{Binding TextEmphasis, Mode=OneWay}" FontStyle="Italic" /><Run Text="{Binding TextAfter, Mode=OneWay}" /></TextBlock>
+                            </DockPanel>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

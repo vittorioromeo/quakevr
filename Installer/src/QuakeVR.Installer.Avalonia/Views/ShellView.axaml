@@ -1,0 +1,186 @@
+<UserControl x:Class="QuakeVR.Installer.Views.ShellView"
+             xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:v="using:QuakeVR.Installer.Views"
+             xmlns:skin="using:QuakeVR.Installer.Skin"
+             xmlns:sfx="using:QuakeVR.Installer.Audio"
+             FontFamily="{StaticResource UiFont}" Background="{StaticResource Bg}" UseLayoutRounding="True">
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="244" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <!-- Sidebar: the logo over flames, the steps, Ko-fi, Discord, sound and credits. Riveted metal from Quake's walls.
+             On a screen too short for it (high scaling on a small screen) it scrolls. -->
+        <Grid>
+            <Rectangle Fill="{DynamicResource SkinPanelBrush}" />
+            <Rectangle>
+                <Rectangle.Fill>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                        <GradientStop Color="#E0080605" Offset="0" />
+                        <GradientStop Color="#B8080605" Offset="0.35" />
+                        <GradientStop Color="#D0080605" Offset="1" />
+                    </LinearGradientBrush>
+                </Rectangle.Fill>
+            </Rectangle>
+            <Rectangle Width="1" HorizontalAlignment="Right" Margin="0,0,2,0" Fill="#FF5C4A3B" />
+            <Rectangle Width="2" HorizontalAlignment="Right" Fill="#FF030202" />
+
+            <ScrollViewer x:Name="SidebarScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Margin="0,0,3,0">
+                <DockPanel>
+                    <!-- The logo, flames licking up behind it. -->
+                    <Grid DockPanel.Dock="Top" Height="204" ClipToBounds="True">
+                        <skin:FireView x:Name="LogoFire" Heat="0.62" CellSize="4" EmberCount="14" FireOpacity="0.85" Glow="0.35" />
+                        <Rectangle Height="40" VerticalAlignment="Bottom">
+                            <Rectangle.Fill>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                    <GradientStop Color="#00080605" Offset="0" />
+                                    <GradientStop Color="#C0080605" Offset="1" />
+                                </LinearGradientBrush>
+                            </Rectangle.Fill>
+                        </Rectangle>
+                        <Image Source="avares://QuakeVR-Setup/Assets/logo_square.png" Width="196" Height="196" Margin="0,6,0,0"
+                               VerticalAlignment="Top" HorizontalAlignment="Center" RenderOptions.BitmapInterpolationMode="HighQuality">
+                            <Image.Effect>
+                                <DropShadowEffect OffsetX="0" OffsetY="0" Color="Black" BlurRadius="18" Opacity="0.9"/>
+                            </Image.Effect>
+                        </Image>
+                    </Grid>
+
+                    <!-- Ko-fi and Discord (always in view), sound, credits, version. -->
+                    <StackPanel DockPanel.Dock="Bottom" Margin="20,0,18,18">
+                        <Button Classes="KofiButton" Command="{Binding OpenKofiCommand}" sfx:UiSounds.Kind="Support"
+                                ToolTip.Tip="ko-fi.com/vittorioromeovee: support Quake VR: Unleashed">
+                            <DockPanel>
+                                <Image Source="avares://QuakeVR-Setup/Assets/kofi_symbol.png" Height="22" Margin="0,0,10,0"
+                                       RenderOptions.BitmapInterpolationMode="HighQuality" VerticalAlignment="Center" />
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Text="Support me on Ko-fi" FontFamily="{StaticResource CondensedFont}" FontWeight="Bold" FontSize="15"
+                                               Foreground="{StaticResource Text}" skin:Fx.Pulse="0.55" />
+                                    <TextBlock Text="a token of thanks helps" FontSize="11.5" Foreground="{StaticResource Faint}" />
+                                </StackPanel>
+                            </DockPanel>
+                        </Button>
+                        <Button Classes="DiscordButton" Command="{Binding OpenDiscordCommand}" sfx:UiSounds.Kind="Support"
+                                Margin="0,8,0,0" ToolTip.Tip="discord.me/quakevr: the Quake VR Discord server">
+                            <DockPanel>
+                                <!-- As wide as the Ko-fi cup with its gap (22 high: 27.4), so the two texts line up. -->
+                                <Viewbox Width="24" Height="22" Margin="2,0,11,0" VerticalAlignment="Center" Stretch="Uniform">
+                                    <Path Data="{StaticResource DiscordMark}" Fill="#FF5865F2" Width="24" Height="24" Stretch="None" />
+                                </Viewbox>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Text="Join the Discord" FontFamily="{StaticResource CondensedFont}" FontWeight="Bold" FontSize="15"
+                                               Foreground="{StaticResource Text}" />
+                                    <TextBlock Text="chat, help and news" FontSize="11.5" Foreground="{StaticResource Faint}" />
+                                </StackPanel>
+                            </DockPanel>
+                        </Button>
+                        <DockPanel Margin="0,14,0,0" LastChildFill="True">
+                            <ToggleButton DockPanel.Dock="Right" Classes="IconToggle" IsChecked="{Binding Sound.Muted}"
+                                          ToolTip.Tip="Sounds on or off">
+                                <Grid>
+                                    <TextBlock Text="&#xE767;" FontSize="14" Classes="Glyph" IsVisible="{Binding !Sound.Muted}"
+                                               Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}" />
+                                    <TextBlock Text="&#xE74F;" FontSize="14" Classes="Glyph" IsVisible="{Binding Sound.Muted}"
+                                               Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}" />
+</Grid>
+                            </ToggleButton>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="{Binding InstallerVersion}" FontSize="11.5" Foreground="{StaticResource Faint}" />
+                                <TextBlock FontSize="11.5" Foreground="{StaticResource Faint}" Margin="0,2,0,0">
+                                    <Run Text="by Vittorio Romeo " /><InlineUIContainer BaselineAlignment="TextBottom"><Button Classes="InlineLink" Command="{Binding ShowCreditsCommand}" Content="credits" /></InlineUIContainer>
+                                </TextBlock>
+                            </StackPanel>
+                        </DockPanel>
+                    </StackPanel>
+
+                    <!-- The steps: iron runes; the current one glows. -->
+                    <ItemsControl ItemsSource="{Binding Steps}" Margin="24,16,16,0" VerticalAlignment="Top">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Margin="0,0,0,10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Grid Width="30" Height="30">
+                                        <Rectangle x:Name="Rune" Classes="Rune" Classes.current="{Binding IsCurrent}" Width="21" Height="21" Fill="{Binding MarkerBrush}" Stroke="#FF5C4A3B" StrokeThickness="1"
+                                                   RadiusX="2" RadiusY="2">
+                                            <Rectangle.RenderTransform><RotateTransform Angle="45" /></Rectangle.RenderTransform>
+                                        </Rectangle>
+                                        <TextBlock Text="{Binding Marker}" FontFamily="{Binding MarkerFont}" FontSize="13" FontWeight="Bold"
+                                                   Foreground="{Binding MarkerText}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </Grid>
+                                    <TextBlock Grid.Column="1" Text="{Binding Title}" Foreground="{Binding TitleBrush}" FontSize="16"
+                                               FontFamily="{StaticResource CondensedFont}" FontWeight="SemiBold" VerticalAlignment="Center" Margin="12,0,0,0" />
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </DockPanel>
+            </ScrollViewer>
+        </Grid>
+
+        <!-- The page over dark stone, embers rising from a glow below; the footer an iron ledge. -->
+        <Grid Grid.Column="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            <Rectangle Grid.RowSpan="2" Fill="{DynamicResource SkinBackdropBrush}" />
+            <Rectangle Grid.RowSpan="2">
+                <Rectangle.Fill>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                        <GradientStop Color="#E40C0907" Offset="0" />
+                        <GradientStop Color="#EC0C0907" Offset="0.6" />
+                        <GradientStop Color="#D80C0907" Offset="1" />
+                    </LinearGradientBrush>
+                </Rectangle.Fill>
+            </Rectangle>
+            <Rectangle Grid.RowSpan="2">
+                <Rectangle.Fill>
+                    <RadialGradientBrush Center="0.5,0.45" GradientOrigin="0.5,0.45" RadiusX="0.75" RadiusY="0.8">
+                        <GradientStop Color="#00000000" Offset="0.55" />
+                        <GradientStop Color="#A0000000" Offset="1" />
+                    </RadialGradientBrush>
+                </Rectangle.Fill>
+            </Rectangle>
+            <skin:FireView Grid.RowSpan="2" ShowFire="False" EmberCount="14" Glow="0.16" Height="300" VerticalAlignment="Bottom" />
+
+            <Grid Margin="44,30,40,6">
+                <v:WelcomePage skin:Fx.Enter="True" IsVisible="{Binding IsWelcome}" />
+                <v:StatementPage skin:Fx.Enter="True" IsVisible="{Binding IsStatement}" />
+                <v:DetectPage skin:Fx.Enter="True" IsVisible="{Binding IsDetect}" />
+                <v:OptionsPage skin:Fx.Enter="True" IsVisible="{Binding IsOptions}" />
+                <v:InstallPage skin:Fx.Enter="True" IsVisible="{Binding IsInstall}" />
+                <v:SettingsPage skin:Fx.Enter="True" IsVisible="{Binding IsSettings}" />
+                <v:DonePage skin:Fx.Enter="True" IsVisible="{Binding IsDone}" />
+                <v:SupportPage skin:Fx.Enter="True" IsVisible="{Binding IsSupport}" />
+            </Grid>
+            <!-- A test run (another feed, a sandbox) says so on every page, so it is never taken for a real install. -->
+            <Border VerticalAlignment="Top" Background="#FFE8C020" BorderBrush="#FF1A1208" BorderThickness="0,0,0,2" Padding="12,3"
+                    ZIndex="10" IsVisible="{Binding ShowTestBanner}">
+                <TextBlock Text="{Binding TestBanner}" Foreground="#FF140E06" FontWeight="Bold" FontSize="12.5"
+                           TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding TestBanner}" />
+            </Border>
+            <Grid Grid.Row="1">
+                <Rectangle Fill="{DynamicResource SkinPlateBrush}" />
+                <Rectangle Fill="#D60A0806" />
+                <Rectangle Height="1" VerticalAlignment="Top" Fill="#FF030202" />
+                <Rectangle Height="1" VerticalAlignment="Top" Margin="0,1,0,0" Fill="#FF4E3F32" />
+                <DockPanel LastChildFill="True" Margin="44,14,40,14">
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                        <Button Content="Back" Classes="GhostButton" Command="{Binding BackCommand}" sfx:UiSounds.Kind="Back"
+                                IsVisible="{Binding ShowBack}" Margin="0,0,10,0" />
+                        <Button Content="{Binding CancelText}" Classes="GhostButton" Command="{Binding CancelCommand}" sfx:UiSounds.Kind="Back"
+                                IsVisible="{Binding Installing}" />
+                        <Button Content="{Binding NextText}" Classes="AccentButton" Command="{Binding NextCommand}" MinWidth="120"
+                                IsVisible="{Binding ShowNext}" IsDefault="True" />
+                    </StackPanel>
+                    <TextBlock Text="{Binding FooterHint}" Classes="Small" VerticalAlignment="Center" Foreground="{StaticResource Faint}" />
+                </DockPanel>
+            </Grid>
+        </Grid>
+    </Grid>
+</UserControl>

@@ -1,0 +1,45 @@
+<UserControl x:Class="QuakeVR.Installer.Views.InstallPage"
+             xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:skin="using:QuakeVR.Installer.Skin">
+    <DockPanel>
+        <StackPanel DockPanel.Dock="Top">
+            <TextBlock Text="{Binding InstallTitle}" Classes="PageTitle" />
+            <TextBlock Classes="PageSubtitle" Text="{Binding InstallSubtitle}" />
+            <DockPanel Margin="0,30,0,10">
+                <!-- The percentage in Quake's status-bar digits once Quake is found. -->
+                <TextBlock DockPanel.Dock="Right" Text="{Binding ProgressText}" FontSize="30" FontFamily="{StaticResource CondensedFont}" FontWeight="Bold" VerticalAlignment="Center" Foreground="{StaticResource Text}" />
+                <TextBlock Text="{Binding StatusText}" Classes="Body" VerticalAlignment="Bottom" Foreground="{StaticResource Subtle}" />
+            </DockPanel>
+            <ProgressBar Value="{Binding Progress, Mode=OneWay}" Maximum="100" Height="20" />
+            <Border Classes="CardBorder" BorderBrush="{StaticResource Error}" Margin="0,18,0,0"
+                    IsVisible="{Binding HasInstallError}">
+                <DockPanel>
+                    <TextBlock Text="&#xE783;" Classes="Glyph" Foreground="{StaticResource Error}" FontSize="16" Margin="0,0,12,0" VerticalAlignment="Top" />
+                    <StackPanel>
+                        <TextBlock Text="{Binding InstallError}" Classes="Body" />
+                        <Button Content="Use a local package…" Classes="AccentButton" Command="{Binding PickPackageAndInstallCommand}"
+                                HorizontalAlignment="Left" Margin="0,10,0,0"
+                                IsVisible="{Binding CanPickPackageAfterError}" />
+                    </StackPanel>
+                </DockPanel>
+            </Border>
+            <TextBlock Text="DETAILS" Classes="SectionTitle" Margin="2,24,0,8" />
+        </StackPanel>
+        <Border Classes="CardBorder" Padding="12,10" Margin="0,0,0,10">
+            <ScrollViewer x:Name="LogScroll" VerticalScrollBarVisibility="Auto">
+                <ItemsControl ItemsSource="{Binding Log}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <DockPanel Margin="0,2">
+                                <TextBlock Text="{Binding Glyph}" Classes="Glyph" FontSize="10" Foreground="{Binding Brush}"
+                                           VerticalAlignment="Top" Margin="0,4,10,0" Width="12" />
+                                <TextBlock Text="{Binding Text}" FontFamily="Cascadia Mono, Consolas" FontSize="12" Foreground="{StaticResource Subtle}" TextWrapping="Wrap" />
+                            </DockPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Border>
+    </DockPanel>
+</UserControl>

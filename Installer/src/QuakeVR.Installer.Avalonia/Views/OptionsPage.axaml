@@ -1,0 +1,121 @@
+<UserControl x:Class="QuakeVR.Installer.Views.OptionsPage"
+             xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <UserControl.Styles>
+        <Style Selector="Border.CardBorder.warn"><Setter Property="BorderBrush" Value="{StaticResource Warn}" /></Style>
+    
+
+        <Style Selector="TextBlock.Size">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="{StaticResource Faint}" />
+            <Setter Property="VerticalAlignment" Value="Top" />
+            <Setter Property="Margin" Value="16,2,0,0" />
+        </Style>
+    </UserControl.Styles>
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel>
+            <TextBlock Text="Options" Classes="PageTitle" />
+            <TextBlock Classes="PageSubtitle" Text="Change anything you like." />
+
+            <!-- Where Quake VR: Unleashed comes from: a local package (no internet), or the online release. When the online
+                 release can't be reached, this says so and offers a local package instead of a dead end. -->
+            <TextBlock Text="PACKAGE" Classes="SectionTitle" />
+            <Border Padding="16,13" Classes="CardBorder" Classes.warn="{Binding FeedUnavailable}">
+                <StackPanel>
+                    <DockPanel>
+                        <ProgressBar DockPanel.Dock="Right" IsIndeterminate="True" Width="90" Height="6" VerticalAlignment="Center"
+                                     IsVisible="{Binding FeedChecking}" />
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Top" Margin="16,0,0,0"
+                                    IsVisible="{Binding FeedUnavailable}">
+                            <Button Content="Use a local package…" Classes="AccentButton" Command="{Binding BrowsePackageCommand}" />
+                            <Button Content="Try again" Classes="GhostButton" Command="{Binding RetryFeedCommand}" Margin="10,0,0,0" />
+                        </StackPanel>
+                        <TextBlock Text="{Binding PackageSourceTitle}" Classes="Body" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    </DockPanel>
+                    <TextBlock Text="{Binding PackageSourceText}" Classes="Small" Margin="0,3,0,0" />
+                    <TextBlock Text="{Binding FeedErrorDetail}" Classes="Small" Foreground="{StaticResource Faint}" FontSize="11.5" Margin="0,4,0,0"
+                               IsVisible="{Binding FeedUnavailable}" />
+                    <TextBlock Text="{Binding PackageError}" Classes="Small" Foreground="{StaticResource Error}" Margin="0,6,0,0"
+                               IsVisible="{Binding HasPackageError}" />
+                    <Button Content="Use a local package instead…" Classes="LinkButton" Command="{Binding BrowsePackageCommand}"
+                            HorizontalAlignment="Left" Margin="0,8,0,0" IsVisible="{Binding FeedAvailable}" />
+                    <Button Content="Use another package…" Classes="LinkButton" Command="{Binding BrowsePackageCommand}"
+                            HorizontalAlignment="Left" Margin="0,8,0,0" IsVisible="{Binding HasLocalPackage}" />
+                </StackPanel>
+            </Border>
+            <TextBlock Text="INSTALL FOLDER" Classes="SectionTitle" />
+            <DockPanel>
+                <Button DockPanel.Dock="Right" Content="Browse…" Classes="GhostButton" Command="{Binding BrowseInstallDirCommand}" Margin="10,0,0,0" />
+                <TextBox Text="{Binding InstallDir}" />
+            </DockPanel>
+            <TextBlock Text="{Binding InstallDirError}" Classes="Small" Foreground="{StaticResource Error}" Margin="2,6,0,0"
+                       IsVisible="{Binding HasInstallDirError}" />
+            <TextBlock Text="{Binding DiskText}" Classes="Small" Margin="2,6,0,0" />
+
+            <TextBlock Text="COMPONENTS" Classes="SectionTitle" />
+            <Border Classes="CardBorder" Padding="16,14,16,4">
+                <StackPanel>
+                    <DockPanel Margin="0,0,0,14">
+                        <TextBlock DockPanel.Dock="Right" Text="{Binding CoreSizeText}" Classes="Size" />
+                        <CheckBox IsChecked="True" IsEnabled="False">
+                            <StackPanel>
+                                <TextBlock Text="Quake VR: Unleashed" Classes="Body" FontWeight="SemiBold" />
+                                <TextBlock Classes="Small" Margin="0,2,0,0" Text="The game: engine, models, sounds, the hub and its maps, and the author's default settings." />
+                            </StackPanel>
+                        </CheckBox>
+                    </DockPanel>
+                    <DockPanel Margin="0,0,0,14">
+                        <TextBlock DockPanel.Dock="Right" Text="{Binding TexturesSizeText}" Classes="Size" />
+                        <CheckBox IsChecked="{Binding HdTextures}">
+                            <StackPanel>
+                                <TextBlock Text="HD textures (highly recommended)" Classes="Body" FontWeight="SemiBold" />
+                                <TextBlock Classes="Small" Margin="0,2,0,0" Text="{Binding TexturesText}" />
+                                <TextBlock Classes="Small" Margin="0,4,0,0" Foreground="{StaticResource Warn}"
+                                           IsVisible="{Binding TexturesDownloadUnavailable}">
+                                    <Run Text="{Binding TexturesUnavailableText, Mode=OneWay}" />
+                                    <InlineUIContainer BaselineAlignment="TextBottom"><Button Classes="InlineLink" Command="{Binding BrowseTexturesCommand}" Content="pick the texture pack's zip" /></InlineUIContainer><Run Text="." />
+                                </TextBlock>
+                            </StackPanel>
+                        </CheckBox>
+                    </DockPanel>
+                    <!-- Arcane Dimensions: experimental, off by default; the size first, the credit, the found copy. -->
+                    <DockPanel Margin="0,0,0,14">
+                        <TextBlock DockPanel.Dock="Right" Text="{Binding AdSizeText}" Classes="Size" />
+                        <CheckBox IsChecked="{Binding InstallAd}" IsEnabled="{Binding AdCanTick}">
+                            <StackPanel>
+                                <TextBlock Text="Arcane Dimensions (experimental) — free, by sock and team" Classes="Body" FontWeight="SemiBold" />
+                                <!-- (a copy found in your Quake folders: what happens with it, in place of the description) -->
+                                <TextBlock Classes="Small" Margin="0,2,0,0" TextWrapping="Wrap">
+                                    <Run Text="{Binding AdText, Mode=OneWay}" />
+                                    <InlineUIContainer BaselineAlignment="TextBottom"><Button Classes="InlineLink" Command="{Binding OpenAdHomeCommand}" Content="AD's readme and home page" /></InlineUIContainer>
+                                </TextBlock>
+                            </StackPanel>
+                        </CheckBox>
+                    </DockPanel>
+                    <DockPanel Margin="0,0,0,14">
+                        <TextBlock DockPanel.Dock="Right" Text="about a minute" Classes="Size" />
+                        <CheckBox IsChecked="{Binding Relight}">
+                            <StackPanel>
+                                <TextBlock Text="Relight the maps (highly recommended)" Classes="Body" FontWeight="SemiBold" />
+                                <TextBlock Classes="Small" Margin="0,2,0,0"
+                                           Text="Light from lamps, lava and glowing panels, made on your PC by the game's Relighting tool at the end of the install (skipped: at the game's first start). Quake's and the official mission packs' maps; Map Library and Arcane Dimensions maps are relit in the game (Graphics &gt; Relighting)." />
+                                <TextBlock Classes="Small" Margin="0,2,0,0" Foreground="{StaticResource Faint}"
+                                           Text="With see-through water: VisPatch's data for your games is downloaded with it (about 2.5 MB, from SourceForge)." />
+                            </StackPanel>
+                        </CheckBox>
+                    </DockPanel>
+                    <!-- The shortcuts: one row under the components (the page fits a 1366 x 768 screen). -->
+                    <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0" Margin="-16,0" Padding="16,12,16,8">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Shortcuts" Classes="Body" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,24,0" />
+                            <CheckBox IsChecked="{Binding DesktopShortcut}" Content="On the desktop" Margin="0,0,28,0" />
+                            <CheckBox IsChecked="{Binding DesktopFlatShortcut}" IsEnabled="{Binding DesktopShortcut}" Content="Desktop shortcut for flat-screen play" Margin="0,0,28,0" />
+                            <CheckBox IsChecked="{Binding StartMenuShortcuts}" Content="In the Start menu" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </Border>
+
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

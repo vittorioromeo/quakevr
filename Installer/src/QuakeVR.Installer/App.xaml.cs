@@ -14,6 +14,7 @@ public partial class App
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        WpfUiHost.Install();
         var options = StartupOptions.Parse(e.Args);
         if (options.ReduceMotion)
         {
