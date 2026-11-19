@@ -41,6 +41,19 @@ By hand, the same steps:
 
 A cloud firewall in front of the VPS (the provider's panel) needs UDP 26100 inbound too.
 
+## Update (checked before and after)
+
+    bash Misc/rendezvous/update.sh vittorioromeo.com                    # tests here, deploy.sh, then the server checked
+    bash Misc/rendezvous/update.sh vittorioromeo.com --user someuser     # ssh as someuser
+    bash Misc/rendezvous/update.sh vittorioromeo.com --check            # only: its protocol version, active, last log
+    bash Misc/rendezvous/update.sh vittorioromeo.com --rev b3c6066ba~1  # the service as of a commit (a rollback: that one is protocol 1)
+    bash Misc/rendezvous/update.sh vittorioromeo.com --dry-run          # the tests and what would go; nothing sent
+
+It runs `test_rendezvous.py` on the very files it deploys (a failure deploys nothing), deploys them with `deploy.sh`,
+then asks the server which protocol version it runs (it must be the one deployed), whether the service is active, and
+shows its last log lines (`sudo` there). A new protocol version refuses older games' registrations (no room code;
+joins by address still work): deploy it with the game's release.
+
 ## Run, logs, update
 
     systemctl status qvr-rendezvous
