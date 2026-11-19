@@ -344,7 +344,11 @@ const char *VR_GLSafeDescribe (void);	// "off", "on (-glsafe)", ...
 void VR_GLFrame (void);	// GL_EndRendering, before the swap
 void VR_GLMapSpawned (const char *map);	// VR_NoteMapSpawn
 void VR_GLStartupShutdown (int error);	// Host_Shutdown: the start-up's log ended (a quit, an error)
+void VR_GLStartupCrashed (void);	// the crash handler: "== crashed" in gl_startup.log while the game starts (counted: the next start's safe mode)
+void VR_GLShadersBegin (void);	// GL_CreateShaders' start: "shaders: set N begun" in gl_startup.log (a start stopped in it is not counted)
+void VR_GLShadersEnd (int programs);	// GL_CreateShaders' end: the set's time
 void VR_GLSafeInit (void);	// VR_Init: vr_glsafe_retry, vr_glsafe_status
+void VR_SimdTestInit (void);	// VR_Init: vr_simd_test (vr_simd_test.cpp)
 unsigned VR_DescribeCallers (char *out, int outSize, int skip, int depth);	// vr_crash.cpp: the caller's stack as one line ("fn (file.c:12) < caller ..."); a hash of it (0: none; not Windows)
 const char *VR_ModelFile (const char *name);	// Mod_LoadModel, Mod_LoadLighting: the file to load a model from (relit maps)
 int VR_ModelReplacementOk (const char *name, const char *md5mesh);	// loadMd5Replacement: 0 refuses a jointed hand the rig can't use (vr_handrig.cpp)
@@ -731,6 +735,8 @@ void VR_CoopNoteLeave (int slot);					// SV_DropClient (B15): a player leaving a
 void VR_CoopRejoinParms (int slot, const char *name, const char *key);	// SV_ConnectClient, a new player: one back by name and game key gets his level-start parms (a respawn's)
 void VR_CoopRejoinSpawn (int slot);					// Host_Spawn_f, the parms in the globals: one back by name gets what he had when he left
 void VR_CoopLevelChangeParms (void);				// SV_SaveSpawnparms (a level change): each leaver's level-start parms what he carries into it
+void VR_CoopNoteBots (void);						// SV_SaveSpawnparms (MP bots): a coop game's bots at a level change: what each has kept by name, as a leaver's
+int VR_CoopBotParms (int slot, const char *name);	// QC botcarryparms (FrikBot's BotConnect, after SetNewParms): a bot of that name kept so -> what it had in the parm globals (1)
 void VR_CoopForgetLeavers (void);					// Host_ShutdownServer: the leavers' things forgotten (a new game or a load)
 int VR_ServerIntermission (void);					// Host_Savegame_f: the server's QC is in its intermission (intermission_running; vr_progs.cpp)
 int VR_ArenaNoSave (void);								// in Arena Mode (vrarena): no saving of any kind

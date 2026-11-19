@@ -2614,7 +2614,22 @@ static void Host_InitSaveThread (void)
 Host_Savegame_f
 ===============
 */
-static void Host_Savegame_f (void)
+static void Host_SavegameRun (void);
+static void Host_Savegame_f (void) // QVR: the perf recorder's saves (the rest below)
+{
+	double t0;
+
+	if (!vr_perf_recording)
+	{
+		Host_SavegameRun ();
+		return;
+	}
+	t0 = Sys_DoubleTime ();
+	Host_SavegameRun ();
+	VR_PerfEvent (VR_PERF_SAVE, (Sys_DoubleTime () - t0) * 1000.0, Cmd_Argc () > 1 ? Cmd_Argv (1) : "save");
+}
+
+static void Host_SavegameRun (void)
 {
 	VR_TRACY_SCOPE("Save game");
 	char		relname[MAX_OSPATH];

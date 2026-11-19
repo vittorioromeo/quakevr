@@ -5224,3 +5224,90 @@ His Quest 3 report: after an install and a new data push, minutes of Meta's thre
   in MP_PLAN.md's B28 results (left running).
 - **In VR**: host a coop game with a friend: his `kick` and `pause` are refused with a message, yours work; Debug >
   Network: Guests May Kick and Pause lets his pause go.
+## The audit's safe items from agent/quest and agent/mp brought to next, reviewed (branch agent/extract1118, 2026-11-18)
+
+From the branch audit of 2026-11-18 (items 2-9; item 1, setpos, was already on next). One commit each; the Quest-only
+and MP-only parts left on their branches.
+
+- **Bloom clamp** (quest 0b8fa57db): the bright pass, downsample, upsample and the average write `clamp(x, 0, 1e4)`: one
+  Inf or huge texel no longer spreads down the chain. Review: the comment said "no NaN": GLSL leaves `clamp(NaN)`
+  undefined, so it says Inf only.
+- **GL sync counter** (quest 1e60acd2e): `vr_gl_sync_count N` (0) prints every N s the calls a frame that make the CPU
+  wait for the GPU (glFinish, fence waits, query results not yet there, pixel and texture reads, synchronised maps, link
+  status reads); `vr_gl_sync_report` for tests. e1m1: 1.00 a frame (the frame ring's fence). Review: the query
+  availability check (one extra GL call a query read) stayed on for the session once the cvar had been on; now only
+  while it is on or after a report.
+- **GL safe-mode judging** (quest 8a616372c, PC parts): gl_startup.log gets `shaders: set N begun/done` and `== alive at`
+  every 5 s, the crash handler writes `== crashed`; judgeLastStart counts a start that missed its first map only when it
+  crashed or died within 20 s of its shaders without a report (stopped in a compile, after >= 10 s of compiles, or
+  after living on: "not counted", said in the log and console). `vr_glsafe_judge_test` (Debug > Profiling > Startup) 11
+  passed, 0 failed. Left behind: the ES persistent-buffer exception, the lite form's first set (gl_shader_set.txt),
+  the `cbuf_executing` wait, Android. The audit's follow-up: the PC makes one shader set a start (gl_startup.log of a
+  run: set 1 only, 106 programs in 310 ms), so the "one set per start" part is not needed. Review: `-gltestdie` (a test
+  hook no test used) and the unused shader-time total dropped; the duplicate prefix helper replaced by
+  `strings::startsWith`; a "done" line without a "begun" is ignored.
+- **Perf recorder** (quest b940b76d5, 643c9379a, 92c3d27e0): `vr_perf_record 1` (Debug > Profiling) writes
+  `profile/perf/perf_<stamp>.csv`, one row a frame (CPU phases, GPU passes, OpenXR, events: shader compiles, texture,
+  model and sound loads, lightmaps, map loads, saves, decal bakes, nav waits, QC/Box3D, VR_TimeAdd work, marks);
+  `vr_perf_mark <label>`; `Misc/quakevr/perf_report.py <csv>` (moved out of quest/) lists the hitches by cause. e1m1: 200
+  frames written, the mark found, the report runs. Bundled aids (Debug > Profiling): `vr_test_dlights [count radius
+  distance]`, `vr_dlights_list`, `vr_gl_passes 1` (the frame's framebuffer binds and alias batches). Left behind: the
+  Quest cvar snapshot, the Android path, the ES shader probes, the lite programs in vr_gl_passes; VR_PERF_SHADERBIN kept as
+  a kind nothing emits on PC (the program cache's). Review: vr_test_dlights allocated a slot to clear each light it did
+  not have (which could take another live light's slot): it now clears only its own; beginPhase reads the clock once;
+  the allocation count's magic 6 is the array's size.
+- **vr_goto_exit / vr_hurt** (mp 7b923e104): in vr_cheats.cpp (Debug > Tests > Cheats), `[<slot>]` optional (0), not in
+  deathmatch, a dead player refused; MP's bot and attacker arguments left. e1m1: the exit to e1m2 reached (damage then
+  refused: the intermission); `vr_hurt 1000`: dead.
+- **vr_nav_hash** (mp 86d20dfac, vr_nav.cpp part): FNV-1a of the navmeshes' tiles and the agents' paths (Debug > Views:
+  Print Navmesh Hash), on the canonical `diskcache::fnv` (the commit had its own copy).
+- **Portability pack** (quest 605ac0f21, dc83eaaf7, e636f9248, 3fc9ce5b5): clang 18 fixes, the climb's deducing-this
+  lambda as a self-argument, vr_findradius' ticks (TSC on x86 as before), Zancle's GCC-only pragma, `vr_simd.hpp`
+  (SSE2/NEON/scalar) for the AO rays and the audio filters; `vr_simd_test` (Debug > Automation) 58880 passed, 0 failed.
+  The SSE2 wrappers are the same intrinsics as before (the AVX rays untouched): no PC change.
+- **Posed models batched** (quest c7e6e49d9): R_AliasPosedJoin puts the world's posed models of one model and skin
+  with as many bones, the same surfaces and skin mask in one batch, their bones in one buffer with per-instance offsets
+  (your own models keep a batch each). `vr_alias_batch_posed` (Debug > Profiling) 1; `vr_alias_prepass_world`
+  (1, as before) the A/B switch of the world models' depth pre-pass. Six armed grunts on vrfiringrange: 128 -> 118
+  alias batches a frame, the poses unchanged (screenshots; the scene's moving sky makes a pixel diff useless).
+  PC A/B (ThinLTO, realtime 90 Hz, exclusive; off/on interleaved; GPU eyes avg ms): ragdolls_32_active off 3.435,
+  3.365 / on 3.280, 3.303 (-0.11 ms; CPU 3.68 both); combat_48 off 3.510, 3.543, 3.369, 3.419, 3.467 / on 3.466,
+  3.293, 3.747, 4.485, 3.258 (medians 3.467 / 3.466: even; CPU within noise). The >33 ms hitches of some combat_48
+  runs came in both arms (on 6+3+9, off 3+10): the machine's, not the batching's. It helps where it applies and costs
+  nothing elsewhere: on by default on the PC too (0: a batch each, as before). Review: when an instance's bone count disagreed, the batch copied the first instance's bones through a pointer a later
+  VR_AliasBonePoses call may have reused: it copies the first's copy. The world-lit-skip split (ES) left behind.
+
+## MP bots phase 1: a flat-screen player's hands -- dual wield, the overhead swing and the guard; coop bots (agent/mp, 2026-11-18; never shipped by the coordinator)
+
+- **SP-relevant**: `vr_flatplay.cpp` gains `poseBot` (a bot's hands posed by flat play's own functions: targetOffset,
+  aimRotAtCrosshair, overheadSwing, parryPose, the melee hold), switched by a file-scope `bot` pointer set for that call
+  only: with it null every changed function reads as before (bodyPose, heldWid, heldIn, armSpan, propInFist, the
+  support hand's wall let-go, the swing's clock, the guard's share). Merged origin/next f2f11c10e: `vr_goto_exit` /
+  `vr_hurt` once, in `vr_cheats.cpp` (MP's parts on top: a bot's slot, the attacker argument, a dedicated server's
+  console in deathmatch, the player's name in the lines); `vr_nav_hash` next's (diskcache::fnv).
+- **Bots (QC frikbot/bot_fight.qc, weapons.qc)**: their hands each frame from `botflatpose` (one gun or two off the
+  shoulders, turned at the enemy's middle; the melee hold). A melee weapon's button is a flat player's overhead swing
+  (`W_Fire_Melee` for a bot: 0.8 s a swing, its windup strikes nothing (`.handsynth`), the strike's blow the melee's
+  sweep). The guard: a blow seen coming within 110 units (a bot's swing, a headset player's melee hand over 2 m/s, a
+  flat player's button, a melee monster attacking it) raises the flat guard by skill (`vr_bot_parry_chance`, default -1:
+  25/50/75/90 % for skills 0-3, after 0.3/0.2/0.12/0.06 s, held 0.6 s, one roll a blow); `VR_Parry` reads a bot's
+  hand lines, so players' and monsters' blows are parried by it. Dual wield (`vr_bot_dual_wield`, default 1): a gun in
+  the main hand and one of its own that pairs (`VR_AG_Pairs`, with ammo) goes into the off hand and both fire; a gun
+  its off hand takes off the floor becomes its own, kept if it pairs, else put away (B11's fire-and-drop is the 0
+  setting).
+- **Coop**: FrikBot's own coop rules (monsters its only enemies, players followed by its roaming, no shots through a
+  teammate, back on the next level by its bot_return); new: what it had at the change kept by its name as a leaver's
+  (`vr_coopsave.cpp` `VR_CoopNoteBots` in SV_SaveSpawnparms, `botcarryparms` in BotConnect). VR Settings > Play >
+  Add Co-op Bot (impulse 100). Not done: anything for doors and lifts beyond FrikBot's own.
+- **Tests**: vr_dm_test 9 (a bot at skill 3, chance 100, parries another's overhead blow; chance 0: it lands), 10 (dual
+  wield fires both), 11 (coop: a grunt brought to the bot is killed, no player its enemy); tests 2-3 place the bot by
+  the human's head yaw (`v_viewangle`: a headset player's aim follows his hand) and test 3's guard is level
+  (mp_test.py `LEVEL_GUARD`, square to an overhead blow); tests 4-6 run with `vr_bot_dual_wield 0` (an empty off
+  hand; a bot's own second gun put away, not dropped). mp_dm 25/0, new mp_coopbots 13/0 (the bot back on e1m2 with
+  its super nailgun), mp_lockstep_dm 23/0. MP acceptance (B28's owed one too): 3 clean plain and 3 clean `--load 16`
+  suites (MP_PLAN.md, "Bots phase 1 results"). SP: scenario_check 136/0, load_models 4/0, vr_run_check 12/0, the
+  flat tests clean but flatswing's knight trials (7-8 of 11 land, 9 wanted: the knight off its spot; not this
+  phase's code, which is bot only).
+- **In VR**: a deathmatch with bots: give one a sword (it swings overhead; hold your weapon level across to parry);
+  swing at a bot holding a melee weapon (it raises its guard more often at a higher `skill`); give it two pairing guns.
+  Coop: Add Co-op Bot, play e1m1 to the exit: it fights beside you and is on e1m2 with what it had.

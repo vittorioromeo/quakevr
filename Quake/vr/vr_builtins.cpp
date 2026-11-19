@@ -43,6 +43,7 @@
 #include "vr_animrec.hpp"
 #include "vr_mem.hpp"
 #include "vr_engine.hpp"
+#include "vr_flatplay.hpp"
 #include "vr_physics.hpp"
 #include "vr_physsound.hpp"
 #include "vr_portals.hpp"
@@ -1086,6 +1087,8 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"grapplehold", PF_grapplehold},
     {"botmovethink", PF_botmovethink},
     {"botmovewalk", PF_botmovewalk},
+    {"botflatpose", PF_botflatpose},
+    {"botcarryparms", PF_botcarryparms},
     {"fileexists", PF_fileexists},
     {"campaignmusic", PF_campaignmusic},
     {"highlighting", PF_highlighting},

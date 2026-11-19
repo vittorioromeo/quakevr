@@ -297,6 +297,8 @@ QVR_CVAR(vr_net_permove, "1", CVAR_NONE)           // hosting: a remote client's
 QVR_CVAR(vr_net_movebuffer, "2", CVAR_NONE)        // hosting: a remote client's moves kept as they come and run one a server tick, in order (vr_netmove.cpp; MP_PLAN B19): a bunched pair is spread over two ticks, so a lift meets each move where his replay met it; N: at most N moves left waiting after a tick's (more run with it: at most N ticks later, ~0.7 on a jittery link); 0: run as they come
 QVR_CVAR(vr_net_movebuffer_max, "10", CVAR_NONE)    // hosting (B20): the move buffer's depth follows each client's jitter, from vr_net_movebuffer up to this many moves (the spread of his moves' lateness over the last 2 s: a jittery link's moves still run one a tick); at or under vr_net_movebuffer: a fixed depth
 QVR_CVAR(vr_net_permove_skip, "0", CVAR_NONE)      // debug, hosting: these of a remote client's moves left to QuakeC once a frame, as before their phases (bit 1: the hands' climb out of the water, B8j part 3; 2: the grapple's rope, B8j part 4): to check a test sees them unpredicted
+QVR_CVAR(vr_bot_parry_chance, "-1", CVAR_NONE)     // a bot's chance (percent) to raise its melee weapon's guard against a blow it sees coming (MP bots phase 1: frikbot/bot_fight.qc bot_parry_frame); -1: by its skill (25, 50, 75, 90 for skills 0-3), its reaction's delay by its skill too (0.3, 0.2, 0.12, 0.06 s)
+QVR_CVAR(vr_bot_dual_wield, "1", CVAR_NONE)        // bots hold a second weapon that pairs with their main one (the players' and armed humanoids' rule, QC VR_AG_Pairs) in their off hand and fire both (MP bots phase 1); 0: their off hand only punches and grabs (MP B11 part 4)
 QVR_CVAR(vr_pmove_bots, "1", CVAR_NONE)            // bots (FrikBot) walk through vr_pmove.cpp's moves as players do, their stick (QC .movevect) as a move each frame (MP_PLAN B11 part 3, part 3: one movement code); 0, the fallback: FrikBot's own copy of Quake's physics in QuakeC (bot_phys.qc)
 QVR_CVAR(vr_pmove_own, "1", CVAR_NONE)             // this game's own player (single player, a listen host's) walks through vr_pmove.cpp's moves as a remote client's do, one move a frame (MP_PLAN B11b: one movement module; on by default, his call 2026-11-16); 0, the fallback: sv_phys.c's SV_WalkMove and QuakeC's PlayerPreThink, as before
 QVR_CVAR(vr_pmove_trace, "0", CVAR_NONE)           // debug, tests: 1 each server frame prints the players' walk state after their physics ("pmtrace: ..."), to compare two runs frame by frame (B11b)
@@ -672,6 +674,17 @@ QVR_CVAR(vr_stereo_single_passes, "3", CVAR_NONE)
 // 1: a line a second in qvr_openxr.txt while VR runs: the frames (rendered, the last one shown again, without layers),
 // the display periods missed, and each OpenXR call's time (average and worst), the session's state; 0 none.
 QVR_CVAR(vr_xr_log_timing, "0", CVAR_NONE) // (1 before vr_cfg_version 202)
+// Debug > Profiling: the perf recorder (vr_perfrec.hpp): 1 writes every frame's times and events to a CSV (on Android the
+// app's internal files/perf/, else <game>/profile/perf/) until set back to 0 (a new file each time); not saved.
+// Debug > Profiling > World Models Pre-pass: 1 the world's models (monsters, items) drawn into the depth first, then
+// shaded once a pixel (as before); 0 shaded as drawn: a draw a batch less (the A/B; from agent/quest).
+QVR_CVAR(vr_alias_prepass_world, "1", CVAR_NONE)
+// Debug > Profiling > Batch Posed Models: 1 the world's posed models of one model and skin (armed grunts on the
+// authored rig, their armour, ragdolls) drawn as one batch, their bones in one buffer (PC ThinLTO: ragdolls_32_active
+// -0.11 ms GPU, combat_48 even; ROUND25); 0 a batch each, as before.
+QVR_CVAR(vr_alias_batch_posed, "1", CVAR_NONE)
+QVR_CVAR(vr_gl_passes, "0", CVAR_NONE)            // 1: the next frame's draw framebuffer binds and alias batches listed in the console (vr_profile.cpp; back to 0 after)
+QVR_CVAR(vr_perf_record, "0", CVAR_NONE)
 // Tests of the choice without the real runtimes (docs/vr-port/TESTING.md, "OpenXR runtime choice"): vr_xr_test 1 reads
 // the installed runtimes (manifests, comma-separated), the active one and the running processes from these instead of
 // the registry and the system (and never loads the real active runtime). vr_xr_test_fail: runtimes (parts of their
@@ -2202,6 +2215,7 @@ QVR_CVAR(vr_retrolight_shadow_block, "0.5", CVAR_ARCHIVE)     // shadows looked 
 QVR_CVAR(vr_retrolight_shadow_soft, "0", CVAR_ARCHIVE)      // their levels' edges blurred over this share of a level
 QVR_CVAR(vr_profile, "0", CVAR_NONE)                   // profiler (vr_profile.cpp): 1 time the frame's scopes, CPU and GPU, into <gamedir>/profile/; 2 also show the panel over the wrist
 QVR_CVAR(vr_gl_markers, "0", CVAR_NONE)               // GL debug groups for frame debuggers (RenderDoc, Nsight): each GPU profile scope (eye L/R, depth prepass, world, shadow maps, post, 2D, xr submit ...) and the engine's own groups (GL_BeginGroup); 1 on, 2 only with a debugger or frame debugger in the process, 0 off (-glmarkers and -gldebug: on). Latched each frame (1 before 2026-10-25)
+QVR_CVAR(vr_gl_sync_count, "0", CVAR_NONE)            // N: every N seconds the GL calls that make the CPU wait for the GPU, per frame, printed (glFinish, fence waits, query results, pixel reads, synchronised maps, link status reads; vr_glsafe.cpp; vr_gl_sync_report for tests); 0 off
 QVR_CVAR(vr_profile_interval, "5", CVAR_NONE)          // seconds between its reports (0: only on vr_profile_dump)
 QVR_CVAR(vr_profile_overlay, "0", CVAR_NONE)           // the profiler's panel (vr_profile_systems.cpp): each system's ms a frame with a bar; 1 over the wrist gadget's hand, 2 floating in front
 QVR_CVAR(vr_profile_gpu, "4", CVAR_NONE)               // the profiler's GPU times: its GPU scopes' timer queries on one frame in this many (each stalls the GPU a little: 1 every frame, 4 a quarter of the cost; 0 none, the CPU's times alone)

@@ -110,8 +110,15 @@ for the others. Any PC with Quake VR installed can run one (the same port rule a
   (dm1-dm6, or any deathmatch map).
 - **Players can knock each other's weapons out of their hands** (shots, blows, grabs: Armed Grunts > "Players Can
   Disarm Each Other", on by default) and parry each other's swings.
-- **Bots** (FrikBot): the host adds one with `impulse 100` in the console (each time one more). Bots run, fight, swing
-  and grab with their hands like players do, and count on the scoreboard.
+- **Bots** (FrikBot): the host adds one with `impulse 100` in the console (each time one more), or **VR Settings > Play >
+  Add Co-op Bot** / **Add Bot (Team 0/1)**. Bots run, fight, swing and grab with their hands like players do, and count
+  on the scoreboard. Their hands are a flat-screen player's (the same code places them): they **dual wield** a second gun
+  that pairs with their main one (the players' rule) and fire both, swing melee weapons overhead (the blow is the same
+  melee sweep a player's is, and you can parry it), and **raise their guard** against a blow they see coming, more often
+  and sooner the higher their skill (`skill` when added; `vr_bot_parry_chance` forces a chance, `vr_bot_dual_wield 0`
+  turns the second gun off).
+- **Co-op bots**: in a co-op game a bot fights the monsters beside you, never the players, follows the players loosely,
+  and comes along to the next level with what it had (as a player who left and came back does).
 
 ## Voice chat
 

@@ -12,6 +12,12 @@ that ships in 1.1.1.
   95 to 113, the installer's relight of Quake's and the mission packs' maps in 6 minutes instead of 9, and the look is the same (a change of under one step in 255 on average). Maps you relit before stay as
   they are and are not relit again. Its source, with the changes and how to build it, is offered beside every release
   (GPL-3). The setting `vr_relight_bounceextra` (2; 0 = as before) is for comparisons.
+- **Bloom without black or coloured blocks.** One extremely bright pixel can no longer spread a block of black or
+  colour through the bloom.
+- **Safe mode only after a real failed start.** The automatic GL safe mode (optional graphics features off for a
+  start) now turns on only when the last start crashed, or died within seconds of building its shaders. Closing the
+  game while it compiles its shaders on the first start, or after a slow compile, no longer puts the next start in
+  safe mode; the start-up log (`quakevr/crash/gl_startup.log`) and the console say why either way.
 
 ## Multiplayer beta
 
@@ -38,6 +44,8 @@ The guide: [MULTIPLAYER.md](MULTIPLAYER.md).
   runs your moves one a tick even when your packets arrive bunched or out of order (on a jittery link it holds them a
   little longer, as long as your link's jitter needs), so lifts and doors meet you where your game showed.
 - **Deathmatch with bots** (FrikBot: `impulse 100`) that fight, swing and grab with their hands like players.
+- **Bots with a flat-screen player's hands**: they dual wield, swing melee weapons overhead and parry blows by their
+  skill; **co-op bots** (VR Settings > Play > Add Co-op Bot) fight the monsters beside you and follow you to the next level.
 - **Proximity voice chat** (Opus, with RNNoise noise suppression): push-to-talk or voice activation, heard at the
   talker's head; per-player mute and volume (VR Settings > HUD, Haptics and Sound > Sound > Voice Chat).
 - **Server Browser** (Multiplayer > Join Game): favourites, the servers you joined last and the LAN's, with their

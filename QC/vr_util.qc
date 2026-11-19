@@ -552,13 +552,13 @@ float(entity p, float xHand) VR_HandMotionTracked =
 // (VR_Parry_GuardFrame): tracked hands, or a bot's (FrikBot sets them, bot_setvrfields: its swing's arc; MP B11 part 3,
 // part 3). Not a flat-screen player's (they follow the look).
 float(entity p) VR_HandLinesKept;
-// Whether hand `xHand` of `p` is in a button's swing whose blow is traced (W_Fire_Melee's player_axe*, W_FireAxe: a
-// bot's, its hand drawn through the arc by bot_setvrfields; MP B11 part 3, part 3): its sweep strikes nothing
-// meanwhile (one blow, the traced one, read by the directional parry).
-float VR_BUTTONSWING_LEN = 0.45; // s (a bot's swing's length too: frikbot/bot_fight.qc, back at rest at its end)
+// Whether hand `xHand` of `p` is in a bot's swing's windup (MP bots phase 1: a flat-screen player's overhead swing,
+// frikbot/bot_fight.qc bot_setvrfields): its sweep strikes nothing then, as a flat player's windup strikes nothing (its
+// .handsynth says so too); the strike's blow is the sweep's.
+float BOT_SWING_LEN = 0.8; // s: a bot's swing's next start no sooner (the flat swing's windup, strike and way back: 0.73)
 float(entity p, float xHand) VR_HandButtonSwing =
 {
-    return (xHand == cVR_MainHand) && (p.vr_botswing > 0) && (time - p.vr_botswing < VR_BUTTONSWING_LEN);
+    return (xHand == cVR_MainHand) && !p.ishuman && (p.vr_botswing_ph == 1);
 };
 
 float(entity p) VR_HandLinesKept =
@@ -583,7 +583,7 @@ float VR_HANDGUARD_OFF = 64;
 float VR_HANDGUARD_MAIN = 128;
 float(entity p) VR_FlatGuardHand =
 {
-    if(!VR_FlatPlay(p))
+    if(!VR_FlatPlay(p) && !((p.flags & FL_CLIENT) && !p.ishuman)) // (a bot's guard too: MP bots phase 1, bot_parry_frame)
     {
         return -1;
     }

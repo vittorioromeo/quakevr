@@ -746,6 +746,9 @@ vr_dm_test       5        vr_dmrules_test.qc               a bot's grab: a nailg
 vr_dm_test       6        vr_dmrules_test.qc               a bot's grab disarm (PvP on): its off hand closes on the human's shotgun and pulls it away (vr_playerdisarm_grab.qc): the shotgun in its off hand, his hand empty
 vr_dm_test       7        vr_dmrules_test.qc               deathmatch's caps (vr_dmloose.qc, B13b): 8 gibs and 5 weapons under caps of 4 and 3; out of deathmatch all stay, in it the oldest go, the youngest stay
 vr_dm_test       8        vr_dmrules_test.qc               a respawn with every start taken (one counted, the human on it): the bot comes in beside it (client.qc VR_DMBesideSpot), nobody telefragged
+vr_dm_test       9        vr_dmrules_test.qc               a bot parries a timed blow (MP bots phase 1): two bots with swords 36 units apart, one swings (a flat player's overhead swing, its blow the sweep's); the other at skill 3 with vr_bot_parry_chance 100 raises the flat guard: parried; chance 0: the blow lands
+vr_dm_test       10       vr_dmrules_test.qc               a bot dual wields (MP bots phase 1): a nailgun in its main hand and a super nailgun of its own: its off hand takes the gun that pairs, and its AI fires both at the human
+vr_dm_test       11       vr_dmrules_test.qc               a bot in a coop game (MP bots phase 1, mp_test.py coopbots): a grunt of the map brought 120 units in front of it: it kills it, never taking a player for its enemy; given a super nailgun first (the level change carries it)
 
 vr_projinherit_test 1     vr_projinherit_test.qc           projectiles keep your motion: strafing, nails and rockets on the aim, grenades their share; a hand swing in grenades only
 vr_grenfuse_test 1        vr_grenfuse_test.qc              one fuse for every grenade: hand, launcher and ogre grenades go off together after arming, each lit with its countdown (none with vr_grenade_countdown 0)

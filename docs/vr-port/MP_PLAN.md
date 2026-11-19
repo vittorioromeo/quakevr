@@ -3730,3 +3730,24 @@ to every client: the talk guard's for guests); a structured fuzz of B's join up 
 B26's down). His: deploy the room service (`Misc/rendezvous/deploy.sh`) and try a room code between two real routers;
 a relay only if real punches fail often; IPv6 or a public room list if he wants them; B10v's VR checks; whether a
 guest's self-only cheats (god, noclip, give...) in coop should follow sv_cheats too.
+
+### Bots phase 1 results: a flat-screen player's hands for bots; coop bots (2026-11-18, dev no-LTO, loopback)
+
+- **What**: bots' hands posed by vr_flatplay.cpp's own code (`poseBot`, QC `botflatpose`): one gun or two, the
+  overhead swing (its blow the melee's sweep), the flat guard raised by skill (`vr_bot_parry_chance`, -1 by skill);
+  dual wield (`vr_bot_dual_wield` 1); coop bots back on the next level with what they had (`VR_CoopNoteBots`,
+  `botcarryparms`). Details: ROUND25.md, "MP bots phase 1".
+- **Tests**: mp_dm gains vr_dm_test 9 (bot parries bot) and 10 (dual wield); test 3's guard is level (`LEVEL_GUARD`,
+  square to an overhead blow) and the bot is placed by the human's head yaw; tests 4-6 with `vr_bot_dual_wield 0`, and
+  a bot's own second gun put away, not dropped (dropped, its reach took it instead of test 5's nailgun: 1 in 6 suites).
+  New scenario mp_coopbots (13/0). mp_dm 25/0 three runs after that fix; mp_lockstep_dm 23/0.
+- **Runs (the acceptance, B28's owed one too)**: ThinLTO 0 warnings; the chain (`scratch/bots1_all.sh`, tallies in
+  `scratch/bots1_all.txt`; 49 scenarios): plain 1 failed only vr_dm_test 5 (above, fixed in the test), plains 2-3
+  clean, then 3 clean under `--load 16`; a 4th plain on the fix: clean (49 of 49): so 3 consecutive clean plain suites (2, 3, 4) and 3 under load.
+- **SP**: scenario_check 136/0, load_models 4/0, vr_run_check 12/0, flatparry 43/0, flathands 76/0, flattwohand 9/0,
+  flatmelee 12/0, flatplay 31/0; flatswing 4/1 twice (its knight trials 7 and 8 of 11 land, 9 wanted: the knight moved
+  off its spot (56, 29 units) or past the default swing's reach at 28; not from this phase's code, whose changes are bot
+  only; agent/mp's own earlier divergence from next (vr_pmove_own?) unverified).
+
+Next phase: B29 as planned (a dropped client told when his reliable channel is busy; name and colour floods; B's
+signon fuzzed), and bots phase 2 if he wants it (reloads, doors and lifts in coop, a bot's two-handed grip).

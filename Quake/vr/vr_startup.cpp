@@ -302,6 +302,10 @@ extern "C" void VR_TimeMark(const char* stage)
 
 extern "C" void VR_TimeAdd(const char* what, double seconds)
 {
+    if(vr_perf_recording) // the perf recorder's "work" (often inside a model's or texture's load: their detail)
+    {
+        VR_PerfEvent(VR_PERF_WORK, seconds * 1000.0, what);
+    }
     Group* const g = current();
     if(!g)
     {
@@ -359,6 +363,10 @@ extern "C" void VR_TimeLoadCommand(const char* what)
     command.start = command.last = Sys_DoubleTime();
     command.what = what;
     qvr::bench::loadCommand(); // (vr_bench_profiler 2: an external profiler collects the load alone)
+    if(vr_perf_recording)
+    {
+        VR_PerfEvent(VR_PERF_MAP, 0.0, what); // (its time: the frames' periods until the map's first frame)
+    }
 }
 
 extern "C" void VR_TimeFrameEnd(int signedOn, int idle)

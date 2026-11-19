@@ -45,8 +45,18 @@ void(float s, float frames) VR_DMT_To =
     vr_dmt_wait = frames;
 };
 
+// vr_bot_dual_wield before tests 4-6: their off hand's reach and punch want it empty (MP bots
+// phase 1: a bot with a second gun of its own that pairs holds it there)
+float vr_dmt_dual;     // (its value)
+float vr_dmt_dual_set; // (set: to put back)
+
 void() VR_DMT_End =
 {
+    if(vr_dmt_dual_set)
+    {
+        cvar_set("vr_bot_dual_wield", ftos(vr_dmt_dual));
+        vr_dmt_dual_set = FALSE;
+    }
     cvar_set("vr_player_disarm_chance", ftos(vr_dmt_chance));
     cvar_set("vr_player_disarm", ftos(vr_dmt_pve));
     cvar_set("vr_player_disarm_pvp", ftos(vr_dmt_pvp));
@@ -389,16 +399,24 @@ void(float ask) VR_DMT_Run =
     }
 };
 
-// vr_dm_test 2 and 3 (MP B11 part 3, part 3): a bot's melee swing at the human -- its hand swings its sword across its
-// front (bot_setvrfields), its blade's line kept each frame (VR_Parry_GuardFrame), its blow read by the directional parry
-// as a player's swing (VR_DRP_PvpApplies). 2: the human's crowbar held low at his side (mp_dm's pose): the blow lands. 3:
-// held upright across its way: parried, no damage. The human kept alive (health 999), the bot held in front of him
+// vr_dm_test 2 and 3 (MP B11 part 3, part 3; MP bots phase 1): a bot's melee swing at the human -- a flat-screen
+// player's overhead swing (bot_setvrfields, botflatpose), its blade's line kept each frame (VR_Parry_GuardFrame), its
+// blow the melee's sweep, read by the directional parry as a player's swing (VR_DRP_PvpApplies). 2: the human's crowbar
+// held low at his side (mp_dm's pose): the blow lands. 3: held level across its way (mp_dm's LEVEL_GUARD, square to an
+// overhead blow): parried, no damage. The human kept alive (health 999), the bot held in front of him
 // facing him, its own attacks held off; its swing started as its button's (W_Fire_Melee).
 float vr_dmt_blows0;  // vr_melee_blows before the swing
 float vr_dmt_parry0;  // vr_parry_count then
 float vr_dmt_read0;   // vr_drp_pvp_n then
 float vr_dmt_swung;   // the swing's start (time)
-float VR_DMT_SWING_DONE = 0.5; // s after the swing's start: its blow (0.2 s) long past, its hand back at rest
+float VR_DMT_SWING_DONE = 0.9; // s after the swing's start: its strike long past, its hand back at rest (BOT_SWING_LEN)
+float vr_dmt_ph;      // the bot's swing's phase last frame (its strike's first frame printed)
+
+// `d` in v_forward, v_right, v_up's frame (whole units): the test's prints.
+string(vector d) VR_DMT_Rel =
+{
+    return sprintf("'%.0f %.0f %.0f'", d * v_forward, d * v_right, d * v_up);
+};
 
 void() VR_DMT_HoldBot =
 {
@@ -501,7 +519,7 @@ void(float ask) VR_DMT_Parry =
         }
         vr_dmt_human.health = 999; // (alive through the blow and the bots' own fight)
         vr_dmt_bot.takedamage = DAMAGE_NO;
-        makevectors(vr_dmt_human.angles_y * '0 1 0');
+        makevectors(vr_dmt_human.v_viewangle_y * '0 1 0'); // (his head's: his aim turns with his hand's yaw, a level guard's)
         vr_dmt_spot = vr_dmt_human.origin + v_forward * 40;
         vr_dmt_held = 0;
         VR_DMT_To(21, 0);
@@ -516,7 +534,7 @@ void(float ask) VR_DMT_Parry =
         vr_dmt_human.health = max(vr_dmt_human.health, 999);
         // (B14d: the spot follows him -- his pose's change can move his body a little after the spot was taken, a blow
         // from the old spot then reaching nothing -- and the hold starts again until he has stood still through it)
-        makevectors(vr_dmt_human.angles_y * '0 1 0');
+        makevectors(vr_dmt_human.v_viewangle_y * '0 1 0');
         vector spot = vr_dmt_human.origin + v_forward * 40;
         if(vlen(spot - vr_dmt_spot) > 1 && vr_dmt_held < VR_DMT_GIVEUP)
         {
@@ -551,15 +569,20 @@ void(float ask) VR_DMT_Parry =
     {
         VR_DMT_HoldBot();
         VR_DMT_HoldOffHands();
-        if(time - vr_dmt_bot.vr_botswing > 0.19 && time - vr_dmt_bot.vr_botswing < 0.21)
+        if(vr_dmt_bot.vr_botswing_ph == 2 && vr_dmt_ph != 2)
         {
-            // (at its blow: his crowbar still in his hand, and its blade's line ahead of it)
+            // (its strike's first frame: his crowbar still in his hand, and its blade's line, ahead, right and up of the
+            // bot's origin; his crowbar's the same way from his)
             makevectors(vr_dmt_bot.v_angle_y * '0 1 0');
             handlineat(vr_dmt_bot, cVR_MainHand, 0);
-            VR_Test_Print(sprintf("dmtest: at its blow (%.3f s) its blade %.1f .. %.1f units ahead; his main hand's %s\n",
-                time - vr_dmt_bot.vr_botswing, (vr_blow_a - vr_dmt_bot.origin) * v_forward,
-                (vr_blow_b - vr_dmt_bot.origin) * v_forward, WeaponIdToWeaponName(VRGetEntWeapon(vr_dmt_human, cVR_MainHand))));
+            vector ba = vr_blow_a - vr_dmt_bot.origin, bb = vr_blow_b - vr_dmt_bot.origin;
+            handlineat(vr_dmt_human, cVR_MainHand, 0);
+            vector ha = vr_blow_a - vr_dmt_bot.origin, hb = vr_blow_b - vr_dmt_bot.origin;
+            VR_Test_Print(sprintf("dmtest: at its strike (%.3f s) its blade %s .. %s, his %s %s .. %s (ahead, right, up "
+                "of the bot)\n", time - vr_dmt_bot.vr_botswing, VR_DMT_Rel(ba), VR_DMT_Rel(bb),
+                WeaponIdToWeaponName(VRGetEntWeapon(vr_dmt_human, cVR_MainHand)), VR_DMT_Rel(ha), VR_DMT_Rel(hb)));
         }
+        vr_dmt_ph = vr_dmt_bot.vr_botswing_ph;
         if(time - vr_dmt_swung < VR_DMT_SWING_DONE)
         {
             return;
@@ -577,7 +600,7 @@ void(float ask) VR_DMT_Parry =
         }
         else
         {
-            VR_Test_Check(parried && !landed, sprintf("his crowbar held upright across its way: parried, no damage (%s)",
+            VR_Test_Check(parried && !landed, sprintf("his crowbar held level across its way: parried, no damage (%s)",
                 got));
         }
         vr_dmt_human.health = 100;
@@ -615,6 +638,9 @@ void(float ask) VR_DMT_Hands =
         vr_dmt_dm = deathmatch;
         cvar_set("vr_player_disarm_pvp", ask == 6 ? "1" : "0");
         cvar_set("vr_player_disarm_chance", "0"); // (no shot's roll: the grab alone)
+        vr_dmt_dual = cvar_hget(cvarh_vr_bot_dual_wield);
+        vr_dmt_dual_set = TRUE;
+        cvar_set("vr_bot_dual_wield", "0"); // (its off hand empty for the reach and the punch: no second gun of its own)
         vr_dmt_gun = world;
         VR_DMT_To(30, 0);
     }
@@ -663,7 +689,16 @@ void(float ask) VR_DMT_Hands =
         self = bot;
         if(!VRIsHandWeaponless(bot, cVR_OffHand))
         {
-            DropWeaponInHand(bot, cVR_OffHand, VRGetEntWeapon(bot, cVR_OffHand), VRGetEntWeaponFlags(bot, cVR_OffHand));
+            if(VR_WeaponUtil_EntHasWeapon(bot, VRGetEntWeapon(bot, cVR_OffHand)))
+            {
+                // (MP bots phase 1: a second gun of its own, held as it dual wields, put away -- dropped, it lay at its
+                // feet for its reach to take instead of the test's nailgun: mp_dm's vr_dm_test 5, 1 in 6 suites)
+                VRGiveEntWeapon(bot, cVR_OffHand, WID_FIST, 0, 0);
+            }
+            else
+            {
+                DropWeaponInHand(bot, cVR_OffHand, VRGetEntWeapon(bot, cVR_OffHand), VRGetEntWeaponFlags(bot, cVR_OffHand));
+            }
         }
         self = os;
         bot.vr_botreach_next = time + 1; // (nothing begun before the test's start)
@@ -973,6 +1008,286 @@ void(float ask) VR_DMT_Loose =
     }
 };
 
+// vr_dm_test 9 and 10 (MP bots phase 1: bots' hands as a flat-screen player's, frikbot/bot_fight.qc).
+// 9: a bot parries a timed blow: two bots held 36 units apart facing each other, swords in hand; one swings (its
+// button's: a flat player's overhead swing, its blow the melee's sweep). The other, at skill 3 with vr_bot_parry_chance
+// 100, sees it coming and raises its guard (bot_parry_frame: the flat guard's pose and bit): parried, no blow lands. Then
+// with vr_bot_parry_chance 0: no guard, the blow lands.
+// 10: a bot dual wields: a nailgun in its main hand, a super nailgun of its own and nails; its off hand takes the gun that
+// pairs (bot_offhand_ai), and its AI fighting the human 120 units ahead fires both (each hand's attack time goes on).
+float vr_dmt_case;     // test 9's case: 0 its guard certain, 1 none
+float vr_dmt_pchance;  // vr_bot_parry_chance before
+float vr_dmt_parries0; // the defender's guards raised before the swing
+float vr_dmt_t0;       // test 10: when its two guns were both held
+entity vr_dmt_bot2;    // test 9's swinging bot
+
+// The two bots held facing each other `vr_dmt_spot` apart (the defender vr_dmt_bot where it stands, the swinger in front
+// of it), swords in hand, their own attacks and off hands held off.
+void() VR_DMT_HoldPair =
+{
+    entity d = vr_dmt_bot, a = vr_dmt_bot2;
+    makevectors(d.angles_y * '0 1 0');
+    setorigin(a, d.origin + v_forward * 36);
+    for(float i = 0; i < 2; i++)
+    {
+        entity b = i == 0 ? d : a;
+        entity o = i == 0 ? a : d;
+        b.velocity = '0 0 0';
+        b.v_angle = b.angles = vectoangles(o.origin - b.origin);
+        b.fixangle = TRUE;
+        b.attack_finished = time + 1;
+        b.button0 = 0;
+        b.enemy = o;
+        b.health = max(b.health, 999);
+        if(VRGetEntWeapon(b, cVR_MainHand) != WID_SWORD)
+        {
+            VR_WeaponUtil_EntAddWeapon(b, WID_SWORD);
+            VRGiveEntWeapon(b, cVR_MainHand, WID_SWORD, 0, 0);
+        }
+    }
+    VR_DMT_HoldOffHands();
+};
+
+void(float ask) VR_DMT_Bots =
+{
+    if(vr_dmt_on != ask)
+    {
+        VR_Test_BeginFlags("dmtest", VR_TEST_LOUD | VR_TEST_ECHO);
+        vr_dmt_on = ask;
+        vr_dmt_chance = cvar_hget(cvarh_vr_player_disarm_chance);
+        vr_dmt_pve = cvar_hget(cvarh_vr_player_disarm);
+        vr_dmt_pvp = cvar_hget(cvarh_vr_player_disarm_pvp);
+        vr_dmt_pchance = cvar_hget(cvarh_vr_bot_parry_chance);
+        vr_dmt_dm = deathmatch;
+        cvar_set("vr_player_disarm_pvp", "0"); // (the blows' and the shots' outcomes alone: no disarm rolls)
+        vr_dmt_case = 0;
+        VR_DMT_To(ask == 9 ? 40 : 50, 0);
+    }
+    if(vr_dmt_s < 0)
+    {
+        return;
+    }
+    vr_dmt_n++;
+    if(vr_dmt_s == 40 || vr_dmt_s == 50) // living bots (two for 9) and a human
+    {
+        vr_dmt_bot = vr_dmt_bot2 = vr_dmt_human = world;
+        for(entity p = VR_Player(); p; p = VR_NextPlayer(p))
+        {
+            if(p.ishuman && p.health > 0 && !vr_dmt_human) { vr_dmt_human = p; }
+            if(!p.ishuman && (p.flags & FL_CLIENT) && p.health > 0)
+            {
+                if(!vr_dmt_bot) { vr_dmt_bot = p; }
+                else if(!vr_dmt_bot2) { vr_dmt_bot2 = p; }
+            }
+        }
+        float ok = vr_dmt_bot && vr_dmt_human && (ask == 10 || vr_dmt_bot2);
+        if(!ok && vr_dmt_n < VR_DMT_GIVEUP)
+        {
+            return;
+        }
+        VR_Test_Check(ok, sprintf("living bots (%s, %s) and a human (%s)", vr_dmt_bot.netname, vr_dmt_bot2.netname,
+            vr_dmt_human.netname));
+        if(!ok)
+        {
+            cvar_set("vr_bot_parry_chance", ftos(vr_dmt_pchance));
+            VR_DMT_End();
+            return;
+        }
+        vr_dmt_human.health = 999;
+        if(ask == 9)
+        {
+            vr_dmt_bot.b_skill = 3;
+            VR_DMT_To(41, 0);
+            return;
+        }
+        // (10) its nailgun in the main hand, a super nailgun of its own and nails; the off hand empty
+        VR_WeaponUtil_EntAddWeapon(vr_dmt_bot, WID_NAILGUN);
+        VR_WeaponUtil_EntAddWeapon(vr_dmt_bot, WID_SUPER_NAILGUN);
+        VR_AmmoUtil_SetAmmoCountByAmmoId(vr_dmt_bot, AID_NAILS, 200);
+        VRGiveEntWeapon(vr_dmt_bot, cVR_OffHand, WID_FIST, 0, 0);
+        VRGiveEntWeapon(vr_dmt_bot, cVR_MainHand, WID_NAILGUN, 0, 0);
+        makevectors(vr_dmt_human.angles_y * '0 1 0');
+        vr_dmt_spot = vr_dmt_human.origin + v_forward * 120;
+        VR_DMT_To(51, 0);
+        return;
+    }
+    if(vr_dmt_s == 41) // (9) held apart, then the swing
+    {
+        cvar_set("vr_bot_parry_chance", vr_dmt_case == 0 ? "100" : "0");
+        VR_DMT_HoldPair();
+        if(vr_dmt_n < VR_DMT_HOLD)
+        {
+            return;
+        }
+        vr_dmt_blows0 = vr_melee_blows;
+        vr_dmt_parry0 = vr_parry_count;
+        vr_dmt_parries0 = vr_dmt_bot.vr_botparries;
+        vr_dmt_bot2.attack_finished = 0;
+        vr_dmt_bot2.vr_botswing = 0;
+        entity os = self;
+        self = vr_dmt_bot2;
+        W_Fire_Melee(cVR_MainHand, &vr_dmt_bot2.attack_finished);
+        self = os;
+        vr_dmt_swung = time;
+        VR_Test_Check(vr_dmt_bot2.vr_botswing == time, sprintf("case %g: %s's sword swing begun (a flat player's overhead swing)",
+            vr_dmt_case, vr_dmt_bot2.netname));
+        VR_DMT_To(42, 0);
+        return;
+    }
+    if(vr_dmt_s == 42)
+    {
+        VR_DMT_HoldPair();
+        if(time - vr_dmt_swung < BOT_SWING_LEN + 0.1)
+        {
+            return;
+        }
+        float landed = vr_melee_blows > vr_dmt_blows0 && vr_melee_blow_by == vr_dmt_bot2 && vr_melee_blow_on == vr_dmt_bot;
+        float parried = vr_parry_count > vr_dmt_parry0 && vr_parry_count_by == vr_dmt_bot2;
+        float raised = vr_dmt_bot.vr_botparries > vr_dmt_parries0;
+        string got = sprintf("guard raised %g, damage %g, parried %g", raised, landed ? vr_melee_blow_dmg : 0, parried);
+        if(vr_dmt_case == 0)
+        {
+            VR_Test_Check(raised && parried && !landed, sprintf("skill 3, its parry chance 100: its guard up in time, the "
+                "blow parried (%s)", got));
+            vr_dmt_case = 1;
+            VR_DMT_To(41, 0);
+            return;
+        }
+        VR_Test_Check(!raised && landed && !parried, sprintf("its parry chance 0: no guard, the blow lands (%s)", got));
+        cvar_set("vr_bot_parry_chance", ftos(vr_dmt_pchance));
+        vr_dmt_human.health = 100;
+        VR_DMT_End();
+        return;
+    }
+    // (10) held 120 units in front of the human, facing him
+    entity bot = vr_dmt_bot;
+    setorigin(bot, vr_dmt_spot);
+    bot.velocity = '0 0 0';
+    bot.v_angle = bot.angles = vectoangles(vr_dmt_human.origin - vr_dmt_spot);
+    bot.fixangle = TRUE;
+    bot.enemy = vr_dmt_human;
+    vr_dmt_human.health = max(vr_dmt_human.health, 999);
+    float mw = VRGetEntWeapon(bot, cVR_MainHand), ow = VRGetEntWeapon(bot, cVR_OffHand);
+    float two = ow != WID_FIST && VR_AG_Pairs(mw, VRGetEntWeaponFlags(bot, cVR_MainHand), ow, VRGetEntWeaponFlags(bot, cVR_OffHand));
+    if(vr_dmt_s == 51)
+    {
+        if(!two && vr_dmt_n < VR_DMT_GIVEUP)
+        {
+            return;
+        }
+        VR_Test_Check(two, sprintf("its off hand holds a second gun that pairs: %s and %s", WeaponIdToWeaponName(mw),
+            WeaponIdToWeaponName(ow)));
+        vr_dmt_t0 = time;
+        VR_DMT_To(two ? 52 : 53, 0);
+        return;
+    }
+    if(vr_dmt_s == 52) // its AI fights him: both guns fired
+    {
+        float both = bot.attack_finished > vr_dmt_t0 && bot.offhand_attack_finished > vr_dmt_t0;
+        if(!both && vr_dmt_n < VR_DMT_GIVEUP)
+        {
+            return;
+        }
+        VR_Test_Check(both, sprintf("its AI fires both guns at the human (main hand's next shot %.2f s, off hand's %.2f s "
+            "after both were held; %g frames)", bot.attack_finished - vr_dmt_t0, bot.offhand_attack_finished - vr_dmt_t0,
+            vr_dmt_n));
+        VR_Test_Check(two, sprintf("still a pair in its hands (%s, %s)", WeaponIdToWeaponName(mw), WeaponIdToWeaponName(ow)));
+    }
+    vr_dmt_human.health = 100;
+    VR_DMT_End();
+};
+
+// vr_dm_test 11 (MP bots phase 1, mp_test.py coopbots): a bot in a coop game fights as a teammate. A living grunt of the
+// map is brought 120 units in front of it (the first way clear of walls), its enemy the bot: the bot's AI takes it for
+// its enemy and kills it, and never takes a player for one meanwhile. The bot is given a super nailgun and nails first
+// (what the level change must carry: mp_test.py checks it on the next level) and kept alive.
+entity vr_dmt_grunt;
+float vr_dmt_bad; // frames the bot's enemy was a player
+
+void(float ask) VR_DMT_Coop =
+{
+    if(vr_dmt_on != ask)
+    {
+        VR_Test_BeginFlags("dmtest", VR_TEST_LOUD | VR_TEST_ECHO);
+        vr_dmt_on = ask;
+        vr_dmt_chance = cvar_hget(cvarh_vr_player_disarm_chance);
+        vr_dmt_pve = cvar_hget(cvarh_vr_player_disarm);
+        vr_dmt_pvp = cvar_hget(cvarh_vr_player_disarm_pvp);
+        vr_dmt_dm = deathmatch;
+        VR_DMT_To(60, 0);
+    }
+    if(vr_dmt_s < 0)
+    {
+        return;
+    }
+    vr_dmt_n++;
+    if(vr_dmt_s == 60)
+    {
+        vr_dmt_bot = vr_dmt_human = vr_dmt_grunt = world;
+        for(entity p = VR_Player(); p; p = VR_NextPlayer(p))
+        {
+            if(p.ishuman && p.health > 0 && !vr_dmt_human) { vr_dmt_human = p; }
+            if(!p.ishuman && (p.flags & FL_CLIENT) && p.health > 0 && !vr_dmt_bot) { vr_dmt_bot = p; }
+        }
+        for(entity m = find(world, classname, "monster_army"); m && !vr_dmt_grunt; m = find(m, classname, "monster_army"))
+        {
+            vr_dmt_grunt = m.health > 0 ? m : world;
+        }
+        float ok = coop && !deathmatch && vr_dmt_bot && vr_dmt_human && vr_dmt_grunt;
+        if(!ok && vr_dmt_n < VR_DMT_GIVEUP)
+        {
+            return;
+        }
+        VR_Test_Check(ok, sprintf("a coop game (%g) with a living bot (%s), a human (%s) and a grunt", coop,
+            vr_dmt_bot.netname, vr_dmt_human.netname));
+        if(!ok)
+        {
+            VR_DMT_End();
+            return;
+        }
+        VR_WeaponUtil_EntAddWeapon(vr_dmt_bot, WID_SUPER_NAILGUN);
+        VR_AmmoUtil_SetAmmoCountByAmmoId(vr_dmt_bot, AID_NAILS, 150);
+        vector spot = '0 0 0';
+        for(float y = 0; y < 360 && spot == '0 0 0'; y += 45)
+        {
+            makevectors((vr_dmt_bot.angles_y + y) * '0 1 0');
+            vector at = vr_dmt_bot.origin + v_forward * 120;
+            traceline(vr_dmt_bot.origin, at + v_forward * 24, TRUE, vr_dmt_bot);
+            if(trace_fraction == 1 && pointcontents(at) == CONTENT_EMPTY)
+            {
+                spot = at;
+            }
+        }
+        VR_Test_Check(spot != '0 0 0', "a place clear of walls 120 units from the bot");
+        if(spot == '0 0 0')
+        {
+            VR_DMT_End();
+            return;
+        }
+        setorigin(vr_dmt_grunt, spot);
+        vr_dmt_grunt.enemy = vr_dmt_bot;
+        vr_dmt_bad = 0;
+        VR_DMT_To(61, 0);
+        return;
+    }
+    // (61) the fight: the bot kept alive, its enemy never a player
+    vr_dmt_bot.health = max(vr_dmt_bot.health, 100);
+    vr_dmt_human.health = max(vr_dmt_human.health, 100);
+    if(vr_dmt_bot.enemy.flags & FL_CLIENT)
+    {
+        vr_dmt_bad++;
+    }
+    if(vr_dmt_grunt.health > 0 && vr_dmt_n < VR_DMT_GIVEUP * 4)
+    {
+        return;
+    }
+    VR_Test_Check(vr_dmt_grunt.health <= 0, sprintf("the bot kills the grunt (its health %g, %g frames)",
+        vr_dmt_grunt.health, vr_dmt_n));
+    VR_Test_Check(vr_dmt_bad == 0, sprintf("the bot never took a player for its enemy (%g frames did)", vr_dmt_bad));
+    VR_Test_Print(sprintf("dmtest: the bot %s's items %g\n", vr_dmt_bot.netname, vr_dmt_bot.items));
+    VR_DMT_End();
+};
+
 void() VR_DMRulesTest_Frame =
 {
     float ask = cvar_hget(cvarh_vr_dm_test);
@@ -980,5 +1295,7 @@ void() VR_DMRulesTest_Frame =
     if(ask == 2 || ask == 3) { VR_DMT_Parry(ask); }
     if(ask >= 4 && ask <= 6) { VR_DMT_Hands(ask); }
     if(ask == 7 || ask == 8) { VR_DMT_Loose(ask); }
+    if(ask == 9 || ask == 10) { VR_DMT_Bots(ask); }
+    if(ask == 11) { VR_DMT_Coop(ask); }
 };
 #endif

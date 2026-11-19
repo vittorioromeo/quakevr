@@ -85,6 +85,7 @@ extern "C" int VR_VersionIsDev (void)
 extern "C" void Con_DebugLog (const char *msg); // console.c: -condebug's qconsole.log
 extern "C" char com_gamedir[];                  // common.c: the game folder (the report names it)
 extern "C" int VR_GLRecentSteps (char *out, int outSize, int count); // vr_glsafe.cpp: the last GL breadcrumbs
+extern "C" void VR_GLStartupCrashed (void); // vr_glsafe.cpp: "== crashed" in gl_startup.log (the next start's safe mode)
 extern "C" void VR_DiagnosticsEnd (int crashed); // vr_diagnostics.cpp: diagnostics mode's logs copied
 extern "C" void VR_LogsIncident (const char *what); // vr_runlogs.cpp: the runtimes' logs copied into the run's folder
 extern "C" void LOG_Flush (void);                  // console.c: the buffered console log out
@@ -690,6 +691,7 @@ void tryGLSteps ()
 {
 	__try
 	{
+		VR_GLStartupCrashed ();
 		if (VR_GLRecentSteps (glSteps, sizeof (glSteps), 12) > 0)
 			appendf ("\nLast GL steps (oldest first; each named before its GL calls ran):\n%s", glSteps);
 	}
@@ -1273,6 +1275,7 @@ extern "C" unsigned VR_DescribeCallers (char *out, int outSize, int skip, int de
 
 extern "C" char com_gamedir[];                  // common.c: the game folder (the report names it)
 extern "C" int VR_GLRecentSteps (char *out, int outSize, int count); // vr_glsafe.cpp: the last GL breadcrumbs
+extern "C" void VR_GLStartupCrashed (void); // vr_glsafe.cpp: "== crashed" in gl_startup.log (the next start's safe mode)
 extern "C" void VR_DiagnosticsEnd (int crashed); // vr_diagnostics.cpp: diagnostics mode's logs copied
 extern "C" void VR_LogsIncident (const char *what); // vr_runlogs.cpp: the runtimes' logs copied into the run's folder
 extern "C" void LOG_Flush (void);                  // console.c: the buffered console log out
@@ -1360,6 +1363,7 @@ void writeReport (const char *what, void *const *frames, int count, int skip)
 	appendf ("VR: %s\n", crashVr[0] ? crashVr : "not started");
 	appendf ("GL safe mode: %s\n", VR_GLSafeDescribe ());
 	char steps[1024];
+	VR_GLStartupCrashed ();
 	if (VR_GLRecentSteps (steps, sizeof (steps), 8) > 0)
 		appendf ("GL, last steps: %s\n", steps);
 	appendf ("Thread: %s (%lu)\n", pthread_equal (pthread_self (), mainThread) ? "main" : "not the main thread",

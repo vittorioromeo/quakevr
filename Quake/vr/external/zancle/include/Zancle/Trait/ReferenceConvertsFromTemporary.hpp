@@ -14,6 +14,13 @@
     ////////////////////////////////////////////////////////////
     #define ZA_REFERENCE_CONVERTS_FROM_TEMPORARY(T, U) __reference_converts_from_temporary(T, U)
 
+#elif ZA_HAS_BUILTIN(__reference_binds_to_temporary)
+
+    ////////////////////////////////////////////////////////////
+    // Older clang (e.g. the Android NDK's clang 18, whose libc++ lacks the trait too): the binding builtin, the same
+    // answer for the copy-initialisations this is asked about
+    #define ZA_REFERENCE_CONVERTS_FROM_TEMPORARY(T, U) __reference_binds_to_temporary(T, U)
+
 #else
 
 ////////////////////////////////////////////////////////////

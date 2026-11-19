@@ -511,66 +511,6 @@ void world_f()
         static_cast<unsigned>(styles));
 }
 
-// The player a host's debug command acts on: the client in slot Cmd_Argv(`arg`) (0, or none given: the first), in the
-// game and alive; null (said why) otherwise.
-edict_t* slotPlayer(const char* command, int arg)
-{
-    const int slot = Cmd_Argc() > arg ? Q_atoi(Cmd_Argv(arg)) : 0;
-    if(!sv.active || slot < 0 || slot >= svs.maxclients || !svs.clients[slot].active || !svs.clients[slot].spawned ||
-        !svs.clients[slot].edict)
-    {
-        Con_Printf("%s: %s\n", command, sv.active ? "no player in that slot" : "not hosting a game");
-        return nullptr;
-    }
-    // (B11: a dedicated server's own console may, as it may kick: its players can't send these commands; a listen
-    // host plays the match himself)
-    if(deathmatch.value != 0.f && !isDedicated)
-    {
-        Con_Printf("%s: not in deathmatch (but on a dedicated server)\n", command);
-        return nullptr;
-    }
-    return svs.clients[slot].edict;
-}
-
-// The level an exit leads to (its QC field .map), "?" without one.
-const char* nextMap(edict_t* exit)
-{
-    const eval_t* v = GetEdictFieldValueByName(exit, "map");
-    return v && v->string ? PR_GetString(v->string) : "?";
-}
-
-// vr_goto_exit [<slot>]: the player (hosting: the one in that slot) put in the level's exit (its first
-// trigger_changelevel's middle), touching it as if he walked in: the intermission, or the next level (Debug > Tests >
-// Cheats; the coop campaign's exit, mp_flow).
-void gotoExit_f()
-{
-    edict_t* player = slotPlayer("vr_goto_exit", 1);
-    if(!player || player->v.health <= 0.f)
-    {
-        return;
-    }
-    const qvr::progs::ServerVm vm;
-    edict_t* exit = nullptr;
-    for(int i = svs.maxclients + 1; i < qcvm->num_edicts && !exit; i++)
-    {
-        edict_t* e = EDICT_NUM(i);
-        exit = !e->free && !strcmp(PR_GetString(e->v.classname), "trigger_changelevel") ? e : nullptr;
-    }
-    if(!exit)
-    {
-        Con_Printf("vr_goto_exit: no exit (trigger_changelevel) in this level\n");
-        return;
-    }
-    for(int k = 0; k < 3; k++)
-    {
-        player->v.origin[k] = (exit->v.absmin[k] + exit->v.absmax[k]) * 0.5f;
-    }
-    pr_global_struct->time = qcvm->time;
-    SV_LinkEdict(player, true); // (its touch: changelevel_touch)
-    Con_Printf("vr_goto_exit: %s in the exit to %s at %.0f %.0f %.0f\n", PR_GetString(player->v.netname),
-        nextMap(exit), player->v.origin[0], player->v.origin[1], player->v.origin[2]);
-}
-
 // (B13) vr_mp_edicts: the server's edicts in use and the most common classnames ("mp_edicts: used=N of M top: class=n
 // ..."): what piles up in a long game (mp_soak).
 void edicts_f()
@@ -644,61 +584,6 @@ void edicts_f()
         bodies, awake, contacts, k.ragdollsLiving, k.ragdollsDead, k.ragLivingAwake, k.ragDeadAwake, k.gibsAwake,
         k.propsAwake, k.otherAwake);
     qvr::box3d::printMemory("mp_box3dmem"); // (B21: the soak's Box3D memory)
-}
-
-// vr_hurt <damage> [<slot>] [<attacker>]: the player (hosting: the one in that slot) takes that much damage from the
-// world (QC's T_Damage, as a fall's), or from entity number <attacker> (a player or a bot: his frag in deathmatch, mp_dm):
-// a real death, not `kill`'s respawn at once (Debug > Tests > Cheats; mp_flow's death).
-void hurt_f()
-{
-    if(Cmd_Argc() < 2)
-    {
-        Con_Printf("usage: vr_hurt <damage> [<slot>] [<attacker entity>]\n");
-        return;
-    }
-    if(!sv.active)
-    {
-        Con_Printf("vr_hurt: not hosting a game\n");
-        return;
-    }
-    const qvr::progs::ServerVm vm;
-    // (B14c: a bot's slot too -- FrikBot's bots are the edicts of slots no client is in: mp_dm's fraglimit reached by A's
-    // kills of a bot, whose frags its own deaths in dm4's lava take away)
-    const int slot = Cmd_Argc() > 2 ? Q_atoi(Cmd_Argv(2)) : 0;
-    edict_t* bot = slot >= 0 && slot < svs.maxclients && !svs.clients[slot].active && (isDedicated || deathmatch.value == 0.f)
-                       ? EDICT_NUM(slot + 1)
-                       : nullptr;
-    edict_t* player = bot && !bot->free && !strcmp(PR_GetString(bot->v.classname), "player") ? bot : slotPlayer("vr_hurt", 2);
-    if(!player || player->v.health <= 0.f)
-    {
-        return;
-    }
-    edict_t* attacker = qcvm->edicts;
-    if(Cmd_Argc() > 3)
-    {
-        const int n = Q_atoi(Cmd_Argv(3));
-        if(n <= 0 || n >= qcvm->num_edicts || EDICT_NUM(n)->free)
-        {
-            Con_Printf("vr_hurt: no entity %d\n", n);
-            return;
-        }
-        attacker = EDICT_NUM(n);
-    }
-    const func_t fn = qvr::progs::findFunction("T_Damage");
-    if(!fn)
-    {
-        Con_Printf("vr_hurt: no T_Damage in the game's progs\n");
-        return;
-    }
-    pr_global_struct->time = qcvm->time;
-    pr_global_struct->self = EDICT_TO_PROG(player);
-    G_INT(OFS_PARM0) = EDICT_TO_PROG(player);
-    G_INT(OFS_PARM1) = EDICT_TO_PROG(attacker);
-    G_INT(OFS_PARM2) = EDICT_TO_PROG(attacker);
-    G_FLOAT(OFS_PARM3) = static_cast<float>(Q_atof(Cmd_Argv(1)));
-    PR_ExecuteProgram(fn);
-    Con_Printf("vr_hurt: %s at %.0f health%s\n", PR_GetString(player->v.netname), player->v.health,
-        player->v.health <= 0.f ? ", dead" : "");
 }
 
 // The lockstep's players: the clients in the game that send moves (a bot has no connection; a listen host's own client
@@ -860,8 +745,7 @@ extern "C" void VR_MpTestInit(void)
     qvr::predict::init(); // vr_mp_predict_report, vr_mp_predict_probe
     qvr::netsnap::init(); // vr_netsnap_selftest
     qvr::lagcomp::init(); // vr_mp_shoot, the "vr_lagcomp_shot" client command
-    Cmd_AddCommand("vr_goto_exit", gotoExit_f);
-    Cmd_AddCommand("vr_hurt", hurt_f);
+    // (vr_goto_exit, vr_hurt: vr_cheats.cpp, their bots' and attackers' parts for the harness there)
     qvr::mpavatar::init(); // vr_mp_avatars
     qvr::clientprefs::init(); // vr_mp_prefs, the "vr_prefs" client command
     qvr::moveguard::init();   // vr_moveguard_selftest

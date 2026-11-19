@@ -1879,6 +1879,7 @@ void SV_SaveSpawnparms (void)
 		VR_StoreSpawnParms (i); // QVR
 	}
 	VR_CoopLevelChangeParms (); // QVR: (B15) the leavers' level-start parms too: what each carries into the new level
+	VR_CoopNoteBots (); // QVR: (MP bots) a coop game's bots: what they have, for their return on the next level
 }
 
 typedef enum

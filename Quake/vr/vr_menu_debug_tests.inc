@@ -706,6 +706,16 @@ za::Vector<Item> pageDebugTests()
         command("Deathmatch: Respawn Beside a Taken Start", "developer 1; vr_dm_test 8")
             .help("vr_dm_test 8, in a deathmatch with a bot (impulse 100): you are put on the only start counted and the bot "
                   "respawned: it comes in beside the start, nobody telefragged."),
+        command("Deathmatch: A Bot Parries a Bot", "developer 1; vr_dm_test 9")
+            .help("vr_dm_test 9, in a deathmatch with two bots (impulse 100 twice): one bot swings its sword at the other "
+                  "(a flat-screen player's overhead swing); the other raises its guard in time and parries it (its parry "
+                  "chance 100), then with its chance 0 the blow lands."),
+        command("Deathmatch: A Bot Dual Wields", "developer 1; vr_dm_test 10")
+            .help("vr_dm_test 10, in a deathmatch with a bot (impulse 100): the bot is given a nailgun and a super nailgun "
+                  "and held in front of you: its off hand takes the second gun and it fires both at you."),
+        command("Co-op: A Bot Fights Beside You", "developer 1; vr_dm_test 11")
+            .help("vr_dm_test 11, in a co-op game with a bot (Add Co-op Bot) on a map with grunts (e1m1): a grunt is "
+                  "brought in front of the bot, which kills it and never takes a player for its enemy."),
         command("Player Disarm: Melee on Your Gun", "developer 1; vr_pd_test 2")
             .help("vr_pd_test 2 (God mode off): a grunt with a gun and an axe, then one with an axe alone, swing at you "
                   "holding the shotgun out, 4 blows each: every blow held back for your weapon near its way ends, the "
@@ -1610,8 +1620,8 @@ za::Vector<Item> pageDebugTests()
             .help("vr_goto_exit [<slot>]: puts you (hosting a coop game: the player in that slot, 0 the first) in the "
                   "level's exit, as if you walked into it: the intermission (a press goes on) or the next level."),
         command("Take Damage: 1000", "vr_hurt 1000")
-            .help("vr_hurt <damage> [<slot>]: you (hosting a coop game: the player in that slot) take that much damage from "
-                  "the world, as from a fall: a real death at 1000 (not 'kill', which respawns at once); a press respawns."),
+            .help("vr_hurt <damage> [<slot>]: you (hosting a coop game: the player in that slot) take that much damage "
+                  "from the world, as from a fall: a real death at 1000 (not 'kill', which respawns at once)."),
     };
 }
 

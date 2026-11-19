@@ -488,6 +488,20 @@ za::Vector<Item> pageDebugProfiling()
 {
     return {
         header("Profiling"),
+        row(opt::vr_perf_record),
+        row(opt::vr_alias_prepass_world),
+        row(opt::vr_alias_batch_posed),
+        command("Add 3 Big Test Lights", "vr_test_dlights 3")
+            .help("vr_test_dlights 3: three lasting dynamic lights as big as an explosion's (radius 350), in a row 160 units "
+                  "ahead: the cost of big lights on a still scene (vr_test_dlights <count> <radius> <distance>; 0 removes "
+                  "them)."),
+        command("Remove the Test Lights", "vr_test_dlights 0").help("vr_test_dlights 0: removes the test lights."),
+        command("List the Dynamic Lights", "vr_dlights_list")
+            .help("vr_dlights_list: every live dynamic light in the console: its key (who made it), radius, distance from "
+                  "your eyes and colour."),
+        command("List the Frame's Render Passes", "vr_gl_passes 1")
+            .help("vr_gl_passes 1: the next frame's framebuffer binds in the console, in order, each with the draws made "
+                  "into it (and the profiler's scope at the bind with vr_profile on), and its alias batches."),
         row(opt::vr_profile_overlay),
         row(opt::vr_profile_csv),
         row(opt::vr_profile_hitch),
@@ -847,6 +861,9 @@ za::Vector<Item> pageDebugProfiling()
                   "(quakevr/crash/gl_startup.log has the start-up's)."),
         command("Retry the Full Renderer", "vr_glsafe_retry")
             .help("vr_glsafe_retry: the automatic safe mode (kept after a start that crashed) off from the next start."),
+        command("Safe Mode Judge Test", "vr_glsafe_judge_test")
+            .help("vr_glsafe_judge_test: which stopped starts turn on automatic GL safe mode (a crash, a quick death "
+                  "after the shaders) and which don't (stopped in a shader compile, after a slow one, after living on)."),
         header("Diagnostics"),
         command("Game Code and Folders", "vr_gamecode")
             .help("vr_gamecode: the folders the game reads from (its base dirs, game dirs and search path) and where its "
