@@ -38,6 +38,7 @@ Dwell's weapons keep their kind in holsters, after a save and a level change; Ha
 Dwell: an armed grunt picks up your thrown Rotary Shotgun / Crystal Lance and fires Dwell's shot; Haste yellow, Berserk red, both orange tint
 Dwell weapons have their own VR models (scenario dwell_vrmodels: grips, muzzles, sights, two-hand; tune Weapon Offsets); the Rotary's barrels spin; holster/wrist menu names by model (Widowmaker, Rifle...)
 Dwell d2end boss: read and dodge the bullet-hell shots, bat one back with a sword; the Sculptor spins, tilts, raises its shield and teleports
+Dwell: Copper armour pickups (0.3/0.5/0.7, excess kept) and key stacks in d1m1; shots on the Sculptor's ring (d2end) land
 
 [1. Flat-screen: weapons and hands]
 
