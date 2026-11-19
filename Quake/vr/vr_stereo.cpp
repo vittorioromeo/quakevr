@@ -737,7 +737,7 @@ SpectatorPace spectatorPace;
 // mipmaps for the panel's distance. Made from each new image while a menu shows it: one pass of its pixels.
 struct SpectatorPreview
 {
-    gfx::Target target;
+    gfx::RenderTarget target;
     int images = 0;        // the camera's images so far
     int made = -1;         // the image it was made from
     double madeAt = -1.0;  // realtime when it was last made or found current
@@ -756,10 +756,15 @@ void makePreview(int windowWidth, int windowHeight)
     if(p.made != p.images || p.target.width != previewWidth || p.target.height != height)
     {
         QVR_GPU_PROFILE("spectator preview");
-        gfx::ensureTarget(p.target, previewWidth, height, true, "spectator preview");
+        if(!p.target.ensure(previewWidth, height, gfx::RenderTargetFormat{.mipmaps = true, .fboName = "vr canvas"},
+               "spectator preview"))
+        {
+            Con_Warning("VR: the spectator preview's framebuffer is incomplete\n");
+            return;
+        }
         drawToWindow(spectatorTargets, spectatorPace.look, cropMap(0.f, 0.f, 1.f, 1.f), Sampling::Bilinear,
-            p.target.framebuffer, 0, p.target.width, p.target.height);
-        GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, p.target.texture);
+            p.target.fbo, 0, p.target.width, p.target.height);
+        GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, p.target.tex);
         GL_GenerateMipmapFunc(GL_TEXTURE_2D);
         p.made = p.images;
     }
@@ -860,12 +865,12 @@ bool isSpectator()
 unsigned spectatorPreview(float& aspect)
 {
     const SpectatorPreview& p = previewState;
-    if(!p.target.texture || p.made < 0 || p.madeAt < 0.0 || realtime - p.madeAt > 0.25)
+    if(!p.target.tex || p.made < 0 || p.madeAt < 0.0 || realtime - p.madeAt > 0.25)
     {
         return 0;
     }
     aspect = static_cast<float>(p.target.height) / static_cast<float>(p.target.width);
-    return p.target.texture;
+    return p.target.tex;
 }
 
 bool isRenderingEye()

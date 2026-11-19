@@ -165,6 +165,7 @@
 #include "vr_foveated.hpp"
 #include "vr_jobs.hpp"
 #include "vr_gfx.hpp"
+#include "vr_glutil.hpp"
 #include "vr_monsterdata.hpp"
 #include "vr_props.hpp"
 #include "vr_propthink.hpp"
@@ -230,10 +231,6 @@
 using namespace qvr;
 
 extern "C" void TexMgr_MemStats(int* count, int* normalmaps, double* megabytes); // gl_texmgr.c
-namespace qvr::gfx
-{
-extern int targetsMade; // vr_gfx_gl.cpp
-}
 extern "C" int r_numactiveparticles; // r_part.c
 extern "C" cvar_t host_maxfps, vid_vsync, vid_refreshrate; // host.c, gl_vidsdl.c (the menu's status box)
 

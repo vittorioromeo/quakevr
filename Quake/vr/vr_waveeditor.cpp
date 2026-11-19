@@ -7,6 +7,7 @@
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_gfx.hpp"
+#include "vr_glutil.hpp"
 #include "vr_imgui.hpp"
 #include "vr_menuui.hpp"
 #include "vr_progs.hpp"
@@ -115,7 +116,7 @@ struct Editor
     za::Vector<za::String> assignMaps;
 
     // The headset's panel.
-    gfx::Target target;
+    gfx::RenderTarget target;
     bool placed{false};
     bool panelUp{false};  // the panel's frame is what ImGui draws in (else the desktop window)
     glm::vec3 centre{0.f}, right{0.f}, up{0.f};
@@ -1239,7 +1240,7 @@ void closeEditor()
     ed.clickPhase = 0;
     imgui::want(false);
     imgui::setPanel(0, 0, 0, 1.f);
-    gfx::releaseTarget(ed.target);
+    ed.target.destroy();
     ed.panelUp = false;
     ed.placed = false;
     SDL_SetRelativeMouseMode(SDL_FALSE);
@@ -1414,7 +1415,7 @@ void testClosedFrame()
     }
     if(ed.testPlayed == 0)
     {
-        check(!imgui::wanted() && !imgui::frameOpen() && !ed.panelUp && !ed.target.framebuffer, "Close: the editor's shut, its frame and panel gone");
+        check(!imgui::wanted() && !imgui::frameOpen() && !ed.panelUp && !ed.target.fbo, "Close: the editor's shut, its frame and panel gone");
     }
     else
     {
@@ -1562,8 +1563,14 @@ void clientFrame()
     ed.panelUp = VR_IsActive() != 0;
     if(ed.panelUp)
     {
-        gfx::ensureTarget(ed.target, static_cast<int>(panelPixelsX * panelTexels), static_cast<int>(panelPixelsY * panelTexels), false, "wave editor");
-        imgui::setPanel(ed.target.framebuffer, panelPixelsX, panelPixelsY, panelTexels);
+        const GLuint bound = GL_BoundDrawFramebuffer();
+        if(!ed.target.ensure(static_cast<int>(panelPixelsX * panelTexels), static_cast<int>(panelPixelsY * panelTexels),
+               gfx::RenderTargetFormat{.fboName = "vr canvas"}, "wave editor"))
+        {
+            Con_Warning("VR: the wave editor's framebuffer is incomplete\n");
+        }
+        GL_BindFramebufferFunc(GL_FRAMEBUFFER, bound);
+        imgui::setPanel(ed.target.fbo, panelPixelsX, panelPixelsY, panelTexels);
     }
     else
     {
@@ -1657,7 +1664,7 @@ bool sticks(const glm::vec2& off, const glm::vec2& main)
 
 void drawInEye(const hands::State& s)
 {
-    if(!ed.open || !ed.placed || !ed.panelUp || renderdoc::hidingPanel() || !ed.target.texture || !s.valid)
+    if(!ed.open || !ed.placed || !ed.panelUp || renderdoc::hidingPanel() || !ed.target.tex || !s.valid)
     {
         return;
     }
@@ -1668,7 +1675,7 @@ void drawInEye(const hands::State& s)
         {corner + xAxis + yAxis, {1.f, 1.f}, white}, {corner + yAxis, {0.f, 1.f}, white}};
     const gfx::Vertex tris[6] = {c[0], c[1], c[2], c[0], c[2], c[3]};
     gfx::draw(tris, gfx::sceneViewProjection(),
-        {.shade = gfx::Shade::Texture, .blend = gfx::Blend::Opaque, .depthTest = false, .depthWrite = false}, ed.target.texture);
+        {.shade = gfx::Shade::Texture, .blend = gfx::Blend::Opaque, .depthTest = false, .depthWrite = false}, ed.target.tex);
     for(int h = 0; h < 2; h++)
     {
         glm::vec3 origin, fwd, r, u;

@@ -2249,104 +2249,15 @@ glm::vec4 fontGlyph(unsigned char c, float* grow)
     return {u0, v0, u0 + 8.f / atlas, v0 + 8.f / atlas};
 }
 
-int targetsMade = 0; // targets' textures (re)made so far (vr_memstats: steady in play, not a frame)
-struct TargetMade
-{
-    const char* name;
-    int count;
-};
-za::Vector<TargetMade> targetsMadeNamed; // by name, in the order first made
-
-za::String targetsMadeByName()
-{
-    za::String out;
-    for(const auto& [name, count] : targetsMadeNamed)
-    {
-        out += (out.empty() ? "" : " ") + za::String{name} + ":" + za::toString(count);
-    }
-    return out;
-}
-
-void releaseTarget(Target& target)
-{
-    GLuint texture = target.texture;
-    if(texture)
-    {
-        GL_DeleteNativeTexture(texture); // (and out of the engine's bound-texture cache)
-    }
-    GLuint fbo = target.framebuffer;
-    if(fbo)
-    {
-        GL_DeleteFramebuffersFunc(1, &fbo);
-    }
-    target = Target{};
-}
-
-void ensureTarget(Target& target, int width, int height, bool mipmaps, const char* name)
-{
-    int levels = 1;
-    while(mipmaps && za::max(width, height) >> levels)
-    {
-        levels++;
-    }
-    if(target.texture && target.width == width && target.height == height && target.levels == levels)
-    {
-        return;
-    }
-    targetsMade++;
-    auto named = za::findIf(targetsMadeNamed.begin(), targetsMadeNamed.end(),
-        [&](const TargetMade& n) { return ZA_STRCMP(n.name, name) == 0; });
-    if(named == targetsMadeNamed.end())
-    {
-        targetsMadeNamed.pushBack({name, 0});
-        named = targetsMadeNamed.end() - 1;
-    }
-    named->count++;
-    Con_DPrintf("VR: render target \"%s\" made at %dx%d (was %dx%d), %d times so far\n", name, width, height,
-        target.width, target.height, named->count);
-
-    GLuint texture = target.texture;
-    if(texture)
-    {
-        // Out of the engine's bound-texture cache too: glGenTextures hands the same name back, and GL_BindNative,
-        // believing it still bound, would skip the bind (TexStorage on the default texture, an incomplete target
-        // drawing nothing: a remade canvas was blank).
-        GL_DeleteNativeTexture(texture);
-    }
-    GLuint fbo = target.framebuffer;
-    if(!fbo)
-    {
-        GL_GenFramebuffersFunc(1, &fbo);
-        GL_LabelNewFramebuffer(fbo, "vr canvas");
-    }
-
-    glGenTextures(1, &texture);
-    GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, texture);
-    GL_TexStorage2DFunc(GL_TEXTURE_2D, levels, GL_RGBA8, width, height);
-    GL_ObjectLabelFunc(GL_TEXTURE, texture, -1, name); // (vr_vram_report)
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, levels > 1 ? GL_LINEAR_MIPMAP_LINEAR : GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-    GLint previous = 0;
-    glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &previous);
-    GL_BindFramebufferFunc(GL_FRAMEBUFFER, fbo);
-    GL_FramebufferTexture2DFunc(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
-    GL_BindFramebufferFunc(GL_FRAMEBUFFER, static_cast<GLuint>(previous));
-
-    target = {texture, fbo, width, height, levels};
-}
-
-void begin2D(const Target& target, int virtualWidth, int virtualHeight)
+void begin2D(const RenderTarget& target, int virtualWidth, int virtualHeight)
 {
     Draw_Flush();
 
     saved2D.active = true;
     saved2D.canvas = glcanvas;
-    saved2D.mipmapped = target.levels > 1 ? target.texture : 0;
+    saved2D.mipmapped = target.levels > 1 ? target.tex : 0;
 
-    GL_BindFramebufferFunc(GL_FRAMEBUFFER, target.framebuffer);
+    GL_BindFramebufferFunc(GL_FRAMEBUFFER, target.fbo);
     glViewport(0, 0, target.width, target.height);
 
     // A canvas of its own: the virtual screen over the whole target, y down.
@@ -2477,15 +2388,18 @@ void picture(const Picture& p, float x, float y, float w, float h)
 
 } // namespace draw2D
 
-void beginCanvas(Target& canvas, int width, int height, bool mipmaps, float lodBias)
+void beginCanvas(RenderTarget& canvas, int width, int height, bool mipmaps, float lodBias)
 {
-    ensureTarget(canvas, width, height, mipmaps, "panel canvas");
-    canvasMipmapped = canvas.levels > 1 ? canvas.texture : 0;
+    if(!canvas.ensure(width, height, RenderTargetFormat{.mipmaps = mipmaps, .fboName = "vr canvas"}, "panel canvas"))
+    {
+        Con_Warning("VR: a panel canvas's framebuffer is incomplete (%d x %d)\n", width, height);
+    }
+    canvasMipmapped = canvas.levels > 1 ? canvas.tex : 0;
     if(canvasMipmapped)
     {
         // Seen smaller than its pixels in the headset (vr_menu_resolution): trilinear, anisotropic where the panel is
         // seen at an angle, sharpened by a negative bias (vr_menu_sharpen).
-        GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, canvas.texture);
+        GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, canvas.tex);
         glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_LOD_BIAS, lodBias);
         if(gl_max_anisotropy > 1.f) // else not supported
         {
@@ -2493,7 +2407,7 @@ void beginCanvas(Target& canvas, int width, int height, bool mipmaps, float lodB
         }
     }
     GL_ResetState(); // re-applies the blend, now with applyCanvasBlend() (VR_CanvasBlend)
-    GL_BindFramebufferFunc(GL_FRAMEBUFFER, canvas.framebuffer);
+    GL_BindFramebufferFunc(GL_FRAMEBUFFER, canvas.fbo);
     glViewport(0, 0, width, height);
     // A clip rectangle left on (Draw_SetClipRect) is in the window's pixels: on a canvas of its own size
     // (vr_menu_resolution) it would cut the clear and the 2D pass to the window's corner.
@@ -2528,7 +2442,7 @@ bool applyCanvasBlend()
     return true;
 }
 
-void copy(const Target& target, Texture image)
+void copy(const RenderTarget& target, Texture image)
 {
     if(!copyFbo)
     {
@@ -2538,7 +2452,7 @@ void copy(const Target& target, Texture image)
 
     GL_BindFramebufferFunc(GL_DRAW_FRAMEBUFFER, copyFbo);
     GL_FramebufferTexture2DFunc(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, image, 0);
-    GL_BindFramebufferFunc(GL_READ_FRAMEBUFFER, target.framebuffer);
+    GL_BindFramebufferFunc(GL_READ_FRAMEBUFFER, target.fbo);
     GL_BlitFramebufferFunc(0, 0, target.width, target.height, 0, 0, target.width, target.height, GL_COLOR_BUFFER_BIT,
         GL_NEAREST);
     GL_FramebufferTexture2DFunc(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, 0, 0);

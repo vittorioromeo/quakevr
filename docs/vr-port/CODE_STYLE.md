@@ -167,7 +167,7 @@ thread).
 
 ## GL objects
 
-GL names are plain ids (`gfx::Texture`, `gfx::Target`: no destructor), made and deleted by their system's functions
+GL names are plain ids (`gfx::Texture`, `gfx::RenderTarget`: no destructor), made and deleted by their system's functions
 (its reset, `VR_Shutdown`), never by a static's destructor after the context is gone. `vid_restart` keeps the GL
 context (only the engine's framebuffers are made again), so the VR module's GL objects live on.
 
@@ -367,7 +367,7 @@ Do not write a local copy (a second `rnd`, `lower`, `trim`, `startsWith`, `appen
 
 | need | helper | where |
 |---|---|---|
-| an offscreen texture + framebuffer made for a size (colour or depth, completeness checked, labelled) | `gfx::RenderTarget` (`ensure(w, h, RenderTargetFormat{...}, name)`, `destroy()`) | `vr_glutil.hpp` |
+| an offscreen texture + framebuffer made for a size (colour or depth, with mipmaps or not, completeness checked, labelled, counted by name for vr_memstats): every one, the canvases, screens and boards `gfx::begin2D` draws into too | `gfx::RenderTarget` (`ensure(w, h, RenderTargetFormat{...}, name)`, `destroy()`) | `vr_glutil.hpp` |
 | an in-world tool panel's push buttons: a button's middle, a hand pressing it, the button under a hand | `toolpanel::Frame`, `Grid`, `buttonCentre`, `pressedBy`, `buttonUnder` | `vr_toolpanel.hpp` |
 | a bounded undo stack (oldest dropped); a tool's feedback line (panel + console) | `toolpanel::pushUndo(stack, max, item)`, `toolpanel::say(line, until, tool, text, seconds)` | `vr_toolpanel.hpp` |
 | a panel image's 2D text and boxes (Quake's font, gold/white, shrunk to fit) | `toolpanel::Rect`, `fill`, `text`, `textFit` | `vr_toolpanel.hpp` |

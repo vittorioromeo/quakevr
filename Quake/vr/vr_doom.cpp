@@ -8,6 +8,7 @@
 #include "vr_engine.hpp"
 #include "vr_files.hpp"
 #include "vr_gadget.hpp"
+#include "vr_glutil.hpp"
 #include "vr_hands.hpp"
 #include "vr_main.hpp"
 #include "vr_touch.hpp"
@@ -654,7 +655,7 @@ struct Session
 Session session;
 
 gfx::Picture picture;   // Doom's 320 x 200 frame (nearest filtering)
-gfx::Target screen;     // the overlay drawn over it, the screen's texture (3x)
+gfx::RenderTarget screen;     // the overlay drawn over it, the screen's texture (3x)
 
 // ---- Sounds: Doom's effects as sounds of the engine at the gadget -------------------------------------------------
 
@@ -1705,10 +1706,10 @@ void closeFromButton()
 
 gfx::Texture gadgetTexture()
 {
-    return session.running && session.open ? screen.texture : 0;
+    return session.running && session.open ? screen.tex : 0;
 }
 
-const gfx::Target& screenTarget()
+const gfx::RenderTarget& screenTarget()
 {
     return screen;
 }
@@ -1734,7 +1735,11 @@ void renderScreen()
         session.frameShown = frameNow;
     }
     const int w = static_cast<int>(session.aspect * screenHeight + 0.5f);
-    gfx::ensureTarget(screen, w * 3, screenHeight * 3, false, "doom screen");
+    if(!screen.ensure(w * 3, screenHeight * 3, gfx::RenderTargetFormat{.fboName = "vr canvas"}, "doom screen"))
+    {
+        Con_Warning("VR: Doom's screen's framebuffer is incomplete\n");
+        return;
+    }
     gfx::begin2D(screen, w, screenHeight);
     gfx::draw2D::fill(0.f, 0.f, static_cast<float>(w), static_cast<float>(screenHeight), glm::vec3{0.f});
     const touch::Rect box = imageBox();
@@ -1747,7 +1752,7 @@ void renderScreen()
 void drawPanel()
 {
     touch::Surface z;
-    if(!session.running || !session.open || vr_doom_panel.value == 0.f || !screen.texture || !panelSurface(z))
+    if(!session.running || !session.open || vr_doom_panel.value == 0.f || !screen.tex || !panelSurface(z))
     {
         return;
     }
@@ -1762,7 +1767,7 @@ void drawPanel()
         {.shade = gfx::Shade::Screen, .blend = gfx::Blend::Opaque, .depthTest = true, .depthWrite = true,
             .params = {static_cast<float>(realtime - 1000.0 * static_cast<int>(realtime / 1000.0)), k, 0.f, 0.f},
             .screen = {session.aspect * screenHeight, static_cast<float>(screenHeight), 1.f}, .trueColor = true},
-        screen.texture);
+        screen.tex);
 }
 
 namespace

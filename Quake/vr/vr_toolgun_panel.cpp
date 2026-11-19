@@ -23,6 +23,7 @@
 #include "vr_backend.hpp"
 #include "vr_box3d.hpp"
 #include "vr_cvars.hpp"
+#include "vr_glutil.hpp"
 #include "vr_flatplay.hpp"
 #include "vr_flatholster.hpp"
 #include "vr_main.hpp"
@@ -137,7 +138,7 @@ struct PanelState
     glm::vec2 flatCursor{panelWidth * 0.5f, panelHeight * 0.5f}; // flatscreen play's mouse cursor on it (flatMouse)
     float flatScale{2.f}; // the overlay's window pixels a panel pixel, as last drawn (drawFlat)
 
-    gfx::Target target;
+    gfx::RenderTarget target;
     za::InPlaceVector<Spot, 96> spots;
 };
 PanelState ps;
@@ -1731,8 +1732,12 @@ void render()
         return;
     }
     toolgun::icons::makePending(2);
-    gfx::ensureTarget(ps.target, static_cast<int>(panelWidth) * texelsPerPixel, static_cast<int>(panelHeight) * texelsPerPixel,
-        true, "toolgun panel");
+    if(!ps.target.ensure(static_cast<int>(panelWidth) * texelsPerPixel, static_cast<int>(panelHeight) * texelsPerPixel,
+           gfx::RenderTargetFormat{.mipmaps = true, .fboName = "vr canvas"}, "toolgun panel"))
+    {
+        Con_Warning("VR: the toolgun panel's framebuffer is incomplete\n");
+        return;
+    }
     gfx::begin2D(ps.target, static_cast<int>(panelWidth), static_cast<int>(panelHeight));
     Ui ui{Mode::Draw};
     layout(ui);
@@ -1742,7 +1747,7 @@ void render()
 void drawInEye(const hands::State& s)
 {
     glm::vec3 corner, xAxis, yAxis;
-    if(!shown() || qvr::renderdoc::hidingPanel() || !ps.target.texture || !s.valid || !quadOf(s, corner, xAxis, yAxis))
+    if(!shown() || qvr::renderdoc::hidingPanel() || !ps.target.tex || !s.valid || !quadOf(s, corner, xAxis, yAxis))
     {
         return;
     }
@@ -1751,7 +1756,7 @@ void drawInEye(const hands::State& s)
         {corner + xAxis + yAxis, {1.f, 1.f}, white}, {corner + yAxis, {0.f, 1.f}, white}};
     const gfx::Vertex quad[6] = {c[0], c[1], c[2], c[0], c[2], c[3]};
     gfx::draw(quad, gfx::sceneViewProjection(),
-        {.shade = gfx::Shade::Texture, .blend = gfx::Blend::Opaque, .depthTest = false, .depthWrite = false}, ps.target.texture);
+        {.shade = gfx::Shade::Texture, .blend = gfx::Blend::Opaque, .depthTest = false, .depthWrite = false}, ps.target.tex);
 
     // The laser, thin: from the other hand to where it meets the panel (a short stub when it doesn't).
     glm::vec3 origin, fwd, r, u, point;
@@ -1795,7 +1800,7 @@ void drawFlat()
         return;
     }
     render();
-    if(!ps.target.texture || vid.width <= 0 || vid.height <= 0)
+    if(!ps.target.tex || vid.width <= 0 || vid.height <= 0)
     {
         return;
     }
@@ -1818,7 +1823,7 @@ void drawFlat()
         {ndc(x0 + w, y0), {1.f, 1.f}, white}, {ndc(x0, y0), {0.f, 1.f}, white}};
     const gfx::Vertex quad[6] = {c[0], c[1], c[2], c[0], c[2], c[3]};
     gfx::draw(quad, glm::mat4{1.f}, {.shade = gfx::Shade::Texture, .blend = gfx::Blend::Opaque, .depthTest = false, .depthWrite = false},
-        ps.target.texture);
+        ps.target.tex);
 }
 
 void registerCommands()
