@@ -2131,12 +2131,6 @@ void() BackpackTouch =
         return;
     }
 
-    //ZOID--
-    // Don't let the owner pick up his own backpack for a second.
-    if((other == self.owner) && ((self.nextthink - time) > 119))
-        return;
-    //--ZOID
-
     // QVR: nothing in it (his note 2026-11-10: a bare "You get" collecting a grunt's drop): taken without a word, a sound
     // or a flash, and gone. Only what it holds more than none of counts (a negative amount, never made on purpose, took
     // rounds away from him and printed as "-3 nails").
