@@ -1168,12 +1168,14 @@ void() weapon_touch =
             {
                 VRGiveEntWeapon(other, cVR_MainHand, weaponId, 0, clip);
                 AD_UpgradeGiven(stemp, other, cVR_MainHand); // AD support: an upgrade's on the weapon it gives
+                DW_VariantGiven(stemp, other, cVR_MainHand); // Dwell's weapons: their variant
                 W_SetCurrentAmmoFor(cVR_MainHand);
             }
             else if(VR_Hand_Free(other, cVR_OffHand, VR_HANDFREE_LOCKED))
             {
                 VRGiveEntWeapon(other, cVR_OffHand, weaponId, 0, clip);
                 AD_UpgradeGiven(stemp, other, cVR_OffHand); // AD support
+                DW_VariantGiven(stemp, other, cVR_OffHand); // Dwell's weapons
                 W_SetCurrentAmmoFor(cVR_OffHand);
             }
             else
@@ -1200,6 +1202,7 @@ void() weapon_touch =
 
         VRGiveEntWeapon(other, touchinghand, weaponId, 0, clip);
         AD_UpgradeGiven(stemp, other, touchinghand); // AD support: an upgrade's on the weapon it gives
+        DW_VariantGiven(stemp, other, touchinghand); // Dwell's weapons: their variant
         W_SetCurrentAmmoFor(touchinghand);
     }
 

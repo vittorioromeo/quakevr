@@ -125,10 +125,22 @@ struct Ruleset
     WorldValue worldValue;  // a worldspawn key whose value names it ({}: none)
     Names madeFor;          // a Map Library package made for one of these (vr_mapinstall.cpp madeFor) plays by it
     Names keptOurs;         // more shared classnames whose Quake VR version plays under its rules (playsImported)
+    Id clashesUnder{qvr::rules::Count}; // a content row (spawnsOutside): the ruleset under which its ownedClashes win
+                                        // over Quake VR's version (Dwell's wetsuit in Copper's maps); Count: none
 };
 
 bool never() { return false; }
 bool always() { return true; }
+
+// Dwell's row (DWELL.md P2a, decisions 3 and 4): dw_<classname> spawns in any map while Dwell's data is on the search
+// path (its campaign, or its content in another: vr_gamedir.cpp), with its own behaviour; the toolgun's too.
+int dwellSpawns(const char* classname)
+{
+    return qvr::dwell::folderMounted() && VR_ED_FindFunction(va("dw_%s", classname)) ? 1 : 0;
+}
+// Dwell's versions of classnames another mod has (Hipnotic's and AD's wetsuit): Dwell's in Copper's (Dwell's) maps,
+// the current owner's elsewhere, dw_<name> by the toolgun anywhere. (Its monster_morph, unplaced, is not rebuilt.)
+constexpr const char* dwellOwnedClashes[] = {"item_artifact_wetsuit"};
 
 constexpr Ruleset rulesets[] = {
     {qvr::rules::ID, "Quake", nullptr, false, 0, never, {}, {}, {}, {}, nullptr, nullptr, {}, {}, {}, {}},
@@ -142,6 +154,9 @@ constexpr Ruleset rulesets[] = {
     {qvr::rules::COPPER, "Copper", "cu_", true, 2, always, names(copperNotSignals), names(copperNotSignalPrefixes), {},
         {}, nullptr, nullptr, names(copperExtraSignals), {"_tb_mod", names(copperTbMods)}, names(copperTbMods),
         names(copperKeptOurs)},
+    // Dwell's own entities: content, not rules (never detected, no campaign plays by it).
+    {qvr::rules::DWELL, "Dwell", "dw_", false, 0, qvr::dwell::folderMounted, {}, {}, {}, names(dwellOwnedClashes),
+        dwellSpawns, dwellSpawns, {}, {}, {}, {}, qvr::rules::COPPER},
 };
 
 // Under an imported ruleset (its <prefix><classname> exists), whether its version spawns a classname Quake VR has too:
@@ -376,14 +391,15 @@ extern "C" const char* VR_Rules_SpawnName(const char* classname, int ours)
             ++(theirs ? mapRules.importedSpawns : mapRules.oursShared);
             if(theirs) { return imported; }
         }
-        return ours ? classname : nullptr;
     }
-    if(ours) { return classname; }
+    // A content row's version (spawnsOutside): of a classname nobody else spawns, or of its clash under its ruleset.
     for(const Ruleset& o : rulesets)
     {
-        if(o.prefix && o.spawnsOutside && o.spawnsOutside(classname)) { return va("%s%s", o.prefix, classname); }
+        if(o.id == r.id || !o.prefix || !o.spawnsOutside) { continue; }
+        if(ours && !(o.clashesUnder == r.id && o.ownedClashes.has(classname))) { continue; }
+        if(o.spawnsOutside(classname)) { return va("%s%s", o.prefix, classname); }
     }
-    return nullptr;
+    return ours ? classname : nullptr;
 }
 
 // pr_edict.c ED_ParseEdict: the prefix of the fields the map's ruleset's code reads its own map keys through (a key

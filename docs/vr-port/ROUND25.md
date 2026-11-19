@@ -4238,3 +4238,20 @@ branch's; the death menu (a25f4d0d4) waiting for a choice is the likely cause (n
 Ship prep: `Dwell.OnByDefault = true` (installer self-test, Installer README, INSTALLER.md, DWELL.md 7); the release
 scripts' sandboxed installs pass `--no-dwell`; CREDITS gains the Dwell team; PATCH_NOTES_1.1.1 a "Campaigns" bullet.
 Left (deferrable): DWELL.md 9.2.
+
+## Dwell P2a: Dwell's own entities (dwell2, 2026-11-19)
+
+Dwell's 14 classnames (and its wetsuit, rifle) rebuilt on Copper and Quake VR in `QC/dwell/` (DWELL.md 9.3): the
+Kamikaze, Brute and Construct on our monster code, both bosses (first pass), `trigger_killboss`, `target_bullethell`,
+Haste/Berserk/Wetsuit, the Rotary Shotgun, Crystal Lance and Rifle as variants of our weapons (placeholders until P3),
+`misc_crystal`, `func_fade`, `info_storycamera`. One ruleset-table row (`DWELL`, `dw_`): spawns anywhere while Dwell's
+data is mounted, its wetsuit wins in Copper's maps. A campaign row's `skipOutside` mounts AD's and Dwell's content in
+every campaign (AD's old special case now its row's). Generic hooks: `th_survive` (Killed), `vr_th_checkattack`
+(CheckAnyAttack). Toolgun pack "Dwell" (11 rows), FGD group "Dwell".
+Verified: `dwell_maps.sh` 28/0 with 0 missing everywhere (Dwell's own now required); `vr_ad_test 200` PASS on d1end and
+d2end (each boss through its 3 phases to its death, the map's own counter and killboss on d2end); e1m1 toolgun spawn
+test: the 11 Dwell rows spawned; `check_copper_entities.py` missing 0.
+For his headset: the Kamikaze's rush and burst, the Brute's grenade volleys and punch, the Construct's dive; the two
+boss fights (d1end, d2end); Berserk melee; the Crystal Lance through a row of monsters.
+Left (P2b/P3/P4): rigs and head-zone fits, Dwell's exact boss motion and bullet patterns, HUD icons and tints for the
+powerups, the weapons as VR weapons (and their variant across level changes), the story camera's flight.

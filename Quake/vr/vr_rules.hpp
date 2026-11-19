@@ -12,7 +12,9 @@ enum Id : int
     ID = 0,     // Quake's
     MG = 1,     // Machine Games' (Dimension of the Past, of the Machine, Dawn of the Machine)
     AD = 2,     // Arcane Dimensions'
-    COPPER = 3, // Copper's (and Dwell's): defined, not detected yet (DWELL.md P1b)
+    COPPER = 3, // Copper's (and Dwell's maps')
+    DWELL = 4,  // Dwell's own entities (dw_<classname>, DWELL.md P2a): content, never a map's ruleset; they spawn in
+                // any map while Dwell's data is installed, and its clashes win under Copper's rules
     Count
 };
 

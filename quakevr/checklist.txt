@@ -29,6 +29,8 @@ VR Settings > Locomotion > Speed Button: Toggle: click the stick once to sprint,
 VR Settings > Climbing > Mantle When: on letting go / on jump: hang on a ledge, the climb-over waits for that
 Toolgun > Weapons: Grappling Gun is listed; spawn it, grab it, and it hooks
 Dwell: Select Campaign > Dwell, play start and d1m1 (triggered monsters wait, checkpoints autosave); Map Library: Ancient and Underdark Overbright udob1 load and play by Copper rules
+Dwell monsters from the toolgun Dwell pack in e1m1: Kamikaze rush and burst, Brute grenades and punch, Construct dive
+Dwell d1end and d2end boss fights to the end; Berserk melee; Crystal Lance through a line of monsters
 
 [1. Flat-screen: weapons and hands]
 

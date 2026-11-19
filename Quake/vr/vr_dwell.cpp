@@ -3,6 +3,7 @@
 #include "vr_dwell.hpp"
 #include "vr_engine.hpp"
 #include "vr_sha256.hpp"
+#include "vr_strings.hpp"
 
 #include "Zancle/Container/Vector.hpp"
 #include "vr_api.h"
@@ -74,6 +75,23 @@ bool skipInFolder(const char* filename)
     {
         if(q_strcasecmp(filename, s.name)) { continue; }
         return s.owner == 0 || Cvar_VariableValue(s.owner == 1 ? "vr_hipnotic_status" : "vr_rogue_status") == 1.f;
+    }
+    return false;
+}
+
+bool skipOutside(const char* filename)
+{
+    return skipInFolder(filename) ||
+           !(qvr::strings::startsWith(filename, "progs/") || qvr::strings::startsWith(filename, "sound/"));
+}
+
+bool folderMounted()
+{
+    for(const searchpath_t* s = com_searchpaths; s; s = s->next)
+    {
+        char name[MAX_OSPATH];
+        VR_GameFolderName(s->pack ? s->pack->filename : s->filename, name, sizeof(name));
+        if(!q_strcasecmp(name, "dwell") || !q_strcasecmp(name, "dwellv2p2")) { return true; }
     }
     return false;
 }

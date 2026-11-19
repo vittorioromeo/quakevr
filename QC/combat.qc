@@ -387,6 +387,14 @@ void(entity targ, entity attacker) Killed =
 {
     entity oself;
 
+    if(targ.th_survive) // (a monster's own refusal to die: a Dwell boss's phase ends instead, dw_bosses.qc)
+    {
+        oself = self;
+        self = targ;
+        float kept = self.th_survive();
+        self = oself;
+        if(kept) { return; }
+    }
     VR_Stealth_Died(targ); // QVR: its body may be noticed (vr_stealth.qc)
     AD_MonsterKilled(targ, attacker); // AD support: AD's keys on our monsters (deathtarget) in an AD map
     oself = self;
@@ -2295,6 +2303,7 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
         return FALSE; // only a melee blow opens it (vr_mg3_weapons.qc)
     }
     damage = AD_Resist(targ, inflictor, attacker, damage, isVRMelee); // AD support: AD's ammo resistance (vr_ad_player.qc)
+    damage = DW_DamageScale(targ, attacker, damage, isVRMelee); // Dwell's Berserk (dw_common.qc)
     if(AD_Run(targ))
     {
         return AD_Damage(targ, inflictor, attacker, damage, isVRMelee); // AD support: AD's entities by AD's T_Damage (vr_ad_bridge.qc)

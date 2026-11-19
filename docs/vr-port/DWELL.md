@@ -541,6 +541,61 @@ Total: about 37-61 agent-days. P0.5 is the gate: it proves the generic mechanism
   installed could use Dwell's real Copper models (its folder mounted for a Copper package) instead of the stock
   stand-ins; Copper's `target_debris` lost its FGD preview (the model name is now inside `VR_ModelOr`).
 
+### 9.3 Built: P2a, Dwell's own entities (2026-11-19, branch `agent/dwell2`)
+
+Rebuilt on Copper and Quake VR, hand-written from Dwell's behaviour (the decompile read through
+`scratch/dw_const.py`, which puts the value-renamed constants back as numbers, and `dw_seqs.py`, which lists a monster's
+frame sequences; reading aids only, nothing pasted). Files `QC/dwell/` (GPL-2, header crediting the Dwell team):
+`dw_defs.qc` (early: fields and the hooks our shared code calls), `dw_common.qc`, `dw_items.qc`, `dw_monsters.qc`,
+`dw_bosses.qc`, `dw_test.qc`.
+
+- **One ruleset-table row** (`vr_rules.cpp`, decisions 3 and 4): `DWELL`, prefix `dw_`, never a map's ruleset (no
+  detection, no campaign); `spawnsOutside`/`toolgunOutside` = Dwell's folder mounted and `dw_<classname>` exists, so its
+  entities spawn in any map, with their own behaviour, and the toolgun's `dw_<name>` anywhere. A row's
+  `ownedClashes` + `clashesUnder` (new field): Dwell's `item_artifact_wetsuit` wins under Copper's rules, Hipnotic's/AD's
+  elsewhere. `VR_Rules_SpawnName` now asks the content rows after an imported ruleset's own lookup (so Dwell's
+  entities spawn under Copper's and AD's rules too). Dwell's `monster_morph` and `monster_boss_egypt` (placed in no map)
+  are not rebuilt.
+- **Dwell's data in every campaign**: a campaign row's `skipOutside` (new `CampaignChecks` field) mounts its folder in
+  every campaign while installed, supplying only what the function lets through: AD's (models, sounds, icons: the old
+  AD-only code, now the row's) and Dwell's (`qvr::dwell::skipOutside`: its models and sounds, after `skipInFolder`).
+- **Monsters** (our monster start, `ai_*`, `T_Damage`, so stealth senses, smarter AI hooks, infighting, parries; their
+  animations as table rows, `DW_Seq`: frames, AI, distance, a per-frame event, a follower):
+  Kamikaze (40, runs at 28, bursts on contact or death: 60 within 32 units, a sine falloff to 0 at 190, Dwell's curve),
+  Brute (600, punch 60 throwing up, grenade volleys of 3 per hand through our ogre's lob at Dwell's 632 speed, 3
+  rockets dropped), Construct (flyer, 600, crystals 700/40, below 340 health a steering dive at 600 bursting 60).
+  `vr_th_checkattack` (a monster's own attack choice in `CheckAnyAttack`). **VR registration, first pass**: head zones
+  (`DW_PositionalHead`: Kamikaze, Brute, the Awoken; estimates from their boxes, P2b fits them with `headfit.py`),
+  Dwell's hulls, gibs (the Brute's head `h_brute`, the Construct's 4 pieces, the Kamikaze bursts). Not done (P2b): rigs
+  (ragdolls, limbs, knockdowns, corpse gibbing), `vr_mhull_*`.
+- **Bosses** (`dw_bosses.qc`, first pass): the Awoken (d1end: 1400, three phases through `th_survive`, a new generic
+  field: a monster's refusal to die, checked first in `Killed`; each phase fires target/target2/target3, sleeps through
+  frames 89-123 and wakes at its `include`; homing missiles 750, 25/35/55 by skill, big volley, dashes and side steps;
+  target4 at death). The Sculptor (d2end: dormant until used; flies its path from `include`; swarms of 7 missiles onto
+  ground marks around `target2`; each phase fires `target` (the map's counter), shields, rests `wait`; marked by
+  `trigger_killboss` it dies, firing target4). `target_bullethell`: line, two lines, ring, spiral, wheel of 5-damage
+  bullets (Dwell's moving and turning patterns: P2b).
+- **Powerups**: Haste 20 s (refire x0.6, in `RuneApplyHell`, the refire scaler every weapon calls), Berserk 30 s (melee
+  x11: Dwell's axe 264 for 24; damage taken halved: `DW_DamageScale` in `T_DamageImpl`), Wetsuit 60 s (breath and a
+  swim speed cap of 1.3x under water). Ends said 3 s before; Haste and Berserk glow. No HUD icons or screen tints yet.
+- **Weapons, placeholders** (variants on the weapon instance, `wi_dwvar`, as AD's upgrades; set by the pickup through
+  `DW_VariantGiven` beside `AD_UpgradeGiven`): Rotary Shotgun = super shotgun firing 20 pellets of 2 every 0.2 s;
+  Crystal Lance = lightning gun firing a piercing beam (150 each body, 8 at most, 6 cells, 1.4 s); Rifle = shotgun firing
+  one 50 bullet (1.4 s). The pickups show Dwell's models. Not kept across a level change (the instance's variant is not
+  in the parms yet: P3).
+- **World**: `misc_crystal` (Dwell's crystal BSP models by style), `func_fade` (alpha by the nearest player's distance,
+  192-384 units; used, it fades out or back), `info_storycamera` (its pages: Dwell keeps the story text in `message`,
+  `noise`, `noise1..4`; centre-printed 5 s each, then its targets; the camera flight is P4).
+- **Copper's own models in Copper maps** (step 4): Dwell ships none of Copper's 11 (`v_axe2`, `s_explo2`, `debris1-3`,
+  ...), so the stock stand-ins stay; with Dwell's folder mounted everywhere, `VR_ModelOr` would pick one up by itself.
+- **Toolgun**: 11 rows, pack "Dwell" (`vr_toolgun_packs.inc`, appended), made while their model is on the search path.
+  No new weapon id (the toolgun_weapons check unchanged). **FGD**: group "Dwell" (`/*dw:QUAKED`, `fgdgen.py`, 447
+  entities).
+- **Acceptance**: `check_copper_entities.py`: dwell 14, missing 0. `dwell_maps.sh`: 28 passed, 0 failed, 0 missing on
+  every map (Dwell's own now required to spawn: `dwell_maps.py`). `vr_ad_test 200` (d1end: the Awoken woken, phases 3,
+  died: PASS; d2end: the Sculptor used as its relay does, 3 phases, marked by the map's counter and killboss, died:
+  PASS). e1m1 `vr_toolgun_spawn_test`: the 11 Dwell rows spawned.
+
 ---
 
 ## 10. Open questions for Vittorio (real decisions only)
