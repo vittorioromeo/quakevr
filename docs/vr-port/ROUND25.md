@@ -4190,3 +4190,12 @@ and MP-only parts left on their branches.
   (monster_boss, oldone, Chthon), item_flag*/time machine (Rogue map pieces), item_head_hellknight (MG3 campaign trophy),
   monster_decoy (made by its Hipnotic weapon). New `qvr_checks toolgun_weapons`: every WID_* has a Weapons row (exempt:
   fist, AD eliminator).
+
+## Dwell P1b, part one (copper1b, 2026-11-19)
+
+Campaign 7 `dwell` (a dwell or dwellv2p2 folder, v2.2 by its progs.dat; experimental like AD), the COPPER ruleset
+detected (its classnames, Dwell's, `_tb_mod`) and played by Dwell's campaign and Copper/Dwell Map Library packages,
+the `cu_<key>` fill, function-key leniency, one delayed-monster adapter for AD and Copper (`vr_rules_monsters.qc`), the
+Copper bridge (damage both ways, world setup and frame, fog by MG_SetFog, target_autosave). Acceptance
+`Misc/quakevr/dwell_maps.sh`: 22 passed, 4 failed (a wizard's NULL function on d1m7, d1m8, d2m8; d2end fixed after).
+Details and what is left: DWELL.md 9.2.
