@@ -480,6 +480,10 @@ void() health_touch =
     {
         // AD support: AD's rot in an AD map (one rot however many megahealths, vr_ad_bridge.qc)
     }
+    else if(self.healtype == 2 && !RuneHasElder(other) && VR_RN_MegaRot(other))
+    {
+        // the ruleset's one rot a player (Copper's: vr_rules_numbers.qc)
+    }
     else if(self.healtype == 2 && !RuneHasElder(other))
     {
         VR_ItemUtil_EntAddItem(other, IID_SUPERHEALTH);
@@ -516,32 +520,25 @@ ARMOR
 // QVR: Survival Arena's Iron Skin perk (vr_arena_perks.qc, compiled late): the armour picked up is 25 heavier.
 void(entity p, float xValue) VR_ARK_ArmorBonus;
 
+// An armour's tier: 0 green (item_armor1, 100), 1 yellow (item_armor2, 150), 2 red (item_armorInv, 200).
+float(entity xArmor) VR_Armor_Tier =
+{
+    return xArmor.classname == ITEM_NAME_ARMOR1 ? 0 : xArmor.classname == ITEM_NAME_ARMOR2 ? 1 : 2;
+};
+
 void() armor_touch =
 {
     float type, value, itemId;
 
-    if(self.classname == ITEM_NAME_ARMOR1)
-    {
-        type = 0.3;
-        value = 100;
-        itemId = IID_ARMOR1;
-    }
-    else if(self.classname == ITEM_NAME_ARMOR2)
-    {
-        type = 0.6;
-        value = 150;
-        itemId = IID_ARMOR2;
-    }
-    else
-    {
-        ASSERT(self.classname == ITEM_NAME_ARMORINV);
+    ASSERT(self.classname == ITEM_NAME_ARMOR1 || self.classname == ITEM_NAME_ARMOR2 ||
+        self.classname == ITEM_NAME_ARMORINV);
+    float tier = VR_Armor_Tier(self);
+    type = VR_RN_ArmorType(tier); // (the ruleset's: vr_rules_numbers.qc)
+    value = 100 + 50 * tier;
+    itemId = tier == 2 ? IID_ARMOR3 : tier == 1 ? IID_ARMOR2 : IID_ARMOR1;
 
-        type = 0.8;
-        value = 200;
-        itemId = IID_ARMOR3;
-    }
-
-    if(other.armortype * other.armorvalue >= type * value)
+    value = VR_RN_ArmorTake(other, type, value); // (only a better one, by the ruleset's rule)
+    if(!value)
     {
         return;
     }
@@ -619,19 +616,6 @@ float(entity xItem) VR_PickupObj_Enabled =
     return cvar_hget(cvarh_vr_item_objects) != 0;
 };
 
-// Its protection, armor_touch's measure: type times value.
-float(entity xArmor) VR_Armor_Protection =
-{
-    if(xArmor.classname == ITEM_NAME_ARMOR1)
-    {
-        return 0.3 * 100;
-    }
-    if(xArmor.classname == ITEM_NAME_ARMOR2)
-    {
-        return 0.6 * 150;
-    }
-    return 0.8 * 200;
-};
 
 // Dawn of the Machine's armour shards (vr_mg3_items.qc): objects as armour is, worn at the torso or put in a holster or
 // a pouch (small as they are); each adds 5 up to 200.
@@ -647,7 +631,8 @@ float(entity xPlayer, entity xArmor) VR_Armor_IsBetter =
     {
         return xPlayer.armorvalue < 200;
     }
-    return xPlayer.armortype * xPlayer.armorvalue < VR_Armor_Protection(xArmor);
+    float tier = VR_Armor_Tier(xArmor);
+    return VR_RN_ArmorTake(xPlayer, VR_RN_ArmorType(tier), 100 + 50 * tier) > 0;
 };
 
 // Whether a point is at `xPlayer`'s torso: generously, from just below the neck to the belly, in
@@ -1723,15 +1708,23 @@ KEYS
 
 void() key_touch =
 {
-    if(VR_ItemUtil_EntHasItem(other, self.vr_itemId))
+    float had = VR_ItemUtil_EntHasItem(other, self.vr_itemId);
+    if(!VR_RN_KeyTake(other, self.vr_itemId, had)) // (one of a colour, or the ruleset's stack: vr_rules_numbers.qc)
         return;
 
     item_taken = TRUE; // (itemTouch: its targets fire; in coop the key stays for the others)
     VRItemPickupHaptic(other);
 
-    sprint(other, "You got the ");
-    sprint(other, self.netname);
-    sprint(other,"\n");
+    if(had)
+    {
+        sprint(other, sprintf("You have %g of the %s\n", VR_RN_KeyCount(other, self.vr_itemId, TRUE), self.netname));
+    }
+    else
+    {
+        sprint(other, "You got the ");
+        sprint(other, self.netname);
+        sprint(other,"\n");
+    }
 
     sound(other, CHAN_ITEM, self.noise, 1, ATTN_NORM);
     stuffcmd(other, "bf\n");

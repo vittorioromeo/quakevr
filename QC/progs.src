@@ -43,6 +43,8 @@ combat_test.qc
 fight.qc
 // Monsters' ranged shots bent to an aim cone off their facing (after fight.qc; the monsters' files and AD's call it).
 vr_aimcone.qc
+// The rulesets' numbers (armour, megahealth rot, key stacks, monsters' health): one row a ruleset (DWELL.md S6).
+vr_rules_numbers.qc
 items.qc
 subs.qc
 
