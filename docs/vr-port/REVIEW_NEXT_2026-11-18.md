@@ -160,6 +160,16 @@ Notes on them:
 - **Drawbacks:** a count that drifts (a gib removed by a path that skips `VR_Skewer_Gone`, a loaded game: it must be
   rebuilt or saved) turns the gate into a bug where shots pass through a skewered gib; the count needs a rebuild at
   load.
+- **Status (2026-11-19): fixed** by the author's choice, a list rather than a count: the skewered gibs are chained
+  (`.vr_skewer_chain`, head `vr_skewer_head`; vr_carry.qc), linked where a gib goes on a blade (`VR_Skewer_Link`: the
+  stab, a cut-off part onto the blade, a thrown blade picked up again), and `VR_Gib_TraceHeld` walks the list only. No
+  path has to unlink: there is no single place a skewered gib ends (falls off, bursts, the toolgun's remover, any
+  `remove()`, a level's end), so the walk drops what is no longer skewered or was removed (`ED_Free` keeps a removed
+  edict's other fields, its chain still leads on). A removed edict used again has its fields zeroed: its stamp (the
+  list's generation) no longer matches; one linked again while its old predecessor still points at it is met twice.
+  Either is caught and the list is made again from one walk of the edicts, as a load does. Test: `vr_embed_test 49`
+  (none skewered: nothing visited; the head removed by the toolgun, one burst, one removed and its edict reused, also
+  as a new skewered gib, the blade gone, their own fade) and `50` (a save and a load).
 
 ### 6. `callBodyHits` walks every edict once per moving ragdoll, every server frame
 

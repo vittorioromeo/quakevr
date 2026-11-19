@@ -194,6 +194,7 @@ void() OnLoadGame =
 {
     VR_CVars_InitAllHandles();
     vr_ammobox_rolled_map = TRUE; // (the map's boxes rolled before the save; an older save's flag was not kept)
+    VR_Skewer_ListRebuild(); // (the skewered gibs' list: an older save had none)
     VR_AM_AfterLoad(); // the armed monsters' row cache: the map's spawn filled it for another kind than the save's
     SUB_DoLater(VR_Crackles_AfterLoad, 0.1); // the torches' and fires' crackles started again (sounds are not saved)
     VR_Tips_Reapply(); // (TRIGGERED tips used before the save: shown again)
