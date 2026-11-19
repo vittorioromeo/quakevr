@@ -26,6 +26,7 @@ Reloading in VR: bring a round or magazine to the loading port: the gun and the 
 A fight with several armed grunts and ragdolls: poses and limbs correct (posed models now batched)
 Flat screen and VR: no attract-mode demos play at start or when the menu idles; the main menu opens instead
 VR Settings > Locomotion > Speed Button: Toggle: click the stick once to sprint, again (or stop) to walk
+VR Settings > Climbing > Mantle When: on letting go / on jump: hang on a ledge, the climb-over waits for that
 
 [1. Flat-screen: weapons and hands]
 
