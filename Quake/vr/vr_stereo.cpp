@@ -197,13 +197,7 @@ GLuint mirrorProgram = 0;
 bool mirrorFailed = false;
 GLuint linearSampler = 0; // unit 0, while the window's view reads a scene filtered
 
-constexpr const char* mirrorVs = R"(#version 430
-void main()
-{
-    ivec2 v = ivec2(gl_VertexID & 1, gl_VertexID >> 1);
-    gl_Position = vec4(vec2(v) * 4.0 - 1.0, 0.0, 1.0);
-}
-)";
+constexpr const char* mirrorVs = gfx::fullscreenTriangleVs;
 
 constexpr const char* mirrorFs = R"(#version 430
 layout(binding = 0) uniform sampler2D Scene;

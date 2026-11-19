@@ -180,22 +180,40 @@ float hash(vec2 p)
     p3 += dot(p3, p3.yzx + 33.33);
     return fract((p3.x + p3.y) * p3.z);
 }
-float lit(vec2 at, float lod)
+float litOf(vec3 c)
 {
-    vec3 c = textureLod(Tex, at, lod).rgb;
     return 0.5 * max(c.r, max(c.g, c.b)) + 0.6 * dot(c, vec3(0.2126, 0.7152, 0.0722));
 }
-// The texture's colour at `at`, as sharp as phosphor() reads it.
-vec3 texel(vec2 at)
+float lit(vec2 at, float lod)
 {
-    return textureLod(Tex, at, max(textureQueryLod(Tex, uv).y - 1.0, 0.0)).rgb;
+    return litOf(textureLod(Tex, at, lod).rgb);
+}
+// The level phosphor() reads at (screen()'s three reads too): its own texels, sharp, however small it is in the eye (as
+// without mipmaps); only where they would be much finer than the eye's pixels (a map's board across a room) a level a
+// step sharper than the usual, so that far text does not shimmer. (One place for the level: the Quest's OpenGL ES has
+// no textureQueryLod, agent/quest's queryLod().)
+float sharpLod()
+{
+    return max(textureQueryLod(Tex, uv).y - 1.0, 0.0);
 }
 float phosphor(vec2 at)
 {
-    // Its own texels, sharp, however small it is in the eye (as without mipmaps); only where they
-    // would be much finer than the eye's pixels (a map's board across a room) a level a step sharper
-    // than the usual, so that far text does not shimmer.
-    return lit(at, max(textureQueryLod(Tex, uv).y - 1.0, 0.0));
+    return lit(at, sharpLod());
+}
+// glow()'s and glowColor()'s rings: n taps `radius` pixels of the virtual screen round `at`, `step` radians apart from
+// `start`, at level lod; the taps' lit() (luminance: each component) or their colours summed. (luminance is each
+// caller's constant: the other branch is compiled out.)
+vec3 ringSum(vec2 at, int n, float step, float start, float radius, float lod, bool luminance)
+{
+    vec2 px = 1.0 / Size.xy;
+    vec3 sum = vec3(0.0);
+    for(int i = 0; i < n; i++)
+    {
+        float a = step * float(i) + start;
+        vec3 c = textureLod(Tex, at + vec2(cos(a), sin(a)) * px * radius, lod).rgb;
+        sum += luminance ? vec3(litOf(c)) : c;
+    }
+    return sum;
 }
 // Mode 4's glow round the lit strokes: the texture's brightness blurred over about one pixel of the
 // virtual screen (inner: 4 taps) and two and a half (outer: 8 taps), each tap a mipmap level about
@@ -204,19 +222,9 @@ float phosphor(vec2 at)
 vec3 glow(vec2 at, float s)
 {
     float perPixel = float(textureSize(Tex, 0).x) / Size.x; // texels a pixel of the virtual screen
-    vec2 px = 1.0 / Size.xy;
     float lodInner = log2(perPixel), lodOuter = log2(perPixel * 2.0);
-    float inner = 0.0, outer = 0.0;
-    for(int i = 0; i < 4; i++)
-    {
-        float a = 1.5707963 * float(i) + 0.7853982;
-        inner += lit(at + vec2(cos(a), sin(a)) * px * 0.9, lodInner);
-    }
-    for(int i = 0; i < 8; i++)
-    {
-        float a = 0.7853982 * float(i) + 0.3926991;
-        outer += lit(at + vec2(cos(a), sin(a)) * px * 2.5, lodOuter);
-    }
+    float inner = ringSum(at, 4, 1.5707963, 0.7853982, 0.9, lodInner, true).x;
+    float outer = ringSum(at, 8, 0.7853982, 0.3926991, 2.5, lodOuter, true).x;
     const float face = 0.14; // about the face's brightness: it does not glow
     inner = max(inner * 0.25 - face, 0.0) / (1.0 - face);
     outer = max(outer * 0.125 - face, 0.0) / (1.0 - face);
@@ -227,19 +235,9 @@ vec3 glow(vec2 at, float s)
 vec3 glowColor(vec2 at, float s)
 {
     float perPixel = float(textureSize(Tex, 0).x) / Size.x;
-    vec2 px = 1.0 / Size.xy;
     float lodInner = log2(perPixel), lodOuter = log2(perPixel * 2.0);
-    vec3 inner = vec3(0.0), outer = vec3(0.0);
-    for(int i = 0; i < 4; i++)
-    {
-        float a = 1.5707963 * float(i) + 0.7853982;
-        inner += textureLod(Tex, at + vec2(cos(a), sin(a)) * px * 0.9, lodInner).rgb;
-    }
-    for(int i = 0; i < 8; i++)
-    {
-        float a = 0.7853982 * float(i) + 0.3926991;
-        outer += textureLod(Tex, at + vec2(cos(a), sin(a)) * px * 2.5, lodOuter).rgb;
-    }
+    vec3 inner = ringSum(at, 4, 1.5707963, 0.7853982, 0.9, lodInner, false);
+    vec3 outer = ringSum(at, 8, 0.7853982, 0.3926991, 2.5, lodOuter, false);
     const float face = 0.14;
     inner = max(inner * 0.25 - face, 0.0) / (1.0 - face);
     outer = max(outer * 0.125 - face, 0.0) / (1.0 - face);
@@ -288,13 +286,18 @@ vec4 screen()
         at.y += (hash(vec2(seed, 11.0)) - 0.5) * 0.02 * g;
     }
     float split = (0.144 * k + 1.44 * g) / Size.x;
-    float lum = phosphor(at);
-    vec3 rgb = color.rgb * vec3(phosphor(at - vec2(split, 0.0)), lum, phosphor(at + vec2(split, 0.0)));
+    // The three reads once (phosphor's and texel's level, the same places): the phosphor's brightness and the true
+    // colours both from them
+    float slod = sharpLod();
+    vec3 cl = textureLod(Tex, at - vec2(split, 0.0), slod).rgb;
+    vec3 c = textureLod(Tex, at, slod).rgb;
+    vec3 cr = textureLod(Tex, at + vec2(split, 0.0), slod).rgb;
+    float lum = litOf(c);
+    vec3 rgb = color.rgb * vec3(litOf(cl), lum, litOf(cr));
     float s = Params.w;
     if(TrueColor > 0.5)
     {
-        vec3 c = texel(at);
-        rgb = vec3(texel(at - vec2(split, 0.0)).r, c.g, texel(at + vec2(split, 0.0)).b);
+        rgb = vec3(cl.r, c.g, cr.b);
         if(s > 0.0)
         {
             // Only near-white strokes pushed a little over white (for the bloom); the halo in their own colours.

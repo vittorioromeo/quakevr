@@ -46,13 +46,7 @@ namespace
 // ---------------------------------------------------------------------------------------------------------------------
 // Shaders
 
-constexpr const char* fullscreenVs = R"(#version 430
-void main()
-{
-    ivec2 v = ivec2(gl_VertexID & 1, gl_VertexID >> 1);
-    gl_Position = vec4(vec2(v) * 4.0 - 1.0, 0.0, 1.0);
-}
-)";
+constexpr const char* fullscreenVs = gfx::fullscreenTriangleVs;
 
 // What ffx_fsr1.h needs of ffx_a.h (A_GPU, A_GLSL, 32-bit only): the same definitions, trimmed to those it uses.
 constexpr const char* ffxA = R"(

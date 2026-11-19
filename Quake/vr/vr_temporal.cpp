@@ -163,13 +163,17 @@ void Resolve(ivec2 p, ivec2 size, vec2 texel)
         return;
     }
 
-    // The 3x3: the colours' moments (tone mapped, YCoCg) and the nearest pixel
-    vec3 m1 = vec3(0.0), m2 = vec3(0.0);
+    // The 3x3: the colours' moments (tone mapped, YCoCg) and the nearest pixel; the centre's from cur and d (read
+    // above: not again in the loop; it is never nearer than itself)
+    vec3 c0 = ToYCoCg(Tonemap(cur.rgb));
+    vec3 m1 = c0, m2 = c0 * c0;
     ivec2 nearest = p;
     float nd = d;
     for (int y = -1; y <= 1; y++)
         for (int x = -1; x <= 1; x++)
         {
+            if (x == 0 && y == 0)
+                continue;
             ivec2 q = clamp(p + ivec2(x, y), ivec2(0), size - 1);
             vec3 c = ToYCoCg(Tonemap(texelFetch(SceneColor, q, 0).rgb));
             m1 += c;
@@ -191,10 +195,11 @@ void Resolve(ivec2 p, ivec2 size, vec2 texel)
     bool rejected = Params.w > 0.5 || any(lessThan(ouv, vec2(0.0))) || any(greaterThan(ouv, vec2(1.0)));
     if (!rejected) // the surface not in view there one frame ago: the previous depth (the farthest of the 2x2) nearer
     {
+        // (the 2x2 from b in one gather: PrevDepth is the scene's size, clamp-to-edge as the texels' clamp was, no
+        // sampler object on its unit; only the largest matters, not the order)
         ivec2 b = ivec2(floor(ouv * vec2(size) - 0.5));
-        float far = 0.0;
-        for (int i = 0; i < 4; i++)
-            far = max(far, texelFetch(PrevDepth, clamp(b + ivec2(i & 1, i >> 1), ivec2(0), size - 1), 0).r);
+        vec4 q4 = textureGather(PrevDepth, (vec2(b) + 1.0) / vec2(size), 0);
+        float far = max(max(q4.x, q4.y), max(max(q4.z, q4.w), 0.0));
         rejected = far < pw * (obj > 0.5 ? 0.9 : 0.97) - 1.0;
     }
     float mask = texelFetch(Mask, p, 0).r;
@@ -281,13 +286,7 @@ void main()
 }
 )";
 
-constexpr const char* applyVs = R"(#version 430
-void main()
-{
-    ivec2 v = ivec2(gl_VertexID & 1, gl_VertexID >> 1);
-    gl_Position = vec4(vec2(v) * 4.0 - 1.0, 0.0, 1.0);
-}
-)";
+constexpr const char* applyVs = gfx::fullscreenTriangleVs;
 
 // The result into the scene, sharpened (vr_taa_sharpen): an unsharp mask of the cross, limited to its range (no halos).
 constexpr const char* applyFs = R"(#version 430
@@ -484,6 +483,15 @@ bool invert4(const float* m, float* out)
     const GLuint s = compile(type, source, name);
     if(!s || (vs && !v))
     {
+        // (the stage that compiled not leaked: upscale::buildProgram's way)
+        if(v)
+        {
+            GL_DeleteShaderFunc(v);
+        }
+        if(s)
+        {
+            GL_DeleteShaderFunc(s);
+        }
         return 0;
     }
     return gfx::linkProgram(v, s, name);
