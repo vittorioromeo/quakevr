@@ -439,6 +439,7 @@ void() health_touch =
             return;
     }
 
+    item_taken = TRUE; // (itemTouch: its targets fire)
     VRItemPickupHaptic(other);
 
     sprint(other, "You receive ");
@@ -525,6 +526,7 @@ void() armor_touch =
         return;
     }
 
+    item_taken = TRUE; // (itemTouch: its targets fire)
     other.armortype = type;
     other.armorvalue = value;
     VR_ARK_ArmorBonus(other, value); // QVR: Survival Arena's Iron Skin (vr_arena_perks.qc)
@@ -1111,6 +1113,7 @@ void() weapon_touch =
             hadammo + WeaponIdToInitialAmmoCount(weaponId));
     }
 
+    item_taken = TRUE; // (itemTouch: its targets fire; in coop and deathmatch 2 it stays, taken by this player)
     VRItemPickupHaptic(other);
 
     sprint(other, "You got the ");
@@ -1385,6 +1388,7 @@ void() ammo_touch =
 
     bound_other_ammo();
 
+    item_taken = TRUE; // (itemTouch: its targets fire)
     VRItemPickupHaptic(other);
 
     sprint(other, "You got the ");
@@ -1699,6 +1703,7 @@ void() key_touch =
     if(VR_ItemUtil_EntHasItem(other, self.vr_itemId))
         return;
 
+    item_taken = TRUE; // (itemTouch: its targets fire; in coop the key stays for the others)
     VRItemPickupHaptic(other);
 
     sprint(other, "You got the ");
@@ -1848,6 +1853,7 @@ END OF LEVEL RUNES
 
 void() sigil_touch =
 {
+    item_taken = TRUE; // (itemTouch: its targets fire)
     centerprint(other, "You got the rune!");
 
     sound(other, CHAN_ITEM, self.noise, 1, ATTN_NORM);
@@ -1915,6 +1921,7 @@ POWERUPS
 
 void() powerup_touch =
 {
+    item_taken = TRUE; // (itemTouch: its targets fire)
     VRItemPickupHaptic(other);
 
     sprint(other, self.MGH_powerup_expire ? "You got " : "You got the ");

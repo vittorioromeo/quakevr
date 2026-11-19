@@ -30,6 +30,7 @@ void() MG3_armor_shard_touch = {
     if(other.health <= 0 || other.classname != "player" || self.model == string_null) return;
     if(other.armortype < 0.3) other.armortype = 0.3;
     if(other.armorvalue >= 200) return;
+    item_taken = TRUE; // (itemTouch: its targets fire)
     if(!VR_ItemUtil_EntHasItem(other, IID_ARMOR1) && !VR_ItemUtil_EntHasItem(other, IID_ARMOR2) && !VR_ItemUtil_EntHasItem(other, IID_ARMOR3))
         VR_ItemUtil_EntAddItem(other, IID_ARMOR1);
     other.armorvalue = min(200, other.armorvalue + 5);
@@ -67,7 +68,8 @@ void() item_armor_shard = {
 // ----------------------------------------------------------------------------
 // Draughts: rings that move the player straight up or down by "height" (insight -2048, stupor 2048 by default), or,
 // with OVERRIDE_DEST and a target, to that teleport destination as a teleporter does. They stay: a ring is used each
-// time it is touched. VR: what the hands carry comes along; the teleport flash and sound mark the move.
+// time it is touched, never taken (itemTouch fires no targets for it: with OVERRIDE_DEST its target is the destination,
+// which teleport_touch fires). VR: what the hands carry comes along; the teleport flash and sound mark the move.
 float MG3_RING_OVERRIDE_DEST = 1;
 void() MG3_ring_touch = {
     if(other.classname != "player" || other.health <= 0 || self.model == string_null) return;
@@ -146,6 +148,7 @@ void() item_artifact_lavasuit = {
 // Bloody Nightmare game it is a megahealth, or, in the new game Bloody Nightmare starts, a bunny once.
 void() MG3_hellknight_head_touch = {
     if(other.classname != "player" || other.health <= 0 || self.model == string_null) return;
+    item_taken = TRUE; // (itemTouch: its targets fire)
     bprint("$mg3_selected_bloody_nightmare");
     serverflags = serverflags | MG3_SF_BN_ACTIVE | MG3_SF_BN_DISCOVERED;
     cvar_set("vr_mg3_bn_discovered", "1");
@@ -159,6 +162,7 @@ void() MG3_hellknight_head_touch = {
 };
 void() MG3_tette_touch = { // dedicated to Hanna (upstream)
     if(other.classname != "player" || other.health <= 0 || self.model == string_null) return;
+    item_taken = TRUE; // (itemTouch: its targets fire)
     if(other.ishuman) MG3_sprint_args(other, "$qc_got_item", self.netname);
     serverflags = serverflags | MG3_SF_TETTE;
     VRItemPickupHaptic(other);
@@ -220,6 +224,7 @@ void() MG3_ItemUnspawn = {
 // and MG1's; everyone is told (centre print); itemTouch fires its targets.
 void() MG3_sigil_touch = {
     if(other.classname != "player" || other.health <= 0 || self.model == string_null) return;
+    item_taken = TRUE; // (itemTouch: its targets fire)
     VRItemPickupHaptic(other);
     MG_PrintAll(self.netname);
     sound(other, CHAN_ITEM, self.noise, 1, ATTN_NORM);

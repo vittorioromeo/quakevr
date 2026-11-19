@@ -83,6 +83,13 @@ Notes on them:
 - **Drawbacks:** `self.solid == SOLID_NOT` cannot stand in for it (a coop key stays solid and still fires), so every
   touch function needs its line: about a dozen sites, each a place to forget. Maps that came to rely on the eager
   firing (none known) would change.
+- **Status (2026-11-19): fixed.** `item_taken` (vr_defs.qc), set by every pickup `itemTouch` wraps (health, ammo,
+  armour, keys, weapons, id's powerups and runes, Hipnotic's and Rogue's powerups, Dawn of the Machine's shards, head,
+  bunny, runes and upgrades; its Super Axe and bloody shotguns through `weapon_touch`); not taken, `itemTouch` returns
+  before the secret, the respawn and the targets. Hipnotic's and Rogue's own second `SUB_UseTargets` are gone; the Horn
+  of Conjuring keeps its own (charmed) and marks `ITEM_TAKEN_FIRED`; a draught ring is never taken (with OVERRIDE_DEST
+  `teleport_touch` fires its target). Rogue's random powerup installs its pickup where `itemTouch` calls it (three of
+  its five picks had none). Backpacks don't go through `itemTouch`. Test: `vr_pickup_test 19` (vr_itemrules_test.qc).
 
 ### 2. A session or instance lost by return code never ends the session, and frames without `xrWaitFrame` spin unpaced
 

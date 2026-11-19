@@ -344,6 +344,13 @@ float readytime; // Time after loading when the player is considered ready.
                  // Prevents shooting, grabbing/dropping weapons. (One for every client: BACKLOG.md,
                  // "Old QuakeC notes".)
 
+// itemTouch (honey_items.qc): whether the pickup it called (the item's th_die: health_touch, ammo_touch, key_touch...)
+// took the item. Cleared before the call; each pickup sets it where it takes (not at full health, ammo at the cap, a
+// key held, a hand that doesn't grip): only then the item's targets fire and a Honey secret item counts as found.
+// ITEM_TAKEN_FIRED: taken, and the pickup fired the targets itself (the Horn of Conjuring's, horn_active set).
+float item_taken;
+float ITEM_TAKEN_FIRED = 2;
+
 //
 //
 //

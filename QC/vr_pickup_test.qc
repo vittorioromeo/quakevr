@@ -1125,6 +1125,10 @@ void() VR_PickupTest_Frame =
     {
         VR_PalmGrabTest_Start(); // (a gun resting on the open off palm taken by closing it; VR_PalmGrabTest_Frame runs it on)
     }
+    else if(ask == 19)
+    {
+        VR_ItemTargetsTest_Run(); // (an item's targets fire only when it is taken: vr_itemrules_test.qc)
+    }
     self = oself;
 };
 #endif
