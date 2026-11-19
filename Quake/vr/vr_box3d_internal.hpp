@@ -428,8 +428,10 @@ struct Recovery
 [[nodiscard]] bool partCut(const RagdollBodies& r, int b);
 [[nodiscard]] int partsLeft(const RagdollBodies& r);
 
-// The most shapes a body has (a gun's convex pieces: vr_box3d_gun_pieces, at most this).
+// The most shapes a body has: a gun's convex pieces (vr_box3d_gun_pieces, at most maxGunPieces) and its seated magazine's
+// hull; a thrown blade's pieces and the skewered gibs' spheres on it (addSkeweredShapes: none past this).
 constexpr int maxBodyShapes = 32;
+constexpr int maxGunPieces = maxBodyShapes - 1; // (the magazine's one more)
 
 // The hulls made for models, by what they were made from (and the world's scale).
 struct PropHullKey
@@ -1044,7 +1046,7 @@ void joinHeldGuns(const qmodel_t* model, bool all);
 template <typename Corners>
 [[nodiscard]] const za::Vector<b3HullData*>& gunPieces(const PropHullKey& key, Corners&& corners)
 {
-    const int most = za::min(static_cast<int>(vr_box3d_gun_pieces.value), maxBodyShapes);
+    const int most = za::min(static_cast<int>(vr_box3d_gun_pieces.value), maxGunPieces);
     if(most != world->gunPiecesMost) // (the setting changed: made again, for the guns made from now on)
     {
         for(auto& [made, hulls] : world->gunPieces)
@@ -1456,6 +1458,8 @@ void strikeTest_f();    // vr_prop_strike_test (vr_box3d_striketest.cpp)
 void strikeTestFrame(); // (its next step, each server frame)
 void portalSleepTest_f();    // vr_physics_portal_sleep_test (vr_box3d_portaltest.cpp)
 void portalSleepTestFrame(); // (its next phase, each server frame)
+void gunShapesTest_f();      // vr_physics_gun_shapes_test (vr_box3d_portaltest.cpp)
+void gunShapesTestFrame();   // (its next phase, each server frame)
 [[nodiscard]] bool wanted();
 [[nodiscard]] b3BodyId toolJointBody(int num);
 void syncToolJoints();

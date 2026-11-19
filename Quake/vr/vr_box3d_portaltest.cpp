@@ -1,11 +1,14 @@
 // vr_box3d_portaltest.cpp -- vr_physics_portal_sleep_test: props asleep by a teleporter's gate and away from every gate
 // in vrteleporters (syncPortalCopies' sleeping props: a body asleep away from every gate is not looked at again until it
 // wakes or moves; one asleep astride a gate keeps its copy). REVIEW_NEXT_2026-11-18.md, finding 15.
+// vr_physics_gun_shapes_test: the guns lying in vrteleporters in their most pieces (vr_box3d_gun_pieces 32 or more): at
+// most maxGunPieces each, and the one with the most put astride a gate has a copy with every one of them (finding 18).
 // Split from vr_box3d_diag.cpp's tests; the shared declarations are in vr_box3d_internal.hpp.
 
 #include "vr_box3d_internal.hpp"
 #include "vr_progs.hpp"
 #include "vr_testkit.hpp"
+#include "vr_cvars.hpp"
 
 namespace box3d::detail
 {
@@ -231,5 +234,108 @@ void portalSleepTestFrame()
         portalCheck(!restingAway(*d), "and is looked at again");
         portalFinish();
     }
+}
+
+namespace
+{
+constexpr const char* gunTestName = "gunshapes";
+
+// The test under way: the gun lying with the most shapes, its shapes, the frames since it was put astride the gate.
+struct GunShapesTest
+{
+    bool on{false};
+    int gun{0};
+    int shapes{0};
+    int frames{0};
+    testkit::Tally tally;
+};
+GunShapesTest gunTest;
+
+void gunCheck(bool ok, const char* what)
+{
+    gunTest.tally.check(ok);
+    Con_Printf("%s: %s %s\n", gunTestName, ok ? "PASS" : "FAIL", what);
+}
+
+void gunFinish()
+{
+    gunTest.tally.verdict(gunTestName);
+    gunTest.on = false;
+}
+} // namespace
+
+// vr_physics_gun_shapes_test (vrteleporters, vr_box3d_gun_pieces 32 or more before the map: the guns lying there made in
+// their most pieces): each gun lying has at most maxGunPieces pieces (one more with a seated magazine); the one with the
+// most is put straddling the flush player gate (its entity moved, as QC would) and its copy there has as many shapes.
+void gunShapesTest_f()
+{
+    gunTest = GunShapesTest{};
+    if(!sv.active || !world || svs.maxclients < 1 || strcmp(sv.name, "vrteleporters") != 0 || vr_box3d_gun_pieces.value < 32.f)
+    {
+        gunCheck(false, "needs map vrteleporters with vr_box3d_gun_pieces 32 or more");
+        gunFinish();
+        return;
+    }
+    const progs::ServerVm vm;
+    Cmd_ExecuteString("setpos -256 336 24 0 90 0", src_command); // (the player out of the way)
+    int guns = 0, within = 0, most = 0;
+    for(int num = nextActiveSlot(0); num > 0 && num < static_cast<int>(world->slots.size()); num = nextActiveSlot(num))
+    {
+        const Slot& s = world->slots[static_cast<za::SizeT>(num)];
+        edict_t* e = num < qcvm->num_edicts ? EDICT_NUM(num) : nullptr;
+        if(!e || e->free || s.kind != Kind::Prop || !isGun(e) || B3_IS_NULL(s.body) || !b3Body_IsValid(s.body))
+        {
+            continue;
+        }
+        const int n = b3Body_GetShapeCount(s.body);
+        guns++;
+        within += n <= maxGunPieces + (s.mag ? 1 : 0);
+        Con_Printf("%s: %d %s: %d shapes\n", gunTestName, num, PR_GetString(e->v.model), n);
+        if(n > most)
+        {
+            most = n;
+            gunTest.gun = num;
+        }
+    }
+    gunCheck(guns > 0, va("guns lying (%d)", guns));
+    gunCheck(within == guns, va("each in at most %d pieces, its magazine one more (%d of %d)", maxGunPieces, within, guns));
+    gunCheck(most > 16, va("the most shapes a gun has, %d, are more than the copies' old 16", most));
+    if(!gunTest.gun)
+    {
+        gunFinish();
+        return;
+    }
+    // Straddling the gate, pointing through it: moved as QC moves a prop (feedProp: its body there, woken).
+    edict_t* e = EDICT_NUM(gunTest.gun);
+    store(glm::vec3{-256.f, 640.f, 24.f}, e->v.origin);
+    store(glm::vec3{0.f, 90.f, 0.f}, e->v.angles);
+    gunTest.shapes = most;
+    gunTest.on = true;
+}
+
+// Each server frame, before the step: the gun's copy, made by the last step's syncPortalCopies.
+void gunShapesTestFrame()
+{
+    GunShapesTest& t = gunTest;
+    if(!t.on || !world)
+    {
+        return;
+    }
+    Slot* s = testSlot(t.gun);
+    if(!s)
+    {
+        gunCheck(false, "the gun keeps its body");
+        gunFinish();
+        return;
+    }
+    const World::PortalCopy* c = copyOf(s->body);
+    if(!c && ++t.frames < 10)
+    {
+        return;
+    }
+    gunCheck(c != nullptr, va("the gun straddling the gate has its copy (after %d frames)", t.frames));
+    const int n = c ? b3Body_GetShapeCount(c->copy) : 0;
+    gunCheck(n == b3Body_GetShapeCount(s->body), va("its copy has every one of its shapes (%d of %d)", n, b3Body_GetShapeCount(s->body)));
+    gunFinish();
 }
 } // namespace box3d::detail

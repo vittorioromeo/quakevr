@@ -703,6 +703,7 @@ void registerCommands()
         Cmd_AddCommand("vr_physics_forcegrab", forcegrabCheck_f);
         Cmd_AddCommand("vr_physics_portals", portalInfo_f);
         Cmd_AddCommand("vr_physics_portal_sleep_test", portalSleepTest_f);
+        Cmd_AddCommand("vr_physics_gun_shapes_test", gunShapesTest_f);
         Cmd_AddCommand("vr_corpse_list", corpseList_f);
         Cmd_AddCommand("vr_corpse_drop", corpseDrop_f);
         Cmd_AddCommand("vr_corpse_poses", corpsePoses_f);

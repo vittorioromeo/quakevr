@@ -655,6 +655,10 @@ vr_physics_portal_sleep_test` (`portalsleep: N passed, M failed`; `vr_box3d_port
 player gate keeps its copy every step, asleep too, and the copy collides in the room beyond; crates asleep away from the
 gates are not looked at (`Slot::restBody`) and have none; one slid into its gate gets its copy; one moved astride a gate
 while asleep (`b3Body_SetTransform`, no wake) gets it at the next step. `vr_physics_portals` lists the copies.
+A body's shapes (finding 18): `vr_box3d_gun_pieces 64; map vrteleporters; wait120; vr_physics_gun_shapes_test`
+(`gunshapes: N passed, M failed`): each gun lying in at most 31 pieces (`maxGunPieces`, its seated magazine's hull one
+more: `maxBodyShapes` 32 in all, as the shape lists hold; a blade's skewered gibs stop there too), and the gun with the
+most (the chainsaw, 31) put straddling the flush player gate has a copy with every one of them (16 before).
 Box3D on the pool (ROUND21.md, "Box3D on the pool"): `vr_physics_mtbench [<bodies> [<steps>]]` steps a world of its own
 (boxes in toppling columns) with 1, 2, 3, 4, 6, 8, 16 and all the pool's workers from the same start: each count's step
 time and a hash of every body after (must say `the same with every worker count`); `vr_physics_steptime` prints the

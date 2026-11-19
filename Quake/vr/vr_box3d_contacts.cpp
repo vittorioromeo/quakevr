@@ -491,7 +491,7 @@ void syncPortalCopies(float dt)
         def.rotation = toB3(glm::normalize(glm::quat_cast(gate.turn) * fromB3(pose.q)));
         def.userData = b3Body_GetUserData(body);
         c.copy = b3CreateBody(world->id, &def);
-        za::Array<b3ShapeId, 16> shapes;
+        za::Array<b3ShapeId, maxBodyShapes> shapes; // (every shape: a gun's pieces and magazine, a blade's gibs)
         const int count = b3Body_GetShapes(body, shapes.data(), static_cast<int>(shapes.size()));
         for(int i = 0; i < count; i++)
         {

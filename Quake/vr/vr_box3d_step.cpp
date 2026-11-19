@@ -1506,6 +1506,7 @@ extern "C" void VR_PhysicsFrameEnd(void)
         pressTestFrame(); // (vr_prop_press_test under way: the hand's next target)
         strikeTestFrame(); // (vr_prop_strike_test under way: the hand's next move)
         portalSleepTestFrame(); // (vr_physics_portal_sleep_test under way: the last step's copies, the next phase)
+        gunShapesTestFrame(); // (vr_physics_gun_shapes_test under way: the gun's copy)
         nav::serverFrame(); // (the props' marks on the navmesh: their rests looked at, their tiles' rebuilds joined)
     }
     QVR_PROFILE("box3d");
