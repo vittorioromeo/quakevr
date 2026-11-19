@@ -829,15 +829,8 @@ def main():
     if count != 1:
         sys.exit("ad_import: monster pellet speed hook missing")
     src["ai_projectiles.qc"] = projectile
-    # Mechanical: Quake VR's beam temp entities (TE_LIGHTNING1/2/3, TE_BEAM) carry a beam id byte after the entity
-    # (the client's VR_ParseBeamEntity; ours write 0 for a monster's). Every WriteEntity in AD's code (not commented out)
-    # is one of those beams' entity: the byte follows it, else the client reads the next message one byte off.
-    beam_rx = re.compile(r"^([ \t]*)WriteEntity[ \t]*\([ \t]*(MSG_\w+)[ \t]*,([^;\n]*)\);", re.M)
-    beam_ids = 0
-    for fn in src:
-        src[fn], n = beam_rx.subn(lambda m: "%sWriteEntity (%s,%s); WriteByte (%s, 0);" % (
-            m.group(1), m.group(2), m.group(3), m.group(2)), src[fn])
-        beam_ids += n
+    # Mechanical: the beam id byte after every beam's entity (qc_import.beam_id_bytes, every import's rule).
+    beam_ids = qc_import.beam_id_bytes(src)
     mod = qc_import.Mod(
         name="Arcane Dimensions", short="AD", script="ad_import.py", folder="ad", prefix=PREFIX, skip=SKIP,
         headers=HEADERS, keep_prefixes=(BRIDGE,), qvr_names=QVR_NAMES, own_names=OWN_NAMES, keys=map_keys(rel),

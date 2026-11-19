@@ -807,17 +807,6 @@ float() AD_ChangelevelTouch =
 // ---------------------------------------------------------------------------------------------------------------------
 // Our monsters in AD maps: AD's spawn flags and keys (decision 1)
 
-// AD's delayed spawn (64) and angry spawn (128): the monster waits for its trigger (as MG's deferred ones, invisible,
-// not solid), then appears (with AD's spawn effect unless 32) and, angry, goes for whoever triggered it.
-void() AD_MonsterRunStart =
-{
-    entity oldact = activator;
-    activator = self.MG_monster_activator;
-    self.MG_monster_start();
-    if(VR_SF_Has(self, VR_SF_MON_ANGRY)) monster_use();
-    activator = oldact;
-};
-
 // One of our entities used by AD's triggers and items: AD's code keeps its own activator (ad_activator), ours reads
 // activator: the player AD's trigger names, when ours names none. Wherever AD's data is (its entities in any map:
 // section 16; P1b's loose ends: in AD maps only before 2026-10-12).
@@ -836,56 +825,6 @@ void() AD_ShareActivator =
     {
         ad_activator = activator;
     }
-};
-
-void() AD_MonsterActivate =
-{
-    AD_SyncActivator();
-    if(!self.MG_deferred) return;
-    self.MG_deferred = FALSE;
-    self.solid = self.MG_monster_solid;
-    self.movetype = self.MG_monster_move;
-    setmodel(self, self.MG_monster_model);
-    setsize(self, self.MG_monster_mins, self.MG_monster_maxs);
-    self.flags = self.flags | FL_MONSTER;
-    self.MG_monster_activator = activator;
-    spawn_tdeath(self.origin, self);
-    if(!VR_SF_Has(self, VR_SF_MON_NOSPAWNFX)) spawn_tfog(self.origin);
-    self.think = AD_MonsterRunStart;
-    self.nextthink = time + 0.1;
-};
-
-// walk/fly/swimmonster_start, in an AD map: AD's keys (nomonstercount), and its delayed spawn. TRUE: deferred.
-float(void() start) AD_MonsterPrepare =
-{
-    if(!AD_Rules())
-    {
-        return FALSE;
-    }
-    if(self.ad_nomonstercount)
-    {
-        total_monsters = total_monsters - 1;
-    }
-    if(!VR_SF_Has(self, VR_SF_MON_DELAYED))
-    {
-        return FALSE;
-    }
-    self.MG_monster_start = start;
-    self.MG_monster_model = self.model;
-    self.MG_monster_mins = self.mins;
-    self.MG_monster_maxs = self.maxs;
-    self.MG_monster_solid = self.solid;
-    self.MG_monster_move = self.movetype;
-    self.MG_deferred = TRUE;
-    self.use = AD_MonsterActivate;
-    self.nextthink = 0;
-    self.think = SUB_Null;
-    self.takedamage = DAMAGE_NO;
-    self.solid = SOLID_NOT;
-    self.movetype = MOVETYPE_NONE;
-    self.flags = self.flags - (self.flags & FL_MONSTER);
-    setmodel(self, "");
-    return TRUE;
 };
 
 // Randomized Enemies swapped `e` for another kind before it spawned (vr_run_enemyrandom.qc): AD's keys that only meant

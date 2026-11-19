@@ -29,6 +29,7 @@ vr_ad_defs.qc
 vr_ad_guns_defs.qc
 // Whose meaning a map's spawnflags have (Quake's, Machine Games', Arcane Dimensions'): VR_SF_Has, VR_OtherFlags.
 vr_spawnflags.qc
+vr_copper_defs.qc
 // AD's monsters with Quake VR's treatment: their fields and hooks (vr_ad_monsters.qc defines them).
 vr_ad_mondefs.qc
 // Armed grunts: their fields and hooks (ai.qc, combat.qc and the grunt's file call them; vr_armedgrunt.qc defines them).
@@ -543,6 +544,7 @@ ad/ad_mon_bossjudicator.qc
 ad/ad_mon_bossnour.qc
 // ad_import.py: end
 vr_ad_bridge.qc
+vr_rules_monsters.qc
 vr_ad_bridge_test.qc
 vr_ad_items.qc
 vr_ad_player.qc
@@ -729,3 +731,5 @@ copper/cu_m_shalrath.qc
 copper/cu_m_enforcer.qc
 copper/cu_m_oldone.qc
 // copper_import.py: end
+// Copper's rules on our entities, its world logic in Copper maps (DWELL.md P1b).
+vr_copper_bridge.qc

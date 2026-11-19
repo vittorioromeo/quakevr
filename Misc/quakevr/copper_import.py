@@ -95,6 +95,22 @@ PATCHES = [
          "noTint = (cvar(\"gl_cshiftpercent\") < CSHIFT_CUTOFF); // QVR: Copper as shipped: QC reads `x = a && b` as "
          "`(x = a) && b` (&& cvar(\"gl_farclip\") && !coop)", 1),
     )
+] + [
+    # The bridge (QC/vr_copper_bridge.qc, DWELL.md P1b): Copper's code meets ours in a Copper map.
+    ("combat.qc", "T_Damage =\n{\n\tT_DamageApply(targ, inflictor, attacker, damage, dmgtype);",
+     "T_Damage =\n{\n\tif (VR_CU_DamageOurs(targ, inflictor, attacker, damage)) return; // QVR: ours take it by our "
+     "T_Damage (vr_copper_bridge.qc)\n\tT_DamageApply(targ, inflictor, attacker, damage, dmgtype);", 1,
+     "bridge: Copper's T_Damage on one of ours (the player, our monsters) is our T_Damage"),
+    ("client.qc", "\tif (!isKex)\n\t{\n\t\tstuffcmd(client, \"echo Autosaving...; wait; save \");\n"
+     "\t\tstuffcmd(client, savename);\n\t\tstuffcmd(client, \"\\n\");\n\t}\n",
+     "\tVR_CU_Autosave(); // QVR: our autosave (vr_copper_bridge.qc), not a save over a named slot\n", 1,
+     "bridge: target_autosave makes our autosave"),
+    ("fog.qc", "\t\tstuffcmd(client, \"\\nfog \");\n\t\tstuffcmd_float(client, density);\n\t\tstuffcmd(client, \" \");\n"
+     "\t\tstuffcmd_float(client, color_x * (icantsee + 1));\n\t\tstuffcmd(client, \" \");\n"
+     "\t\tstuffcmd_float(client, color_y * (icantsee + 1));\n\t\tstuffcmd(client, \" \");\n"
+     "\t\tstuffcmd_float(client, color_z * (icantsee + 1));\n\t\tstuffcmd(client, \"\\n\");\n",
+     "\t\tMG_SetFog(client, density, color * (icantsee + 1)); // QVR: the one fog path (svc_fog, vr_mg_fog.qc), as MG's "
+     "and AD's\n", 1, "bridge: Copper's fog (worldspawn, its fog blends) by our svc_fog path, not a stuffed command"),
 ]
 
 
@@ -148,9 +164,13 @@ def main():
         report_head=["Copper import (Misc/quakevr/copper_import.py); regenerate, never edit.",
                      "Source: github.com/itslunaranyo/copper master 379dd5d, sha256 (progs.src and *.qc) " + PINNED,
                      "Map keys: %d (its /*QUAKED keys and Dwell's maps' keys)" % len(keys)])
+    mod.keep_prefixes = ("VR_CU_",)  # the bridge's functions the patches call (QC/vr_copper_bridge.qc): never renamed
+    mod.qvr_names = {"MG_SetFog"}     # Quake VR's own the patches call (the one fog path, vr_mg_fog.qc)
     if args.check:
         mod.write_dir = qc_import.check_dir(mod, args.check)
+    beam_ids = qc_import.beam_id_bytes(src)  # (mechanical, every import's: the beam id byte after a beam's entity)
     report, _ = qc_import.run(mod, src)
+    report.append("Beam id bytes added (Quake VR's beam temp entities): %d" % beam_ids)
     report.append("Reviewed patches: %d" % len(PATCHES))
     report += ["  %s: %s" % (p[0], p[4]) for p in PATCHES]
     qc_import.write_report(mod, report)

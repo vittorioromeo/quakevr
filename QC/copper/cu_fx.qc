@@ -23,7 +23,7 @@ void(vector cu_a, vector cu_b, entity cu_who) cu_fx_beam =
 {
 	WriteByte (cu_MSG_BROADCAST, cu_SVC_TEMPENTITY);
 	WriteByte (cu_MSG_BROADCAST, cu_TE_LIGHTNING1);
-	WriteEntity (cu_MSG_BROADCAST, cu_who);
+	WriteEntity (cu_MSG_BROADCAST, cu_who); WriteByte (cu_MSG_BROADCAST, 0);
 	WriteCoord (cu_MSG_BROADCAST, cu_a_x);
 	WriteCoord (cu_MSG_BROADCAST, cu_a_y);
 	WriteCoord (cu_MSG_BROADCAST, cu_a_z);

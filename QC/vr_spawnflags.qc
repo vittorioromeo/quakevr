@@ -92,6 +92,9 @@ float(entity e, float m) VR_SF_Has =
     return b != 0 && (e.spawnflags & b) != 0;
 };
 
+// walk/fly/swimmonster_start: another ruleset's delayed spawn on our monsters (vr_rules_monsters.qc). TRUE: deferred.
+float(void() start) VR_SF_MonsterPrepare;
+
 // The map's spawnflags mean another ruleset's flags (MG's, AD's): the Quake-family meanings Quake VR's monsters and
 // entities give them are off (statues, trigger spawns, silent wake-ups...): the 76 VR_OtherFlags gates (decision 19).
 float() VR_OtherFlags =

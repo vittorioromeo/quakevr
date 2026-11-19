@@ -575,6 +575,7 @@ void() worldspawn =
     footsteps = 1;
 
     AD_WorldSpawn(); // AD support: AD's world setup in an AD map (vr_ad_bridge.qc)
+    CU_WorldSpawn(); // Copper's world setup in a Copper map (vr_copper_bridge.qc)
 
     VR_ARENA_WorldSpawn(); // QVR: Survival Arena's wave director (vr_arena.qc; nothing runs unless the map is an arena map or vr_arena is set)
 };
@@ -614,6 +615,7 @@ void() StartFrame =
     MGH_PowerupFrame();
     MG3_Frame();
     AD_Frame(); // AD support: AD's frame in an AD map (vr_ad_bridge.qc)
+    CU_Frame(); // Copper's frame in a Copper map (vr_copper_bridge.qc)
     VR_FuelTank_Frame(); // AD support: the fuelled guns lying about have their tanks (vr_ad_enemyguns.qc)
     VR_FlailHead_Frame(); // AD support: the flails lying about have their heads (vr_ad_melee.qc)
     VR_MG3_Weapons_Frame(); // the Super Axe's glow and chain (vr_mg3_weapons.qc)

@@ -1508,6 +1508,15 @@ const char *ED_ParseEdict (const char *data, edict_t *ent)
 			q_snprintf (com_token, sizeof (com_token), "0 %s 0", temp);
 		}
 
+		if ((key->type & ~DEF_SAVEGLOBAL) == ev_function && !ED_FindFunction (com_token) && VR_Rules_KeyPrefix () &&
+			ED_FindFunction (va ("%s%s", VR_Rules_KeyPrefix (), com_token)))
+		{
+			// QVR: a map's function key names its mod's function by the mod's own name (an info_notnull's "use"
+			// "func_void" in a Copper map): the imported ruleset's renamed one (cu_func_void)
+			char renamed[sizeof (com_token)];
+			q_snprintf (renamed, sizeof (renamed), "%s%s", VR_Rules_KeyPrefix (), com_token);
+			q_strlcpy (com_token, renamed, sizeof (com_token));
+		}
 		if ((key->type & ~DEF_SAVEGLOBAL) == ev_function && !ED_FindFunction (com_token)) // QVR: see ed_missingfunction
 		{
 			if (q_strcasecmp (ed_missingfunction, com_token))

@@ -135,12 +135,7 @@ void(entity cu_client, string cu_savename) cu_autosave =
 {
 	// quake rerelease default behavior is to quicksave over s0,
 	// so just go ahead and do that in that engine for consistency
-	if (!cu_isKex)
-	{
-		stuffcmd(cu_client, "echo Autosaving...; wait; save ");
-		stuffcmd(cu_client, cu_savename);
-		stuffcmd(cu_client, "\n");
-	}
+	VR_CU_Autosave(); // QVR: our autosave (vr_copper_bridge.qc), not a save over a named slot
 }
 
 // this is no longer called
