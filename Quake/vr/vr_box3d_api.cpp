@@ -102,10 +102,11 @@ edict_t* spawnClass(const char* classname, const glm::vec3& origin, const glm::v
     }
     const progs::ServerVm vm;
     func_t fn = qvr::progs::findFunction(classname);
-    if(!strncmp(classname, "ad_", 3)) // AD support: explicit AD variants in every spawn menu
+    const char* plain = nullptr;
+    if(const int prefixed = VR_Rules_ToolgunPrefixed(classname, &plain)) // explicit ad_/cu_ variants (vr_rules.cpp)
     {
-        if(!VR_AD_RulesOn() && !VR_AD_ToolgunSpawnsOutside(classname + 3)) { return nullptr; } // AD support
-        classname += 3; // AD support: retain the canonical entity classname for VR and AD tests
+        if(prefixed < 0) { return nullptr; }
+        classname = plain; // retain the canonical entity classname for VR and AD tests
     }
     else // the version the map's ruleset spawns, as ED_LoadFromFile (vr_rules.cpp)
     {

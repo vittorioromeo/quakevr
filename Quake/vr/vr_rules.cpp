@@ -96,17 +96,21 @@ struct Ruleset
     Names worldSignals; // its worldspawn keys
     Names ownedClashes; // shared classnames whose imported version plays by its rules although Quake VR keeps the kind
     int (*spawnsOutside)(const char* classname); // outside its rules: its <prefix><classname> spawns this one (or null)
+    int (*toolgunOutside)(const char* classname); // outside its rules: the toolgun's explicit <prefix><classname> spawns
 };
 
 bool never() { return false; }
 
 constexpr Ruleset rulesets[] = {
-    {qvr::rules::ID, "Quake", nullptr, false, 0, never, {}, {}, {}, {}, nullptr},
-    {qvr::rules::MG, "Machine Games", nullptr, false, 0, never, {}, {}, {}, {}, nullptr},
+    {qvr::rules::ID, "Quake", nullptr, false, 0, never, {}, {}, {}, {}, nullptr, nullptr},
+    {qvr::rules::MG, "Machine Games", nullptr, false, 0, never, {}, {}, {}, {}, nullptr, nullptr},
     {qvr::rules::AD, "Arcane Dimensions", "ad_", true, 2, qvr::ad::folderMounted, names(adNotSignals),
-        names(adNotSignalPrefixes), names(adWorldSignals), names(adOwnedClashes), VR_AD_SpawnsOutside},
-    // Copper's (DWELL.md 5.2): its signals (its 48 own classnames, the worldspawn _tb_mod key) come with its import (P1a).
-    {qvr::rules::COPPER, "Copper", "cu_", false, 2, never, {}, {}, {}, {}, nullptr},
+        names(adNotSignalPrefixes), names(adWorldSignals), names(adOwnedClashes), VR_AD_SpawnsOutside,
+        VR_AD_ToolgunSpawnsOutside},
+    // Copper's (DWELL.md 5.2): its code is imported (QC/copper, cu_<name>, P1a) but inert: it detects nothing yet and
+    // none of its classnames spawns outside its rules; its signals (its 48 own classnames, the worldspawn _tb_mod
+    // key) and its data come in P1b.
+    {qvr::rules::COPPER, "Copper", "cu_", false, 2, never, {}, {}, {}, {}, nullptr, nullptr},
 };
 
 // Under an imported ruleset (its <prefix><classname> exists), whether its version spawns a classname Quake VR has too:
@@ -311,4 +315,20 @@ extern "C" const char* VR_Rules_SpawnName(const char* classname, int ours)
         if(o.prefix && o.spawnsOutside && o.spawnsOutside(classname)) { return va("%s%s", o.prefix, classname); }
     }
     return nullptr;
+}
+
+// The toolgun's explicit variants (box3d::spawnClass): a classname with a ruleset's prefix (ad_monster_gaunt,
+// cu_func_bobbing) spawns that ruleset's version only under its rules, or where its row lets the toolgun make it
+// outside them (AD's toolgunOutside). Returns 0 for a classname with no ruleset's prefix, else 1 (`*plain` the
+// classname without it) or -1 (refused).
+extern "C" int VR_Rules_ToolgunPrefixed(const char* classname, const char** plain)
+{
+    for(const Ruleset& r : rulesets)
+    {
+        const size_t n = r.prefix ? strlen(r.prefix) : 0;
+        if(!n || strncmp(classname, r.prefix, n)) { continue; }
+        *plain = classname + n;
+        return mapRules.id == r.id || (r.toolgunOutside && r.toolgunOutside(classname + n)) ? 1 : -1;
+    }
+    return 0;
 }

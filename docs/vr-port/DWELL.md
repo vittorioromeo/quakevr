@@ -403,6 +403,71 @@ own classnames can be a row too and the 17 guards go. `VR_OtherFlags` (83) stays
 
 Total: about 37-61 agent-days. P0.5 is the gate: it proves the generic mechanism on AD and MG before Copper uses it.
 
+### 9.1 Built: P1a, Copper's QuakeC in the progs, inert (2026-11-19, branch `agent/copper`)
+
+- **The census as a tool**: `Misc/quakevr/spawn_census.sh <label> [coop]` and `spawn_census.py compare A B [prefix*]`
+  (TESTING.md "The spawn census"): 168 maps of every campaign and AD, saved 3 frames after spawn, compared global by
+  global and field by field. Two runs of one build are identical (the rulesets' S3 census and today's base: 168/168).
+- **One importer**: `Misc/quakevr/qc_import.py` holds the import (tokenizer, renaming, header filtering, builtins,
+  progs.src block, `--check`); a mod is a `Mod` config: prefix, folder, skipped files, headers, kept map keys,
+  preprocessor symbols, entry points dropped or not. `ad_import.py` is AD's config (its pin, its patches, its report
+  lines) and writes the same `QC/ad` as before; `copper_import.py` is Copper's. An import sees Quake VR's QC and the
+  imports before it in progs.src, never its own or a later one (so AD's output cannot depend on Copper's). Re-running
+  AD's import first said 17 files differ: hand edits made in `QC/ad` since the 2026-10-16 cleanup; they are AD
+  patches now, and `ad_import.py --check` says 0 of 142 files differ.
+- **Copper's import** (`QC/copper/`, 61 files, 35,475 lines, `COPPER_IMPORT.txt`): master `379dd5d` pinned by one
+  SHA-256 over its progs.src and `.qc` files. Every name `cu_<name>`; `defs.qc` is a header (its system section and
+  builtin declarations dropped, the rest filtered to what the code uses: 116 of 298 statements); CSQC left out
+  (`csprogs.src` is not imported and `NO_CSQC` is taken as defined; its 3 stat fields kept, Copper's own NO_CSQC build
+  needs them); `test.qc` skipped; the engine's entry points' definitions dropped (StartFrame, PlayerPreThink,
+  PlayerPostThink, ClientConnect, ClientDisconnect, ClientKill, main), the ones its other code calls kept renamed
+  (PutClientInServer, SetNewParms, SetChangeParms). All 67 builtins it uses are Quake VR's (65 by name, `centerprint2`
+  and `checkextension` by number): no new engine builtin. Map keys: its /*QUAKED keys and the keys Dwell's 24 maps set
+  (170); 29 that Quake VR has with the same type stay bare (`wait`, `delay`, `speed`, `lip`, `dmg`...); 20 others
+  are `cu_<key>` for P1b's engine fill (as AD's `ad_<key>`). A field alias (`.float t_length = length;`) is never
+  shared (new generic rule; AD has none). `fx.qc`'s `#define`s name Copper's fields: renamed with them.
+- **Reviewed patches** (`PATCHES` in the script): 17 precedence patches parenthesised as fteqcc reads them; two of them
+  are "Copper as shipped" look-alike bugs for P1b to decide with AD's: `WaterMove`'s gasp test (`a || b && c` is
+  `(a || b) && c`) and `t_void.qc`'s `noTint = a && b && !coop` (QC: `noTint = a`). Mechanical: the CSQC stat fields
+  out of the `#ifndef`, and `T_RadiusDamage`'s default damage type passed explicitly at its two short calls (fteqcc
+  leaves it undefined, Q105). Warnings F210 (models precached through Copper's helpers) and F323 (one loop's tail) are
+  off from `cu_builtins.qc` on: Copper's files are the last in progs.src.
+- **Inert, proven**: the census over all 168 maps is identical (`compare scratch/census_base scratch/census_copper
+  "cu_*"`: 168 identical, 0 different). The only new names in the saves are Copper's globals and its field aliases
+  of shared fields (`cu_include`/`cu_model2` = `wad`, `cu_exclude`/`cu_model3` = `map`, `cu_rand` = `healamount`...),
+  the same storage under a second name.
+  Copper's spawn functions are reached only through the COPPER row (`VR_Rules_SpawnName`; it detects nothing) and the
+  toolgun's explicit `cu_` names: the toolgun's prefixed variants are now one rule for every row
+  (`VR_Rules_ToolgunPrefixed`, vr_rules.cpp; AD's `toolgunOutside` is its row's data), so `cu_<classname>` spawns only
+  under Copper's rules. The AD and MG tests and the scenario check pass as before (ROUND25).
+- **Budget** (the dev build; the fast fteqcc):
+
+  | | Before | With Copper | Change |
+  |---|---:|---:|---|
+  | globals | 76,360 | 79,737 | +3,377 (version 7 progs: no 65,535 limit) |
+  | entity fields (slots) | 4,015 | 4,089 | +74: +296 B an edict (16,060 → 16,356 B); `max_edicts` 16,384 reserves +4.8 MB |
+  | statements | 707,180 | 752,194 | +45,014 (+6.4%) |
+  | functions | 21,190 | 23,935 | +2,745 |
+  | strings | 1,120,800 B | 1,175,796 B | +55 KB |
+  | progs.dat | 13.99 MB | 14.91 MB | +0.92 MB |
+  | compile (fteqcc, 3 runs) | 3.36-3.74 s | 3.68-3.73 s | about +0.3 s |
+  | a save (e1m1, census) | 518,650 B | 520,012 B | +0.26%: Copper's globals |
+
+- **FGD**: `fgdgen.py` reads Copper's `/*cu:QUAKED` comments: the 45 classnames only Copper has get entries in a new
+  group "Copper" (described as Copper's, spawning under its rules); no existing entry changed (`--check` green, 432
+  entities).
+- **`check_copper_entities.py`** (Dwell's 24 maps, as `check_mg3_entities.py`): 133 classnames, 90 Quake VR's, 29
+  Copper's, 14 missing: exactly Dwell's own (2.1: `monster_kamikaze` 334, `monster_brute` 131, `misc_crystal` 99,
+  `monster_excavator` 99, `func_fade` 84...; 866 placements). 12 unknown keys: light-compiler keys and Dwell's own
+  (`corpsetime`, `locksounds`, `skin_override`, `track_intermission`, `wateralpha`).
+- **S4, one content-presence answer: skipped again.** `VR_Content(id)` would replace `VR_Pack_Hipnotic()`,
+  `VR_Pack_Rogue()` (one line each) and 30 `cvarh_vr_ad_mounted` reads by one function and an id table: a rename, no
+  code removed, while the four-state `vr_*_status` cvars must stay for the menus, the installer and tests. Dwell's data
+  switch is not built yet (its discovery and pin are P1b's engine work), so there is still no new row to share it.
+  Do it with Dwell's switch in P1b, if that switch would otherwise add a second QC reader.
+- **Left for P1b**: the engine's `cu_<key>` fill in Copper maps; Copper's world setup (its `worldspawn`, light
+  styles) and what its dropped `StartFrame` did; the precedence look-alikes above; the COPPER row's signals and data.
+
 ---
 
 ## 10. Open questions for Vittorio (real decisions only)
