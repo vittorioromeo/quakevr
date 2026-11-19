@@ -165,6 +165,25 @@ then run on workers, with the stepping thread's QuakeC VM lent (`qcvm` and `pr_g
 only read the entities and the world's state, count with an atomic, and never print (`vr_debug_box3d 2` steps on one
 thread).
 
+**No lock and no `cvars::Override` held across a call that can run QuakeC or reach `Host_Error`** (a builtin, a
+`progs::callQc`, a touch or think, `SV_Impact`, anything under the server's frame). `Host_Error` and `Host_EndGame`
+`longjmp` back to `_Host_Frame` over the C++ frames between: no destructor runs, so a `za::LockGuard`'s mutex would
+stay locked for good. `VR_OnHostError` (vr_hosterror.cpp), called before the jump, puts back what is frame-scoped:
+every `cvars::Override` still alive (each named in the console: a sign of a broken rule; `vr_ragtest.cpp`'s scenes are
+the known ones), slow motion's open pair (`VR_PhysicsEntityBegin` without its End), compatibility mode's shot point and
+the profiler's open scopes. A new begin/end pair or flag that QuakeC can run inside gets its reset there (a
+`<system>::onHostError()` in its list); a lock gets none: take it after the QuakeC call, or copy what it guards first.
+`vr_hosterror_test` checks the list (a QuakeC error raised inside an open pair).
+
+**The sound's channels are the mixer's while a mix is on the pool.** The frame's mix runs on a worker while the screen
+draws (snd_dma.c `S_MixKick`, until the next `S_MixJoin`): main-thread code reads `snd_channels`, `paintedtime` or
+`soundtime`, or a `channel_t` it kept, only after `S_MixJoin ()` (every sound entry point joins: `S_StartSound`,
+`S_Update`, ...; hooks called from them run joined). The mixer's own hooks (`VR_SndPaint` and the rest: vr_audio.cpp's
+head says which runs where) read them on either thread. In development builds (every build but a release) q_sound.h
+checks each read of those names in the VR module's C++ (`S_MixCheckAt`): one on the main thread with a mix posted
+ends the game with the crash report naming its file and line (`vr_snd_mixcheck_test` proves the check; `fatal` makes
+it end the game on purpose). A channel kept by pointer is not checked, nor Ironwail's own C (it joins by hand).
+
 ## GL objects
 
 GL names are plain ids (`gfx::Texture`, `gfx::Target`: no destructor), made and deleted by their system's functions

@@ -353,6 +353,7 @@ void Host_EndGame (const char *message, ...)
 	Con_DPrintf ("Host_EndGame: %s\n",string);
 
 	PR_SwitchQCVM(NULL);
+	VR_OnHostError (); // QVR: what the longjmp would leave open put back (vr/vr_hosterror.cpp)
 
 	if (sv.active)
 		Host_ShutdownServer (false);
@@ -388,6 +389,7 @@ void Host_ReportError (const char *error, ...)
 	inerror = true;
 
 	PR_SwitchQCVM(NULL);
+	VR_OnHostError (); // QVR: what the longjmp would leave open put back (vr/vr_hosterror.cpp)
 
 	SCR_EndLoadingPlaque ();		// reenable screen updates
 

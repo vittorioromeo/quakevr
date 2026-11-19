@@ -52,7 +52,7 @@ void stopLoop()
 {
     if(st.ch)
     {
-        S_MixJoin();
+        S_MixJoin(); // (a read of the channels on the main thread: the pool's mix done first, S_MixKick)
         if(channel_t* ch = playing())
         {
             ch->sfx = nullptr;
@@ -107,7 +107,7 @@ void frame(bool on)
         return;
     }
     const float pitch = pitchLow + (pitchHigh - pitchLow) * st.level;
-    S_MixJoin();
+    S_MixJoin(); // (a read of the channels on the main thread: the pool's mix done first, S_MixKick)
     channel_t* ch = playing();
     if(!ch)
     {

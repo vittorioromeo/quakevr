@@ -169,6 +169,8 @@ vr_hitreact_test.qc
 vr_burning.qc
 vr_burning_test.qc
 vr_systems_test.qc
+// vr_hosterror_test: a QuakeC error raised from C++ (Quake/vr/vr_hosterror.cpp).
+vr_hosterror_test.qc
 // The flare gun (after vr_burning.qc: its flares set things on fire).
 vr_flaregun.qc
 // Incandescent blades (after vr_burning.qc and vr_walltorch.qc: it sets on fire, it finds their flames).

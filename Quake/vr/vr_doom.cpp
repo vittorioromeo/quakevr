@@ -806,7 +806,7 @@ void hostSoundStart(void*, int channel, const char* lump, const void* dmx, int l
 
 channel_t* findChannel(int channel)
 {
-    S_MixJoin(); // (the pool's mix done first: S_MixKick)
+    S_MixJoin(); // (a read of the channels on the main thread: the pool's mix done first, S_MixKick)
     for(int i = 0; i < total_channels && i < MAX_CHANNELS; i++)
     {
         channel_t& ch = snd_channels[i];

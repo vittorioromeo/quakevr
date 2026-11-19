@@ -1347,6 +1347,14 @@ void S_MixJoinAt (const char *file, int line)
 	}
 }
 
+// QVR: q_sound.h's checked reads (development builds, the VR module's C++): on the main thread the channels and the
+// mix's clock are read only with no mix on the pool; off it, they are the mix's own reads (its hooks)
+void S_MixCheckAt (const char *file, int line)
+{
+	if (VR_OnMainThread () && snd_mixstats.posted)
+		VR_SndMixRace (file, line);
+}
+
 static void S_Update_ (void)
 {
 	unsigned int	endtime;

@@ -1947,7 +1947,7 @@ void motorStop(int hand)
 {
     if(motor.ch[hand])
     {
-        S_MixJoin();
+        S_MixJoin(); // (a read of the channels on the main thread: the pool's mix done first, S_MixKick)
         if(channel_t* ch = motorPlaying(hand))
         {
             ch->sfx = nullptr;
@@ -1979,7 +1979,7 @@ void motorFrame(int hand, const Spin& s)
     {
         motor.pitch[hand] = motorPitchLow + (1.f - motorPitchLow) * u;
     }
-    S_MixJoin();
+    S_MixJoin(); // (a read of the channels on the main thread: the pool's mix done first, S_MixKick)
     channel_t* ch = motorPlaying(hand);
     if(!ch)
     {

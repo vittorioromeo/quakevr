@@ -1666,19 +1666,48 @@ void configFrame()
     wasOpen = open;
 }
 
-cvars::Override::Override(cvar_t& var, float value) : var(var), was(var.string)
+namespace
 {
+cvars::Override* newestOverride = nullptr; // the Overrides alive, newest first (Override::older): the main thread's
+} // namespace
+
+cvars::Override::Override(cvar_t& var, float value) : var(var), was(var.string), older(newestOverride)
+{
+    newestOverride = this;
     Cvar_SetValueQuick(&var, value);
 }
 
-cvars::Override::Override(cvar_t& var, const char* value) : var(var), was(var.string)
+cvars::Override::Override(cvar_t& var, const char* value) : var(var), was(var.string), older(newestOverride)
 {
+    newestOverride = this;
     Cvar_SetQuick(&var, value);
 }
 
 cvars::Override::~Override()
 {
     Cvar_SetQuick(&var, was.cStr());
+    Override** link = &newestOverride; // (the newest, unless one was ended out of order: za::Optional's reset)
+    while(*link && *link != this)
+    {
+        link = &(*link)->older;
+    }
+    if(*link)
+    {
+        *link = older;
+    }
+}
+
+int cvars::Override::putBackAll()
+{
+    int n = 0;
+    while(Override* o = newestOverride)
+    {
+        Con_Printf("Host_Error: %s put back to \"%s\" (a cvars::Override the error jumped out of)\n", o->var.name,
+            o->was.cStr());
+        o->~Override(); // its scope's end, which the longjmp skips: the value back, its string freed, out of the list
+        ++n;
+    }
+    return n;
 }
 
 void cvars::Snapshot::keep(cvar_t& var)

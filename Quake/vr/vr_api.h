@@ -102,6 +102,9 @@ void VR_PhysicsEntityEnd (struct edict_s *ent, int num, double world); // ... it
 double VR_ThinkFrame (double frametime); // SV_RunThink: how far ahead a think is due (the world's frame, also
 							// for an entity in the player's time)
 void VR_HostFrameEnd (void);	// end of _Host_Frame, after the screen and the sound (the motion recorder's row)
+void VR_OnHostError (void);	// Host_Error, Host_EndGame, before the server's shutdown and the longjmp: the frame-scoped
+							// state the jump leaves open put back (cvars::Override scopes, slow motion's pair, the
+							// profiler's scopes: vr/vr_hosterror.cpp)
 
 // The frame cap (vr_sleep.cpp).
 int VR_HiResSleepUntil (double endtime, double *now); // Sys_WaitUntil: sleeps on a high-resolution timer until its lateness before endtime; 0 without one
@@ -738,7 +741,7 @@ void VR_SndStopAll (void);							// S_StopAllSounds, the channels cleared: every
 int VR_SndHoldsSfx (const sfx_t *sfx);				// S_ForgetGameSounds: nonzero: the game-time render still plays it (kept)
 void VR_SndRebase (int delta);						// S_RebaseSoundTime: paintedtime moved back by delta (its wrap): the voices' carried render with it
 int VR_SndKeepStatics (void);						// S_Update: nonzero: the static sounds of one sample not combined (each has its place)
-int VR_SndMixEnd (int paintedtime, int endtime);	// S_Update_: the mix-ahead's end, rounded down to whole frames of the voices
+int VR_SndMixEnd (int painted, int endtime);		// S_Update_ (its paintedtime): the mix-ahead's end, rounded down to whole frames of the voices
 void VR_SndPaint (portable_samplepair_t *buffer, int start, int end);	// S_PaintChannels, each chunk: the voices' mix added
 int VR_SndOwns (const channel_t *ch);				// S_PaintChannels: nonzero for a channel a voice renders (Quake skips it)
 void VR_SndBus (portable_samplepair_t *buffer, int count);		// S_PaintChannels, the effects' sum: clipped (wider with vr_snd_limiter), then halved
@@ -757,6 +760,8 @@ void VR_SndBandLimit (const unsigned char *data, int width, int samples, int loo
 double VR_SndBenchNow (void);						// vr_snd_bench (vr_audiobench.cpp): the time, 0 when no bench is recording
 int VR_SndJobPost (void (*fn) (void *));			// S_MixKick: fn on the game's thread pool (one at a time); 0 without a pool (not posted)
 void VR_SndJobWait (void);							// S_MixJoin: the posted fn done (run here if no worker has started it)
+void VR_SndMixRace (const char *file, int line);	// S_MixCheckAt (development builds): the channels read at file:line
+							// on the main thread with the mix on the pool, unjoined: the crash report (vr_snd_mixcheck_test counts it)
 void VR_SndBenchAdd (int stage, double since);		// vr_snd_bench: now - since into this frame's stage (VR_SNDBENCH_*: vr_audiobench.hpp's Stage)
 enum { VR_SNDBENCH_PAINT = 3, VR_SNDBENCH_QUAKE = 12, VR_SNDBENCH_FILTERS = 13 };
 

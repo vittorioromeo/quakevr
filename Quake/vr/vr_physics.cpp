@@ -1239,6 +1239,13 @@ struct PostThinkShift
 PostThinkShift shift;
 } // namespace
 
+bool qvr::physics::onHostError()
+{
+    const bool open = shift.active;
+    shift.active = false;
+    return open;
+}
+
 extern "C" void VR_BeforePlayerPostThink(edict_t* ent)
 {
     server::rebaseHands(ent);
