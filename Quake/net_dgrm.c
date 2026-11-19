@@ -174,19 +174,25 @@ static void QueueClear (dgrmqueue_t *q)
 // NATs; a symmetric NAT on either side maps each destination to another port and the join fails with the reason).
 // The wire format (Misc/rendezvous/qvr_rendezvous.py has the service's side): "QVRR", version, type, two zero bytes,
 // then the type's fields; requests are ROOM_REQUEST bytes, replies ROOM_REPLY (a reply never outgrows its request).
+// (review 2026-11-18, finding 11; version 2) A REGISTER carries the cookie the service gave this host's address
+// (ROOM_COOKIE: an HMAC of it, so spoofed registrations from addresses that can't read the reply make no room), and
+// every reply the host acts on has the nonce of his last request (a REFUSED or BADVERSION forged from the service's
+// address stopped registering for 600 s).
 #define ROOM_MAGIC	"QVRR"
-#define ROOM_VERSION	1
+#define ROOM_VERSION	2
+#define ROOM_COOKIE_LEN	8
 #define ROOM_REQUEST	64
 #define ROOM_REPLY	32
 #define ROOM_CODE_LEN	6
-#define ROOM_REGISTER	0x01	// host -> service: code wanted (6 bytes or zeros) at 8, nonce at 14
+#define ROOM_REGISTER	0x01	// host -> service: code wanted (6 bytes or zeros) at 8, nonce at 14, cookie at 18 (or zeros)
 #define ROOM_JOIN	0x02	// joiner -> service: code at 8, nonce at 14
 #define ROOM_REGISTERED	0x81	// -> host: code at 8, nonce at 14, his outside IPv4 at 18, port at 22
 #define ROOM_PEER	0x82	// -> joiner: code, nonce, the host's outside address
 #define ROOM_INCOMING	0x83	// -> host: code, 0, the joiner's outside address (punch it)
 #define ROOM_NOROOM	0x84	// -> joiner: code, nonce: no such room
 #define ROOM_REFUSED	0x85	// -> host: code, nonce, why at 18 (1: the service is full)
-#define ROOM_BADVERSION	0x86	// -> either: the service's version at 18
+#define ROOM_BADVERSION	0x86	// -> either: code, nonce, the service's version at 18
+#define ROOM_COOKIE	0x87	// -> host: code, nonce, his address's cookie at 24 (to be echoed in a REGISTER)
 #define ROOM_PUNCH	0x90	// host -> joiner: opens the host's router to him (the joiner ignores it)
 #define ROOM_DEFAULT_PORT	26100
 #define ROOM_REGISTER_EVERY	20.0	// s (the service forgets a room 120 s after its last registration)
@@ -214,6 +220,7 @@ static struct
 	qboolean	toldNotFound;
 	char	code[ROOM_CODE_LEN + 1];	// this host's room ("": none yet)
 	unsigned int	nonce;
+	byte	cookie[ROOM_COOKIE_LEN];	// the service's last cookie for this host (zeros: none yet)
 	double	nextRegister;
 	double	firstSent;		// the first unanswered registration's time (0: answered)
 	qboolean	toldUnanswered;
@@ -280,7 +287,7 @@ static qboolean LookupMayStart (void)
 	return true;
 }
 
-static void RoomWrite (sys_socket_t s, int type, const char *code, unsigned int nonce, int size,
+static void RoomWrite (sys_socket_t s, int type, const char *code, unsigned int nonce, const byte *cookie, int size,
 	const struct qsockaddr *to)
 {
 	byte	pkt[ROOM_REQUEST];
@@ -295,6 +302,8 @@ static void RoomWrite (sys_socket_t s, int type, const char *code, unsigned int 
 	pkt[15] = (byte) (nonce >> 16);
 	pkt[16] = (byte) (nonce >> 8);
 	pkt[17] = (byte) nonce;
+	if (cookie)
+		memcpy (pkt + 18, cookie, ROOM_COOKIE_LEN);
 	dfunc.Write (s, pkt, size, (struct qsockaddr *) to);
 }
 
@@ -350,11 +359,17 @@ static qboolean RoomHostRead (const byte *pkt, int length, struct qsockaddr *fro
 		return false;
 	if (!room.resolved || length < ROOM_REPLY || dfunc.AddrCompare (from, &room.serviceAddr) != 0)
 		return true;
+	// (finding 11) every reply acted on answers this host's last request (a UDP source is anyone's to write)
+	if (pkt[5] != ROOM_INCOMING && RoomNonce (pkt) != room.nonce)
+		return true;
 	switch (pkt[5])
 	{
+	case ROOM_COOKIE:
+		// (finding 11) the service wants its cookie for this address echoed: registered again at once with it
+		memcpy (room.cookie, pkt + 24, ROOM_COOKIE_LEN);
+		room.nextRegister = net_time;
+		break;
 	case ROOM_REGISTERED:
-		if (RoomNonce (pkt) != room.nonce)
-			break;
 		room.firstSent = 0;
 		room.toldUnanswered = false;
 		if (memcmp (room.code, pkt + 8, ROOM_CODE_LEN) != 0)
@@ -420,6 +435,7 @@ static void RoomHostTick (sys_socket_t acceptsock)
 		room.resolveAt = 0;
 		room.toldNotFound = false;
 		room.code[0] = 0;
+		memset (room.cookie, 0, sizeof (room.cookie));
 		room.nextRegister = 0;
 		room.firstSent = 0;
 		room.toldUnanswered = false;
@@ -445,8 +461,8 @@ static void RoomHostTick (sys_socket_t acceptsock)
 	}
 	if (net_time >= room.nextRegister)
 	{
-		room.nonce = (unsigned int) rand () ^ ((unsigned int) rand () << 15) ^ ((unsigned int) (net_time * 1000.0));
-		RoomWrite (acceptsock, ROOM_REGISTER, room.code, room.nonce, ROOM_REQUEST, &room.serviceAddr);
+		room.nonce = DgrmRandom (); // (finding 11: not guessable)
+		RoomWrite (acceptsock, ROOM_REGISTER, room.code, room.nonce, room.cookie, ROOM_REQUEST, &room.serviceAddr);
 		if (room.firstSent == 0)
 			room.firstSent = net_time;
 		room.nextRegister = net_time + (room.code[0] ? ROOM_REGISTER_EVERY / 4 : ROOM_RETRY_EVERY);
@@ -472,7 +488,7 @@ static void RoomHostTick (sys_socket_t acceptsock)
 			p->until = 0; // (joined)
 			continue;
 		}
-		RoomWrite (acceptsock, ROOM_PUNCH, room.code, 0, ROOM_REPLY, &p->addr);
+		RoomWrite (acceptsock, ROOM_PUNCH, room.code, 0, NULL, ROOM_REPLY, &p->addr);
 		p->next = net_time + ROOM_PUNCH_EVERY;
 	}
 }
@@ -554,14 +570,14 @@ static qboolean RoomJoin (sys_socket_t sock, const char *typed, struct qsockaddr
 	}
 	Con_Printf ("Looking up room %s at %s...\n", code, name);
 	SCR_UpdateScreen ();
-	nonce = (unsigned int) rand () ^ ((unsigned int) rand () << 15) ^ ((unsigned int) (Sys_DoubleTime () * 1000.0));
+	nonce = DgrmRandom (); // (finding 11: not guessable)
 	start = SetNetTime ();
 	sent = -1.0;
 	while (SetNetTime () - start < ROOM_JOIN_WAIT)
 	{
 		if (sent < 0 || net_time - sent >= 0.5)
 		{
-			RoomWrite (sock, ROOM_JOIN, code, nonce, ROOM_REQUEST, &service);
+			RoomWrite (sock, ROOM_JOIN, code, nonce, NULL, ROOM_REQUEST, &service);
 			sent = net_time;
 		}
 		length = dfunc.Read (sock, net_message.data, net_message.maxsize, &from);
@@ -572,6 +588,8 @@ static qboolean RoomJoin (sys_socket_t sock, const char *typed, struct qsockaddr
 		}
 		if (length < ROOM_REPLY || !IsRoomPacket (net_message.data, length) || dfunc.AddrCompare (&from, &service) != 0)
 			continue;
+		if (RoomNonce (net_message.data) != nonce) // (finding 11: a BADVERSION too)
+			continue;
 		if (net_message.data[5] == ROOM_BADVERSION)
 		{
 			Con_Printf ("The room service %s speaks version %d, this game %d: join by the host's IP address\n", name,
@@ -579,7 +597,7 @@ static qboolean RoomJoin (sys_socket_t sock, const char *typed, struct qsockaddr
 			q_strlcpy (m_return_reason, "Room service: other version", sizeof (m_return_reason));
 			return false;
 		}
-		if (RoomNonce (net_message.data) != nonce || memcmp (net_message.data + 8, code, ROOM_CODE_LEN) != 0)
+		if (memcmp (net_message.data + 8, code, ROOM_CODE_LEN) != 0)
 			continue;
 		if (net_message.data[5] == ROOM_NOROOM)
 		{

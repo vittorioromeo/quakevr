@@ -7,11 +7,13 @@ games send to each other at once (UDP hole punching), and the game then goes **d
 never carries game traffic.
 
 - One UDP port: **26100**. One Python 3 process, standard library only, no state on disk.
-- Protocol version 1 (the wire format: the top of `qvr_rendezvous.py`; the game's side: `Quake/net_dgrm.c`).
+- Protocol version 2 (the wire format: the top of `qvr_rendezvous.py`; the game's side: `Quake/net_dgrm.c`): a
+  registration makes a room only with the cookie the service gave the address it comes from (one more round trip
+  before a host has his code); a game of version 1 is told the service's version and gets no code.
 - Privacy: it sees each player's public IP address and the room code, keeps them only while the room lives (2 minutes
   after the host's last registration, which his game sends every 20 s), and never logs an address.
 - Abuse limits: requests of exactly 64 bytes with the magic (anything else gets no answer), replies of 32 (no
-  amplification), a per-address rate limit (5 a second, bursts of 20), at most 20000 rooms (8 per address), 50000
+  amplification), registrations only from addresses that read the service's cookie (spoofed ones make no room), a per-address rate limit (5 a second, bursts of 20), at most 20000 rooms (8 per address), 50000
   tracked addresses, 20 introductions per room in 10 s. Memory stays under a few tens of MB.
 - The game's setting `vr_mp_rendezvous` (default `vittorioromeo.com:26100`) names the service; `vr_mp_room 0` stops
   a host registering.

@@ -113,11 +113,15 @@ Tests:
              every lookup failing (-netlookupfail): one "not found" line, the tries 2 s, 4 s, 8 s apart (net_lookups),
              none while a remote client is in, one again once he left; a favourite by name (localhost) in the
              server browser is asked once looked up.
+    roomnonce  (review 2026-11-18, finding 11) the room service's replies to a host checked (a stand-in service):
+             REFUSED, BADVERSION and REGISTERED with another nonce change nothing; COOKIE (protocol version 2) with
+             his nonce has him register again at once with it, then REGISTERED gives his code; a REFUSED with his
+             nonce is taken.
     suite    coop, coop with B at 150 ms each way and 2% loss, bandwidth, armed, retransmit, version, avatar, avatarcal, body, prefs, grab,
              teleport, held, ground, campaign, campaign_listen, flow, rejoin, download, pickup, forcegrab, melee, moves, climb,
              rules, cosmetics, flatbody, loss, predict, predictclimb, lagcomp, disarm, voice, voice with B 50 ms (30 ms
              jitter, 5% loss) away, dm, lockstep, lockstep_throw, nat (B23: room codes through simulated routers).
-             The network layer's review checks (2026-11-18): emptyflood, spoof, backoff, lookup.
+             The network layer's review checks (2026-11-18): emptyflood, spoof, backoff, lookup, roomnonce.
              (B25) --only a,b runs just those; --suite-repeat N runs them N times over; --load N (any test) keeps N
              busy CPU workers at normal priority running meanwhile (mp_load.py: the machine busy with other work, as
              in the suite's real runs; --load-duty the share of time each spins).
@@ -6994,6 +6998,62 @@ def lookup(s):
         fake.stop()
 
 
+def roomnonce(s):
+    """(review 2026-11-18, finding 11) A host's room replies authenticated by his request's nonce. NetQuake-style trust of
+    the source address let anyone forge the service's REFUSED (no registration for 60 s) or BADVERSION (600 s), and the
+    shared code died 2 minutes later. A stand-in service (FakeRoomService) answers the dedicated server's REGISTER:
+    1. REFUSED, BADVERSION and REGISTERED with another nonce: no line, no code.
+    2. COOKIE with his nonce (version 2's cookie round): his next REGISTER at once, the cookie in it.
+    3. REGISTERED with that request's nonce: his room code. 4. REFUSED with it: taken (said)."""
+    rport = s.take_port()
+    fake = FakeRoomService(rport).start()
+    try:
+        srv = s.server(dedicated=True)
+        srv.start()
+        srv.cmd("coop 1; deathmatch 0; skill 1; map e1m1; vr_mp_status")
+        srv.wait(r"mp_server: map=e1m1", 120, what="the server on e1m1")
+        since = srv.mark()
+        srv.cmd("vr_mp_rendezvous 127.0.0.1:%d; vr_mp_room 1" % rport)
+        first = fake.wait_request(FakeRoomService.REGISTER, 0, 30)
+        if first is None:
+            raise StepFailed("no REGISTER from the server")
+        i, _, data, src = first
+        s.check("the host's REGISTER is of version 2, no cookie yet", data[4] == 2 and not any(data[18:26]),
+                "version %d, cookie %s" % (data[4], data[18:26].hex()))
+        other = bytes(x ^ 0x5A for x in data[14:18])
+        fake.send(FakeRoomService.REFUSED, src, other, extra=1)
+        fake.send(FakeRoomService.BADVERSION, src, other, extra=9)
+        fake.send(FakeRoomService.REGISTERED, src, other, code=b"ZZZZZZ")
+        srv.cmd("echo mp_roomnonce_forged")
+        srv.wait(r"^mp_roomnonce_forged", 10, since, "the server's frame after the forgeries")
+        time.sleep(0.5)
+        srv.read()
+        acted = [l.strip() for l in srv.lines[since:] if "has no room" in l or "speaks version" in l or "Room code" in l]
+        s.check("REFUSED, BADVERSION and REGISTERED with another nonce: ignored", not acted, "%s" % acted[:2])
+        # the cookie round, to his latest request
+        latest = fake.wait_request(FakeRoomService.REGISTER, len(fake.requests), 5)  # (a new one: 2 s to its next)
+        if latest is None:
+            raise StepFailed("no REGISTER to answer")
+        k, _, data, src = latest
+        sent = time.monotonic()
+        fake.send(FakeRoomService.COOKIE, src, data[14:18], cookie=b"qvrcook8")
+        again = fake.wait_request(FakeRoomService.REGISTER, k + 1, 5, lambda d: d[18:26] == b"qvrcook8")
+        s.check("COOKIE with his nonce: he registers again at once with the cookie", again is not None and
+                again[1] - sent < 1.0, "%.2f s" % (again[1] - sent) if again else "not with it")
+        if again is None:
+            return
+        _, _, data, src = again
+        fake.send(FakeRoomService.REGISTERED, src, data[14:18], code=b"ABCDEF")
+        _, line = srv.wait(r"Room code: ABCDEF", 10, since, "his room code")
+        s.check("REGISTERED with his nonce: his code", True, line.strip())
+        fake.send(FakeRoomService.REFUSED, src, data[14:18], extra=1)
+        _, line = srv.wait(r"has no room for this game", 10, since, "the refusal")
+        s.check("REFUSED with his nonce: taken", True, line.strip())
+        srv.cmd("vr_mp_room 0")
+    finally:
+        fake.stop()
+
+
 def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
     s = Session(args.exe, args.base, args.out, test, port=args.port)
     s.server_extra = args.server_set.split() if args.server_set else []  # (B13c: e.g. "+vr_net_sendhz 36")
@@ -7091,6 +7151,8 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             backoff(s)
         elif test == "mp_lookup":
             lookup(s)
+        elif test == "mp_roomnonce":
+            roomnonce(s)
         elif test == "mp_netsafe":
             netsafe(s)
         elif test == "mp_roomui":
@@ -7179,12 +7241,13 @@ SUITE = [
     ("mp_spoof", ()),
     ("mp_backoff", ()),
     ("mp_lookup", ()),
+    ("mp_roomnonce", ()),
 ]  # (mp_netsafe runs first, before these; the rest in this order. The tuples: lag ms, jitter ms, loss)
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood", "spoof", "backoff", "lookup", "suite"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "suite"])
     ap.add_argument("--base", required=True, help="the game folder (id1, quakevr...)")
     ap.add_argument("--exe", default=EXE)
     ap.add_argument("--out", default=os.path.join(REPO, "scratch", "mp"))
@@ -7246,7 +7309,7 @@ def main_run(args):
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
     elif args.test in ("bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground",
-                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood", "spoof", "backoff", "lookup"):
+                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood", "spoof", "backoff", "lookup", "roomnonce"):
         ok = run(args, "mp_" + args.test)
     elif args.test == "voice":
         ok = run(args, "mp_voice", args.lag, args.jitter, args.loss)
