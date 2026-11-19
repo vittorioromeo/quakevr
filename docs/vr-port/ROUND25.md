@@ -4199,3 +4199,21 @@ the `cu_<key>` fill, function-key leniency, one delayed-monster adapter for AD a
 Copper bridge (damage both ways, world setup and frame, fog by MG_SetFog, target_autosave). Acceptance
 `Misc/quakevr/dwell_maps.sh`: 22 passed, 4 failed (a wizard's NULL function on d1m7, d1m8, d2m8; d2end fixed after).
 Details and what is left: DWELL.md 9.2.
+
+## Dwell P1b, part two (copper1b2, 2026-11-19)
+
+The NULL function on d1m7, d1m8, d2m8 was not the delayed-monster adapter: a patrolling wizard of ours (no spawnflags,
+`target` a path_corner) reached one of Copper's path_corners, whose touch sets `think = cu_th_stand`, NULL on our
+monsters. AD's path_corner had the same hand-off (`VR_AD_PathCornerTouch`); it is now every ruleset's,
+`VR_Rules_PathCornerTouch` (`QC/vr_rules_monsters.qc`: one of our monsters, not AD's or Copper's own, follows another
+ruleset's path_corner by our `t_movetarget`), called from AD's and Copper's touch (an import patch each). The guard,
+`VR_Rules_MonsterThCheck`: one of our monsters starting with a NULL th_stand, th_walk, th_run or th_die prints
+`VR_Rules: QC error: <classname> at <origin> has no <field>` (none in Dwell's 24 maps, e1m1). Test `vr_ad_test 199`
+(`QC/vr_rules_test.qc`, any map): both path_corners and the guard, 4 passed. `dwell_maps.sh` saves 15 frames after the
+`map` (d2m8's 4,000-edict signon puts the player in about 8 frames after it; its save at 3 failed "with a dead
+player"): **26 passed, 0 failed** (d1m7 31 live + 127 waiting, d1m8 114 + 131, d2m8 440 + 258).
+Regression: the spawn census over the 168 non-Copper maps vs origin/next: 141 identical, 27 different, every difference
+the moved adapter's function names on AD maps' delayed monsters (`AD_MonsterActivate` now `VR_SF_MonsterActivate`; 0
+other differences with those mapped); the demon's coop filter shows on no MG map in single player. Detection: 0 of 168
+official/AD maps and 0 of 49 installed Map Library maps reach Copper's threshold (the 50th, Ancient, made for Copper,
+does). Left: DWELL.md 9.2.

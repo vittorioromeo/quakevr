@@ -510,12 +510,20 @@ Total: about 37-61 agent-days. P0.5 is the gate: it proves the generic mechanism
   and d2m8 end on `PR_ExecuteProgram: NULL function` with a `monster_wizard` as self (delayed angry wizards,
   spawnflags 208/400; `th_die` unset in the printed edict, called with no QC stack: from the engine); d2end's failure
   (an `info_notnull` using `func_void`) is fixed since (the function-key resolution; d2end runs 600 frames clean).
-- **Left** (in order): the wizard NULL function above; the census over the 168 non-Copper maps (the demon's filter
-  and the AD adapter's move must show 0 different) and ad_world, ad_hub, ad_scope, mg3_*, saveload, scenario_check;
-  `dwell_scan.py`'s false-positive table re-run with the new detector; two Copper custom maps (Ancient, an Underdark
-  Overbright map: not downloaded yet); our monsters' and pickups' numbers by Copper (S6's per-ruleset table); the
-  WaterMove/t_void precedence decision with AD's; `vr_mg_fog.qc` renamed `vr_fog.qc`; then the installer's
-  `Dwell.OnByDefault`, CREDITS, the Installer README, the patch notes' bullet, a ReleaseLTO build.
+- **Part two** (branch `agent/copper1b`, continued): the wizard's NULL function was Copper's path_corner touch (`think
+  = cu_th_stand`, NULL on our monsters: a patrolling wizard, not a delayed one). Every ruleset's path_corner now hands
+  our monsters to our `t_movetarget` (`VR_Rules_PathCornerTouch`, `vr_rules_monsters.qc`; AD's hook generalised; an
+  import patch in AD's and Copper's touch), and `VR_Rules_MonsterThCheck` names one of our monsters starting with a
+  NULL th_stand/walk/run/die (a "QC error" line). Test `vr_ad_test 199`. `dwell_maps.sh`: **26 passed, 0 failed** (its
+  saves 15 frames after the map: d2m8's signon is slow). Census vs origin/next over the 168 non-Copper maps: the moved
+  adapter's function names only (27 AD saves), nothing else; 0 false Copper detections in 168 official/AD maps and 49
+  installed Map Library maps (Ancient, made for Copper, detected). ROUND25 "Dwell P1b, part two".
+- **Left** (in order): two Copper custom maps through the Map Library path (Ancient is in his installed packages; an
+  Underdark Overbright map: not downloaded; the Map Library's install always downloads, so a headless test needs the
+  package unpacked into the test base's `qvr_addons` with its `maps_installed.txt` line); our monsters' and pickups'
+  numbers by Copper (S6's per-ruleset table); the WaterMove/t_void precedence decision with AD's; `vr_mg_fog.qc`
+  renamed `vr_fog.qc`; then the installer's `Dwell.OnByDefault`, CREDITS, the Installer README, the patch notes'
+  bullet.
 
 ---
 
