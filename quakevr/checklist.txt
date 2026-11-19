@@ -33,6 +33,9 @@ Dwell monsters from the toolgun Dwell pack in e1m1: Kamikaze rush and burst, Bru
 Dwell d1end and d2end boss fights to the end; Berserk melee; Crystal Lance through a line of monsters
 Dwell's Brute: knocked down it gets up, beheaded (its own head), arms cut, punch parried
 Dwell's Kamikaze grabbed and thrown; head shots on the Awoken count
+Dwell's Rotary Shotgun reloads at the hip and spins up like the Widowmaker; the Crystal Lance fires without a crash
+Dwell's weapons keep their kind in holsters, after a save and a level change; Haste/Berserk/Wetsuit seconds on the wrist
+Dwell: an armed grunt picks up your thrown Rotary Shotgun / Crystal Lance and fires Dwell's shot; Haste yellow, Berserk red, both orange tint
 
 [1. Flat-screen: weapons and hands]
 

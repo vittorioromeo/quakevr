@@ -22,10 +22,15 @@
 // Dwell's powerups on the player (dw_items.qc): when each ends.
 .float dw_haste_finished, dw_berserk_finished, dw_wetsuit_finished;
 .float dw_warned; // (the "wearing off" lines said: DW_PW_* bits)
+.float vr_dw_hud; // their seconds left for the wrist gadget (the engine's STAT_QVR_DWPOWER: 8 bits each)
+// An armed grunt's shot with a Dwell weapon (vr_armedgrunt.qc VR_AG_ShootProp: DW_FireVariant as yours): the prop the
+// Lance's beam is drawn from (world: the player's hand).
+entity dw_beam_prop;
+float dw_variant_shots; // Dwell's shots fired, anyone's (vr_ad_test 204)
+.float vr_dw_tinted; // Haste's or Berserk's screen tint set (AD's tint, VR_AD_Tint): cleared when they end
 
-// Dwell's weapons (placeholders until P3, DWELL.md): a variant of one of our weapons, on its weapon instance (the
-// Rotary Shotgun a super shotgun, the Crystal Lance a lightning gun, the Rifle a shotgun), set by its pickup.
-.float wi_dwvar;   // the weapon instance's variant (DW_VAR_*)
+// Dwell's weapons (DWELL.md P3): a variant of one of our weapons, on its weapon instance (.wi_dwvar, vr_weaponinst.qc:
+// the Rotary Shotgun a super shotgun, the Crystal Lance a lightning gun, the Rifle a shotgun), set by its pickup.
 .float vr_dw_var;  // a pickup's: the variant it gives
 const float DW_VAR_ROTARY = 1;
 const float DW_VAR_LANCE = 2;
@@ -34,7 +39,11 @@ const float DW_VAR_RIFLE = 3;
 float(entity targ, entity attacker, float damage, float isVRMelee) DW_DamageScale; // T_DamageImpl: berserk
 void(entity xPickup, entity p, float xHand) DW_VariantGiven;                      // weapon_touch
 float(float xHand, float* xOutAttackFinished) DW_FireVariant;                     // W_Fire_*: TRUE fired
+float(float xWid) DW_VariantFor;                                                  // VR_AG_ShootProp
+string(float xVar) DW_VariantName;                                                // VR_AG_NameOf
 void() DW_PowerupFrame;                                                           // CheckPowerups
+float(entity p) DW_PackWeaponVariants;                                            // SetChangeParms: parm76
+void(entity p, float xPacked) DW_UnpackWeaponVariants;                            // DecodeLevelParms
 void() dw_monster_kamikaze; // the debug spawner's 70..73 (buttons.qc VR_EnemyDispenser_Spawn; DWELL.md P2b)
 void() dw_monster_brute;
 void() dw_monster_excavator;
