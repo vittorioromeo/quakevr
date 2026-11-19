@@ -4650,7 +4650,8 @@ namespace
 // Quake VR's grenade and proximity bomb models lack the smoke trail flag the old engine gave
 // them when they loaded. Some of its heads (the dog's, the fiend's, the shambler's, the zombie's)
 // lack the gib flag, so they left no blood trail: a head with no trail bleeds like a gib (the
-// zombie's like a zombie's gibs).
+// zombie's like a zombie's gibs). Dwell's bullet-hell shot has no flag at all: it gets the hell knight's flame trail, so
+// it glows and streaks as an enemy shot does (vr_emissive.cpp, vr_bttrails.cpp).
 // The world and the map load patchModelFlags last ran for: a new map can get the old one's qmodel_t (and its models
 // reloaded, their flags reset), so the world pointer alone is not enough.
 struct FlagsPatched
@@ -4677,6 +4678,10 @@ static void patchModelFlags()
         if(modelmeta::is(m, modelmeta::Id::Grenade) || modelmeta::is(m, modelmeta::Id::Proxbomb))
         {
             m->flags |= EF_GRENADE;
+        }
+        if(modelmeta::is(m, modelmeta::Id::DwHellBullet))
+        {
+            m->flags |= EF_TRACER2;
         }
         constexpr int trails = EF_ROCKET | EF_GRENADE | EF_GIB | EF_TRACER | EF_ZOMGIB | EF_TRACER2 | EF_TRACER3;
         if(m->type == mod_alias && modelmeta::has(m, modelmeta::Trait::Head) && !(m->flags & trails))
