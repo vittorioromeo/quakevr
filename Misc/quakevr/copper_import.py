@@ -111,6 +111,11 @@ PATCHES = [
      "\t\tstuffcmd_float(client, color_z * (icantsee + 1));\n\t\tstuffcmd(client, \"\\n\");\n",
      "\t\tMG_SetFog(client, density, color * (icantsee + 1)); // QVR: the one fog path (svc_fog, vr_mg_fog.qc), as MG's "
      "and AD's\n", 1, "bridge: Copper's fog (worldspawn, its fog blends) by our svc_fog path, not a stuffed command"),
+    ("ai.qc", "void() path_corner_touch =\n{\n",
+     "void() path_corner_touch =\n{\n\tif (VR_Rules_PathCornerTouch()) return; // QVR: our monsters follow it as ours "
+     "(vr_rules_monsters.qc)\n", 1,
+     "bridge: our monsters follow Copper's path_corners as ours (t_movetarget), as AD's (its touch set think = th_stand, "
+     "NULL on ours)"),
 ]
 
 
@@ -165,7 +170,7 @@ def main():
                      "Source: github.com/itslunaranyo/copper master 379dd5d, sha256 (progs.src and *.qc) " + PINNED,
                      "Map keys: %d (its /*QUAKED keys and Dwell's maps' keys)" % len(keys)])
     mod.keep_prefixes = ("VR_CU_",)  # the bridge's functions the patches call (QC/vr_copper_bridge.qc): never renamed
-    mod.qvr_names = {"MG_SetFog"}     # Quake VR's own the patches call (the one fog path, vr_mg_fog.qc)
+    mod.qvr_names = {"MG_SetFog", "VR_Rules_PathCornerTouch"}  # Quake VR's own the patches call (vr_mg_fog.qc, ...)
     if args.check:
         mod.write_dir = qc_import.check_dir(mod, args.check)
     beam_ids = qc_import.beam_id_bytes(src)  # (mechanical, every import's: the beam id byte after a beam's entity)

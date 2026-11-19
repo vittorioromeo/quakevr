@@ -32,10 +32,44 @@ void() VR_SF_MonsterActivate =
     self.nextthink = time + 0.1;
 };
 
+// The guard: one of our monsters starts with its behaviour functions set. A NULL one, called by our AI, the engine
+// (a think set to it) or another ruleset's code, ends the game on "PR_ExecuteProgram: NULL function" with no QC stack;
+// here it is a clear error line naming the monster and the function, at its spawn. FALSE: one is missing.
+float(entity e) VR_Rules_MonsterThCheck =
+{
+    string missing = "";
+    if(!e.th_stand) missing = strcat(missing, " th_stand");
+    if(!e.th_walk) missing = strcat(missing, " th_walk");
+    if(!e.th_run) missing = strcat(missing, " th_run");
+    if(!e.th_die) missing = strcat(missing, " th_die");
+    if(missing == "")
+    {
+        return TRUE;
+    }
+    bprint(sprintf("VR_Rules: QC error: %s at %v has no%s (its spawn function or an adapter left it unset)\n",
+        e.classname, e.origin, missing));
+    return FALSE;
+};
+
+// Another ruleset's path_corner (AD's ad_path_corner, Copper's cu_path_corner) touched by one of our monsters: ours
+// (t_movetarget) moves it on. Their touches set `think` to the mod's own stand field (ad_th_stand, cu_th_stand), NULL
+// on our monsters: a patrolling wizard of ours on Copper's corners ended d1m7, d1m8 and d2m8 on "NULL function".
+// TRUE: done.
+float() VR_Rules_PathCornerTouch =
+{
+    if(!(other.flags & FL_MONSTER) || AD_Run(other) || CU_Run(other))
+    {
+        return FALSE;
+    }
+    t_movetarget();
+    return TRUE;
+};
+
 // walk/fly/swimmonster_start (monsters.qc), in a map whose ruleset has a delayed spawn (AD 64, Copper 16): AD's keys
 // (nomonstercount), and the delayed spawn. TRUE: deferred (invisible, not solid, until used).
 float(void() start) VR_SF_MonsterPrepare =
 {
+    VR_Rules_MonsterThCheck(self);
     if(!VR_SF_Bit(VR_Ruleset(), VR_SF_MON_DELAYED))
     {
         return FALSE; // (Quake's and MG's rulesets: MG_MonsterPrepare's own)

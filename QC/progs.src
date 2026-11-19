@@ -733,3 +733,4 @@ copper/cu_m_oldone.qc
 // copper_import.py: end
 // Copper's rules on our entities, its world logic in Copper maps (DWELL.md P1b).
 vr_copper_bridge.qc
+vr_rules_test.qc

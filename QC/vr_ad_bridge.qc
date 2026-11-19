@@ -146,17 +146,6 @@ void(entity targ, entity inflictor, entity attacker, float take) VR_AD_Hit =
     }
 };
 
-// A path_corner of AD's touched by one of our monsters: ours (t_movetarget) moves it on. TRUE: done.
-float() VR_AD_PathCornerTouch =
-{
-    if(!(other.flags & FL_MONSTER) || AD_Run(other))
-    {
-        return FALSE;
-    }
-    t_movetarget();
-    return TRUE;
-};
-
 .float vr_ad_shotserial, vr_ad_shotweapon, vr_ad_shotpellets, vr_ad_shothand;
 .vector vr_ad_shotfrom, vr_ad_impactdir;
 .vector vr_ad_launchfrom;

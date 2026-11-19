@@ -785,6 +785,7 @@ no effect on movement, which always heads to the next target.
 
 void() cu_path_corner_touch =
 {
+	if (VR_Rules_PathCornerTouch()) return; // QVR: our monsters follow it as ours (vr_rules_monsters.qc)
 	if (other.goalentity != self) return;
 	if (other.enemy) return;		// fighting, not following a path
 	//bprint("valid pathcorner touch\n");
