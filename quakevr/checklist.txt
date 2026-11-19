@@ -27,6 +27,7 @@ A fight with several armed grunts and ragdolls: poses and limbs correct (posed m
 Flat screen and VR: no attract-mode demos play at start or when the menu idles; the main menu opens instead
 VR Settings > Locomotion > Speed Button: Toggle: click the stick once to sprint, again (or stop) to walk
 VR Settings > Climbing > Mantle When: on letting go / on jump: hang on a ledge, the climb-over waits for that
+Toolgun > Weapons: Grappling Gun is listed; spawn it, grab it, and it hooks
 
 [1. Flat-screen: weapons and hands]
 
