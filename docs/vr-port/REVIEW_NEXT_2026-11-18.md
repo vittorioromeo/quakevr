@@ -397,6 +397,11 @@ Each verified at the cited lines; none worth a section.
 - **Dead code:** `parm39` / `parm40` are written in `SetChangeParms` (`client.qc:165`, `:168`) and never decoded;
   `BackpackTouch`'s owner grace (`items.qc:2110`: `self.nextthink - time > 119`) can never be true since the removal
   moved to `nextthink2`.
+  **Status (2026-11-19):** the two writes removed (nothing decodes them: not DecodeLevelParms, not the engine, which
+  copies the parms by name, not agent/mp; defs.qc marks both free). The grace removed, not mended: besides the timer,
+  `Backpack_Setup` sets every backpack's owner to world (the thrown-object and force-grab code read `owner`), so
+  `other == self.owner` never held either; the code came with the import (`adec81964`), ZOID's CTF rule for a pack
+  its dropper tossed, and a player's own pack here is his death's.
 - **Coop, noted only:** slow motion's per-entity clock treats edict 1 as "the player"
   (`vr_timescale.cpp:503`: `const bool player = num == 1;`).
 

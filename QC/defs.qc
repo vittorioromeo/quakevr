@@ -164,8 +164,8 @@ float parm35; // Holster 2's weapon's magazine (`.holsterweaponinst2.wi_clip`).
 float parm36; // Holster 3's weapon's magazine (`.holsterweaponinst3.wi_clip`).
 float parm37; // Holster 4's weapon's magazine (`.holsterweaponinst4.wi_clip`).
 float parm38; // Holster 5's weapon's magazine (`.holsterweaponinst5.wi_clip`).
-float parm39; // Field: `.weaponclipsize`.
-float parm40; // Field: `.weaponclipsize2`.
+float parm39; // Free (it was written from `.weaponclipsize` and never read: the magazines are parm31..38).
+float parm40; // Free (the same for `.weaponclipsize2`).
 // The weapons' ids (vr_weaponinst.qc: `.wi_uid` of their records), carried to the next level like their magazines.
 float parm41; // The main hand's.
 float parm42; // The off hand's.

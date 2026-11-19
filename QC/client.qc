@@ -166,10 +166,8 @@ void() SetChangeParms =
     parm49 = qvr_weaponinst_next;
     parm64 = AD_PackWeaponUpgrades(self); // AD support: the carried weapons' upgrades (vr_ad_bridge.qc)
     WeaponInst_PackHot(self); // (the blades still glowing: parm65..72)
-    parm39 = self.weaponclipsize;
     parm50 = self.vr_flashlight_state; // (bits 0..18: the engine's lamp; bit 19: a chainsaw's cord pulled)
     if(self.vr_saw_cord_pulled) parm50 = parm50 + VR_PARM50_SAW_CORD_PULLED;
-    parm40 = self.weaponclipsize2;
     parm74 = self.vr_bullettime_spent; // (bullet time's meter, kept from level to level: vr_bullettime.cpp)
     parm75 = self.vr_pp_mask; // (the armour plates shown: which ones, kept from level to level: vr_playerplates.qc)
 };
