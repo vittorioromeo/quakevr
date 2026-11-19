@@ -180,19 +180,37 @@ and the OpenXR loader, checked headless in WSL (a SteamVR manifest whose library
     whether the folder is writable.
   - **With `--device=shm` too, the game's side worked**: `xrCreateSession` (GLX: display, drawable, context, FBConfig and
     visual all set; the context current on the main thread for every call), the eye and panel swapchains, `OpenXR:
-    started`, the session READY; SteamVR's compositor logged the game's connection ("External connection from
-    /app/lib/quakevr/ironwail"). 3.5 s later every SteamVR process disconnected at once and the compositor's log
-    stopped without a shutdown: GNOME Shell had crashed (an X `BadWindow`, SIGABRT) and logged the player out, which
-    ended the session's processes, the game too. Not the game's crash: the game changes nothing of its window when VR
-    starts, and SteamVR's compositor drives the headset through GNOME's DRM lease (`wp_drm_lease_device_v1`) at that
-    moment. A GNOME or SteamVR fault; worth a report to them with GNOME Shell's journal.
-  - **With wider permissions**: SIGABRT in `vrclient.so`, a SIGSEGV at 0x60 in `xrBeginFrame` (`libvulkan_radeon.so`
-    and `vrclient.so` on the stack), SteamVR starting more of its helpers though one ran, a `vrwebhelper` crash. No
-    logs of those runs. The likeliest common cause is the sandbox's own PID namespace: SteamVR names its shared
-    resources after `vrserver`'s PID ("CSharedResourceNamespaceServer sent namespace data: <pid>"), which means
-    another process, or none, inside the sandbox; a client that decides its server is gone starts SteamVR again. The
-    sandbox can't share the host's PIDs (Flatpak always has its own namespace), so **SteamVR is for the native build**
-    (LINUX.md, "Build": two commands) until the AppImage below; the Flatpak for Monado and WiVRn.
+    started`, the session READY, then SYNCHRONIZED in SteamVR's own log of the game (`xrclient_ironwail.txt`).
+  - **The sandbox makes SteamVR's client start a second set of SteamVR's helpers, as the game's children**: the game
+    is PID 2 in its own PID namespace (`xrclient_ironwail.txt`: "startup with PID=2", then "Overriding pid with 758890
+    (was 2)"); SteamVR's client, in the game's process, doesn't see the host's helpers and starts its own
+    `vrdashboard`, `vrwebhelper` and `vrenv.sh` (which runs `vrmonitor -nokillprocess -startupexename ironwail`)
+    inside the sandbox, though the host's were running (they disconnect only later); `vrserver` logs "Duplicate mailbox
+    name vrwebhelper/main" and a second `vrmonitor` and `vrdashboard`. A native OpenXR game on the same machine logs
+    "VR Dashboard executable already running" and starts none.
+  - **The sandboxed `vrmonitor` crashes GNOME Shell (likely)**: twice, 5 ms after it connects to `vrserver`, GNOME
+    Shell's journal shows a new legacy tray icon (`Shell.TrayIcon`), then an X `BadWindow` in its panel code
+    (`panelMenu.js`, `panel.js`), SIGABRT and a logout (Xwayland goes with it, and the host's SteamVR); the host's own
+    `vrmonitor` starting never shows that tray line. Probably the sandbox's filtered session bus leaves its Qt without
+    the StatusNotifier service, so it falls back to an XEmbed tray icon (not proven). Not every time: at 08:56 and 09:20
+    the sandboxed `vrmonitor` ran for ~100 s and the desktop survived. GNOME Shell aborting on a client's `BadWindow`
+    is GNOME's bug (worth a report with `journalctl --user -b` and `coredumpctl info gnome-shell`).
+  - **The game's crashes are SteamVR's client's, and separate from GNOME's**: they happen in runs where GNOME survived
+    too (08:56, 09:20), each within a frame or two of the session's first frames, right after SteamVR's client starts
+    an in-process Vulkan renderer for the panel's quad layer ("Initializing CVulkanVRRenderer", "Created remote Vulkan
+    image"; the native control has none): a SIGABRT on a SteamVR thread ("Not the lock owner(0) != 105", "pthreads
+    futex robust_list is corrupt", `ipcposix.cpp:217`), or a SIGSEGV at 0x60 in the first `xrBeginFrame` after
+    SYNCHRONIZED (`vrclient.so`, then `libvulkan_radeon.so`; the same offsets at 5187f3e and 48f9d58). Why, the logs
+    can't tell: the sandbox's thread IDs in locks shared with the host, the duplicate helpers resetting shared state, or
+    a SteamVR 2.19.3 bug in the GL quad-layer path on this GPU. "No GPU timing Vulkan device" is logged by the native
+    control too: not the cause.
+  - **Not every Flatpak**: a player on CachyOS (2026-11-19, Discord) plays the Flatpak with SteamVR (after giving it
+    `~/.local/share/Steam`), so neither the sandbox alone nor the GL quad layer alone is enough. What would decide:
+    the native build on the PSVR2 machine (works: the sandbox; the same SIGSEGV: SteamVR's GL path), and the CachyOS
+    player's `xrclient_ironwail.txt` (PID=2? duplicate helpers? `CVulkanVRRenderer`?) with their GPU, SteamVR version
+    and desktop.
+  - (The same player's Windows build under Proton, 29 October: "unsupported graphics binding type: 1000023000", the
+    Win32 GL binding: Proton is no way for this GL game to SteamVR on Linux.)
 - **Other runtimes for a SteamVR headset**: WiVRn streams to the standalone headsets its client runs on, Monado drives
   the headsets it has drivers for (LINUX.md, "Run"); xrizer is the other way round (OpenVR games on an OpenXR runtime),
   not needed for this game, which speaks OpenXR.

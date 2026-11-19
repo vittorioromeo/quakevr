@@ -289,6 +289,10 @@ private:
     bool sessionRunning{false};
     bool swapIntervalChanged{false};
     bool frameBegun{false};
+    // The session's first frames traced (traceFrame): frames left, and the one now (1 = the first).
+    static constexpr int tracedFrames = 10;
+    int traceFramesLeft{0};
+    int tracedFrame{0};
     XrFrameState frameState{XR_TYPE_FRAME_STATE};
     XrView views[2]{{XR_TYPE_VIEW}, {XR_TYPE_VIEW}};
     XrViewConfigurationView configViews[2]{{XR_TYPE_VIEW_CONFIGURATION_VIEW}, {XR_TYPE_VIEW_CONFIGURATION_VIEW}};
@@ -408,6 +412,10 @@ private:
     // A line in the start's breadcrumbs before the call it names (the crash report's "Last GL steps", gl_startup.log
     // while the game starts), in qvr_openxr.txt, and in the crash report's VR line.
     void step(const char* format, ...);
+    // The session's first tracedFrames frames: a step before each frame call ("frame 2: xrBeginFrame"), so a crash
+    // inside the runtime's call says which call and which frame (GitHub #82: SteamVR's client crashed in the first
+    // xrBeginFrame, or on its own thread by the fourth frame, and the report's last step was the panel's swapchain).
+    void traceFrame(const char* call, const char* detail = "");
 
     // An OpenXR call under vr_xr_guard's handler: a crash inside the runtime is logged and returned as a failure, the
     // runtime marked as crashed (this start fails; the stop's destroy calls, guarded too, are all it gets after).
@@ -451,7 +459,7 @@ private:
     // The GL texture of the swapchain's next image, acquired and waited for; 0 on failure.
     [[nodiscard]] unsigned acquireImage(const Swapchain& sc);
 
-    bool releaseImage(const Swapchain& sc) const;
+    bool releaseImage(const Swapchain& sc);
 
     static void destroySpace(XrSpace& space);
 
