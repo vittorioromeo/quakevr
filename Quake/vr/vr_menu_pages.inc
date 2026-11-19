@@ -478,6 +478,7 @@ void resetFlatKeys()
         row(opt::vr_climb_slide).extend().help("When your body can't follow your hands along a ledge (past your arm's reach, against a wall), the hand slides along it and stays on your controller. Off: it stays where it took hold, and drifts away from your controller."),
         row(opt::vr_physsound_grab),
         row(opt::vr_climb_mantle_height),
+        row(opt::vr_climb_mantle_trigger),
         row(opt::vr_climb_mantle_slope),
         row(opt::vr_climb_mantle_grunt),
         cycle("Mantle Grunt Sound", "vr_climb_mantle_grunt_sound", gruntChoices()).help("Which grunt the mantle makes. Hard landing (the default): the strained \"oof\" of landing from a height, so it doesn't sound like a jump. The deeper ones are Quake's played slower. Hear it with Hear Mantle Grunt."),
