@@ -9,6 +9,7 @@
 #include "vr_netsnap.hpp"
 #include "vr_mpdownload.hpp"
 #include "vr_clientprefs.hpp"
+#include "vr_moveguard.hpp"
 #include "vr_arenaxray.hpp"
 #include "vr_modelmetadata.hpp"
 #include "vr_client.hpp"
@@ -1078,6 +1079,10 @@ extern "C" void VR_WriteMoveExtras(sizebuf_t* buf, int forward, int side, int up
                 thrownValid[0] = thrownValid[1] = false;
             }
             m.vr = buildMove();
+            if(vr_mp_test_cheat.value != 0.f)
+            {
+                moveguard::cheatForTest(static_cast<int>(vr_mp_test_cheat.value), m.vr, m.time, m.viewBack);
+            }
             buf->cursize = 0;
             netmove::writeMoves(buf, m, !cls.demoplayback && cl.movemessages >= 2); // (CL_SendMove dumps the first two)
         }

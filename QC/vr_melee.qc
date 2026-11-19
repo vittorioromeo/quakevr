@@ -44,9 +44,10 @@ vector(entity p, float xHand) VR_Melee_Wrist =
     {
         return h;
     }
-    float ownOff = xHand == cVR_OffHand && !cvar_hget(cvarh_vr_handcal_off_mirror);
-    float pitch = cvar_hget(ownOff ? cvarh_vr_offhandpitch : cvarh_vr_gunangle) * 0.0174533;
-    float yaw = cvar_hget(ownOff ? cvarh_vr_offhandyaw : cvarh_vr_gunyaw) * 0.0174533;
+    // (p's own hand calibration, whoever self is: clientpref)
+    float ownOff = xHand == cVR_OffHand && !clientpref(p, cvarh_vr_handcal_off_mirror);
+    float pitch = clientpref(p, ownOff ? cvarh_vr_offhandpitch : cvarh_vr_gunangle) * 0.0174533;
+    float yaw = clientpref(p, ownOff ? cvarh_vr_offhandyaw : cvarh_vr_gunyaw) * 0.0174533;
     if(xHand == cVR_OffHand && !ownOff)
     {
         yaw = -yaw;

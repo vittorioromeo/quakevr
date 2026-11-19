@@ -41,6 +41,13 @@ Tests:
              each given a shotgun with his grips let go, A keeps it and B's falls; then the other way round.
     grab     the rig up: the server has each player's fists as his client poses them; B's shotgun falls from his
              open hand and he closes it on it: taken, judged by his own fist on the dedicated server.
+    guard    (review 2026-11-18 finding 1) a remote player's own values held to a body's bounds (vr_moveguard.hpp): A,
+             tall, with a rocket launcher up, out and across at arm's length, is never held; B's lying moves
+             (vr_mp_test_cheat: hands and muzzle across the room, 500 m/s, a 20000 u/s room-scale walk, a second's
+             rewind) and a 500-unit fist sphere are held and counted (vr_mp_status mp_guard), his walk cut to a head's.
+    cmdguard (review 2026-11-18 finding 9) client string commands: the test shot and punch refused by a server without
+             vr_mp_watch (the harness's), taken with it; each client's commands under a budget: both players' own
+             (spawn's vr_rig chunks...) far under it, B's flood of 150 in a frame cut to it and the rest dropped.
     teleport client-side traces: B (a remote client) traces his own map down to his floor; he aims a teleport with his off
              hand (his own trace: valid) and lets go: the server moves him there, A sees him there.
     held     the held weapon's drawn pose up: B holds a shotgun still; the server places its hotspots where B's view
@@ -96,9 +103,9 @@ Tests:
     vanish   (B16) a vanished server at its client: B's link down cut, "not responding" after 3 s, the link back; A,
              the listen host, untouched; A's game killed: B told, then out at his vr_mp_client_timeout to the server
              browser with the reason.
-    suite    coop, coop with B at 150 ms each way and 2% loss, bandwidth, armed, retransmit, version, avatar, avatarcal, body, prefs, grab,
+    suite    coop, coop with B at 150 ms each way and 2% loss, bandwidth, armed, retransmit, version, avatar, avatarcal, body, prefs, grab, guard,
              teleport, held, ground, campaign, campaign_listen, flow, rejoin, download, pickup, forcegrab, melee, moves, climb,
-             rules, cosmetics, flatbody, loss, predict, predictclimb, lagcomp, disarm, voice, voice with B 50 ms (30 ms
+             rules, cosmetics, flatbody, loss, predict, predictclimb, lagcomp, cmdguard, disarm, voice, voice with B 50 ms (30 ms
              jitter, 5% loss) away, dm, lockstep, lockstep_throw, nat (B23: room codes through simulated routers).
              (B25) --only a,b runs just those; --suite-repeat N runs them N times over; --load N (any test) keeps N
              busy CPU workers at normal priority running meanwhile (mp_load.py: the machine busy with other work, as
@@ -1154,6 +1161,13 @@ def rules(s):
     s.check("the server and B know the same rules, every balance page's",
             hs.get("count") == h.get("count") and int(h.get("count", 0)) > 1000, "server %s, B %s" % (
                 hs.get("count"), h.get("count")))
+    # (Review 2026-11-18, finding 14: each setting's kind written where it is declared, vr_cvars.inc's QVR_RULE, QVR_PREF,
+    # QVR_OWN; every setting on a rule page has one, the old substring list only the check's guess)
+    kinds = {k: rs.get(k, {}).get("kind") for k in list(RULES) + ["vr_gunangle", "vr_bash_sound"]}
+    want = dict({k: "rule" for k in RULES}, vr_gunangle="pref", vr_bash_sound="own")
+    s.check("every setting on a rule page has its kind (none unset); the rules', a preference's and a sound's as written",
+            hs.get("unset") == "0" and h.get("unset") == "0" and kinds == want,
+            "unset: server %s, B %s; kinds %r" % (hs.get("unset"), h.get("unset"), kinds))
 
     since = b.mark()
     b.cmd("vr_menu_press Gameplay Presets > Classic;echo mp_pressed")  # (";": the line's end is not in the label)
@@ -1605,6 +1619,30 @@ def weapons_held(s, srv, ea, eb, keeper, dropper, label, need=5, tries=30):
         "the server's main-hand weapons (%s, %s) by report: %s" % (name[keeper], name[dropper], seen[-12:]))
 
 
+def prefs_qc(srv, self_ent, other_ent, name):
+    """The server's QC read of preference `name` (cvar_hget) with self and other those entities -> its value."""
+    since = srv.mark()
+    srv.cmd("vr_mp_prefs_qc %d %d %s" % (self_ent, other_ent, name))
+    _, l = srv.wait(r"^mp_prefs_qc: self=%d other=%d " % (self_ent, other_ent), 10, since, "the server's QC read")
+    return float(fields(l)["value"])
+
+
+def prefs_qc_checks(s, srv, ea, eb):
+    """(Review 2026-11-18, finding 13) cvar_hget's player: self when he is one, else other. A (Sticky, 1) and B (the
+    server's Hold, 0) have theirs; an empty slot's player entity has none (as a bot, or a player whose have not come):
+    with self that one and other A, the server's own -- A's no longer (self's fall-through to other)."""
+    empty = max(e for e in range(1, 5) if e not in (ea, eb))
+    got = {
+        "self A, other B": prefs_qc(srv, ea, eb, "vr_weapon_grip_mode"),
+        "self B, other A": prefs_qc(srv, eb, ea, "vr_weapon_grip_mode"),
+        "self world, other A (a touch: self the item)": prefs_qc(srv, 0, ea, "vr_weapon_grip_mode"),
+        "self a player without preferences (%d), other A" % empty: prefs_qc(srv, empty, ea, "vr_weapon_grip_mode"),
+    }
+    want = [1.0, 0.0, 1.0, 0.0]
+    s.check("cvar_hget's player: self's own when a player (a player without preferences: the server's, never other's), "
+            "else other's", list(got.values()) == want, "%s (want %s)" % (got, want))
+
+
 def prefs(s):
     """Per-player preferences (vr_clientprefs.cpp): each client's go up and the server judges each player by his own.
     A picks the Sticky weapon grip (vr_weapon_grip_mode 1), B keeps Hold (0), the dedicated server's own is Hold: both
@@ -1626,6 +1664,7 @@ def prefs(s):
     s.check("the server has both players' preferences, A's Sticky grip his own, B's the defaults",
             got.get(ea, {}).get("vr_weapon_grip_mode") == 1.0 and got.get(eb, {}).get("has") == 1 and
             "vr_weapon_grip_mode" not in got.get(eb, {}), "server: %s" % got)
+    prefs_qc_checks(s, srv, ea, eb)
     since = a.mark()
     a.cmd("vr_mp_prefs; echo mp_prefs_done")
     n, _ = a.wait(r"mp_prefs_done", 10, since, "A's prefs")
@@ -3813,6 +3852,87 @@ PRONE_HEAD = 0.4   # m: and this high lies down (crawl_test.py's: the eyes under
 LYING_PITCH = 30.0  # degrees: the watcher's copy of him laid at least this far forward (lying: 0.5 of the way at least)
 
 
+def guard_counts(srv):
+    """vr_mp_status's "mp_guard:" lines on the server -> {player entity: {moves, places, speeds, walks, fists, spots,
+    rewinds}} (vr_moveguard.hpp: each client's own values the server held to a body's bounds)."""
+    out = {}
+    for l in status(srv):
+        if l.startswith("mp_guard:"):
+            f = {k: int(v) for k, v in re.findall(r"(\w+)=(-?\d+)", l)}
+            out[f.pop("slot") + 1] = f
+    return out
+
+
+GUARD_CHEAT_S = 2.0  # mp_guard: seconds B's moves lie
+
+
+def guard(s):
+    """(Review 2026-11-18 finding 1; MP_DESIGN P2-6) A remote player's own values held to a body's bounds
+    (vr_moveguard.hpp). A plays honestly as a tall player (his Height and head at 1.95 m) with a rocket launcher (a long
+    weapon) held up at arm's length, then out ahead, his off hand on it: the server holds none of his values. B's moves
+    lie (vr_mp_test_cheat: his main hand, muzzle and loading port 2000 units ahead, his hands' speeds 500 m/s, a room-scale
+    walk of 20000 units a second, his view a second behind): the server holds each kind and counts it, his room-scale
+    walk cut to a walking head's budget; a fist of 500-unit spheres (a raw vr_rig) held to a hand's size. B honest
+    again: nothing more held."""
+    srv, a, b, ea, eb = join(s)
+    a.cmd("vr_height_calibration 1.95; vr_mock_hand head 0 1.95 0")
+    wpn = arm_with(s, srv, a, ea, 10, "")
+    s.check("A holds the rocket launcher (the server's report)", wpn and wpn[-1] == 10, "A's main weapon: %s" % wpn)
+    poses = [
+        "vr_mock_hand main 0.15 2.75 -0.1 80 0 0",   # straight up over his head, the launcher pointing up
+        "vr_mock_hand main 0.1 1.6 -0.8 0 0 0",      # out ahead at arm's length
+        "vr_mock_hand main -0.6 1.7 -0.4 0 80 0",    # across to his left, pointing left
+    ]
+    for pose in poses:
+        a.cmd(pose)
+        server_time_past(srv, server_time(srv) + 0.5)
+    own = drawn_report(a, "mp_drawn_own").get((ea, 1), {})
+    grips = sorted(i for i, v in own.get("spots", {}).items() if int(v[0]) == 1)
+    if grips:  # (his off hand on its grip: held in both)
+        a.cmd("vr_mock_hand main 0.1 1.6 -0.8 0 0 0; vr_mock_hand_to off heldspot %d palm; vr_mock_button off grip 1"
+              % grips[0])
+        server_time_past(srv, server_time(srv) + 1.0)
+    s.note("A's drawn main hand: %s; its grips %s" % (own, grips))
+
+    before = guard_counts(srv)
+    lines = status(srv)
+    b_from = org_of(lines, "mp_client", "slot", eb - 1)
+    b.cmd("vr_mp_test_cheat 15")
+    # (a fist of one sphere of 500 units, past the short's 511: 32000 64ths)
+    b.cmd("cmd vr_rig 2 1 1 0 0000000000007d00")
+    server_time_past(srv, server_time(srv) + GUARD_CHEAT_S)
+    b.cmd("vr_mp_test_cheat 0")
+    during = guard_counts(srv)
+    lines = status(srv)
+    b_to = org_of(lines, "mp_client", "slot", eb - 1)
+    ga, gb = during.get(ea, {}), during.get(eb, {})
+    s.note("the server's counts before: %s; after B's lies: %s" % (before, during))
+    held_a = {k: v for k, v in ga.items() if k != "moves" and v != 0}
+    s.check("A's honest moves (tall, a long weapon up, out and across, two-handed): none of his values held",
+            ga.get("moves", 0) > 100 and not held_a, "A: %s" % ga)
+    s.check("B's lies held and counted: places, speeds, the room-scale walk, the view's rewind, the fist",
+            all(gb.get(k, 0) > 0 for k in ("places", "speeds", "walks", "rewinds", "fists")), "B: %s" % gb)
+    if b_from and b_to:
+        travel = math.hypot(b_to[0] - b_from[0], b_to[1] - b_from[1])
+        # (the budget: walkMost 6 m/s for the time and walkBurst 2 m, at the floor's 1.5 world scale: 39.4 units a metre)
+        most = (6.0 * (GUARD_CHEAT_S + 1.0) + 2.0) * 39.4
+        s.metric("cheat_travel", round(travel, 1))
+        s.check("B's room-scale walk of 20000 units a second cut to a walking head's (under %.0f units in %.0f s)" % (
+            most, GUARD_CHEAT_S), travel <= most, "B went %.1f units: %s -> %s" % (travel, b_from, b_to))
+    pr = prefs_report(s, srv).get(eb, {})
+    # (a sphere's centre within 0.3 m and its radius 0.1 m of a hand, at 39.4 units a metre)
+    s.check("B's 500-unit fist sphere held to a hand's size (the server's fist sum)",
+            0.0 < pr.get("fistsum1", 0.0) <= 0.1 * 39.4 + 1e-3 or pr.get("fist1", 0) > 1, "B's server prefs: %s" % pr)
+
+    server_time_past(srv, server_time(srv) + 0.5)  # (his lying moves' repeats gone by)
+    settled = guard_counts(srv).get(eb, {})
+    server_time_past(srv, server_time(srv) + 1.5)
+    after = guard_counts(srv).get(eb, {})
+    s.check("B honest again: nothing more of his held", after.get("moves", 0) > settled.get("moves", 0) and all(
+        after.get(k) == settled.get(k) for k in ("places", "speeds", "walks", "rewinds")),
+        "B 0.5 s after: %s; 2 s after: %s" % (settled, after))
+
+
 def server_moves(srv, ent):
     """Player `ent`'s `moves=` on the server (vr_mp_status), -1: none."""
     for l in status(srv):
@@ -4820,6 +4940,68 @@ LAGCOMP_HOLDS = (3, 6, 3, 6)  # (B13c) the held legs: A's updates to B wait this
 LAGCOMP_ERR_MEAN = 2.0     # units: A put back at most this far from where B drew him, on average ...
 LAGCOMP_ERR_MOST = 6.0     # ... and at most (the shot's command a frame after his draw; coordinates' rounding)
 LAGCOMP_CAP_SHOWS = 3.0    # units: under the cap the frames' rewind (before B13c) is off by this much more on average
+
+
+def cmd_counts(srv):
+    """vr_mp_status's "mp_cmds:" lines on the server -> {player entity: {used, dropped, least}}."""
+    out = {}
+    for l in status(srv):
+        if l.startswith("mp_cmds:"):
+            f = {k: int(v) for k, v in re.findall(r"(\w+)=(-?\d+)", l)}
+            out[f.pop("slot") + 1] = f
+    return out
+
+
+CMD_FLOOD = 150  # mp_cmdguard: B's string commands in one frame (his budget: 64 at once, 32 a second)
+
+
+def cmdguard(s):
+    """(Review 2026-11-18 finding 9) Client string commands. The harness's test shot and punch (vr_lagcomp_shot,
+    vr_lagcomp_punch) are refused by a server without vr_mp_watch (every server but the harness's) and taken with it. A
+    client's commands have a budget (VR_ClientCommandBudget): both players' own state (their fists' vr_rig chunks at
+    spawn, palm frames, preferences, avatar calibration, held poses) stays far under it; B's flood of CMD_FLOOD commands
+    in one frame is cut to it, the rest dropped and the server's console told; a second later B's commands run again."""
+    srv, a, b, ea, eb = join(s)
+    srv.cmd("developer 1")
+    server_time_past(srv, server_time(srv) + 2.0)  # (their spawns' commands all in)
+    honest = cmd_counts(srv)
+    s.note("the server's command counts after both joined: %s" % honest)
+    s.check("both players' own commands (spawn's state, preferences, calibration) under their budgets: none dropped, "
+            "half the burst or more left", all(honest.get(e, {}).get("used", 0) > 0 and honest[e].get("dropped") == 0 and
+                                                 honest[e].get("least", 0) >= 32 for e in (ea, eb)), "%s" % honest)
+
+    srv.cmd("vr_mp_watch 0")
+    since = srv.mark()
+    b.cmd("vr_mp_shoot %d; vr_mp_punch %d" % (ea, ea))
+    _, l = srv.wait(r"vr_lagcomp_punch from .*refused", 10, since, "the server refusing B's test punch")
+    shots = [x for x in srv.lines[since:] if x.startswith("mp_lagcomp_")]
+    refused = [x.strip() for x in srv.lines[since:] if "refused (a test's" in x]
+    s.check("without vr_mp_watch the server refuses the test shot and punch (no trace, no report)",
+            len(refused) == 2 and not shots, "refused: %s; reports: %s" % (refused, shots))
+    srv.cmd("vr_mp_watch 1")
+    since = srv.mark()
+    b.cmd("vr_mp_shoot %d" % ea)
+    srv.wait(r"mp_lagcomp_shot: slot=%d " % (eb - 1), 10, since, "the harness's server taking B's test shot")
+    s.check("with vr_mp_watch (the harness's servers) it takes them", True, "")
+
+    before = cmd_counts(srv).get(eb, {})
+    since = srv.mark()
+    b.cmd("; ".join(["cmd vr_magpoll 0"] * CMD_FLOOD))
+    _, note = srv.wait(r"commands dropped", 10, since, "the server dropping B's flood")
+    server_time_past(srv, server_time(srv) + 0.5)
+    after = cmd_counts(srv).get(eb, {})
+    ran = after.get("used", 0) - before.get("used", 0)
+    dropped = after.get("dropped", 0) - before.get("dropped", 0)
+    s.note("B's flood: %s; counts before %s, after %s" % (note.strip(), before, after))
+    s.check("B's flood of %d commands in one frame cut to his budget (at most 64 and a few run, the rest dropped)" %
+            CMD_FLOOD, ran <= 70 and dropped >= CMD_FLOOD - 70 and ran + dropped >= CMD_FLOOD - 2,
+            "ran %d, dropped %d" % (ran, dropped))
+    server_time_past(srv, server_time(srv) + 1.5)
+    since = srv.mark()
+    b.cmd("vr_mp_shoot %d" % ea)
+    srv.wait(r"mp_lagcomp_shot: slot=%d " % (eb - 1), 10, since, "B's commands taken again after his flood")
+    a_after = cmd_counts(srv).get(ea, {})
+    s.check("B's commands run again a moment later; A's never dropped", a_after.get("dropped") == 0, "A: %s" % a_after)
 
 
 def lagcomp(s):
@@ -6569,6 +6751,10 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             body(s)
         elif test == "mp_prefs":
             prefs(s)
+        elif test == "mp_guard":
+            guard(s)
+        elif test == "mp_cmdguard":
+            cmdguard(s)
         elif test == "mp_grab":
             grab(s)
         elif test == "mp_teleport":
@@ -6686,6 +6872,7 @@ SUITE = [
     ("mp_body", ()),
     ("mp_prefs", ()),
     ("mp_grab", ()),
+    ("mp_guard", ()),
     ("mp_teleport", ()),
     ("mp_held", ()),
     ("mp_ground", ()),
@@ -6707,6 +6894,7 @@ SUITE = [
     ("mp_predictclimb", ()),
     ("mp_predictslide", ()),
     ("mp_lagcomp", ()),
+    ("mp_cmdguard", ()),
     ("mp_disarm", ()),
     ("mp_voice", ()),
     ("mp_voice_lossy", (50, 30, 0.05)),
@@ -6726,7 +6914,7 @@ SUITE = [
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite"])
     ap.add_argument("--base", required=True, help="the game folder (id1, quakevr...)")
     ap.add_argument("--exe", default=EXE)
     ap.add_argument("--out", default=os.path.join(REPO, "scratch", "mp"))
@@ -6787,8 +6975,8 @@ def main_run(args):
                 sys.exit(2)
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
-    elif args.test in ("bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground",
-                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui"):
+    elif args.test in ("bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground",
+                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui"):
         ok = run(args, "mp_" + args.test)
     elif args.test == "voice":
         ok = run(args, "mp_voice", args.lag, args.jitter, args.loss)

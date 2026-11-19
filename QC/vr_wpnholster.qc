@@ -510,7 +510,7 @@ void(entity xEntPlayer, float xHand, float xHolster) VRHolsterHaptic =
     }
 
     float holsterHapticsMode;
-    holsterHapticsMode = cvar_hget(cvarh_vr_holster_haptics);
+    holsterHapticsMode = clientpref(xEntPlayer, cvarh_vr_holster_haptics);
 
     if(holsterHapticsMode == 1 /* continuous */)
     {
@@ -1252,7 +1252,7 @@ float(entity ent, float xHand) VRWeaponGivenHeld =
         }
         return FALSE;
     }
-    return cvar_hget(cvarh_vr_weapon_grip_mode) != 1 && !vr_grip_sticky_test;
+    return clientpref(ent, cvarh_vr_weapon_grip_mode) != 1 && !vr_grip_sticky_test;
 }
 
 // (Engine, vr_scenario: a give placed the weapon in `xHand` of `p`.)
@@ -1401,7 +1401,7 @@ float(entity ent, float xHand, float xWeapon, float xWeaponFlags) VRTryHandOff =
 {
     float other = VRGetOtherHand(xHand);
     float anywhere = weaponanygrip(ent, other) == 2;
-    if(!cvar_hget(cvarh_vr_2h_handoff) ||
+    if(!clientpref(ent, cvarh_vr_2h_handoff) ||
        ((xWeaponFlags & QVR_WPNFLAG_FOREGRIP_CARRIED) && !anywhere) ||
        !(VRGet2HAiming(ent) || time - ent.last_2h_time < 0.1 || anywhere) ||
        !VR_HandGrabUtil_IsHandGrabbing(ent, other) ||

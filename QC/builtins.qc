@@ -702,7 +702,7 @@ float(float h) cvar_hget = #0;
 void() cvar_hclear = #0;
 // QVR: setting h (a cvar_hmake handle) as player p chose it: a per-player preference (vr_clientprefs.cpp: grip, reload,
 // holster modes, gun angles...) in multiplayer is his own; else cvar_hget(h). (cvar_hget itself answers a preference
-// with self's, else other's, when either is a player.)
+// with self's when self is a player -- the server's if he has none: a bot -- else other's when other is one.)
 float(entity p, float h) clientpref = #0;
 
 float() worldtext_hmake = #0;

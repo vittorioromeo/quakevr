@@ -560,8 +560,9 @@ void PF_cvar_hmake()
     G_FLOAT(OFS_RETURN) = static_cast<float>(cvarHandles.size() - 1);
 }
 
-// A per-player preference (vr_clientprefs.hpp): the value of the player the QC runs for (`self`, else `other`), the
-// server's own when neither is a player or his have not come (single player: always the game's own, no slot has any).
+// A per-player preference (vr_clientprefs.hpp): the value of the player the QC runs for (`self` when a player, else
+// `other`), the server's own when neither is a player or his have not come (a bot's, a just-joined player's: never
+// another's; single player: always the game's own, no slot has any).
 void PF_cvar_hget()
 {
     const int i = static_cast<int>(G_FLOAT(OFS_PARM0));

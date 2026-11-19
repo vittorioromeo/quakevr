@@ -26,6 +26,13 @@ void init(); // registers commands
 // How many of client `clientNum`'s moves came in a server frame that had one of his already (merged: their VR bits ORed,
 // the hands' last pose kept) since he connected: vr_mp_status `merged=` (MP_PLAN.md, B5d: melee at jitter).
 [[nodiscard]] int mergedMoves(int clientNum);
+// His string commands since he connected: run, dropped over his budget (VR_ClientCommandBudget), and the fewest his
+// budget had left after one (vr_mp_status's mp_cmds).
+struct CommandCounts
+{
+    int used, dropped, least;
+};
+[[nodiscard]] CommandCounts commandCounts(int clientNum);
 
 // The client places `player`'s hands (and muzzles) from where it last saw the player, which
 // lags the server by a frame or more: moves the hand fields (and the stored move) along by

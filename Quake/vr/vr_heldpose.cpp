@@ -1,6 +1,7 @@
 // vr_heldpose.cpp -- see vr_heldpose.hpp.
 
 #include "vr_heldpose.hpp"
+#include "vr_moveguard.hpp"
 
 #include "vr_client.hpp"
 
@@ -510,7 +511,23 @@ int grabSpot(edict_t* player, int hand, const edict_t* weapon)
         Con_Printf("grabspot: player %d's %s hand, weapon %d: his client's spot %d %d\n", slot + 1, hand == 0 ? "off" : "main",
             num, s.entity, s.index);
     }
-    return num > 0 && s.entity == num && s.index >= 0 ? s.index + 1 : 0;
+    if(num <= 0 || s.entity != num || s.index < 0)
+    {
+        return 0;
+    }
+    // His claim only for a weapon his hand is in reach of on the server (vr_moveguard.hpp: an arm's reach and a weapon's
+    // length): another player's claim of a hotspot of something across the level, refused and counted.
+    if(clientprefs::ownSlot() != slot && progs::handFields(hand).pos >= 0)
+    {
+        const glm::vec3 at = progs::fieldVec(player, progs::handFields(hand).pos);
+        const glm::vec3 w{weapon->v.origin[0], weapon->v.origin[1], weapon->v.origin[2]};
+        if(glm::length(w - at) > moveguard::reachMetres * moveguard::unitsPerMetre(moveguard::slotScale(slot)))
+        {
+            moveguard::countSpot(slot);
+            return 0;
+        }
+    }
+    return s.index + 1;
 }
 
 int reverseGrip(edict_t* player, int hand, const edict_t* weapon, float& cosine)

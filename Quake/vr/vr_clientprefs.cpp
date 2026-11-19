@@ -5,10 +5,13 @@
 #include "vr_client.hpp"
 
 #include "vr_cvars.hpp"
+#include "vr_cvars_util.hpp"
 #include "vr_grip.hpp"
 #include "vr_gripfit.hpp"
 #include "vr_held.hpp"
 #include "vr_heldpose.hpp"
+#include "vr_moveguard.hpp"
+#include "vr_progs.hpp"
 #include "vr_tunables_api.hpp"
 #include "Zancle/Base/IsFinite.hpp"
 #include "Zancle/Math/Abs.hpp"
@@ -46,6 +49,29 @@ constexpr const char* prefNames[] = {
     // his link: the most the server sends him a second (B12, vr_netsnap.cpp)
     "vr_net_rate"};
 constexpr int prefCount = static_cast<int>(sizeof(prefNames) / sizeof(prefNames[0]));
+// A preference's place in prefNames by name, at compile time (-1: none).
+[[nodiscard]] constexpr int prefIndex(const char* name)
+{
+    for(int i = 0; i < prefCount; i++)
+    {
+        const char* a = prefNames[i];
+        const char* b = name;
+        while(*a && *a == *b)
+        {
+            a++;
+            b++;
+        }
+        if(*a == *b)
+        {
+            return i;
+        }
+    }
+    return -1;
+}
+// vr_net_rate's place: asked for each client every server frame (vr_netsnap.cpp, vr_voicerelay.cpp), so indexOf answers
+// it without the search.
+constexpr int netRatePref = prefIndex("vr_net_rate");
+static_assert(netRatePref >= 0, "vr_net_rate is a per-player preference");
 constexpr int prefsCommandVersion = 1; // "vr_prefs <version> <count> <values>": another version's or count's is ignored
 
 // The rig (B3): each hand's fist as this client poses it (held::fist: spheres in the hand's frame, world units), in
@@ -164,6 +190,28 @@ void resolve()
         state.vars[i] = var ? var : tunableFind(prefNames[i]);
     }
     state.resolved = true;
+    // The list against the settings' kinds (vr_cvars.inc's QVR_PREF): each setting of it says QVR_PREF (a tuning constant
+    // has no row to say it), and none says it that is not in it.
+    for(int i = 0; i < prefCount; i++)
+    {
+        if(state.vars[i] && Cvar_FindVar(prefNames[i]) && cvars::kindOf(state.vars[i]) != cvars::Kind::Pref)
+        {
+            Con_Warning("vr_clientprefs: %s is a per-player preference, but its vr_cvars.inc row says %s\n", prefNames[i],
+                cvars::kindName(cvars::kindOf(state.vars[i])));
+        }
+    }
+    cvars::forEachWithKind([](const cvar_t* var, cvars::Kind kind) {
+        bool listed = false;
+        for(int i = 0; i < prefCount && !listed; i++)
+        {
+            listed = state.vars[i] == var;
+        }
+        if(kind == cvars::Kind::Pref && !listed)
+        {
+            Con_Warning("vr_clientprefs: %s says QVR_PREF in vr_cvars.inc but is not in the preferences sent (prefNames)\n",
+                var->name);
+        }
+    });
 }
 
 [[nodiscard]] float ownValue(int i)
@@ -231,6 +279,10 @@ void rig_f()
         return;
     }
     {
+        // Each sphere a hand's size (vr_moveguard.hpp): its centre near the hand's point, its radius a finger's or a
+        // palm's; a bigger one is held to it and counted (a fist of 500-unit spheres grabbed and shoved a room).
+        const float upm = moveguard::unitsPerMetre(moveguard::slotScale(slot));
+        int bounded = 0;
         for(int s = 0; s < len / 16; s++)
         {
             float c[4];
@@ -248,8 +300,12 @@ void rig_f()
                 }
                 c[k] = static_cast<float>(static_cast<short>(static_cast<unsigned short>(u))) / rigStep;
             }
-            state.slotFist[slot][hand][first + s] = glm::vec4{c[0], c[1], c[2], za::max(c[3], 0.f)};
+            const glm::vec3 centre = moveguard::within(glm::vec3{c[0], c[1], c[2]}, moveguard::fistReachMetres * upm, bounded);
+            const float radius = za::min(za::max(c[3], 0.f), moveguard::fistRadiusMetres * upm);
+            bounded += radius < c[3] ? 1 : 0;
+            state.slotFist[slot][hand][first + s] = glm::vec4{centre, radius};
         }
+        moveguard::countFist(slot, bounded);
     }
     if(first + len / 16 == total)
     {
@@ -526,10 +582,42 @@ void mpPrefs_f()
     }
 }
 
+// "vr_mp_prefs_qc <self> <other> <cvar>": the server's QC read of a preference (cvar_hget: forQc) with self and other
+// those entity numbers ("mp_prefs_qc:", the harness's mp_prefs: a player without preferences -- a bot, a slot whose
+// have not come -- reads the server's, never other's).
+void prefsQc_f()
+{
+    if(Cmd_Argc() != 4 || !sv.active)
+    {
+        Con_Printf("vr_mp_prefs_qc <self> <other> <cvar>: cvar_hget's value of a per-player preference with those self, other\n");
+        return;
+    }
+    const cvar_t* var = Cvar_FindVar(Cmd_Argv(3));
+    const int pref = indexOf(var);
+    const int self = Q_atoi(Cmd_Argv(1)), other = Q_atoi(Cmd_Argv(2));
+    if(pref < 0 || self < 0 || other < 0 || self >= sv.qcvm.num_edicts || other >= sv.qcvm.num_edicts)
+    {
+        Con_Printf("vr_mp_prefs_qc: %s is no per-player preference, or no such entity\n", Cmd_Argv(3));
+        return;
+    }
+    const progs::ServerVm vm;
+    const int oldSelf = pr_global_struct->self, oldOther = pr_global_struct->other;
+    pr_global_struct->self = self * qcvm->edict_size;
+    pr_global_struct->other = other * qcvm->edict_size;
+    const float v = forQc(pref, var);
+    pr_global_struct->self = oldSelf;
+    pr_global_struct->other = oldOther;
+    Con_Printf("mp_prefs_qc: self=%d other=%d name=%s value=%g server=%g\n", self, other, var->name, v, var->value);
+}
+
 } // namespace
 
 int indexOf(const cvar_t* var)
 {
+    if(var == &vr_net_rate)
+    {
+        return netRatePref; // (the per-frame one: no search)
+    }
     resolve();
     for(int i = 0; i < prefCount; i++)
     {
@@ -560,10 +648,15 @@ float forQc(int pref, const cvar_t* var)
     {
         for(const int e : {pr_global_struct->self, pr_global_struct->other})
         {
-            const int slot = slotWithPrefs(e / qcvm->edict_size);
+            const int num = e / qcvm->edict_size;
+            const int slot = slotWithPrefs(num);
             if(slot >= 0)
             {
                 return state.slot[slot][pref];
+            }
+            if(num >= 1 && num <= svs.maxclients)
+            {
+                break; // (self a player -- a bot, one whose preferences have not come: the server's, never other's)
             }
         }
     }
@@ -659,6 +752,7 @@ void publishOwn(int hand)
 void init()
 {
     Cmd_AddCommand("vr_mp_prefs", mpPrefs_f);
+    Cmd_AddCommand("vr_mp_prefs_qc", prefsQc_f);
     Cmd_AddCommand_ClientCommand("vr_prefs", prefs_f);
     Cmd_AddCommand_ClientCommand("vr_rig", rig_f);
     Cmd_AddCommand_ClientCommand("vr_rigframe", rigFrame_f);

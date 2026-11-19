@@ -1,6 +1,8 @@
 // vr_predict.cpp -- a remote client's own walk predicted (vr_predict.hpp; MP_PLAN.md, B8).
 
 #include "vr_predict.hpp"
+#include "vr_moveguard.hpp"
+#include "vr_units.hpp"
 #include "vr_api.h"
 #include "vr_climb.hpp"
 #include "vr_clientprefs.hpp"
@@ -220,7 +222,7 @@ void grappleStore(edict_t* hook, const pmove::Grapple& g)
     {
         m.vr = *vr;
     }
-    pmove::Input in = inputOf(m);
+    pmove::Input in = inputOf(m, moveguard::unitsPerMetre(units::worldScale())); // (this game's own player, a bot)
     in.dt = host_frametime; // (the frame's own, a double: sv_user.c's and sv_phys.c's rounding, B11b part 2)
     return in;
 }
@@ -869,7 +871,7 @@ bool replay(vec3_t out, vec3_t before)
         }
         VectorCopy(b.origin, before);
         b.jumpedNow = false;
-        const pmove::Input in = inputOf(m);
+        const pmove::Input in = inputOf(m, moveguard::unitsPerMetre(units::worldScale()));
         const bool inAir = !(b.flags & FL_ONGROUND);
         const bool hangWas = b.hang.on;
         b.climbedNow = false;
@@ -1123,7 +1125,7 @@ void probe_f()
 
 } // namespace
 
-pmove::Input inputOf(const netmove::WireMove& m)
+pmove::Input inputOf(const netmove::WireMove& m, float upm)
 {
     pmove::Input in;
     in.dt = static_cast<double>(m.frameTime > 0.f ? (m.frameTime < moveMost ? m.frameTime : moveMost) : 0.f);
@@ -1139,25 +1141,28 @@ pmove::Input inputOf(const netmove::WireMove& m)
     in.jump = (m.buttons & 2) != 0;
     for(int h = 0; h < 2; h++)
     {
-        const glm::vec3 rel = m.vr.hands[h].pos - m.vr.origin; // (the integers sent: the server's exactly)
+        // (the integers sent: the server's exactly; bounded as the server bounds them, vr_moveguard.hpp)
+        const glm::vec3 rel = moveguard::relative(m.vr.hands[h].pos, m.vr.origin, upm);
         in.hands[h][0] = rel.x;
         in.hands[h][1] = rel.y;
         in.hands[h][2] = rel.z;
     }
     in.grabs = ((m.vr.vrBits0 & (1 << 1)) ? 1 : 0) | ((m.vr.vrBits0 & (1 << 3)) ? 2 : 0); // (vr_climb.cpp's grabBit)
-    in.headZ = m.vr.headPos.z - m.vr.origin.z; // (as the hands: the integers sent)
+    const glm::vec3 head = moveguard::relative(m.vr.headPos, m.vr.origin, upm); // (as the hands)
+    in.headZ = head.z;
     for(int h = 0; h < 2; h++) // (a hold's take, B8j part 2: the same numbers on the server and in his replay)
     {
-        const glm::vec3 tracked = m.vr.hands[h].tracked - m.vr.origin;
+        const glm::vec3 tracked = moveguard::relative(m.vr.hands[h].tracked, m.vr.origin, upm);
+        const glm::vec3 throwVel = moveguard::speed(m.vr.hands[h].throwVel);
+        const glm::vec3 handVel = moveguard::speed(m.vr.hands[h].vel);
         for(int i = 0; i < 3; i++)
         {
             in.tracked[h][i] = tracked[i];
-            in.throwVel[h][i] = m.vr.hands[h].throwVel[i];
-            in.handVel[h][i] = m.vr.hands[h].vel[i]; // (the water climb's pull, B8j part 3)
+            in.throwVel[h][i] = throwVel[i];
+            in.handVel[h][i] = handVel[i]; // (the water climb's pull, B8j part 3)
         }
         in.hotspots[h] = m.vr.hotspots[h];
     }
-    const glm::vec3 head = m.vr.headPos - m.vr.origin;
     for(int i = 0; i < 3; i++)
     {
         in.head[i] = head[i];
@@ -1182,7 +1187,9 @@ void serverQueue(client_t* client, const netmove::WireMove& m)
         memmove(&s.queue[0], &s.queue[1], sizeof(s.queue[0]) * (maxQueued - 1));
         s.n--;
     }
-    s.queue[s.n++] = inputOf(m);
+    pmove::Input in = inputOf(m, moveguard::unitsPerMetre(moveguard::slotScale(slot)));
+    moveguard::roomscale(slot, in.roomscale, in.dt, moveguard::unitsPerMetre(moveguard::slotScale(slot))); // (his budget)
+    s.queue[s.n++] = in;
 }
 
 void serverReset(int slot)
@@ -2264,7 +2271,7 @@ extern "C" void VR_PredictRelink(int num, float* origin)
         netmove::WireMove m;
         cp.lastNewest = newest;
         cp.lastNewTime = realtime;
-        cp.lastDt = netmove::clientMoveAt(newest, m) ? inputOf(m).dt : 0.f;
+        cp.lastDt = netmove::clientMoveAt(newest, m) ? inputOf(m, moveguard::unitsPerMetre(units::worldScale())).dt : 0.f;
     }
     vec3_t predicted, before;
     cp.drawing = clientActive() && replay(predicted, before);

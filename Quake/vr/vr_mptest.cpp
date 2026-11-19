@@ -29,6 +29,7 @@
 #include "vr_netsnap.hpp"
 #include "vr_progs.hpp"
 #include "vr_clientprefs.hpp"
+#include "vr_moveguard.hpp"
 #include "vr_nethud.hpp"
 #include "vr_serverbrowser.hpp"
 #include "vr_server.hpp"
@@ -413,6 +414,13 @@ void status_f()
                 v ? static_cast<int>(v->ammo_rockets) : 0, v ? static_cast<int>(v->ammo_cells) : 0,
                 v ? static_cast<int>(v->weapon) : 0, clip, c.edict ? qvr::mpavatar::movesByte(c.edict, false) : 0,
                 qvr::server::mergedMoves(i));
+            // (his own values held to a body's bounds, MP_DESIGN P2-6: vr_moveguard.hpp; an honest player's all 0)
+            const qvr::moveguard::Counts g = qvr::moveguard::counts(i);
+            Con_Printf("mp_guard: slot=%d moves=%d places=%d speeds=%d walks=%d fists=%d spots=%d rewinds=%d\n", i, g.moves,
+                g.places, g.speeds, g.walks, g.fists, g.spots, g.rewinds);
+            // (his string commands' budget, VR_ClientCommandBudget: an honest player's dropped 0)
+            const qvr::server::CommandCounts cc = qvr::server::commandCounts(i);
+            Con_Printf("mp_cmds: slot=%d used=%d dropped=%d least=%d\n", i, cc.used, cc.dropped, cc.least);
         }
         Con_Printf("mp_server: map=%s spawned=%d time=%.3f\n", sv.name, spawned, sv.qcvm.time); // (time: the game's clock)
     }
@@ -849,6 +857,7 @@ extern "C" void VR_MpTestInit(void)
     Cmd_AddCommand("vr_hurt", hurt_f);
     qvr::mpavatar::init(); // vr_mp_avatars
     qvr::clientprefs::init(); // vr_mp_prefs, the "vr_prefs" client command
+    qvr::moveguard::init();   // vr_moveguard_selftest
     qvr::browser::init();     // (B13) vr_mp_browse, vr_mp_favourite
     qvr::nethud::init();      // (B13) vr_net_hud_report
 }

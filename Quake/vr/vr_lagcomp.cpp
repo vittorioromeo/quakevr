@@ -1,6 +1,7 @@
 // vr_lagcomp.cpp -- lag compensation (vr_lagcomp.hpp; MP_PLAN.md, B8b).
 
 #include "vr_lagcomp.hpp"
+#include "vr_moveguard.hpp"
 
 #include "vr_api.h"
 #include "vr_client.hpp"
@@ -10,6 +11,7 @@
 #include "vr_netsnap.hpp"
 #include "vr_progs.hpp"
 
+#include "Zancle/Base/IsFinite.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -23,6 +25,8 @@ namespace qvr::lagcomp
 namespace
 {
 
+constexpr double rewindSlack = 0.5; // s: a move's time older than twice his round trip by more than this is held (a
+                                   // client's frame hitch, his move waiting in the server's buffer under jitter)
 constexpr int frames = 80; // server frames kept (1.1 s at 72 Hz: past vr_net_lagcomp_most's most, 1 s)
 
 // A target as a frame left it.
@@ -356,10 +360,39 @@ void serverFrame()
 
 void noteMove(int slot, float time, float viewBack)
 {
-    if(slot >= 0 && slot < MAX_SCOREBOARD)
+    if(slot < 0 || slot >= MAX_SCOREBOARD)
     {
-        seen[slot] = Seen{true, static_cast<double>(time), static_cast<double>(za::clamp(viewBack, 0.f, 1.f))};
+        return;
     }
+    // What he says he saw, bounded (vr_moveguard.hpp; MP_DESIGN P2-6): his interpolation buffer's delay at most what one
+    // can be, and his newest message no older than his link's round trip can make it (twice the reliable channel's
+    // measured one, and rewindSlack): a client close by no longer always gets the whole of vr_net_lagcomp_most (when it
+    // is raised past his round trip and the slack; at its default 0.5 s the cap is the tighter for every client).
+    double t = static_cast<double>(time);
+    double back = ZA_ISFINITE(viewBack) ? za::clamp(static_cast<double>(viewBack), 0.0, 1.0) : 0.0;
+    bool held = false;
+    if(back > moveguard::rewindMost)
+    {
+        back = moveguard::rewindMost;
+        held = true;
+    }
+    if(sv.active && slot < svs.maxclients && svs.clients[slot].netconnection)
+    {
+        unsigned int linkCounts[5];
+        double rtt = 0.0;
+        NET_QvrLinkCounts(svs.clients[slot].netconnection, linkCounts, &rtt);
+        const double oldest = sv.qcvm.time - (2.0 * rtt + rewindSlack);
+        if(rtt > 0.0 && t < oldest)
+        {
+            t = oldest;
+            held = true;
+        }
+    }
+    if(held)
+    {
+        moveguard::countRewind(slot);
+    }
+    seen[slot] = Seen{true, t, back};
 }
 
 void reset()
@@ -499,11 +532,38 @@ namespace
     return best;
 }
 
+// A point a trace may take: finite and within the largest map's reach (the protocol's coordinates).
+[[nodiscard]] bool inWorld(const float* p)
+{
+    for(int i = 0; i < 3; i++)
+    {
+        if(!ZA_ISFINITE(p[i]) || za::abs(p[i]) > 1e6f)
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+// The test shots and punches are the harness's (its servers run with vr_mp_watch 1): any other server refuses them. Each
+// costs traces, a rewind of every target and a console line: from any client, in every build, a flood of them was
+// thousands a second into the host's console and log (review 2026-11-18, finding 9).
+[[nodiscard]] bool harnessCommand(const char* what)
+{
+    if(vr_mp_watch.value != 0.f)
+    {
+        return true;
+    }
+    Con_DPrintf("%s from %s: refused (a test's: this server's vr_mp_watch is 0)\n", what, host_client->name);
+    return false;
+}
+
 // "vr_lagcomp_punch <x y z> <x y z> <time> <back>": as vr_lagcomp_shot, a test punch's segment (B8c: melee's sweeps run
 // in the same scope, QC lagcompbegin) -> "mp_lagcomp_punch:".
 void punch_f()
 {
-    if(cmd_source != src_client || !sv.active || !host_client || !host_client->edict || Cmd_Argc() != 9)
+    if(cmd_source != src_client || !sv.active || !host_client || !host_client->edict || Cmd_Argc() != 9 ||
+        !harnessCommand("vr_lagcomp_punch"))
     {
         return;
     }
@@ -512,6 +572,10 @@ void punch_f()
     {
         from[i] = Q_atof(Cmd_Argv(1 + i));
         to[i] = Q_atof(Cmd_Argv(4 + i));
+    }
+    if(!inWorld(&from[0]) || !inWorld(&to[0]))
+    {
+        return;
     }
     edict_t* self = host_client->edict;
     const int slot = static_cast<int>(host_client - svs.clients);
@@ -532,7 +596,8 @@ void punch_f()
 
 void shot_f()
 {
-    if(cmd_source != src_client || !sv.active || !host_client || !host_client->edict || (Cmd_Argc() != 9 && Cmd_Argc() != 13))
+    if(cmd_source != src_client || !sv.active || !host_client || !host_client->edict || (Cmd_Argc() != 9 && Cmd_Argc() != 13) ||
+        !harnessCommand("vr_lagcomp_shot"))
     {
         return;
     }
@@ -541,6 +606,10 @@ void shot_f()
     {
         from[i] = Q_atof(Cmd_Argv(1 + i));
         to[i] = Q_atof(Cmd_Argv(4 + i));
+    }
+    if(!inWorld(from) || !inWorld(to))
+    {
+        return;
     }
     edict_t* self = host_client->edict;
     const int slot = static_cast<int>(host_client - svs.clients);

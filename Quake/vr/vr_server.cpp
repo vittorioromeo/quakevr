@@ -21,6 +21,7 @@
 #include "vr_explosiondebris.hpp"
 #include "vr_ledges.hpp"
 #include "vr_move.hpp"
+#include "vr_moveguard.hpp"
 #include "vr_mpavatar.hpp"
 #include "vr_voicechat.hpp"
 #include "vr_clientprefs.hpp"
@@ -96,6 +97,24 @@ struct TalkGuard
     double silentUntil{0.0};
 };
 za::Vector<TalkGuard> talkGuards;
+
+// Per client slot: his string commands' budget (VR_ClientCommandBudget; realtime). Each command takes one, cmdRate come
+// back a second, at most cmdBurst saved up: a client's own reliable state (his fists' vr_rig chunks, his palm frames,
+// preferences, avatar calibration, held poses, grab spots: each sent when it changes, the first all at once as he spawns)
+// stays far under it; a flood of them (vr_avatarcal is passed on to every client, reliably), of name or colour changes
+// or of the harness's test shots is dropped past it (review 2026-11-18, finding 9; MP_PLAN B29).
+constexpr double cmdBurst = 64.0;
+constexpr double cmdRate = 32.0;
+constexpr double cmdNoteEvery = 1.0; // s: the server's console told at most this often a client
+struct CommandBudget
+{
+    double tokens{-1.0}; // (-1: full, a new player)
+    double last{0.0};
+    double least{cmdBurst}; // the fewest left after a command (how near his own state came: vr_mp_status)
+    int used{0}, dropped{0};
+    double noteAt{0.0};
+};
+za::Vector<CommandBudget> commandBudgets;
 
 // Per client slot: its avatar as last sent (writeAvatars: an unchanged one waits for its keyframe); and the counts.
 constexpr int avatarMaxBytes = 260; // (2 + 2 + 1 + 12 + 8 + 2 * 47 + 8 + 2 * 7 holds + 3 + 6 * 16 holsters + 1 = 241 at most)
@@ -1583,6 +1602,7 @@ extern "C" void VR_ClientReset(client_t* client)
         avatarsSent[clientNum] = {};
     }
     netmove::serverReset(clientNum); // (his moves' sequence and bases: a new connection's start again)
+    moveguard::serverReset(clientNum); // (his values held, his room-scale budget)
     predict::serverReset(clientNum); // (his queued moves and their clock, B8)
     netsnap::serverReset(clientNum); // (and his snapshots: the next whole until he acknowledges one, B7b)
     mpavatar::serverReset(clientNum); // (his avatar calibration gone; the clients told)
@@ -1591,6 +1611,10 @@ extern "C" void VR_ClientReset(client_t* client)
     if(clientNum >= 0 && clientNum < static_cast<int>(talkGuards.size()))
     {
         talkGuards[clientNum] = {}; // (B28: a new player's talk starts clean)
+    }
+    if(clientNum >= 0 && clientNum < static_cast<int>(commandBudgets.size()))
+    {
+        commandBudgets[clientNum] = {}; // (and his commands' budget full)
     }
 }
 
@@ -1653,15 +1677,63 @@ extern "C" int VR_GuestMayTalk()
     return 1;
 }
 
+extern "C" int VR_ClientCommandBudget(const char* s)
+{
+    // (the listen host's own, and joining: prespawn, spawn, begin, which every client sends once, always)
+    if(!host_client || !host_client->netconnection || isHostsOwn(host_client) || !q_strncasecmp(s, "prespawn", 8) ||
+        !q_strncasecmp(s, "spawn", 5) || !q_strncasecmp(s, "begin", 5))
+    {
+        return 1;
+    }
+    const int slot = static_cast<int>(host_client - svs.clients);
+    if(slot < 0 || slot >= svs.maxclientslimit)
+    {
+        return 1;
+    }
+    if(slot >= static_cast<int>(commandBudgets.size()))
+    {
+        commandBudgets.resize(slot + 1);
+    }
+    CommandBudget& b = commandBudgets[slot];
+    b.tokens = b.tokens < 0.0 ? cmdBurst : za::min(cmdBurst, b.tokens + (realtime - b.last) * cmdRate);
+    b.last = realtime;
+    if(b.tokens < 1.0)
+    {
+        b.dropped++;
+        if(realtime >= b.noteAt)
+        {
+            b.noteAt = realtime + cmdNoteEvery;
+            Con_Printf("%s: commands dropped (more than %d at once or %d a second; %d so far)\n", host_client->name,
+                static_cast<int>(cmdBurst), static_cast<int>(cmdRate), b.dropped);
+        }
+        return 0;
+    }
+    b.tokens -= 1.0;
+    b.used++;
+    b.least = za::min(b.least, b.tokens);
+    return 1;
+}
+
 namespace
 {
 
 // A move's VR block run on client `client` (clc_move's, read by VR_ReadMoveExtras; or a remote client's from
 // QVR_CLC_MOVES: vr_netmove.cpp).
-void applyVrMove(client_t* client, const VrMove& move)
+void applyVrMove(client_t* client, const VrMove& sent)
 {
     const int clientNum = static_cast<int>(client - svs.clients);
     edict_t* ent = client->edict;
+    // A remote player's own values first bounded (vr_moveguard.hpp; MP_DESIGN P2-6): every place within reach of the
+    // move's origin (the server's of him when it has none), every speed a real arm's; what was held counted
+    // (vr_mp_status's mp_guard). The listen host's own and single player's: as they come.
+    VrMove bounded = sent;
+    if(client->netconnection && !isHostsOwn(client))
+    {
+        const glm::vec3 base = sent.origin != glm::vec3{0.f} ? sent.origin
+                                                             : glm::vec3{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]};
+        moveguard::count(clientNum, moveguard::guard(bounded, base, moveguard::unitsPerMetre(moveguard::slotScale(clientNum))));
+    }
+    const VrMove& move = bounded;
     if(clientNum >= static_cast<int>(clientMoves.size()))
     {
         clientMoves.resize(clientNum + 1);
@@ -2498,6 +2570,16 @@ bool holsterPoint(edict_t* player, int slot, glm::vec3& out)
     }
     out = glm::vec3{player->v.origin[0], player->v.origin[1], player->v.origin[2]} + m->move.holsters.at[slot] - m->move.origin;
     return true;
+}
+
+CommandCounts commandCounts(int clientNum)
+{
+    if(clientNum < 0 || clientNum >= static_cast<int>(commandBudgets.size()))
+    {
+        return {0, 0, static_cast<int>(cmdBurst)};
+    }
+    const CommandBudget& b = commandBudgets[clientNum];
+    return {b.used, b.dropped, static_cast<int>(b.least)};
 }
 
 int mergedMoves(int clientNum)

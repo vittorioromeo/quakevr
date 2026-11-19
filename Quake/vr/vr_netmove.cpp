@@ -47,7 +47,7 @@ constexpr za::I32 quantMost = 1 << 30;
 // The move's fields in their order, each with its kind: one list for counting, quantizing and dequantizing. Its origin
 // first (the places from it follow).
 template <class V>
-void visitMove(WireMove& m, V& v)
+constexpr void visitMove(WireMove& m, V& v)
 {
     VrMove& r = m.vr;
     v.abs(r.origin, posScale);
@@ -156,18 +156,18 @@ void visitMove(WireMove& m, V& v)
 struct Counter
 {
     int n{0};
-    void real(float&, float) { n++; }
-    void abs(glm::vec3&, float) { n += 3; }
-    void rel(glm::vec3&, const glm::vec3&, float) { n += 3; }
+    constexpr void real(float&, float) { n++; }
+    constexpr void abs(glm::vec3&, float) { n += 3; }
+    constexpr void rel(glm::vec3&, const glm::vec3&, float) { n += 3; }
     template <class T>
-    void integer(T&)
+    constexpr void integer(T&)
     {
         n++;
     }
-    void thumb(glm::quat&) { n += 3; }
+    constexpr void thumb(glm::quat&) { n += 3; }
 };
 
-[[nodiscard]] int countValues()
+[[nodiscard]] constexpr int countValues()
 {
     WireMove m;
     Counter c;
@@ -175,7 +175,9 @@ struct Counter
     return c.n;
 }
 
-const int valueCount = countValues();
+// The move's values, counted at compile time: a move grown past maxValues would overflow Quant::v (quantize).
+constexpr int valueCount = countValues();
+static_assert(valueCount <= maxValues, "a move's values outgrew netmove::maxValues (Quant::v)");
 
 struct Quantizer
 {

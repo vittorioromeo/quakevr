@@ -30,7 +30,7 @@ void() VR_FlatHolster_TestPickup;
 
 float(entity p) VR_FlatHolsters =
 {
-    return VR_FlatPlay(p) && cvar_hget(cvarh_vr_flat_holsters) != 0 && getWeaponMode() == QVR_WEAPONMODE_IMMERSIVE;
+    return VR_FlatPlay(p) && clientpref(p, cvarh_vr_flat_holsters) != 0 && getWeaponMode() == QVR_WEAPONMODE_IMMERSIVE;
 };
 
 // Holster i (holsterweapon i, the engine's stat order) as its hotspot (getHolsterWeapon's).
