@@ -4094,3 +4094,20 @@ and MP-only parts left on their branches.
   runs came in both arms (on 6+3+9, off 3+10): the machine's, not the batching's. It helps where it applies and costs
   nothing elsewhere: on by default on the PC too (0: a batch each, as before). Review: when an instance's bone count disagreed, the batch copied the first instance's bones through a pointer a later
   VR_AliasBonePoses call may have reused: it copies the first's copy. The world-lit-skip split (ES) left behind.
+
+## Shader quick wins reviewed (branch shader-quick-wins / agent/shaderwins, 2026-11-19)
+
+- Image check, fixed frames, seeded particles and server (start, e1m1 + Quake and particle2 explosions, e1m3, e2m1,
+  vrteleporters at a gate, e1m1 under water), merge base 0e973d4ae vs the branch, 960x540 shots: bloom off, TAA off
+  max diff 1 (identical); TAA on max 3 (the 3x3's summation order); bloom on (0.08): max 60, mean -0.03..-0.16
+  levels, darker only: the bright pass's taps now bilinear (the max of four 2x2 means, as its comment meant), so a
+  one-texel highlight blooms a quarter as much (torches, explosions). Intended; the only visible change.
+- Checked by reading: the Bayer formula (all 16 entries), the wave constants (k, sqrt(200 k), 1/k), dither gates on a
+  uniform (0 times the noise is 0), gamma 1 without pow, the water branch's colour, the TAA gather (b and b+1, R32F
+  clamp-to-edge, one level), the textureLod targets (wounds, haze copy, portal array, resolved scene, liquid volume:
+  one level each), the particles' gate in the VS (world centre = the FS's in_pos + EyePos), sprites' discard after
+  the derivatives, the wound subtract's blood uniforms (QvrBloodAlpha exactly 0).
+- Fix: the virtual screen's screen() called textureQueryLod directly, a line agent/quest's merge would have taken
+  silently (ES has none; quest uses queryLod()). One helper, sharpLod(), on the line quest changed: the merge stops
+  there. Merging quest now conflicts in gl_shaders.c (GL_DeferredCheck: keep quest's GL_DeferredCheckOne and add the
+  storage-block limits to its link message) and vr_gfx_gl.cpp (sharpLod: quest's queryLod()).
