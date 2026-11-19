@@ -5078,7 +5078,7 @@ void doomTest()
         }
     };
     const int page = pageIndex(pageDoom);
-    const auto wadRows = [page] {
+    const auto wadRows = [&] {
         const auto& list = items(page);
         return static_cast<int>(za::countIf(list.begin(), list.end(), [](const Item& item) { return item.infoArg == doom::wadRow; }));
     };
