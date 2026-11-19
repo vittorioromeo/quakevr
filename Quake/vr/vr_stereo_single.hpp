@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include "vr_stereo.hpp"
+
 namespace qvr::stereosingle
 {
 
@@ -15,8 +17,9 @@ void init(); // its commands (vr_stereo_single_info)
 // After eye `eye`'s V_SetupView (in VR_RenderView's set-up of both eyes): its view kept (r_refdef, its matrices).
 void captureEye(int eye);
 // Both eyes captured: the multiview pass (R_RenderStereoSingle), eye 0's state current, the eyes' targets bound as
-// the eyes' loop does. `width` x `height`: the eyes' scene size. False: it did not run (the eyes render as before).
-bool render(int width, int height);
+// the eyes' loop does. `size`: the eyes' (their targets' allocated size, the part drawn). False: it did not run (the
+// eyes render as before).
+bool render(const stereo::ViewSize& size);
 // The eyes' loop: eye `eye`'s own view begins (its r_refdef back; V_RenderView skips V_SetupView) / ends.
 void beginEye(int eye);
 void endEye();

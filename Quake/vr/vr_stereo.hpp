@@ -2,6 +2,8 @@
 
 #pragma once
 
+struct glframebufs_s; // (the engine's: glquake.h; at global scope, also where this header is included before it)
+
 namespace qvr::stereo
 {
 
@@ -12,6 +14,18 @@ void init(); // its commands (vr_stereo_targets_test)
 // stereo's arrays, the particles', TAA's, the glow's, the haze's, the scene distances', the upscaler's), made again
 // when the eyes are next drawn.
 void releaseTargets();
+
+// The view being drawn (an eye, the spectator camera, a view through a gate; outside them, the window's): the size its
+// targets are allocated at, and the bottom left part of them this frame draws. They differ under dynamic resolution
+// (vr_dynres.hpp: the eyes' targets allocated once at its ceiling, a smaller part drawn below it). While the view is
+// drawn the engine holds them in vid.width/vid.height (allocated: the size its framebuffers are made and read at) and
+// glwidth/glheight, r_refdef.vrect (drawn: the viewports); a pass reads the one it means here.
+struct ViewSize
+{
+    int allocatedWidth = 0, allocatedHeight = 0;
+    int drawnWidth = 0, drawnHeight = 0;
+};
+[[nodiscard]] ViewSize viewSize();
 
 [[nodiscard]] bool isRenderingEye();
 [[nodiscard]] int eye(); // 0 left, 1 right; valid while rendering an eye
@@ -31,7 +45,7 @@ void releaseTargets();
 void setCurrentEye(int eye);
 void drawHiddenAreaOf(int eye);
 void eyeSceneFormats(unsigned& color, unsigned& depth);
-[[nodiscard]] const struct glframebufs_s& eyeFramebufs();
+[[nodiscard]] const ::glframebufs_s& eyeFramebufs();
 [[nodiscard]] unsigned eyeTargetsGeneration();
 
 } // namespace qvr::stereo
