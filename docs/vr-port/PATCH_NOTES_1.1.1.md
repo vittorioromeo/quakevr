@@ -26,6 +26,10 @@ that ships in 1.1.1.
   ends, on top of your own head's movement; your drawn body takes exactly the desktop screen's slide pose, its legs out
   on the floor. VR Settings > Locomotion: Slide View (`vr_slide_camera`, on; off keeps the view at your real head) and
   Slide View Time (`vr_slide_camera_time`, 0.15 s). The comfort vignette counts the view's move as movement.
+- **Climbing: choose when you pull up onto a ledge.** Advanced VR Options > Movement > Climbing > Mantle When
+  (`vr_climb_mantle_trigger`): High Enough (the default, as before: at once), Let Go (hang and look over the top, pull
+  up when your last hand lets go; let go lower and you drop), Jump, or Let Go or Jump. Flatscreen mantles and ladders
+  are unchanged.
 
 ## Menus
 
