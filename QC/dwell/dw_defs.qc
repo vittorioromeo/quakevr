@@ -41,6 +41,8 @@ void(entity xPickup, entity p, float xHand) DW_VariantGiven;                    
 float(float xHand, float* xOutAttackFinished) DW_FireVariant;                     // W_Fire_*: TRUE fired
 float(float xWid) DW_VariantFor;                                                  // VR_AG_ShootProp
 string(float xVar) DW_VariantName;                                                // VR_AG_NameOf
+string(float xWid, entity xInst) DW_WeaponModel;                                  // AD_WeaponModel: its VR model or ""
+string(float xWid) DW_VRModelOf;                                                  // AD_SyncModel
 void() DW_PowerupFrame;                                                           // CheckPowerups
 float(entity p) DW_PackWeaponVariants;                                            // SetChangeParms: parm76
 void(entity p, float xPacked) DW_UnpackWeaponVariants;                            // DecodeLevelParms

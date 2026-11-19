@@ -187,6 +187,35 @@ string(float xVar) DW_VariantName =
     return "Rifle";
 };
 
+// Dwell's weapons drawn as themselves (DWELL.md 9.6): their VR models, made from Dwell's own view models as they load
+// (engine vr_adweapons.cpp: Dwell's v_shot3.mdl, v_rail.mdl, v_rifle.mdl read in place from its folder, laid as the
+// weapon they are a variant of; weapons.txt slots 52-54), never written anywhere. Without Dwell's data: ours.
+string(float xWid) DW_VRModelOf =
+{
+    if(xWid == WID_SUPER_SHOTGUN) { return "progs/dw_shot3.mdl#vr"; }
+    if(xWid == WID_LIGHTNING) { return "progs/dw_rail.mdl#vr"; }
+    if(xWid == WID_SHOTGUN) { return "progs/dw_rifle.mdl#vr"; }
+    return "";
+};
+
+nosave float dw_vrmodels_made; // the models precached this server (bits 1 2 4; a loaded game precaches them again)
+
+// The model a weapon of kind `xWid` with record `xInst` is drawn with when it is Dwell's ("": not Dwell's, or no data).
+string(float xWid, entity xInst) DW_WeaponModel =
+{
+    if(xInst == world || !xInst.wi_dwvar || DW_VariantFor(xWid) != xInst.wi_dwvar || !DW_Data()) { return ""; }
+    string m = DW_VRModelOf(xWid);
+    float bit = pow(2, xInst.wi_dwvar - 1);
+    if(!(dw_vrmodels_made & bit))
+    {
+        dw_vrmodels_made = dw_vrmodels_made | bit;
+        entity e = spawn();
+        setmodel(e, m); // (setmodel precaches: a hand's or a holster's model string needs it too)
+        remove(e);
+    }
+    return m;
+};
+
 // The variant a weapon of kind `xWid` can be (0: none).
 float(float xWid) DW_VariantFor =
 {

@@ -287,8 +287,79 @@ void(entity p) DW_GruntTest =
     t.nextthink = time;
 };
 
+// vr_ad_test 205 (DWELL.md 9.6): Dwell's weapons drawn as themselves: 201's three given, then (a frame later: the models
+// synced in PostThink) each hand's and the holster's model Dwell's VR model (with Dwell's data; without it ours), and the
+// Rotary's model, moved to the off hand, still its own. "dwmodels: N passed, M failed". 206-208: the Rotary Shotgun, the
+// Crystal Lance, the Rifle alone in the main hand (the screenshot harness: Misc/quakevr/dwell_vrmodels_test.sh).
+float dw_mt_frames;
+void() DW_ModelsTest_Think =
+{
+    entity p = self.owner;
+    dw_mt_frames = dw_mt_frames + 1;
+    if(dw_mt_frames < 3)
+    {
+        self.nextthink = time;
+        return;
+    }
+    float data = DW_Data();
+    VR_Test_BeginFlags("dwmodels", VR_TEST_LOUD);
+    VR_Test_Check(data, "Dwell's data found (its folder)");
+    VR_Test_Check(p.weaponmodel == (data ? "progs/dw_shot3.mdl#vr" : WeaponIdToModel(WID_SUPER_SHOTGUN, 0)),
+        sprintf("the Rotary Shotgun drawn as itself (%s)", p.weaponmodel));
+    VR_Test_Check(p.weaponmodel2 == (data ? "progs/dw_rail.mdl#vr" : WeaponIdToModel(WID_LIGHTNING, 0)),
+        sprintf("the Crystal Lance drawn as itself (%s)", p.weaponmodel2));
+    VR_Test_Check(p.holsterweaponmodel0 == (data ? "progs/dw_rifle.mdl#vr" : WeaponIdToModel(WID_SHOTGUN, 0)),
+        sprintf("the Rifle holstered drawn as itself (%s)", p.holsterweaponmodel0));
+    VR_Test_Check(AD_WeaponModel(WID_SUPER_SHOTGUN, 0, world) == WeaponIdToModel(WID_SUPER_SHOTGUN, 0),
+        "a plain super shotgun drawn as ours");
+    entity widow = WeaponInst_New(WeaponIdToBaseClipSize(WID_SUPER_SHOTGUN));
+    widow.wi_adup = ad_IT_UPGRADE_SSG;
+    float adOn = vr_ad_data && AD_WeaponUpgraded(world, widow, ad_IT_UPGRADE_SSG);
+    VR_Test_Check(!adOn || AD_WeaponModel(WID_SUPER_SHOTGUN, 0, widow) == "progs/v_shot3.mdl#vr",
+        sprintf("AD's Widowmaker still its own (%s)", AD_WeaponModel(WID_SUPER_SHOTGUN, 0, widow)));
+    remove(widow);
+    VR_Test_Verdict();
+    remove(self);
+};
+
+void(entity p, float xRequest) DW_ModelsTest =
+{
+    if(xRequest == 205)
+    {
+        DW_WeaponsTest_Give(p);
+        // (as a hand's draw sets them: our models, which AD_SyncWeaponModels swaps for Dwell's)
+        p.weaponmodel = WeaponIdToModel(WID_SUPER_SHOTGUN, 0);
+        p.weaponmodel2 = WeaponIdToModel(WID_LIGHTNING, 0);
+        dw_mt_frames = 0;
+        entity t = spawn();
+        t.classname = "dw_modelstest";
+        t.owner = p;
+        t.think = DW_ModelsTest_Think;
+        t.nextthink = time;
+        return;
+    }
+    // 206-208: one of them alone in the main hand (the off hand empty).
+    float wid = xRequest == 206 ? WID_SUPER_SHOTGUN : xRequest == 207 ? WID_LIGHTNING : WID_SHOTGUN;
+    entity os = self;
+    self = p;
+    VR_WeaponUtil_EntAddWeapon(p, wid);
+    VRGiveEntWeapon(p, cVR_MainHand, wid, 0, WeaponIdToBaseClipSize(wid));
+    p.weaponinst.wi_dwvar = DW_VariantFor(wid);
+    VR_Scene_HoldGiven(p, cVR_MainHand);
+    p.weaponmodel = WeaponIdToModel(wid, 0); // (as a hand's draw sets it: swapped for Dwell's by AD_SyncWeaponModels)
+    p.ammo_shells = 100;
+    p.ammo_cells = 100;
+    self = os;
+    bprint(sprintf("dwmodels: %s in the main hand\n", DW_VariantName(DW_VariantFor(wid))));
+};
+
 void(entity p, float xRequest) DW_WeaponsTest =
 {
+    if(xRequest >= 205 && xRequest <= 208)
+    {
+        DW_ModelsTest(p, xRequest);
+        return;
+    }
     if(xRequest == 204)
     {
         DW_GruntTest(p);

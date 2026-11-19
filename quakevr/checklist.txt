@@ -36,6 +36,7 @@ Dwell's Kamikaze grabbed and thrown; head shots on the Awoken count
 Dwell's Rotary Shotgun reloads at the hip and spins up like the Widowmaker; the Crystal Lance fires without a crash
 Dwell's weapons keep their kind in holsters, after a save and a level change; Haste/Berserk/Wetsuit seconds on the wrist
 Dwell: an armed grunt picks up your thrown Rotary Shotgun / Crystal Lance and fires Dwell's shot; Haste yellow, Berserk red, both orange tint
+Dwell weapons have their own VR models (scenario dwell_vrmodels: grips, muzzles, sights, two-hand; tune Weapon Offsets); the Rotary's barrels spin; holster/wrist menu names by model (Widowmaker, Rifle...)
 
 [1. Flat-screen: weapons and hands]
 

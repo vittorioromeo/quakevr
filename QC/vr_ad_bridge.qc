@@ -1049,6 +1049,12 @@ void(string xModel) AD_EnsureVRModel =
 // upgrade's AD VR model).
 string(float xWid, float xFlags, entity xInst) AD_WeaponModel =
 {
+    // Dwell support: a Dwell weapon's own VR model (dwell/dw_items.qc), its secondary ammo's model aside.
+    string dw = VRHasBit(VR_Pack_WeaponFlags(xWid, xFlags), QVR_WPNFLAG_USE_SECONDARY_AMMO) ? "" : DW_WeaponModel(xWid, xInst);
+    if(dw != "")
+    {
+        return dw;
+    }
     float up = AD_UpgradeFor(xWid);
     if(up && vr_ad_data && AD_WeaponUpgraded(world, xInst, up) &&
        !VRHasBit(VR_Pack_WeaponFlags(xWid, xFlags), QVR_WPNFLAG_USE_SECONDARY_AMMO))
@@ -1064,17 +1070,18 @@ string(float xWid, float xFlags, entity xInst) AD_WeaponModel =
 // (an empty one, a hidden hand's, or another's left as it is).
 string(float xWid, float xFlags, entity xInst, string xNow) AD_SyncModel =
 {
-    if(!AD_UpgradeFor(xWid))
+    string dw = DW_VRModelOf(xWid); // (Dwell support: its weapons' models too)
+    if(!AD_UpgradeFor(xWid) && dw == "")
     {
         return xNow;
     }
     string vr = AD_VRModelName(xWid);
-    if(xNow == vr)
+    if(xNow == vr && vr != "")
     {
         AD_EnsureVRModel(vr); // (a loaded game's)
     }
-    string want = AD_WeaponModel(xWid, xFlags, xInst);
-    if(xNow == want || (xNow != vr && xNow != WeaponIdToModel(xWid, xFlags)))
+    string want = AD_WeaponModel(xWid, xFlags, xInst); // (a Dwell weapon's: its model precached again, a loaded game's)
+    if(xNow == want || (xNow != vr && xNow != dw && xNow != WeaponIdToModel(xWid, xFlags)))
     {
         return xNow;
     }

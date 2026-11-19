@@ -1,0 +1,9 @@
+# dwell_vrmodels: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Dwell's Rotary Shotgun, Crystal
+# Lance and Rifle drawn as their own VR models (DWELL.md 9.6; vr_ad_test 205 gives them: the Rotary in the right hand,
+# the Lance in the left, the Rifle in the left shoulder holster). Needs Dwell installed.
+title Dwell's weapons: their own VR models, the Rotary's spinning barrels, their names in the holster menu
+map vrtesthall
+god
+notarget
+cmd vr_ad_test 205
+hint Right hand: the Rotary Shotgun (four barrels; hold the trigger: they spin up, fire, and coast to a barrel on top). Left hand: the Crystal Lance. Left shoulder: the Rifle. Check each grip, muzzle (the shot and the Lance's beam leave the front), sights and the other hand's hold; tune them in Weapon Offsets (slots 53-55), your values become the defaults. Open the holster menu on the wrist (or the mouse wheel in flat play): it names them.
