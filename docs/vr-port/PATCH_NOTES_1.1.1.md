@@ -37,3 +37,6 @@ that ships in 1.1.1.
   box: the menus' settings alone, the Tunables pages' constants alone, or both (the default). The results update
   at once; the choice lasts until the game quits. Release builds have no tunables, so they show no row and search
   as before.
+- **No attract-mode demos.** Quake's demos no longer play by themselves at start-up or from a mod's start-up
+  script, on the PC or the Quest, in VR or flat: flat goes straight to the main menu (VR starts in the hub as
+  before). Options > Interface's "Start Demos" row is gone. `playdemo` and `timedemo` still play a demo.
