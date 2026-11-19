@@ -3774,7 +3774,17 @@ signon fuzzed), and bots phase 2 if he wants it (reloads, doors and lifts in coo
   no message ("Kicked by X: " and nothing), B29 (a dropped client told when his reliable channel is busy; name and
   colour floods; B's signon fuzzed), the S_MixJoin calls and the voice ring's zeroing not run against the real mixer
   (the harness is `-nosound`), the drawn hands, holsters and pouch outside the move guard (others' drawing only).
-- **Runs**: RUNS_PENDING
+- **Runs (not accepted)**: ThinLTO and dev 0 warnings. The chain (`scratch/mpready_all.sh`, tallies in
+  `scratch/mpready_all.txt`): no suite clean. **mp_guard failed in all 6** (11/1: "A's honest moves: none held", one
+  speed held in ~410 moves every time; 12/0 in the review's runs and bots phase 1's 49-of-49 chain): a regression since,
+  most likely from origin/next's two merges (b9c0ee46c, b67c7f8eb); not bisected (out of budget). The first thing to
+  do next: which value (vr_moveguard.cpp counts speeds without naming them) and which merge. The rest look like load and
+  timing (another worker's tests ran beside the first suites): plain1 mp_jitter's lift; plain2 mp_spoof 18/2 (A sees B
+  move in 750/732 ms, 500 wanted; B's own round trip 467/623 ms through the proxy); plain3 mp_armed, mp_lagcomp
+  (807 ms rewinds), mp_disarm (port 23.3 units at one pose), mp_voice/voice_lossy (late frames); under --load 16
+  mp_nethud, mp_bandwidth, mp_melee, mp_predict, mp_coop_lag, mp_grab, mp_disarm. mp_dm clean in all 6.
+- **SP**: scenario_check 136/0, load_models 4/0, vr_run_check 12/0, flatswing 5/0, flatparry 43/0, flathands 76/0,
+  flatmelee 12/0, flatplay 31/0 (LTO build).
 
 ### Ready for next?
 
