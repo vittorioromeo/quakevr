@@ -731,10 +731,14 @@ static void NET_Ban_f (void)
 // row (a peer not reading, a map loading: never more often than NetQuake's backstop allows) up to DGRM_RESEND_MOST. And
 // fast: DGRM_FAST_ACKS acks of later chunks (the receiver has them, so one before was lost) send the chunks not acked
 // before them again at once, once until the next ack in order.
+// (review 2026-11-18, finding 12) Past two timeouts in a row the peer is not reading (a map loading, a game gone without a
+// word): the timeout goes on doubling past DGRM_RESEND_MOST to DGRM_RESEND_STALLED, so it is not sent the whole window
+// (up to 16 x 1208 B) every second for net_messagetimeout's 300 s.
 #define DGRM_RELIABLE_CHUNK		NET_RELIABLE_CHUNK
 #define DGRM_RELIABLE_WINDOW	NET_RELIABLE_WINDOW
 #define DGRM_RESEND_LEAST		0.15
 #define DGRM_RESEND_MOST		1.0
+#define DGRM_RESEND_STALLED		4.0
 #define DGRM_RESEND_MARGIN		0.05
 #define DGRM_FAST_ACKS			2
 
@@ -793,11 +797,13 @@ static double ResendTimeout (const qsocket_t *sock)
 {
 	double	t;
 
-	if (sock->reliableRtt <= 0)
-		return DGRM_RESEND_MOST; // (nothing measured yet: NetQuake's)
-	t = q_max (DGRM_RESEND_LEAST, 2 * sock->reliableRtt + DGRM_RESEND_MARGIN);
-	t *= (double) (1 << q_min (sock->resendBackoff, 4));
-	return q_min (t, DGRM_RESEND_MOST);
+	// (nothing measured yet: NetQuake's second)
+	t = sock->reliableRtt <= 0 ? DGRM_RESEND_MOST : q_max (DGRM_RESEND_LEAST, 2 * sock->reliableRtt + DGRM_RESEND_MARGIN);
+	t *= (double) (1 << q_min (sock->resendBackoff, 6));
+	if (sock->resendBackoff < 2)
+		return q_min (t, DGRM_RESEND_MOST);
+	// (two timed resends unanswered: 2 s, then 4 s at most -- finding 12)
+	return q_min (t, q_min (DGRM_RESEND_STALLED, DGRM_RESEND_MOST * (double) (1 << q_min (sock->resendBackoff - 1, 6))));
 }
 
 // the chunks not sent yet that the window has room for

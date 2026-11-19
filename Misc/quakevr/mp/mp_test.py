@@ -104,11 +104,15 @@ Tests:
              datagrams far ahead of his sequences each way (outside the window: dropped, both still play), reliable
              chunks down at a blind guess of the sequences (0..1023: never taken; the channels start at random, network
              version 39); a stranger's player info has no ports, this machine's (127.0.0.1) has them.
+    backoff  (review 2026-11-18, finding 12) B's acks cut for BACKOFF_WATCH_S (a peer not reading): the server's
+             timed resends of its reliable message space out past 1 s to 4 s (not the window every second for 300 s),
+             and the message after it arrives once the acks come back; the server's vr_net_rate_max over B's
+             vr_net_rate (his 0: the server's; under it: his own; the server's 0: no ceiling).
     suite    coop, coop with B at 150 ms each way and 2% loss, bandwidth, armed, retransmit, version, avatar, avatarcal, body, prefs, grab,
              teleport, held, ground, campaign, campaign_listen, flow, rejoin, download, pickup, forcegrab, melee, moves, climb,
              rules, cosmetics, flatbody, loss, predict, predictclimb, lagcomp, disarm, voice, voice with B 50 ms (30 ms
              jitter, 5% loss) away, dm, lockstep, lockstep_throw, nat (B23: room codes through simulated routers).
-             The network layer's review checks (2026-11-18): emptyflood, spoof.
+             The network layer's review checks (2026-11-18): emptyflood, spoof, backoff.
              (B25) --only a,b runs just those; --suite-repeat N runs them N times over; --load N (any test) keeps N
              busy CPU workers at normal priority running meanwhile (mp_load.py: the machine busy with other work, as
              in the suite's real runs; --load-duty the share of time each spins).
@@ -6752,6 +6756,72 @@ def spoof(s):
     s.check("nobody left the game", not left, "%s" % left[:2])
 
 
+BACKOFF_WATCH_S = 16.0   # s B's acks are cut (finding 12: the resends 1 s apart before; now 2 s, then 4 s)
+BACKOFF_STALLED = 4.0    # s: the resend timeout's most once two timed resends went unanswered (DGRM_RESEND_STALLED)
+BACKOFF_RATE = 6000      # B/s: the server's vr_net_rate_max in the test
+
+
+def rate_until(srv, eb, want, tries=60):
+    """The server's rate for B's snapshots (vr_mp_status's mp_netsnap rate) until it is `want` -> the last read."""
+    got = None
+    for _ in range(tries):
+        got = snap_status(srv, eb).get("rate")
+        if got is not None and int(got) == want:
+            break
+    return got
+
+
+def backoff(s):
+    """(review 2026-11-18, finding 12) The reliable resend's back-off and the server's rate ceiling.
+    1. B's acks up cut (the proxy drops everything B sends: a peer that is not reading, a game gone without a word) while
+       the server sends him a reliable message: its timed resends (the proxy times each send of each chunk down) were
+       capped at 1 s apart, the whole window every second for net_messagetimeout's 300 s; now, after two unanswered,
+       2 s then 4 s apart (DGRM_RESEND_STALLED). The acks back: the message after it arrives within the longest wait.
+    2. vr_net_rate_max (the server's): B's vr_net_rate 0 ("no cap") is the server's ceiling, one over it is held to
+       it, one under it is his own; the server's 0: no ceiling (B's 0 then none)."""
+    srv, a, b, ea, eb = join(s)
+    p = b.proxy
+    for _ in range(4):  # (a few reliable messages: the server measures the round trip)
+        since = b.mark()
+        srv.cmd("vr_net_reliable_test %d 100" % eb)
+        b.wait(r"mp_reliable: 100 bytes", 10, since)
+    p.track_chunks_down()
+    p.blackout_up = True
+    t0 = time.monotonic()
+    srv.cmd("vr_net_reliable_test %d 300" % eb)
+    try:
+        time.sleep(BACKOFF_WATCH_S)
+    finally:
+        p.blackout_up = False
+    sends = {k: list(v) for k, v in (p.chunk_sends or {}).items()}
+    p.track_chunks_down(False)
+    seq, times = max(sends.items(), key=lambda kv: len(kv[1])) if sends else (None, [])
+    gaps = [round(y - x, 2) for x, y in zip(times, times[1:])]
+    s.note("the stalled chunk %s: sent %d times in %.0f s, gaps %s" % (seq, len(times), BACKOFF_WATCH_S, gaps))
+    s.check("B's acks cut %.0f s: the server's resends of a chunk space out past 1 s up to %.0f s (sent %d times, not "
+            "one a second)" % (BACKOFF_WATCH_S, BACKOFF_STALLED, len(times)),
+            len(gaps) >= 3 and max(gaps) >= BACKOFF_STALLED - 0.6 and max(gaps) <= BACKOFF_STALLED + 0.6 and
+            len(times) <= 2 + BACKOFF_WATCH_S / 2, "gaps %s" % gaps)
+    since = b.mark()
+    srv.cmd("vr_net_reliable_test %d 100" % eb)
+    got = wait_or_none(b, r"mp_reliable: 100 bytes", BACKOFF_STALLED + 4, since)
+    s.check("the acks back: the next message arrives within %.0f s" % (BACKOFF_STALLED + 4), got is not None,
+            "read" if got else "not read (%.1f s after the cut began)" % (time.monotonic() - t0))
+
+    # 2. the server's ceiling over B's rate
+    srv.cmd("vr_net_rate_max %d" % BACKOFF_RATE)
+    for own, want in ((0, BACKOFF_RATE), (20000, BACKOFF_RATE), (4000, 4000)):
+        b.cmd("vr_net_rate %d" % own)
+        got = rate_until(srv, eb, want)
+        s.check("vr_net_rate_max %d, B's vr_net_rate %d: the server sends him at most %d B/s" % (BACKOFF_RATE, own, want),
+                got is not None and int(got) == want, "rate %s" % got)
+    srv.cmd("vr_net_rate_max 0")
+    b.cmd("vr_net_rate 0")
+    got = rate_until(srv, eb, 0)
+    s.check("vr_net_rate_max 0 and B's 0: no cap", got is not None and int(got) == 0, "rate %s" % got)
+    b.cmd("vr_net_rate 80000")
+
+
 def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
     s = Session(args.exe, args.base, args.out, test, port=args.port)
     s.server_extra = args.server_set.split() if args.server_set else []  # (B13c: e.g. "+vr_net_sendhz 36")
@@ -6845,6 +6915,8 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             emptyflood(s)
         elif test == "mp_spoof":
             spoof(s)
+        elif test == "mp_backoff":
+            backoff(s)
         elif test == "mp_netsafe":
             netsafe(s)
         elif test == "mp_roomui":
@@ -6931,12 +7003,13 @@ SUITE = [
     ("mp_nat", ()),
     ("mp_emptyflood", ()),
     ("mp_spoof", ()),
+    ("mp_backoff", ()),
 ]  # (mp_netsafe runs first, before these; the rest in this order. The tuples: lag ms, jitter ms, loss)
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood", "spoof", "suite"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood", "spoof", "backoff", "suite"])
     ap.add_argument("--base", required=True, help="the game folder (id1, quakevr...)")
     ap.add_argument("--exe", default=EXE)
     ap.add_argument("--out", default=os.path.join(REPO, "scratch", "mp"))
@@ -6998,7 +7071,7 @@ def main_run(args):
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
     elif args.test in ("bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground",
-                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood", "spoof"):
+                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood", "spoof", "backoff"):
         ok = run(args, "mp_" + args.test)
     elif args.test == "voice":
         ok = run(args, "mp_voice", args.lag, args.jitter, args.loss)

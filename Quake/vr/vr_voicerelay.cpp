@@ -4,6 +4,7 @@
 
 #include "vr_voicechat.hpp"
 #include "vr_clientprefs.hpp"
+#include "vr_netsnap.hpp"
 #include "vr_cvars.hpp"
 #include "vr_protocol.hpp"
 #include "vr_api.h"
@@ -138,7 +139,7 @@ void serverWrite(sizebuf_t* msg, client_s* client)
     const double now = realtime; // (as serverRead's)
     // (his voice budget: vr_net_voice_bytes, at most a share of his vr_net_rate; a bucket)
     double rate = vr_net_voice_bytes.value;
-    const int netRate = client->edict ? static_cast<int>(clientprefs::value(clientprefs::indexOf(&vr_net_rate), &vr_net_rate, client->edict)) : 0;
+    const int netRate = netsnap::clientRate(client);
     if(netRate > 0)
     {
         rate = za::min(rate, static_cast<double>(netRate) / netShare);
