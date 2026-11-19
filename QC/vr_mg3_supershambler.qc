@@ -531,7 +531,7 @@ Dawn of the Machine's blood shambler (needs the owned Dawn of the Machine data, 
 */
 void() monster_super_shambler =
 {
-    if(MG_MonsterInhibited()) return;
+    if(VR_SF_SpawnInhibited()) return;
     VR_Knockdown_SetupReverse(cvarh_vr_knockdown_chance_shambler, $death11, $death1, -1, -1); // (the shambler's: its death backwards)
     if(deathmatch)
     {

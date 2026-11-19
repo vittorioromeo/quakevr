@@ -343,7 +343,7 @@ Sets the clipping size and plants the object on the floor
 */
 void() StartItem =
 {
-    if(MG_MonsterInhibited()) return;
+    if(VR_SF_SpawnInhibited()) return;
     if(AD_ItemStartOff()) return; // AD support: an AD map's STARTOFF item waits for its trigger (vr_ad_bridge.qc)
     VR_Run_ItemSpawned(); // the run's mutators' item hook (vr_run.qc)
     self.nextthink = time + 0.2;    // items start after other solids

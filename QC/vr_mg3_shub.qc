@@ -553,7 +553,7 @@ Dawn of the Machine's Shub-Niggurath (needs the owned Dawn of the Machine data, 
 */
 void() monster_oldone_new =
 {
-    if(MG_MonsterInhibited()) return;
+    if(VR_SF_SpawnInhibited()) return;
     if(deathmatch)
     {
         remove(self);
@@ -1193,7 +1193,7 @@ One of Dawn of the Machine's Shub's eyes (needs the owned Dawn of the Machine da
 */
 void() monster_shub_eye =
 {
-    if(MG_MonsterInhibited()) return;
+    if(VR_SF_SpawnInhibited()) return;
     if(deathmatch)
     {
         remove(self);

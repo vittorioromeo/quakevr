@@ -305,7 +305,7 @@ frame: frame to be frozen in. (default 44)
 void() monster_knight =
 {
     if(VR_AKN_Replace()) return; // VR: its armed version, a sword in its hand (vr_agknight: vr_armedrepl.qc)
-    if(MG_MonsterInhibited()) return;
+    if(VR_SF_SpawnInhibited()) return;
     VR_Knockdown_SetupOwn(cvarh_vr_knockdown_chance_knight, $painb9, knight_painb9); // VR: knocked down (vr_knockdown.qc): low: painb9 on rises
     if(deathmatch)
     {

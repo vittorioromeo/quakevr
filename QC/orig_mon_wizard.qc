@@ -396,7 +396,7 @@ void() monster_wizard_precache =
 */
 void() monster_wizard =
 {
-    if(MG_MonsterInhibited()) return;
+    if(VR_SF_SpawnInhibited()) return;
     if(deathmatch)
     {
         remove(self);
