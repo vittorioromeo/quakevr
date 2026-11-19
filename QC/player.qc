@@ -101,11 +101,6 @@ void(float xHand)    player_stand1 =
         if(self.walkframe >= 12) { self.walkframe = 0; }
         self.frame = $axstnd1 + self.walkframe;
     }
-    else if(self.weapon == WID_MJOLNIR)
-    {
-        if(self.walkframe >= 12) { self.walkframe = 0; }
-        self.frame = 6 + self.walkframe;
-    }
     else
     {
         if(self.walkframe >= 5) { self.walkframe = 0; }
@@ -143,11 +138,6 @@ void(float xHand) player_run =
     {
         if(self.walkframe == 6) { self.walkframe = 0; }
         self.frame = $axrun1 + self.walkframe;
-    }
-    else if(self.weapon == WID_MJOLNIR)
-    {
-        if(self.walkframe == 6) { self.walkframe = 0; }
-        self.frame = self.walkframe;
     }
     else
     {
@@ -496,20 +486,23 @@ void(float xHand) player_light2 =
 };
 
 //MED 10/18/96 added HIPWEAPONS
+// Mjolnir swung untracked (a bot's, a flat player's without tracked hands): player.mdl's axe swings, as the other
+// melee weapons' (W_Fire_Melee); its blow at the fourth frame (HIP_FireMjolnir). (Hipnotic's playham.mdl, the third-
+// person player holding the hammer, is not used: a player holding Mjolnir is player.mdl as with any weapon.)
 //============================================================================
 
-void(float xHand) player_hammer1 = { setHandThinkWithArg(xHand, 32, player_hammer2); VRSetWeaponFrame(xHand, 1); };
-void(float xHand) player_hammer2 = { setHandThinkWithArg(xHand, 33, player_hammer3); VRSetWeaponFrame(xHand, 2); };
-void(float xHand) player_hammer3 = { setHandThinkWithArg(xHand, 34, player_hammer4); VRSetWeaponFrame(xHand, 3); };
-void(float xHand) player_hammer4 = { setHandThinkWithArg(xHand, 35, player_hammer5); VRSetWeaponFrame(xHand, 4); HIP_FireMjolnir(xHand); };
-void(float xHand) player_hammer5 = { setHandThinkWithArg(xHand, 36, player_hammer6); VRSetWeaponFrame(xHand, 4); };
-void(float xHand) player_hammer6 = { setHandThinkWithArg(xHand, 37, player_run); VRSetWeaponFrame(xHand, 4); };
-void(float xHand) player_mjolnir1 = { setHandThinkWithArg(xHand, 38, player_mjolnir2); VRSetWeaponFrame(xHand, 1); };
-void(float xHand) player_mjolnir2 = { setHandThinkWithArg(xHand, 39, player_mjolnir3); VRSetWeaponFrame(xHand, 2); };
-void(float xHand) player_mjolnir3 = { setHandThinkWithArg(xHand, 40, player_mjolnir4); VRSetWeaponFrame(xHand, 3); };
-void(float xHand) player_mjolnir4 = { setHandThinkWithArg(xHand, 41, player_mjolnir5); VRSetWeaponFrame(xHand, 4); HIP_FireMjolnir(xHand); };
-void(float xHand) player_mjolnir5 = { setHandThinkWithArg(xHand, 42, player_mjolnir6); VRSetWeaponFrame(xHand, 4); };
-void(float xHand) player_mjolnir6 = { setHandThinkWithArg(xHand, 43, player_run); VRSetWeaponFrame(xHand, 4); };
+void(float xHand) player_hammer1 = { setHandThinkWithArg(xHand, $axatt1, player_hammer2); VRSetWeaponFrame(xHand, 1); };
+void(float xHand) player_hammer2 = { setHandThinkWithArg(xHand, $axatt2, player_hammer3); VRSetWeaponFrame(xHand, 2); };
+void(float xHand) player_hammer3 = { setHandThinkWithArg(xHand, $axatt3, player_hammer4); VRSetWeaponFrame(xHand, 3); };
+void(float xHand) player_hammer4 = { setHandThinkWithArg(xHand, $axatt4, player_hammer5); VRSetWeaponFrame(xHand, 4); HIP_FireMjolnir(xHand); };
+void(float xHand) player_hammer5 = { setHandThinkWithArg(xHand, $axatt5, player_hammer6); VRSetWeaponFrame(xHand, 4); };
+void(float xHand) player_hammer6 = { setHandThinkWithArg(xHand, $axatt6, player_run); VRSetWeaponFrame(xHand, 4); };
+void(float xHand) player_mjolnir1 = { setHandThinkWithArg(xHand, $axattc1, player_mjolnir2); VRSetWeaponFrame(xHand, 1); };
+void(float xHand) player_mjolnir2 = { setHandThinkWithArg(xHand, $axattc2, player_mjolnir3); VRSetWeaponFrame(xHand, 2); };
+void(float xHand) player_mjolnir3 = { setHandThinkWithArg(xHand, $axattc3, player_mjolnir4); VRSetWeaponFrame(xHand, 3); };
+void(float xHand) player_mjolnir4 = { setHandThinkWithArg(xHand, $axattc4, player_mjolnir5); VRSetWeaponFrame(xHand, 4); HIP_FireMjolnir(xHand); };
+void(float xHand) player_mjolnir5 = { setHandThinkWithArg(xHand, $axattc5, player_mjolnir6); VRSetWeaponFrame(xHand, 4); };
+void(float xHand) player_mjolnir6 = { setHandThinkWithArg(xHand, $axattc6, player_run); VRSetWeaponFrame(xHand, 4); };
 
 //============================================================================
 
@@ -648,13 +641,6 @@ void()    player_axpain4 =    [    $axpain4,    player_axpain5    ] {};
 void()    player_axpain5 =    [    $axpain5,    player_axpain6    ] {};
 void()    player_axpain6 =    [    $axpain6,    player_run_no_arg    ] {};
 
-void()   player_hampain1 =  [  18,   player_hampain2 ] { PainSound(); };
-void()   player_hampain2 =  [  19,   player_hampain3 ] {};
-void()   player_hampain3 =  [  20,   player_hampain4 ] {};
-void()   player_hampain4 =  [  21,   player_hampain5 ] {};
-void()   player_hampain5 =  [  22,   player_hampain6 ] {};
-void()   player_hampain6 =  [  23,   player_run_no_arg  ] {};
-
 void(entity attacker, float damage) player_pain =
 {
     // Firing: the gun's frames play on, no pain frames. VR: the pain sound still plays (PainSound's own pain_finished
@@ -675,8 +661,6 @@ void(entity attacker, float damage) player_pain =
 
     if(self.weapon == WID_AXE)
         player_axpain1();
-    else if(self.weapon == WID_MJOLNIR)
-        player_hampain1();
     else
         player_pain1();
 };
@@ -687,7 +671,6 @@ void() player_diec1;
 void() player_died1;
 void() player_diee1;
 void() player_die_ax1;
-void() player_die_ham1;
 
 void() DeathBubblesSpawn =
 {
@@ -1022,13 +1005,6 @@ void() PlayerDie =
         player_die_ax1();
         return;
     }
-    //MED 12/04/96
-    else if(self.weapon == WID_MJOLNIR)
-    {
-        self.modelindex = modelindex_hammer; // use hammer model
-        player_die_ham1();
-        return;
-    }
 
     i = cvar_hget(cvarh_temp1);
     if(!i)
@@ -1126,15 +1102,6 @@ void()    player_die_ax6    =    [    $axdeth6,    player_die_ax7    ] {};
 void()    player_die_ax7    =    [    $axdeth7,    player_die_ax8    ] {};
 void()    player_die_ax8    =    [    $axdeth8,    player_die_ax9    ] {};
 void()    player_die_ax9    =    [    $axdeth9,    player_die_ax9    ] {PlayerDead(); };
-
-void()   player_die_ham1 =  [ 24 ,   player_die_ham2 ] {};
-void()   player_die_ham2 =  [ 25 ,   player_die_ham3 ] {};
-void()   player_die_ham3 =  [ 26 ,   player_die_ham4 ] {};
-void()   player_die_ham4 =  [ 27 ,   player_die_ham5 ] {};
-void()   player_die_ham5 =  [ 28 ,   player_die_ham6 ] {};
-void()   player_die_ham6 =  [ 29 ,   player_die_ham7 ] {};
-void()   player_die_ham7 =  [ 30 ,   player_die_ham8 ] {};
-void()   player_die_ham8 =  [ 31 ,   player_die_ham8 ] {PlayerDead(); };
 
 void() player_touch =
 {

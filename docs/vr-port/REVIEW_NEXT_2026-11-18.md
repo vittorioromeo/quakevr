@@ -83,6 +83,13 @@ Notes on them:
 - **Drawbacks:** `self.solid == SOLID_NOT` cannot stand in for it (a coop key stays solid and still fires), so every
   touch function needs its line: about a dozen sites, each a place to forget. Maps that came to rely on the eager
   firing (none known) would change.
+- **Status (2026-11-19): fixed.** `item_taken` (vr_defs.qc), set by every pickup `itemTouch` wraps (health, ammo,
+  armour, keys, weapons, id's powerups and runes, Hipnotic's and Rogue's powerups, Dawn of the Machine's shards, head,
+  bunny, runes and upgrades; its Super Axe and bloody shotguns through `weapon_touch`); not taken, `itemTouch` returns
+  before the secret, the respawn and the targets. Hipnotic's and Rogue's own second `SUB_UseTargets` are gone; the Horn
+  of Conjuring keeps its own (charmed) and marks `ITEM_TAKEN_FIRED`; a draught ring is never taken (with OVERRIDE_DEST
+  `teleport_touch` fires its target). Rogue's random powerup installs its pickup where `itemTouch` calls it (three of
+  its five picks had none). Backpacks don't go through `itemTouch`. Test: `vr_pickup_test 19` (vr_itemrules_test.qc).
 
 ### 2. A session or instance lost by return code never ends the session, and frames without `xrWaitFrame` spin unpaced
 
@@ -153,6 +160,16 @@ Notes on them:
 - **Drawbacks:** a count that drifts (a gib removed by a path that skips `VR_Skewer_Gone`, a loaded game: it must be
   rebuilt or saved) turns the gate into a bug where shots pass through a skewered gib; the count needs a rebuild at
   load.
+- **Status (2026-11-19): fixed** by the author's choice, a list rather than a count: the skewered gibs are chained
+  (`.vr_skewer_chain`, head `vr_skewer_head`; vr_carry.qc), linked where a gib goes on a blade (`VR_Skewer_Link`: the
+  stab, a cut-off part onto the blade, a thrown blade picked up again), and `VR_Gib_TraceHeld` walks the list only. No
+  path has to unlink: there is no single place a skewered gib ends (falls off, bursts, the toolgun's remover, any
+  `remove()`, a level's end), so the walk drops what is no longer skewered or was removed (`ED_Free` keeps a removed
+  edict's other fields, its chain still leads on). A removed edict used again has its fields zeroed: its stamp (the
+  list's generation) no longer matches; one linked again while its old predecessor still points at it is met twice.
+  Either is caught and the list is made again from one walk of the edicts, as a load does. Test: `vr_embed_test 49`
+  (none skewered: nothing visited; the head removed by the toolgun, one burst, one removed and its edict reused, also
+  as a new skewered gib, the blade gone, their own fade) and `50` (a save and a load).
 
 ### 6. `callBodyHits` walks every edict once per moving ragdoll, every server frame
 
@@ -181,6 +198,13 @@ Notes on them:
   set, and the Mjolnir frame macros in `player.qc` (and `player_die_ham1`) gated on `vr_have_playham`.
 - **Drawbacks:** without the gate the fallback plays `playham.mdl`'s frame numbers on `player.mdl` (wrong poses),
   so both halves are needed; the swing then shows the axe's animation.
+- **Status (2026-11-19): fixed by the author's choice, not the fallback:** `playham.mdl` is not used at all (players
+  are drawn with the VR body). Gone: `modelindex_hammer`, its `setmodel`, `CheckPowerups`' Mjolnir branch, the precache,
+  `vr_have_playham`, the Hipnotic pack check's entry, Mjolnir's stand, run, pain and death frames (`player_hampain*`,
+  `player_die_ham*`): a player holding it is `player.mdl` with the generic frames, as with the other melee weapons
+  but the axe; the untracked swing (`player_hammer*`, `player_mjolnir*`, which carry `HIP_FireMjolnir`) plays the
+  axe's swings, as `W_Fire_Melee`'s. agent/mp has the same code untouched (no reader of its own). Test:
+  `vr_pickup_test 23`, with and without Hipnotic.
 
 ### 8. `Host_Error`'s `longjmp` crosses C++ frames
 
@@ -254,6 +278,13 @@ Notes on them:
   `IsAmmoBox` covering the three Rogue classnames.
 - **Drawbacks:** the drop odds players have now (ROUND24.md's table) change either way; in coop "the player" needs a
   rule (the first, or any who is eligible).
+- **Status (2026-11-19): fixed.** Measured: the map's roll (`OnSpawnServerAfterLoad`) ran before the boxes were
+  placed, and their placement (the first frame) before any player was in, so each map box rolled once, against the
+  world; only boxes placed later (crates, the toolgun) rolled against the player. Now each box rolls once
+  (`.vr_ammobox_rolls`): the map's at its first `PutClientInServer` against that player (in coop the first one), a box
+  placed after that at its placement (`SpawnAmmoBoxWeapons`), none again on a respawn or after a load; `IsAmmoBox` has
+  Rogue's three. The odds are now ROUND24.md's (the player's inventory): with `vr_ammobox_drops 0` a map box can carry
+  a gun the player owns, which it never could. Test: `vr_pickup_test 20`.
 
 ### 12. Menu panels on one page: the other panel's selection moves when rows are added or removed
 
@@ -317,6 +348,10 @@ Notes on them:
 - **Recommended fix:** `parm22 = self.steam; return;` after `SetNewParms()` in that branch.
 - **Drawbacks:** `parm49` (the next weapon id), `parm74` and `parm75` are then not carried either, as for a dead
   player; left to the author since CTF could not be played here.
+- **Status (2026-11-19): fixed** as recommended. The three parms checked: `parm49` is carried anyway (SetNewParms
+  writes `qvr_weaponinst_next`, the same value); `parm74` (bullet time's meter, single player only) and `parm75` (the
+  armour plates shown: CTF carries no armour) start afresh, as a dead player's; the grapple (parm18) is SetNewParms's
+  CTF loadout. Test: `vr_pickup_test 21`.
 
 ### 17. `readytime` is one global shared by all players
 
@@ -327,6 +362,11 @@ Notes on them:
   and holster actions for half a second.
 - **Recommended fix:** a player field (`.float vr_readytime`), read as `self.vr_readytime`.
 - **Drawbacks:** a new field in the progs (saves made before it read 0: ready at once, which is right).
+- **Status (2026-11-19): fixed** as recommended: `.float vr_readytime` (vr_defs.qc), set by `PutClientInServer`, read
+  as the player's own at every gate (weapons.qc, vr_reload.qc, vr_grenade.qc, vr_wpnholster.qc's `ent`) and by the
+  revolver, nail pistol and flare gun tests. agent/mp has no change of its own here (the same global, the same reads):
+  the name follows its per-player fields (`.vr_movejump`, `.vr_spawn_wait`, ...). Two players can't be run headless here:
+  `vr_pickup_test 22` stands another player's spawn in with another entity's field.
 
 ### 18. Shape-id buffers smaller than the most shapes a body can have
 
@@ -374,8 +414,17 @@ Each verified at the cited lines; none worth a section.
 - **Dead code:** `parm39` / `parm40` are written in `SetChangeParms` (`client.qc:165`, `:168`) and never decoded;
   `BackpackTouch`'s owner grace (`items.qc:2110`: `self.nextthink - time > 119`) can never be true since the removal
   moved to `nextthink2`.
+  **Status (2026-11-19):** the two writes removed (nothing decodes them: not DecodeLevelParms, not the engine, which
+  copies the parms by name, not agent/mp; defs.qc marks both free). The grace removed, not mended: besides the timer,
+  `Backpack_Setup` sets every backpack's owner to world (the thrown-object and force-grab code read `owner`), so
+  `other == self.owner` never held either; the code came with the import (`adec81964`), ZOID's CTF rule for a pack
+  its dropper tossed, and a player's own pack here is his death's.
 - **Coop, noted only:** slow motion's per-entity clock treats edict 1 as "the player"
   (`vr_timescale.cpp:503`: `const bool player = num == 1;`).
+  **Status (2026-11-19):** generalised: every client's edict (`clientEdict`: 1 .. `svs.maxclients`) and missiles any
+  client owns run in the player's time, not edict 1's alone. Unchanged in play: `moveSpeedup` is 1 with more than one
+  client slot (time scale and bullet time are single player's, as agent/mp's MULTIPLAYER.md keeps them; agent/mp's
+  vr_timescale.cpp is next's, unchanged). The clock's offset and the timers kept are still one (one player's).
 
 ### 20. The world's resets are three mechanisms kept in step by hand
 

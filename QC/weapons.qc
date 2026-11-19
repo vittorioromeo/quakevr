@@ -5037,7 +5037,7 @@ void(float xHand) W_WeaponFrameImpl =
     FrameDrawLightningTrail(xHand, VRGetFireButtonPressed(xHand));
     AD_WidowmakerSpinHook(xHand, VRGetFireButtonPressed(xHand) && !VR_Forcegrab_IsHandBusy(self, xHand));
 
-    if(!deathmatch && time < readytime)
+    if(!deathmatch && time < self.vr_readytime)
     {
         // Do not do anything if the player is not "ready" yet, after spawning.
         return;

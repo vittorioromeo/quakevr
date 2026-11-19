@@ -43,7 +43,10 @@ float(entity ent) IsAmmoBox =
     return ent.classname == ITEM_NAME_SHELLS ||
            ent.classname == ITEM_NAME_SPIKES ||
            ent.classname == ITEM_NAME_ROCKETS ||
-           ent.classname == ITEM_NAME_CELLS;
+           ent.classname == ITEM_NAME_CELLS ||
+           ent.classname == ITEM_NAME_LAVA_SPIKES || // (Rogue's: SpawnAmmoBoxWeaponsImpl has their rows)
+           ent.classname == ITEM_NAME_MULTI_ROCKETS ||
+           ent.classname == ITEM_NAME_PLASMA;
 }
 
 float(float xFactor, float xMult) ShouldDropImpl =
@@ -115,19 +118,36 @@ void(entity ent, entity entPlayer) SpawnAmmoBoxWeaponsImpl =
     }
 }
 
+// The weapon an ammo box may carry is rolled once a box (.vr_ammobox_rolls counts it), against a player's inventory:
+// the map's boxes at the map's first PutClientInServer (SpawnAllAmmoBoxWeapons, the first player in coop: the
+// placement below runs before any player is in), a box placed after that (a crate's, the toolgun's, a trigger's) at its
+// placement against the first player. Set at that first PutClientInServer (and by a loaded game: saved with it).
+float vr_ammobox_rolled_map;
+.float vr_ammobox_rolls;
+entity vr_ammobox_roller; // the player the last roll was made against (vr_pickup_test 20 reads it)
+
+void(entity ent, entity entPlayer) VR_AmmoBox_Roll =
+{
+    ent.vr_ammobox_rolls = ent.vr_ammobox_rolls + 1;
+    vr_ammobox_roller = entPlayer;
+    SpawnAmmoBoxWeaponsImpl(ent, entPlayer);
+};
+
+// PlaceItem's: a box placed after the map's roll is rolled now.
 void(entity ent) SpawnAmmoBoxWeapons =
 {
-    entity entPlayer;
+    if(!IsAmmoBox(ent) || ent.vr_ammobox_rolls || !vr_ammobox_rolled_map)
+    {
+        return; // (not a box, rolled, or the map's roll at the first PutClientInServer takes it)
+    }
 
-    entPlayer = VR_Player();
-
+    entity entPlayer = VR_Player();
     if(entPlayer == world)
     {
-        bprint("`SpawnAmmoBoxWeapons`: player entity not found\n");
         return;
     }
 
-    SpawnAmmoBoxWeaponsImpl(ent, entPlayer);
+    VR_AmmoBox_Roll(ent, entPlayer);
 }
 
 
@@ -439,6 +459,7 @@ void() health_touch =
             return;
     }
 
+    item_taken = TRUE; // (itemTouch: its targets fire)
     VRItemPickupHaptic(other);
 
     sprint(other, "You receive ");
@@ -525,6 +546,7 @@ void() armor_touch =
         return;
     }
 
+    item_taken = TRUE; // (itemTouch: its targets fire)
     other.armortype = type;
     other.armorvalue = value;
     VR_ARK_ArmorBonus(other, value); // QVR: Survival Arena's Iron Skin (vr_arena_perks.qc)
@@ -1111,6 +1133,7 @@ void() weapon_touch =
             hadammo + WeaponIdToInitialAmmoCount(weaponId));
     }
 
+    item_taken = TRUE; // (itemTouch: its targets fire; in coop and deathmatch 2 it stays, taken by this player)
     VRItemPickupHaptic(other);
 
     sprint(other, "You got the ");
@@ -1385,6 +1408,7 @@ void() ammo_touch =
 
     bound_other_ammo();
 
+    item_taken = TRUE; // (itemTouch: its targets fire)
     VRItemPickupHaptic(other);
 
     sprint(other, "You got the ");
@@ -1699,6 +1723,7 @@ void() key_touch =
     if(VR_ItemUtil_EntHasItem(other, self.vr_itemId))
         return;
 
+    item_taken = TRUE; // (itemTouch: its targets fire; in coop the key stays for the others)
     VRItemPickupHaptic(other);
 
     sprint(other, "You got the ");
@@ -1848,6 +1873,7 @@ END OF LEVEL RUNES
 
 void() sigil_touch =
 {
+    item_taken = TRUE; // (itemTouch: its targets fire)
     centerprint(other, "You got the rune!");
 
     sound(other, CHAN_ITEM, self.noise, 1, ATTN_NORM);
@@ -1915,6 +1941,7 @@ POWERUPS
 
 void() powerup_touch =
 {
+    item_taken = TRUE; // (itemTouch: its targets fire)
     VRItemPickupHaptic(other);
 
     sprint(other, self.MGH_powerup_expire ? "You got " : "You got the ");
@@ -2103,12 +2130,6 @@ void() BackpackTouch =
     {
         return;
     }
-
-    //ZOID--
-    // Don't let the owner pick up his own backpack for a second.
-    if((other == self.owner) && ((self.nextthink - time) > 119))
-        return;
-    //--ZOID
 
     // QVR: nothing in it (his note 2026-11-10: a bare "You get" collecting a grunt's drop): taken without a word, a sound
     // or a flash, and gone. Only what it holds more than none of counts (a negative amount, never made on purpose, took

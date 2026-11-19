@@ -68,6 +68,7 @@ float(float kind, entity client) MG3_ApplyUpgrade = {
 // The pickup (itemTouch's th_die: itemTouch fires the targets).
 void() MG3_UpgradeTouch = {
     if(other.classname != "player" || other.health <= 0 || self.model == string_null) return;
+    item_taken = TRUE; // (itemTouch: its targets fire; one already had is used up too)
     float mask = MG3_UpgradeMask(self.MG3_upgrade_kind);
     if(mask & self.upgrade_flag) {
         if(other.ishuman) MG3_sprint_args(other, "$mg3_qc_upgrade_fail", self.netname);
