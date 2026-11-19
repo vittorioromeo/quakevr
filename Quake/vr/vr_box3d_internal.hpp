@@ -241,6 +241,12 @@ struct Slot // what one edict is in the world (by its number)
     // frame changes is the same corpse).
     glm::vec3 lastMid{0.f};
     bool midKnown{false};
+    // Its body asleep away from every gate (syncPortalCopies; portals::nearGate): that body, where it lay and the gates as
+    // built then. While all three stay so, no gate can take it: it is not looked at (no box, no gate test) until it
+    // wakes or something moves it. A body asleep astride a gate is looked at every step, as an awake one (its copy).
+    b3BodyId restBody{b3_nullBodyId};
+    b3WorldTransform restPose{};
+    unsigned restGates{0};
 
     // Props, held and fixtures: the settings (shapeGeneration) and the entity's box its drawn box and Mass were last
     // found the same at (stale): looked at again only when one of them changes.
@@ -1448,6 +1454,8 @@ void pressTest_f();    // vr_prop_press_test (vr_box3d_presstest.cpp)
 void pressTestFrame(); // (its next step, each server frame)
 void strikeTest_f();    // vr_prop_strike_test (vr_box3d_striketest.cpp)
 void strikeTestFrame(); // (its next step, each server frame)
+void portalSleepTest_f();    // vr_physics_portal_sleep_test (vr_box3d_portaltest.cpp)
+void portalSleepTestFrame(); // (its next phase, each server frame)
 [[nodiscard]] bool wanted();
 [[nodiscard]] b3BodyId toolJointBody(int num);
 void syncToolJoints();

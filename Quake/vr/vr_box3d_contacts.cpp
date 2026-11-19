@@ -515,21 +515,45 @@ void syncPortalCopies(float dt)
         }
         world->portalCopies.pushBack(c);
     };
-    const auto add = [&](b3BodyId body) {
+    // (rest: a slot's body, which is not looked at again while it sleeps where nothing can take it: Slot::restBody)
+    const unsigned gates = portals::gatesStamp();
+    const auto add = [&](b3BodyId body, Slot* rest) {
         if(B3_IS_NULL(body) || !b3Body_IsValid(body)) { return; }
+        const bool asleep = rest && !b3Body_IsAwake(body);
+        if(asleep && B3_ID_EQUALS(rest->restBody, body) && rest->restGates == gates)
+        {
+            const b3WorldTransform pose = b3Body_GetTransform(body); // (moved asleep: b3Body_SetTransform doesn't wake)
+            const b3WorldTransform& was = rest->restPose;
+            if(pose.p.x == was.p.x && pose.p.y == was.p.y && pose.p.z == was.p.z && pose.q.v.x == was.q.v.x &&
+               pose.q.v.y == was.q.v.y && pose.q.v.z == was.q.v.z && pose.q.s == was.q.s)
+            {
+                return;
+            }
+        }
+        if(rest) { rest->restBody = b3_nullBodyId; }
         glm::vec3 lo{1e30f}, hi{-1e30f};
         sweptBox(body, lo, hi);
+        const glm::vec3 ulo = world->toU(b3v(lo)), uhi = world->toU(b3v(hi));
+        if(asleep && !portals::nearGate(ulo, uhi, 4.f)) // (nor would splitBounds find one, whatever the triggers do)
+        {
+            rest->restBody = body;
+            rest->restPose = b3Body_GetTransform(body);
+            rest->restGates = gates;
+            return;
+        }
         portals::LightGate gate;
         const glm::vec3 velocity = world->toU(b3Body_GetLinearVelocity(body));
-        if(!portals::splitBounds(world->toU(b3v(lo)), world->toU(b3v(hi)), gate, 4.f, &velocity)) { return; }
+        if(!portals::splitBounds(ulo, uhi, gate, 4.f, &velocity)) { return; }
         addThrough(body, gate);
     };
-    for(const Slot& slot : world->slots)
+    // (the slots with a body only: World::slotsActive)
+    for(int num = nextActiveSlot(0); num > 0 && num < static_cast<int>(world->slots.size()); num = nextActiveSlot(num))
     {
+        Slot& slot = world->slots[static_cast<za::SizeT>(num)];
         // (A dead monster's body (vr_corpse_collide) too; a ragdoll's parts below.)
         if(slot.kind == Kind::Held || slot.kind == Kind::Prop || (slot.kind == Kind::Corpse && slot.ragdoll < 0))
         {
-            add(slot.body);
+            add(slot.body, &slot);
         }
     }
     // A ragdoll: the gate one of its parts goes into (its box across the plane, over the aperture), and a copy through it
@@ -577,7 +601,7 @@ void syncPortalCopies(float dt)
     }
     for(const auto& pair : world->hands)
     {
-        for(const World::HandBody& hand : pair) { add(hand.body); add(hand.reach); }
+        for(const World::HandBody& hand : pair) { add(hand.body, nullptr); add(hand.reach, nullptr); }
     }
 }
 
@@ -636,9 +660,10 @@ void carryRagdolls()
 // its portal copy kept the wall behind the gate from stopping it (syncPortalCopies). writeCorpse then moves its entity.
 void carryCorpses()
 {
-    for(za::SizeT num = 0; num < world->slots.size(); num++)
+    // (the slots with a body only: World::slotsActive; every other's midKnown is false already, Slot{})
+    for(int num = nextActiveSlot(0); num > 0 && num < static_cast<int>(world->slots.size()); num = nextActiveSlot(num))
     {
-        Slot& s = world->slots[num];
+        Slot& s = world->slots[static_cast<za::SizeT>(num)];
         if(s.kind != Kind::Corpse || s.ragdoll >= 0 || !s.corpseDynamic || B3_IS_NULL(s.body) || !b3Body_IsValid(s.body))
         {
             s.midKnown = false;
@@ -657,14 +682,14 @@ void carryCorpses()
             b3Body_SetLinearVelocity(s.body, b3v(gate.turn * glmv(b3Body_GetLinearVelocity(s.body))));
             b3Body_SetAngularVelocity(s.body, b3v(gate.turn * glmv(b3Body_GetAngularVelocity(s.body))));
             b3Body_SetAwake(s.body, true);
-            edict_t* ent = static_cast<int>(num) < qcvm->num_edicts ? EDICT_NUM(static_cast<int>(num)) : nullptr;
+            edict_t* ent = num < qcvm->num_edicts ? EDICT_NUM(num) : nullptr;
             if(ent && !ent->free && !s.corpseFitted)
             {
                 ent->v.angles[YAW] = anglemod(ent->v.angles[YAW] + glm::degrees(std::atan2(gate.turn[0][1], gate.turn[0][0])));
             }
             s.asleep = false; // (written this frame: writeCorpse)
             const glm::vec3 to = gate.turn * mid + shift;
-            Con_DPrintf("corpse: %d carried through a teleporter: middle %.1f %.1f %.1f -> %.1f %.1f %.1f\n", static_cast<int>(num),
+            Con_DPrintf("corpse: %d carried through a teleporter: middle %.1f %.1f %.1f -> %.1f %.1f %.1f\n", num,
                 mid.x, mid.y, mid.z, to.x, to.y, to.z);
             mid = to;
         }
@@ -801,8 +826,10 @@ void notePushed(float dt)
             gather(hb.body);
         }
     }
-    for(const Slot& s : world->slots)
+    // (the slots with a body only: World::slotsActive)
+    for(int num = nextActiveSlot(0); num > 0 && num < static_cast<int>(world->slots.size()); num = nextActiveSlot(num))
     {
+        const Slot& s = world->slots[static_cast<za::SizeT>(num)];
         if(s.kind == Kind::Held)
         {
             gather(s.body);

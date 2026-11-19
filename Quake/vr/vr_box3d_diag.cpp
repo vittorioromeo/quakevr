@@ -702,6 +702,7 @@ void registerCommands()
         Cmd_AddCommand("vr_physics_fling", fling_f);
         Cmd_AddCommand("vr_physics_forcegrab", forcegrabCheck_f);
         Cmd_AddCommand("vr_physics_portals", portalInfo_f);
+        Cmd_AddCommand("vr_physics_portal_sleep_test", portalSleepTest_f);
         Cmd_AddCommand("vr_corpse_list", corpseList_f);
         Cmd_AddCommand("vr_corpse_drop", corpseDrop_f);
         Cmd_AddCommand("vr_corpse_poses", corpsePoses_f);

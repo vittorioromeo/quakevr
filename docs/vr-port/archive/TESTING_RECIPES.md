@@ -650,6 +650,11 @@ over 1 ms with Box3D's profile; 2: every awake body every frame; 3: frames over 
 slow frames). `vr_physics_blast <x> <y> <z> [<damage>]` sets off an explosion there (QC's `T_RadiusDamage` from the
 world, 120 by default, and its effect): monsters take it, props are thrown (Box3D). `vr_forcegrabbable_return 0` keeps
 moved items from going back to their places during a long test.
+Portal copies of sleeping props (REVIEW_NEXT_2026-11-18.md, finding 15): `map vrteleporters; wait60;
+vr_physics_portal_sleep_test` (`portalsleep: N passed, M failed`; `vr_box3d_portaltest.cpp`): a crate astride the flush
+player gate keeps its copy every step, asleep too, and the copy collides in the room beyond; crates asleep away from the
+gates are not looked at (`Slot::restBody`) and have none; one slid into its gate gets its copy; one moved astride a gate
+while asleep (`b3Body_SetTransform`, no wake) gets it at the next step. `vr_physics_portals` lists the copies.
 Box3D on the pool (ROUND21.md, "Box3D on the pool"): `vr_physics_mtbench [<bodies> [<steps>]]` steps a world of its own
 (boxes in toppling columns) with 1, 2, 3, 4, 6, 8, 16 and all the pool's workers from the same start: each count's step
 time and a hash of every body after (must say `the same with every worker count`); `vr_physics_steptime` prints the

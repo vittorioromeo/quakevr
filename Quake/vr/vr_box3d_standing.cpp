@@ -174,10 +174,13 @@ void nudgeWalkedRagdolls(float dt)
         const float legs = lo.z + 0.5f * (hi.z - lo.z); // (his legs: the lower half of his box)
         const float target = za::min(speed * walkNudgeShare, walkNudgeSpeed); // m/s
         const float g = -b3World_GetGravity(world->id).z;
-        for(size_t num = svs.maxclients + 1; num < world->slots.size(); num++)
+        // (the ragdolls, not every slot; a player's own is not nudged. In the list's order, not the edicts': each part
+        // takes its own impulse, the same either way.)
+        for(const RagdollBodies& rag : world->ragdolls)
         {
-            const RagdollBodies* r = ragdollOf(static_cast<int>(num));
-            if(!r) { continue; } // (its parts are dynamic bodies whatever Corpse Collision is)
+            const int num = rag.num;
+            const RagdollBodies* r = ragdollOf(num); // (none for a free entry, 0, or a player's)
+            if(r != &rag) { continue; } // (its parts are dynamic bodies whatever Corpse Collision is)
             int nudged = 0;
             for(int part = 0; part < r->count; part++)
             {
@@ -199,7 +202,7 @@ void nudgeWalkedRagdolls(float dt)
             if(nudged && vr_debug_box3d.value >= 2.f)
             {
                 Con_Printf("box3d: player %d walking at %.1f m/s nudges %d parts of %d towards %.2f m/s\n", player, speed, nudged,
-                    static_cast<int>(num), target);
+                    num, target);
             }
         }
     }

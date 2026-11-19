@@ -70,6 +70,7 @@ za::Vector<Side> exits;
 const qmodel_t* builtFor = nullptr;
 int builtGeneration = -1;
 float builtPairExits = -1.f; // vr_teleporter_pair_exits as built (pairExits)
+unsigned builds = 0;          // how many times the sides were built (gatesStamp)
 int chosen = -1;  // the side being ranked or picked for a view (-1: none)
 int lastChosen = -1;
 
@@ -261,6 +262,7 @@ void build()
     builtFor = sv.worldmodel;
     builtGeneration = worldGeneration();
     builtPairExits = vr_teleporter_pair_exits.value;
+    builds = builds + 1 ? builds + 1 : 1; // (never 0: gatesStamp's "no gates")
     qmodel_t* m = sv.worldmodel;
     if(!m)
     {
@@ -2009,6 +2011,24 @@ extern "C" int VR_PortalReachMove(edict_t* player, const float* start, const flo
 
 namespace qvr::portals
 {
+namespace
+{
+// A box across side `sd`'s plane over its aperture (splitBounds, nearGate): each corner over the gate (with `margin`), some
+// in front and some behind.
+[[nodiscard]] bool straddles(const Side& sd, const glm::vec3& lo, const glm::vec3& hi, float margin)
+{
+    float low = 1e9f, high = -1e9f;
+    for(int c = 0; c < 8; c++)
+    {
+        const glm::vec3 p{(c & 1) ? hi.x : lo.x, (c & 2) ? hi.y : lo.y, (c & 4) ? hi.z : lo.z};
+        const float d = glm::dot(sd.normal, p) - sd.dist;
+        low = za::min(low, d); high = za::max(high, d);
+        if(!onGate(sd, p - sd.normal * d, margin)) { return false; }
+    }
+    return low < 0.f && high > 0.f;
+}
+} // namespace
+
 bool splitBounds(const glm::vec3& lo, const glm::vec3& hi, LightGate& gate, float margin, const glm::vec3* velocity)
 {
     if(!walkOn()) { return false; }
@@ -2026,22 +2046,31 @@ bool splitBounds(const glm::vec3& lo, const glm::vec3& hi, LightGate& gate, floa
         {
             const Side sd = back ? reverseSide(entry) : entry;
             if(back && !entry.paired && (!velocity || glm::dot(sd.normal, *velocity) <= 1.f)) { continue; }
-            float low = 1e9f, high = -1e9f;
-            bool fits = true;
-            for(int c = 0; c < 8; c++)
-            {
-                const glm::vec3 p{(c & 1) ? hi.x : lo.x, (c & 2) ? hi.y : lo.y, (c & 4) ? hi.z : lo.z};
-                const float d = glm::dot(sd.normal, p) - sd.dist;
-                low = za::min(low, d); high = za::max(high, d);
-                fits &= onGate(sd, p - sd.normal * d, margin);
-            }
             const float d = za::fabs(glm::dot(sd.normal, centre) - sd.dist);
-            if(!fits || low >= 0.f || high <= 0.f || d >= nearest) { continue; }
+            if(d >= nearest || !straddles(sd, lo, hi, margin)) { continue; }
             nearest = d; found = true;
             gate = {sd.from, sd.to, sd.normal, sd.mins, sd.maxs, sd.turn, sd.dist};
         }
     }
     return found;
+}
+
+unsigned gatesStamp()
+{
+    if(!walkOn()) { return 0; }
+    if(!current()) { build(); }
+    return builds;
+}
+
+bool nearGate(const glm::vec3& lo, const glm::vec3& hi, float margin)
+{
+    if(!walkOn()) { return false; }
+    if(!current()) { build(); }
+    for(const Side& entry : sides)
+    {
+        if(straddles(entry, lo, hi, margin) || straddles(reverseSide(entry), lo, hi, margin)) { return true; }
+    }
+    return false;
 }
 
 bool crossedGate(const glm::vec3& from, const glm::vec3& to, LightGate& gate)
