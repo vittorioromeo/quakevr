@@ -303,11 +303,57 @@ extern "C" int VR_CoopSlotSpawned(int slot)
     return 1;
 }
 
-extern "C" int VR_CoopPickSlot(const char* name)
+namespace
+{
+
+// Slots a and b's saved blocks (name, level-start parms) swapped, each into its slot's parms; their saved edicts stay
+// where they are (the bodies: what each had on him at the save).
+void swapSaved(int a, int b)
+{
+    const Slot t = load.slots[a];
+    load.slots[a] = load.slots[b];
+    load.slots[b] = t;
+    const bool p = load.pending[a];
+    load.pending[a] = load.pending[b];
+    load.pending[b] = p;
+    for(const int i : {a, b})
+    {
+        memcpy(svs.clients[i].spawn_parms, load.slots[i].parms, sizeof(load.slots[i].parms));
+        memcpy(qvr::progs::clientExtParms(i), load.slots[i].ext, sizeof(load.slots[i].ext));
+    }
+}
+
+} // namespace
+
+extern "C" int VR_CoopPickSlot(const char* name, int isLocal)
 {
     if(!svs.clients)
     {
         return -1;
+    }
+    const int slots = za::min(svs.maxclients, MAX_SCOREBOARD);
+    // The host's own client (the loopback) always takes slot 0: every "own player" path reads his edict and hands there
+    // (progs::hostSlot). In a loaded coop game whose slot 0 was saved for another name (the host renamed, or the save
+    // made by another host or a dedicated server), his own saved block, if he has one, is swapped into slot 0 first:
+    // his name and level-start parms are his, the body in slot 0 is the one saved there (and the other player, back by
+    // his name, takes the host's saved slot and body). With no block of his he takes slot 0's saved player.
+    if(isLocal && !svs.clients[0].active)
+    {
+        if(sv.loadgame && load.coopLoaded && load.pending[0] && name && strcmp(load.slots[0].name, name) != 0)
+        {
+            int own = -1;
+            for(int i = 1; i < slots && own < 0 && *name; i++)
+            {
+                own = !svs.clients[i].active && load.pending[i] && !strcmp(load.slots[i].name, name) ? i : -1;
+            }
+            Con_Printf("coop save: the host %s takes slot 0, saved for %s (%s)\n", name, load.slots[0].name,
+                own >= 0 ? va("his own saved slot %d swapped with it", own) : "he has no saved slot of his own");
+            if(own >= 0)
+            {
+                swapSaved(0, own);
+            }
+        }
+        return 0;
     }
     if(!sv.loadgame || !load.coopLoaded)
     {
@@ -316,7 +362,6 @@ extern "C" int VR_CoopPickSlot(const char* name)
         const int slot = k >= 0 ? leavers[k].slot : -1;
         return slot >= 0 && slot < svs.maxclients && !svs.clients[slot].active ? slot : -1; // (-1: the first free)
     }
-    const int slots = za::min(svs.maxclients, MAX_SCOREBOARD);
     // His saved player, by the name his connect request carried (net_dgrm.c), in whichever slot it was saved in.
     if(name && *name)
     {

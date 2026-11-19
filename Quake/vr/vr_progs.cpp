@@ -348,6 +348,25 @@ float* clientExtParms(int client)
     return clientExtSpawnParms(client);
 }
 
+int hostSlot()
+{
+    if(!sv.active || !svs.clients || cls.state == ca_dedicated)
+    {
+        return -1;
+    }
+    // (the loopback's server side is "LOCAL": net_loop.c; its slot keeps the connection from SV_ConnectClient on, before
+    // `active` is set, so a reset of the slot then still finds it its own: clientprefs::serverReset)
+    for(int i = 0; i < svs.maxclients; i++)
+    {
+        const qsocket_s* sock = svs.clients[i].netconnection;
+        if(sock && strcmp(NET_QSocketGetAddressString(sock), "LOCAL") == 0)
+        {
+            return i;
+        }
+    }
+    return -1;
+}
+
 } // namespace qvr::progs
 
 using namespace qvr::progs;

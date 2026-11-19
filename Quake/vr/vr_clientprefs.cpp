@@ -9,6 +9,7 @@
 #include "vr_gripfit.hpp"
 #include "vr_held.hpp"
 #include "vr_heldpose.hpp"
+#include "vr_progs.hpp"
 #include "vr_tunables_api.hpp"
 #include "Zancle/Base/IsFinite.hpp"
 #include "Zancle/Math/Abs.hpp"
@@ -642,7 +643,7 @@ void serverReset(int slot)
 
 int ownSlot()
 {
-    return sv.active && cls.state != ca_dedicated ? 0 : -1;
+    return progs::hostSlot(); // (the loopback client's slot: 0, VR_CoopPickSlot; -1 on a dedicated server)
 }
 
 void publishOwn(int hand)

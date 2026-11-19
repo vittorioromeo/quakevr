@@ -2395,7 +2395,8 @@ def campaign_listen(s):
     """A coop save on a listen host (A): loaded with B connected (both kept, the host's own client reconnecting as at a
     changelevel), then by A alone after he left for a single player server (the save's 4 players set again: maxplayers
     and listen), C joining first and B after him, each into his own saved slot by his name (B4c: C's connection would
-    take B's slot, the first free one) with what he had."""
+    take B's slot, the first free one) with what he had. Then (REVIEW_MP_2026-11-18 finding 3) the host loads it alone
+    renamed: his own client still in slot 0 and the game's own player (campaign_listen_host_slot)."""
     srv, a, b, ea, eb = join(s, listen=True)
     sa, sb = ea - 1, eb - 1
     c = s.client("C").start()
@@ -2459,6 +2460,48 @@ def campaign_listen(s):
     diff = carried(inv1.get(sa, {}), alone.get(sa, {}), INV_KEYS, change=False)
     s.check("A, alone at the load, has what he had at the save", not diff,
             "saved %s; now %s (differ: %s)" % (inv1.get(sa), alone.get(sa), diff))
+    campaign_listen_host_slot(s, a, sa, inv1)
+
+
+def host_load(s, a, name):
+    """A, renamed `name`, leaves for a single player server and loads the coop save b4listen alone -> (his entity, the
+    server's mp_server fields, the server's lines since the load)."""
+    since_a = a.mark()
+    a.cmd("name %s; disconnect; maxplayers 1; map e1m1" % name)
+    a.wait(r"mp_event: .*joined map=e1m1", 120, since_a, "A alone on e1m1")
+    since_a = a.mark()
+    a.cmd("load b4listen")
+    _, ja = a.wait(r"mp_event: .*joined map=e1m1", 120, since_a, "A (%s) in the coop save loaded alone" % name)
+    lines = a.lines[since_a:]
+    st = status(a)
+    return int(fields(ja)["self"]), fields(next((l for l in st if l.startswith("mp_server:")), "")), lines
+
+
+def campaign_listen_host_slot(s, a, sa, inv1):
+    """(REVIEW_MP_2026-11-18 finding 3) The host's own client takes slot 0 in a loaded coop save whatever name slot 0 was
+    saved under, and the game's own player (progs::localPlayer, clientprefs::ownSlot) is his. Renamed Z (no saved slot
+    of his): he takes slot 0's saved player (before: the first free slot nobody waited for, slot 3, with the game's own
+    player slot 0's, nobody's until A's name came back). Renamed B (B's saved slot 1 his by name): B's block swapped
+    into slot 0, slot 1 left for A's name."""
+    ent, srv, lines = host_load(s, a, "Z")
+    said = next((l for l in lines if "coop save: the host Z takes slot 0" in l), None)
+    s.check("the host renamed Z loads the coop save alone: his own client in slot 0 (entity 1), the game's own player "
+            "his (localPlayer: entity 1; ownSlot 0)", ent == 1 and srv.get("own") == "1" and srv.get("ownslot") == "0"
+            and said is not None and "no saved slot of his own" in said,
+            "entity %d; mp_server own=%s ownslot=%s; %s" % (ent, srv.get("own"), srv.get("ownslot"),
+                                                           said.strip() if said else "no 'takes slot 0' line"))
+    inv, _ = inventories_until(a, lambda inv, m: sa in inv)
+    diff = carried(inv1.get(sa, {}), inv.get(sa, {}), INV_KEYS, change=False)
+    s.check("the host renamed Z has slot 0's saved player (what A had at the save)", not diff,
+            "saved %s; now %s (differ: %s)" % (inv1.get(sa), inv.get(sa), diff))
+
+    ent, srv, lines = host_load(s, a, "B")
+    said = next((l for l in lines if "coop save: the host B takes slot 0" in l), None)
+    s.check("the host renamed B (B's saved slot 1) loads it: slot 0 (entity 1), localPlayer his, B's saved block swapped "
+            "into slot 0", ent == 1 and srv.get("own") == "1" and srv.get("ownslot") == "0" and said is not None and
+            "his own saved slot 1 swapped" in said,
+            "entity %d; mp_server own=%s ownslot=%s; %s" % (ent, srv.get("own"), srv.get("ownslot"),
+                                                           said.strip() if said else "no 'takes slot 0' line"))
 
 
 def saved_text(s, relname, t0, tries=50):

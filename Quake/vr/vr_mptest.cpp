@@ -414,7 +414,14 @@ void status_f()
                 v ? static_cast<int>(v->weapon) : 0, clip, c.edict ? qvr::mpavatar::movesByte(c.edict, false) : 0,
                 qvr::server::mergedMoves(i));
         }
-        Con_Printf("mp_server: map=%s spawned=%d time=%.3f\n", sv.name, spawned, sv.qcvm.time); // (time: the game's clock)
+        // (own: this game's own player's entity, progs::localPlayer, 0 none; ownslot: clientprefs::ownSlot, -1 none:
+        // the host's own client in slot 0 whatever a loaded coop save holds, REVIEW_MP_2026-11-18 finding 3)
+        const edict_t* own = qvr::progs::localPlayer();
+        Con_Printf("mp_server: map=%s spawned=%d time=%.3f own=%d ownslot=%d\n", sv.name, spawned, sv.qcvm.time,
+            own ? static_cast<int>((reinterpret_cast<const byte*>(own) - reinterpret_cast<const byte*>(sv.qcvm.edicts)) /
+                      sv.qcvm.edict_size)
+                : 0,
+            qvr::clientprefs::ownSlot()); // (time: the game's clock)
     }
     if(!signedOn())
     {

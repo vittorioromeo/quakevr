@@ -620,6 +620,7 @@ void SV_CheckForNewClients (void)
 {
 	struct qsocket_s	*ret;
 	int				i;
+	qboolean		islocal;
 
 //
 // check for new connections
@@ -634,9 +635,9 @@ void SV_CheckForNewClients (void)
 	// init a new client structure
 	//
 		// QVR: in a loaded coop game, the saved player's slot of his name (vr/vr_coopsave.cpp): a remote player's from
-		// his connect request, the host's own client's from his settings
-		i = VR_CoopPickSlot (Q_strcmp (NET_QSocketGetAddressString (ret), "LOCAL") == 0 ? cl_name.string
-			: NET_QSocketGetQvrName (ret));
+		// his connect request, the host's own client's from his settings; the host's own client always slot 0
+		islocal = Q_strcmp (NET_QSocketGetAddressString (ret), "LOCAL") == 0;
+		i = VR_CoopPickSlot (islocal ? cl_name.string : NET_QSocketGetQvrName (ret), islocal);
 		if (i < 0)
 			for (i=0 ; i<svs.maxclients ; i++)
 				if (!svs.clients[i].active)
