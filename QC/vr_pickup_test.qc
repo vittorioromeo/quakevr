@@ -1129,6 +1129,10 @@ void() VR_PickupTest_Frame =
     {
         VR_ItemTargetsTest_Run(); // (an item's targets fire only when it is taken: vr_itemrules_test.qc)
     }
+    else if(ask == 20)
+    {
+        VR_AmmoRollTest_Run(); // (the ammo boxes' weapon roll: once a box, against the player: vr_itemrules_test.qc)
+    }
     self = oself;
 };
 #endif

@@ -180,18 +180,9 @@ void() OnSpawnServerBeforeLoad =
 
 void() OnSpawnServerAfterLoad =
 {
-    float fromSaveFile;
-    fromSaveFile = spawnServerFromSaveFile;
-
     VR_CVars_InitAllHandles();
 
-    if(!fromSaveFile)
-    {
-        if(!deathmatch && !VR_GameUtil_InTutorialMap())
-        {
-            SpawnAllAmmoBoxWeapons();
-        }
-    }
+    // (The map's ammo boxes roll their weapon at its first PutClientInServer, against that player: SpawnAllAmmoBoxWeapons.)
 }
 
 void() VR_Crackles_AfterLoad; // (vr_burning.qc)
@@ -200,6 +191,7 @@ void() VR_AM_AfterLoad;       // (vr_armedmon.qc)
 void() OnLoadGame =
 {
     VR_CVars_InitAllHandles();
+    vr_ammobox_rolled_map = TRUE; // (the map's boxes rolled before the save; an older save's flag was not kept)
     VR_AM_AfterLoad(); // the armed monsters' row cache: the map's spawn filled it for another kind than the save's
     SUB_DoLater(VR_Crackles_AfterLoad, 0.1); // the torches' and fires' crackles started again (sounds are not saved)
     VR_Tips_Reapply(); // (TRIGGERED tips used before the save: shown again)
@@ -1319,16 +1311,27 @@ void() PutClientInServer =
     AD_PlayerSpawned(); // AD support: what AD's code reads of a player, in an AD map (vr_ad_bridge.qc)
     AD_UpgradesToWeapons(self); // AD support: an older game's upgrades (the player's) onto his weapons (vr_ad_bridge.qc)
     VR_Toolgun_SpawnInHolster(); // vr_debug_spawn_toolgun (vr_toolgun.qc)
+    SpawnAllAmmoBoxWeapons(self);
 };
 
-void() SpawnAllAmmoBoxWeapons =
+// The map's first PutClientInServer (`p`, the first player in coop; not a loaded game's: none): each ammo box's weapon
+// rolled against what he carries (DecodeLevelParms has run), once. A box not placed yet rolls at its placement.
+void(entity p) SpawnAllAmmoBoxWeapons =
 {
-    entity e;
-    for(e = nextent(world); e != world; e = nextent(e))
+    if(vr_ammobox_rolled_map)
     {
-        if(IsAmmoBox(e))
+        return;
+    }
+    vr_ammobox_rolled_map = TRUE;
+    if(deathmatch || VR_GameUtil_InTutorialMap())
+    {
+        return;
+    }
+    for(entity e = nextent(world); e != world; e = nextent(e))
+    {
+        if(IsAmmoBox(e) && !e.vr_ammobox_rolls && e.think != PlaceItem)
         {
-            SpawnAmmoBoxWeaponsImpl(e, self);
+            VR_AmmoBox_Roll(e, p);
         }
     }
 }

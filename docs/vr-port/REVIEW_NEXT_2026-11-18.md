@@ -261,6 +261,13 @@ Notes on them:
   `IsAmmoBox` covering the three Rogue classnames.
 - **Drawbacks:** the drop odds players have now (ROUND24.md's table) change either way; in coop "the player" needs a
   rule (the first, or any who is eligible).
+- **Status (2026-11-19): fixed.** Measured: the map's roll (`OnSpawnServerAfterLoad`) ran before the boxes were
+  placed, and their placement (the first frame) before any player was in, so each map box rolled once, against the
+  world; only boxes placed later (crates, the toolgun) rolled against the player. Now each box rolls once
+  (`.vr_ammobox_rolls`): the map's at its first `PutClientInServer` against that player (in coop the first one), a box
+  placed after that at its placement (`SpawnAmmoBoxWeapons`), none again on a respawn or after a load; `IsAmmoBox` has
+  Rogue's three. The odds are now ROUND24.md's (the player's inventory): with `vr_ammobox_drops 0` a map box can carry
+  a gun the player owns, which it never could. Test: `vr_pickup_test 20`.
 
 ### 12. Menu panels on one page: the other panel's selection moves when rows are added or removed
 

@@ -43,7 +43,10 @@ float(entity ent) IsAmmoBox =
     return ent.classname == ITEM_NAME_SHELLS ||
            ent.classname == ITEM_NAME_SPIKES ||
            ent.classname == ITEM_NAME_ROCKETS ||
-           ent.classname == ITEM_NAME_CELLS;
+           ent.classname == ITEM_NAME_CELLS ||
+           ent.classname == ITEM_NAME_LAVA_SPIKES || // (Rogue's: SpawnAmmoBoxWeaponsImpl has their rows)
+           ent.classname == ITEM_NAME_MULTI_ROCKETS ||
+           ent.classname == ITEM_NAME_PLASMA;
 }
 
 float(float xFactor, float xMult) ShouldDropImpl =
@@ -115,19 +118,36 @@ void(entity ent, entity entPlayer) SpawnAmmoBoxWeaponsImpl =
     }
 }
 
+// The weapon an ammo box may carry is rolled once a box (.vr_ammobox_rolls counts it), against a player's inventory:
+// the map's boxes at the map's first PutClientInServer (SpawnAllAmmoBoxWeapons, the first player in coop: the
+// placement below runs before any player is in), a box placed after that (a crate's, the toolgun's, a trigger's) at its
+// placement against the first player. Set at that first PutClientInServer (and by a loaded game: saved with it).
+float vr_ammobox_rolled_map;
+.float vr_ammobox_rolls;
+entity vr_ammobox_roller; // the player the last roll was made against (vr_pickup_test 20 reads it)
+
+void(entity ent, entity entPlayer) VR_AmmoBox_Roll =
+{
+    ent.vr_ammobox_rolls = ent.vr_ammobox_rolls + 1;
+    vr_ammobox_roller = entPlayer;
+    SpawnAmmoBoxWeaponsImpl(ent, entPlayer);
+};
+
+// PlaceItem's: a box placed after the map's roll is rolled now.
 void(entity ent) SpawnAmmoBoxWeapons =
 {
-    entity entPlayer;
+    if(!IsAmmoBox(ent) || ent.vr_ammobox_rolls || !vr_ammobox_rolled_map)
+    {
+        return; // (not a box, rolled, or the map's roll at the first PutClientInServer takes it)
+    }
 
-    entPlayer = VR_Player();
-
+    entity entPlayer = VR_Player();
     if(entPlayer == world)
     {
-        bprint("`SpawnAmmoBoxWeapons`: player entity not found\n");
         return;
     }
 
-    SpawnAmmoBoxWeaponsImpl(ent, entPlayer);
+    VR_AmmoBox_Roll(ent, entPlayer);
 }
 
 

@@ -265,6 +265,7 @@ vr_pickup_test   15       vr_pickup_test.qc                Melee Only and FrikBo
 vr_pickup_test   16       vr_pickup_test.qc                the waterdrips scene through a save and a load: off hand still empty, grunts' guns at their hands, no other kind's spell, wet kept (VR_SLTest_Start, vr_saveload_test.qc; Misc/quakevr/saveload_test.sh)
 vr_pickup_test   17       vr_pickup_test.qc                his 11-15 design: a gun on the floor taken by the off hand: closed on its handle -> gun mode; closed 12 units over its barrel -> nothing; the same against the hand (vr_test_handcontact) -> a prop, carried (VR_PalmGrabTest_Start)
 vr_pickup_test   19       vr_itemrules_test.qc             an item's targets fire only when it is taken: health at full health, shells at the cap, a key held, armour under better, a weapon by a hand not gripping: not taken, nothing fired; taken: fired once (Honey: a secret found only then) (VR_ItemTargetsTest_Run)
+vr_pickup_test   20       vr_itemrules_test.qc             the ammo boxes' weapon roll: Rogue's three boxes are boxes; every map box rolled once, at the first PutClientInServer, against the player; a box placed later once, at its placement; asked again nothing (VR_AmmoRollTest_Run)
 
 vr_reload_test   1        vr_reload_test.qc                (VRIsHandEmpty)
 vr_reload_test   2        vr_reload_test.qc                (VR_Reload_IsRound)

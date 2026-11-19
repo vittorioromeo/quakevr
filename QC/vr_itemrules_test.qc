@@ -130,4 +130,68 @@ void() VR_ItemTargetsTest_Run =
     if(hadKey) { VR_ItemUtil_EntAddItem(p, IID_KEY1); } else { VR_ItemUtil_EntDelItem(p, IID_KEY1); }
     VR_Test_Verdict();
 };
+
+// vr_pickup_test 20 (vr_itemrules_test.qc): the ammo boxes' weapon roll (items.qc SpawnAmmoBoxWeapons): Rogue's three
+// boxes are ammo boxes; the map's roll ran at the first PutClientInServer, every ammo box of the map rolled exactly once
+// (.vr_ammobox_rolls) and against the player; a box placed now rolls once at its placement against him; the map's roll
+// asked again (a coop respawn's PutClientInServer) rolls nothing. Verdict "ammoroll: N passed, M failed". Single
+// player, a map with ammo boxes (e1m1).
+void() VR_AmmoRollTest_Run =
+{
+    VR_Test_BeginFlags("ammoroll", VR_TEST_LOUD);
+    entity p = self;
+    entity probe = spawn();
+    float ok = TRUE;
+    string names[8] = { "item_shells", "item_spikes", "item_rockets", "item_cells", "item_lava_spikes",
+                        "item_multi_rockets", "item_plasma", "item_health" };
+    for(float i = 0; i < 8; i++)
+    {
+        probe.classname = names[i];
+        if(IsAmmoBox(probe) != (i < 7))
+        {
+            ok = FALSE;
+            VR_Test_Print(sprintf("ammoroll: IsAmmoBox(%s) is %g\n", names[i], IsAmmoBox(probe)));
+        }
+    }
+    remove(probe);
+    VR_Test_Check(ok, "the seven ammo boxes (Rogue's lava nails, multi-rockets and plasma too) are ammo boxes, health isn't");
+    VR_Test_Check(vr_ammobox_rolled_map, "the map's roll ran (the first PutClientInServer)");
+    VR_Test_Check(vr_ammobox_roller == p, sprintf("the last roll was against the player (%s)", vr_ammobox_roller.classname));
+
+    float boxes = 0, once = 0;
+    for(entity e = nextent(world); e; e = nextent(e))
+    {
+        if(IsAmmoBox(e))
+        {
+            boxes = boxes + 1;
+            if(e.vr_ammobox_rolls == 1) { once = once + 1; }
+            else { VR_Test_Print(sprintf("ammoroll: %s at %v rolled %g times\n", e.classname, e.origin, e.vr_ammobox_rolls)); }
+        }
+    }
+    VR_Test_Check(boxes > 0 && once == boxes, sprintf("each of the map's %g ammo boxes rolled exactly once (%g)", boxes, once));
+
+    vr_ammobox_roller = world;
+    makevectors(p.v_angle_y * '0 1 0');
+    entity oldself = self;
+    entity box = spawn();
+    setorigin(box, p.origin + v_forward * 64);
+    box.classname = "item_shells";
+    self = box;
+    item_shells();
+    VRPlaceItemNow();
+    self = oldself;
+    VR_Test_Check(box.vr_ammobox_rolls == 1 && vr_ammobox_roller == p,
+        sprintf("a box placed now rolled once at its placement (%g), against the player (%s)", box.vr_ammobox_rolls,
+        vr_ammobox_roller.classname));
+
+    SpawnAllAmmoBoxWeapons(p); // (a coop respawn's PutClientInServer)
+    float again = 0;
+    for(entity e2 = nextent(world); e2; e2 = nextent(e2))
+    {
+        if(IsAmmoBox(e2) && e2.vr_ammobox_rolls != 1) { again = again + 1; }
+    }
+    VR_Test_Check(again == 0, sprintf("the map's roll asked again rolls nothing (%g boxes rolled more than once)", again));
+    remove(box);
+    VR_Test_Verdict();
+};
 #endif
