@@ -1202,6 +1202,14 @@ bool serverSendsNow(client_t* client)
     return true;
 }
 
+int clientRate(const client_t* client)
+{
+    const int own = client->edict ? za::max(0, static_cast<int>(clientprefs::value(clientprefs::indexOf(&vr_net_rate), &vr_net_rate, client->edict)))
+                                  : 0;
+    const int most = za::max(0, static_cast<int>(vr_net_rate_max.value));
+    return own <= 0 ? most : most <= 0 ? own : za::min(own, most);
+}
+
 bool serverBegin(client_t* client)
 {
     Building& b = building;
@@ -1220,9 +1228,8 @@ bool serverBegin(client_t* client)
     b.slot = slot;
     b.client = client;
     b.cur.clear();
-    // (his rate: his own preference; the bucket filled by the game's time since his last datagram)
-    b.rate = client->edict ? za::max(0, static_cast<int>(clientprefs::value(clientprefs::indexOf(&vr_net_rate), &vr_net_rate, client->edict)))
-                           : 0;
+    // (his rate: his own preference under the server's ceiling; the bucket filled by the game's time since his last datagram)
+    b.rate = clientRate(client);
     ServerSlot& s = *slotOf(slot, true);
     const double now = qcvm->time;
     if(b.rate > 0)

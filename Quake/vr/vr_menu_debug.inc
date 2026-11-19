@@ -1259,6 +1259,9 @@ za::Vector<Item> pageDebugReports()
         slider("Network: Rate Cap", vr_net_rate, 0.f, 160000.f, 4000.f, "%.0f B/s")
             .help("vr_net_rate: on a remote server, the most it sends you a second (80000 by default; 0: no cap). Under it the nearest things and "
                   "those ahead of you update first, the far ones wait (MP_PLAN B12); vr_net_bytes shows what you read."),
+        slider("Network: Server Rate Cap", vr_net_rate_max, 0.f, 160000.f, 4000.f, "%.0f B/s")
+            .help("vr_net_rate_max: hosting, the most this server sends any remote player a second, whatever his own Rate "
+                  "Cap (his 0: this; 80000 by default; 0: no ceiling of the server's)."),
         slider("Network: Send Rate", vr_net_sendhz, 18.f, 72.f, 18.f, "%.0f Hz")
             .help("vr_net_sendhz: hosting, how many datagrams a second each remote player gets (72: one each server frame; "
                   "36: every other frame, fewer bytes, the others drawn a frame later; the events between kept for the "

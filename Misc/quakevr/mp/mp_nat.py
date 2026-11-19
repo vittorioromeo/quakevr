@@ -1,6 +1,6 @@
 """mp_nat.py -- a NAT router simulator for the multiplayer harness (B23: room codes, one server socket).
 
-A game started with -natgateway <port> (net_wins.c) sends every datagram to this router's gateway socket on
+A game started with -natgateway <port> (net_dgrm.c) sends every datagram to this router's gateway socket on
 127.0.0.1:<port>, its real destination in a 6-byte prefix (IPv4 address and port, network order), and takes datagrams
 only from the gateway, the real source in the same prefix. The router sends each one on from a socket of its own
 bound to its outside address (another loopback address: 127.0.0.2, 127.0.0.3...), as a home router maps an inside

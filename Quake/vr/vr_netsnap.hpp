@@ -104,6 +104,9 @@ inline constexpr int keyClasses = 5; // 0 the player state, 1 an entity, 2 an av
 // (B13c) vr_net_sendhz: whether a remote snapshot client gets his datagram this server frame (on his beat), else held.
 [[nodiscard]] bool serverSendsNow(client_t* client);
 [[nodiscard]] bool serverRecording();
+// (review 2026-11-18, finding 12) What a remote client may be sent a second, B/s (0: no cap): his vr_net_rate under the
+// server's vr_net_rate_max (his 0: the server's). The snapshot's bucket and the voice relay's share of it.
+[[nodiscard]] int clientRate(const client_t* client);
 void serverTake(sizebuf_t* msg, int at, int key);
 void serverRecord(int key, const za::U8* data, int len);
 void serverEnd(sizebuf_t* msg);

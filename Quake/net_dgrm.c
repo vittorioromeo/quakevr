@@ -28,6 +28,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "vr/vr_api.h" // QVR: PRFL_QUAKEVR, QVR_NET_VERSION
 #include "q_ctype.h" // QVR: (B23) room codes
 
+#if defined(_WIN32)
+#pragma comment (lib, "advapi32.lib")
+unsigned char __stdcall SystemFunction036 (void *buffer, unsigned long length); // (RtlGenRandom: no header declares it)
+#elif !defined(__APPLE__) && !defined(__FreeBSD__) && !defined(__OpenBSD__) && !defined(__NetBSD__)
+#include <unistd.h> // (getentropy)
+#endif
+
 // This is enables a simple IP banning mechanism
 #define BAN_TEST
 
@@ -55,6 +62,29 @@ static struct
 } packetBuffer;
 
 static int myDriverLevel;
+
+// QVR: (review 2026-11-18, finding 2) 32 random bits no other host can predict (a connection's first sequences, a room
+// request's nonce): the system's random source, with the clock and a counter mixed in (a failed call still differs)
+static unsigned int DgrmRandom (void)
+{
+	static unsigned int	count;
+	unsigned int	r = 0;
+	unsigned long long	x;
+
+#if defined(_WIN32)
+	SystemFunction036 (&r, sizeof (r));
+#elif defined(__APPLE__) || defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)
+	r = arc4random ();
+#else
+	if (getentropy (&r, sizeof (r)) != 0)
+		r = 0;
+#endif
+	x = (unsigned long long) (Sys_DoubleTime () * 1e9) ^ ((unsigned long long) ++count << 32) ^ r; // (splitmix64)
+	x += 0x9E3779B97F4A7C15ull;
+	x = (x ^ (x >> 30)) * 0xBF58476D1CE4E5B9ull;
+	x = (x ^ (x >> 27)) * 0x94D049BB133111EBull;
+	return r ^ (unsigned int) (x ^ (x >> 31));
+}
 
 extern qboolean m_return_onerror;
 extern char m_return_reason[32];
@@ -144,19 +174,25 @@ static void QueueClear (dgrmqueue_t *q)
 // NATs; a symmetric NAT on either side maps each destination to another port and the join fails with the reason).
 // The wire format (Misc/rendezvous/qvr_rendezvous.py has the service's side): "QVRR", version, type, two zero bytes,
 // then the type's fields; requests are ROOM_REQUEST bytes, replies ROOM_REPLY (a reply never outgrows its request).
+// (review 2026-11-18, finding 11; version 2) A REGISTER carries the cookie the service gave this host's address
+// (ROOM_COOKIE: an HMAC of it, so spoofed registrations from addresses that can't read the reply make no room), and
+// every reply the host acts on has the nonce of his last request (a REFUSED or BADVERSION forged from the service's
+// address stopped registering for 600 s).
 #define ROOM_MAGIC	"QVRR"
-#define ROOM_VERSION	1
+#define ROOM_VERSION	2
+#define ROOM_COOKIE_LEN	8
 #define ROOM_REQUEST	64
 #define ROOM_REPLY	32
 #define ROOM_CODE_LEN	6
-#define ROOM_REGISTER	0x01	// host -> service: code wanted (6 bytes or zeros) at 8, nonce at 14
+#define ROOM_REGISTER	0x01	// host -> service: code wanted (6 bytes or zeros) at 8, nonce at 14, cookie at 18 (or zeros)
 #define ROOM_JOIN	0x02	// joiner -> service: code at 8, nonce at 14
 #define ROOM_REGISTERED	0x81	// -> host: code at 8, nonce at 14, his outside IPv4 at 18, port at 22
 #define ROOM_PEER	0x82	// -> joiner: code, nonce, the host's outside address
 #define ROOM_INCOMING	0x83	// -> host: code, 0, the joiner's outside address (punch it)
 #define ROOM_NOROOM	0x84	// -> joiner: code, nonce: no such room
 #define ROOM_REFUSED	0x85	// -> host: code, nonce, why at 18 (1: the service is full)
-#define ROOM_BADVERSION	0x86	// -> either: the service's version at 18
+#define ROOM_BADVERSION	0x86	// -> either: code, nonce, the service's version at 18
+#define ROOM_COOKIE	0x87	// -> host: code, nonce, his address's cookie at 24 (to be echoed in a REGISTER)
 #define ROOM_PUNCH	0x90	// host -> joiner: opens the host's router to him (the joiner ignores it)
 #define ROOM_DEFAULT_PORT	26100
 #define ROOM_REGISTER_EVERY	20.0	// s (the service forgets a room 120 s after its last registration)
@@ -180,9 +216,11 @@ static struct
 	char	service[64];		// vr_mp_rendezvous as last resolved ("": none)
 	struct qsockaddr	serviceAddr;
 	qboolean	resolved;
-	double	resolveAt;		// a failed lookup's next try
+	double	resolveAt;		// the next look at the lookup (finding 6: its own back-off, vr_netlookup.cpp)
+	qboolean	toldNotFound;
 	char	code[ROOM_CODE_LEN + 1];	// this host's room ("": none yet)
 	unsigned int	nonce;
+	byte	cookie[ROOM_COOKIE_LEN];	// the service's last cookie for this host (zeros: none yet)
 	double	nextRegister;
 	double	firstSent;		// the first unanswered registration's time (0: answered)
 	qboolean	toldUnanswered;
@@ -196,28 +234,60 @@ static const char *RoomServiceName (void)
 	return Cvar_VariableString ("vr_mp_rendezvous");
 }
 
-// vr_mp_rendezvous ("host[:port]") resolved into `out` -> 0; -1 none set or not found
-static int RoomResolve (const char *name, struct qsockaddr *out)
+// QVR: (review 2026-11-18, finding 6) "host[:port]" (the port `port` when none is given) into `out` -> 1; 0 a name still
+// being looked up (on a worker: vr_netlookup.cpp; none started unless `mayStart`); -1 not found, refused or malformed.
+// An address in figures is read at once; a name is never looked up on the game thread (gethostbyname held the frame
+// for the resolver's timeout, seconds, with no working DNS).
+static int LookupAddr (const char *text, int port, struct qsockaddr *out, qboolean mayStart)
 {
 	char	host[64];
 	char	*colon;
-	int		port = ROOM_DEFAULT_PORT;
+	unsigned int	ip;
+	int		found;
 
-	q_strlcpy (host, name, sizeof (host));
+	q_strlcpy (host, text, sizeof (host));
 	if (!host[0])
 		return -1;
+	if (net_landriverlevel != 0) // (not the IPv4 driver: IPX's names are its own, read at once)
+		return dfunc.GetAddrFromName (host, out) == -1 ? -1 : 1;
 	if ((colon = strrchr (host, ':')) != NULL)
 	{
 		*colon = 0;
 		port = Q_atoi (colon + 1);
 	}
-	if (port <= 0 || port > 65535 || dfunc.GetAddrFromName (host, out) == -1)
+	if (port <= 0 || port > 65535)
 		return -1;
+	if (host[0] >= '0' && host[0] <= '9')
+	{
+		if (dfunc.GetAddrFromName (host, out) == -1)
+			return -1;
+	}
+	else
+	{
+		if (NET_LoopbackRefusesName (host, NULL))
+			return -1;
+		found = VR_NetLookup (host, &ip, mayStart);
+		if (found != 1)
+			return found;
+		memset (out, 0, sizeof (*out));
+		out->qsa_family = AF_INET;
+		((struct sockaddr_in *) out)->sin_addr.s_addr = ip;
+	}
 	dfunc.SetSocketPort (out, port);
-	return 0;
+	return 1;
 }
 
-static void RoomWrite (sys_socket_t s, int type, const char *code, unsigned int nonce, int size,
+// QVR: (finding 6) a lookup may start: no remote client is connected (a hosted game in play keeps its worker)
+static qboolean LookupMayStart (void)
+{
+	qsocket_t *s;
+	for (s = net_activeSockets; s; s = s->next)
+		if (s->qvrShared)
+			return false;
+	return true;
+}
+
+static void RoomWrite (sys_socket_t s, int type, const char *code, unsigned int nonce, const byte *cookie, int size,
 	const struct qsockaddr *to)
 {
 	byte	pkt[ROOM_REQUEST];
@@ -232,6 +302,8 @@ static void RoomWrite (sys_socket_t s, int type, const char *code, unsigned int 
 	pkt[15] = (byte) (nonce >> 16);
 	pkt[16] = (byte) (nonce >> 8);
 	pkt[17] = (byte) nonce;
+	if (cookie)
+		memcpy (pkt + 18, cookie, ROOM_COOKIE_LEN);
 	dfunc.Write (s, pkt, size, (struct qsockaddr *) to);
 }
 
@@ -278,7 +350,7 @@ const char *NET_RoomCode (void)
 
 // A host's datagram from the room service (on his listening socket) -> qtrue: taken (any datagram of the room format
 // is: a stray one is dropped)
-static qboolean RoomHostRead (sys_socket_t acceptsock, const byte *pkt, int length, struct qsockaddr *from)
+static qboolean RoomHostRead (const byte *pkt, int length, struct qsockaddr *from)
 {
 	int i;
 	struct qsockaddr peer;
@@ -287,11 +359,17 @@ static qboolean RoomHostRead (sys_socket_t acceptsock, const byte *pkt, int leng
 		return false;
 	if (!room.resolved || length < ROOM_REPLY || dfunc.AddrCompare (from, &room.serviceAddr) != 0)
 		return true;
+	// (finding 11) every reply acted on answers this host's last request (a UDP source is anyone's to write)
+	if (pkt[5] != ROOM_INCOMING && RoomNonce (pkt) != room.nonce)
+		return true;
 	switch (pkt[5])
 	{
+	case ROOM_COOKIE:
+		// (finding 11) the service wants its cookie for this address echoed: registered again at once with it
+		memcpy (room.cookie, pkt + 24, ROOM_COOKIE_LEN);
+		room.nextRegister = net_time;
+		break;
 	case ROOM_REGISTERED:
-		if (RoomNonce (pkt) != room.nonce)
-			break;
 		room.firstSent = 0;
 		room.toldUnanswered = false;
 		if (memcmp (room.code, pkt + 8, ROOM_CODE_LEN) != 0)
@@ -355,29 +433,36 @@ static void RoomHostTick (sys_socket_t acceptsock)
 		q_strlcpy (room.service, name, sizeof (room.service));
 		room.resolved = false;
 		room.resolveAt = 0;
+		room.toldNotFound = false;
 		room.code[0] = 0;
+		memset (room.cookie, 0, sizeof (room.cookie));
 		room.nextRegister = 0;
 		room.firstSent = 0;
 		room.toldUnanswered = false;
 	}
 	if (!room.resolved)
 	{
+		int found;
 		if (net_time < room.resolveAt)
 			return;
-		if (RoomResolve (room.service, &room.serviceAddr) == -1)
+		// (finding 6: on a worker, none started while remote clients are connected; a failed name tried again after
+		// the lookup's back-off)
+		found = LookupAddr (room.service, ROOM_DEFAULT_PORT, &room.serviceAddr, LookupMayStart ());
+		if (found != 1)
 		{
-			if (room.resolveAt == 0)
+			if (found == -1 && !room.toldNotFound)
 				Con_Printf ("The room service %s was not found: no room code (players can still join by your IP "
 					"address)\n", room.service);
-			room.resolveAt = net_time + 60.0;
+			room.toldNotFound |= found == -1;
+			room.resolveAt = net_time + (found == -1 ? 1.0 : 0.1);
 			return;
 		}
 		room.resolved = true;
 	}
 	if (net_time >= room.nextRegister)
 	{
-		room.nonce = (unsigned int) rand () ^ ((unsigned int) rand () << 15) ^ ((unsigned int) (net_time * 1000.0));
-		RoomWrite (acceptsock, ROOM_REGISTER, room.code, room.nonce, ROOM_REQUEST, &room.serviceAddr);
+		room.nonce = DgrmRandom (); // (finding 11: not guessable)
+		RoomWrite (acceptsock, ROOM_REGISTER, room.code, room.nonce, room.cookie, ROOM_REQUEST, &room.serviceAddr);
 		if (room.firstSent == 0)
 			room.firstSent = net_time;
 		room.nextRegister = net_time + (room.code[0] ? ROOM_REGISTER_EVERY / 4 : ROOM_RETRY_EVERY);
@@ -403,7 +488,7 @@ static void RoomHostTick (sys_socket_t acceptsock)
 			p->until = 0; // (joined)
 			continue;
 		}
-		RoomWrite (acceptsock, ROOM_PUNCH, room.code, 0, ROOM_REPLY, &p->addr);
+		RoomWrite (acceptsock, ROOM_PUNCH, room.code, 0, NULL, ROOM_REPLY, &p->addr);
 		p->next = net_time + ROOM_PUNCH_EVERY;
 	}
 }
@@ -422,7 +507,7 @@ static void ReadShared (int landriver, sys_socket_t acceptsock)
 
 	while ((length = driver->Read (acceptsock, sharedBuffer, sizeof (sharedBuffer), &from)) > 0)
 	{
-		if (RoomHostRead (acceptsock, sharedBuffer, length, &from))
+		if (RoomHostRead (sharedBuffer, length, &from))
 			continue;
 		head = length >= 4 ? ((unsigned int) sharedBuffer[0] << 24) : 0;
 		if (length >= NET_HEADERSIZE && !(head & NETFLAG_CTL))
@@ -472,7 +557,12 @@ static qboolean RoomJoin (sys_socket_t sock, const char *typed, struct qsockaddr
 		q_strlcpy (m_return_reason, "No room service set", sizeof (m_return_reason));
 		return false;
 	}
-	if (RoomResolve (name, &service) == -1)
+	// (finding 6: looked up on a worker, waited for at most ROOM_JOIN_WAIT: a resolver with no network held the
+	// connect for its own timeout)
+	start = SetNetTime ();
+	while ((length = LookupAddr (name, ROOM_DEFAULT_PORT, &service, true)) == 0 && SetNetTime () - start < ROOM_JOIN_WAIT)
+		Sys_Sleep (5);
+	if (length != 1)
 	{
 		Con_Printf ("The room service %s was not found (no internet?): join by the host's IP address\n", name);
 		q_strlcpy (m_return_reason, "Room service not found", sizeof (m_return_reason));
@@ -480,14 +570,14 @@ static qboolean RoomJoin (sys_socket_t sock, const char *typed, struct qsockaddr
 	}
 	Con_Printf ("Looking up room %s at %s...\n", code, name);
 	SCR_UpdateScreen ();
-	nonce = (unsigned int) rand () ^ ((unsigned int) rand () << 15) ^ ((unsigned int) (Sys_DoubleTime () * 1000.0));
+	nonce = DgrmRandom (); // (finding 11: not guessable)
 	start = SetNetTime ();
 	sent = -1.0;
 	while (SetNetTime () - start < ROOM_JOIN_WAIT)
 	{
 		if (sent < 0 || net_time - sent >= 0.5)
 		{
-			RoomWrite (sock, ROOM_JOIN, code, nonce, ROOM_REQUEST, &service);
+			RoomWrite (sock, ROOM_JOIN, code, nonce, NULL, ROOM_REQUEST, &service);
 			sent = net_time;
 		}
 		length = dfunc.Read (sock, net_message.data, net_message.maxsize, &from);
@@ -498,6 +588,8 @@ static qboolean RoomJoin (sys_socket_t sock, const char *typed, struct qsockaddr
 		}
 		if (length < ROOM_REPLY || !IsRoomPacket (net_message.data, length) || dfunc.AddrCompare (&from, &service) != 0)
 			continue;
+		if (RoomNonce (net_message.data) != nonce) // (finding 11: a BADVERSION too)
+			continue;
 		if (net_message.data[5] == ROOM_BADVERSION)
 		{
 			Con_Printf ("The room service %s speaks version %d, this game %d: join by the host's IP address\n", name,
@@ -505,7 +597,7 @@ static qboolean RoomJoin (sys_socket_t sock, const char *typed, struct qsockaddr
 			q_strlcpy (m_return_reason, "Room service: other version", sizeof (m_return_reason));
 			return false;
 		}
-		if (RoomNonce (net_message.data) != nonce || memcmp (net_message.data + 8, code, ROOM_CODE_LEN) != 0)
+		if (memcmp (net_message.data + 8, code, ROOM_CODE_LEN) != 0)
 			continue;
 		if (net_message.data[5] == ROOM_NOROOM)
 		{
@@ -540,6 +632,72 @@ static void NET_RoomCode_f (void)
 		if (SDL_SetClipboardText (room.code) == 0)
 			Con_Printf ("(copied to the clipboard)\n");
 	}
+}
+
+
+// QVR: (B23, tests) -natgateway <port>: every datagram of the IPv4 driver (the first LAN driver, both platforms) by way of
+// the multiplayer harness's NAT simulator on 127.0.0.1:<port> (Misc/quakevr/mp/mp_nat.py), the real address before it
+// in 6 bytes (IPv4 and port, network order) both ways; a datagram from anywhere else is dropped (only the NAT reaches
+// this game). The driver's Read and Write are wrapped at start-up (NatShim), so the drivers carry no test code.
+static struct
+{
+	struct qsockaddr	gateway;
+	int		(*read) (sys_socket_t socketid, byte *buf, int len, struct qsockaddr *addr);
+	int		(*write) (sys_socket_t socketid, byte *buf, int len, struct qsockaddr *addr);
+	byte	buffer[NET_DATAGRAMSIZE + 6];
+} nat;
+
+static int NatRead (sys_socket_t socketid, byte *buf, int len, struct qsockaddr *addr)
+{
+	struct qsockaddr	from;
+	int		ret, skipped;
+
+	for (skipped = 0; skipped < NET_EMPTY_READS; skipped++)
+	{
+		ret = nat.read (socketid, nat.buffer, sizeof (nat.buffer), &from);
+		if (ret <= 0)
+			return ret;
+		if (ret <= 6 || net_landrivers[0].AddrCompare (&from, &nat.gateway) != 0)
+			continue; // (an empty one skipped as the drivers' Read does; another sender's dropped)
+		memset (addr, 0, sizeof (*addr));
+		addr->qsa_family = AF_INET;
+		memcpy (&((struct sockaddr_in *) addr)->sin_addr, nat.buffer, 4);
+		memcpy (&((struct sockaddr_in *) addr)->sin_port, nat.buffer + 4, 2);
+		ret = q_min (ret - 6, len);
+		memcpy (buf, nat.buffer + 6, ret);
+		return ret;
+	}
+	return 0;
+}
+
+static int NatWrite (sys_socket_t socketid, byte *buf, int len, struct qsockaddr *addr)
+{
+	if (NET_LoopbackRefusesTo (addr)) // (the real destination's fence: the gateway's is loopback)
+		return len;
+	if (len < 0 || len > NET_DATAGRAMSIZE)
+		return nat.write (socketid, buf, len, addr);
+	memcpy (nat.buffer, &((struct sockaddr_in *) addr)->sin_addr, 4);
+	memcpy (nat.buffer + 4, &((struct sockaddr_in *) addr)->sin_port, 2);
+	memcpy (nat.buffer + 6, buf, len);
+	return nat.write (socketid, nat.buffer, len + 6, &nat.gateway) < 0 ? 0 : len;
+}
+
+static void NatShim (void)
+{
+	struct sockaddr_in	*gw = (struct sockaddr_in *) &nat.gateway;
+	int		i = COM_CheckParm ("-natgateway");
+
+	if (!i || i + 1 >= com_argc)
+		return;
+	memset (&nat.gateway, 0, sizeof (nat.gateway));
+	gw->sin_family = AF_INET;
+	gw->sin_addr.s_addr = htonl (INADDR_LOOPBACK);
+	gw->sin_port = htons ((unsigned short) Q_atoi (com_argv[i + 1]));
+	nat.read = net_landrivers[0].Read;
+	nat.write = net_landrivers[0].Write;
+	net_landrivers[0].Read = NatRead;
+	net_landrivers[0].Write = NatWrite;
+	Con_SafePrintf ("UDP: every datagram through the NAT simulator on 127.0.0.1:%s\n", com_argv[i + 1]);
 }
 
 
@@ -635,12 +793,31 @@ static void NET_Ban_f (void)
 // row (a peer not reading, a map loading: never more often than NetQuake's backstop allows) up to DGRM_RESEND_MOST. And
 // fast: DGRM_FAST_ACKS acks of later chunks (the receiver has them, so one before was lost) send the chunks not acked
 // before them again at once, once until the next ack in order.
+// (review 2026-11-18, finding 12) Past two timeouts in a row the peer is not reading (a map loading, a game gone without a
+// word): the timeout goes on doubling past DGRM_RESEND_MOST to DGRM_RESEND_STALLED, so it is not sent the whole window
+// (up to 16 x 1208 B) every second for net_messagetimeout's 300 s.
 #define DGRM_RELIABLE_CHUNK		NET_RELIABLE_CHUNK
 #define DGRM_RELIABLE_WINDOW	NET_RELIABLE_WINDOW
 #define DGRM_RESEND_LEAST		0.15
 #define DGRM_RESEND_MOST		1.0
+#define DGRM_RESEND_STALLED		4.0
 #define DGRM_RESEND_MARGIN		0.05
 #define DGRM_FAST_ACKS			2
+
+// QVR: (review 2026-11-18, finding 2) NetQuake's sequences started at 0 and its unreliable test was an unsigned "less
+// than" with no bound: anyone who knew a player's address (CCREP_PLAYER_INFO gave it) could send one datagram in his
+// name with a sequence far ahead, and every later real one read as stale (frozen), or inject a reliable chunk at the
+// next sequence (a stufftext). Each side now draws its own channels' first sequences at random (the client's in its
+// CCREQ_CONNECT, the server's in its CCREP_ACCEPT, network version 39: no header byte added), the sequences wrap, and
+// an unreliable datagram is taken only within a window around the next one expected: DGRM_UNRELIABLE_AHEAD ahead (a
+// second of 72 Hz datagrams lost in a row is 72), DGRM_UNRELIABLE_BEHIND behind for a connection that reads overtaken
+// ones (qvrAcceptStale: the server's of a client's moves). One outside it is dropped, unless nothing in the window came
+// for DGRM_RESYNC_SILENCE (a link back after a long cut: the peer's sequence went on): then it is the next one. A guess
+// lands in the window once in 2^22, and freezes the link for at most DGRM_RESYNC_SILENCE.
+#define DGRM_UNRELIABLE_AHEAD	1024
+#define DGRM_UNRELIABLE_BEHIND	256
+#define DGRM_RESYNC_SILENCE		3.0
+static int	outOfWindow;	// unreliable datagrams dropped outside the window (net_stats)
 
 static unsigned int ReliableChunks (const qsocket_t *sock)
 {
@@ -682,11 +859,13 @@ static double ResendTimeout (const qsocket_t *sock)
 {
 	double	t;
 
-	if (sock->reliableRtt <= 0)
-		return DGRM_RESEND_MOST; // (nothing measured yet: NetQuake's)
-	t = q_max (DGRM_RESEND_LEAST, 2 * sock->reliableRtt + DGRM_RESEND_MARGIN);
-	t *= (double) (1 << q_min (sock->resendBackoff, 4));
-	return q_min (t, DGRM_RESEND_MOST);
+	// (nothing measured yet: NetQuake's second)
+	t = sock->reliableRtt <= 0 ? DGRM_RESEND_MOST : q_max (DGRM_RESEND_LEAST, 2 * sock->reliableRtt + DGRM_RESEND_MARGIN);
+	t *= (double) (1 << q_min (sock->resendBackoff, 6));
+	if (sock->resendBackoff < 2)
+		return q_min (t, DGRM_RESEND_MOST);
+	// (two timed resends unanswered: 2 s, then 4 s at most -- finding 12)
+	return q_min (t, q_min (DGRM_RESEND_STALLED, DGRM_RESEND_MOST * (double) (1 << q_min (sock->resendBackoff - 1, 6))));
 }
 
 // the chunks not sent yet that the window has room for
@@ -921,7 +1100,16 @@ int	Datagram_GetMessage (qsocket_t *sock)
 
 		if (flags & NETFLAG_UNRELIABLE)
 		{
-			if (sequence < sock->unreliableReceiveSequence)
+			// QVR: (review finding 2) a window around the next one expected (above); sequences wrap
+			int ahead = (int) (sequence - sock->unreliableReceiveSequence);
+			if ((ahead >= DGRM_UNRELIABLE_AHEAD || ahead < -DGRM_UNRELIABLE_BEHIND) &&
+				net_time - sock->qvrUnreliableTime <= DGRM_RESYNC_SILENCE)
+			{
+				outOfWindow++;
+				Con_DPrintf("An unreliable datagram outside the window (%d)\n", ahead);
+				continue;
+			}
+			if (ahead < 0 && ahead >= -DGRM_UNRELIABLE_BEHIND)
 			{
 				if (sock->qvrAcceptStale)
 				{
@@ -940,14 +1128,15 @@ int	Datagram_GetMessage (qsocket_t *sock)
 				Con_DPrintf("Got a stale datagram\n");
 				continue;
 			}
-			if (sequence != sock->unreliableReceiveSequence)
+			if (ahead > 0 && ahead < DGRM_UNRELIABLE_AHEAD)
 			{
-				count = sequence - sock->unreliableReceiveSequence;
+				count = (unsigned int) ahead;
 				droppedDatagrams += count;
 				sock->qvrUnreliableSkipped += count; // QVR: (B13) the net HUD's loss
 				Con_DPrintf("Dropped %u datagram(s)\n", count);
 			}
 			sock->unreliableReceiveSequence = sequence + 1;
+			sock->qvrUnreliableTime = net_time; // QVR: (review finding 2)
 			sock->qvrUnreliableRead++;
 
 			length -= NET_HEADERSIZE;
@@ -1081,6 +1270,7 @@ static void NET_Stats_f (void)
 		Con_Printf("shortPacketCount           = %i\n", shortPacketCount);
 		Con_Printf("droppedDatagrams           = %i\n", droppedDatagrams);
 		Con_Printf("server queue drops         = %i\n", sharedQueueDrops); // QVR (B23)
+		Con_Printf("out of window              = %i\n", outOfWindow); // QVR (review 2026-11-18, finding 2)
 	}
 	else if (Q_strcmp(Cmd_Argv(1), "*") == 0)
 	{
@@ -1416,10 +1606,12 @@ int Datagram_Init (void)
 
 	Cmd_AddCommand ("net_stats", NET_Stats_f);
 	Cmd_AddCommand ("vr_mp_roomcode", NET_RoomCode_f); // QVR: (B23) this host's room code ("vr_mp_roomcode copy": copied)
+	VR_NetLookupInit (); // QVR: (review finding 6) net_lookups
 
 	if (safemode || COM_CheckParm("-nolan"))
 		return -1;
 
+	NatShim (); // QVR: (B23, tests)
 	num_inited = 0;
 	for (i = 0; i < net_numlandrivers; i++)
 	{
@@ -1447,6 +1639,8 @@ int Datagram_Init (void)
 void Datagram_Shutdown (void)
 {
 	int i;
+
+	VR_NetLookupShutdown (); // QVR: (review finding 6) a lookup under way waited for
 
 //
 // shutdown the lan drivers
@@ -1504,6 +1698,27 @@ static void ClientKeyMade (void)
 	Cvar_Set ("vr_mp_clientkey", key);
 }
 
+// QVR: a connection's CCREP_ACCEPT (its first, and again for a duplicate request): the listening socket's port (a
+// NetQuake client switches to it), (B13) this server's network version (selective acks) and (review finding 2) the
+// first sequence of the server's channels to a client that sent his
+static void SendAccept (sys_socket_t acceptsock, const struct qsockaddr *to, const qsocket_t *sock)
+{
+	struct qsockaddr	self;
+
+	SZ_Clear(&net_message);
+	// save space for the header, filled in later
+	MSG_WriteLong(&net_message, 0);
+	MSG_WriteByte(&net_message, CCREP_ACCEPT);
+	dfunc.GetSocketAddr(acceptsock, &self);
+	MSG_WriteLong(&net_message, dfunc.GetSocketPort(&self));
+	MSG_WriteLong(&net_message, QVR_NET_VERSION);
+	if (sock->qvrSeeded)
+		MSG_WriteLong(&net_message, (int) sock->qvrFirstOut);
+	*((int *)net_message.data) = BigLong(NETFLAG_CTL | (net_message.cursize & NETFLAG_LENGTH_MASK));
+	dfunc.Write (acceptsock, net_message.data, net_message.cursize, (struct qsockaddr *) to);
+	SZ_Clear(&net_message);
+}
+
 // QVR: (B23) a datagram of the listening socket's that isn't a client's (in net_message: its length `len`, from `from`)
 static qsocket_t *_Datagram_ControlRequest (sys_socket_t acceptsock, const struct qsockaddr *from, int len)
 {
@@ -1517,6 +1732,8 @@ static qsocket_t *_Datagram_ControlRequest (sys_socket_t acceptsock, const struc
 	int			qvrVersion = 0; // QVR
 	char		qvrName[32] = {0}; // QVR: the player's name (a loaded coop game's slot)
 	char		qvrKey[24] = {0}; // QVR: (B25) his game's vr_mp_clientkey ("": an older client's request)
+	unsigned int	qvrFirstIn = 0; // QVR: (review finding 2) his channels' first sequence ...
+	qboolean	qvrSeeded = false; // QVR: ... when he sent it (network version 39)
 
 	if (len < (int) sizeof(int))
 		return NULL;
@@ -1587,7 +1804,18 @@ static qsocket_t *_Datagram_ControlRequest (sys_socket_t acceptsock, const struc
 		MSG_WriteLong(&net_message, client->colors);
 		MSG_WriteLong(&net_message, (int)client->edict->v.frags);
 		MSG_WriteLong(&net_message, (int)(net_time - client->netconnection->connecttime));
-		MSG_WriteString(&net_message, client->netconnection->address);
+		// QVR: (review 2026-11-18, finding 2) his port only to an asker on this machine (127.0.0.1: `test`): a
+		// stranger had every player's address and port, all a forged request in his name needs
+		{
+			char	address[NET_NAMELEN];
+			char	*colon;
+			q_strlcpy(address, client->netconnection->address, sizeof(address));
+			if ((clientaddr.qsa_family != AF_INET ||
+				((struct sockaddr_in *) &clientaddr)->sin_addr.s_addr != htonl (INADDR_LOOPBACK)) &&
+				(colon = strrchr(address, ':')) != NULL)
+				*colon = 0;
+			MSG_WriteString(&net_message, address);
+		}
 		*((int *)net_message.data) = BigLong(NETFLAG_CTL | (net_message.cursize & NETFLAG_LENGTH_MASK));
 		dfunc.Write (acceptsock, net_message.data, net_message.cursize, &clientaddr);
 		SZ_Clear(&net_message);
@@ -1650,6 +1878,11 @@ static qsocket_t *_Datagram_ControlRequest (sys_socket_t acceptsock, const struc
 				q_strlcpy(qvrName, MSG_ReadString(), sizeof(qvrName));
 			if (msg_readcount < net_message.cursize)
 				q_strlcpy(qvrKey, MSG_ReadString(), sizeof(qvrKey));
+			if (msg_readcount + 4 <= net_message.cursize)
+			{
+				qvrFirstIn = (unsigned int) MSG_ReadLong();
+				qvrSeeded = true;
+			}
 		}
 		reason[0] = 0;
 		if (sv.active && (sv.protocolflags & PRFL_QUAKEVR) && qvrVersion != QVR_NET_VERSION)
@@ -1725,24 +1958,24 @@ static qsocket_t *_Datagram_ControlRequest (sys_socket_t acceptsock, const struc
 		if (ret == 0)
 		{
 			// is this a duplicate connection reqeust?
-			if (ret == 0 && net_time - s->connecttime < 2.0)
+			if (net_time - s->connecttime < 2.0)
 			{
 				// yes, so send a duplicate reply
-				SZ_Clear(&net_message);
-				// save space for the header, filled in later
-				MSG_WriteLong(&net_message, 0);
-				MSG_WriteByte(&net_message, CCREP_ACCEPT);
-				dfunc.GetSocketAddr(s->socket, &newaddr);
-				MSG_WriteLong(&net_message, dfunc.GetSocketPort(&newaddr));
-				MSG_WriteLong(&net_message, QVR_NET_VERSION); // QVR: (B13)
-				*((int *)net_message.data) = BigLong(NETFLAG_CTL | (net_message.cursize & NETFLAG_LENGTH_MASK));
-				dfunc.Write (acceptsock, net_message.data, net_message.cursize, &clientaddr);
-				SZ_Clear(&net_message);
+				SendAccept (acceptsock, &clientaddr, s);
 				return NULL;
 			}
 			// it's somebody coming back in from a crash/disconnect
 			// so close the old qsocket and let their retry get them back in
-			NET_Close(s);
+			// QVR: (review 2026-11-18, finding 2) only once his connection has been silent QVR_GHOST_SILENCE, as for one
+			// back on another port above: a UDP source is anyone's to write, so one forged request in a live player's
+			// name closed his connection. A game back on the same port retries for 7.5 s: his old connection is closed at
+			// a retry once silent, and the next retry joins.
+			if (net_time - s->lastMessageTime > QVR_GHOST_SILENCE)
+			{
+				Con_Printf ("%s: a new connection request from a connection silent %.1f s: the old one closed\n",
+					dfunc.AddrToString (&clientaddr), net_time - s->lastMessageTime);
+				NET_Close(s);
+			}
 			return NULL;
 		}
 	}
@@ -1772,19 +2005,16 @@ static qsocket_t *_Datagram_ControlRequest (sys_socket_t acceptsock, const struc
 	q_strlcpy(sock->qvrName, qvrName, sizeof(sock->qvrName)); // QVR
 	q_strlcpy(sock->qvrKey, qvrKey, sizeof(sock->qvrKey)); // QVR: (B25)
 	Q_strcpy(sock->address, dfunc.AddrToString(&clientaddr));
+	if (qvrSeeded) // QVR: (review finding 2) his channels from his first sequence, this server's from its own
+	{
+		sock->qvrSeeded = true;
+		sock->qvrFirstOut = DgrmRandom ();
+		sock->receiveSequence = sock->unreliableReceiveSequence = qvrFirstIn;
+		sock->sendSequence = sock->ackSequence = sock->sendChunkBase = sock->unreliableSendSequence = sock->qvrFirstOut;
+	}
 
 	// send him back the info about the server connection he has been allocated
-	SZ_Clear(&net_message);
-	// save space for the header, filled in later
-	MSG_WriteLong(&net_message, 0);
-	MSG_WriteByte(&net_message, CCREP_ACCEPT);
-	dfunc.GetSocketAddr(acceptsock, &newaddr);
-	MSG_WriteLong(&net_message, dfunc.GetSocketPort(&newaddr));
-	MSG_WriteLong(&net_message, QVR_NET_VERSION); // QVR: (B13) a Quake VR server's network layer (selective acks)
-//	MSG_WriteString(&net_message, dfunc.AddrToString(&newaddr));
-	*((int *)net_message.data) = BigLong(NETFLAG_CTL | (net_message.cursize & NETFLAG_LENGTH_MASK));
-	dfunc.Write (acceptsock, net_message.data, net_message.cursize, &clientaddr);
-	SZ_Clear(&net_message);
+	SendAccept (acceptsock, &clientaddr, sock);
 
 	return sock;
 }
@@ -1865,16 +2095,15 @@ static void _Datagram_SearchForHosts (qboolean xmit)
 		MSG_WriteByte(&net_message, NET_PROTOCOL_VERSION);
 		*((int *)net_message.data) = BigLong(NETFLAG_CTL | (net_message.cursize & NETFLAG_LENGTH_MASK));
 		dfunc.Broadcast(dfunc.controlSock, net_message.data, net_message.cursize);
-		// QVR: (B13) the browser's addresses (a host name is looked up here: as connect's, it may block a moment)
+		// QVR: (B13) the browser's addresses; (finding 6) a host name looked up on a worker, asked once it is found (a
+		// search sends twice, 0.75 s apart; the browser searches again)
 		sa->count = 0;
 		asked = VR_BrowserAddressCount ();
 		for (i = 0; i < asked && sa->count < HOSTCACHESIZE; i++)
 		{
 			struct qsockaddr *to = &sa->addr[sa->count];
-			if (dfunc.GetAddrFromName (VR_BrowserAddress (i), to) == -1)
+			if (LookupAddr (VR_BrowserAddress (i), net_hostport, to, LookupMayStart ()) != 1)
 				continue;
-			if (dfunc.GetSocketPort (to) == 0)
-				dfunc.SetSocketPort (to, net_hostport);
 			dfunc.Write (dfunc.controlSock, net_message.data, net_message.cursize, to);
 			sa->index[sa->count++] = i;
 		}
@@ -2003,6 +2232,7 @@ static qsocket_t *_Datagram_Connect (const char *host)
 	int			control;
 	const char		*reason;
 	const qboolean	byRoom = host[0] == '@'; // QVR: (B23) "connect @CODE": a room's host, by the room service
+	const unsigned int	firstOut = DgrmRandom (); // QVR: (review finding 2) this client's channels' first sequence
 	const int		tries = byRoom ? ROOM_CONNECT_TRIES : 3;
 	const double	tryFor = byRoom ? ROOM_CONNECT_EVERY : 2.5;
 
@@ -2052,6 +2282,7 @@ static qsocket_t *_Datagram_Connect (const char *host)
 			? Q_atoi(com_argv[COM_CheckParm("-mpnetversion") + 1]) : QVR_NET_VERSION);
 		MSG_WriteString(&net_message, cl_name.string); // QVR: a loaded coop game gives him his saved slot by it
 		MSG_WriteString(&net_message, Cvar_VariableString ("vr_mp_clientkey")); // QVR: (B25) this game's, for "back from a crash"
+		MSG_WriteLong(&net_message, (int) firstOut); // QVR: (review finding 2) its channels' first sequence (39)
 		*((int *)net_message.data) = BigLong(NETFLAG_CTL | (net_message.cursize & NETFLAG_LENGTH_MASK));
 		dfunc.Write (newsock, net_message.data, net_message.cursize, &sendaddr);
 		SZ_Clear(&net_message);
@@ -2158,6 +2389,12 @@ static qsocket_t *_Datagram_Connect (const char *host)
 		// QVR: (B13) a Quake VR server's network version after the port (selective acks: net_dgrm.c), none from NetQuake's
 		if (msg_readcount + 4 <= net_message.cursize)
 			sock->qvrNetVersion = MSG_ReadLong();
+		// QVR: (review finding 2) the server's channels' first sequence (network version 39): this client's from its own
+		if (msg_readcount + 4 <= net_message.cursize)
+		{
+			sock->receiveSequence = sock->unreliableReceiveSequence = (unsigned int) MSG_ReadLong();
+			sock->sendSequence = sock->ackSequence = sock->sendChunkBase = sock->unreliableSendSequence = firstOut;
+		}
 		// QVR: (B23) one socket for every client from network version 36: the server goes on at the address it was
 		// reached at (the port it names is its own inside its router: another outside it, behind a router that
 		// doesn't keep port numbers or by a room code)

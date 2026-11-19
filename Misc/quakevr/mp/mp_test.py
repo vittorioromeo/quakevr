@@ -103,10 +103,32 @@ Tests:
     vanish   (B16) a vanished server at its client: B's link down cut, "not responding" after 3 s, the link back; A,
              the listen host, untouched; A's game killed: B told, then out at his vr_mp_client_timeout to the server
              browser with the reason.
+    emptyflood  (review 2026-11-18, finding 5) empty UDP datagrams (EMPTY_FLOOD_RATE a second, from a stranger's
+             socket) at the server's one socket while A and B play: each still sees the other walk off within the bound,
+             nobody leaves (an empty datagram's read of 0 used to end the drain of every client's datagrams).
+    spoof    (review 2026-11-18, finding 2) forgeries in a player's name from his address (B's proxy): connect requests
+             from his own address and port (his live connection kept: closed only once silent 3 s), unreliable
+             datagrams far ahead of his sequences each way (outside the window: dropped, both still play), reliable
+             chunks down at a blind guess of the sequences (0..1023: never taken; the channels start at random, network
+             version 39); a stranger's player info has no ports, this machine's (127.0.0.1) has them.
+    backoff  (review 2026-11-18, finding 12) B's acks cut for BACKOFF_WATCH_S (a peer not reading): the server's
+             timed resends of its reliable message space out past 1 s to 4 s (not the window every second for 300 s),
+             and the message after it arrives once the acks come back; the server's vr_net_rate_max over B's
+             vr_net_rate (his 0: the server's; under it: his own; the server's 0: no ceiling).
+    lookup   (review 2026-11-18, finding 6) host names looked up on a worker: the room service's name looked up for 3 s
+             (-netlookupdelay) while the dedicated server answers its console within 0.5 s, then registered with;
+             every lookup failing (-netlookupfail): one "not found" line, the tries 2 s, 4 s, 8 s apart (net_lookups),
+             none while a remote client is in, one again once he left; a favourite by name (localhost) in the
+             server browser is asked once looked up.
+    roomnonce  (review 2026-11-18, finding 11) the room service's replies to a host checked (a stand-in service):
+             REFUSED, BADVERSION and REGISTERED with another nonce change nothing; COOKIE (protocol version 2) with
+             his nonce has him register again at once with it, then REGISTERED gives his code; a REFUSED with his
+             nonce is taken.
     suite    coop, coop with B at 150 ms each way and 2% loss, bandwidth, armed, retransmit, version, avatar, avatarcal, body, prefs, grab, guard,
              teleport, held, ground, campaign, campaign_listen, flow, rejoin, download, pickup, forcegrab, melee, moves, climb,
              rules, cosmetics, flatbody, loss, predict, predictclimb, lagcomp, cmdguard, disarm, voice, voice with B 50 ms (30 ms
              jitter, 5% loss) away, dm, lockstep, lockstep_throw, nat (B23: room codes through simulated routers).
+             The network layer's review checks (2026-11-18): emptyflood, spoof, backoff, lookup, roomnonce.
              (B25) --only a,b runs just those; --suite-repeat N runs them N times over; --load N (any test) keeps N
              busy CPU workers at normal priority running meanwhile (mp_load.py: the machine busy with other work, as
              in the suite's real runs; --load-duty the share of time each spins).
@@ -6730,6 +6752,490 @@ def soak_long(s, srv, a, b, minutes):
     s.check("nobody left the game over the long soak", not left, "%s" % left[:3])
 
 
+EMPTY_FLOOD_RATE = 20000  # empty datagrams a second at the server (finding 5: far more than its reads of the socket)
+EMPTY_FLOOD_BOUND = 600   # ms: a player seen walking off during the flood (BASE_MS and room for the busy machine)
+
+
+class Flood:
+    """(finding 5) A stranger's UDP datagrams at `port` on this machine, `rate` a second, from a thread: `payload` each
+    (b"": empty ones); `sent` counts them."""
+
+    def __init__(self, port, rate, payload=b""):
+        import socket
+        import threading
+        self.to = ("127.0.0.1", port)
+        self.rate = rate
+        self.payload = payload
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.sock.bind(("127.0.0.1", 0))
+        self.sent = 0
+        self.stop_flag = False
+        self.thread = threading.Thread(target=self.run, daemon=True)
+
+    def run(self):
+        start = time.monotonic()
+        while not self.stop_flag:
+            due = int((time.monotonic() - start) * self.rate)
+            while self.sent < due:
+                try:
+                    self.sock.sendto(self.payload, self.to)
+                except OSError:
+                    pass
+                self.sent += 1
+            time.sleep(0.001)
+
+    def start(self):
+        self.thread.start()
+        return self
+
+    def stop(self):
+        self.stop_flag = True
+        self.thread.join(2)
+        self.sock.close()
+
+
+def emptyflood(s):
+    """(review 2026-11-18, finding 5) Empty datagrams at the server's one socket while A and B play. recvfrom's 0 for
+    an empty datagram read as "nothing waiting": each one ended a drain of the socket every client's datagrams come to,
+    so a stream of them faster than the server's reads queued everyone's moves behind them until the socket's buffer
+    dropped them. Now each read skips them (NET_EMPTY_READS at most a call): both players still see each other walk
+    off within EMPTY_FLOOD_BOUND ms during the flood, and nobody leaves."""
+    srv, a, b, ea, eb = join(s)
+    since_a, since_b = a.mark(), b.mark()
+    flood = Flood(s.port, EMPTY_FLOOD_RATE).start()
+    t0 = time.monotonic()
+    try:
+        time.sleep(1.0)  # (the socket's buffer full of them before the walks, as a stream of them would leave it)
+        walk(s, b, a, eb, "b_walks_flooded", EMPTY_FLOOD_BOUND, EMPTY_FLOOD_BOUND + 400)
+        walk(s, a, b, ea, "a_walks_flooded", EMPTY_FLOOD_BOUND, EMPTY_FLOOD_BOUND + 400)
+    finally:
+        flood.stop()
+    took = time.monotonic() - t0
+    s.note("flood: %d empty datagrams in %.1f s (%.0f a second)" % (flood.sent, took, flood.sent / max(took, 1e-3)))
+    s.check("the flood ran at %d a second or more" % (EMPTY_FLOOD_RATE // 2), flood.sent / max(took, 1e-3) >=
+            EMPTY_FLOOD_RATE // 2, "%.0f a second" % (flood.sent / max(took, 1e-3)))
+    left = [l.strip() for inst, since in ((a, since_a), (b, since_b)) for l in inst.lines[since:]
+            if l.startswith("mp_event:") and l.rstrip().endswith(" left")]
+    s.check("nobody left the game during the flood", not left, "%s" % left[:2])
+    walk(s, b, a, eb, "b_walks_after", BASE_MS + 200, BASE_MS + 400)
+
+
+def server_net_version(port):
+    """The Quake VR network version of the server on `port`, as a stranger learns it: a connect request of version 0
+    from a socket of its own, and the reject's reason ("network version N") -> N (None: no reject read)."""
+    import socket
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.bind(("127.0.0.1", 0))
+    sock.settimeout(2.0)
+    try:
+        sock.sendto(ctl_packet(bytes([0x01]) + b"QUAKE\0" + bytes([3]) + b"QVR\0" + (0).to_bytes(4, "little") +
+                               b"probe\0" + b"probe\0"), ("127.0.0.1", port))
+        pkt, _ = sock.recvfrom(2048)
+        m = re.search(rb"network version (\d+)", pkt)
+        return int(m.group(1)) if m else None
+    except OSError:
+        return None
+    finally:
+        sock.close()
+
+
+def ctl_packet(body):
+    return ((0x80000000 | (4 + len(body))).to_bytes(4, "big")) + body
+
+
+def game_packet(flags, seq, body):
+    return ((flags | (8 + len(body))).to_bytes(4, "big")) + (seq & 0xFFFFFFFF).to_bytes(4, "big") + body
+
+
+def player_info(port, src_ip, players=4):
+    """CCREQ_PLAYER_INFO for slots 0..players-1 to the server on `port` from a socket on `src_ip` -> [(name, address)]."""
+    import socket
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.bind((src_ip, 0))
+    sock.settimeout(0.5)
+    out = []
+    try:
+        for n in range(players):
+            sock.sendto(ctl_packet(bytes([0x03, n])), ("127.0.0.1", port))
+            try:
+                pkt, _ = sock.recvfrom(2048)
+            except OSError:
+                continue
+            if len(pkt) < 6 or pkt[4] != 0x84:
+                continue
+            body = pkt[6:]
+            name, body = body.split(b"\0", 1)
+            body = body[12:]  # (colors, frags, connect time: three longs)
+            out.append((name.decode("ascii", "replace"), body.split(b"\0", 1)[0].decode("ascii", "replace")))
+    finally:
+        sock.close()
+    return out
+
+
+SPOOF_BOUND = BASE_MS + 200  # ms: a player seen walking off after the forgeries
+
+
+def spoof(s):
+    """(review 2026-11-18, finding 2) Forged datagrams in a player's name. B plays through his proxy, which writes from
+    the address the server knows him by, so what it forges is what a stranger who learnt his address and port could send
+    (UDP's source address is the sender's to write):
+    1. connect requests from B's own address and port, his connection long past its first 2 s: NetQuake's server took
+       one as B back from a crash and closed his connection; now only a connection silent QVR_GHOST_SILENCE is closed.
+    2. unreliable datagrams far ahead of each direction's sequence, and at 0xFFFFFFFE: NetQuake's unsigned compare made
+       every later real one stale (B's view frozen); now outside the window, dropped (net_stats: out of window).
+    3. reliable chunks down with sequences 0..1023, each a whole message (a stufftext): NetQuake's channels started at 0,
+       so one landed on the next sequence and ran; now each side's first sequence is random (network version 39).
+    4. CCREQ_PLAYER_INFO: from another address (127.0.0.2) the players' addresses come without ports; from 127.0.0.1
+       (the `test` command on the server's own machine) with them."""
+    import random as rnd
+    srv, a, b, ea, eb = join(s)
+    p = b.proxy
+    version = server_net_version(s.port)
+    s.check("the server's network version, as a stranger reads it from a reject", version is not None, "%s" % version)
+    since_srv, since_a, since_b = srv.mark(), a.mark(), b.mark()
+
+    # 1. connect requests from B's address and port
+    connect = ctl_packet(bytes([0x01]) + b"QUAKE\0" + bytes([3]) + b"QVR\0" + (version or 0).to_bytes(4, "little") +
+                         b"B\0" + b"forged\0" + rnd.getrandbits(32).to_bytes(4, "little"))
+    for _ in range(3):
+        p.forge_up(connect, True)
+        time.sleep(1.0)
+    clients = [l for l in status(srv) if l.startswith("mp_client: ") and "spawned=1" in l]
+    closed = srv.find(r"the old one closed|connection silent|Client .* removed", since_srv)
+    s.check("forged connect requests from B's own address and port: his live connection kept (the server's clients: "
+            "A and B)", closed is None and len(clients) == 2,
+            "%s; %d clients" % (closed[1].strip() if closed else "not closed", len(clients)))
+    walk(s, b, a, eb, "b_walks_after_connects", SPOOF_BOUND, SPOOF_BOUND + 300)
+
+    # 2. unreliable datagrams far ahead, each way
+    up, down = p.last_unreliable["up"], p.last_unreliable["down"]
+    s.check("the proxy saw both directions' unreliable sequences", up is not None and down is not None,
+            "up %s down %s" % (up, down))
+    for seq in ((up or 0) + 100000, 0xFFFFFFFE):
+        p.forge_up(game_packet(0x00100000, seq, bytes([1])), False)  # (clc_nop)
+    for seq in ((down or 0) + 100000, 0xFFFFFFFE):
+        p.forge_down(game_packet(0x00100000, seq, bytes([1])))  # (svc_nop)
+    walk(s, a, b, ea, "a_seen_after_far_datagrams", SPOOF_BOUND, SPOOF_BOUND + 300)
+    walk(s, b, a, eb, "b_seen_after_far_datagrams", SPOOF_BOUND, SPOOF_BOUND + 300)
+    since = b.mark()
+    b.cmd("net_stats")
+    _, line = b.wait(r"out of window\s+=", 10, since, "B's net_stats")
+    s.check("B dropped the far datagrams down as outside the window", int(line.split("=")[1]) >= 1, line.strip())
+
+    # 3. reliable chunks down at a blind guess of the sequences
+    since_b = b.mark()
+    for seq in range(1024):
+        p.forge_down(game_packet(0x00010000 | 0x00080000, seq, bytes([9]) + b"echo qvr_forged_chunk\n\0"))
+    since = b.mark()
+    srv.cmd("vr_net_reliable_test %d 100" % eb)
+    got = wait_quietly(b, r"mp_reliable: 100 bytes", 10, since, "B's reliable message after the forged chunks")
+    b.read()
+    ran = b.find(r"qvr_forged_chunk", since_b)
+    s.check("1024 forged reliable chunks (sequences 0..1023): none taken, the server's next message read",
+            ran is None and got is not None, "%s; the next message %s" % (
+                "ran: " + ran[1].strip() if ran else "none ran", "read" if got else "not read in 10 s"))
+
+    # 4. player info: ports to this machine only
+    far = player_info(s.port, "127.0.0.2")
+    near = player_info(s.port, "127.0.0.1")
+    s.check("player info to another address (127.0.0.2): the players' addresses without their ports",
+            len(far) >= 2 and all(":" not in addr for _, addr in far), "%s" % far)
+    s.check("player info to 127.0.0.1 (this machine's `test`): with them", len(near) >= 2 and
+            all(":" in addr for _, addr in near), "%s" % near)
+    left = [l.strip() for inst, since in ((a, since_a), (b, since_b)) for l in inst.lines[since:]
+            if l.startswith("mp_event:") and l.rstrip().endswith(" left")]
+    s.check("nobody left the game", not left, "%s" % left[:2])
+
+
+BACKOFF_WATCH_S = 16.0   # s B's acks are cut (finding 12: the resends 1 s apart before; now 2 s, then 4 s)
+BACKOFF_STALLED = 4.0    # s: the resend timeout's most once two timed resends went unanswered (DGRM_RESEND_STALLED)
+BACKOFF_RATE = 6000      # B/s: the server's vr_net_rate_max in the test
+
+
+def rate_until(srv, eb, want, tries=60):
+    """The server's rate for B's snapshots (vr_mp_status's mp_netsnap rate) until it is `want` -> the last read."""
+    got = None
+    for _ in range(tries):
+        got = snap_status(srv, eb).get("rate")
+        if got is not None and int(got) == want:
+            break
+    return got
+
+
+def backoff(s):
+    """(review 2026-11-18, finding 12) The reliable resend's back-off and the server's rate ceiling.
+    1. B's acks up cut (the proxy drops everything B sends: a peer that is not reading, a game gone without a word) while
+       the server sends him a reliable message: its timed resends (the proxy times each send of each chunk down) were
+       capped at 1 s apart, the whole window every second for net_messagetimeout's 300 s; now, after two unanswered,
+       2 s then 4 s apart (DGRM_RESEND_STALLED). The acks back: the message after it arrives within the longest wait.
+    2. vr_net_rate_max (the server's): B's vr_net_rate 0 ("no cap") is the server's ceiling, one over it is held to
+       it, one under it is his own; the server's 0: no ceiling (B's 0 then none)."""
+    srv, a, b, ea, eb = join(s)
+    p = b.proxy
+    for _ in range(4):  # (a few reliable messages: the server measures the round trip)
+        since = b.mark()
+        srv.cmd("vr_net_reliable_test %d 100" % eb)
+        b.wait(r"mp_reliable: 100 bytes", 10, since)
+    p.track_chunks_down()
+    p.blackout_up = True
+    t0 = time.monotonic()
+    srv.cmd("vr_net_reliable_test %d 300" % eb)
+    try:
+        time.sleep(BACKOFF_WATCH_S)
+    finally:
+        p.blackout_up = False
+    sends = {k: list(v) for k, v in (p.chunk_sends or {}).items()}
+    p.track_chunks_down(False)
+    seq, times = max(sends.items(), key=lambda kv: len(kv[1])) if sends else (None, [])
+    gaps = [round(y - x, 2) for x, y in zip(times, times[1:])]
+    s.note("the stalled chunk %s: sent %d times in %.0f s, gaps %s" % (seq, len(times), BACKOFF_WATCH_S, gaps))
+    s.check("B's acks cut %.0f s: the server's resends of a chunk space out past 1 s up to %.0f s (sent %d times, not "
+            "one a second)" % (BACKOFF_WATCH_S, BACKOFF_STALLED, len(times)),
+            len(gaps) >= 3 and max(gaps) >= BACKOFF_STALLED - 0.6 and max(gaps) <= BACKOFF_STALLED + 0.6 and
+            len(times) <= 2 + BACKOFF_WATCH_S / 2, "gaps %s" % gaps)
+    since = b.mark()
+    srv.cmd("vr_net_reliable_test %d 100" % eb)
+    got = wait_or_none(b, r"mp_reliable: 100 bytes", BACKOFF_STALLED + 4, since)
+    s.check("the acks back: the next message arrives within %.0f s" % (BACKOFF_STALLED + 4), got is not None,
+            "read" if got else "not read (%.1f s after the cut began)" % (time.monotonic() - t0))
+
+    # 2. the server's ceiling over B's rate
+    srv.cmd("vr_net_rate_max %d" % BACKOFF_RATE)
+    for own, want in ((0, BACKOFF_RATE), (20000, BACKOFF_RATE), (4000, 4000)):
+        b.cmd("vr_net_rate %d" % own)
+        got = rate_until(srv, eb, want)
+        s.check("vr_net_rate_max %d, B's vr_net_rate %d: the server sends him at most %d B/s" % (BACKOFF_RATE, own, want),
+                got is not None and int(got) == want, "rate %s" % got)
+    srv.cmd("vr_net_rate_max 0")
+    b.cmd("vr_net_rate 0")
+    got = rate_until(srv, eb, 0)
+    s.check("vr_net_rate_max 0 and B's 0: no cap", got is not None and int(got) == 0, "rate %s" % got)
+    b.cmd("vr_net_rate 80000")
+
+
+class FakeRoomService:
+    """(review 2026-11-18, findings 6 and 11) A stand-in for the room service on 127.0.0.1:`port` (the wire format of
+    Misc/rendezvous/qvr_rendezvous.py): it records every datagram (time, bytes, source) and answers only as the test
+    says (send)."""
+
+    REGISTER, REGISTERED, REFUSED, BADVERSION, COOKIE = 0x01, 0x81, 0x85, 0x86, 0x87
+
+    def __init__(self, port):
+        import socket
+        import threading
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.sock.bind(("127.0.0.1", port))
+        self.sock.settimeout(0.1)
+        self.requests = []
+        self.stop_flag = False
+        self.thread = threading.Thread(target=self.run, daemon=True)
+
+    def run(self):
+        while not self.stop_flag:
+            try:
+                data, src = self.sock.recvfrom(2048)
+            except OSError:
+                continue
+            self.requests.append((time.monotonic(), data, src))
+
+    def start(self):
+        self.thread.start()
+        return self
+
+    def stop(self):
+        self.stop_flag = True
+        self.thread.join(2)
+        self.sock.close()
+
+    def wait_request(self, kind, after=0, timeout=10.0, test=None):
+        """The first request of `kind` from index `after` on (and test(data) true) -> (index, time, data, src); None."""
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            for i in range(after, len(self.requests)):
+                t, data, src = self.requests[i]
+                if len(data) >= 18 and data[0:4] == b"QVRR" and data[5] == kind and (test is None or test(data)):
+                    return i, t, data, src
+            time.sleep(0.02)
+        return None
+
+    def send(self, kind, to, nonce, code=b"\0" * 6, extra=None, cookie=None, version=2):
+        out = bytearray(32)
+        out[0:4] = b"QVRR"
+        out[4] = version
+        out[5] = kind
+        out[8:14] = code
+        out[14:18] = nonce
+        out[18:22] = bytes(int(x) for x in to[0].split("."))
+        out[22:24] = to[1].to_bytes(2, "big")
+        if extra is not None:
+            out[18] = extra
+        if cookie is not None:
+            out[24:32] = cookie
+        self.sock.sendto(bytes(out), to)
+
+
+def lookups_of(inst):
+    """net_lookups on `inst` -> {name: fields}."""
+    since = inst.mark()
+    inst.cmd("net_lookups")
+    inst.wait(r"net_lookups: \d+ names", 10, since, "%s's net_lookups" % inst.name)
+    return {fields(l)["name"]: fields(l) for l in inst.lines[since:] if l.startswith("net_lookup: ")}
+
+
+LOOKUP_DELAY = 3.0  # s each lookup waits on its worker (-netlookupdelay: a slow resolver)
+LOOKUP_FRAME = 0.5  # s the server answers its console within meanwhile
+
+
+def lookup(s):
+    """(review 2026-11-18, finding 6) Host names are looked up on a worker (vr_netlookup.cpp), never on the game
+    thread: with no working DNS each gethostbyname held a host's frame for the resolver's timeout, seconds.
+    1. The room service named "localhost" (a name: the lookup's path), each lookup slowed to LOOKUP_DELAY s: while it
+       runs, the dedicated server answers its console within LOOKUP_FRAME s; then it registers with the service.
+    2. Every lookup failing (-netlookupfail): "not found" said once, the tries 2 s then 4 s apart (doubling); a remote
+       client in: no try however overdue; he leaves: the next try at once.
+    3. A server browser favourite by name (localhost:port) is asked once looked up (a search or two)."""
+    rport = s.take_port()
+    fake = FakeRoomService(rport).start()
+    try:
+        srv = s.server(dedicated=True, extra=["-netlookupdelay", str(LOOKUP_DELAY)])
+        srv.start()
+        srv.cmd("coop 1; deathmatch 0; skill 1; map e1m1; vr_mp_status")
+        srv.wait(r"mp_server: map=e1m1", 120, what="the server on e1m1")
+        t0 = time.monotonic()
+        srv.cmd("vr_mp_rendezvous localhost:%d; vr_mp_room 1" % rport)
+        worst, n = 0.0, 0
+        while time.monotonic() - t0 < LOOKUP_DELAY - 0.5:
+            since = srv.mark()
+            sent = time.monotonic()
+            srv.cmd("echo mp_lookup_ping %d" % n)
+            srv.wait(r"^mp_lookup_ping %d" % n, 10, since, "the server's echo")
+            worst = max(worst, time.monotonic() - sent)
+            n += 1
+            time.sleep(0.2)
+        looking = lookups_of(srv).get("localhost", {})
+        reg = fake.wait_request(FakeRoomService.REGISTER, 0, LOOKUP_DELAY + 10)
+        s.check("the room service's name looked up on a worker (%.0f s): the server answered its console within %.1f s "
+                "meanwhile (%d echoes), then registered" % (LOOKUP_DELAY, LOOKUP_FRAME, n),
+                worst <= LOOKUP_FRAME and n >= 3 and looking.get("state") == "looking" and reg is not None and
+                reg[1] - t0 >= LOOKUP_DELAY - 0.5,
+                "worst echo %.2f s; the lookup %s; REGISTER %s" % (worst, looking.get("state"),
+                                                                    "%.1f s after" % (reg[1] - t0) if reg else "none"))
+        srv.cmd("vr_mp_room 0")
+        code = srv.stop()
+        s.instances.remove(srv)
+        s.check("the first server quits cleanly", code == 0, "exit %s" % code)
+
+        # 2. failing lookups: the back-off, and none while a remote client is in
+        srv = s.server(dedicated=True, extra=["-netlookupfail"], name="server2")  # (a log of its own)
+        srv.start()
+        srv.cmd("coop 1; deathmatch 0; skill 1; map e1m1; vr_mp_status")
+        srv.wait(r"mp_server: map=e1m1", 120, what="the failing server on e1m1")
+        since = srv.mark()
+        srv.cmd("vr_mp_rendezvous localhost:%d; vr_mp_room 1" % rport)
+        seen = []
+        for _ in range(9):
+            e = lookups_of(srv).get("localhost", {})
+            if e and (not seen or seen[-1] != (e.get("tries"), e.get("wait"))):
+                seen.append((e.get("tries"), e.get("wait")))
+            time.sleep(1.0)
+        waits = [float(w) for _, w in seen if float(w) > 0]
+        told = [l for l in srv.lines[since:] if "was not found" in l]
+        s.check("failing lookups tried again 2 s, then 4 s apart (doubling), said once",
+                waits[:2] == [2.0, 4.0] and len(told) == 1, "tries/waits %s; %d lines" % (seen, len(told)))
+        a = s.client("A").start()
+        a.cmd("name A; " + s.connect_cmd(a))
+        a.wait(r"mp_event: .*joined map=e1m1", 120, what="A joined")
+        e = lookups_of(srv).get("localhost", {})
+        tries, due = int(e.get("tries", 0)), float(e.get("next", 0))
+        time.sleep(min(due, 40.0) + 1.5)
+        e2 = lookups_of(srv).get("localhost", {})
+        s.check("a remote client in: no lookup started however overdue", int(e2.get("tries", -1)) == tries and
+                float(e2.get("next", -1)) == 0.0, "tries %s then %s; next %s then %s" % (
+                    tries, e2.get("tries"), due, e2.get("next")))
+        a.cmd("disconnect")
+        again = None
+        for _ in range(30):
+            e3 = lookups_of(srv).get("localhost", {})
+            if int(e3.get("tries", 0)) > tries:
+                again = e3
+                break
+            time.sleep(0.2)
+        s.check("he left: the next try at once", again is not None, "%s" % (again or e3))
+        srv.cmd("vr_mp_room 0")
+
+        # 3. a favourite by name in A's server browser
+        here = "localhost:%d" % s.port
+        since = a.mark()
+        a.cmd('vr_mp_recent ""; vr_mp_favourites ""; vr_mp_favourite %s' % here)
+        a.wait(r"mp_browser: favourite %s on" % re.escape(here), 60, since, "the favourite set")
+        answered = None
+        for k in range(4):
+            r = row_of(browse(a, "A's search %d" % k)[0], here)
+            if r and r["answered"] == "1":
+                answered = k + 1
+                break
+        s.check("a favourite by name (%s) answers A's search once looked up" % here, answered is not None,
+                "after %s searches" % answered)
+    finally:
+        fake.stop()
+
+
+def roomnonce(s):
+    """(review 2026-11-18, finding 11) A host's room replies authenticated by his request's nonce. NetQuake-style trust of
+    the source address let anyone forge the service's REFUSED (no registration for 60 s) or BADVERSION (600 s), and the
+    shared code died 2 minutes later. A stand-in service (FakeRoomService) answers the dedicated server's REGISTER:
+    1. REFUSED, BADVERSION and REGISTERED with another nonce: no line, no code.
+    2. COOKIE with his nonce (version 2's cookie round): his next REGISTER at once, the cookie in it.
+    3. REGISTERED with that request's nonce: his room code. 4. REFUSED with it: taken (said)."""
+    rport = s.take_port()
+    fake = FakeRoomService(rport).start()
+    try:
+        srv = s.server(dedicated=True)
+        srv.start()
+        srv.cmd("coop 1; deathmatch 0; skill 1; map e1m1; vr_mp_status")
+        srv.wait(r"mp_server: map=e1m1", 120, what="the server on e1m1")
+        since = srv.mark()
+        srv.cmd("vr_mp_rendezvous 127.0.0.1:%d; vr_mp_room 1" % rport)
+        first = fake.wait_request(FakeRoomService.REGISTER, 0, 30)
+        if first is None:
+            raise StepFailed("no REGISTER from the server")
+        i, _, data, src = first
+        s.check("the host's REGISTER is of version 2, no cookie yet", data[4] == 2 and not any(data[18:26]),
+                "version %d, cookie %s" % (data[4], data[18:26].hex()))
+        other = bytes(x ^ 0x5A for x in data[14:18])
+        fake.send(FakeRoomService.REFUSED, src, other, extra=1)
+        fake.send(FakeRoomService.BADVERSION, src, other, extra=9)
+        fake.send(FakeRoomService.REGISTERED, src, other, code=b"ZZZZZZ")
+        srv.cmd("echo mp_roomnonce_forged")
+        srv.wait(r"^mp_roomnonce_forged", 10, since, "the server's frame after the forgeries")
+        time.sleep(0.5)
+        srv.read()
+        acted = [l.strip() for l in srv.lines[since:] if "has no room" in l or "speaks version" in l or "Room code" in l]
+        s.check("REFUSED, BADVERSION and REGISTERED with another nonce: ignored", not acted, "%s" % acted[:2])
+        # the cookie round, to his latest request
+        latest = fake.wait_request(FakeRoomService.REGISTER, len(fake.requests), 5)  # (a new one: 2 s to its next)
+        if latest is None:
+            raise StepFailed("no REGISTER to answer")
+        k, _, data, src = latest
+        sent = time.monotonic()
+        fake.send(FakeRoomService.COOKIE, src, data[14:18], cookie=b"qvrcook8")
+        again = fake.wait_request(FakeRoomService.REGISTER, k + 1, 5, lambda d: d[18:26] == b"qvrcook8")
+        s.check("COOKIE with his nonce: he registers again at once with the cookie", again is not None and
+                again[1] - sent < 1.0, "%.2f s" % (again[1] - sent) if again else "not with it")
+        if again is None:
+            return
+        _, _, data, src = again
+        fake.send(FakeRoomService.REGISTERED, src, data[14:18], code=b"ABCDEF")
+        _, line = srv.wait(r"Room code: ABCDEF", 10, since, "his room code")
+        s.check("REGISTERED with his nonce: his code", True, line.strip())
+        fake.send(FakeRoomService.REFUSED, src, data[14:18], extra=1)
+        _, line = srv.wait(r"has no room for this game", 10, since, "the refusal")
+        s.check("REFUSED with his nonce: taken", True, line.strip())
+        srv.cmd("vr_mp_room 0")
+    finally:
+        fake.stop()
+
+
 def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
     s = Session(args.exe, args.base, args.out, test, port=args.port)
     s.server_extra = args.server_set.split() if args.server_set else []  # (B13c: e.g. "+vr_net_sendhz 36")
@@ -6823,6 +7329,16 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             guests(s)
         elif test == "mp_nat":
             nat(s)
+        elif test == "mp_emptyflood":
+            emptyflood(s)
+        elif test == "mp_spoof":
+            spoof(s)
+        elif test == "mp_backoff":
+            backoff(s)
+        elif test == "mp_lookup":
+            lookup(s)
+        elif test == "mp_roomnonce":
+            roomnonce(s)
         elif test == "mp_netsafe":
             netsafe(s)
         elif test == "mp_roomui":
@@ -6909,12 +7425,17 @@ SUITE = [
     ("mp_guests", ()),
     ("mp_jitter", ()),
     ("mp_nat", ()),
+    ("mp_emptyflood", ()),
+    ("mp_spoof", ()),
+    ("mp_backoff", ()),
+    ("mp_lookup", ()),
+    ("mp_roomnonce", ()),
 ]  # (mp_netsafe runs first, before these; the rest in this order. The tuples: lag ms, jitter ms, loss)
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite", "emptyflood", "spoof", "backoff", "lookup", "roomnonce"])
     ap.add_argument("--base", required=True, help="the game folder (id1, quakevr...)")
     ap.add_argument("--exe", default=EXE)
     ap.add_argument("--out", default=os.path.join(REPO, "scratch", "mp"))
@@ -6976,7 +7497,7 @@ def main_run(args):
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
     elif args.test in ("bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground",
-                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui"):
+                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood", "spoof", "backoff", "lookup", "roomnonce"):
         ok = run(args, "mp_" + args.test)
     elif args.test == "voice":
         ok = run(args, "mp_voice", args.lag, args.jitter, args.loss)

@@ -31,12 +31,6 @@ static struct sockaddr_in broadcastaddr;
 
 static in_addr_t	myAddr;
 
-// QVR: (B23, tests) -natgateway <port>: every datagram by way of the multiplayer harness's NAT simulator on
-// 127.0.0.1:<port> (Misc/quakevr/mp/mp_nat.py), the real address before it in 6 bytes (IPv4 and port, network order)
-// both ways; a datagram from anywhere else is dropped (only the NAT reaches this game)
-static struct sockaddr_in	natGateway;
-static byte	natBuffer[NET_DATAGRAMSIZE + 6];
-
 #ifndef SIO_UDP_CONNRESET
 #define SIO_UDP_CONNRESET	_WSAIOW(IOC_VENDOR, 12)
 #endif
@@ -129,15 +123,6 @@ sys_socket_t WINS_Init (void)
 
 	if (COM_CheckParm ("-noudp"))
 		return -1;
-
-	i = COM_CheckParm ("-natgateway"); // QVR: (B23, tests)
-	if (i && i + 1 < com_argc)
-	{
-		natGateway.sin_family = AF_INET;
-		natGateway.sin_addr.s_addr = htonl (INADDR_LOOPBACK);
-		natGateway.sin_port = htons ((unsigned short) Q_atoi (com_argv[i + 1]));
-		Con_SafePrintf ("UDP: every datagram through the NAT simulator on 127.0.0.1:%s\n", com_argv[i + 1]);
-	}
 
 	if (winsock_initialized == 0)
 	{
@@ -371,34 +356,18 @@ sys_socket_t WINS_CheckNewConnections (void)
 
 int WINS_Read (sys_socket_t socketid, byte *buf, int len, struct qsockaddr *addr)
 {
-	socklen_t addrlen = sizeof(struct qsockaddr);
+	socklen_t addrlen;
 	int ret;
+	int empty = 0;
 
-	while (natGateway.sin_port) // QVR: (B23, tests) through the NAT simulator
+	// QVR: an empty datagram is skipped, not returned: its 0 is "nothing waiting" to every caller, so one from anyone
+	// ended the drain of the server's one socket for every client (MP review finding 5); bounded (NET_EMPTY_READS)
+	do
 	{
-		struct sockaddr_in	from;
-		socklen_t	fromlen = sizeof (from);
-		ret = recvfrom (socketid, (char *) natBuffer, sizeof (natBuffer), 0, (struct sockaddr *) &from, &fromlen);
-		if (ret == SOCKET_ERROR)
-		{
-			int err = SOCKETERRNO;
-			if (err == NET_EWOULDBLOCK || err == NET_ECONNREFUSED || err == WSAECONNRESET || err == WSAEMSGSIZE)
-				return 0;
-			Con_SafePrintf ("WINS_Read, recvfrom: %s\n", socketerror(err));
-			return ret;
-		}
-		if (ret < 6 || from.sin_port != natGateway.sin_port || from.sin_addr.s_addr != natGateway.sin_addr.s_addr)
-			continue;
-		memset (addr, 0, sizeof (*addr));
-		addr->qsa_family = AF_INET;
-		memcpy (&((struct sockaddr_in *) addr)->sin_addr, natBuffer, 4);
-		memcpy (&((struct sockaddr_in *) addr)->sin_port, natBuffer + 4, 2);
-		ret = q_min (ret - 6, len);
-		memcpy (buf, natBuffer + 6, ret);
-		return ret;
+		addrlen = sizeof(struct qsockaddr);
+		ret = recvfrom (socketid, (char *)buf, len, 0, (struct sockaddr *)addr, &addrlen);
 	}
-
-	ret = recvfrom (socketid, (char *)buf, len, 0, (struct sockaddr *)addr, &addrlen);
+	while (ret == 0 && ++empty < NET_EMPTY_READS);
 	if (ret == SOCKET_ERROR)
 	{
 		int err = SOCKETERRNO;
@@ -456,21 +425,8 @@ int WINS_Write (sys_socket_t socketid, byte *buf, int len, struct qsockaddr *add
 {
 	int	ret;
 
-	if (net_loopbackonly && !NET_LoopbackAddr (((struct sockaddr_in *)addr)->sin_addr.s_addr)) // QVR: (B24, tests)
-	{
-		if (((struct sockaddr_in *)addr)->sin_addr.s_addr != INADDR_BROADCAST) // (a LAN broadcast: dropped quietly)
-			NET_LoopbackRefused (WINS_AddrToString (addr));
+	if (NET_LoopbackRefusesTo (addr)) // QVR: (B24, tests)
 		return len; // (as if sent and lost)
-	}
-
-	if (natGateway.sin_port && len >= 0 && len <= NET_DATAGRAMSIZE) // QVR: (B23, tests) through the NAT simulator
-	{
-		memcpy (natBuffer, &((struct sockaddr_in *) addr)->sin_addr, 4);
-		memcpy (natBuffer + 4, &((struct sockaddr_in *) addr)->sin_port, 2);
-		memcpy (natBuffer + 6, buf, len);
-		ret = sendto (socketid, (char *) natBuffer, len + 6, 0, (struct sockaddr *) &natGateway, sizeof (natGateway));
-		return ret == SOCKET_ERROR ? 0 : len;
-	}
 
 	ret = sendto (socketid, (char *)buf, len, 0, (struct sockaddr *)addr,
 							sizeof(struct qsockaddr));
@@ -558,19 +514,11 @@ int WINS_GetAddrFromName (const char *name, struct qsockaddr *addr)
 	{
 		if (PartialIPAddress (name, addr) == -1)
 			return -1;
-		if (net_loopbackonly && !NET_LoopbackAddr (((struct sockaddr_in *)addr)->sin_addr.s_addr)) // QVR: (B24, tests)
-		{
-			NET_LoopbackRefused (name);
-			return -1;
-		}
-		return 0;
+		return NET_LoopbackRefusesName (name, addr) ? -1 : 0; // QVR: (B24, tests)
 	}
 
-	if (net_loopbackonly && q_strcasecmp (name, "localhost")) // QVR: (B24, tests) never looked up
-	{
-		NET_LoopbackRefused (name);
+	if (NET_LoopbackRefusesName (name, NULL)) // QVR: (B24, tests) never looked up
 		return -1;
-	}
 
 	hostentry = gethostbyname (name);
 	if (!hostentry)

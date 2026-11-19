@@ -12,19 +12,27 @@ Python 3 standard library only. One UDP socket, one thread.
     python3 qvr_rendezvous.py [--bind 0.0.0.0] [--port 26100] [--room-ttl 120] [--max-rooms 20000] ...
     python3 qvr_rendezvous.py --local      (a local test: 127.0.0.1:26100, verbose)
 
-The wire format (the game's side: Quake/net_dgrm.c, "room codes"). Every datagram: "QVRR", a version byte (1), a
+The wire format (the game's side: Quake/net_dgrm.c, "room codes"). Every datagram: "QVRR", a version byte (2), a
 type byte, two zero bytes, then the type's fields; requests are exactly 64 bytes, replies 32 (a reply never outgrows
 the request it answers: no amplification). Codes are 6 ASCII letters at offset 8, nonces 4 bytes at 14, addresses an
-IPv4 address at 18 and a port at 22 (network order).
+IPv4 address at 18 and a port at 22 (network order), cookies 8 bytes (at 18 in a request, 24 in a reply).
 
-    0x01 REGISTER    host -> service: the code he had (or zeros), a nonce
+    0x01 REGISTER    host -> service: the code he had (or zeros), a nonce, the cookie he was given (or zeros)
     0x02 JOIN        joiner -> service: the code, a nonce
     0x81 REGISTERED  -> host: his code, his nonce, his outside address
     0x82 PEER        -> joiner: the code, his nonce, the host's outside address
     0x83 INCOMING    -> host: the code, 0, the joiner's outside address (the host punches towards it)
     0x84 NOROOM      -> joiner: the code, his nonce: no such room
     0x85 REFUSED     -> host: the code, his nonce, why at 18 (1: no room for more rooms)
-    0x86 BADVERSION  -> either: the service's version at 18 (a request of another version)
+    0x86 BADVERSION  -> either: the code, the nonce, the service's version at 18 (a request of another version)
+    0x87 COOKIE      -> host: the code, his nonce, his address's cookie at 24: his REGISTER again with it
+
+Version 2 (review 2026-11-18, finding 11): a REGISTER makes or renews a room only with the cookie of the address it
+comes from (an HMAC of the address and the time under a secret made at start, good for one to two --cookie-period),
+else the answer is COOKIE: a registration spoofed from an address that can't read the reply makes nothing (version 1's
+rate limits and room caps were keyed by the claimed source alone: 20000 spoofed REGISTERs filled the table). A host
+whose router gave him a new port registers his code again from it: the room moves to the new port when the code's
+room is held from the same IP address. BADVERSION echoes the nonce (the game checks it on every reply it acts on).
 
 Abuse limits: a request of another size or without the magic gets no answer; each source address has a token bucket
 (--rate a second, --burst at once); the tracked sources, the rooms (and the rooms of one source address) are bounded;
@@ -34,6 +42,8 @@ punch reaches (symmetric NATs) is a design note in README.md, not built.
 
 import argparse
 import collections
+import hashlib
+import hmac
 import os
 import select
 import socket
@@ -41,14 +51,15 @@ import sys
 import time
 
 MAGIC = b"QVRR"
-VERSION = 1
+VERSION = 2
 REQUEST = 64
 REPLY = 32
 CODE_LEN = 6
+COOKIE_LEN = 8
 LETTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ"  # (no I or O: read as 1 and 0)
 
 REGISTER, JOIN = 0x01, 0x02
-REGISTERED, PEER, INCOMING, NOROOM, REFUSED, BADVERSION = 0x81, 0x82, 0x83, 0x84, 0x85, 0x86
+REGISTERED, PEER, INCOMING, NOROOM, REFUSED, BADVERSION, COOKIE = 0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87
 REFUSED_FULL = 1
 
 DEFAULT_PORT = 26100
@@ -56,7 +67,7 @@ DEFAULT_PORT = 26100
 
 class Limits:
     def __init__(self, room_ttl=120.0, max_rooms=20000, max_rooms_per_ip=8, max_sources=50000, rate=5.0, burst=20.0,
-                 joins_per_room=20, join_window=10.0):
+                 joins_per_room=20, join_window=10.0, cookie_period=60.0):
         self.room_ttl = room_ttl
         self.max_rooms = max_rooms
         self.max_rooms_per_ip = max_rooms_per_ip
@@ -65,6 +76,7 @@ class Limits:
         self.burst = burst
         self.joins_per_room = joins_per_room
         self.join_window = join_window
+        self.cookie_period = cookie_period  # s: a cookie is good in its period and the next
 
 
 class Room:
@@ -78,7 +90,7 @@ class Room:
         self.window_start = now
 
 
-def reply(kind, code=b"\0" * CODE_LEN, nonce=b"\0" * 4, addr=None, extra=None):
+def reply(kind, code=b"\0" * CODE_LEN, nonce=b"\0" * 4, addr=None, extra=None, cookie=None):
     out = bytearray(REPLY)
     out[0:4] = MAGIC
     out[4] = VERSION
@@ -90,6 +102,8 @@ def reply(kind, code=b"\0" * CODE_LEN, nonce=b"\0" * 4, addr=None, extra=None):
         out[22:24] = addr[1].to_bytes(2, "big")
     if extra is not None:
         out[18] = extra
+    if cookie is not None:
+        out[24:24 + COOKIE_LEN] = cookie
     return bytes(out)
 
 
@@ -97,9 +111,10 @@ class Service:
     """The room table and the protocol, without the socket: handle() -> the datagrams to send (tests call it
     directly with their own clock)."""
 
-    def __init__(self, limits=None, rng=None):
+    def __init__(self, limits=None, rng=None, secret=None):
         self.limits = limits or Limits()
         self.rng = rng or __import__("random").SystemRandom()
+        self.secret = secret if secret is not None else os.urandom(32)  # (the cookies' key: a restart makes a new one)
         self.rooms = {}                                # code -> Room
         self.by_host = {}                              # (ip, port) -> code
         self.per_ip = collections.Counter()            # ip -> rooms
@@ -134,6 +149,15 @@ class Service:
         if self.per_ip[r.host[0]] <= 0:
             del self.per_ip[r.host[0]]
 
+    def cookie(self, src, now, back=0):
+        """The cookie of address `src` (ip, port) in the period of `now` (`back` periods before)."""
+        period = int(now // self.limits.cookie_period) - back
+        msg = ("%s:%d:%d" % (src[0], src[1], period)).encode("ascii")
+        return hmac.new(self.secret, msg, hashlib.sha256).digest()[:COOKIE_LEN]
+
+    def cookie_ok(self, given, src, now):
+        return any(hmac.compare_digest(given, self.cookie(src, now, back)) for back in (0, 1))
+
     def new_code(self):
         for _ in range(100):
             code = "".join(self.rng.choice(LETTERS) for _ in range(CODE_LEN)).encode("ascii")
@@ -149,11 +173,14 @@ class Service:
             return []
         if not self.allow(src[0], now):
             return []
+        kind, code, nonce = data[5], bytes(data[8:14]), bytes(data[14:18])
         if data[4] != VERSION:
             self.stats["bad_version"] += 1
-            return [(reply(BADVERSION, extra=VERSION), src)]
-        kind, code, nonce = data[5], bytes(data[8:14]), bytes(data[14:18])
+            return [(reply(BADVERSION, code, nonce, extra=VERSION), src)]
         if kind == REGISTER:
+            if not self.cookie_ok(bytes(data[18:18 + COOKIE_LEN]), src, now):
+                self.stats["cookie_sent"] += 1
+                return [(reply(COOKIE, code, nonce, cookie=self.cookie(src, now)), src)]
             return self.register(code, nonce, src, now)
         if kind == JOIN:
             return self.join(code, nonce, src, now)
@@ -166,6 +193,16 @@ class Service:
             self.rooms[code].expires = now + self.limits.room_ttl
             self.stats["renewed"] += 1
             return [(reply(REGISTERED, code, nonce, src), src)]
+        # His code's room held from his IP address on another port: his router gave him a new one (or the game was
+        # restarted): the room moves to it, his code kept
+        moving = self.rooms.get(wanted)
+        if moving is not None and moving.host[0] == src[0] and moving.host != src and moving.expires > now:
+            self.by_host.pop(moving.host, None)
+            moving.host = src
+            moving.expires = now + self.limits.room_ttl
+            self.by_host[src] = wanted
+            self.stats["moved"] += 1
+            return [(reply(REGISTERED, wanted, nonce, src), src)]
         if len(self.rooms) >= self.limits.max_rooms or self.per_ip[src[0]] >= self.limits.max_rooms_per_ip:
             self.expire(now)
             if len(self.rooms) >= self.limits.max_rooms or self.per_ip[src[0]] >= self.limits.max_rooms_per_ip:
@@ -202,7 +239,7 @@ class Service:
 
 def serve(args):
     limits = Limits(args.room_ttl, args.max_rooms, args.max_rooms_per_ip, args.max_sources, args.rate, args.burst,
-                    args.joins_per_room, args.join_window)
+                    args.joins_per_room, args.join_window, args.cookie_period)
     svc = Service(limits)
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.bind((args.bind, args.port))
@@ -249,6 +286,7 @@ def main():
     ap.add_argument("--burst", type=float, default=20.0, help="requests at once per source address")
     ap.add_argument("--joins-per-room", type=int, default=20)
     ap.add_argument("--join-window", type=float, default=10.0)
+    ap.add_argument("--cookie-period", type=float, default=60.0, help="s a REGISTER cookie's period (good for two)")
     ap.add_argument("--report", type=float, default=3600.0, help="s between the log's counts (0: none)")
     ap.add_argument("--verbose", action="store_true", help="every reply's type and destination (local tests only)")
     ap.add_argument("--local", action="store_true", help="a local test: 127.0.0.1, verbose, a report a minute")

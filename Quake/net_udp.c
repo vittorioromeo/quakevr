@@ -268,7 +268,6 @@ int UDP_Connect (sys_socket_t socketid, struct qsockaddr *addr)
 sys_socket_t UDP_CheckNewConnections (void)
 {
 	// QVR: (B23) the listening socket whenever listening: net_dgrm.c reads it for every client, and keeps the host's room
-	// (an empty datagram reads as none there)
 	return net_acceptsocket;
 }
 
@@ -276,10 +275,18 @@ sys_socket_t UDP_CheckNewConnections (void)
 
 int UDP_Read (sys_socket_t socketid, byte *buf, int len, struct qsockaddr *addr)
 {
-	socklen_t addrlen = sizeof(struct qsockaddr);
+	socklen_t addrlen;
 	int ret;
+	int empty = 0;
 
-	ret = recvfrom (socketid, buf, len, 0, (struct sockaddr *)addr, &addrlen);
+	// QVR: an empty datagram is skipped, not returned: its 0 is "nothing waiting" to every caller, so one from anyone
+	// ended the drain of the server's one socket for every client (MP review finding 5); bounded (NET_EMPTY_READS)
+	do
+	{
+		addrlen = sizeof(struct qsockaddr);
+		ret = recvfrom (socketid, buf, len, 0, (struct sockaddr *)addr, &addrlen);
+	}
+	while (ret == 0 && ++empty < NET_EMPTY_READS);
 	if (ret == SOCKET_ERROR)
 	{
 		int err = SOCKETERRNO;
@@ -336,12 +343,8 @@ int UDP_Write (sys_socket_t socketid, byte *buf, int len, struct qsockaddr *addr
 {
 	int	ret;
 
-	if (net_loopbackonly && !NET_LoopbackAddr (((struct sockaddr_in *)addr)->sin_addr.s_addr)) // QVR: (B24, tests)
-	{
-		if (((struct sockaddr_in *)addr)->sin_addr.s_addr != INADDR_BROADCAST) // (a LAN broadcast: dropped quietly)
-			NET_LoopbackRefused (UDP_AddrToString (addr));
+	if (NET_LoopbackRefusesTo (addr)) // QVR: (B24, tests)
 		return len; // (as if sent and lost)
-	}
 
 	ret = sendto (socketid, buf, len, 0, (struct sockaddr *)addr,
 							sizeof(struct qsockaddr));
@@ -430,19 +433,11 @@ int UDP_GetAddrFromName (const char *name, struct qsockaddr *addr)
 	{
 		if (PartialIPAddress (name, addr) == -1)
 			return -1;
-		if (net_loopbackonly && !NET_LoopbackAddr (((struct sockaddr_in *)addr)->sin_addr.s_addr)) // QVR: (B24, tests)
-		{
-			NET_LoopbackRefused (name);
-			return -1;
-		}
-		return 0;
+		return NET_LoopbackRefusesName (name, addr) ? -1 : 0; // QVR: (B24, tests)
 	}
 
-	if (net_loopbackonly && q_strcasecmp (name, "localhost")) // QVR: (B24, tests) never looked up
-	{
-		NET_LoopbackRefused (name);
+	if (NET_LoopbackRefusesName (name, NULL)) // QVR: (B24, tests) never looked up
 		return -1;
-	}
 
 	hostentry = gethostbyname (name);
 	if (!hostentry)
