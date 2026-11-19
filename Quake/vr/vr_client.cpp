@@ -1243,6 +1243,10 @@ extern "C" void VR_TuneDlight(int kind, int ent, void* dlight)
     {
         color(0.6f, 0.8f, 1.f);
     }
+    else if(strstr(n, "dw_rail")) // (Dwell's Crystal Lance: its crystals' violet)
+    {
+        color(0.8f, 0.55f, 1.f);
+    }
     else if(strstr(n, "v_light"))
     {
         color(0.55f, 0.7f, 1.f);

@@ -673,7 +673,37 @@ frame sequences; reading aids only, nothing pasted). Files `QC/dwell/` (GPL-2, h
 - **Left for P3's third part**: Dwell's own view models as VR models (`v_shot3`, `v_rail`, `v_rifle` through
   `vr_adweapons.cpp` recipes: measured grips, muzzles, the arm cut off; until then the variants show our models),
   the Rotary's drawn barrel spin with them (Dwell's `v_shot3.mdl` shares AD's Widowmaker's file name: its recipe must
-  pin Dwell's release by its counts, as AD's are pinned), and the variant names named by those models.
+  pin Dwell's release by its counts, as AD's are pinned), and the variant names named by those models. Done: 9.6.
+
+### 9.6 Built: P3, third part: Dwell's weapons as VR models (2026-11-19, branch `agent/dwell3c`)
+
+- **Recipes** (`vr_adweapons.cpp`, beside AD's three; `vr_adweapon_models` prints them): `progs/dw_shot3.mdl#vr`,
+  `progs/dw_rail.mdl#vr`, `progs/dw_rifle.mdl#vr`, made as they load from Dwell's `v_shot3.mdl`, `v_rail.mdl`,
+  `v_rifle.mdl`. Dwell's view models have **no arms** (nothing to cut but their muzzle flashes, pieces collapsed to a
+  point). Each is levelled (the Lance is tilted 15.9 degrees up in Dwell's view, the Rifle 6.25 down), scaled to sit
+  inside its base model's corner (the slot's Scale applies about it: the grip keeps its place) and given our base
+  weapon's grip, trigger guard and trigger (the Rotary on the super shotgun at 0.8, its housing over the grip; the Lance
+  on the lightning gun at 0.88, its wooden handle over the grip; the Rifle on the shotgun at 0.7, on its barrel line).
+- **Pinned to Dwell's file**: `Source::folder` reads the source in place as `owned/dwell/<path>` (`VR_OwnedFile`:
+  Dwell's discovered folder, whichever campaign is active), and its counts pin v2.2 (260/286, 311/339, 117/121). AD's
+  Widowmaker keeps reading the search paths' file of AD's counts, so each mod's `v_shot3.mdl` makes its own weapon.
+- **Slots** 52-54 (`weapons.txt`, `numSlots` 55): the base weapon's values copied as their own (no inheriting, round
+  22's rule), the muzzle their own (the Rotary's barrels' middle, the Lance's middle crystal's tip, the Rifle's shroud's
+  front). Sights, two-hand points and holster poses are the base's: a first fit for him to tune (his values become the
+  defaults).
+- **The Rotary's barrel spin** (shared flat and VR: `adweapons::spinFrame` draws both): its four barrels, clamps and
+  front block (the pieces from x 16.5) get 27 spin frames ("quad0"..) about their own axis; the Widowmaker's spin code
+  drives them (the trigger spins them up, they coast to a barrel on top), a barrel a shot at Dwell's 0.2 s.
+- **Drawn**: `DW_WeaponModel` (`dw_items.qc`) through `AD_WeaponModel`/`AD_SyncModel`: hands, holsters, drops, armed
+  grunts' props; without Dwell's data our models. gunfx knows the models; the Lance's muzzle light is violet.
+- **Names by model**: `notectx::weaponName(wid, flags, model)` names a variant by its VR model (AD's Shadow Axe,
+  Widowmaker, Plasma Gun; Dwell's three); the holster menu (flat, and the wrist's: the same slots) uses it.
+- **Test**: `Misc/quakevr/dwell_vrmodels_test.sh` (vr_ad_test 205-208): the models in the hands and a holster, AD's
+  Widowmaker still its own, the six made, the menu's names, the spin in mock VR and flat play (turning held, at rest a
+  barrel on top): 13 passed, 0 failed; screenshots of each in hand to `scratch/dwell_vrmodels_vr.png` (side and eye
+  views) and `scratch/dwell_vrmodels_flat.png` (and the holster menu).
+- **Left**: no ammo screen housing, shell ejection port or magazine mounts of their own (the base's settings point at
+  the base model's places); the Lance and the Rifle have no hand-tuned sights.
 
 ### 9.6 Built: P2b part two, bullet hell and the Sculptor's motion (2026-11-19, branch `agent/dwell2c`)
 
