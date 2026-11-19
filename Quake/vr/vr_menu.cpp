@@ -12,6 +12,7 @@
 // The page groups are in vr_menu_pages_debug.cpp, vr_menu_pages_gameplay.cpp and vr_menu_pages_settings.cpp;
 // what they share with this file is in vr_menu_internal.hpp.
 
+#include "vr_alloccount.hpp"
 #include "vr_menuui.hpp"
 #include "vr_testkit.hpp"
 #include "vr_random.hpp"
@@ -31,6 +32,8 @@
 #include "vr_monstervalues.hpp"
 #include "vr_tunables.hpp"
 #include "vr_weaponvalues.hpp"
+#include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Chrono/Clock.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/Math/MinMax.hpp"
@@ -5007,6 +5010,52 @@ void anchorTest()
     tally.verdict("menu_anchor_test");
 }
 
+// menu_vr buildcost [n] (REVIEW_NEXT_2026-11-18.md, finding 19: Item's modifiers): every page built anew, Changed
+// Settings and Search's index (each building every page anew at Developer), n times each: the time and heap
+// allocations a time on this thread. MBUILD lines.
+void buildCost(int n)
+{
+    const auto measure = [n](const char* what, auto&& build) {
+        const alloccount::Stats before = alloccount::statsThisThread();
+        const za::I64 t0 = za::Clock::nowNanoseconds();
+        for(int i = 0; i < n; i++)
+        {
+            build();
+        }
+        const za::I64 t1 = za::Clock::nowNanoseconds();
+        const alloccount::Stats after = alloccount::statsThisThread();
+        za::U64 allocations = 0;
+        for(const alloccount::Kind k : {alloccount::Kind::New, alloccount::Kind::Malloc, alloccount::Kind::Calloc,
+                alloccount::Kind::Realloc})
+        {
+            allocations += after.calls[static_cast<int>(k)] - before.calls[static_cast<int>(k)];
+        }
+        Con_Printf("MBUILD|%s|%.3f ms|%.0f allocations|%.0f KiB asked\n", what, za::nanosecondsToMilliseconds(t1 - t0) / n,
+            static_cast<double>(allocations) / n, static_cast<double>(after.requestedBytes - before.requestedBytes) / 1024.0 / n);
+    };
+    const auto stale = [] {
+        for(int p = 0; p < pageCount; p++)
+        {
+            menuPages.done[p] = false;
+        }
+    };
+    measure("every page", [&stale] {
+        stale();
+        for(int p = 0; p < pageCount; p++)
+        {
+            (void)items(p);
+        }
+    });
+    measure("Changed Settings", [&stale] {
+        stale();
+        (void)pageChanged();
+    });
+    measure("Search's index", [&stale] {
+        stale();
+        buildSearchIndex();
+    });
+}
+
 // menu_vr changedtest (Misc/quakevr/menu_changed_test.sh; REVIEW_NEXT_2026-11-18.md, finding 13): the menu's "changed"
 // is the config's (sameSettingValue). A setting 1e-7 off its default (a line the config doesn't write) has no * and is
 // not on Changed Settings; its default's number in other text ("0.50" for "0.5") is not changed either, and Reset All
@@ -5478,6 +5527,11 @@ void qvr::menu::command_f()
     if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "rows"))
     {
         printRows();
+        return;
+    }
+    if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "buildcost"))
+    {
+        buildCost(Cmd_Argc() > 2 ? za::max(Q_atoi(Cmd_Argv(2)), 1) : 5);
         return;
     }
     if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "changedtest"))

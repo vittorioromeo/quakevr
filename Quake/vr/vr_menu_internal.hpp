@@ -261,25 +261,33 @@ struct Item
     // cvar, its choices by name: menu paths, menu_vr, the tests). vr_menu_icons 0: drawn as a plain cycle.
     const MenuIcon* icons{nullptr};
 
-    [[nodiscard]] Item iconPicker(const MenuIcon* list) const
+    // The modifiers below chain (row(...).advanced().help(...)): each on a temporary moves the row on (its choices
+    // vector too) rather than copying it; on a named row, a copy changed (REVIEW_NEXT_2026-11-18.md, finding 19).
+    [[nodiscard]] Item iconPicker(const MenuIcon* list) const& { return Item{*this}.iconPicker(list); }
+    [[nodiscard]] Item iconPicker(const MenuIcon* list) &&
     {
-        Item i = *this;
-        i.icons = list;
-        return i;
+        icons = list;
+        return ZA_MOVE(*this);
     }
 
-    [[nodiscard]] Item looking(Look l) const
+    [[nodiscard]] Item looking(Look l) const& { return Item{*this}.looking(l); }
+    [[nodiscard]] Item looking(Look l) &&
     {
-        Item i = *this;
-        i.look = l;
-        return i;
+        look = l;
+        return ZA_MOVE(*this);
     }
-    [[nodiscard]] Item minor() const { return looking(Minor); }
-    [[nodiscard]] Item big() const { return looking(Big); }
-    [[nodiscard]] Item button() const { return looking(Button); }
-    [[nodiscard]] Item lead() const { return looking(Lead); }
-    [[nodiscard]] Item sub() const { return looking(Sub); }
-    [[nodiscard]] Item note() const { return looking(Note); }
+    [[nodiscard]] Item minor() const& { return looking(Minor); }
+    [[nodiscard]] Item minor() && { return ZA_MOVE(*this).looking(Minor); }
+    [[nodiscard]] Item big() const& { return looking(Big); }
+    [[nodiscard]] Item big() && { return ZA_MOVE(*this).looking(Big); }
+    [[nodiscard]] Item button() const& { return looking(Button); }
+    [[nodiscard]] Item button() && { return ZA_MOVE(*this).looking(Button); }
+    [[nodiscard]] Item lead() const& { return looking(Lead); }
+    [[nodiscard]] Item lead() && { return ZA_MOVE(*this).looking(Lead); }
+    [[nodiscard]] Item sub() const& { return looking(Sub); }
+    [[nodiscard]] Item sub() && { return ZA_MOVE(*this).looking(Sub); }
+    [[nodiscard]] Item note() const& { return looking(Note); }
+    [[nodiscard]] Item note() && { return ZA_MOVE(*this).looking(Note); }
 
     // A setting only one mode uses (vrOnly(), flatOnly(); most by their cvar: rowMode, vr_menu.cpp): dimmed while the
     // game runs in the other mode, its help saying so, still changed from here (a headset's settings set up from the
@@ -292,71 +300,74 @@ struct Item
     };
     Mode mode{AnyMode};
 
-    [[nodiscard]] Item vrOnly() const
+    [[nodiscard]] Item vrOnly() const& { return Item{*this}.vrOnly(); }
+    [[nodiscard]] Item vrOnly() &&
     {
-        Item i = *this;
-        i.mode = VrOnly;
-        return i;
+        mode = VrOnly;
+        return ZA_MOVE(*this);
     }
 
-    [[nodiscard]] Item flatOnly() const
+    [[nodiscard]] Item flatOnly() const& { return Item{*this}.flatOnly(); }
+    [[nodiscard]] Item flatOnly() &&
     {
-        Item i = *this;
-        i.mode = FlatOnly;
-        return i;
+        mode = FlatOnly;
+        return ZA_MOVE(*this);
     }
 
-    [[nodiscard]] Item advanced() const
+    [[nodiscard]] Item advanced() const& { return Item{*this}.advanced(); }
+    [[nodiscard]] Item advanced() &&
     {
-        Item i = *this;
-        i.level = 1;
-        return i;
+        level = 1;
+        return ZA_MOVE(*this);
     }
 
-    [[nodiscard]] Item developer() const
+    [[nodiscard]] Item developer() const& { return Item{*this}.developer(); }
+    [[nodiscard]] Item developer() &&
     {
-        Item i = *this;
-        i.level = 2;
-        return i;
+        level = 2;
+        return ZA_MOVE(*this);
     }
 
-    [[nodiscard]] Item help(const char* text) const
+    [[nodiscard]] Item help(const char* text) const& { return Item{*this}.help(text); }
+    [[nodiscard]] Item help(const char* text) &&
     {
-        Item i = *this;
-        i.helpText = text;
-        return i;
+        helpText = text;
+        return ZA_MOVE(*this);
     }
 
     // Dimmed, shown off and not changed, `why` its help (what it needs: See-Through Liquids without VisPatch's data).
     // (`why` null: unchanged, as it is.)
-    [[nodiscard]] Item unavailableBecause(const char* why) const
+    [[nodiscard]] Item unavailableBecause(const char* why) const& { return Item{*this}.unavailableBecause(why); }
+    [[nodiscard]] Item unavailableBecause(const char* why) &&
     {
-        Item i = *this;
         if(why)
         {
-            i.unavailable = true;
-            i.helpText = why;
+            unavailable = true;
+            helpText = why;
         }
-        return i;
+        return ZA_MOVE(*this);
     }
 
     // A slider whose value means something past its bar's ends (offsets, positions, angles, scales,
     // distances; not shares, volumes, colours or chances): left and right step on past them, to
     // lo..hi, the bar showing its end (the laser sets it only along the bar).
-    [[nodiscard]] Item extend(float lo, float hi) const
+    [[nodiscard]] Item extend(float lo, float hi) const& { return Item{*this}.extend(lo, hi); }
+    [[nodiscard]] Item extend(float lo, float hi) &&
     {
-        Item i = *this;
-        i.extendable = true;
-        i.hardMin = za::fmin(lo, min);
-        i.hardMax = za::fmax(hi, max);
-        return i;
+        extendable = true;
+        hardMin = za::fmin(lo, min);
+        hardMax = za::fmax(hi, max);
+        return ZA_MOVE(*this);
     }
 
     // As far as four times the bar's width beyond each end (none below a bar starting at 0 or more).
-    [[nodiscard]] Item extend() const
+    [[nodiscard]] Item extend() const& { return Item{*this}.extend(); }
+    [[nodiscard]] Item extend() &&
     {
         const float width = max - min;
-        return extend(min >= 0.f ? min : min - 4.f * width, max + 4.f * width);
+        const float lo = min >= 0.f ? min : min - 4.f * width;
+        const float hi = max + 4.f * width;
+        return ZA_MOVE(*this).extend(lo, hi);
     }
 };
 
