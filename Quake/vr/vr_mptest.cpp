@@ -422,7 +422,14 @@ void status_f()
             const qvr::server::CommandCounts cc = qvr::server::commandCounts(i);
             Con_Printf("mp_cmds: slot=%d used=%d dropped=%d least=%d\n", i, cc.used, cc.dropped, cc.least);
         }
-        Con_Printf("mp_server: map=%s spawned=%d time=%.3f\n", sv.name, spawned, sv.qcvm.time); // (time: the game's clock)
+        // (own: this game's own player's entity, progs::localPlayer, 0 none; ownslot: clientprefs::ownSlot, -1 none:
+        // the host's own client in slot 0 whatever a loaded coop save holds, REVIEW_MP_2026-11-18 finding 3)
+        const edict_t* own = qvr::progs::localPlayer();
+        Con_Printf("mp_server: map=%s spawned=%d time=%.3f own=%d ownslot=%d\n", sv.name, spawned, sv.qcvm.time,
+            own ? static_cast<int>((reinterpret_cast<const byte*>(own) - reinterpret_cast<const byte*>(sv.qcvm.edicts)) /
+                      sv.qcvm.edict_size)
+                : 0,
+            qvr::clientprefs::ownSlot()); // (time: the game's clock)
     }
     if(!signedOn())
     {

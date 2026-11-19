@@ -603,7 +603,7 @@ void SV_ConnectClient (int clientnum)
 		VR_StoreSpawnParms (clientnum); // QVR
 		// QVR: (B15) a player back in a coop game he left, by his name: his level-start parms (vr/vr_coopsave.cpp)
 		VR_CoopRejoinParms (clientnum, Q_strcmp (NET_QSocketGetAddressString (netconnection), "LOCAL") == 0 ? cl_name.string
-			: NET_QSocketGetQvrName (netconnection));
+			: NET_QSocketGetQvrName (netconnection), NET_QSocketGetQvrKey (netconnection));
 	}
 
 	SV_SendServerinfo (client);
@@ -620,6 +620,7 @@ void SV_CheckForNewClients (void)
 {
 	struct qsocket_s	*ret;
 	int				i;
+	qboolean		islocal;
 
 //
 // check for new connections
@@ -634,9 +635,9 @@ void SV_CheckForNewClients (void)
 	// init a new client structure
 	//
 		// QVR: in a loaded coop game, the saved player's slot of his name (vr/vr_coopsave.cpp): a remote player's from
-		// his connect request, the host's own client's from his settings
-		i = VR_CoopPickSlot (Q_strcmp (NET_QSocketGetAddressString (ret), "LOCAL") == 0 ? cl_name.string
-			: NET_QSocketGetQvrName (ret));
+		// his connect request, the host's own client's from his settings; the host's own client always slot 0
+		islocal = Q_strcmp (NET_QSocketGetAddressString (ret), "LOCAL") == 0;
+		i = VR_CoopPickSlot (islocal ? cl_name.string : NET_QSocketGetQvrName (ret), NET_QSocketGetQvrKey (ret), islocal);
 		if (i < 0)
 			for (i=0 ; i<svs.maxclients ; i++)
 				if (!svs.clients[i].active)
@@ -1877,6 +1878,7 @@ void SV_SaveSpawnparms (void)
 			host_client->spawn_parms[j] = (&pr_global_struct->parm1)[j];
 		VR_StoreSpawnParms (i); // QVR
 	}
+	VR_CoopLevelChangeParms (); // QVR: (B15) the leavers' level-start parms too: what each carries into the new level
 }
 
 typedef enum

@@ -56,6 +56,9 @@ Tests:
              entity at rest, the precaches, statics, light styles); B leaves and joins again: his slot and things
              (vr_mp_rejoin_keep), a suicide gives his level-start ones; B's game killed comes back on another port:
              his ghost closed at once, his slot and things; the server quits: C is told, still running.
+    rejoin_keep  (review finding 8) the leavers' table: a game under a leaver's name with another vr_mp_clientkey is
+             a new player; a leaver away across a level change respawns with what he carried into it; the 17th leaver's
+             record takes the oldest's place; the leaver path in a level loaded from a coop save.
     download a dedicated server on a Map Library package's map: A (it installed) mounts it and joins; B (lacking it) is
              told with vr_mp_download 0, and with 1 installs it through the map installer (a local index and mirror)
              and joins.
@@ -74,7 +77,8 @@ Tests:
     disarm   (B10) A holds a shotgun out; B's hand closes on it and pulls gently: it slips off; B yanks: it is his. B tosses
              it to A, who takes it. B's holsters as A draws them (a shotgun in each slot, one drawn, after his death). A
              shell, a nail magazine and a rocket from A's pouch let fall: B's hand takes each up and lets it go at his
-             pouch (his reserve up by A's loss); a nail magazine and a rocket B loads into his own gun (B8h). --part
+             pouch (his reserve up by A's loss); a nail magazine and a rocket B loads into his own gun (B8h). A
+             holding a shotgun out leaves: B's grip on it in his body's hand takes no hold (review finding 7). --part
              give|use: the rounds alone.
     predictclimb  (B8h, B8i, B8j) on vrclimb, B 150 ms behind each way hangs from the ledge, pulls himself up and lets
              go, then mantles onto it: the hang's steps, the mantle's test and the mantle run in his moves, his replay's
@@ -127,7 +131,7 @@ Tests:
              his nonce has him register again at once with it, then REGISTERED gives his code; a REFUSED with his
              nonce is taken.
     suite    coop, coop with B at 150 ms each way and 2% loss, bandwidth, armed, retransmit, version, avatar, avatarcal, body, prefs, grab, guard,
-             teleport, held, ground, campaign, campaign_listen, flow, rejoin, download, pickup, forcegrab, melee, moves, climb,
+             teleport, held, ground, campaign, campaign_listen, flow, rejoin, rejoin_keep, download, pickup, forcegrab, melee, moves, climb,
              rules, cosmetics, flatbody, loss, predict, predictclimb, lagcomp, cmdguard, disarm, voice, voice with B 50 ms (30 ms
              jitter, 5% loss) away, dm, lockstep, lockstep_throw, nat (B23: room codes through simulated routers).
              The network layer's review checks (2026-11-18): emptyflood, spoof, backoff, lookup, roomnonce.
@@ -2458,7 +2462,8 @@ def campaign_listen(s):
     """A coop save on a listen host (A): loaded with B connected (both kept, the host's own client reconnecting as at a
     changelevel), then by A alone after he left for a single player server (the save's 4 players set again: maxplayers
     and listen), C joining first and B after him, each into his own saved slot by his name (B4c: C's connection would
-    take B's slot, the first free one) with what he had."""
+    take B's slot, the first free one) with what he had. Then (REVIEW_MP_2026-11-18 finding 3) the host loads it alone
+    renamed: his own client still in slot 0 and the game's own player (campaign_listen_host_slot)."""
     srv, a, b, ea, eb = join(s, listen=True)
     sa, sb = ea - 1, eb - 1
     c = s.client("C").start()
@@ -2522,6 +2527,48 @@ def campaign_listen(s):
     diff = carried(inv1.get(sa, {}), alone.get(sa, {}), INV_KEYS, change=False)
     s.check("A, alone at the load, has what he had at the save", not diff,
             "saved %s; now %s (differ: %s)" % (inv1.get(sa), alone.get(sa), diff))
+    campaign_listen_host_slot(s, a, sa, inv1)
+
+
+def host_load(s, a, name):
+    """A, renamed `name`, leaves for a single player server and loads the coop save b4listen alone -> (his entity, the
+    server's mp_server fields, the server's lines since the load)."""
+    since_a = a.mark()
+    a.cmd("name %s; disconnect; maxplayers 1; map e1m1" % name)
+    a.wait(r"mp_event: .*joined map=e1m1", 120, since_a, "A alone on e1m1")
+    since_a = a.mark()
+    a.cmd("load b4listen")
+    _, ja = a.wait(r"mp_event: .*joined map=e1m1", 120, since_a, "A (%s) in the coop save loaded alone" % name)
+    lines = a.lines[since_a:]
+    st = status(a)
+    return int(fields(ja)["self"]), fields(next((l for l in st if l.startswith("mp_server:")), "")), lines
+
+
+def campaign_listen_host_slot(s, a, sa, inv1):
+    """(REVIEW_MP_2026-11-18 finding 3) The host's own client takes slot 0 in a loaded coop save whatever name slot 0 was
+    saved under, and the game's own player (progs::localPlayer, clientprefs::ownSlot) is his. Renamed Z (no saved slot
+    of his): he takes slot 0's saved player (before: the first free slot nobody waited for, slot 3, with the game's own
+    player slot 0's, nobody's until A's name came back). Renamed B (B's saved slot 1 his by name): B's block swapped
+    into slot 0, slot 1 left for A's name."""
+    ent, srv, lines = host_load(s, a, "Z")
+    said = next((l for l in lines if "coop save: the host Z takes slot 0" in l), None)
+    s.check("the host renamed Z loads the coop save alone: his own client in slot 0 (entity 1), the game's own player "
+            "his (localPlayer: entity 1; ownSlot 0)", ent == 1 and srv.get("own") == "1" and srv.get("ownslot") == "0"
+            and said is not None and "no saved slot of his own" in said,
+            "entity %d; mp_server own=%s ownslot=%s; %s" % (ent, srv.get("own"), srv.get("ownslot"),
+                                                           said.strip() if said else "no 'takes slot 0' line"))
+    inv, _ = inventories_until(a, lambda inv, m: sa in inv)
+    diff = carried(inv1.get(sa, {}), inv.get(sa, {}), INV_KEYS, change=False)
+    s.check("the host renamed Z has slot 0's saved player (what A had at the save)", not diff,
+            "saved %s; now %s (differ: %s)" % (inv1.get(sa), inv.get(sa), diff))
+
+    ent, srv, lines = host_load(s, a, "B")
+    said = next((l for l in lines if "coop save: the host B takes slot 0" in l), None)
+    s.check("the host renamed B (B's saved slot 1) loads it: slot 0 (entity 1), localPlayer his, B's saved block swapped "
+            "into slot 0", ent == 1 and srv.get("own") == "1" and srv.get("ownslot") == "0" and said is not None and
+            "his own saved slot 1 swapped" in said,
+            "entity %d; mp_server own=%s ownslot=%s; %s" % (ent, srv.get("own"), srv.get("ownslot"),
+                                                           said.strip() if said else "no 'takes slot 0' line"))
 
 
 def saved_text(s, relname, t0, tries=50):
@@ -2851,6 +2898,114 @@ def rejoin_crash(s, srv, a, b, c, ea, eb, sb):
     s.check("the server quits: C is told and is out of the game, his game still running",
             told is not None and own.get("connected") == "0" and c.proc.poll() is None,
             "%s; connected %s" % (told[1].strip() if told else "not told", own.get("connected")))
+
+
+def leave(srv, inst, name, what):
+    """`inst` (named `name`) disconnects -> the server's "coop: <name> left" line (None: no record kept)."""
+    since = srv.mark()
+    inst.cmd("disconnect")
+    srv.wait(r"Client %s removed" % name, 20, since, what)
+    return wait_quietly(srv, r"coop: %s left" % name, 3, since, what + " (his things kept)")
+
+
+def come_back(s, srv, inst, name, level, what):
+    """`inst` connects as `name` -> (his entity, the server's "coop: <name> is back" line or None)."""
+    since, since_srv = inst.mark(), srv.mark()
+    inst.cmd("name %s; %s" % (name, s.connect_cmd(inst)))
+    _, j = inst.wait(r"mp_event: .*joined map=%s" % level, 120, since, what)
+    return int(fields(j)["self"]), wait_quietly(srv, r"coop: %s is back" % name, 5, since_srv, what + " (his things)")
+
+
+def rejoin_keep(s):
+    """(REVIEW_MP_2026-11-18 finding 8) The leavers' table (B15, vr_mp_rejoin_keep), on a dedicated server. A game under
+    a leaver's name with another vr_mp_clientkey is a new player (E as B: none of B's things), and B's own game back gets
+    them. B leaves with a rocket launcher, the level changes, he comes back: his suicide respawns him with it (his
+    level-start parms what he carried into the level, not the last level's start). 17 names leave: the oldest record
+    makes room for the 17th, who comes back with his things (before: the 17th was not kept, the feature stopped). In a
+    level loaded from a coop save B leaves and comes back with his things (before: a new player for that whole level)."""
+    srv, a, b, ea, eb = join(s)
+    sa, sb = ea - 1, eb - 1
+    a.cmd("name A")
+    b.cmd("name B")
+    names_until(srv, ("A", "B"))
+
+    # Another game by B's name (its own key): a new player; then B's own, his things
+    b.cmd("give 5; give n 77")
+    inventories_until(srv, lambda inv, m: inv.get(sb, {}).get("nails") == 77)
+    left = leave(srv, b, "B", "B leaving")
+    e = s.client("E").start()
+    ee, back = come_back(s, srv, e, "B", "e1m1", "E (named B) joining")
+    inv, _ = inventories_until(srv, lambda inv, m: ee - 1 in inv, 20)
+    s.check("key: another game under B's name (another vr_mp_clientkey) is a new player, not B back",
+            left is not None and back is None and inv.get(ee - 1, {}).get("nails") == 0,
+            "B's leave %s; %s; E's things %s" % (left and left[1].strip(), back[1].strip() if back else "not 'back'",
+                                                 inv.get(ee - 1)))
+    e.cmd("name E")
+    names_until(srv, ("A", "E"))
+    leave(srv, e, "E", "E leaving")
+    e.stop()
+    s.instances.remove(e)
+    eb2, back = come_back(s, srv, b, "B", "e1m1", "B back")
+    inv, _ = inventories_until(srv, lambda inv, m: eb2 - 1 in inv and inv[eb2 - 1].get("nails") == 77, 20)
+    s.check("key: B's own game back has his slot and things", back is not None and eb2 == eb and
+            inv.get(sb, {}).get("nails") == 77, "%s; entity %d (was %d); %s" % (
+                back[1].strip() if back else "not 'back'", eb2, eb, inv.get(sb)))
+
+    # A level change while B is away: his return's respawn gives what he carried into the level
+    b.cmd("give 7; give r 9")
+    inventories_until(srv, lambda inv, m: inv.get(sb, {}).get("items", 0) & IT_ROCKET_LAUNCHER)
+    left = leave(srv, b, "B", "B leaving on e1m1")
+    since_a = a.mark()
+    srv.cmd("changelevel e1m2")
+    a.wait(r"mp_event: .*joined map=e1m2", 120, since_a, "A on e1m2")
+    eb2, back = come_back(s, srv, b, "B", "e1m2", "B back on e1m2")
+    inv, _ = inventories_until(srv, lambda inv, m: m == "e1m2" and inv.get(sb, {}).get("items", 0) & IT_ROCKET_LAUNCHER,
+                               20)
+    since_b = b.mark()
+    b.cmd("kill")
+    b.wait(r"suicides", 10, since_b, "B's suicide")
+    fresh, _ = inventories_until(srv, lambda inv, m: inv.get(sb, {}).get("health", 0) > 0 and
+                                 inv[sb].get("items", 0) & IT_ROCKET_LAUNCHER, 20)
+    s.check("level change: B, away across it, respawns after his return with what he carried into e1m2 (his rocket "
+            "launcher: his level-start parms refreshed), not e1m1's start",
+            left is not None and back is not None and fresh.get(sb, {}).get("items", 0) & IT_ROCKET_LAUNCHER and
+            fresh[sb].get("rockets") == 9, "back %s; respawned %s" % (back is not None, fresh.get(sb)))
+
+    # 17 names leave (B's record taken back above; E's is the oldest): the 17th's record replaces the oldest
+    d = s.client("D").start()
+    for i in range(1, 17):
+        ed, _ = come_back(s, srv, d, "D%d" % i, "e1m2", "D%d joining" % i)
+        if i == 16:
+            d.cmd("give 5; give n 55")
+            inventories_until(srv, lambda inv, m: inv.get(ed - 1, {}).get("nails") == 55)
+        since = srv.mark()
+        kept = leave(srv, d, "D%d" % i, "D%d leaving" % i)
+    dropped = srv.find(r"coop: what E had .* is forgotten for D16's", since)
+    ed, back = come_back(s, srv, d, "D16", "e1m2", "D16 back")
+    inv, _ = inventories_until(srv, lambda inv, m: inv.get(ed - 1, {}).get("nails") == 55, 20)
+    s.check("table: the 17th leaver's record takes the oldest's place (E's), and he comes back with his things",
+            kept is not None and dropped is not None and back is not None and inv.get(ed - 1, {}).get("nails") == 55,
+            "kept %s; %s; back %s; D16 %s" % (kept is not None, dropped[1].strip() if dropped else "no eviction line",
+                                              back is not None, inv.get(ed - 1)))
+    leave(srv, d, "D16", "D16 leaving again")
+    d.stop()
+    s.instances.remove(d)
+
+    # A level loaded from a coop save (A and B kept): B leaves and comes back with what he had
+    since, since_a, since_b = srv.mark(), a.mark(), b.mark()
+    srv.cmd("save keeptest")
+    srv.wait(r"Saving game to", 10, since, "the server's save")
+    srv.cmd("load keeptest")
+    a.wait(r"mp_event: .*joined map=e1m2", 120, since_a, "A in the loaded game")
+    b.wait(r"mp_event: .*joined map=e1m2", 120, since_b, "B in the loaded game")
+    b.cmd("give 6; give n 66")
+    inventories_until(srv, lambda inv, m: inv.get(sb, {}).get("nails") == 66)
+    left = leave(srv, b, "B", "B leaving the loaded level")
+    eb2, back = come_back(s, srv, b, "B", "e1m2", "B back in the loaded level")
+    inv, _ = inventories_until(srv, lambda inv, m: inv.get(eb2 - 1, {}).get("nails") == 66, 20)
+    s.check("loaded: in a level loaded from a coop save B, back after leaving, has his slot and things",
+            left is not None and back is not None and eb2 == eb and inv.get(sb, {}).get("nails") == 66,
+            "left %s; back %s; entity %d (was %d); %s" % (left is not None, back is not None, eb2, eb, inv.get(sb)))
 
 
 DL_TITLE = "QVR MP Download"
@@ -3290,7 +3445,50 @@ def disarm(s):
     server_time_past(srv, server_time(srv) + 1.0)
     holsters_synced(s, a, b, eb, "after B's death and respawn")
     ammo_give(s, srv, a, b, ea, eb)
+    disarm_leaver(s, srv, a, b, ea, eb)
     srv.cmd("vr_debug_carry 0; developer 0")
+
+
+def disarm_leaver(s, srv, a, b, ea, eb):
+    """(REVIEW_MP_2026-11-18 finding 7) A player who left can't be disarmed: A holds a shotgun out and leaves the coop
+    game (his body stays: ClientDisconnect's set_suicide_frame, DEAD_DEAD, with his health, FL_CLIENT and the gun in his
+    frozen hand); B's empty hand closes on the gun's hotspot where the server had it: no hold (before: B took it, and A
+    back by his name had it again, vr_mp_rejoin_keep)."""
+    b.cmd("vr_mock_play; vr_mock_button main grip 0; vr_mock_button off grip 0")
+    put_at(srv, b, eb, side_spot(srv, ea))  # (out of A's spot first: ammo_give leaves B where A stood)
+    put_at(srv, a, ea, OPEN_SPOT, 90)
+    put_at(srv, b, eb, (OPEN_SPOT[0], OPEN_SPOT[1] + B10_GAP, OPEN_SPOT[2]), 270)
+    a.cmd("vr_mock_play; vr_mock_button main grip 0; vr_mock_button off grip 0")  # (a fresh press for the give)
+    server_time_past(srv, server_time(srv) + GRIP_REPRESS_S)
+    grip_then_give(srv, a, "%s; vr_mock_button main grip 1" % HOLD_OUT)
+    held = weapon_until(s, srv, ea, 4)
+    empty = weapon_until(s, srv, eb, 0)
+    # (A's main hand where the server has it: on the gun's line from butt to tip, which stays on his body's frozen hand;
+    # its hotspots are his client's drawn ones, gone with his slot's held pose when he leaves)
+    grip = None
+    for _ in range(40):
+        grip = ground_report(srv, "mp_drawn_sv").get((ea, 1), {}).get("hand")
+        if grip:
+            break
+    s.check("leaver: A holds a shotgun out, B's main hand empty (the server's reports)",
+            held[-1] == 4 and empty[-1] == 0 and grip, "A's main weapon %s, B's %s; A's hand %s" % (held, empty, grip))
+    if not grip:
+        return
+    since = srv.mark()
+    a.cmd("disconnect")
+    left = wait_quietly(srv, r"coop: A left|Client A removed", 20, since, "A leaving")
+    hand_at(srv, b, eb, grip)
+    server_time_past(srv, server_time(srv) + GRIP_REPRESS_S)
+    since = srv.mark()
+    b.cmd("vr_mock_button main grip 1")
+    # (his body's netname is empty once he left: SV_DropClient clears the name it points to)
+    hold = wait_quietly(srv, r"pdisarm: B's hand 1 takes hold of ", 3, since, "no hold on A's body's gun")
+    mine = weapon_until(s, srv, eb, 0, 5)
+    s.check("leaver: B's grip on the shotgun in the hand of A's body (A gone) takes no hold; B's hand stays empty",
+            left is not None and hold is None and mine[-1] == 0,
+            "A left: %s; server: %s; B's main weapon %s" % (left[1].strip() if left else None,
+                                                           hold[1].strip() if hold else "no hold", mine))
+    b.cmd("vr_mock_button main grip 0")
 
 
 # The rounds handed over (MP B10b): (what, the main hand's weapon whose pouch kind it is, its give, the reserve's key,
@@ -7360,6 +7558,8 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             flow(s)
         elif test == "mp_rejoin":
             rejoin(s)
+        elif test == "mp_rejoin_keep":
+            rejoin_keep(s)
         elif test == "mp_download":
             download(s)
         elif test == "mp_pickup":
@@ -7479,6 +7679,7 @@ SUITE = [
     ("mp_campaign_listen", ()),
     ("mp_flow", ()),
     ("mp_rejoin", ()),
+    ("mp_rejoin_keep", ()),
     ("mp_download", ()),
     ("mp_pickup", ()),
     ("mp_forcegrab", ()),
@@ -7518,7 +7719,7 @@ SUITE = [
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite", "emptyflood", "spoof", "backoff", "lookup", "roomnonce"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep"])
     ap.add_argument("--base", required=True, help="the game folder (id1, quakevr...)")
     ap.add_argument("--exe", default=EXE)
     ap.add_argument("--out", default=os.path.join(REPO, "scratch", "mp"))
@@ -7580,7 +7781,7 @@ def main_run(args):
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
     elif args.test in ("bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground",
-                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood", "spoof", "backoff", "lookup", "roomnonce"):
+                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep"):
         ok = run(args, "mp_" + args.test)
     elif args.test == "voice":
         ok = run(args, "mp_voice", args.lag, args.jitter, args.loss)

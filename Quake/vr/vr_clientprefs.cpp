@@ -735,7 +735,7 @@ void serverReset(int slot)
 
 int ownSlot()
 {
-    return sv.active && cls.state != ca_dedicated ? 0 : -1;
+    return progs::hostSlot(); // (the loopback client's slot: 0, VR_CoopPickSlot; -1 on a dedicated server)
 }
 
 void publishOwn(int hand)

@@ -265,10 +265,21 @@ struct ServerVm
     ServerVm& operator=(const ServerVm&) = delete;
 };
 
-// The local (listen) server's player, client 0's edict; null when not hosting or that client is not in the game.
+// The slot of this game's own client on the server it hosts: the loopback connection's (always 0 since the host's
+// client takes slot 0 even in a loaded coop game: VR_CoopPickSlot, REVIEW_MP_2026-11-18 finding 3); -1 when not
+// hosting, on a dedicated server, or before that client connects. Any current VM.
+[[nodiscard]] int hostSlot();
+
+// The local (listen) server's player, its own client's edict (hostSlot); null when not hosting or that client is not in
+// the game. A dedicated server's: client 0's, as before (it has no own client).
 [[nodiscard]] inline edict_t* localPlayer()
 {
-    return sv.active && svs.maxclients >= 1 && svs.clients[0].active ? svs.clients[0].edict : nullptr;
+    if(!sv.active || svs.maxclients < 1)
+    {
+        return nullptr;
+    }
+    const int slot = cls.state == ca_dedicated ? 0 : hostSlot();
+    return slot >= 0 && svs.clients[slot].active ? svs.clients[slot].edict : nullptr;
 }
 
 // The own player as the client-side code asks after him (MP_PLAN.md, B9 review #6): one answer whoever runs him. Edict:

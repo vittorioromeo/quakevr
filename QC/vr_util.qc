@@ -555,7 +555,7 @@ float(entity p) VR_HandLinesKept;
 // Whether hand `xHand` of `p` is in a button's swing whose blow is traced (W_Fire_Melee's player_axe*, W_FireAxe: a
 // bot's, its hand drawn through the arc by bot_setvrfields; MP B11 part 3, part 3): its sweep strikes nothing
 // meanwhile (one blow, the traced one, read by the directional parry).
-float VR_BUTTONSWING_LEN = 0.45; // s (frikbot/bot_fight.qc BOT_SWING_END)
+float VR_BUTTONSWING_LEN = 0.45; // s (a bot's swing's length too: frikbot/bot_fight.qc, back at rest at its end)
 float(entity p, float xHand) VR_HandButtonSwing =
 {
     return (xHand == cVR_MainHand) && (p.vr_botswing > 0) && (time - p.vr_botswing < VR_BUTTONSWING_LEN);
