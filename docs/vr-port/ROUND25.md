@@ -4331,3 +4331,13 @@ WaterMove gasp as shipped (never runs). `vr_mg_fog.qc` is `vr_fog.qc` (`VR_Fog_S
 QC cost: 536 k instructions a frame (251 armed grunts) vs ad_tears 36 k; no single hot spot. Tests:
 `Misc/quakevr/rules_numbers_test.sh` (vr_ad_test 209) 4/0; vr_ad_test 210 (d2end, the ring) 7/0; census vs origin/next
 168 identical.
+## AD weapon tests adplasma (141) and adwidow (149) held their gun again (adoffhand, 2026-11-19, `agent/adoffhand`)
+
+Both gave the off hand its gun (`VRGiveEntWeapon`) with the mock's grip unpressed: under `vr_weapon_grip_mode 0`
+`DoHandImpl`'s let-go branch dropped it the same frame (`progs/hand.mdl` by the checks 0.5 s on). No commit broke them:
+they fail the same at origin/next, 11-14, 11-10, 11-01, 10-22 and at the test's own commit `a09b5874d` in today's
+harness (they passed in Round 22 only where the hand gripped or the mode was sticky). Fix in the tests, the shared way
+tests hold a given weapon (`VR_Scene_HoldGiven(p, cVR_OffHand)`, as `dw_test.qc` and `vr_playerdisarm_test.qc` do):
+adplasma 6/0, adwidow 11/0; adshadowaxe 6/0, plasma_ball_test.sh 6/0, dwell_weapons_test.sh 6/0,
+dwell_vrmodels_test.sh 13/0, scenario_check.sh PASS (137 scenes), dwell_maps.sh 28/0, 148 PASS. The Dwell scripts need Dwell v2.2 in the agent's base
+(`<base>/dwellv2p2`); without it dwell_vrmodels is 3/10 and dwell_maps 3/25.

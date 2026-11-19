@@ -86,6 +86,25 @@ mock toss keeps the hand's speed; a slow toss may hit the open palm after the 0.
   pick one rule and show it). Keep `vr_flat_key_*` working for configs.
 - **The window's graphics** (round 20): float scene, tone mapping, grades and bloom on the window; check each feature
   with VR off.
+- **Flat-screen trailer: "taking the headset off"** (2026-11-19, his idea; once flat play is fully polished). It opens
+  in VR; the player brings both hands to their face as if lifting the headset off; the view changes to an in-game room
+  with a desk, a chair and a computer; Ranger walks to the desk, sits, and starts playing the flat-screen version.
+  Easiest route (three in-engine shots, joined in Resolve; reuses vrtrailer's generated-map + scene-QC pattern,
+  MAPPING.md "vrtrailer", and TRAILER.md's takes):
+  1. **VR shot**: recorded live in the headset as a take; he lifts his hands to his face, the hands fill the view, cut
+     on black. Optional in-engine help: a "hands at the face" fade to black (both hands within ~15 cm of the head
+     for 0.3 s) so the cut lands on its own.
+  2. **Desk room**: a small generated map (`vrdesk_gen.py`, from vrstart/vrtrailer parts: room, desk, chair, monitor,
+     a lamp). The monitor's face is a fullbright pure-green texture, replaced in Resolve by the flat gameplay footage
+     (planar tracker for a moving camera): no render-to-texture work in the engine.
+  3. **Ranger** as a scripted actor (the remote-player/bot body we already draw for MP bots; the scene QC walks it along
+     path_corners), filmed by a scripted camera (svc_setview to a camera entity with a dolly, as vrtrailer's scene).
+     Sitting: Quake's player.mdl has no sit; easiest is framing from behind with the chair back hiding the legs and the
+     body lowered, or one baked sit pose with the pose tools if a side view is wanted.
+  4. **Into the game**: the camera pushes into the monitor and cross-fades to a full-screen flat take (recorded with
+     the takes tool), so the last shot is real flat play.
+  New work, small: the desk map generator, the scene QC (actor walk + camera), optionally the hands-to-face fade and a
+  sit pose. Everything else exists.
 
 ## 4. Monsters' movement: the navmesh (NAVMESH.md)
 
