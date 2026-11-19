@@ -129,7 +129,7 @@ set "message" to text string
 */
 void() trigger_multiple =
 {
-    if(MG_MonsterInhibited()) return;
+    if(VR_SF_SpawnInhibited()) return;
     if(self.sounds == 1)
     {
         precache_sound("misc/secret.wav");
@@ -226,7 +226,7 @@ This fixed size trigger cannot be touched, it can only be fired by other events.
 */
 void() trigger_relay =
 {
-    if(MG_MonsterInhibited()) return;
+    if(VR_SF_SpawnInhibited()) return;
     self.use = SUB_UseTargets;
 };
 
@@ -249,7 +249,7 @@ void() trigger_secret =
     float sk;
 
     // (before it is counted: one the official campaigns leave out in this mode would make 100% impossible)
-    if(MG_MonsterInhibited()) return;
+    if(VR_SF_SpawnInhibited()) return;
     total_secrets += 1;
     self.wait = -1;
 
@@ -326,7 +326,7 @@ After the counter has been triggered "count" times (default 2), it will fire all
 void() trigger_counter =
 {
     if(MG_WorldCampaign()) {
-        if(MG_MonsterInhibited()) return;
+        if(VR_SF_SpawnInhibited()) return;
         if(!self.count) self.count = 2;
         if(!self.wait) self.wait = self.count;
         self.use = MG_counter_use;
@@ -568,7 +568,7 @@ If the trigger_teleport has a targetname, it will only teleport entities when it
 */
 void() trigger_teleport =
 {
-    if(MG_MonsterInhibited()) return;
+    if(VR_SF_SpawnInhibited()) return;
     vector o;
 
     // HONEY

@@ -88,6 +88,7 @@
 #include "vr_modelwatch.hpp"
 #include "vr_blender.hpp"
 #include "vr_ad.hpp"
+#include "vr_rules.hpp"
 #include "vr_mapinstall.hpp"
 #include "vr_relight.hpp"
 #include "vr_relight_tool.hpp"
@@ -2390,6 +2391,7 @@ extern "C" void VR_Init()
     modelwatch::registerCommands(); // vr_model_watch_status (vr_modelwatch.cpp)
     blender::registerCommands(); // vr_edit_in_blender, vr_model_show, vr_blender_test (vr_blender.cpp)
     ad::registerCommands(); // vr_ad_info (vr_ad.cpp: Arcane Dimensions)
+    rules::registerCommands(); // vr_ruleset_info (vr_rules.cpp: the map's ruleset)
     mapinstall::registerCommands(); // maps_get, maps_install, maps_installed, maps_uninstall
     mapinstall::start(); // the installed-map list read (vr_mapinstall.cpp): nothing is downloaded here: nothing here waits
     relight::registerCommands(); // vr_relight, vr_relight_cancel, vr_relight_revert... (vr_relight.cpp)

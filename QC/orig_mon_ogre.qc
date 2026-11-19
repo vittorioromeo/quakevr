@@ -597,7 +597,7 @@ Normal: use the original skin and fire normal grenades.
 */
 void() monster_ogre_real =
 {
-    if(MG_MonsterInhibited()) return;
+    if(VR_SF_SpawnInhibited()) return;
     VR_Knockdown_SetupOwn(cvarh_vr_knockdown_chance_ogre, $paind5, ogre_paind5); // VR: knocked down (vr_knockdown.qc): down at paind5, from it it rises
     if(deathmatch)
     {
@@ -660,7 +660,7 @@ void() monster_ogre_real =
 
 void() monster_ogre =
 {
-    if(MG_MonsterInhibited()) return;
+    if(VR_SF_SpawnInhibited()) return;
 
     self.wad = "progs/ogre.mdl";
     monster_ogre_real();

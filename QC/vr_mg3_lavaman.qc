@@ -60,7 +60,7 @@ float(entity targ, entity inflictor, entity attacker, float damage) MG3_LavaManD
 // monster_lava_man's (rogue_lavaman.qc) for a lava man of MG3's.
 void() MG3_LavaMan_Spawn =
 {
-    if(MG_MonsterInhibited()) return;
+    if(VR_SF_SpawnInhibited()) return;
     if(deathmatch)
     {
         remove(self);

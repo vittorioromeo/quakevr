@@ -136,7 +136,7 @@ Dawn of the Machine's shub zombie: Quake's zombie lying here, getting up 7 s lat
 */
 void() monster_szombie =
 {
-    if(MG_MonsterInhibited()) return;
+    if(VR_SF_SpawnInhibited()) return;
     if(deathmatch)
     {
         remove(self);

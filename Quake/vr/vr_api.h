@@ -314,7 +314,7 @@ void VR_Footsteps_Frame (void);		// SV_Physics, after the edicts: the enemies' f
 void VR_MonsterHealth_Frame (void);	// SV_Physics, after the edicts: Monster Health's cut on monsters seen first (vr_mgroups.cpp)
 int VR_AD_PelletsPass (const struct edict_s *mover, const struct edict_s *target); // AD support: projectile pellets pass one another
 int VR_AD_RulesOn (void);				// AD support (vr_ad.cpp): the map spawning plays by Arcane Dimensions' rules
-int VR_AD_OwnsClassname (const char *classname, int ours);	// AD support: AD's ad_<classname> spawns it, not Quake VR's
+const char *VR_Rules_SpawnName (const char *classname, int ours);	// the spawn function's name by the map's ruleset (vr_rules.cpp): Quake VR's, an imported ruleset's (ad_<classname>) or NULL
 int VR_AD_SpawnsOutside (const char *classname);	// AD support: outside AD's rules, AD's ad_<classname> spawns it (an artifact, a pickup, a ladder)
 int VR_AD_ToolgunSpawnsOutside (const char *classname); // AD support: and the toolgun's (AD's backpacks too)
 int VR_AD_SpawnOutsideNow (void);				// AD support: AD's world setup once a map, before the first such

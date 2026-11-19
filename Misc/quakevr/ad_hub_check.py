@@ -33,7 +33,7 @@ for l in text:
     elif sections: sections[-1][1].append(l)
 for gate, lines in sections:
     quit_on = any(l.startswith('exit=quit-on') for l in lines)
-    refused = [l for l in lines if 'campaign' in l]
+    refused = [l for l in lines if 'campaign' in l and not l.startswith('[startup')] # (the start-up timings name the campaign step)
     check(quit_on and not refused, 'slipgate to %s: %s' % (gate, 'its map loaded' if quit_on else (refused[0] if refused else 'no map change (timed out)')))
 bad = [l for l in text if re.search(r'Host_Error|SV_Error|ENGINE ERROR|CRASH|TIMEOUT', l)]
 check(not bad and len(sections) == 5, '5 gates run, no errors%s' % (': ' + bad[0] if bad else ''))

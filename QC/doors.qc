@@ -486,7 +486,7 @@ Key doors are allways wait -1.
 
 void() func_door =
 {
-    if(MG_MonsterInhibited()) return;
+    if(VR_SF_SpawnInhibited()) return;
     float mgExplicitMove = MG_ExplicitMoveDir();
     if((world.worldtype == 0 || world.worldtype == 3))
     {

@@ -1,6 +1,7 @@
 // vr_progs.cpp -- binds the Quake VR QuakeC entry points, globals and spawn parms.
 
 #include "vr_ad.hpp"
+#include "vr_rules.hpp"
 #include "vr_hitmodel.hpp"
 #include "vr_hull.hpp"
 #include "vr_nav.hpp"
@@ -619,7 +620,8 @@ extern "C" void VR_OnSpawnServerBeforeLoad()
     resetServerWorld();
     qvr::weaponstudio::beforeLoad(); // (its preview humanoid gone with the edicts)
     qvr::rigstudio::beforeLoad(); // (its subject gone with the edicts: staged again in the new map)
-    qvr::ad::beforeLoad(); // vr_ad_rules for this map, before anything of it spawns (and QC's hook reads it)
+    qvr::rules::beforeLoad(); // vr_ruleset for this map, before anything of it spawns (and QC's hook reads it)
+    qvr::ad::beforeLoad();    // (AD's row of it: vr_ad_rules)
     VR_EdictIndex_Reset(); // (the edicts cleared)
     qvr::physics::precacheWaterSounds();
     qvr::physsound::precache(); // the props' knocks and scrapes, the climbing grab

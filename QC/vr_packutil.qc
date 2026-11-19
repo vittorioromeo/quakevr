@@ -5,6 +5,14 @@ float vr_save_campaign;
 const float VR_CAMPAIGN_DOPA = 3;
 const float VR_CAMPAIGN_MG1 = 4;
 const float VR_CAMPAIGN_MG3 = 5;
+// The ruleset the map now spawning or running plays by (the engine's vr_ruleset, vr_rules.cpp: its campaign's, else
+// its entities' signals; set for every spawn, a saved game's too). Spawnflag meanings (vr_spawnflags.qc), the world
+// logic and the numbers each ruleset changes are read through it.
+const float VR_RULES_ID = 0;     // Quake's (Hipnotic's, Rogue's, Honey's meanings on their own classnames)
+const float VR_RULES_MG = 1;     // Machine Games' (MG_WorldCampaign)
+const float VR_RULES_AD = 2;     // Arcane Dimensions' (AD_Rules)
+const float VR_RULES_COPPER = 3; // Copper's (not detected yet: DWELL.md P1b)
+float() VR_Ruleset = { return cvar_hget(cvarh_vr_ruleset); };
 // Saved precache layout: 1 + Hipnotic + 2*Rogue. It must match when a save is restored.
 float vr_save_packmask;
 
