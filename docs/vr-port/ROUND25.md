@@ -4123,3 +4123,18 @@ and MP-only parts left on their branches.
   "Playing demo"; then `timedemo demo1`: 1834 frames, 72.0 fps (fixed frames).
 - BACKLOG.md section 1: the tester's two hand-off reports closed (checked: the designed `vr_2h_handoff`, kept by his
   decision, no hints; the toss not reproduced), a short "checked, by design" note in the header.
+
+## Dwell and Copper, Phase 0: analysis, plan, probe, simplification audit (branch agent/dwell, 2026-11-19)
+
+- `docs/vr-port/DWELL.md` (new, modelled on ARCANE_DIMENSIONS.md): licence (no Dwell licence text, ripped Serious Sam
+  models in the credits: read in place only, never hosted; Copper GPL-2), source strategy (ask the Dwell team, rebuild
+  Dwell's entities on Copper's public source, the fteqcc decompile as behaviour reference only), inventory, Copper's
+  rules, assets, music, detection, the probe, the installer, the simplification audit (S1-S7) and the phased plan.
+- `Misc/quakevr/dwell_scan.py` (new): the Dwell/Copper tables (classes, per map, assets, music, detection over official,
+  AD and installed package maps, decompile vs Copper functions). Raw output in scratch, not committed.
+- Probe (headless, fast mode): an unknown `-game dwell` folder is dropped by the campaign switch at `map` (a campaign
+  entry is needed); with Dwell packed into the agent's id1 for the probe, 23/24 maps load and run 300 frames, `d2end`
+  stops on `Host_Error: ED_ParseEdict` (a `"think" "bmodel_vanish"` key naming a QC function we lack), 2,594 placements
+  of 42 classnames have no spawn function.
+- Found on the way: `origin/next` 0247871ec did not build (clang `-Wunused-lambda-capture`, vr_menu.cpp's Doom page
+  `wadRows` capturing a constant `page`): `[&]` now.
