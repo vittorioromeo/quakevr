@@ -1336,8 +1336,8 @@ extern "C" int VR_RenderView()
         {
             // After the tone curve, grade, gamma and dither (FSR and NIS want the display's colours), before the UI.
             QVR_GPU_PROFILE("upscale");
-            upscale::resample(eye, stereo::resample.tex, stereo::resample.fbo, drawnWidth, drawnHeight, stereo::targetFbo,
-                imageWidth, imageHeight);
+            upscale::resample(eye, stereo::resample.tex, stereo::resample.fbo, drawnWidth, drawnHeight, stereo::resample.width,
+                stereo::resample.height, stereo::targetFbo, imageWidth, imageHeight);
         }
         {
             QVR_TRACY_SCOPE(zoneFoveatedDebug, "eye: foveated debug");
