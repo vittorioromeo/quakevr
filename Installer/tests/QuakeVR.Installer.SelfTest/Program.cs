@@ -1132,28 +1132,28 @@ var tests = new List<(string Name, Action Body)>
         var pin = MakeAd(quake);
         var roots = ArcaneDimensions.SearchRoots([steam], quake);
         var found = ArcaneDimensions.FindExisting(roots, pin)!;
-        Eq(AdCopyState.Ready, found.State, "1.80p1 in the Quake folder");
+        Eq(ModCopyState.Ready, found.State, "1.80p1 in the Quake folder");
         True(PathUtil.SamePath(found.Folder, Path.Combine(quake, "ad")), "its folder: " + found.Folder);
         True(ArcaneDimensions.Describe(found).StartsWith($"Found in {found.Folder}: will be used", StringComparison.Ordinal), ArcaneDimensions.Describe(found));
-        Eq(AdCopyState.OtherVersion, ArcaneDimensions.FindExisting(roots)!.State, "the same pak2 against the real pin: another version");
+        Eq(ModCopyState.OtherVersion, ArcaneDimensions.FindExisting(roots)!.State, "the same pak2 against the real pin: another version");
         // The real release's pin, on a pak2 whose header and directory differ: refused.
         True(!ArcaneDimensions.IsLatest(Path.Combine(quake, "ad")), "a fake pak2 is not 1.80p1");
 
         var older = Dir("ad-older");
         MakeAd(older, pak2: false);
         var o = ArcaneDimensions.FindExisting(ArcaneDimensions.SearchRoots([], older), pin)!;
-        Eq(AdCopyState.OtherVersion, o.State, "no pak2: 1.80 or older");
+        Eq(ModCopyState.OtherVersion, o.State, "no pak2: 1.80 or older");
         True(ArcaneDimensions.Describe(o).Contains("isn't 1.80 patch 1") && ArcaneDimensions.Describe(o).Contains("download"), ArcaneDimensions.Describe(o));
         var broken = Dir("ad-incomplete");
         MakeAd(broken, leaveOut: PackLists.Resources("ad")[0]);
-        Eq(AdCopyState.Incomplete, ArcaneDimensions.FindExisting(ArcaneDimensions.SearchRoots([], broken), pin)!.State, "a missing file: incomplete");
+        Eq(ModCopyState.Incomplete, ArcaneDimensions.FindExisting(ArcaneDimensions.SearchRoots([], broken), pin)!.State, "a missing file: incomplete");
         Eq(null, ArcaneDimensions.FindExisting(ArcaneDimensions.SearchRoots([], Dir("ad-none")), pin), "none");
         // The game's order: the Quake folder over a store root; an empty ad folder (a texture pack's) is skipped.
         MakeAd(steam, pak2: false);
-        Eq(AdCopyState.Ready, ArcaneDimensions.FindExisting(roots, pin)!.State, "the Quake folder's copy wins over the store's older one");
+        Eq(ModCopyState.Ready, ArcaneDimensions.FindExisting(roots, pin)!.State, "the Quake folder's copy wins over the store's older one");
         var emptyAd = Dir("ad-texonly");
         Directory.CreateDirectory(Path.Combine(emptyAd, "ad", "textures"));
-        Eq(AdCopyState.Ready, ArcaneDimensions.FindExisting(ArcaneDimensions.SearchRoots([quake], emptyAd), pin)!.State, "a folder without AD's data: the next root's copy");
+        Eq(ModCopyState.Ready, ArcaneDimensions.FindExisting(ArcaneDimensions.SearchRoots([quake], emptyAd), pin)!.State, "a folder without AD's data: the next root's copy");
         // A real 1.80 patch 1 on this PC (read only: pak2's header and directory), when there is one: the engine's check.
         foreach (var real in new[] { @"C:\Program Files (x86)\Steam\steamapps\common\Quake\ad" })
         {
@@ -1217,13 +1217,13 @@ var tests = new List<(string Name, Action Body)>
         var r2 = new InstallEngine().Install(new InstallPlan { Mode = InstallMode.Update, PackagePath = Fixtures.MakePackage(Dir("adi-pkg2"), "1.1.0"), TargetDir = target, QuakeDir = quake }, null, CancellationToken.None);
         Eq(4, r2.Files.Count(f => f.Component == Components.ArcaneDimensions), "the update keeps AD recorded");
         True(File.Exists(Path.Combine(target, "ad", "pak0.pak")) && r2.ArcaneDimensionsSha256 == sha && r2.Choices.ArcaneDimensions, "and on disk, with its SHA-256");
-        Eq(AdAction.Keep, ArcaneDimensions.Plan(target, r2, pinnedFile, verify: false).Action, "same zip: kept");
-        Eq(AdAction.Replace, ArcaneDimensions.Plan(target, r2, new FeedFile { File = "x.zip", Size = 1, Sha256 = new string('d', 64) }, verify: false).Action, "another zip: replaced");
+        Eq(ModAction.Keep, ArcaneDimensions.Plan(target, r2, pinnedFile, verify: false).Action, "same zip: kept");
+        Eq(ModAction.Replace, ArcaneDimensions.Plan(target, r2, new FeedFile { File = "x.zip", Size = 1, Sha256 = new string('d', 64) }, verify: false).Action, "another zip: replaced");
         File.WriteAllText(Path.Combine(target, "ad", "quake.rc"), "damaged");
-        Eq(AdAction.Restore, ArcaneDimensions.Plan(target, r2, pinnedFile, verify: true).Action, "a repair restores");
+        Eq(ModAction.Restore, ArcaneDimensions.Plan(target, r2, pinnedFile, verify: true).Action, "a repair restores");
         var restored = ArcaneDimensions.AddAsync(http, target, pinnedFile, downloads, null, null, null, CancellationToken.None, 1).GetAwaiter().GetResult();
         True(restored.Installed && File.ReadAllText(Path.Combine(target, "ad", "quake.rc")) == "exec default.cfg", "restored from the downloaded zip: " + restored.Message);
-        Eq(AdAction.NotInstalled, ArcaneDimensions.Plan(Dir("adi-none"), new InstallRecord(), pinnedFile, verify: true).Action, "none installed");
+        Eq(ModAction.NotInstalled, ArcaneDimensions.Plan(Dir("adi-none"), new InstallRecord(), pinnedFile, verify: true).Action, "none installed");
 
         // A file of the player's in ad\ that Setup did not put there: never overwritten.
         var t2 = Path.Combine(run, "adi-own-QuakeVR");
@@ -1239,6 +1239,186 @@ var tests = new List<(string Name, Action Body)>
         Uninstaller.Uninstall(target, new UninstallOptions());
         True(!Directory.Exists(Path.Combine(target, "ad")), "uninstall removed ad\\");
         True(!Directory.Exists(target), "and the whole (empty) folder");
+    }),
+    ("dwell: the pin (built in = support_assets.json's thirdParty = DWELL.md's hosts in order), off by default, the feed's dwell wins", () =>
+    {
+        var pinned = BuiltInComponents.Dwell();
+        Eq("dwellv2p2.zip", pinned.File, "pinned file");
+        Eq(384_629_995L, pinned.Size, "pinned size");
+        Eq("15bbc5dc0eb3fee5763835cea1aa62ab263545ca8c04aaa019982d45d1e8d11d", pinned.Sha256, "pinned SHA-256");
+        Eq("www.quaddicted.com|www.quaddicted.com", string.Join("|", pinned.Mirrors.Select(u => u.Host)), "hosts in order");
+        True(pinned.Urls[0].EndsWith("/by-sha256/15/" + pinned.Sha256 + "/dwellv2p2.zip", StringComparison.Ordinal), "content-addressed first");
+        True(pinned.Urls[1].EndsWith("/filebase/dwellv2p2.zip", StringComparison.Ordinal), "the filebase second");
+        True(pinned.Urls.All(u => u.StartsWith("https://", StringComparison.Ordinal) && !u.Contains("github.com")), "the authors' archive only, never ours");
+        True(new InstallerSettings().Component(null, Components.Dwell) is { BuiltIn: true } d && d.File.Sha256 == pinned.Sha256, "the defaults: the pin");
+        True(!Dwell.OnByDefault, "off by default until Dwell's maps play (one constant: Dwell.OnByDefault)");
+        var repo = new DirectoryInfo(AppContext.BaseDirectory);
+        while (repo is not null && !File.Exists(Path.Combine(repo.FullName, "Misc", "release", "support_assets.json")))
+        {
+            repo = repo.Parent;
+        }
+        if (repo is not null)
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(File.ReadAllText(Path.Combine(repo.FullName, "Misc", "release", "support_assets.json")));
+            True(!doc.RootElement.GetProperty("files").TryGetProperty("dwell", out _), "Dwell is not one of our hosted support files");
+            var j = doc.RootElement.GetProperty("thirdParty").GetProperty("dwell");
+            Eq(pinned.File, j.GetProperty("file").GetString(), "support_assets.json's file");
+            Eq(pinned.Size, j.GetProperty("size").GetInt64(), "support_assets.json's size");
+            Eq(pinned.Sha256, j.GetProperty("sha256").GetString(), "support_assets.json's SHA-256");
+            Eq(string.Join("|", pinned.Urls), string.Join("|", j.GetProperty("mirrors").EnumerateArray().Select(m => m.GetString())), "support_assets.json's hosts");
+        }
+        var feed = ReleaseFeed.Parse($$"""
+            { "schema": 1, "version": "v9", "components": { "dwell": { "file": "dw.zip", "size": 3, "sha256": "{{new string('c', 64)}}", "urls": ["https://example.invalid/dw.zip"] } } }
+            """);
+        True(new InstallerSettings().Component(feed, Components.Dwell) is { BuiltIn: false } f && f.File.File == "dw.zip", "the feed's dwell wins");
+    }),
+    ("dwell: an existing copy (v2.2 used by its progs.dat hash, an older one or an incomplete one offers the download, dwell or dwellv2p2, the game's root order)", () =>
+    {
+        void MakeDwell(string root, string folder, string progs, bool pak = true)
+        {
+            var d = Path.Combine(root, folder);
+            Directory.CreateDirectory(d);
+            File.WriteAllText(Path.Combine(d, "progs.dat"), progs);
+            if (pak)
+            {
+                File.WriteAllText(Path.Combine(d, "pak0.pak"), "pak");
+            }
+        }
+        string Sha(string root, string folder) => PackageManifest.HashFile(Path.Combine(root, folder, "progs.dat"));
+        var steam = Dir("dw-steam-rerelease");
+        var quake = Dir("dw-quake");
+        True(Dwell.FindExisting(Dwell.SearchRoots([steam], quake)) is null, "none: null");
+        MakeDwell(quake, "dwell", "v2.2 progs");
+        var pin = Sha(quake, "dwell");
+        var roots = Dwell.SearchRoots([steam], quake);
+        var found = Dwell.FindExisting(roots, pin)!;
+        Eq(ModCopyState.Ready, found.State, "v2.2 in the Quake folder");
+        True(found.Usable && Dwell.Describe(found).Contains("will be used (nothing downloaded)"), "used in place");
+        Eq(ModCopyState.OtherVersion, Dwell.FindExisting(roots, new string('0', 64))!.State, "another progs.dat: an older version, reported not used");
+        True(!Dwell.FindExisting(roots, new string('0', 64))!.Usable && Dwell.Describe(Dwell.FindExisting(roots, new string('0', 64))!).Contains("isn't v2.2"), "and said so");
+        var alt = Dir("dw-quake-alt");
+        MakeDwell(alt, "dwellv2p2", "v2.2 progs");
+        Eq(ModCopyState.Ready, Dwell.FindExisting(Dwell.SearchRoots([], alt), pin)!.State, "the dwellv2p2 folder counts too");
+        var inc = Dir("dw-quake-inc");
+        MakeDwell(inc, "dwell", "v2.2 progs", pak: false);
+        Eq(ModCopyState.Incomplete, Dwell.FindExisting(Dwell.SearchRoots([], inc), pin)!.State, "no pak0.pak: incomplete");
+        var empty = Dir("dw-quake-empty");
+        Directory.CreateDirectory(Path.Combine(empty, "dwell", "music"));
+        True(Dwell.FindExisting(Dwell.SearchRoots([], empty), pin) is null, "a folder with none of its data: none");
+        // The game's order: the Quake folder (last) beats a store root.
+        MakeDwell(steam, "dwell", "another progs");
+        Eq(ModCopyState.Ready, Dwell.FindExisting(Dwell.SearchRoots([steam], quake), pin)!.State, "the highest-priority root's copy wins");
+        True(Dwell.FindExisting(Dwell.SearchRoots([steam], quake), pin)!.Folder.StartsWith(PathUtil.TryNormalize(quake)!, StringComparison.OrdinalIgnoreCase), "the Quake folder's");
+    }),
+    ("dwell: a sandboxed install of a Dwell-shaped zip (dwellv2p2/ becomes dwell/, READMEs kept, Track107 lower-cased, recorded; update keeps, repair restores, uninstall removes, AD unaffected)", () =>
+    {
+        var src = Dir("dwi-zip-src");
+        var top = Path.Combine(src, "dwellv2p2");
+        Directory.CreateDirectory(Path.Combine(top, "music"));
+        Directory.CreateDirectory(Path.Combine(top, "maps"));
+        File.WriteAllText(Path.Combine(top, "progs.dat"), "progs");
+        File.WriteAllText(Path.Combine(top, "pak0.pak"), "pak");
+        File.WriteAllText(Path.Combine(top, "quake.rc"), "exec default.cfg");
+        File.WriteAllText(Path.Combine(top, "music", "Track107.ogg"), "ogg107");
+        File.WriteAllText(Path.Combine(top, "music", "track101.ogg"), "ogg101");
+        File.WriteAllText(Path.Combine(top, "maps", "d1m1.bsp"), "bsp");
+        File.WriteAllText(Path.Combine(src, "README_dwellv2p2.txt"), "readme");
+        File.WriteAllText(Path.Combine(src, "README_changelist.txt"), "changes");
+        var zip = Fixtures.Zip(src, Path.Combine(run, "dwellv2p2.zip"));
+        var body = File.ReadAllBytes(zip);
+        var sha = Convert.ToHexStringLower(SHA256.HashData(body));
+        using var server = new LocalHttpServer();
+        server.Serve("quaddicted/dwellv2p2.zip", body);
+        var pinnedFile = new FeedFile { File = "dwellv2p2.zip", Size = body.Length, Sha256 = sha,
+            Urls = [server.Url("missing/dwellv2p2.zip").ToString(), server.Url("quaddicted/dwellv2p2.zip").ToString()] };
+        var quake = Dir("dwi-quake");
+        var target = Path.Combine(run, "dwi-QuakeVR");
+        var downloads = Dir("dwi-downloads");
+        new InstallEngine().Install(new InstallPlan { PackagePath = Fixtures.MakePackage(Dir("dwi-pkg1"), "1.0.0"), TargetDir = target, QuakeDir = quake }, null, CancellationToken.None);
+        var coreCount = InstallRecord.Load(target)!.Files.Count;
+        using var http = Downloader.CreateClient();
+        var outcome = Dwell.AddAsync(http, target, pinnedFile, downloads, null, null, null, CancellationToken.None, attemptsPerMirror: 1).GetAwaiter().GetResult();
+        True(outcome.Installed, outcome.Message);
+        foreach (var (name, content) in new[] { ("progs.dat", "progs"), ("pak0.pak", "pak"), ("quake.rc", "exec default.cfg"), ("maps/d1m1.bsp", "bsp"), ("music/track101.ogg", "ogg101"),
+                     ("music/track107.ogg", "ogg107"), (Dwell.ReadmeFile, "readme"), ("README_changelist.txt", "changes") })
+        {
+            var installed = Path.Combine(target, "dwell", name);
+            True(File.Exists(installed), $"dwell/{name} installed");
+            Eq(content, File.ReadAllText(installed), $"dwell/{name} unmodified");
+        }
+        True(!Directory.Exists(Path.Combine(target, "dwellv2p2")), "no dwellv2p2 folder in the install");
+        True(Directory.EnumerateFiles(Path.Combine(target, "dwell", "music")).Select(Path.GetFileName).Contains("track107.ogg", StringComparer.Ordinal), "Track107.ogg is lower case on disk");
+        var r = InstallRecord.Load(target)!;
+        Eq(8, r.Files.Count(f => f.Component == Components.Dwell), "8 Dwell files recorded");
+        True(r.Files.Any(f => f.Path == "dwell/music/track107.ogg"), "the renamed track recorded under its new name");
+        Eq(coreCount, r.Files.Count(f => f.Component != Components.Dwell), "the program files' records kept");
+        Eq(sha, r.DwellSha256, "its SHA-256 recorded");
+        True(r.Choices.Dwell && r.Directories.Contains("dwell") && !r.Choices.ArcaneDimensions && r.ArcaneDimensionsSha256 is null, "chosen, its folder recorded, AD untouched");
+        True(!Directory.EnumerateFiles(target, "*.qvrnew", SearchOption.AllDirectories).Any(), "no staging files left");
+
+        var wrongSize = Path.Combine(Dir("dwi-wrong"), "dwellv2p2.zip");
+        File.WriteAllBytes(wrongSize, body[..^1]);
+        True(Throws<InstallException>(() => Dwell.Install(target, wrongSize, pinnedFile, null, CancellationToken.None), "wrong size").Message.Contains("bytes"), "size checked first");
+        True(Throws<InstallException>(() => Dwell.Install(target, zip, BuiltInComponents.Dwell(), null, CancellationToken.None), "the real pin").Message.Contains("384629995 bytes"), "the real pin refuses a small zip");
+        // A zip that is not Dwell (no progs.dat) is refused even with a matching pin.
+        var other = Dir("dwi-other-src");
+        Directory.CreateDirectory(Path.Combine(other, "x"));
+        File.WriteAllText(Path.Combine(other, "x", "a.txt"), "a");
+        var otherZip = Fixtures.Zip(other, Path.Combine(run, "other.zip"));
+        var otherPin = new FeedFile { File = "other.zip", Size = new FileInfo(otherZip).Length, Sha256 = PackageManifest.HashFile(otherZip), Urls = ["https://example.invalid/other.zip"] };
+        True(Throws<InstallException>(() => Dwell.Install(target, otherZip, otherPin, null, CancellationToken.None), "not dwell").Message.Contains("not Dwell"), "no progs.dat: not Dwell");
+
+        var r2 = new InstallEngine().Install(new InstallPlan { Mode = InstallMode.Update, PackagePath = Fixtures.MakePackage(Dir("dwi-pkg2"), "1.1.0"), TargetDir = target, QuakeDir = quake }, null, CancellationToken.None);
+        Eq(8, r2.Files.Count(f => f.Component == Components.Dwell), "the update keeps Dwell recorded");
+        True(File.Exists(Path.Combine(target, "dwell", "pak0.pak")) && r2.DwellSha256 == sha && r2.Choices.Dwell, "and on disk, with its SHA-256");
+        Eq(ModAction.Keep, Dwell.Plan(target, r2, pinnedFile, verify: false).Action, "same zip: kept");
+        Eq(ModAction.Replace, Dwell.Plan(target, r2, new FeedFile { File = "x.zip", Size = 1, Sha256 = new string('d', 64) }, verify: false).Action, "another zip: replaced");
+        File.WriteAllText(Path.Combine(target, "dwell", "quake.rc"), "damaged");
+        Eq(ModAction.Restore, Dwell.Plan(target, r2, pinnedFile, verify: true).Action, "a repair restores");
+        var restored = Dwell.AddAsync(http, target, pinnedFile, downloads, null, null, null, CancellationToken.None, 1).GetAwaiter().GetResult();
+        True(restored.Installed && File.ReadAllText(Path.Combine(target, "dwell", "quake.rc")) == "exec default.cfg", "restored from the downloaded zip: " + restored.Message);
+        Eq(ModAction.NotInstalled, Dwell.Plan(Dir("dwi-none"), new InstallRecord(), pinnedFile, verify: true).Action, "none installed");
+
+        var t2 = Path.Combine(run, "dwi-own-QuakeVR");
+        new InstallEngine().Install(new InstallPlan { PackagePath = Fixtures.MakePackage(Dir("dwi-pkg3"), "1.0.0"), TargetDir = t2, QuakeDir = quake }, null, CancellationToken.None);
+        Directory.CreateDirectory(Path.Combine(t2, "dwell"));
+        File.WriteAllText(Path.Combine(t2, "dwell", "quake.rc"), "the player's own");
+        var own = Dwell.AddAsync(http, t2, pinnedFile, downloads, null, null, null, CancellationToken.None, 1).GetAwaiter().GetResult();
+        True(!own.Installed && own.Message.Contains("Setup did not put it there"), own.Message);
+        Eq("the player's own", File.ReadAllText(Path.Combine(t2, "dwell", "quake.rc")), "the player's file kept");
+        True(!File.Exists(Path.Combine(t2, "dwell", "pak0.pak")), "nothing of Dwell installed");
+
+        Uninstaller.Uninstall(target, new UninstallOptions());
+        True(!Directory.Exists(Path.Combine(target, "dwell")), "uninstall removed dwell\\");
+        True(!Directory.Exists(target), "and the whole (empty) folder");
+    }),
+    ("dwell: the real dwellv2p2.zip from the local downloads folder (no network): 447 files unpacked as released, Track107 lower-cased, hash-validated as existing", () =>
+    {
+        var real = "C:/OHWorkspace/qvr-kit/downloads/dwell/dwellv2p2.zip";
+        if (!File.Exists(real))
+        {
+            Console.WriteLine("    (skipped: the real zip is not in the local downloads folder)");
+            return;
+        }
+        var quake = Dir("dwr-quake");
+        var target = Path.Combine(run, "dwr-QuakeVR");
+        new InstallEngine().Install(new InstallPlan { PackagePath = Fixtures.MakePackage(Dir("dwr-pkg"), "1.0.0"), TargetDir = target, QuakeDir = quake }, null, CancellationToken.None);
+        using var http = Downloader.CreateClient();
+        var outcome = Dwell.AddAsync(http, target, BuiltInComponents.Dwell(), Dir("dwr-downloads"), real, null, null, CancellationToken.None, 1).GetAwaiter().GetResult();
+        True(outcome.Installed, outcome.Message);
+        var r = InstallRecord.Load(target)!;
+        var files = r.Files.Where(f => f.Component == Components.Dwell).ToList();
+        Eq(447, files.Count, "all 447 files recorded");
+        Eq(Dwell.InstalledSize, files.Sum(f => f.Size), "their size is Dwell.InstalledSize");
+        var folder = Path.Combine(target, "dwell");
+        Eq(Dwell.ProgsSha256, PackageManifest.HashFile(Path.Combine(folder, "progs.dat")), "progs.dat is v2.2's (the pinned hash)");
+        True(File.Exists(Path.Combine(folder, Dwell.ReadmeFile)) && File.Exists(Path.Combine(folder, "README_changelist.txt")), "READMEs kept");
+        True(Directory.EnumerateFiles(Path.Combine(folder, "music")).Select(Path.GetFileName).Contains("track107.ogg", StringComparer.Ordinal), "track107.ogg lower case");
+        True(!Directory.EnumerateFiles(Path.Combine(folder, "music")).Select(Path.GetFileName).Contains("Track107.ogg", StringComparer.Ordinal), "and no capitalised one");
+        // The installed copy is what "I already have it" accepts, from the Quake VR folder's root.
+        Eq(ModCopyState.Ready, Dwell.FindExisting(Dwell.SearchRoots([], target))!.State, "the real hash validates the real install");
+        Uninstaller.Uninstall(target, new UninstallOptions());
+        True(!Directory.Exists(folder), "uninstall removed dwell\\");
     }),
     ("arcane dimensions: a failed or cancelled download never fails the install", () =>
     {
