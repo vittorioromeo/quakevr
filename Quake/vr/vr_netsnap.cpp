@@ -1181,7 +1181,7 @@ bool serverSendsNow(client_t* client)
     const double hz = vr_net_sendhz.value;
     constexpr double frame = 1.0 / 72.0;
     if(hz <= 0.0 || hz >= 72.0 - 0.5 || vr_net_snapshots.value == 0.f || !client || !client->netconnection ||
-        strcmp(NET_QSocketGetAddressString(client->netconnection), "LOCAL") == 0)
+        SV_IsLocalClient(client))
     {
         return true;
     }
@@ -1215,7 +1215,7 @@ bool serverBegin(client_t* client)
     Building& b = building;
     b.on = false;
     if(vr_net_snapshots.value == 0.f || !client || !client->netconnection ||
-        strcmp(NET_QSocketGetAddressString(client->netconnection), "LOCAL") == 0)
+        SV_IsLocalClient(client))
     {
         return false;
     }

@@ -459,9 +459,9 @@ CLIENT SPAWNING
 ==============================================================================
 */
 
-static qboolean SV_IsLocalClient (client_t *client)
+qboolean SV_IsLocalClient (const client_t *client)
 {
-	return Q_strcmp (NET_QSocketGetAddressString (client->netconnection), "LOCAL") == 0;
+	return NET_QSocketIsLocal (client->netconnection); // QVR: (net_main.c: the one test)
 }
 
 /*
@@ -602,7 +602,7 @@ void SV_ConnectClient (int clientnum)
 			client->spawn_parms[i] = (&pr_global_struct->parm1)[i];
 		VR_StoreSpawnParms (clientnum); // QVR
 		// QVR: (B15) a player back in a coop game he left, by his name: his level-start parms (vr/vr_coopsave.cpp)
-		VR_CoopRejoinParms (clientnum, Q_strcmp (NET_QSocketGetAddressString (netconnection), "LOCAL") == 0 ? cl_name.string
+		VR_CoopRejoinParms (clientnum, NET_QSocketIsLocal (netconnection) ? cl_name.string
 			: NET_QSocketGetQvrName (netconnection), NET_QSocketGetQvrKey (netconnection));
 	}
 
@@ -636,7 +636,7 @@ void SV_CheckForNewClients (void)
 	//
 		// QVR: in a loaded coop game, the saved player's slot of his name (vr/vr_coopsave.cpp): a remote player's from
 		// his connect request, the host's own client's from his settings; the host's own client always slot 0
-		islocal = Q_strcmp (NET_QSocketGetAddressString (ret), "LOCAL") == 0;
+		islocal = NET_QSocketIsLocal (ret);
 		i = VR_CoopPickSlot (islocal ? cl_name.string : NET_QSocketGetQvrName (ret), NET_QSocketGetQvrKey (ret), islocal);
 		if (i < 0)
 			for (i=0 ; i<svs.maxclients ; i++)
@@ -1316,7 +1316,7 @@ qboolean SV_SendClientDatagram (client_t *client)
 	msg.cursize = 0;
 
 	//johnfitz -- if client is nonlocal, use smaller max size so packets aren't fragmented
-	if (Q_strcmp(NET_QSocketGetAddressString(client->netconnection), "LOCAL") != 0)
+	if (!SV_IsLocalClient (client))
 		msg.maxsize = DATAGRAM_MTU;
 	else // QVR: the loopback's one buffer takes this and the reliable message sent after it (whose overflow is a Sys_Error)
 		msg.maxsize = q_max (1024, q_min (msg.maxsize, NET_MAXMESSAGE - 16 - client->message.cursize));
@@ -1343,10 +1343,10 @@ qboolean SV_SendClientDatagram (client_t *client)
 	{
 		// QVR: as much of it as fits, whole messages (it was all or none: a frame of many effects lost them all); a
 		// remote client's only what he can see or hear (B13b: vr/vr_server.cpp)
-		VR_WriteBroadcast (&msg, Q_strcmp(NET_QSocketGetAddressString(client->netconnection), "LOCAL") == 0, client->edict);
+		VR_WriteBroadcast (&msg, SV_IsLocalClient (client), client->edict);
 	}
 	// QVR: the messages about entities it sees (armed humanoids' poses; all of them to the loopback client)
-	VR_WriteScoped (&msg, Q_strcmp(NET_QSocketGetAddressString(client->netconnection), "LOCAL") == 0, snap);
+	VR_WriteScoped (&msg, SV_IsLocalClient (client), snap);
 
 // send the datagram
 	if (NET_SendUnreliableMessage (client->netconnection, &msg) == -1)

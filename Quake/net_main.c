@@ -267,6 +267,13 @@ const char *NET_QSocketGetAddressString (const qsocket_t *s)
 	return s->address;
 }
 
+// QVR: the one test of "the listen host's own client": the loopback's server side, which net_loop.c names "LOCAL"
+// (its client side is "localhost"). SV_IsLocalClient for a client; this where only the socket is at hand.
+qboolean NET_QSocketIsLocal (const qsocket_t *s)
+{
+	return s && Q_strcmp (s->address, "LOCAL") == 0;
+}
+
 
 static void NET_Listen_f (void)
 {

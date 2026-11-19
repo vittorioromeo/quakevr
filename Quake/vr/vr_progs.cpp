@@ -359,7 +359,7 @@ int hostSlot()
     for(int i = 0; i < svs.maxclients; i++)
     {
         const qsocket_s* sock = svs.clients[i].netconnection;
-        if(sock && strcmp(NET_QSocketGetAddressString(sock), "LOCAL") == 0)
+        if(NET_QSocketIsLocal(sock))
         {
             return i;
         }

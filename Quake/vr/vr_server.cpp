@@ -1624,7 +1624,7 @@ namespace
 // (B28) The listen host's own client: the loopback's, whose server side's address is "LOCAL" (vr_netsnap.cpp's test).
 bool isHostsOwn(const client_t* client)
 {
-    return client->netconnection && strcmp(NET_QSocketGetAddressString(client->netconnection), "LOCAL") == 0;
+    return SV_IsLocalClient(client); // (NET_QSocketIsLocal: a client without a connection, a bot, is not)
 }
 
 } // namespace

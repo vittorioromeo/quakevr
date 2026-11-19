@@ -65,6 +65,7 @@ struct qsocket_s	*NET_Connect (const char *host);
 double NET_QSocketGetTime (const struct qsocket_s *sock);
 void NET_AcceptStale (struct qsocket_s *sock, int on); // QVR: (B20) its overtaken unreliable datagrams read all the same (net_stalemessage)
 const char *NET_QSocketGetAddressString (const struct qsocket_s *sock);
+qboolean NET_QSocketIsLocal (const struct qsocket_s *sock); // QVR: the loopback's server side, the listen host's own client (net_loop.c names it "LOCAL"); NULL: no
 const char *NET_QSocketGetQvrName (const struct qsocket_s *sock); // QVR: the name in its connect request
 const char *NET_QSocketGetQvrKey (const struct qsocket_s *sock); // QVR: the vr_mp_clientkey in its connect request ("": none)
 
