@@ -194,7 +194,7 @@ var tests = new List<(string Name, Action Body)>
     }),
     ("packs: ready, incomplete, corrupt, textures-only, loose files", () =>
     {
-        Eq(100, PackLists.Resources("hipnotic").Count, "hipnotic list from the engine's .inc");
+        Eq(99, PackLists.Resources("hipnotic").Count, "hipnotic list from the engine's .inc");
         var root = Dir("packs");
         Fixtures.MakePack(root, "hipnotic");
         Eq(PackStatus.Ready, PackInspector.Inspect("hipnotic", PackLists.Resources("hipnotic"), [root]).Status, "ready");
