@@ -508,4 +508,64 @@ void(entity p, float xRequest) DW_WeaponsTest =
     t.think = DW_WeaponsTest_Think;
     t.nextthink = time;
 };
+
+// vr_ad_test 210 (d2end, where the Sculptor's models are): the Sculptor's ring takes shots past its old 96-unit box and
+// shots between its stones fly on (DW_D2_FightBox, the precise hits on its model). A fighting Sculptor where the map's
+// waits, shot at from up to 400 units, turned three ways: a 17 x 17 grid of shots (MOVE_HITMODEL, as the guns) at the
+// plane through its middle, 16 units apart. Verdict `dwring: N passed, M failed`.
+void(entity p) DW_RingHitTest =
+{
+    VR_Test_BeginFlags("dwring", VR_TEST_LOUD);
+    entity e = spawn();
+    e.classname = "dw_ringtest";
+    e.flags = FL_MONSTER;
+    e.movetype = MOVETYPE_NOCLIP;
+    e.takedamage = DAMAGE_AIM;
+    setmodel(e, "progs/mon_d2bossb.mdl");
+    DW_D2_FightBox(e);
+    // where the map's Sculptor waits (its arena's open air), shot at from the clearest of 8 headings
+    entity boss = find(world, classname, "monster_d2boss");
+    vector at = boss ? boss.origin : p.origin + p.view_ofs;
+    float yaw, best = 0, bestYaw = 0;
+    for(yaw = 0; yaw < 360; yaw += 45)
+    {
+        makevectors('0 1 0' * yaw);
+        traceline(at, at - v_forward * 900, TRUE, p); // (no monsters)
+        if(trace_fraction * 900 > best) { best = trace_fraction * 900; bestYaw = yaw; }
+    }
+    makevectors('0 1 0' * bestYaw);
+    vector fw = v_forward, rt = v_right, up = '0 0 1';
+    float dist = min(400, best - 16);
+    VR_Test_Check(dist >= 200, sprintf("room for the ring: %g units clear at yaw %g", best, bestYaw));
+    vector eye = at - fw * dist;
+    setorigin(e, at);
+    float k;
+    for(k = 0; k < 3; k++)
+    {
+        e.angles = k == 0 ? '0 0 0' : k == 1 ? '0 90 0' : '-60 0 45';
+        float outer = 0, holes = 0, hits = 0, i, j;
+        for(i = -8; i <= 8; i++)
+        {
+            for(j = -8; j <= 8; j++)
+            {
+                vector to = e.origin + rt * (i * 16) + up * (j * 16);
+                traceline(eye, eye + (to - eye) * 1.5, MOVE_HITMODEL, p);
+                if(trace_ent == e)
+                {
+                    hits = hits + 1;
+                    if(fabs(i * 16) > 48 || fabs(j * 16) > 48) outer = outer + 1;
+                }
+                else if((trace_endpos - eye) * fw > dist + 8)
+                {
+                    holes = holes + 1; // (inside the box's reach, past the ring's plane: between its stones)
+                }
+            }
+        }
+        VR_Test_Check(outer > 0, sprintf("turned %v: %g of %g hits past the old box", e.angles, outer, hits));
+        VR_Test_Check(holes > 0, sprintf("turned %v: %g shots flew on through the box between its stones (its model, not "
+            "its box, is hit)", e.angles, holes));
+    }
+    remove(e);
+    VR_Test_Verdict();
+};
 #endif

@@ -394,11 +394,20 @@ void() dw_d2_think =
     }
 };
 
+// Its ring as the shots meet it (DWELL.md 9.7): Dwell ringed it with 50-odd small hit boxes so that its stones and
+// crystals take hits round its body, the gaps between them not. Our precise hits (vr_hitmodel.cpp) do that from the
+// model itself, inside the entity's box, so the box reaches the ring's rim whichever way it turns (120-140 units from
+// its middle); a shot between its stones meets no triangle and flies on. (It moves noclip: the box never stops it.)
+void(entity e) DW_D2_FightBox =
+{
+    e.solid = SOLID_BBOX;
+    setsize(e, '-144 -144 -144', '144 144 144');
+};
+
 void() dw_d2_wake =
 {
     dprint("dwboss: d2boss fight\n");
-    self.solid = SOLID_BBOX;
-    setsize(self, '-48 -48 -48', '48 48 48');
+    DW_D2_FightBox(self);
     self.attack_finished = time + 3;
     self.enemy = checkclient();
     dw_d2_fly();
