@@ -26,6 +26,7 @@
 #include "vr_gameplaypresets.hpp"
 #include "vr_presets.hpp"
 #include "vr_scenario.hpp"
+#include "vr_config.hpp"
 #include "vr_cvars.hpp"
 #include "vr_monstervalues.hpp"
 #include "vr_tunables.hpp"
@@ -2053,7 +2054,8 @@ void loadPositions()
 }
 
 // Built on first use (cvars looked up by name exist by then); items without their cvar dropped.
-// A setting changed from its default (a * by its label; Changed Settings): its value, or for text its string. The
+// A setting changed from its default (a * by its label; Changed Settings), as the config writer counts it (its value
+// within 1e-6, or for text its string: sameSettingValue; REVIEW_NEXT_2026-11-18.md, finding 13). The
 // menus' own state (the weapon pages' hotspot and holster picked) and the presets (whose settings show it themselves)
 // aren't. A weapon's or prop's value (slotValue): its default is that slot's own (weapons.txt's, props.txt's).
 bool changedSetting(const cvar_t& var)
@@ -2064,16 +2066,7 @@ bool changedSetting(const cvar_t& var)
     {
         return false;
     }
-    char* end = nullptr;
-    const double v = strtod(var.string, &end);
-    const bool number = end != var.string && *end == '\0';
-    char* defEnd = nullptr;
-    const double d = strtod(var.default_string, &defEnd);
-    if(number && defEnd != var.default_string && *defEnd == '\0')
-    {
-        return static_cast<float>(v) != static_cast<float>(d);
-    }
-    return strcmp(var.string, var.default_string) != 0;
+    return !sameSettingValue(var.string, var.default_string); // (the config's test: changed here is a line there)
 }
 
 // Reset This Page (the footer): armed by a first press, done by a second within 3 seconds (MenuInstance::resetArmed*).
@@ -3123,7 +3116,7 @@ void resetAll()
     for(cvar_t* var : reset)
     {
         if(var->default_string && !keptOnResetAll(*var) && !serverrules::locked(var) &&
-            strcmp(var->string, var->default_string) != 0)
+            !sameSettingValue(var->string, var->default_string)) // ("0.50" is its "0.5": not counted, as not saved)
         {
             Con_DPrintf("Reset All to Defaults: %s \"%s\" (was \"%s\")\n", var->name, var->default_string, var->string);
             Cvar_SetQuick(var, var->default_string);
@@ -5014,6 +5007,75 @@ void anchorTest()
     tally.verdict("menu_anchor_test");
 }
 
+// menu_vr changedtest (Misc/quakevr/menu_changed_test.sh; REVIEW_NEXT_2026-11-18.md, finding 13): the menu's "changed"
+// is the config's (sameSettingValue). A setting 1e-7 off its default (a line the config doesn't write) has no * and is
+// not on Changed Settings; its default's number in other text ("0.50" for "0.5") is not changed either, and Reset All
+// leaves it so (not counted) while it puts a changed one back. Two plain VR settings (no callback) found on the VR
+// Settings' pages; every setting Reset All touches is a test run's. Ends "menu_changed_test: N passed, M failed".
+void changedTest()
+{
+    testkit::Tally tally;
+    char line[256];
+    const auto check = [&tally](bool ok, const char* what) {
+        if(tally.check(ok, "menu_changed_test", what))
+        {
+            Con_Printf("menu_changed_test: PASS %s\n", what);
+        }
+    };
+    cvar_t* vars[2] = {};
+    for(int p = 0; p < pageCount && !vars[1]; p++)
+    {
+        if(!vrSettingsPage(p))
+        {
+            continue;
+        }
+        for(const Item& item : items(p))
+        {
+            cvar_t* var = item.kind == Item::Action ? nullptr : item.cvar;
+            char* end = nullptr;
+            const double d = var && var->default_string ? strtod(var->default_string, &end) : 0.0;
+            if(!var || vars[1] || var == vars[0] || var->callback || wrapperCvar(*var) || keptOnResetAll(*var) ||
+                serverrules::locked(var) || !end || end == var->default_string || *end || za::abs(d) > 100.0 ||
+                strcmp(var->string, var->default_string) != 0 || q_strncasecmp(var->name, "vr_", 3))
+            {
+                continue;
+            }
+            vars[vars[0] ? 1 : 0] = var;
+        }
+    }
+    check(vars[0] && vars[1], "two plain VR settings at their defaults");
+    if(!vars[0] || !vars[1])
+    {
+        tally.verdict("menu_changed_test");
+        return;
+    }
+    cvar_t& a = *vars[0];
+    cvar_t& b = *vars[1];
+    const auto listed = [](const cvar_t* var) {
+        const za::Vector<Item> list = pageChanged();
+        return za::anyOf(list.begin(), list.end(), [var](const Item& item) { return item.cvar == var; });
+    };
+
+    Cvar_SetQuick(&a, va("%.9g", Q_atof(a.default_string) + 1e-7));
+    q_snprintf(line, sizeof(line), "%s \"%s\" (default \"%s\"): not saved, no *, not on Changed Settings", a.name, a.string,
+        a.default_string);
+    check(!VR_ConfigSaves(&a) && !changedSetting(a) && !listed(&a), line);
+
+    const za::String other = za::String{a.default_string} + (strchr(a.default_string, '.') ? "0" : ".0");
+    Cvar_SetQuick(&a, other.cStr());
+    Cvar_SetQuick(&b, va("%g", Q_atof(b.default_string) + 1.5));
+    q_snprintf(line, sizeof(line), "%s \"%s\": not changed; %s \"%s\": changed and listed", a.name, a.string, b.name, b.string);
+    check(!changedSetting(a) && !listed(&a) && changedSetting(b) && listed(&b), line);
+    resetAll();
+    resetAll(); // (pressed twice)
+    q_snprintf(line, sizeof(line), "Reset All: %s kept \"%s\" (the same number), %s back to \"%s\"", a.name, a.string,
+        b.name, b.string);
+    check(!strcmp(a.string, other.cStr()) && !strcmp(b.string, b.default_string), line);
+
+    Cvar_SetQuick(&a, a.default_string);
+    tally.verdict("menu_changed_test");
+}
+
 // menu_vr pageresettest (Misc/quakevr/menu_pagereset_test.sh; ROUND25.md, "Reset This Page and changes on the weapon and
 // prop pages"): the weapon pages pinned to the shotgun's slot (no game needed), its hotspot 1 X changed (and, to stay:
 // its hotspot 2 X, its Shot Pitch on another page, the nailgun's hotspot 1 X): the * by the row, the row on Changed
@@ -5416,6 +5478,11 @@ void qvr::menu::command_f()
     if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "rows"))
     {
         printRows();
+        return;
+    }
+    if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "changedtest"))
+    {
+        changedTest();
         return;
     }
     if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "anchortest"))
