@@ -364,7 +364,7 @@ The client reads the local server:
 | P2-3 | Prop smoothing: snapshot or quaternion interpolation with render delay; delta-compress `U_QVR_*`; resend props only when changed. | M |
 | P2-4 | Quantize the `clc_move` VR block (291 → about 150 B). | S |
 | P2-5 | Haptics: continuous buzzes unreliable. Climb hold stats: unreliable or event-based. | S |
-| P2-6 | Anti-cheat caps: throw speed, hotspot distance, hand distance from head. | S |
+| P2-6 | Anti-cheat caps: throw speed, hotspot distance, hand distance from head. **Done 2026-11-19** (`vr_moveguard.hpp`: places, speeds, the room-scale walk's budget, fists, grab spots, the rewind; REVIEW_MP_2026-11-18 finding 1). | S |
 | P3 | Debris in multiplayer: decided and classified (2026-10-06, "Debris and effects"). Left: resting-piece baselines (`vr_debris_mp_max` defaults to single player's, 2026-10-06); force-grabbing world weapons in multiplayer. | M |
 
 Sizes: S < 1 day, M 1-3 days, L 4-7 days, XL > 1 week. The estimates are rough.
