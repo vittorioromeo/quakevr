@@ -175,6 +175,15 @@ the profiler's open scopes. A new begin/end pair or flag that QuakeC can run ins
 `<system>::onHostError()` in its list); a lock gets none: take it after the QuakeC call, or copy what it guards first.
 `vr_hosterror_test` checks the list (a QuakeC error raised inside an open pair).
 
+**The sound's channels are the mixer's while a mix is on the pool.** The frame's mix runs on a worker while the screen
+draws (snd_dma.c `S_MixKick`, until the next `S_MixJoin`): main-thread code reads `snd_channels`, `paintedtime` or
+`soundtime`, or a `channel_t` it kept, only after `S_MixJoin ()` (every sound entry point joins: `S_StartSound`,
+`S_Update`, ...; hooks called from them run joined). The mixer's own hooks (`VR_SndPaint` and the rest: vr_audio.cpp's
+head says which runs where) read them on either thread. In development builds (every build but a release) q_sound.h
+checks each read of those names in the VR module's C++ (`S_MixCheckAt`): one on the main thread with a mix posted
+ends the game with the crash report naming its file and line (`vr_snd_mixcheck_test` proves the check; `fatal` makes
+it end the game on purpose). A channel kept by pointer is not checked, nor Ironwail's own C (it joins by hand).
+
 ## GL objects
 
 GL names are plain ids (`gfx::Texture`, `gfx::Target`: no destructor), made and deleted by their system's functions
