@@ -46,7 +46,7 @@ void stop();
 
 // Once a frame (vr_main.cpp): the placing once the map is in, the hint, vr_scenario runall's steps.
 void frame();
-// The server's world reset (vr_progs.cpp resetServerWorld): another map or a load ends the test (not its own load).
+// The server's world reset (its mem::Reset, last): another map or a load ends the test (not its own load).
 void worldReset();
 // A run about to set its choices (the Run Setup's Start, a new game's mutators, a save's run: vr_runsetup.cpp): a test
 // running (not one loading its own map) ends first, its settings put back now, before the run's are set; else

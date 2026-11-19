@@ -18,6 +18,8 @@
 #include "vr_seated.hpp"
 #include "vr_weapons.hpp"
 
+#include "Zancle/Algorithm/Sort.hpp"
+#include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -25,7 +27,6 @@
 #include "Zancle/String/StringView.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Vocabulary/Span.hpp"
-#include "vr_zancle.hpp"
 #include "vr_api.h"
 
 #include <algorithm>
@@ -570,9 +571,13 @@ const FullConfigChange fullConfigChanges[] = {
 // (resetOldConfig), not migrated; its changes' rows were dropped (122 was the cut until then, 1.0.0's).
 constexpr int oldestMigrated = 126;
 
-// Two settings' values the same (as numbers when both are).
+// Two settings' values the same (as numbers when both are; the same text always, "nan" too).
 [[nodiscard]] bool sameValue(const char* a, const char* b)
 {
+    if(!strcmp(a, b))
+    {
+        return true; // (most calls: the config's tracking compares every archived setting at each menu close)
+    }
     char* endA;
     char* endB;
     const double x = strtod(a, &endA);
@@ -584,6 +589,30 @@ constexpr int oldestMigrated = 126;
     return !strcmp(a, b);
 }
 
+// (The settings by name, looked up by a cvar's own name: no za::String made of it.)
+struct NameHash
+{
+    using is_transparent = void;
+    using is_avalanching = void;
+    [[nodiscard]] za::U64 operator()(za::StringView name) const noexcept
+    {
+        return ankerl::unordered_dense::hash<za::StringView>{}(name);
+    }
+};
+struct NameEqual
+{
+    using is_transparent = void;
+    [[nodiscard]] bool operator()(za::StringView a, za::StringView b) const noexcept { return a == b; }
+};
+using SettingsMap = ankerl::unordered_dense::map<za::String, za::String, NameHash, NameEqual>;
+
+// A value of the config's that its write changes (VR_ConfigNoteWrite, kept by VR_ConfigWritten once the file is in place).
+struct WrittenValue
+{
+    za::String name;
+    za::String value;
+};
+
 // Two copies of the game on one config (ROUND21.md, "Debug menu; quad sound; grenade catch default; no empty-hand
 // deflection"): each writes every archived setting when it quits, as it has them, so the copy that quits last undid the
 // other's changes. The author's Catch Grenades went back to "Ogres'" that way: a copy started from TrenchBroom (vrwip,
@@ -591,12 +620,22 @@ constexpr int oldestMigrated = 126;
 // Now a copy writing the config merges it, setting by setting: one changed in the file since this copy read it (by
 // another copy) and left alone here takes the file's value; one changed here is written as it is here (both changed:
 // this copy's, the last). Tracked from the load of the game folder's config (vr_migrate_config), and after each write.
+// Since 2026-11-19 (REVIEW_NEXT_2026-11-18.md, finding 4) the tracking is read from the file only at the config's load:
+// a menu's close compares the settings with `here` where they are (no map of them made), and a write updates `file` and
+// `here` with what it wrote and what is set (no read back). A write that fails leaves both as they were: the next
+// close finds the same settings changed and writes again.
 struct ConfigTrack
 {
     bool on = false;
     za::String gamedir;
-    ankerl::unordered_dense::map<za::String, za::String> file; // the archived settings in the config, as read or written
-    ankerl::unordered_dense::map<za::String, za::String> here; // this copy's values then
+    SettingsMap file; // the archived settings in the config, as read or written
+    SettingsMap here; // this copy's values then
+    // The archived settings whose name another has too (a stand-in's old cvar name registered as a cvar: none today), in
+    // forEachArchived's order: the last one is the setting `here` holds (archivedSettings), a sparse config's missing line
+    // the first one's default (readConfigSettings). Found at the config's load (no cvar registered later can take a
+    // name a stand-in has: Cvar_RegisterVariable refuses it).
+    za::Vector<const cvar_t*> sharedNames;
+    za::Vector<WrittenValue> written; // the write under way's changes to `file` (VR_ConfigNoteWrite)
 };
 ConfigTrack configTrack;
 
@@ -675,10 +714,65 @@ template <typename Fn>
     return true;
 }
 
-// The archived settings a config file sets (a sparse config's vr_ settings without a line: their defaults).
-[[nodiscard]] ankerl::unordered_dense::map<za::String, za::String> readConfigSettings(const char* path)
+// Every archived setting, in one order: the registered cvars by name, then each data table's stand-ins. fn(var, standIn).
+template <typename Fn>
+void forEachArchived(Fn&& fn)
 {
-    ankerl::unordered_dense::map<za::String, za::String> settings;
+    for(const cvar_t* var = Cvar_FindVarAfter("", CVAR_ARCHIVE); var; var = var->next) // (the list is sorted by now)
+    {
+        if(var->flags & CVAR_ARCHIVE)
+        {
+            fn(*var, false);
+        }
+    }
+    for(const za::Span<cvar_t> table : standInTables())
+    {
+        for(const cvar_t& var : table)
+        {
+            fn(var, true);
+        }
+    }
+}
+
+// The last of the archived settings named as `var` is (the one archivedSettings' map keeps), or not.
+[[nodiscard]] bool lastOfName(const cvar_t& var)
+{
+    bool after = false;
+    for(const cvar_t* other : configTrack.sharedNames)
+    {
+        if(other == &var)
+        {
+            after = true;
+        }
+        else if(after && !strcmp(other->name, var.name))
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+// The first (whose default readConfigSettings takes for a missing line), or not.
+[[nodiscard]] bool firstOfName(const cvar_t& var)
+{
+    for(const cvar_t* other : configTrack.sharedNames)
+    {
+        if(other == &var)
+        {
+            return true;
+        }
+        if(!strcmp(other->name, var.name))
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+// The archived settings a config file sets (a sparse config's vr_ settings without a line: their defaults).
+[[nodiscard]] SettingsMap readConfigSettings(const char* path)
+{
+    SettingsMap settings;
     const bool read = forEachConfigLine(path,
         [&settings](const za::String& name, const za::String& value)
         {
@@ -710,21 +804,31 @@ template <typename Fn>
     return settings;
 }
 
-[[nodiscard]] ankerl::unordered_dense::map<za::String, za::String> archivedSettings()
+// Every archived setting's value by its name (a name two have: the last's). The tracking's at the config's load, and
+// vr_config_test's reference (configChangedCountByMap: the no-change test as it was, every close, until 2026-11-19).
+[[nodiscard]] SettingsMap archivedSettings()
 {
-    ankerl::unordered_dense::map<za::String, za::String> settings;
-    for(const cvar_t* var = Cvar_FindVarAfter("", CVAR_ARCHIVE); var; var = Cvar_FindVarAfter(var->name, CVAR_ARCHIVE))
-    {
-        settings[var->name] = var->string;
-    }
-    for(const za::Span<cvar_t> table : standInTables())
-    {
-        for(const cvar_t& var : table)
-        {
-            settings[var.name] = var.string;
-        }
-    }
+    SettingsMap settings;
+    forEachArchived([&settings](const cvar_t& var, bool) { settings[za::String{var.name}] = var.string; });
     return settings;
+}
+
+// configTrack.sharedNames found again (each archived setting's name counted in a map's places).
+void findSharedNames()
+{
+    za::Vector<int> count;
+    count.resize(configTrack.here.size(), 0);
+    forEachArchived([&count](const cvar_t& var, bool) {
+        const auto it = configTrack.here.find(za::StringView{var.name});
+        count[static_cast<za::SizeT>(it - configTrack.here.begin())]++;
+    });
+    configTrack.sharedNames.clear();
+    forEachArchived([&count](const cvar_t& var, bool) {
+        if(count[static_cast<za::SizeT>(configTrack.here.find(za::StringView{var.name}) - configTrack.here.begin())] > 1)
+        {
+            configTrack.sharedNames.pushBack(&var);
+        }
+    });
 }
 
 void trackConfig(const char* path)
@@ -733,6 +837,22 @@ void trackConfig(const char* path)
     configTrack.gamedir = com_gamedir;
     configTrack.file = readConfigSettings(path);
     configTrack.here = archivedSettings();
+    configTrack.written.clear();
+    findSharedNames();
+}
+
+// The archived settings changed since the config was last read or written (each name once: by its last setting's value).
+[[nodiscard]] int changedSinceTracked()
+{
+    int changed = 0;
+    forEachArchived([&changed](const cvar_t& var, bool) {
+        const auto was = configTrack.here.find(za::StringView{var.name});
+        if(was == configTrack.here.end() || !sameValue(was->second.cStr(), var.string))
+        {
+            changed += lastOfName(var) ? 1 : 0;
+        }
+    });
+    return changed;
 }
 
 void migrateConfig();
@@ -944,6 +1064,12 @@ void default_f()
     if(!var)
     {
         Con_Printf("vr_default: no cvar \"%s\"\n", Cmd_Argv(1));
+        return;
+    }
+    if(!(var->flags & CVAR_REGISTERED))
+    {
+        // A data table's stand-in (VR_CvarStandIn): its default is its table's own string, not a zone block to free.
+        Con_Printf("vr_default: \"%s\" is a data table's value (its default is in quakevr/data)\n", var->name);
         return;
     }
     if(ZA_STRNCMP(var->name, "vr_", 3) != 0)
@@ -1526,36 +1652,141 @@ extern "C" void VR_ConfigMergeOthers(const char* path)
     {
         return;
     }
-    const auto settings = readConfigSettings(path);
-    for(const auto* setting : qza::sortedByKey(settings)) // (in the names' order, as a std::map had them)
-    {
-        const auto& [name, value] = *setting;
-        const auto was = configTrack.file.find(name);
-        if(was != configTrack.file.end() && sameValue(was->second.cStr(), value.cStr()))
+    // The file's lines by their settings' names (an old name: the new; a name given twice: the last line).
+    SettingsMap lines;
+    const bool read = forEachConfigLine(path, [&lines](const za::String& name, const za::String& value) {
+        const cvar_t* var = Cvar_FindVar(name.cStr());
+        if(var && (var->flags & CVAR_ARCHIVE))
         {
-            continue; // not changed in the file
+            lines[za::String{var->name}] = value;
         }
-        cvar_t* var = Cvar_FindVar(name.cStr());
-        const auto here = configTrack.here.find(name);
+    });
+    if(!read)
+    {
+        return;
+    }
+    // The settings the file holds otherwise than this copy last read or wrote there: a line's, or a sparse config's
+    // vr_ setting with none (its default). Only those are sorted and looked at.
+    struct Changed
+    {
+        const char* name;
+        const char* value;
+    };
+    za::Vector<Changed> changed;
+    const auto note = [&changed](const char* name, const char* value) {
+        const auto was = configTrack.file.find(za::StringView{name});
+        if(was == configTrack.file.end() || !sameValue(was->second.cStr(), value))
+        {
+            changed.pushBack({name, value});
+        }
+    };
+    for(const auto& [name, value] : lines)
+    {
+        note(name.cStr(), value.cStr());
+    }
+    forEachArchived([&lines, &note](const cvar_t& var, bool standIn) {
+        if((standIn || inSparseConfig(&var)) && firstOfName(var) && lines.find(za::StringView{var.name}) == lines.end())
+        {
+            note(var.name, var.default_string ? var.default_string : "");
+        }
+    });
+    za::quickSort(changed.begin(), changed.end(), [](const Changed& a, const Changed& b) { return strcmp(a.name, b.name) < 0; });
+    for(const Changed& c : changed) // (in the names' order, as a std::map had them)
+    {
+        cvar_t* var = Cvar_FindVar(c.name);
+        const auto here = configTrack.here.find(za::StringView{c.name});
         if(!var || (var->flags & (CVAR_ROM | CVAR_LOCKED)) || here == configTrack.here.end()
-           || !sameValue(here->second.cStr(), var->string) || sameValue(var->string, value.cStr()))
+           || !sameValue(here->second.cStr(), var->string) || sameValue(var->string, c.value))
         {
             continue; // changed here too (this copy's wins), or already the same
         }
-        Con_Printf("%s \"%s\": from another copy of the game (this one left it at \"%s\")\n", name.cStr(), value.cStr(),
-            var->string);
-        Cvar_SetQuick(var, value.cStr());
+        Con_Printf("%s \"%s\": from another copy of the game (this one left it at \"%s\")\n", c.name, c.value, var->string);
+        Cvar_SetQuick(var, c.value);
     }
 }
 
-// After it is written: what the file holds now is this copy's.
+// Host_WriteConfigurationToFile, the game folder's config just written to its temporary file (a test scene's settings
+// still as written: VR_ScenarioConfigWrite): the file's settings that the write changed, as readConfigSettings will read
+// them (a line's value, or a sparse config's default), kept for VR_ConfigWritten.
+extern "C" void VR_ConfigNoteWrite()
+{
+    using namespace qvr;
+    configTrack.written.clear();
+    if(!configTrack.on || configTrack.gamedir != com_gamedir)
+    {
+        return;
+    }
+    // A setting's value in the file: its line's (Cvar_WriteVariables, VR_ConfigWriteTables), or its default's (none).
+    const auto lined = [](const cvar_t& var, bool standIn) {
+        return standIn ? !sameValue(var.string, var.default_string) : VR_ConfigSaves(&var) != 0;
+    };
+    const auto isStandIn = [](const cvar_t* var) {
+        for(const za::Span<cvar_t> table : standInTables())
+        {
+            if(var >= table.data() && var < table.data() + table.size())
+            {
+                return true;
+            }
+        }
+        return false;
+    };
+    forEachArchived([&](const cvar_t& var, bool standIn) {
+        const char* value = lined(var, standIn) ? var.string : var.default_string;
+        if(!configTrack.sharedNames.empty() && !lastOfName(var))
+        {
+            return; // (a name two settings have: once, at the last)
+        }
+        if(!configTrack.sharedNames.empty() && !firstOfName(var))
+        {
+            // The last line of the name (the settings' lines in this order), else the first setting's default.
+            const char* line = nullptr;
+            const char* first = nullptr;
+            for(const cvar_t* other : configTrack.sharedNames)
+            {
+                if(!strcmp(other->name, var.name))
+                {
+                    first = first ? first : other->default_string;
+                    line = lined(*other, isStandIn(other)) ? other->string : line;
+                }
+            }
+            value = line ? line : first;
+        }
+        value = value ? value : "";
+        const auto was = configTrack.file.find(za::StringView{var.name});
+        if(was == configTrack.file.end() || !sameValue(was->second.cStr(), value))
+        {
+            configTrack.written.pushBack({za::String{var.name}, za::String{value}});
+        }
+    });
+}
+
+// After it is written (it is in place): what the file holds now is this copy's. Not called when the write failed: the
+// tracking then still finds the settings changed since the last write, and the next close writes them again.
 extern "C" void VR_ConfigWritten(const char* path)
 {
     using namespace qvr;
-    if(configTrack.on && configTrack.gamedir == com_gamedir)
+    (void)path;
+    if(!configTrack.on || configTrack.gamedir != com_gamedir)
     {
-        trackConfig(path);
+        return;
     }
+    for(WrittenValue& w : configTrack.written)
+    {
+        configTrack.file[ZA_MOVE(w.name)] = ZA_MOVE(w.value);
+    }
+    configTrack.written.clear();
+    // (In the settings' order, each one's text assigned: a name two have ends on the last one's, as archivedSettings.)
+    forEachArchived([](const cvar_t& var, bool) {
+        const auto was = configTrack.here.find(za::StringView{var.name});
+        if(was == configTrack.here.end())
+        {
+            configTrack.here.try_emplace(za::String{var.name}, var.string); // (registered since)
+        }
+        else if(strcmp(was->second.cStr(), var.string) != 0)
+        {
+            was->second = var.string;
+        }
+    });
 }
 
 // Cvar_WriteVariables: a sparse config's line for an archived setting (inSparseConfig).
@@ -1631,16 +1862,70 @@ void saveConfigNow()
     {
         return;
     }
+    const int changed = changedSinceTracked();
+    if(changed > 0)
+    {
+        Con_DPrintf("config: %d setting%s changed, saved\n", changed, changed == 1 ? "" : "s");
+        Host_WriteConfiguration();
+    }
+}
+
+int configChangedCount()
+{
+    return configTrack.on ? changedSinceTracked() : 0;
+}
+
+int configChangedCountByMap()
+{
+    if(!configTrack.on)
+    {
+        return 0;
+    }
     int changed = 0;
     for(const auto& [name, value] : archivedSettings())
     {
         const auto was = configTrack.here.find(name);
         changed += was == configTrack.here.end() || !sameValue(was->second.cStr(), value.cStr()) ? 1 : 0;
     }
-    if(changed > 0)
+    return changed;
+}
+
+ConfigTrackCheck configTrackCheck(const char* path)
+{
+    ConfigTrackCheck check;
+    check.on = configTrack.on && configTrack.gamedir == com_gamedir;
+    check.sharedNames = static_cast<int>(configTrack.sharedNames.size());
+    // Each map against the other both ways (a name only in one: differs).
+    const auto compare = [](const SettingsMap& tracked, const SettingsMap& fresh, int& differ, za::String& first) {
+        const auto note = [&](const za::String& name) {
+            first = differ++ == 0 ? name : first;
+        };
+        for(const auto& [name, value] : fresh)
+        {
+            const auto was = tracked.find(name);
+            if(was == tracked.end() || !sameValue(was->second.cStr(), value.cStr()))
+            {
+                note(name);
+            }
+        }
+        for(const auto& [name, value] : tracked)
+        {
+            if(fresh.find(name) == fresh.end())
+            {
+                note(name);
+            }
+        }
+    };
+    compare(configTrack.file, readConfigSettings(path), check.fileDiffers, check.firstFile);
+    compare(configTrack.here, archivedSettings(), check.hereDiffers, check.firstHere);
+    return check;
+}
+
+void configTrackAgain(const char* path)
+{
+    if(configTrack.on && configTrack.gamedir == com_gamedir)
     {
-        Con_DPrintf("config: %d setting%s changed, saved\n", changed, changed == 1 ? "" : "s");
-        Host_WriteConfiguration();
+        trackConfig(path);
     }
 }
 
@@ -1660,19 +1945,48 @@ void configFrame()
     wasOpen = open;
 }
 
-cvars::Override::Override(cvar_t& var, float value) : var(var), was(var.string)
+namespace
 {
+cvars::Override* newestOverride = nullptr; // the Overrides alive, newest first (Override::older): the main thread's
+} // namespace
+
+cvars::Override::Override(cvar_t& var, float value) : var(var), was(var.string), older(newestOverride)
+{
+    newestOverride = this;
     Cvar_SetValueQuick(&var, value);
 }
 
-cvars::Override::Override(cvar_t& var, const char* value) : var(var), was(var.string)
+cvars::Override::Override(cvar_t& var, const char* value) : var(var), was(var.string), older(newestOverride)
 {
+    newestOverride = this;
     Cvar_SetQuick(&var, value);
 }
 
 cvars::Override::~Override()
 {
     Cvar_SetQuick(&var, was.cStr());
+    Override** link = &newestOverride; // (the newest, unless one was ended out of order: za::Optional's reset)
+    while(*link && *link != this)
+    {
+        link = &(*link)->older;
+    }
+    if(*link)
+    {
+        *link = older;
+    }
+}
+
+int cvars::Override::putBackAll()
+{
+    int n = 0;
+    while(Override* o = newestOverride)
+    {
+        Con_Printf("Host_Error: %s put back to \"%s\" (a cvars::Override the error jumped out of)\n", o->var.name,
+            o->was.cStr());
+        o->~Override(); // its scope's end, which the longjmp skips: the value back, its string freed, out of the list
+        ++n;
+    }
+    return n;
 }
 
 void cvars::Snapshot::keep(cvar_t& var)

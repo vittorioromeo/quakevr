@@ -10,6 +10,7 @@
 #include "vr_engine.hpp"
 #include "vr_geom.hpp"
 #include "vr_hull.hpp"
+#include "vr_mem.hpp"
 #include "vr_progs.hpp"
 #include "vr_slidesound.hpp"
 #include "vr_testkit.hpp"
@@ -600,6 +601,18 @@ Slide& state(int num)
 {
     return server.slide[num >= 0 && num < slots ? num : 0];
 }
+
+void resetServer()
+{
+    server = ServerState{};
+}
+
+namespace
+{
+// Forgotten with the server's world (vr_mem.hpp's resets): by client number, a slide held through a load or a restart
+// doesn't carry on.
+mem::Reset serverWorldReset{"slide", mem::ResetEvent::ServerWorld, mem::ResetPhase::State, &resetServer};
+} // namespace
 
 int clientSlot(const edict_t* ent)
 {

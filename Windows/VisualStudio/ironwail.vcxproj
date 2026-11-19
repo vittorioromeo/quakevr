@@ -405,6 +405,9 @@ copy "$(SolutionDir)..\zlib\$(PlatformShortName)\*.dll" "$(TargetDir)"</Command>
   </PropertyGroup>
   <ItemGroup>
     <QvrQcSource Include="$(QvrQcDir)\**\*.qc;$(QvrQcDir)\progs.src" />
+    <!-- The engine's headers the QC includes (#include "../Quake/vr/..."): the weapon ids and the *_shared.h tables. A
+         change to one compiles the QC again, or the engine and progs.dat disagree (as Misc/cmake/QuakeC.cmake). -->
+    <QvrQcSource Include="$(MSBuildProjectDirectory)\..\..\Quake\vr\*_shared.h;$(MSBuildProjectDirectory)\..\..\Quake\vr\vr_weapon_ids.h" />
   </ItemGroup>
   <Target Name="QvrCompileQC" BeforeTargets="ClCompile" Inputs="@(QvrQcSource)" Outputs="$(QvrProgsDat)">
     <Warning Condition="!Exists('$(QvrQcCompiler)')" Text="QuakeC compiler not found at $(QvrQcCompiler): progs.dat not rebuilt (set QvrQcCompiler)" />

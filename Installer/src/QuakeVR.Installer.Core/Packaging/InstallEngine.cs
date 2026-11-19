@@ -359,6 +359,7 @@ public sealed class InstallEngine
                     FlatShortcut = keepShortcuts ? old!.Choices.FlatShortcut : plan.Shortcuts.Flat,
                     LogShortcut = keepShortcuts ? old!.Choices.LogShortcut : plan.Shortcuts.Log,
                     ArcaneDimensions = old?.Choices.ArcaneDimensions ?? false,
+                    Dwell = old?.Choices.Dwell ?? false,
                 },
                 RelightPending = relight,
                 HdTexturesFile = plan.HdTexturesZip is not null ? Path.GetFileName(plan.HdTexturesZip) : old?.HdTexturesFile,
@@ -366,6 +367,9 @@ public sealed class InstallEngine
                 // Arcane Dimensions: its own step after this one (ArcaneDimensions.Install); kept as it is here.
                 ArcaneDimensionsFile = old?.ArcaneDimensionsFile,
                 ArcaneDimensionsSha256 = old?.ArcaneDimensionsSha256,
+                // Dwell: the same, its own step (Dwell.Install).
+                DwellFile = old?.DwellFile,
+                DwellSha256 = old?.DwellSha256,
             };
             record.Files.AddRange(staged.Select(s => new InstalledFile { Path = s.Item.Relative, Size = new FileInfo(s.Dest).Length, Sha256 = s.Sha, Component = s.Item.Component }));
             if (maintenance is not null && mode != InstallMode.Install)
@@ -397,7 +401,7 @@ public sealed class InstallEngine
                     if ((f.Component == Components.HdTextures && plan.HdTexturesZip is null) ||
                         (f.Component == Components.VisPatch && plan.VisPatchArchives.Count == 0) ||
                         (f.Component == Components.Setup && (plan.SetupFiles.Count == 0 || keptSetup.Contains(f.Path))) ||
-                        f.Component == Components.ArcaneDimensions)
+                        f.Component is Components.ArcaneDimensions or Components.Dwell)
                     {
                         record.Files.Add(f); // textures, VisPatch data or Arcane Dimensions installed before and not reinstalled now: still ours
                         continue;

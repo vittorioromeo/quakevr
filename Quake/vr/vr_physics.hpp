@@ -97,4 +97,8 @@ void waterSplash(const glm::vec3& at, const glm::vec3& dir, float strength, Spla
 // his arms (vr_prone_crawl; vr_physics_water.cpp), 1 for the rest.
 [[nodiscard]] float crawlStickScale(edict_t* ent);
 
+// VR_OnHostError (vr_hosterror.cpp): compatibility mode's shot point (VR_BeforePlayerPostThink) forgotten when the
+// error jumped out of PlayerPostThink before VR_AfterPlayerPostThink. Whether one was set.
+bool onHostError();
+
 } // namespace qvr::physics

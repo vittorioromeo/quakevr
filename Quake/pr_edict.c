@@ -1553,21 +1553,13 @@ Used for both fresh maps and savegame loads.  A fresh map would also need
 to call ED_CallSpawnFunctions () to let the objects initialize themselves.
 ================
 */
-// The spawn function for a classname: Quake VR's, or AD's version (its QuakeC's ad_<classname>) in a map played by
-// Arcane Dimensions' rules where AD owns it (vr_ad.cpp VR_AD_OwnsClassname; ARCANE_DIMENSIONS.md 5.4), or outside them
-// for AD's artifacts, pickups, ladders and monsters (VR_AD_SpawnsOutside); NULL: none.
+// QVR: the spawn function for a classname by the map's ruleset (vr_rules.cpp VR_Rules_SpawnName): Quake VR's, or an
+// imported ruleset's version (AD's ad_<classname>) where that ruleset plays it, or outside it for the classnames it
+// spawns anywhere (AD's artifacts, pickups, ladders and monsters); NULL: none.
 static dfunction_t *ED_SpawnFunction (const char *classname)
 {
-	dfunction_t *func = ED_FindFunction (classname);
-	if (VR_AD_RulesOn ())
-	{
-		dfunction_t *adfunc = ED_FindFunction (va ("ad_%s", classname));
-		if (adfunc && VR_AD_OwnsClassname (classname, func != NULL))
-			func = adfunc;
-	}
-	else if (!func && VR_AD_SpawnsOutside (classname))
-		func = ED_FindFunction (va ("ad_%s", classname));
-	return func;
+	const char *name = VR_Rules_SpawnName (classname, ED_FindFunction (classname) != NULL);
+	return name ? ED_FindFunction (name) : NULL;
 }
 
 // QVR: an Enemy Count copy waiting for the map to spawn: its monster's keys in the map's text, its monster, which copy

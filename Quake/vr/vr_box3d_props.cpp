@@ -144,6 +144,11 @@ void addSkeweredShapes(edict_t* ent, int num, b3BodyId body)
         {
             continue;
         }
+        if(b3Body_GetShapeCount(body) >= maxBodyShapes) // (the shapes' lists hold that many: the gibs past it have none)
+        {
+            Con_DPrintf("box3d: a skewered gib on the thrown blade past its body's %d shapes: none for it\n", maxBodyShapes);
+            break;
+        }
         // (As QC's VR_Skewer_Radius; forward, right, up to the model's forward, left, up.)
         const glm::vec3 size = vec(g->v.maxs) - vec(g->v.mins);
         const float radius = za::max(2.f, (size.x + size.y + size.z) / 6.f) / world->m2u;
@@ -310,7 +315,6 @@ void freeRetiredHulls()
 // few MB, growing wave after wave until the map changed; MP_PLAN B21). The actors' (frame -1) stay: their slots keep
 // them (Slot::hull). The others are only read as a body is made (the world copies a shape's hull): made again on demand.
 constexpr za::SizeT propHullsMax = 1024;
-za::Vector<PropHullKey> propHullsGone; // (trimPropHulls' scratch)
 
 void trimPropHulls()
 {
@@ -318,7 +322,7 @@ void trimPropHulls()
     {
         return;
     }
-    za::Vector<PropHullKey>& gone = propHullsGone;
+    za::Vector<PropHullKey>& gone = scratch.propHullsGone;
     gone.clear();
     for(auto& [key, hull] : world->propHulls)
     {

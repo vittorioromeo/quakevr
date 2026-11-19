@@ -29,7 +29,6 @@
     "progs/horn.mdl",
     "progs/lasrspik.mdl",
     "progs/lavarock.mdl",
-    "progs/playham.mdl",
     "progs/proxbomb.mdl",
     "progs/rubble1.mdl",
     "progs/rubble2.mdl",

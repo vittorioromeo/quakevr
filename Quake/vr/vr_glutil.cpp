@@ -1,9 +1,11 @@
 // vr_glutil.cpp -- the GL object helpers every effect's shaders and targets share (vr_glutil.hpp).
 
 #include "vr_glutil.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/String/ToString.hpp"
 #include "vr_api.h"
 
 #if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
@@ -721,17 +723,68 @@ void RenderTarget::destroy()
     *this = RenderTarget{};
 }
 
+int targetsMade = 0;
+
+namespace
+{
+
+struct TargetMade
+{
+    const char* name;
+    int count;
+};
+za::Vector<TargetMade> targetsMadeNamed; // by name, in the order first made (the main thread's)
+
+void noteMade(const char* name, int w, int h, int wasW, int wasH)
+{
+    targetsMade++;
+    TargetMade* named = nullptr;
+    for(TargetMade& n : targetsMadeNamed)
+    {
+        if(ZA_STRCMP(n.name, name) == 0)
+        {
+            named = &n;
+        }
+    }
+    if(!named)
+    {
+        targetsMadeNamed.pushBack({name, 0});
+        named = &targetsMadeNamed.back();
+    }
+    named->count++;
+    Con_DPrintf("VR: render target \"%s\" made at %dx%d (was %dx%d), %d times so far\n", name, w, h, wasW, wasH,
+        named->count);
+}
+
+} // namespace
+
+za::String targetsMadeByName()
+{
+    za::String out;
+    for(const TargetMade& n : targetsMadeNamed)
+    {
+        out += (out.empty() ? "" : " ") + za::String{n.name} + ":" + za::toString(n.count);
+    }
+    return out;
+}
+
 bool RenderTarget::ensure(const int w, const int h, const RenderTargetFormat& format, const char* name)
 {
-    if(tex && width == w && height == h)
+    int wanted = 1;
+    while(format.mipmaps && za::max(w, h) >> wanted)
+    {
+        wanted++;
+    }
+    if(tex && width == w && height == h && levels == wanted)
     {
         return true;
     }
+    noteMade(name, w, h, width, height);
     destroy();
     glGenTextures(1, &tex);
     GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, tex);
-    GL_TexStorage2DFunc(GL_TEXTURE_2D, 1, format.internalFormat, w, h);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    GL_TexStorage2DFunc(GL_TEXTURE_2D, wanted, format.internalFormat, w, h);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, wanted > 1 ? GL_LINEAR_MIPMAP_LINEAR : GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     if(format.clampToEdge)
     {
@@ -769,6 +822,7 @@ bool RenderTarget::ensure(const int w, const int h, const RenderTargetFormat& fo
     }
     width = w;
     height = h;
+    levels = wanted;
     return true;
 }
 

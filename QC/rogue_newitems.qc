@@ -19,6 +19,7 @@ void() newitems_touch =
         }
     }
 
+    item_taken = TRUE; // (itemTouch fires its targets: Rogue's own call here fired them a second time)
     sprint(other, "You got the ");
     sprint(other, self.netname);
     sprint(other,"\n");
@@ -72,9 +73,6 @@ void() newitems_touch =
         VR_ItemUtil_EntAddItem(other, IID_V_SPHERE);
         sphere_spawn();
     }
-
-    activator = other;
-    SUB_UseTargets();                // fire all targets / killtargets
 };
 
 

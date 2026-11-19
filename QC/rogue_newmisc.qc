@@ -148,7 +148,7 @@ health: amount of damage needed to set off trigger.
 void() trigger_explosion =
 {
     if(MG_WorldCampaign()) {
-        if(MG_MonsterInhibited()) return;
+        if(VR_SF_SpawnInhibited()) return;
         self.use = MG_trigger_explosion_use;
         return;
     }

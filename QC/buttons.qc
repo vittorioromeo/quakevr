@@ -515,7 +515,7 @@ N) code button
 */
 void() func_button =
 {
-    if(MG_MonsterInhibited()) return;
+    if(VR_SF_SpawnInhibited()) return;
     if(MG_WorldCampaign()) MG_ButtonInit();
     // The hub's Continue button ("vr_continue"): there only when there is a save to continue (the engine's
     // vr_continue_available, looked at as a Quake VR map spawns: vr_continue.cpp); its save is shown over it.

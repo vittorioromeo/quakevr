@@ -21,7 +21,7 @@
 .float speed2;
 float() MG_TriggerGuard = {
     if(!MG_WorldGuard()) return FALSE;
-    return !MG_MonsterInhibited();
+    return !VR_SF_SpawnInhibited();
 };
 float(entity e) MG_MessageAll = {
     if(!MG_WorldCampaign()) return FALSE;

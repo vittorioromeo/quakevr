@@ -11,6 +11,7 @@
 // (enterLiquid), and the liquid takes most of its speed: it then sinks slowly.
 
 #include "vr_random.hpp"
+#include "vr_mem.hpp"
 #include "vr_modelmetadata.hpp"
 #include "vr_shells.hpp"
 #include "vr_autopump.hpp"
@@ -1072,6 +1073,12 @@ void clear()
     }
     lastRun = -1.0;
 }
+
+namespace
+{
+// Forgotten when the client's state is cleared (vr_mem.hpp's resets): the shells.
+mem::Reset clientStateReset{"shells", mem::ResetEvent::ClientState, mem::ResetPhase::State, &clear};
+} // namespace
 
 void registerCommands()
 {

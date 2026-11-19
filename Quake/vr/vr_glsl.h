@@ -29,6 +29,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "vr_flatfov_glsl.h" // QVR_FLATFOV_POINT_GLSL, flatscreen play's model FOV
 #include "vr_retro.h" // QVR_RETRO_GLSL, retro textures (the world and model shaders)
 #include "vr_retrolight.h" // QVR_RETROLIGHT_GLSL, retro lighting (in SHADOW_FUNCTIONS)
+#include "vr_viewuv_glsl.h" // QVR_VIEW_UV_GLSL, a uv over a view's drawn part to its targets' (the post-process, the mirror)
 
 // the eyes' bloom (vr_bloom.cpp), under-water view (vr/vr_water.cpp), tone curve, grade and dither (vr/vr_tonemap.cpp)
 #define QVR_POSTPROCESS_UNIFORMS \
@@ -47,15 +48,20 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 "layout(location=10) uniform vec3 SlowTint; // QVR: ... its tint\n" \
 "layout(binding=7) uniform sampler2D VisorMask; // QVR: the flat-screen visor's layer (vr/vr_visor.cpp): its alpha left out of bullet time's look\n" \
 "layout(location=11) uniform vec4 VisorRect; // QVR: ... the view's rectangle it covers (x, y, w, h; w 0: none)\n" \
+"layout(location=12) uniform vec4 PostView; // QVR: the view's drawn size (xy, pixels: its targets may be larger, dynamic resolution's ceiling: vr/vr_stereo.hpp ViewSize), zw unused\n" \
+"layout(location=13) uniform vec4 BloomMap; // QVR: QvrViewUV's map of the glow (vr/vr_bloom.cpp)\n" \
+"layout(location=14) uniform vec4 SceneMap; // QVR: ... of the scene's colours (WaterScene)\n" \
 "\n" \
-QVR_TONE_GLSL
+QVR_TONE_GLSL \
+QVR_VIEW_UV_GLSL
 
 // under water, the view wobbled and blurred; the bloom added
 #define QVR_POSTPROCESS_WATER_BLOOM \
-"	vec2 buv = gl_FragCoord.xy / vec2(textureSize(GammaTexture, 0)); // QVR\n" \
+"	vec2 pp_size = PostView.xy; // QVR: the view's size, its drawn part (QVR_POSTPROCESS_GRADE_DITHER's too: its targets may be larger)\n" \
+"	vec2 buv = gl_FragCoord.xy / pp_size;\n" \
 "	if (WaterParams.y + WaterParams.z > 0.0) // QVR: under water: a slow wobble of the direction looked in, in the world\n" \
 "	{ // (the same in both eyes, fixed to the world as the head turns), and a little blur\n" \
-"		vec2 size = vec2(textureSize(GammaTexture, 0));\n" \
+"		vec2 size = pp_size;\n" \
 "		vec2 ndc = buv * 2.0 - 1.0;\n" \
 "		vec3 dir = normalize(WaterFwd + WaterLeft * ((ndc.x - WaterProj.x) / WaterProj.y) + WaterUp * ((ndc.y - WaterProj.z) / WaterProj.w));\n" \
 "		float t = WaterParams.x;\n" \
@@ -64,17 +70,17 @@ QVR_TONE_GLSL
 "		vec2 aspect = vec2(size.y / size.x, 1.0);\n" \
 "		buv = clamp(buv + w * (WaterParams.y * aspect), vec2(0.0), vec2(1.0));\n" \
 "		vec2 b = max(WaterParams.z, 0.5 / size.y) * aspect;\n" \
-"		out_fragcolor.rgb = (texture(WaterScene, buv + b).rgb + texture(WaterScene, buv - b).rgb +\n" \
-"			texture(WaterScene, buv + vec2(b.x, -b.y)).rgb + texture(WaterScene, buv + vec2(-b.x, b.y)).rgb) * 0.25;\n" \
+"		out_fragcolor.rgb = (texture(WaterScene, QvrViewUV(buv + b, SceneMap)).rgb + texture(WaterScene, QvrViewUV(buv - b, SceneMap)).rgb +\n" \
+"			texture(WaterScene, QvrViewUV(buv + vec2(b.x, -b.y), SceneMap)).rgb + texture(WaterScene, QvrViewUV(buv + vec2(-b.x, b.y), SceneMap)).rgb) * 0.25;\n" \
 "	}\n" \
 "	if (BloomStrength > 0.0) // QVR: by one bilinear tap, the smoothing done at the quarter (vr_bloom.cpp)\n" \
-"		out_fragcolor.rgb += texture(BloomTexture, buv).rgb * BloomStrength;\n"
+"		out_fragcolor.rgb += texture(BloomTexture, QvrViewUV(buv, BloomMap)).rgb * BloomStrength;\n"
 
-// graded (vr_grade) and dithered into the 8-bit image
+// graded (vr_grade) and dithered into the 8-bit image (after QVR_POSTPROCESS_WATER_BLOOM: its pp_size)
 #define QVR_POSTPROCESS_GRADE_DITHER \
 "	if (SlowLook.x > 0.0) // QVR: bullet time's look: the colour drained towards grey, tinted, the edges darkened\n" \
 "	{\n" \
-"		vec2 sv = gl_FragCoord.xy / vec2(textureSize(GammaTexture, 0)) * 2.0 - 1.0;\n" \
+"		vec2 sv = gl_FragCoord.xy / pp_size * 2.0 - 1.0;\n" \
 "		float luma = dot(out_fragcolor.rgb, vec3(0.299, 0.587, 0.114));\n" \
 "		vec3 c = mix(out_fragcolor.rgb, vec3(luma), SlowLook.x * SlowLook.y);\n" \
 "		c *= mix(vec3(1.0), SlowTint, SlowLook.x);\n" \
@@ -89,7 +95,7 @@ QVR_TONE_GLSL
 "	}\n" \
 "	if (SlowLook.w > 0.0) // QVR: the comfort vignette (vr_comfort_vignette): the edges darkened while the sticks move or\n" \
 "	{ // turn you, the clear middle narrower the stronger it is\n" \
-"		vec2 cv = gl_FragCoord.xy / vec2(textureSize(GammaTexture, 0)) * 2.0 - 1.0;\n" \
+"		vec2 cv = gl_FragCoord.xy / pp_size * 2.0 - 1.0;\n" \
 "		float r0 = mix(2.0, 0.1, SlowLook.w);\n" \
 "		out_fragcolor.rgb *= 1.0 - smoothstep(r0, r0 + 0.6, dot(cv, cv));\n" \
 "	}\n" \
@@ -137,7 +143,8 @@ QVR_TONE_GLSL
 "	vec4	FoamBreath[3]; // QVR: ... its breathing: x how much the band grows and shrinks (a share of its width, 0 none), y how fast, z how unevenly along the shore, w unused\n" \
 "	vec4	BloodInfo; // QVR: blood in the liquids (vr/vr_water.cpp: vr_water_blood; LiquidBlood): x how many clouds (0 none), yzw unused\n" \
 "	vec4	BloodAt[16]; // QVR: ... each's centre (xy), the surface's height (z), its radius now (w)\n" \
-"	vec4	BloodAmp[4]; // QVR: ... each's strength now (four a vec4)\n"
+"	vec4	BloodAmp[4]; // QVR: ... each's strength now (four a vec4)\n" \
+"	vec4	SceneViewport; // QVR: the scene's viewport in its targets' pixels (x, y, width, height: R_SceneViewport; under dynamic resolution a part of larger targets, vr/vr_stereo.hpp ViewSize)\n"
 
 // Single-pass stereo (vr/vr_stereo_single.cpp, docs/vr-port/STEREO.md): a multiview twin (QVR_MULTIVIEW) reads each
 // view's view-projection and eye position from this block; the blocks that declare ViewProj, EyePos, FrameViewProj and
@@ -212,6 +219,15 @@ QVR_STEREO_VIEWS \
 // The shaders' pieces by family, in their old order (the head above and the tail below stay here).
 #include "vr_glsl_lighting.h"
 #include "vr_glsl_surface.h"
+// The 4x4 Bayer matrix's entry (0 .. 15, as a float) at it (0 .. 3 each): 4 B2(it & 1) + B2(it >> 1), B2(x, y) =
+// ((x ^ y) << 1) | y; the same as the table {0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5} by rows, without an
+// array indexed per pixel (on some mobile compilers in scratch memory). A GLSL macro, defined once whichever shader
+// splices it first (the world's BoxWounds, the alias' WoundsAt).
+#define QVR_BAYER4_GLSL \
+"#ifndef QVR_BAYER4\n" \
+"#define QVR_BAYER4(it) float(4 * (((((it).x ^ (it).y) & 1) << 1) | ((it).y & 1)) + ((((((it).x ^ (it).y) >> 1) & 1) << 1) | (((it).y >> 1) & 1)))\n" \
+"#endif\n"
+
 #include "vr_glsl_world.h"
 #include "vr_glsl_alias.h"
 

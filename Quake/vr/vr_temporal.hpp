@@ -5,6 +5,8 @@
 // motion output of their shading), a reactive mask (translucency, particles, liquids), sub-pixel jitter and a
 // per-eye history resolved before the post-processing (vr_taa), with debug views (vr_temporal_debug).
 
+#include "vr_stereo.hpp"
+
 namespace qvr::temporal
 {
 
@@ -21,13 +23,18 @@ namespace qvr::temporal
 [[nodiscard]] int windowSamples(int samples);
 
 // VR_RenderView: once a frame before anything is drawn (the frame's slots for the models' positions), with the eye
-// targets' framebuffers (the motion target is attached to them while the eyes collect).
-void beginFrame(unsigned sceneFbo, unsigned compositeFbo, int width, int height, int samples);
+// targets' framebuffers (the motion target is attached to them while the eyes collect) and `size` (their allocated size,
+// at which the textures are made, and the part drawn this frame: another drawn size starts the history anew).
+void beginFrame(unsigned sceneFbo, unsigned compositeFbo, const stereo::ViewSize& size, int samples);
 
 // Around each eye's V_RenderView.
 void beginEye(int eye);
 void endEye();
 
 void registerCommands();
+
+// VR stopped (stereo::releaseTargets): the eye-sized textures freed (made again, the history anew, at their next use) and
+// the motion target detached from the eyes' framebuffers (made again: attached again next frame).
+void releaseTargets();
 
 } // namespace qvr::temporal

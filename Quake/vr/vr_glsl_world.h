@@ -66,8 +66,8 @@
 "	if (m.rgb == vec3(0.0))\n" \
 "		return vec4(0.0);\n" \
 "	ivec2 it = t & 3;\n" \
-"	const float bayer[16] = float[16](0., 8., 2., 10., 12., 4., 14., 6., 3., 11., 1., 9., 15., 7., 13., 5.);\n" \
-"	float d = (bayer[it.y * 4 + it.x] + 0.5) / 16.0;\n" \
+QVR_BAYER4_GLSL \
+"	float d = (QVR_BAYER4(it) + 0.5) / 16.0;\n" \
 "	return vec4(step(0.2 + 0.24 * d, m.r), step(0.16 + 0.28 * d, m.g), step(0.06 + 0.4 * d, m.b),\n" \
 "		(m.r > 0.82 ? 47. : m.r > 0.62 ? 63. : 87.) / 255.0);\n" \
 "}\n"

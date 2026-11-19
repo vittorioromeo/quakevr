@@ -37,6 +37,7 @@ constexpr Check checks[] = {
     {"statics", checkStatics, "no function-local static/thread_local in Quake/vr that is not constexpr [files...]"},
     {"test_numbers", checkTestNumbers, "the numbered tests' dispatchers against QC/test_numbers.txt [--list]"},
     {"builtins", checkBuiltins, "the QC's `= #0` builtins against the engine's tables"},
+    {"toolgun_weapons", checkToolgunWeapons, "every weapon id has a row in the toolgun's Weapons section"},
     {"cvars_qc", genCvarsQc, "write QC/vr_cvars_gen.qc from the QC's cvarh_ uses; --check"},
     {"canonical", checkCanonical, "no new copies of the canonical helpers [--list FAMILY | --tighten]"},
     {"release_qc", checkReleaseQc, "the release flavour's QC (-DQVR_NO_TESTS) compiles clean"},

@@ -1,6 +1,7 @@
 // vr_view.cpp -- see vr_view.hpp. Ported from the old engine's view.cpp (V_RenderView_*).
 
 #include "vr_drips.hpp"
+#include "vr_mem.hpp"
 #include "vr_playergore.hpp"
 #include "vr_view_internal.hpp"
 #include "vr_weaponstudio.hpp" // (vr_weaponstudio_viewFrame: its view-side markers, over this view)
@@ -4758,6 +4759,13 @@ void view::resetClientState()
     });
 }
 
+namespace
+{
+// Forgotten when the client's state is cleared (vr_mem.hpp's resets): the view's per-hand states and the view entities'
+// (a pointer into cl_entities).
+mem::Reset clientStateReset{"view", mem::ResetEvent::ClientState, mem::ResetPhase::State, &view::resetClientState};
+} // namespace
+
 namespace view_detail
 {
 namespace
@@ -5548,7 +5556,8 @@ extern "C" void VR_SetupViewEntities()
     if(vr_body_powerups.value && (cl.items & IT_INVISIBILITY))
     {
         forEachEntity([](view::ViewEntity& ve) {
-            if(&ve != &entities.gadget && &ve != &entities.gadgetStrap[0] && &ve != &entities.gadgetStrap[1])
+            // (his own only, worn: not the weapons lying round, their idle screens and buttons set up above)
+            if(worn(ve) && &ve != &entities.gadget && &ve != &entities.gadgetStrap[0] && &ve != &entities.gadgetStrap[1])
             {
                 ve.ent.alpha = ENTALPHA_ENCODE(0.3f);
             }

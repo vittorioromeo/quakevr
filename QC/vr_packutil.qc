@@ -5,6 +5,14 @@ float vr_save_campaign;
 const float VR_CAMPAIGN_DOPA = 3;
 const float VR_CAMPAIGN_MG1 = 4;
 const float VR_CAMPAIGN_MG3 = 5;
+// The ruleset the map now spawning or running plays by (the engine's vr_ruleset, vr_rules.cpp: its campaign's, else
+// its entities' signals; set for every spawn, a saved game's too). Spawnflag meanings (vr_spawnflags.qc), the world
+// logic and the numbers each ruleset changes are read through it.
+const float VR_RULES_ID = 0;     // Quake's (Hipnotic's, Rogue's, Honey's meanings on their own classnames)
+const float VR_RULES_MG = 1;     // Machine Games' (MG_WorldCampaign)
+const float VR_RULES_AD = 2;     // Arcane Dimensions' (AD_Rules)
+const float VR_RULES_COPPER = 3; // Copper's (not detected yet: DWELL.md P1b)
+float() VR_Ruleset = { return cvar_hget(cvarh_vr_ruleset); };
 // Saved precache layout: 1 + Hipnotic + 2*Rogue. It must match when a save is restored.
 float vr_save_packmask;
 
@@ -41,7 +49,6 @@ nosave float vr_have_shield, vr_have_belt, vr_have_equake, vr_have_sphere; // Ro
 nosave float vr_have_fireball;      // Rogue's fireball trap projectile
 nosave float vr_have_lavarock;      // Hipnotic's lavaball trap projectile
 nosave float vr_have_statue;        // Rogue's statue sounds and stone gibs (else the knights' own and rock debris)
-nosave float vr_have_playham;       // Hipnotic's third-person player holding Mjolnir
 nosave float vr_have_ctf;           // Rogue's capture-the-flag models and sounds
 nosave float vr_have_superaxe;      // Dawn of the Machine's Super Axe: MG3's models read in place (owned/mg3/: vr_mg3_weapons.qc)
 nosave float vr_pack_refreshed;
@@ -63,7 +70,6 @@ void() VR_Pack_Refresh =
     vr_have_lavarock = VR_Has("progs/lavarock.mdl");
     vr_have_statue = (VR_Has4("progs/statgib1.mdl", "progs/statgib2.mdl", "progs/statgib3.mdl", "sound/statue/see.wav") &&
                       VR_Has4("sound/statue/idle.wav", "sound/statue/pain.wav", "sound/statue/death.wav", ""));
-    vr_have_playham = VR_Has("progs/playham.mdl");
     vr_have_ctf = (VR_Has4("progs/ctfbase.mdl", "progs/ctfmodel.mdl", "sound/misc/flagcap.wav", "sound/misc/flagret.wav") &&
                    VR_Has("sound/misc/flagtk.wav"));
     vr_have_superaxe = VR_Has4("owned/mg3/progs/v_hammer.mdl", "owned/mg3/progs/v_hammer_glow.mdl", "", "");

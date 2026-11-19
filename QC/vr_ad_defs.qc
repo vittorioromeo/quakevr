@@ -9,12 +9,9 @@ float() VR_Pack_AD =
     return cvar_hget(cvarh_vr_ad_status) == 1;
 };
 
-// This map plays by AD's rules: the AD campaign, or a map the engine found made for AD before it spawned (vr_ad_rules,
-// vr_ad.cpp). It is set for every spawn, a saved game's too, from the map's own entities.
-float() AD_Rules =
-{
-    return cvar_hget(cvarh_vr_ad_rules) != 0;
-};
+// This map plays by AD's rules: the AD campaign, or a map the engine found made for AD before it spawned (its ruleset,
+// VR_Ruleset).
+float() AD_Rules = { return VR_Ruleset() == VR_RULES_AD; };
 
 // AD support: independent safe feature scope; does not change map detection or required world logic.
 float(float scope) VR_AD_FeatureScope =

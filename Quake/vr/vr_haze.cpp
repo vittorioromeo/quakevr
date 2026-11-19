@@ -75,7 +75,7 @@ layout(location = 3) uniform vec4 Center;
 layout(location = 4) uniform vec4 Radii;
 layout(location = 5) uniform vec4 Viewport;  // the scene's, in the framebuffer's pixels
 layout(location = 6) uniform vec4 CopyRect;  // the part copied, in the viewport's pixels (x0, y0, x1, y1)
-layout(location = 7) uniform vec2 CopySize;  // the viewport's pixels the copy's width and height stand for
+layout(location = 7) uniform vec2 CopySize;  // the viewport's pixels the copy's width and height stand for (its texture's)
 layout(location = 0) in vec4 WorldPos;
 layout(location = 0) out vec4 Out;
 
@@ -94,7 +94,8 @@ vec3 Shimmer(vec3 q, float t)
 
 float SceneDistance(vec2 p) // along the view
 {
-    return texelFetch(Distances, clamp(ivec2(p * 0.5), ivec2(0), textureSize(Distances, 0) - 1), 0).r;
+    ivec2 last = min(textureSize(Distances, 0), ivec2((Viewport.xy + Viewport.zw + 1.0) * 0.5)) - 1; // (the scene's part)
+    return texelFetch(Distances, clamp(ivec2(p * 0.5), ivec2(0), last), 0).r;
 }
 
 void main()
@@ -169,7 +170,7 @@ void main()
     if (Params.y > 0. && SceneDistance(gl_FragCoord.xy + shift) < t0 * perT)
         shift = vec2(0.0); // not what is in front of the hot air (a hand, a gun): its colours would smear round it
     vec2 p = clamp(gl_FragCoord.xy - Viewport.xy + shift, CopyRect.xy + 0.5, CopyRect.zw - 0.5);
-    Out = vec4(texture(Scene, p / CopySize).rgb, 1.0);
+    Out = vec4(textureLod(Scene, p / CopySize, 0.0).rgb, 1.0); // (the copy: one level)
 }
 )";
 
@@ -264,7 +265,10 @@ bool ensureCopy(int width, int height, GLint format, bool half)
 GLuint copyPart(GLuint sceneFbo, GLuint color, int samples, const int viewport[4], int x0, int y0, int x1, int y1, bool half)
 {
     const GLint format = sceneFormat(color, samples);
-    const int w = half ? (viewport[2] + 1) / 2 : viewport[2], h = half ? (viewport[3] + 1) / 2 : viewport[3];
+    // The scene targets' allocated size (stereo::ViewSize): under dynamic resolution the viewport is a part of them that
+    // changes, the copy is made once (its texels are the viewport's pixels from its corner).
+    const int fullW = za::max(vid.width, viewport[2]), fullH = za::max(vid.height, viewport[3]);
+    const int w = half ? (fullW + 1) / 2 : fullW, h = half ? (fullH + 1) / 2 : fullH;
     if(!format || !ensureCopy(w, h, format, half))
     {
         return 0;
@@ -634,7 +638,7 @@ bool coveredPart(HazeView& v)
 // 0 if it failed; else the copy's rect and size for the shader in copyRect, copySize.
 GLuint copyCovered(const HazeView& v, float copyRect[4], float copySize[2])
 {
-    const int x0 = v.x0, y0 = v.y0, x1 = v.x1, y1 = v.y1, vw = v.vw, vh = v.vh;
+    const int x0 = v.x0, y0 = v.y0, x1 = v.x1, y1 = v.y1;
     const bool half = vr_heat_haze_half.value != 0.f && v.samples <= 1;
     const GLuint copyTexture = copyPart(v.sceneFbo, v.color, v.samples, v.viewport, x0, y0, x1, y1, half);
     if(!copyTexture)
@@ -645,16 +649,15 @@ GLuint copyCovered(const HazeView& v, float copyRect[4], float copySize[2])
     copyRect[1] = static_cast<float>(y0);
     copyRect[2] = static_cast<float>(x1);
     copyRect[3] = static_cast<float>(y1);
-    copySize[0] = static_cast<float>(vw);
-    copySize[1] = static_cast<float>(vh);
+    const Copy& copy = copies[viewSlot()][half ? 1 : 0]; // (its texture's size, in the viewport's pixels)
+    copySize[0] = static_cast<float>(half ? copy.width * 2 : copy.width);
+    copySize[1] = static_cast<float>(half ? copy.height * 2 : copy.height);
     if(half)
     {
         copyRect[0] = static_cast<float>(x0 / 2 * 2) + 0.5f;
         copyRect[1] = static_cast<float>(y0 / 2 * 2) + 0.5f;
         copyRect[2] = static_cast<float>((x1 + 1) / 2 * 2) - 0.5f;
         copyRect[3] = static_cast<float>((y1 + 1) / 2 * 2) - 0.5f;
-        copySize[0] = static_cast<float>((vw + 1) / 2 * 2);
-        copySize[1] = static_cast<float>((vh + 1) / 2 * 2);
     }
     return copyTexture;
 }
@@ -804,9 +807,34 @@ void draw()
 
 } // namespace
 
-unsigned copyScene(unsigned sceneFbo, unsigned color, int samples, const int viewport[4], int x0, int y0, int x1, int y1)
+unsigned copyScene(unsigned sceneFbo, unsigned color, int samples, const int viewport[4], int x0, int y0, int x1, int y1,
+    float copySize[2])
 {
-    return copyPart(sceneFbo, color, samples, viewport, x0, y0, x1, y1, false);
+    const GLuint texture = copyPart(sceneFbo, color, samples, viewport, x0, y0, x1, y1, false);
+    const Copy& copy = copies[viewSlot()][0];
+    copySize[0] = static_cast<float>(copy.width);
+    copySize[1] = static_cast<float>(copy.height);
+    return texture;
+}
+
+void releaseTargets()
+{
+    for(auto& slot : copies)
+    {
+        for(Copy& copy : slot)
+        {
+            if(copy.texture)
+            {
+                GL_DeleteFramebuffersFunc(1, &copy.fbo);
+                GL_DeleteNativeTexture(copy.texture);
+            }
+            copy = Copy{};
+        }
+    }
+    for(SizedScene& z : sizedFor)
+    {
+        z = SizedScene{};
+    }
 }
 
 

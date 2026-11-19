@@ -19,13 +19,7 @@ namespace qvr::flatlook
 namespace
 {
 
-constexpr const char* fullscreenVs = R"(#version 430
-void main()
-{
-    ivec2 v = ivec2(gl_VertexID & 1, gl_VertexID >> 1);
-    gl_Position = vec4(vec2(v) * 4.0 - 1.0, 0.0, 1.0);
-}
-)";
+constexpr const char* fullscreenVs = gfx::fullscreenTriangleVs;
 
 // The view's copy (Scene, at 0,0) back into the window's target at Rect.xy, the glow added, graded and vignetted. The
 // colours are Quake's as shown (gamma-encoded; the window's own gamma and contrast come after, in GL_PostProcess).

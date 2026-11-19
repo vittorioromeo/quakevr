@@ -540,7 +540,7 @@ void updateSettings()
     za::Array<b3ShapeId, 64> shapes;
     for(Slot& s : world->slots)
     {
-        if(s.kind == Kind::None)
+        if(s.kind == Kind::None || s.kind == Kind::Corpse) // (a corpse's friction is its own: vr_corpse_collide_friction)
         {
             continue;
         }

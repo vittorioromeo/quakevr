@@ -81,7 +81,8 @@ struct State
     GLuint viewColor[2] = {}, viewDepth[2] = {};
     GLuint fboEye[2] = {}, fboOit[2] = {};
     unsigned eyeGeneration = 0; // the eyes' targets' (stereo::eyeTargetsGeneration) the OIT framebuffers were made for
-    int width = 0, height = 0;
+    int allocatedWidth = 0, allocatedHeight = 0; // the arrays' (the eyes' targets': stereo::ViewSize)
+    int drawnWidth = 0, drawnHeight = 0;         // the part of them this frame draws
     int samples = 1; // the eyes' MSAA (multisample arrays)
     int frameSamples = 1; // this frame's (wanted)
     unsigned colorFormat = 0, depthFormat = 0;
@@ -171,8 +172,19 @@ void deleteTargets()
         GL_DeleteNativeTexture(state.depth);
     }
     state.fboMulti = state.color = state.depth = 0;
-    state.width = state.height = 0;
+    state.allocatedWidth = state.allocatedHeight = 0;
 }
+
+} // namespace
+
+void releaseTargets()
+{
+    deleteTargets();
+    state.targetsFailed = false;
+}
+
+namespace
+{
 
 // Layer `layer` of `array` as a texture of its own (glTextureView: the same memory, so what the pass drew stays
 // compressed for what each eye draws after it).
@@ -240,20 +252,20 @@ bool ensureTargets(int width, int height, int samples)
     unsigned colorFormat = 0, depthFormat = 0;
     stereo::eyeSceneFormats(colorFormat, depthFormat);
     const unsigned generation = stereo::eyeTargetsGeneration();
-    if(state.fboMulti && state.width == width && state.height == height && state.colorFormat == colorFormat &&
+    if(state.fboMulti && state.allocatedWidth == width && state.allocatedHeight == height && state.colorFormat == colorFormat &&
         state.depthFormat == depthFormat && state.samples == samples && state.eyeGeneration == generation)
     {
         return true;
     }
-    if(state.targetsFailed && state.width == width && state.height == height && state.samples == samples &&
+    if(state.targetsFailed && state.allocatedWidth == width && state.allocatedHeight == height && state.samples == samples &&
         state.eyeGeneration == generation)
     {
         return false;
     }
     state.eyeGeneration = generation;
     deleteTargets();
-    state.width = width;
-    state.height = height;
+    state.allocatedWidth = width;
+    state.allocatedHeight = height;
     state.samples = samples;
     state.colorFormat = colorFormat;
     state.depthFormat = depthFormat;
@@ -280,8 +292,8 @@ bool ensureTargets(int width, int height, int samples)
     {
         Con_Printf("vr_stereo_single: the %dx%d arrays are not a complete framebuffer: two-pass\n", width, height);
         deleteTargets();
-        state.width = width;
-        state.height = height;
+        state.allocatedWidth = width;
+        state.allocatedHeight = height;
         state.targetsFailed = true;
         return false;
     }
@@ -383,7 +395,7 @@ void info_f()
                "programs made, %d programs drawn in the pass without one; arrays %dx%d\n",
         static_cast<double>(vr_stereo_single.value), supported() ? "available" : "not available", state.framesSingle,
         state.frames, state.framesSingle < state.frames ? " (else: " : "",
-        state.framesSingle < state.frames ? va("%s)", state.reason) : "", twins, missing, state.width, state.height);
+        state.framesSingle < state.frames ? va("%s)", state.reason) : "", twins, missing, state.allocatedWidth, state.allocatedHeight);
     state.frames = state.framesSingle = 0;
 }
 
@@ -537,7 +549,7 @@ void captureEye(int eye)
     state.captured = true;
 }
 
-bool render(int width, int height)
+bool render(const stereo::ViewSize& size)
 {
     if(!unionFrustum(state.frustum))
     {
@@ -556,11 +568,13 @@ bool render(int width, int height)
             return false;
         }
     }
-    if(!ensureTargets(width, height, state.frameSamples))
+    if(!ensureTargets(size.allocatedWidth, size.allocatedHeight, state.frameSamples))
     {
         state.reason = "no arrays";
         return false;
     }
+    state.drawnWidth = size.drawnWidth;
+    state.drawnHeight = size.drawnHeight;
     // Eye 0's view current (its projection: VR_OverrideProjection), as its own scene would have it.
     stereo::setCurrentEye(0);
     VectorCopy(state.eyes[0].origin, r_refdef.vieworg);
@@ -679,12 +693,12 @@ extern "C" unsigned VR_StereoSingleBeginScene()
     for(int eye = 0; eye < 2; eye++)
     {
         GL_BindFramebufferFunc(GL_FRAMEBUFFER, s.fboEye[eye]);
-        glViewport(0, 0, s.width, s.height);
+        glViewport(0, 0, s.drawnWidth, s.drawnHeight);
         R_Clear();
         stereo::drawHiddenAreaOf(eye);
     }
     GL_BindFramebufferFunc(GL_FRAMEBUFFER, s.fboMulti);
-    glViewport(0, 0, s.width, s.height);
+    glViewport(0, 0, s.drawnWidth, s.drawnHeight);
 
     stereosingle::ViewsBlock block;
     for(int eye = 0; eye < 2; eye++)
@@ -700,7 +714,7 @@ extern "C" unsigned VR_StereoSingleBeginScene()
     GL_Upload(GL_UNIFORM_BUFFER, &block, sizeof(block), &buf, &ofs);
     GL_BindBufferRange(GL_UNIFORM_BUFFER, stereosingle::viewsBinding, buf, reinterpret_cast<GLintptr>(ofs), sizeof(block));
     gl_multiview_draw = true;
-    foveated::beginSceneLayered(s.fboMulti, s.width, s.height); // vr_foveated: each view its eye's rates
+    foveated::beginSceneLayered(s.fboMulti, s.drawnWidth, s.drawnHeight); // vr_foveated: each view its eye's rates
     return s.fboMulti;
 }
 
@@ -746,7 +760,8 @@ extern "C" int VR_StereoSingleSceneBegun()
         return 0;
     }
     s.scenePending[eye] = false;
-    foveated::beginScene(eye, vid.width, vid.height); // vr_foveated, as after VR_DrawHiddenArea
+    const stereo::ViewSize size = stereo::viewSize(); // (the lens's place in the part drawn)
+    foveated::beginScene(eye, size.drawnWidth, size.drawnHeight); // vr_foveated, as after VR_DrawHiddenArea
     return 1;
 }
 

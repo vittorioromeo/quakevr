@@ -7,6 +7,7 @@
 #include "vr_backend.hpp"
 #include "vr_client.hpp"
 #include "vr_cvars.hpp"
+#include "vr_mem.hpp"
 #include "vr_tunables.hpp"
 #include "vr_hands.hpp"
 
@@ -1947,7 +1948,7 @@ void motorStop(int hand)
 {
     if(motor.ch[hand])
     {
-        S_MixJoin();
+        S_MixJoin(); // (a read of the channels on the main thread: the pool's mix done first, S_MixKick)
         if(channel_t* ch = motorPlaying(hand))
         {
             ch->sfx = nullptr;
@@ -1979,7 +1980,7 @@ void motorFrame(int hand, const Spin& s)
     {
         motor.pitch[hand] = motorPitchLow + (1.f - motorPitchLow) * u;
     }
-    S_MixJoin();
+    S_MixJoin(); // (a read of the channels on the main thread: the pool's mix done first, S_MixKick)
     channel_t* ch = motorPlaying(hand);
     if(!ch)
     {
@@ -2069,6 +2070,12 @@ void clear()
         motor.lastTime[hand] = -1.0;
     }
 }
+
+namespace
+{
+// Forgotten when the client's state is cleared (vr_mem.hpp's resets): the spins and the motors (AD support).
+mem::Reset clientStateReset{"adweapons", mem::ResetEvent::ClientState, mem::ResetPhase::State, &clear};
+} // namespace
 
 void prepare()
 {

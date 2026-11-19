@@ -15,6 +15,7 @@
 #include "vr_grab.hpp"
 #include "vr_physics.hpp"
 #include "vr_physics_internal.hpp"
+#include "vr_mem.hpp"
 #include "vr_agarmor.hpp"
 #include "vr_held.hpp"
 #include "vr_hull.hpp"
@@ -170,7 +171,13 @@ void debugBoxTouch(edict_t* target, edict_t* player, int which)
     return za::max(allowed, za::max(vr_agrunt_rag_grab_weapon.value, 0.f) * 0.01f * m2u);
 }
 
-za::Vector<glm::vec4> armedFist; // handOn's: the fist's spheres in the world, on an armed monster's weapon
+// The hands' grabs' buffers (the server's frame: the main thread).
+struct PhysicsScratch
+{
+    za::Vector<glm::vec4> armedFist; // handOn's: the fist's spheres in the world, on an armed monster's weapon
+    auto members() { return mem::list(armedFist); }
+};
+mem::Scratch<PhysicsScratch> physicsScratch{"physics grabs"};
 
 // An armed monster's weapon as drawn lags the server's by about a frame (the client draws the last place it was sent,
 // the hand's place reaches the server a frame later), and a swung blade or a gun turned with its holder moves 5-20 cm a
@@ -185,7 +192,7 @@ constexpr float sweepFarthest = 32.f; // units
     return d - 360.f * za::floor((d + 180.f) / 360.f);
 }
 
-// The fist (armedFist) against an armed monster's weapon: its volume, the hull of its drawn triangles where it is drawn
+// The fist (physicsScratch.armedFist) against an armed monster's weapon: its volume, the hull of its drawn triangles where it is drawn
 // (disarmhull::weapon; the same hull a shot, a strike and a body blow read), the gap of the nearest of the fist's spheres
 // (inside it: under 0); done as soon as one is `stopAt` near. No hull (nothing drawn): its triangles at the server's place
 // (held::fistGap). `surface` false: nothing to measure.
@@ -195,9 +202,9 @@ constexpr float sweepFarthest = 32.f; // units
     disarmhull::Placed placed;
     if(disarmhull::weapon(weapon, placed))
     {
-        return disarmhull::spheresGap(placed, armedFist, 0.f, stopAt);
+        return disarmhull::spheresGap(placed, physicsScratch.armedFist, 0.f, stopAt);
     }
-    return held::fistGap(weapon, armedFist, within, surface, stopAt);
+    return held::fistGap(weapon, physicsScratch.armedFist, within, surface, stopAt);
 }
 
 [[nodiscard]] float sweptFistGap(edict_t* target, float allowed)
@@ -239,7 +246,7 @@ constexpr float sweepFarthest = 32.f; // units
                 disarmhull::Placed then = now;
                 then.axes = thenAxes * offAxes;
                 then.origin = glm::mix(prevO, o, t) + thenAxes * offAt;
-                best = za::min(best, disarmhull::spheresGap(then, armedFist, 0.f, allowed));
+                best = za::min(best, disarmhull::spheresGap(then, physicsScratch.armedFist, 0.f, allowed));
                 if(best <= allowed)
                 {
                     break;
@@ -276,7 +283,7 @@ constexpr float sweepFarthest = 32.f; // units
             }
             place(glm::mix(prevO, o, t), at);
             bool surface = true;
-            best = za::min(best, held::fistGap(target, armedFist, za::max(allowed, 0.25f * units::metresToUnits()), surface,
+            best = za::min(best, held::fistGap(target, physicsScratch.armedFist, za::max(allowed, 0.25f * units::metresToUnits()), surface,
                                      allowed));
             if(best <= allowed)
             {
@@ -421,7 +428,7 @@ struct TouchProvider
             return TouchAnswer::No;
         }
         held::fistInWorld(h, fieldVec(player, handPosField(which)),
-            fieldVec(player, which == HAND_OFF ? f().offhandrot : f().handrot), armedFist);
+            fieldVec(player, which == HAND_OFF ? f().offhandrot : f().handrot), physicsScratch.armedFist);
         const float allowed = armedAllowance(target);
         bool surface = true;
         // (within: the tests' reading wants the gap a little way out too; a grab alone is done at the first sphere on it)
@@ -473,7 +480,8 @@ struct TouchProvider
 }
 
 // How far off a weapon lying about or in the air the fist of `player`'s hand `which` takes it (see onWeapon).
-[[nodiscard]] float weaponGrabSlack(edict_t* target, edict_t* player, int which)
+// (`fromHandle`: weaponHandleDistance(target, player, which), which its caller may have measured already: < 0 measured here.)
+[[nodiscard]] float weaponGrabSlack(edict_t* target, edict_t* player, int which, float fromHandle = -1.f)
 {
     // (With vr_weapon_grab_slack more if it lies on the floor or is stuck: a gun lying flat is thinner than the lowest the
     // fist gets over the floor. Not one in the air: a catch is by the closed fist on it, as a prop's.)
@@ -485,7 +493,7 @@ struct TouchProvider
     // catch's (ROUND22.md, "Mid-air catches": the closing fist missed a falling axe's handle by a few centimetres).
     // Not one a force grab pulls (QC fg_state 1): its catch is its own (vr_forcegrab_catch_radius).
     const float m2u = units::metresToUnits();
-    const float fromHandle = weaponHandleDistance(target, player, which);
+    fromHandle = fromHandle >= 0.f ? fromHandle : weaponHandleDistance(target, player, which);
     const bool atHandle = fromHandle <= za::max(vr_weapon_grab_anywhere_min.value, 0.f) * 0.01f * m2u;
     float slack = 0.f;
     if(lyingWeapon(target))
@@ -529,7 +537,7 @@ bool testHandContact[2]{false, false};
 {
     const int h = which == HAND_OFF ? 0 : 1;
     const float fromHandle = weaponHandleDistance(target, player, which);
-    if(held::grabTouch(target, player, h, weaponGrabSlack(target, player, which)))
+    if(held::grabTouch(target, player, h, weaponGrabSlack(target, player, which, fromHandle))) // (its handle's distance once)
     {
         out.distance = fromHandle;
         return TouchAnswer::Yes;
@@ -582,21 +590,21 @@ bool testHandContact[2]{false, false};
 {
     const int h = which == HAND_OFF ? 0 : 1;
     const glm::vec3 hand = fieldVec(player, handPosField(which));
-    armedFist.clear();
+    physicsScratch.armedFist.clear();
     if(NUM_FOR_EDICT(player) == 1 && !held::fist(h).empty())
     {
-        held::fistInWorld(h, hand, fieldVec(player, which == HAND_OFF ? f().offhandrot : f().handrot), armedFist);
+        held::fistInWorld(h, hand, fieldVec(player, which == HAND_OFF ? f().offhandrot : f().handrot), physicsScratch.armedFist);
     }
-    if(armedFist.empty())
+    if(physicsScratch.armedFist.empty())
     {
-        armedFist.pushBack(glm::vec4{hand, wornPackPalm * 0.01f * units::metresToUnits()});
+        physicsScratch.armedFist.pushBack(glm::vec4{hand, wornPackPalm * 0.01f * units::metresToUnits()});
     }
     const glm::vec3 o = vec(target->v.origin);
     const glm::mat3 axes = held::axesFromAngles(target->v.angles, false);
     glm::vec3 mid, half;
     agarmor::packModelBoxSized(fieldFloatOr(target, f().vr_wp_size, 0.6f), mid, half);
     float best = 1e30f;
-    for(const glm::vec4& s : armedFist)
+    for(const glm::vec4& s : physicsScratch.armedFist)
     {
         const glm::vec3 local = glm::abs(glm::transpose(axes) * (glm::vec3{s} - o) - mid) - half;
         best = za::min(best, glm::length(glm::max(local, glm::vec3{0.f})) - s.w);
@@ -1231,6 +1239,13 @@ struct PostThinkShift
 PostThinkShift shift;
 } // namespace
 
+bool qvr::physics::onHostError()
+{
+    const bool open = shift.active;
+    shift.active = false;
+    return open;
+}
+
 extern "C" void VR_BeforePlayerPostThink(edict_t* ent)
 {
     server::rebaseHands(ent);
@@ -1549,9 +1564,9 @@ void grabBench()
         Con_Printf("vr_agrunt_grab_bench: no armed monster's weapon\n");
         return;
     }
-    held::fistInWorld(1, hand, fieldVec(player, f().handrot), armedFist);
+    held::fistInWorld(1, hand, fieldVec(player, f().handrot), physicsScratch.armedFist);
     const float m2u = units::metresToUnits();
-    held::benchFistGap(best, armedFist, vr_carry_grab_bias.value * 0.01f * m2u + vr_agrunt_grab_slack.value * 0.01f * m2u,
+    held::benchFistGap(best, physicsScratch.armedFist, vr_carry_grab_bias.value * 0.01f * m2u + vr_agrunt_grab_slack.value * 0.01f * m2u,
         Cmd_Argc() > 1 ? atoi(Cmd_Argv(1)) : 200);
 }
 
@@ -1602,7 +1617,7 @@ float armedGrabGap(edict_t* weapon, edict_t* player, int hand, float& allowed, b
     const float m2u = units::metresToUnits();
     allowed = armedAllowance(weapon);
     held::fistInWorld(hand, fieldVec(player, hand == 0 ? f().offhandpos : f().handpos),
-        fieldVec(player, hand == 0 ? f().offhandrot : f().handrot), armedFist);
+        fieldVec(player, hand == 0 ? f().offhandrot : f().handrot), physicsScratch.armedFist);
     bool surface = true;
     float gap = armedFistGap(weapon, za::max(allowed, 0.25f * m2u), -1e30f, surface);
     if(!surface)

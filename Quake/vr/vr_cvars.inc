@@ -735,6 +735,15 @@ QVR_CVAR(vr_move_hold, "0.4", CVAR_ARCHIVE)
 // rescaled length, before the curve) and pushed past it eases into running in a moment; back under it, into walking.
 QVR_CVAR(vr_move_autorun, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_move_autorun_threshold, "0.9", CVAR_ARCHIVE)
+// 1: the speed button (+speed: the off hand's stick click as shipped, LTHUMB; Shift) toggles instead of being held: a
+// press switches to the other speed (cl_alwaysrun's other), the next press back (vr_input.cpp sprintToggle). The
+// switch ends by itself, back to the Default Speed, when you stop after moving with it: nothing asks to move across the
+// ground (the stick in its deadzone, no move key; swimming straight up or down, crouching on the spot count as
+// stopped) for sprintToggleIdleSeconds (0.3 s: a stick flicked through its deadzone keeps it; a press while standing
+// waits for you to move); when you die or the intermission comes; at a new map; when a menu opens over the game (as
+// the held buttons let go); when this is set to 0. 0 (the default): held, as Quake's.
+// (A player's ask, 2026-11-19: click the stick to sprint rather than hold it.)
+QVR_CVAR(vr_sprint_toggle, "0", CVAR_ARCHIVE)
 // The least speed (units a second) a push just past the deadzone asks on the ground (vr_input.cpp moveMinSpeed): -1
 // a little over what Quake's ground friction lets you hold (44: asked less, you stand), 0 none (from 0).
 QVR_CVAR(vr_move_min_speed, "-1", CVAR_ARCHIVE)
@@ -2519,6 +2528,7 @@ QVR_CVAR(vr_climb_air_grab_time, "0.325", CVAR_ARCHIVE) // s: a grip pressed at 
 QVR_CVAR(vr_climb_mantle_grunt, "0.6", CVAR_ARCHIVE) // volume (0..1) of the player's grunt as a mantle pulls him up onto a ledge (which: vr_climb_mantle_grunt_sound); 0 off
 QVR_CVAR(vr_climb_mantle_grunt_sound, "4", CVAR_ARCHIVE) // the mantle's grunt (vr_climb.cpp mantleGrunts): 0 the jump's (player/plyrjmp8.wav), 1 a hard landing's (player/land2.wav), 2 the jump's deeper, 3 a hard landing's deeper (both made from id's as they load), 4 a short pain grunt (player/pain2.wav)
 QVR_CVAR(vr_climb_mantle_height, "20", CVAR_ARCHIVE) // units: holding a ledge, a mantle starts only once the head (the eyes) is this far above its top (and a hand has pulled down 8 units): lean up and down over a ledge under it without mantling (0..40; 8 before, though at a chest-high lip the pull's 8 units brought the head to 15 first)
+QVR_CVAR(vr_climb_mantle_trigger, "0", CVAR_ARCHIVE) // what starts a mantle once you are high enough for one (the head vr_climb_mantle_height over the ledge's top, a hand pulled down 8 units): 0 being there (at once), 1 letting go of the ledge there (the last holding hand's grip; let go lower, you drop as ever), 2 a jump pressed there, 3 either (vr_climb.cpp triggeredMantle; flatscreen play's ladder tops and flat mantle keep their own)
 QVR_CVAR(vr_climb_mantle_slope, "40", CVAR_ARCHIVE)  // degrees: the steepest top a mantle stands you on (vr_climb.cpp findMantleSloped: tried when the level search finds none; 0..60, 0: level tops only; Quake walks up to about 45)
 QVR_CVAR(vr_climb_touch, "4.5", CVAR_ARCHIVE)        // cm: the hand this close to a ledge's top or the face under its lip touches it (the whole reach at leniency 0)
 QVR_CVAR(vr_climb_over_top, "16", CVAR_ARCHIVE)      // units: a hand over a ledge's top still holds it this far in from the drop (as far as the top goes)
@@ -4105,7 +4115,8 @@ QVR_CVAR(vr_dopa_status, "0", CVAR_ROM)
 QVR_CVAR(vr_mg1_status, "0", CVAR_ROM)
 QVR_CVAR(vr_mg3_status, "0", CVAR_ROM)
 QVR_CVAR(vr_ad_status, "0", CVAR_ROM) // Arcane Dimensions' data (campaign 6; vr_gamedir.cpp, vr_ad.cpp): 0 missing, 1 1.80 patch 1 (the latest), 2 incomplete/corrupt, 3 another version (refused)
-QVR_CVAR(vr_ad_rules, "0", CVAR_ROM)  // the map now running plays by AD's rules (vr_ad.cpp: the AD campaign, or AD's signals in its entities while AD's data is mounted); QC AD_Rules()
+QVR_CVAR(vr_ruleset, "0", CVAR_ROM)   // the ruleset the map now running plays by (vr_rules.cpp: its campaign's, else its entities' signals): 0 Quake's, 1 Machine Games', 2 Arcane Dimensions', 3 Copper's; QC VR_Ruleset()
+QVR_CVAR(vr_ad_rules, "0", CVAR_ROM)  // the map now running plays by AD's rules (vr_ruleset 2: the AD campaign, or AD's signals in its entities while AD's data is mounted); AD's code and tests
 QVR_CVAR(vr_ad_evil, "0", CVAR_NONE)          // AD's Evil skill (decision 30; QC vr_ad_player.qc AD_Evil): with Nightmare (skill 3) and AD's data installed, any campaign plays Evil: 50 health at most (megahealth 100), the Shadow Axe's blows, AD's monsters at its skill 4. A game's choice like skill (kept in its saves); AD's own skill 4 sets it
 QVR_CVAR(vr_ad_tints, "1", CVAR_ARCHIVE)      // AD's screen tints (its debuffs' colours, a book's dark background; vr_ad.cpp VR_AD_TintBlend), times this, eased in and out (0: none). A cinematic camera's fades are not scaled
 QVR_CVAR(vr_ad_everywhere, "1", CVAR_ARCHIVE) // AD's monsters, new artifacts, custom pickups (keys, vials, custom items), ladders and weapons (upgrades per vr_ad_upgrades; the soldiers' guns) spawn in any map that places them (custom maps, the toolgun) while AD's data is installed (vr_ad.cpp everywhereClasses; decision 16): 0 only in AD maps

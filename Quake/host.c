@@ -353,6 +353,7 @@ void Host_EndGame (const char *message, ...)
 	Con_DPrintf ("Host_EndGame: %s\n",string);
 
 	PR_SwitchQCVM(NULL);
+	VR_OnHostError (); // QVR: what the longjmp would leave open put back (vr/vr_hosterror.cpp)
 
 	if (sv.active)
 		Host_ShutdownServer (false);
@@ -388,6 +389,7 @@ void Host_ReportError (const char *error, ...)
 	inerror = true;
 
 	PR_SwitchQCVM(NULL);
+	VR_OnHostError (); // QVR: what the longjmp would leave open put back (vr/vr_hosterror.cpp)
 
 	SCR_EndLoadingPlaque ();		// reenable screen updates
 
@@ -534,6 +536,8 @@ qboolean Host_WriteConfigurationToFile (const char *name)
 		VR_MenuSavePositions (); // QVR: the VR pages' selections and scrolls, into their cvar
 		VR_ScenarioConfigWrite (1); // QVR: a test scene's settings written as they were before it (vr/vr_scenario.cpp)
 		Cvar_WriteVariables (f);
+		if (mainconfig)
+			VR_ConfigNoteWrite (); // QVR: the settings as written (a test scene's still swapped in), for VR_ConfigWritten
 		VR_ScenarioConfigWrite (0);
 
 		//johnfitz -- extra commands to preserve state

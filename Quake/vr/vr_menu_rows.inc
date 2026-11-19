@@ -2478,6 +2478,11 @@ QVR_SLIDER_BYNAME(cl_forwardspeed, "Movement Speed", 100.f, 400.f, 25.f, "%.0f",
     "Walking speed (running is this times the running multiplier).")
 QVR_CYCLE_BYNAME(cl_alwaysrun, "Default Speed", "The speed button switches to the other.",
     {1.f, "Run"}, {0.f, "Walk"})
+QVR_CYCLE(vr_sprint_toggle, "Speed Button",
+    "Hold: hold the speed button (the left stick's click as shipped, Shift) to run, or to walk with Default "
+    "Speed: Run. Toggle: click it to switch, click again to switch back; it switches back by itself when you "
+    "stop, die, change level or open the menu (vr_sprint_toggle).",
+    {0.f, "Hold"}, {1.f, "Toggle"})
 QVR_SLIDER_BYNAME(cl_movespeedkey, "Running Mult.", 1.f, 3.f, 0.05f, "%.2f", ext(), "How much faster running is than walking.")
 QVR_TOGGLE(vr_crouch_speed, "Slower When Crouched",
     "Crouched for real (your eyes a little under standing), the stick moves you at most Crouched Speed times "
@@ -2592,6 +2597,12 @@ QVR_SLIDER_BYNAME(vr_climb_mantle_height, "Mantle Height", 0.f, 40.f, 1.f, "%.0f
     "Holding a ledge, how far your head must rise above its top before you pull up onto it. Higher: you "
     "can lean up and down over a ledge without mantling (the old point was about 15 at a chest-high ledge; "
     "32 units are about a metre).")
+QVR_CYCLE_BYNAME(vr_climb_mantle_trigger, "Mantle When",
+    "What pulls you up onto a ledge once your head is Mantle Height above its top. High Enough: it happens on "
+    "its own the moment you get there. Let Go: you can hang and look over the top, and pull up when you let go "
+    "of the ledge (with your last hand; let go lower down and you drop). Jump: when you press jump. "
+    "Let Go or Jump: either one.",
+    {0.f, "High Enough"}, {1.f, "Let Go"}, {2.f, "Jump"}, {3.f, "Let Go or Jump"})
 QVR_SLIDER_BYNAME(vr_climb_mantle_slope, "Steepest Slope", 10.f, 60.f, 5.f, "%.0f deg", noExt,
     "Pulling yourself up onto a ledge whose top isn't level (rising or falling away from the edge, or sloping "
     "along it) stands you on the slope, up to this steep (Quake walks up to about 45).")

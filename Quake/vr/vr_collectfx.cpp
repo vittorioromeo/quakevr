@@ -25,6 +25,7 @@
 #include "vr_cvars.hpp"
 #include "vr_geom.hpp"
 #include "vr_held.hpp"
+#include "vr_mem.hpp"
 #include "vr_profile.hpp"
 #include "vr_protocol.hpp"
 #include "vr_view.hpp"
@@ -484,6 +485,12 @@ void clear()
         it = Item{};
     }
 }
+
+namespace
+{
+// Forgotten when the client's state is cleared (vr_mem.hpp's resets): the pickups' effects.
+mem::Reset clientStateReset{"collectfx", mem::ResetEvent::ClientState, mem::ResetPhase::State, &clear};
+} // namespace
 
 const client::EntityVr* entityVr(const entity_t* e)
 {

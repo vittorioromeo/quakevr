@@ -12,6 +12,7 @@
 // The page groups are in vr_menu_pages_debug.cpp, vr_menu_pages_gameplay.cpp and vr_menu_pages_settings.cpp;
 // what they share with this file is in vr_menu_internal.hpp.
 
+#include "vr_alloccount.hpp"
 #include "vr_menuui.hpp"
 #include "vr_testkit.hpp"
 #include "vr_random.hpp"
@@ -26,10 +27,14 @@
 #include "vr_gameplaypresets.hpp"
 #include "vr_presets.hpp"
 #include "vr_scenario.hpp"
+#include "vr_config.hpp"
 #include "vr_cvars.hpp"
 #include "vr_monstervalues.hpp"
 #include "vr_tunables.hpp"
 #include "vr_weaponvalues.hpp"
+#include "Zancle/Algorithm/Count.hpp"
+#include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Chrono/Clock.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/Math/MinMax.hpp"
@@ -672,6 +677,8 @@ void hologramTestMessage()
     return "Own DOOM? Drop DOOM.WAD into quakevr/doom/wads";
 }
 
+int doomPageGeneration = -1; // the WAD search the Doom page's rows were built for (items(): Search Again)
+
 [[nodiscard]] za::Vector<Item> pageDoom()
 {
     za::Vector<Item> items = {
@@ -686,6 +693,7 @@ void hologramTestMessage()
         row(doom::wadRow, doom::wadHelp, doom::pickWad, -1, -1),
     };
     const int count = doom::wadCount();
+    doomPageGeneration = doom::wadGeneration();
     for(int i = 0; i < count; i++)
     {
         items.pushBack(row(doom::wadRow, doom::wadHelp, doom::pickWad, i, -1));
@@ -2053,7 +2061,8 @@ void loadPositions()
 }
 
 // Built on first use (cvars looked up by name exist by then); items without their cvar dropped.
-// A setting changed from its default (a * by its label; Changed Settings): its value, or for text its string. The
+// A setting changed from its default (a * by its label; Changed Settings), as the config writer counts it (its value
+// within 1e-6, or for text its string: sameSettingValue; REVIEW_NEXT_2026-11-18.md, finding 13). The
 // menus' own state (the weapon pages' hotspot and holster picked) and the presets (whose settings show it themselves)
 // aren't. A weapon's or prop's value (slotValue): its default is that slot's own (weapons.txt's, props.txt's).
 bool changedSetting(const cvar_t& var)
@@ -2064,16 +2073,7 @@ bool changedSetting(const cvar_t& var)
     {
         return false;
     }
-    char* end = nullptr;
-    const double v = strtod(var.string, &end);
-    const bool number = end != var.string && *end == '\0';
-    char* defEnd = nullptr;
-    const double d = strtod(var.default_string, &defEnd);
-    if(number && defEnd != var.default_string && *defEnd == '\0')
-    {
-        return static_cast<float>(v) != static_cast<float>(d);
-    }
-    return strcmp(var.string, var.default_string) != 0;
+    return !sameSettingValue(var.string, var.default_string); // (the config's test: changed here is a line there)
 }
 
 // Reset This Page (the footer): armed by a first press, done by a second within 3 seconds (MenuInstance::resetArmed*).
@@ -2396,6 +2396,10 @@ void applyFolds(int page, za::Vector<Item>& list)
     {
         done[page] = false; // the list, or the take picked, changed
     }
+    if(page == pageIndex(pageDoom) && doomPageGeneration != doom::wadGeneration())
+    {
+        done[page] = false; // the WADs searched again (Search Again, vr_doom_wads): a row each
+    }
     if(menuPages.level[page] != menuLevel())
     {
         done[page] = false; // Menu Detail changed: rows and links shown or left out
@@ -2417,12 +2421,18 @@ void applyFolds(int page, za::Vector<Item>& list)
     if(!done[page])
     {
         // The row selected: in the list about to be replaced; on the first build, where the last start
-        // left the page (vr_menu_positions).
+        // left the page (vr_menu_positions). Every panel's (MenuInstance): another open on this page keeps its row too,
+        // rather than its index (rows added or removed above it would put it on another setting).
         loadPositions();
-        RowAnchor anchor = anchorOf(built[page], ui().cursors[page], ui().scrolls[page]);
+        RowAnchor anchors[menu::instanceCount];
+        for(int i = 0; i < menu::instanceCount; i++)
+        {
+            const MenuInstance& m = menuInstances[i];
+            anchors[i] = i == currentMenu || m.open ? anchorOf(built[page], m.cursors[page], m.scrolls[page]) : RowAnchor{};
+        }
         if(built[page].empty())
         {
-            anchor = savedAnchors[page];
+            anchors[currentMenu] = savedAnchors[page];
             savedAnchors[page] = {};
         }
         built[page].clear();
@@ -2459,26 +2469,34 @@ void applyFolds(int page, za::Vector<Item>& list)
         dropEmptyHeaders(built[page]);
         addMenuDetail(built[page], page);
         // The same row again, on the same line of the view; gone, the cursor kept where it was (on a
-        // setting).
+        // setting). Each panel's.
         const int n = static_cast<int>(built[page].size());
-        int& cursor = ui().cursors[page];
-        if(const int row = anchor.valid ? findRow(built[page], anchor) : -1; row >= 0)
+        for(int m = 0; m < menu::instanceCount; m++)
         {
-            cursor = row;
-            ui().scrolls[page] = q_max(row - anchor.line, 0);
-        }
-        cursor = CLAMP(0, cursor, q_max(n - 1, 0));
-        // (A section's header is a place too while sections fold, but not where a page first opens: its first setting.)
-        const auto rests = [&](const Item& item) {
-            return item.kind == Item::Header ? foldsOn(page) && anchor.valid : selectable(item);
-        };
-        for(int i = cursor; n > 0 && !rests(built[page][cursor]) && i >= 0; i--)
-        {
-            cursor = rests(built[page][i]) ? i : cursor;
-        }
-        for(int i = cursor; n > 0 && !rests(built[page][cursor]) && i < n; i++)
-        {
-            cursor = rests(built[page][i]) ? i : cursor;
+            if(m != currentMenu && !menuInstances[m].open)
+            {
+                continue;
+            }
+            const RowAnchor& anchor = anchors[m];
+            int& cursor = menuInstances[m].cursors[page];
+            if(const int row = anchor.valid ? findRow(built[page], anchor) : -1; row >= 0)
+            {
+                cursor = row;
+                menuInstances[m].scrolls[page] = q_max(row - anchor.line, 0);
+            }
+            cursor = CLAMP(0, cursor, q_max(n - 1, 0));
+            // (A section's header is a place too while sections fold, but not where a page first opens: its first setting.)
+            const auto rests = [&](const Item& item) {
+                return item.kind == Item::Header ? foldsOn(page) && anchor.valid : selectable(item);
+            };
+            for(int i = cursor; n > 0 && !rests(built[page][cursor]) && i >= 0; i--)
+            {
+                cursor = rests(built[page][i]) ? i : cursor;
+            }
+            for(int i = cursor; n > 0 && !rests(built[page][cursor]) && i < n; i++)
+            {
+                cursor = rests(built[page][i]) ? i : cursor;
+            }
         }
     }
     applyFolds(page, built[page]);
@@ -2492,6 +2510,12 @@ void applyFolds(int page, za::Vector<Item>& list)
         {
             ui().cursors[page] = weaponOffsetsSightFocusRow;
         }
+    }
+    // Never past the list's end: the rebuild above keeps the rows of the panels open, and a panel opened since (New
+    // Panel copies the cursors) may find the list shorter than where its cursor was left.
+    if(int& cursor = ui().cursors[page]; cursor >= static_cast<int>(built[page].size()))
+    {
+        cursor = q_max(static_cast<int>(built[page].size()) - 1, 0);
     }
     return built[page];
 }
@@ -3103,7 +3127,7 @@ void resetAll()
     for(cvar_t* var : reset)
     {
         if(var->default_string && !keptOnResetAll(*var) && !serverrules::locked(var) &&
-            strcmp(var->string, var->default_string) != 0)
+            !sameSettingValue(var->string, var->default_string)) // ("0.50" is its "0.5": not counted, as not saved)
         {
             Con_DPrintf("Reset All to Defaults: %s \"%s\" (was \"%s\")\n", var->name, var->default_string, var->string);
             Cvar_SetQuick(var, var->default_string);
@@ -4895,6 +4919,254 @@ void qvr::menu::handCalMatch_f()
 
 namespace
 {
+// menu_vr anchortest (Misc/quakevr/menu_anchor_test.sh; REVIEW_NEXT_2026-11-18.md, finding 12): two panels on one
+// page, rows added above the second panel's selection by a rebuild the first asked for (Menu Detail raised from Standard
+// to Developer): the second keeps its row (by its label), on the same line of its view, and the first its own; Standard
+// again, both back. The second panel is marked open without a headset (no New Panel: none to place it), and put back
+// after, with Menu Detail. Ends "menu_anchor_test: N passed, M failed".
+void anchorTest()
+{
+    testkit::Tally tally;
+    char line[256];
+    const auto check = [&tally](bool ok, const char* what) {
+        if(tally.check(ok, "menu_anchor_test", what))
+        {
+            Con_Printf("menu_anchor_test: PASS %s\n", what);
+        }
+    };
+    const float levelWas = vr_menu_level.value;
+    const auto at = [](int level, int page) -> const za::Vector<Item>& {
+        Cvar_SetValueQuick(&vr_menu_level, static_cast<float>(level));
+        return items(page);
+    };
+    // A page and two settings on it shown at both levels, rows added above the second at Developer.
+    int page = -1, first = -1, firstHi = -1, second = -1, secondHi = -1;
+    for(int p = PageMain; p < pageCount && page < 0; p++)
+    {
+        if(p == pageIndex(pageSearch) || p == pageIndex(pageConsole) || p == pageIndex(pageMaps) || p == pageIndex(pageChanged))
+        {
+            continue;
+        }
+        const za::Vector<Item> lo = at(LevelStandard, p);
+        const za::Vector<Item> hi = at(LevelDeveloper, p);
+        const auto inHi = [&](int i) {
+            for(int j = 0; j < static_cast<int>(hi.size()); j++)
+            {
+                if(selectable(hi[j]) && !strcmp(rowLabel(hi[j]), rowLabel(lo[i])) && !strcmp(rowSection(hi, j), rowSection(lo, i)))
+                {
+                    return j;
+                }
+            }
+            return -1;
+        };
+        int a = -1, aHi = -1;
+        for(int i = 0; i < static_cast<int>(lo.size()) && page < 0; i++)
+        {
+            const int j = selectable(lo[i]) && rowLabel(lo[i])[0] ? inHi(i) : -1;
+            if(j < 0)
+            {
+                continue;
+            }
+            if(a < 0)
+            {
+                a = i, aHi = j;
+            }
+            else if(i >= 4 && j > i)
+            {
+                page = p, first = a, firstHi = aHi, second = i, secondHi = j;
+            }
+        }
+    }
+    q_snprintf(line, sizeof(line), "a page with rows added above a setting at Developer (%s: row %d -> %d)",
+        page >= 0 ? pages[page].title : "none", second, secondHi);
+    check(page >= 0 && currentMenu == 0, line);
+    if(page < 0 || currentMenu != 0)
+    {
+        Cvar_SetValueQuick(&vr_menu_level, levelWas);
+        tally.verdict("menu_anchor_test");
+        return;
+    }
+    const MenuInstance panelWas = menuInstances[1];
+    const int cursorWas = ui().cursors[page], scrollWas = ui().scrolls[page];
+    const za::Vector<Item>& standard = at(LevelStandard, page);
+    const za::String firstLabel{rowLabel(standard[first])}, secondLabel{rowLabel(standard[second])};
+    MenuInstance& other = menuInstances[1];
+    other.open = true;
+    other.cursors[page] = second;
+    other.scrolls[page] = second - 3; // (its fourth line)
+    ui().cursors[page] = first;
+    ui().scrolls[page] = 0;
+
+    for(const int level : {static_cast<int>(LevelDeveloper), static_cast<int>(LevelStandard)})
+    {
+        const za::Vector<Item>& list = at(level, page); // (rebuilt for the first panel, ui())
+        const int c = other.cursors[page], c0 = ui().cursors[page];
+        const int want = level == LevelDeveloper ? secondHi : second;
+        q_snprintf(line, sizeof(line), "%s: the other panel on \"%s\" (row %d, want %d), its fourth line (%d)",
+            levelName(level), c >= 0 && c < static_cast<int>(list.size()) ? rowLabel(list[c]) : "?", c, want,
+            c - other.scrolls[page]);
+        check(c == want && !strcmp(rowLabel(list[c]), secondLabel.cStr()) && c - other.scrolls[page] == 3, line);
+        q_snprintf(line, sizeof(line), "%s: the panel that rebuilt it on \"%s\" (want \"%s\")", levelName(level),
+            c0 >= 0 && c0 < static_cast<int>(list.size()) ? rowLabel(list[c0]) : "?", firstLabel.cStr());
+        check(c0 == (level == LevelDeveloper ? firstHi : first) && !strcmp(rowLabel(list[c0]), firstLabel.cStr()), line);
+    }
+
+    menuInstances[1] = panelWas;
+    ui().cursors[page] = cursorWas;
+    ui().scrolls[page] = scrollWas;
+    Cvar_SetValueQuick(&vr_menu_level, levelWas);
+    tally.verdict("menu_anchor_test");
+}
+
+// menu_vr buildcost [n] (REVIEW_NEXT_2026-11-18.md, finding 19: Item's modifiers): every page built anew, Changed
+// Settings and Search's index (each building every page anew at Developer), n times each: the time and heap
+// allocations a time on this thread. MBUILD lines.
+void buildCost(int n)
+{
+    const auto measure = [n](const char* what, auto&& build) {
+        const alloccount::Stats before = alloccount::statsThisThread();
+        const za::I64 t0 = za::Clock::nowNanoseconds();
+        for(int i = 0; i < n; i++)
+        {
+            build();
+        }
+        const za::I64 t1 = za::Clock::nowNanoseconds();
+        const alloccount::Stats after = alloccount::statsThisThread();
+        za::U64 allocations = 0;
+        for(const alloccount::Kind k : {alloccount::Kind::New, alloccount::Kind::Malloc, alloccount::Kind::Calloc,
+                alloccount::Kind::Realloc})
+        {
+            allocations += after.calls[static_cast<int>(k)] - before.calls[static_cast<int>(k)];
+        }
+        Con_Printf("MBUILD|%s|%.3f ms|%.0f allocations|%.0f KiB asked\n", what, za::nanosecondsToMilliseconds(t1 - t0) / n,
+            static_cast<double>(allocations) / n, static_cast<double>(after.requestedBytes - before.requestedBytes) / 1024.0 / n);
+    };
+    const auto stale = [] {
+        for(int p = 0; p < pageCount; p++)
+        {
+            menuPages.done[p] = false;
+        }
+    };
+    measure("every page", [&stale] {
+        stale();
+        for(int p = 0; p < pageCount; p++)
+        {
+            (void)items(p);
+        }
+    });
+    measure("Changed Settings", [&stale] {
+        stale();
+        (void)pageChanged();
+    });
+    measure("Search's index", [&stale] {
+        stale();
+        buildSearchIndex();
+    });
+}
+
+// menu_vr doomtest (Misc/quakevr/menu_doom_test.sh; REVIEW_NEXT_2026-11-18.md, finding 19): the Doom page's WAD rows
+// follow Search Again: a WAD dropped into quakevr/doom/wads (a 28-byte IWAD of the test's) and vr_doom_wads, a row more;
+// the file removed and searched again, as before. Ends "menu_doom_test: N passed, M failed".
+void doomTest()
+{
+    testkit::Tally tally;
+    char line[256];
+    const auto check = [&tally](bool ok, const char* what) {
+        if(tally.check(ok, "menu_doom_test", what))
+        {
+            Con_Printf("menu_doom_test: PASS %s\n", what);
+        }
+    };
+    const int page = pageIndex(pageDoom);
+    const auto wadRows = [&] {
+        const auto& list = items(page);
+        return static_cast<int>(za::countIf(list.begin(), list.end(), [](const Item& item) { return item.infoArg == doom::wadRow; }));
+    };
+    const int before = wadRows();
+    const za::String path = doom::dropInFolder() + "/qvr_menu_doom_test.wad";
+    // An IWAD of one empty lump (the header, then its directory: offset 0, size 0, "E1M1").
+    const unsigned char wad[28] = {'I', 'W', 'A', 'D', 1, 0, 0, 0, 12, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'E', '1', 'M', '1'};
+    check(files::writeBytes(path.cStr(), wad, sizeof(wad)), "a test WAD written into the drop-in folder");
+    Cmd_ExecuteString("vr_doom_wads", src_command); // (Search Again's command)
+    const int added = wadRows();
+    q_snprintf(line, sizeof(line), "after Search Again: %d WAD rows, %d before (one more, unless at the page's most)", added, before);
+    check(added == before + 1 || (added == before && doom::wadCount() == before - 1), line);
+    files::remove(path.cStr());
+    Cmd_ExecuteString("vr_doom_wads", src_command);
+    q_snprintf(line, sizeof(line), "the WAD removed, after Search Again: %d WAD rows", wadRows());
+    check(wadRows() == before, line);
+    tally.verdict("menu_doom_test");
+}
+
+// menu_vr changedtest (Misc/quakevr/menu_changed_test.sh; REVIEW_NEXT_2026-11-18.md, finding 13): the menu's "changed"
+// is the config's (sameSettingValue). A setting 1e-7 off its default (a line the config doesn't write) has no * and is
+// not on Changed Settings; its default's number in other text ("0.50" for "0.5") is not changed either, and Reset All
+// leaves it so (not counted) while it puts a changed one back. Two plain VR settings (no callback) found on the VR
+// Settings' pages; every setting Reset All touches is a test run's. Ends "menu_changed_test: N passed, M failed".
+void changedTest()
+{
+    testkit::Tally tally;
+    char line[256];
+    const auto check = [&tally](bool ok, const char* what) {
+        if(tally.check(ok, "menu_changed_test", what))
+        {
+            Con_Printf("menu_changed_test: PASS %s\n", what);
+        }
+    };
+    cvar_t* vars[2] = {};
+    for(int p = 0; p < pageCount && !vars[1]; p++)
+    {
+        if(!vrSettingsPage(p))
+        {
+            continue;
+        }
+        for(const Item& item : items(p))
+        {
+            cvar_t* var = item.kind == Item::Action ? nullptr : item.cvar;
+            char* end = nullptr;
+            const double d = var && var->default_string ? strtod(var->default_string, &end) : 0.0;
+            if(!var || vars[1] || var == vars[0] || var->callback || wrapperCvar(*var) || keptOnResetAll(*var) ||
+                serverrules::locked(var) || !end || end == var->default_string || *end || za::abs(d) > 100.0 ||
+                strcmp(var->string, var->default_string) != 0 || q_strncasecmp(var->name, "vr_", 3))
+            {
+                continue;
+            }
+            vars[vars[0] ? 1 : 0] = var;
+        }
+    }
+    check(vars[0] && vars[1], "two plain VR settings at their defaults");
+    if(!vars[0] || !vars[1])
+    {
+        tally.verdict("menu_changed_test");
+        return;
+    }
+    cvar_t& a = *vars[0];
+    cvar_t& b = *vars[1];
+    const auto listed = [](const cvar_t* var) {
+        const za::Vector<Item> list = pageChanged();
+        return za::anyOf(list.begin(), list.end(), [var](const Item& item) { return item.cvar == var; });
+    };
+
+    Cvar_SetQuick(&a, va("%.9g", Q_atof(a.default_string) + 1e-7));
+    q_snprintf(line, sizeof(line), "%s \"%s\" (default \"%s\"): not saved, no *, not on Changed Settings", a.name, a.string,
+        a.default_string);
+    check(!VR_ConfigSaves(&a) && !changedSetting(a) && !listed(&a), line);
+
+    const za::String other = za::String{a.default_string} + (strchr(a.default_string, '.') ? "0" : ".0");
+    Cvar_SetQuick(&a, other.cStr());
+    Cvar_SetQuick(&b, va("%g", Q_atof(b.default_string) + 1.5));
+    q_snprintf(line, sizeof(line), "%s \"%s\": not changed; %s \"%s\": changed and listed", a.name, a.string, b.name, b.string);
+    check(!changedSetting(a) && !listed(&a) && changedSetting(b) && listed(&b), line);
+    resetAll();
+    resetAll(); // (pressed twice)
+    q_snprintf(line, sizeof(line), "Reset All: %s kept \"%s\" (the same number), %s back to \"%s\"", a.name, a.string,
+        b.name, b.string);
+    check(!strcmp(a.string, other.cStr()) && !strcmp(b.string, b.default_string), line);
+
+    Cvar_SetQuick(&a, a.default_string);
+    tally.verdict("menu_changed_test");
+}
+
 // menu_vr pageresettest (Misc/quakevr/menu_pagereset_test.sh; ROUND25.md, "Reset This Page and changes on the weapon and
 // prop pages"): the weapon pages pinned to the shotgun's slot (no game needed), its hotspot 1 X changed (and, to stay:
 // its hotspot 2 X, its Shot Pitch on another page, the nailgun's hotspot 1 X): the * by the row, the row on Changed
@@ -5297,6 +5569,26 @@ void qvr::menu::command_f()
     if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "rows"))
     {
         printRows();
+        return;
+    }
+    if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "buildcost"))
+    {
+        buildCost(Cmd_Argc() > 2 ? za::max(Q_atoi(Cmd_Argv(2)), 1) : 5);
+        return;
+    }
+    if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "doomtest"))
+    {
+        doomTest();
+        return;
+    }
+    if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "changedtest"))
+    {
+        changedTest();
+        return;
+    }
+    if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "anchortest"))
+    {
+        anchorTest();
         return;
     }
     if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "pageresettest"))

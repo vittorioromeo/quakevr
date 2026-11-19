@@ -4431,12 +4431,39 @@ void() VR_EQ_Step;
 void() VR_EP_Begin; // (vr_embed_1108b_test.qc: test 30)
 void() VR_EP_Step;
 void() VR_EP_Next;
+void() VR_SKL_Begin; // (vr_skewerlist_test.qc: tests 49-51)
+void() VR_SKL_Step;
+void() VR_SKL_End;
+void() VR_SKL_AfterLoad;
+float vr_skl_save;
+float vr_skl_phase, vr_skl_reb;
 void() VR_Embed_TestFrame =
 {
+    if(vr_skl_phase == 1 && vr_skewer_rebuilds == vr_skl_reb + 1 && VR_Player() != world)
+    {
+        vr_skl_phase = 2; // (vr_embed_test 50's save loaded: OnLoadGame made the list again)
+        vr_skl_reb = time + 1; // (the check once the client has begun again: a broadcast before reaches nobody)
+    }
+    else if(vr_skl_phase == 2 && time > vr_skl_reb)
+    {
+        VR_SKL_AfterLoad();
+    }
     float ask = cvar_hget(cvarh_vr_embed_test);
     if(ask)
     {
         cvar_set("vr_embed_test", "0");
+        if(ask == 49 || ask == 50)
+        {
+            cvar_set("vr_embed", "1");
+            VR_SKL_Begin();
+            vr_skl_save = ask == 50;
+            return;
+        }
+        if(ask == 51)
+        {
+            VR_SKL_AfterLoad();
+            return;
+        }
         if(ask == 28)
         {
             cvar_set("vr_embed", "1");
@@ -4821,6 +4848,18 @@ cvar_set("vr_hit_stagger", "0"); // (a blow's own chances: it's the blade's stag
             VR_EH_NextCase();
         }
         VR_E8_Step();
+    }
+    else if(vr_et_on == 49)
+    {
+        if(time - vr_et_t0 > VR_ET_GIVEUP)
+        {
+            VR_Test_Check(FALSE, sprintf("timed out: state %g", vr_et_s));
+            VR_SKL_End();
+        }
+        else
+        {
+            VR_SKL_Step();
+        }
     }
     else if(vr_et_on == 29)
     {

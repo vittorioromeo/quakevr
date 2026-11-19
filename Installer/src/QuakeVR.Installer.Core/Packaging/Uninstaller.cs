@@ -107,11 +107,8 @@ public static class Uninstaller
             {
                 record.HdTexturesFile = record.HdTexturesSha256 = null;
             }
-            if (!record.Files.Any(f => f.Component == Components.ArcaneDimensions))
-            {
-                record.ArcaneDimensionsFile = record.ArcaneDimensionsSha256 = null;
-                record.Choices.ArcaneDimensions = false;
-            }
+            ModComponent.ClearIfGone(ArcaneDimensions.Spec, record);
+            ModComponent.ClearIfGone(Dwell.Spec, record);
             record.Save(target);
         }
         else

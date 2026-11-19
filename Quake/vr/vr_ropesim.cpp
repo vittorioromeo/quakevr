@@ -21,6 +21,7 @@
 #include "vr_ropesim.hpp"
 #include "vr_box3d.hpp"
 #include "vr_cvars.hpp"
+#include "vr_mem.hpp"
 #include "vr_tunables.hpp"
 #include "vr_profile.hpp"
 #include "vr_progs.hpp"
@@ -552,6 +553,12 @@ void reset()
     ropes.clear();
     registerCommands();
 }
+
+namespace
+{
+// Forgotten with the server's world (vr_mem.hpp's resets): the ropes, by entity number.
+mem::Reset serverWorldReset{"ropesim", mem::ResetEvent::ServerWorld, mem::ResetPhase::State, &reset};
+} // namespace
 
 void profileCounts(int& nRopes, int& nPoints)
 {

@@ -7,7 +7,7 @@ and the author's own (`license.md`); moodycamel's queue is under the simplified 
 - Upstream: https://github.com/vittorioromeo/zancle, branch `rebrand_to_zancle`
 - Commit: `2f8a1ca5b147019a9587e342107da167e48637ed` (2026-10-07, branch `zancle-concurrency-fixes` off `7bd385db`:
   the five concurrency fixes of `docs/vr-port/ZANCLE_CONCURRENCY_REVIEW_2026-10-04.md`, for `rebrand_to_zancle`);
-  no local changes: the files are upstream's.
+  with the local changes listed under "Local changes" below (not upstream yet: an update must keep them).
 
 The Quake VR code is written on Zancle instead of the C++ standard library (`docs/vr-port/ROUND21.md`, "Zancle
 migration"; `docs/vr-port/CODE_STYLE.md`, "Zancle, not the standard library"). Vendored: the headers the VR code
@@ -52,7 +52,18 @@ Build (every build file compiles the same set):
 - CMake (`Quake/vr/vr.cmake`): on Windows configure with `-T ClangCL` (plain MSVC stops with a message). The Makefiles:
   `-pthread` or `-lsynchronization`; the engine's C++ files are `-std=c++23 -DZA_STATIC` with Zancle's `include`.
 
-Local changes: none since 534219bf (and none at 304ea6c3 or 2f8a1ca5). The last ones went upstream at `fad225a4`: `MaxAlignT.hpp`'s `__float128` guard
+Local changes (not upstream yet: `zancle_vendor.py --update` overwrites them; re-apply, or upstream them first):
+
+- `Concurrency/ThreadPool.hpp` and `src/Zancle/Concurrency/ThreadPool.cpp`: `ThreadPool::setIdleHook` (a worker's
+  timed wait; the hook runs once a worker has had no job that long): idle job workers give back their heap pages
+  (`vr_jobs.cpp`, `vr_crtheap_info.c`; 6e5fc7980). Without it `vr_jobs.cpp` doesn't build.
+- `Base/InterferenceSize.hpp`: the cache line size for GCC/clang targets too (`__aarch64__`, `__x86_64__`,
+  `__i386__`, `__arm__`), not only MSVC's macros (96f3490af: the Quest and Linux builds).
+- `Trait/ReferenceConvertsFromTemporary.hpp`: older clang (the Android NDK's clang 18, whose libc++ lacks the trait):
+  `__reference_binds_to_temporary` (96f3490af).
+- `src/Zancle/String/String.cpp`: its `-Wclass-memaccess` pragmas for GCC only (clang has no such warning; 96f3490af).
+
+Before those: none since 534219bf (and none at 304ea6c3 or 2f8a1ca5). The last ones went upstream at `fad225a4`: `MaxAlignT.hpp`'s `__float128` guard
 (`__SIZEOF_FLOAT128__`, for 32-bit clang-cl), `InitializerList.hpp`'s real `<initializer_list>` under `_MSC_VER` (two
 layouts of one type had corrupted memory: ROUND21.md, "Zancle update to 4ed9c3cc"), and the assert hook
 (`za::setAssertHandler`, in place of QVR's edit to `Assert.cpp`). `Config.hpp`'s clang-cl C++23 check went upstream at

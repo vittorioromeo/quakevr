@@ -304,7 +304,7 @@ Each line is a `##` section of [archive/TESTING_RECIPES.md](archive/TESTING_RECI
 - Profiler, Bullet Time and the spectator camera: vr_profile_*, spectator fx, paired renders
 - Crash reports: vr_crash.cpp, vr_crash_test
 - The Loading... crash and sound-off blind spots: loading_switch_test.sh, vr_zone_threadcheck
-- Menus: centring, scroll memory, shortcuts, flat menu: menu_vr pos / dump / ids / expect, flat mouse, quicksave, menu_pagereset_test.sh (Reset This Page and Changed Settings on the weapon and prop pages)
+- Menus: centring, scroll memory, shortcuts, flat menu: menu_vr pos / dump / ids / expect, flat mouse, quicksave, menu_pagereset_test.sh (Reset This Page and Changed Settings on the weapon and prop pages), menu_anchor_test.sh (another panel on the same page keeps its row through a rebuild), menu_changed_test.sh (a * and Changed Settings, Reset All: changed as the config counts it), menu_doom_test.sh (the Doom page's WAD rows after Search Again)
 - Weapons through a save and a load: load_models_test.sh
 - Playtest checklist: checklist.txt format, ticks, vr_checklist, folding
 - Teleporter and melee regression fixtures (2026-10-04): start-room and melee fixtures
@@ -312,7 +312,8 @@ Each line is a `##` section of [archive/TESTING_RECIPES.md](archive/TESTING_RECI
 - Immersive reloading (2026-10-07): reload_test.sh, pouch, magazines
 - Put-away transition (2026-10-07): the transition
 - Shotgun auto pump (2026-10-07): autopump_test.sh
-- OpenXR runtime choice (2026-10-09): xr_runtime_test.sh, fakexr
+- TAA's motion target through remade eye targets (2026-11-19): taa_attach_test.sh (Linux; vr_temporal_attachcheck)
+- OpenXR runtime choice (2026-10-09): xr_runtime_test.sh, fakexr (Linux too), xr_session_test.sh (a session lost by return code, unpaced frames, the panel swapchain failing)
 - Arcane Dimensions: soldiers' guns, upgrades per weapon, the gadget's AD page (2026-10-12): vr_ad_test, soldiers' guns, upgrades, the gadget page
 - Piled-up decals: the mark limit a spot (2026-10-12): the mark limit a spot
 - Judo throws, held throws and lifts with the mock hands (2026-10-13): held throws and lifts with the mock hands

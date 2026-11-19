@@ -290,7 +290,7 @@ void() boss_awake =
 */
 void() monster_boss =
 {
-    if(MG_MonsterInhibited()) return;
+    if(VR_SF_SpawnInhibited()) return;
     if(deathmatch)
     {
         remove(self);

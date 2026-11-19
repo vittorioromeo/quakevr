@@ -54,6 +54,9 @@ struct Slide
 
 // Client number `num`'s slide (1..16; anything else: a spare one nobody reads).
 [[nodiscard]] Slide& state(int num);
+// Every client's slide and headset slide input forgotten (resetServerWorld: every map and every loaded game, so a slide
+// held through a load doesn't carry on from the loaded place; the slide's own clock check catches a new map's alone).
+void resetServer();
 // `ent`'s client number when it is a client on this server (1..16), else -1.
 [[nodiscard]] int clientSlot(const edict_t* ent);
 // vr_flat_slide: flatscreen play's slide on.

@@ -550,7 +550,7 @@ void(entity xItem) AD_ItemTaken =
     if(xItem.ad_respawn_count > 0)
     {
         xItem.ad_respawn_count = xItem.ad_respawn_count - 1;
-        if(xItem.ad_respawn_count == 0) xItem.spawnflags = xItem.spawnflags - VR_SF_Bit(VR_SF_AD, VR_SF_ITEM_RESPAWN);
+        if(xItem.ad_respawn_count == 0) xItem.spawnflags = xItem.spawnflags - VR_SF_Bit(VR_RULES_AD, VR_SF_ITEM_RESPAWN);
     }
     if(xItem.ad_respawn_trig || xItem.ad_respawn_time < 0)
     {

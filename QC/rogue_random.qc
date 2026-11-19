@@ -18,9 +18,21 @@ void() random_pick_type =
     self.touch = powerup_touch;
     setsize(self, '-16 -16 -24', '16 16 32');
 
+    // VR: the pick's pickup where itemTouch calls it: its th_die once placed (a deathmatch respawn's pick: the handtouch
+    // stays itemTouch, so its targets fire once), else the handtouch PlaceItem moves there. (The three id powerups had
+    // none: a hand's touch called an empty th_die; a respawned shield or belt bypassed itemTouch.)
+    void() pickup = randItem < 0.4 ? newitems_touch : powerup_touch;
+    if(self.handtouch == itemTouch)
+    {
+        self.th_die = pickup;
+    }
+    else
+    {
+        self.handtouch = pickup;
+    }
+
     if(randItem < 0.2)
     {
-        self.handtouch = newitems_touch;
         self.noise = "shield/pickup.wav";
         setmodel(self, "progs/shield.mdl");
         self.netname = "Power Shield";
@@ -28,7 +40,6 @@ void() random_pick_type =
     }
     else if(randItem < 0.4)
     {
-        self.handtouch = newitems_touch;
         self.noise = "belt/pickup.wav";
         setmodel(self, "progs/beltup.mdl");
         self.netname = "Anti-Grav Belt";

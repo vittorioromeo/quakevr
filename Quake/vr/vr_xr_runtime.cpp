@@ -27,6 +27,7 @@
 #include <unistd.h>
 #endif
 
+#include <atomic>
 #include <ctype.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -1554,7 +1555,7 @@ za::String foreignArch(const char* manifest)
 bool loaderDebugSet = false;
 
 #ifndef _WIN32
-// Linux: the loader's (and the runtime's) stdout and stderr while it loads a runtime, caught in a temporary file
+// Linux: the loader's (and the runtime's) stdout and stderr while it loads a runtime, caught in qvr_openxr_loader.txt
 // (captureLoaderOutput .. endLoaderOutput).
 struct LoaderCapture
 {
@@ -1563,6 +1564,10 @@ struct LoaderCapture
     int savedErr = -1;
 };
 LoaderCapture loaderCapture;
+// The terminal's stdout and stderr (the dups) while they are caught, -1 otherwise: VR_TerminalFd's, read by the start-up
+// watchdog's thread and the crash handler (a lock-free int: signal-safe).
+std::atomic<int> terminalOut{-1};
+std::atomic<int> terminalErr{-1};
 #endif
 
 } // namespace
@@ -1591,7 +1596,12 @@ void loaderDebug()
 #endif
 }
 
-void captureLoaderOutput()
+const char* loaderOutputPath()
+{
+    return va("%s/qvr_openxr_loader.txt", com_gamedir);
+}
+
+void captureLoaderOutput(const char* call)
 {
 #ifndef _WIN32
     LoaderCapture& c = loaderCapture;
@@ -1601,15 +1611,27 @@ void captureLoaderOutput()
     }
     fflush(stdout);
     fflush(stderr);
-    c.file = tmpfile();
+    c.file = fopen(loaderOutputPath(), "w+b");
     if(!c.file)
     {
         return;
     }
+    char when[32] = "";
+    const time_t now = time(nullptr);
+    if(const tm* t = localtime(&now))
+    {
+        strftime(when, sizeof(when), "%Y-%m-%d %H:%M:%S", t);
+    }
+    fprintf(c.file, "== %s, %s: the OpenXR loader's and the runtime's stdout and stderr while it runs\n", call, when);
+    fflush(c.file);
     c.savedOut = dup(STDOUT_FILENO);
     c.savedErr = dup(STDERR_FILENO);
+    terminalOut.store(c.savedOut, std::memory_order_release); // (before the redirect: the terminal stays reachable)
+    terminalErr.store(c.savedErr, std::memory_order_release);
     dup2(fileno(c.file), STDOUT_FILENO);
     dup2(fileno(c.file), STDERR_FILENO);
+#else
+    (void)call;
 #endif
 }
 
@@ -1626,13 +1648,22 @@ void endLoaderOutput(const char* call, bool failed)
     if(c.savedOut >= 0)
     {
         dup2(c.savedOut, STDOUT_FILENO);
-        close(c.savedOut);
     }
     if(c.savedErr >= 0)
     {
         dup2(c.savedErr, STDERR_FILENO);
+    }
+    terminalOut.store(-1, std::memory_order_release); // (fds 1 and 2 the terminal's again: the dups no longer needed)
+    terminalErr.store(-1, std::memory_order_release);
+    if(c.savedOut >= 0)
+    {
+        close(c.savedOut);
+    }
+    if(c.savedErr >= 0)
+    {
         close(c.savedErr);
     }
+    fflush(c.file);
     rewind(c.file);
     char line[1024];
     char last[1024] = "";
@@ -1640,8 +1671,9 @@ void endLoaderOutput(const char* call, bool failed)
     while(fgets(line, sizeof(line), c.file))
     {
         line[strcspn(line, "\r\n")] = 0;
-        // (With XR_LOADER_DEBUG the loader writes each error to stderr and stdout both: once.)
-        if(!line[0] || !strcmp(line, last))
+        // (With XR_LOADER_DEBUG the loader writes each error to stderr and stdout both: once. The file's own header
+        // line, "== <call>, <time>: ...", not.)
+        if(!line[0] || !strcmp(line, last) || !strncmp(line, "== ", 3))
         {
             continue;
         }
@@ -1978,3 +2010,23 @@ const char* statusLine()
 }
 
 } // namespace qvr::xrruntime
+
+// The terminal's own stdout (1) or stderr (2) while the OpenXR loader's output is caught (captureLoaderOutput): the
+// start-up watchdog's "still in" lines and the crash report reach it during a hang or a crash inside the call; -1 when
+// nothing is caught (fds 1 and 2 are the terminal's then). Signal-safe (an atomic int's load).
+extern "C" int VR_TerminalFd(int fd)
+{
+#ifndef _WIN32
+    if(fd == 1)
+    {
+        return qvr::xrruntime::terminalOut.load(std::memory_order_acquire);
+    }
+    if(fd == 2)
+    {
+        return qvr::xrruntime::terminalErr.load(std::memory_order_acquire);
+    }
+#else
+    (void)fd;
+#endif
+    return -1;
+}

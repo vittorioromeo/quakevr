@@ -583,6 +583,13 @@ void resetRigidBodies()
     grip::resetServer();
 }
 
+namespace
+{
+// Forgotten with the server's world (vr_mem.hpp's resets): the free places, drawn boxes and carried props, with the
+// two-handed holds and the grips.
+mem::Reset serverWorldReset{"physics", mem::ResetEvent::ServerWorld, mem::ResetPhase::State, &resetRigidBodies};
+} // namespace
+
 void forgetEntity(int num)
 {
     if(num >= 0 && num < static_cast<int>(freePlaces.size()))

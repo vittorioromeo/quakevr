@@ -1517,6 +1517,12 @@ void reset()
     planMs = 0.0;
 }
 
+namespace
+{
+// Forgotten with the server's world (vr_mem.hpp's resets): what was gathered for the last map.
+mem::Reset serverWorldReset{"debris", mem::ResetEvent::ServerWorld, mem::ResetPhase::State, &reset};
+} // namespace
+
 void afterLoad()
 {
     if(vr_debug_debris.value && spawnStart > 0.0)

@@ -2811,6 +2811,12 @@ void clear()
     permdecals::clear(); // (and those baked for good)
 }
 
+namespace
+{
+// Forgotten when the client's state is cleared (vr_mem.hpp's resets): the decals, gore and baked marks.
+mem::Reset clientStateReset{"decals", mem::ResetEvent::ClientState, mem::ResetPhase::State, &clear};
+} // namespace
+
 // A mark laid on brush `id` (one on several brushes: if its middle is in lo..hi).
 [[nodiscard]] bool onBrush(const Decal& d, int id, const glm::vec3& lo, const glm::vec3& hi)
 {

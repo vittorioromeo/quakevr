@@ -9,6 +9,7 @@
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "vr_testkit.hpp"
+#include "vr_strings.hpp"
 
 #ifdef _WIN32
 #ifndef WIN32_LEAN_AND_MEAN
@@ -641,7 +642,7 @@ void wrapTest_f()
         testkit::verdict("vr_snd_wrap_test", 0, 1);
         return;
     }
-    S_MixJoin();
+    S_MixJoin(); // (a read of the channels on the main thread: the pool's mix done first, S_MixKick)
     const int fullSamples = shm->samples / shm->channels;
     const int firstStatic = MAX_DYNAMIC_CHANNELS + NUM_AMBIENTS;
     if(step == 1)
@@ -692,6 +693,64 @@ void wrapTest_f()
     check(paintedtime >= soundtime && paintedtime - soundtime <= fullSamples, "the mix goes on (painted ahead of the device)");
     check(still == wrapTest.statics && bad == 0, "every static sound plays on");
     tally.verdict("vr_snd_wrap_test");
+}
+
+// vr_snd_mixcheck_test [fatal]: the checked reads of the channels (q_sound.h, development builds): a mix posted to the
+// pool (S_MixKick), a deliberate read of snd_channels on the main thread without S_MixJoin counted by S_MixCheckAt with
+// its line, the mix's own reads on a worker meanwhile not, a read after the join not. Needs sound and the thread pool
+// (snd_mixasync 1). Ends on "vr_snd_mixcheck_test: N passed, M failed"; `fatal` then makes the read again uncounted:
+// the game ends with the crash report naming this file and line (Sys_Error).
+void mixCheckTest_f()
+{
+    constexpr const char* N = "vr_snd_mixcheck_test";
+#ifdef QVR_RELEASE
+    Con_Printf("%s: a release has no checked reads (development builds only)\n", N);
+    testkit::verdict(N, 0, 0);
+#else
+    testkit::Tally tally;
+    const auto check = [&](bool ok, const char* what) {
+        tally.check(ok);
+        Con_Printf("%s: %s %s\n", N, ok ? "PASS" : "FAIL", what);
+    };
+    if(!shm || !shm->buffer)
+    {
+        check(false, "sound (run without -nosound)");
+        tally.verdict(N);
+        return;
+    }
+    S_MixJoin();
+    MixCheckCount& c = mixCheckCount;
+    c = MixCheckCount{};
+    c.counting = true;
+    S_MixKick(false);
+    const bool posted = mixOnPool();
+    check(posted, "a mix posted to the pool (S_MixKick; snd_mixasync 1, a worker)");
+    Sys_Sleep(20); // (the mix runs on a worker meanwhile: its own reads go through the same checks)
+    const int caughtBefore = c.caught;
+    const int line = __LINE__ + 1;
+    const sfx_t* const volatile unjoined = snd_channels[0].sfx; // the deliberate unjoined read
+    (void)unjoined;
+    check(caughtBefore == 0, "the mix's own reads on the pool are not caught");
+    check(c.caught == caughtBefore + 1 && c.line == line && c.file && strings::endsWith(c.file, "vr_audio_cmds.cpp"),
+        va("the unjoined read on the main thread is caught, naming its place (%s:%d)", c.file ? COM_SkipPath(c.file) : "-",
+            c.line));
+    S_MixJoin();
+    const sfx_t* const volatile joined = snd_channels[0].sfx;
+    (void)joined;
+    check(c.caught == caughtBefore + 1, "a read after S_MixJoin is not");
+    c = MixCheckCount{};
+    tally.verdict(N);
+    if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "fatal") && posted)
+    {
+        S_MixKick(false);
+        Con_Printf("%s: the same read uncounted: the game ends with the crash report naming %s:%d\n", N,
+            COM_SkipPath(__FILE__), __LINE__ + 1);
+        const sfx_t* const volatile fatal = snd_channels[0].sfx;
+        (void)fatal;
+        S_MixJoin(); // (not reached when the check works)
+        Con_Printf("%s: FAIL the uncounted read did not end the game\n", N);
+    }
+#endif
 }
 
 } // namespace detail

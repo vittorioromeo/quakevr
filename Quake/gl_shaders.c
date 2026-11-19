@@ -186,6 +186,24 @@ static unsigned long long GL_TwinProgramKey (const GLchar *const *sources, const
 
 /*
 =============
+GL_StorageBlockLimits -- QVR
+
+The driver's storage-block limits per stage, for a failed link's message: a link that fails on them (OpenGL ES may
+offer few or none to the vertex and fragment stages; the scene's programs read several) says so, not only the
+driver's log.
+=============
+*/
+static const char *GL_StorageBlockLimits (void)
+{
+	GLint vs = 0, fs = 0, cs = 0;
+	glGetIntegerv (GL_MAX_VERTEX_SHADER_STORAGE_BLOCKS, &vs);
+	glGetIntegerv (GL_MAX_FRAGMENT_SHADER_STORAGE_BLOCKS, &fs);
+	glGetIntegerv (GL_MAX_COMPUTE_SHADER_STORAGE_BLOCKS, &cs);
+	return va ("the driver's storage blocks per stage: vertex %d, fragment %d, compute %d", vs, fs, cs);
+}
+
+/*
+=============
 GL_InitError
 =============
 */
@@ -405,7 +423,7 @@ static GLuint GL_CreateProgramFromShaders (const GLuint *shaders, int numshaders
 			gl_multiview_compile = 2;
 		}
 		else
-		GL_InitError ("Error linking %s program:\n\n%s", name, infolog);
+		GL_InitError ("Error linking %s program:\n\n%s\n\n(%s)", name, infolog, GL_StorageBlockLimits ()); // QVR: the limits
 	}
 	else if (gl_progcache_key && !deferred && !gl_multiview_async) // QVR: the program cache (deferred: GL_DeferredCheck)
 		GL_ProgramToCache (program, gl_progcache_key);
@@ -446,7 +464,7 @@ static void GL_DeferredCheckOne (const gldeferred_t *d)
 	{
 		memset (infolog, 0, sizeof (infolog));
 		GL_GetProgramInfoLogFunc (d->program, sizeof (infolog), NULL, infolog);
-		GL_InitError ("Error linking %s program:\n\n%s", d->name, infolog);
+		GL_InitError ("Error linking %s program:\n\n%s\n\n(%s)", d->name, infolog, GL_StorageBlockLimits ()); // QVR: the limits
 	}
 	if (d->key) // QVR: the program cache
 		GL_ProgramToCache (d->program, d->key);

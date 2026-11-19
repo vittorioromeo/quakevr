@@ -16,6 +16,7 @@
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Ceil.hpp"
 #include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Lround.hpp"
 #include "Zancle/Math/MinMax.hpp"
 
 namespace qvr::dynres
@@ -60,13 +61,7 @@ State st;
 GLuint loadProgram = 0;
 bool loadFailed = false;
 
-constexpr const char* loadVs = R"(#version 430
-void main()
-{
-    ivec2 v = ivec2(gl_VertexID & 1, gl_VertexID >> 1);
-    gl_Position = vec4(vec2(v) * 4.0 - 1.0, 0.0, 1.0);
-}
-)";
+constexpr const char* loadVs = gfx::fullscreenTriangleVs;
 
 // Work: the loop's iterations a pixel; Zero: 0 (a uniform, so the compiler can't drop the loop). Alpha 0 over alpha
 // blending: no pixel changes.
@@ -122,9 +117,12 @@ void main()
     return za::clamp(static_cast<double>(vr_dynres_target.value), 0.3, 1.0) * (period > 0.0 ? period : unknownPeriodMs);
 }
 
+int changeCount = 0; // bucket changes so far (changes(): vr_stereo_targets_test)
+
 void change(int bucket, unsigned long long serial, double ms, float drawn)
 {
     const float from = bucketScale(st.bucket);
+    ++changeCount;
     st.lastWasDrop = bucket > st.bucket;
     st.bucket = bucket;
     st.changedAt = profile::nowSeconds();
@@ -150,6 +148,26 @@ void change(int bucket, unsigned long long serial, double ms, float drawn)
 }
 
 } // namespace
+
+int changes()
+{
+    return changeCount;
+}
+
+int eyeSize(int image, int max, float scale)
+{
+    int size = static_cast<int>(za::lround(static_cast<double>(image) * scale));
+    if(max > 0)
+    {
+        size = za::min(size, max);
+    }
+    return za::max(size, 16);
+}
+
+float allocationScale()
+{
+    return enabled() ? ceilingScale() : za::clamp(vr_render_scale.value, 0.25f, 2.f);
+}
 
 float scale()
 {

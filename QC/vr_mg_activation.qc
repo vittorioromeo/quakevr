@@ -25,14 +25,7 @@
 .float MG_monster_move;
 .void() MG_monster_start;
 .entity MG_monster_activator;
-float() MG_MonsterInhibited = {
-    if(!MG_WorldCampaign()) return FALSE;
-    if(MG3_RuneRemoved()) return TRUE; // Dawn of the Machine: not with this many runes (vr_mg3_defs.qc)
-    if((!coop && (self.spawnflags & 32768)) || (coop && (self.spawnflags & 131072))) {
-        remove(self); return TRUE;
-    }
-    return FALSE;
-};
+// (MG's coop and rune spawn rules: VR_SF_SpawnInhibited, vr_spawnflags.qc, the ruleset's spawn filter.)
 void() MG_MonsterBeginWalking = {
     if(self.health <= 0 || self.deadflag) return; // QVR: killed while it stood paused: its trigger never raises the body
     self.use = monster_use;

@@ -291,7 +291,7 @@ const sfx_t* crackleSfx = nullptr;
 
 void crackles()
 {
-    S_MixJoin(); // (the pool's mix done first: S_MixKick)
+    S_MixJoin(); // (a read of the channels on the main thread: the pool's mix done first, S_MixKick)
     for(int i = NUM_AMBIENTS; i < total_channels; i++)
     {
         channel_t& ch = snd_channels[i];

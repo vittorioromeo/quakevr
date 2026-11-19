@@ -877,7 +877,8 @@ za::Vector<Item> pageDebugProfiling()
             .help("vr_glsafe_status: whether this run is in safe mode and why, each feature, and the last GL steps "
                   "(quakevr/crash/gl_startup.log has the start-up's)."),
         command("Retry the Full Renderer", "vr_glsafe_retry")
-            .help("vr_glsafe_retry: the automatic safe mode (kept after a start that crashed) off from the next start."),
+            .help("vr_glsafe_retry: the automatic safe mode (kept after a start that crashed, or a safe start that was stopped) "
+                  "off from the next start."),
         command("Recompile Shaders (Loading Panel)", "vr_shader_reload_queued")
             .help("vr_shader_reload_queued: the engine's shaders compiled again as at a start under OpenGL ES: queued, the "
                   "loading panel (Compiling shaders: N / M) shown until done; the timings in the console."),

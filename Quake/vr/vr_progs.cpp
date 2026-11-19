@@ -1,6 +1,7 @@
 // vr_progs.cpp -- binds the Quake VR QuakeC entry points, globals and spawn parms.
 
 #include "vr_ad.hpp"
+#include "vr_rules.hpp"
 #include "vr_hitmodel.hpp"
 #include "vr_hull.hpp"
 #include "vr_nav.hpp"
@@ -27,6 +28,7 @@
 #include "vr_footsteps.hpp"
 #include "vr_physsound.hpp"
 #include "vr_server.hpp"
+#include "vr_slide.hpp"
 #include "vr_srvrandom.hpp"
 #include "vr_walltorch.hpp"
 #include "vr_flashlight.hpp"
@@ -561,24 +563,11 @@ namespace
 // The world reset: every server subsystem's state of the old world forgotten (a new map, a changelevel, a loaded game,
 // a disconnect). What the server keeps across frames about entities is kept by entity number and forgotten here and
 // when the entity is removed (onEdictFree); an entity number kept past a load would name another entity of the loaded
-// world. A subsystem with such state adds its reset here.
+// world. A subsystem with such state registers its reset next to it (mem::Reset, ResetEvent::ServerWorld: vr_mem.hpp),
+// in its phase.
 void resetServerWorld()
 {
-    qvr::server::resetClients();
-    qvr::physics::resetRigidBodies(); // (with the two-handed holds)
-    qvr::box3d::reset();
-    qvr::toolgun::reset(); // (what its tools hold, by entity number)
-    qvr::brushes::reset(); // (the boxes made in the game: the map's)
-    qvr::ropesim::reset();
-    qvr::climb::reset();
-    qvr::foegrab::reset();
-    qvr::debris::reset();
-    qvr::explosiondebris::serverReset(); // (a loaded game's chunks found again at its first frame)
-    qvr::crates::reset();
-    qvr::props::resetModelCache(); // (the models' names may be others' now)
-    qvr::hitmodel::reset();
-    qvr::scenario::worldReset(); // (a checklist test scene ends at another map or a load, not at its own)
-    resetBuiltinState();
+    qvr::mem::resetAll(qvr::mem::ResetEvent::ServerWorld);
 }
 
 // The pool's jobs that read the world model (its pointer captured at their post), finished: the hull's brushes and
@@ -631,7 +620,8 @@ extern "C" void VR_OnSpawnServerBeforeLoad()
     resetServerWorld();
     qvr::weaponstudio::beforeLoad(); // (its preview humanoid gone with the edicts)
     qvr::rigstudio::beforeLoad(); // (its subject gone with the edicts: staged again in the new map)
-    qvr::ad::beforeLoad(); // vr_ad_rules for this map, before anything of it spawns (and QC's hook reads it)
+    qvr::rules::beforeLoad(); // vr_ruleset for this map, before anything of it spawns (and QC's hook reads it)
+    qvr::ad::beforeLoad();    // (AD's row of it: vr_ad_rules)
     VR_EdictIndex_Reset(); // (the edicts cleared)
     qvr::physics::precacheWaterSounds();
     qvr::physsound::precache(); // the props' knocks and scrapes, the climbing grab
@@ -748,6 +738,7 @@ extern "C" void VR_OnSpawnServerSpawned()
     }
     qvr::hull::spawned(); // the monsters' compiled hulls (their widths now known), on the pool
     probesEnd(probes);
+    qvr::server::learnSoundLoops(); // (every sound precached by now read for a loop while the map loads: not mid-fight)
 }
 
 extern "C" void VR_OnEdictFree(edict_t* ed)

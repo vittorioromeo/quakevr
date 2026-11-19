@@ -1,6 +1,7 @@
 // vr_modelcollide.cpp -- see vr_modelcollide.hpp.
 
 #include "vr_modelcollide.hpp"
+#include "vr_mem.hpp"
 #include "vr_protocol.hpp"
 #include "vr_geom.hpp"
 #include "vr_engine.hpp"
@@ -1623,6 +1624,13 @@ void reset()
     appliedFrame = -1;
     lastTime = -1.0;
 }
+
+namespace
+{
+// Forgotten when the client's state is cleared (vr_mem.hpp's resets): the hands against models, and the models'
+// triangles (a slot may be another model's).
+mem::Reset clientStateReset{"modelcollide", mem::ResetEvent::ClientState, mem::ResetPhase::State, &reset};
+} // namespace
 
 void bench_f()
 {

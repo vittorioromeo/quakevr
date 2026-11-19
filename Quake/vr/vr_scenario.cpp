@@ -979,6 +979,13 @@ void worldReset()
     }
 }
 
+namespace
+{
+// Ended with the server's world (vr_mem.hpp's resets), last: its settings put back run their change hooks, which find
+// every other system's world forgotten.
+mem::Reset serverWorldReset{"scenario", mem::ResetEvent::ServerWorld, mem::ResetPhase::Settings, &worldReset};
+} // namespace
+
 bool active()
 {
     return phase == Active;

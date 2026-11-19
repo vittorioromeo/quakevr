@@ -289,7 +289,7 @@ If you want a specific type, select "Blue", "Green", or "Spots".
 */
 void() monster_tarbaby =
 {
-    if(MG_MonsterInhibited()) return;
+    if(VR_SF_SpawnInhibited()) return;
     float     myRand;
     float     skillLevel;
 

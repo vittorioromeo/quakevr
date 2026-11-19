@@ -1435,12 +1435,21 @@ static void GL_Init (void)
 	Con_SafePrintf ("GL_VENDOR:   %s\n", gl_vendor);
 	Con_SafePrintf ("GL_RENDERER: %s\n", gl_renderer);
 	Con_SafePrintf ("GL_VERSION:  %s\n", gl_version);
+	{ // QVR: the storage-block limits per stage (OpenGL ES may offer few or none to the vertex and fragment shaders,
+	  // which the scene's programs read several from; a failed link names them too: gl_shaders.c)
+		GLint vs = 0, fs = 0, cs = 0;
+		glGetIntegerv (GL_MAX_VERTEX_SHADER_STORAGE_BLOCKS, &vs);
+		glGetIntegerv (GL_MAX_FRAGMENT_SHADER_STORAGE_BLOCKS, &fs);
+		glGetIntegerv (GL_MAX_COMPUTE_SHADER_STORAGE_BLOCKS, &cs);
+		Con_SafePrintf ("GL storage blocks per stage: vertex %d, fragment %d, compute %d\n", vs, fs, cs);
+	}
 	VR_GLStartupVendor (gl_vendor, gl_renderer, gl_version); // QVR: breadcrumbs, AMD's workarounds (vr/vr_glsafe.cpp)
 	{
 		char gpu[512];
 		q_snprintf (gpu, sizeof (gpu), "%s | %s | GL %s", gl_vendor ? gl_vendor : "?", gl_renderer ? gl_renderer : "?", gl_version ? gl_version : "?");
 		VR_SetCrashGpu (gpu); // QVR: the crash report's "GPU:" line
 		VR_LogsSystemLine (va ("GPU: %s\n", gpu)); // QVR: the run's system.txt (vr/vr_runlogs.cpp)
+		VR_LogsSystemLine (va ("GL safe mode: %s\n", VR_GLSafeDescribe ())); // QVR: (vr/vr_glsafe.cpp, decided at VID_Init)
 	}
 
 #ifdef __ANDROID__ // QVR: an OpenGL ES context ("OpenGL ES 3.2 V@..."): ES 3.2 under the ES profile (VR_GLESCompat)

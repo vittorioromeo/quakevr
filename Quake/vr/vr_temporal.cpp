@@ -33,6 +33,7 @@
 #include "vr_flatplay.hpp"
 #include "vr_profile.hpp"
 #include "vr_stereo.hpp"
+#include "vr_testkit.hpp"
 #include "vr_api_render.h"
 #include "vr_api.h"
 
@@ -88,6 +89,8 @@ layout(location = 2) uniform vec4 Jitter; // xy the jitter in uv, z the stamp, w
 layout(location = 3) uniform vec4 Params; // x the current frame's weight, y the clip's gamma, z the reactive pixels' weight, w 1: no history
 layout(location = 4) uniform int Mode; // 0 TAA, 1 vectors, 2 mask, 3 reprojection test
 layout(location = 5) uniform int Eye;
+layout(location = 6) uniform vec2 ViewSize; // the view's drawn size: the textures' bottom left part (all of them but under
+                                            // dynamic resolution, whose eye targets are allocated at its ceiling)
 shared uint sErr, sIdent, sCount;
 
 bool Reversed() { return Jitter.w > 0.5; }
@@ -121,8 +124,14 @@ vec2 MotionAt(ivec2 q, float d, vec2 texel, out float obj, out float w, out floa
     return mv;
 }
 
+// The history at uv over the view (`size` its drawn part), its taps kept on the part's texels (as clamp-to-edge kept the
+// whole texture's when they were one).
+vec4 HistoryAt(vec2 tuv, vec2 lo, vec2 hi) { return textureLod(History, clamp(tuv, lo, hi), 0.0); }
+
 vec4 SampleCatmullRom(vec2 uv, vec2 size)
 {
+    vec2 tsize = vec2(textureSize(History, 0));
+    vec2 lo = 0.5 / tsize, hi = (size - 0.5) / tsize;
     vec2 pos = uv * size;
     vec2 t1 = floor(pos - 0.5) + 0.5;
     vec2 f = pos - t1;
@@ -131,12 +140,12 @@ vec4 SampleCatmullRom(vec2 uv, vec2 size)
     vec2 w2 = f * (0.5 + f * (2.0 - 1.5 * f));
     vec2 w3 = f * f * (-0.5 + 0.5 * f);
     vec2 w12 = w1 + w2;
-    vec2 t0 = (t1 - 1.0) / size, t3 = (t1 + 2.0) / size, t12 = (t1 + w2 / w12) / size;
-    vec4 r = textureLod(History, vec2(t12.x, t0.y), 0.0) * (w12.x * w0.y);
-    r += textureLod(History, vec2(t0.x, t12.y), 0.0) * (w0.x * w12.y);
-    r += textureLod(History, t12, 0.0) * (w12.x * w12.y);
-    r += textureLod(History, vec2(t3.x, t12.y), 0.0) * (w3.x * w12.y);
-    r += textureLod(History, vec2(t12.x, t3.y), 0.0) * (w12.x * w3.y);
+    vec2 t0 = (t1 - 1.0) / tsize, t3 = (t1 + 2.0) / tsize, t12 = (t1 + w2 / w12) / tsize;
+    vec4 r = HistoryAt(vec2(t12.x, t0.y), lo, hi) * (w12.x * w0.y);
+    r += HistoryAt(vec2(t0.x, t12.y), lo, hi) * (w0.x * w12.y);
+    r += HistoryAt(t12, lo, hi) * (w12.x * w12.y);
+    r += HistoryAt(vec2(t3.x, t12.y), lo, hi) * (w3.x * w12.y);
+    r += HistoryAt(vec2(t12.x, t3.y), lo, hi) * (w12.x * w3.y);
     float total = w12.x * w0.y + w0.x * w12.y + w12.x * w12.y + w3.x * w12.y + w12.x * w3.y;
     return max(r / total, vec4(0.0));
 }
@@ -164,13 +173,17 @@ void Resolve(ivec2 p, ivec2 size, vec2 texel)
         return;
     }
 
-    // The 3x3: the colours' moments (tone mapped, YCoCg) and the nearest pixel
-    vec3 m1 = vec3(0.0), m2 = vec3(0.0);
+    // The 3x3: the colours' moments (tone mapped, YCoCg) and the nearest pixel; the centre's from cur and d (read
+    // above: not again in the loop; it is never nearer than itself)
+    vec3 c0 = ToYCoCg(Tonemap(cur.rgb));
+    vec3 m1 = c0, m2 = c0 * c0;
     ivec2 nearest = p;
     float nd = d;
     for (int y = -1; y <= 1; y++)
         for (int x = -1; x <= 1; x++)
         {
+            if (x == 0 && y == 0)
+                continue;
             ivec2 q = clamp(p + ivec2(x, y), ivec2(0), size - 1);
             vec3 c = ToYCoCg(Tonemap(texelFetch(SceneColor, q, 0).rgb));
             m1 += c;
@@ -192,10 +205,13 @@ void Resolve(ivec2 p, ivec2 size, vec2 texel)
     bool rejected = Params.w > 0.5 || any(lessThan(ouv, vec2(0.0))) || any(greaterThan(ouv, vec2(1.0)));
     if (!rejected) // the surface not in view there one frame ago: the previous depth (the farthest of the 2x2) nearer
     {
+        // (the 2x2 from b, each clamped to the drawn part as clamp-to-edge clamped the whole texture's when they were one;
+        // only the largest matters, not the order)
         ivec2 b = ivec2(floor(ouv * vec2(size) - 0.5));
-        float far = 0.0;
-        for (int i = 0; i < 4; i++)
-            far = max(far, texelFetch(PrevDepth, clamp(b + ivec2(i & 1, i >> 1), ivec2(0), size - 1), 0).r);
+        ivec2 b0 = clamp(b, ivec2(0), size - 1), b1 = clamp(b + 1, ivec2(0), size - 1);
+        vec4 q4 = vec4(texelFetch(PrevDepth, b0, 0).r, texelFetch(PrevDepth, ivec2(b1.x, b0.y), 0).r,
+                       texelFetch(PrevDepth, ivec2(b0.x, b1.y), 0).r, texelFetch(PrevDepth, b1, 0).r);
+        float far = max(max(q4.x, q4.y), max(max(q4.z, q4.w), 0.0));
         rejected = far < pw * (obj > 0.5 ? 0.9 : 0.97) - 1.0;
     }
     float mask = texelFetch(Mask, p, 0).r;
@@ -228,7 +244,8 @@ void Resolve(ivec2 p, ivec2 size, vec2 texel)
             show = vec4(max(vec3(mask, rejected ? 1.0 : 0.0, obj > 1.5 ? 1.0 : 0.0), vec3(grey)), 1.0);
         else if (Mode == 3) // the previous frame through the vectors (rejected pixels tinted red)
         {
-            vec4 prev = textureLod(History, ouv, 0.0);
+            vec2 tsize = vec2(textureSize(History, 0));
+            vec4 prev = HistoryAt(ouv * vec2(size) / tsize, 0.5 / tsize, (vec2(size) - 0.5) / tsize);
             show = rejected ? mix(prev, vec4(1.0, 0.0, 0.0, 1.0), 0.35) : prev;
             if (!rejected && reactive == 0.0)
             {
@@ -247,7 +264,7 @@ void Resolve(ivec2 p, ivec2 size, vec2 texel)
 void main()
 {
     ivec2 p = ivec2(gl_GlobalInvocationID.xy);
-    ivec2 size = imageSize(HistoryOut); // the view's size (the window's scene textures can be larger: its corner is the view)
+    ivec2 size = ivec2(ViewSize); // the view's size (the scene textures can be larger: its corner is the view; the history too, the eyes' under dynamic resolution)
     if (gl_LocalInvocationIndex == 0u)
     {
         sErr = 0u;
@@ -286,23 +303,18 @@ void main()
 }
 )";
 
-constexpr const char* applyVs = R"(#version 430
-void main()
-{
-    ivec2 v = ivec2(gl_VertexID & 1, gl_VertexID >> 1);
-    gl_Position = vec4(vec2(v) * 4.0 - 1.0, 0.0, 1.0);
-}
-)";
+constexpr const char* applyVs = gfx::fullscreenTriangleVs;
 
 // The result into the scene, sharpened (vr_taa_sharpen): an unsharp mask of the cross, limited to its range (no halos).
 constexpr const char* applyFs = R"(#version 430
 layout(binding = 0) uniform sampler2D Src;
 layout(location = 0) uniform float Sharpen;
+layout(location = 1) uniform vec2 Last; // the view's last pixel (Src can be larger: dynamic resolution's ceiling)
 out vec4 result;
 void main()
 {
     ivec2 p = ivec2(gl_FragCoord.xy);
-    ivec2 last = textureSize(Src, 0) - 1;
+    ivec2 last = ivec2(Last);
     vec4 c = texelFetch(Src, p, 0);
     result = c;
     if (Sharpen > 0.0)
@@ -362,6 +374,9 @@ struct State
     float stamp{0.f};
     GLuint sceneFbo{0}, compositeFbo{0}; // the eye targets' framebuffers, with the motion target attached
     GLuint attachedScene{0}, attachedComposite{0}, attachedTex{0};
+    // The eye targets' generation (stereo::eyeTargetsGeneration) the attachment was made for: a remade set (a dynres step,
+    // a Render Scale change) may be given back the same framebuffer and texture names, which alone looked unchanged.
+    unsigned attachedGeneration{0};
     GLuint motionTex{0};       // RGBA32F, the eye size (shared by the eyes)
     GLuint maskTex{0};         // R8
     GLuint displayTex{0};      // RGBA16F: the debug views
@@ -388,6 +403,10 @@ struct TemporalBlock // std140: QVR_TEMPORAL_BLOCK (vr_glsl.h)
     float jitter[4]; // xy the jitter in uv, z the stamp, w 1 while motion vectors are written
     float size[4];   // xy 1 / the eye's size
 };
+
+using GetFbAttachmentFn = void(APIENTRY*)(GLenum, GLenum, GLenum, GLint*);
+GetFbAttachmentFn getFbAttachment = nullptr; // (vr_temporal_attachcheck's)
+testkit::Tally attachTally;                  // vr_temporal_attachcheck's checks
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Helpers
@@ -484,6 +503,15 @@ bool invert4(const float* m, float* out)
     const GLuint s = compile(type, source, name);
     if(!s || (vs && !v))
     {
+        // (the stage that compiled not leaked: upscale::buildProgram's way)
+        if(v)
+        {
+            GL_DeleteShaderFunc(v);
+        }
+        if(s)
+        {
+            GL_DeleteShaderFunc(s);
+        }
         return 0;
     }
     return gfx::linkProgram(v, s, name);
@@ -540,6 +568,7 @@ void ensureTextures(int width, int height)
     {
         return;
     }
+    state.attachedTex = 0; // (the new motion target may be given the old one's name: attached again, not taken as attached)
     deleteTexture(state.motionTex);
     deleteTexture(state.maskTex);
     deleteTexture(state.displayTex);
@@ -604,7 +633,11 @@ void bindZeroBlock()
 // The motion target as colour attachment 1 of the eye targets' framebuffers (none: detached).
 void attach(GLuint tex)
 {
-    if(state.attachedScene == state.sceneFbo && state.attachedComposite == state.compositeFbo && state.attachedTex == tex)
+    // (the flat window's targets: windowSamples forgets the attachment when they are made anew; the eyes': their generation)
+    const unsigned generation = state.flat ? 0u : stereo::eyeTargetsGeneration();
+    const bool sameSet = state.attachedGeneration == generation;
+    if(sameSet && state.attachedScene == state.sceneFbo && state.attachedComposite == state.compositeFbo &&
+        state.attachedTex == tex)
     {
         return;
     }
@@ -617,9 +650,10 @@ void attach(GLuint tex)
             GL_FramebufferTexture2DFunc(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, t, 0);
         }
     };
-    if(state.attachedTex && (state.attachedScene != state.sceneFbo || state.attachedComposite != state.compositeFbo))
+    // The old framebuffers detached only while they are the same set's: remade, their names may be another set's by now.
+    if(sameSet && state.attachedTex && (state.attachedScene != state.sceneFbo || state.attachedComposite != state.compositeFbo))
     {
-        set(state.attachedScene, 0); // (the old framebuffers: maybe deleted, then a no-op)
+        set(state.attachedScene, 0);
         set(state.attachedComposite, 0);
     }
     set(state.sceneFbo, tex);
@@ -628,6 +662,7 @@ void attach(GLuint tex)
     state.attachedScene = state.sceneFbo;
     state.attachedComposite = state.compositeFbo;
     state.attachedTex = tex;
+    state.attachedGeneration = generation;
 }
 
 // The entity's slot this frame (shifting the last frame's into prev); nullptr if the table is full.
@@ -701,7 +736,10 @@ namespace
 {
 
 // The frame's views (the eyes, or the flat window's): the targets, the jitter, the models' positions. `flat` the window.
-void begin(unsigned sceneFbo, unsigned compositeFbo, int width, int height, int samples, bool flat)
+// `width` x `height` the part of the view drawn, its textures made for allocatedWidth x allocatedHeight (the eyes' under
+// dynamic resolution: its ceiling, as their targets; the same otherwise).
+void begin(unsigned sceneFbo, unsigned compositeFbo, int width, int height, int allocatedWidth, int allocatedHeight, int samples,
+    bool flat)
 {
     state.frameIndex++;
     state.sceneFbo = sceneFbo;
@@ -737,9 +775,18 @@ void begin(unsigned sceneFbo, unsigned compositeFbo, int width, int height, int 
         state.taaWas = taa;
         state.debugWas = static_cast<int>(vr_temporal_debug.value);
     }
-    ensureTextures(width, height);
+    ensureTextures(allocatedWidth, allocatedHeight);
     ensureBuffers();
     attach(state.motionTex);
+    if(width != state.width || height != state.height)
+    {
+        // Another size drawn (a dynres step: its textures are not made again, as they were with the eye targets at each
+        // step): no history, as then (the previous frame's is another size's).
+        for(EyeState& e : state.eyes)
+        {
+            e.valid = false;
+        }
+    }
     state.width = width;
     state.height = height;
     state.frameActive = true;
@@ -767,9 +814,9 @@ void begin(unsigned sceneFbo, unsigned compositeFbo, int width, int height, int 
 
 } // namespace
 
-void beginFrame(unsigned sceneFbo, unsigned compositeFbo, int width, int height, int samples)
+void beginFrame(unsigned sceneFbo, unsigned compositeFbo, const stereo::ViewSize& size, int samples)
 {
-    begin(sceneFbo, compositeFbo, width, height, samples, false);
+    begin(sceneFbo, compositeFbo, size.drawnWidth, size.drawnHeight, size.allocatedWidth, size.allocatedHeight, samples, false);
 }
 
 void beginEye(int eye)
@@ -827,6 +874,56 @@ void registerCommands()
                     100.0 * s[2] / q_max(1.0, static_cast<double>(state.width) * state.height));
             }
         });
+    // vr_temporal_attachcheck <label> | end: the motion target is colour attachment 1 of this frame's scene and composite
+    // framebuffers, as GL says (not attach()'s cache, which a remade set given back the same names once fooled: a
+    // dynres step's or a Render Scale change's remake left the new framebuffers without it). "taa_attach: PASS|FAIL
+    // <label>: ..." a check; `end` the verdict "taa_attach: N passed, M failed". Tests: Misc/quakevr/taa_attach_test.sh.
+    Cmd_AddCommand("vr_temporal_attachcheck",
+        []
+        {
+            const char* label = Cmd_Argc() > 1 ? Cmd_Argv(1) : "now";
+            if(!strcmp(label, "end"))
+            {
+                attachTally.verdict("taa_attach");
+                attachTally.reset();
+                return;
+            }
+            if(!getFbAttachment)
+            {
+                getFbAttachment = reinterpret_cast<GetFbAttachmentFn>(
+                    SDL_GL_GetProcAddress("glGetFramebufferAttachmentParameteriv"));
+            }
+            if(!state.frameActive || !state.motionTex || !state.sceneFbo || !getFbAttachment)
+            {
+                attachTally.check(false, "taa_attach", va("%s: TAA not drawing (vr_taa 1, the eyes drawn, no MSAA)", label));
+                return;
+            }
+            const GLuint bound = GL_BoundDrawFramebuffer();
+            const auto attached = [](GLuint fbo) -> GLint
+            {
+                GLint type = GL_NONE; // (one a line: Cmd_AddCommand is a macro, a comma splits its arguments)
+                GLint name = 0;
+                GL_BindFramebufferFunc(GL_FRAMEBUFFER, fbo);
+                getFbAttachment(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE, &type);
+                if(type == GL_TEXTURE)
+                {
+                    getFbAttachment(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME, &name);
+                }
+                return type == GL_TEXTURE ? name : 0;
+            };
+            const GLint scene = attached(state.sceneFbo);
+            const GLint composite = state.compositeFbo ? attached(state.compositeFbo) : -1;
+            GL_BindFramebufferFunc(GL_FRAMEBUFFER, bound);
+            const GLint want = static_cast<GLint>(state.motionTex);
+            const bool ok = scene == want && (!state.compositeFbo || composite == want);
+            const char* what = va("%s: %dx%d, scene fbo %u has %d, composite fbo %u has %d, the motion target is %d", label,
+                state.width, state.height, state.sceneFbo, scene, state.compositeFbo, composite, want);
+            if(ok)
+            {
+                Con_Printf("taa_attach: PASS %s\n", what);
+            }
+            attachTally.check(ok, "taa_attach", what);
+        });
 }
 
 
@@ -834,6 +931,30 @@ void registerCommands()
 void precompilePrograms()
 {
     (void)ensurePrograms();
+}
+
+void releaseTargets()
+{
+    if(state.flat)
+    {
+        return; // (flatscreen play's window holds them: not VR's)
+    }
+    deleteTexture(state.motionTex);
+    deleteTexture(state.maskTex);
+    deleteTexture(state.displayTex);
+    for(EyeState& e : state.eyes)
+    {
+        for(int i = 0; i < 2; i++)
+        {
+            deleteTexture(e.history[i]);
+            deleteTexture(e.depth[i]);
+        }
+        e.valid = false;
+    }
+    state.texWidth = state.texHeight = 0;
+    state.attachedScene = state.attachedComposite = state.attachedTex = 0;
+    state.sceneFbo = state.compositeFbo = 0;
+    state.frameActive = false;
 }
 
 } // namespace qvr::temporal
@@ -1048,6 +1169,7 @@ extern "C" void VR_TemporalResolve(unsigned fbo, unsigned color, unsigned depth)
             za::clamp(vr_taa_reactive.value, 0.f, 1.f), reset ? 1.f : 0.f);
         GL_Uniform1iFunc(4, mode);
         GL_Uniform1iFunc(5, state.eye);
+        GL_Uniform2fFunc(6, static_cast<float>(state.width), static_cast<float>(state.height));
         GL_DispatchComputeFunc(groupsX, groupsY, 1);
         GL_MemoryBarrierFunc(GL_TEXTURE_FETCH_BARRIER_BIT | GL_SHADER_IMAGE_ACCESS_BARRIER_BIT | GL_SHADER_STORAGE_BARRIER_BIT);
     }
@@ -1060,6 +1182,7 @@ extern "C" void VR_TemporalResolve(unsigned fbo, unsigned color, unsigned depth)
         GL_SetState(GLS_BLEND_OPAQUE | GLS_NO_ZTEST | GLS_NO_ZWRITE | GLS_CULL_NONE | GLS_ATTRIBS(0));
         GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, mode != 0 ? state.displayTex : e.history[next]);
         GL_Uniform1fFunc(0, mode == 0 ? za::clamp(vr_taa_sharpen.value, 0.f, 2.f) : 0.f);
+        GL_Uniform2fFunc(1, static_cast<float>(state.width - 1), static_cast<float>(state.height - 1));
         glDrawArrays(GL_TRIANGLES, 0, 3);
     }
 
@@ -1081,8 +1204,8 @@ extern "C" void VR_FlatRenderView()
     if(temporal::flatWanted() || state.flat) // (once more after it is turned off: the motion target detached)
     {
         const int scale = za::max(r_refdef.scale, 1);
-        temporal::begin(framebufs.scene.fbo, 0, r_refdef.vrect.width / scale, r_refdef.vrect.height / scale,
-            framebufs.scene.samples, true);
+        const int w = r_refdef.vrect.width / scale, h = r_refdef.vrect.height / scale; // (its textures the view's size)
+        temporal::begin(framebufs.scene.fbo, 0, w, h, w, h, framebufs.scene.samples, true);
         state.flat = state.frameActive;
     }
     if(!state.flat)

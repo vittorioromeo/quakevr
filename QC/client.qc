@@ -1,4 +1,4 @@
-float modelindex_eyes, modelindex_player, modelindex_hammer;
+float modelindex_eyes, modelindex_player;
 
 //
 //
@@ -84,7 +84,11 @@ void() SetChangeParms =
     teamplay = cvar_hget(cvarh_teamplay);
     if(teamplay >= TEAM_CTF)
     {
+        // As a dead player's: a new game's parms, the team kept (the weapons' flags, magazines and ids below are the old
+        // weapons'; the next weapon id, parm49, is SetNewParms's; bullet time's meter and the plates start afresh).
         SetNewParms();
+        parm22 = self.steam;
+        return;
     }
     else
     {
@@ -162,10 +166,8 @@ void() SetChangeParms =
     parm49 = qvr_weaponinst_next;
     parm64 = AD_PackWeaponUpgrades(self); // AD support: the carried weapons' upgrades (vr_ad_bridge.qc)
     WeaponInst_PackHot(self); // (the blades still glowing: parm65..72)
-    parm39 = self.weaponclipsize;
     parm50 = self.vr_flashlight_state; // (bits 0..18: the engine's lamp; bit 19: a chainsaw's cord pulled)
     if(self.vr_saw_cord_pulled) parm50 = parm50 + VR_PARM50_SAW_CORD_PULLED;
-    parm40 = self.weaponclipsize2;
     parm74 = self.vr_bullettime_spent; // (bullet time's meter, kept from level to level: vr_bullettime.cpp)
     parm75 = self.vr_pp_mask; // (the armour plates shown: which ones, kept from level to level: vr_playerplates.qc)
 };
@@ -180,18 +182,9 @@ void() OnSpawnServerBeforeLoad =
 
 void() OnSpawnServerAfterLoad =
 {
-    float fromSaveFile;
-    fromSaveFile = spawnServerFromSaveFile;
-
     VR_CVars_InitAllHandles();
 
-    if(!fromSaveFile)
-    {
-        if(!deathmatch && !VR_GameUtil_InTutorialMap())
-        {
-            SpawnAllAmmoBoxWeapons();
-        }
-    }
+    // (The map's ammo boxes roll their weapon at its first PutClientInServer, against that player: SpawnAllAmmoBoxWeapons.)
 }
 
 void() VR_Crackles_AfterLoad; // (vr_burning.qc)
@@ -200,6 +193,8 @@ void() VR_AM_AfterLoad;       // (vr_armedmon.qc)
 void() OnLoadGame =
 {
     VR_CVars_InitAllHandles();
+    vr_ammobox_rolled_map = TRUE; // (the map's boxes rolled before the save; an older save's flag was not kept)
+    VR_Skewer_ListRebuild(); // (the skewered gibs' list: an older save had none)
     VR_AM_AfterLoad(); // the armed monsters' row cache: the map's spawn filled it for another kind than the save's
     SUB_DoLater(VR_Crackles_AfterLoad, 0.1); // the torches' and fires' crackles started again (sounds are not saved)
     VR_Tips_Reapply(); // (TRIGGERED tips used before the save: shown again)
@@ -1239,13 +1234,6 @@ void() PutClientInServer =
 
     // oh, this is a hack!
 
-    modelindex_hammer = 0;
-    if(vr_have_playham) // (Hipnotic's third-person player holding Mjolnir: the weapon itself is Quake VR's)
-    {
-        setmodel(self, "progs/playham.mdl");
-        modelindex_hammer = self.modelindex;
-    }
-
     setmodel(self, "progs/eyes.mdl");
     modelindex_eyes = self.modelindex;
 
@@ -1309,26 +1297,37 @@ void() PutClientInServer =
 
     if(deathmatch)
     {
-        readytime = time;
+        self.vr_readytime = time;
     }
     else
     {
-        readytime = time + 0.5;
+        self.vr_readytime = time + 0.5;
     }
     if(MGH_Active()) { MGH_horde_set_keys(self); MGH_ResetHunger(self); }
     AD_PlayerSpawned(); // AD support: what AD's code reads of a player, in an AD map (vr_ad_bridge.qc)
     AD_UpgradesToWeapons(self); // AD support: an older game's upgrades (the player's) onto his weapons (vr_ad_bridge.qc)
     VR_Toolgun_SpawnInHolster(); // vr_debug_spawn_toolgun (vr_toolgun.qc)
+    SpawnAllAmmoBoxWeapons(self);
 };
 
-void() SpawnAllAmmoBoxWeapons =
+// The map's first PutClientInServer (`p`, the first player in coop; not a loaded game's: none): each ammo box's weapon
+// rolled against what he carries (DecodeLevelParms has run), once. A box not placed yet rolls at its placement.
+void(entity p) SpawnAllAmmoBoxWeapons =
 {
-    entity e;
-    for(e = nextent(world); e != world; e = nextent(e))
+    if(vr_ammobox_rolled_map)
     {
-        if(IsAmmoBox(e))
+        return;
+    }
+    vr_ammobox_rolled_map = TRUE;
+    if(deathmatch || VR_GameUtil_InTutorialMap())
+    {
+        return;
+    }
+    for(entity e = nextent(world); e != world; e = nextent(e))
+    {
+        if(IsAmmoBox(e) && !e.vr_ammobox_rolls && e.think != PlaceItem)
         {
-            SpawnAmmoBoxWeaponsImpl(e, self);
+            VR_AmmoBox_Roll(e, p);
         }
     }
 }
@@ -2063,9 +2062,6 @@ void() CheckPowerups =
         self.frame = 0;
         self.modelindex = modelindex_eyes;
     }
-//MED 12/04/96 added mjolnir stuff
-    else if(self.weapon == WID_MJOLNIR)
-        self.modelindex = modelindex_hammer;   // don't use eyes
     else
         self.modelindex = modelindex_player;    // don't use eyes
 
@@ -2370,6 +2366,10 @@ void() ClientDisconnect =
 
     // MG1 Horde (official client.qc): a leaving player no longer counts as alive for waves, targets or revival.
     if(MGH_Active()) self.health = 0;
+
+    // What he carried is let go (as a dead player's, PlayerPostThink): no frame of his runs again to do it, and a thing
+    // left with its carry_player set hung in the air, taken by nobody (a key so held ended the level for the others).
+    VR_Carry_Dead();
 
     // let everyone else know
     bprint(self.netname);

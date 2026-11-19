@@ -3,6 +3,7 @@
 #include "vr_serverrules.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
+#include "vr_mem.hpp"
 #include "vr_protocol.hpp"
 
 #include <string.h>
@@ -177,6 +178,12 @@ void clientReset()
         known[i] = false;
     }
 }
+
+namespace
+{
+// Forgotten when the client's state is cleared (vr_mem.hpp's resets): the rules the server told.
+mem::Reset clientStateReset{"serverrules", mem::ResetEvent::ClientState, mem::ResetPhase::State, &clientReset};
+} // namespace
 
 void registerCommands()
 {

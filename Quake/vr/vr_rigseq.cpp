@@ -5,6 +5,7 @@
 #include "vr_agarms.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
+#include "vr_mem.hpp"
 #include "vr_progs.hpp"
 #include "vr_protocol.hpp"
 #include "vr_ragdoll.hpp"
@@ -705,6 +706,13 @@ void clientClear()
 {
     rs.client.clear();
 }
+
+namespace
+{
+// Forgotten when the client's state is cleared (vr_mem.hpp's resets): the sequences drawn (the server tells the new
+// map's).
+mem::Reset clientStateReset{"rigseq", mem::ResetEvent::ClientState, mem::ResetPhase::State, &clientClear};
+} // namespace
 
 void serverFrame()
 {

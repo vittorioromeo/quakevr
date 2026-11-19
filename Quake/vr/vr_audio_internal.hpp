@@ -274,5 +274,18 @@ void benchFrame();
 void bench_f();
 void wavCheck_f();
 void wrapTest_f();
+void mixCheckTest_f();
+
+// vr_audio.cpp: the render's mix on the pool (VR_SndJobPost, not yet waited for), and S_MixCheckAt's failures
+// (VR_SndMixRace) counted instead of ending the game while vr_snd_mixcheck_test counts them. The main thread's.
+[[nodiscard]] bool mixOnPool();
+struct MixCheckCount
+{
+    bool counting{false};
+    int caught{0};
+    const char* file{nullptr}; // the last one's reader
+    int line{0};
+};
+extern MixCheckCount mixCheckCount;
 
 } // namespace qvr::audio::detail

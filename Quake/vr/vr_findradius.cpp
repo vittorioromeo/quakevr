@@ -44,12 +44,17 @@ using namespace qvr;
 namespace
 {
 
-// The stats' clock: the TSC on x86; elsewhere (ARM: the Quest) the monotonic clock in nanoseconds (stats_f converts
-// ticks by the wall clock either way), as pr_exec.c's QCPROF_TICKS.
+// The stats' clock, read twice in every findradius: the TSC on x86; AArch64's virtual counter (the Quest: a register read,
+// not clock_gettime's call each time); elsewhere the monotonic clock in nanoseconds. stats_f converts ticks by the wall
+// clock either way (pr_exec.c's QCPROF_TICKS: the same on x86).
 unsigned long long ticks()
 {
 #if defined(_MSC_VER) || defined(__x86_64__) || defined(__i386__)
     return __rdtsc();
+#elif defined(__aarch64__)
+    unsigned long long v;
+    __asm__ volatile("mrs %0, cntvct_el0" : "=r"(v));
+    return v;
 #else
     timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);

@@ -55,7 +55,106 @@ void(entity xBox, float xHands) VR_Crate_SlamReleased;
 .vector vr_skewer_load_off;  // and last frame's, for the hand's weight (vr_weight.cpp)
 .vector vr_skewer_load_main;
 
-// It is off its blade (or burst).
+// The skewered gibs' list, for the shots (VR_Gib_TraceHeld): on the blade a gib is not solid, so a shot's trace
+// misses it and each pellet looks for one on its line; it walks this list, not every edict. A gib is linked where it
+// goes on a blade (VR_Skewer_Link). Nothing has to unlink it: the walk (VR_Skewer_ListNext) drops what is no longer
+// skewered (off, burst) and what was removed (its model cleared: ED_Free keeps the rest of its fields, so its chain
+// still leads on). An edict reused since its removal has every field zeroed: its stamp (.vr_skewer_listed, the
+// list's generation) no longer matches, and the rest of the list is not reachable through it; a node met twice (a reused
+// one linked again at the head while its old predecessor still points at it) is a loop. Either is caught, and the
+// list is made again from one walk of the edicts (VR_Skewer_ListRebuild, which a load also runs): it can't lead the
+// walk into another entity's state or round forever.
+.entity vr_skewer_chain;  // the next skewered gib
+.float vr_skewer_listed;  // the list's generation it was linked in (0: not linked)
+.float vr_skewer_seen;    // the walk that last met it
+entity vr_skewer_head;
+float vr_skewer_listgen;  // the list's generation (a rebuild starts a new one: every older stamp is stale)
+float vr_skewer_walk;     // the walk's number
+float vr_skewer_walked;   // gibs the last walk visited (the tests)
+float vr_skewer_rebuilds; // rebuilds since the map started (the tests)
+
+void(entity g) VR_Skewer_Link =
+{
+    if(!vr_skewer_listgen)
+    {
+        vr_skewer_listgen = 1;
+    }
+    if(g.vr_skewer_listed == vr_skewer_listgen)
+    {
+        return;
+    }
+    g.vr_skewer_listed = vr_skewer_listgen;
+    g.vr_skewer_chain = vr_skewer_head;
+    vr_skewer_head = g;
+};
+
+void() VR_Skewer_ListRebuild =
+{
+    vr_skewer_listgen = vr_skewer_listgen + 1;
+    vr_skewer_head = world;
+    vr_skewer_rebuilds = vr_skewer_rebuilds + 1;
+    for(entity e = nextent(world); e; e = nextent(e))
+    {
+        if(e.vr_gib && e.vr_skewer_p != world && e.modelindex)
+        {
+            VR_Skewer_Link(e);
+        }
+    }
+};
+
+// The walk: VR_Skewer_ListFirst, then VR_Skewer_ListNext(e) until world; each a gib on a blade now. A stale entry is
+// unlinked as it is met; a broken list is made again and walked from its start (the gibs already given come again:
+// the callers keep the nearest, so twice is harmless).
+entity vr_skewer_prev; // the walk's last kept node (world: the head)
+entity(entity e) VR_Skewer_ListFrom =
+{
+    entity found = world;
+    while(e && found == world)
+    {
+        if(e.vr_skewer_listed != vr_skewer_listgen || e.vr_skewer_seen == vr_skewer_walk)
+        {
+            dprint("skewer: the list broken (a gib removed and its edict used again): made again\n");
+            VR_Skewer_ListRebuild();
+            vr_skewer_walk = vr_skewer_walk + 1;
+            vr_skewer_walked = 0;
+            vr_skewer_prev = world;
+            e = vr_skewer_head;
+        }
+        else
+        {
+            e.vr_skewer_seen = vr_skewer_walk;
+            entity next = e.vr_skewer_chain;
+            if(!e.modelindex || !e.vr_gib || e.vr_skewer_p == world)
+            {
+                if(vr_skewer_prev == world) { vr_skewer_head = next; } else { vr_skewer_prev.vr_skewer_chain = next; }
+                e.vr_skewer_listed = 0;
+                e = next;
+            }
+            else
+            {
+                vr_skewer_walked = vr_skewer_walked + 1;
+                found = e;
+            }
+        }
+    }
+    return found;
+};
+
+entity() VR_Skewer_ListFirst =
+{
+    vr_skewer_walk = vr_skewer_walk + 1;
+    vr_skewer_walked = 0;
+    vr_skewer_prev = world;
+    return VR_Skewer_ListFrom(vr_skewer_head);
+};
+
+entity(entity e) VR_Skewer_ListNext =
+{
+    vr_skewer_prev = e;
+    return VR_Skewer_ListFrom(e.vr_skewer_chain);
+};
+
+// It is off its blade (or burst). (It stays in the skewered gibs' list until a walk meets it.)
 void(entity g) VR_Skewer_Gone =
 {
     if(g.vr_skewer_w.classname == "thrown_weapon")
@@ -3689,16 +3788,13 @@ void(vector xA, vector xB) VR_Gib_TraceHeld =
     // as a gib anywhere (his note 2026-11-08 17:10: shots went through it).
     float best = trace_fraction;
     entity sk = world;
-    for(entity e = nextent(world); e; e = nextent(e))
+    for(entity e = VR_Skewer_ListFirst(); e; e = VR_Skewer_ListNext(e))
     {
-        if(e.vr_gib && e.vr_skewer_p != world)
+        float te = VR_Gib_OnLine(e, xA, xB, 1);
+        if(te >= 0 && te < best)
         {
-            float te = VR_Gib_OnLine(e, xA, xB, 1);
-            if(te >= 0 && te < best)
-            {
-                best = te;
-                sk = e;
-            }
+            best = te;
+            sk = e;
         }
     }
     if(sk != world)
