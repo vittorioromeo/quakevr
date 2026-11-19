@@ -101,7 +101,21 @@ static void ResampleSfx (sfx_t *sfx, int inrate, int inwidth, byte *data)
 S_LoadSound
 ==============
 */
-sfxcache_t *S_LoadSound (sfx_t *s)
+static sfxcache_t *S_LoadSoundRun (sfx_t *s);
+sfxcache_t *S_LoadSound (sfx_t *s) // QVR: the perf recorder's sound loads (the rest below)
+{
+	double		t0;
+	sfxcache_t	*loaded;
+
+	if (!vr_perf_recording || !VR_OnMainThread () || Cache_Check (&s->cache))
+		return S_LoadSoundRun (s);
+	t0 = Sys_DoubleTime ();
+	loaded = S_LoadSoundRun (s);
+	VR_PerfEvent (VR_PERF_SOUND, (Sys_DoubleTime () - t0) * 1000.0, s->name);
+	return loaded;
+}
+
+static sfxcache_t *S_LoadSoundRun (sfx_t *s)
 {
 	char	namebuffer[256];
 	byte	*data;

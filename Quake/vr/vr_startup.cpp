@@ -11,6 +11,7 @@
 #include "vr_tunables.hpp"
 #include "vr_engine.hpp"
 #include "vr_files.hpp"
+#include "vr_startlog.hpp"
 
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
@@ -164,6 +165,28 @@ void walltime_f()
     lastCpu = cpu;
 }
 
+// The start-up trace's summary: the group's four costliest kinds of work (VR_TimeAdd), a line.
+za::String workLine(const Group& g)
+{
+    za::Vector<const Group::Sum*> top;
+    for(const Group::Sum& w : g.sums)
+    {
+        top.pushBack(&w);
+    }
+    za::insertionSort(top.begin(), top.end(), [](const Group::Sum* a, const Group::Sum* b) { return a->ms > b->ms; });
+    za::String line;
+    for(size_t i = 0; i < top.size() && i < 4; i++)
+    {
+        const char* what = top[i]->what.cStr();
+        while(*what == ' ')
+        {
+            what++;
+        }
+        line += va("%s%s %.0f ms (%d)", i ? ", " : "", what, top[i]->ms, top[i]->count);
+    }
+    return line;
+}
+
 } // namespace
 
 extern "C" void VR_TimeStart()
@@ -191,10 +214,12 @@ extern "C" void VR_TimeStart()
     startup.open = true;
     mark(startup, "before main (loader, DLLs, C runtime)", now);
     VR_FileCacheEnable(1);
+    qvr::startlog::start(processStart); // the start-up trace (vr_startlog.cpp)
 }
 
 extern "C" void VR_TimeInit()
 {
+    qvr::startlog::init();
     Cmd_AddCommand("vr_startup_times", times_f);
     Cmd_AddCommand("vr_walltime", walltime_f);
     (void)qvr::files::readText(quitPath().cStr(), lastQuit); // (none: no line)
@@ -203,6 +228,7 @@ extern "C" void VR_TimeInit()
 // quit (Host_Quit_f), or Host_Shutdown for any other way out: the quit's timing starts (once).
 extern "C" void VR_TimeQuitBegin()
 {
+    qvr::startlog::quit();
     if(quit.open)
     {
         return;
@@ -252,6 +278,7 @@ extern "C" void VR_TimeQuitEnd(int error)
 extern "C" void VR_TimeMark(const char* stage)
 {
     VR_GLStep("done: %s", stage); // the breadcrumbs (vr_glsafe.cpp)
+    qvr::startlog::mark(stage, Sys_DoubleTime());
     if(command.start >= 0.0)
     {
         const double now = Sys_DoubleTime();
@@ -267,6 +294,10 @@ extern "C" void VR_TimeMark(const char* stage)
 
 extern "C" void VR_TimeAdd(const char* what, double seconds)
 {
+    if(vr_perf_recording) // the perf recorder's "work" (often inside a model's or texture's load: their detail)
+    {
+        VR_PerfEvent(VR_PERF_WORK, seconds * 1000.0, what);
+    }
     Group* const g = current();
     if(!g)
     {
@@ -312,6 +343,7 @@ extern "C" void VR_TimeLoadBegin(const char* what)
         command = Command{};
     }
     load.open = true;
+    qvr::startlog::loadBegin(load.what.cStr(), now);
     VR_FileCacheEnable(1);
     VR_CrtHeapLoadHold(1, static_cast<long>(qvr::vr_heap_load_hold.value));
 }
@@ -323,11 +355,16 @@ extern "C" void VR_TimeLoadCommand(const char* what)
     command.start = command.last = Sys_DoubleTime();
     command.what = what;
     qvr::bench::loadCommand(); // (vr_bench_profiler 2: an external profiler collects the load alone)
+    if(vr_perf_recording)
+    {
+        VR_PerfEvent(VR_PERF_MAP, 0.0, what); // (its time: the frames' periods until the map's first frame)
+    }
 }
 
 extern "C" void VR_TimeFrameEnd(int signedOn, int idle)
 {
     const double now = Sys_DoubleTime();
+    qvr::startlog::frameEnd();
     if(command.start >= 0.0)
     {
         command = Command{}; // (a command that loaded nothing: refused, or a map not found)
@@ -336,6 +373,7 @@ extern "C" void VR_TimeFrameEnd(int signedOn, int idle)
     if(load.open && idle)
     {
         load.open = false; // a load that failed (Host_Error): not timed; the file lookups ask the file system again
+        qvr::startlog::loadEnd(now, true, "");
         qvr::bench::loadEnded();
         load.marks.clear();
         load.sums.clear();
@@ -346,6 +384,7 @@ extern "C" void VR_TimeFrameEnd(int signedOn, int idle)
     {
         load.frames++;
         load.lastFrameEnd = now;
+        qvr::startlog::loadFrame(load.frames, cls.signon); // (the heartbeat: a load stuck before its signon)
     }
     else if(load.open && signedOn)
     {
@@ -360,6 +399,7 @@ extern "C" void VR_TimeFrameEnd(int signedOn, int idle)
         }
         mark(load, "first frame drawn", now);
         load.open = false;
+        qvr::startlog::loadEnd(now, false, workLine(load).cStr());
         qvr::bench::loadEnded();
         VR_ImagePrefetchEnd();
         VR_FileCacheEnable(0);
@@ -399,6 +439,9 @@ extern "C" void VR_TimeFrameEnd(int signedOn, int idle)
     {
         mark(startup, "first frame drawn", now);
         startup.open = false;
+        qvr::startlog::startupEnd(now, (workLine(startup) + (startup.nestedMs > 0.0 ? " | the map load's: " + workLine(load)
+                                                                                                   : za::String{}))
+                                           .cStr());
         VR_FileCacheEnable(0);
         if(developer.value)
         {

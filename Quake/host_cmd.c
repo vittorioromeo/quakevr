@@ -1321,7 +1321,7 @@ static qboolean Modlist_Check (const char *modname, const char *base)
 	q_snprintf (modpath, sizeof (modpath), "%s/%s", base, modname);
 
 	q_snprintf (itempath, sizeof (itempath), "%s/pak0.pak", modpath);
-	if (Sys_FileExists (itempath))
+	if (Sys_MatchFileCase (itempath)) // QVR: or PAK0.PAK
 		return true;
 
 	q_snprintf (itempath, sizeof (itempath), "%s/progs.dat", modpath);
@@ -1905,6 +1905,9 @@ Host_SetPos_f
 adapted from fteqw, originally by Alex Shadowalker
 ====================
 */
+#define SETPOS_MARGIN		4096	// QVR: setpos: how far outside the world's bounds a place may be
+#define SETPOS_MAX_ANGLE	36000	// QVR: setpos: an angle's largest size (degrees)
+
 static void Host_SetPos_f(void)
 {
 	int		i, numargs;
@@ -1942,6 +1945,21 @@ static void Host_SetPos_f(void)
 			Q_rint (sv_player->v.v_angle[1]),
 			Q_rint (sv_player->v.v_angle[2]));
 		return;
+	}
+
+	// QVR: a value not finite, a place far off the map or an angle past any turn refused (a client's "setpos nan" was
+	// reset by SV_CheckVelocity, but "setpos 1e30 ..." kept him there, his origin sent to every client; its angles
+	// overflowed the integer casts writing them)
+	for (i = 0; i < numargs; i++)
+	{
+		if (!isfinite (args[i]) ||
+			(i < 3 && sv.worldmodel && (args[i] < sv.worldmodel->mins[i] - SETPOS_MARGIN || args[i] > sv.worldmodel->maxs[i] + SETPOS_MARGIN)) ||
+			(i >= 3 && fabs (args[i]) > SETPOS_MAX_ANGLE))
+		{
+			SV_ClientPrintf ("setpos: refused, a value not finite, off the map (more than %d units) or past %d degrees\n",
+				SETPOS_MARGIN, SETPOS_MAX_ANGLE);
+			return;
+		}
 	}
 
 	if (sv_player->v.movetype != MOVETYPE_NOCLIP)
@@ -2535,7 +2553,22 @@ static void Host_InitSaveThread (void)
 Host_Savegame_f
 ===============
 */
-static void Host_Savegame_f (void)
+static void Host_SavegameRun (void);
+static void Host_Savegame_f (void) // QVR: the perf recorder's saves (the rest below)
+{
+	double t0;
+
+	if (!vr_perf_recording)
+	{
+		Host_SavegameRun ();
+		return;
+	}
+	t0 = Sys_DoubleTime ();
+	Host_SavegameRun ();
+	VR_PerfEvent (VR_PERF_SAVE, (Sys_DoubleTime () - t0) * 1000.0, Cmd_Argc () > 1 ? Cmd_Argv (1) : "save");
+}
+
+static void Host_SavegameRun (void)
 {
 	VR_TRACY_SCOPE("Save game");
 	char		relname[MAX_OSPATH];

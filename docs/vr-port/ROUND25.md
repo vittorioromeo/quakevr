@@ -3905,3 +3905,216 @@ layout, the feed's change, the Avalonia plan and the Quest research: INSTALLER.m
   approval). No Linux game package exists yet (layout proposed: the Windows zip's with `ironwail`, `quakevr.png`, Linux
   tools). Phase 2: the case-insensitive pak lookup (GOG's PAK0.PAK), the disk check's mount point, a running-game
   check, the Avalonia window.
+## VR slide: the flat slide's body and eye height (branch agent/vrslide2, 2026-11-17)
+
+His decision: "Sliding pose should be the same as flat screen, and the camera should smoothly but very quickly move to
+the actual sliding head height even in VR. Perhaps add an option." Before, a headset's slide kept his view at his real
+head and hung the flat pose from it (the hips at the flat slide's height off the box's floor, the legs bent up to the
+play-space floor 3 units over it).
+
+**The view** (`slide::viewDrop`, called from `vr_hands.cpp` placeTracked once the tracking is placed): while this
+machine's player slides (`server.slide[1].on`, off a ledge mid-slide too), the whole tracked frame (head, eyes, hands,
+trackers, so the body hung from them) is let down by an eased drop, and `headHeight` with it. As the slide starts it
+takes his real eyes over the box's floor (over the client's origin: the server's moves a unit up into the crouched box
+a frame before); the drop takes them to `slideEye()` (46 less `vr_flat_crouch_drop` and `vr_flat_slide_drop`: 22, the
+flat slide's eyes), his head's own moves since one to one on top (an eye already under it: no drop). Eased by a
+critically damped spring (`geom::easeCritical`, new in `vr_geom.hpp`: avatar's `easePitch` now calls it) that covers
+95% in `vr_slide_camera_time` (0.15 s), no overshoot; back up the same way when the slide ends. The comfort vignette
+counts the drop easing as a move (`viewDropMoving`, `vr_input.cpp` updateComfort). No lying down for 0.5 s after a
+headset slide ends (`slide::headsetRising`, `vr_hull.cpp`): the slide's eyes are `vr_prone_eye`'s own 22 at the
+defaults, and a nod coming back up would have laid him down.
+
+**The body:** the same code as flat's (`vr_avatar_pitch.cpp`'s slide pitch from the eyes over the box, `solveLeg`'s
+legs out in front), now from the flat slide's eyes; the neck back (`vr_flat_slide_neck_back`) too
+(`flatmove::slideNeckBack` for `slide::headsetPose`). The body's floor goes where the flat slide's is, by the drop's
+share (`viewDropShare`): Quake's standing eyes (46 over the box's floor) less the flat body's eye height
+(`units::flatBodyEyeHeight`, `vr_flat_body_height`: 2.8 under the box's floor at the defaults), not
+`vr_floor_offset`'s play-space floor. Not shared: the flat slide's legs turned to the slide's way and the chest back to
+the view (`vr_flat_slide_legs`, flatplay's poseHands: a headset's body yaw is the tracked one), the arms (tracked), and
+the legs' length (a headset's are fitted to the height he stands at: `legFit`).
+
+**Settings:** `vr_slide_camera` 1 (Slide View; 0: the view stays at the real head and the body hangs from it, as
+before), `vr_slide_camera_time` 0.15 (Slide View Time, 0.05..0.5 s), both CVAR_ARCHIVE, in VR Settings > Locomotion
+after Slide Body Pose.
+
+**Tests:** `bash Misc/quakevr/vrslide_test.sh <agent>`: `vr_slide_test` gains the view's checks and a case with
+`vr_slide_camera 0`: straight down, the view from 55.6 (the mock's eyes) to 22.0, lowest 22.0 (no overshoot), 95% in
+0.139 s, back up to 55.6 95% in 0.139 s after it (the let-go case too); with `vr_slide_camera 0` it stays at 55.6
+(55.6 to 56.0). 24 passed. Then `vr_slide_pose_test` (new, `-flatscreenmode`) slides from the same spot and both print
+the body 0.5 s into the slide (`printPose`: the body's floor, the head, the hips, knees and ankles off the head along
+the view and over the box's floor), the headset's sized as the flat one (`vr_height_calibration 1.55`): floor -2.8 and
+-2.8, head 22.0 and 22.1, hips (1.7, +-2.7, 3.7) and (1.6, +-2.7, 3.7), ankles at -0.4 both: worst 0.1 units off. The
+knees and ankles reach further out in the headset (the mock stands taller than 1.55 m: its legs fitted to it).
+## searchfilter: Search's filter row, Both / Cvars / Tunables (agent/searchfilter, 2026-11-17)
+
+- His request (2026-11-17): a filter on the Search page for cvars only, tunables only, or both (the default); none in
+  release builds, which have no tunables.
+- `vr_menu_search.inc`: "Show: [Both] [Cvars] [Tunables]" over the text box (the left column's top; the box, keys and
+  recent list a row lower; the results column unchanged). `searchPageLayout()` wraps `searchLayout()` (the Map Library
+  keeps its own layout, no row). Each `SearchEntry` has `tunable` (on the Tunables page or a Tunables submenu, the page
+  itself too); `runSearch` skips what the choice leaves out, so the results update at once. Cvars = every result not a
+  tunable (the menus' settings, actions and pages). The chosen button is lit with a bar under its label.
+- Input on the shared menu paths (flat mouse and VR laser: `searchMouse` hover, `K_MOUSE1` click; sticks: up from the
+  keys' top row onto the nearest button, across, A or Enter chooses, down back to the keys, up to the corner's buttons;
+  from the corner's buttons down: the chosen filter). Its own help line.
+- Not saved: kept in memory while the game runs, as the typed text is (the page's other UI state is not saved either;
+  only the recent list is, in search_recent.txt).
+- Release builds (`QVR_RELEASE`: the Tunables pages are compiled out): `searchFilterShown` is a `constexpr false`, so
+  no row is laid out or drawn, `searchFilterPasses` lets everything through, and `vr_menu_search -filter` says
+  "no filter".
+- `vr_menu_search [-filter both|cvars|tunables] [-open] <text>`: sets the row (kept) and prints its buttons' spots;
+  the results' line names the choice. New `vr_menu_search_filter_test` (Debug > Tools > Search Filter Test): the counts
+  for "recoil" under each choice (Both 18 = Cvars 12 + Tunables 6, each only its kind), then the mouse's click on
+  Tunables, the laser's trigger on Cvars, the sticks (up, across, A, down); puts the filter and text back; 11/11. In a
+  release build: no row, no tunable indexed, 12 results whatever the filter; 3/3.
+- Checks: dev and ReleaseLTO (`-p:QvrReleaseVersion=1.1.0`) 0 warnings; menu_paths.txt regenerated (9934 entries:
+  the new Debug row plus earlier rounds' unregenerated rows); `vr_menu_path_check maps/vrcalibration.map` 0 missing;
+  scenario_check 136/136 PASS; load_models_test 4/4.
+
+## SteamVR on Linux: the -51 explained, loader messages logged, the Flatpak's /dev/shm (branch agent/linuxsteamvr, 2026-11-17)
+
+GitHub #82 (Fedora 45, Steam Frame, the Flatpak: "SteamVR: not running", then `xrCreateInstance failed: (-51)`). No
+hardware here; diagnosis and plan in LINUX.md, "SteamVR" and "AppImage (plan, not built)". The reply draft:
+`qvr-kit/scratch/issue82_reply.md` (not posted).
+
+- Failure lines name the XrResult from the specification's list (`oxr::resultText`, `openxr_reflection.h`; the runtime's
+  `xrResultToString` only for codes not in it): a failed `xrCreateInstance` has no instance, so it printed `failed:  (-51)`.
+  Now `XR_ERROR_RUNTIME_UNAVAILABLE (-51)` (check, the frame calls' stall lines, the bindings' suggestion, the
+  enumerate's failure in the log).
+- Linux: the loader's stdout and stderr caught while it loads a runtime (`xrEnumerateInstanceExtensionProperties`,
+  `xrCreateInstance`: `xrruntime::captureLoaderOutput` / `endLoaderOutput`, dup2 onto a `tmpfile`) into
+  `qvr_openxr.txt` as "OpenXR loader output (<call>): ..." lines; a failed `xrCreateInstance`'s error lines (deduplicated:
+  with XR_LOADER_DEBUG the loader writes each to both) to the console, at most 8.
+- `vr_xr_debug` (default 0, archived; Debug > Startup, "OpenXR Loader Log"): XR_LOADER_DEBUG=all before VR starts (on
+  Linux before video init, read from the config early with the other vr_xr_* in gl_vidsdl.c); kept when set outside.
+- `XR_ERROR_RUNTIME_UNAVAILABLE` says what to try (`xrruntime::runtimeUnavailable`): SteamVR on Linux: start it first,
+  in a sandbox without the host's /dev/shm the `flatpak override --user --device=shm` line, the logs, Monado/WiVRn;
+  other runtimes: their service; Windows: start the runtime's app.
+- SteamVR detection on Linux: `vrserver`, `vrcompositor`, `vrmonitor` matched by `comm`, the executable's name and
+  argv[0]/argv[1]'s (`processNames`); in a Flatpak sandbox (`/.flatpak-info`) the report says "can't tell" (Auto: as
+  not running); the report also lists the sandbox's devices, whether /dev/shm is the host's, and the /dev/shm entries
+  that look like SteamVR's/OpenVR's/Steam's (to learn their names from players' logs).
+- Flatpak manifest: `--device=shm` (`--device=all` alone gives a tmpfs /dev/shm of the sandbox's own: the likely -51).
+- Checks: Windows dev and ReleaseLTO 0 warnings; the WSL Linux build 0 new warnings; WSL run (`scratch/ls_wsl_fail.sh`:
+  a SteamVR manifest with a missing library, a fake `vrcompositor` started through ld.so): report "SteamVR:
+  vrcompositor running", the loader's 4 error lines in the console and 14 lines in qvr_openxr.txt with vr_xr_debug,
+  `XR_ERROR_RUNTIME_UNAVAILABLE (-51)`, the hint; xr_runtime_test.sh 103 PASS, 0 FAIL; scenario_check 136/136 PASS.
+- Open: the failure outside the sandbox is unexplained until a player's log has the loader's lines and SteamVR's
+  `vrclient_*.txt`; the Flatpak sandbox case not run (no flatpak here); the AppImage needs `appimagetool` in CI (a new
+  pinned download): plan only.
+
+## startuplog: the start-up trace and its heartbeat, PC and Quest (branch agent/startuplog, 2026-11-17)
+
+His Quest 3 report: after an install and a new data push, minutes of Meta's three dots; logcat's last game line
+"Using protocol 999", then only VrApi lines. Now every start says where it is, on the PC and the Quest alike.
+
+- `vr/vr_startlog.cpp` (one path for both): each step of the start-up and of the first map's load logged as it begins
+  and ends, with the wall clock since the process started (`[startup +1.234s] video (...) begin` / `... end (took
+  577.0 ms)`, nested steps indented); a stage that only ends (a `VR_TimeMark` with no step of its name open) as
+  `<stage> done (X ms since "<previous>")`; notes: each pak read (its files, its ms), progs.dat's size and CRC; `first
+  frame shown (the start-up took X ms)` and a summary line: the six slowest steps and the four costliest kinds of work
+  (vr_startup_times' `VR_TimeAdd` sums: shader compiles, model loads, normal maps; on the Quest the program cache's
+  "programs from their binaries" / "program binaries refused" sums). Lines go through `Con_SafePrintf` (no screen update
+  per line while loading; before the console, `Sys_Printf`): the terminal, the run's log, and on Android logcat under
+  `QuakeVR`, a line at a time (the quest branch's `Sys_Printf` -> `VR_AndroidLog`). Also `<game folder>/startup.log`
+  (quakevr/startup.log), made anew at each start right after the file system starts (the lines before it kept and
+  written then), each line flushed; on the Quest in the app's files folder (`vr_android_export startup.log`).
+- The heartbeat: a watchdog thread (detached; stops at the trace's end) reads a seqlock snapshot of what the main thread
+  is in (no lock the main thread waits on) and, while one step runs past 2 s, says every 2 s `[startup +Xs] still in
+  <step> (<progress>; GL step N: <last breadcrumb>) (Y s so far)`. Progress: `model 12 of 40: progs/ogre.mdl`, `sound
+  ...`, `pak <path>`, a load's `N frames so far, waiting for the signon: k of 4`; the last `VR_GLStep` breadcrumb
+  (every shader compile and link, the OpenXR calls, the quest branch's "program X from its binary") with its count.
+- Steps: Host_Init's stages (begin calls beside the existing `VR_TimeMark`s, which end them), the first frame's
+  configs/autoexec, the VR backend's start and OpenXR's instance, system, session, spaces, actions and swapchains,
+  the map load (from `VR_TimeLoadBegin` to its first frame drawn, or "failed"), the server's progs, world model,
+  entities, 2 frames, the client's model and sound precaches (per-item progress), R_NewMap (its mark renamed "client:
+  R_NewMap") and each `VR_NewMap` prewarm step. A step left open at a frame's end (a Host_Error's longjmp) is closed
+  there, said so. The trace runs to the first frame drawn and, when no map loaded in the start-up, on to the first
+  map's first frame (a second summary), then stops.
+- `vr_startup_log` (archived, default 1): 0 quiet (no console or logcat lines; the file is still written). Read once
+  the config ran (the lines before it always print). Debug > Startup: the toggle and "Startup Trace Summary"
+  (`vr_startup_trace`: the file and the last summary). Test aid: `vr_startup_trace stall <s>` (the main thread sleeps
+  inside a step), `vr_startup_trace check` (verdict `startuplog: N passed, M failed`: file made, start-up summed up, no
+  step left open, 2+ heartbeat lines after a 5 s stall). Run: `run.sh <tree> -Script "vr_startup_trace stall 5;wait;
+  vr_startup_trace check;toggleconsole;quit" -QuitOn "startuplog: \d+ passed"` (the stall is real time by nature).
+- What runs after "Using protocol 999" (CL_ParseServerInfo), by reading the code: the precache lists, then each model's
+  `Mod_ForName` (the alias models' skins, their normal maps from the derived-data cache or made, the GL uploads), the
+  sounds, `R_NewMap` (lightmaps, brush buffers, then `VR_NewMap`'s prewarm steps: view models, gun anchors, rigs...),
+  then the frames to the signon (`VR_SignonPrewarm`: translucent decal programs). Nothing prints there without
+  developer 1, so logcat stops at that line. While the main thread is inside one of these no `xrEndFrame` runs; the
+  frames to the signon draw no world and submit no layer: both show Meta's dots. Suspects on the Quest: (1) the program
+  cache: its key hashes the exact shader text (and the pack is per driver identity), so a build whose shaders changed
+  (the 1.1.0 merge) misses every program: the comment in vr_diskcache.cpp measures ~51 s for the start's ~120 programs
+  on the Adreno, and the map's own (VR programs, decal and multiview variants) follow at the load; (2) the derived-data
+  cache rebuilt after new data (the PC's e1m1: 1384 skins' normal maps, 1.5 s on 16 threads; many times that on the
+  XR2); (3) the external files folder read through FUSE. The trace tells them apart: `still in client: R_NewMap` /
+  `VR_NewMap: <step>` with `GL step N: compile/link <program>` climbing = compiles; `still in client: models precached
+  (model k of n ...)` = model and skin work; `still in map load (...) (N frames so far, waiting for the signon: k of
+  4)` = frames running but the signon stuck (a protocol or server-side problem, not loading); a step whose "so far"
+  grows with neither progress nor GL steps moving = a blocking call (a file read, a lock).
+- Headless PC run (e1m1 from the script, mock headset): 130 lines; the start-up 5.3 s with the map; slowest: the
+  first frame's configs 4.1 s (the map's load inside it), the map load 1.7 s, the server's entities 1.08 s, video
+  0.51 s; work: GL_CreateShaders 297 ms; the map's: skins' normal maps from the cache 1522 ms (1384), alias models
+  1005 ms (307). Seen in passing: the file system reads the same paks several times during its start (each under
+  0.3 ms here; on the Quest's FUSE worth a look), and the first frame's configs take ~2 s before any map command.
+- Not done (follow-up): a "Loading: <step>" quad in the headset. The long steps block the main thread (no frame loop
+  at all), so it needs either the loops above to pump an OpenXR frame with the quest backend's panel quad between
+  items (models, programs) or a second thread with its own GL context submitting frames; neither is cheap. The
+  quest branch's program cache can name a miss's reason (a new driver identity vs a changed text) with a `VR_StepNote`
+  in `VR_ProgCacheBegin` once it merges this.
+- Checks: dev and ReleaseLTO 0 warnings; no local NDK (ANDROID_NDK_HOME unset): the Android build not run (the code is
+  portable C++, no `__ANDROID__` paths of its own); `vr_startup_trace check` 4 passed, 0 failed (3 heartbeat lines);
+  scenario_check 136/136 PASS; load_models_test 4 passed, 0 failed.
+
+## The audit's safe items from agent/quest and agent/mp brought to next, reviewed (branch agent/extract1118, 2026-11-18)
+
+From the branch audit of 2026-11-18 (items 2-9; item 1, setpos, was already on next). One commit each; the Quest-only
+and MP-only parts left on their branches.
+
+- **Bloom clamp** (quest 0b8fa57db): the bright pass, downsample, upsample and the average write `clamp(x, 0, 1e4)`: one
+  Inf or huge texel no longer spreads down the chain. Review: the comment said "no NaN": GLSL leaves `clamp(NaN)`
+  undefined, so it says Inf only.
+- **GL sync counter** (quest 1e60acd2e): `vr_gl_sync_count N` (0) prints every N s the calls a frame that make the CPU
+  wait for the GPU (glFinish, fence waits, query results not yet there, pixel and texture reads, synchronised maps, link
+  status reads); `vr_gl_sync_report` for tests. e1m1: 1.00 a frame (the frame ring's fence). Review: the query
+  availability check (one extra GL call a query read) stayed on for the session once the cvar had been on; now only
+  while it is on or after a report.
+- **GL safe-mode judging** (quest 8a616372c, PC parts): gl_startup.log gets `shaders: set N begun/done` and `== alive at`
+  every 5 s, the crash handler writes `== crashed`; judgeLastStart counts a start that missed its first map only when it
+  crashed or died within 20 s of its shaders without a report (stopped in a compile, after >= 10 s of compiles, or
+  after living on: "not counted", said in the log and console). `vr_glsafe_judge_test` (Debug > Profiling > Startup) 11
+  passed, 0 failed. Left behind: the ES persistent-buffer exception, the lite form's first set (gl_shader_set.txt),
+  the `cbuf_executing` wait, Android. The audit's follow-up: the PC makes one shader set a start (gl_startup.log of a
+  run: set 1 only, 106 programs in 310 ms), so the "one set per start" part is not needed. Review: `-gltestdie` (a test
+  hook no test used) and the unused shader-time total dropped; the duplicate prefix helper replaced by
+  `strings::startsWith`; a "done" line without a "begun" is ignored.
+- **Perf recorder** (quest b940b76d5, 643c9379a, 92c3d27e0): `vr_perf_record 1` (Debug > Profiling) writes
+  `profile/perf/perf_<stamp>.csv`, one row a frame (CPU phases, GPU passes, OpenXR, events: shader compiles, texture,
+  model and sound loads, lightmaps, map loads, saves, decal bakes, nav waits, QC/Box3D, VR_TimeAdd work, marks);
+  `vr_perf_mark <label>`; `Misc/quakevr/perf_report.py <csv>` (moved out of quest/) lists the hitches by cause. e1m1: 200
+  frames written, the mark found, the report runs. Bundled aids (Debug > Profiling): `vr_test_dlights [count radius
+  distance]`, `vr_dlights_list`, `vr_gl_passes 1` (the frame's framebuffer binds and alias batches). Left behind: the
+  Quest cvar snapshot, the Android path, the ES shader probes, the lite programs in vr_gl_passes; VR_PERF_SHADERBIN kept as
+  a kind nothing emits on PC (the program cache's). Review: vr_test_dlights allocated a slot to clear each light it did
+  not have (which could take another live light's slot): it now clears only its own; beginPhase reads the clock once;
+  the allocation count's magic 6 is the array's size.
+- **vr_goto_exit / vr_hurt** (mp 7b923e104): in vr_cheats.cpp (Debug > Tests > Cheats), `[<slot>]` optional (0), not in
+  deathmatch, a dead player refused; MP's bot and attacker arguments left. e1m1: the exit to e1m2 reached (damage then
+  refused: the intermission); `vr_hurt 1000`: dead.
+- **vr_nav_hash** (mp 86d20dfac, vr_nav.cpp part): FNV-1a of the navmeshes' tiles and the agents' paths (Debug > Views:
+  Print Navmesh Hash), on the canonical `diskcache::fnv` (the commit had its own copy).
+- **Portability pack** (quest 605ac0f21, dc83eaaf7, e636f9248, 3fc9ce5b5): clang 18 fixes, the climb's deducing-this
+  lambda as a self-argument, vr_findradius' ticks (TSC on x86 as before), Zancle's GCC-only pragma, `vr_simd.hpp`
+  (SSE2/NEON/scalar) for the AO rays and the audio filters; `vr_simd_test` (Debug > Automation) 58880 passed, 0 failed.
+  The SSE2 wrappers are the same intrinsics as before (the AVX rays untouched): no PC change.
+- **Posed models batched** (quest c7e6e49d9): R_AliasPosedJoin puts the world's posed models of one model and skin
+  with as many bones, the same surfaces and skin mask in one batch, their bones in one buffer with per-instance offsets
+  (your own models keep a batch each). `vr_alias_batch_posed` (Debug > Profiling) 1; `vr_alias_prepass_world`
+  (1, as before) the A/B switch of the world models' depth pre-pass. Six armed grunts on vrfiringrange: 128 -> 118
+  alias batches a frame, the poses unchanged (screenshots; the scene's moving sky makes a pixel diff useless).
+  PC A/B (ThinLTO, realtime 90 Hz, exclusive; off/on interleaved; GPU eyes avg ms): ragdolls_32_active off 3.435,
+  3.365 / on 3.280, 3.303 (-0.11 ms; CPU 3.68 both); combat_48 off 3.510, 3.543, 3.369, 3.419, 3.467 / on 3.466,
+  3.293, 3.747, 4.485, 3.258 (medians 3.467 / 3.466: even; CPU within noise). The >33 ms hitches of some combat_48
+  runs came in both arms (on 6+3+9, off 3+10): the machine's, not the batching's. It helps where it applies and costs
+  nothing elsewhere: on by default on the PC too (0: a batch each, as before). Review: when an instance's bone count disagreed, the batch copied the first instance's bones through a pointer a later
+  VR_AliasBonePoses call may have reused: it copies the first's copy. The world-lit-skip split (ES) left behind.

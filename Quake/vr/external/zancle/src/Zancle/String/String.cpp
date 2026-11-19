@@ -556,7 +556,7 @@ SizeT String::replaceAllOccurrences(const StringView target, const StringView re
 ////////////////////////////////////////////////////////////
 void String::swap(String& other) noexcept
 {
-#ifdef __GNUC__
+#if defined(__GNUC__) && !defined(__clang__) // (GCC's warning; clang knows no -Wclass-memaccess)
     #pragma GCC diagnostic push
     #pragma GCC diagnostic ignored "-Wclass-memaccess"
 #endif
@@ -567,7 +567,7 @@ void String::swap(String& other) noexcept
     ZA_MEMCPY(&m_rep, &other.m_rep, sizeof(String::RepUnion));
     ZA_MEMCPY(&other.m_rep, &temp, sizeof(String::RepUnion));
 
-#ifdef __GNUC__
+#if defined(__GNUC__) && !defined(__clang__)
     #pragma GCC diagnostic pop
 #endif
 }

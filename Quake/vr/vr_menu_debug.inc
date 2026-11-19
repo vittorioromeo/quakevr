@@ -295,6 +295,9 @@ za::Vector<Item> pageDebugViews()
         command("Print Navmesh Info", "vr_nav_info")
             .help("vr_nav_info: the map's navmesh input (brushes, clip brushes, triangles) and each monster size class's "
                   "mesh: tiles, polygons, size, built or read from disk and how long it took; the paths found."),
+        command("Print Navmesh Hash", "vr_nav_hash")
+            .help("vr_nav_hash: one hash of the navmesh (its tiles, as doors, lifts and props left them) and one of the "
+                  "monsters' paths, bit for bit: two runs of the same play print the same (determinism tests)."),
         command("Crowd Stall Test (40 s)", "vr_nav_crowdtest 40")
             .help("vr_nav_crowdtest 40: every walker comes at you; each half second one moved under 8 units while over 128 "
                   "away is a stall, given its cause (a monster or a wall in the way, a ledge, in a wall, no chase...). The "
@@ -485,6 +488,20 @@ za::Vector<Item> pageDebugProfiling()
 {
     return {
         header("Profiling"),
+        row(opt::vr_perf_record),
+        row(opt::vr_alias_prepass_world),
+        row(opt::vr_alias_batch_posed),
+        command("Add 3 Big Test Lights", "vr_test_dlights 3")
+            .help("vr_test_dlights 3: three lasting dynamic lights as big as an explosion's (radius 350), in a row 160 units "
+                  "ahead: the cost of big lights on a still scene (vr_test_dlights <count> <radius> <distance>; 0 removes "
+                  "them)."),
+        command("Remove the Test Lights", "vr_test_dlights 0").help("vr_test_dlights 0: removes the test lights."),
+        command("List the Dynamic Lights", "vr_dlights_list")
+            .help("vr_dlights_list: every live dynamic light in the console: its key (who made it), radius, distance from "
+                  "your eyes and colour."),
+        command("List the Frame's Render Passes", "vr_gl_passes 1")
+            .help("vr_gl_passes 1: the next frame's framebuffer binds in the console, in order, each with the draws made "
+                  "into it (and the profiler's scope at the bind with vr_profile on), and its alias batches."),
         row(opt::vr_profile_overlay),
         row(opt::vr_profile_csv),
         row(opt::vr_profile_hitch),
@@ -825,16 +842,29 @@ za::Vector<Item> pageDebugProfiling()
             .help("vr_heap stress [threads] [ms]: 8 threads allocating and freeing for 2 s (a quarter freed by another "
                   "thread), each block checked: million operations a second, the heap's contention. Stalls the game."),
         row(opt::vr_heap_purge_delay),
+        row(opt::vr_heap_thread_tidy),
+        command("Heap: Live By Size", "vr_heap live 20")
+            .help("vr_heap live [rows]: the heap's blocks in use by block size, the most bytes first, with its pages "
+                  "(held, blocks made, empty). Two of these apart: a size that keeps growing is a leak; "
+                  "vr_heap_sites <min> <max> ... vr_heap_sites stop: where that size's live blocks were allocated."),
         command("Heap: Return Free Memory", "vr_heap collect")
             .help("vr_heap collect: mimalloc returns the memory it holds unused to the system, then vr_heap."),
         header("Startup (GL safe mode)"),
         row(opt::vr_glsafe),
         row(opt::vr_gl_workarounds),
+        row(opt::vr_startup_log),
+        command("Startup Trace Summary", "vr_startup_trace")
+            .help("vr_startup_trace: where this start's trace is (quakevr/startup.log: each step's begin and end, the "
+                  "\"still in\" lines of a slow one) and its summary: the slowest steps."),
         command("GL Safe Mode Status", "vr_glsafe_status")
             .help("vr_glsafe_status: whether this run is in safe mode and why, each feature, and the last GL steps "
                   "(quakevr/crash/gl_startup.log has the start-up's)."),
         command("Retry the Full Renderer", "vr_glsafe_retry")
-            .help("vr_glsafe_retry: the automatic safe mode (kept after a start that crashed) off from the next start."),
+            .help("vr_glsafe_retry: the automatic safe mode (kept after a start that crashed, or a safe start that was stopped) "
+                  "off from the next start."),
+        command("Safe Mode Judge Test", "vr_glsafe_judge_test")
+            .help("vr_glsafe_judge_test: which stopped starts turn on automatic GL safe mode (a crash, a quick death "
+                  "after the shaders) and which don't (stopped in a shader compile, after a slow one, after living on)."),
         header("Diagnostics"),
         command("Game Code and Folders", "vr_gamecode")
             .help("vr_gamecode: the folders the game reads from (its base dirs, game dirs and search path) and where its "
@@ -851,6 +881,7 @@ za::Vector<Item> pageDebugProfiling()
         row(opt::vr_xr_guard),
         row(opt::vr_xr_api_layers),
         row(opt::vr_xr_skip_incompatible_layers),
+        row(opt::vr_xr_debug),
     };
 }
 
@@ -1385,6 +1416,8 @@ za::Vector<Item> pageDebugTools()
             .help("maps_page_pick <row> [source]: the Map Library open with that row picked (its detail; a Slipseer map's page read). Source: 0 both, 1 Quaddicted, 2 Slipseer."),
         command("Search Flash Test", "vr_menu_flash_test")
             .help("vr_menu_flash_test: a Search result opened (Campaign Gap on Menu Look) lands on its row, which flashes and sits in the list's middle; the flash over after its time; none with Search Result Flash 0. Prints a verdict."),
+        command("Search Filter Test", "vr_menu_search_filter_test")
+            .help("vr_menu_search_filter_test: Search's filter row (Show: Both, Cvars, Tunables): each choice's results, then chosen by the mouse, the laser and the sticks; a release build: no row. Prints a verdict."),
         command("Menu Stops Walking Test", "vr_menu_stop_test")
             .help("vr_menu_stop_test: on e1m1, +forward walks; the VR Settings opened over the running game (live preview): no movement button held, the move 0, he comes to rest; closed, nothing resumes. Plays e1m1. Prints a verdict."),
         command("Continue Rows Test", "vr_continue_rows_test")

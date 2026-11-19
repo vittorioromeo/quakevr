@@ -303,7 +303,10 @@ void startBackend()
         return;
     }
 
-    if(!backend->start())
+    VR_StepBegin(va("VR backend start (%s)", backend->name())); // the start-up trace (vr_startlog.cpp)
+    const bool started = backend->start();
+    VR_StepEnd();
+    if(!started)
     {
         Con_Warning("VR: failed to start %s backend (vr_restart to retry)\n", backend->name());
         backend->stop();
@@ -1728,6 +1731,13 @@ void statusLines(za::Vector<za::String>& out)
     const char* runtimeKind = !vr ? "" : mock ? "no runtime" : (strstr(rt, "SteamVR") ? "SteamVR" : (strstr(rt, "VirtualDesktop") || strstr(rt, "VDXR")) ? "VDXR" : "other runtime");
     q_snprintf(line, sizeof(line), "%s%s%s", !vr ? "Flat screen" : mock ? "Mock VR" : "VR", vr ? " - " : "", runtimeKind);
     out.pushBack(za::String{line});
+    // GL safe mode (vr_glsafe.cpp): a warning line (white on red), the graphics' optional features off this run; the reason
+    // in the console and gl_startup.log, Debug > Startup's Retry Full Renderer (vr_glsafe_retry) to leave it.
+    if(VR_GLSafeMode())
+    {
+        out.pushBack(za::String{"! GL safe mode: reduced graphics"});
+        out.pushBack(za::String{"! Debug > Startup: why, and retry"});
+    }
     if(vr && !mock)
     {
         q_snprintf(line, sizeof(line), "%s", rt);
@@ -1994,6 +2004,7 @@ extern "C" void VR_NewMap()
     for(const PrewarmStep& step : prewarmSteps)
     {
         QVR_PROFILE(step.name);
+        VR_StepBegin(va("VR_NewMap: %s", step.name)); // the start-up trace (its VR_TimeMark below ends it)
         const double start = Sys_DoubleTime();
         step.prepare();
         const double ms = (Sys_DoubleTime() - start) * 1000.0;
@@ -2135,6 +2146,7 @@ extern "C" void VR_Init()
 
     VR_TimeInit(); // vr_startup_times, vr_walltime
     VR_GLSafeInit(); // vr_glsafe_retry, vr_glsafe_status
+    VR_SimdTestInit(); // vr_simd_test
     VR_DiagnosticsInit(); // vr_diagnostics_status
     VR_LogsInit(); // bugreport, vr_logs_status
     jobs::start(); // the game's thread pool (vr_jobs.hpp), first: the systems below post to it
@@ -2213,6 +2225,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_runlaunch_test", menu::runLaunchTest_f);
     Cmd_AddCommand("vr_continue_rows_test", menu::continueRowsTest_f);
     Cmd_AddCommand("vr_menu_flash_test", menu::flashTest_f);
+    Cmd_AddCommand("vr_menu_search_filter_test", menu::searchFilterTest_f);
     Cmd_AddCommand("vr_menu_stop_test", menu::stopTest_f);
     Cmd_AddCommand("vr_tips_reset", tips::reset_f);
     Cmd_AddCommand("vr_tips_test", tips::test_f);

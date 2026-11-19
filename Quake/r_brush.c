@@ -1067,4 +1067,6 @@ void R_RuntimeBrushLightmap (int slot, const unsigned *texels, const unsigned *l
 		GL_Bind (GL_TEXTURE0, lux_texture);
 		glTexSubImage2D (GL_TEXTURE_2D, 0, x, y, QVR_BRUSH_SLOT_LMW, QVR_BRUSH_SLOT_LMH, GL_RGBA, GL_UNSIGNED_BYTE, lux);
 	}
+	if (vr_perf_recording) // QVR: the perf recorder (its time is the driver's, later: a count)
+		VR_PerfEvent (VR_PERF_LIGHTMAP, 0.0, "runtime brush");
 }

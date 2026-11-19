@@ -33,14 +33,34 @@
 
 #if defined(_MSC_VER)
 #include <intrin.h>
-#else
+#elif defined(__x86_64__) || defined(__i386__)
 #include <x86intrin.h>
+#else
+#include <time.h>
 #endif
 
 using namespace qvr;
 
 namespace
 {
+
+// The stats' clock, read twice in every findradius: the TSC on x86; AArch64's virtual counter (the Quest: a register read,
+// not clock_gettime's call each time); elsewhere the monotonic clock in nanoseconds. stats_f converts ticks by the wall
+// clock either way (pr_exec.c's QCPROF_TICKS: the same on x86).
+unsigned long long ticks()
+{
+#if defined(_MSC_VER) || defined(__x86_64__) || defined(__i386__)
+    return __rdtsc();
+#elif defined(__aarch64__)
+    unsigned long long v;
+    __asm__ volatile("mrs %0, cntvct_el0" : "=r"(v));
+    return v;
+#else
+    timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return static_cast<unsigned long long>(ts.tv_sec) * 1000000000ull + static_cast<unsigned long long>(ts.tv_nsec);
+#endif
+}
 
 constexpr unsigned char stateDirty = 1;  // tested by itself (not in the grid as it is now)
 constexpr unsigned char stateListed = 2; // in Tracking::listed
@@ -272,7 +292,7 @@ void gridSearch(Tracking& t, const float* org, float rad, za::Vector<edict_t*>& 
 void stats_f()
 {
     const double seconds = Sys_DoubleTime() - stats.seconds0;
-    const unsigned long long cycles = __rdtsc() - stats.cycles0;
+    const unsigned long long cycles = ticks() - stats.cycles0;
     const double nsPerCycle = stats.cycles0 && cycles ? seconds * 1e9 / static_cast<double>(cycles) : 0.;
     const double frames = stats.frames > 0 ? static_cast<double>(stats.frames) : 1.;
     const double calls = stats.calls > 0 ? static_cast<double>(stats.calls) : 1.;
@@ -285,7 +305,7 @@ void stats_f()
         static_cast<double>(stats.listed) / grids, static_cast<double>(stats.candidates) / grids,
         static_cast<double>(stats.hits) / calls, sv.qcvm.edicts ? sv.qcvm.num_edicts : 0);
     stats = Stats{};
-    stats.cycles0 = __rdtsc();
+    stats.cycles0 = ticks();
     stats.seconds0 = Sys_DoubleTime();
 }
 
@@ -294,7 +314,7 @@ void stats_f()
 extern "C" edict_t* VR_FindRadius(const float* org, float rad)
 {
     rad *= rad;
-    const unsigned long long start = __rdtsc();
+    const unsigned long long start = ticks();
     if(!stats.cycles0)
     {
         stats.cycles0 = start;
@@ -331,7 +351,7 @@ extern "C" edict_t* VR_FindRadius(const float* org, float rad)
         chain = ent;
     }
     stats.hits += static_cast<long long>(found.size());
-    stats.cycles += __rdtsc() - start;
+    stats.cycles += ticks() - start;
     return chain;
 }
 

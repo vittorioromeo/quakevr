@@ -473,7 +473,8 @@ struct TouchProvider
 }
 
 // How far off a weapon lying about or in the air the fist of `player`'s hand `which` takes it (see onWeapon).
-[[nodiscard]] float weaponGrabSlack(edict_t* target, edict_t* player, int which)
+// (`fromHandle`: weaponHandleDistance(target, player, which), which its caller may have measured already: < 0 measured here.)
+[[nodiscard]] float weaponGrabSlack(edict_t* target, edict_t* player, int which, float fromHandle = -1.f)
 {
     // (With vr_weapon_grab_slack more if it lies on the floor or is stuck: a gun lying flat is thinner than the lowest the
     // fist gets over the floor. Not one in the air: a catch is by the closed fist on it, as a prop's.)
@@ -485,7 +486,7 @@ struct TouchProvider
     // catch's (ROUND22.md, "Mid-air catches": the closing fist missed a falling axe's handle by a few centimetres).
     // Not one a force grab pulls (QC fg_state 1): its catch is its own (vr_forcegrab_catch_radius).
     const float m2u = units::metresToUnits();
-    const float fromHandle = weaponHandleDistance(target, player, which);
+    fromHandle = fromHandle >= 0.f ? fromHandle : weaponHandleDistance(target, player, which);
     const bool atHandle = fromHandle <= za::max(vr_weapon_grab_anywhere_min.value, 0.f) * 0.01f * m2u;
     float slack = 0.f;
     if(lyingWeapon(target))
@@ -529,7 +530,7 @@ bool testHandContact[2]{false, false};
 {
     const int h = which == HAND_OFF ? 0 : 1;
     const float fromHandle = weaponHandleDistance(target, player, which);
-    if(held::grabTouch(target, player, h, weaponGrabSlack(target, player, which)))
+    if(held::grabTouch(target, player, h, weaponGrabSlack(target, player, which, fromHandle))) // (its handle's distance once)
     {
         out.distance = fromHandle;
         return TouchAnswer::Yes;

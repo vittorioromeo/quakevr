@@ -1,7 +1,7 @@
 #!/bin/bash
 # build.sh -- the quakevr module of io.github.vittorioromeo.QuakeVR.yml, run by flatpak-builder in the sandbox from its
-# copy of the checkout (no .git: the manifest's dir source skips it). Compiles the QuakeC (fteqcc, the module before),
-# builds the engine (Release, clang) and installs into /app:
+# copy of the checkout (no .git: the manifest's dir source skips it). Builds the engine (Release, clang) and the QuakeC
+# (release flavour, with fteqcc from the module before) with CMake and installs into /app:
 #   /app/lib/quakevr/ironwail, ironwail.pak    the engine and its pak (found beside the executable)
 #   /app/share/quakevr/quakevr/                the game folder: what git tracks under quakevr/ (less the development
 #                                              files, as Windows/package-quakevr.ps1) and progs.dat. Never id's data.
@@ -13,20 +13,18 @@ id="${FLATPAK_ID:-io.github.vittorioromeo.QuakeVR}"
 here=Misc/linux/flatpak
 jobs="${FLATPAK_BUILDER_N_JOBS:-$(nproc)}"
 
-echo "== QuakeC (fteqcc)"
-# QC/build.sh's compile (the release flavour: no QC tests, -DQVR_NO_TESTS) without its checks (TrenchBroom FGD, operator precedence: the Windows build runs them).
-(cd QC && fteqcc -DQVR_NO_TESTS -O3 -Fautoproto -Olo -Fiffloat -Fifvector -Fvectorlogic -Flo -Fsubscope -Wall -Wextra -Wno-F209 -Wno-F208 \
-    > ../qc-build.log 2>&1) || { tail -40 qc-build.log; echo "QC compilation failed"; exit 1; }
-test -f quakevr/progs.dat || { echo "no quakevr/progs.dat after the QC compile"; exit 1; }
-# The 32-bit progs (QC/defs.qc's fte32 pragma; the manifest patches fteqcc for it): a 16-bit one fails the build.
-sh Tools/qvr_checks/progs_format.sh quakevr/progs.dat || exit 1
-
-echo "== Engine (CMake, Release, ${CC:-cc})"
+echo "== Engine and QuakeC (CMake, Release, ${CC:-cc})"
 # No user dirs: the launcher passes the base dirs (the Quake install, then the writable Quake VR folder).
+# The QuakeC (Misc/cmake/QuakeC.cmake: QC/build.sh, its format and FGD checks) in the release flavour (no QC tests),
+# with the fteqcc module's compiler (fteqcc.json): the build is offline here, so CMake doesn't fetch its own.
+fteqcc=$(command -v fteqcc) || { echo "no fteqcc (the manifest's fteqcc module, fteqcc.json)"; exit 1; }
 cmake -S . -B build-flatpak -G Ninja -DCMAKE_BUILD_TYPE=Release -DENABLE_USERDIRS=OFF -DQVR_OPENXR=ON \
+    -DQVR_QC=ON -DQVR_QC_RELEASE=ON -DQVR_FTEQCC="$fteqcc" \
     | tee cmake-configure.log | grep -E "Quake VR|OpenXR" || true
 grep -q "OpenXR backend on" cmake-configure.log || { echo "the OpenXR backend is off (no pkg-config openxr or X11)"; exit 1; }
+grep -q "QuakeC release flavour" cmake-configure.log || { echo "the QuakeC is not configured (release flavour)"; exit 1; }
 cmake --build build-flatpak --parallel "$jobs"
+test -f quakevr/progs.dat || { echo "no quakevr/progs.dat after the build"; exit 1; }
 
 echo "== Install"
 install -Dm755 build-flatpak/ironwail "$dest/lib/quakevr/ironwail"

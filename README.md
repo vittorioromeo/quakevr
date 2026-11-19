@@ -274,7 +274,7 @@ For developers:
 
 ## Building from source
 
-You need Windows x64, Visual Studio 2022 with the C++ desktop workload and its **C++ Clang tools for Windows** (the
+On Windows you need x64, Visual Studio 2022 with the C++ desktop workload and its **C++ Clang tools for Windows** (the
 engine is built by clang-cl), and [FTEQCC](https://www.fteqcc.org/) for the QuakeC.
 
 - **Engine and QuakeC:** build `Windows\VisualStudio\ironwail.sln` (Release | x64), in Visual Studio or with
@@ -286,8 +286,11 @@ engine is built by clang-cl), and [FTEQCC](https://www.fteqcc.org/) for the Quak
   [Installer/README.md](Installer/README.md).
 - **Release:** one command, `Misc\release\make_release.ps1` (builds, tests, packages, tags and publishes on GitHub):
   see [docs/vr-port/RELEASING.md](docs/vr-port/RELEASING.md).
-- **CMake** also works, for development (on Windows, configure it for clang-cl with `-T ClangCL`). VR needs Windows
-  x64; the other platforms (CMake or the Makefiles) build with a mock headset only.
+- **Linux** (VR through OpenXR): install the packages in [docs/vr-port/LINUX.md](docs/vr-port/LINUX.md#build), then
+  `cmake --preset linux-release` and `cmake --build --preset linux-release` build the engine and the QuakeC (clang;
+  the first build downloads and builds the QuakeC compiler).
+- **CMake** also works on Windows, for development (configure it for clang-cl with `-T ClangCL`). macOS and MinGW
+  (the Makefiles) build with a mock headset only.
 
 [docs/BUILDING.md](docs/BUILDING.md) has the details.
 

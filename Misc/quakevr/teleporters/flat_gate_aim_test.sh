@@ -30,3 +30,4 @@ gate plain "-256 440 24 0 270 0" "wait" 0 0.5
 h=$(run "developer 1;map vrteleporters;wait60;notarget;setpos -1400 560 24 0 180 0;impulse 154;wait60;edict 1;+attack;wait3;-attack;wait60;edict 1;toggleconsole;quit" | grep -a "^health" | awk '{print $2}' | tr '\n' ' ')
 if echo "$h" | awk '{ exit !($1 == 100 && $2 + 0 < 100) }'; then PASS=$((PASS+1)); echo "PASS loop: health $h"; else FAIL=$((FAIL+1)); echo "FAIL loop: health $h"; fi
 echo "flat_gate_aim: $PASS passed, $FAIL failed"
+[ "$FAIL" -eq 0 ]

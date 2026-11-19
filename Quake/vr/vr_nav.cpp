@@ -1662,15 +1662,21 @@ bool landsNow(jobs::Future<void>& job, za::U64 due, const char* what, const NavC
     {
         return false;
     }
+    double waited = 0.0;
     if(!job.ready())
     {
         const auto t0 = za::Clock::nowNanoseconds();
         job.wait();
         const double ms = msSince(t0);
+        waited = ms;
         ++jobClock.waits;
         jobClock.waitMs += ms;
         jobClock.worstWaitMs = za::max(jobClock.worstWaitMs, ms);
         Con_DPrintf("nav: job: class r%.0f h%.0f: %s not done by its frame: waited %.2f ms\n", c.radius, c.height, what, ms);
+    }
+    if(vr_perf_recording) // the perf recorder: a job landing (its wait, if any)
+    {
+        VR_PerfEvent(VR_PERF_NAV, waited, what);
     }
     return true;
 }
@@ -2534,6 +2540,61 @@ glm::vec3 feet(const edict_t* e)
 // ---------------------------------------------------------------------------------------------------------------------
 // Commands.
 
+// vr_nav_hash: FNV-1a hashes of each class's navmesh (its tiles' bytes: polygons, their flags as the movers and props
+// left them, links) and of the monsters' paths (each agent's polygons, corners and link under way), bit for bit:
+// determinism tests (two runs of the same script print the same; from agent/mp).
+void hash_f()
+{
+    if(!state.ready)
+    {
+        Con_Printf("vr_nav_hash: no map\n");
+        return;
+    }
+    za::U64 mesh = diskcache::fnvStart;
+    int tiles = 0;
+    for(const NavClass& c : state.classes)
+    {
+        if(!c.mesh)
+        {
+            continue;
+        }
+        const dtNavMesh& m = *c.mesh;
+        for(int i = 0; i < m.getMaxTiles(); ++i)
+        {
+            const dtMeshTile* tile = m.getTile(i);
+            if(!tile || !tile->header)
+            {
+                continue;
+            }
+            mesh = diskcache::fnv(mesh, &i, sizeof(i));
+            mesh = diskcache::fnv(mesh, tile->data, static_cast<size_t>(tile->dataSize));
+            tiles++;
+        }
+    }
+    za::U64 paths = diskcache::fnvStart;
+    int agents = 0;
+    for(za::SizeT n = 0; n < state.agents.size(); n++)
+    {
+        const Agent& a = state.agents[n];
+        if(a.cls < 0)
+        {
+            continue;
+        }
+        agents++;
+        // (scalars one by one: no struct padding hashed)
+        paths = diskcache::fnv(paths, &n, sizeof(n));
+        paths = diskcache::fnv(paths, &a.goal, sizeof(a.goal));
+        paths = diskcache::fnv(paths, a.path.data(), a.path.size() * sizeof(dtPolyRef));
+        paths = diskcache::fnv(paths, a.corners, sizeof(float) * 3 * static_cast<size_t>(a.cornerCount));
+        paths = diskcache::fnv(paths, &a.next, sizeof(a.next));
+        paths = diskcache::fnv(paths, &a.link, sizeof(a.link));
+        paths = diskcache::fnv(paths, &a.phase, sizeof(a.phase));
+    }
+    Con_Printf("vr_nav_hash: %d classes, %d tiles, mesh %016llx; %d agents, paths %016llx (%d found)\n",
+        static_cast<int>(state.classes.size()), tiles, static_cast<unsigned long long>(mesh), agents,
+        static_cast<unsigned long long>(paths), state.paths);
+}
+
 void info_f()
 {
     if(!state.ready)
@@ -3020,6 +3081,7 @@ void teletest_f();  // (below, by the steering)
 void init()
 {
     Cmd_AddCommand("vr_nav_info", info_f);
+    Cmd_AddCommand("vr_nav_hash", hash_f);
     Cmd_AddCommand("vr_nav_cliptest", cliptest_f);
     Cmd_AddCommand("vr_nav_toptest", toptest_f);
     Cmd_AddCommand("vr_nav_links", links_f);

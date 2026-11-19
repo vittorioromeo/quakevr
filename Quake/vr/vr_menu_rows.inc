@@ -2531,7 +2531,14 @@ QVR_SLIDER(vr_slide_stick_angle, "Slide Stick Angle", 5.f, 45.f, 1.f, "%.0f deg"
     "turns well clear of it (vr_slide_stick_angle).")
 QVR_TOGGLE(vr_slide_body, "Slide Body Pose",
     "Sliding (VR): your drawn body leans back with its legs out in front while you slide, as on the desktop screen; "
-    "your own head and view are left as they are (vr_slide_body).")
+    "with Slide View on it is the desktop screen's slide pose, hung from the lowered view (vr_slide_body).")
+QVR_TOGGLE(vr_slide_camera, "Slide View",
+    "Sliding (VR): your view moves quickly but smoothly down to the desktop screen's sliding eye height while you slide "
+    "and back up when it ends, on top of your own head's movement (still one to one). Off: the view stays at your real "
+    "head (vr_slide_camera).")
+QVR_SLIDER(vr_slide_camera_time, "Slide View Time", 0.05f, 0.5f, 0.01f, "%.2f s", noExt,
+    "Sliding (VR): how long the view takes down into the slide and back up after it, eased without overshoot "
+    "(vr_slide_camera_time).")
 QVR_CYCLE(vr_snap_turn, "Turning",
     "Smooth: the turning stick turns you steadily (Turn Speed). Snap: each push turns you at once by the angle.",
     {0.f, "Smooth"}, {30.f, "Snap 30"}, {45.f, "Snap 45"}, {90.f, "Snap 90"})
@@ -4887,6 +4894,14 @@ QVR_TOGGLE(vr_xr_vendor_profiles, "Vendor Controller Profiles",
     "Pico, HTC Vive Cosmos and Focus 3, HP Reverb G2 and Samsung Odyssey controllers get their own buttons, "
     "menu button included, when the runtime offers them. Off: they go as the runtime emulates them (the "
     "1.0.0 way, if your hands' angle changed). From the next VR start.")
+QVR_TOGGLE(vr_alias_prepass_world, "World Models Pre-pass",
+    "vr_alias_prepass_world: the world's models (monsters, items) drawn into the depth first, then shaded once a "
+    "pixel (On, as before), or shaded as drawn (Off: one draw a batch less). The same images either way.")
+QVR_TOGGLE(vr_alias_batch_posed, "Batch Posed Models",
+    "vr_alias_batch_posed: the world's posed models of one model and skin (armed grunts, their armour, ragdolls) "
+    "drawn as one batch, their bones in one buffer (On), or a batch each (Off, as before). The same images.")
+QVR_TOGGLE(vr_perf_record, "Perf Recorder",
+    "Every frame's CPU, GPU and OpenXR times and its events (shader compiles, uploads, loads, saves) to a CSV while on: profile/perf/. Misc/quakevr/perf_report.py ranks the hitches.")
 QVR_TOGGLE(vr_xr_log_timing, "OpenXR Timing Log",
     "A line a second in quakevr/qvr_openxr.txt while VR runs: frames rendered, frames missed, each OpenXR call's time and the session's state.")
 QVR_TOGGLE(vr_visibility_mask, "Hide Lens Corners",
@@ -6278,6 +6293,10 @@ QVR_CYCLE_BYNAME(vr_memstats_glscan, "Memory Log: GL Count",
 QVR_TOGGLE(vr_memstats_log_gpu, "Memory Log: GPU",
     "Also sample the GPU for the Memory Log (its clocks, slowdowns, and each program's use of it: SteamVR, "
     "Virtual Desktop), on a thread of its own. Off: only while profiling (Performance Profile, the Profiler Panel or its CSV Capture).")
+QVR_CYCLE_BYNAME(vr_heap_thread_tidy, "Heap: Worker Tidy",
+    "vr_heap_thread_tidy: how often each job worker gives back its own heap pages that frees on other threads "
+    "emptied (only the thread that made a page can). Never: a busy server holds more and more of them.",
+    {0.f, "Never"}, {100.f, "100 ms"}, {1000.f, "1 s"}, {10000.f, "10 s"})
 QVR_CYCLE_BYNAME(vr_heap_purge_delay, "Heap: Purge Delay",
     "vr_heap_purge_delay: how long the heap (mimalloc) keeps freed memory before giving it back to the system. "
     "At once: the smallest working set. 1 s, mimalloc's own default: map loads about 15% quicker, 0.3 to 1 GB "
@@ -6287,6 +6306,10 @@ QVR_TOGGLE(vr_glsafe, "GL Safe Mode",
     "vr_glsafe, from the next start: the optional GL features off (persistent mapped buffers, bindless textures, "
     "multi-bind, clip control, layered shadow casters, debug output, MSAA, the 8192 shadow atlas), each one "
     "logged. Also -glsafe, and on by itself after a start that crashed before its first map.")
+QVR_TOGGLE(vr_startup_log, "Startup Trace in the Console",
+    "vr_startup_log: each step of the start-up and of the first map's load in the console (and logcat on the Quest) as "
+    "it begins and ends, with the time since the game started, and a \"still in\" line every 2 s while one step takes "
+    "longer. Off: quiet. quakevr/startup.log is written either way.")
 QVR_TOGGLE(vr_gl_workarounds, "AMD Workarounds",
     "vr_gl_workarounds, from the next start: on AMD/ATI GPUs bindless textures off, as -nobindless (1.0.0 crashed "
     "in AMD's driver at start-up with them). Off: every feature the driver offers.")
@@ -6302,6 +6325,10 @@ QVR_TOGGLE(vr_xr_guard, "Runtime Crash Guard",
     "vr_xr_guard: a crash inside the OpenXR runtime while the game makes its eye images or stops it is caught "
     "and logged (qvr_openxr.txt): that VR start fails, Auto tries the next runtime, else the game plays flat. "
     "Off: the game crashes with its report.")
+QVR_TOGGLE(vr_xr_debug, "OpenXR Loader Log",
+    "vr_xr_debug, from the next game start (or before VR first starts): XR_LOADER_DEBUG=all, every message of "
+    "the OpenXR loader (the runtime it reads, the library it loads, why that fails) in qvr_openxr.txt on Linux; "
+    "on Windows in diagnostics mode's debug_output.log. Its errors are logged on Linux without it too.")
 QVR_TOGGLE(vr_xr_api_layers, "OpenXR API Layers",
     "vr_xr_api_layers, from the next VR start: off turns off every implicit OpenXR API layer installed "
     "(overlays, toolkits, capture tools between the game and the runtime) by its own switch. "

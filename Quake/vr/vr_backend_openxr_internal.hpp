@@ -75,6 +75,11 @@ typedef void* EGLContext;
 namespace qvr::oxr
 {
 
+// An XrResult's name ("XR_ERROR_RUNTIME_UNAVAILABLE"), from the specification's list (openxr_reflection.h: no instance
+// needed, as a failed xrCreateInstance has none for xrResultToString); else the runtime's xrResultToString (an
+// extension's code), else "".
+void resultText(XrInstance instance, XrResult result, char (&text)[XR_MAX_RESULT_STRING_SIZE]);
+
 // Reads away the GL errors left pending (at most 16): the runtime's own GL calls check glGetError.
 inline void drainGlErrors()
 {

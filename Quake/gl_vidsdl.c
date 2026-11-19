@@ -112,6 +112,8 @@ static GLuint gl_drawframebuffer, gl_readframebuffer;
 
 static void APIENTRY GL_ShadowBindFramebuffer (GLenum target, GLuint framebuffer)
 {
+	if (vr_glpass_trace && target != GL_READ_FRAMEBUFFER && framebuffer != gl_drawframebuffer)
+		VR_GLPassBind (framebuffer); // QVR: vr_gl_passes (vr/vr_profile.cpp)
 	if (target != GL_READ_FRAMEBUFFER)
 		gl_drawframebuffer = framebuffer;
 	if (target != GL_DRAW_FRAMEBUFFER)
@@ -1411,6 +1413,7 @@ static void GL_Init (void)
 		q_snprintf (gpu, sizeof (gpu), "%s | %s | GL %s", gl_vendor ? gl_vendor : "?", gl_renderer ? gl_renderer : "?", gl_version ? gl_version : "?");
 		VR_SetCrashGpu (gpu); // QVR: the crash report's "GPU:" line
 		VR_LogsSystemLine (va ("GPU: %s\n", gpu)); // QVR: the run's system.txt (vr/vr_runlogs.cpp)
+		VR_LogsSystemLine (va ("GL safe mode: %s\n", VR_GLSafeDescribe ())); // QVR: (vr/vr_glsafe.cpp, decided at VID_Init)
 	}
 
 	if (gl_version == NULL || sscanf(gl_version, "%d.%d", &gl_version_major, &gl_version_minor) < 2)
@@ -1814,7 +1817,7 @@ void	VID_Init (void)
 	// config's runtime settings first (and the runtime test environment's, from the command line: TESTING.md).
 	{
 		const char *vr_vars[] = {"vr_xr_runtime", "vr_xr_runtime_json", "vr_xr_runtime_fallback", "vr_xr_test",
-			"vr_xr_test_runtimes", "vr_xr_test_active", "vr_xr_test_processes"};
+			"vr_xr_test_runtimes", "vr_xr_test_active", "vr_xr_test_processes", "vr_xr_debug"};
 		if (CFG_OpenConfig(CONFIG_NAME) == 0 || CFG_OpenConfig("config.cfg") == 0)
 		{
 			CFG_ReadCvars(vr_vars, Q_COUNTOF(vr_vars));

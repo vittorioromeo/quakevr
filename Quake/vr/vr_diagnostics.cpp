@@ -12,7 +12,8 @@
 //   - debug_output.log: whatever the process says to a debugger (OutputDebugString): the OpenXR loader's log
 //     (XR_LOADER_DEBUG=all), runtimes', drivers';
 //   - crash/: the crash report and dump, if any;
-//   - at a quit or a crash, copies of: gl_startup.log, qvr_openxr.txt, and the runtimes' logs written during the run
+//   - at a quit or a crash, copies of: gl_startup.log, qvr_openxr.txt, qvr_openxr_loader.txt (Linux: the OpenXR
+//     loader's and the runtime's own output during its last call, xrruntime::captureLoaderOutput), and the runtimes' logs written during the run
 //     (SteamVR: <Steam>/logs/vrserver.txt, vrcompositor.txt, vrmonitor.txt, vrclient_ironwail.txt; Virtual Desktop:
 //     %ProgramData%/Virtual Desktop/OpenXR.log (VDXR's) and StreamerLog.txt). Meta's are not looked for.
 // Off (the default), none of it runs: one branch in the GL debug callback, which is only installed with -gldebug.

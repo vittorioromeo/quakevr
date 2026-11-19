@@ -2138,10 +2138,10 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
     //MED
     if(VR_ItemUtil_EntHasItem(targ, IID_EMPATHY_SHIELDS))
     {
-        if(self.empathy_sound < time)
+        if(targ.empathy_sound < time)
         {
             sound(targ, CHAN_ITEM, "hipitems/empathy2.wav", 1, ATTN_NORM);
-            self.empathy_sound = time + 0.5;
+            targ.empathy_sound = time + 0.5;
         }
     }
 

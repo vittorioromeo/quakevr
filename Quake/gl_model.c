@@ -475,7 +475,21 @@ Mod_LoadModel
 Loads a model into the cache
 ==================
 */
-static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
+static qmodel_t *Mod_LoadModelRun (qmodel_t *mod, qboolean crash);
+static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash) // QVR: the perf recorder's model loads (the rest below)
+{
+	double		t0;
+	qmodel_t	*loaded;
+
+	if (!vr_perf_recording || !mod->needload)
+		return Mod_LoadModelRun (mod, crash);
+	t0 = Sys_DoubleTime ();
+	loaded = Mod_LoadModelRun (mod, crash);
+	VR_PerfEvent (VR_PERF_MODEL, (Sys_DoubleTime () - t0) * 1000.0, mod->name);
+	return loaded;
+}
+
+static qmodel_t *Mod_LoadModelRun (qmodel_t *mod, qboolean crash)
 {
 	VR_TRACY_SCOPE("Model preparation");
 	byte	*buf;
@@ -3674,6 +3688,7 @@ static void Mod_LoadAliasModel (qmodel_t *mod, void *buffer)
 			VR_TracyEnd (); // QVR
 			if (loaded) {
 				VR_TimeAdd ("  their replacements (md5, md3) looked for and loaded", Sys_DoubleTime () - t0); // QVR
+				Mod_AliasSortKey (mod); // QVR: a replaced model's key too (else 0: drawn interleaved, a batch each)
 				return;
 			}
 		}

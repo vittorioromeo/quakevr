@@ -460,6 +460,10 @@ QVR_CVAR(vr_glsafe, "0", CVAR_ARCHIVE)
 // GL vendor workarounds at start-up: 1 on AMD/ATI bindless textures off (as -nobindless: 1.0.0 crashed in AMD's driver
 // at start-up on an RX 7900 XTX, and started with it), 0 every feature the driver offers.
 QVR_CVAR(vr_gl_workarounds, "1", CVAR_ARCHIVE)
+// The start-up trace (vr_startlog.cpp): 1 each step of the start-up and the first map's load in the console (logcat on
+// Android) as it begins and ends, with a "still in" line every 2 s while one runs past 2 s; 0 quiet (quakevr/startup.log
+// is still written). Read from the config once it ran: the lines before it always print.
+QVR_CVAR(vr_startup_log, "1", CVAR_ARCHIVE)
 
 // The OpenXR runtime (vr_xr_runtime.hpp; an XR_RUNTIME_JSON the game was started with wins): 4 Auto, the one whose app is
 // running (Virtual Desktop's Streamer: VDXR, or SteamVR when VD's own setting says so; SteamVR; Meta's OVRServer), else the system's active one; 0 the system's
@@ -490,6 +494,10 @@ QVR_CVAR(vr_diagnostics, "0", CVAR_ARCHIVE)
 // verbose ones in diagnostics mode only): 1 the XR_EXT_debug_utils messenger once the instance is made; 2 also chained to
 // its creation (the loader's messages while it is made); 0 none.
 QVR_CVAR(vr_diagnostics_xr, "1", CVAR_NONE)
+// 1: XR_LOADER_DEBUG=all before VR starts (vr_xr_runtime.hpp, loaderDebug): every OpenXR loader message (which runtime it
+// reads, the library it loads, why it fails) in qvr_openxr.txt on Linux (its stdout and stderr caught), in diagnostics
+// mode's debug_output.log on Windows. The loader reads it once: from the next game start if VR already started.
+QVR_CVAR(vr_xr_debug, "0", CVAR_ARCHIVE)
 // Diagnostics mode's OpenXR core validation layer (Khronos', shipped in quakevr/xr_layers): 1 every OpenXR call checked
 // against the specification, the findings in openxr_validation.log; 0 not loaded (from the next VR start). Never loaded
 // outside diagnostics mode.
@@ -603,6 +611,17 @@ QVR_CVAR(vr_stereo_single_passes, "3", CVAR_NONE)
 // 1: a line a second in qvr_openxr.txt while VR runs: the frames (rendered, the last one shown again, without layers),
 // the display periods missed, and each OpenXR call's time (average and worst), the session's state; 0 none.
 QVR_CVAR(vr_xr_log_timing, "0", CVAR_NONE) // (1 before vr_cfg_version 202)
+// Debug > Profiling: the perf recorder (vr_perfrec.hpp): 1 writes every frame's times and events to a CSV (on Android the
+// app's internal files/perf/, else <game>/profile/perf/) until set back to 0 (a new file each time); not saved.
+// Debug > Profiling > World Models Pre-pass: 1 the world's models (monsters, items) drawn into the depth first, then
+// shaded once a pixel (as before); 0 shaded as drawn: a draw a batch less (the A/B; from agent/quest).
+QVR_CVAR(vr_alias_prepass_world, "1", CVAR_NONE)
+// Debug > Profiling > Batch Posed Models: 1 the world's posed models of one model and skin (armed grunts on the
+// authored rig, their armour, ragdolls) drawn as one batch, their bones in one buffer (PC ThinLTO: ragdolls_32_active
+// -0.11 ms GPU, combat_48 even; ROUND25); 0 a batch each, as before.
+QVR_CVAR(vr_alias_batch_posed, "1", CVAR_NONE)
+QVR_CVAR(vr_gl_passes, "0", CVAR_NONE)            // 1: the next frame's draw framebuffer binds and alias batches listed in the console (vr_profile.cpp; back to 0 after)
+QVR_CVAR(vr_perf_record, "0", CVAR_NONE)
 // Tests of the choice without the real runtimes (docs/vr-port/TESTING.md, "OpenXR runtime choice"): vr_xr_test 1 reads
 // the installed runtimes (manifests, comma-separated), the active one and the running processes from these instead of
 // the registry and the system (and never loads the real active runtime). vr_xr_test_fail: runtimes (parts of their
@@ -1141,6 +1160,7 @@ QVR_CVAR(vr_ar_play_loop, "1", CVAR_ARCHIVE)     // 1: again and again (blended 
 QVR_CVAR(vr_ar_play_blend, "0.25", CVAR_ARCHIVE) // seconds blended in from the game's own pose at the start, and out at the end
 QVR_CVAR(vr_ar_play_smoothed, "1", CVAR_ARCHIVE) // 1: a recording's smoothed file when it has one (<name>.smooth.anim)
 QVR_CVAR(vr_memstats_log_gpu, "0", CVAR_NONE)  // 1: the memory log's GPU columns (clocks, slowdowns, each program's GPU use: a sampling thread) always; 0: only while profiling (vr_profile, vr_profile_overlay, vr_profile_csv)
+QVR_CVAR(vr_heap_thread_tidy, "1000", CVAR_ARCHIVE)  // ms: a job worker tidies its own heap pages after a job at most this often, and once when it has had no job this long (mi_collect, vr_crtheap.h): the pages that frees on other threads emptied go back (an idle worker kept them: ~140-290 MB after a map load). 0: never (B22)
 QVR_CVAR(vr_heap_purge_delay, "0", CVAR_ARCHIVE)  // ms mimalloc (the heap, vr_crtheap.c) keeps freed memory before giving it back to the system: 0 at once (the smallest working set), 1000 mimalloc's own default (loads ~15% quicker, 0.3-1 GB more held after them), -1 never. MIMALLOC_PURGE_DELAY sets the start-up value
 QVR_CVAR(vr_memstats_log, "0", CVAR_NONE)      // seconds between rows of quakevr/profile/memstats_<date>.csv (and one after each map load; 0: off) (60 before vr_cfg_version 202)
 QVR_CVAR(vr_memstats_glscan, "1", CVAR_NONE)       // the memory log's GL object count at each map load (vr_main.cpp countGlForLog): 1 the names glGen* hands out (no object, by the GL spec) not asked about (the same count, 5 ms), 0 every name asked up to 4096 past the last object (13 ms), 2 both, compared (printed)
@@ -2132,6 +2152,7 @@ QVR_CVAR(vr_retrolight_shadow_block, "0.5", CVAR_ARCHIVE)     // shadows looked 
 QVR_CVAR(vr_retrolight_shadow_soft, "0", CVAR_ARCHIVE)      // their levels' edges blurred over this share of a level
 QVR_CVAR(vr_profile, "0", CVAR_NONE)                   // profiler (vr_profile.cpp): 1 time the frame's scopes, CPU and GPU, into <gamedir>/profile/; 2 also show the panel over the wrist
 QVR_CVAR(vr_gl_markers, "0", CVAR_NONE)               // GL debug groups for frame debuggers (RenderDoc, Nsight): each GPU profile scope (eye L/R, depth prepass, world, shadow maps, post, 2D, xr submit ...) and the engine's own groups (GL_BeginGroup); 1 on, 2 only with a debugger or frame debugger in the process, 0 off (-glmarkers and -gldebug: on). Latched each frame (1 before 2026-10-25)
+QVR_CVAR(vr_gl_sync_count, "0", CVAR_NONE)            // N: every N seconds the GL calls that make the CPU wait for the GPU, per frame, printed (glFinish, fence waits, query results, pixel reads, synchronised maps, link status reads; vr_glsafe.cpp; vr_gl_sync_report for tests); 0 off
 QVR_CVAR(vr_profile_interval, "5", CVAR_NONE)          // seconds between its reports (0: only on vr_profile_dump)
 QVR_CVAR(vr_profile_overlay, "0", CVAR_NONE)           // the profiler's panel (vr_profile_systems.cpp): each system's ms a frame with a bar; 1 over the wrist gadget's hand, 2 floating in front
 QVR_CVAR(vr_profile_gpu, "4", CVAR_NONE)               // the profiler's GPU times: its GPU scopes' timer queries on one frame in this many (each stalls the GPU a little: 1 every frame, 4 a quarter of the cost; 0 none, the CPU's times alone)
@@ -4287,6 +4308,8 @@ QVR_CVAR(vr_slide, "0", CVAR_ARCHIVE)                   // experimental: a heads
 QVR_CVAR(vr_slide_stick_threshold, "0.85", CVAR_ARCHIVE) // vr_slide: how far down the turning stick must be pulled (0.5..0.99 of its reach), from the middle
 QVR_CVAR(vr_slide_stick_angle, "20", CVAR_ARCHIVE)      // vr_slide: within this many degrees of straight down (5..45; a turn swept round to it never counts)
 QVR_CVAR(vr_slide_body, "1", CVAR_ARCHIVE)              // vr_slide: the drawn body takes the flat slide's pose (the trunk leant back, the legs out in front); 0 none
+QVR_CVAR(vr_slide_camera, "1", CVAR_ARCHIVE)            // vr_slide: the view (the head, eyes, hands and body with it) eases down to the flat slide's eye height while sliding and back up after, on top of the tracked head (vr_slide.cpp viewDrop); 0 the view stays at the real head
+QVR_CVAR(vr_slide_camera_time, "0.15", CVAR_ARCHIVE)    // vr_slide_camera: seconds (0.05..0.5) the view takes down and back up (95% of the way; critically damped, no overshoot)
 QVR_CVAR(vr_flat_speed_fov, "1", CVAR_ARCHIVE)          // flatscreen play: faster than the run along the floor (a slide, a bunny hop chain) the view widens, eased (vr_flat_speed_fov_*; vr_flatspeedfov.cpp); 0 off
 QVR_CVAR(vr_flat_speed_fov_max, "1.2", CVAR_ARCHIVE)    // the speed FOV: the field of view times this at vr_flat_speed_fov_top and faster (1..1.5)
 QVR_CVAR(vr_flat_speed_fov_from, "340", CVAR_ARCHIVE)   // the speed FOV: none up to this speed along the floor (units/s; 320: the run, sv_maxspeed)

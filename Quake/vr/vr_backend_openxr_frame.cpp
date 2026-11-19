@@ -4,6 +4,7 @@
 
 #include "vr_backend_openxr_internal.hpp"
 #include "vr_cvars.hpp"
+#include "vr_perfrec.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/Math/MinMax.hpp"
@@ -307,10 +308,7 @@ bool OpenXrBackend::checkFrameCall(XrResult result, const char* what) const
         return true;
     }
     char text[XR_MAX_RESULT_STRING_SIZE] = "";
-    if(instance != XR_NULL_HANDLE)
-    {
-        xrResultToString(instance, result, text);
-    }
+    resultText(instance, result, text);
     xrstall::callFailed(what, static_cast<int>(result), text);
     return false;
 }
@@ -332,6 +330,7 @@ void OpenXrBackend::noteWaited()
     {
         const XrTime steps = (frameState.predictedDisplayTime - timing.lastDisplay + period / 2) / period;
         timing.missed += steps > 1 ? static_cast<int>(steps - 1) : 0;
+        perfrec::xrFrame(steps > 1 ? static_cast<int>(steps - 1) : 0, static_cast<double>(period) * 1e-6);
     }
     VR_TracyDisplay(static_cast<double>(period) * 1e-6, timing.missed);
     timing.lastDisplay = frameState.predictedDisplayTime;

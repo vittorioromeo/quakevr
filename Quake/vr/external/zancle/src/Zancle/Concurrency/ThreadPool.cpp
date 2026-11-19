@@ -24,6 +24,7 @@
 
 #pragma GCC diagnostic pop
 
+#include <cstdint>
 #include <cstdio>
 
 
@@ -33,6 +34,14 @@ namespace
 {
 ////////////////////////////////////////////////////////////
 using TaskQueue = moodycamel::BlockingConcurrentQueue<ThreadPool::Task>;
+
+
+////////////////////////////////////////////////////////////
+/// \brief `ThreadPool::setIdleHook`'s (read with each wait)
+///
+////////////////////////////////////////////////////////////
+void (*idleHook)() = nullptr;
+int  idleHookMs    = 0;
 
 
 ////////////////////////////////////////////////////////////
@@ -158,11 +167,28 @@ ThreadPool::ThreadPool(const SizeT workerCount)
         m_impl->workers.emplaceBack([&queue = m_impl->queue]() noexcept
         {
             moodycamel::ConsumerToken token{queue};
+            bool                      idleHookRan = false; // (since this worker's last task)
 
             while (true)
             {
                 Task task; // destroyed right after running, releasing whatever it captured
-                queue.wait_dequeue(token, task);
+
+                void (*const hook)() = __atomic_load_n(&idleHook, __ATOMIC_ACQUIRE);
+                if (hook != nullptr && !idleHookRan)
+                {
+                    const int ms = __atomic_load_n(&idleHookMs, __ATOMIC_RELAXED);
+                    if (!queue.wait_dequeue_timed(token, task, static_cast<std::int64_t>(ms) * 1000))
+                    {
+                        hook(); // idle that long: its housekeeping, once
+                        idleHookRan = true;
+                        continue;
+                    }
+                }
+                else
+                {
+                    queue.wait_dequeue(token, task);
+                }
+                idleHookRan = false;
 
                 if (!task) [[unlikely]] // stop task
                     return;
@@ -172,6 +198,14 @@ ThreadPool::ThreadPool(const SizeT workerCount)
         });
 
     allStarted = true;
+}
+
+
+////////////////////////////////////////////////////////////
+void ThreadPool::setIdleHook(void (*hook)(), int idleMilliseconds) noexcept
+{
+    __atomic_store_n(&idleHookMs, idleMilliseconds > 0 ? idleMilliseconds : 0, __ATOMIC_RELAXED);
+    __atomic_store_n(&idleHook, hook, __ATOMIC_RELEASE);
 }
 
 

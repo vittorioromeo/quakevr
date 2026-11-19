@@ -27,6 +27,7 @@
 #include "vr_footsteps.hpp"
 #include "vr_physsound.hpp"
 #include "vr_server.hpp"
+#include "vr_slide.hpp"
 #include "vr_srvrandom.hpp"
 #include "vr_walltorch.hpp"
 #include "vr_flashlight.hpp"
@@ -578,6 +579,7 @@ void resetServerWorld()
     qvr::props::resetModelCache(); // (the models' names may be others' now)
     qvr::hitmodel::reset();
     qvr::scenario::worldReset(); // (a checklist test scene ends at another map or a load, not at its own)
+    qvr::slide::resetServer(); // (by client number: a slide held through a load or a restart doesn't carry on)
     resetBuiltinState();
 }
 
@@ -748,6 +750,7 @@ extern "C" void VR_OnSpawnServerSpawned()
     }
     qvr::hull::spawned(); // the monsters' compiled hulls (their widths now known), on the pool
     probesEnd(probes);
+    qvr::server::learnSoundLoops(); // (every sound precached by now read for a loop while the map loads: not mid-fight)
 }
 
 extern "C" void VR_OnEdictFree(edict_t* ed)

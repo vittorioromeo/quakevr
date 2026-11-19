@@ -579,6 +579,9 @@ za::Vector<Item> pageDebugAutomation()
             .help("vr_menu_path_check: every menu page this map's boards name, with its path; a missing one prints MENU PATH MISSING."),
         command("Menu Help Fit", "menu_vr helpcheck").help("menu_vr helpcheck [columns]: every VR page's help wrapped as drawn: the pages whose box grew, the help shown in parts, the longest (HELPSUM)."),
         header("Feature Tests and Benchmarks"),
+        command("SIMD Test", "vr_simd_test")
+            .help("vr_simd_test: vr_simd.hpp's native backend (SSE2 here) against the scalar one, bit for bit, on the AO "
+                  "bake's rays and the audio filters, then 'vr_simd_test: N passed, M failed'."),
         command("Screen Tap Feedback", "vr_bullettime_tap_feedback_test 1")
             .help("vr_bullettime_tap_feedback_test [1]: the gadget's click and screen glitch of a tap (1: the activation's; "
                   "none: a double tap's first), without tapping."),

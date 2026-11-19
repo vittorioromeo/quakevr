@@ -162,6 +162,14 @@ void VR_ParallelFor (int site, int count, int chunk, void (*body) (int begin, in
 void VR_TimeAdd (const char *what, double seconds);	// time spent in a kind of work (model loads, normal maps...), summed per stage group
 #define VR_TIMED(what, statement) do { double vr_timed_t0 = Sys_DoubleTime (); statement; VR_TimeAdd (what, Sys_DoubleTime () - vr_timed_t0); } while (0) // the statement's time, as VR_TimeAdd
 void VR_TimeFrameEnd (int signedon, int idle);	// end of _Host_Frame: the first frame ends the start-up, the first signed on a load; idle (no server, not connected) ends a load that failed
+// The start-up trace (vr_startlog.cpp, vr_startup_log; quakevr/startup.log): steps of the start-up and the first map's
+// load, each logged as it begins and ends with the time since the process started; a watchdog's "still in" line every
+// 2 s while one runs past 2 s. Main thread only (calls elsewhere, or after the trace's end, do nothing).
+void VR_StepBegin (const char *step);	// a step begins; VR_StepEnd, or a VR_TimeMark of the same name, ends it
+void VR_StepEnd (void);	// the innermost step ends: its time logged
+void VR_StepProgress (const char *fmt, ...) FUNC_PRINTF(1,2);	// where the innermost step is ("models 12/40: progs/ogre.mdl"): the heartbeat says it
+void VR_StepNote (const char *fmt, ...) FUNC_PRINTF(1,2);	// a line in the trace (a pak's files, progs.dat's size and CRC)
+void VR_StartupLogOpen (void);	// Host_Init after the file system: <game folder>/startup.log made anew, the trace so far written to it
 
 // The loose files' presence while the game starts and a map loads (vr_fscache.cpp; COM_FindFile, Sys_fopen).
 int VR_FileCacheHas (const char *path);	// 1 a file, 0 none, -1 not known (ask the file system)
@@ -259,6 +267,7 @@ int VR_GLRecentSteps (char *out, int outSize, int count);	// vr_crash.cpp: the l
 void VR_LogsBegin (void);	// Host_Init after the filesystem: the run's folder, console.log; -bugreport: the report made, exit
 void VR_LogsEnd (void);	// Host_Shutdown: the OpenXR messages' summary
 void VR_LogsSystemLine (const char *line);	// a line of the run's system.txt (the GPU, the runtime)
+int VR_TerminalFd (int fd);	// Linux: the terminal's stdout (1) / stderr (2) while the OpenXR loader's output is caught, else -1 (vr_xr_runtime.cpp; signal-safe)
 void VR_LogsIncident (const char *what);	// a VR start failed, a runtime crash caught, the game crashed: the runtimes' logs copied in
 void VR_LogsInit (void);	// VR_Init: bugreport
 // Diagnostics mode (vr_diagnostics.cpp): -diagnostics or vr_diagnostics 1.
@@ -279,7 +288,11 @@ const char *VR_GLSafeDescribe (void);	// "off", "on (-glsafe)", ...
 void VR_GLFrame (void);	// GL_EndRendering, before the swap
 void VR_GLMapSpawned (const char *map);	// VR_NoteMapSpawn
 void VR_GLStartupShutdown (int error);	// Host_Shutdown: the start-up's log ended (a quit, an error)
+void VR_GLStartupCrashed (void);	// the crash handler: "== crashed" in gl_startup.log while the game starts (counted: the next start's safe mode)
+void VR_GLShadersBegin (void);	// GL_CreateShaders' start: "shaders: set N begun" in gl_startup.log (a start stopped in it is not counted)
+void VR_GLShadersEnd (int programs);	// GL_CreateShaders' end: the set's time
 void VR_GLSafeInit (void);	// VR_Init: vr_glsafe_retry, vr_glsafe_status
+void VR_SimdTestInit (void);	// VR_Init: vr_simd_test (vr_simd_test.cpp)
 unsigned VR_DescribeCallers (char *out, int outSize, int skip, int depth);	// vr_crash.cpp: the caller's stack as one line ("fn (file.c:12) < caller ..."); a hash of it (0: none; not Windows)
 const char *VR_ModelFile (const char *name);	// Mod_LoadModel, Mod_LoadLighting: the file to load a model from (relit maps)
 int VR_ModelReplacementOk (const char *name, const char *md5mesh);	// loadMd5Replacement: 0 refuses a jointed hand the rig can't use (vr_handrig.cpp)

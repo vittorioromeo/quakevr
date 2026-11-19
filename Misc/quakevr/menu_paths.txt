@@ -200,6 +200,7 @@ vr_dynres_max|1|VR Settings - Display and Graphics|Dynamic Highest Scale|VR Sett
 vr_upscale|0|VR Settings - Display and Graphics|Upscaling|VR Settings > Display and Graphics > Upscaling
 vr_upscale_sharpness|0|VR Settings - Display and Graphics|Sharpening|VR Settings > Display and Graphics > Sharpening
 vr_foveated|0|VR Settings - Display and Graphics|Foveated Rendering|VR Settings > Display and Graphics > Foveated Rendering
+vr_foveated_gaze|1|VR Settings - Display and Graphics|Eye-Tracked Foveation|VR Settings > Display and Graphics > Eye-Tracked Foveation
 vr_retro|0|VR Settings - Display and Graphics|Retro Textures|VR Settings > Display and Graphics > Retro Textures
 vr_retrolight|0|VR Settings - Display and Graphics|Retro Lighting|VR Settings > Display and Graphics > Retro Lighting
 vid_fsaa|0|VR Settings - Display and Graphics|Antialiasing|VR Settings > Display and Graphics > Antialiasing
@@ -1395,6 +1396,10 @@ cl_movespeedkey|1|Locomotion|Running Mult.|Advanced VR Options > Movement > Loco
 vr_crouch_speed|1|Locomotion|Slower When Crouched|Advanced VR Options > Movement > Locomotion > Slower When Crouched
 vr_crouch_speed_scale|1|Locomotion|Crouched Speed|Advanced VR Options > Movement > Locomotion > Crouched Speed
 vr_slope_walk|1|Locomotion|Walk Up Slopes Slowly|Advanced VR Options > Movement > Locomotion > Walk Up Slopes Slowly
+vr_slide|1|Locomotion|Sliding (VR, Experimental)|Advanced VR Options > Movement > Locomotion > Sliding (VR, Experimental)
+vr_slide_stick_threshold|1|Locomotion|Slide Stick Pull|Advanced VR Options > Movement > Locomotion > Slide Stick Pull
+vr_slide_stick_angle|1|Locomotion|Slide Stick Angle|Advanced VR Options > Movement > Locomotion > Slide Stick Angle
+vr_slide_body|1|Locomotion|Slide Body Pose|Advanced VR Options > Movement > Locomotion > Slide Body Pose
 vr_flat_aim_mode|1|Locomotion|Right Click Ironsight|Advanced VR Options > Movement > Locomotion > Right Click Ironsight
 vr_flat_aim_zoom|1|Locomotion|Right Click Aim|Advanced VR Options > Movement > Locomotion > Right Click Aim
 vr_flat_aim_sens|1|Locomotion|Aim Sensitivity|Advanced VR Options > Movement > Locomotion > Aim Sensitivity
@@ -1459,6 +1464,7 @@ vr_flat_mantle_look|1|Locomotion|Mantle Look Up|Advanced VR Options > Movement >
 vr_flat_mantle_look_max|1|Locomotion|Mantle Look Up Most|Advanced VR Options > Movement > Locomotion > Mantle Look Up Most
 vr_flat_mantle_time|1|Locomotion|Mantle Window|Advanced VR Options > Movement > Locomotion > Mantle Window
 vr_flat_mantle_grunt_delay|1|Locomotion|Mantle Grunt Delay|Advanced VR Options > Movement > Locomotion > Mantle Grunt Delay
+vr_flat_ladder|1|Locomotion|Ladders|Advanced VR Options > Movement > Locomotion > Ladders
 vr_flat_slide|1|Locomotion|Slide|Advanced VR Options > Movement > Locomotion > Slide
 vr_flat_tp|1|Locomotion|Third-Person Camera|Advanced VR Options > Movement > Locomotion > Third-Person Camera
 vr_flat_speed_fov|1|Locomotion|Speed FOV|Advanced VR Options > Movement > Locomotion > Speed FOV
@@ -4367,6 +4373,10 @@ vr_flat_wall_arm_keep|2|Tunables|Wall: Push Back Keeps Arm|Advanced VR Options >
 vr_flat_wall_fold|2|Tunables|Wall: Fold Arm To|Advanced VR Options > Debug > Tunables > Wall: Fold Arm To
 vr_flat_wall_margin|2|Tunables|Wall: Keep Off Distance|Advanced VR Options > Debug > Tunables > Wall: Keep Off Distance
 vr_flat_mantle_hand_spread|2|Tunables|Mantle Hands Apart|Advanced VR Options > Debug > Tunables > Mantle Hands Apart
+vr_flat_ladder_speed|2|Tunables|Ladder Climb Speed|Advanced VR Options > Debug > Tunables > Ladder Climb Speed
+vr_flat_ladder_look_down|2|Tunables|Ladder Look Down|Advanced VR Options > Debug > Tunables > Ladder Look Down
+vr_flat_ladder_push|2|Tunables|Ladder Push Off|Advanced VR Options > Debug > Tunables > Ladder Push Off
+vr_flat_ladder_reach|2|Tunables|Ladder Reach|Advanced VR Options > Debug > Tunables > Ladder Reach
 vr_flat_hand_collide|2|Tunables|Wall: Empty Hands And Swings|Advanced VR Options > Debug > Tunables > Wall: Empty Hands And Swings
 vr_flat_swing_wind_strikes|2|Tunables|Swing Windup Strikes|Advanced VR Options > Debug > Tunables > Swing Windup Strikes
 vr_flat_swing_path_stop|2|Tunables|Wall: Swing Stops On Its Path|Advanced VR Options > Debug > Tunables > Wall: Swing Stops On Its Path
@@ -5133,6 +5143,7 @@ vr_memstats_log_gpu|2|Debug - Profiling and Memory|Memory Log: GPU|Advanced VR O
 |2|Debug - Profiling and Memory|Allocation Sites|Advanced VR Options > Debug > Profiling and Memory > Allocation Sites
 |2|Debug - Profiling and Memory|Heap Allocator|Advanced VR Options > Debug > Profiling and Memory > Heap Allocator
 |2|Debug - Profiling and Memory|Heap Statistics|Advanced VR Options > Debug > Profiling and Memory > Heap Statistics
+|2|Debug - Profiling and Memory|Physics Memory|Advanced VR Options > Debug > Profiling and Memory > Physics Memory
 |2|Debug - Profiling and Memory|Heap Stress|Advanced VR Options > Debug > Profiling and Memory > Heap Stress
 vr_heap_purge_delay|2|Debug - Profiling and Memory|Heap: Purge Delay|Advanced VR Options > Debug > Profiling and Memory > Heap: Purge Delay
 |2|Debug - Profiling and Memory|Heap: Return Free Memory|Advanced VR Options > Debug > Profiling and Memory > Heap: Return Free Memory
@@ -5369,6 +5380,7 @@ vr_maps_slipseer_delay|2|Debug - Tools|Slipseer Page Spacing|Advanced VR Options
 vr_maps_allow_local|2|Debug - Tools|Allow Local Map Hosts|Advanced VR Options > Debug > Tools > Allow Local Map Hosts
 |2|Debug - Tools|Pick the First Map|Advanced VR Options > Debug > Tools > Pick the First Map
 |2|Debug - Tools|Search Flash Test|Advanced VR Options > Debug > Tools > Search Flash Test
+|2|Debug - Tools|Search Filter Test|Advanced VR Options > Debug > Tools > Search Filter Test
 |2|Debug - Tools|Menu Stops Walking Test|Advanced VR Options > Debug > Tools > Menu Stops Walking Test
 |2|Debug - Tools|Continue Rows Test|Advanced VR Options > Debug > Tools > Continue Rows Test
 |2|Debug - Tools|List Continue Rows|Advanced VR Options > Debug > Tools > List Continue Rows
@@ -5598,6 +5610,8 @@ vr_test_spawn_tilt|2|Debug - Tests|Box Tilted|Advanced VR Options > Debug > Test
 |2|Debug - Tests|Can the Grunt See You?|Advanced VR Options > Debug > Tests > Can the Grunt See You?
 |2|Debug - Tests|Enemy Footsteps Walkabout|Advanced VR Options > Debug > Tests > Enemy Footsteps Walkabout
 |2|Debug - Tests|Shoot Yourself: Aimed|Advanced VR Options > Debug > Tests > Shoot Yourself: Aimed
+|2|Debug - Tests|Looping Sounds: Chainsaw Knight|Advanced VR Options > Debug > Tests > Looping Sounds: Chainsaw Knight
+|2|Debug - Tests|Wet Check: Nothing Wet Near|Advanced VR Options > Debug > Tests > Wet Check: Nothing Wet Near
 |2|Debug - Tests|Shoot Yourself: Ordinary Firing|Advanced VR Options > Debug > Tests > Shoot Yourself: Ordinary Firing
 |2|Debug - Tests|Player Disarm: Shots on Your Gun|Advanced VR Options > Debug > Tests > Player Disarm: Shots on Your Gun
 |2|Debug - Tests|Player Disarm: Melee on Your Gun|Advanced VR Options > Debug > Tests > Player Disarm: Melee on Your Gun
@@ -5619,6 +5633,7 @@ vr_test_spawn_tilt|2|Debug - Tests|Box Tilted|Advanced VR Options > Debug > Test
 |2|Debug - Tests|Blood Crouched Over a Corpse|Advanced VR Options > Debug > Tests > Blood Crouched Over a Corpse
 |2|Debug - Tests|Blood Near the Eye: Pictures|Advanced VR Options > Debug > Tests > Blood Near the Eye: Pictures
 |2|Debug - Tests|Blood Fountain of a Limb Popped Close|Advanced VR Options > Debug > Tests > Blood Fountain of a Limb Popped Close
+|2|Debug - Tests|Flat Ladder|Advanced VR Options > Debug > Tests > Flat Ladder
 |2|Debug - Tests|Flat Ledges|Advanced VR Options > Debug > Tests > Flat Ledges
 |2|Debug - Tests|Flat Crouch Trace|Advanced VR Options > Debug > Tests > Flat Crouch Trace
 |2|Debug - Tests|Flat Slide: Self-Test|Advanced VR Options > Debug > Tests > Flat Slide: Self-Test

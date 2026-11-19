@@ -335,6 +335,8 @@ void resetFlatKeys()
         row(opt::vr_slide_stick_threshold),
         row(opt::vr_slide_stick_angle),
         row(opt::vr_slide_body),
+        row(opt::vr_slide_camera),
+        row(opt::vr_slide_camera_time),
         header("Desktop Screen Play"),
         open("Flat Keys", pageIndex(pageFlatKeys))
             .help("The keys flat play reads itself (leans, swap, grab, shove, punch, reload, drop, grenade, bullet time, flashlight, holster menu...): rebind each here, press a key."),

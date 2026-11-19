@@ -11,8 +11,11 @@
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
 #include "vr_api.h"
+#include "vr_profile.hpp"
 
 #ifdef QVR_HAVE_OPENXR
+
+#include <openxr/openxr_reflection.h>
 
 namespace qvr::oxr
 {
@@ -34,6 +37,23 @@ XRAPI_ATTR XrBool32 XRAPI_CALL debugMessage(XrDebugUtilsMessageSeverityFlagsEXT 
 
 } // namespace
 
+void resultText(XrInstance instance, XrResult result, char (&text)[XR_MAX_RESULT_STRING_SIZE])
+{
+    text[0] = '\0';
+    switch(result)
+    {
+#define QVR_XR_RESULT_NAME(name, value)                                                                                \
+    case name: q_strlcpy(text, #name, sizeof(text)); return;
+        XR_LIST_ENUM_XrResult(QVR_XR_RESULT_NAME)
+#undef QVR_XR_RESULT_NAME
+    default: break;
+    }
+    if(instance != XR_NULL_HANDLE)
+    {
+        xrResultToString(instance, result, text);
+    }
+}
+
 
 OpenXrBackend::~OpenXrBackend()
 {
@@ -53,6 +73,7 @@ const char* OpenXrBackend::runtimeName() const
 bool OpenXrBackend::start()
 {
     xrruntime::beginLog();
+    xrruntime::loaderDebug();
     const xrruntime::Plan plan = xrruntime::plan();
     xrruntime::note("OpenXR runtime choice: %s\n", plan.summary.cStr());
     for(size_t i = 0; i < plan.attempts.size(); i++)
@@ -98,8 +119,16 @@ bool OpenXrBackend::start()
 
 bool OpenXrBackend::startRuntime()
 {
-    if(!(createInstance() && createSystem() && createSession() && createSpaces() &&
-           createActions() && createSwapchains()))
+    // Each a step of the start-up trace (vr_startlog.cpp): a runtime that hangs in one shows which.
+    const auto traced = [this](const char* what, bool (OpenXrBackend::*create)()) {
+        VR_StepBegin(va("OpenXR: %s", what));
+        const bool ok = (this->*create)();
+        VR_StepEnd();
+        return ok;
+    };
+    if(!(traced("instance", &OpenXrBackend::createInstance) && traced("system", &OpenXrBackend::createSystem) &&
+           traced("session", &OpenXrBackend::createSession) && traced("spaces", &OpenXrBackend::createSpaces) &&
+           traced("actions", &OpenXrBackend::createActions) && traced("swapchains", &OpenXrBackend::createSwapchains)))
     {
         return false;
     }
@@ -260,10 +289,7 @@ bool OpenXrBackend::check(XrResult result, const char* what) const
     }
 
     char text[XR_MAX_RESULT_STRING_SIZE] = "";
-    if(instance != XR_NULL_HANDLE)
-    {
-        xrResultToString(instance, result, text);
-    }
+    resultText(instance, result, text);
     xrruntime::warn("OpenXR: %s failed: %s (%d)\n", what, text, static_cast<int>(result));
     return false;
 }
@@ -334,9 +360,24 @@ bool OpenXrBackend::createInstance()
     za::Vector<const char*> extensions{XR_KHR_OPENGL_ENABLE_EXTENSION_NAME};
     bodytrack::xr::reset();
     uint32_t available = 0;
-    xrEnumerateInstanceExtensionProperties(nullptr, 0, &available, nullptr);
+    // (The loader loads the runtime here first: its messages, and the runtime's, caught for the log on Linux.)
+    xrruntime::captureLoaderOutput("xrEnumerateInstanceExtensionProperties");
+    const XrResult enumerated = xrEnumerateInstanceExtensionProperties(nullptr, 0, &available, nullptr);
+    xrruntime::endLoaderOutput("xrEnumerateInstanceExtensionProperties", false); // (xrCreateInstance's say it again)
+    if(XR_FAILED(enumerated))
+    {
+        char text[XR_MAX_RESULT_STRING_SIZE] = "";
+        resultText(XR_NULL_HANDLE, enumerated, text);
+        xrruntime::logLine(va("OpenXR: xrEnumerateInstanceExtensionProperties failed: %s (%d): the loader couldn't load "
+                              "the runtime, or the runtime offers nothing\n",
+            text, static_cast<int>(enumerated)));
+        available = 0;
+    }
     za::Vector<XrExtensionProperties> extensionList(available, XrExtensionProperties{XR_TYPE_EXTENSION_PROPERTIES});
-    xrEnumerateInstanceExtensionProperties(nullptr, available, &available, extensionList.data());
+    if(available)
+    {
+        xrEnumerateInstanceExtensionProperties(nullptr, available, &available, extensionList.data());
+    }
     za::String offered;
     for(const XrExtensionProperties& p : extensionList)
     {
@@ -464,7 +505,9 @@ bool OpenXrBackend::createInstance()
     xrruntime::logLine(va("OpenXR: extensions enabled: %s\n", enabled.cStr()));
 
     step("xrCreateInstance (%s)", currentAttempt.label.cStr());
+    xrruntime::captureLoaderOutput("xrCreateInstance");
     XrResult created = xrCreateInstance(&info, &instance);
+    xrruntime::endLoaderOutput("xrCreateInstance", XR_FAILED(created));
     if(XR_FAILED(created) && (debugUtils || !layers.empty()))
     {
         // The logs must not cost the VR start: again without the messenger and the validation layer.
@@ -476,7 +519,9 @@ bool OpenXrBackend::createInstance()
             xrDestroyInstance(instance); // (the loader's own failure after the runtime's instance was made)
             instance = XR_NULL_HANDLE;
         }
-        xrruntime::warn("OpenXR: xrCreateInstance failed (%d) with the debug messenger: again without it\n",
+        char text[XR_MAX_RESULT_STRING_SIZE] = "";
+        resultText(XR_NULL_HANDLE, created, text);
+        xrruntime::warn("OpenXR: xrCreateInstance failed: %s (%d) with the debug messenger: again without it\n", text,
             static_cast<int>(created));
         debugUtils = false;
         za::Vector<const char*> kept;
@@ -493,10 +538,16 @@ bool OpenXrBackend::createInstance()
         info.enabledApiLayerCount = 0;
         info.enabledApiLayerNames = nullptr;
         info.next = nullptr;
+        xrruntime::captureLoaderOutput("xrCreateInstance (again, without the API layers and the debug messenger)");
         created = xrCreateInstance(&info, &instance);
+        xrruntime::endLoaderOutput("xrCreateInstance", XR_FAILED(created));
     }
     if(!check(created, "xrCreateInstance"))
     {
+        if(created == XR_ERROR_RUNTIME_UNAVAILABLE)
+        {
+            xrruntime::runtimeUnavailable(currentAttempt); // (what to try)
+        }
         return false;
     }
 
@@ -899,6 +950,9 @@ bool OpenXrBackend::pollEvents()
                 const auto& changed = reinterpret_cast<const XrEventDataSessionStateChanged&>(event);
                 sessionState = changed.state;
                 noteState(stateName(sessionState));
+                // (the perf recorder: a frame by a session change is the runtime's, e.g. the unworn headset asleep
+                // and woken; perf_report.py's "xr:session")
+                VR_PerfEvent(VR_PERF_MARK, 0.0, va("xr session %s", stateName(sessionState)));
                 xrstall::note(va("%s session %s%s\n", wallClock(), stateName(sessionState), // (Tracy too)
                     sessionState == XR_SESSION_STATE_VISIBLE
                         ? (vr_xr_unfocused.value != 0.f ? " (no input focus, e.g. the runtime's menu: the last frame "

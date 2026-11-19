@@ -483,6 +483,9 @@ int sources(Source* out, int max)
     add(va("%s/crash/gl_startup.log", com_gamedir), "gl_startup.log", true, false);
     add(xrruntime::logPath(), "qvr_openxr.txt", false, false);
 #ifndef _WIN32
+    // The OpenXR loader's and the runtime's own output during its last call (xrruntime::captureLoaderOutput): what was
+    // caught before a crash or a hang inside it, which qvr_openxr.txt never got.
+    add(xrruntime::loaderOutputPath(), "qvr_openxr_loader.txt", false, false);
     // SteamVR for Linux: under ~/.local/share/Steam (Monado logs to its own stdout: nothing to copy).
     if(const char* home = getenv("HOME"))
     {

@@ -9,8 +9,9 @@
 //   - flatscreen play (-flatscreenmode): the crouch key (hull::flatCrouchHeld; vr_flat_slide gates it);
 //   - a headset (vr_slide, experimental, default off): the turning stick pulled straight down (vr_input.cpp slideStick),
 //     sent in the move's bit 14 (protocol::moveSlideBit; vr_server.cpp setHeadsetInput). Its box is the flat slide's
-//     crouched one (vr_hull.cpp: his eyes taken as the flat slide's, slideEye), his own head as it is (no view drop, no
-//     FOV change); the body's slide pose with vr_slide_body.
+//     crouched one (vr_hull.cpp: his eyes taken as the flat slide's, slideEye); with vr_slide_camera his view eased down
+//     to those eyes (viewDrop, on top of his tracked head), the body the flat slide's pose hung from it (vr_slide_body);
+//     no FOV change.
 // The client side of flatscreen play (the view's drop, its pose, the tests) is vr_flatmove.cpp's.
 
 #pragma once
@@ -34,6 +35,7 @@ struct Slide
     bool grounded{false};    // on the ground, last move
     bool airborne{false};    // left the ground while sliding, not by a jump: the slide goes on when he lands
     double cooldownUntil{0.0};
+    double endedAt{-1.0};    // the server's time the last slide ended (-1 none): headsetRising
     double lastTime{-1.0};   // the server's time at the last move (a new map: the clock goes back)
     int starts{0};
     int groundSteps{0};      // this slide's moves on the ground and off it (the tests)
@@ -52,6 +54,9 @@ struct Slide
 
 // Client number `num`'s slide (1..16; anything else: a spare one nobody reads).
 [[nodiscard]] Slide& state(int num);
+// Every client's slide and headset slide input forgotten (resetServerWorld: every map and every loaded game, so a slide
+// held through a load doesn't carry on from the loaded place; the slide's own clock check catches a new map's alone).
+void resetServer();
 // `ent`'s client number when it is a client on this server (1..16), else -1.
 [[nodiscard]] int clientSlot(const edict_t* ent);
 // vr_flat_slide: flatscreen play's slide on.
@@ -80,6 +85,24 @@ void setHeadsetInput(const edict_t* ent, bool held);
 // vignette, the slide's sound; and the slide's pose wanted (off a ledge mid-slide too) with vr_slide_body.
 [[nodiscard]] bool headsetSliding();
 [[nodiscard]] bool headsetPose();
+// Player `ent` a headset player whose slide ended moments ago (vr_hull.cpp: his eyes, let down by the view drop, coming
+// back up do not lay him down).
+[[nodiscard]] bool headsetRising(const edict_t* ent);
+
+// The headset's view drop (vr_slide_camera; vr_hands.cpp placeTracked, once the tracked head is placed): while this
+// machine's player slides, units to let his whole tracked frame down (the head, the eyes, the hands, the body hung from
+// them) so his eyes are the flat slide's (slideEye) -- from where his real eyes were as it started, his head's own moves
+// still one to one on top -- eased in vr_slide_camera_time (critically damped) and back up after it. `eyeOverOrigin`: the
+// tracked eyes' height (between them) over the client's player origin, undropped. 0 with vr_slide_camera 0 (the view at
+// the real head, as before 2026-11-17).
+[[nodiscard]] float viewDrop(float eyeOverOrigin);
+// The drop easing (in or out): the comfort vignette counts it as a move.
+[[nodiscard]] bool viewDropMoving();
+// The drop as last stepped (the tests).
+[[nodiscard]] float viewDropNow();
+// How far down the drop is, 0 (none) to 1 (all of the slide's way): the body's floor goes to the box's with it
+// (vr_hands.cpp placeTracked).
+[[nodiscard]] float viewDropShare();
 
 // One step of the slide on the ground (the self-test drives it directly): the speed along the floor `vel`, the floor's
 // normal, the move keys' way (unit, or zero), seconds. Out: the new speed along the floor; `ended` when it is slower
@@ -102,5 +125,7 @@ struct SlideStep
 void init();
 // Every frame (vr_input.cpp): the running test.
 void frame();
+// Every frame of flatscreen play (vr_flatmove.cpp): vr_slide_pose_test.
+void poseTestFrame();
 
 } // namespace qvr::slide
