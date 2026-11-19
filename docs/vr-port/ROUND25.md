@@ -4138,3 +4138,20 @@ and MP-only parts left on their branches.
   of 42 classnames have no spawn function.
 - Found on the way: `origin/next` 0247871ec did not build (clang `-Wunused-lambda-capture`, vr_menu.cpp's Doom page
   `wadRows` capturing a constant `page`): `[&]` now.
+
+## Rulesets: Dwell P0.5, the amalgamation simplification S1-S3 (branch agent/rulesets, 2026-11-19)
+
+- His answers to DWELL.md section 10 ("Yes, all six") are DWELL.md section 11. What was built is DWELL.md 8.1.
+- **One ruleset id**: `vr_ruleset` (0 Quake, 1 MG, 2 AD, 3 Copper), found before each spawn by `Quake/vr/vr_rules.cpp`:
+  the campaign's own ruleset, else every detecting row's signals scored together (AD's old detector is its row; Copper's
+  row detects nothing yet). QC `VR_Ruleset()`/`VR_RULES_*`; `AD_Rules()`, `MG_WorldCampaign()` read it; `vr_ad_rules`
+  stays as AD's row. `vr_ruleset_info` prints the verdict and each row's signals.
+- **One spawn rule**: `VR_Rules_SpawnName` picks the version of a classname for `ED_SpawnFunction` and the toolgun.
+- **One spawn filter**: `VR_SF_SpawnInhibited()` (the map ruleset's coop bits from `VR_SF_Bit`, MG3's runes) replaces
+  `MG_MonsterInhibited()`; Copper's spawnflag column is in the table, inert.
+- **Proof**: an A/B spawn census (scratch `rs_census.sh`, `rs_compare.py`: every campaign's maps and AD's, 168 saves 3
+  frames after spawn with `sv_random_seed 7`, compared field by field, cvar-handle globals aside): two base runs
+  identical, then S1, S2, S3 each identical to the base; MG's 58 maps in coop identical before and after S3. No MG or
+  Dopa map has an AD signal (so the campaign-first order changes nothing).
+- Skipped: S4 (the status cvars carry four states read by menus and tests: a bitmask would be added, not replace them)
+  and `MG_WorldGuard` as an engine row (a silent QC removal would become a refused spawn function).

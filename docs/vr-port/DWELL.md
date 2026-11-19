@@ -352,6 +352,39 @@ Also worth a line (not proposals): `MG_WorldGuard` (17) is S2's "owned by rulese
 own classnames can be a row too and the 17 guards go. `VR_OtherFlags` (83) stays as is: it is already the single
 "id-family meanings off" gate and S1 only changes what it reads.
 
+### 8.1 Built: P0.5 (2026-11-19, branch `agent/rulesets`, one commit a step)
+
+- **S1, one ruleset id** (built). `Quake/vr/vr_rules.cpp`: a row a ruleset (`ID`, `MG`, `AD`, `COPPER`: name, import
+  prefix, detects, threshold, data-mounted check, AD's former `notSignals`/`notSignalPrefixes`/`worldSignals`), a
+  campaign → ruleset table, and one detector scoring every detecting row together (a classname two rows both have is
+  nobody's signal; a tie at the top is neither). Published as `vr_ruleset` before spawn; `vr_ad_rules` stays as AD's
+  row of it (AD's code, tests). QC: `VR_Ruleset()` and `VR_RULES_*` (vr_packutil.qc); `AD_Rules()`,
+  `MG_WorldCampaign()` are one-line wrappers; `VR_SF_MapRuleset()` and `VR_SF_ID/MG/AD` are gone (`VR_Ruleset()`,
+  `VR_RULES_*`). `vr_ruleset_info` prints the verdict and every row's signals. COPPER's row: prefix `cu_`, detects
+  nothing. **Deviation:** the campaign's own ruleset decides first (DWELL's order), where `VR_SF_MapRuleset` let AD's
+  signals win in an MG campaign; no MG/Dopa map has an AD signal (58 maps, 0 signals each), so nothing changes. The Map
+  Library's `madeFor` → ruleset is not wired (it would change which AD packages get AD's rules: P1b, with Copper's
+  folders). Call sites were not moved: the wrappers already make them read the one id, and renaming 89 calls is churn.
+- **S2, one spawn-prefix table** (built). `VR_Rules_SpawnName(classname, ours)` (vr_rules.cpp) is `ED_SpawnFunction`'s
+  and the toolgun's `spawnClass`'s one answer: under an imported ruleset its `<prefix><classname>` where the row plays it
+  (the kept-ours rule, AD's decision 1 and Copper's 11.1, is generic; `ownedClashes` is the row's data), else Quake
+  VR's, else a row's `spawnsOutside` (AD's `VR_AD_SpawnsOutside`, `everywhereClasses`, stays AD's: its cvars and its
+  on-demand world setup). `VR_AD_OwnsClassname` is gone; its counters are the rules'. **Skipped:** `MG_WorldGuard` as a
+  row: the guards remove MG's entities from QC silently, as the entity spawns; an engine row would refuse the spawn
+  function instead ("no spawn function" printed, the toolgun's lists changed). Not a mechanical move.
+- **S3, one spawnflag table, one spawn filter** (built, in QC). `VR_SF_Bit` gains MG's column (`VR_SF_COOP_ONLY` 32768,
+  `VR_SF_NOT_COOP` 131072) and Copper's (16/128/32 as AD's delayed/angry/no-spawn-effect, 64 `VR_SF_MON_NOTELEFRAG`,
+  4096/8192 coop), inert until COPPER is detected. `VR_SF_SpawnInhibited()` (vr_spawnflags.qc) replaces
+  `MG_MonsterInhibited()` at its 34 call sites: the map ruleset's coop bits and MG3's rune rule. **Deviation:** the filter
+  stays in QC, called where it was, not moved into `ED_LoadFromFile`: there it would run before the spawn function's
+  precaches (items call it from `StartItem`, after `precache_model`) and on entities whose spawn function never asked,
+  both changes the census would show; Copper's own `SUB_ShouldSpawn` is a per-spawn-function call too, so P1b calls the
+  same filter from Copper's spawns.
+- **S4, one content-presence table: skipped.** The per-pack `vr_*_status` cvars carry four states (missing, valid,
+  incomplete, another version) that the menus, the installer's readiness labels and tests read, so a `vr_content`
+  bitmask would be added beside them, not replace them; the 30 `vr_ad_mounted` reads would only be renamed. Better done
+  in P1a with Dwell's data switch, when there is a second row to justify it.
+
 ---
 
 ## 9. Phased plan (agent-days of qvr-agent work; Vittorio's playtests extra)
