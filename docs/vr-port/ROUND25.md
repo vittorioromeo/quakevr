@@ -4155,3 +4155,12 @@ and MP-only parts left on their branches.
   Dopa map has an AD signal (so the campaign-first order changes nothing).
 - Skipped: S4 (the status cvars carry four states read by menus and tests: a bitmask would be added, not replace them)
   and `MG_WorldGuard` as an engine row (a silent QC removal would become a refused spawn function).
+## Installer: the Dwell component (agent/dwellinstall, 2026-11-19)
+
+- `Packaging/ModComponent.cs` is the one third-party mod path (spec + install/plan/add-async/uninstall clearing);
+  `ArcaneDimensions` and the new `Dwell` are specs over it (no AD behaviour change; its types renamed
+  `ModAction`/`ModOutcome`/`ModCopy`/`ModCopyState`). CLI (`--ad`, `--dwell`) and the window's VM share one step each.
+- Dwell: `BuiltInComponents.Dwell()` (= `support_assets.json` `thirdParty.dwell`), `Dwell.OnByDefault = false` (the one
+  flag), install into `dwell/` with `Track107.ogg` renamed, existing-copy check by progs.dat SHA-256. Details: Installer
+  README "Dwell". Self-tests: 4 new `dwell:` tests (the real zip is read from `qvr-kit/downloads/dwell/`, no network).
+- Known, not mine: self-test `packs: ... hipnotic list from the engine's .inc: expected <100>, got <99>` fails on this base.
