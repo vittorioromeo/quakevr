@@ -1154,6 +1154,13 @@ def rules(s):
     s.check("the server and B know the same rules, every balance page's",
             hs.get("count") == h.get("count") and int(h.get("count", 0)) > 1000, "server %s, B %s" % (
                 hs.get("count"), h.get("count")))
+    # (Review 2026-11-18, finding 14: each setting's kind written where it is declared, vr_cvars.inc's QVR_RULE, QVR_PREF,
+    # QVR_OWN; every setting on a rule page has one, the old substring list only the check's guess)
+    kinds = {k: rs.get(k, {}).get("kind") for k in list(RULES) + ["vr_gunangle", "vr_bash_sound"]}
+    want = dict({k: "rule" for k in RULES}, vr_gunangle="pref", vr_bash_sound="own")
+    s.check("every setting on a rule page has its kind (none unset); the rules', a preference's and a sound's as written",
+            hs.get("unset") == "0" and h.get("unset") == "0" and kinds == want,
+            "unset: server %s, B %s; kinds %r" % (hs.get("unset"), h.get("unset"), kinds))
 
     since = b.mark()
     b.cmd("vr_menu_press Gameplay Presets > Classic;echo mp_pressed")  # (";": the line's end is not in the label)

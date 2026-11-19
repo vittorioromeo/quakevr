@@ -5,6 +5,7 @@
 #include "vr_client.hpp"
 
 #include "vr_cvars.hpp"
+#include "vr_cvars_util.hpp"
 #include "vr_grip.hpp"
 #include "vr_gripfit.hpp"
 #include "vr_held.hpp"
@@ -164,6 +165,28 @@ void resolve()
         state.vars[i] = var ? var : tunableFind(prefNames[i]);
     }
     state.resolved = true;
+    // The list against the settings' kinds (vr_cvars.inc's QVR_PREF): each setting of it says QVR_PREF (a tuning constant
+    // has no row to say it), and none says it that is not in it.
+    for(int i = 0; i < prefCount; i++)
+    {
+        if(state.vars[i] && Cvar_FindVar(prefNames[i]) && cvars::kindOf(state.vars[i]) != cvars::Kind::Pref)
+        {
+            Con_Warning("vr_clientprefs: %s is a per-player preference, but its vr_cvars.inc row says %s\n", prefNames[i],
+                cvars::kindName(cvars::kindOf(state.vars[i])));
+        }
+    }
+    cvars::forEachWithKind([](const cvar_t* var, cvars::Kind kind) {
+        bool listed = false;
+        for(int i = 0; i < prefCount && !listed; i++)
+        {
+            listed = state.vars[i] == var;
+        }
+        if(kind == cvars::Kind::Pref && !listed)
+        {
+            Con_Warning("vr_clientprefs: %s says QVR_PREF in vr_cvars.inc but is not in the preferences sent (prefNames)\n",
+                var->name);
+        }
+    });
 }
 
 [[nodiscard]] float ownValue(int i)

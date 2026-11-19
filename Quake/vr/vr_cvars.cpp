@@ -29,13 +29,15 @@
 #include "vr_api.h"
 
 #include <algorithm>
+#include <string.h>
 
 extern "C" cvar_t gl_texture_anisotropy; // gl_texmgr.c
 
 namespace qvr
 {
 
-#define QVR_CVAR(name, def, flags) cvar_t name = {#name, def, flags};
+// (the kinds, QVR_RULE / QVR_PREF / QVR_OWN, are no engine flags: kept apart, kindRowsAll)
+#define QVR_CVAR(name, def, flags) cvar_t name = {#name, def, static_cast<cvarflags_t>((flags) & ~qvrKindMask)};
 #include "vr_cvars.inc"
 #undef QVR_CVAR
 
@@ -969,6 +971,51 @@ const CompiledDefault compiledDefaults[] = {
 #undef QVR_CVAR
 };
 
+// Each row's kind in multiplayer (vr_cvars.hpp QVR_RULE, QVR_PREF, QVR_OWN): every row, then those with one (kindRows).
+struct KindBits
+{
+    cvar_t* var;
+    unsigned bits;
+};
+const KindBits kindBitsAll[] = {
+#define QVR_CVAR(name, def, flags) {&name, (flags) & qvrKindMask},
+#include "vr_cvars.inc"
+#undef QVR_CVAR
+};
+
+[[nodiscard]] constexpr cvars::Kind kindFromBits(unsigned bits)
+{
+    return bits == QVR_RULE ? cvars::Kind::Rule : bits == QVR_PREF ? cvars::Kind::Pref : bits == QVR_OWN ? cvars::Kind::Own
+                                                                                                         : cvars::Kind::Unset;
+}
+
+// (built at start: the rows with a kind, and a row with two kinds named)
+za::Vector<cvars::detail::KindRow> kindRowsWith;
+bool kindRowsBuilt = false;
+
+void buildKindRows()
+{
+    if(kindRowsBuilt)
+    {
+        return;
+    }
+    kindRowsBuilt = true;
+    for(const KindBits& k : kindBitsAll)
+    {
+        if(k.bits == 0)
+        {
+            continue;
+        }
+        const cvars::Kind kind = kindFromBits(k.bits);
+        if(kind == cvars::Kind::Unset)
+        {
+            Con_Warning("vr_cvars.inc: %s has more than one kind (QVR_RULE, QVR_PREF, QVR_OWN): none taken\n", k.var->name);
+            continue;
+        }
+        kindRowsWith.pushBack({k.var, kind});
+    }
+}
+
 // Per-player or bookkeeping settings, never shipped.
 [[nodiscard]] bool personal(const cvar_t* var)
 {
@@ -1687,6 +1734,60 @@ void cvars::Snapshot::restore()
         Cvar_SetQuick(saved[i].var, saved[i].value.cStr());
     }
     saved.clear();
+}
+
+const cvars::detail::KindRow* cvars::detail::kindRows(int& count)
+{
+    buildKindRows();
+    count = static_cast<int>(kindRowsWith.size());
+    return kindRowsWith.data();
+}
+
+cvars::Kind cvars::kindOf(const cvar_t* var)
+{
+    buildKindRows();
+    for(const detail::KindRow& k : kindRowsWith)
+    {
+        if(k.var == var)
+        {
+            return k.kind;
+        }
+    }
+    // The data tables' stand-ins, by table: the weapons' offsets and the props' values each player's own (his hands' and
+    // things' look), the monsters' and the monster groups' values the server's rules -- but a monster's small gibs (the
+    // gore he chose to see: Gore > Small Gibs).
+    constexpr Kind tableKinds[] = {Kind::Own, Kind::Own, Kind::Rule, Kind::Rule}; // (standInTables' order)
+    const auto tables = standInTables();
+    static_assert(sizeof(tableKinds) / sizeof(tableKinds[0]) == decltype(tables)::size(), "a kind for each table");
+    for(za::SizeT t = 0; t < tables.size(); t++)
+    {
+        const za::Span<cvar_t> table = tables[t];
+        if(table.size() == 0 || var < &table[0] || var >= &table[0] + table.size())
+        {
+            continue;
+        }
+        if(t == 2) // (monsterValues[], in vr_monsterdata.inc's order)
+        {
+            constexpr const char* monsterKeys[] = {
+#define QVR_MONSTER_VALUE(name, classname, key) #key,
+#include "vr_monsterdata.inc"
+#undef QVR_MONSTER_VALUE
+            };
+            const za::SizeT i = static_cast<za::SizeT>(var - &table[0]);
+            if(i < sizeof(monsterKeys) / sizeof(monsterKeys[0]) &&
+                (!strcmp(monsterKeys[i], "smallgibs") || !strcmp(monsterKeys[i], "smallgibs_brains")))
+            {
+                return Kind::Own;
+            }
+        }
+        return tableKinds[t];
+    }
+    return Kind::Unset;
+}
+
+const char* cvars::kindName(Kind kind)
+{
+    return kind == Kind::Rule ? "rule" : kind == Kind::Pref ? "pref" : kind == Kind::Own ? "own" : "unset";
 }
 
 } // namespace qvr

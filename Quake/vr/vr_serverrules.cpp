@@ -3,6 +3,8 @@
 #include "vr_serverrules.hpp"
 #include "vr_clientprefs.hpp"
 #include "vr_cvars.hpp"
+#include "vr_cvars_util.hpp"
+#include "vr_config.hpp"
 #include "vr_engine.hpp"
 #include "vr_gameplaypresets.hpp"
 #include "vr_menu.hpp"
@@ -20,30 +22,11 @@ namespace qvr::serverrules
 namespace
 {
 
-// The melee timing settings: what decides whether a blow lands (the server's QC reads each: vr_melee.qc, combat.qc,
-// vr_carry.qc, vr_crates.qc, vr_juice.qc, client.qc).
-cvar_t* const meleeTiming[] = {
-    &vr_melee_speed,         // a blow's least speed
-    &vr_melee_wrist_speed,   // and the hand's own (its wrist's) over the last 0.12 s
-    &vr_melee_pommel_wait,   // how long a pommel's touch waits for a speed
-    &vr_melee_butt_run,      // how far a gun is carried at something for a butt strike
-    &vr_bash_speed,          // a bash's least speed
-    &vr_bash_deflect_window, // and how long it deflects
-    &vr_headbutt_speed,      // a headbutt's least speed
-    &vr_deflect_speed,       // a batting swing's speed (times vr_melee_speed)
-    &vr_deflect_window,      // and how long it stays a bat
-};
-
-// Locomotion's balance settings (MP_PLAN B6c): by name, as the page mixes them with each player's comfort, turning and
-// controls (his stick's mode and curve, his run key, his speed under sv_maxspeed: the server's own cap).
-cvar_t* const locomotionRules[] = {
-    &vr_crouch_speed,       // whether crouching slows you (the server's hull and the client's stick both read it)
-    &vr_crouch_speed_scale, // and how much
-    &vr_slope_walk,         // walking up slopes from a standstill (the server's physics)
-};
-
-// The balance pages: every setting under them (Search's paths: menu::forEachSettingPath) is a rule, but for those below.
-// (Not Locomotion: its comfort, turning and controls are each player's own; its few balance ones above.)
+// The balance pages: a setting under them (Search's paths: menu::forEachSettingPath) and a Gameplay Presets row are
+// each a rule, a per-player preference or the player's own, as its vr_cvars.inc row says (QVR_RULE, QVR_PREF, QVR_OWN:
+// vr_cvars.hpp). One with none is warned about when the rules are gathered (checkKinds). (Not Locomotion: its comfort,
+// turning and controls are each player's own; its few balance ones, vr_crouch_speed, vr_crouch_speed_scale and
+// vr_slope_walk, are rules by their rows, as the melee timing settings are.)
 constexpr const char* rulePages[] = {
     "Advanced VR Options > Combat",
     "Advanced VR Options > Carrying and Throwing",
@@ -57,9 +40,9 @@ constexpr const char* rulePages[] = {
     "VR Settings > Gameplay",
 };
 
-// A player's own on those pages: what only his senses get (sounds, haptics, colours, what is shown or printed) and how
-// his own hands and weapons are posed and held (his weapons' offsets, the climbing hand's pose, the grip's fit, his stick):
-// cvar names containing one of these.
+// What the names said before the kinds were written down (the rule list was the pages less these): a player's own, on
+// those pages, has one of them in its name -- what only his senses get (sounds, haptics, colours, what is shown or
+// printed) and how his own hands and weapons are posed and held. Only checkKinds' guess for a setting without a kind.
 constexpr const char* ownParts[] = {"sound", "haptic", "_show", "debug", "_viz", "vignette", "_hud", "_hue", "colour",
     "color", "_saturation", "_lightness", "_alpha", "_glow", "_text", "_print", "_draw", "vr_wofs_", "vr_climb_hand_",
     "vr_grip_fit", "_stick_", "anygrip"};
@@ -67,6 +50,7 @@ constexpr const char* ownParts[] = {"sound", "haptic", "_show", "debug", "_viz",
 struct State
 {
     bool built{false};
+    int unset{0};             // settings on a rule page without a kind (checkKinds)
     za::Vector<cvar_t*> list; // the rules, by address (isRule's search)
     // Server: the values the clients were last sent; serverFrame's changed ones (kept: no allocation a frame).
     za::Vector<float> sent;
@@ -105,23 +89,47 @@ State state;
     return false;
 }
 
-void consider(cvar_t* var)
+// A setting on a rule page or a Gameplay Presets row (archived: the others are no one's choice to keep) whose vr_cvars.inc
+// row has no kind: warned about, with what its name would have made it. It plays as the player's own (not sent) until its
+// row says. Each named once.
+void checkOne(const cvar_t* var, const char* where, za::Vector<const cvar_t*>& seen)
 {
-    if(!var || !(var->flags & CVAR_ARCHIVE) || clientprefs::indexOf(var) >= 0 || ownByName(var->name))
+    if(!var || !(var->flags & CVAR_ARCHIVE) || cvars::kindOf(var) != cvars::Kind::Unset)
     {
         return;
     }
-    for(const cvar_t* r : state.list)
+    for(const cvar_t* v : seen)
     {
-        if(r == var)
+        if(v == var)
         {
             return;
         }
     }
-    state.list.pushBack(var);
+    seen.pushBack(var);
+    state.unset++;
+    const char* guess = clientprefs::indexOf(var) >= 0 ? "QVR_PREF" : ownByName(var->name) ? "QVR_OWN" : "QVR_RULE";
+    Con_Warning("vr_serverrules: %s (%s) has no kind in vr_cvars.inc (its name says %s): played as your own\n", var->name,
+        where, guess);
 }
 
-// The rules, gathered once (the menus' pages built for it: Search's index), sorted by address.
+void checkKinds()
+{
+    za::Vector<const cvar_t*> seen;
+    const presetcore::Table& t = gameplaypresets::kind().table();
+    for(int i = 0; i < t.rowCount; i++)
+    {
+        checkOne(t.rows[i].var, "a Gameplay Presets row", seen);
+    }
+    menu::forEachSettingPath([&seen](const cvar_t& var, const char* page, const char*) {
+        if(pageIsRules(page))
+        {
+            checkOne(Cvar_FindVar(var.name), page, seen);
+        }
+    });
+}
+
+// The rules (the settings whose rows say QVR_RULE), gathered once and sorted by address; the rule pages checked then
+// (the menus' pages built for it: Search's index).
 void build()
 {
     if(state.built)
@@ -129,25 +137,23 @@ void build()
         return;
     }
     state.built = true;
-    for(cvar_t* var : meleeTiming)
-    {
-        consider(var);
-    }
-    for(cvar_t* var : locomotionRules)
-    {
-        consider(var);
-    }
-    const presetcore::Table& t = gameplaypresets::kind().table();
-    for(int i = 0; i < t.rowCount; i++)
-    {
-        consider(t.rows[i].var);
-    }
-    menu::forEachSettingPath([](const cvar_t& var, const char* page, const char*) {
-        if(pageIsRules(page))
+    cvars::forEachWithKind([](cvar_t* var, cvars::Kind kind) {
+        if(kind == cvars::Kind::Rule)
         {
-            consider(Cvar_FindVar(var.name));
+            state.list.pushBack(var);
         }
     });
+    for(const za::Span<cvar_t> table : standInTables()) // (the data tables' values: their tables' kinds)
+    {
+        for(cvar_t& var : table)
+        {
+            if(cvars::kindOf(&var) == cvars::Kind::Rule)
+            {
+                state.list.pushBack(&var);
+            }
+        }
+    }
+    checkKinds();
     za::quickSort(state.list.begin(), state.list.end());
     state.sent.resize(state.list.size());
     state.own.resize(state.list.size());
@@ -253,8 +259,8 @@ void list_f()
 {
     build();
     const bool isRemote = remote();
-    Con_Printf("mp_rules: count=%d remote=%d shadowed=%d (%s)\n", static_cast<int>(state.list.size()), isRemote ? 1 : 0,
-        state.shadowed ? 1 : 0, state.shadowed ? "the remote server's govern" : sv.active ? "this server's govern" : "your own");
+    Con_Printf("mp_rules: count=%d unset=%d remote=%d shadowed=%d (%s)\n", static_cast<int>(state.list.size()), state.unset,
+        isRemote ? 1 : 0, state.shadowed ? 1 : 0, state.shadowed ? "the remote server's govern" : sv.active ? "this server's govern" : "your own");
     if(Cmd_Argc() > 1)
     {
         for(int a = 1; a < Cmd_Argc(); a++)
@@ -266,8 +272,9 @@ void list_f()
                 Con_Printf("mp_rule: name=%s none\n", Cmd_Argv(a));
                 continue;
             }
-            Con_Printf("mp_rule: name=%s rule=%d value=%s own=%s locked=%d\n", var->name, i >= 0 ? 1 : 0, var->string,
-                i >= 0 && state.shadowed ? state.own[i].cStr() : var->string, locked(var) ? 1 : 0);
+            Con_Printf("mp_rule: name=%s rule=%d kind=%s value=%s own=%s locked=%d\n", var->name, i >= 0 ? 1 : 0,
+                cvars::kindName(cvars::kindOf(var)), var->string, i >= 0 && state.shadowed ? state.own[i].cStr() : var->string,
+                locked(var) ? 1 : 0);
         }
         return;
     }
