@@ -55,6 +55,7 @@ vr_holster_weapons_draw_shoulder|0|Holster Calibration|Shoulder Holster Weapons|
 @page|0|VR Settings - Locomotion and Controls||VR Settings > Locomotion and Controls
 vr_menu_move_towards|0|VR Settings - Locomotion and Controls|Move Towards|VR Settings > Locomotion and Controls > Move Towards
 cl_alwaysrun|0|VR Settings - Locomotion and Controls|Default Speed|VR Settings > Locomotion and Controls > Default Speed
+vr_sprint_toggle|0|VR Settings - Locomotion and Controls|Speed Button|VR Settings > Locomotion and Controls > Speed Button
 vr_deadzone|0|VR Settings - Locomotion and Controls|Stick Deadzone|VR Settings > Locomotion and Controls > Stick Deadzone
 vr_move_curve|0|VR Settings - Locomotion and Controls|Stick Response Curve|VR Settings > Locomotion and Controls > Stick Response Curve
 vr_move_autorun|0|VR Settings - Locomotion and Controls|Walk Into Run|VR Settings > Locomotion and Controls > Walk Into Run
@@ -1392,6 +1393,7 @@ vr_move_autorun|1|Locomotion|Walk Into Run|Advanced VR Options > Movement > Loco
 vr_move_autorun_threshold|1|Locomotion|Run From Push|Advanced VR Options > Movement > Locomotion > Run From Push
 cl_forwardspeed|1|Locomotion|Movement Speed|Advanced VR Options > Movement > Locomotion > Movement Speed
 cl_alwaysrun|1|Locomotion|Default Speed|Advanced VR Options > Movement > Locomotion > Default Speed
+vr_sprint_toggle|1|Locomotion|Speed Button|Advanced VR Options > Movement > Locomotion > Speed Button
 cl_movespeedkey|1|Locomotion|Running Mult.|Advanced VR Options > Movement > Locomotion > Running Mult.
 vr_crouch_speed|1|Locomotion|Slower When Crouched|Advanced VR Options > Movement > Locomotion > Slower When Crouched
 vr_crouch_speed_scale|1|Locomotion|Crouched Speed|Advanced VR Options > Movement > Locomotion > Crouched Speed

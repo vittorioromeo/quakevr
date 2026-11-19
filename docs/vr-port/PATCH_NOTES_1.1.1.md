@@ -30,6 +30,10 @@ that ships in 1.1.1.
   (`vr_climb_mantle_trigger`): High Enough (the default, as before: at once), Let Go (hang and look over the top, pull
   up when your last hand lets go; let go lower and you drop), Jump, or Let Go or Jump. Flatscreen mantles and ladders
   are unchanged.
+- **Sprint by clicking the stick.** VR Settings > Locomotion and Controls > Speed Button (`vr_sprint_toggle`): Toggle
+  makes a click of the speed button (the left stick's click as shipped, or Shift) switch between walking and running
+  instead of holding it. The switch ends by itself, back to your Default Speed, when you stop moving for a moment, die,
+  change level or open the menu. Hold (the default) is as before.
 
 ## Menus
 
@@ -37,3 +41,6 @@ that ships in 1.1.1.
   box: the menus' settings alone, the Tunables pages' constants alone, or both (the default). The results update
   at once; the choice lasts until the game quits. Release builds have no tunables, so they show no row and search
   as before.
+- **No attract-mode demos.** Quake's demos no longer play by themselves at start-up or from a mod's start-up
+  script, on the PC or the Quest, in VR or flat: flat goes straight to the main menu (VR starts in the hub as
+  before). Options > Interface's "Start Demos" row is gone. `playdemo` and `timedemo` still play a demo.

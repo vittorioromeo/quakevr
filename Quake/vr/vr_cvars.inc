@@ -710,6 +710,15 @@ QVR_CVAR(vr_move_hold, "0.4", CVAR_ARCHIVE)
 // rescaled length, before the curve) and pushed past it eases into running in a moment; back under it, into walking.
 QVR_CVAR(vr_move_autorun, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_move_autorun_threshold, "0.9", CVAR_ARCHIVE)
+// 1: the speed button (+speed: the off hand's stick click as shipped, LTHUMB; Shift) toggles instead of being held: a
+// press switches to the other speed (cl_alwaysrun's other), the next press back (vr_input.cpp sprintToggle). The
+// switch ends by itself, back to the Default Speed, when you stop after moving with it: nothing asks to move across the
+// ground (the stick in its deadzone, no move key; swimming straight up or down, crouching on the spot count as
+// stopped) for sprintToggleIdleSeconds (0.3 s: a stick flicked through its deadzone keeps it; a press while standing
+// waits for you to move); when you die or the intermission comes; at a new map; when a menu opens over the game (as
+// the held buttons let go); when this is set to 0. 0 (the default): held, as Quake's.
+// (A player's ask, 2026-11-19: click the stick to sprint rather than hold it.)
+QVR_CVAR(vr_sprint_toggle, "0", CVAR_ARCHIVE)
 // The least speed (units a second) a push just past the deadzone asks on the ground (vr_input.cpp moveMinSpeed): -1
 // a little over what Quake's ground friction lets you hold (44: asked less, you stand), 0 none (from 0).
 QVR_CVAR(vr_move_min_speed, "-1", CVAR_ARCHIVE)
