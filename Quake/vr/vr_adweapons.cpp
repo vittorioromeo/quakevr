@@ -47,6 +47,10 @@ struct Source
 {
     const char* path;
     int numVerts, numTris, skinW, skinH;
+    // Dwell support: the owned pack whose own file it is, read in place ("owned/<folder>/<path>": vr_gamedir.cpp
+    // VR_OwnedFile), never another mod's file of the name (Dwell's v_shot3.mdl is AD's Widowmaker's name). Null: the
+    // search paths' first of these counts.
+    const char* folder{nullptr};
 };
 
 // A rectangle of the made skin's texels (AD's skin is its first rows), laid on a face: s across it and t along the
@@ -90,6 +94,12 @@ struct Recipe
     void (*parts)(Parts&);  // the parts made of simple shapes in AD's texels (null: none)
     int liftSeed;           // a grafted piece (its vertex; -1 none) moved by `lift` onto the body
     glm::vec3 lift;
+    // Dwell support: the source's own turning barrels (its pieces wholly at or past x spinFromX, in the source's frame),
+    // turned in the spin frames about the axis through spinAxisAt (the source's frame) along the weapon's x; spinBarrels
+    // of them ("quad0".. frames: 4). 0: none (the Widowmaker's made barrels mark themselves: widowmakerParts).
+    int spinBarrels{0};
+    float spinFromX{0.f};
+    glm::vec3 spinAxisAt{0.f};
 };
 
 // The measurements (taken on AD 1.80 patch 1's models; ROUND22.md "AD's weapons as VR models"):
@@ -123,6 +133,30 @@ const Recipe recipes[] = {
         {1.f, 0.f, 0.f}, {0.f, 0.f, 1.f}, 1.f, {-9.f, 0.f, -13.f}, {-0.5f, 0.f, 4.5f}, {78, 711, 409}, true, {1.f, 0.f, 0.f}, -5.33f,
         {"progs/v_light.mdl", 0, 0, 0, 0}, {234, 403, 493}, {-5.6211f, -9.3429f, -6.0018f}, false, {0.f, 0.f, 0.f},
         {0.f, 0.f, 0.f}, "progs/v_light.mdl", true, {1.f, 74.f, 31.f, 97.f, false}, plasmaParts, 493, {0.f, 0.f, 0.6f}},
+    // Dwell support (DWELL.md 9.6; measured on Dwell v2.2's models, read in place from its folder): its view models have
+    // no arms (nothing dropped but their muzzle flashes, pieces collapsed to a point), each laid level on the Quake VR
+    // weapon it is a variant of, inside that model's corner (its slot's Scale keeps the grip's place), that weapon's grip,
+    // trigger guard and trigger put on.
+    // - The Rotary Shotgun (v_shot3.mdl, frame1: level, its four barrels about y -0.11 z -15.28): 0.8 of its size (32
+    //   units from the housing's back to the barrels' front, the super shotgun 28), its housing's back bottom at the super
+    //   shotgun's grip's top (0.6 0 2.6); its barrels, their clamps and the front block (the pieces from x 16.5) turn.
+    // - The Crystal Lance (v_rail.mdl, frame1: tilted 15.9 degrees up): level, 0.88 (its blades' 20.5 span inside the
+    //   lightning gun's corner), its wooden handle's back middle (11.94 -0.17 -18.17) over the lightning gun's grip
+    //   (-4 0 5.8: the grip's top inside the handle, its trigger guard's half a unit under it).
+    // - The Rifle (v_rifle.mdl, shot1: tilted 6.25 degrees down): level, 0.7 (35.7 long, the shotgun 33; its shroud's 10.8
+    //   inside the corner), its back middle (-0.88 -0.04 -10.86) on the shotgun's barrel line over its grip (0.6 0 2.7).
+    {"progs/dw_shot3.mdl#vr", {"progs/v_shot3.mdl", 260, 286, 256, 256, "dwell"}, "frame1", {1.f, 0.f, 0.f}, {0.f, 0.f, 1.f},
+        {1.f, 0.f, 0.f}, {0.f, 0.f, 1.f}, 0.8f, {-2.88f, -0.11f, -20.71f}, {0.6f, 0.f, 2.6f}, {4, -1, -1}, false, {0.f, 0.f, 0.f},
+        0.f, {"progs/v_shot2.mdl", 0, 0, 0, 0}, {151, 241, 281}, {-15.5775f, -4.6938f, -4.2402f}, false, {0.f, 0.f, 0.f},
+        {0.f, 0.f, 0.f}, "progs/v_shot2.mdl", true, noRect, nullptr, -1, {0.f, 0.f, 0.f}, 4, 16.5f, {0.f, -0.11f, -15.28f}},
+    {"progs/dw_rail.mdl#vr", {"progs/v_rail.mdl", 311, 339, 256, 256, "dwell"}, "frame1", {23.6f, 0.f, 6.7f},
+        {-6.7f, 0.f, 23.6f}, {1.f, 0.f, 0.f}, {0.f, 0.f, 1.f}, 0.88f, {11.94f, -0.17f, -18.17f}, {-4.f, 0.f, 5.8f}, {-1, -1, -1},
+        false, {0.f, 0.f, 0.f}, 0.f, {"progs/v_light.mdl", 0, 0, 0, 0}, {234, 403, 493}, {-5.6211f, -9.3429f, -6.0018f}, false,
+        {0.f, 0.f, 0.f}, {0.f, 0.f, 0.f}, "progs/v_light.mdl", true, noRect, nullptr, -1, {0.f, 0.f, 0.f}},
+    {"progs/dw_rifle.mdl#vr", {"progs/v_rifle.mdl", 117, 121, 256, 128, "dwell"}, "shot1", {45.7f, 0.f, -5.f},
+        {5.f, 0.f, 45.7f}, {1.f, 0.f, 0.f}, {0.f, 0.f, 1.f}, 0.7f, {-0.88f, -0.04f, -10.86f}, {0.6f, 0.f, 2.7f}, {76, -1, -1},
+        false, {0.f, 0.f, 0.f}, 0.f, {"progs/v_shot.mdl", 0, 0, 0, 0}, {219, 309, 349}, {-6.301f, -3.7943f, -6.5165f}, false,
+        {0.f, 0.f, 0.f}, {0.f, 0.f, 0.f}, "progs/v_shot.mdl", true, noRect, nullptr, -1, {0.f, 0.f, 0.f}},
 };
 
 // The Plasma Gun's cell (the lightning gun's magazine and well, made by make_mags.py in v_light.mdl's space: the cell
@@ -302,6 +336,29 @@ struct Mesh
 [[nodiscard]] bool load(const Source& src, const char* frame, Mesh& m, unsigned int* pathId)
 {
     za::Vector<byte> bytes;
+    if(src.folder) // (Dwell support: its own folder's file, in place, whichever campaign or mod is active)
+    {
+        char owned[MAX_QPATH];
+        q_snprintf(owned, sizeof(owned), "owned/%s/%s", src.folder, src.path);
+        unsigned int id = 0;
+        byte* f = COM_LoadMallocFile(owned, &id);
+        if(!f)
+        {
+            return false;
+        }
+        bytes.resize(static_cast<za::SizeT>(com_filesize > 0 ? com_filesize : 0));
+        memcpy(bytes.data(), f, bytes.size());
+        VR_HeapFree(f);
+        if(!parse(bytes, src, frame, m))
+        {
+            return false;
+        }
+        if(pathId)
+        {
+            *pathId = id;
+        }
+        return true;
+    }
     for(const searchpath_t* s = com_searchpaths; s; s = s->next)
     {
         bool read = false;
@@ -400,6 +457,37 @@ struct Mesh
         }
     }
     return in;
+}
+
+// Per triangle of `m`: whether its welded piece lies wholly at or past x `fromX` (Dwell support: a source's turning
+// barrels, Recipe::spinFromX).
+[[nodiscard]] za::Vector<bool> piecesPast(const Mesh& m, float fromX)
+{
+    const za::Vector<int> w = weldExact(m.pos);
+    za::Vector<int> parent;
+    for(za::SizeT i = 0; i < m.pos.size(); i++)
+    {
+        parent.pushBack(static_cast<int>(i));
+    }
+    const za::SizeT nt = m.tris.size() / 4;
+    for(za::SizeT t = 0; t < nt; t++)
+    {
+        const int a = w[m.tris[t * 4 + 1]], b = w[m.tris[t * 4 + 2]], c = w[m.tris[t * 4 + 3]];
+        parent[findRoot(parent, a)] = findRoot(parent, b);
+        parent[findRoot(parent, b)] = findRoot(parent, c);
+    }
+    za::Vector<float> least(m.pos.size(), 1e30f);
+    for(za::SizeT i = 0; i < m.pos.size(); i++)
+    {
+        float& l = least[static_cast<za::SizeT>(findRoot(parent, w[i]))];
+        l = za::min(l, m.pos[i].x);
+    }
+    za::Vector<bool> past(nt, false);
+    for(za::SizeT t = 0; t < nt; t++)
+    {
+        past[t] = least[static_cast<za::SizeT>(findRoot(parent, w[m.tris[t * 4 + 1]]))] >= fromX;
+    }
+    return past;
 }
 
 // The model being made: positions, texels (absolute: no seams), triangles (clockwise from outside, as Quake's), and each
@@ -725,6 +813,7 @@ struct Built
     glm::vec3 noteLo{0.f}, noteHi{0.f};
     float noteTop[noteBins]{};
     int spinVerts{0};                    // the vertices turned in the spin frames (spinFrames)
+    glm::vec3 spinAxis{0.f};             // a point of their axis (along x)
     bool housing{false};                 // an ammo screen housing made (Parts::housing*)
     glm::vec3 housingGlass{0.f};         // its glass's middle as designed
     glm::vec2 housingWindow{0.f};        // its window's width and height
@@ -1375,7 +1464,22 @@ void plasmaParts(Parts& p)
         return r.dstPivot + (dx * glm::dot(d, sx) + dy * glm::dot(d, sy) + dz * glm::dot(d, sz)) * r.k;
     };
     Out o;
-    if(r.takeSource)
+    if(r.takeSource && r.spinBarrels > 0)
+    {
+        // (Dwell support: the source's turning pieces laid as spinning vertices, the rest as still ones.)
+        const za::Vector<bool> turning = piecesPast(src, r.spinFromX);
+        za::Vector<bool> still = dropped, turned = dropped;
+        for(za::SizeT t = 0; t < dropped.size(); t++)
+        {
+            still[t] = dropped[t] || turning[t];
+            turned[t] = !dropped[t] && turning[t];
+        }
+        take(o, src, still, false, lay, 0, 0);
+        o.spinning = true;
+        take(o, src, turned, true, lay, 0, 0);
+        o.spinning = false;
+    }
+    else if(r.takeSource)
     {
         take(o, src, dropped, false, lay, 0, 0);
         if(r.clip)
@@ -1534,6 +1638,8 @@ void plasmaParts(Parts& p)
         out.spinVerts += sp ? 1 : 0;
     }
     const int poses = frameCount + (out.spinVerts > 0 ? spinPoses : 0);
+    const glm::vec3 axisAt = r.spinBarrels > 0 ? lay(r.spinAxisAt) : glm::vec3{0.f, 0.f, spinZ};
+    out.spinAxis = axisAt;
     const auto posed = [&](int pose, za::SizeT i, const glm::vec3& v, bool point) {
         if(pose < frameCount || !c.spins[i])
         {
@@ -1541,8 +1647,8 @@ void plasmaParts(Parts& p)
         }
         const float a = -glm::radians(spinStep * static_cast<float>(pose - frameCount));
         const float ca = za::cos(a), sa = za::sin(a);
-        const float y = v.y, z = point ? v.z - spinZ : v.z;
-        return glm::vec3{v.x, y * ca - z * sa, (point ? spinZ : 0.f) + y * sa + z * ca};
+        const float y = point ? v.y - axisAt.y : v.y, z = point ? v.z - axisAt.z : v.z;
+        return glm::vec3{v.x, (point ? axisAt.y : 0.f) + y * ca - z * sa, (point ? axisAt.z : 0.f) + y * sa + z * ca};
     };
 
     // Packed from the Quake VR model's corner (a vertex past it: the corner moved, placement off).
@@ -1685,7 +1791,7 @@ void plasmaParts(Parts& p)
         }
         else
         {
-            q_snprintf(name, sizeof(name), "spin%d", frame - frameCount);
+            q_snprintf(name, sizeof(name), r.spinBarrels == 4 ? "quad%d" : "spin%d", frame - frameCount);
         }
         f.emplaceBackRange(reinterpret_cast<const byte*>(name), 16);
         f.emplaceBackRange(packed.data(), packed.size());
@@ -1823,15 +1929,21 @@ struct SpinModel
     const void* hdr{nullptr};
     bool spins{false};
     int barrels{3};
+    bool dwell{false}; // Dwell's Rotary Shotgun (its own rate of fire: dwRotaryRefire)
 };
 SpinModel spinModel;
 
 constexpr const char* widowmakerName = "progs/v_shot3.mdl#vr";
 constexpr const char* widowmakerArtName = "progs/v_widowmaker.mdl"; // the hand-made model
+// Dwell support: the Rotary Shotgun (its four barrels turned as the Widowmaker's three, the same code in flat and VR
+// play: spinFrame), a shot each 0.2 s (QC dw_items.qc DW_FireVariant).
+constexpr const char* rotaryName = "progs/dw_shot3.mdl#vr";
+constexpr float dwRotaryRefire = 0.2f;
 
+// (Each hand's weapon is asked about just before its spin is advanced: spinFrame; the last asked is the one cached.)
 [[nodiscard]] bool spinsBarrels(const qmodel_t* m)
 {
-    if(!m || m->type != mod_alias || q_strcasecmp(m->name, widowmakerName))
+    if(!m || m->type != mod_alias || (q_strcasecmp(m->name, widowmakerName) && q_strcasecmp(m->name, rotaryName)))
     {
         return false;
     }
@@ -1843,8 +1955,10 @@ constexpr const char* widowmakerArtName = "progs/v_widowmaker.mdl"; // the hand-
         const bool framesOk = hdr && hdr->numframes == frameCount + spinPoses;
         const bool three = framesOk && !strcmp(hdr->frames[frameCount].name, "spin0");
         const bool two = framesOk && !strcmp(hdr->frames[frameCount].name, "twin0");
-        spinModel.spins = three || two;
-        spinModel.barrels = two ? 2 : 3;
+        const bool four = framesOk && !strcmp(hdr->frames[frameCount].name, "quad0");
+        spinModel.spins = three || two || four;
+        spinModel.barrels = four ? 4 : two ? 2 : 3;
+        spinModel.dwell = !q_strcasecmp(m->name, rotaryName);
     }
     return spinModel.spins;
 }
@@ -1855,16 +1969,22 @@ constexpr const char* widowmakerArtName = "progs/v_widowmaker.mdl"; // the hand-
     return 360.f / static_cast<float>(spinModel.barrels);
 }
 
+// Seconds between its shots (the Widowmaker's vr_ad_widowmaker_refire; Dwell's Rotary Shotgun's own).
+[[nodiscard]] float spinRefire()
+{
+    return spinModel.dwell ? dwRotaryRefire : za::max(vr_ad_widowmaker_refire.value, 0.05f);
+}
+
 // The barrels' fastest: a barrel a shot.
 [[nodiscard]] float spinTop()
 {
-    return barrelStep() / za::max(vr_ad_widowmaker_refire.value, 0.05f) * za::max(vr_ad_widowmaker_spin.value, 0.f);
+    return barrelStep() / spinRefire() * za::max(vr_ad_widowmaker_spin.value, 0.f);
 }
 
 void advance(Spin& s, int hand, float dt)
 {
     const float top = spinTop();
-    const float refire = za::max(vr_ad_widowmaker_refire.value, 0.05f);
+    const float refire = spinRefire();
     const bool driven = top > 0.f && (client::attacking(hand) || (s.lastShot >= 0.0 && cl.time - s.lastShot < refire * 1.25));
     if(driven)
     {
@@ -2047,7 +2167,7 @@ void spinFrame(view::ViewEntity (&weapons)[2])
         w.poseFrame[1] = frameCount + (i + 1) % spinPoses;
         w.poseBlend = k - static_cast<float>(i);
         w.zeroBlend = 0.f; // (the slot's blend towards frame 0 would pull the barrels back)
-        if(vr_debug_weaponfx.value)
+        if(vr_debug_weaponfx.value && !spinModel.dwell)
         {
             // (the hand-made model's: its outer barrel's front and its axis, 8.8 up: build_widowmaker.py)
             const bool two = spinModel.barrels == 2;
@@ -2097,6 +2217,7 @@ void spinInfo_f()
                 hdr && hdr->numframes > frameCount ? ", frame 9 " : "", hdr && hdr->numframes > frameCount ? hdr->frames[frameCount].name : "");
             continue;
         }
+        (void)spinsBarrels(drawn[hand].model); // (this hand's model the one asked about: its barrels, its rate)
         const float k = s.phase / spinStep;
         Con_Printf("widowmaker spin hand %d: turn %.1f deg, speed %.0f deg/s (top %.0f)%s, frames %d %d blend %.2f, trigger %d, "
                    "last shot %.2f s ago\n",
@@ -2106,7 +2227,10 @@ void spinInfo_f()
         Con_Printf("  motor: %s, volume %.2f, pitch %.2f\n", !motor.sfx ? "no sound" : motor.ch[hand] ? "playing" : "stopped",
             motor.volume[hand], motor.pitch[hand]);
         Con_Printf("  model: %s, %d barrels (%.0f deg a shot), at rest %s\n",
-            artLoaded ? "hand-made (progs/v_widowmaker.mdl)" : "made from AD's", spinModel.barrels, barrelStep(),
+            spinModel.dwell ? "Dwell's Rotary Shotgun (made from Dwell's)"
+            : artLoaded     ? "hand-made (progs/v_widowmaker.mdl)"
+                            : "made from AD's",
+            spinModel.barrels, barrelStep(),
             !s.coasting && s.speed <= 0.f && fmodf(s.phase, barrelStep()) < 0.01f ? "yes" : "no");
         if(hs.muzzleValid[hand])
         {
@@ -2231,8 +2355,8 @@ void info_f()
         }
         if(b.spinVerts > 0)
         {
-            Con_Printf("  spin frames: %d of %d vertices turned, %d frames after the %d still ones\n", b.spinVerts, b.verts,
-                spinPoses, frameCount);
+            Con_Printf("  spin frames: %d of %d vertices turned, %d frames after the %d still ones, axis y %.4f z %.4f\n",
+                b.spinVerts, b.verts, spinPoses, frameCount, b.spinAxis.y, b.spinAxis.z);
         }
     }
     // (a test's verdict line: "0 not made" is right; AD's data missing is no fault)
