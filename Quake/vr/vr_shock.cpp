@@ -1360,6 +1360,12 @@ void clear()
     struck = Struck{};
 }
 
+namespace
+{
+// Forgotten when the client's state is cleared (vr_mem.hpp's resets): the shocks.
+mem::Reset clientStateReset{"shock", mem::ResetEvent::ClientState, mem::ResetPhase::State, &clear};
+} // namespace
+
 float gunShake(int hand)
 {
     if(hand < 0 || hand > 1)

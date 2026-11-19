@@ -275,6 +275,12 @@ void clientReset()
     clientListGeneration = clientListGeneration == ~0u ? 1u : clientListGeneration + 1u;
 }
 
+namespace
+{
+// Forgotten when the client's state is cleared (vr_mem.hpp's resets): the texts received.
+mem::Reset clientStateReset{"worldtext", mem::ResetEvent::ClientState, mem::ResetPhase::State, &clientReset};
+} // namespace
+
 unsigned clientGeneration()
 {
     return clientListGeneration;

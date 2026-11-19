@@ -2,6 +2,7 @@
 
 #include "vr_painknock.hpp"
 #include "vr_flathit.hpp"
+#include "vr_mem.hpp"
 #include "vr_visor.hpp"
 #include "vr_geom.hpp"
 #include "vr_blood.hpp"
@@ -339,6 +340,12 @@ void reset()
     }
     nextKnock = 0;
 }
+
+namespace
+{
+// Forgotten when the client's state is cleared (vr_mem.hpp's resets): the knocks.
+mem::Reset clientStateReset{"painknock", mem::ResetEvent::ClientState, mem::ResetPhase::State, &reset};
+} // namespace
 
 void registerCommands()
 {

@@ -721,6 +721,12 @@ void clear()
     }
 }
 
+namespace
+{
+// Forgotten when the client's state is cleared (vr_mem.hpp's resets): the chunks seen and their lights.
+mem::Reset clientStateReset{"explosiondebris", mem::ResetEvent::ClientState, mem::ResetPhase::State, &clear};
+} // namespace
+
 void registerCommands()
 {
     Cmd_AddCommand("vr_explosion_debris_test", test_f);

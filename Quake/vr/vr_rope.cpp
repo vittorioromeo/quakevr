@@ -777,6 +777,12 @@ void forget()
     curve.clear();
 }
 
+namespace
+{
+// Forgotten when the client's state is cleared (vr_mem.hpp's resets): the ropes drawn.
+mem::Reset clientStateReset{"rope", mem::ResetEvent::ClientState, mem::ResetPhase::State, &forget};
+} // namespace
+
 void drawOpaque()
 {
     if(queued.empty())

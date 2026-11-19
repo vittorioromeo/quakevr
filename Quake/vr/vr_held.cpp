@@ -2995,6 +2995,13 @@ void resetClientState()
     playerFrames = 0;
 }
 
+namespace
+{
+// Forgotten when the client's state is cleared (vr_mem.hpp's resets): what the hands held (taken from the new map's
+// state).
+mem::Reset clientStateReset{"held", mem::ResetEvent::ClientState, mem::ResetPhase::State, &resetClientState};
+} // namespace
+
 void carryCheck();
 
 void carryCheck_f()

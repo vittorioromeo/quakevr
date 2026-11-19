@@ -7,6 +7,7 @@
 #include "vr_backend.hpp"
 #include "vr_client.hpp"
 #include "vr_cvars.hpp"
+#include "vr_mem.hpp"
 #include "vr_tunables.hpp"
 #include "vr_hands.hpp"
 
@@ -2069,6 +2070,12 @@ void clear()
         motor.lastTime[hand] = -1.0;
     }
 }
+
+namespace
+{
+// Forgotten when the client's state is cleared (vr_mem.hpp's resets): the spins and the motors (AD support).
+mem::Reset clientStateReset{"adweapons", mem::ResetEvent::ClientState, mem::ResetPhase::State, &clear};
+} // namespace
 
 void prepare()
 {

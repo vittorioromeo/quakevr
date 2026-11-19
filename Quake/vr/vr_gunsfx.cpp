@@ -6,6 +6,7 @@
 #include "vr_debris.hpp"
 #include "vr_engine.hpp"
 #include "vr_geom.hpp"
+#include "vr_mem.hpp"
 #include "vr_physsound.hpp"
 #include "vr_random.hpp"
 #include "vr_testkit.hpp"
@@ -617,6 +618,12 @@ void clear()
         p = Punch{};
     }
 }
+
+namespace
+{
+// Forgotten when the client's state is cleared (vr_mem.hpp's resets): the guns' recent shots and punches.
+mem::Reset clientStateReset{"gunsfx", mem::ResetEvent::ClientState, mem::ResetPhase::State, &clear};
+} // namespace
 
 } // namespace qvr::gunsfx
 

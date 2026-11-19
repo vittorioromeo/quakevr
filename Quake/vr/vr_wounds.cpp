@@ -3457,6 +3457,12 @@ void clear()
     }
 }
 
+namespace
+{
+// Forgotten when the client's state is cleared (vr_mem.hpp's resets): the wounds, with the dents.
+mem::Reset clientStateReset{"wounds", mem::ResetEvent::ClientState, mem::ResetPhase::State, &clear};
+} // namespace
+
 int liveCount()
 {
     return static_cast<int>(maskOf.size());

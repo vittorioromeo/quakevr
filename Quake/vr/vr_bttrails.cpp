@@ -752,6 +752,12 @@ void clear()
     creating = false;
 }
 
+namespace
+{
+// Forgotten when the client's state is cleared (vr_mem.hpp's resets): the bullet time trails.
+mem::Reset clientStateReset{"bttrails", mem::ResetEvent::ClientState, mem::ResetPhase::State, &clear};
+} // namespace
+
 void registerCommands()
 {
     Cmd_AddCommand("vr_bullettime_trails_test", test_f);

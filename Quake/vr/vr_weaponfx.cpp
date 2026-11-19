@@ -1164,6 +1164,12 @@ void clear()
 
 namespace
 {
+// Forgotten when the client's state is cleared (vr_mem.hpp's resets): the weapons' effects and tracers.
+mem::Reset clientStateReset{"weaponfx", mem::ResetEvent::ClientState, mem::ResetPhase::State, &clear};
+} // namespace
+
+namespace
+{
 
 // The drawn kick before vr_wofs_version 74 (the code of then): a slot's old values (weapons::OldRecoil) and the global
 // cm and degrees, `t` s after the shot: cm back, degrees up.
