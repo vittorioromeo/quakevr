@@ -1189,12 +1189,18 @@ void drawMapsDetail(const MapsLayout& m, const menupaint::Painter& p)
         if(mod.size())
         {
             const bool ad = mod == "Arcane Dimensions";
+            const bool copper = mod == "Copper" || mod == "Dwell"; // (vr_rules.cpp: Copper's rules, its code built in)
             mapPage.notes += za::String{mapPage.notes.empty() ? "" : " "} + "Made for " + mod +
                              (ad ? (VR_CampaignInstalled(qvr::ad::campaignIndex)
                                            ? ", which Quake VR plays natively: its monsters, items and effects work."
                                            : ". Quake VR plays it natively, but needs your Arcane Dimensions 1.80 "
                                              "(patch 1) installed for its monsters, items and effects; without it they "
                                              "are missing.")
+                              : copper ? (mod == "Dwell" ? ", which Quake VR plays natively by Copper's rules "
+                                                           "(experimental). Dwell's own monsters and weapons are not in "
+                                                           "Quake VR yet: they are missing."
+                                                         : ", which Quake VR plays natively by Copper's rules "
+                                                           "(experimental).")
                                  : ", whose own progs Quake VR does not run: its monsters, items and effects are missing.");
         }
     }

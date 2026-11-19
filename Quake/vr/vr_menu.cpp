@@ -503,12 +503,19 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
 // Arcane Dimensions: experimental. Chosen in the menu it asks first (M_Confirm), then opens the Run Setup screen as the
 // other campaigns do; its Start launches as the developer launch does (vr_campaign_native ad: the same game folder,
 // start map and settings; vr_menu_runsetup.inc runSetupStart).
-void startArcaneDimensions() { Con_Printf("VR: Arcane Dimensions confirmed in the menu.\n"); openRunSetupArcane(); }
+// (Dwell the same way: VR_CampaignExperimental's campaigns.)
+int experimentalCampaign = -1; // (the campaign whose notice is asked: M_Confirm's answer takes no argument)
+void startExperimentalCampaign()
+{
+    Con_Printf("VR: %s confirmed in the menu.\n", VR_CampaignTitle(experimentalCampaign));
+    openRunSetupExperimental(experimentalCampaign);
+}
 void selectCampaignRow(int index)
 {
-    if(index != qvr::ad::campaignIndex) { openRunSetupCampaign(index); return; } // (the Run Setup screen first)
-    M_Confirm("Arcane Dimensions mode is still\nexperimental and might have bugs.", "Continue", "Back", 0.f,
-        startArcaneDimensions);
+    if(!VR_CampaignExperimental(index)) { openRunSetupCampaign(index); return; } // (the Run Setup screen first)
+    experimentalCampaign = index;
+    M_Confirm(va("%s mode is still\nexperimental and might have bugs.", VR_CampaignTitle(index)), "Continue", "Back",
+        0.f, startExperimentalCampaign);
 }
 
 // Arena Mode (ROUND25.md, "arenacamp"): the Survival Arena as a run of its own, Select Campaign's row under Arcane
@@ -558,7 +565,7 @@ const char* campaignTag(int index)
 {
     const int tags = static_cast<int>(vr_menu_group_tags.value);
     const char* tag = VR_CampaignTag(index);
-    if(index == qvr::ad::campaignIndex && !strcmp(tag, "experimental"))
+    if(VR_CampaignExperimental(index) && !strcmp(tag, "experimental"))
     {
         return tag; // (always shown, at the right of its title: his call 2026-11-15)
     }
@@ -582,10 +589,10 @@ const char* campaignContinueAge(int index)
         Item choice = row(VR_CampaignTitle, VR_CampaignHelp, selectCampaignRow, i, -1).lead();
         choice.tagArg = campaignTag; // (Arcane Dimensions: "experimental", at the right like before)
         choice.dimArg = [](int index) -> bool
-        { return index == qvr::ad::campaignIndex ? !VR_CampaignInstalled(index) : VR_CampaignUnavailable(index) != 0; };
+        { return VR_CampaignExperimental(index) ? !VR_CampaignInstalled(index) : VR_CampaignUnavailable(index) != 0; };
         items.pushBack(choice);
-        // (Arcane Dimensions plays in its own game folder: its saves are not this one's)
-        if(i != qvr::ad::campaignIndex && VR_LaunchContinueSave(i, ""))
+        // (Arcane Dimensions and Dwell play in their own game folders: their saves are not this one's)
+        if(!VR_CampaignExperimental(i) && VR_LaunchContinueSave(i, ""))
         {
             Item resume = row(campaignContinueLabel, campaignContinueHelp, continueCampaignRow, i, -1).sub();
             resume.tagArg = campaignContinueAge;
@@ -596,9 +603,9 @@ const char* campaignContinueAge(int index)
             run.partOf = 1;
             items.pushBack(run);
         }
-        if(i == qvr::ad::campaignIndex)
+        if(i == VR_CampaignCount() - 1)
         {
-            // Arena Mode right under Arcane Dimensions, its look, its tag; no Continue ever (arenacamp).
+            // Arena Mode after the last campaign (Arcane Dimensions, Dwell), its look, its tag; no Continue ever (arenacamp).
             Item arena = row(arenaModeTitle, arenaModeHelp, selectArenaRow, 0, -1).lead();
             arena.tagArg = arenaModeTag;
             arena.dimArg = [](int) -> bool { return VR_CampaignUnavailable(0) != 0; };

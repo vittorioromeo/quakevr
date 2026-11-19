@@ -704,7 +704,7 @@ void qvr::menu::runSetupScreenTest_f()
     // at once), its Start the developer launch (runSetupStart). Not installed: nothing opened.
     {
         const int ad = qvr::ad::campaignIndex;
-        openRunSetupArcane();
+        openRunSetupExperimental(ad);
         check(VR_CampaignInstalled(ad) ? shownFor(runsetup::Launch::Campaign) && runSetup.campaign == ad
                                        : runSetup.campaign != ad || ui().page != page,
             "Arcane Dimensions' Continue opens it (installed) or nothing (not)");

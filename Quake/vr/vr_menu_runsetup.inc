@@ -119,11 +119,11 @@ void runSetupStart()
             return;
         case runsetup::Launch::NewGame: M_NewGameStart(); return;
         case runsetup::Launch::Campaign:
-            if(runSetup.campaign == qvr::ad::campaignIndex)
+            if(VR_CampaignExperimental(runSetup.campaign))
             {
-                // Arcane Dimensions (experimental, confirmed before the screen): the developer launch, as the menu's
-                // row did before it went through this screen.
-                Cbuf_InsertText("vr_campaign_native ad\n");
+                // Arcane Dimensions, Dwell (experimental, confirmed before the screen): the developer launch, as the
+                // menu's row did before it went through this screen.
+                Cbuf_InsertText(va("vr_campaign_native %s\n", VR_CampaignFolder(runSetup.campaign)));
                 return;
             }
             VR_SelectCampaign(runSetup.campaign);
@@ -323,11 +323,10 @@ void openRunSetupCampaign(int index)
     openRunSetup(runsetup::Launch::Campaign, za::String{}, nullptr, index, true);
 }
 
-// Arcane Dimensions, its experimental notice answered Continue (vr_menu.cpp selectCampaignRow): the Run Setup screen as
-// the other campaigns get, its Start the developer launch (runSetupStart). Not installed: only the reason printed.
-void openRunSetupArcane()
+// Arcane Dimensions or Dwell, its experimental notice answered Continue (vr_menu.cpp selectCampaignRow): the Run Setup
+// screen as the other campaigns get, its Start the developer launch (runSetupStart). Not installed: only the reason.
+void openRunSetupExperimental(int index)
 {
-    const int index = qvr::ad::campaignIndex;
     if(!VR_CampaignInstalled(index))
     {
         VR_SelectCampaign(index);

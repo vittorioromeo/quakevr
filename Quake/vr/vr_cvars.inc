@@ -4080,6 +4080,7 @@ QVR_CVAR(vr_dopa_status, "0", CVAR_ROM)
 QVR_CVAR(vr_mg1_status, "0", CVAR_ROM)
 QVR_CVAR(vr_mg3_status, "0", CVAR_ROM)
 QVR_CVAR(vr_ad_status, "0", CVAR_ROM) // Arcane Dimensions' data (campaign 6; vr_gamedir.cpp, vr_ad.cpp): 0 missing, 1 1.80 patch 1 (the latest), 2 incomplete/corrupt, 3 another version (refused)
+QVR_CVAR(vr_dwell_status, "0", CVAR_ROM) // Dwell's data (campaign 7; vr_gamedir.cpp, vr_dwell.cpp): 0 missing, 1 v2.2, 2 incomplete/corrupt, 3 another version (refused)
 QVR_CVAR(vr_ruleset, "0", CVAR_ROM)   // the ruleset the map now running plays by (vr_rules.cpp: its campaign's, else its entities' signals): 0 Quake's, 1 Machine Games', 2 Arcane Dimensions', 3 Copper's; QC VR_Ruleset()
 QVR_CVAR(vr_ad_rules, "0", CVAR_ROM)  // the map now running plays by AD's rules (vr_ruleset 2: the AD campaign, or AD's signals in its entities while AD's data is mounted); AD's code and tests
 QVR_CVAR(vr_ad_evil, "0", CVAR_NONE)          // AD's Evil skill (decision 30; QC vr_ad_player.qc AD_Evil): with Nightmare (skill 3) and AD's data installed, any campaign plays Evil: 50 health at most (megahealth 100), the Shadow Axe's blows, AD's monsters at its skill 4. A game's choice like skill (kept in its saves); AD's own skill 4 sets it
