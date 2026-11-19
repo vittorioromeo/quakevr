@@ -320,7 +320,7 @@ void main()
     if (Params.y > 0.0 && SceneDistance(gl_FragCoord.xy + shift) < 1.0 / gl_FragCoord.w - 4.0)
         shift = vec2(0.0); // not what is in front of the trail (a hand, a gun, a monster): its colours would smear
     vec2 p = clamp(gl_FragCoord.xy - Viewport.xy + shift, CopyRect.xy + 0.5, CopyRect.zw - 0.5);
-    Out = vec4(texture(Scene, p / Viewport.zw).rgb, clamp(f * 4.0, 0.0, 1.0));
+    Out = vec4(textureLod(Scene, p / Viewport.zw, 0.0).rgb, clamp(f * 4.0, 0.0, 1.0)); // (the copy: one level)
 }
 )";
 

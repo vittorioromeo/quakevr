@@ -60,6 +60,7 @@ bool OpenXrBackend::beginFrame(TrackingState& tracking, FrameState& frame)
 
     XrFrameWaitInfo waitInfo{XR_TYPE_FRAME_WAIT_INFO};
     frameState = XrFrameState{XR_TYPE_FRAME_STATE};
+    traceFrame("xrWaitFrame");
     profile::begin("xrWaitFrame", false); // the runtime's pacing alone (vr_memstats_log)
     t0 = Sys_DoubleTime();
     const XrResult waited = xrWaitFrame(session, &waitInfo, &frameState);
@@ -78,6 +79,7 @@ bool OpenXrBackend::beginFrame(TrackingState& tracking, FrameState& frame)
     noteWaited();
 
     XrFrameBeginInfo beginInfo{XR_TYPE_FRAME_BEGIN_INFO};
+    traceFrame("xrBeginFrame", frameState.shouldRender ? "" : " (shouldRender false)");
     profile::begin("xrBeginFrame", false);
     t0 = Sys_DoubleTime();
     const XrResult begun = xrBeginFrame(session, &beginInfo);
@@ -95,6 +97,7 @@ bool OpenXrBackend::beginFrame(TrackingState& tracking, FrameState& frame)
     XrActionsSyncInfo syncInfo{XR_TYPE_ACTIONS_SYNC_INFO};
     syncInfo.countActiveActionSets = 1;
     syncInfo.activeActionSets = &active;
+    traceFrame("xrSyncActions, xrLocateViews, the controllers");
     QVR_TRACY_CALL("xrSyncActions", xrSyncActions(session, &syncInfo));
     timeCall(CallSync, t0);
 
@@ -292,6 +295,14 @@ void OpenXrBackend::endFrame(bool rendered)
 
     endInfo.layerCount = count;
     endInfo.layers = count ? submitted : nullptr;
+    if(traceFramesLeft > 0)
+    {
+        const bool projected = count > 0 && submitted[0] == reinterpret_cast<const XrCompositionLayerBaseHeader*>(&layer);
+        const bool quadSent = count > (projected ? 1u : 0u);
+        traceFrame("xrEndFrame", va(" (%u layer%s%s%s)", count, count == 1 ? "" : "s",
+                                     projected ? ": the eyes' projection" : "",
+                                     quadSent ? (projected ? " and the panel's quad" : ": the panel's quad") : ""));
+    }
     const double t0 = Sys_DoubleTime();
     xrstall::debugStall(); // (vr_debug_frame_stall_ms: as if the runtime held the frame)
     XrResult ended = XR_SUCCESS;
@@ -299,6 +310,16 @@ void OpenXrBackend::endFrame(bool rendered)
     if(!checkFrameCall(ended, "xrEndFrame"))
     {
         lostBy(ended, "xrEndFrame");
+    }
+    if(traceFramesLeft > 0)
+    {
+        // The last traced frame says so: a later crash's "last OpenXR step" isn't this frame's.
+        if(--traceFramesLeft == 0)
+        {
+            step("frame %d: xrEndFrame returned; the first %d frames were traced, the next ones aren't", tracedFrame,
+                tracedFrames);
+        }
+        tracedFrame++;
     }
     const double endMs = timeCall(CallEnd, t0);
     timing.frames++;
@@ -611,6 +632,8 @@ unsigned OpenXrBackend::acquireImage(const Swapchain& sc)
 {
     XrSwapchainImageAcquireInfo acquireInfo{XR_TYPE_SWAPCHAIN_IMAGE_ACQUIRE_INFO};
     uint32_t index = 0;
+    traceFrame("xrAcquireSwapchainImage, xrWaitSwapchainImage",
+        &sc == &panel ? " (the panel)" : &sc == &swapchains[0] ? " (the left eye)" : " (the right eye)");
     double t0 = Sys_DoubleTime();
     XrResult acquired = XR_SUCCESS;
     QVR_TRACY_CALL("xrAcquireSwapchainImage", acquired = xrAcquireSwapchainImage(sc.handle, &acquireInfo, &index));
@@ -635,8 +658,10 @@ unsigned OpenXrBackend::acquireImage(const Swapchain& sc)
     return sc.images[index].image;
 }
 
-bool OpenXrBackend::releaseImage(const Swapchain& sc) const
+bool OpenXrBackend::releaseImage(const Swapchain& sc)
 {
+    traceFrame("xrReleaseSwapchainImage",
+        &sc == &panel ? " (the panel)" : &sc == &swapchains[0] ? " (the left eye)" : " (the right eye)");
     XrSwapchainImageReleaseInfo releaseInfo{XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO};
     XrResult released = XR_SUCCESS;
     QVR_TRACY_CALL("xrReleaseSwapchainImage", released = xrReleaseSwapchainImage(sc.handle, &releaseInfo));

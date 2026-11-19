@@ -24,6 +24,9 @@ Flat-screen or VR: start the game and open the console: the start-up's steps are
 On the Quest, start the game with "adb logcat -s QuakeVR" running: each start-up step appears as it begins and ends, and during a long step a "still in <step>" line every 2 seconds says what it is doing; vr_android_export startup.log copies the file out.
 Reloading in VR: bring a round or magazine to the loading port: the gun and the off hand no longer shove each other apart near the port, so it seats where you aim
 A fight with several armed grunts and ragdolls: poses and limbs correct (posed models now batched)
+Flat screen and VR: no attract-mode demos play at start or when the menu idles; the main menu opens instead
+VR Settings > Locomotion > Speed Button: Toggle: click the stick once to sprint, again (or stop) to walk
+VR Settings > Climbing > Mantle When: on letting go / on jump: hang on a ledge, the climb-over waits for that
 
 [1. Flat-screen: weapons and hands]
 

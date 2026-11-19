@@ -39,6 +39,9 @@ GLuint brightProgram = 0;
 GLuint downProgram = 0;
 GLuint upProgram = 0;
 GLuint meanProgram = 0;
+// The bright pass's sampler: its four taps are bilinear by design (each on a texel corner, the 4x4 block in four
+// reads), and the scene it reads is made GL_NEAREST (gl_rmain.c's composite): without it each tap read one texel.
+GLuint linearSampler = 0;
 bool failed = false;
 
 // This eye's result, for GL_PostProcess (VR_PostProcessBloom).
@@ -53,13 +56,7 @@ constexpr float levelWeight[levels] = {0.5f, 0.8f, 1.4f};
 constexpr const char* downNames[levels] = {"", "bloom down 1", "bloom down 2"};
 constexpr const char* upNames[levels - 1] = {"bloom up 0", "bloom up 1"};
 
-constexpr const char* fullscreenVs = R"(#version 430
-void main()
-{
-    ivec2 v = ivec2(gl_VertexID & 1, gl_VertexID >> 1);
-    gl_Position = vec4(vec2(v) * 4.0 - 1.0, 0.0, 1.0);
-}
-)";
+constexpr const char* fullscreenVs = gfx::fullscreenTriangleVs;
 
 // Down to a quarter: 16 texels by four bilinear taps, keeping what is over the threshold. The scene
 // is low dynamic range (a lamp is 1, not 10; with vr_tonemap up to 8, taken as at most 2 here), so
@@ -272,9 +269,19 @@ void scopeEnd()
     const float spread = za::clamp(vr_bloom_radius.value, 0.25f, 4.f);
 
     scopeBegin("bloom bright");
+    if(!linearSampler)
+    {
+        GL_GenSamplersFunc(1, &linearSampler);
+        GL_SamplerParameteriFunc(linearSampler, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        GL_SamplerParameteriFunc(linearSampler, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        GL_SamplerParameteriFunc(linearSampler, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        GL_SamplerParameteriFunc(linearSampler, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    }
     GL_UseProgram(brightProgram);
     GL_Uniform2fFunc(1, za::max(0.f, vr_bloom_white.value), za::max(0.f, vr_bloom_color.value));
+    GL_BindSamplerFunc(0, linearSampler);
     pass(down[0], brightProgram, sceneTex, threshold, 0.f, 1.f / width, 1.f / height);
+    GL_BindSamplerFunc(0, 0);
     scopeEnd();
     for(int l = 1; l < levels; l++)
     {
@@ -348,6 +355,11 @@ void shutdown()
             GL_DeleteProgramFunc(*p);
             *p = 0;
         }
+    }
+    if(linearSampler)
+    {
+        GL_DeleteSamplersFunc(1, &linearSampler);
+        linearSampler = 0;
     }
     resultValid = false;
     failed = false;

@@ -337,13 +337,7 @@ void ensureSampler()
 // stencil written), which a shader may not read. Half the size, in R32F, each texel the distance (along the view) of
 // the nearest of its four: at 3292 x 3524 it reads the 46 MB of depth once and writes 12 MB. Multisampled depth
 // (vid_fsaa, the particles only): its first sample.
-constexpr const char* distanceVs = R"(#version 430
-void main()
-{
-    ivec2 v = ivec2(gl_VertexID & 1, gl_VertexID >> 1);
-    gl_Position = vec4(vec2(v) * 4.0 - 1.0, 0.0, 1.0);
-}
-)";
+constexpr const char* distanceVs = gfx::fullscreenTriangleVs;
 
 constexpr const char* distanceFs = R"(#version 430
 #ifdef MULTISAMPLED

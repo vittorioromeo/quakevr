@@ -9,6 +9,17 @@
 namespace qvr::gfx
 {
 
+// The full-screen triangle's vertex shader (no inputs: gl_VertexID's three corners cover the viewport), the one the
+// VR module's full-screen passes share (bloom, dynres, flatlook, foveated, the mirror, TAA's apply, upscale, the visor,
+// the water's distances).
+inline constexpr const char* fullscreenTriangleVs = R"(#version 430
+void main()
+{
+    ivec2 v = ivec2(gl_VertexID & 1, gl_VertexID >> 1);
+    gl_Position = vec4(vec2(v) * 4.0 - 1.0, 0.0, 1.0);
+}
+)";
+
 // Links a program of vertex shader `vs` and fragment (or compute) shader `fs` (either may be 0: not attached), then
 // deletes the shaders. A failed link warns with the info log, deletes the program and gives 0; else the program,
 // labelled `name`.

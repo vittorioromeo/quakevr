@@ -163,7 +163,13 @@ void IN_MoveleftUp(void) {KeyUp(&in_moveleft);}
 void IN_MoverightDown(void) {KeyDown(&in_moveright);}
 void IN_MoverightUp(void) {KeyUp(&in_moveright);}
 
-void IN_SpeedDown(void) {KeyDown(&in_speed);}
+void IN_SpeedDown(void)
+{
+	const int was = in_speed.state & 1;
+	KeyDown(&in_speed);
+	if (!was && (in_speed.state & 1))
+		VR_SpeedPressed (); // QVR: vr_sprint_toggle
+}
 void IN_SpeedUp(void) {KeyUp(&in_speed);}
 void IN_StrafeDown(void) {KeyDown(&in_strafe);}
 void IN_StrafeUp(void) {KeyUp(&in_strafe);}
@@ -277,7 +283,7 @@ void CL_AdjustAngles (void)
 		return;
 	}
 
-	if ((in_speed.state & 1) ^ (cl_alwaysrun.value != 0.0))
+	if (VR_SpeedButton (in_speed.state & 1) ^ (cl_alwaysrun.value != 0.0)) // QVR: VR_SpeedButton (vr_sprint_toggle)
 		speed = host_frametime * cl_anglespeedkey.value;
 	else
 		speed = host_frametime;
@@ -369,7 +375,7 @@ void CL_BaseMove (usercmd_t *cmd)
 //
 // adjust for speed key
 //
-	if ((in_speed.state & 1) ^ (cl_alwaysrun.value != 0.0))
+	if (VR_SpeedButton (in_speed.state & 1) ^ (cl_alwaysrun.value != 0.0)) // QVR: VR_SpeedButton (vr_sprint_toggle)
 	{
 		cmd->forwardmove *= cl_movespeedkey.value;
 		cmd->sidemove *= cl_movespeedkey.value;

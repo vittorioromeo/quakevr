@@ -169,7 +169,7 @@ void main()
     if (Params.y > 0. && SceneDistance(gl_FragCoord.xy + shift) < t0 * perT)
         shift = vec2(0.0); // not what is in front of the hot air (a hand, a gun): its colours would smear round it
     vec2 p = clamp(gl_FragCoord.xy - Viewport.xy + shift, CopyRect.xy + 0.5, CopyRect.zw - 0.5);
-    Out = vec4(texture(Scene, p / CopySize).rgb, 1.0);
+    Out = vec4(textureLod(Scene, p / CopySize, 0.0).rgb, 1.0); // (the copy: one level)
 }
 )";
 
