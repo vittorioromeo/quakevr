@@ -30,11 +30,12 @@ run() { # run <mode> [env...]: the scene, its outputs copied to $S/<mode>
     local mode=$1; shift
     # (the outputs this run writes, not an earlier run's: a run that dies first leaves none, and its checks fail)
     rm -f "$GAME/envmap.tga" "$GAME/imagehash.txt" "$S/$mode/eye.png" "$S/$mode/envmap.tga" "$S/$mode/imagehash.txt"
-    local before after
-    before=$(ls -t "$GAME"/eyeshots/*_L.png 2>/dev/null | head -1)
+    # (new: written after the run started. Not by its name: every run's first eyeshot is <map>_000, the same file)
+    local after started="$S/$mode.started"
+    touch "$started"
     env "$@" bash $KIT/run.sh $AGENT -Timeout 300 -Filter "$FILTER" -Script "$SCRIPT" > "$S/$mode.log" 2>&1
     after=$(ls -t "$GAME"/eyeshots/*_L.png 2>/dev/null | head -1)
-    if [ -n "$after" ] && [ "$after" != "$before" ]; then cp "$after" "$S/$mode/eye.png"; else echo "run $mode: no new eyeshot ($S/$mode.log)"; fi
+    if [ -n "$after" ] && [ "$after" -nt "$started" ]; then cp "$after" "$S/$mode/eye.png"; else echo "run $mode: no new eyeshot ($S/$mode.log)"; fi
     [ -f "$GAME/envmap.tga" ] && cp "$GAME/envmap.tga" "$S/$mode/envmap.tga"
     [ -f "$GAME/imagehash.txt" ] && cp "$GAME/imagehash.txt" "$S/$mode/imagehash.txt"
     return 0
