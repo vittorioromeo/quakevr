@@ -8,6 +8,8 @@
 #include "vr_random.hpp"
 #include "vr_trace.hpp"
 #include "vr_climb.hpp"
+#include "vr_moveguard.hpp"
+#include "vr_netmove.hpp"
 #include "vr_cvars.hpp"
 #include "vr_tunables.hpp"
 #include "vr_disarmhull.hpp"
@@ -1206,7 +1208,15 @@ extern "C" void VR_ClientRoomscaleMove(edict_t* ent)
     }
 
     // (Units per second of the world's time; the player's frame in its own time is longer: VR_PlayerMoveSpeedup.)
-    const glm::vec3 move = vrMove->roomscaleMove / static_cast<float>(VR_PlayerMoveSpeedup());
+    glm::vec3 move = vrMove->roomscaleMove / static_cast<float>(VR_PlayerMoveSpeedup());
+    // A remote player's walk within his budget (vr_moveguard.hpp: a walking head's; vr_net_permove's moves take it in
+    // predict::serverQueue)
+    if(const int slot = NUM_FOR_EDICT(ent) - 1; slot >= 0 && slot < svs.maxclients && netmove::serverSends(slot))
+    {
+        float v[3]{move.x, move.y, 0.f};
+        moveguard::roomscale(slot, v, host_frametime, moveguard::unitsPerMetre(moveguard::slotScale(slot)));
+        move = glm::vec3{v[0], v[1], move.z};
+    }
     // (Standing up under a low ceiling, vr_lowceil: the body stays where it is, the head stopping past the lean's radius
     // as at a wall.)
     if((move.x == 0.f && move.y == 0.f) || !ZA_ISFINITE(move.x) || !ZA_ISFINITE(move.y) || hull::heightHold(ent) != 0)

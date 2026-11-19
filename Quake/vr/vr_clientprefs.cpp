@@ -10,6 +10,7 @@
 #include "vr_gripfit.hpp"
 #include "vr_held.hpp"
 #include "vr_heldpose.hpp"
+#include "vr_moveguard.hpp"
 #include "vr_progs.hpp"
 #include "vr_tunables_api.hpp"
 #include "Zancle/Base/IsFinite.hpp"
@@ -255,6 +256,10 @@ void rig_f()
         return;
     }
     {
+        // Each sphere a hand's size (vr_moveguard.hpp): its centre near the hand's point, its radius a finger's or a
+        // palm's; a bigger one is held to it and counted (a fist of 500-unit spheres grabbed and shoved a room).
+        const float upm = moveguard::unitsPerMetre(moveguard::slotScale(slot));
+        int bounded = 0;
         for(int s = 0; s < len / 16; s++)
         {
             float c[4];
@@ -272,8 +277,12 @@ void rig_f()
                 }
                 c[k] = static_cast<float>(static_cast<short>(static_cast<unsigned short>(u))) / rigStep;
             }
-            state.slotFist[slot][hand][first + s] = glm::vec4{c[0], c[1], c[2], za::max(c[3], 0.f)};
+            const glm::vec3 centre = moveguard::within(glm::vec3{c[0], c[1], c[2]}, moveguard::fistReachMetres * upm, bounded);
+            const float radius = za::min(za::max(c[3], 0.f), moveguard::fistRadiusMetres * upm);
+            bounded += radius < c[3] ? 1 : 0;
+            state.slotFist[slot][hand][first + s] = glm::vec4{centre, radius};
         }
+        moveguard::countFist(slot, bounded);
     }
     if(first + len / 16 == total)
     {

@@ -19,8 +19,9 @@
 namespace qvr::predict
 {
 
-// Both sides: a move's walk input (the clamps the same on both).
-[[nodiscard]] pmove::Input inputOf(const netmove::WireMove& m);
+// Both sides: a move's walk input (the clamps the same on both: its places and speeds bounded as the server bounds them,
+// vr_moveguard.hpp, for a player at `upm` units a metre, moveguard::unitsPerMetre of his world scale).
+[[nodiscard]] pmove::Input inputOf(const netmove::WireMove& m, float upm);
 
 // Server.
 void serverQueue(client_t* client, const netmove::WireMove& m); // a move just run (applyNetMove)

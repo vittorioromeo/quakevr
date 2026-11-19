@@ -105,6 +105,8 @@ struct Calibration
 
 // Player entity `ent`'s calibration as this client has it, or nullptr: none (yet, or a client that sends none).
 [[nodiscard]] const Calibration* calibrationOf(int ent);
+// The server's side: client `slot`'s world scale as his calibration says (vr_world_scale) -> false: none came yet.
+[[nodiscard]] bool serverWorldScale(int slot, float& scale);
 // VR_WriteMoveExtras: this client's calibration up, when changed (multiplayer only).
 void sendCalibration();
 // vr_client.cpp's dispatch: QVR_SVC_AVATARCAL's body.

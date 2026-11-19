@@ -41,6 +41,10 @@ Tests:
              each given a shotgun with his grips let go, A keeps it and B's falls; then the other way round.
     grab     the rig up: the server has each player's fists as his client poses them; B's shotgun falls from his
              open hand and he closes it on it: taken, judged by his own fist on the dedicated server.
+    guard    (review 2026-11-18 finding 1) a remote player's own values held to a body's bounds (vr_moveguard.hpp): A,
+             tall, with a rocket launcher up, out and across at arm's length, is never held; B's lying moves
+             (vr_mp_test_cheat: hands and muzzle across the room, 500 m/s, a 20000 u/s room-scale walk, a second's
+             rewind) and a 500-unit fist sphere are held and counted (vr_mp_status mp_guard), his walk cut to a head's.
     teleport client-side traces: B (a remote client) traces his own map down to his floor; he aims a teleport with his off
              hand (his own trace: valid) and lets go: the server moves him there, A sees him there.
     held     the held weapon's drawn pose up: B holds a shotgun still; the server places its hotspots where B's view
@@ -96,7 +100,7 @@ Tests:
     vanish   (B16) a vanished server at its client: B's link down cut, "not responding" after 3 s, the link back; A,
              the listen host, untouched; A's game killed: B told, then out at his vr_mp_client_timeout to the server
              browser with the reason.
-    suite    coop, coop with B at 150 ms each way and 2% loss, bandwidth, armed, retransmit, version, avatar, avatarcal, body, prefs, grab,
+    suite    coop, coop with B at 150 ms each way and 2% loss, bandwidth, armed, retransmit, version, avatar, avatarcal, body, prefs, grab, guard,
              teleport, held, ground, campaign, campaign_listen, flow, rejoin, download, pickup, forcegrab, melee, moves, climb,
              rules, cosmetics, flatbody, loss, predict, predictclimb, lagcomp, disarm, voice, voice with B 50 ms (30 ms
              jitter, 5% loss) away, dm, lockstep, lockstep_throw, nat (B23: room codes through simulated routers).
@@ -3845,6 +3849,87 @@ PRONE_HEAD = 0.4   # m: and this high lies down (crawl_test.py's: the eyes under
 LYING_PITCH = 30.0  # degrees: the watcher's copy of him laid at least this far forward (lying: 0.5 of the way at least)
 
 
+def guard_counts(srv):
+    """vr_mp_status's "mp_guard:" lines on the server -> {player entity: {moves, places, speeds, walks, fists, spots,
+    rewinds}} (vr_moveguard.hpp: each client's own values the server held to a body's bounds)."""
+    out = {}
+    for l in status(srv):
+        if l.startswith("mp_guard:"):
+            f = {k: int(v) for k, v in re.findall(r"(\w+)=(-?\d+)", l)}
+            out[f.pop("slot") + 1] = f
+    return out
+
+
+GUARD_CHEAT_S = 2.0  # mp_guard: seconds B's moves lie
+
+
+def guard(s):
+    """(Review 2026-11-18 finding 1; MP_DESIGN P2-6) A remote player's own values held to a body's bounds
+    (vr_moveguard.hpp). A plays honestly as a tall player (his Height and head at 1.95 m) with a rocket launcher (a long
+    weapon) held up at arm's length, then out ahead, his off hand on it: the server holds none of his values. B's moves
+    lie (vr_mp_test_cheat: his main hand, muzzle and loading port 2000 units ahead, his hands' speeds 500 m/s, a room-scale
+    walk of 20000 units a second, his view a second behind): the server holds each kind and counts it, his room-scale
+    walk cut to a walking head's budget; a fist of 500-unit spheres (a raw vr_rig) held to a hand's size. B honest
+    again: nothing more held."""
+    srv, a, b, ea, eb = join(s)
+    a.cmd("vr_height_calibration 1.95; vr_mock_hand head 0 1.95 0")
+    wpn = arm_with(s, srv, a, ea, 10, "")
+    s.check("A holds the rocket launcher (the server's report)", wpn and wpn[-1] == 10, "A's main weapon: %s" % wpn)
+    poses = [
+        "vr_mock_hand main 0.15 2.75 -0.1 80 0 0",   # straight up over his head, the launcher pointing up
+        "vr_mock_hand main 0.1 1.6 -0.8 0 0 0",      # out ahead at arm's length
+        "vr_mock_hand main -0.6 1.7 -0.4 0 80 0",    # across to his left, pointing left
+    ]
+    for pose in poses:
+        a.cmd(pose)
+        server_time_past(srv, server_time(srv) + 0.5)
+    own = drawn_report(a, "mp_drawn_own").get((ea, 1), {})
+    grips = sorted(i for i, v in own.get("spots", {}).items() if int(v[0]) == 1)
+    if grips:  # (his off hand on its grip: held in both)
+        a.cmd("vr_mock_hand main 0.1 1.6 -0.8 0 0 0; vr_mock_hand_to off heldspot %d palm; vr_mock_button off grip 1"
+              % grips[0])
+        server_time_past(srv, server_time(srv) + 1.0)
+    s.note("A's drawn main hand: %s; its grips %s" % (own, grips))
+
+    before = guard_counts(srv)
+    lines = status(srv)
+    b_from = org_of(lines, "mp_client", "slot", eb - 1)
+    b.cmd("vr_mp_test_cheat 15")
+    # (a fist of one sphere of 500 units, past the short's 511: 32000 64ths)
+    b.cmd("cmd vr_rig 2 1 1 0 0000000000007d00")
+    server_time_past(srv, server_time(srv) + GUARD_CHEAT_S)
+    b.cmd("vr_mp_test_cheat 0")
+    during = guard_counts(srv)
+    lines = status(srv)
+    b_to = org_of(lines, "mp_client", "slot", eb - 1)
+    ga, gb = during.get(ea, {}), during.get(eb, {})
+    s.note("the server's counts before: %s; after B's lies: %s" % (before, during))
+    held_a = {k: v for k, v in ga.items() if k != "moves" and v != 0}
+    s.check("A's honest moves (tall, a long weapon up, out and across, two-handed): none of his values held",
+            ga.get("moves", 0) > 100 and not held_a, "A: %s" % ga)
+    s.check("B's lies held and counted: places, speeds, the room-scale walk, the view's rewind, the fist",
+            all(gb.get(k, 0) > 0 for k in ("places", "speeds", "walks", "rewinds", "fists")), "B: %s" % gb)
+    if b_from and b_to:
+        travel = math.hypot(b_to[0] - b_from[0], b_to[1] - b_from[1])
+        # (the budget: walkMost 6 m/s for the time and walkBurst 2 m, at the floor's 1.5 world scale: 39.4 units a metre)
+        most = (6.0 * (GUARD_CHEAT_S + 1.0) + 2.0) * 39.4
+        s.metric("cheat_travel", round(travel, 1))
+        s.check("B's room-scale walk of 20000 units a second cut to a walking head's (under %.0f units in %.0f s)" % (
+            most, GUARD_CHEAT_S), travel <= most, "B went %.1f units: %s -> %s" % (travel, b_from, b_to))
+    pr = prefs_report(s, srv).get(eb, {})
+    # (a sphere's centre within 0.3 m and its radius 0.1 m of a hand, at 39.4 units a metre)
+    s.check("B's 500-unit fist sphere held to a hand's size (the server's fist sum)",
+            0.0 < pr.get("fistsum1", 0.0) <= 0.1 * 39.4 + 1e-3 or pr.get("fist1", 0) > 1, "B's server prefs: %s" % pr)
+
+    server_time_past(srv, server_time(srv) + 0.5)  # (his lying moves' repeats gone by)
+    settled = guard_counts(srv).get(eb, {})
+    server_time_past(srv, server_time(srv) + 1.5)
+    after = guard_counts(srv).get(eb, {})
+    s.check("B honest again: nothing more of his held", after.get("moves", 0) > settled.get("moves", 0) and all(
+        after.get(k) == settled.get(k) for k in ("places", "speeds", "walks", "rewinds")),
+        "B 0.5 s after: %s; 2 s after: %s" % (settled, after))
+
+
 def server_moves(srv, ent):
     """Player `ent`'s `moves=` on the server (vr_mp_status), -1: none."""
     for l in status(srv):
@@ -6601,6 +6686,8 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             body(s)
         elif test == "mp_prefs":
             prefs(s)
+        elif test == "mp_guard":
+            guard(s)
         elif test == "mp_grab":
             grab(s)
         elif test == "mp_teleport":
@@ -6718,6 +6805,7 @@ SUITE = [
     ("mp_body", ()),
     ("mp_prefs", ()),
     ("mp_grab", ()),
+    ("mp_guard", ()),
     ("mp_teleport", ()),
     ("mp_held", ()),
     ("mp_ground", ()),
@@ -6758,7 +6846,7 @@ SUITE = [
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite"])
     ap.add_argument("--base", required=True, help="the game folder (id1, quakevr...)")
     ap.add_argument("--exe", default=EXE)
     ap.add_argument("--out", default=os.path.join(REPO, "scratch", "mp"))
@@ -6819,7 +6907,7 @@ def main_run(args):
                 sys.exit(2)
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
-    elif args.test in ("bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground",
+    elif args.test in ("bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground",
                        "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui"):
         ok = run(args, "mp_" + args.test)
     elif args.test == "voice":

@@ -21,6 +21,7 @@
 #include "vr_explosiondebris.hpp"
 #include "vr_ledges.hpp"
 #include "vr_move.hpp"
+#include "vr_moveguard.hpp"
 #include "vr_mpavatar.hpp"
 #include "vr_voicechat.hpp"
 #include "vr_clientprefs.hpp"
@@ -1583,6 +1584,7 @@ extern "C" void VR_ClientReset(client_t* client)
         avatarsSent[clientNum] = {};
     }
     netmove::serverReset(clientNum); // (his moves' sequence and bases: a new connection's start again)
+    moveguard::serverReset(clientNum); // (his values held, his room-scale budget)
     predict::serverReset(clientNum); // (his queued moves and their clock, B8)
     netsnap::serverReset(clientNum); // (and his snapshots: the next whole until he acknowledges one, B7b)
     mpavatar::serverReset(clientNum); // (his avatar calibration gone; the clients told)
@@ -1658,10 +1660,21 @@ namespace
 
 // A move's VR block run on client `client` (clc_move's, read by VR_ReadMoveExtras; or a remote client's from
 // QVR_CLC_MOVES: vr_netmove.cpp).
-void applyVrMove(client_t* client, const VrMove& move)
+void applyVrMove(client_t* client, const VrMove& sent)
 {
     const int clientNum = static_cast<int>(client - svs.clients);
     edict_t* ent = client->edict;
+    // A remote player's own values first bounded (vr_moveguard.hpp; MP_DESIGN P2-6): every place within reach of the
+    // move's origin (the server's of him when it has none), every speed a real arm's; what was held counted
+    // (vr_mp_status's mp_guard). The listen host's own and single player's: as they come.
+    VrMove bounded = sent;
+    if(client->netconnection && !isHostsOwn(client))
+    {
+        const glm::vec3 base = sent.origin != glm::vec3{0.f} ? sent.origin
+                                                             : glm::vec3{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]};
+        moveguard::count(clientNum, moveguard::guard(bounded, base, moveguard::unitsPerMetre(moveguard::slotScale(clientNum))));
+    }
+    const VrMove& move = bounded;
     if(clientNum >= static_cast<int>(clientMoves.size()))
     {
         clientMoves.resize(clientNum + 1);

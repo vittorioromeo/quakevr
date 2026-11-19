@@ -805,6 +805,18 @@ const Calibration* calibrationOf(int ent)
     return ent > 0 && ent <= MAX_SCOREBOARD && cal.has[ent] ? &cal.of[ent] : nullptr;
 }
 
+bool serverWorldScale(int slot, float& scale)
+{
+    constexpr int scaleField = 3; // (calFields' "scale": thousandths)
+    static_assert(scaleField < numCalFields);
+    if(slot < 0 || slot >= MAX_SCOREBOARD || !cal.slotHas[slot] || calFields[scaleField].var != &vr_world_scale)
+    {
+        return false;
+    }
+    scale = static_cast<float>(cal.slot[slot].v[scaleField]) / calFields[scaleField].scale;
+    return true;
+}
+
 void sendCalibration()
 {
     if(cls.state != ca_connected || cls.signon != SIGNONS || cls.demoplayback || cl.maxclients <= 1)
