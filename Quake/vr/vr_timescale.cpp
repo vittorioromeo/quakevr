@@ -402,6 +402,18 @@ void filterHands(TrackingState& t)
     }
 }
 
+bool onHostError()
+{
+    const bool open = playerTime.worldFrame > 0.0;
+    if(open)
+    {
+        host_frametime = playerTime.worldFrame; // (the world's frame back, as VR_PhysicsEntityEnd puts it)
+    }
+    playerTime.worldFrame = 0.0;
+    playerTime.spawns = false;
+    return open;
+}
+
 } // namespace qvr::timescale
 
 using qvr::timescale::playerTime;

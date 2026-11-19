@@ -165,6 +165,16 @@ then run on workers, with the stepping thread's QuakeC VM lent (`qcvm` and `pr_g
 only read the entities and the world's state, count with an atomic, and never print (`vr_debug_box3d 2` steps on one
 thread).
 
+**No lock and no `cvars::Override` held across a call that can run QuakeC or reach `Host_Error`** (a builtin, a
+`progs::callQc`, a touch or think, `SV_Impact`, anything under the server's frame). `Host_Error` and `Host_EndGame`
+`longjmp` back to `_Host_Frame` over the C++ frames between: no destructor runs, so a `za::LockGuard`'s mutex would
+stay locked for good. `VR_OnHostError` (vr_hosterror.cpp), called before the jump, puts back what is frame-scoped:
+every `cvars::Override` still alive (each named in the console: a sign of a broken rule; `vr_ragtest.cpp`'s scenes are
+the known ones), slow motion's open pair (`VR_PhysicsEntityBegin` without its End), compatibility mode's shot point and
+the profiler's open scopes. A new begin/end pair or flag that QuakeC can run inside gets its reset there (a
+`<system>::onHostError()` in its list); a lock gets none: take it after the QuakeC call, or copy what it guards first.
+`vr_hosterror_test` checks the list (a QuakeC error raised inside an open pair).
+
 ## GL objects
 
 GL names are plain ids (`gfx::Texture`, `gfx::Target`: no destructor), made and deleted by their system's functions

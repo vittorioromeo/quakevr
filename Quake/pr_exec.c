@@ -632,7 +632,7 @@ void PR_ExecuteProgram (func_t fnum)
 		VR_ProfileBegin ("quakec");
 		PR_ExecuteProgramRun (fnum);
 		VR_ProfileEnd ();
-		vr_profile_inqc = 0; // (a Host_Error jumping out leaves it set: VR_ProfileFrame clears it)
+		vr_profile_inqc = 0; // (a Host_Error jumping out leaves it set: VR_OnHostError clears it)
 	}
 	else
 		PR_ExecuteProgramRun (fnum);

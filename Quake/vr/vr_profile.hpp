@@ -24,6 +24,12 @@ extern bool active;
 void begin(const char* name, bool gpu);
 void end();
 
+// The main thread's scopes begun and not yet ended, whatever vr_profile is.
+[[nodiscard]] int openScopes();
+// VR_OnHostError (vr_hosterror.cpp): the main thread's scopes the error jumped out of ended now, their times to the
+// error (the next frame's start would have ended them, timed to it); QuakeC's "quakec" scope too. Returns how many.
+int onHostError();
+
 void init();    // commands (VR_Init)
 void overlay(); // the systems' panel (vr_profile_overlay, vr_profile 2), queued as text (after text3d::clear)
 

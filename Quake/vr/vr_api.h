@@ -102,6 +102,9 @@ void VR_PhysicsEntityEnd (struct edict_s *ent, int num, double world); // ... it
 double VR_ThinkFrame (double frametime); // SV_RunThink: how far ahead a think is due (the world's frame, also
 							// for an entity in the player's time)
 void VR_HostFrameEnd (void);	// end of _Host_Frame, after the screen and the sound (the motion recorder's row)
+void VR_OnHostError (void);	// Host_Error, Host_EndGame, before the server's shutdown and the longjmp: the frame-scoped
+							// state the jump leaves open put back (cvars::Override scopes, slow motion's pair, the
+							// profiler's scopes: vr/vr_hosterror.cpp)
 
 // The frame cap (vr_sleep.cpp).
 int VR_HiResSleepUntil (double endtime, double *now); // Sys_WaitUntil: sleeps on a high-resolution timer until its lateness before endtime; 0 without one

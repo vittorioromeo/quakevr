@@ -87,6 +87,8 @@ which). The VM's interpreter loop: [QC_VM.md](QC_VM.md).
    view up alone (`VR_HeadlessView`).
 6. **Particles, sound**: `CL_RunParticles`, `S_Update` (the mix started on the job pool before the screen).
 
+An error (`Host_Error`, `Host_EndGame`) jumps back to `_Host_Frame`'s `setjmp` from wherever it is raised, over any
+C++ frames: `VR_OnHostError` (vr_hosterror.cpp) first ends what the jump would leave open (CODE_STYLE.md, "Threads").
 Per map: `VR_NewMap` (vr_main.cpp) runs the `prewarmSteps` rows in order; client state resets go in
 `VR_OnClientClearState`. Threads: the job pool (`vr_jobs.hpp`) for mixing, Box3D steps and per-frame batches; the
 server runs on the main thread ([SERVER_THREAD.md](SERVER_THREAD.md) is a shelved design).

@@ -69,6 +69,7 @@
 #include "vr_handpose.hpp"
 #include "vr_held.hpp"
 #include "vr_holsterzones.hpp"
+#include "vr_hosterror.hpp"
 #include "vr_hotblade.hpp"
 #include "vr_carry2h.hpp"
 #include "vr_highlights.hpp"
@@ -2363,6 +2364,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_foveated_gaze_test", foveated::gazeTest_f); // (vr_foveated.cpp: eye-tracked foveation)
     allocsites::registerCommands(); // vr_alloc_sites
     Cmd_AddCommand("vr_crash_test", VR_CrashTest_f);
+    hosterror::registerCommands(); // vr_hosterror_test (vr_hosterror.cpp)
     lighting::init();
     gfxpresets::init(); // vr_graphics_preset, My Settings (vr_gfxpresets.cpp)
     gorepresets::init(); // vr_gore_preset, vr_gore_preset_status, vr_gore_preset_test (vr_gorepresets.cpp)
