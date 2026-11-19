@@ -491,6 +491,22 @@ def alive(srv, ent):
     return False
 
 
+def respawn_if_dead(srv, c, ent):
+    """(mpready) Client `c` (entity `ent`) alive before a step that needs him: a bot's own shot may have killed him
+    (mp_dm: A killed by a bot's nailgun after vr_dm_test 1, then "A's main grip on the server" timed out). His trigger
+    brings him back (PlayerDeathThink: the buttons up, then one down). Whether he is alive at the end."""
+    if alive(srv, ent):
+        return True
+    since = c.mark()
+    for _ in range(30):
+        c.cmd("vr_mock_button main trigger 1")
+        got = wait_or_none(c, r"mp_event: .* respawned", 0.5, since)
+        c.cmd("vr_mock_button main trigger 0")
+        if got or wait_or_none(c, r"mp_event: .* respawned", 0.5, since):
+            break
+    return alive(srv, ent)
+
+
 def armed(s):
     """(B12) Six armed humanoids ahead of B in vrtesthall: what his link carries down, by kind, with their poses outside
     his snapshot (vr_net_snapposes 0, as before) and in it; idle (both players notarget) and in combat (they shoot at
@@ -6029,6 +6045,7 @@ def deathmatch(s):
     # (his grip held, as a given weapon held through a pose's change wants: the test empties his hand first, then gives
     # the crowbar into the gripping hand, grip_then_give's order)
     srv.cmd("vr_debug_carry 2; developer 1; vr_debug_shots 1") # (the grip's, the parry's and the blow's lines)
+    s.check("A alive for the bot's swings (respawned if a bot's own shot had killed him)", respawn_if_dead(srv, a, ea), "")
     since_g = srv.mark()
     a.cmd("vr_mock_button main grip 1; %s" % EMPTY_HAND)
     srv.wait(r"grip: .*main hand pressed at", 10, since_g, "A's main grip on the server")

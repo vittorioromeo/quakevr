@@ -459,6 +459,23 @@ void() VR_DMT_HoldOffHands =
     }
 };
 
+// Tests 2 and 3: the bots' flat guards held down (bot_parry_frame) -- the human's crowbar brought into his pose moves fast
+// enough to read as a headset's swing (bot_blow_coming), the held bot then raised its guard (its chance by skill) and
+// W_Fire_Melee refuses a swing while it is up: "the bot's sword swing begun" failed (mp_dm, 2026-11-19). Test 9 tests
+// the guard.
+void() VR_DMT_HoldGuards =
+{
+    for(entity p = VR_Player(); p; p = VR_NextPlayer(p))
+    {
+        if(!p.ishuman && (p.flags & FL_CLIENT))
+        {
+            p.vr_botparry_next = max(p.vr_botparry_next, time + 1);
+            p.vr_botparry_at = p.vr_botparry_until = 0;
+            p.vr_botparry = 0;
+        }
+    }
+};
+
 // Weapon `xWid` into `pl`'s main hand: another weapon there let go of first (a frame before: a weapon swapped in the
 // hand is let go of at once), then it given into the empty hand, as VR_DMT_Arm gives.
 void(entity pl, float xWid) VR_DMT_ArmWith =
@@ -544,6 +561,7 @@ void(float ask) VR_DMT_Parry =
         vr_dmt_held++;
         VR_DMT_HoldBot();
         VR_DMT_HoldOffHands();
+        VR_DMT_HoldGuards();
         VR_DMT_ArmCrowbar(vr_dmt_human);
         if(vr_dmt_n < VR_DMT_HOLD || VRGetEntWeapon(vr_dmt_human, cVR_MainHand) != WID_CROWBAR)
         {
@@ -569,6 +587,7 @@ void(float ask) VR_DMT_Parry =
     {
         VR_DMT_HoldBot();
         VR_DMT_HoldOffHands();
+        VR_DMT_HoldGuards();
         if(vr_dmt_bot.vr_botswing_ph == 2 && vr_dmt_ph != 2)
         {
             // (its strike's first frame: his crowbar still in his hand, and its blade's line, ahead, right and up of the
