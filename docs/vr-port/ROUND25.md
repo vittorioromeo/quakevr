@@ -4138,3 +4138,13 @@ and MP-only parts left on their branches.
   of 42 classnames have no spawn function.
 - Found on the way: `origin/next` 0247871ec did not build (clang `-Wunused-lambda-capture`, vr_menu.cpp's Doom page
   `wadRows` capturing a constant `page`): `[&]` now.
+
+## Installer: the Dwell component (agent/dwellinstall, 2026-11-19)
+
+- `Packaging/ModComponent.cs` is the one third-party mod path (spec + install/plan/add-async/uninstall clearing);
+  `ArcaneDimensions` and the new `Dwell` are specs over it (no AD behaviour change; its types renamed
+  `ModAction`/`ModOutcome`/`ModCopy`/`ModCopyState`). CLI (`--ad`, `--dwell`) and the window's VM share one step each.
+- Dwell: `BuiltInComponents.Dwell()` (= `support_assets.json` `thirdParty.dwell`), `Dwell.OnByDefault = false` (the one
+  flag), install into `dwell/` with `Track107.ogg` renamed, existing-copy check by progs.dat SHA-256. Details: Installer
+  README "Dwell". Self-tests: 4 new `dwell:` tests (the real zip is read from `qvr-kit/downloads/dwell/`, no network).
+- Known, not mine: self-test `packs: ... hipnotic list from the engine's .inc: expected <100>, got <99>` fails on this base.
