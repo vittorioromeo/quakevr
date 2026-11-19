@@ -168,7 +168,9 @@ thread).
 ## GL objects
 
 GL names are plain ids (`gfx::Texture`, `gfx::RenderTarget`: no destructor), made and deleted by their system's functions
-(its reset, `VR_Shutdown`), never by a static's destructor after the context is gone. `vid_restart` keeps the GL
+(its reset, `VR_Shutdown`), never by a static's destructor after the context is gone. What is sized by the eyes is
+freed when VR stops (`stereo::releaseTargets`, from `stopBackend`: `vr_enabled 0`, the session lost, a restart), and made
+again when the eyes are next drawn: a new eye-sized target gets its line there. `vid_restart` keeps the GL
 context (only the engine's framebuffers are made again), so the VR module's GL objects live on.
 
 ## Rendering stays multiview-ready

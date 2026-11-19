@@ -7,6 +7,12 @@ namespace qvr::stereo
 
 void init(); // its commands (vr_stereo_targets_test)
 
+// VR stopped (vr_main.cpp stopBackend: vr_enabled 0, the session lost, a restart): every eye-sized GL object freed (the
+// eyes' and the spectator camera's scene targets, the views through teleporters', the resample target, single-pass
+// stereo's arrays, the particles', TAA's, the glow's, the haze's, the scene distances', the upscaler's), made again
+// when the eyes are next drawn.
+void releaseTargets();
+
 [[nodiscard]] bool isRenderingEye();
 [[nodiscard]] int eye(); // 0 left, 1 right; valid while rendering an eye
 [[nodiscard]] bool isFirstEye(); // the first eye rendered this frame; valid while rendering an eye

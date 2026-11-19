@@ -1978,6 +1978,28 @@ int underTargetsMade()
     return underTargetsMadeCount;
 }
 
+void releaseSceneTargets()
+{
+    for(HalfTarget& t : halfTargets)
+    {
+        t.destroy();
+    }
+    for(UnderColor& c : underColors)
+    {
+        if(c.texture)
+        {
+            const GLuint old = c.texture;
+            c.texture = 0;
+            GL_DeleteNativeTexture(old); // (its framebuffers with it: VR_NativeTextureDeleted)
+        }
+        c = UnderColor{};
+    }
+    for(GLuint& color : halfCompositeColor)
+    {
+        color = 0; // (checked again: GL hands the names out again)
+    }
+}
+
 bool drawParticlesHalf(const ParticleBatch& batch, bool pull, Texture texture, const ParticleSplit& split,
     Texture distances, int width, int height, const int viewport[4], bool soft, int retro, void (*restore)())
 {

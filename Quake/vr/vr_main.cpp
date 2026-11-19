@@ -279,6 +279,7 @@ void stopBackend()
     Con_Printf("VR: stopping %s backend\n", state->backend->name());
     state->backend->stop();
     state->backend.reset();
+    stereo::releaseTargets(); // the eye-sized GL objects (made again when the eyes are next drawn)
 }
 
 void startBackend()

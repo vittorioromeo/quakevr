@@ -809,6 +809,26 @@ unsigned copyScene(unsigned sceneFbo, unsigned color, int samples, const int vie
     return copyPart(sceneFbo, color, samples, viewport, x0, y0, x1, y1, false);
 }
 
+void releaseTargets()
+{
+    for(auto& slot : copies)
+    {
+        for(Copy& copy : slot)
+        {
+            if(copy.texture)
+            {
+                GL_DeleteFramebuffersFunc(1, &copy.fbo);
+                GL_DeleteNativeTexture(copy.texture);
+            }
+            copy = Copy{};
+        }
+    }
+    for(SizedScene& z : sizedFor)
+    {
+        z = SizedScene{};
+    }
+}
+
 
 // Its GL programs made now (gfx::precompilePrograms, at start-up), as their first use would: no compile in play.
 void precompilePrograms()

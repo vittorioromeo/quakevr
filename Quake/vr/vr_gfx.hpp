@@ -197,6 +197,9 @@ void drawParticles(const ParticleBatch& batch, bool pull, const State& state, Te
 // scene's (R_SceneViewport); `restore` binds the scene's framebuffer again. False if it could not (drawn nothing).
 [[nodiscard]] int halfTargetsMade(); // its targets made so far (vr_frame_log)
 [[nodiscard]] int underTargetsMade(); // vr_particle_saturate's framebuffers made (attached and checked) so far
+// VR stopped (stereo::releaseTargets): the particles' scene-sized targets (half size, reverse order) freed, made again at
+// their next use.
+void releaseSceneTargets();
 [[nodiscard]] bool drawParticlesHalf(const ParticleBatch& batch, bool pull, Texture texture, const ParticleSplit& split,
     Texture distances, int width, int height, const int viewport[4], bool soft, int retro, void (*restore)());
 

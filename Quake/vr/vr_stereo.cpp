@@ -25,6 +25,7 @@
 #include "vr_dynres.hpp"
 #include "vr_flatplay.hpp"
 #include "vr_hands.hpp"
+#include "vr_haze.hpp"
 #include "vr_lines.hpp"
 #include "vr_loading.hpp"
 #include "vr_main.hpp"
@@ -183,6 +184,41 @@ void ensureSceneTargets(SceneTargets& t, int width, int height, float fsaa)
     {
         GL_GenFramebuffersFunc(1, &targetFbo);
         GL_LabelNewFramebuffer(targetFbo, "vr eye target");
+    }
+}
+
+// Frees a set (releaseTargets): made from nothing at its next ensureSceneTargets.
+void deleteSceneTargets(SceneTargets& t)
+{
+    if(!t.width)
+    {
+        return;
+    }
+    const glframebufs_t windowFramebufs = framebufs;
+    framebufs = t.fb;
+    GL_DeleteFrameBuffers();
+    framebufs = windowFramebufs;
+    const unsigned generation = t.generation;
+    t = SceneTargets{};
+    t.generation = generation + 1; // (single-pass stereo's arrays follow)
+}
+
+void deletePortalTargets(PortalTargets& p)
+{
+    deleteSceneTargets(p.scene);
+    for(int d = 0; d < 4; d++)
+    {
+        if(p.array[d])
+        {
+            GL_DeleteNativeTexture(p.array[d]);
+        }
+        p.array[d] = 0;
+        p.layers[d] = 0;
+    }
+    if(p.fbo)
+    {
+        GL_DeleteFramebuffersFunc(1, &p.fbo);
+        p.fbo = 0;
     }
 }
 
@@ -929,11 +965,50 @@ void precompilePrograms()
     }
 }
 
+void releaseTargets()
+{
+    const bool held = eyeTargets.width || spectatorTargets.width || eyePortals.scene.width || spectatorPortals.scene.width;
+    deleteSceneTargets(eyeTargets);
+    deleteSceneTargets(spectatorTargets);
+    deletePortalTargets(eyePortals);
+    deletePortalTargets(spectatorPortals);
+    resample.destroy();
+    if(targetFbo)
+    {
+        GL_DeleteFramebuffersFunc(1, &targetFbo);
+        targetFbo = 0;
+    }
+    previewState.target.destroy();
+    previewState.made = -1;
+    spectatorPace.shown = false;
+    for(HiddenMesh& mesh : hiddenMeshes)
+    {
+        if(mesh.triangles.buffer)
+        {
+            GL_DeleteBuffer(mesh.triangles.buffer);
+        }
+        mesh = HiddenMesh{};
+    }
+    stereosingle::releaseTargets();
+    gfx::releaseSceneTargets();
+    temporal::releaseTargets();
+    bloom::releaseTargets();
+    haze::releaseTargets();
+    water::releaseTargets();
+    upscale::releaseTargets();
+    GL_BindFramebufferFunc(GL_FRAMEBUFFER, 0); // (the window's: GL_DeleteFrameBuffers left none bound)
+    if(held)
+    {
+        Con_DPrintf("VR: the eyes' targets released\n");
+    }
+}
+
 namespace
 {
 
 // vr_stereo_targets_test (Misc/quakevr/stereo_targets_test.sh): what the eyes' GL objects do over frames. `begin` notes
-// the counts, `steady` (frames later, the view unchanged) checks nothing was made again; `verdict` prints the line.
+// the counts, `steady` (frames later, the view unchanged) checks nothing was made again, `released` (after VR stopped)
+// that the eye-sized objects are gone; `verdict` prints the line.
 struct TargetsTest
 {
     testkit::Tally tally;
@@ -987,13 +1062,34 @@ void targetsTest_f()
                     gfx::underTargetsMade()));
         }
     }
+    else if(!q_strcasecmp(step, "released"))
+    {
+        // (after VR stopped: vr_enabled 0)
+        targetsCheck(backend() == nullptr, "VR stopped");
+        targetsCheck(!eyeTargets.width && !eyeTargets.fb.scene.fbo && !eyeTargets.fb.composite.fbo,
+            va("the eyes' targets released (%dx%d, scene framebuffer %u)", eyeTargets.width, eyeTargets.height,
+                eyeTargets.fb.scene.fbo));
+        targetsCheck(!spectatorTargets.width && !spectatorTargets.fb.scene.fbo, "the spectator camera's targets released");
+        bool portals = true;
+        for(const PortalTargets* p : {&eyePortals, &spectatorPortals})
+        {
+            portals = portals && !p->scene.width && !p->fbo;
+            for(const GLuint array : p->array)
+            {
+                portals = portals && !array;
+            }
+        }
+        targetsCheck(portals, "the views through teleporters' targets and arrays released");
+        targetsCheck(!resample.tex && !targetFbo, "the resample target and the eye image's framebuffer released");
+        targetsCheck(!hiddenMeshes[0].triangles.buffer && !hiddenMeshes[1].triangles.buffer, "the hidden areas' buffers released");
+    }
     else if(!q_strcasecmp(step, "verdict"))
     {
         t.tally.verdict(targetsTestName);
     }
     else
     {
-        Con_Printf("vr_stereo_targets_test begin | steady | verdict\n");
+        Con_Printf("vr_stereo_targets_test begin | steady | released | verdict\n");
     }
 }
 

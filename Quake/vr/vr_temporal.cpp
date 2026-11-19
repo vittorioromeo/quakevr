@@ -834,6 +834,30 @@ void precompilePrograms()
     (void)ensurePrograms();
 }
 
+void releaseTargets()
+{
+    if(state.flat)
+    {
+        return; // (flatscreen play's window holds them: not VR's)
+    }
+    deleteTexture(state.motionTex);
+    deleteTexture(state.maskTex);
+    deleteTexture(state.displayTex);
+    for(EyeState& e : state.eyes)
+    {
+        for(int i = 0; i < 2; i++)
+        {
+            deleteTexture(e.history[i]);
+            deleteTexture(e.depth[i]);
+        }
+        e.valid = false;
+    }
+    state.texWidth = state.texHeight = 0;
+    state.attachedScene = state.attachedComposite = state.attachedTex = 0;
+    state.sceneFbo = state.compositeFbo = 0;
+    state.frameActive = false;
+}
+
 } // namespace qvr::temporal
 
 using namespace qvr;

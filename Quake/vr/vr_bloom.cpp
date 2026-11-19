@@ -353,6 +353,23 @@ void shutdown()
     failed = false;
 }
 
+void releaseTargets()
+{
+    for(int c = 0; c < 2; c++) // (not flatscreen play's window's)
+    {
+        for(Target& t : chains[c].down)
+        {
+            destroy(t);
+        }
+        for(Target& t : chains[c].up)
+        {
+            destroy(t);
+        }
+        destroy(chains[c].mean);
+    }
+    resultValid = false;
+}
+
 
 // Its GL programs made now (gfx::precompilePrograms, at start-up), as their first use would: no compile in play.
 void precompilePrograms()
