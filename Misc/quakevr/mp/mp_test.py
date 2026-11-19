@@ -80,8 +80,10 @@ Tests:
              jump; at rest where the server has him.
     voice    (B10v) A's voice (a tone in place of his microphone) heard at B: in order through the jitter buffer,
              the tone kept, the delay under 250 ms (+ the added lag); nearer louder, the radio full; his volume,
-             muted; push-to-talk released, voice activation; the server's voice budget and B's rate cap hold
-             his voice bytes; RNNoise on; no microphone. --lag/--jitter/--loss: B's link; --listen: A hosts.
+             muted (the server told: none of his frames sent B); push-to-talk released, voice activation; the
+             server's voice budget and B's rate cap hold his voice bytes; RNNoise on; A and a third player C talking at
+             once, both heard at B (a fair part each under a small budget); no microphone. --lag/--jitter/--loss: B's
+             link; --listen: A hosts.
     dm       (B11) a dedicated deathmatch server on dm4 (fraglimit 3): A and B join at deathmatch starts; two FrikBot bots
              added (impulse 100): four players listed at both, the bots move; A killed by a bot (vr_hurt) and respawned by his trigger, then A frags the bots (vr_hurt) to the fraglimit; the fraglimit ends the match: the intermission at both, their scoreboards the same.
     lockstep (B14b) two runs of the same play on a lockstep server (vr_mp_lockstep: one move of each client a world
@@ -4913,6 +4915,8 @@ VOICE_BUDGET = 8000         # vr_net_voice_bytes' default, B/s (a frame and its 
 VOICE_LOW_BUDGET = 1500     # the server's budget cut to this: B's voice bytes held to it, frames dropped
 VOICE_RATE = 8000           # B's vr_net_rate: his voice budget half of it (4000 B/s), still over A's ~3.3 KB/s
 VOICE_SLACK = 1.2           # a budget's bucket burst and the measuring window's edges
+VOICE_TONE_C = 660          # C's test tone (two talking at once)
+VOICE_TWO_LOW_BUDGET = 5000 # the server's budget, B/s, under both talkers' new frames (~3.4 KB/s each): each a fair part
 
 
 def voice_report(inst, hz=VOICE_HZ):
@@ -4949,6 +4953,24 @@ def voice_until(s, inst, slot, done, what, tries=400):
         if done(send, sp):
             return send, sp
     raise StepFailed("%s: %s never came (last: %s)" % (inst.name, what, sp))
+
+
+def voice_relay(srv, slot):
+    """The server's relay counts for listener `slot` (vr_voicechat_relay's "mp_voice_relay:" line; {} none)."""
+    since = srv.mark()
+    srv.cmd("vr_voicechat_relay")
+    i, _ = srv.wait(r"mp_voice_relay: done", 10, since, what="%s's relay report" % srv.name)
+    return next((fields(l) for l in srv.lines[since:i] if "slot=%d " % slot in l), {})
+
+
+def voice_relay_until(srv, slot, done, what, tries=400):
+    """voice_relay until done(its fields) (a definite end: `tries` reports) -> those."""
+    f = {}
+    for _ in range(tries):
+        f = voice_relay(srv, slot)
+        if done(f):
+            return f
+    raise StepFailed("%s: %s never came (last: %s)" % (srv.name, what, f))
 
 
 def voice_bytes(inst):
@@ -5046,11 +5068,17 @@ def voice(s, listen=False, lag=0.0, jitter=0.0, loss=0.0):
     b.cmd(page + "Louder; " + page + "Louder; " + page + "Mute")
     _, muted = voice_until(s, b, sa, lambda send, sp: sp and sp["muted"] == "1" and sp["talking"] == "0", "A muted")
     played0 = voice_out(muted)
-    rec0 = int(muted["received"])
-    _, later = voice_until(s, b, sa, lambda send, sp: sp and int(sp["received"]) >= rec0 + 25, "frames on while muted")
-    s.check("muted (his row's Mute): A's frames still come, none played; his row says muted, talking",
-            voice_out(later) == played0 and "muted, talking" in later["row"] and "100%" in later["row"],
-            "received %d -> %s, given out %d -> %d, row \"%s\"" % (rec0, later["received"], played0, voice_out(later), later["row"]))
+    # (B tells the server whom he muted, vr_voicechat_listen: the relay sends him none of A's frames, only a note while A
+    # talks, so his row still says so; REVIEW_MP_2026-11-18 finding 4)
+    relay0 = voice_relay_until(srv, eb - 1, lambda f: int(f.get("muted", 0)) == 1 << sa, "B's mute of A at the server")
+    rec0 = int(voice_report(b)[1][sa]["received"])
+    relay1 = voice_relay_until(srv, eb - 1, lambda f: int(f["out_muted"]) >= int(relay0["out_muted"]) + 25,
+                               "25 of A's frames held back from B")
+    _, later = voice_until(s, b, sa, lambda send, sp: sp and "muted, talking" in sp.get("row", ""), "A's row: muted, talking")
+    s.check("muted (his row's Mute): the server sends B none of A's frames, none played; his row says muted, talking",
+            int(later["received"]) <= rec0 + 2 and voice_out(later) == played0 and "100%" in later["row"],
+            "received %d -> %s, given out %d -> %d, held back at the server %s -> %s, row \"%s\"" % (
+                rec0, later["received"], played0, voice_out(later), relay0["out_muted"], relay1["out_muted"], later["row"]))
     b.cmd(page + "Unmute")
     voice_until(s, b, sa, lambda send, sp: sp and sp["talking"] == "1", "A heard again")
 
@@ -5099,6 +5127,11 @@ def voice(s, listen=False, lag=0.0, jitter=0.0, loss=0.0):
     _, dn = voice_until(s, b, sa, lambda send, sp: sp and int(sp["received"]) >= rec0 + 50, "frames with RNNoise on")
     s.check("RNNoise on: A's frames still reach B", True, "tone share after RNNoise %s" % dn["tone"])
 
+    # (REVIEW_MP_2026-11-18 finding 4) two talking at once: C joins and talks with A, B hears both whole under the default
+    # budget and each a fair part under one too small for both (before: the lower slot's new frames and copies came
+    # first, the other got a third of his frames, under the small budget none)
+    voice_two(s, srv, a, b, sa, loss)
+
     # no microphone (-nomic): a press says so and breaks nothing
     since = a.mark()
     a.cmd("-vr_voicechat; vr_voicechat_test_tone 0; +vr_voicechat")
@@ -5106,6 +5139,42 @@ def voice(s, listen=False, lag=0.0, jitter=0.0, loss=0.0):
     send, _ = voice_report(a)
     s.check("push-to-talk without a microphone: told, nothing opened, the game on", send.get("mic") == "0" and send.get("sending") == "0", "%s" % send)
     a.cmd("-vr_voicechat")
+
+
+def voice_two(s, srv, a, b, sa, loss):
+    """A and a third player C talking at once, heard at B (voice's last part)."""
+    c = s.client("C").start()
+    since_c = c.mark()
+    c.cmd(s.connect_cmd(c))
+    _, jc = c.wait(r"mp_event: .*joined map=e1m1", 120, since_c, what="C joined e1m1")
+    sc = int(fields(jc)["self"]) - 1
+    a.cmd("vr_voicechat_denoise 0")
+    c.cmd("vr_voicechat_denoise 0; vr_voicechat_mode 0; vr_voicechat_test_level 0.25; vr_voicechat_test_tone %d; "
+          "+vr_voicechat" % VOICE_TONE_C)
+    voice_until(s, b, sc, lambda send, sp: sp and sp.get("talking") == "1", "C talking at B")
+    voice_until(s, b, sa, lambda send, sp: sp and sp.get("talking") == "1", "A talking at B")
+    for label, budget, least in (("two", VOICE_BUDGET, 0.8 if loss > 0 else 0.9), ("two_low", VOICE_TWO_LOW_BUDGET, 0.5)):
+        since = srv.mark()
+        srv.cmd("vr_net_voice_bytes %d; echo mp_voice_budget" % budget)
+        srv.wait(r"mp_voice_budget", 10, since)
+        voice_report(b)  # (a report between: the budget in force)
+        sent0 = {sa: int(voice_report(a)[0]["frames"]), sc: int(voice_report(c)[0]["frames"])}
+        got0 = voice_report(b)[1]
+        voice_until(s, a, sa, lambda send, sp: int(send.get("frames", 0)) >= sent0[sa] + 100, "%s: A's 100 more frames" % label)
+        sent1 = {sa: int(voice_report(a)[0]["frames"]), sc: int(voice_report(c)[0]["frames"])}
+        got1 = voice_report(b)[1]
+        shares = {}
+        for slot in (sa, sc):
+            # (his frames that reached B, each once: what the relay sent him, whatever B's own frame rate made of their
+            # play-out on a busy machine)
+            heard = lambda f: int(f["received"]) - int(f["dups"])
+            shares[slot] = (heard(got1[slot]) - heard(got0[slot])) / max(1, sent1[slot] - sent0[slot])
+        s.metric("voice_%s_shares" % label, shares)
+        s.check("two talking under %d B/s: each of A's and C's frames reach B, at least %.0f%% of them" % (budget, least * 100),
+                min(shares.values()) >= least,
+                "A %.2f, C %.2f of their frames reached B" % (shares[sa], shares[sc]))
+    srv.cmd("vr_net_voice_bytes %d" % VOICE_BUDGET)
+    c.cmd("-vr_voicechat")
 
 
 DM_MAP = "dm4"          # (B11) a small deathmatch map with FrikBot's waypoints compiled in (QC/waypoints)

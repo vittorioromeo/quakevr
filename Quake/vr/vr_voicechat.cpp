@@ -117,6 +117,16 @@ Capture cap;
 bool pttHeld = false;
 bool pttByHand = false;
 
+// What this client last told the server it hears (vr_voicechat_listen, tellListen): the speakers he muted, his voice
+// chat off. Told again at each signon (the server forgets it with his slot) and on each change.
+struct ListenSent
+{
+    bool valid = false;
+    unsigned muted = 0;
+    bool off = false;
+};
+ListenSent listenSent;
+
 } // namespace
 } // namespace qvr::voicechat
 extern "C" qboolean keydown[MAX_KEYS];             // keys.c
@@ -1248,25 +1258,6 @@ void alignedSnr(const za::Vector<float>& ref, const za::Vector<float>& out, int 
     snr = 10.0 * log10(sig / za::max(err, 1e-12));
 }
 
-// (the self-test) net_message pointed at a buffer of its own to read with MSG_Read*, then put back as it was.
-struct WireRead
-{
-    sizebuf_t saved;
-    int savedCount;
-    qboolean savedBad;
-    explicit WireRead(const sizebuf_t& from) : saved{net_message}, savedCount{msg_readcount}, savedBad{msg_badread}
-    {
-        net_message = from;
-        MSG_BeginReading();
-    }
-    void restore()
-    {
-        net_message = saved;
-        msg_readcount = savedCount;
-        msg_badread = savedBad;
-    }
-};
-
 void selftest_f()
 {
     SelftestScratch& t = selftestScratch;
@@ -1489,9 +1480,35 @@ void selftest_f()
             "the wire: a frame read back as written; one over 160 bytes refused, the next still read in step");
         check(seqDiff(2, 0xfffe) == 4 && seqDiff(0xfffe, 2) == -4, "seqDiff across the 16-bit wrap");
     }
+
+    // 6. The server's relay (vr_voicerelay.cpp): its fairness between speakers, the rotation, the mutes and voice off.
+    serverSelftest(check);
     opus_encoder_destroy(enc);
     opus_decoder_destroy(dec);
     testkit::verdict("vr_voicechat_selftest", tally.passed, tally.failed);
+}
+
+// The server told the speakers this client muted and whether his voice chat is off (the relay sends him none of theirs).
+void tellListen()
+{
+    if(cls.state != ca_connected || cls.signon != SIGNONS || cl.maxclients <= 1 || cls.demoplayback)
+    {
+        listenSent.valid = false;
+        return;
+    }
+    unsigned bits = 0;
+    for(int slot = 0; slot < MAX_SCOREBOARD && slot < 32; slot++)
+    {
+        bits |= muted(slot) ? 1u << slot : 0u;
+    }
+    const bool off = vr_voicechat.value == 0.f;
+    if(listenSent.valid && listenSent.muted == bits && listenSent.off == off)
+    {
+        return;
+    }
+    MSG_WriteByte(&cls.message, clc_stringcmd);
+    MSG_WriteString(&cls.message, va("vr_voicechat_listen %u %d", bits, off ? 1 : 0));
+    listenSent = ListenSent{true, bits, off};
 }
 
 } // namespace
@@ -1636,6 +1653,7 @@ void shutdown()
 void frame()
 {
     captureFrame();
+    tellListen();
     const bool on = cls.state == ca_connected && cl.maxclients > 1;
     for(int slot = 0; slot < MAX_SCOREBOARD; slot++)
     {
@@ -1703,6 +1721,10 @@ void parse()
     // [byte slot][byte count] x ([short seq][byte flags][byte len][len bytes])
     const int slot = MSG_ReadByte();
     const int count = MSG_ReadByte();
+    if(count == 0 && !msg_badread && slot >= 0 && slot < MAX_SCOREBOARD)
+    {
+        speakers[slot].lastVoiced = realtime; // (a speaker you muted talks: the server sends his frames no more)
+    }
     for(int i = 0; i < count && !msg_badread; i++)
     {
         Frame f;
