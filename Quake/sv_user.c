@@ -677,9 +677,11 @@ nextmsg:
 				else if (q_strncasecmp(s, "vr_lagcomp_punch ", 17) == 0)
 					ret = 1; // QVR: a test punch, the same (B8c)
 
+				if (ret == 1 && !VR_ClientCommandBudget (s))
+					ret = 2; // QVR: over his commands' budget (vr_server.cpp): dropped, the message read on
 				if (ret == 1)
 					Cmd_ExecuteString (s, src_client);
-				else
+				else if (ret == 0)
 					Con_DPrintf("%s tried to %s\n", host_client->name, s);
 				break;
 

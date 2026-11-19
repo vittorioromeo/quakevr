@@ -532,11 +532,38 @@ namespace
     return best;
 }
 
+// A point a trace may take: finite and within the largest map's reach (the protocol's coordinates).
+[[nodiscard]] bool inWorld(const float* p)
+{
+    for(int i = 0; i < 3; i++)
+    {
+        if(!ZA_ISFINITE(p[i]) || za::abs(p[i]) > 1e6f)
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+// The test shots and punches are the harness's (its servers run with vr_mp_watch 1): any other server refuses them. Each
+// costs traces, a rewind of every target and a console line: from any client, in every build, a flood of them was
+// thousands a second into the host's console and log (review 2026-11-18, finding 9).
+[[nodiscard]] bool harnessCommand(const char* what)
+{
+    if(vr_mp_watch.value != 0.f)
+    {
+        return true;
+    }
+    Con_DPrintf("%s from %s: refused (a test's: this server's vr_mp_watch is 0)\n", what, host_client->name);
+    return false;
+}
+
 // "vr_lagcomp_punch <x y z> <x y z> <time> <back>": as vr_lagcomp_shot, a test punch's segment (B8c: melee's sweeps run
 // in the same scope, QC lagcompbegin) -> "mp_lagcomp_punch:".
 void punch_f()
 {
-    if(cmd_source != src_client || !sv.active || !host_client || !host_client->edict || Cmd_Argc() != 9)
+    if(cmd_source != src_client || !sv.active || !host_client || !host_client->edict || Cmd_Argc() != 9 ||
+        !harnessCommand("vr_lagcomp_punch"))
     {
         return;
     }
@@ -545,6 +572,10 @@ void punch_f()
     {
         from[i] = Q_atof(Cmd_Argv(1 + i));
         to[i] = Q_atof(Cmd_Argv(4 + i));
+    }
+    if(!inWorld(&from[0]) || !inWorld(&to[0]))
+    {
+        return;
     }
     edict_t* self = host_client->edict;
     const int slot = static_cast<int>(host_client - svs.clients);
@@ -565,7 +596,8 @@ void punch_f()
 
 void shot_f()
 {
-    if(cmd_source != src_client || !sv.active || !host_client || !host_client->edict || (Cmd_Argc() != 9 && Cmd_Argc() != 13))
+    if(cmd_source != src_client || !sv.active || !host_client || !host_client->edict || (Cmd_Argc() != 9 && Cmd_Argc() != 13) ||
+        !harnessCommand("vr_lagcomp_shot"))
     {
         return;
     }
@@ -574,6 +606,10 @@ void shot_f()
     {
         from[i] = Q_atof(Cmd_Argv(1 + i));
         to[i] = Q_atof(Cmd_Argv(4 + i));
+    }
+    if(!inWorld(from) || !inWorld(to))
+    {
+        return;
     }
     edict_t* self = host_client->edict;
     const int slot = static_cast<int>(host_client - svs.clients);

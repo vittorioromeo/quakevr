@@ -45,6 +45,9 @@ Tests:
              tall, with a rocket launcher up, out and across at arm's length, is never held; B's lying moves
              (vr_mp_test_cheat: hands and muzzle across the room, 500 m/s, a 20000 u/s room-scale walk, a second's
              rewind) and a 500-unit fist sphere are held and counted (vr_mp_status mp_guard), his walk cut to a head's.
+    cmdguard (review 2026-11-18 finding 9) client string commands: the test shot and punch refused by a server without
+             vr_mp_watch (the harness's), taken with it; each client's commands under a budget: both players' own
+             (spawn's vr_rig chunks...) far under it, B's flood of 150 in a frame cut to it and the rest dropped.
     teleport client-side traces: B (a remote client) traces his own map down to his floor; he aims a teleport with his off
              hand (his own trace: valid) and lets go: the server moves him there, A sees him there.
     held     the held weapon's drawn pose up: B holds a shotgun still; the server places its hotspots where B's view
@@ -102,7 +105,7 @@ Tests:
              browser with the reason.
     suite    coop, coop with B at 150 ms each way and 2% loss, bandwidth, armed, retransmit, version, avatar, avatarcal, body, prefs, grab, guard,
              teleport, held, ground, campaign, campaign_listen, flow, rejoin, download, pickup, forcegrab, melee, moves, climb,
-             rules, cosmetics, flatbody, loss, predict, predictclimb, lagcomp, disarm, voice, voice with B 50 ms (30 ms
+             rules, cosmetics, flatbody, loss, predict, predictclimb, lagcomp, cmdguard, disarm, voice, voice with B 50 ms (30 ms
              jitter, 5% loss) away, dm, lockstep, lockstep_throw, nat (B23: room codes through simulated routers).
              (B25) --only a,b runs just those; --suite-repeat N runs them N times over; --load N (any test) keeps N
              busy CPU workers at normal priority running meanwhile (mp_load.py: the machine busy with other work, as
@@ -4939,6 +4942,68 @@ LAGCOMP_ERR_MOST = 6.0     # ... and at most (the shot's command a frame after h
 LAGCOMP_CAP_SHOWS = 3.0    # units: under the cap the frames' rewind (before B13c) is off by this much more on average
 
 
+def cmd_counts(srv):
+    """vr_mp_status's "mp_cmds:" lines on the server -> {player entity: {used, dropped, least}}."""
+    out = {}
+    for l in status(srv):
+        if l.startswith("mp_cmds:"):
+            f = {k: int(v) for k, v in re.findall(r"(\w+)=(-?\d+)", l)}
+            out[f.pop("slot") + 1] = f
+    return out
+
+
+CMD_FLOOD = 150  # mp_cmdguard: B's string commands in one frame (his budget: 64 at once, 32 a second)
+
+
+def cmdguard(s):
+    """(Review 2026-11-18 finding 9) Client string commands. The harness's test shot and punch (vr_lagcomp_shot,
+    vr_lagcomp_punch) are refused by a server without vr_mp_watch (every server but the harness's) and taken with it. A
+    client's commands have a budget (VR_ClientCommandBudget): both players' own state (their fists' vr_rig chunks at
+    spawn, palm frames, preferences, avatar calibration, held poses) stays far under it; B's flood of CMD_FLOOD commands
+    in one frame is cut to it, the rest dropped and the server's console told; a second later B's commands run again."""
+    srv, a, b, ea, eb = join(s)
+    srv.cmd("developer 1")
+    server_time_past(srv, server_time(srv) + 2.0)  # (their spawns' commands all in)
+    honest = cmd_counts(srv)
+    s.note("the server's command counts after both joined: %s" % honest)
+    s.check("both players' own commands (spawn's state, preferences, calibration) under their budgets: none dropped, "
+            "half the burst or more left", all(honest.get(e, {}).get("used", 0) > 0 and honest[e].get("dropped") == 0 and
+                                                 honest[e].get("least", 0) >= 32 for e in (ea, eb)), "%s" % honest)
+
+    srv.cmd("vr_mp_watch 0")
+    since = srv.mark()
+    b.cmd("vr_mp_shoot %d; vr_mp_punch %d" % (ea, ea))
+    _, l = srv.wait(r"vr_lagcomp_punch from .*refused", 10, since, "the server refusing B's test punch")
+    shots = [x for x in srv.lines[since:] if x.startswith("mp_lagcomp_")]
+    refused = [x.strip() for x in srv.lines[since:] if "refused (a test's" in x]
+    s.check("without vr_mp_watch the server refuses the test shot and punch (no trace, no report)",
+            len(refused) == 2 and not shots, "refused: %s; reports: %s" % (refused, shots))
+    srv.cmd("vr_mp_watch 1")
+    since = srv.mark()
+    b.cmd("vr_mp_shoot %d" % ea)
+    srv.wait(r"mp_lagcomp_shot: slot=%d " % (eb - 1), 10, since, "the harness's server taking B's test shot")
+    s.check("with vr_mp_watch (the harness's servers) it takes them", True, "")
+
+    before = cmd_counts(srv).get(eb, {})
+    since = srv.mark()
+    b.cmd("; ".join(["cmd vr_magpoll 0"] * CMD_FLOOD))
+    _, note = srv.wait(r"commands dropped", 10, since, "the server dropping B's flood")
+    server_time_past(srv, server_time(srv) + 0.5)
+    after = cmd_counts(srv).get(eb, {})
+    ran = after.get("used", 0) - before.get("used", 0)
+    dropped = after.get("dropped", 0) - before.get("dropped", 0)
+    s.note("B's flood: %s; counts before %s, after %s" % (note.strip(), before, after))
+    s.check("B's flood of %d commands in one frame cut to his budget (at most 64 and a few run, the rest dropped)" %
+            CMD_FLOOD, ran <= 70 and dropped >= CMD_FLOOD - 70 and ran + dropped >= CMD_FLOOD - 2,
+            "ran %d, dropped %d" % (ran, dropped))
+    server_time_past(srv, server_time(srv) + 1.5)
+    since = srv.mark()
+    b.cmd("vr_mp_shoot %d" % ea)
+    srv.wait(r"mp_lagcomp_shot: slot=%d " % (eb - 1), 10, since, "B's commands taken again after his flood")
+    a_after = cmd_counts(srv).get(ea, {})
+    s.check("B's commands run again a moment later; A's never dropped", a_after.get("dropped") == 0, "A: %s" % a_after)
+
+
 def lagcomp(s):
     """MP_PLAN B8b: lag compensation. B, 150 ms behind the server each way, shoots at A strafing across his view (a test
     shot, vr_mp_shoot: from his eyes at A's middle as B draws him, traced on the server as shots are, MOVE_HITMODEL). The
@@ -6688,6 +6753,8 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             prefs(s)
         elif test == "mp_guard":
             guard(s)
+        elif test == "mp_cmdguard":
+            cmdguard(s)
         elif test == "mp_grab":
             grab(s)
         elif test == "mp_teleport":
@@ -6827,6 +6894,7 @@ SUITE = [
     ("mp_predictclimb", ()),
     ("mp_predictslide", ()),
     ("mp_lagcomp", ()),
+    ("mp_cmdguard", ()),
     ("mp_disarm", ()),
     ("mp_voice", ()),
     ("mp_voice_lossy", (50, 30, 0.05)),
@@ -6846,7 +6914,7 @@ SUITE = [
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite"])
     ap.add_argument("--base", required=True, help="the game folder (id1, quakevr...)")
     ap.add_argument("--exe", default=EXE)
     ap.add_argument("--out", default=os.path.join(REPO, "scratch", "mp"))
@@ -6908,7 +6976,7 @@ def main_run(args):
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
     elif args.test in ("bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground",
-                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui"):
+                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui"):
         ok = run(args, "mp_" + args.test)
     elif args.test == "voice":
         ok = run(args, "mp_voice", args.lag, args.jitter, args.loss)

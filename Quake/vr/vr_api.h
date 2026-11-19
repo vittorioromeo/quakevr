@@ -505,6 +505,7 @@ void VR_ClientLoadedBits (struct client_s *client);		// SV_ConnectClient into a 
 void VR_ClientReset (struct client_s *client);			// SV_ConnectClient, SV_DropClient: the slot's per-client VR state cleared
 int VR_GuestMay (const char *what);				// (B28) a client command that acts on everyone's game (kick, pause, scene cleaning) from host_client: 1 when he is the listen host's own client or vr_mp_guest_admin allows guests, else 0 and he is told
 int VR_GuestMayTalk (void);					// (B28) say, say_team, tell from host_client: 0 (he is told) while a guest's flood guard holds him
+int VR_ClientCommandBudget (const char *s);	// a remote client's string command s from host_client within his budget: 1 run it, 0 dropped (a flood: vr_avatarcal, name, ...)
 void VR_CalcStats (struct client_s *client, int *statsi, float *statsf); // end of SV_CalcStats
 int VR_AmmoStat (struct edict_s *ent);				// SV_WriteClientdataToMessage: the status bar's ammo count (the VR progs' .currentammo is the main hand's ammo type: their counter instead)
 int VR_ActiveWeaponStat (struct edict_s *ent);			// SV_WriteClientdataToMessage: the active weapon item bit

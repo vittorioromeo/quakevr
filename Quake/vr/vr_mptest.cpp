@@ -418,6 +418,9 @@ void status_f()
             const qvr::moveguard::Counts g = qvr::moveguard::counts(i);
             Con_Printf("mp_guard: slot=%d moves=%d places=%d speeds=%d walks=%d fists=%d spots=%d rewinds=%d\n", i, g.moves,
                 g.places, g.speeds, g.walks, g.fists, g.spots, g.rewinds);
+            // (his string commands' budget, VR_ClientCommandBudget: an honest player's dropped 0)
+            const qvr::server::CommandCounts cc = qvr::server::commandCounts(i);
+            Con_Printf("mp_cmds: slot=%d used=%d dropped=%d least=%d\n", i, cc.used, cc.dropped, cc.least);
         }
         Con_Printf("mp_server: map=%s spawned=%d time=%.3f\n", sv.name, spawned, sv.qcvm.time); // (time: the game's clock)
     }

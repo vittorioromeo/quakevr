@@ -4747,8 +4747,10 @@ void() ImpulseCommands =
         return;
     }
 
-    // Development and tests (not deathmatch): impulse 190 + a holster slot (0..5, the holsterweapon<slot> fields) puts a
-    // loaded shotgun in that holster (the multiplayer harness's mp_cosmetics: another player's holstered weapons).
+#ifdef QVR_TESTS
+    // Tests (not deathmatch; not in a release's progs: any coop player could give himself one): impulse 190 + a holster
+    // slot (0..5, the holsterweapon<slot> fields) puts a loaded shotgun in that holster (the multiplayer harness's
+    // mp_cosmetics: another player's holstered weapons).
     if(!deathmatch && self.impulse >= 190 && self.impulse < 196)
     {
         float hs = self.impulse - 190;
@@ -4765,6 +4767,7 @@ void() ImpulseCommands =
         dprint(sprintf("holster give: %s holster %g a shotgun\n", self.netname, hs));
         return;
     }
+#endif
 
     // Flatscreen play (-flatscreenmode): E force-grabs what the view is pointed at (vr_flatplay.cpp reads the key and
     // sends the impulse; the force grab itself is the game's own, vr_wpnforcegrab.qc).
