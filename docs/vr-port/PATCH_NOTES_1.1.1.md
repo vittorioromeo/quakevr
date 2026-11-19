@@ -9,7 +9,10 @@ that ships in 1.1.1.
   play, by Copper's rules: Select Campaign > Dwell, and the Map Library's Copper maps. The installer offers Dwell
   (free, by Fairweather and the Dwell team), ticked by default. Dwell's own monsters (the Kamikaze, the Brute, the
   Construct and both bosses) fight in its maps, and, with Dwell installed, in any map and from the toolgun; its
-  weapons and powerups work for now as variants of ours (their own VR weapons come in a later update).
+  weapons and powerups work for now as variants of ours (their own VR models come in a later update). Dwell's weapons
+  now stay what they are in your holsters, through saves, level changes and coop rejoins; the Rotary Shotgun reloads
+  and spins up as the Widowmaker; Haste, Berserk and the Wetsuit show their seconds left on the wrist (and the flat
+  visor). Fixed: the Crystal Lance's first shot ended the game with a network error.
 
 ## Graphics
 

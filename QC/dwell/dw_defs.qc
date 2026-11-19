@@ -22,10 +22,10 @@
 // Dwell's powerups on the player (dw_items.qc): when each ends.
 .float dw_haste_finished, dw_berserk_finished, dw_wetsuit_finished;
 .float dw_warned; // (the "wearing off" lines said: DW_PW_* bits)
+.float vr_dw_hud; // their seconds left for the wrist gadget (the engine's STAT_QVR_DWPOWER: 8 bits each)
 
-// Dwell's weapons (placeholders until P3, DWELL.md): a variant of one of our weapons, on its weapon instance (the
-// Rotary Shotgun a super shotgun, the Crystal Lance a lightning gun, the Rifle a shotgun), set by its pickup.
-.float wi_dwvar;   // the weapon instance's variant (DW_VAR_*)
+// Dwell's weapons (DWELL.md P3): a variant of one of our weapons, on its weapon instance (.wi_dwvar, vr_weaponinst.qc:
+// the Rotary Shotgun a super shotgun, the Crystal Lance a lightning gun, the Rifle a shotgun), set by its pickup.
 .float vr_dw_var;  // a pickup's: the variant it gives
 const float DW_VAR_ROTARY = 1;
 const float DW_VAR_LANCE = 2;
@@ -35,4 +35,6 @@ float(entity targ, entity attacker, float damage, float isVRMelee) DW_DamageScal
 void(entity xPickup, entity p, float xHand) DW_VariantGiven;                      // weapon_touch
 float(float xHand, float* xOutAttackFinished) DW_FireVariant;                     // W_Fire_*: TRUE fired
 void() DW_PowerupFrame;                                                           // CheckPowerups
+float(entity p) DW_PackWeaponVariants;                                            // SetChangeParms: parm76
+void(entity p, float xPacked) DW_UnpackWeaponVariants;                            // DecodeLevelParms
 float(entity e) DW_PositionalHead;                                                // PositionalHead

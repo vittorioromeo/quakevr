@@ -87,13 +87,17 @@ void(float f, float bit, string what) dw_powerup_end =
 };
 void() DW_PowerupFrame =
 {
-    if(!self.dw_haste_finished && !self.dw_berserk_finished && !self.dw_wetsuit_finished) { return; }
+    if(!self.dw_haste_finished && !self.dw_berserk_finished && !self.dw_wetsuit_finished) { self.vr_dw_hud = 0; return; }
     dw_powerup_end(self.dw_haste_finished, DW_PW_HASTE, "Haste");
     dw_powerup_end(self.dw_berserk_finished, DW_PW_BERSERK, "Berserk");
     dw_powerup_end(self.dw_wetsuit_finished, DW_PW_WETSUIT, "The Wetsuit");
     if(self.dw_haste_finished < time) { self.dw_haste_finished = 0; }
     if(self.dw_berserk_finished < time) { self.dw_berserk_finished = 0; }
     if(self.dw_wetsuit_finished < time) { self.dw_wetsuit_finished = 0; }
+    // The wrist gadget's row (and the flat visor's): each one's seconds left, 8 bits each (vr_gadget.cpp infoRows).
+    self.vr_dw_hud = (self.dw_haste_finished ? min(255, ceil(self.dw_haste_finished - time)) : 0) +
+                     (self.dw_berserk_finished ? min(255, ceil(self.dw_berserk_finished - time)) : 0) * 256 +
+                     (self.dw_wetsuit_finished ? min(255, ceil(self.dw_wetsuit_finished - time)) : 0) * 65536;
     if(self.dw_haste_finished || self.dw_berserk_finished) { self.effects = self.effects | EF_DIMLIGHT; }
     else if(!(self.items & IT_QUAD) && !(self.items & IT_INVULNERABILITY)) { self.effects = self.effects - (self.effects & EF_DIMLIGHT); }
     if(self.dw_wetsuit_finished && self.waterlevel >= 3)
@@ -135,11 +139,57 @@ Dwell's Rifle (for now a shotgun firing one 50 bullet).
 */
 void() dw_weapon_rifle = { dw_weapon("progs/v_rifle.mdl", WID_SHOTGUN, DW_VAR_RIFLE, "Rifle"); };
 
-// weapon_touch: the pickup's variant on the weapon it gave (none: a plain one).
+// weapon_touch: the pickup's variant on the weapon it gave (none: a plain one; one or the other: no AD upgrade on it).
 void(entity xPickup, entity p, float xHand) DW_VariantGiven =
 {
     entity inst = VRGetEntWeaponInst(p, xHand);
-    if(inst != world) { inst.wi_dwvar = xPickup.vr_dw_var; }
+    if(inst == world) { return; }
+    inst.wi_dwvar = xPickup.vr_dw_var;
+    if(inst.wi_dwvar) { inst.wi_adup = 0; }
+    // The Rotary Shotgun comes with its tube full, as the Widowmaker it handles as (AD_UpgradeGiven; AD_Widowmaker).
+    if(inst.wi_dwvar == DW_VAR_ROTARY && p.ishuman && VRIsWeaponReloadingEnabledForInst(p, WID_SUPER_SHOTGUN, inst))
+    {
+        VRSetEntWeaponClip(p, xHand, VR_ClipSizeOf(WID_SUPER_SHOTGUN, inst));
+    }
+};
+
+// The variant a weapon of kind `xWid` can be (0: none).
+float(float xWid) DW_VariantFor =
+{
+    if(xWid == WID_SUPER_SHOTGUN) { return DW_VAR_ROTARY; }
+    if(xWid == WID_LIGHTNING) { return DW_VAR_LANCE; }
+    if(xWid == WID_SHOTGUN) { return DW_VAR_RIFLE; }
+    return 0;
+};
+
+// SetChangeParms: the carried weapons' variants, 2 bits each (DW_VAR_* 0-3), the hands' then the holsters' (16 bits).
+float(entity p) DW_PackWeaponVariants =
+{
+    float packed = 0, k = 1;
+    for(float i = 0; i < 8; i++)
+    {
+        entity inst = AD_CarriedInst(p, i);
+        if(inst != world) { packed = packed + (inst.wi_dwvar & 3) * k; }
+        k = k * 4;
+    }
+    return packed;
+};
+
+// DecodeLevelParms, the records carried: their variants back (a weapon of another kind: none).
+void(entity p, float xPacked) DW_UnpackWeaponVariants =
+{
+    float wids[8];
+    wids[0] = p.weapon; wids[1] = p.weapon2; wids[2] = p.holsterweapon0; wids[3] = p.holsterweapon1;
+    wids[4] = p.holsterweapon2; wids[5] = p.holsterweapon3; wids[6] = p.holsterweapon4; wids[7] = p.holsterweapon5;
+    for(float i = 0; i < 8; i++)
+    {
+        float code = xPacked - floor(xPacked / 4) * 4;
+        xPacked = floor(xPacked / 4);
+        entity inst = AD_CarriedInst(p, i);
+        if(inst == world) { continue; }
+        inst.wi_dwvar = code == DW_VariantFor(wids[i]) ? code : 0;
+        if(inst.wi_dwvar) { inst.wi_adup = 0; }
+    }
 };
 
 // The Crystal Lance's beam: through every body on its line (8 at most), 150 to each, thrown back.
@@ -164,12 +214,9 @@ void(float xHand) dw_fire_lance =
     WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
     WriteByte(MSG_BROADCAST, TE_LIGHTNING2);
     WriteEntity(MSG_BROADCAST, self);
-    WriteCoord(MSG_BROADCAST, start_x);
-    WriteCoord(MSG_BROADCAST, start_y);
-    WriteCoord(MSG_BROADCAST, start_z);
-    WriteCoord(MSG_BROADCAST, trace_endpos_x);
-    WriteCoord(MSG_BROADCAST, trace_endpos_y);
-    WriteCoord(MSG_BROADCAST, trace_endpos_z);
+    WriteByte(MSG_BROADCAST, xHand); /* disambiguator (the beam per hand: without it the client misread the message) */
+    WriteVec3(MSG_BROADCAST, start);
+    WriteVec3(MSG_BROADCAST, trace_endpos);
 };
 
 // W_Fire_Shotgun, W_Fire_SuperShotgun, W_Fire_Lightning: the weapon in `xHand` is Dwell's variant: its shot and its

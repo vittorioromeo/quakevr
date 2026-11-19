@@ -4255,3 +4255,14 @@ For his headset: the Kamikaze's rush and burst, the Brute's grenade volleys and 
 boss fights (d1end, d2end); Berserk melee; the Crystal Lance through a row of monsters.
 Left (P2b/P3/P4): rigs and head-zone fits, Dwell's exact boss motion and bullet patterns, HUD icons and tints for the
 powerups, the weapons as VR weapons (and their variant across level changes), the story camera's flight.
+
+## Dwell P3, first part: Dwell's weapons and powerups on our player (2026-11-19, `agent/dwell3`)
+
+DWELL.md 9.4 has the detail. Dwell's Rotary Shotgun, Crystal Lance and Rifle stay variants of the super shotgun,
+lightning gun and shotgun (AD's precedent: all three AD weapons are variants), now kept with the weapon record
+(`.wi_dwvar` in `vr_weaponinst.qc`, cloned, saved, parm76 across level changes and coop rejoins). The Rotary Shotgun
+handles as the Widowmaker (`AD_Widowmaker` true for it: tube, hip reload, spin-up), its shot Dwell's. Haste, Berserk,
+the Wetsuit: text with seconds on the wrist gadget's item row and the flat visor (`STAT_QVR_DWPOWER`). Fixed: the
+Crystal Lance's beam message lacked its disambiguator byte (Host_Error "Received signon 0" at its first shot). Test:
+`Misc/quakevr/dwell_weapons_test.sh` (vr_ad_test 201-203). Left: Dwell's view models as VR models (recipes), tints,
+the wheel's variant name, variants through armed grunts.

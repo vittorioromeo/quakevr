@@ -596,6 +596,39 @@ frame sequences; reading aids only, nothing pasted). Files `QC/dwell/` (GPL-2, h
   died: PASS; d2end: the Sculptor used as its relay does, 3 phases, marked by the map's counter and killboss, died:
   PASS). e1m1 `vr_toolgun_spawn_test`: the 11 Dwell rows spawned.
 
+### 9.4 Built: P3, first part: Dwell's weapons and powerups on our player (2026-11-19, branch `agent/dwell3`)
+
+- **Variants, not new weapon ids (the AD precedent).** AD's three weapons ended as variants on the weapon record
+  (`wi_adup`), the Plasma Gun included, although section 8 of ARCANE_DIMENSIONS.md had proposed a new WID for it. The
+  same reasons hold for Dwell's: each shares its base weapon's ammo, holster, reloading, wheel slot, ammo screen, flat
+  HUD and toolgun row, so a variant gets all of that for free, and a new WID would need a weapon-table row, models,
+  offsets, holster rules, a wheel slot and a toolgun_weapons change for each. So the Rotary Shotgun stays a super
+  shotgun, the Crystal Lance a lightning gun, the Rifle a shotgun, each with Dwell's shot (`DW_FireVariant`).
+- **Kept with the weapon**: `.wi_dwvar` is now a weapon-record field beside `wi_adup` (`vr_weaponinst.qc`), copied by
+  `WeaponInst_Clone`, saved with the record; across a level change and a coop rejoin through **parm76** (new:
+  `DW_PackWeaponVariants`, 2 bits a record, the hands' then the holsters'; `vr_progs.hpp` `lastExtSpawnParm` 76). An AD
+  upgrade and a Dwell variant exclude each other (each pickup clears the other).
+- **VR handling, shared**: the Rotary Shotgun handles as the Widowmaker (both rotary auto shotguns: `AD_Widowmaker` is
+  true for it): its tube (`vr_ad_widowmaker_tube`), filled on pickup, reloaded at the hip a handful at a time, never
+  broken open, and the barrels' spin-up before the first shot (`vr_ad_widowmaker_spin*`), in VR and flat play alike;
+  its shot stays Dwell's (20 pellets of 2, a shell, 0.2 s). The Crystal Lance's beam pierces up to 8 bodies (150 each),
+  as P2a. **Bug fixed**: the Lance's beam message lacked the beam's disambiguator byte (Quake VR's `TE_LIGHTNING2`),
+  so the client misread the stream ("Received signon 0") at its first shot.
+- **Powerups on the wrist**: Haste, Berserk and the Wetsuit show on the wrist gadget's item row (and the flat visor's,
+  the same code) as their names with seconds left, blinking in their last 3 s (`STAT_QVR_DWPOWER`, QC `.vr_dw_hud`).
+  Dwell ships no icons for them (its CSQC draws them), hence text. The wetsuit clash stays as decision 3 (P2a's
+  `clashesUnder`).
+- **Enemy-gun drops**: none of Dwell's monsters carries a Dwell gun (the Brute throws grenades and drops rockets, the
+  Construct fires crystals, the bosses missiles), so there is nothing to drop.
+- **Test**: `Misc/quakevr/dwell_weapons_test.sh` (vr_ad_test 201-203): the three given (main hand, off hand, holster
+  0), then a save and load (each still Dwell's, then fired at fresh grunts held on its line, the mock's hands levelled:
+  the Rifle 63 to one and none past it, the Rotary 50 of its 20 pellets, the Lance 188 to each of two: Dwell's 50, 40
+  and 150 with our bonus on an unaware target) or a level change to e1m2 (each still Dwell's): 4 passed, 0 failed.
+- **Left for P3's second part**: Dwell's own view models as VR models (`v_shot3`, `v_rail`, `v_rifle` through
+  `vr_adweapons.cpp` recipes: measured grips, muzzles, the arm cut off; until then the variants show our models),
+  the Rotary's drawn barrel spin with them, screen tints for the powerups, a variant name on the weapon wheel, and a
+  variant kept when an armed grunt takes the weapon (grunts carry only `wi_adup`).
+
 ---
 
 ## 10. Open questions for Vittorio (real decisions only)

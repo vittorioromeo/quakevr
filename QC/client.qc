@@ -165,6 +165,7 @@ void() SetChangeParms =
     parm48 = self.holsterweaponinst5.wi_uid;
     parm49 = qvr_weaponinst_next;
     parm64 = AD_PackWeaponUpgrades(self); // AD support: the carried weapons' upgrades (vr_ad_bridge.qc)
+    parm76 = DW_PackWeaponVariants(self); // Dwell support: the carried weapons' variants (dwell/dw_items.qc)
     WeaponInst_PackHot(self); // (the blades still glowing: parm65..72)
     parm50 = self.vr_flashlight_state; // (bits 0..18: the engine's lamp; bit 19: a chainsaw's cord pulled)
     if(self.vr_saw_cord_pulled) parm50 = parm50 + VR_PARM50_SAW_CORD_PULLED;
@@ -334,6 +335,7 @@ void() SetNewParms =
     parm73 = 0; // (no magnetic holster bindings)
     parm74 = 0; // (bullet time's meter full)
     parm75 = 0; // (no armour plates)
+    parm76 = 0; // (Dwell support: no variants)
     VR_Run_NewParms(); // the run's mutators: Starting Weapon, Melee Only's axe (vr_run.qc)
 };
 
@@ -452,6 +454,7 @@ void() DecodeLevelParms =
     self.holsterweaponinst4 = WeaponInst_Carried(self.holsterweapon4, parm37, parm47);
     self.holsterweaponinst5 = WeaponInst_Carried(self.holsterweapon5, parm38, parm48);
     AD_UnpackWeaponUpgrades(self, parm64); // AD support: their upgrades (vr_ad_bridge.qc)
+    DW_UnpackWeaponVariants(self, parm76); // Dwell support: their variants (dwell/dw_items.qc)
     WeaponInst_UnpackHot(self);
     VR_MagHolster_DecodeParms(); // (parm73: the bindings, to the carried weapons' records)
     VR_ADGun_EnsureCarried(self); // AD support: AD soldiers' guns carried here precached (vr_ad_enemyguns.qc)
