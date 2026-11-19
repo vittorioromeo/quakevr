@@ -303,7 +303,7 @@ GL_CreateProgramFromSources
 static GLuint GL_CreateProgramFromSources (int count, const GLchar **sources, const GLenum *types, const char *name, va_list argptr)
 {
 	char macros[1024];
-	char eval[256];
+	char eval[1024]; // QVR: as macros (a name's defines: the Quest preset's plain models' reach 335 characters)
 	char *pipe;
 	int i, realcount;
 	GLuint shaders[2];
@@ -311,7 +311,10 @@ static GLuint GL_CreateProgramFromSources (int count, const GLchar **sources, co
 	if (count <= 0 || count > 2)
 		Sys_Error ("GL_CreateProgramFromSources: invalid source count (%d)", count);
 
-	q_vsnprintf (eval, sizeof (eval), name, argptr);
+	// QVR: a name cut short lost its last defines without a word (a feature compiled in that was meant out; a define cut
+	// before its value, a compile error): stop instead
+	if (q_vsnprintf (eval, sizeof (eval), name, argptr) >= (int) sizeof (eval))
+		Sys_Error ("GL_CreateProgram: the program's name and defines are over %d characters:\n%s", (int) sizeof (eval) - 1, eval);
 	macros[0] = 0;
 
 	pipe = strchr (name, '|');

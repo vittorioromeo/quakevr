@@ -1258,8 +1258,9 @@ extern "C" unsigned VR_DescribeCallers (char *out, int outSize, int skip, int de
  * nearest exported symbol, dladdr's) and send it to stderr; test runs (QVR_NO_ERROR_DIALOG) also to qvr_crash.txt in the
  * working directory, as on Windows. No minidump, no symbols from debug info: the offsets are for
  * "addr2line -f -C -e ironwail 0x<offset>" against the same build. The handler runs on its own stack (sigaltstack: a stack
- * overflow still reports), from fixed buffers, writing with write(2); the signal is raised again after it (the
- * default action: a core dump where enabled). One report per process. */
+ * overflow still reports), from fixed buffers, writing with write(2); then the signal goes to the handler that was
+ * there before (crashSignal's chaining below: the default action on Linux, a core dump where enabled; a sanitizer's or
+ * a debugger's). One report per process. */
 
 #include <dlfcn.h>
 #include <errno.h>
@@ -1416,19 +1417,74 @@ const char *signalName (int sig)
 	}
 }
 
-// After the report: the run's logs told, then the process ends with the signal's default action.
-void endWithSignal (int sig)
+// The handlers there before ours (VR_InstallCrashHandler), one per crashSignals entry: what a crash goes on to.
+struct sigaction previousActions[sizeof (crashSignals) / sizeof (crashSignals[0])];
+volatile sig_atomic_t handedOn = 0; // a signal was given back to the previous handler (endWithSignal)
+
+// The handler there before ours put back for `sig` (SIG_DFL if none was saved).
+void restorePrevious (int sig)
+{
+	for (size_t i = 0; i < sizeof (crashSignals) / sizeof (crashSignals[0]); i++)
+	{
+		if (crashSignals[i] == sig)
+		{
+			sigaction (sig, &previousActions[i], NULL);
+			return;
+		}
+	}
+	signal (sig, SIG_DFL);
+}
+
+// `sig` raised again from its own handler, now: the handler blocks it (sa_mask's own signal), so a raise there only
+// left it pending and the _exit after it ended the process first (an exit code, not the signal: no core dump, and on
+// Android no tombstone for an abort or a failed assert).
+void raiseUnblocked (int sig)
+{
+	sigset_t set;
+	sigemptyset (&set);
+	sigaddset (&set, sig);
+	pthread_sigmask (SIG_UNBLOCK, &set, NULL);
+	raise (sig);
+}
+
+// A fault the CPU raised (a bad access, an illegal instruction, a division by zero: not kill or raise's), which the
+// faulting instruction raises again when the handler returns.
+bool refaults (int sig, const siginfo_t *info)
+{
+	return info && info->si_code > 0 && (sig == SIGSEGV || sig == SIGBUS || sig == SIGILL || sig == SIGFPE);
+}
+
+// After the report: the run's logs told, then the signal to the handler there before ours (bionic's on Android: the
+// tombstone; the default action on Linux). A CPU fault is left to happen again by returning, so that handler sees the
+// original fault (its address, its code); any other signal is raised again.
+void endWithSignal (int sig, const siginfo_t *info)
 {
 	VR_LogsIncident ("the game crashed (the report is in crash/)");
 	VR_DiagnosticsEnd (1);
 	LOG_Flush ();
+	handedOn = 1;
+	restorePrevious (sig);
+	if (refaults (sig, info))
+		return;
+	raiseUnblocked (sig);
+	// (the previous handler returned: the default action, then out)
 	signal (sig, SIG_DFL);
-	raise (sig);
+	raiseUnblocked (sig);
 	_exit (128 + sig);
 }
 
 void crashSignal (int sig, siginfo_t *info, void *)
 {
+	// A second time after handing a signal on (the previous handler gave the fault back, or put ours back): the
+	// default action now, not another report nor a loop between the two.
+	if (handedOn)
+	{
+		signal (sig, SIG_DFL);
+		if (refaults (sig, info))
+			return;
+		raiseUnblocked (sig);
+		_exit (128 + sig);
+	}
 	if (__atomic_exchange_n (&reporting, 1, __ATOMIC_SEQ_CST))
 	{
 		sleep (30); // (another thread's report under way: it ends the process)
@@ -1442,7 +1498,7 @@ void crashSignal (int sig, siginfo_t *info, void *)
 	else
 		snprintf (what, sizeof (what), "%s at address %p", signalName (sig), info ? info->si_addr : nullptr);
 	writeReport (what, frames, n, 1); // (frame 0: this handler)
-	endWithSignal (sig);
+	endWithSignal (sig, info);
 }
 
 void fatal (const char *what)
@@ -1515,8 +1571,15 @@ extern "C" void VR_InstallCrashHandler (void)
 	sa.sa_sigaction = crashSignal;
 	sa.sa_flags = SA_SIGINFO | SA_ONSTACK;
 	sigemptyset (&sa.sa_mask);
-	for (const int sig : crashSignals)
-		sigaction (sig, &sa, NULL);
+	for (size_t i = 0; i < sizeof (crashSignals) / sizeof (crashSignals[0]); i++)
+	{
+		// (the handler before ours kept for endWithSignal: SIG_DFL usually; bionic's on Android, a sanitizer's)
+		if (sigaction (crashSignals[i], &sa, &previousActions[i]) != 0)
+		{
+			previousActions[i] = {};
+			previousActions[i].sa_handler = SIG_DFL;
+		}
+	}
 }
 
 extern "C" void VR_FatalReport (const char *what)

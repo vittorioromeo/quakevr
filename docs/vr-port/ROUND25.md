@@ -4183,3 +4183,10 @@ and MP-only parts left on their branches.
 - S4 (`VR_Content`) skipped again: it would rename, not remove, code; Dwell's data switch is P1b's (DWELL.md 9.1).
 - For P1b: two "Copper as shipped" precedence look-alikes (`WaterMove`'s gasp, `t_void`'s `noTint`) to decide with
   AD's; the engine's `cu_<key>` fill; Copper's world setup and its dropped `StartFrame`'s work.
+## toolgunspawns
+- The toolgun's Weapons list lacked the grappling gun (WID_GRAPPLE 1): added "Grappling Gun" (vr_toolgun_packs.inc,
+  appended so numbers stay; spawn-all test: alive). Audit of the QC spawn functions against the lists (id, Hipnotic,
+  Rogue, MG1/MG3, AD, VR's own): nothing else a player would place was missing. Left out on purpose: bosses
+  (monster_boss, oldone, Chthon), item_flag*/time machine (Rogue map pieces), item_head_hellknight (MG3 campaign trophy),
+  monster_decoy (made by its Hipnotic weapon). New `qvr_checks toolgun_weapons`: every WID_* has a Weapons row (exempt:
+  fist, AD eliminator).
