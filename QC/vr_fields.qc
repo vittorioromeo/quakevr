@@ -285,6 +285,7 @@ float vr_grip_sticky_test;
 // ----------------------------------------------------------------------------
 
 .float vr_shootnade;   // a grenade shots, blows and blasts set off (VR_GrenShot_Make): T_Damage is its (VR_GrenShot_Damage)
+.float vr_foeshot;     // an enemy's projectile though no monster owns it (Dwell's bullet hell: VR_Deflect_IsProjectile)
 .float vr_shot_half;   // its model's half size (the shot box: vr_shot_radius, with vr_grenade_shoot_pad)
 .float vr_shot_off;    // set off (or gone off): no more shots meet it
 .void() vr_shot_boom;  // a Quake grenade set off: its own think (its blast), run by VR_GrenShot_Boom

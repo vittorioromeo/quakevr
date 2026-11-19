@@ -4738,11 +4738,11 @@ Dwell's Kamikaze: 40 health; runs screaming at its enemy and bursts on contact (
 	]
 ]
 
-@PointClass color(128 128 128) size(-8 -8 -8, 8 8 8) model({ "path": "progs/e2/hell_bullet.mdl" }) =
+@PointClass color(128 128 128) size(-8 -8 -8, 8 8 8) model({ "path": "progs/e2/hell_rocket.mdl" }) =
 	target_bullethell : "From Dwell (rebuilt on Copper and Quake VR): spawns in any map while Dwell's data is installed, or by the toolgun as dw_<classname>.
 
-Dwell: used, a pattern of slow bullets (5 to a player).
-style: 1 line, 2 two lines, 3 ring, 4 spiral, 5 wheel"
+Dwell: used, a bullet-hell pattern out from it.
+style: 0 random (1-7), 1 a line at each player, 2 two lines, 3 ring, 4 two spirals, 5 moving wheel, 6 rocket barrage, 7 pulse, 8 Dwell's program A"
 [
 ]
 
