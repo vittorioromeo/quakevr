@@ -184,6 +184,7 @@ struct Speaker
     long long wraps = 0;
     int lastPos = 0;
     double written = 0.0;  // W: output samples written (unwrapped)
+    long long cleared = 0; // the ring zeroed up to here (unwrapped): what the mix has read (pump)
     double resamplePhase = 0.0;
     float lastSample = 0.f;
     double idleSince = -1.0;
@@ -644,6 +645,7 @@ void startOutput(Speaker& sp, int slot)
     sp.wraps = 0;
     sp.lastPos = 0;
     sp.written = 0.0;
+    sp.cleared = 0;
     sp.resamplePhase = 0.0;
     sp.t0 = realtime;
     sp.channel = -1;
@@ -803,6 +805,24 @@ void decodeNext(Speaker& sp, int slot)
     advance(sp, 2);
 }
 
+// A ring of `length` samples zeroed from `from` to `to` (unwrapped positions), across its end.
+void zeroRing(short* ring, int length, long long from, long long to)
+{
+    if(to <= from || length <= 0)
+    {
+        return;
+    }
+    if(to - from >= length)
+    {
+        memset(ring, 0, sizeof(short) * static_cast<size_t>(length));
+        return;
+    }
+    const long long at = from % length, n = to - from;
+    const long long first = za::min(n, length - at);
+    memset(ring + at, 0, sizeof(short) * static_cast<size_t>(first));
+    memset(ring, 0, sizeof(short) * static_cast<size_t>(n - first));
+}
+
 // A speaker's output kept `lead` ahead of its reader.
 void pump(Speaker& sp, int slot)
 {
@@ -817,6 +837,13 @@ void pump(Speaker& sp, int slot)
         startOutput(sp, slot);
         r = readPos(sp, slot);
         sp.startAt = sp.written;
+    }
+    // (what the mix has read since the last pump zeroed: it paints up to _snd_mixahead past its read position, beyond
+    // what is written `lead` ahead, and the ring loops, so it read the speech of 2 s before there; now silence)
+    if(sfxcache_t* sc = ringOf(sp); sc && static_cast<long long>(r) > sp.cleared)
+    {
+        zeroRing(reinterpret_cast<short*>(sc->data), sc->length, sp.cleared, static_cast<long long>(r));
+        sp.cleared = static_cast<long long>(r);
     }
     const double rate = outRate();
     if(sp.written < r)
@@ -1481,7 +1508,34 @@ void selftest_f()
         check(seqDiff(2, 0xfffe) == 4 && seqDiff(0xfffe, 2) == -4, "seqDiff across the 16-bit wrap");
     }
 
-    // 6. The server's relay (vr_voicerelay.cpp): its fairness between speakers, the rotation, the mutes and voice off.
+    // 6. The play-out's ring (a looping sound of 2 s): the mix reads up to _snd_mixahead past its position, beyond what is
+    //    written `lead` ahead; what it has read is zeroed at each pump (zeroRing), so a read past the written end is
+    //    silence, not the speech of a lap before. A ring of 1000 samples, silent at its start (startOutput), 2.5 laps of
+    //    a reader 70 samples a pump with the writer 40 ahead of it, all speech: the reads past the written end, up to 100
+    //    ahead, all 0 (before: the lap before's speech from the second lap on).
+    {
+        constexpr int length = 1000, step = 70, ahead = 40, overRead = 100;
+        short ring[length]{};
+        long long cleared = 0, written = 0, stale = 0, checked = 0;
+        for(long long r = 0; r < length * 5 / 2; r += step)
+        {
+            zeroRing(ring, length, cleared, r);
+            cleared = r;
+            written = za::max(written, r); // (behind its reader: caught up, as pump's underrun)
+            for(; written < r + ahead; written++)
+            {
+                ring[written % length] = 1;
+            }
+            for(long long p = written; p < r + overRead; p++, checked++)
+            {
+                stale += ring[p % length] != 0 ? 1 : 0;
+            }
+        }
+        check(stale == 0 && checked > 0, va("the play-out's ring: a read past the written end silent (%lld of %lld samples stale)",
+                                               stale, checked));
+    }
+
+    // 7. The server's relay (vr_voicerelay.cpp): its fairness between speakers, the rotation, the mutes and voice off.
     serverSelftest(check);
     opus_encoder_destroy(enc);
     opus_decoder_destroy(dec);
