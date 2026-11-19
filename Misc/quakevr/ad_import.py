@@ -73,6 +73,8 @@ BRIDGE = "VR_AD_"  # the bridge's functions the patches below call (QC/vr_ad_bri
 # The precedence patches (qvr_checks qc_precedence): expressions that read differently under C priorities,
 # parenthesised as fteqcc's QC priorities (AD's own compile, and ours) read them, so behaviour stays AD's as shipped
 # (some look like AD bugs: kept, flagged "AD as shipped"). Each was verified to compile to the same instructions.
+# The imports' one rule for a look-alike bug (DWELL.md 9.7; Copper's the same): kept as shipped, unless the shipped
+# reading changes what a Quake VR player gets and the mod's intent is plain, then fixed as meant (AD's bugs 4 and 5).
 P = "parenthesised as QC priorities read it (check_qc_precedence)"
 B = "bridge"
 PATCHES = [
