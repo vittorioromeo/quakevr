@@ -10,6 +10,7 @@
 #include "vr_gripfit.hpp"
 #include "vr_held.hpp"
 #include "vr_heldpose.hpp"
+#include "vr_progs.hpp"
 #include "vr_tunables_api.hpp"
 #include "Zancle/Base/IsFinite.hpp"
 #include "Zancle/Math/Abs.hpp"
@@ -549,6 +550,34 @@ void mpPrefs_f()
     }
 }
 
+// "vr_mp_prefs_qc <self> <other> <cvar>": the server's QC read of a preference (cvar_hget: forQc) with self and other
+// those entity numbers ("mp_prefs_qc:", the harness's mp_prefs: a player without preferences -- a bot, a slot whose
+// have not come -- reads the server's, never other's).
+void prefsQc_f()
+{
+    if(Cmd_Argc() != 4 || !sv.active)
+    {
+        Con_Printf("vr_mp_prefs_qc <self> <other> <cvar>: cvar_hget's value of a per-player preference with those self, other\n");
+        return;
+    }
+    const cvar_t* var = Cvar_FindVar(Cmd_Argv(3));
+    const int pref = indexOf(var);
+    const int self = Q_atoi(Cmd_Argv(1)), other = Q_atoi(Cmd_Argv(2));
+    if(pref < 0 || self < 0 || other < 0 || self >= sv.qcvm.num_edicts || other >= sv.qcvm.num_edicts)
+    {
+        Con_Printf("vr_mp_prefs_qc: %s is no per-player preference, or no such entity\n", Cmd_Argv(3));
+        return;
+    }
+    const progs::ServerVm vm;
+    const int oldSelf = pr_global_struct->self, oldOther = pr_global_struct->other;
+    pr_global_struct->self = self * qcvm->edict_size;
+    pr_global_struct->other = other * qcvm->edict_size;
+    const float v = forQc(pref, var);
+    pr_global_struct->self = oldSelf;
+    pr_global_struct->other = oldOther;
+    Con_Printf("mp_prefs_qc: self=%d other=%d name=%s value=%g server=%g\n", self, other, var->name, v, var->value);
+}
+
 } // namespace
 
 int indexOf(const cvar_t* var)
@@ -583,10 +612,15 @@ float forQc(int pref, const cvar_t* var)
     {
         for(const int e : {pr_global_struct->self, pr_global_struct->other})
         {
-            const int slot = slotWithPrefs(e / qcvm->edict_size);
+            const int num = e / qcvm->edict_size;
+            const int slot = slotWithPrefs(num);
             if(slot >= 0)
             {
                 return state.slot[slot][pref];
+            }
+            if(num >= 1 && num <= svs.maxclients)
+            {
+                break; // (self a player -- a bot, one whose preferences have not come: the server's, never other's)
             }
         }
     }
@@ -682,6 +716,7 @@ void publishOwn(int hand)
 void init()
 {
     Cmd_AddCommand("vr_mp_prefs", mpPrefs_f);
+    Cmd_AddCommand("vr_mp_prefs_qc", prefsQc_f);
     Cmd_AddCommand_ClientCommand("vr_prefs", prefs_f);
     Cmd_AddCommand_ClientCommand("vr_rig", rig_f);
     Cmd_AddCommand_ClientCommand("vr_rigframe", rigFrame_f);

@@ -1612,6 +1612,30 @@ def weapons_held(s, srv, ea, eb, keeper, dropper, label, need=5, tries=30):
         "the server's main-hand weapons (%s, %s) by report: %s" % (name[keeper], name[dropper], seen[-12:]))
 
 
+def prefs_qc(srv, self_ent, other_ent, name):
+    """The server's QC read of preference `name` (cvar_hget) with self and other those entities -> its value."""
+    since = srv.mark()
+    srv.cmd("vr_mp_prefs_qc %d %d %s" % (self_ent, other_ent, name))
+    _, l = srv.wait(r"^mp_prefs_qc: self=%d other=%d " % (self_ent, other_ent), 10, since, "the server's QC read")
+    return float(fields(l)["value"])
+
+
+def prefs_qc_checks(s, srv, ea, eb):
+    """(Review 2026-11-18, finding 13) cvar_hget's player: self when he is one, else other. A (Sticky, 1) and B (the
+    server's Hold, 0) have theirs; an empty slot's player entity has none (as a bot, or a player whose have not come):
+    with self that one and other A, the server's own -- A's no longer (self's fall-through to other)."""
+    empty = max(e for e in range(1, 5) if e not in (ea, eb))
+    got = {
+        "self A, other B": prefs_qc(srv, ea, eb, "vr_weapon_grip_mode"),
+        "self B, other A": prefs_qc(srv, eb, ea, "vr_weapon_grip_mode"),
+        "self world, other A (a touch: self the item)": prefs_qc(srv, 0, ea, "vr_weapon_grip_mode"),
+        "self a player without preferences (%d), other A" % empty: prefs_qc(srv, empty, ea, "vr_weapon_grip_mode"),
+    }
+    want = [1.0, 0.0, 1.0, 0.0]
+    s.check("cvar_hget's player: self's own when a player (a player without preferences: the server's, never other's), "
+            "else other's", list(got.values()) == want, "%s (want %s)" % (got, want))
+
+
 def prefs(s):
     """Per-player preferences (vr_clientprefs.cpp): each client's go up and the server judges each player by his own.
     A picks the Sticky weapon grip (vr_weapon_grip_mode 1), B keeps Hold (0), the dedicated server's own is Hold: both
@@ -1633,6 +1657,7 @@ def prefs(s):
     s.check("the server has both players' preferences, A's Sticky grip his own, B's the defaults",
             got.get(ea, {}).get("vr_weapon_grip_mode") == 1.0 and got.get(eb, {}).get("has") == 1 and
             "vr_weapon_grip_mode" not in got.get(eb, {}), "server: %s" % got)
+    prefs_qc_checks(s, srv, ea, eb)
     since = a.mark()
     a.cmd("vr_mp_prefs; echo mp_prefs_done")
     n, _ = a.wait(r"mp_prefs_done", 10, since, "A's prefs")

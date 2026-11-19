@@ -19,8 +19,9 @@ namespace qvr::clientprefs
 // them (multiplayer), else the server's `var`.
 [[nodiscard]] float value(int pref, const cvar_t* var, const edict_t* player);
 
-// cvar_hget's: `var` (preference `pref`) for the player the QC is running for (`self` when a player, else `other` when a
-// player), else the server's.
+// cvar_hget's: `var` (preference `pref`) for the player the QC is running for: `self` when a player edict (his own, or
+// the server's when he has none: a bot, a player whose preferences have not come -- never `other`'s), else `other` when
+// a player (a touch function: self the item), else the server's.
 [[nodiscard]] float forQc(int pref, const cvar_t* var);
 
 // Client: this player's preferences up, when they changed (at most every vr_net_avatarcal_interval); from the move. And
