@@ -618,6 +618,8 @@ void(float ask) VR_DMT_Parry =
 float vr_dmt_takes0;  // vr_pdg_takes before
 float vr_dmt_began;   // the bot's punch or reach seen begun
 entity vr_dmt_gun;    // test 5's nailgun lying there
+float VR_DMT_REACH_CLEAR = 160; // units: test 5 takes away every other gun and backpack this near the bot (its reach: 48
+                                // from its chest, BOT_REACH_FAR; the bot may still step about while held)
 
 void() VR_DMT_HandsHold =
 {
@@ -738,6 +740,25 @@ void(float ask) VR_DMT_Hands =
             makevectors(bot.angles_y * '0 1 0');
             setorigin(vr_dmt_gun, bot.origin + v_forward * 20);
             vr_dmt_gun.velocity = '0 0 0';
+            // (nothing else for its reach to take: every other gun and backpack lying near it taken away -- a shotgun
+            // the off hand had taken earlier, dropped at its feet above, or the human's knocked out by test 1, was
+            // nearer and taken instead: mp_dm's vr_dm_test 5, "Shotgun taken into the off hand", 2026-11-19)
+            float cleared = 0;
+            entity c = findradius(bot.origin, VR_DMT_REACH_CLEAR);
+            while(c)
+            {
+                entity cn = c.chain; // (read before the remove)
+                if(c != vr_dmt_gun && (c.handtouch == wpnthrow_handtouch || c.handtouch == BackpackTouch))
+                {
+                    remove(c);
+                    cleared++;
+                }
+                c = cn;
+            }
+            if(cleared > 0)
+            {
+                VR_Test_Print(sprintf("dmtest: %g other things lying near the bot taken away\n", cleared));
+            }
         }
         vr_dmt_blows0 = vr_melee_blows;
         vr_dmt_takes0 = vr_pdg_takes;
