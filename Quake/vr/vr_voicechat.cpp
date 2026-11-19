@@ -21,6 +21,7 @@
 #include "SDL.h"
 #endif
 
+#include "Zancle/Algorithm/Fill.hpp"
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -63,6 +64,8 @@ constexpr int maxConcealed = 8;                // frames concealed in a row befo
 constexpr double idleStop = 2.0;               // s silent before a speaker's sound channel is let go
 constexpr double ringSeconds = 2.0;            // the looping sound's length
 constexpr double historySeconds = 1.0;         // the played samples kept for vr_voicechat_report
+constexpr double historyKeep = 30.0;           // s the history is written after a vr_voicechat_report (the tests' reports)
+constexpr za::SizeT catchUpMost = sampleRate / 10; // captured samples taken at most a frame (a hitch's older backlog dropped)
 constexpr double talkingHold = 0.25;           // s the indicator stays after the last frame heard
 constexpr int hangFrames = 20;                 // voice activation: frames sent on after the voice drops (0.4 s)
 constexpr int voiceEntChannel = 1000;          // the voices' sound channel on the speaker's entity (none of the game's)
@@ -214,6 +217,18 @@ void advance(Speaker& sp, za::U8 how)
     sp.nextSeq++;
 }
 bool clockOnly = false; // (the self-test: the play-out on the clock, no sound)
+
+// The played samples' history (emit), written only while vr_voicechat_report is in use: realtime of its last report.
+struct History
+{
+    double askedAt = -1.0;
+};
+History history;
+
+[[nodiscard]] bool historyOn()
+{
+    return history.askedAt >= 0.0 && realtime - history.askedAt < historyKeep;
+}
 
 // (scratch: the frame's decoded samples, a captured block's)
 struct Scratch
@@ -512,6 +527,12 @@ void block(const float* in)
     }
 }
 
+// Where a frame's capture starts in `pending` samples waiting: the newest catchUpMost.
+[[nodiscard]] za::SizeT catchUpFrom(za::SizeT pending)
+{
+    return pending > catchUpMost ? pending - catchUpMost : 0;
+}
+
 void captureFrame()
 {
     const bool want = active();
@@ -573,9 +594,9 @@ void captureFrame()
             cap.pending.clear();
         }
     }
-    // (half a second at most waiting: a hitch's backlog dropped)
-    const za::SizeT most = sampleRate / 2;
-    za::SizeT at = cap.pending.size() > most ? cap.pending.size() - most : 0;
+    // (100 ms at most taken a frame: a hitch's older backlog dropped, old speech is worthless and its RNNoise and Opus
+    // work would land on a frame that is already late)
+    za::SizeT at = catchUpFrom(cap.pending.size());
     for(; at + blockSamples <= cap.pending.size(); at += blockSamples)
     {
         memcpy(scratch.block, cap.pending.data() + at, sizeof(float) * blockSamples);
@@ -711,19 +732,23 @@ void stopOutput(Speaker& sp, int slot)
     return (realtime - sp.t0) * outRate();
 }
 
-// 20 ms of 48 kHz samples into the output (resampled to the mix's rate, at his volume) and the history.
+// 20 ms of 48 kHz samples into the output (resampled to the mix's rate, at his volume) and the history (while
+// vr_voicechat_report is in use).
 void emit(Speaker& sp, const float* pcm, bool silent)
 {
-    if(sp.history.empty())
+    if(historyOn())
     {
-        sp.history.resize(static_cast<za::SizeT>(historySeconds * sampleRate), 0.f);
+        if(sp.history.empty())
+        {
+            sp.history.resize(static_cast<za::SizeT>(historySeconds * sampleRate), 0.f);
+        }
+        for(int i = 0; i < frameSamples; i++)
+        {
+            sp.history[sp.historyAt] = silent ? 0.f : pcm[i];
+            sp.historyAt = sp.historyAt + 1 == sp.history.size() ? 0 : sp.historyAt + 1;
+        }
+        sp.historyCount += frameSamples;
     }
-    for(int i = 0; i < frameSamples; i++)
-    {
-        sp.history[sp.historyAt] = silent ? 0.f : pcm[i];
-        sp.historyAt = (sp.historyAt + 1) % sp.history.size();
-    }
-    sp.historyCount += frameSamples;
     sfxcache_t* sc = ringOf(sp);
     const double step = static_cast<double>(sampleRate) / outRate();
     const float gain = 32767.f * za::clamp(vr_voicechat_volume.value * sp.volume, 0.f, 4.f);
@@ -1183,6 +1208,15 @@ void toneOf(const float* x, int n, double hz, double& share, double& freq, doubl
 
 void report_f()
 {
+    if(!historyOn())
+    {
+        // (the history starts now: its tone figures from a whole window of it)
+        for(Speaker& sp : speakers)
+        {
+            sp.historyCount = 0;
+        }
+    }
+    history.askedAt = realtime;
     const double hz = Cmd_Argc() > 1 ? Q_atof(Cmd_Argv(1)) : 0.0;
     const int window = sampleRate / 2;
     Con_Printf("mp_voice_send: active=%d sending=%d mic=%d frames=%lld bytes=%lld dropped=%lld spurts=%lld level=%.3f queued=%d\n",
@@ -1560,7 +1594,31 @@ void selftest_f()
         sp.volume = savedVolume;
     }
 
-    // 8. The server's relay (vr_voicerelay.cpp): its fairness between speakers, the rotation, the mutes and voice off.
+    // 8. The capture's catch-up after a hitch: 100 ms at most taken (half a second waiting: the newest 4800 samples, 10
+    //    RNNoise blocks, 5 Opus frames); the played history written only while vr_voicechat_report is in use.
+    {
+        const za::SizeT from = catchUpFrom(sampleRate / 2), none = catchUpFrom(sampleRate / 20);
+        Speaker& sp = speakers[MAX_SCOREBOARD - 1];
+        sfx_t* const savedSfx = sp.sfx;
+        const History savedHistory = history;
+        sp.sfx = nullptr;
+        za::fill(scratch.pcm, 0.25f);
+        history.askedAt = -1.0;
+        const long long before = sp.historyCount;
+        emit(sp, scratch.pcm, false);
+        const long long off = sp.historyCount - before;
+        history.askedAt = realtime;
+        emit(sp, scratch.pcm, false);
+        const long long on = sp.historyCount - before - off;
+        history = savedHistory;
+        sp.sfx = savedSfx;
+        check(sampleRate / 2 - from == sampleRate / 10 && none == 0 && off == 0 && on == frameSamples,
+            va("the capture's catch-up: %d of %d samples waiting taken (%d of %d); the history: %lld samples written without a "
+               "report, %lld with", static_cast<int>(sampleRate / 2 - from), sampleRate / 2, static_cast<int>(sampleRate / 20 - none),
+                sampleRate / 20, off, on));
+    }
+
+    // 9. The server's relay (vr_voicerelay.cpp): its fairness between speakers, the rotation, the mutes and voice off.
     serverSelftest(check);
     opus_encoder_destroy(enc);
     opus_decoder_destroy(dec);
