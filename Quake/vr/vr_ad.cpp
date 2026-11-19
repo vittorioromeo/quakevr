@@ -57,13 +57,6 @@ constexpr Shadowed shadowedFiles[] = {
 };
 #undef VR_AD_SHADOWED
 
-// The shared classnames AD has its own version of, whose AD version plays in AD maps although they look like the ones
-// Quake VR keeps (monster_, item_): the names that are another entity in Rogue or Hipnotic (section 5.4).
-constexpr const char* adOwnedClashes[] = {
-    "item_artifact_wetsuit", "item_plasma", "monster_eel", "monster_mummy",
-    "weapon_axe", // (Quake VR has a weapon_axe since 2026-11-08: a grabbable axe; AD maps keep AD's pickup)
-};
-
 // The AD-only classnames that spawn in any map while AD's data is mounted, outside AD's rules too (decisions 16 and 26,
 // ARCANE_DIMENSIONS.md section 16): the new artifacts, the custom pickups that override none of Quake VR's pickups or
 // rules, the ladders. AD's others (its monsters, its world logic, its backpacks: Quake's backpack's rules) only in AD
@@ -80,13 +73,11 @@ constexpr const char* everywhereClasses[] = {
     // (the health vials and gems are Quake VR's pickups with AD's look: QC vr_ad_items.qc item_healthvial)
 };
 
-// The map now spawning (beforeLoad): whether AD's rules are on (its ruleset: vr_rules.cpp, which detects it), and how
-// its entities spawned.
+// The map now spawning (beforeLoad): whether AD's rules are on (its ruleset: vr_rules.cpp, which detects it and picks
+// each classname's version), and AD's entities outside them.
 struct MapState
 {
     bool rules = false;
-    int adSpawns = 0;   // entities spawned with AD's function
-    int oursShared = 0; // shared classnames whose Quake VR version spawned
     bool mounted = false;
     bool outsideReady = false; // outside AD's rules: AD's reduced world setup done (QC VR_AD_WorldOnDemand)
     int outsideSpawns = 0;     // AD's entities spawned outside AD's rules (everywhereClasses)
@@ -116,7 +107,8 @@ void statusCommand()
         mapState.rules && qvr::rules::byCampaign() ? "the AD campaign" : "detection", signals, signals ? ": " : "",
         qvr::rules::firstSignals(qvr::rules::AD));
     Con_Printf("AD spawns: %d entities with AD's function, %d shared classnames with Quake VR's, %d AD entities outside "
-               "AD's rules\n", mapState.adSpawns, mapState.oursShared, mapState.outsideSpawns);
+               "AD's rules\n", mapState.rules ? qvr::rules::importedSpawns() : 0, mapState.rules ? qvr::rules::oursShared() : 0,
+        mapState.outsideSpawns);
 }
 
 } // namespace
@@ -212,7 +204,7 @@ bool folderMounted()
 
 void beforeLoad()
 {
-    mapState.adSpawns = mapState.oursShared = mapState.outsideSpawns = 0;
+    mapState.outsideSpawns = 0;
     mapState.outsideReady = false;
     mapState.mounted = folderMounted();
     mapState.rules = qvr::rules::current() == qvr::rules::AD; // (vr_rules.cpp, just before: the AD campaign or its signals)
@@ -235,24 +227,7 @@ extern "C" int VR_AD_RulesOn(void)
     return mapState.rules ? 1 : 0;
 }
 
-// pr_edict.c ED_LoadFromFile (AD support), when AD's rules are on and ad_<classname> exists: whether AD's version
-// spawns (`ours`: Quake VR has one too). Quake VR's stays for the vanilla monsters, items and weapons (but the names
-// that are another entity in Rogue or Hipnotic), the player's spawn points, the intermission, the level exit and the
-// world (whose spawn runs AD's world setup after its own: QC worldspawn).
-extern "C" int VR_AD_OwnsClassname(const char* classname, int ours)
-{
-    bool ad = true;
-    if(ours && !listed(adOwnedClashes, classname))
-    {
-        ad = !(qvr::strings::startsWith(classname, "monster_") || qvr::strings::startsWith(classname, "item_") || qvr::strings::startsWith(classname, "weapon_") ||
-               qvr::strings::startsWith(classname, "info_player_") || !strcmp(classname, "info_intermission") ||
-               !strcmp(classname, "trigger_changelevel") || !strcmp(classname, "worldspawn"));
-    }
-    if(ad) { ++mapState.adSpawns; } else { ++mapState.oursShared; }
-    return ad ? 1 : 0;
-}
-
-// pr_edict.c ED_LoadFromFile and box3d::spawnClass (AD support), outside AD's rules, for a classname Quake VR has no
+// vr_rules.cpp VR_Rules_SpawnName and box3d::spawnClass (AD support), outside AD's rules, for a classname Quake VR has no
 // spawn function for: whether AD's ad_<classname> spawns it (everywhereClasses, while AD's data is mounted). The first
 // one of a map runs AD's reduced world setup first (QC VR_AD_WorldOnDemand: what AD's entities read of AD's world).
 extern "C" int VR_AD_SpawnsOutside(const char* classname)

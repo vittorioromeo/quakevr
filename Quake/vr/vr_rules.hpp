@@ -30,6 +30,11 @@ void beforeLoad();
 [[nodiscard]] int signals(Id r);
 [[nodiscard]] const char* firstSignals(Id r);
 
+// The map's entities spawned so far under an imported ruleset (AD's) with its own function, and its shared classnames
+// spawned with Quake VR's (VR_Rules_SpawnName, vr_api.h).
+[[nodiscard]] int importedSpawns();
+[[nodiscard]] int oursShared();
+
 // vr_ruleset_info: the map's ruleset, why, and every ruleset's signals.
 void registerCommands();
 

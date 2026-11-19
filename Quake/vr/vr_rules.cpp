@@ -76,6 +76,13 @@ constexpr const char* adWorldSignals[] = {
     "sprite_particles", "take_weapons", "upgrade_axe", "upgrade_ghook", "upgrade_lg", "upgrade_ssg", "water_alpha",
 };
 
+// The shared classnames AD has its own version of, whose AD version plays in AD maps although they look like the ones
+// Quake VR keeps (monster_, item_): the names that are another entity in Rogue or Hipnotic (ARCANE_DIMENSIONS.md 5.4).
+constexpr const char* adOwnedClashes[] = {
+    "item_artifact_wetsuit", "item_plasma", "monster_eel", "monster_mummy",
+    "weapon_axe", // (Quake VR has a weapon_axe since 2026-11-08: a grabbable axe; AD maps keep AD's pickup)
+};
+
 struct Ruleset
 {
     Id id;
@@ -87,18 +94,33 @@ struct Ruleset
     Names notSignals;   // its own classnames that are not signals (shared with mods and compilers)
     Names notSignalPrefixes;
     Names worldSignals; // its worldspawn keys
+    Names ownedClashes; // shared classnames whose imported version plays by its rules although Quake VR keeps the kind
+    int (*spawnsOutside)(const char* classname); // outside its rules: its <prefix><classname> spawns this one (or null)
 };
 
 bool never() { return false; }
 
 constexpr Ruleset rulesets[] = {
-    {qvr::rules::ID, "Quake", nullptr, false, 0, never, {}, {}, {}},
-    {qvr::rules::MG, "Machine Games", nullptr, false, 0, never, {}, {}, {}},
+    {qvr::rules::ID, "Quake", nullptr, false, 0, never, {}, {}, {}, {}, nullptr},
+    {qvr::rules::MG, "Machine Games", nullptr, false, 0, never, {}, {}, {}, {}, nullptr},
     {qvr::rules::AD, "Arcane Dimensions", "ad_", true, 2, qvr::ad::folderMounted, names(adNotSignals),
-        names(adNotSignalPrefixes), names(adWorldSignals)},
+        names(adNotSignalPrefixes), names(adWorldSignals), names(adOwnedClashes), VR_AD_SpawnsOutside},
     // Copper's (DWELL.md 5.2): its signals (its 48 own classnames, the worldspawn _tb_mod key) come with its import (P1a).
-    {qvr::rules::COPPER, "Copper", "cu_", false, 2, never, {}, {}, {}},
+    {qvr::rules::COPPER, "Copper", "cu_", false, 2, never, {}, {}, {}, {}, nullptr},
 };
+
+// Under an imported ruleset (its <prefix><classname> exists), whether its version spawns a classname Quake VR has too:
+// Quake VR's stays for the vanilla monsters, items and weapons (but the ruleset's owned clashes), the player's spawn
+// points, the intermission, the level exit and the world (whose spawn runs the ruleset's world setup after its own: QC
+// worldspawn). AD's decision 1 and Copper's (DWELL.md 11.1): our weapons and monsters, its world logic.
+[[nodiscard]] bool playsImported(const Ruleset& r, const char* classname)
+{
+    using qvr::strings::startsWith;
+    return r.ownedClashes.has(classname) ||
+           !(startsWith(classname, "monster_") || startsWith(classname, "item_") || startsWith(classname, "weapon_") ||
+               startsWith(classname, "info_player_") || !strcmp(classname, "info_intermission") ||
+               !strcmp(classname, "trigger_changelevel") || !strcmp(classname, "worldspawn"));
+}
 static_assert(countof(rulesets) == qvr::rules::Count, "one row a ruleset, in Id order");
 
 // The campaigns' own rulesets (vr_gamedir.cpp campaigns[]: id1, hipnotic, rogue, dopa, mg1, mg3, ad).
@@ -118,6 +140,8 @@ struct MapRules
     Id id = qvr::rules::ID;
     bool campaign = false;
     Detection found[qvr::rules::Count];
+    int importedSpawns = 0; // entities spawned with the imported ruleset's function
+    int oursShared = 0;     // its shared classnames whose Quake VR version spawned
 } mapRules;
 
 void addSignal(Detection& d, const char* what)
@@ -202,6 +226,7 @@ void beforeLoad()
     const int c = VR_ActiveCampaign();
     const Id own = c >= 0 && c < int(countof(campaignRulesets)) ? campaignRulesets[c] : ID;
     countSignals(sv.worldmodel ? sv.worldmodel->entities : "");
+    mapRules.importedSpawns = mapRules.oursShared = 0;
     mapRules.campaign = own != ID;
     mapRules.id = own;
     if(!mapRules.campaign)
@@ -245,9 +270,45 @@ const char* firstSignals(Id r)
     return mapRules.found[r].first;
 }
 
+int importedSpawns()
+{
+    return mapRules.importedSpawns;
+}
+
+int oursShared()
+{
+    return mapRules.oursShared;
+}
+
 void registerCommands()
 {
     Cmd_AddCommand("vr_ruleset_info", infoCommand);
 }
 
 } // namespace qvr::rules
+
+// pr_edict.c ED_SpawnFunction and the toolgun's spawnClass (vr_box3d_api.cpp): the spawn function that spawns
+// `classname` (`ours`: Quake VR has one) by the map's ruleset, or null. Under an imported ruleset its version where it
+// has one and plays it (playsImported), else Quake VR's; under the others Quake VR's, or for a classname Quake VR has
+// none for, an imported ruleset's that spawns outside its rules (AD's artifacts, pickups, ladders, monsters).
+extern "C" const char* VR_Rules_SpawnName(const char* classname, int ours)
+{
+    const Ruleset& r = rulesets[mapRules.id];
+    if(r.prefix)
+    {
+        const char* imported = va("%s%s", r.prefix, classname);
+        if(VR_ED_FindFunction(imported))
+        {
+            const bool theirs = !ours || playsImported(r, classname);
+            ++(theirs ? mapRules.importedSpawns : mapRules.oursShared);
+            if(theirs) { return imported; }
+        }
+        return ours ? classname : nullptr;
+    }
+    if(ours) { return classname; }
+    for(const Ruleset& o : rulesets)
+    {
+        if(o.prefix && o.spawnsOutside && o.spawnsOutside(classname)) { return va("%s%s", o.prefix, classname); }
+    }
+    return nullptr;
+}
