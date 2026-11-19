@@ -375,6 +375,7 @@ private:
         int held{0};              // with the last ones again (vr_xr_unfocused)
         int empty{0};             // without a layer
         int panels{0};            // with the runtime's panel (a quad layer)
+        int endedLate{0};         // finished by the next beginFrame (the screen not drawn: a load)
         int noRender{0};          // shouldRender false
         int missed{0};            // display periods skipped (predictedDisplayTime moved on by more than one)
         int periodNs{0};          // predictedDisplayPeriod

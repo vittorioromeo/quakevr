@@ -22,7 +22,10 @@ bool OpenXrBackend::beginFrame(TrackingState& tracking, FrameState& frame)
 
     if(frameBegun)
     {
-        endFrame(false); // the previous frame was not rendered (e.g. while loading)
+        // The previous frame was not rendered, nor finished after its panel's copy (vr_panel.cpp): the screen not
+        // drawn (a load, scr_disabled_for_loading).
+        timing.endedLate++;
+        endFrame(false);
     }
     if(lostByResult) // (the last xrEndFrame's)
     {
@@ -391,10 +394,11 @@ void OpenXrBackend::noteWaited()
     }
     if(vr_xr_log_timing.value != 0.f)
     {
-        za::String line = va("%s xr %.1fs: %d frames (%d rendered, %d last again, %d panel, %d empty; shouldRender off %d), "
+        za::String line = va("%s xr %.1fs: %d frames (%d rendered, %d last again, %d panel, %d empty, %d ended by the next "
+                             "frame; shouldRender off %d), "
                              "%d display periods missed (%.2f ms), period %.2f/%.2f ms; ms avg/max:",
             wallClock(), now - timing.since, timing.frames, timing.rendered, timing.held, timing.panels, timing.empty,
-            timing.noRender, timing.missed, timing.periodNs * 1e-6,
+            timing.endedLate, timing.noRender, timing.missed, timing.periodNs * 1e-6,
             timing.period.count ? timing.period.sum / timing.period.count : 0.0, timing.period.max);
         static constexpr const char* names[CallCount] = {
             "poll", "wait", "begin", "sync", "acquire", "waitimage", "release", "end"};

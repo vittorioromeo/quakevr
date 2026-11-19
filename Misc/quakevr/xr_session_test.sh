@@ -6,7 +6,7 @@
 #   1. the runtime gone without a loss event (FAKEXR_LOST): XR_ERROR_SESSION_LOST / XR_ERROR_INSTANCE_LOST from
 #      xrPollEvent, xrWaitFrame, xrBeginFrame or xrEndFrame end the session: flat, said why, the game runs on.
 #   2. frames with no session running (FAKEXR_END restart with FAKEXR_IDLE_MS: no xrWaitFrame for 1.5 s) paced at about
-#      a display period with host_maxfps 1000.
+#      a display period with host_maxfps 1000; the menus' panel frames finished at their copy, not by the next frame.
 #   3. the panel's swapchain failing its images (FAKEXR_FAIL_PANEL_IMAGES): destroyed at once, never acquired, tried
 #      once a session (a restart tries again); the eyes unaffected.
 # Linux only (the game run directly, as LINUX.md's; SDL on X11 with GLX: fakexr offers XR_KHR_opengl_enable alone).
@@ -97,7 +97,7 @@ fi
 
 if want 2; then
     # Frame 60: STOPPING, IDLE after xrEndSession, READY 1.5 s later; the frames between run no xrWaitFrame.
-    game paced "host_maxfps 1000;vr_backend openxr;wait500;echo STILLRUNNING;quit" FAKEXR_END=60:restart FAKEXR_IDLE_MS=1500
+    game paced "host_maxfps 1000;vr_xr_log_timing 1;vr_backend openxr;wait500;echo STILLRUNNING;quit" FAKEXR_END=60:restart FAKEXR_IDLE_MS=1500
     rate=$(grep -a -o -E "the idle over \(FAKEXR_IDLE_MS\): [0-9]+ ms, [0-9]+ frames polled \([0-9]+ a second\)" "$OUT/paced_fake.log" | grep -o -E "\([0-9]+ a second" | grep -o -E "[0-9]+")
     check $([ -n "$rate" ] && [ "$rate" -ge 30 ] && [ "$rate" -le 120 ] && echo 1 || echo 0) \
         "no session running: about a display period a frame (${rate:-no} frames a second at 90 Hz, host_maxfps 1000)"
@@ -105,6 +105,10 @@ if want 2; then
         "no session running: the session begun again after the idle"
     check $(inorder "$OUT/paced.log" "STILLRUNNING" "^exit=0") "no session running: the game runs on in VR"
     check $(none "$OUT/paced.log" "session lost|asked the game to exit") "no session running: no end said"
+    lines=$(count "$OUT/paced_openxr.txt" "xr [0-9.]+s: [0-9]+ frames")
+    late=$(count "$OUT/paced_openxr.txt" "xr [0-9.]+s: [0-9]+ frames \(0 rendered, 0 last again, [1-9][0-9]* panel, 0 empty, 0 ended by the next frame;")
+    check $([ "$lines" -ge 2 ] && [ "$late" = "$lines" ] && echo 1 || echo 0) \
+        "the menus' frames: each with the panel, finished at its copy, none by the next frame ($late of $lines timing lines)"
 fi
 
 if want 3; then

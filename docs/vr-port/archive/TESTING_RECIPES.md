@@ -1499,11 +1499,12 @@ fakexr on Linux (2026-11-19): `build.sh <worktree>` builds `fakexr_<copy>.so` wi
 headers, libGL) and the same manifests; the game binds it with GLX (`SDL_VIDEODRIVER=x11 SDL_VIDEO_X11_FORCE_EGL=0`:
 the fake offers no `XR_MNDX_egl_enable`), loaded through `XR_RUNTIME_JSON`. `FAKEXR_D3D11` and the `FAULT_*` crashes
 stay Windows' (the game's `vr_xr_guard` is Windows-only). `bash Misc/quakevr/xr_session_test.sh [sections]` (Linux,
-the game run directly and hidden; 29 checks, about 4 minutes on an integrated GPU) tests the session's faults:
+the game run directly and hidden; 30 checks, about 4 minutes on an integrated GPU) tests the session's faults:
 1. `FAKEXR_LOST=n:call:code` (from `xrWaitFrame` n, `poll`/`wait`/`begin`/`end` returns `session` or `instance` lost,
    no event): flat, said why with the call named, taken at the first answer; menus and a map's eye frames.
 2. `FAKEXR_END=60:restart` with `FAKEXR_IDLE_MS=1500` (READY 1.5 s after IDLE): the frames with no session running at
-   about 90 a second with `host_maxfps 1000`.
+   about 90 a second with `host_maxfps 1000`; the menus' frames each finished at their panel's copy (the
+   `vr_xr_log_timing` line's `0 ended by the next frame`).
 3. `FAKEXR_FAIL_PANEL_IMAGES=<copies>` (the panel's image fill fails, no crash): its swapchain destroyed at once,
    never acquired, tried once a session (a restart tries again), the eyes unaffected.
 

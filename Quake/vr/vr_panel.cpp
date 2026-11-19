@@ -379,17 +379,26 @@ void drawHud(const hands::State& s, const glm::vec4& mask)
     return {static_cast<int>(za::lround(h * aspect)), static_cast<int>(h)};
 }
 
-// The canvas into the backend's panel image, when it has one.
+// The canvas into the backend's panel image, when it has one; then the frame, which has no eyes (menus before a map,
+// the console, loading), is finished at once with its panel, as the eyes' frames are after their images: not by the
+// next frame's VR_BeginFrame, after the window's swap and the rest of the host frame.
 void copyToRuntimePanel()
 {
     Backend* be = backend();
-    const unsigned image = be ? be->acquirePanelImage(canvas.width, canvas.height) : 0;
-    if(!image)
+    if(!be)
     {
         return;
     }
-    gfx::copy(canvas, image);
-    be->releasePanelImage();
+    const unsigned image = be->acquirePanelImage(canvas.width, canvas.height);
+    if(image)
+    {
+        gfx::copy(canvas, image);
+        be->releasePanelImage();
+    }
+    if(be->frameActive())
+    {
+        be->endFrame(false);
+    }
 }
 
 } // namespace
