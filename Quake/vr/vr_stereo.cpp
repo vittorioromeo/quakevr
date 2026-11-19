@@ -1206,8 +1206,9 @@ extern "C" int VR_RenderView()
     // The size the eyes are drawn at this frame, and the size their targets are allocated at.
     const int drawnWidth = scaledEyeSize(imageWidth, sizes.maxWidth);
     const int drawnHeight = scaledEyeSize(imageHeight, sizes.maxHeight);
-    const int allocatedWidth = drawnWidth;
-    const int allocatedHeight = drawnHeight;
+    // Under dynamic resolution the ceiling's (vr_dynres.hpp): allocated once, its bucket's part drawn; else the same.
+    const int allocatedWidth = za::max(drawnWidth, dynres::eyeSize(imageWidth, sizes.maxWidth, dynres::allocationScale()));
+    const int allocatedHeight = za::max(drawnHeight, dynres::eyeSize(imageHeight, sizes.maxHeight, dynres::allocationScale()));
     stereo::resampling = drawnWidth != imageWidth || drawnHeight != imageHeight || upscale::sharpenAtNative();
     // (profiling builds: the eyes' drawn width over the image's, vr_render_scale's result, and the width itself)
     VR_TracyPlot("Render scale", static_cast<double>(drawnWidth) / imageWidth);
@@ -1443,8 +1444,10 @@ extern "C" void VR_HeadlessView()
         return;
     }
     const EyeSizes sizes = be->eyeSizes();
-    const int width = scaledEyeSize(imageWidth, sizes.maxWidth);
+    const int width = scaledEyeSize(imageWidth, sizes.maxWidth); // (drawn; allocated as VR_RenderView's: vid)
     const int height = scaledEyeSize(imageHeight, sizes.maxHeight);
+    const int allocatedWidth = za::max(width, dynres::eyeSize(imageWidth, sizes.maxWidth, dynres::allocationScale()));
+    const int allocatedHeight = za::max(height, dynres::eyeSize(imageHeight, sizes.maxHeight, dynres::allocationScale()));
 
     const int windowWidth = vid.width, windowHeight = vid.height;
     const int savedGlx = glx, savedGly = gly, savedGlwidth = glwidth, savedGlheight = glheight;
@@ -1452,8 +1455,8 @@ extern "C" void VR_HeadlessView()
     const float savedFovX = r_refdef.fov_x, savedFovY = r_refdef.fov_y;
     for(int eye = 0; eye < 2; eye++)
     {
-        vid.width = width;
-        vid.height = height;
+        vid.width = allocatedWidth;
+        vid.height = allocatedHeight;
         glx = gly = 0;
         glwidth = width;
         glheight = height;

@@ -1901,13 +1901,7 @@ void statusLines(za::Vector<za::String>& out)
 
 int scaledEyeSize(int image, int max)
 {
-    const float scale = dynres::scale(); // (vr_render_scale's, or dynamic resolution's: vr_dynres.cpp)
-    int size = static_cast<int>(za::lround(static_cast<double>(image) * scale));
-    if(max > 0)
-    {
-        size = q_min(size, max);
-    }
-    return q_max(size, 16);
+    return dynres::eyeSize(image, max, dynres::scale()); // (vr_render_scale's, or dynamic resolution's: vr_dynres.cpp)
 }
 
 } // namespace qvr
