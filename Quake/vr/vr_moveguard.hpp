@@ -53,7 +53,7 @@ struct Held
 
 // Server: move `m` bounded, its places from `base` (the move's origin; the server's own of him when the move has none),
 // for a player at `upm` units a metre.
-[[nodiscard]] Held guard(VrMove& m, const glm::vec3& base, float upm);
+[[nodiscard]] Held guard(VrMove& m, const glm::vec3& base, float upm, int slot = -1); // (slot: vr_mp_guard_debug's lines)
 
 // Server: client `slot`'s world scale as his avatar calibration says (vr_mpavatar.cpp; scaleFloor until it came).
 [[nodiscard]] float slotScale(int slot);

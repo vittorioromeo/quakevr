@@ -2,6 +2,7 @@
 
 #include "vr_moveguard.hpp"
 
+#include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_mpavatar.hpp"
 #include "vr_testkit.hpp"
@@ -40,6 +41,16 @@ void place(glm::vec3& p, const glm::vec3& base, float most, int& held)
     {
         p = base + within(p - base, most, held);
     }
+}
+
+[[nodiscard]] float sizeOf(const glm::vec3& v)
+{
+    return glm::length(v);
+}
+
+[[nodiscard]] float sizeOf(float v)
+{
+    return za::abs(v);
 }
 
 } // namespace
@@ -92,20 +103,42 @@ glm::vec3 speed(const glm::vec3& v)
     return within(v, speedMost, held);
 }
 
-Held guard(VrMove& m, const glm::vec3& base, float upm)
+Held guard(VrMove& m, const glm::vec3& base, float upm, int slot)
 {
     Held h;
     const float reach = reachMetres * upm;
-    for(VrHandMove& hand : m.hands)
+    // (vr_mp_guard_debug: each held value named, its size and its bound; under 1, also each over that share of it)
+    const float share = vr_mp_guard_debug.value;
+    const auto told = [&](const char* what, int i, int before, int now, float size, float most) {
+        if(share > 0.f && (now != before || size > most * share))
+        {
+            Con_Printf("mp_guard_%s: slot=%d %s[%d] %.3f of %.3f\n", now != before ? "held" : "near", slot, what, i,
+                size, most);
+        }
+    };
+    const auto spot = [&](glm::vec3& p, const char* what, int i) {
+        const int before = h.places;
+        const float size = p == glm::vec3{0.f} ? 0.f : glm::length(p - base);
+        place(p, base, reach, h.places);
+        told(what, i, before, h.places, size, reach);
+    };
+    const auto fast = [&](auto& v, float most, const char* what, int i) {
+        const int before = h.speeds;
+        const float size = sizeOf(v);
+        v = within(v, most, h.speeds);
+        told(what, i, before, h.speeds, size, most);
+    };
+    for(int i = 0; i < 2; i++)
     {
-        place(hand.pos, base, reach, h.places);
-        place(hand.tracked, base, reach, h.places);
-        hand.vel = within(hand.vel, speedMost, h.speeds);
-        hand.ownVel = within(hand.ownVel, speedMost, h.speeds);
-        hand.throwVel = within(hand.throwVel, speedMost, h.speeds);
-        hand.throwFlick = within(hand.throwFlick, speedMost, h.speeds);
-        hand.velMag = within(hand.velMag, speedMost, h.speeds);
-        hand.angVel = within(hand.angVel, spinMost, h.speeds);
+        VrHandMove& hand = m.hands[i];
+        spot(hand.pos, "pos", i);
+        spot(hand.tracked, "tracked", i);
+        fast(hand.vel, speedMost, "vel", i);
+        fast(hand.ownVel, speedMost, "ownVel", i);
+        fast(hand.throwVel, speedMost, "throwVel", i);
+        fast(hand.throwFlick, speedMost, "throwFlick", i);
+        fast(hand.velMag, speedMost, "velMag", i);
+        fast(hand.angVel, spinMost, "angVel", i);
         // Where a throw left the hand: QC's back-projection starts it there (at most 0.3 s ago: vr_carry.qc
         // VR_Throw_BackProject), so within reach and as far as he can have moved since. Held, not counted: it comes from
         // the hand's history, which an honest player's spawn or teleport leaves far behind him for a moment.
@@ -113,13 +146,13 @@ Held guard(VrMove& m, const glm::vec3& base, float upm)
         int uncounted = 0;
         place(hand.throwPos, base, reach + age * za::max(sv_maxvelocity.value, 0.f), uncounted);
     }
-    m.headVel = within(m.headVel, speedMost, h.speeds);
-    place(m.headPos, base, reach, h.places);
-    place(m.lampLens, base, reach, h.places);
+    fast(m.headVel, speedMost, "headVel", 0);
+    spot(m.headPos, "headPos", 0);
+    spot(m.lampLens, "lampLens", 0);
     for(int i = 0; i < 2; i++)
     {
-        place(m.muzzlePos[i], base, reach, h.places);
-        place(m.loadPort[i], base, reach, h.places);
+        spot(m.muzzlePos[i], "muzzlePos", i);
+        spot(m.loadPort[i], "loadPort", i);
         m.launchOfs[i] = within(m.launchOfs[i], launchMetres * upm, h.places);
         if(m.magBox[i][1] != glm::vec3{0.f}) // (none: all zero)
         {

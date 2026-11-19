@@ -4184,6 +4184,9 @@ def guard(s):
     walk cut to a walking head's budget; a fist of 500-unit spheres (a raw vr_rig) held to a hand's size. B honest
     again: nothing more held."""
     srv, a, b, ea, eb = join(s)
+    # (each held value named: "mp_guard_held:" lines; QVR_MP_GUARD_DEBUG 0.5: also those over half their bound)
+    srv.cmd("vr_mp_guard_debug %s" % os.environ.get("QVR_MP_GUARD_DEBUG", "1"))
+    honest_from = srv.mark()
     a.cmd("vr_height_calibration 1.95; vr_mock_hand head 0 1.95 0")
     wpn = arm_with(s, srv, a, ea, 10, "")
     s.check("A holds the rocket launcher (the server's report)", wpn and wpn[-1] == 10, "A's main weapon: %s" % wpn)
@@ -4204,6 +4207,7 @@ def guard(s):
     s.note("A's drawn main hand: %s; its grips %s" % (own, grips))
 
     before = guard_counts(srv)
+    a_held = [l for l in srv.lines[honest_from:] if l.startswith("mp_guard_held: slot=%d " % (ea - 1))]
     lines = status(srv)
     b_from = org_of(lines, "mp_client", "slot", eb - 1)
     b.cmd("vr_mp_test_cheat 15")
@@ -4218,7 +4222,7 @@ def guard(s):
     s.note("the server's counts before: %s; after B's lies: %s" % (before, during))
     held_a = {k: v for k, v in ga.items() if k != "moves" and v != 0}
     s.check("A's honest moves (tall, a long weapon up, out and across, two-handed): none of his values held",
-            ga.get("moves", 0) > 100 and not held_a, "A: %s" % ga)
+            ga.get("moves", 0) > 100 and not held_a, "A: %s; held: %s" % (ga, a_held[:6]))
     s.check("B's lies held and counted: places, speeds, the room-scale walk, the view's rewind, the fist",
             all(gb.get(k, 0) > 0 for k in ("places", "speeds", "walks", "rewinds", "fists")), "B: %s" % gb)
     if b_from and b_to:

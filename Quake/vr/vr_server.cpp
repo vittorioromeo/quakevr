@@ -1732,7 +1732,7 @@ void applyVrMove(client_t* client, const VrMove& sent)
     {
         const glm::vec3 base = sent.origin != glm::vec3{0.f} ? sent.origin
                                                              : glm::vec3{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]};
-        moveguard::count(clientNum, moveguard::guard(bounded, base, moveguard::unitsPerMetre(moveguard::slotScale(clientNum))));
+        moveguard::count(clientNum, moveguard::guard(bounded, base, moveguard::unitsPerMetre(moveguard::slotScale(clientNum)), clientNum));
     }
     const VrMove& move = bounded;
     if(clientNum >= static_cast<int>(clientMoves.size()))
