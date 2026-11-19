@@ -149,7 +149,7 @@ void(vector cu_start, vector cu_limit, entity cu_from, float cu_damage) cu_Light
 	// quake immediately reuses beams that come from the same entity, so the
 	// entity the lightning jumped from has to own the next leg of lightning
 	// or else they auto-overwrite and only the final (nearest) one appears
-	WriteEntity (cu_MSG_BROADCAST, cu_from);
+	WriteEntity (cu_MSG_BROADCAST, cu_from); WriteByte (cu_MSG_BROADCAST, 0);
 	WriteCoord (cu_MSG_BROADCAST, cu_start_x);
 	WriteCoord (cu_MSG_BROADCAST, cu_start_y);
 	WriteCoord (cu_MSG_BROADCAST, cu_start_z);
@@ -256,7 +256,7 @@ float(entity src, entity att, float dmg) W_ChainLightning =
 			
 			WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
 			WriteByte (MSG_BROADCAST, TE_LIGHTNING2);
-			WriteEntity (MSG_BROADCAST, targ1);
+			WriteEntity (MSG_BROADCAST, targ1); WriteByte (MSG_BROADCAST, 0);
 			
 			// shave a little off each end of the beam - it'll still be inside both
 			// monsters' bounds but it'll save us a t_ent here and there, and reduces
@@ -276,7 +276,7 @@ float(entity src, entity att, float dmg) W_ChainLightning =
 				
 				WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
 				WriteByte (MSG_BROADCAST, TE_LIGHTNING2);
-				WriteEntity (MSG_BROADCAST, targ2);
+				WriteEntity (MSG_BROADCAST, targ2); WriteByte (MSG_BROADCAST, 0);
 				
 				dir = normalize(dst - org) * 12;
 				WriteCoord (MSG_BROADCAST, org_x + dir_x);
@@ -336,7 +336,7 @@ void() cu_W_FireLightning =
 	
 /*	WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
 	WriteByte (MSG_BROADCAST, TE_LIGHTNING2);	// kabewm
-	WriteEntity (MSG_BROADCAST, self);
+	WriteEntity (MSG_BROADCAST, self); WriteByte (MSG_BROADCAST, 0);
 	WriteCoord (MSG_BROADCAST, org_x);
 	WriteCoord (MSG_BROADCAST, org_y);
 	WriteCoord (MSG_BROADCAST, org_z);

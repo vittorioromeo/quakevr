@@ -23,7 +23,7 @@ void(vector cu_a, vector cu_b, entity cu_who) cu_fx_beam =
 {
 	WriteByte (cu_MSG_BROADCAST, cu_SVC_TEMPENTITY);
 	WriteByte (cu_MSG_BROADCAST, cu_TE_LIGHTNING1);
-	WriteEntity (cu_MSG_BROADCAST, cu_who);
+	WriteEntity (cu_MSG_BROADCAST, cu_who); WriteByte (cu_MSG_BROADCAST, 0);
 	WriteCoord (cu_MSG_BROADCAST, cu_a_x);
 	WriteCoord (cu_MSG_BROADCAST, cu_a_y);
 	WriteCoord (cu_MSG_BROADCAST, cu_a_z);
@@ -55,7 +55,7 @@ void(float cu_blasttype) cu_BecomeBlast =
 	WriteCoord (cu_MSG_BROADCAST, self.origin_z);
 	
 	if (cu_blasttype == 2)
-		setmodel (self, "progs/s_explo2.spr");
+		setmodel (self, VR_ModelOr("progs/s_explo2.spr", "progs/s_explod.spr"));
 	else
 		setmodel (self, "progs/s_explod.spr");
 	
@@ -1231,13 +1231,13 @@ void() cu_target_debris =
 	else
 	{
 		self.cu_cnt = 3;
-		self.model = "progs/debris1.mdl";
-		self.cu_model2 = "progs/debris2.mdl";
-		self.cu_model3 = "progs/debris3.mdl";
+		self.model = VR_ModelOr("progs/debris1.mdl", "progs/vr_rock1.mdl");
+		self.cu_model2 = VR_ModelOr("progs/debris2.mdl", "progs/vr_rock1.mdl");
+		self.cu_model3 = VR_ModelOr("progs/debris3.mdl", "progs/vr_rock1.mdl");
 		
-		precache_model("progs/debris1.mdl");
-		precache_model("progs/debris2.mdl");
-		precache_model("progs/debris3.mdl");
+		precache_model(VR_ModelOr("progs/debris1.mdl", "progs/vr_rock1.mdl"));
+		precache_model(VR_ModelOr("progs/debris2.mdl", "progs/vr_rock1.mdl"));
+		precache_model(VR_ModelOr("progs/debris3.mdl", "progs/vr_rock1.mdl"));
 	}
 }
 

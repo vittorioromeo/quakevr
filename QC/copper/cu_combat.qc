@@ -399,6 +399,7 @@ even if the target resisted the damage
 */
 void(entity cu_targ, entity cu_inflictor, entity cu_attacker, float cu_damage, float cu_dmgtype = 0) cu_T_Damage =
 {
+	if (VR_CU_DamageOurs(cu_targ, cu_inflictor, cu_attacker, cu_damage)) return; // QVR: ours take it by our T_Damage (vr_copper_bridge.qc)
 	cu_T_DamageApply(cu_targ, cu_inflictor, cu_attacker, cu_damage, cu_dmgtype);
 	cu_targ.cu_customflags = cu_not(cu_targ.cu_customflags, cu_CFL_AXEHITME | cu_CFL_ZAPPED);
 }

@@ -4190,3 +4190,51 @@ and MP-only parts left on their branches.
   (monster_boss, oldone, Chthon), item_flag*/time machine (Rogue map pieces), item_head_hellknight (MG3 campaign trophy),
   monster_decoy (made by its Hipnotic weapon). New `qvr_checks toolgun_weapons`: every WID_* has a Weapons row (exempt:
   fist, AD eliminator).
+
+## Dwell P1b, part one (copper1b, 2026-11-19)
+
+Campaign 7 `dwell` (a dwell or dwellv2p2 folder, v2.2 by its progs.dat; experimental like AD), the COPPER ruleset
+detected (its classnames, Dwell's, `_tb_mod`) and played by Dwell's campaign and Copper/Dwell Map Library packages,
+the `cu_<key>` fill, function-key leniency, one delayed-monster adapter for AD and Copper (`vr_rules_monsters.qc`), the
+Copper bridge (damage both ways, world setup and frame, fog by MG_SetFog, target_autosave). Acceptance
+`Misc/quakevr/dwell_maps.sh`: 22 passed, 4 failed (a wizard's NULL function on d1m7, d1m8, d2m8; d2end fixed after).
+Details and what is left: DWELL.md 9.2.
+
+## Dwell P1b, part two (copper1b2, 2026-11-19)
+
+The NULL function on d1m7, d1m8, d2m8 was not the delayed-monster adapter: a patrolling wizard of ours (no spawnflags,
+`target` a path_corner) reached one of Copper's path_corners, whose touch sets `think = cu_th_stand`, NULL on our
+monsters. AD's path_corner had the same hand-off (`VR_AD_PathCornerTouch`); it is now every ruleset's,
+`VR_Rules_PathCornerTouch` (`QC/vr_rules_monsters.qc`: one of our monsters, not AD's or Copper's own, follows another
+ruleset's path_corner by our `t_movetarget`), called from AD's and Copper's touch (an import patch each). The guard,
+`VR_Rules_MonsterThCheck`: one of our monsters starting with a NULL th_stand, th_walk, th_run or th_die prints
+`VR_Rules: QC error: <classname> at <origin> has no <field>` (none in Dwell's 24 maps, e1m1). Test `vr_ad_test 199`
+(`QC/vr_rules_test.qc`, any map): both path_corners and the guard, 4 passed. `dwell_maps.sh` saves 15 frames after the
+`map` (d2m8's 4,000-edict signon puts the player in about 8 frames after it; its save at 3 failed "with a dead
+player"): **26 passed, 0 failed** (d1m7 31 live + 127 waiting, d1m8 114 + 131, d2m8 440 + 258).
+Regression: the spawn census over the 168 non-Copper maps vs origin/next: 141 identical, 27 different, every difference
+the moved adapter's function names on AD maps' delayed monsters (`AD_MonsterActivate` now `VR_SF_MonsterActivate`; 0
+other differences with those mapped); the demon's coop filter shows on no MG map in single player. Detection: 0 of 168
+official/AD maps and 0 of 49 installed Map Library maps reach Copper's threshold (the 50th, Ancient, made for Copper,
+does). Left: DWELL.md 9.2.
+
+
+## Dwell P1b, part three: ship prep (copper1b3, 2026-11-19)
+
+Copper custom maps play through the Map Library's path: Ancient and Underdark Overbright v1.1's `udob1`, installed
+into the test base's `qvr_addons` with their `maps_installed.txt` lines by `Misc/quakevr/copper_custom_setup.py`
+(copies Ancient from an installed copy, unpacks Quaddicted's udob zip from `qvr-kit/downloads/underdark/`; never
+downloads), played first by `dwell_maps.sh`. Both stopped at `Host_Error: progs/v_axe2.mdl not found`: Copper's own
+models come with Copper's release, not with its maps. Copper's 11 own model names now go through `VR_ModelOr` (the
+existing helper, `vr_packutil.qc`) to a stock stand-in (an import patch per name, `copper_import.py`; debris: our
+`vr_rock1.mdl`). Ancient's one `OBJECT ERROR` is its own leftover `target_state` with no targetname (Copper says the
+same): `dwell_maps.py` `MAP_OWN`. `dwell_maps.py` now counts spawn-time errors against the map being loaded.
+`dwell_maps.sh`: **28 passed, 0 failed** (ancient 27 live + 24 waiting, udob1 31 + 13, every map Copper, 0 missing
+spawn functions but Dwell's own). ReleaseLTO: 0 warnings. Merge of origin/next: up to date.
+Regression (the previous worker's run): saveload 30/0, scenario_check 136 run 0 failed, mg3_route exits 71/0, MG3
+buttons/kill/rune, AD hub/world PASS. **mg3_route main and bn legs stall after their planned player death** (2 of 60,
+4 of 15 steps): the same on a clean origin/next build (round25 detached, main leg: 2 of 60, timeout), so not this
+branch's; the death menu (a25f4d0d4) waiting for a choice is the likely cause (not investigated).
+Ship prep: `Dwell.OnByDefault = true` (installer self-test, Installer README, INSTALLER.md, DWELL.md 7); the release
+scripts' sandboxed installs pass `--no-dwell`; CREDITS gains the Dwell team; PATCH_NOTES_1.1.1 a "Campaigns" bullet.
+Left (deferrable): DWELL.md 9.2.

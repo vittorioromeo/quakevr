@@ -120,7 +120,7 @@ entity(vector cu_org, vector cu_vel) cu_launch_wizspike =
 	{
 		cu_spike = cu_launch_projectile(cu_org, cu_vel*720, "wizspike");	// FLYMISSILE
 		cu_spike.dmg = 20;
-		cu_SUB_ChangeModel (cu_spike, "progs/w_spike2.mdl");
+		cu_SUB_ChangeModel (cu_spike, VR_ModelOr("progs/w_spike2.mdl", "progs/w_spike.mdl"));
 	}
 	else
 	{
@@ -404,7 +404,7 @@ void() cu_monster_wizard =
 	precache_model ("progs/wizard.mdl");
 	precache_model ("progs/h_wizard.mdl");
 	precache_model ("progs/w_spike.mdl");
-	precache_model ("progs/w_spike2.mdl");
+	precache_model (VR_ModelOr("progs/w_spike2.mdl", "progs/w_spike.mdl"));
 
 	precache_sound ("wizard/hit.wav");		// used by c code
 	precache_sound ("wizard/wattack.wav");

@@ -262,6 +262,22 @@ def sha256(path):
     return h.hexdigest()
 
 
+BEAM_RX = re.compile(r"^([ \t]*)WriteEntity[ \t]*\([ \t]*(MSG_\w+)[ \t]*,([^;\n]*)\);", re.M)
+
+
+def beam_id_bytes(src):
+    """Mechanical, every import's: Quake VR's beam temp entities (TE_LIGHTNING1/2/3, TE_BEAM) carry a beam id byte after
+    the entity (the client's VR_ParseBeamEntity; ours write 0 for a monster's). Every WriteEntity in a mod's code (not
+    commented out) is one of those beams' entity: the byte follows it, else the client reads the next message one byte
+    off ("Bad server message"). Edits `src` in place; returns how many."""
+    count = 0
+    for fn in src:
+        src[fn], n = BEAM_RX.subn(lambda m: "%sWriteEntity (%s,%s); WriteByte (%s, 0);" % (
+            m.group(1), m.group(2), m.group(3), m.group(2)), src[fn])
+        count += n
+    return count
+
+
 SIGS = {}  # Quake VR's function and builtin signatures, by name (ours())
 
 

@@ -228,7 +228,7 @@ void(vector cu_tgt) cu_trap_lightning_effect =
 		WriteByte (cu_MSG_ALL, cu_TE_LIGHTNING2);
 	}
 	
-	WriteEntity (cu_MSG_ALL, self);
+	WriteEntity (cu_MSG_ALL, self); WriteByte (cu_MSG_ALL, 0);
 	WriteCoord (cu_MSG_ALL, self.origin_x);
 	WriteCoord (cu_MSG_ALL, self.origin_y);
 	WriteCoord (cu_MSG_ALL, self.origin_z);

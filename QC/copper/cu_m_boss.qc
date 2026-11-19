@@ -464,7 +464,7 @@ void() cu_lightning_fire =
 
 	WriteByte (cu_MSG_ALL, cu_SVC_TEMPENTITY);
 	WriteByte (cu_MSG_ALL, cu_TE_LIGHTNING3);
-	WriteEntity (cu_MSG_ALL, world);
+	WriteEntity (cu_MSG_ALL, world); WriteByte (cu_MSG_ALL, 0);
 	WriteCoord (cu_MSG_ALL, cu_p1_x);
 	WriteCoord (cu_MSG_ALL, cu_p1_y);
 	WriteCoord (cu_MSG_ALL, cu_p1_z);

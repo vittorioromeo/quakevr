@@ -45,7 +45,8 @@ import re
 import struct
 import sys
 
-import qc_import
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # (run with python -I: the source is untrusted data)
+import qc_import  # noqa: E402
 from qc_import import pak_files, read_pak, sha256
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -139,7 +140,7 @@ PATCHES = [
      "\tVR_AD_Hit(targ, inflictor, attacker, take);\n\tVR_AD_Splash(0);\n",
      1, B + ": our hit hooks on AD's monsters (damage numbers, gore, small gibs, wounds)"),
     ("ai_pathcorner.qc", "void() path_corner_touch =\n{\n",
-     "void() path_corner_touch =\n{\n\tif (VR_AD_PathCornerTouch()) return;\n",
+     "void() path_corner_touch =\n{\n\tif (VR_Rules_PathCornerTouch()) return;\n",
      1, B + ": our monsters follow AD's path_corners as ours (t_movetarget)"),
     ("items.qc", "void() weapon_touch =\n{\n\tlocal float pickupweapon, pickupmodweapon, pickupammo, moditem;\n",
      "void() weapon_touch =\n{\n\tlocal float pickupweapon, pickupmodweapon, pickupammo, moditem;\n\tif (VR_AD_WeaponTouch()) return;\n",
@@ -292,6 +293,7 @@ QVR_NAMES = {"VR_MeleeArc_Hits", "VR_MeleeBlow", "VR_MeleeReach", "VR_MeleeArc_L
              "VR_ADGun_BoltShock", "VR_ADGun_StreamFx", "VR_ADGun_StreamMuzzle", "VR_ADGun_Poison", "VR_Hit_BeginAs", "VR_Hit_End",
              "VR_Proj_Begin", "VR_Proj_End", "VR_Proj_Mark", "QVR_PROJ_LASER", "QVR_PROJ_BOLT", "QVR_PROJ_BLAST"}
 QVR_NAMES |= {"VR_HitReact_Dist"}  # (the hit reactions' patches above)
+QVR_NAMES |= {"VR_Rules_PathCornerTouch"}  # (our monsters on AD's path_corners: every ruleset's, vr_rules_monsters.qc)
 QVR_NAMES |= {"VR_ADGun_FlameDoused", "VR_ADGun_FlameScorch"}  # (the pyro's flames: water, scorch)
 _STAMP = "\tself.vr_melee_time = time; // QVR: kept out of the player's head meanwhile (vr_enemy_melee_space)\n"
 _STEP = " // QVR: (VR_MeleeSpace_Step: fight.qc)"
@@ -829,15 +831,8 @@ def main():
     if count != 1:
         sys.exit("ad_import: monster pellet speed hook missing")
     src["ai_projectiles.qc"] = projectile
-    # Mechanical: Quake VR's beam temp entities (TE_LIGHTNING1/2/3, TE_BEAM) carry a beam id byte after the entity
-    # (the client's VR_ParseBeamEntity; ours write 0 for a monster's). Every WriteEntity in AD's code (not commented out)
-    # is one of those beams' entity: the byte follows it, else the client reads the next message one byte off.
-    beam_rx = re.compile(r"^([ \t]*)WriteEntity[ \t]*\([ \t]*(MSG_\w+)[ \t]*,([^;\n]*)\);", re.M)
-    beam_ids = 0
-    for fn in src:
-        src[fn], n = beam_rx.subn(lambda m: "%sWriteEntity (%s,%s); WriteByte (%s, 0);" % (
-            m.group(1), m.group(2), m.group(3), m.group(2)), src[fn])
-        beam_ids += n
+    # Mechanical: the beam id byte after every beam's entity (qc_import.beam_id_bytes, every import's rule).
+    beam_ids = qc_import.beam_id_bytes(src)
     mod = qc_import.Mod(
         name="Arcane Dimensions", short="AD", script="ad_import.py", folder="ad", prefix=PREFIX, skip=SKIP,
         headers=HEADERS, keep_prefixes=(BRIDGE,), qvr_names=QVR_NAMES, own_names=OWN_NAMES, keys=map_keys(rel),

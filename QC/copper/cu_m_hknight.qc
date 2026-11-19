@@ -239,7 +239,7 @@ void(vector cu_dir, vector cu_org) cu_hknight_bolt =
 	if (cu_skill == 3)
 	{
 		cu_spike = cu_launch_projectile(self.origin + cu_org + cu_dir * 20, cu_dir * 600, "knightspike");	// FLYMISSILE
-		cu_SUB_ChangeModel (cu_spike, "progs/k_spike2.mdl");
+		cu_SUB_ChangeModel (cu_spike, VR_ModelOr("progs/k_spike2.mdl", "progs/k_spike.mdl"));
 		cu_spike.dmg = 16 + 8 * random();
 	}
 	else
@@ -533,7 +533,7 @@ void() cu_monster_hell_knight =
 	}
 	precache_model2 ("progs/hknight.mdl");
 	precache_model2 ("progs/k_spike.mdl");
-	precache_model2 ("progs/k_spike2.mdl");
+	precache_model2 (VR_ModelOr("progs/k_spike2.mdl", "progs/k_spike.mdl"));
 	precache_model2 ("progs/h_hellkn.mdl");
 
 	

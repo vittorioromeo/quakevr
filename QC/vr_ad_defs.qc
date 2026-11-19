@@ -54,7 +54,6 @@ float() AD_SetChangeParms;           // SetChangeParms (first): AD's level state
 void() AD_DecodeLevelParms;          // DecodeLevelParms: AD's worldspawn inventory keys and map variables
 void() AD_ChangelevelSpawn;          // trigger_changelevel: AD's keys (no map: this map; start off; ad_tears' exits)
 float() AD_ChangelevelTouch;         // changelevel_touch: FALSE when the exit is off (AD's entity state)
-float(void() start) AD_MonsterPrepare; // walk/fly/swimmonster_start: AD's spawn flags and keys on our monsters
 void(entity targ, entity attacker) AD_MonsterKilled; // Killed: AD's keys on our monsters (deathtarget)
 float(entity e) AD_Run;              // AD's code owns this entity's damage, pain and death (AD's monsters, breakables)
 float(entity e) AD_BreakKind;        // the props' impact rule (vr_carry.qc VR_Prop_Kind): an AD breakable's VR_PROPK_*, else 0
@@ -164,7 +163,6 @@ float(entity client, float density, vector colour) VR_AD_Fog;
 float(entity targ, entity inflictor, entity attacker, float damage, float checkarmor) VR_AD_DamageOurs;
 void(entity targ, entity inflictor, entity attacker, float take) VR_AD_Hit;
 void(float xSplash) VR_AD_Splash; // (vr_kdtrig.qc: AD's radius damage, for the explosions' ragdoll trigger)
-float() VR_AD_PathCornerTouch;
 float(entity pellet) VR_AD_PelletDamage;
 void(entity victim, entity pellet, float damage) VR_AD_PelletHit;
 void(entity pellet) VR_AD_PelletPrepare;

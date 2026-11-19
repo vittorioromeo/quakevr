@@ -3,6 +3,13 @@
 **Version 1.1.1**, compared with 1.1.0 (whose notes, PATCH_NOTES_1.1.md, are final). This file grows with every change
 that ships in 1.1.1.
 
+## Campaigns
+
+- **Dwell (experimental).** Dwell's two episodes, and custom maps made for Copper (such as Underdark Overbright), now
+  play, by Copper's rules: Select Campaign > Dwell, and the Map Library's Copper maps. The installer offers Dwell
+  (free, by Fairweather and the Dwell team), ticked by default. Dwell's own new monsters, weapons and powerups come in
+  a later update.
+
 ## Graphics
 
 - **Relighting about twice as fast.** Quake VR now ships its own build of ericw-tools' `light` (2.0.0-alpha11-qvr1)

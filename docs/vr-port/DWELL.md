@@ -308,7 +308,7 @@ mode, skill 1), 300 game frames each, then a verdict line (`scratch/dwell_probe.
   beside it). Quaddicted's own packages already use `{base}/dwell/`. Music included; `Track107.ogg` renamed to lower case
   (section 4).
 - **Size shown first**: 385 MB download, 800 MB on disk (the installer's units show 367 MB and 762 MB).
-- **Landed 2026-11-19 (branch `agent/dwellinstall`), off by default**: `Dwell.OnByDefault` (Installer Core, `Packaging/Dwell.cs`) is `false`; flipping it to `true` in the P1b build is the whole change. Built on the shared third-party path (`ModComponent`, the one AD uses). `Track107.ogg` is renamed to lower case on install (not copied: no duplicate, one name in install.json). Slipseer is not added (hash not checked).
+- **Landed 2026-11-19 (branch `agent/dwellinstall`)**; **on by default since P1b** (branch `agent/copper1b`): `Dwell.OnByDefault` (Installer Core, `Packaging/Dwell.cs`) is `true`. Built on the shared third-party path (`ModComponent`, the one AD uses). `Track107.ogg` is renamed to lower case on install (not copied: no duplicate, one name in install.json). Slipseer is not added (hash not checked).
 - The README placement: inside `dwell/`, so the install root stays clean and the uninstall removes them with the folder.
 - **"I already have it"**: a `dwell` or `dwellv2p2` folder in an owned Quake root, validated by `progs.dat`'s hash (v2.2),
   used in place. Older Dwell versions reported, not used. The engine's `vr_campaign_status` reports it.
@@ -467,6 +467,79 @@ Total: about 37-61 agent-days. P0.5 is the gate: it proves the generic mechanism
   Do it with Dwell's switch in P1b, if that switch would otherwise add a second QC reader.
 - **Left for P1b**: the engine's `cu_<key>` fill in Copper maps; Copper's world setup (its `worldspawn`, light
   styles) and what its dropped `StartFrame` did; the precedence look-alikes above; the COPPER row's signals and data.
+
+### 9.2 Built: P1b, part one (2026-11-19, branch `agent/copper1b`; not finished, see "Left")
+
+- **Campaign 7 `dwell`** (`vr_gamedir.cpp`, `Quake/vr/vr_dwell.cpp`): found as `<root>/dwell` (the installer's) or
+  `dwellv2p2` (the zip's) in any owned root; v2.2 only, by `progs.dat`'s size and SHA-256 (another version: status 3,
+  said once); `vr_dwell_status`. Its folder never supplies its progs, `quake.rc`, `default.cfg` or the 64 files an
+  official pak has (`vr_dwell_data.inc`, written by `Misc/quakevr/dwell_data.py`): our VR models, heads and sounds
+  stay Quake's. Mounted only while it is the campaign (its content in other maps is P2). Like AD: a start map of its own
+  only, experimental (Select Campaign's notice, Run Setup, `vr_campaign_native dwell`), saves record campaign 7.
+  **Fewer special cases:** a campaign row now carries its own checks (alias folder, version check, `skipInFolder`,
+  experimental), replacing AD's index tests in discovery, `VR_SkipSearchPath`, the status texts and the menu
+  (`VR_CampaignExperimental`); Arena Mode's row follows the last campaign.
+- **COPPER detected** (`vr_rules.cpp`): its own `cu_` classnames (none of ours, not `func_group`, `misc_external_map`,
+  `func_detail*`), Dwell's 16 own classnames (no spawn function until P2), and the worldspawn `_tb_mod` naming copper or
+  dwell; threshold 2; data needs none (Copper's code is in the progs). The Dwell campaign plays by it, and a Map
+  Library package made for Copper or Dwell (`madeFor`, the active package's own map) does too (`vr_ruleset_info`
+  says "the package's mod"); its detail says "plays natively by Copper's rules (experimental)". AD/Copper shared names
+  (`func_explobox`, `item_backpack`, `trigger_timer`) are nobody's signal now that both rows detect.
+  `misc_explobox(2)` stays ours under Copper (a row's `keptOurs`): Copper's brush box died under our prop physics
+  (`SOLID_BSP without MOVETYPE_PUSH`).
+- **Map keys** (`pr_edict.c`): AD's `ad_<key>` fill is generic (`ED_FindRulesetKeyField`, `VR_Rules_KeyPrefix`):
+  Copper's `cu_<key>` (`include`, `target2`...) in Copper maps (fixed `target_state`'s 14 "no include" errors on
+  `start`). A function key naming its mod's function (`"use" "func_void"`) resolves to `cu_func_void`; one naming a
+  function the progs lacks (d2end's `bmodel_vanish`) is skipped with a warning, once, not a `Host_Error`.
+- **Spawnflags** (S3's column live): our monsters' delayed (16), angry (128), quiet (32) and no-telefrag (64) spawns
+  through **one adapter** for every ruleset (`QC/vr_rules_monsters.qc`, AD's `AD_MonsterPrepare` moved and generalised;
+  AD's behaviour unchanged); coop bits by `VR_SF_SpawnInhibited` (our demon lacked the call: added).
+- **Bridge** (`QC/vr_copper_defs.qc`, `QC/vr_copper_bridge.qc`; reviewed patches in `copper_import.py`): Copper's
+  `T_Damage` on ours is our `T_Damage`; ours on Copper's damageable entities is Copper's (`CU_Run`: `cu_th_die` or
+  `cu_th_pain`); Copper's `worldspawn` after ours and its `StartFrame`'s work (skill buttons, settling frames) in Copper
+  maps; Copper's fog through `MG_SetFog` (svc_fog, the one path MG and AD use; the file rename to `vr_fog.qc` not done);
+  `target_autosave` runs `vr_autosave_now`. The beam id byte rule is every import's (`qc_import.beam_id_bytes`; it
+  fixed d1m1's "Bad server message"; AD's import output unchanged, `--check` 0 of 142).
+- **Music**: nothing to change: the maps' tracks are found in Dwell's `music/` (the engine's track stems already
+  include `Track`, so `Track107.ogg` is found on any file system).
+- **Acceptance** (`Misc/quakevr/dwell_maps.sh`: each map loaded, saved 3 frames after spawn, 600 frames run; the exit
+  chain; three saves loaded back; `dwell_maps.py` verdict): every map's ruleset Copper; **0 missing spawn functions
+  but Dwell's own** (start 140, d2m8 150, ... P2's); 0 coop-only placements in single player; monsters live + waiting
+  e.g. d1m1 31 + 62, d1m3 62 + 119, d2m4 53 + 167 (the 3,343 triggered ones now wait); start's exit goes to
+  dwelldm3, d1m1's to d1m2; d1m3, d2m4, d2end saves load back by Copper's rules. **22 passed, 4 failed**: d1m7, d1m8
+  and d2m8 end on `PR_ExecuteProgram: NULL function` with a `monster_wizard` as self (delayed angry wizards,
+  spawnflags 208/400; `th_die` unset in the printed edict, called with no QC stack: from the engine); d2end's failure
+  (an `info_notnull` using `func_void`) is fixed since (the function-key resolution; d2end runs 600 frames clean).
+- **Part two** (branch `agent/copper1b`, continued): the wizard's NULL function was Copper's path_corner touch (`think
+  = cu_th_stand`, NULL on our monsters: a patrolling wizard, not a delayed one). Every ruleset's path_corner now hands
+  our monsters to our `t_movetarget` (`VR_Rules_PathCornerTouch`, `vr_rules_monsters.qc`; AD's hook generalised; an
+  import patch in AD's and Copper's touch), and `VR_Rules_MonsterThCheck` names one of our monsters starting with a
+  NULL th_stand/walk/run/die (a "QC error" line). Test `vr_ad_test 199`. `dwell_maps.sh`: **26 passed, 0 failed** (its
+  saves 15 frames after the map: d2m8's signon is slow). Census vs origin/next over the 168 non-Copper maps: the moved
+  adapter's function names only (27 AD saves), nothing else; 0 false Copper detections in 168 official/AD maps and 49
+  installed Map Library maps (Ancient, made for Copper, detected). ROUND25 "Dwell P1b, part two".
+- **Part three, ship prep** (branch `agent/copper1b`): **Copper custom maps** through the Map Library's path:
+  Ancient (copied from an installed copy) and Underdark Overbright v1.1's `udob1` (Quaddicted's zip in
+  `qvr-kit/downloads/underdark/`), put into the test base's `qvr_addons/<sha16>/` with their `maps_installed.txt`
+  lines by `Misc/quakevr/copper_custom_setup.py` (idempotent, never downloads); `dwell_maps.sh` plays both first, in
+  the stock game, the same way as Dwell's maps. Both stopped at `Host_Error: progs/v_axe2.mdl not found`: Copper's
+  own models ship with Copper's release (or Dwell's folder), not with a map made for Copper. Each of Copper's 11 own
+  model names (`v_axe2`, `s_explo2`, `debris1-3`, `k_spike2`, `v_spike2`, `w_spike2`, `zombienm`, `h_zombnm`) is now
+  `VR_ModelOr(<Copper's>, <stock>)` (`vr_packutil.qc`'s existing helper; an import patch, `copper_import.py`), so the
+  stock model stands in when Copper's is absent (debris: our `vr_rock1.mdl`). Copper's sounds need nothing (a missing
+  sound is a warning). Ancient's one `OBJECT ERROR` (a `target_state` with no targetname: the map's own leftover,
+  which Copper reports the same way) is the map's (`dwell_maps.py` `MAP_OWN`); `dwell_maps.py` now counts a map's
+  spawn-time errors against that map (`dwell: map X` echoed before `map X`). Installer: `Dwell.OnByDefault = true`
+  (self-test, README, INSTALLER.md); the release scripts' sandboxed installs pass `--no-dwell` (their checks stay
+  the Quake VR install, not a 367 MB download). CREDITS: the Dwell team (its README). Patch notes 1.1.1: one bullet. `dwell_maps.sh`: **28 passed, 0 failed** (ancient 27
+  live + 24 waiting, udob1 31 + 13, all Copper); ReleaseLTO 0 warnings.
+  Regression: `mg3_route`'s main and bn legs stall after their planned player death (2 of 60, 4 of 15 steps) on a
+  clean origin/next build too (likely the death menu, a25f4d0d4, waiting for a choice): not this branch's; exits 71 passed; saveload 30/0,
+  scenario_check PASS (136 run, 0 failed), AD hub 10/0 and world PASS, AD scope ran clean (no verdict line), MG3 buttons, kill, rune PASS.
+- **Left** (deferrable, after ship): our monsters' and pickups' numbers by Copper (S6's per-ruleset table); the
+  WaterMove/t_void precedence decision with AD's; `vr_mg_fog.qc` renamed `vr_fog.qc`; Copper maps with Dwell
+  installed could use Dwell's real Copper models (its folder mounted for a Copper package) instead of the stock
+  stand-ins; Copper's `target_debris` lost its FGD preview (the model name is now inside `VR_ModelOr`).
 
 ---
 

@@ -32,6 +32,7 @@
 #include "vr_weapons.hpp"
 #include "vr_wounds.hpp"
 #include "vr_ad.hpp"
+#include "vr_dwell.hpp"
 
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -370,6 +371,17 @@ constexpr const char* mg3Resources[] = {
 constexpr const char* adResources[] = {
 #include "vr_pack_ad.inc"
 };
+constexpr const char* dwellResources[] = {
+#include "vr_pack_dwell.inc"
+};
+// A third-party campaign's own checks (AD's, Dwell's): which release it is, the files its folder must not supply.
+struct CampaignChecks
+{
+    const char* alias;                      // a second folder name it is found under ("dwellv2p2": the zip's), or null
+    int (*version)(const char* folder);     // 1: the release played; 3: another version (refused, said once)
+    bool (*skipInFolder)(const char* file); // its folder does not supply this file (its progs, quake.rc, id's files)
+    bool experimental;                      // played from Select Campaign after a notice (its own developer launch)
+};
 struct Campaign
 {
     const char* folder;
@@ -381,21 +393,35 @@ struct Campaign
     size_t resourceCount;
     int status;
     char root[MAX_OSPATH];
+    CampaignChecks checks;
+    char dir[16]; // the folder it was found under (folder, or checks.alias): its search path's name
 };
 // The installer mirrors nativeReady and soloOnly() (Installer/.../ExpansionDetector.cs, its "ready" labels); its
 // self-test "expansions: readiness matches the engine" fails until both agree.
 Campaign campaigns[] = {
-    {"id1", "Quake", "start", 0, true, nullptr, 0, 1, {}},
-    {"hipnotic", "Scourge of Armagon", "start", 1, true, nullptr, 0, 0, {}},
-    {"rogue", "Dissolution of Eternity", "start", 2, true, nullptr, 0, 0, {}},
-    {"dopa", "Dimension of the Past", "e5start", 3, true, dopaResources, countof(dopaResources), 0, {}},
-    {"mg1", "Dimension of the Machine", "start", 4, true, mg1Resources, countof(mg1Resources), 0, {}},
-    {"mg3", "Dawn of the Machine", "start", 5, true, mg3Resources, countof(mg3Resources), 0, {}},
+    {"id1", "Quake", "start", 0, true, nullptr, 0, 1, {}, {}, {}},
+    {"hipnotic", "Scourge of Armagon", "start", 1, true, nullptr, 0, 0, {}, {}, {}},
+    {"rogue", "Dissolution of Eternity", "start", 2, true, nullptr, 0, 0, {}, {}, {}},
+    {"dopa", "Dimension of the Past", "e5start", 3, true, dopaResources, countof(dopaResources), 0, {}, {}, {}},
+    {"mg1", "Dimension of the Machine", "start", 4, true, mg1Resources, countof(mg1Resources), 0, {}, {}, {}},
+    {"mg3", "Dawn of the Machine", "start", 5, true, mg3Resources, countof(mg3Resources), 0, {}, {}, {}},
     // AD support: Arcane Dimensions, the latest release only (vr_ad.cpp; status 3: another version, refused); its
     // native support in progress (ARCANE_DIMENSIONS.md P1b): developer launch, vr_campaign_native ad
-    {"ad", "Arcane Dimensions", "start", 6, false, adResources, countof(adResources), 0, {}},
+    {"ad", "Arcane Dimensions", "start", 6, false, adResources, countof(adResources), 0, {},
+        {nullptr, qvr::ad::versionStatus, qvr::ad::skipInFolder, true}, {}},
+    // Dwell v2.2 (DWELL.md P1b; vr_dwell.cpp), played by Copper's rules (vr_rules.cpp); the installer's <base>/dwell or
+    // an owned root's dwell or dwellv2p2 folder. Experimental, like AD's: vr_campaign_native dwell
+    {"dwell", "Dwell", "start", 7, false, dwellResources, countof(dwellResources), 0, {},
+        {"dwellv2p2", qvr::dwell::versionStatus, qvr::dwell::skipInFolder, true}, {}},
 };
 static_assert(qvr::ad::campaignIndex == 6, "vr_ad.hpp's campaign index is campaigns[]'s AD row");
+static_assert(qvr::dwell::campaignIndex == 7, "vr_dwell.hpp's campaign index is campaigns[]'s Dwell row");
+
+// The folder name campaign `c`'s files are under (its own, or its alias where that one was found).
+const char* campaignDir(const Campaign& c)
+{
+    return c.dir[0] ? c.dir : c.folder;
+}
 int activeCampaign = 0;
 bool discoveredCampaigns = false;
 bool developerNative = false;
@@ -407,7 +433,8 @@ int campaignIndex(const char* name)
 {
     for(int i = 0; i < int(countof(campaigns)); ++i)
     {
-        if(!q_strcasecmp(name, campaigns[i].folder)) { return i; }
+        if(!q_strcasecmp(name, campaigns[i].folder) ||
+            (campaigns[i].checks.alias && !q_strcasecmp(name, campaigns[i].checks.alias))) { return i; }
     }
     return -1;
 }
@@ -510,17 +537,24 @@ void discoverCampaigns()
     for(int i = 3; i < int(countof(campaigns)); ++i)
     {
         Campaign& c = campaigns[i];
-        for(int r = int(roots.size()) - 1; r >= 0; --r)
+        bool found = false;
+        for(int r = int(roots.size()) - 1; r >= 0 && !found; --r)
         {
-            char folder[MAX_OSPATH];
-            q_snprintf(folder, sizeof(folder), "%s/%s", roots[r].cStr(), c.folder);
-            if(Sys_FileType(folder) != FS_ENT_DIRECTORY) { continue; }
-            c.status = inspectPack(c.folder, c.resources, c.resourceCount, roots[r].cStr());
-            if(c.status == 0) { continue; } // none of its data (a texture pack's folder): the next root's copy counts
-            if(c.status == 1 && i == qvr::ad::campaignIndex) { c.status = qvr::ad::versionStatus(folder); } // AD support: the latest only
-            q_strlcpy(c.root, roots[r].cStr(), sizeof(c.root));
-            // A damaged higher-priority owned copy is explicit, never masked by another release.
-            break;
+            for(const char* name : {c.folder, c.checks.alias}) // (its own folder name first, then its alias)
+            {
+                char folder[MAX_OSPATH];
+                if(!name) { continue; }
+                q_snprintf(folder, sizeof(folder), "%s/%s", roots[r].cStr(), name);
+                if(Sys_FileType(folder) != FS_ENT_DIRECTORY) { continue; }
+                c.status = inspectPack(name, c.resources, c.resourceCount, roots[r].cStr());
+                if(c.status == 0) { continue; } // none of its data (a texture pack's folder): the next copy counts
+                if(c.status == 1 && c.checks.version) { c.status = c.checks.version(folder); } // (AD's, Dwell's release)
+                q_strlcpy(c.root, roots[r].cStr(), sizeof(c.root));
+                q_strlcpy(c.dir, name, sizeof(c.dir));
+                // A damaged higher-priority owned copy is explicit, never masked by another release.
+                found = true;
+                break;
+            }
         }
     }
 }
@@ -586,9 +620,10 @@ int missingLanguage(int index, const char** first = nullptr)
 const char* campaignStatus(int i)
 {
     return campaigns[i].status == 0 ? "missing" : campaigns[i].status == 2 ? "incomplete/corrupt" :
-        campaigns[i].status == 3 ? "another version: only the latest (1.80 patch 1) is played" : // (AD support)
+        campaigns[i].status == 3 ? (i == qvr::dwell::campaignIndex ? "another version: only v2.2 is played" :
+                                    "another version: only the latest (1.80 patch 1) is played") : // (AD's, Dwell's)
         campaigns[i].nativeReady ? (i >= 3 && Cvar_FindVar("language") && missingLanguage(i) ? "installed; language data incomplete" : "ready") :
-        i == qvr::ad::campaignIndex ? "ready (experimental)" : "installed; native support in progress";
+        campaigns[i].checks.experimental ? "ready (experimental)" : "installed; native support in progress";
 }
 
 void reportCampaigns()
@@ -912,7 +947,7 @@ void campaignSelectCommand()
 {
     if(Cmd_Argc() != 2) { reportCampaigns(); return; }
     const int i = campaignIndex(Cmd_Argv(1));
-    if(i < 0) { Con_Printf("VR: campaign must be id1, hipnotic, rogue, dopa, mg1, mg3 or ad.\n"); return; }
+    if(i < 0) { Con_Printf("VR: campaign must be id1, hipnotic, rogue, dopa, mg1, mg3, ad or dwell.\n"); return; }
     selectCampaign(i, !q_strcasecmp(Cmd_Argv(0), "vr_campaign_native"), true);
 }
 
@@ -931,7 +966,7 @@ extern "C" const char* VR_CampaignLabel(int index)
 {
     return index >= 0 && index < int(countof(campaigns)) ?
         va("%s: %s", campaigns[index].title, campaigns[index].status == 1 && !campaigns[index].nativeReady ?
-            (index == qvr::ad::campaignIndex ? "experimental" : "native in progress") : campaignStatus(index)) : "";
+            (campaigns[index].checks.experimental ? "experimental" : "native in progress") : campaignStatus(index)) : "";
 }
 // Select Campaign's tag right of a campaign's title (ROUND25.md, "campvis"): only the exceptions, in a word or two (the
 // help line has the whole status); "" while it is just ready to play.
@@ -942,7 +977,7 @@ extern "C" const char* VR_CampaignTag(int index)
     if(c.status == 0) { return "missing"; }
     if(c.status == 2) { return "incomplete"; }
     if(c.status == 3) { return "old version"; }
-    if(!c.nativeReady) { return index == qvr::ad::campaignIndex ? "experimental" : "in progress"; }
+    if(!c.nativeReady) { return c.checks.experimental ? "experimental" : "in progress"; }
     if(index >= 3 && missingLanguage(index)) { return "language data"; }
     if(soloOnly(index) && campaignMultiplayerRequested()) { return "single-player"; }
     return "";
@@ -958,12 +993,15 @@ extern "C" const char* VR_CampaignHelp(int index)
         soloOnly(index) && campaignMultiplayerRequested() ? "Accepted for single-player: set coop 0, deathmatch 0, maxplayers 1; multiplayer context/join/respawn is not accepted." :
         index >= 3 && missingLanguage(index) ? "Language data incomplete: supply updated owned rerelease id1 tables, or enable store discovery." :
         c.nativeReady ? "Starts a new single-player campaign and resets level progress." :
-        // AD support: playable from Official Campaigns as an experiment (it asks first; vr_menu.cpp selectCampaignRow)
-        index == qvr::ad::campaignIndex ? "Experimental: starts a new single-player Arcane Dimensions game (asks first). It may have bugs." :
+        // AD's, Dwell's: playable from Official Campaigns as an experiment (it asks first; vr_menu.cpp selectCampaignRow)
+        c.checks.experimental ? va("Experimental: starts a new single-player %s game (asks first). It may have bugs.", c.title) :
         "Native gameplay is being ported; campaign play is unavailable.");
 }
 extern "C" void VR_SelectCampaign(int index)
 { selectCampaign(index, false, true); }
+// AD's, Dwell's: played from Select Campaign after a notice, by their developer launch (vr_menu.cpp).
+extern "C" int VR_CampaignExperimental(int index)
+{ return index >= 0 && index < int(countof(campaigns)) && campaigns[index].checks.experimental; }
 extern "C" int VR_CampaignInstalled(int index)
 { return index >= 0 && index < int(countof(campaigns)) && campaigns[index].status == 1; }
 extern "C" int VR_CampaignUnavailable(int index)
@@ -1008,11 +1046,11 @@ extern "C" void VR_BeforeAddGameDirectory(const char* dir)
     // installed (decision 16: its artifacts, pickups and ladders anywhere; vr_ad.cpp), under the active campaign's
     // folder, whose files win (VR_SkipSearchPath: qvr::ad::skipOutside).
     if(activeCampaign != qvr::ad::campaignIndex && campaigns[qvr::ad::campaignIndex].status == 1 &&
-        !gameDirAlreadyAdded(campaigns[qvr::ad::campaignIndex].folder))
-    { COM_AddGameDirectory(campaigns[qvr::ad::campaignIndex].folder); }
+        !gameDirAlreadyAdded(campaignDir(campaigns[qvr::ad::campaignIndex])))
+    { COM_AddGameDirectory(campaignDir(campaigns[qvr::ad::campaignIndex])); }
     if(activeCampaign >= 3 && campaigns[activeCampaign].status == 1 &&
-        !gameDirAlreadyAdded(campaigns[activeCampaign].folder))
-    { COM_AddGameDirectory(campaigns[activeCampaign].folder); }
+        !gameDirAlreadyAdded(campaignDir(campaigns[activeCampaign])))
+    { COM_AddGameDirectory(campaignDir(campaigns[activeCampaign])); }
     // The active map package's own folder (vr_mapinstall.cpp), last before quakevr: over the stock game and the
     // packs, under every file of Quake VR's own.
     qvr::mapinstall::mountActive();
@@ -1069,7 +1107,8 @@ extern "C" int VR_SkipSearchPath(const char* filename, const char* path)
     // dm1 while one of the newer campaigns is active (theirs in place of Quake's).
     // (Arcane Dimensions has a start of its own only: its hub's original slipgates lead to Quake's end, so Quake's end,
     // hub and dm1 stay visible while it runs; round 22, the hub's end slipgate stopped on "cannot find map".)
-    const bool sharedOthers = activeCampaign >= 3 && activeCampaign != qvr::ad::campaignIndex;
+    const bool sharedOthers = activeCampaign >= 3 && activeCampaign != qvr::ad::campaignIndex &&
+        activeCampaign != qvr::dwell::campaignIndex; // (Dwell, as AD: a start of its own only)
     const bool start = strncmp(filename, "maps/start.", 11) == 0 ||
         (sharedOthers && (strncmp(filename, "maps/end.", 9) == 0 || strncmp(filename, "maps/hub.", 9) == 0 ||
                              strncmp(filename, "maps/dm1.", 9) == 0));
@@ -1078,7 +1117,7 @@ extern "C" int VR_SkipSearchPath(const char* filename, const char* path)
     const int i = campaignIndex(name);
     if(i < 0) { return 0; }
     if(!strcmp(filename, "progs.dat") && i >= 3) { return 1; }
-    if(i == qvr::ad::campaignIndex && qvr::ad::skipInFolder(filename)) { return 1; } // AD support: only AD's own files
+    if(campaigns[i].checks.skipInFolder && campaigns[i].checks.skipInFolder(filename)) { return 1; } // (AD's, Dwell's: only their own files)
     if(i == qvr::ad::campaignIndex && i != activeCampaign) { return qvr::ad::skipOutside(filename) ? 1 : 0; } // (AD support: and in another campaign, only its models, sounds, icons)
     if(i >= 3) { return i != activeCampaign; }
     if(start) { return i != activeCampaign; }
@@ -1628,7 +1667,7 @@ extern "C" int VR_OwnedFile(const char* name, char* out, int size, int* offset, 
     }
 
     char path[MAX_OSPATH];
-    q_snprintf(path, sizeof(path), "%s/%s/%s", campaigns[c].root, campaigns[c].folder, file);
+    q_snprintf(path, sizeof(path), "%s/%s/%s", campaigns[c].root, campaignDir(campaigns[c]), file);
     const unsigned long long window = VR_FileCacheWindow(); // (0: not the main thread's load window: asked as before)
     const int listed = window ? VR_FileCacheHas(path) : -1;
     if(listed > 0 || (listed < 0 && Sys_FileType(path) == FS_ENT_FILE))
@@ -1652,7 +1691,7 @@ extern "C" int VR_OwnedFile(const char* name, char* out, int size, int* offset, 
     if(window)
     {
         OwnedIndex& index = ownedIndexes.campaign[c];
-        q_snprintf(path, sizeof(path), "%s/%s", campaigns[c].root, campaigns[c].folder);
+        q_snprintf(path, sizeof(path), "%s/%s", campaigns[c].root, campaignDir(campaigns[c]));
         if(index.window != window || za::StringView{index.folder} != za::StringView{path})
         {
             readOwnedIndex(index, path);
@@ -1672,7 +1711,7 @@ extern "C" int VR_OwnedFile(const char* name, char* out, int size, int* offset, 
     int last = -1;
     for(int pak = 0; pak < 64; ++pak)
     {
-        q_snprintf(path, sizeof(path), "%s/%s/pak%d.pak", campaigns[c].root, campaigns[c].folder, pak);
+        q_snprintf(path, sizeof(path), "%s/%s/pak%d.pak", campaigns[c].root, campaignDir(campaigns[c]), pak);
         Sys_MatchFileCase(path); // or PAK0.PAK (sys.h)
         if(Sys_FileType(path) != FS_ENT_FILE) { break; }
         last = pak;
@@ -1680,7 +1719,7 @@ extern "C" int VR_OwnedFile(const char* name, char* out, int size, int* offset, 
     za::Vector<PackEntry> entries; // (a few lookups a model: not kept)
     for(int pak = last; pak >= 0; --pak)
     {
-        q_snprintf(path, sizeof(path), "%s/%s/pak%d.pak", campaigns[c].root, campaigns[c].folder, pak);
+        q_snprintf(path, sizeof(path), "%s/%s/pak%d.pak", campaigns[c].root, campaignDir(campaigns[c]), pak);
         Sys_MatchFileCase(path); // or PAK0.PAK (sys.h)
         FILE* f = fopen(path, "rb");
         if(!f) { continue; }

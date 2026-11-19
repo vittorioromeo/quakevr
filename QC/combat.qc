@@ -2299,6 +2299,10 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
     {
         return AD_Damage(targ, inflictor, attacker, damage, isVRMelee); // AD support: AD's entities by AD's T_Damage (vr_ad_bridge.qc)
     }
+    if(CU_Run(targ))
+    {
+        return CU_Damage(targ, inflictor, attacker, damage); // Copper's entities by Copper's T_Damage (vr_copper_bridge.qc)
+    }
     if(targ.vr_shootnade)
     {
         return VR_GrenShot_Damage(targ, inflictor, attacker, damage, isVRMelee);

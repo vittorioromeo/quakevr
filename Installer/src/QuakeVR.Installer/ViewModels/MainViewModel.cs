@@ -167,7 +167,7 @@ public sealed class MainViewModel : ObservableObject
     bool _arcaneDimensions; // (experimental: off by default)
     ModCopy? _adFound;
     ModOutcome? _adOutcome;
-    bool _dwell = Dwell.OnByDefault; // (off until Dwell's maps play: Dwell.OnByDefault)
+    bool _dwell = Dwell.OnByDefault; // (on: Dwell's maps play, Dwell.OnByDefault)
     ModCopy? _dwellFound;
     ModOutcome? _dwellOutcome;
     bool _relight = true;
@@ -1169,7 +1169,7 @@ public sealed class MainViewModel : ObservableObject
         "Its campaign is in Official Campaigns; its monsters and items also appear in custom maps.";
 
     /// <summary>The Update screen's box: an install without AD in its folder, and no copy of 1.80 patch 1 found.</summary>
-    // ---- Dwell (recommended, off by default until its maps play: Dwell.OnByDefault; DWELL.md section 7) ----
+    // ---- Dwell (recommended, on by default: Dwell.OnByDefault; DWELL.md section 7) ----
 
     /// <summary>Ticked: Dwell's zip is downloaded after the install and unpacked into the install's dwell folder (a v2.2
     /// copy found in the owned roots is used instead: the box is then off and disabled).</summary>
