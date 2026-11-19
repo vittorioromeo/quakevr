@@ -498,7 +498,7 @@ vector    org;
     if(MG_WorldCampaign() && other.classname == "player")
     {
         other.fog_active_fog_trigger = world;
-        MG_FogPushSettingsFrom(other, t, 0);
+        VR_Fog_PushFrom(other, t, 0);
     }
     setorigin(other, t.origin);
     other.angles = t.mangle;

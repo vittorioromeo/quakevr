@@ -75,7 +75,7 @@ vr_walltorch_test.qc
 vr_mg_defs.qc
 vr_mg_activation.qc
 vr_mg_activation_test.qc
-vr_mg_fog.qc
+vr_fog.qc
 vr_mg_func_bob.qc
 vr_mg_func_toss.qc
 vr_mg_rotate.qc

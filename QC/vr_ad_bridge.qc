@@ -31,7 +31,7 @@ float(entity client, float density, vector colour) VR_AD_Fog =
 {
     if(client.flags & FL_CLIENT)
     {
-        MG_SetFog(client, density, colour);
+        VR_Fog_Set(client, density, colour);
     }
     return TRUE;
 };

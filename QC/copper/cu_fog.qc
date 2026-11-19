@@ -172,7 +172,7 @@ void( entity cu_client, float cu_density, vector cu_color, float cu_sky ) cu_fog
 	
 	if (cu_density != -1)
 	{
-		MG_SetFog(cu_client, cu_density, cu_color * (cu_icantsee + 1)); // QVR: the one fog path (svc_fog, vr_mg_fog.qc), as MG's and AD's
+		VR_Fog_Set(cu_client, cu_density, cu_color * (cu_icantsee + 1)); // QVR: the one fog path (svc_fog, vr_fog.qc), as MG's and AD's
 	}
 	if (cu_sky != -1)
 	{
