@@ -1219,8 +1219,8 @@ extern "C" int VR_RenderView()
         stereo::ensureResampleTarget(allocatedWidth, allocatedHeight);
     }
     // Temporal AA (vr_temporal.cpp): this frame's slots for the models' positions, the motion target on the eye targets
-    temporal::beginFrame(stereo::eyeTargets.fb.scene.fbo, stereo::eyeTargets.fb.composite.fbo, drawnWidth, drawnHeight,
-        stereo::eyeTargets.fb.scene.samples);
+    temporal::beginFrame(stereo::eyeTargets.fb.scene.fbo, stereo::eyeTargets.fb.composite.fbo,
+        stereo::ViewSize{allocatedWidth, allocatedHeight, drawnWidth, drawnHeight}, stereo::eyeTargets.fb.scene.samples);
 
     const glframebufs_t windowFramebufs = framebufs;
     const int windowWidth = vid.width, windowHeight = vid.height;

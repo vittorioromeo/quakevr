@@ -88,6 +88,8 @@ layout(location = 2) uniform vec4 Jitter; // xy the jitter in uv, z the stamp, w
 layout(location = 3) uniform vec4 Params; // x the current frame's weight, y the clip's gamma, z the reactive pixels' weight, w 1: no history
 layout(location = 4) uniform int Mode; // 0 TAA, 1 vectors, 2 mask, 3 reprojection test
 layout(location = 5) uniform int Eye;
+layout(location = 6) uniform vec2 ViewSize; // the view's drawn size: the textures' bottom left part (all of them but under
+                                            // dynamic resolution, whose eye targets are allocated at its ceiling)
 shared uint sErr, sIdent, sCount;
 
 bool Reversed() { return Jitter.w > 0.5; }
@@ -121,8 +123,14 @@ vec2 MotionAt(ivec2 q, float d, vec2 texel, out float obj, out float w, out floa
     return mv;
 }
 
+// The history at uv over the view (`size` its drawn part), its taps kept on the part's texels (as clamp-to-edge kept the
+// whole texture's when they were one).
+vec4 HistoryAt(vec2 tuv, vec2 lo, vec2 hi) { return textureLod(History, clamp(tuv, lo, hi), 0.0); }
+
 vec4 SampleCatmullRom(vec2 uv, vec2 size)
 {
+    vec2 tsize = vec2(textureSize(History, 0));
+    vec2 lo = 0.5 / tsize, hi = (size - 0.5) / tsize;
     vec2 pos = uv * size;
     vec2 t1 = floor(pos - 0.5) + 0.5;
     vec2 f = pos - t1;
@@ -131,12 +139,12 @@ vec4 SampleCatmullRom(vec2 uv, vec2 size)
     vec2 w2 = f * (0.5 + f * (2.0 - 1.5 * f));
     vec2 w3 = f * f * (-0.5 + 0.5 * f);
     vec2 w12 = w1 + w2;
-    vec2 t0 = (t1 - 1.0) / size, t3 = (t1 + 2.0) / size, t12 = (t1 + w2 / w12) / size;
-    vec4 r = textureLod(History, vec2(t12.x, t0.y), 0.0) * (w12.x * w0.y);
-    r += textureLod(History, vec2(t0.x, t12.y), 0.0) * (w0.x * w12.y);
-    r += textureLod(History, t12, 0.0) * (w12.x * w12.y);
-    r += textureLod(History, vec2(t3.x, t12.y), 0.0) * (w3.x * w12.y);
-    r += textureLod(History, vec2(t12.x, t3.y), 0.0) * (w12.x * w3.y);
+    vec2 t0 = (t1 - 1.0) / tsize, t3 = (t1 + 2.0) / tsize, t12 = (t1 + w2 / w12) / tsize;
+    vec4 r = HistoryAt(vec2(t12.x, t0.y), lo, hi) * (w12.x * w0.y);
+    r += HistoryAt(vec2(t0.x, t12.y), lo, hi) * (w0.x * w12.y);
+    r += HistoryAt(t12, lo, hi) * (w12.x * w12.y);
+    r += HistoryAt(vec2(t3.x, t12.y), lo, hi) * (w3.x * w12.y);
+    r += HistoryAt(vec2(t12.x, t3.y), lo, hi) * (w12.x * w3.y);
     float total = w12.x * w0.y + w0.x * w12.y + w12.x * w12.y + w3.x * w12.y + w12.x * w3.y;
     return max(r / total, vec4(0.0));
 }
@@ -196,10 +204,12 @@ void Resolve(ivec2 p, ivec2 size, vec2 texel)
     bool rejected = Params.w > 0.5 || any(lessThan(ouv, vec2(0.0))) || any(greaterThan(ouv, vec2(1.0)));
     if (!rejected) // the surface not in view there one frame ago: the previous depth (the farthest of the 2x2) nearer
     {
-        // (the 2x2 from b in one gather: PrevDepth is the scene's size, clamp-to-edge as the texels' clamp was, no
-        // sampler object on its unit; only the largest matters, not the order)
+        // (the 2x2 from b, each clamped to the drawn part as clamp-to-edge clamped the whole texture's when they were one;
+        // only the largest matters, not the order)
         ivec2 b = ivec2(floor(ouv * vec2(size) - 0.5));
-        vec4 q4 = textureGather(PrevDepth, (vec2(b) + 1.0) / vec2(size), 0);
+        ivec2 b0 = clamp(b, ivec2(0), size - 1), b1 = clamp(b + 1, ivec2(0), size - 1);
+        vec4 q4 = vec4(texelFetch(PrevDepth, b0, 0).r, texelFetch(PrevDepth, ivec2(b1.x, b0.y), 0).r,
+                       texelFetch(PrevDepth, ivec2(b0.x, b1.y), 0).r, texelFetch(PrevDepth, b1, 0).r);
         float far = max(max(q4.x, q4.y), max(max(q4.z, q4.w), 0.0));
         rejected = far < pw * (obj > 0.5 ? 0.9 : 0.97) - 1.0;
     }
@@ -233,7 +243,8 @@ void Resolve(ivec2 p, ivec2 size, vec2 texel)
             show = vec4(max(vec3(mask, rejected ? 1.0 : 0.0, obj > 1.5 ? 1.0 : 0.0), vec3(grey)), 1.0);
         else if (Mode == 3) // the previous frame through the vectors (rejected pixels tinted red)
         {
-            vec4 prev = textureLod(History, ouv, 0.0);
+            vec2 tsize = vec2(textureSize(History, 0));
+            vec4 prev = HistoryAt(ouv * vec2(size) / tsize, 0.5 / tsize, (vec2(size) - 0.5) / tsize);
             show = rejected ? mix(prev, vec4(1.0, 0.0, 0.0, 1.0), 0.35) : prev;
             if (!rejected && reactive == 0.0)
             {
@@ -252,7 +263,7 @@ void Resolve(ivec2 p, ivec2 size, vec2 texel)
 void main()
 {
     ivec2 p = ivec2(gl_GlobalInvocationID.xy);
-    ivec2 size = imageSize(HistoryOut); // the view's size (the window's scene textures can be larger: its corner is the view)
+    ivec2 size = ivec2(ViewSize); // the view's size (the scene textures can be larger: its corner is the view; the history too, the eyes' under dynamic resolution)
     if (gl_LocalInvocationIndex == 0u)
     {
         sErr = 0u;
@@ -293,11 +304,12 @@ constexpr const char* applyVs = gfx::fullscreenTriangleVs;
 constexpr const char* applyFs = R"(#version 430
 layout(binding = 0) uniform sampler2D Src;
 layout(location = 0) uniform float Sharpen;
+layout(location = 1) uniform vec2 Last; // the view's last pixel (Src can be larger: dynamic resolution's ceiling)
 out vec4 result;
 void main()
 {
     ivec2 p = ivec2(gl_FragCoord.xy);
-    ivec2 last = textureSize(Src, 0) - 1;
+    ivec2 last = ivec2(Last);
     vec4 c = texelFetch(Src, p, 0);
     result = c;
     if (Sharpen > 0.0)
@@ -726,7 +738,10 @@ namespace
 {
 
 // The frame's views (the eyes, or the flat window's): the targets, the jitter, the models' positions. `flat` the window.
-void begin(unsigned sceneFbo, unsigned compositeFbo, int width, int height, int samples, bool flat)
+// `width` x `height` the part of the view drawn, its textures made for allocatedWidth x allocatedHeight (the eyes' under
+// dynamic resolution: its ceiling, as their targets; the same otherwise).
+void begin(unsigned sceneFbo, unsigned compositeFbo, int width, int height, int allocatedWidth, int allocatedHeight, int samples,
+    bool flat)
 {
     state.frameIndex++;
     state.sceneFbo = sceneFbo;
@@ -762,9 +777,18 @@ void begin(unsigned sceneFbo, unsigned compositeFbo, int width, int height, int 
         state.taaWas = taa;
         state.debugWas = static_cast<int>(vr_temporal_debug.value);
     }
-    ensureTextures(width, height);
+    ensureTextures(allocatedWidth, allocatedHeight);
     ensureBuffers();
     attach(state.motionTex);
+    if(width != state.width || height != state.height)
+    {
+        // Another size drawn (a dynres step: its textures are not made again, as they were with the eye targets at each
+        // step): no history, as then (the previous frame's is another size's).
+        for(EyeState& e : state.eyes)
+        {
+            e.valid = false;
+        }
+    }
     state.width = width;
     state.height = height;
     state.frameActive = true;
@@ -792,9 +816,9 @@ void begin(unsigned sceneFbo, unsigned compositeFbo, int width, int height, int 
 
 } // namespace
 
-void beginFrame(unsigned sceneFbo, unsigned compositeFbo, int width, int height, int samples)
+void beginFrame(unsigned sceneFbo, unsigned compositeFbo, const stereo::ViewSize& size, int samples)
 {
-    begin(sceneFbo, compositeFbo, width, height, samples, false);
+    begin(sceneFbo, compositeFbo, size.drawnWidth, size.drawnHeight, size.allocatedWidth, size.allocatedHeight, samples, false);
 }
 
 void beginEye(int eye)
@@ -1142,6 +1166,7 @@ extern "C" void VR_TemporalResolve(unsigned fbo, unsigned color, unsigned depth)
             za::clamp(vr_taa_reactive.value, 0.f, 1.f), reset ? 1.f : 0.f);
         GL_Uniform1iFunc(4, mode);
         GL_Uniform1iFunc(5, state.eye);
+        GL_Uniform2fFunc(6, static_cast<float>(state.width), static_cast<float>(state.height));
         GL_DispatchComputeFunc(groupsX, groupsY, 1);
         GL_MemoryBarrierFunc(GL_TEXTURE_FETCH_BARRIER_BIT | GL_SHADER_IMAGE_ACCESS_BARRIER_BIT | GL_SHADER_STORAGE_BARRIER_BIT);
     }
@@ -1154,6 +1179,7 @@ extern "C" void VR_TemporalResolve(unsigned fbo, unsigned color, unsigned depth)
         GL_SetState(GLS_BLEND_OPAQUE | GLS_NO_ZTEST | GLS_NO_ZWRITE | GLS_CULL_NONE | GLS_ATTRIBS(0));
         GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, mode != 0 ? state.displayTex : e.history[next]);
         GL_Uniform1fFunc(0, mode == 0 ? za::clamp(vr_taa_sharpen.value, 0.f, 2.f) : 0.f);
+        GL_Uniform2fFunc(1, static_cast<float>(state.width - 1), static_cast<float>(state.height - 1));
         glDrawArrays(GL_TRIANGLES, 0, 3);
     }
 
@@ -1175,8 +1201,8 @@ extern "C" void VR_FlatRenderView()
     if(temporal::flatWanted() || state.flat) // (once more after it is turned off: the motion target detached)
     {
         const int scale = za::max(r_refdef.scale, 1);
-        temporal::begin(framebufs.scene.fbo, 0, r_refdef.vrect.width / scale, r_refdef.vrect.height / scale,
-            framebufs.scene.samples, true);
+        const int w = r_refdef.vrect.width / scale, h = r_refdef.vrect.height / scale; // (its textures the view's size)
+        temporal::begin(framebufs.scene.fbo, 0, w, h, w, h, framebufs.scene.samples, true);
         state.flat = state.frameActive;
     }
     if(!state.flat)
