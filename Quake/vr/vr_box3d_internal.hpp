@@ -923,6 +923,7 @@ inline ToolRecords toolRecords;
 constexpr za::SizeT stepSamplesMax = 1u << 16; // vr_physics_steptime's frames kept (15 minutes at 72 Hz)
 inline double serverPhysicsStart = 0.0; // SV_Physics's world's turn this frame (Sys_DoubleTime; noteServerPhysicsStart)
 inline bool frameTiming = false;        // vr_physics_frametime asked for once: its samples kept from then on
+inline bool stepTiming = false;         // vr_physics_steptime asked for once: its samples kept from then on (512 KB a world)
 inline double frameLastWall = 0.0;      // vr_physics_frametime: the wall clock when it last printed
 inline int frameLastHostFrame = 0;      // and at which host frame
 void* enqueueStepTask(b3TaskCallback* fn, void* context, void* user, const char* /*name*/);

@@ -662,7 +662,8 @@ most (the chainsaw, 31) put straddling the flush player gate has a copy with eve
 Box3D on the pool (ROUND21.md, "Box3D on the pool"): `vr_physics_mtbench [<bodies> [<steps>]]` steps a world of its own
 (boxes in toppling columns) with 1, 2, 3, 4, 6, 8, 16 and all the pool's workers from the same start: each count's step
 time and a hash of every body after (must say `the same with every worker count`); `vr_physics_steptime` prints the
-game world's step time a frame since its last call (average, worst, awake bodies, workers). In game:
+game world's step time a frame since its last call (average, worst, awake bodies, workers; its median and percentiles
+from the second call on: the first starts keeping each frame's sample, 512 KB a world at most)). In game:
 `bash Misc/quakevr/box3dmt/physbench.sh <agent> <count> "<cvars>" [--exclusive]` (vrfiringrange, `count` props toppling
 then tossed; `vr_box3d_threads 0` the main thread alone, `vr_box3d_threads_bodies 0` threaded whatever the count).
 

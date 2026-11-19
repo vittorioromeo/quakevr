@@ -1597,7 +1597,7 @@ extern "C" void VR_PhysicsFrameEnd(void)
     world->stepTimeMax = za::max(world->stepTimeMax, t2 - t1);
     world->stepFrames++;
     world->stepAwake += static_cast<za::U64>(b3World_GetAwakeBodyCount(world->id));
-    if(world->stepSamples.size() < stepSamplesMax)
+    if(stepTiming && world->stepSamples.size() < stepSamplesMax)
     {
         world->stepSamples.pushBack(World::StepSample{static_cast<float>((t2 - t1) * 1000.0), awakeBefore});
     }

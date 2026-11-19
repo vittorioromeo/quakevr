@@ -32,9 +32,11 @@ namespace
 // percentile and the worst, ms), the awake bodies on average, and its workers (vr_box3d_threads); then starts counting
 // again. A bench: run it, play, run it again (Misc/quakevr/box3dmt/pilebench.py). `bins`: also the frames by the awake
 // bodies as their step began (what Physics Threads From compares), each range's frames, median and 95th percentile; and
-// Box3D's own profile (ms a frame: where the step went).
+// Box3D's own profile (ms a frame: where the step went). The first call starts keeping each frame's sample: its median and
+// percentiles are 0 (its means, worst and counts are the frames' since the world was made, as before).
 void steptime_f()
 {
+    stepTiming = true;
     if(!world)
     {
         Con_Printf("vr_physics_steptime: no physics world\n");
