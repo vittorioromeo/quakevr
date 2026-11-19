@@ -13,6 +13,9 @@
 #include "vr_rules.hpp"
 #include "vr_ad.hpp"
 #include "vr_cvars.hpp"
+#include "vr_dwell.hpp"
+#include "vr_mapinstall.hpp"
+#include "vr_mapindex.hpp"
 #include "vr_engine.hpp"
 #include "vr_strings.hpp"
 
@@ -83,6 +86,27 @@ constexpr const char* adOwnedClashes[] = {
     "weapon_axe", // (Quake VR has a weapon_axe since 2026-11-08: a grabbable axe; AD maps keep AD's pickup)
 };
 
+// Copper's detection data (DWELL.md 5.2): its own classnames (cu_<classname>, none of Quake VR's) but the compiler's
+// and the ones AD has too (nobody's signal anyway); Dwell's own classnames (no spawn function yet: P2), each a signal;
+// the worldspawn _tb_mod key (TrenchBroom's game configuration) naming Copper or Dwell.
+constexpr const char* copperNotSignals[] = {"func_group", "misc_external_map"};
+constexpr const char* copperNotSignalPrefixes[] = {"func_detail"};
+constexpr const char* copperExtraSignals[] = {
+    "monster_kamikaze", "monster_brute", "monster_excavator", "monster_d1boss", "monster_d2boss", "monster_boss_egypt",
+    "weapon_quad_shotgun", "weapon_railgun", "weapon_rifle", "item_artifact_haste", "item_artifact_berserk",
+    "misc_crystal", "func_fade", "info_storycamera", "trigger_killboss", "target_bullethell",
+};
+// A worldspawn key whose value names the ruleset (its value contains one of `values`, any case).
+struct WorldValue
+{
+    const char* key;
+    Names values;
+};
+constexpr const char* copperTbMods[] = {"copper", "dwell"};
+// Ours under Copper's rules too: the exploding boxes are our VR props (grabbed, thrown: our physics moves them, which
+// Copper's brush-model box does not survive: "SOLID_BSP without MOVETYPE_PUSH").
+constexpr const char* copperKeptOurs[] = {"misc_explobox", "misc_explobox2"};
+
 struct Ruleset
 {
     Id id;
@@ -97,20 +121,27 @@ struct Ruleset
     Names ownedClashes; // shared classnames whose imported version plays by its rules although Quake VR keeps the kind
     int (*spawnsOutside)(const char* classname); // outside its rules: its <prefix><classname> spawns this one (or null)
     int (*toolgunOutside)(const char* classname); // outside its rules: the toolgun's explicit <prefix><classname> spawns
+    Names extraSignals;     // classnames that are its signals although it has no spawn function for them (Dwell's own)
+    WorldValue worldValue;  // a worldspawn key whose value names it ({}: none)
+    Names madeFor;          // a Map Library package made for one of these (vr_mapinstall.cpp madeFor) plays by it
+    Names keptOurs;         // more shared classnames whose Quake VR version plays under its rules (playsImported)
 };
 
 bool never() { return false; }
+bool always() { return true; }
 
 constexpr Ruleset rulesets[] = {
-    {qvr::rules::ID, "Quake", nullptr, false, 0, never, {}, {}, {}, {}, nullptr, nullptr},
-    {qvr::rules::MG, "Machine Games", nullptr, false, 0, never, {}, {}, {}, {}, nullptr, nullptr},
+    {qvr::rules::ID, "Quake", nullptr, false, 0, never, {}, {}, {}, {}, nullptr, nullptr, {}, {}, {}, {}},
+    {qvr::rules::MG, "Machine Games", nullptr, false, 0, never, {}, {}, {}, {}, nullptr, nullptr, {}, {}, {}, {}},
     {qvr::rules::AD, "Arcane Dimensions", "ad_", true, 2, qvr::ad::folderMounted, names(adNotSignals),
         names(adNotSignalPrefixes), names(adWorldSignals), names(adOwnedClashes), VR_AD_SpawnsOutside,
-        VR_AD_ToolgunSpawnsOutside},
-    // Copper's (DWELL.md 5.2): its code is imported (QC/copper, cu_<name>, P1a) but inert: it detects nothing yet and
-    // none of its classnames spawns outside its rules; its signals (its 48 own classnames, the worldspawn _tb_mod
-    // key) and its data come in P1b.
-    {qvr::rules::COPPER, "Copper", "cu_", false, 2, never, {}, {}, {}, {}, nullptr, nullptr},
+        VR_AD_ToolgunSpawnsOutside, {}, {}, {}, {}},
+    // Copper's (DWELL.md 5.2, P1b): its code is in the progs (QC/copper, cu_<name>), so it is detected with no data
+    // mounted; Dwell's campaign and packages made for Copper or Dwell play by it too. None of its classnames spawns
+    // outside its rules.
+    {qvr::rules::COPPER, "Copper", "cu_", true, 2, always, names(copperNotSignals), names(copperNotSignalPrefixes), {},
+        {}, nullptr, nullptr, names(copperExtraSignals), {"_tb_mod", names(copperTbMods)}, names(copperTbMods),
+        names(copperKeptOurs)},
 };
 
 // Under an imported ruleset (its <prefix><classname> exists), whether its version spawns a classname Quake VR has too:
@@ -120,6 +151,7 @@ constexpr Ruleset rulesets[] = {
 [[nodiscard]] bool playsImported(const Ruleset& r, const char* classname)
 {
     using qvr::strings::startsWith;
+    if(r.keptOurs.has(classname)) { return false; }
     return r.ownedClashes.has(classname) ||
            !(startsWith(classname, "monster_") || startsWith(classname, "item_") || startsWith(classname, "weapon_") ||
                startsWith(classname, "info_player_") || !strcmp(classname, "info_intermission") ||
@@ -127,11 +159,13 @@ constexpr Ruleset rulesets[] = {
 }
 static_assert(countof(rulesets) == qvr::rules::Count, "one row a ruleset, in Id order");
 
-// The campaigns' own rulesets (vr_gamedir.cpp campaigns[]: id1, hipnotic, rogue, dopa, mg1, mg3, ad).
+// The campaigns' own rulesets (vr_gamedir.cpp campaigns[]: id1, hipnotic, rogue, dopa, mg1, mg3, ad, dwell).
 constexpr Id campaignRulesets[] = {
     qvr::rules::ID, qvr::rules::ID, qvr::rules::ID, qvr::rules::MG, qvr::rules::MG, qvr::rules::MG, qvr::rules::AD,
+    qvr::rules::COPPER,
 };
 static_assert(campaignRulesets[qvr::ad::campaignIndex] == qvr::rules::AD, "AD's campaign plays by AD's rules");
+static_assert(campaignRulesets[qvr::dwell::campaignIndex] == qvr::rules::COPPER, "Dwell's campaign plays by Copper's");
 
 struct Detection
 {
@@ -146,6 +180,7 @@ struct MapRules
     Detection found[qvr::rules::Count];
     int importedSpawns = 0; // entities spawned with the imported ruleset's function
     int oursShared = 0;     // its shared classnames whose Quake VR version spawned
+    char package[64] = {};  // the active Map Library package's mod, when the map is its own ("" : none)
 } mapRules;
 
 void addSignal(Detection& d, const char* what)
@@ -187,6 +222,15 @@ void countSignals(const char* data)
                 {
                     addSignal(mapRules.found[r.id], key);
                 }
+                if(counting[r.id] && world && r.worldValue.key && !strcmp(key, r.worldValue.key))
+                {
+                    for(size_t i = 0; i < r.worldValue.values.count; ++i)
+                    {
+                        if(!q_strcasestr(com_token, r.worldValue.values.items[i])) { continue; }
+                        addSignal(mapRules.found[r.id], key);
+                        break;
+                    }
+                }
             }
             if(strcmp(key, "classname")) { continue; }
             bool dup = false;
@@ -196,7 +240,10 @@ void countSignals(const char* data)
             int owner = -1;
             for(const Ruleset& r : rulesets)
             {
-                if(counting[r.id] && ownClassname(r, com_token)) { owner = owner < 0 ? r.id : -2; }
+                if(counting[r.id] && (ownClassname(r, com_token) || r.extraSignals.has(com_token)))
+                {
+                    owner = owner < 0 ? r.id : -2;
+                }
             }
             if(owner >= 0) { addSignal(mapRules.found[owner], com_token); }
         }
@@ -209,7 +256,9 @@ void infoCommand()
 {
     const int c = VR_ActiveCampaign();
     Con_Printf("Ruleset: %s (vr_ruleset %d; %s)\n", rulesets[mapRules.id].name, int(mapRules.id),
-        mapRules.campaign ? "the campaign's" : mapRules.id == qvr::rules::ID ? "no ruleset detected" : "detected");
+        mapRules.campaign ? (mapRules.package[0] ? "the package's mod" : "the campaign's") :
+        mapRules.id == qvr::rules::ID ? "no ruleset detected" : "detected");
+    if(mapRules.package[0]) { Con_Printf("Map Library package made for %s\n", mapRules.package); }
     Con_Printf("Campaign %d: %s\n", c, c >= 0 && c < int(countof(campaignRulesets)) ? rulesets[campaignRulesets[c]].name : "?");
     for(const Ruleset& r : rulesets)
     {
@@ -228,9 +277,29 @@ namespace qvr::rules
 void beforeLoad()
 {
     const int c = VR_ActiveCampaign();
-    const Id own = c >= 0 && c < int(countof(campaignRulesets)) ? campaignRulesets[c] : ID;
+    Id own = c >= 0 && c < int(countof(campaignRulesets)) ? campaignRulesets[c] : ID;
     countSignals(sv.worldmodel ? sv.worldmodel->entities : "");
     mapRules.importedSpawns = mapRules.oursShared = 0;
+    mapRules.package[0] = '\0';
+    // A Map Library package made for a ruleset's mod (vr_mapinstall.cpp madeFor: "Copper", "Dwell") plays by it, like
+    // a campaign, when the map is the package's own.
+    const za::String& sha = qvr::mapinstall::active();
+    const char* mapName = sv.name;
+    if(own == ID && sha.size() && qvr::mapinstall::packageFor(mapName) == sha)
+    {
+        if(const qvr::mapindex::Entry* e = qvr::mapindex::find(sha))
+        {
+            const za::String mod = qvr::mapinstall::madeFor(*e);
+            for(const Ruleset& r : rulesets)
+            {
+                for(size_t i = 0; i < r.madeFor.count && own == ID; ++i)
+                {
+                    if(!q_strcasecmp(mod.cStr(), r.madeFor.items[i])) { own = r.id; }
+                }
+            }
+            q_strlcpy(mapRules.package, mod.cStr(), sizeof(mapRules.package));
+        }
+    }
     mapRules.campaign = own != ID;
     mapRules.id = own;
     if(!mapRules.campaign)
@@ -315,6 +384,13 @@ extern "C" const char* VR_Rules_SpawnName(const char* classname, int ours)
         if(o.prefix && o.spawnsOutside && o.spawnsOutside(classname)) { return va("%s%s", o.prefix, classname); }
     }
     return nullptr;
+}
+
+// pr_edict.c ED_ParseEdict: the prefix of the fields the map's ruleset's code reads its own map keys through (a key
+// Quake VR has no field of that type for: ad_<key>, cu_<key>), or null.
+extern "C" const char* VR_Rules_KeyPrefix(void)
+{
+    return rulesets[mapRules.id].prefix;
 }
 
 // The toolgun's explicit variants (box3d::spawnClass): a classname with a ruleset's prefix (ad_monster_gaunt,

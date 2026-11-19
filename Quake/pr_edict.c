@@ -329,19 +329,24 @@ static ddef_t *ED_FindField (const char *name)
 	return NULL;
 }
 
-// AD support: the field AD's imported QuakeC has for a map key Quake VR has no field of that type for: ad_<key>
-// (QC/ad/AD_IMPORT.txt; Arcane Dimensions, vr_ad.cpp). In a map played by AD's rules; elsewhere only for a key no
-// field of Quake VR's has (AD's artifacts, pickups and ladders spawn in any map).
-static ddef_t *ED_FindADKeyField (const char *keyname, ddef_t *ours)
+// QVR: the field an imported ruleset's QuakeC has for a map key Quake VR has no field of that type for: <prefix><key>
+// (ad_<key>: QC/ad/AD_IMPORT.txt; cu_<key>: QC/copper/COPPER_IMPORT.txt; vr_rules.cpp VR_Rules_KeyPrefix). In a map
+// played by that ruleset; elsewhere AD's only, for a key no field of Quake VR's has (AD's artifacts, pickups and
+// ladders spawn in any map).
+static ddef_t *ED_FindRulesetKeyField (const char *keyname, ddef_t *ours)
 {
-	ddef_t *ad;
-	ad = ED_FindField (va ("ad_%s", keyname));
-	if (!VR_AD_RulesOn ())
-		return ours ? NULL : ad; // (outside AD's rules: only a key no field of Quake VR's takes, for AD's entities there)
-	if (!ad || (ours && (ours->type & ~DEF_SAVEGLOBAL) == (ad->type & ~DEF_SAVEGLOBAL)))
-		return NULL; // (none, or the same key both ways: Quake VR's field is the key's)
-	return ad;
+	const char *prefix = VR_Rules_KeyPrefix ();
+	ddef_t *own = prefix ? ED_FindField (va ("%s%s", prefix, keyname)) : NULL;
+	if (own && !(ours && (ours->type & ~DEF_SAVEGLOBAL) == (own->type & ~DEF_SAVEGLOBAL)))
+		return own; // (the same key both ways: Quake VR's field is the key's)
+	if (prefix && !strcmp (prefix, "ad_"))
+		return NULL;
+	return ours ? NULL : ED_FindField (va ("ad_%s", keyname)); // (outside AD's rules: a key no field of ours takes)
 }
+
+// QVR: a map key naming a function the progs lacks (Dwell's d2end: "think" "bmodel_vanish", a function of Dwell's own
+// progs) is skipped with a warning, once a name, not a Host_Error that ends the map (DWELL.md 6).
+static char ed_missingfunction[64];
 
 /*
 ============
@@ -1482,11 +1487,11 @@ const char *ED_ParseEdict (const char *data, edict_t *ent)
 		//johnfitz
 
 		key = ED_FindField (keyname);
-		if (qcvm == &sv.qcvm) // AD support: in an AD map, AD's field takes a key Quake VR has none (of that type) for
+		if (qcvm == &sv.qcvm) // QVR: in an AD or Copper map, its field takes a key Quake VR has none (of that type) for
 		{
-			ddef_t *adkey = ED_FindADKeyField (keyname, key);
-			if (adkey)
-				key = adkey;
+			ddef_t *rkey = ED_FindRulesetKeyField (keyname, key);
+			if (rkey)
+				key = rkey;
 		}
 		if (!key)
 		{
@@ -1503,6 +1508,15 @@ const char *ED_ParseEdict (const char *data, edict_t *ent)
 			q_snprintf (com_token, sizeof (com_token), "0 %s 0", temp);
 		}
 
+		if ((key->type & ~DEF_SAVEGLOBAL) == ev_function && !ED_FindFunction (com_token)) // QVR: see ed_missingfunction
+		{
+			if (q_strcasecmp (ed_missingfunction, com_token))
+			{
+				q_strlcpy (ed_missingfunction, com_token, sizeof (ed_missingfunction));
+				Con_Printf ("Warning: key \"%s\" names a function this progs lacks (%s): ignored\n", keyname, com_token);
+			}
+			continue;
+		}
 		if (!ED_ParseEpair ((void *)&ent->v, key, com_token, qcvm != &sv.qcvm))
 			Host_Error ("ED_ParseEdict: parse error");
 	}
