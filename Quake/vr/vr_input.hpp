@@ -45,6 +45,9 @@ void roomscaleJump(const hands::State& s);
 // svc_quakevr QVR_SVC_HAPTIC (vr_client.cpp dispatches it).
 void parseHaptic();
 
+// A new map (VR_OnClientClearState): the speed button's toggle (vr_sprint_toggle) back to the Default Speed.
+void resetSprintToggle();
+
 } // namespace qvr::input
 
 namespace qvr::inputlag

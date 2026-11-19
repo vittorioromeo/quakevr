@@ -1001,6 +1001,7 @@ extern "C" void VR_OnClientClearState()
     view::resetClientState();
     painknock::reset();
     hands::resetClientState();
+    input::resetSprintToggle();
 }
 
 extern "C" int VR_MoveMainFire(int lmb)
