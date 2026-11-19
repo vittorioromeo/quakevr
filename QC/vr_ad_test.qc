@@ -7,6 +7,7 @@ entity vr_ad_test_a, vr_ad_test_b; // the targets of a two-step test (12/13: the
 float vr_ad_test_health;           // a reading the next step compares with
 void(entity p) VR_Rules_PathCornerTest; // (vr_rules_test.qc, after Copper's files: 199)
 void(entity p) DW_BossTest; // (dwell/dw_test.qc, after Dwell's files: 200)
+void(entity p, float xRequest) DW_WeaponsTest; // (dwell/dw_test.qc: 201-204)
 
 // An AD entity of `xClass` made by its AD spawn function `xSpawn` at `xAt`.
 entity(string xClass, void() xSpawn, vector xAt) AD_TestSpawn =
@@ -232,6 +233,7 @@ void(float request, entity p) AD_RulesTest =
     if(request >= 191 && request <= 197) { AD_GunTest(request, p); return; } // the hose cut: vr_ad_enemyguns_test.qc
     if(request == 184) { AD_GunTest(request, p); return; } // the crossbow in your main hand: vr_ad_enemyguns_test.qc
     if(request == 200) { DW_BossTest(p); return; } // the map's Dwell boss fought through its phases: dwell/dw_test.qc
+    if(request >= 201 && request <= 204) { DW_WeaponsTest(p, request); return; } // Dwell's weapons kept and fired: dwell/dw_test.qc
     if(request == 199) { VR_Rules_PathCornerTest(p); return; } // our monsters on AD's and Copper's path_corners, the th_* guard: vr_rules_test.qc
     if(request == 183) { AD_PelletMatTest(p); return; } // AD's projectile pellets into a tank, a crate, a grunt: vr_ad_shots_test.qc
     if(request >= 175 && request <= 182) { AD_GunTest(request, p); return; } // the tanks' burst field, armed monsters' tanks (182: their loops on death), no blood: vr_ad_enemyguns_test.qc

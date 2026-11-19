@@ -1104,6 +1104,7 @@ void(entity xPickup, entity p, float xHand) AD_UpgradeGiven =
         return;
     }
     inst.wi_adup = inst.wi_adup | xPickup.vr_ad_upgrade;
+    inst.wi_dwvar = 0; // (an AD upgrade, no longer Dwell's weapon: one or the other)
     // The Widowmaker comes with its tube full (his notes 2026-10-19: 16 of 16, not the super shotgun's 2): what the pickup
     // moved from the reserve into it stays, the rest comes with it. (Reloading off, or its mode none: from the reserve.)
     if(VRGetEntWeapon(p, xHand) == WID_SUPER_SHOTGUN && AD_Widowmaker(inst) && p.ishuman &&
@@ -1333,6 +1334,10 @@ void(float xHand) AD_FireWidowmaker =
 // (VR_ClipSizeOf), loaded at its port (vr_reload.qc), never broken open.
 float(entity xInst) AD_Widowmaker =
 {
+    // (Dwell support: Dwell's Rotary Shotgun handles as the Widowmaker, both rotary auto shotguns: its tube, reloaded at
+    // the hip a handful at a time, its barrels' spin-up before the first shot, never broken open; its shot is Dwell's,
+    // dw_items.qc DW_FireVariant, fired before the Widowmaker's in W_Fire_SuperShotgun. DWELL.md P3.)
+    if(xInst != world && xInst.wi_dwvar == DW_VAR_ROTARY) { return TRUE; }
     return AD_WeaponUpgraded(self, xInst, ad_IT_UPGRADE_SSG);
 };
 

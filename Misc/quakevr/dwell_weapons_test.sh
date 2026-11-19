@@ -1,0 +1,32 @@
+#!/bin/bash
+# dwell_weapons_test.sh <agent> -- Dwell's weapons as ours (DWELL.md P3; vr_ad_test 201-202, dwell/dw_test.qc):
+# headless on e1m1, the Rotary Shotgun given to the main hand, the Crystal Lance to the off hand, the Rifle to holster 0,
+# then (1) a save and a load (a scratch save qvr_dwweapons.sav in quakevr/), (2) a level change to e1m2; each time the three checked still Dwell's (their
+# records' variants: the save, parm76); after the load (e1m1's room) each fired at grunts held on its line:
+# the Rifle's 50, the Rotary Shotgun's pellets of 2, the Crystal Lance's 150 through two (the mock's hands levelled:
+# they point at the floor; positional damage off: exact numbers). Checks per case: the QC
+# verdict, and the run ended on it. Needs Dwell v2.2 in the base dir (<base>/dwellv2p2): without it the pickups'
+# models are missing but the weapons still fire (the variants are ours). Then vr_ad_test 204 (an armed grunt arming a
+# Dwell weapon's record, the powerups' screen tints). Exits 1 on a failure.
+AGENT=$1
+source "$(dirname "$0")/qvrtest.sh"
+for mode in load level; do
+    if [ "$mode" = load ]; then
+        move="save qvr_dwweapons;wait5;load qvr_dwweapons"; req=202
+    else
+        move="changelevel e1m2"; req=203
+    fi
+    log=$(bash $KIT/run.sh $AGENT -Script "map e1m1;wait10;god;notarget;vr_positional_damage 0;vr_ad_test 201;wait5;$move;wait10;vr_mock_hand_turn main 70 0 0;vr_mock_hand_turn off 70 0 0;wait3;vr_ad_test $req" \
+        -QuitOn "dwweapons: [0-9]+ passed" -Timeout 300 -Filter "dwweapons|rror|exit=" 2>&1 | tr -d '\r')
+    echo "$log" | grep -E "dwweapons: (FAIL|given)|FAIL" | head -6
+    expect_verdict "$log" dwweapons "$mode: Dwell's weapons kept and fired"
+    check $(grep -q "exit=quit-on" <<<"$log" && echo 1 || echo 0) "$mode: the run ended on the verdict"
+done
+# vr_ad_test 204: an armed grunt arming a Dwell weapon's record (named, the variant kept, Dwell's shot), the powerups' tints.
+log=$(bash $KIT/run.sh $AGENT -Script "map e1m1;wait10;vr_ad_test 204" -QuitOn "dwgrunt: [0-9]+ passed" -Timeout 300 \
+    -Filter "dwgrunt|rror|exit=" 2>&1 | tr -d '\r')
+echo "$log" | grep -E "FAIL" | head -6
+expect_verdict "$log" dwgrunt "an armed grunt keeps a Dwell weapon; the powerups' tints"
+check $(grep -q "exit=quit-on" <<<"$log" && echo 1 || echo 0) "grunt: the run ended on the verdict"
+verdict
+exit $fail

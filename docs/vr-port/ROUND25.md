@@ -4256,6 +4256,16 @@ boss fights (d1end, d2end); Berserk melee; the Crystal Lance through a row of mo
 Left (P2b/P3/P4): rigs and head-zone fits, Dwell's exact boss motion and bullet patterns, HUD icons and tints for the
 powerups, the weapons as VR weapons (and their variant across level changes), the story camera's flight.
 
+## Dwell P3, first part: Dwell's weapons and powerups on our player (2026-11-19, `agent/dwell3`)
+
+DWELL.md 9.4 has the detail. Dwell's Rotary Shotgun, Crystal Lance and Rifle stay variants of the super shotgun,
+lightning gun and shotgun (AD's precedent: all three AD weapons are variants), now kept with the weapon record
+(`.wi_dwvar` in `vr_weaponinst.qc`, cloned, saved, parm76 across level changes and coop rejoins). The Rotary Shotgun
+handles as the Widowmaker (`AD_Widowmaker` true for it: tube, hip reload, spin-up), its shot Dwell's. Haste, Berserk,
+the Wetsuit: text with seconds on the wrist gadget's item row and the flat visor (`STAT_QVR_DWPOWER`). Fixed: the
+Crystal Lance's beam message lacked its disambiguator byte (Host_Error "Received signon 0" at its first shot). Test:
+`Misc/quakevr/dwell_weapons_test.sh` (vr_ad_test 201-203). Left: Dwell's view models as VR models (recipes), tints,
+the wheel's variant name, variants through armed grunts.
 ## Dwell P2b: Dwell's monsters VR-native (dwell2b, 2026-11-19)
 
 DWELL.md 9.4. S7 measured: AD's monster row is the shared one (`VR_ADM_OURS`: a row run by our own monster code;
@@ -4268,3 +4278,14 @@ failed`): 11/0.
 For his headset: knock a Brute down (shove, bash) and watch it get up; behead it with a sword; cut its arms; parry its
 punch; grab and throw a Kamikaze; head shots on the Awoken.
 Left: Dwell's bullet-hell programs restored, the Sculptor's motion, the Awoken's scale reviewed in VR.
+
+## Dwell P3, second part (dwell3b, 2026-11-19, `agent/dwell3`)
+
+DWELL.md 9.5 has the detail. Merged next (P2b; DWELL.md's P2b section stays 9.4, P3 is now 9.5; `DW_PositionalHead`'s
+prototype dropped) and verified the Crystal Lance crash fix branch: `dwell_maps.sh` 28/0, `dwell_weapons_test.sh`,
+`dwell_monsters_test.sh` 11/0, `saveload_test.sh` 30/0, `scenario_check.sh` PASS, spawn census vs a fresh origin/next
+build, 0 warnings dev and ReleaseLTO. Then: an armed grunt holding a Dwell weapon fires Dwell's shot (`VR_AG_ShootProp`
+-> `DW_FireVariant`; the Lance's beam from its prop) and its prop carries Dwell's name; Haste and Berserk tint the
+screen in Dwell's colours through AD's tint (`VR_AD_Tint`). Test: `vr_ad_test 204` in `dwell_weapons_test.sh` (6/0).
+Left: Dwell's view models as VR models (`vr_adweapons.cpp` recipes; Dwell's `v_shot3.mdl` shares AD's file name), the
+Rotary's drawn spin, and the variant names in the flat holster menu and on the wrist by those models.
