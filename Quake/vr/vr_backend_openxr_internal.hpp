@@ -272,6 +272,8 @@ private:
     XrSpace handSpaces[2]{XR_NULL_HANDLE, XR_NULL_HANDLE};
     Swapchain swapchains[2];
     Swapchain panel;
+    int32_t panelFailedWidth{0}; // the size its swapchain failed at in this session, or is being made at (ensurePanelSwapchain)
+    int32_t panelFailedHeight{0};
     int64_t colorFormat{GL_RGBA8};
     bool panelPending{false}; // an image was released for the frame being finished
     bool panelShown{false};   // the panel was in the last submitted frame (keeps its place)
@@ -373,6 +375,7 @@ private:
         int held{0};              // with the last ones again (vr_xr_unfocused)
         int empty{0};             // without a layer
         int panels{0};            // with the runtime's panel (a quad layer)
+        int endedLate{0};         // finished by the next beginFrame (the screen not drawn: a load)
         int noRender{0};          // shouldRender false
         int missed{0};            // display periods skipped (predictedDisplayTime moved on by more than one)
         int periodNs{0};          // predictedDisplayPeriod
@@ -387,6 +390,18 @@ private:
 
     // After xrWaitFrame: the frame period, the display periods missed, and once a second the log's line.
     void noteWaited();
+
+    // XR_ERROR_SESSION_LOST or XR_ERROR_INSTANCE_LOST from xrPollEvent, xrWaitFrame, xrBeginFrame or xrEndFrame: the
+    // headset or the runtime gone without its loss event first (a crashed compositor). True for those codes: the
+    // session ends as for the events (beginFrame false, endReason Lost: flat); said once, in the log and the states.
+    bool lostBy(XrResult result, const char* call);
+    bool lostByResult{false}; // (xrEndFrame's ends the session at the next beginFrame)
+
+    // A frame the runtime did not pace (no xrWaitFrame: the session IDLE, between STOPPING and READY, a failed wait):
+    // held to about a display period after the last such frame, as xrWaitFrame holds one, so the loop does not spin
+    // with the swap interval 0 (at host_maxfps, or unbounded with host_maxfps 0).
+    void paceUnwaited();
+    double unwaitedLast{0.0}; // when the last such frame went on (Sys_DoubleTime)
 
     // The local time, for the log (hh:mm:ss.mmm).
     [[nodiscard]] static const char* wallClock();

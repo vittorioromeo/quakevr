@@ -335,6 +335,8 @@ void OpenXrBackend::resetRuntimeState()
     stateTrailCount = 0;
     stateTrailText[0] = '\0';
     endReason = SessionEnd::Lost;
+    lostByResult = false;
+    panelFailedWidth = panelFailedHeight = 0;
     visibilityMaskExtension = false;
     eyeGazeOffered = false;
     eyeGazeExtension = false;
@@ -899,6 +901,7 @@ void OpenXrBackend::beginSession()
     sessionRunning = check(xrBeginSession(session, &beginInfo), "xrBeginSession");
     if(sessionRunning)
     {
+        panelFailedWidth = panelFailedHeight = 0; // (a panel swapchain that failed: tried again, the runtime may be back)
         // (Usually none yet: runtimes pick them at the first xrSyncActions, and say so with an event.)
         updateControllers();
         xrruntime::logLine(va("OpenXR: controller profiles at the session's start: left %s, right %s\n",
@@ -924,7 +927,8 @@ bool OpenXrBackend::pollEvents()
     }
     checkControllers();
     XrEventDataBuffer event{XR_TYPE_EVENT_DATA_BUFFER};
-    while(xrPollEvent(instance, &event) == XR_SUCCESS)
+    XrResult polled = XR_SUCCESS;
+    while((polled = xrPollEvent(instance, &event)) == XR_SUCCESS)
     {
         switch(event.type)
         {
@@ -1000,7 +1004,7 @@ bool OpenXrBackend::pollEvents()
         event = XrEventDataBuffer{XR_TYPE_EVENT_DATA_BUFFER};
     }
 
-    return true;
+    return !lostBy(polled, "xrPollEvent"); // (any other failure: no events this frame)
 }
 
 } // namespace qvr::oxr

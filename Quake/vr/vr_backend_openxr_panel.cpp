@@ -48,6 +48,13 @@ void OpenXrBackend::placePanel()
 
 bool OpenXrBackend::ensurePanelSwapchain(int width, int height)
 {
+    // Failed at this size in this session, or being made: not asked again every frame, nor from inside its own
+    // making (a warning there prints, and a print before a map draws the screen again, Con_Printf, whose panel copy
+    // comes back here: it acquired the half-made swapchain).
+    if(panelFailedWidth == width && panelFailedHeight == height)
+    {
+        return false;
+    }
     if(panel.handle != XR_NULL_HANDLE && panel.width == width && panel.height == height)
     {
         return true;
@@ -58,8 +65,18 @@ bool OpenXrBackend::ensurePanelSwapchain(int width, int height)
         guarded("xrDestroySwapchain", [handle] { return xrDestroySwapchain(handle); });
         panel = Swapchain{};
     }
-    return createSwapchain(panel, width, height,
-        XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT | XR_SWAPCHAIN_USAGE_TRANSFER_DST_BIT, "xrCreateSwapchain (panel)");
+    panelFailedWidth = width; // (until it is made)
+    panelFailedHeight = height;
+    if(!createSwapchain(panel, width, height,
+           XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT | XR_SWAPCHAIN_USAGE_TRANSFER_DST_BIT, "xrCreateSwapchain (panel)"))
+    {
+        xrruntime::warn("OpenXR: the panel's swapchain failed at %dx%d: no panel at that size until the session begins "
+                        "again (VR Settings > Restart VR)\n",
+            width, height);
+        return false;
+    }
+    panelFailedWidth = panelFailedHeight = 0;
+    return true;
 }
 
 } // namespace qvr::oxr
