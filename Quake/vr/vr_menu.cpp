@@ -32,6 +32,7 @@
 #include "vr_monstervalues.hpp"
 #include "vr_tunables.hpp"
 #include "vr_weaponvalues.hpp"
+#include "Zancle/Algorithm/Count.hpp"
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Chrono/Clock.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -676,6 +677,8 @@ void hologramTestMessage()
     return "Own DOOM? Drop DOOM.WAD into quakevr/doom/wads";
 }
 
+int doomPageGeneration = -1; // the WAD search the Doom page's rows were built for (items(): Search Again)
+
 [[nodiscard]] za::Vector<Item> pageDoom()
 {
     za::Vector<Item> items = {
@@ -690,6 +693,7 @@ void hologramTestMessage()
         row(doom::wadRow, doom::wadHelp, doom::pickWad, -1, -1),
     };
     const int count = doom::wadCount();
+    doomPageGeneration = doom::wadGeneration();
     for(int i = 0; i < count; i++)
     {
         items.pushBack(row(doom::wadRow, doom::wadHelp, doom::pickWad, i, -1));
@@ -2391,6 +2395,10 @@ void applyFolds(int page, za::Vector<Item>& list)
                                                     reviewRelabelCategory != static_cast<int>(vr_motion_relabel_category.value))))
     {
         done[page] = false; // the list, or the take picked, changed
+    }
+    if(page == pageIndex(pageDoom) && doomPageGeneration != doom::wadGeneration())
+    {
+        done[page] = false; // the WADs searched again (Search Again, vr_doom_wads): a row each
     }
     if(menuPages.level[page] != menuLevel())
     {
@@ -5056,6 +5064,40 @@ void buildCost(int n)
     });
 }
 
+// menu_vr doomtest (Misc/quakevr/menu_doom_test.sh; REVIEW_NEXT_2026-11-18.md, finding 19): the Doom page's WAD rows
+// follow Search Again: a WAD dropped into quakevr/doom/wads (a 28-byte IWAD of the test's) and vr_doom_wads, a row more;
+// the file removed and searched again, as before. Ends "menu_doom_test: N passed, M failed".
+void doomTest()
+{
+    testkit::Tally tally;
+    char line[256];
+    const auto check = [&tally](bool ok, const char* what) {
+        if(tally.check(ok, "menu_doom_test", what))
+        {
+            Con_Printf("menu_doom_test: PASS %s\n", what);
+        }
+    };
+    const int page = pageIndex(pageDoom);
+    const auto wadRows = [page] {
+        const auto& list = items(page);
+        return static_cast<int>(za::countIf(list.begin(), list.end(), [](const Item& item) { return item.infoArg == doom::wadRow; }));
+    };
+    const int before = wadRows();
+    const za::String path = doom::dropInFolder() + "/qvr_menu_doom_test.wad";
+    // An IWAD of one empty lump (the header, then its directory: offset 0, size 0, "E1M1").
+    const unsigned char wad[28] = {'I', 'W', 'A', 'D', 1, 0, 0, 0, 12, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'E', '1', 'M', '1'};
+    check(files::writeBytes(path.cStr(), wad, sizeof(wad)), "a test WAD written into the drop-in folder");
+    Cmd_ExecuteString("vr_doom_wads", src_command); // (Search Again's command)
+    const int added = wadRows();
+    q_snprintf(line, sizeof(line), "after Search Again: %d WAD rows, %d before (one more, unless at the page's most)", added, before);
+    check(added == before + 1 || (added == before && doom::wadCount() == before - 1), line);
+    files::remove(path.cStr());
+    Cmd_ExecuteString("vr_doom_wads", src_command);
+    q_snprintf(line, sizeof(line), "the WAD removed, after Search Again: %d WAD rows", wadRows());
+    check(wadRows() == before, line);
+    tally.verdict("menu_doom_test");
+}
+
 // menu_vr changedtest (Misc/quakevr/menu_changed_test.sh; REVIEW_NEXT_2026-11-18.md, finding 13): the menu's "changed"
 // is the config's (sameSettingValue). A setting 1e-7 off its default (a line the config doesn't write) has no * and is
 // not on Changed Settings; its default's number in other text ("0.50" for "0.5") is not changed either, and Reset All
@@ -5532,6 +5574,11 @@ void qvr::menu::command_f()
     if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "buildcost"))
     {
         buildCost(Cmd_Argc() > 2 ? za::max(Q_atoi(Cmd_Argv(2)), 1) : 5);
+        return;
+    }
+    if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "doomtest"))
+    {
+        doomTest();
         return;
     }
     if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "changedtest"))

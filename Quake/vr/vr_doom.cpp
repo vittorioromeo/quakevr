@@ -278,6 +278,7 @@ struct Catalog
 {
     za::Vector<Wad> wads;
     bool scanned{false};
+    int generation{0}; // searches made (the menu's Doom page rebuilt after one: wadGeneration)
 };
 Catalog catalog;
 
@@ -574,6 +575,7 @@ void scan()
         }
     }
     catalog.scanned = true;
+    catalog.generation++;
 }
 
 void ensureScanned()
@@ -1780,6 +1782,16 @@ const char* menuStatus()
     q_snprintf(menuStatusText, sizeof(menuStatusText), "%s: %s%s", session.running ? (session.open ? "Playing" : "Waiting (closed)") : "Will play",
         name, session.running && session.focused ? ", has the controls" : "");
     return menuStatusText;
+}
+
+int wadGeneration()
+{
+    return catalog.generation;
+}
+
+za::String dropInFolder()
+{
+    return doomFolder() + "/wads";
 }
 
 int wadCount()
