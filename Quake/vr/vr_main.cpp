@@ -92,6 +92,7 @@
 #include "vr_relight.hpp"
 #include "vr_relight_tool.hpp"
 #include "vr_stealth.hpp"
+#include "vr_stereo.hpp"
 #include "vr_stereo_single.hpp"
 #include "vr_text3d.hpp"
 #include "vr_tips.hpp"
@@ -165,6 +166,7 @@
 #include "vr_foveated.hpp"
 #include "vr_jobs.hpp"
 #include "vr_gfx.hpp"
+#include "vr_glutil.hpp"
 #include "vr_monsterdata.hpp"
 #include "vr_props.hpp"
 #include "vr_propthink.hpp"
@@ -230,10 +232,6 @@
 using namespace qvr;
 
 extern "C" void TexMgr_MemStats(int* count, int* normalmaps, double* megabytes); // gl_texmgr.c
-namespace qvr::gfx
-{
-extern int targetsMade; // vr_gfx_gl.cpp
-}
 extern "C" int r_numactiveparticles; // r_part.c
 extern "C" cvar_t host_maxfps, vid_vsync, vid_refreshrate; // host.c, gl_vidsdl.c (the menu's status box)
 
@@ -282,6 +280,7 @@ void stopBackend()
     Con_Printf("VR: stopping %s backend\n", state->backend->name());
     state->backend->stop();
     state->backend.reset();
+    stereo::releaseTargets(); // the eye-sized GL objects (made again when the eyes are next drawn)
 }
 
 void startBackend()
@@ -2373,6 +2372,7 @@ extern "C" void VR_Init()
     flatlook::init(); // vr_flatlook_info (vr_flatlook.cpp)
     visor::init();    // vr_flat_visor_report, vr_flat_visor_fx (vr_visor.cpp)
     stereosingle::init(); // vr_stereo_single_info
+    stereo::init(); // vr_stereo_targets_test
     timescale::init(); // vr_slowmo
     Cvar_SetCallback(&vr_map_liquid_alpha, [](cvar_t*) { R_UpdateLiquidAlpha(); }); // gl_rmisc.c: the liquids' alphas again
     envmap::init(); // vr_envmap_dump

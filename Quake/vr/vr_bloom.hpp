@@ -28,4 +28,7 @@ void apply(GLuint sceneTex, int width, int height);
 // Frees the GL objects (when the GL context goes away).
 void shutdown();
 
+// VR stopped (stereo::releaseTargets): the eyes' and the spectator camera's chains freed (made again at their next use).
+void releaseTargets();
+
 } // namespace qvr::bloom

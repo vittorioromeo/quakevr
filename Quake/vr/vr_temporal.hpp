@@ -30,4 +30,8 @@ void endEye();
 
 void registerCommands();
 
+// VR stopped (stereo::releaseTargets): the eye-sized textures freed (made again, the history anew, at their next use) and
+// the motion target detached from the eyes' framebuffers (made again: attached again next frame).
+void releaseTargets();
+
 } // namespace qvr::temporal

@@ -18,6 +18,7 @@
 #include "vr_gadget.hpp"
 #include "vr_flatholster.hpp"
 #include "vr_gfx.hpp"
+#include "vr_glutil.hpp"
 #include "vr_hands.hpp"
 #include "vr_highlights.hpp"
 #include "vr_main.hpp"
@@ -59,7 +60,7 @@ namespace
 constexpr glm::vec4 wholeCanvas{0.f, 0.f, 1.f, 1.f};
 constexpr glm::vec4 noMask{0.f, 0.f, 0.f, 0.f};
 
-gfx::Target canvas;
+gfx::RenderTarget canvas;
 bool drawingToCanvas = false;
 
 // The headset's eye images: their pixels per unit of tangent up the view (their projection's), from the last eye
@@ -95,7 +96,7 @@ struct MenuPanel
 {
     MenuPlacement placement;
     float yawOffset{0.f}; // in front of the head: its yaw in the play space, frozen when it appears
-    gfx::Target own;      // (the panels after the first)
+    gfx::RenderTarget own;      // (the panels after the first)
     // Where it was last (vr_menu_panel_remember), from the first panel: its middle and axes along the first's right, up
     // and facing (away from the viewer).
     bool remembered{false};
@@ -108,13 +109,13 @@ MenuPanel menuPanels[menu::instanceCount];
     return menuPanels[menu::currentInstance()];
 }
 
-[[nodiscard]] const gfx::Target& menuCanvas(int instance)
+[[nodiscard]] const gfx::RenderTarget& menuCanvas(int instance)
 {
     return instance > 0 ? menuPanels[instance].own : canvas;
 }
 
 // The 2D pass's target while it draws (the canvas, or a panel's own: VR_CanvasPixels).
-const gfx::Target* drawTarget = &canvas;
+const gfx::RenderTarget* drawTarget = &canvas;
 
 // The in-game HUD panel follows the head, smoothly.
 bool hudAnglesValid = false;
@@ -142,9 +143,9 @@ bool windowHudPending = false;
 // head. The canvas holds colours already multiplied by their alpha (2D was drawn over transparent
 // black). `target`: the canvas drawn (a menu's: menuCanvas).
 void drawCanvas(const glm::mat4& mvp, const glm::vec4& uvRect = wholeCanvas, const glm::vec4& mask = noMask,
-    const gfx::Target& target = canvas)
+    const gfx::RenderTarget& target = canvas)
 {
-    if(!target.texture)
+    if(!target.tex)
     {
         return;
     }
@@ -185,7 +186,7 @@ void drawCanvas(const glm::mat4& mvp, const glm::vec4& uvRect = wholeCanvas, con
 
     gfx::draw(vertices, mvp,
         {.shade = gfx::Shade::Texture, .blend = gfx::Blend::Premultiplied, .depthTest = false, .depthWrite = false},
-        target.texture);
+        target.tex);
 }
 
 [[nodiscard]] bool panelVisible()
@@ -207,7 +208,7 @@ void drawCanvas(const glm::mat4& mvp, const glm::vec4& uvRect = wholeCanvas, con
 // The canvas on a panel vr_menu_distance in front of the head, the way `angles` look, `height`
 // units high (as wide as `target`'s shape): its corner (0, 0) and the axes spanning it.
 void facingQuad(const hands::State& s, const glm::vec3& angles, float height, glm::vec3& corner, glm::vec3& xAxis,
-    glm::vec3& yAxis, const gfx::Target& target = canvas)
+    glm::vec3& yAxis, const gfx::RenderTarget& target = canvas)
 {
     glm::vec3 fwd, right, up;
     hands::angleVectors(angles, fwd, right, up);
@@ -240,7 +241,7 @@ void menuPanelQuad(const hands::State& s, int instance, glm::vec3& corner, glm::
 {
     const float height = panelHeight();
     const MenuPlacement& placement = menuPanels[instance].placement;
-    const gfx::Target& target = menuCanvas(instance).texture ? menuCanvas(instance) : canvas; // (its shape: the canvas's)
+    const gfx::RenderTarget& target = menuCanvas(instance).tex ? menuCanvas(instance) : canvas; // (its shape: the canvas's)
     if(!placement.placed)
     {
         facingQuad(s, {0.f, menuPanels[instance].yawOffset + hands::playSpaceYaw(), 0.f}, height, corner, xAxis, yAxis,
@@ -432,7 +433,7 @@ void drawInEye(const hands::State& s, bool headText)
     }
     panelWasVisible = visible;
 
-    if(!canvas.texture)
+    if(!canvas.tex)
     {
         return;
     }
@@ -466,7 +467,7 @@ void drawInEye(const hands::State& s, bool headText)
     for(int i = 0; i < menu::instanceCount; i++)
     {
         glm::vec3 corner, xAxis, yAxis;
-        if(i > 0 && (!menu::instanceOpen(i) || !menuPanels[i].own.texture))
+        if(i > 0 && (!menu::instanceOpen(i) || !menuPanels[i].own.tex))
         {
             continue;
         }
@@ -498,7 +499,7 @@ bool menuQuad(const hands::State& s, int instance, glm::vec3& corner, glm::vec3&
 {
     // Shown in the eyes (not on the runtime's own panel, without a world), and placed.
     if(instance < 0 || instance >= menu::instanceCount || (instance > 0 && !menu::instanceOpen(instance)) ||
-        !menuCanvas(instance).texture || !panelWasVisible || !panelVisible() || realtime - panelInEyesTime > 0.25)
+        !menuCanvas(instance).tex || !panelWasVisible || !panelVisible() || realtime - panelInEyesTime > 0.25)
     {
         return false;
     }
@@ -549,9 +550,15 @@ void openMenuPanel(int instance)
     p.yawOffset = menuPanels[0].yawOffset;
     p.placement = menuPanels[0].placement;
     // Its own canvas, the first's size, before the first draw (its quad's shape).
-    if(canvas.texture)
+    if(canvas.tex)
     {
-        gfx::ensureTarget(p.own, canvas.width, canvas.height, canvas.levels > 1, "panel canvas");
+        const GLuint bound = GL_BoundDrawFramebuffer();
+        if(!p.own.ensure(canvas.width, canvas.height, gfx::RenderTargetFormat{.mipmaps = canvas.levels > 1, .fboName = "vr canvas"},
+               "panel canvas"))
+        {
+            Con_Warning("VR: a menu panel's canvas framebuffer is incomplete\n");
+        }
+        GL_BindFramebufferFunc(GL_FRAMEBUFFER, bound);
     }
 
     // The first panel kept where it is now (else it follows the head about, and they would not stay side by side).
@@ -588,7 +595,7 @@ void closeMenuPanel(int instance)
     }
     MenuPanel& p = menuPanels[instance];
     const hands::State& s = hands::current();
-    if(s.valid && p.own.texture)
+    if(s.valid && p.own.tex)
     {
         const PanelFrame first = panelFrame(s, 0);
         const PanelFrame f = panelFrame(s, instance);
@@ -600,7 +607,7 @@ void closeMenuPanel(int instance)
         p.right = to(f.right);
         p.up = to(f.up);
     }
-    gfx::releaseTarget(p.own);
+    p.own.destroy();
 }
 
 void placeMenu(const hands::State& s, const glm::vec3& centre, const glm::vec3& right, const glm::vec3& up)
@@ -655,7 +662,7 @@ extern "C" void VR_Begin2D()
 
 extern "C" int VR_CanvasPixels(int* width, int* height)
 {
-    if(!drawingToCanvas || !drawTarget->texture)
+    if(!drawingToCanvas || !drawTarget->tex)
     {
         return 0;
     }
@@ -682,7 +689,7 @@ void renderMenuPanels()
         {
             continue;
         }
-        gfx::Target& target = menuPanels[i].own;
+        gfx::RenderTarget& target = menuPanels[i].own;
         drawingToCanvas = true;
         drawTarget = &target;
         gfx::beginCanvas(target, canvas.width, canvas.height, canvas.levels > 1, -CLAMP(0.f, vr_menu_sharpen.value, 1.f));

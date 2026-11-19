@@ -25,6 +25,7 @@
 #include "vr_dynres.hpp"
 #include "vr_flatplay.hpp"
 #include "vr_hands.hpp"
+#include "vr_haze.hpp"
 #include "vr_lines.hpp"
 #include "vr_loading.hpp"
 #include "vr_main.hpp"
@@ -38,6 +39,7 @@
 #include "vr_text3d.hpp"
 #include "vr_takes.hpp"
 #include "vr_temporal.hpp"
+#include "vr_testkit.hpp"
 #include "vr_tonemap.hpp"
 #include "vr_tracy.h"
 #include "vr_upscale.hpp"
@@ -45,6 +47,7 @@
 #include "vr_window.hpp"
 
 #include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/Memcmp.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Lround.hpp"
@@ -181,6 +184,41 @@ void ensureSceneTargets(SceneTargets& t, int width, int height, float fsaa)
     {
         GL_GenFramebuffersFunc(1, &targetFbo);
         GL_LabelNewFramebuffer(targetFbo, "vr eye target");
+    }
+}
+
+// Frees a set (releaseTargets): made from nothing at its next ensureSceneTargets.
+void deleteSceneTargets(SceneTargets& t)
+{
+    if(!t.width)
+    {
+        return;
+    }
+    const glframebufs_t windowFramebufs = framebufs;
+    framebufs = t.fb;
+    GL_DeleteFrameBuffers();
+    framebufs = windowFramebufs;
+    const unsigned generation = t.generation;
+    t = SceneTargets{};
+    t.generation = generation + 1; // (single-pass stereo's arrays follow)
+}
+
+void deletePortalTargets(PortalTargets& p)
+{
+    deleteSceneTargets(p.scene);
+    for(int d = 0; d < 4; d++)
+    {
+        if(p.array[d])
+        {
+            GL_DeleteNativeTexture(p.array[d]);
+        }
+        p.array[d] = 0;
+        p.layers[d] = 0;
+    }
+    if(p.fbo)
+    {
+        GL_DeleteFramebuffersFunc(1, &p.fbo);
+        p.fbo = 0;
     }
 }
 
@@ -517,7 +555,32 @@ void drawUi(const glm::vec3& viewOrigin, GLuint fbo, int width, int height, bool
 // 1 with Ironwail's reversed Z, 0 without) right after the scene's clear: every later depth-tested
 // fragment there fails early, so the world's, models' and particles' shaders skip those pixels,
 // and bloom and the mirror see black.
-za::Vector<gfx::Vertex> hiddenTriangles;
+// Each eye's triangles are kept in a vertex buffer, made again only when what they are made from changes: the
+// runtime's mesh (a visibility-mask event gives a new one), the eye's field of view, the depth convention. Not at every
+// scene clear (each eye, each view through a teleporter, each layer of single-pass stereo).
+struct HiddenMesh
+{
+    gfx::StaticTriangles triangles;
+    // What they were made from (made: false, nothing yet).
+    bool made = false;
+    Fov fov;
+    float z = 0.f;
+    za::Vector<glm::vec2> vertices; // the runtime's mesh, copied
+    za::Vector<za::U32> indices;
+};
+za::Array<HiddenMesh, 2> hiddenMeshes;
+za::Vector<gfx::Vertex> hiddenTriangles; // (a mesh's triangles before their upload)
+
+[[nodiscard]] bool sameFov(const Fov& a, const Fov& b)
+{
+    return a.left == b.left && a.right == b.right && a.up == b.up && a.down == b.down;
+}
+
+template <typename T>
+[[nodiscard]] bool sameContents(const za::Vector<T>& a, const za::Vector<T>& b)
+{
+    return a.size() == b.size() && (a.empty() || ZA_MEMCMP(a.data(), b.data(), a.size() * sizeof(T)) == 0);
+}
 
 void drawHiddenArea()
 {
@@ -536,14 +599,26 @@ void drawHiddenArea()
         return;
     }
     const float z = gl_clipcontrol_able ? 1.f : -1.f;
-    hiddenTriangles.clear();
-    for(const za::U32 i : h->indices)
+    HiddenMesh& mesh = hiddenMeshes[currentEye & 1];
+    if(!mesh.made || !sameFov(mesh.fov, fov) || mesh.z != z || !sameContents(mesh.vertices, h->vertices) ||
+        !sameContents(mesh.indices, h->indices))
     {
-        const glm::vec2 t = h->vertices[i];
-        gfx::Vertex v;
-        v.pos = {(2.f * t.x - (r + l)) / (r - l), (2.f * t.y - (u + d)) / (u - d), z};
-        v.color = glm::vec4{0.f};
-        hiddenTriangles.pushBack(v);
+        hiddenTriangles.clear();
+        for(const za::U32 i : h->indices)
+        {
+            const glm::vec2 t = h->vertices[i];
+            gfx::Vertex v;
+            v.pos = {(2.f * t.x - (r + l)) / (r - l), (2.f * t.y - (u + d)) / (u - d), z};
+            v.color = glm::vec4{0.f};
+            hiddenTriangles.pushBack(v);
+        }
+        gfx::upload(mesh.triangles, hiddenTriangles);
+        mesh.made = true;
+        mesh.fov = fov;
+        mesh.z = z;
+        mesh.vertices = h->vertices;
+        mesh.indices = h->indices;
+        Con_DPrintf("VR: the hidden area of eye %d made (%d triangles)\n", currentEye, static_cast<int>(h->indices.size() / 3));
     }
 
     gfx::State state;
@@ -551,7 +626,7 @@ void drawHiddenArea()
     state.blend = gfx::Blend::Opaque;
     state.depthTest = true; // passes against the clear (GL skips depth writes without the test)
     state.depthWrite = true;
-    gfx::draw(hiddenTriangles, glm::mat4{1.f}, state);
+    gfx::draw(mesh.triangles, glm::mat4{1.f}, state);
 }
 
 void renderPortal(int width, int height, int depth);
@@ -698,7 +773,7 @@ SpectatorPace spectatorPace;
 // mipmaps for the panel's distance. Made from each new image while a menu shows it: one pass of its pixels.
 struct SpectatorPreview
 {
-    gfx::Target target;
+    gfx::RenderTarget target;
     int images = 0;        // the camera's images so far
     int made = -1;         // the image it was made from
     double madeAt = -1.0;  // realtime when it was last made or found current
@@ -717,10 +792,15 @@ void makePreview(int windowWidth, int windowHeight)
     if(p.made != p.images || p.target.width != previewWidth || p.target.height != height)
     {
         QVR_GPU_PROFILE("spectator preview");
-        gfx::ensureTarget(p.target, previewWidth, height, true, "spectator preview");
+        if(!p.target.ensure(previewWidth, height, gfx::RenderTargetFormat{.mipmaps = true, .fboName = "vr canvas"},
+               "spectator preview"))
+        {
+            Con_Warning("VR: the spectator preview's framebuffer is incomplete\n");
+            return;
+        }
         drawToWindow(spectatorTargets, spectatorPace.look, cropMap(0.f, 0.f, 1.f, 1.f), Sampling::Bilinear,
-            p.target.framebuffer, 0, p.target.width, p.target.height);
-        GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, p.target.texture);
+            p.target.fbo, 0, p.target.width, p.target.height);
+        GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, p.target.tex);
         GL_GenerateMipmapFunc(GL_TEXTURE_2D);
         p.made = p.images;
     }
@@ -821,12 +901,12 @@ bool isSpectator()
 unsigned spectatorPreview(float& aspect)
 {
     const SpectatorPreview& p = previewState;
-    if(!p.target.texture || p.made < 0 || p.madeAt < 0.0 || realtime - p.madeAt > 0.25)
+    if(!p.target.tex || p.made < 0 || p.madeAt < 0.0 || realtime - p.madeAt > 0.25)
     {
         return 0;
     }
     aspect = static_cast<float>(p.target.height) / static_cast<float>(p.target.width);
-    return p.target.texture;
+    return p.target.tex;
 }
 
 bool isRenderingEye()
@@ -883,6 +963,141 @@ void precompilePrograms()
         mirrorFailed = !mirrorProgram;
         gfx::ownDeferred(mirrorProgram, &mirrorFailed);
     }
+}
+
+void releaseTargets()
+{
+    const bool held = eyeTargets.width || spectatorTargets.width || eyePortals.scene.width || spectatorPortals.scene.width;
+    deleteSceneTargets(eyeTargets);
+    deleteSceneTargets(spectatorTargets);
+    deletePortalTargets(eyePortals);
+    deletePortalTargets(spectatorPortals);
+    resample.destroy();
+    if(targetFbo)
+    {
+        GL_DeleteFramebuffersFunc(1, &targetFbo);
+        targetFbo = 0;
+    }
+    previewState.target.destroy();
+    previewState.made = -1;
+    spectatorPace.shown = false;
+    for(HiddenMesh& mesh : hiddenMeshes)
+    {
+        if(mesh.triangles.buffer)
+        {
+            GL_DeleteBuffer(mesh.triangles.buffer);
+        }
+        mesh = HiddenMesh{};
+    }
+    stereosingle::releaseTargets();
+    gfx::releaseSceneTargets();
+    temporal::releaseTargets();
+    bloom::releaseTargets();
+    haze::releaseTargets();
+    water::releaseTargets();
+    upscale::releaseTargets();
+    GL_BindFramebufferFunc(GL_FRAMEBUFFER, 0); // (the window's: GL_DeleteFrameBuffers left none bound)
+    if(held)
+    {
+        Con_DPrintf("VR: the eyes' targets released\n");
+    }
+}
+
+namespace
+{
+
+// vr_stereo_targets_test (Misc/quakevr/stereo_targets_test.sh): what the eyes' GL objects do over frames. `begin` notes
+// the counts, `steady` (frames later, the view unchanged) checks nothing was made again, `released` (after VR stopped)
+// that the eye-sized objects are gone; `verdict` prints the line.
+struct TargetsTest
+{
+    testkit::Tally tally;
+    int frame = 0;
+    long long hiddenUploads[2] = {};
+    int underMade = 0;
+};
+TargetsTest targetsTest;
+constexpr const char* targetsTestName = "stereo_targets";
+
+void targetsCheck(bool ok, const char* what)
+{
+    targetsTest.tally.check(ok);
+    Con_Printf("%s: %s %s\n", targetsTestName, ok ? "PASS" : "FAIL", what);
+}
+
+void targetsTest_f()
+{
+    TargetsTest& t = targetsTest;
+    const char* step = Cmd_Argc() > 1 ? Cmd_Argv(1) : "";
+    if(!q_strcasecmp(step, "begin"))
+    {
+        t.tally.reset();
+        t.frame = host_framecount;
+        for(int eye = 0; eye < 2; eye++)
+        {
+            t.hiddenUploads[eye] = hiddenMeshes[eye].triangles.uploads;
+        }
+        t.underMade = gfx::underTargetsMade();
+        Con_Printf("%s: begun (hidden area uploads %lld %lld, reverse-order framebuffers %d)\n", targetsTestName,
+            t.hiddenUploads[0], t.hiddenUploads[1], t.underMade);
+    }
+    else if(!q_strcasecmp(step, "steady"))
+    {
+        targetsCheck(host_framecount - t.frame >= 10 && eyeTargets.width > 0, va("eyes drawn since begin (%d frames, %dx%d)",
+            host_framecount - t.frame, eyeTargets.width, eyeTargets.height));
+        if(vr_visibility_mask.value != 0.f && vr_mock_hidden_area.value != 0.f)
+        {
+            for(int eye = 0; eye < 2; eye++)
+            {
+                const long long uploads = hiddenMeshes[eye].triangles.uploads;
+                targetsCheck(hiddenMeshes[eye].made && uploads >= 1, va("eye %d's hidden area made (%lld uploads)", eye, uploads));
+                targetsCheck(uploads == t.hiddenUploads[eye], va("eye %d's hidden area not uploaded again (%lld at begin, %lld now)",
+                    eye, t.hiddenUploads[eye], uploads));
+            }
+        }
+        if(vr_particle_saturate.value != 0.f)
+        {
+            targetsCheck(gfx::underTargetsMade() > 0 && gfx::underTargetsMade() == t.underMade,
+                va("reverse-order particles' framebuffers not made again (%d at begin, %d now)", t.underMade,
+                    gfx::underTargetsMade()));
+        }
+    }
+    else if(!q_strcasecmp(step, "released"))
+    {
+        // (after VR stopped: vr_enabled 0)
+        targetsCheck(backend() == nullptr, "VR stopped");
+        targetsCheck(!eyeTargets.width && !eyeTargets.fb.scene.fbo && !eyeTargets.fb.composite.fbo,
+            va("the eyes' targets released (%dx%d, scene framebuffer %u)", eyeTargets.width, eyeTargets.height,
+                eyeTargets.fb.scene.fbo));
+        targetsCheck(!spectatorTargets.width && !spectatorTargets.fb.scene.fbo, "the spectator camera's targets released");
+        bool portals = true;
+        for(const PortalTargets* p : {&eyePortals, &spectatorPortals})
+        {
+            portals = portals && !p->scene.width && !p->fbo;
+            for(const GLuint array : p->array)
+            {
+                portals = portals && !array;
+            }
+        }
+        targetsCheck(portals, "the views through teleporters' targets and arrays released");
+        targetsCheck(!resample.tex && !targetFbo, "the resample target and the eye image's framebuffer released");
+        targetsCheck(!hiddenMeshes[0].triangles.buffer && !hiddenMeshes[1].triangles.buffer, "the hidden areas' buffers released");
+    }
+    else if(!q_strcasecmp(step, "verdict"))
+    {
+        t.tally.verdict(targetsTestName);
+    }
+    else
+    {
+        Con_Printf("vr_stereo_targets_test begin | steady | released | verdict\n");
+    }
+}
+
+} // namespace
+
+void init()
+{
+    Cmd_AddCommand("vr_stereo_targets_test", targetsTest_f);
 }
 
 } // namespace qvr::stereo

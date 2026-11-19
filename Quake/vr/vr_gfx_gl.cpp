@@ -21,6 +21,7 @@
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
+#include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
@@ -829,17 +830,38 @@ constexpr float halfDepthTolerance = 0.1f; // a texel is at a pixel's distance w
 // on top, first) into a target of their own, the scene's depth and stencil attached, and blended over the scene once.
 // Between batches the pixels already opaque are marked in the stencil (bits no one else uses), and the later batches
 // (the particles under them) skip them: the same image (compositing is associative), less fill.
-struct UnderTarget
+// Its colour: one texture for each size (the eyes', the spectator camera's), cleared at each use.
+struct UnderColor
 {
     GLuint texture = 0;
+    int width = 0, height = 0;
+};
+za::Array<UnderColor, 2> underColors;
+int underColorNext = 0;
+// Its framebuffers: one for each colour texture and scene depth texture (the eyes', each eye's own with single-pass
+// stereo, a teleporter view's, the spectator camera's), attached and checked once, kept while both are, so the views
+// taking turns don't attach and check again each time. The stencil's marks are the depth texture's.
+struct UnderTarget
+{
+    GLuint texture = 0; // the colour (an UnderColor's)
     GLuint fbo = 0;     // the colour and the scene's depth/stencil
     GLuint markFbo = 0; // the scene's depth/stencil alone (the marking pass reads the colour)
-    GLuint depth = 0;   // the depth/stencil texture attached
-    int width = 0, height = 0;
+    GLuint depth = 0;   // the depth/stencil texture attached (0: a free slot)
     int generation = 0; // the stencil value (underStencilBits) of the last draw's marks
 };
-UnderTarget underTargets[2];
+za::Array<UnderTarget, 6> underTargets;
 int underTargetNext = 0;
+int underTargetsMadeCount = 0; // framebuffers attached and checked so far (vr_stereo_targets_test)
+
+void freeUnderTarget(UnderTarget& t)
+{
+    if(t.fbo)
+    {
+        GL_DeleteFramebuffersFunc(1, &t.fbo);
+        GL_DeleteFramebuffersFunc(1, &t.markFbo);
+    }
+    t = UnderTarget{};
+}
 GLuint underMarkProgram = 0;
 GLuint underCompositeProgram = 0;
 bool underFailed = false; // its programs
@@ -1603,50 +1625,62 @@ namespace
         }
     }
 
-    // Its target: the scene's size.
+    // Its colour: the scene's size.
+    UnderColor* colour = nullptr;
+    for(UnderColor& c : underColors)
+    {
+        if(c.texture && c.width == width && c.height == height)
+        {
+            colour = &c;
+        }
+    }
+    if(!colour)
+    {
+        colour = &underColors[underColorNext];
+        underColorNext ^= 1;
+        if(colour->texture)
+        {
+            const GLuint old = colour->texture;
+            colour->texture = 0;
+            GL_DeleteNativeTexture(old); // (its framebuffers with it: VR_NativeTextureDeleted)
+        }
+        glGenTextures(1, &colour->texture);
+        GL_BindNative(underTextureUnit, GL_TEXTURE_2D, colour->texture);
+        GL_TexStorage2DFunc(GL_TEXTURE_2D, 1, GL_RGBA16F, width, height);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
+        GL_ObjectLabelFunc(GL_TEXTURE, colour->texture, -1, "vr particles (reverse order)"); // (vr_vram_report)
+        colour->width = width;
+        colour->height = height;
+    }
+
+    // Its framebuffer: that colour with the scene's depth/stencil (made and checked once for the pair).
     UnderTarget* target = nullptr;
     for(UnderTarget& t : underTargets)
     {
-        if(t.texture && t.width == width && t.height == height)
+        if(t.depth == depth && t.texture == colour->texture)
         {
             target = &t;
         }
     }
     if(!target)
     {
-        target = &underTargets[underTargetNext];
-        underTargetNext ^= 1;
-        if(target->texture)
-        {
-            GL_DeleteFramebuffersFunc(1, &target->fbo);
-            GL_DeleteFramebuffersFunc(1, &target->markFbo);
-            GL_DeleteNativeTexture(target->texture);
-        }
-        glGenTextures(1, &target->texture);
-        GL_BindNative(underTextureUnit, GL_TEXTURE_2D, target->texture);
-        GL_TexStorage2DFunc(GL_TEXTURE_2D, 1, GL_RGBA16F, width, height);
-        GL_ObjectLabelFunc(GL_TEXTURE, target->texture, -1, "particle under target"); // (vr_vram_report)
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
-        GL_ObjectLabelFunc(GL_TEXTURE, target->texture, -1, "vr particles (reverse order)");
+        target = &underTargets[static_cast<za::SizeT>(underTargetNext)];
+        underTargetNext = (underTargetNext + 1) % static_cast<int>(underTargets.size());
+        freeUnderTarget(*target);
+        ++underTargetsMadeCount;
         GL_GenFramebuffersFunc(1, &target->fbo);
         GL_GenFramebuffersFunc(1, &target->markFbo);
         GL_BindFramebufferFunc(GL_FRAMEBUFFER, target->fbo);
-        GL_FramebufferTexture2DFunc(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, target->texture, 0);
-        target->width = width;
-        target->height = height;
-        target->depth = 0;
-    }
-    if(target->depth != depth)
-    {
-        GL_BindFramebufferFunc(GL_FRAMEBUFFER, target->fbo);
+        GL_FramebufferTexture2DFunc(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, colour->texture, 0);
         GL_FramebufferTexture2DFunc(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, depth, 0);
         const bool complete = GL_CheckFramebufferStatusFunc(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE;
         GL_BindFramebufferFunc(GL_FRAMEBUFFER, target->markFbo);
         GL_FramebufferTexture2DFunc(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, depth, 0);
         glDrawBuffer(GL_NONE);
         glReadBuffer(GL_NONE);
+        target->texture = colour->texture;
         target->depth = depth;
         target->generation = underGenerations; // its marks unknown: cleared before the next use
         if(!complete || GL_CheckFramebufferStatusFunc(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
@@ -1657,7 +1691,7 @@ namespace
                 Con_Warning("VR: reverse-order particles: incomplete framebuffer, drawn as before\n");
                 underWarned = true;
             }
-            target->depth = 0;
+            freeUnderTarget(*target);
             GL_BindFramebufferFunc(GL_FRAMEBUFFER, sceneFbo);
             return false;
         }
@@ -1939,6 +1973,33 @@ int halfTargetsMade()
     return halfTargetsMadeCount;
 }
 
+int underTargetsMade()
+{
+    return underTargetsMadeCount;
+}
+
+void releaseSceneTargets()
+{
+    for(HalfTarget& t : halfTargets)
+    {
+        t.destroy();
+    }
+    for(UnderColor& c : underColors)
+    {
+        if(c.texture)
+        {
+            const GLuint old = c.texture;
+            c.texture = 0;
+            GL_DeleteNativeTexture(old); // (its framebuffers with it: VR_NativeTextureDeleted)
+        }
+        c = UnderColor{};
+    }
+    for(GLuint& color : halfCompositeColor)
+    {
+        color = 0; // (checked again: GL hands the names out again)
+    }
+}
+
 bool drawParticlesHalf(const ParticleBatch& batch, bool pull, Texture texture, const ParticleSplit& split,
     Texture distances, int width, int height, const int viewport[4], bool soft, int retro, void (*restore)())
 {
@@ -2210,104 +2271,15 @@ glm::vec4 fontGlyph(unsigned char c, float* grow)
     return {u0, v0, u0 + 8.f / atlas, v0 + 8.f / atlas};
 }
 
-int targetsMade = 0; // targets' textures (re)made so far (vr_memstats: steady in play, not a frame)
-struct TargetMade
-{
-    const char* name;
-    int count;
-};
-za::Vector<TargetMade> targetsMadeNamed; // by name, in the order first made
-
-za::String targetsMadeByName()
-{
-    za::String out;
-    for(const auto& [name, count] : targetsMadeNamed)
-    {
-        out += (out.empty() ? "" : " ") + za::String{name} + ":" + za::toString(count);
-    }
-    return out;
-}
-
-void releaseTarget(Target& target)
-{
-    GLuint texture = target.texture;
-    if(texture)
-    {
-        GL_DeleteNativeTexture(texture); // (and out of the engine's bound-texture cache)
-    }
-    GLuint fbo = target.framebuffer;
-    if(fbo)
-    {
-        GL_DeleteFramebuffersFunc(1, &fbo);
-    }
-    target = Target{};
-}
-
-void ensureTarget(Target& target, int width, int height, bool mipmaps, const char* name)
-{
-    int levels = 1;
-    while(mipmaps && za::max(width, height) >> levels)
-    {
-        levels++;
-    }
-    if(target.texture && target.width == width && target.height == height && target.levels == levels)
-    {
-        return;
-    }
-    targetsMade++;
-    auto named = za::findIf(targetsMadeNamed.begin(), targetsMadeNamed.end(),
-        [&](const TargetMade& n) { return ZA_STRCMP(n.name, name) == 0; });
-    if(named == targetsMadeNamed.end())
-    {
-        targetsMadeNamed.pushBack({name, 0});
-        named = targetsMadeNamed.end() - 1;
-    }
-    named->count++;
-    Con_DPrintf("VR: render target \"%s\" made at %dx%d (was %dx%d), %d times so far\n", name, width, height,
-        target.width, target.height, named->count);
-
-    GLuint texture = target.texture;
-    if(texture)
-    {
-        // Out of the engine's bound-texture cache too: glGenTextures hands the same name back, and GL_BindNative,
-        // believing it still bound, would skip the bind (TexStorage on the default texture, an incomplete target
-        // drawing nothing: a remade canvas was blank).
-        GL_DeleteNativeTexture(texture);
-    }
-    GLuint fbo = target.framebuffer;
-    if(!fbo)
-    {
-        GL_GenFramebuffersFunc(1, &fbo);
-        GL_LabelNewFramebuffer(fbo, "vr canvas");
-    }
-
-    glGenTextures(1, &texture);
-    GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, texture);
-    GL_TexStorage2DFunc(GL_TEXTURE_2D, levels, GL_RGBA8, width, height);
-    GL_ObjectLabelFunc(GL_TEXTURE, texture, -1, name); // (vr_vram_report)
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, levels > 1 ? GL_LINEAR_MIPMAP_LINEAR : GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-    GLint previous = 0;
-    glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &previous);
-    GL_BindFramebufferFunc(GL_FRAMEBUFFER, fbo);
-    GL_FramebufferTexture2DFunc(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
-    GL_BindFramebufferFunc(GL_FRAMEBUFFER, static_cast<GLuint>(previous));
-
-    target = {texture, fbo, width, height, levels};
-}
-
-void begin2D(const Target& target, int virtualWidth, int virtualHeight)
+void begin2D(const RenderTarget& target, int virtualWidth, int virtualHeight)
 {
     Draw_Flush();
 
     saved2D.active = true;
     saved2D.canvas = glcanvas;
-    saved2D.mipmapped = target.levels > 1 ? target.texture : 0;
+    saved2D.mipmapped = target.levels > 1 ? target.tex : 0;
 
-    GL_BindFramebufferFunc(GL_FRAMEBUFFER, target.framebuffer);
+    GL_BindFramebufferFunc(GL_FRAMEBUFFER, target.fbo);
     glViewport(0, 0, target.width, target.height);
 
     // A canvas of its own: the virtual screen over the whole target, y down.
@@ -2438,15 +2410,18 @@ void picture(const Picture& p, float x, float y, float w, float h)
 
 } // namespace draw2D
 
-void beginCanvas(Target& canvas, int width, int height, bool mipmaps, float lodBias)
+void beginCanvas(RenderTarget& canvas, int width, int height, bool mipmaps, float lodBias)
 {
-    ensureTarget(canvas, width, height, mipmaps, "panel canvas");
-    canvasMipmapped = canvas.levels > 1 ? canvas.texture : 0;
+    if(!canvas.ensure(width, height, RenderTargetFormat{.mipmaps = mipmaps, .fboName = "vr canvas"}, "panel canvas"))
+    {
+        Con_Warning("VR: a panel canvas's framebuffer is incomplete (%d x %d)\n", width, height);
+    }
+    canvasMipmapped = canvas.levels > 1 ? canvas.tex : 0;
     if(canvasMipmapped)
     {
         // Seen smaller than its pixels in the headset (vr_menu_resolution): trilinear, anisotropic where the panel is
         // seen at an angle, sharpened by a negative bias (vr_menu_sharpen).
-        GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, canvas.texture);
+        GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, canvas.tex);
         glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_LOD_BIAS, lodBias);
         if(gl_max_anisotropy > 1.f) // else not supported
         {
@@ -2454,7 +2429,7 @@ void beginCanvas(Target& canvas, int width, int height, bool mipmaps, float lodB
         }
     }
     GL_ResetState(); // re-applies the blend, now with applyCanvasBlend() (VR_CanvasBlend)
-    GL_BindFramebufferFunc(GL_FRAMEBUFFER, canvas.framebuffer);
+    GL_BindFramebufferFunc(GL_FRAMEBUFFER, canvas.fbo);
     glViewport(0, 0, width, height);
     // A clip rectangle left on (Draw_SetClipRect) is in the window's pixels: on a canvas of its own size
     // (vr_menu_resolution) it would cut the clear and the 2D pass to the window's corner.
@@ -2489,7 +2464,7 @@ bool applyCanvasBlend()
     return true;
 }
 
-void copy(const Target& target, Texture image)
+void copy(const RenderTarget& target, Texture image)
 {
     if(!copyFbo)
     {
@@ -2499,7 +2474,7 @@ void copy(const Target& target, Texture image)
 
     GL_BindFramebufferFunc(GL_DRAW_FRAMEBUFFER, copyFbo);
     GL_FramebufferTexture2DFunc(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, image, 0);
-    GL_BindFramebufferFunc(GL_READ_FRAMEBUFFER, target.framebuffer);
+    GL_BindFramebufferFunc(GL_READ_FRAMEBUFFER, target.fbo);
     GL_BlitFramebufferFunc(0, 0, target.width, target.height, 0, 0, target.width, target.height, GL_COLOR_BUFFER_BIT,
         GL_NEAREST);
     GL_FramebufferTexture2DFunc(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, 0, 0);
@@ -2731,4 +2706,22 @@ extern "C" unsigned VR_SceneTarget(unsigned* color, unsigned* depth, int* sample
     *color = framebufs.composite.color_tex;
     *depth = framebufs.composite.depth_stencil_tex;
     return framebufs.composite.fbo;
+}
+
+// A texture deleted (GL_DeleteNativeTexture): the reverse-order particles' framebuffers with it attached go too. GL
+// hands its name out again, and a framebuffer still holding the deleted texture would be taken for one holding the new
+// (and would keep the old one's memory).
+extern "C" void VR_NativeTextureDeleted(unsigned texnum)
+{
+    if(texnum == 0)
+    {
+        return;
+    }
+    for(qvr::gfx::UnderTarget& t : qvr::gfx::underTargets)
+    {
+        if(t.fbo && (t.depth == texnum || t.texture == texnum))
+        {
+            qvr::gfx::freeUnderTarget(t);
+        }
+    }
 }

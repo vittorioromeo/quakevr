@@ -23,4 +23,7 @@ void endEye();
 // The frame's eyes are done.
 void endFrame();
 
+// VR stopped (stereo::releaseTargets): the arrays and their views freed (made again at the next single-pass frame).
+void releaseTargets();
+
 } // namespace qvr::stereosingle

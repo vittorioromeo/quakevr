@@ -170,6 +170,17 @@ void deleteTargets()
     state.width = state.height = 0;
 }
 
+} // namespace
+
+void releaseTargets()
+{
+    deleteTargets();
+    state.targetsFailed = false;
+}
+
+namespace
+{
+
 // Layer `layer` of `array` as a texture of its own (glTextureView: the same memory, so what the pass drew stays
 // compressed for what each eye draws after it).
 GLuint makeLayerView(GLuint array, unsigned format, int samples, int layer)

@@ -10,7 +10,7 @@
 
 struct HolsterMenuState
 {
-    gfx::Target target;
+    gfx::RenderTarget target;
     unsigned version{0};
 };
 HolsterMenuState holsterMenu;
@@ -189,8 +189,12 @@ VisorImage holsterMenuRender(const HolsterMenuView& v)
     }
     const Palette pal = palette();
     toolgun::icons::makePending(2);
-    gfx::Target& t = holsterMenu.target;
-    gfx::ensureTarget(t, w * visorTexels, h * visorTexels, true, "holster menu"); // mipmaps: for its text's glow
+    gfx::RenderTarget& t = holsterMenu.target;
+    if(!t.ensure(w * visorTexels, h * visorTexels, gfx::RenderTargetFormat{.mipmaps = true, .fboName = "vr canvas"}, "holster menu")) // mipmaps: for its text's glow
+    {
+        Con_Warning("VR: the holster menu's framebuffer is incomplete\n");
+        return out;
+    }
     gfx::begin2D(t, w, h);
     fill(0.f, 0.f, v.size.x, v.size.y, visorBlack);
     holsterOutline({1.f, 1.f, v.size.x - 2.f, v.size.y - 2.f}, pal.line * 0.6f);
@@ -211,9 +215,9 @@ VisorImage holsterMenuRender(const HolsterMenuView& v)
     holsterTextMid(v.size.x * 0.5f, v.size.y - 9.f, 6.f, v.footer, pal.dim * 1.6f, pal);
     holsterDragged(v, pal); // (over everything)
     gfx::end2D();
-    out.texture = t.texture;
+    out.texture = t.tex;
     out.size = v.size;
-    out.shown = t.texture != 0;
+    out.shown = t.tex != 0;
     out.version = ++holsterMenu.version;
     return out;
 }

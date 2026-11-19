@@ -32,6 +32,9 @@ struct Lens
 // The tangent of vr_upscale_radius (0: everywhere), for the debug overlay.
 [[nodiscard]] float radiusTangent();
 
+// VR stopped (stereo::releaseTargets): the upscaled image's target freed (made again at its next use).
+void releaseTargets();
+
 // The eye's post-processed colours, `source` (width x height, its framebuffer `sourceFbo`), into the framebuffer
 // `target` (imageWidth x imageHeight). Leaves `target` bound.
 void resample(int eye, GLuint source, GLuint sourceFbo, int width, int height, GLuint target, int imageWidth,

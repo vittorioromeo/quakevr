@@ -196,6 +196,10 @@ void drawParticles(const ParticleBatch& batch, bool pull, const State& state, Te
 // scene in one pass. A quarter of their fragments, a little softer. `retro`: their effective retro set (0 off). `viewport`: the
 // scene's (R_SceneViewport); `restore` binds the scene's framebuffer again. False if it could not (drawn nothing).
 [[nodiscard]] int halfTargetsMade(); // its targets made so far (vr_frame_log)
+[[nodiscard]] int underTargetsMade(); // vr_particle_saturate's framebuffers made (attached and checked) so far
+// VR stopped (stereo::releaseTargets): the particles' scene-sized targets (half size, reverse order) freed, made again at
+// their next use.
+void releaseSceneTargets();
 [[nodiscard]] bool drawParticlesHalf(const ParticleBatch& batch, bool pull, Texture texture, const ParticleSplit& split,
     Texture distances, int width, int height, const int viewport[4], bool soft, int retro, void (*restore)());
 
@@ -288,31 +292,15 @@ void sceneCamera(glm::vec3& origin, glm::vec3& right, glm::vec3& up);
 [[nodiscard]] Texture fontTexture();
 [[nodiscard]] glm::vec4 fontGlyph(unsigned char c, float* grow = nullptr);
 
-// An offscreen colour target (RGBA8, linear filtering, clamped).
-struct Target
-{
-    Texture texture{0};
-    unsigned framebuffer{0};
-    int width{0};
-    int height{0};
-    int levels{1}; // with a mipmap chain when more than 1 (for Shade::Screen's glow)
-};
-
-// (Re)creates `target` at the given size; nothing when it already is. `mipmaps`: with a mipmap
-// chain, rebuilt by end2D() (filtered trilinearly). `name` (a literal): what it is, for the count of
-// targets (re)made by name (vr_memstats, and a developer line each time).
-void ensureTarget(Target& target, int width, int height, bool mipmaps = false, const char* name = "target");
-// Frees `target`'s texture and framebuffer (nothing when it has none); ensureTarget makes it again.
-void releaseTarget(Target& target);
-
-// How many times targets of each name were (re)made so far, as "name:count" words.
-[[nodiscard]] za::String targetsMadeByName();
+// The offscreen colour targets drawn into here (canvases, screens, boards) are gfx::RenderTarget (vr_glutil.hpp: made
+// with ensure, RGBA8, linear filtering, clamped; with mipmaps for Shade::Screen's glow, rebuilt by end2D).
+struct RenderTarget;
 
 // Draws into `target` with the engine's 2D functions (the 2D pass's own blend and state), on a
 // virtual screen of `virtualWidth` x `virtualHeight` covering it, until end2D() restores the 2D
 // canvas and goes back to where the engine draws its 2D pass (the window: begin2D is used from it),
 // and rebuilds its mipmaps if it has them.
-void begin2D(const Target& target, int virtualWidth, int virtualHeight);
+void begin2D(const RenderTarget& target, int virtualWidth, int virtualHeight);
 void end2D();
 
 // The game directory changed (VR_OnGameDirChanged): Mod_ResetAll reuses the models' slots for other models, and the
@@ -351,10 +339,10 @@ void beginSignature();
 void sign(const void* bytes, size_t size);
 } // namespace draw2D
 
-// The engine's 2D pass (menus, console, HUD) redirected into `canvas`, cleared to transparent
+// The engine's 2D pass (menus, console, HUD) redirected into `canvas` (made for the size), cleared to transparent
 // black; endCanvas() points the 2D pass back where the engine draws it (the window). With `mipmaps` the canvas has a
 // mipmap chain, rebuilt by endCanvas(), sampled trilinearly with anisotropy and `lodBias` (negative: sharper).
-void beginCanvas(Target& canvas, int width, int height, bool mipmaps = false, float lodBias = 0.f);
+void beginCanvas(RenderTarget& canvas, int width, int height, bool mipmaps = false, float lodBias = 0.f);
 void endCanvas();
 
 // Alpha blending for the 2D pass while it draws into the canvas: colours as usual, alpha built
@@ -363,7 +351,7 @@ void endCanvas();
 [[nodiscard]] bool applyCanvasBlend();
 
 // Copies all of `target` into `image`, a texture of the same size (a runtime's swapchain image).
-void copy(const Target& target, Texture image);
+void copy(const RenderTarget& target, Texture image);
 
 // RGBA8 colour textures: the mock backend's eye images (no data), or images such as the particle
 // atlas (`rgba`, rows top first; linear filtering, clamped). `mipmaps`: with a full mipmap chain

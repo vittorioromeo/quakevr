@@ -2296,6 +2296,21 @@ float surfaceRise(const glm::vec3& p, int contents, const glm::vec3& eye)
     return (h00 * (1.f - fx) + h10 * fx) * (1.f - fy) + (h01 * (1.f - fx) + h11 * fx) * fy;
 }
 
+void releaseTargets()
+{
+    for(Distances& d : distances)
+    {
+        if(d.texture)
+        {
+            GL_DeleteFramebuffersFunc(1, &d.fbo);
+            GL_DeleteNativeTexture(d.texture);
+        }
+        d = Distances{};
+    }
+    sizedDistances = SizedDistances{};
+    distancesFrame = -1;
+}
+
 void sceneDepthChanged()
 {
     distancesFrame = -1;

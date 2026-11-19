@@ -41,6 +41,8 @@ void opaqueSceneDistancesSize(int& width, int& height);
 // The scene's depth was drawn into after its distances were made this view (the soft sprites, vr_particles.cpp):
 // opaqueSceneDistances makes them again.
 void sceneDepthChanged();
+// VR stopped (stereo::releaseTargets): the scene distances' targets freed (made again at their next use).
+void releaseTargets();
 
 // The top of a level lava face of the world, for the heat haze over it (vr_haze.cpp): its polygon and the parts of its
 // edges on the pool's rim (where the lava meets rock), at height z.

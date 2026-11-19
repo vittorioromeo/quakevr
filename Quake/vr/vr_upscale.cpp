@@ -593,4 +593,15 @@ void precompilePrograms()
     (void)nis();
 }
 
+void releaseTargets()
+{
+    if(upTex)
+    {
+        GL_DeleteFramebuffersFunc(1, &upFbo);
+        GL_DeleteNativeTexture(upTex);
+    }
+    upTex = upFbo = 0;
+    upWidth = upHeight = 0;
+}
+
 } // namespace qvr::upscale
