@@ -382,7 +382,7 @@ def run(mod, src):
                     toks[fn][st[a + 1]] = ("num", consts[t[a + 1][1]])
 
     # The mod's own system section (its defs file up to end_sys_fields) is the engine's: Quake VR's defines it.
-    mod_sys, entry_points, mod_fields, mod_builtin_stmts = set(), set(), {}, {}
+    mod_sys, entry_points, mod_fields, mod_builtin_stmts, aliases = set(), set(), {}, {}, set()
     skip_stmt = {fn: set() for fn in order}
     in_sys = True
     for k, st in enumerate(stmts[mod.defs]):
@@ -404,6 +404,8 @@ def run(mod, src):
             elif is_field and k not in skip_stmt[fn]:
                 for n in ns:
                     mod_fields.setdefault(n, (typ, fn))
+                if "=" in (toks[fn][j][1] for j in st):
+                    aliases.update(ns)  # (`.float t_length = length;`: another field's name, never Quake VR's field)
 
     # What stays as written.
     keep = set(KEYWORDS) | system
@@ -414,7 +416,8 @@ def run(mod, src):
                      and SIGS.get(n) == signature(toks[mod_builtin_stmts[n][0]], mod_builtin_stmts[n][1])}
     keep |= keep_builtins
     shared_fields = sorted(n for n, (typ, fn) in mod_fields.items()
-                           if n in keys and n in our_fields and our_fields[n] == typ and n not in our_macros)
+                           if n in keys and n in our_fields and our_fields[n] == typ and n not in our_macros and
+                           n not in aliases)
     keep |= set(shared_fields)
 
     def rename(name):
