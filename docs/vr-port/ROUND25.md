@@ -4217,3 +4217,24 @@ the moved adapter's function names on AD maps' delayed monsters (`AD_MonsterActi
 other differences with those mapped); the demon's coop filter shows on no MG map in single player. Detection: 0 of 168
 official/AD maps and 0 of 49 installed Map Library maps reach Copper's threshold (the 50th, Ancient, made for Copper,
 does). Left: DWELL.md 9.2.
+
+
+## Dwell P1b, part three: ship prep (copper1b3, 2026-11-19)
+
+Copper custom maps play through the Map Library's path: Ancient and Underdark Overbright v1.1's `udob1`, installed
+into the test base's `qvr_addons` with their `maps_installed.txt` lines by `Misc/quakevr/copper_custom_setup.py`
+(copies Ancient from an installed copy, unpacks Quaddicted's udob zip from `qvr-kit/downloads/underdark/`; never
+downloads), played first by `dwell_maps.sh`. Both stopped at `Host_Error: progs/v_axe2.mdl not found`: Copper's own
+models come with Copper's release, not with its maps. Copper's 11 own model names now go through `VR_ModelOr` (the
+existing helper, `vr_packutil.qc`) to a stock stand-in (an import patch per name, `copper_import.py`; debris: our
+`vr_rock1.mdl`). Ancient's one `OBJECT ERROR` is its own leftover `target_state` with no targetname (Copper says the
+same): `dwell_maps.py` `MAP_OWN`. `dwell_maps.py` now counts spawn-time errors against the map being loaded.
+`dwell_maps.sh`: **28 passed, 0 failed** (ancient 27 live + 24 waiting, udob1 31 + 13, every map Copper, 0 missing
+spawn functions but Dwell's own). ReleaseLTO: 0 warnings. Merge of origin/next: up to date.
+Regression (the previous worker's run): saveload 30/0, scenario_check 136 run 0 failed, mg3_route exits 71/0, MG3
+buttons/kill/rune, AD hub/world PASS. **mg3_route main and bn legs stall after their planned player death** (2 of 60,
+4 of 15 steps): the same on a clean origin/next build (round25 detached, main leg: 2 of 60, timeout), so not this
+branch's; the death menu (a25f4d0d4) waiting for a choice is the likely cause (not investigated).
+Ship prep: `Dwell.OnByDefault = true` (installer self-test, Installer README, INSTALLER.md, DWELL.md 7); the release
+scripts' sandboxed installs pass `--no-dwell`; CREDITS gains the Dwell team; PATCH_NOTES_1.1.1 a "Campaigns" bullet.
+Left (deferrable): DWELL.md 9.2.

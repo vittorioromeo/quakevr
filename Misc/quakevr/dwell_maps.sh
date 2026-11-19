@@ -24,7 +24,8 @@ S="developer 0;sv_random_seed 7;skill 1;coop 0;maxplayers 1"
 for m in $CUSTOM; do
     S="$S;echo dwell: map $m;map $m;wait15;save dwc_$m;vr_ruleset_info;wait$FR;echo dwell: ran $m"
 done
-S="$S;vr_campaign_native dwell;wait30"
+# (the campaign switch loads its start map: its spawn is start's, not the last custom map's)
+S="$S;echo dwell: map start;vr_campaign_native dwell;wait30"
 for m in $MAPS; do
     # (saved 15 frames after `map`: d2m8's 4,000 edicts' signon puts the player in about 8 frames after it, and a save
     # without him fails. vr_waitprint on "entered the game" does not see that line: it is printed off the main thread.)

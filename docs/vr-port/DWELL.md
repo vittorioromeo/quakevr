@@ -518,12 +518,28 @@ Total: about 37-61 agent-days. P0.5 is the gate: it proves the generic mechanism
   saves 15 frames after the map: d2m8's signon is slow). Census vs origin/next over the 168 non-Copper maps: the moved
   adapter's function names only (27 AD saves), nothing else; 0 false Copper detections in 168 official/AD maps and 49
   installed Map Library maps (Ancient, made for Copper, detected). ROUND25 "Dwell P1b, part two".
-- **Left** (in order): two Copper custom maps through the Map Library path (Ancient is in his installed packages; an
-  Underdark Overbright map: not downloaded; the Map Library's install always downloads, so a headless test needs the
-  package unpacked into the test base's `qvr_addons` with its `maps_installed.txt` line); our monsters' and pickups'
-  numbers by Copper (S6's per-ruleset table); the WaterMove/t_void precedence decision with AD's; `vr_mg_fog.qc`
-  renamed `vr_fog.qc`; then the installer's `Dwell.OnByDefault`, CREDITS, the Installer README, the patch notes'
-  bullet.
+- **Part three, ship prep** (branch `agent/copper1b`): **Copper custom maps** through the Map Library's path:
+  Ancient (copied from an installed copy) and Underdark Overbright v1.1's `udob1` (Quaddicted's zip in
+  `qvr-kit/downloads/underdark/`), put into the test base's `qvr_addons/<sha16>/` with their `maps_installed.txt`
+  lines by `Misc/quakevr/copper_custom_setup.py` (idempotent, never downloads); `dwell_maps.sh` plays both first, in
+  the stock game, the same way as Dwell's maps. Both stopped at `Host_Error: progs/v_axe2.mdl not found`: Copper's
+  own models ship with Copper's release (or Dwell's folder), not with a map made for Copper. Each of Copper's 11 own
+  model names (`v_axe2`, `s_explo2`, `debris1-3`, `k_spike2`, `v_spike2`, `w_spike2`, `zombienm`, `h_zombnm`) is now
+  `VR_ModelOr(<Copper's>, <stock>)` (`vr_packutil.qc`'s existing helper; an import patch, `copper_import.py`), so the
+  stock model stands in when Copper's is absent (debris: our `vr_rock1.mdl`). Copper's sounds need nothing (a missing
+  sound is a warning). Ancient's one `OBJECT ERROR` (a `target_state` with no targetname: the map's own leftover,
+  which Copper reports the same way) is the map's (`dwell_maps.py` `MAP_OWN`); `dwell_maps.py` now counts a map's
+  spawn-time errors against that map (`dwell: map X` echoed before `map X`). Installer: `Dwell.OnByDefault = true`
+  (self-test, README, INSTALLER.md); the release scripts' sandboxed installs pass `--no-dwell` (their checks stay
+  the Quake VR install, not a 367 MB download). CREDITS: the Dwell team (its README). Patch notes 1.1.1: one bullet. `dwell_maps.sh`: **28 passed, 0 failed** (ancient 27
+  live + 24 waiting, udob1 31 + 13, all Copper); ReleaseLTO 0 warnings.
+  Regression: `mg3_route`'s main and bn legs stall after their planned player death (2 of 60, 4 of 15 steps) on a
+  clean origin/next build too (likely the death menu, a25f4d0d4, waiting for a choice): not this branch's; exits 71 passed; saveload 30/0,
+  scenario_check PASS (136 run, 0 failed), AD hub 10/0 and world PASS, AD scope ran clean (no verdict line), MG3 buttons, kill, rune PASS.
+- **Left** (deferrable, after ship): our monsters' and pickups' numbers by Copper (S6's per-ruleset table); the
+  WaterMove/t_void precedence decision with AD's; `vr_mg_fog.qc` renamed `vr_fog.qc`; Copper maps with Dwell
+  installed could use Dwell's real Copper models (its folder mounted for a Copper package) instead of the stock
+  stand-ins; Copper's `target_debris` lost its FGD preview (the model name is now inside `VR_ModelOr`).
 
 ---
 
