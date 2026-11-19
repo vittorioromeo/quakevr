@@ -1,5 +1,6 @@
 #ifdef QVR_TESTS
 // Arcane Dimensions' monsters' tests (vr_ad_mtest N, developer 1; Debug > Tests > Arcane Dimensions Monsters):
+// (Dwell's monsters too: the monster row they share, DWELL.md P2b; Misc/quakevr/dwell_monsters_test.sh.)
 // docs/vr-port/ARCANE_DIMENSIONS.md section 17. One "admtest:" line each. With the debug spawner (vr_test_spawn 200..,
 // impulse 241: vr_ad_monsters.qc VR_AD_DispenserSpawn) and the other tests' commands (vr_knockdown_test, vr_decap_test,
 // vr_limbs_test, vr_ragdoll_list) the scripts check each model: Misc/quakevr/ad_monsters_test.sh.
@@ -16,14 +17,14 @@ void() AD_MT_Report =
     float n = 0;
     for(e = nextent(world); e; e = nextent(e))
     {
-        if(!(e.flags & FL_MONSTER) || !e.ad_classtype || e.vr_ad_tested)
+        if(!(e.flags & FL_MONSTER) || !(e.ad_classtype || e.dw_mon) || e.vr_ad_tested)
         {
             continue;
         }
         float count = 0, reg = 0, rig = 0, alive = 0;
         for(f = e; f; f = nextent(f))
         {
-            if((f.flags & FL_MONSTER) && f.ad_classtype && f.classname == e.classname)
+            if((f.flags & FL_MONSTER) && (f.ad_classtype || f.dw_mon) && f.classname == e.classname)
             {
                 f.vr_ad_tested = 1;
                 count++;
@@ -51,7 +52,7 @@ entity() AD_MT_Find =
     float bestd = 100000;
     for(entity e = nextent(world); e; e = nextent(e))
     {
-        if((e.flags & FL_MONSTER) && e.ad_classtype && e.modelindex && vlen(e.origin - p.origin) < bestd)
+        if((e.flags & FL_MONSTER) && (e.ad_classtype || e.dw_mon) && e.modelindex && vlen(e.origin - p.origin) < bestd)
         {
             best = e;
             bestd = vlen(e.origin - p.origin);
@@ -124,7 +125,7 @@ void() AD_MonstersTestFrame =
         entity m5 = world;
         for(entity e5 = nextent(world); e5; e5 = nextent(e5))
         {
-            if((e5.flags & FL_MONSTER) && e5.ad_classtype && e5.health > 0 && e5.takedamage &&
+            if((e5.flags & FL_MONSTER) && (e5.ad_classtype || e5.dw_mon) && e5.health > 0 && e5.takedamage &&
                (m5 == world || vlen(e5.origin - p5.origin) < vlen(m5.origin - p5.origin)))
             {
                 m5 = e5;

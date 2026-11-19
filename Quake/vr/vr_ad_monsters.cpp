@@ -55,6 +55,7 @@ constexpr ClassAlias classAliases[] = {
     {"monster_zombiek", "monster_zombie"},
     {"monster_boil", "monster_zombie"},
     // Brutes
+    {"monster_brute", "monster_shambler"}, // (Dwell's Brute: QC dw_common.qc DW_MonsterRow picks the same; DWELL.md P2b)
     {"monster_minotaur", "monster_shambler"},
     {"monster_golem", "monster_shambler"},
     {"monster_drole", "monster_shambler"},
