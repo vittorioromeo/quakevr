@@ -404,6 +404,10 @@ Each verified at the cited lines; none worth a section.
   its dropper tossed, and a player's own pack here is his death's.
 - **Coop, noted only:** slow motion's per-entity clock treats edict 1 as "the player"
   (`vr_timescale.cpp:503`: `const bool player = num == 1;`).
+  **Status (2026-11-19):** generalised: every client's edict (`clientEdict`: 1 .. `svs.maxclients`) and missiles any
+  client owns run in the player's time, not edict 1's alone. Unchanged in play: `moveSpeedup` is 1 with more than one
+  client slot (time scale and bullet time are single player's, as agent/mp's MULTIPLAYER.md keeps them; agent/mp's
+  vr_timescale.cpp is next's, unchanged). The clock's offset and the timers kept are still one (one player's).
 
 ### 20. The world's resets are three mechanisms kept in step by hand
 

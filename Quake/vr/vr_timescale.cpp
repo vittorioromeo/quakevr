@@ -259,6 +259,13 @@ void intoWorldTime(float& timer, float before, double time, float s)
            m == MOVETYPE_GIB;
 }
 
+// Whether edict `num` is a client's (every player's frame and missiles are his own time, not edict 1's alone; the
+// time scale is single player's today: moveSpeedup is 1 with more than one client slot).
+[[nodiscard]] bool clientEdict(int num)
+{
+    return num >= 1 && num <= svs.maxclients;
+}
+
 } // namespace
 
 void init()
@@ -500,9 +507,9 @@ extern "C" double VR_PhysicsEntityBegin(edict_t* ent, int num)
     {
         return 0.0;
     }
-    const bool player = num == 1;
+    const bool player = clientEdict(num);
     if(!player && !(scaleClock.sandevistan && qvr::vr_sandevistan_missiles.value != 0.f && missileType(ent) &&
-                    ent->v.owner == EDICT_TO_PROG(EDICT_NUM(1))))
+                    ent->v.owner != 0 && clientEdict(NUM_FOR_EDICT(PROG_TO_EDICT(ent->v.owner)))))
     {
         return 0.0;
     }
@@ -546,7 +553,7 @@ extern "C" void VR_PhysicsEntityEnd(edict_t* ent, int num, double world)
     const double time = qcvm->time;
     const float s = static_cast<float>(1.0 / moveSpeedup()); // (the world's time over the player's)
     intoWorldTime(ent->v.nextthink, playerTime.before[0], time, s);
-    if(num != 1)
+    if(!clientEdict(num))
     {
         return;
     }
