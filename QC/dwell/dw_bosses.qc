@@ -607,7 +607,7 @@ dw_hell_row DW_HELL[] =
 const float DW_HELL_N = 28;
 const string DW_HELL_MDL = "progs/e2/hell_bullet.mdl";
 
-float dw_hell_shots, dw_hell_hits; // (counted for the test: dw_test.qc)
+nosave float dw_hell_shots, dw_hell_hits; // (counted for the test, dw_test.qc; never saved)
 
 // A bullet-hell hit: `dmg` to `victim` (counted). A player is not pushed (comfort: a pattern's many small hits would
 // shove him about, off ledges too); the hit's direction, pain and armour are T_Damage's as ever.

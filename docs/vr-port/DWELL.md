@@ -620,32 +620,8 @@ frame sequences; reading aids only, nothing pasted). Files `QC/dwell/` (GPL-2, h
   Quake's AI, as the Sculptor); grab mass 5000.
 - **Test**: `Misc/quakevr/dwell_monsters_test.sh <agent>` (the AD bestiary's cases through `vr_ad_mtest`, whose frame now
   finds Dwell's monsters; the debug spawner's 70-73), verdict by `dwell_monsters_check.py`: 11 passed, 0 failed.
-- **Left (P2b part two)**: Dwell's own bullet-hell programs and the Sculptor's motion: built (9.5); the Awoken's scale
+- **Left (P2b part two)**: Dwell's own bullet-hell programs and the Sculptor's motion: built (9.6); the Awoken's scale
   reviewed in the headset.
-
-### 9.5 Built: P2b part two, bullet hell and the Sculptor's motion (2026-11-19, branch `agent/dwell2c`)
-
-- **`target_bullethell`, Dwell's patterns** (`dw_bosses.qc`; read from `m_d2boss_hell.qc`, whose dispatchers are
-  corrupt in the decompile: the calls are readable, rewritten): one table, `DW_HELL` (28 rows: style, kind, from/to,
-  count, cycle, life, delay, speed, damage, flag), each row a task entity with one clock (`dw_hell_tick`): 1 a line of
-  10 at each player (following him), 2 two lines straddling where he stood, 3 a ring of 24 (half a step turned each use,
-  Dwell's alternation), 4 two spirals of 48, 5 a moving wheel (16 shots circling a drifting point, 225 degrees a second;
-  its ring hurts), 6 a rocket barrage (Dwell left it empty: 6 rockets onto marks around each player, the Sculptor's
-  swarm shot, `DW_SwarmShot`, shared), 7 a pulse (24 sectors swelling 64 to 320 and back twice; its ring hurts), 8
-  Dwell's program A (never placed in its maps) once through (28 s; its loop forever dropped: a definite end), 0 random
-  1-7. d2end uses 1-5 from its timers.
-- **VR**: the shots are enemy projectiles (`vr_foeshot`, a new generic field `VR_Deflect_IsProjectile` accepts: a swing
-  bats them back, then they hurt monsters), fly through monsters (Dwell's), never collide with each other (triggers),
-  glow and streak (the engine gives `hell_bullet.mdl`, flagless, the hell knight's flame trail: `patchModelFlags`, so
-  emissive and bullet-time trails as any enemy shot). The aimed lines are slower (500/550 for Dwell's 700/800); the
-  rest at Dwell's speeds. Ring damage is Dwell's rate (40 a second on the ring) in ticks of 4 every 0.1 s, the ring's
-  sweep between ticks counted. Comfort: a bullet-hell hit never pushes the player (his velocity kept: `DW_HellHit`).
-- **The Sculptor's motion** (Dwell's `m_d2boss.qc`): a ring lying flat while dormant; flying its path it spins about
-  its axis (`fixangle`, 180 a second) and tilts its face toward its enemy (pitch followed, yaw held at 0: Dwell's), its
-  heading set again each tick (VR's knockback on flyers no longer pushes it off its path); a phase over, it lies flat
-  again (0.5 s), raises its shield (`mon_d2bossf.mdl`, fading in over 0.6 s), teleports out (frames 1-8), to its
-  `target2`, in (9-15), rests `wait` s turning slowly the other way, then flies again; dying, its spin runs down. Not
-  restored: Dwell's 50-odd small hit boxes around the ring (one 96-unit box still).
 
 ### 9.5 Built: P3, first part: Dwell's weapons and powerups on our player (2026-11-19, branch `agent/dwell3`)
 
@@ -698,6 +674,35 @@ frame sequences; reading aids only, nothing pasted). Files `QC/dwell/` (GPL-2, h
   `vr_adweapons.cpp` recipes: measured grips, muzzles, the arm cut off; until then the variants show our models),
   the Rotary's drawn barrel spin with them (Dwell's `v_shot3.mdl` shares AD's Widowmaker's file name: its recipe must
   pin Dwell's release by its counts, as AD's are pinned), and the variant names named by those models.
+
+### 9.6 Built: P2b part two, bullet hell and the Sculptor's motion (2026-11-19, branch `agent/dwell2c`)
+
+- **`target_bullethell`, Dwell's patterns** (`dw_bosses.qc`; read from `m_d2boss_hell.qc`, whose dispatchers are
+  corrupt in the decompile: the calls are readable, rewritten): one table, `DW_HELL` (28 rows: style, kind, from/to,
+  count, cycle, life, delay, speed, damage, flag), each row a task entity with one clock (`dw_hell_tick`): 1 a line of
+  10 at each player (following him), 2 two lines straddling where he stood, 3 a ring of 24 (half a step turned each use,
+  Dwell's alternation), 4 two spirals of 48, 5 a moving wheel (16 shots circling a drifting point, 225 degrees a second;
+  its ring hurts), 6 a rocket barrage (Dwell left it empty: 6 rockets onto marks around each player, the Sculptor's
+  swarm shot, `DW_SwarmShot`, shared), 7 a pulse (24 sectors swelling 64 to 320 and back twice; its ring hurts), 8
+  Dwell's program A (never placed in its maps) once through (28 s; its loop forever dropped: a definite end), 0 random
+  1-7. d2end uses 1-5 from its timers.
+- **VR**: the shots are enemy projectiles (`vr_foeshot`, a new generic field `VR_Deflect_IsProjectile` accepts: a swing
+  bats them back, then they hurt monsters), fly through monsters (Dwell's), never collide with each other (triggers),
+  glow and streak (the engine gives `hell_bullet.mdl`, flagless, the hell knight's flame trail: `patchModelFlags`, so
+  emissive and bullet-time trails as any enemy shot). The aimed lines are slower (500/550 for Dwell's 700/800); the
+  rest at Dwell's speeds. Ring damage is Dwell's rate (40 a second on the ring) in ticks of 4 every 0.1 s, the ring's
+  sweep between ticks counted. Comfort: a bullet-hell hit never pushes the player (his velocity kept: `DW_HellHit`).
+- **The Sculptor's motion** (Dwell's `m_d2boss.qc`): a ring lying flat while dormant; flying its path it spins about
+  its axis (`fixangle`, 180 a second) and tilts its face toward its enemy (pitch followed, yaw held at 0: Dwell's), its
+  heading set again each tick (VR's knockback on flyers no longer pushes it off its path); a phase over, it lies flat
+  again (0.5 s), raises its shield (`mon_d2bossf.mdl`, fading in over 0.6 s), teleports out (frames 1-8), to its
+  `target2`, in (9-15), rests `wait` s turning slowly the other way, then flies again; dying, its spin runs down. Not
+  restored: Dwell's 50-odd small hit boxes around the ring (one 96-unit box still).
+- **Acceptance**: `vr_ad_test 200` now runs, where the map has a `target_bullethell` (d2end), a pattern sweep first
+  (styles 1-8 next to the landed player in god mode, each when the last is gone): 8/8 fired, the line 7 of 10 on him,
+  edicts at most +82, back where they were; then the fight, the Sculptor's steps all seen and its rest at target2:
+  d2end PASS, d1end PASS. `dwell_maps.sh` 28/0, `scenario_check` PASS (136 run, 0 failed), the spawn census against
+  origin/next identical on the 168 maps (the test's counters `nosave`).
 
 ---
 

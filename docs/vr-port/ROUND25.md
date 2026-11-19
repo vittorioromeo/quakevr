@@ -4289,3 +4289,21 @@ build, 0 warnings dev and ReleaseLTO. Then: an armed grunt holding a Dwell weapo
 screen in Dwell's colours through AD's tint (`VR_AD_Tint`). Test: `vr_ad_test 204` in `dwell_weapons_test.sh` (6/0).
 Left: Dwell's view models as VR models (`vr_adweapons.cpp` recipes; Dwell's `v_shot3.mdl` shares AD's file name), the
 Rotary's drawn spin, and the variant names in the flat holster menu and on the wrist by those models.
+
+## Dwell P2b part two: bullet hell and the Sculptor's motion (dwell2c, 2026-11-19)
+
+`target_bullethell` plays Dwell's patterns from one table (`DW_HELL` in `dw_bosses.qc`, 28 rows, one task entity per
+row with one clock): a line at each player, two lines, a ring (half a step turned each use), two spirals, a moving
+wheel, a rocket barrage (Dwell left it empty: the Sculptor's swarm shot, `DW_SwarmShot`, now shared), a pulse, and
+Dwell's unused program A once through (style 8). The shots are enemy projectiles a swing bats back (`vr_foeshot`, a
+generic field `VR_Deflect_IsProjectile` accepts), fly through monsters, never collide with each other, and glow and
+streak (the engine gives the flagless `hell_bullet.mdl` the hell knight's flame trail in `patchModelFlags`); aimed
+lines slower (500/550 for 700/800); a bullet-hell hit never pushes the player. The Sculptor flies as Dwell's: spinning
+about its axis, its face tilted toward its enemy, its heading reset each tick (VR's flyer knockback pushed it off its
+path), then flat, shield, teleport to its arena centre, rest turning the other way, fly again. DWELL.md 9.6.
+Verified: `vr_ad_test 200` PASS on d2end (pattern sweep 8/8 fired, the line 7 of 10 hits, edicts at most +82 and back;
+the Sculptor's steps all seen, its rest at target2) and d1end; `dwell_maps.sh` 28/0; `scenario_check` PASS; the spawn
+census against origin/next identical on 168 maps; dev and LTO builds 0 warnings.
+For his headset: the d2end fight (its timers fire styles 1-5): read the shots, dodge the lines, bat one back with a
+sword; the Sculptor's spin, tilt and teleport; styles 6-8 (barrage, pulse, program A) need a map that sets them.
+Left: Dwell's ring of small hit boxes on the Sculptor (one box still).
