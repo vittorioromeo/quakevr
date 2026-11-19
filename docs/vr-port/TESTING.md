@@ -312,6 +312,7 @@ Each line is a `##` section of [archive/TESTING_RECIPES.md](archive/TESTING_RECI
 - Immersive reloading (2026-10-07): reload_test.sh, pouch, magazines
 - Put-away transition (2026-10-07): the transition
 - Shotgun auto pump (2026-10-07): autopump_test.sh
+- TAA's motion target through remade eye targets (2026-11-19): taa_attach_test.sh (Linux; vr_temporal_attachcheck)
 - OpenXR runtime choice (2026-10-09): xr_runtime_test.sh, fakexr (Linux too), xr_session_test.sh (a session lost by return code, unpaced frames, the panel swapchain failing)
 - Arcane Dimensions: soldiers' guns, upgrades per weapon, the gadget's AD page (2026-10-12): vr_ad_test, soldiers' guns, upgrades, the gadget page
 - Piled-up decals: the mark limit a spot (2026-10-12): the mark limit a spot

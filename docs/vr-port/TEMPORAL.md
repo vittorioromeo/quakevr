@@ -61,7 +61,11 @@ What landed, and where it departs from sections 5-7:
   (section 5.2): the shading passes write a second colour output (`out_motion`, `QVR_TEMPORAL_FS_OUTPUT` in
   `vr_glsl.h`) into a **motion target** (RGBA32F, colour attachment 1 of the eye's scene framebuffers: xy the motion,
   z the fragment's depth, w the eye's stamp). The stamp means no clear; the depth check rejects a texel overdrawn later
-  by something opaque, which was section 5.2's reason against an MRT. Writes are switched on (`glDrawBuffers`) for the
+  by something opaque, which was section 5.2's reason against an MRT. The attachment follows the eye targets when they
+  are made anew (a dynres step, a Render Scale change, VR started again): `attach()` keys it by the targets' generation
+  (`stereo::eyeTargetsGeneration`) as well as the GL names, which a remade set may be given back unchanged (2026-11-19:
+  with Mesa it was, and TAA ran without motion after the first remake; `vr_temporal_attachcheck`,
+  `Misc/quakevr/taa_attach_test.sh`). Writes are switched on (`glDrawBuffers`) for the
   opaque alias batches, the opaque world/brush shading and opaque liquids only. They stay on through all the alias
   batches: switching them per batch cost 2.3 ms a frame in combat_48.
   - **Alias models**: the vertex shader keeps each vertex's final world position in a slot of a buffer (bindings 13/14,

@@ -33,6 +33,7 @@
 #include "vr_flatplay.hpp"
 #include "vr_profile.hpp"
 #include "vr_stereo.hpp"
+#include "vr_testkit.hpp"
 #include "vr_api_render.h"
 
 #if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
@@ -356,6 +357,9 @@ struct State
     float stamp{0.f};
     GLuint sceneFbo{0}, compositeFbo{0}; // the eye targets' framebuffers, with the motion target attached
     GLuint attachedScene{0}, attachedComposite{0}, attachedTex{0};
+    // The eye targets' generation (stereo::eyeTargetsGeneration) the attachment was made for: a remade set (a dynres step,
+    // a Render Scale change) may be given back the same framebuffer and texture names, which alone looked unchanged.
+    unsigned attachedGeneration{0};
     GLuint motionTex{0};       // RGBA32F, the eye size (shared by the eyes)
     GLuint maskTex{0};         // R8
     GLuint displayTex{0};      // RGBA16F: the debug views
@@ -387,6 +391,9 @@ using GetBufferSubDataFn = void(APIENTRY*)(GLenum, GLintptr, GLsizeiptr, void*);
 using ClearTexImageFn = void(APIENTRY*)(GLuint, GLint, GLenum, GLenum, const void*);
 GetBufferSubDataFn getBufferSubData = nullptr;
 ClearTexImageFn clearTexImage = nullptr;
+using GetFbAttachmentFn = void(APIENTRY*)(GLenum, GLenum, GLenum, GLint*);
+GetFbAttachmentFn getFbAttachment = nullptr; // (vr_temporal_attachcheck's)
+testkit::Tally attachTally;                  // vr_temporal_attachcheck's checks
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Helpers
@@ -550,6 +557,7 @@ void ensureTextures(int width, int height)
     {
         return;
     }
+    state.attachedTex = 0; // (the new motion target may be given the old one's name: attached again, not taken as attached)
     deleteTexture(state.motionTex);
     deleteTexture(state.maskTex);
     deleteTexture(state.displayTex);
@@ -615,7 +623,11 @@ void bindZeroBlock()
 // The motion target as colour attachment 1 of the eye targets' framebuffers (none: detached).
 void attach(GLuint tex)
 {
-    if(state.attachedScene == state.sceneFbo && state.attachedComposite == state.compositeFbo && state.attachedTex == tex)
+    // (the flat window's targets: windowSamples forgets the attachment when they are made anew; the eyes': their generation)
+    const unsigned generation = state.flat ? 0u : stereo::eyeTargetsGeneration();
+    const bool sameSet = state.attachedGeneration == generation;
+    if(sameSet && state.attachedScene == state.sceneFbo && state.attachedComposite == state.compositeFbo &&
+        state.attachedTex == tex)
     {
         return;
     }
@@ -628,9 +640,10 @@ void attach(GLuint tex)
             GL_FramebufferTexture2DFunc(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, t, 0);
         }
     };
-    if(state.attachedTex && (state.attachedScene != state.sceneFbo || state.attachedComposite != state.compositeFbo))
+    // The old framebuffers detached only while they are the same set's: remade, their names may be another set's by now.
+    if(sameSet && state.attachedTex && (state.attachedScene != state.sceneFbo || state.attachedComposite != state.compositeFbo))
     {
-        set(state.attachedScene, 0); // (the old framebuffers: maybe deleted, then a no-op)
+        set(state.attachedScene, 0);
         set(state.attachedComposite, 0);
     }
     set(state.sceneFbo, tex);
@@ -639,6 +652,7 @@ void attach(GLuint tex)
     state.attachedScene = state.sceneFbo;
     state.attachedComposite = state.compositeFbo;
     state.attachedTex = tex;
+    state.attachedGeneration = generation;
 }
 
 // The entity's slot this frame (shifting the last frame's into prev); nullptr if the table is full.
@@ -832,6 +846,56 @@ void registerCommands()
                     eye == 0 ? "L" : eye == 1 ? "R" : "flat", s[0] / (4.0 * n), s[1] / (4.0 * n), s[2],
                     100.0 * s[2] / q_max(1.0, static_cast<double>(state.width) * state.height));
             }
+        });
+    // vr_temporal_attachcheck <label> | end: the motion target is colour attachment 1 of this frame's scene and composite
+    // framebuffers, as GL says (not attach()'s cache, which a remade set given back the same names once fooled: a
+    // dynres step's or a Render Scale change's remake left the new framebuffers without it). "taa_attach: PASS|FAIL
+    // <label>: ..." a check; `end` the verdict "taa_attach: N passed, M failed". Tests: Misc/quakevr/taa_attach_test.sh.
+    Cmd_AddCommand("vr_temporal_attachcheck",
+        []
+        {
+            const char* label = Cmd_Argc() > 1 ? Cmd_Argv(1) : "now";
+            if(!strcmp(label, "end"))
+            {
+                attachTally.verdict("taa_attach");
+                attachTally.reset();
+                return;
+            }
+            if(!getFbAttachment)
+            {
+                getFbAttachment = reinterpret_cast<GetFbAttachmentFn>(
+                    SDL_GL_GetProcAddress("glGetFramebufferAttachmentParameteriv"));
+            }
+            if(!state.frameActive || !state.motionTex || !state.sceneFbo || !getFbAttachment)
+            {
+                attachTally.check(false, "taa_attach", va("%s: TAA not drawing (vr_taa 1, the eyes drawn, no MSAA)", label));
+                return;
+            }
+            const GLuint bound = GL_BoundDrawFramebuffer();
+            const auto attached = [](GLuint fbo) -> GLint
+            {
+                GLint type = GL_NONE; // (one a line: Cmd_AddCommand is a macro, a comma splits its arguments)
+                GLint name = 0;
+                GL_BindFramebufferFunc(GL_FRAMEBUFFER, fbo);
+                getFbAttachment(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE, &type);
+                if(type == GL_TEXTURE)
+                {
+                    getFbAttachment(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME, &name);
+                }
+                return type == GL_TEXTURE ? name : 0;
+            };
+            const GLint scene = attached(state.sceneFbo);
+            const GLint composite = state.compositeFbo ? attached(state.compositeFbo) : -1;
+            GL_BindFramebufferFunc(GL_FRAMEBUFFER, bound);
+            const GLint want = static_cast<GLint>(state.motionTex);
+            const bool ok = scene == want && (!state.compositeFbo || composite == want);
+            const char* what = va("%s: %dx%d, scene fbo %u has %d, composite fbo %u has %d, the motion target is %d", label,
+                state.width, state.height, state.sceneFbo, scene, state.compositeFbo, composite, want);
+            if(ok)
+            {
+                Con_Printf("taa_attach: PASS %s\n", what);
+            }
+            attachTally.check(ok, "taa_attach", what);
         });
 }
 
