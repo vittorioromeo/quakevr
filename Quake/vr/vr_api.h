@@ -719,10 +719,11 @@ void VR_RunSetupLevel (const char *map);					// the Levels list (menu.c): the Ru
 void M_LevelStart (const char *map, int skill);				// menu.c: a fresh start of a map (skill -1: left as it is: the map's own halls choose), the Run Setup screen's Start
 void M_NewGameStart (void);								// menu.c: the new game itself (map start), the Run Setup screen's Start
 int VR_RunIronman (void);								// the run's Ironman is on (vr_runsetup.cpp): no saving, the menus' Save greyed, no autosaves
-int VR_CoopPickSlot (const char *name, int islocal);	// SV_CheckForNewClients: the slot a new player takes (-1: the first free; the host's own: 0; vr_coopsave.cpp)
+int VR_CoopPickSlot (const char *name, const char *key, int islocal);	// SV_CheckForNewClients: the slot a new player takes (-1: the first free; the host's own: 0; vr_coopsave.cpp)
 void VR_CoopNoteLeave (int slot);					// SV_DropClient (B15): a player leaving a coop game in progress: what he has kept for his return by name
-void VR_CoopRejoinParms (int slot, const char *name);	// SV_ConnectClient, a new player: one back by name gets his level-start parms (a respawn's)
+void VR_CoopRejoinParms (int slot, const char *name, const char *key);	// SV_ConnectClient, a new player: one back by name and game key gets his level-start parms (a respawn's)
 void VR_CoopRejoinSpawn (int slot);					// Host_Spawn_f, the parms in the globals: one back by name gets what he had when he left
+void VR_CoopLevelChangeParms (void);				// SV_SaveSpawnparms (a level change): each leaver's level-start parms what he carries into it
 void VR_CoopForgetLeavers (void);					// Host_ShutdownServer: the leavers' things forgotten (a new game or a load)
 int VR_ServerIntermission (void);					// Host_Savegame_f: the server's QC is in its intermission (intermission_running; vr_progs.cpp)
 int VR_ArenaNoSave (void);								// in Arena Mode (vrarena): no saving of any kind

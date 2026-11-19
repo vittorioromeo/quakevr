@@ -53,12 +53,16 @@ Load load;
 za::String saveText;
 
 // (B15) A player who left a game in progress (his game quit, crashed or lost its link): what he had, given back when
-// a player of his name joins the same game again (vr_mp_rejoin_keep). Kept through level changes (what he had is what
-// a level change carries: QC's SetChangeParms), forgotten when the server shuts down (a new game, a load).
+// a player of his name and his game's key joins the same game again (vr_mp_rejoin_keep). Kept through level changes
+// (what he had is what a level change carries: QC's SetChangeParms; his level-start parms become those,
+// VR_CoopLevelChangeParms), forgotten when the server shuts down (a new game, a load) or a coop save is loaded; the
+// oldest overwritten when the table is full.
 struct Leaver
 {
     bool used{false};
     char name[32]{};
+    char key[24]{};                                  // his game's vr_mp_clientkey (net_defs.h qvrKey; "": an older client's)
+    double left{0.0};                                // realtime when he left (the oldest goes first when the table is full)
     int slot{-1};                                    // the slot he left (his again if it is free)
     float startParms[NUM_SPAWN_PARMS]{};             // his level-start parms (a coop respawn's: setspawnparms)
     float startExt[qvr::progs::numExtSpawnParms]{};
@@ -74,16 +78,28 @@ int rejoining[MAX_SCOREBOARD]; // a slot's player back as a leaver: his leavers[
            qvr::progs::bindings().isVrProgs;
 }
 
-[[nodiscard]] int leaverNamed(const char* name)
+// The leaver of this name and game key (another game under his name is a new player: REVIEW_MP_2026-11-18 finding 8;
+// a client of an older build sends no key, "", and is found by his name alone, as before).
+[[nodiscard]] int leaverOf(const char* name, const char* key)
 {
+    if(!name || !*name)
+    {
+        return -1;
+    }
     for(int i = 0; i < MAX_SCOREBOARD; i++)
     {
-        if(leavers[i].used && name && *name && !strcmp(leavers[i].name, name))
+        if(leavers[i].used && !strcmp(leavers[i].name, name) && !strcmp(leavers[i].key, key ? key : ""))
         {
             return i;
         }
     }
     return -1;
+}
+
+// A loaded coop game's slot still waiting for its saved player (his saved edict, his saved parms): not a leaver's.
+[[nodiscard]] bool slotPending(int slot)
+{
+    return sv.loadgame && load.coopLoaded && slot >= 0 && slot < MAX_SCOREBOARD && load.pending[slot];
 }
 
 void appendFloat(za::String& out, float v)
@@ -235,6 +251,9 @@ extern "C" void VR_CoopApplyLoad(void)
     {
         return;
     }
+    // (a load with the players kept, no shutdown: what the leavers had belongs to the game left behind; each saved one
+    // is back by his saved block, and the leaver path is open again in the loaded level)
+    VR_CoopForgetLeavers();
     int players = 0;
     for(int i = 0; i < svs.maxclients && i < MAX_SCOREBOARD; i++)
     {
@@ -325,7 +344,7 @@ void swapSaved(int a, int b)
 
 } // namespace
 
-extern "C" int VR_CoopPickSlot(const char* name, int isLocal)
+extern "C" int VR_CoopPickSlot(const char* name, const char* key, int isLocal)
 {
     if(!svs.clients)
     {
@@ -355,15 +374,9 @@ extern "C" int VR_CoopPickSlot(const char* name, int isLocal)
         }
         return 0;
     }
-    if(!sv.loadgame || !load.coopLoaded)
-    {
-        // (B15) a player back in a game he left: his old slot if it is free (his entity number and colours again)
-        const int k = keepsLeavers() ? leaverNamed(name) : -1;
-        const int slot = k >= 0 ? leavers[k].slot : -1;
-        return slot >= 0 && slot < svs.maxclients && !svs.clients[slot].active ? slot : -1; // (-1: the first free)
-    }
+    const bool loaded = sv.loadgame && load.coopLoaded;
     // His saved player, by the name his connect request carried (net_dgrm.c), in whichever slot it was saved in.
-    if(name && *name)
+    if(loaded && name && *name)
     {
         for(int i = 0; i < slots; i++)
         {
@@ -373,6 +386,18 @@ extern "C" int VR_CoopPickSlot(const char* name, int isLocal)
                 return i;
             }
         }
+    }
+    // (B15) a player back in a game he left (a loaded level too, once his slot no longer waits for a saved player): his
+    // old slot if it is free (his entity number and colours again)
+    const int k = keepsLeavers() ? leaverOf(name, key) : -1;
+    const int slot = k >= 0 ? leavers[k].slot : -1;
+    if(slot >= 0 && slot < slots && !svs.clients[slot].active && !slotPending(slot))
+    {
+        return slot;
+    }
+    if(!loaded)
+    {
+        return -1; // (the first free)
     }
     // Not a saved player still to come: a free slot no saved player waits for (a new player there), else the first free.
     for(int i = 0; i < slots; i++)
@@ -396,20 +421,41 @@ extern "C" void VR_CoopNoteLeave(int slot)
     {
         return;
     }
-    int k = leaverNamed(c.name);
+    const char* key = c.netconnection ? NET_QSocketGetQvrKey(c.netconnection) : "";
+    int k = leaverOf(c.name, key);
     for(int i = 0; i < MAX_SCOREBOARD && k < 0; i++)
     {
         k = leavers[i].used ? -1 : i;
     }
     if(k < 0)
     {
-        return;
+        // Full: the one who left longest ago makes room (not one back in a slot and still to spawn: rejoining[]).
+        for(int i = 0; i < MAX_SCOREBOARD; i++)
+        {
+            bool spawning = false;
+            for(int j = 0; j < MAX_SCOREBOARD; j++)
+            {
+                spawning = spawning || rejoining[j] == i + 1;
+            }
+            if(!spawning && (k < 0 || leavers[i].left < leavers[k].left))
+            {
+                k = i;
+            }
+        }
+        if(k < 0)
+        {
+            return;
+        }
+        Con_Printf("coop: what %s had (left %.0f s ago) is forgotten for %s's: the leavers' table is full\n",
+            leavers[k].name, realtime - leavers[k].left, c.name);
     }
     Leaver& l = leavers[k];
     l = Leaver{};
     l.used = true;
     l.slot = slot;
+    l.left = realtime;
     q_strlcpy(l.name, c.name, sizeof(l.name));
+    q_strlcpy(l.key, key, sizeof(l.key));
     memcpy(l.startParms, c.spawn_parms, sizeof(l.startParms));
     float* ext = qvr::progs::clientExtParms(slot);
     memcpy(l.startExt, ext, sizeof(l.startExt));
@@ -448,14 +494,15 @@ extern "C" void VR_CoopNoteLeave(int slot)
         static_cast<double>(l.nowParms[1]), static_cast<int>(l.nowParms[0]));
 }
 
-extern "C" void VR_CoopRejoinParms(int slot, const char* name)
+extern "C" void VR_CoopRejoinParms(int slot, const char* name, const char* key)
 {
     if(slot < 0 || slot >= MAX_SCOREBOARD)
     {
         return;
     }
     rejoining[slot] = 0;
-    const int k = keepsLeavers() && !sv.loadgame ? leaverNamed(name) : -1;
+    // (not into a loaded coop game's slot still waiting for its saved player: his saved parms and edict are his)
+    const int k = keepsLeavers() && !slotPending(slot) ? leaverOf(name, key) : -1;
     if(k < 0)
     {
         return;
@@ -489,6 +536,21 @@ extern "C" void VR_CoopRejoinSpawn(int slot)
     Con_Printf("coop: %s is back with what he had when he left (health %g, items %d)\n", l.name,
         static_cast<double>(l.nowParms[1]), static_cast<int>(l.nowParms[0]));
     l = Leaver{};
+}
+
+extern "C" void VR_CoopLevelChangeParms(void)
+{
+    // A level change: each leaver's level-start parms are what he carries into the new level (what he had when he left,
+    // as a level change carries it), as the players' own become theirs (SV_SaveSpawnparms): a respawn after his return
+    // gives those, not the level he left from's start.
+    for(Leaver& l : leavers)
+    {
+        if(l.used)
+        {
+            memcpy(l.startParms, l.nowParms, sizeof(l.startParms));
+            memcpy(l.startExt, l.nowExt, sizeof(l.startExt));
+        }
+    }
 }
 
 extern "C" void VR_CoopForgetLeavers(void)

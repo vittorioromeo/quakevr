@@ -49,6 +49,9 @@ Tests:
              entity at rest, the precaches, statics, light styles); B leaves and joins again: his slot and things
              (vr_mp_rejoin_keep), a suicide gives his level-start ones; B's game killed comes back on another port:
              his ghost closed at once, his slot and things; the server quits: C is told, still running.
+    rejoin_keep  (review finding 8) the leavers' table: a game under a leaver's name with another vr_mp_clientkey is
+             a new player; a leaver away across a level change respawns with what he carried into it; the 17th leaver's
+             record takes the oldest's place; the leaver path in a level loaded from a coop save.
     download a dedicated server on a Map Library package's map: A (it installed) mounts it and joins; B (lacking it) is
              told with vr_mp_download 0, and with 1 installs it through the map installer (a local index and mirror)
              and joins.
@@ -98,7 +101,7 @@ Tests:
              the listen host, untouched; A's game killed: B told, then out at his vr_mp_client_timeout to the server
              browser with the reason.
     suite    coop, coop with B at 150 ms each way and 2% loss, bandwidth, armed, retransmit, version, avatar, avatarcal, body, prefs, grab,
-             teleport, held, ground, campaign, campaign_listen, flow, rejoin, download, pickup, forcegrab, melee, moves, climb,
+             teleport, held, ground, campaign, campaign_listen, flow, rejoin, rejoin_keep, download, pickup, forcegrab, melee, moves, climb,
              rules, cosmetics, flatbody, loss, predict, predictclimb, lagcomp, disarm, voice, voice with B 50 ms (30 ms
              jitter, 5% loss) away, dm, lockstep, lockstep_throw, nat (B23: room codes through simulated routers).
              (B25) --only a,b runs just those; --suite-repeat N runs them N times over; --load N (any test) keeps N
@@ -2832,6 +2835,114 @@ def rejoin_crash(s, srv, a, b, c, ea, eb, sb):
     s.check("the server quits: C is told and is out of the game, his game still running",
             told is not None and own.get("connected") == "0" and c.proc.poll() is None,
             "%s; connected %s" % (told[1].strip() if told else "not told", own.get("connected")))
+
+
+def leave(srv, inst, name, what):
+    """`inst` (named `name`) disconnects -> the server's "coop: <name> left" line (None: no record kept)."""
+    since = srv.mark()
+    inst.cmd("disconnect")
+    srv.wait(r"Client %s removed" % name, 20, since, what)
+    return wait_quietly(srv, r"coop: %s left" % name, 3, since, what + " (his things kept)")
+
+
+def come_back(s, srv, inst, name, level, what):
+    """`inst` connects as `name` -> (his entity, the server's "coop: <name> is back" line or None)."""
+    since, since_srv = inst.mark(), srv.mark()
+    inst.cmd("name %s; %s" % (name, s.connect_cmd(inst)))
+    _, j = inst.wait(r"mp_event: .*joined map=%s" % level, 120, since, what)
+    return int(fields(j)["self"]), wait_quietly(srv, r"coop: %s is back" % name, 5, since_srv, what + " (his things)")
+
+
+def rejoin_keep(s):
+    """(REVIEW_MP_2026-11-18 finding 8) The leavers' table (B15, vr_mp_rejoin_keep), on a dedicated server. A game under
+    a leaver's name with another vr_mp_clientkey is a new player (E as B: none of B's things), and B's own game back gets
+    them. B leaves with a rocket launcher, the level changes, he comes back: his suicide respawns him with it (his
+    level-start parms what he carried into the level, not the last level's start). 17 names leave: the oldest record
+    makes room for the 17th, who comes back with his things (before: the 17th was not kept, the feature stopped). In a
+    level loaded from a coop save B leaves and comes back with his things (before: a new player for that whole level)."""
+    srv, a, b, ea, eb = join(s)
+    sa, sb = ea - 1, eb - 1
+    a.cmd("name A")
+    b.cmd("name B")
+    names_until(srv, ("A", "B"))
+
+    # Another game by B's name (its own key): a new player; then B's own, his things
+    b.cmd("give 5; give n 77")
+    inventories_until(srv, lambda inv, m: inv.get(sb, {}).get("nails") == 77)
+    left = leave(srv, b, "B", "B leaving")
+    e = s.client("E").start()
+    ee, back = come_back(s, srv, e, "B", "e1m1", "E (named B) joining")
+    inv, _ = inventories_until(srv, lambda inv, m: ee - 1 in inv, 20)
+    s.check("key: another game under B's name (another vr_mp_clientkey) is a new player, not B back",
+            left is not None and back is None and inv.get(ee - 1, {}).get("nails") == 0,
+            "B's leave %s; %s; E's things %s" % (left and left[1].strip(), back[1].strip() if back else "not 'back'",
+                                                 inv.get(ee - 1)))
+    e.cmd("name E")
+    names_until(srv, ("A", "E"))
+    leave(srv, e, "E", "E leaving")
+    e.stop()
+    s.instances.remove(e)
+    eb2, back = come_back(s, srv, b, "B", "e1m1", "B back")
+    inv, _ = inventories_until(srv, lambda inv, m: eb2 - 1 in inv and inv[eb2 - 1].get("nails") == 77, 20)
+    s.check("key: B's own game back has his slot and things", back is not None and eb2 == eb and
+            inv.get(sb, {}).get("nails") == 77, "%s; entity %d (was %d); %s" % (
+                back[1].strip() if back else "not 'back'", eb2, eb, inv.get(sb)))
+
+    # A level change while B is away: his return's respawn gives what he carried into the level
+    b.cmd("give 7; give r 9")
+    inventories_until(srv, lambda inv, m: inv.get(sb, {}).get("items", 0) & IT_ROCKET_LAUNCHER)
+    left = leave(srv, b, "B", "B leaving on e1m1")
+    since_a = a.mark()
+    srv.cmd("changelevel e1m2")
+    a.wait(r"mp_event: .*joined map=e1m2", 120, since_a, "A on e1m2")
+    eb2, back = come_back(s, srv, b, "B", "e1m2", "B back on e1m2")
+    inv, _ = inventories_until(srv, lambda inv, m: m == "e1m2" and inv.get(sb, {}).get("items", 0) & IT_ROCKET_LAUNCHER,
+                               20)
+    since_b = b.mark()
+    b.cmd("kill")
+    b.wait(r"suicides", 10, since_b, "B's suicide")
+    fresh, _ = inventories_until(srv, lambda inv, m: inv.get(sb, {}).get("health", 0) > 0 and
+                                 inv[sb].get("items", 0) & IT_ROCKET_LAUNCHER, 20)
+    s.check("level change: B, away across it, respawns after his return with what he carried into e1m2 (his rocket "
+            "launcher: his level-start parms refreshed), not e1m1's start",
+            left is not None and back is not None and fresh.get(sb, {}).get("items", 0) & IT_ROCKET_LAUNCHER and
+            fresh[sb].get("rockets") == 9, "back %s; respawned %s" % (back is not None, fresh.get(sb)))
+
+    # 17 names leave (B's record taken back above; E's is the oldest): the 17th's record replaces the oldest
+    d = s.client("D").start()
+    for i in range(1, 17):
+        ed, _ = come_back(s, srv, d, "D%d" % i, "e1m2", "D%d joining" % i)
+        if i == 16:
+            d.cmd("give 5; give n 55")
+            inventories_until(srv, lambda inv, m: inv.get(ed - 1, {}).get("nails") == 55)
+        since = srv.mark()
+        kept = leave(srv, d, "D%d" % i, "D%d leaving" % i)
+    dropped = srv.find(r"coop: what E had .* is forgotten for D16's", since)
+    ed, back = come_back(s, srv, d, "D16", "e1m2", "D16 back")
+    inv, _ = inventories_until(srv, lambda inv, m: inv.get(ed - 1, {}).get("nails") == 55, 20)
+    s.check("table: the 17th leaver's record takes the oldest's place (E's), and he comes back with his things",
+            kept is not None and dropped is not None and back is not None and inv.get(ed - 1, {}).get("nails") == 55,
+            "kept %s; %s; back %s; D16 %s" % (kept is not None, dropped[1].strip() if dropped else "no eviction line",
+                                              back is not None, inv.get(ed - 1)))
+    leave(srv, d, "D16", "D16 leaving again")
+    d.stop()
+    s.instances.remove(d)
+
+    # A level loaded from a coop save (A and B kept): B leaves and comes back with what he had
+    since, since_a, since_b = srv.mark(), a.mark(), b.mark()
+    srv.cmd("save keeptest")
+    srv.wait(r"Saving game to", 10, since, "the server's save")
+    srv.cmd("load keeptest")
+    a.wait(r"mp_event: .*joined map=e1m2", 120, since_a, "A in the loaded game")
+    b.wait(r"mp_event: .*joined map=e1m2", 120, since_b, "B in the loaded game")
+    b.cmd("give 6; give n 66")
+    inventories_until(srv, lambda inv, m: inv.get(sb, {}).get("nails") == 66)
+    left = leave(srv, b, "B", "B leaving the loaded level")
+    eb2, back = come_back(s, srv, b, "B", "e1m2", "B back in the loaded level")
+    inv, _ = inventories_until(srv, lambda inv, m: inv.get(eb2 - 1, {}).get("nails") == 66, 20)
+    s.check("loaded: in a level loaded from a coop save B, back after leaving, has his slot and things",
+            left is not None and back is not None and eb2 == eb and inv.get(sb, {}).get("nails") == 66,
+            "left %s; back %s; entity %d (was %d); %s" % (left is not None, back is not None, eb2, eb, inv.get(sb)))
 
 
 DL_TITLE = "QVR MP Download"
@@ -6672,6 +6783,8 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             flow(s)
         elif test == "mp_rejoin":
             rejoin(s)
+        elif test == "mp_rejoin_keep":
+            rejoin_keep(s)
         elif test == "mp_download":
             download(s)
         elif test == "mp_pickup":
@@ -6780,6 +6893,7 @@ SUITE = [
     ("mp_campaign_listen", ()),
     ("mp_flow", ()),
     ("mp_rejoin", ()),
+    ("mp_rejoin_keep", ()),
     ("mp_download", ()),
     ("mp_pickup", ()),
     ("mp_forcegrab", ()),
@@ -6813,7 +6927,7 @@ SUITE = [
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "rejoin_keep", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite"])
     ap.add_argument("--base", required=True, help="the game folder (id1, quakevr...)")
     ap.add_argument("--exe", default=EXE)
     ap.add_argument("--out", default=os.path.join(REPO, "scratch", "mp"))
@@ -6875,7 +6989,7 @@ def main_run(args):
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
     elif args.test in ("bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground",
-                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui"):
+                       "campaign", "campaign_listen", "flow", "rejoin", "rejoin_keep", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui"):
         ok = run(args, "mp_" + args.test)
     elif args.test == "voice":
         ok = run(args, "mp_voice", args.lag, args.jitter, args.loss)

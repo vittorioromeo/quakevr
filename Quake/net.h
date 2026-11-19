@@ -66,6 +66,7 @@ double NET_QSocketGetTime (const struct qsocket_s *sock);
 void NET_AcceptStale (struct qsocket_s *sock, int on); // QVR: (B20) its overtaken unreliable datagrams read all the same (net_stalemessage)
 const char *NET_QSocketGetAddressString (const struct qsocket_s *sock);
 const char *NET_QSocketGetQvrName (const struct qsocket_s *sock); // QVR: the name in its connect request
+const char *NET_QSocketGetQvrKey (const struct qsocket_s *sock); // QVR: the vr_mp_clientkey in its connect request ("": none)
 
 qboolean NET_CanSendMessage (struct qsocket_s *sock);
 // Returns true or false if the given qsocket can currently accept a

@@ -227,6 +227,12 @@ const char *NET_QSocketGetQvrName (const qsocket_t *s)
 	return s->qvrName;
 }
 
+// QVR: (B25) the vr_mp_clientkey its connect request carried ("": none, an older client's; net_dgrm.c)
+const char *NET_QSocketGetQvrKey (const qsocket_t *s)
+{
+	return s->qvrKey;
+}
+
 const char *NET_QSocketGetAddressString (const qsocket_t *s)
 {
 	return s->address;
