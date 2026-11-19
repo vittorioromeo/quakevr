@@ -115,10 +115,34 @@ state instead:
 2. **Cache** (results kept for a key): `mem::Cache` with the events that make it stale: `mem::MapChange` (anything
    keyed by a pointer into the hunk: textures, edicts, the world), `mem::GameDirChange` (models' slots, game files),
    `mem::ModelReload` (`vr_model_reload`, `vr_hand_reload`), or `mem::Never` (only counted; its owner empties it). A key
-   that can change otherwise (a setting) is part of the key and checked on use. Explicit resets that already exist
-   (`resetServerWorld`, `VR_OnClientClearState`, `VR_OnGameDirChanged`'s list) stay; `mem::on(event)` is called from
-   `VR_OnClearMemory`, `VR_OnGameDirChanged` and the two reload commands.
-3. **State that is not a buffer** (what a frame built once and every view draws: `flashlight.cpp`'s `CordDraw`,
+   that can change otherwise (a setting) is part of the key and checked on use. `VR_OnGameDirChanged`'s explicit list
+   stays; `mem::on(event)` is called from `VR_OnClearMemory`, `VR_OnGameDirChanged` and the two reload commands.
+3. **Reset** (what a system keeps about the world it was made in, forgotten by its own function: a map keyed by entity
+   number, by model, a hold, a time on the client's clock): `mem::Reset` next to the state, for its event and in its
+   phase (REVIEW_NEXT_2026-11-18.md, finding 20). `mem::ResetEvent::ServerWorld` runs at the server's world reset
+   (`VR_OnClearMemory`, `VR_OnSpawnServerBeforeLoad`: a map, a changelevel, a loaded game), `ClientState` when the
+   client's state is cleared (`VR_OnClientClearState`). An event's resets run by phase, then by the system's name (the
+   list is kept sorted as each is made: never the static initialisation's order): `World` (Box3D's world, first),
+   `State` (a reset that touches only its own state: nearly all), `Settings` (last: settings put back, whose change
+   hooks reach other systems). A reset that reads or changes another system's state needs its phase, or a new one;
+   anything that must run before or after the whole event, or between a load's steps, stays a call in its hook
+   (`hull::keepForReload` before `mem::on(MapChange)` in `VR_OnClearMemory`; `VR_OnLoadGame`'s and
+   `VR_OnSpawnServerAfterLoad`'s own climb, foegrab, box3d and physics resets).
+
+   ```cpp
+   void reset() { ... }   // (vr_ropesim.cpp: the ropes, by entity number)
+
+   namespace
+   {
+   // Forgotten with the server's world (vr_mem.hpp's resets): the ropes, by entity number.
+   mem::Reset serverWorldReset{"ropesim", mem::ResetEvent::ServerWorld, mem::ResetPhase::State, &reset};
+   } // namespace
+   ```
+
+   `vr_resets` lists each event's resets in order (`vr_memstats` their counts), `vr_resets trace 1` prints each as it
+   runs; `Misc/quakevr/resets_test.sh` checks the registry's order and that every run in play calls each registered
+   reset once.
+4. **State that is not a buffer** (what a frame built once and every view draws: `flashlight.cpp`'s `CordDraw`,
    `rope.cpp`'s `RopeDraw`; what a function remembers from one call to the next: a "once a frame" frame number, the last
    print's time, a "registered" flag, a debug trace's open `FILE*`, an easing's last value): a named variable or struct
    at file scope in the anonymous namespace, next to the function (or the system's other state), with a comment saying
@@ -127,7 +151,7 @@ state instead:
    function may bind a reference to it under the old name (`int& lastFrame = oncePerFrame.quadArcs;`). A debug
    command's working buffer is a plain local; a fixed array that is all written before it is read is a plain local too
    (`coil.cpp`'s forces), unless it is too big for the stack (then file scope: `throw.cpp`'s `bothHistory`).
-4. **Constants**: `static constexpr` when the type allows (`bodycal`'s `splitList`, the name tables), else a
+5. **Constants**: `static constexpr` when the type allows (`bodycal`'s `splitList`, the name tables), else a
    namespace-scope `const` built before `main` (read by any thread, no guard): `ao`'s `rayDirs`, `ambient`'s `rayTable`,
    `avatar`'s `bindPose`, `unstick`'s `spotOffsets`, `motion`'s `categoryList`, `handrig`'s `referenceRig`. Its
    initialiser may use only constexpr data and pure functions: another file's globals may not be made yet (the static
@@ -136,7 +160,7 @@ state instead:
    the function's next call). An engine cvar is read through its `extern "C" cvar_t` (not a `Cvar_FindVar` cached in a
    static).
 
-`vr_memstats` prints the registered sets' bytes (totals and the largest), `vr_limits` the totals.
+`vr_memstats` prints the registered sets' bytes (totals and the largest) and the resets' counts, `vr_limits` the totals.
 
 `qvr_checks statics` (run by the kit's `build.sh`, which fails on it) rejects every function-local `static`
 or `thread_local` in `Quake/vr` that is not `static constexpr`, of any type, in any function or lambda body (an
@@ -405,7 +429,7 @@ Do not write a local copy (a second `rnd`, `lower`, `trim`, `startsWith`, `appen
 | QC functions the engine calls every frame | a `progs::Bindings` member resolved once per map (`bindings().arenaCards.CardSerial`), never `findFunction("...")` per frame | `vr_progs.hpp` |
 | work done at each map load, in order | a row of `prewarmSteps` (vr_main.cpp `VR_NewMap`) | `vr_main.cpp` |
 | a new view entity (hands, weapons, body parts) | a member of `Entities` listed in `Entities::members` at its place in the draw order (`zip(a, b)` for arrays visited per index); `forEachEntity` walks the list, a static_assert fails on a member left out | `vr_view_internal.hpp` |
-| client state reset when the client's state is cleared (a map, a loaded game) | a call in `VR_OnClientClearState`; per-map data rebuilt: compare `worldGeneration()` (with the world pointer) | `vr_client.cpp`, `vr_main.hpp` |
+| state forgotten with the server's world or when the client's state is cleared (a map, a loaded game) | a `mem::Reset` next to the state (`ResetEvent::ServerWorld` / `ClientState`, its phase); per-map data rebuilt: compare `worldGeneration()` (with the world pointer) | `vr_mem.hpp`, `vr_main.hpp` |
 
 ### QC (refactor A4)
 

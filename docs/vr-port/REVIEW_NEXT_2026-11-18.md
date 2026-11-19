@@ -441,3 +441,21 @@ Each verified at the cited lines; none worth a section.
   `vr_memstats` can list what is not registered.
 - **Drawbacks:** the lists' order matters in places (`hull::keepForReload` before the caches go; Box3D before what
   holds its ids), and a registry hides the order; the migration is mechanical but touches about sixty files.
+- **Status (2026-11-19): fixed as suggested.** `mem::Reset` (vr_mem.hpp) registers a system's reset next to its state
+  for an event (`ResetEvent::ServerWorld`, `ClientState`) and a declared phase (`World`, `State`, `Settings`);
+  `mem::resetAll` runs an event's resets by phase, then by name (the list is sorted as each is made, never the static
+  initialisers' order). `resetServerWorld` (18 registrations: its 16 calls, with `resetBuiltinState`'s world text and
+  tips on their own) and `VR_OnClientClearState` (39: its 38 systems and vr_client.cpp's own three as one) are
+  `resetAll` at the same places. Every reset was read: one order fact each way survives, Box3D's world first (phase
+  `World`; its destruction reads only its own records, and nothing in the list holds its ids outside it) and the test
+  scene's settings put back last (phase `Settings`: their change hooks reach other systems); every other reset touches
+  only its own state (lowceil's clear sets the comfort fade's hold to none, which the fade's own clear also does).
+  Explicit, as order-critical steps of their hooks: `hull::keepForReload` then `mem::on(MapChange)` after the resets
+  and the pool's joins in `VR_OnClearMemory`; `VR_OnLoadGame`'s box3d, physics, climb and foegrab resets between the
+  load's own steps and `VR_OnSpawnServerAfterLoad`'s climb and foegrab. The files that notice a new map themselves
+  (vr_emissive.cpp, vr_walltorch.cpp, the `worldGeneration()` users) are as they were. `vr_resets` lists, traces and
+  checks the registrations, `vr_memstats` counts them. Test: `Misc/quakevr/resets_test.sh` (the registry's own resets
+  made out of order run in order, once a run; the lists sorted; in play every run of a map, a map change, a
+  changelevel, a load, a disconnect and a dedicated server's map calls each registered reset once, in order, as many
+  runs as the old lists had): 4 passed, 0 failed. The traces of the code before and after on the same scenes have the
+  same runs in the same places with the same resets each; within a run only the order inside phase `State` differs.

@@ -90,9 +90,11 @@ which). The VM's interpreter loop: [QC_VM.md](QC_VM.md).
 
 An error (`Host_Error`, `Host_EndGame`) jumps back to `_Host_Frame`'s `setjmp` from wherever it is raised, over any
 C++ frames: `VR_OnHostError` (vr_hosterror.cpp) first ends what the jump would leave open (CODE_STYLE.md, "Threads").
-Per map: `VR_NewMap` (vr_main.cpp) runs the `prewarmSteps` rows in order; client state resets go in
-`VR_OnClientClearState`. Threads: the job pool (`vr_jobs.hpp`) for mixing, Box3D steps and per-frame batches; the
-server runs on the main thread ([SERVER_THREAD.md](SERVER_THREAD.md) is a shelved design).
+Per map: `VR_NewMap` (vr_main.cpp) runs the `prewarmSteps` rows in order; the server's world and the client's state
+are forgotten by the registered resets (`mem::Reset`: `VR_OnClearMemory`, `VR_OnSpawnServerBeforeLoad`,
+`VR_OnClientClearState` run them, by phase and name; `vr_resets` lists them). Threads: the job pool (`vr_jobs.hpp`) for
+mixing, Box3D steps and per-frame batches; the server runs on the main thread ([SERVER_THREAD.md](SERVER_THREAD.md) is a
+shelved design).
 
 ## 5. Canonical helpers (the short list)
 
@@ -114,7 +116,7 @@ One implementation each; the full tables with signatures are in CODE_STYLE.md, "
 | random floats (g: no `rnd` wrapper) | `vrand::range(rng, lo, hi)`, `vrand::xorshift*`, `vrand::lcg*`; server determinism: `srvrandom` | vr_random.hpp, vr_srvrandom.hpp |
 | strings, quantiles, LE bytes, MDL normals (g) | `strings::startsWith/endsWith/lower/trim/appendf`, `vrstats::quantileSorted`, `bytes::View`, `mdlbuild::nearestNormal` | vr_strings.hpp, vr_stats.hpp, vr_bytes.hpp, vr_mdlbuild.hpp |
 | files | `files::readText`, `writeText`, `forLines`, `join` | vr_files.hpp |
-| scratch memory, caches | `mem::Scratch`, `mem::Cache` (no function-local statics: build.sh fails on them) | vr_mem.hpp, CODE_STYLE.md |
+| scratch memory, caches, per-map resets | `mem::Scratch`, `mem::Cache` (no function-local statics: build.sh fails on them), `mem::Reset` | vr_mem.hpp, CODE_STYLE.md |
 | client sounds; UI clicks | `audio::playAt`, `audio::playLocal`; `menuui::uiSound(UiSound::...)` | vr_audio.hpp, vr_menuui.hpp |
 | GL targets and programs | `gfx::RenderTarget`; programs: gl_shaders.c `GL_CreateProgram` (its multiview twin; `gfx::linkProgram` only where none is needed: CODE_STYLE.md, "Rendering stays multiview-ready") | vr_glutil.hpp, gl_shaders.c |
 | in-world tool panels | `toolpanel::Frame/Grid/buttonUnder/pushUndo/say/textFit` | vr_toolpanel.hpp |
@@ -142,8 +144,8 @@ One implementation each; the full tables with signatures are in CODE_STYLE.md, "
   hook `"vr_api.h"` (an edit of vr_api.h recompiles those alone).
 - **Headers by what a file reads** (SOURCE_MAP.md, "The cvar and tunable headers"): `vr_cvars.hpp` for a cvar,
   `vr_tunables.hpp` for a tuning constant, and so on; the tables' headers are the hot ones.
-- **Per frame / per map / per client reset**: a call in `VR_BeginFrame`'s list, a `prewarmSteps` row, a call in
-  `VR_OnClientClearState`. A new view entity: an `Entities` member (vr_view_internal.hpp).
+- **Per frame / per map / per world reset**: a call in `VR_BeginFrame`'s list, a `prewarmSteps` row, a `mem::Reset`
+  next to the state (the server's world or the client's state; CODE_STYLE.md, "Scratch buffers and caches"). A new view entity: an `Entities` member (vr_view_internal.hpp).
 - **Game rules** in QC unless they need the headset, physics or speed; a number both sides use goes in a shared `.h`.
 - **Settings**: a `QVR_CVAR` row in vr_cvars.inc (the QC handle file is regenerated), a menu row in its
   `vr_menu_*.inc` page (rows via the `menu_detail` builders). A shipped default changes: edit the default alone (the

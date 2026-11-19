@@ -221,6 +221,16 @@ void resetAll(ResetEvent event)
     }
 }
 
+int resetCount(ResetEvent event)
+{
+    int n = 0;
+    for(const Reset* r = Reset::first(); r; r = r->next())
+    {
+        n += r->event() == event ? 1 : 0;
+    }
+    return n;
+}
+
 void traceResets(bool on)
 {
     resetWatch.trace = on;

@@ -1062,6 +1062,8 @@ void VR_MemStats_f()
         static_cast<double>(held.scratchBytes) / 1024.0, held.scratchSets, static_cast<double>(held.cacheBytes) / 1024.0,
         held.cacheSets);
     mem::printLargest(6);
+    Con_Printf("  VR    resets: %d with the server's world, %d with the client's state (vr_resets lists them in order)\n",
+        mem::resetCount(mem::ResetEvent::ServerWorld), mem::resetCount(mem::ResetEvent::ClientState));
 
     // Per frame since the last vr_memstats: the phases' times and the counts, as the log's columns.
     drainPhases();
@@ -2311,6 +2313,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_gun_wall_depth", handpose::gunWallDepth_f);
     hitmodel::registerDiagCommands(); // vr_hitmodel_bench, _stats, _check, vr_hitzones_check (vr_hitmodel_diag.cpp)
     qza::registerDiagCommands(); // vr_zancle_math_test (vr_zancle_diag.cpp)
+    mem::registerDiagCommands(); // vr_resets: the registered resets listed, traced, checked (vr_mem_diag.cpp)
     Cmd_AddCommand("vr_body_collide_bench", selfcollide::bench_f);
     wounds::registerDiagCommands(); // vr_wounds_test, _info, _dump, vr_gore_hands_*, vr_gore_wash_test... (vr_wounds_diag.cpp)
     Cmd_AddCommand("vr_gore_dents_info", dents::info_f);

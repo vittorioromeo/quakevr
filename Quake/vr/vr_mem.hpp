@@ -323,6 +323,7 @@ private:
 
 // Every reset of the event, in order.
 void resetAll(ResetEvent event);
+[[nodiscard]] int resetCount(ResetEvent event); // (vr_memstats)
 
 // vr_resets' watch on resetAll: each reset printed as it runs ("reset <event> <system> (<phase>)"), and recorded
 // (null: an event's start) until taken.
@@ -334,5 +335,7 @@ struct ResetCall
 void traceResets(bool on);
 void recordResets(bool on);
 [[nodiscard]] za::Vector<ResetCall> takeRecordedResets();
+
+void registerDiagCommands(); // vr_resets (vr_mem_diag.cpp)
 
 } // namespace qvr::mem
