@@ -417,8 +417,8 @@ bool begin(edict_t* shooter, double most)
     {
         return false;
     }
-    const int slot = NUM_FOR_EDICT(shooter) - 1;
-    if(slot < 0 || slot >= svs.maxclients || slot >= MAX_SCOREBOARD || !seen[slot].valid || !netmove::serverSends(slot))
+    const int slot = progs::clientSlot(shooter);
+    if(slot < 0 || !seen[slot].valid || !netmove::serverSends(slot))
     {
         return false;
     }

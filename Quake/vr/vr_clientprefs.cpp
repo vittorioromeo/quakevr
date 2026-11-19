@@ -222,8 +222,8 @@ void resolve()
 // The slot of player edict number `num` whose preferences the server has, or -1.
 [[nodiscard]] int slotWithPrefs(int num)
 {
-    const int slot = num - 1;
-    return slot >= 0 && slot < svs.maxclients && slot < MAX_SCOREBOARD && state.slotHas[slot] ? slot : -1;
+    const int slot = progs::clientSlotOfNum(num);
+    return slot >= 0 && state.slotHas[slot] ? slot : -1;
 }
 
 constexpr float prefMost = 1e9f; // a preference's magnitude at most (none is near it)
@@ -633,8 +633,8 @@ float value(int pref, const cvar_t* var, const edict_t* player)
 {
     if(pref >= 0 && pref < prefCount && player && sv.active && qcvm == &sv.qcvm) // (a slot without them: the own)
     {
-        const int slot = slotWithPrefs(static_cast<int>(((const byte*)player - (const byte*)qcvm->edicts) / qcvm->edict_size));
-        if(slot >= 0)
+        const int slot = progs::clientSlot(player);
+        if(slot >= 0 && state.slotHas[slot])
         {
             return state.slot[slot][pref];
         }
@@ -654,7 +654,7 @@ float forQc(int pref, const cvar_t* var)
             {
                 return state.slot[slot][pref];
             }
-            if(num >= 1 && num <= svs.maxclients)
+            if(progs::clientSlotOfNum(num) >= 0)
             {
                 break; // (self a player -- a bot, one whose preferences have not come: the server's, never other's)
             }

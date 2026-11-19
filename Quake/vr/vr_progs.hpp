@@ -270,6 +270,25 @@ struct ServerVm
 // hosting, on a dedicated server, or before that client connects. Any current VM.
 [[nodiscard]] int hostSlot();
 
+// The client slot of server edict number `num` (a player's: 1 .. svs.maxclients), else -1. With clientSlot, the one
+// place for the range check the per-player stores each wrote by hand (REVIEW_MP_2026-11-18 finding 17).
+[[nodiscard]] inline int clientSlotOfNum(int num)
+{
+    const int slot = num - 1;
+    return slot >= 0 && slot < svs.maxclients && slot < MAX_SCOREBOARD ? slot : -1;
+}
+
+// `player`'s client slot on this server (its edict a player's), else -1: null, the world, any other edict, no server.
+// Measured against sv.qcvm's edicts, whichever VM is current, and never NUM_FOR_EDICT's Host_Error on a foreign pointer.
+[[nodiscard]] inline int clientSlot(const edict_t* player)
+{
+    if(!player || !sv.active || !sv.qcvm.edicts || sv.qcvm.edict_size <= 0 || (const byte*)player < (const byte*)sv.qcvm.edicts)
+    {
+        return -1;
+    }
+    return clientSlotOfNum(static_cast<int>(((const byte*)player - (const byte*)sv.qcvm.edicts) / sv.qcvm.edict_size));
+}
+
 // The local (listen) server's player, its own client's edict (hostSlot); null when not hosting or that client is not in
 // the game. A dedicated server's: client 0's, as before (it has no own client).
 [[nodiscard]] inline edict_t* localPlayer()

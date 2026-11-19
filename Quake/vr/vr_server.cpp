@@ -134,8 +134,8 @@ AvatarStats avatarStats;
 
 [[nodiscard]] ClientMove* clientMoveOf(edict_t* player)
 {
-    const int client = NUM_FOR_EDICT(player) - 1;
-    if(client < 0 || client >= svs.maxclients || client >= static_cast<int>(clientMoves.size()))
+    const int client = progs::clientSlot(player);
+    if(client < 0 || client >= static_cast<int>(clientMoves.size()))
     {
         return nullptr;
     }
@@ -146,8 +146,8 @@ AvatarStats avatarStats;
 // The reliable message buffer of the client `player` is, or nullptr for an inactive one.
 [[nodiscard]] sizebuf_t* clientMessage(edict_t* player)
 {
-    const int client = NUM_FOR_EDICT(player) - 1;
-    if(client < 0 || client >= svs.maxclients || !svs.clients[client].active)
+    const int client = progs::clientSlot(player);
+    if(client < 0 || !svs.clients[client].active)
     {
         return nullptr;
     }
@@ -1479,8 +1479,8 @@ void netStats_f()
 
 extern "C" void VR_NetStatsEntities(edict_t* clent, int sent, int insight, int bytes, int maxsize)
 {
-    const int i = NUM_FOR_EDICT(clent) - 1;
-    if(i < 0 || i >= MAX_SCOREBOARD)
+    const int i = progs::clientSlot(clent);
+    if(i < 0)
     {
         return;
     }

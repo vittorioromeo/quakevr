@@ -326,16 +326,6 @@ State state;
     return h;
 }
 
-[[nodiscard]] int slotOf(const edict_t* player)
-{
-    if(!player || !sv.active || !sv.qcvm.edicts)
-    {
-        return -1;
-    }
-    const int num = static_cast<int>(((const byte*)player - (const byte*)sv.qcvm.edicts) / sv.qcvm.edict_size);
-    return num - 1;
-}
-
 // "vr_heldpose <version> <hand> <values>": a client's drawn pose of that hand (send), kept for his slot.
 void heldPose_f()
 {
@@ -493,8 +483,7 @@ void mpDrawn_f()
 // `player`'s slot (a client's: under svs.maxclients), else -1.
 [[nodiscard]] int playerSlot(const edict_t* player)
 {
-    const int slot = slotOf(player);
-    return slot >= 0 && slot < MAX_SCOREBOARD && slot < svs.maxclients ? slot : -1;
+    return progs::clientSlot(player);
 }
 
 int grabSpot(edict_t* player, int hand, const edict_t* weapon)
