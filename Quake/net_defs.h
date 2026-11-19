@@ -178,6 +178,9 @@ typedef struct qsocket_s
 	qboolean	qvrAcceptStale;	// QVR: (B20) an unreliable datagram overtaken on the way is still read (net_stalemessage):
 					// a remote client's moves at the server (SV_ReadClientMessage reads only its QVR_CLC_MOVES)
 	unsigned int	qvrStaleRead;	// QVR: ... how many were
+	double		qvrUnreliableTime;	// QVR: (review 2026-11-18, finding 2) the last unreliable datagram's read in its window
+	qboolean	qvrSeeded;	// QVR: ... the channels' first sequences drawn at random (network version 39; net_dgrm.c)
+	unsigned int	qvrFirstOut;	// QVR: ... a server's first one to its client (the accept again for a duplicate request)
 	int		qvrNetVersion;	// QVR: the peer's Quake VR network version from its connect request (0: none; net_dgrm.c)
 	char		qvrName[32];	// QVR: the player's name from its connect request ("": none): a loaded coop game's slot by it
 	char		qvrKey[24];	// QVR: (B25) his game's vr_mp_clientkey from its connect request ("": none): "back from a crash" only by it

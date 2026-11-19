@@ -28,6 +28,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "vr/vr_api.h" // QVR: PRFL_QUAKEVR, QVR_NET_VERSION
 #include "q_ctype.h" // QVR: (B23) room codes
 
+#if defined(_WIN32)
+#pragma comment (lib, "advapi32.lib")
+unsigned char __stdcall SystemFunction036 (void *buffer, unsigned long length); // (RtlGenRandom: no header declares it)
+#elif !defined(__APPLE__) && !defined(__FreeBSD__) && !defined(__OpenBSD__) && !defined(__NetBSD__)
+#include <unistd.h> // (getentropy)
+#endif
+
 // This is enables a simple IP banning mechanism
 #define BAN_TEST
 
@@ -55,6 +62,29 @@ static struct
 } packetBuffer;
 
 static int myDriverLevel;
+
+// QVR: (review 2026-11-18, finding 2) 32 random bits no other host can predict (a connection's first sequences, a room
+// request's nonce): the system's random source, with the clock and a counter mixed in (a failed call still differs)
+static unsigned int DgrmRandom (void)
+{
+	static unsigned int	count;
+	unsigned int	r = 0;
+	unsigned long long	x;
+
+#if defined(_WIN32)
+	SystemFunction036 (&r, sizeof (r));
+#elif defined(__APPLE__) || defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)
+	r = arc4random ();
+#else
+	if (getentropy (&r, sizeof (r)) != 0)
+		r = 0;
+#endif
+	x = (unsigned long long) (Sys_DoubleTime () * 1e9) ^ ((unsigned long long) ++count << 32) ^ r; // (splitmix64)
+	x += 0x9E3779B97F4A7C15ull;
+	x = (x ^ (x >> 30)) * 0xBF58476D1CE4E5B9ull;
+	x = (x ^ (x >> 27)) * 0x94D049BB133111EBull;
+	return r ^ (unsigned int) (x ^ (x >> 31));
+}
 
 extern qboolean m_return_onerror;
 extern char m_return_reason[32];
@@ -708,6 +738,21 @@ static void NET_Ban_f (void)
 #define DGRM_RESEND_MARGIN		0.05
 #define DGRM_FAST_ACKS			2
 
+// QVR: (review 2026-11-18, finding 2) NetQuake's sequences started at 0 and its unreliable test was an unsigned "less
+// than" with no bound: anyone who knew a player's address (CCREP_PLAYER_INFO gave it) could send one datagram in his
+// name with a sequence far ahead, and every later real one read as stale (frozen), or inject a reliable chunk at the
+// next sequence (a stufftext). Each side now draws its own channels' first sequences at random (the client's in its
+// CCREQ_CONNECT, the server's in its CCREP_ACCEPT, network version 39: no header byte added), the sequences wrap, and
+// an unreliable datagram is taken only within a window around the next one expected: DGRM_UNRELIABLE_AHEAD ahead (a
+// second of 72 Hz datagrams lost in a row is 72), DGRM_UNRELIABLE_BEHIND behind for a connection that reads overtaken
+// ones (qvrAcceptStale: the server's of a client's moves). One outside it is dropped, unless nothing in the window came
+// for DGRM_RESYNC_SILENCE (a link back after a long cut: the peer's sequence went on): then it is the next one. A guess
+// lands in the window once in 2^22, and freezes the link for at most DGRM_RESYNC_SILENCE.
+#define DGRM_UNRELIABLE_AHEAD	1024
+#define DGRM_UNRELIABLE_BEHIND	256
+#define DGRM_RESYNC_SILENCE		3.0
+static int	outOfWindow;	// unreliable datagrams dropped outside the window (net_stats)
+
 static unsigned int ReliableChunks (const qsocket_t *sock)
 {
 	return ((unsigned int) sock->sendMessageLength + DGRM_RELIABLE_CHUNK - 1) / DGRM_RELIABLE_CHUNK;
@@ -987,7 +1032,16 @@ int	Datagram_GetMessage (qsocket_t *sock)
 
 		if (flags & NETFLAG_UNRELIABLE)
 		{
-			if (sequence < sock->unreliableReceiveSequence)
+			// QVR: (review finding 2) a window around the next one expected (above); sequences wrap
+			int ahead = (int) (sequence - sock->unreliableReceiveSequence);
+			if ((ahead >= DGRM_UNRELIABLE_AHEAD || ahead < -DGRM_UNRELIABLE_BEHIND) &&
+				net_time - sock->qvrUnreliableTime <= DGRM_RESYNC_SILENCE)
+			{
+				outOfWindow++;
+				Con_DPrintf("An unreliable datagram outside the window (%d)\n", ahead);
+				continue;
+			}
+			if (ahead < 0 && ahead >= -DGRM_UNRELIABLE_BEHIND)
 			{
 				if (sock->qvrAcceptStale)
 				{
@@ -1006,14 +1060,15 @@ int	Datagram_GetMessage (qsocket_t *sock)
 				Con_DPrintf("Got a stale datagram\n");
 				continue;
 			}
-			if (sequence != sock->unreliableReceiveSequence)
+			if (ahead > 0 && ahead < DGRM_UNRELIABLE_AHEAD)
 			{
-				count = sequence - sock->unreliableReceiveSequence;
+				count = (unsigned int) ahead;
 				droppedDatagrams += count;
 				sock->qvrUnreliableSkipped += count; // QVR: (B13) the net HUD's loss
 				Con_DPrintf("Dropped %u datagram(s)\n", count);
 			}
 			sock->unreliableReceiveSequence = sequence + 1;
+			sock->qvrUnreliableTime = net_time; // QVR: (review finding 2)
 			sock->qvrUnreliableRead++;
 
 			length -= NET_HEADERSIZE;
@@ -1147,6 +1202,7 @@ static void NET_Stats_f (void)
 		Con_Printf("shortPacketCount           = %i\n", shortPacketCount);
 		Con_Printf("droppedDatagrams           = %i\n", droppedDatagrams);
 		Con_Printf("server queue drops         = %i\n", sharedQueueDrops); // QVR (B23)
+		Con_Printf("out of window              = %i\n", outOfWindow); // QVR (review 2026-11-18, finding 2)
 	}
 	else if (Q_strcmp(Cmd_Argv(1), "*") == 0)
 	{
@@ -1572,8 +1628,9 @@ static void ClientKeyMade (void)
 }
 
 // QVR: a connection's CCREP_ACCEPT (its first, and again for a duplicate request): the listening socket's port (a
-// NetQuake client switches to it) and (B13) this server's network version (selective acks)
-static void SendAccept (sys_socket_t acceptsock, const struct qsockaddr *to)
+// NetQuake client switches to it), (B13) this server's network version (selective acks) and (review finding 2) the
+// first sequence of the server's channels to a client that sent his
+static void SendAccept (sys_socket_t acceptsock, const struct qsockaddr *to, const qsocket_t *sock)
 {
 	struct qsockaddr	self;
 
@@ -1584,6 +1641,8 @@ static void SendAccept (sys_socket_t acceptsock, const struct qsockaddr *to)
 	dfunc.GetSocketAddr(acceptsock, &self);
 	MSG_WriteLong(&net_message, dfunc.GetSocketPort(&self));
 	MSG_WriteLong(&net_message, QVR_NET_VERSION);
+	if (sock->qvrSeeded)
+		MSG_WriteLong(&net_message, (int) sock->qvrFirstOut);
 	*((int *)net_message.data) = BigLong(NETFLAG_CTL | (net_message.cursize & NETFLAG_LENGTH_MASK));
 	dfunc.Write (acceptsock, net_message.data, net_message.cursize, (struct qsockaddr *) to);
 	SZ_Clear(&net_message);
@@ -1602,6 +1661,8 @@ static qsocket_t *_Datagram_ControlRequest (sys_socket_t acceptsock, const struc
 	int			qvrVersion = 0; // QVR
 	char		qvrName[32] = {0}; // QVR: the player's name (a loaded coop game's slot)
 	char		qvrKey[24] = {0}; // QVR: (B25) his game's vr_mp_clientkey ("": an older client's request)
+	unsigned int	qvrFirstIn = 0; // QVR: (review finding 2) his channels' first sequence ...
+	qboolean	qvrSeeded = false; // QVR: ... when he sent it (network version 39)
 
 	if (len < (int) sizeof(int))
 		return NULL;
@@ -1672,7 +1733,18 @@ static qsocket_t *_Datagram_ControlRequest (sys_socket_t acceptsock, const struc
 		MSG_WriteLong(&net_message, client->colors);
 		MSG_WriteLong(&net_message, (int)client->edict->v.frags);
 		MSG_WriteLong(&net_message, (int)(net_time - client->netconnection->connecttime));
-		MSG_WriteString(&net_message, client->netconnection->address);
+		// QVR: (review 2026-11-18, finding 2) his port only to an asker on this machine (127.0.0.1: `test`): a
+		// stranger had every player's address and port, all a forged request in his name needs
+		{
+			char	address[NET_NAMELEN];
+			char	*colon;
+			q_strlcpy(address, client->netconnection->address, sizeof(address));
+			if ((clientaddr.qsa_family != AF_INET ||
+				((struct sockaddr_in *) &clientaddr)->sin_addr.s_addr != htonl (INADDR_LOOPBACK)) &&
+				(colon = strrchr(address, ':')) != NULL)
+				*colon = 0;
+			MSG_WriteString(&net_message, address);
+		}
 		*((int *)net_message.data) = BigLong(NETFLAG_CTL | (net_message.cursize & NETFLAG_LENGTH_MASK));
 		dfunc.Write (acceptsock, net_message.data, net_message.cursize, &clientaddr);
 		SZ_Clear(&net_message);
@@ -1735,6 +1807,11 @@ static qsocket_t *_Datagram_ControlRequest (sys_socket_t acceptsock, const struc
 				q_strlcpy(qvrName, MSG_ReadString(), sizeof(qvrName));
 			if (msg_readcount < net_message.cursize)
 				q_strlcpy(qvrKey, MSG_ReadString(), sizeof(qvrKey));
+			if (msg_readcount + 4 <= net_message.cursize)
+			{
+				qvrFirstIn = (unsigned int) MSG_ReadLong();
+				qvrSeeded = true;
+			}
 		}
 		reason[0] = 0;
 		if (sv.active && (sv.protocolflags & PRFL_QUAKEVR) && qvrVersion != QVR_NET_VERSION)
@@ -1813,12 +1890,21 @@ static qsocket_t *_Datagram_ControlRequest (sys_socket_t acceptsock, const struc
 			if (net_time - s->connecttime < 2.0)
 			{
 				// yes, so send a duplicate reply
-				SendAccept (acceptsock, &clientaddr);
+				SendAccept (acceptsock, &clientaddr, s);
 				return NULL;
 			}
 			// it's somebody coming back in from a crash/disconnect
 			// so close the old qsocket and let their retry get them back in
-			NET_Close(s);
+			// QVR: (review 2026-11-18, finding 2) only once his connection has been silent QVR_GHOST_SILENCE, as for one
+			// back on another port above: a UDP source is anyone's to write, so one forged request in a live player's
+			// name closed his connection. A game back on the same port retries for 7.5 s: his old connection is closed at
+			// a retry once silent, and the next retry joins.
+			if (net_time - s->lastMessageTime > QVR_GHOST_SILENCE)
+			{
+				Con_Printf ("%s: a new connection request from a connection silent %.1f s: the old one closed\n",
+					dfunc.AddrToString (&clientaddr), net_time - s->lastMessageTime);
+				NET_Close(s);
+			}
 			return NULL;
 		}
 	}
@@ -1848,9 +1934,16 @@ static qsocket_t *_Datagram_ControlRequest (sys_socket_t acceptsock, const struc
 	q_strlcpy(sock->qvrName, qvrName, sizeof(sock->qvrName)); // QVR
 	q_strlcpy(sock->qvrKey, qvrKey, sizeof(sock->qvrKey)); // QVR: (B25)
 	Q_strcpy(sock->address, dfunc.AddrToString(&clientaddr));
+	if (qvrSeeded) // QVR: (review finding 2) his channels from his first sequence, this server's from its own
+	{
+		sock->qvrSeeded = true;
+		sock->qvrFirstOut = DgrmRandom ();
+		sock->receiveSequence = sock->unreliableReceiveSequence = qvrFirstIn;
+		sock->sendSequence = sock->ackSequence = sock->sendChunkBase = sock->unreliableSendSequence = sock->qvrFirstOut;
+	}
 
 	// send him back the info about the server connection he has been allocated
-	SendAccept (acceptsock, &clientaddr);
+	SendAccept (acceptsock, &clientaddr, sock);
 
 	return sock;
 }
@@ -2069,6 +2162,7 @@ static qsocket_t *_Datagram_Connect (const char *host)
 	int			control;
 	const char		*reason;
 	const qboolean	byRoom = host[0] == '@'; // QVR: (B23) "connect @CODE": a room's host, by the room service
+	const unsigned int	firstOut = DgrmRandom (); // QVR: (review finding 2) this client's channels' first sequence
 	const int		tries = byRoom ? ROOM_CONNECT_TRIES : 3;
 	const double	tryFor = byRoom ? ROOM_CONNECT_EVERY : 2.5;
 
@@ -2118,6 +2212,7 @@ static qsocket_t *_Datagram_Connect (const char *host)
 			? Q_atoi(com_argv[COM_CheckParm("-mpnetversion") + 1]) : QVR_NET_VERSION);
 		MSG_WriteString(&net_message, cl_name.string); // QVR: a loaded coop game gives him his saved slot by it
 		MSG_WriteString(&net_message, Cvar_VariableString ("vr_mp_clientkey")); // QVR: (B25) this game's, for "back from a crash"
+		MSG_WriteLong(&net_message, (int) firstOut); // QVR: (review finding 2) its channels' first sequence (39)
 		*((int *)net_message.data) = BigLong(NETFLAG_CTL | (net_message.cursize & NETFLAG_LENGTH_MASK));
 		dfunc.Write (newsock, net_message.data, net_message.cursize, &sendaddr);
 		SZ_Clear(&net_message);
@@ -2224,6 +2319,12 @@ static qsocket_t *_Datagram_Connect (const char *host)
 		// QVR: (B13) a Quake VR server's network version after the port (selective acks: net_dgrm.c), none from NetQuake's
 		if (msg_readcount + 4 <= net_message.cursize)
 			sock->qvrNetVersion = MSG_ReadLong();
+		// QVR: (review finding 2) the server's channels' first sequence (network version 39): this client's from its own
+		if (msg_readcount + 4 <= net_message.cursize)
+		{
+			sock->receiveSequence = sock->unreliableReceiveSequence = (unsigned int) MSG_ReadLong();
+			sock->sendSequence = sock->ackSequence = sock->sendChunkBase = sock->unreliableSendSequence = firstOut;
+		}
 		// QVR: (B23) one socket for every client from network version 36: the server goes on at the address it was
 		// reached at (the port it names is its own inside its router: another outside it, behind a router that
 		// doesn't keep port numbers or by a room code)

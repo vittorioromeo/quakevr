@@ -99,10 +99,16 @@ Tests:
     emptyflood  (review 2026-11-18, finding 5) empty UDP datagrams (EMPTY_FLOOD_RATE a second, from a stranger's
              socket) at the server's one socket while A and B play: each still sees the other walk off within the bound,
              nobody leaves (an empty datagram's read of 0 used to end the drain of every client's datagrams).
+    spoof    (review 2026-11-18, finding 2) forgeries in a player's name from his address (B's proxy): connect requests
+             from his own address and port (his live connection kept: closed only once silent 3 s), unreliable
+             datagrams far ahead of his sequences each way (outside the window: dropped, both still play), reliable
+             chunks down at a blind guess of the sequences (0..1023: never taken; the channels start at random, network
+             version 39); a stranger's player info has no ports, this machine's (127.0.0.1) has them.
     suite    coop, coop with B at 150 ms each way and 2% loss, bandwidth, armed, retransmit, version, avatar, avatarcal, body, prefs, grab,
              teleport, held, ground, campaign, campaign_listen, flow, rejoin, download, pickup, forcegrab, melee, moves, climb,
              rules, cosmetics, flatbody, loss, predict, predictclimb, lagcomp, disarm, voice, voice with B 50 ms (30 ms
              jitter, 5% loss) away, dm, lockstep, lockstep_throw, nat (B23: room codes through simulated routers).
+             The network layer's review checks (2026-11-18): emptyflood, spoof.
              (B25) --only a,b runs just those; --suite-repeat N runs them N times over; --load N (any test) keeps N
              busy CPU workers at normal priority running meanwhile (mp_load.py: the machine busy with other work, as
              in the suite's real runs; --load-duty the share of time each spins).
@@ -6619,6 +6625,133 @@ def emptyflood(s):
     walk(s, b, a, eb, "b_walks_after", BASE_MS + 200, BASE_MS + 400)
 
 
+def server_net_version(port):
+    """The Quake VR network version of the server on `port`, as a stranger learns it: a connect request of version 0
+    from a socket of its own, and the reject's reason ("network version N") -> N (None: no reject read)."""
+    import socket
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.bind(("127.0.0.1", 0))
+    sock.settimeout(2.0)
+    try:
+        sock.sendto(ctl_packet(bytes([0x01]) + b"QUAKE\0" + bytes([3]) + b"QVR\0" + (0).to_bytes(4, "little") +
+                               b"probe\0" + b"probe\0"), ("127.0.0.1", port))
+        pkt, _ = sock.recvfrom(2048)
+        m = re.search(rb"network version (\d+)", pkt)
+        return int(m.group(1)) if m else None
+    except OSError:
+        return None
+    finally:
+        sock.close()
+
+
+def ctl_packet(body):
+    return ((0x80000000 | (4 + len(body))).to_bytes(4, "big")) + body
+
+
+def game_packet(flags, seq, body):
+    return ((flags | (8 + len(body))).to_bytes(4, "big")) + (seq & 0xFFFFFFFF).to_bytes(4, "big") + body
+
+
+def player_info(port, src_ip, players=4):
+    """CCREQ_PLAYER_INFO for slots 0..players-1 to the server on `port` from a socket on `src_ip` -> [(name, address)]."""
+    import socket
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.bind((src_ip, 0))
+    sock.settimeout(0.5)
+    out = []
+    try:
+        for n in range(players):
+            sock.sendto(ctl_packet(bytes([0x03, n])), ("127.0.0.1", port))
+            try:
+                pkt, _ = sock.recvfrom(2048)
+            except OSError:
+                continue
+            if len(pkt) < 6 or pkt[4] != 0x84:
+                continue
+            body = pkt[6:]
+            name, body = body.split(b"\0", 1)
+            body = body[12:]  # (colors, frags, connect time: three longs)
+            out.append((name.decode("ascii", "replace"), body.split(b"\0", 1)[0].decode("ascii", "replace")))
+    finally:
+        sock.close()
+    return out
+
+
+SPOOF_BOUND = BASE_MS + 200  # ms: a player seen walking off after the forgeries
+
+
+def spoof(s):
+    """(review 2026-11-18, finding 2) Forged datagrams in a player's name. B plays through his proxy, which writes from
+    the address the server knows him by, so what it forges is what a stranger who learnt his address and port could send
+    (UDP's source address is the sender's to write):
+    1. connect requests from B's own address and port, his connection long past its first 2 s: NetQuake's server took
+       one as B back from a crash and closed his connection; now only a connection silent QVR_GHOST_SILENCE is closed.
+    2. unreliable datagrams far ahead of each direction's sequence, and at 0xFFFFFFFE: NetQuake's unsigned compare made
+       every later real one stale (B's view frozen); now outside the window, dropped (net_stats: out of window).
+    3. reliable chunks down with sequences 0..1023, each a whole message (a stufftext): NetQuake's channels started at 0,
+       so one landed on the next sequence and ran; now each side's first sequence is random (network version 39).
+    4. CCREQ_PLAYER_INFO: from another address (127.0.0.2) the players' addresses come without ports; from 127.0.0.1
+       (the `test` command on the server's own machine) with them."""
+    import random as rnd
+    srv, a, b, ea, eb = join(s)
+    p = b.proxy
+    version = server_net_version(s.port)
+    s.check("the server's network version, as a stranger reads it from a reject", version is not None, "%s" % version)
+    since_srv, since_a, since_b = srv.mark(), a.mark(), b.mark()
+
+    # 1. connect requests from B's address and port
+    connect = ctl_packet(bytes([0x01]) + b"QUAKE\0" + bytes([3]) + b"QVR\0" + (version or 0).to_bytes(4, "little") +
+                         b"B\0" + b"forged\0" + rnd.getrandbits(32).to_bytes(4, "little"))
+    for _ in range(3):
+        p.forge_up(connect, True)
+        time.sleep(1.0)
+    clients = [l for l in status(srv) if l.startswith("mp_client: ") and "spawned=1" in l]
+    closed = srv.find(r"the old one closed|connection silent|Client .* removed", since_srv)
+    s.check("forged connect requests from B's own address and port: his live connection kept (the server's clients: "
+            "A and B)", closed is None and len(clients) == 2,
+            "%s; %d clients" % (closed[1].strip() if closed else "not closed", len(clients)))
+    walk(s, b, a, eb, "b_walks_after_connects", SPOOF_BOUND, SPOOF_BOUND + 300)
+
+    # 2. unreliable datagrams far ahead, each way
+    up, down = p.last_unreliable["up"], p.last_unreliable["down"]
+    s.check("the proxy saw both directions' unreliable sequences", up is not None and down is not None,
+            "up %s down %s" % (up, down))
+    for seq in ((up or 0) + 100000, 0xFFFFFFFE):
+        p.forge_up(game_packet(0x00100000, seq, bytes([1])), False)  # (clc_nop)
+    for seq in ((down or 0) + 100000, 0xFFFFFFFE):
+        p.forge_down(game_packet(0x00100000, seq, bytes([1])))  # (svc_nop)
+    walk(s, a, b, ea, "a_seen_after_far_datagrams", SPOOF_BOUND, SPOOF_BOUND + 300)
+    walk(s, b, a, eb, "b_seen_after_far_datagrams", SPOOF_BOUND, SPOOF_BOUND + 300)
+    since = b.mark()
+    b.cmd("net_stats")
+    _, line = b.wait(r"out of window\s+=", 10, since, "B's net_stats")
+    s.check("B dropped the far datagrams down as outside the window", int(line.split("=")[1]) >= 1, line.strip())
+
+    # 3. reliable chunks down at a blind guess of the sequences
+    since_b = b.mark()
+    for seq in range(1024):
+        p.forge_down(game_packet(0x00010000 | 0x00080000, seq, bytes([9]) + b"echo qvr_forged_chunk\n\0"))
+    since = b.mark()
+    srv.cmd("vr_net_reliable_test %d 100" % eb)
+    got = wait_quietly(b, r"mp_reliable: 100 bytes", 10, since, "B's reliable message after the forged chunks")
+    b.read()
+    ran = b.find(r"qvr_forged_chunk", since_b)
+    s.check("1024 forged reliable chunks (sequences 0..1023): none taken, the server's next message read",
+            ran is None and got is not None, "%s; the next message %s" % (
+                "ran: " + ran[1].strip() if ran else "none ran", "read" if got else "not read in 10 s"))
+
+    # 4. player info: ports to this machine only
+    far = player_info(s.port, "127.0.0.2")
+    near = player_info(s.port, "127.0.0.1")
+    s.check("player info to another address (127.0.0.2): the players' addresses without their ports",
+            len(far) >= 2 and all(":" not in addr for _, addr in far), "%s" % far)
+    s.check("player info to 127.0.0.1 (this machine's `test`): with them", len(near) >= 2 and
+            all(":" in addr for _, addr in near), "%s" % near)
+    left = [l.strip() for inst, since in ((a, since_a), (b, since_b)) for l in inst.lines[since:]
+            if l.startswith("mp_event:") and l.rstrip().endswith(" left")]
+    s.check("nobody left the game", not left, "%s" % left[:2])
+
+
 def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
     s = Session(args.exe, args.base, args.out, test, port=args.port)
     s.server_extra = args.server_set.split() if args.server_set else []  # (B13c: e.g. "+vr_net_sendhz 36")
@@ -6710,6 +6843,8 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             nat(s)
         elif test == "mp_emptyflood":
             emptyflood(s)
+        elif test == "mp_spoof":
+            spoof(s)
         elif test == "mp_netsafe":
             netsafe(s)
         elif test == "mp_roomui":
@@ -6795,12 +6930,13 @@ SUITE = [
     ("mp_jitter", ()),
     ("mp_nat", ()),
     ("mp_emptyflood", ()),
+    ("mp_spoof", ()),
 ]  # (mp_netsafe runs first, before these; the rest in this order. The tuples: lag ms, jitter ms, loss)
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood", "suite"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood", "spoof", "suite"])
     ap.add_argument("--base", required=True, help="the game folder (id1, quakevr...)")
     ap.add_argument("--exe", default=EXE)
     ap.add_argument("--out", default=os.path.join(REPO, "scratch", "mp"))
@@ -6862,7 +6998,7 @@ def main_run(args):
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
     elif args.test in ("bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground",
-                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood"):
+                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood", "spoof"):
         ok = run(args, "mp_" + args.test)
     elif args.test == "voice":
         ok = run(args, "mp_voice", args.lag, args.jitter, args.loss)

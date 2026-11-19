@@ -91,6 +91,19 @@ class Proxy:
         self.reorder_extra = 0.0
         self.reorder_next = None
         self.reordered = {"held": False, "ack_late": False}
+        # (review 2026-11-18, finding 2) each direction's last unreliable datagram's sequence (None: none yet), for a
+        # forged one far from it
+        self.last_unreliable = {"up": None, "down": None}
+
+    def forge_up(self, pkt, control):
+        """(finding 2) A datagram to the server from the client's address as the server sees it (this proxy's socket):
+        a forgery in his name. Control ones go to the server's control port, the rest to its game port."""
+        self.up.sendto(pkt, self.server_ctl if control or self.server_game is None else self.server_game)
+
+    def forge_down(self, pkt):
+        """(finding 2) A datagram to the client from the server's address as the client sees it (this proxy)."""
+        if self.client is not None:
+            self.down.sendto(pkt, self.client)
 
     def delay(self):
         return max(0.0, self.lag + (self.rng.uniform(-self.jitter, self.jitter) if self.jitter > 0 else 0.0))
@@ -119,7 +132,7 @@ class Proxy:
         flags, seq = int.from_bytes(pkt[0:4], "big"), int.from_bytes(pkt[4:8], "big")
         if direction == "down" and flags & NETFLAG_DATA and self.reorder_least is not None and len(pkt) >= self.reorder_least:
             self.reorder_least = None
-            self.reorder_next = seq + 1
+            self.reorder_next = (seq + 1) & 0xFFFFFFFF  # (sequences wrap: each side's first is random, finding 2)
             self.reordered["held"] = True
             return self.reorder_extra
         if direction == "up" and flags & NETFLAG_ACK and self.reorder_next is not None and seq == self.reorder_next:
@@ -198,6 +211,10 @@ class Proxy:
             if self.inject[direction] and int.from_bytes(pkt[0:4], "big") & NETFLAG_UNRELIABLE:
                 pkt = self.append(pkt, self.inject[direction].pop(0))
                 self.injected[direction] += 1
+        if not control_or_short(pkt):
+            head = int.from_bytes(pkt[0:4], "big")
+            if head & NETFLAG_UNRELIABLE:
+                self.last_unreliable[direction] = int.from_bytes(pkt[4:8], "big")
         if (direction == "down" and self.blackout) or (direction == "up" and self.blackout_up):
             st[2] += 1
             return

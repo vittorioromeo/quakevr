@@ -200,6 +200,9 @@ qsocket_t *NET_NewQSocket (void)
 	sock->qvrUnreliableRead = sock->qvrUnreliableSkipped = sock->qvrResent = 0; // QVR: (B13) the net HUD's
 	sock->qvrAcceptStale = false; sock->qvrStaleRead = 0; // QVR: (B20) SV_ReadClientMessage opts in for a remote client
 	sock->qvrBytesIn = sock->qvrBytesOut = 0;
+	sock->qvrUnreliableTime = net_time; // QVR: (review 2026-11-18, finding 2)
+	sock->qvrSeeded = false;
+	sock->qvrFirstOut = 0;
 	sock->unreliableSendSequence = 0;
 	sock->sendMessageLength = 0;
 	sock->receiveSequence = 0;
