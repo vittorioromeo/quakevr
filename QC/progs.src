@@ -30,6 +30,8 @@ vr_ad_guns_defs.qc
 // Whose meaning a map's spawnflags have (Quake's, Machine Games', Arcane Dimensions'): VR_SF_Has, VR_OtherFlags.
 vr_spawnflags.qc
 vr_copper_defs.qc
+// Dwell's own entities (DWELL.md P2a): their fields and the hooks our shared code calls (QC/dwell defines them).
+dwell/dw_defs.qc
 // AD's monsters with Quake VR's treatment: their fields and hooks (vr_ad_monsters.qc defines them).
 vr_ad_mondefs.qc
 // Armed grunts: their fields and hooks (ai.qc, combat.qc and the grunt's file call them; vr_armedgrunt.qc defines them).
@@ -733,4 +735,9 @@ copper/cu_m_oldone.qc
 // copper_import.py: end
 // Copper's rules on our entities, its world logic in Copper maps (DWELL.md P1b).
 vr_copper_bridge.qc
+// Dwell's own entities, rebuilt on Copper and Quake VR (DWELL.md P2a): dw_<classname>, spawned by the engine's DWELL row.
+dwell/dw_common.qc
+dwell/dw_items.qc
+dwell/dw_monsters.qc
+dwell/dw_bosses.qc
 vr_rules_test.qc

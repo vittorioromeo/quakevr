@@ -2044,6 +2044,7 @@ void() CheckPowerups =
 {
     if(self.health <= 0)
         return;
+    DW_PowerupFrame(); // Dwell's Haste, Berserk, Wetsuit (dw_items.qc)
 
 // invisibility
     if(self.invisible_finished)

@@ -19,4 +19,11 @@ inline constexpr int campaignIndex = 7;
 // Quake's), Dwell's progs, its quake.rc and default.cfg.
 [[nodiscard]] bool skipInFolder(const char* filename);
 
+// In another campaign (DWELL.md P2a: Dwell's monsters, weapons and powerups in every map while its data is installed),
+// Dwell's folder supplies only its models and sounds (after skipInFolder): never its maps, textures, skies, menu art.
+[[nodiscard]] bool skipOutside(const char* filename);
+
+// Dwell's folder is on the search path (its own campaign, or its content in another: vr_gamedir.cpp).
+[[nodiscard]] bool folderMounted();
+
 } // namespace qvr::dwell

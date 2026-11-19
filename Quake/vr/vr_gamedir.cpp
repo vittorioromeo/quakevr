@@ -381,6 +381,8 @@ struct CampaignChecks
     int (*version)(const char* folder);     // 1: the release played; 3: another version (refused, said once)
     bool (*skipInFolder)(const char* file); // its folder does not supply this file (its progs, quake.rc, id's files)
     bool experimental;                      // played from Select Campaign after a notice (its own developer launch)
+    bool (*skipOutside)(const char* file);  // its content in every campaign while installed: what its folder does not
+                                            // supply in another (its models, sounds only); null: mounted as the campaign only
 };
 struct Campaign
 {
@@ -408,11 +410,11 @@ Campaign campaigns[] = {
     // AD support: Arcane Dimensions, the latest release only (vr_ad.cpp; status 3: another version, refused); its
     // native support in progress (ARCANE_DIMENSIONS.md P1b): developer launch, vr_campaign_native ad
     {"ad", "Arcane Dimensions", "start", 6, false, adResources, countof(adResources), 0, {},
-        {nullptr, qvr::ad::versionStatus, qvr::ad::skipInFolder, true}, {}},
+        {nullptr, qvr::ad::versionStatus, qvr::ad::skipInFolder, true, qvr::ad::skipOutside}, {}},
     // Dwell v2.2 (DWELL.md P1b; vr_dwell.cpp), played by Copper's rules (vr_rules.cpp); the installer's <base>/dwell or
     // an owned root's dwell or dwellv2p2 folder. Experimental, like AD's: vr_campaign_native dwell
     {"dwell", "Dwell", "start", 7, false, dwellResources, countof(dwellResources), 0, {},
-        {"dwellv2p2", qvr::dwell::versionStatus, qvr::dwell::skipInFolder, true}, {}},
+        {"dwellv2p2", qvr::dwell::versionStatus, qvr::dwell::skipInFolder, true, qvr::dwell::skipOutside}, {}},
 };
 static_assert(qvr::ad::campaignIndex == 6, "vr_ad.hpp's campaign index is campaigns[]'s AD row");
 static_assert(qvr::dwell::campaignIndex == 7, "vr_dwell.hpp's campaign index is campaigns[]'s Dwell row");
@@ -1042,12 +1044,15 @@ extern "C" void VR_BeforeAddGameDirectory(const char* dir)
             COM_AddGameDirectory(pack);
         }
     }
-    // AD support: Arcane Dimensions' own models, sounds and HUD icons in every campaign while its latest release is
-    // installed (decision 16: its artifacts, pickups and ladders anywhere; vr_ad.cpp), under the active campaign's
-    // folder, whose files win (VR_SkipSearchPath: qvr::ad::skipOutside).
-    if(activeCampaign != qvr::ad::campaignIndex && campaigns[qvr::ad::campaignIndex].status == 1 &&
-        !gameDirAlreadyAdded(campaignDir(campaigns[qvr::ad::campaignIndex])))
-    { COM_AddGameDirectory(campaignDir(campaigns[qvr::ad::campaignIndex])); }
+    // The campaigns whose content plays in every campaign (a row's skipOutside: Arcane Dimensions' models, sounds and
+    // HUD icons, decision 16; Dwell's models and sounds, DWELL.md P2a) while their release is installed, under the active
+    // campaign's folder, whose files win (VR_SkipSearchPath: the row's skipOutside).
+    for(int i = 3; i < static_cast<int>(countof(campaigns)); ++i)
+    {
+        if(i != activeCampaign && campaigns[i].checks.skipOutside && campaigns[i].status == 1 &&
+            !gameDirAlreadyAdded(campaignDir(campaigns[i])))
+        { COM_AddGameDirectory(campaignDir(campaigns[i])); }
+    }
     if(activeCampaign >= 3 && campaigns[activeCampaign].status == 1 &&
         !gameDirAlreadyAdded(campaignDir(campaigns[activeCampaign])))
     { COM_AddGameDirectory(campaignDir(campaigns[activeCampaign])); }
@@ -1118,7 +1123,7 @@ extern "C" int VR_SkipSearchPath(const char* filename, const char* path)
     if(i < 0) { return 0; }
     if(!strcmp(filename, "progs.dat") && i >= 3) { return 1; }
     if(campaigns[i].checks.skipInFolder && campaigns[i].checks.skipInFolder(filename)) { return 1; } // (AD's, Dwell's: only their own files)
-    if(i == qvr::ad::campaignIndex && i != activeCampaign) { return qvr::ad::skipOutside(filename) ? 1 : 0; } // (AD support: and in another campaign, only its models, sounds, icons)
+    if(campaigns[i].checks.skipOutside && i != activeCampaign) { return campaigns[i].checks.skipOutside(filename) ? 1 : 0; } // (AD's, Dwell's: and in another campaign, only their models, sounds, icons)
     if(i >= 3) { return i != activeCampaign; }
     if(start) { return i != activeCampaign; }
     // Isolate campaign maps and sidecars, while retaining optional pack brush models
@@ -1473,7 +1478,7 @@ extern "C" int VR_ShouldMountCampaignDirectory(const char* dir)
     // VR hook mounts the selected pack after optional packs, before VR overrides.
     return !nativeCampaignPaths || i < 3 ||
         (addingMissionPacks && i == activeCampaign && campaigns[i].status == 1) ||
-        (addingMissionPacks && i == qvr::ad::campaignIndex && campaigns[i].status == 1); // (AD support: in every campaign)
+        (addingMissionPacks && i >= 0 && campaigns[i].checks.skipOutside && campaigns[i].status == 1); // (AD's, Dwell's: in every campaign)
 }
 
 // Hub portals use changelevel, which preserves spawn parms. Stock selections need
