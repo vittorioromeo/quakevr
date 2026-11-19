@@ -11,19 +11,24 @@
 #pragma once
 
 #include "vr_engine.hpp"
+#include "vr_stereo.hpp"
+
+#include <glm/glm.hpp>
 
 namespace qvr::bloom
 {
 
-// Makes the glow of the scene `sceneTex` (`width` x `height`) for this eye's post-processing.
-void apply(GLuint sceneTex, int width, int height);
+// Makes the glow of the scene `sceneTex` for this eye's post-processing: of its texture (`size`'s allocated size) the
+// drawn part (stereo::viewSize: smaller under dynamic resolution, the chain then drawing a part of its own targets).
+void apply(GLuint sceneTex, const stereo::ViewSize& size);
 
 // Flatscreen play's window (vr_flatlook.cpp): the glow of `sceneTex` at `strength` (vr_bloom's other settings), in its
 // own chain; its texture (a quarter of the scene's size, the strength in it), 0 for none. The eyes' result is untouched.
 [[nodiscard]] GLuint applyFlat(GLuint sceneTex, int width, int height, float strength);
 
-// This eye's glow (a quarter of the scene's size), if there is one.
-[[nodiscard]] bool result(unsigned& texture);
+// This eye's glow (a quarter of the scene's size), if there is one; `view`: its drawn part's width and height, its
+// texture's (the post-process's BloomView, the mirror's).
+[[nodiscard]] bool result(unsigned& texture, glm::vec4& view);
 
 // Frees the GL objects (when the GL context goes away).
 void shutdown();

@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include <glm/glm.hpp>
+
 struct glframebufs_s; // (the engine's: glquake.h; at global scope, also where this header is included before it)
 
 namespace qvr::stereo
@@ -26,6 +28,10 @@ struct ViewSize
     int drawnWidth = 0, drawnHeight = 0;
 };
 [[nodiscard]] ViewSize viewSize();
+
+// QvrViewUV's map (vr_viewuv_glsl.h) of a texture allocatedWidth x allocatedHeight of which the bottom left drawnWidth x
+// drawnHeight is read: drawn / allocated (exactly 1 when whole), half a texel, in its uv.
+[[nodiscard]] glm::vec4 viewUvMap(int drawnWidth, int drawnHeight, int allocatedWidth, int allocatedHeight);
 
 [[nodiscard]] bool isRenderingEye();
 [[nodiscard]] int eye(); // 0 left, 1 right; valid while rendering an eye

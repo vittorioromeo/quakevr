@@ -41,6 +41,7 @@
 #include "vr_temporal.hpp"
 #include "vr_testkit.hpp"
 #include "vr_tonemap.hpp"
+#include "vr_viewuv_glsl.h"
 #include "vr_tracy.h"
 #include "vr_upscale.hpp"
 #include "vr_water.hpp"
@@ -280,12 +281,17 @@ layout(location = 11) uniform vec3 Map1;
 layout(location = 12) uniform vec3 Map2;
 layout(location = 13) uniform vec4 SlowLook; // bullet time: strength, desaturation, vignette, unused
 layout(location = 14) uniform vec3 SlowTint;
+layout(location = 15) uniform vec2 SceneSize; // the scene's drawn part's size (its texture can be larger: dynamic resolution's ceiling)
+layout(location = 16) uniform vec4 SceneMap;  // QvrViewUV's map of it: uv over the drawn part to the texture's
+layout(location = 17) uniform vec4 BloomMap;  // ... of the glow
 layout(location = 0) out vec4 Out;
-)" QVR_TONE_GLSL R"(
+)" QVR_TONE_GLSL QVR_VIEW_UV_GLSL R"(
+vec3 SceneTap(vec2 uv) { return texture(Scene, QvrViewUV(uv, SceneMap)).rgb; } // (uv over the drawn part)
+
 // Catmull-Rom in nine bilinear reads (the middle two texels of each axis in one).
 vec3 CatmullRom(vec2 uv)
 {
-    vec2 size = vec2(textureSize(Scene, 0));
+    vec2 size = SceneSize;
     vec2 p = uv * size;
     vec2 t1 = floor(p - 0.5) + 0.5;
     vec2 f = p - t1;
@@ -297,12 +303,12 @@ vec3 CatmullRom(vec2 uv)
     vec2 t0 = (t1 - 1.0) / size;
     vec2 t3 = (t1 + 2.0) / size;
     vec2 t12 = (t1 + w2 / w12) / size;
-    vec3 c = (texture(Scene, vec2(t0.x, t0.y)).rgb * w0.x + texture(Scene, vec2(t12.x, t0.y)).rgb * w12.x +
-              texture(Scene, vec2(t3.x, t0.y)).rgb * w3.x) * w0.y +
-             (texture(Scene, vec2(t0.x, t12.y)).rgb * w0.x + texture(Scene, vec2(t12.x, t12.y)).rgb * w12.x +
-              texture(Scene, vec2(t3.x, t12.y)).rgb * w3.x) * w12.y +
-             (texture(Scene, vec2(t0.x, t3.y)).rgb * w0.x + texture(Scene, vec2(t12.x, t3.y)).rgb * w12.x +
-              texture(Scene, vec2(t3.x, t3.y)).rgb * w3.x) * w3.y;
+    vec3 c = (SceneTap(vec2(t0.x, t0.y)) * w0.x + SceneTap(vec2(t12.x, t0.y)) * w12.x +
+              SceneTap(vec2(t3.x, t0.y)) * w3.x) * w0.y +
+             (SceneTap(vec2(t0.x, t12.y)) * w0.x + SceneTap(vec2(t12.x, t12.y)) * w12.x +
+              SceneTap(vec2(t3.x, t12.y)) * w3.x) * w12.y +
+             (SceneTap(vec2(t0.x, t3.y)) * w0.x + SceneTap(vec2(t12.x, t3.y)) * w12.x +
+              SceneTap(vec2(t3.x, t3.y)) * w3.x) * w3.y;
     return max(c, vec3(0.0));
 }
 
@@ -314,7 +320,7 @@ void main()
     vec3 c;
     if(Params.x == 0.0)
     {
-        c = texture(Scene, uv).rgb;
+        c = SceneTap(uv);
     }
     else if(h.z <= 0.0 || any(lessThan(uv, vec2(0.0))) || any(greaterThan(uv, vec2(1.0))))
     {
@@ -323,7 +329,7 @@ void main()
     else if(WaterParams.y + WaterParams.z > 0.0)
     {
         // Under water: the post-process's wobble of the direction looked in, in the world, and its blur.
-        vec2 size = vec2(textureSize(Scene, 0));
+        vec2 size = SceneSize;
         vec2 sndc = uv * 2.0 - 1.0;
         vec3 dir = normalize(WaterFwd + WaterLeft * ((sndc.x - WaterProj.x) / WaterProj.y) +
                              WaterUp * ((sndc.y - WaterProj.z) / WaterProj.w));
@@ -333,8 +339,7 @@ void main()
         vec2 aspect = vec2(size.y / size.x, 1.0);
         uv = clamp(uv + w * (WaterParams.y * aspect), vec2(0.0), vec2(1.0));
         vec2 b = max(WaterParams.z, 0.5 / size.y) * aspect;
-        c = (texture(Scene, uv + b).rgb + texture(Scene, uv - b).rgb + texture(Scene, uv + vec2(b.x, -b.y)).rgb +
-             texture(Scene, uv + vec2(-b.x, b.y)).rgb) * 0.25;
+        c = (SceneTap(uv + b) + SceneTap(uv - b) + SceneTap(uv + vec2(b.x, -b.y)) + SceneTap(uv + vec2(-b.x, b.y))) * 0.25;
     }
     else if(Params.x == 1.0)
     {
@@ -342,11 +347,11 @@ void main()
     }
     else
     {
-        c = texture(Scene, uv).rgb;
+        c = SceneTap(uv);
     }
     if(BloomStrength > 0.0) // by one bilinear tap, the smoothing done at the quarter (vr_bloom.cpp)
     {
-        c += texture(Bloom, uv).rgb * BloomStrength;
+        c += texture(Bloom, QvrViewUV(uv, BloomMap)).rgb * BloomStrength;
     }
     if(Tone.x > 0.0)
         c = QvrTonemap(c * Tone.x, Tone.yz);
@@ -379,6 +384,7 @@ enum class Sampling
 struct SceneLook
 {
     GLuint glow = 0;
+    glm::vec4 glowView{1.f}; // its drawn part's size, its texture's (bloom::result)
     glm::vec4 proj{0.f};
     glm::vec3 forward{0.f}, left{0.f}, up{0.f};
 };
@@ -387,7 +393,7 @@ struct SceneLook
 {
     SceneLook l;
     unsigned glow = 0;
-    l.glow = bloom::result(glow) ? glow : 0;
+    l.glow = bloom::result(glow, l.glowView) ? glow : 0;
     l.proj = {r_matproj[0], r_matproj[4], r_matproj[1], r_matproj[9]};
     l.forward = {vpn[0], vpn[1], vpn[2]};
     l.left = {-vright[0], -vright[1], -vright[2]};
@@ -459,6 +465,12 @@ void drawToWindow(const SceneTargets& source, const SceneLook& look, const glm::
         bullettime::look() : bullettime::Look{};
     GL_Uniform4fFunc(13, slow.strength, slow.desaturate, slow.vignette, 0.f);
     GL_Uniform3fFunc(14, slow.tint.x, slow.tint.y, slow.tint.z);
+    GL_Uniform2fFunc(15, static_cast<float>(source.drawnWidth), static_cast<float>(source.drawnHeight));
+    const glm::vec4 sceneMap = viewUvMap(source.drawnWidth, source.drawnHeight, source.allocatedWidth, source.allocatedHeight);
+    GL_Uniform4fFunc(16, sceneMap.x, sceneMap.y, sceneMap.z, sceneMap.w);
+    const glm::vec4 glowMap = viewUvMap(static_cast<int>(look.glowView.x), static_cast<int>(look.glowView.y),
+        static_cast<int>(look.glowView.z), static_cast<int>(look.glowView.w));
+    GL_Uniform4fFunc(17, glowMap.x, glowMap.y, glowMap.z, glowMap.w);
     glDrawArrays(GL_TRIANGLES, 0, 3);
     if(filtered)
     {
@@ -894,7 +906,7 @@ void renderSpectator(GLuint windowTarget, int windowWidth, int windowHeight)
     currentEye = 0;
     firstEye = false; // the eyes' entities, as they set them up
     V_RenderView();
-    bloom::apply(framebufs.composite.color_tex, width, height);
+    bloom::apply(framebufs.composite.color_tex, viewSize());
     spectatorPace.look = sceneLook();
     drawUi(camera.origin, framebufs.composite.fbo, width, height, vr_spectator_hide_hud_text.value == 0.f && !recordingClean());
     spectatorView = false;
@@ -917,6 +929,13 @@ bool isSpectator()
 ViewSize viewSize()
 {
     return {vid.width, vid.height, glwidth, glheight};
+}
+
+glm::vec4 viewUvMap(int drawnWidth, int drawnHeight, int allocatedWidth, int allocatedHeight)
+{
+    const double w = za::max(allocatedWidth, 1), h = za::max(allocatedHeight, 1);
+    return {static_cast<float>(drawnWidth / w), static_cast<float>(drawnHeight / h), static_cast<float>(0.5 / w),
+        static_cast<float>(0.5 / h)};
 }
 
 unsigned spectatorPreview(float& aspect)
@@ -1294,7 +1313,7 @@ extern "C" int VR_RenderView()
             QVR_TRACY_SCOPE(zoneFoveated, "eye: foveated end"); // (profiling builds only: the eye's own steps)
             foveated::endScene(); // begun after the scene's clear (VR_DrawHiddenArea)
         }
-        bloom::apply(framebufs.composite.color_tex, drawnWidth, drawnHeight); // added by GL_PostProcess
+        bloom::apply(framebufs.composite.color_tex, stereo::viewSize()); // added by GL_PostProcess
         if(lateAcquire && !acquire(eye, true))
         {
             stereo::renderingEye = false;
@@ -1507,6 +1526,15 @@ extern "C" int VR_SceneSamples(int samples)
 {
     // (the window's: none under flat-screen play's TAA, vr_flat_taa)
     return stereo::creatingSceneTargets ? Q_nextPow2(static_cast<int>(q_max(1.f, stereo::creatingFsaa))) : temporal::windowSamples(samples);
+}
+
+extern "C" void VR_PostProcessView()
+{
+    const stereo::ViewSize size = stereo::viewSize(); // (the window's: its targets drawn whole)
+    GL_Uniform4fFunc(12, static_cast<float>(size.drawnWidth), static_cast<float>(size.drawnHeight), 0.f, 0.f);
+    const glm::vec4 map = stereo::viewUvMap(size.drawnWidth, size.drawnHeight, size.allocatedWidth, size.allocatedHeight);
+    GL_Uniform4fFunc(14, map.x, map.y, map.z, map.w); // (SceneMap)
+    GL_Uniform4fFunc(13, 1.f, 1.f, 0.f, 0.f); // (BloomMap: VR_PostProcessBloom's when an eye's glow is added)
 }
 
 extern "C" unsigned VR_PostProcessTarget()

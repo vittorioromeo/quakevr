@@ -29,6 +29,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "vr_flatfov_glsl.h" // QVR_FLATFOV_POINT_GLSL, flatscreen play's model FOV
 #include "vr_retro.h" // QVR_RETRO_GLSL, retro textures (the world and model shaders)
 #include "vr_retrolight.h" // QVR_RETROLIGHT_GLSL, retro lighting (in SHADOW_FUNCTIONS)
+#include "vr_viewuv_glsl.h" // QVR_VIEW_UV_GLSL, a uv over a view's drawn part to its targets' (the post-process, the mirror)
 
 // the eyes' bloom (vr_bloom.cpp), under-water view (vr/vr_water.cpp), tone curve, grade and dither (vr/vr_tonemap.cpp)
 #define QVR_POSTPROCESS_UNIFORMS \
@@ -47,12 +48,16 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 "layout(location=10) uniform vec3 SlowTint; // QVR: ... its tint\n" \
 "layout(binding=7) uniform sampler2D VisorMask; // QVR: the flat-screen visor's layer (vr/vr_visor.cpp): its alpha left out of bullet time's look\n" \
 "layout(location=11) uniform vec4 VisorRect; // QVR: ... the view's rectangle it covers (x, y, w, h; w 0: none)\n" \
+"layout(location=12) uniform vec4 PostView; // QVR: the view's drawn size (xy, pixels: its targets may be larger, dynamic resolution's ceiling: vr/vr_stereo.hpp ViewSize), zw unused\n" \
+"layout(location=13) uniform vec4 BloomMap; // QVR: QvrViewUV's map of the glow (vr/vr_bloom.cpp)\n" \
+"layout(location=14) uniform vec4 SceneMap; // QVR: ... of the scene's colours (WaterScene)\n" \
 "\n" \
-QVR_TONE_GLSL
+QVR_TONE_GLSL \
+QVR_VIEW_UV_GLSL
 
 // under water, the view wobbled and blurred; the bloom added
 #define QVR_POSTPROCESS_WATER_BLOOM \
-"	vec2 pp_size = vec2(textureSize(GammaTexture, 0)); // QVR: the image's size (QVR_POSTPROCESS_GRADE_DITHER's too)\n" \
+"	vec2 pp_size = PostView.xy; // QVR: the view's size, its drawn part (QVR_POSTPROCESS_GRADE_DITHER's too: its targets may be larger)\n" \
 "	vec2 buv = gl_FragCoord.xy / pp_size;\n" \
 "	if (WaterParams.y + WaterParams.z > 0.0) // QVR: under water: a slow wobble of the direction looked in, in the world\n" \
 "	{ // (the same in both eyes, fixed to the world as the head turns), and a little blur\n" \
@@ -65,11 +70,11 @@ QVR_TONE_GLSL
 "		vec2 aspect = vec2(size.y / size.x, 1.0);\n" \
 "		buv = clamp(buv + w * (WaterParams.y * aspect), vec2(0.0), vec2(1.0));\n" \
 "		vec2 b = max(WaterParams.z, 0.5 / size.y) * aspect;\n" \
-"		out_fragcolor.rgb = (texture(WaterScene, buv + b).rgb + texture(WaterScene, buv - b).rgb +\n" \
-"			texture(WaterScene, buv + vec2(b.x, -b.y)).rgb + texture(WaterScene, buv + vec2(-b.x, b.y)).rgb) * 0.25;\n" \
+"		out_fragcolor.rgb = (texture(WaterScene, QvrViewUV(buv + b, SceneMap)).rgb + texture(WaterScene, QvrViewUV(buv - b, SceneMap)).rgb +\n" \
+"			texture(WaterScene, QvrViewUV(buv + vec2(b.x, -b.y), SceneMap)).rgb + texture(WaterScene, QvrViewUV(buv + vec2(-b.x, b.y), SceneMap)).rgb) * 0.25;\n" \
 "	}\n" \
 "	if (BloomStrength > 0.0) // QVR: by one bilinear tap, the smoothing done at the quarter (vr_bloom.cpp)\n" \
-"		out_fragcolor.rgb += texture(BloomTexture, buv).rgb * BloomStrength;\n"
+"		out_fragcolor.rgb += texture(BloomTexture, QvrViewUV(buv, BloomMap)).rgb * BloomStrength;\n"
 
 // graded (vr_grade) and dithered into the 8-bit image (after QVR_POSTPROCESS_WATER_BLOOM: its pp_size)
 #define QVR_POSTPROCESS_GRADE_DITHER \

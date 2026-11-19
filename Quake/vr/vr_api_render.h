@@ -90,6 +90,7 @@ void VR_RetroSprite (const struct entity_s *e, const struct mspriteframe_s *fram
 float VR_RetroParticles (void);						// R_DrawParticles_Real: the Particles set for Quake's particles (0 none); bound
 void VR_RetroAlias (const struct entity_s *e, const void *aliashdr, int standard, float out[4], float part[4]); // VR_AliasInstance: its set, its skin's Quake size; your body's parts by bone
 void VR_WaterFog (float fog[4], float skyfog[4]);			// Fog_SetupFrame: an eye's fog in a liquid (vr_water.cpp)
+void VR_PostProcessView (void);						// GL_PostProcess, program in use: the view's drawn size and its targets' map (PostView, SceneMap)
 void VR_PostProcessWater (void);						// GL_PostProcess, program in use: an eye's underwater wobble and blur
 int VR_MapLiquidAlpha (void);							// R_UpdateLiquidAlpha: nonzero if a map's own liquid alphas (worldspawn) win over the settings (vr_map_liquid_alpha)
 unsigned VR_WaterSceneDepth (int translucent);		// liquids drawn: how far the opaque scene is, to refract by and for the foam (0: none)

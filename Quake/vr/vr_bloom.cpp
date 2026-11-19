@@ -44,8 +44,9 @@ GLuint meanProgram = 0;
 GLuint linearSampler = 0;
 bool failed = false;
 
-// This eye's result, for GL_PostProcess (VR_PostProcessBloom).
+// This eye's result, for GL_PostProcess (VR_PostProcessBloom), and its sizes (drawn width, height, its texture's).
 GLuint resultTex = 0;
+glm::vec4 resultView{1.f};
 bool resultValid = false;
 
 // How much each level adds: the quarter a tight halo, the smaller ones a wide soft glow (the sixteenth 1 + 0.4: the
@@ -91,15 +92,16 @@ void main()
 // centre and four diagonal bilinear taps, half a source texel out (times the spread).
 constexpr const char* downFs = R"(#version 430
 layout(binding = 0) uniform sampler2D Source;
-layout(location = 0) uniform vec4 Params; // spread, 0, 1 / source width, 1 / source height
+layout(location = 0) uniform vec4 Params; // spread, 0, 1 / source width, 1 / source height (its texture's)
+layout(location = 1) uniform vec4 Drawn;  // the source's drawn part's texels' centres, in its uv (lo xy, hi xy)
 layout(location = 0) out vec4 Out;
+vec3 Tap(vec2 uv) { return texture(Source, clamp(uv, Drawn.xy, Drawn.zw)).rgb; } // (the drawn part's edge, as clamp-to-edge)
 void main()
 {
     vec2 uv = (gl_FragCoord.xy * 2.0) * Params.zw;
     vec2 o = Params.zw * Params.x;
-    vec3 c = texture(Source, uv).rgb * 4.0;
-    c += texture(Source, uv + vec2(-o.x, -o.y)).rgb + texture(Source, uv + vec2(o.x, -o.y)).rgb +
-         texture(Source, uv + vec2(-o.x, o.y)).rgb + texture(Source, uv + vec2(o.x, o.y)).rgb;
+    vec3 c = Tap(uv) * 4.0;
+    c += Tap(uv + vec2(-o.x, -o.y)) + Tap(uv + vec2(o.x, -o.y)) + Tap(uv + vec2(-o.x, o.y)) + Tap(uv + vec2(o.x, o.y));
     Out = vec4(clamp(c * 0.125, 0.0, 1e4), 1.0);
 }
 )";
@@ -116,24 +118,30 @@ layout(binding = 2) uniform sampler2D Mean;
 layout(location = 0) uniform vec4 Params; // spread, own weight, 1 / smaller width, 1 / smaller height
 layout(location = 1) uniform vec3 Extra;  // the smaller level's weight, strength (0: not the last), adapt
 layout(location = 2) uniform float Soft;  // the last level: the side weight of a [Soft, 1 - 2 Soft, Soft] blur
+layout(location = 3) uniform vec2 SmallerScale; // Own's uv to Smaller's (their drawn parts over their textures: 1 1 when whole)
+layout(location = 4) uniform vec4 SmallerDrawn; // Smaller's drawn part's texels' centres, in its uv (lo xy, hi xy)
+layout(location = 5) uniform vec4 OwnDrawn;     // ... Own's
 layout(location = 0) out vec4 Out;
+vec3 TapSmaller(vec2 uv) { return texture(Smaller, clamp(uv, SmallerDrawn.xy, SmallerDrawn.zw)).rgb; }
+vec3 TapOwn(vec2 uv) { return texture(Own, clamp(uv, OwnDrawn.xy, OwnDrawn.zw)).rgb; }
 void main()
 {
     vec2 uv = gl_FragCoord.xy / vec2(textureSize(Own, 0));
+    vec2 su = uv * SmallerScale;
     vec2 o = Params.zw * Params.x;
     if(Soft > 0.0) // the tent wider by the blur's variance (2 Soft own texels squared; the tent's: 2 spread squared)
         o *= sqrt(1.0 + Soft / (Params.x * Params.x));
-    vec3 c = texture(Smaller, uv).rgb * 4.0;
-    c += (texture(Smaller, uv + vec2(-o.x, 0.0)).rgb + texture(Smaller, uv + vec2(o.x, 0.0)).rgb +
-          texture(Smaller, uv + vec2(0.0, -o.y)).rgb + texture(Smaller, uv + vec2(0.0, o.y)).rgb) * 2.0;
-    c += texture(Smaller, uv + vec2(-o.x, -o.y)).rgb + texture(Smaller, uv + vec2(o.x, -o.y)).rgb +
-         texture(Smaller, uv + vec2(-o.x, o.y)).rgb + texture(Smaller, uv + vec2(o.x, o.y)).rgb;
+    vec3 c = TapSmaller(su) * 4.0;
+    c += (TapSmaller(su + vec2(-o.x, 0.0)) + TapSmaller(su + vec2(o.x, 0.0)) + TapSmaller(su + vec2(0.0, -o.y)) +
+          TapSmaller(su + vec2(0.0, o.y))) * 2.0;
+    c += TapSmaller(su + vec2(-o.x, -o.y)) + TapSmaller(su + vec2(o.x, -o.y)) + TapSmaller(su + vec2(-o.x, o.y)) +
+         TapSmaller(su + vec2(o.x, o.y));
     vec3 own;
     if(Soft > 0.0) // four bilinear taps 2 Soft texels out: the blur, in both directions
     {
         vec2 t = 2.0 * Soft / vec2(textureSize(Own, 0));
-        own = (texture(Own, uv + vec2(-t.x, -t.y)).rgb + texture(Own, uv + vec2(t.x, -t.y)).rgb +
-               texture(Own, uv + vec2(-t.x, t.y)).rgb + texture(Own, uv + vec2(t.x, t.y)).rgb) * 0.25;
+        own = (TapOwn(uv + vec2(-t.x, -t.y)) + TapOwn(uv + vec2(t.x, -t.y)) + TapOwn(uv + vec2(-t.x, t.y)) +
+               TapOwn(uv + vec2(t.x, t.y))) * 0.25;
     }
     else
     {
@@ -149,9 +157,10 @@ void main()
 )";
 
 // How much of the view glows: the brightest channel of the smallest level, averaged over an 8 x 8
-// grid of it (one texel, once per eye).
+// grid of its drawn part (one texel, once per eye).
 constexpr const char* meanFs = R"(#version 430
 layout(binding = 0) uniform sampler2D Source;
+layout(location = 0) uniform vec4 Params; // xy: the source's drawn part over its texture (1 1 when whole)
 layout(location = 0) out vec4 Out;
 void main()
 {
@@ -159,7 +168,7 @@ void main()
     for(int y = 0; y < 8; y++)
         for(int x = 0; x < 8; x++)
         {
-            vec3 s = texture(Source, (vec2(x, y) + 0.5) * 0.125).rgb;
+            vec3 s = texture(Source, ((vec2(x, y) + 0.5) * 0.125) * Params.xy).rgb;
             sum += max(s.r, max(s.g, s.b));
         }
     Out = vec4(clamp(sum * (1.0 / 64.0), 0.0, 1e4), 0.0, 0.0, 1.0);
@@ -200,16 +209,30 @@ void destroy(Target& t)
     return true;
 }
 
-// One full-screen triangle of prog into target, source on unit 0; Params (location 0) set unless withParams is false
-// (the mean shader has no uniforms: a glUniform to a location the program lacks is a GL error).
-void pass(const Target& target, GLuint prog, GLuint source, float a, float b, float c, float d, bool withParams = true)
+// A level's drawn part: its bottom left w x h of the target (all of it but under dynamic resolution, whose eyes'
+// targets, and so the chain, are allocated at its ceiling: stereo::ViewSize).
+struct Level
 {
-    GL_BindFramebufferFunc(GL_FRAMEBUFFER, target.fbo);
-    glViewport(0, 0, target.width, target.height);
+    const Target* target = nullptr;
+    int w = 0, h = 0;
+};
+
+// Uniform `location`: the drawn part's texels' centres in the level's uv (lo xy, hi xy): a tap clamped to them reads
+// what clamp-to-edge read of the whole texture when they were one.
+void drawnUniform(GLint location, const Level& l)
+{
+    const float tw = static_cast<float>(l.target->width), th = static_cast<float>(l.target->height);
+    GL_Uniform4fFunc(location, 0.5f / tw, 0.5f / th, (static_cast<float>(l.w) - 0.5f) / tw, (static_cast<float>(l.h) - 0.5f) / th);
+}
+
+// One full-screen triangle of prog into the drawn part of `level`, source on unit 0; Params (location 0) set.
+void pass(const Level& level, GLuint prog, GLuint source, float a, float b, float c, float d)
+{
+    GL_BindFramebufferFunc(GL_FRAMEBUFFER, level.target->fbo);
+    glViewport(0, 0, level.w, level.h);
     GL_UseProgram(prog);
     GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, source);
-    if(withParams)
-        GL_Uniform4fFunc(0, a, b, c, d);
+    GL_Uniform4fFunc(0, a, b, c, d);
     glDrawArrays(GL_TRIANGLES, 0, 3);
 }
 
@@ -237,23 +260,34 @@ void scopeEnd()
     }
 }
 
-// The chain's passes for sceneTex with `strength`: the glow (a quarter of the scene's size), 0 for none.
-[[nodiscard]] GLuint run(Chain& chain, GLuint sceneTex, int width, int height, float strength)
+// The chain's passes for sceneTex, whose texture is allocatedWidth x allocatedHeight and of which the bottom left
+// drawnWidth x drawnHeight is the view, with `strength`: the glow (a quarter of the drawn part, in a texture of a quarter
+// of the allocated size: `view` their sizes), 0 for none. The chain is made for the allocated size (not made again as
+// dynamic resolution's drawn part changes) and draws the drawn part's.
+[[nodiscard]] GLuint run(Chain& chain, GLuint sceneTex, const stereo::ViewSize& size, float strength, glm::vec4& view)
 {
-    if(strength <= 0.f || width < 128 || height < 128 || !ensurePrograms())
+    if(strength <= 0.f || size.drawnWidth < 128 || size.drawnHeight < 128 || !ensurePrograms())
     {
         return 0;
     }
     Target* const down = chain.down;
     Target* const up = chain.up;
     Target& mean = chain.mean;
+    Level downs[levels], ups[levels - 1];
     for(int l = 0; l < levels; l++)
     {
-        const int w = za::max(1, width >> (2 + l));
-        const int h = za::max(1, height >> (2 + l));
+        const int w = za::max(1, size.allocatedWidth >> (2 + l));
+        const int h = za::max(1, size.allocatedHeight >> (2 + l));
         if(!ensure(down[l], w, h, "vr bloom down") || (l < levels - 1 && !ensure(up[l], w, h, "vr bloom up")))
         {
             return 0;
+        }
+        const int dw = za::max(1, size.drawnWidth >> (2 + l));
+        const int dh = za::max(1, size.drawnHeight >> (2 + l));
+        downs[l] = {&down[l], dw, dh};
+        if(l < levels - 1)
+        {
+            ups[l] = {&up[l], dw, dh};
         }
     }
     if(!ensure(mean, 1, 1, "vr bloom mean"))
@@ -280,18 +314,23 @@ void scopeEnd()
     GL_UseProgram(brightProgram);
     GL_Uniform2fFunc(1, za::max(0.f, vr_bloom_white.value), za::max(0.f, vr_bloom_color.value));
     GL_BindSamplerFunc(0, linearSampler);
-    pass(down[0], brightProgram, sceneTex, threshold, 0.f, 1.f / width, 1.f / height);
+    // (the scene's texels by their own size: its taps stay within the drawn part's quarters)
+    pass(downs[0], brightProgram, sceneTex, threshold, 0.f, 1.f / size.allocatedWidth, 1.f / size.allocatedHeight);
     GL_BindSamplerFunc(0, 0);
     scopeEnd();
     for(int l = 1; l < levels; l++)
     {
-        const Target& source = down[l - 1];
+        const Level& source = downs[l - 1];
         scopeBegin(downNames[l]);
-        pass(down[l], downProgram, source.tex, spread, 0.f, 1.f / source.width, 1.f / source.height);
+        GL_UseProgram(downProgram);
+        drawnUniform(1, source);
+        pass(downs[l], downProgram, source.target->tex, spread, 0.f, 1.f / source.target->width, 1.f / source.target->height);
         scopeEnd();
     }
     scopeBegin("bloom mean");
-    pass(mean, meanProgram, down[levels - 1].tex, 0.f, 0.f, 0.f, 0.f, false);
+    const Level& smallest = downs[levels - 1];
+    pass({&mean, 1, 1}, meanProgram, smallest.target->tex, static_cast<float>(smallest.w) / static_cast<float>(smallest.target->width),
+        static_cast<float>(smallest.h) / static_cast<float>(smallest.target->height), 0.f, 0.f);
     scopeEnd();
 
     GL_BindNative(GL_TEXTURE2, GL_TEXTURE_2D, mean.tex);
@@ -299,38 +338,54 @@ void scopeEnd()
     for(int l = levels - 2; l >= 0; l--)
     {
         const bool first = l == levels - 2;
-        const Target& smaller = first ? down[levels - 1] : up[l + 1];
+        const Level& smaller = first ? downs[levels - 1] : ups[l + 1];
+        const Level& own = ups[l];
         GL_UseProgram(upProgram);
         GL_BindNative(GL_TEXTURE1, GL_TEXTURE_2D, down[l].tex);
         GL_Uniform3fFunc(1, first ? levelWeight[levels - 1] : 1.f, l == 0 ? strength : 0.f, za::max(0.f, vr_bloom_adapt.value));
         GL_Uniform1fFunc(2, l == 0 ? oneTapSoft : 0.f);
+        // Own's uv to Smaller's: own allocated / own drawn * smaller drawn / smaller allocated (1 when both are whole)
+        const auto scale = [&](int ownAllocated, int ownDrawn, int smallerDrawn, int smallerAllocated)
+        {
+            return static_cast<float>((static_cast<double>(ownAllocated) * smallerDrawn) /
+                                      (static_cast<double>(ownDrawn) * smallerAllocated));
+        };
+        GL_Uniform2fFunc(3, scale(own.target->width, own.w, smaller.w, smaller.target->width),
+            scale(own.target->height, own.h, smaller.h, smaller.target->height));
+        drawnUniform(4, smaller);
+        drawnUniform(5, downs[l]); // (Own: this level's down texture, the same size as the up one)
         scopeBegin(upNames[l]);
-        pass(up[l], upProgram, smaller.tex, spread, levelWeight[l], 1.f / smaller.width, 1.f / smaller.height);
+        pass(own, upProgram, smaller.target->tex, spread, levelWeight[l], 1.f / smaller.target->width, 1.f / smaller.target->height);
         scopeEnd();
     }
 
     GL_EndGroup();
+    const Level& result = ups[0];
+    view = {static_cast<float>(result.w), static_cast<float>(result.h), static_cast<float>(result.target->width),
+        static_cast<float>(result.target->height)};
     return up[0].tex;
 }
 
 } // namespace
 
-void apply(GLuint sceneTex, int width, int height)
+void apply(GLuint sceneTex, const stereo::ViewSize& size)
 {
     QVR_GPU_PROFILE("bloom");
-    resultTex = run(chains[stereo::isSpectator() ? 1 : 0], sceneTex, width, height, vr_bloom.value);
+    resultTex = run(chains[stereo::isSpectator() ? 1 : 0], sceneTex, size, vr_bloom.value, resultView);
     resultValid = resultTex != 0;
 }
 
 GLuint applyFlat(GLuint sceneTex, int width, int height, float strength)
 {
     QVR_GPU_PROFILE("flat bloom");
-    return run(chains[2], sceneTex, width, height, strength);
+    glm::vec4 view{0.f};
+    return run(chains[2], sceneTex, stereo::ViewSize{width, height, width, height}, strength, view);
 }
 
-bool result(unsigned& texture)
+bool result(unsigned& texture, glm::vec4& view)
 {
     texture = resultTex;
+    view = resultView;
     return resultValid;
 }
 
@@ -396,10 +451,14 @@ void precompilePrograms()
 extern "C" float VR_PostProcessBloom()
 {
     unsigned texture = 0;
-    if(!VR_RenderingEye() || !qvr::bloom::result(texture))
+    glm::vec4 view{1.f};
+    if(!VR_RenderingEye() || !qvr::bloom::result(texture, view))
     {
         return 0.f;
     }
+    const glm::vec4 map = qvr::stereo::viewUvMap(static_cast<int>(view.x), static_cast<int>(view.y), static_cast<int>(view.z),
+        static_cast<int>(view.w));
+    GL_Uniform4fFunc(13, map.x, map.y, map.z, map.w); // (BloomMap)
     GL_BindNative(GL_TEXTURE2, GL_TEXTURE_2D, texture);
     return 1.f;
 }
