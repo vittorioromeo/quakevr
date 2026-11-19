@@ -192,9 +192,11 @@ struct Speaker
     double lastHeard = -1.0;
     double lastVoiced = -1.0; // realtime his last frame with a voice arrived (muted or not: the Voice Chat page)
     bool firstSaid = false;
-    char name[32]{};       // the player's name these settings are for
-    float volume = 1.f;    // his volume (vr_voicechat_player_volume)
+    // his settings (vr_voicechat_player_volume, vr_voicechat_mute): the slot's player's, kept through a rename, reset when
+    // the slot empties (watchSlot) or you leave the game
+    float volume = 1.f;
     bool muted = false;
+    bool present = false;  // a player in the slot when last seen in the game (watchSlot)
     za::Vector<float> history; // the played 48 kHz samples, a ring (historySeconds)
     za::SizeT historyAt = 0;
     long long historyCount = 0;
@@ -830,6 +832,7 @@ void pump(Speaker& sp, int slot)
     {
         return;
     }
+    S_MixJoin(); // (the pool's mix done: its channel's position read, the ring and the channel written)
     double r = readPos(sp, slot);
     if(r < 0.0)
     {
@@ -939,7 +942,6 @@ void resetSpeaker(Speaker& sp, int slot, bool keepSettings)
     }
     if(!keepSettings)
     {
-        sp.name[0] = 0;
         sp.volume = 1.f;
         sp.muted = false;
     }
@@ -951,13 +953,6 @@ void receive(int slot, const Frame& f)
     const za::U16 seq = f.seq;
     const int len = f.len;
     Speaker& sp = speakers[slot];
-    // (another player in his slot: his own settings)
-    const char* name = slot < cl.maxclients ? cl.scores[slot].name : "";
-    if(q_strcasecmp(sp.name, name) != 0)
-    {
-        resetSpeaker(sp, slot, false);
-        q_strlcpy(sp.name, name, sizeof(sp.name));
-    }
     sp.received += len > 0 ? 1 : 0;
     const double now = realtime;
     // (RFC 3550's jitter: the arrival's transit against the sequence's clock)
@@ -1018,6 +1013,7 @@ void receive(int slot, const Frame& f)
     if(!sp.playing && len > 0)
     {
         // a spurt starts (its first frame, or the first that came): after its jitter delay
+        S_MixJoin(); // (the pool's mix done: the channel started, its position read)
         if(!sp.active)
         {
             startOutput(sp, slot);
@@ -1103,14 +1099,20 @@ void indicators()
     return -1;
 }
 
-void ownSettings(int slot)
+// A slot's settings against its player (`inGame`: you in the game, its names all known; `named`: a player in the slot):
+// reset when the slot empties, so the next player in it starts heard at full volume. A rename keeps them (a mute is
+// not escaped by a new name); a level change (names not known until you are in the game again) changes nothing.
+void watchSlot(Speaker& sp, int slot, bool inGame, bool named)
 {
-    Speaker& sp = speakers[slot];
-    if(q_strcasecmp(sp.name, cl.scores[slot].name) != 0)
+    if(!inGame)
+    {
+        return;
+    }
+    if(sp.present && !named)
     {
         resetSpeaker(sp, slot, false);
-        q_strlcpy(sp.name, cl.scores[slot].name, sizeof(sp.name));
     }
+    sp.present = named;
 }
 
 void mute_f()
@@ -1126,7 +1128,6 @@ void mute_f()
         Con_Printf("Voice chat: no player \"%s\"\n", Cmd_Argv(1));
         return;
     }
-    ownSettings(slot);
     setMuted(slot, Cmd_Argc() > 2 ? atoi(Cmd_Argv(2)) != 0 : !speakers[slot].muted);
 }
 
@@ -1155,9 +1156,8 @@ void players_f()
             continue;
         }
         const Speaker& sp = speakers[i];
-        const bool mine = q_strcasecmp(sp.name, cl.scores[i].name) == 0;
-        Con_Printf("%2d %-16s %s volume %.2f%s\n", i + 1, cl.scores[i].name, mine && sp.muted ? "muted" : "heard",
-            mine ? sp.volume : 1.f, talking(i) ? "  talking" : "");
+        Con_Printf("%2d %-16s %s volume %.2f%s\n", i + 1, cl.scores[i].name, sp.muted ? "muted" : "heard", sp.volume,
+            talking(i) ? "  talking" : "");
     }
 }
 
@@ -1535,7 +1535,32 @@ void selftest_f()
                                                stale, checked));
     }
 
-    // 7. The server's relay (vr_voicerelay.cpp): its fairness between speakers, the rotation, the mutes and voice off.
+    // 7. A player's settings belong to his slot's player: a rename keeps his mute and volume (no escaping a mute by a new
+    //    name), a level change (names not known until in the game again) too; the slot emptied resets them.
+    {
+        Speaker& sp = speakers[MAX_SCOREBOARD - 1];
+        const int slot = MAX_SCOREBOARD - 1;
+        const bool savedMuted = sp.muted, savedPresent = sp.present;
+        const float savedVolume = sp.volume;
+        sp.present = true;
+        sp.muted = true;
+        sp.volume = 0.5f;
+        watchSlot(sp, slot, true, true); // (renamed: a player still in the slot)
+        const bool renamedKeeps = sp.muted && sp.volume == 0.5f;
+        watchSlot(sp, slot, false, false); // (a level change: his name not yet known)
+        const bool levelKeeps = sp.muted && sp.volume == 0.5f;
+        watchSlot(sp, slot, true, false); // (he left)
+        const bool leftResets = !sp.muted && sp.volume == 1.f;
+        watchSlot(sp, slot, true, true); // (a new player in his slot)
+        check(renamedKeeps && levelKeeps && leftResets && !sp.muted,
+            va("a player's mute and volume kept through a rename (%d) and a level change (%d), reset when his slot empties (%d)",
+                renamedKeeps ? 1 : 0, levelKeeps ? 1 : 0, leftResets ? 1 : 0));
+        sp.muted = savedMuted;
+        sp.present = savedPresent;
+        sp.volume = savedVolume;
+    }
+
+    // 8. The server's relay (vr_voicerelay.cpp): its fairness between speakers, the rotation, the mutes and voice off.
     serverSelftest(check);
     opus_encoder_destroy(enc);
     opus_decoder_destroy(dec);
@@ -1594,22 +1619,20 @@ const char* playerLine(int slot)
         return line;
     }
     const Speaker& sp = speakers[slot];
-    const bool mine = q_strcasecmp(sp.name, cl.scores[slot].name) == 0; // (his settings: else a new player's, unmuted)
-    const bool isMuted = mine && sp.muted;
-    const bool voiced = mine && sp.lastVoiced >= 0.0 && realtime - sp.lastVoiced < talkingHold;
-    q_snprintf(line, sizeof(menuText.players[0]), "%s   %.0f%%%s", cl.scores[slot].name,
-        (mine ? sp.volume : 1.f) * 100.f, isMuted ? (voiced ? "   muted, talking" : "   muted") : talking(slot) ? "   ((o)) talking" : "");
+    const bool isMuted = sp.muted;
+    const bool voiced = sp.lastVoiced >= 0.0 && realtime - sp.lastVoiced < talkingHold;
+    q_snprintf(line, sizeof(menuText.players[0]), "%s   %.0f%%%s", cl.scores[slot].name, sp.volume * 100.f, isMuted ? (voiced ? "   muted, talking" : "   muted") : talking(slot) ? "   ((o)) talking" : "");
     return line;
 }
 
 bool muted(int slot)
 {
-    return listed(slot) && q_strcasecmp(speakers[slot].name, cl.scores[slot].name) == 0 && speakers[slot].muted;
+    return listed(slot) && speakers[slot].muted;
 }
 
 float playerVolume(int slot)
 {
-    return listed(slot) && q_strcasecmp(speakers[slot].name, cl.scores[slot].name) == 0 ? speakers[slot].volume : 1.f;
+    return listed(slot) ? speakers[slot].volume : 1.f;
 }
 
 void setMuted(int slot, bool on)
@@ -1618,7 +1641,6 @@ void setMuted(int slot, bool on)
     {
         return;
     }
-    ownSettings(slot);
     Speaker& sp = speakers[slot];
     sp.muted = on;
     if(sp.muted)
@@ -1634,7 +1656,6 @@ void setPlayerVolume(int slot, float volume)
     {
         return;
     }
-    ownSettings(slot);
     speakers[slot].volume = za::clamp(volume, 0.f, 4.f);
     Con_Printf("Voice chat: %s at %.2f\n", cl.scores[slot].name, speakers[slot].volume);
 }
@@ -1707,21 +1728,25 @@ void shutdown()
 void frame()
 {
     captureFrame();
-    tellListen();
     const bool on = cls.state == ca_connected && cl.maxclients > 1;
+    const bool inGame = on && cls.signon == SIGNONS;
     for(int slot = 0; slot < MAX_SCOREBOARD; slot++)
     {
         Speaker& sp = speakers[slot];
         if(!on)
         {
-            if(sp.active || sp.playing)
+            const bool left = cls.state != ca_connected; // (out of the game: every slot's settings gone)
+            if(sp.active || sp.playing || (left && (sp.present || sp.muted || sp.volume != 1.f)))
             {
-                resetSpeaker(sp, slot, true);
+                resetSpeaker(sp, slot, !left);
+                sp.present = sp.present && !left;
             }
             continue;
         }
+        watchSlot(sp, slot, inGame, slot < cl.maxclients && cl.scores[slot].name[0] != 0);
         pump(sp, slot);
     }
+    tellListen();
     indicators();
 }
 

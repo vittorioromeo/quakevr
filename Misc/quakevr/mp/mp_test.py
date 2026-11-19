@@ -80,7 +80,7 @@ Tests:
              jump; at rest where the server has him.
     voice    (B10v) A's voice (a tone in place of his microphone) heard at B: in order through the jitter buffer,
              the tone kept, the delay under 250 ms (+ the added lag); nearer louder, the radio full; his volume,
-             muted (the server told: none of his frames sent B); push-to-talk released, voice activation; the
+             muted (the server told: none of his frames sent B; a rename keeps it); push-to-talk released, voice activation; the
              server's voice budget and B's rate cap hold his voice bytes; RNNoise on; A and a third player C talking at
              once, both heard at B (a fair part each under a small budget); no microphone. --lag/--jitter/--loss: B's
              link; --listen: A hosts.
@@ -5079,6 +5079,15 @@ def voice(s, listen=False, lag=0.0, jitter=0.0, loss=0.0):
             int(later["received"]) <= rec0 + 2 and voice_out(later) == played0 and "100%" in later["row"],
             "received %d -> %s, given out %d -> %d, held back at the server %s -> %s, row \"%s\"" % (
                 rec0, later["received"], played0, voice_out(later), relay0["out_muted"], relay1["out_muted"], later["row"]))
+    # (REVIEW_MP_2026-11-18 finding 15) a rename keeps the mute: A as VoiceA2 still muted at B, at the server too
+    a.cmd("name %s2" % VOICE_NAME)
+    _, ren = voice_until(s, b, sa, lambda send, sp: sp and sp.get("row", "").startswith(VOICE_NAME + "2"), "A's new name at B")
+    relay_ren = voice_relay(srv, eb - 1)
+    s.check("A renamed while muted: still muted at B and at the server (a mute is not escaped by a new name)",
+            ren["muted"] == "1" and "muted" in ren["row"] and int(relay_ren.get("muted", 0)) == 1 << sa,
+            "row \"%s\", the server's mask for B %s" % (ren["row"], relay_ren.get("muted")))
+    a.cmd("name %s" % VOICE_NAME)
+    voice_until(s, b, sa, lambda send, sp: sp and sp.get("row", "").startswith(VOICE_NAME + "   "), "A's name back at B")
     b.cmd(page + "Unmute")
     voice_until(s, b, sa, lambda send, sp: sp and sp["talking"] == "1", "A heard again")
 
