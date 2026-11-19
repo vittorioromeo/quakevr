@@ -541,7 +541,7 @@ void() cu_zombie_die =
 {
 	sound (self, cu_CHAN_VOICE, "zombie/z_gib.wav", 1, cu_ATTN_NORM);
 	if (self.cu_customflags & cu_CFL_RETURNED)
-		cu_GibSpray ("progs/h_zombnm.mdl", self.health);
+		cu_GibSpray (VR_ModelOr("progs/h_zombnm.mdl", "progs/h_zombie.mdl"), self.health);
 	else
 		cu_GibSpray ("progs/h_zombie.mdl", self.health);
 	
@@ -609,7 +609,7 @@ void() cu_zombie_return =
 		self.angles_y = cu_anglemod(self.angles_y);
 
 		cu_monster_zombie_spawn();
-		setmodel (self, "progs/zombienm.mdl");
+		setmodel (self, VR_ModelOr("progs/zombienm.mdl", "progs/zombie.mdl"));
 		setsize (self, '-16 -16 -24', '16 16 40');
 		
 		return;
@@ -741,9 +741,9 @@ void() cu_monster_zombie =
 	}
 	
 	precache_model ("progs/zombie.mdl");
-	precache_model ("progs/zombienm.mdl");
+	precache_model (VR_ModelOr("progs/zombienm.mdl", "progs/zombie.mdl"));
 	precache_model ("progs/h_zombie.mdl");
-	precache_model ("progs/h_zombnm.mdl");
+	precache_model (VR_ModelOr("progs/h_zombnm.mdl", "progs/h_zombie.mdl"));
 	precache_model ("progs/zom_gib.mdl");
 
 	precache_sound ("zombie/z_idle.wav");

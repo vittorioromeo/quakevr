@@ -116,6 +116,19 @@ PATCHES = [
      "(vr_rules_monsters.qc)\n", 1,
      "bridge: our monsters follow Copper's path_corners as ours (t_movetarget), as AD's (its touch set think = th_stand, "
      "NULL on ours)"),
+] + [
+    # Copper's own models come with Copper's release (or Dwell's folder), not with a Copper map package: each name is
+    # the file when it is there, else a stock one (vr_packutil.qc VR_ModelOr), so a Copper map without them loads
+    # (Ancient's and udob1's worldspawn stopped at "progs/v_axe2.mdl not found").
+    (f, '"progs/%s"' % mdl, 'VR_ModelOr("progs/%s", "progs/%s")' % (mdl, stock), n,
+     "bridge: Copper's own model %s, else %s (a Copper map package without Copper's data)" % (mdl, stock))
+    for f, mdl, stock, n in (
+        ("world.qc", "s_explo2.spr", "s_explod.spr", 1), ("fx.qc", "s_explo2.spr", "s_explod.spr", 1),
+        ("fx.qc", "debris1.mdl", "vr_rock1.mdl", 2), ("fx.qc", "debris2.mdl", "vr_rock1.mdl", 2),
+        ("fx.qc", "debris3.mdl", "vr_rock1.mdl", 2), ("weapons.qc", "v_axe2.mdl", "v_axe.mdl", 2),
+        ("m_hknight.qc", "k_spike2.mdl", "k_spike.mdl", 2), ("m_shalrath.qc", "v_spike2.mdl", "v_spike.mdl", 2),
+        ("m_wizard.qc", "w_spike2.mdl", "w_spike.mdl", 2), ("m_zombie.qc", "zombienm.mdl", "zombie.mdl", 2),
+        ("m_zombie.qc", "h_zombnm.mdl", "h_zombie.mdl", 2))
 ]
 
 
@@ -170,7 +183,7 @@ def main():
                      "Source: github.com/itslunaranyo/copper master 379dd5d, sha256 (progs.src and *.qc) " + PINNED,
                      "Map keys: %d (its /*QUAKED keys and Dwell's maps' keys)" % len(keys)])
     mod.keep_prefixes = ("VR_CU_",)  # the bridge's functions the patches call (QC/vr_copper_bridge.qc): never renamed
-    mod.qvr_names = {"MG_SetFog", "VR_Rules_PathCornerTouch"}  # Quake VR's own the patches call (vr_mg_fog.qc, ...)
+    mod.qvr_names = {"MG_SetFog", "VR_Rules_PathCornerTouch", "VR_ModelOr"}  # Quake VR's own the patches call (vr_mg_fog.qc, ...)
     if args.check:
         mod.write_dir = qc_import.check_dir(mod, args.check)
     beam_ids = qc_import.beam_id_bytes(src)  # (mechanical, every import's: the beam id byte after a beam's entity)

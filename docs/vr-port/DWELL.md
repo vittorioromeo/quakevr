@@ -308,7 +308,7 @@ mode, skill 1), 300 game frames each, then a verdict line (`scratch/dwell_probe.
   beside it). Quaddicted's own packages already use `{base}/dwell/`. Music included; `Track107.ogg` renamed to lower case
   (section 4).
 - **Size shown first**: 385 MB download, 800 MB on disk (the installer's units show 367 MB and 762 MB).
-- **Landed 2026-11-19 (branch `agent/dwellinstall`), off by default**: `Dwell.OnByDefault` (Installer Core, `Packaging/Dwell.cs`) is `false`; flipping it to `true` in the P1b build is the whole change. Built on the shared third-party path (`ModComponent`, the one AD uses). `Track107.ogg` is renamed to lower case on install (not copied: no duplicate, one name in install.json). Slipseer is not added (hash not checked).
+- **Landed 2026-11-19 (branch `agent/dwellinstall`)**; **on by default since P1b** (branch `agent/copper1b`): `Dwell.OnByDefault` (Installer Core, `Packaging/Dwell.cs`) is `true`. Built on the shared third-party path (`ModComponent`, the one AD uses). `Track107.ogg` is renamed to lower case on install (not copied: no duplicate, one name in install.json). Slipseer is not added (hash not checked).
 - The README placement: inside `dwell/`, so the install root stays clean and the uninstall removes them with the folder.
 - **"I already have it"**: a `dwell` or `dwellv2p2` folder in an owned Quake root, validated by `progs.dat`'s hash (v2.2),
   used in place. Older Dwell versions reported, not used. The engine's `vr_campaign_status` reports it.

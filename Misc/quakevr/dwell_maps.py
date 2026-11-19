@@ -13,6 +13,9 @@ DWELL_OWN = {"monster_kamikaze", "monster_brute", "monster_excavator", "monster_
              "monster_boss_egypt", "monster_morph", "weapon_quad_shotgun", "weapon_railgun", "weapon_rifle",
              "item_artifact_haste", "item_artifact_berserk", "item_artifact_wetsuit", "misc_crystal", "func_fade",
              "info_storycamera", "trigger_killboss", "target_bullethell", "misc_textbook"}
+# A map's own mistake, which Copper itself reports the same way (its objerror removes the entity; play goes on): Ancient's
+# target_state at 600 -504 8 has no targetname ("target_state not targeted by anything").
+MAP_OWN = {("ancient", "OBJECT ERROR in cu_target_state")}
 
 
 def save_census(path):
@@ -55,11 +58,11 @@ def main():
             pending[m.group(1)] += 1
             expect_cls = False
             continue
+        # (`dwell: map X` is echoed before `map X`: what its spawn prints, missing spawn functions and errors, is X's)
         m = re.search(r"dwell: map (\w+)", l)
         if m:
             current = m.group(1)
-            per_map[current] = pending
-            pending = collections.Counter()
+            pending = per_map[current] = collections.Counter()
             continue
         m = re.search(r"Ruleset: (\w+)", l)
         if m and current:
@@ -72,7 +75,8 @@ def main():
         m = re.search(r"dwell: loaded (\w+)", l)
         if m:
             loaded.append(m.group(1))
-        if re.search(r"Host_Error|SV_Error|OBJECT ERROR|PR_RunError|runaway", l):
+        if re.search(r"Host_Error|SV_Error|OBJECT ERROR|PR_RunError|runaway", l) and \
+                not any(current == mp and text in l for mp, text in MAP_OWN):
             errors.append((current, l.strip()[:150]))
     passed = failed = 0
     print("%-9s %-7s %8s %8s %6s %s" % ("map", "rules", "monsters", "waiting", "coop", "missing (not Dwell's own / Dwell's own)"))

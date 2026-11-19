@@ -45,7 +45,7 @@ void() cu_W_Precache =
 	
 	
 
-	precache_model ("progs/v_axe2.mdl");
+	precache_model (VR_ModelOr("progs/v_axe2.mdl", "progs/v_axe.mdl"));
 	precache_model ("progs/v_shot.mdl");
 	precache_model ("progs/v_nail.mdl");
 	precache_model ("progs/v_rock.mdl");
@@ -369,7 +369,7 @@ void() cu_W_ResetWeaponState =
 		// if any, or picking up/switching weapons can cause double attacks
 	
 	if (self.weapon == cu_IT_AXE )
-		self.weaponmodel = "progs/v_axe2.mdl";
+		self.weaponmodel = VR_ModelOr("progs/v_axe2.mdl", "progs/v_axe.mdl");
 	else if (self.weapon == cu_IT_SHOTGUN)
 		self.weaponmodel = "progs/v_shot.mdl";
 	else if (self.weapon == cu_IT_SUPER_SHOTGUN)

@@ -57,6 +57,13 @@ articles, talks and other engines' source are credited with where they came from
 - **Freedoom** 0.13.0 (Phase 1 and Phase 2: `freedoom1.wad`, `freedoom2.wad`, [freedoom.github.io](https://freedoom.github.io), the release zip's SHA-256 checked against its signed CHECKSUM): the free IWADs the wrist gadget's Doom plays when the player owns no DOOM. Contributors to the Freedoom project, BSD-3-Clause: `quakevr/doom/FREEDOOM-COPYING.txt`, `FREEDOOM-CREDITS.txt`, shipped unchanged. id Software's DOOM WADs are never shipped: the player's own are found (Steam, GOG, `quakevr/doom/wads`).
 - Quake's own models, sounds, textures and maps belong to id Software. The player's copies are used; `relight_maps.py`
   re-lights them locally and nothing derived from them is distributed.
+- **Dwell** v2.2 (`dwellv2p2.zip`): two episodes on Copper by Fairweather (project lead) and the Dwell team, from its
+  README: Alekswithak (lead composer), Bal, bmFbr, Danz, Greenwood, h4724, JCR, Juzley, Khreathor, Makkon, Markie,
+  Mazu, Pinchy, PoolboyQ, ptoing, Shamblernaut and VoidForce (level design, QuakeC, models, textures, sounds, music and
+  art). Its maps, models, sounds and music are read from the player's install (the installer downloads the authors'
+  zip from Quaddicted, unmodified); none of it is shipped, and its `progs.dat` is never run: its maps play by Copper's
+  rules (Lunaran's Copper, above; [DWELL.md](DWELL.md)). Underdark Overbright (Lunaran and Scampie) and other Copper
+  maps come through the Map Library, their authors'.
 - **The Map Library** (`vr_mapindex.cpp`, `vr_mapinstall.cpp`) lists and downloads custom maps from
   [Quaddicted](https://www.quaddicted.com/) (its package index, `https://www.quaddicted.com/api/v1/`, and its
   downloads), run by Spirit and the Quaddicted contributors, and from [Slipseer](https://www.slipseer.com/)

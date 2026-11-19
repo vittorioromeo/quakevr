@@ -659,5 +659,5 @@ history since 2026-07-01 (none do).
 Optional third-party component `dwell`, next to Arcane Dimensions on the one shared path (`ModComponent`): downloaded from
 Quaddicted, pinned (`dwellv2p2.zip`, 384,629,995 bytes, SHA-256 `15bbc5dc...`), unpacked unmodified into `<install>\dwell`,
 `Track107.ogg` renamed to lower case, recorded in install.json, kept by updates, restored by repairs, removed by the
-uninstall. Recommended, **off by default** (`Dwell.OnByDefault`) until Dwell's maps play (DWELL.md, section 7; Installer
-README, "Dwell"). An existing v2.2 in an owned Quake root (progs.dat hash) is used where it is.
+uninstall. Recommended, **on by default** (`Dwell.OnByDefault`, since Dwell's maps play: DWELL.md, sections 7 and 9.2;
+Installer README, "Dwell"). An existing v2.2 in an owned Quake root (progs.dat hash) is used where it is.

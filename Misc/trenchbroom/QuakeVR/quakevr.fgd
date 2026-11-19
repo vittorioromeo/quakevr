@@ -3985,7 +3985,7 @@ NO_INTERMISSION: the view will not go to the info_intermission spot and display 
 	]
 ]
 
-@PointClass color(128 128 128) size(-8 -8 -8, 8 8 8) model({ "path": "progs/debris1.mdl" }) =
+@PointClass color(128 128 128) size(-8 -8 -8, 8 8 8) =
 	target_debris : "From Copper (Lunaran): spawns in a map played by Copper's rules (Copper's and Dwell's maps), or by the toolgun as cu_<classname> there.
 
 emitter of chunks of debris
