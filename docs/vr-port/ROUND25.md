@@ -4164,3 +4164,11 @@ and MP-only parts left on their branches.
   flag), install into `dwell/` with `Track107.ogg` renamed, existing-copy check by progs.dat SHA-256. Details: Installer
   README "Dwell". Self-tests: 4 new `dwell:` tests (the real zip is read from `qvr-kit/downloads/dwell/`, no network).
 - Known, not mine: self-test `packs: ... hipnotic list from the engine's .inc: expected <100>, got <99>` fails on this base.
+
+## toolgunspawns
+- The toolgun's Weapons list lacked the grappling gun (WID_GRAPPLE 1): added "Grappling Gun" (vr_toolgun_packs.inc,
+  appended so numbers stay; spawn-all test: alive). Audit of the QC spawn functions against the lists (id, Hipnotic,
+  Rogue, MG1/MG3, AD, VR's own): nothing else a player would place was missing. Left out on purpose: bosses
+  (monster_boss, oldone, Chthon), item_flag*/time machine (Rogue map pieces), item_head_hellknight (MG3 campaign trophy),
+  monster_decoy (made by its Hipnotic weapon). New `qvr_checks toolgun_weapons`: every WID_* has a Weapons row (exempt:
+  fist, AD eliminator).

@@ -192,5 +192,7 @@ QVR_PACK("Monsters", "Armed Enforcers", "Armed Enforcer: Laser Rifle", "monster_
 // grunt holding one (its "weapon" key 105: QC VR_AG_CODE_DAGGER), here at the end so the entries' numbers stay.
     {"Weapons", "Dagger", "weapon_dagger", "progs/v_dagger.mdl", 8.f, nullptr, 0.f, 0, false},
 QVR_PACK("Monsters", "Armed Grunts", "Armed Grunt: Dagger", "monster_vr_grunt", "progs/vrgrunt.mdl", 24.f, "weapon", 105.f, 0, 0, nullptr, 0)
+// The grappling gun (WID_GRAPPLE 1; QC weapon_grapple's model), left out of the list until the toolgun-spawns audit.
+    {"Weapons", "Grappling Gun", "func_weapon_grabbable", "progs/v_grpple.mdl", 8.f, "weapon", 1.f, 0, false},
 
 #undef QVR_PACK
