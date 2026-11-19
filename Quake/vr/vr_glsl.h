@@ -143,7 +143,8 @@ QVR_VIEW_UV_GLSL
 "	vec4	FoamBreath[3]; // QVR: ... its breathing: x how much the band grows and shrinks (a share of its width, 0 none), y how fast, z how unevenly along the shore, w unused\n" \
 "	vec4	BloodInfo; // QVR: blood in the liquids (vr/vr_water.cpp: vr_water_blood; LiquidBlood): x how many clouds (0 none), yzw unused\n" \
 "	vec4	BloodAt[16]; // QVR: ... each's centre (xy), the surface's height (z), its radius now (w)\n" \
-"	vec4	BloodAmp[4]; // QVR: ... each's strength now (four a vec4)\n"
+"	vec4	BloodAmp[4]; // QVR: ... each's strength now (four a vec4)\n" \
+"	vec4	SceneViewport; // QVR: the scene's viewport in its targets' pixels (x, y, width, height: R_SceneViewport; under dynamic resolution a part of larger targets, vr/vr_stereo.hpp ViewSize)\n"
 
 // Single-pass stereo (vr/vr_stereo_single.cpp, docs/vr-port/STEREO.md): a multiview twin (QVR_MULTIVIEW) reads each
 // view's view-projection and eye position from this block; the blocks that declare ViewProj, EyePos, FrameViewProj and

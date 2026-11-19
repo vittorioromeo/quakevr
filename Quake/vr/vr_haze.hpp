@@ -17,14 +17,14 @@ namespace qvr::haze
 {
 
 
-// The scene's colour under (x0, y0) .. (x1, y1) of `viewport` (the scene's, VR_SceneTarget) copied (resolved) to the
-// same place in a texture of the viewport's size, kept for this view's slot (the eyes', the spectator camera's), for a
-// pass that bends what is behind it: the heat haze, bullet time's trails (vr_bttrails.cpp). 0: none. The scene's
-// framebuffer bound again after (R_SetupGL).
 // VR stopped (stereo::releaseTargets): the copies of the scene freed (made again at their next use).
 void releaseTargets();
 
+// The scene's colour under (x0, y0) .. (x1, y1) of `viewport` (the scene's, VR_SceneTarget) copied (resolved) to the
+// same place (from the viewport's corner) in a texture of the scene targets' allocated size, kept for this view's slot
+// (the eyes', the spectator camera's), for a pass that bends what is behind it: the heat haze, bullet time's trails
+// (vr_bttrails.cpp). 0: none; `copySize` its texture's size. The scene's framebuffer bound again after (R_SetupGL).
 [[nodiscard]] unsigned copyScene(unsigned sceneFbo, unsigned color, int samples, const int viewport[4], int x0, int y0,
-    int x1, int y1);
+    int x1, int y1, float copySize[2]);
 
 } // namespace qvr::haze

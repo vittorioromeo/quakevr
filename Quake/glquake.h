@@ -486,6 +486,7 @@ typedef struct gpuframedata_s {
 	float	bloodinfo[4];	// QVR: blood in the liquids (vr/vr_water.cpp: vr_water_blood): how many clouds, unused
 	float	bloodat[16][4];	// QVR: ... each's centre (xy), surface height (z), radius now (w)
 	float	bloodamp[4][4];	// QVR: ... each's strength now
+	float	sceneviewport[4];	// QVR: the scene's viewport in its targets' pixels (R_SceneViewport; vr/vr_water.cpp VR_WaterView): the refraction's and the scene distances' reads kept in it
 } gpuframedata_t;
 
 struct gltexture_s *TexMgr_ShareNormalMap (struct gltexture_s *base, const char *name, int kind); // QVR: an authored file's texture already made for another skin

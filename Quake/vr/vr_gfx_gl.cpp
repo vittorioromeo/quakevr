@@ -908,10 +908,11 @@ void main()
 constexpr const char* halfCompositeFs = R"(#version 430
 layout(binding = 0) uniform sampler2D Half;
 layout(location = 0) uniform vec2 Scale;
+layout(location = 1) uniform vec4 Drawn; // the drawn part's texels' centres in Half's uv (lo xy, hi xy): as clamp-to-edge
 out vec4 result;
 void main()
 {
-    result = texture(Half, gl_FragCoord.xy * Scale);
+    result = texture(Half, clamp(gl_FragCoord.xy * Scale, Drawn.xy, Drawn.zw));
     if(result == vec4(0.0))
         discard;
 }
@@ -929,13 +930,14 @@ layout(binding = 1) uniform sampler2D Distances; // half the size: the nearest o
 layout(binding = 2) uniform sampler2D Depth;     // the scene's, full size
 layout(location = 1) uniform vec4 Proj; // clip z = x * w + y; z 1: depth is clip z (reversed Z), 0: (clip z + 1) / 2; w: tolerance
 layout(location = 2) uniform int Show;   // vr_particle_halfres_upsample 2: the pixels taking a texel by its distance in green
+layout(location = 3) uniform vec2 HalfLast; // the drawn part's last texel (Half's whole but under dynamic resolution)
 out vec4 result;
 void main()
 {
     vec2 t = gl_FragCoord.xy * 0.5 - 0.5; // in the half texels' centres
     ivec2 b = ivec2(floor(t));
     vec2 f = t - vec2(b);
-    ivec2 last = textureSize(Half, 0) - 1;
+    ivec2 last = ivec2(HalfLast);
     ivec2 q0 = clamp(b, ivec2(0), last), q1 = clamp(b + ivec2(1, 0), ivec2(0), last);
     ivec2 q2 = clamp(b + ivec2(0, 1), ivec2(0), last), q3 = clamp(b + ivec2(1, 1), ivec2(0), last);
     vec4 c0 = texelFetch(Half, q0, 0), c1 = texelFetch(Half, q1, 0), c2 = texelFetch(Half, q2, 0), c3 = texelFetch(Half, q3, 0);
@@ -2070,13 +2072,20 @@ bool drawParticlesHalf(const ParticleBatch& batch, bool pull, Texture texture, c
     glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
     glDisable(GL_SAMPLE_SHADING);
     GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, target->tex);
+    // The half of the scene's viewport drawn into it (its texels from the corner): the whole target but under dynamic
+    // resolution (made at its ceiling, a part of it drawn: stereo::ViewSize); its edge read as clamp-to-edge read the whole.
+    const int drawnW = za::min(width, (viewport[0] + viewport[2] + 1) / 2);
+    const int drawnH = za::min(height, (viewport[1] + viewport[3] + 1) / 2);
     if(depthAware)
     {
         GL_BindNative(GL_TEXTURE1, GL_TEXTURE_2D, distances);
+        GL_Uniform2fFunc(3, static_cast<float>(drawnW - 1), static_cast<float>(drawnH - 1));
     }
     else
     {
-        GL_Uniform2fFunc(0, 0.5f / static_cast<float>(width), 0.5f / static_cast<float>(height));
+        const float w = static_cast<float>(width), h = static_cast<float>(height);
+        GL_Uniform2fFunc(0, 0.5f / w, 0.5f / h);
+        GL_Uniform4fFunc(1, 0.5f / w, 0.5f / h, (static_cast<float>(drawnW) - 0.5f) / w, (static_cast<float>(drawnH) - 0.5f) / h);
     }
     glDrawArrays(GL_TRIANGLES, 0, 3);
     glEnable(GL_SAMPLE_SHADING);

@@ -557,7 +557,8 @@ LIQUID_SWELL \
 "// four pixels).\n"\
 "float LiquidSceneDistance(vec2 p)\n"\
 "{\n"\
-"	return texelFetch(LiquidDepth, clamp(ivec2(p * 0.5), ivec2(0), textureSize(LiquidDepth, 0) - 1), 0).r;\n"\
+"	ivec2 last = min(textureSize(LiquidDepth, 0), ivec2((SceneViewport.xy + SceneViewport.zw + 1.0) * 0.5)) - 1; // (the scene's part)\n"\
+"	return texelFetch(LiquidDepth, clamp(ivec2(p * 0.5), ivec2(0), last), 0).r;\n"\
 "}\n"\
 "vec2 LiquidSceneHere = vec2(0.); // ... at this pixel, read once (the foam's and the refraction's); y 1 once read\n"\
 "float LiquidSceneDistanceHere()\n"\
@@ -581,7 +582,8 @@ LIQUID_SWELL \
 "	vec3 d = (n - facing) * (Water.z * min(dist * 0.08, 12.0) * (kind == 2u ? 0.5 : 1.0));\n"\
 "	vec4 c0 = ViewProj * vec4(pos, 1.0);\n"\
 "	vec4 c1 = c0 + ViewProj * vec4(d, 0.0);\n"\
-"	vec2 size = vec2(textureSize(LiquidScene, 0));\n"\
+"	vec2 size = SceneViewport.zw; // the view's pixels (its targets may be larger: dynamic resolution's ceiling)\n"\
+"	vec2 tsize = vec2(textureSize(LiquidScene, 0));\n"\
 "	vec2 shift = (c1.xy / c1.w - c0.xy / c0.w) * 0.5;\n"\
 "	if (CausticsScale.w != 0.)\n"\
 "	{\n"\
@@ -589,7 +591,11 @@ LIQUID_SWELL \
 "		if (LiquidSceneDistance(gl_FragCoord.xy + shift * size) < c0.w)\n"\
 "			shift *= LiquidSceneDistance(gl_FragCoord.xy + shift * (0.3 * size)) < c0.w ? 0.0 : 0.3;\n"\
 "	}\n"\
-"	vec3 behind = textureLod(LiquidScene, gl_FragCoord.xy / size + shift, 0.0).rgb; // (no mips: textureLod, after an early return)\n"\
+"	vec2 vlo = (SceneViewport.xy + 0.5) / tsize, vhi = (SceneViewport.xy + SceneViewport.zw - 0.5) / tsize; // its texels' centres\n"\
+"	vec2 buv = gl_FragCoord.xy / size + shift; // (the view the whole texture: as before)\n"\
+"	if (any(notEqual(size, tsize)) || any(notEqual(SceneViewport.xy, vec2(0.0)))) // a part of it: kept on the part's texels, as clamp-to-edge kept the whole's\n"\
+"		buv = clamp(gl_FragCoord.xy / tsize + shift * (size / tsize), vlo, vhi);\n"\
+"	vec3 behind = textureLod(LiquidScene, buv, 0.0).rgb; // (no mips: textureLod, after an early return)\n"\
 "	return vec4(mix(behind, c.rgb, c.a), 1.0);\n"\
 "}\n"\
 "\n"\
