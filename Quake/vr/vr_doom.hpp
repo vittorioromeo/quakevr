@@ -19,6 +19,8 @@
 #include "vr_gfx.hpp"
 #include "vr_hands.hpp"
 
+#include "Zancle/String/String.hpp"
+
 namespace qvr::doom
 {
 
@@ -51,6 +53,8 @@ void drawPanel();
 // best found"), each row's text and help (its path), and picking one (vr_doom_wad; Doom restarted on it if running).
 [[nodiscard]] const char* menuStatus();
 [[nodiscard]] int wadCount();
+[[nodiscard]] int wadGeneration();     // the searches made so far (vr_doom_wads, Search Again): the page rebuilt after one
+[[nodiscard]] za::String dropInFolder(); // quakevr/doom/wads, where a player drops his WADs (the menu's test)
 [[nodiscard]] const char* wadRow(int i);
 [[nodiscard]] const char* wadHelp(int i);
 void pickWad(int i);

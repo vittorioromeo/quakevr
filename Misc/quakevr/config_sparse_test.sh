@@ -7,6 +7,8 @@
 #   -> snap -> writeconfig (sparse) -> only changed vr_ settings in it, each as snapped -> every plain vr_ setting
 #   scrambled -> the sparse config executed -> every setting as snapped -> three defaults moved (one at its default, a
 #   slot one, a changed one) -> executed again -> the two at their defaults take the new ones, the changed one its line.
+#   After each write of the game folder's config the tracking (vr_cvars.cpp ConfigTrack) is checked against the file and
+#   the settings read afresh ("tracked"), then through its writes ("trackedit": a failed write, a name two settings share).
 # Writes quakevr/cfgtest_*.cfg (git-ignored); cfgtest_full_<tag>.cfg: every setting after the load, to compare builds.
 # Ends on the verdict line "config_test: N passed, M failed"; exits 1 on a failure.
 AGENT=${1:?worktree name}
@@ -21,7 +23,7 @@ if [ -n "$SRC" ]; then
     TAG=src
 fi
 SPARSE=cfgtest_sparse_$TAG
-OUT=$(bash $KIT/run.sh $AGENT -Script "${LOAD}vr_config_test dumpfull cfgtest_full_$TAG.cfg;writeconfig;vr_config_test othercopy;writeconfig;vr_config_test checkmerge;vr_config_test snap;writeconfig $SPARSE;vr_config_test checkfile $SPARSE.cfg;vr_config_test scramble;exec $SPARSE.cfg;vr_config_test compare;vr_config_test newdefault;exec $SPARSE.cfg;vr_config_test checkdefault;vr_config_test done;toggleconsole;quit" \
+OUT=$(bash $KIT/run.sh $AGENT -Script "${LOAD}vr_config_test dumpfull cfgtest_full_$TAG.cfg;writeconfig;vr_config_test tracked;vr_config_test othercopy;writeconfig;vr_config_test checkmerge;vr_config_test tracked;vr_config_test trackedit;vr_config_test snap;writeconfig $SPARSE;vr_config_test checkfile $SPARSE.cfg;vr_config_test scramble;exec $SPARSE.cfg;vr_config_test compare;vr_config_test newdefault;exec $SPARSE.cfg;vr_config_test checkdefault;vr_config_test done;toggleconsole;quit" \
     -Filter "^config_test:|from another copy|rror|CRASH" -QuitOn "^config_test: [0-9]+ passed" -Timeout 300 2>&1 | grep -v "^$")
 echo "$OUT"
 echo "$OUT" | grep -q "^config_test: [1-9][0-9]* passed, 0 failed" || exit 1

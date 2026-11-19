@@ -288,7 +288,15 @@ promote <config>`, `props_data.py promote <config>`, `monsters_data.py promote <
 - **Not a default:** a value code sets at start-up after the cvar's registration looks changed and is saved; set it
   before `host_initialized` (it becomes the default) or leave it out of `CVAR_ARCHIVE`.
 - Check: `Misc/quakevr/config_sparse_test.sh <agent> [full config]` (an old full config loaded, written sparse, read
-  back to the same values from any state; a moved default reaches it; another copy's edits merged).
+  back to the same values from any state; a moved default reaches it; another copy's edits merged; the tracking that
+  decides a write: `vr_config_test tracked` / `trackedit`, below).
+- A menu or console close writes the config only when an archived setting changed since it was read or written
+  (`saveConfigNow`; vr_cvars.cpp `ConfigTrack`, REVIEW_NEXT_2026-11-18.md finding 4). The tracking is read from the file
+  at the config's load only: the close compares each setting where it is (no map of them made: 0.6 ms and no
+  allocations, against 2.5 ms and 6,110 allocations for the old map, `vr_config_test cost`), and a write updates the
+  tracking with what it wrote (`VR_ConfigNoteWrite`, kept by `VR_ConfigWritten` once the file is in place: a failed
+  write leaves the settings counted changed, and the next close writes again). A name that a stand-in and a cvar both
+  have (none today) counts as the stand-in, as the map kept it.
 - **Three tiers** (ROUND23.md, "Settings tiers"). A **player option** (comfort, look, audio, controls, a feature
   switch, anything a test or cfg sets) is a `QVR_CVAR` in `vr_cvars.inc` with a menu row. A **tuning constant** (a
   number tuned once that no player sets) is a `QVR_TUNABLE(name, "default")` in `vr_tunables.inc` plus its row in

@@ -44,7 +44,7 @@ Ultimate DOOM, DOOM II, TNT and Plutonia, the BFG and id Anthology versions) and
 re-release's, which this Doom engine may not run) is listed as "an unlisted version". The automatic pick (empty
 `vr_doom_wad`, the page's *Automatic* row) takes a known release first (DOOM before DOOM II before Final DOOM), then
 another version of id's, then Freedoom: Phase 1. A WAD that fails to start (or stops with an error in its first 20
-seconds) is marked and the next is tried. The page lists every WAD found to pick one; `vr_doom_wads` prints them.
+seconds) is marked and the next is tried. The page lists every WAD found to pick one; `vr_doom_wads` prints them (the page's Search Again: its rows follow the search, `Misc/quakevr/menu_doom_test.sh`).
 
 ## Touch controls
 

@@ -68,6 +68,10 @@ setting, or a value not yet applied:
 
 Not settings, so not synced (his scope): cursors, scrolls, drop-downs, help paging, the Reset All armed label (baked
 into VR Settings' built rows: both panels show it armed), Search's query, the Map Library's filters and picks.
+A page's rows are shared, so a rebuild one panel asks for (Menu Detail, Changed Settings or Search building every
+page) moves every open panel's cursor on that page to its row again, by its label, scroll included (items(); since
+2026-11-19, REVIEW_NEXT_2026-11-18.md finding 12: before, only the asking panel's, and another's cursor kept its index,
+on another setting when rows came or went above it; `Misc/quakevr/menu_anchor_test.sh`).
 
 ## How the menu is held today
 
