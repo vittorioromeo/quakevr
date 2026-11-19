@@ -38,6 +38,7 @@
 #include "vr_text3d.hpp"
 #include "vr_takes.hpp"
 #include "vr_temporal.hpp"
+#include "vr_testkit.hpp"
 #include "vr_tonemap.hpp"
 #include "vr_tracy.h"
 #include "vr_upscale.hpp"
@@ -45,6 +46,7 @@
 #include "vr_window.hpp"
 
 #include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/Memcmp.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Lround.hpp"
@@ -517,7 +519,32 @@ void drawUi(const glm::vec3& viewOrigin, GLuint fbo, int width, int height, bool
 // 1 with Ironwail's reversed Z, 0 without) right after the scene's clear: every later depth-tested
 // fragment there fails early, so the world's, models' and particles' shaders skip those pixels,
 // and bloom and the mirror see black.
-za::Vector<gfx::Vertex> hiddenTriangles;
+// Each eye's triangles are kept in a vertex buffer, made again only when what they are made from changes: the
+// runtime's mesh (a visibility-mask event gives a new one), the eye's field of view, the depth convention. Not at every
+// scene clear (each eye, each view through a teleporter, each layer of single-pass stereo).
+struct HiddenMesh
+{
+    gfx::StaticTriangles triangles;
+    // What they were made from (made: false, nothing yet).
+    bool made = false;
+    Fov fov;
+    float z = 0.f;
+    za::Vector<glm::vec2> vertices; // the runtime's mesh, copied
+    za::Vector<za::U32> indices;
+};
+za::Array<HiddenMesh, 2> hiddenMeshes;
+za::Vector<gfx::Vertex> hiddenTriangles; // (a mesh's triangles before their upload)
+
+[[nodiscard]] bool sameFov(const Fov& a, const Fov& b)
+{
+    return a.left == b.left && a.right == b.right && a.up == b.up && a.down == b.down;
+}
+
+template <typename T>
+[[nodiscard]] bool sameContents(const za::Vector<T>& a, const za::Vector<T>& b)
+{
+    return a.size() == b.size() && (a.empty() || ZA_MEMCMP(a.data(), b.data(), a.size() * sizeof(T)) == 0);
+}
 
 void drawHiddenArea()
 {
@@ -536,14 +563,26 @@ void drawHiddenArea()
         return;
     }
     const float z = gl_clipcontrol_able ? 1.f : -1.f;
-    hiddenTriangles.clear();
-    for(const za::U32 i : h->indices)
+    HiddenMesh& mesh = hiddenMeshes[currentEye & 1];
+    if(!mesh.made || !sameFov(mesh.fov, fov) || mesh.z != z || !sameContents(mesh.vertices, h->vertices) ||
+        !sameContents(mesh.indices, h->indices))
     {
-        const glm::vec2 t = h->vertices[i];
-        gfx::Vertex v;
-        v.pos = {(2.f * t.x - (r + l)) / (r - l), (2.f * t.y - (u + d)) / (u - d), z};
-        v.color = glm::vec4{0.f};
-        hiddenTriangles.pushBack(v);
+        hiddenTriangles.clear();
+        for(const za::U32 i : h->indices)
+        {
+            const glm::vec2 t = h->vertices[i];
+            gfx::Vertex v;
+            v.pos = {(2.f * t.x - (r + l)) / (r - l), (2.f * t.y - (u + d)) / (u - d), z};
+            v.color = glm::vec4{0.f};
+            hiddenTriangles.pushBack(v);
+        }
+        gfx::upload(mesh.triangles, hiddenTriangles);
+        mesh.made = true;
+        mesh.fov = fov;
+        mesh.z = z;
+        mesh.vertices = h->vertices;
+        mesh.indices = h->indices;
+        Con_DPrintf("VR: the hidden area of eye %d made (%d triangles)\n", currentEye, static_cast<int>(h->indices.size() / 3));
     }
 
     gfx::State state;
@@ -551,7 +590,7 @@ void drawHiddenArea()
     state.blend = gfx::Blend::Opaque;
     state.depthTest = true; // passes against the clear (GL skips depth writes without the test)
     state.depthWrite = true;
-    gfx::draw(hiddenTriangles, glm::mat4{1.f}, state);
+    gfx::draw(mesh.triangles, glm::mat4{1.f}, state);
 }
 
 void renderPortal(int width, int height, int depth);
@@ -883,6 +922,72 @@ void precompilePrograms()
         mirrorFailed = !mirrorProgram;
         gfx::ownDeferred(mirrorProgram, &mirrorFailed);
     }
+}
+
+namespace
+{
+
+// vr_stereo_targets_test (Misc/quakevr/stereo_targets_test.sh): what the eyes' GL objects do over frames. `begin` notes
+// the counts, `steady` (frames later, the view unchanged) checks nothing was made again; `verdict` prints the line.
+struct TargetsTest
+{
+    testkit::Tally tally;
+    int frame = 0;
+    long long hiddenUploads[2] = {};
+};
+TargetsTest targetsTest;
+constexpr const char* targetsTestName = "stereo_targets";
+
+void targetsCheck(bool ok, const char* what)
+{
+    targetsTest.tally.check(ok);
+    Con_Printf("%s: %s %s\n", targetsTestName, ok ? "PASS" : "FAIL", what);
+}
+
+void targetsTest_f()
+{
+    TargetsTest& t = targetsTest;
+    const char* step = Cmd_Argc() > 1 ? Cmd_Argv(1) : "";
+    if(!q_strcasecmp(step, "begin"))
+    {
+        t.tally.reset();
+        t.frame = host_framecount;
+        for(int eye = 0; eye < 2; eye++)
+        {
+            t.hiddenUploads[eye] = hiddenMeshes[eye].triangles.uploads;
+        }
+        Con_Printf("%s: begun (hidden area uploads %lld %lld)\n", targetsTestName, t.hiddenUploads[0], t.hiddenUploads[1]);
+    }
+    else if(!q_strcasecmp(step, "steady"))
+    {
+        targetsCheck(host_framecount - t.frame >= 10 && eyeTargets.width > 0, va("eyes drawn since begin (%d frames, %dx%d)",
+            host_framecount - t.frame, eyeTargets.width, eyeTargets.height));
+        if(vr_visibility_mask.value != 0.f && vr_mock_hidden_area.value != 0.f)
+        {
+            for(int eye = 0; eye < 2; eye++)
+            {
+                const long long uploads = hiddenMeshes[eye].triangles.uploads;
+                targetsCheck(hiddenMeshes[eye].made && uploads >= 1, va("eye %d's hidden area made (%lld uploads)", eye, uploads));
+                targetsCheck(uploads == t.hiddenUploads[eye], va("eye %d's hidden area not uploaded again (%lld at begin, %lld now)",
+                    eye, t.hiddenUploads[eye], uploads));
+            }
+        }
+    }
+    else if(!q_strcasecmp(step, "verdict"))
+    {
+        t.tally.verdict(targetsTestName);
+    }
+    else
+    {
+        Con_Printf("vr_stereo_targets_test begin | steady | verdict\n");
+    }
+}
+
+} // namespace
+
+void init()
+{
+    Cmd_AddCommand("vr_stereo_targets_test", targetsTest_f);
 }
 
 } // namespace qvr::stereo

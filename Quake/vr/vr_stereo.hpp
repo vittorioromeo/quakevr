@@ -5,6 +5,8 @@
 namespace qvr::stereo
 {
 
+void init(); // its commands (vr_stereo_targets_test)
+
 [[nodiscard]] bool isRenderingEye();
 [[nodiscard]] int eye(); // 0 left, 1 right; valid while rendering an eye
 [[nodiscard]] bool isFirstEye(); // the first eye rendered this frame; valid while rendering an eye

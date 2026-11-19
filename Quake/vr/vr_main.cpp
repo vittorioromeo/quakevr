@@ -91,6 +91,7 @@
 #include "vr_relight.hpp"
 #include "vr_relight_tool.hpp"
 #include "vr_stealth.hpp"
+#include "vr_stereo.hpp"
 #include "vr_stereo_single.hpp"
 #include "vr_text3d.hpp"
 #include "vr_tips.hpp"
@@ -2371,6 +2372,7 @@ extern "C" void VR_Init()
     flatlook::init(); // vr_flatlook_info (vr_flatlook.cpp)
     visor::init();    // vr_flat_visor_report, vr_flat_visor_fx (vr_visor.cpp)
     stereosingle::init(); // vr_stereo_single_info
+    stereo::init(); // vr_stereo_targets_test
     timescale::init(); // vr_slowmo
     Cvar_SetCallback(&vr_map_liquid_alpha, [](cvar_t*) { R_UpdateLiquidAlpha(); }); // gl_rmisc.c: the liquids' alphas again
     envmap::init(); // vr_envmap_dump
