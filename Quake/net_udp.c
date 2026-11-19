@@ -336,12 +336,8 @@ int UDP_Write (sys_socket_t socketid, byte *buf, int len, struct qsockaddr *addr
 {
 	int	ret;
 
-	if (net_loopbackonly && !NET_LoopbackAddr (((struct sockaddr_in *)addr)->sin_addr.s_addr)) // QVR: (B24, tests)
-	{
-		if (((struct sockaddr_in *)addr)->sin_addr.s_addr != INADDR_BROADCAST) // (a LAN broadcast: dropped quietly)
-			NET_LoopbackRefused (UDP_AddrToString (addr));
+	if (NET_LoopbackRefusesTo (addr)) // QVR: (B24, tests)
 		return len; // (as if sent and lost)
-	}
 
 	ret = sendto (socketid, buf, len, 0, (struct sockaddr *)addr,
 							sizeof(struct qsockaddr));
@@ -430,19 +426,11 @@ int UDP_GetAddrFromName (const char *name, struct qsockaddr *addr)
 	{
 		if (PartialIPAddress (name, addr) == -1)
 			return -1;
-		if (net_loopbackonly && !NET_LoopbackAddr (((struct sockaddr_in *)addr)->sin_addr.s_addr)) // QVR: (B24, tests)
-		{
-			NET_LoopbackRefused (name);
-			return -1;
-		}
-		return 0;
+		return NET_LoopbackRefusesName (name, addr) ? -1 : 0; // QVR: (B24, tests)
 	}
 
-	if (net_loopbackonly && q_strcasecmp (name, "localhost")) // QVR: (B24, tests) never looked up
-	{
-		NET_LoopbackRefused (name);
+	if (NET_LoopbackRefusesName (name, NULL)) // QVR: (B24, tests) never looked up
 		return -1;
-	}
 
 	hostentry = gethostbyname (name);
 	if (!hostentry)

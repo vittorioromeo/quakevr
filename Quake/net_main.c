@@ -78,6 +78,32 @@ qboolean NET_LoopbackAddr (unsigned int netorder_ipv4)
 {
 	return ((const unsigned char *) &netorder_ipv4)[0] == 127; // (network order: the first octet first)
 }
+
+// The fence on a datagram's destination (an IPv4 driver's Write) -> qtrue: refused, not to be sent (a LAN broadcast
+// quietly, anything else printed)
+qboolean NET_LoopbackRefusesTo (const struct qsockaddr *addr)
+{
+	const struct sockaddr_in *in = (const struct sockaddr_in *) addr;
+	const byte *ip = (const byte *) &in->sin_addr.s_addr;
+
+	if (!net_loopbackonly || NET_LoopbackAddr (in->sin_addr.s_addr))
+		return false;
+	if (in->sin_addr.s_addr != 0xFFFFFFFFu) // (INADDR_BROADCAST)
+		NET_LoopbackRefused (va ("%d.%d.%d.%d:%d", ip[0], ip[1], ip[2], ip[3], ntohs (in->sin_port)));
+	return true;
+}
+
+// The fence on an IPv4 driver's GetAddrFromName: `name` as typed, `parsed` its address when it was one (NULL: a name to
+// look up, never looked up but "localhost") -> qtrue: refused (printed)
+qboolean NET_LoopbackRefusesName (const char *name, const struct qsockaddr *parsed)
+{
+	if (!net_loopbackonly)
+		return false;
+	if (parsed ? NET_LoopbackAddr (((const struct sockaddr_in *) parsed)->sin_addr.s_addr) : !q_strcasecmp (name, "localhost"))
+		return false;
+	NET_LoopbackRefused (name);
+	return true;
+}
 // QVR: net_message's own buffer. A snapshot's records are parsed with net_message pointed at each (vr_netsnap.cpp), and
 // a Host_Error inside one (a damaged record: mp_fuzz) left it there: the next connection's request overflowed its few
 // bytes (SZ_GetSpace, "B joined again 1 times"). Host_Error puts it back (NET_RestoreMessage).

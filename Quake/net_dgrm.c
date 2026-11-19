@@ -278,7 +278,7 @@ const char *NET_RoomCode (void)
 
 // A host's datagram from the room service (on his listening socket) -> qtrue: taken (any datagram of the room format
 // is: a stray one is dropped)
-static qboolean RoomHostRead (sys_socket_t acceptsock, const byte *pkt, int length, struct qsockaddr *from)
+static qboolean RoomHostRead (const byte *pkt, int length, struct qsockaddr *from)
 {
 	int i;
 	struct qsockaddr peer;
@@ -422,7 +422,7 @@ static void ReadShared (int landriver, sys_socket_t acceptsock)
 
 	while ((length = driver->Read (acceptsock, sharedBuffer, sizeof (sharedBuffer), &from)) > 0)
 	{
-		if (RoomHostRead (acceptsock, sharedBuffer, length, &from))
+		if (RoomHostRead (sharedBuffer, length, &from))
 			continue;
 		head = length >= 4 ? ((unsigned int) sharedBuffer[0] << 24) : 0;
 		if (length >= NET_HEADERSIZE && !(head & NETFLAG_CTL))
@@ -540,6 +540,71 @@ static void NET_RoomCode_f (void)
 		if (SDL_SetClipboardText (room.code) == 0)
 			Con_Printf ("(copied to the clipboard)\n");
 	}
+}
+
+
+// QVR: (B23, tests) -natgateway <port>: every datagram of the IPv4 driver (the first LAN driver, both platforms) by way of
+// the multiplayer harness's NAT simulator on 127.0.0.1:<port> (Misc/quakevr/mp/mp_nat.py), the real address before it
+// in 6 bytes (IPv4 and port, network order) both ways; a datagram from anywhere else is dropped (only the NAT reaches
+// this game). The driver's Read and Write are wrapped at start-up (NatShim), so the drivers carry no test code.
+static struct
+{
+	struct qsockaddr	gateway;
+	int		(*read) (sys_socket_t socketid, byte *buf, int len, struct qsockaddr *addr);
+	int		(*write) (sys_socket_t socketid, byte *buf, int len, struct qsockaddr *addr);
+	byte	buffer[NET_DATAGRAMSIZE + 6];
+} nat;
+
+static int NatRead (sys_socket_t socketid, byte *buf, int len, struct qsockaddr *addr)
+{
+	struct qsockaddr	from;
+	int		ret;
+
+	for (;;)
+	{
+		ret = nat.read (socketid, nat.buffer, sizeof (nat.buffer), &from);
+		if (ret <= 0)
+			return ret;
+		if (ret < 6 || net_landrivers[0].AddrCompare (&from, &nat.gateway) != 0)
+			continue;
+		memset (addr, 0, sizeof (*addr));
+		addr->qsa_family = AF_INET;
+		memcpy (&((struct sockaddr_in *) addr)->sin_addr, nat.buffer, 4);
+		memcpy (&((struct sockaddr_in *) addr)->sin_port, nat.buffer + 4, 2);
+		ret = q_min (ret - 6, len);
+		memcpy (buf, nat.buffer + 6, ret);
+		return ret;
+	}
+}
+
+static int NatWrite (sys_socket_t socketid, byte *buf, int len, struct qsockaddr *addr)
+{
+	if (NET_LoopbackRefusesTo (addr)) // (the real destination's fence: the gateway's is loopback)
+		return len;
+	if (len < 0 || len > NET_DATAGRAMSIZE)
+		return nat.write (socketid, buf, len, addr);
+	memcpy (nat.buffer, &((struct sockaddr_in *) addr)->sin_addr, 4);
+	memcpy (nat.buffer + 4, &((struct sockaddr_in *) addr)->sin_port, 2);
+	memcpy (nat.buffer + 6, buf, len);
+	return nat.write (socketid, nat.buffer, len + 6, &nat.gateway) < 0 ? 0 : len;
+}
+
+static void NatShim (void)
+{
+	struct sockaddr_in	*gw = (struct sockaddr_in *) &nat.gateway;
+	int		i = COM_CheckParm ("-natgateway");
+
+	if (!i || i + 1 >= com_argc)
+		return;
+	memset (&nat.gateway, 0, sizeof (nat.gateway));
+	gw->sin_family = AF_INET;
+	gw->sin_addr.s_addr = htonl (INADDR_LOOPBACK);
+	gw->sin_port = htons ((unsigned short) Q_atoi (com_argv[i + 1]));
+	nat.read = net_landrivers[0].Read;
+	nat.write = net_landrivers[0].Write;
+	net_landrivers[0].Read = NatRead;
+	net_landrivers[0].Write = NatWrite;
+	Con_SafePrintf ("UDP: every datagram through the NAT simulator on 127.0.0.1:%s\n", com_argv[i + 1]);
 }
 
 
@@ -1420,6 +1485,7 @@ int Datagram_Init (void)
 	if (safemode || COM_CheckParm("-nolan"))
 		return -1;
 
+	NatShim (); // QVR: (B23, tests)
 	num_inited = 0;
 	for (i = 0; i < net_numlandrivers; i++)
 	{
@@ -1502,6 +1568,24 @@ static void ClientKeyMade (void)
 	b = (unsigned) rand () * 2654435761u ^ (unsigned) (uintptr_t) &t ^ (unsigned) (t * 1e6);
 	q_snprintf (key, sizeof (key), "%08x%08x", a, b);
 	Cvar_Set ("vr_mp_clientkey", key);
+}
+
+// QVR: a connection's CCREP_ACCEPT (its first, and again for a duplicate request): the listening socket's port (a
+// NetQuake client switches to it) and (B13) this server's network version (selective acks)
+static void SendAccept (sys_socket_t acceptsock, const struct qsockaddr *to)
+{
+	struct qsockaddr	self;
+
+	SZ_Clear(&net_message);
+	// save space for the header, filled in later
+	MSG_WriteLong(&net_message, 0);
+	MSG_WriteByte(&net_message, CCREP_ACCEPT);
+	dfunc.GetSocketAddr(acceptsock, &self);
+	MSG_WriteLong(&net_message, dfunc.GetSocketPort(&self));
+	MSG_WriteLong(&net_message, QVR_NET_VERSION);
+	*((int *)net_message.data) = BigLong(NETFLAG_CTL | (net_message.cursize & NETFLAG_LENGTH_MASK));
+	dfunc.Write (acceptsock, net_message.data, net_message.cursize, (struct qsockaddr *) to);
+	SZ_Clear(&net_message);
 }
 
 // QVR: (B23) a datagram of the listening socket's that isn't a client's (in net_message: its length `len`, from `from`)
@@ -1725,19 +1809,10 @@ static qsocket_t *_Datagram_ControlRequest (sys_socket_t acceptsock, const struc
 		if (ret == 0)
 		{
 			// is this a duplicate connection reqeust?
-			if (ret == 0 && net_time - s->connecttime < 2.0)
+			if (net_time - s->connecttime < 2.0)
 			{
 				// yes, so send a duplicate reply
-				SZ_Clear(&net_message);
-				// save space for the header, filled in later
-				MSG_WriteLong(&net_message, 0);
-				MSG_WriteByte(&net_message, CCREP_ACCEPT);
-				dfunc.GetSocketAddr(s->socket, &newaddr);
-				MSG_WriteLong(&net_message, dfunc.GetSocketPort(&newaddr));
-				MSG_WriteLong(&net_message, QVR_NET_VERSION); // QVR: (B13)
-				*((int *)net_message.data) = BigLong(NETFLAG_CTL | (net_message.cursize & NETFLAG_LENGTH_MASK));
-				dfunc.Write (acceptsock, net_message.data, net_message.cursize, &clientaddr);
-				SZ_Clear(&net_message);
+				SendAccept (acceptsock, &clientaddr);
 				return NULL;
 			}
 			// it's somebody coming back in from a crash/disconnect
@@ -1774,17 +1849,7 @@ static qsocket_t *_Datagram_ControlRequest (sys_socket_t acceptsock, const struc
 	Q_strcpy(sock->address, dfunc.AddrToString(&clientaddr));
 
 	// send him back the info about the server connection he has been allocated
-	SZ_Clear(&net_message);
-	// save space for the header, filled in later
-	MSG_WriteLong(&net_message, 0);
-	MSG_WriteByte(&net_message, CCREP_ACCEPT);
-	dfunc.GetSocketAddr(acceptsock, &newaddr);
-	MSG_WriteLong(&net_message, dfunc.GetSocketPort(&newaddr));
-	MSG_WriteLong(&net_message, QVR_NET_VERSION); // QVR: (B13) a Quake VR server's network layer (selective acks)
-//	MSG_WriteString(&net_message, dfunc.AddrToString(&newaddr));
-	*((int *)net_message.data) = BigLong(NETFLAG_CTL | (net_message.cursize & NETFLAG_LENGTH_MASK));
-	dfunc.Write (acceptsock, net_message.data, net_message.cursize, &clientaddr);
-	SZ_Clear(&net_message);
+	SendAccept (acceptsock, &clientaddr);
 
 	return sock;
 }

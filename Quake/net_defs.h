@@ -301,5 +301,9 @@ typedef struct _PollProcedure
 
 void SchedulePollProcedure(PollProcedure *pp, double timeOffset);
 
+// QVR: (B24, tests) -loopbackonly's fence in the IPv4 drivers' Write and GetAddrFromName (net_main.c)
+qboolean NET_LoopbackRefusesTo (const struct qsockaddr *addr);
+qboolean NET_LoopbackRefusesName (const char *name, const struct qsockaddr *parsed);
+
 #endif	/* __NET_DEFS_H */
 
