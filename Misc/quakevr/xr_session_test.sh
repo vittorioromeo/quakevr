@@ -7,6 +7,8 @@
 #      xrPollEvent, xrWaitFrame, xrBeginFrame or xrEndFrame end the session: flat, said why, the game runs on.
 #   2. frames with no session running (FAKEXR_END restart with FAKEXR_IDLE_MS: no xrWaitFrame for 1.5 s) paced at about
 #      a display period with host_maxfps 1000.
+#   3. the panel's swapchain failing its images (FAKEXR_FAIL_PANEL_IMAGES): destroyed at once, never acquired, tried
+#      once a session (a restart tries again); the eyes unaffected.
 # Linux only (the game run directly, as LINUX.md's; SDL on X11 with GLX: fakexr offers XR_KHR_opengl_enable alone).
 # QVR_ENGINE: the game (default build/ironwail); QUAKE_DIR: Quake's data (default Steam's).
 SECTIONS="${1:-all}"
@@ -31,7 +33,7 @@ else
     bash "$TREE/Misc/quakevr/fakexr/build.sh" "$TREE" | tail -1
 fi
 XRLOG="$TREE/quakevr/qvr_openxr.txt"
-unset FAKEXR_LOST FAKEXR_END FAKEXR_IDLE_MS FAKEXR_UNFOCUS
+unset FAKEXR_LOST FAKEXR_END FAKEXR_IDLE_MS FAKEXR_FAIL_PANEL_IMAGES FAKEXR_UNFOCUS
 
 # game <tag> <script> [VAR=value...]: one hidden run on fakexr_steam (waitN: N waits), its console in $OUT/<tag>.log,
 # fakexr's log in <tag>_fake.log, qvr_openxr.txt copied to <tag>_openxr.txt.
@@ -105,5 +107,21 @@ if want 2; then
     check $(none "$OUT/paced.log" "session lost|asked the game to exit") "no session running: no end said"
 fi
 
+if want 3; then
+    # Its images fail at once; at xrWaitFrame 100 the session restarts (a session begun again tries once more); then a
+    # map: the eyes.
+    game panel "vr_backend openxr;wait200;map start;wait100;echo STILLRUNNING;quit" FAKEXR_FAIL_PANEL_IMAGES=fakexr_steam FAKEXR_END=100:restart
+    L="$OUT/panel_fake.log"
+    check $(inorder "$L" "xrEnumerateSwapchainImages 640x400: failing" "xrDestroySwapchain 640x400: the one whose images failed" \
+        "xrEnumerateSwapchainImages 640x400: failing" "xrDestroySwapchain 640x400: the one whose images failed" \
+        "FAKEXR_FAIL_PANEL_IMAGES: 2 image fills failed, 0 acquires of such a swapchain") \
+        "the panel's failed swapchain destroyed at once, never acquired, tried once a session (2 sessions)"
+    check $([ "$(count "$OUT/panel.log" "OpenXR: the panel's swapchain failed at 640x400: no panel at that size until the session begins again")" = 2 ] && echo 1 || echo 0) \
+        "the console: the panel's failure said once a session"
+    check $(grep -q -a -E "xrDestroySession: [0-9]+ frames: [1-9][0-9]* projection layers \(0 without" "$L" && echo 1 || echo 0) \
+        "the eyes submitted in the map, with valid layers"
+    check $(inorder "$OUT/panel.log" "STILLRUNNING" "^exit=0") "the game runs on in VR"
+    check $(none "$L" "LAYER_INVALID") "no layer without a released image"
+fi
 verdict
 exit $fail

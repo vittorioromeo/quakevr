@@ -529,6 +529,15 @@ bool OpenXrBackend::createSwapchain(Swapchain& sc, int32_t width, int32_t height
     sc.handle = handle;
     sc.width = width;
     sc.height = height;
+    // A failure from here on destroys it and empties the record: a handle kept with no images or bad ones would be
+    // taken for a made swapchain (the panel's, next frame: ensurePanelSwapchain), its images acquired and never released.
+    const auto failed = [this, &sc]
+    {
+        const XrSwapchain made = sc.handle;
+        guarded("xrDestroySwapchain", [made] { return xrDestroySwapchain(made); });
+        sc = Swapchain{};
+        return false;
+    };
 
     uint32_t imageCount = 0;
     step("%s: xrEnumerateSwapchainImages (the count)", what);
@@ -537,14 +546,14 @@ bool OpenXrBackend::createSwapchain(Swapchain& sc, int32_t width, int32_t height
     if(runtimeFaulted || !check(counted, "xrEnumerateSwapchainImages (the count)") || imageCount == 0 || imageCount > 64)
     {
         xrruntime::warn("OpenXR: %s: %u images\n", what, imageCount);
-        return false;
+        return failed();
     }
     sc.images.clear();
     sc.images.resize(imageCount, XrSwapchainImageOpenGLKHR{XR_TYPE_SWAPCHAIN_IMAGE_OPENGL_KHR});
     step("%s: xrEnumerateSwapchainImages (%u OpenGL images)", what, imageCount);
     if(!contextReady(what))
     {
-        return false;
+        return failed();
     }
     XrSwapchainImageBaseHeader* images = reinterpret_cast<XrSwapchainImageBaseHeader*>(sc.images.data());
     uint32_t filled = 0;
@@ -552,14 +561,14 @@ bool OpenXrBackend::createSwapchain(Swapchain& sc, int32_t width, int32_t height
         { return xrEnumerateSwapchainImages(handle, imageCount, &filled, images); });
     if(runtimeFaulted || !check(enumerated, "xrEnumerateSwapchainImages (the images)"))
     {
-        return false;
+        return failed();
     }
     for(const XrSwapchainImageOpenGLKHR& image : sc.images)
     {
         if(image.image == 0)
         {
             xrruntime::warn("OpenXR: %s: the runtime gave %u images, one of them texture 0\n", what, filled);
-            return false;
+            return failed();
         }
     }
     // Named for vr_vram_report (the runtime's textures, in our context; a name that is not ours: a GL error, cleared).

@@ -24,6 +24,9 @@
 //                         at once: frames with no session running (no xrWaitFrame), as a headset taken off; the log
 //                         gives the frames the game polled meanwhile (each frame's xrPollEvent finding no event) and
 //                         their rate
+//   FAKEXR_FAIL_PANEL_IMAGES  copies whose xrEnumerateSwapchainImages fails filling a transfer-destination swapchain's
+//                         images (XR_ERROR_RUNTIME_FAILURE, no crash: the game's panel, its eyes not); logged each time,
+//                         with the acquires of such a swapchain and its destruction
 //   FAKEXR_FAULT_IMAGES   copies whose xrEnumerateSwapchainImages crashes filling the images (a null read, as VDXR
 //                         1.1.0's did: the game's vr_xr_guard catches it); FAKEXR_FAULT_SRGB: only sRGB swapchains'
 //   FAKEXR_DEBUG_UTILS    copies that offer XR_EXT_debug_utils: a messenger that sends 3 messages once made
@@ -326,6 +329,9 @@ struct FakeSwapchain
     bool everReleased{false};
     bool releasedSinceEnd{false};
     int64_t format{0};
+    XrSwapchainUsageFlags usage{0};
+    uint32_t width{0}, height{0};
+    bool imagesFailed{false}; // FAKEXR_FAIL_PANEL_IMAGES failed its images
 };
 
 struct Headset
@@ -354,6 +360,8 @@ struct Headset
     int idleMs{0};
     XrTime idleSince{0}, readyAt{0};
     int idlePolls{0};
+    // FAKEXR_FAIL_PANEL_IMAGES: image fills failed, acquires of such swapchains.
+    int imageFailures{0}, brokenAcquires{0};
     char paths[512][128]{};
     int pathCount{0};
     // The profiles' last accepted suggestions (xrSuggestInteractionProfileBindings), and the one the hands are played as.
@@ -485,6 +493,12 @@ XRAPI_ATTR XrResult XRAPI_CALL destroySession(XrSession)
     {
         snprintf(text, sizeof(text), "FAKEXR_LOST: %d calls answered %s", hs.lostAnswered,
             hs.lostCode == XR_ERROR_INSTANCE_LOST ? "XR_ERROR_INSTANCE_LOST" : "XR_ERROR_SESSION_LOST");
+        log(text);
+    }
+    if(listed("FAKEXR_FAIL_PANEL_IMAGES"))
+    {
+        snprintf(text, sizeof(text), "FAKEXR_FAIL_PANEL_IMAGES: %d image fills failed, %d acquires of such a swapchain",
+            hs.imageFailures, hs.brokenAcquires);
         log(text);
     }
     return XR_SUCCESS;
@@ -629,6 +643,9 @@ XRAPI_ATTR XrResult XRAPI_CALL createSwapchain(XrSession, const XrSwapchainCreat
         sc = FakeSwapchain{};
         sc.handle = hs.nextHandle++;
         sc.format = info->format;
+        sc.usage = info->usageFlags;
+        sc.width = info->width;
+        sc.height = info->height;
         if(!glContextCurrent())
         {
             log("xrCreateSwapchain: NO GL CONTEXT CURRENT");
@@ -672,6 +689,12 @@ XRAPI_ATTR XrResult XRAPI_CALL destroySwapchain(XrSwapchain swapchain)
     {
         return XR_ERROR_HANDLE_INVALID;
     }
+    if(sc->imagesFailed)
+    {
+        char text[128];
+        snprintf(text, sizeof(text), "xrDestroySwapchain %ux%u: the one whose images failed", sc->width, sc->height);
+        log(text);
+    }
     glDeleteTextures(imageCount, sc->textures);
     *sc = FakeSwapchain{};
     return XR_SUCCESS;
@@ -693,6 +716,15 @@ XRAPI_ATTR XrResult XRAPI_CALL enumerateSwapchainImages(
         volatile const unsigned* nowhere = nullptr;
         return static_cast<XrResult>(*nowhere);
     }
+    if(capacity > 0 && (sc->usage & XR_SWAPCHAIN_USAGE_TRANSFER_DST_BIT) && listed("FAKEXR_FAIL_PANEL_IMAGES"))
+    {
+        sc->imagesFailed = true;
+        hs.imageFailures++;
+        char text[128];
+        snprintf(text, sizeof(text), "xrEnumerateSwapchainImages %ux%u: failing (FAKEXR_FAIL_PANEL_IMAGES)", sc->width, sc->height);
+        log(text);
+        return XR_ERROR_RUNTIME_FAILURE;
+    }
     auto* gl = reinterpret_cast<XrSwapchainImageOpenGLKHR*>(images);
     for(uint32_t i = 0; i < capacity && i < imageCount; i++)
     {
@@ -707,6 +739,10 @@ XRAPI_ATTR XrResult XRAPI_CALL acquireSwapchainImage(XrSwapchain swapchain, cons
     if(!sc)
     {
         return XR_ERROR_HANDLE_INVALID;
+    }
+    if(sc->imagesFailed && hs.brokenAcquires++ == 0)
+    {
+        log("xrAcquireSwapchainImage: a swapchain whose images failed");
     }
     *index = sc->next;
     sc->next = (sc->next + 1) % imageCount;

@@ -336,6 +336,7 @@ void OpenXrBackend::resetRuntimeState()
     stateTrailText[0] = '\0';
     endReason = SessionEnd::Lost;
     lostByResult = false;
+    panelFailedWidth = panelFailedHeight = 0;
     visibilityMaskExtension = false;
     eyeGazeOffered = false;
     eyeGazeExtension = false;
@@ -900,6 +901,7 @@ void OpenXrBackend::beginSession()
     sessionRunning = check(xrBeginSession(session, &beginInfo), "xrBeginSession");
     if(sessionRunning)
     {
+        panelFailedWidth = panelFailedHeight = 0; // (a panel swapchain that failed: tried again, the runtime may be back)
         // (Usually none yet: runtimes pick them at the first xrSyncActions, and say so with an event.)
         updateControllers();
         xrruntime::logLine(va("OpenXR: controller profiles at the session's start: left %s, right %s\n",

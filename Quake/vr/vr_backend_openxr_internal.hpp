@@ -272,6 +272,8 @@ private:
     XrSpace handSpaces[2]{XR_NULL_HANDLE, XR_NULL_HANDLE};
     Swapchain swapchains[2];
     Swapchain panel;
+    int32_t panelFailedWidth{0}; // the size its swapchain failed at in this session, or is being made at (ensurePanelSwapchain)
+    int32_t panelFailedHeight{0};
     int64_t colorFormat{GL_RGBA8};
     bool panelPending{false}; // an image was released for the frame being finished
     bool panelShown{false};   // the panel was in the last submitted frame (keeps its place)
