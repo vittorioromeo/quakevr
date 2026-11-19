@@ -328,7 +328,7 @@ void() VR_FLM_Frame =
     {
         localcmd("vr_mock_hand main 0.15 1.2 -0.45 70 0 0\n");
     }
-    else if(s == 1 && vr_flt_frames >= 12 && time >= readytime)
+    else if(s == 1 && vr_flt_frames >= 12 && time >= p.vr_readytime)
     {
         VRGiveEntWeapon(p, cVR_MainHand, WID_FLAREGUN, 0, VR_FlareGun_Barrels());
         W_SetCurrentAmmoFor(cVR_MainHand);
@@ -381,7 +381,7 @@ void() VR_FLT_Frame =
 {
     entity p = vr_flt_player;
     float s = vr_flt_step;
-    if(s == 1 && time < readytime)
+    if(s == 1 && time < p.vr_readytime)
     {
         vr_flt_frames = 0; // (the player not ready yet after spawning: its guns don't fire)
     }

@@ -246,4 +246,4 @@ Each verified by an unchanged physics hash, melee eval and `vr_menu_path_check`.
 - **Stealth AI limits:** STEALTH.md, "Open items moved from BACKLOG.md".
 - **Dawn of the Machine's co-op and dm1** (MG3.md, decision 6): later.
 - **Old QuakeC notes** (TECHDEBT_2026-10-09.md 10): Rogue's teamplay variants don't work in VR (item handling
-  commented out); `readytime` is one for every client (one co-op player's spawn holds the others).
+  commented out). (`readytime`, one for every client, is each player's `.vr_readytime` since 2026-11-19.)

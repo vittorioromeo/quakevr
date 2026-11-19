@@ -345,6 +345,11 @@ Notes on them:
   and holster actions for half a second.
 - **Recommended fix:** a player field (`.float vr_readytime`), read as `self.vr_readytime`.
 - **Drawbacks:** a new field in the progs (saves made before it read 0: ready at once, which is right).
+- **Status (2026-11-19): fixed** as recommended: `.float vr_readytime` (vr_defs.qc), set by `PutClientInServer`, read
+  as the player's own at every gate (weapons.qc, vr_reload.qc, vr_grenade.qc, vr_wpnholster.qc's `ent`) and by the
+  revolver, nail pistol and flare gun tests. agent/mp has no change of its own here (the same global, the same reads):
+  the name follows its per-player fields (`.vr_movejump`, `.vr_spawn_wait`, ...). Two players can't be run headless here:
+  `vr_pickup_test 22` stands another player's spawn in with another entity's field.
 
 ### 18. Shape-id buffers smaller than the most shapes a body can have
 

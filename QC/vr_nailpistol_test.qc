@@ -418,7 +418,7 @@ void() VR_NailPistol_TestFrame =
         return;
     }
     float s = vr_npt_step;
-    if(s == 1 && time < readytime)
+    if(s == 1 && time < vr_npt_player.vr_readytime)
     {
         vr_npt_frames = 0; // (the player not ready yet after spawning: its guns don't fire)
     }

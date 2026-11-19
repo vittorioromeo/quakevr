@@ -1040,6 +1040,10 @@ void() VR_PickupTest_Frame =
         VR_PalmGrabTest_Frame();
         self = pgself;
     }
+    if(vr_rdt_step && VR_Player() != world)
+    {
+        VR_ReadyTest_Frame();
+    }
     float ask = cvar_hget(cvarh_vr_pickup_test);
     if(!ask)
     {
@@ -1136,6 +1140,10 @@ void() VR_PickupTest_Frame =
     else if(ask == 21)
     {
         VR_CtfParmsTest_Run(); // (CTF's level change carries nothing: vr_itemrules_test.qc)
+    }
+    else if(ask == 22)
+    {
+        VR_ReadyTest_Start(); // (each player's readiness his own: vr_itemrules_test.qc; VR_ReadyTest_Frame runs it on)
     }
     self = oself;
 };

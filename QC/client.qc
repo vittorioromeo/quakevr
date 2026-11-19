@@ -1305,11 +1305,11 @@ void() PutClientInServer =
 
     if(deathmatch)
     {
-        readytime = time;
+        self.vr_readytime = time;
     }
     else
     {
-        readytime = time + 0.5;
+        self.vr_readytime = time + 0.5;
     }
     if(MGH_Active()) { MGH_horde_set_keys(self); MGH_ResetHunger(self); }
     AD_PlayerSpawned(); // AD support: what AD's code reads of a player, in an AD map (vr_ad_bridge.qc)

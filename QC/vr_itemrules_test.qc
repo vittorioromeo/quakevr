@@ -221,4 +221,67 @@ void() VR_CtfParmsTest_Run =
         qvr_weaponinst_next));
     VR_Test_Verdict();
 };
+// vr_pickup_test 22 (vr_itemrules_test.qc): each player's readiness after his spawn is his own (.vr_readytime, set by
+// PutClientInServer; weapons.qc W_WeaponFrameImpl reads self's). Two players need coop, which a headless run here
+// can't make: another player's spawn is stood in for by another entity's vr_readytime 30 s ahead (the global it
+// replaced was set so by any client's spawn). With a loaded shotgun in the main hand and the mock trigger held 20
+// frames: he fires (another's spawn doesn't hold him); with his own vr_readytime 30 s ahead he doesn't. Verdict
+// "readytime: N passed, M failed". Single player, mock headset (e1m1).
+float vr_rdt_step;
+float vr_rdt_frames;
+float vr_rdt_clip;
+entity vr_rdt_other;
+
+float() VR_RDT_Clip = { return VRGetEntWeaponClip(VR_Player(), cVR_MainHand); };
+
+void() VR_ReadyTest_Start =
+{
+    VR_Test_BeginFlags("readytime", VR_TEST_LOUD);
+    entity p = self;
+    VRGiveEntWeapon(p, cVR_MainHand, WID_SHOTGUN, 0, WeaponIdToBaseClipSize(WID_SHOTGUN));
+    p.ammo_shells = max(p.ammo_shells, 25);
+    VR_Test_Check(p.vr_readytime > 0 && p.vr_readytime <= time,
+        sprintf("his spawn set his own vr_readytime (%g, now %g)", p.vr_readytime, time));
+    vr_rdt_other = spawn();
+    vr_rdt_other.classname = "vr_rdt_other";
+    vr_rdt_other.vr_readytime = time + 30; // (another player just spawned)
+    vr_rdt_clip = VR_RDT_Clip();
+    localcmd("vr_mock_button main trigger 1\n");
+    vr_rdt_frames = 0;
+    vr_rdt_step = 1;
+};
+
+void() VR_ReadyTest_Frame =
+{
+    entity p = VR_Player();
+    vr_rdt_frames = vr_rdt_frames + 1;
+    if(vr_rdt_step == 1 && vr_rdt_frames >= 20)
+    {
+        localcmd("vr_mock_button main trigger 0\n");
+        VR_Test_Check(VR_RDT_Clip() < vr_rdt_clip, sprintf("another player's spawn doesn't hold him: he fired (magazine %g -> %g)",
+            vr_rdt_clip, VR_RDT_Clip()));
+        vr_rdt_step = 2;
+        vr_rdt_frames = 0;
+    }
+    else if(vr_rdt_step == 2 && vr_rdt_frames >= 40)
+    {
+        p.vr_readytime = time + 30; // (his own spawn)
+        VRGiveEntWeapon(p, cVR_MainHand, WID_SHOTGUN, 0, WeaponIdToBaseClipSize(WID_SHOTGUN)); // (loaded again)
+        vr_rdt_clip = VR_RDT_Clip();
+        VR_Test_Check(vr_rdt_clip > 0, sprintf("the shotgun is loaded again (%g)", vr_rdt_clip));
+        localcmd("vr_mock_button main trigger 1\n");
+        vr_rdt_step = 3;
+        vr_rdt_frames = 0;
+    }
+    else if(vr_rdt_step == 3 && vr_rdt_frames >= 20)
+    {
+        localcmd("vr_mock_button main trigger 0\n");
+        VR_Test_Check(VR_RDT_Clip() == vr_rdt_clip, sprintf("his own spawn holds him: he didn't fire (magazine %g -> %g)",
+            vr_rdt_clip, VR_RDT_Clip()));
+        p.vr_readytime = time;
+        remove(vr_rdt_other);
+        vr_rdt_step = 0;
+        VR_Test_Verdict();
+    }
+};
 #endif
