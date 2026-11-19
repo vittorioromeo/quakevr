@@ -378,7 +378,7 @@ void VR_Restart_f()
 }
 
 // vr_startgame's start, queued (Cbuf_InsertText): with VR enabled, the vrstart hub (tutorial, settings and the mission
-// packs' portals) as the old engine did, or the calibration room at a first start; otherwise the attract demos. A map or
+// packs' portals) as the old engine did, or the calibration room at a first start; otherwise (flat) the main menu. A map or
 // demo started from the command line runs instead of any.
 void startGameCommands()
 {
@@ -404,7 +404,12 @@ void startGameCommands()
         return;
     }
 
-    Cbuf_InsertText("startdemos demo1 demo2 demo3\n");
+    // No attract demos (the author's decision, 2026-11-19): flat goes straight to the main menu.
+    if(!sv.active && !cls.demoplayback && cls.state != ca_connected)
+    {
+        cls.demonum = -1; // not in a demo loop (CL_NextDemo after an explicit playdemo stays idle)
+        Cbuf_InsertText("menu_main\n");
+    }
 }
 
 // quake.rc's last command (startGameCommands), then the installer's first-start relight.
@@ -1731,6 +1736,13 @@ void statusLines(za::Vector<za::String>& out)
     const char* runtimeKind = !vr ? "" : mock ? "no runtime" : (strstr(rt, "SteamVR") ? "SteamVR" : (strstr(rt, "VirtualDesktop") || strstr(rt, "VDXR")) ? "VDXR" : "other runtime");
     q_snprintf(line, sizeof(line), "%s%s%s", !vr ? "Flat screen" : mock ? "Mock VR" : "VR", vr ? " - " : "", runtimeKind);
     out.pushBack(za::String{line});
+    // GL safe mode (vr_glsafe.cpp): a warning line (white on red), the graphics' optional features off this run; the reason
+    // in the console and gl_startup.log, Debug > Startup's Retry Full Renderer (vr_glsafe_retry) to leave it.
+    if(VR_GLSafeMode())
+    {
+        out.pushBack(za::String{"! GL safe mode: reduced graphics"});
+        out.pushBack(za::String{"! Debug > Startup: why, and retry"});
+    }
     if(vr && !mock)
     {
         q_snprintf(line, sizeof(line), "%s", rt);

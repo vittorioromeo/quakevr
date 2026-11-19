@@ -181,6 +181,7 @@ void nudgeWalkedRagdolls(float dt)
             int nudged = 0;
             for(int part = 0; part < r->count; part++)
             {
+                if(partCut(*r, part)) { continue; } // (its entry names the part it was cut from: that one's own turn)
                 const b3BodyId b = r->body[static_cast<za::SizeT>(part)];
                 const b3AABB box = b3Body_ComputeAABB(b);
                 const glm::vec3 a = world->toU(box.lowerBound), z = world->toU(box.upperBound);
@@ -225,6 +226,7 @@ void shoveBumped(float dt)
         float mb = 0.f;
         for(int k = 0; k < (rag ? rag->count : 1); k++)
         {
+            if(rag && partCut(*rag, k)) { continue; } // (a cut part's entry names the part it was cut from: counted once)
             mb += b3Body_GetMass(rag ? rag->body[static_cast<za::SizeT>(k)] : body);
         }
         mb = za::max(mb, 0.1f);
@@ -252,6 +254,7 @@ void shoveBumped(float dt)
         {
             for(int k = 0; k < rag->count; k++)
             {
+                if(partCut(*rag, k)) { continue; }
                 const b3BodyId part = rag->body[static_cast<za::SizeT>(k)];
                 b3Body_ApplyLinearImpulse(part, b3v(b.dir * (impulse * b3Body_GetMass(part) / mb)), b3Body_GetWorldCenter(part), true);
             }

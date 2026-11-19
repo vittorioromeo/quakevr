@@ -206,7 +206,7 @@ void VR_CrtHeapThreadTidy(void)
     struct timespec ts;
     timespec_get(&ts, TIME_UTC);
     const long long now = (long long)ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
-    if(now - qvrTidyLast < period)
+    if(now >= qvrTidyLast && now - qvrTidyLast < period) // (TIME_UTC: a clock stepped back tidies at once, not after the step)
     {
         return;
     }

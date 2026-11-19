@@ -369,7 +369,7 @@ bool OpenXrBackend::createInstance()
     bodytrack::xr::reset();
     uint32_t available = 0;
     // (The loader loads the runtime here first: its messages, and the runtime's, caught for the log on Linux.)
-    xrruntime::captureLoaderOutput();
+    xrruntime::captureLoaderOutput("xrEnumerateInstanceExtensionProperties");
     const XrResult enumerated = xrEnumerateInstanceExtensionProperties(nullptr, 0, &available, nullptr);
     xrruntime::endLoaderOutput("xrEnumerateInstanceExtensionProperties", false); // (xrCreateInstance's say it again)
     if(XR_FAILED(enumerated))
@@ -513,7 +513,7 @@ bool OpenXrBackend::createInstance()
     xrruntime::logLine(va("OpenXR: extensions enabled: %s\n", enabled.cStr()));
 
     step("xrCreateInstance (%s)", currentAttempt.label.cStr());
-    xrruntime::captureLoaderOutput();
+    xrruntime::captureLoaderOutput("xrCreateInstance");
     XrResult created = xrCreateInstance(&info, &instance);
     xrruntime::endLoaderOutput("xrCreateInstance", XR_FAILED(created));
     if(XR_FAILED(created) && (debugUtils || !layers.empty()))
@@ -546,7 +546,7 @@ bool OpenXrBackend::createInstance()
         info.enabledApiLayerCount = 0;
         info.enabledApiLayerNames = nullptr;
         info.next = nullptr;
-        xrruntime::captureLoaderOutput();
+        xrruntime::captureLoaderOutput("xrCreateInstance (again, without the API layers and the debug messenger)");
         created = xrCreateInstance(&info, &instance);
         xrruntime::endLoaderOutput("xrCreateInstance", XR_FAILED(created));
     }

@@ -212,16 +212,19 @@ struct Arm
 }
 
 // The shoulder: the preferred one, or the other while the near side is blocked and the other is clearer.
-void stepSide(const glm::vec3& eye, const glm::vec3& aim, float dt)
+// Returns the preferred side's sweep when it made one (allowedShare of armFor(aim, preferredSide())), -1 otherwise: the
+// view's own sweep when the camera is on that side (nearly always) takes it, not up to ten traces again.
+float stepSide(const glm::vec3& eye, const glm::vec3& aim, float dt)
 {
     const float pref = preferredSide();
+    float mine = -1.f;
     if(vr_flat_tp_auto_swap.value == 0.f || vr_flat_tp_right.value <= 0.f)
     {
         st.swapped = false;
     }
     else
     {
-        const float mine = allowedShare(eye, armFor(aim, pref));
+        mine = allowedShare(eye, armFor(aim, pref));
         if(!st.swapped)
         {
             st.swapped = mine < swapBelow && allowedShare(eye, armFor(aim, -pref)) > mine + swapBetter;
@@ -238,6 +241,7 @@ void stepSide(const glm::vec3& eye, const glm::vec3& aim, float dt)
     {
         st.side = target;
     }
+    return mine;
 }
 
 void reset()
@@ -741,9 +745,10 @@ void view(float* vieworg, const float* viewangles, float bob)
         st.side = preferredSide();
         st.share = 0.f; // (out from his eyes, eased: no pop as it comes on)
     }
-    stepSide(eye, aim, dt);
+    const float preferredShare = stepSide(eye, aim, dt);
     const Arm arm = armFor(aim, st.side);
-    const float allowed = allowedShare(eye, arm);
+    // (on the preferred side, its sweep already made: the same arm; mid-swap or swapped, its own)
+    const float allowed = preferredShare >= 0.f && st.side == preferredSide() ? preferredShare : allowedShare(eye, arm);
     st.allowed = allowed;
     const float tau = za::clamp(vr_flat_tp_ease_out.value, 0.f, 2.f);
     // In at once (never further out than the sweep allows: no frame shows the inside of a wall), out eased.

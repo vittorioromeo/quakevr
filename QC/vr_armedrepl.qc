@@ -999,6 +999,9 @@ void(float d) VR_AGR_GunAxe =
     }
     else if(onAxe && d > VR_AGR_GUN_FAR && rounds)
     {
+        // (a blow of the axe held back for your weapon near its way: dropped, as a swing cut short; nothing reads the
+        // axe's line once the gun is out: VR_AGP pose's VR_DRP_Frame while the axe is the first slot only)
+        VR_DRP_DropHeld(self, "its axe put away for its gun");
         VR_AG_Swap(self);
         self.vr_agr_switches = self.vr_agr_switches + 1;
         VR_AG_Log(sprintf("gun and axe: the gun (%.0f away)", d));

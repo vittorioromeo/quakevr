@@ -326,10 +326,13 @@ void PF_weapondrawnpose()
         // hand holds it away from its handle (view::gripFlipBlocked, ROUND25.md "flipgate"), 0 none>'.
         glm::vec3 forward{0.f}, up{0.f};
         float flip = 0.f;
-        const bool local = sv.active && cls.state == ca_connected;
+        // The listen server's own player only (edict 1: his hands as drawn here). Another's, or any on a dedicated server, the
+        // engine can't see: z 1, the flip allowed without the two-handed gate (QC VR_RevGrip_Flip still checks the weapon), x
+        // and y 0. (agent/mp reads every player's from his slot, heldpose::slotHand: the gate for all, when it merges.)
+        const bool local = sv.active && cls.state == ca_connected && NUM_FOR_EDICT(player) == 1;
         (void)(local && view::heldWeaponAxes(hand, forward, up, flip));
         // (z: 1 in flat play too, the flat holster menu's FLIP GRIP button's: view::heldGripFlippable)
-        const float flippable = !local || !view::heldGripFlippable(hand) ? 0.f : view::gripFlipBlocked(hand) ? -1.f : 1.f;
+        const float flippable = !local ? 1.f : !view::heldGripFlippable(hand) ? 0.f : view::gripFlipBlocked(hand) ? -1.f : 1.f;
         progs::returnVec({flip, local && view::heldMayReverse(hand) ? 1.f : 0.f, flippable});
         return;
     }
@@ -337,8 +340,10 @@ void PF_weapondrawnpose()
     {
         // weapondrawnpose(player, hand, 47): the flip grip (ROUND25.md "flipgrip"): how this listen server's own `hand` takes the
         // weapon its other hand carries off its handle now (QC VRTakeCarriedWeapon), as 43 (view::carriedGripChoice).
+        // Another player's (not the listen server's own, edict 1): the engine can't tell, '0 0 1' (QC keeps his grip), as 49/50.
         float cosine = 1.f;
-        const int choice = sv.active && cls.state == ca_connected ? view::carriedGripChoice(hand, cosine) : -1;
+        const bool local = sv.active && cls.state == ca_connected && NUM_FOR_EDICT(player) == 1;
+        const int choice = local ? view::carriedGripChoice(hand, cosine) : -1;
         progs::returnVec({choice > 0 ? 1.f : 0.f, choice >= 0 ? 1.f : 0.f, cosine});
         return;
     }
@@ -376,7 +381,7 @@ void PF_weapondrawnpose()
         // 51 its forward (from the wrist to the knuckles), 52 its up (the back of the hand); '0 0 0' not drawn. Tests: QC
         // vr_flipgrip_test.qc (the flip grip's helping hand, ROUND25.md "flipgrip2").
         glm::vec3 pos{0.f}, rot{0.f};
-        if(!(sv.active && cls.state == ca_connected && view::drawnHandPose(hand, pos, rot)))
+        if(!(sv.active && cls.state == ca_connected && NUM_FOR_EDICT(player) == 1 && view::drawnHandPose(hand, pos, rot)))
         {
             progs::returnVec(glm::vec3{0.f});
             return;

@@ -4094,3 +4094,16 @@ and MP-only parts left on their branches.
   runs came in both arms (on 6+3+9, off 3+10): the machine's, not the batching's. It helps where it applies and costs
   nothing elsewhere: on by default on the PC too (0: a batch each, as before). Review: when an instance's bone count disagreed, the batch copied the first instance's bones through a pointer a later
   VR_AliasBonePoses call may have reused: it copies the first's copy. The world-lit-skip split (ES) left behind.
+
+## No attract demos; the hand-off reports closed (branch agent/nodemos, 2026-11-19)
+
+- His decision: the attract demos never play (PC and Quest, VR and flat). `Host_Startdemos_f` (host_cmd.c) only
+  queues `menu_main` and leaves `cls.demonum` -1, whatever `cl_startdemos` says (the cvar stays registered so old
+  configs load; ignored); it covers id1's or a mod's quake.rc. Our quake.rc's `vr_startgame` (startGameCommands,
+  vr_main.cpp) no longer queues `startdemos` when flat: `menu_main`, `cls.demonum` -1. The menu's "Start Demos"
+  row is removed (menu.c). Ironwail has no menu-idle demo timer; `CL_NextDemo` (after a demo, Host_EndGame) stays
+  idle with `demonum` -1. `playdemo`, `timedemo` and the console's `demos` still work.
+- Check (flat, mock): `vr_enabled 0; vr_startgame; startdemos demo1 demo2 demo3`: "3 demo(s) in loop", no
+  "Playing demo"; then `timedemo demo1`: 1834 frames, 72.0 fps (fixed frames).
+- BACKLOG.md section 1: the tester's two hand-off reports closed (checked: the designed `vr_2h_handoff`, kept by his
+  decision, no hints; the toss not reproduced), a short "checked, by design" note in the header.

@@ -3971,15 +3971,12 @@ static void Host_Startdemos_f (void)
 
 	if (!sv.active && cls.demonum != -1 && !cls.demoplayback)
 	{
-		cls.demonum = 0;
+		/* QVR: the attract-mode demos never play (the author's decision, 2026-11-19: neither on PC nor Quest, VR or
+		   flat; cl_startdemos is ignored): startdemos (quake.rc, a mod's quake.rc) goes straight to the menu. An
+		   explicit playdemo, timedemo or demos still plays. */
 		Cbuf_InsertText ("menu_main\n");
-		if (!cl_startdemos.value)
-		{  /* QuakeSpasm customization: */
-			/* go straight to menu, no CL_NextDemo */
-			cls.demonum = -1;
-			return;
-		}
-		CL_NextDemo ();
+		cls.demonum = -1;
+		return;
 	}
 	else
 	{

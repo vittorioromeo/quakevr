@@ -30,6 +30,9 @@
 #include <cstdarg>
 #include <cstdio>
 #include <cstring>
+#ifndef _WIN32
+#include <unistd.h> // (write: the watchdog's line to the terminal while the loader's output is caught)
+#endif
 
 namespace qvr::startlog
 {
@@ -256,15 +259,7 @@ void summarize(const char* what, double ms, const char* work)
     {
         slow.pushBack(&trace.done[i]);
     }
-    for(size_t i = 1; i < slow.size(); i++) // (insertion sort: a few hundred at most)
-    {
-        for(size_t j = i; j > 0 && slow[j]->ms > slow[j - 1]->ms; j--)
-        {
-            const DoneStep* t = slow[j];
-            slow[j] = slow[j - 1];
-            slow[j - 1] = t;
-        }
-    }
+    za::insertionSort(slow.begin(), slow.end(), [](const DoneStep* a, const DoneStep* b) { return a->ms > b->ms; }); // (a few hundred at most)
     za::String line = va("summary: %s %.0f ms; slowest:", what, ms);
     for(size_t i = 0; i < slow.size() && i < 6; i++)
     {
@@ -335,7 +330,17 @@ void watchdog()
             now - since);
         if(!shared.quiet.load(std::memory_order_relaxed))
         {
-            Sys_Printf("%s", line); // (logcat on Android: VR_AndroidLog is thread-safe; the run's log is locked)
+#ifndef _WIN32
+            // (the OpenXR loader's output caught: the terminal's own stdout, or a hang there says nothing; VR_TerminalFd)
+            if(const int fd = VR_TerminalFd(1); fd >= 0)
+            {
+                (void)!write(fd, line, strlen(line));
+            }
+            else
+#endif
+            {
+                Sys_Printf("%s", line); // (logcat on Android: VR_AndroidLog is thread-safe; the run's log is locked)
+            }
         }
         if(FILE* f = shared.file.load(std::memory_order_acquire))
         {

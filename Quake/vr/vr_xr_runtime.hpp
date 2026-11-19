@@ -95,9 +95,13 @@ void loaderDebug();
 // Linux: the OpenXR loader's (and the runtime's) stdout and stderr while it loads a runtime (xrEnumerate...,
 // xrCreateInstance), caught and written to the start's log as "OpenXR loader output (<call>): ..." lines; a failed
 // call's error lines to the console too. The loader writes its errors to stderr only (and with XR_LOADER_DEBUG all its
-// messages to stdout), which a player's log never had. (Windows: nothing.)
-void captureLoaderOutput();
+// messages to stdout), which a player's log never had. (Windows: nothing.) Caught in <game folder>/qvr_openxr_loader.txt
+// (loaderOutputPath; its first line names `call`), rewritten each call and kept: a crash or a hang inside the call (the
+// game killed) leaves what was caught so far, which the run's incident copies, a bug report and diagnostics mode take
+// (vr_runlogs.cpp, sources). Meanwhile the terminal's own stdout and stderr: VR_TerminalFd.
+void captureLoaderOutput(const char* call);
 void endLoaderOutput(const char* call, bool failed);
+const char* loaderOutputPath();
 
 // xrCreateInstance failed with XR_ERROR_RUNTIME_UNAVAILABLE: what to try, for the attempt's runtime (SteamVR on Linux:
 // start it first, the Flatpak's /dev/shm, the logs to read, the other runtimes).

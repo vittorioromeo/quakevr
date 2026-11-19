@@ -102,6 +102,10 @@ endif()
 
 file(GLOB_RECURSE QVR_QC_SRC CONFIGURE_DEPENDS "${QVR_ROOT}/QC/*.qc" "${QVR_ROOT}/QC/*.qh")
 list(APPEND QVR_QC_SRC "${QVR_ROOT}/QC/progs.src" "${QVR_ROOT}/QC/build.sh" "${QVR_ROOT}/QC/fteqcc.ini")
+# The engine's headers the QC includes (#include "../Quake/vr/..."): the weapon ids and the *_shared.h tables. A change to
+# one compiles the QC again, or the engine and progs.dat disagree (a weapon's id, a material's number).
+file(GLOB QVR_QC_SHARED CONFIGURE_DEPENDS "${QVR_ROOT}/Quake/vr/*_shared.h")
+list(APPEND QVR_QC_SRC ${QVR_QC_SHARED} "${QVR_ROOT}/Quake/vr/vr_weapon_ids.h")
 set(QVR_PROGS "${QVR_ROOT}/quakevr/progs.dat")
 set(QVR_QC_LOG "${CMAKE_BINARY_DIR}/qc-build.log")
 add_custom_command(OUTPUT "${QVR_PROGS}"

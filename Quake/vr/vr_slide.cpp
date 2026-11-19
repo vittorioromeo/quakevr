@@ -138,7 +138,7 @@ int slideMove(edict_t* ent, Slide& s, double now, int onground, const float* wis
     if(!s.on)
     {
         const float least = za::clamp(vr_flat_slide_min.value, 0.f, 400.f);
-        if(!ground || (!pressed && !landed) || speed < least || now < s.cooldownUntil)
+        if(!ground || (!pressed && !landed) || speed < za::max(least, 1.f) || now < s.cooldownUntil) // (>= 1: the boost divides by it)
         {
             return 0;
         }
@@ -599,6 +599,11 @@ void vrTest_f()
 Slide& state(int num)
 {
     return server.slide[num >= 0 && num < slots ? num : 0];
+}
+
+void resetServer()
+{
+    server = ServerState{};
 }
 
 int clientSlot(const edict_t* ent)
