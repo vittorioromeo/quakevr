@@ -1495,6 +1495,16 @@ quits at once, exit code 0; with `vr_xr_exit_quits 0` it plays flat), `restart` 
 console wraps lines past about 120 columns (the hidden window is 960 wide), so a long line, or one holding the
 worktree's path, can split (part 2c's relative `library_path` check reads `qvr_openxr.txt` for the same reason).
 
+fakexr on Linux (2026-11-19): `build.sh <worktree>` builds `fakexr_<copy>.so` with the C++ compiler (the OpenXR
+headers, libGL) and the same manifests; the game binds it with GLX (`SDL_VIDEODRIVER=x11 SDL_VIDEO_X11_FORCE_EGL=0`:
+the fake offers no `XR_MNDX_egl_enable`), loaded through `XR_RUNTIME_JSON`. `FAKEXR_D3D11` and the `FAULT_*` crashes
+stay Windows' (the game's `vr_xr_guard` is Windows-only). `bash Misc/quakevr/xr_session_test.sh [sections]` (Linux,
+the game run directly and hidden; 24 checks, about 4 minutes on an integrated GPU) tests the session's faults:
+1. `FAKEXR_LOST=n:call:code` (from `xrWaitFrame` n, `poll`/`wait`/`begin`/`end` returns `session` or `instance` lost,
+   no event): flat, said why with the call named, taken at the first answer; menus and a map's eye frames.
+2. `FAKEXR_END=60:restart` with `FAKEXR_IDLE_MS=1500` (READY 1.5 s after IDLE): the frames with no session running at
+   about 90 a second with `host_maxfps 1000`.
+
 Menu gestures (`vr_menu_button`, round 22 "Menu on any controller"), with `vr_debug_buttons 1` (each prints `VR
 buttons: <hand>'s <gesture>: opens the menu` / `closes the menu`): `vr_mock_button off stickclick 1;wait2;vr_mock_button
 main stickclick 1` (both sticks, the second click taken), `vr_mock_button off secondary 1;wait150` with

@@ -335,6 +335,7 @@ void OpenXrBackend::resetRuntimeState()
     stateTrailCount = 0;
     stateTrailText[0] = '\0';
     endReason = SessionEnd::Lost;
+    lostByResult = false;
     visibilityMaskExtension = false;
     eyeGazeOffered = false;
     eyeGazeExtension = false;
@@ -924,7 +925,8 @@ bool OpenXrBackend::pollEvents()
     }
     checkControllers();
     XrEventDataBuffer event{XR_TYPE_EVENT_DATA_BUFFER};
-    while(xrPollEvent(instance, &event) == XR_SUCCESS)
+    XrResult polled = XR_SUCCESS;
+    while((polled = xrPollEvent(instance, &event)) == XR_SUCCESS)
     {
         switch(event.type)
         {
@@ -1000,7 +1002,7 @@ bool OpenXrBackend::pollEvents()
         event = XrEventDataBuffer{XR_TYPE_EVENT_DATA_BUFFER};
     }
 
-    return true;
+    return !lostBy(polled, "xrPollEvent"); // (any other failure: no events this frame)
 }
 
 } // namespace qvr::oxr

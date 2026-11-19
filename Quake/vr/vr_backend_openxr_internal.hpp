@@ -388,6 +388,18 @@ private:
     // After xrWaitFrame: the frame period, the display periods missed, and once a second the log's line.
     void noteWaited();
 
+    // XR_ERROR_SESSION_LOST or XR_ERROR_INSTANCE_LOST from xrPollEvent, xrWaitFrame, xrBeginFrame or xrEndFrame: the
+    // headset or the runtime gone without its loss event first (a crashed compositor). True for those codes: the
+    // session ends as for the events (beginFrame false, endReason Lost: flat); said once, in the log and the states.
+    bool lostBy(XrResult result, const char* call);
+    bool lostByResult{false}; // (xrEndFrame's ends the session at the next beginFrame)
+
+    // A frame the runtime did not pace (no xrWaitFrame: the session IDLE, between STOPPING and READY, a failed wait):
+    // held to about a display period after the last such frame, as xrWaitFrame holds one, so the loop does not spin
+    // with the swap interval 0 (at host_maxfps, or unbounded with host_maxfps 0).
+    void paceUnwaited();
+    double unwaitedLast{0.0}; // when the last such frame went on (Sys_DoubleTime)
+
     // The local time, for the log (hh:mm:ss.mmm).
     [[nodiscard]] static const char* wallClock();
 
