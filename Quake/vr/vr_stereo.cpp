@@ -152,6 +152,12 @@ void ensureSceneTargets(SceneTargets& t, int width, int height, float fsaa)
         framebufs = t.fb;
         GL_DeleteFrameBuffers();
     }
+    else
+    {
+        // A set's first making: from nothing, as after GL_DeleteFrameBuffers (which zeroes it). GL_CreateFrameBuffers
+        // leaves oit.fbo_composite alone with MSAA, so the set would keep the current set's and delete it with its own.
+        framebufs = glframebufs_t{};
+    }
 
     vid.width = width;
     vid.height = height;

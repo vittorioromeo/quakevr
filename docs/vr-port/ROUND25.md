@@ -4111,3 +4111,15 @@ and MP-only parts left on their branches.
   silently (ES has none; quest uses queryLod()). One helper, sharpLod(), on the line quest changed: the merge stops
   there. Merging quest now conflicts in gl_shaders.c (GL_DeferredCheck: keep quest's GL_DeferredCheckOne and add the
   storage-block limits to its link message) and vr_gfx_gl.cpp (sharpLod: quest's queryLod()).
+## No attract demos; the hand-off reports closed (branch agent/nodemos, 2026-11-19)
+
+- His decision: the attract demos never play (PC and Quest, VR and flat). `Host_Startdemos_f` (host_cmd.c) only
+  queues `menu_main` and leaves `cls.demonum` -1, whatever `cl_startdemos` says (the cvar stays registered so old
+  configs load; ignored); it covers id1's or a mod's quake.rc. Our quake.rc's `vr_startgame` (startGameCommands,
+  vr_main.cpp) no longer queues `startdemos` when flat: `menu_main`, `cls.demonum` -1. The menu's "Start Demos"
+  row is removed (menu.c). Ironwail has no menu-idle demo timer; `CL_NextDemo` (after a demo, Host_EndGame) stays
+  idle with `demonum` -1. `playdemo`, `timedemo` and the console's `demos` still work.
+- Check (flat, mock): `vr_enabled 0; vr_startgame; startdemos demo1 demo2 demo3`: "3 demo(s) in loop", no
+  "Playing demo"; then `timedemo demo1`: 1834 frames, 72.0 fps (fixed frames).
+- BACKLOG.md section 1: the tester's two hand-off reports closed (checked: the designed `vr_2h_handoff`, kept by his
+  decision, no hints; the toss not reproduced), a short "checked, by design" note in the header.

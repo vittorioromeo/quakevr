@@ -4219,7 +4219,6 @@ void M_Menu_Gamepad_f (void)
 		item (OPT_CONALPHA,				"Console Alpha")				\
 		item (OPT_CONBRIGHTNESS,		"Darken Console")				\
 		item (OPT_CONFIRMQUIT,			"Quit Prompt")					\
-		item (OPT_STARTDEMOS,			"Start Demos")					\
 	end_menu ()															\
 	begin_menu (GAMEPAD_OPTIONS, m_gamepad, TITLE("Controller"))		\
 		item (GPAD_OPT_DEVICE,			"Device")						\
@@ -4848,10 +4847,6 @@ void M_AdjustSliders (int dir)
 		M_CycleCvar (&cl_confirmquit, 0, 2, dir);
 		break;
 
-	case OPT_STARTDEMOS:
-		Cbuf_AddText ("toggle cl_startdemos\n");
-		break;
-
 	//
 	// Video options
 	//
@@ -5356,10 +5351,6 @@ static void M_Options_DrawItem (int y, int item)
 		else
 			str = "Simple";
 		M_Print (x, y, str);
-		break;
-
-	case OPT_STARTDEMOS:
-		M_DrawCheckbox (x, y, cl_startdemos.value);
 		break;
 
 	case OPT_LANGUAGE:

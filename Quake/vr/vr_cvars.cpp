@@ -946,6 +946,12 @@ void default_f()
         Con_Printf("vr_default: no cvar \"%s\"\n", Cmd_Argv(1));
         return;
     }
+    if(!(var->flags & CVAR_REGISTERED))
+    {
+        // A data table's stand-in (VR_CvarStandIn): its default is its table's own string, not a zone block to free.
+        Con_Printf("vr_default: \"%s\" is a data table's value (its default is in quakevr/data)\n", var->name);
+        return;
+    }
     if(ZA_STRNCMP(var->name, "vr_", 3) != 0)
     {
         // The engine's own default, for vr_savedefaults (vr_ cvars have compiledDefaults).

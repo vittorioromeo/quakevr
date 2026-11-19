@@ -2371,6 +2371,10 @@ void() ClientDisconnect =
     // MG1 Horde (official client.qc): a leaving player no longer counts as alive for waves, targets or revival.
     if(MGH_Active()) self.health = 0;
 
+    // What he carried is let go (as a dead player's, PlayerPostThink): no frame of his runs again to do it, and a thing
+    // left with its carry_player set hung in the air, taken by nobody (a key so held ended the level for the others).
+    VR_Carry_Dead();
+
     // let everyone else know
     bprint(self.netname);
     bprint(" left the game with ");
