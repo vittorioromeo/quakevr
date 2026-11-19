@@ -188,12 +188,17 @@ float lit(vec2 at, float lod)
 {
     return litOf(textureLod(Tex, at, lod).rgb);
 }
+// The level phosphor() reads at (screen()'s three reads too): its own texels, sharp, however small it is in the eye (as
+// without mipmaps); only where they would be much finer than the eye's pixels (a map's board across a room) a level a
+// step sharper than the usual, so that far text does not shimmer. (One place for the level: the Quest's OpenGL ES has
+// no textureQueryLod, agent/quest's queryLod().)
+float sharpLod()
+{
+    return max(textureQueryLod(Tex, uv).y - 1.0, 0.0);
+}
 float phosphor(vec2 at)
 {
-    // Its own texels, sharp, however small it is in the eye (as without mipmaps); only where they
-    // would be much finer than the eye's pixels (a map's board across a room) a level a step sharper
-    // than the usual, so that far text does not shimmer.
-    return lit(at, max(textureQueryLod(Tex, uv).y - 1.0, 0.0));
+    return lit(at, sharpLod());
 }
 // glow()'s and glowColor()'s rings: n taps `radius` pixels of the virtual screen round `at`, `step` radians apart from
 // `start`, at level lod; the taps' lit() (luminance: each component) or their colours summed. (luminance is each
@@ -283,10 +288,10 @@ vec4 screen()
     float split = (0.144 * k + 1.44 * g) / Size.x;
     // The three reads once (phosphor's and texel's level, the same places): the phosphor's brightness and the true
     // colours both from them
-    float sharpLod = max(textureQueryLod(Tex, uv).y - 1.0, 0.0);
-    vec3 cl = textureLod(Tex, at - vec2(split, 0.0), sharpLod).rgb;
-    vec3 c = textureLod(Tex, at, sharpLod).rgb;
-    vec3 cr = textureLod(Tex, at + vec2(split, 0.0), sharpLod).rgb;
+    float slod = sharpLod();
+    vec3 cl = textureLod(Tex, at - vec2(split, 0.0), slod).rgb;
+    vec3 c = textureLod(Tex, at, slod).rgb;
+    vec3 cr = textureLod(Tex, at + vec2(split, 0.0), slod).rgb;
     float lum = litOf(c);
     vec3 rgb = color.rgb * vec3(litOf(cl), lum, litOf(cr));
     float s = Params.w;
