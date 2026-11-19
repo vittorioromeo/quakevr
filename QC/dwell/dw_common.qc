@@ -244,12 +244,38 @@ float(entity targ, entity attacker, float damage, float isVRMelee) DW_DamageScal
     return damage;
 };
 
-// PositionalHead: Dwell's monsters' head zones (forward, up, radius from their models' stand frames; first pass, P2b
-// fits them with headfit.py). FALSE: none (the Construct is a machine; the Sculptor a crystal).
-float(entity e) DW_PositionalHead =
+// Self's VR registration (DWELL.md P2b; S7: the monster row AD's monsters use, vr_ad_mondefs.qc, VR_ADM_OURS: our own
+// monster code runs it): its head zone (PositionalHead: head shots, melee head hits, beheading), its head gib, its
+// corpse, its knockdown (a death played backwards; the rig: vr_ragdoll.cpp's mon_brute seeds), melee (parries) and
+// armour. Head zones: Misc/quakevr/ragdoll/headfit.py on the stand frames (RIG_MDL=<Dwell>/progs/<model>.mdl).
+void() DW_MonsterRow =
 {
-    if(e.dw_mon == DW_MON_KAMIKAZE) { xHeadForward = 4;  xHeadUp = 17; xHeadRadius = 7;  return TRUE; }
-    if(e.dw_mon == DW_MON_BRUTE)    { xHeadForward = 10; xHeadUp = 52; xHeadRadius = 11; return TRUE; }
-    if(e.dw_mon == DW_MON_D1BOSS)   { xHeadForward = 12; xHeadUp = 70; xHeadRadius = 18; return TRUE; }
-    return FALSE;
+    float m = self.dw_mon;
+    // The Kamikaze (e1/mon_kami.mdl: no death frames, it bursts): headfit.py mon_kami 16 -100 8 (-0.3 0.4 18.7, 5.9).
+    // No rig, no corpse, never beheaded (it bursts first).
+    if(m == DW_MON_KAMIKAZE)
+    {
+        VR_AD_Mon(VR_ADM_OURS | VR_ADM_NOHEAD, 0, 19, 6, 0);
+    }
+    // The Brute (e2/mon_brute.mdl: deaths 199-211, 221-233): headfit.py mon_brute 53 -7 9 (4.9 -0.2 61.4, 10.2; its
+    // rig's head 6.1 -0.3 60.9). Its head gib Dwell's h_brute; tuned as the shambler (its size: corpse, knockdown
+    // chance; the engine's ragdoll settings by vr_ad_monsters.cpp's alias). Its punch is parried.
+    else if(m == DW_MON_BRUTE)
+    {
+        VR_AD_MonKd(VR_ADM_OURS | VR_ADM_MELEE, 5, 61, 10, cvarh_vr_corpse_health_shambler,
+                    cvarh_vr_knockdown_chance_shambler, 211, 199, 233, 221);
+        self.ad_headmdl = "progs/e2/h_brute.mdl";
+    }
+    // The Construct (e2/mon_excavator.mdl): a machine of crystal and stone, no head (decided: no zone; it breaks into
+    // its four pieces at death, no rig); blunt blows sound on armour.
+    else if(m == DW_MON_CONSTRUCT)
+    {
+        VR_AD_Mon(VR_ADM_OURS | VR_ADM_ARMOUR, 0, 0, 0, 0);
+    }
+    // The Awoken (mon_d1boss.mdl, 248 units tall; its death sinks away, no rig): headfit.py mon_d1boss 110 -100 20 (0
+    // -0.5 125, 15.8); a boss: never beheaded, no knockdown, no corpse (as our bosses).
+    else if(m == DW_MON_D1BOSS)
+    {
+        VR_AD_Mon(VR_ADM_OURS | VR_ADM_NOHEAD, 0, 125, 16, 0);
+    }
 };

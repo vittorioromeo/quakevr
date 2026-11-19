@@ -98,6 +98,7 @@ void() dw_monster_kamikaze =
     self.movetype = MOVETYPE_STEP;
     setmodel(self, "progs/e1/mon_kami.mdl");
     setsize(self, '-16 -16 -24', '16 16 24');
+    DW_MonsterRow();
     walkmonster_start();
 };
 
@@ -261,6 +262,7 @@ void() dw_monster_brute =
     self.movetype = MOVETYPE_STEP;
     setmodel(self, "progs/e2/mon_brute.mdl");
     setsize(self, '-32 -32 -24', '32 32 64');
+    DW_MonsterRow();
     walkmonster_start();
 };
 
@@ -383,5 +385,6 @@ void() dw_monster_excavator =
     self.movetype = MOVETYPE_STEP;
     setmodel(self, "progs/e2/mon_excavator.mdl");
     setsize(self, '-32 -32 -16', '32 32 72');
+    DW_MonsterRow();
     flymonster_start();
 };

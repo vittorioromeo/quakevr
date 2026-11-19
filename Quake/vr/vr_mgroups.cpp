@@ -56,6 +56,7 @@ constexpr Member memberTable[] = {
     // Elite Knights: the death fury, the death sergeant and the death lord (400 health each).
     {"monster_dprince", minibossGroup}, {"monster_minotaur", minibossGroup}, {"monster_golem", minibossGroup},
     {"monster_drole", minibossGroup}, {"monster_justice", minibossGroup}, {"monster_baron", minibossGroup},
+    {"monster_brute", minibossGroup}, // (Dwell's Brute: a big walker, its rig a humanoid's; DWELL.md P2b)
     {"monster_dfury", eliteknightGroup}, {"monster_dsergeant", eliteknightGroup}, {"monster_death_lord", eliteknightGroup},
     // Ogres: id's, Scourge of Armagon's marksman, Dawn of the Machine's rocket ogre; AD's flak ogre, hunter ogres (cleaver,
     // mace, hammer), the fishing ones (scenery), Freddie (Quoth's Edie).
@@ -83,9 +84,11 @@ constexpr Member memberTable[] = {
     {"monster_wizard", wizardGroup}, {"monster_nourminion", wizardGroup}, {"monster_gargoyle", wizardGroup},
     {"monster_minotaurminion", wizardGroup}, {"monster_gaunt", wizardGroup}, {"monster_judgeminion", wizardGroup},
     {"monster_polyp", wizardGroup},
+    {"monster_excavator", wizardGroup}, // (Dwell's Construct, a flyer; DWELL.md P2b)
     {"monster_shalrath", shalrathGroup},
     // Spawns: id's, Dawn of the Machine's slime; AD's boil.
     {"monster_tarbaby", tarbabyGroup}, {"monster_slime", tarbabyGroup}, {"monster_boil", tarbabyGroup},
+    {"monster_kamikaze", tarbabyGroup}, // (Dwell's Kamikaze: it bursts on contact, as a spawn; DWELL.md P2b)
     // Rotfish (id's, AD's), eels (Dissolution of Eternity's, AD's).
     {"monster_fish", fishGroup}, {"monster_eel", fishGroup},
     // Floating and flying: Dissolution of Eternity's wrath, overlord and sword; Scourge of Armagon's spike mine; Dawn of

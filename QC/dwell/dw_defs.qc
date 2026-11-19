@@ -37,4 +37,7 @@ float(float xHand, float* xOutAttackFinished) DW_FireVariant;                   
 void() DW_PowerupFrame;                                                           // CheckPowerups
 float(entity p) DW_PackWeaponVariants;                                            // SetChangeParms: parm76
 void(entity p, float xPacked) DW_UnpackWeaponVariants;                            // DecodeLevelParms
-float(entity e) DW_PositionalHead;                                                // PositionalHead
+void() dw_monster_kamikaze; // the debug spawner's 70..73 (buttons.qc VR_EnemyDispenser_Spawn; DWELL.md P2b)
+void() dw_monster_brute;
+void() dw_monster_excavator;
+void() dw_monster_d1boss;

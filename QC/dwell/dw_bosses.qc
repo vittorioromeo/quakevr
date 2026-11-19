@@ -208,7 +208,8 @@ void() dw_monster_d1boss =
     self.solid = SOLID_SLIDEBOX;
     self.movetype = MOVETYPE_STEP;
     setmodel(self, "progs/mon_d1boss.mdl");
-    setsize(self, '-32 -32 -96', '32 32 96');
+    setsize(self, '-32 -32 -96', '32 32 140'); // (P2b: up to its head, 125 up: shots at it hit the box)
+    DW_MonsterRow();
     flymonster_start();
 };
 

@@ -4266,3 +4266,15 @@ the Wetsuit: text with seconds on the wrist gadget's item row and the flat visor
 Crystal Lance's beam message lacked its disambiguator byte (Host_Error "Received signon 0" at its first shot). Test:
 `Misc/quakevr/dwell_weapons_test.sh` (vr_ad_test 201-203). Left: Dwell's view models as VR models (recipes), tints,
 the wheel's variant name, variants through armed grunts.
+## Dwell P2b: Dwell's monsters VR-native (dwell2b, 2026-11-19)
+
+DWELL.md 9.4. S7 measured: AD's monster row is the shared one (`VR_ADM_OURS`: a row run by our own monster code;
+`VR_AD_Code` gates the 7 dispatches into AD's code); Dwell's monsters are rows (`DW_MonsterRow`), the Dwell head hook in
+`weapons.qc` gone. The Brute rigged (`dwBruteSeeds`; `rig.py` and `headfit.py` read loose models by `RIG_MDL`):
+knockdowns, beheading, limbs, corpse, parried punch. Head zones fitted (Kamikaze, Brute, the Awoken, whose box now
+reaches its head); the Construct has none (decided). Grab masses, stealth senses, monster groups for all four; Dwell's
+bosses keep Quake's AI. Debug spawner 70-73. Test: `dwell_monsters_test.sh` (verdict `dwell_monsters_test: N passed, M
+failed`): 11/0.
+For his headset: knock a Brute down (shove, bash) and watch it get up; behead it with a sword; cut its arms; parry its
+punch; grab and throw a Kamikaze; head shots on the Awoken.
+Left: Dwell's bullet-hell programs restored, the Sculptor's motion, the Awoken's scale reviewed in VR.
