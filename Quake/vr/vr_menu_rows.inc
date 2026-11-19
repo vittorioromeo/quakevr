@@ -2478,6 +2478,11 @@ QVR_SLIDER_BYNAME(cl_forwardspeed, "Movement Speed", 100.f, 400.f, 25.f, "%.0f",
     "Walking speed (running is this times the running multiplier).")
 QVR_CYCLE_BYNAME(cl_alwaysrun, "Default Speed", "The speed button switches to the other.",
     {1.f, "Run"}, {0.f, "Walk"})
+QVR_CYCLE(vr_sprint_toggle, "Speed Button",
+    "Hold: hold the speed button (the left stick's click as shipped, Shift) to run, or to walk with Default "
+    "Speed: Run. Toggle: click it to switch, click again to switch back; it switches back by itself when you "
+    "stop, die, change level or open the menu (vr_sprint_toggle).",
+    {0.f, "Hold"}, {1.f, "Toggle"})
 QVR_SLIDER_BYNAME(cl_movespeedkey, "Running Mult.", 1.f, 3.f, 0.05f, "%.2f", ext(), "How much faster running is than walking.")
 QVR_TOGGLE(vr_crouch_speed, "Slower When Crouched",
     "Crouched for real (your eyes a little under standing), the stick moves you at most Crouched Speed times "

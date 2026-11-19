@@ -26,6 +26,10 @@ that ships in 1.1.1.
   ends, on top of your own head's movement; your drawn body takes exactly the desktop screen's slide pose, its legs out
   on the floor. VR Settings > Locomotion: Slide View (`vr_slide_camera`, on; off keeps the view at your real head) and
   Slide View Time (`vr_slide_camera_time`, 0.15 s). The comfort vignette counts the view's move as movement.
+- **Sprint by clicking the stick.** VR Settings > Locomotion and Controls > Speed Button (`vr_sprint_toggle`): Toggle
+  makes a click of the speed button (the left stick's click as shipped, or Shift) switch between walking and running
+  instead of holding it. The switch ends by itself, back to your Default Speed, when you stop moving for a moment, die,
+  change level or open the menu. Hold (the default) is as before.
 
 ## Menus
 
