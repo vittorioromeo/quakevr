@@ -13,6 +13,7 @@ solution): `build/qvr_checks/qvr_checks.exe`. `Windows/VisualStudio/ironwail.vcx
 ```
 qvr_checks [--tree DIR] [--fteqcc PATH] <check> [arguments]      (--tree: the repository, default the current folder)
   statics [files or folders]     no function-local static/thread_local in Quake/vr that is not constexpr
+  seat_state [--accept|--tighten] no new mutable file-scope state in client-side code (splitscreen: docs/vr-port/SPLITSCREEN.md)
   test_numbers [--list]          the numbered tests' dispatchers against QC/test_numbers.txt
   builtins                       the QC's `= #0` builtins against the engine's tables
   cvars_qc [--check]             writes QC/vr_cvars_gen.qc from the QC's cvarh_ uses (--check: stale or unknown fails)

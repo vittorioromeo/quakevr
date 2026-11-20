@@ -16,10 +16,24 @@
 // A line that must stay ends with the comment `// statics-ok: <why>`.
 //
 // Usage: qvr_checks statics [files or folders...]   (default: Quake/vr; exit 1 and the sites when any is found)
+//
+// seat_state (the same scanner; docs/vr-port/SPLITSCREEN.md, "The seat_state check"): fails on a new mutable
+// file-scope variable in client-side code (Quake/vr and the engine's own Quake/*.c, *.h, *.cpp; vendored code left
+// out). Splitscreen moves a player's state into his seat (vr_seat.hpp), so a new file-scope variable is either a seat's
+// (a member of a seat struct) or shared by every seat and says so: its declaration's line, or the line above it,
+// holds `seat-shared: <why>`. Today's are listed in Misc/quakevr/seat_state_allowlist.txt (`path|name`), shrinking as
+// each phase moves a group into the seat. Mutable: not constexpr, not const (a pointer: const after its last `*`);
+// cvars (`cvar_t`, the QVR_CVAR tables) are left out (preferences: the per-seat profiles' phase), as are functions,
+// declarations (extern, typedef, using, template) and class members.
+//
+// Usage: qvr_checks seat_state [--accept | --tighten]   (--accept adds every unlisted unmarked one to the allowlist:
+// its first writing, and after a merge brings other branches' new state, each one judged; --tighten drops entries
+// that are gone; a plain run says how many are gone)
 #include "common.hpp"
 
 #include <algorithm>
 #include <array>
+#include <set>
 
 namespace qvrc
 {
@@ -350,7 +364,127 @@ struct Found
     std::string text;
 };
 
-std::vector<Found> scan(const fs::path& path)
+// A file-scope variable's declaration: its tokens (after a class body: the class's head, then the declarators).
+struct FileScopeDecl
+{
+    std::vector<std::string_view> toks;
+    int firstLine = 0;
+    int nameLine = 0;
+    bool marked = false;            // `seat-shared: <why>` on it
+    std::vector<std::string> names; // the mutable variables it defines (mutableNames)
+};
+
+struct Scan
+{
+    std::vector<Found> statics;          // function-local static/thread_local, not constexpr
+    std::vector<FileScopeDecl> fileScope; // every namespace-scope statement ending in `;` (judged by mutableNames)
+};
+
+bool isIdent(std::string_view t)
+{
+    return !t.empty() && (isWord(t[0]) && !isDigit(t[0]));
+}
+
+constexpr std::array<std::string_view, 12> notVariables = {"typedef", "using", "template", "friend", "static_assert",
+                                                           "namespace", "extern", "return", "operator", "export",
+                                                           "import", "module"};
+
+// The names a namespace-scope statement defines as mutable variables (none for a function, a declaration, a constant,
+// a cvar).
+std::vector<std::string_view> mutableNames(const std::vector<std::string_view>& t)
+{
+    std::vector<std::string_view> names;
+    if(t.empty() || !isIdent(t[0]) || oneOf(t[0], notVariables) || contains(t, "operator") || contains(t, "cvar_t"))
+    {
+        return names;
+    }
+    if(oneOf(t[0], classKeys) && (t.size() <= 2 || contains(t, ":")) && !contains(t, "@body"))
+    {
+        return names; // a forward declaration: `struct X;`, `enum class E : int;`
+    }
+    // The declarators: split at depth-0 commas; a declarator's name is the last identifier before its `=`, `[` or `{`.
+    // Templates' `<...>` count as depth only before the first `=` (after it, `<` is a comparison).
+    int depth = 0;
+    bool init = false;
+    bool named = false;
+    bool sawConst = false;
+    bool constAfterStar = false;
+    bool sawStar = false;
+    std::string_view last;
+    size_t declarator = 0;
+    for(size_t k = 0; k < t.size(); ++k)
+    {
+        const auto x = t[k];
+        const bool open = x == "(" || x == "[" || x == "{" || (!init && x == "<");
+        const bool close = x == ")" || x == "]" || x == "}" || (!init && x == ">");
+        if(depth == 0 && !init && !named)
+        {
+            if(x == "(")
+            {
+                return {}; // a function (or a macro's call: QVR_CVAR(...), a direct-initialised variable: rare)
+            }
+            if(x == "=" || x == "[" || x == "{")
+            {
+                if(isIdent(last))
+                {
+                    names.push_back(last);
+                }
+                named = true;
+                init = x == "=";
+            }
+            else if(x == "constexpr")
+            {
+                return {};
+            }
+            else if(declarator == 0 && x == "const")
+            {
+                sawConst = true;
+                constAfterStar = sawStar;
+            }
+            else if(declarator == 0 && x == "*")
+            {
+                sawStar = true;
+                constAfterStar = false;
+            }
+            else
+            {
+                last = x;
+            }
+        }
+        else if(depth == 0 && x == "=")
+        {
+            init = true;
+        }
+        if(depth == 0 && x == ",")
+        {
+            if(!named && isIdent(last))
+            {
+                names.push_back(last);
+            }
+            ++declarator;
+            named = false;
+            init = false;
+            last = {};
+            continue;
+        }
+        depth += open ? 1 : close ? -1 : 0;
+        depth = depth < 0 ? 0 : depth;
+    }
+    if(!named && isIdent(last) && last != t[0])
+    {
+        names.push_back(last); // `int x;`, `struct X {...} x;` (not `QVR_MACRO;` alone, nor `struct X {...};`)
+    }
+    const bool isConst = sawConst && (!sawStar || constAfterStar);
+    if(isConst)
+    {
+        names.clear();
+    }
+    std::sort(names.begin(), names.end());
+    names.erase(std::unique(names.begin(), names.end()), names.end());
+    return names;
+}
+
+Scan scan(const fs::path& path)
 {
     const std::string raw = readText(path);
     const auto lines = splitLines(raw);
@@ -360,10 +494,16 @@ std::vector<Found> scan(const fs::path& path)
     // (a braced initialiser: holds no declarations; a lambda in it is fn). Each entry keeps the statement and the
     // parenthesis depth it interrupted: an initialiser or a lambda is part of its enclosing statement.
     std::vector<Frame> stack{{Kind::ns, 0, 0, false}};
-    std::vector<Found> found;
+    Scan result;
+    std::vector<Found>& found = result.statics;
     size_t start = 0; // the first token of the current statement or declaration
     int paren = 0;
     std::vector<std::string_view> head;
+    // A class body just closed at namespace scope: its head (`static struct Foo`) and where the body ended, so that
+    // `struct Foo {...} name;` is judged as one statement.
+    std::vector<std::string_view> clsHead;
+    int clsLine = 0;
+    size_t clsEnd = static_cast<size_t>(-1);
     for(size_t i = 0; i < toks.size(); ++i)
     {
         const auto t = toks[i].t;
@@ -393,6 +533,19 @@ std::vector<Found> scan(const fs::path& path)
             {
                 const Frame f = stack.back();
                 stack.pop_back();
+                if(f.kind == Kind::cls && stack.back().kind == Kind::ns)
+                {
+                    clsHead.clear();
+                    size_t k = f.start;
+                    while(k < toks.size() && toks[k].t != "{")
+                    {
+                        clsHead.push_back(toks[k].t);
+                        ++k;
+                    }
+                    clsHead.push_back("@body");
+                    clsLine = f.start < toks.size() ? toks[f.start].line : 0;
+                    clsEnd = i;
+                }
                 if(f.kind == Kind::init || f.expr)
                 {
                     start = f.start; // the statement goes on: `T x{...};`, `f([] {...});`
@@ -407,6 +560,40 @@ std::vector<Found> scan(const fs::path& path)
         }
         else if(t == ";" && paren == 0)
         {
+            if(stack.back().kind == Kind::ns)
+            {
+                FileScopeDecl d;
+                const bool afterClass = clsEnd != static_cast<size_t>(-1) && start == clsEnd + 1;
+                if(afterClass)
+                {
+                    d.toks = clsHead;
+                    d.firstLine = clsLine;
+                }
+                else
+                {
+                    d.firstLine = start < i ? toks[start].line : toks[i].line;
+                }
+                d.nameLine = toks[i].line;
+                bool beforeInit = true;
+                for(size_t k = start; k < i; ++k)
+                {
+                    d.toks.push_back(toks[k].t);
+                    beforeInit &= toks[k].t != "=" && toks[k].t != "[" && toks[k].t != "{";
+                    d.nameLine = beforeInit ? toks[k].line : d.nameLine; // the name's line: before its initialiser
+                }
+                // `seat-shared: <why>` on the declaration's first line, the name's, or the line above the first
+                for(const int ln : {d.firstLine - 1, d.firstLine, d.nameLine})
+                {
+                    d.marked |= ln >= 1 && static_cast<size_t>(ln) <= lines.size() &&
+                                lines[static_cast<size_t>(ln) - 1].find("seat-shared") != std::string_view::npos;
+                }
+                for(const auto n : mutableNames(d.toks))
+                {
+                    d.names.emplace_back(n); // judged here: the tokens view this function's text
+                }
+                d.toks.clear();
+                result.fileScope.push_back(std::move(d));
+            }
             start = i + 1;
         }
         else if(t == ":" && i > 0 &&
@@ -454,7 +641,7 @@ std::vector<Found> scan(const fs::path& path)
             found.push_back({ln, std::string(trim(text))});
         }
     }
-    return found;
+    return result;
 }
 
 std::vector<fs::path> treeFiles(const fs::path& root)
@@ -507,7 +694,7 @@ int checkStatics(const Ctx& ctx, const Args& args, Out& out)
     {
         const auto rel = path.lexically_relative(ctx.tree);
         const std::string name = rel.empty() || *rel.begin() == ".." ? path.generic_string() : rel.generic_string();
-        for(const auto& f : scan(path))
+        for(const auto& f : scan(path).statics)
         {
             found.push_back(std::format("{}:{}: {}", name, f.line, f.text));
         }
@@ -523,6 +710,113 @@ int checkStatics(const Ctx& ctx, const Args& args, Out& out)
                  found.size());
         return 1;
     }
+    return 0;
+}
+
+int checkSeatState(const Ctx& ctx, const Args& args, Out& out)
+{
+    const bool accept = std::find(args.begin(), args.end(), "--accept") != args.end();
+    const bool tighten = std::find(args.begin(), args.end(), "--tighten") != args.end();
+    // The client-side code: Quake/vr (its external/ left out) and the engine's own top-level sources (the vendored
+    // ones left out).
+    std::vector<fs::path> files = treeFiles(ctx.tree / "Quake" / "vr");
+    constexpr std::array<std::string_view, 4> vendored = {"lodepng.c", "miniz.c", "strlcat.c", "strlcpy.c"};
+    for(auto& p : listFiles(ctx.tree / "Quake", {".c", ".h", ".cpp"}, false))
+    {
+        if(!oneOf(p.filename().string(), vendored))
+        {
+            files.push_back(std::move(p));
+        }
+    }
+    const fs::path listPath = ctx.tree / "Misc" / "quakevr" / "seat_state_allowlist.txt";
+    std::set<std::string> listed;
+    std::vector<std::string> header; // the allowlist's comment lines, kept as they are
+    const std::string listText = readText(listPath);
+    for(const auto line : splitLines(listText))
+    {
+        const auto l = trim(line);
+        if(l.starts_with("#"))
+        {
+            header.emplace_back(l);
+        }
+        else if(!l.empty())
+        {
+            listed.emplace(l);
+        }
+    }
+    std::set<std::string> seen;
+    std::vector<std::string> fresh;
+    int marked = 0;
+    for(const auto& path : files)
+    {
+        const std::string rel = relPosix(path, ctx.tree);
+        for(const auto& d : scan(path).fileScope)
+        {
+            for(const auto& name : d.names)
+            {
+                const std::string key = std::format("{}|{}", rel, name);
+                if(d.marked)
+                {
+                    ++marked;
+                    continue;
+                }
+                seen.insert(key);
+                if(!listed.contains(key))
+                {
+                    fresh.push_back(std::format("{}:{}: {}", rel, d.nameLine, name));
+                }
+            }
+        }
+    }
+    size_t gone = 0;
+    for(const auto& k : listed)
+    {
+        gone += seen.contains(k) ? 0 : 1;
+    }
+    if(accept || tighten)
+    {
+        std::set<std::string> keep;
+        for(const auto& k : listed)
+        {
+            if(!tighten || seen.contains(k))
+            {
+                keep.insert(k);
+            }
+        }
+        if(accept)
+        {
+            keep.insert(seen.begin(), seen.end());
+        }
+        std::string text;
+        for(const auto& h : header)
+        {
+            text += h + "\n";
+        }
+        for(const auto& k : keep)
+        {
+            text += k + "\n";
+        }
+        writeRaw(listPath, text);
+        out.line("seat_state: {} allowlisted ({} added, {} dropped), {} marked seat-shared", keep.size(),
+                 accept ? fresh.size() : 0, tighten ? gone : 0, marked);
+        return 0;
+    }
+    for(const auto& f : fresh)
+    {
+        out.raw(f);
+    }
+    if(gone > 0)
+    {
+        out.line("seat_state: {} allowlist entries are gone (moved into a seat?): qvr_checks seat_state --tighten", gone);
+    }
+    if(!fresh.empty())
+    {
+        out.line("{} new mutable file-scope variable(s) in client-side code: make it a seat's (vr_seat.hpp) or mark it "
+                 "`// seat-shared: <why>` (see docs/vr-port/SPLITSCREEN.md, 'The seat_state check')",
+                 fresh.size());
+        return 1;
+    }
+    out.line("seat_state: {} allowlisted, {} marked seat-shared", listed.size(), marked);
     return 0;
 }
 

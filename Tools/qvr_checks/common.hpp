@@ -42,6 +42,7 @@ using Args = std::vector<std::string>;
 
 // The checks (each in its own file). `args` are the subcommand's own arguments.
 int checkStatics(const Ctx& ctx, const Args& args, Out& out);
+int checkSeatState(const Ctx& ctx, const Args& args, Out& out);
 int checkTestNumbers(const Ctx& ctx, const Args& args, Out& out);
 int checkBuiltins(const Ctx& ctx, const Args& args, Out& out);
 int checkToolgunWeapons(const Ctx& ctx, const Args& args, Out& out);

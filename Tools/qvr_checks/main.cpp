@@ -35,6 +35,7 @@ struct Check
 constexpr Check checks[] = {
     {"fgd", fgdgen, "runs Misc/trenchbroom/fgdgen.py (Python: skipped without it) with these arguments"},
     {"statics", checkStatics, "no function-local static/thread_local in Quake/vr that is not constexpr [files...]"},
+    {"seat_state", checkSeatState, "no new mutable file-scope state in client-side code (splitscreen) [--accept | --tighten]"},
     {"test_numbers", checkTestNumbers, "the numbered tests' dispatchers against QC/test_numbers.txt [--list]"},
     {"builtins", checkBuiltins, "the QC's `= #0` builtins against the engine's tables"},
     {"toolgun_weapons", checkToolgunWeapons, "every weapon id has a row in the toolgun's Weapons section"},
@@ -57,6 +58,7 @@ struct AllEntry
 constexpr AllEntry allEntries[] = {
     {"fgd", 0, "FGD CHECK FAILED (see docs/vr-port/MAPPING.md, 'Adding an entity')", false},
     {"statics", 12, "STATICS CHECK FAILED (see docs/vr-port/CODE_STYLE.md, 'Scratch buffers and caches')", true},
+    {"seat_state", 12, "SEAT STATE CHECK FAILED (see docs/vr-port/SPLITSCREEN.md, 'The seat_state check')", true},
     {"test_numbers", 12, "TEST NUMBERS CHECK FAILED (see docs/vr-port/TESTING.md, 'Test numbers')", true},
     {"builtins", 12, "BUILTINS CHECK FAILED (see docs/vr-port/CODE_STYLE.md, 'Canonical helpers')", true},
     {"cvars_qc", 8, "QC CVAR HANDLES STALE: run build/qvr_checks/qvr_checks.exe cvars_qc", true},
