@@ -584,7 +584,7 @@ void setupBody(int e, const Avatar& a, const glm::vec3& origin)
     {
         // (no calibration: his standing eye height as his body pose has it -- a bot's, its eyes over its feet, the
         // server's: B11 part 3, part 3)
-        who.eyeHeight = a.body.standingHeight;
+        who.eyeHeight = za::min(a.body.standingHeight, calFields[calHeight].hi / 1000.f); // (mpfix C3: a guest's 30 m drew a giant)
     }
     // His velocity from his entity's last two messages; on the ground unless rising or falling fast (the client is not
     // told; a walk down stairs stays on its feet).
@@ -613,8 +613,8 @@ void setupBody(int e, const Avatar& a, const glm::vec3& origin)
     s.playerOrigin = origin;
     s.lean = glm::vec3{a.head.x, a.head.y, 0.f};
     s.bodyYaw = a.body.yaw;
-    s.headHeight = a.body.headHeight;
-    s.standingHeight = a.body.standingHeight;
+    s.headHeight = za::clamp(a.body.headHeight, 0.f, calFields[calHeight].hi / 1000.f); // (mpfix C3)
+    s.standingHeight = za::clamp(a.body.standingHeight, 0.f, calFields[calHeight].hi / 1000.f);
     s.leanHold = a.body.leanHold;
     s.crouchRatio = s.headHeight > 0.f ? za::clamp(who.eyeHeight / s.headHeight - 1.f, 0.f, 1.f) : 0.f;
     avatar::HandPose poses[2];
@@ -853,9 +853,9 @@ void parseCalibration()
     Calibration c;
     if(has)
     {
-        for(int& v : c.v)
+        for(int i = 0; i < numCalFields; i++)
         {
-            v = MSG_ReadShort();
+            c.v[i] = calClamp(i, MSG_ReadShort()); // (mpfix C4: the server's rule, here too: a 0 scale divided)
         }
     }
     const int ent = slot + 1;
