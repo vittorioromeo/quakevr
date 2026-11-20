@@ -136,6 +136,41 @@
 .float sawcord; // the chainsaws' starter cords (vr_chainsaw.qc VR_SAWCORD_*: which hand holds one, a pull)
 .float vr_flatscreen; // this player plays flatscreen (-flatscreenmode, his own client: the engine sets it from his move): VR_FlatPlay
 .float vr_prone; // the player lies down (vr_prone: his box vr_prone_height tall; the engine sets it from his move): no jumping (PlayerJump)
+.float vr_movejump; // a remote client's walk runs move by move (the engine sets it each frame, vr_predict.cpp): his jump is the engine's, in the move whose key pressed it (PlayerPreThink leaves it; 0 again for AD's boots)
+.float vr_movewaterjump; // ... and Quake's jump out of the water (PlayerPreThink sets it each frame for such a client
+                        // on Quake's jump out, not the hands' climb: CheckWaterJump leaves it to the moves, MP_PLAN B8f)
+.float vr_movewaterclimb; // ... or the hands' climb out (PlayerPreThink: bit 0 on, bits 1-2 the empty hands, as
+                          // VR_WaterClimb_FreeHands; CheckWaterJump leaves it to the moves, MP_PLAN B8j part 3)
+.float vr_botswing; // a bot's melee swing began at this time (W_Fire_Melee; bot_setvrfields swings its main hand: MP B11 part 3, part 3)
+// A bot's hands as a flat-screen player's (MP bots phase 1; botflatpose, frikbot/bot_fight.qc bot_setvrfields):
+.float vr_botswing_ph;    // its swing's phase this frame: 0 none, 1 the windup (strikes nothing), 2 the strike and after
+.float vr_botparry;       // its guard's share (0 at rest .. 1 up), eased as vr_flat_parry_in_time / _out_time ease a player's
+.float vr_botparry_at;    // when its guard goes up (a blow seen coming, after its reaction's delay)
+.float vr_botparry_until; // and comes down
+.float vr_botparry_next;  // no blow looked at again before this (one roll a blow)
+.float vr_botparries;     // its guards raised (the tests)
+// A bot's off hand as a player's (MP B11 part 4; frikbot/bot_fight.qc bot_offhand_ai decides, bot_setvrfields moves it):
+.float vr_botpunch;       // its punch began at this time (0: none)
+.entity vr_botpunch_of;   // ... at whom
+.float vr_botpunch_end;   // its last punch ended at this time
+.entity vr_botreach;      // what its off hand reaches for (a thing lying near, or a player's held weapon; world: none)
+.float vr_botreach_h;     // ... that player's hand holding the weapon
+.float vr_botreach_s;     // ... 1 open, reaching; 2 closed on it; 3 pulling it away (a player's weapon)
+.float vr_botreach_t;     // ... the state's start
+.vector vr_botreach_at;   // ... the hand's place (world)
+.float vr_botreach_next;  // it reaches for nothing before this time (a reach given up)
+.float vr_botvr_t;        // the frame its hands' once-a-frame state was made for (time)
+.vector vr_bothand_rel;   // ... its hands' places from its origin then (their velocity, .handvel)
+.vector vr_botoffhand_rel;
+.float vr_botoffgrip;     // ... its off hand's grip
+.float vr_moveswim; // ... and so does the water's drag (WaterMove leaves it; the engine sets it each frame)
+.float vr_movetakes; // ... and what else his moves may take (the engine sets it each frame: bit 0 the hands' climb out of
+                     // the water, B8j part 3; bit 1 the grapple's rope, B8j part 4)
+.entity vr_movegrapple; // ... the hook whose rope his moves hold and reel him by this frame (VR_Grapple_ServiceAnchor
+                        // sets it, the engine clears it each frame; MP_PLAN B8j part 4) ...
+.vector vr_movegrapple_at; // ... its rope's first corner from him
+.vector vr_movegrapple_rope; // ... x its path beyond the corner, y the shortest, z the reeling hands (bit 0 the off hand,
+                             // 1 the main) plus 4 times (the gun's hand plus one)
 .float vr_stand; // the head's height over the floor, a share of the standing (calibrated) eye height (1 standing; 0 not known): the engine sets it from his move (VR_KdTrig_Tackle)
 .float handdrop;// a heavy weapon wrenched out of a hand (the engine's vr_weight_drop: VR_HANDDROP_*, weapons.qc)
 .float handsynth; // the hands whose motion in this move is synthesized, not for gestures (the engine's vr_handsource.cpp: VR_HANDSYNTH_*, VR_HandMotionTracked)

@@ -702,8 +702,18 @@ frame sequences; reading aids only, nothing pasted). Files `QC/dwell/` (GPL-2, h
   Widowmaker still its own, the six made, the menu's names, the spin in mock VR and flat play (turning held, at rest a
   barrel on top): 13 passed, 0 failed; screenshots of each in hand to `scratch/dwell_vrmodels_vr.png` (side and eye
   views) and `scratch/dwell_vrmodels_flat.png` (and the holster menu).
-- **Left**: no ammo screen housing, shell ejection port or magazine mounts of their own (the base's settings point at
-  the base model's places); the Lance and the Rifle have no hand-tuned sights.
+- **Ammo screen housings** (dwellgun, 2026-11-20; ROUND25.md "dwellgun"): the AD Plasma Gun's housing (flat bezel,
+  chamfered window, a rivet each side; `vr_adweapons.cpp housing()`, made with the model) on each rear face: the
+  Rotary's housing back (Dwell's brown plate, bolt heads), the Lance's wooden handle's back (its frame's dark metal,
+  violet crystal studs), the Rifle's butt (brass, the shotgun's brass nuts). Each window the glass the screen had
+  without a housing (fillMax 1); `vr_screenstyle.cpp` entries `dw_shot3.mdl#vr`, `dw_rail.mdl#vr`, `dw_rifle.mdl#vr`;
+  weapons.txt slots 52-54's `wpntxt_av` on the glass, upright, fonts 1 (the Lance's `wpntxt_scale` 0.25: its handle's
+  back is 2.6 wide). The Lance sits 0.4 higher on its grip (the grip's top came through its frame) and its trigger
+  guard and trigger 0.8 up onto its underside (they hung 0.37 under it), its `muzzle_av` 0.4 up.
+- **Left**: no shell ejection port or magazine mounts of their own (the base's settings point at the base model's
+  places); the Lance and the Rifle have no hand-tuned sights; the Rotary's big rear face is the dark hole cap (a
+  checker of dark red and yellow in the game's light, as before), around the screen; its muzzle's two open barrel
+  loops (check_mdl_holes, as made by dwell3c).
 
 ### 9.6 Built: P2b part two, bullet hell and the Sculptor's motion (2026-11-19, branch `agent/dwell2c`)
 

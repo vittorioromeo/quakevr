@@ -5077,6 +5077,43 @@ int playerBoxFits(qmodel_t* world, const glm::vec3& start, const glm::vec3& end)
     return !tr.startsolid && !tr.allsolid && tr.fraction >= 1.f;
 }
 
+bool clientPlayerTrace(qmodel_t* world, qmodel_t* model, float width, float height, const float* start, const float* end,
+    trace_t& trace)
+{
+    if((width <= 0.f && height <= 0.f) || progs::ownSource() != progs::OwnSource::Client || !world || !model ||
+        model->type != mod_brush || model->numnodes <= 0)
+    {
+        return false; // (a server here keeps its own map's brushes: only a remote client's own player is predicted)
+    }
+    const Brushes* b = worldBrushes(world);
+    if(!b)
+    {
+        return false;
+    }
+    int sub = model == world ? 0 : -1;
+    for(za::SizeT i = 0; sub < 0 && i < b->subs.size(); ++i)
+    {
+        if(b->subs[i].clipnodes == model->hulls[0].clipnodes && b->subs[i].head == model->hulls[0].firstclipnode)
+        {
+            sub = static_cast<int>(i);
+        }
+    }
+    if(sub < 0)
+    {
+        return false;
+    }
+    const float half = width > 0.f ? za::clamp(width, minWidth, maxWidth) * 0.5f : 16.f;
+    const glm::vec3 lo{-half, -half, -24.f}, hi{half, half, -24.f + (height > 0.f ? height : hull1Height(world))};
+    const glm::vec3 centre = (lo + hi) * 0.5f;
+    const Tree& t = treeFor(built, static_cast<za::SizeT>(sub), (hi - lo) * 0.5f, model->name);
+    trace = treeTrace(t, t.heads[static_cast<za::SizeT>(sub)], geom::vec(start) + centre, geom::vec(end) + centre);
+    for(int i = 0; i < 3; ++i)
+    {
+        trace.endpos[i] -= centre[i];
+    }
+    return true;
+}
+
 namespace
 {
 
@@ -5304,6 +5341,11 @@ bool hasLyingBox(const edict_t* ent)
 {
     const int num = clientNum(ent);
     return num >= 1 && num < crouchSlots && proneNow[num];
+}
+
+float crouchedHeight(const edict_t* ent)
+{
+    return crouchTop(ent);
 }
 
 int localProne()

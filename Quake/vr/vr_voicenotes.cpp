@@ -2,6 +2,7 @@
 // vr_voicenotes.cpp -- see vr_voicenotes.hpp.
 
 #include "vr_voicenotes.hpp"
+#include "vr_voicechat.hpp"
 #include "vr_takes.hpp"
 #include "vr_engine.hpp"
 #include "vr_cvars.hpp"
@@ -646,7 +647,8 @@ void wantMicLevel()
     meterUntil = realtime + meterLinger;
     takeOpenedMeter();
     // (one device opened or closed at a time: SDL's device table is not guarded between threads)
-    if(meter || meterOpening.valid() || (meterClosing.valid() && !meterClosing.ready()) || realtime < meterRetryAt)
+    if(meter || meterOpening.valid() || (meterClosing.valid() && !meterClosing.ready()) || realtime < meterRetryAt ||
+        voicechat::deviceBusy())
     {
         return;
     }
@@ -678,6 +680,16 @@ void wantMicLevel()
             }
             return opened;
         });
+}
+
+const char* microphone(bool quiet)
+{
+    return deviceName(quiet);
+}
+
+bool deviceBusy()
+{
+    return (meterOpening.valid() && !meterOpening.ready()) || (meterClosing.valid() && !meterClosing.ready());
 }
 
 float micLevel()

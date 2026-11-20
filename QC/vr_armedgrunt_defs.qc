@@ -118,6 +118,8 @@ void(entity pl, entity g, float h) VR_DRP_Effects;                         // VR
 void(entity pl) VR_DRP_ShowLines;                                          // the player's think: the lines shown
 void(entity g, entity w) VR_DRP_Frame;                                     // VR_AGP_Pose: its swing met your weapon
 float vr_drp_cut;          // VR_DRP_Blow's partial parry: the share of the blow taken off (0: none)
+float vr_drp_pvp;          // VR_Parry: 1 + the hand of another player's swing judged by its line (multiplayer; 0: none)
+float(entity g, float blowhand) VR_DRP_PvpApplies;                         // VR_Parry: his swing has a line (sets vr_drp_pvp)
 void(entity g) VR_AGPar_Frame;                                             // VR_AG_PropThink: a blow coming
 void(entity g, entity p) VR_AGPar_Pose;                                    // VR_AGP_Pose: the parry's pose
 vector vr_agpar_mid;       // ... its weapon's middle's target (body space), VR_AGPar_Pose's this pose

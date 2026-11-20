@@ -54,7 +54,8 @@ happens; the durable parts belong in a guide or topic note.
 | [vr-port/PORTAL_AI.md](vr-port/PORTAL_AI.md) | Enemies seeing and shooting through seamless teleporters |
 | [vr-port/POSITIONAL_DAMAGE_DEBUG.md](vr-port/POSITIONAL_DAMAGE_DEBUG.md) | The animated hit-zone debug view |
 | [vr-port/EXPLOSION_AND_FIRE_EFFECTS.md](vr-port/EXPLOSION_AND_FIRE_EFFECTS.md) | Explosion debris and fire particles |
-| [vr-port/MULTIPLAYER.md](vr-port/MULTIPLAYER.md) | Multiplayer: what runs on the server and what on the client |
+| [vr-port/MULTIPLAYER.md](vr-port/MULTIPLAYER.md) | Multiplayer for players: hosting, joining, coop and deathmatch, bots, voice chat, known issues |
+| [vr-port/MP_DESIGN.md](vr-port/MP_DESIGN.md) | Multiplayer: what runs on the server and what on the client |
 | [vr-port/STEALTH.md](vr-port/STEALTH.md) | Stealth AI (idle, alert, hostile): the rules, cvars, cost and tests |
 | [vr-port/RELOAD.md](vr-port/RELOAD.md) | Immersive manual reloading: the front pouch, shells, magazines, launchers' rounds |
 | [vr-port/MG3.md](vr-port/MG3.md) | Dawn of the Machine (MG3) played natively: inventory, gameplay mapping, tasks M3-01..30, the author's decisions |

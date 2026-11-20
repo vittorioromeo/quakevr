@@ -114,6 +114,67 @@ struct SlideStep
 };
 [[nodiscard]] SlideStep slideStep(const glm::vec2& vel, const glm::vec3& normal, const glm::vec2& wish, float dt);
 
+// The slide's numbers: the server's cvars (tuning()); a remote headset client's replay runs on the server's, sent in
+// his state (vr_predict.cpp, B14).
+struct Tuning
+{
+    float least{0.f};       // vr_flat_slide_min: the speed it starts from, at least
+    float top{0.f};         // vr_flat_slide_max
+    float boost{0.f};       // vr_flat_slide_boost
+    float end{0.f};         // vr_flat_slide_end
+    float slope{0.f};       // vr_flat_slide_slope
+    float steer{0.f};       // vr_flat_slide_steer (degrees a second)
+    float friction{0.f};    // vr_flat_slide_friction
+    float cooldown{0.f};    // vr_flat_slide_cooldown
+    float staminaPart{0.f}; // slideStaminaPart() (0: free)
+    float staminaStep{0.f}; // vr_flat_slide_stamina_step
+    int staminaParts{1};    // slideStaminaParts()
+};
+[[nodiscard]] Tuning tuning();
+// ... the cvars alone, no stamina (a client that has not had the server's yet: no QuakeC asked).
+[[nodiscard]] Tuning cvarTuning();
+// slideStep on the given numbers (the one above: the server's).
+[[nodiscard]] SlideStep slideStep(const glm::vec2& vel, const glm::vec3& normal, const glm::vec2& wish, float dt, const Tuning& t);
+// endSlide with the given cooldown.
+void endSlide(Slide& s, double now, float cooldown);
+
+// One move of the slide, as SV_AirMove sees it (flatscreen play: VR_SlideMove) and as the moves do (a headset player's
+// walk, vr_pmove.cpp: the server's and his replay's). One function for both: move().
+struct MoveIn
+{
+    bool enabled{false};    // his way of playing slides (flatscreen: vr_flat_slide; a headset: always), not lying down
+    bool held{false};       // his slide input this move
+    int waterLevel{0};
+    bool walking{true};     // MOVETYPE_WALK
+    bool onground{false};   // FL_ONGROUND
+    bool jumpHeld{false};   // the jump key held, or not let go since his last jump (.button2; no FL_JUMPRELEASED)
+    bool floorFound{false}; // the floor right under him, 4 units at most (looked for only when floorNeeded)
+    glm::vec3 normal{0.f, 0.f, 1.f};
+    float originZ{0.f};
+    float dt{0.f};          // the move's seconds
+    double now{0.0};        // the slide's clock at the move (the server's time; a replay's own)
+    float staminaLeft{0.f}; // the stamina he has (a slide too tired for its first part does not start)
+};
+// Whether a move's slide needs the floor under him (MoveIn::floorFound, normal): his input held, or sliding.
+[[nodiscard]] bool floorNeeded(const Slide& s, bool enabled, bool held);
+// The move's slide: true when it moved him on the ground this move (no walk's friction nor acceleration then).
+// `wishdir`, `wishspeed` the walk's wish; `velocity` his, changed.
+[[nodiscard]] bool move(Slide& s, const MoveIn& in, const Tuning& t, const float* wishdir, float wishspeed, float* velocity);
+// The slide's stamina parts now due, each paid by `pay` (a part's cost -> the share of it paid).
+template <typename Pay>
+void payParts(Slide& s, double now, const Tuning& t, Pay&& pay)
+{
+    while(s.on && t.staminaPart > 0.f && s.partsPaid < t.staminaParts &&
+          now - s.startedAt + 1e-6 >= static_cast<double>(t.staminaStep) * static_cast<double>(s.partsPaid))
+    {
+        s.staminaPaid += t.staminaPart * pay(t.staminaPart);
+        s.partsPaid++;
+    }
+}
+// A slide on the ground climbs a step it meets on every move (SV_WalkMove's "no stairs up while jumping" waived: at a
+// slide's speed FL_ONGROUND is off every other move, and the step's face stopped it).
+[[nodiscard]] bool stepsUp(const Slide& s);
+
 // The turning stick's slide gesture (vr_slide; vr_input.cpp): pulled within vr_slide_stick_angle degrees of straight
 // down past vr_slide_stick_threshold, from the middle (a turn swept round to it never counts). `st` the stick, `allowed`
 // whether it may start now (vr_slide on, on foot, out of water, in the game). Returns whether it is held (the stick's

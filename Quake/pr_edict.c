@@ -2950,6 +2950,7 @@ void SaveData_Fill (savedata_t *save)
 	VR_SaveContext (save->vrcontext, sizeof (save->vrcontext)); // QVR: the campaign, the map package, the titles
 	save->vrbrushes = VR_SaveBrushLines (); // QVR: the runtime brushes (vr/vr_brushes.cpp)
 	save->vrdecals = VR_SaveDecalLines (); // QVR: the permanent decals (vr/vr_permdecals.cpp)
+	save->vrcoop = VR_SaveCoopLines (); // QVR: a coop game's per-player blocks (vr/vr_coopsave.cpp)
 	save->vrwet = VR_SaveWetLines (); // QVR: what is wet (vr/vr_drips.cpp)
 
 	/* determine buffer size */
@@ -3071,7 +3072,8 @@ void SaveData_WriteHeader (savedata_t *save)
 		fprintf (save->file, "%s\n", save->lightstyles[i]);
 
 	// QVR: the build, the format and the model list (comments: COM_Parse skips them; VR_ReadSaveInfo reads them)
-	fprintf (save->file, "// qvr_save %d progs %04x build %s\n", VR_SAVE_FORMAT, save->progscrc, VR_BuildVersion ());
+	fprintf (save->file, "// qvr_save %d progs %04x build %s\n", save->vrcoop && *save->vrcoop ? VR_SAVE_FORMAT : VR_SAVE_FORMAT_SINGLE,
+		save->progscrc, VR_BuildVersion ());
 	for (i = 1; i <= save->nummodels; i++)
 		fprintf (save->file, "// qvr_model %d %s\n", i, save->models[i]);
 	fputs (save->vrcontext, save->file); // QVR: // qvr_campaign, qvr_package, ... (vr_continue.cpp)
@@ -3082,6 +3084,8 @@ void SaveData_WriteHeader (savedata_t *save)
 		fputs (save->vrbrushes, save->file); // QVR: // qvrb lines: the runtime brushes
 	if (save->vrdecals)
 		fputs (save->vrdecals, save->file); // QVR: // qvrdecals and qvrd lines: the permanent decals
+	if (save->vrcoop)
+		fputs (save->vrcoop, save->file); // QVR: // qvr_coop and qvr_coopslot lines: the players' blocks
 	if (save->vrwet)
 		fputs (save->vrwet, save->file); // QVR: // qvrwet lines: what is wet
 

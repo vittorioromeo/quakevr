@@ -27,6 +27,9 @@ void roomscaleJump(const hands::State& s);
 // grappling hook's reel (QVR_BUTTON_*HANDSECONDARY). Not while a menu or the console is up, nor when the posing mode,
 // a voice note or the flashlight took the press.
 [[nodiscard]] bool secondaryHeld(int hand);
+// Whether that button is down on the controller now, whoever took its press (mpfix C5: push-to-talk by hand ends when
+// it is up, though a page that takes every button ate its release).
+[[nodiscard]] bool secondaryPressed(int hand);
 // The same for the lower face button (A on the main hand, X on the off hand): the grappling hook's unreel
 // (QVR_BUTTON_*HANDPRIMARY). Its key (jump, reload) is pressed as ever.
 [[nodiscard]] bool primaryHeld(int hand);

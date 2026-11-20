@@ -1380,16 +1380,30 @@ QVR_SLIDER(vr_agrunt_shotdisarm_proj_near, "Projectile: Near Miss", 0.f, 12.f, 0
 QVR_SLIDER(vr_agrunt_shotdisarm_proj_max, "Projectile: Most Chance", 0.f, 1.f, 0.05f, "%.2f", ext(0.f, 1.f),
     "One projectile's chance at most: a rocket's direct hit (vr_agrunt_shotdisarm_proj_max).")
 QVR_TOGGLE(vr_player_disarm, "You Can Be Disarmed",
-    "Enemies' shots and blows on the weapon you hold, or the hand holding it, can knock it out of your hand by the "
-    "same rules as yours on an armed grunt's: shots add up and roll, a projectile rolls once, a blow landing on your "
-    "weapon (not a parry) knocks it out. It drops where you can pick it up again, its ammo kept. Fists and empty hands "
-    "never. In multiplayer, other players' too. Off by default: still being tuned (vr_player_disarm).")
+    "PvE: enemies' shots and blows on the weapon you hold, or the hand holding it, can knock it out of your hand by "
+    "the same rules as yours on an armed grunt's: shots add up and roll, a projectile rolls once, a blow landing on "
+    "your weapon (not a parry) knocks it out. It drops where you can pick it up again, its ammo kept. Fists and empty "
+    "hands never. Off by default: still being tuned (vr_player_disarm).")
+QVR_TOGGLE(vr_player_disarm_pvp, "You Can Be Disarmed by Players",
+    "PvP, multiplayer: other players' (and bots') shots and blows on your weapon knock it out by the same rules, and "
+    "their grab (below) can take it (vr_player_disarm_pvp).")
 QVR_SLIDER(vr_player_disarm_sound, "Your Disarm Sound", 0.f, 1.f, 0.05f, "%.2f", ext(),
     "Your weapon knocked out of your hand: the volume of its clang (at the weapon, for everyone near) and of the short "
     "alert only you hear (0: silent) (vr_player_disarm_sound).")
 QVR_SLIDER(vr_player_disarm_chance, "Your Disarm Chance", 0.f, 2.f, 0.05f, "%.2fx", ext(0.f, 10.f),
     "Times the armed grunts' chance when it is your weapon that is hit (1: the same exact rules; at most certain; "
     "0: never) (vr_player_disarm_chance).")
+QVR_TOGGLE(vr_player_disarm_grab, "Players: Grab and Pull Disarms",
+    "Multiplayer, with You Can Be Disarmed by Players: an empty hand closed on another player's weapon where it is drawn (no "
+    "faster than Grab: Fastest Hand) and pulled away from him hard enough takes it into your hand. No tug "
+    "(vr_player_disarm_grab).")
+QVR_SLIDER(vr_player_disarm_pull, "Players: Disarm Pull", 0.3f, 5.f, 0.1f, "%.1f m/s", ext(0.1f, 20.f),
+    "How fast your hand must pull another player's weapon away from him to take it; slower, your hand "
+    "slips off it (vr_player_disarm_pull).")
+QVR_SLIDER(vr_player_disarm_reach, "Players: Disarm Grab Reach", 2.f, 20.f, 1.f, "%.0f cm", ext(0.f, 50.f),
+    "How near another player's drawn weapon your hand must close to grab it (vr_player_disarm_reach).")
+QVR_SLIDER(vr_player_disarm_slip, "Players: Disarm Slip", 5.f, 50.f, 1.f, "%.0f cm", ext(1.f, 100.f),
+    "A pull too gentle: your hand slips off his weapon once this far from it (vr_player_disarm_slip).")
 QVR_TOGGLE(vr_agrunt_ik, "Hands on the Grips",
     "Its arms are posed so its hand holds the weapon's grip and its other hand the second grip of a "
     "two-handed weapon, or hangs free beside a one-handed one; melee swings carry the arm "
@@ -7428,6 +7442,7 @@ QVR_KEY(vr_flat_key_drop, "Drop", "The key that lets go of what a hand holds (th
 QVR_KEY(vr_flat_key_grenade, "Quick Grenade", "The key that takes a grenade from the back pouch into a free hand.")
 QVR_KEY(vr_flat_key_bullettime, "Bullet Time", "The key that starts and stops bullet time.")
 QVR_KEY(vr_flat_key_flashlight, "Flashlight", "The key that switches the flashlight.")
+QVR_KEY(vr_flat_key_voicechat, "Push-to-Talk", "Multiplayer voice chat: the key you hold to talk (also read in VR, with a keyboard at hand).")
 QVR_KEY(vr_flat_key_holster_menu, "Holster Menu", "The key that opens the holster menu (how it opens and picks: Holster Menu Mode, on Desktop Screen Play).")
 QVR_KEY(vr_flat_key_flycam, "Fly Camera", "The key that turns the fly camera on and off.")
 QVR_KEY(vr_flat_key_toolgun, "Toolgun", "The key that puts the toolgun in the right hand, and gives back what that hand held.")

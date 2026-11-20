@@ -27,6 +27,7 @@
 #include "vr_mdldequant.hpp"
 #include "vr_meleeshow.hpp"
 #include "vr_nailslide.hpp"
+#include "vr_mpavatar.hpp"
 #include "vr_seated.hpp"
 #include "vr_ragtool.hpp"
 #include "vr_crosshair.hpp"
@@ -705,7 +706,7 @@ void view::prepareModels()
 {
     // VR or not: the view's own entities are set up and drawn whenever the map is Quake VR's (hands::update, and
     // VR_SetupViewEntities), flat mode (vr_enabled 0) too; it skipped them, and its first frame loaded them (90 ms, their
-    // md5 replacements too). As the view setup asks for them (setupBody, setupPauldrons, setupHolsters, setupGadget, the hands, the buttons).
+    // md5 replacements too). As the view setup asks for them (setupBody and its pauldrons, setupHolsters, setupGadget, the hands, the buttons).
     za::Vector<const char*> names{handrig::modelName(), "progs/vrgadget.mdl", "progs/vrgadget_strap.mdl", "progs/wpnbutton.mdl"};
     if(vr_body_mode.value >= 1.f)
     {
@@ -753,7 +754,7 @@ void view::prepareModels()
     {
         (void)Mod_ForName(name, false);
     }
-    // The body's armour shells ("<body>#armor", agarmor::playerArmorModel): setupPlates makes them as the body first shows,
+    // The body's armour shells ("<body>#armor", agarmor::playerArmorModel): view::drawBody makes them as the body first shows,
     // armour or not, and that was the first frame's `view body` (40-70 ms). The body setupBody draws: the bare forearms'
     // with the jointed hands, as vr_body_bracers 0 asks.
     if(vr_body_mode.value >= 1.f && vr_player_plates.value != 0.f)
@@ -796,8 +797,20 @@ bool view::carriedWeaponInHand(int hand, glm::vec3& handle, glm::vec3& tip)
 int view::reverseGripChoice(const entity_t& e, int hand, float& cosine)
 {
     cosine = 1.f;
+    if(hand < 0 || hand > 1)
+    {
+        return -1;
+    }
+    // (The hand's own turn, not its drawn one: an empty hand on the other hand's carried weapon is drawn on it.)
+    return reverseGripChoiceAt(e, hand, hands::current().rot[hand], vr_revgrip.value != 0.f && !flatplay::active(), cosine);
+}
+
+int view::reverseGripChoiceAt(const entity_t& e, int hand, const glm::vec3& handRot, bool mayReverse, float& cosine)
+{
+    cosine = 1.f;
     const int slot = e.model && e.model->type == mod_alias ? weapons::slotForModel(e.model) : -1;
-    if(hand < 0 || hand > 1 || !reverseGripAllowed(slot) || flatplay::active())
+    // (reverseGripAllowed's, with his vr_revgrip as `mayReverse`)
+    if(hand < 0 || hand > 1 || !mayReverse || slot < 0 || slot == weapons::fistSlot() || weapons::value(slot, Key::RevGrip) < 0.5f)
     {
         return -1;
     }
@@ -806,8 +819,7 @@ int view::reverseGripChoice(const entity_t& e, int hand, float& cosine)
     const glm::vec3 tip = view::anchorPosition(e, false, 1.f, weapons::anchor(slot, Key::MuzzleAnchor),
         weapons::vec(slot, Key::MuzzleOffsetX, Key::MuzzleOffsetY, Key::MuzzleOffsetZ));
     const glm::mat3 lying = anglesBasis(glm::vec3{-e.angles[0], e.angles[1], e.angles[2]});
-    // (The hand's own turn, not its drawn one: an empty hand on the other hand's carried weapon is drawn on it.)
-    const glm::mat3 upright = anglesBasis(weaponTurn(hands::current().rot[hand], slot, hand == HAND_OFF));
+    const glm::mat3 upright = anglesBasis(weaponTurn(handRot, slot, hand == HAND_OFF));
     const glm::vec3 blade = tip - origin;
     const glm::vec3 thumb = upright * (glm::transpose(lying) * blade);
     const float len = glm::length(blade) * glm::length(thumb);
@@ -902,15 +914,19 @@ bool view::carriedReversedHandPoint(int hand, glm::vec3& point)
                                     handTurnOfWeapon(glm::vec3{-e.angles[0], e.angles[1], e.angles[2]}, slot, mirrored), point);
 }
 
-glm::vec3 view::leavingTurn(int hand, int slot, const glm::vec3& handRot, glm::vec3& shift)
+float view::leavingFlip(int hand)
 {
-    const float flip = slot >= 0 ? drawnFlip(hand) : 0.f;
+    return drawnFlip(hand);
+}
+
+glm::vec3 view::leavingTurn(int slot, bool mirrored, float flip, const glm::vec3& handRot, glm::vec3& shift)
+{
+    flip = slot >= 0 ? flip : 0.f;
     shift = glm::vec3{0.f};
     if(flip <= 0.f)
     {
         return handRot;
     }
-    const bool mirrored = hand == HAND_OFF;
     shift = reverseShift(slot, mirrored, flip, handRot);
     return uprightTurnOf(handRot, slot, mirrored, flip);
 }
@@ -2010,8 +2026,15 @@ void setupHolsters(const hands::State& s, bool queueTexts)
         const int holsteredFrame = holsteredGrappleOut(model, pose.weaponPos)                                         ? 2
                                    : nailslide::holsterLocked(model, clip, holsterStat(h, protocol::STAT_QVR_HOLSTERWEAPONFLAGS0)) ? 1
                                                                                                                        : 0;
-        place(ve, model, pose.weaponPos, pose.weaponAngles, holsteredFrame, mirrored);
-        ve.ent.skinnum = weapons::drawnSkin(model, clip); // (the flare gun's barrels fired)
+        // Placed as every player's holstered weapon is (view::drawGear); the flare gun's barrels fired.
+        view::GearDraw g;
+        g.model = model;
+        g.origin = pose.weaponPos;
+        g.angles = pose.weaponAngles;
+        g.frame = holsteredFrame;
+        g.skin = weapons::drawnSkin(model, clip);
+        g.mirrored = mirrored;
+        view::drawGear(g, ve);
         highlight(ve, hover || holstersetup::highlighted(static_cast<int>(bodyHolster[h])));
         // Just holstered: eased from the hand into the holster (vr_drawblend.cpp).
         drawblend::holster(s, stat, model ? &ve.ent : nullptr, !previewHere && !posedHere);
@@ -3019,29 +3042,37 @@ void setupWorldWeapons(const hands::State& s, bool queueTexts)
 }
 } // namespace
 
+// A drawn hand entity's wrist and orientation (`rig`: the jointed hand, else hand_base.mdl): drawnHand's, and another
+// player's drawn hand (vr_mpavatar.cpp, his body's arms).
+[[nodiscard]] avatar::HandPose handPoseOf(const view::ViewEntity& base, bool rig)
+{
+    // The centre of the wrist in hand_base.mdl (frame 0), or the jointed hand's (its palm is shorter: make_hand_rig.py).
+    const glm::vec3 handWrist = rig ? vec3Of(handrig::data::wrist) : glm::vec3{-6.86f, -1.08f, 1.42f};
+    avatar::HandPose hp;
+    const view::ModelSpace space{base}; // (its matrix made once for the points)
+    hp.wrist = space.point(handWrist);
+    // hand_base.mdl: +x towards the fingers, +z the index finger's side, +y the palm's.
+    const glm::vec3 alongX = space.point(handWrist + glm::vec3{1.f, 0.f, 0.f});
+    const glm::vec3 alongZ = space.point(handWrist + glm::vec3{0.f, 0.f, 1.f});
+    hp.up = glm::normalize(alongZ - hp.wrist);
+    hp.back = glm::normalize(space.point(handWrist + glm::vec3{0.f, -1.f, 0.f}) - hp.wrist);
+    hp.forward = glm::normalize(alongX - hp.wrist);
+    if(rig) // (its size: the bare forearms' ends fit round it, avatar.cpp)
+    {
+        hp.unit = {glm::distance(alongX, hp.wrist), glm::distance(space.point(handWrist + glm::vec3{0.f, 1.f, 0.f}), hp.wrist),
+            glm::distance(alongZ, hp.wrist)};
+    }
+    return hp;
+}
+
 // The drawn hands' wrists and orientations, for the body's arms and the wrist gadget.
 [[nodiscard]] avatar::HandPose drawnHand(const hands::State& s, int hand)
 {
-    // The centre of the wrist in hand_base.mdl (frame 0), or the jointed hand's (its palm is shorter: make_hand_rig.py).
-    const glm::vec3 handWrist = rigHands[hand].drawn ? vec3Of(handrig::data::wrist) : glm::vec3{-6.86f, -1.08f, 1.42f};
-
     avatar::HandPose hp;
     const view::ViewEntity& base = entities.hand[hand];
     if(entities.weapon[hand].ent.model && base.ent.model)
     {
-        const view::ModelSpace space{base}; // (its matrix made once for the points)
-        hp.wrist = space.point(handWrist);
-        // hand_base.mdl: +x towards the fingers, +z the index finger's side, +y the palm's.
-        const glm::vec3 alongX = space.point(handWrist + glm::vec3{1.f, 0.f, 0.f});
-        const glm::vec3 alongZ = space.point(handWrist + glm::vec3{0.f, 0.f, 1.f});
-        hp.up = glm::normalize(alongZ - hp.wrist);
-        hp.back = glm::normalize(space.point(handWrist + glm::vec3{0.f, -1.f, 0.f}) - hp.wrist);
-        hp.forward = glm::normalize(alongX - hp.wrist);
-        if(rigHands[hand].drawn) // (its size: the bare forearms' ends fit round it, avatar.cpp)
-        {
-            hp.unit = {glm::distance(alongX, hp.wrist), glm::distance(space.point(handWrist + glm::vec3{0.f, 1.f, 0.f}), hp.wrist),
-                glm::distance(alongZ, hp.wrist)};
-        }
+        hp = handPoseOf(base, rigHands[hand].drawn);
     }
     else
     {
@@ -4001,7 +4032,20 @@ bool skinTint(const entity_t* e, float tint[4], float range[4])
     return true;
 }
 
-int skinTone(const entity_t* e, float tone[4])
+SkinLook ownLook()
+{
+    SkinLook l;
+    l.tone = vr_skin_tone.value;
+    l.gloves = static_cast<int>(CLAMP(0.f, vr_gloves.value, 2.f));
+    l.glove = glm::vec3{vr_glove_hue.value, vr_glove_saturation.value, vr_glove_lightness.value};
+    l.nails = vr_nails.value > 0.f;
+    l.nail = glm::vec3{vr_nail_hue.value, vr_nail_saturation.value, vr_nail_lightness.value};
+    l.nailGloss = vr_nail_gloss.value;
+    l.bare = drawnBare;
+    return l;
+}
+
+int lookOf(const entity_t* e, SkinLook& look)
 {
     int kind = 0;
     if(e == &entities.body.ent || cloneSource(e) == &entities.body.ent)
@@ -4016,7 +4060,19 @@ int skinTone(const entity_t* e, float tone[4])
             kind = 1;
         }
     }
-    const float amount = CLAMP(-1.f, vr_skin_tone.value, 1.f);
+    if(kind)
+    {
+        look = ownLook();
+        return kind;
+    }
+    return mpavatar::lookOf(e, look); // (another player's hands and body: his own look)
+}
+
+int skinTone(const entity_t* e, float tone[4])
+{
+    SkinLook look;
+    const int kind = lookOf(e, look);
+    const float amount = CLAMP(-1.f, look.tone, 1.f);
     const glm::vec3 colour = amount < 0.f ? glm::mix(glm::vec3{1.f}, glm::vec3{0.22f, 0.15f, 0.12f}, -amount) :
         glm::mix(glm::vec3{1.f}, glm::vec3{1.4f, 1.35f, 1.3f}, amount);
     geom::store(colour, tone);
@@ -4042,22 +4098,21 @@ namespace
 
 int gloveLook(const entity_t* e, float glove[4], float cuff[4])
 {
-    float tone[4];
-    const int kind = skinTone(e, tone);
-    const int mode = static_cast<int>(CLAMP(0.f, vr_gloves.value, 2.f));
+    SkinLook look;
+    const int kind = lookOf(e, look);
+    const int mode = za::clamp(look.gloves, 0, 2);
     glove[0] = glove[1] = glove[2] = glove[3] = 0.f;
     cuff[0] = cuff[1] = cuff[2] = cuff[3] = 0.f;
     if(!kind || !mode)
     {
         return 0;
     }
-    const glm::vec3 colour = hslToRgb(vr_glove_hue.value, CLAMP(0.f, vr_glove_saturation.value, 1.f),
-        CLAMP(0.f, vr_glove_lightness.value, 1.f));
+    const glm::vec3 colour = hslToRgb(look.glove.x, CLAMP(0.f, look.glove.y, 1.f), CLAMP(0.f, look.glove.z, 1.f));
     geom::store(colour, glove);
     glove[3] = static_cast<float>(mode); // the skin mask's channel: G fingerless, B full (make_skin_masks.py)
     if(kind == 2)
     {
-        if(!drawnBare)
+        if(!look.bare)
         {
             glove[3] = 0.f; // the bracers cover the wrist: nothing of the glove on the body
             return 0;
@@ -4085,20 +4140,33 @@ void gloveCuffRange(float cuff[4])
 bool nailLook(const entity_t* e, float nails[4])
 {
     nails[0] = nails[1] = nails[2] = nails[3] = 0.f;
-    if(vr_nails.value <= 0.f)
+    SkinLook look;
+    if(lookOf(e, look) != 1 || !look.nails)
     {
         return false;
     }
-    float tone[4];
-    if(skinTone(e, tone) != 1)
-    {
-        return false;
-    }
-    const glm::vec3 colour = hslToRgb(vr_nail_hue.value, CLAMP(0.f, vr_nail_saturation.value, 1.f),
-        CLAMP(0.f, vr_nail_lightness.value, 1.f));
+    const glm::vec3 colour = hslToRgb(look.nail.x, CLAMP(0.f, look.nail.y, 1.f), CLAMP(0.f, look.nail.z, 1.f));
     geom::store(colour, nails);
-    nails[3] = 1.f + CLAMP(0.f, vr_nail_gloss.value, 1.f);
+    nails[3] = 1.f + CLAMP(0.f, look.nailGloss, 1.f);
     return true;
+}
+
+void printLook(const char* what, int ent, int part, const entity_t* e)
+{
+    float tone[4], glove[4], cuff[4], nails[4];
+    const int kind = skinTone(e, tone);
+    (void)gloveLook(e, glove, cuff);
+    (void)nailLook(e, nails);
+    Con_Printf("%s: ent=%d part=%d kind=%d tone=%.4f %.4f %.4f %.4f glove=%.4f %.4f %.4f %.4f nails=%.4f %.4f %.4f %.4f\n",
+        what, ent, part, kind, tone[0], tone[1], tone[2], tone[3], glove[0], glove[1], glove[2], glove[3], nails[0], nails[1],
+        nails[2], nails[3]);
+}
+
+void printOwnLooks(int ent)
+{
+    printLook("mp_look_own", ent, 0, &entities.hand[HAND_OFF].ent);
+    printLook("mp_look_own", ent, 1, &entities.hand[HAND_MAIN].ent);
+    printLook("mp_look_own", ent, 2, &entities.body.ent);
 }
 
 int skinMaskWanted(const entity_t* e)
@@ -4424,6 +4492,42 @@ entity_t* holsteredWeapon(int stat)
         }
     }
     return nullptr;
+}
+
+void netHolsters(VrDrawnHolsters& out)
+{
+    out = VrDrawnHolsters{};
+    for(int h = 0; h < HolsterCount; h++)
+    {
+        const HolsterSeen& seen = holsterSeen[h];
+        if(seen.placed < host_framecount - 1)
+        {
+            continue; // (not drawn lately: no body, dead)
+        }
+        out.valid = true;
+        const int stat = static_cast<int>(bodyHolster[h]);
+        out.at[stat] = seen.pivot;
+        const ViewEntity& ve = entities.holster[h];
+        if(!holsterLive[h] || !ve.visible || !ve.ent.model || ve.ent.model->type != mod_alias)
+        {
+            continue;
+        }
+        int index = 0;
+        for(int i = 1; i < MAX_MODELS && cl.model_precache[i] && !index; i++)
+        {
+            index = cl.model_precache[i] == ve.ent.model ? i : 0;
+        }
+        if(index > 0) // (a model the server has not precached: others can't name it)
+        {
+            out.weapons = static_cast<za::U8>(out.weapons | (1 << stat));
+            out.mirrored = static_cast<za::U8>(out.mirrored | (ve.mirrored ? 1 << stat : 0));
+            out.model[stat] = static_cast<za::U16>(index);
+            out.frame[stat] = static_cast<za::U8>(za::clamp(ve.ent.frame, 0, 255));
+            out.skin[stat] = static_cast<za::U8>(za::clamp(ve.ent.skinnum, 0, 255));
+            out.origin[stat] = glm::vec3{ve.ent.origin[0], ve.ent.origin[1], ve.ent.origin[2]};
+            out.angles[stat] = glm::vec3{ve.ent.angles[0], ve.ent.angles[1], ve.ent.angles[2]};
+        }
+    }
 }
 
 const ViewEntity* holsterGun(int index)
@@ -5384,13 +5488,11 @@ extern "C" void VR_SetupViewEntities()
     }
     {
         QVR_PROFILE("view body");
-        setupBody(s);
-        setupPlates(); // the armour's plates on it (vr_player_plates)
+        setupBody(s); // (the armour's plates on it, vr_player_plates, and the pauldrons: view::drawBody)
     }
     {
-        QVR_PROFILE("view powerups pauldrons");
+        QVR_PROFILE("view powerups");
         powerupGlow(s); // the power-ups' glows and lights (Quad, pentagram, biosuit)
-        setupPauldrons();
     }
     {
         QVR_PROFILE("view gadget");

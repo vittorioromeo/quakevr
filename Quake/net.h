@@ -43,12 +43,18 @@ extern cvar_t		hostname;
 
 extern	double		net_time;
 extern	sizebuf_t	net_message;
+extern	qboolean	net_loopbackonly; // QVR: (B24, tests) -loopbackonly: 127.0.0.0/8 only (net_main.c)
+void NET_LoopbackRefused (const char *what); // QVR: (B24) prints "NET SAFETY: refused <what>" (the first 16)
+qboolean NET_LoopbackAddr (unsigned int netorder_ipv4); // QVR: (B24) in 127.0.0.0/8
+extern	qboolean	net_stalemessage; // QVR: (B20) the message just read was overtaken on the way (only a remote client's moves are read so)
 void NET_RestoreMessage (void); // QVR: net_message back on its own buffer, emptied (Host_Error: a parse that pointed it elsewhere, MP_PLAN B19)
 extern	int		net_activeconnections;
 
 
 void	NET_Init (void);
 void	NET_Shutdown (void);
+
+const char	*NET_RoomCode (void); // QVR: (B23) this host's room code ("": none; net_dgrm.c)
 
 struct qsocket_s	*NET_CheckNewConnections (void);
 // returns a new connection number if there is one pending, else -1
@@ -57,7 +63,11 @@ struct qsocket_s	*NET_Connect (const char *host);
 // called by client to connect to a host.  Returns -1 if not able to
 
 double NET_QSocketGetTime (const struct qsocket_s *sock);
+void NET_AcceptStale (struct qsocket_s *sock, int on); // QVR: (B20) its overtaken unreliable datagrams read all the same (net_stalemessage)
 const char *NET_QSocketGetAddressString (const struct qsocket_s *sock);
+qboolean NET_QSocketIsLocal (const struct qsocket_s *sock); // QVR: the loopback's server side, the listen host's own client (net_loop.c names it "LOCAL"); NULL: no
+const char *NET_QSocketGetQvrName (const struct qsocket_s *sock); // QVR: the name in its connect request
+const char *NET_QSocketGetQvrKey (const struct qsocket_s *sock); // QVR: the vr_mp_clientkey in its connect request ("": none)
 
 qboolean NET_CanSendMessage (struct qsocket_s *sock);
 // Returns true or false if the given qsocket can currently accept a
@@ -103,6 +113,14 @@ void	NET_Slist_f (void);
 void	NET_SlistSort (void);
 const char *NET_SlistPrintServer (int n);
 const char *NET_SlistPrintServerName (int n);
+// QVR: (B13) a search's reply (the server browser's, vr_serverbrowser.cpp): 0 out of range
+int NET_SlistEntry (int n, const char **name, const char **map, const char **address, int *users, int *maxusers,
+					int *ping, int *version);
+// QVR: (B13) a connection's counts (the net HUD's, vr_nethud.cpp; qsocket_t's): unreliable datagrams read and skipped,
+// reliable chunks resent, bytes in and out; its reliable chunks' smoothed round trip in seconds (0: none yet)
+void NET_QvrLinkCounts (struct qsocket_s *sock, unsigned int counts[5], double *reliableRtt);
+// QVR: (B16) the wall-clock seconds since the connection last read a message (0: a loopback one, never silent)
+double NET_QvrSilence (struct qsocket_s *sock);
 
 
 /* FIXME: driver related, but public:

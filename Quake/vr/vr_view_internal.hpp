@@ -374,7 +374,7 @@ struct Entities
     view::ViewEntity holsterFrontButton[HolsterCount]; // and the grappling guns' front buttons there
     view::ViewEntity worldFrontButton[maxWorldWeapons];
     view::ViewEntity body;
-    view::ViewEntity plate[plateEntities + 1]; // the armour's plates on it (vr_player_plates): the settled ones, then each morph (setupPlates), then the joints' leather
+    view::ViewEntity plate[plateEntities + 1]; // the armour's plates on it (vr_player_plates): the settled ones, then each morph (drawBody), then the joints' leather
     view::ViewEntity pauldron[2];    // per side of the body (0 left): the cap,
     view::ViewEntity pauldronArm[2]; // and the lames round the upper arm
     view::ViewEntity gadget;
@@ -571,6 +571,11 @@ void place(view::ViewEntity& ve, qmodel_t* model, const glm::vec3& origin, const
 // to the weapon (the ammo screen, the button) is placed from it, never from the hand.
 inline bool weaponCarried[2]{}; // the weapon in the hand is a gun carried by its foregrip (twohand::carriedWeapon)
 inline twohand::HeldAs drawnAs[2]{{glm::vec3{0.f}, glm::vec3{0.f}, true}, {glm::vec3{0.f}, glm::vec3{0.f}, false}};
+// setupWeapon and setupHand placing another player's hands (view::solveHands: a bot's, MP_PLAN.md B11 part 3): his own
+// drawing state swapped in (his jointed hands, his weapons' and hands' entities, his curls), and what only the local
+// player has left out (the hand-off's carry, the reverse grip, a blade in a body, held props and limbs, the torch, the
+// hands on each other's weapon, the reload's parts, the draw from a holster, the morph, the physics' record of the gun).
+inline bool otherSubject{false};
 [[nodiscard]] glm::vec3 composeAngles(const glm::vec3& rot, const glm::vec3& offsets);
 [[nodiscard]] glm::vec3 weaponAngleOffsets(int slot, bool mirrored);
 [[nodiscard]] glm::vec3 idleAttachmentAngles(const glm::vec3& aliasAngles, int slot, bool mirrored, const glm::vec3& offsets);
@@ -1005,6 +1010,7 @@ struct HolsterSeen
 inline HolsterSeen holsterSeen[HolsterCount];
 
 [[nodiscard]] avatar::HandPose drawnHand(const hands::State& s, int hand);
+[[nodiscard]] avatar::HandPose handPoseOf(const view::ViewEntity& base, bool rig);
 void gadgetTouches(const hands::State& s, bool posingNow);
 void quadArcs(const hands::State& s);
 void powerupInfo_f();
@@ -1055,8 +1061,6 @@ inline ButtonState frontButtonStates[2];
 [[nodiscard]] glm::vec3 buttonFace(const view::ViewEntity& button);
 void setupBody(const hands::State& s);
 void dripBlood(const hands::State& s);
-void setupPlates();
-void setupPauldrons();
 void pressWeaponButtons(const hands::State& s);
 void setupButton(int hand);
 void setupFrontButton(int hand);

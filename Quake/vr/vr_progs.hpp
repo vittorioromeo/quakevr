@@ -77,6 +77,7 @@ struct Bindings
     // A carried prop's touch: QC forcegrabbable_touch and those that only call it (a rock's or a brick's, a crate's
     // piece's, a thrown weapon's: vr_physics.cpp's touch spares the calls that can do nothing).
     func_t propTouches[4]{};
+    func_t gibTouch{0}; // QC VR_Gib_Touch: a loose gib's or head's (vr_physics.cpp's touch spares its calls that can do nothing, B13b)
     func_t RunRefusesEnt{0}; // QC VR_Run_RefusesEnt: a thing the run refuses (Melee Only) shows no loot beam (vr_server.cpp)
     func_t ClipSizeOf{0}; // a weapon's own magazine size, by id and record (QC VR_ClipSizeOf: vr_server.cpp, the ammo screens' warnings)
     func_t AxeStick_Plate{0}; // a thrown blade about to stick in a body: whether an unbroken plate stops it there (QC vr_axestick.qc)
@@ -93,6 +94,8 @@ struct Bindings
     func_t Stamina_Left{0};
     func_t Stamina_On{0};     // (staminaOn, staminaEffort: VR_Stamina_On, VR_Stamina_Effort)
     func_t Stamina_Effort{0};
+    func_t WaterClimb_Climbed{0}; // a player climbed out of the water by hand (QC VR_WaterClimb_Climbed: the feel, the print)
+    func_t Grapple_Taut{0};       // a grapple's rope went taut holding a player (QC VR_Grapple_Taut: the twang, the jolt)
     // The monster grab's QC (vr_foegrab.cpp's callQc and head zone), resolved here, not by name per call.
     struct FoeGrab
     {
@@ -128,6 +131,8 @@ struct Bindings
     } arenaCards;
 
     float* spawnServerFromSaveFile{nullptr};
+    // intermission_running: QC's intermission, the server's own (a dedicated server has no cl.intermission)
+    float* intermissionRunning{nullptr};
     // vr_music_track: the CD track target_vr_music switched to (0: the map's own); sent at a connect (a loaded game)
     float* musicTrack{nullptr};
     // vr_map_content_seed: the map's content seed (srvrandom::mapSeed), set at its load; saved with the game
@@ -260,10 +265,74 @@ struct ServerVm
     ServerVm& operator=(const ServerVm&) = delete;
 };
 
-// The local (listen) server's player, client 0's edict; null when not hosting or that client is not in the game.
+// The slot of this game's own client on the server it hosts: the loopback connection's (always 0 since the host's
+// client takes slot 0 even in a loaded coop game: VR_CoopPickSlot, REVIEW_MP_2026-11-18 finding 3); -1 when not
+// hosting, on a dedicated server, or before that client connects. Any current VM.
+[[nodiscard]] int hostSlot();
+
+// The client slot of server edict number `num` (a player's: 1 .. svs.maxclients), else -1. With clientSlot, the one
+// place for the range check the per-player stores each wrote by hand (REVIEW_MP_2026-11-18 finding 17).
+[[nodiscard]] inline int clientSlotOfNum(int num)
+{
+    const int slot = num - 1;
+    return slot >= 0 && slot < svs.maxclients && slot < MAX_SCOREBOARD ? slot : -1;
+}
+
+// `player`'s client slot on this server (its edict a player's), else -1: null, the world, any other edict, no server.
+// Measured against sv.qcvm's edicts, whichever VM is current, and never NUM_FOR_EDICT's Host_Error on a foreign pointer.
+[[nodiscard]] inline int clientSlot(const edict_t* player)
+{
+    if(!player || !sv.active || !sv.qcvm.edicts || sv.qcvm.edict_size <= 0 || (const byte*)player < (const byte*)sv.qcvm.edicts)
+    {
+        return -1;
+    }
+    return clientSlotOfNum(static_cast<int>(((const byte*)player - (const byte*)sv.qcvm.edicts) / sv.qcvm.edict_size));
+}
+
+// The local (listen) server's player, its own client's edict (hostSlot); null when not hosting or that client is not in
+// the game. A dedicated server's: client 0's, as before (it has no own client).
 [[nodiscard]] inline edict_t* localPlayer()
 {
-    return sv.active && svs.maxclients >= 1 && svs.clients[0].active ? svs.clients[0].edict : nullptr;
+    if(!sv.active || svs.maxclients < 1)
+    {
+        return nullptr;
+    }
+    const int slot = cls.state == ca_dedicated ? 0 : hostSlot();
+    return slot >= 0 && svs.clients[slot].active ? svs.clients[slot].edict : nullptr;
+}
+
+// The own player as the client-side code asks after him (MP_PLAN.md, B9 review #6): one answer whoever runs him. Edict:
+// this game hosts him (localPlayer); Client: a remote client, what the client has of him (the prediction's ground and
+// water, its own map's brushes to trace against); None: neither (hosting with nobody in slot 0 yet, not connected, no map).
+enum class OwnSource : int
+{
+    None,
+    Edict,
+    Client
+};
+[[nodiscard]] inline OwnSource ownSource()
+{
+    if(localPlayer())
+    {
+        return OwnSource::Edict;
+    }
+    return !sv.active && cls.state == ca_connected && cl.worldmodel ? OwnSource::Client : OwnSource::None;
+}
+
+// The own player on the ground and not swimming (his waterlevel under 2; ownSource's answer).
+[[nodiscard]] inline bool ownStanding()
+{
+    switch(ownSource())
+    {
+        case OwnSource::Edict:
+        {
+            const edict_t* p = localPlayer();
+            return (static_cast<int>(p->v.flags) & FL_ONGROUND) != 0 && p->v.waterlevel < 2.f;
+        }
+        case OwnSource::Client: return cl.onground && !cl.inwater;
+        case OwnSource::None: break;
+    }
+    return false;
 }
 
 // The local server's first player slot, client 0's edict (edict 1), whether or not a client is in it yet; null when
@@ -354,6 +423,11 @@ inline bool callQc(func_t fn, float a = 0.f, float b = 0.f, float c = 0.f)
 // back from now, the tiring breath as it goes low; `what` names it in the trace): the share of the cost paid, 0..1 (1
 // without the QC's). The caller's self, parameters and return are kept.
 float staminaEffort(edict_t* p, float cost, const char* what);
+// `p` climbed out of the water by hand `hand` (pmove::waterClimbTry): QC VR_WaterClimb_Climbed(hand, top, rise), self `p`.
+void waterClimbed(edict_t* p, int hand, float top, float rise);
+// `p` held by hook `h`'s rope, gone taut as he went away from it at `speed` (pmove::grappleStep): QC
+// VR_Grapple_Taut(h, hand, speed), self `p`.
+void grappleTaut(edict_t* p, edict_t* h, int hand, float speed);
 
 // A QC global vector's value, by its name, from the loaded progs (the current VM's): false, `out` untouched, when there
 // is none. For the engine's reads of QC constants it must not copy (design review 10: vr_agpose.cpp's qcConstants[]).
@@ -438,6 +512,9 @@ void loadNoticeFrame();
 // vr_gamecode: where the game code (progs.dat) comes from and whether it is this build's (said again), the base dirs and
 // the search path (Debug > Diagnostics; a player's "guns only props" report).
 void gameCode_f();
+// Client `client`'s stored level-start parm17..parm75 (numExtSpawnParms of them; parm1..16 are in its client_t): a coop
+// save's per-player blocks (vr_coopsave.cpp).
+[[nodiscard]] float* clientExtParms(int client);
 
 } // namespace qvr::progs
 

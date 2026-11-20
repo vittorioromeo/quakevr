@@ -771,7 +771,20 @@ entity vr_bash_victims;
 float vr_bash_reach_mul; // VR_Bash_Find's reach times this (0: 1; flatscreen's shove: vr_flat_shove_reach, VR_FlatShove)
 float vr_bash_pad_mul;   // and its pad round the line (0: 1; flatscreen's shove: vr_flat_shove_width)
 vector vr_bash_across;   // an open palm's line across (half of it, '0 0 0': none; flatscreen's two-handed shove: palm to palm)
+// (A remote client's finds the others where his screen showed them: lagcompbegin, MP_PLAN.md B8c.)
+float(float xHand, entity b, vector xForward) VR_Bash_FindNow;
 float(float xHand, entity b, vector xForward) VR_Bash_Find =
+{
+    float lc = lagcompbegin(self);
+    float hits = VR_Bash_FindNow(xHand, b, xForward);
+    if(lc)
+    {
+        lagcompend();
+    }
+    return hits;
+};
+
+float(float xHand, entity b, vector xForward) VR_Bash_FindNow =
 {
     vector a = b.mh_near;
     vector c = b.mh_far;
@@ -787,7 +800,9 @@ float(float xHand, entity b, vector xForward) VR_Bash_Find =
     entity e = findradius((a + c) * 0.5 + xForward * reach * 0.5, reach + vlen(c - a) * 0.5 + 64);
     while(e)
     {
-        if(e != self && e.takedamage && e.health > 0 && (e.flags & FL_MONSTER) && e.vr_bash_mark != time)
+        // (multiplayer: other players too, shoved and bashed as monsters are; single player has none)
+        if(e != self && e.takedamage && e.health > 0 && e.vr_bash_mark != time &&
+           ((e.flags & FL_MONSTER) || ((e.flags & FL_CLIENT) && (coop || deathmatch))))
         {
             // Precise hits: the box (grown by VR_HITMODEL_REACH) the broad phase, the model as drawn
             // (grown by the pad and the melee tolerance) what is shoved.
@@ -912,7 +927,8 @@ void(entity e, vector xAt, vector xForward, float xKind, float xHand, float xSca
     VR_Push(e, xForward, pushSpeed + carried, 140 * push);
     dprint(sprintf("bash hit: %s, %.1f damage, knocked back at %.0f u/s (%.0f of it your run's), staggered %.2f s\n",
         e.classname, dmg, vlen(e.velocity), run, stagger));
-    if(e.health > 0 && e.th_pain && !e.vr_knockdown)
+    // (a player shoved, multiplayer: his pain is T_Damage's own; no stagger holding his weapons back)
+    if(e.health > 0 && e.th_pain && !e.vr_knockdown && !(e.flags & FL_CLIENT))
     {
         entity oldSelf = self;
         self = e;

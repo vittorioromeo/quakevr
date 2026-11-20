@@ -10,6 +10,7 @@
 #include "vr_grip.hpp"
 #include "vr_gripfit.hpp"
 #include "vr_held.hpp"
+#include "vr_heldpose.hpp"
 #include "vr_physics.hpp"
 #include "vr_profile.hpp"
 #include "vr_progs.hpp"
@@ -270,7 +271,7 @@ static void fitGrip(edict_t* ent, edict_t* player, Hold& hold, const Frame& obje
 {
     const int num = NUM_FOR_EDICT(ent);
     const int first = grip::serverHand(num);
-    const bool local = cls.state != ca_dedicated && NUM_FOR_EDICT(player) == 1;
+    const int who = NUM_FOR_EDICT(player); // (his own hand's rig: gripfit::fit, B3f)
     const glm::vec3 lo{ent->v.mins[0], ent->v.mins[1], ent->v.mins[2]};
     const glm::vec3 hi{ent->v.maxs[0], ent->v.maxs[1], ent->v.maxs[2]};
     const glm::quat toObject = glm::inverse(object.rot);
@@ -282,7 +283,7 @@ static void fitGrip(edict_t* ent, edict_t* player, Hold& hold, const Frame& obje
             continue;
         }
         glm::vec3 move{0.f};
-        if(gripfit::fit(num, i, local, true, glm::mat3_cast(toObject * hands[i].rot), toObject * (hands[i].pos - object.pos), lo, hi, nullptr,
+        if(gripfit::fit(num, i, who, true, glm::mat3_cast(toObject * hands[i].rot), toObject * (hands[i].pos - object.pos), lo, hi, nullptr,
                move))
         {
             hold.grip[i] += move;
@@ -320,15 +321,16 @@ glm::vec3 serverPlace(edict_t* ent, edict_t* player, bool grab)
     if(grab || it == holds.end())
     {
         // The hand taking hold of what the other holds alone, drawn held out of it at its surface
-        // (vr_hand_collide_props_keep_out; a listen server's own player): it takes it there, not where the real hand is
-        // in it, and holds it from there (Hold::reach).
+        // (vr_hand_collide_props_keep_out; a listen server's own player, or another as his client drew it last:
+        // vr_heldpose.hpp): it takes it there, not where the real hand is in it, and holds it from there (Hold::reach).
         glm::vec3 reach[2]{glm::vec3{0.f}, glm::vec3{0.f}};
-        if(grab && cls.state != ca_dedicated && NUM_FOR_EDICT(player) == 1)
+        if(grab)
         {
             const int first = grip::serverHand(num);
             for(int h = 0; h < 2; h++)
             {
-                const glm::vec3 out = h != first ? view::heldOutOf(h, num) : glm::vec3{0.f};
+                const heldpose::Hand* r = heldpose::slotHand(player, h); // (every player's from his slot: B11a)
+                const glm::vec3 out = h != first && r && r->outOfEnt == num ? r->outOf : glm::vec3{0.f};
                 if(out == glm::vec3{0.f})
                 {
                     continue;

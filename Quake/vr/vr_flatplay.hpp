@@ -294,4 +294,35 @@ void flickTestFrame();
 // Keys menu page (rebinding, conflicts) read this one list (vr_flatmove.cpp).
 [[nodiscard]] std::span<cvar_t* const> keyCvars();
 
+// A bot's hands (MP bots phase 1; his words 2026-11-18: "reuse some of the code we use for the player in flatscreen mode
+// for the weapon placement, melee attacks"), posed on the server by this file's own code with the bot's AI's decisions in
+// place of the mouse and the keys: the guns' places off the shoulders, one gun or two (targetOffset), each turned so its
+// shot goes at what the bot aims at (aimRotAtCrosshair), the melee hold's turn, the weapon's overhead swing
+// (overheadSwing) and the parry's guard (parryPose). What a bot leaves out: the body pose (its hands off the old anchor in
+// the view's frame, vr_flat_body_pose 0's), the crouch, lying down, the slide, the stance, the ironsight, walls and the
+// drawn hand's looks. Hand indices as HAND_OFF / HAND_MAIN.
+struct BotPoseIn
+{
+    glm::vec3 origin{0.f};   // its box's origin
+    glm::vec3 eye{0.f};      // its eyes (origin + view_ofs)
+    glm::vec3 aim{0.f};      // its view's angles
+    glm::vec3 target{0.f};   // what it aims at (the guns turn to it, the swing comes down on it)
+    bool hasTarget{false};
+    int slot[2]{-1, -1};     // the Weapon Offsets slot each hand's weapon has (-1: an empty hand)
+    int wid[2]{0, 0};        // and its weapon id
+    double now{0.0};         // the server's time
+    double swingAt{-1e9};    // when its main hand's overhead swing began (the server's time)
+    float parry{0.f};        // its main hand's share of the parry's guard (0..1, the AI eases it)
+    float eyeHeight{1.75f};  // its standing eye height (metres): its arms' length with it
+};
+struct BotPoseOut
+{
+    glm::vec3 pos[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+    glm::vec3 rot[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+    int swingPhase{0}; // the main hand's swing: 0 none, 1 the windup (strikes nothing), 2 the strike and after it
+};
+void poseBot(const BotPoseIn& in, BotPoseOut& out);
+// The overhead swing's strike's middle, seconds from its start (vr_flat_swing_wind + _top + half of _strike).
+[[nodiscard]] float swingStrikeMiddle();
+
 } // namespace qvr::flatplay

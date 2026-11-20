@@ -2108,6 +2108,28 @@ pages; with live preview the player kept walking once the menu opened.
   temporary hunk lists (SV_PushMove, SV_TouchLinks, VR physics) are mallocs now. If they ever show in a profile, they
   can move to their files' mem::Scratch. nh_after/nh_after2 are the runs with garbage NoFill blocks (above).
 
+## mp1: multiplayer audit, plan and test harness (agent/mp, 2026-11-14; never shipped by the coordinator)
+
+- **docs/vr-port/MP_PLAN.md**: the state re-verified against the code and with real runs (what works, what is broken,
+  what is missing, file:line), the research (NetQuake, QuakeWorld/ezQuake, FTE/QSS/Quakespasm-VR, DarkPlaces, Q3,
+  rollback, VR multiplayer games), the chosen architecture (server authority, owner-authoritative head and hands,
+  acked per-client snapshots and deltas, a VR player-state block drawn with the armed humanoids' arm solver,
+  prediction of the local player, lag compensation, rules/preferences/cosmetics, layered compression, downloads through
+  the map installer), the bandwidth budget, risks, phases B2-B13. MULTIPLAYER.md points at it.
+- **The harness** (`Misc/quakevr/mp/`: `mp_harness.py`, `mp_proxy.py`, `mp_test.py`; MP_PLAN.md section 4): a hidden
+  dedicated server or listen host plus clients (VR mock or flat), each with its own log (`-condebugfile`) and command
+  inbox (`-cmdinbox`), driven by Python with waits on log conditions; a UDP proxy adds lag, jitter and loss and counts
+  bytes. Engine aids in `Quake/vr/vr_mptest.cpp`: `vr_mp_watch` (wall-clock stamped joins, sightings, moves),
+  `vr_mp_mark`, `vr_mp_status` (Debug > Reports: Network: Players Seen, Network: Watch Players).
+- **Fixed:** a second client from the same IP (another port) closed the first one's connection (NetQuake's "back from
+  a crash" rule, `net_dgrm.c`): two players behind one router could not both play. A hidden test run's dedicated
+  server no longer opens a console window.
+- **Found** (B2's work): the armed humanoids' arm poses are broadcast to every client every frame, unculled (about
+  1.2 KB of each 1.4 KB datagram on e1m1: 97 KB/s down for two idle players); the move is 640 B (45 KB/s up);
+  reliable messages go out in datagrams up to 64 KB (15 KB seen at signon).
+- **Results:** `mp_test.py suite`: 11/11 and 11/11 (no lag; B at 150 ms each way and 2% loss); a listen host with a
+  flat B: 10/10. Others' moves seen 40-64 ms after the input on loopback, 206-221 ms with 150 ms added; a player sees
+  himself move a round trip late (no prediction yet): 357-368 ms at 150 ms each way.
 ## vkbench: the vkQuake ports benchmarked; the FTE hull trace stays off (agent/vkbench, 2026-11-14)
 
 Benches: `bench.sh --fast --reps 3`, exclusive, ReleaseLTO of origin/next 12c7ed23a (before the nohunk merge), the
@@ -2163,6 +2185,49 @@ both). **Verdict:** nothing breaks with 1, but it is slower in play: sv_fte_hull
 matched unanchored, `-QuitOn` on it (the run ends there, the log flushed every frame), and a last line
 `walk_test: N maps, M without a summary`.
 
+## mpN (B2): protocol hygiene, culled poses, player avatars (agent/mp, 2026-11-14; never shipped by the coordinator)
+
+MP_PLAN.md, "B2 results", has the details and numbers. In short:
+
+- Reliable messages go out in 1200 B chunks, 16 in flight (`net_dgrm.c`), not one datagram of up to 64 KB; peers
+  unchanged either way. The connect request carries Quake VR's network version (`QVR_NET_VERSION` 2): a VR server
+  rejects another, with the reason.
+- Every move since the server's last frame counts (buttons and VR bits ORed); a slot's move state is reset on connect
+  and drop. Single player too: a press and release between two 72 Hz ticks (a 90 Hz headset) was lost.
+- Armed humanoids' poses go only to the remote clients whose PVS has them (`vr_net_cullposes` 1, Debug > Reports >
+  Network: Cull Poses); the loopback client gets them all. A coop client idle on e1m1: down 15.5 KB/s, was 97.
+- Each player's head, hands and weapons reach the clients that see him (`QVR_SVC_AVATAR`, `vr_mpavatar.cpp`,
+  `vr_mp_avatars`); not drawn yet (B2b).
+- Harness: `mp_test.py bandwidth | version | avatar`, all in `suite` (5 scenarios, all pass).
+
+## mpN (B2b): other players' hands drawn with their fingers (agent/mp, 2026-11-14; never shipped by the coordinator)
+
+- Each client sends its hands as drawn (the jointed hand's place, its 15 joint curls and thumb, the held weapon's model,
+  frame and place: `VrDrawnHand`); the avatar passes them on, and every other client draws those hands and weapons on
+  that player's entity, posed by the same hand rig, no solve of its own (`vr_mpavatar.cpp`; `vr_mp_avatar_draw`, Debug
+  > Reports > Network: Draw Player Hands). Multiplayer only; single player sends 2 bytes more a move.
+- An unchanged avatar is sent every `vr_net_avatar_keyframe` (8) frames only (Debug > Reports > Network: Avatar
+  Keyframe). `QVR_NET_VERSION` 3.
+- `mp_avatar`: A's closed off hand's curls at B equal the server's, both hands drawn at B where A drew them; the weapon
+  checks skip (no weapon reaches the test client's hand yet: MP_PLAN.md, B2b open items). `mp_test.py suite` passes.
+
+## mpN (B2c): a weapon in the harness's hand, the avatar calibration (agent/mp, 2026-11-14; never shipped by the coordinator)
+
+- The harness's empty hand: the test give (`impulse 154`) did put the shotgun in A's main hand, and the default
+  grip-to-hold let it fall the next frame (the mock's main grip was not held). `mp_avatar` now holds the grip; its
+  weapon checks are live (B draws A's shotgun, `progs/v_shot.mdl`, where A drew it) and it saves a screenshot pair (A's
+  own view of his raised hands and shotgun, B facing A): `Instance.screenshot` in `mp_harness.py`.
+- The avatar calibration (`QVR_SVC_AVATARCAL`, `vr_mpavatar.cpp` calFields): height, seated height, arm length, world
+  scale, handedness, the gadget's arm, gloves and their colour, nails, skin tone, body mode, build, bracers and
+  pauldrons, as integers. A client sends his up when it changes (the `vr_avatarcal` client command, reliable; at most
+  every `vr_net_avatarcal_interval` 0.25 s, Debug > Reports > Network: Calibration Send Interval); the server keeps one
+  per slot and passes it on to every client, all of them to a spawning client, and a cleared one when a slot is reset.
+  Multiplayer only: single player sends nothing. `vr_mp_avatars` prints them (`mp_avatar_cal*:`). Nothing uses them yet
+  (the remote body and B6's cosmetics will). `QVR_NET_VERSION` 4.
+- `mp_avatarcal` (new, in the suite): each has the other's calibration exactly, the server both; A's glove change
+  reaches B; B leaves: A forgets his; B joins again: each has the other's.
+- Melee sub-tick samples: not done (MP_PLAN.md, B2c open items: the melee tracker already reads speeds over the poses'
+  own clock; the samples change its cadence, a melee-tuning change, so with B5's melee between players).
 ## Performance campaign for 1.1 (2026-11-14, branch `agent/profile`)
 
 Tracy captures (Release-Tracy, preset full, QC detail 2, his settings, 2048 eyes, 90 Hz paced, exclusive) of 15 scenes,
@@ -2220,6 +2285,31 @@ the window's zones, worst frames and GPU passes; map loads by stage. Everything 
 - Cherry-picked 27537ab7c: every move read since the server's last frame counts (buttons and VR bits ORed, so a press and release between two ticks is not lost); per-slot move state reset on connect and drop (sv_user.c, host.c, sv_main.c, vr_server.cpp).
 - net_dgrm.c only from dd49030c2: a second client from the same IP on another port no longer closes the first one's connection (only the exact address and port counts as a duplicate); the harness and engine-aid parts of that commit stay on agent/mp.
 - Checks: dev and ReleaseLTO 1.1.0 builds, scenario_check, load_models_test, flatkeys/flatholster/flatswap, throw_trigger_test, vr_run_check 9/0.
+
+## mpN (B2d): other players' bodies, posed by your own body's code (agent/mp, 2026-11-14; never shipped by the coordinator)
+
+- Another player's body is drawn in his player model's place, posed by `vr_avatar.cpp`'s pose() itself
+  (`avatar::poseOther`): his body's frame-to-frame state (feet, gait, the arms' easing, the forearms, the skin) swapped in
+  for the frame, and what pose() reads of you read from his (`avatar::Subject`: his Height, arm length, world scale,
+  velocity). From his head, the wrists of the hands his client drew, and his body's yaw, crouch and lean (`VrBodyPose`,
+  8 B in the move and the avatar; `QVR_NET_VERSION` 5); his build's model with or without bracers. `vr_mp_body` 1
+  (Debug > Reports > Network: Draw Player Bodies). Your own body: unchanged (the same image pixel for pixel).
+- Tests: `mp_test.py body` 11/0 (B's copy within 1.05 units of A's own body, its wrists on A's hands, A's Height raised:
+  B's copy x1.260 for x1.261), the MP suite 7/7, scenario_check PASS, load_models_test 4/0, vr_run_check 11/1 (as B2c).
+- Open: his pauldrons and gloves (B6), his measured arms (B3), his swimming, lying down and climbing (B5). Details in
+  MP_PLAN.md, "B2d results".
+
+## mpN (B3): per-player preferences and fists (agent/mp, 2026-11-14; never shipped by the coordinator)
+
+- `vr_clientprefs.cpp`: 32 per-player preferences (grip, reload, holster, force grab and grenade modes, the gun angles,
+  flat play's) go up as the `vr_prefs` client command when they change; the server keeps them per slot. The QC's
+  `cvar_hget` of one answers, in multiplayer, with the player in `self` (else `other`); the new builtin
+  `clientpref(player, handle)` names him. Each hand's fist goes up too (`vr_rig`, chunked); the server's fist users
+  (`held::fistOf`) judge a remote player by his own. `vr_mp_prefs` (Debug > Reports > Network: Player Preferences).
+  `QVR_NET_VERSION` 6. Single player unchanged.
+- Tests: `mp_test.py prefs` 10/0, `grab` 9/0 (the take-back is a note so far: 2 runs of 4), the MP suite 8/9 (mp_avatar
+  14/1 once, 17/0 again), scenario_check PASS, load_models_test 4/0, vr_run_check 12/0. Details and open items in
+  MP_PLAN.md, "B3 results".
 ## profile2: the perf campaign's second pass (agent/profile2, 2026-11-14)
 
 Details and numbers in [PERF_1_1.md](PERF_1_1.md) ("Second pass", "Needs his call"). Behaviour and visuals unchanged.
@@ -2238,11 +2328,90 @@ Details and numbers in [PERF_1_1.md](PERF_1_1.md) ("Second pass", "Needs his cal
   (a later fixed frame for a class's first batch).
 - Checks: `load_models_test.sh` 4/0, `scenario_check.sh` 129 files 0 errors, 129 run 0 failed, the ReleaseLTO 1.1.0 build.
 - Cherry-picked c206e9a74 (agent/quest): particles' Support[16] uniform at locations 40-55, no longer overlapping the fragment shader's Taper/InkAlpha (20/21; a strict-linker link error). Checks: dev and ReleaseLTO 1.1.0 builds, scenario_check 129/0, flatblood_test 1 (particles drawn).
+
+## mpN (B3b, part 1): the multiplayer suite reliable (agent/mp, 2026-11-14; never shipped by the coordinator)
+
+- **A grip's edge seen once** (`vr_server.cpp`, single player too): a player's `.vrbits0` was rewritten only when one of
+  his moves came, so in a server frame without one (a dedicated server between his moves) QC saw last frame's press or
+  let-go again; at the frame's end its previous bits now follow the current ones (bots keep their own). Its own commit.
+- **`mp_grab`'s take-back is a check** (10 runs of 10): B3's misses were the harness re-pressing within QC's 0.125 s grip
+  bounce after the let-go (and the repeated let-go above moving it on). Each press now waits 0.25 s of the server's
+  game time (`vr_mp_status` prints `time=`). **`mp_avatar`'s empty hand**: the give raced the grip's press (the grip bit
+  goes up a move later; grip-to-hold dropped it): `grip_then_give` waits for the server's grip.
+- Debug aids, `vr_debug_carry 2` with `developer 1`: the grip's edges with their times, why a hand on a thrown weapon
+  does not take it, the grab probe's thing's place, speed and ground.
+- Open (MP_PLAN.md, B3c): a weapon let go of from a still, open hand rests on the palm's Box3D body and the closing fist
+  does not retake it (no "lying" slack, 3-5 cm off); single player shares the code.
+
+## mpN (B3c, part 1): palm grab slack, body calibration up (agent/mp, 2026-11-14; never shipped by the coordinator)
+
+- **Palm Grab Slack** (`vr_weapon_palm_grab_slack`, 12 cm; Weapons menu beside Handle Grab Leniency; single player too,
+  its own commit): a weapon resting on a hand's Box3D body (`box3d::restsOnHand`) is taken by that hand closing within
+  this much of its surface (it sits over the fist that closes under it and had no slack). In single player a gun let go
+  of from a still, open hand passes through the new open-hand body to the floor (`vr_pickup_test 16`, 3/0), and one
+  laid on the palm slides off, so it matters where a gun does rest on a hand (seen on a remote player's palm).
+- **Other players' arms are theirs**: the avatar calibration carries Body Calibration's measured arm lengths, his
+  tweaks and his shoulders' place, rise and swing (`bodycal::Arms`; `QVR_NET_VERSION` 7); his body on your screen is
+  posed with them, not the default body's. `mp_body` checks his copy's shoulders against his own with his arms
+  calibrated.
+- Next (MP_PLAN.md, B3d): the rest of the rig per player, client-side traces, `mp_teleport`.
+
+## mpN (B3d, part 1): client-side traces, a remote client's teleport, the palm frame up (agent/mp, 2026-11-14; never shipped by the coordinator)
+
+- **A remote client traces its own map** (`worldtrace::move`, `vr_trace.cpp`): the world and the doors, lifts and
+  platforms it has, with the clip hull `SV_Move` picks for the box (no monsters, players, portals or hit models). The
+  teleport aim, the crosshair's reach, the flashlight beam's length and the hands stopping at walls now work on a client
+  of another machine's server (before: nothing there). Hosting and single player: the server's `SV_Move` as before.
+  `mp_teleport` 9/0: B aims, lets go, the server moves him onto his aim's spot and A sees him there.
+- **Each player's palm frame on the server** (`vr_rigframe`; `grip::handFrameOf`): what he holds is placed, foes are held
+  and ragdoll limbs fitted by his own measured hand; the crawl's hand bottom by his own fist. `QVR_NET_VERSION` 8.
+- **A released teleport could be lost** (single player too): a later move in the same server frame overwrote the
+  one asking for it (a headset faster than the 72 Hz tick sends two moves in some frames). Now kept (`vr_server.cpp`).
+- Next (MP_PLAN.md, B3e): the drawn weapon's pose per player (weaponhotspot and its builtins, the weapon hull, the 2H
+  carry's reach), `mp_grab` grown.
+
+## mpN (B3e, part 1): the held weapon's drawn pose up per player (agent/mp, 2026-11-14; never shipped by the coordinator)
+
+- **Another player's held weapon as his own view draws it** (`vr_heldpose.cpp`, `vr_heldpose <ver> <hand> <62 values>`,
+  reliable on change; `QVR_NET_VERSION` 9): its hotspots, the two-handed hold, a weapon carried off its handle, its axes
+  and reverse grip, its place in the hand, the hand held out of a prop. The server's QC (`weaponhotspot`,
+  `weaponanygrip`, `weapondrawnpose` 0..5, 44..46), Box3D's weapon hull and the 2H carry's reach use it for players of
+  other machines; before, they had nothing (no hand-off, no help grip, a muzzle capsule for a hull). Single player and a
+  listen host's own player read the view as before.
+- `mp_held` 13/0 (hotspots within 0.03 units of B's drawn ones; the hand-off by B's own two-handed hold); the MP suite
+  11/11; single player: revgrip 24/0, embed 24 22/0, scenario_check, load_models_test, vr_run_check all pass.
+- `vr_mp_drawn` (Debug > Reports > Network: Held Weapons).
+- Next (MP_PLAN.md, B3f): the grip fit's hand rig, weapongrabspot and the reverse grip's choice, the magnetic holsters per
+  player; `mp_grab` grown.
 - Cherry-picked 4793722c6 (agent/mp): vr_server.cpp rewrites a player's `.vrbits0` previous bits at the end of every server frame, not only when a move arrives (a frame without a move showed QC last frame's grip press/let-go again; a doubled let-go pushed a re-grip into the 0.125 s bounce window); bots keep the bits their QC sets.
 
+## mpN (B3f): a remote player's grab of a weapon lying about, his holster presses, his grip fit hand (agent/mp, 2026-11-14; never shipped by the coordinator)
+
+- **Per player now** (`vr_heldpose.cpp`; `QVR_NET_VERSION` 10): the hotspot an empty hand takes a lying weapon by
+  (`vr_grabspot`, held 0.25 s after it is lost), the reverse grip's choice (QC passes the taker to `weapondrawnpose` 43;
+  his move's hand, his own `vr_revgrip`, now a preference), magnetic holster presses (`vr_magpoll`), the grip fit's hand
+  rig (with the palm frame: `vr_rigframe` version 2). A carried weapon's hotspots on the server were 1.4 units off: the
+  client measured them on the weapon's entity, which the carry places again; now on the tracked hand (0.03).
+- B3 is done; B4 (coop campaign) next. Moved on: another player's `holsterpos` (QC's estimate) and the magazine's box to
+  B6, `mp_grab`'s 2H carry / foe grab / palm slack to B5.
+- `mp_ground` (new) 14/0, `mp_grab` 13/0 (its retake flaky, ~1 in 4), `mp_held` 14/0; single player: revgrip 24/0,
+  gun_wall PASS, crate_grip 10/0, magholster `time`, load_models 4/0, scenario_check, vr_run_check 12/0.
+- Test aids: `vr_mp_drawn` adds each empty hand's ground spot and the nearest lying weapon's reverse grip choice; the
+  mock's `vr_mock_hand_to <hand> spot <i>` works on a remote client; QC logs the off hand's grip presses
+  (`vr_debug_carry 2`). Kit runs and the MP harness share the base's autoexec: never run both at once.
 ## telekeep (cherry-pick of agent/mp 88743a3e8)
 - A teleport asked in an earlier move of a server frame is kept until the server acts on it (headset above 72 Hz lost it). Checks: dev + ReleaseLTO 1.1.0 builds, vr_teleport_both_test 14/0, scenario_check 129/0, load_models_test 4/0.
 - vr_runpickups_test 1 hangs (engine spins, frames stop) at step 17 load mp_rpk_seed; also at 32ebcecc7 (muttiers merge) and 97aee6b6e, so not a recent commit. The same sequence by hand, and loading mp_rpk_seed.sav in a fresh run, both work. Cause not found.
+## mpN (B4, part 1): coop saves and loads, level changes with inventories (agent/mp, 2026-11-14; never shipped by the coordinator)
+- A coop game saves (console, menu Save, Quicksave; not deathmatch) with each player's block: `// qvr_coop`, `// qvr_coopslot`
+  (his level-start parms and name; save format 2, refused by older builds; single player saves stay format 1, Continue skips
+  coop saves). Its load plays it with the save's number of players, keeps connected players in their slots (they reconnect as
+  at a changelevel), gives each slot its parms (a coop respawn after a load: the loaded level's start), spawns a player into
+  a slot empty in the save as a new one, and stays paused until the saved players still connected are back.
+- `mp_campaign` 17/0 (e1m1 to e1m3, a save, its load, a respawn), `mp_campaign_listen` 11/0; `mp_grab` 9 of 9 and
+  `mp_ground` 4 of 4 (the retaking hand placed again every report; the sword waited for at rest, `vr_mp_drawn` `nspeed=`).
+- Single player: load_models 4/0, vr_run_check 12/0, scenario_check PASS. Next: B4b (coop autosaves, the exit and
+  intermission, a real death, slots by name, map download). Details: MP_PLAN.md, "B4 results, part 1".
 
 ## shadowsort (cherry-pick of agent/quest 163dc0001)
 - Shadow casters in the face-at-a-time path (vr_shadow_layered 0) drawn sorted by model and skin so instanced batching works: combined bench 1806 draws/1.16 ms -> 1025/0.11 ms (vr_shadow_layered 0 bench: combined GPU -13.7%, p99 frame -18.8%; lights_32 frame p50 -14.9%); vr_shadow_layered_check 0 texels differ with vr_shadow_layered 0 and 1; scenario_check 129/0, load_models_test 4/0.
@@ -2270,6 +2439,29 @@ Details and numbers in [PERF_1_1.md](PERF_1_1.md) ("Second pass", "Needs his cal
   +1-2 heap allocs a frame listed. Fixed: `load_reloads` crashed (Host_ClearMemory kept `cl_entities` after freeing
   it; a campaign switch's CL_ForgetModels wrote it: unmapped since nohunk). Now NULL there, as at start-up.
 
+## mpN (B4b): coop autosaves, the exit and intermission, a real death and respawn (agent/mp, 2026-11-14; never shipped by the coordinator)
+- A coop game autosaves as each level starts (`sv_autosave`, `vr_autosave_level_start`; dedicated servers too): once every
+  player is in and alive and none in danger (each player's `Host_AutosaveUnsafe`, `vr_autosave_safe_maxdelay` as in single
+  player), named `autosave/coop~<map>` (a coop save: Continue and Load Autosave pass over it; `load autosave/coop~e1m2`).
+- Debug > Tests > Cheats: "Go to the Level's Exit" (`vr_goto_exit [<slot>]`) and "Take Damage: 1000" (`vr_hurt <damage>
+  [<slot>]`, QC's T_Damage: a real death, not `kill`). Single player too.
+- `mp_flow` 14/0 (B in e1m1's exit, both see the intermission, A's trigger goes on to e1m2, its coop autosave with both, B
+  killed and respawned by his trigger with his level-start inventory). Flaky fixes: `mp_ground`'s sword retaken at its
+  handle (`vr_mock_hand_to <hand> spot -1`), `mp_teleport`'s aim turned left and right (a wall ahead of one spawn spot).
+- Suite 15/15; single player: load_models 4/0, vr_run_check 12/0, scenario_check PASS; dev and Release builds 0 warnings.
+  Next: B4c (slots by name, coop saves listed for the host, map download). Details: MP_PLAN.md, "B4b results".
+
+## mpN (B4c): map download through the Map Library, slots by name, coop autosaves listed (agent/mp, 2026-11-14; never shipped by the coordinator)
+- Joining a server whose map is a Map Library package: the server names it (`QVR_SVC_PACKAGE`, its sha256, before the
+  serverinfo); a client with another mounted leaves, mounts it (installed) or installs it from its own index through the
+  map installer (its mirrors and guards; nothing comes from the server but the sha256), and joins again. `vr_mp_download`
+  1 (Debug > Reports > Network: Install the Server's Map); 0: told what to install. Network version 11.
+- A loaded coop game gives a joining player his saved slot by his name (sent in the connect request); a stranger takes a
+  slot no saved player waits for. Saving in a dedicated server's intermission is refused (QC's `intermission_running`).
+  Load Autosave lists coop autosaves ("Coop, N players"); Continue still passes over them.
+- `mp_download` 8/0 (new), `mp_campaign_listen` 14/0 (C joins first into his own slot), `mp_flow` 16/0. Single player:
+  scenario_check PASS (129), load_models 4/0, vr_run_check 12/0. Next: B5 (interactions between players). Details:
+  MP_PLAN.md, "B4c results".
 ## uafsweep: dangling pointers after the hunk/cache removal; crowd_ad_40's p99 (agent/uafsweep, 2026-11-14)
 
 - **`-memguard` / `QVR_MEMGUARD=1`** (zone.c, vr_alloccount.cpp `VR_PageGuardAlloc/Free`; a debugging aid, off by
@@ -2301,6 +2493,25 @@ Details and numbers in [PERF_1_1.md](PERF_1_1.md) ("Second pass", "Needs his cal
   (fewer bodies and particles) since a31689eab (every move since the last server tick counts: the bench's +attack
   presses land differently at 90 Hz input over 72 Hz ticks). Nothing to fix; for CPU p99s in --fast, read cpu_busy with
   the GPU unsaturated (a smaller --eye) or a paced run. Scripts: scratch/uf_crowd.sh, uf_hitch2.py.
+## mpN (B5, part 1): a weapon passed between players, force grabs of level weapons in coop (agent/mp, 2026-11-14; never shipped by the coordinator)
+- Both already work on a dedicated server with no game change: a shotgun one player lets fall is taken by the other's
+  hand closing on it (each way); a level weapon (an object, `vr_item_objects` 1) is force grabbed by each player in turn
+  and, in coop, goes back to its place for the others.
+- Test aids: impulse 241 in coop (as the test gives), `vr_test_spawn 116` (a super shotgun pickup ahead), `vr_mp_drawn`'s
+  `norg=` (where the weapon nearest a hand lies), a force grab arriving uncaught says why (developer 1).
+- `mp_pickup` 9/0, `mp_forcegrab` 9/0 (new); the suite 17 of 18 (`mp_ground`'s shotgun retake missed once, 15/0
+  alone). Single player: scenario_check PASS (129), load_models 4/0, vr_run_check
+  12/0. Next: B5b (melee, parries, shoves between players; moves synced). Details: MP_PLAN.md, "B5 results, part 1".
+
+## mpN (B5b): melee between players, moves synced (agent/mp, 2026-11-14; never shipped by the coordinator)
+- A player's punch on another already landed; now (coop or deathmatch only) the other's guard or crossed arms parry it
+  as a monster's punch (VR_Parry's `vr_parry_pvp`: damage cut, both pushed apart), and shoves and bashes find other
+  players (pushed, damaged; no forced stagger).
+- The avatar's first byte carries the server's crouched/lying boxes, on-ground and waterlevel (`QVR_NET_VERSION` 12):
+  other players' bodies lie down, swim tilted and leave the ground as they do (`updateBodyPitch` from the Subject).
+- `mp_melee` 17/0, `mp_moves` 17/0 (new); the suite 20 of 20. Single player: scenario_check PASS (129; `bench_crowd_ad`
+  failed once, passed on the rerun), load_models 4/0, vr_run_check 12/0. Next: B5c (climbing, swimming in water, the
+  blade's directional parry, palm shove, sub-tick melee). Details: MP_PLAN.md, "B5b results".
 
 ## perfpicks: his five performance calls (branch agent/perfpicks, 2026-11-14; partial: see "Left")
 
@@ -2359,6 +2570,17 @@ Details and numbers in [PERF_1_1.md](PERF_1_1.md) ("Second pass", "Needs his cal
 
 Cherry-picked bd2277d6c (translucent brush models' retro decal program made in the load's last frame, not in play: a 2.5-3.1 s freeze on 19 AD maps); dev and ReleaseLTO builds, scenario_check, load_models_test pass; ad_tears with developer 1 prints no "made in play" line.
 
+## mpN (B5c): climbing between players, swimming and the palm's shove checked (agent/mp, 2026-11-14; never shipped by the coordinator)
+- The avatar's moves byte says which hands hold a ledge; each hold (the server's, `climb::serverHold`, shared with
+  calcStats) follows the weapons (`QVR_NET_VERSION` 13). Other players' bodies climb from them: the trunk hanging under
+  the head, the feet on footholds on a listen host, hanging on a client of a dedicated server (no world to trace there,
+  as for his own feet).
+- `mp_climb` 11/0 (new, vrclimb: hang, let go, mantle, each way), `mp_moves` 19/0 (swims in e1m4's deep water: the
+  copy tilted), `mp_melee` 21/0 (an open palm's shove). Single player: scenario_check PASS (129), load_models 4/0,
+  vr_run_check 12/0. Next: B5d (a blade's directional parry between players, melee sub-tick samples). Details:
+  MP_PLAN.md, "B5c results".
+- climb_plays.py's ledge hold (1.638 m, 0.69 m at setpos 78 176 24) reads "no hold" at today's default scale (31.7
+  units a metre: the hand inside the ledge); vr_climb_try's hold there is 98 176 49. Its plays may predate a scale change.
 ## relaudit: the 1.1 release-readiness audit and a lean checklist (branch agent/relaudit, 2026-11-14)
 
 - **docs/vr-port/RELEASE_1_1.md**: everything needed to release 1.1, ticked where done; what is left for him at the top.
@@ -2380,6 +2602,37 @@ Cherry-picked bd2277d6c (translucent brush models' retro decal program made in t
 
 Cherry-picked 6b8e74432: VR_CrtHeapLoadHold now defined without mimalloc (QVR_MIMALLOC=OFF Linux link). Checked: dev build, ReleaseLTO, WSL no-mimalloc link, load_models 352/0.
 
+## mpN (B5d): a blade's directional parry between players (agent/mp, 2026-11-14; never shipped by the coordinator)
+- Another player's melee-weapon swing (sword, axe, crowbar; not the chainsaw, not a fist) is judged by the directional
+  parry, as an armed humanoid's: VR_DRP_Eval's third kind reads his swing's line from his hand lines (`handlineat`), the
+  two frames within 0.1 s whose sweep came nearest your weapon. A fist's blow is still the guard's. Multiplayer only.
+- `mp_melee` 29/0 (a sword's swing each way: lands; the crowbar held level, the guard's pose, does not parry it; held
+  upright across its way, it does; at 30 ms jitter the same blow, 33-37 moves merged); `mp_test.py blade` runs that part.
+  `vr_mp_status` gives `merged=`. Melee sub-tick samples not needed (MP_PLAN.md, Decisions). Single player: scenario_check
+  PASS (132), load_models 4/0, vr_run_check 12/0; builds 0 warnings. `vr_agrunt_test 78` is 28/19 on the branch before
+  this phase too (not looked into). Next: B6. Details: MP_PLAN.md, "B5d results".
+
+## mpN (B6, part 1): server rules and other players' look (agent/mp, 2026-11-14; never shipped by the coordinator)
+- Every balance setting is a server rule (1853: the balance pages' settings found through Search's index, the gameplay
+  preset's, the melee timing; not preferences, unsaved settings, or a player's own by name: sounds, haptics, colours...).
+  A remote server's client plays by them in his own cvars while joined (his own kept, written to his config, back on
+  disconnect); his rows and the Gameplay Presets' buttons are locked. Single player gathers and sends nothing.
+- Another player's hands and body are drawn with his own skin tone, gloves and painted nails (his calibration, nail
+  colour added): `view::lookOf`, one code path for yours and his. `QVR_NET_VERSION` 15.
+- `mp_rules` 14/0, `mp_cosmetics` 9/0 (new); the suite 22 of 23 (`mp_ground`'s flake, then 15/0 twice). Single player:
+  scenario_check PASS (147), load_models 4/0, vr_run_check 12/0. Next: B6b (holsters, seated, flat body height,
+  pauldrons and plates seen by others). Details: MP_PLAN.md, "B6 results, part 1".
+
+## mpN (B6b): holsters, seated, flat height, pauldrons and the magazine hull seen by others (agent/mp, 2026-11-14; never shipped by the coordinator)
+- Another player's holstered weapons are drawn where his client drew them (the move's `VrDrawnHolsters`, relayed in the
+  avatar); QC's `holsterpos` for a remote player is his own holster point (`server::holsterPoint`).
+- The avatar calibration (version 4) adds seated play, the flat body height and the pauldrons' style, size and place: a
+  seated player's copy skips the leg fit as his own does, a flat player's is at his flat body height; his pauldrons are
+  placed by `view::placePauldrons`, the code that places yours, coloured by the armour the server says he wears.
+- A remote player's Box3D weapon hull includes his gun's seated magazine (`vr_heldpose` flagMag). `QVR_NET_VERSION` 16.
+- `mp_cosmetics` 14/0 (grown), `mp_flatbody` 6/0 (new); the suite 23 of 24 (`mp_flow`'s autosave list once, then 16/0).
+  Single player: scenario_check PASS (147), load_models 4/0, vr_run_check 12/0. Next: B6c (the armour plates on other
+  players' bodies). Details: MP_PLAN.md, "B6b results".
 ## Reset This Page and changes on the weapon and prop pages (branch agent/pagereset, 2026-11-15)
 
 His 11-15 note: he changed the shotgun's two-handed hotspot by accident and had no way back. Every page with settings
@@ -2562,6 +2815,16 @@ well-timed parries."
   written, Continue "just now"; co-op refused); `vr_gameplay_preset_test` 27/0; `vr_gameplay_classic_check` 2/0 in VR
   and in flat. Dev and Release-TracyFull builds 0 warnings. Scenario `flat_aim_zoom`.
 
+## mpN (B6c): other players' armour plates; Locomotion's balance rules (agent/mp, 2026-11-14; never shipped by the coordinator)
+- Another player's armour plates (the server's `QVR_SVC_ARMOR` word on him, already sent to every client) are drawn on
+  his copy of the body by your plates' code: the plates' model and joints' leather over his build's body, his armour's
+  colour, his body's bones (helmet included), no pauldron under a plate; no morph for his. Your `vr_player_plates` 0
+  hides everyone's.
+- `vr_crouch_speed`, `vr_crouch_speed_scale` and `vr_slope_walk` are server rules by name (Locomotion's controls stay
+  each player's).
+- `mp_cosmetics` 20/0 (grown, with two images of A's view of B), `mp_rules` 14/0 (grown); the suite 23 of 25, the two
+  then pass alone. Single player: plates_model_test 9/0, scenario_check 145 run 0 failed, load_models 4/0, vr_run_check
+  12/0. Next: B7 (snapshots). Details: MP_PLAN.md, "B6c results".
 ## The detailed ranger head on the body (worktree `takeslight`, branch `agent/rangerhead`, 2026-11-14)
 
 His ask (2026-11-15): Dawn of the Machine's ranger corpses (its `start` map) have a nicer, more detailed head: use it
@@ -2662,6 +2925,59 @@ front, side, back; nothing of it in your own view when looking down or leaning.
   `maps_skill_test` in the tree. Shots: qvr-kit/scratch/runsetup3_shots/ (r3_before.png, r3_after.png: left the Levels
   list's e1m1, right New Game).
 
+## mpN (B7, part 1): moves up as quantized deltas with repeats; other players' hands lerped (agent/mp, 2026-11-14; never shipped by the coordinator)
+
+- A remote client's moves go up as `QVR_CLC_MOVES` (`vr_netmove.cpp`; `QVR_NET_VERSION` 17): 324 integers a move,
+  delta-coded against the move the server acknowledged (`QVR_SVC_MOVEACK`), the unacknowledged ones repeated (at most
+  2); the server runs each once, in order. B's up link: idle 2.2 KB/s (was 45 KB/s), walking at 10% loss 9.7 KB/s;
+  the server lost at most 2% of his moves there. The loopback client keeps clc_move: single player unchanged.
+- Other players' heads, hands, held and holstered weapons are drawn between the last two messages in step with their
+  bodies (`vr_mp_avatar_lerp` 1, Debug > Reports > Network: Smooth Player Hands): hands no longer a message behind on
+  a turn (`mp_loss`: offset roughness 0.28 against 14 off).
+- Tests: `mp_loss` (new), `mp_bandwidth`'s up check, `mp_bytes:` per scenario, `vr_netmove_selftest` 5/0; MP_PLAN.md
+  "B7 results, part 1". Next: B7b (snapshots down, the entities' interpolation buffer).
+- In VR (two machines): a remote player's hands as he turns (smooth, on his body), the Smooth Player Hands row off
+  for comparison.
+
+## mpN (B7b): snapshots down acknowledged and delta-coded; the entities' interpolation buffer (agent/mp, 2026-11-14; never shipped by the coordinator)
+
+- A remote client acknowledges the newest snapshot it read in each `QVR_CLC_MOVES`; the server writes its datagram's
+  player state, entity updates and the avatars it sees as records of one `QVR_SVC_SNAPSHOT` (`vr_netsnap.cpp`;
+  `QVR_NET_VERSION` 18), coded against the acknowledged one: an unchanged record is not sent, a changed one goes as a
+  byte mask or whole, a gone one as its key. The client rebuilds the whole set and parses each record with NetQuake's
+  own parsers: the rest of the client is unchanged. B idle on e1m1: down 7 KB/s, mean 97 B (was 20 KB/s, 270 B).
+  `vr_net_snapshots` 1 (Debug > Reports > Network: Delta Snapshots; 0 NetQuake's whole datagram).
+- A remote client draws the others (not brush models: doors and lifts stay in step with the player riding them; not
+  stepping monsters: the renderer lerps those) a delay behind the newest message, between the two around that time,
+  turns slerped; the delay follows the longest recent gap (about 40 ms at 10% loss), its clock eased (never a jump);
+  the other players' hands and weapons at the same time. `vr_net_interp` 1 (Network: Interpolation Buffer).
+  `mp_loss`: 0 jumps of A's body and hands at 10% loss (were 1-3), hand offset roughness 0.21 (was 0.28-0.68).
+- Single player, the listen host's own client and demos of them: unchanged (no snapshot, no buffer). A demo recorded
+  on a remote server mid-game asks for a whole snapshot to start from.
+- Tests: `mp_loss`'s jump checks, `mp_bandwidth` under 10 KB/s and the server's deltas, `vr_netsnap_selftest` 5/0;
+  MP_PLAN.md "B7b results".
+- In VR (two machines): another player walking and turning (smooth, no stop-and-jump), his hands on his body; the
+  Interpolation Buffer row off for comparison.
+
+## mpN (B8, part 1): a remote client's own walk predicted (agent/mp, 2026-11-14; never shipped by the coordinator)
+
+- `vr_pmove.cpp`: the walk one move at a time (SV_AirMove's steering, friction and acceleration; gravity with
+  vr_slope_walk; SV_FlyMove, SV_WalkMove's steps, wall friction and unstick; the room-scale walk), the server's parts
+  (touches, links, props, close quarters) as a Body's hooks. A remote client's server and his client both run it.
+- The server runs a remote client's moves one by one, each for its own frame's time (`frameTime` in the move), in a
+  frame whose walk is plain (walking, alive, not swimming, lying or flat-screen sliding); his datagram carries the state
+  after the newest move run and the rules it ran by (`QVR_SVC_PREDICT`, a snapshot record; `QVR_NET_VERSION` 19).
+  `vr_net_permove` 1 (Debug > Reports > Network: Moves Run One by One).
+- His client replays the moves sent since, against its own copy of the map with the server's narrowed box
+  (`hull::clientPlayerTrace`), and draws himself there, between his last two moves; a correction eases in over 0.1 s;
+  a lift he stands on is drawn at its newest place. `vr_net_predict` 1 (Network: Predict Own Walk; Prediction Report).
+- `mp_predict` (B 150 ms each way): his own move shows 2 ticks after his press (19 ms; without: 23 ticks, 328 ms);
+  walking on e1m1's floor, ramp and steps every correction 0.000 units over 325 states. MP_PLAN.md "B8 results".
+- Single player and a listen host's own client: unchanged (clc_move; sv_phys.c's path untouched).
+- Not predicted yet (drawn as they come, a round trip late): the jump (QuakeC's), swimming, crouched and lying boxes,
+  climbing, the grapple; lag compensation is B8b.
+- In VR (two machines, one with lag): walk, strafe and turn on the remote client: your view moves at once, no rubber
+  band on floors, ramps and stairs; jump (it shows late and eases in: B8b); ride a lift (the lift and you together).
 ## Save and load after a Test scene (agent/saveload1115)
 
 His report (flat, 2026-11-15): TEST on the waterdrips item, quicksave, quickload: a toolgun in his off hand, the grunts'
@@ -2754,6 +3070,18 @@ self-driven across the load by saved globals): `vr_scenario waterdrips`, once pl
   `map vrstart;vr_classic_roundtrip_test`, `-QuitOn "classicroundtrip: \d+ passed"`. `vr_gameplay_preset_test` 31/0
   (2 new: Back is the press's state, a hand change kept), `vr_gore_preset_test` 15/0, `vr_gameplay_classic_check` 4/0.
   menu_paths.txt regenerated (the new Debug row).
+
+## mpN (B8b, part 1): the suite's three fixed; lag compensation for shots (agent/mp, 2026-11-14; never shipped by the coordinator)
+
+- **Client commands no longer overflow cls.message** (any client of any server): the VR client's own commands (prefs,
+  held poses, rig frames, calibration) leave 512 bytes for typed ones (`client::roomForCommand`), cls.message is 4 KB.
+  Before: a typed command right after a join could Host_Error the client ("SZ_GetSpace: overflow"; mp_forcegrab).
+- **Snapshots**: a delta whose only change is the predict record decodes (the key step limit covers `predictKey`).
+- **Lag compensation** (`vr_lagcomp.cpp`; `vr_net_lagcomp` 1, `vr_net_lagcomp_most` 0.5; Debug > Reports > Network: Lag
+  Compensation): a remote client's MOVE_HITMODEL tracelines (his shots) meet the players and monsters where his screen
+  showed them; each move carries `viewBack` (QVR_NET_VERSION 20). Melee and the grapple are not compensated yet.
+- Tests: `mp_test.py lagcomp` (12/12 hits judged where B saw A, 4/12 where the server has him), `vr_netsnap_selftest` 6/0.
+  Details: MP_PLAN.md, "B8b results, part 1".
 ## rangerhead2: the detailed head's wounds where struck; his head place as defaults; the recoil test's 2H time (agent/rangerhead2, 2026-11-15)
 
 - **Why the detailed head's wounds were in the wrong spots:** three causes. (1) Its texture coordinates were his own skin's
@@ -2795,6 +3123,37 @@ self-driven across the load by saved globals): `vr_scenario waterdrips`, once pl
 - No saving in the arena (`vrarena`): `VR_ArenaNoSave` (vr_runsetup.cpp) makes `VR_RunIronmanRefusesSave` refuse `save`/quicksave/Save menu with "No saving in Arena Mode"; the quicksave tool is greyed with that reason. Loading stays allowed.
 - Tests: `vr_runsetup_screen_test` (five rows), `vr_runlaunch_test` (Ironman off with the pick on; save and quicksave write nothing). menu_paths unchanged by rows removal except Ironman.
 
+## mpN (B8c, part 1): mp_loss's last jumps; lag compensation for melee (agent/mp, 2026-11-14; never shipped by the coordinator)
+
+- **The interpolation buffer** (`vr_netsnap.cpp`): its clock slows to a stop within half a tick of the newest message
+  (`cushion`) instead of running past it and holding; past it, the next message's lerp threw the others a gap's motion
+  forward at once (3-4 packets lost in a row at 10% loss: mp_loss's last "jumps"). `holds` (vr_mp_status) now counts
+  the slowed frames. `vr_mp_trace` prints the buffer's clock and the traced entity's newest sample.
+- **Melee lag compensated** (`vr_lagcomp.cpp`; QC builtins `lagcompbegin(e)` / `lagcompend()`): a remote client's
+  melee sweep (`VR_Melee_Sweep`), bash find (`VR_Bash_Find`), headbutt target and the guard check of a player struck by
+  another player (`VR_Parry_HandFor` in `VR_Parry`) meet the others where his screen showed them; the blow is dealt
+  where they are. The kept frames hold the players' hands (pos, rot); the scope's end keeps what it did to a target.
+  Single player and the listen host's own client: `lagcompbegin` returns 0. Not compensated: the grapple's hook and
+  missiles (they fly in the server's world), the directional parry's deferred blows (VR_DRP_Blow), tackles.
+- Tests: `mp_test.py loss` 6 of 6 runs 0 jumps (was 2 of 6 failing); `mp_test.py lagcomp` 11/0 (new: 12/12 test
+  punches land where B saw A at 150 ms each way, 5/12 where the server has him); `mp_melee` 29/0. Details: MP_PLAN.md,
+  "B8c results, part 1".
+
+## mpN (B8d, part 1): the jump, the crouched box and a lift rider predicted (agent/mp, 2026-11-15; never shipped by the coordinator)
+
+- **The jump predicted** (`vr_pmove.cpp`): QC PlayerJump's rule runs in each move of a remote client walked move by move
+  (the move whose key pressed it), on the server and in his client's replay; QC's new `.vr_movejump` (set by the
+  engine on those frames) makes PlayerPreThink leave the jump and its release to the moves. Lying down and AD's Jump
+  Boots stay QuakeC's. Single player and the listen host's own client: the field is 0, QuakeC's jump as before.
+- **The crouched box in the replay** (the state's box height, `hull::clientPlayerTrace` with a height), and a remote
+  client's crouch read from his head over his own feet (`vr_server.cpp`: his head was read against the server's origin,
+  a round trip behind his prediction: a jump's rise was a crouch, a shorter box in the air than his replay's).
+- **A lift rider**: the replay's ledge test meets brush models (a lift's top was a drop: double friction); a lift that
+  moved under him between replays carried him, not a correction (they sank him 10-16 units into it).
+- `QVR_NET_VERSION` 21. `vr_mp_watch 2` traces each move on both sides (`mp_predict_sv`, `mp_predict_m`).
+- Tests: `mp_test.py predict` 20/0 four runs (grown: his own jump shows 1-2 moves after his press; jumping in place and
+  across the start's step, a crouched walk and a ride on e1m1's lift: every correction and the drawn offset under
+  0.04 units); the MP suite 26 of 27 (`mp_predict`'s probe race, fixed). Details: MP_PLAN.md, "B8d results, part 1".
 ## stuckgrunts: Enemy Count's copies placed with the box they stand with (agent/stuckgrunts, 2026-11-15)
 
 - Found by presetlate: Classic + 3x Enemy Count on e1m1 left two grunt copies in solid. Reproduced headless every time
@@ -2861,6 +3220,14 @@ His flat report: a Run Setup Style (Classic, then Unleashed) took effect only wh
 
 His report: after quickload the dripping came back but the wet glint did not. The shine (the alias shader wet coat, `wounds::wetCoat`) read `Mask::wetLeft` / `handWetLeft`, set only by a liquid wound event (the rising edge); a load restoring vr_drips wetness never set them. Fix, no new state: `wetCoat` takes its seconds-left from `drips::wetOf(e)` (drips wetness times dryTime, max with the old values); a thing with no wet mask (a loaded game) shines all over. `Misc/quakevr/saveload_test.sh` checks `vr_wounds_info` `wet: coat`: each coat shining before the save shines after (flat 5, VR 5). BACKLOG: flat 2H melee pose item added.
 
+## mpN B8e (agent/mp): swimming and the movers' motion predicted
+
+A remote client's swim now runs move by move through `vr_pmove.cpp` (each move's own water level; SV_WaterJump's carry,
+SV_WaterMove with the VR stick scales, glide and cap; QC WaterMove's drag and the swim rise via `.vr_moveswim` /
+`.vr_movejump`); the hands' strokes stay the server's, once a frame. The state carries the movers near him in motion
+(velocity, time to their stop): his replay meets a lift where it will be and rides it. `mp_predict` 21/1: swimming on
+e1m4 0.000 over 216 states; on the rising lift 0.025 (his place on it); one 12.7-unit correction in the drop onto it
+(open, B8f). `QVR_NET_VERSION` 22. Single player untouched (the fields are 0 there). Details: MP_PLAN.md "B8e results".
 ## gibthrow: the hand stays on a gib pulled off the blade; thrown blades settle point first (branch agent/gibthrow, 2026-11-15)
 
 His notes (vrtesthall_2026-11-15_00-03-02, _00-03-51): pulled off the sword with the hand that held it, the gib was drawn off
@@ -2973,6 +3340,17 @@ along it) holds the weapon, the torch left on. Before 4/3 (the dagger, the chest
 after 7/0. `mounted:9-10` (the two gun torso turns) 312 lit, 312 taken. Scenario `torch_otherweapon`.
 ## agrunt4874: an axe grunt that never closed in; downtug's "lying still" (agent/agrunt4874, 2026-11-15)
 
+## mpN B8f (agent/mp): the drop onto a rising lift, Quake's water jump out predicted
+
+The drop's intermittent 12.7-unit correction: his replay carried only the lift he stood on, so a lift rising into him
+between two of his falling moves (his feet within its 2-unit step over its top) left him inside it: stuck there, no
+floor met, until the next state. The server's SV_PushMove pushes a box left inside a pusher's new place; the replay now
+does too (`moversAfter` in `vr_predict.cpp`). `mp_predict --part lift` failed 4 of 4 before (18.7-26 units), 3 of 3
+after (0.013-0.023). Quake's jump out of the water (QC CheckWaterJump's WaterJumpTry along his facing) now runs in each
+move for a remote client (`.vr_movewaterjump`, set in PlayerPreThink; the hands' climb out, vr_water_jump 0, stays the
+server's): on the start map's pool his corrections 0.000 (59.5 units before). `QVR_NET_VERSION` 23. `mp_test.py
+predict --part lift|waterjump|swim [--repeat N] [--watch 2]` runs one segment alone, traced. Single player and the
+listen host's own client untouched (the fields are 0 there). Details: MP_PLAN.md "B8f results".
 - **`vr_agrunt_test 48` (the axe grunt standing case: dist min 210, never within 64), a game fix.** Not the trail: the
   axe grunt saw you (trail 0, never a marker as its goal). 0.25 s into its case it was hit by a laser still in flight
   from the previous case's Laser Rifle grunt, which the test had removed meanwhile; grunts infight with grunts, so
@@ -3054,6 +3432,29 @@ research notes and the behaviour. Settings (archived): `vr_flat_tp` 0, `_back` 5
   Exported with `blend_export.py`: 935 -> 1027 triangles, anchors ok, holes check 0 see-through, 0 flipped; normal map re-baked,
   `fx_gfx_mask` rewritten. Scene `mrl_vents`; load_models_test 4/4. Blender before/after: kit `scratch/mrlvents_shots/`.
 
+## mpN B8g (agent/mp): the lying box's crawl predicted
+
+A remote client lying down is now walked move by move (the lying box was already his rules' box) and the stick's share of
+the arms' crawl runs in each move: VR_AfterCrawlMove's stick want and crawl step moved into `pmove::crawlStickWant` and
+`pmove::crawlStep` (`vr_pmove.cpp`), which single player's VR_AfterCrawlMove calls too (same math; crawl_test 18/0).
+The crawl's own speed is part of the predicted state; the hands' pulls stay the server's, once a frame after the moves
+(`physics::crawlHands`), corrected in his replay as the swim's strokes. `mp_predict --part crawl`: corrections 0.000 over
+356-360 states in 5 takes (before, no lying frame was predicted). `QVR_NET_VERSION` 24; `vr_mp_watch 3` traces every
+correction over 0.05. Climbing, the grapple's pull and the hands' climb out of the water are B8h (MP_PLAN.md "B8g
+results").
+
+## mpN B9 (agent/mp): one code path for single player and multiplayer
+
+origin/next merged (clean). The whole branch reviewed for single player / multiplayer / own / remote branches: the
+list with verdicts is MP_PLAN.md "B9 review" (14 groups: keep the transport, latency, rules and save ones; unify the
+rest). Unified now: the server reads every player's fists, palm frames and grip fit rigs (`held::fistOf`,
+`grip::handFrameOf`, `gripfit::fit`) and per-player preferences (`clientprefs::value`/`forQc`, `PF_cvar_hget`) from his
+slot, the host's own included: the host's client puts its own hands into its slot as it measures them
+(`clientprefs::ownSlot`, `publishOwn`) instead of the readers asking "player 1 of a non-dedicated server?" and "more
+than one client?" (9 such branches gone), and no longer sends its own rig to itself. Tests: MP suite 27/27; then
+`prefs`, `grab --listen`, `held --listen`, `rules` pass; scenario_check 156/0, load_models_test 4/0,
+crate_grip_test 10/0 twice (9/1 once, not reproduced). Left (MP_PLAN B11a-c): heldpose's own-player view asks, vr_pmove
+for the host's own player, one avatar routine for any player entity.
 ## flipgrip2: the flip's pivot is the fist; the reversed two-handed hold mirrored (agent/flipgrip2, 2026-11-15)
 
 His note (vrtesthall_2026-11-15_03-14-49): the flip "much better", but the dagger needed tweaks (his config: `rev_x_52` -0.15,
@@ -3109,6 +3510,16 @@ thumb up but put the knuckles in. The right answer is neither: no turn at all re
 
 MRL (slot 14, v_multi2.mdl) now holds no offset keys of its own: it inherits the rocket launcher (slot 6) for the ammo screen (wpntxt_*), button (wpnbtn_*), finger/hand_*, grips (x/y/z/pitch/yaw, 2h_*), hotspot and muzzle; only id, inherit and its fx_* shot effects stay. His config had no vr_wofs values for either slot. 52 ticked lines retired from checklist.txt (those he spoke of at 03:xx kept); 19 scenes only they used moved out (kept any still named by code, docs, or other lines). No flat screenshot taken.
 
+## mpN B10: player-to-player interactions (agent/mp)
+
+- Grab-disarm of another player (QC vr_pdisarm.qc, VR_Player_Disarm): grip closed on his drawn weapon (8 cm of its line
+  or a hotspot, lag compensated, no faster than vr_agrunt_grab_speed), pulled away at 1.5 m/s: yours; gentler slips at
+  15 cm. Cvars vr_disarm_player 1, _pull 1.5, _reach 8, _slip 15 (Armed Grunts page). No tug, one path for every player.
+- mp_test.py disarm (17/0 dedicated, 17/0 --listen): gentle pull slips (0.18 m/s), yank takes (2.48 m/s), toss to A
+  taken, B's holsters as A draws them (every slot given, one drawn, after death), a shell from A's pouch taken by B.
+- Open: a carried round let go at a remote player's own pouch is not refunded (metric ammo_into_b_reserve); MP_PLAN B10.
+- Checks: mp_test.py suite 27 of 28 (mp_ground 14/1, its known 'None' grip flake, then 15/0 alone; mp_disarm 17/0),
+  scenario_check 137/0, load_models_test 4/0, ReleaseLTO build 0 warnings. vr_run_check not run (runs untouched).
 ## throwfix: thrown blades really come round point first; a thrown gib skewered in the air (agent/throwfix, 2026-11-15)
 
 His notes (vrtesthall_2026-11-15_03-19-26, _03-21-03): the point-first throw "doesn't seem to work at all ... it always seems to
@@ -3178,6 +3589,32 @@ the same exact rules" as enemies; an option, on by default, single player and mu
   on the floor with clip 5; blast across the body: no hit; enforcer laser: out; option off: nothing). agshot (vr_agrunt_test
   50) 10/0, vr_agrunt_test 200 33/0. Scene `player_disarm`. The melee path has no headless test (dirparry's held blows).
 
+## mpN B10b: one way out of a player's hand; rounds handed over (agent/mp, 2026-11-15)
+
+- Merged next's player disarm with B10's grab: VR_Player_Disarm(v, hand, taker, takerHand, dir, speed, why)
+  (vr_playerdisarm.qc) is the one way out of any player's hand: knocked out (VR_PD_Disarm: shots, projectiles, blows)
+  or taken into another's hand (the grab: vr_pdisarm.qc renamed vr_playerdisarm_grab.qc, VR_PDG_*). Cvars renamed
+  beside next's: vr_disarm_player* -> vr_player_disarm_grab 1 / _pull 1.5 / _reach 8 / _slip 15, the grab also gated by
+  vr_player_disarm; rows under Armed Grunts > Disarming: Players' Weapons. menu_paths.txt regenerated.
+- B10's open item (a round let go at a remote player's pouch not refunded) was the test's: vr_mock_hand_to nearest
+  <classname> reads the server's edicts (none on a remote client), so B's hand took a pair from his own pouch. New mock
+  verb nearestmodel <part> [<units>] (client entities). mp_disarm now hands over a shell, a nail magazine and a rocket
+  A->B (from the floor, into B's reserve by exactly A's loss) and a shell B->A (a listen host's own player).
+- Checks: vr_pd_test 10/0, mp_disarm 27/0 dedicated and --listen; mp_test.py suite 26 of 28
+  (mp_ground 14/1, mp_pickup 8/1: known grip flakes, then 15/0 and 9/0 alone), scenario_check 138/0, load_models_test
+  4/0, vr_run_check 15/0 (runenemies 17/0), Release ThinLTO build 0 warnings. Next: B8h (MP_PLAN).
+
+## mpN B8h part 1: rounds used by B; the mantle predicted (agent/mp, 2026-11-15)
+
+- mp_disarm's use part (`--part use`): a nail magazine and a rocket A let fall, taken up by B and loaded into his own
+  gun at its port (his magazine out by its button, the launcher fired empty first): seated / loaded, his reserve
+  unchanged. Worked at once: no game fix. `vr_mp_status` `mp_client inv=` gains the main gun's clip (a ninth value).
+- The mantle runs in a remote client's moves: `pmove::Mantle` / `pmove::mantleStep` (vr_pmove.cpp) is the one step,
+  single player's mantle frame (vr_climb.cpp `mantleStep`, its time run now `Climber::mantleAt`) and the server's and
+  his replay's moves alike; `climb::mantlePath` / `climb::mantleMoved` around VR_PredictPhysics; the state carries the
+  way and its time (`bitMantle`). New scenario `mp_predictclimb` (`--part mantle`): 19 mantling states, corrections
+  0.000 over 285, at rest where the server has him. QVR_NET_VERSION 25.
+- Checks: mp suite 28 of 29 (mp_ground's sword retake flake: the sword lands out of B's reach, seen on the old engine too), mp_predictclimb 8/0, mp_disarm 35/0 --listen, mantle_height_test PASS, prop_climb_test 12/0, scenario_check 138/0, load_models_test 4/0, vr_run_check 12/0, Release ThinLTO 0 warnings. Next: B8i (the hang in the moves, the grapple's pull, the hands' climb out; MP_PLAN).
 ## rcbase: 1.1 RC readiness, full baseline on next (agent/rcbase, 2026-11-15)
 
 - **Baseline** (`run_baseline.py --groups suite,agrunt,console,scripts --jobs 4`, next d137c1f7d, 104.6 min, runs/
@@ -3199,6 +3636,79 @@ the same exact rules" as enemies; an option, on by default, single player and mu
 - **Defaults** since the audit (c94b2b300): 4 changed (his Menu Look pair, the ranger head's size and side), 25 new,
   no debug or test switch on by default, no personal setting promoted.
 
+## mpN B8i part 1: the hang predicted; mp_ground's sword retake (agent/mp, 2026-11-15)
+
+- **mp_ground's sword retake (3 of 4 runs failing): the test's, not the game's, not flipgrip's.** The harness put B's hand in
+  place (`vr_mock_hand`: the mock reports the jump as 21 m/s for 3 frames) and let go ~140 ms later, inside the throw
+  estimate's window: each drop was a 10 m/s throw down that bounced and slid out of his reach. Single player's drop of a
+  still hand: 0 m/s. Fix: `let_go_still` (THROW_SETTLE_S, as mp_pickup), the shotgun's ground spot waited for at its grip
+  hotspot. 5/5 runs 15/0.
+- **The hang predicted** (MP_PLAN "B8i results"): `pmove::hangStep`/`moveBody` (vr_pmove.cpp) are vr_climb.cpp's hang step,
+  one function for single player's frame, the server's moves and the client's replay; the state carries the holds, owed and
+  slipping (`QVR_NET_VERSION` 26). `mp_predictclimb --part hang`: 249 hanging states, corrections 0.000. A hold's take and
+  the mantle's start (the server's searches) are counted apart (`trans_n`/`trans_max`; the mantle's start ~43 units).
+- Results: mp_test.py suite 28 of 29 pass: mp_disarm 6/1 (its gentle pull's setup: A's shotgun not yet in his hand at the server), then 35/0 twice alone; mp_ground 15/0 in the suite and 5 of 5 alone; scenario_check 138/0, load_models_test 4/0, vr_run_check 12/0, prop_climb_test 12/0, Release (ThinLTO) build 0 warnings
+
+
+## mpN B8j part 1: the mantle's start predicted (agent/mp, 2026-11-15)
+
+- **The hang's mantle test runs after each hang step** (MP_PLAN "B8j results"): vr_climb.cpp's tryMantle and its room
+  search (findMantleLevel, findMantleSloped) moved to vr_pmove.cpp (`pmove::hangMantle`, `pmove::findMantle`, over the
+  Body's traces), one function for single player's hanging frame, a remote client's moves on the server and his replay.
+  The no-room search's cache is on the steps' clock and travels in the state with the ledge map's depths at five spots
+  (`QVR_NET_VERSION` 27). `mp_predictclimb`: the mantle's start 43.3 units -> 0.093; the hold's take (standing) 0.000;
+  both now checked (`trans_check`).
+- Single player: the test now runs right after the step, before the frame's part (kept within reach, the owed, the reach
+  check), which is skipped on the mantle's first frame; the cache dropped its box keys. mantle_height_test PASS (same
+  heads), prop_climb_test 13/0, slopes_test 6/6.
+- Results: suite 27 of 29 (mp_predict's lift landing 1.354 and mp_disarm's pouch shell: flakes away from climbing; alone
+  28/0 and 35/0), mp_predictclimb 14/0, scenario_check 138/0, load_models_test 4/0, vr_run_check 12/0, Release (ThinLTO)
+  0 warnings. Next: B8j part 2 (a hold taken in the air, the grapple's pull, the hands' climb out where no ledge is).
+
+## mpN B8j part 2: a hold taken in the air predicted (agent/mp, 2026-11-15)
+
+- **The take runs in each move** (MP_PLAN "B8j results, part 2"): one function (`takeTry`, vr_climb.cpp) for single
+  player's frame and a remote client's moves on the server (`climb::moveTake`, VR_PredictPhysics) and in his replay
+  (`climb::replayTake`): the press memory on the moves' clock, the take's rules (the server's once a frame, in the
+  state: `bitTake`), findHold over a `Seeker` (the server's player, or the replay's world alone); the ledge maps are
+  built from the client's world too (`ledges::world`). `QVR_NET_VERSION` 28.
+- `mp_predictclimb --part airgrab` (new): a jump at vrclimb's ledge, taken as the hands pass the lip 13.6 units up; the
+  take's state 0.000 (it was the fall since, a round trip's), every correction 0.000 over 354 states.
+- Single player: the same take (the air grab's retry is an age summed over frames instead of a press time): climb_jump.py
+  PASS 26/30, prop_climb_test 12/0, slopes_test pass, mantle_height_test PASS.
+- Results: suite all 29 pass, scenario_check 138/0, load_models_test 4/0, vr_run_check 12/0, Release (ThinLTO) 0
+  warnings. Not done: the grapple's pull, the hands' water climb-out (next: B8j part 3), mp_predict's lift-landing flake.
+
+## mpN B8j part 3: the hands' climb out of the water predicted (agent/mp, 2026-11-15)
+
+- **One function for the climb out by hand** (MP_PLAN "B8j results, part 3"): QC VR_WaterClimb_HandPull moved into
+  vr_pmove.cpp (`pmove::waterClimbTry`, over Quake's WaterJumpTry along the hand's way). Single player's frame calls it
+  through QC's new builtin `waterclimb(hands)` (CheckWaterJump: the gripping, empty hands); a remote client's moves run
+  it after each move's drag on the server and in his replay (`.vr_movewaterclimb`: on, the empty hands; the state
+  carries it). The feel and the `waterjump: climbed out by hand` print stay QuakeC's (`VR_WaterClimb_Climbed`).
+  `QVR_NET_VERSION` 29.
+- `mp_predictclimb --part waterclimb` (new, start map's pool): lifted out by the main hand pulled down; his replay
+  climbs him out at the same move; every correction 0.000 over 499 states; on the top where the server has him. 9/0.
+- Single player: the same climb (start map's pool, the mock's hand: top 33.2 over the feet, rising at 251).
+- Results: suite 28 of 29 (mp_climb 10/1, A's mantle, then 11/0 alone), mp_predictclimb 23/0, scenario_check 138/0,
+  load_models_test 4/0, vr_run_check 12/0, Release (ThinLTO) 0 warnings. Not done: the grapple's pull (next: B8j part 4, planned in MP_PLAN), mp_predict's lift-landing
+  flake, B11a.
+
+## mpN B8j part 4: the grapple's pull predicted (agent/mp, 2026-11-15)
+
+- **One function for the rope's hold and reel** (MP_PLAN "B8j results, part 4"): QC VR_Grapple_Wind and
+  VR_Grapple_HoldPlayer (a hook in the world) moved into vr_pmove.cpp (`pmove::grappleStep`). Single player's
+  VR_Grapple_ServiceAnchor calls it once a frame through QC's new builtin `grapplehold`; a remote client's moves run
+  it after each move's jump on each move's B/Y, on the server and in his replay (`.vr_movegrapple`: the hook; the
+  corner, length, reel speed and ramp in the state). The twang stays QuakeC's (VR_Grapple_Taut). `QVR_NET_VERSION` 30.
+- `mp_predictclimb --part grapple` (new, vrclimb's ceiling): reeled up 224 units, hung, let go: every correction
+  0.000 over 248 states (133 with the rope); the hook's coming off is the server's (51 units, eased apart). 10/0.
+  With `--permove-skip 2` (the new debug `vr_net_permove_skip`, Debug > Network: Moves Left to QuakeC) 7/3,
+  corrections up to 100 units. The water climb's check (`--permove-skip 1`) fails too, but by not climbing at all:
+  the frame path fails for a remote client (open, MP_PLAN).
+- Single player: the reel through the builtin ramps 60 -> 300 u/s and reels 488 -> 132 in 0.67 s, as QuakeC's.
+- Results: suite 28 of 29 (mp_predictclimb 27/1: the grapple's at-rest check, the swing dropped him on the ledge's top, drawn where the server has him; fixed, then 28/0 alone), scenario_check 138/0, load_models_test 4/0, vr_run_check 12/0, Release (ThinLTO) 0 warnings.
+- Not done: the let-go and the unreel predicted, mp_predict's lift-landing flake, B11a (next).
 ## 1.1 patch notes: PATCH_NOTES_1.1.md, and the RC's release text (branch agent/patchnotes11, 2026-11-16)
 
 - **docs/vr-port/PATCH_NOTES_1.1.md** (new, 463 lines, 290 bullets): 1.1 against 1.0/1.0.1, 14 highlights, then every
@@ -3213,6 +3723,101 @@ the same exact rules" as enemies; an option, on by default, single player and mu
   the final 1.1.0. Stale known issues fixed: AD's sky flicker (fixed 10-27, e5f54c30e, the NaN fog) and the AD hub's
   lower slipgates (ad_hub_test) moved to Fixes.
 - For the final 1.1: re-read PATCH_NOTES_1.1.md against what lands after the RC (add lines, drop the RC sentence).
+## mpN B11a: the host's own held-weapon state through its slot (agent/mp, 2026-11-15)
+
+- origin/next merged (patch notes, release docs). The water climb left to QuakeC (`predictclimb --part waterclimb
+  --permove-skip 1`) climbs now; the test fails only as an unpredicted climb should (6/3): closed. mp_predict's lift
+  landing 1.354: `predict --part lift` 9/0 alone, not reproduced (still an occasional flake of the whole scenario).
+- **One path for the server's held-weapon readers** (MP_PLAN "B11a results"): `heldpose::publishOwn` (vr_heldpose.cpp)
+  runs before each server frame (new `VR_ServerFrameBegin`, host.c) and puts the host's own drawn weapon poses, ground
+  spots and holster presses into its slot, as a remote player's messages put his. The slot carries the view's world
+  places (`Hand::placed`: hotspots, the carried weapon, the reverse grip's hand turn and vr_revgrip), so single player
+  reads the same unrounded values from the same frame. The hotspot, grab spot, any-grip, carried pose, reverse grip,
+  held axes/flip, holster press, carry2h reach and Box3D drawn-hull readers ask `heldpose::slotHand` alone;
+  `isLocal`/`isRemote`/`remote` and grip's unused `Held::local` are gone. A hosting client no longer sends its own up.
+- Single player, old exe against new (same seeds, fixed frames): revgrip (vr_embed_test 42) 24/0, flipgrip (44) 39/0,
+  embed 24 (19/2 in both: embedfeel's arm-stretch cases, not this), gun_wall_test and crate_grip_test (10/0): the
+  filtered output identical line for line (crate: entity numbers aside). magholster_test time/walk: the same
+  behaviour and numbers, but the weapon's instance and edict numbers at the bind differ (old 25/280 twice and 24 or 23
+  in walk, new 23/276 twice), the flight 22.89-22.90 m in both: noted for B11b's trace comparison.
+- MP: suite 27 of 29 (mp_climb 7/2 and mp_predict 23/1, both setup timeouts; 11/0 and 28/0 alone); `--listen` grab
+  13/0, held 14/0, disarm 35/0, ground 15/0. scenario_check 138/0, load_models_test 4/0, vr_run_check 12/0, Release
+  (ThinLTO) 0 warnings. Next: B11b (vr_pmove for the host's own player).
+
+## mpN B11b part 1: the own player through the moves, behind vr_pmove_own (agent/mp, 2026-11-15)
+
+- **Bug (agent/mp only, own commit):** `netmove::clientUses()` compared the client socket's address with "LOCAL",
+  the loopback's server side; the client side is "localhost". Since B7 single player and a listen host's own client
+  sent QVR_CLC_MOVES, were walked move by move as a remote client and (B8) predicted themselves. Fixed (`!sv.active`: a
+  hosting game's client is the loopback's; "localhost" broke mp_climb's mantles on a dedicated server): the loopback
+  sends clc_move again, single player walks through sv_phys.c as on next.
+- **`vr_pmove_own`** (default 0) walks this game's own player through vr_pmove (one move a frame from his clc_move and
+  VR block, `inputOf`); **`vr_pmove_trace`** prints `pmtrace:` lines each server frame. Both in Debug > Network.
+  `Misc/quakevr/mp/pmtrace_all.sh` (+ `pmtrace_sp.sh`, `pmtrace_cmp.py`) runs a scenario with 0 and 1 and compares.
+- Frame by frame (seeded, fixed frames): e1m1 walk/jump/crouch 380 frames identical then 0.0001 (float `dt` against
+  sv_phys.c's double `host_frametime`), lift 274 identical then 0.001 velocity, crawl 380/380 identical, magholster
+  time+walk 772/772 identical (magholster lines too), swimming a frame sooner entering water then the same velocities,
+  Quake's water jump out 3 frames sooner (each move's water level against the last frame's) and one 0.017-lower
+  landing not explained. MP_PLAN "B11b results, part 1".
+- B11a's magholster numbering: unseeded runs vary on one exe (24/26/27); seeded 24 always, both paths: closed.
+- With the default flipped to 1 for a build: prop_climb_test 12/12, mantle_height_test PASS, crawl_test 18/0.
+- Default 0: MP suite 28 of 29 (mp_climb 10/1, A's mantle, then 11/0 alone twice), scenario_check 138/0,
+  load_models_test 4/0, vr_run_check 12/0, Release (ThinLTO) 0 warnings. Next: B11b part 2 (pmove's time in
+  double, the default; then monsters).
+
+## mpN B11b part 2: the own player's moves frame-identical to single player (agent/mp, 2026-11-15)
+
+- vr_pmove's move time is a double (`Input::dt`): sv_user.c/sv_phys.c's pieces round as with `host_frametime`; the VR
+  pieces and QuakeC's drag keep their float frame time; SV_FlyMove's time stays float.
+- Water level: single player's order kept (SV_ClientThink and PlayerPreThink go by the last frame's level, gravity and
+  SV_WalkMove by this frame's SV_CheckWater). Each move now does the same (`checkWater` moved after the think part,
+  before gravity); the last move's level/type are state: the server's slot keeps them (continuity by the server's
+  clock: host_framecount gave mp_predict's water jump a 6-unit correction on a dedicated server), QVR_SVC_PREDICT's
+  climb byte carries them (bits 4-7) for the replay.
+- `pmtrace_all.sh` (+ a scripted `walk` scenario): walk/jump/crouch 463, lift 330, swim 345, water jump out 181,
+  crawl 380 frames: all identical with vr_pmove_own 1 against 0. The 0.017 landing was the early jump out's: closed.
+- Monsters through the module: not done, not clean (sv_move.c's discrete steps; only the fall's SV_FlyMove would be
+  shared). vr_pmove_own stays 0; MP_PLAN "For him (B11b)" says exactly what 1 changes (the hands' strokes and crawl
+  pulls one frame later; nothing traced).
+
+## mpN B11c part 1: one body routine for every player; the own-player accessor (agent/mp, 2026-11-15)
+
+- `view::drawBody` (vr_view_body.cpp) draws your body and every other player's copy: model, pose, place, shading, the
+  armour's plates and leather, the pauldrons, on per-entity data (`BodyDraw`); your legs, flat play's ride, your shading
+  and your plates' morphs are data, not a separate path. `setupPlates`/`setupPauldrons`/`placeOtherPlates` are gone.
+- `progs::ownSource`/`ownStanding` (vr_progs.hpp): the teleport's standing rule, the world trace and the prediction's brush
+  trace ask one accessor for the own player.
+- QC `holsterpos`, weapondrawnpose 47, 49/50, 51/52 read the player's slot (heldpose); a remote player's carried grip and
+  leaving flip go up (`vr_heldpose` v3): his flip grip and his reversed weapon's drop work as the host's do.
+- Single player identical (seeded body numbers equal, strips within run noise; revgrip 24/0, flipgrip 39/0, magholster's
+  147 holsterpos reads equal to the old ones). MP suite 29/31 (both flakes pass alone), scenario_check 138/0,
+  load_models_test 4/0, vr_run_check 12/0, Release build 0 warnings. Left: the hands and weapons (MP_PLAN, B11c part 2).
+
+## mpN B11c part 2: single player walks through vr_pmove; any player's hands and weapons through one routine (agent/mp, 2026-11-15)
+
+- **`vr_pmove_own` defaults to 1** (his call): single player and a listen host's own player walk through vr_pmove.cpp,
+  the module a remote client's moves and his prediction run (one walk code for all); 0 (Debug > Network, "Movement: Own
+  Walk Through Moves") is the fallback to sv_phys.c's SV_WalkMove and QC PlayerPreThink. The one behaviour change:
+  tracked hands' swim strokes and crawl pulls push one frame later (after the move, not before it). Traces 0 against 1
+  frame-identical (walk, lift, swim, water jump out, crawl); prop_climb_test 12/12, mantle_height_test PASS, crawl_test 18/0.
+- `view::drawHand`/`drawGear` (vr_view_hands.cpp) draw your jointed hands, held and holstered weapons and every other
+  player's copy (`view::drawHands`, from his snapshot); `view::morphPlates` gives his plates your morphs. `vr_mp_avatars
+  hands` reports them. Single player identical (seeded numbers equal, eyeshot 0 pixels apart; revgrip 24/0, flipgrip
+  39/0, magholster unchanged, handroll 17/0, flathands 76/0, screenhands 4/0).
+- MP suite 29/30 (mp_climb's setup flake, 11/0 alone), scenario_check 138/0, load_models_test 4/0, vr_run_check 12/0,
+  Release build 0 warnings. Details: MP_PLAN "B11c results, part 2".
+
+## MP B12: the armed humanoids' poses in the snapshot, a rate (agent/mp, 2026-11-15)
+
+- Multiplayer only (single player and the listen host's own view unchanged: the loopback gets NetQuake's datagram).
+  The armed humanoids' poses in a remote player's sight go in his delta snapshot (`vr_net_snapposes` 1): six armed
+  grunts in sight cost B 6.2 KB/s idle (was 46.3) and 22.9 KB/s in combat (was 50.5). `vr_net_rate` (B/s, 0 none; his
+  preference; Debug > Reports > Network: Rate Cap) caps what the server sends him: his own state first, then the
+  nearest and those ahead, each one's wait adding to its priority. `vr_net_bytes`: what a client read, by kind.
+- Fixed (multiplayer only): a client's keepalive during a long map load no longer sends while a reliable chunk is in
+  flight (it crashed a lagged client in the chunked resend).
+- Tests: `mp_test.py armed` (new, 16/0), the MP suite 27 of 30 with each failure passing alone (one the crash fixed);
+  scenario_check 138/0, load_models_test 4/0, vr_run_check 12/0, Release build 0 warnings. Details: MP_PLAN "B12 results".
 
 ## throwfix2: the dagger settles point first; thrown blades never gib; no floating blade (agent/throwfix2, 2026-11-15)
 
@@ -3306,6 +3911,39 @@ His flat-screen notes (2026-11-16) and the coordinator's disarm-sound item.
   Kenney `error_003` (instant, 0.3 s, ~1.4 kHz); the Medieval pack's minute-long takes unused. CREDITS.md. vr_pd_test 1
   11/11 (sounds started for each disarm).
 
+## MP B12b: the entities by their fields, the reliable window's resends (agent/mp, 2026-11-15)
+
+- **Snapshot entity entries by their fields** (`vr_netsnap.cpp`, op 3, `QVR_NET_VERSION` 32): NetQuake's update split
+  at its fields, the changed ones sent as zigzagged changes modulo their size, origins and angles optionally against
+  their trend (the base's own base, kept by both sides); sent only when the server's own decoding gives the update back
+  exactly. `mp_armed` combat: 6.0-7.3 B a changed entry (byte by byte 10.5). Details: MP_PLAN.md, "B12b results".
+- **Reliable resends** (`net_dgrm.c`): timeout twice the measured round trip + 50 ms (0.15 s to NetQuake's 1 s,
+  backing off), a fast resend at two acks of later chunks. `mp_retransmit` (new): 0.51 s and 0.22 s at 100 ms each way.
+  `vr_net_reliable_test <entity> <bytes>` (server). Single player and the loopback unchanged.
+- Merge of next: the disarm sounds now play in the shared `VR_Player_Disarm` (shots, blows and another player's grab).
+
+## MP B12c: the stalled run was a button; the gib storms' fragments budgeted (agent/mp, 2026-11-15)
+
+- **Command buttons by players only** (`buttons.qc` button_fire; single player too): a `buttonEffect 3` button (a
+  console command: vrtesthall's NEW GAME `campaign 1; map start`, VR HUB) runs only when a player pressed it (hand,
+  step, a thing he threw, his shot), never for a monster or a thing no player threw. A blast-flung weapon pressed NEW
+  GAME in `mp_armed` and the server dropped both players (B12b's "stalled link"). `vr_systems_test 17` (vrtesthall).
+- **Fragments' budget** (`vr_net_cosmetic_bytes` 128 B a datagram; Debug > Reports > Network: Fragments' Bytes): small
+  gibs and explosion chunks to a remote client by priority within it; his client interpolates across the waits (a
+  place only from a changed record). `mp_armed` combat 29-33 KB/s with storms (was up to 47).
+- **Rate starvation fixed**: under `vr_net_rate` the highest priority may borrow from the bucket (a near humanoid's
+  large pose never went). `vr_net_classes` (server): entity bytes by classname. Details: MP_PLAN.md, "B12c results".
+
+## Voice chat in multiplayer (agent/mp, B10v)
+
+- **Proximity voice chat** in multiplayer games (`vr_voicechat` 1): the Voice Notes microphone, RNNoise's noise
+  suppression, Opus at 24 kbit/s in 20 ms frames, push-to-talk (`+vr_voicechat`, or the off hand's upper button at the
+  mouth with Voice Notes off) or voice activation (`vr_voicechat_mode` 1). Voices play at each player's head (attenuated;
+  `vr_voicechat_radio` full volume), with a jitter buffer, FEC and concealment; per-player volume and mute
+  (`vr_voicechat_player_volume`, `vr_voicechat_mute`, `vr_voicechat_players`); `((o))` over a talking player.
+- **Server**: each client's voice within `vr_net_voice_bytes` (8000 B/s, at most half his `vr_net_rate`).
+- **Libraries**: Opus 1.6.1 and RNNoise 0.2 vendored from their official releases (Quake/vr/external, CREDITS.md,
+  `licenses/` in the package). Single player runs none of it. Details and numbers: MP_PLAN.md, "B10v results".
 ## btnfix (agent/btnfix)
 
 - Cherry-picked 502d2e13c (agent/mp): command buttons (buttonEffect 3) are pressed only by a player or what he threw; `vr_systems_test 17` passes (needs `developer 1`, map vrtesthall). Other buttons are not buttonEffect 3, unaffected.
@@ -3323,6 +3961,31 @@ His flat-screen notes (2026-11-16) and the coordinator's disarm-sound item.
 - Checked in Resolve Studio 21.1 (project "QVR Titles Preview"): two titles rendered at 1080p60, top-right and
   bottom-left; a rerun reports "updated" for both, no duplicates. Not checked: 4K, IM Fell English.
 
+## MP B13: the join through reordering (selective acks); deathmatch with bots (agent/mp, 2026-11-16)
+
+- **A join through 30 ms jitter and 5% loss stalled in its signon** (keepalives only): NetQuake's receiver acked the
+  chunks it dropped (one that overtook a late one); with the acks reordered too, the dropped chunk's ack came after the
+  late one's and read as the next in order, so the server took serverinfo as delivered while the client still lacked
+  a chunk. Fixed with selective acks (`net_dgrm.c`): the receiver holds early chunks and acks only what it has; the
+  sender resends only the chunks not acked. Non-Quake VR peers keep a one-chunk window; the accept reply carries the
+  server's network version (`QVR_NET_VERSION` 34). A stale unreliable datagram no longer ends the frame's read.
+  `mp_retransmit` stages the stall deterministically (the old code: never delivered); `mp_voice_lossy` now joins under
+  its loss. Multiplayer only (the loopback is another driver). Details: MP_PLAN.md, "B13 results".
+- **Deathmatch with bots** (`mp_dm`, new): dm4, two FrikBot bots (impulse 100), a real death respawned by the trigger,
+  the fraglimit's intermission at both clients with the same scoreboard: it all worked unchanged. New client watch
+  lines `mp_frags`, `mp_event: intermission= / died / respawned` (`vr_mptest.cpp`).
+
+## MP B11 part 2: deathmatch's item rules; player disarm PvE/PvP (agent/mp, 2026-11-16)
+
+- **Player disarm is two settings** (his call): `vr_player_disarm` (PvE, enemies) defaults to 0 until polished;
+  `vr_player_disarm_pvp` (PvP: other players and bots, shots, blows and the grab) defaults to 1. One path; who did it
+  decides (`VR_PD_ByOn`). Rows: Armed Grunts > "Enemies Can Disarm You", "Players Can Disarm Each Other".
+- **`vr_dm_test 1`** (`vr_dmrules_test.qc`, run by `mp_dm` on a deathmatch server with a bot; Debug > Tests): weapon
+  pickups taken and back (dm 1) or staying (dm 2), the bot's let-go weapon removed after 10 s, PvP/PvE disarms between a
+  human and a bot with their sounds. Deathmatch's item rules needed no fix.
+- **Dedicated server**: the client's cvars its QC reads (`r_wateralpha`, `v_i*_level`) are registered at their defaults
+  (they were unknown handles, and every QC test on a dedicated server failed on them).
+- Details and what is left (bots' bodies, FrikBot through vr_pmove, parry with bots): MP_PLAN.md, "B11 part 2 results".
 ## vr1116c: the alternate-ammo models get the ammo screen housing (agent/vr1116c, 2026-11-16)
 
 His notes (vrfiringrange_2026-11-16_00-26..00-29): the plasma Thunderbolt (`v_light_plasma.mdl`), the lava nailgun
@@ -3551,6 +4214,25 @@ The 1.1 readiness audit's baseline regressions. Both were the tests, not the gam
   never reached the north room", seed 3), which is older than the one-way teleporter change (vr1116b). It is not
   related to that change. Not touched.
 
+## MP B11 part 3, part 1: bots' hands apart; the grab on a bot's gun (agent/mp, 2026-11-16)
+
+- **Bots' hands apart** (FrikBot `bot_setvrfields`): the main hand on the bot's right, the off hand on its left (both
+  sat at one point): its shots' start and the disarm and grab lines of its guns. Melee Only bots (`vr_pickup_test 15`)
+  13/0.
+- **`vr_dm_test 1`** grows the grab: a running bot's gun is too fast to take hold of; a still one's is held and pulled
+  away into the human's hand. 22/0; `mp_dm` 12/0 (its frag credit check now counts a frag up from a bot's suicides).
+- Bots' bodies (their avatars, drawn as a player's) are the next step: MP_PLAN.md, "B11 part 3 results, part 1".
+
+## MP B11 part 3, part 2: bots' bodies (agent/mp, 2026-11-16)
+
+- **Bots have VR bodies** in multiplayer: the server sends a bot's controllers (QC `handpos`/`handrot`) and weapons in
+  its avatar (`VrDrawnHand::solveBit`, `QVR_NET_VERSION` 35); each client places its hands and guns with the same
+  `setupWeapon`/`setupHand` that place yours (`view::solveHands`, the bot's own drawing state swapped in), then draws
+  them and poses its body as any player's. What only the local player has (props, reloads, the hand-off, hotspots,
+  the draw from a holster...) is left out for a bot (`view_detail::otherSubject`); your own hands run as before.
+- `mp_dm` grown: a bot's hands drawn about 5 units from its controllers, its gun in its main hand, its body posed. 14/0.
+- In VR: a deathmatch with bots (`impulse 100`): their hands, guns and bodies; your own hands unchanged.
+- Details: MP_PLAN.md, "B11 part 3 results, part 2".
 ## titlespeed: trailer titles faster in Resolve, Draft toggle, --bake (agent/titlespeed, 2026-11-16)
 
 His note: the titles look great, previewing them in DaVinci takes forever.
@@ -3589,6 +4271,19 @@ His note: the titles look great, previewing them in DaVinci takes forever.
   `--bake`'s render (the retest of the reuse path); not reopened (GUI), so the reuse path and `--unbake` are unchecked.
   A bake of both titles took 271 s of wall time (the renders alone should take about 80 s: not explained).
 
+## MP B11 part 3, part 3: bots walk as players do; a bot's swing parried (agent/mp, 2026-11-16)
+
+- **Bots walk through the players' movement code** (`vr_pmove_bots`, default 1; Debug > Reports): FrikBot's stick is
+  queued as a move each frame and walked by `VR_PredictThink`/`VR_PredictPhysics`, the same code as your walk and a
+  remote player's: the same speed, steps, slopes, jumps and swimming. 0: FrikBot's own physics, the fallback.
+- **A bot's melee swing can be parried**: its main hand swings its weapon across its front (drawn so at the clients),
+  its blade's line is read by the directional parry: a weapon held across its way stops it. `vr_dm_test 2`/`3`, in
+  `mp_dm` (16/0).
+- **Bots' bodies at their real height** (they were drawn smaller than humans).
+- Disarm rows named as on next: "You Can Be Disarmed", "You Can Be Disarmed by Players".
+- In VR: a deathmatch with bots (`impulse 100`): bots run, jump and take stairs as before; give one a melee weapon
+  (or wait for one out of ammo) and hold yours upright across its swing. Details: MP_PLAN.md, "B11 part 3 results,
+  part 3".
 ## Flat-screen hip fire through teleporters (agent/flatportalaim, 2026-11-16)
 
 His report: hip-firing through a teleporter in flat-screen aimed off; ADS seemed fine.
@@ -3733,6 +4428,44 @@ His timing notes (extra scope):
   rerun kept all three baked. Test timelines, bins and jobs (mine and ts_* / QVR - Stab Test) removed from the
   preview project, which is closed again (Resolve left on its untitled project, as found).
 
+## MP B10v part 2: the Voice Chat page, a Push-to-Talk key (agent/mp, 2026-11-16)
+
+- **VR Settings > HUD, Haptics and Sound > Voice Chat** (`vr_menu_voicechat.inc`; also from Debug > Reports, whose Voice
+  rows moved there): your line (push-to-talk / voice activation / TALKING, your microphone's level), your voice's and
+  the voices' settings, and a row for each other player: his name, his volume, `((o)) talking` lit green while heard,
+  `muted` (red; `muted, talking` while his frames arrive), with Mute, Quieter, Louder buttons (25% steps, 0-400%).
+- **Push-to-Talk key** `vr_flat_key_voicechat` (CAPSLOCK; Flat Keys and the page): held, push-to-talk.
+- `vr_menu_press "<page> > <row> / <button>"` presses a button row's button.
+- Merge of next: a headset's slide (vr_slide) walks through SV_AirMove while held or sliding (vr_pmove_own had skipped
+  it); flat ladders on the moves' climb. Tests: `mp_test.py voice` 22/0, vrslide_test 1/0, flatladder 2/0, flatslide
+  26/0. Details: MP_PLAN.md, "B10v part 2 results".
+
+## MP B14 part 1: a headset's slide predicted, the moves' determinism, the thread audit (agent/mp, 2026-11-16)
+
+- **One slide function**: `slide::move` (vr_slide.cpp) runs flatscreen play's slide in SV_AirMove and a headset's
+  (vr_slide) in the moves (vr_pmove.cpp, the server's and a remote client's replay): a remote headset player's slide is
+  predicted (corrections 0 while sliding, ending, jumping out). Its numbers are `slide::Tuning` (the server's sent to
+  him); its state rides in the moves' body and his state record.
+- **Fix (multiplayer)**: a resent older move no longer clears the slide's press edge on the server (a slide on the
+  server alone).
+- **Fix (single player too, rare)**: Box3D's hand press hits are sorted before notePress (multi-threaded steps, 300
+  bodies awake, pressed in the workers' order).
+- **Determinism check**: `vr_mp_predict_report` compares his moves' results with the server's bit for bit (`exact_n`,
+  `exact_miss`, `exact_max`, hashes `hash_sv`/`hash_cl`; frames that held a move to the server's clock skipped).
+- Tests: `mp_test.py predictslide` (new) 13/0, `predict` 29/0; vrslide_test 15/0, flatslide_test 26/0. Details and the
+  thread audit: MP_PLAN.md, "B14 results, part 1".
+
+## MP B14b: a lockstep server, the world's hashes equal across runs (agent/mp, 2026-11-16)
+
+- **Lockstep** (multiplayer harness only): `vr_mp_lockstep N` on a dedicated server steps the world only with N
+  clients in and each one's next move read, one move of each a step by number; `vr_mp_lockstep_until S` holds it after
+  step S; its clients' `vr_mp_lockstep_ahead K` keeps them at most K moves ahead (a waiting frame passes no time).
+  With `vr_fixed_frames 1` and `sv_random_seed 1` two runs are the same bit for bit.
+- **Fixed for it**: under the lockstep a client's poses' clock counts its moves (the headset's clock at the first one
+  was the load's wall-clock time: the melee history went apart by an ulp).
+- **New commands**: `vr_nav_hash` (navmesh and monsters' paths), `vr_mp_lockstep_status`, `vr_mp_predict_tracelog`.
+- Test: `mp_test.py lockstep` (in the suite): physics, edict and navmesh/path hashes equal across two runs at three
+  steps, with walking, strafing and a rottweiler hunting. Details: MP_PLAN.md, "B14b results".
 ## introfix: the titles under a proxy, the intro's cost (agent/introfix, 2026-11-16)
 
 His report: previewing the QVR Intro Title lags and never shows the whole picture (Smart cache, Timeline Proxy
@@ -3769,6 +4502,118 @@ Resolution Half/Quarter, proxies on); a full render works but takes over a minut
   before and reopened after.
 - After it ships: run `install_titles.py`, restart Resolve, `apply_titles.py --rebuild`.
 
+## MP B14c: mp_dm's fraglimit, the lockstep's client fields, a deathmatch with bots in lockstep (agent/mp, 2026-11-16)
+
+- **mp_dm's intermission timeout** (B14b's 14/1): not a regression of the lockstep (all its hooks are off there). dm4's
+  lava kills a FrikBot bot every 3-4 s in every run since B11 (the logs before B14b too: 4 in 13 s), each a frag off;
+  the passing runs ended before it mattered, the failing ones (17 lava deaths in a minute) never let the killer bot reach
+  the fraglimit. The test now has A frag the bots (`vr_hurt` on a bot's slot, A the attacker) to the fraglimit after
+  his two deaths and respawns. `vr_hurt <damage> <slot>` takes a bot's slot too (its edict, no client in it).
+- **The lockstep's open fields**: the melee history's `mh_hdt` came from the poses' clock counting the client's own
+  moves, and the first move the server runs (the oldest read since the slot's reset) is a matter of timing: the 10 us
+  steps of the clock fell differently. The server now counts it from that first move, a frame a step (vr_netmove.cpp
+  serverRunNext). `stl_light`: under the lockstep a client reads each move's light afresh (not a tenth of a second's
+  sample at its clock, with the lightmap's cached spot): compared now. The ammo pouch stays set apart (its body's pose
+  eased over the frames since the load: 1/64 unit in z at step 72 while B starts walking, equal again by step 360).
+- **New**: `vr_bench_statehash values <prefix> <ent>...` (those fields' values, `%.9g`; the harness notes what two runs
+  hold where they differ). Test `mp_test.py lockstep_dm` (in the suite): two lockstep runs on dm4, A adds two bots at
+  steps 36 and 72, B walks, A strafes: every hash equal at 36, 72, 360 and 720.
+
+## MP B14d: the bots out of dm4's lava, vr_dm_test 3's flaky parry (agent/mp, 2026-11-16)
+
+- **The bots' lava deaths were vr_pmove_bots'**: a dedicated dm4 server, A and two bots, counted from A's obituaries
+  (`scratch/b14d_lava.py <pmove_bots> <seconds>`): 21 in 150 s with the bots' walk through the players' moves, 0-2 per
+  45-150 s with FrikBot's own physics. Three causes, all fixed:
+  - the walk's "held by a wall" report to FrikBot (vr_predict.cpp botWalk) took the speed before as a length and the way
+    across the wish: a turn or a stop read as a wall every frame, and `frik_obstructed` with no danger *clears* a held
+    AI_OBSTRUCTED, so the ledge obstruction `frik_obstacles` had just set was gone before `frik_dodge_obstruction`
+    read it (the flags went 1/0/1/0 at the pit's edge). Now measured along the wish only, from the speed along it.
+  - FrikBot's look ahead is one line 32 units ahead: a stair's or narrow ledge's side lets the box walk off, and dm4's
+    route down beside the pit is a blind one (AI_BLIND: no obstacle checks at all). `frik_obstacles` now reads lava,
+    slime or the sky below the drop ahead (past its 256-unit trace) as a danger on any route (a blind one given up).
+  - and botWalk holds a bot at the edge (as walkmove holds a monster) when its walk, not a jump, takes it off its floor
+    over lava or slime (its box traced down 1024), told to its AI as a wall.
+  Now 3 in 120 s (one a straight drop after a death, one from a shot); mp_dm's own run: 0.
+- **vr_dm_test 3's flake** (2 of 9 in B14c: "neither read nor landed", "parried 0, damage 20"): the other bot's shots at
+  A (a shot knocks his crowbar out, or him off his place) and A's body moving a little as his pose changes. The test now
+  holds every other bot's attacks off while it runs and the bot's spot follows A until he has stood still through the
+  whole hold (restarts bounded by its give-up).
+- **New**: a bot's walk prints its `pmtrace:` line too (vr_pmove_trace 1; bots walk from QuakeC's frame, not
+  SV_Physics_Client).
+- Checks (his game running: low-impact mode): the MP suite 35 of 37 (mp_dm 17/0, mp_lockstep_dm 20/0); mp_climb 10/1
+  (A's mantle line missing), 11/0 alone; **mp_lockstep 15/2 twice** (`mh_hdt[...]`, and at step 720 the hand's throw
+  fields, differ between its two runs at 360/720; no bot in it, nothing of B14d's runs there: B14c's clock fix holds
+  at normal priority, not under idle priority -- open, B14e). SP: load_models 4/0, vrslide 15/0, flatslide 26/0,
+  flatladder 2/0, vr_run_check 9/0; scenario_check 137/1 (bench_crowd_ad: "what it placed is gone after 3.0 s", an AD
+  crowd's infighting; not rerun). Dev and Release (ThinLTO) 0 warnings. Not started: thrown props under the lockstep,
+  the ammo pouch's determinism.
+
+## MP B14e: a lockstep client's moves the same every run, props thrown under the lockstep (agent/mp, 2026-11-16)
+
+- **mp_lockstep's 15/2 (mh_hdt, the throw fields, stl_light)**: the clients' moves themselves differed between runs,
+  seen with the server's new move log (`vr_mp_lockstep_movelog 1`: every value of every move it runs; the harness
+  compares them). A's throw positions, ammo pouch and holsters differed at his first move (the frames from his game's
+  start, as many as the machine's speed made them), then every player's cl.mtime, origin, light and drawn hands: what a
+  client had read by move N was a matter of timing (the next step's datagram read after its move, a held server
+  frame's repeated datagrams moving cl.mtime and the lerp, reliables sent when the last one's ack came). Not idle
+  priority: it failed with his game closed too.
+- **Fixed in the lockstep's own paths** (vr_mptest.cpp, CL_ReadLockstep, SV_SendClientMessages; nothing changes with
+  the lockstep's cvars 0): a lockstep client's frames wait until it is in the game; a waiting frame reads up to the
+  message that lets its next move go, no further, nothing relinked; a moving frame reads none. The server sends a
+  lockstep player one datagram as he comes in and one a step, and steps only with his reliables acknowledged. Now every
+  move equal in both runs (1440), B's prediction exact 719/0 both times, every edict field compared (the ammo pouch,
+  stl_light, the melee history: no field set apart).
+- **New**: `mp_test.py lockstep_throw` (in the suite): B's shotgun and A's axe given into gripping hands and thrown hard
+  (the hand swung up and the grip let go in one move), held at 36/72/144/216/432: the two props become rigid bodies,
+  every hash and every move equal in both runs (29/0). `lockstep_dm` added to the suite's list (it was missing).
+  Debug > Network: Lockstep Move Log.
+- **Checks**: mp_lockstep 17/0 (the move check: 0 of 720 differ for each player), mp_lockstep_dm 22/0,
+  mp_lockstep_throw 29/0, mp_predict 29/0 (the stairs' ulp not seen: walking 340 of 340 exact); the MP suite 39 of 41 under idle priority (his game ran; mp_lockstep 19/0 there), mp_loss 14/1 (A's hands' roughness 0.52 of 0.5, a timing measure) and mp_predictslide 5/1 (B's teleport to its spot) each passing alone (15/0, 13/0). SP:
+  scenario_check PASS (138/0), bench_crowd_ad alone 3 of 3 (B14d's failure a flake), load_models 4/0, vrslide 15/0,
+  flatslide 26/0, flatladder 2/0, vr_run_check 9/0. Dev and Release (ThinLTO) builds 0 warnings.
+
+## MP B11 part 4: bots punch and grab as players do (agent/mp, 2026-11-16)
+
+- **A bot's off hand is a player's.** Its AI decides (`bot_offhand_ai`); the hand, its grip and its velocity go
+  through the players' code. It punches an enemy within 60 units: its fist is thrust at 6 m/s and struck by the
+  melee's sweep, a player's punch. It takes a dropped gun or a backpack within its reach: the open hand goes there,
+  closes on it, and the hand's touch takes it. With "You Can Be Disarmed by Players" on, it closes its hand on a
+  player's held weapon and pulls it away (the players' grab disarm).
+- **What changed underneath:** bots' walks run the client premove (the hand touches). Their grips go through
+  `VR_HandGrabUtil_UpdateState`. The melee takes hands that move themselves (`VR_HandLinesKept`). A bot's sword swing
+  keeps its traced blow, and its sweep is off during the swing (one blow).
+- **Tests:** `vr_dm_test 4/5/6` in `mp_dm` (20/0), and Debug > Tests "Deathmatch: A Bot Punches You / Takes a Gun by
+  Hand / Grabs Your Gun".
+- **Checks:**
+  - The MP suite: 36 of 38 scenarios clean. mp_dm 20/0, mp_lockstep_dm 22/0 (every hash and move equal in both runs,
+    with the bots' new hands), mp_lockstep_throw 29/0, mp_melee 29/0, mp_disarm 35/0.
+  - The two failures, both seen in earlier phases: mp_climb 10/1 (a mantle) passed 11/0 alone on the second try;
+    mp_lockstep 18/1 (8 of slot 0's 720 moves differed) passed 19/0 alone. Neither has a bot in it, and a human's
+    code path is unchanged.
+  - SP: Melee Only bots (`vr_pickup_test 15`) 13/0, scenario_check PASS (138/0), load_models 4/0, vr_run_check 9/0.
+  - Dev and Release (ThinLTO) builds: 0 warnings.
+- **In VR:** a deathmatch with bots (`impulse 100`, "You Can Be Disarmed by Players" on). Get close to a bot with an
+  empty off hand and it punches. Hold a gun still in front of one and it reaches for it and pulls it away. Drop a gun
+  near a bot and it takes it by hand. Details: MP_PLAN.md, "B11 part 4 results".
+
+## MP B13: the server browser, the net HUD, 16 players soaked (agent/mp, 2026-11-16)
+
+- **Server browser** (Multiplayer > Join Game > Server browser; `menu_servers`): favourites (a star), the servers you
+  joined last and the LAN's in one list, with name, map, players and ping. Favourites and recent servers are asked by
+  their address, so an internet server shows up too. A/Enter joins, Y or F (or a click on the star) favourites, Del
+  forgets a recent one, X searches again. Servers on the same PC now show up (NetQuake hid them).
+- **Net HUD** (`vr_net_hud` 1/2; Debug > Reports > Network: Net HUD): ping (your moves' round trip), loss, your walk's
+  corrections a second; 2 adds the bytes each way and the resends.
+- **16-player deathmatch fixes:** telefrags no longer kill the dead again (dead players, corpses and gibs are solid
+  corpses in Quake VR: each respawn re-killed the bodies at the start, dropped their weapons again, until the server
+  ran out of edicts and crashed). Also a single-player fix: a teleport onto gibs no longer strikes each one every frame.
+  A start counts as taken by a living player within 64 units; when all are taken a respawn waits up to 2 s.
+- **Tests:** `mp_browser` 10/0, `mp_nethud` 8/0 (B 50 ms away, 5% loss: ping 117 ms, loss 5.5%), `mp_soak` (dm3, 14
+  bots): 8/0: 16 players, no crash, edicts bounded (were out of edicts in 3 s). MP suite 39 of 40 clean (mp_climb's known mantle flake passed alone); SP scenario_check, load_models, vr_run_check pass; dev and ThinLTO 0 warnings.
+- **In VR:** Join Game > Server browser on two PCs (one hosting): its LAN server listed with a ping; favourite it,
+  join, leave, see it as recent. `vr_net_hud 2` while joined. A 16-player deathmatch (`impulse 100` x14) on dm3.
+- **Open (B13b):** the server runs 16 players at ~0.75 of real time on a dev build (Box3D's gibs and dropped weapons,
+  QuakeC's gib and prop touches); B's link 40-65 KB/s. Details and the NAT traversal design: MP_PLAN.md, "B13 results".
 ## titlevariants: the trailer's feature-title variants baked (agent/titlevariants, 2026-11-16)
 
 His request: bake all 27 title wordings (9 sections x 3) to pick from.
@@ -3784,6 +4629,49 @@ His request: bake all 27 title wordings (9 sections x 3) to pick from.
   Timeline 2 (its own render job left alone). Output `C:\Users\vittorio\Videos\QVR Title Variants\`: 27 clips (ap4h,
   yuva444p12le, 360 frames), the sheet, the reel. A one-clip trial went to the worktree's scratch first.
 
+## MP B13b: 16 players at real time, their link culled (agent/mp, 2026-11-16)
+
+- **Deathmatch caps**: `vr_dm_gibs_max` 64, `vr_dm_weapons_max` 32 (QC vr_dmloose.qc): the oldest loose gibs and
+  dropped weapons go first, never one held; deathmatch only. `.vr_gib` indexed for `findflags`.
+- **Respawn beside a taken start** (client.qc `VR_DMBesideSpot`): a clear place 48-144 units beside a start, no telefrag.
+- **Gib touches spared** when they can do nothing (vr_physics.cpp `gibTouchIsNothing`; checked by `vr_prop_touch_verify`).
+- **The broadcast culled by sight** for remote clients (`vr_net_cullbroadcast` 1; `vr_net_broadcast_report`); the
+  loopback client unchanged. **`vr_net_rate` 80000** by default (40000 starved dm4's lag compensation).
+- **mp_soak** (16 players, dm3): the server 0.38 -> 0.99 of real time, Box3D 130 -> ~2 ms a frame, QuakeC 50 -> 4 ms,
+  living telefrags ~100-200 -> 0, B's link 37 -> 24 KB/s; pace, link, caps, culling and telefrags are checks (14/0).
+  `mp_dm` grew `vr_dm_test 7` (the caps) and 8 (the respawn beside). Details: MP_PLAN.md, "B13b results".
+- **In VR:** host dm3 with 14 bots: smooth, few gibs and guns lying about, no spawn telefrags; join it from another PC
+  with `vr_net_hud 2` (~25 KB/s).
+- **Open (B13c):** the lag compensation under a rate cap (rewind at the places sent), a 36 Hz send rate, an LTO soak.
+
+## MP B13c: the rewind at the places sent, a send rate (agent/mp, 2026-11-16)
+
+- **Lag compensation at the places sent** (vr_lagcomp.cpp, vr_netsnap.cpp `logSent`): a remote player's shot, blow or
+  parry is judged with each target where his interpolation buffer drew it from the snapshots he was actually sent;
+  a record that waited under his rate (`vr_net_rate` 80000) no longer puts the target where he had not seen it.
+  `mp_lagcomp`: 0.03-0.04 units from where B drew A, with A's updates held 3 and 6 snapshots (the old rewind 4-7 off).
+  Test aid `vr_net_test_hold` (Debug > Network).
+- **`vr_net_sendhz`** (72; Debug > Network: Send Rate): 36 halves a remote player's datagrams (the broadcast held
+  between): about 35-50% fewer bytes (soak: B 27.7 -> 14.6 KB/s), the others drawn a frame later. Default kept 72.
+- **Exclusive ThinLTO soak** (16 players): 14/0 at 72 and 36 Hz, 0.99 of real time.
+- **Flakes**: mp_avatar's was the test (now waits for B's drawn weapon); mp_disarm's toss: the hand can push a lying
+  weapon 1.5 cm short of the grab (open); mp_dm's `vr_dm_test 3` still B14d's. **mp_flow fails alone**: the newest coop
+  autosave not listed (`inspectAutosave`; not B13c's code) -- open. Details: MP_PLAN.md, "B13c results".
+- **In VR:** with a friend over the internet, hit a strafing player (shots and melee land where you saw him); as host
+  try Debug > Network: Send Rate 36 with `vr_net_hud 2` on the client (bytes down, smoothness of the others).
+
+## MP B13d: B13c's open items (agent/mp, 2026-11-16)
+
+- **Not a single player regression:** mp_flow's missing coop autosave was the harness reading the server's save before
+  it was closed (a file open for writing is not listed); on origin/next, SP's autosave shows in the list and Continue at
+  once. The harness waits for the save's trailer and lists again; `vr_autosave_list cold` names saves passed over and why.
+- **Weapons against the hand, any player** (vr_physics.cpp `weaponAgainstHand`): a later client's hand no longer pushes a
+  lying gun away untaken (entity 1's alone before). SP unchanged (`vr_pickup_test 17` 5/0).
+- **Flakes:** mp_dm `vr_dm_test 3` (the bot's off-hand punch read as its parried sword's blow), mp_ground (reverse grip
+  cosine compared once agreed), mp_browser (least ping of three searches), mp_disarm (A always entity 2; handle retake).
+- MP suite (dev) 39 of 40 clean: mp_flow 16/0, mp_disarm 35/0, mp_dm 22/0, mp_ground 15/0, mp_browser 10/0 in it; mp_armed failed a rate-cap check under `vr_net_rate 6000` (a snapshot in every datagram: 318 of 360), alone 18/0 then 17/1 on another of its rate checks (nearest poses 1.30x the farthest's, wanted 1.35): its real-time rate checks under a busy PC, not B13d's code -- open. SP: scenario_check PASS (138/0), load_models 4/0, vr_run_check 12/0, autosavenow 4/0, vr_pickup_test 17 5/0. Dev and ThinLTO builds 0 warnings. Details: MP_PLAN.md, "B13d results".
+- **In VR:** with a friend as the second player on a dedicated server, push a dropped shotgun along the floor with your
+  closing hand: it is taken.
 ## promote1116: his ticked items retired, his tuning promoted for 1.1 (agent/promote1116, 2026-11-16)
 
 - **Checklist**: 8 ticked lines retired from checklist.txt (no voice notes after 12:00 to keep any for; ticks match the
@@ -3844,6 +4732,42 @@ His request: bake all 27 title wordings (9 sections x 3) to pick from.
   file's text, INSTALLER.md (Relit maps, First-start relight, Preparation run). Self-test "game preparation" checks
   the engine sources use `official` in both places. Installer 0 warnings, self-tests 41/41; engine dev built 0 warnings.
 
+## MP B15: in and out of a coop game in progress (agent/mp, 2026-11-17)
+
+- **The choice:** MP_PLAN's last "next phase" (B11 part 2) was already done. What a first public beta meets first and no
+  test covered: players coming and going mid-game. NetQuake's coop gives a returning player a fresh start (shotgun, 25
+  shells) and leaves a crashed game's slot as a ghost for 300 s while he joins as another player.
+- **A leaver's things kept** (`vr_mp_rejoin_keep` 1, Debug > Network: Keep a Leaver's Things; vr_coopsave.cpp): a player
+  who leaves a coop game in progress (quit, crash, timeout) and joins again by the same name gets his old slot and
+  what a level change would carry (weapons and magazines, ammo, health, armour); a respawn still gives his level-start
+  things. Forgotten when the server shuts down. Single player and the listen host never take the path.
+- **A crashed game's ghost** (net_dgrm.c): a connect from a known address on another port, with that connection's
+  name, while it has been silent over 3 s, is him back: the old connection is closed at once.
+- **A late joiner's world** checked (`vr_mp_world`, a client report): the same entities, precaches, statics and light
+  styles as a player there from the start; no change was needed.
+- `mp_rejoin` 15/0 (in the suite too). MP suite 39 of 41 clean (mp_armed's rate flake, mp_climb's mantle flake: known).
+  Details, the open shells item and what a public beta still needs: MP_PLAN.md, "B15 results".
+- **In VR:** with a friend on a dedicated coop server, quit your game mid-level and join again with the same name: your
+  weapons and ammo are back. Kill your game from the task manager and restart it: you get your own player back at once.
+
+## MP B16: a vanished server at its client; the players' multiplayer guide (agent/mp, 2026-11-17)
+
+- **Not frozen for 5 minutes any more:** joined to a server that stops answering (crash, unplugged), after 3 s the
+  console, a centre print and a top-right line "SERVER NOT RESPONDING n s" say so (gone when it answers again); at
+  `vr_mp_client_timeout` (new, 30 s; Debug > Reports > Network: Server Timeout; 0: NetQuake's 300 s) the game ends
+  with the server browser open and "Server stopped responding" under it. Three times as long while joining (the
+  server may be loading). The silence is the lesser of game time and the wall clock. A listen host, single player and
+  demos never take the path (loopback). Files: vr_nethud.cpp, cl_main.c, net_main.c, menu.c.
+- `mp_vanish` (new, 8/0): B's link cut through the proxy (notice at 3.1 s, the link back, B plays on; A the listen host
+  untouched), then A's game killed: B out at its 8 s timeout with the reason and the browser open.
+- **mp_armed's rate flake was the test's:** reliable chunks counted as datagrams, and the poses' order by distance alone
+  (the code also doubles what's ahead of the view). The proxy counts datagrams; the client reports each humanoid's
+  weight; the check orders by it. 18/0 alone and in the suite.
+- **Docs:** docs/vr-port/MULTIPLAYER.md is now the players' guide; its old server/client design content is
+  MP_DESIGN.md (references updated outside the round notes: older ROUND notes' "MULTIPLAYER.md" mean MP_DESIGN.md).
+  PATCH_NOTES_1.1.1.md (new): a "Multiplayer beta" section.
+- **In VR:** join a friend's game, have him kill his game: within 3 s your view says the server is not responding,
+  in 30 s you're back at the server browser. Read MULTIPLAYER.md as a player would.
 ## Relighting about twice as fast: Quake VR's ericw-tools fork (branch agent/ericwfork, 2026-11-17)
 
 His decision (2026-11-17, after the kit's `work\ericw\FINDINGS.md`): ship a fork of ericw-tools' `light`,
@@ -3881,6 +4805,127 @@ His decision (2026-11-17, after the kit's `work\ericw\FINDINGS.md`): ship a fork
 - Seen, not fixed: `map ad_mountain` run from `vr_relight_whendone` right after a relight (games hipnotic, rogue, ad,
   quakevr) said "Couldn't spawn server"; the same map loads from a script at start.
 
+## MP B17: the MP suite clean; a coop return's exact things; dedicated servers; a NAT proposal (agent/mp, 2026-11-17)
+
+- **The suite's flakes were the harness's**, each a race the load exposed, not hand placement in the game: the mock's
+  `vr_mock_hand_to` stepped from the hand's lagging, wall-held drawn place (now absolute for the harness's clients),
+  a report read before the let-go arrived, two clients connecting at once (the QC tests' "first human" was B). Plus
+  three smaller ones (a sword placed into, a swim wait on a correction line, the climb play's no-hold). The full MP
+  suite is clean 3 runs of 3.
+- **Coming back to coop** gives exactly what you had: no more 25-shell and half-health floors of a level change
+  (vr_coopsave.cpp).
+- **Dedicated servers:** `server.cfg` read at start, a console status line with each player's ping (`vr_sv_status`,
+  60 s), pings in `status`, nobody can pause. MULTIPLAYER.md has a server.cfg example.
+- **NAT traversal:** a written proposal in MP_DESIGN.md for his OK (one server socket first, then a room-code
+  rendezvous with hole punching); nothing built.
+- **In VR / for him:** decide the NAT steps (MP_DESIGN.md); host with `ironwail.exe -dedicated 8` and a server.cfg
+  and watch its console's status line while a friend joins.
+
+## MP B18: the lift's landing, the combat budget, server.cfg tested, broken packets (agent/mp, 2026-11-17)
+
+- **Broken packets can't close the game** (chosen as the phase's beta item: a public server takes strangers' packets,
+  the browser joins strangers' servers). `mp_fuzz` (new, in the suite) corrupts B's packets both ways through the
+  proxy; it found a client crash (a corrupted entity update: `Sys_Error`, a crash report). That and four more of id's
+  Sys_Errors on server data are Host_Errors (cl_parse.c, cl_tent.c: the game ends with the reason; a damaged demo in
+  single player too; its own commit, SP-relevant). The server already dropped a malformed player cleanly.
+- **The drop onto a rising lift's flake** is exactly one lift step: a move bunched with another in a server tick puts
+  the lift a step off where the replay met it. Inherent to running moves as they come; measured apart now
+  (`contact_max`, within one step), everything else under a unit. The real fix (a server-side move buffer) is the next
+  phase's.
+- **Combat bandwidth:** a gib storm in a heavy fight overran 35 KB/s; `vr_net_cosmetic_fill` (352 B) gives the
+  fragments only what the rest of the snapshot leaves.
+- **server.cfg** has a harness test (mp_dedicated, in a run's own second -basedir).
+- Checks: MP suite 50, 50, 52 of 52 (mp_armed's old rate-priority flake twice: also with the fill off; mp_disarm's
+  placement, mp_lockstep_throw once); mp_fuzz 14/0 every run; `predict --part lift` 10 of 10. SP: scenario_check PASS
+  (136/0), load_models 4/0, vr_run_check 12/0, autosavenow 4/0; dev and ThinLTO builds 0 warnings. MP_PLAN.md, "B18".
+- **In VR:** nothing new to feel; gibs in a big multiplayer fight may update a little less often.
+
+## MP B19: the server-side move buffer; broken packets; the suite's flakes (agent/mp, 2026-11-17)
+
+- **A lift meets your moves where your game predicted** (vr_netmove.cpp; `vr_net_movebuffer`, 2, Debug's network rows
+  "Move Buffer"): a remote player's moves are kept as they come and run one a server tick in order (at most 2 left
+  waiting; 0 off). Packets bunched on the way no longer run two moves in one tick, so a mover is no longer a step off
+  where his replay met it: on e1m1's rising lift the lift's own predicted-place error went from ~2.1 units every run to
+  0.05-0.14 (8 runs), the move contact error 0 throughout. Cost: about 10 ms average (28 ms at most) before the server
+  runs a move; nothing felt by the player himself. The lockstep and the lag compensation are unchanged.
+- **A broken server packet can no longer crash or strand the client** (SP-relevant: damaged demos too): a model
+  number past the precache list (entity update, baseline, weapon stat) is a Host_Error, and a Host_Error inside a
+  snapshot's records puts the network buffer back (it stayed pointed at the record: the next connect overflowed).
+  Found by mp_fuzz.
+- **Test flakes fixed:** mp_armed's rate-priority check (now on the server's own pose waits by weight,
+  `vr_net_posewaits`: the entries a client read depend on how often each pose changed); mp_dm (B's list read before
+  the second bot's name came); mp_disarm's toss (a real-time release's high lob slid
+  to a wall: within 96 units, A put further back if the spot is in the wall); mp_lockstep_throw's "8 moves differ" (the
+  hands' throw history held the joining frames' samples: a lockstep client clears it at its first move); mp_predictclimb
+  (a climb's transition flag lost when two states came in one frame: kept until a replay takes it, vr_predict.cpp).
+- Checks: MP suite 3 runs of 3 clean (52 each); mp_fuzz 14/0 in 5 runs alone; SP: scenario_check PASS (136/0),
+  load_models 4/0, vr_run_check 12/0, autosavenow 4/0; dev and ThinLTO builds 0 warnings. MP_PLAN.md, "B19".
+- **In VR:** nothing new to feel in single player; in multiplayer, riding lifts and doors as a remote player should
+  show no small jolt when you land on a moving one.
+
+## MP B20: the move buffer under jitter; a 20-minute soak (agent/mp, 2026-11-17)
+
+- **A jittery link no longer loses a player's moves** (net_dgrm.c, sv_user.c): NetQuake dropped a datagram that a
+  newer one overtook, so packets reordered on the way lost moves outright (6-11 a lift run at 30 ms of jitter, 50-70 at
+  60, with no packet lost). The host now reads a remote player's overtaken datagrams, their moves only. Multiplayer
+  only: single player and a listen host's own client never take this path.
+- **The move buffer's depth follows each player's jitter** (vr_netmove.cpp; `vr_net_movebuffer_max`, new, 10; Debug's
+  network rows "Move Buffer Most"): from 2 moves on a steady link up to 10 as his jitter needs, so his moves still run
+  one a tick. At 30 ms of jitter: his corrections 0 (were up to 4 units), the lift's predicted place within 0.11 (was
+  2-4 units), at a cost of about 35 ms before the server runs his moves (others see him that much later). At 60 ms:
+  corrections under 0.03 (were 9-33 units).
+- **A 20-minute soak with 16 players** (mp_test.py `soak --soak-minutes N`): pace, edicts, Box3D bodies, bandwidth
+  and the move buffer flat for 20 minutes, none of B's 86,680 moves lost; the clients' heaps flat, the dedicated
+  server's grew 150 MB in steps (open: a leak or Box3D's pools at the fights' peak; MP_PLAN.md, "B20").
+- **Tests:** `mp_jitter` (new, in the suite); `predict --part` takes `--jitter`/`--loss`. Checks: MP_PLAN.md, "B20".
+- **In VR:** nothing new in single player; in multiplayer over Wi-Fi or a busy link, others' movement should be
+  steadier and lifts should not jolt under you.
+
+## MP B21: the server's heap in a 40-minute soak; Box3D's memory; the prop hulls' cache (agent/mp, 2026-11-17)
+
+- **`vr_physics_mem`** (Debug > Profiling and Memory): Box3D's live bytes (all of it, `b3GetByteCount`), its
+  world's, the bodies and contacts, the contact manifolds' pools (`b3World_GetManifoldMemory`, a local Box3D change)
+  and long arrays, the longest manifold array seen, and the engine's hull caches (prop, corpse, gun, mover, retired).
+  `vr_arena_test 6` prints it every 4 waves; the MP soak each minute (`mp_box3dmem`).
+- **The prop hulls' cache** (`propHulls`, `vr_box3d_mesh.cpp`): keyed by model, frame and the thing's drawn box, so
+  gibs, heads and dropped things of every size added hulls all map long (3940 over the arena's 32 waves, Box3D
+  5.3 -> 10.5 MB; ~0.2 MB a minute on a 16-player server). `trimPropHulls` (`vr_box3d_props.cpp`, each sync) lets
+  the non-actor hulls go once it holds more than 1024 (the actors' frame -1 hulls stay: `Slot::hull` keeps them; the
+  others are read only as a body is made, the world copying the hull); `vr_physics_hull_stats` counts them. The
+  arena soak now holds at ~5.7 MB.
+- **Box3D's manifold arrays** longer than 4 come from b3Alloc, not a pool of their own count (upstream: a pool of
+  512 arrays for every count up to the longest a mesh contact ever had, kept until the world goes; quadratic). The
+  longest measured: 6 in the arena, 8 on dm3 with 16 players: a guard (Box3D README).
+- **The server's heap** over 40 minutes (`mp_test.py soak --soak-minutes 40 --soak-change 30`): steps of ~55 MB
+  that a map change mostly does not give back, and not Box3D's (8.8 MB at most): MP_PLAN B21, next phase B22.
+- Shipping: the SP part is commit 8cee842ae; on next's base `agent/b21-box3dmem` (24b7ce728): scenario_check 136/0,
+  load_models 4/0, vr_run_check 12/0, ThinLTO 0 warnings.
+
+## MP B22: the dedicated server's heap; idle workers' pages; B21's two flakes (agent/mp, 2026-11-17)
+
+- **Not a leak: idle job workers' empty heap pages** (single player too). mimalloc's pages belong to the thread that
+  made them, and only that thread gives back the ones that frees on other threads emptied. A job worker that made
+  blocks (a map load's hulls, nav tiles, a fight's jobs) and then went idle kept them all, committed: after e1m1's
+  load, 285 empty pages (120-150 MB), every one a worker's; a 16-player dm3 server's committed heap grew 1237 -> 1432
+  MB in 20 minutes in steps while its live blocks grew 19 MB.
+- **The fix** (`vr_jobs.cpp`, `vr_crtheap_info.c`, Zancle's `ThreadPool::setIdleHook`, new): each worker tidies its
+  own heap, a normal mi_collect after a job at most once a `vr_heap_thread_tidy` (new, 1000 ms; ~6 us) and a forced
+  one once it has had no job that long (~0.5 ms, idle). Single player e1m1: committed 1382 -> 1095 MB, empty pages 0.
+  The server: 1016 -> 1029 MB over 16 minutes (was 1237 -> 1432 over 20), its live blocks +16 MB, tapering (the hit
+  model's and the ragdolls' skinned caches filling: bounded, `vr_heap_sites`).
+- **Diagnostics** (Debug > Profiling and Memory: Heap: Live By Size, Heap: Worker Tidy): `vr_heap live [rows]` (the live
+  blocks by block size; the pages held, made, empty and whose); `vr_heap_sites <min> [max]` ... `vr_heap_sites stop`
+  (every thread's blocks of that size kept by call stack until freed: the sites still holding them).
+- **The soak** (`mp_test.py soak`): the server's live heap by size each minute (soak_live.txt), `--heap-sites MIN:MAX`
+  (soak_sites.txt), the bots added again after `--soak-change`'s change.
+- **B21's flakes:** mp_rejoin's "C has the shotgun A let fall" took another weapon (anywhere on the map) for the dropped
+  shotgun before the let-go reached the server: it now waits for the hand empty and the weapon by it; mp_held's carried
+  hotspots (0.62 > 0.5) were compared before the shotgun settled into the off hand: it now waits for them to settle.
+- **Checks:** the MP suite 3 runs, 3 clean; the 40-minute soak 23/0 (the server's heap 1020 -> 1044 MB by minute 30,
+  was 1211 -> 1447; 1009 after the change).
+- Shipping: the SP part is commit 120427f2c; on next's base `agent/b22-heaptidy` (6e5fc7980): scenario_check 136/0,
+  load_models 4/0, vr_run_check 12/0, ThinLTO 0 warnings.
+- **In VR:** nothing to see; the game's memory after a map load is ~300 MB lower (commit charge; the working set less).
 ## VR slide: the flat slide's body and eye height (branch agent/vrslide2, 2026-11-17)
 
 His decision: "Sliding pose should be the same as flat screen, and the camera should smoothly but very quickly move to
@@ -3947,6 +4992,39 @@ knees and ankles reach further out in the headset (the mock stands taller than 1
   the new Debug row plus earlier rounds' unregenerated rows); `vr_menu_path_check maps/vrcalibration.map` 0 missing;
   scenario_check 136/136 PASS; load_models_test 4/4.
 
+## MP B23: NAT traversal: one server socket, room codes, the room service (agent/mp, 2026-11-17)
+
+- **One server socket** (`net_dgrm.c` ReadShared, QVR_NET_VERSION 36): the server talks to every client from its
+  listening port and tells them apart by address and port (each client's datagrams queued for it, at most 256; the
+  rest for the connect/query handling, 64). NetQuake opened a port per client and named it in the accept: behind a
+  router that doesn't keep port numbers, a forwarded host couldn't be joined. A v36 client keeps the address it
+  reached. Windows: the listening socket ignores ICMP port-unreachable (`SIO_UDP_CONNRESET`, else one client gone cut
+  everyone's reads short), 1 MB receive buffer. `net_stats`: "server queue drops".
+- **Room codes**: a host (listen server of 2+ players or dedicated, `vr_mp_room` 1, new) registers every 20 s with the
+  room service `vr_mp_rendezvous` (new, `vittorioromeo.com:26100`) from his game socket, gets a 6-letter code
+  (console "Room code: ...", Host Game page "Room Code ABCDEF (C: copy)", `vr_mp_roomcode [copy]`). A joiner:
+  Join Game > "Join by room code" or `connect @CODE`: the service introduces both, the host punches the joiner for 8 s
+  while the joiner's connect requests (every 0.25 s, 32) punch the host's router. Messages: "No room with that code",
+  "Room service not answering", "No direct link to the host" (symmetric NAT: forward UDP 26000), each with the whole
+  reason on the console.
+- **The service** `Misc/rendezvous/`: `qvr_rendezvous.py` (Python 3 stdlib, one UDP socket, protocol version 1:
+  64-byte requests, 32-byte replies, no amplification; per-address token bucket 5/s burst 20; 20000 rooms, 8 per
+  address, 50000 tracked addresses, 20 introductions per room in 10 s; rooms gone 120 s after the last registration;
+  no addresses logged), `test_rendezvous.py` (20 checks: protocol, every limit, a real exchange on 127.0.0.1),
+  `qvr-rendezvous.service` (hardened systemd unit), `deploy.sh <host> [user]` (scp + ssh/sudo; ufw), `README.md`
+  (deploy, logs, update, local mode, the relay as a design note).
+- **Tests**: `mp_test.py nat` (in the suite): the service's test; a forwarded host behind a non-port-preserving router
+  joined at its outside port; a host behind a cone NAT gets a code (the service sees the outside port); A behind
+  another cone NAT joins by it; B behind a symmetric NAT gets the reason; an unknown code and a dead service get
+  theirs. Routers: `mp_nat.py` (cone / symmetric, port-preserving or not, forwards) on 127.0.0.2-5, the games sending
+  through it by `-natgateway <port>` (net_wins.c, tests only). The harness's games run with `vr_mp_room 0` (never the
+  internet service). mp_avatar now waits for the off hand's curls too (it raced a closing hand: 2 fails, then 2/2).
+- **Checks**: dev 0 warnings; MP suite run 1: mp_armed's combat field-share (passed alone) and mp_avatar (fixed
+  above); runs 2 and 3: both clean (46 scenarios, mp_nat 12/0). SP: scenario_check 136/0, load_models 4/0 (vr_run_check not run: no canonical script; nothing SP-side changed but the Join Game page). ThinLTO 0 warnings.
+- **For him**: deploy (`bash Misc/rendezvous/deploy.sh vittorioromeo.com [user]`, UDP 26100 open in any cloud
+  firewall); then host with two real routers and join by code. Note: the first smoke run of this session (mp_coop,
+  before the harness got `vr_mp_room 0`) let its dedicated server look up vittorioromeo.com and send a few REGISTER
+  datagrams to UDP 26100 there (nothing listens yet).
 ## SteamVR on Linux: the -51 explained, loader messages logged, the Flatpak's /dev/shm (branch agent/linuxsteamvr, 2026-11-17)
 
 GitHub #82 (Fedora 45, Steam Frame, the Flatpak: "SteamVR: not running", then `xrCreateInstance failed: (-51)`). No
@@ -3979,6 +5057,45 @@ hardware here; diagnosis and plan in LINUX.md, "SteamVR" and "AppImage (plan, no
   `vrclient_*.txt`; the Flatpak sandbox case not run (no flatpak here); the AppImage needs `appimagetool` in CI (a new
   pinned download): plan only.
 
+## MP B24: no test on the internet; a ridden lift exact; a 60-minute soak; the room-code pages (agent/mp, 2026-11-17)
+
+- **No multiplayer test can reach the internet** (a B23 run had sent room-service datagrams to vittorioromeo.com):
+  every harness game runs with `-loopbackonly` (new command-line flag, tests only: the engine never looks up a name
+  other than localhost, never resolves to, sends to or downloads from anything outside 127.0.0.0/8, no reverse
+  lookups or IPX; each refusal prints `NET SAFETY:`); the harness refuses to start a game or send a command pointing it
+  elsewhere (vr_mp_room 1 with a non-loopback vr_mp_rendezvous, a connect, a room-code join); every scenario ends by
+  asking each game its vr_mp_room / vr_mp_rendezvous and reading every log for `NET SAFETY:`. `mp_netsafe` (new, first
+  in the suite; the suite stops if it fails).
+- **Standing on a lift in multiplayer is now exact** (QVR_NET_VERSION 37): the small leftover between a remote
+  player's prediction and the server on a moving lift (0.03-0.06 units, every other move) came from two clocks, not
+  DIST_EPSILON: the lift's place sent to 1/16 unit and his frames' times against the server's ticks. The predict state
+  now carries the nearby movers' exact places and the server's tick, and a dedicated server's ticks are exactly 1/72 s
+  (host.c; a listen host unchanged). The lift ride: 0.058 -> 0.000004.
+- **A 60-minute soak** with 16 players and two map changes: the server's heap flat (1049 -> 1060 MB, its live blocks
+  884 -> 908 MB, flat from minute 10), pace 0.999-1.0, 3 of B's 258,855 moves lost; B22's heap fix holds.
+- **The room-code pages, seen before trying**: `menu_hostgame` and `menu_joingame [CODE]` (new console commands) open
+  Multiplayer's Host Game and Join Game pages; `mp_test.py roomui` screenshots both flatscreen with a local service.
+- mp_armed's occasional combat check now judges the bytes (the encoder sends each update the smaller way).
+- **For him**: nothing changes in single player. Look at the two room-code screenshots (MP_PLAN B24), then deploy the
+  room service and try a code between two real routers.
+
+## MP B25: the MP suite under load; a hitched player no longer kicked by a same-name join (agent/mp, 2026-11-17)
+
+- **Why the suite failed with other work running** (B24: 0 clean of 6, each scenario passing alone): the games ran
+  below normal priority (every build and kit test came first: real-time games starved), the harness waited on
+  wall-clock or phase in a few places, and one real MP bug. Per scenario: MP_PLAN B25.
+- **The bug (MP only, no SP effect)**: the B15 "back from a crash" rule closed a live player's connection when another
+  game from his address joined by the same name while he was silent over 3 s (a hitch). The connect request now
+  carries the game's key, `vr_mp_clientkey` (new, archived, made up at the first connect), and the rule needs it.
+- **The harness**: the games at normal priority (`QVR_MP_PRIORITY=below` the old way); mp_dm `noexit 1` and no
+  fraglimit until A's kills (a bot in dm4's exit restarted the level); mp_lagcomp's held-rewind check by its worst of
+  12 shots; mp_ground's sword turned at head height and judged still, the shotgun at rest first; mp_disarm's held gun
+  drawn first and the launcher's trigger held until a shot; mp_rejoin's new same-name check.
+- **The load generator**: `mp_test.py --load N` (mp_load.py: N busy workers at normal priority; `--load-duty`);
+  `suite --only a,b`, `--suite-repeat N`. `--load 16` is the reference; 32 is past any real day.
+- **Checks**: dev and ThinLTO builds 0 warnings. Under `--load 16`, other workers' jobs running too: the five B24 scenarios plus mp_rejoin, then the full suite (49 scenarios), 47 clean: mp_lagcomp 15/0, mp_disarm 36/0, mp_dm 23/0, mp_download 9/0 in it. Its 2 fails were this phase's own first tries, changed since: mp_ground's head-height turn sent the hand to another weapon (reverted); mp_rejoin's same-name step left B's later return wrong (now `rejoin --part samename`, alone). A plain full run (scratch/b25_full_plain1.txt) was still going at the report: the 3 clean runs plus 3 under load are not done yet. SP: the engine change is the connect request's (net_dgrm.c, multiplayer only); no SP test run.
+- **In VR**: nothing changes in single player. Multiplayer: two players behind one router with the default name no
+  longer kick each other when one hitches.
 ## startuplog: the start-up trace and its heartbeat, PC and Quest (branch agent/startuplog, 2026-11-17)
 
 His Quest 3 report: after an install and a new data push, minutes of Meta's three dots; logcat's last game line
@@ -4042,6 +5159,71 @@ His Quest 3 report: after an install and a new data push, minutes of Meta's thre
   portable C++, no `__ANDROID__` paths of its own); `vr_startup_trace check` 4 passed, 0 failed (3 heartbeat lines);
   scenario_check 136/136 PASS; load_models_test 4 passed, 0 failed.
 
+## MP B25b: B25's acceptance; a coop join's telefrag; mp_dm's restart (agent/mp, 2026-11-18; never shipped by the coordinator)
+
+- **Coop telefrag (MP only)**: a player joining or coming back to a coop game took the next start in turn and
+  telefragged whoever stood on it (stock Quake). Coop spawns now skip a start a living player stands on
+  (`VR_CoopSpawnPoint`, client.qc): mp_rejoin's same-name step is back in its default run (B25 had split it out:
+  its later crash return came back dead with C's backpack).
+- **mp_dm's restart**: vr_dm_test 7 set `deathmatch` 0 for 3 frames; a respawn there restarted dm4. A test flag now.
+- **Harness**: mp_melee's jittered swing against a retaken clean one when they differ; mp_disarm's magazine load waits
+  for each placement and retries (not enough: still open).
+- **Runs** (full suite): 3 consecutive clean plain runs once; under `--load 16` 2 consecutive at most. Failing: mp_disarm's
+  magazine (4 of 18), one mp_fuzz client crash (0xC0000005 after corrupt packets down), one mp_predictslide move, one
+  mp_lagcomp run with the machine over-busy. MP_PLAN B25b has the per-run tallies; B26 takes the crash first.
+- **Checks**: dev and ThinLTO 0 warnings; scenario_check 136/0, load_models 4/0, vr_run_check 12/0.
+- **In VR**: single player unchanged. Coop: a friend joining no longer kills the player standing at a start.
+
+## MP B26: svc_setview checked (B25b's crash); a dedicated server's load window; the suite's acceptance (agent/mp, 2026-11-18; never shipped by the coordinator)
+
+- **SP-relevant fix (branch `agent/mp-next-fixes`, on origin/next, commit 2c2563ee3)**: cl_parse.c's svc_setview took
+  any entity number; a corrupt or hostile one put the view outside `cl_entities` and the next frame's hands read it (an
+  access violation: B25b's mp_fuzz crash, whose report was in the harness base's `quakevr/crash` all along). Now a
+  Host_Error; the start-sound entity check `>=`; Rogue's team swatch only for a player's own view.
+- **Dedicated server (commit 4d44dedcf, same branch)**: its map load ends at its first frame with the map running
+  (was never: file cache and heap hold for the whole game, "still in map load" every 2 s). SP and listen unchanged.
+- **Harness**: mp_proxy's hostile-command injection and a structured "command after" corruption with its own seed;
+  `fuzz --part inject` (246 commands: crashed B before the fix, 246/246 after) and `--part signon`; crash reports
+  copied into the run's folder (`mp_crash:`). mp_disarm's magazine load corrects each placement by the server's own
+  reload rows (the gun moves 0.6-1.3 units as the off hand comes near; the server's round lands up to 3.1 units from
+  where B's game aimed it): a player watching the well; the leniency unchanged. Open (B27): those two gaps themselves.
+- **Runs**: 3 consecutive clean full suites plain, then 3 under `--load 16` (6 of 6).
+- **Checks**: dev and ThinLTO 0 warnings; scenario_check 136/0, load_models 4/0, vr_run_check 12/0.
+- **In VR**: nothing to see in single player. MP: a remote player loading a magazine may see it at the well 1-3 units
+  before it seats (B27).
+
+## MP B27: held rounds agree with the server (the port's drawn pushes; a remote client's held place sent) (agent/mp, 2026-11-18; never shipped by the coordinator)
+
+- **SP-relevant fix (branch `agent/mp-next-fixes-b27`, on origin/next: f943eee34, 04da5cffe)**: a round held from the
+  ammo pouch and the gun in the other hand were drawn pushed apart near the loading port (the held props' meet, the off
+  forearm against the gun): the gun's drawn port, which the server tests the round against, moved 0.6-1.3 units while
+  the server held the round unpushed, so a magazine drawn at the well could miss. `held::roundPortEase` eases both out
+  by the round's own point as it comes to the port; Collision Leniency 0 still keeps them apart.
+- **MP (agent/mp)**: QVR_SVC_HELDPLACE, the server's place of what a remote client's hands hold (a snapshot record);
+  his held things are drawn there from the first frame, not guessed from a delayed message (was 0.5-3 units off, worse
+  under load). Network version 38. mp_disarm checks B's view against the server's (under 0.5: 0.04-0.25 now).
+- **Unfinished**: `mp_fuzz --part injectup` (hostile client commands up); its bytes are not parsed yet (B28). Found:
+  NetQuake lets a coop guest kick others and ban addresses (B28: refuse, a server setting to allow).
+- **Checks**: dev 0 warnings; reload_test 116/0, front 34/0, magcollide 11/0, pouch 29/0, scenario_check 136/0,
+  load_models 4/0, vr_run_check 12/0; the MP acceptance in MP_PLAN.md's B27 results.
+- **In VR**: single player: load a magazine or a shell from the pouch: the gun should not shift as the round nears the
+  well or port, and a round seen in the well seats. MP: the same for a remote player.
+
+## MP B28: a guest can't kick or pause; hostile client commands up fuzzed (agent/mp, 2026-11-18; never shipped by the coordinator)
+
+- **SP-relevant fix (branch `agent/mp-next-fixes-b28`, on origin/next: 1e3594c65)**: `setpos` refuses a value not
+  finite, more than 4096 units off the map's bounds or an angle past 36000 degrees (a client's `setpos 1e30 ...` kept
+  him at 1e30, sent to every client; huge angles overflowed integer casts), and says why.
+- **MP (agent/mp)**: `vr_mp_guest_admin` (default 0; Debug > Network: Guests May Kick and Pause): a guest (any player
+  but the listen host's own) is refused kick, pause and vr_scene_clean and told so (NetQuake let any coop client kick
+  the others). A client's `ban` is answered (cmd.c). Guests' say/say_team/tell: QuakeWorld's flood guard (more than 4
+  in 8 s: 10 s silent). Self-only cheats unchanged (coop allows them, as NetQuake).
+- **Harness**: mp_proxy injects after unreliable datagrams only (B27's bytes up followed acks: never read); the suite's
+  mp_fuzz sends 138 hostile commands up (server and A untouched; 98 drops, each with a reason); new scenario mp_guests.
+- **Checks**: dev and ThinLTO 0 warnings; scenario_check 136/0, load_models 4/0, vr_run_check 12/0; the MP acceptance
+  in MP_PLAN.md's B28 results (left running).
+- **In VR**: host a coop game with a friend: his `kick` and `pause` are refused with a message, yours work; Debug >
+  Network: Guests May Kick and Pause lets his pause go.
 ## The audit's safe items from agent/quest and agent/mp brought to next, reviewed (branch agent/extract1118, 2026-11-18)
 
 From the branch audit of 2026-11-18 (items 2-9; item 1, setpos, was already on next). One commit each; the Quest-only
@@ -4095,6 +5277,40 @@ and MP-only parts left on their branches.
   nothing elsewhere: on by default on the PC too (0: a batch each, as before). Review: when an instance's bone count disagreed, the batch copied the first instance's bones through a pointer a later
   VR_AliasBonePoses call may have reused: it copies the first's copy. The world-lit-skip split (ES) left behind.
 
+## MP bots phase 1: a flat-screen player's hands -- dual wield, the overhead swing and the guard; coop bots (agent/mp, 2026-11-18; never shipped by the coordinator)
+
+- **SP-relevant**: `vr_flatplay.cpp` gains `poseBot` (a bot's hands posed by flat play's own functions: targetOffset,
+  aimRotAtCrosshair, overheadSwing, parryPose, the melee hold), switched by a file-scope `bot` pointer set for that call
+  only: with it null every changed function reads as before (bodyPose, heldWid, heldIn, armSpan, propInFist, the
+  support hand's wall let-go, the swing's clock, the guard's share). Merged origin/next f2f11c10e: `vr_goto_exit` /
+  `vr_hurt` once, in `vr_cheats.cpp` (MP's parts on top: a bot's slot, the attacker argument, a dedicated server's
+  console in deathmatch, the player's name in the lines); `vr_nav_hash` next's (diskcache::fnv).
+- **Bots (QC frikbot/bot_fight.qc, weapons.qc)**: their hands each frame from `botflatpose` (one gun or two off the
+  shoulders, turned at the enemy's middle; the melee hold). A melee weapon's button is a flat player's overhead swing
+  (`W_Fire_Melee` for a bot: 0.8 s a swing, its windup strikes nothing (`.handsynth`), the strike's blow the melee's
+  sweep). The guard: a blow seen coming within 110 units (a bot's swing, a headset player's melee hand over 2 m/s, a
+  flat player's button, a melee monster attacking it) raises the flat guard by skill (`vr_bot_parry_chance`, default -1:
+  25/50/75/90 % for skills 0-3, after 0.3/0.2/0.12/0.06 s, held 0.6 s, one roll a blow); `VR_Parry` reads a bot's
+  hand lines, so players' and monsters' blows are parried by it. Dual wield (`vr_bot_dual_wield`, default 1): a gun in
+  the main hand and one of its own that pairs (`VR_AG_Pairs`, with ammo) goes into the off hand and both fire; a gun
+  its off hand takes off the floor becomes its own, kept if it pairs, else put away (B11's fire-and-drop is the 0
+  setting).
+- **Coop**: FrikBot's own coop rules (monsters its only enemies, players followed by its roaming, no shots through a
+  teammate, back on the next level by its bot_return); new: what it had at the change kept by its name as a leaver's
+  (`vr_coopsave.cpp` `VR_CoopNoteBots` in SV_SaveSpawnparms, `botcarryparms` in BotConnect). VR Settings > Play >
+  Add Co-op Bot (impulse 100). Not done: anything for doors and lifts beyond FrikBot's own.
+- **Tests**: vr_dm_test 9 (a bot at skill 3, chance 100, parries another's overhead blow; chance 0: it lands), 10 (dual
+  wield fires both), 11 (coop: a grunt brought to the bot is killed, no player its enemy); tests 2-3 place the bot by
+  the human's head yaw (`v_viewangle`: a headset player's aim follows his hand) and test 3's guard is level
+  (mp_test.py `LEVEL_GUARD`, square to an overhead blow); tests 4-6 run with `vr_bot_dual_wield 0` (an empty off
+  hand; a bot's own second gun put away, not dropped). mp_dm 25/0, new mp_coopbots 13/0 (the bot back on e1m2 with
+  its super nailgun), mp_lockstep_dm 23/0. MP acceptance (B28's owed one too): 3 clean plain and 3 clean `--load 16`
+  suites (MP_PLAN.md, "Bots phase 1 results"). SP: scenario_check 136/0, load_models 4/0, vr_run_check 12/0, the
+  flat tests clean but flatswing's knight trials (7-8 of 11 land, 9 wanted: the knight off its spot; not this
+  phase's code, which is bot only).
+- **In VR**: a deathmatch with bots: give one a sword (it swings overhead; hold your weapon level across to parry);
+  swing at a bot holding a melee weapon (it raises its guard more often at a higher `skill`); give it two pairing guns.
+  Coop: Add Co-op Bot, play e1m1 to the exit: it fights beside you and is on e1m2 with what it had.
 ## Shader quick wins reviewed (branch shader-quick-wins / agent/shaderwins, 2026-11-19)
 
 - Image check, fixed frames, seeded particles and server (start, e1m1 + Quake and particle2 explosions, e1m3, e2m1,
@@ -4191,6 +5407,26 @@ and MP-only parts left on their branches.
   monster_decoy (made by its Hipnotic weapon). New `qvr_checks toolgun_weapons`: every WID_* has a Weapons row (exempt:
   fist, AD eliminator).
 
+## MP ready for next? (agent/mp, 2026-11-19)
+
+- flatswing's knight table is the same on agent/mp and origin/next (5/0 both, 10 of 11 land): not an MP change.
+- mp_dm: vr_dm_test 5 clears other loose guns and backpacks within 160 units of the bot before laying its nailgun;
+  tests 2/3 hold the bots' flat guards down (`VR_DMT_HoldGuards`); `respawn_if_dead` before the grip step. 26/0 x3.
+- Details, the suite runs and what blocks the merge: MP_PLAN.md, "mpready results" and "Ready for next?".
+
+## mpguard: mp_guard's held speed, the suite's failures (agent/mp, 2026-11-20)
+
+- `vr_mp_guard_debug` (0; a server's debug cvar): 1 prints each value of a client's move the move guard holds, by
+  name, size and bound (`mp_guard_held:`); a share under 1 also those over that share of their bound (`mp_guard_near:`).
+- mp_guard 11/1 was its honest move: the mock's one-frame hand jump (1.48 m read as 29.6 m/s) and an 80 degree turn
+  put the launcher's throw estimate at 35-41 m/s against the 40 m/s bound, by frame times (next's faster frames tipped
+  it). A's arm now moves in a 0.4 s play (`GUARD_ARM_PLAY`): his largest value 18 m/s. 12/0 in 9 of 9 runs.
+- B's game's abort under mp_fuzz (B26's open crash): `rope::parseCorners` sized its corners from a cut-short message's
+  -1; a count under 0 ends the parse.
+- Test fixes: mp_predictslide allows a move the server never had (its lost count); mp_dm test 9 turns the pair until
+  the swinger's place is free (`VR_DMT_PairFree`); mp_voice's two talkers measured over 250 frames, its mute counted
+  once the in-flight frames are in.
+- Details and the runs: MP_PLAN.md, "mpguard results".
 ## Dwell P1b, part one (copper1b, 2026-11-19)
 
 Campaign 7 `dwell` (a dwell or dwellv2p2 folder, v2.2 by its progs.dat; experimental like AD), the COPPER ruleset
@@ -4342,6 +5578,43 @@ adplasma 6/0, adwidow 11/0; adshadowaxe 6/0, plasma_ball_test.sh 6/0, dwell_weap
 dwell_vrmodels_test.sh 13/0, scenario_check.sh PASS (137 scenes), dwell_maps.sh 28/0, 148 PASS. The Dwell scripts need Dwell v2.2 in the agent's base
 (`<base>/dwellv2p2`); without it dwell_vrmodels is 3/10 and dwell_maps 3/25.
 
+## mpfix half 1 (2026-11-20): the agent/mp review's transport and avatar/voice findings
+
+The review before agent/mp merges into next (areas A and C; details in MP_PLAN.md "Review fixes"). Network version
+40: a connect request gets a slot only with the server's cookie for its address (CCREP_CHALLENGE; a forged request
+costs one 9-byte reply, no slot, no serverinfo), a new client keeps one reliable chunk in flight until it acks and is
+dropped after 15 s without one; ghost connections are marked closing, never freed under their slot (no two slots on
+one qsocket); a room host punches 5 times over 1 s; one automatic Map Library install per connect the player started;
+the guest's held-weapon record and weapons::value bounded (a slot past the table read past the cvar table);
+the voice jitter estimate counts new frames only (about 60 ms less delay per spurt); push-to-talk released when its
+button is up, a menu opens or voice chat is inactive; avatar heights and calibrations clamped.
+Tests: mp_spoof 27/0 (step 5: 16 forged connects each challenged with 9 B, no slot; a wrong cookie challenged again;
+an accepted socket that never acks gets one chunk sequence and is dropped at 15 s; the A2 ghost pair: clients 3, 2,
+3), vr_voicechat_selftest 24/0 (4b: 0.0 ms jitter with copies and the wrap), mp_fuzz's hostile list has a heldpose
+record with slot 200.
+## mpfix2: the agent/mp review's B and D findings fixed (2026-11-20, agent/mpfix2)
+
+The second half of the fixes before agent/mp goes into next (the table: MP_PLAN.md, "Review fixes, half 2").
+- The predict record (QVR_SVC_PREDICT) is written into its own buffer and goes only whole and only when it fits: its
+  fixed 700-byte reserve was below its largest size, and an overflow ended the server. The datagram's sizebuf now has
+  `allowoverflow` set (false) instead of stack garbage.
+- Lag compensation rewinds once per shot: `FireBulletsImpl` (every gun's pellets) and `LightningDamage` (its three
+  lines) open one scope; the tracelines inside skip theirs. A super shotgun was 14 rewinds of every target. Builtin
+  `lagcompcount` (tests), `vr_dm_test 12` (run by mp_lagcomp).
+- A reused edict is not rewound to its previous occupant's place (frames before its `freetime` skipped).
+- The prediction replay's traces loop over the message's brush models (vr_trace.cpp's list, shared) instead of every
+  client entity.
+- The teleport cut (no lerp across a jump) scales with the two places' time gap: 100 units, or 4000 u/s times the gap,
+  for the drawing and lag compensation alike (low send rates, lost messages).
+- Single player: no PvP disarm projectile scan (PvP counts only in coop or deathmatch); no "mp_event" lines in the
+  console (only with `vr_mp_watch`).
+- Deathmatch's loose gib and weapon caps: one pass over the edicts, then the oldest removed from that list.
+- A bot's open hand stops reaching for a thing that was removed (its model cleared).
+- Harness: an inbox line over 4 KB is dropped instead of stalling the inbox; dead `M_Search_*` menu code removed;
+  menu_paths.txt regenerated.
+- Left, in BACKLOG.md section 9: B4 (one player walk), D7 (one grapple reel), B6 (room-scale budget in the replay),
+  B7 (snapshot encode sharing).
+- Checks: dev and ThinLTO builds 0 warnings (LTO exe relinked); mp_lagcomp + mp_dm alone 17/0 and 27/0 (vr_dm_test 12 3/0, the inbox check); SP scenario_check 136/1 (bench_crowd_ad, the known AD infighting), flatplay 31/0, flatparry 43/0, flathands 76/0, flatmelee 12/0; suite plain 54 of 57 (mp_coop_lag, mp_lagcomp's move view-time check, mp_voice_lossy: real-time checks, the other fixer's runs alongside); those three alone 12/0, 17/0, 28/0. --load 16 (the other fixer's suite running too: round trips up to 1 s): 33 of 57, every failure a latency or timing check, no Host_Error or overflow in any server log; to rerun on a quiet machine.
 
 ## Armed grunts' cost on crowded maps (aglod, 2026-11-20)
 
@@ -4624,3 +5897,37 @@ magthrow 3/0; gibprops e1m1 alive (grunt, ogre, zombie, knight, hell knight, enf
 still in the air at 150 frames (as ROUND22 notes). vr_physics_mtbench 200/300 `eece2c3897006b67`, 400/300
 `b071f169ad1d96cb` for every worker count, AVX2 and SSE2 (unchanged). Dev and ThinLTO 0 warnings, the LTO exe
 relinked after the change.
+## agent/mp ready for next (mpfinal, 2026-11-20)
+
+The deep review's two fix halves (agent/mp: A transport, C avatars and voice; agent/mpfix2: B snapshots, prediction,
+lag compensation, D QC, menus, harness) merged together and with origin/next. Checked against the pre-review base
+8af21793d under the same machine load, interleaved: the head fails 2 scenarios in 1 of 4 suite runs (a load burst in
+mp_lagcomp's view-time check; one mp_coopbots give-up, 9 of 10 overall), 0 in the other three; the base fails 5 in
+every run. SP: scenario_check 137/0, flatplay 31/0, flatparry 43/0, flathands 76/0, flatmelee 12/0. Verdict and the
+table: MP_PLAN.md, "Ready for next".
+## Dwell's weapons' ammo screen housings, the Lance's grip (dwellgun, 2026-11-20, `agent/dwellgun`)
+
+DWELL.md 9.6 ("Ammo screen housings") has the detail. Looked first (kit `scratch/dwellgun_shots/`: `before_*` the
+mock VR side/top/eye/front views and flat play): none of the three had a screen you could see (the Rotary's sat inside
+its housing, the Lance's and the Rifle's just inside their rear faces, a default box), the Lance's trigger guard and
+trigger hung 0.37 under its blades and the lightning gun's grip's top came through its frame; grips, muzzles and
+holsters were right. Now:
+- `vr_adweapons.cpp`: AD's Plasma Gun's housing is `housing(Parts&, Housing)` (its numbers a `Housing`; the Plasma
+  Gun's model byte-identical), the face's X byte measured (`faceX`), the rivets' rows settable (no two corners within
+  `capWeld`: the Rifle's Z step is 0.048, its first rivets came out open). `rotaryParts`, `lanceParts`, `rifleParts`
+  put one on each rear face, each window the glass the screen had without a housing at the slot's scale (fillMax 1).
+  The Lance 0.4 up on its grip, its guard and trigger 0.8 up (`Recipe::liftAlso`; least gaps now -0.03 and -0.05, the
+  grip's top 0.02 under its frame). `vr_adweapon_models write` writes each made model to the game folder as
+  `made_<name>.mdl` (for check_mdl_holes; never shipped).
+- `vr_screenstyle.cpp`: `dw_shot3.mdl#vr`, `dw_rail.mdl#vr`, `dw_rifle.mdl#vr` (the Plasma Gun's look; openings 11.60 x
+  11.19, 11.34 x 10.23, 11.25 x 10.47; offsets sink the glass 0.04h behind the bezel: `vr_debug_screen_where` puts
+  each centre within 0.005 of the designed glass). weapons.txt slots 52-54: `wpntxt_av` on the glass, pitch and x/y/z
+  0, fonts 1; the Lance's wpntxt_scale 0.25 (was 0.3: its handle's back is 2.6 wide) and muzzle_av 14.46 0 5.62. His
+  config holds no slot 53-55 values: no `vr_wofs_version` bump.
+- Scenes `dwell_rotary`, `dwell_lance`, `dwell_rifle` (the gun in the right hand, our base gun in the left).
+- Checked: check_mdl_holes on the made models: Lance and Rifle ok (0 see-through, 0 flipped), the Rotary as before (its
+  muzzle's 2 open barrel loops, dwell3c's), AD's Plasma Gun ok and unchanged; dwell_vrmodels_test.sh 13/0;
+  load_models_test.sh 4/0; scenario_check.sh PASS (140); vr_ad_test 204 (an armed grunt with Dwell's weapons) 9/0;
+  flat play shots right. Dev and ThinLTO builds 0 warnings. `after1_*` shots: the same views.
+- Not verified: the headset; the left hand (the housings are symmetric, the screens' offsets mirror). Seen, not this
+  work's: the Rotary's big rear face (a hole cap) draws as a dark red/yellow checker in the game's light.

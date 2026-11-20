@@ -221,8 +221,6 @@ void() frik_obstacles =
 
     if(!(self.flags & FL_ONGROUND))
         return;
-    if(self.b_aiflags & AI_BLIND)
-        return;
 
     ang = normalize(self.velocity);
     ang_z = 0;
@@ -234,6 +232,29 @@ void() frik_obstacles =
     if(trace_allsolid || trace_startsolid)
         return;
     hgt = trace_endpos_z - stop_z;
+
+    // QVR (MP_PLAN B14d): lava, slime or the sky below the drop ahead is a danger whatever the gap's width, the bot's
+    // target or its route: its bottom looked for past the trace's 256 units (dm4's lava pit is ~400 below its upper
+    // ledges: its air at 256 read as a safe fall), and a blind route (AI_BLIND: the waypoints' "trust the route", dm4's
+    // stairs down beside the pit) given up for it. The "walkable gap", "safe to fall" and blind ways walked the bots
+    // into dm4's lava a few times a minute once their walk ran through the players' moves (vr_pmove_bots).
+    if(hgt < 0)
+    {
+        conts = pointcontents(trace_endpos + '0 0 4');
+        if(trace_fraction == 1 && conts == CONTENT_EMPTY)
+        {
+            traceline(trace_endpos, trace_endpos - '0 0 1024', TRUE, self);
+            conts = pointcontents(trace_endpos + '0 0 4');
+        }
+        if(conts < CONTENT_WATER)
+        {
+            self.b_aiflags = self.b_aiflags - (self.b_aiflags & AI_BLIND);
+            frik_obstructed(ang, TRUE);
+            return;
+        }
+    }
+    if(self.b_aiflags & AI_BLIND)
+        return;
 
     if(hgt > 18)
     {

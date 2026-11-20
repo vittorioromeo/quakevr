@@ -38,21 +38,33 @@ void PF_animevent()
 // draws them this frame. vector(entity player, float hand, float index) weaponhotspot: hotspot `index` (0..3) of the
 // weapon in `hand` (cVR_MainHand, cVR_OffHand): a grip's point, a blade grip's middle, in the world ('0 0 0' if none);
 // float(entity player, float hand, float index, float what) weaponhotspotinfo: its type (what 0: 0 none, 1 grip,
-// 2 blade), bias in units (1), a blade's share of the way from the hand to the tip (2). Only the local player's (the
-// server's first client, as its view draws it); others' are none.
-[[nodiscard]] view::WeaponHotspot localHotspot()
+// 2 blade), bias in units (1), a blade's share of the way from the hand to the tip (2). From the player's slot
+// (vr_heldpose.hpp): this game's own player's where his view drew them this frame, another's as his client drew them,
+// on his hand now.
+[[nodiscard]] view::WeaponHotspot playerHotspot()
 {
     edict_t* player = G_EDICT(OFS_PARM0);
-    if(!sv.active || cls.state != ca_connected || NUM_FOR_EDICT(player) != 1)
+    const int hand = static_cast<int>(G_FLOAT(OFS_PARM1)) == 0 ? 0 : 1;
+    const int index = static_cast<int>(G_FLOAT(OFS_PARM2));
+    const heldpose::Hand* r = heldpose::slotHand(player, hand);
+    if(!r || index < 0 || index >= heldpose::maxSpots)
     {
         return {};
     }
-    return view::weaponHotspot(static_cast<int>(G_FLOAT(OFS_PARM1)) == 0 ? 0 : 1, static_cast<int>(G_FLOAT(OFS_PARM2)));
+    if(r->placed)
+    {
+        return {r->spotType[index], r->spotWorld[index], r->spotBias[index], r->spotShare[index]};
+    }
+    if(r->spotType[index] == 0)
+    {
+        return {};
+    }
+    return {r->spotType[index], heldpose::toWorld(player, hand, r->spotPos[index]), r->spotBias[index], r->spotShare[index]};
 }
 
 void PF_weaponhotspot()
 {
-    const view::WeaponHotspot h = localHotspot();
+    const view::WeaponHotspot h = playerHotspot();
     float* out = G_VECTOR(OFS_RETURN);
     out[0] = h.pos.x;
     out[1] = h.pos.y;
@@ -61,29 +73,26 @@ void PF_weaponhotspot()
 
 void PF_weaponhotspotinfo()
 {
-    const view::WeaponHotspot h = localHotspot();
+    const view::WeaponHotspot h = playerHotspot();
     const int what = static_cast<int>(G_FLOAT(OFS_PARM3));
     G_FLOAT(OFS_RETURN) = what == 0 ? static_cast<float>(h.type) : what == 1 ? h.bias : h.share;
 }
 
 // float(entity player, float hand, entity weapon) weapongrabspot: the hotspot (index + 1; 0 none: its handle) by which
-// `player`'s empty `hand` takes `weapon` lying about (vr_weapon_grab_hotspots: the local player's view found the hand
-// nearer that grip or blade hotspot than the handle; vr_twohand.cpp groundSpot). Others' are 0.
+// `player`'s empty `hand` takes `weapon` lying about (vr_weapon_grab_hotspots: the player's view found the hand nearer that
+// grip or blade hotspot than the handle; vr_twohand.cpp groundSpot; another player's as his client sent it: B3f).
 void PF_weapongrabspot()
 {
     edict_t* player = G_EDICT(OFS_PARM0);
     edict_t* weapon = G_EDICT(OFS_PARM2);
     const int hand = static_cast<int>(G_FLOAT(OFS_PARM1)) == 0 ? 0 : 1;
-    const bool local = sv.active && cls.state == ca_connected && NUM_FOR_EDICT(player) == 1;
-    G_FLOAT(OFS_RETURN) = local && (vr_weapon_grab_hotspots.value || vr_weapon_grab_anywhere.value)
-                              ? static_cast<float>(twohand::groundSpot(hand, NUM_FOR_EDICT(weapon)))
-                              : 0.f;
+    G_FLOAT(OFS_RETURN) = static_cast<float>(heldpose::grabSpot(player, hand, weapon));
 }
 
 // float(entity player, float hand) weaponanygrip: how `player`'s empty `hand` holds the weapon in its other hand: 0 not,
 // 1 by a hotspot, 2 anywhere on it (vr_weapon_grab_anywhere: a free grip, or both hands on a carried weapon; or a moment
 // ago). QC VRTryHandOff: letting go of the other hand leaves the weapon carried by this one where it holds it. The local
-// player's only (others' are 0).
+// player's, or another's as his client sent it (vr_heldpose.hpp; 0 until it came).
 // float embedstick(entity w, entity host, vector at, vector vel, float hand): axestick::stickHeld.
 void PF_embedstick()
 {
@@ -169,13 +178,14 @@ void PF_weaponanygrip()
 {
     edict_t* player = G_EDICT(OFS_PARM0);
     const int hand = static_cast<int>(G_FLOAT(OFS_PARM1)) == 0 ? 0 : 1;
-    const bool local = sv.active && cls.state == ca_connected && NUM_FOR_EDICT(player) == 1;
-    G_FLOAT(OFS_RETURN) = local ? static_cast<float>(twohand::helpKind(hand)) : 0.f;
+    const heldpose::Hand* r = heldpose::slotHand(player, hand); // (every player's from his slot: B11a)
+    G_FLOAT(OFS_RETURN) = r ? static_cast<float>(r->helpKind) : 0.f;
 }
 
 // vector(entity player, float hand, float what) weapondrawnpose: the weapon `player`'s `hand` carries off its handle (the
-// hand-off, a hotspot, anywhere), as the local player's view draws it: what 0 its handle's place, 1 its angles as a thrown
-// weapon is given them (MakeThrown negates the pitch: then drawn as it was), 2 '1 0 0' if known ('0 0 0': not carried, or another player),
+// hand-off, a hotspot, anywhere), as the local player's view draws it (another player's: as his client drew it, on his
+// hand now: vr_heldpose.hpp): what 0 its handle's place, 1 its angles as a thrown
+// weapon is given them (MakeThrown negates the pitch: then drawn as it was), 2 '1 0 0' if known ('0 0 0': not carried),
 // 3 its tip (the melee's line: QC VR_Melee_Line); 4 its handle and 5 its tip in the frame of the hand carrying it as drawn
 // (forward, right, up: QC places them on the hand of the move it runs, VR_Melee_FreeLine). QC: thrown from where it is drawn.
 // weapondrawnpose(e, hand, 6): the muzzle of the weapon model `e` itself is drawn with, at its origin and angles, as a
@@ -296,16 +306,13 @@ void PF_weapondrawnpose()
     }
     if(what == 43)
     {
-        // weapondrawnpose(w, hand, 43): the reverse grip (ROUND25.md "revgrip"; QC VR_RevGrip_Choose): how this listen server's own
-        // `hand` (QC's) takes the loose weapon `w` now: '<1 reversed, 0 upright> <1 it may be held reversed, else 0> <the cosine
-        // of its blade's way and the thumb's side's>' (view::reverseGripChoice).
-        const int index = static_cast<int>(player->v.modelindex);
-        entity_t ent{};
-        ent.model = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
-        VectorCopy(player->v.origin, ent.origin);
-        VectorCopy(player->v.angles, ent.angles);
+        // weapondrawnpose(w, hand, 43[, p]): the reverse grip (ROUND25.md "revgrip"; QC VR_RevGrip_Choose): how player `p`'s
+        // `hand` (QC's; without `p` this listen server's own) takes the loose weapon `w` now: '<1 reversed, 0 upright> <1 it may
+        // be held reversed, else 0> <the cosine of its blade's way and the thumb's side's>' (view::reverseGripChoice; another
+        // player's by his move's hand and his own vr_revgrip: heldpose::reverseGrip, B3f).
+        edict_t* taker = qcvm->argc > 3 ? G_EDICT(OFS_PARM3) : nullptr;
         float cosine = 1.f;
-        const int choice = sv.active && cls.state == ca_connected ? view::reverseGripChoice(ent, hand, cosine) : -1;
+        const int choice = heldpose::reverseGrip(taker, hand, player, cosine);
         progs::returnVec({choice > 0 ? 1.f : 0.f, choice >= 0 ? 1.f : 0.f, cosine});
         return;
     }
@@ -313,10 +320,8 @@ void PF_weapondrawnpose()
     {
         // weapondrawnpose(player, hand, 44 / 45): this listen server's own `hand`'s weapon as drawn last, in the hand's frame
         // (tests: QC vr_revgrip_test.qc): 44 its forward axis, 45 its up axis; '0 0 0' none. (view::heldWeaponAxes)
-        glm::vec3 forward{0.f}, up{0.f};
-        float flip = 0.f;
-        const bool drawn = sv.active && cls.state == ca_connected && view::heldWeaponAxes(hand, forward, up, flip);
-        progs::returnVec(!drawn ? glm::vec3{0.f} : what == 44 ? forward : up);
+        const heldpose::Hand* r = heldpose::slotHand(player, hand); // (every player's from his slot: B11a)
+        progs::returnVec(!r || !r->axesKnown ? glm::vec3{0.f} : what == 44 ? r->axesForward : r->axesUp);
         return;
     }
     if(what == 46)
@@ -324,27 +329,21 @@ void PF_weapondrawnpose()
         // weapondrawnpose(player, hand, 46): '<its share of the reverse grip as drawn (0..1: tests)> <1: the weapon held may be
         // held reversed (QC VR_RevGrip_HandFrame: its eject button flips it)> <1 its grip may be flipped now, -1 not while the other
         // hand holds it away from its handle (view::gripFlipBlocked, ROUND25.md "flipgate"), 0 none>'.
-        glm::vec3 forward{0.f}, up{0.f};
-        float flip = 0.f;
-        // The listen server's own player only (edict 1: his hands as drawn here). Another's, or any on a dedicated server, the
-        // engine can't see: z 1, the flip allowed without the two-handed gate (QC VR_RevGrip_Flip still checks the weapon), x
-        // and y 0. (agent/mp reads every player's from his slot, heldpose::slotHand: the gate for all, when it merges.)
-        const bool local = sv.active && cls.state == ca_connected && NUM_FOR_EDICT(player) == 1;
-        (void)(local && view::heldWeaponAxes(hand, forward, up, flip));
-        // (z: 1 in flat play too, the flat holster menu's FLIP GRIP button's: view::heldGripFlippable)
-        const float flippable = !local ? 1.f : !view::heldGripFlippable(hand) ? 0.f : view::gripFlipBlocked(hand) ? -1.f : 1.f;
-        progs::returnVec({flip, local && view::heldMayReverse(hand) ? 1.f : 0.f, flippable});
+        // (z: 1 in flat play too, the flat holster menu's FLIP GRIP button's: view::heldGripFlippable; every player's from
+        // his slot: B11a)
+        const heldpose::Hand* r = heldpose::slotHand(player, hand);
+        const float flippable = !r || !r->flippable ? 0.f : r->flipBlocked ? -1.f : 1.f;
+        progs::returnVec(r ? glm::vec3{r->flip, r->mayReverse ? 1.f : 0.f, flippable} : glm::vec3{0.f});
         return;
     }
     if(what == 47)
     {
         // weapondrawnpose(player, hand, 47): the flip grip (ROUND25.md "flipgrip"): how this listen server's own `hand` takes the
         // weapon its other hand carries off its handle now (QC VRTakeCarriedWeapon), as 43 (view::carriedGripChoice).
-        // Another player's (not the listen server's own, edict 1): the engine can't tell, '0 0 1' (QC keeps his grip), as 49/50.
-        float cosine = 1.f;
-        const bool local = sv.active && cls.state == ca_connected && NUM_FOR_EDICT(player) == 1;
-        const int choice = local ? view::carriedGripChoice(hand, cosine) : -1;
-        progs::returnVec({choice > 0 ? 1.f : 0.f, choice >= 0 ? 1.f : 0.f, cosine});
+        // (every player's from his slot: B11c)
+        const heldpose::Hand* r = heldpose::slotHand(player, hand);
+        const int choice = r ? r->carriedGrip : -1;
+        progs::returnVec({choice > 0 ? 1.f : 0.f, choice >= 0 ? 1.f : 0.f, r ? r->carriedGripCos : 1.f});
         return;
     }
     if(what == 48)
@@ -369,9 +368,10 @@ void PF_weapondrawnpose()
         const FieldOffsets& f = fields();
         const int rotField = hand ? f.handrot : f.offhandrot;
         const glm::vec3 handRot = rotField >= 0 ? progs::fieldVec(player, rotField) : glm::vec3{0.f};
+        // (every player's: the reverse grip his view drew it with, from his slot; on the hand of the move the server runs: B11c)
         glm::vec3 shift{0.f};
-        const bool local = sv.active && cls.state == ca_connected && NUM_FOR_EDICT(player) == 1;
-        const glm::vec3 rot = local ? view::leavingTurn(hand, weapons::heldSlot(hand), handRot, shift) : handRot;
+        const heldpose::Hand* r = heldpose::slotHand(player, hand);
+        const glm::vec3 rot = r ? view::leavingTurn(r->leaveSlot, hand == 0, r->leaveFlip, handRot, shift) : handRot;
         progs::returnVec(what == 49 ? rot : shift);
         return;
     }
@@ -380,15 +380,9 @@ void PF_weapondrawnpose()
         // weapondrawnpose(player, hand, 51 / 52): this listen server's own `hand` as drawn last (view::drawnHandPose), world axes:
         // 51 its forward (from the wrist to the knuckles), 52 its up (the back of the hand); '0 0 0' not drawn. Tests: QC
         // vr_flipgrip_test.qc (the flip grip's helping hand, ROUND25.md "flipgrip2").
-        glm::vec3 pos{0.f}, rot{0.f};
-        if(!(sv.active && cls.state == ca_connected && NUM_FOR_EDICT(player) == 1 && view::drawnHandPose(hand, pos, rot)))
-        {
-            progs::returnVec(glm::vec3{0.f});
-            return;
-        }
-        glm::vec3 forward, right, up;
-        hands::angleVectors(rot, forward, right, up);
-        progs::returnVec(what == 51 ? forward : up);
+        // (the slot's: this game's own player's placed by heldpose::publishOwn, B11c; a remote player's not sent)
+        const heldpose::Hand* r = heldpose::slotHand(player, hand);
+        progs::returnVec(!r || !r->handKnown ? glm::vec3{0.f} : what == 51 ? r->handForward : r->handUp);
         return;
     }
     if(what == 40)
@@ -560,14 +554,38 @@ void PF_weapondrawnpose()
         G_VECTOR(OFS_RETURN)[1] = G_VECTOR(OFS_RETURN)[2] = 0.f;
         return;
     }
-    const bool local = sv.active && cls.state == ca_connected && NUM_FOR_EDICT(player) == 1;
     glm::vec3 pos{0.f}, rot{0.f}, tip{0.f};
-    bool mirrored = false;
-    bool known = local && twohand::carrying(hand) && view::carriedWeaponPose(hand, pos, rot, mirrored, tip);
-    if(known && (what == 4 || what == 5))
+    bool known = false;
+    const heldpose::Hand* r = heldpose::slotHand(player, hand); // (every player's from his slot: B11a)
+    if(r && r->placed)
     {
-        known = view::carriedWeaponInHand(hand, pos, tip);
-        rot = what == 4 ? pos : tip;
+        // This game's own player's, where his view drew it this frame.
+        known = r->carriedKnown;
+        pos = r->carriedPos;
+        rot = r->carriedRot;
+        tip = r->carriedTipWorld;
+        if(known && (what == 4 || what == 5))
+        {
+            known = r->carrying;
+            rot = what == 4 ? r->carriedHandle : r->carriedTip;
+        }
+    }
+    else if(r && r->carrying)
+    {
+        // Another player's, as his client drew it (B3e): its handle and tip in his hand's frame (forward, right, up) on
+        // the hand of the move the server runs, as QC places them (VR_Melee_FreeLine); its axes turned with the hand.
+        glm::vec3 hp;
+        glm::mat3 ax;
+        heldpose::handPose(player, hand, hp, ax);
+        const auto place = [&](const glm::vec3& l) { return hp + ax * glm::vec3{l.x, -l.y, l.z}; };
+        known = true;
+        pos = place(r->carriedHandle);
+        tip = place(r->carriedTip);
+        held::anglesFromAxes(ax * r->carriedAxes, &rot[0], true);
+        if(what == 4 || what == 5)
+        {
+            rot = what == 4 ? r->carriedHandle : r->carriedTip;
+        }
     }
     const glm::vec3 out = !known ? glm::vec3{0.f} : what == 0 ? pos : what == 1 || what >= 4 ? rot : what == 3 ? tip : glm::vec3{1.f, 0.f, 0.f};
     for(int i = 0; i < 3; i++)
@@ -690,15 +708,28 @@ float agpsDot(const float* a, const float* b)
 {
     return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 }
+// The pose being written goes here (server::scopedBegin: to the clients that see the humanoid); nullptr: MSG_BROADCAST.
+sizebuf_t* agpsScoped = nullptr;
+
 // QC WriteByte, WriteShort, WriteCoord (MSG_BROADCAST: VR_BroadcastDest's room kept as for QuakeC's own writes)
 void agpsByte(float v)
 {
+    if(agpsScoped)
+    {
+        MSG_WriteByte(agpsScoped, static_cast<int>(v));
+        return;
+    }
     sizebuf_t* d = VR_BroadcastDest(1);
     MSG_WriteByte(d, static_cast<int>(v));
     VR_BroadcastWritten(d);
 }
 void agpsShort(float v)
 {
+    if(agpsScoped)
+    {
+        MSG_WriteShort(agpsScoped, static_cast<int>(v));
+        return;
+    }
     sizebuf_t* d = VR_BroadcastDest(2);
     MSG_WriteShort(d, static_cast<int>(v));
     VR_BroadcastWritten(d);
@@ -707,6 +738,11 @@ void agpsVec(const float* v) // (VR_AGP_WriteVec)
 {
     for(int i = 0; i < 3; i++)
     {
+        if(agpsScoped)
+        {
+            MSG_WriteCoord(agpsScoped, v[i], sv.protocolflags);
+            continue;
+        }
         sizebuf_t* d = VR_BroadcastDest(4);
         MSG_WriteCoord(d, v[i], sv.protocolflags);
         VR_BroadcastWritten(d);
@@ -760,6 +796,8 @@ void PF_agposesend()
     const float* gy = G_VECTOR(OFS_PARM6);
     const float* gz = G_VECTOR(OFS_PARM7);
     const auto glob = [&b](int i) { return b.agPose[i]; };
+    // (to the clients that see `g`: vr_net_cullposes; MP_PLAN.md, B2)
+    agpsScoped = qvr::server::scopedBegin(G_EDICTNUM(OFS_PARM0));
     agpsByte(39); // svc_quakevr
     agpsByte(36); // QVR_SVC_ARMPOSE
     agpsShort(static_cast<float>(G_EDICTNUM(OFS_PARM0)));
@@ -815,6 +853,11 @@ void PF_agposesend()
         {
             agpsByte(static_cast<float>(bytes & 255));
         }
+    }
+    if(agpsScoped)
+    {
+        agpsScoped = nullptr;
+        qvr::server::scopedEnd();
     }
     G_FLOAT(OFS_RETURN) = 1.f;
 }
@@ -899,27 +942,25 @@ void PF_meleeshow()
         geom::vec(a), geom::vec(b), G_FLOAT(OFS_PARM4));
 }
 
-// Magnetic holsters (QC vr_magholster.qc; vr_magholster.cpp). float(entity player) magholsterpoll: what the local
-// player asked since the last call, taken (1 the off hand's bind button at a holster, 2 the main hand's, 4 every bound
-// weapon home at once: vr_magholster_return); others' 0. vector(entity player, float slot) holsterpos: holster `slot`'s
-// place (body::Holster, the holsterweapon<slot> fields' order) as the local player's body has it ('0 0 0': unknown, or
-// another player: QC's own estimate then).
+// Magnetic holsters (QC vr_magholster.qc; vr_magholster.cpp). float(entity player) magholsterpoll: what the player asked
+// since the last call, taken (1 the off hand's bind button at a holster, 2 the main hand's, 4 every bound weapon home at
+// once: vr_magholster_return; another player's as his client sent them: heldpose::magPoll, B3f). vector(entity player,
+// float slot) holsterpos: holster `slot`'s place (body::Holster, the holsterweapon<slot> fields' order) as the local
+// player's body has it, another player's as his client drew it (his move's holsters, carried with his entity since:
+// MP_PLAN.md B6b); '0 0 0': unknown (QC's own estimate then).
 void PF_magholsterpoll()
 {
-    edict_t* player = G_EDICT(OFS_PARM0);
-    const bool local = sv.active && cls.state == ca_connected && NUM_FOR_EDICT(player) == 1;
-    G_FLOAT(OFS_RETURN) = local ? static_cast<float>(magholster::poll()) : 0.f;
+    G_FLOAT(OFS_RETURN) = static_cast<float>(heldpose::magPoll(G_EDICT(OFS_PARM0)));
 }
 
 void PF_holsterpos()
 {
     edict_t* player = G_EDICT(OFS_PARM0);
     const int slot = static_cast<int>(G_FLOAT(OFS_PARM1));
-    const bool local = sv.active && cls.state == ca_connected && NUM_FOR_EDICT(player) == 1;
     glm::vec3 out{0.f};
-    if(local && slot >= 0 && slot < body::HolsterCount && hands::current().valid)
+    if(!heldpose::holsterPoint(player, slot, out)) // (every player's: B11c)
     {
-        out = body::holsterPosition(hands::current(), static_cast<body::Holster>(slot));
+        out = glm::vec3{0.f};
     }
     for(int i = 0; i < 3; i++)
     {

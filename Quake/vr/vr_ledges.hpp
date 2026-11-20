@@ -106,6 +106,8 @@ void propLedges(int num, const box3d::ClimbShape& shape, const box3d::ClimbBody&
 // nullptr for any other model. Made the first time it's asked for (the world's and its inline models' when the map
 // loads, with Climbing on), kept until the map changes (a runtime brush's: until it changes, forget).
 [[nodiscard]] const Map* of(const qmodel_t* model);
+// The world's: the server's world model, else (a remote client, MP B8j part 2: his replay's hold search) the client's.
+[[nodiscard]] const Map* world();
 
 // A runtime brush's model made again (vr_brushes.cpp): its map dropped (made again when asked for), and forgets() counts
 // it (a Map* kept may be that one: alive says).

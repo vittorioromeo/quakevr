@@ -13,7 +13,7 @@ float vr_pdt_n;      // frames the state has run
 float vr_pdt_dis0;   // vr_pd_disarms at the case's start
 float vr_pdt_hits0;  // vr_pd_hits then
 float vr_pdt_chance; // vr_player_disarm_chance before the test
-float vr_pdt_was;    // vr_player_disarm before the test (off by default in 1.1)
+float vr_pdt_pve;    // vr_player_disarm (PvE) before the test
 entity vr_pdt_shooter; // the case's shooter (a stand-in grunt or enforcer)
 entity vr_pdt_drop;  // the knocked-out weapon
 entity vr_pdt_laser; // the laser case's bolt
@@ -33,7 +33,7 @@ void(float s, float frames) VR_PDT_To =
 
 void() VR_PDT_End =
 {
-    cvar_set("vr_player_disarm", ftos(vr_pdt_was));
+    cvar_set("vr_player_disarm", ftos(vr_pdt_pve)); // (PvE as it was: off by default)
     cvar_set("vr_player_disarm_chance", ftos(vr_pdt_chance));
     if(vr_pdt_shooter)
     {
@@ -352,8 +352,8 @@ void() VR_PlayerDisarmTest_Frame =
         VR_Test_BeginFlags("pdtest", VR_TEST_LOUD);
         vr_pdt_on = ask;
         vr_pdt_chance = cvar_hget(cvarh_vr_player_disarm_chance);
-        vr_pdt_was = cvar_hget(cvarh_vr_player_disarm);
-        cvar_set("vr_player_disarm", "1");
+        vr_pdt_pve = cvar_hget(cvarh_vr_player_disarm);
+        cvar_set("vr_player_disarm", "1"); // (PvE: the grunts' and enforcers' shots and blows)
         cvar_set("vr_player_disarm_chance", "100"); // (certain)
         localcmd(sprintf("%s\n", VR_PDT_POSE));
         VR_PDT_To(0, VR_PDT_POSE_FRAMES);

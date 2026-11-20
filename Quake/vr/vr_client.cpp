@@ -2,6 +2,14 @@
 // VR input commands, building the VR move from tracking, and parsing VR server data.
 
 #include "vr_agarmor.hpp"
+#include "vr_mpavatar.hpp"
+#include "vr_voicechat.hpp"
+#include "vr_netmove.hpp"
+#include "vr_predict.hpp"
+#include "vr_netsnap.hpp"
+#include "vr_mpdownload.hpp"
+#include "vr_clientprefs.hpp"
+#include "vr_moveguard.hpp"
 #include "vr_arenaxray.hpp"
 #include "vr_modelmetadata.hpp"
 #include "vr_client.hpp"
@@ -542,6 +550,19 @@ void poseMove(VrMove& move)
     {
         handMove(move, hs, h);
     }
+    // The hands and weapons as drawn (last frame's view): the other players draw them so (MP_PLAN.md, B2b). Multiplayer only
+    // (the server passes them on to nobody in single player: 2 bytes).
+    if(cl.maxclients > 1)
+    {
+        view::netHands(move.drawn);
+        // (and how his body is posed under them: B2d)
+        move.body.valid = hs.valid;
+        move.body.yaw = hs.bodyYaw;
+        move.body.headHeight = hs.headHeight;
+        move.body.standingHeight = hs.standingHeight;
+        move.body.leanHold = hs.leanHold;
+        view::netHolsters(move.holsters); // (and his holsters: B6b)
+    }
 
     move.headVel = hs.headVel;
     // The ammo pouch's rounds as placed last frame (pouch reloading; all zero: no pouch). It goes with the body, not the
@@ -908,6 +929,12 @@ const EntityVr* entityVr(int num)
     return &entityData[num];
 }
 
+bool roomForCommand(int n)
+{
+    constexpr int typedReserve = 512; // (bytes kept for the typed commands)
+    return n > 0 && cls.message.cursize + n + 2 + typedReserve <= cls.message.maxsize;
+}
+
 int entityNumber(const entity_t* e, int limit)
 {
     if(!e || !cl_entities || e <= cl_entities || e >= cl_entities + (limit < 0 ? cl.num_entities : limit))
@@ -958,6 +985,7 @@ extern "C" float VR_BeamScale(qmodel_t* model)
 // CL_Record_f, recording mid-game: the demo needs the VR state received so far.
 extern "C" void VR_WriteDemoState(sizebuf_t* msg)
 {
+    netsnap::clientWantWhole(); // (a remote server's snapshots: a whole one soon, the demo's to start from; B7b)
     if(vrProtocol())
     {
         worldtext::clientWriteAll(msg);
@@ -988,11 +1016,48 @@ extern "C" int VR_MoveJump(int state)
     return flatplay::jumpBit(state);
 }
 
-extern "C" void VR_WriteMoveExtras(sizebuf_t* buf)
+extern "C" void VR_WriteMoveExtras(sizebuf_t* buf, int forward, int side, int up, int buttons, int impulse)
 {
     if(vrProtocol())
     {
-        writeVrMove(buf, buildMove());
+        if(netmove::clientUses())
+        {
+            // A remote client: the whole move (clc_move's part written before this, and the VR block) as QVR_CLC_MOVES
+            // instead, with the moves the server has not acknowledged (MP_PLAN.md, B7).
+            netmove::WireMove m;
+            m.time = static_cast<float>(cl.mtime[0]);
+            m.frameTime = static_cast<float>(host_frametime); // (this tick's: the server walks him for it, as his prediction does)
+            // (the others drawn this far behind the newest message: his shots are judged there, B8b)
+            m.viewBack = netsnap::interpActive() ? za::clamp(static_cast<float>(cl.mtime[0] - netsnap::interpTime()), 0.f, 1.f) : 0.f;
+            m.viewAngles = glm::vec3{cl.viewangles[0], cl.viewangles[1], cl.viewangles[2]};
+            m.forward = forward;
+            m.side = side;
+            m.up = up;
+            m.buttons = buttons;
+            m.impulse = impulse;
+            if(vr_mp_lockstep_ahead.value >= 1.f && netmove::clientSent() == 0)
+            {
+                // (the harness's lockstep, B19: the hands' throw history from the first move on. The frames before it,
+                // loading and joining, are as many as the machine's timing makes them, and the history's samples from
+                // them (the hands before he was put) gave the first eight moves' throw estimate (.throwPos, .throwAge)
+                // apart between two runs: mp_lockstep_throw's "8 moves differ")
+                throwing::reset();
+                thrownValid[0] = thrownValid[1] = false;
+            }
+            m.vr = buildMove();
+            if(vr_mp_test_cheat.value != 0.f)
+            {
+                moveguard::cheatForTest(static_cast<int>(vr_mp_test_cheat.value), m.vr, m.time, m.viewBack);
+            }
+            buf->cursize = 0;
+            netmove::writeMoves(buf, m, !cls.demoplayback && cl.movemessages >= 2); // (CL_SendMove dumps the first two)
+        }
+        else
+        {
+            writeVrMove(buf, buildMove());
+        }
+        mpavatar::sendCalibration(); // (multiplayer: this player's calibration, when it changed; reliable)
+        clientprefs::send();         // (and his per-player preferences)
     }
 }
 
@@ -1041,7 +1106,14 @@ extern "C" int VR_ModelSpins(int num)
 
 extern "C" int VR_ParseServerMessage(int cmd)
 {
-    if(cmd != svc_quakevr || !vrProtocol())
+    if(cmd != svc_quakevr)
+    {
+        return 0;
+    }
+    // The server's map package comes before its svc_serverinfo (vr_mpdownload.cpp): read whatever protocol the last
+    // server had (a Quake VR server takes Quake VR clients of its own network version only: net_dgrm.c).
+    const bool package = msg_readcount < net_message.cursize && net_message.data[msg_readcount] == QVR_SVC_PACKAGE;
+    if(!vrProtocol() && !package)
     {
         return 0;
     }
@@ -1063,6 +1135,14 @@ extern "C" int VR_ParseServerMessage(int cmd)
         case QVR_SVC_FLOATTEXT: worldtext::clientParseFloatText(); break;
         case QVR_SVC_VIEWMESSAGE: worldtext::clientParseViewMessage(false); break;
         case QVR_SVC_ARENAMESSAGE: worldtext::clientParseViewMessage(true); break;
+        case QVR_SVC_AVATAR: mpavatar::parse(); break; // another player's head and hands (vr_mpavatar.cpp)
+        case QVR_SVC_MOVEACK: netmove::parseAck(); break; // the newest of our moves the server read (vr_netmove.cpp)
+        case QVR_SVC_PREDICT: predict::parseState(); break; // our state after the newest of our moves the server ran (vr_predict.cpp)
+        case QVR_SVC_HELDPLACE: held::parsePlaces(); break; // where the server has what our hands hold (vr_held.cpp, B27)
+        case QVR_SVC_SNAPSHOT: netsnap::parse(); break; // our state, the entities and avatars, delta-coded (vr_netsnap.cpp)
+        case QVR_SVC_PACKAGE: mpdownload::parsePackage(); break; // the server's map package (vr_mpdownload.cpp)
+        case QVR_SVC_AVATARCAL: mpavatar::parseCalibration(); break; // a player's height, arms, gloves, body (vr_mpavatar.cpp)
+        case QVR_SVC_VOICE: voicechat::parse(); break; // another player's voice frames (vr_voicechat.cpp, B10v)
         case QVR_SVC_TIP_MAKE:
         case QVR_SVC_TIP_NAME:
         case QVR_SVC_TIP_TEXT:

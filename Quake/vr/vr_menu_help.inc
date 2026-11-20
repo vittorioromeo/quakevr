@@ -24,10 +24,17 @@
 [[nodiscard]] const char* serverRuleHelp(const Item& item, const char* help)
 {
     za::String& text = readouts.serverRuleHelp;
-    char own[48], line[160];
-    q_snprintf(own, sizeof(own), item.kind == Item::Slider ? item.format : "%g", item.cvar->value);
-    q_snprintf(line, sizeof(line), "Set by the server you are connected to (its value shown). Yours, %s, applies when you host or play alone.", own);
-    text = line;
+    if(!item.cvar)
+    {
+        text = serverrules::lockedBecause(); // (a gameplay preset's button)
+    }
+    else
+    {
+        char own[48], line[160];
+        q_snprintf(own, sizeof(own), item.kind == Item::Slider ? item.format : "%g", serverrules::own(item.cvar));
+        q_snprintf(line, sizeof(line), "Set by the server you are connected to (its value shown). Yours, %s, comes back when you leave.", own);
+        text = line;
+    }
     if(help && help[0])
     {
         text += ' ';

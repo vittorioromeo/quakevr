@@ -869,7 +869,7 @@ void gripFlipStep(int hand, const qmodel_t* model, int slot)
 
 [[nodiscard]] float gripFlip(int hand)
 {
-    return hand >= 0 && hand <= 1 && gripFlips[hand].model ? gripFlips[hand].flip : 0.f;
+    return hand >= 0 && hand <= 1 && !otherSubject && gripFlips[hand].model ? gripFlips[hand].flip : 0.f;
 }
 
 [[nodiscard]] float drawnFlip(int hand)
@@ -1580,6 +1580,7 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame, bool flo
 {
     view::ViewEntity& ve = entities.weapon[hand];
     const int slot = weapons::slotForModel(model);
+    const bool own = !otherSubject; // (another player's, a bot's: his weapon at his controller, none of your own phases)
     if(vr_debug_weapon_frame.value >= 0.f && model && !floating)
     {
         frame = za::clamp(static_cast<int>(vr_debug_weapon_frame.value), 0, za::max(model->numframes - 1, 0)); // (Debug > Weapons)
@@ -1588,13 +1589,13 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame, bool flo
     // A gun hanging from its foregrip (the hand-off, vr_twohand.cpp): drawn as the hand that let it go
     // held it, carried by this hand.
     twohand::HeldAs held{s.pos[hand], s.visualRot[hand], hand == HAND_OFF};
-    const bool carried = !floating && twohand::carriedWeapon(s, hand, held);
+    const bool carried = !floating && own && twohand::carriedWeapon(s, hand, held);
     weaponCarried[hand] = carried;
     const bool mirrored = held.mirrored;
     drawnAs[hand] = held; // what the weapon's attachments (its button) follow
 
     // The reverse grip (reverseTurn): its share now, a held weapon's (not a carried gun's, nor a pose's).
-    if(!floating)
+    if(!floating && own)
     {
         gripFlipStep(hand, model, slot);
     }
@@ -1611,7 +1612,7 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame, bool flo
 
     // Just out of a body into the hand (vr_view_hands.cpp embedEase): eased from where the blade was, as the hand holding it is, by
     // the same turn about the controller and the same move (his note 2026-11-06: the hand lagged behind the axe).
-    if(glm::vec3 easeOff{0.f}; !floating && !carried && model && slot >= 0)
+    if(glm::vec3 easeOff{0.f}; !floating && own && !carried && model && slot >= 0)
     {
         glm::quat easeTurn{1.f, 0.f, 0.f, 0.f};
         if(embedEase(hand, easeOff, easeTurn))
@@ -1639,16 +1640,35 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame, bool flo
     // of its place and turn, fading with its arcs (the author's note map1_2026-10-08_13-56-46).
     glm::vec3 drawnPos = held.pos;
     glm::vec3 drawnAngles{-wt.x, wt.y, wt.z};
-    if(const float k = floating ? 0.f : shock::gunShake(hand) * vr_enemygun_spent_shake.value; k > 0.f)
+    if(const float k = floating || !own ? 0.f : shock::gunShake(hand) * vr_enemygun_spent_shake.value; k > 0.f)
     {
         const float t = static_cast<float>(vr_gametime);
         drawnPos += k * glm::vec3{std::sin(t * 97.f), std::sin(t * 113.f + 1.3f), std::sin(t * 89.f + 2.1f)};
         drawnAngles += 4.f * k * glm::vec3{std::sin(t * 71.f + 0.7f), std::sin(t * 83.f + 2.9f), std::sin(t * 101.f + 4.2f)};
     }
-    place(ve, model, drawnPos, drawnAngles, frame, mirrored);
+    // Placed as every player's held weapon is (view::drawGear); the flare gun's barrels fired: its skin by its clip
+    // (floating, a pose's: loaded).
+    view::GearDraw g;
+    g.model = model;
+    g.origin = drawnPos;
+    g.angles = drawnAngles;
+    g.frame = frame;
+    g.skin = weapons::drawnSkin(model, floating || !own ? -1 : cl.stats[hand == HAND_MAIN ? STAT_QVR_WEAPONCLIP : STAT_QVR_WEAPONCLIP2]);
+    g.mirrored = mirrored;
+    view::drawGear(g, ve);
+    if(!own)
+    {
+        // Another's: his weapon placed, and its muzzle (his aim); the rest is the local player's.
+        s.muzzleValid[hand] = model && slot >= 0;
+        if(s.muzzleValid[hand])
+        {
+            s.muzzle[hand] = view::anchorPosition(ve, weapons::anchor(slot, Key::MuzzleAnchor),
+                weapons::vec(slot, Key::MuzzleOffsetX, Key::MuzzleOffsetY, Key::MuzzleOffsetZ));
+        }
+        ve.visible = ve.visible && !isHandModel(model);
+        return;
+    }
     qvr::nailslide::step(hand, model, frame); // (the nail pistol's slide: drawn back and home, vr_nailslide.cpp)
-    // (The flare gun's barrels fired: its skin by its clip; floating, a pose's: loaded.)
-    ve.ent.skinnum = weapons::drawnSkin(model, floating ? -1 : cl.stats[hand == HAND_MAIN ? STAT_QVR_WEAPONCLIP : STAT_QVR_WEAPONCLIP2]);
     if(!floating)
     {
         recordDrawnWeapon(s, hand); // (for its body in Box3D)

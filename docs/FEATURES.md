@@ -485,7 +485,7 @@ and aimed at the crosshair from the muzzle.
 Multiplayer and FrikBot bots (*Play* > Bots adds and kicks them), carried over from the original. The server runs at
 a fixed 72 ticks a second whatever the headset's refresh rate, so physics and melee behave the same on every machine;
 the server decides melee timing and the debris everyone can touch, while purely visual debris stays on each client
-([vr-port/MULTIPLAYER.md](vr-port/MULTIPLAYER.md)).
+([vr-port/MP_DESIGN.md](vr-port/MP_DESIGN.md)).
 
 ## Recording and trailers
 

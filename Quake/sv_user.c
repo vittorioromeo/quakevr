@@ -434,6 +434,9 @@ void SV_ClientThink (void)
 		angles[YAW] = v_angle[YAW];
 	}
 
+	if (VR_PredictThink (sv_player)) // QVR: a remote client's walk runs his moves one by one in the physics (vr/vr_predict.cpp, B8)
+		return;
+
 	if ( (int)sv_player->v.flags & FL_WATERJUMP )
 	{
 		SV_WaterJump ();
@@ -472,12 +475,11 @@ void SV_ReadClientMove (usercmd_t *move)
 {
 	int		i;
 	vec3_t	angle;
-	int		bits;
+	float	time;
+	int		forward, side, up, bits;
 
 // read ping time
-	host_client->ping_times[host_client->num_pings%NUM_PING_TIMES]
-		= qcvm->time - MSG_ReadFloat ();
-	host_client->num_pings++;
+	time = MSG_ReadFloat ();
 
 // read current angles
 	for (i=0 ; i<3 ; i++)
@@ -488,27 +490,42 @@ void SV_ReadClientMove (usercmd_t *move)
 			angle[i] = MSG_ReadAngle16 (sv.protocolflags);
 		//johnfitz
 
-	VectorCopy (angle, host_client->edict->v.v_angle);
-
 // read movement
-	move->forwardmove = MSG_ReadShort ();
-	move->sidemove = MSG_ReadShort ();
-	move->upmove = MSG_ReadShort ();
+	forward = MSG_ReadShort ();
+	side = MSG_ReadShort ();
+	up = MSG_ReadShort ();
 
 // read buttons
 	bits = MSG_ReadByte ();
+	i = MSG_ReadByte ();
+
+	(void) move; // (host_client->cmd: VR_ApplyClientMove's)
+	VR_ApplyClientMove (host_client, time, angle, forward, side, up, bits, i); // QVR: (a remote client's QVR_CLC_MOVES run each through it too)
+	VR_ReadMoveExtras (host_client); // QVR
+}
+
+// QVR: a move's NetQuake part run on client `client` (SV_ReadClientMove's, split from its reading: vr/vr_netmove.cpp's
+// moves run through it too)
+void VR_ApplyClientMove (client_t *client, float time, const float *angle, int forward, int side, int up, int bits, int impulse)
+{
+	client->ping_times[client->num_pings%NUM_PING_TIMES] = qcvm->time - time;
+	client->num_pings++;
+
+	VectorCopy (angle, client->edict->v.v_angle);
+
+	client->cmd.forwardmove = forward;
+	client->cmd.sidemove = side;
+	client->cmd.upmove = up;
+
 	// QVR: every move since the server's last frame counts (a press and release between two frames was lost: the last
 	// move won), the buttons ORed (MP_PLAN.md, B2)
-	if (VR_MoveMerges (host_client))
-		bits |= ((int)host_client->edict->v.button0 & 1) | (((int)host_client->edict->v.button2 & 1) << 1);
-	host_client->edict->v.button0 = bits & 1;
-	host_client->edict->v.button2 = (bits & 2)>>1;
+	if (VR_MoveMerges (client))
+		bits |= ((int)client->edict->v.button0 & 1) | (((int)client->edict->v.button2 & 1) << 1);
+	client->edict->v.button0 = bits & 1;
+	client->edict->v.button2 = (bits & 2)>>1;
 
-	i = MSG_ReadByte ();
-	if (i)
-		host_client->edict->v.impulse = i;
-
-	VR_ReadMoveExtras (host_client); // QVR
+	if (impulse)
+		client->edict->v.impulse = impulse;
 }
 
 /*
@@ -527,6 +544,9 @@ qboolean SV_ReadClientMessage (void)
 	do
 	{
 nextmsg:
+		// QVR: (B20) a remote client's datagrams overtaken on the way still read, for their moves alone
+		if (host_client->netconnection)
+			NET_AcceptStale (host_client->netconnection, VR_AcceptsStaleMoves (host_client));
 		ret = NET_GetMessage (host_client->netconnection);
 		if (ret == -1)
 		{
@@ -537,6 +557,15 @@ nextmsg:
 			return true;
 
 		MSG_BeginReading ();
+
+		if (net_stalemessage)
+		{
+			// QVR: (B20) only its QVR_CLC_MOVES (idempotent by their numbers: the moves a newer one's repeats no longer
+			// carried fill the move buffer's gap); anything else in it, or a malformed one, dropped as NetQuake did
+			if (MSG_ReadChar () == QVR_CLC_MOVES)
+				VR_ReadStaleQvrMoves (host_client);
+			goto nextmsg;
+		}
 
 		while (1)
 		{
@@ -629,10 +658,32 @@ nextmsg:
 					ret = 1;
 				else if (q_strncasecmp(s, "vr_scene_clean", 14) == 0 || q_strncasecmp(s, "vr_scene_count", 14) == 0)
 					ret = 1; // QVR: Debug > Cheats and Recording's (vr_cheats.cpp: not in deathmatch)
+				else if (q_strncasecmp(s, "vr_avatarcal ", 13) == 0)
+					ret = 1; // QVR: the player's avatar calibration, kept and passed on (vr_mpavatar.cpp)
+				else if (q_strncasecmp(s, "vr_voicechat_listen ", 20) == 0)
+					ret = 1; // QVR: the voices he muted and his voice chat off: the relay skips them for him (vr_voicerelay.cpp)
+				else if (q_strncasecmp(s, "vr_prefs ", 9) == 0)
+					ret = 1; // QVR: the player's per-player preferences, kept for his slot (vr_clientprefs.cpp)
+				else if (q_strncasecmp(s, "vr_rig ", 7) == 0)
+					ret = 1; // QVR: the player's fists as his client poses them (vr_clientprefs.cpp)
+				else if (q_strncasecmp(s, "vr_rigframe ", 12) == 0)
+					ret = 1; // QVR: the player's palm frames as his client measures them (vr_clientprefs.cpp)
+				else if (q_strncasecmp(s, "vr_heldpose ", 12) == 0)
+					ret = 1; // QVR: the player's held weapons' drawn pose as his client draws them (vr_heldpose.cpp)
+				else if (q_strncasecmp(s, "vr_grabspot ", 12) == 0)
+					ret = 1; // QVR: the hotspot of a weapon lying about his empty hand is near (vr_heldpose.cpp, B3f)
+				else if (q_strncasecmp(s, "vr_magpoll ", 11) == 0)
+					ret = 1; // QVR: his magnetic holsters' presses (vr_heldpose.cpp, B3f)
+				else if (q_strncasecmp(s, "vr_lagcomp_shot ", 16) == 0)
+					ret = 1; // QVR: a test shot, judged and reported, nothing hurt (vr_lagcomp.cpp, B8b)
+				else if (q_strncasecmp(s, "vr_lagcomp_punch ", 17) == 0)
+					ret = 1; // QVR: a test punch, the same (B8c)
 
+				if (ret == 1 && !VR_ClientCommandBudget (s))
+					ret = 2; // QVR: over his commands' budget (vr_server.cpp): dropped, the message read on
 				if (ret == 1)
 					Cmd_ExecuteString (s, src_client);
-				else
+				else if (ret == 0)
 					Con_DPrintf("%s tried to %s\n", host_client->name, s);
 				break;
 
@@ -642,6 +693,22 @@ nextmsg:
 
 			case clc_move:
 				SV_ReadClientMove (&host_client->cmd);
+				break;
+
+			case QVR_CLC_VOICE: // QVR: a client's voice frames (vr/vr_voicerelay.cpp, B10v)
+				if (!VR_ReadVoice (host_client))
+				{
+					Sys_Printf ("SV_ReadClientMessage: a malformed QVR_CLC_VOICE\n");
+					return false;
+				}
+				break;
+
+			case QVR_CLC_MOVES: // QVR: a remote client's moves, quantized deltas with repeats (vr/vr_netmove.cpp)
+				if (!VR_ReadQvrMoves (host_client))
+				{
+					Sys_Printf ("SV_ReadClientMessage: a malformed QVR_CLC_MOVES\n");
+					return false;
+				}
 				break;
 			}
 		}
@@ -666,12 +733,14 @@ void SV_RunClients (void)
 			continue;
 
 		sv_player = host_client->edict;
+		VR_PredictBeginRead (host_client); // QVR: his moves queue as they are read (vr/vr_predict.cpp, B8)
 
 		if (!SV_ReadClientMessage ())
 		{
 			SV_DropClient (false);	// client misbehaved...
 			continue;
 		}
+		VR_RunBufferedMoves (host_client); // QVR: his moves one a tick, in order, as they were kept (vr/vr_netmove.cpp, B19)
 
 		if (!host_client->spawned)
 		{
@@ -679,11 +748,12 @@ void SV_RunClients (void)
 			memset (&host_client->cmd, 0, sizeof(host_client->cmd));
 			continue;
 		}
+		VR_LockstepRunMove (host_client); // QVR: the harness's lockstep: a stepping frame's one move of his, by number (B14b)
 
 // always pause in single player if in console or menus
 // QVR: unless the game runs on under the menu (live preview): his moves (0 there: VR_AdjustMove) still think, so his
 // friction stops him; without it the world moved him on at his last walking speed
-		if (!sv.paused && !VR_RuntimeMenuPause () && (svs.maxclients > 1 || key_dest == key_game || VR_MenuRunsGame ())) // QVR: the runtime's menu pauses
+		if (!sv.paused && !VR_RuntimeMenuPause () && !VR_LockstepHolds () && (svs.maxclients > 1 || key_dest == key_game || VR_MenuRunsGame ())) // QVR: the runtime's menu pauses; the harness's lockstep holds
 			SV_ClientThink ();
 	}
 }

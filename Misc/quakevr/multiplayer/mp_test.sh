@@ -1,6 +1,6 @@
 #!/bin/bash
 # Listen server (instance 1, host = client 1) + a remote client (instance 2) over UDP on this machine.
-# (docs/vr-port/MULTIPLAYER.md, "Debris and effects", "Server rules"). Both games bind 127.0.0.1 (-ip): without it the
+# (docs/vr-port/MP_DESIGN.md, "Debris and effects", "Server rules"). Both games bind 127.0.0.1 (-ip): without it the
 # server binds the host name's address, which a "connect 127.0.0.1" never reaches.
 #   bash mp_test.sh <agent> [tag] [server's vr_debris_mp_max]   (env: SVWAIT, CLWAIT frames; CLPOS "x y z"; TMO s; DEV)
 # Logs: <worktree>/scratch/mp_server_<tag>.log, mp_client_<tag>.log; the client's menu (Melee, its rows the server's)

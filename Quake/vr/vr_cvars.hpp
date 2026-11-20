@@ -18,6 +18,17 @@ extern "C" {
 namespace qvr
 {
 
+// A setting's kind in multiplayer (MP_PLAN B3's "settings in three kinds"), or'ed into its flags in vr_cvars.inc where
+// the game's balance or the player's choices are concerned: QVR_RULE a server rule (the host's value governs every
+// player: vr_serverrules.cpp), QVR_PREF a per-player preference the server judges each player by (vr_clientprefs.cpp's
+// list), QVR_OWN the player's own (his senses, his own hands' look and feel: never sent). Kept apart from the engine's
+// cvarflags_t (vr_cvars.cpp masks them out); cvars::kindOf reads them. A setting on a rule page of the menu without one
+// is warned about (vr_serverrules.cpp checkKinds).
+inline constexpr unsigned QVR_RULE = 1u << 28;
+inline constexpr unsigned QVR_PREF = 1u << 29;
+inline constexpr unsigned QVR_OWN = 1u << 30;
+inline constexpr unsigned qvrKindMask = QVR_RULE | QVR_PREF | QVR_OWN;
+
 #define QVR_CVAR(name, def, flags) extern cvar_t name;
 #include "vr_cvars.inc"
 #undef QVR_CVAR

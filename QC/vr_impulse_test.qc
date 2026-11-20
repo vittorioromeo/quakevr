@@ -3,6 +3,8 @@
 // deathmatch and coop). TRUE: the impulse is handled, ImpulseCommands returns (as each did when it lived there);
 // FALSE: ImpulseCommands goes on. Each block keeps its place in the old order.
 
+void(float wid) VR_PickupTest_SpawnFunc; // (vr_pickup_test.qc, after this file)
+
 float() VR_TestImpulse =
 {
     if(self.impulse == 120) // QVR test: the weapons moved, and what has which (vr_weaponinst_test.qc)
@@ -279,6 +281,19 @@ float() VR_TestImpulse =
                 self.model = "progs/vr_brick1.mdl";
                 vr_debris_piece();
             }
+            spawned = self;
+            self = spawnPlayer;
+        }
+        else if(spawnKind == 116)
+        {
+            // A super shotgun pickup (the map's weapon_supershotgun, an object with vr_item_objects) on the floor ahead,
+            // as a mapper places one (the multiplayer harness's force grab of a weapon of the level: mp_forcegrab).
+            traceline(spawnAt + '0 0 8', spawnAt - '0 0 256', TRUE, spawnPlayer); // (on the floor)
+            self = spawn();
+            setorigin(self, trace_endpos + '0 0 16');
+            self.angles = '0 1 0' * (spawnPlayer.v_viewangle_y + 90);
+            VR_PickupTest_SpawnFunc(WID_SUPER_SHOTGUN);
+            dprint(sprintf("test spawn: %s at %v\n", self.classname, self.origin));
             spawned = self;
             self = spawnPlayer;
         }

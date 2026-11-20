@@ -143,6 +143,11 @@ void UDP_Listen (qboolean state)
 			return;
 		if ((net_acceptsocket = UDP_OpenSocket (net_hostport)) == INVALID_SOCKET)
 			Sys_Error ("UDP_Listen: Unable to open accept socket");
+		// QVR: (B23) every client's datagrams come to this socket now (net_dgrm.c): room for a few frames of 16 clients'
+		{
+			int	size = 1 << 20;
+			setsockopt (net_acceptsocket, SOL_SOCKET, SO_RCVBUF, (const char *) &size, sizeof (size));
+		}
 		return;
 	}
 
@@ -262,34 +267,26 @@ int UDP_Connect (sys_socket_t socketid, struct qsockaddr *addr)
 
 sys_socket_t UDP_CheckNewConnections (void)
 {
-	int		available;
-	struct sockaddr_in	from;
-	socklen_t	fromlen;
-	char		buff[1];
-
-	if (net_acceptsocket == INVALID_SOCKET)
-		return INVALID_SOCKET;
-
-	if (ioctl (net_acceptsocket, FIONREAD, &available) == -1)
-	{
-		int err = SOCKETERRNO;
-		Sys_Error ("UDP: ioctlsocket (FIONREAD) failed (%s)", socketerror(err));
-	}
-	if (available)
-		return net_acceptsocket;
-	// quietly absorb empty packets
-	recvfrom (net_acceptsocket, buff, 0, 0, (struct sockaddr *) &from, &fromlen);
-	return INVALID_SOCKET;
+	// QVR: (B23) the listening socket whenever listening: net_dgrm.c reads it for every client, and keeps the host's room
+	return net_acceptsocket;
 }
 
 //=============================================================================
 
 int UDP_Read (sys_socket_t socketid, byte *buf, int len, struct qsockaddr *addr)
 {
-	socklen_t addrlen = sizeof(struct qsockaddr);
+	socklen_t addrlen;
 	int ret;
+	int empty = 0;
 
-	ret = recvfrom (socketid, buf, len, 0, (struct sockaddr *)addr, &addrlen);
+	// QVR: an empty datagram is skipped, not returned: its 0 is "nothing waiting" to every caller, so one from anyone
+	// ended the drain of the server's one socket for every client (MP review finding 5); bounded (NET_EMPTY_READS)
+	do
+	{
+		addrlen = sizeof(struct qsockaddr);
+		ret = recvfrom (socketid, buf, len, 0, (struct sockaddr *)addr, &addrlen);
+	}
+	while (ret == 0 && ++empty < NET_EMPTY_READS);
 	if (ret == SOCKET_ERROR)
 	{
 		int err = SOCKETERRNO;
@@ -345,6 +342,9 @@ int UDP_Broadcast (sys_socket_t socketid, byte *buf, int len)
 int UDP_Write (sys_socket_t socketid, byte *buf, int len, struct qsockaddr *addr)
 {
 	int	ret;
+
+	if (NET_LoopbackRefusesTo (addr)) // QVR: (B24, tests)
+		return len; // (as if sent and lost)
 
 	ret = sendto (socketid, buf, len, 0, (struct sockaddr *)addr,
 							sizeof(struct qsockaddr));
@@ -411,8 +411,8 @@ int UDP_GetNameFromAddr (struct qsockaddr *addr, char *name)
 {
 	struct hostent *hostentry;
 
-	hostentry = gethostbyaddr ((char *)&((struct sockaddr_in *)addr)->sin_addr,
-						sizeof(struct in_addr), AF_INET);
+	hostentry = net_loopbackonly ? NULL // QVR: (B24, tests) no reverse lookups
+		: gethostbyaddr ((char *)&((struct sockaddr_in *)addr)->sin_addr, sizeof(struct in_addr), AF_INET);
 	if (hostentry)
 	{
 		strncpy (name, (char *)hostentry->h_name, NET_NAMELEN - 1);
@@ -430,7 +430,14 @@ int UDP_GetAddrFromName (const char *name, struct qsockaddr *addr)
 	struct hostent *hostentry;
 
 	if (name[0] >= '0' && name[0] <= '9')
-		return PartialIPAddress (name, addr);
+	{
+		if (PartialIPAddress (name, addr) == -1)
+			return -1;
+		return NET_LoopbackRefusesName (name, addr) ? -1 : 0; // QVR: (B24, tests)
+	}
+
+	if (NET_LoopbackRefusesName (name, NULL)) // QVR: (B24, tests) never looked up
+		return -1;
 
 	hostentry = gethostbyname (name);
 	if (!hostentry)

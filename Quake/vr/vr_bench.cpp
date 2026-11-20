@@ -699,6 +699,32 @@ void stateHash_f()
             Con_Printf("statefield %s %016llx\n", PR_GetString(def.s_name), static_cast<unsigned long long>(fh));
         }
     }
+    // vr_bench_statehash values <prefix> <ent>...: those edicts' fields named <prefix>... each as its float, %.9g (what
+    // two runs' differing fields hold: mp_test.py lockstep, B14c)
+    if(Cmd_Argc() > 3 && !q_strcasecmp(Cmd_Argv(1), "values"))
+    {
+        const char* prefix = Cmd_Argv(2);
+        const size_t n = strlen(prefix);
+        for(int a = 3; a < Cmd_Argc(); a++)
+        {
+            const int e = atoi(Cmd_Argv(a));
+            if(e <= 0 || e >= qcvm->num_edicts || EDICT_NUM(e)->free)
+            {
+                continue;
+            }
+            const auto* v = reinterpret_cast<const float*>(&EDICT_NUM(e)->v);
+            for(int f = 1; f < qcvm->progs->numfielddefs; f++)
+            {
+                const ddef_t& def = qcvm->fielddefs[f];
+                const char* name = PR_GetString(def.s_name);
+                if(!strncmp(name, prefix, n))
+                {
+                    Con_Printf("statevalue %d %s %.9g\n", e, name, static_cast<double>(v[def.ofs]));
+                }
+            }
+        }
+        Con_Printf("statevalue end\n");
+    }
 }
 
 } // namespace

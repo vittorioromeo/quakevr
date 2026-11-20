@@ -21,6 +21,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 #include "vr/vr_tracy.h"
+#include "vr/vr_api.h" // QVR: VR_BrowserSearchDone
 #include "q_stdinc.h"
 #include "arch_def.h"
 #include "net_sys.h"
@@ -57,10 +58,62 @@ static PollProcedure	slistSendProcedure = {NULL, 0.0, Slist_Send};
 static PollProcedure	slistPollProcedure = {NULL, 0.0, Slist_Poll};
 
 sizebuf_t	net_message;
+qboolean	net_stalemessage; // QVR: (B20) the message NET_GetMessage just read came overtaken (qsocket_t.qvrAcceptStale)
+
+// QVR: (B24, tests) -loopbackonly: this game's network talks to 127.0.0.0/8 only. The multiplayer harness starts every
+// game with it (a B23 run's dedicated server once looked up the shipped room service and sent it datagrams): a name other
+// than "localhost" is never looked up, an address outside 127.0.0.0/8 never resolved nor sent to (a LAN broadcast is
+// dropped quietly), no reverse lookups, no IPX, no add-on downloads. Each refusal prints "NET SAFETY:" (the first 16),
+// which fails the harness's run.
+qboolean	net_loopbackonly;
+static int	net_loopbackrefusals;
+
+void NET_LoopbackRefused (const char *what)
+{
+	if (++net_loopbackrefusals <= 16)
+		Con_SafePrintf ("NET SAFETY: refused %s (-loopbackonly: 127.0.0.0/8 only)\n", what);
+}
+
+qboolean NET_LoopbackAddr (unsigned int netorder_ipv4)
+{
+	return ((const unsigned char *) &netorder_ipv4)[0] == 127; // (network order: the first octet first)
+}
+
+// The fence on a datagram's destination (an IPv4 driver's Write) -> qtrue: refused, not to be sent (a LAN broadcast
+// quietly, anything else printed)
+qboolean NET_LoopbackRefusesTo (const struct qsockaddr *addr)
+{
+	const struct sockaddr_in *in = (const struct sockaddr_in *) addr;
+	const byte *ip = (const byte *) &in->sin_addr.s_addr;
+
+	if (!net_loopbackonly || NET_LoopbackAddr (in->sin_addr.s_addr))
+		return false;
+	if (in->sin_addr.s_addr != 0xFFFFFFFFu) // (INADDR_BROADCAST)
+		NET_LoopbackRefused (va ("%d.%d.%d.%d:%d", ip[0], ip[1], ip[2], ip[3], ntohs (in->sin_port)));
+	return true;
+}
+
+// The fence on an IPv4 driver's GetAddrFromName: `name` as typed, `parsed` its address when it was one (NULL: a name to
+// look up, never looked up but "localhost") -> qtrue: refused (printed)
+qboolean NET_LoopbackRefusesName (const char *name, const struct qsockaddr *parsed)
+{
+	if (!net_loopbackonly)
+		return false;
+	if (parsed ? NET_LoopbackAddr (((const struct sockaddr_in *) parsed)->sin_addr.s_addr) : !q_strcasecmp (name, "localhost"))
+		return false;
+	NET_LoopbackRefused (name);
+	return true;
+}
 // QVR: net_message's own buffer. A snapshot's records are parsed with net_message pointed at each (vr_netsnap.cpp), and
 // a Host_Error inside one (a damaged record: mp_fuzz) left it there: the next connection's request overflowed its few
 // bytes (SZ_GetSpace, "B joined again 1 times"). Host_Error puts it back (NET_RestoreMessage).
 static sizebuf_t	net_message_own;
+
+void NET_AcceptStale (qsocket_t *sock, int on)
+{
+	if (sock)
+		sock->qvrAcceptStale = on != 0;
+}
 
 void NET_RestoreMessage (void)
 {
@@ -128,17 +181,37 @@ qsocket_t *NET_NewQSocket (void)
 	Q_strcpy (sock->address,"UNSET ADDRESS");
 	sock->driver = net_driverlevel;
 	sock->socket = 0;
+	sock->qvrShared = false; // QVR: (B23)
+	sock->qvrHeard = true; // QVR: (mpfix A1) (false for a server's new client: net_dgrm.c's connect request)
+	sock->qvrClosing = false; // QVR: (mpfix A2)
+	memset (&sock->qvrIn, 0, sizeof (sock->qvrIn));
 	sock->driverdata = NULL;
 	sock->canSend = true;
 	sock->sendNext = false;
 	sock->lastMessageTime = net_time;
 	sock->ackSequence = 0;
 	sock->sendSequence = 0;
+	sock->sendChunkBase = 0; // QVR
+	sock->reliableRtt = 0; // QVR (net_dgrm.c: the reliable window's resends)
+	sock->aheadAcks = 0;
+	sock->resendBackoff = 0;
+	sock->fastResent = false;
+	sock->qvrNetVersion = 0; // QVR
+	sock->qvrName[0] = 0; // QVR
+	sock->qvrKey[0] = 0; // QVR: (B25)
+	sock->qvrUnreliableRead = sock->qvrUnreliableSkipped = sock->qvrResent = 0; // QVR: (B13) the net HUD's
+	sock->qvrAcceptStale = false; sock->qvrStaleRead = 0; // QVR: (B20) SV_ReadClientMessage opts in for a remote client
+	sock->qvrBytesIn = sock->qvrBytesOut = 0;
+	sock->qvrUnreliableTime = net_time; // QVR: (review 2026-11-18, finding 2)
+	sock->qvrSeeded = false;
+	sock->qvrFirstOut = 0;
 	sock->unreliableSendSequence = 0;
 	sock->sendMessageLength = 0;
 	sock->receiveSequence = 0;
 	sock->unreliableReceiveSequence = 0;
 	sock->receiveMessageLength = 0;
+	memset (sock->chunkAcked, 0, sizeof (sock->chunkAcked)); // QVR (B13)
+	memset (sock->heldLength, 0, sizeof (sock->heldLength));
 
 	return sock;
 }
@@ -179,9 +252,28 @@ double NET_QSocketGetTime (const qsocket_t *s)
 }
 
 
+// QVR: the player's name its connect request carried ("": none; net_dgrm.c)
+const char *NET_QSocketGetQvrName (const qsocket_t *s)
+{
+	return s->qvrName;
+}
+
+// QVR: (B25) the vr_mp_clientkey its connect request carried ("": none, an older client's; net_dgrm.c)
+const char *NET_QSocketGetQvrKey (const qsocket_t *s)
+{
+	return s->qvrKey;
+}
+
 const char *NET_QSocketGetAddressString (const qsocket_t *s)
 {
 	return s->address;
+}
+
+// QVR: the one test of "the listen host's own client": the loopback's server side, which net_loop.c names "LOCAL"
+// (its client side is "localhost"). SV_IsLocalClient for a client; this where only the socket is at hand.
+qboolean NET_QSocketIsLocal (const qsocket_t *s)
+{
+	return s && Q_strcmp (s->address, "LOCAL") == 0;
 }
 
 
@@ -319,7 +411,7 @@ void NET_Slist_f (void)
 	slistStartTime = Sys_DoubleTime();
 
 	SchedulePollProcedure(&slistSendProcedure, 0.0);
-	SchedulePollProcedure(&slistPollProcedure, 0.1);
+	SchedulePollProcedure(&slistPollProcedure, 0.0); // QVR: (B13) from the next frame on (0.1 s before: the pings)
 
 	hostCacheCount = 0;
 }
@@ -378,6 +470,42 @@ const char *NET_SlistPrintServerName (int idx)
 }
 
 
+// QVR: (B13) the server browser's (net.h)
+int NET_SlistEntry (int n, const char **name, const char **map, const char **address, int *users, int *maxusers,
+					int *ping, int *version)
+{
+	if (n < 0 || n >= hostCacheCount)
+		return 0;
+	*name = hostcache[n].name;
+	*map = hostcache[n].map;
+	*address = hostcache[n].cname;
+	*users = hostcache[n].users;
+	*maxusers = hostcache[n].maxusers;
+	*ping = hostcache[n].ping;
+	*version = hostcache[n].version;
+	return 1;
+}
+
+// QVR: (B13) the net HUD's (net.h)
+void NET_QvrLinkCounts (struct qsocket_s *sock, unsigned int counts[5], double *reliableRtt)
+{
+	counts[0] = sock->qvrUnreliableRead;
+	counts[1] = sock->qvrUnreliableSkipped;
+	counts[2] = sock->qvrResent;
+	counts[3] = sock->qvrBytesIn;
+	counts[4] = sock->qvrBytesOut;
+	*reliableRtt = sock->reliableRtt;
+}
+
+// QVR: (B16) a client's vanished server (vr_nethud.cpp; net.h)
+double NET_QvrSilence (struct qsocket_s *sock)
+{
+	if (!sock || IS_LOOP_DRIVER (sock->driver))
+		return 0.0;
+	return SetNetTime () - sock->lastMessageTime;
+}
+
+
 static void Slist_Send (void *unused)
 {
 	for (net_driverlevel = 0; net_driverlevel < net_numdrivers; net_driverlevel++)
@@ -410,7 +538,9 @@ static void Slist_Poll (void *unused)
 
 	if ((Sys_DoubleTime() - slistStartTime) < 1.5)
 	{
-		SchedulePollProcedure(&slistPollProcedure, 0.1);
+		// QVR: (B13) read at every frame's poll (0.1 s apart before): the server browser's pings are the replies'
+		// round trips (vr_serverbrowser.cpp)
+		SchedulePollProcedure(&slistPollProcedure, 0.0);
 		return;
 	}
 
@@ -419,6 +549,7 @@ static void Slist_Poll (void *unused)
 	slistInProgress = false;
 	slistSilent = false;
 	slistLocal = true;
+	VR_BrowserSearchDone (); // QVR: (B13) its rows printed if asked (vr_mp_browse)
 }
 
 
@@ -584,8 +715,11 @@ int	NET_GetMessage (qsocket_t *sock)
 		Con_Printf("NET_GetMessage: disconnected socket\n");
 		return -1;
 	}
+	if (sock->qvrClosing) // QVR: (mpfix A2) closed by its driver: its owner drops it (NET_Close frees it)
+		return -1;
 
 	SetNetTime();
+	net_stalemessage = false; // QVR: (B20) set by the driver for an overtaken datagram it still reads
 
 	ret = sfunc.QGetMessage(sock);
 
@@ -594,6 +728,14 @@ int	NET_GetMessage (qsocket_t *sock)
 	{
 		if (net_time - sock->lastMessageTime > net_messagetimeout.value)
 		{
+			NET_Close(sock);
+			return -1;
+		}
+		// QVR: (mpfix A1) a server's client that never acked a chunk (a forged or lost connect: a slot held for
+		// net_messagetimeout's 300 s otherwise)
+		if (!sock->qvrHeard && net_time - sock->connecttime > QVR_UNHEARD_TIMEOUT)
+		{
+			Con_Printf ("%s never answered its accept in %.0f s: dropped\n", sock->address, QVR_UNHEARD_TIMEOUT);
 			NET_Close(sock);
 			return -1;
 		}
@@ -781,6 +923,10 @@ void NET_Init (void)
 {
 	int			i;
 	qsocket_t	*s;
+
+	net_loopbackonly = COM_CheckParm ("-loopbackonly") != 0; // QVR: (B24, tests) before the drivers start
+	if (net_loopbackonly)
+		Con_SafePrintf ("NET: -loopbackonly: 127.0.0.0/8 only\n");
 
 	i = COM_CheckParm ("-port");
 	if (!i)

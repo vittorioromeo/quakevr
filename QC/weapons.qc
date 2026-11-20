@@ -104,10 +104,13 @@ void() VR_FlatGrenade_Key; // (vr_flatgrenade.qc)
 void(float xHand, float xWeapon, float xWeaponFlags) VR_FlatReload_CycleOut;
 void(float xHand) VR_FlatReload_CycleIn;
 
+// A hand whose weapon takes no ammo (a melee weapon, a fist: AID_NONE) has none. A firing loop's think can outlive the
+// gun it began with: a bot's nailgun loop ran on into the sword its hand was given and asked for AID_NONE's count
+// (VR_AmmoUtil_GetAmmoCountByAmmoId's assertion, on every mp_dm run until 2026-11-20); 0 ends the loop.
 float(float xHand) getCurrentAmmoCount =
 {
     float ammoId = WeaponIdToAmmoId(VRGetWeapon(xHand), VRGetWeaponFlags(xHand));
-    return VR_AmmoUtil_GetAmmoCountByAmmoId(self, ammoId);
+    return ammoId == AID_NONE ? 0 : VR_AmmoUtil_GetAmmoCountByAmmoId(self, ammoId);
 }
 
 float(float xHand) getCurrentAmmoOrClip =
@@ -1491,11 +1494,19 @@ void(float xHand) W_FireAxe =
         // HONEY
         VR_DamageCredit_SetWeapon(self, WID_AXE);
 
+        // (a player's button swing whose hand swings it, its weapon's lines kept -- a bot's, VR_HandLinesKept: its blow
+        // on another player judged by its line, as a tracked hand's, VR_DRP_PvpApplies; MP B11 part 3, part 3)
+        float blowWas = vr_melee_blowhand;
+        if(!blowWas && (victim.flags & FL_CLIENT) && VR_HandLinesKept(self))
+        {
+            vr_melee_blowhand = xHand + 1;
+        }
         if(T_Damage_VRMelee(trace_ent, self, self, xdmg))
         {
             VR_HitBloodSplash(victim, org, xdmg);
             bleed = TRUE;
         }
+        vr_melee_blowhand = blowWas;
 
         if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
         {
@@ -2340,6 +2351,9 @@ void(float shotcount, vector dir, vector spread, vector src, float xRange, float
     VR_SmallGib_BlastBegin(); // VR: the blast's pellets one hit for the small gibs (vr_smallgibs.qc)
     vr_decap_pellets = shotcount; // VR: head pops' chance (vr_decap.qc): the share of the blast at the head, the range
     vr_decap_src = src;
+    // QVR: a remote client's blast meets the others where his screen showed them, rewound once for all its pellets (the
+    // pellets' tracelines inside skip their own: mpreview B2); the damage is dealt where they are (ApplyMultiDamage).
+    float lc = lagcompbegin(self);
     while(shotcount > 0)
     {
         direction = dir + crandom()*spread_x*v_right + crandom()*spread_y*v_up;
@@ -2419,6 +2433,10 @@ void(float shotcount, vector dir, vector spread, vector src, float xRange, float
         }
 
         shotcount = shotcount - 1;
+    }
+    if(lc)
+    {
+        lagcompend();
     }
     ApplyMultiDamage();
     VR_SmallGib_BlastEnd();
@@ -2800,6 +2818,9 @@ void(vector p1, vector p2, entity from, float damage) LightningDamage =
     VR_Lightning_Burn(p1, p2); // VR: and on a surface leaves a lasting burn
 
     // (The bolt's credit is `from`'s: a player's by his lightning gun, W_FireLightning; vr_dmgcredit.qc.)
+    // QVR: a remote client's bolt meets the others where his screen showed them, rewound once for its three lines (their
+    // tracelines inside skip their own: mpreview B2).
+    float lc = lagcompbegin(self);
     traceline(p1, p2, MOVE_HITGIBS | MOVE_HITMODEL | vr_lightning_hitpass, self); // VR: gibs and heads too (vr_gib_destroy), monsters' models (precise hits),
     // VR: the prop the beam hits or goes through, pushed (a player's bolt: 30; a shambler's by its damage).
     VR_ShotPush(trace_ent, p1, trace_endpos, p2 - p1, QVR_SHOTPUSH_LIGHTNING, damage / 30);
@@ -2843,6 +2864,10 @@ void(vector p1, vector p2, entity from, float damage) LightningDamage =
         {
             VR_HitBloodSplash(trace_ent, trace_endpos, damage * 5);
         }
+    }
+    if(lc)
+    {
+        lagcompend();
     }
 };
 
@@ -3768,6 +3793,20 @@ float(float xHand) W_CheckNoAmmo =
 // The axe, the swords, the crowbar and the Super Axe: swung by the tracked hands themselves; untracked, a swing.
 void(float xHand, float* xOutAttackFinished) W_Fire_Melee =
 {
+    if(!self.ishuman && xHand == cVR_MainHand && (self.flags & FL_CLIENT))
+    {
+        // A bot (MP bots phase 1): a flat-screen player's overhead swing (frikbot/bot_fight.qc bot_setvrfields,
+        // botflatpose), its blow the melee's sweep as a flat player's is -- not player_axe*'s traced one. None while its
+        // guard is up (bot_parry_frame) or its last swing goes on.
+        if(self.vr_botparry > 0 || (self.vr_botswing > 0 && time - self.vr_botswing < BOT_SWING_LEN))
+        {
+            return;
+        }
+        VR_SoundVaried(self, VRGetGunChannel(xHand), "weapons/ax1.wav", 1, ATTN_NORM);
+        self.vr_botswing = time;
+        *xOutAttackFinished = time + BOT_SWING_LEN;
+        return;
+    }
     if(!VRHandsTracked(self) ||
        !self.ishuman)
     {
@@ -4680,7 +4719,8 @@ void() ImpulseCommands =
     // QVR: the single-player test and debug impulses (vr_impulse_test.qc): first, as each returns or falls
     // through as it did here.
 #ifdef QVR_TESTS
-    if(!deathmatch && !coop && VR_TestImpulse())
+    // (in coop too, as the gives below: impulse 241's things put ahead of the player who asks, the multiplayer harness's)
+    if(!deathmatch && (!coop || self.impulse == 241) && VR_TestImpulse())
     {
         return;
     }
@@ -4736,6 +4776,28 @@ void() ImpulseCommands =
         self.impulse = 0;
         return;
     }
+
+#ifdef QVR_TESTS
+    // Tests (not deathmatch; not in a release's progs: any coop player could give himself one): impulse 190 + a holster
+    // slot (0..5, the holsterweapon<slot> fields) puts a loaded shotgun in that holster (the multiplayer harness's
+    // mp_cosmetics: another player's holstered weapons).
+    if(!deathmatch && self.impulse >= 190 && self.impulse < 196)
+    {
+        float hs = self.impulse - 190;
+        self.impulse = 0;
+        VR_WeaponUtil_EntAddWeapon(self, WID_SHOTGUN);
+        entity hsInst = WeaponInst_New(WeaponIdToBaseClipSize(WID_SHOTGUN));
+        string hsModel = WeaponIdToModel(WID_SHOTGUN, 0);
+        if(hs == 0) { self.holsterweapon0 = WID_SHOTGUN; self.holsterweaponflags0 = 0; self.holsterweaponinst0 = hsInst; self.holsterweaponmodel0 = hsModel; }
+        if(hs == 1) { self.holsterweapon1 = WID_SHOTGUN; self.holsterweaponflags1 = 0; self.holsterweaponinst1 = hsInst; self.holsterweaponmodel1 = hsModel; }
+        if(hs == 2) { self.holsterweapon2 = WID_SHOTGUN; self.holsterweaponflags2 = 0; self.holsterweaponinst2 = hsInst; self.holsterweaponmodel2 = hsModel; }
+        if(hs == 3) { self.holsterweapon3 = WID_SHOTGUN; self.holsterweaponflags3 = 0; self.holsterweaponinst3 = hsInst; self.holsterweaponmodel3 = hsModel; }
+        if(hs == 4) { self.holsterweapon4 = WID_SHOTGUN; self.holsterweaponflags4 = 0; self.holsterweaponinst4 = hsInst; self.holsterweaponmodel4 = hsModel; }
+        if(hs == 5) { self.holsterweapon5 = WID_SHOTGUN; self.holsterweaponflags5 = 0; self.holsterweaponinst5 = hsInst; self.holsterweaponmodel5 = hsModel; }
+        dprint(sprintf("holster give: %s holster %g a shotgun\n", self.netname, hs));
+        return;
+    }
+#endif
 
     // Flatscreen play (-flatscreenmode): E force-grabs what the view is pointed at (vr_flatplay.cpp reads the key and
     // sends the impulse; the force grab itself is the game's own, vr_wpnforcegrab.qc).

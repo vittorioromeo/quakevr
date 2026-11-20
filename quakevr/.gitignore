@@ -12,6 +12,8 @@
 /autosave/
 /maps/autosave/
 /screenshots/
+# vr_adweapon_models write: the made AD/Dwell weapon models (from the mods' own files: never committed)
+/made_*.mdl
 /notes/
 /anims/
 /proposed_defaults/

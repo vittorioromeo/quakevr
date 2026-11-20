@@ -357,6 +357,7 @@ void CL_AccumulateCmd (void);
 void CL_SendCmd (void);
 void CL_SendMove (const usercmd_t *cmd);
 int  CL_ReadFromServer (void);
+void CL_ReadLockstep (void); // QVR: a lockstep client's waiting frame's reading (vr_mp_lockstep_ahead, B14e)
 void CL_AdjustAngles (void);
 void CL_BaseMove (usercmd_t *cmd);
 void CL_ReleaseMoveButtons (void); // QVR: every held movement button let go (a menu opened over the running game)

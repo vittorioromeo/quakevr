@@ -33,6 +33,7 @@
 #include "vr_monstervalues.hpp"
 #include "vr_tunables.hpp"
 #include "vr_weaponvalues.hpp"
+#include "vr_voicechat.hpp"
 #include "Zancle/Algorithm/Count.hpp"
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Chrono/Clock.hpp"
@@ -632,6 +633,9 @@ const char* campaignContinueAge(int index)
         command("Melee Recording Room", "map vrmelee-recording"),
         // (no Survival Arena here: Official Campaigns > Arena Mode, through its own Run Setup; his call 2026-11-15)
         header("Bots (Multiplayer)"),
+        action("Add Co-op Bot", addBotTeam0)
+            .help("In a co-op game (coop 1): a bot that fights the monsters beside you, never the players, follows you "
+                  "loosely and comes along to the next level with what it has (impulse 100)."),
         action("Add Bot (Team 0)", addBotTeam0),
         action("Add Bot (Team 1)", addBotTeam1),
         action("Kick Bot", kickBot),
@@ -883,6 +887,7 @@ int doomPageGeneration = -1; // the WAD search the Doom page's rows were built f
 // sv_random_seed...) stay in the console: they mean nothing in the headset.
 
 #include "vr_menu_checklist.inc"
+#include "vr_menu_voicechat.inc" // VR Settings > HUD, Haptics and Sound > Voice Chat
 
 
 
@@ -2368,6 +2373,10 @@ void applyFolds(int page, za::Vector<Item>& list)
             done[page] = false; // an item ticked, Hide Ticked, or the file edited
         }
     }
+    if(page == pageIndex(pageVoiceChat) && voicePlayersBuilt != voicechat::players())
+    {
+        done[page] = false; // a player joined or left: his row
+    }
     if(weightPageStale(PageRef::at(page)))
     {
         done[page] = false;
@@ -3384,7 +3393,8 @@ void goBack()
 // A server rule while connected to a remote server: shown, dimmed, not changed from here.
 [[nodiscard]] bool lockedItem(const Item& item)
 {
-    return item.unavailable || ((item.kind == Item::Slider || item.kind == Item::Cycle) && serverrules::locked(item.cvar)); // AD support: unavailable spawn actions are locked too
+    return item.unavailable || ((item.kind == Item::Slider || item.kind == Item::Cycle) && serverrules::locked(item.cvar)) || // AD support: unavailable spawn actions are locked too
+           (item.setsRules && serverrules::lockedBecause()); // (a gameplay preset's button)
 }
 
 // The settings one mode only uses (the graphics audit, 2026-11-09: they do nothing in the other), by their cvar's name

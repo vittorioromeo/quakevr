@@ -3,6 +3,7 @@
 #include "vr_ad.hpp"
 #include "vr_rules.hpp"
 #include "vr_hitmodel.hpp"
+#include "vr_lagcomp.hpp"
 #include "vr_hull.hpp"
 #include "vr_nav.hpp"
 #include "vr_brushes.hpp"
@@ -306,6 +307,68 @@ float staminaEffort(edict_t* p, float cost, const char* what)
     return za::clamp(out, 0.f, 1.f);
 }
 
+void waterClimbed(edict_t* p, int hand, float top, float rise)
+{
+    const func_t fn = bindings().WaterClimb_Climbed;
+    if(!fn || !p)
+    {
+        return;
+    }
+    const int self = pr_global_struct->self;
+    const float parm[3]{G_FLOAT(OFS_PARM0), G_FLOAT(OFS_PARM1), G_FLOAT(OFS_PARM2)};
+    pr_global_struct->time = qcvm->time;
+    pr_global_struct->self = EDICT_TO_PROG(p);
+    G_FLOAT(OFS_PARM0) = static_cast<float>(hand);
+    G_FLOAT(OFS_PARM1) = top;
+    G_FLOAT(OFS_PARM2) = rise;
+    PR_ExecuteProgram(fn);
+    pr_global_struct->self = self;
+    G_FLOAT(OFS_PARM0) = parm[0], G_FLOAT(OFS_PARM1) = parm[1], G_FLOAT(OFS_PARM2) = parm[2];
+}
+
+void grappleTaut(edict_t* p, edict_t* h, int hand, float speed)
+{
+    const func_t fn = bindings().Grapple_Taut;
+    if(!fn || !p || !h)
+    {
+        return;
+    }
+    const int self = pr_global_struct->self;
+    const float parm[3]{G_FLOAT(OFS_PARM0), G_FLOAT(OFS_PARM1), G_FLOAT(OFS_PARM2)};
+    pr_global_struct->time = qcvm->time;
+    pr_global_struct->self = EDICT_TO_PROG(p);
+    G_INT(OFS_PARM0) = EDICT_TO_PROG(h);
+    G_FLOAT(OFS_PARM1) = static_cast<float>(hand);
+    G_FLOAT(OFS_PARM2) = speed;
+    PR_ExecuteProgram(fn);
+    pr_global_struct->self = self;
+    G_FLOAT(OFS_PARM0) = parm[0], G_FLOAT(OFS_PARM1) = parm[1], G_FLOAT(OFS_PARM2) = parm[2];
+}
+
+float* clientExtParms(int client)
+{
+    return clientExtSpawnParms(client);
+}
+
+int hostSlot()
+{
+    if(!sv.active || !svs.clients || cls.state == ca_dedicated)
+    {
+        return -1;
+    }
+    // (the loopback's server side is "LOCAL": net_loop.c; its slot keeps the connection from SV_ConnectClient on, before
+    // `active` is set, so a reset of the slot then still finds it its own: clientprefs::serverReset)
+    for(int i = 0; i < svs.maxclients; i++)
+    {
+        const qsocket_s* sock = svs.clients[i].netconnection;
+        if(NET_QSocketIsLocal(sock))
+        {
+            return i;
+        }
+    }
+    return -1;
+}
+
 } // namespace qvr::progs
 
 using namespace qvr::progs;
@@ -387,6 +450,13 @@ void checkGameCode(const Bindings& b)
 
 } // namespace
 
+// Host_Savegame_f: the server's QC is in its intermission (a dedicated server has no cl.intermission of its own).
+extern "C" int VR_ServerIntermission(void)
+{
+    const float* running = qvr::progs::bindings().intermissionRunning;
+    return sv.active && running && *running != 0.f;
+}
+
 extern "C" void VR_OnProgsLoaded()
 {
     if(qcvm != &sv.qcvm)
@@ -430,6 +500,7 @@ extern "C" void VR_OnProgsLoaded()
         b.propTouches[1] = findFunction("VR_Debris_Touch");
         b.propTouches[2] = findFunction("VR_CratePiece_Touch");
         b.propTouches[3] = findFunction("wpnthrow_touch");
+        b.gibTouch = findFunction("VR_Gib_Touch");
         b.AxeStick_Stuck = findFunction("VR_AxeStick_Stuck");
         b.AxeStick_Plate = findFunction("VR_AxeStick_Plate");
         b.ClipSizeOf = findFunction("VR_ClipSizeOf");
@@ -444,6 +515,8 @@ extern "C" void VR_OnProgsLoaded()
         b.Stamina_Left = findFunction("VR_Stamina_Left");
         b.Stamina_On = findFunction("VR_Stamina_On");
         b.Stamina_Effort = findFunction("VR_Stamina_Effort");
+        b.WaterClimb_Climbed = findFunction("VR_WaterClimb_Climbed");
+        b.Grapple_Taut = findFunction("VR_Grapple_Taut");
         b.foegrab.HeadZone = findFunction("VR_FoeGrab_HeadZone");
         b.foegrab.HeadLeft = findFunction("VR_FoeGrab_HeadLeft");
         b.foegrab.Released = findFunction("VR_FoeGrab_Released");
@@ -483,6 +556,7 @@ extern "C" void VR_OnProgsLoaded()
         b.melee = findMeleeHistory();
 
         b.spawnServerFromSaveFile = globalFloat("spawnServerFromSaveFile");
+        b.intermissionRunning = globalFloat("intermission_running");
         b.playerTimeOffset = globalFloat("vr_player_time_offset");
         b.handTimeScale = globalFloat("vr_hand_time_scale");
         b.musicTrack = globalFloat("vr_music_track");
@@ -905,6 +979,11 @@ extern "C" int VR_ReadSaveInfo(const char* text, const char* relname)
     qvr::permdecals::readSaveLines(text); // (the permanent decals: baked again once its map has loaded)
     qvr::drips::readSaveLines(text);      // (what is wet: given back as the load's map shows it, VR_OnLoadGame)
     qvr::runsetup::readSaveLines(text);   // (the run's choices: set when the load goes ahead, VR_OnBeginLoadGame)
+    if(!VR_ReadCoopLines(text, relname))  // (a coop save's players: vr_coopsave.cpp)
+    {
+        SCR_CenterPrint("Coop saved game not loaded\n(see the console)");
+        return 0;
+    }
     if(format > VR_SAVE_FORMAT)
     {
         Con_Printf("ERROR: %s was saved by a newer build (%s, save format %d; this one, %s, reads up to %d): not loaded\n",

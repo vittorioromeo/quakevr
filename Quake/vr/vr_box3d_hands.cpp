@@ -8,6 +8,7 @@
 #include "vr_box3d_internal.hpp"
 #include "vr_weapon_ids.h"
 #include "vr_cvars.hpp"
+#include "vr_heldpose.hpp"
 #include "vr_tunables.hpp"
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Container/Array.hpp"
@@ -395,7 +396,6 @@ namespace
     return true;
 }
 
-const za::Vector<glm::vec4> noFist; // (syncHands: a hand that pushes no fist's spheres)
 } // namespace
 
 void syncHands(float dt)
@@ -420,7 +420,7 @@ void syncHands(float dt)
             const glm::vec3 angles = fieldVec(player, progs::handFields(h).rot);
             vec3_t in{angles.x, angles.y, angles.z}, fwd, right, up;
             AngleVectors(in, fwd, right, up);
-            const za::Vector<glm::vec4>& fist = i == 1 ? held::fist(h) : noFist;
+            const za::Vector<glm::vec4>& fist = held::fistOf(player, h); // (each player's own: B3)
             const bool byFist = !fist.empty();
             const glm::vec3 at = byFist ? point : point - vec(fwd) * (radius * world->m2u);
             const b3Quat turn = byFist ? toB3(glm::quat_cast(held::axesFromAngles(&angles[0], true))) : b3Quat_identity;
@@ -666,20 +666,35 @@ namespace
     const int modelOfs = f.weaponmodel2;
     const char* name = h ? PR_GetString(player->v.weaponmodel)
                          : (modelOfs >= 0 ? PR_GetString(fieldInt(player, modelOfs)) : "");
-    if(i == 1 && cls.state == ca_connected) // the local player: the weapon as drawn
+    // The weapon as the player's view drew it in his hand (his slot's: this game's own player's view this frame, another's
+    // as his client drew it; vr_heldpose.hpp, MP_PLAN.md B3e and B11a), its model the server's of the same name.
+    const heldpose::Hand* r = heldpose::slotHand(player, h);
+    if(r && r->drawn && name && *name && r->slot == weapons::slotForName(name))
     {
-        const view::DrawnWeapon& d = view::drawnWeapon(h);
-        if(!d.model || vr_gametime - d.when > 0.5 || strcmp(d.model->name, name) != 0)
+        const qmodel_t* model = nullptr;
+        for(int m = 1; m < MAX_MODELS && sv.model_precache[m]; m++)
         {
-            return key; // (not drawn yet)
+            if(!strcmp(sv.model_precache[m], name))
+            {
+                model = sv.models[m];
+                break;
+            }
         }
-        key.what = Key::Weapon;
-        key.model = d.model;
-        key.mirrored = d.mirrored;
-        key.mag = vr_reload_mag_collide.value ? d.mag : nullptr;
-        key.generation = shapeGeneration;
-        inHand = d.inHand;
-        return key;
+        if(model && model->type == mod_alias)
+        {
+            key.what = Key::Weapon;
+            key.model = model;
+            key.mirrored = r->mirrored;
+            // (his magazine as he draws it seated in it: the gun's own magazine model, B6b)
+            key.mag = vr_reload_mag_collide.value && r->mag ? view::magazineModelOf(model) : nullptr;
+            key.generation = shapeGeneration;
+            inHand = r->inHand;
+            return key;
+        }
+    }
+    if(r && r->placed)
+    {
+        return key; // (a view drawing it this frame has not drawn it yet: none; a remote player's pose not come: a capsule)
     }
     const int muzzleOfs = progs::handFields(h).muzzle;
     const glm::vec3 muzzle = muzzleOfs >= 0 ? fieldVec(player, muzzleOfs) : point;

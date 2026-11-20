@@ -60,11 +60,27 @@ struct Result
 // space to its frame (the move's place and angles; world units), and its fingers' shifts (`pose`); nullptr: not known.
 void setHandRig(int hand, const glm::mat4* rigToHand, const handrig::Pose& pose);
 
-// Server side, at a grab: the hand `hand` of the local player (`local`), taken to the prop's frame by `handToProp` and
-// `handInProp` (p_prop = handToProp * p_hand + handInProp); the prop entity `num` (its Box3D hulls, pushed out to its
-// drawn vertices `drawn`, its frame; nullptr: read here), or its drawn box `lo`..`hi`. True if it moved: `move`, the
-// hand's move on the prop (its frame, units).
-bool fit(int num, int hand, bool local, bool twoHand, const glm::mat3& handToProp, const glm::vec3& handInProp, const glm::vec3& lo,
+// A hand's rig as the fit takes it (MP_PLAN.md, B3f): its rig space to its frame and its fingers' shifts (the rest of the
+// pose the fit sets itself). A client's own goes up with his palm frame (vr_clientprefs.cpp "vr_rigframe"); the server
+// keeps each other player's.
+inline constexpr int rigFingers = 5; // (handrig::FingerCount)
+struct PlayerRig
+{
+    bool valid{false};
+    glm::mat4 rigToHand{1.f};
+    glm::vec3 shift[rigFingers]{};
+};
+[[nodiscard]] PlayerRig ownRig(int hand);
+void setPlayerRig(int slot, int hand, const PlayerRig& rig);
+[[nodiscard]] PlayerRig playerRig(int slot, int hand);
+// The hand's points the fit poses (the palm's: 0 when the hand's mesh is not loaded here; vr_mp_prefs's).
+[[nodiscard]] int rigPointCount();
+
+// Server side, at a grab: the hand `hand` of player entity `player` (this game's own player's rig as drawn here, another's
+// as his client sent it), taken to the prop's frame by `handToProp` and `handInProp` (p_prop = handToProp * p_hand +
+// handInProp); the prop entity `num` (its Box3D hulls, pushed out to its drawn vertices `drawn`, its frame; nullptr: read
+// here), or its drawn box `lo`..`hi`. True if it moved: `move`, the hand's move on the prop (its frame, units).
+bool fit(int num, int hand, int player, bool twoHand, const glm::mat3& handToProp, const glm::vec3& handInProp, const glm::vec3& lo,
     const glm::vec3& hi, const za::Vector<glm::vec3>* drawn, glm::vec3& move);
 
 // What the last fit did.

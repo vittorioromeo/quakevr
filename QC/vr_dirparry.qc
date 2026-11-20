@@ -224,8 +224,90 @@ float(vector px, vector sq, float gap) VR_DRP_Marks =
     return vr_drp_m_angle * vr_drp_m_contact;
 };
 
+// Multiplayer: another player's blow judged by its line (VR_Parry, T_Damage_VRMelee's: VR_DRP_PvpApplies): 1 + his hand
+// (0: none). His swing's line is his hand's weapon's parry line as each server frame had it (VR_DRP_HandLines: handlineat):
+// the pair of frames within VR_DRP_LOOKBACK whose sweep came nearest your weapon (his blade may have crossed it a frame or
+// two before it met your body) is read as an armed humanoid's last frame and this one are (VR_DRP_Eval's third kind).
+// (vr_drp_pvp: vr_armedgrunt_defs.qc)
+vector vr_drp_ka0;      // VR_DRP_PvpPair's: his line in the older frame, in the newer
+vector vr_drp_kb0;
+vector vr_drp_ka1;
+vector vr_drp_kb1;
+float vr_drp_pvp_n;     // readings of a player's swing (the tests)
+
+// `g`'s blow by his hand (1 + vr_melee_blowhand's) on `pl` is a melee weapon's swing with a line (not a fist's, nor a
+// chainsaw's thrust: as an armed humanoid's, VR_DRP_Applies): vr_drp_pvp set. Multiplayer only (VR_Parry's pvp).
+float(entity g, float blowhand) VR_DRP_PvpApplies =
+{
+    vr_drp_pvp = 0;
+    if(blowhand <= 0 || !(g.flags & FL_CLIENT))
+    {
+        return FALSE;
+    }
+    float wid = VRGetEntWeapon(g, blowhand - 1);
+    float at = handlineat(g, blowhand - 1, 0); // (kept while his hands are tracked: a flat-screen swing has none)
+    if(VR_AG_Class(wid) != VR_AG_CLASS_MELEE || wid == WID_CHAINSAW || at < 0 || time - at > VR_DRP_LOOKBACK ||
+       vr_blow_a == vr_blow_b)
+    {
+        return FALSE;
+    }
+    vr_drp_pvp = blowhand;
+    return TRUE;
+};
+
+// His swing's two frames (vr_drp_pvp's hand) whose sweep came nearest `pl`'s weapons, within VR_DRP_LOOKBACK: into
+// vr_drp_ka0 .. vr_drp_kb1. How long between them (s; -1: none).
+float(entity g, entity pl) VR_DRP_PvpPair =
+{
+    float h = vr_drp_pvp - 1;
+    float best = 99999;
+    float span = -1;
+    float t1 = handlineat(g, h, 0);
+    vector na = vr_blow_a;
+    vector nb = vr_blow_b;
+    for(float back = 1; back < 32 && t1 >= 0 && time - t1 <= VR_DRP_LOOKBACK; back++)
+    {
+        float t0 = handlineat(g, h, back);
+        vector oa = vr_blow_a;
+        vector ob = vr_blow_b;
+        if(t0 < 0 || t0 >= t1)
+        {
+            break;
+        }
+        if(na != nb && oa != ob) // (his hand held the weapon in both)
+        {
+            for(float ph = 0; ph < 2; ph++)
+            {
+                if(!VR_DRP_PlayerSeg(pl, ph))
+                {
+                    continue;
+                }
+                for(float k = 0; k <= 8; k++)
+                {
+                    float s = k / 8;
+                    float d = VR_AG_SegDist(oa + (na - oa) * s, ob + (nb - ob) * s, vr_drp_pa, vr_drp_pb);
+                    if(d < best)
+                    {
+                        best = d;
+                        span = t1 - t0;
+                        vr_drp_ka0 = oa;
+                        vr_drp_kb0 = ob;
+                        vr_drp_ka1 = na;
+                        vr_drp_kb1 = nb;
+                    }
+                }
+            }
+        }
+        t1 = t0;
+        na = oa;
+        nb = ob;
+    }
+    return span;
+};
+
 // One reading: `g`'s weapon `w` swung at `pl`, its way followed on `ahead` s from its line now (a monster's own blow: `w` is
-// `g`, its line vr_blowline.cpp's, from vr_drp_back s ago). Out: vr_drp_* (the best hand's). Its score.
+// `g`, its line vr_blowline.cpp's, from vr_drp_back s ago; another player's, vr_drp_pvp: `w` is `g`, his frames'
+// lines, VR_DRP_PvpPair). Out: vr_drp_* (the best hand's). Its score.
 float(entity g, entity w, entity pl, float ahead) VR_DRP_Eval =
 {
     vr_drp_hand = -1;
@@ -234,17 +316,40 @@ float(entity g, entity w, entity pl, float ahead) VR_DRP_Eval =
     vr_drp_off = 90;
     vr_drp_tau = 0;
     vr_drp_evals = vr_drp_evals + 1;
-    float baked = !g.vr_ag;
+    float pvp = vr_drp_pvp > 0 && (g.flags & FL_CLIENT);
+    float baked = !g.vr_ag && !pvp;
     float lunge = baked && VR_DRP_Lunge(g);
     float strikers = 1;
     vector a1 = '0 0 0';
     vector b1 = '0 0 0';
+    vector a0 = '0 0 0'; // (an armed humanoid's, another player's: its line last frame)
+    vector b0 = '0 0 0';
     float dt = 0;
     vector va = '0 0 0';
     vector vb = '0 0 0';
     if(lunge)
     {
         ahead = 0; // (read at the blow)
+    }
+    else if(pvp)
+    {
+        ahead = 0; // (his swing as it went: no way ahead to follow, it is his hand's)
+        vr_drp_pvp_n = vr_drp_pvp_n + 1;
+        dt = VR_DRP_PvpPair(g, pl);
+        a0 = vr_drp_ka0;
+        b0 = vr_drp_kb0;
+        a1 = vr_drp_ka1;
+        b1 = vr_drp_kb1;
+        if(dt > 0.001 && dt <= 0.25)
+        {
+            va = (a1 - a0) * (1 / dt);
+            vb = (b1 - b0) * (1 / dt);
+        }
+        else
+        {
+            dt = 0;
+            strikers = 0; // (no line of his swing: nothing to meet)
+        }
     }
     else if(baked)
     {
@@ -261,11 +366,13 @@ float(entity g, entity w, entity pl, float ahead) VR_DRP_Eval =
         VR_AG_WeaponLine(w);
         a1 = vr_ag_wa;
         b1 = vr_ag_wb;
+        a0 = w.vr_drp_a0;
+        b0 = w.vr_drp_b0;
         dt = time - w.vr_drp_t0;
         if(w.vr_drp_t0 > 0 && dt > 0.001 && dt < 0.1)
         {
-            va = (a1 - w.vr_drp_a0) * (1 / dt);
-            vb = (b1 - w.vr_drp_b0) * (1 / dt);
+            va = (a1 - a0) * (1 / dt);
+            vb = (b1 - b0) * (1 / dt);
         }
         else
         {
@@ -280,6 +387,10 @@ float(entity g, entity w, entity pl, float ahead) VR_DRP_Eval =
     float fall = contact * (max(1, cvar_hget(cvarh_vr_dirparry_falloff)) - 1); // (the meeting's marks none this past it)
     float span = dt + max(0, ahead);
     float n = 4 + 2 * ceil((baked ? span : max(0, ahead)) * 72); // (samples along its way: two a frame)
+    if(pvp)
+    {
+        n = 16; // (another player's: its one frame's sweep finely, where it crossed your weapon)
+    }
     vector keepA = '0 0 0';
     vector keepB = '0 0 0';
     for(float h = 0; h < 2; h++)
@@ -363,7 +474,7 @@ float(entity g, entity w, entity pl, float ahead) VR_DRP_Eval =
             }
             else if(dt > 0)
             {
-                turn = normalize(b1 - a1) - normalize(w.vr_drp_b0 - w.vr_drp_a0);
+                turn = normalize(b1 - a1) - normalize(b0 - a0);
             }
             sw = turn - axis * (turn * axis);
             sw = vlen(sw) > 0.01 ? sw * 1000 : '0 0 0';
@@ -759,8 +870,9 @@ void() VR_DRP_HeldThink =
 float(entity pl, entity g, float damage) VR_DRP_Blow =
 {
     float threshold = cvar_hget(cvarh_vr_dirparry_threshold);
-    float baked = !g.vr_ag;
-    float window = (baked && VR_DRP_Lunge(g)) ? 0 : baked ? max(0, cvar_hget(cvarh_vr_dirparry_stroke)) :
+    float pvp = vr_drp_pvp > 0 && (g.flags & FL_CLIENT); // (another player's swing: read as it went, never held back)
+    float baked = !g.vr_ag && !pvp;
+    float window = pvp ? 0 : (baked && VR_DRP_Lunge(g)) ? 0 : baked ? max(0, cvar_hget(cvarh_vr_dirparry_stroke)) :
                    max(0, cvar_hget(cvarh_vr_dirparry_window)) / VR_AGP_Speed(g); // (a slowed swing's: as long a way)
     vr_drp_deferred = FALSE;
     vr_drp_cut = 0;
@@ -773,7 +885,7 @@ float(entity pl, entity g, float damage) VR_DRP_Blow =
             vr_drp_deferred = TRUE;
             return -1;
         }
-        entity w = baked ? g : (vr_drp_w ? vr_drp_w : g.vr_ag_prop);
+        entity w = (baked || pvp) ? g : (vr_drp_w ? vr_drp_w : g.vr_ag_prop);
         vr_drp_back = VR_DRP_LOOKBACK;
         VR_DRP_Eval(g, w, pl, (baked && vr_drp_release) ? 0 : window);
         VR_DRP_Show(g, w, vr_drp_score >= threshold);
@@ -822,7 +934,10 @@ float(entity pl, entity g, float damage) VR_DRP_Blow =
         VR_DRP_Debug(g, vr_drp_score > 0 ? VR_DRP_SHOW_PARTIAL : VR_DRP_SHOW_MISS);
         return -1;
     }
-    g.vr_drp_swing = !baked ? g.vr_ag_act_at : g.vr_melee_begun > 0 ? g.vr_melee_begun : time;
+    if(!pvp) // (a player's swing: one blow, his own rearm after it)
+    {
+        g.vr_drp_swing = !baked ? g.vr_ag_act_at : g.vr_melee_begun > 0 ? g.vr_melee_begun : time;
+    }
     g.vr_drp_by = vr_drp_hand;
     g.vr_drp_timed = vr_drp_ag_timed = VR_DRP_Timing(g, pl, vr_drp_hand);
     g.vr_drp_timing = vr_drp_ag_timing = vr_drp_share;
@@ -835,7 +950,7 @@ float(entity pl, entity g, float damage) VR_DRP_Blow =
         vr_drp_share, g.vr_drp_timed ? " (well timed)" : ""));
     if(vr_dv_on)
     {
-        VR_DV_Mark(baked ? g : (vr_drp_w ? vr_drp_w : g.vr_ag_prop), vr_drp_at, VR_DV_PARRY, sprintf("dirparry %.2f", vr_drp_score));
+        VR_DV_Mark((baked || pvp) ? g : (vr_drp_w ? vr_drp_w : g.vr_ag_prop), vr_drp_at, VR_DV_PARRY, sprintf("dirparry %.2f", vr_drp_score));
     }
     VR_DRP_Debug(g, VR_DRP_SHOW_PARRIED);
     return vr_drp_hand;
@@ -849,8 +964,12 @@ void(entity pl, entity g, float h) VR_DRP_Effects =
     vector x = vr_parry_at;
     vector way = vr_drp_sweep != '0 0 0' ? vr_drp_sweep : normalize(pl.origin - g.origin);
     entity w = vr_drp_w ? vr_drp_w : g.vr_ag ? g.vr_ag_prop : world; // (a monster's own limb: as a blade)
-    VR_Clash_Fx(g, VR_Clash_MatOf(VR_Melee_Thing(pl, h)), w ? VR_Clash_MatOfWid(w.weapon) : VR_CLASH_BLADE, x,
-        way * -1 + '0 0 0.5', 60, 0.9, 1);
+    float mat = w ? VR_Clash_MatOfWid(w.weapon) : VR_CLASH_BLADE;
+    if(vr_drp_pvp > 0 && (g.flags & FL_CLIENT))
+    {
+        mat = VR_Clash_MatOf(VR_Melee_Thing(g, vr_drp_pvp - 1)); // (another player's weapon: what it is)
+    }
+    VR_Clash_Fx(g, VR_Clash_MatOf(VR_Melee_Thing(pl, h)), mat, x, way * -1 + '0 0 0.5', 60, 0.9, 1);
     vr_drp_fx_n = vr_drp_fx_n + 1;
     vr_drp_fx_at = x;
 };
