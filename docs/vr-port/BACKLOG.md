@@ -146,11 +146,6 @@ mock toss keeps the hand's speed; a slow toss may hit the open palm after the 0.
 
 ## 7. Combat and feel
 
-- **Tester feedback, "Joyeuse" (Discord, 2026-11-18), comfort and controls:**
-  - Run by double-tapping the locomotion stick: two quick pushes in the same direction start running (his idea, 2026-11-18; an option next to the sprint toggle).
-  - Ammo pouch height has no slider among the holster sliders (she had to use the drag-and-drop Holster Setup, which
-    felt fiddly): add Ammo Pouch position sliders like the holsters'.
-
 - **Crossed-sword parry** (2026-10-18): two blades crossed in front of the body count as a parry. After the AD melee work.
 - **Blades embedded in props** (2026-11-05): done 2026-11-12 (ROUND25.md "propblade": a joint at the handle, shared with
   the ragdolls' handle hold). Left: his VR check; a test of a re-grip off the handle; the crate carried by the other hand
