@@ -104,10 +104,13 @@ void() VR_FlatGrenade_Key; // (vr_flatgrenade.qc)
 void(float xHand, float xWeapon, float xWeaponFlags) VR_FlatReload_CycleOut;
 void(float xHand) VR_FlatReload_CycleIn;
 
+// A hand whose weapon takes no ammo (a melee weapon, a fist: AID_NONE) has none. A firing loop's think can outlive the
+// gun it began with: a bot's nailgun loop ran on into the sword its hand was given and asked for AID_NONE's count
+// (VR_AmmoUtil_GetAmmoCountByAmmoId's assertion, on every mp_dm run until 2026-11-20); 0 ends the loop.
 float(float xHand) getCurrentAmmoCount =
 {
     float ammoId = WeaponIdToAmmoId(VRGetWeapon(xHand), VRGetWeaponFlags(xHand));
-    return VR_AmmoUtil_GetAmmoCountByAmmoId(self, ammoId);
+    return ammoId == AID_NONE ? 0 : VR_AmmoUtil_GetAmmoCountByAmmoId(self, ammoId);
 }
 
 float(float xHand) getCurrentAmmoOrClip =

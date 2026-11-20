@@ -2363,12 +2363,16 @@ def inventories(srv):
     return out, fields(last).get("map", "")
 
 
-def inventories_until(srv, done, tries=60):
-    """inventories(srv) until done(inv, map) -> (inv, map) (the last, at most `tries` reports)."""
+def inventories_until(srv, done, tries=60, seconds=20.0):
+    """inventories(srv) until done(inv, map) -> (inv, map) (the last). Gives up only after `tries` reports AND `seconds`
+    of real time: a fast server answered 60 reports before a client's forwarded `give` reached it (mp_rejoin, 2026-11-20:
+    B killed before his rockets were his, then the give landed: "items 4097 -> 4129")."""
     inv, mapname = {}, ""
-    for _ in range(tries):
+    end, n = time.monotonic() + seconds, 0
+    while True:
         inv, mapname = inventories(srv)
-        if done(inv, mapname):
+        n += 1
+        if done(inv, mapname) or (n >= tries and time.monotonic() >= end):
             break
     return inv, mapname
 
@@ -2939,6 +2943,8 @@ def rejoin_crash(s, srv, a, b, c, ea, eb, sb):
     b.cmd("give 7; give r 9")
     srv.cmd("vr_hurt 70 %d" % sb)
     inv_b, _ = inventories_until(srv, lambda inv, m: sb in inv and inv[sb].get("rockets") == 9 and inv[sb].get("health") == 30)
+    s.check("(setup) B's rocket launcher, 9 rockets and health 30 are his at the server before his crash",
+            inv_b.get(sb, {}).get("rockets") == 9 and inv_b.get(sb, {}).get("health") == 30, "%s" % inv_b.get(sb))
     b.proc.kill()
     b.proc.wait()
     killed = time.monotonic()
@@ -6229,6 +6235,11 @@ def deathmatch(s):
     s.check("the fraglimit (%d) reached: the intermission at A and B" % limit, top >= limit,
             "A's scoreboard %s" % ta)
     s.check("A's and B's scoreboards agree", ta == tb, "A %s; B %s" % (ta, tb))
+    # (a QC ASSERT is a bprint: the clients see it, the dedicated server's log does not; until 2026-11-20 every run's
+    # bot nailgun loop ran into its sword: getCurrentAmmoCount, weapons.qc)
+    asserts = [i for i, l in enumerate(a.lines) if l.startswith("Assertion failure")]
+    s.check("no QC assertion in the match (A's log)", not asserts,
+            "%s" % [" ".join(x.strip() for x in a.lines[i:i + 3]) for i in asserts[:2]])
 
 
 # ---- B13: the server browser, the net HUD, the soak ----
