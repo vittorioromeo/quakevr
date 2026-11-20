@@ -2632,14 +2632,14 @@ def navfollow_status(inst):
     return {k: int(v) for k, v in re.findall(r"(\w+)=(-?\d+)\b", line.split(" at=")[0])}
 
 
-def navfollow(s, listen=False):
+def navfollow(s, listen=False, flat="AB"):
     """(navfollow) vr_nav_follow: a player walked after another along the server's navmesh by his own client's moves.
     Both flat on coop e1m1 (god, notarget). The leader is put past the first room's west door; the follower, at a coop
     start, follows him (dedicated: B, a remote client, follows A; --listen: the host A follows B): down the step, across
     the room and through the door. The leader walks on a while; the follower ends within NAVFOLLOW_REACH of him with
     arrived=1. The follower's own move hands control back (paused=1) and the follow walks on after vr_nav_follow_idle
     without one (paused=0); vr_nav_follow 0 stops it."""
-    srv, a, b, ea, eb = join(s, listen=listen, flat="AB")
+    srv, a, b, ea, eb = join(s, listen=listen, flat=flat)
     leader, follower, el, ef = (b, a, eb, ea) if listen else (a, b, ea, eb)
     for inst in (a, b):
         inst.cmd("god; notarget")
@@ -7921,6 +7921,8 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             navfollow(s)
         elif test == "mp_navfollow_listen":
             navfollow(s, listen=True)
+        elif test == "mp_navfollow_vr":
+            navfollow(s, flat="A")
         elif test == "mp_teleport":
             teleport(s)
         elif test == "mp_held":
@@ -8099,7 +8101,7 @@ SUITE = [
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "navfollow", "navfollow_listen"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "navfollow", "navfollow_listen", "navfollow_vr"])
     ap.add_argument("--base", required=True, help="the game folder (id1, quakevr...)")
     ap.add_argument("--exe", default=EXE)
     ap.add_argument("--out", default=os.path.join(REPO, "scratch", "mp"))
@@ -8161,7 +8163,7 @@ def main_run(args):
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
     elif args.test in ("bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground",
-                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "navfollow", "navfollow_listen"):
+                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "navfollow", "navfollow_listen", "navfollow_vr"):
         ok = run(args, "mp_" + args.test)
     elif args.test == "voice":
         ok = run(args, "mp_voice", args.lag, args.jitter, args.loss)

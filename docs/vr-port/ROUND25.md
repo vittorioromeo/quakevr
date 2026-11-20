@@ -5995,3 +5995,30 @@ modified or bundled: nothing of it is run, copied or shipped; its maps play by A
   exit lock round 4, ne_marb's waves round 21, lpqsp1's `voreo` round 6, metmon's `phase4_relay` round 8; the three
   exits. `quoth_maps.sh` 31/0. QUOTH.md 2, 5, 6.
 - **Checks**: dev and ThinLTO builds 0 warnings (LTO exe relinked); scenario_check PASS (140 run, 0 failed); ad_world_test (vr_ad_test 61-64 on ad_crucial) PASS; dwell_maps 28/0 (Dwell v2.2 copied into the round25 test base: without it 3/25); installer self-tests 48/48; quoth_maps 31/0.
+
+## navfollow: a debug autopilot after another player by the navmesh (navfollow, 2026-11-20, `agent/navfollow`)
+
+His words: "a debug command I can enable in one of the players' windows so that it follows the other player using the
+navmesh", and "do bots use the navmesh? If not, should they?" (NAVMESH.md 22 and 23).
+
+- **`vr_nav_follow <name | slot | next | 0>`** (Debug > Network: Follow the Next Player): the server plans the player's
+  path to the other on its navmesh (`nav::followPath`: a player's 16 x 56 class; doors and lifts walked, the monsters'
+  drop, lift and teleporter links) every `vr_nav_follow_repath` (0.25) s and sends him its corners when they change
+  (`QVR_SVC_NAVFOLLOW`, reliable); his client turns the view to the next corner and presses forward in `VR_AdjustMove`,
+  hops through `VR_MoveJump` when stuck, stops `vr_nav_follow_stop` (64) units short along the path. A listen host and
+  a remote client alike; the moves are a human's (prediction, the server's moves, lag compensation unchanged).
+- **Hand-back:** his own move, look (flat) or jump takes over at once; the command stays on and walks on after
+  `vr_nav_follow_idle` (1) s without input. Refused in deathmatch (`sv_user.c` allows `vr_nav_follow_ask` otherwise).
+- **Server's corners, not a client navmesh:** the mesh needs the server's QC state (movers, rides, teleporters, props);
+  a client's build would differ and cost each client a build; the corners are a small message.
+- **The follower** (`vr_navfollow.hpp`): `Plan`/`replan` (where the mesh is) and `Steer`/`steer` (where the moves are
+  made: corners in, yaw/forward/jump out), shared by the client's autopilot and, later, the bots. Flat and VR share it:
+  only the turn differs (the view's yaw, or a headset's play space by `hands::addTurn`).
+- **Bots:** they don't use the navmesh (FrikBot's learnt waypoints and roaming); NAVMESH.md 23 plans its long-range
+  navigation through the follower (FrikBot keeps combat, strafing, item choice), 3-4 days, not done (his call).
+- **Shown:** `vr_nav_debug` on draws the follower's path on its own client (a remote one too). `vr_nav_follow_status`.
+- **Tests:** `mp_test.py navfollow` (B remote follows A) 12/0 and `navfollow_listen` (host A follows B) 11/0, flat, coop
+  e1m1: from a coop start down the step and through the first room's west door to within 112 units, arrived; the
+  leader walks on and is followed; +back hands it back, it walks on; `vr_nav_follow 0` stops it. No teleporter (e1m1's
+  is far from the start). `navfollow_vr` (B a mock headset: the play-space turn) 12/0. mp suite --only coop, cmdguard,
+  predict, teleport: passed. scenario_check PASS.
