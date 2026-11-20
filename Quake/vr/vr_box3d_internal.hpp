@@ -572,6 +572,10 @@ struct World
     {
         float ms[framePhases]{};
         int awake{0}; // the awake bodies after the step
+        // Deterministic counts (a frame's work, whatever the machine's load): Box3D's contacts the step touched (its
+        // collide pass: the touching ones and the awake sets' others), its islands, and the hands' and held weapons'
+        // reach bodies' touching contacts with the bodies they press (ragperf, ROUND25.md).
+        int contacts{0}, islands{0}, reachTouches{0};
     };
     za::Vector<FrameSample> frameSamples;
     const qmodel_t* map{nullptr};
@@ -1414,6 +1418,8 @@ void traceGibContacts();
 void noteThrows();
 void syncHands(float dt);
 [[nodiscard]] World::HandBody* reachOf(b3BodyId body, int player);
+// The players' hand bodies' (the fists' spheres, the reach bodies) touching contacts now (vr_physics_frametime's count).
+[[nodiscard]] int reachTouchCount();
 [[nodiscard]] bool reachSkips(const World::HandBody& hb, int player, int num);
 // Whether hand `hand` (QC's: 0 the off hand, 1 the main) of client `player` holds `num`'s ragdoll in a tug (ragdolltug).
 [[nodiscard]] bool tugHolds(int player, int hand, int num);

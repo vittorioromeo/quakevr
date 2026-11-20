@@ -114,16 +114,24 @@ void frametime_f()
         return;
     }
     const za::Vector<World::FrameSample>& samples = world->frameSamples;
-    double awake = 0.0;
+    double awake = 0.0, contacts = 0.0, islands = 0.0, reach = 0.0;
     for(const World::FrameSample& x : samples)
     {
         awake += x.awake;
+        contacts += x.contacts;
+        islands += x.islands;
+        reach += x.reachTouches;
     }
+    const double per = samples.empty() ? 0.0 : 1.0 / static_cast<double>(samples.size());
     const b3Counters c = b3World_GetCounters(world->id);
     Con_Printf("vr_physics_frametime %s: %d frames, %d host frames in %.3f s (%.4f ms a host frame), %.1f awake, %d bodies, "
                "%d contacts\n",
         label, static_cast<int>(samples.size()), hostFrames, wall, hostFrames > 0 ? wall * 1000.0 / hostFrames : 0.0,
-        samples.empty() ? 0.0 : awake / static_cast<double>(samples.size()), c.bodyCount, c.contactCount);
+        awake * per, c.bodyCount, c.contactCount);
+    // (counts, not times: the same on any machine under any load)
+    Con_Printf("vr_physics_frametime %s counts: a frame %.1f awake bodies, %.1f contacts stepped, %.1f islands, %.2f hand "
+               "contacts\n",
+        label, awake * per, contacts * per, islands * per, reach * per);
     za::Vector<float> ms;
     ms.reserve(samples.size());
     for(int p = 0; p < framePhases; p++)
