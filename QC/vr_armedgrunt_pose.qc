@@ -2106,8 +2106,10 @@ float(entity g, float still) VR_AGP_Lod =
     if(skip)
     {
         // (an alert one, as before: its readiness eases up in its pose; a chainsaw's engine sounds from it)
-        float every = (g.enemy || g.vr_ag_prop.weapon == WID_CHAINSAW) ? 2 : max(2, cvar_hget(cvarh_vr_agrunt_pose_lod_frames));
-        skip = g.vr_agp_lod_skip < every - 1;
+        // (vr_agrunt_pose_lod_frames 0 or 1: every frame, no LOD at all)
+        float lodFrames = floor(cvar_hget(cvarh_vr_agrunt_pose_lod_frames));
+        float every = (g.enemy || g.vr_ag_prop.weapon == WID_CHAINSAW) ? min(2, lodFrames) : lodFrames;
+        skip = (every >= 2 && g.vr_agp_lod_skip < every - 1);
     }
     if(skip)
     {

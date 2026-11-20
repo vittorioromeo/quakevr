@@ -147,17 +147,21 @@ void(float t) VR_AGLOD_Frame =
     cvar_set("vr_agrunt_test", "0");
 };
 
-// vr_agrunt_test 228, on vrarena: a far, unseen armed grunt (a shotgun, 400 units behind him; vr_agrunt_pose_lod_near
-// 128 for the test) wakes and fights as before. Two trials: brought into his view 400 units ahead (it sees him), and
-// shot where it stands behind him (1 damage). Each: 64 frames unseen first (posed once in vr_agrunt_pose_lod_frames),
-// then posed the very frame it is seen or hit, and every frame after (its pose's eases where they would be: as posed
-// each frame), alert to him (its enemy) and attacking within 4 s. `agtest: aglod wake <trial> trace <hash>`: its
-// place, frame, weapon's place and his health each frame for 3 s from the wake; aglod_test.sh runs it with
-// vr_agrunt_pose_lod_frames 8, 2 (as before 1.1.1) and vr_agrunt_pose_lod 0, and the traces must agree.
+// vr_agrunt_test 228, on vrarena: a far, unseen armed grunt (400 units behind him; vr_agrunt_pose_lod_near 128 for the
+// test) wakes and fights as before. Four trials: a shotgun's brought into his view 400 units ahead (it sees him), and
+// shot where it stands behind him (1 damage); an unarmed one's (its fists: the poser's LOD) woken by his shot's sound
+// (VR_Stealth_Noise) and shot. Each: 64 frames unseen first (posed once in vr_agrunt_pose_lod_frames), then posed the
+// very frame it is seen or hit, and every frame after (its pose's eases where they would be: as posed each frame),
+// alert to him (its enemy; the sound: alert at least) and attacking within 4 s. `agtest: aglod wake <trial> trace
+// <hash>`: its place, frame, turn, stealth state, weapon's place and his health each frame for 3 s from the wake;
+// `aglod react <trial> enemy <frame> pose <frames after>`: the frame it took him for its enemy and how many after that
+// it was posed. aglod_test.sh runs it with vr_agrunt_pose_lod_frames 8, 2 (as before 1.1.1) and vr_agrunt_pose_lod 0,
+// and the traces and reactions must agree.
 //   sv_random_seed 7;skill 1;map vrarena;wait30;god;vr_agrunt_test 228     -QuitOn "test 228 over"
 float AGLOD_WAKE_DIST = 400;
+float AGLOD_TRIALS = 4;
 float aglod_trial, aglod_t0, aglod_poses, aglod_lastpose, aglod_wake, aglod_attacked, aglod_every, aglod_keepnear;
-float aglod_hash;
+float aglod_hash, aglod_react_e, aglod_react_p, aglod_react_t;
 vector aglod_fw;
 
 void() VR_AGLOD_WakeFrame =
@@ -166,7 +170,7 @@ void() VR_AGLOD_WakeFrame =
     entity g = vr_agt_grunt;
     if(aglod_step == 0)
     {
-        if(aglod_trial >= 2)
+        if(aglod_trial >= AGLOD_TRIALS)
         {
             VR_AGPT_Clear();
             cvar_set("vr_agrunt_pose_lod_near", ftos(aglod_keepnear));
@@ -192,10 +196,10 @@ void() VR_AGLOD_WakeFrame =
         if(room < AGLOD_WAKE_DIST + 30 || trace_fraction < 1)
         {
             VR_AGT_Check(sprintf("room %g units ahead and behind him (a map with room: vrarena)", AGLOD_WAKE_DIST), FALSE);
-            aglod_trial = 2;
+            aglod_trial = AGLOD_TRIALS;
             return;
         }
-        vr_agt_grunt = g = VR_AGT_Spawn(WID_SHOTGUN, 64);
+        vr_agt_grunt = g = VR_AGT_Spawn(aglod_trial < 2 ? WID_SHOTGUN : -1, 64); // (2, 3: its fists)
         setorigin(g, p.origin - aglod_fw * AGLOD_WAKE_DIST);
         g.angles_y = vectoyaw(aglod_fw); // (its back to him: it faces the way he does)
         aglod_t0 = time;
@@ -206,7 +210,7 @@ void() VR_AGLOD_WakeFrame =
     }
     if(aglod_step == 1)
     {
-        if(!g.takedamage || !g.vr_ag_prop || time < aglod_t0 + 0.6)
+        if(!g.takedamage || !(aglod_trial < 2 ? g.vr_ag_prop : g.vr_ag_poser) || time < aglod_t0 + 0.6)
         {
             return; // (its spawn done)
         }
@@ -228,8 +232,8 @@ void() VR_AGLOD_WakeFrame =
         {
             return;
         }
-        aglod_every = max(2, cvar_hget(cvarh_vr_agrunt_pose_lod_frames));
-        float want = cvar_hget(cvarh_vr_agrunt_pose_lod) ? floor(64 / aglod_every) : 64;
+        aglod_every = floor(cvar_hget(cvarh_vr_agrunt_pose_lod_frames)); // (0 or 1: every frame, no LOD)
+        float want = (cvar_hget(cvarh_vr_agrunt_pose_lod) && aglod_every >= 2) ? floor(64 / aglod_every) : 64;
         VR_AGT_Check(sprintf("trial %g: unseen, posed %g times in 64 frames (%g)", aglod_trial, aglod_poses, want),
             fabs(aglod_poses - want) <= 1 && g.enemy == world);
         // The wake.
@@ -238,6 +242,11 @@ void() VR_AGLOD_WakeFrame =
             setorigin(g, p.origin + aglod_fw * AGLOD_WAKE_DIST);
             g.angles_y = vectoyaw(p.origin - g.origin);
             p.flags = p.flags - (p.flags & FL_NOTARGET);
+        }
+        else if(aglod_trial == 2)
+        {
+            p.flags = p.flags - (p.flags & FL_NOTARGET);
+            VR_Stealth_Noise(p.origin, 1000, p, STL_N_GUN); // (his shot's sound, heard behind him)
         }
         else
         {
@@ -248,14 +257,31 @@ void() VR_AGLOD_WakeFrame =
         aglod_attacked = 0;
         aglod_hash = 0;
         aglod_poses = 0;
+        aglod_react_e = -1;
+        aglod_react_p = -1;
         aglod_step = 3;
         return;
+    }
+    // Its reaction: the first frame its enemy is seen here (taken in the frame before: this runs before its thinks), and
+    // the first after that it had been posed since.
+    float kf = floor((time - aglod_wake) * 72 + 0.5);
+    if(aglod_react_e < 0 && g.enemy)
+    {
+        aglod_react_e = kf;
+        aglod_react_t = time - frametime;
+    }
+    if(aglod_react_e >= 0 && aglod_react_p < 0 && g.vr_agp_lod_pose >= aglod_react_t - 0.0001)
+    {
+        aglod_react_p = kf - aglod_react_e;
     }
     // Woken: posed the frame it was seen or hit (its think ran then), and every frame after while it is in view or alert.
     if(aglod_step == 3)
     {
-        VR_AGT_Check(sprintf("trial %g: posed the frame it was %s", aglod_trial, aglod_trial == 0 ? "seen" : "hit"),
-            g.vr_agp_lod_pose == aglod_wake);
+        if(aglod_trial != 2) // (the sound: heard in a later frame, its reaction's line)
+        {
+            VR_AGT_Check(sprintf("trial %g: posed the frame it was %s", aglod_trial, aglod_trial == 0 ? "seen" : "hit"),
+                g.vr_agp_lod_pose == aglod_wake);
+        }
         aglod_step = 4;
     }
     if(g.vr_agp_lod_pose >= time - frametime - 0.0001)
@@ -270,23 +296,146 @@ void() VR_AGLOD_WakeFrame =
     if(s <= 3)
     {
         float k = floor(s * 72 + 0.5);
-        aglod_hash = aglod_hash + (g.origin * '1 3 7' + g.frame * 11 + g.vr_ag_prop.origin * '5 13 17' + p.health * 19) *
-            (1 + (k & 7));
+        aglod_hash = aglod_hash + (g.origin * '1 3 7' + g.frame * 11 + g.vr_ag_prop.origin * '5 13 17' + p.health * 19 +
+            g.angles_y * 23 + g.stl_state * 29) * (1 + (k & 7));
     }
     if(s < 4)
     {
         return;
     }
-    VR_AGT_Check(sprintf("trial %g: alert to him (enemy %s, shots %g, act %g)", aglod_trial, g.enemy.classname, g.vr_ag_shots, g.vr_ag_act), g.enemy == p);
+    VR_AGT_Check(sprintf("trial %g: alert to him (enemy %s, stealth state %g, shots %g, act %g)", aglod_trial, g.enemy.classname,
+        g.stl_state, g.vr_ag_shots, g.vr_ag_act), g.enemy == p || (aglod_trial == 2 && g.stl_state == STL_ALERT));
+    VR_AGT_Print(sprintf("aglod react %g enemy %g pose %g", aglod_trial, aglod_react_e, aglod_react_p));
     if(aglod_trial == 1)
     {
         VR_AGT_Check("trial 1: attacking within 4 s", aglod_attacked); // (seen 400 units ahead it closes in first: its trace, the same in every run, says it fights as before)
     }
     VR_AGT_Check(sprintf("trial %g: posed every frame since (%g of %g)", aglod_trial, aglod_poses, floor(4 * 72 + 0.5)),
-        aglod_trial == 1 || aglod_poses >= floor(4 * 72 + 0.5) - 1); // (shot: behind him, alert, posed as before: every other frame till it aims)
+        aglod_trial != 0 || aglod_poses >= floor(4 * 72 + 0.5) - 1); // (shot or heard: behind him, alert, posed as before: every other frame till it aims)
     VR_AGT_Print(sprintf("aglod wake %g trace %.3f", aglod_trial, aglod_hash));
     aglod_trial = aglod_trial + 1;
     aglod_step = 0;
+};
+
+// vr_agrunt_test 229, on vrarena: a worn pack's LOD (vr_worn_backpack_lod_near, the run sets 128) as its wearer walks
+// into his view. A grunt with a shotgun (it wears a pack) 400 units off to his side, out of his view, brought round him
+// at a walk (3.5 units a frame) into his view: its pack never placed while it was unseen, and placed from the first
+// frame it is seen (on its body as his client draws it, the steps eased: within 64 units of its origin).
+// The pack's own place is unseenfar's second entity (e2): one whose wearer leaves his PVS while the pack is still in it
+// is placed (vr_wornpack.qc).
+//   sv_random_seed 7;skill 1;map vrarena;wait30;god;vr_worn_backpack_lod_near 128;vr_agrunt_test 229     -QuitOn "test 229 over"
+float AGLOD_PK_DIST = 400;
+float aglod_pk_ang, aglod_pk_unseen, aglod_pk_moved;
+vector aglod_pk_last;
+
+void() VR_AGLOD_PackEnd =
+{
+    vr_agt_player.flags = vr_agt_player.flags - (vr_agt_player.flags & FL_NOTARGET);
+    VR_AGPT_Clear();
+    aglod_step = 0;
+    cvar_set("vr_agrunt_test", "0");
+};
+
+// Its place `ang` degrees round from where he looks (to his right), AGLOD_PK_DIST off, at its own height.
+vector(float ang) VR_AGLOD_PackAt =
+{
+    makevectors('0 1 0' * (vectoyaw(aglod_fw) - ang));
+    vector at = vr_agt_player.origin + v_forward * AGLOD_PK_DIST;
+    at_z = vr_agt_grunt.origin_z;
+    return at;
+};
+
+void() VR_AGLOD_PackFrame =
+{
+    entity p = vr_agt_player;
+    entity g = vr_agt_grunt;
+    entity pk = g.vr_wp_pack;
+    if(aglod_step == 0)
+    {
+        VR_AGPT_Clear();
+        if(cvar_hget(cvarh_vr_worn_backpack_lod_near) > AGLOD_PK_DIST - 50)
+        {
+            VR_AGT_Check("run with vr_worn_backpack_lod_near 128 (aglod_test.sh)", FALSE);
+            VR_AGLOD_PackEnd();
+            return;
+        }
+        p.flags = p.flags | FL_NOTARGET; // (it stands still)
+        makevectors(p.v_angle);
+        aglod_fw = v_forward;
+        aglod_fw_z = 0;
+        aglod_fw = normalize(aglod_fw);
+        vr_agt_grunt = g = VR_AGT_Spawn(WID_SHOTGUN, 64);
+        aglod_t0 = time;
+        aglod_step = 1;
+        return;
+    }
+    if(aglod_step == 1)
+    {
+        if(time > aglod_t0 + 5)
+        {
+            VR_AGT_Check("a shotgun grunt wearing a pack (timed out)", FALSE);
+            VR_AGLOD_PackEnd();
+            return;
+        }
+        if(!g.takedamage || !pk || pk.vr_wp_state != VR_WP_WORN || pk.model == "" || time < aglod_t0 + 0.6)
+        {
+            return; // (its spawn done, its pack on)
+        }
+        aglod_pk_ang = 110;
+        vector at = VR_AGLOD_PackAt(aglod_pk_ang);
+        traceline(p.origin, at, TRUE, p);
+        if(trace_fraction < 1)
+        {
+            VR_AGT_Check(sprintf("room %g units to his right (a map with room: vrarena)", AGLOD_PK_DIST), FALSE);
+            VR_AGLOD_PackEnd();
+            return;
+        }
+        setorigin(g, at);
+        g.angles_y = vectoyaw(p.origin - g.origin);
+        aglod_frames = 0;
+        aglod_pk_moved = 0;
+        aglod_pk_unseen = 0;
+        aglod_step = 2;
+        return;
+    }
+    if(aglod_step == 2)
+    {
+        // Round him at a walk until it is seen (its pack placed after this frame).
+        aglod_frames = aglod_frames + 1;
+        if(aglod_frames > 200)
+        {
+            VR_AGT_Check("brought into his view (timed out)", FALSE);
+            VR_AGLOD_PackEnd();
+            return;
+        }
+        // (its pack's think saw it where it was put last frame: moved since only if it was seen there)
+        if(aglod_frames > 1 && aglod_pk_unseen && vlen(pk.origin - aglod_pk_last) > 0.01)
+        {
+            aglod_pk_moved = aglod_pk_moved + 1;
+        }
+        aglod_pk_last = pk.origin;
+        aglod_pk_ang = aglod_pk_ang - 0.5; // (3.5 units at 400)
+        setorigin(g, VR_AGLOD_PackAt(aglod_pk_ang));
+        aglod_pk_unseen = unseenfar(g, 128);
+        if(aglod_pk_unseen)
+        {
+            return;
+        }
+        VR_AGT_Check(sprintf("out of his view: its pack not placed (moved %g of %g frames, %.1f deg when seen)",
+            aglod_pk_moved, aglod_frames - 1, aglod_pk_ang), aglod_pk_moved == 0 && aglod_frames > 10);
+        aglod_step = 3;
+        return;
+    }
+    if(aglod_step == 3)
+    {
+        aglod_step = 4; // (its pack's think after this frame's: placed by the next)
+        return;
+    }
+    // (on its body as his client draws it: a monster's steps are drawn eased, up to a tenth of a second's walk behind)
+    VR_AGT_Check(sprintf("seen: its pack placed from the first frame (moved %g units, %g off its origin)",
+        vlen(pk.origin - aglod_pk_last), vlen(pk.origin - g.origin)), vlen(pk.origin - aglod_pk_last) > 1 &&
+        vlen(pk.origin - g.origin) < 64);
+    VR_AGLOD_PackEnd();
 };
 
 #endif

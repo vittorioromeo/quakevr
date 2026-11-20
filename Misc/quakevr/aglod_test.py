@@ -20,6 +20,8 @@ overs = re.findall(r"test 228 over: (\d+) passed, (\d+) failed", text)
 check(len(overs) == 3, "three runs ended (%d)" % len(overs))
 for i, (p, f) in enumerate(overs):
     check(int(f) == 0 and int(p) > 0, "run %d: %s passed, %s failed" % (i + 1, p, f))
+pk = re.findall(r"test 229 over: (\d+) passed, (\d+) failed", text)
+check(len(pk) == 1 and int(pk[0][1]) == 0 and int(pk[0][0]) > 0, "229 (a worn pack walked into view): %s" % pk)
 traces = re.findall(r"aglod wake (\d) trace (-?[0-9.]+)", text)
 by = {}
 for trial, h in traces:
@@ -30,4 +32,17 @@ hs = by.get("0", [])
 check(len(hs) == 3 and len(set(hs)) == 1, "trial 0 (seen): the same trace in all three runs: %s" % " ".join(hs))
 hs = by.get("1", [])
 check(len(hs) == 3 and hs[0] == hs[1], "trial 1 (shot): the same trace with 8 frames and 2 (as before): %s" % " ".join(hs))
+# The unarmed one (its fists: no weapon's place in the trace, the poser's LOD only): the same in all three runs.
+for t, what in (("2", "unarmed, heard"), ("3", "unarmed, shot")):
+    hs = by.get(t, [])
+    check(len(hs) == 3 and len(set(hs)) == 1, "trial %s (%s): the same trace in all three runs: %s" % (t, what, " ".join(hs)))
+# Its reaction (the frame it took him for its enemy, the frames till it was posed after): the same in all three runs.
+reacts = re.findall(r"aglod react (\d) (enemy -?\d+ pose -?\d+)", text)
+rb = {}
+for trial, r in reacts:
+    rb.setdefault(trial, []).append(r)
+for t in ("0", "1", "2", "3"):
+    rs = rb.get(t, [])
+    check(len(rs) == 3 and len(set(rs)) == 1 and "pose -1" not in rs[0],
+          "trial %s: the same reaction in all three runs: %s" % (t, " | ".join(rs)))
 print("aglod_test: %d passed, %d failed" % (passed, failed))
