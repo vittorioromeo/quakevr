@@ -142,6 +142,7 @@ string(string s, float start, float length) substring = #116; // FRIK_FILE
 float(string s, float index) str2chr = #222;                  // FTE_STRINGS
 float(float y, float x) atan2 = #474;   // DP_QC_ASINACOSATANATAN2TAN, radians
 string(string fmt, ...) sprintf = #627; // DP_QC_SPRINTF
+string(string s, ...) strzone = #118;   // FRIK_FILE: a string kept past this frame (saved with the game)
 
 // ----------------------------------------------------------------------------
 // Quake VR builtins (#0: bound by name by the engine's VR module)

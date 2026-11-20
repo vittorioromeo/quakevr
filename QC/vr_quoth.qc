@@ -3,11 +3,15 @@
 // the rest, as thin aliases onto AD's entities and ours. ad_<classname> spawns only under AD's rules (Quoth's ruleset,
 // vr_rules.cpp); the spawners are Quake VR's (the AD row's keptOurs: AD's own versions remove themselves).
 
-// Quoth's map keys (inferred from its maps): a second name an entity is also used by; the rubble model.
+// Quoth's map keys (inferred from its maps): a second and a third name an entity is also used by (targetname3: only
+// kellbase1's count3; no map has a targetname4); the rubble model.
 .string targetname2;
+.string targetname3;
+.string ad_target3, ad_target4, ad_killtarget2; // keys target3, target4, killtarget2 (AD fires target, target2)
 .string modelpath;
 
-// --- targetname2: an alias entity named targetname2 hands its use to its owner (doors, counters, relays, monsters) --
+// --- targetname2, targetname3: an alias entity of that name hands its use to its owner (doors, counters, relays,
+// monsters) -------------------------------------------------------------------------------------------------------
 
 float vr_quoth_aliased; // (this map's aliases made: once, after every entity spawned; saved with the game)
 
@@ -22,24 +26,68 @@ void() VR_Quoth_AliasUse =
     self = oself;
 };
 
-// StartFrame: once a map, every entity with a targetname2 gets its alias (an entity never used by that name would be a
-// door that never opens, a counter that never counts).
+void(entity e, string name) VR_Quoth_Alias =
+{
+    local entity a;
+    if (name == "")
+        return;
+    a = spawn();
+    a.classname = "vr_quoth_alias";
+    a.targetname = name;
+    a.owner = e;
+    a.use = VR_Quoth_AliasUse;
+};
+
+// --- target3, target4, killtarget2: AD's SUB_UseTargets fires target and target2 only, so an entity with more fires
+// a relay of its own (by target2, a name made for it) that fires its old target2 and target3, then a second one that
+// fires target4; the first also kills killtarget2. Its delay and activator carry over (kellbase1's three buttons:
+// count1, count2, count3, their indicator) ----------------------------------------------------------------------
+
+float vr_quoth_relays; // (relays made: their names)
+
+void() VR_Quoth_RelayUse = { ad_SUB_UseTargets(); };
+
+string(string first, string second) VR_Quoth_Relay =
+{
+    local entity r;
+    vr_quoth_relays = vr_quoth_relays + 1;
+    r = spawn();
+    r.classname = "vr_quoth_relay";
+    r.targetname = strzone(sprintf("vr_quoth_relay%g", vr_quoth_relays));
+    r.target = first;
+    r.ad_target2 = second;
+    r.use = VR_Quoth_RelayUse;
+    return r.targetname;
+};
+
+void(entity e) VR_Quoth_MoreTargets =
+{
+    local string last;
+    last = e.ad_target3;
+    if (e.ad_target4 != "")
+        last = VR_Quoth_Relay(e.ad_target3, e.ad_target4);
+    e.ad_target2 = VR_Quoth_Relay(e.ad_target2, last);
+    find(world, targetname, e.ad_target2).killtarget = e.ad_killtarget2;
+    e.ad_target3 = e.ad_target4 = e.ad_killtarget2 = "";
+};
+
+// StartFrame: once a map, every entity with a targetname2 or targetname3 gets an alias for each (an entity never used
+// by that name would be a door that never opens, a counter that never counts); one with a target3, target4 or
+// killtarget2 its relays.
 void() VR_Quoth_Frame =
 {
-    local entity e, a;
+    local entity e;
     if (vr_quoth_aliased)
         return;
     vr_quoth_aliased = 1;
     for (e = nextent(world); e; e = nextent(e))
-    {
-        if (e.targetname2 == "" || e.classname == "vr_quoth_alias")
-            continue;
-        a = spawn();
-        a.classname = "vr_quoth_alias";
-        a.targetname = e.targetname2;
-        a.owner = e;
-        a.use = VR_Quoth_AliasUse;
-    }
+        if (e.classname != "vr_quoth_alias" && e.classname != "vr_quoth_relay")
+        {
+            VR_Quoth_Alias(e, e.targetname2);
+            VR_Quoth_Alias(e, e.targetname3);
+            if (e.ad_target3 != "" || e.ad_target4 != "" || e.ad_killtarget2 != "")
+                VR_Quoth_MoreTargets(e);
+        }
 };
 
 // --- point triggers: AD's trigger, its volume from size (else mangle; else the point itself: Copper's quoth2-style
@@ -54,8 +102,11 @@ void(void() spawnfn) VR_Quoth_PointTrigger =
         sz = self.mangle;
         self.mangle = '0 0 0'; // (not its angle)
     }
-    self.model = "";
+    // (a model it has not: AD's trigger without one is a marker that does nothing, never touched nor used; AD's empty
+    // one-point model, precached by its worldspawn, then hidden by its InitTrigger)
+    self.model = ad_MODEL_EMPTY;
     spawnfn();
+    self.mdl = "";
     setsize(self, sz * -0.5, sz * 0.5);
     self.ad_bbmins = self.mins; // (AD's entity state restores these)
     self.ad_bbmaxs = self.maxs;
