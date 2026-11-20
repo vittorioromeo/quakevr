@@ -197,8 +197,10 @@ static void QueueClear (dgrmqueue_t *q)
 #define ROOM_DEFAULT_PORT	26100
 #define ROOM_REGISTER_EVERY	20.0	// s (the service forgets a room 120 s after its last registration)
 #define ROOM_RETRY_EVERY	2.0	// s, until the first reply
-#define ROOM_PUNCH_FOR		8.0	// s a host punches towards a joiner
-#define ROOM_PUNCH_EVERY	0.1	// s
+#define ROOM_PUNCH_FOR		1.0	// s a host punches towards a joiner (mpfix A4: 8 s at 0.1 s before -- 80 punches for one forged JOIN
+					// with a victim's source; his router is open to the joiner after the first, and his connect
+					// requests, which go on 8 s, are answered directly)
+#define ROOM_PUNCH_EVERY	0.2	// s (5 punches)
 #define ROOM_JOIN_WAIT		3.0	// s a joiner waits for the service's answer
 #define ROOM_CONNECT_TRIES	32	// a room's connect requests (punches), ROOM_CONNECT_EVERY apart
 #define ROOM_CONNECT_EVERY	0.25	// s
@@ -495,6 +497,7 @@ static void RoomHostTick (sys_socket_t acceptsock)
 
 // The listening socket's datagrams read: each client's queued for him, the room service's taken, the rest queued for
 // _Datagram_CheckNewConnections
+#define DGRM_SHARED_READS	1024
 static void ReadShared (int landriver, sys_socket_t acceptsock)
 {
 	struct qsockaddr	from;
@@ -503,9 +506,13 @@ static void ReadShared (int landriver, sys_socket_t acceptsock)
 	qsocket_t	*s;
 	net_landriver_t	*driver = &net_landrivers[landriver];
 
+	int		reads = 0;
+
 	net_landriverlevel = landriver; // (dfunc: RoomHostRead's)
 
-	while ((length = driver->Read (acceptsock, sharedBuffer, sizeof (sharedBuffer), &from)) > 0)
+	// (mpfix A5) DGRM_SHARED_READS a call at most: a flood as fast as it is read kept the server frame in this loop (the
+	// rest waits in the system's buffer for the next call, the next frame's at the latest)
+	while (reads++ < DGRM_SHARED_READS && (length = driver->Read (acceptsock, sharedBuffer, sizeof (sharedBuffer), &from)) > 0)
 	{
 		if (RoomHostRead (sharedBuffer, length, &from))
 			continue;
@@ -824,10 +831,11 @@ static unsigned int ReliableChunks (const qsocket_t *sock)
 	return ((unsigned int) sock->sendMessageLength + DGRM_RELIABLE_CHUNK - 1) / DGRM_RELIABLE_CHUNK;
 }
 
-// the chunks in flight at most: a Quake VR peer's window, else NetQuake's one (selective acks, above)
+// the chunks in flight at most: a Quake VR peer's window, else NetQuake's one (selective acks, above); (mpfix A1) one
+// until the peer has acked a chunk (a server's new client: no more sent to an address not shown to take replies)
 static unsigned int ReliableWindow (const qsocket_t *sock)
 {
-	return sock->qvrNetVersion ? DGRM_RELIABLE_WINDOW : 1;
+	return sock->qvrNetVersion && sock->qvrHeard ? DGRM_RELIABLE_WINDOW : 1;
 }
 
 // the chunk with this sequence (sendChunkBase is the first's)
@@ -1159,6 +1167,7 @@ int	Datagram_GetMessage (qsocket_t *sock)
 				continue;
 			}
 			sock->chunkAcked[slot] = true;
+			sock->qvrHeard = true; // QVR: (mpfix A1) (a chunk's random sequence acked: the address takes replies)
 			if (!sock->chunkResent[slot]) // QVR: (B12b) its round trip (Karn's: a first send's)
 			{
 				double rtt = net_time - sock->chunkSentTime[slot];
@@ -1687,13 +1696,11 @@ static void ClientKeyMade (void)
 {
 	char		key[24];
 	unsigned	a, b;
-	double		t;
 
 	if (Cvar_VariableString ("vr_mp_clientkey")[0])
 		return;
-	t = Sys_DoubleTime ();
-	a = (unsigned) (t * 1000003.0) ^ ((unsigned) (uintptr_t) &key << 7) ^ (unsigned) (long long) (t * 1e9);
-	b = (unsigned) rand () * 2654435761u ^ (unsigned) (uintptr_t) &t ^ (unsigned) (t * 1e6);
+	a = DgrmRandom (); // (mpfix A12: the system's random source; the clock, rand() and stack addresses before)
+	b = DgrmRandom ();
 	q_snprintf (key, sizeof (key), "%08x%08x", a, b);
 	Cvar_Set ("vr_mp_clientkey", key);
 }
@@ -1719,6 +1726,75 @@ static void SendAccept (sys_socket_t acceptsock, const struct qsockaddr *to, con
 	SZ_Clear(&net_message);
 }
 
+// QVR: (mpfix A1) NetQuake gave a slot (and queued the serverinfo, resent for 300 s) to any CCREQ_CONNECT: 16 forged
+// ones filled a server, and one with a spoofed source made it send a victim the serverinfo window again and again. A
+// request now gets a slot only with a cookie this server made for its address and port (CCREP_CHALLENGE: smaller than
+// the request it answers), a keyed hash (SipHash-2-4, a key drawn once a run) of the address and the time in
+// QVR_COOKIE_PERIOD steps (this step's or the last's taken). Stateless: a forged request costs one small reply.
+#define QVR_COOKIE_PERIOD	10.0
+#define SIP_ROTL(x, b)	(((x) << (b)) | ((x) >> (64 - (b))))
+#define SIP_ROUND	do { v0 += v1; v1 = SIP_ROTL (v1, 13); v1 ^= v0; v0 = SIP_ROTL (v0, 32); v2 += v3; v3 = SIP_ROTL (v3, 16); \
+	v3 ^= v2; v0 += v3; v3 = SIP_ROTL (v3, 21); v3 ^= v0; v2 += v1; v1 = SIP_ROTL (v1, 17); v1 ^= v2; \
+	v2 = SIP_ROTL (v2, 32); } while (0)
+static unsigned long long	cookieKey[2];
+static qboolean	cookieKeyMade;
+
+static unsigned long long SipHash24 (const unsigned long long k[2], const byte *in, size_t len)
+{
+	unsigned long long	v0 = 0x736f6d6570736575ull ^ k[0], v1 = 0x646f72616e646f6dull ^ k[1];
+	unsigned long long	v2 = 0x6c7967656e657261ull ^ k[0], v3 = 0x7465646279746573ull ^ k[1];
+	unsigned long long	m, last = (unsigned long long) len << 56;
+	size_t	i, j;
+
+	for (i = 0; i + 8 <= len; i += 8)
+	{
+		for (m = 0, j = 0; j < 8; j++)
+			m |= (unsigned long long) in[i + j] << (8 * j);
+		v3 ^= m; SIP_ROUND; SIP_ROUND; v0 ^= m;
+	}
+	for (j = 0; i + j < len; j++)
+		last |= (unsigned long long) in[i + j] << (8 * j);
+	v3 ^= last; SIP_ROUND; SIP_ROUND; v0 ^= last;
+	v2 ^= 0xff; SIP_ROUND; SIP_ROUND; SIP_ROUND; SIP_ROUND;
+	return v0 ^ v1 ^ v2 ^ v3;
+}
+
+// the cookie for `addr` (its address and port) in time step `step` (never 0)
+static unsigned int ConnectCookie (const struct qsockaddr *addr, int step)
+{
+	char	text[NET_NAMELEN + 16];
+	int		len;
+
+	if (!cookieKeyMade)
+	{
+		cookieKey[0] = ((unsigned long long) DgrmRandom () << 32) | DgrmRandom ();
+		cookieKey[1] = ((unsigned long long) DgrmRandom () << 32) | DgrmRandom ();
+		cookieKeyMade = true;
+	}
+	len = q_snprintf (text, sizeof (text), "%s|%d", dfunc.AddrToString ((struct qsockaddr *) addr), step);
+	len = q_min (len, (int) sizeof (text) - 1);
+	return (unsigned int) SipHash24 (cookieKey, (const byte *) text, (size_t) q_max (len, 0)) | 1u;
+}
+
+// whether `cookie` is one ConnectCookie made for `addr` this step or the last
+static qboolean CookieValid (const struct qsockaddr *addr, unsigned int cookie)
+{
+	const int	step = (int) (net_time / QVR_COOKIE_PERIOD);
+
+	return cookie == ConnectCookie (addr, step) || cookie == ConnectCookie (addr, step - 1);
+}
+
+static void SendChallenge (sys_socket_t acceptsock, const struct qsockaddr *to)
+{
+	SZ_Clear(&net_message);
+	MSG_WriteLong(&net_message, 0);
+	MSG_WriteByte(&net_message, CCREP_CHALLENGE);
+	MSG_WriteLong(&net_message, (int) ConnectCookie (to, (int) (net_time / QVR_COOKIE_PERIOD)));
+	*((int *)net_message.data) = BigLong(NETFLAG_CTL | (net_message.cursize & NETFLAG_LENGTH_MASK));
+	dfunc.Write (acceptsock, net_message.data, net_message.cursize, (struct qsockaddr *) to);
+	SZ_Clear(&net_message);
+}
+
 // QVR: (B23) a datagram of the listening socket's that isn't a client's (in net_message: its length `len`, from `from`)
 static qsocket_t *_Datagram_ControlRequest (sys_socket_t acceptsock, const struct qsockaddr *from, int len)
 {
@@ -1734,6 +1810,7 @@ static qsocket_t *_Datagram_ControlRequest (sys_socket_t acceptsock, const struc
 	char		qvrKey[24] = {0}; // QVR: (B25) his game's vr_mp_clientkey ("": an older client's request)
 	unsigned int	qvrFirstIn = 0; // QVR: (review finding 2) his channels' first sequence ...
 	qboolean	qvrSeeded = false; // QVR: ... when he sent it (network version 39)
+	unsigned int	qvrCookie = 0; // QVR: (mpfix A1) the cookie this server gave his address (0: none sent)
 
 	if (len < (int) sizeof(int))
 		return NULL;
@@ -1883,6 +1960,8 @@ static qsocket_t *_Datagram_ControlRequest (sys_socket_t acceptsock, const struc
 				qvrFirstIn = (unsigned int) MSG_ReadLong();
 				qvrSeeded = true;
 			}
+			if (msg_readcount + 4 <= net_message.cursize) // QVR: (mpfix A1, network version 40)
+				qvrCookie = (unsigned int) MSG_ReadLong();
 		}
 		reason[0] = 0;
 		if (sv.active && (sv.protocolflags & PRFL_QUAKEVR) && qvrVersion != QVR_NET_VERSION)
@@ -1930,6 +2009,13 @@ static qsocket_t *_Datagram_ControlRequest (sys_socket_t acceptsock, const struc
 	}
 #endif
 
+	// QVR: (mpfix A1) no slot, nor a closed ghost, nor an accept again, but for a request with his address's cookie
+	if (!CookieValid (&clientaddr, qvrCookie))
+	{
+		SendChallenge (acceptsock, &clientaddr);
+		return NULL;
+	}
+
 	// see if this guy is already connected
 	for (s = net_activeSockets; s; s = s->next)
 	{
@@ -1950,9 +2036,13 @@ static qsocket_t *_Datagram_ControlRequest (sys_socket_t acceptsock, const struc
 		if (ret == 1 && qvrName[0] && !Q_strcmp (qvrName, s->qvrName) && qvrKey[0] && !Q_strcmp (qvrKey, s->qvrKey) &&
 			net_time - s->lastMessageTime > QVR_GHOST_SILENCE)
 		{
-			Con_Printf ("%s back from %s (his old connection silent %.1f s): the old one closed\n", qvrName,
-				dfunc.AddrToString (&clientaddr), net_time - s->lastMessageTime);
-			NET_Close (s);
+			if (!s->qvrClosing)
+				Con_Printf ("%s back from %s (his old connection silent %.1f s): the old one closed\n", qvrName,
+					dfunc.AddrToString (&clientaddr), net_time - s->lastMessageTime);
+			// QVR: (mpfix A2) marked, not freed: a freed qsocket went to the head of the free list while his old slot
+			// still held it, and the next request in this call's queue was given the same one (two slots on one
+			// qsocket). Its slot drops it at its next read (NET_GetMessage: -1), and a retry then joins.
+			s->qvrClosing = true;
 			return NULL;
 		}
 		if (ret == 0)
@@ -1972,9 +2062,10 @@ static qsocket_t *_Datagram_ControlRequest (sys_socket_t acceptsock, const struc
 			// a retry once silent, and the next retry joins.
 			if (net_time - s->lastMessageTime > QVR_GHOST_SILENCE)
 			{
-				Con_Printf ("%s: a new connection request from a connection silent %.1f s: the old one closed\n",
-					dfunc.AddrToString (&clientaddr), net_time - s->lastMessageTime);
-				NET_Close(s);
+				if (!s->qvrClosing)
+					Con_Printf ("%s: a new connection request from a connection silent %.1f s: the old one closed\n",
+						dfunc.AddrToString (&clientaddr), net_time - s->lastMessageTime);
+				s->qvrClosing = true; // QVR: (mpfix A2) (as above)
 			}
 			return NULL;
 		}
@@ -1999,6 +2090,7 @@ static qsocket_t *_Datagram_ControlRequest (sys_socket_t acceptsock, const struc
 	// NetQuake client switches to it); a Quake VR client of network version 36 or later keeps the address it reached.
 	sock->socket = acceptsock;
 	sock->qvrShared = true;
+	sock->qvrHeard = false; // QVR: (mpfix A1) until he acks a chunk: a window of one, QVR_UNHEARD_TIMEOUT
 	sock->landriver = net_landriverlevel;
 	sock->addr = clientaddr;
 	sock->qvrNetVersion = qvrVersion; // QVR
@@ -2194,6 +2286,11 @@ static void _Datagram_SearchForHosts (qboolean xmit)
 			if (q_strcasecmp (hostcache[n].name, hostcache[i].name) == 0)
 			{
 				i = Q_strlen(hostcache[n].name);
+				if (i == 0) // QVR: (mpfix A9) an empty name: name[i-1] was the byte before the entry
+				{
+					Q_strcpy (hostcache[n].name, "*");
+					i = 1;
+				}
 				if (i < 15 && hostcache[n].name[i-1] > '8')
 				{
 					hostcache[n].name[i] = '0';
@@ -2220,6 +2317,29 @@ void Datagram_SearchForHosts (qboolean xmit)
 }
 
 
+// QVR: a connect request (CCREQ_CONNECT; `cookie`: the server's for this address, mpfix A1, 0 none yet)
+static void SendConnectRequest (sys_socket_t sock, struct qsockaddr *to, unsigned int firstOut, unsigned int cookie)
+{
+	SZ_Clear(&net_message);
+	// save space for the header, filled in later
+	MSG_WriteLong(&net_message, 0);
+	MSG_WriteByte(&net_message, CCREQ_CONNECT);
+	MSG_WriteString(&net_message, "QUAKE");
+	MSG_WriteByte(&net_message, NET_PROTOCOL_VERSION);
+	// QVR: Quake VR's network version (vr/vr_api.h; -mpnetversion N: another, the harness's reject test)
+	MSG_WriteString(&net_message, "QVR");
+	MSG_WriteLong(&net_message, COM_CheckParm("-mpnetversion") && COM_CheckParm("-mpnetversion") + 1 < com_argc
+		? Q_atoi(com_argv[COM_CheckParm("-mpnetversion") + 1]) : QVR_NET_VERSION);
+	MSG_WriteString(&net_message, cl_name.string); // QVR: a loaded coop game gives him his saved slot by it
+	MSG_WriteString(&net_message, Cvar_VariableString ("vr_mp_clientkey")); // QVR: (B25) this game's, for "back from a crash"
+	MSG_WriteLong(&net_message, (int) firstOut); // QVR: (review finding 2) its channels' first sequence (39)
+	if (cookie) // QVR: (mpfix A1) the server's cookie for this address (40)
+		MSG_WriteLong(&net_message, (int) cookie);
+	*((int *)net_message.data) = BigLong(NETFLAG_CTL | (net_message.cursize & NETFLAG_LENGTH_MASK));
+	dfunc.Write (sock, net_message.data, net_message.cursize, to);
+	SZ_Clear(&net_message);
+}
+
 static qsocket_t *_Datagram_Connect (const char *host)
 {
 	struct qsockaddr sendaddr;
@@ -2235,6 +2355,8 @@ static qsocket_t *_Datagram_Connect (const char *host)
 	const unsigned int	firstOut = DgrmRandom (); // QVR: (review finding 2) this client's channels' first sequence
 	const int		tries = byRoom ? ROOM_CONNECT_TRIES : 3;
 	const double	tryFor = byRoom ? ROOM_CONNECT_EVERY : 2.5;
+	unsigned int	cookie = 0; // QVR: (mpfix A1) the server's for this address (CCREP_CHALLENGE; 0: none yet)
+	int			challenges = 0; // QVR: ... how many came
 
 	// see if we can resolve the host name
 	if (!byRoom && dfunc.GetAddrFromName(host, &sendaddr) == -1)
@@ -2270,22 +2392,7 @@ static qsocket_t *_Datagram_Connect (const char *host)
 
 	for (reps = 0; reps < tries; reps++)
 	{
-		SZ_Clear(&net_message);
-		// save space for the header, filled in later
-		MSG_WriteLong(&net_message, 0);
-		MSG_WriteByte(&net_message, CCREQ_CONNECT);
-		MSG_WriteString(&net_message, "QUAKE");
-		MSG_WriteByte(&net_message, NET_PROTOCOL_VERSION);
-		// QVR: Quake VR's network version (vr/vr_api.h; -mpnetversion N: another, the harness's reject test)
-		MSG_WriteString(&net_message, "QVR");
-		MSG_WriteLong(&net_message, COM_CheckParm("-mpnetversion") && COM_CheckParm("-mpnetversion") + 1 < com_argc
-			? Q_atoi(com_argv[COM_CheckParm("-mpnetversion") + 1]) : QVR_NET_VERSION);
-		MSG_WriteString(&net_message, cl_name.string); // QVR: a loaded coop game gives him his saved slot by it
-		MSG_WriteString(&net_message, Cvar_VariableString ("vr_mp_clientkey")); // QVR: (B25) this game's, for "back from a crash"
-		MSG_WriteLong(&net_message, (int) firstOut); // QVR: (review finding 2) its channels' first sequence (39)
-		*((int *)net_message.data) = BigLong(NETFLAG_CTL | (net_message.cursize & NETFLAG_LENGTH_MASK));
-		dfunc.Write (newsock, net_message.data, net_message.cursize, &sendaddr);
-		SZ_Clear(&net_message);
+		SendConnectRequest (newsock, &sendaddr, firstOut, cookie);
 		do
 		{
 			ret = dfunc.Read (newsock, net_message.data, net_message.maxsize, &readaddr);
@@ -2326,6 +2433,17 @@ static qsocket_t *_Datagram_Connect (const char *host)
 				}
 				if ((control & NETFLAG_LENGTH_MASK) != ret)
 				{
+					ret = 0;
+					continue;
+				}
+				// QVR: (mpfix A1) the server's cookie for this address: the request again with it, the wait going on (a
+				// few at most: a server that keeps asking is answered by "No Response")
+				if (ret >= 9 && net_message.data[4] == CCREP_CHALLENGE && challenges < 8)
+				{
+					MSG_ReadByte();
+					cookie = (unsigned int) MSG_ReadLong();
+					challenges++;
+					SendConnectRequest (newsock, &sendaddr, firstOut, cookie);
 					ret = 0;
 					continue;
 				}

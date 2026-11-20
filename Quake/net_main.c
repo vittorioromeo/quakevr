@@ -182,6 +182,8 @@ qsocket_t *NET_NewQSocket (void)
 	sock->driver = net_driverlevel;
 	sock->socket = 0;
 	sock->qvrShared = false; // QVR: (B23)
+	sock->qvrHeard = true; // QVR: (mpfix A1) (false for a server's new client: net_dgrm.c's connect request)
+	sock->qvrClosing = false; // QVR: (mpfix A2)
 	memset (&sock->qvrIn, 0, sizeof (sock->qvrIn));
 	sock->driverdata = NULL;
 	sock->canSend = true;
@@ -713,6 +715,8 @@ int	NET_GetMessage (qsocket_t *sock)
 		Con_Printf("NET_GetMessage: disconnected socket\n");
 		return -1;
 	}
+	if (sock->qvrClosing) // QVR: (mpfix A2) closed by its driver: its owner drops it (NET_Close frees it)
+		return -1;
 
 	SetNetTime();
 	net_stalemessage = false; // QVR: (B20) set by the driver for an overtaken datagram it still reads
@@ -724,6 +728,14 @@ int	NET_GetMessage (qsocket_t *sock)
 	{
 		if (net_time - sock->lastMessageTime > net_messagetimeout.value)
 		{
+			NET_Close(sock);
+			return -1;
+		}
+		// QVR: (mpfix A1) a server's client that never acked a chunk (a forged or lost connect: a slot held for
+		// net_messagetimeout's 300 s otherwise)
+		if (!sock->qvrHeard && net_time - sock->connecttime > QVR_UNHEARD_TIMEOUT)
+		{
+			Con_Printf ("%s never answered its accept in %.0f s: dropped\n", sock->address, QVR_UNHEARD_TIMEOUT);
 			NET_Close(sock);
 			return -1;
 		}

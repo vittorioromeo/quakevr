@@ -126,6 +126,11 @@ CCREP_RULE_INFO
 #define CCREP_SERVER_INFO	0x83
 #define CCREP_PLAYER_INFO	0x84
 #define CCREP_RULE_INFO		0x85
+#define CCREP_CHALLENGE		0x86 // QVR: (mpfix A1, network version 40) long cookie: send CCREQ_CONNECT again with it
+					// after the rest (the server gives a slot only to a request whose cookie it made for that
+					// address: the address takes replies)
+
+#define QVR_UNHEARD_TIMEOUT	15.0 // QVR: (mpfix A1) seconds a server's new client may go without acking a chunk
 
 #define NET_RELIABLE_WINDOW	16 // QVR: reliable chunks in flight at most (net_dgrm.c)
 #define NET_RELIABLE_CHUNK	1200 // QVR: a reliable chunk's bytes at most (net_dgrm.c)
@@ -187,6 +192,10 @@ typedef struct qsocket_s
 	qboolean	qvrShared;	// QVR: (B23) a server's client on the server's listening socket (net_dgrm.c): its datagrams
 					// are read from there and queued for it (qvrIn), its socket is not its own to close
 	dgrmqueue_t	qvrIn;		// QVR: ... its queued datagrams, oldest first
+	qboolean	qvrHeard;	// QVR: (mpfix A1) the peer has acked a reliable chunk (a server's client: its address takes
+					// replies; until then one chunk in flight, and NET_GetMessage drops it after QVR_UNHEARD_TIMEOUT)
+	qboolean	qvrClosing;	// QVR: (mpfix A2) closed by the driver (that player back from a crash): NET_GetMessage
+					// gives -1 and its owner frees it (never handed out again while a client slot still holds it)
 	unsigned int	unreliableSendSequence;
 	int		sendMessageLength;
 	byte		sendMessage [NET_MAXMESSAGE];

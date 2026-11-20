@@ -6479,7 +6479,8 @@ FUZZ_HOSTILE_UP = [(t[:40], _cmd_up(t)) for t in [
     "setpos 1e30 -1e30 1e30 1e30 1e30 1e30", "ping", "status", "pause", "kill", "prespawn", "spawn", "begin",
     "vr_avatarcal " + "99999 " * 64, "vr_avatarcal -1 -1", "vr_prefs " + "\xff" * 300, "vr_prefs 99999 nan inf",
     "vr_rig " + "1e39 " * 40, "vr_rigframe 9 9 " + "nan " * 30, "vr_rigframe -1 -1 0", "vr_heldpose 99 " + "1e30 " * 40,
-    "vr_heldpose -5 nan", "vr_grabspot -1 99999", "vr_grabspot 99999 -1", "vr_magpoll 255 255 255",
+    "vr_heldpose -5 nan", "vr_heldpose 3 1 1 200 " + "0 " * 62 + "1 200",  # (mpfix C1: slot, leaveSlot past the table)
+    "vr_grabspot -1 99999", "vr_grabspot 99999 -1", "vr_magpoll 255 255 255",
     "vr_lagcomp_shot 1e30 nan 0 0 0 0", "vr_lagcomp_punch -1 99999 0", "vr_scene_count " + "9" * 400]]
 
 
@@ -7370,9 +7371,133 @@ def spoof(s):
             len(far) >= 2 and all(":" not in addr for _, addr in far), "%s" % far)
     s.check("player info to 127.0.0.1 (this machine's `test`): with them", len(near) >= 2 and
             all(":" in addr for _, addr in near), "%s" % near)
+    forged_connects(s, srv, version)
     left = [l.strip() for inst, since in ((a, since_a), (b, since_b)) for l in inst.lines[since:]
             if l.startswith("mp_event:") and l.rstrip().endswith(" left")]
     s.check("nobody left the game", not left, "%s" % left[:2])
+
+
+UNHEARD_TIMEOUT_S = 15.0  # s: a server's new client that never acks a chunk is dropped (QVR_UNHEARD_TIMEOUT)
+
+
+def connect_request(version, name, key, cookie=None):
+    body = (bytes([0x01]) + b"QUAKE\0" + bytes([3]) + b"QVR\0" + (version or 0).to_bytes(4, "little") + name + b"\0" +
+            key + b"\0" + (0x1234).to_bytes(4, "little"))
+    return ctl_packet(body + (cookie.to_bytes(4, "little") if cookie is not None else b""))
+
+
+def clients_until(srv, want, timeout=3.0):
+    """The server's active clients (vr_mp_status) until there are `want` (or `timeout` s) -> the last count."""
+    t0 = time.monotonic()
+    while True:
+        n = sum(1 for l in status(srv) if l.startswith("mp_client: "))
+        if n == want or time.monotonic() - t0 > timeout:
+            return n
+        time.sleep(0.1)
+
+
+def forged_connects(s, srv, version):
+    """(mpfix A1, A2) Connect requests from sockets that never play (a stranger's, or forged with any source):
+    1. 16 requests without the server's cookie, each from its own port: each answered by a CCREP_CHALLENGE no bigger
+       than the request (NetQuake gave each a slot and resent the serverinfo window for 300 s: 16 filled a server, and a
+       spoofed source made it a reflector), no slot given. A wrong cookie: challenged again.
+    2. one that echoes its cookie gets a slot (CCREP_ACCEPT), but never acks: one reliable chunk in flight at most, and
+       dropped after QVR_UNHEARD_TIMEOUT.
+    3. (A2) that player back on another port while his old connection is silent: two requests in one server frame (his
+       game retrying). NetQuake closed the old qsocket at the first and gave the freed one to the second, while his old
+       slot still held it (two slots on one qsocket); now the old one is marked, its slot drops it, a retry joins once."""
+    import socket
+    socks = []
+    try:
+        for _ in range(16):
+            sk = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            sk.bind(("127.0.0.1", 0))
+            sk.setblocking(False)
+            socks.append(sk)
+        req = connect_request(version, b"stranger", b"0123456789abcdef")
+        for sk in socks:
+            sk.sendto(req, ("127.0.0.1", s.port))
+        time.sleep(1.5)
+        got = []
+        for sk in socks:
+            pkts = []
+            while True:
+                try:
+                    pkts.append(sk.recvfrom(4096)[0])
+                except OSError:
+                    break
+            got.append(pkts)
+        challenges = sum(1 for p in got if len(p) == 1 and len(p[0]) == 9 and p[0][4] == 0x86)
+        biggest = max([sum(len(x) for x in p) for p in got] or [0])
+        s.check("16 connect requests without a cookie: each answered by one CCREP_CHALLENGE (9 bytes), no more bytes "
+                "than the %d-byte request" % len(req), challenges == 16 and biggest <= len(req),
+                "%d challenged; the most one socket got %d B" % (challenges, biggest))
+        clients = [l for l in status(srv) if l.startswith("mp_client: ")]
+        s.check("...and no slot given (the server's clients: A and B)", len(clients) == 2, "%d clients" % len(clients))
+
+        sk = socks[0]
+        cookie = int.from_bytes(got[0][0][5:9], "little") if got[0] else 0
+        sk.sendto(connect_request(version, b"stranger", b"0123456789abcdef", cookie ^ 0x10), ("127.0.0.1", s.port))
+        time.sleep(0.5)
+        try:
+            p = sk.recvfrom(4096)[0]
+        except OSError:
+            p = b""
+        s.check("a wrong cookie: challenged again", len(p) == 9 and p[4] == 0x86, "%d B, kind %s" % (
+            len(p), hex(p[4]) if len(p) > 4 else "-"))
+
+        since = srv.mark()
+        sk.sendto(connect_request(version, b"stranger", b"0123456789abcdef", cookie), ("127.0.0.1", s.port))
+        t0 = time.monotonic()
+        accepted = False
+        seqs = set()
+        biggest = 0
+        sk.settimeout(0.5)
+        dropped = None
+        while time.monotonic() - t0 < UNHEARD_TIMEOUT_S + 10 and dropped is None:
+            try:
+                p = sk.recvfrom(4096)[0]
+            except OSError:
+                p = b""
+            if len(p) >= 9 and p[4] == 0x81:
+                accepted = True
+            elif len(p) >= 8 and (int.from_bytes(p[0:4], "big") & 0x00010000):  # (NETFLAG_DATA: a reliable chunk)
+                seqs.add(int.from_bytes(p[4:8], "big"))
+                biggest = max(biggest, len(p))
+            srv.read()
+            dropped = srv.find(r"never answered its accept", since)
+        took = time.monotonic() - t0
+        s.check("its cookie echoed: accepted (a slot)", accepted, "")
+        s.check("never acked: one reliable chunk in flight (the serverinfo's first, resent), no window", len(seqs) == 1,
+                "%d sequences, the biggest datagram %d B" % (len(seqs), biggest))
+        s.check("...and dropped after %.0f s (QVR_UNHEARD_TIMEOUT), not net_messagetimeout's 300" % UNHEARD_TIMEOUT_S,
+                dropped is not None and took < UNHEARD_TIMEOUT_S + 5, "%.1f s" % took)
+
+        # 3. a ghost back on another port (A2)
+        old, new = socks[1], socks[2]
+        key = b"fedcba9876543210"
+        def cookie_of(sk2):
+            sk2.settimeout(1.0)
+            sk2.sendto(connect_request(version, b"ghost", key), ("127.0.0.1", s.port))
+            p = sk2.recvfrom(4096)[0]
+            return int.from_bytes(p[5:9], "little")
+        old.sendto(connect_request(version, b"ghost", key, cookie_of(old)), ("127.0.0.1", s.port))
+        first = clients_until(srv, 3)
+        time.sleep(3.5)  # (real time: his old connection silent past QVR_GHOST_SILENCE, 3 s)
+        c = cookie_of(new)
+        since = srv.mark()
+        for _ in range(2):
+            new.sendto(connect_request(version, b"ghost", key, c), ("127.0.0.1", s.port))
+        srv.wait(r"the old one closed", 10, since, "the ghost's old connection closed")
+        mid = clients_until(srv, 2)
+        new.sendto(connect_request(version, b"ghost", key, c), ("127.0.0.1", s.port))
+        after = clients_until(srv, 3)
+        s.check("(A2) a ghost back on another port, two requests in one frame: his old slot dropped, none shares its "
+                "qsocket (the server's clients %d, then %d, then %d after his retry: 3, 2, 3)" % (first, mid, after),
+                (first, mid, after) == (3, 2, 3), "")
+    finally:
+        for sk in socks:
+            sk.close()
 
 
 BACKOFF_WATCH_S = 16.0   # s B's acks are cut (finding 12: the resends 1 s apart before; now 2 s, then 4 s)
