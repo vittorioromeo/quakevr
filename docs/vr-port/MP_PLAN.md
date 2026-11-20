@@ -3816,7 +3816,9 @@ signon fuzzed), and bots phase 2 if he wants it (reloads, doors and lifts in coo
   the dev build): plain 2 of 3 clean (plain1: mp_fuzz's crash above, mp_rejoin "B back from his crash has what he
   had": items 4097 -> 4129, a rocket launcher picked up as he came back, 1 run), load 2 of 3 clean (load2: mp_fuzz's
   crash). mp_guard 12/0 in all 6 (and 3 of 3 in the first set). Not yet 3 + 3 consecutive: the rope fix is newer than
-  them (its runs: ROUND25 "mpguard").
+  them: with it, mp_fuzz clean 2 of 2. ThinLTO (the first set's build) and dev 0 warnings.
+- **SP** (dev build): scenario_check 136/0, flatparry 43/0, flathands 76/0, flatmelee 12/0, flatplay 31/0.
+- Seen, not this work's: every mp_dm run's A logs a QC assertion in `VR_AmmoUtil_GetAmmoCountByAmmoId` (a bad ammo id).
 
 ### Ready for next?
 
