@@ -90,7 +90,6 @@ void M_Menu_Save_f(void);
 void M_Menu_Maps_f(void);
 void M_Menu_MultiPlayer_f(void);
 void M_Menu_Setup_f(void);
-void M_Menu_Net_f(void);
 void M_Options_Init(m_state_e state);
 void M_Menu_Keys_f(void);
 void M_Menu_Mods_f(void);
@@ -129,7 +128,6 @@ namespace
         case m_main:
         case m_singleplayer:
         case m_multiplayer:
-        case m_net:
         case m_skill:
         case m_help:
         case m_autosaves: // (two lines a row, laid out in its own 20-unit rows)
@@ -3839,7 +3837,6 @@ void qvr::menuui::openMenu(int state)
             break;
         case m_multiplayer: M_Menu_MultiPlayer_f(); break;
         case m_setup: M_Menu_Setup_f(); break;
-        case m_net: M_Menu_Net_f(); break;
         case m_options:
         case m_video:
         case m_graphics:

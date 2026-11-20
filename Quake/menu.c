@@ -109,7 +109,6 @@ void M_Menu_Main_f (void);
 		void M_Menu_Skill_f (void);
 	void M_Menu_MultiPlayer_f (void);
 		void M_Menu_Setup_f (void);
-		void M_Menu_Net_f (void);
 		void M_Menu_LanConfig_f (void);
 		void M_Menu_GameOptions_f (void);
 		void M_Menu_Search_f (void);
@@ -131,7 +130,6 @@ void M_Main_Draw (void);
 		void M_Skill_Draw (void);
 	void M_MultiPlayer_Draw (void);
 		void M_Setup_Draw (void);
-		void M_Net_Draw (void);
 		void M_LanConfig_Draw (void);
 		void M_GameOptions_Draw (void);
 		void M_ServerList_Draw (void);
@@ -152,7 +150,6 @@ void M_Main_Key (int key);
 		void M_Skill_Key (int key);
 	void M_MultiPlayer_Key (int key);
 		void M_Setup_Key (int key);
-		void M_Net_Key (int key);
 		void M_LanConfig_Key (int key);
 		void M_GameOptions_Key (int key);
 		void M_ServerList_Key (int key);
@@ -173,7 +170,6 @@ void M_Main_Mousemove (float cx, float cy);
 		void M_Skill_Mousemove (float cx, float cy);
 	void M_MultiPlayer_Mousemove (float cx, float cy);
 		void M_Setup_Mousemove (float cx, float cy);
-		void M_Net_Mousemove (float cx, float cy);
 		void M_LanConfig_Mousemove (float cx, float cy);
 		void M_GameOptions_Mousemove (float cx, float cy);
 		//void M_Search_Mousemove (float cx, float cy);
@@ -199,8 +195,6 @@ char		m_return_reason [32];
 
 #define StartingGame	(m_multiplayer_cursor == 1)
 #define JoiningGame		(m_multiplayer_cursor == 0)
-#define	IPXConfig		(m_net_cursor == 0)
-#define	TCPIPConfig		(m_net_cursor == 1)
 
 void M_ConfigureNetSubsystem(void);
 void M_SetSkillMenuMap (const char *name);
@@ -3274,13 +3268,7 @@ void M_MultiPlayer_Draw (void)
 
 	M_DrawQuakeCursor (54, 32 + m_multiplayer_cursor * 20);
 
-	// QVR: multiplayer is not ready in Quake VR: said plainly under the rows (right of the banner's column).
-	M_DrawTextBox (64, 100, 30, 3);
-	M_PrintWhite (72 + (240 - 26 * 8) / 2, 108, "Multiplayer is untested in");
-	M_PrintWhite (72 + (240 - 24 * 8) / 2, 116, "Quake VR and is expected");
-	M_PrintWhite (72 + (240 - 21 * 8) / 2, 124, "not to work properly.");
-
-	if (ipxAvailable || tcpipAvailable)
+	if (tcpipAvailable)
 		return;
 	M_PrintWhite ((320/2) - ((27*8)/2), 148, "No Communications Available");
 }
@@ -3316,14 +3304,12 @@ void M_MultiPlayer_Key (int key)
 		m_entersound = true;
 		switch (m_multiplayer_cursor)
 		{
+		// QVR: Join Game and Host Game straight to their page (Quake's IPX / TCP/IP page is gone: IPX is long dead,
+		// and "TCP/IP" was always UDP datagrams, net_wins.c / net_udp.c)
 		case 0:
-			if (ipxAvailable || tcpipAvailable)
-				M_Menu_Net_f ();
-			break;
-
 		case 1:
-			if (ipxAvailable || tcpipAvailable)
-				M_Menu_Net_f ();
+			if (tcpipAvailable)
+				M_Menu_LanConfig_f ();
 			break;
 
 		case 2:
@@ -3537,121 +3523,6 @@ void M_Setup_Mousemove (float cx, float cy)
 	int prev = setup_cursor;
 	M_UpdateCursorWithTable (cy, setup_cursor_table, NUM_SETUP_CMDS, &setup_cursor);
 	if (setup_cursor != prev)
-		M_MouseSound ("misc/menu1.wav");
-}
-
-//=============================================================================
-/* NET MENU */
-
-int	m_net_cursor;
-int m_net_items;
-
-const char *net_helpMessage [] =
-{
-/* .........1.........2.... */
-  " Novell network LANs    ",
-  " or Windows 95 DOS-box. ",
-  "                        ",
-  "(LAN=Local Area Network)",
-
-  " Commonly used to play  ",
-  " over the Internet, but ",
-  " also used on a Local   ",
-  " Area Network.          "
-};
-
-void M_Menu_Net_f (void)
-{
-	IN_DeactivateForMenu();
-	key_dest = key_menu;
-	m_state = m_net;
-	m_entersound = true;
-	m_net_items = 2;
-
-	if (m_net_cursor >= m_net_items)
-		m_net_cursor = 0;
-	m_net_cursor--;
-	M_Net_Key (K_DOWNARROW);
-}
-
-
-void M_Net_Draw (void)
-{
-	int		f;
-	qpic_t	*p;
-
-	M_DrawPlaque (16, 4); // QVR: the Quake VR banner
-	p = Draw_CachePic ("gfx/p_multi.lmp");
-	M_DrawPic ( (320-p->width)/2, 4, p);
-
-	f = 32;
-
-	M_DrawRowsPic (72, f, ipxAvailable ? "gfx/netmen3.lmp" : "gfx/dim_ipx.lmp");
-
-	f += 19;
-	M_DrawRowsPic (72, f, tcpipAvailable ? "gfx/netmen4.lmp" : "gfx/dim_tcp.lmp");
-
-	f = (320-26*8)/2;
-	M_DrawTextBox (f, 96, 24, 4);
-	f += 8;
-	M_Print (f, 104, net_helpMessage[m_net_cursor*4+0]);
-	M_Print (f, 112, net_helpMessage[m_net_cursor*4+1]);
-	M_Print (f, 120, net_helpMessage[m_net_cursor*4+2]);
-	M_Print (f, 128, net_helpMessage[m_net_cursor*4+3]);
-
-	M_DrawQuakeCursor (54, 32 + m_net_cursor * 20);
-}
-
-
-void M_Net_Key (int k)
-{
-again:
-	switch (k)
-	{
-	case K_ESCAPE:
-	case K_BBUTTON:
-	case K_MOUSE4:
-	case K_MOUSE2:
-		M_Menu_MultiPlayer_f ();
-		break;
-
-	case K_DOWNARROW:
-		M_ThrottledSound ("misc/menu1.wav");
-		if (++m_net_cursor >= m_net_items)
-			m_net_cursor = 0;
-		break;
-
-	case K_UPARROW:
-		M_ThrottledSound ("misc/menu1.wav");
-		if (--m_net_cursor < 0)
-			m_net_cursor = m_net_items - 1;
-		break;
-
-	case K_ENTER:
-	case K_KP_ENTER:
-	case K_ABUTTON:
-	case K_MOUSE1:
-		m_entersound = true;
-		M_Menu_LanConfig_f ();
-		break;
-	}
-
-	if (m_net_cursor == 0 && !ipxAvailable)
-		goto again;
-	if (m_net_cursor == 1 && !tcpipAvailable)
-		goto again;
-}
-
-
-void M_Net_Mousemove (float cx, float cy)
-{
-	int prev = m_net_cursor;
-	M_UpdateCursor (cy, 32, 20, m_net_items, &m_net_cursor);
-	if (m_net_cursor == 0 && !ipxAvailable)
-		m_net_cursor = 1;
-	if (m_net_cursor == 1 && !tcpipAvailable)
-		m_net_cursor = 0;
-	if (m_net_cursor != prev)
 		M_MouseSound ("misc/menu1.wav");
 }
 
@@ -6841,7 +6712,7 @@ void M_Menu_LanConfig_f (void)
 	m_entersound = true;
 	if (lanConfig_cursor == -1)
 	{
-		if (JoiningGame && TCPIPConfig)
+		if (JoiningGame)
 			lanConfig_cursor = 2;
 		else
 			lanConfig_cursor = 1;
@@ -6861,7 +6732,6 @@ void M_LanConfig_Draw (void)
 	qpic_t	*p;
 	int		basex;
 	const char	*startJoin;
-	const char	*protocol;
 
 	M_DrawPlaque (16, 4); // QVR: the Quake VR banner
 	p = Draw_CachePic ("gfx/p_multi.lmp");
@@ -6874,18 +6744,11 @@ void M_LanConfig_Draw (void)
 		startJoin = "New Game";
 	else
 		startJoin = "Join Game";
-	if (IPXConfig)
-		protocol = "IPX";
-	else
-		protocol = "TCP/IP";
-	M_Print (basex, 32, va ("%s - %s", startJoin, protocol));
+	M_Print (basex, 32, startJoin);
 	basex += 8;
 
 	M_Print (basex, 52, "Address:");
-	if (IPXConfig)
-		M_Print (basex+9*8, 52, my_ipx_address);
-	else
-		M_Print (basex+9*8, 52, my_tcpip_address);
+	M_Print (basex+9*8, 52, my_tcpip_address);
 
 	M_Print (basex, lanConfig_cursor_table[0], "Port");
 	M_DrawTextBox (basex+8*8, lanConfig_cursor_table[0]-8, 6, 1);
@@ -6933,7 +6796,7 @@ void M_LanConfig_Key (int key)
 	case K_BBUTTON:
 	case K_MOUSE4:
 	case K_MOUSE2:
-		M_Menu_Net_f ();
+		M_Menu_MultiPlayer_f ();
 		break;
 
 	case K_UPARROW:
@@ -7497,7 +7360,7 @@ void M_GameOptions_Key (int key)
 	case K_BBUTTON:
 	case K_MOUSE4:
 	case K_MOUSE2:
-		M_Menu_Net_f ();
+		M_Menu_MultiPlayer_f ();
 		break;
 
 	case K_UPARROW:
@@ -8435,7 +8298,6 @@ static void UI_Mouse_f (cvar_t *cvar)
 static void M_Menu_JoinGame_f (void)
 {
 	m_multiplayer_cursor = 0; // (JoiningGame)
-	m_net_cursor = 1; // (TCPIPConfig)
 	lanConfig_cursor = -1;
 	M_Menu_LanConfig_f ();
 	if (Cmd_Argc () > 1)
@@ -8448,7 +8310,6 @@ static void M_Menu_JoinGame_f (void)
 static void M_Menu_HostGame_f (void)
 {
 	m_multiplayer_cursor = 1; // (StartingGame)
-	m_net_cursor = 1;
 	M_Menu_GameOptions_f ();
 }
 
@@ -8693,10 +8554,6 @@ void M_DrawPanel (void)
 		M_Setup_Draw ();
 		break;
 
-	case m_net:
-		M_Net_Draw ();
-		break;
-
 	case m_calibration:
 		M_Calibration_Draw ();
 		break;
@@ -8854,10 +8711,6 @@ void M_Keydown (int key, qboolean repeat)
 		M_Setup_Key (key);
 		return;
 
-	case m_net:
-		M_Net_Key (key);
-		return;
-
 	case m_calibration:
 		M_Calibration_Key (key);
 		break;
@@ -8988,10 +8841,6 @@ void M_Mousemove (int screenx, int screeny)
 
 	case m_setup:
 		M_Setup_Mousemove (x, y);
-		return;
-
-	case m_net:
-		M_Net_Mousemove (x, y);
 		return;
 
 	case m_options:
@@ -9216,8 +9065,7 @@ void M_ConfigureNetSubsystem(void)
 // enable/disable net systems to match desired config
 	Cbuf_AddText ("stopdemo\n");
 
-	if (IPXConfig || TCPIPConfig)
-		net_hostport = lanConfig_port;
+	net_hostport = lanConfig_port;
 }
 
 //=============================================================================
