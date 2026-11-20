@@ -333,7 +333,7 @@ vec4 screen()
     if(Glass.a > 0.0)
     {
         // Softer digits: the phosphor bleeding a little into the glass (a level and a half coarser, mixed in).
-        float lod = max(queryLod() - 1.0, 0.0) + 1.5;
+        float lod = sharpLod() + 1.5;
         vec3 blurred = TrueColor > 0.5 ? textureLod(Tex, at, lod).rgb : color.rgb * lit(at, lod);
         rgb = mix(rgb, max(rgb, blurred * 1.1), 0.6 * Glass.a);
     }
@@ -373,7 +373,7 @@ vec4 screen()
         float ds = opening(px + vec2(0.0, lift), Size.xy);
 
         // The digits: sharp strokes and their halo, from the phosphor's brightness less the face's.
-        float lod = max(queryLod() - 1.0, 0.0);
+        float lod = sharpLod();
         vec2 o = Glass.a * 0.45 / Size.xy; // (the strokes softened by about half a font pixel)
         float soft = (2.0 * lit(at, lod) + lit(at + vec2(o.x, 0.0), lod) + lit(at - vec2(o.x, 0.0), lod) +
                       lit(at + vec2(0.0, o.y), lod) + lit(at - vec2(0.0, o.y), lod)) / 6.0;

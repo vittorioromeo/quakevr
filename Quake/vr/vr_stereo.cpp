@@ -1218,6 +1218,13 @@ void releaseTargets()
         GL_DeleteFramebuffersFunc(1, &targetFbo);
         targetFbo = 0;
     }
+    if(directTarget.fbo) // (vr_xr_direct 2's)
+    {
+        using DeleteFn = void(APIENTRY*)(GLsizei, const GLuint*);
+        GL_DeleteFramebuffersFunc(1, &directTarget.fbo);
+        reinterpret_cast<DeleteFn>(SDL_GL_GetProcAddress("glDeleteRenderbuffers"))(1, &directTarget.depth);
+        directTarget = DirectTarget{};
+    }
     previewState.target.destroy();
     previewState.made = -1;
     spectatorPace.shown = false;
@@ -1524,7 +1531,7 @@ extern "C" int VR_RenderView()
     // colours over 1 clip). Only where the eye is drawn at the image's size or into its lower left part (vr_eye_subimage),
     // one pass an eye (not single-pass stereo), and the image acquired before the scene.
     const bool direct = vr_xr_direct.value != 0.f && VR_GLESForm(VR_GLES_FORM_GLSL) && !singlePass && !splitTargets &&
-                        !stereo::resampling;
+                        !stereo::resampling && allocatedWidth == drawnWidth && allocatedHeight == drawnHeight;
     // The Quest's runtime crashed in xrEndFrame (C4p, QUEST_PLAN.md 6w) when foveated eye images (vr_xr_foveation) were
     // acquired after the scene, or their old colours invalidated: with foveation they are acquired first, not invalidated.
     // (vr_xr_foveation_probe 1: late acquire and the invalidate allowed anyway, to narrow the crash: C4q, 6x)
