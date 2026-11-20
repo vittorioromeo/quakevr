@@ -438,7 +438,7 @@ bool drawnOf(edict_t* ent, Drawn& d, bool asDrawn)
     {
         return false;
     }
-    const double now = qcvm->time;
+    const double now = poseNow();
     d.origin = vec(ent->v.origin);
     d.angles = vec(ent->v.angles);
     d.pose1 = d.pose2 = poseAt(d.hdr, ent->v.frame, now, nullptr);
@@ -1042,7 +1042,7 @@ bool segment(edict_t* ent, const glm::vec3& a, const glm::vec3& b, float radius,
         out.tri = static_cast<int>(f.tri);
         out.u = f.u;
         out.v = f.v;
-        last = Last{NUM_FOR_EDICT(ent), qcvm->time, f.tri, f.u, f.v, out.point, out.surface};
+        last = Last{NUM_FOR_EDICT(ent), poseNow(), f.tri, f.u, f.v, out.point, out.surface};
     }
     if(hit)
     {
@@ -1143,7 +1143,7 @@ namespace
     tri = 0;
     u = v = 0.f;
     const int num = NUM_FOR_EDICT(ent);
-    if(last.num == num && last.time == qcvm->time &&
+    if(last.num == num && last.time == poseNow() &&
         (glm::length(last.point - p) < 1.f || glm::length(last.surface - p) < 1.f) && last.tri < m.tris.size())
     {
         tri = last.tri;

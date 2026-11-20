@@ -11,6 +11,7 @@
 #include "vr_modelmetadata.hpp"
 #include "vr_geom.hpp"
 #include "vr_render.hpp"
+#include "vr_mpavatar.hpp"
 #include "vr_engine.hpp"
 #include "vr_agarmor.hpp"
 #include "vr_anchor.hpp"
@@ -234,7 +235,8 @@ void entityMatrix(const entity_t& e, bool mirrored, int scale, const glm::vec3& 
 extern "C" int VR_AliasMirrored(const entity_t* e)
 {
     const view::ViewEntity* ve = view::find(e);
-    return ve && ve->mirrored;
+    const view::ViewEntity* copy = ve ? nullptr : mpavatar::find(e); // (or another player's: vr_mpavatar.cpp)
+    return ve ? ve->mirrored : copy && copy->mirrored;
 }
 
 extern "C" int VR_AliasTwoSided(const entity_t* e)
@@ -597,7 +599,7 @@ extern "C" void VR_AliasInstance(const entity_t* e, const float matrix[16], cons
         }
     }
     ZA_MEMSET(out->nails, 0, sizeof(out->nails));
-    if(standard && vr_nails.value > 0.f && render::nailMask(e)) // painted nails (vr_nails): their mask read
+    if(standard && render::nailMask(e)) // painted nails (vr_nails; another player's: his own): their mask read
     {
         (void)view::nailLook(e, out->nails);
     }
@@ -715,7 +717,8 @@ extern "C" void VR_AliasFlameRefs(const void* aliashdr, unsigned short* refs)
 // its edge's colour 2 * kind + its progress) and the model's scale (quantised steps to units).
 extern "C" void VR_AliasMorph(const entity_t* e, const void* aliashdr, float ambient[24])
 {
-    const view::ViewEntity* ve = view::find(e);
+    const view::ViewEntity* own = view::find(e);
+    const view::ViewEntity* ve = own ? own : mpavatar::find(e); // (another player's plates' morphs too: vr_mpavatar.cpp)
     const aliashdr_t* hdr = static_cast<const aliashdr_t*>(aliashdr);
     // (the player's armour plates too, skeletal, their noise in their rest pose: Entities::plate, vr_view_body.cpp)
     if(!ve || ve->morph == 0.f || (hdr->poseverttype != aliashdr_t::PV_QUAKE1 && hdr->poseverttype != aliashdr_t::PV_IQM))
@@ -846,11 +849,17 @@ void gloveLayersUpdate(const entity_t* const* own, int count); // (below)
 // Each (model, skin) is searched for once (a missing file too) until textures are freed.
 void VR_PrecacheSkinMasks()
 {
-    skinMasksValidate();
     entity_t* own[3]{};
     view::woundTargets(own);
-    for(entity_t* e : own)
+    qvr::render::precacheSkinMasks(own, 3);
+}
+
+void qvr::render::precacheSkinMasks(entity_t* const* ents, int count)
+{
+    skinMasksValidate();
+    for(int i = 0; i < count; i++)
     {
+        entity_t* e = ents[i];
         if(!e || !e->model)
         {
             continue;
@@ -867,7 +876,7 @@ void VR_PrecacheSkinMasks()
         }
         skinMasks.entries[skinMasks.count++] = SkinMaskEntry{e->model, kind, skin, skinMaskTexture(kind, skin)};
     }
-    gloveLayersUpdate(own, 3);
+    gloveLayersUpdate(ents, count);
 }
 
 gltexture_t* VR_AliasSkinMask(const entity_t* e)
@@ -1033,7 +1042,7 @@ void gloveLayersUpdate(const entity_t* const* own, int count)
             l.paint = gloveTexture(skinMaskSkin(e, 1), "glove");
             l.height = l.paint ? gloveTexture(skinMaskSkin(e, 1), "glove_height") : nullptr;
         }
-        if(!l.nailsLooked && vr_nails.value > 0.f)
+        if(float nails[4]; !l.nailsLooked && view::nailLook(e, nails))
         {
             l.nailsLooked = true;
             l.nails = gloveTexture(skinMaskSkin(e, 1), "nails");
@@ -1119,7 +1128,8 @@ void glovesReload_f()
 
 gltexture_t* nailMask(const entity_t* e)
 {
-    if(vr_nails.value <= 0.f || !e->model || gloveLayers.frees != TexMgr_FreeCount() || view::skinMaskWanted(e) != 1)
+    if(float nails[4]; !e->model || !view::nailLook(e, nails) || gloveLayers.frees != TexMgr_FreeCount() ||
+        view::skinMaskWanted(e) != 1)
     {
         return nullptr;
     }

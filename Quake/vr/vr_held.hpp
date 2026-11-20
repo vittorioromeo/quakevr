@@ -89,6 +89,10 @@ bool drawnBox(int num, glm::vec3& lo, glm::vec3& hi);
 // port, the one the server tests it against, each moved off where the server has them). 1 if that hand holds no round.
 [[nodiscard]] float roundPortEase(const hands::State& s, int roundHand);
 
+// Client side: QVR_SVC_HELDPLACE, a remote server's places of what the local player's hands hold, in his hands (MP B27;
+// the server's side: VR_WriteHeldPlaces). Drawn there from the first frame held, not taken from where the server had it
+// and this frame's hand (the network's delay apart).
+void parsePlaces();
 
 // Client side: a prop held in both hands (vr_carry2h.hpp) is drawn from both, and each hand on its grip on it: `pos`
 // and `angles`, the controller's pose of `hand`, are moved there (vr_view.cpp draws the hand from them); let go of, a
@@ -204,6 +208,19 @@ void fistInWorld(int hand, const glm::vec3& pos, const glm::vec3& angles, za::Ve
 
 // The fist of `hand` (setFist's: the hand's frame, world units; empty: not known).
 [[nodiscard]] const za::Vector<glm::vec4>& fist(int hand);
+
+// Server: `player`'s fist of `hand` (MP_PLAN.md, B3) from his slot (setPlayerFist): a remote player's as his client sent
+// it, this game's own player's put there by setFist while it hosts (B9); empty: not known.
+[[nodiscard]] const za::Vector<glm::vec4>& fistOf(const edict_t* player, int hand);
+
+// fistInWorld with `player`'s fist (fistOf).
+void fistInWorld(const edict_t* player, int hand, const glm::vec3& pos, const glm::vec3& angles, za::Vector<glm::vec4>& out);
+
+// Server: client slot `slot`'s fist of `hand` as his client posed it (vr_clientprefs.cpp's "vr_rig"; empty: forgotten).
+void setPlayerFist(int slot, int hand, const za::Vector<glm::vec4>& spheres);
+
+// Server: the touches a remote player's own fist made (grabTouch true), per client slot (vr_mp_prefs; mp_grab).
+[[nodiscard]] int playerFistGrabs(int slot);
 
 // What a fist found against a thing's drawn surface: the least gap (units) from a sphere of it to the surface (negative:
 // sunk in), that sphere's middle and the surface's nearest point to it.

@@ -53,7 +53,7 @@ sys_socket_t WIPX_Init (void)
 	char	buff[MAXHOSTNAMELEN];
 	struct qsockaddr	addr;
 
-	if (COM_CheckParm ("-noipx"))
+	if (COM_CheckParm ("-noipx") || net_loopbackonly) // QVR: (B24, tests) -loopbackonly: no IPX
 		return INVALID_SOCKET;
 
 	if (winsock_initialized == 0)

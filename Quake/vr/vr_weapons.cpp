@@ -1827,7 +1827,7 @@ int inheritsFrom(int slot)
 
 float value(int slot, Key key)
 {
-    if(slot < 0)
+    if(slot < 0 || slot >= numSlots) // (a slot from the network past the table: mpfix C1)
     {
         return 0.f;
     }

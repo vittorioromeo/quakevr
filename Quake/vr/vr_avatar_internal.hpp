@@ -7,6 +7,7 @@
 #include "vr_engine.hpp"
 #include "vr_geom.hpp"
 #include "vr_hands.hpp"
+#include "vr_seated.hpp"
 #include "vr_units.hpp"
 
 #include "Zancle/Container/Array.hpp"
@@ -104,6 +105,33 @@ const Bind& bind();
 
 // Climbing's weight (Climbing::weight, 0 .. 1), for solveTorso: the lean taken out while climbing.
 extern float climbHang;
+
+// ---- Whose body is posed (MP_PLAN.md, B2d) ----
+// pose() poses the local player's body; poseOther() another player's, from his avatar, by the same code: that body's
+// own motion (its feet, gait, arms' easing: Motion and vr_avatar.cpp's Other) swapped in for the frame, and what pose()
+// reads of the local player (his settings, the client's velocity, flat-screen play, body tracking, the blades his hands
+// are on) read from `subject` (vr_avatar.hpp) instead. Null: the local player (every read exactly as before).
+extern const Subject* subject;
+[[nodiscard]] inline bool posingOther()
+{
+    return subject != nullptr;
+}
+// units::metresToUnits(), units::eyeHeight(), units::bodyScale() of the body being posed.
+[[nodiscard]] float metresToUnits();
+[[nodiscard]] float eyeHeight();
+[[nodiscard]] float bodyScale();
+// The local player's flat-screen play (flatplay::active()); never another's.
+[[nodiscard]] bool localFlat();
+// The posed body's seated play (seated::active(); another player's: his calibration's, Subject::seated: B6b).
+[[nodiscard]] inline bool posedSeated()
+{
+    return subject ? subject->seated : seated::active();
+}
+// The posed body's velocity (world units a second), and whether it stands on the ground (cl.velocity, cl.onground).
+[[nodiscard]] glm::vec3 velocity();
+[[nodiscard]] bool onGround();
+// The arms posed: yours (bodycal::ownArms) or the other player's (Subject::arms).
+[[nodiscard]] bodycal::Arms arms();
 
 // ---- The legs (vr_avatar_legs.cpp) ----
 
@@ -279,5 +307,20 @@ void updateBodyPitch(const hands::State& s, float dt);
 // vr_body_lie_test asks); initLie registers those commands.
 void captureLieProbe(const Body& b, const hands::State& s);
 void initLie();
+
+// The legs', climbing's and the pitch's state of one body, carried from frame to frame (the globals above are the body
+// being posed): swapMotion (vr_avatar_legs.cpp) exchanges them with another body's (poseOther).
+struct Motion
+{
+    Gait gait;
+    unsigned footSteps[2]{0u, 0u};
+    Water water;
+    Stance stance;
+    double legsPosedAt{-1.0};
+    Climbing climbing;
+    float climbHang{0.f};
+    BodyPitch bodyPitch;
+};
+void swapMotion(Motion& m);
 
 } // namespace qvr::avatar::detail

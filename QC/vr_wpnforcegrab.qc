@@ -664,6 +664,10 @@ void() VR_Forcegrab_FlightThink =
         {
             dprint("force grab: arrived, ");
             VR_Forcegrab_Distances(self, handPos);
+            // (why it was not caught: the hand's state as VR_Forcegrab_CanCatch asks it)
+            dprint(sprintf("force grab: hand %g free %g, gripping %g, grip pressed %.3f s before it arrived\n", hand,
+                VR_Hand_Free(p, hand, VR_HANDFREE_LOCKED), VR_HandGrabUtil_IsHandGrabbing(p, hand),
+                self.fg_arrive - VR_HandGrabUtil_Impl_GetLastGrabTime(p, hand)));
             VR_Forcegrab_Miss(self);
             return;
         }

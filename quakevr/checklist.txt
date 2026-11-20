@@ -47,6 +47,7 @@ Melee against several armed grunts feels unchanged (their weapon-strike check no
 Dwell's Rotary Shotgun in hand: the ammo screen in a brown bezel with a bolt each side in the middle of its housing's back, readable as you aim; grip and trigger under your hand {test:dwell_rotary}
 Dwell's Crystal Lance in hand: the ammo screen in a dark metal bezel with violet studs on its handle's back; the trigger guard and trigger meet the blades' underside {test:dwell_lance}
 Dwell's Rifle in hand: the ammo screen in a brass bezel with brass nuts on its butt, readable as you aim {test:dwell_rifle}
+Multiplayer (agent/mp merged): host and join a coop game over the room service and play a level together; voice, held weapons and melee look right on both sides
 
 [1. Flat-screen: weapons and hands]
 

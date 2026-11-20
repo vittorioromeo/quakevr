@@ -31,6 +31,10 @@ static struct sockaddr_in broadcastaddr;
 
 static in_addr_t	myAddr;
 
+#ifndef SIO_UDP_CONNRESET
+#define SIO_UDP_CONNRESET	_WSAIOW(IOC_VENDOR, 12)
+#endif
+
 #include "net_wins.h"
 
 int winsock_initialized = 0;
@@ -204,6 +208,16 @@ void WINS_Listen (qboolean state)
 		WINS_GetLocalAddress();
 		if ((net_acceptsocket = WINS_OpenSocket (net_hostport)) == INVALID_SOCKET)
 			Sys_Error ("WINS_Listen: Unable to open accept socket");
+		// QVR: (B23) every client's datagrams come to this socket now (net_dgrm.c): a client gone makes Windows report
+		// the ICMP "port unreachable" of the server's next datagram to him as an error of this socket's next read, which
+		// would cut the read of everyone else's datagrams short -- off; and room for a few frames of 16 clients' moves
+		{
+			BOOL	report = FALSE;
+			DWORD	unused = 0;
+			int	size = 1 << 20;
+			WSAIoctl (net_acceptsocket, SIO_UDP_CONNRESET, &report, sizeof (report), NULL, 0, &unused, NULL, NULL);
+			setsockopt (net_acceptsocket, SOL_SOCKET, SO_RCVBUF, (const char *) &size, sizeof (size));
+		}
 		return;
 	}
 
@@ -333,27 +347,27 @@ int WINS_Connect (sys_socket_t socketid, struct qsockaddr *addr)
 
 sys_socket_t WINS_CheckNewConnections (void)
 {
-	char		buf[4096];
-
-	if (net_acceptsocket == INVALID_SOCKET)
-		return INVALID_SOCKET;
-
-	if (recvfrom (net_acceptsocket, buf, sizeof(buf), MSG_PEEK, NULL, NULL)
-								!= SOCKET_ERROR)
-	{
-		return net_acceptsocket;
-	}
-	return INVALID_SOCKET;
+	// QVR: (B23) the listening socket whenever listening: net_dgrm.c reads it for every client, and keeps the host's room
+	// (NetQuake's peek of 4096 bytes also failed on a larger datagram, which then blocked the socket)
+	return net_acceptsocket;
 }
 
 //=============================================================================
 
 int WINS_Read (sys_socket_t socketid, byte *buf, int len, struct qsockaddr *addr)
 {
-	socklen_t addrlen = sizeof(struct qsockaddr);
+	socklen_t addrlen;
 	int ret;
+	int empty = 0;
 
-	ret = recvfrom (socketid, (char *)buf, len, 0, (struct sockaddr *)addr, &addrlen);
+	// QVR: an empty datagram is skipped, not returned: its 0 is "nothing waiting" to every caller, so one from anyone
+	// ended the drain of the server's one socket for every client (MP review finding 5); bounded (NET_EMPTY_READS)
+	do
+	{
+		addrlen = sizeof(struct qsockaddr);
+		ret = recvfrom (socketid, (char *)buf, len, 0, (struct sockaddr *)addr, &addrlen);
+	}
+	while (ret == 0 && ++empty < NET_EMPTY_READS);
 	if (ret == SOCKET_ERROR)
 	{
 		int err = SOCKETERRNO;
@@ -410,6 +424,9 @@ int WINS_Broadcast (sys_socket_t socketid, byte *buf, int len)
 int WINS_Write (sys_socket_t socketid, byte *buf, int len, struct qsockaddr *addr)
 {
 	int	ret;
+
+	if (NET_LoopbackRefusesTo (addr)) // QVR: (B24, tests)
+		return len; // (as if sent and lost)
 
 	ret = sendto (socketid, (char *)buf, len, 0, (struct sockaddr *)addr,
 							sizeof(struct qsockaddr));
@@ -475,8 +492,8 @@ int WINS_GetNameFromAddr (struct qsockaddr *addr, char *name)
 {
 	struct hostent *hostentry;
 
-	hostentry = gethostbyaddr ((char *)&((struct sockaddr_in *)addr)->sin_addr,
-						sizeof(struct in_addr), AF_INET);
+	hostentry = net_loopbackonly ? NULL // QVR: (B24, tests) no reverse lookups
+		: gethostbyaddr ((char *)&((struct sockaddr_in *)addr)->sin_addr, sizeof(struct in_addr), AF_INET);
 	if (hostentry)
 	{
 		Q_strncpy (name, (char *)hostentry->h_name, NET_NAMELEN - 1);
@@ -494,7 +511,14 @@ int WINS_GetAddrFromName (const char *name, struct qsockaddr *addr)
 	struct hostent *hostentry;
 
 	if (name[0] >= '0' && name[0] <= '9')
-		return PartialIPAddress (name, addr);
+	{
+		if (PartialIPAddress (name, addr) == -1)
+			return -1;
+		return NET_LoopbackRefusesName (name, addr) ? -1 : 0; // QVR: (B24, tests)
+	}
+
+	if (NET_LoopbackRefusesName (name, NULL)) // QVR: (B24, tests) never looked up
+		return -1;
 
 	hostentry = gethostbyname (name);
 	if (!hostentry)

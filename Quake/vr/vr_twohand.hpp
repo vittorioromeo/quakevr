@@ -73,6 +73,9 @@ inline constexpr int anywhereSpot = 4;
 // The handle of the weapon `hand` carries (where the other hand takes it back), as drawn last; false if none.
 [[nodiscard]] bool carriedHandle(int hand, glm::vec3& out);
 [[nodiscard]] int groundSpot(int hand, int entity);
+// The weapon `hand` is near a hotspot of now and that hotspot's index (groundSpot's), else 0 and -1: what a client sends up
+// for the server's weapongrabspot of him (vr_heldpose.cpp, MP_PLAN.md B3f).
+void groundSpotNow(int hand, int& entity, int& index);
 
 void reset();
 

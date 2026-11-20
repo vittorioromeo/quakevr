@@ -44,9 +44,10 @@ vector(entity p, float xHand) VR_Melee_Wrist =
     {
         return h;
     }
-    float ownOff = xHand == cVR_OffHand && !cvar_hget(cvarh_vr_handcal_off_mirror);
-    float pitch = cvar_hget(ownOff ? cvarh_vr_offhandpitch : cvarh_vr_gunangle) * 0.0174533;
-    float yaw = cvar_hget(ownOff ? cvarh_vr_offhandyaw : cvarh_vr_gunyaw) * 0.0174533;
+    // (p's own hand calibration, whoever self is: clientpref)
+    float ownOff = xHand == cVR_OffHand && !clientpref(p, cvarh_vr_handcal_off_mirror);
+    float pitch = clientpref(p, ownOff ? cvarh_vr_offhandpitch : cvarh_vr_gunangle) * 0.0174533;
+    float yaw = clientpref(p, ownOff ? cvarh_vr_offhandyaw : cvarh_vr_gunyaw) * 0.0174533;
     if(xHand == cVR_OffHand && !ownOff)
     {
         yaw = -yaw;
@@ -133,8 +134,9 @@ float(float xHand, entity b) VR_Melee_Track =
     float thing = VR_Melee_Thing(self, xHand);
     float wid = VRGetEntWeapon(self, xHand);
     // (A hand moved by the game, not by the player -- the flatscreen look, a lean, the wall tilt -- swings nothing:
-    // VR_HandMotionTracked.)
-    if(!VR_Melee_Line(self, xHand, thing) || !VRHandsTracked(self) || !VR_HandMotionTracked(self, xHand))
+    // VR_HandMotionTracked. A bot's hands move themselves, as tracked ones: VR_HandLinesKept, MP B11 part 4.)
+    if(!VR_Melee_Line(self, xHand, thing) || !VR_HandLinesKept(self) || !VR_HandMotionTracked(self, xHand) ||
+       VR_HandButtonSwing(self, xHand))
     {
         b.mh_n = 0;
         b.mh_thing = thing;
@@ -1410,8 +1412,21 @@ float vr_msw_wall_i;
 // crossed it nearest its middle met it, as its outermost striking point in it (its kind, a stab's or a cut's:
 // VR_Melee_Decide). The pommel's: the earliest along the sweep. A wall only when nothing that bleeds is struck, and not
 // by a point going down (a hand reaching for a holster); where the blade went deepest into it (the middle of the lines
-// as deep).
+// as deep). A remote client's sweep meets the others where his screen showed them (lag compensation: lagcompbegin,
+// MP_PLAN.md B8c); the blow is dealt where they are.
+float(float xHand, entity b) VR_Melee_SweepNow;
 float(float xHand, entity b) VR_Melee_Sweep =
+{
+    float lc = lagcompbegin(self);
+    float struck = VR_Melee_SweepNow(xHand, b);
+    if(lc)
+    {
+        lagcompend();
+    }
+    return struck;
+};
+
+float(float xHand, entity b) VR_Melee_SweepNow =
 {
     float n = b.mh_n;
     if(n <= 0)

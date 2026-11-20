@@ -55,4 +55,10 @@ void init(); // registers input commands
 // cl_entities: your gun, a temporary or static entity).
 [[nodiscard]] int entityNumber(const entity_s* e, int limit = -1);
 
+// Whether a command of the client's own of `n` characters (its prefs, calibration, held poses...) fits on cls.message
+// with room left for the player's typed ones: Cmd_ForwardToServer writes those with no check, and a buffer the own
+// commands had filled overflowed (a Host_Error, his client gone: mp_forcegrab's "name B" at the join; MP_PLAN.md B8b).
+// No room: the caller sends it on a later frame.
+[[nodiscard]] bool roomForCommand(int n);
+
 } // namespace qvr::client

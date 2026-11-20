@@ -186,6 +186,11 @@ struct FlatState
 
 FlatState fs;
 
+// The bot being posed (poseBot, MP bots phase 1), for that call only: what its hands hold, its swing's clock and its
+// guard stand in for the local player's (heldIn, heldWid, bodyPose, propInFist, armSpan, overheadSwing, parryPose).
+// Null otherwise: the local player's pose as ever.
+const BotPoseIn* bot = nullptr;
+
 // The looks the drawn hands are given on top of the game's pose (drawnOffset; stepFeel once a frame). Not the game's:
 // the shots go from the steady hands, along the crosshair.
 struct Feel
@@ -591,7 +596,7 @@ struct SwingTimes
 
 [[nodiscard]] bool bodyPose()
 {
-    return vr_flat_body_pose.value != 0.f;
+    return bot == nullptr && vr_flat_body_pose.value != 0.f; // (a bot's hands: off the old anchor, poseBot)
 }
 
 // The old pose's anchor against the body's real shoulder at a level look, standing: vr_flat_gun_*, _empty_*, _support_* are measured
@@ -615,6 +620,10 @@ constexpr glm::vec3 anchorFromShoulder{2.5f, -3.f, 12.f};
 // vr_weapon_ids.h); WID_FIST for an empty hand.
 [[nodiscard]] int heldWid(int h)
 {
+    if(bot != nullptr)
+    {
+        return bot->wid[h];
+    }
     return cl.stats[h == HAND_MAIN ? protocol::STAT_QVR_WEAPON : protocol::STAT_QVR_WEAPON2];
 }
 
@@ -642,7 +651,8 @@ constexpr glm::vec3 anchorFromShoulder{2.5f, -3.f, 12.f};
 // Body Calibration's own measured arms differ from the model's; the tests run without it.
 [[nodiscard]] float armSpan()
 {
-    const float m2w = units::metresToUnits() * units::bodyScale();
+    // (a bot's arms at its own height: poseBot)
+    const float m2w = units::metresToUnits() * (bot != nullptr ? bot->eyeHeight / units::modelEyeHeight : units::bodyScale());
     float upper, fore;
     avatar::armBones(upper, fore);
     const float bones = (upper + fore) * m2w * za::clamp(vr_body_arm_length.value, 0.5f, 2.f);
@@ -768,7 +778,7 @@ constexpr float dualProneTurnMost = 45.f;
         // (At a wall the free hand lets go of the other's gun, to an empty hand's place: flatsight::wallLetGo.)
         const glm::vec3 support{
             poseNum(vr_flat_support_fwd) * reach, side * poseNum(vr_flat_support_out) * reach, -poseNum(vr_flat_support_down) * reach};
-        return support + (empty - support) * flatsight::wallLetGo(1 - h);
+        return support + (empty - support) * (bot != nullptr ? 0.f : flatsight::wallLetGo(1 - h));
     }
     return empty;
 }
@@ -886,12 +896,15 @@ constexpr float dualProneTurnMost = 45.f;
     const glm::vec3& fwd, const glm::vec3& right, const glm::vec3& up, glm::vec3& turn)
 {
     turn = glm::vec3{0.f};
-    const double t = vr_gametime - fs.punchAt[h];
-    if(!fs.punchOverhead[h] || t < 0.0 || t > punchLen(h))
+    // (A bot's: its main hand's swing on the server's clock, poseBot. The same swing.)
+    const bool botSwing = bot != nullptr && h == HAND_MAIN;
+    const double t = botSwing ? bot->now - bot->swingAt : vr_gametime - fs.punchAt[h];
+    const SwingTimes w = swingTimes();
+    const float len = botSwing ? w.wind + w.top + w.strike + w.dwell + w.back : punchLen(h);
+    if((!botSwing && (bot != nullptr || !fs.punchOverhead[h])) || t < 0.0 || t > len)
     {
         return rest;
     }
-    const SwingTimes w = swingTimes();
     const float span = za::max(4.f, armSpan());
     const float side = h == HAND_OFF ? -1.f : 1.f;
     const auto inReach = [&root](const glm::vec3& p, float most) {
@@ -1031,7 +1044,8 @@ void stepParry(int h, float dt)
 void parryPose(hands::State& s, int h, const glm::vec3& root, const glm::vec3& eye, const glm::vec3& fwd, const glm::vec3& right,
     const glm::vec3& up, float yaw)
 {
-    const float share = geom::smooth01(fs.parry[h]);
+    // (a bot's guard, poseBot: its AI's share, its main hand's)
+    const float share = geom::smooth01(bot != nullptr ? (h == HAND_MAIN ? bot->parry : 0.f) : fs.parry[h]);
     if(share <= 0.f)
     {
         return;
@@ -1055,7 +1069,9 @@ void parryPose(hands::State& s, int h, const glm::vec3& root, const glm::vec3& e
     const glm::vec3 flatWay = -side * levelRight * za::cos(y) + levelFwd * za::sin(y);
     const glm::vec3 way = flatWay * za::cos(p) + levelUp * za::sin(p);
     glm::vec3 guard = turnedHand(s.rot[h], {0.f, 0.f, -90.f}, side);
-    if(glm::vec3 tip; flatsight::muzzleInHand(h, tip))
+    // (A bot's weapon is not drawn here: a melee weapon's head stands up the hand, as a sword's blade and an axe's haft do.)
+    glm::vec3 tip{0.f, 0.f, 1.f};
+    if(bot != nullptr || flatsight::muzzleInHand(h, tip))
     {
         glm::vec3 f, r, u;
         hands::angleVectors(guard, f, r, u);
@@ -2084,6 +2100,10 @@ void stepFeel()
 
 int heldIn(int h)
 {
+    if(bot != nullptr)
+    {
+        return bot->slot[h];
+    }
     const int slot = weapons::heldSlot(h);
     return slot >= 0 && slot != weapons::fistSlot() ? slot : -1;
 }
@@ -2106,7 +2126,7 @@ bool holdsThing(int h)
 
 bool propInFist(int h)
 {
-    if(h < 0 || h >= HAND_COUNT || za::round(poseNum(vr_flat_carry_pose)) != 2.f || heldIn(h) >= 0)
+    if(bot != nullptr || h < 0 || h >= HAND_COUNT || za::round(poseNum(vr_flat_carry_pose)) != 2.f || heldIn(h) >= 0)
     {
         return false;
     }
@@ -4251,6 +4271,73 @@ void traceCrouch(float eyeZ)
         t.frames, t.eyeStep, t.handStep, t.allowed, pass ? "PASS" : "FAIL");
     Cvar_SetValueQuick(&vr_flat_crouch_trace, 0.f);
     t = CrouchTrace{};
+}
+
+float swingStrikeMiddle()
+{
+    const SwingTimes w = swingTimes();
+    return w.wind + w.top + w.strike * 0.5f;
+}
+
+void poseBot(const BotPoseIn& in, BotPoseOut& out)
+{
+    bot = &in;
+    hands::State s;
+    s.playerOrigin = in.origin;
+    s.head = in.eye;
+    s.headAngles = in.aim;
+    s.bodyYaw = in.aim.y;
+    s.headHeight = s.standingHeight = in.eyeHeight;
+    // As poseHands places a flat player's hands with vr_flat_body_pose 0: off the old anchor, in the view's frame held to
+    // vr_flat_pose_pitch.
+    const float reach = za::clamp(vr_flat_reach.value, 0.25f, 3.f);
+    const float posePitch = za::clamp(vr_flat_pose_pitch.value, 0.f, 90.f);
+    glm::vec3 fwd, right, up;
+    hands::angleVectors({za::clamp(in.aim.x, -posePitch, posePitch), in.aim.y, 0.f}, fwd, right, up);
+    const bool mainHolds = heldIn(HAND_MAIN) >= 0;
+    const bool offHolds = heldIn(HAND_OFF) >= 0;
+    const glm::vec3 at = in.hasTarget ? in.target : in.eye + hands::forward(in.aim) * za::clamp(vr_flat_punch_aim_dist.value, 8.f, 96.f);
+    for(int h = 0; h < HAND_COUNT; h++)
+    {
+        const float sideOf = h == HAND_OFF ? -1.f : 1.f;
+        const glm::vec3 rest = targetOffset(h, reach, h == HAND_OFF ? mainHolds : offHolds, in.aim.x, 0.f);
+        const glm::vec3 fromAnchor{anchorFromShoulder.x, anchorFromShoulder.y * sideOf, anchorFromShoulder.z};
+        const glm::vec3 still = rest - fromAnchor;
+        const glm::vec3 root = shoulder(s, h);
+        s.pos[h] = root + fwd * still.x + right * still.y + up * still.z;
+        // Each weapon turned so its shot goes at what the bot aims at, from its own hand (a flat player's go along the
+        // crosshair's ray, which meets what it is on): two guns converge on it.
+        glm::vec3 aim = in.aim;
+        if(const glm::vec3 d = at - s.pos[h]; glm::length(d) > 1.f)
+        {
+            const glm::vec3 f = glm::normalize(d);
+            const glm::vec3 r = glm::cross(f, glm::vec3{0.f, 0.f, 1.f});
+            if(glm::length(r) > 1e-3f)
+            {
+                aim = hands::anglesFromVectors(f, glm::cross(glm::normalize(r), f));
+            }
+        }
+        s.rot[h] = aimRotAtCrosshair(aim, h);
+        if(meleeIn(h))
+        {
+            s.rot[h] = turnedHand(s.rot[h], {0.f, za::clamp(vr_flat_melee_hold_yaw.value, -90.f, 90.f),
+                                                za::clamp(vr_flat_melee_hold_roll.value, -90.f, 90.f)},
+                sideOf);
+        }
+        parryPose(s, h, root, in.eye, fwd, right, up, in.aim.y);
+        if(h == HAND_MAIN)
+        {
+            glm::vec3 turn{0.f};
+            s.pos[h] = overheadSwing(h, root, s.pos[h], in.eye, at, fwd, right, up, turn);
+            s.rot[h] = turnedHand(s.rot[h], turn, sideOf);
+        }
+        out.pos[h] = s.pos[h];
+        out.rot[h] = s.rot[h];
+    }
+    const SwingTimes w = swingTimes();
+    const double t = in.now - in.swingAt;
+    out.swingPhase = t < 0.0 || t > w.wind + w.top + w.strike + w.dwell + w.back ? 0 : t < w.wind ? 1 : 2;
+    bot = nullptr;
 }
 
 } // namespace qvr::flatplay

@@ -329,6 +329,10 @@ void() SV_ClientThink =
         self.v_angle = self.angles;
         self.fixangle = 0;
     }
+    if(bot_pmove)
+    {
+        return; // QVR: its walk is its move's (botmovewalk), as a player's (sv_user.c VR_PredictThink)
+    }
     if(self.flags & FL_WATERJUMP)
     {
         SV_WaterJump();
@@ -631,6 +635,54 @@ void() SV_FlyMove =
 };
 
 
+// QVR: the bot's phys_obj (its own, found once), as SV_FlyMove finds it.
+void() bot_find_physobj =
+{
+    if(self.phys_obj == world)
+    {
+        self.phys_obj = find(world,classname,"phys_obj");
+        while (self.phys_obj.owner != self)
+        {
+            self.phys_obj = find(self.phys_obj,classname,"phys_obj");
+            if(self.phys_obj == world)
+            {
+                error("No physics entity spawned!\nMake sure BotInit was called\n");
+            }
+        }
+    }
+};
+
+// QVR: after the walk (the phys_obj's think, as PostPhysics: not in the bots' loop -- the runaway loop counter), a wall's
+// hold told to its AI, then PlayerPostThink and BotAI.
+void() PostPmoveWalk =
+{
+    self = self.owner;
+    if(vlen(self.phys_obj.dest1) > 1)
+    {
+        frik_obstructed(self.phys_obj.dest1, FALSE);
+    }
+    PlayerPostThink();
+    BotAI();
+    self.dmg_take = self.dmg_save = 0;
+};
+
+// QVR: the bot's walk through the moves players' walks run (vr_pmove.cpp: gravity, the walk or swim, steps and slopes,
+// the jump; botmovethink queued its stick), for its gravity and SV_FlyMove (MP_PLAN B11 part 3, part 3).
+void() SV_PmoveWalk =
+{
+    vector obstr = botmovewalk();
+    bot_find_physobj();
+    setmodel(self.phys_obj, string_null);
+    self.phys_obj.movetype = MOVETYPE_NONE;
+    self.phys_obj.solid = SOLID_NOT;
+    self.phys_obj.touch = SUB_Null;
+    self.phys_obj.velocity = '0 0 0';
+    setorigin(self.phys_obj, self.origin);
+    self.phys_obj.dest1 = obstr;
+    self.phys_obj.think = PostPmoveWalk;
+    self.phys_obj.nextthink = time;
+};
+
 void() SV_Physics_Toss =
 {
     if(!SV_RunThink())
@@ -664,6 +716,11 @@ void() SV_Physics_Client =
     {
         if(!SV_RunThink())
             return;
+        if(bot_pmove && self.movetype == MOVETYPE_WALK)
+        {
+            SV_PmoveWalk(); // QVR: through the moves players' walks run
+            return;
+        }
 
         if(!(SV_CheckWater()) && (!(self.flags & FL_WATERJUMP)))
             SV_AddGravity(1);

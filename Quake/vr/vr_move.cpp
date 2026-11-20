@@ -7,6 +7,9 @@
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/IsFinite.hpp"
 #include "Zancle/Base/Macros.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Round.hpp"
+#include "Zancle/Math/Sqrt.hpp"
 #include "Zancle/Vocabulary/Optional.hpp"
 
 
@@ -45,7 +48,221 @@ struct Reader
     }
 };
 
+// (writeDrawnHand: eighths of a unit from `origin`, a short each; angles in 16 bits; whatever the protocol's flags)
+void writeEighths(sizebuf_t* buf, const glm::vec3& v, const glm::vec3& origin)
+{
+    for(int i = 0; i < 3; i++)
+    {
+        MSG_WriteShort(buf, za::clamp(static_cast<int>(za::round((v[i] - origin[i]) * 8.f)), -32767, 32767));
+    }
+}
+
+[[nodiscard]] glm::vec3 readEighths(const glm::vec3& origin)
+{
+    glm::vec3 v;
+    for(int i = 0; i < 3; i++)
+    {
+        v[i] = origin[i] + static_cast<float>(MSG_ReadShort()) / 8.f;
+    }
+    return v;
+}
+
+void writeAngles16(sizebuf_t* buf, const glm::vec3& a)
+{
+    for(int i = 0; i < 3; i++)
+    {
+        MSG_WriteShort(buf, static_cast<int>(za::round(a[i] * 65536.f / 360.f)) & 65535);
+    }
+}
+
+[[nodiscard]] glm::vec3 readAngles16()
+{
+    glm::vec3 a;
+    for(int i = 0; i < 3; i++)
+    {
+        a[i] = static_cast<float>(MSG_ReadShort()) * (360.f / 65536.f);
+    }
+    return a;
+}
+
+[[nodiscard]] int curlByte(float c)
+{
+    return za::clamp(static_cast<int>(za::round(c * 16.f)), -128, 127);
+}
+
 } // namespace
+
+float quantizedCurl(float c)
+{
+    return static_cast<float>(curlByte(c)) / 16.f;
+}
+
+void writeDrawnHand(sizebuf_t* buf, const VrDrawnHand& h, const glm::vec3& origin)
+{
+    MSG_WriteByte(buf, h.flags);
+    if(h.flags & VrDrawnHand::solveBit)
+    {
+        writeEighths(buf, h.handOrigin, origin);
+        writeAngles16(buf, h.handAngles);
+        MSG_WriteShort(buf, h.weaponModel);
+        MSG_WriteByte(buf, h.weaponFrame);
+        return;
+    }
+    if(h.flags & VrDrawnHand::handBit)
+    {
+        writeEighths(buf, h.handOrigin, origin);
+        writeAngles16(buf, h.handAngles);
+        for(const auto& finger : h.curl)
+        {
+            for(const float c : finger)
+            {
+                MSG_WriteChar(buf, curlByte(c));
+            }
+        }
+        // The thumb's turn: x, y, z of the quaternion with w >= 0 (w from them), in 127ths.
+        const glm::quat q = h.thumb.w < 0.f ? -h.thumb : h.thumb;
+        for(int i = 0; i < 3; i++)
+        {
+            MSG_WriteChar(buf, za::clamp(static_cast<int>(za::round(q[i] * 127.f)), -127, 127));
+        }
+    }
+    if(h.flags & VrDrawnHand::weaponBit)
+    {
+        MSG_WriteShort(buf, h.weaponModel);
+        MSG_WriteByte(buf, h.weaponFrame);
+        MSG_WriteByte(buf, h.weaponSkin);
+        writeEighths(buf, h.weaponOrigin, origin);
+        writeAngles16(buf, h.weaponAngles);
+    }
+}
+
+VrDrawnHand readDrawnHand(const glm::vec3& origin)
+{
+    VrDrawnHand h;
+    h.flags = static_cast<za::U8>(MSG_ReadByte());
+    if(h.flags & VrDrawnHand::solveBit)
+    {
+        h.handOrigin = readEighths(origin);
+        h.handAngles = readAngles16();
+        h.weaponModel = static_cast<za::U16>(MSG_ReadShort());
+        h.weaponFrame = static_cast<za::U8>(MSG_ReadByte());
+        return h;
+    }
+    if(h.flags & VrDrawnHand::handBit)
+    {
+        h.handOrigin = readEighths(origin);
+        h.handAngles = readAngles16();
+        for(auto& finger : h.curl)
+        {
+            for(float& c : finger)
+            {
+                c = static_cast<float>(MSG_ReadChar()) / 16.f;
+            }
+        }
+        glm::vec3 v;
+        for(int i = 0; i < 3; i++)
+        {
+            v[i] = static_cast<float>(MSG_ReadChar()) / 127.f;
+        }
+        const float w2 = 1.f - glm::dot(v, v);
+        h.thumb = glm::normalize(glm::quat{w2 > 0.f ? za::sqrt(w2) : 0.f, v.x, v.y, v.z});
+    }
+    if(h.flags & VrDrawnHand::weaponBit)
+    {
+        h.weaponModel = static_cast<za::U16>(MSG_ReadShort());
+        h.weaponFrame = static_cast<za::U8>(MSG_ReadByte());
+        h.weaponSkin = static_cast<za::U8>(MSG_ReadByte());
+        h.weaponOrigin = readEighths(origin);
+        h.weaponAngles = readAngles16();
+    }
+    return h;
+}
+
+void writeBodyPose(sizebuf_t* buf, const VrBodyPose& p)
+{
+    MSG_WriteByte(buf, p.valid ? 1 : 0);
+    if(p.valid)
+    {
+        MSG_WriteShort(buf, static_cast<int>(za::round(p.yaw * 65536.f / 360.f)) & 65535);
+        MSG_WriteShort(buf, za::clamp(static_cast<int>(za::round(p.headHeight * 1000.f)), -32767, 32767));
+        MSG_WriteShort(buf, za::clamp(static_cast<int>(za::round(p.standingHeight * 1000.f)), -32767, 32767));
+        MSG_WriteByte(buf, za::clamp(static_cast<int>(za::round(p.leanHold * 255.f)), 0, 255));
+    }
+}
+
+VrBodyPose readBodyPose()
+{
+    VrBodyPose p;
+    p.valid = MSG_ReadByte() == 1;
+    if(p.valid)
+    {
+        p.yaw = static_cast<float>(MSG_ReadShort()) * (360.f / 65536.f);
+        p.headHeight = static_cast<float>(MSG_ReadShort()) / 1000.f;
+        p.standingHeight = static_cast<float>(MSG_ReadShort()) / 1000.f;
+        p.leanHold = static_cast<float>(MSG_ReadByte()) / 255.f;
+    }
+    return p;
+}
+
+void writeDrawnHolsters(sizebuf_t* buf, const VrDrawnHolsters& h, const glm::vec3& origin, bool points)
+{
+    MSG_WriteByte(buf, h.valid ? 1 : 0);
+    if(!h.valid)
+    {
+        return;
+    }
+    if(points)
+    {
+        for(const glm::vec3& p : h.at)
+        {
+            writeEighths(buf, p, origin);
+        }
+    }
+    MSG_WriteByte(buf, h.weapons);
+    MSG_WriteByte(buf, h.mirrored);
+    for(int i = 0; i < VrDrawnHolsters::count; i++)
+    {
+        if(h.weapons & (1 << i))
+        {
+            MSG_WriteShort(buf, h.model[i]);
+            MSG_WriteByte(buf, h.frame[i]);
+            MSG_WriteByte(buf, h.skin[i]);
+            writeEighths(buf, h.origin[i], origin);
+            writeAngles16(buf, h.angles[i]);
+        }
+    }
+}
+
+VrDrawnHolsters readDrawnHolsters(const glm::vec3& origin, bool points)
+{
+    VrDrawnHolsters h;
+    h.valid = MSG_ReadByte() == 1;
+    if(!h.valid)
+    {
+        return h;
+    }
+    if(points)
+    {
+        for(glm::vec3& p : h.at)
+        {
+            p = readEighths(origin);
+        }
+    }
+    h.weapons = static_cast<za::U8>(MSG_ReadByte());
+    h.mirrored = static_cast<za::U8>(MSG_ReadByte());
+    for(int i = 0; i < VrDrawnHolsters::count; i++)
+    {
+        if(h.weapons & (1 << i))
+        {
+            h.model[i] = static_cast<za::U16>(MSG_ReadShort());
+            h.frame[i] = static_cast<za::U8>(MSG_ReadByte());
+            h.skin[i] = static_cast<za::U8>(MSG_ReadByte());
+            h.origin[i] = readEighths(origin);
+            h.angles[i] = readAngles16();
+        }
+    }
+    return h;
+}
 
 void writeVrMove(sizebuf_t* buf, const VrMove& move)
 {
@@ -112,6 +329,12 @@ void writeVrMove(sizebuf_t* buf, const VrMove& move)
     }
     MSG_WriteFloat(buf, move.poseClock);
     MSG_WriteFloat(buf, move.light);
+    for(const VrDrawnHand& h : move.drawn)
+    {
+        writeDrawnHand(buf, h, move.origin);
+    }
+    writeBodyPose(buf, move.body);
+    writeDrawnHolsters(buf, move.holsters, move.origin, true);
 }
 
 za::Optional<VrMove> readVrMove()
@@ -182,6 +405,12 @@ za::Optional<VrMove> readVrMove()
     }
     move.poseClock = in.real();
     move.light = in.real();
+    for(VrDrawnHand& h : move.drawn)
+    {
+        h = readDrawnHand(in.finite ? move.origin : glm::vec3{0.f});
+    }
+    move.body = readBodyPose();
+    move.holsters = readDrawnHolsters(in.finite ? move.origin : glm::vec3{0.f}, true);
 
     if(!in.finite)
     {

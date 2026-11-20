@@ -102,12 +102,16 @@ $toolFiles = @("relight_maps.py", "vis_maps.py", "quakepak.py", "quakeimage.py",
 $ericw = if ($env:QVR_ERICW_TOOLS) { $env:QVR_ERICW_TOOLS } else { Join-Path $root "Tools\ericw-tools" }
 $ericwFiles = @("light.exe", "embree4.dll", "tbb12.dll", "tbbmalloc.dll", "gpl_v3.txt", "LICENSE-embree.txt", "README.md")
 $haveEricw = Test-Path (Join-Path $ericw "light.exe")
+# The licences of the libraries linked into the engine whose licences ask for their notice beside a binary (BSD-3: Opus
+# and RNNoise, voice chat; docs/vr-port/CREDITS.md), as licenses/<name>.txt.
+$licenseFiles = [ordered]@{ "opus.txt" = "Quake\vr\external\opus\COPYING"; "rnnoise.txt" = "Quake\vr\external\rnnoise\COPYING" }
 
 if ($DryRun) {
     $engineFiles | ForEach-Object { $_.Name }
     $gameFiles | ForEach-Object { "quakevr/$_" }
     $toolFiles | ForEach-Object { "quakevr/tools/$_" }
     if ($haveEricw) { $ericwFiles + "NOTICE.txt" | ForEach-Object { "quakevr/tools/ericw-tools/$_" } }
+    $licenseFiles.Keys | ForEach-Object { "licenses/$_" }
     "QuakeVR.bat"
     "README-QuakeVR.txt"
     "manifest.json"
@@ -142,6 +146,13 @@ if (-not $WithTests) {
     } finally {
         Pop-Location
     }
+}
+
+# The libraries' licences (above).
+$licenses = Join-Path $dist "licenses"
+New-Item -ItemType Directory -Force $licenses | Out-Null
+foreach ($name in $licenseFiles.Keys) {
+    Copy-Item (Join-Path $root $licenseFiles[$name]) (Join-Path $licenses $name)
 }
 
 # The relighting scripts (docs/RELIGHTING.md), so players can relight their own maps without the

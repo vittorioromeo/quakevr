@@ -6,11 +6,24 @@
 
 #include "vr_engine.hpp"
 #include "vr_hands.hpp"
+#include "vr_move.hpp"
 #include "vr_pouchitems.hpp"
 #include "vr_weapons.hpp"
 
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
+
+namespace qvr::avatar
+{
+struct HandPose;
+struct Subject;
+}
+
+namespace qvr::handrig
+{
+struct Pose;
+struct Posed;
+} // namespace qvr::handrig
 
 namespace qvr::view
 {
@@ -47,6 +60,21 @@ struct ViewEntity
 // 0): your body (and its copy in a mirror), its forearms' skin turning to the hand's colour towards the wrist; a jointed
 // hand (w -1), its end inside the arm folded onto the wrist's line. False for any other entity (none).
 [[nodiscard]] bool skinTint(const entity_t* e, float tint[4], float range[4]);
+// A player's look on his skin and hands (MP_PLAN.md, B6: cosmetics others see): your own from your settings (ownLook), another
+// player's from his avatar calibration (mpavatar::lookOf), so his hands and body are drawn as he dressed them.
+struct SkinLook
+{
+    float tone{0.f};      // vr_skin_tone: -1 dark .. 1 light
+    int gloves{0};        // vr_gloves: 0 none, 1 fingerless, 2 full
+    glm::vec3 glove{0.f}; // vr_glove_hue (degrees), _saturation, _lightness
+    bool nails{false};    // vr_nails
+    glm::vec3 nail{0.f};  // vr_nail_hue, _saturation, _lightness
+    float nailGloss{0.f}; // vr_nail_gloss
+    bool bare{false};     // bare forearms (no bracers): a glove's cuff over the body's forearm
+};
+[[nodiscard]] SkinLook ownLook();
+// `e`'s look and kind: 1 a jointed hand, 2 a body (yours, and another player's), zero other entities.
+[[nodiscard]] int lookOf(const entity_t* e, SkinLook& look);
 // Skin-only tone: kind 1 the jointed hand, 2 the body, zero other entities.
 [[nodiscard]] int skinTone(const entity_t* e, float tone[4]);
 // Gloves (vr_gloves, vr_glove_hue/saturation/lightness) on the same entities: `glove` the leather's colour (rgb) and the
@@ -59,6 +87,10 @@ void gloveCuffRange(float cuff[4]);
 // Painted nails (vr_nails, vr_nail_hue/saturation/lightness/gloss) on a jointed hand (skinTone's kind 1): `nails` the
 // polish's colour (rgb) and 1 + its gloss (w; 0 none: no nails on `e`). True when drawn.
 [[nodiscard]] bool nailLook(const entity_t* e, float nails[4]);
+// vr_mp_avatars' "mp_look:" lines (the harness's mp_cosmetics): `e`'s kind, tone, glove and nails as drawn; your own
+// hands' and body's as "mp_look_own:" (parts 0 off hand, 1 main hand, 2 body).
+void printLook(const char* what, int ent, int part, const entity_t* e);
+void printOwnLooks(int ent);
 // The kind (as skinTone's) when `e` reads its skin mask (a skin tone, a glove or painted nails on it), else zero.
 [[nodiscard]] int skinMaskWanted(const entity_t* e);
 // A power-up's glow on `e` (Quad's blue, the pentagram's red, the biosuit's green; vr_view.cpp powerupGlow): on your
@@ -316,6 +348,9 @@ bool weaponLocalGeometry(qmodel_t* model, glm::vec3& muzzle, glm::vec3& butt, gl
 // none in flat-screen play), 0 upright (its blade to the thumb's side), 1 reversed (to the little finger's); `cosine`: of the
 // blade's way and the thumb's side's (the normal grip's blade, at the hand's turn now).
 [[nodiscard]] int reverseGripChoice(const entity_t& e, int hand, float& cosine);
+// The same for a hand at angles `handRot` (world) that may hold a weapon reversed or not (`mayReverse`: his vr_revgrip on, not
+// in flat-screen play): another player's on a server (MP_PLAN.md, B3f: his move's hand, his own vr_revgrip).
+[[nodiscard]] int reverseGripChoiceAt(const entity_t& e, int hand, const glm::vec3& handRot, bool mayReverse, float& cosine);
 // Whether the weapon the local player's `hand` holds may be held reversed (its eject button flips the grip: QC weapondrawnpose 46).
 [[nodiscard]] bool heldMayReverse(int hand);
 // The same in flat play too: the predicate of the eject button's flip (heldMayReverse is its VR half) and of the flat
@@ -345,10 +380,13 @@ bool weaponLocalGeometry(qmodel_t* model, glm::vec3& muzzle, glm::vec3& butt, gl
 [[nodiscard]] bool looseReversedHandPoint(const entity_t& e, glm::vec3& point);
 // The same for the weapon `hand` carries off its handle as drawn now (twohand's HS_CARRIED_GRIP: taken back either way).
 [[nodiscard]] bool carriedReversedHandPoint(int hand, glm::vec3& point);
-// A weapon of `slot` leaving the local player's `hand` (a drop, a throw: QC weapondrawnpose 49, 50): the angles (a view's, as the hand's
-// `handRot`) that the weapon lying about keeps the way it is drawn by (the reverse grip's turn baked in: rot Rev), and the move of
-// its origin from the hand's point (reverseShift). `handRot` and nothing for a weapon held upright.
-[[nodiscard]] glm::vec3 leavingTurn(int hand, int slot, const glm::vec3& handRot, glm::vec3& shift);
+// A weapon of `slot` leaving a player's hand (`mirrored`: his off hand) held with `flip` of the reverse grip (leavingFlip: as
+// his view drew it; a drop, a throw: QC weapondrawnpose 49, 50): the angles (a view's, as the hand's `handRot`) that the weapon
+// lying about keeps the way it is drawn by (the reverse grip's turn baked in: rot Rev), and the move of its origin from the
+// hand's point (reverseShift). `handRot` and nothing for a weapon held upright.
+[[nodiscard]] glm::vec3 leavingTurn(int slot, bool mirrored, float flip, const glm::vec3& handRot, glm::vec3& shift);
+// The reverse grip's share the weapon in the local player's `hand` is drawn with (0 upright; a carried one's: 0).
+[[nodiscard]] float leavingFlip(int hand);
 
 // The same weapon's handle and tip in the frame of the hand that carries it as it was drawn (its position and `rot`:
 // forward, right, up), for the server to place on the hand of the move it runs (QC's melee: VR_Melee_FreeLine). False if
@@ -470,7 +508,92 @@ void woundTargets(entity_t* out[3]);
 
 // The jointed hand (vr_handrig.cpp): the skinning matrices of `e` if it is a drawn hand rig (their count, else 0).
 [[nodiscard]] int handBonePoses(const entity_t* e, const float** matrices);
-// The armour's plates on your body (vr_player_plates; vr_view_body.cpp setupPlates): `e`'s bones if it is one of their
+
+// Multiplayer (MP_PLAN.md, B2b): the hands and held weapons as drawn last ([0] off, [1] main), for the move (the other
+// players draw them: vr_mpavatar.cpp). A weapon whose model the server has not precached is left out (others can't name it).
+void netHands(VrDrawnHand out[2]);
+// Another player's hands placed by the code that places yours (setupWeapon, setupHand; MP_PLAN.md, B11 part 3): a bot's,
+// which no client draws, from its controllers (`pos`, `rot`, world; [0] off, [1] main) and the weapons in them
+// (`model`: model_precache indices, 0 an empty hand; `frame`), written as netHands writes yours (world). His own
+// drawing state (his hands' fit eased from frame to frame) is kept per player entity `player`, swapped in for it.
+void solveHands(int player, const glm::vec3 pos[2], const glm::vec3 rot[2], const int model[2], const int frame[2],
+    VrDrawnHand out[2]);
+// ... and the holsters as drawn last (B6b): their points and the weapons in them, in body::Holster's order (their stats').
+void netHolsters(VrDrawnHolsters& out);
+
+// The pauldrons' look (vr_body_pauldron*): yours from your settings, another player's from his calibration and the armour
+// the server says he wears (MP_PLAN.md, B6b).
+struct PauldronLook
+{
+    bool on{false};
+    int style{0};          // vr_body_pauldron_style
+    float size{1.f};       // vr_body_pauldron_size
+    float follow{0.f};     // vr_body_pauldron_follow
+    glm::vec3 offset{0.f}; // vr_body_pauldron_forward, _out, _up
+    int build{1};          // his body's build
+    int armour{0};         // the armour worn: 0 none, 1 green, 2 yellow, 3 red
+    bool plates{false};    // the armour's plates drawn on the body (a plate on a shoulder: no pauldron there)
+    unsigned platePieces{0};
+};
+// The pauldrons of `body` (posed this frame: yours, `player` 0, or player `player`'s, avatar::otherShoulder) placed into
+// `cap` and `arm` ([0] left, [1] right; not visible: none). One code path for yours and the others'.
+void placePauldrons(const ViewEntity& body, const PauldronLook& look, int player, ViewEntity cap[2], ViewEntity arm[2]);
+// vr_mp_avatars: "<what>: ent= side= skin= scale= at=" for each cap drawn; yours as "mp_pauldron_own".
+void printPauldrons(const char* what, int ent, const ViewEntity cap[2]);
+void printOwnPauldrons(int ent);
+// One player's jointed hands, held weapons and holstered weapons as drawn (MP_PLAN.md, B11c part 2): yours and every other
+// player's copy through the same routines on per-entity data. drawHand: a jointed hand, its fingers posed, skinned and the
+// rig placed; drawGear: a weapon in a hand or a holster, placed with its frame and skin. Yours at the end of the live rig's
+// solve (setupRigHand, setupWeapon, setupHolsters): what is the own view's alone (the grasp and the palm's fit, a gun's
+// kick, shake and turns, the holsters' places on your body) stays there and comes in as the place, the pose and the skin.
+// Another's through drawHands, from his snapshot (his hands, weapons and holsters as his client drew them: VrDrawnHand,
+// VrDrawnHolsters, from his entity as drawn here).
+struct HandDraw
+{
+    bool shown{false};        // false: its entity hidden (posed all the same)
+    glm::vec3 origin{0.f};    // the rig entity's place and angles (entity_t's)
+    glm::vec3 angles{0.f};
+    bool mirrored{false};     // the off hand: the right hand's rig mirrored
+    int skin{0};              // its skin (yours: a wound's blood level)
+    handrig::Pose* pose{nullptr};   // its fingers' shifts, curls and thumb
+    handrig::Posed* posed{nullptr}; // out: posed
+    float* bones{nullptr};          // out: the skinning matrices (handrig::data::numJoints * 12 floats)
+};
+// The rig's model drawn (nullptr: no jointed hand; `ve` hidden then).
+qmodel_t* drawHand(const HandDraw& h, ViewEntity& ve);
+struct GearDraw
+{
+    qmodel_t* model{nullptr}; // nullptr: none (its entity hidden)
+    glm::vec3 origin{0.f};
+    glm::vec3 angles{0.f};    // entity_t's
+    int frame{0};
+    int skin{0};
+    bool mirrored{false};     // a right-handed model drawn left-handed
+};
+void drawGear(const GearDraw& g, ViewEntity& ve);
+// Another player's whole set from his snapshot: `hands` ([0] off, [1] main) and `holsters`, their places from `origin`
+// (his entity as drawn); his fingers shaped by your rig's settings (rigShifts).
+struct HandsDraw
+{
+    glm::vec3 origin{0.f};
+    const VrDrawnHand* hands{nullptr};
+    const VrDrawnHolsters* holsters{nullptr};
+};
+struct HandsEntities
+{
+    ViewEntity* hand{nullptr};   // [2]
+    ViewEntity* weapon{nullptr}; // [2]
+    ViewEntity* holster{nullptr}; // [VrDrawnHolsters::count]
+    float* bones[2]{nullptr, nullptr}; // each hand's skinning matrices (out)
+};
+void drawHands(const HandsDraw& in, const HandsEntities& out);
+// Another player's drawn jointed hand (its entity, placed by vr_mpavatar.cpp): its wrist and orientation as your own drawn
+// hands' are taken for your body's arms (his body's arms reach it).
+void remoteHandPose(const ViewEntity& hand, avatar::HandPose& out);
+// The body model of a build (vr_body_build's; `bare`: its bare forearms', vr_body_bracers 0), falling back as your own body
+// does (the athletic build's): usable as the VR body, or nullptr.
+[[nodiscard]] qmodel_t* bodyModel(int build, bool bare);
+// The armour's plates on your body (vr_player_plates; vr_view_body.cpp drawBody): `e`'s bones if it is one of their
 // entities (0: not), the body's as this pass draws them, a hidden piece's collapsed, the helmet only where the head is
 // drawn (View: as VR_AliasBonePoses has the body; Shadow: as the shadow maps have it; Clone: its mirror image, with its head).
 enum class PlatePass : int
@@ -480,6 +603,79 @@ enum class PlatePass : int
     Clone,
 };
 [[nodiscard]] int plateBonePoses(const entity_t* e, const float** matrices, PlatePass pass);
+// One player's body as drawn (MP_PLAN.md, B11c): yours (vr_view_body.cpp, from the live rig) and every other player's
+// copy (vr_mpavatar.cpp, from his snapshots) through drawBody, on per-entity data. Its model (the build, bare forearms or
+// bracers, falling back as bodyModel), posed (avatar::pose; another's avatar::poseOther: his body's own motion), placed,
+// shaded, the armour's plates and their joints' leather on it, the pauldrons. What is the own view's alone comes in as
+// data: the legs (your vr_body_mode 3), the drawn view's ride (flat play's bob), the shading (your armour, wounds and
+// power-ups: showPlayerState), the plates' morphs (yours come in and go out over vr_player_plates_morph_time).
+struct BodyPlates
+{
+    static constexpr int maxMorphs = 4;
+    bool on{false}; // plates drawn at all (vr_player_plates: yours and how you see the others')
+    int type{0};    // the armour (1-3; 0 none) and its pieces worn (the server's word)
+    int pieces{0};
+    int coming{0};  // those still coming in (drawn by a morph, not settled)
+    int morphPieces[maxMorphs]{}; // each morph's pieces (0 none), armour and the alias shader's morph value
+    int morphType[maxMorphs]{};
+    float morphValue[maxMorphs]{};
+};
+// One player's plates' morphs (BodyPlates' coming and morph fields) as the server's word on him changes, over your
+// vr_player_plates_morph_time: a piece gained comes in, another armour's pieces go out where the new one's come in, a piece
+// lost goes at once (its debris flies from QC). Yours (vr_view_body.cpp) and each other player's copy (vr_mpavatar.cpp),
+// a state each; `resync` (a new level, a load, his copy first drawn): the next word taken as it comes, for a second.
+struct PlateMorphs
+{
+    struct Morph
+    {
+        int pieces{0}, type{0}; // (0 pieces: a free one)
+        double start{0.0};
+        bool in{true};
+    };
+    int type{0}, pieces{0}; // the server's word as of the last frame
+    Morph morphs[BodyPlates::maxMorphs];
+    bool resync{true};
+    double settleUntil{0.0};
+    int begun{0}; // morphs begun so far (the tests)
+};
+void morphPlates(PlateMorphs& m, bool on, int type, int pieces, double now, BodyPlates& out);
+struct BodyDraw
+{
+    bool shown{false};                      // false: none drawn (the entities below hidden)
+    int player{0};                          // his entity (yours: cl.viewentity)
+    const avatar::Subject* who{nullptr};    // his measures and motion; nullptr: this game's own player (the live ones)
+    hands::State s;                         // the head and hands it is posed from
+    const avatar::HandPose* poses{nullptr}; // the drawn hands' wrists, [HAND_OFF] and [HAND_MAIN]
+    int build{1};
+    bool bare{false};    // its bare forearms wanted (both its jointed hands drawn)
+    bool legs{true};     // with legs (seen from outside: always)
+    glm::vec3 ride{0.f}; // the whole body moved with the drawn view (flatplay::bodyRide)
+    void (*shade)(ViewEntity& ve, const hands::State& s){nullptr}; // its skin, tint, see-through (nullptr: plain)
+    BodyPlates plates;
+    PauldronLook pauldrons; // (its plates' fields: drawBody's)
+};
+struct BodyEntities
+{
+    ViewEntity* body{nullptr};
+    ViewEntity* plates{nullptr}; // [0] the settled pieces, then one per morph (numPlates in all)
+    int numPlates{0};
+    int* platePieces{nullptr};   // out: each plates entity's pieces drawn (0 none), or nullptr
+    ViewEntity* bridge{nullptr}; // the joints' leather
+    ViewEntity* cap{nullptr};    // the pauldrons, [0] left, [1] right
+    ViewEntity* arm{nullptr};
+};
+// The body model drawn (nullptr: none; everything in `out` hidden then).
+qmodel_t* drawBody(const BodyDraw& b, const BodyEntities& out);
+// Another player's plates' bones (VR_AliasBonePoses' count; with `matrices`, made into `out`: agarmor::playerPlatesMostBones, or for the
+// leather (`bridge`) playerBridgeMostBones, times 12 floats).
+[[nodiscard]] int otherPlateBonePoses(const entity_t& body, bool bridge, int pieces, float* out, const float** matrices);
+// vr_mp_avatars: "mp_plates_own: ent= type= pieces= skin= model=" (your plates as drawn).
+void printOwnPlates(int ent);
+// vr_mp_avatars: a player's jointed hands, held and holstered weapons as drawn, a line each ("<what>: ent= kind=hand|weapon|
+// holster index= model= mirrored= frame= skin= at= ang= bones=": the hand's skinning matrices summed); yours as "mp_hands_own".
+void printHands(const char* what, int ent, const ViewEntity hand[2], const float* const skin[2], const ViewEntity weapon[2],
+    const ViewEntity* holster, int numHolsters);
+void printOwnHands(int ent);
 // A new level or a load's armour coming (agarmor::parseEvent): the next word on the plates taken as it comes, no morph.
 void platesResync();
 // Whether the armour's plates show on your body this frame (vr_player_plates on, a piece worn, the body drawn): what the

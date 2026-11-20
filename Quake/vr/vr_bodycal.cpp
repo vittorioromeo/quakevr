@@ -3317,6 +3317,43 @@ float shoulderRise()
     return (calibrated() ? vr_bodycal_shoulder_rise.value : defaultRise) + vr_body_tweak_shoulder_rise.value;
 }
 
+Arms ownArms()
+{
+    Arms a;
+    a.measuredCm[0] = measuredArmCm(0);
+    a.measuredCm[1] = measuredArmCm(1);
+    a.tweakCm[0] = armTweakCm(0);
+    a.tweakCm[1] = armTweakCm(1);
+    a.shoulderOffset = shoulderOffset();
+    a.rise = shoulderRise();
+    a.swing = shoulderSwing();
+    return a;
+}
+
+Arms defaultArms()
+{
+    Arms a;
+    a.shoulderOffset = defaultShoulders;
+    a.rise = defaultRise;
+    a.swing = defaultSwing;
+    return a;
+}
+
+glm::vec3 defaultShoulderOffset()
+{
+    return defaultShoulders;
+}
+
+float defaultShoulderRise()
+{
+    return defaultRise;
+}
+
+float defaultShoulderSwing()
+{
+    return defaultSwing;
+}
+
 float shoulderSwing()
 {
     return (calibrated() ? vr_bodycal_shoulder_swing.value : defaultSwing) + vr_body_tweak_shoulder_swing.value;

@@ -126,6 +126,23 @@ CCREP_RULE_INFO
 #define CCREP_SERVER_INFO	0x83
 #define CCREP_PLAYER_INFO	0x84
 #define CCREP_RULE_INFO		0x85
+#define CCREP_CHALLENGE		0x86 // QVR: (mpfix A1, network version 40) long cookie: send CCREQ_CONNECT again with it
+					// after the rest (the server gives a slot only to a request whose cookie it made for that
+					// address: the address takes replies)
+
+#define QVR_UNHEARD_TIMEOUT	15.0 // QVR: (mpfix A1) seconds a server's new client may go without acking a chunk
+
+#define NET_RELIABLE_WINDOW	16 // QVR: reliable chunks in flight at most (net_dgrm.c)
+#define NET_RELIABLE_CHUNK	1200 // QVR: a reliable chunk's bytes at most (net_dgrm.c)
+#define NET_EMPTY_READS	256 // QVR: empty datagrams a driver's Read skips at most in one call (one past them: none waiting)
+
+// QVR: (B23) datagrams queued for a reader (net_dgrm.c: a server's clients on its one socket), oldest first
+typedef struct
+{
+	struct dgrmpacket_s	*first;
+	struct dgrmpacket_s	*last;
+	int		count;
+} dgrmqueue_t;
 
 typedef struct qsocket_s
 {
@@ -145,6 +162,40 @@ typedef struct qsocket_s
 
 	unsigned int	ackSequence;
 	unsigned int	sendSequence;
+	unsigned int	sendChunkBase;	// QVR: the sequence of the reliable message's first chunk (net_dgrm.c)
+	// QVR: the reliable window's resends (net_dgrm.c, MP_PLAN.md B12b): each chunk in flight's last send (by its sequence
+	// modulo the window) and whether it was a resend; the chunks' smoothed round trip (0: none measured yet); the acks of
+	// later chunks since the last in order (a lost chunk's sign); timeouts in a row; a fast resend since the last in order
+	double		chunkSentTime[NET_RELIABLE_WINDOW];
+	qboolean	chunkResent[NET_RELIABLE_WINDOW];
+	qboolean	chunkAcked[NET_RELIABLE_WINDOW];	// QVR: (B13) acked out of order: the receiver holds it (net_dgrm.c)
+	double		reliableRtt;
+	int		aheadAcks;
+	int		resendBackoff;
+	qboolean	fastResent;
+	// QVR: (B13) the link's counts for the net HUD (vr_nethud.cpp): unreliable datagrams read in order and the ones
+	// their sequence skipped (lost, or late), reliable chunks sent again, the packets' bytes each way
+	unsigned int	qvrUnreliableRead;
+	unsigned int	qvrUnreliableSkipped;
+	unsigned int	qvrResent;
+	unsigned int	qvrBytesIn;
+	unsigned int	qvrBytesOut;
+	qboolean	qvrAcceptStale;	// QVR: (B20) an unreliable datagram overtaken on the way is still read (net_stalemessage):
+					// a remote client's moves at the server (SV_ReadClientMessage reads only its QVR_CLC_MOVES)
+	unsigned int	qvrStaleRead;	// QVR: ... how many were
+	double		qvrUnreliableTime;	// QVR: (review 2026-11-18, finding 2) the last unreliable datagram's read in its window
+	qboolean	qvrSeeded;	// QVR: ... the channels' first sequences drawn at random (network version 39; net_dgrm.c)
+	unsigned int	qvrFirstOut;	// QVR: ... a server's first one to its client (the accept again for a duplicate request)
+	int		qvrNetVersion;	// QVR: the peer's Quake VR network version from its connect request (0: none; net_dgrm.c)
+	char		qvrName[32];	// QVR: the player's name from its connect request ("": none): a loaded coop game's slot by it
+	char		qvrKey[24];	// QVR: (B25) his game's vr_mp_clientkey from its connect request ("": none): "back from a crash" only by it
+	qboolean	qvrShared;	// QVR: (B23) a server's client on the server's listening socket (net_dgrm.c): its datagrams
+					// are read from there and queued for it (qvrIn), its socket is not its own to close
+	dgrmqueue_t	qvrIn;		// QVR: ... its queued datagrams, oldest first
+	qboolean	qvrHeard;	// QVR: (mpfix A1) the peer has acked a reliable chunk (a server's client: its address takes
+					// replies; until then one chunk in flight, and NET_GetMessage drops it after QVR_UNHEARD_TIMEOUT)
+	qboolean	qvrClosing;	// QVR: (mpfix A2) closed by the driver (that player back from a crash): NET_GetMessage
+					// gives -1 and its owner frees it (never handed out again while a client slot still holds it)
 	unsigned int	unreliableSendSequence;
 	int		sendMessageLength;
 	byte		sendMessage [NET_MAXMESSAGE];
@@ -153,6 +204,11 @@ typedef struct qsocket_s
 	unsigned int	unreliableReceiveSequence;
 	int		receiveMessageLength;
 	byte		receiveMessage [NET_MAXMESSAGE];
+	// QVR: (B13) the chunks after the next one in order that came first, held until it comes (by their sequence modulo
+	// the window; length 0: none held): a Quake VR peer's window survives reordering (net_dgrm.c)
+	int		heldLength[NET_RELIABLE_WINDOW];
+	qboolean	heldEom[NET_RELIABLE_WINDOW];
+	byte		held[NET_RELIABLE_WINDOW][NET_RELIABLE_CHUNK];
 
 	struct qsockaddr	addr;
 	char		address[NET_NAMELEN];
@@ -228,15 +284,17 @@ void NET_FreeQSocket(qsocket_t *);
 double SetNetTime(void);
 
 
-#define HOSTCACHESIZE	8
+#define HOSTCACHESIZE	32 // QVR: (B13) 8 before: the server browser's favourites and recent servers too
 
 typedef struct
 {
 	char	name[16];
 	char	map[16];
-	char	cname[32];
+	char	cname[64]; // QVR: 32 before: a favourite's address as he wrote it (a host name and port)
 	int		users;
 	int		maxusers;
+	int		ping;	// QVR: (B13) the reply's round trip in ms (the server browser's)
+	int		version;	// QVR: (B13) its NetQuake protocol version (NET_PROTOCOL_VERSION: joinable)
 	int		driver;
 	int		ldriver;
 	struct qsockaddr addr;
@@ -255,6 +313,10 @@ typedef struct _PollProcedure
 } PollProcedure;
 
 void SchedulePollProcedure(PollProcedure *pp, double timeOffset);
+
+// QVR: (B24, tests) -loopbackonly's fence in the IPv4 drivers' Write and GetAddrFromName (net_main.c)
+qboolean NET_LoopbackRefusesTo (const struct qsockaddr *addr);
+qboolean NET_LoopbackRefusesName (const char *name, const struct qsockaddr *parsed);
 
 #endif	/* __NET_DEFS_H */
 

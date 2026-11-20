@@ -1,6 +1,7 @@
 // vr_grip.cpp -- see vr_grip.hpp.
 
 #include "vr_grip.hpp"
+#include "vr_clientprefs.hpp"
 #include "vr_cvars.hpp"
 #include "vr_tunables.hpp"
 #include "vr_gripfit.hpp"
@@ -28,6 +29,7 @@ namespace
 {
 
 HandFrame frames[2];
+HandFrame playerFrames[MAX_SCOREBOARD][2]; // server: each client slot's, as his client measured them (setPlayerFrame)
 
 // The default hand's frame (the right hand; the left mirrored), for a hand not measured: the jointed hand at the shipped
 // settings (vr_world_scale 1.25, vr_gunmodelscale 0.7, the shipped hand calibration), measured with vr_grip_frame
@@ -203,7 +205,16 @@ void setHandFrame(int hand, const HandFrame& f)
     if(hand == 0 || hand == 1)
     {
         frames[hand] = f;
+        if(const int own = clientprefs::ownSlot(); own >= 0)
+        {
+            setPlayerFrame(own, hand, f); // (hosting: into its own player's slot, as a remote player's message does)
+        }
     }
+}
+
+HandFrame ownFrame(int hand)
+{
+    return hand == 0 || hand == 1 ? frames[hand] : HandFrame{};
 }
 
 HandFrame handFrame(int hand, bool left, bool local)
@@ -213,6 +224,29 @@ HandFrame handFrame(int hand, bool left, bool local)
         return frames[hand];
     }
     return defaultFrame(left);
+}
+
+HandFrame handFrameOf(const edict_t* player, int hand, bool left)
+{
+    if(!player || (hand != 0 && hand != 1) || !sv.qcvm.edicts)
+    {
+        return defaultFrame(left);
+    }
+    // (every player's from his slot, this game's own too: clientprefs::ownSlot)
+    const int slot = static_cast<int>(((const byte*)player - (const byte*)sv.qcvm.edicts) / sv.qcvm.edict_size) - 1;
+    if(slot >= 0 && slot < svs.maxclients && slot < MAX_SCOREBOARD && playerFrames[slot][hand].measured)
+    {
+        return playerFrames[slot][hand];
+    }
+    return defaultFrame(left);
+}
+
+void setPlayerFrame(int slot, int hand, const HandFrame& f)
+{
+    if(slot >= 0 && slot < MAX_SCOREBOARD && (hand == 0 || hand == 1))
+    {
+        playerFrames[slot][hand] = f;
+    }
 }
 
 Place palmPlace(const Prop& prop, const glm::vec3& centre, const HandFrame& frame, const Place& taken)
@@ -301,7 +335,6 @@ struct Held
     const qmodel_t* model{nullptr};
     int hand{0};
     bool left{false};
-    bool local{false};
     HandFrame frame;
     Prop prop;
     Place taken;
@@ -421,7 +454,7 @@ void logPlace(const char* what, int num, const Held& h)
     const glm::vec3 a = h.now.rot[0], u = h.now.rot[2];
     Con_Printf("grip: %s %d %s (mode %d, %s hand%s): taken at %.2f %.2f %.2f, held at %.2f %.2f %.2f, its x %.2f %.2f %.2f, "
                "its z %.2f %.2f %.2f (hand frame: forward, left, up; generation %u, frame %d)\n",
-        what, num, h.model ? h.model->name : "?", mode, h.left ? "left" : "right", h.local ? ", measured" : "", h.taken.pos.x,
+        what, num, h.model ? h.model->name : "?", mode, h.left ? "left" : "right", h.frame.measured ? ", measured" : "", h.taken.pos.x,
         h.taken.pos.y, h.taken.pos.z, h.now.pos.x, h.now.pos.y, h.now.pos.z, a.x, a.y, a.z, u.x, u.y, u.z, h.generation,
         host_framecount);
 }
@@ -436,8 +469,7 @@ glm::vec3 serverTake(edict_t* e, edict_t* player, int hand, bool left, const flo
     h.model = model;
     h.hand = hand;
     h.left = left;
-    h.local = cls.state != ca_dedicated && player && NUM_FOR_EDICT(player) == 1;
-    h.frame = handFrame(hand, left, h.local);
+    h.frame = handFrameOf(player, hand, left); // (each player's own: B3d)
     h.prop.brush = model && model->type == mod_brush;
     h.prop.slot = model ? props::slotForModel(model) : -1;
     if(held::drawnVertices(e, h.prop.vertices) && !h.prop.vertices.empty())
@@ -466,7 +498,7 @@ glm::vec3 serverTake(edict_t* e, edict_t* player, int hand, bool left, const flo
     {
         const glm::mat3 toProp = glm::transpose(h.now.rot);
         glm::vec3 move{0.f};
-        if(gripfit::fit(num, hand, h.local, false, toProp, -(toProp * h.now.pos), h.prop.lo, h.prop.hi, &h.prop.vertices, move))
+        if(gripfit::fit(num, hand, player ? NUM_FOR_EDICT(player) : 0, false, toProp, -(toProp * h.now.pos), h.prop.lo, h.prop.hi, &h.prop.vertices, move))
         {
             h.fit = -(h.now.rot * move);
             h.now.pos += h.fit;

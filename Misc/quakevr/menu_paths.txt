@@ -320,6 +320,7 @@ vr_tips_size|1|Tips|Panel Text Size|Advanced VR Options > Tips > Panel Text Size
 |1|Play|Tutorial|Advanced VR Options > Play > Tutorial
 |1|Play|Firing Range|Advanced VR Options > Play > Firing Range
 |1|Play|Melee Recording Room|Advanced VR Options > Play > Melee Recording Room
+|1|Play|Add Co-op Bot|Advanced VR Options > Play > Add Co-op Bot
 |1|Play|Add Bot (Team 0)|Advanced VR Options > Play > Add Bot (Team 0)
 |1|Play|Add Bot (Team 1)|Advanced VR Options > Play > Add Bot (Team 1)
 |1|Play|Kick Bot|Advanced VR Options > Play > Kick Bot
@@ -707,6 +708,23 @@ vr_touch_release|1|Doom|Release Distance|VR Settings > HUD, Haptics and Sound > 
 vr_touch_hard|1|Doom|Hard Press Depth|VR Settings > HUD, Haptics and Sound > Doom on the Wrist Gadget > Hard Press Depth
 vr_touch_haptic|1|Doom|Touch Haptics|VR Settings > HUD, Haptics and Sound > Doom on the Wrist Gadget > Touch Haptics
 |0|Doom|Reset This Page|VR Settings > HUD, Haptics and Sound > Doom on the Wrist Gadget > Reset This Page
+@page|0|Voice Chat||VR Settings > HUD, Haptics and Sound > Voice Chat
+vr_voicechat|0|Voice Chat|Voice Chat|VR Settings > HUD, Haptics and Sound > Voice Chat > Voice Chat
+vr_voicechat_mode|0|Voice Chat|Talk With|VR Settings > HUD, Haptics and Sound > Voice Chat > Talk With
+vr_voicechat_vad|0|Voice Chat|Activation Threshold|VR Settings > HUD, Haptics and Sound > Voice Chat > Activation Threshold
+|0|Voice Chat|Push-to-Talk|VR Settings > HUD, Haptics and Sound > Voice Chat > Push-to-Talk
+vr_voicechat_denoise|0|Voice Chat|Noise Suppression|VR Settings > HUD, Haptics and Sound > Voice Chat > Noise Suppression
+vr_voicechat_mic_gain|0|Voice Chat|Microphone Gain|VR Settings > HUD, Haptics and Sound > Voice Chat > Microphone Gain
+|0|Voice Chat|Microphones|VR Settings > HUD, Haptics and Sound > Voice Chat > Microphones
+vr_voicechat_volume|0|Voice Chat|Volume|VR Settings > HUD, Haptics and Sound > Voice Chat > Volume
+vr_voicechat_attenuation|0|Voice Chat|Fade With Distance|VR Settings > HUD, Haptics and Sound > Voice Chat > Fade With Distance
+vr_voicechat_radio|0|Voice Chat|Radio|VR Settings > HUD, Haptics and Sound > Voice Chat > Radio
+vr_voicechat_indicator|0|Voice Chat|Talking Indicator|VR Settings > HUD, Haptics and Sound > Voice Chat > Talking Indicator
+|2|Voice Chat|Players (Console)|VR Settings > HUD, Haptics and Sound > Voice Chat > Players (Console)
+|2|Voice Chat|Report|VR Settings > HUD, Haptics and Sound > Voice Chat > Report
+|2|Voice Chat|Self-Test|VR Settings > HUD, Haptics and Sound > Voice Chat > Self-Test
+vr_net_voice_bytes|2|Voice Chat|Voice Budget (Hosting)|VR Settings > HUD, Haptics and Sound > Voice Chat > Voice Budget (Hosting)
+|0|Voice Chat|Reset This Page|VR Settings > HUD, Haptics and Sound > Voice Chat > Reset This Page
 @page|1|Recording||Advanced VR Options > Body and Display > Recording (Window View)
 vr_window_view|1|Recording|Window View|Advanced VR Options > Body and Display > Recording (Window View) > Window View
 vr_window_hud_mirror|1|Recording|Flat HUD on the Mirror|Advanced VR Options > Body and Display > Recording (Window View) > Flat HUD on the Mirror
@@ -1040,7 +1058,12 @@ vr_agrunt_shotdisarm_proj_ref|1|Armed Grunts|Projectile: Reference Damage|Advanc
 vr_agrunt_shotdisarm_proj_near|1|Armed Grunts|Projectile: Near Miss|Advanced VR Options > Combat > Armed Grunts > Projectile: Near Miss
 vr_agrunt_shotdisarm_proj_max|1|Armed Grunts|Projectile: Most Chance|Advanced VR Options > Combat > Armed Grunts > Projectile: Most Chance
 vr_player_disarm|1|Armed Grunts|You Can Be Disarmed|Advanced VR Options > Combat > Armed Grunts > You Can Be Disarmed
+vr_player_disarm_pvp|1|Armed Grunts|You Can Be Disarmed by Players|Advanced VR Options > Combat > Armed Grunts > You Can Be Disarmed by Players
 vr_player_disarm_chance|1|Armed Grunts|Your Disarm Chance|Advanced VR Options > Combat > Armed Grunts > Your Disarm Chance
+vr_player_disarm_grab|1|Armed Grunts|Players: Grab and Pull Disarms|Advanced VR Options > Combat > Armed Grunts > Players: Grab and Pull Disarms
+vr_player_disarm_pull|1|Armed Grunts|Players: Disarm Pull|Advanced VR Options > Combat > Armed Grunts > Players: Disarm Pull
+vr_player_disarm_reach|1|Armed Grunts|Players: Disarm Grab Reach|Advanced VR Options > Combat > Armed Grunts > Players: Disarm Grab Reach
+vr_player_disarm_slip|1|Armed Grunts|Players: Disarm Slip|Advanced VR Options > Combat > Armed Grunts > Players: Disarm Slip
 vr_player_disarm_sound|1|Armed Grunts|Your Disarm Sound|Advanced VR Options > Combat > Armed Grunts > Your Disarm Sound
 vr_agrunt_ik|1|Armed Grunts|Hands on the Grips|Advanced VR Options > Combat > Armed Grunts > Hands on the Grips
 vr_agrunt_w_fists|1|Armed Grunts|Fists|Advanced VR Options > Combat > Armed Grunts > Fists
@@ -5321,6 +5344,49 @@ vr_debug_screen_offhand|2|Debug - Reports|Off Hand's Ammo Screen|Advanced VR Opt
 |2|Debug - Reports|Sound Counter Wrap|Advanced VR Options > Debug > Reports > Sound Counter Wrap
 |2|Debug - Reports|Network: Entities Sent|Advanced VR Options > Debug > Reports > Network: Entities Sent
 |2|Debug - Reports|Server Rules|Advanced VR Options > Debug > Reports > Server Rules
+|2|Debug - Reports|Network: Players Seen|Advanced VR Options > Debug > Reports > Network: Players Seen
+|2|Debug - Reports|Network: Lockstep Status|Advanced VR Options > Debug > Reports > Network: Lockstep Status
+vr_mp_lockstep_movelog|2|Debug - Reports|Network: Lockstep Move Log|Advanced VR Options > Debug > Reports > Network: Lockstep Move Log
+|2|Debug - Reports|Network: Held Weapons|Advanced VR Options > Debug > Reports > Network: Held Weapons
+vr_mp_watch|2|Debug - Reports|Network: Watch Players|Advanced VR Options > Debug > Reports > Network: Watch Players
+|2|Debug - Reports|Network: Player Avatars|Advanced VR Options > Debug > Reports > Network: Player Avatars
+|2|Debug - Reports|Network: Player Preferences|Advanced VR Options > Debug > Reports > Network: Player Preferences
+vr_net_hud|2|Debug - Reports|Network: Net HUD|Advanced VR Options > Debug > Reports > Network: Net HUD
+|2|Debug - Reports|Network: Server Browser|Advanced VR Options > Debug > Reports > Network: Server Browser
+|2|Debug - Reports|Network: Edicts in Use|Advanced VR Options > Debug > Reports > Network: Edicts in Use
+vr_mp_download|2|Debug - Reports|Network: Install the Server's Map|Advanced VR Options > Debug > Reports > Network: Install the Server's Map
+vr_mp_rejoin_keep|2|Debug - Reports|Network: Keep a Leaver's Things|Advanced VR Options > Debug > Reports > Network: Keep a Leaver's Things
+vr_mp_guest_admin|2|Debug - Reports|Network: Guests May Kick and Pause|Advanced VR Options > Debug > Reports > Network: Guests May Kick and Pause
+vr_mp_client_timeout|2|Debug - Reports|Network: Server Timeout|Advanced VR Options > Debug > Reports > Network: Server Timeout
+vr_mp_avatar_draw|2|Debug - Reports|Network: Draw Player Hands|Advanced VR Options > Debug > Reports > Network: Draw Player Hands
+vr_mp_avatar_lerp|2|Debug - Reports|Network: Smooth Player Hands|Advanced VR Options > Debug > Reports > Network: Smooth Player Hands
+vr_mp_body|2|Debug - Reports|Network: Draw Player Bodies|Advanced VR Options > Debug > Reports > Network: Draw Player Bodies
+vr_net_avatar_keyframe|2|Debug - Reports|Network: Avatar Keyframe|Advanced VR Options > Debug > Reports > Network: Avatar Keyframe
+vr_net_avatarcal_interval|2|Debug - Reports|Network: Calibration Send Interval|Advanced VR Options > Debug > Reports > Network: Calibration Send Interval
+vr_net_snapshots|2|Debug - Reports|Network: Delta Snapshots|Advanced VR Options > Debug > Reports > Network: Delta Snapshots
+vr_net_interp|2|Debug - Reports|Network: Interpolation Buffer|Advanced VR Options > Debug > Reports > Network: Interpolation Buffer
+vr_net_predict|2|Debug - Reports|Network: Predict Own Walk|Advanced VR Options > Debug > Reports > Network: Predict Own Walk
+vr_net_lagcomp|2|Debug - Reports|Network: Lag Compensation|Advanced VR Options > Debug > Reports > Network: Lag Compensation
+vr_net_permove|2|Debug - Reports|Network: Moves Run One by One|Advanced VR Options > Debug > Reports > Network: Moves Run One by One
+vr_net_permove_skip|2|Debug - Reports|Network: Moves Left to QuakeC|Advanced VR Options > Debug > Reports > Network: Moves Left to QuakeC
+vr_pmove_own|2|Debug - Reports|Movement: Own Walk Through Moves|Advanced VR Options > Debug > Reports > Movement: Own Walk Through Moves
+vr_pmove_bots|2|Debug - Reports|Movement: Bots Walk Through Moves|Advanced VR Options > Debug > Reports > Movement: Bots Walk Through Moves
+vr_pmove_trace|2|Debug - Reports|Movement: Trace Walk Each Frame|Advanced VR Options > Debug > Reports > Movement: Trace Walk Each Frame
+|2|Debug - Reports|Network: Prediction Report|Advanced VR Options > Debug > Reports > Network: Prediction Report
+vr_net_cullposes|2|Debug - Reports|Network: Cull Poses|Advanced VR Options > Debug > Reports > Network: Cull Poses
+vr_net_cullbroadcast|2|Debug - Reports|Network: Cull the Broadcast|Advanced VR Options > Debug > Reports > Network: Cull the Broadcast
+vr_dm_gibs_max|2|Debug - Reports|Deathmatch: Most Loose Gibs|Advanced VR Options > Debug > Reports > Deathmatch: Most Loose Gibs
+vr_dm_weapons_max|2|Debug - Reports|Deathmatch: Most Dropped Weapons|Advanced VR Options > Debug > Reports > Deathmatch: Most Dropped Weapons
+vr_net_snapposes|2|Debug - Reports|Network: Poses in Snapshots|Advanced VR Options > Debug > Reports > Network: Poses in Snapshots
+vr_net_rate|2|Debug - Reports|Network: Rate Cap|Advanced VR Options > Debug > Reports > Network: Rate Cap
+vr_net_rate_max|2|Debug - Reports|Network: Server Rate Cap|Advanced VR Options > Debug > Reports > Network: Server Rate Cap
+vr_net_sendhz|2|Debug - Reports|Network: Send Rate|Advanced VR Options > Debug > Reports > Network: Send Rate
+vr_net_test_hold|2|Debug - Reports|Network: Hold Players' Updates|Advanced VR Options > Debug > Reports > Network: Hold Players' Updates
+vr_net_cosmetic_bytes|2|Debug - Reports|Network: Fragments' Bytes|Advanced VR Options > Debug > Reports > Network: Fragments' Bytes
+vr_net_cosmetic_fill|2|Debug - Reports|Network: Fragments' Fill|Advanced VR Options > Debug > Reports > Network: Fragments' Fill
+vr_net_movebuffer|2|Debug - Reports|Network: Move Buffer|Advanced VR Options > Debug > Reports > Network: Move Buffer
+vr_net_movebuffer_max|2|Debug - Reports|Network: Move Buffer Most|Advanced VR Options > Debug > Reports > Network: Move Buffer Most
+vr_net_voice_bytes|2|Debug - Reports|Network: Voice Budget|Advanced VR Options > Debug > Reports > Network: Voice Budget
 |2|Debug - Reports|Keyboard Hook|Advanced VR Options > Debug > Reports > Keyboard Hook
 |2|Debug - Reports|Microphones|Advanced VR Options > Debug > Reports > Microphones
 vr_debug_mic_level|2|Debug - Reports|Show Microphone Level|Advanced VR Options > Debug > Reports > Show Microphone Level
@@ -5644,6 +5710,16 @@ vr_test_spawn_tilt|2|Debug - Tests|Box Tilted|Advanced VR Options > Debug > Test
 |2|Debug - Tests|Wet Check: Nothing Wet Near|Advanced VR Options > Debug > Tests > Wet Check: Nothing Wet Near
 |2|Debug - Tests|Shoot Yourself: Ordinary Firing|Advanced VR Options > Debug > Tests > Shoot Yourself: Ordinary Firing
 |2|Debug - Tests|Player Disarm: Shots on Your Gun|Advanced VR Options > Debug > Tests > Player Disarm: Shots on Your Gun
+|2|Debug - Tests|Deathmatch Rules: Weapons and Bots|Advanced VR Options > Debug > Tests > Deathmatch Rules: Weapons and Bots
+|2|Debug - Tests|Deathmatch: Parry a Bot's Swing|Advanced VR Options > Debug > Tests > Deathmatch: Parry a Bot's Swing
+|2|Debug - Tests|Deathmatch: A Bot Punches You|Advanced VR Options > Debug > Tests > Deathmatch: A Bot Punches You
+|2|Debug - Tests|Deathmatch: A Bot Takes a Gun by Hand|Advanced VR Options > Debug > Tests > Deathmatch: A Bot Takes a Gun by Hand
+|2|Debug - Tests|Deathmatch: A Bot Grabs Your Gun|Advanced VR Options > Debug > Tests > Deathmatch: A Bot Grabs Your Gun
+|2|Debug - Tests|Deathmatch: Gib and Weapon Caps|Advanced VR Options > Debug > Tests > Deathmatch: Gib and Weapon Caps
+|2|Debug - Tests|Deathmatch: Respawn Beside a Taken Start|Advanced VR Options > Debug > Tests > Deathmatch: Respawn Beside a Taken Start
+|2|Debug - Tests|Deathmatch: A Bot Parries a Bot|Advanced VR Options > Debug > Tests > Deathmatch: A Bot Parries a Bot
+|2|Debug - Tests|Deathmatch: A Bot Dual Wields|Advanced VR Options > Debug > Tests > Deathmatch: A Bot Dual Wields
+|2|Debug - Tests|Co-op: A Bot Fights Beside You|Advanced VR Options > Debug > Tests > Co-op: A Bot Fights Beside You
 |2|Debug - Tests|Player Disarm: Melee on Your Gun|Advanced VR Options > Debug > Tests > Player Disarm: Melee on Your Gun
 |2|Debug - Tests|Toolgun: Armed Humanoid Pairs|Advanced VR Options > Debug > Tests > Toolgun: Armed Humanoid Pairs
 |2|Debug - Tests|Projectiles Keep Your Motion|Advanced VR Options > Debug > Tests > Projectiles Keep Your Motion
@@ -8478,6 +8554,7 @@ vr_stealth_light_force|2|Stealth AI Tests|Force the Light on You|Advanced VR Opt
 |1|Flat Keys|Quick Grenade|Advanced VR Options > Movement > Locomotion > Flat Keys > Quick Grenade
 |1|Flat Keys|Bullet Time|Advanced VR Options > Movement > Locomotion > Flat Keys > Bullet Time
 |1|Flat Keys|Flashlight|Advanced VR Options > Movement > Locomotion > Flat Keys > Flashlight
+|1|Flat Keys|Push-to-Talk|Advanced VR Options > Movement > Locomotion > Flat Keys > Push-to-Talk
 |1|Flat Keys|Holster Menu|Advanced VR Options > Movement > Locomotion > Flat Keys > Holster Menu
 |1|Flat Keys|Fly Camera|Advanced VR Options > Movement > Locomotion > Flat Keys > Fly Camera
 |1|Flat Keys|Toolgun|Advanced VR Options > Movement > Locomotion > Flat Keys > Toolgun

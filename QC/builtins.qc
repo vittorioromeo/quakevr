@@ -232,7 +232,7 @@ float(float wave) arenadirplan = #0;
 float(float what, float i, float field) arenadirget = #0;
 string(float what, float i) arenadirname = #0;
 float(float wave, float threat, float hp, float dom) arenadirsupply = #0;
-vector(entity player, float hand, float what) weapondrawnpose = #0;
+vector(entity player, float hand, float what, ...) weapondrawnpose = #0; // (43: [entity taker], the player taking it)
 // Embedded blades (vr_embedhold.qc; vr_axestick.cpp stickHeld): the just-made blade w put into the body host at `at`, going at
 // `vel` (units/s), from where `hand`'s weapon is drawn: 1 if it stuck (VR_AxeStick_Stuck called), 0 not, -1 not yet: the blade as drawn
 // doesn't touch its drawn model, its .vr_stick_depth how far off (units).
@@ -612,6 +612,14 @@ float(entity e) hitmodel_target = #0; // whether e's model is what is hit (the o
 // far along the hose (0 at the tank, 1 at the gun) its nearest point within `radius` of a..b is (trace_endpos that
 // point), -1 missed, -2 no hose drawn (vr_adtank.cpp, a listen server's).
 float(entity e, vector a, vector b, float radius, float hitclass) hitmodel_segment = #0;
+// Lag compensation's scope (vr_lagcomp.cpp, MP_PLAN.md B8c): with e a remote client, the players and monsters put back
+// where his screen showed them (their places, poses, a player's hands) -> 1, then lagcompend() puts them back keeping
+// what the scope did to them; 0 (nothing moved: single player, the listen host's own client, nested): no lagcompend.
+// Only queries go inside (melee's sweep, a bash's find): the blow is dealt where they are.
+float(entity e) lagcompbegin = #0;
+void() lagcompend = #0;
+// (tests) the scopes begun since the server started (which 0), or the begins that found one open and skipped (1).
+float(float which) lagcompcount = #0;
 // The segment a..b, a sphere of `radius`, against any entity's Quake .mdl as drawn (a prop's, an item's: not only a
 // monster's): where along it it first meets it (0: it starts in it), -1 missed, -2 no such model (a brush model: its box).
 float(entity e, vector a, vector b, float radius) hitmodel_any = #0;
@@ -702,6 +710,10 @@ float(entity p) playerstepsilent = #0; // QVR: the old footsteps' trigger: this 
 float(string s) cvar_hmake = #0;
 float(float h) cvar_hget = #0;
 void() cvar_hclear = #0;
+// QVR: setting h (a cvar_hmake handle) as player p chose it: a per-player preference (vr_clientprefs.cpp: grip, reload,
+// holster modes, gun angles...) in multiplayer is his own; else cvar_hget(h). (cvar_hget itself answers a preference
+// with self's when self is a player -- the server's if he has none: a bot -- else other's when other is one.)
+float(entity p, float h) clientpref = #0;
 
 float() worldtext_hmake = #0;
 void(float h, string s) worldtext_hsettext = #0;
@@ -824,6 +836,12 @@ entity(entity start, .float fld, float flags, vector eye, float range, float min
 float(float particles) propthink = #0;
 vector(vector start, vector end) liquidentry = #0;
 void(vector org, vector dir, float strength, float snd) watersplash = #0;
+float(float hands) waterclimb = #0; // QVR: self climbs out of the water by hand now if he can (vr_pmove.cpp waterClimbTry): hands gripping and empty, bit 0 the off hand, 1 the main; 1 lifted out (VR_WaterClimb_Climbed told)
+void(entity h, float hand, vector at, float beyond, float reeling, float shortest) grapplehold = #0; // QVR: self held (and reeled while reeling) by hook h's rope this frame (vr_pmove.cpp grappleStep): at its first corner from him, beyond its path past it, shortest the rope's shortest; h.gh_len and h.gh_taut written back (VR_Grapple_Taut told)
+float(vector move) botmovethink = #0; // QVR: bot self's frame through the moves players' walks run (vr_pmove.cpp, vr_pmove_bots): its stick `move` (.movevect) as one move; 1: it walks through them this frame (botmovewalk), 0: FrikBot's own physics
+vector() botmovewalk = #0; // QVR: bot self's walk this frame (gravity, the walk or swim, the steps), linked with its touches -> how far short of its stick's want a wall held it ('0 0 0': not held)
+float(entity e) botcarryparms = #0; // QVR: bot e connecting (BotConnect, after SetNewParms): in coop, what a bot of its name had at the last level change (the leavers' rules, vr_coopsave.cpp) into the parm globals -> 1; 0: none kept
+float(entity e, vector target, float swingAt, float parry) botflatpose = #0; // QVR: bot e's hands posed by flat-screen play's code (vr_flatplay.cpp poseBot: one gun or two, aimed at target ('0 0 0': its view), its overhead swing begun at swingAt (0: none), its guard's share parry) into .handpos/.handrot, .offhandpos/.offhandrot -> its swing's phase: 0 none, 1 the windup, 2 the strike and after
 float QVR_SPLASH_SILENT = 0; // the caller plays its own sound
 float QVR_SPLASH_SHOT = 1;   // a small plip
 float QVR_SPLASH_THING = 2;  // a splash, small or big by strength

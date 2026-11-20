@@ -24,6 +24,7 @@
 #include "vr_seated.hpp"
 #include "vr_view.hpp"
 
+#include "Zancle/Base/Swap.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
@@ -75,6 +76,19 @@ namespace detail
     const float dt = lastTime >= 0.0 ? static_cast<float>(CLAMP(0.0, now - lastTime, 0.1)) : 0.f;
     lastTime = now;
     return dt;
+}
+
+void swapMotion(Motion& m)
+{
+    za::genericSwap(gait, m.gait);
+    za::genericSwap(footSteps[0], m.footSteps[0]);
+    za::genericSwap(footSteps[1], m.footSteps[1]);
+    za::genericSwap(water, m.water);
+    za::genericSwap(stance, m.stance);
+    za::genericSwap(legsPosedAt, m.legsPosedAt);
+    za::genericSwap(climbing, m.climbing);
+    za::genericSwap(climbHang, m.climbHang);
+    za::genericSwap(bodyPitch, m.bodyPitch);
 }
 
 } // namespace detail
@@ -190,15 +204,16 @@ void updateWater(const Body& b, const hands::State& s, float dt)
     const float head = (s.head.z - b.floorZ) / b.m2w;
     const float surface = waterSurface(b, head);
     const bool under = surface >= head;
-    const bool swimming = under || (!cl.onground && surface > 0.85f);
+    const bool ground = onGround();
+    const bool swimming = under || (!ground && surface > 0.85f);
     const float deep = CLAMP(0.f, (surface - 0.3f) / 0.45f, 1.f);
-    const float wading = cl.onground && !swimming ? deep * deep * (3.f - 2.f * deep) : 0.f;
+    const float wading = ground && !swimming ? deep * deep * (3.f - 2.f * deep) : 0.f;
 
     // The stick as the server steers it (the head's angles, VR_MoveAngles), swimming up and down
-    // too; full at the walking speed.
+    // too; full at the walking speed. Another player's: the way he moves (his stick is his client's).
     glm::vec3 f, r, u;
     hands::angleVectors(s.headAngles, f, r, u);
-    const glm::vec3 wish = f * cl.cmd.forwardmove + r * cl.cmd.sidemove + UP * cl.cmd.upmove;
+    const glm::vec3 wish = posingOther() ? velocity() : f * cl.cmd.forwardmove + r * cl.cmd.sidemove + UP * cl.cmd.upmove;
     const float len = glm::length(wish);
     const float stick = za::min(1.f, len / za::max(1.f, cl_forwardspeed.value));
 
@@ -245,13 +260,15 @@ namespace detail
 
 void updateGait(const Body& b, float dt)
 {
-    const glm::vec3 vel{cl.velocity[0], cl.velocity[1], 0.f};
+    const glm::vec3 moving = velocity();
+    const glm::vec3 vel{moving.x, moving.y, 0.f};
     const float speed = glm::length(vel) / b.m2w; // metres per second, of the body
-    const bool walking = cl.onground && speed > 0.3f && vr_body_walk.value;
+    const bool ground = onGround();
+    const bool walking = ground && speed > 0.3f && vr_body_walk.value;
 
     const float ease = 1.f - za::exp(-8.f * dt);
     gait.amount += ((walking ? 1.f : 0.f) - gait.amount) * ease;
-    gait.air += ((cl.onground ? 0.f : 1.f) - gait.air) * ease;
+    gait.air += ((ground ? 0.f : 1.f) - gait.air) * ease;
     if(walking)
     {
         gait.dir = glm::normalize(vel);
@@ -622,7 +639,7 @@ void solveLeg(Body& b, const glm::vec3& stand, int side, bool shown, glm::mat3& 
     // Body tracking's generated legs (vr_bodytrack_legs), less what climbing and swimming take, and (vr_bodytrack_legs_walk)
     // what the walk, the run and the air take: moving, the gait drives the legs; standing still, the tracked legs show.
     const float gaitOver = vr_bodytrack_legs_walk.value != 0.f ? za::max(gait.amount, gait.air) : 0.f;
-    bodytrack::leg(side, t.pos, a + l, footZ, (1.f - climbW) * (1.f - swim) * (1.f - lying) * (1.f - sliding) * (1.f - gaitOver), target,
+    bodytrack::leg(side, t.pos, a + l, footZ, (posingOther() ? 0.f : 1.f) * (1.f - climbW) * (1.f - swim) * (1.f - lying) * (1.f - sliding) * (1.f - gaitOver), target,
         kneeDir);
 
     glm::vec3 bend;

@@ -91,6 +91,7 @@
 #include "vr_ad.hpp"
 #include "vr_rules.hpp"
 #include "vr_mapinstall.hpp"
+#include "vr_mpdownload.hpp"
 #include "vr_relight.hpp"
 #include "vr_relight_tool.hpp"
 #include "vr_stealth.hpp"
@@ -141,6 +142,7 @@
 #include "vr_walltorch.hpp"
 #include "vr_muzzlewisps.hpp"
 #include "vr_voicenotes.hpp"
+#include "vr_voicechat.hpp"
 #include "vr_detail.hpp"
 #include "vr_extmaps.hpp"
 #include "vr_pbr.hpp"
@@ -2252,6 +2254,7 @@ extern "C" void VR_Init()
     input::init();
     inputlag::registerCommands();
     voicenotes::init();
+    voicechat::init();
     muzzlewisps::init();
     highlights::init();
     lootbeams::init();
@@ -2447,6 +2450,7 @@ extern "C" void VR_Shutdown()
     highlights::shutdown(); // a log still open: its JSON and EDL written
     if(state)
     {
+        voicechat::shutdown();
         voicenotes::shutdown();
         motion::shutdown();
         animrec::shutdown();
@@ -2542,6 +2546,7 @@ extern "C" void VR_BeginFrame()
         {
             QVR_TRACY_SCOPE(zoneNotesTips, "texts: notes, tips, highlights");
             voicenotes::frame(); // after the clear: its indicator is queued anew each frame
+            voicechat::frame();  // (multiplayer: capture, play-out, the talking indicators, B10v)
             tips::frame();       // a tip due, the one showing (vr_tips)
             highlights::frame(); // the game's clock against realtime, a multi-kill's end
         }
@@ -2965,6 +2970,7 @@ extern "C" void VR_HostFrameEnd()
     qvr::blender::frame(); // vr_blender_link: the Blender add-on's Show in Game (vr_blender.cpp)
     qvr::armourstudio::frame(); // armour.txt read again when it changed (vr_armour_watch); the Armour Studio's sliders and subject
     qvr::mapinstall::poll(); // a map download or unpacking that finished, taken here (vr_mapinstall.cpp)
+    qvr::mpdownload::poll(); // a server's map package: mounted or installed, then joined again (vr_mpdownload.cpp)
     qvr::relight::poll(); // the in-game relighting's light process: its progress, its result (vr_relight.cpp)
     qvr::prepare::frame(); // the installer's preparation run's steps (-prepare: vr_prepare.cpp)
     // The derived-data cache: a miss from now on is "in play" (vr_diskcache.cpp); the warm-up started, paused, resumed.

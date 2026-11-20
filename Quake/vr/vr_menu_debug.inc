@@ -1153,8 +1153,163 @@ za::Vector<Item> pageDebugReports()
             .help("vr_net_stats [reset]: the entities in use, and for each client the entities in sight and sent in its last "
                   "datagram, their bytes and its room (1400 to a remote client), the peak, the mean, the frames that were full."),
         command("Server Rules", "vr_serverrules")
-            .help("vr_serverrules: the settings the server judges by for every player (melee timing): their values, and on "
-                  "a remote server's client the server's against yours."),
+            .help("vr_serverrules: the settings the server judges by for every player (every balance page's, the gameplay "
+                  "preset's, the melee timing): how many, those off their defaults, and on a remote server's client the "
+                  "server's against yours."),
+        command("Network: Players Seen", "vr_mp_status")
+            .help("vr_mp_status: the players this client sees (entity, name, where, whether the last message carried them) "
+                  "and, hosting, the server's clients. The multiplayer harness (Misc/quakevr/mp) reads the same lines."),
+        command("Network: Lockstep Status", "vr_mp_lockstep_status")
+            .help("vr_mp_lockstep_status: the multiplayer harness's reproducible runs (vr_mp_lockstep on a dedicated server, "
+                  "vr_mp_lockstep_ahead on its clients): the world's step, whether it is held, each client's newest move "
+                  "run; on a client, its moves ahead of the server and whether its frames wait."),
+        toggle("Network: Lockstep Move Log", vr_mp_lockstep_movelog)
+            .help("vr_mp_lockstep_movelog: a lockstep server prints every move it runs, each value as the world gets it "
+                  "(\"mp_movelog:\" lines): the harness compares two runs' moves, the lockstep's inputs."),
+        command("Network: Held Weapons", "vr_mp_drawn")
+            .help("vr_mp_drawn: each hand's held weapon as this client draws it (its hotspots, the two-handed hold, a weapon "
+                  "carried off its handle) and, hosting, as the server places each player's from what his client sent."),
+        toggle("Network: Watch Players", vr_mp_watch)
+            .help("vr_mp_watch: the console says when you see each player, when one starts moving from rest and every 32 "
+                  "units he travels, with a wall-clock time in ms: compare two games' consoles for the delay between them."),
+        command("Network: Player Avatars", "vr_mp_avatars")
+            .help("vr_mp_avatars: the other players' heads, hands and weapons as this client has them (QVR_SVC_AVATAR) and, "
+                  "hosting, as the server has them from their moves."),
+        command("Network: Player Preferences", "vr_mp_prefs")
+            .help("vr_mp_prefs: your per-player preferences (grip, reload and holster modes, gun angles...) that differ "
+                  "from the defaults and, hosting, each player's as the server judges him by (those unlike the server's own)."),
+        cycle("Network: Net HUD", vr_net_hud, {{0.f, "Off"}, {1.f, "Ping, Loss"}, {2.f, "And Bytes"}})
+            .help("vr_net_hud: while joined to a remote server, the top right shows your ping (your moves' round trip), "
+                  "the server's datagrams lost and your walk's corrections a second; And Bytes adds the bytes each way and "
+                  "the reliable resends."),
+        command("Network: Server Browser", "menu_servers")
+            .help("menu_servers: the server browser (Multiplayer > Join Game > Server Browser): your favourite servers, the "
+                  "ones you joined last and the LAN's, with their players and pings."),
+        command("Network: Edicts in Use", "vr_mp_edicts")
+            .help("vr_mp_edicts: hosting, the edicts in use and the commonest classnames: what piles up in a long game."),
+        toggle("Network: Install the Server's Map", vr_mp_download)
+            .help("vr_mp_download: joining a server whose map is a Map Library package you lack, it is installed as the "
+                  "Map Library's Install does (your own index, its mirrors and checks: the server names only the package), "
+                  "then you join again. Off: you are told what to install, and stay out."),
+        toggle("Network: Keep a Leaver's Things", vr_mp_rejoin_keep)
+            .help("vr_mp_rejoin_keep: hosting a coop game, a player who leaves (quits, crashes or loses his link) and "
+                  "joins again by the same name gets back his weapons, ammo, health and armour, in his old slot, until the "
+                  "game ends. Off: he comes back as a new player."),
+        toggle("Network: Guests May Kick and Pause", vr_mp_guest_admin)
+            .help("vr_mp_guest_admin: hosting, the other players (guests) may kick players, pause the game and clean the "
+                  "scene, as NetQuake let any coop player. Off: only you (the host) may; a guest who tries is told so."),
+        slider("Network: Server Timeout", vr_mp_client_timeout, 0.f, 120.f, 5.f, "%.0f s")
+            .help("vr_mp_client_timeout: joined to a remote server that stops answering (it crashed, its link dropped), "
+                  "after 3 s the top right and the view say it is not responding; after this many seconds you are taken "
+                  "back to the server browser with the reason. 0: wait as long as NetQuake did (5 minutes)."),
+        toggle("Network: Draw Player Hands", vr_mp_avatar_draw)
+            .help("vr_mp_avatar_draw: the other players' hands (their fingers too) and held weapons drawn where their own "
+                  "games drew them; off: not drawn."),
+        toggle("Network: Smooth Player Hands", vr_mp_avatar_lerp)
+            .help("vr_mp_avatar_lerp: the other players' heads, hands, held and holstered weapons moved smoothly between "
+                  "the server's messages, in step with their bodies (a fast turn no longer leaves them a message behind); "
+                  "off: each message's places as they come."),
+        toggle("Network: Draw Player Bodies", vr_mp_body)
+            .help("vr_mp_body: the other players' bodies drawn under their heads and hands, posed by the same code as your "
+                  "own from what their games send, at their height, arm length and build, with their bracers and pauldrons; "
+                  "off: their player models."),
+        slider("Network: Avatar Keyframe", vr_net_avatar_keyframe, 1.f, 72.f, 1.f, "%.0f frames")
+            .help("vr_net_avatar_keyframe: hosting, a player's hands unchanged since they were last sent go again only every "
+                  "this many frames (1: every frame). What a lost packet or a player just come into sight waits at most."),
+        slider("Network: Calibration Send Interval", vr_net_avatarcal_interval, 0.f, 2.f, 0.05f, "%.2f s")
+            .help("vr_net_avatarcal_interval: in multiplayer, your avatar calibration (height, arm length, handedness, "
+                  "gloves, body) goes to the server when it changes, at most this often (a slider dragged: its last value)."),
+        toggle("Network: Delta Snapshots", vr_net_snapshots)
+            .help("vr_net_snapshots: hosting, a remote player's datagram (his state, the entities and the other players' hands) "
+                  "goes as the changes from the last one his game acknowledged: an idle player costs nearly nothing. Off: "
+                  "NetQuake's whole datagram every frame."),
+        toggle("Network: Interpolation Buffer", vr_net_interp)
+            .help("vr_net_interp: on a remote server, the other players and things are drawn a little behind the newest "
+                  "message, between the two around that time (the delay grows with lost packets): no stop and jump when "
+                  "packets are lost. Off: NetQuake's lerp between the last two messages."),
+        toggle("Network: Predict Own Walk", vr_net_predict)
+            .help("vr_net_predict: on a remote server, your own walking shows at once: the server's state after the newest "
+                  "move it ran, your later moves replayed from it by the same code the server runs them with; a correction "
+                  "eases in. Off: the server's state as it comes, a round trip late."),
+        toggle("Network: Lag Compensation", vr_net_lagcomp)
+            .help("vr_net_lagcomp: hosting, a remote player's shots meet the players and monsters where his screen showed "
+                  "them (up to vr_net_lagcomp_most back, 0.5 s). Off: where the server has them now, so he must lead his "
+                  "target by his lag."),
+        toggle("Network: Moves Run One by One", vr_net_permove)
+            .help("vr_net_permove: hosting, a remote player's walk runs move by move, each for his own frame's time, as his "
+                  "prediction replays it. Off: once a server frame with his newest move, as NetQuake (his prediction is then "
+                  "off by a move whenever two come in one frame)."),
+        slider("Network: Moves Left to QuakeC", vr_net_permove_skip, 0.f, 3.f, 1.f, "%.0f")
+            .help("vr_net_permove_skip: hosting, these of a remote player's moves run once a frame in QuakeC instead (1: the "
+                  "hands' climb out of the water; 2: the grapple's rope; 3: both), as before they were predicted: his "
+                  "prediction then corrects them. A test aid; 0 for play."),
+        toggle("Movement: Own Walk Through Moves", vr_pmove_own)
+            .help("vr_pmove_own: your own walk (single player, or hosting) runs through the same move code a remote "
+                  "player's moves and his prediction run, one move a frame. Off: Quake's server physics and QuakeC's "
+                  "jump and water code, the old path, kept as the fallback. On by default: one movement module for "
+                  "single player, hosting and multiplayer (MP_PLAN B11b)."),
+        toggle("Movement: Bots Walk Through Moves", vr_pmove_bots)
+            .help("vr_pmove_bots: bots (FrikBot) walk through the same move code as players, their stick as a move each "
+                  "frame: the same speed, steps, slopes, jumps, swimming and close-quarters slowing. Off: FrikBot's own "
+                  "copy of Quake's physics in QuakeC, the old path, kept as the fallback (MP_PLAN B11 part 3)."),
+        toggle("Movement: Trace Walk Each Frame", vr_pmove_trace)
+            .help("vr_pmove_trace: each server frame, every player's place, speed and flags after his physics printed "
+                  "(pmtrace: lines), to compare two runs frame by frame. A test aid."),
+        command("Network: Prediction Report", "vr_mp_predict_report")
+            .help("vr_mp_predict_report: the server's states read, the moves replayed a frame, the corrections (all, and on "
+                  "flat ground), the frames not predicted."),
+        toggle("Network: Cull Poses", vr_net_cullposes)
+            .help("vr_net_cullposes: hosting, a remote player gets the armed humanoids' arm poses only of those he can see (on: "
+                  "about 1.2 KB less in each of his datagrams on e1m1); off: every pose to every player, as before."),
+        toggle("Network: Cull the Broadcast", vr_net_cullbroadcast)
+            .help("vr_net_cullbroadcast: hosting, a remote player gets the particles, impacts, effects and sounds only of what "
+                  "he can see or hear (on: with 16 players most of them were far fights); off: all of them to everyone, as "
+                  "before. vr_net_broadcast_report: the bytes sent and culled (MP_PLAN B13b)."),
+        slider("Deathmatch: Most Loose Gibs", vr_dm_gibs_max, 0.f, 256.f, 8.f, "%.0f")
+            .help("vr_dm_gibs_max: in deathmatch, the most gibs and heads lying about; past it the oldest go first (not one "
+                  "held). 0: no cap. 16 players left ~450, the server's physics most of its frame (MP_PLAN B13b)."),
+        slider("Deathmatch: Most Dropped Weapons", vr_dm_weapons_max, 0.f, 128.f, 4.f, "%.0f")
+            .help("vr_dm_weapons_max: in deathmatch, the most dropped and thrown weapons lying about (each also gone after "
+                  "10 s); past it the oldest go first. 0: no cap (MP_PLAN B13b)."),
+        toggle("Network: Poses in Snapshots", vr_net_snapposes)
+            .help("vr_net_snapposes: hosting, a remote player's armed humanoids' arm poses go in his snapshot, coded against the "
+                  "ones he has (on); off: each whole every frame, after the other messages, as before."),
+        slider("Network: Rate Cap", vr_net_rate, 0.f, 160000.f, 4000.f, "%.0f B/s")
+            .help("vr_net_rate: on a remote server, the most it sends you a second (80000 by default; 0: no cap). Under it the nearest things and "
+                  "those ahead of you update first, the far ones wait (MP_PLAN B12); vr_net_bytes shows what you read."),
+        slider("Network: Server Rate Cap", vr_net_rate_max, 0.f, 160000.f, 4000.f, "%.0f B/s")
+            .help("vr_net_rate_max: hosting, the most this server sends any remote player a second, whatever his own Rate "
+                  "Cap (his 0: this; 80000 by default; 0: no ceiling of the server's)."),
+        slider("Network: Send Rate", vr_net_sendhz, 18.f, 72.f, 18.f, "%.0f Hz")
+            .help("vr_net_sendhz: hosting, how many datagrams a second each remote player gets (72: one each server frame; "
+                  "36: every other frame, fewer bytes, the others drawn a frame later; the events between kept for the "
+                  "next). MP_PLAN B13c."),
+        slider("Network: Hold Players' Updates", vr_net_test_hold, 0.f, 8.f, 1.f, "%.0f")
+            .help("vr_net_test_hold: hosting, a test aid: the other players' updates to a remote player wait this many "
+                  "snapshots in each one more, as under his rate cap; his shots and blows still land where his game drew "
+                  "them (the lag compensation rewinds to the places he was sent, MP_PLAN B13c). 0: off."),
+        slider("Network: Fragments' Bytes", vr_net_cosmetic_bytes, 0.f, 512.f, 16.f, "%.0f B")
+            .help("vr_net_cosmetic_bytes: hosting, the most of a remote player's datagram the cosmetic fragments (small gibs, "
+                  "explosion chunks) take, the nearest first; the rest wait a frame or two and his game draws them between "
+                  "(MP_PLAN B12c: a gib storm's bytes). 0: no budget of their own."),
+        slider("Network: Fragments' Fill", vr_net_cosmetic_fill, 0.f, 1024.f, 32.f, "%.0f B")
+            .help("vr_net_cosmetic_fill: hosting, the fragments take only what a remote player's snapshot's other "
+                  "updates leave under this many bytes (a quarter of their budget at least): a heavy fight leaves a gib "
+                  "storm less, his link in combat under ~35 KB/s (MP_PLAN B18). 0: no such limit."),
+        slider("Network: Move Buffer", vr_net_movebuffer, 0.f, 8.f, 1.f, "%.0f")
+            .help("vr_net_movebuffer: hosting, a remote player's moves run one a server tick in order, at most this many "
+                  "waiting (more run together): his packets bunched on the way, a lift still meets each move where his "
+                  "game's prediction met it (MP_PLAN B19). 0: run as they come."),
+        slider("Network: Move Buffer Most", vr_net_movebuffer_max, 0.f, 16.f, 1.f, "%.0f")
+            .help("vr_net_movebuffer_max: hosting, the move buffer deepens with a player's jitter up to this many moves "
+                  "(his moves' lateness over the last 2 s), so a jittery link's moves still run one a tick; at or under "
+                  "Move Buffer: a fixed depth (MP_PLAN B20)."),
+        open("Voice Chat", pageIndex(pageVoiceChat))
+            .help("VR Settings > HUD, Haptics and Sound > Voice Chat: its settings, each player's mute and volume, its "
+                  "Report and Self-Test (MP_PLAN B10v)."),
+        slider("Network: Voice Budget", vr_net_voice_bytes, 0.f, 16000.f, 500.f, "%.0f B/s")
+            .help("vr_net_voice_bytes: hosting, each player's voice chat bytes a second at most (at most half his rate cap); "
+                  "frames waiting over 0.3 s are dropped. 0: no voice relayed."),
         command("Keyboard Hook", "vr_keyhook_status")
             .help("vr_keyhook_status: whether this game holds the desktop keyboard hook (only with the window's focus) and "
                   "the longest it went unserviced since the last report: every key press on the desktop waits for it."),

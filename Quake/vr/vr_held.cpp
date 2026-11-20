@@ -3,8 +3,10 @@
 #include "vr_geom.hpp"
 #include "vr_held.hpp"
 #include "vr_disarmhull.hpp"
+#include "vr_box3d.hpp"
 #include "vr_climb.hpp"
 #include "vr_carry2h.hpp"
+#include "vr_clientprefs.hpp"
 #include "vr_client.hpp"
 #include "vr_cvars.hpp"
 #include "vr_tunables.hpp"
@@ -22,6 +24,8 @@
 #include "vr_physics.hpp"
 #include "vr_progs.hpp"
 #include "vr_props.hpp"
+#include "vr_netmove.hpp"
+#include "vr_netsnap.hpp"
 #include "vr_protocol.hpp"
 #include "vr_throw.hpp"
 #include "vr_trace.hpp"
@@ -882,6 +886,9 @@ bool nearDrawnBox(edict_t* ent, const glm::vec3& p, float margin)
 // The fists in their hands' frames (setFist).
 za::Vector<glm::vec4> fists[2];
 const za::Vector<glm::vec4> noFist; // (fist: a hand that is neither)
+// The server's: each client slot's fists as his client sent them (setPlayerFist), and the grabs they judged.
+za::Vector<glm::vec4> playerFists[MAX_SCOREBOARD][2];
+int playerFistGrabCount[MAX_SCOREBOARD]{};
 
 // A sphere round all of `spheres`: its middle, and its radius.
 float bounds(const za::Vector<glm::vec4>& spheres, glm::vec3& centre)
@@ -1248,12 +1255,55 @@ void setFist(int hand, const za::Vector<glm::vec4>& spheres)
     if(hand >= 0 && hand < 2)
     {
         fists[hand] = spheres;
+        if(const int own = clientprefs::ownSlot(); own >= 0)
+        {
+            setPlayerFist(own, hand, spheres); // (hosting: into its own player's slot, as a remote player's message does)
+        }
     }
 }
 
 const za::Vector<glm::vec4>& fist(int hand)
 {
     return hand == 0 || hand == 1 ? fists[hand] : noFist;
+}
+
+const za::Vector<glm::vec4>& fistOf(const edict_t* player, int hand)
+{
+    if((hand != 0 && hand != 1) || !player)
+    {
+        return noFist;
+    }
+    // (every player's from his slot, this game's own too: clientprefs::ownSlot)
+    const int slot = static_cast<int>(((const byte*)player - (const byte*)sv.qcvm.edicts) / sv.qcvm.edict_size) - 1;
+    return slot >= 0 && slot < svs.maxclients && slot < MAX_SCOREBOARD ? playerFists[slot][hand] : noFist;
+}
+
+void setPlayerFist(int slot, int hand, const za::Vector<glm::vec4>& spheres)
+{
+    if(slot >= 0 && slot < MAX_SCOREBOARD && (hand == 0 || hand == 1))
+    {
+        playerFists[slot][hand] = spheres;
+        if(spheres.empty() && hand == 0)
+        {
+            playerFistGrabCount[slot] = 0; // (a new player in the slot)
+        }
+    }
+}
+
+int playerFistGrabs(int slot)
+{
+    return slot >= 0 && slot < MAX_SCOREBOARD ? playerFistGrabCount[slot] : 0;
+}
+
+void fistInWorld(const edict_t* player, int hand, const glm::vec3& pos, const glm::vec3& angles, za::Vector<glm::vec4>& out)
+{
+    out.clear();
+    const za::Vector<glm::vec4>& spheres = fistOf(player, hand);
+    const glm::mat3 axes = axesFromAngles(&angles[0], true);
+    for(const glm::vec4& s : spheres)
+    {
+        out.pushBack(glm::vec4{pos + axes * glm::vec3{s}, s.w});
+    }
 }
 
 void fistInWorld(int hand, const glm::vec3& pos, const glm::vec3& angles, za::Vector<glm::vec4>& out)
@@ -1380,7 +1430,8 @@ bool grabTouch(edict_t* ent, edict_t* player, int hand, float slack)
     const float m2u = units::metresToUnits();
     const bool debug = vr_debug_carry.value || vr_debug_physics_shapes.value;
 
-    if(fists[hand].empty())
+    const za::Vector<glm::vec4>& fist = fistOf(player, hand); // (his own: B3)
+    if(fist.empty())
     {
         // Not known (no jointed hand model): the old test, the hand's point in its box and near its surface.
         constexpr float legacyReach = 0.08f; // metres
@@ -1395,7 +1446,7 @@ bool grabTouch(edict_t* ent, edict_t* player, int hand, float slack)
     }
 
     za::Vector<glm::vec4>& spheres = scratch.grabSpheres;
-    fistInWorld(hand, pos, angles, spheres);
+    fistInWorld(player, hand, pos, angles, spheres);
     const float allowed = vr_carry_grab_bias.value * 0.01f * m2u + slack;
     // Nothing of it near (the fist's bounds farther than it may be from the box the thing is drawn in: not its entity
     // box, which for the brush-model ammo and health boxes is a small cube round their origin, a corner): no
@@ -1414,6 +1465,14 @@ bool grabTouch(edict_t* ent, edict_t* player, int hand, float slack)
     FistContact c;
     const bool found = fistContact(ent, spheres, za::fmax(allowed, 0.f) + 1.f, c);
     const bool touches = found && c.gap <= allowed;
+    if(touches && &fist != &fists[hand])
+    {
+        const int slot = static_cast<int>(((const byte*)player - (const byte*)sv.qcvm.edicts) / sv.qcvm.edict_size) - 1;
+        if(slot >= 0 && slot < MAX_SCOREBOARD)
+        {
+            playerFistGrabCount[slot]++; // (a remote player's fist on a thing, his own fist's: vr_mp_prefs)
+        }
+    }
     if(debug)
     {
         noteCarryProbe(hand, ent, found ? c.from : centre, found ? c.gap : -1.f, found ? c.at : centre, allowed, &spheres,
@@ -1421,9 +1480,12 @@ bool grabTouch(edict_t* ent, edict_t* player, int hand, float slack)
     }
     if(vr_debug_carry.value >= 2.f)
     {
-        Con_Printf("grab: %s hand, %s: the fist %s, %.2f cm from its surface (allowed %.2f cm)\n", hand == 0 ? "off" : "main",
-            PR_GetString(ent->v.classname), touches ? "touches" : "doesn't touch", found ? c.gap / m2u * 100.f : 999.f,
-            allowed / m2u * 100.f);
+        Con_Printf("grab: %s hand, %s: the fist %s, %.2f cm from its surface (allowed %.2f cm; it is at %.1f %.1f %.1f, %.0f u/s%s%s)\n",
+            hand == 0 ? "off" : "main", PR_GetString(ent->v.classname), touches ? "touches" : "doesn't touch",
+            found ? c.gap / m2u * 100.f : 999.f, allowed / m2u * 100.f, ent->v.origin[0], ent->v.origin[1], ent->v.origin[2],
+            glm::length(geom::vec(ent->v.velocity)), (static_cast<int>(ent->v.flags) & FL_ONGROUND) ? " on the ground" : "",
+            box3d::restsOnHand(NUM_FOR_EDICT(ent), NUM_FOR_EDICT(player), hand) ? ", on this hand"
+            : box3d::restsOnHand(NUM_FOR_EDICT(ent), NUM_FOR_EDICT(player), hand, -2.f) ? ", against this hand" : "");
     }
     return touches;
 }
@@ -1869,20 +1931,34 @@ struct Box
 // frame's controller instead, a hand or a body on the move (the server runs at 72 Hz, the headset faster; the
 // player's origin is interpolated) left it that far off the hand for as long as it was held (a force grab caught on
 // the move; ROUND21.md, "Held props: no gap after two hands"). False: a remote server (or not there).
+[[nodiscard]] bool serverPlaceOf(edict_t* player, edict_t* ed, int h, bool brush, glm::vec3& pos, glm::mat3& rot);
+
 [[nodiscard]] bool serverInHand(int ent, int h, const qmodel_t* model, glm::vec3& pos, glm::mat3& rot)
 {
-    using namespace progs;
-    const FieldOffsets& f = fields();
-    const int posField = h == 0 ? f.offhandpos : f.handpos;
-    const int rotField = h == 0 ? f.offhandrot : f.handrot;
     edict_t* ed = progs::edictAt(ent);
     edict_t* player = progs::edictAt(cl.viewentity);
-    if(!ed || !player || posField < 0 || rotField < 0)
+    if(!ed || !player)
     {
         return false;
     }
     const int index = static_cast<int>(ed->v.modelindex);
     if(index <= 0 || index >= MAX_MODELS || sv.models[index] != model)
+    {
+        return false;
+    }
+    return serverPlaceOf(player, ed, h, model->type == mod_brush, pos, rot);
+}
+
+// Server side: where `player`'s hand `h` (0 off, 1 main) holds `ed`: its place and turn in the server's hand (forward,
+// left, up), as the server's last frame left them (serverInHand: a listen server's own player; QVR_SVC_HELDPLACE: a
+// remote one's, MP B27). False: no hand fields.
+[[nodiscard]] bool serverPlaceOf(edict_t* player, edict_t* ed, int h, bool brush, glm::vec3& pos, glm::mat3& rot)
+{
+    using namespace progs;
+    const FieldOffsets& f = fields();
+    const int posField = h == 0 ? f.offhandpos : f.handpos;
+    const int rotField = h == 0 ? f.offhandrot : f.handrot;
+    if(posField < 0 || rotField < 0)
     {
         return false;
     }
@@ -1899,7 +1975,31 @@ struct Box
     {
         pos = glm::transpose(hand) * (geom::vec(ed->v.origin) - fieldVec(player, posField));
     }
-    rot = glm::transpose(hand) * held::axesFromAngles(ed->v.angles, model->type == mod_brush);
+    rot = glm::transpose(hand) * held::axesFromAngles(ed->v.angles, brush);
+    return true;
+}
+
+// A remote server's places of what the local player's hands hold, in its hands (QVR_SVC_HELDPLACE, MP B27: a snapshot
+// record, as its last frame left them). Taken from where it had the thing and this frame's controller instead (the
+// hand's place the server used was the network's delay older), a round taken up on the move was drawn up to 3 units
+// off where the server had it, the whole time it was held: a magazine drawn at the well missed it (mp_disarm).
+struct NetPlace
+{
+    int ent{0}; // 0: none
+    glm::vec3 pos{0.f};
+    glm::mat3 rot{1.f};
+};
+NetPlace netPlaces[2];
+
+[[nodiscard]] bool netPlace(int ent, int h, glm::vec3& pos, glm::mat3& rot)
+{
+    const NetPlace& p = netPlaces[h];
+    if(!ent || p.ent != ent || cls.state != ca_connected || sv.active)
+    {
+        return false;
+    }
+    pos = p.pos;
+    rot = p.rot;
     return true;
 }
 
@@ -1911,6 +2011,7 @@ void reset()
         easing[h] = Easing{};
         handEase[h] = HandEase{};
         bothRelease[h] = BothRelease{};
+        netPlaces[h] = NetPlace{};
     }
     both = Both{};
     meet = Meet{};
@@ -2079,9 +2180,9 @@ void holdFrame(int h, const hands::State& s, int bothEnt)
     }
     if(!hd.placed || cl.time - hd.since < placeTime)
     {
-        if(!serverInHand(hd.ent, h, e.model, hd.pos, hd.rot))
+        if(!serverInHand(hd.ent, h, e.model, hd.pos, hd.rot) && !netPlace(hd.ent, h, hd.pos, hd.rot))
         {
-            // A remote server: from where it has it, and this frame's controller.
+            // A remote server without its place yet: from where it has it, and this frame's controller.
             const glm::vec3 o{e.msg_origins[0][0], e.msg_origins[0][1], e.msg_origins[0][2]};
             hd.pos = glm::transpose(hand) * (o - s.pos[h]);
             hd.rot = glm::transpose(hand) * held::axesFromAngles(e.msg_angles[0], brush);
@@ -2089,6 +2190,10 @@ void holdFrame(int h, const hands::State& s, int bothEnt)
         hd.model = e.model;
         hd.placed = true;
         hd.generation = props::settingsGeneration();
+    }
+    else if(netPlace(hd.ent, h, hd.pos, hd.rot))
+    {
+        hd.generation = props::settingsGeneration(); // (a remote server's place as it sends it: its changes too)
     }
     else if(hd.generation != props::settingsGeneration())
     {
@@ -3187,3 +3292,105 @@ extern "C" void VR_RelinkHeld(void)
         bothCentre = (held::drawnCentre(bothEnt) - (s.pos[0] + s.pos[1]) * 0.5f) / units::metresToUnits();
     }
 }
+
+// QVR_SVC_HELDPLACE (MP B27): [byte hands: 1 off, 2 main] then each one's [short entity][short3 place * 64: forward,
+// left, up][short3 its forward * 32767][short3 its left * 32767], in the server's hand. Integers: nothing a corrupt or
+// hostile one can make infinite.
+namespace
+{
+constexpr float placeScale = 64.f;
+constexpr float axisScale = 32767.f;
+} // namespace
+
+// A remote client's datagram, in his snapshot (a record: unchanged, it costs nothing): what his hands hold, and where.
+extern "C" void VR_WriteHeldPlaces(sizebuf_t* msg, client_t* client)
+{
+    const int slot = static_cast<int>(client - svs.clients);
+    edict_t* player = client->edict;
+    if(!sv.active || !player || !netmove::serverSends(slot) || msg->cursize + 64 > msg->maxsize)
+    {
+        return;
+    }
+    int ents[2]{0, 0};
+    glm::vec3 pos[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+    glm::mat3 rot[2]{glm::mat3{1.f}, glm::mat3{1.f}};
+    int mask = 0;
+    for(int h = 0; h < 2; h++)
+    {
+        const int ofs = progs::handFields(h).held;
+        const int v = ofs >= 0 ? progs::fieldInt(player, ofs) : 0;
+        edict_t* e = v ? PROG_TO_EDICT(v) : nullptr;
+        const int index = e && !e->free ? static_cast<int>(e->v.modelindex) : 0;
+        const qmodel_t* model = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
+        if(model && serverPlaceOf(player, e, h, model->type == mod_brush, pos[h], rot[h]))
+        {
+            ents[h] = NUM_FOR_EDICT(e);
+            mask |= 1 << h;
+        }
+    }
+    const auto toShort = [](float f) { return static_cast<int>(za::clamp(f, -32767.f, 32767.f) + (f < 0.f ? -0.5f : 0.5f)); };
+    const int at = msg->cursize;
+    MSG_WriteByte(msg, protocol::svc_quakevr);
+    MSG_WriteByte(msg, protocol::QVR_SVC_HELDPLACE);
+    MSG_WriteByte(msg, mask);
+    for(int h = 0; h < 2; h++)
+    {
+        if(!(mask & (1 << h)))
+        {
+            continue;
+        }
+        MSG_WriteShort(msg, ents[h]);
+        for(int i = 0; i < 3; i++)
+        {
+            MSG_WriteShort(msg, toShort(pos[h][i] * placeScale));
+        }
+        for(int c = 0; c < 2; c++)
+        {
+            for(int i = 0; i < 3; i++)
+            {
+                MSG_WriteShort(msg, toShort(rot[h][c][i] * axisScale));
+            }
+        }
+    }
+    VR_SnapTake(msg, at, netsnap::heldKey);
+}
+
+namespace qvr::held
+{
+
+void parsePlaces()
+{
+    const int mask = MSG_ReadByte();
+    for(int h = 0; h < 2; h++)
+    {
+        NetPlace& p = netPlaces[h];
+        if(mask < 0 || !(mask & (1 << h)))
+        {
+            p = NetPlace{};
+            continue;
+        }
+        const int ent = MSG_ReadShort();
+        glm::vec3 v[3];
+        for(glm::vec3& c : v)
+        {
+            for(int i = 0; i < 3; i++)
+            {
+                c[i] = static_cast<float>(MSG_ReadShort());
+            }
+        }
+        const glm::vec3 f = v[1] / axisScale;
+        const glm::vec3 l = v[2] / axisScale - f * glm::dot(f, v[2] / axisScale) / za::max(glm::dot(f, f), 1e-6f);
+        if(msg_badread || ent <= 0 || ent >= cl_max_edicts || glm::length(f) < 0.5f || glm::length(l) < 0.5f)
+        {
+            p = NetPlace{}; // (a corrupt or hostile one: none, its place taken as before)
+            continue;
+        }
+        const glm::vec3 fn = glm::normalize(f);
+        const glm::vec3 ln = glm::normalize(l);
+        p.ent = ent;
+        p.pos = v[0] / placeScale;
+        p.rot = glm::mat3{fn, ln, glm::cross(fn, ln)};
+    }
+}
+
+} // namespace qvr::held

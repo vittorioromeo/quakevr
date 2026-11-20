@@ -378,6 +378,10 @@ void qvr::menu::press_f()
     // (Unquoted, the page and the row split at " > ": a test script's quotes need not survive its shell.)
     char args[512];
     q_strlcpy(args, Cmd_Args() ? Cmd_Args() : "", sizeof(args));
+    for(za::SizeT n = strlen(args); n > 0 && static_cast<unsigned char>(args[n - 1]) <= ' '; n--)
+    {
+        args[n - 1] = '\0'; // (a line's end: a carriage return, a space)
+    }
     char* split = strstr(args, " > ");
     if(!split)
     {
@@ -399,8 +403,37 @@ void qvr::menu::press_f()
         {
             continue;
         }
-        for(const Item& item : items(p))
+        const za::Vector<Item>& list = items(p);
+        for(za::SizeT n = 0; n < list.size(); n++)
         {
+            const Item& item = list[n];
+            // A row of buttons (the Voice Chat page's players, the Checklist's items): "<its text's start> / <button>",
+            // its labels on the row under it.
+            const char* slash = strstr(label, " / ");
+            if(slash && item.buttonPress && item.infoArg && n + 1 < list.size() && list[n + 1].buttonLabel)
+            {
+                const za::SizeT len = static_cast<za::SizeT>(slash - label);
+                const char* text = item.infoArg(item.arg);
+                if(!q_strncasecmp(text, label, static_cast<int>(len)) && (text[len] == 0 || text[len] == ' '))
+                {
+                    for(int b = 0; b < list[n + 1].buttons; b++)
+                    {
+                        if(!q_strcasecmp(list[n + 1].buttonLabel(list[n + 1].arg, b), slash + 3))
+                        {
+                            locked = item.buttonDim && item.buttonDim(item.arg, b);
+                            levelOverride = was;
+                            if(locked)
+                            {
+                                Con_Printf("vr_menu_press: %s > %s is dimmed, not pressed\n", title, label);
+                                return;
+                            }
+                            item.buttonPress(item.arg, b);
+                            Con_Printf("vr_menu_press: %s > %s\n", title, label);
+                            return;
+                        }
+                    }
+                }
+            }
             if(item.kind == Item::Action && item.actionArg && item.infoArg && !q_strcasecmp(item.infoArg(item.arg), label))
             {   // a list row (the campaign selector): its text, then its pick(arg)
                 locked = item.dimArg && item.dimArg(item.arg);
@@ -414,7 +447,7 @@ void qvr::menu::press_f()
             {
                 command = item.command;
                 action = item.page < 0 && !item.actionArg ? item.action : nullptr;
-                locked = item.unavailable;
+                locked = item.unavailable || (item.setsRules && serverrules::lockedBecause());
                 found = true;
                 break;
             }

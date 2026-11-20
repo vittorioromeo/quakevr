@@ -86,6 +86,13 @@ void moveSize(const edict_t* ent, float& width, float& height);
 // world: 1 if it gets there, 0 if not, -1 when narrowing is off (Quake's hull 1 is used).
 [[nodiscard]] int playerBoxFits(qmodel_t* world, const glm::vec3& start, const glm::vec3& end);
 
+// A remote client's prediction (vr_predict.cpp): the player's box `width` wide (the server's vr_hull_width; 0: Quake's
+// 32) and `height` tall over his feet (crouchedHeight; 0: hull 1's) from start to end against `model` (the client's map
+// `world` or one of its brush models, in the model's own space), as the server's SV_Move meets it (moveBox). False:
+// width and height both 0 (Quake's hull 1), a server in this game (its map's brushes), or not the map's model.
+[[nodiscard]] bool clientPlayerTrace(qmodel_t* world, qmodel_t* model, float width, float height, const float* start,
+    const float* end, trace_t& trace);
+
 // A client's move received (vr_server.cpp): his crouch from his head's height over his feet: crouched
 // when his eyes are under the crouched box's top (vr_crouch_height); standing again once they are back over it and the
 // standing box fits where he is. flatscreenCrouch (vr_flatplay.cpp, vr_server.cpp): whether the flatscreen player's
@@ -100,6 +107,8 @@ void updateCrouch(edict_t* ent, const glm::vec3& head, bool flatscreenCrouch);
 // Whether a client has the lying box (its own slot), vr_prone on or not (switched off while lying under a low ceiling
 // he keeps it until he can get up): the triggers' and the water's checks follow it (VR_HullTouchTop, VR_HullWaistZ).
 [[nodiscard]] bool hasLyingBox(const edict_t* ent);
+// His box's height over his feet while crouched or lying (moveBox's; 0: standing, Quake's hull 1).
+[[nodiscard]] float crouchedHeight(const edict_t* ent);
 // The local player (client 1 of this server) lying down: 1, 0; -1 with no server here (a client of another one).
 [[nodiscard]] int localProne();
 // Whether the local player, lying down, could get up: the lowest crouched box fits where he is (updateCrouch's own test

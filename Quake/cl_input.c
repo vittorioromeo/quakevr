@@ -446,10 +446,13 @@ void CL_SendMove (const usercmd_t *cmd)
 		MSG_WriteByte (&buf, bits);
 
 		MSG_WriteByte (&buf, in_impulse);
-		in_impulse = 0;
 
-		VR_WriteMoveExtras (&buf); // QVR
+		// QVR: the VR block; a remote client's whole move instead as quantized deltas with repeats (vr/vr_netmove.cpp)
+		VR_WriteMoveExtras (&buf, cmd->forwardmove, cmd->sidemove, cmd->upmove, bits, in_impulse);
+		in_impulse = 0;
 	}
+
+	VR_WriteVoice (&buf); // QVR: voice chat's frames (vr/vr_voicechat.cpp, B10v)
 
 //
 // deliver the message

@@ -47,11 +47,27 @@ void(string s) VR_PD_Log =
     }
 };
 
-// Whether `pl` can be disarmed now.
-float(entity pl) VR_PD_On =
+// Whether what `by` does may disarm a player (his call, 2026-11-16): another player's (a bot's too) shots, blows and grabs
+// by vr_player_disarm_pvp (PvP, on by default), anything else's (a monster's, the world's) by vr_player_disarm (PvE, off by
+// default until it is polished).
+float(entity by) VR_PD_ByOn =
 {
-    return cvar_hget(cvarh_vr_player_disarm) && (pl.flags & FL_CLIENT) && pl.health > 0 &&
-        cvar_hget(cvarh_vr_player_disarm_chance) > 0;
+    return (by.flags & FL_CLIENT) ? cvar_hget(cvarh_vr_player_disarm_pvp) : cvar_hget(cvarh_vr_player_disarm);
+};
+
+// Whether `pl` can be disarmed now by anyone (alive and in the game: a leaver's body is DEAD_DEAD, its health kept).
+float(entity pl) VR_PD_Can =
+{
+    // (PvP only where there are other players: single player skips the projectile scan, mpreview D1)
+    return (cvar_hget(cvarh_vr_player_disarm) || ((coop || deathmatch) && cvar_hget(cvarh_vr_player_disarm_pvp))) &&
+        (pl.flags & FL_CLIENT) &&
+        pl.health > 0 && pl.deadflag == DEAD_NO && cvar_hget(cvarh_vr_player_disarm_chance) > 0;
+};
+
+// Whether `pl` can be disarmed now by `by`.
+float(entity pl, entity by) VR_PD_On =
+{
+    return VR_PD_ByOn(by) && VR_PD_Can(pl);
 };
 
 // `pl`'s hand `h`'s holder of the adding up.
@@ -134,7 +150,7 @@ void(entity pl, float h, float amount, vector dir, entity by, vector at, string 
         max(0.01, cvar_hget(cvarh_vr_agrunt_shotdisarm_damage))));
 };
 
-// Your weapon knocked out (VR_PD_Disarm: shots, blows; any later disarm of yours goes through it): its sounds at
+// A weapon of yours knocked out or taken (VR_Player_Disarm: shots, blows, another player's grab): its sounds at
 // vr_player_disarm_sound. A metal clang at the weapon (the one dropped, else the hand) for everyone near, and a short
 // alert sting to `pl` alone, not placed (the client's playvol: a local sound). Sounds: make_disarm_sounds.py (CC0).
 float vr_pd_sounds; // the disarm sounds started (the tests)
@@ -156,38 +172,73 @@ void(entity pl, float h) VR_PD_DisarmSound =
         at == pl ? "your hand" : "the weapon", pl.netname, h, vol));
 };
 
-// `pl`'s hand `h`'s weapon knocked out (going `dir`, as hard as `speed`): it drops as the grip lost drops it.
+// The one way a weapon leaves a player's hand against his will, any player's (single player's, a listen host's own, a
+// remote one, a bot), whatever did it: player `v`'s weapon in hand `vh` knocked out (`taker` world: it drops as the grip
+// lost drops it, a world weapon with its record, pushed along `dir` as hard as `speed`) or taken (into `taker`'s hand
+// `th`: another player's grab, vr_playerdisarm_grab.qc). Shots and blows: VR_PD_Disarm. TRUE: done.
+float(entity v, float vh, entity taker, float th, vector dir, float speed, string why) VR_Player_Disarm =
+{
+    if(!(v.flags & FL_CLIENT) || VRIsHandWeaponless(v, vh))
+    {
+        return FALSE;
+    }
+    entity oldSelf = self;
+    self = v; // (the hand's getters, the buzz and the drop read self)
+    haptic(vh, 0.0, 0.35, 120, 1.0);
+    vr_wpn_dropped = world;
+    DropWeaponInHandScaled(v, vh, VRGetEntWeapon(v, vh), VRGetEntWeaponFlags(v, vh),
+        taker ? 0 : max(0, cvar_hget(cvarh_vr_weight_drop_velocity)));
+    self = oldSelf;
+    entity w = vr_wpn_dropped;
+    VR_PD_DisarmSound(v, vh); // (the clang where it left the hand, before a taker takes it)
+    if(w && taker)
+    {
+        setorigin(w, VRGetEntHandPos(taker, th));
+        w.velocity = '0 0 0';
+        w.vr_spin = '0 0 0';
+        w.handtouch_ent = taker;
+        w.handtouch_hand = th;
+        float catching = forcegrabCatching;
+        forcegrabCatching = TRUE; // (taken now, however long ago the grab began)
+        wpnthrow_handtouch_ent(w);
+        forcegrabCatching = catching;
+    }
+    else if(w && dir != '0 0 0')
+    {
+        w.velocity = w.velocity + normalize(dir) * speed * 0.5 + '0 0 60';
+    }
+    if(taker)
+    {
+        sprint(v, sprintf("%s takes your weapon!\n", taker.netname));
+    }
+    else
+    {
+        sprint(v, "Your weapon is knocked out of your hand!\n");
+    }
+    VR_PD_Log(sprintf("%s's hand %g: %s: %s", v.netname, vh, why, taker ? "taken" : "knocked out"));
+    return TRUE;
+};
+
+// `pl`'s hand `h`'s weapon knocked out by a shot, a projectile or a blow (going `dir`, as hard as `speed`).
 void(entity pl, float h, vector dir, float speed, string why) VR_PD_Disarm =
 {
     if(VRIsHandWeaponless(pl, h))
     {
         return;
     }
-    entity oldSelf = self;
-    self = pl; // (the hand's getters and the drop read self)
-    vector at = VRGetEntHandPos(pl, h);
-    particle2(at, '0 0 60', QVR_PARTICLE_PRESET_SPARKS, 12);
+    particle2(VRGetEntHandPos(pl, h), '0 0 60', QVR_PARTICLE_PRESET_SPARKS, 12);
     sound(pl, CHAN_AUTO, sprintf("weapons/ric%g.wav", 1 + min(2, floor(random() * 3))), 1, ATTN_NORM);
-    haptic(h, 0.0, 0.35, 120, 1.0); // (that controller's buzz in VR)
     stuffcmd(pl, "bf\n"); // (a flash, as a pickup's)
-    vr_wpn_dropped = world;
-    DropWeaponInHandScaled(pl, h, VRGetEntWeapon(pl, h), VRGetEntWeaponFlags(pl, h),
-        max(0, cvar_hget(cvarh_vr_weight_drop_velocity)));
-    if(vr_wpn_dropped != world && dir != '0 0 0')
+    if(VR_Player_Disarm(pl, h, world, 0, dir, speed, why))
     {
-        vr_wpn_dropped.velocity = vr_wpn_dropped.velocity + normalize(dir) * speed * 0.5 + '0 0 60';
+        vr_pd_disarms = vr_pd_disarms + 1;
+        vr_pd_last_hand = h;
     }
-    VR_PD_DisarmSound(pl, h);
-    sprint(pl, "Your weapon is knocked out of your hand!\n");
-    vr_pd_disarms = vr_pd_disarms + 1;
-    vr_pd_last_hand = h;
-    VR_PD_Log(sprintf("hand %g: %s: knocked out", h, why));
-    self = oldSelf;
 };
 
 void(entity xFrom, vector xA, vector xB, vector xDir, float xDamage, float xKind) VR_PD_Shot =
 {
-    if(!cvar_hget(cvarh_vr_player_disarm))
+    if(!VR_PD_ByOn(xFrom))
     {
         return;
     }
@@ -202,7 +253,7 @@ void(entity xFrom, vector xA, vector xB, vector xDir, float xDamage, float xKind
     float near = max(0, cvar_hget(cvarh_vr_agrunt_shotdisarm_near));
     for(entity pl = VR_Player(); pl; pl = VR_NextPlayer(pl))
     {
-        if(pl != xFrom && VR_PD_On(pl) && VR_AGS_Closest(xA, xB, pl.origin, pl.origin) < 128)
+        if(pl != xFrom && VR_PD_On(pl, xFrom) && VR_AGS_Closest(xA, xB, pl.origin, pl.origin) < 128)
         {
             // Stopped on its box or body: the hands just behind that point still on its way.
             vector b = (tf < 1 && te == pl) ? xB + normalize(xDir) * 24 : xB;
@@ -273,7 +324,7 @@ void(entity pl) VR_PD_Projectiles =
     {
         entity next = e.chain;
         float kind = VR_PD_ProjKind(e, pl);
-        if(kind >= 0)
+        if(kind >= 0 && VR_PD_ByOn(e.owner)) // (a player's projectile: PvP; a monster's: PvE)
         {
             vector a = e.origin - e.velocity * frametime;
             vector b = e.origin + e.velocity * frametime;
@@ -316,7 +367,7 @@ void(entity pl) VR_PD_Projectiles =
 void(entity pl) VR_PD_Frame =
 {
     entity st;
-    if(!VR_PD_On(pl))
+    if(!VR_PD_Can(pl))
     {
         if(pl.vr_pd_main) { pl.vr_pd_main.vr_ags_pend = FALSE; pl.vr_pd_main.vr_pd_projwon = FALSE; }
         if(pl.vr_pd_off) { pl.vr_pd_off.vr_ags_pend = FALSE; pl.vr_pd_off.vr_pd_projwon = FALSE; }
@@ -360,7 +411,7 @@ void(entity pl) VR_PD_Frame =
 
 void(entity pl, entity by, float h, float damage, float gap) VR_PD_Blow =
 {
-    if(!VR_PD_On(pl) || h < 0 || VRIsHandWeaponless(pl, h))
+    if(!VR_PD_On(pl, by) || h < 0 || VRIsHandWeaponless(pl, h))
     {
         return;
     }

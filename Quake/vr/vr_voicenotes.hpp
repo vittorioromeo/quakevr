@@ -38,6 +38,11 @@ void frame();
 void wantMicLevel();
 [[nodiscard]] float micLevel();
 
+// The capture device vr_note_device names (a part of its name), or null for the default (voice chat's too).
+[[nodiscard]] const char* microphone(bool quiet);
+// The meter's device being opened or closed on a worker (voice chat waits: SDL opens one device at a time).
+[[nodiscard]] bool deviceBusy();
+
 // Your mouth and the way you face, in the world: false with no head (not in VR).
 [[nodiscard]] bool mouth(glm::vec3& at, glm::vec3& facing);
 

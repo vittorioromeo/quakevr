@@ -2369,6 +2369,11 @@ float(entity e) VR_Parry_MeleeMonster =
 
 float vr_parry_count;     // the player's parries so far (T_Damage: VR_Parry's), and the last one's attacker (the tests)
 entity vr_parry_count_by;
+float vr_melee_blows;      // a player's melee blows landed so far (T_Damage_VRMelee), the last one's damage, by whom, on what
+float vr_melee_blow_dmg;   // (the tests: vr_dmrules_test.qc's swing of a bot)
+float vr_melee_blow_hand;  // ... 1 + the hand whose blow it was (vr_melee_blowhand; 0 a button's traced blow)
+entity vr_melee_blow_by;
+entity vr_melee_blow_on;
 
 // The parry's range from attacker `e` (and its blow's push): a blow struck through the shared rules this frame
 // (fight.qc VR_MeleeBlow and kin: a dragon's tail 250, an armed humanoid's long blade) as far as it reaches, never
@@ -2722,9 +2727,9 @@ float(entity e) VR_Poise_Factor =
 // The pose as for a blow from straight ahead (the view's yaw); a blow parried from the side is never well timed.
 void() VR_Parry_GuardFrame =
 {
-    if(cvar_hget(cvarh_vr_parry) && VRHandsTracked(self))
+    if(cvar_hget(cvarh_vr_parry) && VR_HandLinesKept(self))
     {
-        VR_DRP_HandLines(self); // (a directional parry's timing: vr_dirparry.qc VR_DRP_BecameValid)
+        VR_DRP_HandLines(self); // (a directional parry's timing: vr_dirparry.qc VR_DRP_BecameValid; a bot's swing's line)
     }
     if(!cvar_hget(cvarh_vr_parry) || !cvar_hget(cvarh_vr_parry_balance) || !VRHandsTracked(self))
     {
@@ -2974,6 +2979,8 @@ float(entity p, vector to) VR_Parry_FlatGuard =
     return h;
 };
 
+float vr_parry_pvp; // T_Damage_VRMelee: the blow VR_Parry judges is a player's on another player (multiplayer)
+float vr_melee_blowhand; // 1 + the hand whose blow PlayerVRMeleeImpl (client.qc) is dealing; 0: none (a chainsaw's chain...)
 float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
 {
     vr_parried = 0;
@@ -2984,8 +2991,18 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
         dprint(sprintf("parry interrupt: %s remaining melee hit cancelled\n", attacker.classname));
         return 0;
     }
-    if(inflictor != attacker || !(attacker.flags & FL_MONSTER) || damage <= 0 || !cvar_hget(cvarh_vr_parry) ||
-       targ.classname != "player" || !VRHandsTracked(targ) || !VR_Parry_MeleeMonster(attacker))
+    // Multiplayer: another player's blow of his hands (T_Damage_VRMelee's vr_parry_pvp) is parried by the guard and the
+    // crossed arms as a monster's punch is (single player has no other players); his melee weapon's swing (a blade, an
+    // axe, a crowbar: VR_DRP_PvpApplies) by the directional parry, from his swing's line (vr_dirparry.qc, vr_drp_pvp).
+    float pvp = vr_parry_pvp && (attacker.flags & FL_CLIENT) && attacker != targ;
+    vr_drp_pvp = 0;
+    float pvpLine = FALSE;
+    if(pvp && inflictor == attacker)
+    {
+        pvpLine = VR_DRP_PvpApplies(attacker, vr_melee_blowhand);
+    }
+    if(inflictor != attacker || (!pvp && (!(attacker.flags & FL_MONSTER) || !VR_Parry_MeleeMonster(attacker))) ||
+       damage <= 0 || !cvar_hget(cvarh_vr_parry) || targ.classname != "player" || !VR_HandLinesKept(targ)) // (a bot's guard too)
     {
         return damage;
     }
@@ -3011,8 +3028,8 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
     // own blow its frames give one for) is parried only by a weapon held across its way, where they meet. Other blows
     // (a bite, a leap, a punch: no way to be across) by the guard. An armed humanoid's swing stopped already: nothing lands;
     // a monster's attack parried already: its other blows as the parry's cooldown has them.
-    float drp = vr_drp_release || vr_drp_forced || VR_DRP_Applies(attacker);
-    float baked = drp && !attacker.vr_ag;
+    float drp = pvpLine || (!pvp && (vr_drp_release || vr_drp_forced || VR_DRP_Applies(attacker))); // (a player's fist: the guard's)
+    float baked = drp && !attacker.vr_ag && !pvpLine;
     vr_drp_cut = 0;
     // Flat-screen play's guard: what comes from the front is parried, whatever its way (VR_Parry_FlatGuard); a blow with a
     // line is then met as a directional parry met it (its damage through, its swing stopped), without its sparks' meeting.
@@ -3048,7 +3065,13 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
     else
     {
         vr_parry_from = attacker.origin;
+        // (another player's blow from a remote client: the guard where his screen showed it, MP_PLAN.md B8c)
+        float lc = lagcompbegin(attacker);
         hand = VR_Parry_HandFor(targ, to);
+        if(lc)
+        {
+            lagcompend();
+        }
     }
     if(hand < 0)
     {
@@ -3396,7 +3419,6 @@ void(entity xPlayer, string xWhy) VR_QuadSound =
 
 float(entity targ, entity attacker) VR_Melee_RagdollPush; // (vr_melee.qc)
 float(entity targ, float xDamage, float xHand) VR_Prop_BlowDamage; // (vr_carry.qc)
-float vr_melee_blowhand; // 1 + the hand whose blow PlayerVRMeleeImpl (client.qc) is dealing; 0: none (a chainsaw's chain...)
 float(entity targ, entity inflictor, entity attacker, float damage) T_Damage_VRMelee =
 {
     // A prop that breaks (a crate, an explosive box, AD's breakables...) struck by a hand's blow: the impact rule's damage
@@ -3409,6 +3431,23 @@ float(entity targ, entity inflictor, entity attacker, float damage) T_Damage_VRM
     if(attacker.vr_ag && (attacker.flags & FL_MONSTER) && (targ.flags & FL_CLIENT))
     {
         damage = VR_Parry(targ, inflictor, attacker, damage);
+        if(damage <= 0)
+        {
+            return FALSE;
+        }
+    }
+    // Multiplayer: a player's blow on another player, parried by the other's guard as a monster's punch (VR_Parry: the
+    // other's own hands judged; the blow cut, both pushed apart). Single player has no other players.
+    else if((attacker.flags & FL_CLIENT) && (targ.flags & FL_CLIENT) && targ != attacker && (coop || deathmatch))
+    {
+        vr_parry_pvp = TRUE;
+        damage = VR_Parry(targ, inflictor, attacker, damage);
+        vr_parry_pvp = FALSE;
+        if(vr_parried)
+        {
+            vr_parry_count = vr_parry_count + 1; // (the tests: vr_dmrules_test.qc's parry of a bot's swing)
+            vr_parry_count_by = attacker;
+        }
         if(damage <= 0)
         {
             return FALSE;
@@ -3496,6 +3535,14 @@ float(entity targ, entity inflictor, entity attacker, float damage) T_Damage_VRM
     if(r && damage > 0 && targ != attacker && (attacker.flags & FL_CLIENT))
     {
         VR_QuadSound(attacker, "a blow landed");
+    }
+    if((attacker.flags & FL_CLIENT) && targ != attacker)
+    {
+        vr_melee_blows = vr_melee_blows + 1;
+        vr_melee_blow_dmg = damage;
+        vr_melee_blow_by = attacker;
+        vr_melee_blow_on = targ;
+        vr_melee_blow_hand = vr_melee_blowhand;
     }
     if(cvar_hget(cvarh_vr_debug_shots) && (attacker.flags & FL_CLIENT) && targ != attacker)
     {

@@ -226,6 +226,8 @@ struct Item
 
     // A setting that can't be used here (unavailable()): dimmed, shown off, not changed; its help says why.
     bool unavailable{false};
+    // A button that sets server rules (a gameplay preset): locked while a remote server's rules govern (settingRules()).
+    bool setsRules{false};
 
     // How it is drawn (Menu Look; ROUND25.md, "Menu look"): Minor (minor(): every page's Advanced footer
     // sections, smaller and fainter: vr_menu_minor_*), Big (big(): Run Setup's Difficulty, letters vr_runsetup_big
@@ -333,6 +335,14 @@ struct Item
     {
         helpText = text;
         return ZA_MOVE(*this);
+    }
+
+    // A button that sets server rules (vr_serverrules.cpp): locked, its help saying why, while a remote server's govern.
+    [[nodiscard]] Item settingRules() const
+    {
+        Item i = *this;
+        i.setsRules = true;
+        return i;
     }
 
     // Dimmed, shown off and not changed, `why` its help (what it needs: See-Through Liquids without VisPatch's data).
