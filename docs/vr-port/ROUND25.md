@@ -4341,3 +4341,35 @@ tests hold a given weapon (`VR_Scene_HoldGiven(p, cVR_OffHand)`, as `dw_test.qc`
 adplasma 6/0, adwidow 11/0; adshadowaxe 6/0, plasma_ball_test.sh 6/0, dwell_weapons_test.sh 6/0,
 dwell_vrmodels_test.sh 13/0, scenario_check.sh PASS (137 scenes), dwell_maps.sh 28/0, 148 PASS. The Dwell scripts need Dwell v2.2 in the agent's base
 (`<base>/dwellv2p2`); without it dwell_vrmodels is 3/10 and dwell_maps 3/25.
+
+
+## Armed grunts' cost on crowded maps (aglod, 2026-11-20)
+
+d2m8 (251 armed grunts, 156 live at his start) cost 536 k QC instructions a frame idle. Measured by state with a new
+builtin, `thinkcost(e, reset)` (each edict's think statements, counted in `SV_RunThink` as `profile` counts them:
+`qcvm->instr_total`, both interpreters), and `vr_agrunt_test 226` (the map as it stands) / `227` (every grunt woken at
+him) in `QC/vr_armedgrunt_lod_test.qc`: per grunt a frame, idle unseen 2,463, idle seen 3,526, alert 3,673, fighting
+3,507, dead 12 (table: DWELL.md 9.7). What changed, all in the shared armed-grunt code (no Dwell or map branch):
+- **Unseen means not sent too**: `unseenfar(e, near, optional e2)` also counts a grunt out of each player's fat PVS
+  (as `SV_WriteEntitiesToClient` sends by it, the gates' destinations included; made once a frame per player,
+  `UnseenScratch`) as unseen; its held weapon must be out of it too.
+- **The pose LOD deeper** (`VR_AGP_Lod`): an unseen idle grunt is posed once every `vr_agrunt_pose_lod_frames`
+  (new tunable, 8; 2 is the old every other frame) server frames, its weapons carried along between; an alert one
+  or a chainsaw's stays at 2 (its readiness eases up in its pose; the saw's engine sound is in it); posed at once
+  when it gets a new enemy (`.vr_agp_lod_en`) or is seen. The pose after skipped frames runs with `frametime` the
+  time since its last (its eases and a chainsaw's fuel move on by all of them: for a steady target the same result
+  as posing each frame). The fists' poser (`VR_AGP_PoserThink`) has the same LOD.
+- **Exact skips**: the guard's raise read (`VR_AGG_Frame`) skips both hands past `VR_AGG_ReadReach` (windup range
+  times the widest category's), clearing them as the loop would; the parry's frame (`VR_AGPar_Frame`) returns at
+  once with no player within 160 units, no monster melee begun in 1.5 s, guard down and no parry up or seen; the
+  shot and throw scans (`VR_AGS_Projectiles`, `VR_AG_WeaponStruck`) use `findradiusmoving(org, rad, minspeed)`
+  (findradius's chain without what stands still, players, monsters and pushers: the same entities their filters
+  kept, in the same order) and a look round the grip first (`VR_AG_LINE_REACH` 192), so a quiet frame works out no
+  weapon line.
+Result: d2m8 idle 274 k a frame (`profile`, 720 frames after 120); woken thinks 602 k to 464 k; e1m1 38 k. Under
+150 k needs cutting what can be seen: the 20 grunts in view at his start (57 k), the other thinks (55 k, the pickups'
+forcegrabbable thinks 39 k of it) and non-think QC (29 k) are 141 k alone. Test `Misc/quakevr/aglod_test.sh`
+(`vr_agrunt_test 228`, vrarena): a shotgun grunt 400 units behind him (posed 8 times in 64 frames), brought into view
+or shot: posed that frame, alert, the shot one attacking within 4 s; its 3 s trace the same with 8 frames, 2 and no
+LOD (seen) or 8 and 2 (shot): 6 passed, 0 failed. Not run here: the armed-grunt suites, vr_ad_test, dwell_maps.sh,
+dwell_monsters_test.sh, scenario_check, the ThinLTO build (budget). ad_tears is not in the agent's base.
