@@ -4573,6 +4573,9 @@ QVR_SLIDER(vr_menu_holster_chest_z, "Chest Holsters Up", -10.f, 10.f, 0.5f, "%+.
 QVR_SLIDER(vr_menu_holster_back_x, "Back Holsters Forward", -10.f, 10.f, 0.5f, "%+.1f", ext(-40.f, 40.f), nullptr)
 QVR_SLIDER(vr_menu_holster_back_y, "Back Holsters Inward", -10.f, 10.f, 0.5f, "%+.1f", ext(-40.f, 40.f), nullptr)
 QVR_SLIDER(vr_menu_holster_back_z, "Back Holsters Up", -10.f, 10.f, 0.5f, "%+.1f", ext(-40.f, 40.f), nullptr)
+QVR_SLIDER(vr_menu_holster_pouch_x, "Ammo Pouch Forward", -10.f, 10.f, 0.5f, "%+.1f", ext(-40.f, 40.f), nullptr)
+QVR_SLIDER(vr_menu_holster_pouch_y, "Ammo Pouch Right", -10.f, 10.f, 0.5f, "%+.1f", ext(-40.f, 40.f), nullptr)
+QVR_SLIDER(vr_menu_holster_pouch_z, "Ammo Pouch Up", -10.f, 10.f, 0.5f, "%+.1f", ext(-40.f, 40.f), nullptr)
 QVR_TOGGLE(vr_holster_weapons_draw_shoulder, "Shoulder Holster Weapons",
     "Draws the guns in the two holsters on your back, reached over your shoulders (the highest pair). Off: "
     "out of your view; you still take them and put them away there. The other pairs: Advanced VR Options "

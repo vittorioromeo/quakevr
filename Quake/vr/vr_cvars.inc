@@ -1077,6 +1077,11 @@ QVR_CVAR(vr_menu_holster_chest_z, "0", CVAR_NONE)
 QVR_CVAR(vr_menu_holster_back_x, "0", CVAR_NONE)
 QVR_CVAR(vr_menu_holster_back_y, "0", CVAR_NONE)
 QVR_CVAR(vr_menu_holster_back_z, "0", CVAR_NONE)
+// And the ammo pouch (vr_ammo_pouch_x/y/z, standing; a tester's ask, 2026-11-18: only Holster Setup moved it there):
+// units forward, to the right and up from its shipped place, as Holster Setup's drag moves the same settings.
+QVR_CVAR(vr_menu_holster_pouch_x, "0", CVAR_NONE)
+QVR_CVAR(vr_menu_holster_pouch_y, "0", CVAR_NONE)
+QVR_CVAR(vr_menu_holster_pouch_z, "0", CVAR_NONE)
 // Comfort vignette (vr_input.cpp comfortVignette, the eyes' post-process): the view's edges darkened while the sticks move
 // or turn you (not your own steps in the room, nor a teleport): 0 off, 1 moving and turning, 2 moving only, 3 turning only;
 // how dark (0 .. 1: at 1 a narrow tunnel).
