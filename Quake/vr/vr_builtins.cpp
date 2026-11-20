@@ -1102,6 +1102,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"hitmodel_any", PF_hitmodel_any},
     {"lagcompbegin", lagcomp::PF_lagcompbegin},
     {"lagcompend", lagcomp::PF_lagcompend},
+    {"lagcompcount", lagcomp::PF_lagcompcount},
     {"bodygap", PF_bodygap},
     {"modelanchor", PF_modelanchor},
     {"modelanchorpoint", PF_modelanchorpoint},

@@ -610,6 +610,8 @@ float(entity e, vector a, vector b, float radius, float hitclass) hitmodel_segme
 // Only queries go inside (melee's sweep, a bash's find): the blow is dealt where they are.
 float(entity e) lagcompbegin = #0;
 void() lagcompend = #0;
+// (tests) the scopes begun since the server started (which 0), or the begins that found one open and skipped (1).
+float(float which) lagcompcount = #0;
 // The segment a..b, a sphere of `radius`, against any entity's Quake .mdl as drawn (a prop's, an item's: not only a
 // monster's): where along it it first meets it (0: it starts in it), -1 missed, -2 no such model (a brush model: its box).
 float(entity e, vector a, vector b, float radius) hitmodel_any = #0;

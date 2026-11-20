@@ -56,6 +56,7 @@ struct Inbox
     char path[MAX_OSPATH]{};
     long offset{0};
     bool on{false};
+    bool skipping{false}; // (in a line longer than the read: dropped up to its end, mpreview D8)
 };
 Inbox inbox;
 
@@ -134,10 +135,27 @@ void pollInbox()
     if(fseek(f, inbox.offset, SEEK_SET) == 0)
     {
         const size_t got = fread(buf, 1, sizeof(buf) - 1, f);
+        if(inbox.skipping)
+        {
+            // (the rest of a too-long line: dropped up to its newline, the lines after it read from the next frame)
+            const void* nl = memchr(buf, '\n', got);
+            const size_t drop = nl ? static_cast<size_t>(static_cast<const char*>(nl) - buf) + 1 : got;
+            inbox.offset += static_cast<long>(drop);
+            inbox.skipping = nl == nullptr;
+            fclose(f);
+            return;
+        }
         size_t end = got;
         while(end > 0 && buf[end - 1] != '\n')
         {
             end--; // (a line still being written waits for the next frame)
+        }
+        if(end == 0 && got == sizeof(buf) - 1)
+        {
+            // A line longer than the read would stall the inbox for good: dropped, with a word (mpreview D8).
+            Con_Printf("vr_mptest: an inbox line longer than %d bytes dropped\n", static_cast<int>(sizeof(buf) - 1));
+            inbox.offset += static_cast<long>(got);
+            inbox.skipping = true;
         }
         if(end > 0)
         {
@@ -205,7 +223,11 @@ void watchFrame()
             w = Watched{};
         }
         scoreWatch = ScoreWatch{};
-        if(now)
+        if(qvr::vr_mp_watch.value == 0.f)
+        {
+            // (the harness's lines: it sets vr_mp_watch on every game; a player's console never shows them, mpreview D2)
+        }
+        else if(now)
         {
             Con_Printf("mp_event: t=%lld joined map=%s self=%d maxclients=%d\n", wallMs(), cl.mapname, cl.viewentity,
                 cl.maxclients);

@@ -992,12 +992,12 @@ void(float ask) VR_DMT_Loose =
     }
     if(vr_dmt_s == 42) // in deathmatch: the oldest gone
     {
-        VR_DMLoose_OldestGib();
+        VR_DMLoose_Chain(0);
         float gibs = vr_dml_count;
         VR_Test_Check(VR_DMT_GibsLeft(0, 4) == 0 && VR_DMT_GibsLeft(6, 8) == 2 && gibs <= 4, sprintf("in deathmatch "
             "the 4 oldest gibs go, the 2 youngest stay, %g left of the cap 4 (the 6 old ones: %g left)", gibs,
             VR_DMT_GibsLeft(0, 6)));
-        VR_DMLoose_OldestWeapon();
+        VR_DMLoose_Chain(1);
         float weapons = vr_dml_count;
         VR_Test_Check(VR_DMT_WeaponsLeft(3, 5) == 2 && weapons <= 3 && vr_dml_weapons_gone - vr_dmt_wgone >= 2,
             sprintf("... the weapons going soonest go first (%g gone), the 2 youngest stay, %g left of the cap 3",
@@ -1361,6 +1361,46 @@ void(float ask) VR_DMT_Coop =
     VR_DMT_End();
 };
 
+// Test 12 (mpreview B2, mp_test.py lagcomp): a remote human's blast and bolt each rewind the others once, not once per
+// pellet or line: FireBulletsImpl's 14 pellets and LightningDamage's 3 lines inside one scope each (lagcompcount: one
+// begun, the rest found it open). Shot straight up from his eyes: nothing hurt. One frame.
+void(float ask) VR_DMT_Rewind =
+{
+    VR_Test_BeginFlags("dmtest", VR_TEST_LOUD | VR_TEST_ECHO);
+    vr_dmt_on = ask;
+    vr_dmt_chance = cvar_hget(cvarh_vr_player_disarm_chance);
+    vr_dmt_pve = cvar_hget(cvarh_vr_player_disarm);
+    vr_dmt_pvp = cvar_hget(cvarh_vr_player_disarm_pvp);
+    vr_dmt_dm = deathmatch;
+    vr_dmt_bot = vr_dmt_human = world;
+    for(entity p = VR_Player(); p; p = VR_NextPlayer(p))
+    {
+        if(p.ishuman && p.health > 0 && !vr_dmt_human && lagcompbegin(p)) // (a remote one: the scope opens for him)
+        {
+            lagcompend();
+            vr_dmt_human = p;
+        }
+    }
+    VR_Test_Check(vr_dmt_human != world, "a remote human the lag compensation rewinds for");
+    if(vr_dmt_human)
+    {
+        entity os = self;
+        self = vr_dmt_human;
+        vector eye = self.origin + self.view_ofs;
+        float b0 = lagcompcount(0), n0 = lagcompcount(1);
+        FireBulletsImpl(14, '0 0 1', '0.1 0.1 0', eye, 256, FALSE);
+        float b1 = lagcompcount(0), n1 = lagcompcount(1);
+        LightningDamage(eye, eye + '0 0 256', self, 0);
+        float b2 = lagcompcount(0), n2 = lagcompcount(1);
+        self = os;
+        VR_Test_Check(b1 - b0 == 1 && n1 - n0 >= 14, sprintf(
+            "his 14-pellet blast: one rewind (%g), its pellets inside it (%g)", b1 - b0, n1 - n0));
+        VR_Test_Check(b2 - b1 == 1 && n2 - n1 >= 3, sprintf(
+            "his bolt: one rewind (%g), its three lines inside it (%g)", b2 - b1, n2 - n1));
+    }
+    VR_DMT_End();
+};
+
 void() VR_DMRulesTest_Frame =
 {
     float ask = cvar_hget(cvarh_vr_dm_test);
@@ -1370,5 +1410,6 @@ void() VR_DMRulesTest_Frame =
     if(ask == 7 || ask == 8) { VR_DMT_Loose(ask); }
     if(ask == 9 || ask == 10) { VR_DMT_Bots(ask); }
     if(ask == 11) { VR_DMT_Coop(ask); }
+    if(ask == 12) { VR_DMT_Rewind(ask); }
 };
 #endif
