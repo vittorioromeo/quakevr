@@ -49,6 +49,14 @@ that ships in 1.1.1.
   makes a click of the speed button (the left stick's click as shipped, or Shift) switch between walking and running
   instead of holding it. The switch ends by itself, back to your Default Speed, when you stop moving for a moment, die,
   change level or open the menu. Hold (the default) is as before.
+- **Run by double-tapping the stick.** VR Settings > Locomotion and Controls > Double-Tap Stick to Run
+  (`vr_move_doubletap`, off by default): push the moving stick twice quickly the same way (push, let go, push again) to
+  run until you let the stick go back to the middle. It works beside the speed button: either one makes you run. How
+  quick the taps must be: Advanced VR Options > Movement > Locomotion > Double-Tap Window (`vr_move_doubletap_window`,
+  0.3 s).
+- **Ammo pouch position sliders.** VR Settings > Holster Calibration now has Ammo Pouch Forward, Right and Up beside the
+  holsters' rows (the standing pouch; they agree with Holster Setup's drag and drop), and Reset Holsters resets the pouch
+  too.
 
 ## Menus
 
@@ -59,6 +67,9 @@ that ships in 1.1.1.
 - **No attract-mode demos.** Quake's demos no longer play by themselves at start-up or from a mod's start-up
   script, on the PC or the Quest, in VR or flat: flat goes straight to the main menu (VR starts in the hub as
   before). Options > Interface's "Start Demos" row is gone. `playdemo` and `timedemo` still play a demo.
+- **Discord status (opt-in).** Menu Settings > Discord Status shows what you play on your Discord profile: the
+  campaign, the map, single player, co-op, deathmatch or the Survival Arena's wave, VR or flat screen, and the time
+  on the map. Off unless you turn it on; it talks only to the Discord app on your PC.
 
 
 ## Performance

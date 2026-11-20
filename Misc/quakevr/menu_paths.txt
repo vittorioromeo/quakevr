@@ -49,6 +49,9 @@ vr_menu_holster_chest_z|0|Holster Calibration|Chest Holsters Up|VR Settings > Ho
 vr_menu_holster_back_x|0|Holster Calibration|Back Holsters Forward|VR Settings > Holster Calibration > Back Holsters Forward
 vr_menu_holster_back_y|0|Holster Calibration|Back Holsters Inward|VR Settings > Holster Calibration > Back Holsters Inward
 vr_menu_holster_back_z|0|Holster Calibration|Back Holsters Up|VR Settings > Holster Calibration > Back Holsters Up
+vr_menu_holster_pouch_x|0|Holster Calibration|Ammo Pouch Forward|VR Settings > Holster Calibration > Ammo Pouch Forward
+vr_menu_holster_pouch_y|0|Holster Calibration|Ammo Pouch Right|VR Settings > Holster Calibration > Ammo Pouch Right
+vr_menu_holster_pouch_z|0|Holster Calibration|Ammo Pouch Up|VR Settings > Holster Calibration > Ammo Pouch Up
 |0|Holster Calibration|Reset Holsters|VR Settings > Holster Calibration > Reset Holsters
 vr_holster_weapons_draw_shoulder|0|Holster Calibration|Shoulder Holster Weapons|VR Settings > Holster Calibration > Shoulder Holster Weapons
 |0|Holster Calibration|Reset This Page|VR Settings > Holster Calibration > Reset This Page
@@ -56,6 +59,7 @@ vr_holster_weapons_draw_shoulder|0|Holster Calibration|Shoulder Holster Weapons|
 vr_menu_move_towards|0|VR Settings - Locomotion and Controls|Move Towards|VR Settings > Locomotion and Controls > Move Towards
 cl_alwaysrun|0|VR Settings - Locomotion and Controls|Default Speed|VR Settings > Locomotion and Controls > Default Speed
 vr_sprint_toggle|0|VR Settings - Locomotion and Controls|Speed Button|VR Settings > Locomotion and Controls > Speed Button
+vr_move_doubletap|0|VR Settings - Locomotion and Controls|Double-Tap Stick to Run|VR Settings > Locomotion and Controls > Double-Tap Stick to Run
 vr_deadzone|0|VR Settings - Locomotion and Controls|Stick Deadzone|VR Settings > Locomotion and Controls > Stick Deadzone
 vr_move_curve|0|VR Settings - Locomotion and Controls|Stick Response Curve|VR Settings > Locomotion and Controls > Stick Response Curve
 vr_move_autorun|0|VR Settings - Locomotion and Controls|Walk Into Run|VR Settings > Locomotion and Controls > Walk Into Run
@@ -1394,6 +1398,8 @@ vr_move_autorun_threshold|1|Locomotion|Run From Push|Advanced VR Options > Movem
 cl_forwardspeed|1|Locomotion|Movement Speed|Advanced VR Options > Movement > Locomotion > Movement Speed
 cl_alwaysrun|1|Locomotion|Default Speed|Advanced VR Options > Movement > Locomotion > Default Speed
 vr_sprint_toggle|1|Locomotion|Speed Button|Advanced VR Options > Movement > Locomotion > Speed Button
+vr_move_doubletap|1|Locomotion|Double-Tap Stick to Run|Advanced VR Options > Movement > Locomotion > Double-Tap Stick to Run
+vr_move_doubletap_window|1|Locomotion|Double-Tap Window|Advanced VR Options > Movement > Locomotion > Double-Tap Window
 cl_movespeedkey|1|Locomotion|Running Mult.|Advanced VR Options > Movement > Locomotion > Running Mult.
 vr_crouch_speed|1|Locomotion|Slower When Crouched|Advanced VR Options > Movement > Locomotion > Slower When Crouched
 vr_crouch_speed_scale|1|Locomotion|Crouched Speed|Advanced VR Options > Movement > Locomotion > Crouched Speed
@@ -2260,6 +2266,7 @@ vr_menu_sharpen|1|Menu|Menu Sharpening|Advanced VR Options > HUD and Menus > Men
 vr_menu_status|1|Menu|Status Box|Advanced VR Options > HUD and Menus > Menu > Status Box
 vr_menu_version|1|Menu|Version Label|Advanced VR Options > HUD and Menus > Menu > Version Label
 vr_update_check|1|Menu|Check for Updates|Advanced VR Options > HUD and Menus > Menu > Check for Updates
+vr_discord|1|Menu|Discord Status|Advanced VR Options > HUD and Menus > Menu > Discord Status
 vr_menu_flat_shortcuts|1|Menu|Corner Buttons on a Flat Screen|Advanced VR Options > HUD and Menus > Menu > Corner Buttons on a Flat Screen
 vr_menu_flat_vr_style|1|Menu|VR Menu Layout on a Flat Screen|Advanced VR Options > HUD and Menus > Menu > VR Menu Layout on a Flat Screen
 vr_menu_flat_scale|1|Menu|Flat Menu Panel Size|Advanced VR Options > HUD and Menus > Menu > Flat Menu Panel Size
@@ -5341,6 +5348,8 @@ vr_menu_link_dryrun|2|Debug - Reports|Menu Links: Print, Do Not Open|Advanced VR
 |2|Debug - Reports|Update Check: Status|Advanced VR Options > Debug > Reports > Update Check: Status
 |2|Debug - Reports|OBS: Status|Advanced VR Options > Debug > Reports > OBS: Status
 vr_obs_process_check|2|Debug - Reports|OBS: Process Check|Advanced VR Options > Debug > Reports > OBS: Process Check
+|2|Debug - Reports|Discord: Status|Advanced VR Options > Debug > Reports > Discord: Status
+|2|Debug - Reports|Discord: Self-Test|Advanced VR Options > Debug > Reports > Discord: Self-Test
 vr_obsrec_as_if|2|Debug - Reports|Clean Recording: Act As If OBS Records|Advanced VR Options > Debug > Reports > Clean Recording: Act As If OBS Records
 |2|Debug - Reports|Main Menu Lettering|Advanced VR Options > Debug > Reports > Main Menu Lettering
 |2|Debug - Reports|Reset This Page|Advanced VR Options > Debug > Reports > Reset This Page

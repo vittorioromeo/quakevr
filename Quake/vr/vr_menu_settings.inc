@@ -150,6 +150,9 @@ constexpr const char* flatHeightWhy = "Playing on the desktop screen the body ha
     const char* holsterHelp = "Both holsters of the pair, mirrored: moves them forward, inward (towards your middle) or up "
                               "from their shipped place (0), in Quake's units (about 3 cm). Shown on your body while "
                               "you choose here.";
+    const char* pouchHelp = "The ammo pouch at your belly: moves it forward (round the hips), to the right or up from its "
+                            "shipped place (0), in Quake's units (about 3 cm), as Holster Setup's drag does. Shown on "
+                            "your body while you choose here. Crouched and seated: their own pages.";
     return {
         action("Holster Setup (drag and drop)", holsterSetupStart)
             .help("Recommended: the game pauses and every holster and pouch shows as a box on your body. Grip one and "
@@ -174,10 +177,16 @@ constexpr const char* flatHeightWhy = "Playing on the desktop screen the body ha
             .help(holsterHelp),
         row(opt::vr_menu_holster_back_z)
             .help(holsterHelp),
+        row(opt::vr_menu_holster_pouch_x)
+            .help(pouchHelp),
+        row(opt::vr_menu_holster_pouch_y)
+            .help(pouchHelp),
+        row(opt::vr_menu_holster_pouch_z)
+            .help(pouchHelp),
         open("Seated Holsters", pageIndex(pageSeatedHolsters))
             .help("Playing seated (Height > Seated Play): where the holsters and pouches go then, on top of these."),
         action("Reset Holsters", resetHolsters)
-            .help("Every pair of holsters back to its shipped place. Each pair's own values (its turn and reach too): "
+            .help("Every pair of holsters and the ammo pouch back to their shipped places. Each pair's own values (its turn and reach too): "
                   "Advanced VR Options > Weapons > Hip Holsters, and > Hotspots."),
         row(opt::vr_holster_weapons_draw_shoulder),
     };
@@ -374,6 +383,7 @@ void resetBodyEquipment()
         cycle("Default Speed", "cl_alwaysrun", {{1.f, "Run"}, {0.f, "Walk"}})
             .help("Whether you run or walk; holding the speed button does the other."),
         row(opt::vr_sprint_toggle),
+        row(opt::vr_move_doubletap),
         row(opt::vr_deadzone),
         slider("Stick Response Curve", vr_move_curve, 1.f, 3.f, 0.1f, "%.1f")
             .help("How the moving stick's push becomes speed. 1: straight. Higher: more of the travel for slow, careful "
