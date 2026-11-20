@@ -748,4 +748,7 @@ dwell/dw_items.qc
 dwell/dw_monsters.qc
 dwell/dw_bosses.qc
 dwell/dw_test.qc
+// Quoth's maps under AD's rules: the classnames and keys AD lacks (QUOTH.md).
+vr_quoth.qc
+vr_quoth_test.qc
 vr_rules_test.qc

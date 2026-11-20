@@ -36,6 +36,7 @@
 #include "vr_mem.hpp"
 #include "vr_menu.hpp"
 #include "vr_ad.hpp"
+#include "vr_quoth.hpp"
 #include "vr_menuui.hpp"
 #include "vr_panel.hpp"
 #include "vr_obs.hpp"

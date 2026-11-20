@@ -38,6 +38,10 @@ void toHex(const Digest& d, char (&out)[65]);
 // Whether hex (64 hex digits, either case) names this digest.
 [[nodiscard]] bool matches(const Digest& d, const char* hex);
 
+// Whether the file at `path` is `size` bytes whose hash hex names (a third-party release's pin: vr_dwell.cpp,
+// vr_quoth.cpp); read in pieces.
+[[nodiscard]] bool fileMatches(const char* path, long size, const char* hex);
+
 // vr_sha256_test: the standard test vectors (FIPS 180-2's "abc", the 448-bit message, a million 'a's, and the empty
 // message), one console line.
 void selfTest_f();

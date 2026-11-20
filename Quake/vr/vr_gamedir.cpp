@@ -33,6 +33,7 @@
 #include "vr_wounds.hpp"
 #include "vr_ad.hpp"
 #include "vr_dwell.hpp"
+#include "vr_quoth.hpp"
 
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -374,7 +375,10 @@ constexpr const char* adResources[] = {
 constexpr const char* dwellResources[] = {
 #include "vr_pack_dwell.inc"
 };
-// A third-party campaign's own checks (AD's, Dwell's): which release it is, the files its folder must not supply.
+constexpr const char* quothResources[] = {
+#include "vr_pack_quoth.inc"
+};
+// A third-party campaign's own checks (AD's, Dwell's, Quoth's): which release it is, the files its folder must not supply.
 struct CampaignChecks
 {
     const char* alias;                      // a second folder name it is found under ("dwellv2p2": the zip's), or null
@@ -383,6 +387,7 @@ struct CampaignChecks
     bool experimental;                      // played from Select Campaign after a notice (its own developer launch)
     bool (*skipOutside)(const char* file);  // its content in every campaign while installed: what its folder does not
                                             // supply in another (its models, sounds only); null: mounted as the campaign only
+    const char* release = nullptr;         // the release played, for "another version" ("v2.2")
 };
 struct Campaign
 {
@@ -410,14 +415,21 @@ Campaign campaigns[] = {
     // AD support: Arcane Dimensions, the latest release only (vr_ad.cpp; status 3: another version, refused); its
     // native support in progress (ARCANE_DIMENSIONS.md P1b): developer launch, vr_campaign_native ad
     {"ad", "Arcane Dimensions", "start", 6, false, adResources, countof(adResources), 0, {},
-        {nullptr, qvr::ad::versionStatus, qvr::ad::skipInFolder, true, qvr::ad::skipOutside}, {}},
+        {nullptr, qvr::ad::versionStatus, qvr::ad::skipInFolder, true, qvr::ad::skipOutside, "the latest (1.80 patch 1)"},
+        {}},
     // Dwell v2.2 (DWELL.md P1b; vr_dwell.cpp), played by Copper's rules (vr_rules.cpp); the installer's <base>/dwell or
     // an owned root's dwell or dwellv2p2 folder. Experimental, like AD's: vr_campaign_native dwell
     {"dwell", "Dwell", "start", 7, false, dwellResources, countof(dwellResources), 0, {},
-        {"dwellv2p2", qvr::dwell::versionStatus, qvr::dwell::skipInFolder, true, qvr::dwell::skipOutside}, {}},
+        {"dwellv2p2", qvr::dwell::versionStatus, qvr::dwell::skipInFolder, true, qvr::dwell::skipOutside, "v2.2"}, {}},
+    // Quoth 2.2 (QUOTH.md; vr_quoth.cpp), played by Arcane Dimensions' rules (vr_rules.cpp): its own maps (start, its
+    // test maps) as a campaign, its models, sprites, sounds and skies in every campaign while installed (the Map
+    // Library's Quoth maps). The installer's <base>/quoth. Experimental: vr_campaign_native quoth
+    {"quoth", "Quoth", "start", 8, false, quothResources, countof(quothResources), 0, {},
+        {nullptr, qvr::quoth::versionStatus, qvr::quoth::skipInFolder, true, qvr::quoth::skipOutside, "2.2"}, {}},
 };
 static_assert(qvr::ad::campaignIndex == 6, "vr_ad.hpp's campaign index is campaigns[]'s AD row");
 static_assert(qvr::dwell::campaignIndex == 7, "vr_dwell.hpp's campaign index is campaigns[]'s Dwell row");
+static_assert(qvr::quoth::campaignIndex == 8, "vr_quoth.hpp's campaign index is campaigns[]'s Quoth row");
 
 // The folder name campaign `c`'s files are under (its own, or its alias where that one was found).
 const char* campaignDir(const Campaign& c)
@@ -622,8 +634,7 @@ int missingLanguage(int index, const char** first = nullptr)
 const char* campaignStatus(int i)
 {
     return campaigns[i].status == 0 ? "missing" : campaigns[i].status == 2 ? "incomplete/corrupt" :
-        campaigns[i].status == 3 ? (i == qvr::dwell::campaignIndex ? "another version: only v2.2 is played" :
-                                    "another version: only the latest (1.80 patch 1) is played") : // (AD's, Dwell's)
+        campaigns[i].status == 3 ? va("another version: only %s is played", campaigns[i].checks.release) :
         campaigns[i].nativeReady ? (i >= 3 && Cvar_FindVar("language") && missingLanguage(i) ? "installed; language data incomplete" : "ready") :
         campaigns[i].checks.experimental ? "ready (experimental)" : "installed; native support in progress";
 }
@@ -949,7 +960,7 @@ void campaignSelectCommand()
 {
     if(Cmd_Argc() != 2) { reportCampaigns(); return; }
     const int i = campaignIndex(Cmd_Argv(1));
-    if(i < 0) { Con_Printf("VR: campaign must be id1, hipnotic, rogue, dopa, mg1, mg3, ad or dwell.\n"); return; }
+    if(i < 0) { Con_Printf("VR: campaign must be id1, hipnotic, rogue, dopa, mg1, mg3, ad, dwell or quoth.\n"); return; }
     selectCampaign(i, !q_strcasecmp(Cmd_Argv(0), "vr_campaign_native"), true);
 }
 
@@ -1112,8 +1123,8 @@ extern "C" int VR_SkipSearchPath(const char* filename, const char* path)
     // dm1 while one of the newer campaigns is active (theirs in place of Quake's).
     // (Arcane Dimensions has a start of its own only: its hub's original slipgates lead to Quake's end, so Quake's end,
     // hub and dm1 stay visible while it runs; round 22, the hub's end slipgate stopped on "cannot find map".)
-    const bool sharedOthers = activeCampaign >= 3 && activeCampaign != qvr::ad::campaignIndex &&
-        activeCampaign != qvr::dwell::campaignIndex; // (Dwell, as AD: a start of its own only)
+    const bool sharedOthers = activeCampaign >= 3 && !campaigns[activeCampaign].checks.release; // (the third-party
+                                                       // ones, AD's, Dwell's, Quoth's: a start of their own only)
     const bool start = strncmp(filename, "maps/start.", 11) == 0 ||
         (sharedOthers && (strncmp(filename, "maps/end.", 9) == 0 || strncmp(filename, "maps/hub.", 9) == 0 ||
                              strncmp(filename, "maps/dm1.", 9) == 0));
@@ -1252,7 +1263,10 @@ namespace
 int campaignForMap(const char* map, int current)
 {
     int named = current;
-    if((map[0] == 'e' && map[1] >= '1' && map[1] <= '4') || !strcmp(map, "vrtest")) { named = 0; }
+    // (e1m1..e4m8, exactly: Quoth's e1m1quoth and e1m2quoth are Quoth's own)
+    const bool idEpisode = map[0] == 'e' && map[1] >= '1' && map[1] <= '4' && map[2] == 'm' && map[3] >= '1' &&
+                           map[3] <= '9' && !map[4];
+    if(idEpisode || !strcmp(map, "vrtest")) { named = 0; }
     if(!strncmp(map, "hip", 3)) { named = 1; }
     if(!strncmp(map, "r1m", 3) || !strncmp(map, "r2m", 3)) { named = 2; }
     if(!strncmp(map, "e5", 2)) { named = 3; }

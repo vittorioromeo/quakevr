@@ -37,24 +37,7 @@ int versionStatus(const char* folder)
 {
     char path[MAX_OSPATH];
     q_snprintf(path, sizeof(path), "%s/progs.dat", folder);
-    int status = 3;
-    if(FILE* f = fopen(path, "rb"))
-    {
-        fseek(f, 0, SEEK_END);
-        const long size = ftell(f);
-        rewind(f);
-        if(size == VR_DWELL_PROGS_SIZE)
-        {
-            za::Vector<unsigned char> bytes;
-            bytes.resize(static_cast<za::SizeT>(size));
-            if(fread(bytes.data(), 1, bytes.size(), f) == bytes.size() &&
-                qvr::sha256::matches(qvr::sha256::of(bytes.data(), bytes.size()), VR_DWELL_PROGS_SHA))
-            {
-                status = 1;
-            }
-        }
-        fclose(f);
-    }
+    const int status = qvr::sha256::fileMatches(path, VR_DWELL_PROGS_SIZE, VR_DWELL_PROGS_SHA) ? 1 : 3;
     if(status != 1 && !versionWarned)
     {
         versionWarned = true;

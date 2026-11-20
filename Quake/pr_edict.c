@@ -1529,6 +1529,20 @@ const char *ED_ParseEdict (const char *data, edict_t *ent)
 		}
 		if (!ED_ParseEpair ((void *)&ent->v, key, com_token, qcvm != &sv.qcvm))
 			Host_Error ("ED_ParseEdict: parse error");
+		if (!strcmp (keyname, "spawnfunction") && (key->type & ~DEF_SAVEGLOBAL) == ev_function)
+		{
+			// QVR: a spawner's monster by name too (Hipnotic's func_spawn asks for both, "spawnclassname" the same
+			// value; Quoth's info_multispawn names only the function, QUOTH.md): the classname it spawns, unless set
+			ddef_t *named = ED_FindField ("spawnclassname");
+			if (named && (named->type & ~DEF_SAVEGLOBAL) == ev_string && !*PR_GetString (((int *)&ent->v)[named->ofs]))
+			{
+				const char *plain = com_token;
+				const char *prefix = VR_Rules_KeyPrefix ();
+				if (prefix && !strncmp (plain, prefix, strlen (prefix)))
+					plain += strlen (prefix); // (the map's own name, not the imported function's: ad_monster_drole)
+				ED_ParseEpair ((void *)&ent->v, named, plain, qcvm != &sv.qcvm);
+			}
+		}
 	}
 
 	VR_EdictIndex_Touch (ent); // QVR: every field set from the text

@@ -5,6 +5,7 @@
 
 #include "Zancle/Container/Vector.hpp"
 
+#include <stdio.h>
 #include <string.h>
 
 #if defined(_M_X64) || defined(__x86_64__)
@@ -285,6 +286,26 @@ bool matches(const Digest& d, const char* hex)
         }
     }
     return true;
+}
+
+bool fileMatches(const char* path, long size, const char* hex)
+{
+    FILE* f = fopen(path, "rb");
+    if(!f)
+    {
+        return false;
+    }
+    fseek(f, 0, SEEK_END);
+    bool ok = ftell(f) == size;
+    rewind(f);
+    Hasher h;
+    unsigned char chunk[65536];
+    for(size_t n; ok && (n = fread(chunk, 1, sizeof(chunk), f)) > 0;)
+    {
+        h.update(chunk, n);
+    }
+    fclose(f);
+    return ok && matches(h.finish(), hex);
 }
 
 void selfTest_f()

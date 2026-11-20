@@ -396,6 +396,15 @@ This is the camera point for the intermission. Use mangle instead of angle, so y
 	]
 ]
 
+@PointClass color(255 128 128) size(-16 -16 -16, 16 16 16) =
+	info_multispawn : "Quoth's monster spawner (Quoth maps, under Arcane Dimensions' rules). When used, spawns 'count' monsters (default 3) of the classname 'spawnfunction' names, 'wait' seconds apart (default 0.3), each with this entity's target (fired as it dies), angles and spawnflags."
+[
+	spawnfunction(string) : "Spawn function" :  : "The classname (spawn function) of what it makes."
+	count(integer) : "Count" :  : "A count: see the help for this entity."
+	wait(float) : "Wait" :  : "Seconds to wait (before it returns, resets or repeats). -1: never."
+	spawnclassname(string) : "Spawned classname" :  : "The classname given to what it makes."
+]
+
 @PointClass base(Appearflags, Target, Targetname) color(200 150 150) size(-4 -4 -4, 4 4 4) =
 	info_notnull : "Wildcard entity
 
@@ -2167,6 +2176,12 @@ Spawns an explosion when triggered. Triggers any targets.
 	dmg(integer) : "Damage" :  : "Damage it deals (a mover: to what blocks it)."
 	speed(float) : "Speed" :  : "Speed (units per second) or rate: see the help for this entity."
 	volume(float) : "Volume" :  : "Sound volume, 0 to 1."
+]
+
+@PointClass color(255 128 128) size(-16 -16 -16, 16 16 16) =
+	func_hordespawn : "Quoth's horde spawner: the same as info_multispawn (Quoth maps, under Arcane Dimensions' rules). When used, spawns
+'count' monsters (default 3) of the classname 'spawnfunction' names, 'wait' seconds apart (default 0.3)."
+[
 ]
 
 @SolidClass color(0 128 204) =

@@ -105,6 +105,7 @@ void() VR_FuelTank_Frame;                           // StartFrame: any fuelled g
 // handle's .vr_fuellink its head ("vr_flailhead"), the head's its handle; roped by the engine (vr_box3d.cpp).
 void(entity xGun, entity xFrom) VR_FlailHead_Attach;               // CreateThrownWeapon: a flail made lying about gets its head
 void(entity xGun, entity xPlayer, float xHand) VR_FlailHead_Taken; // wpnthrow_handtouch_impl: its head handed to the hand's
+void() VR_Quoth_Frame;                                              // StartFrame: Quoth's targetname2 aliases, once a map (vr_quoth.qc)
 void() VR_FlailHead_Frame;                                         // StartFrame: any flail lying about without one gets it
 // A player's flails' heads (the engine's: vr_box3d_flail.cpp writes where each hand's is after each step; QC writes
 // where the head lying about was as a hand takes its flail, and when).
