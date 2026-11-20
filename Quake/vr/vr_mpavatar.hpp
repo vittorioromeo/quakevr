@@ -51,6 +51,12 @@ struct Avatar
     glm::vec3 holdOut[2]{}; // ... and the way out from the face (horizontal, unit)
     VrDrawnHolsters holsters; // his holstered weapons as he drew them, from his entity's origin (B6b; no points)
     int armour{0};            // the armour he wears (gearByte: his pauldrons' colour)
+    // His guns as the server has them (MP_PLAN.md, "Held weapons' state"): each hand's look ([0] off, [1] main), each
+    // holstered weapon's flags (low byte) and clip; his torch as he drew it (from his entity's origin).
+    VrGunLook look[2];
+    za::U8 holsterFlags[VrDrawnHolsters::count]{};
+    za::U8 holsterClip[VrDrawnHolsters::count]{};
+    VrDrawnLamp lamp;
 };
 // The server's gear byte for client entity `ent` (after the holsters): the armour he wears, 0 none .. 3 red.
 [[nodiscard]] int gearByte(const edict_t* ent);

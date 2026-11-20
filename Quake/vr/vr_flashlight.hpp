@@ -46,6 +46,17 @@ void noteGameHands(const hands::State& s);
 // beam.
 void setupView(const hands::State& s, view::ViewEntity& ve);
 
+// This client's torch as last placed (multiplayer: the move's, for the other players; MP_PLAN.md, "Held weapons' state"):
+// where it is, its model shown, lit, its reach.
+void netLamp(VrDrawnLamp& out);
+
+// Another player's torch (vr_mpavatar.cpp; `lamp` from his entity's origin `origin`): its model placed in `ve` (hidden
+// when his is not shown) and, lit, its beam's spot, spill and glow lights as yours are lit (unshadowed; keys of `player`).
+// Not the beam's visible cone in the air (one, yours).
+void drawOther(int player, const VrDrawnLamp& lamp, const glm::vec3& origin, view::ViewEntity& ve);
+// How many of `player`'s torch's lights are alive now (vr_mp_avatars' mp_lamp line).
+[[nodiscard]] int otherLights(int player);
+
 // The cord (vr_flashlight_cord), in each eye's opaque scene (VR_DrawSceneOpaque): lit, depth-tested.
 void drawOpaque();
 
