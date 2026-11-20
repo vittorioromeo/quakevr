@@ -1402,6 +1402,8 @@ vr_slide|1|Locomotion|Sliding (VR, Experimental)|Advanced VR Options > Movement 
 vr_slide_stick_threshold|1|Locomotion|Slide Stick Pull|Advanced VR Options > Movement > Locomotion > Slide Stick Pull
 vr_slide_stick_angle|1|Locomotion|Slide Stick Angle|Advanced VR Options > Movement > Locomotion > Slide Stick Angle
 vr_slide_body|1|Locomotion|Slide Body Pose|Advanced VR Options > Movement > Locomotion > Slide Body Pose
+vr_slide_camera|1|Locomotion|Slide View|Advanced VR Options > Movement > Locomotion > Slide View
+vr_slide_camera_time|1|Locomotion|Slide View Time|Advanced VR Options > Movement > Locomotion > Slide View Time
 vr_flat_aim_mode|1|Locomotion|Right Click Ironsight|Advanced VR Options > Movement > Locomotion > Right Click Ironsight
 vr_flat_aim_zoom|1|Locomotion|Right Click Aim|Advanced VR Options > Movement > Locomotion > Right Click Aim
 vr_flat_aim_sens|1|Locomotion|Aim Sensitivity|Advanced VR Options > Movement > Locomotion > Aim Sensitivity
@@ -2956,6 +2958,7 @@ vr_ragdoll_hand_rest|2|Tunables|Palm Rests on Limb|Advanced VR Options > Debug >
 vr_ragdoll_throw|2|Tunables|Throw|Advanced VR Options > Debug > Tunables > Throw
 vr_ragdoll_blood|2|Tunables|Blood Trails|Advanced VR Options > Debug > Tunables > Blood Trails
 vr_agrunt_pose_lod|2|Tunables|Armed Pose LOD|Advanced VR Options > Debug > Tunables > Armed Pose LOD
+vr_agrunt_pose_lod_frames|2|Tunables|Armed Pose LOD: Frames|Advanced VR Options > Debug > Tunables > Armed Pose LOD: Frames
 vr_agrunt_pose_lod_near|2|Tunables|Armed Pose LOD: Near|Advanced VR Options > Debug > Tunables > Armed Pose LOD: Near
 vr_agrunt_pose_lod_cone|2|Tunables|Armed Pose LOD: View Cone|Advanced VR Options > Debug > Tunables > Armed Pose LOD: View Cone
 vr_worn_backpack_lod_near|2|Tunables|Worn Pack LOD: Near|Advanced VR Options > Debug > Tunables > Worn Pack LOD: Near
@@ -4909,6 +4912,7 @@ vr_nav_debug|2|Debug - Views|Show Navmesh|Advanced VR Options > Debug > Views > 
 vr_nav_debug_range|2|Debug - Views|Show Navmesh: Range|Advanced VR Options > Debug > Views > Show Navmesh: Range
 vr_nav_debug_class|2|Debug - Views|Show Navmesh: Size Class|Advanced VR Options > Debug > Views > Show Navmesh: Size Class
 |2|Debug - Views|Print Navmesh Info|Advanced VR Options > Debug > Views > Print Navmesh Info
+|2|Debug - Views|Print Navmesh Hash|Advanced VR Options > Debug > Views > Print Navmesh Hash
 |2|Debug - Views|Crowd Stall Test (40 s)|Advanced VR Options > Debug > Views > Crowd Stall Test (40 s)
 |2|Debug - Views|Check Clip Brushes Block Paths|Advanced VR Options > Debug > Views > Check Clip Brushes Block Paths
 vr_debug_hand_collide|2|Debug - Views|Log Empty Hand Against Held|Advanced VR Options > Debug > Views > Log Empty Hand Against Held
@@ -5012,6 +5016,13 @@ vr_debug_weight|2|Debug - Logging|Weight Trace|Advanced VR Options > Debug > Log
 vr_debug_lean|2|Debug - Logging|Lean Trace|Advanced VR Options > Debug > Logging > Lean Trace
 |2|Debug - Logging|Reset This Page|Advanced VR Options > Debug > Logging > Reset This Page
 @page|2|Debug - Profiling and Memory||Advanced VR Options > Debug > Profiling and Memory
+vr_perf_record|2|Debug - Profiling and Memory|Perf Recorder|Advanced VR Options > Debug > Profiling and Memory > Perf Recorder
+vr_alias_prepass_world|2|Debug - Profiling and Memory|World Models Pre-pass|Advanced VR Options > Debug > Profiling and Memory > World Models Pre-pass
+vr_alias_batch_posed|2|Debug - Profiling and Memory|Batch Posed Models|Advanced VR Options > Debug > Profiling and Memory > Batch Posed Models
+|2|Debug - Profiling and Memory|Add 3 Big Test Lights|Advanced VR Options > Debug > Profiling and Memory > Add 3 Big Test Lights
+|2|Debug - Profiling and Memory|Remove the Test Lights|Advanced VR Options > Debug > Profiling and Memory > Remove the Test Lights
+|2|Debug - Profiling and Memory|List the Dynamic Lights|Advanced VR Options > Debug > Profiling and Memory > List the Dynamic Lights
+|2|Debug - Profiling and Memory|List the Frame's Render Passes|Advanced VR Options > Debug > Profiling and Memory > List the Frame's Render Passes
 vr_profile_overlay|2|Debug - Profiling and Memory|Profiler Panel|Advanced VR Options > Debug > Profiling and Memory > Profiler Panel
 vr_profile_csv|2|Debug - Profiling and Memory|CSV Capture|Advanced VR Options > Debug > Profiling and Memory > CSV Capture
 vr_profile_hitch|2|Debug - Profiling and Memory|Hitch Log|Advanced VR Options > Debug > Profiling and Memory > Hitch Log
@@ -5149,11 +5160,16 @@ vr_memstats_log_gpu|2|Debug - Profiling and Memory|Memory Log: GPU|Advanced VR O
 |2|Debug - Profiling and Memory|Physics Memory|Advanced VR Options > Debug > Profiling and Memory > Physics Memory
 |2|Debug - Profiling and Memory|Heap Stress|Advanced VR Options > Debug > Profiling and Memory > Heap Stress
 vr_heap_purge_delay|2|Debug - Profiling and Memory|Heap: Purge Delay|Advanced VR Options > Debug > Profiling and Memory > Heap: Purge Delay
+vr_heap_thread_tidy|2|Debug - Profiling and Memory|Heap: Worker Tidy|Advanced VR Options > Debug > Profiling and Memory > Heap: Worker Tidy
+|2|Debug - Profiling and Memory|Heap: Live By Size|Advanced VR Options > Debug > Profiling and Memory > Heap: Live By Size
 |2|Debug - Profiling and Memory|Heap: Return Free Memory|Advanced VR Options > Debug > Profiling and Memory > Heap: Return Free Memory
 vr_glsafe|2|Debug - Profiling and Memory|GL Safe Mode|Advanced VR Options > Debug > Profiling and Memory > GL Safe Mode
 vr_gl_workarounds|2|Debug - Profiling and Memory|AMD Workarounds|Advanced VR Options > Debug > Profiling and Memory > AMD Workarounds
+vr_startup_log|2|Debug - Profiling and Memory|Startup Trace in the Console|Advanced VR Options > Debug > Profiling and Memory > Startup Trace in the Console
+|2|Debug - Profiling and Memory|Startup Trace Summary|Advanced VR Options > Debug > Profiling and Memory > Startup Trace Summary
 |2|Debug - Profiling and Memory|GL Safe Mode Status|Advanced VR Options > Debug > Profiling and Memory > GL Safe Mode Status
 |2|Debug - Profiling and Memory|Retry the Full Renderer|Advanced VR Options > Debug > Profiling and Memory > Retry the Full Renderer
+|2|Debug - Profiling and Memory|Safe Mode Judge Test|Advanced VR Options > Debug > Profiling and Memory > Safe Mode Judge Test
 |2|Debug - Profiling and Memory|Game Code and Folders|Advanced VR Options > Debug > Profiling and Memory > Game Code and Folders
 vr_diagnostics|2|Debug - Profiling and Memory|Diagnostics Mode|Advanced VR Options > Debug > Profiling and Memory > Diagnostics Mode
 |2|Debug - Profiling and Memory|Run Logs Status|Advanced VR Options > Debug > Profiling and Memory > Run Logs Status
@@ -5162,6 +5178,7 @@ vr_diagnostics_xr_validation|2|Debug - Profiling and Memory|OpenXR Validation La
 vr_xr_guard|2|Debug - Profiling and Memory|Runtime Crash Guard|Advanced VR Options > Debug > Profiling and Memory > Runtime Crash Guard
 vr_xr_api_layers|2|Debug - Profiling and Memory|OpenXR API Layers|Advanced VR Options > Debug > Profiling and Memory > OpenXR API Layers
 vr_xr_skip_incompatible_layers|2|Debug - Profiling and Memory|Skip Incompatible API Layers|Advanced VR Options > Debug > Profiling and Memory > Skip Incompatible API Layers
+vr_xr_debug|2|Debug - Profiling and Memory|OpenXR Loader Log|Advanced VR Options > Debug > Profiling and Memory > OpenXR Loader Log
 |2|Debug - Profiling and Memory|Reset This Page|Advanced VR Options > Debug > Profiling and Memory > Reset This Page
 @page|2|Debug - Reports||Advanced VR Options > Debug > Reports
 |2|Debug - Reports|Flatscreen Play Status|Advanced VR Options > Debug > Reports > Flatscreen Play Status
@@ -5956,6 +5973,8 @@ vr_portals_unstick|2|Debug - Tests|Get Out of a Teleporter's Wall|Advanced VR Op
 |2|Debug - Tests|God Mode|Advanced VR Options > Debug > Tests > God Mode
 |2|Debug - Tests|Quad Damage|Advanced VR Options > Debug > Tests > Quad Damage
 |2|Debug - Tests|All Weapons|Advanced VR Options > Debug > Tests > All Weapons
+|2|Debug - Tests|Go to the Level's Exit|Advanced VR Options > Debug > Tests > Go to the Level's Exit
+|2|Debug - Tests|Take Damage: 1000|Advanced VR Options > Debug > Tests > Take Damage: 1000
 |2|Debug - Tests|Reset This Page|Advanced VR Options > Debug > Tests > Reset This Page
 @page|2|Ragdoll Tool||Advanced VR Options > Debug > Ragdoll Tool
 |2|Ragdoll Tool|Start (Load the Room)|Advanced VR Options > Debug > Ragdoll Tool > Start (Load the Room)
@@ -6157,6 +6176,7 @@ vr_ar_play_scale|2|Animation Recorder|Scale|Advanced VR Options > Debug > Animat
 vr_agrunt_ik_debug|2|Debug - Automation & Self-Tests|Armed Grunts: Grip Distances|Advanced VR Options > Debug > Automation & Self-Tests > Armed Grunts: Grip Distances
 vr_agrunt_strike_demo|2|Debug - Automation & Self-Tests|Armed Humanoids: Strike Demo|Advanced VR Options > Debug > Automation & Self-Tests > Armed Humanoids: Strike Demo
 vr_agrunt_debug|2|Debug - Automation & Self-Tests|Armed Grunts: Log|Advanced VR Options > Debug > Automation & Self-Tests > Armed Grunts: Log
+vr_agrunt_strike_broad|2|Debug - Automation & Self-Tests|Armed Grunts: Strike Broad Test|Advanced VR Options > Debug > Automation & Self-Tests > Armed Grunts: Strike Broad Test
 vr_agrunt_test_kind|2|Debug - Automation & Self-Tests|Armed Grunts: Tests Spawn Enforcers|Advanced VR Options > Debug > Automation & Self-Tests > Armed Grunts: Tests Spawn Enforcers
 vr_grapple_test_stuck|2|Debug - Automation & Self-Tests|Load Stuck|Advanced VR Options > Debug > Automation & Self-Tests > Load Stuck
 |2|Debug - Automation & Self-Tests|Hitbox Keep Test|Advanced VR Options > Debug > Automation & Self-Tests > Hitbox Keep Test
@@ -6185,6 +6205,7 @@ vr_grapple_test_stuck|2|Debug - Automation & Self-Tests|Load Stuck|Advanced VR O
 |2|Debug - Automation & Self-Tests|List the Standard Menu's Texts|Advanced VR Options > Debug > Automation & Self-Tests > List the Standard Menu's Texts
 |2|Debug - Automation & Self-Tests|Check the Boards' Menu Paths|Advanced VR Options > Debug > Automation & Self-Tests > Check the Boards' Menu Paths
 |2|Debug - Automation & Self-Tests|Menu Help Fit|Advanced VR Options > Debug > Automation & Self-Tests > Menu Help Fit
+|2|Debug - Automation & Self-Tests|SIMD Test|Advanced VR Options > Debug > Automation & Self-Tests > SIMD Test
 |2|Debug - Automation & Self-Tests|Screen Tap Feedback|Advanced VR Options > Debug > Automation & Self-Tests > Screen Tap Feedback
 |2|Debug - Automation & Self-Tests|Distortion Trails Test|Advanced VR Options > Debug > Automation & Self-Tests > Distortion Trails Test
 |2|Debug - Automation & Self-Tests|Companion Map Tests|Advanced VR Options > Debug > Automation & Self-Tests > Companion Map Tests
