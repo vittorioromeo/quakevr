@@ -39,6 +39,8 @@ for so in libquakevr.so libSDL2.so libopenxr_loader.so; do
 	grep -q "lib/arm64-v8a/$so" <<< "$listing"; check "lib/arm64-v8a/$so in the APK" $?
 done
 grep -q "org.khronos.openxr.permission.OPENXR\"" <<< "$manifest"; check "the OPENXR permission" $?
+grep -q "android.permission.INTERNET" <<< "$manifest"; check "the INTERNET permission (multiplayer)" $?
+grep -q "android.permission.RECORD_AUDIO" <<< "$manifest"; check "the RECORD_AUDIO permission (voice chat)" $?
 grep -q "org.khronos.openxr.runtime_broker" <<< "$manifest"; check "the runtime broker's query" $?
 grep -q "org.khronos.openxr.OpenXRRuntimeService" <<< "$manifest"; check "the runtime service's query" $?
 vrLines=0

@@ -354,6 +354,15 @@ void openMic()
             want.channels = 1;
             want.samples = blockSamples;
             Opened o;
+#ifdef __ANDROID__
+            // Android asks the player for the microphone the first time (RECORD_AUDIO, AndroidManifest.xml); SDL's
+            // call waits for the answer, so it is asked here on the worker, never at the start or on the main thread.
+            if(!SDL_AndroidRequestPermission("android.permission.RECORD_AUDIO"))
+            {
+                o.error = za::String{"microphone permission not granted"};
+                return o;
+            }
+#endif
             // (no changes allowed: SDL converts to 48 kHz mono 16-bit, RNNoise's and Opus's own)
             o.id = SDL_OpenAudioDevice(name.empty() ? nullptr : name.cStr(), 1, &want, &have, 0);
             if(o.id)
