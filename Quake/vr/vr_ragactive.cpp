@@ -2343,6 +2343,7 @@ void livingLedge(State& s, const Parts& p, const Context& c)
         }
     }
     k.lip = sum / static_cast<float>(za::max(n, 1));
+    k.edge = k.lip;
     k.top = k.lip.z;
     e.on = true;
     setMode(s, Mode::Climbing);

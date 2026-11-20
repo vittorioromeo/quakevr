@@ -370,7 +370,7 @@ void runStepTask(void* p)
 
 // Box3D's b3EnqueueTaskCallback (`user`: the world's StepTasks): on the pool; with one worker, no pool or past the bound, here and now
 // (nullptr: nothing to finish).
-void* enqueueStepTask(b3TaskCallback* fn, void* context, void* user, const char* /*name*/)
+void* enqueueStepTask(b3TaskCallback* fn, void* context, void* user, b3TaskType /*type*/)
 {
     StepTasks& w = *static_cast<StepTasks*>(user);
     jobs::Pool* const pool = jobs::pool();
@@ -407,6 +407,7 @@ namespace
 void applySimdWidth(b3WorldId id)
 {
     b3World_EnableSSE2Fallback(id, !useAvx2());
+    b3World_EnableMeshGhostHandling(id, vr_box3d_mesh_ghosts.value != 0.f); // (a Box3D local change: box3dup)
 }
 
 namespace

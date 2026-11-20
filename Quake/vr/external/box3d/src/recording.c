@@ -342,6 +342,10 @@ _Static_assert( sizeof( void* ) != 8 || sizeof( b3WeldJointDef ) == 128,
 				"b3WeldJointDef changed: update b3RecW_WELDJOINTDEF and its reader together" );
 _Static_assert( sizeof( void* ) != 8 || sizeof( b3WheelJointDef ) == 184,
 				"b3WheelJointDef changed: update b3RecW_WHEELJOINTDEF and its reader together" );
+_Static_assert( sizeof( void* ) != 8 || sizeof( b3MoverJointDef ) == 128,
+				"b3MoverJointDef changed: update b3RecW_MOVERJOINTDEF and its reader together" );
+_Static_assert( sizeof( void* ) != 8 || sizeof( b3PogoJointDef ) == 152,
+				"b3PogoJointDef changed: update b3RecW_POGOJOINTDEF and its reader together" );
 
 void b3RecW_EXPLOSIONDEF( b3RecBuffer* buf, b3ExplosionDef v )
 {
@@ -547,6 +551,26 @@ void b3RecW_WHEELJOINTDEF( b3RecBuffer* buf, b3WheelJointDef v )
 	b3RecW_BOOL( buf, v.enableSteeringLimit );
 	b3RecW_F32( buf, v.lowerSteeringLimit );
 	b3RecW_F32( buf, v.upperSteeringLimit );
+}
+
+void b3RecW_MOVERJOINTDEF( b3RecBuffer* buf, b3MoverJointDef v )
+{
+	b3RecW_JointBase( buf, &v.base );
+	b3RecW_VEC3( buf, v.linearVelocity );
+	b3RecW_F32( buf, v.maxForce );
+}
+
+void b3RecW_POGOJOINTDEF( b3RecBuffer* buf, b3PogoJointDef v )
+{
+	b3RecW_JointBase( buf, &v.base );
+	b3RecW_VEC3( buf, v.normal );
+	b3RecW_F32( buf, v.hertz );
+	b3RecW_F32( buf, v.dampingRatio );
+	b3RecW_F32( buf, v.restLength );
+	b3RecW_F32( buf, v.maxTensionForce );
+	b3RecW_F32( buf, v.maxCompressionForce );
+	b3RecW_F32( buf, v.impulse );
+	b3RecW_F32( buf, v.velocity );
 }
 
 // Query recording. A query collects a variable number of hits through a user callback, so the count

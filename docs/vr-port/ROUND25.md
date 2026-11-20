@@ -5813,6 +5813,90 @@ application, the protocol, the join hook).
 - **Open**: the application id (and logo asset) from him, then the shipped default; whether it ships on; Linux tried
   for real; the join button (room codes: `JOIN-HOOK` in vr_discord.cpp).
 
+## box3dup: Box3D updated to upstream 1767150d; the ragdolls' self contacts measured (2026-11-20, `agent/box3dup`)
+
+**Update** (`Quake/vr/external/box3d`, README.md lists every local change now). efca0c18 (2026-10-19) to upstream
+main 1767150d (2026-11-17): 8 commits. What matters to us:
+
+- #212 "Reduce ghosts": full ghost-collision handling for sphere, capsule and hull against a mesh or height field
+  built with `identifyEdges` (ours is), the mesh builder faster, `B3_MAX_MESH_CONTACT_TRIANGLES` gone. b3CollideMesh
+  Triangles was split out of b3ComputeMeshManifolds: our pre-solve-per-point change moved into it (it now gets the
+  world and shape B's transform; NULL world from the public collide functions).
+- #227: a contact keeps at most 8 manifolds (`B3_MAX_MANIFOLDS`, cheap culling); our long-manifold-array change kept.
+- #228 pull-model task API: the push model stays; the enqueue callback gets a `b3TaskType` instead of a name
+  (`enqueueStepTask`). Also #214/#216 static queries (a data race fix), #202 the mover and pogo joints (new files),
+  #201 CMake. No new world or def defaults to set; the contact, joint and island solvers are unchanged but for
+  accessors.
+- Re-applied by 3-way merge (`git merge-file`; the README's recipe now says so). Local changes the README had not
+  listed, now listed: the pre-solve callback's `separation`, the elliptical cones (`coneAngleY`), the Tracy pool.
+
+**The ghost handling and the climbing ragdolls.** climb_test `pull`, seeds 7-10 (N=4, 24 cases): old
+Box3D 21/24 (ogre 2/4, hknight 3/4); new 17/24 (ogre 0/4, knight 2/4, hknight 3/4); new with the ghost handling off
+22/24 (ogre 4/4, hknight 2/4). But off, the active-ragdoll test's crawling ogre failed "energy 76 J after the drive"
+(it passes with the ghost handling on, and before the update): off is not the old code either (efca0c18 had a
+vertex/edge-index heuristic against ghosts that #212 replaced), so bodies lying and sliding on the world's triangle
+seams catch more. A new marked local change, `b3World_EnableMeshGhostHandling` (a world flag read by
+b3ComputeMeshManifolds; upstream's default on), set before each step from **`vr_box3d_mesh_ghosts`** (default 1:
+upstream's handling; Debug > Profiling "Physics Mesh Ghost Handling"), so either can be tried in VR. At 1 the climb
+gives the same as without the change (the ogre drops at 1.18 s, 19 units over the lip, both). **Open**: why the lip
+contacts lose the ogre's hands with #212 (its hull or hands against the lip's edge, `vr_ragactive_hold.cpp` climbFrame
+"lost its hold"); worth a look upstream-side or in our hold before choosing a default for good.
+
+**Tests** (new build, upstream's ghost handling, the shipped default): vr_physics_mtbench 200/300 `eece2c3897006b67`, 400/300
+`b071f169ad1d96cb`, the same as before the update for every worker count, SSE2 and AVX2 (convex and joint solving
+unchanged). throw_spin PASS, held_over_props PASS, throw_grace (changes by grace end 0.00-0.34, as before),
+gib_2h_throw 9 of 28 bursts (as before), magthrow 3/0, prop_2h (stale as before), ragdoll_test 13 runs exit 0,
+active-ragdoll test no failures, ragdoll_stagger 1 FAIL (monster 0's backpedal: BACKLOG's known one), climb 23/24 at
+seed 7 (pull ogre FAIL, above), selfcollide runs, flatmelee 12/0, scenario_check PASS, vr_agrunt_test 1 17/0,
+2 4/0, 60 6/0, 77 12/0, 33 6/0, 35 6/0, 94 14/1 and 96 0/8 (timed out, "tuned 0") the same with the old build (my
+runner's set-up: vrtesthall, seed 7). Debug and Dev 0 warnings; ThinLTO built (exe relinked 18:50), 0 warnings.
+
+**Self contacts** (ragperf_scene.py 2/4/6 close, fists, the ThinLTO exe via the new `RP_RUNARGS=--lto`; self pairs
+on and off alternated, two rounds, while another worker's MP suites ran: timings A/B in the same window; counts exact).
+`vr_ragdoll_self_pairs` (new, Debug > Profiling "Ragdolls' Self Contacts"; 1 default; 0, a measurement aid, refuses a
+ragdoll's own pairs in shouldCollide's selfMeets: the physics changes) gave, a frame over 720 frames:
+
+| ragdolls | contacts stepped on / off | self apart touching / near | Box3D step ms on -> off (2 rounds) | collide ms on -> off |
+|---|---|---|---|---|
+| 2 | 284.5 / 79.6 | 3.1 / 201.9 | 0.177 -> 0.138, 0.194 -> 0.136 | 0.075 -> 0.039, 0.082 -> 0.037 |
+| 4 | 460.9 / 165.5 | 6.9 / 299.9 | 0.251 -> 0.189, 0.320 -> 0.202 | 0.111 -> 0.052, 0.141 -> 0.056 |
+| 6 | 654.0 / 178.3 | 10.1 / 470.4 | 0.366 -> 0.271, 0.457 -> 0.285 | 0.157 -> 0.065, 0.197 -> 0.070 |
+
+The never-touching self pairs are ~72% of the contacts stepped and cost the collide phase only (solve the same on and
+off): ~0.04 ms a frame with 2 driven ragdolls, ~0.1-0.13 ms with 6, on this machine (a lower-end CPU perhaps two or three times that). Pairs and the solver do not change. **Not implemented**: an exact skip (physics the
+same to the bit) needs a marked Box3D change in the collide task: keep each self pair's last distance and its bodies'
+transforms then, and skip its narrow phase while that distance less a conservative motion bound (the bodies' moves
+and turns times their extents since) stays above the speculative distance; touching flags and events stay as they
+are, but the skipped GJK/SAT caches differ, so a hash proof may still show last-bit differences on the pairs that do
+touch later. At most ~0.1 ms a frame with 6 close ragdolls: left (BACKLOG).
+
+## box3dup2: the ogre's ledge climb under upstream Box3D's ghost handling (2026-11-20, `agent/box3dup`)
+
+**Cause: not the contacts.** climb_test pull's ogre (seeds 7-10) dropped "lost its hold" with #212's ghost handling on
+(0/4) and pulled itself up with it off (4/4). Traced (`vr_ragdoll_active_trace 6`), its pose was the same both ways at
+its pull's start: straddling the lip, its left leg on the top, its pelvis 10 units out from the edge and 4 under the
+top. The Hang phase's "not hanging" (it lets go: meant for a monster that caught the lip with its legs still on the
+top) measured the pelvis from `Climb::lip`, the mean of the holds' points, and a ledge hold takes the lip where the hand
+was, up to half an arm in or out from the edge (the ogre's left hand 17 units in, its right 17 out). Off, only the left
+hand held by then: the pelvis read 27 units out, "hanging", it pulled. On, the right hand's hold came 0.2 s sooner: the
+mean was the edge, 10 units, "not hanging", it let go and fell. Which hand held first decided it (the old Box3D's 2/4
+were the same coin; the earlier note here that an ogre "swung 27-30 units out" was this misreading too).
+
+**Fix** (`vr_ragactive_hold.cpp`, climbFrame Hang; `Climb::edge`, set where the climb begins from the hands' reach
+goals, which are on the edge): "not hanging" is judged from the ledge's edge, and needs both whole legs on the top (a
+foot in from the edge and within 0.15 arm under the top), as its comment always said. A straddling monster pulls
+itself up. `lip` (the pull's way) is unchanged.
+
+**Numbers** (ghost handling on, `vr_box3d_mesh_ghosts 1`, the default kept): climb_test pull seeds 7-10 21/24 (was
+17/24): grunt 4/4, ogre 4/4 (was 0/4), enforcer 4/4, zombie 4/4, hell knight 3/4 (seed 8 "slid back off the lip", as
+before), knight 2/4 (seeds 9, 10 "lost its hold": a hand "pulled away" 11-15 units off its hold at the grab, both
+modes now and then; run singly, seeds 9 and 7 swap: chaotic; BACKLOG). Active-ragdoll test no failures (the crawling
+ogre's late ke 1.0 J). ragdoll_stagger 1 FAIL (monster 0's backpedal, the known one); flatmelee 12/0; scenario_check
+PASS; throw_spin PASS, held_over_props PASS, throw_grace and throw_trigger run clean, gib_2h_throw 11 of 28 bursts,
+magthrow 3/0; gibprops e1m1 alive (grunt, ogre, zombie, knight, hell knight, enforcer): all 1 but the enforcer's head
+still in the air at 150 frames (as ROUND22 notes). vr_physics_mtbench 200/300 `eece2c3897006b67`, 400/300
+`b071f169ad1d96cb` for every worker count, AVX2 and SSE2 (unchanged). Dev and ThinLTO 0 warnings, the LTO exe
+relinked after the change.
 ## agent/mp ready for next (mpfinal, 2026-11-20)
 
 The deep review's two fix halves (agent/mp: A transport, C avatars and voice; agent/mpfix2: B snapshots, prediction,

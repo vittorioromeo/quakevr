@@ -323,7 +323,7 @@ static void b3SerTree( b3RecBuffer* buf, const b3DynamicTree* tree )
 
 static void b3DesTree( b3SnapReader* r, b3DynamicTree* tree )
 {
-	uint64_t version;
+	uint64_t version = 0;
 	b3SnapR_Bytes( r, &version, sizeof( uint64_t ) );
 	int nodeEnd = b3SnapR_I32( r );
 	int pairFreeList = b3SnapR_I32( r );
@@ -925,7 +925,8 @@ static void b3DesContacts( b3SnapReader* r, b3World* world )
 
 		if ( isLive && manifoldCount > 0 )
 		{
-			if ( b3SnapCheckCount( r, manifoldCount, (int)sizeof( b3Manifold ), (int)sizeof( b3Manifold ) ) == false )
+			if ( manifoldCount > B3_MAX_MANIFOLDS ||
+				 b3SnapCheckCount( r, manifoldCount, (int)sizeof( b3Manifold ), (int)sizeof( b3Manifold ) ) == false )
 			{
 				r->ok = false;
 				break;
@@ -1056,11 +1057,11 @@ int b3SerializeWorld( b3World* world, b3RecBuffer* buf, b3Recording* rec )
 	b3SerIdPool( buf, &world->solverSetIdPool );
 
 	// Solver sets
-	int setCount = world->solverSets.count;
+	int setCount = b3GetSolverSetCount( world );
 	b3SnapW_I32( buf, setCount );
 	for ( int i = 0; i < setCount; ++i )
 	{
-		b3SerSolverSet( buf, world->solverSets.data + i );
+		b3SerSolverSet( buf, b3GetSolverSet( world, i ) );
 	}
 
 	// Sparse body array (userData is host wiring, zero it on the copy)
@@ -1200,9 +1201,10 @@ bool b3DeserializeIntoShell( const uint8_t* data, int size, b3World* world, b3Re
 	b3DesIdPool( r, &world->solverSetIdPool );
 
 	// 3. Solver sets: destroy inner arrays of existing sets first
-	for ( int i = 0; i < world->solverSets.count; ++i )
+	int oldSetCount = b3GetSolverSetCount( world );
+	for ( int i = 0; i < oldSetCount; ++i )
 	{
-		b3SolverSet* set = world->solverSets.data + i;
+		b3SolverSet* set = b3GetSolverSet( world, i );
 		b3Array_Destroy( set->bodySims );
 		b3Array_Destroy( set->bodyStates );
 		b3Array_Destroy( set->jointSims );
@@ -1211,17 +1213,24 @@ bool b3DeserializeIntoShell( const uint8_t* data, int size, b3World* world, b3Re
 	}
 
 	int setCount = b3SnapR_I32( r );
-	if ( r->ok && b3SnapCheckCount( r, setCount, (int)sizeof( b3SolverSet ), 6 * (int)sizeof( int ) ) == false )
+	if ( r->ok && ( setCount < b3_firstSleepingSet ||
+					b3SnapCheckCount( r, setCount, (int)sizeof( b3SolverSet ), 6 * (int)sizeof( int ) ) == false ) )
 	{
 		r->ok = false;
 	}
 	if ( r->ok )
 	{
-		b3Array_Resize( world->solverSets, setCount );
-		memset( world->solverSets.data, 0, (size_t)setCount * sizeof( b3SolverSet ) );
+		int sleepingSetCount = setCount - b3_firstSleepingSet;
+		b3Array_Resize( world->sleepingSets, sleepingSetCount );
+		memset( world->fixedSets, 0, sizeof( world->fixedSets ) );
+		if ( sleepingSetCount > 0 )
+		{
+			memset( world->sleepingSets.data, 0, (size_t)sleepingSetCount * sizeof( b3SolverSet ) );
+		}
+
 		for ( int i = 0; i < setCount; ++i )
 		{
-			b3DesSolverSet( r, world->solverSets.data + i );
+			b3DesSolverSet( r, b3GetSolverSet( world, i ) );
 		}
 	}
 

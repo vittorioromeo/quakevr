@@ -469,10 +469,17 @@ void climbFrame(State& s, const Parts& p, const Context& c, float L)
                 endClimb(s, p, c, true, "on the top already"); // (it caught itself toppling over the lip)
                 return;
             }
-            // (Its pelvis near the lip too, not swung far out over the drop: an ogre swinging out 30 units on one hand,
-            // its pelvis 4 units under the lip, let go as "not hanging", 2026-11-12.)
+            // (Its pelvis near the lip too, not swung far out over the drop, and its legs on the top: measured from the
+            // ledge's edge, not `lip` (its holds'). An ogre straddling the lip, a leg on the top and its pelvis 10 units
+            // out and 4 under, read 27 units out from one hand's hold 17 units in (it pulled itself up) and 10 from both
+            // (it let go, and fell): which hand held by then decided it, 2026-11-20.)
+            const auto onTop = [&](int leg) {
+                const glm::vec3 f = limbEnd(s, p, leg);
+                return f.z > k.top - 0.15f * L && glm::dot(f - k.edge, k.out) < 0.f;
+            };
+            const bool legsUp = (!limbWhole(s, p, 2) || onTop(2)) && (!limbWhole(s, p, 3) || onTop(3));
             if(k.pulls && holding > 0 && k.pullFrom > 0.0 && c.now >= k.pullFrom && pelvis.z > k.top - 0.25f * L &&
-                pelvisIn > -0.5f * L)
+                glm::dot(pelvis - k.edge, k.out) < 0.5f * L && legsUp)
             {
                 k.pulls = false;
                 for(EnvHand& h : e.hand)
