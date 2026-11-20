@@ -5995,3 +5995,11 @@ modified or bundled: nothing of it is run, copied or shipped; its maps play by A
   exit lock round 4, ne_marb's waves round 21, lpqsp1's `voreo` round 6, metmon's `phase4_relay` round 8; the three
   exits. `quoth_maps.sh` 31/0. QUOTH.md 2, 5, 6.
 - **Checks**: dev and ThinLTO builds 0 warnings (LTO exe relinked); scenario_check PASS (140 run, 0 failed); ad_world_test (vr_ad_test 61-64 on ad_crucial) PASS; dwell_maps 28/0 (Dwell v2.2 copied into the round25 test base: without it 3/25); installer self-tests 48/48; quoth_maps 31/0.
+
+## Splitscreen in flat mode, phase 0: survey and design (split, 2026-11-20, `agent/split`)
+
+- [SPLITSCREEN.md](SPLITSCREEN.md): the survey (among the open engines only FTEQW has splitscreen; Ironwail, QSS,
+  vkQuake and DarkPlaces have none, QSS stubbed it out), the per-player state a second local player needs (~2,800
+  file-scope variables in `Quake/vr`, 700-900 of them a player's), the options with effort, the phased plan and the
+  questions for him. Recommended: seat processes (one game per seat over 127.0.0.1, shown as tiles of one screen),
+  8-11 worker-days; in-process seats 25-35. Nothing built yet.
