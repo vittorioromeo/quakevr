@@ -994,8 +994,8 @@ QVR_CVAR(vr_update_url, "", CVAR_NONE)                 // test aid: the feed(s) 
 QVR_CVAR(vr_update_test_version, "", CVAR_NONE)        // test aid: this version stands in for the feed's ("9.9.9": the notice shows; "0.0.1": it does not), checked or not
 // Discord Rich Presence (vr_discord.cpp; docs/vr-port/DISCORD.md): the campaign, map, mode, VR or flat screen and the
 // time on the map on the player's Discord profile, through the Discord client's local IPC pipe. vr_discord_status.
-QVR_CVAR(vr_discord, "0", CVAR_ARCHIVE)                // 1: show what you play on your Discord profile (needs the Discord app running on this PC and vr_discord_appid); 0: never (the activity cleared)
-QVR_CVAR(vr_discord_appid, "", CVAR_ARCHIVE)           // the Discord application's id (developer portal: the game's name Discord shows); empty: nothing sent
+QVR_CVAR(vr_discord, "1", CVAR_ARCHIVE)                // 1 (the default: opt-out, his call 2026-11-20): show what you play on your Discord profile (only with the Discord app running on this PC; nothing tried on the Quest); 0: never (the activity cleared)
+QVR_CVAR(vr_discord_appid, "1573451913868087457", CVAR_ARCHIVE)           // the Discord application's id (developer portal: the game's name Discord shows); empty: nothing sent
 QVR_CVAR(vr_discord_image, "", CVAR_ARCHIVE)           // the application's Rich Presence art asset key shown as the large image (empty: none)
 QVR_CVAR(vr_menu_vr_style, "1", CVAR_ARCHIVE)          // menus made for the headset (vr_menuui.cpp): filling the panel, rows spaced out, modern sliders and switches, a laser pointer
 QVR_CVAR(vr_menu_main_mods, "0", CVAR_ARCHIVE)        // the main menu's Mods row (Options > Mods has it anyway; Ironwail's own rule still hides it for a mod with its own menu)

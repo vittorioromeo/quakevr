@@ -1,7 +1,8 @@
 # Discord Rich Presence
 
 The player's Discord profile shows what they play: the campaign, the map, the mode, VR or flat screen, and the time on
-this map. Off by default. Code: `Quake/vr/vr_discord.cpp` (its head comment has the protocol and the threads).
+this map. On by default (opt-out: Menu Settings > Discord Status), the application id shipped
+(`vr_discord_appid` 1573451913868087457, the "Quake VR" application). Not on the Quest (Android: nothing tried). Code: `Quake/vr/vr_discord.cpp` (its head comment has the protocol and the threads).
 
 ## What is shared
 
@@ -23,8 +24,8 @@ to the host (a co-op client sees "Survival Arena"). Nothing about the player (na
 ## Setting it up (the author, once)
 
 1. https://discord.com/developers/applications > New Application, named as Discord should show the game ("Quake VR").
-2. Its **Application ID** (General Information) goes in `vr_discord_appid` (it becomes the shipped default once given:
-   an id is public, not a secret).
+2. Its **Application ID** (General Information) goes in `vr_discord_appid`: shipped as the default, 1573451913868087457
+   (2026-11-20; an id is public, not a secret; the application's public key is for bots and webhooks, not used).
 3. Optional: Rich Presence > Art Assets: upload a 1024x1024 logo, its key (e.g. `logo`) in `vr_discord_image`.
 4. `vr_discord 1`, the Discord desktop app running (Settings > Activity Privacy > "Share your detected activities"
    on). `vr_discord_status` (Debug > Reports: "Discord: Status") says the connection, tries, the last error
