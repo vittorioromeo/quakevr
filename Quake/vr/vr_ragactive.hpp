@@ -285,6 +285,9 @@ struct Climb
     double since{0.0};      // this phase's start
     double pullFrom{0.0};   // when it begins to pull (hanging until then)
     glm::vec3 lip{0.f};     // world, metres: the lip between its hands
+    // World, metres: a point on the ledge's edge (where its hands reached for, as it grabbed). `lip` follows its holds,
+    // which take the lip where the hand was: up to half an arm in or out from the edge.
+    glm::vec3 edge{0.f};
     glm::vec3 out{0.f};     // level: off the ledge, over the drop
     glm::vec3 from{0.f};    // its pelvis (its body's origin) when this phase began
     // Its pelvis's pin (pulling: drive() puts the pin's anchor here, turned from rot0, its turn as it pulled, towards
