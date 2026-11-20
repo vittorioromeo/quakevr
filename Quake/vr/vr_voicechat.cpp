@@ -6,6 +6,7 @@
 #include "vr_voicenotes.hpp"
 #include "vr_cvars.hpp"
 #include "vr_backend.hpp"
+#include "vr_input.hpp"
 #include "vr_hands.hpp"
 #include "vr_jobs.hpp"
 #include "vr_mpavatar.hpp"
@@ -176,7 +177,8 @@ struct Speaker
     za::U8 doneHow[jitterSlots]{};
     int stretch = 0, stretches = 0; // frames of concealment to put in before the next (a late frame: the delay up)
     double lastArrival = -1.0;
-    double prevTransit = 0.0;
+    za::U16 prevSeq = 0;      // the newest frame's sequence ...
+    double prevArrival = 0.0; // ... and when it came (the jitter estimate)
     double jitter = 0.0;   // s, RFC 3550's estimate
     bool haveTransit = false;
     double startAt = 0.0;  // output samples (W): silence until here at a spurt's start (its jitter delay)
@@ -980,15 +982,21 @@ void receive(int slot, const Frame& f)
     Speaker& sp = speakers[slot];
     sp.received += len > 0 ? 1 : 0;
     const double now = realtime;
-    // (RFC 3550's jitter: the arrival's transit against the sequence's clock)
-    const double transit = now - seq * frameSeconds;
-    if(sp.haveTransit && !(f.flags & flagSpurtStart))
+    // (RFC 3550's jitter: the arrival's transit against the sequence's clock, from the newest frame's. mpfix C2: only a
+    // frame newer than the newest seen -- each frame comes twice, the next datagram's copy a datagram later, and the
+    // copies read as 20 ms of jitter on a perfect link -- and the sequences' difference by seqDiff: the 16-bit wrap
+    // after 22 minutes of talk is no jump)
+    if(!sp.haveTransit || (f.flags & flagSpurtStart) || seqDiff(seq, sp.prevSeq) > 0)
     {
-        const double d = fabs(transit - sp.prevTransit);
-        sp.jitter += (za::min(d, 1.0) - sp.jitter) / 16.0;
+        if(sp.haveTransit && !(f.flags & flagSpurtStart))
+        {
+            const double d = fabs((now - sp.prevArrival) - seqDiff(seq, sp.prevSeq) * frameSeconds);
+            sp.jitter += (za::min(d, 1.0) - sp.jitter) / 16.0;
+        }
+        sp.prevSeq = seq;
+        sp.prevArrival = now;
+        sp.haveTransit = true;
     }
-    sp.prevTransit = transit;
-    sp.haveTransit = true;
     sp.lastArrival = now;
     if(len > 0)
     {
@@ -1505,6 +1513,39 @@ void selftest_f()
         sp.sfx = savedSfx;
     }
 
+    // 4b. (mpfix C2) The jitter estimate on a perfect link: each frame on time with the last one's copy beside it (as the
+    //     relay sends them), the sequences across the 16-bit wrap: no jitter (the copies read as 20 ms before).
+    {
+        Speaker& sp = speakers[MAX_SCOREBOARD - 1];
+        const int slot = MAX_SCOREBOARD - 1;
+        resetSpeaker(sp, slot, true);
+        const double savedRealtime = realtime;
+        sfx_t* const savedSfx = sp.sfx;
+        sp.sfx = nullptr;
+        clockOnly = true;
+        for(int f = 0; f < frames; f++)
+        {
+            realtime = savedRealtime + f * frameSeconds;
+            for(int copy = f > 0 ? 1 : 0; copy >= 0; copy--)
+            {
+                const int g = f - copy;
+                Frame fr;
+                fr.seq = static_cast<za::U16>(0xffd0 + g);
+                fr.flags = static_cast<za::U8>(g == 0 ? flagSpurtStart : 0);
+                fr.len = static_cast<za::U8>(lens[g]);
+                memcpy(fr.data, packets[g], static_cast<size_t>(lens[g]));
+                receive(slot, fr);
+            }
+            pump(sp, slot);
+        }
+        check(sp.jitter < 0.002, va("the jitter estimate with every frame's copy and the 16-bit wrap: %.1f ms (none)",
+                                     sp.jitter * 1000.0));
+        realtime = savedRealtime;
+        resetSpeaker(sp, slot, true);
+        clockOnly = false;
+        sp.sfx = savedSfx;
+    }
+
     // 5. The wire format (writeFrame / readFrame, every voice message's): a frame back as it was written; one longer
     //    than maxFrameBytes refused with its bytes read past, the next one still read in step.
     {
@@ -1785,6 +1826,15 @@ void shutdown()
 
 void frame()
 {
+    // (mpfix C5, privacy) Push-to-talk ends whatever ate its release: by hand when the off hand's button is up (Holster
+    // Setup, the toolgun's menu: they take every button, its release too), and any when a menu or the console comes up
+    // or voice chat is not active (out of the game: a stuck flag sent at once in the next one). (The desktop window's
+    // focus is not the headset's: a hidden or unfocused window plays on.)
+    if(pttHeld && (!active() || key_dest != key_game || (pttByHand && !input::secondaryPressed(HAND_OFF))))
+    {
+        pttHeld = false;
+        pttByHand = false;
+    }
     captureFrame();
     const bool on = cls.state == ca_connected && cl.maxclients > 1;
     const bool inGame = on && cls.signon == SIGNONS;

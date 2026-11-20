@@ -2115,6 +2115,11 @@ bool secondaryHeld(int hand)
     return hand >= 0 && hand < HAND_COUNT && secondaryDown[hand] && key_dest == key_game;
 }
 
+bool secondaryPressed(int hand)
+{
+    return hand >= 0 && hand < HAND_COUNT && previous.hands[hand].secondary;
+}
+
 bool primaryHeld(int hand)
 {
     return hand >= 0 && hand < HAND_COUNT && primaryDown[hand] && key_dest == key_game;
