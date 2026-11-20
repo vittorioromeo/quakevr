@@ -1796,6 +1796,68 @@ with the session's near monsters; `c4y_fz1..4.sh`), `c4y_pcskin.sh` / `c4y_pcvl.
   commits (ragdolls, Box3D, menus: no conflicts) merged; again dev and ThinLTO 0 warnings, scenario_check 140/0,
   load_models_test 4/0, gles_render_test 21/0, APK 0 warnings and check_apk 18/0 (21.7 MB).
 
+## 6zk. C4z: the merge's first headset launch (2026-11-20; adb, unworn; the build c5cfb048e installed by the coordinator)
+
+Method (`scratch/c4z_*`): his config copied out first (`vr_android_export ironwail.cfg` from a run: the app's own file is
+660 now, shell and run-as can't read it; `scratch/c4z_backup/export/`, md5 c9bec08f; every run `-noconfigwrite`, so it
+is unchanged); this build's changed game data (`progs.dat` and 7 files since 379b2e6) pushed as one tar
+(`c4z_push.sh`); `c4z_run.sh` (c4e_run plus an early end when the app is paused), `c4z_cap.sh` (a screencap of the
+compositor's picture at each `C4Z CAP` marker), `c4z_play.sh` (C4n's play session on his saved config), `c4z_maps.sh`,
+`c4z_p50.py`, `c4z_scale.py` (per map: FPS, p50s robust to the GPU timer's bogus outliers, dynres scales).
+- **The headset outside its boundary**: the first launch paused after 3.5 s (a Guardian dialog: "no 6dof tracking",
+  the headset 1.84 m from his room-scale boundary, no active safety bound) and the next launch never came up (window
+  placement timed out) until the runtime made an automatic stationary boundary (20:32). After that every launch ran.
+  `prox_close` was not needed (and isn't used now: `PROX=1` turns it on).
+- **Boot**: works. First start after the update: 40 s (two shader sets: 51 + 27 compiled; the second because the stopped
+  first launch had recorded the pre-config lite form; "not counted" by the safe-mode judge: no safe mode). Later starts:
+  **one set, 70 from the program cache, ~1 s; first frame at 5.3-6.7 s**. Logcat: 0 E/W/F lines from the app in the
+  clean runs. The loading panel shows in the headset (seen in a screencap, "Compiling shaders: 39 / 70").
+- **The queued set on Adreno is "one at a time"**: the driver has no `GL_KHR_parallel_shader_compile`; 51 programs in
+  18.7 s over only 43 frames, the longest frame's work 1078 ms (one submit). The panel updates ~2 times a second while
+  compiling. The next step if that matters: a shared-context compile thread (6zi's open item).
+- **Eye images** (screencaps of the compositor's picture, both eyes, `scratch/c4z_cap/c4z_caps3.png`; eyeshots
+  `vr_eyeshot 2` in `scratch/c4z_backup/export/e1m1_00[0-4]_*.png`): e1m1's start at dynres 0.90 (eyeshot 1512x1584),
+  **dynres at 0.65 inside targets allocated at 0.90 (eyeshot 1092x1144, the eye sub-image)**, foveation 3, vr_xr_direct
+  1 (dynres off), and back: **both eyes correct in all five, the same framing, no stretch, no black borders** (each
+  picture's mean and near-black share equal within 0.2 / 1%). Foveation 3: "the eyes' scene foveated (1512 x 1584)";
+  its periphery not visibly coarser with the retro textures (as C4h/C4n found).
+- **Foveation under dynres fixed (code)**: QCOM's focal point and gain were in the whole texture's -1..1 while the eye
+  is drawn into its bottom-left part (next's allocated/drawn sizes): at 0.65 of 0.90 the full-resolution area sat off
+  the eye's centre. `foveateEye` now maps both into the drawn part. Not yet seen on the headset (needs the new APK).
+- **vr_quest_check ran after the command line's +commands (code)**: appended after quake.rc, so a launch with
+  `+map`/`+exec` ran it at the end of the whole +exec'd file (seen: a 45 s scripted session measured with
+  `vr_shadow_dlights 1`). Now `Cmd_StuffCmds_f` runs it (and the first run's `vr_quest_preset 0`) just before the
+  +commands (`cmd_before_stuffcmds`); PC `-glescompat -fakeandroid`: the check's lines between the autoexec's last line
+  and the first +command, `vr_shadow_dlights` 0 there. His normal launches (no +commands) were not affected.
+- **A crash, self-inflicted**: `vr_dynres_test_load 300` (300 units a pixel) stalled the GPU 39 s and the driver
+  crashed in `xrEndFrame` (SIGSEGV in libGLESv2_adreno under vrapi). Not a game path; a report is in his crash folder.
+- **Performance** (the scripted session, `c4o_mkplay.py` with demo1; 72 Hz; p50s; vs C4x's session of 11-16, same
+  script and `+vr_quest_preset 0`):
+
+  | | FPS | period p50/p95 | CPU p50 | GPU p50 | eye L / R | world | scale p50 |
+  |---|---|---|---|---|---|---|---|
+  | e1m1 (start, fight) C4x | 43.0* | 15.05 / 26.27 | 9.40 | 11.27 | 5.59 / 4.84 | 8.05 | 0.55 |
+  | e1m1 now, preset | 59.7 | 14.78 / 22.84 | 8.94 | 12.99 | 6.58 / 6.28 | 8.39 | 0.55 |
+  | e1m1 now, his config + guard | 62.8 | 14.23 / 20.31 | 8.87 | 11.28 | 5.77 / 5.68 | 8.10 | 0.55 |
+  | e1m2 (fight) C4x | 54.8* | 14.00 / 17.45 | 8.23 | 9.65 | 5.00 / 4.47 | 6.67 | 0.90 |
+  | e1m2 now, preset | 69.2 | 14.04 / 17.63 | 7.56 | 11.01 | 4.39 / 6.54 | 4.86 | 0.70 |
+  | e1m2 now, his config + guard | 70.1 | 14.06 / 17.20 | 7.59 | 10.81 | 4.64 / 5.92 | 5.58 | 0.65 |
+  | demo1 (e1m3) C4x | 54.2* | 13.99 / 16.46 | 2.63 | 6.04 | 3.05 / 2.91 | 4.43 | 0.90 |
+  | demo1 now, preset | 71.2 | 14.02 / 16.32 | 3.00 | 6.11 | 3.18 / 2.97 | 4.46 | 0.85 |
+
+  (*C4x's FPS includes four app pauses of 3-6 s; its periods are the fair comparison.) e1m1's idle start on his config
+  without the guard (20 s): **72.0/72, 0 missed periods**, CPU 5.9, GPU 9.4 ms at 0.90. 6zh's 63/72 (his worn session,
+  the guard's rows) is in line with the e1m1 session's 62.8 here.
+- **What the merge moved**: demo1 (deterministic) the same within 0.1-0.2 ms a phase (dynres a step lower: 0.85 vs 0.90).
+  The live fights draw more (e1m1 182 draws vs 165, e1m2 153 vs 140: next's content; the monsters are random) and the
+  GPU's p50 is ~1.4-1.7 ms higher at the same or a lower scale; **the right eye now costs ~2 ms more than the left in
+  e1m2** (6.54 vs 4.39; before 4.47 vs 5.00) with split targets on in both: not explained yet. The suspects: the right
+  eye's split targets allocated at the dynres ceiling while drawn smaller (a tiler's loads/stores or clears over the whole
+  allocation), the eye sub-image's rect changing per frame with dynres. The CPU side is unchanged or lower.
+- Not done: multiplayer over loopback on the headset (the budget; the mp code is compiled in, 6zj); the frozen fight
+  (`c4y_frozen.sh`).
+- New APK built from this branch (the two fixes): not installed (his call / the coordinator's).
+
 ## 7. Installs (done 2026-11-14 at his approval, by the coordinator)
 
 Installed under `F:\QuakeVRDev` (`env.sh` / `env.ps1` there set `JAVA_HOME`, `ANDROID_HOME`, `ANDROID_SDK_ROOT`,
@@ -1839,4 +1901,4 @@ Sizes are approximate download sizes [I]; versions are the current stable ones a
 
 Also: a Quest 3 (or 3S) in developer mode (Meta Horizon app, an organisation account), a USB-C cable.
 
-Next phase: C4z (after 6zj's merge of next, which also needs his first launch on the headset: dynamic resolution's new allocated/drawn eye sizes beside the sub-image and foveation; then the fourth package's checks of 6zi: the loading panel from the first second and the "GL shaders queued" line (the driver's threads? the longest frame's work), one shader set per start, no safe mode, ~63/72 with the guard's rows; then the audio mix off the render thread, 6zh) — no installs, the headset needed: measure on the frozen live fight (`c4y_frozen.sh`, every round consistent beyond the ~0.5 ms a program remake brings); the models' fragment shading (~2.8-3.3 ms over a constant with every model plain, near monsters filling the view) is neither their light's math nor their look: next suspects the varyings and the instance-buffer reads per pixel (a minimal plain form: texture, vertex light, fog), and the ~1 ms of geometry (the body's 14.6k triangles with its pre-pass, the vertex shader's motion-vector writes); his look call on `vr_rig_lights_world 0`; SpaceWarp (`XR_FB_space_warp`, offered) optional and off. Still open from before: C2h (the world textures' memory under the ES profile), Adreno's wrong derivatives with the retro code out (NORETRO). Waiting on his call: the Android Gradle Plugin download (section 7), the armed humanoids' CPU cost (section 6d), shadowless dynamic lights on the Quest (6w), the manifest's INTERNET and RECORD_AUDIO permissions for multiplayer and voice chat on the Quest (6zj).
+Next phase: C5a (after 6zk) — the headset needed, no installs beyond our APK (the new one from this branch, his or the coordinator's install): check the two 6zk fixes there (vr_quest_check's lines before a +map's load; foveation's full-resolution area on the eye's centre at dynres below its ceiling, `vr_gl_foveation 3`, with plain textures); split the right eye's ~2 ms over the left in e1m2's fight (6zk: the split targets allocated at the dynres ceiling and drawn smaller, the sub-image rect per frame; A/B `vr_eye_targets_split 0`, `vr_dynres 0` at a fixed 0.7, `vr_eye_subimage 0`); a shared-context compile thread for the queued shader set (Adreno has no parallel compile: frames of up to 1.1 s while compiling); multiplayer over loopback on the headset (a listen server and a bot; no microphone); then C4z's leftovers: the frozen live fight (`c4y_frozen.sh`), the models' fragment shading (varyings, instance-buffer reads), the audio mix off the render thread (6zh). Still open from before: C2h, Adreno's wrong derivatives with the retro code out (NORETRO). Waiting on his call: the Android Gradle Plugin download (section 7), the armed humanoids' CPU cost (section 6d), shadowless dynamic lights on the Quest (6w), SpaceWarp (`XR_FB_space_warp`), his look call on `vr_rig_lights_world 0`.

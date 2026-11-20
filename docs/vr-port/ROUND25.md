@@ -6486,3 +6486,14 @@ holsters were right. Now:
   flat play shots right. Dev and ThinLTO builds 0 warnings. `after1_*` shots: the same views.
 - Not verified: the headset; the left hand (the housings are symmetric, the screens' offsets mirror). Seen, not this
   work's: the Rotary's big rear face (a hole cap) draws as a dark red/yellow checker in the game's light.
+
+## The Quest after the merge of next: first headset launch (c4z, 2026-11-20, `agent/quest`)
+
+- Boots on the Quest 3 (adb, unworn): one shader set per start from the program cache (~1 s), e1m1 in 5-7 s, no app
+  errors in logcat; both eyes correct with next's dynamic resolution (0.65 drawn inside 0.90 targets), foveation and
+  `vr_xr_direct`. Details, numbers and the per-map table: QUEST_PLAN.md 6zk.
+- Fixed: `vr_quest_check` (and the first run's `vr_quest_preset 0`) now runs after the configs and before the command
+  line's +commands (`cmd_before_stuffcmds`, cmd.c; it ran after a +exec'd file's waits). Foveation's focal point and
+  fall-off follow the part dynamic resolution draws (vr_stereo.cpp `foveateEye`). PC unaffected (Android only / QCOM).
+- Open: the right eye ~2 ms over the left in e1m2's fight; Adreno compiles the queued shaders one at a time (no
+  parallel compile: frames up to 1.1 s on a cold start).
