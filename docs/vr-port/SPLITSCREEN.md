@@ -1,6 +1,7 @@
 # Local splitscreen in flatscreen mode: survey, inventory, options, plan
 
-Phase 0 (agent `split`, 2026-11-20): research and design only, nothing built. His request (2026-11-20): splitscreen in
+Phase 0 (agent `split`, 2026-11-20): research and design (sections 1-3, its recommendation kept in 4.1). His
+decision and the design he chose (true splitscreen, in process): section 4; the phases: section 6. His request (2026-11-20): splitscreen in
 flatscreen mode, up to 4 players (keyboard and mouse plus several controllers), vertical or horizontal split, and the
 rest. VR stays as it is: splitscreen is a flat-mode feature.
 
@@ -152,58 +153,118 @@ outside the gameplay code:
 - Free with it: **online both ways**: network guests join a splitscreen host as usual, and a splitscreen group can join
   a remote host (each seat process is just another remote client); a seat's crash costs only that seat.
 
-## 4. Recommendation
+## 4. Decision and design (2026-11-20)
 
-**(c), seat processes**, because our client is ~2,800 file-scope variables of single-player VR state over 393 files:
-(a1) would touch ~250 of them and tax every future feature, with bleed bugs that only play finds, for a feature few
-will use daily; (c) gets the same screen, controls and modes with the gameplay code untouched and the tested
-multiplayer path, in a third of the time. Its price is memory and load time (4 x 2-3 GB); if that proves too much on
-his PC, (a1) is the step after, and phases 2-4 below (pad controls, profiles, join screen, layouts, menus) carry over
-to it unchanged; only phase 1's process management would be replaced.
+Phase 0 recommended (c), seat processes. **His decision** (2026-11-20): "I would prefer true splitscreen, it feels like
+it's also going to improve the code hygiene by removing the global state. Let's proceed in phases and test each one
+thoroughly." So: (a1)'s goal, one process, one window, up to 4 seats, each a full client over its own loopback
+connection, **without** (a1)'s swap registry: a player's state really moves out of file scope into his seat.
 
-### Phases (c)
+- **The seat** (`Quake/vr/vr_seat.hpp`, `qvr::seat`): `struct Seat` owns one struct per subsystem (`input` today; the
+  view, the HUD, the flat hands, `cl`/`cls`... as their phases land). `seat::at(i)` (0..3), `seat::current()`,
+  `seat::inPlay()` (1 until phase 6), `seat::Scope` (makes a seat current for its lifetime, the previous one after:
+  the seat loop, the tests). C code reaches its parts through accessors (`CL_SeatInput()`: the current seat's,
+  `CL_SeatInputOf(i)`), the engine's C files staying C.
+- **Shared, explicitly**: the server and progs, models, textures, lightmaps, sound buffers and the mixer, the
+  console, cvars (until the profiles' phase), the window and GL context, worker threads and their pools. A shared
+  file-scope variable says so (`// seat-shared: <why>`, the check below).
+- **The access rule**: code reaches a seat's state through the seat it runs for. Where the call depth is shallow the
+  seat is **passed** (`Seat&`, or a seat index in C); where it is not, the seat loop makes the seat **current** and
+  the code reads `seat::current()`. Per subsystem:
 
-1. **Seat processes and layouts (2-3 days).** `-splitseat`/`-splitpad` roles (no KB/M, one controller, own sounds
-   only), the host spawning and placing them (CreateProcess, borderless, no focus, following the host), the layout
-   function (2 side by side or stacked, 3, 4 as a grid; a pure function of the screen and seat count), lifecycle (quit
-   together, a dead seat dropped). Console entry `vr_split <n> [layout]` (Debug menu row too). Measure RAM, VRAM and
-   frame time at 1-4 seats (`--exclusive`, LTO). Tests: `Misc/quakevr/mp/split_test.py` (or `mp_test.py` scenarios),
-   `-loopbackonly`, fast mode: 2 and 4 seats come up and spawn (verdict `split_up: N passed, M failed`); the layout
-   rectangles for every layout and size (in-engine test, no windows); a seat killed is dropped; host quit ends all.
-2. **Flat play on a controller (2-3 days).** A controller layout for every flat action (most `vr_flat_key_*` keys can
-   name a pad button already, being `keydown[]` names; crouch is `K_CTRL` in code and the hands' fire and ironsight are
-   `+attack` binds; a second name per action, `_pad`, for the defaults), right-stick aim
-   (Ironwail's `joy_*`), per-seat profiles (`seat2.cfg`..: name, colours, sensitivity, invert, hand and flat settings;
-   seat 1 is the normal config). Useful on its own: a pad in single-player flat play. Tests: each flat action through a
-   synthetic pad press (a test command feeding `Key_Event` with pad keys), verdict line.
-3. **Splitscreen menu and join screen (2-3 days).** Multiplayer > Splitscreen: one tile per seat, "Press A / Start to
-   join" (keyboard and mouse is seat 1; a pad may take seat 1 if he wants: question 3), the layout choice, coop or
-   deathmatch, map and skill, start. In game: seat 1's Esc is the game's menu; another seat's Start opens its seat menu
-   (its settings, leave). The pause rule and drop-in/out per his answers. Calibration boards: a board line if he wants
-   one. Tests: the join screen driven by synthetic pad presses, a game started with 3 seats, a seat leaving.
-4. **Online, docs, polish (1-2 days).** Splitscreen group joining a remote host (the join flow starts the seats with
-   the server's address); a splitscreen host with network guests (maxplayers); MULTIPLAYER.md and FLATPLAY.md sections;
-   checklist lines.
-5. **One window (optional, 3-4 days).** Hidden seat processes, images shared through GPU memory, the host composing;
-   falls back to phase 1's windows where the extension is missing.
+| Phase | Subsystem | The seat's struct | Reached by | Why |
+|---|---|---|---|---|
+| 1 | Command buttons, impulse (`cl_input.c`) | `seatinput_t input` (C) | current (`CL_SeatInput()`, `seat::current().input`) | `+forward`... run from `Cmd_ExecuteString` (no context to pass) and the move is built deep in the host frame |
+| 2 | Keys, bindings, devices (`keys.c`, `in_sdl.c`, `vr_input.cpp`'s flat keys) | `SeatKeys` (`keydown[]`, bindings, the seat's devices, mouse/stick accumulators) | **passed** from the SDL event (the device names its seat), then current while its binds run | the event is the shallow end; the binds are commands (as phase 1) |
+| 3 | View and HUD (`view.c`, `sbar.c`, `gl_screen.c`'s centre print and crosshair, the visor, hit marks, speed FOV, melee HUD) | `SeatView`, `SeatHud` | **passed** (`Seat&` into `V_RenderView`, `Sbar_Draw`, `SCR_Draw*`: one call per seat and rectangle) | a draw call per seat: shallow; the rectangle is a parameter anyway |
+| 4a | Flat play (`vr_flatplay`'s `FlatState`, `vr_flatholster`, `vr_flatsight`, `vr_flattp`, `vr_visor`, the toolgun's keys) | `SeatFlat` | current | ~200 call sites deep in the VR frame |
+| 4b | Hands (`vr_hands`, `vr_held`, `vr_twohand`, `vr_view_hands`, `vr_motion*`, `vr_throw`, `vr_climb`, `vr_grip*`, `vr_avatar*`) | `SeatHands` (`hands::current()` becomes the seat's rig) | current | the same depth; `hands::current()` already is the one door |
+| 5 | Client state and netcode (`cl`, `cls`, `vr_predict`, `vr_netsnap`, `vr_netmove`, `vr_client`) | `client_state_t`, `client_static_t`, `SeatNet` | current (`cl`/`cls` become the current seat's: one pointer the seat loop sets, the 4,600 uses unchanged in form) | 3,900 `cl.` uses in 288 files: passing is not an option |
+| 6 | Loopback grown to 4, the seat loop, own slots (`net_loop.c`, `progs::hostSlot`, `clientprefs::ownSlot`) | the seat's loopback pair and slot | **passed** (seat index) | a handful of call sites |
+| 7 | Per-seat render (`r_refdef`, TAA history, portals, env cube, shadow "once a frame", dynamic resolution) | `SeatRender` | **passed** with the view (phase 3) | the spectator camera's `SceneTargets` is the model |
+| 8 | Sound listeners (`snd_dma.c`'s `listener_*`) | the seat's listener | **passed** (the mixer loops the seats) | one mixer, nearest listener (FTE's rule), duplicate starts dropped |
+| 9 | Menus, console focus (`key_dest`, the menu stack, the VR settings menus) | `SeatMenu` | current | 322 `key_dest` uses |
 
-Every phase keeps VR untouched (the splitscreen menu and flags only in flat mode; `-splitseat` implies
-`-flatscreenmode`) and runs the single-player and `mp_test.py suite` regressions.
+### 4.1 Phase 0's recommendation (not taken)
 
-## 5. Questions for him
+Phase 0 recommended (c), seat processes (8-11 days, 2-3 GB of RAM a seat, the gameplay code untouched), over
+(a1) (25-35 days, a per-seat rule on all client code from then on). He chose true splitscreen for the code
+hygiene: the per-player state leaves file scope.
 
-1. **Seat processes (c) or in-process seats (a1)?** (c): 8-11 days, ~2-3 GB of RAM per seat; (a1): 25-35 days, one
-   process, a per-seat rule on all client code from then on.
-2. **Layout defaults**: 2 players side by side (vertical split) or stacked (horizontal split)? 3 players: one wide tile
-   on top and two below, or three columns, or a 2x2 grid with the fourth tile showing the map or scores?
-3. **Who is seat 1**: keyboard and mouse always, or whoever presses first (so four controllers work with no keyboard)?
-4. **Menu and pause**: does seat 1's menu pause the game for everyone in a splitscreen coop game (single player's
-   habit), or never (multiplayer's)? Can the other seats open the full menu or only their seat menu?
-5. **Saving**: splitscreen coop under the multiplayer rules (level-start autosave only), or save at will when every
-   player is on this PC?
-6. **Drop-in/out**: may a controller join a running game (the layout changes from 2 to 3 tiles), and a seat leave?
-7. **The controller layout for flat play** (phase 2): he approves a proposed mapping (fire per hand on the triggers,
-   ironsight/guard, lean, crouch, grab, shove, holster menu, swap, reload, punch: more actions than buttons, so a held
-   modifier or a radial); aim assist on a stick, or none?
-8. **A VR host with flat seats on the monitor** (asymmetric couch co-op: one player in the headset, the others on the
-   PC's screen): wanted later? (c) makes it possible; the brief keeps VR out of scope.
+## 5. The seat_state check
+
+`qvr_checks seat_state` (Tools/qvr_checks/statics.cpp, run by the build with the other checks): a **new mutable
+file-scope variable** in client-side code (`Quake/vr` without `external/`, and the engine's own `Quake/*.c`, `*.h`,
+`*.cpp` without the vendored lodepng, miniz, strlcat, strlcpy) **fails the build** unless it is a seat's (a member of a
+seat struct) or marked `// seat-shared: <why>` on its line or the line above. Today's are in
+`Misc/quakevr/seat_state_allowlist.txt` (`path|name`): **4,128 after phase 1**. Each phase moves its group into the
+seat or marks it shared, then `seat_state --tighten` drops the gone lines: the list only shrinks. Mutable: not
+`constexpr`, not `const` (a pointer only with `const` after its last `*`); cvars (`cvar_t`, `QVR_CVAR`) are left out
+(preferences: the profiles' phase), as are functions, `extern`, `typedef`, `using`, templates and class members.
+Merging next into the branch: `seat_state` lists next's new ones; each is judged (made a seat's, marked shared, or,
+only when it truly is not a player's and the merge is not the place to decide, `--accept`ed with a line in the phase's
+notes).
+
+## 6. Phases
+
+**Branch** (his decision, 2026-11-20): the splitscreen work is one long-lived branch, `agent/split` (as `agent/mp`
+was): origin/next merged in often, each phase's commits and its full test runs kept, `agent/split` pushed to origin
+when a phase is done and tested; it merges into next only when he says so.
+
+**Every phase** changes no behaviour with one seat, proven by the same set **before and after** (on the phase's base
+and on its result, same machine): `scenario_check`, the flat suites (flatplay, flatparry, flathands, flatmelee, the
+visor and crosshair tests, plus the phase's own: flatinput, flatkeys, flatmove, flatkeybind, flatflycam for input),
+the `mp_test.py` plain suite (`suite --base <kit>/bases/mp/qbase --reset-autoexec`), the VR mock suites its code
+touches (vr_agrunt, active ragdolls, held/grip), `load_models_test`, Dev and ThinLTO builds at 0 warnings; and, where a
+subsystem became the seat's, a test that two seats' copies stay apart (`vr_seat_test`, grown each phase). Each phase
+ends with the effort left re-estimated (below).
+
+| # | Phase | Days | Needs his answer |
+|---|---|---|---|
+| 1 | The seat type, the `seat_state` check, the command buttons and impulse | done (1) | - |
+| 2 | Keys, bindings and devices per seat; up to 4 controllers opened, each a seat's; the mouse and stick accumulators | 2-3 | 3 (who is seat 1: the default device-to-seat map) |
+| 3 | View and HUD per seat, drawn into a rectangle (one rectangle, the window, until phase 7) | 3-4 | - |
+| 4a | Flat play's state (`FlatState`, holsters, sights, third person, visor, toolgun keys) | 3-4 | - |
+| 4b | Hands, held, two-hand, grips, motion, throw, climb, avatar | 4-5 | - |
+| 5 | `cl`, `cls`, prediction, snapshots, the move | 4-5 | - |
+| 6 | The loopback grown to 4, the seat loop (each seat's client frame in its `Scope`), own slots: two seats join a listen server and play (headless test: two seats move apart) | 2-3 | 5 (saving), 6 (drop-in/out: whether a seat may join a running game) |
+| 7 | Per-seat render: rectangles, per-view caches; the effects (each seat's client world) | 4-5 | 2 (layouts: what the tiles are) |
+| 8 | Sound: a listener per seat, nearest-listener spatialisation, duplicate starts dropped | 1-2 | - |
+| 9 | Menus and console per seat (`key_dest`, the stack) | 2 | 4 (menu and pause) |
+| 10 | UX: Multiplayer > Splitscreen and the join screen | 2-3 | 3, 4, 6 |
+| 11 | UX: layouts (2 side by side or stacked, 3, 4) | 1-2 | 2 |
+| 12 | UX: KB/M plus up to 4 controllers: the flat controller layout, per-seat profiles (the cvars a player owns) | 3-4 | 7 (the controller mapping, aim assist) |
+| 13 | UX: per-seat HUD scale and seat menus, pause | 1-2 | 4 |
+| 14 | Online (network guests with a splitscreen host; a splitscreen group joining a remote host), docs, checklist | 1-2 | 8 (a VR host with flat seats: later or never) |
+
+**Effort left after phase 1: 33-44 worker-days** (phase 0's (a1) was 25-35 with the swap registry; moving the state
+for real costs the difference, mostly in phases 4-5).
+
+## 7. Questions for him (the phase that needs each)
+
+1. ~~Seat processes or in-process seats?~~ In-process, true splitscreen (2026-11-20).
+2. **Layout defaults** (phases 7, 11): 2 players side by side or stacked? 3 players: one wide tile on top and two below,
+   three columns, or a 2x2 grid with the fourth tile showing the map or scores?
+3. **Who is seat 1** (phases 2, 10): keyboard and mouse always, or whoever presses first (four controllers, no keyboard)?
+4. **Menu and pause** (phases 9, 10, 13): does seat 1's menu pause everyone (single player's habit) or never
+   (multiplayer's)? Can the other seats open the full menu or only their seat menu?
+5. **Saving** (phase 6): multiplayer rules (level-start autosave only), or save at will when every player is local?
+6. **Drop-in/out** (phases 6, 10): may a controller join a running game (2 tiles become 3), and a seat leave?
+7. **The flat controller layout** (phase 12): the mapping (fire per hand on the triggers, ironsight/guard, lean,
+   crouch, grab, shove, holster menu, swap, reload, punch: more actions than buttons), aim assist or none?
+8. **A VR host with flat seats on the monitor** (phase 14): wanted later?
+
+## 8. Phase 1 (2026-11-21): the seat, the check, the command buttons
+
+- `Quake/vr/vr_seat.hpp/.cpp`: `qvr::seat::Seat` (index, `seatinput_t input`), `at`, `current`, `inPlay`, `Scope`;
+  `CL_SeatInput()` / `CL_SeatInputOf(i)` for C.
+- `client.h`: `seatinput_t` (Ironwail's `in_mlook`... `in_down` buttons and `in_impulse`, 18 globals, now one struct a
+  seat). `cl_input.c`: the +commands, `CL_AdjustAngles`, `CL_BaseMove`, `CL_SendMove` act on `CL_SeatInput()`; the
+  menu's release (`CL_ReleaseMoveButtons`, `CL_MoveButtonsHeld`) takes offsets into the seat's buttons. Readers moved:
+  `host.c` (the config's `+mlook`: seat 0's), `in_sdl.c`, `menu.c`, `vr_client`, `vr_flatholster`, `vr_flycam`,
+  `vr_input`, `vr_inputlag`, `vr_teleport`, `vr_weaponstudio`; `vr_engine.hpp`'s button externs gone.
+- `qvr_checks seat_state` and its allowlist (section 5); its rules checked on a case file (7 of 7 flagged as expected,
+  constants, functions, declarations, cvars and a marked one left alone).
+- `vr_seat_test` (no map needed; verdict `seat_test: N passed, M failed`): in seat 1 (a `Scope`) `+forward`, `+attack`
+  and `impulse 7` land in seat 1's buttons and none of seat 0's, and the reverse for seat 0's `+back`; `CL_KeyState`
+  per seat; the menu's release lets go of the current seat's only; scopes nest and restore.
