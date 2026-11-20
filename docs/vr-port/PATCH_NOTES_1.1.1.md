@@ -125,6 +125,10 @@ aren't Map Library packages aren't sent to joining players.
   map, single player, co-op, deathmatch or the Survival Arena's wave, VR or flat screen, and the time on the map. On
   by default; turn it off at Menu Settings > Discord Status. It talks only to the Discord app on your PC, never holds
   up the game (without Discord it quietly tries again now and then), and is not on the Quest.
+- **Multiplayer menu.** Join Game and Host Game go straight to their page: Quake's "IPX / TCP/IP" choice is gone (IPX
+  has been dead for decades, and "TCP/IP" always meant UDP). The "multiplayer is untested" note is gone too.
+- **`-window` makes a normal window** with its title bar, to drag and resize, even with Borderless Window on (the
+  setting is kept for the next launch without it).
 
 
 ## Performance

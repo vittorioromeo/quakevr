@@ -5162,6 +5162,8 @@ vr_box3d_threads|2|Debug - Profiling and Memory|Physics on Threads|Advanced VR O
 vr_box3d_workers|2|Debug - Profiling and Memory|Physics Threads|Advanced VR Options > Debug > Profiling and Memory > Physics Threads
 vr_box3d_avx2|2|Debug - Profiling and Memory|Physics AVX2|Advanced VR Options > Debug > Profiling and Memory > Physics AVX2
 vr_box3d_threads_bodies|2|Debug - Profiling and Memory|Physics Threads From|Advanced VR Options > Debug > Profiling and Memory > Physics Threads From
+vr_ragdoll_self_pairs|2|Debug - Profiling and Memory|Ragdolls' Self Contacts|Advanced VR Options > Debug > Profiling and Memory > Ragdolls' Self Contacts
+vr_box3d_mesh_ghosts|2|Debug - Profiling and Memory|Physics Mesh Ghost Handling|Advanced VR Options > Debug > Profiling and Memory > Physics Mesh Ghost Handling
 |2|Debug - Profiling and Memory|Physics Step Time|Advanced VR Options > Debug > Profiling and Memory > Physics Step Time
 |2|Debug - Profiling and Memory|Physics Step Time by Awake Bodies|Advanced VR Options > Debug > Profiling and Memory > Physics Step Time by Awake Bodies
 |2|Debug - Profiling and Memory|Spawn a Big Prop Pile|Advanced VR Options > Debug > Profiling and Memory > Spawn a Big Prop Pile
@@ -5608,6 +5610,9 @@ vr_debug_touch|2|Debug - Tests|Doom: Show Touches|Advanced VR Options > Debug > 
 vr_debug_doom|2|Debug - Tests|Doom: Debug|Advanced VR Options > Debug > Tests > Doom: Debug
 |2|Debug - Tests|Doom: Restart|Advanced VR Options > Debug > Tests > Doom: Restart
 |2|Debug - Tests|Arcane Dimensions: Play (Developer)|Advanced VR Options > Debug > Tests > Arcane Dimensions: Play (Developer)
+|2|Debug - Tests|Quoth: Play (Developer)|Advanced VR Options > Debug > Tests > Quoth: Play (Developer)
+|2|Debug - Tests|Quoth: Second Names and Spawners Test|Advanced VR Options > Debug > Tests > Quoth: Second Names and Spawners Test
+|2|Debug - Tests|Quoth: Drive This Map's Flow|Advanced VR Options > Debug > Tests > Quoth: Drive This Map's Flow
 |2|Debug - Tests|Arcane Dimensions: Widowmaker Pickup Ahead|Advanced VR Options > Debug > Tests > Arcane Dimensions: Widowmaker Pickup Ahead
 |2|Debug - Tests|Arcane Dimensions: Upgraded Weapons Ahead|Advanced VR Options > Debug > Tests > Arcane Dimensions: Upgraded Weapons Ahead
 |2|Debug - Tests|Arcane Dimensions: Shadow Axe in Hand|Advanced VR Options > Debug > Tests > Arcane Dimensions: Shadow Axe in Hand

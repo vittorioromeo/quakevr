@@ -75,6 +75,14 @@ static SDL_Cursor		*cursor_move; // QVR: the flat screen's VR menu panel's corne
 
 static qboolean	vid_locked = false; //johnfitz
 static qboolean vid_changed = false;
+// QVR: -window (-w) on the command line: a normal window with its title bar and borders, to drag and resize, whatever
+// vid_borderless says (kept as it is: the next launch without -window is borderless again if it was)
+static qboolean vid_cmdline_window = false;
+extern cvar_t vid_borderless; // (below)
+static qboolean VID_Borderless (void)
+{
+	return vid_borderless.value && !vid_cmdline_window;
+}
 
 void VID_Menu_Init (void); //johnfitz
 
@@ -518,7 +526,7 @@ static qboolean VID_SetMode (int width, int height, int refreshrate, qboolean fu
 	{
 		flags = SDL_WINDOW_OPENGL | SDL_WINDOW_HIDDEN | SDL_WINDOW_RESIZABLE;
 
-		if (vid_borderless.value)
+		if (VID_Borderless ())
 			flags |= SDL_WINDOW_BORDERLESS;
 
 		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, MIN_GL_VERSION_MAJOR);
@@ -561,7 +569,7 @@ static qboolean VID_SetMode (int width, int height, int refreshrate, qboolean fu
 	else
 		SDL_SetWindowPosition(draw_context, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
 	SDL_SetWindowDisplayMode (draw_context, VID_SDL2_GetDisplayMode(width, height, refreshrate));
-	SDL_SetWindowBordered (draw_context, vid_borderless.value ? SDL_FALSE : SDL_TRUE);
+	SDL_SetWindowBordered (draw_context, VID_Borderless () ? SDL_FALSE : SDL_TRUE);
 
 	/* Make window fullscreen if needed, and show the window */
 
@@ -1903,7 +1911,10 @@ void	VID_Init (void)
 			refreshrate = Q_atoi(com_argv[p+1]);
 
 		if (COM_CheckParm("-window") || COM_CheckParm("-w"))
+		{
 			fullscreen = false;
+			vid_cmdline_window = true;
+		}
 		else if (COM_CheckParm("-fullscreen") || COM_CheckParm("-f"))
 			fullscreen = true;
 	}
