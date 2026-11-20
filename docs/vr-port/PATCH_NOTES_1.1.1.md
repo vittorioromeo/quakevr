@@ -11,7 +11,7 @@ that ships in 1.1.1.
   Construct and both bosses) fight in its maps, and, with Dwell installed, in any map and from the toolgun; its
   weapons and powerups work as variants of ours. Dwell's Rotary Shotgun, Crystal Lance and Rifle look like themselves
   in your hands, holsters and on armed grunts (made from Dwell's own models, with a grip to hold), the Rotary's four
-  barrels turning as you fire; the holster menu (flat and on the wrist) names them, and AD's Widowmaker, Shadow Axe
+  barrels turning as you fire; each shows its ammo screen in a riveted bezel on its back, as our guns do; the holster menu (flat and on the wrist) names them, and AD's Widowmaker, Shadow Axe
   and Plasma Gun too. Dwell's weapons
   now stay what they are in your holsters, through saves, level changes and coop rejoins; the Rotary Shotgun reloads
   and spins up as the Widowmaker; Haste, Berserk and the Wetsuit show their seconds left on the wrist (and the flat

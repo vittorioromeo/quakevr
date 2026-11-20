@@ -4539,3 +4539,30 @@ application, the protocol, the join hook).
   The POSIX branch syntax-checked with WSL's clang only (not run).
 - **Open**: the application id (and logo asset) from him, then the shipped default; whether it ships on; Linux tried
   for real; the join button (room codes: `JOIN-HOOK` in vr_discord.cpp).
+
+## Dwell's weapons' ammo screen housings, the Lance's grip (dwellgun, 2026-11-20, `agent/dwellgun`)
+
+DWELL.md 9.6 ("Ammo screen housings") has the detail. Looked first (kit `scratch/dwellgun_shots/`: `before_*` the
+mock VR side/top/eye/front views and flat play): none of the three had a screen you could see (the Rotary's sat inside
+its housing, the Lance's and the Rifle's just inside their rear faces, a default box), the Lance's trigger guard and
+trigger hung 0.37 under its blades and the lightning gun's grip's top came through its frame; grips, muzzles and
+holsters were right. Now:
+- `vr_adweapons.cpp`: AD's Plasma Gun's housing is `housing(Parts&, Housing)` (its numbers a `Housing`; the Plasma
+  Gun's model byte-identical), the face's X byte measured (`faceX`), the rivets' rows settable (no two corners within
+  `capWeld`: the Rifle's Z step is 0.048, its first rivets came out open). `rotaryParts`, `lanceParts`, `rifleParts`
+  put one on each rear face, each window the glass the screen had without a housing at the slot's scale (fillMax 1).
+  The Lance 0.4 up on its grip, its guard and trigger 0.8 up (`Recipe::liftAlso`; least gaps now -0.03 and -0.05, the
+  grip's top 0.02 under its frame). `vr_adweapon_models write` writes each made model to the game folder as
+  `made_<name>.mdl` (for check_mdl_holes; never shipped).
+- `vr_screenstyle.cpp`: `dw_shot3.mdl#vr`, `dw_rail.mdl#vr`, `dw_rifle.mdl#vr` (the Plasma Gun's look; openings 11.60 x
+  11.19, 11.34 x 10.23, 11.25 x 10.47; offsets sink the glass 0.04h behind the bezel: `vr_debug_screen_where` puts
+  each centre within 0.005 of the designed glass). weapons.txt slots 52-54: `wpntxt_av` on the glass, pitch and x/y/z
+  0, fonts 1; the Lance's wpntxt_scale 0.25 (was 0.3: its handle's back is 2.6 wide) and muzzle_av 14.46 0 5.62. His
+  config holds no slot 53-55 values: no `vr_wofs_version` bump.
+- Scenes `dwell_rotary`, `dwell_lance`, `dwell_rifle` (the gun in the right hand, our base gun in the left).
+- Checked: check_mdl_holes on the made models: Lance and Rifle ok (0 see-through, 0 flipped), the Rotary as before (its
+  muzzle's 2 open barrel loops, dwell3c's), AD's Plasma Gun ok and unchanged; dwell_vrmodels_test.sh 13/0;
+  load_models_test.sh 4/0; scenario_check.sh PASS (140); vr_ad_test 204 (an armed grunt with Dwell's weapons) 9/0;
+  flat play shots right. Dev and ThinLTO builds 0 warnings. `after1_*` shots: the same views.
+- Not verified: the headset; the left hand (the housings are symmetric, the screens' offsets mirror). Seen, not this
+  work's: the Rotary's big rear face (a hole cap) draws as a dark red/yellow checker in the game's light.

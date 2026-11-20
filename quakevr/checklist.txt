@@ -44,6 +44,9 @@ Discord status: once the app id is set, vr_discord 1 shows map, mode and VR/flat
 Double-tap the stick to run (Locomotion and Controls > Double-Tap Stick to Run): 0.3 s window and half-push feel right
 Holster Calibration > Ammo Pouch Forward/Right/Up move the pouch and agree with Holster Setup's drag
 Melee against several armed grunts feels unchanged (their weapon-strike check now has a cheap pre-test)
+Dwell's Rotary Shotgun in hand: the ammo screen in a brown bezel with a bolt each side in the middle of its housing's back, readable as you aim; grip and trigger under your hand {test:dwell_rotary}
+Dwell's Crystal Lance in hand: the ammo screen in a dark metal bezel with violet studs on its handle's back; the trigger guard and trigger meet the blades' underside {test:dwell_lance}
+Dwell's Rifle in hand: the ammo screen in a brass bezel with brass nuts on its butt, readable as you aim {test:dwell_rifle}
 
 [1. Flat-screen: weapons and hands]
 

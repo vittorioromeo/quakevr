@@ -1,0 +1,10 @@
+# dwell_lance: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Dwell's Crystal Lance in the
+# right hand (vr_ad_test 207: its VR model made from Dwell's, DWELL.md 9.6), our Thunderbolt in the left to compare.
+# Needs Dwell installed.
+title Dwell's Crystal Lance: its ammo screen housing, grip and beam
+map vrtesthall
+god
+notarget
+give "Thunderbolt" off
+cmd vr_ad_test 207
+hint Right hand: the Crystal Lance. On its wooden handle's back the ammo screen sits in a dark metal bezel with a violet crystal stud each side, readable as you aim. Its trigger guard and trigger meet the blades' underside (nothing hanging loose), your hand on the grip under the handle. Fire: the violet beam leaves the middle crystal's tip. Left hand: our Thunderbolt to compare. Tune it in Weapon Offsets (slot 54): your values become the defaults.

@@ -402,6 +402,10 @@ za::Vector<Item> pageDebugTests()
         command("Arcane Dimensions: Upgraded Weapon Models", "vr_adweapon_models") // AD support
             .help("The Shadow Axe, Widowmaker and Plasma Gun as made from AD's models: each one's triangles and box, then "
                   "\"N made, M not made\" (not made: a stand-in drawn instead, a bug; without AD's data: none made)."),
+        command("Arcane Dimensions and Dwell: Write Made Weapon Models", "vr_adweapon_models write") // Dwell support
+            .help("As above, and each made model (AD's three, Dwell's three) written to the game folder as "
+                  "made_<name>.mdl, for Misc/quakevr/check_mdl_holes.py and a look in a model viewer. Never share them: "
+                  "they are made from the mods' own files."),
         adSpawnRow(310, command("Arcane Dimensions: Widowmaker Tube Test", "vr_ad_test 149")) // AD support
             .help("The Widowmaker in your off hand, empty, your main hand free: handfuls from your pouch brought to its "
                   "shell port (the receiver's inner side) fill its tube, then a held trigger fires it full auto for two "
