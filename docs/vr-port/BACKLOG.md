@@ -190,6 +190,17 @@ mock toss keeps the hand's speed; a slow toss may hit the open palm after the 0.
    then clang-tidy fixes; one commit in `.git-blame-ignore-revs`. Never Ironwail's code.
 2. Ironwail extraction: about 1,600 lines of VR code out of Ironwail files into `Quake/vr/` (pure moves), the VR main
    menu out of `menu.c`, the VR heap macro remap; `IRONWAIL_DIFF.md` refreshed.
+3. One player walk (mpreview B4): `vr_pmove.cpp` copies sv_user.c / sv_phys.c's walk, air, swim, gravity and flyMove
+   line for line; a flat-screen player, `vr_pmove_own 0` and remote flat clients still walk the sv_phys.c copy. Route
+   them through `pmove::playerMove` with an EdictBody and drop the QVR-modified SV_WalkMove/SV_AirMove paths (or at
+   least a qvr_checks rule tying each copy to its original), proven by the B11b frame-identical traces.
+4. One grapple reel (mpreview D7): QC's `VR_Grapple_ReelSpeed` / `VR_Grapple_Wind` (monsters, props) and
+   vr_pmove.cpp's grappleStep (players) are two copies of one rule: QC's paths call the engine's (a builtin), or both
+   read one shared formula.
+5. Multiplayer leftovers of the agent/mp review (MP_PLAN.md, "Review fixes"): B6 the room-scale budget only on the
+   server (send `walkLeft` in QVR_SVC_PREDICT and run moveguard's budget on a copy in the replay; today a burst past
+   2 m costs a correction, a cheater's case); B7 the snapshot encode's per-client work (keep the first pass's encoded
+   bytes for the write pass; the cosmetic flag once per entity per frame, not per client).
 Each verified by an unchanged physics hash, melee eval and `vr_menu_path_check`.
 
 ## 10. Big features (each needs its own decision)

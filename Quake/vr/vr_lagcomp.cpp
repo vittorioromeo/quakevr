@@ -317,9 +317,10 @@ constexpr int sentMost = 24;
     if(tb != ta && entryAt(num, tb, b))
     {
         bool teleport = false;
+        const float cut = netsnap::teleportCut(tb - ta);
         for(int i = 0; i < 3; i++)
         {
-            teleport = teleport || za::abs(b.origin[i] - out.origin[i]) > 100.f; // (interpEntity's: no lerp across it)
+            teleport = teleport || za::abs(b.origin[i] - out.origin[i]) > cut; // (interpEntity's: no lerp across it)
         }
         for(int i = 0; i < 3 && !teleport; i++)
         {

@@ -316,6 +316,7 @@ vr_tips_size|1|Tips|Panel Text Size|Advanced VR Options > Tips > Panel Text Size
 |1|Play|Tutorial|Advanced VR Options > Play > Tutorial
 |1|Play|Firing Range|Advanced VR Options > Play > Firing Range
 |1|Play|Melee Recording Room|Advanced VR Options > Play > Melee Recording Room
+|1|Play|Add Co-op Bot|Advanced VR Options > Play > Add Co-op Bot
 |1|Play|Add Bot (Team 0)|Advanced VR Options > Play > Add Bot (Team 0)
 |1|Play|Add Bot (Team 1)|Advanced VR Options > Play > Add Bot (Team 1)
 |1|Play|Kick Bot|Advanced VR Options > Play > Kick Bot
@@ -1424,6 +1425,8 @@ vr_slide|1|Locomotion|Sliding (VR, Experimental)|Advanced VR Options > Movement 
 vr_slide_stick_threshold|1|Locomotion|Slide Stick Pull|Advanced VR Options > Movement > Locomotion > Slide Stick Pull
 vr_slide_stick_angle|1|Locomotion|Slide Stick Angle|Advanced VR Options > Movement > Locomotion > Slide Stick Angle
 vr_slide_body|1|Locomotion|Slide Body Pose|Advanced VR Options > Movement > Locomotion > Slide Body Pose
+vr_slide_camera|1|Locomotion|Slide View|Advanced VR Options > Movement > Locomotion > Slide View
+vr_slide_camera_time|1|Locomotion|Slide View Time|Advanced VR Options > Movement > Locomotion > Slide View Time
 vr_flat_aim_mode|1|Locomotion|Right Click Ironsight|Advanced VR Options > Movement > Locomotion > Right Click Ironsight
 vr_flat_aim_zoom|1|Locomotion|Right Click Aim|Advanced VR Options > Movement > Locomotion > Right Click Aim
 vr_flat_aim_sens|1|Locomotion|Aim Sensitivity|Advanced VR Options > Movement > Locomotion > Aim Sensitivity
@@ -5035,6 +5038,13 @@ vr_debug_weight|2|Debug - Logging|Weight Trace|Advanced VR Options > Debug > Log
 vr_debug_lean|2|Debug - Logging|Lean Trace|Advanced VR Options > Debug > Logging > Lean Trace
 |2|Debug - Logging|Reset This Page|Advanced VR Options > Debug > Logging > Reset This Page
 @page|2|Debug - Profiling and Memory||Advanced VR Options > Debug > Profiling and Memory
+vr_perf_record|2|Debug - Profiling and Memory|Perf Recorder|Advanced VR Options > Debug > Profiling and Memory > Perf Recorder
+vr_alias_prepass_world|2|Debug - Profiling and Memory|World Models Pre-pass|Advanced VR Options > Debug > Profiling and Memory > World Models Pre-pass
+vr_alias_batch_posed|2|Debug - Profiling and Memory|Batch Posed Models|Advanced VR Options > Debug > Profiling and Memory > Batch Posed Models
+|2|Debug - Profiling and Memory|Add 3 Big Test Lights|Advanced VR Options > Debug > Profiling and Memory > Add 3 Big Test Lights
+|2|Debug - Profiling and Memory|Remove the Test Lights|Advanced VR Options > Debug > Profiling and Memory > Remove the Test Lights
+|2|Debug - Profiling and Memory|List the Dynamic Lights|Advanced VR Options > Debug > Profiling and Memory > List the Dynamic Lights
+|2|Debug - Profiling and Memory|List the Frame's Render Passes|Advanced VR Options > Debug > Profiling and Memory > List the Frame's Render Passes
 vr_profile_overlay|2|Debug - Profiling and Memory|Profiler Panel|Advanced VR Options > Debug > Profiling and Memory > Profiler Panel
 vr_profile_csv|2|Debug - Profiling and Memory|CSV Capture|Advanced VR Options > Debug > Profiling and Memory > CSV Capture
 vr_profile_hitch|2|Debug - Profiling and Memory|Hitch Log|Advanced VR Options > Debug > Profiling and Memory > Hitch Log
@@ -5172,11 +5182,16 @@ vr_memstats_log_gpu|2|Debug - Profiling and Memory|Memory Log: GPU|Advanced VR O
 |2|Debug - Profiling and Memory|Physics Memory|Advanced VR Options > Debug > Profiling and Memory > Physics Memory
 |2|Debug - Profiling and Memory|Heap Stress|Advanced VR Options > Debug > Profiling and Memory > Heap Stress
 vr_heap_purge_delay|2|Debug - Profiling and Memory|Heap: Purge Delay|Advanced VR Options > Debug > Profiling and Memory > Heap: Purge Delay
+vr_heap_thread_tidy|2|Debug - Profiling and Memory|Heap: Worker Tidy|Advanced VR Options > Debug > Profiling and Memory > Heap: Worker Tidy
+|2|Debug - Profiling and Memory|Heap: Live By Size|Advanced VR Options > Debug > Profiling and Memory > Heap: Live By Size
 |2|Debug - Profiling and Memory|Heap: Return Free Memory|Advanced VR Options > Debug > Profiling and Memory > Heap: Return Free Memory
 vr_glsafe|2|Debug - Profiling and Memory|GL Safe Mode|Advanced VR Options > Debug > Profiling and Memory > GL Safe Mode
 vr_gl_workarounds|2|Debug - Profiling and Memory|AMD Workarounds|Advanced VR Options > Debug > Profiling and Memory > AMD Workarounds
+vr_startup_log|2|Debug - Profiling and Memory|Startup Trace in the Console|Advanced VR Options > Debug > Profiling and Memory > Startup Trace in the Console
+|2|Debug - Profiling and Memory|Startup Trace Summary|Advanced VR Options > Debug > Profiling and Memory > Startup Trace Summary
 |2|Debug - Profiling and Memory|GL Safe Mode Status|Advanced VR Options > Debug > Profiling and Memory > GL Safe Mode Status
 |2|Debug - Profiling and Memory|Retry the Full Renderer|Advanced VR Options > Debug > Profiling and Memory > Retry the Full Renderer
+|2|Debug - Profiling and Memory|Safe Mode Judge Test|Advanced VR Options > Debug > Profiling and Memory > Safe Mode Judge Test
 |2|Debug - Profiling and Memory|Game Code and Folders|Advanced VR Options > Debug > Profiling and Memory > Game Code and Folders
 vr_diagnostics|2|Debug - Profiling and Memory|Diagnostics Mode|Advanced VR Options > Debug > Profiling and Memory > Diagnostics Mode
 |2|Debug - Profiling and Memory|Run Logs Status|Advanced VR Options > Debug > Profiling and Memory > Run Logs Status
@@ -5185,6 +5200,7 @@ vr_diagnostics_xr_validation|2|Debug - Profiling and Memory|OpenXR Validation La
 vr_xr_guard|2|Debug - Profiling and Memory|Runtime Crash Guard|Advanced VR Options > Debug > Profiling and Memory > Runtime Crash Guard
 vr_xr_api_layers|2|Debug - Profiling and Memory|OpenXR API Layers|Advanced VR Options > Debug > Profiling and Memory > OpenXR API Layers
 vr_xr_skip_incompatible_layers|2|Debug - Profiling and Memory|Skip Incompatible API Layers|Advanced VR Options > Debug > Profiling and Memory > Skip Incompatible API Layers
+vr_xr_debug|2|Debug - Profiling and Memory|OpenXR Loader Log|Advanced VR Options > Debug > Profiling and Memory > OpenXR Loader Log
 |2|Debug - Profiling and Memory|Reset This Page|Advanced VR Options > Debug > Profiling and Memory > Reset This Page
 @page|2|Debug - Reports||Advanced VR Options > Debug > Reports
 |2|Debug - Reports|Flatscreen Play Status|Advanced VR Options > Debug > Reports > Flatscreen Play Status
@@ -5331,6 +5347,9 @@ vr_net_hud|2|Debug - Reports|Network: Net HUD|Advanced VR Options > Debug > Repo
 |2|Debug - Reports|Network: Server Browser|Advanced VR Options > Debug > Reports > Network: Server Browser
 |2|Debug - Reports|Network: Edicts in Use|Advanced VR Options > Debug > Reports > Network: Edicts in Use
 vr_mp_download|2|Debug - Reports|Network: Install the Server's Map|Advanced VR Options > Debug > Reports > Network: Install the Server's Map
+vr_mp_rejoin_keep|2|Debug - Reports|Network: Keep a Leaver's Things|Advanced VR Options > Debug > Reports > Network: Keep a Leaver's Things
+vr_mp_guest_admin|2|Debug - Reports|Network: Guests May Kick and Pause|Advanced VR Options > Debug > Reports > Network: Guests May Kick and Pause
+vr_mp_client_timeout|2|Debug - Reports|Network: Server Timeout|Advanced VR Options > Debug > Reports > Network: Server Timeout
 vr_mp_avatar_draw|2|Debug - Reports|Network: Draw Player Hands|Advanced VR Options > Debug > Reports > Network: Draw Player Hands
 vr_mp_avatar_lerp|2|Debug - Reports|Network: Smooth Player Hands|Advanced VR Options > Debug > Reports > Network: Smooth Player Hands
 vr_mp_body|2|Debug - Reports|Network: Draw Player Bodies|Advanced VR Options > Debug > Reports > Network: Draw Player Bodies
@@ -5352,7 +5371,13 @@ vr_dm_gibs_max|2|Debug - Reports|Deathmatch: Most Loose Gibs|Advanced VR Options
 vr_dm_weapons_max|2|Debug - Reports|Deathmatch: Most Dropped Weapons|Advanced VR Options > Debug > Reports > Deathmatch: Most Dropped Weapons
 vr_net_snapposes|2|Debug - Reports|Network: Poses in Snapshots|Advanced VR Options > Debug > Reports > Network: Poses in Snapshots
 vr_net_rate|2|Debug - Reports|Network: Rate Cap|Advanced VR Options > Debug > Reports > Network: Rate Cap
+vr_net_rate_max|2|Debug - Reports|Network: Server Rate Cap|Advanced VR Options > Debug > Reports > Network: Server Rate Cap
+vr_net_sendhz|2|Debug - Reports|Network: Send Rate|Advanced VR Options > Debug > Reports > Network: Send Rate
+vr_net_test_hold|2|Debug - Reports|Network: Hold Players' Updates|Advanced VR Options > Debug > Reports > Network: Hold Players' Updates
 vr_net_cosmetic_bytes|2|Debug - Reports|Network: Fragments' Bytes|Advanced VR Options > Debug > Reports > Network: Fragments' Bytes
+vr_net_cosmetic_fill|2|Debug - Reports|Network: Fragments' Fill|Advanced VR Options > Debug > Reports > Network: Fragments' Fill
+vr_net_movebuffer|2|Debug - Reports|Network: Move Buffer|Advanced VR Options > Debug > Reports > Network: Move Buffer
+vr_net_movebuffer_max|2|Debug - Reports|Network: Move Buffer Most|Advanced VR Options > Debug > Reports > Network: Move Buffer Most
 vr_net_voice_bytes|2|Debug - Reports|Network: Voice Budget|Advanced VR Options > Debug > Reports > Network: Voice Budget
 |2|Debug - Reports|Keyboard Hook|Advanced VR Options > Debug > Reports > Keyboard Hook
 |2|Debug - Reports|Microphones|Advanced VR Options > Debug > Reports > Microphones
@@ -5681,6 +5706,9 @@ vr_test_spawn_tilt|2|Debug - Tests|Box Tilted|Advanced VR Options > Debug > Test
 |2|Debug - Tests|Deathmatch: A Bot Grabs Your Gun|Advanced VR Options > Debug > Tests > Deathmatch: A Bot Grabs Your Gun
 |2|Debug - Tests|Deathmatch: Gib and Weapon Caps|Advanced VR Options > Debug > Tests > Deathmatch: Gib and Weapon Caps
 |2|Debug - Tests|Deathmatch: Respawn Beside a Taken Start|Advanced VR Options > Debug > Tests > Deathmatch: Respawn Beside a Taken Start
+|2|Debug - Tests|Deathmatch: A Bot Parries a Bot|Advanced VR Options > Debug > Tests > Deathmatch: A Bot Parries a Bot
+|2|Debug - Tests|Deathmatch: A Bot Dual Wields|Advanced VR Options > Debug > Tests > Deathmatch: A Bot Dual Wields
+|2|Debug - Tests|Co-op: A Bot Fights Beside You|Advanced VR Options > Debug > Tests > Co-op: A Bot Fights Beside You
 |2|Debug - Tests|Player Disarm: Melee on Your Gun|Advanced VR Options > Debug > Tests > Player Disarm: Melee on Your Gun
 |2|Debug - Tests|Toolgun: Armed Humanoid Pairs|Advanced VR Options > Debug > Tests > Toolgun: Armed Humanoid Pairs
 |2|Debug - Tests|Projectiles Keep Your Motion|Advanced VR Options > Debug > Tests > Projectiles Keep Your Motion
@@ -6251,6 +6279,7 @@ vr_grapple_test_stuck|2|Debug - Automation & Self-Tests|Load Stuck|Advanced VR O
 |2|Debug - Automation & Self-Tests|List the Standard Menu's Texts|Advanced VR Options > Debug > Automation & Self-Tests > List the Standard Menu's Texts
 |2|Debug - Automation & Self-Tests|Check the Boards' Menu Paths|Advanced VR Options > Debug > Automation & Self-Tests > Check the Boards' Menu Paths
 |2|Debug - Automation & Self-Tests|Menu Help Fit|Advanced VR Options > Debug > Automation & Self-Tests > Menu Help Fit
+|2|Debug - Automation & Self-Tests|SIMD Test|Advanced VR Options > Debug > Automation & Self-Tests > SIMD Test
 |2|Debug - Automation & Self-Tests|Screen Tap Feedback|Advanced VR Options > Debug > Automation & Self-Tests > Screen Tap Feedback
 |2|Debug - Automation & Self-Tests|Distortion Trails Test|Advanced VR Options > Debug > Automation & Self-Tests > Distortion Trails Test
 |2|Debug - Automation & Self-Tests|Companion Map Tests|Advanced VR Options > Debug > Automation & Self-Tests > Companion Map Tests
