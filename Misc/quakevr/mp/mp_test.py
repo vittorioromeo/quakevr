@@ -1468,6 +1468,12 @@ def slide(s, flat=True):
     since = b.mark()
     b.cmd("cl_alwaysrun 1; +forward" if flat else "vr_slide 1; vr_mock_stick off 0 1")
     b.wait(r"mp_move: .*self=1", 20, since, "B running north")
+    # Up to his run's speed before the slide (a slide starts from a run): 40 units north of his spot in A's copy (at
+    # most 40 reports: a definite end; on a busy machine the press once found him still walking, no slide).
+    for _ in range(40):
+        c = body_of(reports(s, [a])[0], "mp_body").get(eb)
+        if c and c["pelvis"][1] - OPEN_SPOT[1] >= 40.0:
+            break
     b.cmd("+flatcrouch" if flat else "vr_mock_stick main 0 -1")
     copy, own, n = slide_peaks(s, a, b, ea, eb, flat)
     b.cmd("-flatcrouch; -forward" if flat else "vr_mock_stick main 0 0; vr_mock_stick off 0 0")
