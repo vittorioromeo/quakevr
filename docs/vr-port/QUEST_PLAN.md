@@ -1770,6 +1770,28 @@ with the session's near monsters; `c4y_fz1..4.sh`), `c4y_pcskin.sh` / `c4y_pcvl.
   frame's work: if Adreno compiles on the submitting thread, the submit times show it: then a shared-context compile
   thread is the next step), the panel in the headset from the first second, no dots.
 
+## 6zj. The merge of next 2026-11-20: multiplayer and voice chat (no headset: `adb devices` empty)
+
+- **origin/next merged** (610 commits: agent/mp's netcode, voice chat with Opus and RNNoise vendored, dynamic
+  resolution's allocated/drawn eye sizes, the 1.1.x fixes). 10 files conflicted; both sides kept: `vr_stereo.cpp` (next's
+  `useView`/`deleteSceneTargets`/`viewSize()` and the targets allocated at the dynres ceiling, with the Quest's foveated
+  eye targets, the split right-eye targets (also freed by `releaseTargets` now), `vr_eye_subimage`, `vr_xr_direct` and
+  the late acquire, all on the drawn size), `vr_gfx_gl.cpp` (next's `sharpLod()` on the Quest's `queryLod()`: ES has no
+  `textureQueryLod`), `gl_shaders.c` (the queued set's `GL_DeferredCheckOne` with next's storage-block limits in the
+  link error), `vr_upscale.cpp`, `vr_temporal.cpp`, `vr_glutil.*`, the debug menu, the OpenXR backend, the crash handler.
+- **Android**: Opus and RNNoise were already in `vr.cmake` (plain C static libraries, every platform): they and the
+  netcode compile for arm64 as they are, nothing left out. Two NDK-only warnings fixed: `vr_config_diag.cpp`'s
+  range-for over a temporary's element (a real dangling read without C++23's lifetime extension, clang 18; the PC's
+  clang 22 has it) and the Opus self-test's unused decode results. APK 0 warnings, check_apk 18/0 (21.7 MB).
+- **Multiplayer and voice on the Quest: compiled in, untested.** The manifest has neither `android.permission.INTERNET`
+  (sockets: needed for any network game) nor `RECORD_AUDIO` (the microphone; SDL asks at run time): left out, his call
+  (one line each in `Android/app/src/main/AndroidManifest.xml`). The rendezvous/room service and LAN play would follow.
+- **PC checks**: dev and ThinLTO builds 0 warnings (LTO relinked); scenario_check PASS (140, 0 failed);
+  load_models_test 4/0; vr_simd_test 58880/0; flatmelee 12/0; mp_test.py suite sample (`--only` coop, coop_lag,
+  avatar, campaign, predict, lagcomp, voice, dm; mp_netsafe first; loopback only) 9 scenarios 170/0;
+  gles_render_test 21/0 (a first run beside the Android build's compile 18/3: the scrap's 2D pics in another order
+  and a floor patch with arrays on/off; again alone 21/0: load-dependent, watch it).
+
 ## 7. Installs (done 2026-11-14 at his approval, by the coordinator)
 
 Installed under `F:\QuakeVRDev` (`env.sh` / `env.ps1` there set `JAVA_HOME`, `ANDROID_HOME`, `ANDROID_SDK_ROOT`,
@@ -1813,4 +1835,4 @@ Sizes are approximate download sizes [I]; versions are the current stable ones a
 
 Also: a Quest 3 (or 3S) in developer mode (Meta Horizon app, an organisation account), a USB-C cable.
 
-Next phase: C4z (after 6zi; first his launches with the fourth package: the loading panel from the first second and the "GL shaders queued" line (the driver's threads? the longest frame's work), one shader set per start, no safe mode, ~63/72 with the guard's rows; then the audio mix off the render thread, 6zh) — no installs, the headset needed: measure on the frozen live fight (`c4y_frozen.sh`, every round consistent beyond the ~0.5 ms a program remake brings); the models' fragment shading (~2.8-3.3 ms over a constant with every model plain, near monsters filling the view) is neither their light's math nor their look: next suspects the varyings and the instance-buffer reads per pixel (a minimal plain form: texture, vertex light, fog), and the ~1 ms of geometry (the body's 14.6k triangles with its pre-pass, the vertex shader's motion-vector writes); his look call on `vr_rig_lights_world 0`; SpaceWarp (`XR_FB_space_warp`, offered) optional and off. Still open from before: C2h (the world textures' memory under the ES profile), Adreno's wrong derivatives with the retro code out (NORETRO). Waiting on his call: the Android Gradle Plugin download (section 7), the armed humanoids' CPU cost (section 6d), shadowless dynamic lights on the Quest (6w).
+Next phase: C4z (after 6zj's merge of next, which also needs his first launch on the headset: dynamic resolution's new allocated/drawn eye sizes beside the sub-image and foveation; then the fourth package's checks of 6zi: the loading panel from the first second and the "GL shaders queued" line (the driver's threads? the longest frame's work), one shader set per start, no safe mode, ~63/72 with the guard's rows; then the audio mix off the render thread, 6zh) — no installs, the headset needed: measure on the frozen live fight (`c4y_frozen.sh`, every round consistent beyond the ~0.5 ms a program remake brings); the models' fragment shading (~2.8-3.3 ms over a constant with every model plain, near monsters filling the view) is neither their light's math nor their look: next suspects the varyings and the instance-buffer reads per pixel (a minimal plain form: texture, vertex light, fog), and the ~1 ms of geometry (the body's 14.6k triangles with its pre-pass, the vertex shader's motion-vector writes); his look call on `vr_rig_lights_world 0`; SpaceWarp (`XR_FB_space_warp`, offered) optional and off. Still open from before: C2h (the world textures' memory under the ES profile), Adreno's wrong derivatives with the retro code out (NORETRO). Waiting on his call: the Android Gradle Plugin download (section 7), the armed humanoids' CPU cost (section 6d), shadowless dynamic lights on the Quest (6w), the manifest's INTERNET and RECORD_AUDIO permissions for multiplayer and voice chat on the Quest (6zj).
