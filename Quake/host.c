@@ -2173,9 +2173,11 @@ void Host_Init (void)
 		// note: two leading newlines because the command buffer swallows one of them.
 		Cbuf_AddText ("\n\nvid_unlock\n");
 		if (VR_AndroidFirstRun ()) // QVR: Android's first run (no config yet): the Quest 3's graphics settings (vr_android.cpp)
-			Cbuf_AddText ("vr_quest_preset 0\n");
+			cmd_before_stuffcmds = "vr_quest_preset 0\n";
 		else if (VR_Android ()) // QVR: later runs: the saved settings checked against the Quest's (vr/vr_gfxpresets.cpp)
-			Cbuf_AddText ("vr_quest_check\n");
+			cmd_before_stuffcmds = "vr_quest_check\n";
+		// QVR: both after the configs, before the command line's +map/+exec (cmd.c Cmd_StuffCmds_f; they ran after
+		// them all, a +exec'd file's waits too: the guard's rows missed a scripted session, QUEST_PLAN.md 6zk)
 	}
 
 	if (cls.state == ca_dedicated)

@@ -340,12 +340,20 @@ void foveateEye(const Fov& fov)
     constexpr float areas[] = {0.f, 0.5f, 0.25f, 0.1f};
     const int level = foveationLevel();
     const float l = za::tan(fov.left), r = za::tan(fov.right), u = za::tan(fov.up), d = za::tan(fov.down);
-    for(const GLuint texture : foveatedTextures(eyeTargets))
+    // Under dynamic resolution the eye is drawn into the targets' bottom left part (useView): the focal point and the
+    // fall-off in that part's -1..1, mapped into the whole texture's (the point scaled towards the bottom left corner,
+    // the gain by the inverse: the same fall-off over the part drawn).
+    const SceneTargets& t = eyeTargets;
+    const float sx = t.allocatedWidth > 0 && t.drawnWidth > 0 ? static_cast<float>(t.drawnWidth) / t.allocatedWidth : 1.f;
+    const float sy = t.allocatedHeight > 0 && t.drawnHeight > 0 ? static_cast<float>(t.drawnHeight) / t.allocatedHeight : 1.f;
+    const float focalX = -1.f + (1.f - (r + l) / (r - l)) * sx;
+    const float focalY = -1.f + (1.f - (u + d) / (u - d)) * sy;
+    for(const GLuint texture : foveatedTextures(t))
     {
         for(GLint point = 0; texture && point < foveationPoints; point++)
         {
-            foveationParams(texture, 0, static_cast<GLuint>(point), -(r + l) / (r - l), -(u + d) / (u - d), gains[level],
-                gains[level], areas[level]);
+            foveationParams(texture, 0, static_cast<GLuint>(point), focalX, focalY, gains[level] / sx, gains[level] / sy,
+                areas[level]);
         }
     }
 }
