@@ -22,12 +22,20 @@ The mod aims to give total freedom to the player, turning most interactions into
 
 The original campaign and all official mission packs are fully playable. QVR:U also features an in-game map browser to play custom content from Quaddicted.
 
-<p style="text-align: center" align="center">
-<a href="https://www.youtube.com/watch?v=TRj7xRLuT64"><img src="https://img.youtube.com/vi/TRj7xRLuT64/mqdefault.jpg"></img></a>
-</p>
-<p style="text-align: center" align="center">
+<table align="center">
+<tr>
+<td align="center" valign="top" style="padding: 12px">
+<a href="https://www.youtube.com/watch?v=GFLCwhf_m-4"><img src="https://img.youtube.com/vi/GFLCwhf_m-4/mqdefault.jpg" alt="v1.1 Release Trailer"></a>
+<br>
+<a href="https://www.youtube.com/watch?v=GFLCwhf_m-4"><i><b>Quake VR: UNLEASHED 🔥 | v1.1 Release Trailer</b></i></a>
+</td>
+<td align="center" valign="top" style="padding: 12px">
+<a href="https://www.youtube.com/watch?v=TRj7xRLuT64"><img src="https://img.youtube.com/vi/TRj7xRLuT64/mqdefault.jpg" alt="Release Trailer"></a>
+<br>
 <a href="https://www.youtube.com/watch?v=TRj7xRLuT64"><i><b>Quake VR: UNLEASHED 🔥 | Release Trailer</b></i></a>
-</p>
+</td>
+</tr>
+</table>
 
 QVR:U runs on the [Ironwail](https://github.com/andrei-drexler/ironwail) engine and talks to your headset
 through [OpenXR](https://www.khronos.org/openxr/). It is the successor of the
