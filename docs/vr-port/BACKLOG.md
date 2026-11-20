@@ -156,14 +156,6 @@ mock toss keeps the hand's speed; a slow toss may hit the open palm after the 0.
 
 ## 7. Combat and feel
 
-- **Tester feedback, "Joyeuse" (Discord, 2026-11-18), comfort and controls:**
-  - Sprint as a toggle on the thumbstick click (an option; today it's hold-to-sprint).
-  - Run by double-tapping the locomotion stick: two quick pushes in the same direction start running (his idea, 2026-11-18; an option next to the sprint toggle).
-  - Ledge climbing: an option so the climb-over (mantle) waits for releasing the grab or pressing jump, instead of
-    happening automatically once the body is raised high enough.
-  - Ammo pouch height has no slider among the holster sliders (she had to use the drag-and-drop Holster Setup, which
-    felt fiddly): add Ammo Pouch position sliders like the holsters'.
-
 - **Crossed-sword parry** (2026-10-18): two blades crossed in front of the body count as a parry. After the AD melee work.
 - **Blades embedded in props** (2026-11-05): done 2026-11-12 (ROUND25.md "propblade": a joint at the handle, shared with
   the ragdolls' handle hold). Left: his VR check; a test of a re-grip off the handle; the crate carried by the other hand
@@ -272,7 +264,12 @@ Each verified by an unchanged physics hash, melee eval and `vr_menu_path_check`.
 - **Frame drops close to active-ragdoll enemies** (tester "Joyeuse", Discord, 2026-11-18, a lower-end PC): melee range
   against active ragdolls drops the frame rate and makes melee hard. Profile a melee fight with 2-4 active ragdolls
   up close on a mid/low GPU+CPU setting (Box3D contacts with the hands/blade, ragdoll solver iterations, gore/dents,
-  hit-box traces); consider a cheaper close-range mode or a quality setting.
+  hit-box traces); consider a cheaper close-range mode or a quality setting. Measured 2026-11-20 (ROUND25.md,
+  "ragperf"): not the drive, hit-model traces or hand contacts; Box3D contacts (~110 a driven ragdoll) and the armed
+  grunts' strike sweeps (QC) grow with bodies close. Continued ("ragperf2"): hands kept in the bodies have 2-3 touching
+  contacts; the contacts are a ragdoll's own parts' pairs that never touch (not filterable without changing the
+  physics); the strike sweeps got an exact broad test (QC a frame 6 close: 67.5 k -> 59.6 k). Left: the GPU side close
+  up, and a test on a lower-end PC to see whether the drop remains.
 - **Linux Flatpak needed Steam folder access** (same tester): it worked once she granted access to
   ~/.local/share/Steam (she had first installed the Windows build there to try Proton). The manifest has
   `--filesystem=home:ro`, which should cover it: find why it didn't (a Flatpak'd Steam's path, a symlinked library,

@@ -5666,6 +5666,125 @@ dwell_monsters_test.sh, scenario_check, the ThinLTO build (budget). ad_tears is 
   agrunt: 16, 35, 39, 42, 61, 91, 203 fail the same on origin/next, as do tunables_test's 2. 228 and 229 fail under
   run_baseline (vrtesthall: no room, no cvar): they are aglod_test.sh's (vrarena).
 
+## ragperf: frame drops near active ragdolls in melee (2026-11-20, agent/ragperf; measured, no fix yet)
+
+Tester report (BACKLOG.md 11): melee range against active ragdolls drops the frame rate on a lower-end PC. Scene:
+`Misc/quakevr/ragdoll/ragperf_scene.py <n> <close|far> <fists|axe> <label>` (vrfiringrange, seed 7, god + notarget;
+`n` grunts in a fan 40 units ahead or 300 out; `vr_ragdoll_act stagger <edict>` on each every 120 frames (`RP_ACT`,
+`RP_PERIOD`); the mock hands jabbing high and low across the fan, or the axe chopping; `RP_FLAT=1` flat punches; a
+720-frame window: `vr_profile`, `profile` (QC), `vr_hitmodel_stats`, and `vr_physics_frametime` with its new counts
+line: awake bodies, contacts stepped, islands, hand contacts). Timings came from shared runs (other workers testing):
+one run each, noisy by tens of percent, never used for a claim; the counts are deterministic.
+
+| case | driven a frame | contacts stepped | hand contacts | QC instr a frame | model tests a frame | Box3D step ms (noisy) |
+|---|---|---|---|---|---|---|
+| 2 close, fists | 1.8 | 220 | 0 | 36.7 k | 5.1 | 0.28 |
+| 4 close, fists | 2.7 | 465 | 0 | 52.5 k | 17.4 | 0.41 |
+| 6 close, fists | 3.9 | 668 | 0 | 66.8 k | 29.2 | 0.59 |
+| 6 far, fists | 1.0 | 89 | 0 | 49.3 k | 2.0 | 0.14 |
+| 6 close, axe | 4.1 | 768 | 0 | 64.4 k | 51.0 | 0.66 |
+| 6 close, flat punches | 4.2 | 639 | 0 | 50.7 k | 53.7 | 0.53 |
+
+- **Not the cost**: the active-ragdoll drive itself (`vr_ragdoll_active_list`: 0.03-0.05 ms a frame for 2-6 driven);
+  hit-model tests (0.6-0.9 us each, at most ~54 a frame: under 0.05 ms); the hands' and the blade's Box3D bodies: 0
+  touching contacts with the ragdolls in every case (the shoves and knockdowns throw them out of reach: `vr_ragdoll_act
+  getup` sent a grunt from 40 to 190 units away).
+- **Grows with the bodies close**: Box3D's contacts stepped, about 110 more for each driven ragdoll (its parts against
+  the range's brushes and each other: not yet split); and QC, about 7-8 k instructions a frame for each grunt near the
+  swinging hands: the armed grunts' strike sweeps (`VR_AG_StrikeMeets`: up to 17 steps of two `VR_AGS_HullGap` a grunt
+  a hand a frame while a hand swings fast; `VR_AG_StrikeGap` 0.63 M to 2.65 M instructions over 720 frames from 2 to 4
+  grunts), plus `VR_Melee_Sweep`. Far, the acts mostly did not take (1 driven), so close/far is not like for like.
+- **Left**: (1) a scene where the hands stay in the bodies (the player following them, or acts that do not throw
+  them) to see the hand-contact cost the tester meant; (2) split the ~110 contacts a driven ragdoll (self pairs, brush
+  shapes, `vr_ragdoll_collide_each`); (3) cut `VR_AG_StrikeMeets` cheaply (a broad gap test on the grunt's box before
+  the sweep, the same verdicts) and compare the `vr_agrunt` tests before and after; (4) the GPU side close up (not
+  measurable headless). No behaviour changed; the only code change is the counts line (`vr_physics_frametime`,
+  `reachTouchCount`).
+
+## ragperf2: the active-ragdoll melee drops, continued (2026-11-20, agent/ragperf; one fix)
+
+Counts, not timings (other workers ran tests alongside). The scene (`ragperf_scene.py`, above) gained:
+
+- **`RP_INSIDE=1`, the hands kept in the bodies** (the tester's case): `vr_mock_hand_follow <main|off> <part|cycle|off>`
+  (new, the mock backend: every frame the hand put at that part of the ragdoll nearest the player; `cycle` its parts in
+  turn, 8 frames each) with `vr_mock_hand_to_absolute 1`, and `vr_mock_walk_to monster 28` every 24 frames (the hands'
+  bodies push the ragdolls off, out of arm's reach, so the player walks after them). Not quite deterministic: the mock
+  walk's "stuck" test and the strike speeds read the real clock (same runs: 4 grunts gave the same contacts, 2 and 6
+  did not); the base scene (hands swinging across the fan) is.
+- **`vr_physics_frametime` split lines**: the awake ragdolls' parts' contacts by what the other shape is (self with a
+  joint between, self without, another ragdoll, the world, the hands' bodies, other), touching or only near (their
+  fattened bounds overlap: the narrow phase runs on it, the solver never sees it). `b3Body_GetAllContactData`: a marked
+  Box3D local change (README.md), b3Body_GetContactData's every contact.
+
+Contacts a frame (after; touching / near):
+
+| case | contacts stepped | self apart | world | hands | QC instr a frame old -> new | strike sweeps' share old -> new |
+|---|---|---|---|---|---|---|
+| 2 close, swinging | 220 | 1 / 144 | 6 / 50 | 0 / 0 | 37.0 k -> 35.8 k | 1.95 k -> 0.64 k |
+| 4 close, swinging | 465 | 8 / 331 | 17 / 88 | 0 / 0 | 53.0 k -> 47.9 k | 8.14 k -> 3.13 k |
+| 6 close, swinging | 668 | 10 / 436 | 24 / 123 | 0 / 0 | 67.5 k -> 59.6 k | 12.83 k -> 4.96 k |
+| 4 close, hands inside | 807 | 42 / 386 | 37 / 89 | 1.8 / 6.1 | 40.7 k -> 39.6 k | 2.03 k -> 0.71 k |
+| 6 close, hands inside | 868 | 44 / 530 | 40 / 126 | 3.4 / 8.7 | 54.0 k -> 51.3 k | 5.83 k -> 2.44 k |
+| 6 close, axe inside | 1066 | 37 / 510 | 35 / 139 | 3.4 / 10.0 | 63.9 k -> 57.3 k | 9.45 k -> 3.44 k |
+
+(old: `vr_agrunt_strike_broad 0`, the same build; the swinging cases' physics identical old and new: the same contacts to
+the decimal. Strike share: `VR_AG_StrikeGap`, `_StrikeMeets`, `VR_AGS_HullGap` and the new `_StrikeBroad`, `_BoxAdd`.)
+
+- **Hands in bodies are cheap**: even pushed into a ragdoll every frame, the hands' and the blade's bodies have 2-3
+  touching contacts and 6-10 near a frame (their bodies shove the parts out; `reachSkips` lets a shoved body through).
+- **The contacts are self pairs that never touch**: a driven ragdoll's parts against each other, ~110 a ragdoll, of
+  which ~7% touch; the rest are pairs whose fattened bounds overlap (a body's parts are close; Box3D's per-shape margin
+  is 12.5% of its size, to 5 cm). Joined pairs: none but the upper arm and chest (collideConnected on purpose; preSolve
+  exempts the socket). **Not filtered**: Box3D asks the custom filter once, when a pair begins, and keeps it while the
+  bounds overlap, so a pair refused while apart would miss a later touch inside the same bounds: no filter keeps the
+  solver's constraints the same. Their cost is the narrow phase: the whole collide phase was 0.11 ms of a 0.32 ms step
+  with ~840 contacts (noisy, shared runs).
+- **Fix: `VR_AG_StrikeMeets`' broad test** (vr_armedgrunt_parry.qc `VR_AG_StrikeBroad`): before the sweep (up to 17
+  steps, two hull queries each, plus the muzzle line), one box round every point the sweep and the muzzle line test
+  (the swept lines' ends, the hand, the muzzle, a carried prop's middle), tested against both volumes by
+  `disarmhull(.., 30 / 31 / 32, lo, hi, grow)` (vr_disarmhull.cpp `boxGap`: the box's 8 corners against the hull, no
+  more than any path in it). Clear of both by more than the strike's reach (and a carried prop's size, plus 0.01 for
+  rounding): every test would miss, so -1 at once. A volume without a hull (the old lines) is swept as before.
+  `vr_agrunt_strike_broad` (Debug menu, Armed Grunts: Strike Broad Test; 1 on; 0 always swept; 2 both, each
+  disagreement printed (developer 1) and a count every 256 sweeps). Check mode over the scene: 2/4/6 swinging, 6 axe,
+  6 inside: 0 disagreements (inside 6: about 95% skipped; swinging: every sweep skipped, none met). `vr_agrunt_test`
+  94 (strikes), 60, 77, 33, 96, 35 pass. Test 35 (parry) failed one case in two of four runs in check mode only (a
+  different weapon each time; its strike speeds are real time and check mode does both tests under load); on and off
+  it passed every run. Suites: flatmelee 12/12, scenario_check pass, ragdoll_climb 6/6 (off), active-ragdoll test no
+  failures, ragdoll_stagger 3 FAIL (monster 0: the known ones, BACKLOG.md "ragdoll_stagger: what is left"), melee eval
+  162/171 with no pass turned fail (the archived takes' decap zone figures differ from the baseline); ThinLTO 0
+  warnings.
+- **Left**: the remaining QC is the melee sweep (`VR_Melee_Sweep`, `VR_Melee_Track`), the force-grabbable thinks and
+  the armed grunts' prop thinks, not close-range specific; the GPU side close up (not measurable headless).
+## The tester's last two comfort options: double-tap to run, Ammo Pouch sliders (comfort, 2026-11-20, `agent/comfort`)
+
+From tester Joyeuse's list (2026-11-18). BACKLOG section 7's entry is gone now: the sprint toggle and Mantle When had
+already shipped, and these two close it.
+
+- **Run by double-tapping the moving stick** (`vr_move_doubletap`, 0; `vr_move_doubletap_window`, 0.3 s;
+  vr_input.cpp `doubleTapStep`). Its input is the moving stick as the walk reads it (`moveAxes`: the radial deadzone,
+  0..1). A push is half the travel or more. Let go means under a quarter (moveHold's `moveHoldLeast`). Steps: Idle, then
+  First (a push), then Gap (let go within the window), then Running (a push within 45 degrees, within the window again),
+  then Idle once the stick is let go. A slow first push, a long gap or a push another way does not run; that push can
+  start a double tap of its own. It also ends where the sprint toggle ends: at death, the intermission, a new map
+  (`input::resetSprintToggle`), a menu opening, or the setting going off. **How they combine:** in `VR_AdjustMove`,
+  running = (the speed button, held or toggled, against cl_alwaysrun) OR a double tap's run. The double tap never makes
+  you walk, and the toggle's switch is left alone. Its clock is the frame times summed, so it is the same at any frame
+  rate. VR stick only: the keyboard and the gamepad (`IN_JoyMove`) do not go through the stick path. Menu: "Double-Tap
+  Stick to Run" under Speed Button (VR Settings > Locomotion and Controls; Advanced > Movement > Locomotion, plus the
+  window there).
+- **Ammo Pouch Forward / Right / Up** on VR Settings > Holster Calibration (`vr_menu_holster_pouch_x/y/z`). These are
+  wrappers like the holsters' rows (`holsterWrappers`, vr_menu.cpp): units away from the shipped `vr_ammo_pouch_x/y/z`
+  (standing), -10..10, extended to +-40. They are shown from the settings each time the page is built, so Holster
+  Setup's drag, which sets the same settings, and the rows agree. The pouch's marker shows while one of the rows is
+  chosen. Reset Holsters resets the pouch too. The crouched and seated pouch rows stay on their own pages. There is no
+  flat menu with holster sliders.
+- **Verified**: `vr_doubletap_test` 10/0, `doubletap_test.sh` 5/0 (mock stick in e1m1: a long push walks at 200, the
+  taps run at 320, letting go ends it, off walks). `pouch_slider_test.sh` (`menu_vr pouchtest`) 6/0: each row moves its
+  setting and the reach point that way, Up 1.5 times its units through the body fit. The pouch moved elsewhere shows on
+  its row, and Reset Holsters works. scenario_check 137/0; flatplay 31/0; `vr_menu_path_check maps/vrcalibration.map` 0
+  missing; menu_paths.txt regenerated (it also picked up other workers' rows that were missing); dev and ThinLTO builds,
+  0 warnings.
 
 ## Discord Rich Presence (branch agent/discord, 2026-11-20)
 
@@ -5702,3 +5821,29 @@ lag compensation, D QC, menus, harness) merged together and with origin/next. Ch
 mp_lagcomp's view-time check; one mp_coopbots give-up, 9 of 10 overall), 0 in the other three; the base fails 5 in
 every run. SP: scenario_check 137/0, flatplay 31/0, flatparry 43/0, flathands 76/0, flatmelee 12/0. Verdict and the
 table: MP_PLAN.md, "Ready for next".
+## Dwell's weapons' ammo screen housings, the Lance's grip (dwellgun, 2026-11-20, `agent/dwellgun`)
+
+DWELL.md 9.6 ("Ammo screen housings") has the detail. Looked first (kit `scratch/dwellgun_shots/`: `before_*` the
+mock VR side/top/eye/front views and flat play): none of the three had a screen you could see (the Rotary's sat inside
+its housing, the Lance's and the Rifle's just inside their rear faces, a default box), the Lance's trigger guard and
+trigger hung 0.37 under its blades and the lightning gun's grip's top came through its frame; grips, muzzles and
+holsters were right. Now:
+- `vr_adweapons.cpp`: AD's Plasma Gun's housing is `housing(Parts&, Housing)` (its numbers a `Housing`; the Plasma
+  Gun's model byte-identical), the face's X byte measured (`faceX`), the rivets' rows settable (no two corners within
+  `capWeld`: the Rifle's Z step is 0.048, its first rivets came out open). `rotaryParts`, `lanceParts`, `rifleParts`
+  put one on each rear face, each window the glass the screen had without a housing at the slot's scale (fillMax 1).
+  The Lance 0.4 up on its grip, its guard and trigger 0.8 up (`Recipe::liftAlso`; least gaps now -0.03 and -0.05, the
+  grip's top 0.02 under its frame). `vr_adweapon_models write` writes each made model to the game folder as
+  `made_<name>.mdl` (for check_mdl_holes; never shipped).
+- `vr_screenstyle.cpp`: `dw_shot3.mdl#vr`, `dw_rail.mdl#vr`, `dw_rifle.mdl#vr` (the Plasma Gun's look; openings 11.60 x
+  11.19, 11.34 x 10.23, 11.25 x 10.47; offsets sink the glass 0.04h behind the bezel: `vr_debug_screen_where` puts
+  each centre within 0.005 of the designed glass). weapons.txt slots 52-54: `wpntxt_av` on the glass, pitch and x/y/z
+  0, fonts 1; the Lance's wpntxt_scale 0.25 (was 0.3: its handle's back is 2.6 wide) and muzzle_av 14.46 0 5.62. His
+  config holds no slot 53-55 values: no `vr_wofs_version` bump.
+- Scenes `dwell_rotary`, `dwell_lance`, `dwell_rifle` (the gun in the right hand, our base gun in the left).
+- Checked: check_mdl_holes on the made models: Lance and Rifle ok (0 see-through, 0 flipped), the Rotary as before (its
+  muzzle's 2 open barrel loops, dwell3c's), AD's Plasma Gun ok and unchanged; dwell_vrmodels_test.sh 13/0;
+  load_models_test.sh 4/0; scenario_check.sh PASS (140); vr_ad_test 204 (an armed grunt with Dwell's weapons) 9/0;
+  flat play shots right. Dev and ThinLTO builds 0 warnings. `after1_*` shots: the same views.
+- Not verified: the headset; the left hand (the housings are symmetric, the screens' offsets mirror). Seen, not this
+  work's: the Rotary's big rear face (a hole cap) draws as a dark red/yellow checker in the game's light.

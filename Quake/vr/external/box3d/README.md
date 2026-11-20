@@ -24,7 +24,9 @@ and `src/physics_world.c` the contact manifolds' arrays longer than `B3_POOLED_M
 instead of a block allocator of their own count (upstream makes one pool for every count up to the longest a mesh
 contact ever had, each 512 arrays of its count, kept until the world goes: memory quadratic in that count), freed at
 the world's end, counted in `b3World_DumpMemoryStats`, and `b3World_GetManifoldMemory` (`include/box3d/box3d.h`;
-`vr_physics_mem`; `docs/vr-port/MP_PLAN.md` B21). Upstream's samples, tests, benchmarks, docs, shared code and CMake files are left out.
+`vr_physics_mem`; `docs/vr-port/MP_PLAN.md` B21), and in `src/body.c` and `include/box3d/box3d.h`
+b3Body_GetAllContactData: b3Body_GetContactData's every contact, touching or not (`vr_physics_frametime`'s split of
+the ragdolls' contacts: ROUND25.md, "ragperf2"). Upstream's samples, tests, benchmarks, docs, shared code and CMake files are left out.
 
 Quake VR uses it in `Quake/vr/vr_box3d.cpp` (see `docs/vr-port/ROUND21.md`, "Box3D
 physics"). Build settings (`Windows/VisualStudio/quakevr.props`, `Quake/vr/vr.cmake`):

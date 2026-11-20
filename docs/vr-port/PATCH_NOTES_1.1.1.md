@@ -11,7 +11,7 @@ that ships in 1.1.1.
   Construct and both bosses) fight in its maps, and, with Dwell installed, in any map and from the toolgun; its
   weapons and powerups work as variants of ours. Dwell's Rotary Shotgun, Crystal Lance and Rifle look like themselves
   in your hands, holsters and on armed grunts (made from Dwell's own models, with a grip to hold), the Rotary's four
-  barrels turning as you fire; the holster menu (flat and on the wrist) names them, and AD's Widowmaker, Shadow Axe
+  barrels turning as you fire; each shows its ammo screen in a riveted bezel on its back, as our guns do; the holster menu (flat and on the wrist) names them, and AD's Widowmaker, Shadow Axe
   and Plasma Gun too. Dwell's weapons
   now stay what they are in your holsters, through saves, level changes and coop rejoins; the Rotary Shotgun reloads
   and spins up as the Widowmaker; Haste, Berserk and the Wetsuit show their seconds left on the wrist (and the flat
@@ -100,6 +100,14 @@ aren't Map Library packages aren't sent to joining players.
   makes a click of the speed button (the left stick's click as shipped, or Shift) switch between walking and running
   instead of holding it. The switch ends by itself, back to your Default Speed, when you stop moving for a moment, die,
   change level or open the menu. Hold (the default) is as before.
+- **Run by double-tapping the stick.** VR Settings > Locomotion and Controls > Double-Tap Stick to Run
+  (`vr_move_doubletap`, off by default): push the moving stick twice quickly the same way (push, let go, push again) to
+  run until you let the stick go back to the middle. It works beside the speed button: either one makes you run. How
+  quick the taps must be: Advanced VR Options > Movement > Locomotion > Double-Tap Window (`vr_move_doubletap_window`,
+  0.3 s).
+- **Ammo pouch position sliders.** VR Settings > Holster Calibration now has Ammo Pouch Forward, Right and Up beside the
+  holsters' rows (the standing pouch; they agree with Holster Setup's drag and drop), and Reset Holsters resets the pouch
+  too.
 
 ## Menus
 
@@ -120,3 +128,6 @@ aren't Map Library packages aren't sent to joining players.
 - **Crowded maps run lighter.** Armed grunts you can't see (behind walls, or far off and out of view) and that
   haven't noticed you cost far less to run; Dwell's biggest map (d2m8, 250 armed grunts) about half. They wake,
   aim and fight exactly as before the moment you see them, hit them or they notice you.
+- **Lighter melee in a crowd of armed enemies.** Swinging at several armed grunts up close now checks whether each
+  blow strikes their weapons far more cheaply (about a tenth less game-code work with six around you); what a blow
+  strikes is exactly as before.

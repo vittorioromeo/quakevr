@@ -362,6 +362,9 @@ knockdown. [I for the exact scope of the triggers; the removal itself is the coo
 
 BACKLOG.md keeps a one-line pointer to each; remove an item here when it ships.
 
+Active ragdolls' cost in melee (the frame drops a tester saw up close): the measurements and what is left are in
+ROUND25.md, "ragperf" (2026-11-20).
+
 ### Active ragdolls: research references (author, 2026-10-22)
 
 Research https://www.youtube.com/watch?v=r8Q1nwHPwJ0 for active ragdoll improvements (stagger, balance, get-up, the

@@ -712,7 +712,7 @@ bool weaponPoint(float fraction, float height, glm::vec3& out, bool armed = fals
 }
 
 // The mock hand `hand` moved (its tracking-space position; its orientation kept) so that it is at world point `target`.
-void moveHandTo(int hand, const glm::vec3& target)
+void moveHandTo(int hand, const glm::vec3& target, bool quiet = false)
 {
     const hands::State& st = hands::current();
     if(!st.valid)
@@ -751,8 +751,69 @@ void moveHandTo(int hand, const glm::vec3& target)
         }
         mockHandPos[hand] = to;
     }
-    Con_Printf("vr_mock_hand_to: %s hand at %.3f %.3f %.3f (tracking)\n", hand == HAND_MAIN ? "main" : "off",
-        mockHandPos[hand].x, mockHandPos[hand].y, mockHandPos[hand].z);
+    if(!quiet)
+    {
+        Con_Printf("vr_mock_hand_to: %s hand at %.3f %.3f %.3f (tracking)\n", hand == HAND_MAIN ? "main" : "off",
+            mockHandPos[hand].x, mockHandPos[hand].y, mockHandPos[hand].z);
+    }
+}
+
+// vr_mock_hand_follow <main|off> <part|cycle|off> [<units over it>]: every frame the hand put at the middle of that part
+// of the ragdoll nearest the player (its rig's bone number, as vr_mock_hand_to's "ragdoll"); "cycle": its parts in turn,
+// followCycleFrames each (the off hand half its parts on from the main's); "off": no more. A test's hands kept in the
+// bodies however the blows throw them (ragperf_scene.py's RP_INSIDE; set vr_mock_hand_to_absolute 1).
+constexpr int followNone = -100, followCycle = -101;
+constexpr int followCycleFrames = 8;
+struct HandFollow
+{
+    int part{followNone};
+    float over{0.f}; // units
+};
+HandFollow handFollow[HAND_COUNT];
+
+void followFrame()
+{
+    if(!sv.active || svs.maxclients < 1)
+    {
+        return;
+    }
+    for(int h = 0; h < HAND_COUNT; h++)
+    {
+        const HandFollow& f = handFollow[h];
+        if(f.part == followNone)
+        {
+            continue;
+        }
+        constexpr int cycleParts = 10; // (a grunt's first parts: its pelvis, spine, chest, head and limbs)
+        const int part = f.part == followCycle
+                             ? (host_framecount / followCycleFrames + (h == HAND_MAIN ? 0 : cycleParts / 2)) % cycleParts
+                             : f.part;
+        glm::vec3 target{0.f};
+        int num = 0;
+        {
+            progs::ServerVm serverVm;
+            num = box3d::ragdollPartCentre(geom::vec(progs::playerEdict()->v.origin), part, target);
+        }
+        if(num)
+        {
+            target.z += f.over;
+            moveHandTo(h, target, true);
+        }
+    }
+}
+
+void mockHandFollow_f()
+{
+    const int hand = Cmd_Argc() >= 3 ? (!q_strcasecmp(Cmd_Argv(1), "main") ? HAND_MAIN : !q_strcasecmp(Cmd_Argv(1), "off") ? HAND_OFF : -1) : -1;
+    if(hand < 0)
+    {
+        Con_Printf("usage: vr_mock_hand_follow <main|off> <part|cycle|off> [<units over it>]\n");
+        return;
+    }
+    const char* which = Cmd_Argv(2);
+    handFollow[hand].part = !q_strcasecmp(which, "off") ? followNone : !q_strcasecmp(which, "cycle") ? followCycle : Q_atoi(which);
+    handFollow[hand].over = Cmd_Argc() >= 4 ? Q_atof(Cmd_Argv(3)) : 0.f;
+    Con_Printf("vr_mock_hand_follow: %s hand %s\n", hand == HAND_MAIN ? "main" : "off", which);
 }
 
 // vr_mock_hand_to's sub-commands (mockHandTo_f below): each moves the hand and prints what it found.
@@ -1876,6 +1937,7 @@ public:
         playFrame(realtime, playVel, playAngVel, played);
         aimFrame();
         walkFrame();
+        followFrame();
 
         tracking = standingPose();
         tracking.input = mockInput;
@@ -2234,6 +2296,7 @@ void registerMockCommands()
     Cmd_AddCommand("vr_mock_hand", mockHand_f);
     Cmd_AddCommand("vr_mock_hand_turn", mockHandTurn_f);    Cmd_AddCommand("vr_mock_hand_to", mockHandTo_f);
     Cmd_AddCommand("vr_mock_hand_aim", mockHandAim_f);
+    Cmd_AddCommand("vr_mock_hand_follow", mockHandFollow_f);
     Cmd_AddCommand("vr_mock_walk_to", mockWalkTo_f);
     Cmd_AddCommand("vr_mock_turn_to", mockTurnTo_f);
     Cmd_AddCommand("vr_mock_look", mockLook_f);

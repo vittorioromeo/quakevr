@@ -2502,6 +2502,11 @@ QVR_CYCLE(vr_sprint_toggle, "Speed Button",
     "Speed: Run. Toggle: click it to switch, click again to switch back; it switches back by itself when you "
     "stop, die, change level or open the menu (vr_sprint_toggle).",
     {0.f, "Hold"}, {1.f, "Toggle"})
+QVR_TOGGLE(vr_move_doubletap, "Double-Tap Stick to Run",
+    "On: push the moving stick twice quickly the same way (push, let go, push again) to run until you let it go back "
+    "to the middle. Works beside the speed button: either one makes you run (vr_move_doubletap).")
+QVR_SLIDER(vr_move_doubletap_window, "Double-Tap Window", 0.1f, 0.6f, 0.05f, "%.2f s", ext(0.05f, 2.f),
+    "How quick a double tap must be: the first push let go within this, and the second begun within this after.")
 QVR_SLIDER_BYNAME(cl_movespeedkey, "Running Mult.", 1.f, 3.f, 0.05f, "%.2f", ext(), "How much faster running is than walking.")
 QVR_TOGGLE(vr_crouch_speed, "Slower When Crouched",
     "Crouched for real (your eyes a little under standing), the stick moves you at most Crouched Speed times "
@@ -4592,6 +4597,9 @@ QVR_SLIDER(vr_menu_holster_chest_z, "Chest Holsters Up", -10.f, 10.f, 0.5f, "%+.
 QVR_SLIDER(vr_menu_holster_back_x, "Back Holsters Forward", -10.f, 10.f, 0.5f, "%+.1f", ext(-40.f, 40.f), nullptr)
 QVR_SLIDER(vr_menu_holster_back_y, "Back Holsters Inward", -10.f, 10.f, 0.5f, "%+.1f", ext(-40.f, 40.f), nullptr)
 QVR_SLIDER(vr_menu_holster_back_z, "Back Holsters Up", -10.f, 10.f, 0.5f, "%+.1f", ext(-40.f, 40.f), nullptr)
+QVR_SLIDER(vr_menu_holster_pouch_x, "Ammo Pouch Forward", -10.f, 10.f, 0.5f, "%+.1f", ext(-40.f, 40.f), nullptr)
+QVR_SLIDER(vr_menu_holster_pouch_y, "Ammo Pouch Right", -10.f, 10.f, 0.5f, "%+.1f", ext(-40.f, 40.f), nullptr)
+QVR_SLIDER(vr_menu_holster_pouch_z, "Ammo Pouch Up", -10.f, 10.f, 0.5f, "%+.1f", ext(-40.f, 40.f), nullptr)
 QVR_TOGGLE(vr_holster_weapons_draw_shoulder, "Shoulder Holster Weapons",
     "Draws the guns in the two holsters on your back, reached over your shoulders (the highest pair). Off: "
     "out of your view; you still take them and put them away there. The other pairs: Advanced VR Options "
@@ -5655,6 +5663,11 @@ QVR_TOGGLE(vr_agrunt_strike_demo, "Armed Humanoids: Strike Demo",
     "notarget; scene agrunt_strikes; vr_agrunt_strike_demo).")
 QVR_TOGGLE(vr_agrunt_debug, "Armed Grunts: Log",
     "Prints each armed grunt's weapon, shots, reloads, disarms and pickups (developer 1; vr_agrunt_debug).")
+QVR_CYCLE(vr_agrunt_strike_broad, "Armed Grunts: Strike Broad Test",
+    "Your blow's sweep against an armed grunt's weapon and hand is skipped when the box round its points is clear of "
+    "both volumes: the same verdicts, cheaper. Off: always swept; Check: both, each disagreement printed and a count "
+    "every 256 sweeps (developer 1; vr_agrunt_strike_broad).",
+    {0.f, "Off"}, {1.f, "On"}, {2.f, "Check"})
 QVR_TOGGLE(vr_agrunt_test_kind, "Armed Grunts: Tests Spawn Enforcers",
     "The Armed Grunts tests above spawn armed enforcers (monster_vr_enforcer, the armed monsters' second "
     "row) instead of armed grunts (vr_agrunt_test_kind 1; 0 grunts).")

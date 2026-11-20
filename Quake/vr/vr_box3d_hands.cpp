@@ -574,6 +574,26 @@ constexpr float reachSink = 0.01f;     // m: sunk no deeper in a new reach body,
 constexpr float reachCapsule = 0.015f; // m: another player's weapon's radius
 } // namespace
 
+int reachTouchCount()
+{
+    int n = 0;
+    for(const za::Array<World::HandBody, 2>& both : world->hands)
+    {
+        for(const World::HandBody& hb : both)
+        {
+            for(const b3BodyId body : {hb.body, hb.reach})
+            {
+                if(B3_IS_NON_NULL(body))
+                {
+                    b3ContactData contacts[32];
+                    n += b3Body_GetContactData(body, contacts, 32);
+                }
+            }
+        }
+    }
+    return n;
+}
+
 // The hand whose reach body `body` is (of client `player`), or nullptr.
 [[nodiscard]] World::HandBody* reachOf(b3BodyId body, int player)
 {

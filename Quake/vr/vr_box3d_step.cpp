@@ -1762,6 +1762,11 @@ extern "C" void VR_PhysicsFrameEnd(void)
         sample.ms[PhaseWrite] = ms(tWrite, tAfter);
         sample.ms[PhaseAfter] = ms(tAfter, t3);
         sample.awake = b3World_GetAwakeBodyCount(world->id);
+        const b3Counters counters = b3World_GetCounters(world->id);
+        sample.contacts = counters.awakeContactCount;
+        sample.islands = counters.islandCount;
+        sample.reachTouches = reachTouchCount();
+        ragdollContactSplit(sample.split);
         world->frameSamples.pushBack(sample);
     }
     serverPhysicsStart = 0.0;

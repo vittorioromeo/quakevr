@@ -49,6 +49,9 @@ vr_menu_holster_chest_z|0|Holster Calibration|Chest Holsters Up|VR Settings > Ho
 vr_menu_holster_back_x|0|Holster Calibration|Back Holsters Forward|VR Settings > Holster Calibration > Back Holsters Forward
 vr_menu_holster_back_y|0|Holster Calibration|Back Holsters Inward|VR Settings > Holster Calibration > Back Holsters Inward
 vr_menu_holster_back_z|0|Holster Calibration|Back Holsters Up|VR Settings > Holster Calibration > Back Holsters Up
+vr_menu_holster_pouch_x|0|Holster Calibration|Ammo Pouch Forward|VR Settings > Holster Calibration > Ammo Pouch Forward
+vr_menu_holster_pouch_y|0|Holster Calibration|Ammo Pouch Right|VR Settings > Holster Calibration > Ammo Pouch Right
+vr_menu_holster_pouch_z|0|Holster Calibration|Ammo Pouch Up|VR Settings > Holster Calibration > Ammo Pouch Up
 |0|Holster Calibration|Reset Holsters|VR Settings > Holster Calibration > Reset Holsters
 vr_holster_weapons_draw_shoulder|0|Holster Calibration|Shoulder Holster Weapons|VR Settings > Holster Calibration > Shoulder Holster Weapons
 |0|Holster Calibration|Reset This Page|VR Settings > Holster Calibration > Reset This Page
@@ -56,6 +59,7 @@ vr_holster_weapons_draw_shoulder|0|Holster Calibration|Shoulder Holster Weapons|
 vr_menu_move_towards|0|VR Settings - Locomotion and Controls|Move Towards|VR Settings > Locomotion and Controls > Move Towards
 cl_alwaysrun|0|VR Settings - Locomotion and Controls|Default Speed|VR Settings > Locomotion and Controls > Default Speed
 vr_sprint_toggle|0|VR Settings - Locomotion and Controls|Speed Button|VR Settings > Locomotion and Controls > Speed Button
+vr_move_doubletap|0|VR Settings - Locomotion and Controls|Double-Tap Stick to Run|VR Settings > Locomotion and Controls > Double-Tap Stick to Run
 vr_deadzone|0|VR Settings - Locomotion and Controls|Stick Deadzone|VR Settings > Locomotion and Controls > Stick Deadzone
 vr_move_curve|0|VR Settings - Locomotion and Controls|Stick Response Curve|VR Settings > Locomotion and Controls > Stick Response Curve
 vr_move_autorun|0|VR Settings - Locomotion and Controls|Walk Into Run|VR Settings > Locomotion and Controls > Walk Into Run
@@ -1417,6 +1421,8 @@ vr_move_autorun_threshold|1|Locomotion|Run From Push|Advanced VR Options > Movem
 cl_forwardspeed|1|Locomotion|Movement Speed|Advanced VR Options > Movement > Locomotion > Movement Speed
 cl_alwaysrun|1|Locomotion|Default Speed|Advanced VR Options > Movement > Locomotion > Default Speed
 vr_sprint_toggle|1|Locomotion|Speed Button|Advanced VR Options > Movement > Locomotion > Speed Button
+vr_move_doubletap|1|Locomotion|Double-Tap Stick to Run|Advanced VR Options > Movement > Locomotion > Double-Tap Stick to Run
+vr_move_doubletap_window|1|Locomotion|Double-Tap Window|Advanced VR Options > Movement > Locomotion > Double-Tap Window
 cl_movespeedkey|1|Locomotion|Running Mult.|Advanced VR Options > Movement > Locomotion > Running Mult.
 vr_crouch_speed|1|Locomotion|Slower When Crouched|Advanced VR Options > Movement > Locomotion > Slower When Crouched
 vr_crouch_speed_scale|1|Locomotion|Crouched Speed|Advanced VR Options > Movement > Locomotion > Crouched Speed
@@ -5610,6 +5616,7 @@ vr_debug_doom|2|Debug - Tests|Doom: Debug|Advanced VR Options > Debug > Tests > 
 |2|Debug - Tests|Arcane Dimensions: Plasma Gun Cell Test|Advanced VR Options > Debug > Tests > Arcane Dimensions: Plasma Gun Cell Test
 |2|Debug - Tests|Arcane Dimensions: Plasma Gun's First Ball|Advanced VR Options > Debug > Tests > Arcane Dimensions: Plasma Gun's First Ball
 |2|Debug - Tests|Arcane Dimensions: Upgraded Weapon Models|Advanced VR Options > Debug > Tests > Arcane Dimensions: Upgraded Weapon Models
+|2|Debug - Tests|Arcane Dimensions and Dwell: Write Made Weapon Models|Advanced VR Options > Debug > Tests > Arcane Dimensions and Dwell: Write Made Weapon Models
 |2|Debug - Tests|Arcane Dimensions: Widowmaker Tube Test|Advanced VR Options > Debug > Tests > Arcane Dimensions: Widowmaker Tube Test
 |2|Debug - Tests|Arcane Dimensions: Widowmaker Barrels Info|Advanced VR Options > Debug > Tests > Arcane Dimensions: Widowmaker Barrels Info
 vr_ad_widowmaker_spin_at|2|Debug - Tests|Arcane Dimensions: Widowmaker Barrels Held At|Advanced VR Options > Debug > Tests > Arcane Dimensions: Widowmaker Barrels Held At
@@ -6255,6 +6262,7 @@ vr_ar_play_scale|2|Animation Recorder|Scale|Advanced VR Options > Debug > Animat
 vr_agrunt_ik_debug|2|Debug - Automation & Self-Tests|Armed Grunts: Grip Distances|Advanced VR Options > Debug > Automation & Self-Tests > Armed Grunts: Grip Distances
 vr_agrunt_strike_demo|2|Debug - Automation & Self-Tests|Armed Humanoids: Strike Demo|Advanced VR Options > Debug > Automation & Self-Tests > Armed Humanoids: Strike Demo
 vr_agrunt_debug|2|Debug - Automation & Self-Tests|Armed Grunts: Log|Advanced VR Options > Debug > Automation & Self-Tests > Armed Grunts: Log
+vr_agrunt_strike_broad|2|Debug - Automation & Self-Tests|Armed Grunts: Strike Broad Test|Advanced VR Options > Debug > Automation & Self-Tests > Armed Grunts: Strike Broad Test
 vr_agrunt_test_kind|2|Debug - Automation & Self-Tests|Armed Grunts: Tests Spawn Enforcers|Advanced VR Options > Debug > Automation & Self-Tests > Armed Grunts: Tests Spawn Enforcers
 vr_grapple_test_stuck|2|Debug - Automation & Self-Tests|Load Stuck|Advanced VR Options > Debug > Automation & Self-Tests > Load Stuck
 |2|Debug - Automation & Self-Tests|Hitbox Keep Test|Advanced VR Options > Debug > Automation & Self-Tests > Hitbox Keep Test

@@ -802,6 +802,10 @@ B3_API int b3Body_GetContactCapacity( b3BodyId bodyId );
 /// Get the touching contact data for a body
 B3_API int b3Body_GetContactData( b3BodyId bodyId, b3ContactData* contactData, int capacity );
 
+/// QVR (local change, README.md): every contact of the body, touching or not (manifoldCount 0 for one not touching:
+/// its shapes' fattened bounds overlap, the narrow phase still runs on it each step). A diagnostic's (ragperf2).
+B3_API int b3Body_GetAllContactData( b3BodyId bodyId, b3ContactData* contactData, int capacity );
+
 /// Get the current world AABB that contains all the attached shapes. Note that this may not encompass the body origin.
 /// If there are no shapes attached then the returned AABB is empty and centered on the body origin.
 B3_API b3AABB b3Body_ComputeAABB( b3BodyId bodyId );
