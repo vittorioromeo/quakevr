@@ -620,6 +620,7 @@ void() StartFrame =
     CU_Frame(); // Copper's frame in a Copper map (vr_copper_bridge.qc)
     VR_FuelTank_Frame(); // AD support: the fuelled guns lying about have their tanks (vr_ad_enemyguns.qc)
     VR_FlailHead_Frame(); // AD support: the flails lying about have their heads (vr_ad_melee.qc)
+    VR_Quoth_Frame(); // Quoth support: an entity's second name (targetname2) made, once a map (vr_quoth.qc)
     VR_MG3_Weapons_Frame(); // the Super Axe's glow and chain (vr_mg3_weapons.qc)
     VR_DeadAnim_TestFrame(); // VR: vr_deadanim_test (vr_deadanim.qc)
     VR_DeadAnim_Frame(); // VR: dead monsters animating again, logged (vr_debug_deadanim, vr_deadanim.qc)

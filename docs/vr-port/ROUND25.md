@@ -5847,3 +5847,29 @@ holsters were right. Now:
   flat play shots right. Dev and ThinLTO builds 0 warnings. `after1_*` shots: the same views.
 - Not verified: the headset; the left hand (the housings are symmetric, the screens' offsets mirror). Seen, not this
   work's: the Rotary's big rear face (a hole cap) draws as a dark red/yellow checker in the game's light.
+
+## Quoth's maps under AD's rules, phase 1 (quoth, 2026-11-20, `agent/quoth`)
+
+Docs: `QUOTH.md` (how it plays, the shim's inferred semantics, acceptance). Quoth 2.2 has no source and may not be
+modified or bundled: nothing of it is run, copied or shipped; its maps play by AD's rules plus a clean-room shim.
+
+- **Engine**: Quoth is campaign 8 (`quoth`, experimental, `vr_campaign_native quoth`; `vr_quoth.cpp`): `<base>/quoth`,
+  2.2 checked by `pak2.pak`'s SHA-256 (`vr_quoth_status`), its folder never supplying its progs, configs, demos or the 87
+  files id1/Hipnotic/Rogue/AD also have (`quoth_data.py` -> `vr_quoth_data.inc`); while installed its models, sprites,
+  sounds and skies serve every campaign (the Map Library's Quoth packages). Ruleset AD for its campaign and for a
+  package made for Quoth (AD's row `madeFor`); the sample maps are detected as AD's anyway. `campaignForMap`: only exact
+  `e1m1`..`e4m9` are Quake's (it took `e1m1quoth` for Quake's). Shared: `CampaignChecks.release` replaces the
+  per-campaign "another version" branch; `qvr::sha256::fileMatches` pins Dwell's progs and Quoth's pak alike.
+  `ED_ParseEdict`: a `spawnfunction` key also names `spawnclassname` (unless set). Map Library detail: "Made for Quoth".
+- **QC** (`vr_quoth.qc`): `ad_` aliases (death guard spelling, the four `_point` triggers, grilles, driveshaft/thrum,
+  bio/plasma boxes, `info_rubble`, command entities, flashlight) and Quake VR's `info_multispawn`/`func_hordespawn`
+  (AD's remove themselves: AD row `keptOurs`); `targetname2` through an alias entity made once a map (StartFrame).
+- **Debug menu**: Tests > Arcane Dimensions: "Quoth: Play (Developer)", "Quoth: Second Names and Spawners Test".
+- **Tests**: `vr_ad_test 211` (quothkeys) PASS on kellbase1 (4 checks) and e1m1 (2). `quoth_maps.sh` (quoth_setup.py installs Quoth and the 14 sample
+  packages into the test base from the kit's downloads): every map loads, runs 600 frames, AD's rules, 0 missing classnames, 0 errors (30 of 31 rows; the 31st the 211 verdict line, fixed after). Baseline (before): 10 of 15 package maps clean;
+  lpqsp1 22, ne_marb 15, dis_sp6 4, sksp2 2 missing classnames; Quoth's own maps but start unreachable (the
+  `e1m1quoth` campaign switch). 0 of 391 official and AD maps have a shim classname or `targetname2` (their censuses
+  unchanged).
+- **Left (phase 2)**: the installer component (Quaddicted's zip, on by default like AD, needs AD); play-throughs;
+  patch notes; `quoth_setup.py` unpacking a package's root pak as the Map Library does (metmon1d); func_breakable's
+  `preset` and `ritem`/`rsize` (material, dropped item) need an AD import patch.

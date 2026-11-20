@@ -1190,6 +1190,7 @@ void drawMapsDetail(const MapsLayout& m, const menupaint::Painter& p)
         {
             const bool ad = mod == "Arcane Dimensions";
             const bool copper = mod == "Copper" || mod == "Dwell"; // (vr_rules.cpp: Copper's rules, its code built in)
+            const bool quoth = mod == "Quoth"; // (vr_rules.cpp: AD's rules; its models and sounds from Quoth's folder)
             mapPage.notes += za::String{mapPage.notes.empty() ? "" : " "} + "Made for " + mod +
                              (ad ? (VR_CampaignInstalled(qvr::ad::campaignIndex)
                                            ? ", which Quake VR plays natively: its monsters, items and effects work."
@@ -1201,6 +1202,12 @@ void drawMapsDetail(const MapsLayout& m, const menupaint::Painter& p)
                                                            "Quake VR yet: they are missing."
                                                          : ", which Quake VR plays natively by Copper's rules "
                                                            "(experimental).")
+                              : quoth ? (VR_CampaignInstalled(qvr::quoth::campaignIndex) &&
+                                                VR_CampaignInstalled(qvr::ad::campaignIndex)
+                                            ? ", which Quake VR plays by Arcane Dimensions' rules (experimental)."
+                                            : ". Quake VR plays it by Arcane Dimensions' rules (experimental), but "
+                                              "needs Quoth 2.2 and Arcane Dimensions 1.80 (patch 1) installed (the "
+                                              "installer's options); without them its monsters and items are missing.")
                                  : ", whose own progs Quake VR does not run: its monsters, items and effects are missing.");
         }
     }
