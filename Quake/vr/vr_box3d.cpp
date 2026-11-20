@@ -407,6 +407,7 @@ namespace
 void applySimdWidth(b3WorldId id)
 {
     b3World_EnableSSE2Fallback(id, !useAvx2());
+    b3World_EnableMeshGhostHandling(id, vr_box3d_mesh_ghosts.value != 0.f); // (a Box3D local change: box3dup)
 }
 
 namespace

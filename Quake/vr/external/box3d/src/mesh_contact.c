@@ -1837,7 +1837,7 @@ bool b3ComputeMeshManifolds( b3World* world, int workerIndex, b3Contact* contact
 	b3MeshContact* meshContact = &contact->meshContact;
 	b3Transform transformAtoB = b3InvMulWorldTransforms( xfB, xfA );
 	bool enableSpeculative = contact->flags & b3_enableSpeculativePoints;
-	bool handleGhosts = B3_FORCE_GHOST_COLLISIONS == 0;
+	bool handleGhosts = B3_FORCE_GHOST_COLLISIONS == 0 && world->enableMeshGhosts; // QVR: the world's switch
 
 	b3Cluster* clusters;
 	int clusterCount = b3CollideMeshTriangles( &clusters, shapeA, shapeB, transformAtoB,

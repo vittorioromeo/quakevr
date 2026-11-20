@@ -359,6 +359,7 @@ b3WorldId b3CreateWorld( const b3WorldDef* def )
 	world->enableWarmStarting = true;
 	world->enableContinuous = def->enableContinuous;
 	world->enableSpeculative = true;
+	world->enableMeshGhosts = true; // QVR (local change, README.md)
 	world->useScheduler = false;
 	world->userData = def->userData;
 
@@ -2410,6 +2411,19 @@ void b3World_EnableSSE2Fallback( b3WorldId worldId, bool flag )
 	}
 
 	world->simdWidth = flag ? 4 : b3GetSIMDWidth();
+}
+
+// QVR (local change, README.md): mesh contacts' ghost collision handling on (upstream) or off (as
+// B3_FORCE_GHOST_COLLISIONS 1), for the world's next steps
+void b3World_EnableMeshGhostHandling( b3WorldId worldId, bool flag )
+{
+	b3World* world = b3GetUnlockedWorldFromId( worldId );
+	if ( world == NULL )
+	{
+		return;
+	}
+
+	world->enableMeshGhosts = flag;
 }
 
 int b3World_GetAwakeBodyCount( b3WorldId worldId )

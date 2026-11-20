@@ -309,6 +309,8 @@ typedef struct b3World
 	bool enableWarmStarting;
 	bool enableContinuous;
 	bool enableSpeculative;
+	// QVR (local change, README.md): mesh contacts' ghost collision handling (#212; b3World_EnableMeshGhostHandling)
+	bool enableMeshGhosts;
 	bool inUse;
 } b3World;
 

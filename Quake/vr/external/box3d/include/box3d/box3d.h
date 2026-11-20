@@ -267,6 +267,10 @@ B3_API bool b3World_IsWarmStartingEnabled( b3WorldId worldId );
 /// Normally you should use the CMake build settings to disable AVX2.
 B3_API void b3World_EnableSSE2Fallback( b3WorldId worldId, bool flag );
 
+/// QVR (local change, README.md): mesh and height field contacts' ghost collision handling (#212: needs meshes
+/// built with identifyEdges), on by default; off, as B3_FORCE_GHOST_COLLISIONS 1 (vr_box3d_mesh_ghosts).
+B3_API void b3World_EnableMeshGhostHandling( b3WorldId worldId, bool flag );
+
 /// Get the number of awake bodies
 B3_API int b3World_GetAwakeBodyCount( b3WorldId worldId );
 

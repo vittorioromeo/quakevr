@@ -45,6 +45,11 @@ CMake files are left out. The changes:
   in `b3World_DumpMemoryStats`, and `b3World_GetManifoldMemory` (`vr_physics_mem`; `docs/vr-port/MP_PLAN.md` B21).
 - b3Body_GetAllContactData (`src/body.c`, `include/box3d/box3d.h`): b3Body_GetContactData's every contact, touching or
   not (`vr_physics_frametime`'s split of the ragdolls' contacts: ROUND25.md, "ragperf2").
+- b3World_EnableMeshGhostHandling (`src/physics_world.h`, `src/physics_world.c`, `src/mesh_contact.c`,
+  `include/box3d/box3d.h`): #212's ghost collision handling for mesh contacts on (upstream's default) or off (as
+  `B3_FORCE_GHOST_COLLISIONS` 1) per world, at run time. Quake VR sets it before each step from `vr_box3d_mesh_ghosts`
+  (default 1, on: off, the climbing ragdolls held ledges' lips better, 22 of 24 climbs against 17 on and 21 before the
+  update, but the active-ragdoll test's crawling ogre kept 76 J after its drive; ROUND25.md, "box3dup").
 
 Quake VR uses it in `Quake/vr/vr_box3d.cpp` (see `docs/vr-port/ROUND21.md`, "Box3D
 physics"). Build settings (`Windows/VisualStudio/quakevr.props`, `Quake/vr/vr.cmake`):
