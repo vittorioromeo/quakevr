@@ -35,6 +35,30 @@ void finishLoads();
 // if not, -1 if there is no navmesh for it (yet), vr_nav is off or it isn't a walker. (QC VR_NAV_MeleeOff.)
 [[nodiscard]] float reach(edict_t* ent, edict_t* goal);
 
+// A follower's path corner (vr_navfollow.cpp): where (Quake's space, on the floor) and the link it begins. A teleporter's
+// or a lift's start is followed by a corner of the same kind where the walk goes on: the trigger's middle (walked into),
+// the lift's middle on its top (stood on till it carries him).
+enum class LinkKind : unsigned char
+{
+    none = 0,
+    drop = 1, // walks off the ledge
+    ride = 2, // a lift
+    tele = 3, // a teleporter
+};
+struct PathCorner
+{
+    glm::vec3 at{0.f};
+    LinkKind link = LinkKind::none;
+};
+
+// A follower's path (a player's, vr_nav_follow; later a bot's): the straight corners of the navmesh path for `self`'s size
+// (vr_hull's moveSize: a player's 32 x 56) from `from` to `to` (feet), at most `max` (the first where it stands). Doors
+// and lifts don't block it (a player opens a door by walking at it); drops, lifts (vr_nav_lifts) and teleporters are the
+// monsters' links. -> the count; -1 no navmesh for that size yet (its build started), vr_nav 0 or no map; 0 its feet or
+// the goal off the mesh. `partial`: the path stops short of the goal (no way there on the mesh).
+[[nodiscard]] int followPath(const edict_t* self, const glm::vec3& from, const glm::vec3& to, PathCorner* out, int max,
+                             bool& partial);
+
 // Each server frame (VR_PhysicsFrameEnd, the server's VM current): the movers' and the props' tick (props as obstacles:
 // their rests looked at, their tiles' rebuilds started and joined), whether or not anything chases.
 void serverFrame();

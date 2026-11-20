@@ -4,6 +4,7 @@
 #include "vr_agarmor.hpp"
 #include "vr_mpavatar.hpp"
 #include "vr_voicechat.hpp"
+#include "vr_navfollow.hpp"
 #include "vr_netmove.hpp"
 #include "vr_predict.hpp"
 #include "vr_netsnap.hpp"
@@ -1013,7 +1014,7 @@ extern "C" int VR_MoveMainFire(int lmb)
 
 extern "C" int VR_MoveJump(int state)
 {
-    return flatplay::jumpBit(state);
+    return flatplay::jumpBit(navfollow::jumpNow() ? state | 3 : state); // (vr_nav_follow's hop: a fresh press)
 }
 
 extern "C" void VR_WriteMoveExtras(sizebuf_t* buf, int forward, int side, int up, int buttons, int impulse)
@@ -1138,6 +1139,7 @@ extern "C" int VR_ParseServerMessage(int cmd)
         case QVR_SVC_AVATAR: mpavatar::parse(); break; // another player's head and hands (vr_mpavatar.cpp)
         case QVR_SVC_MOVEACK: netmove::parseAck(); break; // the newest of our moves the server read (vr_netmove.cpp)
         case QVR_SVC_PREDICT: predict::parseState(); break; // our state after the newest of our moves the server ran (vr_predict.cpp)
+        case QVR_SVC_NAVFOLLOW: navfollow::parse(); break; // our vr_nav_follow path (vr_navfollow.cpp)
         case QVR_SVC_HELDPLACE: held::parsePlaces(); break; // where the server has what our hands hold (vr_held.cpp, B27)
         case QVR_SVC_SNAPSHOT: netsnap::parse(); break; // our state, the entities and avatars, delta-coded (vr_netsnap.cpp)
         case QVR_SVC_PACKAGE: mpdownload::parsePackage(); break; // the server's map package (vr_mpdownload.cpp)
