@@ -1791,6 +1791,10 @@ with the session's near monsters; `c4y_fz1..4.sh`), `c4y_pcskin.sh` / `c4y_pcvl.
   avatar, campaign, predict, lagcomp, voice, dm; mp_netsafe first; loopback only) 9 scenarios 170/0;
   gles_render_test 21/0 (a first run beside the Android build's compile 18/3: the scrap's 2D pics in another order
   and a floor patch with arrays on/off; again alone 21/0: load-dependent, watch it).
+- Then origin/agent/quest's own two merges of next (2026-11-19; the same resolutions, plus vr_xr_direct's target freed
+  in `releaseTargets`, direct only when drawn == allocated, the screen shader's `sharpLod()` used) and next's 9 newer
+  commits (ragdolls, Box3D, menus: no conflicts) merged; again dev and ThinLTO 0 warnings, scenario_check 140/0,
+  load_models_test 4/0, gles_render_test 21/0, APK 0 warnings and check_apk 18/0 (21.7 MB).
 
 ## 7. Installs (done 2026-11-14 at his approval, by the coordinator)
 
