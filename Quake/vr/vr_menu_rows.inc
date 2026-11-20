@@ -5649,6 +5649,11 @@ QVR_TOGGLE(vr_agrunt_strike_demo, "Armed Humanoids: Strike Demo",
     "notarget; scene agrunt_strikes; vr_agrunt_strike_demo).")
 QVR_TOGGLE(vr_agrunt_debug, "Armed Grunts: Log",
     "Prints each armed grunt's weapon, shots, reloads, disarms and pickups (developer 1; vr_agrunt_debug).")
+QVR_CYCLE(vr_agrunt_strike_broad, "Armed Grunts: Strike Broad Test",
+    "Your blow's sweep against an armed grunt's weapon and hand is skipped when the box round its points is clear of "
+    "both volumes: the same verdicts, cheaper. Off: always swept; Check: both, each disagreement printed and a count "
+    "every 256 sweeps (developer 1; vr_agrunt_strike_broad).",
+    {0.f, "Off"}, {1.f, "On"}, {2.f, "Check"})
 QVR_TOGGLE(vr_agrunt_test_kind, "Armed Grunts: Tests Spawn Enforcers",
     "The Armed Grunts tests above spawn armed enforcers (monster_vr_enforcer, the armed monsters' second "
     "row) instead of armed grunts (vr_agrunt_test_kind 1; 0 grunts).")

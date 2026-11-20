@@ -77,3 +77,6 @@ that ships in 1.1.1.
 - **Crowded maps run lighter.** Armed grunts you can't see (behind walls, or far off and out of view) and that
   haven't noticed you cost far less to run; Dwell's biggest map (d2m8, 250 armed grunts) about half. They wake,
   aim and fight exactly as before the moment you see them, hit them or they notice you.
+- **Lighter melee in a crowd of armed enemies.** Swinging at several armed grunts up close now checks whether each
+  blow strikes their weapons far more cheaply (about a tenth less game-code work with six around you); what a blow
+  strikes is exactly as before.

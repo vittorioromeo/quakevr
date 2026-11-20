@@ -550,6 +550,20 @@ enum FramePhase
     framePhases
 };
 constexpr const char* framePhaseNames[framePhases] = {"server physics", "box3d", "sync", "before", "step", "solver", "write", "after"};
+// The awake ragdolls' parts' contacts by what the other shape is (ragdollContactSplit; vr_physics_frametime's split
+// line, ragperf2 in ROUND25.md): each kind touching (even index) or only near (odd: the fattened bounds overlap, the
+// narrow phase runs on it, the solver doesn't see it).
+enum ContactSplit : int
+{
+    SplitSelfJoined, // two of one ragdoll's parts with a joint between them (collideConnected: the upper arm and chest)
+    SplitSelfApart = 2, // two of one ragdoll's parts without
+    SplitRagdolls = 4,  // two ragdolls' parts (vr_ragdoll_collide_each)
+    SplitWorld = 6,     // the world's and movers' brushes
+    SplitHands = 8,     // the hands' and held weapons' bodies
+    SplitOther = 10,    // props, held things, corpses' single bodies
+    contactSplits = 12
+};
+constexpr const char* contactSplitNames[contactSplits / 2] = {"self joined", "self apart", "ragdolls", "world", "hands", "other"};
 
 struct World
 {
@@ -572,6 +586,11 @@ struct World
     {
         float ms[framePhases]{};
         int awake{0}; // the awake bodies after the step
+        // Deterministic counts (a frame's work, whatever the machine's load): Box3D's contacts the step touched (its
+        // collide pass: the touching ones and the awake sets' others), its islands, and the hands' and held weapons'
+        // reach bodies' touching contacts with the bodies they press (ragperf, ROUND25.md).
+        int contacts{0}, islands{0}, reachTouches{0};
+        int split[contactSplits]{}; // (ragdollContactSplit)
     };
     za::Vector<FrameSample> frameSamples;
     const qmodel_t* map{nullptr};
@@ -1414,6 +1433,10 @@ void traceGibContacts();
 void noteThrows();
 void syncHands(float dt);
 [[nodiscard]] World::HandBody* reachOf(b3BodyId body, int player);
+// The players' hand bodies' (the fists' spheres, the reach bodies) touching contacts now (vr_physics_frametime's count).
+[[nodiscard]] int reachTouchCount();
+// The awake ragdolls' parts' contacts now, added into `out` by kind (ContactSplit; each pair once).
+void ragdollContactSplit(int (&out)[contactSplits]);
 [[nodiscard]] bool reachSkips(const World::HandBody& hb, int player, int num);
 // Whether hand `hand` (QC's: 0 the off hand, 1 the main) of client `player` holds `num`'s ragdoll in a tug (ragdolltug).
 [[nodiscard]] bool tugHolds(int player, int hand, int num);

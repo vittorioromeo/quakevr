@@ -2724,6 +2724,7 @@ QVR_CVAR(vr_agrunt_grab_leniency, "5", CVAR_ARCHIVE)           // cm more than v
 QVR_CVAR(vr_agrunt_vol_shot_weapon, "1", CVAR_ARCHIVE)         // a shot on its weapon: its drawn model's hull grown by this
 QVR_CVAR(vr_agrunt_vol_shot_hand, "1", CVAR_ARCHIVE)           // a shot on the hand holding it: its drawn hand and forearm's hull grown by this
 QVR_CVAR(vr_agrunt_vol_strike, "1", CVAR_ARCHIVE)              // your blow's sweep striking its weapon or that hand: both hulls grown by this
+QVR_CVAR(vr_agrunt_strike_broad, "1", CVAR_NONE)               // debug: that sweep skipped when its points' box is clear of both hulls (the same verdicts, cheaper: ragperf2); 0 always swept; 2 both, each disagreement printed and a count every 256 sweeps
 QVR_CVAR(vr_agrunt_vol_blow, "0", CVAR_ARCHIVE)                // a body blow this near its weapon or that hand disarms it (was a 10-unit sphere round its grip)
 QVR_CVAR(vr_agrunt_shotdisarm_chance, "0.25", CVAR_ARCHIVE)    // the roll's chance at the threshold
 QVR_CVAR(vr_agrunt_shotdisarm_chance_scale, "0.8", CVAR_ARCHIVE) // ... plus this for each threshold past it (24 on 16: +0.4; at most 0.95)

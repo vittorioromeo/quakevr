@@ -516,6 +516,42 @@ int b3Body_GetContactData( b3BodyId bodyId, b3ContactData* contactData, int capa
 	return index;
 }
 
+// QVR (local change, README.md): b3Body_GetContactData's, every contact (box3d.h)
+int b3Body_GetAllContactData( b3BodyId bodyId, b3ContactData* contactData, int capacity )
+{
+	b3World* world = b3GetUnlockedWorld( bodyId.world0 );
+	if ( world == NULL )
+	{
+		return 0;
+	}
+
+	b3Body* body = b3GetBodyFullId( world, bodyId );
+
+	int contactKey = body->headContactKey;
+	int index = 0;
+	while ( contactKey != B3_NULL_INDEX && index < capacity )
+	{
+		int contactId = contactKey >> 1;
+		int edgeIndex = contactKey & 1;
+
+		b3Contact* contact = b3Array_Get( world->contacts, contactId );
+		b3Shape* shapeA = b3Array_Get( world->shapes, contact->shapeIdA );
+		b3Shape* shapeB = b3Array_Get( world->shapes, contact->shapeIdB );
+		const bool touching = ( contact->flags & b3_contactTouchingFlag ) != 0;
+
+		contactData[index].contactId = (b3ContactId){ contact->contactId + 1, bodyId.world0, 0, contact->generation };
+		contactData[index].shapeIdA = (b3ShapeId){ shapeA->id + 1, bodyId.world0, shapeA->generation };
+		contactData[index].shapeIdB = (b3ShapeId){ shapeB->id + 1, bodyId.world0, shapeB->generation };
+		contactData[index].manifolds = contact->manifolds;
+		contactData[index].manifoldCount = touching ? contact->manifoldCount : 0;
+		index += 1;
+
+		contactKey = contact->edges[edgeIndex].nextKey;
+	}
+
+	return index;
+}
+
 b3AABB b3Body_ComputeAABB( b3BodyId bodyId )
 {
 	b3World* world = b3GetUnlockedWorld( bodyId.world0 );

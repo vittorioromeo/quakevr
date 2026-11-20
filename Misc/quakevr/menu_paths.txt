@@ -6185,6 +6185,7 @@ vr_ar_play_scale|2|Animation Recorder|Scale|Advanced VR Options > Debug > Animat
 vr_agrunt_ik_debug|2|Debug - Automation & Self-Tests|Armed Grunts: Grip Distances|Advanced VR Options > Debug > Automation & Self-Tests > Armed Grunts: Grip Distances
 vr_agrunt_strike_demo|2|Debug - Automation & Self-Tests|Armed Humanoids: Strike Demo|Advanced VR Options > Debug > Automation & Self-Tests > Armed Humanoids: Strike Demo
 vr_agrunt_debug|2|Debug - Automation & Self-Tests|Armed Grunts: Log|Advanced VR Options > Debug > Automation & Self-Tests > Armed Grunts: Log
+vr_agrunt_strike_broad|2|Debug - Automation & Self-Tests|Armed Grunts: Strike Broad Test|Advanced VR Options > Debug > Automation & Self-Tests > Armed Grunts: Strike Broad Test
 vr_agrunt_test_kind|2|Debug - Automation & Self-Tests|Armed Grunts: Tests Spawn Enforcers|Advanced VR Options > Debug > Automation & Self-Tests > Armed Grunts: Tests Spawn Enforcers
 vr_grapple_test_stuck|2|Debug - Automation & Self-Tests|Load Stuck|Advanced VR Options > Debug > Automation & Self-Tests > Load Stuck
 |2|Debug - Automation & Self-Tests|Hitbox Keep Test|Advanced VR Options > Debug > Automation & Self-Tests > Hitbox Keep Test

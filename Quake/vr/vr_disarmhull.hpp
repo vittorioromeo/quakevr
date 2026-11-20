@@ -85,6 +85,10 @@ struct HandPlaced
 [[nodiscard]] bool handShown(edict_t* g, int side, HandPlaced& out);
 // gap() of the nearer of its hulls.
 [[nodiscard]] float gap(const HandPlaced& h, const glm::vec3& a, const glm::vec3& b, float grow, float* along = nullptr);
+// A broad test for gap(): no more than the gap of any path within the box lo..hi (world), the hull grown by `grow`
+// (disarmhull 30 / 31 / 32: VR_AG_StrikeMeets' sweep skipped when its points' box is clear of both volumes).
+[[nodiscard]] float boxGap(const Placed& p, const glm::vec3& lo, const glm::vec3& hi, float grow);
+[[nodiscard]] float boxGap(const HandPlaced& h, const glm::vec3& lo, const glm::vec3& hi, float grow);
 
 // The hull's edges grown by `grow` (Show Disarm Volumes).
 void draw(const Placed& p, float grow, const glm::vec4& colour, float width);

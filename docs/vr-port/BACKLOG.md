@@ -243,7 +243,12 @@ Each verified by an unchanged physics hash, melee eval and `vr_menu_path_check`.
 - **Frame drops close to active-ragdoll enemies** (tester "Joyeuse", Discord, 2026-11-18, a lower-end PC): melee range
   against active ragdolls drops the frame rate and makes melee hard. Profile a melee fight with 2-4 active ragdolls
   up close on a mid/low GPU+CPU setting (Box3D contacts with the hands/blade, ragdoll solver iterations, gore/dents,
-  hit-box traces); consider a cheaper close-range mode or a quality setting.
+  hit-box traces); consider a cheaper close-range mode or a quality setting. Measured 2026-11-20 (ROUND25.md,
+  "ragperf"): not the drive, hit-model traces or hand contacts; Box3D contacts (~110 a driven ragdoll) and the armed
+  grunts' strike sweeps (QC) grow with bodies close. Continued ("ragperf2"): hands kept in the bodies have 2-3 touching
+  contacts; the contacts are a ragdoll's own parts' pairs that never touch (not filterable without changing the
+  physics); the strike sweeps got an exact broad test (QC a frame 6 close: 67.5 k -> 59.6 k). Left: the GPU side close
+  up, and a test on a lower-end PC to see whether the drop remains.
 - **Linux Flatpak needed Steam folder access** (same tester): it worked once she granted access to
   ~/.local/share/Steam (she had first installed the Windows build there to try Proton). The manifest has
   `--filesystem=home:ro`, which should cover it: find why it didn't (a Flatpak'd Steam's path, a symlinked library,
