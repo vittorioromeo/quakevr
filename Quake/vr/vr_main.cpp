@@ -83,6 +83,7 @@
 #include "vr_slipseer.hpp"
 #include "vr_update.hpp"
 #include "vr_obs.hpp"
+#include "vr_discord.hpp"
 #include "vr_takes.hpp"
 #include "vr_renderdoc.hpp"
 #include "vr_modelwatch.hpp"
@@ -2384,6 +2385,7 @@ extern "C" void VR_Init()
     audio::init(); // spatial audio's commands (vr_snd_info, vr_snd_test...); Steam Audio is loaded on first use
     mapindex::registerCommands(); // maps_list, maps_info, maps_stats, maps_fetch
     slipseer::registerCommands(); // maps_slipseer, maps_slipseer_get, maps_slipseer_test (vr_slipseer.cpp)
+    discord::registerCommands(); // vr_discord_status, vr_discord_test (vr_discord.cpp)
     update::registerCommands(); // vr_update_status, vr_update_check_now, vr_update_compare (vr_update.cpp)
     obs::registerCommands(); // vr_obs_status, vr_obs_toggle, vr_obs_connect (vr_obs.cpp)
     takes::registerCommands(); // vr_take, vr_clip, the ratings and marks (vr_takes.cpp)
@@ -2435,6 +2437,7 @@ extern "C" void VR_Shutdown()
     slipseer::finish(); // Slipseer's listing or page fetch, the same (vr_slipseer.cpp)
     update::finish(); // the update check, the same (vr_update.cpp)
     obs::finish(); // OBS's connection, the same (vr_obs.cpp)
+    discord::finish(); // Discord's activity cleared, its thread joined (vr_discord.cpp)
     mapinstall::finish(); // a map download or unpacking, cancelled and joined (vr_mapinstall.cpp)
     relight::shutdown(); // a light process still running stopped (vr_relight.cpp)
     imgprefetch::shutdown(); // (the decoding tasks finished)
@@ -2953,6 +2956,7 @@ extern "C" void VR_HostFrameEnd()
     qvr::mapindex::poll(); // the map index the fetch thread finished, taken here (vr_mapindex.cpp)
     qvr::slipseer::poll(); // Slipseer's entries into the index, its screenshot made a picture (vr_slipseer.cpp)
     qvr::update::poll(); // the update check's answer (vr_update.cpp)
+    qvr::discord::frame(); // Discord Rich Presence: the game's state to its thread when it changed (vr_discord.cpp)
     qvr::obs::poll(); // OBS's recording state, and the menus' state to its thread (vr_obs.cpp)
     qvr::takes::frame(); // the takes: OBS's answers and events, pending moves (vr_takes.cpp)
     qvr::menu::runLaunchTestFrame(); // vr_runlaunch_test's steps (vr_menu_instances.inc)

@@ -2266,6 +2266,7 @@ vr_menu_sharpen|1|Menu|Menu Sharpening|Advanced VR Options > HUD and Menus > Men
 vr_menu_status|1|Menu|Status Box|Advanced VR Options > HUD and Menus > Menu > Status Box
 vr_menu_version|1|Menu|Version Label|Advanced VR Options > HUD and Menus > Menu > Version Label
 vr_update_check|1|Menu|Check for Updates|Advanced VR Options > HUD and Menus > Menu > Check for Updates
+vr_discord|1|Menu|Discord Status|Advanced VR Options > HUD and Menus > Menu > Discord Status
 vr_menu_flat_shortcuts|1|Menu|Corner Buttons on a Flat Screen|Advanced VR Options > HUD and Menus > Menu > Corner Buttons on a Flat Screen
 vr_menu_flat_vr_style|1|Menu|VR Menu Layout on a Flat Screen|Advanced VR Options > HUD and Menus > Menu > VR Menu Layout on a Flat Screen
 vr_menu_flat_scale|1|Menu|Flat Menu Panel Size|Advanced VR Options > HUD and Menus > Menu > Flat Menu Panel Size
@@ -5347,6 +5348,8 @@ vr_menu_link_dryrun|2|Debug - Reports|Menu Links: Print, Do Not Open|Advanced VR
 |2|Debug - Reports|Update Check: Status|Advanced VR Options > Debug > Reports > Update Check: Status
 |2|Debug - Reports|OBS: Status|Advanced VR Options > Debug > Reports > OBS: Status
 vr_obs_process_check|2|Debug - Reports|OBS: Process Check|Advanced VR Options > Debug > Reports > OBS: Process Check
+|2|Debug - Reports|Discord: Status|Advanced VR Options > Debug > Reports > Discord: Status
+|2|Debug - Reports|Discord: Self-Test|Advanced VR Options > Debug > Reports > Discord: Self-Test
 vr_obsrec_as_if|2|Debug - Reports|Clean Recording: Act As If OBS Records|Advanced VR Options > Debug > Reports > Clean Recording: Act As If OBS Records
 |2|Debug - Reports|Main Menu Lettering|Advanced VR Options > Debug > Reports > Main Menu Lettering
 |2|Debug - Reports|Reset This Page|Advanced VR Options > Debug > Reports > Reset This Page
