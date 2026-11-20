@@ -93,6 +93,9 @@ float vr_agbc_stopped;     // ... stopped on its blade (VR_AG_BladeContact: T_Da
 .vector vr_agbc_mark;      // ... [that hand + 1, when]: that motion's later blows on it stop there too
 float(entity targ, entity inflictor, entity attacker, float damage) VR_AGPar_Blow; // T_Damage, T_Damage_VRMelee
 float(entity g) VR_AGPar_Guards;                                           // VR_Guard_Hand: it parries instead
+// The farthest a held weapon's line (VR_AG_WeaponLine: as drawn, a pose or two behind) reaches from its grip, with room:
+// the scans for what flies at it look this much farther round the grip first (nothing there: no line, no scan).
+float VR_AG_LINE_REACH = 192;
 // Directional parry (vr_dirparry.qc): your weapon held across a blow's line.
 .vector vr_drp_a0;         // (a held weapon) its drawn line's two ends last frame, and when (0: none)
 .vector vr_drp_b0;

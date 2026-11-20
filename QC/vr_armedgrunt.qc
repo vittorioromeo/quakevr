@@ -809,6 +809,7 @@ vector(vector v, vector k, float deg) VR_AG_Rotate =
 // the shots' and a drop's.
 void(entity g, entity p) VR_AGP_Pose; // (vr_armedgrunt_pose.qc: the pose, its attacks, sent to the clients)
 float(entity g, float still) VR_AGP_Lod;      // (... its level of detail: TRUE skips it this frame)
+nosave float vr_agp_lod_dt;                       // (... posed after skipped frames: the time since its last pose; else 0)
 void(entity g, entity p) VR_AGP_LodCarry;
 void() VR_AGP_Attack;
 void(entity g) VR_AGP_Spawn;
@@ -985,7 +986,15 @@ void() VR_AG_PropThink =
     VR_AGPar_Frame(g); // (a melee blow coming: its parry raised: vr_armedgrunt_parry.qc)
     if(VR_AGP_Lod(g, still))
     {
-        VR_AGP_LodCarry(g, self); // (unseen, far, idle: posed every other frame)
+        VR_AGP_LodCarry(g, self); // (unseen, far, idle: posed once every vr_agrunt_pose_lod_frames)
+    }
+    else if(vr_agp_lod_dt > frametime)
+    {
+        // (Posed after skipped frames: its eases, a chainsaw's fuel, moved on by all of them, as posed each frame.)
+        float keepFt = frametime;
+        frametime = vr_agp_lod_dt;
+        VR_AG_PlaceProp(g, self);
+        frametime = keepFt;
     }
     else
     {

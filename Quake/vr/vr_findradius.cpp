@@ -309,6 +309,9 @@ void stats_f()
     stats.seconds0 = Sys_DoubleTime();
 }
 
+// VR_FindRadiusMoving's speed for the next VR_FindRadius chain (-1: every entity found; the server's frame, one call).
+float moverSpeed = -1.f;
+
 } // namespace
 
 extern "C" edict_t* VR_FindRadius(const float* org, float rad)
@@ -347,12 +350,33 @@ extern "C" edict_t* VR_FindRadius(const float* org, float rad)
     edict_t* chain = qcvm->edicts;
     for(edict_t* ent : found)
     {
+        // (VR_FindRadiusMoving: only what moves at minSpeed or more, never a player, a monster or a pusher)
+        if(moverSpeed >= 0.f)
+        {
+            const float v2 = DotProduct(ent->v.velocity, ent->v.velocity);
+            if(((int)ent->v.flags & (FL_CLIENT | FL_MONSTER)) || static_cast<int>(ent->v.movetype) == static_cast<int>(MOVETYPE_PUSH) || v2 <= 0.f ||
+               v2 < moverSpeed * moverSpeed)
+            {
+                continue;
+            }
+        }
         ent->v.chain = EDICT_TO_PROG(chain);
         chain = ent;
     }
+    moverSpeed = -1.f;
     stats.hits += static_cast<long long>(found.size());
     stats.cycles += ticks() - start;
     return chain;
+}
+
+// QC findradiusmoving: findradius's chain (the same entities in the same order) with only those moving at `minSpeed`
+// units/s or more (any speed for 0), never a player, a monster or a pusher: what flies (shots, thrown things, gibs).
+// The armed grunts' scans for what comes at their weapons (QC VR_AGS_Projectiles, VR_AG_WeaponStruck): their QC loops
+// see nothing on a quiet frame.
+extern "C" edict_t* VR_FindRadiusMoving(const float* org, float rad, float minSpeed)
+{
+    moverSpeed = za::max(0.f, minSpeed);
+    return VR_FindRadius(org, rad);
 }
 
 extern "C" void VR_FindRadius_Dirty(edict_t* ed)
