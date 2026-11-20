@@ -3913,3 +3913,35 @@ The deep review before agent/mp goes into next (`qvr-kit/scratch/mprev_B.md`, `m
 | D8 (low) | A >4 KB inbox line stalled the harness inbox | Fixed: dropped up to its newline with a console line; checked in mp_lagcomp (a 5,000-byte line, then a command that runs) |
 
 Checks: dev and ThinLTO builds 0 warnings (LTO exe relinked); mp_lagcomp + mp_dm alone 17/0 and 27/0 (vr_dm_test 12 3/0, the inbox check); SP scenario_check 136/1 (bench_crowd_ad, the known AD infighting), flatplay 31/0, flatparry 43/0, flathands 76/0, flatmelee 12/0; suite plain 54 of 57 (mp_coop_lag, mp_lagcomp's move view-time check, mp_voice_lossy: real-time checks, the other fixer's runs alongside); those three alone 12/0, 17/0, 28/0. --load 16 (the other fixer's suite running too: round trips up to 1 s): 33 of 57, every failure a latency or timing check, no Host_Error or overflow in any server log; to rerun on a quiet machine.
+
+## Ready for next (mpfinal, 2026-11-20): the two review halves combined, A/B against the pre-review base
+
+Verdict: **ready**. agent/mp is now half 1 (A, C) + half 2 (agent/mpfix2: B, D) + origin/next (Discord, README, aglod;
+the two doc conflicts kept both sides; menu_paths.txt regenerated: unchanged, 10,037 entries). Dev and ThinLTO builds
+0 warnings (the LTO exe relinked). SP on the merged head: scenario_check 137/0 (bench_crowd_ad passes), flatplay 31/0,
+flatparry 43/0, flathands 76/0, flatmelee 12/0.
+
+The MP suite four times on the head (A), interleaved with four on the pre-review base 8af21793d (B: its own exe,
+harness and game code; a second `-basedir` at its tree, so the engine searches its quakevr), in the order A1 B1 plain,
+A1 B1 `--load 16`, A2 B2 plain, A2 B2 `--load 16`, about 30 minutes each, with two other workers testing alongside:
+
+| Run | Head (A): scenarios failing | Base (B): scenarios failing |
+|---|---|---|
+| plain 1 | 2: mp_lagcomp (the moves' view time 560 and 512 ms over its 500), mp_coopbots (vr_dm_test 11: the grunt at 19 health at the 864-frame give-up) | 5 (below) |
+| load 1 | 0 | 5 |
+| plain 2 | 0 | 5 |
+| load 2 | 0 | 5 |
+
+- The brief's named checks pass in all four head runs: mp_nat's symmetric NAT is told within 13-14 s (limit 30; A4's
+  1 s punch), mp_spoof 27/0 (16 cookie-less requests challenged, 9 B each; a wrong cookie challenged again; the echoed
+  one gets a slot; the unheard drop at 15.1 s), mp_lagcomp's one rewind per blast and bolt (vr_dm_test 12),
+  mp_coop_lag 12/0, mp_voice_lossy 28/0.
+- mp_lagcomp's moves' view time is 350-397 ms in the other three head runs, the base's 345-411: a load burst in
+  plain 1, not the review.
+- mp_coopbots: 6 more takes each, alone: head 6/6, base 6/6 (head 9 of 10 overall). The fight against the grunt is
+  the bot's aim over 12 s of real time; one give-up in ten, not tied to a review change (D1, D5, D6 don't reach a
+  bot's fight with a monster). Left as a rare flake (BACKLOG.md section 1).
+- The base fails the same 5 in every run, none of them on the head: mp_predict and mp_predictclimb (the start map:
+  the clients' `Host_Error: Model *43 not found` under the A/B's two base dirs, the setup's), mp_predictslide (no
+  sliding states), mp_melee (the two upright-crowbar dirparry checks), mp_flow (Load Autosave's coop listing). Base
+  only, so not chased.

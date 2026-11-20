@@ -5693,3 +5693,12 @@ application, the protocol, the join hook).
   The POSIX branch syntax-checked with WSL's clang only (not run).
 - **Open**: the application id (and logo asset) from him, then the shipped default; whether it ships on; Linux tried
   for real; the join button (room codes: `JOIN-HOOK` in vr_discord.cpp).
+
+## agent/mp ready for next (mpfinal, 2026-11-20)
+
+The deep review's two fix halves (agent/mp: A transport, C avatars and voice; agent/mpfix2: B snapshots, prediction,
+lag compensation, D QC, menus, harness) merged together and with origin/next. Checked against the pre-review base
+8af21793d under the same machine load, interleaved: the head fails 2 scenarios in 1 of 4 suite runs (a load burst in
+mp_lagcomp's view-time check; one mp_coopbots give-up, 9 of 10 overall), 0 in the other three; the base fails 5 in
+every run. SP: scenario_check 137/0, flatplay 31/0, flatparry 43/0, flathands 76/0, flatmelee 12/0. Verdict and the
+table: MP_PLAN.md, "Ready for next".

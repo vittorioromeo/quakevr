@@ -63,6 +63,9 @@ mock toss keeps the hand's speed; a slow toss may hit the open palm after the 0.
   from v40), A13 (guest ping from his clock: clamp 0..10 s), S1-S3, O1 (drain the shared socket once a frame), O2 (a
   datagram pool), C7 (box3d hand shapes scan the model precache per hand per frame), C8 (Voice Chat page tests
   "talking" in the row text: export voicechat::talking).
+- **mp_coopbots, rare flake (2026-11-20, mpfinal)**: vr_dm_test 11's "the bot kills the grunt" gave up once in ten
+  takes (the grunt at 19 health at 864 frames; the fight is the bot's aim over 12 s of real time); the base before the
+  review passed its ten. Known; don't chase unless it repeats.
 
 ## 2. The 1.1 release (only on his word; his list is RELEASE_TODO.md)
 
