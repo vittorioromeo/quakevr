@@ -10,6 +10,7 @@
 
 #include "vr_engine.hpp"
 
+#include "Zancle/Container/Vector.hpp"
 #include "Zancle/Vocabulary/Optional.hpp"
 #include "vr_api.h"
 
@@ -121,6 +122,10 @@ struct ShotStop
 // Whether the player's box (Quake's hull 1) moves from `start` to `end` through the world's
 // geometry unblocked, from the client's own data.
 [[nodiscard]] bool playerBoxFits(const glm::vec3& start, const glm::vec3& end);
+
+// The client's entities that may be lifts, doors and platforms: brush models not the world's, in the newest message
+// (kept per message; main thread, as cl_entities), in their numbers' order.
+[[nodiscard]] const za::Vector<int>& brushModelEntities();
 
 [[nodiscard]] inline glm::vec3 endPos(const trace_t& tr)
 {

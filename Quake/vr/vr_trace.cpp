@@ -151,6 +151,11 @@ trace_t clientMove(const glm::vec3& start, const glm::vec3& mins, const glm::vec
 
 } // namespace
 
+const za::Vector<int>& brushModelEntities()
+{
+    return brushEntityList();
+}
+
 za::Optional<trace_t> move(
     const glm::vec3& start, const glm::vec3& mins, const glm::vec3& maxs, const glm::vec3& end, int type, int pass)
 {

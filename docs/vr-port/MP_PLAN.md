@@ -3888,3 +3888,28 @@ The deep review before agent/mp merges into next (`qvr-kit/scratch/mprev_A.md`, 
   console is up, or voice chat is inactive. Not harness-tested (needs a held button eaten by a page).
 - C6 skipped: the 8 bytes are what mp_avatar / mp_held check the weapon over the wire with (mp_test.py "wpn").
 - C7, C8: not done (budget); BACKLOG.md.
+
+## Review fixes, half 2: snapshots, prediction, lag compensation; QC, menus, harness (mpreview B and D, 2026-11-20)
+
+The deep review before agent/mp goes into next (`qvr-kit/scratch/mprev_B.md`, `mprev_D.md`); branch agent/mpfix2.
+
+| Finding | What | Done |
+|---|---|---|
+| B1 (medium) | The predict record's 700-byte reserve was less than its largest (744): a datagram overflow ended the server | Fixed: `VR_WritePredict` writes the record into its own 4 KB buffer and copies it into the datagram only when all of it fits (a field added later can't overflow it either); `SV_SendClientDatagram` sets `allowoverflow`/`overflowed` (stack garbage before) |
+| B2 (medium) | Lag compensation rewound every target once per pellet (a super shotgun: 14 full rewinds) | Fixed: one scope per shot in the two hitscan funnels every caller goes through, `FireBulletsImpl` (pellets; ended before ApplyMultiDamage: the damage dealt where they are, as melee's) and `LightningDamage` (its three lines); the tracelines inside find the scope open and skip. Test: `vr_dm_test 12` in mp_lagcomp (new builtin `lagcompcount`: one scope begun per blast and bolt, the 14 and 3 tracelines inside it) |
+| B3 (medium) | The prediction replay looped over every client entity in each trace | Fixed: the four loops go over `worldtrace::brushModelEntities()` (vr_trace.cpp's per-message brush list, now shared), same entities in the same order |
+| B4 (medium) | Two player walks (vr_pmove.cpp and sv_phys.c) | Left: a large refactor, BACKLOG.md section 9 |
+| B5 (low) | A reused edict was rewound to its previous occupant's place | Fixed: `entryAt` skips frames older than the edict's `freetime` |
+| B6 (low) | The room-scale budget clamps the server's walk, not the replay's | Left (BACKLOG.md 9): a protocol field and a cheater-only correction |
+| B7 (low) | Per-client snapshot encode work | Left (BACKLOG.md 9): an optimisation of the encoder's two passes |
+| B8 (low) | The 100-unit teleport cut at low send rates | Fixed: `netsnap::teleportCut(span)` (100 units, or 4000 u/s times the samples' gap), shared by interpEntity and lag compensation's drawnAt |
+| D1 (low) | Single player ran the PvP disarm projectile scan | Fixed: `VR_PD_Can` counts PvP only in coop or deathmatch |
+| D2 (low) | "mp_event: joined/left" printed in every game | Fixed: only with `vr_mp_watch` (the harness sets it on every game) |
+| D3 (low) | menu_paths.txt stale | Fixed: regenerated (`vr_menu_dump_paths`, 10,033 entries, +29) |
+| D4 (low) | Dead `M_Search_Draw`/`M_Search_Key` | Fixed: removed with their switch cases (the enum value kept) |
+| D5 (low) | Deathmatch's caps rescanned every edict per removal | Fixed: `VR_DMLoose_Cap` chains the candidates in one pass (edicts' order, same tie-break), then removes the oldest from the chain |
+| D6 (low) | A bot's reach kept going to a removed thing | Fixed: `bot_reach_valid` also needs the thing's `modelindex` |
+| D7 (low) | Two copies of the grapple's reel and wind (QC monsters/props, vr_pmove.cpp players) | Left (BACKLOG.md 9) |
+| D8 (low) | A >4 KB inbox line stalled the harness inbox | Fixed: dropped up to its newline with a console line; checked in mp_lagcomp (a 5,000-byte line, then a command that runs) |
+
+Checks: dev and ThinLTO builds 0 warnings (LTO exe relinked); mp_lagcomp + mp_dm alone 17/0 and 27/0 (vr_dm_test 12 3/0, the inbox check); SP scenario_check 136/1 (bench_crowd_ad, the known AD infighting), flatplay 31/0, flatparry 43/0, flathands 76/0, flatmelee 12/0; suite plain 54 of 57 (mp_coop_lag, mp_lagcomp's move view-time check, mp_voice_lossy: real-time checks, the other fixer's runs alongside); those three alone 12/0, 17/0, 28/0. --load 16 (the other fixer's suite running too: round trips up to 1 s): 33 of 57, every failure a latency or timing check, no Host_Error or overflow in any server log; to rerun on a quiet machine.

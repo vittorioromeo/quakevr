@@ -5592,3 +5592,26 @@ Tests: mp_spoof 27/0 (step 5: 16 forged connects each challenged with 9 B, no sl
 an accepted socket that never acks gets one chunk sequence and is dropped at 15 s; the A2 ghost pair: clients 3, 2,
 3), vr_voicechat_selftest 24/0 (4b: 0.0 ms jitter with copies and the wrap), mp_fuzz's hostile list has a heldpose
 record with slot 200.
+## mpfix2: the agent/mp review's B and D findings fixed (2026-11-20, agent/mpfix2)
+
+The second half of the fixes before agent/mp goes into next (the table: MP_PLAN.md, "Review fixes, half 2").
+- The predict record (QVR_SVC_PREDICT) is written into its own buffer and goes only whole and only when it fits: its
+  fixed 700-byte reserve was below its largest size, and an overflow ended the server. The datagram's sizebuf now has
+  `allowoverflow` set (false) instead of stack garbage.
+- Lag compensation rewinds once per shot: `FireBulletsImpl` (every gun's pellets) and `LightningDamage` (its three
+  lines) open one scope; the tracelines inside skip theirs. A super shotgun was 14 rewinds of every target. Builtin
+  `lagcompcount` (tests), `vr_dm_test 12` (run by mp_lagcomp).
+- A reused edict is not rewound to its previous occupant's place (frames before its `freetime` skipped).
+- The prediction replay's traces loop over the message's brush models (vr_trace.cpp's list, shared) instead of every
+  client entity.
+- The teleport cut (no lerp across a jump) scales with the two places' time gap: 100 units, or 4000 u/s times the gap,
+  for the drawing and lag compensation alike (low send rates, lost messages).
+- Single player: no PvP disarm projectile scan (PvP counts only in coop or deathmatch); no "mp_event" lines in the
+  console (only with `vr_mp_watch`).
+- Deathmatch's loose gib and weapon caps: one pass over the edicts, then the oldest removed from that list.
+- A bot's open hand stops reaching for a thing that was removed (its model cleared).
+- Harness: an inbox line over 4 KB is dropped instead of stalling the inbox; dead `M_Search_*` menu code removed;
+  menu_paths.txt regenerated.
+- Left, in BACKLOG.md section 9: B4 (one player walk), D7 (one grapple reel), B6 (room-scale budget in the replay),
+  B7 (snapshot encode sharing).
+- Checks: dev and ThinLTO builds 0 warnings (LTO exe relinked); mp_lagcomp + mp_dm alone 17/0 and 27/0 (vr_dm_test 12 3/0, the inbox check); SP scenario_check 136/1 (bench_crowd_ad, the known AD infighting), flatplay 31/0, flatparry 43/0, flathands 76/0, flatmelee 12/0; suite plain 54 of 57 (mp_coop_lag, mp_lagcomp's move view-time check, mp_voice_lossy: real-time checks, the other fixer's runs alongside); those three alone 12/0, 17/0, 28/0. --load 16 (the other fixer's suite running too: round trips up to 1 s): 33 of 57, every failure a latency or timing check, no Host_Error or overflow in any server log; to rerun on a quiet machine.

@@ -34,5 +34,6 @@ void init(); // cvars' commands: vr_lagcomp_shot / _punch (a client's test shot 
 // parry of another player's blow judged as e saw the others (their places, poses and hands), as his shots are.
 void PF_lagcompbegin();
 void PF_lagcompend();
+void PF_lagcompcount();
 
 } // namespace qvr::lagcomp

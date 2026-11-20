@@ -14,6 +14,7 @@
 #include "vr_physics.hpp"
 #include "vr_progs.hpp"
 #include "vr_protocol.hpp"
+#include "vr_trace.hpp"
 #include "vr_mem.hpp"
 
 #include "Zancle/Math/Clamp.hpp"
@@ -633,7 +634,7 @@ struct ClientBody final : pmove::Body
     {
         VectorCopy(vec3_origin, liftAt);
         const int on = (flags & FL_ONGROUND) && ground > 0 && ground < cl.num_entities ? ground : 0;
-        for(int k = 1; k < cl.num_entities; k++)
+        for(const int k : worldtrace::brushModelEntities()) // (the message's brush models: mpreview B3)
         {
             vec3_t v;
             if(!brushMover(cl_entities[k]) || (k != on && moverVel(k, v) <= 0.f))
@@ -679,7 +680,7 @@ struct ClientBody final : pmove::Body
             SV_RecursiveHullCheck(hull, hull->firstclipnode, 0.f, 1.f, const_cast<float*>(start), const_cast<float*>(end), &best);
         }
         hit = 0;
-        for(int k = 1; k < cl.num_entities; k++)
+        for(const int k : worldtrace::brushModelEntities()) // (the message's brush models: mpreview B3)
         {
             const entity_t& e = cl_entities[k];
             if(!brushMover(e))
@@ -716,7 +717,7 @@ struct ClientBody final : pmove::Body
         VectorCopy(end, best.endpos);
         hull_t* hull = &cl.worldmodel->hulls[0];
         SV_RecursiveHullCheck(hull, hull->firstclipnode, 0.f, 1.f, const_cast<float*>(start), const_cast<float*>(end), &best);
-        for(int k = 1; k < cl.num_entities; k++)
+        for(const int k : worldtrace::brushModelEntities()) // (the message's brush models: mpreview B3)
         {
             if(!brushMover(cl_entities[k]))
             {
@@ -763,8 +764,12 @@ struct ClientBody final : pmove::Body
         bool solid = tr.startsolid;
         float fraction = tr.fraction;
         // (and the brush models: MOVE_NOMONSTERS meets them -- the lift or door he walks on, B8d)
-        for(int k = 1; k < cl.num_entities && fraction == 1.f; k++)
+        for(const int k : worldtrace::brushModelEntities())
         {
+            if(fraction != 1.f)
+            {
+                break;
+            }
             const entity_t& e = cl_entities[k];
             if(!brushMover(e))
             {
@@ -2046,13 +2051,22 @@ void botWalk(edict_t* ent, float* obstructed)
 
 } // namespace qvr::predict
 
-extern "C" void VR_WritePredict(sizebuf_t* msg, client_t* client)
+extern "C" void VR_WritePredict(sizebuf_t* out, client_t* client)
 {
     const int slot = static_cast<int>(client - svs.clients);
-    if(!remoteMoves(slot) || !client->edict || msg->cursize + 700 > msg->maxsize)
+    if(!remoteMoves(slot) || !client->edict)
     {
         return;
     }
+    // The record is written into its own buffer and goes only if all of it fits the datagram (mpreview B1: a fixed
+    // reserve was smaller than the record's largest, and a datagram's overflow ends the server). Its size is whatever
+    // the fields below add up to, so a field added later can't overflow the datagram either.
+    byte recBuf[4096];
+    sizebuf_t rec{};
+    rec.data = recBuf;
+    rec.maxsize = sizeof(recBuf);
+    rec.allowoverflow = true; // (a record past 4 KB: dropped, never written in part)
+    sizebuf_t* const msg = &rec;
     const ServerSlot& s = serverSlots[slot];
     const edict_t* ent = client->edict;
     const pmove::Rules& r = s.rules;
@@ -2070,7 +2084,6 @@ extern "C" void VR_WritePredict(sizebuf_t* msg, client_t* client)
     climb::TakeRules take;
     climb::TakeMemory takeMem;
     const bool takes = !mantling && s.walked && climb::takeState(const_cast<edict_t*>(ent), take, takeMem) && take.enabled;
-    const int at = msg->cursize;
     MSG_WriteByte(msg, protocol::svc_quakevr);
     MSG_WriteByte(msg, protocol::QVR_SVC_PREDICT);
     MSG_WriteShort(msg, bits | (mantling ? bitMantle : 0) | (hanging ? bitHang : 0) | (takes ? bitTake : 0));
@@ -2245,7 +2258,13 @@ extern "C" void VR_WritePredict(sizebuf_t* msg, client_t* client)
     // (B24) the server's tick (its last: a dedicated server's are all host_netinterval, a listen host's follow his
     // headset's frames by a little)
     MSG_WriteFloat(msg, n > 0 ? static_cast<float>(host_frametime) : 0.f);
-    VR_SnapTake(msg, at, stateKey); // (a snapshot record: an idle player's costs a few bytes)
+    if(rec.overflowed || out->cursize + rec.cursize > out->maxsize)
+    {
+        return; // (no room this datagram: the next one's record has the newer state anyway)
+    }
+    const int at = out->cursize;
+    SZ_Write(out, rec.data, rec.cursize);
+    VR_SnapTake(out, at, stateKey); // (a snapshot record: an idle player's costs a few bytes)
 }
 
 extern "C" void VR_PredictRelink(int num, float* origin)

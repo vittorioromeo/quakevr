@@ -537,7 +537,7 @@ float(entity e, float vh) bot_reach_valid =
         return e.health > 0 && !VRIsHandWeaponless(e, vh) && cvar_hget(cvarh_vr_player_disarm_pvp) &&
                cvar_hget(cvarh_vr_player_disarm_grab);
     }
-    return e.handtouch != __NULL__;
+    return e.handtouch != __NULL__ && e.modelindex; // (removed: ED_Free clears its model, not its handtouch: mpreview D6)
 };
 
 // Its off hand's reach, once a frame (bot_setvrfields): open on its way, closed on it, pulling a player's weapon away;

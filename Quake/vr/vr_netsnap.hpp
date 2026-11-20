@@ -47,6 +47,14 @@ inline constexpr int heldKey = predictKey + 1; // what his hands hold, and where
 inline constexpr int poseKey = 3 << 16;    // + an armed humanoid's entity: its pose this frame (QVR_SVC_ARMPOSE, B12)
 inline constexpr int keyLimit = 4 << 16;   // every key below this
 
+// Two kept places of an entity `span` seconds apart further than this on an axis: a teleport, not lerped across (100
+// units at the frames' rate as before; a slower send rate or a lost message lets a body at twice sv_maxvelocity's
+// default go further between two: mpreview B8). The drawing (interpEntity) and lag compensation (drawnAt) share it.
+[[nodiscard]] constexpr float teleportCut(double span)
+{
+    return span * 4000.0 > 100.0 ? static_cast<float>(span * 4000.0) : 100.f;
+}
+
 // One snapshot: its records (sorted by key), each its bytes in `bytes`.
 struct Record
 {

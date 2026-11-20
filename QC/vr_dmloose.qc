@@ -24,43 +24,68 @@ float(entity w) VR_DMLoose_WeaponCounts =
     return w.carry_player == world && w.fg_state == 0 && time <= GetThrownWeaponTimeout(w);
 };
 
-// The oldest loose gib the cap counts (world: none), and how many there are (vr_dml_count).
+// The loose gibs (kind 0) or weapons (1) the cap counts, chained by vr_dml_next in the edicts' order, in one pass over
+// them (mpreview D5: each removal rescanned every edict) -> the first (world: none); vr_dml_count how many.
+.entity vr_dml_next;
 float vr_dml_count;
-entity() VR_DMLoose_OldestGib =
+entity(float kind) VR_DMLoose_Chain =
 {
-    entity oldest = world;
+    entity first = world, last = world;
     vr_dml_count = 0;
-    for(entity g = findflags(world, vr_gib, 1); g; g = findflags(g, vr_gib, 1))
+    entity e = kind ? find(world, classname, "thrown_weapon") : findflags(world, vr_gib, 1);
+    while(e)
     {
-        if(VR_DMLoose_GibCounts(g))
+        if(kind ? VR_DMLoose_WeaponCounts(e) : VR_DMLoose_GibCounts(e))
         {
+            e.vr_dml_next = world;
+            if(last) { last.vr_dml_next = e; } else { first = e; }
+            last = e;
             vr_dml_count++;
-            if(oldest == world || g.vr_gib_made < oldest.vr_gib_made)
-            {
-                oldest = g;
-            }
         }
+        e = kind ? find(e, classname, "thrown_weapon") : findflags(e, vr_gib, 1);
     }
-    return oldest;
+    return first;
 };
 
-// The oldest loose weapon (its deathmatch removal time the soonest: each is made with it 10 s on), and how many.
-entity() VR_DMLoose_OldestWeapon =
+// How old the cap takes `e` for (the smaller the older): a gib's making time; a weapon's deathmatch removal time (each
+// is made with it 10 s on).
+float(entity e, float kind) VR_DMLoose_Age =
 {
-    entity oldest = world;
-    vr_dml_count = 0;
-    for(entity w = find(world, classname, "thrown_weapon"); w; w = find(w, classname, "thrown_weapon"))
+    return kind ? GetThrownWeaponTimeout(e) : e.vr_gib_made;
+};
+
+// The oldest of a kind go while there are more than `most` (of equal age, the first in the edicts' order).
+void(float kind, float most) VR_DMLoose_Cap =
+{
+    entity first = VR_DMLoose_Chain(kind);
+    while(first && vr_dml_count > most)
     {
-        if(VR_DMLoose_WeaponCounts(w))
+        entity oldest = world, before = world, prev = world;
+        for(entity e = first; e; e = e.vr_dml_next)
         {
-            vr_dml_count++;
-            if(oldest == world || GetThrownWeaponTimeout(w) < GetThrownWeaponTimeout(oldest))
+            if(oldest == world || VR_DMLoose_Age(e, kind) < VR_DMLoose_Age(oldest, kind))
             {
-                oldest = w;
+                oldest = e;
+                before = prev;
             }
+            prev = e;
+        }
+        if(before) { before.vr_dml_next = oldest.vr_dml_next; } else { first = oldest.vr_dml_next; }
+        vr_dml_count--;
+        if(kind)
+        {
+            VR_Saw_PropStop(oldest); // (as wpnthrow_think's deathmatch removal)
+            remove(oldest);
+            vr_dml_weapons_gone++;
+        }
+        else
+        {
+            VR_Head_StopFlies(oldest);
+            oldest.vr_gib = FALSE;
+            remove(oldest);
+            vr_dml_gibs_gone++;
         }
     }
-    return oldest;
 };
 
 // vr_dm_test 7: the caps as out of deathmatch, the game itself left in it. (B25b: the test set `deathmatch` 0 for 3 frames,
@@ -77,26 +102,11 @@ void() VR_DMLoose_Frame =
     float most = floor(cvar_hget(cvarh_vr_dm_gibs_max));
     if(most > 0)
     {
-        entity g = VR_DMLoose_OldestGib();
-        while(g && vr_dml_count > most)
-        {
-            VR_Head_StopFlies(g);
-            g.vr_gib = FALSE;
-            remove(g);
-            vr_dml_gibs_gone++;
-            g = VR_DMLoose_OldestGib();
-        }
+        VR_DMLoose_Cap(0, most);
     }
     most = floor(cvar_hget(cvarh_vr_dm_weapons_max));
     if(most > 0)
     {
-        entity w = VR_DMLoose_OldestWeapon();
-        while(w && vr_dml_count > most)
-        {
-            VR_Saw_PropStop(w); // (as wpnthrow_think's deathmatch removal)
-            remove(w);
-            vr_dml_weapons_gone++;
-            w = VR_DMLoose_OldestWeapon();
-        }
+        VR_DMLoose_Cap(1, most);
     }
 };

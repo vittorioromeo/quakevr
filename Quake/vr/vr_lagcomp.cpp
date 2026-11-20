@@ -72,6 +72,10 @@ struct Saved
     bool on{false};
     za::Vector<Moved> of;
     double backMs{0.0}; // (the last scope's: how far back the others went, for its report)
+    // (for the tests, lagcompcount: scopes begun, and begins inside one that skipped -- a blast's pellets inside its
+    // FireBullets scope: mpreview B2)
+    int begun{0};
+    int nested{0};
 };
 Saved saved;
 
@@ -221,13 +225,16 @@ void put(edict_t* e, const Entry& in)
     {
         return false;
     }
-    const Entry* a = entryOf(*fa, num);
+    // (a frame before the edict's last free kept another entity in it: a reused edict is not put where its previous
+    // occupant stood, mpreview B5)
+    const double since = static_cast<double>(EDICT_NUM(num)->freetime);
+    const Entry* a = fa->time < since ? nullptr : entryOf(*fa, num);
     if(!a)
     {
         return false;
     }
     out = *a;
-    const Entry* b = fb ? entryOf(*fb, num) : nullptr;
+    const Entry* b = fb && fb->time >= since ? entryOf(*fb, num) : nullptr;
     if(b && !a->step && fb->time > fa->time)
     {
         const float f = za::clamp(static_cast<float>((t - fa->time) / (fb->time - fa->time)), 0.f, 1.f);
@@ -310,9 +317,10 @@ constexpr int sentMost = 24;
     if(tb != ta && entryAt(num, tb, b))
     {
         bool teleport = false;
+        const float cut = netsnap::teleportCut(tb - ta);
         for(int i = 0; i < 3; i++)
         {
-            teleport = teleport || za::abs(b.origin[i] - out.origin[i]) > 100.f; // (interpEntity's: no lerp across it)
+            teleport = teleport || za::abs(b.origin[i] - out.origin[i]) > cut; // (interpEntity's: no lerp across it)
         }
         for(int i = 0; i < 3 && !teleport; i++)
         {
@@ -420,7 +428,12 @@ mem::Reset serverWorldReset{"lagcomp", mem::ResetEvent::ServerWorld, mem::ResetP
 
 bool begin(edict_t* shooter, double most)
 {
-    if(saved.on || !sv.active || vr_net_lagcomp.value == 0.f || !shooter)
+    if(saved.on)
+    {
+        saved.nested++;
+        return false;
+    }
+    if(!sv.active || vr_net_lagcomp.value == 0.f || !shooter)
     {
         return false;
     }
@@ -459,6 +472,7 @@ bool begin(edict_t* shooter, double most)
         put(e, then);
     }
     saved.on = true;
+    saved.begun++;
     saved.backMs = (now - bufferAt) * 1000.0;
     hitmodel::detail::poseTimeOverride = stepAt; // (the monsters' poses as his client lerped them)
     return true;
@@ -736,6 +750,13 @@ void PF_lagcompbegin()
 void PF_lagcompend()
 {
     end();
+}
+
+// lagcompcount(float which): the tests' counts since the server started -- 0: scopes begun, 1: begins that found one
+// open and skipped (mpreview B2: a blast rewinds once, its pellets' tracelines inside it).
+void PF_lagcompcount()
+{
+    G_FLOAT(OFS_RETURN) = static_cast<float>(G_FLOAT(OFS_PARM0) == 0.f ? saved.begun : saved.nested);
 }
 
 } // namespace qvr::lagcomp

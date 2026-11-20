@@ -5428,9 +5428,24 @@ def lagcomp(s):
             bool(backs) and all(LAGCOMP_BACK[0] <= x <= LAGCOMP_SHOT_MOST for x in backs), "%s" % backs)
     s.check("his moves say as much (each move's view time: what lag compensation of his real shots uses)",
             bool(moves) and all(LAGCOMP_BACK[0] <= x <= LAGCOMP_BACK[1] for x in moves), "%s" % moves)
+    # (mpreview B2) a remote human's real blast and bolt (QC's FireBulletsImpl, LightningDamage) rewind the others once
+    # each, their pellets' and lines' tracelines inside that one scope (vr_dm_test 12: one frame)
+    # (mpreview D8, first: an inbox line longer than its 4 KB read is dropped, and the inbox goes on with the next)
+    since_b = b.mark()
+    b.cmd("echo mpfix_long " + "x" * 5000)
+    b.cmd("echo mpfix_inbox_after")
+    _, after = b.wait(r"mpfix_inbox_after", 20, since_b, "B's inbox past a 5000-byte line")
+    s.check("B's inbox drops a line longer than its read and runs the next (vr_mptest.cpp pollInbox)",
+            b.find(r"inbox line longer than", since_b) is not None and b.find(r"mpfix_long", since_b) is None, after)
+    since = srv.mark()
+    srv.cmd("vr_dm_test 12")
+    _, verdict = srv.wait(r"dmtest: \d+ passed, \d+ failed", 30, since, "vr_dm_test 12's verdict")
+    got = [l.strip() for l in srv.lines[since:] if "dmtest: " in l]
+    s.check("a remote human's blast and bolt each rewind the others once, not per pellet or line (vr_dm_test 12)",
+            " 0 failed" in verdict, "%s %s" % (verdict.strip(), got[-4:]))
 
 
-VOICE_HZ = 440              # A's test tone (vr_voicechat_test_tone: in place of his microphone)
+VOICE_HZ = 440             # A's test tone (vr_voicechat_test_tone: in place of his microphone)
 VOICE_NAME = "VoiceA"       # A's name (his row on B's Voice Chat page)
 VOICE_DELAY_MS = 250        # A's tone captured -> heard at B (the capture's frame, the server, B's jitter delay and lead)
 VOICE_BUDGET = 8000         # vr_net_voice_bytes' default, B/s (a frame and its copy in the next datagram: ~6.8 KB/s)

@@ -1928,9 +1928,10 @@ bool interpEntity(int num, float origin[3], float angles[3])
     const Sample* only = !older ? newer : !newer ? older : nullptr; // (before the oldest, or past the newest: held)
     if(!only)
     {
+        const float cut = teleportCut(newer->t - older->t);
         for(int j = 0; j < 3; j++)
         {
-            if(za::abs(newer->origin[j] - older->origin[j]) > 100.f)
+            if(za::abs(newer->origin[j] - older->origin[j]) > cut)
             {
                 only = older; // (a teleport: no lerp across it; the newer when its time comes)
             }

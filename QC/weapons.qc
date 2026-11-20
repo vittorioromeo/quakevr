@@ -2351,6 +2351,9 @@ void(float shotcount, vector dir, vector spread, vector src, float xRange, float
     VR_SmallGib_BlastBegin(); // VR: the blast's pellets one hit for the small gibs (vr_smallgibs.qc)
     vr_decap_pellets = shotcount; // VR: head pops' chance (vr_decap.qc): the share of the blast at the head, the range
     vr_decap_src = src;
+    // QVR: a remote client's blast meets the others where his screen showed them, rewound once for all its pellets (the
+    // pellets' tracelines inside skip their own: mpreview B2); the damage is dealt where they are (ApplyMultiDamage).
+    float lc = lagcompbegin(self);
     while(shotcount > 0)
     {
         direction = dir + crandom()*spread_x*v_right + crandom()*spread_y*v_up;
@@ -2430,6 +2433,10 @@ void(float shotcount, vector dir, vector spread, vector src, float xRange, float
         }
 
         shotcount = shotcount - 1;
+    }
+    if(lc)
+    {
+        lagcompend();
     }
     ApplyMultiDamage();
     VR_SmallGib_BlastEnd();
@@ -2811,6 +2818,9 @@ void(vector p1, vector p2, entity from, float damage) LightningDamage =
     VR_Lightning_Burn(p1, p2); // VR: and on a surface leaves a lasting burn
 
     // (The bolt's credit is `from`'s: a player's by his lightning gun, W_FireLightning; vr_dmgcredit.qc.)
+    // QVR: a remote client's bolt meets the others where his screen showed them, rewound once for its three lines (their
+    // tracelines inside skip their own: mpreview B2).
+    float lc = lagcompbegin(self);
     traceline(p1, p2, MOVE_HITGIBS | MOVE_HITMODEL | vr_lightning_hitpass, self); // VR: gibs and heads too (vr_gib_destroy), monsters' models (precise hits),
     // VR: the prop the beam hits or goes through, pushed (a player's bolt: 30; a shambler's by its damage).
     VR_ShotPush(trace_ent, p1, trace_endpos, p2 - p1, QVR_SHOTPUSH_LIGHTNING, damage / 30);
@@ -2854,6 +2864,10 @@ void(vector p1, vector p2, entity from, float damage) LightningDamage =
         {
             VR_HitBloodSplash(trace_ent, trace_endpos, damage * 5);
         }
+    }
+    if(lc)
+    {
+        lagcompend();
     }
 };
 
