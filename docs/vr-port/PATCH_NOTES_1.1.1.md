@@ -54,6 +54,9 @@ The guide: [MULTIPLAYER.md](MULTIPLAYER.md).
   routers that change port numbers too (Quake gave each player a port of his own).
 - **You see each other as you are**: heads, hands, fingers, held weapons and bodies sized by each player's own
   calibration, moving smoothly between the server's updates.
+- **Other players' guns and torches as they are**: the heavy revolver's cylinder swinging out and its shells, a super
+  shotgun broken open, magazines in or dropped and the rounds they show, the ammo screen's count, the Widowmaker's
+  spinning barrels; another player's flashlight is drawn where he carries it and lights the world where it points.
 - **Everything you can do alone works together**: grabbing, throwing, melee and parries, climbing and mantling, the
   grapple, holsters and pouches, reloads, force grab; hand weapons and ammo to each other, knock weapons out of other
   players' hands in deathmatch.

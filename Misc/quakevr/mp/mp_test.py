@@ -2026,17 +2026,21 @@ def gun_until(s, a, b, eb, side, want, what, tries=40):
 
 
 def press_until(s, b, eb, button, done, what, tries=40):
-    """B's main `button` pressed until done(B's own mp_gun_own of his main hand), then let go."""
-    b.cmd("vr_mock_button main %s 1" % button)
-    try:
-        for _ in range(tries):
+    """B's main `button` pressed until done(B's own mp_gun_own of his main hand), then let go. (Let go a report before:
+    the server sees a new press, an edge; and the revolver ignores B/Y for 0.3 s after it swings: pressed again while
+    not done.)"""
+    for _ in range(tries):
+        b.cmd("vr_mock_button main %s 0" % button)
+        reports(s, [b])
+        b.cmd("vr_mock_button main %s 1" % button)
+        for _ in range(4):
             (lb,) = reports(s, [b])
             if done(gun_lines(lb, "mp_gun_own", eb).get(1, {})):
+                b.cmd("vr_mock_button main %s 0" % button)
                 return
-        s.check(what, False, "B's own gun never changed")
-        raise StepFailed(what)
-    finally:
-        b.cmd("vr_mock_button main %s 0" % button)
+    b.cmd("vr_mock_button main %s 0" % button)
+    s.check(what, False, "B's own gun never changed")
+    raise StepFailed(what)
 
 
 RV_HELD, RV_OPEN = 131072, 4096
