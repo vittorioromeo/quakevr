@@ -10,6 +10,14 @@ build/
 /build-debug/
 /.vs
 /out/
+# QVR: the Android build's output (Android/README.md)
+/build-android/
+/build-android-gradle/
+/Android/.gradle/
+/Android/build/
+/Android/app/build/
+/Android/app/.cxx/
+/Android/local.properties
 
 # QVR: Quake VR's build and packaging output (quakevr/ and Quake/vr/ have their own .gitignore: the game folder's
 # files go there)

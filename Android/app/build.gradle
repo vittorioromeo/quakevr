@@ -1,0 +1,92 @@
+// Quake VR's APK (docs/vr-port/QUEST_PLAN.md, C3): SDL2's Java activity (from SDL2's source) under our own
+// (QuakeVRActivity), the engine and SDL2 built by the top-level CMakeLists.txt with the NDK (Android/android.cmake),
+// arm64-v8a only (the Quest). Android/package_apk.sh builds the same APK without Gradle.
+plugins {
+    id 'com.android.application'
+}
+
+def sdl2Dir = project.findProperty('qvrSdl2Dir') ?: System.getenv('QVR_SDL2_DIR')
+if (!sdl2Dir) {
+    throw new GradleException("Quake VR: set qvrSdl2Dir (Android/gradle.properties or -PqvrSdl2Dir=...) or QVR_SDL2_DIR to SDL2's source folder")
+}
+sdl2Dir = sdl2Dir.replace('\\', '/')
+
+android {
+    namespace 'com.vittorioromeo.quakevr'
+    compileSdk 34
+    ndkVersion '27.2.12479018'
+
+    defaultConfig {
+        applicationId 'com.vittorioromeo.quakevr'
+        minSdk 29
+        targetSdk 32 // (the Quest store's target level [?]: C7 checks it)
+        versionCode 1
+        versionName '1.1.0'
+        ndk {
+            abiFilters 'arm64-v8a'
+        }
+        externalNativeBuild {
+            cmake {
+                arguments "-DQVR_SDL2_DIR=${sdl2Dir}", '-DANDROID_STL=c++_static'
+                targets 'ironwail', 'SDL2'
+            }
+        }
+    }
+
+    externalNativeBuild {
+        cmake {
+            path '../../CMakeLists.txt'
+            version '3.22.1'
+            buildStagingDirectory '../../build-android-gradle'
+        }
+    }
+
+    sourceSets {
+        main {
+            java.srcDirs = ['src/main/java', "${sdl2Dir}/android-project/app/src/main/java"]
+        }
+    }
+
+    buildTypes {
+        debug {
+            jniDebuggable true
+        }
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.debug // (a real key: C7)
+        }
+    }
+
+    packagingOptions {
+        jniLibs {
+            useLegacyPackaging true
+        }
+    }
+
+    lint {
+        abortOnError false
+    }
+}
+
+// Steam Audio's Android library (optional; the engine loads libphonon.so at run time and does without it):
+// qvrSteamAudioDir or QVR_STEAMAUDIO_DIR names the unpacked release (its lib/android-armv8/libphonon.so).
+def steamAudioDir = project.findProperty('qvrSteamAudioDir') ?: System.getenv('QVR_STEAMAUDIO_DIR')
+if (steamAudioDir) {
+    def phononDir = "${buildDir}/qvr-phonon"
+    tasks.register('qvrCopyPhonon', Copy) {
+        from "${steamAudioDir.replace('\\', '/')}/lib/android-armv8/libphonon.so"
+        into "${phononDir}/arm64-v8a"
+    }
+    android.sourceSets.main.jniLibs.srcDirs += [phononDir]
+    tasks.named('preBuild') { dependsOn 'qvrCopyPhonon' }
+}
+
+// Khronos' OpenXR loader (C4a): qvrOpenXrDir or QVR_OPENXR_ANDROID_DIR names its AAR, unpacked
+// (jni/arm64-v8a/libopenxr_loader.so): the engine links it (Android/android.cmake) and the APK carries it. Without it
+// the engine has the mock backend alone. (The Maven AAR, org.khronos.openxr:openxr_loader_for_android, is the same.)
+def openXrDir = project.findProperty('qvrOpenXrDir') ?: System.getenv('QVR_OPENXR_ANDROID_DIR')
+if (openXrDir) {
+    openXrDir = openXrDir.replace('\\', '/')
+    android.defaultConfig.externalNativeBuild.cmake.arguments "-DQVR_OPENXR_ANDROID_DIR=${openXrDir}"
+    android.sourceSets.main.jniLibs.srcDirs += ["${openXrDir}/jni"]
+}

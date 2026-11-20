@@ -1084,6 +1084,11 @@ extern "C" const char *VR_LastCrashReport (void)
 	return reportPath;
 }
 
+extern "C" const char *VR_CrashReportDir (void)
+{
+	return crashDir;
+}
+
 extern "C" void VR_SetCrashGpu (const char *line)
 {
 	snprintf (crashGpu, sizeof (crashGpu), "%s", line ? line : "");
@@ -1250,7 +1255,7 @@ extern "C" unsigned VR_DescribeCallers (char *out, int outSize, int skip, int de
 	return hash;
 }
 
-#else // POSIX (Linux): signal handlers, glibc's backtrace
+#else // POSIX (Linux, Android): signal handlers, glibc's backtrace (Android: the unwinder's)
 
 /* Crash reports on Linux: a crash signal (SIGSEGV, SIGBUS, SIGFPE, SIGILL, SIGABRT: abort, a failed assert) on any
  * thread, an engine error (Sys_Error: sys_sdl_unix.c) and a failed Zancle assert write <game folder>/crash/<date>_<time>.txt
@@ -1260,11 +1265,20 @@ extern "C" unsigned VR_DescribeCallers (char *out, int outSize, int skip, int de
  * "addr2line -f -C -e ironwail 0x<offset>" against the same build. The handler runs on its own stack (sigaltstack: a stack
  * overflow still reports), from fixed buffers, writing with write(2); then the signal goes to the handler that was
  * there before (crashSignal's chaining below: the default action on Linux, a core dump where enabled; a sanitizer's or
- * a debugger's). One report per process. */
+ * a debugger's). One report per process.
+ * Android (the Quest; vr_android.cpp sets the folder: <base>/quakevr/crash): the same handler, the stack from the
+ * unwinder (_Unwind_Backtrace: bionic has glibc's backtrace only from API 33), the report also to logcat (stderr goes
+ * nowhere there), then bionic's own handler, which the linker installs before main: the system's tombstone, the native
+ * crash in ActivityManager (with SIG_DFL instead the kernel just killed the process: no tombstone). */
 
 #include <dlfcn.h>
 #include <errno.h>
+#ifdef __ANDROID__
+#include <android/log.h>
+#include <unwind.h>
+#else
 #include <execinfo.h>
+#endif
 #include <fcntl.h>
 #include <limits.h>
 #include <pthread.h>
@@ -1300,6 +1314,44 @@ int reporting = 0;                         // a fatal report under way (one per 
 alignas(16) unsigned char altStack[64 * 1024]; // the signal handlers' stack (a stack overflow has none left)
 char report[48 * 1024];                    // the report being written
 size_t reportLen = 0;
+
+#ifdef __ANDROID__
+struct UnwindState
+{
+	void **frames;
+	int count;
+	int max;
+	int skip; // (stackFrames' own frame)
+};
+
+_Unwind_Reason_Code unwindFrame (_Unwind_Context *context, void *arg)
+{
+	UnwindState *s = static_cast<UnwindState *> (arg);
+	const uintptr_t pc = _Unwind_GetIP (context);
+	if (pc && s->skip > 0)
+		s->skip--;
+	else if (pc && s->count < s->max)
+		s->frames[s->count++] = reinterpret_cast<void *> (pc);
+	return s->count < s->max ? _URC_NO_REASON : _URC_END_OF_STACK;
+}
+#endif
+
+// The return addresses on this thread's stack, its caller's first (glibc's backtrace; Android: the unwinder's).
+[[gnu::noinline]] int stackFrames (void **frames, int max)
+{
+#ifdef __ANDROID__
+	UnwindState s{frames, 0, max, 1};
+	_Unwind_Backtrace (unwindFrame, &s);
+	return s.count;
+#else
+	// (glibc's frame 0 is backtrace's caller, here: the same count as the caller's own call)
+	void *own[maxFrames + 1];
+	const int n = backtrace (own, max + 1 < maxFrames + 1 ? max + 1 : maxFrames + 1);
+	for (int i = 1; i < n; i++)
+		frames[i - 1] = own[i];
+	return n > 0 ? n - 1 : 0;
+#endif
+}
 
 void appendf (const char *fmt, ...)
 {
@@ -1369,7 +1421,11 @@ void writeReport (const char *what, void *const *frames, int count, int skip)
 		appendf ("GL, last steps: %s\n", steps);
 	appendf ("Thread: %s (%lu)\n", pthread_equal (pthread_self (), mainThread) ? "main" : "not the main thread",
 		(unsigned long)pthread_self ());
+#ifdef __ANDROID__
+	appendf ("Stack (resolve an offset with: llvm-addr2line -f -C -e libquakevr.so 0x<offset>, the same build's unstripped library; or ndk-stack):\n");
+#else
 	appendf ("Stack (resolve an offset with: addr2line -f -C -e ironwail 0x<offset>, the same build):\n");
+#endif
 	for (int i = skip; i < count; i++)
 		appendFrame (i - skip, frames[i]);
 
@@ -1393,6 +1449,24 @@ void writeReport (const char *what, void *const *frames, int count, int skip)
 		writeAll (err, reportPath, strlen (reportPath));
 		writeAll (err, "\n", 1);
 	}
+#ifdef __ANDROID__
+	// logcat, a line a message (a message is cut at about 4 KB); the report's own lines, then where it is.
+	char line[512];
+	for (size_t at = 0; at < reportLen;)
+	{
+		size_t n = 0;
+		while (at + n < reportLen && report[at + n] != '\n' && n + 1 < sizeof (line))
+		{
+			line[n] = report[at + n];
+			n++;
+		}
+		line[n] = 0;
+		at += n + (at + n < reportLen && report[at + n] == '\n' ? 1 : 0);
+		__android_log_write (ANDROID_LOG_FATAL, "QuakeVR", line);
+	}
+	if (reportPath[0])
+		__android_log_print (ANDROID_LOG_FATAL, "QuakeVR", "Crash report: %s", reportPath);
+#endif
 	if (testRun)
 	{
 		const int t = open ("qvr_crash.txt", O_WRONLY | O_CREAT | O_TRUNC, 0644); // (the kit's run scripts print it)
@@ -1491,7 +1565,7 @@ void crashSignal (int sig, siginfo_t *info, void *)
 		_exit (128 + sig);
 	}
 	void *frames[maxFrames];
-	const int n = backtrace (frames, maxFrames);
+	const int n = stackFrames (frames, maxFrames);
 	char what[256];
 	if (sig == SIGABRT)
 		snprintf (what, sizeof (what), "%s", signalName (sig));
@@ -1509,7 +1583,7 @@ void fatal (const char *what)
 		_exit (1);
 	}
 	void *frames[maxFrames];
-	const int n = backtrace (frames, maxFrames);
+	const int n = stackFrames (frames, maxFrames);
 	writeReport (what, frames, n, 2); // (this function and its caller's entry point)
 	VR_LogsIncident ("a fatal error (the report is in crash/)");
 	VR_DiagnosticsEnd (1);
@@ -1524,7 +1598,7 @@ extern "C" unsigned VR_DescribeCallers (char *out, int outSize, int skip, int de
 	if (outSize > 0)
 		out[0] = 0;
 	void *frames[maxFrames];
-	const int n = backtrace (frames, maxFrames);
+	const int n = stackFrames (frames, maxFrames);
 	const int first = 1 + (skip > 0 ? skip : 0); // (frame 0: here)
 	const int last = depth > 0 && first + depth < n ? first + depth : n;
 	unsigned hash = 2166136261u;
@@ -1562,7 +1636,7 @@ extern "C" void VR_InstallCrashHandler (void)
 		unlink ("qvr_crash.txt");
 	// backtrace once now: it loads libgcc_s on first use (malloc), which the handler must not.
 	void *warm[4];
-	backtrace (warm, 4);
+	stackFrames (warm, 4);
 	stack_t ss{};
 	ss.ss_sp = altStack;
 	ss.ss_size = sizeof (altStack);
@@ -1592,7 +1666,7 @@ extern "C" void VR_ErrorReport (const char *message)
 	char what[1100];
 	snprintf (what, sizeof (what), "Sys_Error: %s", message);
 	void *frames[maxFrames];
-	const int n = backtrace (frames, maxFrames);
+	const int n = stackFrames (frames, maxFrames);
 	writeReport (what, frames, n, 1);
 }
 
@@ -1606,6 +1680,11 @@ extern "C" void VR_FatalError (const char *message)
 extern "C" const char *VR_LastCrashReport (void)
 {
 	return reportPath;
+}
+
+extern "C" const char *VR_CrashReportDir (void)
+{
+	return crashDir;
 }
 
 extern "C" void VR_SetCrashContext (const char *what)

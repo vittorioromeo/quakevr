@@ -1265,6 +1265,11 @@ void fillSlots()
 // same settings already relit again (vr_relight's always are).
 void startBatch(za::Vector<maps::Source> sources, bool single, bool force, int alreadyLit = 0, bool brushes = false, const char* bakeMap = nullptr)
 {
+    if(!VR_ChildProcesses())
+    {
+        say("relighting runs ericw-tools' light as a process of its own: none on this platform (Android, -nochildprocesses)");
+        return;
+    }
     if(busy())
     {
         say(batch.active ? "already relighting: cancel it first" : "reloading the map: wait a moment");

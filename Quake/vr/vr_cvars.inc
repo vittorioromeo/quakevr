@@ -582,6 +582,9 @@ QVR_CVAR(vr_xr_skip_incompatible_layers, "1", CVAR_ARCHIVE)
 // or Meta's menu): 1 the eyes are not rendered, the last frame is shown again (world-locked: the runtime reprojects
 // it; the GPU left to the runtime's menu); 0 they are rendered as usual.
 QVR_CVAR(vr_xr_unfocused, "1", CVAR_ARCHIVE)
+// Android (the Quest) while VR runs: 0 the app's window gets no flat image and no present (the system never shows it:
+// the headset's frames only); 1 drawn and presented as on the PC (the flat-panel APK). No effect on the PC.
+QVR_CVAR(vr_android_window, "0", CVAR_NONE)
 // While the runtime's own menu has the focus (as vr_xr_unfocused): 1 a single player game paused as the game's own
 // menu pauses it (the world and its time stand still; the sounds faded to vr_xr_unfocused_volume, the music paused),
 // resumed as the focus comes back; 0 it runs on (multiplayer always does: the server isn't paused for one player).
@@ -623,6 +626,28 @@ QVR_CVAR(vr_debug_mirror_vsync, "0", CVAR_NONE)
 // of the panel's area on Auto), at the next VR start: smaller images cost less to render, copy (SteamVR's OpenGL path
 // copies each into its own textures) and keep in video memory. 0.5 .. 1.
 QVR_CVAR(vr_xr_eye_scale, "1", CVAR_ARCHIVE)
+// The Quest's runtime (Android; the PC's runtimes never get these extensions; vr_backend_openxr_quest.cpp), applied
+// while the session runs, again when changed; 0 leaves the runtime's own. vr_xr_refresh_rate: the display's refresh
+// rate in Hz (XR_FB_display_refresh_rate; the nearest one offered, e.g. 72, 90, 120). vr_xr_cpu_level and
+// vr_xr_gpu_level (XR_EXT_performance_settings): 1 power savings, 2 sustained low, 3 sustained high, 4 boost.
+// vr_xr_foveation (XR_FB_foveation): the eye images' fixed foveation, 1 low, 2 medium, 3 high (dynamic: off).
+QVR_CVAR(vr_xr_refresh_rate, "0", CVAR_ARCHIVE)
+// vr_quest_check (each Android start, after the saved config; vr_gfxpresets.cpp): 1 the settings that break the Quest's
+// frames (MSAA, bloom) set back, each said in the log; 0 only said.
+QVR_CVAR(vr_quest_guard, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_xr_cpu_level, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_xr_gpu_level, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_xr_foveation, "0", CVAR_ARCHIVE)
+// C4q (QUEST_PLAN.md 6x; a probe): the eye swapchains' foveation create flags, read when they are made: 1 scaled bins
+// (XR_SWAPCHAIN_CREATE_FOVEATION_SCALED_BIN_BIT_FB), 0 none (Meta's GLES sample's: the runtime's choice).
+QVR_CVAR(vr_xr_foveation_flags, "1", CVAR_NONE)
+// C4q (6x; a probe): bits narrowing the foveated images' crash in xrEndFrame: 1 late acquire and the image's invalidate
+// allowed with them (off with vr_xr_foveation and -xrfoveation since C4p), 2 the eye image released before it is detached
+// from the engine's framebuffer (the order before C4q).
+QVR_CVAR(vr_xr_foveation_probe, "0", CVAR_NONE)
+// C5's first path (QUEST_PLAN.md 6w; a probe, the ES profile only): 1 draws each eye's scene straight into its swapchain
+// image (no post-process: no tone curve), so vr_xr_foveation reaches the scene; one pass an eye (not single-pass stereo).
+QVR_CVAR(vr_xr_direct, "0", CVAR_NONE)
 // The headset panel's pixels per eye, "WxH", for the menu's status box (the runtime's resolution and the eyes' as a
 // share of it, and its warning); "" looked up by the headset's name (Quest 2, 3, 3S, Pro, Index, Vive, Reverb G2,
 // Pico 4...: SteamVR names none, Virtual Desktop and Meta do).
@@ -2156,6 +2181,11 @@ QVR_CVAR(vr_explosion_debris_max, "96", CVAR_ARCHIVE) // oldest retired first, h
 QVR_CVAR(vr_explosion_debris_mp_max, "24", CVAR_ARCHIVE) // most at once in multiplayer (server entities: each in sight costs every remote client's datagram about 26 bytes a frame while it lives); -1: as in single player (vr_explosion_debris_max), 0: none
 QVR_CVAR(vr_explosion_debris_trail, "1", CVAR_ARCHIVE) // trail density, 0 off
 QVR_CVAR(vr_explosion_debris_lights, "8", CVAR_ARCHIVE) // nearest glowing chunks, cap 16 of the shared dlights
+QVR_CVAR(vr_rig_lights_world, "1", CVAR_ARCHIVE) // (C4v, QUEST_PLAN.md 6zb; a cvar: the Quest preset sets it) 1: the rig's small lights (the guns' screen lights, the wrist gadget's two) light the walls as well as the hands and gear. 0 (the Quest preset's choice; his look call, so 1 there for now): they light the player's own models only, the world's shader skipping them (under the ES profile's plain lights' loop: vr_gl_lights_plain, QVR_LITE_RIGNOWORLD) and the world's unlit test ignoring them (vr_gl_world_unlit). No effect elsewhere (the PC's shaders).
+// Debug > Profiling and Memory > Skip Empty Lit Commands (Quest): (C4w, QUEST_PLAN.md 6zc) 1 the world split by surface
+// (vr_gl_world_unlit 2) draws only the lit commands of textures with a surface a reaching light's sphere touches in the
+// view's PVS (r_world.c R_WorldLitTextures: a CPU walk of the leaves); 0 every texture's lit command, as C4v (the A/B).
+QVR_CVAR(vr_gl_world_lit_skip, "1", CVAR_NONE)
 QVR_CVAR(vr_explosion_debris_light_radius, "48", CVAR_ARCHIVE) // units at world scale 1
 
 QVR_CVAR(vr_particle_mult, "1", CVAR_ARCHIVE)         // how many of them
@@ -2250,6 +2280,7 @@ QVR_CVAR(vr_profile_overlay, "0", CVAR_NONE)           // the profiler's panel (
 QVR_CVAR(vr_profile_gpu, "4", CVAR_NONE)               // the profiler's GPU times: its GPU scopes' timer queries on one frame in this many (each stalls the GPU a little: 1 every frame, 4 a quarter of the cost; 0 none, the CPU's times alone)
 QVR_CVAR(vr_profile_detail, "1", CVAR_NONE)            // 2: the profiler also times every trace (SV_Move) and every QuakeC builtin call apart (dearer)
 QVR_CVAR(vr_profile_csv, "0", CVAR_NONE)               // 1: the profiler writes a row a second, a column per system, to <gamedir>/profile/systems_<date>_<time>.csv
+QVR_CVAR(vr_profile_slow_ms, "250", CVAR_NONE)         // the profiler leaves frames longer than this (ms) out of its averages (a load, a hitch); raise it on a device whose every frame is slower (the Quest's first boots)
 QVR_CVAR(vr_profile_hitch, "1.5", CVAR_NONE)           // while the profiler collects, frames over this many budgets (refresh periods) are logged with their breakdown (console, profile/hitches_*.csv); 0 off
 QVR_CVAR(vr_bench_profiler, "0", CVAR_NONE)          // an external CPU profiler (VTune with -start-paused) collects only: 1 inside benchmark windows (vr_bench_begin, from its first recorded frame to its end); 2 inside map loads (the command to the first frame drawn); 0 as it was started. vr_profiler_collect 0|1 by hand
 QVR_CVAR(vr_dlight_models, "1", CVAR_ARCHIVE)          // dynamic lights light models per pixel, by angle and shadowed (0: Quake's flat)
@@ -2441,6 +2472,8 @@ QVR_CVAR(vr_dlight_falloff, "1", CVAR_ARCHIVE)         // dynamic lights: 1 Dark
 QVR_CVAR(vr_specular, "0.2", CVAR_ARCHIVE)           // sheen of dynamic lights on the world and models (Blinn, exponent 32; 0 off)
 QVR_CVAR(vr_specular_aa, "1", CVAR_ARCHIVE)            // specular anti-aliasing: the sheen (and the water's glints) widened where bumps are smaller than a pixel, so it doesn't sparkle as the head moves (0 off; 2 stronger)
 QVR_CVAR(vr_normalmap_cache, "1", CVAR_NONE)       // the normal maps made from skins kept on disk (cache/normalmaps: the same texels, 0.2 s less in the first load); 0 made every time; 2 made and compared with the file (vr_diskcache.cpp)
+QVR_CVAR(vr_gl_foveation_parts, "1", CVAR_NONE)   // vr_gl_foveation's attachments (the Quest): 1 the eyes' scene colours, 2 their depth/stencil, 4 the OIT targets (the colours always); an incomplete framebuffer turns foveation off (vr_stereo.cpp; QUEST_PLAN.md 6v)
+QVR_CVAR(vr_program_cache, "1", CVAR_ARCHIVE)      // the GL programs' binaries kept on disk (cache/programs, vr_diskcache.cpp; read before the window opens: a change applies at the next start): 1 on on Android (the Quest: ~51 s of shader compiles at every start; not the PC's -glescompat), 2 also on the PC, 0 off
 QVR_CVAR(vr_cache_dir, "", CVAR_NONE)              // the derived-data cache's root (vr_diskcache.hpp, docs/vr-port/CACHES.md): empty <base>/cache (shared by every game folder); a folder: that one (tests: an empty folder is a first-ever session)
 QVR_CVAR(vr_mdl_dequant_cache, "1", CVAR_NONE)     // .mdl dequantisations kept on disk (cache/dequant, vr_mdldequant.cpp: the same offsets and normals read back); 0 computed at every load; 2 computed and compared with the file
 QVR_CVAR(vr_ragdoll_rig_cache, "1", CVAR_NONE)     // the monsters' ragdoll rigs kept on disk (cache/rigs, vr_ragdoll.cpp: tens of ms a kind, at every map load); 0 derived every session; 2 derived and compared with the file
@@ -2506,6 +2539,8 @@ QVR_CVAR(vr_flat_taa, "0", CVAR_ARCHIVE)               // flat-screen temporal a
 QVR_CVAR(vr_taa, "0", CVAR_ARCHIVE)                    // 1: temporal anti-aliasing (replaces MSAA in the eyes)
 QVR_CVAR(vr_taa_sharpen, "0.3", CVAR_ARCHIVE)          // sharpening after the resolve (0 off; 1 strong)
 QVR_CVAR(vr_temporal_debug, "0", CVAR_NONE)            // 1: the motion vectors in the eyes; 2: the reactive mask and rejected history; 3: the reprojection test (vr_temporal_error)
+QVR_CVAR(vr_gl_probe_fix, "0", CVAR_NONE)           // the probe's bisection on the world's bound-path draws (tonemap::probeState): 1 clip distances off, 2 culling off (the cache's GL_SetState not told)
+QVR_CVAR(vr_gl_probe, "0", CVAR_NONE)               // 1: the next frame's eye framebuffers by numbers (completeness, the share not black at each stage: tonemap::glProbe), then 0; 2/3 also paint blue under the scene / red where nothing drew (glProbeDraw); 4 to 8 the world's data in green by a minimal program (glProbeWorld)
 QVR_CVAR(vr_eyeshot, "0", CVAR_NONE)                // 1: save the next frame's eye images to <gamedir>/eyeshots (2: also the float scene, .pfm; 3: with the UI, as the headset shows it)
 // Liquids (vr_water.cpp): 0 everywhere is Quake's look.
 QVR_CVAR(vr_map_liquid_alpha, "0", CVAR_ARCHIVE)      // a map's own wateralpha, lavaalpha, slimealpha, telealpha (its worldspawn keys) win over r_wateralpha and the others (Ironwail's rule); 0: your settings always

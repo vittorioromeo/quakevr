@@ -845,6 +845,11 @@ void Sys_Init (void)
 		Sys_Printf("Terminal input not available.\n");
 
 	memset (cwd, 0, sizeof(cwd));
+#ifdef __ANDROID__ // QVR: the base folder main_sdl.c took from VR_AndroidStart (the external files folder), not the cwd ("/")
+	if (host_parms->basedir && strcmp (host_parms->basedir, "."))
+		q_strlcpy (cwd, host_parms->basedir, sizeof (cwd));
+	else
+#endif
 	Sys_GetBasedir(host_parms->argv[0], cwd, sizeof(cwd));
 	host_parms->basedir = cwd;
 	host_parms->exedir = Sys_GetExeDir ();
@@ -915,6 +920,11 @@ void Sys_ReportError (const char *error, ...)
 	fputs (errortxt2, stderr);
 	fputs (text, stderr);
 	fputs ("\n\n", stderr);
+#ifdef __ANDROID__
+	VR_AndroidLog (errortxt2); // QVR: logcat (stderr goes nowhere on Android)
+	VR_AndroidLog (text);
+	VR_AndroidLog ("\n");
+#endif
 	if (!isDedicated)
 		PL_ErrorDialog(text);
 
@@ -932,7 +942,11 @@ void Sys_Printf (const char *fmt, ...)
 	va_end (argptr);
 
 	UTF8_FromQuake (u8text, sizeof (u8text), qtext);
+#ifdef __ANDROID__
+	VR_AndroidLog (u8text); // QVR: the console in logcat ("adb logcat -s QuakeVR"; stdout goes nowhere on Android)
+#else
 	printf ("%s", u8text);
+#endif
 
 	// log all messages to file as well if -condebug was specified
 	Con_DebugLog (u8text);

@@ -52,6 +52,9 @@ namespace
 {
 
 constexpr const char* vertexShader = R"(#version 430
+#ifndef RETRO
+#define RETRO 0
+#endif
 layout(location = 0) uniform mat4 MVP;
 )" QVR_FLATFOV_GFX_GLSL R"(
 layout(location = 0) in vec3 Pos;
@@ -175,6 +178,18 @@ void RetroBeginParticle(vec2 duvdx, vec2 duvdy, vec3 dpdx, vec3 dpdy)
     Retro = s;
 }
 #endif
+// The mipmap level the hardware would pick at uv (textureQueryLod's .y). OpenGL ES has no textureQueryLod (desktop
+// GL 4.0): there the same from the derivatives of uv in texels (the Quest's Adreno refuses it; C4b).
+float queryLod()
+{
+#ifdef GL_ES
+    vec2 t = uv * vec2(textureSize(Tex, 0));
+    vec2 dx = dFdx(t), dy = dFdy(t);
+    return 0.5 * log2(max(dot(dx, dx), dot(dy, dy)));
+#else
+    return textureQueryLod(Tex, uv).y;
+#endif
+}
 float hash(vec2 p)
 {
     vec3 p3 = fract(vec3(p.xyx) * 0.1031);
@@ -192,10 +207,10 @@ float lit(vec2 at, float lod)
 // The level phosphor() reads at (screen()'s three reads too): its own texels, sharp, however small it is in the eye (as
 // without mipmaps); only where they would be much finer than the eye's pixels (a map's board across a room) a level a
 // step sharper than the usual, so that far text does not shimmer. (One place for the level: the Quest's OpenGL ES has
-// no textureQueryLod, agent/quest's queryLod().)
+// no textureQueryLod, queryLod() above.)
 float sharpLod()
 {
-    return max(textureQueryLod(Tex, uv).y - 1.0, 0.0);
+    return max(queryLod() - 1.0, 0.0);
 }
 float phosphor(vec2 at)
 {
@@ -318,7 +333,7 @@ vec4 screen()
     if(Glass.a > 0.0)
     {
         // Softer digits: the phosphor bleeding a little into the glass (a level and a half coarser, mixed in).
-        float lod = max(textureQueryLod(Tex, uv).y - 1.0, 0.0) + 1.5;
+        float lod = sharpLod() + 1.5;
         vec3 blurred = TrueColor > 0.5 ? textureLod(Tex, at, lod).rgb : color.rgb * lit(at, lod);
         rgb = mix(rgb, max(rgb, blurred * 1.1), 0.6 * Glass.a);
     }
@@ -358,7 +373,7 @@ vec4 screen()
         float ds = opening(px + vec2(0.0, lift), Size.xy);
 
         // The digits: sharp strokes and their halo, from the phosphor's brightness less the face's.
-        float lod = max(textureQueryLod(Tex, uv).y - 1.0, 0.0);
+        float lod = sharpLod();
         vec2 o = Glass.a * 0.45 / Size.xy; // (the strokes softened by about half a font pixel)
         float soft = (2.0 * lit(at, lod) + lit(at + vec2(o.x, 0.0), lod) + lit(at - vec2(o.x, 0.0), lod) +
                       lit(at + vec2(0.0, o.y), lod) + lit(at - vec2(0.0, o.y), lod)) / 6.0;
@@ -575,7 +590,7 @@ bool programFailed[shadeCount][2][2]{};
 {
     VR_GLStep("compile %s %s shader", name, type == GL_VERTEX_SHADER ? "vertex" : type == GL_FRAGMENT_SHADER ? "fragment" : "compute");
     const GLuint shader = GL_CreateShaderFunc(type);
-    GL_ShaderSourceFunc(shader, 1, &source, nullptr);
+    VR_GLShaderSource(shader, 1, &source); // (-glescompat: as ES 3.2 GLSL)
     GL_CompileShaderFunc(shader);
     (void)gfx::compiled(shader, name); // (a failed one still given: its program's link fails)
     return shader;
@@ -1054,7 +1069,7 @@ bool ensureTubeProgram()
     {
         const double start = Sys_DoubleTime();
         const za::String fragment = "#version 430\n#define MODE " + za::toString(static_cast<int>(Shade::Color)) +
-                                     "\n#define BLENDED 0\n" + fragmentShader;
+                                     "\n#define BLENDED 0\n#define RETRO 0\n" + fragmentShader;
         tubeProgram = glProgram(tubeVertexShader, fragment.cStr(), "vr tube");
         tubeProgramFailed = !tubeProgram;
         gfx::ownDeferred(tubeProgram, &tubeProgramFailed);
@@ -1218,7 +1233,9 @@ void onGameDirChanged()
 unsigned glProgram(const char* vertex, const char* fragment, const char* name)
 {
     const GLuint vs = compile(GL_VERTEX_SHADER, vertex, name);
-    const GLuint fs = fragment ? compile(GL_FRAGMENT_SHADER, fragment, name) : 0;
+    // (OpenGL ES links no graphics program without a fragment shader: an empty one there; gl_shaders.c the same)
+    const char* const fsSource = fragment ? fragment : VR_GLESForm(VR_GLES_FORM_GLSL) ? "#version 430\nvoid main() {}\n" : nullptr;
+    const GLuint fs = fsSource ? compile(GL_FRAGMENT_SHADER, fsSource, name) : 0;
     return gfx::linkProgram(vs, fs, name);
 }
 
@@ -1525,30 +1542,20 @@ ParticleBatch uploadParticles(za::Span<const ParticleInstance> particles, bool t
     return {buf, reinterpret_cast<za::SizeT>(ofs), particles.size(), trim, gl_frameres_serial};
 }
 
-namespace
-{
-using GetBufferSubDataFn = void(APIENTRY*)(GLenum, GLintptr, GLsizeiptr, void*);
-GetBufferSubDataFn particleWasteGet = nullptr; // (readParticleWaste: looked up on its first use)
-} // namespace
-
 bool readParticleWaste(za::Span<za::U32> counts)
 {
     if(!particleWasteBuffer || !particleWasteCounted || counts.size() < static_cast<za::SizeT>(particleWasteSlots * 3))
     {
         return false;
     }
-    if(!particleWasteGet)
-    {
-        particleWasteGet = reinterpret_cast<GetBufferSubDataFn>(SDL_GL_GetProcAddress("glGetBufferSubData"));
-    }
-    if(!particleWasteGet)
-    {
-        return false;
-    }
     const auto bytes = static_cast<GLsizeiptr>(particleWasteSlots * 3 * sizeof(za::U32));
     GL_MemoryBarrierFunc(GL_BUFFER_UPDATE_BARRIER_BIT);
     GL_BindBuffer(GL_SHADER_STORAGE_BUFFER, particleWasteBuffer);
-    particleWasteGet(GL_SHADER_STORAGE_BUFFER, 0, bytes, counts.data());
+    if(!gfx::readBuffer(GL_SHADER_STORAGE_BUFFER, 0, bytes, counts.data()))
+    {
+        GL_BindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+        return false;
+    }
     const za::Vector<za::U32> zero(static_cast<za::SizeT>(particleWasteSlots * 3), 0u);
     GL_BufferSubDataFunc(GL_SHADER_STORAGE_BUFFER, 0, bytes, zero.data());
     particleWasteCounted = false;
@@ -1683,7 +1690,7 @@ namespace
         const bool complete = GL_CheckFramebufferStatusFunc(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE;
         GL_BindFramebufferFunc(GL_FRAMEBUFFER, target->markFbo);
         GL_FramebufferTexture2DFunc(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, depth, 0);
-        glDrawBuffer(GL_NONE);
+        gfx::drawNoColour();
         glReadBuffer(GL_NONE);
         target->texture = colour->texture;
         target->depth = depth;
@@ -2434,7 +2441,10 @@ void beginCanvas(RenderTarget& canvas, int width, int height, bool mipmaps, floa
         // Seen smaller than its pixels in the headset (vr_menu_resolution): trilinear, anisotropic where the panel is
         // seen at an angle, sharpened by a negative bias (vr_menu_sharpen).
         GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, canvas.tex);
-        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_LOD_BIAS, lodBias);
+        if(!VR_GLESCompat()) // (ES has no LOD bias parameter: the panel unsharpened there)
+        {
+            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_LOD_BIAS, lodBias);
+        }
         if(gl_max_anisotropy > 1.f) // else not supported
         {
             glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, za::min(8.f, gl_max_anisotropy));
@@ -2566,10 +2576,8 @@ void destroyTexture(Texture texture)
     GL_ClearBindings();
 }
 
-void precompilePrograms()
+static void submitPrograms() // (precompilePrograms; VR_PrecompileProgramsBegin)
 {
-    // (made at their first draw, the first muzzle wisp's was a 16.7 ms hitch in a fight: TRACY session 2026-11-07)
-    gfx::beginDeferredChecks(); // (the driver's threads compile them all: statuses read at the end)
     for(int s = 0; s < shadeCount; s++)
     {
         (void)programFor(static_cast<Shade>(s), false, false);
@@ -2618,6 +2626,13 @@ void precompilePrograms()
     temporal::precompilePrograms();
     upscale::precompilePrograms();
     water::precompilePrograms();
+}
+
+void precompilePrograms()
+{
+    // (made at their first draw, the first muzzle wisp's was a 16.7 ms hitch in a fight: TRACY session 2026-11-07)
+    gfx::beginDeferredChecks(); // (the driver's threads compile them all: statuses read at the end)
+    submitPrograms();
     gfx::endDeferredChecks();
 }
 
@@ -2626,6 +2641,31 @@ void precompilePrograms()
 extern "C" void VR_PrecompilePrograms(void)
 {
     qvr::gfx::precompilePrograms();
+}
+
+// The queued start-up (gl_shaders.c GL_CreateShadersAsync, QUEST_PLAN.md 6zi): submitted, not waited for; polled each
+// frame of the loading panel (GL_COMPLETION_STATUS_KHR), their statuses read once all are done. Without the driver's
+// parallel compile they are made here, one at a time (as VR_PrecompilePrograms).
+extern "C" int VR_PrecompileProgramsBegin(void)
+{
+    qvr::gfx::beginDeferredChecks();
+    qvr::gfx::submitPrograms();
+    if(qvr::gfx::deferredComplete())
+    {
+        qvr::gfx::endDeferredChecks();
+        return 0;
+    }
+    return 1;
+}
+
+extern "C" int VR_PrecompileProgramsPoll(void)
+{
+    if(!qvr::gfx::deferredComplete())
+    {
+        return 1;
+    }
+    qvr::gfx::endDeferredChecks();
+    return 0;
 }
 
 namespace

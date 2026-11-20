@@ -4939,7 +4939,7 @@ QVR_TOGGLE(vr_alias_batch_posed, "Batch Posed Models",
     "vr_alias_batch_posed: the world's posed models of one model and skin (armed grunts, their armour, ragdolls) "
     "drawn as one batch, their bones in one buffer (On), or a batch each (Off, as before). The same images.")
 QVR_TOGGLE(vr_perf_record, "Perf Recorder",
-    "Every frame's CPU, GPU and OpenXR times and its events (shader compiles, uploads, loads, saves) to a CSV while on: profile/perf/. Misc/quakevr/perf_report.py ranks the hitches.")
+    "Every frame's CPU, GPU and OpenXR times and its events (shader compiles, uploads, loads, saves) to a CSV while on: profile/perf/ (on the Quest the app's files/perf/). Misc/quakevr/perf_report.py ranks the hitches.")
 QVR_TOGGLE(vr_xr_log_timing, "OpenXR Timing Log",
     "A line a second in quakevr/qvr_openxr.txt while VR runs: frames rendered, frames missed, each OpenXR call's time and the session's state.")
 QVR_TOGGLE(vr_visibility_mask, "Hide Lens Corners",
@@ -6086,6 +6086,10 @@ QVR_CYCLE(vr_profile_hitch, "Hitch Log",
     "While the profiler runs (the panel, a capture), frames that take this long go to the console and "
     "quakevr/profile/hitches_<date>_<time>.csv, with what took their time.",
     {0.f, "Off"}, {1.5f, "Over 1.5 Frames"}, {2.f, "Over 2 Frames"}, {3.f, "Over 3 Frames"})
+QVR_CYCLE(vr_profile_slow_ms, "Slow Frames Kept",
+    "vr_profile_slow_ms: the profiler leaves frames longer than this out of its averages (a map load, a hitch). Raise "
+    "it on a device whose every frame is that slow, to see where those frames go.",
+    {250.f, "Under 250 ms"}, {1000.f, "Under 1 s"}, {5000.f, "Under 5 s"})
 QVR_CYCLE(vr_renderdoc_delay, "Capture Delay",
     "vr_renderdoc_delay: seconds from the press to the capture, to close the menu or get into position.",
     {0.f, "None"}, {1.f, "1 s"}, {3.f, "3 s"})
@@ -6211,6 +6215,10 @@ QVR_TOGGLE(vr_alias_prepass_own, "Own Models Pre-pass",
     "vr_alias_prepass_own: your hands and what they hold drawn into the depth first, then shaded once a "
     "pixel (On; not while a gun morphs), or shaded as drawn (Off, as before): the glove over the hand, the "
     "fingers over the palm and a gun's own parts shaded once. The same images either way.")
+QVR_TOGGLE(vr_gl_world_lit_skip, "Skip Empty Lit Commands (Quest)",
+    "vr_gl_world_lit_skip: with the world split by surface (Unlit World Shader By Surface, the Quest), only the "
+    "textures with a surface a reaching light touches get their lit draw (On), or every texture (Off, as before). "
+    "The same picture, fewer draws.")
 QVR_CYCLE(vr_shadow_setup_share, "Shadow Caster Set-up Shared",
     "vr_shadow_setup_share: each animated shadow caster set up once for all the frame's shadow lights (its "
     "whole instance copied into each light's draw, drawn without textures) and the first eye taking the "

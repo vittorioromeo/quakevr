@@ -986,6 +986,36 @@ void drawList(const za::Vector<BakeVertex>& v)
     }
 }
 
+// The pixels of a level `side` texels square that layer k's pending clears and quads cover (their clip-space corners'
+// rectangle, a pixel more round it), as glScissor takes them: x, y, width, height.
+glm::ivec4 scissorOf(za::SizeT k, int side)
+{
+    glm::vec2 lo{1.f}, hi{-1.f};
+    const auto add = [&](const za::Vector<za::Vector<BakeVertex>>& lists) {
+        if(k >= lists.size())
+        {
+            return;
+        }
+        for(const BakeVertex& v : lists[k])
+        {
+            lo = glm::min(lo, glm::vec2{v.posSt});
+            hi = glm::max(hi, glm::vec2{v.posSt});
+        }
+    };
+    add(pending.clears);
+    add(pending.quads);
+    if(hi.x < lo.x || hi.y < lo.y)
+    {
+        return {0, 0, side, side};
+    }
+    const float s = static_cast<float>(side);
+    const int x0 = za::clamp(static_cast<int>(za::floor((lo.x * 0.5f + 0.5f) * s)) - 1, 0, side);
+    const int y0 = za::clamp(static_cast<int>(za::floor((lo.y * 0.5f + 0.5f) * s)) - 1, 0, side);
+    const int x1 = za::clamp(static_cast<int>(za::ceil((hi.x * 0.5f + 0.5f) * s)) + 1, 0, side);
+    const int y1 = za::clamp(static_cast<int>(za::ceil((hi.y * 0.5f + 0.5f) * s)) + 1, 0, side);
+    return {x0, y0, za::max(0, x1 - x0), za::max(0, y1 - y0)};
+}
+
 // The texture made now, its first layer emptied and the bake program drawn with once (the memory taken and the program
 // readied by the driver now: the map's load, not the first mark's frame).
 void prepareTexture()
@@ -1100,6 +1130,12 @@ void flush(unsigned decalAtlas)
                     continue;
                 }
                 GL_FramebufferTextureLayerFunc(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, atlas.texture, level, layer);
+                // A tiler (the Quest) loads and stores every bin of the layer's level for a few small quads unless the
+                // scissor bounds them: their slots' rectangle, a pixel round it (the same picture: nothing is drawn
+                // outside it). C4i, QUEST_PLAN.md 6p: the fight's bakes.
+                const glm::ivec4 box = scissorOf(k, side);
+                glEnable(GL_SCISSOR_TEST);
+                glScissor(box.x, box.y, box.z, box.w);
                 if(clearsHere)
                 {
                     QVR_GPU_PROFILE("permdecal clears");
@@ -1116,6 +1152,7 @@ void flush(unsigned decalAtlas)
                 }
             }
         }
+        glDisable(GL_SCISSOR_TEST); // (none in the 3D view)
         GL_FramebufferTextureLayerFunc(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, 0, 0, 0);
         GL_BindFramebufferFunc(GL_DRAW_FRAMEBUFFER, 0);
     }

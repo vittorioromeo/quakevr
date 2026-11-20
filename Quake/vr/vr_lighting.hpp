@@ -29,6 +29,10 @@ void dlightLook(const dlight_t* dl, float ambient, float fade);
 // never takes one of vr_shadow_dlights' shadows. Set after its key and death time.
 void dlightNoShadow(const dlight_t* dl);
 
+// One of the rig's small lights (the guns' screen lights, the wrist gadget's: C4v): with vr_rig_lights_world 0 under the
+// ES profile's plain loop it lights the player's models only, not the world. Set after its key and death time.
+void dlightRig(const dlight_t* dl);
+
 // A spot light (the flashlight): its light only within a cone along `dir`, full inside
 // `innerDegrees` of it and smoothly down to none at `outerDegrees` (half angles). Shadowed, it takes
 // one square tile round the cone (a perspective shadow map) rather than six cube faces. Set after
@@ -53,5 +57,15 @@ float capKey();
 
 // Lights given shadows this frame: dynamic ones, and map lights (vr_memstats).
 void shadowCounts(int& dlights, int& mapLights);
+
+// The views drawn since the last call whose world took its program without the lights' loop (VR_WorldUnlit; the perf
+// recorder's "unlit" column), then 0 again.
+int takeWorldUnlitViews();
+// ... drawn split by surface (vr_gl_world_unlit 2, C4v: the "split" column), then 0 again.
+int takeWorldSplitViews();
+
+// vr_gles_readback_test's part: the shadow atlases' depth read by glGetTexImage and by its ES form (copied as bits
+// to an R32UI texture), counted the same or not (nothing for an atlas not made).
+void readbackTest(int& passed, int& failed);
 
 } // namespace qvr::lighting

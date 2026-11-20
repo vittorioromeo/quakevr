@@ -144,6 +144,7 @@
 #include "vr_voicenotes.hpp"
 #include "vr_voicechat.hpp"
 #include "vr_detail.hpp"
+#include "vr_worldarrays.hpp"
 #include "vr_extmaps.hpp"
 #include "vr_pbr.hpp"
 #include "vr_flashlight.hpp"
@@ -2150,8 +2151,9 @@ extern "C" void VR_Init()
     state = new State{};
 
     VR_TimeInit(); // vr_startup_times, vr_walltime
-    VR_GLSafeInit(); // vr_glsafe_retry, vr_glsafe_status
+    VR_GLSafeInit(); // vr_glsafe_retry, vr_glsafe_status, vr_gles_report
     VR_SimdTestInit(); // vr_simd_test
+    VR_AndroidInit(); // vr_android_test
     VR_DiagnosticsInit(); // vr_diagnostics_status
     VR_LogsInit(); // bugreport, vr_logs_status
     jobs::start(); // the game's thread pool (vr_jobs.hpp), first: the systems below post to it
@@ -2284,6 +2286,7 @@ extern "C" void VR_Init()
     pouchitems::init();
     magholster::init();
     detail::init();
+    worldarrays::init();
     extmaps::init();
     pbr::init();
     imgcache::init();
@@ -2775,8 +2778,24 @@ extern "C" int VR_DebugWindowUnfocused()
     return vr_debug_window_unfocused.value != 0.f ? 1 : 0;
 }
 
+// Android with VR running (the Quest's immersive app): the window is never shown, so no flat image is drawn into it
+// nor presented (its post-process pass and eglSwapBuffers: a swap the system doesn't show can wait on its buffer
+// queue, C4c); vr_android_window 1 keeps them (the flat-panel APK).
+extern "C" int VR_NoWindow()
+{
+#ifdef __ANDROID__
+    return vrActive() && vr_android_window.value == 0.f ? 1 : 0;
+#else
+    return 0;
+#endif
+}
+
 extern "C" int VR_SkipSwap()
 {
+    if(VR_NoWindow())
+    {
+        return 1;
+    }
     // vr_mock_fast: a present waits for the display's refresh (vsync off or not: the compositor's pace in a window),
     // most of an unpaced frame. Present ten times a second: the window still shows the run.
     // In VR with the window unfocused, the mirror's presents are thinned (vr_mirror_unfocused_hz): the driver's cap on

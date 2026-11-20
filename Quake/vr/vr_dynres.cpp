@@ -9,6 +9,8 @@
 #include "vr_main.hpp"
 #include "vr_profile.hpp"
 #include "vr_tracy.h"
+#include "vr_tunables.hpp"
+#include "vr_api.h"
 
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Math/Abs.hpp"
@@ -132,6 +134,19 @@ void change(int bucket, unsigned long long serial, double ms, float drawn)
     }
 }
 
+// vr_menu_render_scale (C4i, QUEST_PLAN.md 6p): while a menu is open the eyes are drawn at least at this scale, so that
+// its panel (drawn into the eyes) is as sharp as the headset shows it; 0: no floor, -1: 1 under the ES profile (the
+// Quest), else none. Dynamic resolution waits meanwhile (those frames' GPU times are not its bucket's).
+[[nodiscard]] float menuFloor()
+{
+    if(key_dest != key_menu)
+    {
+        return 0.f;
+    }
+    const float v = vr_menu_render_scale.value;
+    return v < 0.f ? (VR_GLESCompat() || VR_Android() ? 1.f : 0.f) : za::min(v, 2.f);
+}
+
 } // namespace
 
 int changes()
@@ -158,9 +173,9 @@ float scale()
 {
     if(!enabled())
     {
-        return za::clamp(vr_render_scale.value, 0.25f, 2.f);
+        return za::max(za::clamp(vr_render_scale.value, 0.25f, 2.f), menuFloor());
     }
-    return bucketScale(za::min(st.bucket, lowestBucket()));
+    return za::max(bucketScale(za::min(st.bucket, lowestBucket())), menuFloor());
 }
 
 void beginFrame()
@@ -187,7 +202,7 @@ void beginFrame()
     st.on = true;
     st.frameAt = now;
     st.drawnScale[serial % ringSize] = bucketScale(st.bucket);
-    st.drawnSerial[serial % ringSize] = serial;
+    st.drawnSerial[serial % ringSize] = menuFloor() > bucketScale(st.bucket) ? 0 : serial; // (a menu's floor: not measured)
     if(st.changeSerial > serial)
     {
         st.changeSerial = serial; // the first frame at the new bucket

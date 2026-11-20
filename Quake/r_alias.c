@@ -46,6 +46,7 @@ static float	entalpha; //johnfitz
 static qboolean	aliasdepth; // QVR: drawing the shadow maps' casters (R_DrawAliasModelsDepth)
 static qboolean	aliasxray; // QVR: drawing models' outlines through walls (R_DrawAliasModels_Xray)
 static int		aliasnear; // QVR: the batch's VR_AliasNearEye flags (1 depth clamp, 2 both sides)
+static int		aliasneeds; // QVR: the per-model features the batch's instances turn on (VR_AliasPlainNeeds: glprogs.alias_plain)
 // QVR: a shadow map's casters drawn once into all the light's faces they reach (R_DrawAliasModelsDepthLayered): the
 // faces of the entity being added (bit f: face f, its viewport f), NULL one face at a time (R_DrawAliasModelsDepth)
 static const unsigned char	*aliasfaces;
@@ -102,6 +103,7 @@ static int aliasbatchbonescap;
 // QVR: the layered shadow casters' (R_DrawAliasModelsDepthLayered): each batched instance's faces, and the shader's
 // FaceBuffer (gl_shaders.h): the faces' view-projections, then a draw per instance and face (its index | face << 16)
 static unsigned char aliasinstfaces[MAX_ALIAS_INSTANCES];
+
 static struct {
 	float		viewproj[6][16];
 	uint32_t	draws[MAX_ALIAS_INSTANCES * 6];
@@ -688,13 +690,34 @@ void R_SetupAliasLighting (entity_t	*e)
 
 /*
 =================
+R_AliasShaderMode -- QVR
+
+The models' shader mode (ALIASSHADER_*) the software emulation's settings choose: R_FlushAliasInstances' and the map
+load's prewarm of the ES profile's programs (R_PrewarmSelectedPrograms).
+=================
+*/
+int R_AliasShaderMode (void)
+{
+	extern cvar_t r_softemu_mdl_warp;
+	switch (softemu)
+	{
+	case SOFTEMU_BANDED:
+		return r_softemu_mdl_warp.value != 0.f ? ALIASSHADER_NOPERSP : ALIASSHADER_STANDARD;
+	case SOFTEMU_COARSE:
+		return r_softemu_mdl_warp.value > 0.f ? ALIASSHADER_NOPERSP : ALIASSHADER_DITHER;
+	default:
+		return r_softemu_mdl_warp.value > 0.f ? ALIASSHADER_NOPERSP : ALIASSHADER_STANDARD;
+	}
+}
+
+/*
+=================
 R_FlushAliasInstances
 =================
 */
 void R_FlushAliasInstances (qboolean showtris)
 {
 	VR_TRACY_SCOPE ("alias flush"); // QVR: the batch's upload and draw (profiling builds)
-	extern cvar_t r_softemu_mdl_warp;
 	qmodel_t* model;
 	aliashdr_t* mainhdr, *hdr;
 	qboolean	alphatest, translucent, oit;
@@ -719,6 +742,7 @@ void R_FlushAliasInstances (qboolean showtris)
 	int			numvrbones;	// QVR
 	GLuint		vrbonebuf;	// QVR
 	GLbyte		*vrboneofs;	// QVR
+	GLuint		shadeprog;	// QVR: the shading program (glprogs.alias, or its opaque form without discard)
 	int			draws0;		// QVR: the draw count before the batch (vr_gl_passes)
 
 	if (!ibuf.count)
@@ -754,23 +778,23 @@ void R_FlushAliasInstances (qboolean showtris)
 	oit = translucent && R_GetEffectiveAlphaMode () == ALPHAMODE_OIT;
 	if (oit) // QVR: the OIT targets cleared at their first draw
 		R_PrepareOITDraw (1);
-	switch (softemu)
-	{
-	case SOFTEMU_BANDED:
-		mode = r_softemu_mdl_warp.value != 0.f ? ALIASSHADER_NOPERSP : ALIASSHADER_STANDARD;
-		break;
-	case SOFTEMU_COARSE:
-		mode = r_softemu_mdl_warp.value > 0.f ? ALIASSHADER_NOPERSP : ALIASSHADER_DITHER;
-		break;
-	default:
-		mode = r_softemu_mdl_warp.value > 0.f ? ALIASSHADER_NOPERSP : ALIASSHADER_STANDARD;
-		break;
-	}
+	mode = R_AliasShaderMode ();
 	depthonly = aliasdepth && !alphatest && !translucent; // QVR: a shadow map's opaque casters: no fragment shader (holey skins keep theirs)
+	shadeprog = GL_AliasProgram (oit, mode, alphatest, poseverttype); // QVR: made when first asked for under ES (GL_ShadersLazyStart)
+	if (!translucent && !alphatest && !aliasdepth && !aliasxray && !showtris && GL_AliasFormAvailable (ALIASFORM_OPAQUE) && VR_AliasOpaqueForm (ibuf.ent))
+	{
+		shadeprog = GL_AliasFormProgram (ALIASFORM_OPAQUE, mode, poseverttype); // QVR: no discard: hidden pixels rejected before shading on a tiler (vr_gl_alias_opaque)
+		if (GL_AliasFormAvailable (ALIASFORM_PLAIN) && VR_AliasPlainUse (aliasneeds))
+			shadeprog = GL_AliasFormProgram (ALIASFORM_PLAIN, mode, poseverttype); // QVR: ... nor the features none of its instances has (vr_gl_alias_plain)
+		else if (GL_AliasFormAvailable (ALIASFORM_GORE) && VR_AliasGoreUse (aliasneeds))
+			shadeprog = GL_AliasFormProgram (ALIASFORM_GORE, mode, poseverttype); // QVR: ... or all but the wounds and dents (vr_gl_alias_gore)
+		else if (GL_AliasFormAvailable (ALIASFORM_SKIN) && VR_AliasSkinUse (aliasneeds))
+			shadeprog = GL_AliasFormProgram (ALIASFORM_SKIN, mode, poseverttype); // QVR: ... or all but those and the skin tone (vr_gl_alias_skin)
+	}
 	if (depthonly)
 		GL_UseProgram (layered ? glprogs.alias_depth_layered[poseverttype] : glprogs.alias_depth[poseverttype]);
 	else
-		GL_UseProgram (glprogs.alias[oit][mode][alphatest][poseverttype]);
+		GL_UseProgram (shadeprog);
 	notex = depthonly && aliasdepthshare; // QVR: none of the fragment shader's textures bound (vr_shadow_setup_share)
 	if (layered) // QVR: the faces' view-projections and the draws (holey skins are drawn a face at a time: vr_lighting.cpp)
 	{
@@ -931,7 +955,7 @@ void R_FlushAliasInstances (qboolean showtris)
 			GL_DrawElementsInstancedFunc (GL_TRIANGLES, hdr->numindexes, GL_UNSIGNED_SHORT, (void*)hdr->eboofs, drawcount);
 		}
 		glColorMask (GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-		GL_UseProgram (glprogs.alias[oit][mode][alphatest][poseverttype]);
+		GL_UseProgram (shadeprog);
 		GL_SetState (opaque_state | GLS_NO_ZWRITE);
 		VR_GPUZoneEnd ();
 	}
@@ -953,7 +977,7 @@ void R_FlushAliasInstances (qboolean showtris)
 			GL_DrawElementsInstancedFunc (GL_TRIANGLES, hdr->numindexes, GL_UNSIGNED_SHORT, (void*)hdr->eboofs, drawcount);
 		}
 		glColorMask (GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-		GL_UseProgram (glprogs.alias[oit][mode][alphatest][poseverttype]);
+		GL_UseProgram (GL_AliasProgram (oit, mode, alphatest, poseverttype));
 		GL_SetState ((state | GLS_BLEND_ALPHA_OIT | GLS_NO_ZWRITE) & ~GLS_CULL_BACK);
 		VR_GPUZoneEnd ();
 	}
@@ -1067,8 +1091,8 @@ void R_FlushAliasInstances (qboolean showtris)
 		int tris = 0;
 		for (hdr = mainhdr; hdr; hdr = Mod_NextSurface (hdr))
 			tris += hdr->numindexes / 3;
-		VR_GLAliasBatch (model->name, ibuf.count, draws0, aliasdepth, ibuf.ent >= cl_entities && ibuf.ent < cl_entities + cl_max_edicts ? (int)(ibuf.ent - cl_entities) : -1,
-			ibuf.ent->skinnum, tris);
+		VR_GLAliasBatch (model->name, ibuf.count, draws0, aliasdepth, ibuf.ent >= cl_entities && ibuf.ent < cl_entities + cl_max_edicts ? (int)(ibuf.ent - cl_entities) : -1, ibuf.ent->skinnum,
+			depthonly ? 0 : shadeprog == glprogs.alias_plain[mode][poseverttype] ? 3 : shadeprog == glprogs.alias_gore[mode][poseverttype] ? 4 : shadeprog == glprogs.alias_skin[mode][poseverttype] ? 5 : shadeprog == glprogs.alias_opaque[mode][poseverttype] ? 2 : 1, aliasneeds, tris);
 	}
 	ibuf.count = 0;
 	GL_EndGroup ();
@@ -1127,6 +1151,8 @@ static qboolean R_Alias_CanAddToBatch (const entity_t *e)
 	if ((VR_AliasBonePoses (ibuf.ent, NULL) || VR_AliasBonePoses (e, NULL)) && !R_AliasPosedJoin (e)) // QVR: bone matrices are per entity (a posed batch: R_AliasPosedJoin)
 		return false;
 	if (!aliasdepth && VR_AliasDepthPrepass (ibuf.ent) != VR_AliasDepthPrepass (e)) // QVR: the batch's depth pre-pass is the first's
+		return false;
+	if (!aliasdepth && VR_AliasOpaqueForm (ibuf.ent) != VR_AliasOpaqueForm (e)) // QVR: so is its program without discard (a morph needs its discard)
 		return false;
 
 	return true;
@@ -1841,6 +1867,7 @@ cull:
 	{
 		ibuf.ent = e;
 		aliasnear = nearflags; // QVR
+		aliasneeds = 0; // QVR: (each instance's added at its end)
 	}
 
 	aliasinstfaces[ibuf.count] = facemask; // QVR: layered shadow casters: its faces (a posed one's: those its box reaches)
@@ -1982,6 +2009,7 @@ cull:
 instanced:
 	VR_TRACY_DETAIL (vr_tracy_render_zones, "alias motion", VR_TemporalAliasMotion (e, totalverts, mode == ALIAS_STANDARD, instance->motion)); // QVR: its previous frame's positions
 	instance->motion[2] = mode == ALIAS_STANDARD && VR_FlatModelFovEntity (e); // QVR: flatscreen play's model FOV
+	aliasneeds |= VR_AliasPlainNeeds (&instance->vr); // QVR: the plain form only if none of the batch needs what it leaves out (a portal's copy: the same)
 	if (mode == ALIAS_STANDARD)
 		VR_DebugAliasPose (e, paliashdr, lerpdata.pose1, lerpdata.pose2, lerpdata.blend, model_matrix); // QVR: vr_debug_pose_check
 	if (portal_split)
@@ -2131,9 +2159,9 @@ qboolean R_PaintAliasWounds (entity_t *e, int numsplats, const float *splats, in
 		if (surf != hdr && !VR_RangerHeadPaints (surf))
 			continue;
 		GL_DrawElementsInstancedFunc (GL_TRIANGLES, surf->numindexes, GL_UNSIGNED_SHORT, (void*)surf->eboofs, 1);
-		glPolygonMode (GL_FRONT_AND_BACK, GL_LINE);
+		VR_GLPolygonMode (GL_LINE); // QVR: ES: none (filled)
 		GL_DrawElementsInstancedFunc (GL_TRIANGLES, surf->numindexes, GL_UNSIGNED_SHORT, (void*)surf->eboofs, 1);
-		glPolygonMode (GL_FRONT_AND_BACK, GL_FILL);
+		VR_GLPolygonMode (GL_FILL);
 	}
 	return true;
 }

@@ -3,6 +3,115 @@
 
 #pragma once
 
+// ParallaxUV (PARALLAX_FUNCTIONS, twice: QVR_SAMPLER_TWINS, vr_retro.h)
+#define QVR_PARALLAX_UV_FUNC \
+"vec2 ParallaxUV(QVR_S tex, vec2 uv, vec2 duvdx, vec2 duvdy, vec3 dpdx, vec3 dpdy, vec3 n, vec3 ray, float depth,\n"\
+"	float steps, vec4 uvclamp)\n"\
+"{\n"\
+"	ParallaxDist = 0.;\n"\
+"	float dist = length(ray);\n"\
+"	ray /= max(dist, 1e-3);\n"\
+"	float cosa = -dot(ray, n); // n faces the eye\n"\
+"	float det = dot(n, cross(dpdx, dpdy));\n"\
+"	float reach = ParallaxReach(dist, cosa, depth); // along the ray; times sin(a) along the surface\n"\
+"	if (reach * reach < 0.11 * max(dot(dpdx, dpdx), dot(dpdy, dpdy)) || abs(det) < 1e-12)\n"\
+"		return uv;\n"\
+"	vec3 gu = (cross(dpdy, n) * duvdx.x + cross(n, dpdx) * duvdy.x) / det; // the coordinates' change per unit\n"\
+"	vec3 gv = (cross(dpdy, n) * duvdx.y + cross(n, dpdx) * duvdy.y) / det;\n"\
+"	vec3 shift = (ray + n * cosa) * reach; // along the surface, from the relief's top to its bottom\n"\
+"	vec2 duv = vec2(dot(shift, gu), dot(shift, gv));\n"\
+"	// the walk from uv - duv * plane (the top) to uv + duv * (1 - plane); the surface never below the texture's average\n"\
+"	// height (its smallest mip's), so a flat one (all at the top) or one mostly at the top isn't raised over the props\n"\
+"	float plane = ParallaxPlane > 0. ? min(ParallaxPlane, 1.0 - textureLod(tex, QVR_UV(uv), 16.0).a) : 0.;\n"\
+"	if (uvclamp.z > uvclamp.x || uvclamp.w > uvclamp.y)\n"\
+"	{\n"\
+"		vec2 margin = 0.5 / vec2(textureSize(tex, 0).xy);\n"\
+"		vec2 base = floor(uv - (uvclamp.xy + uvclamp.zw) * 0.5 + 0.5); // the whole textures the face is moved by\n"\
+"		vec2 lo = uvclamp.xy + base + margin - uv, hi = uvclamp.zw + base - margin - uv; // how far it may go\n"\
+"		float k = 1.0;\n"\
+"		for (int e = 0; e < 2; e++) // both ends of the walk\n"\
+"		{\n"\
+"			vec2 d = duv * (e == 0 ? 1.0 - plane : -plane);\n"\
+"			if (uvclamp.z > uvclamp.x && abs(d.x) > 1e-7)\n"\
+"				k = min(k, max((d.x > 0. ? hi.x : lo.x) / d.x, 0.));\n"\
+"			if (uvclamp.w > uvclamp.y && abs(d.y) > 1e-7)\n"\
+"				k = min(k, max((d.y > 0. ? hi.y : lo.y) / d.y, 0.));\n"\
+"		}\n"\
+"		duv *= k;\n"\
+"		reach *= k; // the hit as far from the surface as the texture shows (none at the face's edges)\n"\
+"	}\n"\
+"	uv -= duv * plane; // where the ray crosses the relief's top; ParallaxDist from the surface: less reach * plane\n"\
+"	float over_surface = reach * plane;\n"\
+"	vec2 size = vec2(textureSize(tex, 0).xy);\n"\
+"	float px = length(duvdx * size), py = length(duvdy * size); // the pixel's footprint in texels, its two ways\n"\
+"	float lod = max(log2(max(min(px, py), max(px, py) * 0.125)), 0.); // the mip level read (8x anisotropic)\n"\
+"	float texels = length(duv * size) * exp2(-lod); // the texels the ray crosses there\n"\
+"	steps = min(ceil(steps * mix(2.0, 0.5, cosa)), 64.0);\n"\
+"	steps = min(steps, max(4.0, ceil(texels * (Parallax2.x > 0. ? 1.0 : 1.5))));\n"\
+"	float stepsize = 1.0 / steps;\n"\
+"	float h = 1.0 - textureGrad(tex, QVR_UV(uv), duvdx, duvdy).a; // how deep the height field is, 0..1\n"\
+"	if (h <= 0.)\n"\
+"	{\n"\
+"		ParallaxDist = -over_surface;\n"\
+"		return uv;\n"\
+"	}\n"\
+"	float ray_depth = 0., prev = h; // prev: how far over the height field the ray was, the step before\n"\
+"	// four steps' reads at a time (independent: the GPU overlaps them), then the steps taken in order as before (the\n"\
+"	// same reads and result; up to 3 past the hit read for nothing): ROUND21.md, Shader optimizations: retro and parallax\n"\
+"	bool done = false;\n"\
+"	for (int i = 1; i <= 64 && !done; i += 4)\n"\
+"	{\n"\
+"		float hs[4];\n"\
+"		for (int j = 0; j < 4; j++)\n"\
+"			hs[j] = 1.0 - textureGrad(tex, QVR_UV(uv + duv * (float(i + j) * stepsize)), duvdx, duvdy).a;\n"\
+"		for (int j = 0; j < 4; j++)\n"\
+"		{\n"\
+"			prev = h - ray_depth;\n"\
+"			ray_depth = float(i + j) * stepsize;\n"\
+"			h = hs[j];\n"\
+"			if (h <= ray_depth || float(i + j) >= steps)\n"\
+"			{\n"\
+"				done = true;\n"\
+"				break;\n"\
+"			}\n"\
+"		}\n"\
+"	}\n"\
+"	float over = h - ray_depth; // <= 0: under it\n"\
+"	if (over > 0.)\n"\
+"	{\n"\
+"		ParallaxDist = reach - over_surface;\n"\
+"		return uv + duv; // the bottom\n"\
+"	}\n"\
+"	// refined between the ray's depths a (over it: fa > 0) and b (under it: fb <= 0): regula falsi, the Illinois way\n"\
+"	// (the end kept twice running halved, so the bracket shrinks from both sides); the last guess not read\n"\
+"	float a = ray_depth - stepsize, b = ray_depth, fa = prev, fb = over;\n"\
+"	int refine = int(Parallax2.x), side = 0;\n"\
+"	for (int k = 0; k < 8 && k < refine; k++)\n"\
+"	{\n"\
+"		float t = a + (b - a) * fa / max(fa - fb, 1e-5);\n"\
+"		float ft = 1.0 - textureGrad(tex, QVR_UV(uv + duv * t), duvdx, duvdy).a - t;\n"\
+"		if (ft > 0.)\n"\
+"		{\n"\
+"			a = t;\n"\
+"			fa = ft;\n"\
+"			if (side > 0)\n"\
+"				fb *= 0.5;\n"\
+"			side = 1;\n"\
+"		}\n"\
+"		else\n"\
+"		{\n"\
+"			b = t;\n"\
+"			fb = ft;\n"\
+"			if (side < 0)\n"\
+"				fa *= 0.5;\n"\
+"			side = -1;\n"\
+"		}\n"\
+"	}\n"\
+"	float t = a + (b - a) * fa / max(fa - fb, 1e-5);\n"\
+"	ParallaxDist = reach * t - over_surface;\n"\
+"	return uv + duv * t;\n"\
+"}\n"
+
 // parallax occlusion mapping (vr_parallax): the texture coordinates where the ray from the eye through this
 // pixel (ray: from the eye to it; n: the surface's normal, facing the eye) meets the height field under the surface
 // (tex's alpha: 1 the surface, 0 `depth` units deep; the instance's: the world's, an item box's or a model's).
@@ -54,112 +163,7 @@ QVR_ZFIX_FUNCTION \
 "// shader sets it: 1, Parallax3.x): the ray is walked from where it crosses the relief's top, that share of the depth\n"\
 "// over the surface\n"\
 "float ParallaxPlane = 0.;\n"\
-"vec2 ParallaxUV(sampler2D tex, vec2 uv, vec2 duvdx, vec2 duvdy, vec3 dpdx, vec3 dpdy, vec3 n, vec3 ray, float depth,\n"\
-"	float steps, vec4 uvclamp)\n"\
-"{\n"\
-"	ParallaxDist = 0.;\n"\
-"	float dist = length(ray);\n"\
-"	ray /= max(dist, 1e-3);\n"\
-"	float cosa = -dot(ray, n); // n faces the eye\n"\
-"	float det = dot(n, cross(dpdx, dpdy));\n"\
-"	float reach = ParallaxReach(dist, cosa, depth); // along the ray; times sin(a) along the surface\n"\
-"	if (reach * reach < 0.11 * max(dot(dpdx, dpdx), dot(dpdy, dpdy)) || abs(det) < 1e-12)\n"\
-"		return uv;\n"\
-"	vec3 gu = (cross(dpdy, n) * duvdx.x + cross(n, dpdx) * duvdy.x) / det; // the coordinates' change per unit\n"\
-"	vec3 gv = (cross(dpdy, n) * duvdx.y + cross(n, dpdx) * duvdy.y) / det;\n"\
-"	vec3 shift = (ray + n * cosa) * reach; // along the surface, from the relief's top to its bottom\n"\
-"	vec2 duv = vec2(dot(shift, gu), dot(shift, gv));\n"\
-"	// the walk from uv - duv * plane (the top) to uv + duv * (1 - plane); the surface never below the texture's average\n"\
-"	// height (its smallest mip's), so a flat one (all at the top) or one mostly at the top isn't raised over the props\n"\
-"	float plane = ParallaxPlane > 0. ? min(ParallaxPlane, 1.0 - textureLod(tex, uv, 16.0).a) : 0.;\n"\
-"	if (uvclamp.z > uvclamp.x || uvclamp.w > uvclamp.y)\n"\
-"	{\n"\
-"		vec2 margin = 0.5 / vec2(textureSize(tex, 0));\n"\
-"		vec2 base = floor(uv - (uvclamp.xy + uvclamp.zw) * 0.5 + 0.5); // the whole textures the face is moved by\n"\
-"		vec2 lo = uvclamp.xy + base + margin - uv, hi = uvclamp.zw + base - margin - uv; // how far it may go\n"\
-"		float k = 1.0;\n"\
-"		for (int e = 0; e < 2; e++) // both ends of the walk\n"\
-"		{\n"\
-"			vec2 d = duv * (e == 0 ? 1.0 - plane : -plane);\n"\
-"			if (uvclamp.z > uvclamp.x && abs(d.x) > 1e-7)\n"\
-"				k = min(k, max((d.x > 0. ? hi.x : lo.x) / d.x, 0.));\n"\
-"			if (uvclamp.w > uvclamp.y && abs(d.y) > 1e-7)\n"\
-"				k = min(k, max((d.y > 0. ? hi.y : lo.y) / d.y, 0.));\n"\
-"		}\n"\
-"		duv *= k;\n"\
-"		reach *= k; // the hit as far from the surface as the texture shows (none at the face's edges)\n"\
-"	}\n"\
-"	uv -= duv * plane; // where the ray crosses the relief's top; ParallaxDist from the surface: less reach * plane\n"\
-"	float over_surface = reach * plane;\n"\
-"	vec2 size = vec2(textureSize(tex, 0));\n"\
-"	float px = length(duvdx * size), py = length(duvdy * size); // the pixel's footprint in texels, its two ways\n"\
-"	float lod = max(log2(max(min(px, py), max(px, py) * 0.125)), 0.); // the mip level read (8x anisotropic)\n"\
-"	float texels = length(duv * size) * exp2(-lod); // the texels the ray crosses there\n"\
-"	steps = min(ceil(steps * mix(2.0, 0.5, cosa)), 64.0);\n"\
-"	steps = min(steps, max(4.0, ceil(texels * (Parallax2.x > 0. ? 1.0 : 1.5))));\n"\
-"	float stepsize = 1.0 / steps;\n"\
-"	float h = 1.0 - textureGrad(tex, uv, duvdx, duvdy).a; // how deep the height field is, 0..1\n"\
-"	if (h <= 0.)\n"\
-"	{\n"\
-"		ParallaxDist = -over_surface;\n"\
-"		return uv;\n"\
-"	}\n"\
-"	float ray_depth = 0., prev = h; // prev: how far over the height field the ray was, the step before\n"\
-"	// four steps' reads at a time (independent: the GPU overlaps them), then the steps taken in order as before (the\n"\
-"	// same reads and result; up to 3 past the hit read for nothing): ROUND21.md, Shader optimizations: retro and parallax\n"\
-"	bool done = false;\n"\
-"	for (int i = 1; i <= 64 && !done; i += 4)\n"\
-"	{\n"\
-"		float hs[4];\n"\
-"		for (int j = 0; j < 4; j++)\n"\
-"			hs[j] = 1.0 - textureGrad(tex, uv + duv * (float(i + j) * stepsize), duvdx, duvdy).a;\n"\
-"		for (int j = 0; j < 4; j++)\n"\
-"		{\n"\
-"			prev = h - ray_depth;\n"\
-"			ray_depth = float(i + j) * stepsize;\n"\
-"			h = hs[j];\n"\
-"			if (h <= ray_depth || float(i + j) >= steps)\n"\
-"			{\n"\
-"				done = true;\n"\
-"				break;\n"\
-"			}\n"\
-"		}\n"\
-"	}\n"\
-"	float over = h - ray_depth; // <= 0: under it\n"\
-"	if (over > 0.)\n"\
-"	{\n"\
-"		ParallaxDist = reach - over_surface;\n"\
-"		return uv + duv; // the bottom\n"\
-"	}\n"\
-"	// refined between the ray's depths a (over it: fa > 0) and b (under it: fb <= 0): regula falsi, the Illinois way\n"\
-"	// (the end kept twice running halved, so the bracket shrinks from both sides); the last guess not read\n"\
-"	float a = ray_depth - stepsize, b = ray_depth, fa = prev, fb = over;\n"\
-"	int refine = int(Parallax2.x), side = 0;\n"\
-"	for (int k = 0; k < 8 && k < refine; k++)\n"\
-"	{\n"\
-"		float t = a + (b - a) * fa / max(fa - fb, 1e-5);\n"\
-"		float ft = 1.0 - textureGrad(tex, uv + duv * t, duvdx, duvdy).a - t;\n"\
-"		if (ft > 0.)\n"\
-"		{\n"\
-"			a = t;\n"\
-"			fa = ft;\n"\
-"			if (side > 0)\n"\
-"				fb *= 0.5;\n"\
-"			side = 1;\n"\
-"		}\n"\
-"		else\n"\
-"		{\n"\
-"			b = t;\n"\
-"			fb = ft;\n"\
-"			if (side < 0)\n"\
-"				fa *= 0.5;\n"\
-"			side = -1;\n"\
-"		}\n"\
-"	}\n"\
-"	float t = a + (b - a) * fa / max(fa - fb, 1e-5);\n"\
-"	ParallaxDist = reach * t - over_surface;\n"\
-"	return uv + duv * t;\n"\
-"}\n"\
+QVR_SAMPLER_TWINS(QVR_PARALLAX_UV_FUNC)\
 "\n"\
 
 // pixel depth offset (vr_parallax_depth_write, Parallax2.w): in the programs made with PDO 1 (the opaque world's
@@ -180,7 +184,9 @@ QVR_ZFIX_FUNCTION \
 "#endif\n"\
 "#if PDO\n"\
 "	#define QVR_PDO 1\n"\
+"	#ifndef GL_ES\n" /* (ES: no layout on gl_FragDepth; depth_any is its default) */ \
 "	layout(depth_any) out float gl_FragDepth;\n"\
+"	#endif\n"\
 "#else\n"\
 "	#define QVR_PDO 0\n"\
 "#endif\n"

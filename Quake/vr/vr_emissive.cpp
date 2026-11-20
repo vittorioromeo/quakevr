@@ -1283,6 +1283,7 @@ void emissive::weaponScreenLight(int hand, const glm::vec3& pos, const glm::vec3
     }
     lighting::dlightSpot(dl, n, screenLightInner, screenLightOuter);
     lighting::dlightNoShadow(dl);
+    lighting::dlightRig(dl);
 }
 
 void emissive::hotBladeLight(int index, const glm::vec3& pos, const glm::vec3& color, float strength, float radius)

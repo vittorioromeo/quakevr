@@ -166,12 +166,14 @@ static void TexMgr_CreateSamplers (void)
 		GL_SamplerParameteriFunc (gl_samplers[i*2+0], GL_TEXTURE_MAG_FILTER, glmodes[i].magfilter);
 		GL_SamplerParameteriFunc (gl_samplers[i*2+0], GL_TEXTURE_MIN_FILTER, glmodes[i].magfilter);
 		GL_SamplerParameterfFunc (gl_samplers[i*2+0], GL_TEXTURE_MAX_ANISOTROPY_EXT, gl_texfilter.anisotropy);
-		GL_SamplerParameterfFunc (gl_samplers[i*2+0], GL_TEXTURE_LOD_BIAS, gl_texfilter.lodbias);
+		if (!VR_GLESCompat ()) // QVR: ES has no LOD bias parameter (gl_lodbias: none there)
+			GL_SamplerParameterfFunc (gl_samplers[i*2+0], GL_TEXTURE_LOD_BIAS, gl_texfilter.lodbias);
 
 		GL_SamplerParameteriFunc (gl_samplers[i*2+1], GL_TEXTURE_MAG_FILTER, glmodes[i].magfilter);
 		GL_SamplerParameteriFunc (gl_samplers[i*2+1], GL_TEXTURE_MIN_FILTER, glmodes[i].minfilter);
 		GL_SamplerParameterfFunc (gl_samplers[i*2+1], GL_TEXTURE_MAX_ANISOTROPY_EXT, gl_texfilter.anisotropy);
-		GL_SamplerParameterfFunc (gl_samplers[i*2+1], GL_TEXTURE_LOD_BIAS, gl_texfilter.lodbias);
+		if (!VR_GLESCompat ()) // QVR
+			GL_SamplerParameterfFunc (gl_samplers[i*2+1], GL_TEXTURE_LOD_BIAS, gl_texfilter.lodbias);
 	}
 }
 
@@ -193,8 +195,10 @@ static void TexMgr_DescribeTextureModes_f (void)
 TexMgr_SetFilterModes
 ===============
 */
+int texmgr_filter_serial; // QVR: TexMgr_SetFilterModes' calls (vr/vr_worldarrays.cpp: the arrays' filtering copied again)
 static void TexMgr_SetFilterModes (gltexture_t *glt)
 {
+	texmgr_filter_serial++; // QVR
 	if (glt->bindless_handle)
 	{
 		int sampleridx;
@@ -229,7 +233,8 @@ static void TexMgr_SetFilterModes (gltexture_t *glt)
 		glTexParameterf(glt->target, GL_TEXTURE_MAG_FILTER, glmodes[mode].magfilter);
 		glTexParameterf(glt->target, GL_TEXTURE_MIN_FILTER, glmodes[mode].minfilter);
 		glTexParameterf(glt->target, GL_TEXTURE_MAX_ANISOTROPY_EXT, gl_texfilter.anisotropy);
-		glTexParameterf(glt->target, GL_TEXTURE_LOD_BIAS, gl_texfilter.lodbias);
+		if (!VR_GLESCompat ()) // QVR: ES has no LOD bias parameter
+			glTexParameterf(glt->target, GL_TEXTURE_LOD_BIAS, gl_texfilter.lodbias);
 	}
 	else
 	{
@@ -537,14 +542,14 @@ static void TexMgr_Imagedump_f (void)
 			for (i = 0; i < 6; i++)
 			{
 				q_snprintf(tganame, sizeof(tganame), "imagedump/%s%s.tga", tempname, suf[i]);
-				glGetTexImage(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, format, GL_UNSIGNED_BYTE, buffer);
+				VR_GLGetTexImage(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, format, GL_UNSIGNED_BYTE, buffer);
 				Image_WriteTGA (tganame, buffer, glt->width, glt->height*glt->depth, channels*8, true);
 			}
 		}
 		else
 		{
 			q_snprintf(tganame, sizeof(tganame), "imagedump/%s.tga", tempname);
-			glGetTexImage(glt->target, 0, format, GL_UNSIGNED_BYTE, buffer);
+			VR_GLGetTexImage(glt->target, 0, format, GL_UNSIGNED_BYTE, buffer);
 			Image_WriteTGA (tganame, buffer, glt->width, glt->height*glt->depth, channels*8, true);
 		}
 
@@ -602,7 +607,7 @@ static void TexMgr_Imagehash_f (void)
 		GL_Bind (GL_TEXTURE0, glt);
 		for (f = 0; f < faces; f++)
 		{
-			glGetTexImage (faces == 6 ? GL_TEXTURE_CUBE_MAP_POSITIVE_X + f : glt->target, 0, GL_RGBA, GL_UNSIGNED_BYTE, buffer);
+			VR_GLGetTexImage (faces == 6 ? GL_TEXTURE_CUBE_MAP_POSITIVE_X + f : glt->target, 0, GL_RGBA, GL_UNSIGNED_BYTE, buffer);
 			for (i = 0; i < facebytes; i++)
 				h = (h ^ buffer[i]) * 1099511628211ULL;
 		}
@@ -615,6 +620,32 @@ static void TexMgr_Imagehash_f (void)
 	}
 	fclose (out);
 	Con_Printf ("imagehash: %d textures, sum %016llx, to %s\n", count, total, path);
+}
+
+/*
+===============
+TexMgr_ReadbackTest -- QVR: vr_gles_readback_test's part (vr/vr_glsafe.cpp): every loaded texture's level 0 (each
+face of a cube) read as RGBA bytes by glGetTexImage and by its OpenGL ES form (VR_GLGetTexImage under -glescompat),
+counted the same, different or skipped (integer or compressed: no ES read)
+===============
+*/
+void TexMgr_ReadbackTest (int *passed, int *failed, int *skipped)
+{
+	gltexture_t *glt;
+	VR_LoadJobsJoin ();
+	glPixelStorei (GL_PACK_ALIGNMENT, 1);
+	for (glt = active_gltextures; glt; glt = glt->next)
+	{
+		int faces = (glt->flags & TEXPREF_CUBEMAP) ? 6 : 1;
+		int f;
+		GL_Bind (GL_TEXTURE0, glt);
+		for (f = 0; f < faces; f++)
+		{
+			int same = VR_GLReadTexImageSame (faces == 6 ? GL_TEXTURE_CUBE_MAP_POSITIVE_X + f : glt->target, 0, GL_RGBA, GL_UNSIGNED_BYTE, glt->name);
+			*(same > 0 ? passed : same == 0 ? failed : skipped) += 1;
+		}
+	}
+	glPixelStorei (GL_PACK_ALIGNMENT, 4);
 }
 
 /*
@@ -651,7 +682,8 @@ TexMgr_CanCompress
 */
 static qboolean TexMgr_CanCompress (gltexture_t *glt)
 {
-	return glt->source_format != SRC_LIGHTMAP && (glt->flags & TEXPREF_UNCOMPRESSED) == 0;
+	return glt->source_format != SRC_LIGHTMAP && (glt->flags & TEXPREF_UNCOMPRESSED) == 0 &&
+		!VR_GLESForm (VR_GLES_FORM_GLSL); // QVR: OpenGL ES compresses no texture at its upload (glTexImage2D)
 }
 
 /*
@@ -1598,6 +1630,32 @@ static void TexMgr_Upload32 (gltexture_t *glt, unsigned *data, double t0)
 		internalformat.id = heights ? GL_RGBA8 : GL_RG8;
 		internalformat.ratio = heights ? 1 : 2;
 	}
+	// QVR: OpenGL ES takes RGBA bytes only into an RGBA format (GL_RGB, GL_RG8 from GL_RGBA data: GL_INVALID_OPERATION,
+	// no texture: QUEST_PLAN.md C4c). RGBA8 there, its texels made what GL_RGB's and GL_RG8's reads give (alpha 1; RG8:
+	// blue 0), so the ES textures read back as the PC's (the mips are made from this buffer).
+	if (VR_GLESForm (VR_GLES_FORM_GLSL) && (internalformat.id == GL_RGB || internalformat.id == GL_RG8))
+	{
+		if (internalformat.id == GL_RGB || internalformat.id == GL_RG8)
+		{
+			// (GL_RG8's reads: blue 0, alpha 1; GL_RGB's: alpha 1)
+			qboolean rg = internalformat.id == GL_RG8;
+			// (a cube map's or an array's data: an image a face or layer)
+			int layers = glt->target == GL_TEXTURE_CUBE_MAP ? 6 : glt->target == GL_TEXTURE_2D_ARRAY ? (int) glt->depth : 1;
+			int i, k, n = glt->width * glt->height;
+			for (k = 0; k < layers; k++)
+			{
+				byte *image = glt->target == GL_TEXTURE_2D ? (byte *) data : ((byte **) data)[k];
+				for (i = 0; image && i < n; i++)
+				{
+					if (rg)
+						image[4 * i + 2] = 0;
+					image[4 * i + 3] = 255;
+				}
+			}
+		}
+		internalformat.id = GL_RGBA8;
+		internalformat.ratio = 1;
+	}
 	glt->compression = internalformat.ratio;
 	GL_Bind (GL_TEXTURE0, glt);
 	GL_TexImage (glt, 0, internalformat.id, glt->width, glt->height, GL_RGBA, GL_UNSIGNED_BYTE, data);
@@ -2361,7 +2419,7 @@ int TexMgr_FileTextureHashes (void (*fn) (void *ctx, const char *name, unsigned 
 		size = w * h * 4;
 		mark = Hunk_LowMark ();
 		texels = (byte *) Hunk_Alloc (size);
-		glGetTexImage (GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, texels);
+		VR_GLGetTexImage (GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, texels); // QVR: its ES form under -glescompat (Android: no glGetTexImage)
 		for (i = 0; i < size; i++)
 			hash = (hash ^ texels[i]) * 16777619u;
 		Hunk_FreeToLowMark (mark);
@@ -2665,7 +2723,10 @@ void GLPalette_CreateResources (void)
 	glGenTextures (1, &gl_palette_lut);
 	GL_BindNative (GL_TEXTURE0, GL_TEXTURE_3D, gl_palette_lut);
 	GL_ObjectLabelFunc (GL_TEXTURE, gl_palette_lut, -1, "palette lut");
-	GL_TexImage3DFunc (GL_TEXTURE_3D, 0, GL_R8UI, 128, 128, 128, 0, GL_RED_INTEGER, GL_UNSIGNED_BYTE, NULL);
+	if (VR_GLESForm (VR_GLES_FORM_GLSL)) // QVR: -glescompat: r32ui, immutable (OpenGL ES binds only those as images)
+		GL_TexStorage3DFunc (GL_TEXTURE_3D, 1, VR_GLESImageFormat (GL_R8UI), 128, 128, 128);
+	else
+		GL_TexImage3DFunc (GL_TEXTURE_3D, 0, GL_R8UI, 128, 128, 128, 0, GL_RED_INTEGER, GL_UNSIGNED_BYTE, NULL);
 	glTexParameteri (GL_TEXTURE_3D, GL_TEXTURE_BASE_LEVEL, 0);
 	glTexParameteri (GL_TEXTURE_3D, GL_TEXTURE_MAX_LEVEL, 0);
 	glTexParameteri (GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
@@ -2721,7 +2782,7 @@ void GLPalette_UpdateLookupTable (void)
 
 	GL_BeginGroup ("cs: palette lut"); // QVR: (vr_gl_markers)
 	GL_UseProgramFunc (glprogs.palette_init[metric]);
-	GL_BindImageTextureFunc (0, gl_palette_lut, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_R8UI);
+	GL_BindImageTextureFunc (0, gl_palette_lut, 0, GL_TRUE, 0, GL_WRITE_ONLY, VR_GLESImageFormat (GL_R8UI));
 	GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 0, gl_palette_buffer[0], 0, 256 * sizeof (GLuint));
 	GL_BufferSubDataFunc (GL_SHADER_STORAGE_BUFFER, 0, 256 * sizeof (GLuint), d_8to24table);
 

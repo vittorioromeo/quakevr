@@ -38,6 +38,8 @@ void main()
 // nothing, a safety net.) Without the extension they do nothing.
 void beginDeferredChecks();
 void endDeferredChecks();
+// Whether the driver has finished every deferred program (GL_COMPLETION_STATUS_KHR: never waits); true when none.
+[[nodiscard]] bool deferredComplete();
 
 // Called by a program's owner right after making it (`program` and `failed`, null if it has no flag, are its own
 // variables, alive until endDeferredChecks): while the checks are deferred, if the program turns out to have failed,
@@ -46,6 +48,32 @@ void ownDeferred(GLuint& program, bool* failed);
 
 // Whether the framebuffer bound to GL_FRAMEBUFFER is complete.
 [[nodiscard]] bool boundFramebufferComplete();
+
+// The bound framebuffer draws no colour (glDrawBuffers with GL_NONE: the form ES has).
+void drawNoColour();
+
+// `size` bytes at `offset` of the buffer bound to `target` read into `out`, waiting for the GPU: glGetBufferSubData,
+// or under -glescompat a read mapping (ES has no glGetBufferSubData). False when neither can.
+[[nodiscard]] bool readBuffer(GLenum target, GLintptr offset, GLsizeiptr size, void* out);
+
+// Level 0 of the 2D texture `tex` set to `rgba` everywhere: glClearTexImage, or under -glescompat a clear through a
+// framebuffer (ES has no glClearTexImage; `tex` must be colour-renderable). The framebuffer binding is kept.
+void clearTexture(GLuint tex, const float rgba[4]);
+
+// Level `level` of the texture bound to `target` (GL_TEXTURE_2D, 3D, 2D_ARRAY or a cube face) read into `out` as
+// glGetTexImage would (`format` GL_RGBA, GL_RGB, GL_RED or GL_DEPTH_COMPONENT; `type` GL_UNSIGNED_BYTE or GL_FLOAT;
+// the pack alignment kept), waiting for the GPU. With `esForm` (VR_GLGetTexImage under -glescompat) the OpenGL ES
+// form, since ES has no glGetTexImage: each layer attached to a framebuffer and read with glReadPixels in the
+// format ES guarantees (RGBA bytes from normalized textures, RGBA floats from float ones), then converted; a depth
+// texture (2D) copied first, bit for bit, into an R32UI one (ES reads no depth). False when it cannot (`out` zeroed
+// when `format` and `type` are ones listed):
+// an integer, compressed or not colour-renderable texture under the ES form, or a format or type not listed.
+[[nodiscard]] bool readTexImage(GLenum target, GLint level, GLenum format, GLenum type, void* out, bool esForm);
+
+// vr_gles_readback_test's part: level `level` of the texture bound to `target` read both ways (readTexImage with and
+// without esForm) as `format`/`type`: 1 the same bytes, 0 not (a warning names `what`), -1 the ES form cannot read it
+// (an integer or compressed texture: skipped).
+[[nodiscard]] int readTexImageSame(GLenum target, GLint level, GLenum format, GLenum type, const char* what);
 
 // How a RenderTarget's texture is made (one level, bilinear; or with mipmaps, trilinear).
 struct RenderTargetFormat

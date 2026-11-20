@@ -109,7 +109,7 @@ bool ensure()
         ImGui::DestroyContext();
         return false;
     }
-    if(!ImGui_ImplOpenGL3_Init("#version 330"))
+    if(!ImGui_ImplOpenGL3_Init(VR_GLESCompat() ? "#version 300 es" : "#version 330")) // (-glescompat: its ES shaders)
     {
         Con_Printf("imgui: the OpenGL3 backend could not start\n");
         ImGui_ImplSDL2_Shutdown();
@@ -317,7 +317,8 @@ extern "C" void VR_ImGuiRender(void)
     glGetIntegerv(GL_UNPACK_SKIP_PIXELS, &unpackSkipPixels);
     glGetBooleanv(GL_DEPTH_WRITEMASK, &depthMask);
     glGetBooleanv(GL_COLOR_WRITEMASK, colorMask);
-    const GLboolean srgb = glIsEnabled(GL_FRAMEBUFFER_SRGB);
+    // (ES: no GL_FRAMEBUFFER_SRGB switch without EXT_sRGB_write_control; nothing turns it on there.)
+    const GLboolean srgb = VR_GLESCompat() ? GL_FALSE : glIsEnabled(GL_FRAMEBUFFER_SRGB);
     GL_BindFramebufferFunc(GL_FRAMEBUFFER, im.panelFb);
     if(srgb)
     {

@@ -7,6 +7,7 @@
 #include "vr_motion.hpp"
 #include "vr_motion_take.hpp"
 
+#include "vr_api.h"
 #include "vr_backend.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
@@ -703,6 +704,13 @@ void startJob(const za::Vector<za::String>& paths)
     if(COM_CheckParm("-evalcopy"))
     {
         say("this is the evaluation's copy of the game: it doesn't start another", false);
+        return;
+    }
+    if(!VR_ChildProcesses())
+    {
+        say("the re-evaluation runs in a second copy of the game: none on this platform (Android, -nochildprocesses); "
+            "run vr_motion_eval here instead",
+            false);
         return;
     }
     if(jobRunning)

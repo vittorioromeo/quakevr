@@ -57,6 +57,23 @@ bool OpenXrBackend::beginFrame(TrackingState& tracking, FrameState& frame)
             fetchHiddenArea(eye);
         }
     }
+    const XrSwapchain eyeHandles[2] = {swapchains[0].handle, swapchains[1].handle};
+    quest.apply(session, eyeHandles); // (Android: the refresh rate, CPU/GPU levels, foveation when changed)
+    if(quest.wantNewEyes)
+    {
+        // vr_xr_foveation changed mid-game (C4p): the runtime crashed in xrEndFrame after updating swapchains in use,
+        // so new eye swapchains (no image of theirs acquired yet; every frame attaches its image anew) take the level.
+        quest.wantNewEyes = false;
+        xrruntime::note("OpenXR: new eye swapchains for vr_xr_foveation %g\n", static_cast<double>(vr_xr_foveation.value));
+        if(!createEyeSwapchains())
+        {
+            // (no eye swapchains now: a frame would submit none; VR stops, sessionEnded, rather than limp on)
+            xrruntime::warn("OpenXR: the new eye swapchains could not be made: VR stops\n");
+            return false;
+        }
+        const XrSwapchain freshHandles[2] = {swapchains[0].handle, swapchains[1].handle};
+        quest.apply(session, freshHandles);
+    }
 
     XrFrameWaitInfo waitInfo{XR_TYPE_FRAME_WAIT_INFO};
     frameState = XrFrameState{XR_TYPE_FRAME_STATE};
@@ -253,7 +270,11 @@ void OpenXrBackend::endFrame(bool rendered)
             projViews[eye].pose = views[eye].pose;
             projViews[eye].fov = views[eye].fov;
             projViews[eye].subImage.swapchain = swapchains[eye].handle;
-            projViews[eye].subImage.imageRect.extent = {swapchains[eye].width, swapchains[eye].height};
+            // (vr_eye_subimage: the eye drawn into the image's lower left part, the compositor scales it; the [?] of
+            // GL's origin for imageRect on the Quest's runtime: C4 checks it)
+            const XrExtent2Di rect = eyeRects[eye];
+            projViews[eye].subImage.imageRect.extent = rect.width > 0 && rect.height > 0
+                ? rect : XrExtent2Di{swapchains[eye].width, swapchains[eye].height};
             lastViews[eye] = projViews[eye];
         }
         haveLastViews = true;
@@ -501,6 +522,8 @@ void OpenXrBackend::fetchHiddenArea(int eye)
 bool OpenXrBackend::createSwapchain(Swapchain& sc, int32_t width, int32_t height, XrSwapchainUsageFlags usage, const char* what)
 {
     XrSwapchainCreateInfo info{XR_TYPE_SWAPCHAIN_CREATE_INFO};
+    XrSwapchainCreateInfoFoveationFB foveationInfo{XR_TYPE_SWAPCHAIN_CREATE_INFO_FOVEATION_FB};
+    info.next = &sc != &panel ? quest.swapchainNext(foveationInfo) : nullptr; // (the eyes: foveation-capable, Quest)
     info.usageFlags = usage;
     info.format = colorFormat;
     info.sampleCount = 1;
@@ -574,7 +597,7 @@ bool OpenXrBackend::createSwapchain(Swapchain& sc, int32_t width, int32_t height
         return failed();
     }
     sc.images.clear();
-    sc.images.resize(imageCount, XrSwapchainImageOpenGLKHR{XR_TYPE_SWAPCHAIN_IMAGE_OPENGL_KHR});
+    sc.images.resize(imageCount, SwapchainImageGl{swapchainImageGlType});
     step("%s: xrEnumerateSwapchainImages (%u OpenGL images)", what, imageCount);
     if(!contextReady(what))
     {
@@ -588,7 +611,7 @@ bool OpenXrBackend::createSwapchain(Swapchain& sc, int32_t width, int32_t height
     {
         return failed();
     }
-    for(const XrSwapchainImageOpenGLKHR& image : sc.images)
+    for(const SwapchainImageGl& image : sc.images)
     {
         if(image.image == 0)
         {
@@ -597,7 +620,7 @@ bool OpenXrBackend::createSwapchain(Swapchain& sc, int32_t width, int32_t height
         }
     }
     // Named for vr_vram_report (the runtime's textures, in our context; a name that is not ours: a GL error, cleared).
-    for(const XrSwapchainImageOpenGLKHR& image : sc.images)
+    for(const SwapchainImageGl& image : sc.images)
     {
         GL_ObjectLabelFunc(GL_TEXTURE, image.image, -1, va("xr swapchain %s", what));
     }
