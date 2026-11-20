@@ -21,6 +21,7 @@
 #include "vr_view.hpp"
 #include "vr_weapons.hpp"
 #include "Zancle/Math/Abs.hpp"
+#include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 
 #include <string.h>
@@ -94,6 +95,12 @@ void encode(const Hand& h, float v[valueCount])
     v[65] = static_cast<float>(h.leaveSlot);
 }
 
+// An integer field of a record (|v| <= most: checked by the command), clamped to [lo, hi].
+[[nodiscard]] int intIn(float v, int lo, int hi)
+{
+    return za::clamp(static_cast<int>(v), lo, hi);
+}
+
 [[nodiscard]] Hand decode(const float v[valueCount])
 {
     Hand h;
@@ -106,8 +113,10 @@ void encode(const Hand& h, float v[valueCount])
     h.flippable = (flags & flagFlippable) != 0;
     h.mag = (flags & flagMag) != 0;
     h.flipBlocked = (flags & flagFlipBlocked) != 0;
-    h.slot = static_cast<int>(v[1]);
-    h.helpKind = static_cast<int>(v[2]);
+    // (The integers clamped to their domains: a guest's record indexes the host's tables, e.g. leaveSlot the weapon
+    // cvars through view::leavingTurn; mpfix C1.)
+    h.slot = intIn(v[1], -1, weapons::numSlots - 1);
+    h.helpKind = intIn(v[2], 0, 2);
     h.flip = v[3];
     for(int c = 0; c < 4; c++)
     {
@@ -115,7 +124,7 @@ void encode(const Hand& h, float v[valueCount])
     }
     for(int i = 0; i < maxSpots; i++)
     {
-        h.spotType[i] = static_cast<int>(v[16 + i * 6]);
+        h.spotType[i] = intIn(v[16 + i * 6], 0, static_cast<int>(weapons::HotspotType::Cup));
         h.spotPos[i] = get3(v, 17 + i * 6);
         h.spotBias[i] = v[20 + i * 6];
         h.spotShare[i] = v[21 + i * 6];
@@ -133,10 +142,10 @@ void encode(const Hand& h, float v[valueCount])
     h.axesUp = get3(v, 55);
     h.outOfEnt = static_cast<int>(v[58]);
     h.outOf = get3(v, 59);
-    h.carriedGrip = static_cast<int>(v[62]);
+    h.carriedGrip = intIn(v[62], -1, 1);
     h.carriedGripCos = v[63];
-    h.leaveFlip = v[64];
-    h.leaveSlot = static_cast<int>(v[65]);
+    h.leaveFlip = za::clamp(v[64], 0.f, 1.f);
+    h.leaveSlot = intIn(v[65], -1, weapons::numSlots - 1);
     return h;
 }
 
