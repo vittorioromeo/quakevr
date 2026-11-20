@@ -48,8 +48,9 @@ CMake files are left out. The changes:
 - b3World_EnableMeshGhostHandling (`src/physics_world.h`, `src/physics_world.c`, `src/mesh_contact.c`,
   `include/box3d/box3d.h`): #212's ghost collision handling for mesh contacts on (upstream's default) or off (as
   `B3_FORCE_GHOST_COLLISIONS` 1) per world, at run time. Quake VR sets it before each step from `vr_box3d_mesh_ghosts`
-  (default 1, on: off, the climbing ragdolls held ledges' lips better, 22 of 24 climbs against 17 on and 21 before the
-  update, but the active-ragdoll test's crawling ogre kept 76 J after its drive; ROUND25.md, "box3dup").
+  (default 1, on: upstream's handling; off, the active-ragdoll test's crawling ogre kept 76 J after its drive). The
+  climbs' drop with it on (17 of 24 against 21 before the update) was the climb's own "not hanging" judgement, not the
+  contacts: fixed in `vr_ragactive_hold.cpp`, 21 of 24 on (ROUND25.md, "box3dup" and "box3dup2").
 
 Quake VR uses it in `Quake/vr/vr_box3d.cpp` (see `docs/vr-port/ROUND21.md`, "Box3D
 physics"). Build settings (`Windows/VisualStudio/quakevr.props`, `Quake/vr/vr.cmake`):

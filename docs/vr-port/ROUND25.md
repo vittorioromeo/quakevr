@@ -4596,3 +4596,31 @@ transforms then, and skip its narrow phase while that distance less a conservati
 and turns times their extents since) stays above the speculative distance; touching flags and events stay as they
 are, but the skipped GJK/SAT caches differ, so a hash proof may still show last-bit differences on the pairs that do
 touch later. At most ~0.1 ms a frame with 6 close ragdolls: left (BACKLOG).
+
+## box3dup2: the ogre's ledge climb under upstream Box3D's ghost handling (2026-11-20, `agent/box3dup`)
+
+**Cause: not the contacts.** climb_test pull's ogre (seeds 7-10) dropped "lost its hold" with #212's ghost handling on
+(0/4) and pulled itself up with it off (4/4). Traced (`vr_ragdoll_active_trace 6`), its pose was the same both ways at
+its pull's start: straddling the lip, its left leg on the top, its pelvis 10 units out from the edge and 4 under the
+top. The Hang phase's "not hanging" (it lets go: meant for a monster that caught the lip with its legs still on the
+top) measured the pelvis from `Climb::lip`, the mean of the holds' points, and a ledge hold takes the lip where the hand
+was, up to half an arm in or out from the edge (the ogre's left hand 17 units in, its right 17 out). Off, only the left
+hand held by then: the pelvis read 27 units out, "hanging", it pulled. On, the right hand's hold came 0.2 s sooner: the
+mean was the edge, 10 units, "not hanging", it let go and fell. Which hand held first decided it (the old Box3D's 2/4
+were the same coin; the earlier note here that an ogre "swung 27-30 units out" was this misreading too).
+
+**Fix** (`vr_ragactive_hold.cpp`, climbFrame Hang; `Climb::edge`, set where the climb begins from the hands' reach
+goals, which are on the edge): "not hanging" is judged from the ledge's edge, and needs both whole legs on the top (a
+foot in from the edge and within 0.15 arm under the top), as its comment always said. A straddling monster pulls
+itself up. `lip` (the pull's way) is unchanged.
+
+**Numbers** (ghost handling on, `vr_box3d_mesh_ghosts 1`, the default kept): climb_test pull seeds 7-10 21/24 (was
+17/24): grunt 4/4, ogre 4/4 (was 0/4), enforcer 4/4, zombie 4/4, hell knight 3/4 (seed 8 "slid back off the lip", as
+before), knight 2/4 (seeds 9, 10 "lost its hold": a hand "pulled away" 11-15 units off its hold at the grab, both
+modes now and then; run singly, seeds 9 and 7 swap: chaotic; BACKLOG). Active-ragdoll test no failures (the crawling
+ogre's late ke 1.0 J). ragdoll_stagger 1 FAIL (monster 0's backpedal, the known one); flatmelee 12/0; scenario_check
+PASS; throw_spin PASS, held_over_props PASS, throw_grace and throw_trigger run clean, gib_2h_throw 11 of 28 bursts,
+magthrow 3/0; gibprops e1m1 alive (grunt, ogre, zombie, knight, hell knight, enforcer): all 1 but the enforcer's head
+still in the air at 150 frames (as ROUND22 notes). vr_physics_mtbench 200/300 `eece2c3897006b67`, 400/300
+`b071f169ad1d96cb` for every worker count, AVX2 and SSE2 (unchanged). Dev and ThinLTO 0 warnings, the LTO exe
+relinked after the change.
