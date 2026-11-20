@@ -758,6 +758,7 @@ za::Vector<Item> pageDebugProfiling()
         row(opt::vr_box3d_workers),
         row(opt::vr_box3d_avx2),
         row(opt::vr_box3d_threads_bodies),
+        row(opt::vr_ragdoll_self_pairs),
         command("Physics Step Time", "vr_physics_steptime")
             .help("vr_physics_steptime: Box3D's step time a frame since the last time (average, median, 95th and 99th "
                   "percentiles, worst, ms), the awake bodies and its threads. Run it, play, run it again."),

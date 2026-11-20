@@ -6305,6 +6305,10 @@ QVR_TOGGLE(vr_box3d_avx2, "Physics AVX2",
     "(the console says which at the first map). Off (the default): 4 at a time with SSE2. The same results "
     "either way; measured in the game (an i9-13900K), AVX2 was no faster with 500 props and a little slower "
     "with 40 (Box3D alone, a box pile on a box floor, it is 20% faster). Takes effect at the next physics step.")
+QVR_TOGGLE(vr_ragdoll_self_pairs, "Ragdolls' Self Contacts",
+    "On (the default): a ragdoll's parts meet each other. Off, a measurement aid: they pass through each other, so the "
+    "physics step has none of their contacts to collide (Physics Step Time by Awake Bodies before and after; changes "
+    "how ragdolls fall; vr_ragdoll_self_pairs). New contacts only: set it before the ragdolls are made.")
 QVR_CYCLE(vr_box3d_threads_bodies, "Physics Threads From",
     "With Physics on Threads: shared out only while at least this many bodies are awake (a smaller step is "
     "faster on the main thread alone: handing it out costs more than it saves). Measured: even at ~100 awake, "

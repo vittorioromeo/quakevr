@@ -3316,6 +3316,7 @@ QVR_CVAR(vr_agrunt_rearm_punch, "0", CVAR_ARCHIVE)    // units: an unarmed one w
 QVR_CVAR(vr_agrunt_strafe_lean, "5", CVAR_ARCHIVE)    // degrees: armed humanoids moving sideways tip their pelvis and legs this far toward the way they go (at 80 u/s; scaled by speed, eased), the upper body held aimed; 0 none
 QVR_CVAR(vr_agrunt_strafe_turn, "60", CVAR_ARCHIVE)   // degrees: armed humanoids moving sideways turn their pelvis and legs this far toward the way they go (at 80 u/s; scaled by sideways speed, eased; backing off: never flipped), the spine turning back so the chest and gun stay aimed; 0 none
 QVR_CVAR(vr_ragdoll_collide_each, "1", CVAR_ARCHIVE)  // ragdolls meet each other (a pile of them lies on itself); 0 they pass through each other
+QVR_CVAR(vr_ragdoll_self_pairs, "1", CVAR_NONE)    // debug (a measurement aid, ROUND25.md "box3dup"): 0 a ragdoll's own parts never meet (no self contacts: the physics changes); 1 as always
 QVR_CVAR(vr_ragdoll_grab_reach, "2", CVAR_ARCHIVE)    // units: how near a limb's surface the hand must be to take it
 QVR_CVAR(vr_decap, "1", CVAR_ARCHIVE)                 // decapitation (QC vr_decap.qc): a killing slash at the head of a monster with a ragdoll cuts its head off (its ragdoll headless, a blood fountain, the head flies)
 QVR_CVAR(vr_decap_speed, "3.5", CVAR_ARCHIVE)           // m/s the blade's struck point must move at (across the blade: a slash, not a stab) to behead

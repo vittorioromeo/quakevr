@@ -7,26 +7,44 @@ Erin Catto's 3D rigid-body physics engine, the successor to Box2D. MIT licence (
 
 - Upstream: https://github.com/erincatto/box3d
 - Version: 0.1.0 (alpha) and later work on main (`b3GetVersion` says 0.2.0, the next)
-- Commit: `efca0c184d40fd6a82016983f1601c4d23965867` ("Gyro tolerance (#191)"; updated 2026-10-19 from 5d83df83,
-  `docs/vr-port/ROUND22.md`, "Box3D updated to upstream efca0c18"). Since #191 a world's `isotropicInertiaTolerance`
-  (upstream's default 0.2) leaves the gyroscopic torque out for nearly isotropic bodies; Quake VR's worlds set it to 0,
-  so every body but an exactly isotropic one keeps it, as before #191 (`vr_box3d.cpp`, the throw's spin alignment).
+- Commit: `1767150df433d94ffccd96f550431351403c4e8e` ("Pull model task API (#228)"; updated 2026-11-20 from efca0c18,
+  `docs/vr-port/ROUND25.md`, "box3dup"; from 5d83df83 on 2026-10-19, `docs/vr-port/ROUND22.md`). Since #191 a world's
+  `isotropicInertiaTolerance` (upstream's default 0.2) leaves the gyroscopic torque out for nearly isotropic bodies;
+  Quake VR's worlds set it to 0, so every body but an exactly isotropic one keeps it, as before #191 (`vr_box3d.cpp`,
+  the throw's spin alignment). Since #228 the enqueue callback gets a `b3TaskType` instead of a name
+  (`enqueueStepTask`); Quake VR keeps the push model (its enqueue and finish callbacks), not the new pull model. Since
+  #212 mesh contacts handle ghost collisions fully for meshes built with `identifyEdges` (the world mesh is:
+  `vr_box3d_mesh.cpp`); since #227 a contact keeps at most `B3_MAX_MANIFOLDS` (8) manifolds.
 
 Only the library is vendored: `src/` (the C17 sources and their private headers) and `include/box3d/` (the
-public C API), unchanged but for local changes marked `QVR` (keep them when updating): the Tracy ones in `src/core.h`
-and `src/core.c` (above, and `TRACY.md`), and in `src/mesh_contact.c`
-b3ComputeMeshManifolds asks the pre-solve callback for a mesh's contact points too (upstream asks it only in the convex
-path, once a contact), so that a prop passing through a teleporter does not collide with the wall behind it
-(`vr_box3d.cpp` preSolve, the portal copies), and in `src/hull.c` and `include/box3d/collision.h` b3CreateHullWith:
-b3CreateHull with its working memory and result from the caller's allocator (b3CreateHull calls the same code with
-b3Alloc / b3Free), so that the disarm hulls made each frame use a scratch arena (`vr_disarmhull.cpp`), and in `src/physics_world.h`
-and `src/physics_world.c` the contact manifolds' arrays longer than `B3_POOLED_MANIFOLD_COUNT` (4) come from b3Alloc
-instead of a block allocator of their own count (upstream makes one pool for every count up to the longest a mesh
-contact ever had, each 512 arrays of its count, kept until the world goes: memory quadratic in that count), freed at
-the world's end, counted in `b3World_DumpMemoryStats`, and `b3World_GetManifoldMemory` (`include/box3d/box3d.h`;
-`vr_physics_mem`; `docs/vr-port/MP_PLAN.md` B21), and in `src/body.c` and `include/box3d/box3d.h`
-b3Body_GetAllContactData: b3Body_GetContactData's every contact, touching or not (`vr_physics_frametime`'s split of
-the ragdolls' contacts: ROUND25.md, "ragperf2"). Upstream's samples, tests, benchmarks, docs, shared code and CMake files are left out.
+public C API), unchanged but for local changes marked `QVR` or `Quake VR` (keep them when updating; diff the vendored
+files against the upstream commit above to see them all). Upstream's samples, tests, benchmarks, docs, shared code and
+CMake files are left out. The changes:
+
+- Tracy (`src/core.h`, `src/core.c`): the frame mark above, and the default pool's allocations through `vr_tracy.h`
+  (replayed on an on-demand reconnect; `TRACY.md`).
+- Mesh contacts and the pre-solve callback (`src/mesh_contact.c`): b3CollideMeshTriangles (called by
+  b3ComputeMeshManifolds, which passes it the world and shape B's transform; NULL from b3CollideMeshAndHull and the
+  like) asks the pre-solve callback for a mesh's contact points too, point by point (upstream asks it only in the
+  convex path, once a contact), so that a prop passing through a teleporter does not collide with the wall behind it
+  (`vr_box3d.cpp` preSolve, the portal copies).
+- The pre-solve callback's `separation` (`include/box3d/types.h` b3PreSolveFcn, `src/contact.c`, `src/solver.c`,
+  `src/mesh_contact.c`): the contact's least separation (0 from continuous collision): the hands pressing on props
+  (`notePress`).
+- Elliptical cones (`include/box3d/types.h` b3SphericalJointDef `coneAngleY`, `src/joint.h`, `src/joint.c`,
+  `src/spherical_joint.c`, `src/recording.c`, `src/recording.h` (recording major version 7), `src/replay.c`): a
+  spherical joint's cone half angle toward frame A's y axis, `coneAngle` then toward x (the authored rig's balls,
+  `vr_rig2.cpp`).
+- b3CreateHullWith (`src/hull.c`, `include/box3d/collision.h`): b3CreateHull with its working memory and result from
+  the caller's allocator (b3CreateHull calls the same code with b3Alloc / b3Free), so that the disarm hulls made each
+  frame use a scratch arena (`vr_disarmhull.cpp`).
+- Long manifold arrays (`src/physics_world.h`, `src/physics_world.c`, `include/box3d/box3d.h`): arrays longer than
+  `B3_POOLED_MANIFOLD_COUNT` (4) come from b3Alloc instead of a block allocator of their own count (upstream makes one
+  pool for every count up to the longest a contact had, each 512 arrays of its count, kept until the world goes; #227
+  capped the count at 8, so the pools' worst is now bounded, but the change stays), freed at the world's end, counted
+  in `b3World_DumpMemoryStats`, and `b3World_GetManifoldMemory` (`vr_physics_mem`; `docs/vr-port/MP_PLAN.md` B21).
+- b3Body_GetAllContactData (`src/body.c`, `include/box3d/box3d.h`): b3Body_GetContactData's every contact, touching or
+  not (`vr_physics_frametime`'s split of the ragdolls' contacts: ROUND25.md, "ragperf2").
 
 Quake VR uses it in `Quake/vr/vr_box3d.cpp` (see `docs/vr-port/ROUND21.md`, "Box3D
 physics"). Build settings (`Windows/VisualStudio/quakevr.props`, `Quake/vr/vr.cmake`):
@@ -57,6 +75,7 @@ physics"). Build settings (`Windows/VisualStudio/quakevr.props`, `Quake/vr/vr.cm
   The results are the same whatever the count (Box3D is deterministic across threads).
 
 To update: copy upstream's `src/*.c`, `src/*.h`, `src/*.inl`, `include/box3d/*.h` and `LICENSE` over these (removing
-files upstream removed or renamed), re-apply the `QVR` changes (diff the vendored `src/` against the old upstream commit to see them all) and change the
-commit above. New `.c` files are
+files upstream removed or renamed), re-apply the `QVR` changes (diff the vendored `src/` and `include/` against the old upstream commit to see them all;
+`git merge-file -p --diff3 <new upstream file> <old upstream file> <vendored file>` re-applies a file's, conflicts
+marked) and change the commit above. New `.c` files are
 picked up by the build's wildcards (`quakevr.props`, `vr.cmake`).
