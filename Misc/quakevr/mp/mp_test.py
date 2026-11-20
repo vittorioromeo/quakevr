@@ -5434,6 +5434,10 @@ VOICE_SLACK = 1.2           # a budget's bucket burst and the measuring window's
 VOICE_TONE_C = 660          # C's test tone (two talking at once)
 VOICE_TWO_LOW_BUDGET = 5000 # the server's budget, B/s, under both talkers' new frames (~3.4 KB/s each): each a fair part
 VOICE_TWO_ALIKE = 0.7       # the two talkers' shares of their frames that reach B: the smaller at least this of the larger
+# ... over this many of A's frames (20 ms each): the counts are read one game after another and B's lag after them,
+# frames in flight at the window's ends counted on one side only; at 100 (2 s) a busy machine's reports apart put one
+# talker's share at 0.38 and the other's at 0.56 (1 suite of 6 under --load 16)
+VOICE_TWO_FRAMES = 250
 
 
 def voice_report(inst, hz=VOICE_HZ):
@@ -5588,6 +5592,10 @@ def voice(s, listen=False, lag=0.0, jitter=0.0, loss=0.0):
     # (B tells the server whom he muted, vr_voicechat_listen: the relay sends him none of A's frames, only a note while A
     # talks, so his row still says so; REVIEW_MP_2026-11-18 finding 4)
     relay0 = voice_relay_until(srv, eb - 1, lambda f: int(f.get("muted", 0)) == 1 << sa, "B's mute of A at the server")
+    # (his count from once the frames sent before the mute are in: 8 of A's held back, 160 ms, past B's link's 50 ms and
+    # its 30 ms of jitter; counted at once, 3 still on their way arrived after it in a voice_lossy run)
+    relay0 = voice_relay_until(srv, eb - 1, lambda f: int(f["out_muted"]) >= int(relay0["out_muted"]) + 8,
+                               "8 of A's frames held back from B")
     rec0 = int(voice_report(b)[1][sa]["received"])
     relay1 = voice_relay_until(srv, eb - 1, lambda f: int(f["out_muted"]) >= int(relay0["out_muted"]) + 25,
                                "25 of A's frames held back from B")
@@ -5689,7 +5697,8 @@ def voice_two(s, srv, a, b, sa, loss):
         voice_report(b)  # (a report between: the budget in force)
         sent0 = {sa: int(voice_report(a)[0]["frames"]), sc: int(voice_report(c)[0]["frames"])}
         got0 = voice_report(b)[1]
-        voice_until(s, a, sa, lambda send, sp: int(send.get("frames", 0)) >= sent0[sa] + 100, "%s: A's 100 more frames" % label)
+        voice_until(s, a, sa, lambda send, sp: int(send.get("frames", 0)) >= sent0[sa] + VOICE_TWO_FRAMES,
+                    "%s: A's %d more frames" % (label, VOICE_TWO_FRAMES), tries=1500)
         sent1 = {sa: int(voice_report(a)[0]["frames"]), sc: int(voice_report(c)[0]["frames"])}
         got1 = voice_report(b)[1]
         shares = {}

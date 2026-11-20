@@ -1061,6 +1061,34 @@ float vr_dmt_parries0; // the defender's guards raised before the swing
 float vr_dmt_t0;       // test 10: when its two guns were both held
 entity vr_dmt_bot2;    // test 9's swinging bot
 
+// Test 9's defender turned (by 45 degrees at a time) until the swinger's place 36 units ahead of it is free: no wall on
+// the way and nobody there (the human or the swinger's own bounds in another: a swinger put into a player was stuck in
+// him and its blow landed on him, 1 suite of 6) -> FALSE when no way is.
+float() VR_DMT_PairFree =
+{
+    entity d = vr_dmt_bot, a = vr_dmt_bot2;
+    for(float k = 0; k < 8; k++)
+    {
+        makevectors(d.angles_y * '0 1 0');
+        vector p = d.origin + v_forward * 36;
+        tracebox(d.origin, VEC_HULL_MIN, VEC_HULL_MAX, p, TRUE, d); // (walls on the way: the players at the place, below)
+        float clear = ((trace_fraction == 1) && !trace_startsolid);
+        for(entity o = VR_Player(); o; o = VR_NextPlayer(o)) // (and no other player there: bodies 32 wide)
+        {
+            if(o != d && o != a && vlen(o.origin - p) < 40)
+            {
+                clear = FALSE;
+            }
+        }
+        if(clear)
+        {
+            return TRUE;
+        }
+        d.angles_y = anglemod(d.angles_y + 45);
+    }
+    return FALSE;
+};
+
 // The two bots held facing each other `vr_dmt_spot` apart (the defender vr_dmt_bot where it stands, the swinger in front
 // of it), swords in hand, their own attacks and off hands held off.
 void() VR_DMT_HoldPair =
@@ -1154,6 +1182,11 @@ void(float ask) VR_DMT_Bots =
     if(vr_dmt_s == 41) // (9) held apart, then the swing
     {
         cvar_set("vr_bot_parry_chance", vr_dmt_case == 0 ? "100" : "0");
+        if(vr_dmt_n == 1 && vr_dmt_case == 0 && !VR_DMT_PairFree()) // (case 1 at the same place)
+        {
+            VR_Test_Check(FALSE, sprintf("case %g: a free place for %s 36 units from %s (8 ways tried)", vr_dmt_case,
+                vr_dmt_bot2.netname, vr_dmt_bot.netname));
+        }
         VR_DMT_HoldPair();
         if(vr_dmt_n < VR_DMT_HOLD)
         {
