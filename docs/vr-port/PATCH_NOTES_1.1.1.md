@@ -128,7 +128,8 @@ aren't Map Library packages aren't sent to joining players.
 - **Multiplayer menu.** Join Game and Host Game go straight to their page: Quake's "IPX / TCP/IP" choice is gone (IPX
   has been dead for decades, and "TCP/IP" always meant UDP). The "multiplayer is untested" note is gone too.
 - **`-window` makes a normal window** with its title bar, to drag and resize, even with Borderless Window on (the
-  setting is kept for the next launch without it).
+  setting is kept for the next launch without it). **`-windowpos <x> <y>`** places it (its inside's top-left, in
+  desktop pixels) instead of centring it.
 
 
 ## Performance
