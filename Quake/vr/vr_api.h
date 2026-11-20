@@ -372,6 +372,7 @@ void VR_MonsterHealth_Frame (void);	// SV_Physics, after the edicts: Monster Hea
 int VR_AD_PelletsPass (const struct edict_s *mover, const struct edict_s *target); // AD support: projectile pellets pass one another
 int VR_AD_RulesOn (void);				// AD support (vr_ad.cpp): the map spawning plays by Arcane Dimensions' rules
 const char *VR_Rules_SpawnName (const char *classname, int ours);	// the spawn function's name by the map's ruleset (vr_rules.cpp): Quake VR's, an imported ruleset's (ad_<classname>) or NULL
+const char *VR_Rules_KeyPrefix (void);	// the map's ruleset's imported prefix ("ad_", "cu_") for its own map keys' fields, or NULL (vr_rules.cpp)
 int VR_Rules_ToolgunPrefixed (const char *classname, const char **plain); // the toolgun's ad_/cu_ variants: 0 none, 1 spawns, -1 refused (vr_rules.cpp)
 int VR_AD_SpawnsOutside (const char *classname);	// AD support: outside AD's rules, AD's ad_<classname> spawns it (an artifact, a pickup, a ladder)
 int VR_AD_ToolgunSpawnsOutside (const char *classname); // AD support: and the toolgun's (AD's backpacks too)
@@ -923,7 +924,8 @@ const char *VR_CampaignTag(int index);   // its status in a word or two ("missin
 const char *VR_CampaignHelp(int index);
 void VR_SelectCampaign(int index);
 int VR_CampaignUnavailable(int index);
-int VR_CampaignInstalled(int index); // data complete (the experimental AD row is offered on this alone)
+int VR_CampaignInstalled(int index); // data complete (the experimental rows are offered on this alone)
+int VR_CampaignExperimental(int index); // AD's, Dwell's: a notice first, then their developer launch
 // Setup's preparation's walk through the campaigns (vr_prepare.cpp).
 int VR_CampaignCount(void);
 const char *VR_CampaignFolder(int index);

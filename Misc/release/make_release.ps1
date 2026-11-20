@@ -403,7 +403,7 @@ function Invoke-OnlineCheck([string]$relDir, [string]$feed, [string]$quake) {
     if ($SkipOnlineInstall) { Warn "-SkipOnlineInstall: no sandboxed install through the feed"; return }
     if (-not $quake) { Warn "online check: no Quake folder (-QuakeDir, QVR_QUAKE_DIR, qvr-setup detect): no sandboxed install through the feed"; return }
     $sandbox = Join-Path $checkDir "sandbox"
-    $iArgs = @("install", "--feed", $feed, "--sandbox", $sandbox, "--quake", $quake, "--accept-statement", "--setup-from", (Join-Path $assetsHere "QuakeVR-Setup.exe"))
+    $iArgs = @("install", "--feed", $feed, "--sandbox", $sandbox, "--quake", $quake, "--accept-statement", "--no-dwell", "--setup-from", (Join-Path $assetsHere "QuakeVR-Setup.exe"))
     if ($OnlineHd) { $iArgs += "--hd" }
     Say "  installing through the feed into $sandbox (the real download; nothing outside the sandbox)"
     Invoke-Logged $qvrSetup $iArgs (Join-Path $checkDir "install.log") | Out-Null

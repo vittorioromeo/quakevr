@@ -138,14 +138,14 @@ used where it is: the row says "Found in <path>: will be used" and the box is di
 reported and the download offered (the copy in Quake VR's folder then wins: it is the game's highest-priority root).
 Core: `Installer/src/QuakeVR.Installer.Core/Packaging/ArcaneDimensions.cs`.
 
-## Dwell (recommended, off by default until its maps play)
+## Dwell (recommended, on by default)
 
 The same third-party path as Arcane Dimensions (`Packaging/ModComponent.cs`: one spec per mod, `ArcaneDimensions.Spec`
 and `Dwell.Spec`; checks, staging, install.json records, plan and the whole optional step are shared, so a fix in one is
 a fix in both). The Options page's "Dwell (recommended) — free, by Fairweather and the Dwell team: two episodes, 24
 maps, soundtrack included" box shows its size first (367 MB download, about 762 MB on disk, in the installer's usual
-units: 384,629,995 bytes and 799,533,222 bytes) and is **unticked** while `Dwell.OnByDefault` is `false`: the build in
-which Dwell's maps play flips that one constant (docs/vr-port/DWELL.md, section 7). `dwellv2p2.zip` (pinned: 384,629,995
+units: 384,629,995 bytes and 799,533,222 bytes) and is **ticked** (`Dwell.OnByDefault`, true since 1.1.1: Dwell's maps
+play by Copper's rules, docs/vr-port/DWELL.md sections 7 and 9.2). `dwellv2p2.zip` (pinned: 384,629,995
 bytes, SHA-256 `15bbc5dc...d11d`, `BuiltInComponents.Dwell()`; latest.json's `components.dwell` may override it) comes
 from Quaddicted only (the content-addressed copy, then the filebase), is checked (size, then SHA-256) and unpacked
 unmodified into `<install>\dwell` (the zip's `dwellv2p2/` folder is `dwell/`; its two READMEs go inside it), recorded as
@@ -154,10 +154,10 @@ tracks up in lower case; a case-sensitive file system, Linux or the Quest, would
 copy, so no 2 MB duplicate; recorded under the new name, so verify and uninstall agree). "I already have it": a `dwell`
 or `dwellv2p2` folder in an owned Quake root whose `progs.dat` has v2.2's SHA-256 (`Dwell.ProgsSha256`) and a pak0.pak
 is used where it is; another progs.dat is reported as an older version, not used; no progs.dat is incomplete. CLI:
-`qvr-setup install --dwell [--dwell-zip <zip>] [--no-stores]` (by default once `OnByDefault` is true; `--no-dwell`
+`qvr-setup install --dwell [--dwell-zip <zip>] [--no-stores]` (by default: `OnByDefault`; `--no-dwell`
 skips it). Self-tests: `dwell: ...` (the pin and its three copies, existing copies, a sandboxed install of a
 Dwell-shaped zip from a local server, and the real zip from `qvr-kit/downloads/dwell/`, skipped when absent: 447 files,
-progs.dat's hash, Track107). The game's campaign entry and `vr_campaign_status` are P1b's.
+progs.dat's hash, Track107). The game plays it as campaign 7, `dwell` (Select Campaign > Dwell; `vr_dwell_status`).
 
 ## Packages
 

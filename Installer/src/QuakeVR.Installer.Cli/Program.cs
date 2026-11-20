@@ -154,7 +154,7 @@ string? AlreadyDownloaded(string downloads, FeedFile file)
 }
 
 // The third-party mod components, one code path for both (ModComponent): Arcane Dimensions (--ad, --ad-zip <zip>) and
-// Dwell (--dwell, --dwell-zip <zip>; also by default once Dwell.OnByDefault is flipped, --no-dwell skips it). A copy of
+// Dwell (--dwell, --dwell-zip <zip>; also by default: Dwell.OnByDefault, --no-dwell skips it). A copy of
 // the release the game plays in the owned Quake roots (the stores' unless --no-stores, and the Quake folder's) is used
 // where it is; otherwise the zip (the feed's, else the built-in pin) is downloaded, checked and unpacked into
 // <install>\<folder>. Never fatal: a failure leaves the install as it is.

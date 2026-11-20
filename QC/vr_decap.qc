@@ -610,7 +610,7 @@ void(entity targ) VR_Decap_After =
             targ.health = oldHealth;
             return;
         }
-        if(targ.vr_ad_mon)
+        if(VR_AD_Code(targ))
         {
             VR_AD_ZombieKilled(targ, by); // AD support: AD's Killed, its death the lying one (vr_ad_monsters.qc)
         }

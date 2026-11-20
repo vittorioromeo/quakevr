@@ -28,6 +28,17 @@ Flat screen and VR: no attract-mode demos play at start or when the menu idles; 
 VR Settings > Locomotion > Speed Button: Toggle: click the stick once to sprint, again (or stop) to walk
 VR Settings > Climbing > Mantle When: on letting go / on jump: hang on a ledge, the climb-over waits for that
 Toolgun > Weapons: Grappling Gun is listed; spawn it, grab it, and it hooks
+Dwell: Select Campaign > Dwell, play start and d1m1 (triggered monsters wait, checkpoints autosave); Map Library: Ancient and Underdark Overbright udob1 load and play by Copper rules
+Dwell monsters from the toolgun Dwell pack in e1m1: Kamikaze rush and burst, Brute grenades and punch, Construct dive
+Dwell d1end and d2end boss fights to the end; Berserk melee; Crystal Lance through a line of monsters
+Dwell's Brute: knocked down it gets up, beheaded (its own head), arms cut, punch parried
+Dwell's Kamikaze grabbed and thrown; head shots on the Awoken count
+Dwell's Rotary Shotgun reloads at the hip and spins up like the Widowmaker; the Crystal Lance fires without a crash
+Dwell's weapons keep their kind in holsters, after a save and a level change; Haste/Berserk/Wetsuit seconds on the wrist
+Dwell: an armed grunt picks up your thrown Rotary Shotgun / Crystal Lance and fires Dwell's shot; Haste yellow, Berserk red, both orange tint
+Dwell weapons have their own VR models (scenario dwell_vrmodels: grips, muzzles, sights, two-hand; tune Weapon Offsets); the Rotary's barrels spin; holster/wrist menu names by model (Widowmaker, Rifle...)
+Dwell d2end boss: read and dodge the bullet-hell shots, bat one back with a sword; the Sculptor spins, tilts, raises its shield and teleports
+Dwell: Copper armour pickups (0.3/0.5/0.7, excess kept) and key stacks in d1m1; shots on the Sculptor's ring (d2end) land
 
 [1. Flat-screen: weapons and hands]
 

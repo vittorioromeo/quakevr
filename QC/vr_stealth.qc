@@ -48,7 +48,8 @@ void(entity m) VR_Stealth_ClassOf =
     if((m.flags & (FL_FLY | FL_SWIM)) || m.stl_ad < 0 || (!m.stl_ad && (!m.th_stand || !m.th_walk)) ||
        c == "monster_boss" || c == "monster_boss_final" ||
        c == "monster_oldone" || c == "monster_oldone_new" || substring(c, 0, 13) == "monster_shub_" ||
-       c == "monster_dragon" || c == "monster_lava_man" || c == "monster_armagon" || c == "monster_super_shambler")
+       c == "monster_dragon" || c == "monster_lava_man" || c == "monster_armagon" || c == "monster_super_shambler" ||
+       c == "monster_d1boss" || c == "monster_d2boss") // (Dwell's bosses: DWELL.md P2b)
     {
         m.stl_class = -1;
         return;
@@ -66,7 +67,12 @@ void(entity m) VR_Stealth_ClassOf =
     {
         m.stl_hear = 1.4;
     }
-    else if(c == "monster_ogre")
+    else if(c == "monster_kamikaze") // (Dwell's: a screaming runner, all ears, half blind; DWELL.md P2b)
+    {
+        m.stl_hear = 1.2;
+        m.stl_sight = 0.8;
+    }
+    else if(c == "monster_ogre" || c == "monster_brute") // (Dwell's Brute: the ogre's slow senses)
     {
         m.stl_hear = 0.8;
         m.stl_sight = 0.9;

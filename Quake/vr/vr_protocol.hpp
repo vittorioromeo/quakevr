@@ -216,6 +216,10 @@ enum Stat : int
     // greyed, their gun's rounds having no room in the reserve (that ammo full up), bit 0 the off hand, 1 the main; bits 2
     // and 3: that hand's weapon too big for a holster (QC WeaponIdToHolsterable: the menu's drag greys the holsters).
     STAT_QVR_FLATUNLOADFULL,
+    // Dwell support: Dwell's powerups on the player (QC dwell/dw_items.qc DW_PowerupFrame, .vr_dw_hud): the seconds left
+    // of Haste (bits 0-7), Berserk (8-15) and the Wetsuit (16-23), 0 not held; the wrist gadget's row and the flat
+    // visor's (vr_gadget.cpp infoRows).
+    STAT_QVR_DWPOWER,
     STAT_QVR_END
 
 };

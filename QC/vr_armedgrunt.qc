@@ -714,6 +714,7 @@ float(float code) VR_AG_Decode =
 string(float wid, float flags, entity inst) VR_AG_NameOf =
 {
     if(wid < 0) { return "fists"; }
+    if(inst && inst.wi_dwvar) { return DW_VariantName(inst.wi_dwvar); } // (Dwell's weapons: dw_items.qc)
     if(inst && inst.wi_adup && vr_ad_data)
     {
         if(wid == WID_AXE) { return "Shadow Axe"; }
@@ -2131,7 +2132,13 @@ void(entity p) VR_AG_ShootProp =
     self.button0 = 1; // (its trigger held: the laser cannon fires only so)
     vr_fire_spread_extra = pen * (1 / max(0.05, cvar_hget(cvarh_vr_2h_spread_reduction)) - 1); // (FireBullets: x2 at 1)
     vr_fire_spread_extra = VR_AGAI_SpreadExtra(vr_fire_spread_extra); // (vr_agrunt_ai_accuracy)
-    if(wid == WID_SHOTGUN)              { W_FireShotgun(h); }
+    if(inst.wi_dwvar && DW_VariantFor(wid) == inst.wi_dwvar) // (Dwell's weapons: their shot, as yours: dw_items.qc)
+    {
+        dw_beam_prop = p;
+        DW_FireVariant(h, &p.attack_finished); // (its refire on the prop, unused: the grunt keeps its own pace)
+        dw_beam_prop = world;
+    }
+    else if(wid == WID_SHOTGUN)         { W_FireShotgun(h); }
     else if(wid == WID_SUPER_SHOTGUN && AD_Widowmaker(inst)) { AD_FireWidowmaker(h); } // (AD's upgrades: vr_ad_bridge.qc)
     else if(wid == WID_LIGHTNING && AD_PlasmaGun(h, p.weaponflags)) { AD_FirePlasma(h); }
     else if(wid == WID_ADROCKET)        { VR_ADGun_FireRocket(h); } // (AD's soldiers' guns: vr_ad_enemyguns.qc)

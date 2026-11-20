@@ -208,7 +208,7 @@ void() cu_ShalHome =
 			|| self.owner.cu_customflags & cu_CFL_PLUNGE )	// or falls in a hole
 		{
 			self.deadflag = cu_TRUE;
-			setmodel(self, "progs/v_spike2.mdl");	// stop sparkling
+			setmodel(self, VR_ModelOr("progs/v_spike2.mdl", "progs/v_spike.mdl"));	// stop sparkling
 			setsize(self, cu_VEC_ORIGIN, cu_VEC_ORIGIN);
 		}
 	}
@@ -399,7 +399,7 @@ void() cu_monster_shalrath =
 	precache_model2 ("progs/shalrath.mdl");
 	precache_model2 ("progs/h_shal.mdl");
 	precache_model2 ("progs/v_spike.mdl");
-	precache_model2 ("progs/v_spike2.mdl");
+	precache_model2 (VR_ModelOr("progs/v_spike2.mdl", "progs/v_spike.mdl"));
 	
 	precache_sound2 ("shalrath/attack.wav");
 	precache_sound2 ("shalrath/attack2.wav");

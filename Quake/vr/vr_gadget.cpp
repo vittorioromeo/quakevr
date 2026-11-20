@@ -453,6 +453,7 @@ struct Readout
     int adArt[2]{0, 0}; // AD support: the AD page's: each artifact's seconds left (STAT_QVR_ADART1, ADART2: 8 bits each)
     int adDebuff{0};    // the poison and bleeding still to come, the burning's seconds (STAT_QVR_ADDEBUFF)
     int adUp{0};        // the carried weapons' upgrades (STAT_QVR_ADUPGRADES: 3 bits a weapon)
+    int dwPower{0};     // Dwell support: Haste's, Berserk's, the Wetsuit's seconds left (STAT_QVR_DWPOWER: 8 bits each)
 };
 
 // QC's ammo type (AID_*: vr_defs.qc) as the picture of its kind (-1 none); Rogue's lava nails, multi-rockets and plasma
@@ -503,6 +504,7 @@ struct Readout
     r.adArt[1] = cl.stats[protocol::STAT_QVR_ADART2];
     r.adDebuff = cl.stats[protocol::STAT_QVR_ADDEBUFF];
     r.adUp = cl.stats[protocol::STAT_QVR_ADUPGRADES];
+    r.dwPower = cl.stats[protocol::STAT_QVR_DWPOWER];
 
     switch(static_cast<int>(vr_gadget_test_state.value))
     {
@@ -579,6 +581,7 @@ struct Readout
             r.adArt[1] = 12 | (45 << 8) | (90 << 16);
             r.adDebuff = 18 | (6 << 8) | (3 << 16);
             r.adUp = 1 | (4 << 3) | (2 << 15) | (2 << 6);
+            r.dwPower = 12 | (3 << 16); // (Dwell support: Haste 12 s, the Wetsuit running out)
             break;
         default: break;
     }
@@ -852,6 +855,17 @@ void infoRows(const Readout& r, const Palette& pal)
     {
         const int pic = adKeyPic(r, k);
         if(pic >= 0) { add(pic, nullptr, pal.label); }
+    }
+    // Dwell support: Dwell's powerups (no icons of their own: Dwell draws them in its CSQC), named with their seconds
+    // left, as the powerups in use; blinking in their last 3 s (their "wearing off" print).
+    constexpr const char* dwNames[3] = {"HASTE", "BERSERK", "WETSUIT"};
+    char dwText[3][16] = {};
+    for(int k = 0; k < 3; k++)
+    {
+        const int secs = (r.dwPower >> (8 * k)) & 255;
+        if(secs <= 0) { continue; }
+        q_snprintf(dwText[k], sizeof(dwText[k]), "%s %d", dwNames[k], secs);
+        add(-1, dwText[k], secs <= 3 ? blinking(pal.value) : pal.value);
     }
     constexpr const char* debuffs[3] = {"BURN", "POISON", "BLEED"};
     for(int d = 0; d < 3; d++)

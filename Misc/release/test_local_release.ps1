@@ -147,7 +147,7 @@ Say "  no Apps & Features entry; the VC++ runtime is only checked. Throw the tes
 
 if ($Cli) {
     Step "qvr-setup install --feed $feedUrl --sandbox (no window)"
-    & $qvrSetup install --feed $feedUrl --sandbox $Sandbox --relight --hd --setup-from $setup --accept-statement
+    & $qvrSetup install --feed $feedUrl --sandbox $Sandbox --relight --hd --setup-from $setup --accept-statement --no-dwell
     if ($LASTEXITCODE -ne 0) { throw "qvr-setup install failed (exit $LASTEXITCODE)" }
     & $qvrSetup verify --target (Join-Path $Sandbox "QuakeVR")
     if ($LASTEXITCODE -ne 0) { throw "qvr-setup verify failed" }

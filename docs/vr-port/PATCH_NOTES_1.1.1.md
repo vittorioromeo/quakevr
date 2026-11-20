@@ -3,6 +3,21 @@
 **Version 1.1.1**, compared with 1.1.0 (whose notes, PATCH_NOTES_1.1.md, are final). This file grows with every change
 that ships in 1.1.1.
 
+## Campaigns
+
+- **Dwell (experimental).** Dwell's two episodes, and custom maps made for Copper (such as Underdark Overbright), now
+  play, by Copper's rules: Select Campaign > Dwell, and the Map Library's Copper maps. The installer offers Dwell
+  (free, by Fairweather and the Dwell team), ticked by default. Dwell's own monsters (the Kamikaze, the Brute, the
+  Construct and both bosses) fight in its maps, and, with Dwell installed, in any map and from the toolgun; its
+  weapons and powerups work as variants of ours. Dwell's Rotary Shotgun, Crystal Lance and Rifle look like themselves
+  in your hands, holsters and on armed grunts (made from Dwell's own models, with a grip to hold), the Rotary's four
+  barrels turning as you fire; the holster menu (flat and on the wrist) names them, and AD's Widowmaker, Shadow Axe
+  and Plasma Gun too. Dwell's weapons
+  now stay what they are in your holsters, through saves, level changes and coop rejoins; the Rotary Shotgun reloads
+  and spins up as the Widowmaker; Haste, Berserk and the Wetsuit show their seconds left on the wrist (and the flat
+  visor), and Haste and Berserk tint the screen in Dwell's colours. An armed grunt that picks up one of Dwell's
+  weapons fires it as Dwell's. Fixed: the Crystal Lance's first shot ended the game with a network error.
+
 ## Graphics
 
 - **Relighting about twice as fast.** Quake VR now ships its own build of ericw-tools' `light` (2.0.0-alpha11-qvr1)

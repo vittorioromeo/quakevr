@@ -3985,7 +3985,7 @@ NO_INTERMISSION: the view will not go to the info_intermission spot and display 
 	]
 ]
 
-@PointClass color(128 128 128) size(-8 -8 -8, 8 8 8) model({ "path": "progs/debris1.mdl" }) =
+@PointClass color(128 128 128) size(-8 -8 -8, 8 8 8) =
 	target_debris : "From Copper (Lunaran): spawns in a map played by Copper's rules (Copper's and Dwell's maps), or by the toolgun as cu_<classname> there.
 
 emitter of chunks of debris
@@ -4630,6 +4630,148 @@ START_ON: do not wait until triggered to begin firing"
 	]
 	wait(float) : "Wait" :  : "Seconds to wait (before it returns, resets or repeats). -1: never."
 	count(integer) : "Count" :  : "A count: see the help for this entity."
+]
+
+//
+// Dwell: its own entities (they spawn in any map while Dwell's data is installed: DWELL.md P2a)
+//
+
+@SolidClass color(0 128 204) =
+	func_fade : "From Dwell (rebuilt on Copper and Quake VR): spawns in any map while Dwell's data is installed, or by the toolgun as dw_<classname>.
+
+Dwell: a brush fading in as a player comes near (192-384 units).
+alpha: near alpha2: far
+speed: fade speed"
+[
+	spawnflags(flags) =
+	[
+		2 : "Flag 2" : 0
+	]
+	speed(float) : "Speed" :  : "Speed (units per second) or rate: see the help for this entity."
+]
+
+@PointClass color(0 128 204) size(-8 -8 -8, 8 8 8) =
+	info_storycamera : "From Dwell (rebuilt on Copper and Quake VR): spawns in any map while Dwell's data is installed, or by the toolgun as dw_<classname>.
+
+Dwell: used, shows its pages (message, noise, noise1..noise4), 5 s each, then fires its targets."
+[
+]
+
+@PointClass color(0 128 204) size(-16 -16 -24, 16 16 32) =
+	item_artifact_berserk : "From Dwell (rebuilt on Copper and Quake VR): spawns in any map while Dwell's data is installed, or by the toolgun as dw_<classname>.
+
+Dwell's Berserk: 30 s, melee 11 times as hard, half the damage taken."
+[
+]
+
+@PointClass color(0 128 204) size(-16 -16 -24, 16 16 32) =
+	item_artifact_haste : "From Dwell (rebuilt on Copper and Quake VR): spawns in any map while Dwell's data is installed, or by the toolgun as dw_<classname>.
+
+Dwell's Haste: 20 s, weapons refire in 0.6 of their time."
+[
+]
+
+@PointClass color(0 128 204) size(-8 -8 -8, 8 8 8) =
+	misc_crystal : "From Dwell (rebuilt on Copper and Quake VR): spawns in any map while Dwell's data is installed, or by the toolgun as dw_<classname>.
+
+Dwell: a crystal cluster.
+style: 1-8, its shape
+mangle: its angles"
+[
+	mangle(string) : "Angles (pitch yaw roll)" :  : "Pitch, yaw and roll in degrees."
+]
+
+@PointClass color(255 0 0) size(-32 -32 -24, 32 32 64) model({ "path": "progs/e2/mon_brute.mdl" }) =
+	monster_brute : "From Dwell (rebuilt on Copper and Quake VR): spawns in any map while Dwell's data is installed, or by the toolgun as dw_<classname>.
+
+Dwell's Brute: 600 health; punches (60, throwing up) and lobs grenade volleys; drops 3 rockets."
+[
+	spawnflags(flags) =
+	[
+		1 : "AMBUSH" : 0
+	]
+]
+
+@PointClass color(255 0 0) size(-32 -32 -96, 32 32 96) model({ "path": "progs/mon_d1boss.mdl" }) =
+	monster_d1boss : "From Dwell (rebuilt on Copper and Quake VR): spawns in any map while Dwell's data is installed, or by the toolgun as dw_<classname>.
+
+Dwell's first boss, the Awoken: 1400 health, three phases. target, target2, target3: fired as each phase ends target4: fired at its death
+include: where it wakes after a phase"
+[
+]
+
+@PointClass color(255 0 0) size(-48 -48 -48, 48 48 48) model({ "path": "progs/mon_d2boss.mdl" }) =
+	monster_d2boss : "From Dwell (rebuilt on Copper and Quake VR): spawns in any map while Dwell's data is installed, or by the toolgun as dw_<classname>.
+
+Dwell's second boss, the Sculptor: dormant until used.
+strength: health (1000)
+speed: flight speed (300)
+wait: rest after a phase (40)
+include: its first path corner
+target: fired as each phase ends target2: its arena's centre target4: fired at its death"
+[
+	health(integer) : "Health" :  : "If set, it must be shot (this much damage) instead of touched."
+	speed(float) : "Speed" :  : "Speed (units per second) or rate: see the help for this entity."
+	wait(float) : "Wait" :  : "Seconds to wait (before it returns, resets or repeats). -1: never."
+	targetname(target_source) : "Name" :  : "The name that other entities' target and killtarget use to trigger this one."
+]
+
+@PointClass color(255 0 0) size(-32 -32 -16, 32 32 72) model({ "path": "progs/e2/mon_excavator.mdl" }) =
+	monster_excavator : "From Dwell (rebuilt on Copper and Quake VR): spawns in any map while Dwell's data is installed, or by the toolgun as dw_<classname>.
+
+Dwell's Construct: a flyer, 600 health; fires crystals (40); below 340 health it dives and bursts (60 around)."
+[
+	spawnflags(flags) =
+	[
+		1 : "AMBUSH" : 0
+	]
+]
+
+@PointClass color(255 0 0) size(-16 -16 -24, 16 16 24) model({ "path": "progs/e1/mon_kami.mdl" }) =
+	monster_kamikaze : "From Dwell (rebuilt on Copper and Quake VR): spawns in any map while Dwell's data is installed, or by the toolgun as dw_<classname>.
+
+Dwell's Kamikaze: 40 health; runs screaming at its enemy and bursts on contact (60 near, nothing at 190 units)."
+[
+	spawnflags(flags) =
+	[
+		1 : "AMBUSH" : 0
+	]
+]
+
+@PointClass color(128 128 128) size(-8 -8 -8, 8 8 8) model({ "path": "progs/e2/hell_rocket.mdl" }) =
+	target_bullethell : "From Dwell (rebuilt on Copper and Quake VR): spawns in any map while Dwell's data is installed, or by the toolgun as dw_<classname>.
+
+Dwell: used, a bullet-hell pattern out from it.
+style: 0 random (1-7), 1 a line at each player, 2 two lines, 3 ring, 4 two spirals, 5 moving wheel, 6 rocket barrage, 7 pulse, 8 Dwell's program A"
+[
+]
+
+@PointClass color(128 128 128) size(-8 -8 -8, 8 8 8) =
+	trigger_killboss : "From Dwell (rebuilt on Copper and Quake VR): spawns in any map while Dwell's data is installed, or by the toolgun as dw_<classname>.
+
+Dwell: used, marks the boss its target names to die next time (666 health left)."
+[
+]
+
+@PointClass color(0 128 204) size(-16 -16 0, 16 16 32) =
+	weapon_quad_shotgun : "From Dwell (rebuilt on Copper and Quake VR): spawns in any map while Dwell's data is installed, or by the toolgun as dw_<classname>.
+
+Dwell's Rotary Shotgun (for now a super shotgun firing Dwell's 20 pellets)."
+[
+]
+
+@PointClass color(0 128 204) size(-16 -16 0, 16 16 32) =
+	weapon_railgun : "From Dwell (rebuilt on Copper and Quake VR): spawns in any map while Dwell's data is installed, or by the toolgun as dw_<classname>.
+
+Dwell's Crystal Lance (for now a lightning gun firing Dwell's piercing beam: 150 each, 6 cells)."
+[
+]
+
+@PointClass color(0 128 204) size(-16 -16 0, 16 16 32) =
+	weapon_rifle : "From Dwell (rebuilt on Copper and Quake VR): spawns in any map while Dwell's data is installed, or by the toolgun as dw_<classname>.
+
+Dwell's Rifle (for now a shotgun firing one 50 bullet)."
+[
 ]
 
 //

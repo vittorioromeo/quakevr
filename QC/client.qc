@@ -165,6 +165,7 @@ void() SetChangeParms =
     parm48 = self.holsterweaponinst5.wi_uid;
     parm49 = qvr_weaponinst_next;
     parm64 = AD_PackWeaponUpgrades(self); // AD support: the carried weapons' upgrades (vr_ad_bridge.qc)
+    parm76 = DW_PackWeaponVariants(self); // Dwell support: the carried weapons' variants (dwell/dw_items.qc)
     WeaponInst_PackHot(self); // (the blades still glowing: parm65..72)
     parm50 = self.vr_flashlight_state; // (bits 0..18: the engine's lamp; bit 19: a chainsaw's cord pulled)
     if(self.vr_saw_cord_pulled) parm50 = parm50 + VR_PARM50_SAW_CORD_PULLED;
@@ -334,6 +335,7 @@ void() SetNewParms =
     parm73 = 0; // (no magnetic holster bindings)
     parm74 = 0; // (bullet time's meter full)
     parm75 = 0; // (no armour plates)
+    parm76 = 0; // (Dwell support: no variants)
     VR_Run_NewParms(); // the run's mutators: Starting Weapon, Melee Only's axe (vr_run.qc)
 };
 
@@ -452,6 +454,7 @@ void() DecodeLevelParms =
     self.holsterweaponinst4 = WeaponInst_Carried(self.holsterweapon4, parm37, parm47);
     self.holsterweaponinst5 = WeaponInst_Carried(self.holsterweapon5, parm38, parm48);
     AD_UnpackWeaponUpgrades(self, parm64); // AD support: their upgrades (vr_ad_bridge.qc)
+    DW_UnpackWeaponVariants(self, parm76); // Dwell support: their variants (dwell/dw_items.qc)
     WeaponInst_UnpackHot(self);
     VR_MagHolster_DecodeParms(); // (parm73: the bindings, to the carried weapons' records)
     VR_ADGun_EnsureCarried(self); // AD support: AD soldiers' guns carried here precached (vr_ad_enemyguns.qc)
@@ -769,7 +772,7 @@ void() execute_changelevel =
         other.modelindex = 0;
         setorigin(other, pos.origin);
 
-        if(MG_WorldCampaign()) MG_FogPushSettingsFrom(other, pos, 0);
+        if(MG_WorldCampaign()) VR_Fog_PushFrom(other, pos, 0);
 
         // HONEY
         if(fogsettings != NULLENT && fogsettings.classname == "trigger_fogcontroller") {
@@ -1410,7 +1413,7 @@ void() PutClientInServer =
     if(MG_WorldCampaign())
     {
         self.fog_active_fog_trigger = world;
-        if(!MG_FogPushSettingsFrom(self, spot, 0)) MG_FogPushSettingsFrom(self, world, 0);
+        if(!VR_Fog_PushFrom(self, spot, 0)) VR_Fog_PushFrom(self, world, 0);
     }
     self.origin = self.oldorigin = spot.origin + '0 0 1';    // 1998-07-21 Respawning where player died fix by Robert Field
     self.angles = spot.angles;
@@ -2248,6 +2251,7 @@ void() CheckPowerups =
 {
     if(self.health <= 0)
         return;
+    DW_PowerupFrame(); // Dwell's Haste, Berserk, Wetsuit (dw_items.qc)
 
 // invisibility
     if(self.invisible_finished)
@@ -2504,6 +2508,7 @@ void() PlayerPostThink =
 
     CheckPowerups();
     AD_PlayerPostThink(); // AD support: AD's first frame, spawn targets and debuffs in an AD map (vr_ad_bridge.qc)
+    VR_RN_PlayerFrame(); // the ruleset's one megahealth rot a player (Copper's: vr_rules_numbers.qc)
     VR_Grapple_GunFrames(); // QVR: a grappling gun whose hook is out drawn empty (vr_grapple.qc)
     VR_Stealth_PlayerFrame(); // QVR: his running heard, his touch felt, how lit he is (vr_stealth.qc)
 };

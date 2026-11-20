@@ -190,15 +190,16 @@ struct Contents
     return c;
 }
 
-// Holster slot `i`'s label: its weapon by its kind (a sword's: the dagger), empty for none.
-[[nodiscard]] const char* holsterSlotName(const Contents& c, int i)
-{
-    return c.holster[i] != WID_FIST ? notectx::weaponName(c.holster[i], c.holsterFlags[i]) : "";
-}
-
 [[nodiscard]] const char* modelName(int index)
 {
     return index > 0 && index < MAX_MODELS && cl.model_precache[index] ? cl.model_precache[index]->name : "";
+}
+
+// Holster slot `i`'s label: its weapon by its kind (a sword's: the dagger) or by its model (AD's and Dwell's variants:
+// notectx::weaponName), empty for none.
+[[nodiscard]] const char* holsterSlotName(const Contents& c, int i)
+{
+    return c.holster[i] != WID_FIST ? notectx::weaponName(c.holster[i], c.holsterFlags[i], modelName(c.holsterModel[i])) : "";
 }
 
 void layOut()
@@ -651,8 +652,8 @@ void draw()
         s.title = h == 0 ? "LEFT HAND" : "RIGHT HAND";
         if(c.hand[h] != WID_FIST)
         {
-            s.name = notectx::weaponName(c.hand[h], c.flags[h]);
             s.model = modelName(c.handModel[h]);
+            s.name = notectx::weaponName(c.hand[h], c.flags[h], s.model);
         }
         else if(c.carry[h] > 0 && c.carry[h] < cl.num_entities)
         {
@@ -1507,10 +1508,12 @@ void dump_f()
         vr_flat_holsters.value, st.open ? "open" : "closed", st.fade, st.cursor.x, st.cursor.y, st.clicks, timescale::current());
     for(int i = 0; i < holsterCount; i++)
     {
-        Con_Printf("  holster %d (%s): %s\n", i, places[i].title, c.holster[i] != WID_FIST ? notectx::weaponName(c.holster[i]) : "empty");
+        Con_Printf("  holster %d (%s): %s\n", i, places[i].title, c.holster[i] != WID_FIST ? holsterSlotName(c, i) : "empty");
     }
-    Con_Printf("  left hand: %s%s, right hand: %s%s\n", notectx::weaponName(c.hand[0]), c.carry[0] ? " (carries)" : "",
-        notectx::weaponName(c.hand[1]), c.carry[1] ? " (carries)" : "");
+    // (named as the menu names them: by kind or by model)
+    Con_Printf("  left hand: %s%s, right hand: %s%s\n", notectx::weaponName(c.hand[0], c.flags[0], modelName(c.handModel[0])),
+        c.carry[0] ? " (carries)" : "", notectx::weaponName(c.hand[1], c.flags[1], modelName(c.handModel[1])),
+        c.carry[1] ? " (carries)" : "");
     for(const Button& b : st.buttons)
     {
         Con_Printf("  button \"%s\" at %.0f %.0f %.0f x %.0f: %s, impulse %d\n", b.name, b.rect.x, b.rect.y, b.rect.z, b.rect.w,

@@ -1251,7 +1251,7 @@ var tests = new List<(string Name, Action Body)>
         True(pinned.Urls[1].EndsWith("/filebase/dwellv2p2.zip", StringComparison.Ordinal), "the filebase second");
         True(pinned.Urls.All(u => u.StartsWith("https://", StringComparison.Ordinal) && !u.Contains("github.com")), "the authors' archive only, never ours");
         True(new InstallerSettings().Component(null, Components.Dwell) is { BuiltIn: true } d && d.File.Sha256 == pinned.Sha256, "the defaults: the pin");
-        True(!Dwell.OnByDefault, "off by default until Dwell's maps play (one constant: Dwell.OnByDefault)");
+        True(Dwell.OnByDefault, "on by default: Dwell's maps play (one constant: Dwell.OnByDefault)");
         var repo = new DirectoryInfo(AppContext.BaseDirectory);
         while (repo is not null && !File.Exists(Path.Combine(repo.FullName, "Misc", "release", "support_assets.json")))
         {

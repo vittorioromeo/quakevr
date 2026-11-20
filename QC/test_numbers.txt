@@ -135,6 +135,13 @@ vr_ad_test       183      vr_ad_test.qc                    (AD_PelletMatTest)
 vr_ad_test       184      vr_ad_test.qc                    the AD crossbow in the main hand (AD_GunTest; flattwohand_test.sh)
 vr_ad_test       191-197  vr_ad_test.qc                    (AD_GunTest)
 vr_ad_test       198      vr_ad_test.qc                    armed humanoids in AD (vr_agrunt_repl_ad): plain ones replaced, AD's variants skipped
+vr_ad_test       199      vr_rules_test.qc                 our monster on AD's and Copper's path_corners follows them as ours (think never NULL); the th_* guard names a NULL th_die (any map)
+vr_ad_test       200      dwell/dw_test.qc                 the map's Dwell boss (d1end, d2end) woken as its map does and fought through every phase to its death
+vr_ad_test       201-203  dwell/dw_test.qc                 Dwell's weapons (Rotary Shotgun, Crystal Lance, Rifle) kept through a level change or a save and load (parm76), then fired: the Rifle's 50, the Rotary's pellets of 2, the Lance's 150 through two (dwell_weapons_test.sh)
+vr_ad_test       204      dwell/dw_test.qc                 an armed grunt arming a Dwell weapon's record: its name, the variant kept, Dwell's shot fired (Rotary, Lance)
+vr_ad_test       209      vr_rules_test.qc                 the ruleset's numbers (vr_rules_numbers.qc) through our touches: armour rule and protection, key stacks, monsters' health, the laser, the megahealth rot (Copper's in a Dwell map, Quake's in e1m1)
+vr_ad_test       210      dwell/dw_test.qc                 the Sculptor's ring (d2end): shots hit it past its old 96-unit box and fly through its hole (DW_D2_FightBox, precise hits)
+vr_ad_test       205-208  dwell/dw_test.qc               Dwell's weapons drawn as their own VR models (made from Dwell's view models) in the hands and a holster, AD's Widowmaker still its own; 206-208 one alone in the main hand (dwell_vrmodels_test.sh's screenshots)
 
 vr_agrunt_test   1        vr_armedgrunt_test.qc            every weapon in turn ahead of you
 vr_agrunt_test   2        vr_armedgrunt_test.qc            reload, disarm, re-arm, drop (the sequence)

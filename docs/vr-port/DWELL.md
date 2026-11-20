@@ -308,7 +308,7 @@ mode, skill 1), 300 game frames each, then a verdict line (`scratch/dwell_probe.
   beside it). Quaddicted's own packages already use `{base}/dwell/`. Music included; `Track107.ogg` renamed to lower case
   (section 4).
 - **Size shown first**: 385 MB download, 800 MB on disk (the installer's units show 367 MB and 762 MB).
-- **Landed 2026-11-19 (branch `agent/dwellinstall`), off by default**: `Dwell.OnByDefault` (Installer Core, `Packaging/Dwell.cs`) is `false`; flipping it to `true` in the P1b build is the whole change. Built on the shared third-party path (`ModComponent`, the one AD uses). `Track107.ogg` is renamed to lower case on install (not copied: no duplicate, one name in install.json). Slipseer is not added (hash not checked).
+- **Landed 2026-11-19 (branch `agent/dwellinstall`)**; **on by default since P1b** (branch `agent/copper1b`): `Dwell.OnByDefault` (Installer Core, `Packaging/Dwell.cs`) is `true`. Built on the shared third-party path (`ModComponent`, the one AD uses). `Track107.ogg` is renamed to lower case on install (not copied: no duplicate, one name in install.json). Slipseer is not added (hash not checked).
 - The README placement: inside `dwell/`, so the install root stays clean and the uninstall removes them with the folder.
 - **"I already have it"**: a `dwell` or `dwellv2p2` folder in an owned Quake root, validated by `progs.dat`'s hash (v2.2),
   used in place. Older Dwell versions reported, not used. The engine's `vr_campaign_status` reports it.
@@ -467,6 +467,311 @@ Total: about 37-61 agent-days. P0.5 is the gate: it proves the generic mechanism
   Do it with Dwell's switch in P1b, if that switch would otherwise add a second QC reader.
 - **Left for P1b**: the engine's `cu_<key>` fill in Copper maps; Copper's world setup (its `worldspawn`, light
   styles) and what its dropped `StartFrame` did; the precedence look-alikes above; the COPPER row's signals and data.
+
+### 9.2 Built: P1b, part one (2026-11-19, branch `agent/copper1b`; not finished, see "Left")
+
+- **Campaign 7 `dwell`** (`vr_gamedir.cpp`, `Quake/vr/vr_dwell.cpp`): found as `<root>/dwell` (the installer's) or
+  `dwellv2p2` (the zip's) in any owned root; v2.2 only, by `progs.dat`'s size and SHA-256 (another version: status 3,
+  said once); `vr_dwell_status`. Its folder never supplies its progs, `quake.rc`, `default.cfg` or the 64 files an
+  official pak has (`vr_dwell_data.inc`, written by `Misc/quakevr/dwell_data.py`): our VR models, heads and sounds
+  stay Quake's. Mounted only while it is the campaign (its content in other maps is P2). Like AD: a start map of its own
+  only, experimental (Select Campaign's notice, Run Setup, `vr_campaign_native dwell`), saves record campaign 7.
+  **Fewer special cases:** a campaign row now carries its own checks (alias folder, version check, `skipInFolder`,
+  experimental), replacing AD's index tests in discovery, `VR_SkipSearchPath`, the status texts and the menu
+  (`VR_CampaignExperimental`); Arena Mode's row follows the last campaign.
+- **COPPER detected** (`vr_rules.cpp`): its own `cu_` classnames (none of ours, not `func_group`, `misc_external_map`,
+  `func_detail*`), Dwell's 16 own classnames (no spawn function until P2), and the worldspawn `_tb_mod` naming copper or
+  dwell; threshold 2; data needs none (Copper's code is in the progs). The Dwell campaign plays by it, and a Map
+  Library package made for Copper or Dwell (`madeFor`, the active package's own map) does too (`vr_ruleset_info`
+  says "the package's mod"); its detail says "plays natively by Copper's rules (experimental)". AD/Copper shared names
+  (`func_explobox`, `item_backpack`, `trigger_timer`) are nobody's signal now that both rows detect.
+  `misc_explobox(2)` stays ours under Copper (a row's `keptOurs`): Copper's brush box died under our prop physics
+  (`SOLID_BSP without MOVETYPE_PUSH`).
+- **Map keys** (`pr_edict.c`): AD's `ad_<key>` fill is generic (`ED_FindRulesetKeyField`, `VR_Rules_KeyPrefix`):
+  Copper's `cu_<key>` (`include`, `target2`...) in Copper maps (fixed `target_state`'s 14 "no include" errors on
+  `start`). A function key naming its mod's function (`"use" "func_void"`) resolves to `cu_func_void`; one naming a
+  function the progs lacks (d2end's `bmodel_vanish`) is skipped with a warning, once, not a `Host_Error`.
+- **Spawnflags** (S3's column live): our monsters' delayed (16), angry (128), quiet (32) and no-telefrag (64) spawns
+  through **one adapter** for every ruleset (`QC/vr_rules_monsters.qc`, AD's `AD_MonsterPrepare` moved and generalised;
+  AD's behaviour unchanged); coop bits by `VR_SF_SpawnInhibited` (our demon lacked the call: added).
+- **Bridge** (`QC/vr_copper_defs.qc`, `QC/vr_copper_bridge.qc`; reviewed patches in `copper_import.py`): Copper's
+  `T_Damage` on ours is our `T_Damage`; ours on Copper's damageable entities is Copper's (`CU_Run`: `cu_th_die` or
+  `cu_th_pain`); Copper's `worldspawn` after ours and its `StartFrame`'s work (skill buttons, settling frames) in Copper
+  maps; Copper's fog through `MG_SetFog` (svc_fog, the one path MG and AD use; the file rename to `vr_fog.qc` not done);
+  `target_autosave` runs `vr_autosave_now`. The beam id byte rule is every import's (`qc_import.beam_id_bytes`; it
+  fixed d1m1's "Bad server message"; AD's import output unchanged, `--check` 0 of 142).
+- **Music**: nothing to change: the maps' tracks are found in Dwell's `music/` (the engine's track stems already
+  include `Track`, so `Track107.ogg` is found on any file system).
+- **Acceptance** (`Misc/quakevr/dwell_maps.sh`: each map loaded, saved 3 frames after spawn, 600 frames run; the exit
+  chain; three saves loaded back; `dwell_maps.py` verdict): every map's ruleset Copper; **0 missing spawn functions
+  but Dwell's own** (start 140, d2m8 150, ... P2's); 0 coop-only placements in single player; monsters live + waiting
+  e.g. d1m1 31 + 62, d1m3 62 + 119, d2m4 53 + 167 (the 3,343 triggered ones now wait); start's exit goes to
+  dwelldm3, d1m1's to d1m2; d1m3, d2m4, d2end saves load back by Copper's rules. **22 passed, 4 failed**: d1m7, d1m8
+  and d2m8 end on `PR_ExecuteProgram: NULL function` with a `monster_wizard` as self (delayed angry wizards,
+  spawnflags 208/400; `th_die` unset in the printed edict, called with no QC stack: from the engine); d2end's failure
+  (an `info_notnull` using `func_void`) is fixed since (the function-key resolution; d2end runs 600 frames clean).
+- **Part two** (branch `agent/copper1b`, continued): the wizard's NULL function was Copper's path_corner touch (`think
+  = cu_th_stand`, NULL on our monsters: a patrolling wizard, not a delayed one). Every ruleset's path_corner now hands
+  our monsters to our `t_movetarget` (`VR_Rules_PathCornerTouch`, `vr_rules_monsters.qc`; AD's hook generalised; an
+  import patch in AD's and Copper's touch), and `VR_Rules_MonsterThCheck` names one of our monsters starting with a
+  NULL th_stand/walk/run/die (a "QC error" line). Test `vr_ad_test 199`. `dwell_maps.sh`: **26 passed, 0 failed** (its
+  saves 15 frames after the map: d2m8's signon is slow). Census vs origin/next over the 168 non-Copper maps: the moved
+  adapter's function names only (27 AD saves), nothing else; 0 false Copper detections in 168 official/AD maps and 49
+  installed Map Library maps (Ancient, made for Copper, detected). ROUND25 "Dwell P1b, part two".
+- **Part three, ship prep** (branch `agent/copper1b`): **Copper custom maps** through the Map Library's path:
+  Ancient (copied from an installed copy) and Underdark Overbright v1.1's `udob1` (Quaddicted's zip in
+  `qvr-kit/downloads/underdark/`), put into the test base's `qvr_addons/<sha16>/` with their `maps_installed.txt`
+  lines by `Misc/quakevr/copper_custom_setup.py` (idempotent, never downloads); `dwell_maps.sh` plays both first, in
+  the stock game, the same way as Dwell's maps. Both stopped at `Host_Error: progs/v_axe2.mdl not found`: Copper's
+  own models ship with Copper's release (or Dwell's folder), not with a map made for Copper. Each of Copper's 11 own
+  model names (`v_axe2`, `s_explo2`, `debris1-3`, `k_spike2`, `v_spike2`, `w_spike2`, `zombienm`, `h_zombnm`) is now
+  `VR_ModelOr(<Copper's>, <stock>)` (`vr_packutil.qc`'s existing helper; an import patch, `copper_import.py`), so the
+  stock model stands in when Copper's is absent (debris: our `vr_rock1.mdl`). Copper's sounds need nothing (a missing
+  sound is a warning). Ancient's one `OBJECT ERROR` (a `target_state` with no targetname: the map's own leftover,
+  which Copper reports the same way) is the map's (`dwell_maps.py` `MAP_OWN`); `dwell_maps.py` now counts a map's
+  spawn-time errors against that map (`dwell: map X` echoed before `map X`). Installer: `Dwell.OnByDefault = true`
+  (self-test, README, INSTALLER.md); the release scripts' sandboxed installs pass `--no-dwell` (their checks stay
+  the Quake VR install, not a 367 MB download). CREDITS: the Dwell team (its README). Patch notes 1.1.1: one bullet. `dwell_maps.sh`: **28 passed, 0 failed** (ancient 27
+  live + 24 waiting, udob1 31 + 13, all Copper); ReleaseLTO 0 warnings.
+  Regression: `mg3_route`'s main and bn legs stall after their planned player death (2 of 60, 4 of 15 steps) on a
+  clean origin/next build too (likely the death menu, a25f4d0d4, waiting for a choice): not this branch's; exits 71 passed; saveload 30/0,
+  scenario_check PASS (136 run, 0 failed), AD hub 10/0 and world PASS, AD scope ran clean (no verdict line), MG3 buttons, kill, rune PASS.
+- **Left** (deferrable, after ship): our monsters' and pickups' numbers by Copper (S6's per-ruleset table); the
+  WaterMove/t_void precedence decision with AD's; `vr_mg_fog.qc` renamed `vr_fog.qc`; Copper maps with Dwell
+  installed could use Dwell's real Copper models (its folder mounted for a Copper package) instead of the stock
+  stand-ins; Copper's `target_debris` lost its FGD preview (the model name is now inside `VR_ModelOr`).
+
+### 9.3 Built: P2a, Dwell's own entities (2026-11-19, branch `agent/dwell2`)
+
+Rebuilt on Copper and Quake VR, hand-written from Dwell's behaviour (the decompile read through
+`scratch/dw_const.py`, which puts the value-renamed constants back as numbers, and `dw_seqs.py`, which lists a monster's
+frame sequences; reading aids only, nothing pasted). Files `QC/dwell/` (GPL-2, header crediting the Dwell team):
+`dw_defs.qc` (early: fields and the hooks our shared code calls), `dw_common.qc`, `dw_items.qc`, `dw_monsters.qc`,
+`dw_bosses.qc`, `dw_test.qc`.
+
+- **One ruleset-table row** (`vr_rules.cpp`, decisions 3 and 4): `DWELL`, prefix `dw_`, never a map's ruleset (no
+  detection, no campaign); `spawnsOutside`/`toolgunOutside` = Dwell's folder mounted and `dw_<classname>` exists, so its
+  entities spawn in any map, with their own behaviour, and the toolgun's `dw_<name>` anywhere. A row's
+  `ownedClashes` + `clashesUnder` (new field): Dwell's `item_artifact_wetsuit` wins under Copper's rules, Hipnotic's/AD's
+  elsewhere. `VR_Rules_SpawnName` now asks the content rows after an imported ruleset's own lookup (so Dwell's
+  entities spawn under Copper's and AD's rules too). Dwell's `monster_morph` and `monster_boss_egypt` (placed in no map)
+  are not rebuilt.
+- **Dwell's data in every campaign**: a campaign row's `skipOutside` (new `CampaignChecks` field) mounts its folder in
+  every campaign while installed, supplying only what the function lets through: AD's (models, sounds, icons: the old
+  AD-only code, now the row's) and Dwell's (`qvr::dwell::skipOutside`: its models and sounds, after `skipInFolder`).
+- **Monsters** (our monster start, `ai_*`, `T_Damage`, so stealth senses, smarter AI hooks, infighting, parries; their
+  animations as table rows, `DW_Seq`: frames, AI, distance, a per-frame event, a follower):
+  Kamikaze (40, runs at 28, bursts on contact or death: 60 within 32 units, a sine falloff to 0 at 190, Dwell's curve),
+  Brute (600, punch 60 throwing up, grenade volleys of 3 per hand through our ogre's lob at Dwell's 632 speed, 3
+  rockets dropped), Construct (flyer, 600, crystals 700/40, below 340 health a steering dive at 600 bursting 60).
+  `vr_th_checkattack` (a monster's own attack choice in `CheckAnyAttack`). **VR registration, first pass**: head zones
+  (`DW_PositionalHead`: Kamikaze, Brute, the Awoken; estimates from their boxes, P2b fits them with `headfit.py`),
+  Dwell's hulls, gibs (the Brute's head `h_brute`, the Construct's 4 pieces, the Kamikaze bursts). Not done (P2b): rigs
+  (ragdolls, limbs, knockdowns, corpse gibbing), `vr_mhull_*`.
+- **Bosses** (`dw_bosses.qc`, first pass): the Awoken (d1end: 1400, three phases through `th_survive`, a new generic
+  field: a monster's refusal to die, checked first in `Killed`; each phase fires target/target2/target3, sleeps through
+  frames 89-123 and wakes at its `include`; homing missiles 750, 25/35/55 by skill, big volley, dashes and side steps;
+  target4 at death). The Sculptor (d2end: dormant until used; flies its path from `include`; swarms of 7 missiles onto
+  ground marks around `target2`; each phase fires `target` (the map's counter), shields, rests `wait`; marked by
+  `trigger_killboss` it dies, firing target4). `target_bullethell`: line, two lines, ring, spiral, wheel of 5-damage
+  bullets (Dwell's moving and turning patterns: P2b).
+- **Powerups**: Haste 20 s (refire x0.6, in `RuneApplyHell`, the refire scaler every weapon calls), Berserk 30 s (melee
+  x11: Dwell's axe 264 for 24; damage taken halved: `DW_DamageScale` in `T_DamageImpl`), Wetsuit 60 s (breath and a
+  swim speed cap of 1.3x under water). Ends said 3 s before; Haste and Berserk glow. No HUD icons or screen tints yet.
+- **Weapons, placeholders** (variants on the weapon instance, `wi_dwvar`, as AD's upgrades; set by the pickup through
+  `DW_VariantGiven` beside `AD_UpgradeGiven`): Rotary Shotgun = super shotgun firing 20 pellets of 2 every 0.2 s;
+  Crystal Lance = lightning gun firing a piercing beam (150 each body, 8 at most, 6 cells, 1.4 s); Rifle = shotgun firing
+  one 50 bullet (1.4 s). The pickups show Dwell's models. Not kept across a level change (the instance's variant is not
+  in the parms yet: P3).
+- **World**: `misc_crystal` (Dwell's crystal BSP models by style), `func_fade` (alpha by the nearest player's distance,
+  192-384 units; used, it fades out or back), `info_storycamera` (its pages: Dwell keeps the story text in `message`,
+  `noise`, `noise1..4`; centre-printed 5 s each, then its targets; the camera flight is P4).
+- **Copper's own models in Copper maps** (step 4): Dwell ships none of Copper's 11 (`v_axe2`, `s_explo2`, `debris1-3`,
+  ...), so the stock stand-ins stay; with Dwell's folder mounted everywhere, `VR_ModelOr` would pick one up by itself.
+- **Toolgun**: 11 rows, pack "Dwell" (`vr_toolgun_packs.inc`, appended), made while their model is on the search path.
+  No new weapon id (the toolgun_weapons check unchanged). **FGD**: group "Dwell" (`/*dw:QUAKED`, `fgdgen.py`, 447
+  entities).
+- **Acceptance**: `check_copper_entities.py`: dwell 14, missing 0. `dwell_maps.sh`: 28 passed, 0 failed, 0 missing on
+  every map (Dwell's own now required to spawn: `dwell_maps.py`). `vr_ad_test 200` (d1end: the Awoken woken, phases 3,
+  died: PASS; d2end: the Sculptor used as its relay does, 3 phases, marked by the map's counter and killboss, died:
+  PASS). e1m1 `vr_toolgun_spawn_test`: the 11 Dwell rows spawned.
+
+### 9.4 Built: P2b, Dwell's monsters VR-native (2026-11-19, branch `agent/dwell2b`)
+
+- **S7 measured, one row format**: AD's registration (`VR_AD_Mon`/`VR_AD_MonKd`: bits, head zone, head gib, corpse
+  health, knockdown) was already the generic part; what made it AD's was 7 dispatches into AD's code (pain, run,
+  Killed). Those now ask `VR_AD_Code(e)` (a row without the new bit `VR_ADM_OURS`), so any monster on our own code can
+  be a row: Dwell's are (`DW_MonsterRow`, `dw_common.qc`), and `weapons.qc`'s Dwell head hook and `DW_PositionalHead`
+  went. Our own and MG3's monsters keep their per-class chains (`PositionalHead`, `VR_Decap_HeadModel`,
+  `VR_Corpse_Parts`: about 40 rows over 3 functions): moving them would trade each chain line for a row line (no code
+  removed), so not now. The engine's per-class alias table (`vr_ad_monsters.cpp`) and monster groups (`vr_mgroups.cpp`)
+  took Dwell's rows the same way.
+- **Kamikaze**: head zone 0 19 6 (`headfit.py`), never beheaded (it bursts), no rig (no death frames); stealth all ears
+  (hear 1.2, sight 0.8); grab mass 90 (thrown as a knight); monster group Spawns.
+- **Brute**: rigged (`dwBruteSeeds`, `vr_ragdoll.cpp`; `rig.py` on Dwell's model with the new `RIG_MDL`, 22 clusters,
+  13 bones 1.32 rms; the cannon the left hand; wrists and two seed centres set by hand), head zone 5 61 10, beheading
+  (Dwell's `h_brute` thrown), limbs, knockdowns (its deaths backwards; the shambler's chance), corpse gibbing (the
+  shambler's health), its punch parried (`VR_ADM_MELEE`), ragdoll settings and grab mass the shambler's, monster group
+  Mini Bosses, stealth the ogre's senses.
+- **Construct** (decided): no head zone (a crystal-and-stone machine), no rig (it breaks into its four pieces), blunt
+  blows sound on armour; grab mass 600; monster group Scrags (a flyer).
+- **The Awoken**: head zone 0 125 16 (its model is 248 units tall: the box now reaches 140 up, so shots at its head hit;
+  movement still the shambler-size hull); a boss: never beheaded, no knockdown, no corpse; stealth off (bosses keep
+  Quake's AI, as the Sculptor); grab mass 5000.
+- **Test**: `Misc/quakevr/dwell_monsters_test.sh <agent>` (the AD bestiary's cases through `vr_ad_mtest`, whose frame now
+  finds Dwell's monsters; the debug spawner's 70-73), verdict by `dwell_monsters_check.py`: 11 passed, 0 failed.
+- **Left (P2b part two)**: Dwell's own bullet-hell programs and the Sculptor's motion: built (9.6); the Awoken's scale
+  reviewed in the headset.
+
+### 9.5 Built: P3, first part: Dwell's weapons and powerups on our player (2026-11-19, branch `agent/dwell3`)
+
+- **Variants, not new weapon ids (the AD precedent).** AD's three weapons ended as variants on the weapon record
+  (`wi_adup`), the Plasma Gun included, although section 8 of ARCANE_DIMENSIONS.md had proposed a new WID for it. The
+  same reasons hold for Dwell's: each shares its base weapon's ammo, holster, reloading, wheel slot, ammo screen, flat
+  HUD and toolgun row, so a variant gets all of that for free, and a new WID would need a weapon-table row, models,
+  offsets, holster rules, a wheel slot and a toolgun_weapons change for each. So the Rotary Shotgun stays a super
+  shotgun, the Crystal Lance a lightning gun, the Rifle a shotgun, each with Dwell's shot (`DW_FireVariant`).
+- **Kept with the weapon**: `.wi_dwvar` is now a weapon-record field beside `wi_adup` (`vr_weaponinst.qc`), copied by
+  `WeaponInst_Clone`, saved with the record; across a level change and a coop rejoin through **parm76** (new:
+  `DW_PackWeaponVariants`, 2 bits a record, the hands' then the holsters'; `vr_progs.hpp` `lastExtSpawnParm` 76). An AD
+  upgrade and a Dwell variant exclude each other (each pickup clears the other).
+- **VR handling, shared**: the Rotary Shotgun handles as the Widowmaker (both rotary auto shotguns: `AD_Widowmaker` is
+  true for it): its tube (`vr_ad_widowmaker_tube`), filled on pickup, reloaded at the hip a handful at a time, never
+  broken open, and the barrels' spin-up before the first shot (`vr_ad_widowmaker_spin*`), in VR and flat play alike;
+  its shot stays Dwell's (20 pellets of 2, a shell, 0.2 s). The Crystal Lance's beam pierces up to 8 bodies (150 each),
+  as P2a. **Bug fixed**: the Lance's beam message lacked the beam's disambiguator byte (Quake VR's `TE_LIGHTNING2`),
+  so the client misread the stream ("Received signon 0") at its first shot.
+- **Powerups on the wrist**: Haste, Berserk and the Wetsuit show on the wrist gadget's item row (and the flat visor's,
+  the same code) as their names with seconds left, blinking in their last 3 s (`STAT_QVR_DWPOWER`, QC `.vr_dw_hud`).
+  Dwell ships no icons for them (its CSQC draws them), hence text. The wetsuit clash stays as decision 3 (P2a's
+  `clashesUnder`).
+- **Enemy-gun drops**: none of Dwell's monsters carries a Dwell gun (the Brute throws grenades and drops rockets, the
+  Construct fires crystals, the bosses missiles), so there is nothing to drop.
+- **Test**: `Misc/quakevr/dwell_weapons_test.sh` (vr_ad_test 201-203): the three given (main hand, off hand, holster
+  0), then a save and load (each still Dwell's, then fired at fresh grunts held on its line, the mock's hands levelled:
+  the Rifle 63 to one and none past it, the Rotary 50 of its 20 pellets, the Lance 188 to each of two: Dwell's 50, 40
+  and 150 with our bonus on an unaware target) or a level change to e1m2 (each still Dwell's): 4 passed, 0 failed.
+- **P3, second part (2026-11-19, `agent/dwell3`, dwell3b)**: merged with next (P2b: `DW_PositionalHead` gone, P2b's
+  section 9.4, this one 9.5) and verified: `dwell_maps.sh` 28/0, `dwell_weapons_test.sh`, `dwell_monsters_test.sh`
+  11/0, `saveload_test.sh` 30/0, `scenario_check.sh` PASS, the spawn census against a fresh origin/next build (the
+  168 non-Copper maps), 0 warnings dev and ReleaseLTO. Then:
+  - **Armed grunts**: a grunt taking a Dwell weapon already kept its record (`VR_AG_TakeUp` hands it to `VR_AG_Arm`),
+    but fired our weapon's shot (the Rotary the Widowmaker's: `AD_Widowmaker` is true for it). `VR_AG_ShootProp` now
+    fires Dwell's (`DW_FireVariant`, the player's own code: its clip spent as your ammo, as every grunt gun), the
+    Lance's beam drawn from the grunt's prop (`dw_beam_prop`, disambiguator 0 as its lightning); its prop is named
+    as Dwell's (`VR_AG_NameOf`, `DW_VariantName`). Its drop carries the record, so the variant comes back to you.
+  - **Screen tints**: Dwell stuffs `v_cshift` (its `client.qc`: Haste 255 255 0 at 10, Berserk 255 0 0 at 20, both
+    255 128 0 at 20, the Wetsuit none); ours go through AD's tint (`VR_AD_Tint`: a stat the engine eases in, times
+    VR Settings' Screen Tints), never over an AD debuff's own (`.vr_dw_tinted`), cleared when they end.
+  - **Test**: `vr_ad_test 204` (in `dwell_weapons_test.sh`): two grunts armed from Dwell records (named, record and
+    variant kept, one Dwell shot each: a shell, 6 cells), the tints (yellow, orange, none): 9 passed, 0 failed;
+    the script 6 passed, 0 failed.
+  - **Not done, decided**: the variant's name in the flat holster menu (the flat wheel) and the VR wrist follows its
+    model: the client names a held or holstered weapon by its id and flags (`notectx::weaponName`), and AD's
+    Widowmaker is named "super shotgun" there too. Naming by the view model (`#vr` model index -> name) covers AD's
+    and Dwell's at once, once Dwell's own VR models exist; a variant stat now would be a second path to remove.
+- **Left for P3's third part**: Dwell's own view models as VR models (`v_shot3`, `v_rail`, `v_rifle` through
+  `vr_adweapons.cpp` recipes: measured grips, muzzles, the arm cut off; until then the variants show our models),
+  the Rotary's drawn barrel spin with them (Dwell's `v_shot3.mdl` shares AD's Widowmaker's file name: its recipe must
+  pin Dwell's release by its counts, as AD's are pinned), and the variant names named by those models. Done: 9.6.
+
+### 9.6 Built: P3, third part: Dwell's weapons as VR models (2026-11-19, branch `agent/dwell3c`)
+
+- **Recipes** (`vr_adweapons.cpp`, beside AD's three; `vr_adweapon_models` prints them): `progs/dw_shot3.mdl#vr`,
+  `progs/dw_rail.mdl#vr`, `progs/dw_rifle.mdl#vr`, made as they load from Dwell's `v_shot3.mdl`, `v_rail.mdl`,
+  `v_rifle.mdl`. Dwell's view models have **no arms** (nothing to cut but their muzzle flashes, pieces collapsed to a
+  point). Each is levelled (the Lance is tilted 15.9 degrees up in Dwell's view, the Rifle 6.25 down), scaled to sit
+  inside its base model's corner (the slot's Scale applies about it: the grip keeps its place) and given our base
+  weapon's grip, trigger guard and trigger (the Rotary on the super shotgun at 0.8, its housing over the grip; the Lance
+  on the lightning gun at 0.88, its wooden handle over the grip; the Rifle on the shotgun at 0.7, on its barrel line).
+- **Pinned to Dwell's file**: `Source::folder` reads the source in place as `owned/dwell/<path>` (`VR_OwnedFile`:
+  Dwell's discovered folder, whichever campaign is active), and its counts pin v2.2 (260/286, 311/339, 117/121). AD's
+  Widowmaker keeps reading the search paths' file of AD's counts, so each mod's `v_shot3.mdl` makes its own weapon.
+- **Slots** 52-54 (`weapons.txt`, `numSlots` 55): the base weapon's values copied as their own (no inheriting, round
+  22's rule), the muzzle their own (the Rotary's barrels' middle, the Lance's middle crystal's tip, the Rifle's shroud's
+  front). Sights, two-hand points and holster poses are the base's: a first fit for him to tune (his values become the
+  defaults).
+- **The Rotary's barrel spin** (shared flat and VR: `adweapons::spinFrame` draws both): its four barrels, clamps and
+  front block (the pieces from x 16.5) get 27 spin frames ("quad0"..) about their own axis; the Widowmaker's spin code
+  drives them (the trigger spins them up, they coast to a barrel on top), a barrel a shot at Dwell's 0.2 s.
+- **Drawn**: `DW_WeaponModel` (`dw_items.qc`) through `AD_WeaponModel`/`AD_SyncModel`: hands, holsters, drops, armed
+  grunts' props; without Dwell's data our models. gunfx knows the models; the Lance's muzzle light is violet.
+- **Names by model**: `notectx::weaponName(wid, flags, model)` names a variant by its VR model (AD's Shadow Axe,
+  Widowmaker, Plasma Gun; Dwell's three); the holster menu (flat, and the wrist's: the same slots) uses it.
+- **Test**: `Misc/quakevr/dwell_vrmodels_test.sh` (vr_ad_test 205-208): the models in the hands and a holster, AD's
+  Widowmaker still its own, the six made, the menu's names, the spin in mock VR and flat play (turning held, at rest a
+  barrel on top): 13 passed, 0 failed; screenshots of each in hand to `scratch/dwell_vrmodels_vr.png` (side and eye
+  views) and `scratch/dwell_vrmodels_flat.png` (and the holster menu).
+- **Left**: no ammo screen housing, shell ejection port or magazine mounts of their own (the base's settings point at
+  the base model's places); the Lance and the Rifle have no hand-tuned sights.
+
+### 9.6 Built: P2b part two, bullet hell and the Sculptor's motion (2026-11-19, branch `agent/dwell2c`)
+
+- **`target_bullethell`, Dwell's patterns** (`dw_bosses.qc`; read from `m_d2boss_hell.qc`, whose dispatchers are
+  corrupt in the decompile: the calls are readable, rewritten): one table, `DW_HELL` (28 rows: style, kind, from/to,
+  count, cycle, life, delay, speed, damage, flag), each row a task entity with one clock (`dw_hell_tick`): 1 a line of
+  10 at each player (following him), 2 two lines straddling where he stood, 3 a ring of 24 (half a step turned each use,
+  Dwell's alternation), 4 two spirals of 48, 5 a moving wheel (16 shots circling a drifting point, 225 degrees a second;
+  its ring hurts), 6 a rocket barrage (Dwell left it empty: 6 rockets onto marks around each player, the Sculptor's
+  swarm shot, `DW_SwarmShot`, shared), 7 a pulse (24 sectors swelling 64 to 320 and back twice; its ring hurts), 8
+  Dwell's program A (never placed in its maps) once through (28 s; its loop forever dropped: a definite end), 0 random
+  1-7. d2end uses 1-5 from its timers.
+- **VR**: the shots are enemy projectiles (`vr_foeshot`, a new generic field `VR_Deflect_IsProjectile` accepts: a swing
+  bats them back, then they hurt monsters), fly through monsters (Dwell's), never collide with each other (triggers),
+  glow and streak (the engine gives `hell_bullet.mdl`, flagless, the hell knight's flame trail: `patchModelFlags`, so
+  emissive and bullet-time trails as any enemy shot). The aimed lines are slower (500/550 for Dwell's 700/800); the
+  rest at Dwell's speeds. Ring damage is Dwell's rate (40 a second on the ring) in ticks of 4 every 0.1 s, the ring's
+  sweep between ticks counted. Comfort: a bullet-hell hit never pushes the player (his velocity kept: `DW_HellHit`).
+- **The Sculptor's motion** (Dwell's `m_d2boss.qc`): a ring lying flat while dormant; flying its path it spins about
+  its axis (`fixangle`, 180 a second) and tilts its face toward its enemy (pitch followed, yaw held at 0: Dwell's), its
+  heading set again each tick (VR's knockback on flyers no longer pushes it off its path); a phase over, it lies flat
+  again (0.5 s), raises its shield (`mon_d2bossf.mdl`, fading in over 0.6 s), teleports out (frames 1-8), to its
+  `target2`, in (9-15), rests `wait` s turning slowly the other way, then flies again; dying, its spin runs down. Not
+  restored: Dwell's 50-odd small hit boxes around the ring (one 96-unit box still).
+- **Acceptance**: `vr_ad_test 200` now runs, where the map has a `target_bullethell` (d2end), a pattern sweep first
+  (styles 1-8 next to the landed player in god mode, each when the last is gone): 8/8 fired, the line 7 of 10 on him,
+  edicts at most +82, back where they were; then the fight, the Sculptor's steps all seen and its rest at target2:
+  d2end PASS, d1end PASS. `dwell_maps.sh` 28/0, `scenario_check` PASS (136 run, 0 failed), the spawn census against
+  origin/next identical on the 168 maps (the test's counters `nosave`).
+
+### 9.7 Built: P4, first part: the deferred items of P1b-P2c (2026-11-19, branch `agent/dwell4`)
+
+- **S6, one numbers table** (`QC/vr_rules_numbers.qc`, `VR_RN[]`: one row a ruleset in `VR_RULES_*` order; ID, MG and
+  AD rows are Quake's numbers). Our own code reads it; no Copper branch in a touch: `armor_touch` and the worn-armour
+  check (`VR_Armor_IsBetter`) take the protection (`VR_RN_ArmorType`: Copper's 0.3/0.5/0.7, Quake's 0.3/0.6/0.8) and
+  the pickup rule (`VR_RN_ArmorTake`: Quake's type x value, or Copper's breakpoints 40/60/100, part of a bigger weaker
+  store kept, capped 500); `health_touch` the megahealth rot (Copper's one rot a player from 5 s after the last
+  megahealth, `VR_RN_MegaRot`/`VR_RN_PlayerFrame` in PlayerPostThink; AD's own `AD_MegaRot` first, unchanged);
+  `key_touch` the key stack (Copper's 16 of a colour, counted in the player's `.worldtype` as Copper's doors read and
+  take them: `VR_RN_KeyTake`); `VR_SF_MonsterPrepare` our monsters' health (Copper's grunt, dog, fish 35, knight 72;
+  only where the spawn function left Quake's, so an armed grunt's or a variant's own stays); the enforcer's laser
+  (Copper's 12). **Placed backpacks** need no row: `item_backpack` has no Quake VR spawn function, so in a Copper map it
+  is Copper's own (its excess ammo to armour by its `armor_give`, the same protection values as the row). Test
+  `rules_numbers_test.sh` (vr_ad_test 209): e1m1 12/0 (Quake's), Dwell's d1m1 12/0 (Copper's).
+- **The imports' one rule for precedence look-alike bugs** (`copper_import.py`, `ad_import.py` comments): kept as the
+  mod shipped it (its own compile read it the same way), unless the shipped reading changes what a Quake VR player
+  gets and the mod's intent is plain; then fixed as meant, marked "bug fixed as meant" (AD's bugs 4 and 5, the
+  precedent: its tints are drawn here). So `WaterMove`'s gasp stays as shipped (Copper's WaterMove never runs: our
+  player's does), and `t_void`'s `noTint` is fixed (`(a && farclip && !coop)`): as shipped, a coop game with
+  `gl_cshiftpercent` under 90 put func_void's darkening into CSQC stat fields nothing draws here; single player is
+  unchanged (gl_farclip is never 0). AD's four "as shipped" ones stay (none reaches the player differently here).
+- **S5, one fog path**: `QC/vr_mg_fog.qc` is `QC/vr_fog.qc`, its API `VR_Fog_Set`, `VR_Fog_InfoEntity`,
+  `VR_Fog_PushFrom` (MG's entities, AD's `VR_AD_Fog`, Copper's import patch in `cu_fog.qc` for its fog commands and
+  blends). The MG fields (`MG_fog_valid`...) keep their names (saves). `copper_import --check` 0 of 63 differ.
+- **The Sculptor's ring** (`DW_D2_FightBox`): Dwell's 50-odd small hit boxes are our precise hits on its model (shots
+  meet its triangles inside its box, vr_hitmodel.cpp): the fighting box grows from 96 to 288 units so the ring's stones
+  (120-140 units out) are inside it; the gaps between stones let shots through; it moves noclip, so the box never
+  stops it. The fighting model has a solid core (no hole: all 49 shots inside the old box hit). Test vr_ad_test 210
+  (d2end): turned three ways, 93-142 hits past the old box and 98-147 shots flying on between its stones, 7/0.
+- **d2m8's cost** (QC instructions, `profile`, deterministic; no timings: his game was running): 720 frames after 120
+  of settling, d2m8 (4,826 edicts) 385.6 M instructions, 536 k a frame; AD's biggest map `ad_tears` (4,011 edicts)
+  25.8 M, 36 k a frame. The difference is our armed grunts: d2m8 has 251 (Dwell's grunts replaced; AD's soldiers are
+  AD's own), and `VR_AGP_Pose`, `VR_AGG_Frame`, `VR_AGS_Projectiles`, `VR_AG_Rotate`, `VR_AGPar_Frame`... lead the
+  list, about 2 k instructions a grunt a frame; Dwell's own code is not in the top 25. No single hot spot to fix
+  without changing the armed grunts' behaviour (a key feature); 536 k instructions is about 1 ms a frame. A later
+  step if the headset shows it: a cheaper pose for armed grunts far out of sight (`VR_AGP_Lod` exists).
+- **Left**: Copper's ogre rocket drop, nightmare refire, infight give-up and the other monster rules of 2.4 (behaviour,
+  not numbers); item respawn by `wait`/`count` on our items in Copper maps.
 
 ---
 

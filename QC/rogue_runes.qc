@@ -174,6 +174,7 @@ float(float damage, entity who) RuneApplyBlack =
 
 float(float tvalue, entity who) RuneApplyHell =
 {
+    if(who.dw_haste_finished > time) { tvalue = tvalue * 0.6; } // Dwell's Haste (dw_items.qc)
     if(who.rune & ITEM_RUNE3) {
         if(who.rune3_last_noise_time < time) {
             sound(who, CHAN_ITEM, "runes/end3.wav", 1, ATTN_NORM);

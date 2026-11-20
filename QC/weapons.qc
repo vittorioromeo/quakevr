@@ -3809,6 +3809,7 @@ void(float xHand, float* xOutAttackFinished) W_Fire_Melee =
 
 void(float xHand, float* xOutAttackFinished) W_Fire_Shotgun =
 {
+    if(DW_FireVariant(xHand, xOutAttackFinished)) { return; } // Dwell's Rifle (dw_items.qc)
     SuperDamageSound();
     player_shot1(xHand);
     W_FireShotgun(xHand);
@@ -3817,6 +3818,7 @@ void(float xHand, float* xOutAttackFinished) W_Fire_Shotgun =
 
 void(float xHand, float* xOutAttackFinished) W_Fire_SuperShotgun =
 {
+    if(DW_FireVariant(xHand, xOutAttackFinished)) { return; } // Dwell's Rotary Shotgun (dw_items.qc)
     float widow = AD_WidowmakerIn(self, xHand);
     SuperDamageSound();
     player_shot1(xHand);
@@ -3865,6 +3867,7 @@ void(float xHand, float xWeaponFlags, float* xOutAttackFinished) W_Fire_RocketLa
 
 void(float xHand, float xWeaponFlags, float* xOutAttackFinished) W_Fire_Lightning =
 {
+    if(!(xWeaponFlags & QVR_WPNFLAG_USE_SECONDARY_AMMO) && DW_FireVariant(xHand, xOutAttackFinished)) { return; } // Dwell's Crystal Lance (dw_items.qc)
     if(AD_PlasmaGun(xHand, xWeaponFlags)) // AD support: the Plasma Gun (vr_ad_bridge.qc)
     {
         AD_FirePlasma(xHand);

@@ -9,7 +9,7 @@
 namespace qvr::weapons
 {
 
-inline constexpr int numSlots = 52; // (37 the nail pistol, 38 the flare gun, 39 the heavy revolver, 40 unused: AD support's melee weapons from 41, the four monster swords 47-50, the flail 51, the dagger 52)
+inline constexpr int numSlots = 55; // (37 the nail pistol, 38 the flare gun, 39 the heavy revolver, 40 unused: AD support's melee weapons from 41, the four monster swords 47-50, the flail 51, the dagger 52; Dwell support's Rotary Shotgun 53, Crystal Lance 54, Rifle 55)
 
 enum class Key : int
 {

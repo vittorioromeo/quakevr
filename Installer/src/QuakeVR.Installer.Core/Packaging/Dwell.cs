@@ -12,11 +12,10 @@ namespace QuakeVR.Installer.Core.Packaging;
 public static class Dwell
 {
     /// <summary>
-    /// Whether the component is ticked at the start. Off while Dwell's maps do not play yet (they are missing their
-    /// entities until the engine's P1b work): flip this one constant to true in the build where they do
-    /// (docs/vr-port/DWELL.md, section 7). The component is recommended either way.
+    /// Whether the component is ticked at the start: on since the build in which Dwell's maps play by Copper's rules
+    /// (P1b, docs/vr-port/DWELL.md sections 7 and 9.2). The component is recommended either way.
     /// </summary>
-    public const bool OnByDefault = false;
+    public const bool OnByDefault = true;
 
     public const string Folder = "dwell";
     /// <summary>The folder name Quaddicted's and the zip's own layout use: also accepted in an owned root.</summary>

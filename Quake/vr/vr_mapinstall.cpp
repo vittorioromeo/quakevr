@@ -2137,6 +2137,10 @@ za::String madeFor(const mapindex::Entry& e)
     {
         return za::String{"Copper"};
     }
+    if(folder == "dwell")
+    {
+        return za::String{"Dwell"}; // (Copper's code with Dwell's own: vr_rules.cpp plays both by Copper's rules)
+    }
     return folder;
 }
 

@@ -183,6 +183,7 @@ void() monster_demon1 =
         remove(self);
         return;
     }
+    if(VR_SF_SpawnInhibited()) return; // (the ruleset's coop bits, as every other monster's: it had none)
     precache_model("progs/demon.mdl");
     precache_model("progs/h_demon.mdl");
 
