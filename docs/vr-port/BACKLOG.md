@@ -247,8 +247,15 @@ Each verified by an unchanged physics hash, melee eval and `vr_menu_path_check`.
   "ragperf"): not the drive, hit-model traces or hand contacts; Box3D contacts (~110 a driven ragdoll) and the armed
   grunts' strike sweeps (QC) grow with bodies close. Continued ("ragperf2"): hands kept in the bodies have 2-3 touching
   contacts; the contacts are a ragdoll's own parts' pairs that never touch (not filterable without changing the
-  physics); the strike sweeps got an exact broad test (QC a frame 6 close: 67.5 k -> 59.6 k). Left: the GPU side close
-  up, and a test on a lower-end PC to see whether the drop remains.
+  physics); the strike sweeps got an exact broad test (QC a frame 6 close: 67.5 k -> 59.6 k). Measured ("box3dup"):
+  those self pairs cost the collide phase only, ~0.04 ms a frame with 2 driven ragdolls and ~0.1-0.13 ms with 6 (of a
+  0.37-0.46 ms step; `vr_ragdoll_self_pairs 0` A/B). An exact skip (a Box3D change: a self pair's narrow phase skipped
+  while its last distance less a motion bound stays over the speculative distance) would save at most that. Left: the
+  GPU side close up, and a test on a lower-end PC to see whether the drop remains.
+- **Box3D #212 ghost handling and ragdoll climbs** (ROUND25.md "box3dup"): with upstream's mesh ghost handling (the
+  default, `vr_box3d_mesh_ghosts 1`) climb_test pull gives 17/24 over seeds 7-10 (ogre 0/4; 21/24 before the update);
+  off gives 22/24 but the active-ragdoll test's crawling ogre keeps 76 J after its drive. Find why the lip loses the
+  ogre's hands with #212, then pick the default for good.
 - **Linux Flatpak needed Steam folder access** (same tester): it worked once she granted access to
   ~/.local/share/Steam (she had first installed the Windows build there to try Proton). The manifest has
   `--filesystem=home:ro`, which should cover it: find why it didn't (a Flatpak'd Steam's path, a symlinked library,
