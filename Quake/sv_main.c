@@ -1314,6 +1314,8 @@ qboolean SV_SendClientDatagram (client_t *client)
 	msg.data = buf;
 	msg.maxsize = sizeof(buf);
 	msg.cursize = 0;
+	msg.allowoverflow = false; // QVR: set (it was the stack's garbage): every writer checks its room first (mpreview B1)
+	msg.overflowed = false;
 
 	//johnfitz -- if client is nonlocal, use smaller max size so packets aren't fragmented
 	if (!SV_IsLocalClient (client))
