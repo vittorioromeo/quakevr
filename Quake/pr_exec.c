@@ -954,6 +954,7 @@ static void PR_ExecuteProgramRun (func_t fnum)
 		st = &qcvm->statements[PR_LeaveFunction()];
 		if (qcvm->depth == exitdepth)
 		{ // Done
+			qcvm->instr_total += profile; // QVR: the per-edict think costs (SV_RunThink)
 			return;
 		}
 		break;

@@ -188,6 +188,7 @@ void ED_ClearEdict (edict_t *e)
 	else
 		ED_RemoveFromFreeList (e);
 	memset (&e->v, 0, qcvm->progs->entityfields * 4);
+	e->thinkcost = 0; // QVR
 	VR_EdictIndex_Touch (e); // QVR
 }
 

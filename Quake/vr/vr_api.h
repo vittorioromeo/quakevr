@@ -342,6 +342,7 @@ int VR_EdictIndex_FindFlags (int start, int field, int flags);	// PF_findflags: 
 // findradius through the area grid (vr_findradius.cpp): an edict is tested by itself while it is "dirty" (its origin,
 // size or solid changed since it was linked, or it isn't linked); the rest are found through the grid.
 edict_t *VR_FindRadius (const float *org, float rad);	// PF_findradius: the chain (the walk's, exactly)
+edict_t *VR_FindRadiusMoving (const float *org, float rad, float minSpeed); // QC findradiusmoving: only what flies
 void VR_FindRadius_Dirty (edict_t *ed);		// the engine changed the edict's origin, size or solid, or unlinked it
 void VR_FindRadius_Linked (edict_t *ed);	// SV_LinkEdict: its abs box set, about to go into the grid
 void VR_FindRadius_Reset (void);			// SV_ClearWorld: nothing linked

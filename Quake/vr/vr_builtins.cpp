@@ -912,6 +912,8 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"crateplace", PF_crateplace},
     {"sightblocked", PF_sightblocked},
     {"unseenfar", PF_unseenfar},
+    {"thinkcost", PF_thinkcost},
+    {"findradiusmoving", PF_findradiusmoving},
     {"turnrpy", PF_turnrpy},
     {"heldshape", PF_heldshape},
     {"heldbox", PF_heldbox},

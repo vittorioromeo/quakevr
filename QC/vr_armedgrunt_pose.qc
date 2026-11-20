@@ -74,9 +74,10 @@ float VR_AGP_REACH = 128;     // ... its right hand reaching for a weapon lying 
 .float vr_agp_runw;           // its run's sway's share (eased)
 .float vr_agp_rdy;            // a melee weapon or the fists ready (an enemy) or carried (eased)
 .float vr_agp_rl_at;          // its reload's start (vr_ag_reload1; 0 none)
-.float vr_agp_lod_pose;       // VR_AGP_Lod: its last pose's time, its last skipped frame's, its origin then
+.float vr_agp_lod_pose;       // VR_AGP_Lod: its last pose's time, the frames skipped since, its origin then
 .float vr_agp_lod_skip;
 .vector vr_agp_lod_org;
+.entity vr_agp_lod_en;        // ... its enemy at its last pose (a new one: posed at once, VR_AGP_Lod)
 .vector vr_agp_twist;        // vr_agrunt_upper: its chest's turn towards its gun's aim (yaw, pitch; eased)
 float vr_agp_gunpose;         // VR_AGP_Pose: a gun (or two) held as a player holds it this frame (VR_AGP_ArmsGun)
 
@@ -2091,24 +2092,36 @@ void(entity g, entity pL) VR_AGP_LeftBlade =
 };
 
 // The pose's level of detail (vr_agrunt_pose_lod; PERF_1_1.md, "Applied"): TRUE when `g` skips its pose this frame.
-// One no player can see (unseenfar: farther than vr_agrunt_pose_lod_near from each, outside each one's view) and
-// doing nothing its pose times (no attack, cast or shove under way, no aim or guard raised, no weapon being taken up,
-// not a studio's or held still) is posed every other server frame; never twice skipped in a row.
+// One no player can see (unseenfar: farther than vr_agrunt_pose_lod_near from each, and for each outside his view or
+// out of his PVS, walls between: never sent to him) and doing nothing its pose times (no attack, cast or shove under
+// way, no aim or guard raised, no weapon being taken up, not a studio's or held still) is posed once every
+// vr_agrunt_pose_lod_frames server frames (a chainsaw's every other: its engine's loop is in its pose); posed the
+// first frame it is seen. vr_agp_lod_dt: the time since its last pose when it is posed (VR_AG_PropThink: its eases
+// move on by all the frames skipped).
 float(entity g, float still) VR_AGP_Lod =
 {
     float skip = cvar_hget(cvarh_vr_agrunt_pose_lod) && !still && !vr_agp_quiet && g.health > 0 && !g.vr_ag_act &&
         g.vr_ag_took_at <= 0 && !g.vr_agk_held && !g.vr_agk_live && g.vr_ag_aimw <= 0 && g.vr_agp_rdy <= 0 &&
-        g.vr_agp_lod_pose > g.vr_agp_lod_skip && g.vr_agp_lod_pose < time && !isragdoll(g);
+        g.vr_agp_lod_pose < time && g.enemy == g.vr_agp_lod_en && !isragdoll(g);
     if(skip)
     {
-        skip = unseenfar(g, cvar_hget(cvarh_vr_agrunt_pose_lod_near));
+        // (an alert one, as before: its readiness eases up in its pose; a chainsaw's engine sounds from it)
+        float every = (g.enemy || g.vr_ag_prop.weapon == WID_CHAINSAW) ? 2 : max(2, cvar_hget(cvarh_vr_agrunt_pose_lod_frames));
+        skip = g.vr_agp_lod_skip < every - 1;
     }
     if(skip)
     {
-        g.vr_agp_lod_skip = time;
+        skip = unseenfar(g, cvar_hget(cvarh_vr_agrunt_pose_lod_near), g.vr_ag_prop);
+    }
+    if(skip)
+    {
+        g.vr_agp_lod_skip = g.vr_agp_lod_skip + 1;
     }
     else
     {
+        vr_agp_lod_dt = (g.vr_agp_lod_skip > 0 && g.vr_agp_lod_pose > 0) ? time - g.vr_agp_lod_pose : 0;
+        g.vr_agp_lod_skip = 0;
+        g.vr_agp_lod_en = g.enemy;
         g.vr_agp_lod_pose = time;
         g.vr_agp_lod_org = g.origin;
     }
@@ -2680,6 +2693,19 @@ void() VR_AGP_PoserThink =
     self.nextthink = time;
     if(g.vr_ag_prop || g.vr_knockdown)
     {
+        return;
+    }
+    // (its level of detail, as a weapon's: VR_AG_PropThink)
+    if(VR_AGP_Lod(g, VR_AG_Still(g)))
+    {
+        return;
+    }
+    if(vr_agp_lod_dt > frametime)
+    {
+        float keepFt = frametime;
+        frametime = vr_agp_lod_dt;
+        VR_AGP_Pose(g, world);
+        frametime = keepFt;
         return;
     }
     VR_AGP_Pose(g, world);

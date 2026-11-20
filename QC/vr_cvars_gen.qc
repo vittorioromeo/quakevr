@@ -221,6 +221,7 @@ float cvarh_vr_agrunt_pcat_prop_pre;
 float cvarh_vr_agrunt_pcat_prop_range;
 float cvarh_vr_agrunt_pcat_prop_windup;
 float cvarh_vr_agrunt_pose_lod;
+float cvarh_vr_agrunt_pose_lod_frames;
 float cvarh_vr_agrunt_pose_lod_near;
 float cvarh_vr_agrunt_preparry;
 float cvarh_vr_agrunt_preparry_chance;
@@ -2325,6 +2326,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_agrunt_pcat_prop_range = VR_CVar_Make("vr_agrunt_pcat_prop_range");
     cvarh_vr_agrunt_pcat_prop_windup = VR_CVar_Make("vr_agrunt_pcat_prop_windup");
     cvarh_vr_agrunt_pose_lod = VR_CVar_Make("vr_agrunt_pose_lod");
+    cvarh_vr_agrunt_pose_lod_frames = VR_CVar_Make("vr_agrunt_pose_lod_frames");
     cvarh_vr_agrunt_pose_lod_near = VR_CVar_Make("vr_agrunt_pose_lod_near");
     cvarh_vr_agrunt_preparry = VR_CVar_Make("vr_agrunt_preparry");
     cvarh_vr_agrunt_preparry_chance = VR_CVar_Make("vr_agrunt_preparry_chance");
