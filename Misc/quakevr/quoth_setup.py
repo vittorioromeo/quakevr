@@ -5,14 +5,16 @@ zips already in the kit's downloads/modsurvey/ (Quaddicted's copies), checked by
 
 - Quoth 2.2 (quoth2pt2full_2.zip): the zip's files, unmodified, in <base>/quoth/ (the installer's layout).
 - Each sample map package: in <base>/qvr_addons/<sha16>/ laid out as a game dir (a file at the zip's root: a .bsp or
-  .lit into maps/, a pak kept; maps/, gfx/, sound/, progs/ kept; readmes and map sources left out), one line per file
-  in <base>/cache/maps_installed.txt (sha256, bytes, path), as the Map Library's install writes it.
+  .lit into maps/, a root pakN.pak unpacked, in order, as the Map Library does (metmon1d's map is in its pak0.pak);
+  maps/, gfx/, sound/, progs/ kept; readmes, map sources, game code and configs left out), one line per file in
+  <base>/cache/maps_installed.txt (sha256, bytes, path), as the Map Library's install writes it.
 
 Idempotent: what is installed already is left alone. Prints one `quoth_setup:` line per package."""
 
 import hashlib
 import os
 import shutil
+import struct
 import sys
 import zipfile
 
@@ -58,18 +60,61 @@ def register(registry, sha, folder):
     return len(rows)
 
 
-def package_path(name):
-    """Where a zip entry goes in the package's game dir, or None (readmes, map sources)."""
+def root_pak(name):
+    """pakN.pak at the zip's root: N (the order the engine reads them in); else -1."""
     low = name.lower()
+    if "/" in name or not (low.startswith("pak") and low.endswith(".pak")) or not low[3:-4].isdigit():
+        return -1
+    return int(low[3:-4])
+
+
+def unregister(registry, sha):
+    """The package's lines dropped from the registry (it is written again)."""
+    with open(registry, encoding="utf-8") as f:
+        lines = f.read().split("\n")
+    with open(registry, "w", encoding="utf-8", newline="\n") as f:
+        f.write("\n".join(l for l in lines if not l.startswith(sha + "\t")))
+
+
+def package_path(name):
+    """Where a zip (or a root pak's) entry goes in the package's game dir, or None (readmes, map sources, game code,
+    startup configs: as vr_mapinstall.cpp's gameCode and startupConfig). A root pakN.pak is unpacked (unpack_paks)."""
+    low = name.lower()
+    leaf = low.rsplit("/", 1)[-1]
+    if leaf in ("progs.dat", "qwprogs.dat", "csprogs.dat", "progs.lno", "quake.rc") or leaf.endswith(".cfg"):
+        return None
     if low.startswith(GAME_DIRS):
         return name
     if "/" in name:
         return None
     if low.endswith((".bsp", ".lit")):
         return "maps/" + name
-    if low.endswith(".pak"):
-        return name
     return None
+
+
+def unpack_paks(zpath, dest):
+    """The zip's root pakN.pak files, in order, unpacked into the package's game dir (as the Map Library's install does:
+    vr_mapinstall.cpp, "The packs at the package's root"); a later pak's file over an earlier one's. Returns the files."""
+    out = []
+    with zipfile.ZipFile(zpath) as zf:
+        paks = sorted((root_pak(i.filename), i) for i in zf.infolist() if root_pak(i.filename) >= 0)
+        for _, i in paks:
+            d = zf.read(i)
+            if d[:4] != b"PACK":
+                continue
+            ofs, ln = struct.unpack("<ii", d[4:12])
+            for e in range(ln // 64):
+                raw = d[ofs + e * 64: ofs + e * 64 + 56].split(b"\0")[0].decode("latin-1").replace("\\", "/")
+                pos, size = struct.unpack("<ii", d[ofs + e * 64 + 56: ofs + e * 64 + 64])
+                rel = package_path(raw)
+                if not rel or raw.startswith("/") or ".." in raw.split("/"):
+                    continue
+                p = os.path.join(dest, rel)
+                os.makedirs(os.path.dirname(p), exist_ok=True)
+                with open(p, "wb") as f:
+                    f.write(d[pos:pos + size])
+                out.append(p)
+    return out
 
 
 def unpack(zpath, dest, layout):
@@ -111,12 +156,22 @@ def main():
             print("quoth_setup: %s NOT installed: no zip at %s" % (label, z))
             continue
         sha = sha256(z)
-        if sha in have:
+        dest = os.path.join(base, "qvr_addons", sha[:16])
+        kept = [n for n in (os.listdir(dest) if os.path.isdir(dest) else []) if root_pak(n) >= 0]
+        if sha in have and not kept:
             print("quoth_setup: %s installed already" % label)
             continue
-        dest = os.path.join(base, "qvr_addons", sha[:16])
+        if kept:
+            # An earlier quoth_setup.py kept the root pak whole (a package folder does not mount it): moved aside (not
+            # deleted), its files unpacked, the package's registry lines written again.
+            aside = os.path.join(base, "cache", "quoth_setup_old")
+            os.makedirs(aside, exist_ok=True)
+            for n in kept:
+                os.replace(os.path.join(dest, n), os.path.join(aside, sha[:16] + "_" + n))
+            unregister(registry, sha)
         unpack(z, dest, package_path)
-        print("quoth_setup: %s installed, %d files" % (label, register(registry, sha, dest)))
+        paks = unpack_paks(z, dest)
+        print("quoth_setup: %s installed, %d files (%d from its paks)" % (label, register(registry, sha, dest), len(paks)))
 
 
 if __name__ == "__main__":

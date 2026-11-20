@@ -17,6 +17,9 @@ that ships in 1.1.1.
   and spins up as the Widowmaker; Haste, Berserk and the Wetsuit show their seconds left on the wrist (and the flat
   visor), and Haste and Berserk tint the screen in Dwell's colours. An armed grunt that picks up one of Dwell's
   weapons fires it as Dwell's. Fixed: the Crystal Lance's first shot ended the game with a network error.
+- **Quoth (experimental).** Quoth 2.2's own maps (Select Campaign > Quoth) and custom maps made for Quoth play by
+  Arcane Dimensions' rules, so they need AD. The installer offers Quoth (free, by Kell, Necros and Preach), downloaded
+  from Quaddicted and installed as released: ticked when Arcane Dimensions is chosen, greyed out without it.
 
 ## Graphics
 
