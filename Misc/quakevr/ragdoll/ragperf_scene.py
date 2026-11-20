@@ -71,7 +71,7 @@ if flat:  # flat-screen: the punch button every 0.6 s, the hands alternating
     for k, f0 in enumerate(range(0, total, 43)):
         timeline.append((f0, f"vr_flat_punch {'main' if k % 2 == 0 else 'off'}"))
 timeline.append((60, "vr_ragdoll_active_list;vr_profile 1;vr_physics_steptime;vr_physics_frametime;profile 0;vr_hitmodel_stats"))
-timeline.append((total, "profile 12;vr_hitmodel_stats;vr_ragdoll_active_list;vr_physics_frametime m;vr_physics_steptime bins"))
+timeline.append((total, "profile 40;vr_hitmodel_stats;vr_ragdoll_active_list;vr_physics_frametime m;vr_physics_steptime bins"))
 timeline.sort(key=lambda x: x[0])
 s += [] if flat else [f'vr_mock_play "{mpath.as_posix()}"']
 if inside:

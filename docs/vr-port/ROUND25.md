@@ -4427,3 +4427,56 @@ one run each, noisy by tens of percent, never used for a claim; the counts are d
   the sweep, the same verdicts) and compare the `vr_agrunt` tests before and after; (4) the GPU side close up (not
   measurable headless). No behaviour changed; the only code change is the counts line (`vr_physics_frametime`,
   `reachTouchCount`).
+
+## ragperf2: the active-ragdoll melee drops, continued (2026-11-20, agent/ragperf; one fix)
+
+Counts, not timings (other workers ran tests alongside). The scene (`ragperf_scene.py`, above) gained:
+
+- **`RP_INSIDE=1`, the hands kept in the bodies** (the tester's case): `vr_mock_hand_follow <main|off> <part|cycle|off>`
+  (new, the mock backend: every frame the hand put at that part of the ragdoll nearest the player; `cycle` its parts in
+  turn, 8 frames each) with `vr_mock_hand_to_absolute 1`, and `vr_mock_walk_to monster 28` every 24 frames (the hands'
+  bodies push the ragdolls off, out of arm's reach, so the player walks after them). Not quite deterministic: the mock
+  walk's "stuck" test and the strike speeds read the real clock (same runs: 4 grunts gave the same contacts, 2 and 6
+  did not); the base scene (hands swinging across the fan) is.
+- **`vr_physics_frametime` split lines**: the awake ragdolls' parts' contacts by what the other shape is (self with a
+  joint between, self without, another ragdoll, the world, the hands' bodies, other), touching or only near (their
+  fattened bounds overlap: the narrow phase runs on it, the solver never sees it). `b3Body_GetAllContactData`: a marked
+  Box3D local change (README.md), b3Body_GetContactData's every contact.
+
+Contacts a frame (after; touching / near):
+
+| case | contacts stepped | self apart | world | hands | QC instr a frame old -> new | strike sweeps' share old -> new |
+|---|---|---|---|---|---|---|
+| 2 close, swinging | 220 | 1 / 144 | 6 / 50 | 0 / 0 | 37.0 k -> 35.8 k | 1.95 k -> 0.64 k |
+| 4 close, swinging | 465 | 8 / 331 | 17 / 88 | 0 / 0 | 53.0 k -> 47.9 k | 8.14 k -> 3.13 k |
+| 6 close, swinging | 668 | 10 / 436 | 24 / 123 | 0 / 0 | 67.5 k -> 59.6 k | 12.83 k -> 4.96 k |
+| 4 close, hands inside | 807 | 42 / 386 | 37 / 89 | 1.8 / 6.1 | 40.7 k -> 39.6 k | 2.03 k -> 0.71 k |
+| 6 close, hands inside | 868 | 44 / 530 | 40 / 126 | 3.4 / 8.7 | 54.0 k -> 51.3 k | 5.83 k -> 2.44 k |
+| 6 close, axe inside | 1066 | 37 / 510 | 35 / 139 | 3.4 / 10.0 | 63.9 k -> 57.3 k | 9.45 k -> 3.44 k |
+
+(old: `vr_agrunt_strike_broad 0`, the same build; the swinging cases' physics identical old and new: the same contacts to
+the decimal. Strike share: `VR_AG_StrikeGap`, `_StrikeMeets`, `VR_AGS_HullGap` and the new `_StrikeBroad`, `_BoxAdd`.)
+
+- **Hands in bodies are cheap**: even pushed into a ragdoll every frame, the hands' and the blade's bodies have 2-3
+  touching contacts and 6-10 near a frame (their bodies shove the parts out; `reachSkips` lets a shoved body through).
+- **The contacts are self pairs that never touch**: a driven ragdoll's parts against each other, ~110 a ragdoll, of
+  which ~7% touch; the rest are pairs whose fattened bounds overlap (a body's parts are close; Box3D's per-shape margin
+  is 12.5% of its size, to 5 cm). Joined pairs: none but the upper arm and chest (collideConnected on purpose; preSolve
+  exempts the socket). **Not filtered**: Box3D asks the custom filter once, when a pair begins, and keeps it while the
+  bounds overlap, so a pair refused while apart would miss a later touch inside the same bounds: no filter keeps the
+  solver's constraints the same. Their cost is the narrow phase: the whole collide phase was 0.11 ms of a 0.32 ms step
+  with ~840 contacts (noisy, shared runs).
+- **Fix: `VR_AG_StrikeMeets`' broad test** (vr_armedgrunt_parry.qc `VR_AG_StrikeBroad`): before the sweep (up to 17
+  steps, two hull queries each, plus the muzzle line), one box round every point the sweep and the muzzle line test
+  (the swept lines' ends, the hand, the muzzle, a carried prop's middle), tested against both volumes by
+  `disarmhull(.., 30 / 31 / 32, lo, hi, grow)` (vr_disarmhull.cpp `boxGap`: the box's 8 corners against the hull, no
+  more than any path in it). Clear of both by more than the strike's reach (and a carried prop's size, plus 0.01 for
+  rounding): every test would miss, so -1 at once. A volume without a hull (the old lines) is swept as before.
+  `vr_agrunt_strike_broad` (Debug menu, Armed Grunts: Strike Broad Test; 1 on; 0 always swept; 2 both, each
+  disagreement printed (developer 1) and a count every 256 sweeps). Check mode over the scene: 2/4/6 swinging, 6 axe,
+  6 inside: 0 disagreements (inside 6: about 95% skipped; swinging: every sweep skipped, none met). `vr_agrunt_test`
+  94 (strikes), 60, 77, 33, 96, 35 pass. Test 35 (parry) failed one case in two of four runs in check mode only (a
+  different weapon each time; its strike speeds are real time and check mode does both tests under load); on and off
+  it passed every run.
+- **Left**: the remaining QC is the melee sweep (`VR_Melee_Sweep`, `VR_Melee_Track`), the force-grabbable thinks and
+  the armed grunts' prop thinks, not close-range specific; the GPU side close up (not measurable headless).
