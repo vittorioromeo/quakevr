@@ -70,10 +70,44 @@ Results (2026-11-20, 600 frames a map, `scratch/quoth_maps/census.txt`):
 script's quit; its four checks all PASS); fixed (a broadcast verdict), checked on e1m1: `quothkeys: 2 passed, 0 failed`.
 0 of 391 official and AD maps have a shim classname or `targetname2`: their censuses do not change.
 
-## 4. Left (phase 2)
+Phase 2 (2026-11-20): `quoth_setup.py` unpacks a package's root `pakN.pak` as the Map Library does (game code and
+configs left out), so metmon1d's map `metmon` is in the census: `quoth_maps: 31 passed, 0 failed` (15 package maps, 12
+of Quoth's, kellbase1's 211, start's exit, 3 loads).
 
-- The installer component: Quaddicted's `quoth2pt2full_2.zip` (54,792,367 bytes, SHA-256
-  `9fce1af35ef7f635990be949d75f7faa18cc198bc19d9adc7d0575e234ab1139`) into `<base>/quoth`, unmodified, on by default like
-  AD, needing AD (`Packaging/Dwell.cs` and `ModComponent.cs` are the pattern).
-- Play-throughs (the census loads and runs each map; nobody has finished one), and the patch notes.
+## 4. The installer (phase 2)
+
+`Installer/.../Packaging/Quoth.cs` on the shared `ModComponent` path (Installer/README.md, "Quoth"): Quaddicted's
+`quoth2pt2full_2.zip` (54,792,367 bytes, SHA-256 `9fce1af3...1139`; content-addressed URL, then the filebase; also in
+`support_assets.json`'s `thirdParty`) unpacked unmodified into `<install>\quoth` (6 files, 136 MB). Ticked while
+Arcane Dimensions is chosen (ticked, in the install, or a usable copy found), off and greyed with the reason otherwise;
+its step runs after AD's and only where AD now is. A 2.2 copy in an owned root (pak2.pak's hash, the engine's pin) is
+used in place. CLI `--quoth`/`--quoth-zip`/`--no-quoth`. Tested: self-tests (pin, existing copies, the real zip: install,
+repair restores a damaged file, update keeps, uninstall removes), the CLI into sandboxes (without AD: skipped with the
+reason; with AD found: installed; update: "unchanged, not downloaded"; uninstall: 17 files, folder removed), and one
+download of the pinned URLs from Quaddicted (checked).
+
+## 5. Play-throughs (phase 2): `quoth_play.sh [flat]`
+
+`vr_ad_test 212` (Debug > Tests > Arcane Dimensions, "Quoth: Drive This Map's Flow") plays a map's flow a round a
+second: every trigger a player walks into touched, every monster awake killed by the player (god), so deaths fire
+their targets (counters, waves, spawners); a sentinel sharing the map's last-stage targetname says when it fires (90
+rounds: "timed out"). It does **not** press buttons, shoot shootable triggers or carry keys. `quoth_play.sh` chains:
+start's exit to e1m1quoth, e1m1quoth's flow and exit (to e1m2quoth), kellbase1's flow and exit (to start), ne_marb,
+lpqsp1, metmon (the verdict runs the next step: no frame waits). VR mock, 2026-11-20: `quoth_play: 7 passed, 4 failed`.
+
+| Map | Result | Why it stops (inferred) |
+|---|---|---|
+| start -> e1m1quoth, e1m1quoth -> e1m2quoth, kellbase1 -> start | exits taken | |
+| ne_marb | its four waves (45 monsters from the spawners, 85 killed), `keyblockmarb` in round 21 | |
+| lpqsp1 | 125 killed, 32 from the hordes; `voreo` not fired | `voreotr` is a targeted point trigger: its chain starts elsewhere (a button?) |
+| metmon | 53 killed, 10 from the spawners; `phase4_relay` not fired | its stage counters count button presses (`stage*_buttonlock`) |
+| e1m1quoth | 39 killed; `ramproom_door` not fired | `ramproom_buttons` counts 3 buttons |
+| kellbase1 | 32 killed; `exitlock` not fired | `exitcount` (16) is fed by the waves behind `count1..3`; `count3` is named by `targetname3`, a key the shim does not know (a third name: check in VR) |
+
+Not played: the flat run (`quoth_play.sh flat`), e1m2quoth's exit (to `e1m3quoth`, which Quoth 2.2 does not ship).
+
+## 6. Left
+
+- The driver presses no buttons: a `func_button` round would let e1m1quoth, metmon and lpqsp1 finish; `targetname3`
+  (kellbase1's count3) needs a look and likely the same alias as `targetname2`.
 - `func_breakable`'s `preset` (material) and `ritem`/`rsize` (likely a dropped item): an AD import patch would map them.

@@ -5957,3 +5957,19 @@ modified or bundled: nothing of it is run, copied or shipped; its maps play by A
 - **Left (phase 2)**: the installer component (Quaddicted's zip, on by default like AD, needs AD); play-throughs;
   patch notes; `quoth_setup.py` unpacking a package's root pak as the Map Library does (metmon1d); func_breakable's
   `preset` and `ritem`/`rsize` (material, dropped item) need an AD import patch.
+
+## Quoth phase 2: installer, play-throughs, docs (quoth2, 2026-11-20, `agent/quoth`)
+
+- **Installer**: `Packaging/Quoth.cs` on the shared `ModComponent` path: Quaddicted's unmodified `quoth2pt2full_2.zip`
+  (pinned; `support_assets.json` `thirdParty.quoth`) into `<install>\quoth`; ticked while AD is chosen, greyed with the
+  reason (`Quoth.NeedsAdText`) otherwise; its step after AD's, only where AD now is; a 2.2 copy found is used in place;
+  CLI `--quoth`/`--no-quoth`. Self-tests: 3 new; the suite 47 of 48, the 48th (readiness) then fixed and passing (it taught the Dwell/Quoth rows and
+  `checks.experimental`, failing on next before). CLI sandboxes: no AD skipped, AD found installed, update kept,
+  uninstall removed. One real download from Quaddicted, checked.
+- **Census**: `quoth_setup.py` unpacks root paks (metmon1d's `metmon`): `quoth_maps: 31 passed, 0 failed`.
+- **Play-throughs**: `vr_ad_test 212` (Debug > Tests > AD, "Quoth: Drive This Map's Flow"): triggers touched, monsters
+  awake killed, round by round, to the map's last stage. `quoth_play.sh` (VR mock): 7 passed, 4 failed: exits from
+  start, e1m1quoth, kellbase1 taken; ne_marb's four waves to `keyblockmarb`; e1m1quoth, metmon, lpqsp1 stop at button
+  stages (the driver presses none), kellbase1 at `count3`'s `targetname3` (a third name, not in the shim). QUOTH.md 5.
+  `vr_goto_exit [<slot>] [<map>]` picks a hub's exit by its map.
+- **Left**: a button round in the driver, `targetname3`, the flat run, func_breakable's `preset`/`ritem`.
