@@ -58,7 +58,9 @@ float(entity by) VR_PD_ByOn =
 // Whether `pl` can be disarmed now by anyone (alive and in the game: a leaver's body is DEAD_DEAD, its health kept).
 float(entity pl) VR_PD_Can =
 {
-    return (cvar_hget(cvarh_vr_player_disarm) || cvar_hget(cvarh_vr_player_disarm_pvp)) && (pl.flags & FL_CLIENT) &&
+    // (PvP only where there are other players: single player skips the projectile scan, mpreview D1)
+    return (cvar_hget(cvarh_vr_player_disarm) || ((coop || deathmatch) && cvar_hget(cvarh_vr_player_disarm_pvp))) &&
+        (pl.flags & FL_CLIENT) &&
         pl.health > 0 && pl.deadflag == DEAD_NO && cvar_hget(cvarh_vr_player_disarm_chance) > 0;
 };
 

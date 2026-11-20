@@ -134,7 +134,6 @@ void M_Main_Draw (void);
 		void M_Net_Draw (void);
 		void M_LanConfig_Draw (void);
 		void M_GameOptions_Draw (void);
-		void M_Search_Draw (void);
 		void M_ServerList_Draw (void);
 	void M_Options_Draw (void);
 		void M_Keys_Draw (void);
@@ -156,7 +155,6 @@ void M_Main_Key (int key);
 		void M_Net_Key (int key);
 		void M_LanConfig_Key (int key);
 		void M_GameOptions_Key (int key);
-		void M_Search_Key (int key);
 		void M_ServerList_Key (int key);
 	void M_Options_Key (int key);
 		void M_Keys_Key (int key);
@@ -7570,7 +7568,8 @@ void M_GameOptions_Mousemove (float cx, float cy)
 
 //=============================================================================
 /* SEARCH MENU */
-// QVR: (B13) the search runs on the server browser's page (its rows fill in as the replies come): m_search goes there
+// QVR: (B13) the search runs on the server browser's page (its rows fill in as the replies come): m_search goes there (nothing
+// sets m_search since: mpreview D4 removed its draw and key handlers)
 
 void M_Menu_Search_f (void)
 {
@@ -7578,16 +7577,6 @@ void M_Menu_Search_f (void)
 	M_Menu_ServerList_f ();
 }
 
-
-void M_Search_Draw (void)
-{
-	M_Menu_ServerList_f ();
-}
-
-
-void M_Search_Key (int key)
-{
-}
 
 //=============================================================================
 /* SLIST MENU */
@@ -8753,10 +8742,6 @@ void M_DrawPanel (void)
 		M_GameOptions_Draw ();
 		break;
 
-	case m_search:
-		M_Search_Draw ();
-		break;
-
 	case m_slist:
 		M_ServerList_Draw ();
 		break;
@@ -8911,10 +8896,6 @@ void M_Keydown (int key, qboolean repeat)
 	case m_gameoptions:
 		M_GameOptions_Key (key);
 		return;
-
-	case m_search:
-		M_Search_Key (key);
-		break;
 
 	case m_slist:
 		M_ServerList_Key (key);
