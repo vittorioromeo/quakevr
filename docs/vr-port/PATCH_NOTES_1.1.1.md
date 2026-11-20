@@ -121,9 +121,10 @@ aren't Map Library packages aren't sent to joining players.
 - **No attract-mode demos.** Quake's demos no longer play by themselves at start-up or from a mod's start-up
   script, on the PC or the Quest, in VR or flat: flat goes straight to the main menu (VR starts in the hub as
   before). Options > Interface's "Start Demos" row is gone. `playdemo` and `timedemo` still play a demo.
-- **Discord status (opt-in).** Menu Settings > Discord Status shows what you play on your Discord profile: the
-  campaign, the map, single player, co-op, deathmatch or the Survival Arena's wave, VR or flat screen, and the time
-  on the map. Off unless you turn it on; it talks only to the Discord app on your PC.
+- **Discord status.** With the Discord app running, your Discord profile shows what you play: the campaign, the
+  map, single player, co-op, deathmatch or the Survival Arena's wave, VR or flat screen, and the time on the map. On
+  by default; turn it off at Menu Settings > Discord Status. It talks only to the Discord app on your PC, never holds
+  up the game (without Discord it quietly tries again now and then), and is not on the Quest.
 
 
 ## Performance

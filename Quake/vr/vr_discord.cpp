@@ -15,9 +15,10 @@
 // merged: the newest goes), it writes the activity's JSON and hands it to the thread under a lock held for a copy. The
 // thread (a loop that blocks on its pipe for its whole life: CODE_STYLE.md, "Threads") connects, sends, reads Discord's
 // answers, and reconnects with a back-off (2 s doubling to 60 s) when Discord is not running or went away; every read and
-// write waits 1 s at most (a Discord that stopped reading never holds the game, nor its quit). It never prints: its
-// state is read by vr_discord_status on the main thread. Off (vr_discord 0, or no vr_discord_appid): the activity cleared
-// and the pipe closed, the thread idle. Quit (finish): the activity cleared, the thread joined.
+// write waits 1 s at most (a Discord that stopped reading never holds the game). It never prints: its state is read by
+// vr_discord_status on the main thread. Off (vr_discord 0, or no vr_discord_appid): the activity cleared and the pipe
+// closed, the thread idle. Quit (finish): every wait of the thread cut to quitBudgetMs (0.5 s; a wait already under way
+// too), the activity cleared if it can be in that time, the thread joined. On by default (opt-out); never on Android.
 //
 // The kit's test runs (QVR_TEST_BACKGROUND) never reach the real Discord: only vr_discord_test's own pipe.
 //
@@ -80,6 +81,7 @@ namespace
 constexpr double minGapSeconds = 15.0; // between two activities handed over (Discord allows 5 a 20 s: kept well under)
 constexpr int ioTimeoutMs = 1000;      // a read or write waits this long at most
 constexpr int readyTimeoutMs = 3000;   // the handshake's READY
+constexpr int quitBudgetMs = 500;      // quitting: every wait of the thread's ends by then (a hung Discord never holds the quit)
 constexpr za::U32 maxPayload = 64 * 1024;
 constexpr const char* defaultPipeBase = "discord-ipc-";
 constexpr const char* testName = "vr_discord_test";
@@ -94,6 +96,26 @@ enum Op : za::U32
 };
 
 [[nodiscard]] za::I64 nowMs() { return za::Clock::nowNanoseconds() / 1000000; }
+
+// Quitting (finish): the time every wait of the thread ends by (0: not quitting), and on Windows an event set with it
+// that cuts a wait already under way short (manual reset: stays set until the next start).
+za::Atomic<za::I64> quitDeadline{0};
+#ifdef _WIN32
+HANDLE quitEvent = nullptr;
+#endif
+
+// What is left of a wait that ends at `end`, at most what is left before the quit's deadline (0: none left).
+[[nodiscard]] za::I64 waitLeft(za::I64 end)
+{
+    const za::I64 now = nowMs();
+    za::I64 left = end - now;
+    const za::I64 quit = quitDeadline.loadSeqCst();
+    if(quit != 0)
+    {
+        left = za::min(left, quit - now);
+    }
+    return left > 0 ? left : 0;
+}
 
 [[nodiscard]] unsigned long processId()
 {
@@ -178,7 +200,21 @@ struct Pipe
         {
             return -1;
         }
-        if(WaitForSingleObject(ev, static_cast<DWORD>(ms)) != WAIT_OBJECT_0)
+        // (the quit's event too: past it, the rest of the wait is capped by the quit's deadline)
+        const za::I64 end = nowMs() + ms;
+        HANDLE waits[2] = {ev, quitEvent};
+        DWORD count = quitEvent ? 2 : 1;
+        DWORD r = WAIT_TIMEOUT;
+        for(;;)
+        {
+            r = WaitForMultipleObjects(count, waits, FALSE, static_cast<DWORD>(waitLeft(end)));
+            if(r != WAIT_OBJECT_0 + 1)
+            {
+                break;
+            }
+            count = 1;
+        }
+        if(r != WAIT_OBJECT_0)
         {
             CancelIoEx(h, &o);
             GetOverlappedResult(h, &o, &done, TRUE);
@@ -241,6 +277,7 @@ struct Pipe
 
     long transfer(void* data, size_t size, bool write, int ms)
     {
+        const za::I64 end = nowMs() + ms;
         for(;;)
         {
             const ssize_t n = write ? send(fd, data, size, MSG_NOSIGNAL) : recv(fd, data, size, 0);
@@ -252,10 +289,24 @@ struct Pipe
             {
                 return -1;
             }
-            pollfd p{fd, static_cast<short>(write ? POLLOUT : POLLIN), 0};
-            if(poll(&p, 1, ms) <= 0)
+            // (in slices: a quit's deadline cuts the wait short)
+            for(;;)
             {
-                return -1;
+                const za::I64 left = waitLeft(end);
+                if(left <= 0)
+                {
+                    return -1;
+                }
+                pollfd p{fd, static_cast<short>(write ? POLLOUT : POLLIN), 0};
+                const int r = poll(&p, 1, static_cast<int>(za::min(left, za::I64{50})));
+                if(r < 0 && errno != EINTR)
+                {
+                    return -1;
+                }
+                if(r > 0)
+                {
+                    break;
+                }
             }
         }
     }
@@ -607,11 +658,17 @@ void startThread()
     {
         return;
     }
+    quitDeadline.storeSeqCst(0);
 #ifdef _WIN32
     if(!wakeEvent)
     {
         wakeEvent = CreateEventW(nullptr, FALSE, FALSE, nullptr); // (auto-reset)
     }
+    if(!quitEvent)
+    {
+        quitEvent = CreateEventW(nullptr, TRUE, FALSE, nullptr); // (manual reset)
+    }
+    ResetEvent(quitEvent);
 #endif
     worker = za::Thread(run);
 }
@@ -832,6 +889,7 @@ struct FakeDiscord
     HANDLE ev{nullptr};
     OVERLAPPED connectOv{};
     bool connected{false};
+    bool silent{false}; // a hung Discord: it takes the connection and reads, never answers
     za::Vector<char> in;
     za::Vector<FakeFrame> frames;
     int clients{0}; // connections accepted
@@ -958,7 +1016,11 @@ struct FakeDiscord
             f.json = za::String{in.data() + 8, static_cast<za::SizeT>(header[1])};
             f.at = realtime;
             in.erase(in.begin(), in.begin() + 8 + header[1]);
-            if(f.op == opHandshake)
+            if(silent)
+            {
+                // (no answer)
+            }
+            else if(f.op == opHandshake)
             {
                 reply(opFrame, "{\"cmd\":\"DISPATCH\",\"evt\":\"READY\",\"data\":{\"v\":1}}");
             }
@@ -1000,6 +1062,8 @@ enum class Step
     Coop,         // a co-op game
     Arena,        // the Survival Arena: its wave in the activity
     Restart,      // Discord gone and back: reconnected, the activity sent again
+    Hung,         // a Discord that takes the connection and never answers: the frames go on, a quit waits < 0.6 s
+    Resume,       // the thread started again, Discord answering: the activity sent again
     Disable,      // off: the activity cleared, the pipe closed
 };
 
@@ -1009,6 +1073,9 @@ struct Test
     int frames{0};      // frames in this step
     int mark{0};        // the activities seen when the step began
     bool entered{false};
+    double lastAt{0.0};  // Hung: the last frame's realtime
+    double maxGap{0.0};  // Hung: the longest frame since the handshake came
+    double hungAt{0.0};  // Hung: when the unanswered handshake came
     testkit::Tally t;
     za::String pipeBase;
 #ifdef _WIN32
@@ -1182,6 +1249,61 @@ void testFrame()
             {
                 check(test.fake.frames[0].op == opHandshake, "Discord restarted: a new handshake");
                 check(has(f, "Survival Arena"), "Discord restarted: the activity sent again");
+                next(Step::Hung);
+            }
+            break;
+        case Step::Hung:
+            if(enter)
+            {
+                test.fake.close(); // Discord gone, then back hung: the connection taken, nothing ever answered
+                test.fake.silent = true;
+                test.hungAt = 0.0;
+                test.maxGap = 0.0;
+            }
+            else if(test.fake.h == INVALID_HANDLE_VALUE)
+            {
+                if(!statusCopy().connected)
+                {
+                    test.fake.frames.clear();
+                    test.fake.listen((test.pipeBase + "0").cStr());
+                }
+            }
+            else if(test.hungAt == 0.0)
+            {
+                if(!test.fake.frames.empty() && test.fake.frames[0].op == opHandshake)
+                {
+                    test.hungAt = realtime; // the thread now waits for a READY that never comes (readyTimeoutMs)
+                    test.lastAt = realtime;
+                }
+            }
+            else
+            {
+                test.maxGap = za::max(test.maxGap, realtime - test.lastAt);
+                test.lastAt = realtime;
+                if(realtime - test.hungAt > 1.0) // (mid-wait: the READY's wait is 3 s)
+                {
+                    check(test.maxGap < 0.25, "a hung Discord: the game's frames go on (the longest under 0.25 s)");
+                    const za::I64 t0 = nowMs();
+                    finish(); // the quit's path
+                    const za::I64 took = nowMs() - t0;
+                    Con_Printf("%s: the quit with a hung Discord took %lld ms (longest frame %.3f s)\n", testName,
+                               static_cast<long long>(took), test.maxGap);
+                    check(took < 600, "a hung Discord: the quit waits under 0.6 s");
+                    test.fake.close();
+                    test.fake.silent = false;
+                    test.fake.frames.clear();
+                    test.fake.listen((test.pipeBase + "0").cStr());
+                    startThread();
+                    handOver(current);
+                    next(Step::Resume);
+                }
+            }
+            break;
+        case Step::Resume:
+            if(const FakeFrame* f = newestAfter(0))
+            {
+                check(test.fake.frames[0].op == opHandshake && has(f, "Survival Arena"),
+                      "after the quit's path: the thread started again, the activity sent again");
                 next(Step::Disable);
             }
             break;
@@ -1253,6 +1375,9 @@ void registerCommands()
 
 void frame()
 {
+#ifdef __ANDROID__
+    return; // (no Discord app on a headset: no thread, nothing tried)
+#endif
     if(cls.state == ca_dedicated)
     {
         return;
@@ -1266,14 +1391,24 @@ void frame()
 
 void finish()
 {
-    if(!running.exchangeSeqCst(false))
+    if(!running.loadSeqCst())
     {
         return;
     }
+    // Every wait of the thread ends within quitBudgetMs (a Discord that hung mid-handshake or stopped reading included);
+    // it clears the activity if it can in that time (Discord clears it itself when the pipe closes).
+    quitDeadline.storeSeqCst(nowMs() + quitBudgetMs);
+#ifdef _WIN32
+    if(quitEvent)
+    {
+        SetEvent(quitEvent);
+    }
+#endif
+    running.storeSeqCst(false);
     wake();
     if(worker.joinable())
     {
-        worker.join(); // (the thread clears the activity first: 1 s at most a write)
+        worker.join();
     }
 }
 

@@ -57,6 +57,7 @@ Quoth's e1m1quoth: from start's hub, the three ramp-room buttons open its door; 
 Quoth's kellbase1: press the three buttons; enforcers, then pyros, then eliminators arrive, and killing all 16 opens the exit lock and makes the plasma gun
 Quoth's lpqsp1: shoot the button by the vore trap; about 5 s later its secret door opens
 Quoth's metmon: each stage's switches unlock the next, and the fourth shuts down the portal sphere
+Discord status (on by default): with the Discord app running your profile shows Quake VR, the map and mode; Menu Settings > Discord Status off clears it; quitting the game is instant whether Discord is running or not
 
 [1. Flat-screen: weapons and hands]
 
