@@ -68,6 +68,7 @@ typedef struct edict_s
 	showbboxflags_t		showbboxflags;		/* highlighted entity link types */
 
 	float		freetime;		/* sv.time when the object was freed */
+	double		thinkcost;		/* QVR: QC statements its thinks ran (SV_RunThink; QC thinkcost: the armed grunts' census) */
 	entvars_t	v;			/* C exported fields from progs */
 
 	/* other fields from progs come immediately after */
@@ -216,6 +217,7 @@ typedef struct qcvm_s
 
 	builtin_t		builtins[MAX_BUILTINS];
 	int				numbuiltins;
+	double			instr_total;	// QVR: QC statements run in all (each outermost or nested run's, PR_ExecuteProgram)
 
 	int				argc;
 

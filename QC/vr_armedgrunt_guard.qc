@@ -237,6 +237,21 @@ void(entity g) VR_AGG_Drop =
     VR_AG_Log(sprintf("guard: dropped, recovering %.2f s", r));
 };
 
+// The farthest a raise is read from (vr_agrunt_windup_range times the widest category's range, VR_AGG_Mult): no hand
+// of a player farther is read (VR_AGG_Frame). Worked out once a frame.
+nosave float vr_agg_reach, vr_agg_reach_at;
+float() VR_AGG_ReadReach =
+{
+    if(vr_agg_reach_at != time)
+    {
+        vr_agg_reach_at = time;
+        vr_agg_reach = cvar_hget(cvarh_vr_agrunt_windup_range) *
+            max(max(VR_AGG_Mult(VR_AGG_CAT_MELEE, VR_AGG_M_RANGE), VR_AGG_Mult(VR_AGG_CAT_GUN, VR_AGG_M_RANGE)),
+                max(VR_AGG_Mult(VR_AGG_CAT_PROP, VR_AGG_M_RANGE), VR_AGG_Mult(VR_AGG_CAT_FIST, VR_AGG_M_RANGE)));
+    }
+    return vr_agg_reach;
+};
+
 // Its guard's state each frame (VR_AGPar_Frame, its weapon's think): the timers, the wind-up read, the preventive
 // check. Its state now (VR_AGG_RAISED: its parry up).
 float(entity g) VR_AGG_Frame =
@@ -307,9 +322,18 @@ float(entity g) VR_AGG_Frame =
     {
         return g.vr_agg_state;
     }
-    // Your raises read (in any state: a raise held through its guard is read once, vr_agrunt_windup_rearm).
+    // Your raises read (in any state: a raise held through its guard is read once, vr_agrunt_windup_rearm). You farther
+    // than any is read from (VR_AGG_ReadReach): none raised, both hands' cleared, as the loop would.
     float h;
-    for(h = 0; h < 2; h++)
+    float far = !wup || bestD > VR_AGG_ReadReach();
+    if(far)
+    {
+        g.vr_agg_wup0 = 0;
+        g.vr_agg_wread0 = 0;
+        g.vr_agg_wup1 = 0;
+        g.vr_agg_wread1 = 0;
+    }
+    for(h = 0; h < 2 && !far; h++)
     {
         float hc = VR_AGG_Cat(pl, h);
         float raised = FALSE;

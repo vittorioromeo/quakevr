@@ -362,6 +362,7 @@ qx_dispatch:
 			const int ret = PR_LeaveFunction ();
 			if (vm->depth == exitdepth)
 			{ // Done
+				vm->instr_total += cur; // QVR: the per-edict think costs (SV_RunThink, QC thinkcost)
 				return;
 			}
 			off += QX_IDX (st) - ret; // the caller resumes after its call (ret + 1), counted one after this

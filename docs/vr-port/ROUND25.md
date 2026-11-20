@@ -5615,3 +5615,81 @@ The second half of the fixes before agent/mp goes into next (the table: MP_PLAN.
 - Left, in BACKLOG.md section 9: B4 (one player walk), D7 (one grapple reel), B6 (room-scale budget in the replay),
   B7 (snapshot encode sharing).
 - Checks: dev and ThinLTO builds 0 warnings (LTO exe relinked); mp_lagcomp + mp_dm alone 17/0 and 27/0 (vr_dm_test 12 3/0, the inbox check); SP scenario_check 136/1 (bench_crowd_ad, the known AD infighting), flatplay 31/0, flatparry 43/0, flathands 76/0, flatmelee 12/0; suite plain 54 of 57 (mp_coop_lag, mp_lagcomp's move view-time check, mp_voice_lossy: real-time checks, the other fixer's runs alongside); those three alone 12/0, 17/0, 28/0. --load 16 (the other fixer's suite running too: round trips up to 1 s): 33 of 57, every failure a latency or timing check, no Host_Error or overflow in any server log; to rerun on a quiet machine.
+
+## Armed grunts' cost on crowded maps (aglod, 2026-11-20)
+
+d2m8 (251 armed grunts, 156 live at his start) cost 536 k QC instructions a frame idle. Measured by state with a new
+builtin, `thinkcost(e, reset)` (each edict's think statements, counted in `SV_RunThink` as `profile` counts them:
+`qcvm->instr_total`, both interpreters), and `vr_agrunt_test 226` (the map as it stands) / `227` (every grunt woken at
+him) in `QC/vr_armedgrunt_lod_test.qc`: per grunt a frame, idle unseen 2,463, idle seen 3,526, alert 3,673, fighting
+3,507, dead 12 (table: DWELL.md 9.7). What changed, all in the shared armed-grunt code (no Dwell or map branch):
+- **Unseen means not sent too**: `unseenfar(e, near, optional e2)` also counts a grunt out of each player's fat PVS
+  (as `SV_WriteEntitiesToClient` sends by it, the gates' destinations included; made once a frame per player,
+  `UnseenScratch`) as unseen; its held weapon must be out of it too.
+- **The pose LOD deeper** (`VR_AGP_Lod`): an unseen idle grunt is posed once every `vr_agrunt_pose_lod_frames`
+  (new tunable, 8; 2 is the old every other frame) server frames, its weapons carried along between; an alert one
+  or a chainsaw's stays at 2 (its readiness eases up in its pose; the saw's engine sound is in it); posed at once
+  when it gets a new enemy (`.vr_agp_lod_en`) or is seen. The pose after skipped frames runs with `frametime` the
+  time since its last (its eases and a chainsaw's fuel move on by all of them: for a steady target the same result
+  as posing each frame). The fists' poser (`VR_AGP_PoserThink`) has the same LOD.
+- **Exact skips**: the guard's raise read (`VR_AGG_Frame`) skips both hands past `VR_AGG_ReadReach` (windup range
+  times the widest category's), clearing them as the loop would; the parry's frame (`VR_AGPar_Frame`) returns at
+  once with no player within 160 units, no monster melee begun in 1.5 s, guard down and no parry up or seen; the
+  shot and throw scans (`VR_AGS_Projectiles`, `VR_AG_WeaponStruck`) use `findradiusmoving(org, rad, minspeed)`
+  (findradius's chain without what stands still, players, monsters and pushers: the same entities their filters
+  kept, in the same order) and a look round the grip first (`VR_AG_LINE_REACH` 192), so a quiet frame works out no
+  weapon line.
+Result: d2m8 idle 274 k a frame (`profile`, 720 frames after 120); woken thinks 602 k to 464 k; e1m1 38 k. Under
+150 k needs cutting what can be seen: the 20 grunts in view at his start (57 k), the other thinks (55 k, the pickups'
+forcegrabbable thinks 39 k of it) and non-think QC (29 k) are 141 k alone. Test `Misc/quakevr/aglod_test.sh`
+(`vr_agrunt_test 228`, vrarena): a shotgun grunt 400 units behind him (posed 8 times in 64 frames), brought into view
+or shot: posed that frame, alert, the shot one attacking within 4 s; its 3 s trace the same with 8 frames, 2 and no
+LOD (seen) or 8 and 2 (shot): 6 passed, 0 failed. Not run here: the armed-grunt suites, vr_ad_test, dwell_maps.sh,
+dwell_monsters_test.sh, scenario_check, the ThinLTO build (budget). ad_tears is not in the agent's base.
+
+### Armed-grunt LOD review (aglod2, 2026-11-20, agent/aglod)
+
+- **Worn pack LOD** (`vr_wornpack.qc`): `unseenfar(g, near, pk)`: a wearer in view but out of his PVS whose pack is
+  still in it gets its pack placed (aglod's PVS rule would have left it hanging where he last saw it). A pack is
+  placed from its wearer as his client draws it (`packWhere`'s drawn pose: a monster's steps eased, up to ~35 units
+  behind its origin at a walk), so a teleported wearer's pack lands a frame late; walking, it is on the body the first
+  frame seen. Test `vr_agrunt_test 229` (vrarena; `vr_worn_backpack_lod_near 128` set by the script, as QC's
+  `cvar_set` on a tunable does not take): a grunt walked round him into view: its pack never placed while unseen (0 of
+  56 frames), placed from the first frame seen.
+- **Unarmed grunts' pose LOD**: `vr_agrunt_test 228` trials 2 (woken by his shot's sound, `VR_Stealth_Noise`) and 3
+  (shot), fists: their traces (place, frame, turn, stealth state) and `aglod react` lines (the frame it takes him for
+  its enemy, the frames till posed after: 0) the same with 8 frames, 2 and no LOD. The pose never feeds the AI.
+- **`vr_agrunt_pose_lod_frames`** 0 or 1: every frame, no LOD (it was clamped to 2); row 1..16, help rewritten;
+  saved as its neighbours (a tunable). Checked: frames 1, 64 poses in 64 frames.
+- **Verified**: ThinLTO build 0 warnings; `aglod_test.sh` 13/0; dwell_maps 28/0; dwell_monsters 11/0; scenario_check
+  137/0; flatplay 31/0; adbugs (adrepl 5/0, adgun 9/0 and 7/0) and night1101 (vr_ad_test 198) pass. run_baseline
+  agrunt: 16, 35, 39, 42, 61, 91, 203 fail the same on origin/next, as do tunables_test's 2. 228 and 229 fail under
+  run_baseline (vrtesthall: no room, no cvar): they are aglod_test.sh's (vrarena).
+
+
+## Discord Rich Presence (branch agent/discord, 2026-11-20)
+
+His request (2026-11-18): Discord shows what he plays. **DISCORD.md** is the reference (what is shared, setting up the
+application, the protocol, the join hook).
+
+- **Route**: Discord's RPC over its local IPC (`\\.\pipe\discord-ipc-0..9`; on Linux/macOS the `discord-ipc-N` unix
+  socket), HANDSHAKE then SET_ACTIVITY frames written by hand: no SDK, no library, no download. `Quake/vr/vr_discord.cpp`.
+- **Shared**: details = the map's title (worldspawn message, else the file name; "In the menus"); state = campaign ·
+  mode (Single player, Co-op, Deathmatch, Survival Arena wave N, Watching a demo) · VR or Flat screen; elapsed since
+  the map began; a large image only with `vr_discord_image`.
+- **Threads**: the main thread reads a small key a frame (no allocation) in `VR_HostFrameEnd` and hands the activity's
+  JSON over only on a change, no sooner than 15 s after the last (merged; off clears at once). A thread of its own
+  (CODE_STYLE "Threads": blocks on its pipe) connects, sends, answers PING, keeps Discord's errors for the status, and
+  reconnects with a back-off (2 s doubling to 60 s); every read and write waits 1 s at most (overlapped I/O on
+  Windows, poll() on POSIX). Quit (`VR_Shutdown`): cleared, joined. Test runs (`QVR_TEST_BACKGROUND`) never reach the
+  real Discord.
+- **Settings**: `vr_discord` 0 (Menu Settings > Discord Status, after Check for Updates), `vr_discord_appid` ""
+  (he creates the application: DISCORD.md "Setting it up"), `vr_discord_image` "". Debug > Reports: "Discord: Status"
+  (`vr_discord_status`), "Discord: Self-Test" (`vr_discord_test`).
+- **Test** `vr_discord_test` (Windows; a fake Discord on its own pipe `qvr-discord-test-<pid>-0`, frames recorded):
+  no Discord (plays, nothing connects), handshake, SP in VR, nothing re-sent unchanged past the gap, flat screen (no
+  sooner than the gap), co-op e1m2, vrarena's wave, Discord restarted (new handshake, activity again), off (cleared).
+  `run.sh <agent> -Script "vr_discord_test" -Filter vr_discord_test -QuitOn "vr_discord_test: [0-9]+ passed"`: 14/0.
+  The POSIX branch syntax-checked with WSL's clang only (not run).
+- **Open**: the application id (and logo asset) from him, then the shipped default; whether it ships on; Linux tried
+  for real; the join button (room codes: `JOIN-HOOK` in vr_discord.cpp).

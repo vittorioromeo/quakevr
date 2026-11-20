@@ -961,6 +961,21 @@ void(entity g) VR_AGPar_Frame =
     }
     float mu = VRMetersToUnits();
     float guard = VR_AGG_Frame(g); // (its guard: the preventive and wind-up parries, vr_armedgrunt_guard.qc)
+    // Nothing can be coming (no player alive within the 160 units the hands are looked for at, no monster's melee begun
+    // in 1.5 s), its guard down, no parry up nor a blow seen in 0.35 s: what all below would leave, at once.
+    if(guard != VR_AGG_RAISED && g.vr_agpar_w == 0 && time - g.vr_agpar_seen >= 0.35 && time - vr_melee_begun_last >= 1.5)
+    {
+        entity near = VR_Player();
+        while(near && !(near.health > 0 && vlen(near.origin - g.origin) < 160))
+        {
+            near = VR_NextPlayer(near);
+        }
+        if(!near)
+        {
+            g.vr_agpar_since = 0;
+            return;
+        }
+    }
     float react = cvar_hget(cvarh_vr_agrunt_react_parry);
     VR_AGP_Body(g);
     vector chest = g.origin + VR_AGP_ToWorld(VR_AGPar_Chest(g));

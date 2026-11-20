@@ -627,10 +627,16 @@ void(entity g, entity p, entity e, float kind, vector a, vector b) VR_AGS_ProjRo
 };
 
 // The players' nails, rockets and grenades flying through `p` or its hand this frame (a frame back, a frame ahead).
+// (Only what flies can: findradiusmoving's chain, findradius's without what stands still; nothing flying near its grip,
+// VR_AG_LINE_REACH more than the search, no line to work out.)
 void(entity g, entity p) VR_AGS_Projectiles =
 {
+    if(findradiusmoving(p.origin, 128 + VR_AG_LINE_REACH, 0) == world)
+    {
+        return;
+    }
     VR_AG_WeaponLine(p);
-    entity e = findradius((vr_ag_wa + vr_ag_wb) * 0.5, 128);
+    entity e = findradiusmoving((vr_ag_wa + vr_ag_wb) * 0.5, 128, 0);
     while(e)
     {
         entity next = e.chain;

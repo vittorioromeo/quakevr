@@ -1045,14 +1045,74 @@ void PF_sightblocked()
     G_INT(OFS_RETURN) = EDICT_TO_PROG(EDICT_NUM(num));
 }
 
-// float unseenfar(entity e, float near): 1 when `e` is farther than `near` units from every player's eyes and outside
-// each one's view (vr_agrunt_pose_lod_cone degrees off where he looks, its box's half diagonal round it), else 0. From
-// the players' server state alone (origin, view_ofs, v_angle): the same in every run of the same game, multiplayer too.
-// The armed humanoids' pose level of detail (QC VR_AGP_Lod: vr_agrunt_pose_lod) and their worn packs' placing.
+// unseenfar's sights: each player's fat PVS as SV_WriteEntitiesToClient sends by it (the gates' destinations round it
+// too), made at its first use in a server frame and kept for that frame's other calls (keyed by the server's time and
+// the eye: never stale). The server's frame: the main thread.
+extern "C" byte* SV_FatPVS(vec3_t org, qmodel_t* worldmodel); // (sv_main.c)
+extern "C" qboolean SV_EdictInPVS(edict_t* test, byte* pvs);
+extern "C" void VR_PortalAddPVS(byte* pvs, const float org[3]); // (vr_portals.cpp)
+struct UnseenScratch
+{
+    za::Vector<byte> pvs;     // player i's at [i * stride, (i + 1) * stride)
+    za::Vector<double> made;  // player i's: the server time it was made at
+    za::Vector<float> eyes;   // player i's: the eye it was made from (x y z)
+    auto members() { return mem::list(pvs, made, eyes); }
+};
+mem::Scratch<UnseenScratch> unseenScratch{"unseenfar"};
+
+// Whether player `i` (edict p, its eye `eye`) is sent `e` this frame by its PVS (SV_WriteEntitiesToClient's test: an
+// entity in too many leafs, or one sent past it, always is).
+[[nodiscard]] bool unseenInPvs(int i, const edict_t* e, const glm::vec3& eye)
+{
+    if(!e || e->free || e->num_leafs >= MAX_ENT_LEAFS || VR_SV_SendPastPVS(const_cast<edict_t*>(e)) || !sv.worldmodel)
+    {
+        return true;
+    }
+    const za::SizeT bytes = static_cast<za::SizeT>((sv.worldmodel->numleafs + 7) >> 3);
+    const za::SizeT stride = (bytes + 63) & ~static_cast<za::SizeT>(63);
+    const za::SizeT n = static_cast<za::SizeT>(svs.maxclients);
+    UnseenScratch& s = unseenScratch;
+    if(s.made.size() != n || s.pvs.size() != n * stride)
+    {
+        s.pvs.clear();
+        s.pvs.resize(n * stride, static_cast<byte>(0));
+        s.made.clear();
+        s.made.resize(n, -1.0);
+        s.eyes.clear();
+        s.eyes.resize(n * 3, 0.f);
+    }
+    byte* mine = s.pvs.data() + static_cast<za::SizeT>(i) * stride;
+    float* was = s.eyes.data() + static_cast<za::SizeT>(i) * 3;
+    if(s.made[static_cast<za::SizeT>(i)] != sv.qcvm.time || was[0] != eye.x || was[1] != eye.y || was[2] != eye.z)
+    {
+        vec3_t org = {eye.x, eye.y, eye.z};
+        const byte* fat = SV_FatPVS(org, sv.worldmodel);
+        memcpy(mine, fat, bytes);
+        memset(mine + bytes, 0, stride - bytes);
+        VR_PortalAddPVS(mine, org);
+        s.made[static_cast<za::SizeT>(i)] = sv.qcvm.time;
+        was[0] = eye.x;
+        was[1] = eye.y;
+        was[2] = eye.z;
+    }
+    return SV_EdictInPVS(const_cast<edict_t*>(e), mine);
+}
+
+// float unseenfar(entity e, float near, optional entity e2): 1 when `e` is farther than `near` units from every
+// player's eyes and, for each one, outside his view (vr_agrunt_pose_lod_cone degrees off where he looks, its box's half
+// diagonal round it) or out of his PVS (never sent to him: walls between; `e2`, a weapon it holds, out of it too), else
+// 0. From the players' server state alone (origin, view_ofs, v_angle) and the map: the same in every run of the same
+// game, multiplayer too. The armed humanoids' pose level of detail (QC VR_AGP_Lod: vr_agrunt_pose_lod) and their worn
+// packs' placing.
 void PF_unseenfar()
 {
     const edict_t* e = G_EDICT(OFS_PARM0);
     const float near = G_FLOAT(OFS_PARM1);
+    const edict_t* e2 = qcvm->argc > 2 ? G_EDICT(OFS_PARM2) : nullptr;
+    if(e2 == qcvm->edicts)
+    {
+        e2 = nullptr;
+    }
     const float cone = glm::radians(za::clamp(vr_agrunt_pose_lod_cone.value, 0.f, 180.f));
     const glm::vec3 mid = geom::vec(e->v.origin) + (geom::vec(e->v.mins) + geom::vec(e->v.maxs)) * 0.5f;
     const float round = glm::length(geom::vec(e->v.maxs) - geom::vec(e->v.mins)) * 0.5f;
@@ -1078,8 +1138,12 @@ void PF_unseenfar()
         const float off = acosf(za::clamp(glm::dot(to / dist, geom::vec(f)), -1.f, 1.f));
         if(off - za::atan2(round, dist) <= cone)
         {
-            G_FLOAT(OFS_RETURN) = 0.f;
-            return;
+            const glm::vec3 eye = geom::vec(p->v.origin) + geom::vec(p->v.view_ofs);
+            if(unseenInPvs(i, e, eye) || (e2 && unseenInPvs(i, e2, eye)))
+            {
+                G_FLOAT(OFS_RETURN) = 0.f;
+                return;
+            }
         }
     }
 }
@@ -1137,4 +1201,23 @@ void PF_heldbox()
     const float* hi = G_VECTOR(OFS_PARM2);
     G_FLOAT(OFS_RETURN) = static_cast<float>(box3d::heldBox(NUM_FOR_EDICT(G_EDICT(OFS_PARM0)), geom::vec(lo),
         geom::vec(hi), G_FLOAT(OFS_PARM3)));
+}
+
+// entity findradiusmoving(vector org, float rad, float minspeed): findradius's chain, only what moves at `minspeed` or
+// more (any speed for 0), never a player, a monster or a pusher (VR_FindRadiusMoving).
+void PF_findradiusmoving()
+{
+    G_INT(OFS_RETURN) = EDICT_TO_PROG(VR_FindRadiusMoving(G_VECTOR(OFS_PARM0), G_FLOAT(OFS_PARM1), G_FLOAT(OFS_PARM2)));
+}
+
+// float thinkcost(entity e, float reset): the QC statements e's thinks ran since its last reset (SV_RunThink; counted
+// like `profile`'s, deterministic), then zeroed if `reset`. The armed grunts' census (QC vr_armedgrunt_lod_test.qc).
+void PF_thinkcost()
+{
+    edict_t* e = G_EDICT(OFS_PARM0);
+    G_FLOAT(OFS_RETURN) = static_cast<float>(e->thinkcost);
+    if(G_FLOAT(OFS_PARM1) != 0.f)
+    {
+        e->thinkcost = 0;
+    }
 }

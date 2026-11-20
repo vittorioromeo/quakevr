@@ -393,9 +393,17 @@ float(entity e, vector at, vector vel, optional float mass, optional float bounc
 // limb keeps `vel`, units/s); 0 nothing held, 1 a limb held, 2 one pulled; how far the held or pulled limb's point is from
 // the hand (-1 none); the limb nearest p (-1: not a ragdoll); p into limb `bone`'s space (units) and back (toWorld).
 float(entity e) isragdoll = #0;
-// float unseenfar(entity e, float near): 1 when e is farther than `near` from every player's eyes and outside each one's
-// view (vr_agrunt_pose_lod_cone degrees off his v_angle); the armed humanoids' pose LOD (VR_AGP_Lod), the worn packs'.
-float(entity e, float near) unseenfar = #0;
+// float unseenfar(entity e, float near, optional entity e2): 1 when e is farther than `near` from every player's eyes
+// and, for each, outside his view (vr_agrunt_pose_lod_cone degrees off his v_angle) or out of his PVS (never sent to
+// him; e2, a weapon it holds, out of it too); the armed humanoids' pose LOD (VR_AGP_Lod), the worn packs'.
+float(entity e, float near, optional entity e2) unseenfar = #0;
+// float thinkcost(entity e, float reset): the QC statements e's thinks ran since its last reset (counted like
+// `profile`'s), zeroed after if `reset`. The armed grunts' census (vr_armedgrunt_lod_test.qc).
+float(entity e, float reset) thinkcost = #0;
+// entity findradiusmoving(vector org, float rad, float minspeed): findradius's chain (the same entities, the same
+// order) with only those moving at minspeed units/s or more (any speed for 0), never a player, a monster or a pusher:
+// what flies. The armed grunts' scans for shots and thrown things at their weapons (a quiet frame: nothing to loop).
+entity(vector org, float rad, float minspeed) findradiusmoving = #0;
 // vector turnrpy(vector d, vector c, vector s): d turned about x by the roll, y by the pitch, z by the yaw whose cosines
 // are c and sines s (x roll, y pitch, z yaw): VR_AGP_TurnDir's steps, each the float operation QC's would be.
 vector(vector d, vector c, vector s) turnrpy = #0;

@@ -1361,6 +1361,14 @@ za::Vector<Item> pageDebugReports()
                   "a password is set (never the password), obs-websocket's version, the recording's state and time, and "
                   "the menus' row as it reads."),
         row(opt::vr_obs_process_check),
+        command("Discord: Status", "vr_discord_status")
+            .help("vr_discord_status: Discord Rich Presence (Menu Settings > Discord Status): on or off, the application "
+                  "id set or not, the thread's connection (the pipe, tries, activities sent), Discord's last error and "
+                  "the activity as last handed over."),
+        command("Discord: Self-Test", "vr_discord_test")
+            .help("vr_discord_test: a fake Discord on a pipe of its own (never the real one): no Discord, the handshake, "
+                  "single player, nothing sent unchanged, flat screen, co-op, the Survival Arena's wave, Discord restarted, "
+                  "turned off. It loads maps (e1m1, e1m2, vrarena) and ends on its verdict line."),
         row(opt::vr_obsrec_as_if),
         command("Main Menu Lettering", "vr_bigfont").help("vr_bigfont: which of the main menu's letters were cut from the menu pictures, and which were left out (a mod's own picture: the menu then shows the picture)."),
     };

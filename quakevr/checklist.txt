@@ -39,6 +39,8 @@ Dwell: an armed grunt picks up your thrown Rotary Shotgun / Crystal Lance and fi
 Dwell weapons have their own VR models (scenario dwell_vrmodels: grips, muzzles, sights, two-hand; tune Weapon Offsets); the Rotary's barrels spin; holster/wrist menu names by model (Widowmaker, Rifle...)
 Dwell d2end boss: read and dodge the bullet-hell shots, bat one back with a sword; the Sculptor spins, tilts, raises its shield and teleports
 Dwell: Copper armour pickups (0.3/0.5/0.7, excess kept) and key stacks in d1m1; shots on the Sculptor's ring (d2end) land
+Armed grunts you can't see cost far less on crowded maps (d2m8 idle 536k -> 274k QC instr/frame); new tunable vr_agrunt_pose_lod_frames (default 8, 1 = off)
+Discord status: once the app id is set, vr_discord 1 shows map, mode and VR/flat on your Discord profile
 
 [1. Flat-screen: weapons and hands]
 

@@ -2306,6 +2306,11 @@ QVR_TOGGLE_BYNAME(vr_menu_version, "Version Label",
     "The game's name, version and author, small, in the menus' bottom right corner (where the page leaves room for it). A build not made for a release says \"dev\" after the version.")
 QVR_TOGGLE_BYNAME(vr_update_check, "Check for Updates",
     "At start-up (at most once an hour) the game asks the release page whether a newer Quake VR is out, and says so above the version label: point at it and press to open its page in your desktop's browser. Only the release list is read; nothing about you or your game is sent. Off: never asked, no notice.")
+QVR_TOGGLE_BYNAME(vr_discord, "Discord Status",
+    "Shows what you play on your Discord profile, through the Discord app running on this PC: the campaign, the "
+    "map's name, single player, co-op, deathmatch or the Survival Arena's wave, VR or flat screen, and the time on "
+    "this map. Nothing else is sent, and only to the Discord app on this PC. Off: nothing sent, and what was shown is "
+    "cleared.")
 QVR_TOGGLE_BYNAME(vr_menu_flat_shortcuts, "Corner Buttons on a Flat Screen",
     "With VR off: the buttons at the menus' top left (Back to Game, Main Menu, Search, Console, Advanced VR, Levels, Map Library) on the desktop menus too, for the mouse.")
 QVR_TOGGLE_BYNAME(vr_menu_flat_vr_style, "VR Menu Layout on a Flat Screen",

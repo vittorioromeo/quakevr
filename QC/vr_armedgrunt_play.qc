@@ -1258,13 +1258,14 @@ float(entity g, entity p) VR_AG_WeaponStruck =
     {
         return TRUE;
     }
-    if(!cvar_hget(cvarh_vr_agrunt_disarm) || !g.vr_ag_prop)
+    // (A throw: only what flies at 100 or more can, findradiusmoving's chain; nothing near its grip, no line to work out.)
+    if(!cvar_hget(cvarh_vr_agrunt_disarm) || !g.vr_ag_prop || findradiusmoving(p.origin, 48 + VR_AG_LINE_REACH, 99) == world)
     {
         return FALSE;
     }
     VR_AG_WeaponLine(p);
     vector mid = (vr_ag_wa + vr_ag_wb) * 0.5;
-    entity e = findradius(mid, 48);
+    entity e = findradiusmoving(mid, 48, 99);
     while(e)
     {
         if((e.classname == "thrown_weapon" || e.vr_gib || (e.flags & FL_FORCEGRABBABLE)) && e != p &&

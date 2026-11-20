@@ -216,9 +216,11 @@ Each verified by an unchanged physics hash, melee eval and `vr_menu_path_check`.
   from the 2026-11-09 audit"); the prerequisites are built.
 - **Multiplayer update** (after 1.1): co-op rules, NAT traversal, voice chat, our VR systems synchronised, from
   Quakespasm-VR (GPL): MP_DESIGN.md, "Open items moved from BACKLOG.md".
-- **Discord Rich Presence** (2026-11-18, his request): show what he's playing on Discord (campaign/map, mode: single
-  player, co-op, deathmatch, Arena wave, VR or flat screen; a "join" button for multiplayer later, via room codes).
-  Needs the Discord Game SDK or the RPC over its local IPC pipe (licence/download check first); off-able in settings.
+- **Discord Rich Presence** (2026-11-18, his request): built 2026-11-20 (DISCORD.md; branch agent/discord): the RPC over
+  Discord's local IPC pipe, no SDK; Menu Settings > Discord Status (`vr_discord`, off by default). Left: he creates the
+  Discord application and gives its id (`vr_discord_appid`, then the shipped default) and, if wanted, a logo asset
+  (`vr_discord_image`); decide whether it ships on; try it on Linux; the "join" button with multiplayer room codes
+  (the `JOIN-HOOK` places in vr_discord.cpp).
 - **Ranger helmet and biosuit visor view** (2026-11-18, his words): "having the Quake Marine Helmet also viewable as an
   option? You can put a little bit of lag to simulate being inside a helmet when moving the head and maybe use it to
   get some geometry culling going on for an extra bit of performance. The question also extends to the biosuit, since

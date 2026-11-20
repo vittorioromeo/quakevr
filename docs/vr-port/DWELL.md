@@ -770,6 +770,28 @@ frame sequences; reading aids only, nothing pasted). Files `QC/dwell/` (GPL-2, h
   list, about 2 k instructions a grunt a frame; Dwell's own code is not in the top 25. No single hot spot to fix
   without changing the armed grunts' behaviour (a key feature); 536 k instructions is about 1 ms a frame. A later
   step if the headset shows it: a cheaper pose for armed grunts far out of sight (`VR_AGP_Lod` exists).
+- **d2m8's cost by grunt state** (aglod, 2026-11-20; `vr_agrunt_test 226` idle at his start, `227` every grunt woken
+  at him, god; each entity's think statements, `thinkcost`, given to its grunt; 360 frames; 156 live armed grunts,
+  the rest waiting). Instructions a grunt a frame (grunts in that state on average):
+
+  | state | before | after |
+  |---|---|---|
+  | idle, unseen | 2,463 (92) | 976 (136) |
+  | idle, seen (in view and PVS, beyond 384 units) | 3,526 (64) | 2,875 (20) |
+  | alert (woken, enemy out of sight) | 3,673 (110) | 2,918 (110) |
+  | fighting (enemy in sight) | 3,507 (5) | 3,057 (5) |
+  | dead | 12 | 11 |
+
+  "Unseen" after counts a grunt out of every player's PVS as unseen (the split moves from 92/64 to 136/20). Others'
+  thinks 55 k a frame (the pickups' forcegrabbable thinks 39 k of it). Totals (`profile`, 720 frames): d2m8 idle
+  536 k to 274 k a frame; all woken, thinks 602 k to 464 k; e1m1 38 k after. Under 150 k is not reached without
+  changing what can be seen: the 20 grunts in view (57 k), the other thinks (55 k) and non-think QC (29 k) are
+  141 k alone. What changed: ROUND25.md, "Armed grunts' cost on crowded maps". Verified (aglod2, 2026-11-20):
+  ThinLTO build 0 warnings; aglod_test.sh 13/0 (228 with two unarmed trials, heard and shot: the same traces and
+  reaction frames with 8 frames, 2 and no LOD; 229 a worn pack walked into view); dwell_maps 28/0, dwell_monsters
+  11/0, scenario_check 137/0, flatplay 31/0, adbugs and vr_ad_test 198 pass; the agrunt numbers' failures (16, 35,
+  39, 42, 61, 91, 203) and tunables_test's two are the same on origin/next. `vr_agrunt_pose_lod_frames` 0 or 1:
+  every frame, no LOD.
 - **Left**: Copper's ogre rocket drop, nightmare refire, infight give-up and the other monster rules of 2.4 (behaviour,
   not numbers); item respawn by `wait`/`count` on our items in Copper maps.
 
