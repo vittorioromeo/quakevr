@@ -121,7 +121,7 @@ typedef struct b3TaskContext
 	b3DebugLine lines[B3_DEBUG_LINE_CAPACITY];
 	int lineCount;
 
-	int manifoldCounts[B3_CONTACT_MANIFOLD_COUNT_BUCKETS];
+	int manifoldCounts[B3_MAX_MANIFOLDS];
 	// Prevent false sharing
 	char cacheLine[64];
 } b3TaskContext;
@@ -160,10 +160,12 @@ typedef struct b3World
 	// Provides free list for solver sets.
 	b3IdPool solverSetIdPool;
 
-	// Solvers sets allow sims to be stored in contiguous arrays. The first
-	// set is all static sims. The second set is active sims. The third set is disabled
-	// sims. The remaining sets are sleeping islands.
-	b3Array( b3SolverSet ) solverSets;
+	// Solvers sets allow body sims to be stored in contiguous arrays. The first holds static bodies. The second set
+	// holds disabled bodies. The third holds awake bodies. A growable array holds the sleeping islands.
+	// This is split up so that the static set can be accessed without being remapped during a static query while
+	// the physics step is concurrently putting an island to sleep (race condition).
+	b3SolverSet fixedSets[b3_firstSleepingSet];
+	b3Array( b3SolverSet ) sleepingSets;
 
 	// Used to create stable ids for joints
 	b3IdPool jointIdPool;
@@ -265,7 +267,7 @@ typedef struct b3World
 	b3Profile profile;
 	int satCallCount;
 	int satCacheHitCount;
-	int manifoldCounts[B3_CONTACT_MANIFOLD_COUNT_BUCKETS];
+	int manifoldCounts[B3_MAX_MANIFOLDS];
 
 	b3Capacity maxCapacity;
 
@@ -280,9 +282,10 @@ typedef struct b3World
 	b3EnqueueTaskCallback* enqueueTaskFcn;
 	b3FinishTaskCallback* finishTaskFcn;
 	void* userTaskContext;
-	void* userTreeTask;
+	struct b3StepContext* stepContext;
 
 	struct b3Scheduler* scheduler;
+	bool useScheduler;
 
 	void* userData;
 
@@ -296,9 +299,6 @@ typedef struct b3World
 	// latest inverse full-step
 	float inv_dt;
 
-	int activeTaskCount;
-	int taskCount;
-
 	uint16_t worldId;
 
 	bool enableSleep;
@@ -311,6 +311,28 @@ typedef struct b3World
 	bool enableSpeculative;
 	bool inUse;
 } b3World;
+
+static inline b3SolverSet* b3GetSolverSet( b3World* world, int setIndex )
+{
+	if ( setIndex < b3_firstSleepingSet )
+	{
+		B3_ASSERT( 0 <= setIndex );
+		return world->fixedSets + setIndex;
+	}
+
+	return b3Array_Get( world->sleepingSets, setIndex - b3_firstSleepingSet );
+}
+
+static inline b3SolverSet* b3GetFixedSolverSet( b3World* world, int setIndex )
+{
+	B3_ASSERT( 0 <= setIndex && setIndex < b3_firstSleepingSet );
+	return world->fixedSets + setIndex;
+}
+
+static inline int b3GetSolverSetCount( const b3World* world )
+{
+	return b3_firstSleepingSet + world->sleepingSets.count;
+}
 
 b3World* b3GetUnlockedWorldFromId( b3WorldId id );
 b3World* b3GetWorldFromId( b3WorldId id );
@@ -341,6 +363,8 @@ static inline b3Manifold* b3AllocateManifolds( b3World* world, int count )
 	{
 		return NULL;
 	}
+
+	B3_ASSERT( count <= B3_MAX_MANIFOLDS );
 
 	int index = count - 1;
 
@@ -384,6 +408,8 @@ static inline void b3FreeManifolds( b3World* world, b3Manifold* manifolds, int c
 		return;
 	}
 
+	B3_ASSERT( count <= B3_MAX_MANIFOLDS );
+
 	// QVR (local change, README.md): a long array came from the heap (b3AllocateManifolds)
 	if ( count > B3_POOLED_MANIFOLD_COUNT )
 	{
@@ -402,4 +428,3 @@ static inline void b3FreeManifolds( b3World* world, b3Manifold* manifolds, int c
 	b3FreeElement( allocator, manifolds );
 	b3UnlockMutex( world->manifoldAllocatorMutex );
 }
-
