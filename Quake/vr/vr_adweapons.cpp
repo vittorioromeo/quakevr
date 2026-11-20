@@ -66,6 +66,9 @@ constexpr const char* missingSourceWhy = "AD's model (the release measured) not 
 struct Parts;
 void widowmakerParts(Parts& p);
 void plasmaParts(Parts& p);
+void rotaryParts(Parts& p);
+void lanceParts(Parts& p);
+void rifleParts(Parts& p);
 
 // One weapon: AD's view model in one pose (`frame`), its pieces holding `drop` taken off, laid into the Quake VR weapon's
 // frame (src axis/up -> dst axis/up, scaled by k, srcPivot onto dstPivot), cut to dot(clipN, p) >= clipD, the Quake VR
@@ -100,6 +103,7 @@ struct Recipe
     int spinBarrels{0};
     float spinFromX{0.f};
     glm::vec3 spinAxisAt{0.f};
+    int liftAlso{-1}; // a second grafted piece moved by `lift` (-1 none)
 };
 
 // The measurements (taken on AD 1.80 patch 1's models; ROUND22.md "AD's weapons as VR models"):
@@ -142,21 +146,24 @@ const Recipe recipes[] = {
     //   shotgun's grip's top (0.6 0 2.6); its barrels, their clamps and the front block (the pieces from x 16.5) turn.
     // - The Crystal Lance (v_rail.mdl, frame1: tilted 15.9 degrees up): level, 0.88 (its blades' 20.5 span inside the
     //   lightning gun's corner), its wooden handle's back middle (11.94 -0.17 -18.17) over the lightning gun's grip
-    //   (-4 0 5.8: the grip's top inside the handle, its trigger guard's half a unit under it).
+    //   (-4 0 5.8: the grip's top inside the handle). Its trigger guard and trigger 0.4 up (dwellgun: they hung 0.37
+    //   under the blades' underside, 4.31 over them; vr_adweapon_models prints the least gaps).
     // - The Rifle (v_rifle.mdl, shot1: tilted 6.25 degrees down): level, 0.7 (35.7 long, the shotgun 33; its shroud's 10.8
     //   inside the corner), its back middle (-0.88 -0.04 -10.86) on the shotgun's barrel line over its grip (0.6 0 2.7).
+    // Each an ammo screen housing on its rear face (rotaryParts, lanceParts, rifleParts).
     {"progs/dw_shot3.mdl#vr", {"progs/v_shot3.mdl", 260, 286, 256, 256, "dwell"}, "frame1", {1.f, 0.f, 0.f}, {0.f, 0.f, 1.f},
         {1.f, 0.f, 0.f}, {0.f, 0.f, 1.f}, 0.8f, {-2.88f, -0.11f, -20.71f}, {0.6f, 0.f, 2.6f}, {4, -1, -1}, false, {0.f, 0.f, 0.f},
         0.f, {"progs/v_shot2.mdl", 0, 0, 0, 0}, {151, 241, 281}, {-15.5775f, -4.6938f, -4.2402f}, false, {0.f, 0.f, 0.f},
-        {0.f, 0.f, 0.f}, "progs/v_shot2.mdl", true, noRect, nullptr, -1, {0.f, 0.f, 0.f}, 4, 16.5f, {0.f, -0.11f, -15.28f}},
+        {0.f, 0.f, 0.f}, "progs/v_shot2.mdl", true, noRect, rotaryParts, -1, {0.f, 0.f, 0.f}, 4, 16.5f, {0.f, -0.11f, -15.28f}},
     {"progs/dw_rail.mdl#vr", {"progs/v_rail.mdl", 311, 339, 256, 256, "dwell"}, "frame1", {23.6f, 0.f, 6.7f},
-        {-6.7f, 0.f, 23.6f}, {1.f, 0.f, 0.f}, {0.f, 0.f, 1.f}, 0.88f, {11.94f, -0.17f, -18.17f}, {-4.f, 0.f, 5.8f}, {-1, -1, -1},
+        {-6.7f, 0.f, 23.6f}, {1.f, 0.f, 0.f}, {0.f, 0.f, 1.f}, 0.88f, {11.94f, -0.17f, -18.17f}, {-4.f, 0.f, 6.2f}, {-1, -1, -1},
         false, {0.f, 0.f, 0.f}, 0.f, {"progs/v_light.mdl", 0, 0, 0, 0}, {234, 403, 493}, {-5.6211f, -9.3429f, -6.0018f}, false,
-        {0.f, 0.f, 0.f}, {0.f, 0.f, 0.f}, "progs/v_light.mdl", true, noRect, nullptr, -1, {0.f, 0.f, 0.f}},
+        {0.f, 0.f, 0.f}, {0.f, 0.f, 0.f}, "progs/v_light.mdl", true, noRect, lanceParts, 403, {0.f, 0.f, 0.8f}, 0, 0.f,
+        {0.f, 0.f, 0.f}, 493},
     {"progs/dw_rifle.mdl#vr", {"progs/v_rifle.mdl", 117, 121, 256, 128, "dwell"}, "shot1", {45.7f, 0.f, -5.f},
         {5.f, 0.f, 45.7f}, {1.f, 0.f, 0.f}, {0.f, 0.f, 1.f}, 0.7f, {-0.88f, -0.04f, -10.86f}, {0.6f, 0.f, 2.7f}, {76, -1, -1},
         false, {0.f, 0.f, 0.f}, 0.f, {"progs/v_shot.mdl", 0, 0, 0, 0}, {219, 309, 349}, {-6.301f, -3.7943f, -6.5165f}, false,
-        {0.f, 0.f, 0.f}, {0.f, 0.f, 0.f}, "progs/v_shot.mdl", true, noRect, nullptr, -1, {0.f, 0.f, 0.f}},
+        {0.f, 0.f, 0.f}, {0.f, 0.f, 0.f}, "progs/v_shot.mdl", true, noRect, rifleParts, -1, {0.f, 0.f, 0.f}},
 };
 
 // The Plasma Gun's cell (the lightning gun's magazine and well, made by make_mags.py in v_light.mdl's space: the cell
@@ -1162,7 +1169,12 @@ struct Housing
     glm::vec2 plate;      // the bezel's middle's texel
     float plateK;         // its texels a unit
     glm::vec2 rivetTex;   // the rivets' texel (their middle)
-    float darkS0, darkS1, darkT0, darkT1; // a dark strip: the window's walls (and the back, the rivets' bases at S1 T0)
+    float darkS0, darkS1, darkT0, darkT1; // a dark strip: the window's walls (and the back, the rivets' bases at S1 T0);
+                                          // darkS0 below 0: the caps' dark grey (Parts::capS, capT)
+    // The rivets' octagon's Z offsets (steps) at the middle rows and the top/bottom, its middle this far above the
+    // window's (the Plasma Gun's: half steps either side of the window's middle, between two rows). No two of its corners
+    // nearer than capWeld (the holes' search welds them: the Rifle's Z step is 0.048).
+    float rivetZIn{0.5f}, rivetZOut{1.5f}, rivetZAt{0.f};
 };
 // The Plasma Gun's: on the corner's third byte; AD's bronze plate (33..64 x 1..12, 7 texels a unit) on the bezel, a
 // painted rivet on AD's riveted panel (its dark dot), a dark slot (7..8 x 51..61) in the window. The glass's middle as
@@ -1170,9 +1182,15 @@ struct Housing
 constexpr Housing plasmaHousingSpec{{-0.0617f, 9.2136f}, 2, 0.f, 11, 15, 6, 2, 2, 1, 14.f, 2.f, 1.f, 0.04f, {48.5f, 6.5f},
     7.f, {34.f, 55.f}, 7.f, 8.f, 51.f, 61.f};
 
-void housing(Parts& p, const Housing& h)
+void housing(Parts& p, const Housing& spec)
 {
     Out& o = p.o;
+    Housing h = spec;
+    if(h.darkS0 < 0.f)
+    {
+        h.darkS0 = h.darkS1 = static_cast<float>(p.capS);
+        h.darkT0 = h.darkT1 = static_cast<float>(p.capT);
+    }
     const za::SizeT trisFrom = o.tris.size(); // (the gun so far: the housing's own after)
     glm::vec3 hi{-1e30f};
     for(const glm::vec3& q : o.pos)
@@ -1267,17 +1285,16 @@ void housing(Parts& p, const Housing& h)
     }
     // The rivets: an octagon on the bezel's front (half steps up and down: the window's middle is half way between two
     // rows) to a flat top on byte fb - 2, its sides and top one smoothing group (a low dome); closed under it.
-    const float ro = h.rivetOut, ri = h.rivetIn;
-    const float ring[8][2] = {{ro, 0.5f}, {ri, 1.5f}, {-ri, 1.5f}, {-ro, 0.5f}, {-ro, -0.5f}, {-ri, -1.5f}, {ri, -1.5f},
-        {ro, -0.5f}};
-    const float top[4][2] = {{ri, 0.5f}, {-ri, 0.5f}, {-ri, -0.5f}, {ri, -0.5f}};
+    const float ro = h.rivetOut, ri = h.rivetIn, zi = h.rivetZIn, zo = h.rivetZOut, rk = km + h.rivetZAt;
+    const float ring[8][2] = {{ro, zi}, {ri, zo}, {-ri, zo}, {-ro, zi}, {-ro, -zi}, {-ri, -zo}, {ri, -zo}, {ro, -zi}};
+    const float top[4][2] = {{ri, zi}, {-ri, zi}, {-ri, -zi}, {ri, -zi}};
     constexpr int topOf[8] = {0, 0, 1, 1, 2, 2, 3, 3};
     for(const float sy : {1.f, -1.f})
     {
         const float rj = jc + sy * h.rivetY;
         const int g = o.newGroup();
         const auto v = [&](const float (&d)[2], float xb, float spread) {
-            return o.vert(at(xb, rj + d[0], km + d[1]), texel(h.rivetTex.x - d[0] * spread), texel(h.rivetTex.y - d[1] * spread),
+            return o.vert(at(xb, rj + d[0], rk + d[1]), texel(h.rivetTex.x - d[0] * spread), texel(h.rivetTex.y - d[1] * spread),
                 g);
         };
         int rv[8], tv[4];
@@ -1289,7 +1306,7 @@ void housing(Parts& p, const Housing& h)
         {
             tv[n] = v(top[n], xTop, 0.5f);
         }
-        const glm::vec3 c = at(xTop + 0.5f, rj, km);
+        const glm::vec3 c = at(xTop + 0.5f, rj, rk);
         for(int n = 0; n < 8; n++)
         {
             const int m = (n + 1) % 8;
@@ -1401,6 +1418,46 @@ void plasmaParts(Parts& p)
     housing(p, plasmaHousingSpec);
 }
 
+// Dwell support (DWELL.md 9.6, "dwellgun"): the Plasma Gun's housing on Dwell's three weapons' rear faces (measured on
+// the made models, Dwell v2.2), upright as the Plasma Gun's, read from behind along the gun. Each window the glass the
+// screen has without a housing (the Plasma Gun's 22.5 x 20.4 font pixels at the slot's wpntxt_scale: the digits at the
+// font's size, fillMax 1), to the grid's steps; the bezel's bands, cut corners and rivets about the Plasma Gun's in h
+// where the grid allows; the window's walls and the back the caps' dark grey. vr_adweapon_models prints each glass's
+// place (vr_screenstyle.cpp's entries, weapons.txt slots 52-54's wpntxt_av). Their faces are holes closed after the
+// housing is made, so its "corners on the gun's face" count says 0 (the shots show them on it).
+// - The Rotary Shotgun: on its housing's flat octagonal back (x 0.51, y -4.44..4.48, z 2.62..11.37), in its middle (the
+//   barrels' axis); window 2x13 Y by 17 Z steps (1.08 x 1.04 at wpntxt_scale 0.25), bands 6 Y / 2 Z, rivets 16 Y out;
+//   Dwell's brown housing plate (its skin's 192 150) on the bezel, a bolt head (8 188) on the rivets.
+// - The Crystal Lance: on its wooden handle's back (x -3.93 at its foot to -3.73 at its top, leaning: the bezel's back
+//   on its foot's byte, the face leaning away above it; y -1.32..1.29, z 4.97..7.30), in its middle; window 2x10 Y by
+//   25 Z steps (1.45 x 1.31 at 0.25), bands 5 Y / 2 Z, the rivets between two Y steps (12.5 out, 3 steps across: the Y
+//   step is 0.072); the frame's dark metal (60 140) on the bezel, a crystal's violet (22 45) on the rivets.
+// - The Rifle: on its butt (x 0.74 at its foot to 1.07 at its top, leaning; y -1.69..1.71, z 0.73..4.76), in its
+//   middle; window 2x27 Y by 31 Z steps (1.60 x 1.49 at 0.35), bands 12 Y / 3 Z, corners cut 4 Y / 2 Z, rivets 33 out
+//   (8 Y steps across, 4 Z rows tall, their middles on a row: the Z step is under capWeld); the brass ring's texels
+//   (232 60) on the bezel, the shotgun's brass nut (325 216: the grip's graft) on the rivets.
+constexpr Housing rotaryHousingSpec{{0.f, 7.f}, -1, 0.51f, 13, 17, 6, 2, 2, 1, 16.f, 2.f, 1.f, 0.04f, {192.f, 150.f}, 8.f,
+    {8.f, 188.f}, -1.f, 0.f, 0.f, 0.f};
+constexpr Housing lanceHousingSpec{{0.f, 6.14f}, -1, -3.93f, 10, 25, 5, 2, 2, 1, 12.5f, 1.5f, 0.5f, 0.04f, {60.f, 140.f},
+    6.f, {22.f, 45.f}, -1.f, 0.f, 0.f, 0.f};
+constexpr Housing rifleHousingSpec{{0.f, 2.745f}, -1, 0.905f, 27, 31, 12, 3, 4, 2, 33.f, 4.f, 2.f, 0.04f, {232.f, 60.f},
+    8.f, {325.f, 216.f}, -1.f, 0.f, 0.f, 0.f, 1.f, 2.f, 0.5f};
+
+void rotaryParts(Parts& p)
+{
+    housing(p, rotaryHousingSpec);
+}
+
+void lanceParts(Parts& p)
+{
+    housing(p, lanceHousingSpec);
+}
+
+void rifleParts(Parts& p)
+{
+    housing(p, rifleHousingSpec);
+}
+
 // The vertices' welding for their normals: at one place (to a 0.001 grid) and in one smoothing group (Out::group).
 [[nodiscard]] za::Vector<int> weldGrouped(const za::Vector<glm::vec3>& pos, const za::Vector<int>& group)
 {
@@ -1510,8 +1567,9 @@ void plasmaParts(Parts& p)
     const za::SizeT adPos = o.pos.size();
     if(r.graft.path)
     {
-        // The piece of r.liftSeed moved by r.lift (the Plasma Gun's trigger up onto its body), the others as they are.
-        const int liftSeeds[3] = {r.liftSeed, -1, -1};
+        // The pieces of r.liftSeed and r.liftAlso moved by r.lift (the Plasma Gun's trigger, the Lance's trigger guard and
+        // trigger up onto the body), the others as they are.
+        const int liftSeeds[3] = {r.liftSeed, r.liftAlso, -1};
         const za::Vector<bool> lifted = piecesOf(graft, liftSeeds);
         za::Vector<bool> still = grafted;
         for(za::SizeT t = 0; t < still.size(); t++)
@@ -1534,7 +1592,7 @@ void plasmaParts(Parts& p)
         }
         const int one[3] = {r.graftSeeds[k], -1, -1};
         const za::Vector<bool> piece = piecesOf(graft, one);
-        const glm::vec3 move = r.graftSeeds[k] == r.liftSeed ? r.lift : glm::vec3{0.f};
+        const glm::vec3 move = r.graftSeeds[k] >= 0 && (r.graftSeeds[k] == r.liftSeed || r.graftSeeds[k] == r.liftAlso) ? r.lift : glm::vec3{0.f};
         for(za::SizeT t = 0; t < piece.size(); t++)
         {
             for(int c = 0; c < 3 && piece[t]; c++)
@@ -2364,7 +2422,7 @@ void info_f()
             {
                 Con_Printf("  grafted piece of vertex %d%s: box %.2f %.2f %.2f .. %.2f %.2f %.2f, AD's surface straight over its "
                            "top %s\n",
-                    r.graftSeeds[k], r.graftSeeds[k] == r.liftSeed ? " (lifted)" : "", b.seedLo[k].x, b.seedLo[k].y,
+                    r.graftSeeds[k], r.graftSeeds[k] == r.liftSeed || r.graftSeeds[k] == r.liftAlso ? " (lifted)" : "", b.seedLo[k].x, b.seedLo[k].y,
                     b.seedLo[k].z, b.seedHi[k].x, b.seedHi[k].y, b.seedHi[k].z,
                     b.adAbove[k] < 1e29f ? va("at z %.2f (the least gap %.2f)", b.adAbove[k], b.adGap[k]) : "none");
             }
