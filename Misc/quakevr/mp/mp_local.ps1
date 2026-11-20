@@ -11,7 +11,7 @@
 # -BaseDir: the Quake folder (id1, and quakevr/ or a link to it); default the Steam one. -Exe: default this checkout's
 # newest build (ReleaseLTO or Release). The joining game writes no config (-noconfigwrite) and opens no microphone.
 # Each game reads commands appended to its inbox file (printed at the end): e.g. "impulse 100" adds a bot on the host;
-# close the windows as usual when done.
+# close the windows as usual when done. The two windows sit side by side (-windowpos), centred on the main screen.
 param(
     [ValidateSet("coop", "dm")][string]$Mode = "coop",
     [string]$Map = "",
@@ -50,11 +50,23 @@ Set-Content -Path $clientInbox -Value "" -Encoding ascii
 
 $games = @("-game", "hipnotic", "-game", "rogue", "-game", "quakevr")
 $common = @("-basedir", "`"$BaseDir`"") + $games + @("-flatscreenmode", "-window", "-width", $Width, "-height", $Height)
+
+# Side by side: the host left, the joining game right, centred in the main screen's work area (the taskbar left out).
+# -windowpos places a window's inside; its frame adds about 8 px each side and the title bar about 31 px above.
+Add-Type -AssemblyName System.Windows.Forms
+$area = [System.Windows.Forms.Screen]::PrimaryScreen.WorkingArea
+$frame = 8
+$titleBar = 31
+$total = 2 * ($Width + 2 * $frame)
+$hostX = $area.Left + [Math]::Max(0, [int](($area.Width - $total) / 2)) + $frame
+$clientX = $hostX + $Width + 2 * $frame
+$posY = $area.Top + [Math]::Max($titleBar, [int](($area.Height - $Height - $titleBar - $frame) / 2) + $titleBar)
+if ($total -gt $area.Width) { Write-Host "note: two $Width-wide windows are wider than the screen ($($area.Width)): -Width smaller to see both" }
 # (both on 127.0.0.1, as the test harness's games: nothing listens outside this PC; -Room: the host on every address)
 if (-not $Room) { $common += @("-ip", "127.0.0.1") }
 $common += $ExtraArgs
 $modeArgs = if ($Mode -eq "dm") { @("+coop", "0", "+deathmatch", "1") } else { @("+deathmatch", "0", "+coop", "1") }
-$hostArgs = $common + @("-port", $Port, "-cmdinbox", "`"$inbox`"",
+$hostArgs = $common + @("-windowpos", $hostX, $posY, "-port", $Port, "-cmdinbox", "`"$inbox`"",
     "+vr_mp_room", $(if ($Room) { "1" } else { "0" }), "+maxplayers", "4", "+skill", $Skill) + $modeArgs
 if ($Melee) { $hostArgs += @("+vr_run_meleeonly", "1", "+vr_bot_parry_chance", "100") }
 $hostArgs += @("+map", $Map)
@@ -64,7 +76,7 @@ Start-Process -FilePath $Exe -ArgumentList $hostArgs -WorkingDirectory (Split-Pa
 if (-not $NoClient) {
     # (started at once, it connects once both are up: a "+connect" on its command line would run before its own
     # start-up map and fail)
-    $clientArgs = $common + @("-port", ($Port + 1), "-noconfigwrite", "-nomic", "-cmdinbox", "`"$clientInbox`"")
+    $clientArgs = $common + @("-windowpos", $clientX, $posY, "-port", ($Port + 1), "-noconfigwrite", "-nomic", "-cmdinbox", "`"$clientInbox`"")
     Write-Host "client: $Exe $($clientArgs -join ' ')"
     Start-Process -FilePath $Exe -ArgumentList $clientArgs -WorkingDirectory (Split-Path $Exe) | Out-Null
 }
