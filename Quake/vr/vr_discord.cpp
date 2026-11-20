@@ -399,8 +399,10 @@ void setError(const char* text)
         names.pushBack(base + za::toString(i));
     }
 #else
+    static constexpr const char* vars[] = {"XDG_RUNTIME_DIR", "TMPDIR", "TMP", "TEMP"};
+    static constexpr const char* subs[] = {"", "/app/com.discordapp.Discord", "/snap.discord"};
     const char* dir = nullptr;
-    for(const char* var : {"XDG_RUNTIME_DIR", "TMPDIR", "TMP", "TEMP"})
+    for(const char* var : vars)
     {
         if(!dir || !*dir)
         {
@@ -408,7 +410,7 @@ void setError(const char* text)
         }
     }
     const za::String root = dir && *dir ? za::String{dir} : za::String{"/tmp"};
-    for(const char* sub : {"", "/app/com.discordapp.Discord", "/snap.discord"})
+    for(const char* sub : subs)
     {
         for(int i = 0; i < 10; ++i)
         {
