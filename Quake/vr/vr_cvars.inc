@@ -719,6 +719,14 @@ QVR_CVAR(vr_move_autorun_threshold, "0.9", CVAR_ARCHIVE)
 // the held buttons let go); when this is set to 0. 0 (the default): held, as Quake's.
 // (A player's ask, 2026-11-19: click the stick to sprint rather than hold it.)
 QVR_CVAR(vr_sprint_toggle, "0", CVAR_ARCHIVE)
+// 1: run by double-tapping the moving stick (vr_input.cpp doubleTapStep; a tester's idea, 2026-11-18): a quick push
+// (half its travel or more past the deadzone, let go within vr_move_doubletap_window seconds), let go (under a quarter of
+// its travel), and a push the same way (within 45 degrees) within the window again: running until the stick is let go
+// (or as the sprint toggle ends: death, the intermission, a new map, a menu). It runs whatever the speed button says:
+// running is the speed button's choice (held, or vr_sprint_toggle's switch, against the Default Speed) or this. The VR
+// stick's only (not keys, not a gamepad). 0 (the default): off.
+QVR_CVAR(vr_move_doubletap, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_move_doubletap_window, "0.3", CVAR_ARCHIVE) // seconds: the first push's most, and the gap's
 // The least speed (units a second) a push just past the deadzone asks on the ground (vr_input.cpp moveMinSpeed): -1
 // a little over what Quake's ground friction lets you hold (44: asked less, you stand), 0 none (from 0).
 QVR_CVAR(vr_move_min_speed, "-1", CVAR_ARCHIVE)
@@ -1082,6 +1090,11 @@ QVR_CVAR(vr_menu_holster_chest_z, "0", CVAR_NONE)
 QVR_CVAR(vr_menu_holster_back_x, "0", CVAR_NONE)
 QVR_CVAR(vr_menu_holster_back_y, "0", CVAR_NONE)
 QVR_CVAR(vr_menu_holster_back_z, "0", CVAR_NONE)
+// And the ammo pouch (vr_ammo_pouch_x/y/z, standing; a tester's ask, 2026-11-18: only Holster Setup moved it there):
+// units forward, to the right and up from its shipped place, as Holster Setup's drag moves the same settings.
+QVR_CVAR(vr_menu_holster_pouch_x, "0", CVAR_NONE)
+QVR_CVAR(vr_menu_holster_pouch_y, "0", CVAR_NONE)
+QVR_CVAR(vr_menu_holster_pouch_z, "0", CVAR_NONE)
 // Comfort vignette (vr_input.cpp comfortVignette, the eyes' post-process): the view's edges darkened while the sticks move
 // or turn you (not your own steps in the room, nor a teleport): 0 off, 1 moving and turning, 2 moving only, 3 turning only;
 // how dark (0 .. 1: at 1 a narrow tunnel).

@@ -15,6 +15,7 @@
 #include "vr_alloccount.hpp"
 #include "vr_menuui.hpp"
 #include "vr_testkit.hpp"
+#include "vr_body.hpp" // (menu_vr pouchtest: the ammo pouch's reach point)
 #include "vr_random.hpp"
 #include "vr_runsetup.hpp"
 #include "vr_files.hpp"
@@ -1493,6 +1494,9 @@ const HolsterWrapper holsterWrappers[] = {
     {&vr_menu_holster_back_x, &vr_shoulder_holster_offset_x, 1.f},
     {&vr_menu_holster_back_y, &vr_shoulder_holster_offset_y, -1.f},
     {&vr_menu_holster_back_z, &vr_shoulder_holster_offset_z, 1.f},
+    {&vr_menu_holster_pouch_x, &vr_ammo_pouch_x, 1.f},
+    {&vr_menu_holster_pouch_y, &vr_ammo_pouch_y, 1.f},
+    {&vr_menu_holster_pouch_z, &vr_ammo_pouch_z, 1.f},
 };
 
 [[nodiscard]] bool wrapperCvar(const cvar_t& var)
@@ -5105,6 +5109,86 @@ void doomTest()
     tally.verdict("menu_doom_test");
 }
 
+// menu_vr pouchtest (Misc/quakevr/pouch_slider_test.sh; ROUND25.md "comfort"): Holster Calibration's Ammo Pouch rows
+// (vr_menu_holster_pouch_*) move the standing pouch's settings and its reach point (body::ammoPouchPosition, in the
+// body's frame: forward, right, up), a setting moved elsewhere (Holster Setup's drag) shows on its row, Reset Holsters
+// puts the pouch back. Run with a map loading: it waits a frame at a time until the game is on and the hands tracked
+// (pouchTestFrames, at most pouchTestGiveUp). Ends "menu_pouch_test: N passed, M failed".
+constexpr int pouchTestGiveUp = 1200;
+int pouchTestFrames = 0;
+
+void pouchTest()
+{
+    const hands::State& s = hands::current();
+    if((!s.valid || cls.signon != SIGNONS) && pouchTestFrames < pouchTestGiveUp)
+    {
+        pouchTestFrames++;
+        Cbuf_InsertText("wait;menu_vr pouchtest\n");
+        return;
+    }
+    testkit::Tally tally;
+    char line[256];
+    const auto check = [&tally](bool ok, const char* what) {
+        if(tally.check(ok, "menu_pouch_test", what))
+        {
+            Con_Printf("menu_pouch_test: PASS %s\n", what);
+        }
+    };
+    q_snprintf(line, sizeof(line), "the game on and the hands tracked (after %d frames)", pouchTestFrames);
+    pouchTestFrames = 0;
+    check(s.valid && cls.signon == SIGNONS, line);
+    if(!s.valid)
+    {
+        tally.verdict("menu_pouch_test");
+        return;
+    }
+    cvar_t* const pouch[3] = {&vr_ammo_pouch_x, &vr_ammo_pouch_y, &vr_ammo_pouch_z};
+    cvar_t* const rows[3] = {&vr_menu_holster_pouch_x, &vr_menu_holster_pouch_y, &vr_menu_holster_pouch_z};
+    const char* const names[3] = {"Forward", "Right", "Up"};
+    float kept[3];
+    for(int i = 0; i < 3; i++)
+    {
+        kept[i] = pouch[i]->value;
+        Cvar_SetQuick(pouch[i], pouch[i]->default_string);
+    }
+    glm::vec3 axes[3];
+    hands::angleVectors({0.f, s.bodyYaw, 0.f}, axes[0], axes[1], axes[2]);
+    constexpr float moved = 3.f;
+    for(int i = 0; i < 3; i++)
+    {
+        const glm::vec3 before = body::ammoPouchPosition(s);
+        Cvar_SetValueQuick(rows[i], moved);
+        const float set = pouch[i]->value - defaultOf(*pouch[i]);
+        const glm::vec3 d = body::ammoPouchPosition(s) - before;
+        const float along = glm::dot(d, axes[i]);
+        const float across = glm::length(d - along * axes[i]);
+        // (The body's fit scales the units by its proportions -- up about 1.5 times at the default height -- and forward
+        // goes round the hips: that way, not much off it.)
+        q_snprintf(line, sizeof(line), "Ammo Pouch %s %+.1f: its setting %+.2f from the default, the reach point %+.2f along, %.2f across",
+            names[i], static_cast<double>(moved), static_cast<double>(set), static_cast<double>(along),
+            static_cast<double>(across));
+        check(za::fabs(set - moved) < 1e-3f && along > 0.5f * moved && along < 2.f * moved && across < 0.25f * along, line);
+    }
+    // Holster Setup's drag sets vr_ammo_pouch_* itself: the rows show it the next time the page is built.
+    Cvar_SetValueQuick(&vr_ammo_pouch_y, defaultOf(vr_ammo_pouch_y) - 2.f);
+    (void)items(pageIndex(pageVrsHolsters));
+    q_snprintf(line, sizeof(line), "the pouch moved 2 left elsewhere: Ammo Pouch Right shows %+.2f",
+        static_cast<double>(vr_menu_holster_pouch_y.value));
+    check(za::fabs(vr_menu_holster_pouch_y.value + 2.f) < 1e-3f, line);
+    resetHolsters();
+    q_snprintf(line, sizeof(line), "Reset Holsters: the pouch at %.2f %.2f %.2f (its defaults)",
+        static_cast<double>(vr_ammo_pouch_x.value), static_cast<double>(vr_ammo_pouch_y.value),
+        static_cast<double>(vr_ammo_pouch_z.value));
+    check(vr_ammo_pouch_x.value == defaultOf(vr_ammo_pouch_x) && vr_ammo_pouch_y.value == defaultOf(vr_ammo_pouch_y) &&
+              vr_ammo_pouch_z.value == defaultOf(vr_ammo_pouch_z),
+        line);
+    for(int i = 0; i < 3; i++)
+    {
+        Cvar_SetValueQuick(pouch[i], kept[i]);
+    }
+    tally.verdict("menu_pouch_test");
+}
+
 // menu_vr changedtest (Misc/quakevr/menu_changed_test.sh; REVIEW_NEXT_2026-11-18.md, finding 13): the menu's "changed"
 // is the config's (sameSettingValue). A setting 1e-7 off its default (a line the config doesn't write) has no * and is
 // not on Changed Settings; its default's number in other text ("0.50" for "0.5") is not changed either, and Reset All
@@ -5586,6 +5670,11 @@ void qvr::menu::command_f()
     if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "doomtest"))
     {
         doomTest();
+        return;
+    }
+    if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "pouchtest"))
+    {
+        pouchTest();
         return;
     }
     if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "changedtest"))

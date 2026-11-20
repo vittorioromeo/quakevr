@@ -786,7 +786,9 @@ void queueDebug(const hands::State& s)
         const glm::vec4 color = hovered ? glm::vec4{0.2f, 1.f, 0.2f, 0.35f} : glm::vec4{1.f, 0.9f, 0.2f, 0.25f};
         mark(pouchPosition(s), pouchReach() * 2.f, color);
     }
-    if(vr_show_grenade_pouch.value && ammoPouchEnabled())
+    // (Holster Calibration's Ammo Pouch rows show it while one is chosen, as the holsters' rows do theirs.)
+    if((vr_show_grenade_pouch.value || pairChosen(vr_menu_holster_pouch_x, vr_menu_holster_pouch_y, vr_menu_holster_pouch_z)) &&
+       ammoPouchEnabled())
     {
         const bool hovered = s.hotspot[HAND_OFF] == HS_AMMO_POUCH || s.hotspot[HAND_MAIN] == HS_AMMO_POUCH;
         const glm::vec4 color = hovered ? glm::vec4{0.2f, 1.f, 0.2f, 0.35f} : glm::vec4{1.f, 0.9f, 0.2f, 0.25f};

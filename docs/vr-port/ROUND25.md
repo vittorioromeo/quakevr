@@ -4393,6 +4393,35 @@ dwell_monsters_test.sh, scenario_check, the ThinLTO build (budget). ad_tears is 
   agrunt: 16, 35, 39, 42, 61, 91, 203 fail the same on origin/next, as do tunables_test's 2. 228 and 229 fail under
   run_baseline (vrtesthall: no room, no cvar): they are aglod_test.sh's (vrarena).
 
+## The tester's last two comfort options: double-tap to run, Ammo Pouch sliders (comfort, 2026-11-20, `agent/comfort`)
+
+From tester Joyeuse's list (2026-11-18). BACKLOG section 7's entry is gone now: the sprint toggle and Mantle When had
+already shipped, and these two close it.
+
+- **Run by double-tapping the moving stick** (`vr_move_doubletap`, 0; `vr_move_doubletap_window`, 0.3 s;
+  vr_input.cpp `doubleTapStep`). Its input is the moving stick as the walk reads it (`moveAxes`: the radial deadzone,
+  0..1). A push is half the travel or more. Let go means under a quarter (moveHold's `moveHoldLeast`). Steps: Idle, then
+  First (a push), then Gap (let go within the window), then Running (a push within 45 degrees, within the window again),
+  then Idle once the stick is let go. A slow first push, a long gap or a push another way does not run; that push can
+  start a double tap of its own. It also ends where the sprint toggle ends: at death, the intermission, a new map
+  (`input::resetSprintToggle`), a menu opening, or the setting going off. **How they combine:** in `VR_AdjustMove`,
+  running = (the speed button, held or toggled, against cl_alwaysrun) OR a double tap's run. The double tap never makes
+  you walk, and the toggle's switch is left alone. Its clock is the frame times summed, so it is the same at any frame
+  rate. VR stick only: the keyboard and the gamepad (`IN_JoyMove`) do not go through the stick path. Menu: "Double-Tap
+  Stick to Run" under Speed Button (VR Settings > Locomotion and Controls; Advanced > Movement > Locomotion, plus the
+  window there).
+- **Ammo Pouch Forward / Right / Up** on VR Settings > Holster Calibration (`vr_menu_holster_pouch_x/y/z`). These are
+  wrappers like the holsters' rows (`holsterWrappers`, vr_menu.cpp): units away from the shipped `vr_ammo_pouch_x/y/z`
+  (standing), -10..10, extended to +-40. They are shown from the settings each time the page is built, so Holster
+  Setup's drag, which sets the same settings, and the rows agree. The pouch's marker shows while one of the rows is
+  chosen. Reset Holsters resets the pouch too. The crouched and seated pouch rows stay on their own pages. There is no
+  flat menu with holster sliders.
+- **Verified**: `vr_doubletap_test` 10/0, `doubletap_test.sh` 5/0 (mock stick in e1m1: a long push walks at 200, the
+  taps run at 320, letting go ends it, off walks). `pouch_slider_test.sh` (`menu_vr pouchtest`) 6/0: each row moves its
+  setting and the reach point that way, Up 1.5 times its units through the body fit. The pouch moved elsewhere shows on
+  its row, and Reset Holsters works. scenario_check 137/0; flatplay 31/0; `vr_menu_path_check maps/vrcalibration.map` 0
+  missing; menu_paths.txt regenerated (it also picked up other workers' rows that were missing); dev and ThinLTO builds,
+  0 warnings.
 
 ## Discord Rich Presence (branch agent/discord, 2026-11-20)
 

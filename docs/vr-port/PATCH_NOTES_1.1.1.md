@@ -49,6 +49,14 @@ that ships in 1.1.1.
   makes a click of the speed button (the left stick's click as shipped, or Shift) switch between walking and running
   instead of holding it. The switch ends by itself, back to your Default Speed, when you stop moving for a moment, die,
   change level or open the menu. Hold (the default) is as before.
+- **Run by double-tapping the stick.** VR Settings > Locomotion and Controls > Double-Tap Stick to Run
+  (`vr_move_doubletap`, off by default): push the moving stick twice quickly the same way (push, let go, push again) to
+  run until you let the stick go back to the middle. It works beside the speed button: either one makes you run. How
+  quick the taps must be: Advanced VR Options > Movement > Locomotion > Double-Tap Window (`vr_move_doubletap_window`,
+  0.3 s).
+- **Ammo pouch position sliders.** VR Settings > Holster Calibration now has Ammo Pouch Forward, Right and Up beside the
+  holsters' rows (the standing pouch; they agree with Holster Setup's drag and drop), and Reset Holsters resets the pouch
+  too.
 
 ## Menus
 
