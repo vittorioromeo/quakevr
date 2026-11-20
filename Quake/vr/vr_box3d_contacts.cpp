@@ -72,9 +72,9 @@ constexpr float selfApart = 0.002f; // m: two of a ragdoll's parts nearer than t
 // push-out resolves initial overlaps. Living animation/pin safeguards remain in selfTouches below.
 [[nodiscard]] bool selfMeets(b3ShapeId a, b3ShapeId b, int num)
 {
-    if(num >= static_cast<int>(world->slots.size()) || world->slots[num].ragdoll < 0)
+    if(num >= static_cast<int>(world->slots.size()) || world->slots[num].ragdoll < 0 || vr_ragdoll_self_pairs.value == 0.f)
     {
-        return false;
+        return false; // (vr_ragdoll_self_pairs 0: none, a measurement aid)
     }
     const RagdollBodies& r = world->ragdolls[static_cast<za::SizeT>(world->slots[num].ragdoll)];
     const b3BodyId ba = b3Shape_GetBody(a), bb = b3Shape_GetBody(b);

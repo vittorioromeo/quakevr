@@ -92,14 +92,6 @@ static inline b3FloatW4 b3MaxW4( b3FloatW4 a, b3FloatW4 b )
 	return _mm_max_ps( a, b );
 }
 
-// clamp a to [-b, b]
-static inline b3FloatW4 b3SymClampW4( b3FloatW4 a, b3FloatW4 b )
-{
-	b3FloatW4 nb = b3NegW4( b );
-	b3FloatW4 c = b3MaxW4( nb, a );
-	return b3MinW4( c, b );
-}
-
 static inline b3FloatW4 b3AndW4( b3FloatW4 a, b3FloatW4 b )
 {
 	return _mm_and_ps( a, b );

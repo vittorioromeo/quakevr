@@ -278,7 +278,7 @@ float b3WheelJoint_GetSpinSpeed( b3JointId jointId )
 	b3Body* bodyA = b3Array_Get( world->bodies, idA  );
 	b3Body* bodyB = b3Array_Get( world->bodies, idB  );
 
-	b3SolverSet* setB = b3Array_Get( world->solverSets, bodyB->setIndex  );
+	b3SolverSet* setB = b3GetSolverSet( world, bodyB->setIndex );
 	int localIndexB = bodyB->localIndex;
 	b3BodySim* bodySimB = b3Array_Get( setB->bodySims, localIndexB  );
 
@@ -321,8 +321,8 @@ float b3WheelJoint_GetSteeringAngle( b3JointId jointId )
 	b3Body* bodyA = b3Array_Get( world->bodies, idA  );
 	b3Body* bodyB = b3Array_Get( world->bodies, idB  );
 
-	b3SolverSet* setA = b3Array_Get( world->solverSets, bodyA->setIndex  );
-	b3SolverSet* setB = b3Array_Get( world->solverSets, bodyB->setIndex  );
+	b3SolverSet* setA = b3GetSolverSet( world, bodyA->setIndex );
+	b3SolverSet* setB = b3GetSolverSet( world, bodyB->setIndex );
 
 	int localIndexA = bodyA->localIndex;
 	int localIndexB = bodyB->localIndex;
@@ -384,8 +384,8 @@ b3Vec3 b3GetWheelJointTorque( b3World* world, b3JointSim* base )
 	b3Body* bodyA = b3Array_Get( world->bodies, idA  );
 	// b3Body* bodyB = b3Array_Get( world->bodies, idB  );
 
-	b3SolverSet* setA = b3Array_Get( world->solverSets, bodyA->setIndex  );
-	// b3SolverSet* setB = b3Array_Get( world->solverSets, bodyB->setIndex  );
+	b3SolverSet* setA = b3GetSolverSet( world, bodyA->setIndex );
+	// b3SolverSet* setB = b3GetSolverSet( world, bodyB->setIndex  );
 
 	int localIndexA = bodyA->localIndex;
 	// int localIndexB = bodyB->localIndex;
@@ -416,8 +416,8 @@ void b3PrepareWheelJoint( b3JointSim* base, b3StepContext* context )
 	b3Body* bodyB = b3Array_Get( world->bodies, idB  );
 
 	B3_ASSERT( bodyA->setIndex == b3_awakeSet || bodyB->setIndex == b3_awakeSet );
-	b3SolverSet* setA = b3Array_Get( world->solverSets, bodyA->setIndex  );
-	b3SolverSet* setB = b3Array_Get( world->solverSets, bodyB->setIndex  );
+	b3SolverSet* setA = b3GetFixedSolverSet( world, bodyA->setIndex );
+	b3SolverSet* setB = b3GetFixedSolverSet( world, bodyB->setIndex );
 
 	int localIndexA = bodyA->localIndex;
 	int localIndexB = bodyB->localIndex;
@@ -1072,14 +1072,16 @@ void b3DrawWheelJoint( b3DebugDraw* draw, b3JointSim* base, b3WorldTransform tra
 		float upper = joint->upperSteeringLimit;
 
 		b3CosSin cs = b3ComputeCosSin( lower );
+		b3CosSin delta = b3ComputeCosSin( ( upper - lower ) / sliceCount );
 		b3Pos vertex1 = b3TransformWorldPoint( frame, (b3Vec3){ 0.0f, -radius * cs.sine, radius * cs.cosine } );
 
 		for ( int index = 0; index < sliceCount; ++index )
 		{
-			float t2 = ( index + 1.0f ) / sliceCount;
-			float phi = b3LerpFloat( lower, upper, t2 );
+			float cosine = delta.cosine * cs.cosine - delta.sine * cs.sine;
+			float sine = delta.sine * cs.cosine + delta.cosine * cs.sine;
+			cs.cosine = cosine;
+			cs.sine = sine;
 
-			cs = b3ComputeCosSin( phi );
 			b3Pos vertex2 = b3TransformWorldPoint( frame, (b3Vec3){ 0.0f, -radius * cs.sine, radius * cs.cosine } );
 
 			if ( index == 0 )
