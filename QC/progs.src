@@ -29,6 +29,9 @@ vr_ad_defs.qc
 vr_ad_guns_defs.qc
 // Whose meaning a map's spawnflags have (Quake's, Machine Games', Arcane Dimensions'): VR_SF_Has, VR_OtherFlags.
 vr_spawnflags.qc
+vr_copper_defs.qc
+// Dwell's own entities (DWELL.md P2a): their fields and the hooks our shared code calls (QC/dwell defines them).
+dwell/dw_defs.qc
 // AD's monsters with Quake VR's treatment: their fields and hooks (vr_ad_monsters.qc defines them).
 vr_ad_mondefs.qc
 // Armed grunts: their fields and hooks (ai.qc, combat.qc and the grunt's file call them; vr_armedgrunt.qc defines them).
@@ -40,6 +43,8 @@ combat_test.qc
 fight.qc
 // Monsters' ranged shots bent to an aim cone off their facing (after fight.qc; the monsters' files and AD's call it).
 vr_aimcone.qc
+// The rulesets' numbers (armour, megahealth rot, key stacks, monsters' health): one row a ruleset (DWELL.md S6).
+vr_rules_numbers.qc
 items.qc
 subs.qc
 
@@ -70,7 +75,7 @@ vr_walltorch_test.qc
 vr_mg_defs.qc
 vr_mg_activation.qc
 vr_mg_activation_test.qc
-vr_mg_fog.qc
+vr_fog.qc
 vr_mg_func_bob.qc
 vr_mg_func_toss.qc
 vr_mg_rotate.qc
@@ -127,6 +132,8 @@ vr_run_ironman.qc
 vr_run_enemyrandom.qc
 vr_run_enemycount.qc
 vr_wpnholster.qc
+// Deathmatch's caps on loose gibs and dropped weapons (after vr_wpnholster.qc's thrown weapons, vr_carry.qc's gibs).
+vr_dmloose.qc
 // Flat-screen play's reload (R, the empty clip): after vr_wpnholster.qc's VRTryReloadWeapon.
 vr_flatreload.qc
 // Flat-screen play's holsters (the holster menu's impulses): after vr_wpnholster.qc and vr_wpnforcegrab.qc.
@@ -169,6 +176,8 @@ vr_hitreact_test.qc
 vr_burning.qc
 vr_burning_test.qc
 vr_systems_test.qc
+// vr_hosterror_test: a QuakeC error raised from C++ (Quake/vr/vr_hosterror.cpp).
+vr_hosterror_test.qc
 // The flare gun (after vr_burning.qc: its flares set things on fire).
 vr_flaregun.qc
 // Incandescent blades (after vr_burning.qc and vr_walltorch.qc: it sets on fire, it finds their flames).
@@ -194,6 +203,7 @@ vr_playerplates_test.qc
 vr_embed_edge_test.qc
 vr_embed_1108_test.qc
 vr_embed_1108b_test.qc
+vr_skewerlist_test.qc // the skewered gibs' list the shots walk (vr_embed_test 49-51)
 vr_embed_prop_test.qc
 vr_dagger_test.qc
 vr_revgrip_test.qc
@@ -217,6 +227,7 @@ vr_flatblood_test.qc // blood at point blank (vr_flatblood_test)
 vr_flatswap_test.qc // the flat-screen swap key (vr_flatswap_test)
 vr_run_test.qc // the run mutators Randomized Pickups and Ironman (vr_runpickups_test, vr_ironman_test)
 vr_meleeonly_test.qc // Melee Only's refusals (vr_pickup_test 14)
+vr_itemrules_test.qc // the items' rules: targets fired only when taken, the ammo boxes' roll (vr_pickup_test 19, 20); CTF's level parms (21); each player's readiness (22); Mjolnir's player model (23)
 vr_melee_sweep_test.qc
 vr_blade_test.qc
 world.qc
@@ -539,6 +550,7 @@ ad/ad_mon_bossjudicator.qc
 ad/ad_mon_bossnour.qc
 // ad_import.py: end
 vr_ad_bridge.qc
+vr_rules_monsters.qc
 vr_ad_bridge_test.qc
 vr_ad_items.qc
 vr_ad_player.qc
@@ -585,8 +597,10 @@ vr_ownclash.qc // weapon clash: your own two weapons meeting; the weapon-on-weap
 vr_armedgrunt_parry.qc
 vr_armedgrunt_guard.qc // its guard: the preventive and wind-up parries (vr_agrunt_preparry, vr_agrunt_windup_parry)
 vr_dirparry.qc // the directional parry: a blow's line, your weapon held across it
-vr_playerdisarm.qc // the player disarmed: monsters' shots and blows on your weapon, by the armed humanoids' rules
+vr_playerdisarm.qc // the player disarmed: monsters' shots and blows on your weapon, by the armed humanoids' rules; VR_Player_Disarm
+vr_playerdisarm_grab.qc // another player's weapon taken by a grab and a pull (MP B10)
 vr_playerdisarm_test.qc // vr_pd_test 1: the player disarmed
+vr_dmrules_test.qc // vr_dm_test 1: deathmatch's item rules, disarms between players and bots (MP B11 part 2)
 vr_meleerules.qc // enemy melee's rules: each blow's rule for Show Melee Arcs, an armed humanoid's blow (after the monsters)
 vr_disarmviz.qc // Debug > Show Disarm Volumes: the armed humanoids' disarm volumes (the engine draws them: vr_disarmviz.cpp)
 vr_armedrepl.qc
@@ -626,6 +640,7 @@ vr_armedgrunt_grab_test.qc
 vr_armedgrunt_impact_test.qc
 vr_ledgeshove_test.qc
 vr_ragthud_test.qc
+vr_armedgrunt_lod_test.qc // tests 226-229: the armed grunts' cost by state, a far one woken, a worn pack's LOD
 vr_armedgrunt_dualdisarm_test.qc
 vr_armedgrunt_second_test.qc
 vr_ogre_friends_test.qc
@@ -662,3 +677,75 @@ vr_flaregun_test.qc
 vr_v1116_test.qc
 vr_revolver_test.qc
 vr_ammocolor_test.qc // the ammo screens' warning colours (vr_ammocolor_test)
+// copper_import.py: begin (generated list; Misc/quakevr/copper_import.py rewrites it)
+copper/cu_builtins.qc
+copper/cu_defs.qc
+copper/cu_constants.qc
+copper/cu_maths.qc
+copper/cu_utility.qc
+copper/cu_subs.qc
+copper/cu_subs_move.qc
+copper/cu_subs_tgt.qc
+copper/cu_ai.qc
+copper/cu_meat.qc
+copper/cu_combat.qc
+copper/cu_items.qc
+copper/cu_item_health_armor.qc
+copper/cu_item_weap_ammo.qc
+copper/cu_item_powerups.qc
+copper/cu_item_keys_runes.qc
+copper/cu_item_backpack.qc
+copper/cu_projectiles.qc
+copper/cu_weapons.qc
+copper/cu_w_axe.qc
+copper/cu_w_lightning.qc
+copper/cu_w_shotguns.qc
+copper/cu_w_rockets.qc
+copper/cu_w_nails.qc
+copper/cu_dev.qc
+copper/cu_impulse.qc
+copper/cu_world.qc
+copper/cu_client.qc
+copper/cu_player.qc
+copper/cu_monsters.qc
+copper/cu_doors.qc
+copper/cu_buttons.qc
+copper/cu_triggers.qc
+copper/cu_t_tele.qc
+copper/cu_t_level.qc
+copper/cu_t_ctrl.qc
+copper/cu_plats.qc
+copper/cu_lights.qc
+copper/cu_explobox.qc
+copper/cu_misc.qc
+copper/cu_shooters.qc
+copper/cu_walls.qc
+copper/cu_sound.qc
+copper/cu_fog.qc
+copper/cu_t_void.qc
+copper/cu_fx.qc
+copper/cu_m_ogre.qc
+copper/cu_m_demon.qc
+copper/cu_m_shambler.qc
+copper/cu_m_knight.qc
+copper/cu_m_soldier.qc
+copper/cu_m_wizard.qc
+copper/cu_m_dog.qc
+copper/cu_m_zombie.qc
+copper/cu_m_boss.qc
+copper/cu_m_tarbaby.qc
+copper/cu_m_hknight.qc
+copper/cu_m_fish.qc
+copper/cu_m_shalrath.qc
+copper/cu_m_enforcer.qc
+copper/cu_m_oldone.qc
+// copper_import.py: end
+// Copper's rules on our entities, its world logic in Copper maps (DWELL.md P1b).
+vr_copper_bridge.qc
+// Dwell's own entities, rebuilt on Copper and Quake VR (DWELL.md P2a): dw_<classname>, spawned by the engine's DWELL row.
+dwell/dw_common.qc
+dwell/dw_items.qc
+dwell/dw_monsters.qc
+dwell/dw_bosses.qc
+dwell/dw_test.qc
+vr_rules_test.qc

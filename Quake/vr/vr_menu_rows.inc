@@ -1380,16 +1380,30 @@ QVR_SLIDER(vr_agrunt_shotdisarm_proj_near, "Projectile: Near Miss", 0.f, 12.f, 0
 QVR_SLIDER(vr_agrunt_shotdisarm_proj_max, "Projectile: Most Chance", 0.f, 1.f, 0.05f, "%.2f", ext(0.f, 1.f),
     "One projectile's chance at most: a rocket's direct hit (vr_agrunt_shotdisarm_proj_max).")
 QVR_TOGGLE(vr_player_disarm, "You Can Be Disarmed",
-    "Enemies' shots and blows on the weapon you hold, or the hand holding it, can knock it out of your hand by the "
-    "same rules as yours on an armed grunt's: shots add up and roll, a projectile rolls once, a blow landing on your "
-    "weapon (not a parry) knocks it out. It drops where you can pick it up again, its ammo kept. Fists and empty hands "
-    "never. In multiplayer, other players' too. Off by default: still being tuned (vr_player_disarm).")
+    "PvE: enemies' shots and blows on the weapon you hold, or the hand holding it, can knock it out of your hand by "
+    "the same rules as yours on an armed grunt's: shots add up and roll, a projectile rolls once, a blow landing on "
+    "your weapon (not a parry) knocks it out. It drops where you can pick it up again, its ammo kept. Fists and empty "
+    "hands never. Off by default: still being tuned (vr_player_disarm).")
+QVR_TOGGLE(vr_player_disarm_pvp, "You Can Be Disarmed by Players",
+    "PvP, multiplayer: other players' (and bots') shots and blows on your weapon knock it out by the same rules, and "
+    "their grab (below) can take it (vr_player_disarm_pvp).")
 QVR_SLIDER(vr_player_disarm_sound, "Your Disarm Sound", 0.f, 1.f, 0.05f, "%.2f", ext(),
     "Your weapon knocked out of your hand: the volume of its clang (at the weapon, for everyone near) and of the short "
     "alert only you hear (0: silent) (vr_player_disarm_sound).")
 QVR_SLIDER(vr_player_disarm_chance, "Your Disarm Chance", 0.f, 2.f, 0.05f, "%.2fx", ext(0.f, 10.f),
     "Times the armed grunts' chance when it is your weapon that is hit (1: the same exact rules; at most certain; "
     "0: never) (vr_player_disarm_chance).")
+QVR_TOGGLE(vr_player_disarm_grab, "Players: Grab and Pull Disarms",
+    "Multiplayer, with You Can Be Disarmed by Players: an empty hand closed on another player's weapon where it is drawn (no "
+    "faster than Grab: Fastest Hand) and pulled away from him hard enough takes it into your hand. No tug "
+    "(vr_player_disarm_grab).")
+QVR_SLIDER(vr_player_disarm_pull, "Players: Disarm Pull", 0.3f, 5.f, 0.1f, "%.1f m/s", ext(0.1f, 20.f),
+    "How fast your hand must pull another player's weapon away from him to take it; slower, your hand "
+    "slips off it (vr_player_disarm_pull).")
+QVR_SLIDER(vr_player_disarm_reach, "Players: Disarm Grab Reach", 2.f, 20.f, 1.f, "%.0f cm", ext(0.f, 50.f),
+    "How near another player's drawn weapon your hand must close to grab it (vr_player_disarm_reach).")
+QVR_SLIDER(vr_player_disarm_slip, "Players: Disarm Slip", 5.f, 50.f, 1.f, "%.0f cm", ext(1.f, 100.f),
+    "A pull too gentle: your hand slips off his weapon once this far from it (vr_player_disarm_slip).")
 QVR_TOGGLE(vr_agrunt_ik, "Hands on the Grips",
     "Its arms are posed so its hand holds the weapon's grip and its other hand the second grip of a "
     "two-handed weapon, or hangs free beside a one-handed one; melee swings carry the arm "
@@ -2292,6 +2306,11 @@ QVR_TOGGLE_BYNAME(vr_menu_version, "Version Label",
     "The game's name, version and author, small, in the menus' bottom right corner (where the page leaves room for it). A build not made for a release says \"dev\" after the version.")
 QVR_TOGGLE_BYNAME(vr_update_check, "Check for Updates",
     "At start-up (at most once an hour) the game asks the release page whether a newer Quake VR is out, and says so above the version label: point at it and press to open its page in your desktop's browser. Only the release list is read; nothing about you or your game is sent. Off: never asked, no notice.")
+QVR_TOGGLE_BYNAME(vr_discord, "Discord Status",
+    "Shows what you play on your Discord profile, through the Discord app running on this PC: the campaign, the "
+    "map's name, single player, co-op, deathmatch or the Survival Arena's wave, VR or flat screen, and the time on "
+    "this map. Nothing else is sent, and only to the Discord app on this PC. Off: nothing sent, and what was shown is "
+    "cleared.")
 QVR_TOGGLE_BYNAME(vr_menu_flat_shortcuts, "Corner Buttons on a Flat Screen",
     "With VR off: the buttons at the menus' top left (Back to Game, Main Menu, Search, Console, Advanced VR, Levels, Map Library) on the desktop menus too, for the mouse.")
 QVR_TOGGLE_BYNAME(vr_menu_flat_vr_style, "VR Menu Layout on a Flat Screen",
@@ -2478,6 +2497,16 @@ QVR_SLIDER_BYNAME(cl_forwardspeed, "Movement Speed", 100.f, 400.f, 25.f, "%.0f",
     "Walking speed (running is this times the running multiplier).")
 QVR_CYCLE_BYNAME(cl_alwaysrun, "Default Speed", "The speed button switches to the other.",
     {1.f, "Run"}, {0.f, "Walk"})
+QVR_CYCLE(vr_sprint_toggle, "Speed Button",
+    "Hold: hold the speed button (the left stick's click as shipped, Shift) to run, or to walk with Default "
+    "Speed: Run. Toggle: click it to switch, click again to switch back; it switches back by itself when you "
+    "stop, die, change level or open the menu (vr_sprint_toggle).",
+    {0.f, "Hold"}, {1.f, "Toggle"})
+QVR_TOGGLE(vr_move_doubletap, "Double-Tap Stick to Run",
+    "On: push the moving stick twice quickly the same way (push, let go, push again) to run until you let it go back "
+    "to the middle. Works beside the speed button: either one makes you run (vr_move_doubletap).")
+QVR_SLIDER(vr_move_doubletap_window, "Double-Tap Window", 0.1f, 0.6f, 0.05f, "%.2f s", ext(0.05f, 2.f),
+    "How quick a double tap must be: the first push let go within this, and the second begun within this after.")
 QVR_SLIDER_BYNAME(cl_movespeedkey, "Running Mult.", 1.f, 3.f, 0.05f, "%.2f", ext(), "How much faster running is than walking.")
 QVR_TOGGLE(vr_crouch_speed, "Slower When Crouched",
     "Crouched for real (your eyes a little under standing), the stick moves you at most Crouched Speed times "
@@ -2592,6 +2621,12 @@ QVR_SLIDER_BYNAME(vr_climb_mantle_height, "Mantle Height", 0.f, 40.f, 1.f, "%.0f
     "Holding a ledge, how far your head must rise above its top before you pull up onto it. Higher: you "
     "can lean up and down over a ledge without mantling (the old point was about 15 at a chest-high ledge; "
     "32 units are about a metre).")
+QVR_CYCLE_BYNAME(vr_climb_mantle_trigger, "Mantle When",
+    "What pulls you up onto a ledge once your head is Mantle Height above its top. High Enough: it happens on "
+    "its own the moment you get there. Let Go: you can hang and look over the top, and pull up when you let go "
+    "of the ledge (with your last hand; let go lower down and you drop). Jump: when you press jump. "
+    "Let Go or Jump: either one.",
+    {0.f, "High Enough"}, {1.f, "Let Go"}, {2.f, "Jump"}, {3.f, "Let Go or Jump"})
 QVR_SLIDER_BYNAME(vr_climb_mantle_slope, "Steepest Slope", 10.f, 60.f, 5.f, "%.0f deg", noExt,
     "Pulling yourself up onto a ledge whose top isn't level (rising or falling away from the edge, or sloping "
     "along it) stands you on the slope, up to this steep (Quake walks up to about 45).")
@@ -4562,6 +4597,9 @@ QVR_SLIDER(vr_menu_holster_chest_z, "Chest Holsters Up", -10.f, 10.f, 0.5f, "%+.
 QVR_SLIDER(vr_menu_holster_back_x, "Back Holsters Forward", -10.f, 10.f, 0.5f, "%+.1f", ext(-40.f, 40.f), nullptr)
 QVR_SLIDER(vr_menu_holster_back_y, "Back Holsters Inward", -10.f, 10.f, 0.5f, "%+.1f", ext(-40.f, 40.f), nullptr)
 QVR_SLIDER(vr_menu_holster_back_z, "Back Holsters Up", -10.f, 10.f, 0.5f, "%+.1f", ext(-40.f, 40.f), nullptr)
+QVR_SLIDER(vr_menu_holster_pouch_x, "Ammo Pouch Forward", -10.f, 10.f, 0.5f, "%+.1f", ext(-40.f, 40.f), nullptr)
+QVR_SLIDER(vr_menu_holster_pouch_y, "Ammo Pouch Right", -10.f, 10.f, 0.5f, "%+.1f", ext(-40.f, 40.f), nullptr)
+QVR_SLIDER(vr_menu_holster_pouch_z, "Ammo Pouch Up", -10.f, 10.f, 0.5f, "%+.1f", ext(-40.f, 40.f), nullptr)
 QVR_TOGGLE(vr_holster_weapons_draw_shoulder, "Shoulder Holster Weapons",
     "Draws the guns in the two holsters on your back, reached over your shoulders (the highest pair). Off: "
     "out of your view; you still take them and put them away there. The other pairs: Advanced VR Options "
@@ -5625,6 +5663,11 @@ QVR_TOGGLE(vr_agrunt_strike_demo, "Armed Humanoids: Strike Demo",
     "notarget; scene agrunt_strikes; vr_agrunt_strike_demo).")
 QVR_TOGGLE(vr_agrunt_debug, "Armed Grunts: Log",
     "Prints each armed grunt's weapon, shots, reloads, disarms and pickups (developer 1; vr_agrunt_debug).")
+QVR_CYCLE(vr_agrunt_strike_broad, "Armed Grunts: Strike Broad Test",
+    "Your blow's sweep against an armed grunt's weapon and hand is skipped when the box round its points is clear of "
+    "both volumes: the same verdicts, cheaper. Off: always swept; Check: both, each disagreement printed and a count "
+    "every 256 sweeps (developer 1; vr_agrunt_strike_broad).",
+    {0.f, "Off"}, {1.f, "On"}, {2.f, "Check"})
 QVR_TOGGLE(vr_agrunt_test_kind, "Armed Grunts: Tests Spawn Enforcers",
     "The Armed Grunts tests above spawn armed enforcers (monster_vr_enforcer, the armed monsters' second "
     "row) instead of armed grunts (vr_agrunt_test_kind 1; 0 grunts).")
@@ -7398,6 +7441,7 @@ QVR_KEY(vr_flat_key_drop, "Drop", "The key that lets go of what a hand holds (th
 QVR_KEY(vr_flat_key_grenade, "Quick Grenade", "The key that takes a grenade from the back pouch into a free hand.")
 QVR_KEY(vr_flat_key_bullettime, "Bullet Time", "The key that starts and stops bullet time.")
 QVR_KEY(vr_flat_key_flashlight, "Flashlight", "The key that switches the flashlight.")
+QVR_KEY(vr_flat_key_voicechat, "Push-to-Talk", "Multiplayer voice chat: the key you hold to talk (also read in VR, with a keyboard at hand).")
 QVR_KEY(vr_flat_key_holster_menu, "Holster Menu", "The key that opens the holster menu (how it opens and picks: Holster Menu Mode, on Desktop Screen Play).")
 QVR_KEY(vr_flat_key_flycam, "Fly Camera", "The key that turns the fly camera on and off.")
 QVR_KEY(vr_flat_key_toolgun, "Toolgun", "The key that puts the toolgun in the right hand, and gives back what that hand held.")

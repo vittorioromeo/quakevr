@@ -31,7 +31,7 @@ float(entity client, float density, vector colour) VR_AD_Fog =
 {
     if(client.flags & FL_CLIENT)
     {
-        MG_SetFog(client, density, colour);
+        VR_Fog_Set(client, density, colour);
     }
     return TRUE;
 };
@@ -144,17 +144,6 @@ void(entity targ, entity inflictor, entity attacker, float take) VR_AD_Hit =
     {
         VR_AD_KdSave(targ, inflictor);
     }
-};
-
-// A path_corner of AD's touched by one of our monsters: ours (t_movetarget) moves it on. TRUE: done.
-float() VR_AD_PathCornerTouch =
-{
-    if(!(other.flags & FL_MONSTER) || AD_Run(other))
-    {
-        return FALSE;
-    }
-    t_movetarget();
-    return TRUE;
 };
 
 .float vr_ad_shotserial, vr_ad_shotweapon, vr_ad_shotpellets, vr_ad_shothand;
@@ -550,7 +539,7 @@ void(entity xItem) AD_ItemTaken =
     if(xItem.ad_respawn_count > 0)
     {
         xItem.ad_respawn_count = xItem.ad_respawn_count - 1;
-        if(xItem.ad_respawn_count == 0) xItem.spawnflags = xItem.spawnflags - VR_SF_Bit(VR_SF_AD, VR_SF_ITEM_RESPAWN);
+        if(xItem.ad_respawn_count == 0) xItem.spawnflags = xItem.spawnflags - VR_SF_Bit(VR_RULES_AD, VR_SF_ITEM_RESPAWN);
     }
     if(xItem.ad_respawn_trig || xItem.ad_respawn_time < 0)
     {
@@ -807,17 +796,6 @@ float() AD_ChangelevelTouch =
 // ---------------------------------------------------------------------------------------------------------------------
 // Our monsters in AD maps: AD's spawn flags and keys (decision 1)
 
-// AD's delayed spawn (64) and angry spawn (128): the monster waits for its trigger (as MG's deferred ones, invisible,
-// not solid), then appears (with AD's spawn effect unless 32) and, angry, goes for whoever triggered it.
-void() AD_MonsterRunStart =
-{
-    entity oldact = activator;
-    activator = self.MG_monster_activator;
-    self.MG_monster_start();
-    if(VR_SF_Has(self, VR_SF_MON_ANGRY)) monster_use();
-    activator = oldact;
-};
-
 // One of our entities used by AD's triggers and items: AD's code keeps its own activator (ad_activator), ours reads
 // activator: the player AD's trigger names, when ours names none. Wherever AD's data is (its entities in any map:
 // section 16; P1b's loose ends: in AD maps only before 2026-10-12).
@@ -836,56 +814,6 @@ void() AD_ShareActivator =
     {
         ad_activator = activator;
     }
-};
-
-void() AD_MonsterActivate =
-{
-    AD_SyncActivator();
-    if(!self.MG_deferred) return;
-    self.MG_deferred = FALSE;
-    self.solid = self.MG_monster_solid;
-    self.movetype = self.MG_monster_move;
-    setmodel(self, self.MG_monster_model);
-    setsize(self, self.MG_monster_mins, self.MG_monster_maxs);
-    self.flags = self.flags | FL_MONSTER;
-    self.MG_monster_activator = activator;
-    spawn_tdeath(self.origin, self);
-    if(!VR_SF_Has(self, VR_SF_MON_NOSPAWNFX)) spawn_tfog(self.origin);
-    self.think = AD_MonsterRunStart;
-    self.nextthink = time + 0.1;
-};
-
-// walk/fly/swimmonster_start, in an AD map: AD's keys (nomonstercount), and its delayed spawn. TRUE: deferred.
-float(void() start) AD_MonsterPrepare =
-{
-    if(!AD_Rules())
-    {
-        return FALSE;
-    }
-    if(self.ad_nomonstercount)
-    {
-        total_monsters = total_monsters - 1;
-    }
-    if(!VR_SF_Has(self, VR_SF_MON_DELAYED))
-    {
-        return FALSE;
-    }
-    self.MG_monster_start = start;
-    self.MG_monster_model = self.model;
-    self.MG_monster_mins = self.mins;
-    self.MG_monster_maxs = self.maxs;
-    self.MG_monster_solid = self.solid;
-    self.MG_monster_move = self.movetype;
-    self.MG_deferred = TRUE;
-    self.use = AD_MonsterActivate;
-    self.nextthink = 0;
-    self.think = SUB_Null;
-    self.takedamage = DAMAGE_NO;
-    self.solid = SOLID_NOT;
-    self.movetype = MOVETYPE_NONE;
-    self.flags = self.flags - (self.flags & FL_MONSTER);
-    setmodel(self, "");
-    return TRUE;
 };
 
 // Randomized Enemies swapped `e` for another kind before it spawned (vr_run_enemyrandom.qc): AD's keys that only meant
@@ -1121,6 +1049,12 @@ void(string xModel) AD_EnsureVRModel =
 // upgrade's AD VR model).
 string(float xWid, float xFlags, entity xInst) AD_WeaponModel =
 {
+    // Dwell support: a Dwell weapon's own VR model (dwell/dw_items.qc), its secondary ammo's model aside.
+    string dw = VRHasBit(VR_Pack_WeaponFlags(xWid, xFlags), QVR_WPNFLAG_USE_SECONDARY_AMMO) ? "" : DW_WeaponModel(xWid, xInst);
+    if(dw != "")
+    {
+        return dw;
+    }
     float up = AD_UpgradeFor(xWid);
     if(up && vr_ad_data && AD_WeaponUpgraded(world, xInst, up) &&
        !VRHasBit(VR_Pack_WeaponFlags(xWid, xFlags), QVR_WPNFLAG_USE_SECONDARY_AMMO))
@@ -1136,17 +1070,18 @@ string(float xWid, float xFlags, entity xInst) AD_WeaponModel =
 // (an empty one, a hidden hand's, or another's left as it is).
 string(float xWid, float xFlags, entity xInst, string xNow) AD_SyncModel =
 {
-    if(!AD_UpgradeFor(xWid))
+    string dw = DW_VRModelOf(xWid); // (Dwell support: its weapons' models too)
+    if(!AD_UpgradeFor(xWid) && dw == "")
     {
         return xNow;
     }
     string vr = AD_VRModelName(xWid);
-    if(xNow == vr)
+    if(xNow == vr && vr != "")
     {
         AD_EnsureVRModel(vr); // (a loaded game's)
     }
-    string want = AD_WeaponModel(xWid, xFlags, xInst);
-    if(xNow == want || (xNow != vr && xNow != WeaponIdToModel(xWid, xFlags)))
+    string want = AD_WeaponModel(xWid, xFlags, xInst); // (a Dwell weapon's: its model precached again, a loaded game's)
+    if(xNow == want || (xNow != vr && xNow != dw && xNow != WeaponIdToModel(xWid, xFlags)))
     {
         return xNow;
     }
@@ -1176,6 +1111,7 @@ void(entity xPickup, entity p, float xHand) AD_UpgradeGiven =
         return;
     }
     inst.wi_adup = inst.wi_adup | xPickup.vr_ad_upgrade;
+    inst.wi_dwvar = 0; // (an AD upgrade, no longer Dwell's weapon: one or the other)
     // The Widowmaker comes with its tube full (his notes 2026-10-19: 16 of 16, not the super shotgun's 2): what the pickup
     // moved from the reserve into it stays, the rest comes with it. (Reloading off, or its mode none: from the reserve.)
     if(VRGetEntWeapon(p, xHand) == WID_SUPER_SHOTGUN && AD_Widowmaker(inst) && p.ishuman &&
@@ -1405,6 +1341,10 @@ void(float xHand) AD_FireWidowmaker =
 // (VR_ClipSizeOf), loaded at its port (vr_reload.qc), never broken open.
 float(entity xInst) AD_Widowmaker =
 {
+    // (Dwell support: Dwell's Rotary Shotgun handles as the Widowmaker, both rotary auto shotguns: its tube, reloaded at
+    // the hip a handful at a time, its barrels' spin-up before the first shot, never broken open; its shot is Dwell's,
+    // dw_items.qc DW_FireVariant, fired before the Widowmaker's in W_Fire_SuperShotgun. DWELL.md P3.)
+    if(xInst != world && xInst.wi_dwvar == DW_VAR_ROTARY) { return TRUE; }
     return AD_WeaponUpgraded(self, xInst, ad_IT_UPGRADE_SSG);
 };
 

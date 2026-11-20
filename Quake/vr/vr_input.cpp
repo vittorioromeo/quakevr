@@ -35,6 +35,7 @@
 #include "vr_progs.hpp"
 #include "vr_teleport.hpp"
 #include "vr_voicenotes.hpp"
+#include "vr_voicechat.hpp"
 #include "vr_takes.hpp"
 #include "vr_seated.hpp"
 #include "vr_timescale.hpp"
@@ -48,6 +49,7 @@
 #include "vr_geom.hpp"
 #include "vr_slide.hpp"
 #include "vr_flatplay.hpp"
+#include "vr_mem.hpp"
 
 #include "Zancle/Base/IsFinite.hpp"
 #include "Zancle/Base/Swap.hpp"
@@ -509,6 +511,132 @@ float autorunBlend = 0.f;
     return walk + (za::max(run, walk) - walk) * CLAMP(0.f, blend, 1.f);
 }
 
+// The speed button as a toggle (vr_sprint_toggle): each press switches to the other speed (VR_SpeedPressed); the
+// switch ends by itself (sprintToggleFrame) when you stop after moving with it: nothing asked to move across the ground
+// for sprintToggleIdleSeconds (a stick flicked through its deadzone, forward to back, keeps it; a press while standing
+// waits for you to move), at death, the intermission, a new map (input::resetSprintToggle), a menu opening over the
+// game (as the held buttons let go: VR_AdjustMove), or the setting's going off. The main thread's (commands, the move).
+constexpr double sprintToggleIdleSeconds = 0.3;
+
+struct SprintToggle
+{
+    bool on{false};          // switched to the other speed
+    bool moved{false};       // moved across the ground since (only then does stopping end it)
+    double stillSince{-1.0}; // realtime the last move ended (-1: moving, or not yet moved)
+};
+SprintToggle sprintToggle;
+
+// Once a move (VR_AdjustMove): moving, whether anything asks to move across the ground (the stick past its deadzone,
+// keys, a gamepad).
+void sprintToggleFrame(bool moving)
+{
+    SprintToggle& t = sprintToggle;
+    if(vr_sprint_toggle.value == 0.f || cl.stats[STAT_HEALTH] <= 0 || cl.intermission)
+    {
+        t = {};
+        return;
+    }
+    if(!t.on)
+    {
+        return;
+    }
+    if(moving)
+    {
+        t.moved = true;
+        t.stillSince = -1.0;
+    }
+    else if(t.moved && t.stillSince < 0.0)
+    {
+        t.stillSince = realtime;
+    }
+    else if(t.moved && realtime - t.stillSince >= sprintToggleIdleSeconds)
+    {
+        t = {};
+    }
+}
+
+// Run by double-tapping the moving stick (vr_move_doubletap; a tester's idea, 2026-11-18): a quick push (half its
+// travel past the deadzone or more, let go within vr_move_doubletap_window seconds), let go (back under a quarter of
+// its travel, as moveHold's letting go), then a push the same way (within 45 degrees) within the window again: running
+// until the stick is let go again. A slow first push (walking), a long gap or a push another way is no double tap (the
+// later push may begin one). It ends as the sprint toggle does too: at death, the intermission, a new map
+// (input::resetSprintToggle), a menu over the game, the setting's going off. It runs whatever the speed button says
+// (VR_AdjustMove: running is the speed button's choice or this); the stick's only, not keys or a gamepad. Its own
+// clock (the frames' times summed): the same at any frame rate.
+constexpr float doubleTapPush = 0.5f;      // a push: moveStick's length (0..1 past the deadzone) this much or more
+constexpr float doubleTapLetGo = 0.25f;    // let go: under this (moveHoldLeast)
+constexpr float doubleTapSameWay = 0.7071f; // the second push within 45 degrees of the first (its cosine)
+
+struct DoubleTap
+{
+    enum Phase
+    {
+        Idle,    // nothing yet
+        First,   // a push held (since: its start)
+        Gap,     // a quick push let go (since: its letting go)
+        Running, // the second push: running until let go
+    };
+    Phase phase{Idle};
+    double clock{0.0}; // the frames' times summed
+    double since{0.0};
+    glm::vec2 dir{0.f}; // the first push's direction (length 1)
+};
+DoubleTap doubleTap;
+
+// One frame of it: push, the moving stick (moveAxes: past its deadzone, 0..1 long), dt the frame's seconds.
+void doubleTapStep(DoubleTap& t, glm::vec2 push, double dt)
+{
+    t.clock += dt;
+    const double window = CLAMP(0.05, static_cast<double>(vr_move_doubletap_window.value), 2.0);
+    const float m = glm::length(push);
+    const bool pushed = m >= doubleTapPush;
+    const bool letGo = !(m >= doubleTapLetGo); // (NaN too)
+    switch(t.phase)
+    {
+        case DoubleTap::Idle:
+            if(pushed)
+            {
+                t = {DoubleTap::First, t.clock, t.clock, push / m};
+            }
+            break;
+        case DoubleTap::First:
+            if(letGo)
+            {
+                const bool quick = t.clock - t.since <= window;
+                t = {quick ? DoubleTap::Gap : DoubleTap::Idle, t.clock, t.clock, t.dir};
+            }
+            break;
+        case DoubleTap::Gap:
+            if(pushed)
+            {
+                const bool again = t.clock - t.since <= window && glm::dot(push / m, t.dir) >= doubleTapSameWay;
+                t = {again ? DoubleTap::Running : DoubleTap::First, t.clock, t.clock, push / m};
+            }
+            else if(t.clock - t.since > window)
+            {
+                t = {DoubleTap::Idle, t.clock, t.clock, t.dir};
+            }
+            break;
+        case DoubleTap::Running:
+            if(letGo)
+            {
+                t = {DoubleTap::Idle, t.clock, t.clock, t.dir};
+            }
+            break;
+    }
+}
+
+// Once a move (VR_AdjustMove): moving, the moving stick (moveAxes; 0 under a menu).
+void doubleTapFrame(glm::vec2 moving)
+{
+    if(vr_move_doubletap.value == 0.f || cl.stats[STAT_HEALTH] <= 0 || cl.intermission)
+    {
+        doubleTap = {};
+        return;
+    }
+    doubleTapStep(doubleTap, moving, CLAMP(0.0, host_frametime, 0.1));
+}
+
 // The stick's horizontal speed last asked of the server (VR_AdjustMove; the test and vr_debug_stick).
 float lastStickSpeed = 0.f;
 
@@ -630,6 +758,86 @@ void moveReport_f()
     Con_Printf("move report %s: mode %d head %.1f torso %.1f left %.1f right %.1f walk %.1f speed %.0f\n", Cmd_Argv(1),
                static_cast<int>(vr_movement_mode.value), s.headAngles.y, s.bodyYaw, s.rot[HAND_OFF].y, s.rot[HAND_MAIN].y,
                glm::degrees(za::atan2(cl.velocity[1], cl.velocity[0])), za::sqrt(cl.velocity[0] * cl.velocity[0] + cl.velocity[1] * cl.velocity[1]));
+}
+
+// vr_doubletap_test (Misc/quakevr/doubletap_test.sh; ROUND25.md "comfort"): the double tap's steps (doubleTapStep) fed
+// pushes frame by frame at 72 a second, the window 0.3 s: two quick pushes the same way run, the stick let go ends it, a
+// thumb's dip doesn't; a slow first push, a slow gap, a push another way, a push never let go between, pushes too weak:
+// no run; the push another way begins a double tap of its own. Ends "vr_doubletap_test: N passed, M failed".
+// vr_doubletap_test state <label>: the live one's phase and the speed last asked (the script's check with the mock stick).
+constexpr int doubleTapReadyGiveUp = 1200;
+int doubleTapReadyFrames = 0;
+
+void doubleTapTest_f()
+{
+    // vr_doubletap_test ready: holds the rest of the script a frame at a time until the game is on and the hands
+    // tracked (at most doubleTapReadyGiveUp frames, then says so).
+    if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "ready"))
+    {
+        if((cls.signon != SIGNONS || !hands::current().valid) && doubleTapReadyFrames < doubleTapReadyGiveUp)
+        {
+            doubleTapReadyFrames++;
+            Cbuf_InsertText("wait;vr_doubletap_test ready\n");
+            return;
+        }
+        Con_Printf("doubletap state ready: in game %d after %d frames\n", cls.signon == SIGNONS ? 1 : 0, doubleTapReadyFrames);
+        doubleTapReadyFrames = 0;
+        return;
+    }
+    if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "state"))
+    {
+        Con_Printf("doubletap state %s: running %d phase %d speed %.0f\n", Cmd_Argc() > 2 ? Cmd_Argv(2) : "",
+            doubleTap.phase == DoubleTap::Running ? 1 : 0, static_cast<int>(doubleTap.phase), static_cast<double>(lastStickSpeed));
+        return;
+    }
+    const float window = vr_move_doubletap_window.value;
+    Cvar_SetValueQuick(&vr_move_doubletap_window, 0.3f);
+    struct Step
+    {
+        glm::vec2 push;
+        int frames;
+    };
+    const glm::vec2 fwd{0.f, 0.9f}, side{0.9f, 0.f}, off30{0.45f, 0.78f}, none{0.f};
+    struct Case
+    {
+        const char* what;
+        Step steps[6];
+        int count;
+        bool runs;
+    };
+    const Case cases[] = {
+        {"two quick pushes forward run", {{fwd, 8}, {none, 8}, {fwd, 8}}, 3, true},
+        {"the stick let go ends it", {{fwd, 8}, {none, 8}, {fwd, 8}, {none, 1}}, 4, false},
+        {"a thumb's dip (0.3 of the travel) keeps it", {{fwd, 8}, {none, 8}, {fwd, 8}, {fwd / 3.f, 10}, {fwd, 4}}, 5, true},
+        {"the second push 30 degrees off runs", {{fwd, 8}, {none, 8}, {off30, 8}}, 3, true},
+        {"a slow first push (0.42 s, walking) doesn't", {{fwd, 30}, {none, 8}, {fwd, 8}}, 3, false},
+        {"a slow gap (0.42 s through the middle) doesn't", {{fwd, 8}, {none, 30}, {fwd, 8}}, 3, false},
+        {"the second push another way (90 degrees) doesn't", {{fwd, 8}, {none, 8}, {side, 8}}, 3, false},
+        {"... which begins its own: a third push that way runs", {{fwd, 8}, {none, 8}, {side, 8}, {none, 8}, {side, 8}}, 5, true},
+        {"never let go between (0.35 of the travel) doesn't", {{fwd, 8}, {fwd * 0.39f, 8}, {fwd, 8}}, 3, false},
+        {"pushes too weak (0.4) don't", {{fwd * 0.44f, 8}, {none, 8}, {fwd * 0.44f, 8}}, 3, false},
+    };
+    testkit::Tally tally;
+    char line[192];
+    for(const Case& c : cases)
+    {
+        DoubleTap t;
+        for(int i = 0; i < c.count; i++)
+        {
+            for(int f = 0; f < c.steps[i].frames; f++)
+            {
+                doubleTapStep(t, c.steps[i].push, 1.0 / 72.0);
+            }
+        }
+        const bool runs = t.phase == DoubleTap::Running;
+        q_snprintf(line, sizeof(line), "%s (running %d, phase %d)", c.what, runs ? 1 : 0, static_cast<int>(t.phase));
+        if(tally.check(runs == c.runs, "vr_doubletap_test", line))
+        {
+            Con_Printf("vr_doubletap_test: PASS %s\n", line);
+        }
+    }
+    Cvar_SetValueQuick(&vr_move_doubletap_window, window);
+    tally.verdict("vr_doubletap_test");
 }
 
 // Bump when quakevr/vr_bindings.cfg changes in a way existing configs should pick up.
@@ -1528,6 +1736,7 @@ void init()
     Cmd_AddCommand("vr_stick_run_test", stickRun_f);
     Cmd_AddCommand("vr_stick_line_test", stickLine_f);
     Cmd_AddCommand("vr_move_report", moveReport_f);
+    Cmd_AddCommand("vr_doubletap_test", doubleTapTest_f);
 }
 
 // 1.0.1 (ROUND22.md "Controls as if another controller": a player's left trigger jumped, his grips grabbed nothing, A
@@ -1663,6 +1872,12 @@ void buttonChanged(const InputState& in, int h, const ButtonKeys& b, bool now)
         voicenotes::offhandButton(now))
     {
         logButton(h, b, now, b.key[h], "a voice note");
+        return;
+    }
+    // In a multiplayer game with voice chat on push-to-talk (and Voice Notes off), the same button at the mouth talks.
+    if(h == HAND_OFF && b.button == &HandInput::secondary && voicechat::offhandButton(now))
+    {
+        logButton(h, b, now, b.key[h], "push-to-talk");
         return;
     }
     // With the motion recorder armed, its record button (vr_motion_button) starts and ends a take instead.
@@ -2063,12 +2278,32 @@ bool secondaryHeld(int hand)
     return hand >= 0 && hand < HAND_COUNT && secondaryDown[hand] && key_dest == key_game;
 }
 
+bool secondaryPressed(int hand)
+{
+    return hand >= 0 && hand < HAND_COUNT && previous.hands[hand].secondary;
+}
+
 bool primaryHeld(int hand)
 {
     return hand >= 0 && hand < HAND_COUNT && primaryDown[hand] && key_dest == key_game;
 }
 
 } // namespace qvr::input
+
+// The speed button's going down (IN_SpeedDown): with vr_sprint_toggle, a switch to the other speed, or back.
+extern "C" void VR_SpeedPressed()
+{
+    if(vr_sprint_toggle.value != 0.f)
+    {
+        sprintToggle = {!sprintToggle.on};
+    }
+}
+
+// The speed button's state for every run-or-walk choice: held (in_speed's), or with vr_sprint_toggle its switch.
+extern "C" int VR_SpeedButton(int held)
+{
+    return vr_sprint_toggle.value != 0.f ? sprintToggle.on : held != 0;
+}
 
 // Thumbstick locomotion. Running or walking as with the keyboard (walking: cl_alwaysrun 0, the
 // default; the speed button switches): running is cl_movespeedkey times the speed, and the stick, being
@@ -2088,8 +2323,12 @@ extern "C" void VR_AdjustMove(float* forwardmove, float* sidemove, float* upmove
     if(menuOver && !menuWasOver)
     {
         CL_ReleaseMoveButtons();
+        sprintToggle = {};
+        doubleTap = {};
     }
     menuWasOver = menuOver;
+    sprintToggleFrame(!menuOver && (moveAxes != glm::vec2{0.f} || *forwardmove != 0.f || *sidemove != 0.f));
+    doubleTapFrame(menuOver ? glm::vec2{0.f} : moveAxes);
     // The Weapon Studio's window owns his move keys while it is open -- W A S D and Q E fly its drawn camera there
     // (vr_weaponstudio.cpp) -- so his own walking is paused for those frames, whatever his keys and his sticks were
     // pressed to. Nothing here is kept, so the window's Close gives the walking back exactly as it was; his looking is
@@ -2105,7 +2344,9 @@ extern "C" void VR_AdjustMove(float* forwardmove, float* sidemove, float* upmove
     }
 
     const float m = glm::length(moveAxes);
-    const bool running = ((in_speed.state & 1) != 0) != (cl_alwaysrun.value != 0.f);
+    // The speed button's choice (held or vr_sprint_toggle's switch, against the Default Speed), or a double tap's run.
+    const bool running = ((VR_SpeedButton(in_speed.state & 1) != 0) != (cl_alwaysrun.value != 0.f)) ||
+                         doubleTap.phase == DoubleTap::Running;
     const float threshold = CLAMP(0.1f, vr_move_autorun_threshold.value, 1.f);
     const float dt = CLAMP(0.f, static_cast<float>(host_frametime), 0.1f);
     autorunBlend = !autorunOn(running) || m == 0.f ? 0.f
@@ -2207,6 +2448,19 @@ void roomscaleJump(const hands::State& s)
         Cbuf_AddText(rising ? "+jump\n" : "-jump\n");
     }
 }
+
+void resetSprintToggle()
+{
+    sprintToggle = {};
+    doubleTap = {};
+}
+
+namespace
+{
+// Forgotten when the client's state is cleared (vr_mem.hpp's resets): the sprint toggle (a new map or a load waits for
+// you to move again).
+mem::Reset clientStateReset{"input", mem::ResetEvent::ClientState, mem::ResetPhase::State, &resetSprintToggle};
+} // namespace
 
 void parseHaptic()
 {

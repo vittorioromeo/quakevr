@@ -192,5 +192,21 @@ QVR_PACK("Monsters", "Armed Enforcers", "Armed Enforcer: Laser Rifle", "monster_
 // grunt holding one (its "weapon" key 105: QC VR_AG_CODE_DAGGER), here at the end so the entries' numbers stay.
     {"Weapons", "Dagger", "weapon_dagger", "progs/v_dagger.mdl", 8.f, nullptr, 0.f, 0, false},
 QVR_PACK("Monsters", "Armed Grunts", "Armed Grunt: Dagger", "monster_vr_grunt", "progs/vrgrunt.mdl", 24.f, "weapon", 105.f, 0, 0, nullptr, 0)
+// The grappling gun (WID_GRAPPLE 1; QC weapon_grapple's model), left out of the list until the toolgun-spawns audit.
+    {"Weapons", "Grappling Gun", "func_weapon_grabbable", "progs/v_grpple.mdl", 8.f, "weapon", 1.f, 0, false},
+
+// Dwell's own entities (DWELL.md P2a; QC/dwell, the engine's DWELL row): made while Dwell's data is installed (its
+// models on the search path in every campaign), with Dwell's behaviour in any map. Appended: no number above moves.
+QVR_PACK("Monsters", "Dwell", "Kamikaze", "dw_monster_kamikaze", "progs/e1/mon_kami.mdl", 24.f, nullptr, 0.f, 0, 1, nullptr, 0)
+QVR_PACK("Monsters", "Dwell", "Brute", "dw_monster_brute", "progs/e2/mon_brute.mdl", 24.f, nullptr, 0.f, 0, 1, nullptr, 0)
+QVR_PACK("Monsters", "Dwell", "Construct", "dw_monster_excavator", "progs/e2/mon_excavator.mdl", 16.f, nullptr, 0.f, 0, 1, nullptr, 0)
+QVR_PACK("Monsters", "Dwell", "The Awoken (boss)", "dw_monster_d1boss", "progs/mon_d1boss.mdl", 96.f, nullptr, 0.f, 0, 1, nullptr, 0)
+QVR_PACK("Monsters", "Dwell", "The Sculptor (boss)", "dw_monster_d2boss", "progs/mon_d2boss.mdl", 64.f, nullptr, 0.f, 0, 1, nullptr, 0)
+QVR_PACK("Weapons", "Dwell", "Rotary Shotgun", "dw_weapon_quad_shotgun", "progs/g_shot3.mdl", 0.f, nullptr, 0.f, 0, 1, "progs/e1/mon_kami.mdl", 0) // (the rerelease has a g_shot3 too: probe a file only Dwell has)
+QVR_PACK("Weapons", "Dwell", "Crystal Lance", "dw_weapon_railgun", "progs/g_rail.mdl", 0.f, nullptr, 0.f, 0, 1, nullptr, 0)
+QVR_PACK("Weapons", "Dwell", "Rifle", "dw_weapon_rifle", "progs/v_rifle.mdl", 0.f, nullptr, 0.f, 0, 1, nullptr, 0)
+QVR_PACK("Items", "Dwell", "Haste", "dw_item_artifact_haste", "progs/e2/item_haste.mdl", 24.f, nullptr, 0.f, 0, 1, nullptr, 0)
+QVR_PACK("Items", "Dwell", "Berserk", "dw_item_artifact_berserk", "progs/item_berserk.mdl", 24.f, nullptr, 0.f, 0, 1, nullptr, 0)
+QVR_PACK("Items", "Dwell", "Wetsuit", "dw_item_artifact_wetsuit", "progs/item_diving.mdl", 24.f, nullptr, 0.f, 0, 1, nullptr, 0)
 
 #undef QVR_PACK

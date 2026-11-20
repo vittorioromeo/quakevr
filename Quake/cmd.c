@@ -1141,7 +1141,10 @@ qboolean Cmd_ExecuteString (const char *text, cmd_source_t src)
 		if (!q_strcasecmp (cmd_argv[0],cmd->name))
 		{
 			if (src == src_client && cmd->srctype != src_client)
+			{
 				Con_DPrintf("%s tried to %s\n", host_client->name, text);	//src_client only allows client commands
+				SV_ClientPrintf ("%s: refused, only the server's console may\n", cmd->name); // QVR: (B28) told (a guest's ban)
+			}
 			else if (src == src_command && cmd->srctype == src_server)
 				continue;	//src_command can execute anything but server commands (which it ignores, allowing for alternative behaviour)
 			else if (src == src_server && cmd->srctype != src_server)

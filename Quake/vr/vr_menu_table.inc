@@ -72,7 +72,7 @@ struct Page
 [[nodiscard]] za::Vector<Item> pageRunSetup();
 [[nodiscard]] bool runSetupStale(); // (vr_menu_runsetup.inc: a row held or let go since it was built)
 void openRunSetupCampaign(int index); // Official Campaigns' row: the Run Setup screen, then the campaign
-void openRunSetupArcane(); // Arcane Dimensions' row after its experimental notice: the same screen, then its launch
+void openRunSetupExperimental(int index); // AD's, Dwell's row after its experimental notice: the same screen, then its launch
 void openRunSetupArena();  // Arena Mode's row after its experimental notice: the arena's own screen, then the arena
 // (Settings with their home on another page link to it: one home per setting.)
 [[nodiscard]] za::Vector<Item> pageMain();
@@ -156,6 +156,7 @@ void openRunSetupArena();  // Arena Mode's row after its experimental notice: th
 [[nodiscard]] za::Vector<Item> pageVrsWeaponsBulletTime();
 [[nodiscard]] za::Vector<Item> pageVrsBodyFlashlight();
 [[nodiscard]] za::Vector<Item> pageVrsHudHapticsSound();
+[[nodiscard]] za::Vector<Item> pageVoiceChat();
 [[nodiscard]] za::Vector<Item> pageVrsDisplayGraphics();
 [[nodiscard]] za::Vector<Item> pageAdvanced();
 [[nodiscard]] za::Vector<Item> pageWeaponOffsets();
@@ -475,6 +476,7 @@ inline constexpr Page pages[] = {
     {"Flat Keys", pageFlatKeys, pageLocomotionSettings}, // (vr_menu_pages.inc; vr_flatplay.hpp keyCvars)
     {"Run Setup", pageRunSetup, pageMaps, LevelStandard}, // (a run's difficulty, presets, mutators: vr_menu_runsetup.inc)
     {"Menu Look", pageMenuLook, pageHudHub}, // (vr_menu_pages.inc: the menus' sizes, gaps, highlights and folds)
+    {"Voice Chat", pageVoiceChat, pageVrsHudHapticsSound, LevelStandard}, // (vr_menu_voicechat.inc: multiplayer voice chat, MP B10v)
 #ifndef QVR_RELEASE
     {"Tunables", pageTunables, pageDebug, LevelDeveloper}, // a development build's (vr_menu_tunables.inc; vr_tunables.cpp)
     // Its submenus, a page a depth (titled with the submenu shown: tunablesTitle).

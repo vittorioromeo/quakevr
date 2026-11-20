@@ -459,9 +459,9 @@ CLIENT SPAWNING
 ==============================================================================
 */
 
-static qboolean SV_IsLocalClient (client_t *client)
+qboolean SV_IsLocalClient (const client_t *client)
 {
-	return Q_strcmp (NET_QSocketGetAddressString (client->netconnection), "LOCAL") == 0;
+	return NET_QSocketIsLocal (client->netconnection); // QVR: (net_main.c: the one test)
 }
 
 /*
@@ -481,6 +481,9 @@ void SV_SendServerinfo (client_t *client)
 	MSG_WriteByte (&client->message, svc_print);
 	sprintf (message, "%c\nFITZQUAKE %1.2f SERVER (%i CRC)\n", 2, FITZQUAKE_VERSION, qcvm->crc); //johnfitz -- include fitzquake version
 	MSG_WriteString (&client->message,message);
+
+	if (!SV_IsLocalClient (client))
+		VR_MpWritePackage (&client->message); // QVR: the map package the map is from, first (vr/vr_mpdownload.cpp)
 
 	MSG_WriteByte (&client->message, svc_serverinfo);
 	MSG_WriteLong (&client->message, sv.protocol); //johnfitz -- sv.protocol instead of PROTOCOL_VERSION
@@ -556,6 +559,7 @@ void SV_ConnectClient (int clientnum)
 	struct qsocket_s *netconnection;
 	int				i;
 	float			spawn_parms[NUM_SPAWN_PARMS];
+	int				loadedslot;
 
 	client = svs.clients + clientnum;
 
@@ -568,7 +572,10 @@ void SV_ConnectClient (int clientnum)
 // set up the client_t
 	netconnection = client->netconnection;
 
-	if (sv.loadgame)
+	// QVR: a loaded game's slot keeps its parms only when it holds a saved player (a coop save's empty slot: a new
+	// player's, vr/vr_coopsave.cpp)
+	loadedslot = VR_CoopSlotLoaded (clientnum);
+	if (loadedslot)
 		memcpy (spawn_parms, client->spawn_parms, sizeof(spawn_parms));
 	memset (client, 0, sizeof(*client));
 	client->netconnection = netconnection;
@@ -582,7 +589,7 @@ void SV_ConnectClient (int clientnum)
 	client->message.maxsize = sizeof(client->msgbuf);
 	client->message.allowoverflow = true;		// we can catch it
 
-	if (sv.loadgame)
+	if (loadedslot)
 	{
 		memcpy (client->spawn_parms, spawn_parms, sizeof(spawn_parms));
 		VR_ClientLoadedBits (client); // QVR: a grip held when saved is no new press (vr/vr_server.cpp)
@@ -594,6 +601,9 @@ void SV_ConnectClient (int clientnum)
 		for (i=0 ; i<NUM_SPAWN_PARMS ; i++)
 			client->spawn_parms[i] = (&pr_global_struct->parm1)[i];
 		VR_StoreSpawnParms (clientnum); // QVR
+		// QVR: (B15) a player back in a coop game he left, by his name: his level-start parms (vr/vr_coopsave.cpp)
+		VR_CoopRejoinParms (clientnum, NET_QSocketIsLocal (netconnection) ? cl_name.string
+			: NET_QSocketGetQvrName (netconnection), NET_QSocketGetQvrKey (netconnection));
 	}
 
 	SV_SendServerinfo (client);
@@ -610,6 +620,7 @@ void SV_CheckForNewClients (void)
 {
 	struct qsocket_s	*ret;
 	int				i;
+	qboolean		islocal;
 
 //
 // check for new connections
@@ -623,9 +634,14 @@ void SV_CheckForNewClients (void)
 	//
 	// init a new client structure
 	//
-		for (i=0 ; i<svs.maxclients ; i++)
-			if (!svs.clients[i].active)
-				break;
+		// QVR: in a loaded coop game, the saved player's slot of his name (vr/vr_coopsave.cpp): a remote player's from
+		// his connect request, the host's own client's from his settings; the host's own client always slot 0
+		islocal = NET_QSocketIsLocal (ret);
+		i = VR_CoopPickSlot (islocal ? cl_name.string : NET_QSocketGetQvrName (ret), NET_QSocketGetQvrKey (ret), islocal);
+		if (i < 0)
+			for (i=0 ; i<svs.maxclients ; i++)
+				if (!svs.clients[i].active)
+					break;
 		if (i == svs.maxclients)
 			Sys_Error ("Host_CheckForNewClients: no free clients");
 
@@ -783,6 +799,7 @@ void SV_WriteEntitiesToClient (edict_t	*clent, sizebuf_t *msg)
 	int		e, i, j, numents;
 	int		bits;
 	int		startsize = msg->cursize; // QVR: vr_net_stats
+	int		entstart; // QVR: an entity's update began there (VR_SnapTake)
 	byte	*pvs;
 	vec3_t	org, forward, right, up;
 	float	miss, dist, size;
@@ -793,12 +810,14 @@ void SV_WriteEntitiesToClient (edict_t	*clent, sizebuf_t *msg)
 	VectorAdd (clent->v.origin, clent->v.view_ofs, org);
 	pvs = SV_FatPVS (org, sv.worldmodel);
 	VR_PortalAddPVS (pvs, org); // QVR: and round the destinations of the teleporters it sees (vr/vr_portals.cpp)
+	VR_NoteClientSight (clent, pvs, org); // QVR: for its broadcast's culling (vr/vr_server.cpp, B13b)
 
 // find the client's orientation
 	AngleVectors (clent->v.v_angle, forward, right, up);
 
 // reset sorting bins
 	memset (net_edict_bins, 0, sizeof (net_edict_bins));
+	VR_NoteEntitiesBegin (); // QVR: the entities in its sight noted (their armed humanoids' poses go to it)
 
 // add clent
 	if (sv_netsort.value)
@@ -843,6 +862,7 @@ void SV_WriteEntitiesToClient (edict_t	*clent, sizebuf_t *msg)
 			if (i == ent->num_leafs && ent->num_leafs < MAX_ENT_LEAFS && !VR_SV_SendPastPVS (ent)) // QVR: an arena's last foes, outlined through walls
 				continue;		// not visible
 
+			VR_NoteEntityInSight (e); // QVR
 			if (sv_netsort.value)
 			{
 				// compute ent bbox size and distance from org to the closest point in ent's bbox
@@ -921,6 +941,7 @@ void SV_WriteEntitiesToClient (edict_t	*clent, sizebuf_t *msg)
 
 // send an update
 		bits = 0;
+		entstart = msg->cursize; // QVR: a snapshot's record from here (VR_SnapTake)
 
 		for (i=0 ; i<3 ; i++)
 		{
@@ -1053,6 +1074,7 @@ void SV_WriteEntitiesToClient (edict_t	*clent, sizebuf_t *msg)
 		}
 		//johnfitz
 		VR_WriteEntityUpdate (msg, ent, bits); // QVR
+		VR_SnapTake (msg, entstart, e); // QVR: a remote client's snapshot takes it (vr/vr_netsnap.cpp; none: as written)
 	}
 
 	//johnfitz -- devstats
@@ -1096,6 +1118,7 @@ void SV_WriteClientdataToMessage (edict_t *ent, sizebuf_t *msg)
 	edict_t	*other;
 	int		items;
 	eval_t	*val;
+	int		cdstart; // QVR: svc_clientdata began there (VR_SnapTake)
 
 //
 // send a damage message
@@ -1188,6 +1211,7 @@ void SV_WriteClientdataToMessage (edict_t *ent, sizebuf_t *msg)
 
 // send the data
 
+	cdstart = msg->cursize; // QVR: a snapshot's record from here (VR_SnapTake)
 	MSG_WriteByte (msg, svc_clientdata);
 	MSG_WriteShort (msg, bits);
 
@@ -1263,6 +1287,7 @@ void SV_WriteClientdataToMessage (edict_t *ent, sizebuf_t *msg)
 	if (bits & SU_WEAPONALPHA)
 		MSG_WriteByte (msg, ent->alpha); //for now, weaponalpha = client entity alpha
 	//johnfitz
+	VR_SnapTake (msg, cdstart, 0); // QVR: a remote client's snapshot takes it (vr/vr_netsnap.cpp; none: as written)
 
 	// Hack: Alkaline 1.1 uses bit flags to store the active weapon,
 	// but we only send the stat as a byte, which can lead to truncation.
@@ -1284,13 +1309,16 @@ qboolean SV_SendClientDatagram (client_t *client)
 {
 	byte		buf[MAX_DATAGRAM];
 	sizebuf_t	msg;
+	int			snap; // QVR: its datagram's state goes as a snapshot (VR_SnapBegin)
 
 	msg.data = buf;
 	msg.maxsize = sizeof(buf);
 	msg.cursize = 0;
+	msg.allowoverflow = false; // QVR: set (it was the stack's garbage): every writer checks its room first (mpreview B1)
+	msg.overflowed = false;
 
 	//johnfitz -- if client is nonlocal, use smaller max size so packets aren't fragmented
-	if (Q_strcmp(NET_QSocketGetAddressString(client->netconnection), "LOCAL") != 0)
+	if (!SV_IsLocalClient (client))
 		msg.maxsize = DATAGRAM_MTU;
 	else // QVR: the loopback's one buffer takes this and the reliable message sent after it (whose overflow is a Sys_Error)
 		msg.maxsize = q_max (1024, q_min (msg.maxsize, NET_MAXMESSAGE - 16 - client->message.cursize));
@@ -1299,19 +1327,28 @@ qboolean SV_SendClientDatagram (client_t *client)
 	MSG_WriteByte (&msg, svc_time);
 	MSG_WriteFloat (&msg, qcvm->time);
 	VR_WriteRecentPrecaches (&msg); // QVR: a late precache before what uses it (vr/vr_server.cpp)
+	VR_WriteVoiceTo (&msg, client); // QVR: the other players' voices, under his voice budget (vr/vr_voicerelay.cpp, B10v)
+	VR_WriteMoveAck (&msg, client); // QVR: a remote client's newest move read: its next deltas' base (vr/vr_netmove.cpp)
 
 // add the client specific data to the datagram
+	snap = VR_SnapBegin (client); // QVR: a remote client's: its player state and entities as a snapshot (vr/vr_netsnap.cpp)
 	SV_WriteClientdataToMessage (client->edict, &msg);
+	VR_WritePredict (&msg, client); // QVR: a remote client's state after the newest of his moves run (vr/vr_predict.cpp, B8)
+	VR_WriteHeldPlaces (&msg, client); // QVR: ... and where the server has what his hands hold (vr/vr_held.cpp, B27)
 
 	SV_WriteEntitiesToClient (client->edict, &msg);
+	if (snap)
+		VR_SnapEnd (&msg); // QVR: ... with the avatars it sees, delta-coded against the one it acknowledged
 
 // copy the server datagram if there is space
+	VR_WriteHeldBroadcast (&msg, client); // QVR: the frames' before it he got no datagram (vr_net_sendhz, B13c)
 	{
-		// QVR: as much of it as fits, whole messages (it was all or none: a frame of many effects lost them all)
-		int sendable = VR_BroadcastSendable (msg.cursize, msg.maxsize - msg.cursize - 1);
-		if (sendable > 0)
-			SZ_Write (&msg, sv.datagram.data, sendable);
+		// QVR: as much of it as fits, whole messages (it was all or none: a frame of many effects lost them all); a
+		// remote client's only what he can see or hear (B13b: vr/vr_server.cpp)
+		VR_WriteBroadcast (&msg, SV_IsLocalClient (client), client->edict);
 	}
+	// QVR: the messages about entities it sees (armed humanoids' poses; all of them to the loopback client)
+	VR_WriteScoped (&msg, SV_IsLocalClient (client), snap);
 
 // send the datagram
 	if (NET_SendUnreliableMessage (client->netconnection, &msg) == -1)
@@ -1474,6 +1511,29 @@ void SV_SendNop (client_t *client)
 
 /*
 =======================
+SV_HoldClientDatagram
+
+QVR: a frame off a remote client's send rate (vr_net_sendhz, B13c): his share of the frame's broadcast (culled by his
+sight, as SV_WriteEntitiesToClient notes it) kept for his next datagram; the rest (his state, the entities) is sent
+as it is then.
+=======================
+*/
+static void SV_HoldClientDatagram (client_t *client)
+{
+	vec3_t	org;
+	byte	*pvs;
+
+	if (!client->edict || !sv.worldmodel)
+		return;
+	VectorAdd (client->edict->v.origin, client->edict->v.view_ofs, org);
+	pvs = SV_FatPVS (org, sv.worldmodel);
+	VR_PortalAddPVS (pvs, org);
+	VR_NoteClientSight (client->edict, pvs, org);
+	VR_HoldBroadcast (client);
+}
+
+/*
+=======================
 SV_SendClientMessages
 =======================
 */
@@ -1492,7 +1552,11 @@ void SV_SendClientMessages (void)
 
 		if (host_client->spawned)
 		{
-			if (!SV_SendClientDatagram (host_client))
+			if (VR_LockstepSkipsDatagram (i))
+				; // QVR: the harness's lockstep: a held frame sends its players nothing new (vr_mptest.cpp, B14e)
+			else if (!VR_SendsDatagramNow (host_client))
+				SV_HoldClientDatagram (host_client); // QVR: off his send rate's beat (vr_net_sendhz, B13c): his broadcast kept
+			else if (!SV_SendClientDatagram (host_client))
 				continue;
 		}
 		else
@@ -1816,6 +1880,8 @@ void SV_SaveSpawnparms (void)
 			host_client->spawn_parms[j] = (&pr_global_struct->parm1)[j];
 		VR_StoreSpawnParms (i); // QVR
 	}
+	VR_CoopLevelChangeParms (); // QVR: (B15) the leavers' level-start parms too: what each carries into the new level
+	VR_CoopNoteBots (); // QVR: (MP bots) a coop game's bots: what they have, for their return on the next level
 }
 
 typedef enum

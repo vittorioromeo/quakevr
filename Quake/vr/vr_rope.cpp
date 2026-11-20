@@ -662,6 +662,10 @@ void parseCorners()
     const int ent = MSG_ReadShort();
     const int beamId = MSG_ReadByte();
     const int count = MSG_ReadByte();
+    if(count < 0) // (a message cut short: MSG_ReadByte's -1 sized the corners at SIZE_MAX, an abort; mp_fuzz)
+    {
+        return;
+    }
     const int key = ent | ((beamId + 1) << 16); // (VR_ParseBeamEntity's key)
     if(count == protocol::ropeEnded)
     {
@@ -776,6 +780,12 @@ void forget()
     queued.clear();
     curve.clear();
 }
+
+namespace
+{
+// Forgotten when the client's state is cleared (vr_mem.hpp's resets): the ropes drawn.
+mem::Reset clientStateReset{"rope", mem::ResetEvent::ClientState, mem::ResetPhase::State, &forget};
+} // namespace
 
 void drawOpaque()
 {

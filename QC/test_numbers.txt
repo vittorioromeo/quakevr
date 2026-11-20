@@ -32,6 +32,7 @@ dispatch vr_flatgate_test QC/vr_flatgate_test.qc VR_FlatGateTest_Frame ask
 dispatch vr_selfshot_test QC/vr_selfshot_test.qc VR_SelfShotTest_Frame ask
 dispatch vr_v1116_test QC/vr_v1116_test.qc VR_V1116Test_Frame vr_v16_on
 dispatch vr_pd_test QC/vr_playerdisarm_test.qc VR_PlayerDisarmTest_Frame ask
+dispatch vr_dm_test QC/vr_dmrules_test.qc VR_DMRulesTest_Frame ask
 dispatch vr_projinherit_test QC/vr_projinherit_test.qc VR_ProjInheritTest_Frame ask
 dispatch vr_grenfuse_test QC/vr_grenfuse_test.qc VR_GrenFuseTest_Frame ask
 dispatch vr_flatmove_test QC/vr_flatmove_test.qc VR_FlatMoveTest_Frame ask
@@ -77,6 +78,8 @@ vr_embed_test    32       vr_embed_test.qc                 flat screen: a head o
 vr_embed_test    31       vr_embed_test.qc                a limb on the blade burst by the other hand's blow: its blood where it is, past the particles hidden near the eyes
 vr_embed_test    28       vr_embed_1108_test.qc            his 11-08 notes: a stab that kills stays in the falling body, running on into a stab brakes you, a force grab through its own host; 2026-11-10: an axe into a ragdoll stays in, blades left in the dummy and a grunt bloodied (embed_blood_test.sh)
 vr_embed_test    29       vr_embed_1108b_test.qc           a gib skewered on the sword stays on the drawn blade through stick turns (smooth, snap) and moves
+vr_embed_test    49       vr_skewerlist_test.qc            the skewered gibs' list the shots walk: none visits nothing; the head removed by the toolgun, one burst, one removed and its edict reused (also as a new skewered gib: a loop), the blade gone, their own fade: the others still hit, the list made again only when broken
+vr_embed_test    50-51    vr_skewerlist_test.qc            the skewered gibs' list through a save and a load: 50 puts two on the blade, saves and loads, then 51's check: the list made at the load holds both, each hit by a shot
 vr_embed_test    33       vr_embed_test.qc                 the hand on an embedded blade's handle (his 2026-11-12): drawn as it held the sword; a body lifted 20 units, level and the wrist turning: the handle stays on the real hand, rises no more than it; gripped again off the handle, it comes to the hand
 vr_embed_test    34       vr_embed_prop_test.qc            a blade in a crate held by its handle (a joint): the handle in the hand, the crate dragged, the crate pushed takes the blade; a gib on a blade: the other hand takes it only at its drawn model, drawn on its surface
 vr_embed_test    30       vr_embed_1108b_test.qc           blades in wooden crates and barrels: stab and swing stay in, drag not lift, let go, ride, pull out, broken, off
@@ -132,6 +135,13 @@ vr_ad_test       183      vr_ad_test.qc                    (AD_PelletMatTest)
 vr_ad_test       184      vr_ad_test.qc                    the AD crossbow in the main hand (AD_GunTest; flattwohand_test.sh)
 vr_ad_test       191-197  vr_ad_test.qc                    (AD_GunTest)
 vr_ad_test       198      vr_ad_test.qc                    armed humanoids in AD (vr_agrunt_repl_ad): plain ones replaced, AD's variants skipped
+vr_ad_test       199      vr_rules_test.qc                 our monster on AD's and Copper's path_corners follows them as ours (think never NULL); the th_* guard names a NULL th_die (any map)
+vr_ad_test       200      dwell/dw_test.qc                 the map's Dwell boss (d1end, d2end) woken as its map does and fought through every phase to its death
+vr_ad_test       201-203  dwell/dw_test.qc                 Dwell's weapons (Rotary Shotgun, Crystal Lance, Rifle) kept through a level change or a save and load (parm76), then fired: the Rifle's 50, the Rotary's pellets of 2, the Lance's 150 through two (dwell_weapons_test.sh)
+vr_ad_test       204      dwell/dw_test.qc                 an armed grunt arming a Dwell weapon's record: its name, the variant kept, Dwell's shot fired (Rotary, Lance)
+vr_ad_test       209      vr_rules_test.qc                 the ruleset's numbers (vr_rules_numbers.qc) through our touches: armour rule and protection, key stacks, monsters' health, the laser, the megahealth rot (Copper's in a Dwell map, Quake's in e1m1)
+vr_ad_test       210      dwell/dw_test.qc                 the Sculptor's ring (d2end): shots hit it past its old 96-unit box and fly through its hole (DW_D2_FightBox, precise hits)
+vr_ad_test       205-208  dwell/dw_test.qc               Dwell's weapons drawn as their own VR models (made from Dwell's view models) in the hands and a holster, AD's Widowmaker still its own; 206-208 one alone in the main hand (dwell_vrmodels_test.sh's screenshots)
 
 vr_agrunt_test   1        vr_armedgrunt_test.qc            every weapon in turn ahead of you
 vr_agrunt_test   2        vr_armedgrunt_test.qc            reload, disarm, re-arm, drop (the sequence)
@@ -217,6 +227,9 @@ vr_agrunt_test   200      vr_armedgrunt_aware_test.qc      disarm attempts on un
 vr_agrunt_test   202      vr_armedgrunt_impact_test.qc     the impact rule: a push, you walking into it, a topple or a swing in the air keep the weapon; a fall, a throw into the floor or a wall, a body banged into a wall drop it
 vr_agrunt_test   210      vr_ledgeshove_test.qc            humanoids shoved off a ledge backpedal on their feet and go over it
 vr_agrunt_test   225      vr_ragthud_test.qc               living ragdolls' thuds: off a ledge, knocked down on the flat, no rattle; Living Thuds off: none
+vr_agrunt_test   226-227  vr_armedgrunt_lod_test.qc        the armed grunts' QC cost by state (idle unseen or seen, alert, fighting, dead), the map as it stands (226) or all woken at the player (227): a measurement
+vr_agrunt_test   228      vr_armedgrunt_lod_test.qc        a far, unseen armed grunt (posed once in vr_agrunt_pose_lod_frames) seen or shot, an unarmed one heard or shot: posed that frame and every frame after, alert and attacking; its trace the same as with the old LOD and none (aglod_test.sh)
+vr_agrunt_test   229      vr_armedgrunt_lod_test.qc        a worn pack's LOD as its wearer leaves his PVS (placed while the pack is in view) and comes back (placed the first frame)
 vr_agrunt_test   203      vr_armedgrunt_dualdisarm_test.qc a dual wielder disarmed of its off hand, then its main: slots, each weapon drawn on its hand, its pick-up
 vr_agrunt_test   204      vr_ogre_friends_test.qc          ogres (and MG3 rocket ogres) behind a friend: friendly hits careless, careful, its attack rate, one always in the way
 vr_agrunt_test   205      vr_armedgrunt_gunlag_test.qc     a held gun stays with its body as it walks
@@ -264,6 +277,12 @@ vr_pickup_test   14       vr_pickup_test.qc                Melee Only: a dropped
 vr_pickup_test   15       vr_pickup_test.qc                Melee Only and FrikBot bots: the run's dagger at the start, no gun chosen though held, guns/ammo no goals and not snatched, the dagger swung at a grunt; off: guns again (VR_MeleeOnlyBotTest_Run, vr_meleeonly_bot_test.qc; maxplayers 2, deathmatch 0)
 vr_pickup_test   16       vr_pickup_test.qc                the waterdrips scene through a save and a load: off hand still empty, grunts' guns at their hands, no other kind's spell, wet kept (VR_SLTest_Start, vr_saveload_test.qc; Misc/quakevr/saveload_test.sh)
 vr_pickup_test   17       vr_pickup_test.qc                his 11-15 design: a gun on the floor taken by the off hand: closed on its handle -> gun mode; closed 12 units over its barrel -> nothing; the same against the hand (vr_test_handcontact) -> a prop, carried (VR_PalmGrabTest_Start)
+vr_pickup_test   18       vr_pickup_test.qc                a shotgun let go of from a still, open palm-up hand passes through it to the floor (none left over a closing fist; VR_PalmRestTest_Start, MP_PLAN B3c)
+vr_pickup_test   19       vr_itemrules_test.qc             an item's targets fire only when it is taken: health at full health, shells at the cap, a key held, armour under better, a weapon by a hand not gripping: not taken, nothing fired; taken: fired once (Honey: a secret found only then) (VR_ItemTargetsTest_Run)
+vr_pickup_test   20       vr_itemrules_test.qc             the ammo boxes' weapon roll: Rogue's three boxes are boxes; every map box rolled once, at the first PutClientInServer, against the player; a box placed later once, at its placement; asked again nothing (VR_AmmoRollTest_Run)
+vr_pickup_test   21       vr_itemrules_test.qc             CTF's level change (SetChangeParms, teamplay 4): the weapons' flags, magazines and ids a new game's, the team and the next weapon id kept (VR_CtfParmsTest_Run)
+vr_pickup_test   22       vr_itemrules_test.qc             each player's readiness after his spawn is his own (.vr_readytime): another's spawn doesn't hold his trigger, his own does (VR_ReadyTest_Start)
+vr_pickup_test   23       vr_itemrules_test.qc             a player holding Mjolnir is player.mdl (model index not 0), at rest and in pain, with or without Hipnotic (VR_MjolnirModelTest_Run)
 
 vr_reload_test   1        vr_reload_test.qc                (VRIsHandEmpty)
 vr_reload_test   2        vr_reload_test.qc                (VR_Reload_IsRound)
@@ -736,6 +755,18 @@ vr_v1116_test 1          vr_v1116_test.qc                 a chainsaw knight disa
 vr_v1116_test 2          vr_v1116_test.qc                 e1m1's slime bridge grunts killed: nothing wet (vr_drips_check), again after a save and a load
 vr_pd_test       1        vr_playerdisarm_test.qc          the player disarmed: a grunt's blast across your gun knocks it out (forced certain), it lies on the floor with its clip; across your body: no; an enforcer's laser across the gun: out; vr_player_disarm 0: never
 vr_pd_test       2        vr_playerdisarm_test.qc          melee on you holding the shotgun out: a gun-and-axe grunt and an axe-only one, 4 blows each: every blow held back ends, landed blows hurt, each roll on your weapon knocks it out (flat-screen too)
+vr_dm_test       1        vr_dmrules_test.qc               deathmatch with a human and a bot (mp_test.py dm): dm 1 a weapon taken, gone, back after its wait, the bot's let-go weapon removed in 10 s; dm 2 it stays, not taken twice; PvP shots between the human and the bot knock weapons out (sounds), PvP off nothing, PvE only when on; the bot's hands apart, the human's grab on its gun (running: too fast; still: held, pulled away: his)
+vr_dm_test       2        vr_dmrules_test.qc               a bot's sword swing at the human (mp_test.py dm): its hand swings it, its blow read by its blade's line (the directional parry, PvP); his crowbar at his side: it lands
+vr_dm_test       3        vr_dmrules_test.qc               the same swing, his crowbar held upright across its way: parried, no damage
+vr_dm_test       4        vr_dmrules_test.qc               a bot's punch (mp_test.py dm): its AI punches the human 40 units ahead, its fist thrust, struck by the melee's sweep: its off hand's blow lands
+vr_dm_test       5        vr_dmrules_test.qc               a bot's grab: a nailgun lying in front of it, its open off hand goes to it and closes, the hand's touch takes it
+vr_dm_test       6        vr_dmrules_test.qc               a bot's grab disarm (PvP on): its off hand closes on the human's shotgun and pulls it away (vr_playerdisarm_grab.qc): the shotgun in its off hand, his hand empty
+vr_dm_test       7        vr_dmrules_test.qc               deathmatch's caps (vr_dmloose.qc, B13b): 8 gibs and 5 weapons under caps of 4 and 3; out of deathmatch all stay, in it the oldest go, the youngest stay
+vr_dm_test       8        vr_dmrules_test.qc               a respawn with every start taken (one counted, the human on it): the bot comes in beside it (client.qc VR_DMBesideSpot), nobody telefragged
+vr_dm_test       9        vr_dmrules_test.qc               a bot parries a timed blow (MP bots phase 1): two bots with swords 36 units apart, one swings (a flat player's overhead swing, its blow the sweep's); the other at skill 3 with vr_bot_parry_chance 100 raises the flat guard: parried; chance 0: the blow lands
+vr_dm_test       10       vr_dmrules_test.qc               a bot dual wields (MP bots phase 1): a nailgun in its main hand and a super nailgun of its own: its off hand takes the gun that pairs, and its AI fires both at the human
+vr_dm_test       11       vr_dmrules_test.qc               a bot in a coop game (MP bots phase 1, mp_test.py coopbots): a grunt of the map brought 120 units in front of it: it kills it, never taking a player for its enemy; given a super nailgun first (the level change carries it)
+vr_dm_test       12       vr_dmrules_test.qc               lag compensation once per shot (mpreview B2, mp_test.py lagcomp): a remote human's 14-pellet blast and lightning bolt each begin one rewind, their pellets' and lines' tracelines inside it
 
 vr_projinherit_test 1     vr_projinherit_test.qc           projectiles keep your motion: strafing, nails and rockets on the aim, grenades their share; a hand swing in grenades only
 vr_grenfuse_test 1        vr_grenfuse_test.qc              one fuse for every grenade: hand, launcher and ogre grenades go off together after arming, each lit with its countdown (none with vr_grenade_countdown 0)

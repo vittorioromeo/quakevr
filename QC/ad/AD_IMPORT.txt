@@ -54,6 +54,8 @@ Reviewed patches: 10 precedence, 38 bridge hooks (VR_AD_*, QC/vr_ad_bridge.qc):
   mon_pyro.qc: Quake VR: the pyro's flames look like the player's
   mon_pyro.qc: Quake VR: the pyro's flames go out in water
   defscustom.qc: Quake VR: AD's view model name, our Thunderbolt's plasma model (renamed; AD's own is skipped)
+  mon_dcrossbow.qc: Quake VR: the knights' bolts' speed, AD's formula times vr_adknight_bolt_scale
+  breakable.qc: Quake VR: an axe hit on another player in the player's voice
   lights.qc light_torch_small_walltorch: bridge: its flame heats blades and lights torches again (vr_walltorch.qc)
   lights.qc light_flame_large_yellow: bridge: its flame heats blades and lights torches again (vr_walltorch.qc)
   lights.qc light_flame_small_yellow: bridge: its flame heats blades and lights torches again (vr_walltorch.qc)
@@ -122,6 +124,24 @@ Reviewed patches: 10 precedence, 38 bridge hooks (VR_AD_*, QC/vr_ad_bridge.qc):
   mon_zombie.qc zombie_wakeup: bridge: a zombie killed whole (beheaded, a limb cut) never gets up
   mon_zombiek.qc zombiek_wakeup: bridge: a zombie killed whole (beheaded, a limb cut) never gets up
   ai_combat.qc T_RadiusDamage: bridge: AD's explosions throw props and ragdolls (physicsblast)
+  mon_bossjudicator.qc judge_JumpTouch: Quake VR: a leaping monster dead of its own blow stays dead (VR_Leap_BlowEnded)
+  mon_demon.qc Demon_JumpTouch: Quake VR: a leaping monster dead of its own blow stays dead (VR_Leap_BlowEnded)
+  mon_dfury.qc dfury_JumpTouch: Quake VR: a leaping monster dead of its own blow stays dead (VR_Leap_BlowEnded)
+  mon_dog.qc Dog_JumpTouch: Quake VR: a leaping monster dead of its own blow stays dead (VR_Leap_BlowEnded)
+  mon_minotaur.qc mino_JumpTouch: Quake VR: a leaping monster dead of its own blow stays dead (VR_Leap_BlowEnded)
+  mon_spider.qc Spider_JumpTouch: Quake VR: a leaping monster dead of its own blow stays dead (VR_Leap_BlowEnded)
+  mon_swampling.qc swampling_JumpTouch: Quake VR: a leaping monster dead of its own blow stays dead (VR_Leap_BlowEnded)
+  mon_tarbaby.qc Tar_JumpTouch: Quake VR: a leaping monster dead of its own blow stays dead (VR_Leap_BlowEnded)
+  mon_voreling.qc Voreling_JumpTouch: Quake VR: a leaping monster dead of its own blow stays dead (VR_Leap_BlowEnded)
+  mon_xmas_elf.qc Elf_JumpTouch: Quake VR: a leaping monster dead of its own blow stays dead (VR_Leap_BlowEnded)
+  mon_zombiek.qc zombiek_JumpTouch: Quake VR: a leaping monster dead of its own blow stays dead (VR_Leap_BlowEnded)
+  items.qc ammo_touch: Quake VR: Melee Only refuses AD's ammo (vr_run_meleeonly.qc)
+  items.qc BackpackTouch: Quake VR: Melee Only refuses AD's backpacks (vr_run_meleeonly.qc)
+  mon_dcrossbow.qc dcrossbow_shot: Quake VR: the knights' bolts' speed (vr_adknight_bolt_scale)
+  mon_dcrossbow.qc dcrossbow_checkattack: Quake VR: the knights' bolts' lead (vr_adknight_bolt_scale)
+  mon_soldier.qc army_fire_rocket: bridge: the rocket soldier's tube flash, smoke and backblast (weaponfired)
+  weapons.qc LightningDamage: Quake VR: AD's lightning zaps water and burns surfaces (weapons.qc)
+  ai_explosion.qc spawn_touchblood: bridge: no flesh, no blood (VR_HitNonFlesh)
   ai_subs.qc: if (!ai_checkmelee(MONAI_MELEEFRONT,FALSE)): reach and melee arc (VR_MeleeBlow(.., FALSE, FALSE))
   ai_subs.qc: if (!ai_checkmelee(self.meleerange, MONAI_MELEEZTALL)): reach and melee arc (VR_MeleeBlow(.., FALSE, FALSE))
   ai_subs.qc: if (!ai_checkmelee(MONAI_MELEESIDE,FALSE)): reach and melee arc (VR_MeleeBlow(.., FALSE, FALSE))

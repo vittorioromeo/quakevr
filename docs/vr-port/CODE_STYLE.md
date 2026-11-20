@@ -115,10 +115,34 @@ state instead:
 2. **Cache** (results kept for a key): `mem::Cache` with the events that make it stale: `mem::MapChange` (anything
    keyed by a pointer into the hunk: textures, edicts, the world), `mem::GameDirChange` (models' slots, game files),
    `mem::ModelReload` (`vr_model_reload`, `vr_hand_reload`), or `mem::Never` (only counted; its owner empties it). A key
-   that can change otherwise (a setting) is part of the key and checked on use. Explicit resets that already exist
-   (`resetServerWorld`, `VR_OnClientClearState`, `VR_OnGameDirChanged`'s list) stay; `mem::on(event)` is called from
-   `VR_OnClearMemory`, `VR_OnGameDirChanged` and the two reload commands.
-3. **State that is not a buffer** (what a frame built once and every view draws: `flashlight.cpp`'s `CordDraw`,
+   that can change otherwise (a setting) is part of the key and checked on use. `VR_OnGameDirChanged`'s explicit list
+   stays; `mem::on(event)` is called from `VR_OnClearMemory`, `VR_OnGameDirChanged` and the two reload commands.
+3. **Reset** (what a system keeps about the world it was made in, forgotten by its own function: a map keyed by entity
+   number, by model, a hold, a time on the client's clock): `mem::Reset` next to the state, for its event and in its
+   phase (REVIEW_NEXT_2026-11-18.md, finding 20). `mem::ResetEvent::ServerWorld` runs at the server's world reset
+   (`VR_OnClearMemory`, `VR_OnSpawnServerBeforeLoad`: a map, a changelevel, a loaded game), `ClientState` when the
+   client's state is cleared (`VR_OnClientClearState`). An event's resets run by phase, then by the system's name (the
+   list is kept sorted as each is made: never the static initialisation's order): `World` (Box3D's world, first),
+   `State` (a reset that touches only its own state: nearly all), `Settings` (last: settings put back, whose change
+   hooks reach other systems). A reset that reads or changes another system's state needs its phase, or a new one;
+   anything that must run before or after the whole event, or between a load's steps, stays a call in its hook
+   (`hull::keepForReload` before `mem::on(MapChange)` in `VR_OnClearMemory`; `VR_OnLoadGame`'s and
+   `VR_OnSpawnServerAfterLoad`'s own climb, foegrab, box3d and physics resets).
+
+   ```cpp
+   void reset() { ... }   // (vr_ropesim.cpp: the ropes, by entity number)
+
+   namespace
+   {
+   // Forgotten with the server's world (vr_mem.hpp's resets): the ropes, by entity number.
+   mem::Reset serverWorldReset{"ropesim", mem::ResetEvent::ServerWorld, mem::ResetPhase::State, &reset};
+   } // namespace
+   ```
+
+   `vr_resets` lists each event's resets in order (`vr_memstats` their counts), `vr_resets trace 1` prints each as it
+   runs; `Misc/quakevr/resets_test.sh` checks the registry's order and that every run in play calls each registered
+   reset once.
+4. **State that is not a buffer** (what a frame built once and every view draws: `flashlight.cpp`'s `CordDraw`,
    `rope.cpp`'s `RopeDraw`; what a function remembers from one call to the next: a "once a frame" frame number, the last
    print's time, a "registered" flag, a debug trace's open `FILE*`, an easing's last value): a named variable or struct
    at file scope in the anonymous namespace, next to the function (or the system's other state), with a comment saying
@@ -127,7 +151,7 @@ state instead:
    function may bind a reference to it under the old name (`int& lastFrame = oncePerFrame.quadArcs;`). A debug
    command's working buffer is a plain local; a fixed array that is all written before it is read is a plain local too
    (`coil.cpp`'s forces), unless it is too big for the stack (then file scope: `throw.cpp`'s `bothHistory`).
-4. **Constants**: `static constexpr` when the type allows (`bodycal`'s `splitList`, the name tables), else a
+5. **Constants**: `static constexpr` when the type allows (`bodycal`'s `splitList`, the name tables), else a
    namespace-scope `const` built before `main` (read by any thread, no guard): `ao`'s `rayDirs`, `ambient`'s `rayTable`,
    `avatar`'s `bindPose`, `unstick`'s `spotOffsets`, `motion`'s `categoryList`, `handrig`'s `referenceRig`. Its
    initialiser may use only constexpr data and pure functions: another file's globals may not be made yet (the static
@@ -136,7 +160,7 @@ state instead:
    the function's next call). An engine cvar is read through its `extern "C" cvar_t` (not a `Cvar_FindVar` cached in a
    static).
 
-`vr_memstats` prints the registered sets' bytes (totals and the largest), `vr_limits` the totals.
+`vr_memstats` prints the registered sets' bytes (totals and the largest) and the resets' counts, `vr_limits` the totals.
 
 `qvr_checks statics` (run by the kit's `build.sh`, which fails on it) rejects every function-local `static`
 or `thread_local` in `Quake/vr` that is not `static constexpr`, of any type, in any function or lambda body (an
@@ -165,11 +189,54 @@ then run on workers, with the stepping thread's QuakeC VM lent (`qcvm` and `pr_g
 only read the entities and the world's state, count with an atomic, and never print (`vr_debug_box3d 2` steps on one
 thread).
 
+**No lock and no `cvars::Override` held across a call that can run QuakeC or reach `Host_Error`** (a builtin, a
+`progs::callQc`, a touch or think, `SV_Impact`, anything under the server's frame). `Host_Error` and `Host_EndGame`
+`longjmp` back to `_Host_Frame` over the C++ frames between: no destructor runs, so a `za::LockGuard`'s mutex would
+stay locked for good. `VR_OnHostError` (vr_hosterror.cpp), called before the jump, puts back what is frame-scoped:
+every `cvars::Override` still alive (each named in the console: a sign of a broken rule; `vr_ragtest.cpp`'s scenes are
+the known ones), slow motion's open pair (`VR_PhysicsEntityBegin` without its End), compatibility mode's shot point and
+the profiler's open scopes. A new begin/end pair or flag that QuakeC can run inside gets its reset there (a
+`<system>::onHostError()` in its list); a lock gets none: take it after the QuakeC call, or copy what it guards first.
+`vr_hosterror_test` checks the list (a QuakeC error raised inside an open pair).
+
+**The sound's channels are the mixer's while a mix is on the pool.** The frame's mix runs on a worker while the screen
+draws (snd_dma.c `S_MixKick`, until the next `S_MixJoin`): main-thread code reads `snd_channels`, `paintedtime` or
+`soundtime`, or a `channel_t` it kept, only after `S_MixJoin ()` (every sound entry point joins: `S_StartSound`,
+`S_Update`, ...; hooks called from them run joined). The mixer's own hooks (`VR_SndPaint` and the rest: vr_audio.cpp's
+head says which runs where) read them on either thread. In development builds (every build but a release) q_sound.h
+checks each read of those names in the VR module's C++ (`S_MixCheckAt`): one on the main thread with a mix posted
+ends the game with the crash report naming its file and line (`vr_snd_mixcheck_test` proves the check; `fatal` makes
+it end the game on purpose). A channel kept by pointer is not checked, nor Ironwail's own C (it joins by hand).
+
 ## GL objects
 
-GL names are plain ids (`gfx::Texture`, `gfx::Target`: no destructor), made and deleted by their system's functions
-(its reset, `VR_Shutdown`), never by a static's destructor after the context is gone. `vid_restart` keeps the GL
+GL names are plain ids (`gfx::Texture`, `gfx::RenderTarget`: no destructor), made and deleted by their system's functions
+(its reset, `VR_Shutdown`), never by a static's destructor after the context is gone. What is sized by the eyes is
+freed when VR stops (`stereo::releaseTargets`, from `stopBackend`: `vr_enabled 0`, the session lost, a restart), and made
+again when the eyes are next drawn: a new eye-sized target gets its line there. `vid_restart` keeps the GL
 context (only the engine's framebuffers are made again), so the VR module's GL objects live on.
+
+## A view's two sizes: allocated and drawn
+
+Under dynamic resolution (`vr_dynres`, vr_dynres.hpp) the eyes' targets are allocated once at its ceiling and a frame
+draws their bottom left part, smaller at a lower bucket. So a view (an eye, the spectator camera, a view through a gate)
+has two sizes, `stereo::ViewSize` (vr_stereo.hpp, `viewSize()`): **allocated** (`allocatedWidth/Height`: the textures'
+size; what the engine's `vid.width`/`vid.height` hold while the view is drawn, as its framebuffers are made and read at
+it) and **drawn** (`drawnWidth/Height`: the part drawn; the engine's `glwidth`/`glheight` and `r_refdef.vrect`, the
+viewports). They are equal but for that, and for the window's flat view's `r_scale` corner, which the engine already
+draws so.
+
+- A pass that sizes something by the view (its own target) sizes it by the **allocated** size, and draws the **drawn**
+  part of it: not made again when the drawn size changes.
+- A pass that reads a view's texture by a uv over the view (0..1) scales it by drawn / allocated and keeps its taps on
+  the drawn part's texels, where clamp-to-edge kept them when the part was the whole texture: `QvrViewUV`
+  (vr_viewuv_glsl.h, its map made on the CPU by `stereo::viewUvMap`: the post-process's `SceneMap` and `BloomMap`, the mirror's), a `Drawn` uniform of the texels'
+  centres (the glow's chain, the half-size particles), the scene's viewport (`SceneViewport` in the frame data: the
+  liquids' refraction and distances), `ViewSize` (TAA), or the drawn part's edge copied outward (`upscale::resample`,
+  for the vendors' filters). Written so that with the two sizes equal it is the same uv and the same taps: the images
+  are the same as before.
+- A pixel-addressed read (`texelFetch(gl_FragCoord)`, `R_SceneViewport`'s viewport) needs nothing.
+- Never `vid.width` for the drawn size: `viewSize().drawnWidth`.
 
 ## Rendering stays multiview-ready
 
@@ -269,7 +336,15 @@ promote <config>`, `props_data.py promote <config>`, `monsters_data.py promote <
 - **Not a default:** a value code sets at start-up after the cvar's registration looks changed and is saved; set it
   before `host_initialized` (it becomes the default) or leave it out of `CVAR_ARCHIVE`.
 - Check: `Misc/quakevr/config_sparse_test.sh <agent> [full config]` (an old full config loaded, written sparse, read
-  back to the same values from any state; a moved default reaches it; another copy's edits merged).
+  back to the same values from any state; a moved default reaches it; another copy's edits merged; the tracking that
+  decides a write: `vr_config_test tracked` / `trackedit`, below).
+- A menu or console close writes the config only when an archived setting changed since it was read or written
+  (`saveConfigNow`; vr_cvars.cpp `ConfigTrack`, REVIEW_NEXT_2026-11-18.md finding 4). The tracking is read from the file
+  at the config's load only: the close compares each setting where it is (no map of them made: 0.6 ms and no
+  allocations, against 2.5 ms and 6,110 allocations for the old map, `vr_config_test cost`), and a write updates the
+  tracking with what it wrote (`VR_ConfigNoteWrite`, kept by `VR_ConfigWritten` once the file is in place: a failed
+  write leaves the settings counted changed, and the next close writes again). A name that a stand-in and a cvar both
+  have (none today) counts as the stand-in, as the map kept it.
 - **Three tiers** (ROUND23.md, "Settings tiers"). A **player option** (comfort, look, audio, controls, a feature
   switch, anything a test or cfg sets) is a `QVR_CVAR` in `vr_cvars.inc` with a menu row. A **tuning constant** (a
   number tuned once that no player sets) is a `QVR_TUNABLE(name, "default")` in `vr_tunables.inc` plus its row in
@@ -367,7 +442,7 @@ Do not write a local copy (a second `rnd`, `lower`, `trim`, `startsWith`, `appen
 
 | need | helper | where |
 |---|---|---|
-| an offscreen texture + framebuffer made for a size (colour or depth, completeness checked, labelled) | `gfx::RenderTarget` (`ensure(w, h, RenderTargetFormat{...}, name)`, `destroy()`) | `vr_glutil.hpp` |
+| an offscreen texture + framebuffer made for a size (colour or depth, with mipmaps or not, completeness checked, labelled, counted by name for vr_memstats): every one, the canvases, screens and boards `gfx::begin2D` draws into too | `gfx::RenderTarget` (`ensure(w, h, RenderTargetFormat{...}, name)`, `destroy()`) | `vr_glutil.hpp` |
 | an in-world tool panel's push buttons: a button's middle, a hand pressing it, the button under a hand | `toolpanel::Frame`, `Grid`, `buttonCentre`, `pressedBy`, `buttonUnder` | `vr_toolpanel.hpp` |
 | a bounded undo stack (oldest dropped); a tool's feedback line (panel + console) | `toolpanel::pushUndo(stack, max, item)`, `toolpanel::say(line, until, tool, text, seconds)` | `vr_toolpanel.hpp` |
 | a panel image's 2D text and boxes (Quake's font, gold/white, shrunk to fit) | `toolpanel::Rect`, `fill`, `text`, `textFit` | `vr_toolpanel.hpp` |
@@ -376,7 +451,7 @@ Do not write a local copy (a second `rnd`, `lower`, `trim`, `startsWith`, `appen
 | QC functions the engine calls every frame | a `progs::Bindings` member resolved once per map (`bindings().arenaCards.CardSerial`), never `findFunction("...")` per frame | `vr_progs.hpp` |
 | work done at each map load, in order | a row of `prewarmSteps` (vr_main.cpp `VR_NewMap`) | `vr_main.cpp` |
 | a new view entity (hands, weapons, body parts) | a member of `Entities` listed in `Entities::members` at its place in the draw order (`zip(a, b)` for arrays visited per index); `forEachEntity` walks the list, a static_assert fails on a member left out | `vr_view_internal.hpp` |
-| client state reset when the client's state is cleared (a map, a loaded game) | a call in `VR_OnClientClearState`; per-map data rebuilt: compare `worldGeneration()` (with the world pointer) | `vr_client.cpp`, `vr_main.hpp` |
+| state forgotten with the server's world or when the client's state is cleared (a map, a loaded game) | a `mem::Reset` next to the state (`ResetEvent::ServerWorld` / `ClientState`, its phase); per-map data rebuilt: compare `worldGeneration()` (with the world pointer) | `vr_mem.hpp`, `vr_main.hpp` |
 
 ### QC (refactor A4)
 

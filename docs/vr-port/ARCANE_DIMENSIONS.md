@@ -266,7 +266,7 @@ Dimensions" group; AD's own `ad_1_8.fgd` key docs are the source.
 | `T_Damage` with ammo resistance (`resist_shells/nails/rockets/cells`), debuffs, `th_pain(inflictor, attacker, dmg)` | AD's `ad_T_Damage` becomes a thin adapter to **our** `T_Damage` (VR positional damage, wounds, knockdowns), applying AD's resistance when the target has AD fields. Our `th_pain` calls `ad_th_pain` through a shim for AD monsters. |
 | Player state: `.moditems`, upgrades, debuffs, jump boots, ladders, grapple, map variables, 7 spawn locations | Mapped onto our player. Upgrades are weapon variants (section 8). Ladders use our VR climbing. AD's grapple is our `WID_GRAPPLE`. Map variables move to `parm57..72`. |
 | `engine`/`ext_*` globals, `configflag`, `temp1`/`scratch*` cvars | The bridge sets them (`ENG_FITZ`, sprites off or reduced). Settings become VR menu options in an "Arcane Dimensions" page, not cvars AD writes. No `cvar_set` on player cvars. |
-| stuffcmd `fog`, `r_skyfog`, `sky`, `bf`, `v_cshift` | MG fog (`vr_mg_fog.qc`) for fog, a sky message for `trigger_skybox`, our bonus flash/cshift helpers |
+| stuffcmd `fog`, `r_skyfog`, `sky`, `bf`, `v_cshift` | MG fog (`vr_fog.qc`) for fog, a sky message for `trigger_skybox`, our bonus flash/cshift helpers |
 | AD gibs, blood, explosions, particles | Our gib/decal/debris/explosion systems (EXPLOSION_AND_FIRE_EFFECTS.md). AD's material gibs map to ours. |
 | AD's `monster_start` (classtype/classgroup/bbox) | Our `walkmonster_start`/`flymonster_start`/`swimmonster_start` plus a per-archetype VR registration (MG3 Phase D: hit zones, decap head, ragdoll seeds, hulls, parry, knockdown, grapple, gibs, dummy) |
 | Chaos mode / evil mode | Off (decision 6: an optional P4 task) |
@@ -670,7 +670,11 @@ from Ironwail. Anything in shared engine or QC code carries a clear `// AD suppo
     `python Misc/quakevr/ad_import.py --release <dir> --check` (writes to `scratch/ad_check`, diffs it against
     `QC/ad/` and `progs.src`; must say `0 of N files differ`). The Steam copy of AD 1.80p1
     (`steamapps/common/Quake/ad`) holds the pinned paks and works as `--release` (read only). The 2026-10-16 cleanup
-    moved the earlier hand edits (melee arc, melee space, AD guns' effects, toolgun live torches) into the importer.
+    moved the earlier hand edits (melee arc, melee space, AD guns' effects, toolgun live torches) into the importer;
+    the 2026-11-19 one (Copper's import) moved 17 files' later hand edits (leap deaths, Melee Only, the knights' bolt
+    speed, the rocket soldier's tube effects, lightning on water, no blood on non-flesh, the axe-hit voice).
+  - Since 2026-11-19 the import itself is `Misc/quakevr/qc_import.py`, shared with Copper's (`copper_import.py`,
+    `QC/copper/`, DWELL.md 9.1); `ad_import.py` is AD's configuration on it, and its output is unchanged.
 - `QC/vr_ad_bridge.qc` holds the two switches, `VR_Pack_AD()` and `AD_Rules()`. Both return FALSE until P1b.
 - CREDITS.md credits AD's QC (GPL-2.0-or-later).
 
@@ -810,7 +814,7 @@ files). `ad_import.py` applies 8 reviewed bridge patches to AD's code (listed in
 | Area | In an AD map |
 |---|---|
 | World | AD's world setup after ours (`ad_worldspawn`: precaches, body queue, light-style/pendulum/map-variable arrays, gravity and fall rules, the particle chain), AD's frame (`ad_StartFrame`). AD's engine detection answers Fitz (sprite particles, no CSQC). |
-| Fog | AD's fog controller by `svc_fog` (MG's `MG_SetFog`); AD's stuffed fog and sky-fog commands are not sent. |
+| Fog | AD's fog controller by `svc_fog` (MG's `VR_Fog_Set`); AD's stuffed fog and sky-fog commands are not sent. |
 | Damage | Quake VR's `T_Damage` for the player and our monsters, also when AD's code deals it (`VR_AD_DamageOurs`; AD's NOARMOR kept); AD's `T_Damage` for AD's entities, also when ours deals it (`AD_Damage`: our damage multipliers, sneak attacks, the motion log, melee bloodlust), with our hit hooks on AD's monsters (`VR_AD_Hit`: damage numbers, gore, small gibs, wounds) (decision 14). |
 | Player | What AD's code reads of a player (class, entity state, AD's powerups and debuffs reset); AD's spawn points (`info_player_start2` by an exit's `startspawn2`, the hub's returns) and the spawn point's targets; ladders (`trigger_ladder`: VR grips actual rungs; keyboard climbing only without tracked hands); AD's fall rules (decision 15: the map's fall speeds and damage); AD's debuffs (poison, burning, bleeding) ticked; AD's megahealth rot (decision 15: one rot whatever the megahealths). |
 | Levels | AD's state in parm57..72 (map variables, upgrades); the worldspawn inventory keys (`reset_health`, `max_health`, `ammo_*`, `currentammo`, `armortype`/`armorvalue`) at a level's start; the hub keeps the inventory (AD resets it only when all runes are found); exits: no map key = this map, `ad_tears`' exits go to the hub (AD's own hack), STARTOFF until triggered, AD's on-exit rules (debuffs and AD powerups end, `mapvar_update`, `startspawn2`, RESETINV). |

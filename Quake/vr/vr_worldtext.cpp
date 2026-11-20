@@ -2,6 +2,7 @@
 
 #include "vr_worldtext.hpp"
 #include "vr_arenacards.hpp"
+#include "vr_mem.hpp"
 #include "vr_waveeditor.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
@@ -145,6 +146,12 @@ void serverReset()
     serverTexts.clear();
 }
 
+namespace
+{
+// Forgotten with the server's world (vr_mem.hpp's resets): the texts the server sent.
+mem::Reset serverWorldReset{"worldtext", mem::ResetEvent::ServerWorld, mem::ResetPhase::State, &serverReset};
+} // namespace
+
 int serverMake()
 {
     if(serverTexts.size() >= maxWorldTexts)
@@ -267,6 +274,12 @@ void clientReset()
     viewMessage = ViewMessage{};
     clientListGeneration = clientListGeneration == ~0u ? 1u : clientListGeneration + 1u;
 }
+
+namespace
+{
+// Forgotten when the client's state is cleared (vr_mem.hpp's resets): the texts received.
+mem::Reset clientStateReset{"worldtext", mem::ResetEvent::ClientState, mem::ResetPhase::State, &clientReset};
+} // namespace
 
 unsigned clientGeneration()
 {

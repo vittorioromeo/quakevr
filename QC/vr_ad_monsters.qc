@@ -553,7 +553,7 @@ void(entity e, entity by) VR_AD_ZombieKilled =
 // as a beheaded one: VR_AD_ZombieKilled). FALSE: not one of AD's (Quake VR's Killed).
 float(entity e, entity by) VR_AD_NeckSnapKilled =
 {
-    if(!e.vr_ad_mon)
+    if(!VR_AD_Code(e))
     {
         return FALSE;
     }
@@ -570,7 +570,7 @@ float(entity e, entity by) VR_AD_NeckSnapKilled =
 
 float(entity e) VR_AD_IsRunning =
 {
-    return e.vr_ad_mon && e.ad_th_run && e.think == e.ad_th_run;
+    return VR_AD_Code(e) && e.ad_th_run && e.think == e.ad_th_run;
 };
 
 void() VR_AD_RunNow =

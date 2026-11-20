@@ -430,6 +430,7 @@ typedef struct download_s
 	   one was refused (the VR map library: vr/vr_slipseer.cpp, vr/vr_mapinstall.cpp). */
 	qboolean		refuse_local;
 	qboolean		refused_local;
+	qboolean		refused_offhost; // QVR: (B24, tests) -loopbackonly refused a connection off this machine
 } download_t;
 
 qboolean			Download (const char *url, download_t *download);
@@ -478,6 +479,7 @@ void Host_Quit_f (void);
 void Host_ClientCommands (const char *fmt, ...) FUNC_PRINTF(1,2);
 void Host_ShutdownServer (qboolean crash);
 qboolean Host_WriteConfiguration (void); // QVR: true when the config and tunables.cfg are on disk as they are now
+qboolean Host_WriteConfigurationToFile (const char *name); // QVR: one config file (vr_config_test: the game folder's, failing on purpose)
 void Host_Resetdemos (void);
 
 void Host_SavegameComment (char text[SAVEGAME_COMMENT_LENGTH + 1]);

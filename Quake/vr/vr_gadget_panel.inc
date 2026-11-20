@@ -26,7 +26,7 @@ enum PanelShow : int // (QC's AR_BANNER_SHOW_*)
 // Its one image and what is in it.
 struct PanelBoard
 {
-    gfx::Target target;
+    gfx::RenderTarget target;
     int width{0}; // of its image, 0 before it is drawn
     za::String drawn;
     glm::vec3 drawnValue{-1.f}, drawnLine{-1.f}; // the palette it was drawn in
@@ -152,7 +152,7 @@ void drawPanelBoard(const char* text)
 {
     const Palette pal = panelBoardPalette();
     const int style = fontstyle::generation(fontstyle::Surface::Gadget);
-    if(panelBoard.width > 0 && panelBoard.target.texture && panelBoard.drawn == text && panelBoard.drawnValue == pal.value &&
+    if(panelBoard.width > 0 && panelBoard.target.tex && panelBoard.drawn == text && panelBoard.drawnValue == pal.value &&
         panelBoard.drawnLine == pal.line && panelBoard.drawnFont == style)
     {
         return;
@@ -164,7 +164,11 @@ void drawPanelBoard(const char* text)
     }
     QVR_GPU_PROFILE("panel board");
     const fontstyle::Use font{fontstyle::Surface::Gadget};
-    gfx::ensureTarget(panelBoard.target, worldtext::panelWidth * panelTexels, worldtext::panelHeight * panelTexels, true, "panel board");
+    if(!panelBoard.target.ensure(worldtext::panelWidth * panelTexels, worldtext::panelHeight * panelTexels, gfx::RenderTargetFormat{.mipmaps = true, .fboName = "vr canvas"}, "panel board"))
+    {
+        Con_Warning("VR: the panel board's framebuffer is incomplete\n");
+        return;
+    }
     gfx::begin2D(panelBoard.target, worldtext::panelWidth, worldtext::panelHeight);
     panelLayout(s, pal);
     gfx::end2D();
@@ -180,9 +184,9 @@ void drawPanelBoard(const char* text)
 {
     if(what == 2)
     {
-        return panelBoard.width > 0 && panelBoard.target.texture ? 1.f : 0.f;
+        return panelBoard.width > 0 && panelBoard.target.tex ? 1.f : 0.f;
     }
-    if(panelBoard.width <= 0 || !panelBoard.target.framebuffer || panelBoard.drawn != text)
+    if(panelBoard.width <= 0 || !panelBoard.target.fbo || panelBoard.drawn != text)
     {
         return -1.f;
     }
@@ -190,7 +194,7 @@ void drawPanelBoard(const char* text)
     za::Vector<byte> rgba(static_cast<za::SizeT>(width) * height * 4);
     GLint previous = 0;
     glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &previous);
-    GL_BindFramebufferFunc(GL_READ_FRAMEBUFFER, panelBoard.target.framebuffer);
+    GL_BindFramebufferFunc(GL_READ_FRAMEBUFFER, panelBoard.target.fbo);
     glReadPixels(0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, rgba.data());
     GL_BindFramebufferFunc(GL_READ_FRAMEBUFFER, static_cast<GLuint>(previous));
 

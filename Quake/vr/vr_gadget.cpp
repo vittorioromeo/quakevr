@@ -21,6 +21,7 @@
 #include "vr_bullettime.hpp"
 #include "vr_color.hpp"
 #include "vr_gfx.hpp"
+#include "vr_glutil.hpp"
 #include "vr_hue.hpp"
 #include "vr_engine.hpp"
 #include "vr_cvars.hpp"
@@ -82,7 +83,7 @@ constexpr int width = 240;  // the virtual screen, and the texture's size (at tw
 constexpr int height = 150;
 
 Pose current;
-gfx::Target target;
+gfx::RenderTarget target;
 
 // The log's shape: characters a line, lines at most, seconds a line fades out over.
 constexpr int logColumns = 40;
@@ -452,6 +453,7 @@ struct Readout
     int adArt[2]{0, 0}; // AD support: the AD page's: each artifact's seconds left (STAT_QVR_ADART1, ADART2: 8 bits each)
     int adDebuff{0};    // the poison and bleeding still to come, the burning's seconds (STAT_QVR_ADDEBUFF)
     int adUp{0};        // the carried weapons' upgrades (STAT_QVR_ADUPGRADES: 3 bits a weapon)
+    int dwPower{0};     // Dwell support: Haste's, Berserk's, the Wetsuit's seconds left (STAT_QVR_DWPOWER: 8 bits each)
 };
 
 // QC's ammo type (AID_*: vr_defs.qc) as the picture of its kind (-1 none); Rogue's lava nails, multi-rockets and plasma
@@ -502,6 +504,7 @@ struct Readout
     r.adArt[1] = cl.stats[protocol::STAT_QVR_ADART2];
     r.adDebuff = cl.stats[protocol::STAT_QVR_ADDEBUFF];
     r.adUp = cl.stats[protocol::STAT_QVR_ADUPGRADES];
+    r.dwPower = cl.stats[protocol::STAT_QVR_DWPOWER];
 
     switch(static_cast<int>(vr_gadget_test_state.value))
     {
@@ -578,6 +581,7 @@ struct Readout
             r.adArt[1] = 12 | (45 << 8) | (90 << 16);
             r.adDebuff = 18 | (6 << 8) | (3 << 16);
             r.adUp = 1 | (4 << 3) | (2 << 15) | (2 << 6);
+            r.dwPower = 12 | (3 << 16); // (Dwell support: Haste 12 s, the Wetsuit running out)
             break;
         default: break;
     }
@@ -851,6 +855,17 @@ void infoRows(const Readout& r, const Palette& pal)
     {
         const int pic = adKeyPic(r, k);
         if(pic >= 0) { add(pic, nullptr, pal.label); }
+    }
+    // Dwell support: Dwell's powerups (no icons of their own: Dwell draws them in its CSQC), named with their seconds
+    // left, as the powerups in use; blinking in their last 3 s (their "wearing off" print).
+    constexpr const char* dwNames[3] = {"HASTE", "BERSERK", "WETSUIT"};
+    char dwText[3][16] = {};
+    for(int k = 0; k < 3; k++)
+    {
+        const int secs = (r.dwPower >> (8 * k)) & 255;
+        if(secs <= 0) { continue; }
+        q_snprintf(dwText[k], sizeof(dwText[k]), "%s %d", dwNames[k], secs);
+        add(-1, dwText[k], secs <= 3 ? blinking(pal.value) : pal.value);
     }
     constexpr const char* debuffs[3] = {"BURN", "POISON", "BLEED"};
     for(int d = 0; d < 3; d++)
@@ -1220,7 +1235,7 @@ void setPose(const Pose& pose)
     if((realtime - lastChime < 3.0 || realtime - tapFx.soundAt < 1.0) && pose.valid)
     {
         const glm::vec3 c = screenCentre();
-        S_MixJoin(); // (the pool's mix done first: S_MixKick)
+        S_MixJoin(); // (a read of the channels on the main thread: the pool's mix done first, S_MixKick)
         for(int i = NUM_AMBIENTS; i < total_channels && i < NUM_AMBIENTS + MAX_DYNAMIC_CHANNELS; i++)
         {
             channel_t& ch = snd_channels[i];
@@ -1407,10 +1422,17 @@ void renderScreen()
 
     if(!doom::onGadget()) // (Doom shows instead: the HUD isn't drawn)
     {
-        gfx::ensureTarget(target, width * 2, height * 2, true, "gadget screen"); // mipmaps: for its text's glow
-        gfx::begin2D(target, width, height);
-        layout();
-        gfx::end2D();
+        // (mipmaps: for its text's glow)
+        if(target.ensure(width * 2, height * 2, gfx::RenderTargetFormat{.mipmaps = true, .fboName = "vr canvas"}, "gadget screen"))
+        {
+            gfx::begin2D(target, width, height);
+            layout();
+            gfx::end2D();
+        }
+        else
+        {
+            Con_Warning("VR: the gadget screen's framebuffer is incomplete\n");
+        }
     }
     renderHologram();
     renderFps();
@@ -1448,7 +1470,7 @@ VisorImage visorImage(int panel)
     {
         return out;
     }
-    out.texture = visor.targets[panel].texture;
+    out.texture = visor.targets[panel].tex;
     out.size = panel == VisorCenter ? visor.centerSize : glm::vec2{visorSizes[panel][0], visorSizes[panel][1]};
     out.shown = visor.shown[panel] && out.texture != 0;
     out.version = visor.versions[panel];
@@ -1491,7 +1513,7 @@ void drawScreen()
     doom::drawPanel(); // (vr_doom_panel: Doom's floating panel)
     // Doom open on the gadget (vr_doom): its picture instead of the HUD's.
     const gfx::Texture doomTexture = doom::onGadget() ? doom::gadgetTexture() : 0;
-    if(!active() || !current.valid || (!target.texture && !doomTexture))
+    if(!active() || !current.valid || (!target.tex && !doomTexture))
     {
         return;
     }
@@ -1541,7 +1563,7 @@ void drawScreen()
         {.shade = gfx::Shade::Screen, .blend = gfx::Blend::Opaque, .depthTest = true, .depthWrite = true,
             .params = {time, k, g, textGlow()},
             .screen = {width, height, 0.5f}, .trueColor = true, .flatModelFov = true},
-        target.texture);
+        target.tex);
 }
 
 void renderPanelBoard(const char* text)
@@ -1556,16 +1578,16 @@ void releasePanelBoard()
         panelCommandRegistered = true;
         Cmd_AddCommand("vr_panelboard_dump", panelBoardDump_f);
     }
-    if(panelBoard.target.texture)
+    if(panelBoard.target.tex)
     {
-        gfx::releaseTarget(panelBoard.target);
+        panelBoard.target.destroy();
     }
     panelBoard.width = 0;
 }
 
 unsigned panelBoardTexture()
 {
-    return panelBoard.width > 0 ? panelBoard.target.texture : 0;
+    return panelBoard.width > 0 ? panelBoard.target.tex : 0;
 }
 
 glm::vec3 panelBoardPhosphor()
@@ -1596,7 +1618,7 @@ namespace
     }
     // 4: its block in the image (white on black).
     auto block = za::findIf(holoDrawn.begin(), holoDrawn.end(), [&](const HoloBlock& b) { return b.text == it->text; });
-    if(block == holoDrawn.end() || !holoTarget.framebuffer)
+    if(block == holoDrawn.end() || !holoTarget.fbo)
     {
         return -1.f;
     }
@@ -1610,7 +1632,7 @@ namespace
     za::Vector<byte> rgba(static_cast<za::SizeT>(width) * (y1 - y0) * 4);
     GLint previous = 0;
     glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &previous);
-    GL_BindFramebufferFunc(GL_READ_FRAMEBUFFER, holoTarget.framebuffer);
+    GL_BindFramebufferFunc(GL_READ_FRAMEBUFFER, holoTarget.fbo);
     glReadPixels(0, y0, width, y1 - y0, GL_RGBA, GL_UNSIGNED_BYTE, rgba.data());
     GL_BindFramebufferFunc(GL_READ_FRAMEBUFFER, static_cast<GLuint>(previous));
     za::SizeT inked = 0;
@@ -1660,7 +1682,7 @@ bool screenGlow(Glow& out)
 {
     const float k = CLAMP(0.f, vr_screen_glow.value, 3.f) * gearlights::light(); // (dimmed: the gear lights)
     const float bright = CLAMP(0.f, vr_gadget_screen_brightness.value, 2.f);
-    if(k <= 0.f || bright <= 0.f || !active() || !current.valid || !target.texture)
+    if(k <= 0.f || bright <= 0.f || !active() || !current.valid || !target.tex)
     {
         return false;
     }
@@ -1779,7 +1801,7 @@ void drawHologram()
     gfx::draw(holo.text, viewProjection,
         {.shade = gfx::Shade::Hologram, .blend = gfx::Blend::Premultiplied, .depthTest = false, .depthWrite = false,
             .params = holo.params, .screen = {holoWidth, holoHeight, 0.5f}, .flatModelFov = true},
-        holoTarget.texture);
+        holoTarget.tex);
 }
 
 namespace
@@ -1852,9 +1874,9 @@ void gadgetInfo_f()
 }
 
 // vr_gadget_screen_dump [name]: the screen's image as drawn this frame (before the CRT and the glow), flat, to screenshots/<name>.png (default gadget_screen), for tests.
-void dumpTarget(const gfx::Target& target, const char* command, const char* fallbackName)
+void dumpTarget(const gfx::RenderTarget& target, const char* command, const char* fallbackName)
 {
-    if(!target.texture || !target.framebuffer)
+    if(!target.tex || !target.fbo)
     {
         Con_Printf("%s: no screen yet\n", command);
         return;
@@ -1864,7 +1886,7 @@ void dumpTarget(const gfx::Target& target, const char* command, const char* fall
     za::Vector<byte> rgb(static_cast<za::SizeT>(w) * h * 3);
     GLint previous = 0;
     glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &previous);
-    GL_BindFramebufferFunc(GL_READ_FRAMEBUFFER, target.framebuffer);
+    GL_BindFramebufferFunc(GL_READ_FRAMEBUFFER, target.fbo);
     glReadPixels(0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, rgba.data());
     GL_BindFramebufferFunc(GL_READ_FRAMEBUFFER, static_cast<GLuint>(previous));
     for(za::SizeT p = 0; p < static_cast<za::SizeT>(w) * h; p++)

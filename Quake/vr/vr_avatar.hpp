@@ -12,8 +12,10 @@
 
 #pragma once
 
+#include "vr_bodycal.hpp" // bodycal::Arms
 #include "vr_engine.hpp" // qmodel_t, entity_t
 #include "vr_hands.hpp"
+#include "vr_units.hpp"
 #include "Zancle/Container/Vector.hpp"
 
 namespace qvr::avatar
@@ -245,8 +247,44 @@ struct Skeleton
     float sole[2]{0.f, 0.f};                          // the ankle's height over the sole, world units
     unsigned steps[2]{0u, 0u}; // each foot's touchdowns so far: the walk's swings ending, the standing steps (counting up)
     glm::vec3 head{0.f};       // the head it was posed under (hands::State::head)
+    glm::vec3 headJoint{0.f};  // the head bone as posed (the skull's base)
+    glm::vec3 pelvis{0.f};     // the pelvis as posed
 };
 [[nodiscard]] bool skeleton(Skeleton& out);
+
+// Another player's body (MP_PLAN.md, B2d; vr_mpavatar.cpp draws them): posed by pose()'s own code from his avatar (his
+// head, the hands as his client drew them), sized by his calibration, with its own motion (feet, gait, the arms' easing)
+// kept per player. What pose() reads of the local player is his instead:
+struct Subject
+{
+    float metresToUnits{units::perMetre};   // his world scale's (units::metresToUnits)
+    float eyeHeight{units::modelEyeHeight}; // metres (units::eyeHeight: his Height)
+    float armLength{1.f};                   // his vr_body_arm_length
+    bodycal::Arms arms{bodycal::defaultArms()}; // his arms' measurements, tweaks and shoulders (his calibration's)
+    glm::vec3 velocity{0.f};                // his entity's, world units a second
+    bool onGround{true};
+    bool lying{false};                      // the server has him lying down (his lying box: vr_prone)
+    int waterlevel{0};                      // Quake's, the server's (3: under; swimming off the ground)
+    bool holds[2]{};                        // [0] off hand, [1] main: holds a ledge (the server's: climb::serverHold)
+    glm::vec3 holdAt[2]{};                  // ... where (world), and the way out from its face (horizontal)
+    glm::vec3 holdOut[2]{};
+    int player{0};                          // his entity (a listen host's foothold traces pass his own box by)
+    bool seated{false};                     // he plays seated (posed as his own seated body: no leg fit; B6b)
+};
+// `player`: 1 .. MAX_SCOREBOARD. Returns the entity origin (the pelvis), as pose(). His swimming, lying down and climbing
+// as the server has him (Subject::lying, waterlevel, onGround: the body's pitch; Subject::holds: the trunk hanging under
+// the head, the feet on footholds -- found on a listen host, hanging on a client of another server, which has no world to
+// trace: MP_PLAN.md, B5c). His arms are his calibration's (Subject::arms: measured, tweaked, shoulders).
+glm::vec3 poseOther(int player, const Subject& who, const hands::State& s, qmodel_t* model, const entity_t* ent,
+    const HandPose handPoses[2]);
+// Player `player`'s body as posed this frame (false: not posed this frame), and its shoulders (the pauldrons).
+[[nodiscard]] bool otherSkeleton(int player, Skeleton& out);
+// Player `player`'s body's pitch as posed this frame (degrees forward; lying: 0 .. 1 how far laid down), false: not posed.
+[[nodiscard]] bool otherPitch(int player, float& angle, float& lying);
+// Player `player`'s body's climbing as posed this frame or the last (0 .. 1: the hanging trunk's and the feet's weight),
+// false: not posed.
+[[nodiscard]] bool otherClimb(int player, float& weight);
+[[nodiscard]] bool otherShoulder(int player, int side, Shoulder& out);
 // The same body carried by the head's move since it was posed, to under `head` (this frame's hands::State::head): for
 // what is placed before this frame's body is posed (flatplay::drawnOffset's arm hold, flatsight's helping hand). The body
 // as drawn is a frame old there, and a frame's move (a slide at 400 u/s, a long frame) is units: a frame-time-dependent

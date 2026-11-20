@@ -402,6 +402,10 @@ za::Vector<Item> pageDebugTests()
         command("Arcane Dimensions: Upgraded Weapon Models", "vr_adweapon_models") // AD support
             .help("The Shadow Axe, Widowmaker and Plasma Gun as made from AD's models: each one's triangles and box, then "
                   "\"N made, M not made\" (not made: a stand-in drawn instead, a bug; without AD's data: none made)."),
+        command("Arcane Dimensions and Dwell: Write Made Weapon Models", "vr_adweapon_models write") // Dwell support
+            .help("As above, and each made model (AD's three, Dwell's three) written to the game folder as "
+                  "made_<name>.mdl, for Misc/quakevr/check_mdl_holes.py and a look in a model viewer. Never share them: "
+                  "they are made from the mods' own files."),
         adSpawnRow(310, command("Arcane Dimensions: Widowmaker Tube Test", "vr_ad_test 149")) // AD support
             .help("The Widowmaker in your off hand, empty, your main hand free: handfuls from your pouch brought to its "
                   "shell port (the receiver's inner side) fill its tube, then a held trigger fires it full auto for two "
@@ -682,6 +686,40 @@ za::Vector<Item> pageDebugTests()
             .help("vr_pd_test 1 (God mode off): the shotgun in your main hand, a grunt's blast across it knocks it out "
                   "(chance forced certain): it drops to the floor with its clip; a blast across your body, an enforcer's "
                   "laser across the gun (knocked out), the option off (never). In a headset, hold your gun out ahead."),
+        command("Deathmatch Rules: Weapons and Bots", "developer 1; vr_dm_test 1")
+            .help("vr_dm_test 1, in a deathmatch with a bot (impulse 100): a weapon pickup the bot touches is gone and back "
+                  "after its wait (deathmatch 1) or stays (deathmatch 2), the bot's let-go weapon removed; your shot "
+                  "across the bot's weapon knocks it out (PvP), a monster's only with You Can Be Disarmed, the bot's "
+                  "across yours knocks yours out."),
+        command("Deathmatch: Parry a Bot's Swing", "developer 1; vr_dm_test 3")
+            .help("vr_dm_test 3, in a deathmatch with a bot (impulse 100): the bot is held in front of you with a sword and "
+                  "swings it, its hand across its front; hold your crowbar (given) upright on your left, across its way: "
+                  "parried, no damage. vr_dm_test 2: the same with your crowbar at your side: the blow lands."),
+        command("Deathmatch: A Bot Punches You", "developer 1; vr_dm_test 4")
+            .help("vr_dm_test 4, in a deathmatch with a bot (impulse 100): the bot is held in front of you and punches you "
+                  "with its empty off hand, its fist struck by the melee's sweep as a player's punch."),
+        command("Deathmatch: A Bot Takes a Gun by Hand", "developer 1; vr_dm_test 5")
+            .help("vr_dm_test 5, in a deathmatch with a bot (impulse 100): a nailgun is laid in front of the bot; its open "
+                  "off hand goes to it and closes on it, the hand's touch takes it."),
+        command("Deathmatch: A Bot Grabs Your Gun", "developer 1; vr_dm_test 6")
+            .help("vr_dm_test 6, in a deathmatch with a bot (impulse 100), PvP disarms on for it: hold the shotgun given "
+                  "into your main hand (grip held) still; the bot's off hand closes on it and pulls it away."),
+        command("Deathmatch: Gib and Weapon Caps", "developer 1; vr_dm_test 7")
+            .help("vr_dm_test 7, in a deathmatch with a bot (impulse 100): 8 gibs and 5 shotguns laid in front of you under "
+                  "caps of 4 and 3 (vr_dm_gibs_max, vr_dm_weapons_max): out of deathmatch all stay; in it the oldest go."),
+        command("Deathmatch: Respawn Beside a Taken Start", "developer 1; vr_dm_test 8")
+            .help("vr_dm_test 8, in a deathmatch with a bot (impulse 100): you are put on the only start counted and the bot "
+                  "respawned: it comes in beside the start, nobody telefragged."),
+        command("Deathmatch: A Bot Parries a Bot", "developer 1; vr_dm_test 9")
+            .help("vr_dm_test 9, in a deathmatch with two bots (impulse 100 twice): one bot swings its sword at the other "
+                  "(a flat-screen player's overhead swing); the other raises its guard in time and parries it (its parry "
+                  "chance 100), then with its chance 0 the blow lands."),
+        command("Deathmatch: A Bot Dual Wields", "developer 1; vr_dm_test 10")
+            .help("vr_dm_test 10, in a deathmatch with a bot (impulse 100): the bot is given a nailgun and a super nailgun "
+                  "and held in front of you: its off hand takes the second gun and it fires both at you."),
+        command("Co-op: A Bot Fights Beside You", "developer 1; vr_dm_test 11")
+            .help("vr_dm_test 11, in a co-op game with a bot (Add Co-op Bot) on a map with grunts (e1m1): a grunt is "
+                  "brought in front of the bot, which kills it and never takes a player for its enemy."),
         command("Player Disarm: Melee on Your Gun", "developer 1; vr_pd_test 2")
             .help("vr_pd_test 2 (God mode off): a grunt with a gun and an axe, then one with an axe alone, swing at you "
                   "holding the shotgun out, 4 blows each: every blow held back for your weapon near its way ends, the "

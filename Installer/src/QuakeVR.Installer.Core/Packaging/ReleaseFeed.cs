@@ -114,11 +114,27 @@ public static class BuiltInComponents
         ],
     };
 
+    /// <summary>Dwell v2.2, the Dwell team's unmodified release, from Quaddicted only (Quake VR never hosts or mirrors it):
+    /// the content-addressed copy first, then the filebase (DWELL.md section 7; pinned in support_assets.json's
+    /// <c>thirdParty</c> too).</summary>
+    public static FeedFile Dwell() => new()
+    {
+        File = "dwellv2p2.zip",
+        Size = 384_629_995,
+        Sha256 = "15bbc5dc0eb3fee5763835cea1aa62ab263545ca8c04aaa019982d45d1e8d11d",
+        Urls =
+        [
+            "https://www.quaddicted.com/files/by-sha256/15/15bbc5dc0eb3fee5763835cea1aa62ab263545ca8c04aaa019982d45d1e8d11d/dwellv2p2.zip",
+            "https://www.quaddicted.com/filebase/dwellv2p2.zip",
+        ],
+    };
+
     /// <summary>Every built-in component by its feed name (new copies: a caller may change them).</summary>
     public static Dictionary<string, FeedFile> All() => new(StringComparer.OrdinalIgnoreCase)
     {
         [Components.HdTextures] = HdTextures(),
         [Components.ArcaneDimensions] = ArcaneDimensions(),
+        [Components.Dwell] = Dwell(),
     };
 }
 

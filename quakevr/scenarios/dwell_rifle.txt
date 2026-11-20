@@ -1,0 +1,10 @@
+# dwell_rifle: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Dwell's Rifle in the right hand
+# (vr_ad_test 208: its VR model made from Dwell's, DWELL.md 9.6), our shotgun in the left to compare. Needs Dwell
+# installed.
+title Dwell's Rifle: its ammo screen housing, grip and muzzle
+map vrtesthall
+god
+notarget
+give "Shotgun" off
+cmd vr_ad_test 208
+hint Right hand: the Rifle. On its butt, behind your hand, the ammo screen sits in a brass bezel with a brass nut each side, readable as you aim. Hold the grip: the trigger guard under the stock, the trigger under your finger. Fire and reload: the shot leaves the shroud's front, the screen counts. Left hand: our shotgun to compare. Tune it in Weapon Offsets (slot 55): your values become the defaults.

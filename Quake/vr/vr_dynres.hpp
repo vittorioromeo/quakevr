@@ -4,8 +4,12 @@
 // The eyes' GPU time (the always-on phases' timestamps, `eye L` + `eye R`: the scene, shadow maps, post-processing, the
 // upscale and the UI; read back 2-5 frames late) is compared with a budget, vr_dynres_target of the headset's display
 // period. The scale moves between vr_dynres_min and its ceiling (vr_dynres_max; below 0, the default: Render Scale, so a
-// GPU with headroom renders exactly as without it) in buckets of 0.05 down from the ceiling: the eyes' targets are
-// remade only when the bucket changes (as moving the Render Scale slider remakes them). Each frame's time is read
+// GPU with headroom renders exactly as without it) in buckets of 0.05 down from the ceiling. The eyes' targets (and
+// what is sized by them: the resample target, the glow's chain, TAA's history, the particles', the haze's copies) are
+// allocated once at the ceiling (allocationScale) and a bucket draws their bottom left part (stereo::ViewSize: every pass
+// reads its drawn size and keeps to it), so a step makes nothing again, in the frame that is over budget; only the
+// ceiling's own change (vr_dynres_max, Render Scale, turning it on or off) does (as moving the Render Scale slider remakes
+// them). The ceiling's memory is held throughout, also while the bucket is lower. Each frame's time is read
 // against the scale that frame was drawn at (pixels go with its square), so the latency does not make it overshoot.
 // Down is fast: two frames in a row over the budget drop it at once to the bucket that fits, as far as needed. Up is
 // slow: one bucket at a time, only once the slower average says the next one fits within 85 % of the budget, a second
@@ -19,6 +23,18 @@ namespace qvr::dynres
 
 // The scale the eyes are drawn at this frame (vr_render_scale's when off or not in VR), within 0.25..2.
 [[nodiscard]] float scale();
+
+// The scale the eyes' targets are allocated at: the ceiling while on (scale() is never above it), else scale(). A
+// bucket change draws a smaller or larger part of the same targets (stereo::ViewSize); only the ceiling's own change
+// (vr_dynres_max, Render Scale) or turning it on or off makes them again.
+[[nodiscard]] float allocationScale();
+
+// How many times the bucket changed so far (the tests').
+[[nodiscard]] int changes();
+
+// An eye's size at `scale` for an eye image of `image` pixels (a side), within `max` (0: none) and at least 16:
+// scaledEyeSize's (vr_backend.hpp) at scale(), the eyes' targets' at allocationScale().
+[[nodiscard]] int eyeSize(int image, int max, float scale);
 
 // At a frame's eyes (VR_RenderView): notes the scale this frame is drawn at (its frame serial, profile.cpp's).
 void beginFrame();

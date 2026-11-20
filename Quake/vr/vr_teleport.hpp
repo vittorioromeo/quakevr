@@ -21,4 +21,14 @@ void init(); // registers +teleport/-teleport, vr_teleport_both_test
 // go (back to the middle: the teleport, onto a valid spot); `cancel`: pulled back, no teleport.
 void stickAim(int hand, bool held, bool cancel);
 
+// The aim now (vr_mp_status's "mp_teleport:" line): aiming, onto a valid spot, where; teleports sent so far.
+struct Status
+{
+    bool aiming{false};
+    bool valid{false};
+    glm::vec3 impact{0.f};
+    int sent{0};
+};
+[[nodiscard]] Status status();
+
 } // namespace qvr::teleport

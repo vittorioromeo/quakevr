@@ -83,6 +83,7 @@ void M_VRKeyCapture (qboolean on);	// QVR: a VR page's key row waits for a key (
 qboolean M_WantsConsole (float *alpha);
 qboolean M_ForcedCenterPrint (float *alpha);
 qboolean M_ForcedUnderwater (void);
+void M_ServerLost (const char *reason);	// QVR: (B16) the server browser opened with why the game ended (a vanished server: cl_main.c)
 void M_ToggleMenu_f (void);
 
 void M_RefreshMods (void);

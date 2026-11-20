@@ -426,7 +426,7 @@ void() VR_Revolver_TestFrame =
         return;
     }
     float s = vr_rvt_step;
-    if(s == 1 && time < readytime)
+    if(s == 1 && time < vr_rvt_player.vr_readytime)
     {
         vr_rvt_frames = 0; // (the player not ready yet after spawning: its guns don't fire)
     }

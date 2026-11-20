@@ -134,7 +134,7 @@ float(entity e, entity xBy, vector xDir, float xImpact, float xDamage, string xW
         e.attack_finished = max(e.attack_finished, time + VR_HST_PAIN_TIME * push);
         self = oldSelf;
     }
-    else if(e.vr_ad_mon && !e.vr_knockdown)
+    else if(VR_AD_Code(e) && !e.vr_knockdown)
     {
         VR_AD_Pain(e, xBy, xDamage, VR_HST_PAIN_TIME * push); // AD support: AD's pain function (vr_ad_monsters.qc)
     }

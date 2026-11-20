@@ -50,7 +50,7 @@ enum class Tool : int
 
 void registerCommands();
 
-// A new world (vr_progs.cpp resetServerWorld): what the tools hold by entity number forgotten.
+// A new world (its mem::Reset, ResetEvent::ServerWorld): what the tools hold by entity number forgotten.
 void reset();
 // An entity removed (vr_builtins.cpp onEdictFree): the tools let go of it.
 void forget(int num);

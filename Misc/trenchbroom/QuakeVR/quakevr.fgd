@@ -3543,6 +3543,1238 @@ on whatever is below its origin (within 128 units), whatever Rocks and Bricks' o
 ]
 
 //
+// Copper: its own entities (they spawn in a map Copper's rules play: DWELL.md)
+//
+
+@PointClass color(76 26 153) size(-10 -10 -8, 10 10 8) =
+	ambient_sound : "From Copper (Lunaran): spawns in a map played by Copper's rules (Copper's and Dwell's maps), or by the toolgun as cu_<classname> there.
+
+specify any ambient sound you want. any at all!
+
+'distance' attenuation range (integer) - defaults to 0, which is the same as other ambient sounds.
+1 = 'idle' - monster idle sound range
+2 = 'normal' - monster bark sound range
+3 = 'none' - loops everywhere forever (don't use this)
+'volume' loudness (0-1), distinct from distance
+
+'noise' wav to play - don't leave off the '.wav'! ambience/ buzz1.wav clicking sparks (ambient_flouro_buzz) comp1.wav bloops and bleeps (ambient_comp_hum) drip1.wav those drips (ambient_drip) drone6.wav deep slipgate throb (ambient_drone) fire1.wav torch crackle (ambient_) fl_hum1.wav flourescent light buzz (ambient_light_buzz) hum1.wav wispy teleporter wind (trigger_teleport sound) suck1.wav deep hollow wind (ambient_suck_wind) swamp1.wav frogs and crickets (ambient_swamp1 or 2) water1.wav eerie swooshing water (waterbrush sound) wind2.wav higher pitched hollow wind (skybrush sound) windfly.wav the wind tunnel air sound"
+[
+	noise(string) : "Sound" :  : "A sound, relative to sound/ (for example misc/secret.wav)."
+]
+
+@SolidClass color(0 128 204) =
+	func_bobbing : "From Copper (Lunaran): spawns in a map played by Copper's rules (Copper's and Dwell's maps), or by the toolgun as cu_<classname> there.
+
+Bobbing platform. Moves in a smooth sine wave. Build at the center of motion, specify 'wait' for the wavelength in seconds and 'distance' for the amplitude (distance from end to end) in units. Trigger to freeze/reactivate.
+
+'angle' set bob axis
+'distance' total distance of bob, will move half this far in either direction
+'pos1'/'pos2' ignore angle/distance and set apex offsets directly
+'wait' wavelength of bob in seconds
+'delay' phase offset to start at (0 = pos1, 0.5 = pos2, 1.0 = back at pos1 again)
+'sounds'
+0) none, or, set your own with 'noise' (stop sound) and 'noise1' (move sound)
+1) ratchet metal
+2) base plat
+
+Spawnflags START_OFF start off CRUSHER don't reverse when blocked STOP_* when triggered off, keep oscillating until reaching the low/high/midpoint and stop there. checking more than one adds eligible stopping places, and the bobber will stop at the first one reached."
+[
+	spawnflags(flags) =
+	[
+		1 : "START OFF" : 0
+		2 : "CRUSHER" : 0
+		4 : "STOP LOW" : 0
+		8 : "STOP MID" : 0
+		16 : "STOP HIGH" : 0
+		128 : "START INVIS" : 0
+	]
+	distance(float) : "Distance" :  : "A distance (units) or an angle (degrees): see the help for this entity."
+	wait(float) : "Wait" :  : "Seconds to wait (before it returns, resets or repeats). -1: never."
+	dmg(integer) : "Damage" :  : "Damage it deals (a mover: to what blocks it)."
+	pos2(string) : "Travel (x y z)" :  : "A vector, in units: see the help for this entity."
+]
+
+@PointClass color(0 128 204) size(-8 -8 -8, 8 8 8) =
+	func_bobbing_point : "From Copper (Lunaran): spawns in a map played by Copper's rules (Copper's and Dwell's maps), or by the toolgun as cu_<classname> there.
+
+Bobbing platform. Moves in a smooth sine wave. Build at the center of motion, specify 'wait' for the wavelength in seconds and 'distance' for the amplitude (distance from end to end) in units. Trigger to freeze/reactivate.
+
+'angle' set bobaxis
+'distance' total distance of bob, will move half this far in either direction
+'pos1'/'pos2' ignore angle/distance and set apex offsets directly
+'wait' wavelength of bob in seconds
+'delay' phase offset to start at (0 = pos1, 0.5 = pos2, 1.0 = back at pos1 again)
+'sounds'
+0) none, or, set your own with 'noise' (stop sound) and 'noise1' (move sound)
+1) ratchet metal
+2) base plat
+
+Spawnflags START_OFF start off CRUSHER don't reverse when blocked STOP_* when triggered off, keep oscillating until reaching the low/high/midpoint and stop there. checking more than one adds eligible stopping places, and the bobber will stop at the first one reached."
+[
+	spawnflags(flags) =
+	[
+		1 : "START OFF" : 0
+		2 : "CRUSHER" : 0
+		4 : "STOP LOW" : 0
+		8 : "STOP MID" : 0
+		16 : "STOP HIGH" : 0
+		128 : "START INVIS" : 0
+	]
+]
+
+@SolidClass color(0 128 204) =
+	func_button_skill : "From Copper (Lunaran): spawns in a map played by Copper's rules (Copper's and Dwell's maps), or by the toolgun as cu_<classname> there.
+
+Special button for selecting skill level. Will always be pressed when the skill corresponding to the chosen spawnflag is set. Changes its state automatically when other skill buttons are pressed, when trigger_setskills are touched, or when skill is changed live at the console.
+
+'message' override message printed to clients when button is touched or used (or use SILENT spawnflag for no message)
+'angle' determines the opening direction
+'target' all entities with a matching targetname will be used
+'speed' override the default 40 speed
+'wait' override the default 1 second wait (-1 = never return)
+'lip' override the default 4 pixel lip remaining at end of move
+'health' if set, the button must be killed instead of touched
+'sounds'
+0) steam metal
+1) wooden clunk
+2) metallic click
+3) in-out
+4) trigger noise (big light switch)
+
+Alt Target Pattern: 'target' when touched, 'target2' when fully depressed, 'target3' when returning, 'target4' when fully out."
+[
+	spawnflags(flags) =
+	[
+		1 : "EASY" : 0
+		2 : "NORMAL" : 0
+		4 : "HARD" : 0
+		8 : "NIGHTMARE" : 0
+		16 : "SILENT" : 0
+	]
+	speed(float) : "Speed" :  : "Speed (units per second) or rate: see the help for this entity."
+	lip(integer) : "Lip" :  : "Units of the brush left showing at the end of its move."
+	distance(float) : "Distance" :  : "A distance (units) or an angle (degrees): see the help for this entity."
+	health(integer) : "Health" :  : "If set, it must be shot (this much damage) instead of touched."
+	message(string) : "Message" :  : "Text shown to the player. \n makes a new line."
+]
+
+@SolidClass color(204 51 0) =
+	func_explobox : "From Copper (Lunaran): spawns in a map played by Copper's rules (Copper's and Dwell's maps), or by the toolgun as cu_<classname> there.
+
+Build your own exploding box!
+
+Keyvalues:
+'health' defaults to 18. -1 will make it immune to damage (trigger only)
+'dmg' damage to explode with, defaults to 150 if unset. -1 will force 0.
+'target' fires targets when it explodes
+'targetname' will explode when triggered
+'wait' will respawn after 'wait' seconds
+'count' will only respawn 'count' times"
+[
+	spawnflags(flags) =
+	[
+		1 : "TARBABY" : 0
+		2 : "PUFF" : 0
+		128 : "START INVIS" : 0
+	]
+	dmg(integer) : "Damage" :  : "Damage it deals (a mover: to what blocks it)."
+]
+
+@SolidClass color(0 128 204) =
+	func_flytrain : "From Copper (Lunaran): spawns in a map played by Copper's rules (Copper's and Dwell's maps), or by the toolgun as cu_<classname> there.
+
+Acts as a func_train with PATH_SPEED and SMOOTH_SPEED set, with additional random motion and and gentle smoothing at stops, starts, and hard corners.
+
+'width' Horizontal drift range, default 8 (-1 for 0)
+'height' Vertical drift range, default 8 (-1 for 0)
+'lip' Length of 'leash', default 64 (increase if train jumps around at high speeds)
+'sounds'
+0) none, or, set your own with 'noise' (stop sound) and 'noise1' (move sound)
+1) ratchet metal
+2) base plat
+
+Alt Target Pattern: 'target' selects path start, 'target2' on each pathcorner arrival, 'target3' on each departure, 'target4' on termination"
+[
+	spawnflags(flags) =
+	[
+		2 : "TOGGLE" : 0
+	]
+]
+
+@PointClass color(0 128 204) size(-8 -8 -8, 8 8 8) =
+	func_flytrain_point : "From Copper (Lunaran): spawns in a map played by Copper's rules (Copper's and Dwell's maps), or by the toolgun as cu_<classname> there.
+
+Acts as a func_train with PATH_SPEED and SMOOTH_SPEED set, with additional random motion and and gentle smoothing at stops, starts, and hard corners.
+
+'model' model to use
+'width' Horizontal drift range, default 8 (-1 for 0)
+'height' Vertical drift range, default 8 (-1 for 0)
+'lip' Length of 'leash', default 64 (increase if train jumps around at high speeds)
+'sounds'
+0) none, or, set your own with 'noise' (stop sound) and 'noise1' (move sound)
+1) ratchet metal
+2) base plat
+
+Alt Target Pattern: 'target' selects path start, 'target2' on each pathcorner arrival, 'target3' on each departure, 'target4' on termination"
+[
+	spawnflags(flags) =
+	[
+		2 : "TOGGLE" : 0
+	]
+]
+
+@SolidClass color(0 128 204) =
+	func_static : "From Copper (Lunaran): spawns in a map played by Copper's rules (Copper's and Dwell's maps), or by the toolgun as cu_<classname> there.
+
+Like a func_wall but calls makestatic. Static entities are always nonsolid."
+[
+]
+
+@PointClass color(0 128 204) size(-8 -8 -8, 8 8 8) =
+	func_static_point : "From Copper (Lunaran): spawns in a map played by Copper's rules (Copper's and Dwell's maps), or by the toolgun as cu_<classname> there.
+
+Like a func_wall but calls makestatic. Static entities are always nonsolid.
+
+'model' filename of model to stand in for this entity. can be bsp or mdl."
+[
+]
+
+@PointClass color(0 128 204) size(-8 -8 -8, 8 8 8) =
+	func_train_point : "From Copper (Lunaran): spawns in a map played by Copper's rules (Copper's and Dwell's maps), or by the toolgun as cu_<classname> there.
+
+Trains are moving platforms that players can ride. The targets origin specifies the min point of the train at each corner. The train spawns at the first target it is pointing at. If the train is the target of a button or trigger, it will not begin moving until activated. A train will fire all targets of a pathcorner on arrival. Keys:
+'model' model to use
+'speed' default 100
+'dmg' default 2
+'sounds'
+0) none, or, set your own with 'noise' (stop sound) and 'noise1' (move sound)
+1) ratchet metal
+2) base plat
+'pausetime' pausetime at a pathcorner that doesn't specify a wait, default 0.1, -1 for continuous motion
+
+Spawnflags:
+PATH_SPEED: train will inherit 'speed' value from path_corners as it reaches them
+
+Alt Target Pattern: 'target' selects path start, 'target2' on each pathcorner arrival, 'target3' on each departure, 'target4' on termination"
+[
+	spawnflags(flags) =
+	[
+		1 : "PATH SPEED" : 0
+	]
+]
+
+@SolidClass color(128 51 0) =
+	func_void : "From Copper (Lunaran): spawns in a map played by Copper's rules (Copper's and Dwell's maps), or by the toolgun as cu_<classname> there.
+
+for holes into which one should not fall
+
+Texture this with black (or sky?) and cover the bottom of the pit with it. Automatically offsets its own visual model upward, to hide pesky heads and scrag corpses underneath. Also automatically spawns a start-of-plunge trigger of the same size 'height' units above itself that plays a yell sound and fades out the view of clients as they start to fall in.
+
+The player's view will have faded completely by the time they touch the bottom, so we hold them in stasis for a little while longer there before splatting them, to imply the pit is deeper than it really is. The player can therefore feel like they fall for a long time before crash landing in darkness without you having to build a pit that deep.
+
+Keyvalues
+'delay' how long the player should 'fall' before the splat, default 3
+'height' how high above the func_void the plunge trigger should spawn. do not make this high enough that players will touch it without falling in or they'll hear random screaming noises as they walk around and that'll be strange. default 128
+'lip' distance to raise the visual model, default 32
+'fadecolor' color to fade the screen to while falling, default black
+'noise'/'noise2' override fall and splat sounds
+
+Fires all 'target's/'killtarget's when a client touches the plunge trigger (ie the yell, not the splat). If the func_void's first target is an info_teleport_destination, it will hurt the player for 'dmg' damage and teleport him to the destination. If 'dmg' is enough to kill the player when he falls in, it continues with the fade and splat as normal."
+[
+	noise(string) : "Sound" :  : "A sound, relative to sound/ (for example misc/secret.wav)."
+	noise2(string) : "Sound 2" :  : "A sound, relative to sound/."
+	lip(integer) : "Lip" :  : "Units of the brush left showing at the end of its move."
+	height(float) : "Height" :  : "Units: see the help for this entity."
+	delay(float) : "Delay" :  : "Seconds before it acts after it is triggered."
+	dmg(integer) : "Damage" :  : "Damage it deals (a mover: to what blocks it)."
+	targetname(target_source) : "Name" :  : "The name that other entities' target and killtarget use to trigger this one."
+]
+
+@PointClass color(0 128 204) size(-8 -8 -8, 8 8 8) =
+	func_wall_point : "From Copper (Lunaran): spawns in a map played by Copper's rules (Copper's and Dwell's maps), or by the toolgun as cu_<classname> there.
+
+This is just a solid wall if not inhibited. Changes its texture(s) to alternate ones (e.g. basebtn), if triggered.
+
+Keys:
+'model' filename of model to stand in for this entity. can be a bsp or an mdl. mdls will not be solid.
+'mangle' orientation of the model, values are 'pitch yaw roll', positive pitch is down
+'noise' sound to play when triggered.
+'targetname' entity name"
+[
+	spawnflags(flags) =
+	[
+		1 : "NONSOLID" : 0
+		2 : "TOGGLE VIS" : 0
+		4 : "START INVIS" : 0
+	]
+	mangle(string) : "Angles (pitch yaw roll)" :  : "Pitch, yaw and roll in degrees."
+]
+
+@PointClass color(255 0 0) size(-16 -16 -24, 16 16 24) =
+	info_player_start_test : "From Copper (Lunaran): spawns in a map played by Copper's rules (Copper's and Dwell's maps), or by the toolgun as cu_<classname> there.
+
+Debug starting point for a level. Overrides info_player_start if present and 'USE' is checked, does nothing if 'USE' is not checked. Will fire its targets when a player is spawned, here with player as activator.
+
+'angle' viewing angle when spawning
+'fog_color'/'fog_density'/'fog_sky' set the fog when spawning at this spot (fog_sky 0 = no change, -1 = clear to 0)"
+[
+	spawnflags(flags) =
+	[
+		1 : "USE" : 0
+	]
+]
+
+@PointClass color(128 191 64) size(-16 -16 -8, 16 16 40) =
+	info_teleport_target : "From Copper (Lunaran): spawns in a map played by Copper's rules (Copper's and Dwell's maps), or by the toolgun as cu_<classname> there.
+
+This is a usable destination marker that acts as its own teleporter. When triggered, the activator is teleported to this spot.
+
+Flags:
+PLAYER_ONLY only players will teleport PUSH chuck the player forward like a trigger_teleport does TRIGGER_FIRST first use turns it on, and every subsequent use teleports ACT_ON_TARGETS teleport its targets intead of firing them and ignore the activator NOFLASH don't spawn telefog or make noise MONSTER_ONLY only monsters will teleport
+
+Keys:
+'fog_color'/'fog_density' set the fog for anyone teleporting here
+'count' remove after this many uses"
+[
+	spawnflags(flags) =
+	[
+		1 : "PLAYER ONLY" : 0
+		2 : "PUSH" : 0
+		4 : "TRIGGER FIRST" : 0
+		8 : "ACT ON TARGETS" : 0
+		16 : "NOFLASH" : 0
+		32 : "MONSTER ONLY" : 0
+	]
+	targetname(target_source) : "Name" :  : "The name that other entities' target and killtarget use to trigger this one."
+	impulse(integer) : "Sound channel (impulse)" :  : "0 to 7 (0: automatic)."
+	target(target_destination) : "Target" :  : "The entities (by targetname) it triggers."
+	count(integer) : "Count" :  : "A count: see the help for this entity."
+]
+
+@PointClass color(0 128 128) size(-16 -16 0, 16 16 40) model({ "path": "progs/backpack.mdl" }) =
+	item_backpack : "From Copper (Lunaran): spawns in a map played by Copper's rules (Copper's and Dwell's maps), or by the toolgun as cu_<classname> there.
+
+A forgotten explorer's backpack. Grants a paltry sum of shells and nails (about half a small pack of each). Grants armor instead of any ammo the player already has maxed.
+
+Flags:
+'big' doubles shells and nails, adds 2 rockets and 4 cells, appears red
+
+Keys:
+'target/2/3/4/k' - entity to trigger when picked up
+'targetname' - will not spawn until triggered
+'wait' - will respawn after 'wait' seconds. fires targets every time.
+'count' - limit number of times to respawn"
+[
+	spawnflags(flags) =
+	[
+		1 : "BIG" : 0
+		4 : "SUSPENDED" : 0
+	]
+]
+
+@SolidClass color(0 153 255) =
+	misc_particlefield : "From Copper (Lunaran): spawns in a map played by Copper's rules (Copper's and Dwell's maps), or by the toolgun as cu_<classname> there.
+
+Makes dots appear continuously within its bounds. Trigger to toggle on or off.
+
+'speed' number of clumps per second
+'speed2' number of dots per clump
+'health' color index (0-255). quake will use every color in the row (each row is 16 colors)
+'movedir' give particles a velocity
+'distance' don't make dots if all players are farther away than this. 0 = always dots.
+
+Flags:
+INWARD particles are sucked toward origin. additive with movedir. OUTWARD particles are blown out from origin. additive with movedir. BURST spew one second's worth of particles in one shot when triggered rather than toggling on/off
+
+Color Reference:
+0-15 grey (higher = lighter)
+16-31 dirt brown (higher = lighter)
+32-47 sky blue (higher = lighter)
+48-63 grass green (higher = lighter)
+64-79 red (higher = lighter)
+80-95 green/orange (higher = lighter)
+96-111 copper/gold (higher = lighter)
+112-127 flesh tone (higher = lighter)
+128-143 pale purple (higher = darker)
+144-159 reddish purple (higher = darker)
+160-175 pale beige (higher = darker)
+176-191 turquoise (higher = darker)
+192-207 yellow (higher = darker)
+208-223 deep blue (higher = darker)
+224-239 fire/lava (higher = lighter)
+240-255 fullbright mess"
+[
+	spawnflags(flags) =
+	[
+		1 : "START ON" : 0
+		2 : "INWARD" : 0
+		4 : "OUTWARD" : 0
+		8 : "BURST" : 0
+	]
+]
+
+@PointClass color(0 153 255) size(-8 -8 -8, 8 8 8) =
+	misc_particlefield_box : "From Copper (Lunaran): spawns in a map played by Copper's rules (Copper's and Dwell's maps), or by the toolgun as cu_<classname> there.
+
+Makes dots appear continuously within its bounds. Trigger to toggle on or off.
+
+'size' dimensions of sparkly zone
+'speed' number of clumps per second, default 10
+'speed2' number of dots per clump, default 16
+'health' color index (0-255). quake will use every color in the row (each row is 16 colors)
+'movedir' give particles a velocity
+'velocity' add a sweep effect - vector specifies direction and speed
+'wait' dot interval, default 0.1
+'distance' don't make dots if all players are farther away than this. 0 = always dots.
+
+Flags:
+INWARD particles are sucked toward origin. additive with movedir. OUTWARD particles are blown out from origin. additive with movedir. BURST spew one second's worth of particles in one shot when triggered rather than toggling on/off
+
+Color Reference:
+0-15 grey (higher = lighter)
+16-31 dirt brown (higher = lighter)
+32-47 sky blue (higher = lighter)
+48-63 grass green (higher = lighter)
+64-79 red (higher = lighter)
+80-95 green/orange (higher = lighter)
+96-111 copper/gold (higher = lighter)
+112-127 flesh tone (higher = lighter)
+128-143 pale purple (higher = darker)
+144-159 reddish purple (higher = darker)
+160-175 pale beige (higher = darker)
+176-191 turquoise (higher = darker)
+192-207 yellow (higher = darker)
+208-223 deep blue (higher = darker)
+224-239 fire/lava (higher = lighter)
+240-255 fullbright mess"
+[
+	spawnflags(flags) =
+	[
+		1 : "START ON" : 0
+		2 : "INWARD" : 0
+		4 : "OUTWARD" : 0
+		8 : "BURST" : 0
+	]
+	speed(float) : "Speed" :  : "Speed (units per second) or rate: see the help for this entity."
+	wait(float) : "Wait" :  : "Seconds to wait (before it returns, resets or repeats). -1: never."
+	mangle(string) : "Angles (pitch yaw roll)" :  : "Pitch, yaw and roll in degrees."
+]
+
+@PointClass color(255 0 128) size(-8 -8 -8, 8 8 8) =
+	target_autosave : "From Copper (Lunaran): spawns in a map played by Copper's rules (Copper's and Dwell's maps), or by the toolgun as cu_<classname> there.
+
+Saves the game when triggered by a player. Never appears in multiplayer. the bprint tends to stomp any other prints on screen in most quake clients, so use a delayed trigger_relay if you fire this from an important pickup/trigger_counter/something else that puts text on screen more important than the autosave blurb.
+
+Keys:
+'message' change save file name, defaults to 'auto'"
+[
+	message(string) : "Message" :  : "Text shown to the player. \n makes a new line."
+]
+
+@PointClass color(166 0 166) size(-16 -16 -16, 16 16 16) =
+	target_changelevel : "From Copper (Lunaran): spawns in a map played by Copper's rules (Copper's and Dwell's maps), or by the toolgun as cu_<classname> there.
+
+When the player triggers this by any means, he gets sent to the map listed in the 'map' variable. Spawnflags:
+NO_INTERMISSION: the view will not go to the info_intermission spot and display stats Keys:
+'map' set to name of next map (e.g. e1m1) if no map is set, the current map will restart
+'message' ONE page of intermission text to display"
+[
+	spawnflags(flags) =
+	[
+		1 : "NO INTERMISSION" : 0
+	]
+]
+
+@PointClass color(128 128 128) size(-8 -8 -8, 8 8 8) =
+	target_debris : "From Copper (Lunaran): spawns in a map played by Copper's rules (Copper's and Dwell's maps), or by the toolgun as cu_<classname> there.
+
+emitter of chunks of debris
+
+Keys
+'count' number of chunks to emit, default 3
+'delay' time to wait before first emit
+'speed' speed of chunks
+'mangle' override chunk direction, defaults to omni
+'size' random location of chunks within bounds of this size
+
+'model' specify a different model for debris (use 'model2' and 'model3' for variety)
+'frame' will be copied to spawned chunks
+'skin' will be copied to spawned chunks
+'alpha' will be copied to spawned chunks"
+[
+	speed(float) : "Speed" :  : "Speed (units per second) or rate: see the help for this entity."
+	count(integer) : "Count" :  : "A count: see the help for this entity."
+	volume(float) : "Volume" :  : "Sound volume, 0 to 1."
+	distance(float) : "Distance" :  : "A distance (units) or an angle (degrees): see the help for this entity."
+	mangle(string) : "Angles (pitch yaw roll)" :  : "Pitch, yaw and roll in degrees."
+	noise(string) : "Sound" :  : "A sound, relative to sound/ (for example misc/secret.wav)."
+]
+
+@PointClass color(0 128 204) size(-8 -8 -8, 8 8 8) =
+	target_explosion : "From Copper (Lunaran): spawns in a map played by Copper's rules (Copper's and Dwell's maps), or by the toolgun as cu_<classname> there.
+
+Causes explosions, same appearance as a rocket/grenade blast. Set 'TARBABY' for a purple spawn-style explosion or 'PUFF' for the weak anti-shambler-style burst instead.
+
+Keys
+'count' number of times to explode after triggering, default 1
+'delay' Time to wait before first explode
+'wait' Static time to wait between explosions
+'rand' Random time to wait before explosions (will sum both)
+'dmg' Do splash damage, default 0
+'deathtype' death message if the player is killed by your horrible trap
+'size' explode somewhere randomly chosen within a box of this size"
+[
+	spawnflags(flags) =
+	[
+		1 : "TARBABY" : 0
+		2 : "PUFF" : 0
+	]
+	count(integer) : "Count" :  : "A count: see the help for this entity."
+	wait(float) : "Wait" :  : "Seconds to wait (before it returns, resets or repeats). -1: never."
+]
+
+@PointClass color(128 128 51) size(-8 -8 -8, 8 8 8) =
+	target_fade : "From Copper (Lunaran): spawns in a map played by Copper's rules (Copper's and Dwell's maps), or by the toolgun as cu_<classname> there.
+
+Changes the alpha of its targets over time from 'alpha' to 'alpha2'. Triggering again will fade it back, unless ONE_WAY is set. Set REVERSE to swap the values.
+
+If this targets brushmodels with switchable shadows or lightstyles, the lighting will fade appropriately.
+
+'alpha' starting translucency. -1 for clear
+'alpha2' ending translucency. -1 for clear
+'delay' pause before beginning to blend
+'speed' time to spend blending, -1 for instant.
+'speed2' time to spend blending back, if different than 'speed'. -1 for instant.
+'style' fade this lightstyle directly
+'noise' sound to play on begin fade
+'noise2' sound to play on end fade
+'noise3' sound to play on begin reverse fade
+'noise4' sound to play on end reverse fade
+'volume' volume for sounds (default 1.0)
+
+If BY_DISTANCE is checked, it will set alpha immediately based on how far the activator is from its origin.
+'distance' max distance beyond which alpha will be set to 'alpha'
+'lip' min distance within which alpha will be set to 'alpha2'
+'angle/angles' constrain distance measurement to this axis (like a fogblend) ONE_WAY in distance mode constrains motion along 'angle' to the positive direction, instead of symmetrically.
+'dest' alternate distance constraint (scale position by these three values)
+
+If HOLD is checked, it will exhibit door-like behavior when triggered: triggering multiple times while fading is ignored, triggering while faded extends the wait, and triggering while fading back starts fading out again. If not triggered when faded out, it will wait for 'wait' seconds until returning.
+
+Alt Target Pattern: in distance mode, target is fading object, target2 on begin fade (enter distance range), target3 on complete fade (enter lip range), target4 on exit distance range"
+[
+	spawnflags(flags) =
+	[
+		1 : "ONE WAY" : 0
+		2 : "REVERSE" : 0
+		4 : "BY DISTANCE" : 0
+		8 : "HOLD" : 0
+	]
+	volume(float) : "Volume" :  : "Sound volume, 0 to 1."
+	noise(string) : "Sound" :  : "A sound, relative to sound/ (for example misc/secret.wav)."
+	noise2(string) : "Sound 2" :  : "A sound, relative to sound/."
+	noise3(string) : "Sound 3" :  : "A sound, relative to sound/."
+	distance(float) : "Distance" :  : "A distance (units) or an angle (degrees): see the help for this entity."
+	speed(float) : "Speed" :  : "Speed (units per second) or rate: see the help for this entity."
+	lip(integer) : "Lip" :  : "Units of the brush left showing at the end of its move."
+	wait(float) : "Wait" :  : "Seconds to wait (before it returns, resets or repeats). -1: never."
+]
+
+@PointClass color(128 128 51) size(-8 -8 -8, 8 8 8) =
+	target_fogblend : "From Copper (Lunaran): spawns in a map played by Copper's rules (Copper's and Dwell's maps), or by the toolgun as cu_<classname> there.
+
+Blends the fog for a client. activator's fog will be blended from 'fog_color' and 'fog_density' to 'fog_color2' and 'fog_density2'. Triggering again will blend it back, unless ONE_WAY is set.
+'fog_sky'/'fog_sky2' will affect r_skyfog at the same time if both are non-zero. Use -1 if you really want 0. Set REVERSE if you're tired of swapping the values by hand. Set GLOBAL to affect all clients in multiplayer, not just the activator.
+
+'delay' - pause before beginning to blend
+'speed' - time to spend blending, -1 for an instant change to fog2.
+'speed2' - time to spend blending back, if different than 'speed'. -1 for instant.
+
+CAVEATS:
+- will 'stuffcmd' up to 20 times per frame so try not to make this take too long, but as an optimization, Copper will avoid sending the stuffcmd if it determines that the fog difference frame over frame is not visually significant.
+- a bug in most quake engine ports will reset the eye position smoothing that happens when climbing stairs or riding a plat on every frame that a 'stuffcmd' is sent, so fog transitions during upwards motion will cause noticeable stuttering."
+[
+	spawnflags(flags) =
+	[
+		1 : "ONE WAY" : 0
+		2 : "REVERSE" : 0
+		4 : "GLOBAL" : 0
+	]
+	speed(float) : "Speed" :  : "Speed (units per second) or rate: see the help for this entity."
+]
+
+@PointClass color(191 64 0) size(-8 -8 -8, 8 8 8) =
+	target_heal : "From Copper (Lunaran): spawns in a map played by Copper's rules (Copper's and Dwell's maps), or by the toolgun as cu_<classname> there.
+
+Heals activator for 'healamount' when triggered. Use for healing pools, first aid dispensers, etc. If it has any targets, it heals them instead, even doors and buttons. This will not reset 'dead' doors or buttons with a wait of -1.
+
+Spawnflags:
+OVERHEAL will ignore target's max_health when healing PLAYER_ONLY will ignore any targets or activators which aren't clients TRIGGER_FIRST will treat its first trigger as an activation, then work normally after AUTO_AMT if trigger_first, will choose 'count' based on how much health the activator needs when first triggered, for dirty lazy automatic game balance
+
+Keyvalues:
+'healamount' amount to heal per use, default 5
+'count' expire after healing this much in total, default -1 (never)
+'strength' count will be multiplied by this much, default 1. -4 for the number of players.
+'lip' if auto, never set count less than this much, defaults to healamount
+'max_health' if auto, never set count to heal *target* above this much"
+[
+	spawnflags(flags) =
+	[
+		1 : "OVERHEAL" : 0
+		2 : "PLAYER ONLY" : 0
+		4 : "TRIGGER FIRST" : 0
+		8 : "AUTO AMT" : 0
+	]
+	count(integer) : "Count" :  : "A count: see the help for this entity."
+	lip(integer) : "Lip" :  : "Units of the brush left showing at the end of its move."
+]
+
+@PointClass color(191 64 0) size(-8 -8 -8, 8 8 8) =
+	target_items : "From Copper (Lunaran): spawns in a map played by Copper's rules (Copper's and Dwell's maps), or by the toolgun as cu_<classname> there.
+
+Gives weapons, ammo, items, health, armor, and/or runes to the activating player when triggered.
+
+Keyvalues:
+'ammo_shells' number of shells player should receive - same for _cells, _rockets, and _nails
+'health' health (will overheal beyond 100)
+'armorvalue' armor (protection color scales automatically)
+'armortype' armor strength (0.3+ green, 0.5+ yellow, 0.7+ red)
+'weapon' item bitflag (not impulse number!) of the weapon the player should swap to (if he has it)
+'items' bitmask of what items the player should get (see below for reference)
+'svflags' bitmask of serverflags to alter (1/2/4/8 are the episode runes, 16+ are invisible)
+'length' length of powerup time in seconds if any are given (default 30)
+'noise' wav file to play on activator
+
+Spawnflags:
+FLASH: flash the recipient's screen when triggered, defaults to being stealthy
+MINIMUM: for numeric amounts, give the player enough to have a minimum of the amount specified
+TAKE: subtract specified inventory amounts instead of adding
+- subtracting enough health WILL kill the player
+- will fire its targets if all items can be successfully taken
+- will print 'message' and take nothing instead
+- TAKE with MINIMUM will skip the test and take whatever it can, firing no targets either way
+OVERRIDE: force the player's inventory to all specified amounts (mainly useful triggered from spawnpoints), specify -1 for any keyvalue to force a 0 (-1 does not work for health)
+TEST: behaves like TAKE, but doesn't take anything
+- fires targets if activator has the matching inventory
+- prints 'message' if not
+- TEST with TAKE will reverse the test (fire if player doesn't have)
+- beware of how this interacts with triggers: it will only test the first client to touch a trigger in coop unless it has ALL_CLIENTS set
+
+Item Bitmask Reference:
+SG = 1 SSG = 2 NG = 4 SNG = 8 GL = 16 RL = 32 LG = 64 Axe = 4096
+
+Silver = 131072 Gold = 262144 Ring = 524288 Pent = 1048576 Biosuit = 2097152 Quad = 4194304"
+[
+	spawnflags(flags) =
+	[
+		1 : "TAKE" : 0
+		2 : "OVERRIDE" : 0
+		4 : "FLASH" : 0
+		8 : "TEST" : 0
+		16 : "MINIMUM" : 0
+	]
+	noise(string) : "Sound" :  : "A sound, relative to sound/ (for example misc/secret.wav)."
+]
+
+@PointClass color(191 128 0) size(-8 -8 -8, 8 8 8) =
+	target_kill : "From Copper (Lunaran): spawns in a map played by Copper's rules (Copper's and Dwell's maps), or by the toolgun as cu_<classname> there.
+
+Kills ALL of its targets (1-4) as well as killtargets when triggered. for targets you really don't like.
+
+'delay' wait before killing
+
+MURDER monsters are damaged to death, and spawners will credit unspawned kills RANDOM randomly kill only one target out of all of them"
+[
+	spawnflags(flags) =
+	[
+		1 : "MURDER" : 0
+		2 : "RANDOM" : 0
+	]
+]
+
+@PointClass color(128 204 128) size(-8 -8 -8, 8 8 8) =
+	target_lightstyle : "From Copper (Lunaran): spawns in a map played by Copper's rules (Copper's and Dwell's maps), or by the toolgun as cu_<classname> there.
+
+This entity changes a global lightstyle when triggered. Set 'style' to the lightstyle you want to override, and set 'message' to the brightness pattern you want to set it to. If style is not set, and this entity targets any triggerable lights, it sets the brightness pattern of those lights when triggered instead. Note that targeting anything at a light makes it a triggerable light with its own style automatically.
+
+Setting style to -1 will override lightstyle 0, which is all static lights in the entire level.
+
+'targetname' if unspecified, will auto-fire itself once at map start
+'count' limit number of uses, 0 = infinite
+'delay' pause between trigger and activation
+'noise/noise1-4' cycle to additional brightness patterns on subsequent activations
+
+START_ON: fire itself once when the map starts regardless of targetname"
+[
+	spawnflags(flags) =
+	[
+		1 : "START ON" : 0
+	]
+	message(string) : "Message" :  : "Text shown to the player. \n makes a new line."
+	targetname(target_source) : "Name" :  : "The name that other entities' target and killtarget use to trigger this one."
+]
+
+@PointClass color(0 128 204) size(-8 -8 -8, 8 8 8) =
+	target_lock : "From Copper (Lunaran): spawns in a map played by Copper's rules (Copper's and Dwell's maps), or by the toolgun as cu_<classname> there.
+
+Locks and unlocks targeted entities independent of their toggle/start_open/etc states. Works on various entities:
+- A locked func_door won't respond to touches or triggers. Use this for doors behind temporary bars.
+- A locked func_plat behaves as an unreleased LOW_TRIGGER plat
+- A locked trigger_relay will not fire or evaluate at all
+- Locked path_corners are not considered valid patrol/train destinations
+- Locked trigger volumes (once/multi/teleport/secret/changelevel/push/monsterjump) will not activate when touched or triggered
+
+If 'wait' or 'rand' are set, will automatically undo itself after 'wait' seconds plus up to 'rand' additional seconds.
+
+Spawnflags:
+'start_locked' Targeted entities start out locked.
+'lock_only' Will only lock its targets rather than toggling
+'unlock_only' Will only unlock its targets rather than toggling"
+[
+	spawnflags(flags) =
+	[
+		1 : "START LOCKED" : 0
+		2 : "LOCK ONLY" : 0
+		4 : "UNLOCK ONLY" : 0
+	]
+]
+
+@PointClass color(178 0 51) size(-16 -16 -16, 16 16 16) =
+	target_meat_fireworks : "From Copper (Lunaran): spawns in a map played by Copper's rules (Copper's and Dwell's maps), or by the toolgun as cu_<classname> there.
+
+trigger for meat
+
+Keys
+'count' number of times of meat after triggering, default 1
+'delay' time to wait before first meat
+'wait' time to wait between meat
+'rand' max random additional to wait before meat
+'speed' speed of meat
+'mangle' override meat direction, defaults to up
+'size' random location of bursts within bounds of this size"
+[
+	speed(float) : "Speed" :  : "Speed (units per second) or rate: see the help for this entity."
+	count(integer) : "Count" :  : "A count: see the help for this entity."
+	wait(float) : "Wait" :  : "Seconds to wait (before it returns, resets or repeats). -1: never."
+	mangle(string) : "Angles (pitch yaw roll)" :  : "Pitch, yaw and roll in degrees."
+]
+
+@PointClass color(128 128 128) size(-8 -8 -8, 8 8 8) =
+	target_multiprint : "From Copper (Lunaran): spawns in a map played by Copper's rules (Copper's and Dwell's maps), or by the toolgun as cu_<classname> there.
+
+This entity will print a different string every time it's triggered. Prints 'message',
+'noise', 'noise1', 'noise2', 'noise3', then 'noise4.' Once all strings are used up, it will fire its targets instead (so several of these can be chained if you really need that many prints in a row).
+
+SILENT: Don't play the beep wav when triggered."
+[
+	spawnflags(flags) =
+	[
+		1 : "SILENT" : 0
+	]
+]
+
+@PointClass color(128 0 153) size(-12 -12 -12, 12 12 12) =
+	target_music : "From Copper (Lunaran): spawns in a map played by Copper's rules (Copper's and Dwell's maps), or by the toolgun as cu_<classname> there.
+
+play a cd track when triggered.
+
+'sounds' track number. defaults to 2, the most badass one."
+[
+	sounds(integer) : "Sounds" :  : "Which set of sounds: see the help for this entity."
+]
+
+@PointClass color(128 128 128) size(-8 -8 -8, 8 8 8) =
+	target_playercount : "From Copper (Lunaran): spawns in a map played by Copper's rules (Copper's and Dwell's maps), or by the toolgun as cu_<classname> there.
+
+Checks the number of players currently connected when triggered, and fires exclusively one of target/2/3/4 depending on the count. If one player is connected, it only fires 'target', if two are connected it fires 'target2', and so on.
+
+SPAWNFLAGS
+LT_EQUAL: Fires all targetnames UP TO the current player count (so with four players connected, all four targets would fire instead of just target4)
+BY_TWOS: require double the number of players for each threshhold (for scaling up to 8 players)"
+[
+	spawnflags(flags) =
+	[
+		1 : "LT EQUAL" : 0
+		2 : "BY TWOS" : 0
+	]
+]
+
+@PointClass color(0 128 204) size(-8 -8 -8, 8 8 8) =
+	target_screenshake : "From Copper (Lunaran): spawns in a map played by Copper's rules (Copper's and Dwell's maps), or by the toolgun as cu_<classname> there.
+
+Shakes the screen. Jostles the view of all clients, but doesn't physically move their bounding boxes or apply velocities. Keys
+'length' Duration of full intensity quake. -1 will last literally forever.
+'delay' Time to ramp up quake intensity from 0
+'wait' Time to ramp down quake intensity to 0. Total quake duration is length + delay + wait.
+'strength' Intensity of quake. 1 is a hearty rumble, 10 is spasmodic bordering on hilarious.
+'distance' Fade the intensity to 0 at this distance from the entity. Default is 0 (global)."
+[
+	wait(float) : "Wait" :  : "Seconds to wait (before it returns, resets or repeats). -1: never."
+	delay(float) : "Delay" :  : "Seconds before it acts after it is triggered."
+	distance(float) : "Distance" :  : "A distance (units) or an angle (degrees): see the help for this entity."
+	volume(float) : "Volume" :  : "Sound volume, 0 to 1."
+]
+
+@PointClass color(166 0 166) size(-8 -8 -8, 8 8 8) =
+	target_secret : "From Copper (Lunaran): spawns in a map played by Copper's rules (Copper's and Dwell's maps), or by the toolgun as cu_<classname> there.
+
+Secret counter trigger. Player gets a secret credit when triggered. Note when using a target_secret: if triggered by touching an item, and the item can't be picked up (because of health/armor/ammo limits already being met, etc), it won't fire its targets and thus the target_secret won't give credit. Use a trigger in that case.
+
+Set 'SUPERSECRET' to hide its existence in the total until it's found. Think very carefully if you actually want to use this. Keys:
+'message' message to display when triggered
+'sounds'
+1 = secret
+2 = beep beep
+3 = large switch
+4 = it is a mysteryyy
+-1 = silent
+'noise' choose your own .wav"
+[
+	spawnflags(flags) =
+	[
+		2 : "SUPERSECRET" : 0
+	]
+]
+
+@PointClass color(76 26 153) size(-8 -8 -8, 8 8 8) =
+	target_sound : "From Copper (Lunaran): spawns in a map played by Copper's rules (Copper's and Dwell's maps), or by the toolgun as cu_<classname> there.
+
+play a sound when triggered.
+
+'distance' attenuation (integer) - defaults to 0, which is the same as other ambient sounds.
+1 = 'idle' - monster idle sound range
+2 = 'normal' - monster bark sound range
+3 = 'none' - loops everywhere forever (don't use this)
+'volume' volume, defaults to 1.0 (full volume)
+'noise' wav to play - don't leave off the '.wav'!
+'noise1-4' add additional wavs to cycle through
+'delay' delay sound after trigger
+'count' limit number of uses before self destruction
+'wait' time between plays, if TOGGLE
+'rand' random extra time between plays, if TOGGLE
+'style' force single sound channel (0 = any)
+
+Spawnflags:
+'SHUFFLE' select next sound randomly if more than one noise is specified
+'ON_PLAYER' use activating player as source of sound
+'TOGGLE' trigger to turn on/off instead of firing once ('count' will limit use per activation if set)"
+[
+	spawnflags(flags) =
+	[
+		1 : "SHUFFLE" : 0
+		2 : "ON PLAYER" : 0
+		4 : "TOGGLE" : 0
+	]
+]
+
+@PointClass color(128 0 128) size(-8 -8 -8, 8 8 8) =
+	target_state : "From Copper (Lunaran): spawns in a map played by Copper's rules (Copper's and Dwell's maps), or by the toolgun as cu_<classname> there.
+
+Holds a numeric variable, or tests other entities for theirs before firing targets. Set 'state' to initial value. triggering this will cycle the value (swapping 0 and 1).
+
+If 'RELAY' is checked, it acts as a relay instead of holding state. It fires its targets based on the value of the 'state' member of another entity, specified by setting 'state' to the value it has to match and 'include' to that entity's targetname. This can be another target_state, or any other entity which has a 'state', such as doors or plats.
+0: off (lights/etc)/top (plats)/open (doors)/pushed (buttons)
+1: on (lights/etc)/bottom (plats)/closed (doors)/unpushed (buttons)
+2: going up (plats)/opening (doors)/pushing (buttons)
+3: going down (plats)/closing (doors)/unpushing (buttons) A trigger_counter's 'state' is its current trigger count.
+
+Keys:
+'style' comparison to make if RELAY
+1: self = include (default)
+2: self < include
+3: self <= include
+4: self > include
+5: self >= include
+'count' if > 1, state will be incremented on each trigger to a maximum of 'count' before cycling to 0
+'delay' delay before firing (after trigger)
+'target2/3/4/kill' targets to fire if RELAY
+
+Spawnflags:
+'INVERSE' if RELAY, will fire if state is anything other than a match. otherwise, will decrement when triggered instead of increment"
+[
+	spawnflags(flags) =
+	[
+		1 : "RELAY" : 0
+		2 : "INVERSE" : 0
+	]
+	targetname(target_source) : "Name" :  : "The name that other entities' target and killtarget use to trigger this one."
+	impulse(integer) : "Sound channel (impulse)" :  : "0 to 7 (0: automatic)."
+]
+
+@PointClass color(0 128 204) size(-8 -8 -8, 8 8 8) =
+	target_telefog : "From Copper (Lunaran): spawns in a map played by Copper's rules (Copper's and Dwell's maps), or by the toolgun as cu_<classname> there.
+
+Causes a flash of teleport fog.
+
+Keys
+'count' number of times to flash after triggering, default 1
+'delay' Time to wait before first flash
+'wait' Static ime to wait between flashes
+'rand' Random time to wait before flashes (will sum both)
+'size' Flash somewhere randomly chosen within a box of this size"
+[
+	count(integer) : "Count" :  : "A count: see the help for this entity."
+	wait(float) : "Wait" :  : "Seconds to wait (before it returns, resets or repeats). -1: never."
+]
+
+@SolidClass color(128 128 51) =
+	trigger_fogblend : "From Copper (Lunaran): spawns in a map played by Copper's rules (Copper's and Dwell's maps), or by the toolgun as cu_<classname> there.
+
+Acts as a smoothly blending portal between two zones of different fog. Sets the fog for any client passing through it, blending their global fog settings between 'fog_color'/'fog_density' and 'fog_color2'/'fog_density2' proportional to their position within the trigger.
+'fog_sky'/'fog_sky2' will affect r_skyfog at the same time if both are non-zero. Use -1 if you really want 0.
+
+The axis of motion on which the blend happens is defined by 'angle', pointing to whatever zone has color2 and density2. Trigger therefore has two 'sides' - the side that 'angle' points to, and the opposite side.
+
+'distance' - override the length of the blend period in world units - defaults to bounds size on 'angle' otherwise. this is only useful for diagonal triggers.
+
+CAVEATS:
+- will 'stuffcmd' up to 20 times per frame so try not to make these huge, but as an optimization, Copper will avoid sending the stuffcmd if it determines that the fog difference frame over frame is not visually significant.
+- a bug in most quake engine ports will reset the eye position smoothing that happens when climbing stairs or riding a plat on every frame that a 'stuffcmd' is sent, so fog transitions during upwards motion will cause noticeable stuttering."
+[
+	distance(float) : "Distance" :  : "A distance (units) or an angle (degrees): see the help for this entity."
+]
+
+@PointClass color(128 0 128) size(-8 -8 -8, 8 8 8) =
+	trigger_hurt_box : "From Copper (Lunaran): spawns in a map played by Copper's rules (Copper's and Dwell's maps), or by the toolgun as cu_<classname> there.
+
+Any creature touching this will be damaged. Quoth2-style edict-saving bounding box trigger: define size with 'size', and the trigger volume will be that size centered on the trigger's origin. Resist the urge to put a tiny one of these on every light_flame.
+
+Keys:
+'dmg' sets damage, default is 5
+'delay' frequency of damage in seconds, default 1. use -1 for maximum host_framerate pain spam.
+
+Flags:
+'kill' always do enough damage to kill instantly
+'biosuit' the biosuit protects against this trigger
+'trigger_first' won't be touchable until triggered once by something else
+'no_monsters' trigger will only hurt players"
+[
+	spawnflags(flags) =
+	[
+		1 : "KILL" : 0
+		2 : "BIOSUIT" : 0
+		4 : "TRIGGER FIRST" : 0
+		8 : "NO MONSTERS" : 0
+	]
+	dmg(integer) : "Damage" :  : "Damage it deals (a mover: to what blocks it)."
+	delay(float) : "Delay" :  : "Seconds before it acts after it is triggered."
+]
+
+@PointClass color(128 0 128) size(-8 -8 -8, 8 8 8) =
+	trigger_monsterjump_box : "From Copper (Lunaran): spawns in a map played by Copper's rules (Copper's and Dwell's maps), or by the toolgun as cu_<classname> there.
+
+Monsters that touch this will 'jump' in the direction of the trigger's angle, if they meet its conditions.
+
+Quoth2-style edict-saving bounding box trigger: define bounds size with 'size' - trigger volume will be centered on the trigger's origin.
+
+Flags:
+NO_LARGE only monsters with 32x32 bounds NO_SMALL only monsters with 64x64 bounds TRIGGER_FIRST won't be touchable until triggered once by something else ONLY_MELEES only monsters with no ranged attack (dogs/fiends/spawns) ONLY_FRONT will only trigger if monster's enemy is in front of the monster relative to jump angle ONLY_BELOW will only trigger if monster's enemy is below the monster ADD_VEL add velocity to monster rather than setting it
+
+Keys:
+'angle' angle towards the monster jumps
+'height' the speed thrown upwards (default: 200)
+'speed' the speed thrown forward (default: 200)
+'target' entity to trigger
+'targetname' entity name
+'include' allow this classname of monster, or monsters with this targetname, no matter what
+'exclude' exclude this classname of monster, or monsters with this targetname, no matter what"
+[
+	spawnflags(flags) =
+	[
+		1 : "NO LARGE" : 0
+		2 : "NO SMALL" : 0
+		4 : "TRIGGER FIRST" : 0
+		8 : "ONLY MELEES" : 0
+		16 : "ONLY FRONT" : 0
+		32 : "ONLY BELOW" : 0
+		64 : "ADD VEL" : 0
+	]
+]
+
+@PointClass color(128 128 0) size(-8 -8 -8, 8 8 8) =
+	trigger_multiple_box : "From Copper (Lunaran): spawns in a map played by Copper's rules (Copper's and Dwell's maps), or by the toolgun as cu_<classname> there.
+
+Trigger multiple. Variable sized repeatable trigger. Must be targeted at one or more entities.
+
+Quoth2-style edict-saving bounding box trigger: define size with 'size', and the trigger volume will be that size centered on the trigger's origin.
+
+Flags:
+'all_clients' will trigger once per client touching it on the same frame before waiting (default behavior is to trigger only for the first touch event, ie the lowest-numbered client). use if you want to trigger a target_items or target_heal and have every client in the trigger affected by the result.
+'trigger_first' won't be touchable until triggered once by something else
+'monsters' monsters will fire this trigger (and count as activator, so be careful)
+
+Keys:
+'angle' the trigger will only fire when someone is facing the direction of the angle, use '360' for angle 0.
+'distance' dot product result to compare 'angle' against. 0 is 90 degrees off (default), 0.7 is 45 degrees.
+'delay' delay before firing (after trigger)
+'health' button must be killed to activate
+'message' message to display when triggered
+'sounds'
+1 = secret
+2 = beep beep
+3 = large switch
+4 = it is a mysteryyy
+-1 = silent
+'noise' choose your own .wav
+'target' entity to trigger (required)
+'targetname' entity name
+'wait' delay between triggerings (default: 0.2) (NOTE: wait -1 with all_clients will not work like you think.)"
+[
+	spawnflags(flags) =
+	[
+		4 : "TRIGGER FIRST" : 0
+		8 : "MONSTERS" : 0
+		16 : "ALL CLIENTS" : 0
+	]
+]
+
+@SolidClass color(128 0 128) =
+	trigger_once_box : "From Copper (Lunaran): spawns in a map played by Copper's rules (Copper's and Dwell's maps), or by the toolgun as cu_<classname> there.
+
+Quoth2-style cache-saving bounding box triggers: define size with 'mangle', as total dimensions in xyz - trigger volume will be that size centered on the trigger_multiple_box's origin. otherwise acts like a normal trigger.
+
+Wait is always -1.
+
+Quoth2-style edict-saving bounding box trigger: define size with 'size', and the trigger volume will be that size centered on the trigger's origin.
+
+Flags:
+'trigger_first' won't be touchable until triggered once by something else
+'monsters' monsters will fire this trigger (and count as activator, so be careful)
+
+Keys:
+'angle' the trigger will only fire when someone is facing the direction of the angle, use '360' for angle 0.
+'distance' dot product result to compare 'angle' against. 0 is 90 degrees off (default), 0.7 is 45 degrees.
+'delay' delay before firing (after trigger)
+'health' button must be killed to activate
+'message' message to display when triggered
+'sounds'
+1 = secret
+2 = beep beep
+3 = large switch
+4 = it is a mysteryyy
+-1 = silent
+'noise' choose your own .wav
+'target' entity to trigger (required)
+'targetname' entity name"
+[
+	spawnflags(flags) =
+	[
+		4 : "TRIGGER FIRST" : 0
+		8 : "MONSTERS" : 0
+	]
+]
+
+@PointClass color(128 0 128) size(-8 -8 -8, 8 8 8) =
+	trigger_secret_box : "From Copper (Lunaran): spawns in a map played by Copper's rules (Copper's and Dwell's maps), or by the toolgun as cu_<classname> there.
+
+Secret counter trigger. Player gets a secret credit when touched. Set 'SUPERSECRET' to hide its existence in the total until found.
+
+Quoth2-style edict-saving bounding box trigger: define size with 'size', and the trigger volume will be that size centered on the trigger's origin.
+
+Keys:
+'message' message to display when triggered
+'sounds'
+1 = secret
+2 = beep beep
+3 = large switch
+4 = it is a mysteryyy
+-1 = silent
+'noise' choose your own .wav
+
+Flags:
+'SUPERSECRET' hide its existence in the total until it's found
+'trigger_first' won't be touchable until triggered once by something else"
+[
+	spawnflags(flags) =
+	[
+		2 : "SUPERSECRET" : 0
+		4 : "TRIGGER FIRST" : 0
+	]
+]
+
+@PointClass color(128 0 128) size(-8 -8 -8, 8 8 8) =
+	trigger_teleport_box : "From Copper (Lunaran): spawns in a map played by Copper's rules (Copper's and Dwell's maps), or by the toolgun as cu_<classname> there.
+
+Any object touching this will be transported to the corresponding info_teleport_destination entity. You must set the 'target' field, and create an object with a 'targetname' field that matches. Quoth2-style edict-saving bounding box trigger: define bounds size with 'size' - trigger volume will be centered on the trigger's origin.
+
+Flags:
+'player_only' only players will teleport
+'silent' no whispering from the slipgate
+'trigger_first' won't be touchable until triggered once by something else
+'notrigger' default behavior for a teleporter with a targetname is to only teleport what's touching it when triggered. this will preserve ordinary no-targetname behavior (if you're using the teleporter's targetname for a killtarget for example)
+'noflash' don't spawn tfog or make noise
+
+Keys:
+'target' targetname of info_teleport_destination (required)
+'targetname' entity name (required)"
+[
+	spawnflags(flags) =
+	[
+		1 : "PLAYER ONLY" : 0
+		2 : "SILENT" : 0
+		4 : "TRIGGER FIRST" : 0
+		8 : "NOTRIGGER" : 0
+	]
+]
+
+@PointClass color(128 128 128) size(-16 -16 -16, 16 16 16) =
+	trigger_timer : "From Copper (Lunaran): spawns in a map played by Copper's rules (Copper's and Dwell's maps), or by the toolgun as cu_<classname> there.
+
+Fires its targets once every 'wait' seconds. If 'count' is set, it will only fire that many times and then stop. Set 'rand' to add a random extra delay to the wait interval.
+
+SPAWNFLAGS
+START_ON: do not wait until triggered to begin firing"
+[
+	spawnflags(flags) =
+	[
+		1 : "START ON" : 0
+	]
+	wait(float) : "Wait" :  : "Seconds to wait (before it returns, resets or repeats). -1: never."
+	count(integer) : "Count" :  : "A count: see the help for this entity."
+]
+
+//
+// Dwell: its own entities (they spawn in any map while Dwell's data is installed: DWELL.md P2a)
+//
+
+@SolidClass color(0 128 204) =
+	func_fade : "From Dwell (rebuilt on Copper and Quake VR): spawns in any map while Dwell's data is installed, or by the toolgun as dw_<classname>.
+
+Dwell: a brush fading in as a player comes near (192-384 units).
+alpha: near alpha2: far
+speed: fade speed"
+[
+	spawnflags(flags) =
+	[
+		2 : "Flag 2" : 0
+	]
+	speed(float) : "Speed" :  : "Speed (units per second) or rate: see the help for this entity."
+]
+
+@PointClass color(0 128 204) size(-8 -8 -8, 8 8 8) =
+	info_storycamera : "From Dwell (rebuilt on Copper and Quake VR): spawns in any map while Dwell's data is installed, or by the toolgun as dw_<classname>.
+
+Dwell: used, shows its pages (message, noise, noise1..noise4), 5 s each, then fires its targets."
+[
+]
+
+@PointClass color(0 128 204) size(-16 -16 -24, 16 16 32) =
+	item_artifact_berserk : "From Dwell (rebuilt on Copper and Quake VR): spawns in any map while Dwell's data is installed, or by the toolgun as dw_<classname>.
+
+Dwell's Berserk: 30 s, melee 11 times as hard, half the damage taken."
+[
+]
+
+@PointClass color(0 128 204) size(-16 -16 -24, 16 16 32) =
+	item_artifact_haste : "From Dwell (rebuilt on Copper and Quake VR): spawns in any map while Dwell's data is installed, or by the toolgun as dw_<classname>.
+
+Dwell's Haste: 20 s, weapons refire in 0.6 of their time."
+[
+]
+
+@PointClass color(0 128 204) size(-8 -8 -8, 8 8 8) =
+	misc_crystal : "From Dwell (rebuilt on Copper and Quake VR): spawns in any map while Dwell's data is installed, or by the toolgun as dw_<classname>.
+
+Dwell: a crystal cluster.
+style: 1-8, its shape
+mangle: its angles"
+[
+	mangle(string) : "Angles (pitch yaw roll)" :  : "Pitch, yaw and roll in degrees."
+]
+
+@PointClass color(255 0 0) size(-32 -32 -24, 32 32 64) model({ "path": "progs/e2/mon_brute.mdl" }) =
+	monster_brute : "From Dwell (rebuilt on Copper and Quake VR): spawns in any map while Dwell's data is installed, or by the toolgun as dw_<classname>.
+
+Dwell's Brute: 600 health; punches (60, throwing up) and lobs grenade volleys; drops 3 rockets."
+[
+	spawnflags(flags) =
+	[
+		1 : "AMBUSH" : 0
+	]
+]
+
+@PointClass color(255 0 0) size(-32 -32 -96, 32 32 96) model({ "path": "progs/mon_d1boss.mdl" }) =
+	monster_d1boss : "From Dwell (rebuilt on Copper and Quake VR): spawns in any map while Dwell's data is installed, or by the toolgun as dw_<classname>.
+
+Dwell's first boss, the Awoken: 1400 health, three phases. target, target2, target3: fired as each phase ends target4: fired at its death
+include: where it wakes after a phase"
+[
+]
+
+@PointClass color(255 0 0) size(-48 -48 -48, 48 48 48) model({ "path": "progs/mon_d2boss.mdl" }) =
+	monster_d2boss : "From Dwell (rebuilt on Copper and Quake VR): spawns in any map while Dwell's data is installed, or by the toolgun as dw_<classname>.
+
+Dwell's second boss, the Sculptor: dormant until used.
+strength: health (1000)
+speed: flight speed (300)
+wait: rest after a phase (40)
+include: its first path corner
+target: fired as each phase ends target2: its arena's centre target4: fired at its death"
+[
+	health(integer) : "Health" :  : "If set, it must be shot (this much damage) instead of touched."
+	speed(float) : "Speed" :  : "Speed (units per second) or rate: see the help for this entity."
+	wait(float) : "Wait" :  : "Seconds to wait (before it returns, resets or repeats). -1: never."
+	targetname(target_source) : "Name" :  : "The name that other entities' target and killtarget use to trigger this one."
+]
+
+@PointClass color(255 0 0) size(-32 -32 -16, 32 32 72) model({ "path": "progs/e2/mon_excavator.mdl" }) =
+	monster_excavator : "From Dwell (rebuilt on Copper and Quake VR): spawns in any map while Dwell's data is installed, or by the toolgun as dw_<classname>.
+
+Dwell's Construct: a flyer, 600 health; fires crystals (40); below 340 health it dives and bursts (60 around)."
+[
+	spawnflags(flags) =
+	[
+		1 : "AMBUSH" : 0
+	]
+]
+
+@PointClass color(255 0 0) size(-16 -16 -24, 16 16 24) model({ "path": "progs/e1/mon_kami.mdl" }) =
+	monster_kamikaze : "From Dwell (rebuilt on Copper and Quake VR): spawns in any map while Dwell's data is installed, or by the toolgun as dw_<classname>.
+
+Dwell's Kamikaze: 40 health; runs screaming at its enemy and bursts on contact (60 near, nothing at 190 units)."
+[
+	spawnflags(flags) =
+	[
+		1 : "AMBUSH" : 0
+	]
+]
+
+@PointClass color(128 128 128) size(-8 -8 -8, 8 8 8) model({ "path": "progs/e2/hell_rocket.mdl" }) =
+	target_bullethell : "From Dwell (rebuilt on Copper and Quake VR): spawns in any map while Dwell's data is installed, or by the toolgun as dw_<classname>.
+
+Dwell: used, a bullet-hell pattern out from it.
+style: 0 random (1-7), 1 a line at each player, 2 two lines, 3 ring, 4 two spirals, 5 moving wheel, 6 rocket barrage, 7 pulse, 8 Dwell's program A"
+[
+]
+
+@PointClass color(128 128 128) size(-8 -8 -8, 8 8 8) =
+	trigger_killboss : "From Dwell (rebuilt on Copper and Quake VR): spawns in any map while Dwell's data is installed, or by the toolgun as dw_<classname>.
+
+Dwell: used, marks the boss its target names to die next time (666 health left)."
+[
+]
+
+@PointClass color(0 128 204) size(-16 -16 0, 16 16 32) =
+	weapon_quad_shotgun : "From Dwell (rebuilt on Copper and Quake VR): spawns in any map while Dwell's data is installed, or by the toolgun as dw_<classname>.
+
+Dwell's Rotary Shotgun (for now a super shotgun firing Dwell's 20 pellets)."
+[
+]
+
+@PointClass color(0 128 204) size(-16 -16 0, 16 16 32) =
+	weapon_railgun : "From Dwell (rebuilt on Copper and Quake VR): spawns in any map while Dwell's data is installed, or by the toolgun as dw_<classname>.
+
+Dwell's Crystal Lance (for now a lightning gun firing Dwell's piercing beam: 150 each, 6 cells)."
+[
+]
+
+@PointClass color(0 128 204) size(-16 -16 0, 16 16 32) =
+	weapon_rifle : "From Dwell (rebuilt on Copper and Quake VR): spawns in any map while Dwell's data is installed, or by the toolgun as dw_<classname>.
+
+Dwell's Rifle (for now a shotgun firing one 50 bullet)."
+[
+]
+
+//
 // Other point entities
 //
 

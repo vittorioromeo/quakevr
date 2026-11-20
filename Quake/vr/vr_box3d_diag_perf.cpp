@@ -32,9 +32,11 @@ namespace
 // percentile and the worst, ms), the awake bodies on average, and its workers (vr_box3d_threads); then starts counting
 // again. A bench: run it, play, run it again (Misc/quakevr/box3dmt/pilebench.py). `bins`: also the frames by the awake
 // bodies as their step began (what Physics Threads From compares), each range's frames, median and 95th percentile; and
-// Box3D's own profile (ms a frame: where the step went).
+// Box3D's own profile (ms a frame: where the step went). The first call starts keeping each frame's sample: its median and
+// percentiles are 0 (its means, worst and counts are the frames' since the world was made, as before).
 void steptime_f()
 {
+    stepTiming = true;
     if(!world)
     {
         Con_Printf("vr_physics_steptime: no physics world\n");
@@ -93,6 +95,77 @@ void steptime_f()
     world->stepAwake = 0;
 }
 
+namespace
+{
+// The part of ragdoll `r` that `body` is, or -1.
+[[nodiscard]] int partOf(const RagdollBodies& r, b3BodyId body)
+{
+    for(int p = 0; p < r.count; p++)
+    {
+        if(!partCut(r, p) && B3_ID_EQUALS(r.body[static_cast<za::SizeT>(p)], body))
+        {
+            return p;
+        }
+    }
+    return -1;
+}
+} // namespace
+
+void ragdollContactSplit(int (&out)[contactSplits])
+{
+    constexpr int most = 64;
+    for(const RagdollBodies& r : world->ragdolls)
+    {
+        if(r.num == 0 || r.count == 0 || B3_IS_NULL(r.body[0]) || !b3Body_IsValid(r.body[0]))
+        {
+            continue;
+        }
+        for(int p = 0; p < r.count; p++)
+        {
+            const b3BodyId body = r.body[static_cast<za::SizeT>(p)];
+            if(partCut(r, p) || !b3Body_IsAwake(body))
+            {
+                continue;
+            }
+            za::Array<b3ContactData, most> contacts;
+            const int n = b3Body_GetAllContactData(body, contacts.data(), most);
+            for(int c = 0; c < n; c++)
+            {
+                const b3ContactData& d = contacts[static_cast<za::SizeT>(c)];
+                const b3ShapeId other = B3_ID_EQUALS(b3Shape_GetBody(d.shapeIdA), body) ? d.shapeIdB : d.shapeIdA;
+                const b3BodyId ob = b3Shape_GetBody(other);
+                const uint64_t cat = b3Shape_GetFilter(other).categoryBits;
+                const int num = numOf(other);
+                const bool ragdoll = (cat & catCorpse) && num > 0 && num < static_cast<int>(world->slots.size()) &&
+                                     world->slots[num].ragdoll >= 0;
+                if(ragdoll && b3Body_IsAwake(ob) && ob.index1 < body.index1)
+                {
+                    continue; // (seen from the other part too: counted there)
+                }
+                int kind = SplitOther;
+                if(ragdoll && num == r.num)
+                {
+                    const int q = partOf(r, ob);
+                    kind = q >= 0 && (r.rig->bones[p].parent == q || r.rig->bones[q].parent == p) ? SplitSelfJoined : SplitSelfApart;
+                }
+                else if(ragdoll)
+                {
+                    kind = SplitRagdolls;
+                }
+                else if(cat & (catReach | catHand))
+                {
+                    kind = SplitHands;
+                }
+                else if(cat & (catWorld | catMover))
+                {
+                    kind = SplitWorld;
+                }
+                out[kind + (d.manifoldCount > 0 ? 0 : 1)]++;
+            }
+        }
+    }
+}
+
 // vr_physics_frametime [<label>]: each server frame's physics since it last printed, by phase (framePhaseNames; ms: the
 // mean, median, 95th and 99th percentiles and the worst), with the wall-clock time and the host frames between the two
 // calls (the whole frame's cost, with vr_fixed_frames: a test run's same frames); then starts counting again (the first
@@ -112,16 +185,38 @@ void frametime_f()
         return;
     }
     const za::Vector<World::FrameSample>& samples = world->frameSamples;
-    double awake = 0.0;
+    double awake = 0.0, contacts = 0.0, islands = 0.0, reach = 0.0;
     for(const World::FrameSample& x : samples)
     {
         awake += x.awake;
+        contacts += x.contacts;
+        islands += x.islands;
+        reach += x.reachTouches;
     }
+    const double per = samples.empty() ? 0.0 : 1.0 / static_cast<double>(samples.size());
     const b3Counters c = b3World_GetCounters(world->id);
     Con_Printf("vr_physics_frametime %s: %d frames, %d host frames in %.3f s (%.4f ms a host frame), %.1f awake, %d bodies, "
                "%d contacts\n",
         label, static_cast<int>(samples.size()), hostFrames, wall, hostFrames > 0 ? wall * 1000.0 / hostFrames : 0.0,
-        samples.empty() ? 0.0 : awake / static_cast<double>(samples.size()), c.bodyCount, c.contactCount);
+        awake * per, c.bodyCount, c.contactCount);
+    // (counts, not times: the same on any machine under any load)
+    Con_Printf("vr_physics_frametime %s counts: a frame %.1f awake bodies, %.1f contacts stepped, %.1f islands, %.2f hand "
+               "contacts\n",
+        label, awake * per, contacts * per, islands * per, reach * per);
+    double split[contactSplits]{};
+    for(const World::FrameSample& x : samples)
+    {
+        for(int k = 0; k < contactSplits; k++)
+        {
+            split[k] += x.split[k];
+        }
+    }
+    // (a line each: the console wraps long lines, and the tests' filters see the first part only)
+    for(int k = 0; k < contactSplits; k += 2)
+    {
+        Con_Printf("vr_physics_frametime %s split: %s %.1f touching, %.1f near (a frame, the awake ragdolls' parts)\n",
+            label, contactSplitNames[k / 2], split[k] * per, split[k + 1] * per);
+    }
     za::Vector<float> ms;
     ms.reserve(samples.size());
     for(int p = 0; p < framePhases; p++)

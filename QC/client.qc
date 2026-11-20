@@ -1,4 +1,4 @@
-float modelindex_eyes, modelindex_player, modelindex_hammer;
+float modelindex_eyes, modelindex_player;
 
 //
 //
@@ -84,7 +84,11 @@ void() SetChangeParms =
     teamplay = cvar_hget(cvarh_teamplay);
     if(teamplay >= TEAM_CTF)
     {
+        // As a dead player's: a new game's parms, the team kept (the weapons' flags, magazines and ids below are the old
+        // weapons'; the next weapon id, parm49, is SetNewParms's; bullet time's meter and the plates start afresh).
         SetNewParms();
+        parm22 = self.steam;
+        return;
     }
     else
     {
@@ -161,11 +165,10 @@ void() SetChangeParms =
     parm48 = self.holsterweaponinst5.wi_uid;
     parm49 = qvr_weaponinst_next;
     parm64 = AD_PackWeaponUpgrades(self); // AD support: the carried weapons' upgrades (vr_ad_bridge.qc)
+    parm76 = DW_PackWeaponVariants(self); // Dwell support: the carried weapons' variants (dwell/dw_items.qc)
     WeaponInst_PackHot(self); // (the blades still glowing: parm65..72)
-    parm39 = self.weaponclipsize;
     parm50 = self.vr_flashlight_state; // (bits 0..18: the engine's lamp; bit 19: a chainsaw's cord pulled)
     if(self.vr_saw_cord_pulled) parm50 = parm50 + VR_PARM50_SAW_CORD_PULLED;
-    parm40 = self.weaponclipsize2;
     parm74 = self.vr_bullettime_spent; // (bullet time's meter, kept from level to level: vr_bullettime.cpp)
     parm75 = self.vr_pp_mask; // (the armour plates shown: which ones, kept from level to level: vr_playerplates.qc)
 };
@@ -180,18 +183,9 @@ void() OnSpawnServerBeforeLoad =
 
 void() OnSpawnServerAfterLoad =
 {
-    float fromSaveFile;
-    fromSaveFile = spawnServerFromSaveFile;
-
     VR_CVars_InitAllHandles();
 
-    if(!fromSaveFile)
-    {
-        if(!deathmatch && !VR_GameUtil_InTutorialMap())
-        {
-            SpawnAllAmmoBoxWeapons();
-        }
-    }
+    // (The map's ammo boxes roll their weapon at its first PutClientInServer, against that player: SpawnAllAmmoBoxWeapons.)
 }
 
 void() VR_Crackles_AfterLoad; // (vr_burning.qc)
@@ -200,6 +194,8 @@ void() VR_AM_AfterLoad;       // (vr_armedmon.qc)
 void() OnLoadGame =
 {
     VR_CVars_InitAllHandles();
+    vr_ammobox_rolled_map = TRUE; // (the map's boxes rolled before the save; an older save's flag was not kept)
+    VR_Skewer_ListRebuild(); // (the skewered gibs' list: an older save had none)
     VR_AM_AfterLoad(); // the armed monsters' row cache: the map's spawn filled it for another kind than the save's
     SUB_DoLater(VR_Crackles_AfterLoad, 0.1); // the torches' and fires' crackles started again (sounds are not saved)
     VR_Tips_Reapply(); // (TRIGGERED tips used before the save: shown again)
@@ -339,6 +335,7 @@ void() SetNewParms =
     parm73 = 0; // (no magnetic holster bindings)
     parm74 = 0; // (bullet time's meter full)
     parm75 = 0; // (no armour plates)
+    parm76 = 0; // (Dwell support: no variants)
     VR_Run_NewParms(); // the run's mutators: Starting Weapon, Melee Only's axe (vr_run.qc)
 };
 
@@ -457,6 +454,7 @@ void() DecodeLevelParms =
     self.holsterweaponinst4 = WeaponInst_Carried(self.holsterweapon4, parm37, parm47);
     self.holsterweaponinst5 = WeaponInst_Carried(self.holsterweapon5, parm38, parm48);
     AD_UnpackWeaponUpgrades(self, parm64); // AD support: their upgrades (vr_ad_bridge.qc)
+    DW_UnpackWeaponVariants(self, parm76); // Dwell support: their variants (dwell/dw_items.qc)
     WeaponInst_UnpackHot(self);
     VR_MagHolster_DecodeParms(); // (parm73: the bindings, to the carried weapons' records)
     VR_ADGun_EnsureCarried(self); // AD support: AD soldiers' guns carried here precached (vr_ad_enemyguns.qc)
@@ -774,7 +772,7 @@ void() execute_changelevel =
         other.modelindex = 0;
         setorigin(other, pos.origin);
 
-        if(MG_WorldCampaign()) MG_FogPushSettingsFrom(other, pos, 0);
+        if(MG_WorldCampaign()) VR_Fog_PushFrom(other, pos, 0);
 
         // HONEY
         if(fogsettings != NULLENT && fogsettings.classname == "trigger_fogcontroller") {
@@ -999,6 +997,193 @@ SelectSpawnPoint
 Returns the entity to spawn at
 ============
 */
+// VR (B13, MP_PLAN): a deathmatch start a living player (not `self`) stands within 64 units of: a spawn there would
+// telefrag him (spawn_tdeath's box reaches 49 units out on each axis). Stock Quake counted any "player" within 32 -- the
+// dead ones too, and not one 33-49 units away, whom the spawn then telefragged: with 16 players on a map's 6 starts the
+// bots' instant respawns telefragged each other hundreds of times a second (mp_soak), every death dropping weapons until
+// the server ran out of edicts.
+float(vector org) VR_DMPlaceBlocked =
+{
+    entity thing = findradius(org, 64);
+    while(thing)
+    {
+        if(thing.classname == "player" && thing != self && thing.health > 0 && thing.deadflag == DEAD_NO)
+            return TRUE;
+        thing = thing.chain;
+    }
+    return FALSE;
+};
+
+float(entity spot) VR_DMSpotBlocked =
+{
+    return VR_DMPlaceBlocked(spot.origin);
+};
+
+.float vr_spawn_wait; // VR (B13): a deathmatch respawn waiting for a clear start: the time it gives up waiting (0: none)
+float VR_DM_SPAWN_WAIT = 2;
+
+// VR (B13b, MP_PLAN): every deathmatch start taken by a living player, a place beside one: up to 144 units out round it
+// (8 ways, its own facing first; 48, 96, 144 units), the player's box clear of the level and of solid things there and
+// all the way from the start (the same room, never through a wall), a floor under its feet within 40 units (not a ledge),
+// no liquid at its head, middle or feet, and no living player within 64 units (VR_DMPlaceBlocked). With 16 players on
+// dm3's few starts the bots standing at them were telefragged by the respawns ~100 times in 10 s (mp_soak); the respawn
+// waited up to 2 s, then telefragged as stock Quake did. Its place in vr_dm_beside_at.
+vector vr_dm_beside_at;
+entity vr_dm_beside; // the spot a respawn beside a start takes (classname "vr_dm_beside": made again on each map)
+float(entity spot) VR_DMSpotBeside =
+{
+    for(float r = 48; r <= 144; r = r + 48)
+    {
+        for(float a = 0; a < 360; a = a + 45)
+        {
+            makevectors('0 1 0' * (spot.angles_y + a));
+            vector p = spot.origin + v_forward * r;
+            tracebox(spot.origin, VEC_HULL_MIN, VEC_HULL_MAX, p, TRUE, self); // (the level: a player on the start is no wall)
+            if(trace_fraction < 1 || trace_startsolid || trace_allsolid)
+                continue;
+            tracebox(p, VEC_HULL_MIN, VEC_HULL_MAX, p, FALSE, self); // (and nothing solid there)
+            if(trace_startsolid || trace_allsolid)
+                continue;
+            traceline(p, p - '0 0 64', TRUE, self);
+            if(trace_fraction == 1 || p_z - trace_endpos_z > 24 + 40)
+                continue;
+            if(pointcontents(p + '0 0 22') != CONTENT_EMPTY || pointcontents(p) != CONTENT_EMPTY ||
+               pointcontents(p - '0 0 23') != CONTENT_EMPTY)
+                continue;
+            if(VR_DMPlaceBlocked(p))
+                continue;
+            vr_dm_beside_at = p;
+            return TRUE;
+        }
+    }
+    return FALSE;
+};
+
+// VR (B13b): the spot a respawn beside `spot` takes: vr_dm_beside at vr_dm_beside_at (VR_DMSpotBeside's), facing as `spot`.
+entity(entity spot) VR_BesideSpotTake =
+{
+    if(!vr_dm_beside || vr_dm_beside.classname != "vr_dm_beside")
+    {
+        vr_dm_beside = spawn();
+        vr_dm_beside.classname = "vr_dm_beside";
+    }
+    vr_dm_beside.origin = vr_dm_beside_at;
+    vr_dm_beside.angles = spot.angles;
+    return vr_dm_beside;
+};
+
+// VR (B13b): the first deathmatch start (from `from` on, round) with a clear place beside it (VR_DMSpotBeside), as the spot
+// a respawn takes (vr_dm_beside, facing as the start); world if none.
+entity(entity from) VR_DMBesideSpot =
+{
+    if(from.classname != "info_player_deathmatch")
+        from = world;
+    entity spot = from;
+    for(float k = 0; k < 64; k++)
+    {
+        spot = find(spot, classname, "info_player_deathmatch");
+        if(!spot)
+        {
+            spot = find(world, classname, "info_player_deathmatch");
+            if(!spot)
+                return world;
+        }
+        if(VR_DMSpotBeside(spot))
+        {
+            dprint(sprintf("dm spawn: every start taken; beside one at %s (%.0f units from it)\n", vtos(vr_dm_beside_at),
+                vlen(vr_dm_beside_at - spot.origin)));
+            return VR_BesideSpotTake(spot);
+        }
+        if(spot == from)
+            return world;
+        if(!from)
+            from = spot; // (from the first: once round)
+    }
+    return world;
+};
+
+// VR (B13): whether a deathmatch start is clear now (VR_DMSpotBlocked), or (B13b) a place beside one; CTF's team starts
+// are not counted (no wait there).
+float() VR_DMSpotClear =
+{
+    if(teamplay >= TEAM_CTF)
+        return TRUE;
+    entity spot = find(world, classname, "info_player_deathmatch");
+    if(!spot)
+        return TRUE;
+    while(spot)
+    {
+        if(!VR_DMSpotBlocked(spot))
+            return TRUE;
+        spot = find(spot, classname, "info_player_deathmatch");
+    }
+    return VR_DMBesideSpot(lastspawn) != world;
+};
+
+// VR (B25b, MP_PLAN): the coop start after `from` as stock Quake cycled them (the info_player_coop after it, else the
+// info_player_start), and VR_CoopSpotRound's step: every coop start then the player start, round, from any of them.
+entity(entity from) VR_CoopSpotNext =
+{
+    entity s = find(from, classname, "info_player_coop");
+    if(!s)
+        s = find(world, classname, "info_player_start");
+    return s;
+};
+
+entity(entity from) VR_CoopSpotRound =
+{
+    entity s = world;
+    if(from.classname == "info_player_coop")
+        s = find(from, classname, "info_player_coop");
+    else if(from.classname != "info_player_start")
+        s = find(world, classname, "info_player_coop");
+    if(!s && from.classname == "info_player_coop")
+        s = find(world, classname, "info_player_start");
+    if(!s)
+        s = find(world, classname, "info_player_coop");
+    if(!s)
+        s = find(world, classname, "info_player_start");
+    return s;
+};
+
+// VR (B25b, MP_PLAN): a coop spawn's start. Stock Quake took the next start in turn, a player standing on it or not, and
+// the spawn telefragged him: a player joining a coop game in progress (or back from a crash) killed the one at the next
+// start (mp_rejoin: "C was telefragged by B" once another join had moved the turn on). The next start in turn if no
+// living player is within 64 units of it (VR_DMPlaceBlocked, deathmatch's rule), else the next clear one round, else a
+// clear place beside one (VR_DMSpotBeside), else the next in turn as stock Quake (the telefrag). world: no coop start.
+entity() VR_CoopSpawnPoint =
+{
+    entity first = VR_CoopSpotNext(lastspawn);
+    if(!first)
+        return world;
+    entity s = first;
+    for(float k = 0; k < 64; k++)
+    {
+        if(!VR_DMSpotBlocked(s))
+        {
+            lastspawn = s;
+            return s;
+        }
+        s = VR_CoopSpotRound(s);
+        if(!s || s == first)
+            break;
+    }
+    lastspawn = first;
+    s = first;
+    for(float j = 0; j < 64; j++)
+    {
+        if(VR_DMSpotBeside(s))
+        {
+            dprint(sprintf("coop spawn: every start taken; beside one at %s\n", vtos(vr_dm_beside_at)));
+            return VR_BesideSpotTake(s);
+        }
+        s = VR_CoopSpotRound(s);
+        if(!s || s == first)
+            break;
+    }
+    return first;
+};
+
 entity() SelectSpawnPoint =
 {
     entity spot;
@@ -1040,11 +1225,10 @@ entity() SelectSpawnPoint =
             } while(c && c != first);
             return find(world, classname, "info_player_start");
         }
-        lastspawn = find(lastspawn, classname, "info_player_coop");
-        if(lastspawn == world)
-            lastspawn = find(lastspawn, classname, "info_player_start");
-        if(lastspawn != world)
-            return lastspawn;
+        spot = VR_CoopSpawnPoint();
+        if(spot != world)
+            return spot;
+        lastspawn = world;
     }
     else if(deathmatch)
     {
@@ -1084,18 +1268,17 @@ entity() SelectSpawnPoint =
             {
                 if(spot == startspot)
                 {
+                    // VR (B13b): every start taken: a place beside one, if any (not CTF's team starts)
+                    if(t == 0)
+                    {
+                        entity beside = VR_DMBesideSpot(lastspawn);
+                        if(beside)
+                            return beside;
+                    }
                     return startspot;
                 }
 
-                pcount = 0;
-                thing = findradius(spot.origin, 32);
-
-                while(thing)
-                {
-                    if(thing.classname == "player")
-                        pcount = pcount + 1;
-                    thing = thing.chain;
-                }
+                pcount = VR_DMSpotBlocked(spot); // VR (B13): a living player near it (stock: any player within 32)
 
                 if(pcount == 0)
                 {
@@ -1164,6 +1347,7 @@ void() PutClientInServer =
 
     VR_Head_StopFlies(self); // QVR: flies round a gibbed player's head don't follow it back to life
     self.vr_deathdoll_body = world; // QVR: alive again, his ragdoll body only a body (vr_deathdoll.qc); the others see him
+    self.vr_spawn_wait = 0; // QVR: (B13) no deathmatch respawn waiting
 
     self.classname = "player";
     self.health = 100;
@@ -1229,7 +1413,7 @@ void() PutClientInServer =
     if(MG_WorldCampaign())
     {
         self.fog_active_fog_trigger = world;
-        if(!MG_FogPushSettingsFrom(self, spot, 0)) MG_FogPushSettingsFrom(self, world, 0);
+        if(!VR_Fog_PushFrom(self, spot, 0)) VR_Fog_PushFrom(self, world, 0);
     }
     self.origin = self.oldorigin = spot.origin + '0 0 1';    // 1998-07-21 Respawning where player died fix by Robert Field
     self.angles = spot.angles;
@@ -1238,13 +1422,6 @@ void() PutClientInServer =
     self.touch = player_touch;
 
     // oh, this is a hack!
-
-    modelindex_hammer = 0;
-    if(vr_have_playham) // (Hipnotic's third-person player holding Mjolnir: the weapon itself is Quake VR's)
-    {
-        setmodel(self, "progs/playham.mdl");
-        modelindex_hammer = self.modelindex;
-    }
 
     setmodel(self, "progs/eyes.mdl");
     modelindex_eyes = self.modelindex;
@@ -1309,26 +1486,37 @@ void() PutClientInServer =
 
     if(deathmatch)
     {
-        readytime = time;
+        self.vr_readytime = time;
     }
     else
     {
-        readytime = time + 0.5;
+        self.vr_readytime = time + 0.5;
     }
     if(MGH_Active()) { MGH_horde_set_keys(self); MGH_ResetHunger(self); }
     AD_PlayerSpawned(); // AD support: what AD's code reads of a player, in an AD map (vr_ad_bridge.qc)
     AD_UpgradesToWeapons(self); // AD support: an older game's upgrades (the player's) onto his weapons (vr_ad_bridge.qc)
     VR_Toolgun_SpawnInHolster(); // vr_debug_spawn_toolgun (vr_toolgun.qc)
+    SpawnAllAmmoBoxWeapons(self);
 };
 
-void() SpawnAllAmmoBoxWeapons =
+// The map's first PutClientInServer (`p`, the first player in coop; not a loaded game's: none): each ammo box's weapon
+// rolled against what he carries (DecodeLevelParms has run), once. A box not placed yet rolls at its placement.
+void(entity p) SpawnAllAmmoBoxWeapons =
 {
-    entity e;
-    for(e = nextent(world); e != world; e = nextent(e))
+    if(vr_ammobox_rolled_map)
     {
-        if(IsAmmoBox(e))
+        return;
+    }
+    vr_ammobox_rolled_map = TRUE;
+    if(deathmatch || VR_GameUtil_InTutorialMap())
+    {
+        return;
+    }
+    for(entity e = nextent(world); e != world; e = nextent(e))
+    {
+        if(IsAmmoBox(e) && !e.vr_ammobox_rolls && e.think != PlaceItem)
         {
-            SpawnAmmoBoxWeaponsImpl(e, self);
+            VR_AmmoBox_Roll(e, p);
         }
     }
 }
@@ -1526,8 +1714,8 @@ void() PlayerDeathThink =
         return;
     }
 
-// wait for any button down
-    if(!self.button2 && !self.button1 && !self.button0)
+// wait for any button down (VR: B13, or a respawn already asked for, waiting for a clear start: below)
+    if(!self.button2 && !self.button1 && !self.button0 && !self.vr_spawn_wait)
         return;
 
     self.button0 = 0;
@@ -1543,6 +1731,16 @@ void() PlayerDeathThink =
     }
     // MG1 Horde (official client.qc): the same release-then-press gate, then a team wipe restarts the arena.
     if(MGH_Active()) { MGH_DeathThink(); return; }
+    // VR (B13): in deathmatch, every start with a living player at it: he waits for one to clear (his next press tries
+    // again), at most VR_DM_SPAWN_WAIT seconds from his first try; then he spawns as stock Quake did (a telefrag)
+    if(deathmatch && !VR_DMSpotClear())
+    {
+        if(!self.vr_spawn_wait)
+            self.vr_spawn_wait = time + VR_DM_SPAWN_WAIT;
+        if(time < self.vr_spawn_wait)
+            return;
+    }
+    self.vr_spawn_wait = 0;
     respawn();
 };
 
@@ -1554,7 +1752,11 @@ void() PlayerJump =
 
     if(self.waterlevel >= 2)
     {
-        if(self.watertype == CONTENT_WATER)
+        if(self.vr_movejump)
+        {
+            // (a remote client's moves rise in each, the engine's: MP_PLAN B8e; the sound is ours)
+        }
+        else if(self.watertype == CONTENT_WATER)
             self.velocity_z = 100;
         else if(self.watertype == CONTENT_SLIME)
             self.velocity_z = 80;
@@ -1706,7 +1908,7 @@ void() WaterMove =
         self.dmgtime = 0;
     }
 
-    if(! (self.flags & FL_WATERJUMP))
+    if(!(self.flags & FL_WATERJUMP) && !self.vr_moveswim) // (a remote client's moves drag in each: MP_PLAN B8e)
         self.velocity = self.velocity - 0.8*self.waterlevel*frametime*self.velocity;
 };
 
@@ -1740,49 +1942,30 @@ float(vector xDir) WaterJumpTry =
 };
 
 // Climbing out of the water by hand (vr_water_jump 0, vr_climb on): an empty hand gripping on the edge, the
-// ground right under it, pulled down (VR_WATERCLIMB_PULL m/s) lifts the player out as Quake's jump out would, over
-// the edge towards that hand. A bank no ledge of the ledge map is on (a slope, a step: vr_ledges.cpp) climbs so;
-// a ledge's hold takes the climbing's own way (vr_climb.cpp: hang, pull up, mantle).
-float VR_WATERCLIMB_PULL = 0.3;
-float(float xHand) VR_WaterClimb_HandPull =
+// ground right under it, pulled down (0.3 m/s or faster) lifts the player out as Quake's jump out would, over the
+// edge towards that hand, high enough to clear the top under it. A bank no ledge of the ledge map is on (a slope, a
+// step: vr_ledges.cpp) climbs so; a ledge's hold takes the climbing's own way (vr_climb.cpp: hang, pull up, mantle).
+// The engine's (vr_pmove.cpp waterClimbTry: one function with a remote client's moves, MP_PLAN B8j part 3): the hands
+// that may climb (empty: bit 0 the off hand, 1 the main) are QuakeC's.
+float() VR_WaterClimb_FreeHands =
 {
-    vector vel = VRGetEntHandVel(self, xHand);
-    if(!VR_HandGrabUtil_IsHandGrabbing(self, xHand) || !VR_Hand_Free(self, xHand, VR_HANDFREE_BUSY | VR_HANDFREE_LOCKED) ||
-       vel_z > -VR_WATERCLIMB_PULL)
-    {
-        return FALSE;
-    }
-    vector p = VRGetEntHandPos(self, xHand);
-    vector d = p - self.origin;
-    d_z = 0;
-    if(vlen(d) < 8)
-    {
-        return FALSE; // a hand by the body
-    }
-    traceline(p + '0 0 4', p - '0 0 16', TRUE, self);
-    if(trace_fraction == 1 || trace_startsolid || trace_plane_normal_z < 0.7)
-    {
-        return FALSE; // no ground under the hand (a top that could be stood on) to push on
-    }
-    float top = trace_endpos_z;
-    d = normalize(d);
-    if(!WaterJumpTry(d))
-    {
-        return FALSE;
-    }
-    // Lifted high enough to clear the top under the hand (Quake's 225 units/s rise reaches about 31 units: a bank's
-    // top higher than the waist is not climbed so), and carried over the edge a little faster than Quake's.
-    float g = cvar_hget(cvarh_sv_gravity) * (self.gravity ? self.gravity : 1);
-    float rise = top - (self.origin_z + self.mins_z) + 6;
-    if(rise > 0 && g > 0)
-    {
-        self.velocity_z = max(225, sqrt(2 * g * rise));
-    }
-    self.movedir = self.movedir * 1.6; // (Quake's: away from the edge's face, 50 units/s)
-    dprint(sprintf("waterjump: climbed out by hand %g, the top %.1f above the feet, rising at %.0f\n", xHand, rise - 6,
-        self.velocity_z));
+    return (VR_Hand_Free(self, cVR_OffHand, VR_HANDFREE_BUSY | VR_HANDFREE_LOCKED) ? 1 : 0) |
+           (VR_Hand_Free(self, cVR_MainHand, VR_HANDFREE_BUSY | VR_HANDFREE_LOCKED) ? 2 : 0);
+};
+
+// ... the engine's climb lifted self out by hand `xHand`: the top under it `xTop` over the feet, rising at `xRise`.
+void(float xHand, float xTop, float xRise) VR_WaterClimb_Climbed =
+{
+    dprint(sprintf("waterjump: climbed out by hand %g, the top %.1f above the feet, rising at %.0f\n", xHand, xTop, xRise));
     VRItemPickupHaptic(self);
-    return TRUE;
+};
+
+// Off (vr_water_jump 0), a player climbs out with the hands: only while climbing is on (else there would be no way
+// out of a pool whose sides are higher than a stroke lifts him). A flat-screen player has no hands to climb with:
+// Quake's own jump out lifts him, whatever the setting (docs/vr-port/FLATPLAY.md, "Swimming"). TRUE: the hands'.
+float() VR_WaterJumpByHand =
+{
+    return self.ishuman && !VR_FlatPlay(self) && !cvar_hget(cvarh_vr_water_jump) && cvar_hget(cvarh_vr_climb);
 };
 
 void() CheckWaterJump =
@@ -1790,16 +1973,19 @@ void() CheckWaterJump =
 // check for a jump-out-of-water
     makevectors(self.angles);
     v_forward_z = 0;
-    // Off (vr_water_jump 0), a player climbs out with the hands: only while climbing is on (else there would be no
-    // way out of a pool whose sides are higher than a stroke lifts him). A flat-screen player has no hands to climb
-    // with: Quake's own jump out lifts him, whatever the setting (docs/vr-port/FLATPLAY.md, "Swimming").
-    if(self.ishuman && !VR_FlatPlay(self) && !cvar_hget(cvarh_vr_water_jump) && cvar_hget(cvarh_vr_climb))
+    if(VR_WaterJumpByHand())
     {
-        if(!VR_WaterClimb_HandPull(cVR_MainHand))
+        if(!self.vr_movewaterclimb) // (a remote client's moves try it, each: MP_PLAN B8j part 3)
         {
-            VR_WaterClimb_HandPull(cVR_OffHand);
+            float grips = (VR_HandGrabUtil_IsHandGrabbing(self, cVR_OffHand) ? 1 : 0) |
+                          (VR_HandGrabUtil_IsHandGrabbing(self, cVR_MainHand) ? 2 : 0);
+            waterclimb(grips & VR_WaterClimb_FreeHands());
         }
         return;
+    }
+    if(self.vr_movewaterjump)
+    {
+        return; // (a remote client's moves try it, each: MP_PLAN B8f)
     }
     WaterJumpTry(v_forward);
 };
@@ -1929,6 +2115,14 @@ void() PlayerPreThink =
     CheckMOTD();
     CheckRules();
     WaterMove();
+    // (a remote client's moves run Quake's jump out each, his prediction with them: MP_PLAN B8f)
+    self.vr_movewaterjump = (self.vr_moveswim && !VR_WaterJumpByHand());
+    // (... or the hands' climb out: bit 0, the empty hands in bits 1-2; MP_PLAN B8j part 3)
+    self.vr_movewaterclimb = 0;
+    if(self.vr_moveswim && VR_WaterJumpByHand() && (self.vr_movetakes & 1))
+    {
+        self.vr_movewaterclimb = 1 + 2 * VR_WaterClimb_FreeHands();
+    }
 
     //JIM
     //WETSUIT
@@ -1948,7 +2142,19 @@ void() PlayerPreThink =
     if(self.deadflag == DEAD_DYING)
         return;    // dying, so do nothing
 
-    if(self.button2)
+    if(self.vr_movejump && (self.ad_moditems & ad_IT_ARTJUMPBOOTS))
+    {
+        self.vr_movejump = FALSE; // (AD's boots jump in the air too: QuakeC's, once a frame)
+    }
+    if(self.vr_movejump)
+    {
+        // A remote client's walk runs move by move (MP_PLAN B8d): the engine jumps as PlayerJump does, in the move whose
+        // key pressed it (vr_pmove.cpp), so his own prediction jumps with it; the key's release is its too. Swimming,
+        // the rise is the engine's too: PlayerJump plays its sound.
+        if(self.button2 && self.waterlevel >= 2)
+            PlayerJump();
+    }
+    else if(self.button2)
     {
         PlayerJump();
     }
@@ -2045,6 +2251,7 @@ void() CheckPowerups =
 {
     if(self.health <= 0)
         return;
+    DW_PowerupFrame(); // Dwell's Haste, Berserk, Wetsuit (dw_items.qc)
 
 // invisibility
     if(self.invisible_finished)
@@ -2063,9 +2270,6 @@ void() CheckPowerups =
         self.frame = 0;
         self.modelindex = modelindex_eyes;
     }
-//MED 12/04/96 added mjolnir stuff
-    else if(self.weapon == WID_MJOLNIR)
-        self.modelindex = modelindex_hammer;   // don't use eyes
     else
         self.modelindex = modelindex_player;    // don't use eyes
 
@@ -2189,10 +2393,12 @@ PlayerPostThink
 Called every frame after physics are run
 ================
 */
+void(entity pl) VR_PDG_Frame; // (vr_playerdisarm_grab.qc)
 void() PlayerPostThink =
 {
     VR_PP_Frame(self); // QVR: the armour's plates follow what is left of it (vr_playerplates.qc; bots too)
     VR_PD_Frame(self); // QVR: shots and projectiles on your weapons: knocked out? (vr_playerdisarm.qc)
+    VR_PDG_Frame(self); // QVR: another player's weapon grabbed and pulled out of his hand (vr_playerdisarm_grab.qc)
 
     // FRIKBOT
     if(BotPostFrame())
@@ -2302,6 +2508,7 @@ void() PlayerPostThink =
 
     CheckPowerups();
     AD_PlayerPostThink(); // AD support: AD's first frame, spawn targets and debuffs in an AD map (vr_ad_bridge.qc)
+    VR_RN_PlayerFrame(); // the ruleset's one megahealth rot a player (Copper's: vr_rules_numbers.qc)
     VR_Grapple_GunFrames(); // QVR: a grappling gun whose hook is out drawn empty (vr_grapple.qc)
     VR_Stealth_PlayerFrame(); // QVR: his running heard, his touch felt, how lit he is (vr_stealth.qc)
 };
@@ -2370,6 +2577,10 @@ void() ClientDisconnect =
 
     // MG1 Horde (official client.qc): a leaving player no longer counts as alive for waves, targets or revival.
     if(MGH_Active()) self.health = 0;
+
+    // What he carried is let go (as a dead player's, PlayerPostThink): no frame of his runs again to do it, and a thing
+    // left with its carry_player set hung in the air, taken by nobody (a key so held ended the level for the others).
+    VR_Carry_Dead();
 
     // let everyone else know
     bprint(self.netname);
@@ -2936,7 +3147,8 @@ void(float xHand, float xInMelee, float* xOutMeleeAttackFinished, float* xOutInM
     // of blow its part and motion make; the hands in a bash's push don't strike, and each thing is struck once a motion.
     // One swing, many things (VR_Melee_Multi): every thing it crosses, each once, and no pause after a blow (each thing
     // struck once a motion: a body crossed the frame after the floor is struck).
-    if(VRHandsTracked(self) && (time >= xInMelee || VR_Melee_Multi(VR_Blow(xHand))) && VR_Melee_Strike(xHand))
+    // (Hands that move themselves: tracked, or a bot's -- its punch and its swing, MP B11 part 4: VR_HandLinesKept.)
+    if(VR_HandLinesKept(self) && (time >= xInMelee || VR_Melee_Multi(VR_Blow(xHand))) && VR_Melee_Strike(xHand))
     {
         VR_Melee_DealAll(xHand);
         VR_Embed_BlowsDone(xHand);
@@ -2963,8 +3175,21 @@ float(entity e, vector xHead, vector xDir) VR_Headbutt_Reaches =
     return hitmodel_segment(e, xHead, xHead + xDir * 22, 6, HITCLASS_MELEE) >= 0;
 };
 
-// The monster a headbutt from `xHead` along `xDir` hits, or world.
+// The monster a headbutt from `xHead` along `xDir` hits, or world (a remote client's: where his screen showed it,
+// lagcompbegin, MP_PLAN.md B8c).
+entity(vector xHead, vector xDir) VR_Headbutt_TargetNow;
 entity(vector xHead, vector xDir) VR_Headbutt_Target =
+{
+    float lc = lagcompbegin(self);
+    entity e = VR_Headbutt_TargetNow(xHead, xDir);
+    if(lc)
+    {
+        lagcompend();
+    }
+    return e;
+};
+
+entity(vector xHead, vector xDir) VR_Headbutt_TargetNow =
 {
     entity best = world;
     float bestDist = 99999;

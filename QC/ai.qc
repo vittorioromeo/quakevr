@@ -1009,6 +1009,9 @@ float() CheckAnyAttack =
     if(!enemy_vis)
         return FALSE;
 
+    if(self.vr_th_checkattack)
+        return self.vr_th_checkattack(); // its own (Dwell's monsters: dw_common.qc)
+
     if(self.vr_ag)
         return VR_AG_CheckAttack(); // VR: an armed monster (vr_armedgrunt.qc, vr_armedmon.qc): by its weapon
 

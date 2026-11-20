@@ -261,6 +261,9 @@ float(float flag)            frik_recognize_plat;
 float(vector sdir)        frik_KeysForDir;
 void(vector whichway, float danger) frik_obstructed;
 void()                SV_Physics_Client;
+// QVR: this bot's frame walks through the moves players' walks run (botmovethink: vr_pmove.cpp, vr_pmove_bots; MP_PLAN
+// B11 part 3, part 3), else through FrikBot's own copy of the physics (bot_phys.qc)
+float bot_pmove;
 void()                SV_ClientThink;
 void()                 CL_KeyMove;
 
@@ -1010,6 +1013,7 @@ void(float whichteam, float whatbot, float whatskill) BotConnect =
     self.team = self.b_pants + 1;
     UpdateClient(self);
     SetNewParms();
+    botcarryparms(self); // QVR (MP bots phase 1): back on the next level of a coop game with what it had (as a player)
     self.ishuman = 2;
     ClientConnect();
     PutClientInServer();
@@ -1235,10 +1239,15 @@ void() BotFrame =
             if(active_clients & ClientBitFlag(num))
             {
                 frik_obstacles();
+                if(self.vr_botreach.flags & FL_CLIENT)
+                {
+                    self.keys = 0; // QVR: its hand on a player's weapon: it stands to take hold (MP B11 part 4)
+                }
                 CL_KeyMove();
 
                 bot_setvrfields();
 
+                bot_pmove = botmovethink(self.movevect); // QVR: its stick as a player's move (vr_pmove.cpp)
                 SV_ClientThink();
                 SV_Physics_Client();
             }

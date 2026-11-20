@@ -880,7 +880,7 @@ has them). KILLABLE: fans of spheres, 0.8 damage but from lightning and lasers, 
 */
 void() monster_boss_final =
 {
-    if(MG_MonsterInhibited()) return;
+    if(VR_SF_SpawnInhibited()) return;
     if(deathmatch)
     {
         remove(self);

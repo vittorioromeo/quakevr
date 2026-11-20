@@ -359,6 +359,7 @@ float(entity g) VR_Skewer_Find =
         {
             VR_Skewer_Gone(g); // (off the thrown one)
             g.vr_skewer_p = e;
+            VR_Skewer_Link(g); // (the shots' list: VR_Gib_TraceHeld)
             g.vr_skewer_hand = h;
             g.vr_skewer_lastt = 0;
             g.vr_skewer_grip = 0;
@@ -886,6 +887,7 @@ float(float xHand, entity b, entity g, vector xAt, vector xDir, float xSpeed, fl
     VR_Head_StopFlies(g);
     g.vr_skewer_cut = FALSE;
     g.vr_skewer_p = self;
+    VR_Skewer_Link(g); // (the shots' list: VR_Gib_TraceHeld)
     g.vr_skewer_hand = xHand;
     g.vr_skewer_slot = slot;
     g.vr_skewer_shift = 0;
@@ -1029,6 +1031,7 @@ float(entity g, entity c, entity by, float xHow, vector xCut) VR_Skewer_CutOn =
     g.vr_skewer_cutt = time;
     g.vr_skewer_peak = 0;
     g.vr_skewer_p = by;
+    VR_Skewer_Link(g); // (the shots' list: VR_Gib_TraceHeld)
     g.vr_skewer_hand = hand;
     g.vr_skewer_slot = 0;
     g.vr_skewer_shift = 0;

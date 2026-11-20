@@ -497,7 +497,7 @@ void mockLook_f()
 // its grip (0) to its muzzle's (1), at its slice's middle (the grab-anywhere tests: vr_agrunt_test 39); "agweaponpalm":
 // the palm's middle there instead of the hand's point (a fist closing round it).
 // "vr_mock_hand_to <main|off> spot <index> [<height cm>]": at its hotspot `index` (a grip's point, a blade's zone's middle:
-// view::groundHotspotPoint), `height` cm over it (vr_weapon_grab_hotspots tests). "vr_mock_hand_to <main|off> button":
+// view::groundHotspotPoint; -1: its handle, its origin), `height` cm over it (vr_weapon_grab_hotspots tests). "vr_mock_hand_to <main|off> button":
 // its fingertip on the wrist gadget's side button (the gear lights: vr_gearlights.cpp), or `units` off its face ("button
 // <units>"). "vr_mock_hand_to <main|off> screen <cm> [<side cm>] [<part>]": its middle (palm) `cm` over the gadget
 // screen's middle along its normal, `side cm` along its right ("screenbutt", or the part "butt": the butt of the gun it
@@ -511,13 +511,14 @@ void mockLook_f()
 // "vr_mock_hand_to <main|off> ragdoll <part> [<units>]": at the middle of that part of the ragdoll nearest you (its
 // rig's bone number: vr_ragdoll_info; "near": the part nearest the hand; "head", "neck": its head's joint), `units` over it (the grab tests). "vr_mock_hand_to <main|off> by <dx> <dy> <dz>":
 // moved by that much (world units: lifting, swinging what it holds). "vr_mock_hand_to <main|off> nearest <classname>
-// [<units>]": at the origin of the entity of that classname nearest you (vr_limb: a limb cut off), `units` over it.
-// "vr_mock_hand_to <main|off> ammopouch": at the ammo pouch (vr_reload_mode 3); "pouchport [<units>]": the hand's own
+// [<units>]": at the origin of the entity of that classname nearest you (vr_limb: a limb cut off), `units` over it
+// (the server's: a local game); "nearestmodel <substring> [<units>]": the drawn one whose model's name holds it (a
+// remote client's too). "vr_mock_hand_to <main|off> ammopouch": at the ammo pouch (vr_reload_mode 3); "pouchport [<units>]": the hand's own
 // gun's load point on the pouch's rounds' top, units above them (pouch reloading); "pouchmag <slot> [<up> [<left>
 // [<out>]]]": on that magazine's top as drawn in the pouch, moved by those units; "holster <0..5>": at that holster's
 // point (body::Holster); "grenadepouch": at the grenade pouch (vr_handgrenade); "vr_mock_hand_to <main|off> lport
-// [<units>]": what the hand holds (a shell's middle, a magazine's top: view::heldRoundRef) at the loading port of the gun the
-// other hand holds, `units` below it; "lportmid": its middle there (a magazine's too: the top-of-the-magazine tests).
+// [<units> [<dx> <dy> <dz>]]": what the hand holds (a shell's middle, a magazine's top: view::heldRoundRef) at the loading
+// port of the gun the other hand holds, `units` below it, moved by dx dy dz in the world; "lportmid": its middle there (a magazine's too: the top-of-the-magazine tests).
 // "vr_mock_hand_to <main|off> mag <along> [<out>]": on the attached magazine of the other hand's gun, `along` its length
 // (1 its feed end, 0 its middle, -1 its far end), `out` units off its side (vr_reload.qc: grips and hits on its box);
 // "magpalm": the palm's middle there instead of the hand's point, "magheld" the middle of what it holds (the solid
@@ -556,21 +557,69 @@ edict_t* nearestThrownWeapon(bool armed = false, int side = 0)
     return best;
 }
 
+// A remote client's (no server here: MP_PLAN.md B3f): the weapon model drawn nearest the player that is none of his own
+// view's (as the view's ground spots look for one), its client entity number; 0 none.
+int nearestClientWeapon()
+{
+    if(cls.state != ca_connected || cl.viewentity <= 0)
+    {
+        return 0;
+    }
+    const glm::vec3 me = geom::vec(cl_entities[cl.viewentity].origin);
+    int best = 0;
+    float bestDist = 0.f;
+    for(int i = 0; i < cl_numvisedicts; i++)
+    {
+        const entity_t* e = cl_visedicts[i];
+        if(!e || e < cl_entities || e >= cl_entities + cl_max_edicts || !e->model || e->model->type != mod_alias ||
+            view::find(e) || e == &cl_entities[cl.viewentity] || !modelmeta::has(e->model, modelmeta::Trait::ViewWeapon))
+        {
+            continue;
+        }
+        const float d = glm::distance(geom::vec(e->origin), me);
+        if(!best || d < bestDist)
+        {
+            best = static_cast<int>(e - cl_entities);
+            bestDist = d;
+        }
+    }
+    return best;
+}
+
 bool weaponSpot(int index, float height, glm::vec3& out)
 {
+    int num = 0;
+    const char* name = "";
+    glm::vec3 handle{0.f}; // (its origin: index -1)
     if(!sv.active || svs.maxclients < 1)
+    {
+        num = nearestClientWeapon();
+        name = "a weapon (this client's entity)";
+        if(num)
+        {
+            handle = geom::vec(cl_entities[num].origin);
+        }
+    }
+    else
+    {
+        qcvm_t* oldVm = nullptr;
+        PR_PushQCVM(&sv.qcvm, &oldVm);
+        edict_t* best = nearestThrownWeapon();
+        num = best ? NUM_FOR_EDICT(best) : 0;
+        name = best ? PR_GetString(best->v.netname) : "";
+        if(best)
+        {
+            handle = geom::vec(best->v.origin);
+        }
+        PR_PopQCVM(oldVm);
+    }
+    if(!num || (index >= 0 && !view::groundHotspotPoint(num, index, out)))
     {
         return false;
     }
-    qcvm_t* oldVm = nullptr;
-    PR_PushQCVM(&sv.qcvm, &oldVm);
-    edict_t* best = nearestThrownWeapon();
-    const int num = best ? NUM_FOR_EDICT(best) : 0;
-    const char* name = best ? PR_GetString(best->v.netname) : "";
-    PR_PopQCVM(oldVm);
-    if(!num || !view::groundHotspotPoint(num, index, out))
+    if(index < 0)
     {
-        return false;
+        out = handle;
     }
     out.z += height * 0.01f * units::metresToUnits();
     Con_Printf("vr_mock_hand_to: %s, its hotspot %d: %.1f %.1f %.1f\n", name, index, out.x, out.y, out.z);
@@ -663,7 +712,7 @@ bool weaponPoint(float fraction, float height, glm::vec3& out, bool armed = fals
 }
 
 // The mock hand `hand` moved (its tracking-space position; its orientation kept) so that it is at world point `target`.
-void moveHandTo(int hand, const glm::vec3& target)
+void moveHandTo(int hand, const glm::vec3& target, bool quiet = false)
 {
     const hands::State& st = hands::current();
     if(!st.valid)
@@ -702,8 +751,69 @@ void moveHandTo(int hand, const glm::vec3& target)
         }
         mockHandPos[hand] = to;
     }
-    Con_Printf("vr_mock_hand_to: %s hand at %.3f %.3f %.3f (tracking)\n", hand == HAND_MAIN ? "main" : "off",
-        mockHandPos[hand].x, mockHandPos[hand].y, mockHandPos[hand].z);
+    if(!quiet)
+    {
+        Con_Printf("vr_mock_hand_to: %s hand at %.3f %.3f %.3f (tracking)\n", hand == HAND_MAIN ? "main" : "off",
+            mockHandPos[hand].x, mockHandPos[hand].y, mockHandPos[hand].z);
+    }
+}
+
+// vr_mock_hand_follow <main|off> <part|cycle|off> [<units over it>]: every frame the hand put at the middle of that part
+// of the ragdoll nearest the player (its rig's bone number, as vr_mock_hand_to's "ragdoll"); "cycle": its parts in turn,
+// followCycleFrames each (the off hand half its parts on from the main's); "off": no more. A test's hands kept in the
+// bodies however the blows throw them (ragperf_scene.py's RP_INSIDE; set vr_mock_hand_to_absolute 1).
+constexpr int followNone = -100, followCycle = -101;
+constexpr int followCycleFrames = 8;
+struct HandFollow
+{
+    int part{followNone};
+    float over{0.f}; // units
+};
+HandFollow handFollow[HAND_COUNT];
+
+void followFrame()
+{
+    if(!sv.active || svs.maxclients < 1)
+    {
+        return;
+    }
+    for(int h = 0; h < HAND_COUNT; h++)
+    {
+        const HandFollow& f = handFollow[h];
+        if(f.part == followNone)
+        {
+            continue;
+        }
+        constexpr int cycleParts = 10; // (a grunt's first parts: its pelvis, spine, chest, head and limbs)
+        const int part = f.part == followCycle
+                             ? (host_framecount / followCycleFrames + (h == HAND_MAIN ? 0 : cycleParts / 2)) % cycleParts
+                             : f.part;
+        glm::vec3 target{0.f};
+        int num = 0;
+        {
+            progs::ServerVm serverVm;
+            num = box3d::ragdollPartCentre(geom::vec(progs::playerEdict()->v.origin), part, target);
+        }
+        if(num)
+        {
+            target.z += f.over;
+            moveHandTo(h, target, true);
+        }
+    }
+}
+
+void mockHandFollow_f()
+{
+    const int hand = Cmd_Argc() >= 3 ? (!q_strcasecmp(Cmd_Argv(1), "main") ? HAND_MAIN : !q_strcasecmp(Cmd_Argv(1), "off") ? HAND_OFF : -1) : -1;
+    if(hand < 0)
+    {
+        Con_Printf("usage: vr_mock_hand_follow <main|off> <part|cycle|off> [<units over it>]\n");
+        return;
+    }
+    const char* which = Cmd_Argv(2);
+    handFollow[hand].part = !q_strcasecmp(which, "off") ? followNone : !q_strcasecmp(which, "cycle") ? followCycle : Q_atoi(which);
+    handFollow[hand].over = Cmd_Argc() >= 4 ? Q_atof(Cmd_Argv(3)) : 0.f;
+    Con_Printf("vr_mock_hand_follow: %s hand %s\n", hand == HAND_MAIN ? "main" : "off", which);
 }
 
 // vr_mock_hand_to's sub-commands (mockHandTo_f below): each moves the hand and prints what it found.
@@ -971,7 +1081,11 @@ void handToAmmoOrLoadPort(int hand, bool ammoPouch, bool loadPortMid)
             const entity_t& e = cl_entities[num]; // (lportmid: its middle, not its reference point)
             target -= geom::vec(e.origin) - st.pos[hand];
         }
-        target.z -= Cmd_Argc() == 4 ? Q_atof(Cmd_Argv(3)) : 0.f;
+        target.z -= Cmd_Argc() >= 4 ? Q_atof(Cmd_Argv(3)) : 0.f;
+        if(Cmd_Argc() == 7) // (a correction in the world, units: mp_disarm's eye on the server's round and port)
+        {
+            target += glm::vec3{Q_atof(Cmd_Argv(4)), Q_atof(Cmd_Argv(5)), Q_atof(Cmd_Argv(6))};
+        }
     }
     moveHandTo(hand, target);
 }
@@ -1024,6 +1138,46 @@ void handToNearest(int hand)
     target.z += Cmd_Argc() >= 5 + (head ? 1 : 0) ? Q_atof(Cmd_Argv(4 + (head ? 1 : 0))) : 0.f;
     Con_Printf("vr_mock_hand_to: %s %d%s: %.1f %.1f %.1f\n", Cmd_Argv(3), found, head ? "'s head" : "", target.x,
         target.y, target.z);
+    moveHandTo(hand, target);
+}
+
+// "nearestmodel <substring> [<units>]": at the origin of the drawn entity nearest you whose model's name holds
+// `substring` (none of your own view's, not you), `units` over it. The client's entities, so a remote client's too (no
+// server there: MP B10b, a round another player dropped).
+void handToNearestModel(int hand)
+{
+    if(cls.state != ca_connected || cl.viewentity <= 0)
+    {
+        Con_Printf("vr_mock_hand_to: not connected\n");
+        return;
+    }
+    const glm::vec3 me = geom::vec(cl_entities[cl.viewentity].origin);
+    const entity_t* best = nullptr;
+    float bestDist = 0.f;
+    for(int i = 0; i < cl_numvisedicts; i++)
+    {
+        const entity_t* e = cl_visedicts[i];
+        if(!e || e < cl_entities || e >= cl_entities + cl_max_edicts || !e->model || view::find(e) ||
+            e == &cl_entities[cl.viewentity] || !strstr(e->model->name, Cmd_Argv(3)))
+        {
+            continue;
+        }
+        const float d = glm::distance(geom::vec(e->origin), me);
+        if(!best || d < bestDist)
+        {
+            best = e;
+            bestDist = d;
+        }
+    }
+    if(!best)
+    {
+        Con_Printf("vr_mock_hand_to: no drawn %s\n", Cmd_Argv(3));
+        return;
+    }
+    glm::vec3 target = geom::vec(best->origin);
+    target.z += Cmd_Argc() >= 5 ? Q_atof(Cmd_Argv(4)) : 0.f;
+    Con_Printf("vr_mock_hand_to: %s (entity %d): %.1f %.1f %.1f\n", best->model->name,
+        static_cast<int>(best - cl_entities), target.x, target.y, target.z);
     moveHandTo(hand, target);
 }
 
@@ -1088,7 +1242,8 @@ void mockHandTo_f()
     const bool nearestOf = Cmd_Argc() >= 4 && !q_strcasecmp(Cmd_Argv(2), "nearest");
     const bool ammoPouch = Cmd_Argc() == 3 && !q_strcasecmp(Cmd_Argv(2), "ammopouch");
     const bool loadPortMid = Cmd_Argc() == 3 && !q_strcasecmp(Cmd_Argv(2), "lportmid");
-    const bool loadPort = ((Cmd_Argc() == 3 || Cmd_Argc() == 4) && !q_strcasecmp(Cmd_Argv(2), "lport")) || loadPortMid;
+    const bool loadPort =
+        ((Cmd_Argc() == 3 || Cmd_Argc() == 4 || Cmd_Argc() == 7) && !q_strcasecmp(Cmd_Argv(2), "lport")) || loadPortMid;
     const bool magPalm = Cmd_Argc() >= 4 && !q_strcasecmp(Cmd_Argv(2), "magpalm");
     const bool magHeld = Cmd_Argc() >= 4 && !q_strcasecmp(Cmd_Argv(2), "magheld");
     if(Cmd_Argc() >= 4 && (!q_strcasecmp(Cmd_Argv(2), "mag") || magPalm || magHeld) && hand >= 0)
@@ -1159,6 +1314,11 @@ void mockHandTo_f()
         handToNearest(hand);
         return;
     }
+    if(hand >= 0 && Cmd_Argc() >= 4 && Cmd_Argc() <= 5 && !q_strcasecmp(Cmd_Argv(2), "nearestmodel"))
+    {
+        handToNearestModel(hand);
+        return;
+    }
     if(hand >= 0 && Cmd_Argc() >= 5 && !q_strcasecmp(Cmd_Argv(2), "touch"))
     {
         // The touchscreen (vr_touch.hpp): the fingertip `cm` (0) in front of the screen an app asks touches of, at its
@@ -1193,12 +1353,13 @@ void mockHandTo_f()
                    "       vr_mock_hand_to <main|off> ragdoll <part|near|head> [<units over it>]\n"
                    "       vr_mock_hand_to <main|off> by <dx> <dy> <dz>\n"
                    "       vr_mock_hand_to <main|off> nearest <classname> [<units over it>]\n"
+                   "       vr_mock_hand_to <main|off> nearestmodel <model name part> [<units over it>]\n"
                    "       vr_mock_hand_to <main|off> ammopouch\n"
                    "       vr_mock_hand_to <main|off> pouchport [<units above>]\n"
                    "       vr_mock_hand_to <main|off> pouchmag <slot> [<up> [<left> [<out>]]]\n"
                    "       vr_mock_hand_to <main|off> holster <0..5>\n"
                    "       vr_mock_hand_to <main|off> grenadepouch\n"
-                   "       vr_mock_hand_to <main|off> lport [<units below it>]\n"
+                   "       vr_mock_hand_to <main|off> lport [<units below it> [<dx> <dy> <dz>]]\n"
                    "       vr_mock_hand_to <main|off> lportmid\n");
         return;
     }
@@ -1776,6 +1937,7 @@ public:
         playFrame(realtime, playVel, playAngVel, played);
         aimFrame();
         walkFrame();
+        followFrame();
 
         tracking = standingPose();
         tracking.input = mockInput;
@@ -2000,6 +2162,13 @@ public:
     {
     }
 
+    // As OpenXR's: a frame finished (the eyes submitted, or the panel's frame) is not rendered again by a second
+    // SCR_UpdateScreen in the same host frame (a loading plaque's).
+    [[nodiscard]] bool frameActive() const override
+    {
+        return frameBegun;
+    }
+
     // The runtime's panel as a runtime shows it while the eyes are not rendered (menus before a map), placed as
     // OpenXR's is: no image, but the menus' laser pointer meets it (tests of it with vr_mock_hand).
     void endFrame(bool rendered) override
@@ -2133,6 +2302,7 @@ void registerMockCommands()
     Cmd_AddCommand("vr_mock_hand", mockHand_f);
     Cmd_AddCommand("vr_mock_hand_turn", mockHandTurn_f);    Cmd_AddCommand("vr_mock_hand_to", mockHandTo_f);
     Cmd_AddCommand("vr_mock_hand_aim", mockHandAim_f);
+    Cmd_AddCommand("vr_mock_hand_follow", mockHandFollow_f);
     Cmd_AddCommand("vr_mock_walk_to", mockWalkTo_f);
     Cmd_AddCommand("vr_mock_turn_to", mockTurnTo_f);
     Cmd_AddCommand("vr_mock_look", mockLook_f);

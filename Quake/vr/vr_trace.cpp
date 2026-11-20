@@ -15,38 +15,11 @@
 namespace qvr::worldtrace
 {
 
-za::Optional<trace_t> move(
-    const glm::vec3& start, const glm::vec3& mins, const glm::vec3& maxs, const glm::vec3& end, int type, int pass)
-{
-    if(!progs::localPlayer())
-    {
-        return za::nullOpt;
-    }
-
-    qcvm_t* oldvm = nullptr;
-    PR_PushQCVM(&sv.qcvm, &oldvm);
-    edict_t* passEdict = pass > 0 && pass < qcvm->num_edicts ? EDICT_NUM(pass) : progs::localPlayer();
-
-    vec3_t a{start.x, start.y, start.z};
-    vec3_t b{end.x, end.y, end.z};
-    vec3_t lo{mins.x, mins.y, mins.z};
-    vec3_t hi{maxs.x, maxs.y, maxs.z};
-    trace_t tr;
-    if(!(type & MOVE_PORTALS) || !VR_PortalReachMove(progs::localPlayer(), a, lo, hi, b, type & ~MOVE_PORTALS, &tr))
-    {
-        tr = SV_Move(a, lo, hi, b, type & ~MOVE_PORTALS, passEdict);
-    }
-
-    PR_PopQCVM(oldvm);
-    return za::makeOptional(tr);
-}
-
 namespace
 {
 
-// A line through one of a BSP model's hulls (0: a point, 1: the player's box), placed at `origin`
-// (not rotated).
-trace_t hullTrace(qmodel_t* model, const glm::vec3& origin, const glm::vec3& start, const glm::vec3& end, int hullIndex = 0)
+// A line through a hull placed at `origin` (not rotated).
+trace_t hullTrace(hull_t* hull, const glm::vec3& origin, const glm::vec3& start, const glm::vec3& end)
 {
     trace_t tr;
     memset(&tr, 0, sizeof(tr));
@@ -55,7 +28,6 @@ trace_t hullTrace(qmodel_t* model, const glm::vec3& origin, const glm::vec3& sta
     vec3_t a{start.x - origin.x, start.y - origin.y, start.z - origin.z};
     vec3_t b{end.x - origin.x, end.y - origin.y, end.z - origin.z};
     VectorCopy(b, tr.endpos);
-    hull_t* hull = &model->hulls[hullIndex];
     ++vr_profcounts.hullchecks;
     SV_RecursiveHullCheck(hull, hull->firstclipnode, 0.f, 1.f, a, b, &tr);
     for(int i = 0; i < 3; i++)
@@ -63,6 +35,13 @@ trace_t hullTrace(qmodel_t* model, const glm::vec3& origin, const glm::vec3& sta
         tr.endpos[i] += origin[i];
     }
     return tr;
+}
+
+// A line through one of a BSP model's hulls (0: a point, 1: the player's box), placed at `origin`
+// (not rotated).
+trace_t hullTrace(qmodel_t* model, const glm::vec3& origin, const glm::vec3& start, const glm::vec3& end, int hullIndex = 0)
+{
+    return hullTrace(&model->hulls[hullIndex], origin, start, end);
 }
 
 // The client's entities that may be lifts, doors and platforms (a brush model not the world's, in the last message):
@@ -102,7 +81,110 @@ const za::Vector<int>& brushEntityList()
     return b.list;
 }
 
+// One part's trace merged into the whole's, as SV_ClipToLinks merges an entity's into the world's: the nearer stop
+// wins; a start inside anything is a start inside.
+void merge(trace_t& whole, const trace_t& part)
+{
+    if(part.allsolid || part.startsolid || part.fraction < whole.fraction)
+    {
+        const bool wasStartSolid = whole.startsolid;
+        whole = part;
+        whole.startsolid = whole.startsolid || wasStartSolid;
+    }
+    else if(part.startsolid)
+    {
+        whole.startsolid = true;
+    }
+}
+
+// SV_HullForEntity's choice of a BSP model's hull for a box of `mins`..`maxs` (a point, the player's box, the big one)
+// and the offset that puts the box's origin on it, the model at `origin`.
+hull_t* sizedHull(qmodel_t* model, const glm::vec3& origin, const glm::vec3& mins, const glm::vec3& maxs, glm::vec3& offset)
+{
+    const float size = maxs.x - mins.x;
+    hull_t* hull = &model->hulls[size < 3.f ? 0 : size <= 32.f ? 1 : 2];
+    offset = geom::vec(hull->clip_mins) - mins + origin;
+    return hull;
+}
+
+// worldtrace::move on a remote client (see the header): the client's own map.
+trace_t clientMove(const glm::vec3& start, const glm::vec3& mins, const glm::vec3& maxs, const glm::vec3& end, int type, int pass)
+{
+    glm::vec3 offset{0.f};
+    trace_t tr = hullTrace(sizedHull(cl.worldmodel, glm::vec3{0.f}, mins, maxs, offset), offset, start, end);
+    if(tr.allsolid)
+    {
+        return tr;
+    }
+    // The lifts, doors and platforms the client has this frame (worldtrace::world's, with the box's hull).
+    const glm::vec3 lo = glm::min(start, end) + mins;
+    const glm::vec3 hi = glm::max(start, end) + maxs;
+    for(const int i : brushEntityList())
+    {
+        entity_t& e = cl_entities[i];
+        if(i == pass || !e.model || e.model->type != mod_brush || e.model == cl.worldmodel || e.msgtime != cl.mtime[0])
+        {
+            continue;
+        }
+        const glm::vec3 origin = geom::vec(e.origin);
+        if(glm::any(glm::lessThan(origin + geom::vec(e.model->maxs), lo)) ||
+            glm::any(glm::greaterThan(origin + geom::vec(e.model->mins), hi)) || !qvr::modelmeta::isSubmodel(e.model))
+        {
+            continue;
+        }
+        if(const client::EntityVr* net = client::entityVr(i);
+            (e.scale != 0 && e.scale != ENTSCALE_DEFAULT) ||
+            (net && (net->noRotate || net->scale != glm::vec3{0.f} || net->offset != glm::vec3{0.f})))
+        {
+            continue;
+        }
+        trace_t t = hullTrace(sizedHull(e.model, origin, mins, maxs, offset), offset, start, end);
+        t.ent = nullptr;
+        merge(tr, t);
+    }
+    // (Not monsters or players, whatever `type`: the client has no solidity of its entities, and the hands' sweeps pass
+    // what bleeds anyway, vr_handpose.cpp stopAtWall.)
+    (void)type;
+    tr.ent = nullptr;
+    return tr;
+}
+
 } // namespace
+
+const za::Vector<int>& brushModelEntities()
+{
+    return brushEntityList();
+}
+
+za::Optional<trace_t> move(
+    const glm::vec3& start, const glm::vec3& mins, const glm::vec3& maxs, const glm::vec3& end, int type, int pass)
+{
+    if(const progs::OwnSource own = progs::ownSource(); own != progs::OwnSource::Edict)
+    {
+        if(own == progs::OwnSource::None || cls.demoplayback)
+        {
+            return za::nullOpt; // (hosting with nobody in slot 0 yet, no map, or a demo: as before)
+        }
+        return za::makeOptional(clientMove(start, mins, maxs, end, type & ~MOVE_PORTALS, pass));
+    }
+
+    qcvm_t* oldvm = nullptr;
+    PR_PushQCVM(&sv.qcvm, &oldvm);
+    edict_t* passEdict = pass > 0 && pass < qcvm->num_edicts ? EDICT_NUM(pass) : progs::localPlayer();
+
+    vec3_t a{start.x, start.y, start.z};
+    vec3_t b{end.x, end.y, end.z};
+    vec3_t lo{mins.x, mins.y, mins.z};
+    vec3_t hi{maxs.x, maxs.y, maxs.z};
+    trace_t tr;
+    if(!(type & MOVE_PORTALS) || !VR_PortalReachMove(progs::localPlayer(), a, lo, hi, b, type & ~MOVE_PORTALS, &tr))
+    {
+        tr = SV_Move(a, lo, hi, b, type & ~MOVE_PORTALS, passEdict);
+    }
+
+    PR_PopQCVM(oldvm);
+    return za::makeOptional(tr);
+}
 
 trace_t world(const glm::vec3& start, const glm::vec3& end, bool brushEntities, bool ownFiles, int skipA, int skipB, int* hitEntity)
 {

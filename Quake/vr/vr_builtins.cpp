@@ -7,6 +7,7 @@
 #include "vr_arenawaves.hpp"
 #include "vr_progs.hpp"
 #include "vr_playersteps.hpp"
+#include "vr_predict.hpp"
 #include "vr_bloodstream.hpp"
 #include "vr_brushes.hpp"
 #include "vr_goresound.hpp"
@@ -19,6 +20,7 @@
 #include "vr_box3d.hpp"
 #include "vr_toolgun.hpp"
 #include "vr_carry2h.hpp"
+#include "vr_clientprefs.hpp"
 #include "vr_crates.hpp"
 #include "vr_debris.hpp"
 #include "vr_blowline.hpp"
@@ -31,6 +33,7 @@
 #include "vr_modelcollide.hpp"
 #include "vr_grip.hpp"
 #include "vr_held.hpp"
+#include "vr_heldpose.hpp"
 #include "vr_highlights.hpp"
 #include "vr_hitmodel.hpp"
 #include "vr_mapstyle.hpp"
@@ -40,6 +43,7 @@
 #include "vr_animrec.hpp"
 #include "vr_mem.hpp"
 #include "vr_engine.hpp"
+#include "vr_flatplay.hpp"
 #include "vr_physics.hpp"
 #include "vr_physsound.hpp"
 #include "vr_portals.hpp"
@@ -73,6 +77,7 @@
 #include "vr_rigstudio.hpp"
 #include "vr_adtank.hpp" // (hitmodel_segment's class -1: a tank's hose)
 #include "vr_blade.hpp"
+#include "vr_lagcomp.hpp"
 #include "vr_meleeshow.hpp"
 #include "vr_weapons.hpp"
 #include "vr_weight.hpp"
@@ -88,6 +93,7 @@
 #include "Zancle/Math/MinMax.hpp"
 #include "vr_api.h"
 
+extern "C" cvar_t v_iyaw_level, v_iroll_level, v_ipitch_level; // (view.c)
 
 namespace qvr::progs
 {
@@ -497,6 +503,7 @@ void PF_tracebox()
 // Cvar handles: QC resolves cvar names once per map, then reads them by index.
 
 za::Vector<const cvar_t*> cvarHandles; // (a tuning constant's: its stand-in, tunableFind)
+za::Vector<int> cvarPrefs;             // each handle's per-player preference (clientprefs::indexOf), or -1
 
 [[nodiscard]] const cvar_t* cvarFromHandle(float handle)
 {
@@ -510,6 +517,26 @@ za::Vector<const cvar_t*> cvarHandles; // (a tuning constant's: its stand-in, tu
     return cvarHandles[i];
 }
 
+// The client's own cvars the QC reads, which a dedicated server (no renderer, no view) never registers: registered there
+// at their defaults when the QC asks for them, so that its QC reads Quake's defaults (and its tests do not count them as
+// unknown names: MP B11 part 2). Elsewhere: none.
+[[nodiscard]] const cvar_t* dedicatedClientCvar(const char* name)
+{
+    if(cls.state != ca_dedicated)
+    {
+        return nullptr;
+    }
+    for(cvar_t* v : {&r_wateralpha, &v_iyaw_level, &v_iroll_level, &v_ipitch_level})
+    {
+        if(q_strcasecmp(v->name, name) == 0)
+        {
+            Cvar_RegisterVariable(v);
+            return v;
+        }
+    }
+    return nullptr;
+}
+
 void PF_cvar_hmake()
 {
     const char* name = G_STRING(OFS_PARM0);
@@ -520,24 +547,48 @@ void PF_cvar_hmake()
     }
     if(!var)
     {
+        var = dedicatedClientCvar(name);
+    }
+    if(!var)
+    {
         Con_Printf("VR: cvar_hmake: unknown cvar \"%s\"\n", name);
         G_FLOAT(OFS_RETURN) = -1.f;
         return;
     }
 
     cvarHandles.pushBack(var);
+    cvarPrefs.pushBack(clientprefs::indexOf(var));
     G_FLOAT(OFS_RETURN) = static_cast<float>(cvarHandles.size() - 1);
 }
 
+// A per-player preference (vr_clientprefs.hpp): the value of the player the QC runs for (`self` when a player, else
+// `other`), the server's own when neither is a player or his have not come (a bot's, a just-joined player's: never
+// another's; single player: always the game's own, no slot has any).
 void PF_cvar_hget()
 {
+    const int i = static_cast<int>(G_FLOAT(OFS_PARM0));
     const cvar_t* var = cvarFromHandle(G_FLOAT(OFS_PARM0));
+    if(var && cvarPrefs[i] >= 0)
+    {
+        G_FLOAT(OFS_RETURN) = clientprefs::forQc(cvarPrefs[i], var);
+        return;
+    }
     G_FLOAT(OFS_RETURN) = var ? var->value : 0.f;
+}
+
+// clientpref(player, handle): cvar_hget's setting as `player` chose it (a per-player preference, multiplayer), else as
+// cvar_hget.
+void PF_clientpref()
+{
+    const int i = static_cast<int>(G_FLOAT(OFS_PARM1));
+    const cvar_t* var = cvarFromHandle(G_FLOAT(OFS_PARM1));
+    G_FLOAT(OFS_RETURN) = var ? clientprefs::value(cvarPrefs[i], var, G_EDICT(OFS_PARM0)) : 0.f;
 }
 
 void PF_cvar_hclear()
 {
     cvarHandles.clear();
+    cvarPrefs.clear();
 }
 
 // ----------------------------------------------------------------------------
@@ -912,6 +963,8 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"crateplace", PF_crateplace},
     {"sightblocked", PF_sightblocked},
     {"unseenfar", PF_unseenfar},
+    {"thinkcost", PF_thinkcost},
+    {"findradiusmoving", PF_findradiusmoving},
     {"turnrpy", PF_turnrpy},
     {"heldshape", PF_heldshape},
     {"heldbox", PF_heldbox},
@@ -959,6 +1012,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"cvar_hmake", PF_cvar_hmake},
     {"cvar_hget", PF_cvar_hget},
     {"cvar_hclear", PF_cvar_hclear},
+    {"clientpref", PF_clientpref},
     {"worldtext_hmake", PF_worldtext_hmake},
     {"worldtext_hsettext", PF_worldtext_hsettext},
     {"worldtext_hgettext", PF_worldtext_hgettext},
@@ -1031,6 +1085,12 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"findflagsinview", PF_findflagsinview},
     {"liquidentry", PF_liquidentry},
     {"watersplash", PF_watersplash},
+    {"waterclimb", PF_waterclimb},
+    {"grapplehold", PF_grapplehold},
+    {"botmovethink", PF_botmovethink},
+    {"botmovewalk", PF_botmovewalk},
+    {"botflatpose", PF_botflatpose},
+    {"botcarryparms", PF_botcarryparms},
     {"fileexists", PF_fileexists},
     {"campaignmusic", PF_campaignmusic},
     {"highlighting", PF_highlighting},
@@ -1042,6 +1102,9 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"hitmodel_target", PF_hitmodel_target},
     {"hitmodel_segment", PF_hitmodel_segment},
     {"hitmodel_any", PF_hitmodel_any},
+    {"lagcompbegin", lagcomp::PF_lagcompbegin},
+    {"lagcompend", lagcomp::PF_lagcompend},
+    {"lagcompcount", lagcomp::PF_lagcompcount},
     {"bodygap", PF_bodygap},
     {"modelanchor", PF_modelanchor},
     {"modelanchorpoint", PF_modelanchorpoint},
@@ -1198,8 +1261,12 @@ void resetBuiltinState()
 {
     cvarHandles.clear();
     woundsSent.clear();
-    worldtext::serverReset();
-    tips::serverReset();
 }
+
+namespace
+{
+// Forgotten with the server's world (vr_mem.hpp's resets): the QC's cvar handles, the wounds sent.
+mem::Reset serverWorldReset{"builtins", mem::ResetEvent::ServerWorld, mem::ResetPhase::State, &resetBuiltinState};
+} // namespace
 
 } // namespace qvr::progs

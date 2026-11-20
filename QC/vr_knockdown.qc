@@ -281,7 +281,7 @@ void() VR_Knockdown_Reverse =
             VR_Knockdown_EaseDummy();
             return;
         }
-        if(self.vr_ad_mon)
+        if(VR_AD_Code(self))
         {
             VR_AD_RunNow(); // AD support: AD's monsters run by AD's th_run (vr_ad_monsters.qc)
         }
@@ -356,7 +356,7 @@ void(string xWhat) VR_Knockdown_Afoot =
         self.movetype = MOVETYPE_NONE;
         self.vr_dummy_painframe = 0;
     }
-    else if(self.vr_ad_mon)
+    else if(VR_AD_Code(self))
     {
         VR_AD_RunNow(); // AD support: AD's monsters run by AD's th_run (its own th_run none: it stood frozen)
     }

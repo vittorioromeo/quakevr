@@ -25,6 +25,7 @@
 #include "vr_dynres.hpp"
 #include "vr_flatplay.hpp"
 #include "vr_hands.hpp"
+#include "vr_haze.hpp"
 #include "vr_lines.hpp"
 #include "vr_loading.hpp"
 #include "vr_main.hpp"
@@ -38,6 +39,7 @@
 #include "vr_text3d.hpp"
 #include "vr_takes.hpp"
 #include "vr_temporal.hpp"
+#include "vr_testkit.hpp"
 #include "vr_tonemap.hpp"
 
 #if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
@@ -45,6 +47,7 @@
 #else
 #include "SDL.h"
 #endif
+#include "vr_viewuv_glsl.h"
 #include "vr_tracy.h"
 #include "vr_tunables.hpp"
 #include "vr_upscale.hpp"
@@ -53,6 +56,7 @@
 
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/Swap.hpp"
+#include "Zancle/Base/Memcmp.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Lround.hpp"
@@ -69,11 +73,15 @@ namespace
 {
 
 // A set of Ironwail's framebuffers of one size: the eyes', and the window's spectator camera's (vr_window.cpp).
+// Allocated at allocatedWidth x allocatedHeight (what vid.width/vid.height say while they are drawn into); a frame draws
+// their bottom left drawnWidth x drawnHeight (useView), the rest left as it was.
 struct SceneTargets
 {
     glframebufs_t fb{};
-    int width = 0;
-    int height = 0;
+    int allocatedWidth = 0;
+    int allocatedHeight = 0;
+    int drawnWidth = 0; // the part the last frame drew
+    int drawnHeight = 0;
     float fsaa = 0.f;    // the MSAA they were made with (vid_fsaa; the spectator camera's: vr_spectator_aa)
     unsigned format = 0; // their scene colour format (vr_tonemap: float)
     unsigned depth = 0;  // their depth/stencil format (vr_depth_float)
@@ -217,17 +225,19 @@ unsigned foveationRefused = 0; // the vr_gl_foveation_parts the driver refused (
 }
 
 // Whether `t` is already made for this size, MSAA and format (and foveation: its bits can't be taken off a texture).
-[[nodiscard]] bool sceneTargetsFit(const SceneTargets& t, int width, int height, float fsaa, bool foveate = false)
+[[nodiscard]] bool sceneTargetsFit(const SceneTargets& t, int allocatedWidth, int allocatedHeight, float fsaa, bool foveate = false)
 {
-    return t.width == width && t.height == height && t.fsaa == fsaa && t.format == tonemap::sceneFormat() &&
-           t.depth == sceneDepthFormat() && t.foveated == (foveate && fsaa < 2.f && foveationLevel() > 0) &&
+    return t.allocatedWidth == allocatedWidth && t.allocatedHeight == allocatedHeight && t.fsaa == fsaa &&
+           t.format == tonemap::sceneFormat() && t.depth == sceneDepthFormat() &&
+           t.foveated == (foveate && fsaa < 2.f && foveationLevel() > 0) &&
            (!t.foveated || t.foveatedParts == foveationParts());
 }
 
-void ensureSceneTargets(SceneTargets& t, int width, int height, float fsaa, bool foveate = false)
+// `t` made for allocatedWidth x allocatedHeight (kept when it already is).
+void ensureSceneTargets(SceneTargets& t, int allocatedWidth, int allocatedHeight, float fsaa, bool foveate = false)
 {
     const unsigned format = tonemap::sceneFormat();
-    if(sceneTargetsFit(t, width, height, fsaa, foveate))
+    if(sceneTargetsFit(t, allocatedWidth, allocatedHeight, fsaa, foveate))
     {
         return;
     }
@@ -241,14 +251,20 @@ void ensureSceneTargets(SceneTargets& t, int width, int height, float fsaa, bool
     const int windowWidth = vid.width;
     const int windowHeight = vid.height;
 
-    if(t.width)
+    if(t.allocatedWidth)
     {
         framebufs = t.fb;
         GL_DeleteFrameBuffers();
     }
+    else
+    {
+        // A set's first making: from nothing, as after GL_DeleteFrameBuffers (which zeroes it). GL_CreateFrameBuffers
+        // leaves oit.fbo_composite alone with MSAA, so the set would keep the current set's and delete it with its own.
+        framebufs = glframebufs_t{};
+    }
 
-    vid.width = width;
-    vid.height = height;
+    vid.width = allocatedWidth; // (GL_CreateFBOAttachment's size)
+    vid.height = allocatedHeight;
     creatingSceneTargets = true;
     creatingFormat = format;
     creatingDepth = t.depth;
@@ -265,8 +281,9 @@ void ensureSceneTargets(SceneTargets& t, int width, int height, float fsaa, bool
     vid.width = windowWidth;
     vid.height = windowHeight;
 
-    t.width = width;
-    t.height = height;
+    t.allocatedWidth = allocatedWidth;
+    t.allocatedHeight = allocatedHeight;
+    t.drawnWidth = t.drawnHeight = 0;
     ++t.generation;
 
     if(t.foveated)
@@ -296,7 +313,7 @@ void ensureSceneTargets(SceneTargets& t, int width, int height, float fsaa, bool
             GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, 0);
             Con_Printf("VR: the eyes' scene foveated (%d x %d, parts %d, format 0x%x): bits %d, offered %d, focal points %d, "
                        "min density %.3f, error 0x%x\n",
-                width, height, t.foveatedParts, format, bits, offered, points, minDensity, glGetError());
+                allocatedWidth, allocatedHeight, t.foveatedParts, format, bits, offered, points, minDensity, glGetError());
             foveationPoints = za::clamp(points, 1, 4);
         }
     }
@@ -333,9 +350,10 @@ void foveateEye(const Fov& fov)
     }
 }
 
-void releaseSceneTargets(SceneTargets& t)
+// Frees a set (releaseTargets): made from nothing at its next ensureSceneTargets.
+void deleteSceneTargets(SceneTargets& t)
 {
-    if(!t.width)
+    if(!t.allocatedWidth)
     {
         return;
     }
@@ -343,7 +361,9 @@ void releaseSceneTargets(SceneTargets& t)
     framebufs = t.fb;
     GL_DeleteFrameBuffers();
     framebufs = windowFramebufs;
-    t = SceneTargets{.generation = t.generation};
+    const unsigned generation = t.generation;
+    t = SceneTargets{};
+    t.generation = generation + 1; // (single-pass stereo's arrays follow)
 }
 
 // The setting -1 (auto): under the ES profile (the Quest's tiled GPU), where it pays.
@@ -388,6 +408,44 @@ void invalidateSceneDepth()
     GL_BindFramebufferFunc(GL_DRAW_FRAMEBUFFER, bound);
 }
 
+// The view about to be drawn into `t` (an eye, the spectator camera): framebufs its targets; vid.width/vid.height their
+// allocated size (the engine reads its framebuffers' size there: R_WarpScaleView's smax/tmax); glx/gly 0 and
+// glwidth/glheight and r_refdef.vrect the bottom left drawnWidth x drawnHeight of them, the part drawn (R_SetupGL's and
+// GL_PostProcess's viewports). The passes read both through viewSize(), never vid.width for the drawn size.
+void useView(SceneTargets& t, int drawnWidth, int drawnHeight)
+{
+    framebufs = t.fb;
+    vid.width = t.allocatedWidth;
+    vid.height = t.allocatedHeight;
+    glx = gly = 0;
+    glwidth = drawnWidth;
+    glheight = drawnHeight;
+    r_refdef.vrect.x = r_refdef.vrect.y = 0;
+    r_refdef.vrect.width = drawnWidth;
+    r_refdef.vrect.height = drawnHeight;
+    t.drawnWidth = drawnWidth;
+    t.drawnHeight = drawnHeight;
+}
+
+void deletePortalTargets(PortalTargets& p)
+{
+    deleteSceneTargets(p.scene);
+    for(int d = 0; d < 4; d++)
+    {
+        if(p.array[d])
+        {
+            GL_DeleteNativeTexture(p.array[d]);
+        }
+        p.array[d] = 0;
+        p.layers[d] = 0;
+    }
+    if(p.fbo)
+    {
+        GL_DeleteFramebuffersFunc(1, &p.fbo);
+        p.fbo = 0;
+    }
+}
+
 // The window's view (vr_window.cpp): a scene's colours (the eye's before its post-processing, which writes into the
 // headset's image, or the spectator camera's) with its glow added, the tone curve and the grade as the
 // post-processing does them (vr_bloom.cpp, vr_tonemap.cpp), so the window shows what the headset does (the window's
@@ -401,13 +459,7 @@ GLuint mirrorProgram = 0;
 bool mirrorFailed = false;
 GLuint linearSampler = 0; // unit 0, while the window's view reads a scene filtered
 
-constexpr const char* mirrorVs = R"(#version 430
-void main()
-{
-    ivec2 v = ivec2(gl_VertexID & 1, gl_VertexID >> 1);
-    gl_Position = vec4(vec2(v) * 4.0 - 1.0, 0.0, 1.0);
-}
-)";
+constexpr const char* mirrorVs = gfx::fullscreenTriangleVs;
 
 constexpr const char* mirrorFs = R"(#version 430
 layout(binding = 0) uniform sampler2D Scene;
@@ -427,12 +479,17 @@ layout(location = 11) uniform vec3 Map1;
 layout(location = 12) uniform vec3 Map2;
 layout(location = 13) uniform vec4 SlowLook; // bullet time: strength, desaturation, vignette, unused
 layout(location = 14) uniform vec3 SlowTint;
+layout(location = 15) uniform vec2 SceneSize; // the scene's drawn part's size (its texture can be larger: dynamic resolution's ceiling)
+layout(location = 16) uniform vec4 SceneMap;  // QvrViewUV's map of it: uv over the drawn part to the texture's
+layout(location = 17) uniform vec4 BloomMap;  // ... of the glow
 layout(location = 0) out vec4 Out;
-)" QVR_TONE_GLSL R"(
+)" QVR_TONE_GLSL QVR_VIEW_UV_GLSL R"(
+vec3 SceneTap(vec2 uv) { return texture(Scene, QvrViewUV(uv, SceneMap)).rgb; } // (uv over the drawn part)
+
 // Catmull-Rom in nine bilinear reads (the middle two texels of each axis in one).
 vec3 CatmullRom(vec2 uv)
 {
-    vec2 size = vec2(textureSize(Scene, 0));
+    vec2 size = SceneSize;
     vec2 p = uv * size;
     vec2 t1 = floor(p - 0.5) + 0.5;
     vec2 f = p - t1;
@@ -444,12 +501,12 @@ vec3 CatmullRom(vec2 uv)
     vec2 t0 = (t1 - 1.0) / size;
     vec2 t3 = (t1 + 2.0) / size;
     vec2 t12 = (t1 + w2 / w12) / size;
-    vec3 c = (texture(Scene, vec2(t0.x, t0.y)).rgb * w0.x + texture(Scene, vec2(t12.x, t0.y)).rgb * w12.x +
-              texture(Scene, vec2(t3.x, t0.y)).rgb * w3.x) * w0.y +
-             (texture(Scene, vec2(t0.x, t12.y)).rgb * w0.x + texture(Scene, vec2(t12.x, t12.y)).rgb * w12.x +
-              texture(Scene, vec2(t3.x, t12.y)).rgb * w3.x) * w12.y +
-             (texture(Scene, vec2(t0.x, t3.y)).rgb * w0.x + texture(Scene, vec2(t12.x, t3.y)).rgb * w12.x +
-              texture(Scene, vec2(t3.x, t3.y)).rgb * w3.x) * w3.y;
+    vec3 c = (SceneTap(vec2(t0.x, t0.y)) * w0.x + SceneTap(vec2(t12.x, t0.y)) * w12.x +
+              SceneTap(vec2(t3.x, t0.y)) * w3.x) * w0.y +
+             (SceneTap(vec2(t0.x, t12.y)) * w0.x + SceneTap(vec2(t12.x, t12.y)) * w12.x +
+              SceneTap(vec2(t3.x, t12.y)) * w3.x) * w12.y +
+             (SceneTap(vec2(t0.x, t3.y)) * w0.x + SceneTap(vec2(t12.x, t3.y)) * w12.x +
+              SceneTap(vec2(t3.x, t3.y)) * w3.x) * w3.y;
     return max(c, vec3(0.0));
 }
 
@@ -461,7 +518,7 @@ void main()
     vec3 c;
     if(Params.x == 0.0)
     {
-        c = texture(Scene, uv).rgb;
+        c = SceneTap(uv);
     }
     else if(h.z <= 0.0 || any(lessThan(uv, vec2(0.0))) || any(greaterThan(uv, vec2(1.0))))
     {
@@ -470,7 +527,7 @@ void main()
     else if(WaterParams.y + WaterParams.z > 0.0)
     {
         // Under water: the post-process's wobble of the direction looked in, in the world, and its blur.
-        vec2 size = vec2(textureSize(Scene, 0));
+        vec2 size = SceneSize;
         vec2 sndc = uv * 2.0 - 1.0;
         vec3 dir = normalize(WaterFwd + WaterLeft * ((sndc.x - WaterProj.x) / WaterProj.y) +
                              WaterUp * ((sndc.y - WaterProj.z) / WaterProj.w));
@@ -480,8 +537,7 @@ void main()
         vec2 aspect = vec2(size.y / size.x, 1.0);
         uv = clamp(uv + w * (WaterParams.y * aspect), vec2(0.0), vec2(1.0));
         vec2 b = max(WaterParams.z, 0.5 / size.y) * aspect;
-        c = (texture(Scene, uv + b).rgb + texture(Scene, uv - b).rgb + texture(Scene, uv + vec2(b.x, -b.y)).rgb +
-             texture(Scene, uv + vec2(-b.x, b.y)).rgb) * 0.25;
+        c = (SceneTap(uv + b) + SceneTap(uv - b) + SceneTap(uv + vec2(b.x, -b.y)) + SceneTap(uv + vec2(-b.x, b.y))) * 0.25;
     }
     else if(Params.x == 1.0)
     {
@@ -489,11 +545,11 @@ void main()
     }
     else
     {
-        c = texture(Scene, uv).rgb;
+        c = SceneTap(uv);
     }
     if(BloomStrength > 0.0) // by one bilinear tap, the smoothing done at the quarter (vr_bloom.cpp)
     {
-        c += texture(Bloom, uv).rgb * BloomStrength;
+        c += texture(Bloom, QvrViewUV(uv, BloomMap)).rgb * BloomStrength;
     }
     if(Tone.x > 0.0)
         c = QvrTonemap(c * Tone.x, Tone.yz);
@@ -526,6 +582,7 @@ enum class Sampling
 struct SceneLook
 {
     GLuint glow = 0;
+    glm::vec4 glowView{1.f}; // its drawn part's size, its texture's (bloom::result)
     glm::vec4 proj{0.f};
     glm::vec3 forward{0.f}, left{0.f}, up{0.f};
 };
@@ -534,7 +591,7 @@ struct SceneLook
 {
     SceneLook l;
     unsigned glow = 0;
-    l.glow = bloom::result(glow) ? glow : 0;
+    l.glow = bloom::result(glow, l.glowView) ? glow : 0;
     l.proj = {r_matproj[0], r_matproj[4], r_matproj[1], r_matproj[9]};
     l.forward = {vpn[0], vpn[1], vpn[2]};
     l.left = {-vright[0], -vright[1], -vright[2]};
@@ -559,8 +616,8 @@ void drawToWindow(const SceneTargets& source, const SceneLook& look, const glm::
         const glm::vec3 a = map * glm::vec3{-1.f, -1.f, 1.f}, b = map * glm::vec3{1.f, 1.f, 1.f};
         GL_BindFramebufferFunc(GL_READ_FRAMEBUFFER, source.fb.composite.fbo);
         GL_BindFramebufferFunc(GL_DRAW_FRAMEBUFFER, windowTarget);
-        GL_BlitFramebufferFunc(static_cast<int>(a.x / a.z * source.width), static_cast<int>(a.y / a.z * source.height),
-            static_cast<int>(b.x / b.z * source.width), static_cast<int>(b.y / b.z * source.height), dx0, 0, dx1,
+        GL_BlitFramebufferFunc(static_cast<int>(a.x / a.z * source.drawnWidth), static_cast<int>(a.y / a.z * source.drawnHeight),
+            static_cast<int>(b.x / b.z * source.drawnWidth), static_cast<int>(b.y / b.z * source.drawnHeight), dx0, 0, dx1,
             windowHeight, GL_COLOR_BUFFER_BIT, GL_LINEAR);
         GL_BindFramebufferFunc(GL_FRAMEBUFFER, windowTarget);
         return;
@@ -606,6 +663,12 @@ void drawToWindow(const SceneTargets& source, const SceneLook& look, const glm::
         bullettime::look() : bullettime::Look{};
     GL_Uniform4fFunc(13, slow.strength, slow.desaturate, slow.vignette, 0.f);
     GL_Uniform3fFunc(14, slow.tint.x, slow.tint.y, slow.tint.z);
+    GL_Uniform2fFunc(15, static_cast<float>(source.drawnWidth), static_cast<float>(source.drawnHeight));
+    const glm::vec4 sceneMap = viewUvMap(source.drawnWidth, source.drawnHeight, source.allocatedWidth, source.allocatedHeight);
+    GL_Uniform4fFunc(16, sceneMap.x, sceneMap.y, sceneMap.z, sceneMap.w);
+    const glm::vec4 glowMap = viewUvMap(static_cast<int>(look.glowView.x), static_cast<int>(look.glowView.y),
+        static_cast<int>(look.glowView.z), static_cast<int>(look.glowView.w));
+    GL_Uniform4fFunc(17, glowMap.x, glowMap.y, glowMap.z, glowMap.w);
     glDrawArrays(GL_TRIANGLES, 0, 3);
     if(filtered)
     {
@@ -661,24 +724,26 @@ void mirrorToWindow(int eye, GLuint windowTarget, int windowWidth, int windowHei
         dx1 = dx0 + windowWidth / 2;
     }
 
-    const float eyeAspect = static_cast<float>(eyeTargets.width) / eyeTargets.height;
+    // The eye's drawn part (its targets may be larger: dynamic resolution's ceiling).
+    const int drawnWidth = eyeTargets.drawnWidth, drawnHeight = eyeTargets.drawnHeight;
+    const float eyeAspect = static_cast<float>(drawnWidth) / drawnHeight;
     const float windowAspect = static_cast<float>(dx1 - dx0) / windowHeight;
 
-    int x0 = 0, y0 = 0, x1 = eyeTargets.width, y1 = eyeTargets.height;
+    int x0 = 0, y0 = 0, x1 = drawnWidth, y1 = drawnHeight;
     if(windowAspect > eyeAspect)
     {
-        const int h = static_cast<int>(eyeTargets.width / windowAspect);
-        y0 = (eyeTargets.height - h) / 2;
+        const int h = static_cast<int>(drawnWidth / windowAspect);
+        y0 = (drawnHeight - h) / 2;
         y1 = y0 + h;
     }
     else
     {
-        const int w = static_cast<int>(eyeTargets.height * windowAspect);
-        x0 = (eyeTargets.width - w) / 2;
+        const int w = static_cast<int>(drawnHeight * windowAspect);
+        x0 = (drawnWidth - w) / 2;
         x1 = x0 + w;
     }
-    const float ew = static_cast<float>(eyeTargets.width);
-    const float eh = static_cast<float>(eyeTargets.height);
+    const float ew = static_cast<float>(drawnWidth);
+    const float eh = static_cast<float>(drawnHeight);
     drawToWindow(source, sceneLook(), cropMap(x0 / ew, y0 / eh, (x1 - x0) / ew, (y1 - y0) / eh), Sampling::Nearest, windowTarget,
         dx0, dx1, windowHeight);
 }
@@ -721,7 +786,32 @@ void drawUi(const glm::vec3& viewOrigin, GLuint fbo, int width, int height, bool
 // 1 with Ironwail's reversed Z, 0 without) right after the scene's clear: every later depth-tested
 // fragment there fails early, so the world's, models' and particles' shaders skip those pixels,
 // and bloom and the mirror see black.
-za::Vector<gfx::Vertex> hiddenTriangles;
+// Each eye's triangles are kept in a vertex buffer, made again only when what they are made from changes: the
+// runtime's mesh (a visibility-mask event gives a new one), the eye's field of view, the depth convention. Not at every
+// scene clear (each eye, each view through a teleporter, each layer of single-pass stereo).
+struct HiddenMesh
+{
+    gfx::StaticTriangles triangles;
+    // What they were made from (made: false, nothing yet).
+    bool made = false;
+    Fov fov;
+    float z = 0.f;
+    za::Vector<glm::vec2> vertices; // the runtime's mesh, copied
+    za::Vector<za::U32> indices;
+};
+za::Array<HiddenMesh, 2> hiddenMeshes;
+za::Vector<gfx::Vertex> hiddenTriangles; // (a mesh's triangles before their upload)
+
+[[nodiscard]] bool sameFov(const Fov& a, const Fov& b)
+{
+    return a.left == b.left && a.right == b.right && a.up == b.up && a.down == b.down;
+}
+
+template <typename T>
+[[nodiscard]] bool sameContents(const za::Vector<T>& a, const za::Vector<T>& b)
+{
+    return a.size() == b.size() && (a.empty() || ZA_MEMCMP(a.data(), b.data(), a.size() * sizeof(T)) == 0);
+}
 
 void drawHiddenArea()
 {
@@ -740,14 +830,26 @@ void drawHiddenArea()
         return;
     }
     const float z = gl_clipcontrol_able ? 1.f : -1.f;
-    hiddenTriangles.clear();
-    for(const za::U32 i : h->indices)
+    HiddenMesh& mesh = hiddenMeshes[currentEye & 1];
+    if(!mesh.made || !sameFov(mesh.fov, fov) || mesh.z != z || !sameContents(mesh.vertices, h->vertices) ||
+        !sameContents(mesh.indices, h->indices))
     {
-        const glm::vec2 t = h->vertices[i];
-        gfx::Vertex v;
-        v.pos = {(2.f * t.x - (r + l)) / (r - l), (2.f * t.y - (u + d)) / (u - d), z};
-        v.color = glm::vec4{0.f};
-        hiddenTriangles.pushBack(v);
+        hiddenTriangles.clear();
+        for(const za::U32 i : h->indices)
+        {
+            const glm::vec2 t = h->vertices[i];
+            gfx::Vertex v;
+            v.pos = {(2.f * t.x - (r + l)) / (r - l), (2.f * t.y - (u + d)) / (u - d), z};
+            v.color = glm::vec4{0.f};
+            hiddenTriangles.pushBack(v);
+        }
+        gfx::upload(mesh.triangles, hiddenTriangles);
+        mesh.made = true;
+        mesh.fov = fov;
+        mesh.z = z;
+        mesh.vertices = h->vertices;
+        mesh.indices = h->indices;
+        Con_DPrintf("VR: the hidden area of eye %d made (%d triangles)\n", currentEye, static_cast<int>(h->indices.size() / 3));
     }
 
     gfx::State state;
@@ -755,19 +857,20 @@ void drawHiddenArea()
     state.blend = gfx::Blend::Opaque;
     state.depthTest = true; // passes against the clear (GL skips depth writes without the test)
     state.depthWrite = true;
-    gfx::draw(hiddenTriangles, glm::mat4{1.f}, state);
+    gfx::draw(mesh.triangles, glm::mat4{1.f}, state);
 }
 
-void renderPortal(int width, int height, int depth);
+void renderPortal(const ViewSize& size, int depth);
 
-// The views a camera of `depth` sees through gates (r_refdef: that camera), each drawn (with its own views first).
-void renderPortals(int width, int height, int depth)
+// The views a camera of `depth` sees through gates (r_refdef: that camera), each drawn (with its own views first), into
+// targets allocated as the camera's (`size`), the same part of them drawn.
+void renderPortals(const ViewSize& size, int depth)
 {
     portals::update(r_refdef.vieworg, r_refdef.viewangles, depth);
     for(int i = 0; i < portals::viewCount(depth) && portals::moreViews(depth); ++i)
     {
         portals::selectView(i, depth);
-        if(portals::wantedForView()) { renderPortal(width, height, depth + 1); }
+        if(portals::wantedForView()) { renderPortal(size, depth + 1); }
     }
 }
 
@@ -777,7 +880,7 @@ void renderPortals(int width, int height, int depth)
 // (VR_DrawPortalMask), into targets of the eye's size (the per-view caches, sized as the eye's, aren't made anew)
 // without MSAA (it is only read, by the gate's pixels), at fewer pixels deeper (portals::scaleAt: r_refdef.scale, as
 // r_scale draws). Its scene colour is the teleport faces' then (VR_PortalTexture), from its depth's array.
-void renderPortal(int width, int height, int depth)
+void renderPortal(const ViewSize& size, int depth)
 {
     QVR_GPU_PROFILE("portal");
     const glframebufs_t savedTargets = framebufs;
@@ -785,14 +888,14 @@ void renderPortal(int width, int height, int depth)
     if(depth < portals::maxDepth())
     {
         portals::carryCamera(depth);
-        renderPortals(width, height, depth);
+        renderPortals(size, depth);
         r_refdef = savedView;
     }
     PortalTargets& target = spectatorView ? spectatorPortals : eyePortals;
     const int slot = za::clamp(depth, 1, 4) - 1;
     const int layers = portals::viewLimit(depth - 1);
-    const bool same = sceneTargetsFit(target.scene, width, height, 0.f);
-    ensureSceneTargets(target.scene, width, height, 0.f);
+    const bool same = sceneTargetsFit(target.scene, size.allocatedWidth, size.allocatedHeight, 0.f);
+    ensureSceneTargets(target.scene, size.allocatedWidth, size.allocatedHeight, 0.f);
     GLuint& array = target.array[slot];
     const bool made = !same || target.layers[slot] != layers || !array;
     if(made)
@@ -808,7 +911,7 @@ void renderPortal(int width, int height, int depth)
         }
         glGenTextures(1, &array);
         GL_BindNative(GL_TEXTURE17, GL_TEXTURE_2D_ARRAY, array);
-        GL_TexStorage3DFunc(GL_TEXTURE_2D_ARRAY, 1, target.scene.format, width, height, layers);
+        GL_TexStorage3DFunc(GL_TEXTURE_2D_ARRAY, 1, target.scene.format, size.allocatedWidth, size.allocatedHeight, layers);
         GL_ObjectLabelFunc(GL_TEXTURE, array, -1, "stereo layered scene target"); // (vr_vram_report)
         glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -832,11 +935,13 @@ void renderPortal(int width, int height, int depth)
     {
         Sys_Error("portal view array framebuffer is incomplete");
     }
-    GL_BlitFramebufferFunc(0, 0, width, height, 0, 0, width, height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+    // (the part drawn: its composite's, r_refdef.vrect, whatever r_refdef.scale drew the scene at)
+    GL_BlitFramebufferFunc(0, 0, size.drawnWidth, size.drawnHeight, 0, 0, size.drawnWidth, size.drawnHeight, GL_COLOR_BUFFER_BIT,
+        GL_NEAREST);
     portals::endView(array, depth);
     if(portals::shotWanted())
     {
-        portals::takeShot(target.scene.fb.composite.fbo, width, height);
+        portals::takeShot(target.scene.fb.composite.fbo, size.drawnWidth, size.drawnHeight);
     }
     framebufs = savedTargets;
     r_refdef = savedView;
@@ -902,7 +1007,7 @@ SpectatorPace spectatorPace;
 // mipmaps for the panel's distance. Made from each new image while a menu shows it: one pass of its pixels.
 struct SpectatorPreview
 {
-    gfx::Target target;
+    gfx::RenderTarget target;
     int images = 0;        // the camera's images so far
     int made = -1;         // the image it was made from
     double madeAt = -1.0;  // realtime when it was last made or found current
@@ -921,10 +1026,15 @@ void makePreview(int windowWidth, int windowHeight)
     if(p.made != p.images || p.target.width != previewWidth || p.target.height != height)
     {
         QVR_GPU_PROFILE("spectator preview");
-        gfx::ensureTarget(p.target, previewWidth, height, true, "spectator preview");
+        if(!p.target.ensure(previewWidth, height, gfx::RenderTargetFormat{.mipmaps = true, .fboName = "vr canvas"},
+               "spectator preview"))
+        {
+            Con_Warning("VR: the spectator preview's framebuffer is incomplete\n");
+            return;
+        }
         drawToWindow(spectatorTargets, spectatorPace.look, cropMap(0.f, 0.f, 1.f, 1.f), Sampling::Bilinear,
-            p.target.framebuffer, 0, p.target.width, p.target.height);
-        GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, p.target.texture);
+            p.target.fbo, 0, p.target.width, p.target.height);
+        GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, p.target.tex);
         GL_GenerateMipmapFunc(GL_TEXTURE_2D);
         p.made = p.images;
     }
@@ -987,22 +1097,14 @@ void renderSpectator(GLuint windowTarget, int windowWidth, int windowHeight)
     const window::Camera& camera =
         window::spectator(static_cast<float>(windowWidth) / static_cast<float>(windowHeight));
 
-    framebufs = spectatorTargets.fb;
-    vid.width = width;
-    vid.height = height;
-    glx = gly = 0;
-    glwidth = width;
-    glheight = height;
-    r_refdef.vrect.x = r_refdef.vrect.y = 0;
-    r_refdef.vrect.width = width;
-    r_refdef.vrect.height = height;
+    useView(spectatorTargets, width, height); // (drawn whole: its size is the window's, not dynamic resolution's)
 
     renderingEye = true;
     spectatorView = true;
     currentEye = 0;
     firstEye = false; // the eyes' entities, as they set them up
     V_RenderView();
-    bloom::apply(framebufs.composite.color_tex, width, height);
+    bloom::apply(framebufs.composite.color_tex, viewSize());
     spectatorPace.look = sceneLook();
     drawUi(camera.origin, framebufs.composite.fbo, width, height, vr_spectator_hide_hud_text.value == 0.f && !recordingClean());
     spectatorView = false;
@@ -1022,15 +1124,27 @@ bool isSpectator()
     return spectatorView;
 }
 
+ViewSize viewSize()
+{
+    return {vid.width, vid.height, glwidth, glheight};
+}
+
+glm::vec4 viewUvMap(int drawnWidth, int drawnHeight, int allocatedWidth, int allocatedHeight)
+{
+    const double w = za::max(allocatedWidth, 1), h = za::max(allocatedHeight, 1);
+    return {static_cast<float>(drawnWidth / w), static_cast<float>(drawnHeight / h), static_cast<float>(0.5 / w),
+        static_cast<float>(0.5 / h)};
+}
+
 unsigned spectatorPreview(float& aspect)
 {
     const SpectatorPreview& p = previewState;
-    if(!p.target.texture || p.made < 0 || p.madeAt < 0.0 || realtime - p.madeAt > 0.25)
+    if(!p.target.tex || p.made < 0 || p.madeAt < 0.0 || realtime - p.madeAt > 0.25)
     {
         return 0;
     }
     aspect = static_cast<float>(p.target.height) / static_cast<float>(p.target.width);
-    return p.target.texture;
+    return p.target.tex;
 }
 
 bool isRenderingEye()
@@ -1089,6 +1203,164 @@ void precompilePrograms()
     }
 }
 
+void releaseTargets()
+{
+    const bool held = eyeTargets.allocatedWidth || rightEyeTargets.allocatedWidth || spectatorTargets.allocatedWidth ||
+        eyePortals.scene.allocatedWidth || spectatorPortals.scene.allocatedWidth;
+    deleteSceneTargets(eyeTargets);
+    deleteSceneTargets(rightEyeTargets);
+    deleteSceneTargets(spectatorTargets);
+    deletePortalTargets(eyePortals);
+    deletePortalTargets(spectatorPortals);
+    resample.destroy();
+    if(targetFbo)
+    {
+        GL_DeleteFramebuffersFunc(1, &targetFbo);
+        targetFbo = 0;
+    }
+    previewState.target.destroy();
+    previewState.made = -1;
+    spectatorPace.shown = false;
+    for(HiddenMesh& mesh : hiddenMeshes)
+    {
+        if(mesh.triangles.buffer)
+        {
+            GL_DeleteBuffer(mesh.triangles.buffer);
+        }
+        mesh = HiddenMesh{};
+    }
+    stereosingle::releaseTargets();
+    gfx::releaseSceneTargets();
+    temporal::releaseTargets();
+    bloom::releaseTargets();
+    haze::releaseTargets();
+    water::releaseTargets();
+    upscale::releaseTargets();
+    GL_BindFramebufferFunc(GL_FRAMEBUFFER, 0); // (the window's: GL_DeleteFrameBuffers left none bound)
+    if(held)
+    {
+        Con_DPrintf("VR: the eyes' targets released\n");
+    }
+}
+
+namespace
+{
+
+// vr_stereo_targets_test (Misc/quakevr/stereo_targets_test.sh): what the eyes' GL objects do over frames. `begin` notes
+// the counts, `steady` (frames later, the view unchanged) checks nothing was made again, `released` (after VR stopped)
+// that the eye-sized objects are gone; `verdict` prints the line.
+struct TargetsTest
+{
+    testkit::Tally tally;
+    int frame = 0;
+    long long hiddenUploads[2] = {};
+    int underMade = 0;
+    unsigned eyeGeneration = 0; // the eye targets' at begin (made again: another)
+    int renderTargetsMade = 0;  // gfx::targetsMade at begin (the resample target, the glow's chain, the particles')
+    int dynresChanges = 0;
+    int drawnWidth = 0;
+};
+TargetsTest targetsTest;
+constexpr const char* targetsTestName = "stereo_targets";
+
+void targetsCheck(bool ok, const char* what)
+{
+    targetsTest.tally.check(ok);
+    Con_Printf("%s: %s %s\n", targetsTestName, ok ? "PASS" : "FAIL", what);
+}
+
+void targetsTest_f()
+{
+    TargetsTest& t = targetsTest;
+    const char* step = Cmd_Argc() > 1 ? Cmd_Argv(1) : "";
+    if(!q_strcasecmp(step, "begin"))
+    {
+        t.tally.reset();
+        t.frame = host_framecount;
+        for(int eye = 0; eye < 2; eye++)
+        {
+            t.hiddenUploads[eye] = hiddenMeshes[eye].triangles.uploads;
+        }
+        t.underMade = gfx::underTargetsMade();
+        t.eyeGeneration = eyeTargets.generation;
+        t.renderTargetsMade = gfx::targetsMade;
+        t.dynresChanges = dynres::changes();
+        t.drawnWidth = eyeTargets.drawnWidth;
+        Con_Printf("%s: begun (hidden area uploads %lld %lld, reverse-order framebuffers %d)\n", targetsTestName,
+            t.hiddenUploads[0], t.hiddenUploads[1], t.underMade);
+    }
+    else if(!q_strcasecmp(step, "steady"))
+    {
+        targetsCheck(host_framecount - t.frame >= 10 && eyeTargets.drawnWidth > 0, va("eyes drawn since begin (%d frames, %dx%d)",
+            host_framecount - t.frame, eyeTargets.drawnWidth, eyeTargets.drawnHeight));
+        if(vr_visibility_mask.value != 0.f && vr_mock_hidden_area.value != 0.f)
+        {
+            for(int eye = 0; eye < 2; eye++)
+            {
+                const long long uploads = hiddenMeshes[eye].triangles.uploads;
+                targetsCheck(hiddenMeshes[eye].made && uploads >= 1, va("eye %d's hidden area made (%lld uploads)", eye, uploads));
+                targetsCheck(uploads == t.hiddenUploads[eye], va("eye %d's hidden area not uploaded again (%lld at begin, %lld now)",
+                    eye, t.hiddenUploads[eye], uploads));
+            }
+        }
+        if(vr_particle_saturate.value != 0.f)
+        {
+            targetsCheck(gfx::underTargetsMade() > 0 && gfx::underTargetsMade() == t.underMade,
+                va("reverse-order particles' framebuffers not made again (%d at begin, %d now)", t.underMade,
+                    gfx::underTargetsMade()));
+        }
+    }
+    else if(!q_strcasecmp(step, "stepped"))
+    {
+        // (after dynamic resolution stepped: vr_dynres 2 and a load, vr_dynres_test_load)
+        targetsCheck(dynres::changes() > t.dynresChanges, va("dynamic resolution stepped since begin (%d steps)",
+            dynres::changes() - t.dynresChanges));
+        targetsCheck(eyeTargets.drawnWidth != t.drawnWidth && eyeTargets.drawnWidth < eyeTargets.allocatedWidth,
+            va("the eyes drawn at another size, a part of their targets (%dx%d of %dx%d; %d wide at begin)", eyeTargets.drawnWidth,
+                eyeTargets.drawnHeight, eyeTargets.allocatedWidth, eyeTargets.allocatedHeight, t.drawnWidth));
+        targetsCheck(eyeTargets.generation == t.eyeGeneration, va("the eyes' targets not made again (generation %u at begin, %u now)",
+            t.eyeGeneration, eyeTargets.generation));
+        targetsCheck(gfx::targetsMade == t.renderTargetsMade, va("no render target made again (%d made at begin, %d now: %s)",
+            t.renderTargetsMade, gfx::targetsMade, gfx::targetsMadeByName().cStr()));
+    }
+    else if(!q_strcasecmp(step, "released"))
+    {
+        // (after VR stopped: vr_enabled 0)
+        targetsCheck(backend() == nullptr, "VR stopped");
+        targetsCheck(!eyeTargets.allocatedWidth && !eyeTargets.fb.scene.fbo && !eyeTargets.fb.composite.fbo,
+            va("the eyes' targets released (%dx%d, scene framebuffer %u)", eyeTargets.allocatedWidth, eyeTargets.allocatedHeight,
+                eyeTargets.fb.scene.fbo));
+        targetsCheck(!spectatorTargets.allocatedWidth && !spectatorTargets.fb.scene.fbo, "the spectator camera's targets released");
+        bool portals = true;
+        for(const PortalTargets* p : {&eyePortals, &spectatorPortals})
+        {
+            portals = portals && !p->scene.allocatedWidth && !p->fbo;
+            for(const GLuint array : p->array)
+            {
+                portals = portals && !array;
+            }
+        }
+        targetsCheck(portals, "the views through teleporters' targets and arrays released");
+        targetsCheck(!resample.tex && !targetFbo, "the resample target and the eye image's framebuffer released");
+        targetsCheck(!hiddenMeshes[0].triangles.buffer && !hiddenMeshes[1].triangles.buffer, "the hidden areas' buffers released");
+    }
+    else if(!q_strcasecmp(step, "verdict"))
+    {
+        t.tally.verdict(targetsTestName);
+    }
+    else
+    {
+        Con_Printf("vr_stereo_targets_test begin | steady | stepped | released | verdict\n");
+    }
+}
+
+} // namespace
+
+void init()
+{
+    Cmd_AddCommand("vr_stereo_targets_test", targetsTest_f);
+}
+
 } // namespace qvr::stereo
 
 using namespace qvr;
@@ -1097,7 +1369,7 @@ using namespace qvr;
 // Each view prepares its own portal; R_RenderView directly avoids recursion and a second entity setup.
 extern "C" void VR_RenderPortalForView()
 {
-    stereo::renderPortals(vid.width, vid.height, 0);
+    stereo::renderPortals(stereo::viewSize(), 0);
 }
 
 // The flat screen's one view (SCR_UpdateScreen when VR_RenderView drew no eyes: flatscreen play, vr_enabled 0) set up as
@@ -1151,19 +1423,23 @@ extern "C" int VR_RenderView()
     }
     const EyeSizes sizes = be->eyeSizes();
     dynres::beginFrame(); // (the scale this frame is drawn at, for its GPU time read back later)
-    const int width = scaledEyeSize(imageWidth, sizes.maxWidth);
-    const int height = scaledEyeSize(imageHeight, sizes.maxHeight);
-    stereo::resampling = width != imageWidth || height != imageHeight || upscale::sharpenAtNative();
+    // The size the eyes are drawn at this frame, and the size their targets are allocated at.
+    const int drawnWidth = scaledEyeSize(imageWidth, sizes.maxWidth);
+    const int drawnHeight = scaledEyeSize(imageHeight, sizes.maxHeight);
+    // Under dynamic resolution the ceiling's (vr_dynres.hpp): allocated once, its bucket's part drawn; else the same.
+    const int allocatedWidth = za::max(drawnWidth, dynres::eyeSize(imageWidth, sizes.maxWidth, dynres::allocationScale()));
+    const int allocatedHeight = za::max(drawnHeight, dynres::eyeSize(imageHeight, sizes.maxHeight, dynres::allocationScale()));
+    stereo::resampling = drawnWidth != imageWidth || drawnHeight != imageHeight || upscale::sharpenAtNative();
     // vr_eye_subimage (QUEST_PLAN.md C2g): an eye drawn smaller and resampled bilinearly is post-processed straight
     // into its image's lower left part instead, and the layer shows that part: the compositor's own sampling scales it
     // (it resamples the image anyway), one full-screen read and write an eye fewer (a tiler's bandwidth). The part's
     // pixels are the resample target's; the UI is drawn into it at the eye's size.
     const int subImageMode = static_cast<int>(vr_eye_subimage.value);
-    bool subImage = stereo::resampling && width <= imageWidth && height <= imageHeight &&
+    bool subImage = stereo::resampling && drawnWidth <= imageWidth && drawnHeight <= imageHeight &&
                     (subImageMode >= 2 || (subImageMode == 1 && (VR_GLESCompat() || VR_Android()))) &&
-                    upscale::resamplesBilinearly(width, height, imageWidth, imageHeight);
-    subImage = be->setEyeImageRect(0, subImage ? width : 0, subImage ? height : 0) && subImage;
-    subImage = be->setEyeImageRect(1, subImage ? width : 0, subImage ? height : 0) && subImage;
+                    upscale::resamplesBilinearly(drawnWidth, drawnHeight, imageWidth, imageHeight);
+    subImage = be->setEyeImageRect(0, subImage ? drawnWidth : 0, subImage ? drawnHeight : 0) && subImage;
+    subImage = be->setEyeImageRect(1, subImage ? drawnWidth : 0, subImage ? drawnHeight : 0) && subImage;
     if(subImage)
     {
         stereo::resampling = false;
@@ -1172,29 +1448,29 @@ extern "C" int VR_RenderView()
     {
         be->setEyeImageRect(0, 0, 0); // (the left eye's set before the right's refused)
     }
-    const int shownWidth = subImage ? width : imageWidth; // the eye's part of its image: the UI's, the final eyeshot's
-    const int shownHeight = subImage ? height : imageHeight;
+    const int shownWidth = subImage ? drawnWidth : imageWidth; // the eye's part of its image: the UI's, the final eyeshot's
+    const int shownHeight = subImage ? drawnHeight : imageHeight;
     // (profiling builds: the eyes' drawn width over the image's, vr_render_scale's result, and the width itself)
-    VR_TracyPlot("Render scale", static_cast<double>(width) / imageWidth);
-    VR_TracyPlot("Eye render width", width);
+    VR_TracyPlot("Render scale", static_cast<double>(drawnWidth) / imageWidth);
+    VR_TracyPlot("Eye render width", drawnWidth);
 
-    stereo::ensureSceneTargets(stereo::eyeTargets, width, height, temporal::eyeFsaa(vid_fsaa.value), true); // (no MSAA under TAA)
+    stereo::ensureSceneTargets(stereo::eyeTargets, allocatedWidth, allocatedHeight, temporal::eyeFsaa(vid_fsaa.value), true); // (no MSAA under TAA)
     const bool splitTargets = stereo::splitEyeTargets(stereo::eyeTargets.fb.scene.samples);
     if(splitTargets)
     {
-        stereo::ensureSceneTargets(stereo::rightEyeTargets, width, height, temporal::eyeFsaa(vid_fsaa.value), true);
+        stereo::ensureSceneTargets(stereo::rightEyeTargets, allocatedWidth, allocatedHeight, temporal::eyeFsaa(vid_fsaa.value), true);
     }
     else
     {
-        stereo::releaseSceneTargets(stereo::rightEyeTargets);
+        stereo::deleteSceneTargets(stereo::rightEyeTargets);
     }
     if(stereo::resampling)
     {
-        stereo::ensureResampleTarget(width, height);
+        stereo::ensureResampleTarget(allocatedWidth, allocatedHeight);
     }
     // Temporal AA (vr_temporal.cpp): this frame's slots for the models' positions, the motion target on the eye targets
-    temporal::beginFrame(stereo::eyeTargets.fb.scene.fbo, stereo::eyeTargets.fb.composite.fbo, width, height,
-        stereo::eyeTargets.fb.scene.samples);
+    temporal::beginFrame(stereo::eyeTargets.fb.scene.fbo, stereo::eyeTargets.fb.composite.fbo,
+        stereo::ViewSize{allocatedWidth, allocatedHeight, drawnWidth, drawnHeight}, stereo::eyeTargets.fb.scene.samples);
 
     const glframebufs_t windowFramebufs = framebufs;
     const int windowWidth = vid.width, windowHeight = vid.height;
@@ -1257,15 +1533,7 @@ extern "C" int VR_RenderView()
     const bool late = lateAcquire && !direct && !xrFoveated;
     if(singlePass)
     {
-        framebufs = stereo::eyeTargets.fb;
-        vid.width = width;
-        vid.height = height;
-        glx = gly = 0;
-        glwidth = width;
-        glheight = height;
-        r_refdef.vrect.x = r_refdef.vrect.y = 0;
-        r_refdef.vrect.width = width;
-        r_refdef.vrect.height = height;
+        stereo::useView(stereo::eyeTargets, drawnWidth, drawnHeight);
         for(int eye = 0; eye < 2; eye++)
         {
             stereo::renderingEye = true;
@@ -1275,7 +1543,7 @@ extern "C" int VR_RenderView()
             stereosingle::captureEye(eye);
         }
         QVR_GPU_PROFILE("eyes: single pass");
-        stereosingle::render(width, height);
+        stereosingle::render(stereo::viewSize());
         stereo::renderingEye = false;
     }
 
@@ -1294,11 +1562,11 @@ extern "C" int VR_RenderView()
             continue;
         }
 
-        framebufs = stereo::eyeTargets.fb;
+        stereo::useView(stereo::eyeTargets, drawnWidth, drawnHeight);
         const bool directOwn = direct && eyeImage && vr_xr_direct.value >= 2.f;
         if(directOwn)
         {
-            stereo::bindDirectTarget(eyeImage, width, height);
+            stereo::bindDirectTarget(eyeImage, drawnWidth, drawnHeight);
             framebufs.composite.fbo = stereo::directTarget.fbo;
         }
         else if(direct && eyeImage)
@@ -1306,14 +1574,6 @@ extern "C" int VR_RenderView()
             GL_BindFramebufferFunc(GL_FRAMEBUFFER, framebufs.composite.fbo);
             GL_FramebufferTexture2DFunc(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, eyeImage, 0);
         }
-        vid.width = width;
-        vid.height = height;
-        glx = gly = 0;
-        glwidth = width;
-        glheight = height;
-        r_refdef.vrect.x = r_refdef.vrect.y = 0;
-        r_refdef.vrect.width = width;
-        r_refdef.vrect.height = height;
 
         stereo::renderingEye = true;
         stereo::currentEye = eye;
@@ -1350,16 +1610,16 @@ extern "C" int VR_RenderView()
             GL_BindFramebufferFunc(GL_FRAMEBUFFER, framebufs.composite.fbo);
             GL_FramebufferTexture2DFunc(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, framebufs.composite.color_tex, 0);
         }
-        tonemap::glProbe(eye, 0, framebufs.scene.fbo, framebufs.composite.fbo, stereo::targetFbo, width, height, shownWidth,
+        tonemap::glProbe(eye, 0, framebufs.scene.fbo, framebufs.composite.fbo, stereo::targetFbo, drawnWidth, drawnHeight, shownWidth,
             shownHeight); // (vr_gl_probe: Debug > Startup)
-        dynres::testLoad(eye, framebufs.composite.fbo, width, height); // (vr_dynres_test_load: Debug > Profiling)
+        dynres::testLoad(eye, framebufs.composite.fbo, drawnWidth, drawnHeight); // (vr_dynres_test_load: Debug > Profiling)
         {
             QVR_TRACY_SCOPE(zoneFoveated, "eye: foveated end"); // (profiling builds only: the eye's own steps)
             foveated::endScene(); // begun after the scene's clear (VR_DrawHiddenArea)
         }
         if(!drawnDirect)
         {
-            bloom::apply(framebufs.composite.color_tex, width, height); // added by GL_PostProcess
+            bloom::apply(framebufs.composite.color_tex, stereo::viewSize()); // added by GL_PostProcess
         }
         if(late && !acquire(eye, true))
         {
@@ -1386,29 +1646,29 @@ extern "C" int VR_RenderView()
         }
         if(!shotFinal && !shotUi)
         {
-            tonemap::eyeshot(eye, VR_PostProcessTarget(), framebufs.composite.fbo, width, height);
+            tonemap::eyeshot(eye, VR_PostProcessTarget(), framebufs.composite.fbo, drawnWidth, drawnHeight);
         }
         profile::end();
         if(stereo::resampling)
         {
             // After the tone curve, grade, gamma and dither (FSR and NIS want the display's colours), before the UI.
             QVR_GPU_PROFILE("upscale");
-            upscale::resample(eye, stereo::resample.tex, stereo::resample.fbo, width, height, stereo::targetFbo,
-                imageWidth, imageHeight);
+            upscale::resample(eye, stereo::resample.tex, stereo::resample.fbo, drawnWidth, drawnHeight, stereo::resample.width,
+                stereo::resample.height, stereo::targetFbo, imageWidth, imageHeight);
         }
         {
             QVR_TRACY_SCOPE(zoneFoveatedDebug, "eye: foveated debug");
-            foveated::drawDebug(eye, stereo::targetFbo, shownWidth, shownHeight, width, height); // vr_foveated_debug
+            foveated::drawDebug(eye, stereo::targetFbo, shownWidth, shownHeight, drawnWidth, drawnHeight); // vr_foveated_debug
             if(stereo::mirrored(eye))
             {
-                foveated::drawDebug(eye, framebufs.composite.fbo, width, height, width, height);
+                foveated::drawDebug(eye, framebufs.composite.fbo, drawnWidth, drawnHeight, drawnWidth, drawnHeight);
             }
         }
         if(shotFinal)
         {
             tonemap::eyeshot(eye, stereo::targetFbo, framebufs.composite.fbo, shownWidth, shownHeight);
         }
-        tonemap::glProbe(eye, 1, 0, framebufs.composite.fbo, stereo::targetFbo, width, height, shownWidth, shownHeight);
+        tonemap::glProbe(eye, 1, 0, framebufs.composite.fbo, stereo::targetFbo, drawnWidth, drawnHeight, shownWidth, shownHeight);
 
         // The UI over the eye's final image, at its full size: after the post-processing, it is not warped or blurred
         // under water (vr_water.cpp), the glow is not added over it, nor the eye's gamma. The wrist gadget and all
@@ -1423,10 +1683,10 @@ extern "C" int VR_RenderView()
         {
             tonemap::eyeshot(eye, stereo::targetFbo, framebufs.composite.fbo, shownWidth, shownHeight);
         }
-        tonemap::glProbe(eye, 2, 0, framebufs.composite.fbo, stereo::targetFbo, width, height, shownWidth, shownHeight);
+        tonemap::glProbe(eye, 2, 0, framebufs.composite.fbo, stereo::targetFbo, drawnWidth, drawnHeight, shownWidth, shownHeight);
         if(stereo::mirrored(eye))
         {
-            stereo::drawUi(hands::current().eyeOrigin[eye], framebufs.composite.fbo, width, height,
+            stereo::drawUi(hands::current().eyeOrigin[eye], framebufs.composite.fbo, drawnWidth, drawnHeight,
                 vr_mirror_hide_hud_text.value == 0.f && !recordingClean());
         }
 
@@ -1519,8 +1779,10 @@ extern "C" void VR_HeadlessView()
         return;
     }
     const EyeSizes sizes = be->eyeSizes();
-    const int width = scaledEyeSize(imageWidth, sizes.maxWidth);
+    const int width = scaledEyeSize(imageWidth, sizes.maxWidth); // (drawn; allocated as VR_RenderView's: vid)
     const int height = scaledEyeSize(imageHeight, sizes.maxHeight);
+    const int allocatedWidth = za::max(width, dynres::eyeSize(imageWidth, sizes.maxWidth, dynres::allocationScale()));
+    const int allocatedHeight = za::max(height, dynres::eyeSize(imageHeight, sizes.maxHeight, dynres::allocationScale()));
 
     const int windowWidth = vid.width, windowHeight = vid.height;
     const int savedGlx = glx, savedGly = gly, savedGlwidth = glwidth, savedGlheight = glheight;
@@ -1528,8 +1790,8 @@ extern "C" void VR_HeadlessView()
     const float savedFovX = r_refdef.fov_x, savedFovY = r_refdef.fov_y;
     for(int eye = 0; eye < 2; eye++)
     {
-        vid.width = width;
-        vid.height = height;
+        vid.width = allocatedWidth;
+        vid.height = allocatedHeight;
         glx = gly = 0;
         glwidth = width;
         glheight = height;
@@ -1564,7 +1826,8 @@ extern "C" void VR_DrawHiddenArea()
     {
         stereo::drawHiddenArea();
         tonemap::glProbeDraw(false); // vr_gl_probe 2: blue under the scene
-        foveated::beginScene(stereo::currentEye, vid.width, vid.height); // vr_foveated, until the scene ends
+        const stereo::ViewSize size = stereo::viewSize(); // (the lens's place in the part drawn)
+        foveated::beginScene(stereo::currentEye, size.drawnWidth, size.drawnHeight); // vr_foveated, until the scene ends
     }
 }
 
@@ -1633,6 +1896,15 @@ extern "C" int VR_SceneSamples(int samples)
 {
     // (the window's: none under flat-screen play's TAA, vr_flat_taa)
     return stereo::creatingSceneTargets ? Q_nextPow2(static_cast<int>(q_max(1.f, stereo::creatingFsaa))) : temporal::windowSamples(samples);
+}
+
+extern "C" void VR_PostProcessView()
+{
+    const stereo::ViewSize size = stereo::viewSize(); // (the window's: its targets drawn whole)
+    GL_Uniform4fFunc(12, static_cast<float>(size.drawnWidth), static_cast<float>(size.drawnHeight), 0.f, 0.f);
+    const glm::vec4 map = stereo::viewUvMap(size.drawnWidth, size.drawnHeight, size.allocatedWidth, size.allocatedHeight);
+    GL_Uniform4fFunc(14, map.x, map.y, map.z, map.w); // (SceneMap)
+    GL_Uniform4fFunc(13, 1.f, 1.f, 0.f, 0.f); // (BloomMap: VR_PostProcessBloom's when an eye's glow is added)
 }
 
 extern "C" unsigned VR_PostProcessTarget()

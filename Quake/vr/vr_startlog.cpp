@@ -30,6 +30,9 @@
 #include <cstdarg>
 #include <cstdio>
 #include <cstring>
+#ifndef _WIN32
+#include <unistd.h> // (write: the watchdog's line to the terminal while the loader's output is caught)
+#endif
 
 namespace qvr::startlog
 {
@@ -327,7 +330,17 @@ void watchdog()
             now - since);
         if(!shared.quiet.load(std::memory_order_relaxed))
         {
-            Sys_Printf("%s", line); // (logcat on Android: VR_AndroidLog is thread-safe; the run's log is locked)
+#ifndef _WIN32
+            // (the OpenXR loader's output caught: the terminal's own stdout, or a hang there says nothing; VR_TerminalFd)
+            if(const int fd = VR_TerminalFd(1); fd >= 0)
+            {
+                (void)!write(fd, line, strlen(line));
+            }
+            else
+#endif
+            {
+                Sys_Printf("%s", line); // (logcat on Android: VR_AndroidLog is thread-safe; the run's log is locked)
+            }
         }
         if(FILE* f = shared.file.load(std::memory_order_acquire))
         {

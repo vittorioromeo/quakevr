@@ -24,7 +24,25 @@ void forEach(F&& fn)
     }
 }
 
+// A Quake VR setting's kind in multiplayer: its vr_cvars.inc row's QVR_RULE, QVR_PREF or QVR_OWN (vr_cvars.hpp); Unset
+// for a row with none and for every cvar that is not Quake VR's.
+enum class Kind
+{
+    Unset,
+    Rule,
+    Pref,
+    Own,
+};
+[[nodiscard]] Kind kindOf(const cvar_t* var);
+[[nodiscard]] const char* kindName(Kind kind); // "unset", "rule", "pref", "own"
+
+// fn(cvar_t*, Kind) for every vr_cvars.inc setting whose row says its kind, in the table's order.
+template <typename F>
+void forEachWithKind(F&& fn);
+
 // A cvar set for a scope (RAII): `value` now, its string before put back when the Override goes (a test's setting).
+// The main thread's (cvars are). Never held across a call that can run QuakeC or reach Host_Error (CODE_STYLE.md,
+// "Threads"): the error's longjmp skips the destructor; VR_OnHostError puts back the ones it skipped (putBackAll).
 class Override
 {
 public:
@@ -34,9 +52,14 @@ public:
     Override(const Override&) = delete;
     Override& operator=(const Override&) = delete;
 
+    // VR_OnHostError (vr_hosterror.cpp): every Override still alive put back, the newest first, as their scopes' ends
+    // would have (each named in the console). Returns how many.
+    static int putBackAll();
+
 private:
     cvar_t& var;
     za::String was;
+    Override* older{nullptr}; // the Override made before this one and still alive (a list: putBackAll)
 };
 
 // Cvars' values kept before a run changes them (a playback, a scenario) and put back by restore(): the latest kept
@@ -57,5 +80,27 @@ private:
     };
     za::Vector<Saved> saved;
 };
+
+namespace detail
+{
+struct KindRow
+{
+    cvar_t* var;
+    Kind kind;
+};
+// The vr_cvars.inc rows with a kind (vr_cvars.cpp).
+[[nodiscard]] const KindRow* kindRows(int& count);
+} // namespace detail
+
+template <typename F>
+void forEachWithKind(F&& fn)
+{
+    int count = 0;
+    const detail::KindRow* rows = detail::kindRows(count);
+    for(int i = 0; i < count; i++)
+    {
+        fn(rows[i].var, rows[i].kind);
+    }
+}
 
 } // namespace qvr::cvars

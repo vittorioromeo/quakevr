@@ -19,6 +19,20 @@ void init(); // registers commands
 // room-scale moves), or nullptr for a client that sent none. Whatever the progs: the engine's own
 // VR physics work from these, not from QC fields.
 [[nodiscard]] const VrMove* clientMove(struct edict_s* player);
+// Holster `slot` (body::Holster's order) of the client `player` as his client drew it, carried with his entity since
+// (MP_PLAN.md, B6b: QC's holsterpos for a remote player). False: none sent.
+[[nodiscard]] bool holsterPoint(struct edict_s* player, int slot, glm::vec3& out);
+
+// How many of client `clientNum`'s moves came in a server frame that had one of his already (merged: their VR bits ORed,
+// the hands' last pose kept) since he connected: vr_mp_status `merged=` (MP_PLAN.md, B5d: melee at jitter).
+[[nodiscard]] int mergedMoves(int clientNum);
+// His string commands since he connected: run, dropped over his budget (VR_ClientCommandBudget), and the fewest his
+// budget had left after one (vr_mp_status's mp_cmds).
+struct CommandCounts
+{
+    int used, dropped, least;
+};
+[[nodiscard]] CommandCounts commandCounts(int clientNum);
 
 // The client places `player`'s hands (and muzzles) from where it last saw the player, which
 // lags the server by a frame or more: moves the hand fields (and the stored move) along by
@@ -28,6 +42,12 @@ void rebaseHands(struct edict_s* player);
 
 // Forgets every client's VR move (a new server).
 void resetClients();
+
+// The avatars (QVR_SVC_AVATAR) this server has sent, those left unsent as unchanged (vr_net_avatar_keyframe), their bytes.
+void avatarCounts(int& sent, int& skipped, long long& bytes);
+// Every sound precached so far read for a loop (its cue point) now, while the map loads (VR_OnSpawnServerSpawned), not at
+// its first play in the game (a whole file read from disk there). A sound precached later still reads at its first play.
+void learnSoundLoops();
 
 // Head angles of `player`'s latest move, as a vec3_t (nullptr without one).
 [[nodiscard]] float* clientHeadAngles(struct edict_s* player);
@@ -76,5 +96,16 @@ void sendTracer(struct edict_s* shooter, int hand, const float from[3], const fl
 // before the server frame: written at the next frame's start, after SV_ClearDatagram (sv.datagram itself would be
 // cleared before it was sent). An explosion's temp entity launches its chunks (vr_explosiondebris.cpp) as QuakeC's does.
 void queueBroadcast(const unsigned char* data, int len);
+
+// A message about entity `ent` (an armed humanoid's pose) for the datagrams of the clients that have it in sight this frame
+// (vr_net_cullposes; the loopback client gets them all): written into the buffer returned, then scopedEnd. nullptr: culling
+// is off, write to the broadcast instead.
+struct sizebuf_s* scopedBegin(int ent, bool always = false); // always: whatever vr_net_cullposes says (a player's avatar)
+// scopedEnd's kind: a player's avatar goes in a snapshot client's snapshot (vr_netsnap.cpp, B7b); one unchanged since it was
+// last sent, there only (the others wait for its keyframe).
+inline constexpr int scopedOther = 0;
+inline constexpr int scopedAvatar = 1;
+inline constexpr int scopedAvatarUnchanged = 2;
+void scopedEnd(int kind = scopedOther);
 
 } // namespace qvr::server

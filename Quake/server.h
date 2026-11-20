@@ -274,6 +274,7 @@ extern	edict_t		*sv_player;
 //===========================================================
 
 void SV_Init (void);
+qboolean SV_IsLocalClient (const client_t *client); // QVR: the listen host's own client (the loopback's server side: NET_QSocketIsLocal)
 
 void SV_StartParticle (vec3_t org, vec3_t dir, int color, int count);
 void SV_StartSound (edict_t *entity, int channel, const char *sample, int volume,
@@ -315,6 +316,7 @@ void SV_MoveToGoal (void);
 void SV_CheckForNewClients (void);
 void SV_RunClients (void);
 void SV_SaveSpawnparms (void);
+void SV_SendServerinfo (client_t *client);
 void SV_SpawnServer (const char *server);
 
 #endif	/* QUAKE_SERVER_H */

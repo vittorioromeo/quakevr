@@ -10,6 +10,7 @@
 #include "vr_engine.hpp"
 #include "vr_backend.hpp"
 #include "vr_cvars.hpp"
+#include "vr_mem.hpp"
 #include "vr_tunables.hpp"
 #include "vr_main.hpp"
 #include "vr_audio.hpp"
@@ -238,5 +239,11 @@ void clear()
         s = Stroke{};
     }
 }
+
+namespace
+{
+// Forgotten when the client's state is cleared (vr_mem.hpp's resets): the pump strokes.
+mem::Reset clientStateReset{"autopump", mem::ResetEvent::ClientState, mem::ResetPhase::State, &clear};
+} // namespace
 
 } // namespace qvr::autopump

@@ -27,6 +27,76 @@ struct VrHandMove
     glm::vec3 ownVel{0.f};   // as `vel`, the controller's own (hands::State::ownVel: in slow motion the slowed hand lags it)
 };
 
+// A hand as its client drew it (MP_PLAN.md, B2b): the jointed hand's entity (its place and turn after the palm's fit and the
+// firing motion), its fingers' curls as posed (handrig::Pose: the grasp's wrap of what it holds included) and its thumb's
+// turn, and the held weapon's model entity. The server passes it on in the avatar (QVR_SVC_AVATAR): other players draw
+// that hand and weapon where this client drew them (vr_mpavatar.cpp), no solve of their own. Written compactly
+// (writeDrawnHand): places in eighths of a unit from an origin, angles in 16 bits, curls in sixteenths of a frame.
+struct VrDrawnHand
+{
+    static constexpr za::U8 handBit = 1;      // the jointed hand drawn
+    static constexpr za::U8 handMirrorBit = 2;
+    static constexpr za::U8 weaponBit = 4;    // a weapon model drawn (weaponModel: its model_precache index)
+    static constexpr za::U8 weaponMirrorBit = 8;
+    // A bot's hand (the server's, B11 part 3): not drawn by a client but its controller (handOrigin, handAngles: QC's
+    // handpos, handrot) and the weapon in it (weaponModel, weaponFrame), for the receiving client to place as it places
+    // its own (view::solveHands). Written: the place, the turn, the model and the frame (11 B).
+    static constexpr za::U8 solveBit = 16;
+    static constexpr int fingers = 5, joints = 3;
+    za::U8 flags{0};
+    glm::vec3 handOrigin{0.f}; // world
+    glm::vec3 handAngles{0.f}; // the entity's (pitch as entities have it)
+    float curl[fingers][joints]{}; // curl frames, thumb .. little, knuckle first
+    glm::quat thumb{1.f, 0.f, 0.f, 0.f}; // the thumb's metacarpal turn
+    za::U16 weaponModel{0};
+    za::U8 weaponFrame{0};
+    za::U8 weaponSkin{0};
+    glm::vec3 weaponOrigin{0.f};
+    glm::vec3 weaponAngles{0.f};
+};
+
+// Bytes of a hand written: flags, then the hand (24 B: place, turn, curls, thumb) and the weapon (16 B) if drawn.
+void writeDrawnHand(sizebuf_t* buf, const VrDrawnHand& h, const glm::vec3& origin);
+[[nodiscard]] VrDrawnHand readDrawnHand(const glm::vec3& origin);
+// A curl as written (sixteenths of a frame, -8 .. 7.94): what the reader gets for `c`.
+[[nodiscard]] float quantizedCurl(float c);
+
+// How this client poses its body (vr_avatar.cpp's inputs beyond the head and hands): the torso's yaw (hands::State::bodyYaw),
+// the head's height over the play space's floor and its learnt standing height (metres: the crouch, the legs' fit) and
+// how sure a lean is. Multiplayer only (valid): the other players pose his body by it (MP_PLAN.md, B2d). Written as a
+// byte (valid), then a 16-bit angle, two shorts (mm) and a byte (255ths): 8 B.
+struct VrBodyPose
+{
+    bool valid{false};
+    float yaw{0.f};
+    float headHeight{0.f};
+    float standingHeight{0.f};
+    float leanHold{0.f};
+};
+void writeBodyPose(sizebuf_t* buf, const VrBodyPose& p);
+[[nodiscard]] VrBodyPose readBodyPose();
+
+// The holsters as this client drew them last (view::netHolsters; MP_PLAN.md, B6b): each holster's point (body::Holster's
+// order, world: QC's holsterpos for him on the server) and the weapon drawn in it, as the hands' (the others draw his
+// holstered weapons as he does: his holster places, seated layout, Holstered poses). Multiplayer only (valid).
+struct VrDrawnHolsters
+{
+    static constexpr int count = 6;
+    bool valid{false};
+    glm::vec3 at[count]{};
+    za::U8 weapons{0};  // bit h: a weapon drawn in holster h
+    za::U8 mirrored{0}; // bit h: drawn mirrored (the left-hand holsters)
+    za::U16 model[count]{}; // model_precache index
+    za::U8 frame[count]{};
+    za::U8 skin[count]{};
+    glm::vec3 origin[count]{}; // world
+    glm::vec3 angles[count]{};
+};
+// Written as a byte (valid), then, valid, the points (eighths from `origin`, 36 B) when `points`, the weapons' and the
+// mirrored bytes and 16 B a drawn weapon (model, frame, skin, place, turn).
+void writeDrawnHolsters(sizebuf_t* buf, const VrDrawnHolsters& h, const glm::vec3& origin, bool points);
+[[nodiscard]] VrDrawnHolsters readDrawnHolsters(const glm::vec3& origin, bool points);
+
 struct VrMove
 {
     glm::vec3 headAngles{0.f}; // -> .v_viewangle (.v_angle carries the aim angles)
@@ -76,6 +146,10 @@ struct VrMove
     float lampRange{0.f};
     float lampCos{1.f};
     float light{-1.f};
+    // The hands as this client drew them last ([0] off, [1] main; view::netHands): for the other players (the avatar).
+    VrDrawnHand drawn[2];
+    VrBodyPose body; // (multiplayer, with `drawn`)
+    VrDrawnHolsters holsters; // (multiplayer, with `drawn`: B6b)
 };
 
 void writeVrMove(sizebuf_t* buf, const VrMove& move);

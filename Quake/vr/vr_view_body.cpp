@@ -17,60 +17,6 @@
 namespace view_detail
 {
 
-// The skinned body (vr_body_mode 2 and 3; 1, the old floating torso, is 2), its arms reaching the
-// drawn hands' wrists.
-void setupBody(const hands::State& s)
-{
-    const int mode = static_cast<int>(vr_body_mode.value);
-    entities.body.visible = false;
-    avatar::hide();
-    drawnBuild = 1;
-    drawnBare = false;
-
-    // Not while dead (the view lies on the floor) or at the end of a level.
-    const bool alive = cl.stats[STAT_HEALTH] > 0 && !cl.intermission;
-    if(mode >= 1 && alive)
-    {
-        // The build (vr_body_build): progs/vrbody_lean, vrbody (athletic), vrbody_brawny or vrbody_fem; their bare forearms'
-        // (vr_body_bracers 0) if both hands are the jointed hand they are fitted round.
-        const int build = avatar::bodyBuild();
-        qmodel_t* model = nullptr;
-        if(bareForearms() && rigHands[0].drawn && rigHands[1].drawn)
-        {
-            model = viewModel(bodyModelName(build, true));
-            drawnBare = avatar::usable(model);
-        }
-        if(!drawnBare)
-        {
-            model = viewModel(bodyModelName(build, false));
-        }
-        if(!avatar::usable(model))
-        {
-            model = viewModel("progs/vrbody.mdl");
-        }
-        if(avatar::usable(model))
-        {
-            drawnBuild = model == viewModel("progs/vrbody.mdl") ? 1 : build;
-            drawnBare = drawnBare && model == viewModel(bodyModelName(build, true));
-            const avatar::HandPose handPoses[2] = {drawnHand(s, 0), drawnHand(s, 1)};
-
-            view::ViewEntity& ve = entities.body;
-            // Flatscreen play: the body rides the drawn view's own move off the pose's eye (the walk's bob, a step's easing) as the
-            // drawn hands do (flatplay::drawnOffset), so the arms move with the hands. The whole body: its head height stays (taking
-            // the bob in the legs changed the crouch's depth, and crouched the shoulders moved 2.5 on the screen against 0.1), so the
-            // feet ride the bob too, a few units off the floor at most.
-            hands::State moved = s;
-            if(const glm::vec3 ride = flatplay::bodyRide(s); ride != glm::vec3{0.f})
-            {
-                moved.head += ride;
-            }
-            const glm::vec3 origin = avatar::pose(moved, model, &ve.ent, handPoses, mode >= 3);
-            place(ve, model, origin, glm::vec3{0.f}, 0, false);
-            showPlayerState(ve, s);
-        }
-    }
-}
-
 // vr_body_wrist_info: per hand, how big the drawn hand is against the body (metres of the modelled body a hand unit, along
 // the hand's x, y, z) and how far the body's posed wrist is from the hand's.
 void wristInfo_f()
@@ -148,21 +94,13 @@ void dripBlood(const hands::State& s)
 namespace
 {
 
-struct PlateMorph
-{
-    int pieces{0}, type{0}; // (0 pieces: a free one)
-    double start{0.0};
-    bool in{true};
-};
+using PlateMorph = view::PlateMorphs::Morph;
+static_assert(view::BodyPlates::maxMorphs == plateEntities - 1);
 
-struct PlayerPlates
+// Your plates: their morphs' state (view::morphPlates; resync: a new level or a load) and what the tests read.
+struct PlayerPlates : view::PlateMorphs
 {
-    int type{0}, pieces{0}; // the server's word as of the last frame
-    PlateMorph morphs[plateEntities - 1];
     int entityPieces[plateEntities]{}; // each of entities.plate's pieces this frame
-    bool resync{true};                 // a new level or a load: the next word taken as it comes
-    double settleUntil{0.0};           // (and its first words, a frame or two apart)
-    int begun{0};                      // morphs begun so far (the tests)
     int drawnFrame{-1};
     int fromEyes{0}, withHead{0}, fromEyesLast{0}, withHeadLast{0}; // the pieces the views drew this frame, the last (the tests)
     int clone{0}, cloneLast{0}; // the pieces the body's mirror image drew (PlatePass::Clone) this frame, the last (the tests)
@@ -171,35 +109,54 @@ struct PlayerPlates
 PlayerPlates playerPlates;
 float platesBones[plateEntities][128 * 12]{}; // (agarmor's maxSlots)
 
-void beginPlateMorph(int pieces, int type, bool in, double now)
+void beginPlateMorph(view::PlateMorphs& p, int pieces, int type, bool in, double now)
 {
     if(!pieces)
     {
         return;
     }
-    PlateMorph* slot = &playerPlates.morphs[0];
-    for(PlateMorph& m : playerPlates.morphs)
+    PlateMorph* slot = &p.morphs[0];
+    for(PlateMorph& m : p.morphs)
     {
         slot = !slot->pieces ? slot : !m.pieces || m.start < slot->start ? &m : slot; // (a free one, else the oldest ends now)
     }
     *slot = PlateMorph{pieces, type, now, in};
-    playerPlates.begun++;
+    p.begun++;
 }
 
 } // namespace
 
-void setupPlates()
+// An armour model (the plates, or the joints' leather) on `body` as it is drawn: its skin the armour's colour (`type`
+// 1-3), its light and see-through the body's. Yours and the other players' (placeOtherPlates).
+void placeOnBody(view::ViewEntity& ve, qmodel_t* model, const view::ViewEntity& body, int type, float morph)
+{
+    place(ve, model, {body.ent.origin[0], body.ent.origin[1], body.ent.origin[2]}, glm::vec3{0.f}, 0, false);
+    ve.ent.skinnum = type - 1;
+    ve.ent.alpha = body.ent.alpha;
+    ve.lightMultiply = body.lightMultiply;
+    ve.lightMod = body.lightMod;
+    ve.morph = morph;
+}
+
+// The plates' bones (`numSlots` slots, each its body bone and piece) from a body's `src` (`have` bones), a piece not in
+// `pieces` collapsed (its triangles gone), into `out`.
+void fillPlateSlots(int numSlots, const int* slotBone, const int* slotPiece, const float* src, int have, int pieces, float* out)
+{
+    for(int slot = 0; slot < numSlots; slot++)
+    {
+        const int b = slotBone[slot];
+        const bool shown = src && b < have && ((pieces >> slotPiece[slot]) & 1);
+        for(int i = 0; i < 12; i++)
+        {
+            out[slot * 12 + i] = shown ? src[b * 12 + i] : 0.f;
+        }
+    }
+}
+
+// Your plates' morphs as the server's word on you changes (what drawBody draws on your body: `out`).
+void platesNow(view::BodyPlates& out)
 {
     PlayerPlates& p = playerPlates;
-    for(view::ViewEntity& ve : entities.plate)
-    {
-        ve.visible = false;
-        ve.morph = 0.f;
-    }
-    for(int& x : p.entityPieces)
-    {
-        x = 0;
-    }
     const bool on = vr_player_plates.value != 0.f;
     int type = on ? za::max(agarmor::clientState(cl.viewentity, 0), 0) : 0;
     int pieces = on && type > 0 ? za::max(agarmor::clientState(cl.viewentity, 1), 0) : 0;
@@ -210,153 +167,59 @@ void setupPlates()
         type = studioType;
         pieces = studioPieces;
     }
-    const double now = vr_gametime;
-    const float time = vr_player_plates_morph_time.value;
-
-    if(p.resync)
-    {
-        p.resync = false;
-        p.settleUntil = now + 1.0;
-    }
-    if(now < p.settleUntil || time <= 0.f || !on)
-    {
-        for(PlateMorph& m : p.morphs)
-        {
-            m.pieces = 0;
-        }
-    }
-    else if(type != p.type && p.type > 0 && type > 0)
-    {
-        // Another armour: the old colour's pieces out where the new one's come in (their noise the same: nothing shows twice).
-        for(PlateMorph& m : p.morphs)
-        {
-            m.pieces = 0;
-        }
-        beginPlateMorph(p.pieces, p.type, false, now);
-        beginPlateMorph(pieces, type, true, now);
-    }
-    else
-    {
-        for(PlateMorph& m : p.morphs)
-        {
-            m.pieces &= m.in ? pieces : m.pieces; // (one lost while it came in: gone)
-        }
-        beginPlateMorph(pieces & ~p.pieces, type, true, now);
-    }
-    p.type = type;
-    p.pieces = pieces;
-
-    int coming = 0;
-    for(PlateMorph& m : p.morphs)
-    {
-        const double t = time > 0.f ? (now - m.start) / static_cast<double>(time) : 1.0;
-        m.pieces = t >= 1.0 || t < 0.0 ? 0 : m.pieces;
-        coming |= m.in ? m.pieces : 0;
-    }
-
-    // The shell made as the body first shows (a level's load, not a first pickup's hitch), armour or not.
-    const view::ViewEntity& body = entities.body;
-    qmodel_t* armor = on && body.visible ? agarmor::playerArmorModel(body.ent.model) : nullptr;
-    if(!armor)
-    {
-        return;
-    }
-    const auto show = [&](int i, int shown, int kind, float morph) {
-        view::ViewEntity& ve = entities.plate[i];
-        if(shown)
-        {
-            place(ve, armor, {body.ent.origin[0], body.ent.origin[1], body.ent.origin[2]}, glm::vec3{0.f}, 0, false);
-            ve.ent.skinnum = kind - 1;
-            ve.ent.alpha = body.ent.alpha;
-            ve.lightMultiply = body.lightMultiply;
-            ve.lightMod = body.lightMod;
-            ve.morph = morph;
-            p.entityPieces[i] = shown;
-        }
-    };
-    show(0, pieces & ~coming, type, 0.f);
-    // (the joints' leather over the pieces worn, settled or coming: an entity of its own, its bones made once a frame)
-    if(qmodel_t* bridge = pieces ? agarmor::playerBridgeModel(body.ent.model) : nullptr)
-    {
-        view::ViewEntity& ve = entities.plate[plateBridge];
-        place(ve, bridge, {body.ent.origin[0], body.ent.origin[1], body.ent.origin[2]}, glm::vec3{0.f}, 0, false);
-        ve.ent.skinnum = type - 1;
-        ve.ent.alpha = body.ent.alpha;
-        ve.lightMultiply = body.lightMultiply;
-        ve.lightMod = body.lightMod;
-        p.bridgePieces = pieces;
-    }
-    for(int i = 0; i + 1 < plateEntities; i++)
-    {
-        const PlateMorph& m = p.morphs[i];
-        const float t = time > 0.f ? za::clamp(static_cast<float>((now - m.start) / static_cast<double>(time)), 1e-3f, 1.f) : 1.f;
-        show(i + 1, m.pieces, m.type, (m.in ? 1.f : -1.f) * (2.f + t)); // (the shader's kind 1, the seam amber: morphValue)
-    }
+    view::morphPlates(p, on, type, pieces, vr_gametime, out);
 }
 
-// The pauldrons (vr_body_pauldrons; make_pauldron.py), after the Quake ranger's: a cap over each
-// shoulder, carried by the clavicle and turning partly with the upper arm, and lames round the top
-// of the upper arm, which they follow. Both models are made in the bind pose's body space about the
-// left shoulder joint; the right side draws them mirrored.
-void setupPauldrons()
+// Your skinned body (vr_body_mode 2 and 3; 1, the old floating torso, is 2), its arms reaching the drawn hands' wrists,
+// the armour's plates on it (vr_player_plates) and the pauldrons (vr_body_pauldrons; make_pauldron.py, after the Quake
+// ranger's: a cap over each shoulder, carried by the clavicle and turning partly with the upper arm, and lames round the
+// top of the upper arm, which they follow): view::drawBody, as every other player's copy is drawn, from the live rig.
+void setupBody(const hands::State& s)
 {
-    for(int side = 0; side < 2; side++)
+    const int mode = static_cast<int>(vr_body_mode.value);
+    avatar::hide();
+    view::BodyDraw b;
+    platesNow(b.plates);
+    // Not while dead (the view lies on the floor) or at the end of a level.
+    const bool alive = cl.stats[STAT_HEALTH] > 0 && !cl.intermission;
+    b.shown = mode >= 1 && alive;
+    b.player = cl.viewentity;
+    b.s = s;
+    const avatar::HandPose handPoses[2] = {b.shown ? drawnHand(s, 0) : avatar::HandPose{}, b.shown ? drawnHand(s, 1) : avatar::HandPose{}};
+    b.poses = handPoses;
+    // The build (vr_body_build): progs/vrbody_lean, vrbody (athletic), vrbody_brawny or vrbody_fem; their bare forearms'
+    // (vr_body_bracers 0) if both hands are the jointed hand they are fitted round.
+    b.build = avatar::bodyBuild();
+    b.bare = bareForearms() && rigHands[0].drawn && rigHands[1].drawn;
+    b.legs = mode >= 3;
+    // Flatscreen play: the body rides the drawn view's own move off the pose's eye (the walk's bob, a step's easing) as the
+    // drawn hands do (flatplay::drawnOffset), so the arms move with the hands. The whole body: its head height stays (taking
+    // the bob in the legs changed the crouch's depth, and crouched the shoulders moved 2.5 on the screen against 0.1), so the
+    // feet ride the bob too, a few units off the floor at most.
+    b.ride = b.shown ? flatplay::bodyRide(s) : glm::vec3{0.f};
+    b.shade = showPlayerState;
+    view::PauldronLook& look = b.pauldrons;
+    look.on = vr_body_pauldrons.value != 0.f;
+    look.style = static_cast<int>(vr_body_pauldron_style.value);
+    look.size = vr_body_pauldron_size.value;
+    look.follow = vr_body_pauldron_follow.value;
+    look.offset = {vr_body_pauldron_forward.value, vr_body_pauldron_out.value, vr_body_pauldron_up.value};
+    look.build = b.build;
+    look.armour = armorWorn();
+    view::BodyEntities out;
+    out.body = &entities.body;
+    out.plates = entities.plate;
+    out.numPlates = plateEntities;
+    out.platePieces = playerPlates.entityPieces;
+    out.bridge = &entities.plate[plateBridge];
+    out.cap = entities.pauldron;
+    out.arm = entities.pauldronArm;
+    qmodel_t* model = view::drawBody(b, out);
+    drawnBuild = model && model != viewModel("progs/vrbody.mdl") ? b.build : 1;
+    drawnBare = model && b.bare && model == viewModel(bodyModelName(b.build, true));
+    if(entities.plate[plateBridge].visible)
     {
-        entities.pauldron[side].visible = false;
-        entities.pauldronArm[side].visible = false;
-    }
-    const view::ViewEntity& body = entities.body;
-    if(!vr_body_pauldrons.value || !body.visible)
-    {
-        return;
-    }
-
-    // Skins: 0 leather, 1-3 the armours' colours, 4 steel.
-    const int style = static_cast<int>(vr_body_pauldron_style.value);
-    // (the armour's plates on: its colour is theirs, the caps the ranger's own leather, and none under a plate: below)
-    const bool plates = vr_player_plates.value != 0.f;
-    const int skin = style == 1 ? (plates ? 0 : armorWorn()) : style >= 2 ? 4 : 0;
-
-    // Made for the athletic build.
-    const int build = avatar::bodyBuild();
-    const float size = CLAMP(0.25f, vr_body_pauldron_size.value, 4.f) * avatar::buildShape(build).pauldron;
-    const float k = avatar::modelScale(&body.ent); // world units per model unit
-    const unsigned char scale = static_cast<unsigned char>(CLAMP(1.f, k * size * ENTSCALE_DEFAULT + 0.5f, 255.f));
-    const float follow = CLAMP(0.f, vr_body_pauldron_follow.value, 1.f);
-
-    for(int side = 0; side < 2; side++)
-    {
-        avatar::Shoulder sh;
-        if(!avatar::shoulder(side, sh))
-        {
-            return;
-        }
-
-        // A plate on this shoulder takes the cap's and the lames' place (they'd show through it).
-        if(plates && (playerPlates.pieces >> (side == 0 ? agarmor::PauldronL : agarmor::PauldronR)) & 1)
-        {
-            continue;
-        }
-
-        const bool mirrored = side == 1;
-        // Offsets in the body's bind space: forward, out (left for the left side), up.
-        const glm::vec3 offset = glm::vec3{vr_body_pauldron_forward.value,
-                                     vr_body_pauldron_out.value * (mirrored ? -1.f : 1.f), vr_body_pauldron_up.value} *
-                                 sh.m2w;
-
-        const glm::quat capRot = glm::slerp(sh.clavicle, sh.upperArm, follow);
-        const auto part = [&](view::ViewEntity& ve, const char* model, const glm::quat& rot) {
-            const glm::mat3 m = glm::mat3_cast(rot);
-            const glm::vec3 a = hands::anglesFromVectors(m[0], m[2]);
-            place(ve, viewModel(model), sh.joint + rot * offset, {-a.x, a.y, a.z}, 0, mirrored);
-            ve.ent.skinnum = skin;
-            ve.ent.scale = scale;
-            ve.ent.alpha = body.ent.alpha;
-            ve.lightMultiply = body.lightMultiply;
-            ve.lightMod = body.lightMod;
-        };
-        part(entities.pauldron[side], "progs/vrpauldron.mdl", capRot);
-        part(entities.pauldronArm[side], "progs/vrpauldron_arm.mdl", sh.upperArm);
+        playerPlates.bridgePieces = b.plates.pieces;
     }
 }
 
@@ -509,6 +372,140 @@ void setupFrontButton(int hand)
 namespace qvr::view
 {
 
+void morphPlates(PlateMorphs& p, bool on, int type, int pieces, double now, BodyPlates& out)
+{
+    using view_detail::beginPlateMorph;
+    using view_detail::PlateMorph;
+    const float time = vr_player_plates_morph_time.value;
+    if(p.resync)
+    {
+        p.resync = false;
+        p.settleUntil = now + 1.0;
+    }
+    if(now < p.settleUntil || time <= 0.f || !on)
+    {
+        for(PlateMorph& m : p.morphs)
+        {
+            m.pieces = 0;
+        }
+    }
+    else if(type != p.type && p.type > 0 && type > 0)
+    {
+        // Another armour: the old colour's pieces out where the new one's come in (their noise the same: nothing shows twice).
+        for(PlateMorph& m : p.morphs)
+        {
+            m.pieces = 0;
+        }
+        beginPlateMorph(p, p.pieces, p.type, false, now);
+        beginPlateMorph(p, pieces, type, true, now);
+    }
+    else
+    {
+        for(PlateMorph& m : p.morphs)
+        {
+            m.pieces &= m.in ? pieces : m.pieces; // (one lost while it came in: gone)
+        }
+        beginPlateMorph(p, pieces & ~p.pieces, type, true, now);
+    }
+    p.type = type;
+    p.pieces = pieces;
+
+    int coming = 0;
+    for(PlateMorph& m : p.morphs)
+    {
+        const double t = time > 0.f ? (now - m.start) / static_cast<double>(time) : 1.0;
+        m.pieces = t >= 1.0 || t < 0.0 ? 0 : m.pieces;
+        coming |= m.in ? m.pieces : 0;
+    }
+
+    out.on = on;
+    out.type = type;
+    out.pieces = pieces;
+    out.coming = coming;
+    for(int i = 0; i < BodyPlates::maxMorphs; i++)
+    {
+        const PlateMorph& m = p.morphs[i];
+        const float t = time > 0.f ? za::clamp(static_cast<float>((now - m.start) / static_cast<double>(time)), 1e-3f, 1.f) : 1.f;
+        out.morphPieces[i] = m.pieces;
+        out.morphType[i] = m.type;
+        out.morphValue[i] = (m.in ? 1.f : -1.f) * (2.f + t); // (the shader's kind 1, the seam amber: morphValue)
+    }
+}
+
+void placePauldrons(const ViewEntity& body, const PauldronLook& look, int player, ViewEntity cap[2], ViewEntity arm[2])
+{
+    for(int side = 0; side < 2; side++)
+    {
+        cap[side].visible = false;
+        arm[side].visible = false;
+    }
+    if(!look.on || !body.visible)
+    {
+        return;
+    }
+
+    // Skins: 0 leather, 1-3 the armours' colours, 4 steel.
+    // (the armour's plates on: its colour is theirs, the caps the ranger's own leather, and none under a plate: below)
+    const int skin = look.style == 1 ? (look.plates ? 0 : look.armour) : look.style >= 2 ? 4 : 0;
+
+    // Made for the athletic build.
+    const float size = CLAMP(0.25f, look.size, 4.f) * avatar::buildShape(look.build).pauldron;
+    const float k = avatar::modelScale(&body.ent); // world units per model unit
+    const unsigned char scale = static_cast<unsigned char>(CLAMP(1.f, k * size * ENTSCALE_DEFAULT + 0.5f, 255.f));
+    const float follow = CLAMP(0.f, look.follow, 1.f);
+
+    for(int side = 0; side < 2; side++)
+    {
+        avatar::Shoulder sh;
+        if(!(player > 0 ? avatar::otherShoulder(player, side, sh) : avatar::shoulder(side, sh)))
+        {
+            return;
+        }
+
+        // A plate on this shoulder takes the cap's and the lames' place (they'd show through it).
+        if(look.plates && (look.platePieces >> (side == 0 ? agarmor::PauldronL : agarmor::PauldronR)) & 1)
+        {
+            continue;
+        }
+
+        const bool mirrored = side == 1;
+        // Offsets in the body's bind space: forward, out (left for the left side), up.
+        const glm::vec3 offset = glm::vec3{look.offset.x, look.offset.y * (mirrored ? -1.f : 1.f), look.offset.z} * sh.m2w;
+
+        const glm::quat capRot = glm::slerp(sh.clavicle, sh.upperArm, follow);
+        const auto part = [&](ViewEntity& ve, const char* model, const glm::quat& rot) {
+            const glm::mat3 m = glm::mat3_cast(rot);
+            const glm::vec3 a = hands::anglesFromVectors(m[0], m[2]);
+            view_detail::place(ve, view_detail::viewModel(model), sh.joint + rot * offset, {-a.x, a.y, a.z}, 0, mirrored);
+            ve.ent.skinnum = skin;
+            ve.ent.scale = scale;
+            ve.ent.alpha = body.ent.alpha;
+            ve.lightMultiply = body.lightMultiply;
+            ve.lightMod = body.lightMod;
+        };
+        part(cap[side], "progs/vrpauldron.mdl", capRot);
+        part(arm[side], "progs/vrpauldron_arm.mdl", sh.upperArm);
+    }
+}
+
+void printPauldrons(const char* what, int ent, const ViewEntity cap[2])
+{
+    for(int side = 0; side < 2; side++)
+    {
+        const ViewEntity& ve = cap[side];
+        if(ve.visible && ve.ent.model)
+        {
+            Con_Printf("%s: ent=%d side=%d skin=%d scale=%d at=%.2f %.2f %.2f\n", what, ent, side, ve.ent.skinnum, ve.ent.scale,
+                ve.ent.origin[0], ve.ent.origin[1], ve.ent.origin[2]);
+        }
+    }
+}
+
+void printOwnPauldrons(int ent)
+{
+    printPauldrons("mp_pauldron_own", ent, entities.pauldron);
+}
+
 int plateBonePoses(const entity_t* e, const float** matrices, PlatePass pass)
 {
     if(e == &entities.plate[plateBridge].ent)
@@ -577,17 +574,135 @@ int plateBonePoses(const entity_t* e, const float** matrices, PlatePass pass)
         (pass == PlatePass::Clone ? p.clone : head ? p.withHead : p.fromEyes) |= pieces;
     }
     float* out = platesBones[index];
-    for(int slot = 0; slot < numSlots; slot++)
-    {
-        const int b = slotBone[slot];
-        const bool shown = src && b < have && ((pieces >> slotPiece[slot]) & 1);
-        for(int i = 0; i < 12; i++)
-        {
-            out[slot * 12 + i] = shown ? src[b * 12 + i] : 0.f; // (a hidden piece collapsed: its triangles gone)
-        }
-    }
+    view_detail::fillPlateSlots(numSlots, slotBone, slotPiece, src, have, pieces, out);
     *matrices = out;
     return numSlots;
+}
+
+qmodel_t* drawBody(const BodyDraw& b, const BodyEntities& out)
+{
+    ViewEntity& body = *out.body;
+    body.visible = false;
+    for(int i = 0; i < out.numPlates; i++)
+    {
+        out.plates[i].visible = false;
+        out.plates[i].morph = 0.f;
+        if(out.platePieces)
+        {
+            out.platePieces[i] = 0;
+        }
+    }
+    out.bridge->visible = false;
+    qmodel_t* model = b.shown ? bodyModel(b.build, b.bare) : nullptr;
+    if(model)
+    {
+        hands::State moved = b.s;
+        moved.head += b.ride;
+        const glm::vec3 origin = b.who ? avatar::poseOther(b.player, *b.who, moved, model, &body.ent, b.poses)
+                                       : avatar::pose(moved, model, &body.ent, b.poses, b.legs);
+        // (another's body posed: his skeleton kept)
+        if(avatar::Skeleton k; !b.who || avatar::otherSkeleton(b.player, k))
+        {
+            view_detail::place(body, model, origin, glm::vec3{0.f}, 0, false);
+            if(b.shade)
+            {
+                b.shade(body, b.s);
+            }
+            else
+            {
+                body.ent.skinnum = 0;
+                body.lightMultiply = false;
+                body.lightMod = glm::vec3{1.f};
+            }
+        }
+        else
+        {
+            model = nullptr;
+        }
+    }
+
+    // The armour's plates (the shell made as the body first shows: a level's load, not a first pickup's hitch, armour or
+    // not), the settled pieces, the joints' leather over the pieces worn (settled or coming), each morph.
+    const BodyPlates& p = b.plates;
+    qmodel_t* armor = p.on && body.visible ? agarmor::playerArmorModel(model) : nullptr;
+    if(armor)
+    {
+        const auto show = [&](int i, int pieces, int type, float morph) {
+            if(pieces && i < out.numPlates)
+            {
+                view_detail::placeOnBody(out.plates[i], armor, body, type, morph);
+                if(out.platePieces)
+                {
+                    out.platePieces[i] = pieces;
+                }
+            }
+        };
+        show(0, p.pieces & ~p.coming, p.type, 0.f);
+        if(qmodel_t* bridge = p.pieces ? agarmor::playerBridgeModel(model) : nullptr)
+        {
+            view_detail::placeOnBody(*out.bridge, bridge, body, p.type, 0.f);
+        }
+        for(int i = 0; i < BodyPlates::maxMorphs; i++)
+        {
+            show(i + 1, p.morphPieces[i], p.morphType[i], p.morphValue[i]);
+        }
+    }
+
+    PauldronLook look = b.pauldrons;
+    look.plates = p.on;
+    look.platePieces = static_cast<unsigned>(p.pieces);
+    placePauldrons(body, look, b.who ? b.player : 0, out.cap, out.arm);
+    return model;
+}
+
+int otherPlateBonePoses(const entity_t& body, bool bridge, int pieces, float* out, const float** matrices)
+{
+    if(bridge)
+    {
+        if(!matrices)
+        {
+            return agarmor::playerBridgePoses(body.model, pieces, nullptr, 0, nullptr);
+        }
+        const float* src = nullptr;
+        const int have = VR_AliasBonePoses(&body, &src);
+        *matrices = out;
+        return agarmor::playerBridgePosesInto(body.model, pieces, src, have, out);
+    }
+    int numSlots = 0;
+    const int* slotBone = nullptr;
+    const int* slotPiece = nullptr;
+    if(!agarmor::playerSlots(body.model, numSlots, slotBone, slotPiece))
+    {
+        return 0;
+    }
+    if(matrices)
+    {
+        // (his body's bones as drawn: seen from outside, with its head, so his helmet too)
+        const float* src = nullptr;
+        const int have = VR_AliasBonePoses(&body, &src);
+        view_detail::fillPlateSlots(numSlots, slotBone, slotPiece, src, have, pieces, out);
+        *matrices = out;
+    }
+    return numSlots;
+}
+
+void printOwnPlates(int ent)
+{
+    // (the settled ones, else the first coming in)
+    const view::ViewEntity* shown = &entities.plate[0];
+    for(int i = plateEntities - 1; i >= 0; i--)
+    {
+        shown = entities.plate[i].visible ? &entities.plate[i] : shown;
+    }
+    const view::ViewEntity& plate = *shown;
+    int coming = 0;
+    for(const PlateMorph& m : playerPlates.morphs)
+    {
+        coming |= m.in ? m.pieces : 0;
+    }
+    Con_Printf("mp_plates_own: ent=%d type=%d pieces=%d skin=%d begun=%d coming=%d model=%s\n", ent, playerPlates.type,
+        playerPlates.pieces, plate.visible ? plate.ent.skinnum : -1, playerPlates.begun, coming,
+        plate.visible && plate.ent.model ? plate.ent.model->name : "-");
 }
 
 void platesResync()

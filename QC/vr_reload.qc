@@ -2155,7 +2155,7 @@ void() VR_Reload_PouchCatchFrame;
 float(float xHand) VR_Reload_GrabCandidate =
 {
     float bit = xHand == cVR_MainHand ? 2 : 1;
-    if(!VR_Reload_AtPouch(self, xHand) || self.health <= 0 || !self.ishuman || (!deathmatch && time < readytime))
+    if(!VR_Reload_AtPouch(self, xHand) || self.health <= 0 || !self.ishuman || (!deathmatch && time < self.vr_readytime))
     {
         return FALSE;
     }
@@ -2186,7 +2186,7 @@ void(float xHand) VR_Reload_HandFrame =
     {
         VR_Reload_PouchCatchFrame(); // (one pass a frame)
     }
-    if(!at || !self.ishuman || (!deathmatch && time < readytime))
+    if(!at || !self.ishuman || (!deathmatch && time < self.vr_readytime))
     {
         return;
     }
@@ -2909,7 +2909,7 @@ void(float xHand) VR_Reload_PouchFrame =
     {
         self.vr_pouch_touch = self.vr_pouch_touch - (self.vr_pouch_touch & bit); // (well away: the next touch counts)
     }
-    if(d > contact || (self.vr_pouch_touch & bit) || (!deathmatch && time < readytime))
+    if(d > contact || (self.vr_pouch_touch & bit) || (!deathmatch && time < self.vr_readytime))
     {
         return;
     }

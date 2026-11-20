@@ -3,16 +3,12 @@
 Work the author approved or asked about, not yet done, one or two lines each, with the doc that holds the detail.
 Remove an item when it ships (git history keeps it); keep new ones as short. Last cleanup 2026-11-12 (ROUND25.md).
 Staying here by his decision (2026-11-05): pickup thinks, heart gib and berserk pack, TAA/DLSS.
+Checked, by design (2026-11-19, tester "Joyeuse"'s two hand-off reports, closed): the old hand "keeps aiming"
+after a hand-to-hand swap is the designed two-handed hand-off (vr_2h_handoff 1: the gun hangs from its foregrip until
+the free hand grips the handle), kept as is by his decision, no hints; a toss to the other hand isn't reproduced (the
+mock toss keeps the hand's speed; a slow toss may hit the open palm after the 0.2 s vr_box3d_throw_grace).
 
 ## 1. Open bugs and failing tests
-
-- **Hand-to-hand weapon swap: the old hand keeps aiming** (tester "Joyeuse", Discord, 2026-11-18): hold a weapon in
-  one hand, grab it with the other, let go with the first: the game still treats the released hand as the one
-  directing the weapon and the new (only) holding hand as the support grip. The remaining hand must become the main
-  (aiming) hand at once.
-- **Tossing a weapon from one hand to the other drops it** (same tester): the weapon doesn't get the hand's momentum on
-  a short toss and falls straight down instead of flying to the other hand (a short throw below the throw threshold?
-  check the release velocity used for small, quick tosses).
 
 - **AD-only tests** (ran 2026-11-13 with `-game ad`, ROUND25.md "adtests"): `vr_flatswap_test 4` 48/0 on `map start`
   (one earlier run of two failed with faulty-frame counts on the blades' stance cases while it timed out under the
@@ -60,6 +56,16 @@ Staying here by his decision (2026-11-05): pickup thinks, heart gib and berserk 
   95 monster_* edicts (the extra ones: a monster_morph spawner and a knight-class entity that counts itself without
   FL_MONSTER). The 95/94 on another skill is the same one-off. vr_run_enemies_check failing r2m1 on it needs an
   exemption, not a spawn-code fix.
+- **MP review lows not fixed by mpfix (2026-11-20; `qvr-kit/scratch/mprev_A.md`, `mprev_C.md`, MP_PLAN.md "Review
+  fixes")**: A6 (room service expire() on each over-cap REGISTER), A7 (server rule values unchecked on the client:
+  refuse non-finite, clamp to the menu range), A8 (connect "host:port" sets net_hostport for the session), A10
+  (control replies 5-10x their requests: pad or rate-limit), A11 (keyless rejoin records: bots' apart, a key required
+  from v40), A13 (guest ping from his clock: clamp 0..10 s), S1-S3, O1 (drain the shared socket once a frame), O2 (a
+  datagram pool), C7 (box3d hand shapes scan the model precache per hand per frame), C8 (Voice Chat page tests
+  "talking" in the row text: export voicechat::talking).
+- **mp_coopbots, rare flake (2026-11-20, mpfinal)**: vr_dm_test 11's "the bot kills the grunt" gave up once in ten
+  takes (the grunt at 19 health at 864 frames; the fight is the bot's aim over 12 s of real time); the base before the
+  review passed its ten. Known; don't chase unless it repeats.
 
 ## 2. The 1.1 release (only on his word; his list is RELEASE_TODO.md)
 
@@ -90,6 +96,25 @@ Staying here by his decision (2026-11-05): pickup thinks, heart gib and berserk 
   pick one rule and show it). Keep `vr_flat_key_*` working for configs.
 - **The window's graphics** (round 20): float scene, tone mapping, grades and bloom on the window; check each feature
   with VR off.
+- **Flat-screen trailer: "taking the headset off"** (2026-11-19, his idea; once flat play is fully polished). It opens
+  in VR; the player brings both hands to their face as if lifting the headset off; the view changes to an in-game room
+  with a desk, a chair and a computer; Ranger walks to the desk, sits, and starts playing the flat-screen version.
+  Easiest route (three in-engine shots, joined in Resolve; reuses vrtrailer's generated-map + scene-QC pattern,
+  MAPPING.md "vrtrailer", and TRAILER.md's takes):
+  1. **VR shot**: recorded live in the headset as a take; he lifts his hands to his face, the hands fill the view, cut
+     on black. Optional in-engine help: a "hands at the face" fade to black (both hands within ~15 cm of the head
+     for 0.3 s) so the cut lands on its own.
+  2. **Desk room**: a small generated map (`vrdesk_gen.py`, from vrstart/vrtrailer parts: room, desk, chair, monitor,
+     a lamp). The monitor's face is a fullbright pure-green texture, replaced in Resolve by the flat gameplay footage
+     (planar tracker for a moving camera): no render-to-texture work in the engine.
+  3. **Ranger** as a scripted actor (the remote-player/bot body we already draw for MP bots; the scene QC walks it along
+     path_corners), filmed by a scripted camera (svc_setview to a camera entity with a dolly, as vrtrailer's scene).
+     Sitting: Quake's player.mdl has no sit; easiest is framing from behind with the chair back hiding the legs and the
+     body lowered, or one baked sit pose with the pose tools if a side view is wanted.
+  4. **Into the game**: the camera pushes into the monitor and cross-fades to a full-screen flat take (recorded with
+     the takes tool), so the last shot is real flat play.
+  New work, small: the desk map generator, the scene QC (actor walk + camera), optionally the hands-to-face fade and a
+  sit pose. Everything else exists.
 
 ## 4. Monsters' movement: the navmesh (NAVMESH.md)
 
@@ -131,14 +156,6 @@ Staying here by his decision (2026-11-05): pickup thinks, heart gib and berserk 
 
 ## 7. Combat and feel
 
-- **Tester feedback, "Joyeuse" (Discord, 2026-11-18), comfort and controls:**
-  - Sprint as a toggle on the thumbstick click (an option; today it's hold-to-sprint).
-  - Run by double-tapping the locomotion stick: two quick pushes in the same direction start running (his idea, 2026-11-18; an option next to the sprint toggle).
-  - Ledge climbing: an option so the climb-over (mantle) waits for releasing the grab or pressing jump, instead of
-    happening automatically once the body is raised high enough.
-  - Ammo pouch height has no slider among the holster sliders (she had to use the drag-and-drop Holster Setup, which
-    felt fiddly): add Ammo Pouch position sliders like the holsters'.
-
 - **Crossed-sword parry** (2026-10-18): two blades crossed in front of the body count as a parry. After the AD melee work.
 - **Blades embedded in props** (2026-11-05): done 2026-11-12 (ROUND25.md "propblade": a joint at the handle, shared with
   the ragdolls' handle hold). Left: his VR check; a test of a re-grip off the handle; the crate carried by the other hand
@@ -175,6 +192,17 @@ Staying here by his decision (2026-11-05): pickup thinks, heart gib and berserk 
    then clang-tidy fixes; one commit in `.git-blame-ignore-revs`. Never Ironwail's code.
 2. Ironwail extraction: about 1,600 lines of VR code out of Ironwail files into `Quake/vr/` (pure moves), the VR main
    menu out of `menu.c`, the VR heap macro remap; `IRONWAIL_DIFF.md` refreshed.
+3. One player walk (mpreview B4): `vr_pmove.cpp` copies sv_user.c / sv_phys.c's walk, air, swim, gravity and flyMove
+   line for line; a flat-screen player, `vr_pmove_own 0` and remote flat clients still walk the sv_phys.c copy. Route
+   them through `pmove::playerMove` with an EdictBody and drop the QVR-modified SV_WalkMove/SV_AirMove paths (or at
+   least a qvr_checks rule tying each copy to its original), proven by the B11b frame-identical traces.
+4. One grapple reel (mpreview D7): QC's `VR_Grapple_ReelSpeed` / `VR_Grapple_Wind` (monsters, props) and
+   vr_pmove.cpp's grappleStep (players) are two copies of one rule: QC's paths call the engine's (a builtin), or both
+   read one shared formula.
+5. Multiplayer leftovers of the agent/mp review (MP_PLAN.md, "Review fixes"): B6 the room-scale budget only on the
+   server (send `walkLeft` in QVR_SVC_PREDICT and run moveguard's budget on a copy in the replay; today a burst past
+   2 m costs a correction, a cheater's case); B7 the snapshot encode's per-client work (keep the first pass's encoded
+   bytes for the write pass; the cosmetic flag once per entity per frame, not per client).
 Each verified by an unchanged physics hash, melee eval and `vr_menu_path_check`.
 
 ## 10. Big features (each needs its own decision)
@@ -182,10 +210,12 @@ Each verified by an unchanged physics hash, melee eval and `vr_menu_path_check`.
 - **Dynamic spawns: pick ideas** (2026-11-09): go through DYNAMIC_SPAWNS.md with him (its idea list and "Systems ideas
   from the 2026-11-09 audit"); the prerequisites are built.
 - **Multiplayer update** (after 1.1): co-op rules, NAT traversal, voice chat, our VR systems synchronised, from
-  Quakespasm-VR (GPL): MULTIPLAYER.md, "Open items moved from BACKLOG.md".
-- **Discord Rich Presence** (2026-11-18, his request): show what he's playing on Discord (campaign/map, mode: single
-  player, co-op, deathmatch, Arena wave, VR or flat screen; a "join" button for multiplayer later, via room codes).
-  Needs the Discord Game SDK or the RPC over its local IPC pipe (licence/download check first); off-able in settings.
+  Quakespasm-VR (GPL): MP_DESIGN.md, "Open items moved from BACKLOG.md".
+- **Discord Rich Presence** (2026-11-18, his request): built 2026-11-20 (DISCORD.md; branch agent/discord): the RPC over
+  Discord's local IPC pipe, no SDK; Menu Settings > Discord Status (`vr_discord`, off by default). Left: he creates the
+  Discord application and gives its id (`vr_discord_appid`, then the shipped default) and, if wanted, a logo asset
+  (`vr_discord_image`); decide whether it ships on; try it on Linux; the "join" button with multiplayer room codes
+  (the `JOIN-HOOK` places in vr_discord.cpp).
 - **Ranger helmet and biosuit visor view** (2026-11-18, his words): "having the Quake Marine Helmet also viewable as an
   option? You can put a little bit of lag to simulate being inside a helmet when moving the head and maybe use it to
   get some geometry culling going on for an extra bit of performance. The question also extends to the biosuit, since
@@ -234,7 +264,12 @@ Each verified by an unchanged physics hash, melee eval and `vr_menu_path_check`.
 - **Frame drops close to active-ragdoll enemies** (tester "Joyeuse", Discord, 2026-11-18, a lower-end PC): melee range
   against active ragdolls drops the frame rate and makes melee hard. Profile a melee fight with 2-4 active ragdolls
   up close on a mid/low GPU+CPU setting (Box3D contacts with the hands/blade, ragdoll solver iterations, gore/dents,
-  hit-box traces); consider a cheaper close-range mode or a quality setting.
+  hit-box traces); consider a cheaper close-range mode or a quality setting. Measured 2026-11-20 (ROUND25.md,
+  "ragperf"): not the drive, hit-model traces or hand contacts; Box3D contacts (~110 a driven ragdoll) and the armed
+  grunts' strike sweeps (QC) grow with bodies close. Continued ("ragperf2"): hands kept in the bodies have 2-3 touching
+  contacts; the contacts are a ragdoll's own parts' pairs that never touch (not filterable without changing the
+  physics); the strike sweeps got an exact broad test (QC a frame 6 close: 67.5 k -> 59.6 k). Left: the GPU side close
+  up, and a test on a lower-end PC to see whether the drop remains.
 - **Linux Flatpak needed Steam folder access** (same tester): it worked once she granted access to
   ~/.local/share/Steam (she had first installed the Windows build there to try Proton). The manifest has
   `--filesystem=home:ro`, which should cover it: find why it didn't (a Flatpak'd Steam's path, a symlinked library,
@@ -246,4 +281,4 @@ Each verified by an unchanged physics hash, melee eval and `vr_menu_path_check`.
 - **Stealth AI limits:** STEALTH.md, "Open items moved from BACKLOG.md".
 - **Dawn of the Machine's co-op and dm1** (MG3.md, decision 6): later.
 - **Old QuakeC notes** (TECHDEBT_2026-10-09.md 10): Rogue's teamplay variants don't work in VR (item handling
-  commented out); `readytime` is one for every client (one co-op player's spawn holds the others).
+  commented out). (`readytime`, one for every client, is each player's `.vr_readytime` since 2026-11-19.)

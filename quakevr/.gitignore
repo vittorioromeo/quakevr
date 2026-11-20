@@ -12,6 +12,8 @@
 /autosave/
 /maps/autosave/
 /screenshots/
+# vr_adweapon_models write: the made AD/Dwell weapon models (from the mods' own files: never committed)
+/made_*.mdl
 /notes/
 /anims/
 /proposed_defaults/
@@ -78,6 +80,7 @@
 /maps/vrwip.*
 /progs/hand_rig.md5mesh.old
 /qvr_openxr.txt
+/qvr_openxr_loader.txt
 # Crash reports (vr_crash.cpp: quakevr/crash/<date>_<time>.txt and .dmp)
 /crash/
 # Diagnostics mode's folders (vr_diagnostics.cpp: quakevr/diagnostics/<date>_<time>/)

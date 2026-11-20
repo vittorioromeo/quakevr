@@ -44,12 +44,17 @@ using namespace qvr;
 namespace
 {
 
-// The stats' clock: the TSC on x86; elsewhere (ARM: the Quest) the monotonic clock in nanoseconds (stats_f converts
-// ticks by the wall clock either way), as pr_exec.c's QCPROF_TICKS.
+// The stats' clock, read twice in every findradius: the TSC on x86; AArch64's virtual counter (the Quest: a register read,
+// not clock_gettime's call each time); elsewhere the monotonic clock in nanoseconds. stats_f converts ticks by the wall
+// clock either way (pr_exec.c's QCPROF_TICKS: the same on x86).
 unsigned long long ticks()
 {
 #if defined(_MSC_VER) || defined(__x86_64__) || defined(__i386__)
     return __rdtsc();
+#elif defined(__aarch64__)
+    unsigned long long v;
+    __asm__ volatile("mrs %0, cntvct_el0" : "=r"(v));
+    return v;
 #else
     timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
@@ -304,6 +309,9 @@ void stats_f()
     stats.seconds0 = Sys_DoubleTime();
 }
 
+// VR_FindRadiusMoving's speed for the next VR_FindRadius chain (-1: every entity found; the server's frame, one call).
+float moverSpeed = -1.f;
+
 } // namespace
 
 extern "C" edict_t* VR_FindRadius(const float* org, float rad)
@@ -342,12 +350,33 @@ extern "C" edict_t* VR_FindRadius(const float* org, float rad)
     edict_t* chain = qcvm->edicts;
     for(edict_t* ent : found)
     {
+        // (VR_FindRadiusMoving: only what moves at minSpeed or more, never a player, a monster or a pusher)
+        if(moverSpeed >= 0.f)
+        {
+            const float v2 = DotProduct(ent->v.velocity, ent->v.velocity);
+            if(((int)ent->v.flags & (FL_CLIENT | FL_MONSTER)) || static_cast<int>(ent->v.movetype) == static_cast<int>(MOVETYPE_PUSH) || v2 <= 0.f ||
+               v2 < moverSpeed * moverSpeed)
+            {
+                continue;
+            }
+        }
         ent->v.chain = EDICT_TO_PROG(chain);
         chain = ent;
     }
+    moverSpeed = -1.f;
     stats.hits += static_cast<long long>(found.size());
     stats.cycles += ticks() - start;
     return chain;
+}
+
+// QC findradiusmoving: findradius's chain (the same entities in the same order) with only those moving at `minSpeed`
+// units/s or more (any speed for 0), never a player, a monster or a pusher: what flies (shots, thrown things, gibs).
+// The armed grunts' scans for what comes at their weapons (QC VR_AGS_Projectiles, VR_AG_WeaponStruck): their QC loops
+// see nothing on a quiet frame.
+extern "C" edict_t* VR_FindRadiusMoving(const float* org, float rad, float minSpeed)
+{
+    moverSpeed = za::max(0.f, minSpeed);
+    return VR_FindRadius(org, rad);
 }
 
 extern "C" void VR_FindRadius_Dirty(edict_t* ed)

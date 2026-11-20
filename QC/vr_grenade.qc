@@ -1333,7 +1333,7 @@ float(entity p, float xHand) VR_HandGrenade_PouchHandEmpty =
 float(float xHand) VR_HandGrenade_GrabCandidate =
 {
     float bit = xHand == cVR_MainHand ? 2 : 1;
-    if(self.health <= 0 || !VR_HandGrenade_AtPouch(self, xHand) || !self.ishuman || (!deathmatch && time < readytime))
+    if(self.health <= 0 || !VR_HandGrenade_AtPouch(self, xHand) || !self.ishuman || (!deathmatch && time < self.vr_readytime))
     {
         return FALSE;
     }
@@ -1362,7 +1362,7 @@ void(float xHand) VR_HandGrenade_HandFrame =
     {
         self.vr_pouch_tried = self.vr_pouch_tried - (self.vr_pouch_tried & bit);
     }
-    if(!at || !self.ishuman || (!deathmatch && time < readytime))
+    if(!at || !self.ishuman || (!deathmatch && time < self.vr_readytime))
     {
         return;
     }

@@ -406,6 +406,14 @@ float(entity ent, float xHand) wpnthrow_handtouch_ent_hand =
     {
         performWeaponSwitch = TRUE;
     }
+    else if(VRGetHandtouchHand(ent) == xHand && cvar_hget(cvarh_vr_debug_carry) >= 2)
+    {
+        // (why a hand on it does not take it: the grip pressed too long ago, or too soon after it was let go)
+        dprint(sprintf("weapon: %s not taken by the %s hand at %.3f: grip %g, pressed %.3f s ago, let go %.3f s ago\n", ent.netname,
+            xHand == cVR_MainHand ? "main" : "off", time, VR_HandGrabUtil_IsHandGrabbing(entPlayer, xHand),
+            time - VR_HandGrabUtil_Impl_GetLastGrabTime(entPlayer, xHand),
+            time - VR_HandGrabUtil_Impl_GetLastReleaseTime(entPlayer, xHand)));
+    }
 
     if(performWeaponSwitch)
     {
@@ -502,7 +510,7 @@ void(entity xEntPlayer, float xHand, float xHolster) VRHolsterHaptic =
     }
 
     float holsterHapticsMode;
-    holsterHapticsMode = cvar_hget(cvarh_vr_holster_haptics);
+    holsterHapticsMode = clientpref(xEntPlayer, cvarh_vr_holster_haptics);
 
     if(holsterHapticsMode == 1 /* continuous */)
     {
@@ -1244,7 +1252,7 @@ float(entity ent, float xHand) VRWeaponGivenHeld =
         }
         return FALSE;
     }
-    return cvar_hget(cvarh_vr_weapon_grip_mode) != 1 && !vr_grip_sticky_test;
+    return clientpref(ent, cvarh_vr_weapon_grip_mode) != 1 && !vr_grip_sticky_test;
 }
 
 // (Engine, vr_scenario: a give placed the weapon in `xHand` of `p`.)
@@ -1270,7 +1278,7 @@ float(entity ent, float xHand, float xWeapon) VRWeaponLetGo =
         return FALSE;
     }
     float grabbing = VR_HandGrabUtil_IsHandGrabbing(ent, xHand);
-    if(cvar_hget(cvarh_vr_weapon_grip_mode) != 1)
+    if(clientpref(ent, cvarh_vr_weapon_grip_mode) != 1)
     {
         return !grabbing;
     }
@@ -1336,7 +1344,7 @@ float(entity ent, float xHand) VRWeaponLeavingHand =
         return FALSE;
     }
 
-    if(cvar_hget(cvarh_vr_weapon_grip_mode) == 1)
+    if(clientpref(ent, cvarh_vr_weapon_grip_mode) == 1)
     {
         float bit = xHand == cVR_MainHand ? 2 : 1;
         float lastWeapon = VR_HAND_FIELD(ent, xHand, stickyweaponmain, stickyweaponoff);
@@ -1393,7 +1401,7 @@ float(entity ent, float xHand, float xWeapon, float xWeaponFlags) VRTryHandOff =
 {
     float other = VRGetOtherHand(xHand);
     float anywhere = weaponanygrip(ent, other) == 2;
-    if(!cvar_hget(cvarh_vr_2h_handoff) ||
+    if(!clientpref(ent, cvarh_vr_2h_handoff) ||
        ((xWeaponFlags & QVR_WPNFLAG_FOREGRIP_CARRIED) && !anywhere) ||
        !(VRGet2HAiming(ent) || time - ent.last_2h_time < 0.1 || anywhere) ||
        !VR_HandGrabUtil_IsHandGrabbing(ent, other) ||
@@ -1718,7 +1726,7 @@ void(entity ent, float xHand,
     float startedHandGrabbing = VR_HandGrabUtil_StartedHandGrabbing(ent, xHand);
     float handReloadFlicking = VR_HandGrabUtil_IsHandReloadFlicking(ent, xHand);
 
-    if(!deathmatch && time < readytime)
+    if(!deathmatch && time < ent.vr_readytime)
     {
         // Do not do anything if the player is not "ready" yet, after spawning.
         return;

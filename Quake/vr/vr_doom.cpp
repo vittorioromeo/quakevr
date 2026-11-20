@@ -8,6 +8,7 @@
 #include "vr_engine.hpp"
 #include "vr_files.hpp"
 #include "vr_gadget.hpp"
+#include "vr_glutil.hpp"
 #include "vr_hands.hpp"
 #include "vr_main.hpp"
 #include "vr_touch.hpp"
@@ -278,6 +279,7 @@ struct Catalog
 {
     za::Vector<Wad> wads;
     bool scanned{false};
+    int generation{0}; // searches made (the menu's Doom page rebuilt after one: wadGeneration)
 };
 Catalog catalog;
 
@@ -574,6 +576,7 @@ void scan()
         }
     }
     catalog.scanned = true;
+    catalog.generation++;
 }
 
 void ensureScanned()
@@ -654,7 +657,7 @@ struct Session
 Session session;
 
 gfx::Picture picture;   // Doom's 320 x 200 frame (nearest filtering)
-gfx::Target screen;     // the overlay drawn over it, the screen's texture (3x)
+gfx::RenderTarget screen;     // the overlay drawn over it, the screen's texture (3x)
 
 // ---- Sounds: Doom's effects as sounds of the engine at the gadget -------------------------------------------------
 
@@ -806,7 +809,7 @@ void hostSoundStart(void*, int channel, const char* lump, const void* dmx, int l
 
 channel_t* findChannel(int channel)
 {
-    S_MixJoin(); // (the pool's mix done first: S_MixKick)
+    S_MixJoin(); // (a read of the channels on the main thread: the pool's mix done first, S_MixKick)
     for(int i = 0; i < total_channels && i < MAX_CHANNELS; i++)
     {
         channel_t& ch = snd_channels[i];
@@ -1705,10 +1708,10 @@ void closeFromButton()
 
 gfx::Texture gadgetTexture()
 {
-    return session.running && session.open ? screen.texture : 0;
+    return session.running && session.open ? screen.tex : 0;
 }
 
-const gfx::Target& screenTarget()
+const gfx::RenderTarget& screenTarget()
 {
     return screen;
 }
@@ -1734,7 +1737,11 @@ void renderScreen()
         session.frameShown = frameNow;
     }
     const int w = static_cast<int>(session.aspect * screenHeight + 0.5f);
-    gfx::ensureTarget(screen, w * 3, screenHeight * 3, false, "doom screen");
+    if(!screen.ensure(w * 3, screenHeight * 3, gfx::RenderTargetFormat{.fboName = "vr canvas"}, "doom screen"))
+    {
+        Con_Warning("VR: Doom's screen's framebuffer is incomplete\n");
+        return;
+    }
     gfx::begin2D(screen, w, screenHeight);
     gfx::draw2D::fill(0.f, 0.f, static_cast<float>(w), static_cast<float>(screenHeight), glm::vec3{0.f});
     const touch::Rect box = imageBox();
@@ -1747,7 +1754,7 @@ void renderScreen()
 void drawPanel()
 {
     touch::Surface z;
-    if(!session.running || !session.open || vr_doom_panel.value == 0.f || !screen.texture || !panelSurface(z))
+    if(!session.running || !session.open || vr_doom_panel.value == 0.f || !screen.tex || !panelSurface(z))
     {
         return;
     }
@@ -1762,7 +1769,7 @@ void drawPanel()
         {.shade = gfx::Shade::Screen, .blend = gfx::Blend::Opaque, .depthTest = true, .depthWrite = true,
             .params = {static_cast<float>(realtime - 1000.0 * static_cast<int>(realtime / 1000.0)), k, 0.f, 0.f},
             .screen = {session.aspect * screenHeight, static_cast<float>(screenHeight), 1.f}, .trueColor = true},
-        screen.texture);
+        screen.tex);
 }
 
 namespace
@@ -1780,6 +1787,16 @@ const char* menuStatus()
     q_snprintf(menuStatusText, sizeof(menuStatusText), "%s: %s%s", session.running ? (session.open ? "Playing" : "Waiting (closed)") : "Will play",
         name, session.running && session.focused ? ", has the controls" : "");
     return menuStatusText;
+}
+
+int wadGeneration()
+{
+    return catalog.generation;
+}
+
+za::String dropInFolder()
+{
+    return doomFolder() + "/wads";
 }
 
 int wadCount()
@@ -1873,6 +1890,10 @@ bool takesOffHand(const InputState& in)
 extern "C" byte* VR_SndMemory(const char* name, int* size)
 {
     using namespace qvr::doom;
+    if(byte* ring = VR_VoicechatSound(name, size)) // (voice chat's speakers' rings: vr_voicechat.cpp)
+    {
+        return ring;
+    }
     if(strncmp(name, "doom/", 5) != 0)
     {
         return nullptr;

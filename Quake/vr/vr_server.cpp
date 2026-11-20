@@ -1,13 +1,16 @@
 // vr_server.cpp -- server side of the Quake VR protocol extensions (see vr_protocol.hpp).
 
 #include "vr_rigseq.hpp"
+#include "vr_lagcomp.hpp"
 #include "vr_disarmviz.hpp"
+#include "vr_mem.hpp"
 #include "vr_rigstudio.hpp"
 #include "vr_fatigue.hpp"
 #include "vr_axestick.hpp"
 #include "vr_agarmor.hpp"
 #include "vr_arenaxray.hpp"
 #include "vr_box3d.hpp"
+#include "vr_heldpose.hpp"
 #include "vr_hitmodel.hpp"
 #include "vr_limbmodel.hpp"
 #include "vr_hull.hpp"
@@ -19,6 +22,10 @@
 #include "vr_explosiondebris.hpp"
 #include "vr_ledges.hpp"
 #include "vr_move.hpp"
+#include "vr_moveguard.hpp"
+#include "vr_mpavatar.hpp"
+#include "vr_voicechat.hpp"
+#include "vr_clientprefs.hpp"
 #include "vr_motion.hpp"
 #include "vr_engine.hpp"
 #include "vr_flatplay.hpp"
@@ -37,12 +44,17 @@
 #include "vr_slide.hpp"
 
 #include "Zancle/Base/GetArraySize.hpp"
+#include "Zancle/Base/Memcmp.hpp"
+#include "Zancle/Base/Memcpy.hpp"
 #include "Zancle/Container/InPlaceVector.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Vocabulary/Optional.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "vr_api.h"
+#include "vr_netmove.hpp"
+#include "vr_predict.hpp"
+#include "vr_netsnap.hpp"
 
 
 using namespace qvr;
@@ -59,6 +71,7 @@ struct ClientBits
     int previousFrame{0};
     int received{0};
     int moves{0}; // moves read since the server's last frame (VR_MoveMerges): after the first, their bits are ORed
+    int merged{0}; // moves merged since he connected (server::mergedMoves)
 };
 
 za::Vector<ClientBits> clientBits;
@@ -72,10 +85,58 @@ struct ClientMove
 };
 za::Vector<ClientMove> clientMoves;
 
+// (B28) Per client slot: a guest's say, say_team and tell flood guard (QuakeWorld's fp_messages: more than talkBurst
+// messages in talkWindow seconds silences him for talkSilence; realtime): his last messages' times, a ring
+constexpr int talkBurst = 4;
+constexpr double talkWindow = 8.0;
+constexpr double talkSilence = 10.0;
+struct TalkGuard
+{
+    double times[talkBurst]{};
+    int next{0};
+    int count{0};
+    double silentUntil{0.0};
+};
+za::Vector<TalkGuard> talkGuards;
+
+// Per client slot: his string commands' budget (VR_ClientCommandBudget; realtime). Each command takes one, cmdRate come
+// back a second, at most cmdBurst saved up: a client's own reliable state (his fists' vr_rig chunks, his palm frames,
+// preferences, avatar calibration, held poses, grab spots: each sent when it changes, the first all at once as he spawns)
+// stays far under it; a flood of them (vr_avatarcal is passed on to every client, reliably), of name or colour changes
+// or of the harness's test shots is dropped past it (review 2026-11-18, finding 9; MP_PLAN B29).
+constexpr double cmdBurst = 64.0;
+constexpr double cmdRate = 32.0;
+constexpr double cmdNoteEvery = 1.0; // s: the server's console told at most this often a client
+struct CommandBudget
+{
+    double tokens{-1.0}; // (-1: full, a new player)
+    double last{0.0};
+    double least{cmdBurst}; // the fewest left after a command (how near his own state came: vr_mp_status)
+    int used{0}, dropped{0};
+    double noteAt{0.0};
+};
+za::Vector<CommandBudget> commandBudgets;
+
+// Per client slot: its avatar as last sent (writeAvatars: an unchanged one waits for its keyframe); and the counts.
+constexpr int avatarMaxBytes = 260; // (2 + 2 + 1 + 12 + 8 + 2 * 47 + 8 + 2 * 7 holds + 3 + 6 * 16 holsters + 1 = 241 at most)
+struct AvatarSent
+{
+    byte bytes[avatarMaxBytes]{};
+    int size{0};
+    int unsent{0}; // frames since it was last sent
+};
+za::Vector<AvatarSent> avatarsSent;
+struct AvatarStats
+{
+    int sent{0}, skipped{0};
+    long long bytes{0};
+};
+AvatarStats avatarStats;
+
 [[nodiscard]] ClientMove* clientMoveOf(edict_t* player)
 {
-    const int client = NUM_FOR_EDICT(player) - 1;
-    if(client < 0 || client >= svs.maxclients || client >= static_cast<int>(clientMoves.size()))
+    const int client = progs::clientSlot(player);
+    if(client < 0 || client >= static_cast<int>(clientMoves.size()))
     {
         return nullptr;
     }
@@ -86,8 +147,8 @@ za::Vector<ClientMove> clientMoves;
 // The reliable message buffer of the client `player` is, or nullptr for an inactive one.
 [[nodiscard]] sizebuf_t* clientMessage(edict_t* player)
 {
-    const int client = NUM_FOR_EDICT(player) - 1;
-    if(client < 0 || client >= svs.maxclients || !svs.clients[client].active)
+    const int client = progs::clientSlot(player);
+    if(client < 0 || !svs.clients[client].active)
     {
         return nullptr;
     }
@@ -294,6 +355,19 @@ void sweepWeaponInsts()
 // takes the buffer back to the last boundary, and QuakeC's broadcast writes then go nowhere until the next one. A
 // client's datagram takes the longest part of it that ends on a boundary and fits after its entities (it was all of it
 // or none).
+// (B13c) A remote client's share of the broadcast of the frames he got no datagram (vr_net_sendhz), for his next one.
+struct HeldBroadcast
+{
+    za::U8 data[DATAGRAM_MTU];
+    int size{0};
+};
+HeldBroadcast heldBroadcast[MAX_SCOREBOARD];
+struct HeldCounts
+{
+    za::U64 held{0}, dropped{0}; // (vr_net_broadcast_report)
+};
+HeldCounts heldCounts;
+
 struct BroadcastRoom
 {
     static constexpr int maxMarks = 1024; // full: every other one is dropped (spread evenly, the last kept)
@@ -325,6 +399,34 @@ struct BroadcastRoom
 };
 
 BroadcastRoom broadcastRoom{};
+
+// Messages about one entity (an armed humanoid's pose, QVR_SVC_ARMPOSE: server::scopedBegin) this frame, written after the
+// broadcast into the datagram of each client whose entity update carried that entity (its PVS: VR_NoteEntityInSight)
+// instead of into every client's (they were about 1.2 KB of each 1.4 KB datagram on e1m1, wherever the client was:
+// MP_PLAN.md, B2). The loopback client (single player, a listen host) gets them all, as before.
+struct ScopedRoom
+{
+    static constexpr int maxMsgs = 1024;
+    static constexpr int msgRoom = 256; // a message's most (a pose with every block is about 150 B)
+
+    sizebuf_t room;
+    byte roomBuf[48 * 1024];
+    sizebuf_t sink; // a message with no room left: dropped (as a full broadcast drops one)
+    byte sinkBuf[msgRoom];
+    byte poseJoin[4 * msgRoom]; // an entity's poses of one frame as one snapshot record (VR_SnapEnd; one, as a rule)
+    int ents[maxMsgs];
+    int ends[maxMsgs]; // each message's end in roomBuf (the first begins at 0)
+    int kinds[maxMsgs]; // ScopedKind: an avatar goes in a snapshot client's snapshot (B7b), an unchanged one to no other
+    int numMsgs;
+    int openEnt; // the message being written: its entity (-1: none)
+
+    // the entities the client being sent to has in sight: seen[e] == stamp (one stamp a client's datagram)
+    za::Vector<int> seen;
+    int stamp;
+    int dropped; // messages with no room this frame (vr_debug_net)
+};
+
+ScopedRoom scopedRoom{};
 
 // The length of the temp entity QuakeC began at `at`, as CL_ParseTEnt reads it (0: not one, not known, or its type not
 // written yet).
@@ -659,6 +761,19 @@ extern "C" void VR_BroadcastClear()
     b.qcDropped = b.qcDrops = b.unsent = b.entities = 0;
     SZ_Clear(&sv.datagram);
 
+    ScopedRoom& r = scopedRoom;
+    if(qvr::vr_debug_net.value && r.dropped)
+    {
+        Con_Printf("vr_debug_net: %d armed humanoids' poses had no room (%d B this frame)\n", r.dropped, r.room.cursize);
+    }
+    r.room.data = r.roomBuf;
+    r.room.maxsize = sizeof(r.roomBuf);
+    r.room.allowoverflow = true; // (never: each message has its room before it begins)
+    SZ_Clear(&r.room);
+    r.numMsgs = 0;
+    r.openEnt = -1;
+    r.dropped = 0;
+
     // The messages queued since the last frame (server::queueBroadcast) open this one, each whole (an explosion's
     // launches its chunks, as QuakeC's does).
     int from = 0;
@@ -675,6 +790,189 @@ extern "C" void VR_BroadcastClear()
         from = b.queuedEnds[i];
     }
     b.numQueued = 0;
+}
+
+sizebuf_t* qvr::server::scopedBegin(int ent, bool always)
+{
+    ScopedRoom& r = scopedRoom;
+    if((!always && qvr::vr_net_cullposes.value == 0.f) || !sv.active || !r.room.data)
+    {
+        return nullptr;
+    }
+    if(r.numMsgs >= ScopedRoom::maxMsgs || r.room.cursize + ScopedRoom::msgRoom > r.room.maxsize)
+    {
+        r.sink.data = r.sinkBuf;
+        r.sink.maxsize = sizeof(r.sinkBuf);
+        r.sink.allowoverflow = true;
+        SZ_Clear(&r.sink);
+        r.dropped++;
+        r.openEnt = -1;
+        return &r.sink;
+    }
+    r.openEnt = ent;
+    return &r.room;
+}
+
+void qvr::server::scopedEnd(int kind)
+{
+    ScopedRoom& r = scopedRoom;
+    if(r.openEnt < 0)
+    {
+        return;
+    }
+    r.ents[r.numMsgs] = r.openEnt;
+    r.ends[r.numMsgs] = r.room.cursize;
+    r.kinds[r.numMsgs] = kind;
+    r.numMsgs++;
+    r.openEnt = -1;
+}
+
+// SV_WriteEntitiesToClient: a client's walk of the entities begins; each one in its sight (its PVS) is noted.
+extern "C" void VR_NoteEntitiesBegin()
+{
+    ScopedRoom& r = scopedRoom;
+    r.stamp++;
+    if(static_cast<int>(r.seen.size()) < qcvm->max_edicts)
+    {
+        r.seen.resize(static_cast<za::SizeT>(qcvm->max_edicts), 0);
+    }
+}
+
+extern "C" void VR_NoteEntityInSight(int ent)
+{
+    ScopedRoom& r = scopedRoom;
+    if(ent >= 0 && ent < static_cast<int>(r.seen.size()))
+    {
+        r.seen[static_cast<za::SizeT>(ent)] = r.stamp;
+    }
+}
+
+namespace
+{
+
+[[nodiscard]] bool scopedInSight(const ScopedRoom& r, int e)
+{
+    return e >= 0 && e < static_cast<int>(r.seen.size()) && r.seen[static_cast<za::SizeT>(e)] == r.stamp;
+}
+
+} // namespace
+
+// SV_SendClientDatagram, after the broadcast: this frame's messages about entities, those in this client's sight (all of
+// them to the loopback client, `local`), each whole while it fits. An avatar unchanged since last sent goes to none (its
+// keyframe's wait), and to a snapshot client (`snap`) none: they went in its snapshot (VR_SnapEnd).
+extern "C" void VR_WriteScoped(sizebuf_t* msg, int local, int snap)
+{
+    const ScopedRoom& r = scopedRoom;
+    const bool cull = !local && qvr::vr_net_cullposes.value != 0.f;
+    int from = 0;
+    for(int i = 0; i < r.numMsgs; i++)
+    {
+        const int len = r.ends[i] - from;
+        const int at = from;
+        from = r.ends[i];
+        const int e = r.ents[i];
+        // (a snapshot client's avatars and poses went in its snapshot: VR_SnapEnd)
+        if(r.kinds[i] == qvr::server::scopedAvatarUnchanged || (snap && r.kinds[i] == qvr::server::scopedAvatar) ||
+            (snap && r.kinds[i] == qvr::server::scopedOther && cull && qvr::vr_net_snapposes.value != 0.f))
+        {
+            continue;
+        }
+        if(cull && !scopedInSight(r, e))
+        {
+            continue;
+        }
+        if(msg->cursize + len > msg->maxsize - 1)
+        {
+            continue;
+        }
+        SZ_Write(msg, r.roomBuf + at, len);
+    }
+    if(snap)
+    {
+        qvr::netsnap::serverCharge(msg->cursize); // (the datagram whole: off his rate, B12)
+    }
+}
+
+// A remote client's snapshot (vr_netsnap.cpp; MP_PLAN.md, B7b).
+extern "C" int VR_SnapBegin(client_t* client)
+{
+    return qvr::netsnap::serverBegin(client) ? 1 : 0;
+}
+
+extern "C" void VR_SnapTake(sizebuf_t* msg, int at, int key)
+{
+    qvr::netsnap::serverTake(msg, at, key);
+}
+
+// ... the avatars in its sight (unchanged or not: the snapshot codes each against the one it acknowledged), then written.
+extern "C" void VR_SnapEnd(sizebuf_t* msg)
+{
+    const ScopedRoom& r = scopedRoom;
+    const bool cull = qvr::vr_net_cullposes.value != 0.f;
+    int from = 0;
+    for(int i = 0; i < r.numMsgs; i++)
+    {
+        const int at = from;
+        from = r.ends[i];
+        if((r.kinds[i] == qvr::server::scopedAvatar || r.kinds[i] == qvr::server::scopedAvatarUnchanged) &&
+            (!cull || scopedInSight(r, r.ents[i])))
+        {
+            qvr::netsnap::serverRecord(qvr::netsnap::avatarKey + r.ents[i], r.roomBuf + at, r.ends[i] - at);
+        }
+    }
+    // The armed humanoids' poses in its sight (B12; vr_net_cullposes 0: every pose to every client in the broadcast, as
+    // before): a record each, an entity's poses of this frame together (one a frame, as a rule).
+    if(cull && qvr::vr_net_snapposes.value != 0.f)
+    {
+        ScopedRoom& w = scopedRoom;
+        from = 0;
+        for(int i = 0; i < r.numMsgs; i++)
+        {
+            const int at = from;
+            from = r.ends[i];
+            const int e = r.ents[i];
+            if(r.kinds[i] != qvr::server::scopedOther || !scopedInSight(r, e))
+            {
+                continue;
+            }
+            bool earlier = false; // (merged into the record of its entity's first already)
+            for(int j = 0; j < i && !earlier; j++)
+            {
+                earlier = r.kinds[j] == qvr::server::scopedOther && r.ents[j] == e;
+            }
+            if(earlier)
+            {
+                continue;
+            }
+            int len = r.ends[i] - at;
+            bool more = false;
+            for(int j = i + 1; j < r.numMsgs && !more; j++)
+            {
+                more = r.kinds[j] == qvr::server::scopedOther && r.ents[j] == e;
+            }
+            if(!more)
+            {
+                qvr::netsnap::serverRecord(qvr::netsnap::poseKey + e, r.roomBuf + at, len);
+                continue;
+            }
+            len = 0;
+            int jfrom = 0;
+            for(int j = 0; j < r.numMsgs; j++)
+            {
+                const int jat = jfrom;
+                jfrom = r.ends[j];
+                const int jlen = r.ends[j] - jat;
+                if(j >= i && r.kinds[j] == qvr::server::scopedOther && r.ents[j] == e &&
+                    len + jlen <= static_cast<int>(sizeof(w.poseJoin)))
+                {
+                    memcpy(w.poseJoin + len, r.roomBuf + jat, static_cast<size_t>(jlen));
+                    len += jlen;
+                }
+            }
+            qvr::netsnap::serverRecord(qvr::netsnap::poseKey + e, w.poseJoin, len);
+        }
+    }
+    qvr::netsnap::serverEnd(msg);
 }
 
 void qvr::server::queueBroadcast(const byte* data, int len)
@@ -794,9 +1092,309 @@ extern "C" int VR_BroadcastSendable(int before, int room)
     return sendable;
 }
 
+// ----------------------------------------------------------------------------
+// (B13b, MP_PLAN) The broadcast culled by sight: NetQuake sent every client the whole unreliable broadcast (sv.datagram:
+// particles, temp entities, sounds, Quake VR's effects) wherever it was; with 16 players most of each remote client's
+// broadcast was fights he could neither see nor hear. Each message whose place is known goes to a remote client only when
+// he could see it (its point in his fat PVS, SV_WriteEntitiesToClient's) or, a sound, hear it (nearer than Quake's
+// falloff reaches at half his vr_snd_falloff: 2000 units at ATTN_NORM, 667 at ATTN_STATIC; ATTN_NONE everywhere). A
+// message not known (and what follows it to the next boundary) goes to everyone, as before. The loopback client (single
+// player, a listen host) gets it all: vr_net_cullbroadcast 0 sends everyone all of it, as before.
+namespace
+{
+
+struct BroadcastSight
+{
+    const edict_t* clent{nullptr}; // the client whose entities were last written this frame (SV_WriteEntitiesToClient)
+    double time{-1.0};
+    glm::vec3 eye{0.f};
+    za::Vector<byte> pvs;
+    // vr_net_broadcast_report: the bytes of known messages sent and culled, and those not known (sent), all clients
+    za::U64 sent{0}, culled{0}, unknown{0};
+};
+BroadcastSight broadcastSight{};
+
+constexpr float soundReachScale = 0.5f; // a sound culled only past where it fades out at vr_snd_falloff 0.5
+constexpr float soundMargin = 64.f;     // units more
+
+[[nodiscard]] int coordBytes()
+{
+    byte bytes[8];
+    sizebuf_t probe{};
+    probe.data = bytes;
+    probe.maxsize = sizeof(bytes);
+    MSG_WriteCoord(&probe, 0.f, sv.protocolflags);
+    return probe.cursize;
+}
+
+// The coordinates at `p` in sv.datagram, as MSG_ReadCoord reads them in the server's protocol.
+[[nodiscard]] glm::vec3 coordsAt(const byte* p)
+{
+    const auto i16 = [](const byte* q) { return static_cast<int16_t>(q[0] | (q[1] << 8)); };
+    const auto i32 = [](const byte* q) { return static_cast<int32_t>(static_cast<uint32_t>(q[0]) | (static_cast<uint32_t>(q[1]) << 8) | (static_cast<uint32_t>(q[2]) << 16) | (static_cast<uint32_t>(q[3]) << 24)); };
+    glm::vec3 org{0.f};
+    for(int k = 0; k < 3; k++)
+    {
+        if(sv.protocolflags & PRFL_FLOATCOORD)
+        {
+            const int32_t bits = i32(p);
+            memcpy(&org[k], &bits, sizeof(float));
+            p += 4;
+        }
+        else if(sv.protocolflags & PRFL_INT32COORD)
+        {
+            org[k] = static_cast<float>(i32(p)) * (1.f / 16.f);
+            p += 4;
+        }
+        else if(sv.protocolflags & PRFL_24BITCOORD)
+        {
+            org[k] = static_cast<float>(i16(p)) + static_cast<float>(p[2]) * (1.f / 255.f);
+            p += 3;
+        }
+        else
+        {
+            org[k] = static_cast<float>(i16(p)) * (1.f / 8.f);
+            p += 2;
+        }
+    }
+    return org;
+}
+
+[[nodiscard]] bool pointSeen(const glm::vec3& p)
+{
+    const BroadcastSight& s = broadcastSight;
+    vec3_t at{p.x, p.y, p.z};
+    const mleaf_t* leaf = Mod_PointInLeaf(at, sv.worldmodel);
+    const int n = leaf ? static_cast<int>(leaf - sv.worldmodel->leafs) - 1 : -1;
+    if(n < 0 || (n >> 3) >= static_cast<int>(s.pvs.size()))
+    {
+        return true; // (in the solid, or not known: sent)
+    }
+    return (s.pvs[static_cast<za::SizeT>(n >> 3)] & (1 << (n & 7))) != 0;
+}
+
+[[nodiscard]] bool soundHeard(const glm::vec3& p, float attenuation)
+{
+    if(attenuation <= 0.f)
+    {
+        return true;
+    }
+    return glm::length(p - broadcastSight.eye) < 1000.f / (attenuation * soundReachScale) + soundMargin;
+}
+
+// The broadcast's message at `at` (before `end`): its length and whether this client sees or hears it. False: not one
+// known (or not whole before `end`).
+[[nodiscard]] bool knownMessage(int at, int end, int& len, bool& seen)
+{
+    const byte* d = sv.datagram.data;
+    const int c = coordBytes();
+    len = 0;
+    seen = true;
+    switch(d[at])
+    {
+        case svc_particle: // [coord3][char3][byte count][byte color]
+            len = 1 + 3 * c + 5;
+            if(at + len > end) return false;
+            seen = pointSeen(coordsAt(d + at + 1));
+            return true;
+        case svc_temp_entity:
+        {
+            len = tempEntityLength(at);
+            if(len <= 0 || at + len > end) return false;
+            const byte type = d[at + 1];
+            if(type == TE_LIGHTNING1 || type == TE_LIGHTNING2 || type == TE_LIGHTNING3 || type == TE_BEAM)
+            {
+                const int from = at + 4 + ((sv.protocolflags & PRFL_QUAKEVR_PROGS) ? 1 : 0);
+                seen = pointSeen(coordsAt(d + from)) || pointSeen(coordsAt(d + from + 3 * c));
+            }
+            else
+            {
+                seen = pointSeen(coordsAt(d + at + 2));
+            }
+            return true;
+        }
+        case svc_sound: // (SV_WriteSound's layout)
+        {
+            int p = at + 1;
+            if(p >= end) return false;
+            const int mask = d[p++];
+            float attenuation = DEFAULT_SOUND_PACKET_ATTENUATION;
+            p += (mask & SND_LOUD) ? 2 : (mask & SND_VOLUME) ? 1 : 0;
+            if(mask & SND_ATTENUATION)
+            {
+                if(p >= end) return false;
+                attenuation = static_cast<float>(d[p++]) / 64.f;
+            }
+            p += (mask & SND_PITCH) ? 2 : 0;
+            p += (mask & SND_LARGEENTITY) ? 3 : 2;
+            p += (mask & SND_LARGESOUND) ? 2 : 1;
+            len = p + 3 * c - at;
+            if(at + len > end) return false;
+            seen = soundHeard(coordsAt(d + p), attenuation);
+            return true;
+        }
+        case svc_quakevr:
+            if(at + 2 > end) return false;
+            switch(d[at + 1])
+            {
+                case QVR_SVC_PARTICLE2: // [coord3 org][char3 dir][byte preset][short count]
+                    len = 2 + 3 * c + 3 + 1 + 2;
+                    if(at + len > end) return false;
+                    seen = pointSeen(coordsAt(d + at + 2));
+                    return true;
+                case QVR_SVC_TRACER: // [short entity][byte hand][coord3 from][coord3 to]
+                    len = 2 + 2 + 1 + 6 * c;
+                    if(at + len > end) return false;
+                    seen = pointSeen(coordsAt(d + at + 5)) || pointSeen(coordsAt(d + at + 5 + 3 * c));
+                    return true;
+                case QVR_SVC_GORESOUND: // [byte kind][short entity][coord3 at][byte strength]: a sound at ATTN_NORM
+                    len = 2 + 1 + 2 + 3 * c + 1;
+                    if(at + len > end) return false;
+                    seen = soundHeard(coordsAt(d + at + 5), 1.f);
+                    return true;
+                default: return false;
+            }
+        default: return false;
+    }
+}
+
+void broadcastReport_f()
+{
+    const BroadcastSight& s = broadcastSight;
+    Con_Printf("mp_broadcast: sent=%llu culled=%llu unknown=%llu cull=%g held=%llu held_dropped=%llu\n",
+        static_cast<unsigned long long>(s.sent), static_cast<unsigned long long>(s.culled),
+        static_cast<unsigned long long>(s.unknown), vr_net_cullbroadcast.value,
+        static_cast<unsigned long long>(heldCounts.held), static_cast<unsigned long long>(heldCounts.dropped));
+    if(Cmd_Argc() > 1 && !strcmp(Cmd_Argv(1), "reset"))
+    {
+        broadcastSight.sent = broadcastSight.culled = broadcastSight.unknown = 0;
+        heldCounts = HeldCounts{};
+    }
+}
+
+} // namespace
+
+// SV_WriteEntitiesToClient: the client's eye and fat PVS (its teleporters' too), for his broadcast (VR_WriteBroadcast).
+extern "C" void VR_NoteClientSight(const edict_t* clent, const byte* pvs, const float* eye)
+{
+    BroadcastSight& s = broadcastSight;
+    s.clent = clent;
+    s.time = qcvm->time;
+    s.eye = {eye[0], eye[1], eye[2]};
+    const int bytes = (sv.worldmodel->numleafs + 7) >> 3;
+    s.pvs.resize(static_cast<za::SizeT>(bytes));
+    memcpy(s.pvs.data(), pvs, static_cast<size_t>(bytes));
+}
+
+// SV_SendClientDatagram: the broadcast into this client's datagram (`local`: the loopback client's, all of it).
+extern "C" void VR_WriteBroadcast(sizebuf_t* msg, int local, const edict_t* clent)
+{
+    BroadcastSight& s = broadcastSight;
+    if(local || vr_net_cullbroadcast.value == 0.f || s.clent != clent || s.time != qcvm->time || !sv.worldmodel)
+    {
+        const int sendable = VR_BroadcastSendable(msg->cursize, msg->maxsize - msg->cursize - 1);
+        if(sendable > 0)
+        {
+            SZ_Write(msg, sv.datagram.data, sendable);
+        }
+        return;
+    }
+    BroadcastRoom& b = broadcastRoom;
+    b.entities = q_max(b.entities, msg->cursize);
+    int from = 0;
+    for(int i = 0; i <= b.numMarks; i++)
+    {
+        const int end = i < b.numMarks ? b.marks[i] : sv.datagram.cursize;
+        // its messages one by one while they are known; from one that is not, the rest to the boundary whole
+        for(int at = from; at < end;)
+        {
+            int len = 0;
+            bool seen = true;
+            const bool known = knownMessage(at, end, len, seen);
+            if(!known)
+            {
+                len = end - at;
+            }
+            if(!seen)
+            {
+                s.culled += static_cast<za::U64>(len);
+            }
+            else if(msg->cursize + len > msg->maxsize - 1)
+            {
+                b.unsent += len; // (no room: as the whole broadcast's tail had none)
+            }
+            else
+            {
+                SZ_Write(msg, sv.datagram.data + at, len);
+                (known ? s.sent : s.unknown) += static_cast<za::U64>(len);
+            }
+            at += len;
+        }
+        from = q_max(from, end);
+    }
+}
+
+// (B13c) vr_net_sendhz: a remote snapshot client's frames without a datagram keep his share of each frame's broadcast
+// (culled by his sight as it would have been) for his next datagram, in order before its own frame's (heldBroadcast).
+extern "C" int VR_SendsDatagramNow(client_t* client)
+{
+    return qvr::netsnap::serverSendsNow(client) ? 1 : 0;
+}
+
+extern "C" void VR_HoldBroadcast(client_t* client)
+{
+    const int slot = static_cast<int>(client - svs.clients);
+    if(slot < 0 || slot >= MAX_SCOREBOARD || !client->edict)
+    {
+        return;
+    }
+    HeldBroadcast& h = heldBroadcast[slot];
+    sizebuf_t buf{};
+    buf.data = h.data;
+    buf.maxsize = static_cast<int>(sizeof(h.data));
+    buf.cursize = h.size;
+    const int entities = broadcastRoom.entities; // (its stat: a datagram's entities, not this buffer's)
+    VR_WriteBroadcast(&buf, 0, client->edict);
+    broadcastRoom.entities = entities;
+    heldCounts.held += static_cast<za::U64>(buf.cursize - h.size);
+    h.size = buf.cursize;
+}
+
+extern "C" void VR_WriteHeldBroadcast(sizebuf_t* msg, client_t* client)
+{
+    const int slot = static_cast<int>(client - svs.clients);
+    if(slot < 0 || slot >= MAX_SCOREBOARD || heldBroadcast[slot].size == 0)
+    {
+        return;
+    }
+    HeldBroadcast& h = heldBroadcast[slot];
+    if(msg->cursize + h.size <= msg->maxsize - 1)
+    {
+        SZ_Write(msg, h.data, h.size);
+    }
+    else
+    {
+        heldCounts.dropped += static_cast<za::U64>(h.size); // (no room after the entities: as a broadcast's tail)
+    }
+    h.size = 0;
+}
+
+extern "C" int VR_HeldBroadcastBytes(int slot)
+{
+    return slot >= 0 && slot < MAX_SCOREBOARD ? heldBroadcast[slot].size : 0;
+}
+
+extern "C" void VR_ClearHeldBroadcast(int slot)
+{
+    if(slot >= 0 && slot < MAX_SCOREBOARD)
+    {
+        heldBroadcast[slot].size = 0;
+    }
+}
+
 // SV_SendClientMessages, before sv.reliable_datagram is copied to the clients (vr_debug_net 2).
 // ----------------------------------------------------------------------------
-// vr_net_stats: what each client's datagrams carry of the entities (the debris' cost in multiplayer: MULTIPLAYER.md).
+// vr_net_stats: what each client's datagrams carry of the entities (the debris' cost in multiplayer: MP_DESIGN.md).
 
 namespace
 {
@@ -807,6 +1405,35 @@ struct NetStat
     double sumBytes{0.0};
 };
 NetStat netStats[MAX_SCOREBOARD];
+
+// vr_net_reliable_test <entity> <bytes>: a reliable message of about that many bytes to that player's client (nops, then
+// "mp_reliable: <bytes> bytes" printed there when it arrives): the reliable window's resends measured (mp_test.py
+// retransmit, B12b).
+void netReliableTest_f()
+{
+    if(!sv.active || Cmd_Argc() < 3)
+    {
+        Con_Printf("vr_net_reliable_test <player entity> <bytes>: a reliable message of that size to his client\n");
+        return;
+    }
+    const int e = atoi(Cmd_Argv(1));
+    client_t* const c = e >= 1 && e <= svs.maxclients ? &svs.clients[e - 1] : nullptr;
+    if(!c || !c->active)
+    {
+        Con_Printf("vr_net_reliable_test: no player %d\n", e);
+        return;
+    }
+    const char* const mark = va("mp_reliable: %d bytes\n", atoi(Cmd_Argv(2)));
+    const int room = c->message.maxsize - c->message.cursize - static_cast<int>(strlen(mark)) - 2;
+    const int n = za::max(0, za::min(atoi(Cmd_Argv(2)), room));
+    for(int i = 0; i < n; i++)
+    {
+        MSG_WriteByte(&c->message, svc_nop);
+    }
+    MSG_WriteByte(&c->message, svc_print);
+    MSG_WriteString(&c->message, mark);
+    Con_Printf("vr_net_reliable_test: %d bytes to player %d\n", n, e);
+}
 
 void netStats_f()
 {
@@ -853,8 +1480,8 @@ void netStats_f()
 
 extern "C" void VR_NetStatsEntities(edict_t* clent, int sent, int insight, int bytes, int maxsize)
 {
-    const int i = NUM_FOR_EDICT(clent) - 1;
-    if(i < 0 || i >= MAX_SCOREBOARD)
+    const int i = progs::clientSlot(clent);
+    if(i < 0)
     {
         return;
     }
@@ -932,7 +1559,10 @@ extern "C" int VR_MoveMerges(client_t* client)
     {
         clientBits.resize(clientNum + 1);
     }
-    return clientBits[clientNum].moves++ > 0 ? 1 : 0;
+    ClientBits& bits = clientBits[clientNum];
+    const bool merges = bits.moves++ > 0;
+    bits.merged += merges ? 1 : 0;
+    return merges ? 1 : 0;
 }
 
 // SV_ConnectClient into a loaded game (after VR_ClientReset): the grips and buttons held when the game was saved (its
@@ -968,25 +1598,143 @@ extern "C" void VR_ClientReset(client_t* client)
     {
         clientMoves[clientNum] = {};
     }
+    if(clientNum >= 0 && clientNum < static_cast<int>(avatarsSent.size()))
+    {
+        avatarsSent[clientNum] = {};
+    }
+    netmove::serverReset(clientNum); // (his moves' sequence and bases: a new connection's start again)
+    moveguard::serverReset(clientNum); // (his values held, his room-scale budget)
+    predict::serverReset(clientNum); // (his queued moves and their clock, B8)
+    netsnap::serverReset(clientNum); // (and his snapshots: the next whole until he acknowledges one, B7b)
+    mpavatar::serverReset(clientNum); // (his avatar calibration gone; the clients told)
+    voicechat::serverReset(clientNum); // (his voice frames and budget, B10v)
+    clientprefs::serverReset(clientNum); // (and his preferences: the server's until the next player's come)
+    if(clientNum >= 0 && clientNum < static_cast<int>(talkGuards.size()))
+    {
+        talkGuards[clientNum] = {}; // (B28: a new player's talk starts clean)
+    }
+    if(clientNum >= 0 && clientNum < static_cast<int>(commandBudgets.size()))
+    {
+        commandBudgets[clientNum] = {}; // (and his commands' budget full)
+    }
 }
 
-extern "C" void VR_ReadMoveExtras(client_t* client)
+namespace
 {
-    if(!vrProtocol())
-    {
-        return;
-    }
 
-    const za::Optional<VrMove> read = readVrMove();
+// (B28) The listen host's own client: the loopback's, whose server side's address is "LOCAL" (vr_netsnap.cpp's test).
+bool isHostsOwn(const client_t* client)
+{
+    return SV_IsLocalClient(client); // (NET_QSocketIsLocal: a client without a connection, a bot, is not)
+}
+
+} // namespace
+
+extern "C" int VR_GuestMay(const char* what)
+{
+    // (the server's console and the listen host's own player always; a guest -- any remote player, a dedicated server's
+    // every one -- only when the host allows: NetQuake let any coop player kick the others, a room-code stranger too)
+    if(cmd_source != src_client || !host_client || isHostsOwn(host_client) || vr_mp_guest_admin.value != 0.f)
+    {
+        return 1;
+    }
+    SV_ClientPrintf("%s: refused, only the host may (this server's vr_mp_guest_admin is 0)\n", what);
+    Con_Printf("%s tried to %s: refused, a guest (vr_mp_guest_admin 0)\n", host_client->name, what);
+    return 0;
+}
+
+extern "C" int VR_GuestMayTalk()
+{
+    if(cmd_source != src_client || !host_client || isHostsOwn(host_client))
+    {
+        return 1;
+    }
+    const int slot = static_cast<int>(host_client - svs.clients);
+    if(slot < 0 || slot >= svs.maxclientslimit)
+    {
+        return 1;
+    }
+    if(slot >= static_cast<int>(talkGuards.size()))
+    {
+        talkGuards.resize(slot + 1);
+    }
+    TalkGuard& g = talkGuards[slot];
+    if(realtime < g.silentUntil)
+    {
+        SV_ClientPrintf("You can't talk for %d more seconds.\n", static_cast<int>(ceil(g.silentUntil - realtime)));
+        return 0;
+    }
+    if(g.count >= talkBurst && realtime - g.times[g.next] < talkWindow)
+    {
+        g.silentUntil = realtime + talkSilence;
+        SV_ClientPrintf("You can't talk for %d more seconds (more than %d messages in %d seconds).\n",
+            static_cast<int>(talkSilence), talkBurst, static_cast<int>(talkWindow));
+        Con_Printf("%s silenced for %d seconds (talk flood)\n", host_client->name, static_cast<int>(talkSilence));
+        return 0;
+    }
+    g.times[g.next] = realtime;
+    g.next = (g.next + 1) % talkBurst;
+    g.count = za::min(g.count + 1, talkBurst);
+    return 1;
+}
+
+extern "C" int VR_ClientCommandBudget(const char* s)
+{
+    // (the listen host's own, and joining: prespawn, spawn, begin, which every client sends once, always)
+    if(!host_client || !host_client->netconnection || isHostsOwn(host_client) || !q_strncasecmp(s, "prespawn", 8) ||
+        !q_strncasecmp(s, "spawn", 5) || !q_strncasecmp(s, "begin", 5))
+    {
+        return 1;
+    }
+    const int slot = static_cast<int>(host_client - svs.clients);
+    if(slot < 0 || slot >= svs.maxclientslimit)
+    {
+        return 1;
+    }
+    if(slot >= static_cast<int>(commandBudgets.size()))
+    {
+        commandBudgets.resize(slot + 1);
+    }
+    CommandBudget& b = commandBudgets[slot];
+    b.tokens = b.tokens < 0.0 ? cmdBurst : za::min(cmdBurst, b.tokens + (realtime - b.last) * cmdRate);
+    b.last = realtime;
+    if(b.tokens < 1.0)
+    {
+        b.dropped++;
+        if(realtime >= b.noteAt)
+        {
+            b.noteAt = realtime + cmdNoteEvery;
+            Con_Printf("%s: commands dropped (more than %d at once or %d a second; %d so far)\n", host_client->name,
+                static_cast<int>(cmdBurst), static_cast<int>(cmdRate), b.dropped);
+        }
+        return 0;
+    }
+    b.tokens -= 1.0;
+    b.used++;
+    b.least = za::min(b.least, b.tokens);
+    return 1;
+}
+
+namespace
+{
+
+// A move's VR block run on client `client` (clc_move's, read by VR_ReadMoveExtras; or a remote client's from
+// QVR_CLC_MOVES: vr_netmove.cpp).
+void applyVrMove(client_t* client, const VrMove& sent)
+{
     const int clientNum = static_cast<int>(client - svs.clients);
-    if(!read)
-    {
-        Con_DPrintf("VR: client %d sent a move that is not finite: dropped\n", clientNum);
-        return;
-    }
-    const VrMove& move = *read;
-
     edict_t* ent = client->edict;
+    // A remote player's own values first bounded (vr_moveguard.hpp; MP_DESIGN P2-6): every place within reach of the
+    // move's origin (the server's of him when it has none), every speed a real arm's; what was held counted
+    // (vr_mp_status's mp_guard). The listen host's own and single player's: as they come.
+    VrMove bounded = sent;
+    if(client->netconnection && !isHostsOwn(client))
+    {
+        const glm::vec3 base = sent.origin != glm::vec3{0.f} ? sent.origin
+                                                             : glm::vec3{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]};
+        moveguard::count(clientNum, moveguard::guard(bounded, base, moveguard::unitsPerMetre(moveguard::slotScale(clientNum)), clientNum));
+    }
+    const VrMove& move = bounded;
     if(clientNum >= static_cast<int>(clientMoves.size()))
     {
         clientMoves.resize(clientNum + 1);
@@ -1069,7 +1817,15 @@ extern "C" void VR_ReadMoveExtras(client_t* client)
     const bool flatCrouch = flat && (move.vrBits0 & protocol::moveFlatCrouchBit) != 0;
     // A headset client's bit 14 is its slide gesture (vr_slide: protocol::moveSlideBit; the shared slide, vr_slide.cpp).
     slide::setHeadsetInput(ent, !flat && (move.vrBits0 & protocol::moveSlideBit) != 0);
-    hull::updateCrouch(ent, move.headPos, !flat || flatCrouch);
+    // A remote client's head over his feet as his own client had it (from the origin he placed it from: his prediction,
+    // a round trip ahead of this server's -- a jump's rise read as a crouch, a shorter box in the air than his replay's:
+    // B8d). The loopback's and single player's are the server's own origin: as before.
+    glm::vec3 head = move.headPos;
+    if(netmove::serverSends(clientNum) && move.origin != glm::vec3{0.f} && head != glm::vec3{0.f})
+    {
+        head += glm::vec3{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]} - move.origin;
+    }
+    hull::updateCrouch(ent, head, !flat || flatCrouch);
     const int crouched = hull::isCrouched(ent) ? (1 << 23) : 0;
     // Lying down (vr_prone; his crouched box then the lowest, vr_prone_height): QC's .vr_prone (no jumping: PlayerJump).
     setFieldFloat(ent, f.vr_prone, hull::isProne(ent) ? 1.f : 0.f);
@@ -1100,6 +1856,80 @@ extern "C" void VR_ReadMoveExtras(client_t* client)
     setFieldFloat(ent, f.handsynth, move.handSynth); // (vr_handsource.cpp; QC VR_HandMotionTracked)
     setFieldFloat(ent, f.mainhand_hotspot, move.hotspots[1]);
     setFieldFloat(ent, f.button3, (move.buttons & QVR_BUTTON_OFFHANDATTACK) ? 1.f : 0.f);
+}
+
+// QVR_CLC_MOVES: each move not run yet, its NetQuake part then its VR block (as a clc_move is).
+void applyNetMove(client_t* client, const netmove::WireMove& m, bool /*newest*/)
+{
+    VR_ApplyClientMove(client, m.time, &m.viewAngles[0], m.forward, m.side, m.up, m.buttons, m.impulse);
+    lagcomp::noteMove(static_cast<int>(client - svs.clients), m.time, m.viewBack); // (what he saw: his shots', B8b)
+    applyVrMove(client, m.vr);
+    predict::serverQueue(client, m); // (his walk runs move by move in the frame's physics, B8)
+}
+
+} // namespace
+
+extern "C" void VR_ReadMoveExtras(client_t* client)
+{
+    if(!vrProtocol())
+    {
+        return;
+    }
+
+    const za::Optional<VrMove> read = readVrMove();
+    if(!read)
+    {
+        Con_DPrintf("VR: client %d sent a move that is not finite: dropped\n", static_cast<int>(client - svs.clients));
+        return;
+    }
+    applyVrMove(client, *read);
+}
+
+extern "C" int VR_ReadQvrMoves(client_t* client)
+{
+    if(!vrProtocol() || !client->edict)
+    {
+        return 0;
+    }
+    return netmove::serverRead(client, applyNetMove) ? 1 : 0;
+}
+
+extern "C" int VR_AcceptsStaleMoves(client_t* client)
+{
+    return vrProtocol() && client->edict && netmove::serverTakesStale(static_cast<int>(client - svs.clients)) ? 1 : 0;
+}
+
+extern "C" void VR_ReadStaleQvrMoves(client_t* client)
+{
+    if(vrProtocol() && client->edict)
+    {
+        (void)netmove::serverRead(client, applyNetMove, true); // (a malformed overtaken one: dropped, as NetQuake did)
+    }
+}
+
+extern "C" void VR_WriteMoveAck(sizebuf_t* msg, client_t* client)
+{
+    netmove::serverWriteAck(msg, static_cast<int>(client - svs.clients));
+}
+
+extern "C" void VR_LockstepRunMove(client_t* client)
+{
+    // (the harness's lockstep, vr_mptest.cpp: the stepping frame found every client's next move read)
+    if(vr_mp_lockstep.value < 1.f || VR_LockstepHolds() || !vrProtocol() || !client->edict || !client->netconnection)
+    {
+        return;
+    }
+    (void)netmove::serverRunNext(client, applyNetMove);
+}
+
+extern "C" void VR_RunBufferedMoves(client_t* client)
+{
+    // (B19: a remote client's moves one a tick, in order, as the buffer kept them; vr_net_movebuffer)
+    if(!vrProtocol() || !client->edict)
+    {
+        return;
+    }
+    netmove::serverRunBuffered(client, applyNetMove);
 }
 
 // The status bar's ammo count (STAT_AMMO). With the Quake VR progs .currentammo is the main hand's ammo *type* (AID_*:
@@ -1217,6 +2047,7 @@ extern "C" void VR_CalcStats(client_t* client, int* statsi, float* statsf)
     stat(STAT_QVR_ADART2, f.vr_ad_hudart2);
     stat(STAT_QVR_ADDEBUFF, f.vr_ad_huddebuff);
     stat(STAT_QVR_ADUPGRADES, f.vr_ad_hudup);
+    stat(STAT_QVR_DWPOWER, f.vr_dw_hud); // Dwell support: Haste, Berserk, the Wetsuit on the wrist gadget (vr_gadget.cpp)
     stat(STAT_QVR_ADSKYFOG, f.vr_ad_skyfog); // AD support: AD's sky fog (vr_ad.cpp VR_AD_SkyFog)
 
     const int holsterWeapon[numHolsters] = {f.holsterweapon0, f.holsterweapon1,
@@ -1440,6 +2271,8 @@ extern "C" void VR_WriteEntityUpdate(sizebuf_t* msg, edict_t* ent, int bits)
 
 extern "C" void VR_WriteClientSpawnState(sizebuf_t* msg)
 {
+    // (his client cleared its snapshots for this map: the next goes whole, B7b; the counts kept)
+    netsnap::serverReset(static_cast<int>(host_client - svs.clients), true);
     if(vrProtocol())
     {
         worldtext::serverWriteAll(msg);
@@ -1447,6 +2280,7 @@ extern "C" void VR_WriteClientSpawnState(sizebuf_t* msg)
         serverrules::serverWriteAll(msg);
         agarmor::serverWriteAll(msg); // (the armed humanoids' armour: vr_agarmor.cpp)
         arenaxray::serverWriteAll(msg); // (the arena's last foes, seen through walls: vr_arenaxray.cpp)
+        mpavatar::serverWriteAll(msg); // (the players' avatar calibrations: vr_mpavatar.cpp; multiplayer)
     }
 }
 
@@ -1471,6 +2305,141 @@ extern "C" void VR_WriteRecentPrecaches(sizebuf_t* msg)
     }
 }
 
+namespace
+{
+
+// The avatar as last sent per client slot (writeAvatars: an unchanged one waits for its keyframe), and the counts
+// (vr_mp_avatars: sent, skipped as unchanged, bytes): avatarsSent, avatarStats (above).
+
+// A short of `v` in eighths of a unit, clamped (an avatar's offsets from the player's origin: +-4095 units).
+void writeEighths(sizebuf_t* msg, const glm::vec3& v)
+{
+    for(int i = 0; i < 3; i++)
+    {
+        MSG_WriteShort(msg, static_cast<int>(za::clamp(std::round(v[i] * 8.f), -32767.f, 32767.f)));
+    }
+}
+
+void writeAngles16(sizebuf_t* msg, const glm::vec3& a)
+{
+    for(int i = 0; i < 3; i++)
+    {
+        MSG_WriteAngle16(msg, a[i], sv.protocolflags);
+    }
+}
+
+// Each VR player's avatar this frame (QVR_SVC_AVATAR: his head and hands as his last move placed them, his weapons) to
+// the other clients that see him (server::scopedBegin; his own client does not: his entity is not noted for himself).
+// Multiplayer only: a single player's own hands are his client's (MP_PLAN.md, B2; vr_avatar.cpp draws nothing yet).
+void writeAvatars()
+{
+    if(svs.maxclients <= 1)
+    {
+        return;
+    }
+    const FieldOffsets& f = fields();
+    const VrDrawnHolsters noHolsters{};
+    const auto v3 = [](const float* v) { return glm::vec3{v[0], v[1], v[2]}; };
+    for(int i = 0; i < svs.maxclients; i++)
+    {
+        const client_t& c = svs.clients[i];
+        const ClientMove* const m = i < static_cast<int>(clientMoves.size()) && clientMoves[i].valid ? &clientMoves[i] : nullptr;
+        // A bot (FrikBot: its client slot's entity a "player" whose QC is not a human's, the slot itself not active; MP_PLAN.md,
+        // B11 part 3) has no client to draw its hands: its controllers (QC's handpos, handrot: bot_setvrfields) and
+        // weapons go instead, for each client to place its hands and weapons on as it places its own
+        // (VrDrawnHand::solveBit, view::solveHands); its head at its eyes, its body a standing player's of its eye height.
+        edict_t* const ent = c.active ? c.edict : EDICT_NUM(i + 1);
+        const bool bot = !c.active && !ent->free && ent->v.modelindex != 0.f && f.ishuman >= 0 &&
+                         fieldFloatOr(ent, f.ishuman, 1.f) == 0.f && !strcmp(PR_GetString(ent->v.classname), "player");
+        if(!bot && (!c.active || !c.spawned || !c.edict || !m))
+        {
+            continue;
+        }
+        VrBodyPose body;
+        VrDrawnHand drawn[2];
+        if(bot)
+        {
+            body.valid = true;
+            body.yaw = ent->v.v_angle[1];
+            // (its own eye height, metres: its standing eyes over its feet -- the model's default drew it smaller than a
+            // human of the same box; B11 part 3, part 3. Standing: a dead bot's lowered view is not its height)
+            body.headHeight = body.standingHeight =
+                (static_cast<float>(DEFAULT_VIEWHEIGHT) - ent->v.mins[2]) / units::metresToUnits();
+            for(int h = 0; h < 2; h++)
+            {
+                VrDrawnHand& d = drawn[h];
+                d.flags = VrDrawnHand::solveBit;
+                d.handOrigin = fieldVec(ent, handFields(h).pos);
+                d.handAngles = fieldVec(ent, handFields(h).rot);
+                d.weaponModel = static_cast<za::U16>(h ? SV_ModelIndex(PR_GetString(ent->v.weaponmodel)) : modelIndexOfField(ent, f.weaponmodel2));
+                d.weaponFrame = static_cast<za::U8>(za::clamp(static_cast<int>(h ? ent->v.weaponframe : fieldFloatOr(ent, f.weaponframe2, 0.f)), 0, 255));
+            }
+        }
+        // (offsets from the origin his client placed them from: the hands as drawn on his body, wherever the server has it)
+        const glm::vec3 origin = m ? m->move.origin : v3(ent->v.origin);
+        // Written here first: unchanged since the last sent (an idle player), it goes only every vr_net_avatar_keyframe
+        // frames (what a lost one or a player just come into sight waits at most).
+        byte data[avatarMaxBytes];
+        sizebuf_t tmp{};
+        tmp.data = data;
+        tmp.maxsize = avatarMaxBytes;
+        MSG_WriteByte(&tmp, svc_quakevr);
+        MSG_WriteByte(&tmp, QVR_SVC_AVATAR);
+        MSG_WriteShort(&tmp, i + 1);
+        MSG_WriteByte(&tmp, mpavatar::movesByte(ent, m && (m->move.vrBits0 & protocol::moveFlatplayBit) != 0));
+        // (rebaseHands moves the head and its base along together)
+        writeEighths(&tmp, m ? m->move.headPos - m->base : v3(ent->v.view_ofs));
+        writeAngles16(&tmp, m ? m->move.headAngles : v3(ent->v.v_angle));
+        writeBodyPose(&tmp, m ? m->move.body : body); // (his body's yaw, crouch and lean, as his client poses it: B2d)
+        const VrDrawnHand* const hands = m ? m->move.drawn : drawn;
+        for(int h = 0; h < 2; h++)
+        {
+            writeDrawnHand(&tmp, hands[h], origin);
+        }
+        MSG_WriteLong(&tmp, static_cast<int>(ent->v.weapon));
+        MSG_WriteLong(&tmp, static_cast<int>(fieldFloatOr(ent, f.weapon2, 0.f)));
+        mpavatar::writeHolds(&tmp, ent, origin); // (his climbing holds, as the moves byte says: B5c)
+        writeDrawnHolsters(&tmp, m ? m->move.holsters : noHolsters, origin, false); // (his holstered weapons as he drew them: B6b)
+        MSG_WriteByte(&tmp, mpavatar::gearByte(ent));        // (the armour he wears: his pauldrons' colour)
+
+        if(static_cast<int>(avatarsSent.size()) < svs.maxclients)
+        {
+            avatarsSent.resize(svs.maxclients);
+        }
+        AvatarSent& last = avatarsSent[i];
+        const int keyframe = za::max(static_cast<int>(vr_net_avatar_keyframe.value), 1);
+        const bool same = last.size == tmp.cursize && ZA_MEMCMP(last.bytes, data, static_cast<size_t>(tmp.cursize)) == 0;
+        const bool waits = same && ++last.unsent < keyframe;
+        // (queued either way: a snapshot client's snapshot has it every frame, B7b; to the others a waiting one goes not)
+        sizebuf_t* msg = qvr::server::scopedBegin(i + 1, true);
+        if(!msg)
+        {
+            continue;
+        }
+        SZ_Write(msg, data, tmp.cursize);
+        qvr::server::scopedEnd(waits ? qvr::server::scopedAvatarUnchanged : qvr::server::scopedAvatar);
+        if(waits)
+        {
+            avatarStats.skipped++;
+            continue;
+        }
+        ZA_MEMCPY(last.bytes, data, static_cast<size_t>(tmp.cursize));
+        last.size = tmp.cursize;
+        last.unsent = 0;
+        avatarStats.sent++;
+        avatarStats.bytes += tmp.cursize;
+    }
+}
+
+} // namespace
+
+extern "C" void VR_ServerFrameBegin()
+{
+    // This game's own player's drawn weapon poses, ground spots and holster presses into his slot, as a remote player's
+    // messages put his: the server's readers ask the slot alone (MP_PLAN B11a).
+    qvr::heldpose::publishOwn();
+}
+
 extern "C" void VR_ServerFrameEnd()
 {
     QVR_TRACY_SCOPE(zoneFrameEnd, "VR server frame end"); // (profiling builds only, as the steps' zones)
@@ -1481,6 +2450,7 @@ extern "C" void VR_ServerFrameEnd()
     QVR_TRACY_CALL("sv end: foe grab", qvr::foegrab::serverFrame()); // held enemies slowed and dragged (before their poses are kept)
     QVR_TRACY_CALL("sv end: body contact", qvr::bodycontact::serverFrame()); // a player and a monster overlapping (a hold let go of) pushed apart
     QVR_TRACY_CALL("sv end: hit model poses", qvr::hitmodel::serverFrame()); // precise hits: the client's lerp of the monsters' poses and steps, kept
+    QVR_TRACY_CALL("sv end: lag compensation", qvr::lagcomp::serverFrame()); // the players' and monsters' places and poses kept (a remote client's shots)
     qvr::disarmviz::serverFrame(); // Show Disarm Volumes: the fists measured against the armed humanoids' weapons (off: nothing)
     QVR_TRACY_CALL("sv end: axe stick", qvr::axestick::serverFrame()); // thrown axes stuck in things go with them (after the poses above)
     QVR_TRACY_CALL("sv end: foe grab spots", qvr::foegrab::afterPoses()); // the held spots placed (after the poses above); a hand pulled too far lets go
@@ -1521,6 +2491,8 @@ extern "C" void VR_ServerFrameEnd()
                 (now & ~(currentBitsMask << 1)) | ((bits.received & currentBitsMask) << 1)));
         }
     }
+
+    writeAvatars(); // the other players' heads and hands to each client that sees them
 
     // Late precaches (setmodel on an unprecached model, precache_* after load).
     broadcastNewPrecaches(sv.model_precache, broadcastModelCount, QVR_SVC_PRECACHE_MODEL);
@@ -1572,18 +2544,72 @@ void dumpPlayer_f()
         ent->v.weapon, fieldFloatOr(ent, f.weapon2, 0.f));
 }
 
+void learnSoundLoops()
+{
+    const double t0 = Sys_DoubleTime();
+    soundLoopsFor();
+    for(int num = 1; num < MAX_SOUNDS && sv.sound_precache[num]; num++)
+    {
+        if(soundLoops.isLoop[static_cast<za::SizeT>(num)] < 0)
+        {
+            (void)soundLoops_(num);
+        }
+    }
+    VR_TimeAdd("  the sounds read for their loops (vr_snd_loops)", Sys_DoubleTime() - t0); // (a fixed label: summed by it)
+}
+
 void resetClients()
 {
     clientMoves.clear();
+    avatarsSent.clear();
     // The sound loops (by entity and sound number) forgotten too: a restart, a loaded game or a changelevel of the same map
     // keeps sv.worldmodel and sv.name, but its sounds' precache order may differ (skill, Randomized Enemies).
     soundLoops.world = nullptr;
 }
 
+void avatarCounts(int& sent, int& skipped, long long& bytes)
+{
+    sent = avatarStats.sent;
+    skipped = avatarStats.skipped;
+    bytes = avatarStats.bytes;
+}
+
+namespace
+{
+// Forgotten with the server's world (vr_mem.hpp's resets): the clients' moves, the avatars sent, the sounds' loops.
+mem::Reset serverWorldReset{"server", mem::ResetEvent::ServerWorld, mem::ResetPhase::State, &resetClients};
+} // namespace
+
 const VrMove* clientMove(edict_t* player)
 {
     const ClientMove* m = clientMoveOf(player);
     return m ? &m->move : nullptr;
+}
+
+bool holsterPoint(edict_t* player, int slot, glm::vec3& out)
+{
+    const ClientMove* m = clientMoveOf(player);
+    if(!m || !m->move.holsters.valid || slot < 0 || slot >= VrDrawnHolsters::count)
+    {
+        return false;
+    }
+    out = glm::vec3{player->v.origin[0], player->v.origin[1], player->v.origin[2]} + m->move.holsters.at[slot] - m->move.origin;
+    return true;
+}
+
+CommandCounts commandCounts(int clientNum)
+{
+    if(clientNum < 0 || clientNum >= static_cast<int>(commandBudgets.size()))
+    {
+        return {0, 0, static_cast<int>(cmdBurst)};
+    }
+    const CommandBudget& b = commandBudgets[clientNum];
+    return {b.used, b.dropped, static_cast<int>(b.least)};
+}
+
+int mergedMoves(int clientNum)
+{
+    return clientNum >= 0 && clientNum < static_cast<int>(clientBits.size()) ? clientBits[clientNum].merged : 0;
 }
 
 void rebaseHands(edict_t* player)
@@ -1859,6 +2885,8 @@ void init()
 {
     Cmd_AddCommand("vr_dumpplayer", dumpPlayer_f);
     Cmd_AddCommand("vr_net_stats", netStats_f);
+    Cmd_AddCommand("vr_net_broadcast_report", broadcastReport_f); // [reset]: the broadcast's bytes sent and culled (B13b)
+    Cmd_AddCommand("vr_net_reliable_test", netReliableTest_f);
     Cmd_AddCommand("vr_snd_loops", soundLoops_f);
     climb::init();
     foegrab::init();

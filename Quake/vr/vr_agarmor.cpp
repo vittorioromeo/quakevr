@@ -5340,6 +5340,19 @@ int playerBridgePoses(const qmodel_t* body, int pieces, const float* bones, int 
     return n;
 }
 
+int playerBridgePosesInto(const qmodel_t* body, int pieces, const float* bones, int have, float* out)
+{
+    static_assert(playerPlatesMostBones == maxSlots && playerBridgeMostBones == bridgeMostVerts);
+    const int i = body ? shellNamed(body->name) : -1;
+    const Shell* s = i >= 0 ? &at(shells, i) : nullptr;
+    const int n = s ? s->bridgeVerts : 0;
+    if(n > 0 && out)
+    {
+        (void)bridgeBones(*s, pieces, bones, bones ? have : 0, out);
+    }
+    return n;
+}
+
 void benchPose()
 {
     const float bend = vr_agarmor_bend.value, frameAt = vr_agarmor_pose_frame.value;

@@ -101,6 +101,7 @@ void VR_RetroSprite (const struct entity_s *e, const struct mspriteframe_s *fram
 float VR_RetroParticles (void);						// R_DrawParticles_Real: the Particles set for Quake's particles (0 none); bound
 void VR_RetroAlias (const struct entity_s *e, const void *aliashdr, int standard, float out[4], float part[4]); // VR_AliasInstance: its set, its skin's Quake size; your body's parts by bone
 void VR_WaterFog (float fog[4], float skyfog[4]);			// Fog_SetupFrame: an eye's fog in a liquid (vr_water.cpp)
+void VR_PostProcessView (void);						// GL_PostProcess, program in use: the view's drawn size and its targets' map (PostView, SceneMap)
 void VR_PostProcessWater (void);						// GL_PostProcess, program in use: an eye's underwater wobble and blur
 int VR_MapLiquidAlpha (void);							// R_UpdateLiquidAlpha: nonzero if a map's own liquid alphas (worldspawn) win over the settings (vr_map_liquid_alpha)
 unsigned VR_WaterSceneDepth (int translucent);		// liquids drawn: how far the opaque scene is, to refract by and for the foam (0: none)
@@ -356,6 +357,7 @@ unsigned VR_ExtMapsCall (const struct texture_s *t, struct gltexture_s **normalm
 unsigned VR_OpaqueSceneTexture (void);					// the opaque scene's colours translucent liquids can read (0: none)
 void VR_BindOpaqueScene (void);							// R_DrawBrushModels_Water: ... on unit 6, resolved first with MSAA
 unsigned VR_SceneTarget (unsigned *color, unsigned *depth, int *samples, int viewport[4]); // the scene's framebuffer, textures (0: the window's), viewport
+void VR_NativeTextureDeleted (unsigned texnum);					// GL_DeleteNativeTexture: framebuffers kept with it attached deleted (a name GL hands out again is another texture)
 
 // Model loading (vr_modelload.cpp; gl_model.c). `mod` is the model loading, `hdr` its aliashdr_t.
 void VR_LoadLux (struct qmodel_s *mod, lump_t *l);		// Mod_LoadLighting: the light's directions (a .lux beside the .lit; deluxemaps)

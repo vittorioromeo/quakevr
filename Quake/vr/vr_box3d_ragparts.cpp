@@ -373,12 +373,17 @@ namespace
     {
         *moved = 0.f;
     }
-    const za::Vector<glm::vec4>& fist = held::fist(hand);
-    if(vr_ragdoll_grab_fit.value <= 0.f || hand < 0 || hand > 1 || pnum != 1 || cls.state == ca_dedicated || fist.empty())
+    // (each player's own hand's frame and fist, as his client measured them: B3d; a player whose fist has not come up
+    // yet, none)
+    const edict_t* player = pnum >= 1 && pnum <= svs.maxclients && sv.qcvm.edicts
+                                ? (const edict_t*)((const byte*)sv.qcvm.edicts + pnum * sv.qcvm.edict_size)
+                                : nullptr;
+    const za::Vector<glm::vec4>& fist = held::fistOf(player, hand);
+    if(vr_ragdoll_grab_fit.value <= 0.f || hand < 0 || hand > 1 || !player || fist.empty())
     {
-        return held; // (the hand's frame and fist are the local player's: measured by the client)
+        return held;
     }
-    const grip::HandFrame f = grip::handFrame(hand, hand == 0, true);
+    const grip::HandFrame f = grip::handFrameOf(player, hand, hand == 0);
     const glm::vec3 nLocal = glm::normalize(f.palmNormal);
     const glm::vec3 n = glm::normalize(turn * nLocal);
     const glm::mat3 axes = glm::mat3_cast(turn);

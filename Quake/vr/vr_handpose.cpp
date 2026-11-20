@@ -809,4 +809,10 @@ void reset()
     weight::reset();
 }
 
+namespace
+{
+// Forgotten when the client's state is cleared (vr_mem.hpp's resets): the hands' memory, with the weights'.
+mem::Reset clientStateReset{"handpose", mem::ResetEvent::ClientState, mem::ResetPhase::State, &reset};
+} // namespace
+
 } // namespace qvr::handpose

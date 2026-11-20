@@ -1117,7 +1117,7 @@ void IN_JoyMove (usercmd_t *cmd)
 	moveEased = IN_ApplyEasing(moveDeadzone, joy_exponent_move.value);
 	lookEased = IN_ApplyEasing(lookDeadzone, joy_exponent.value);
 
-	if ((in_speed.state & 1) ^ (cl_alwaysrun.value != 0.0 || cl_forwardspeed.value >= sv_maxspeed.value))
+	if (VR_SpeedButton (in_speed.state & 1) ^ (cl_alwaysrun.value != 0.0 || cl_forwardspeed.value >= sv_maxspeed.value)) // QVR: VR_SpeedButton (vr_sprint_toggle)
 		// running
 		speed = sv_maxspeed.value;
 	else if (cl_forwardspeed.value >= sv_maxspeed.value)

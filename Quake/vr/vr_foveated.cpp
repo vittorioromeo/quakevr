@@ -277,13 +277,7 @@ void APIENTRY watchedBindFramebuffer(GLenum target, GLuint framebuffer)
 GLuint debugProgram = 0;
 bool debugFailed = false;
 
-constexpr const char* debugVs = R"(#version 430
-void main()
-{
-    ivec2 v = ivec2(gl_VertexID & 1, gl_VertexID >> 1);
-    gl_Position = vec4(vec2(v) * 4.0 - 1.0, 0.0, 1.0);
-}
-)";
+constexpr const char* debugVs = gfx::fullscreenTriangleVs;
 
 constexpr const char* debugFs = R"(#version 430
 layout(binding = 0) uniform usampler2D Rates;

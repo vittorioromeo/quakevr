@@ -729,6 +729,7 @@ static void PF_traceline (void)
 	trace_t	trace;
 	int	nomonsters;
 	edict_t	*ent;
+	int	lagcomp; // QVR
 
 	v1 = G_VECTOR(OFS_PARM0);
 	v2 = G_VECTOR(OFS_PARM1);
@@ -750,9 +751,12 @@ static void PF_traceline (void)
 		v2[0] = v2[1] = v2[2] = 0;
 
 	VR_PortalTraceBegin (); // QVR: (the last portal trace's crossings forgotten)
+	lagcomp = (nomonsters & MOVE_HITMODEL) ? VR_LagCompBegin (ent) : 0; // QVR: a remote client's shot: what he saw (vr/vr_lagcomp.cpp)
 	trace = SV_Move (v1, vec3_origin, vec3_origin, v2, nomonsters & ~MOVE_PORTALS, ent);
 	if (nomonsters & MOVE_PORTALS) // QVR: on through the teleporters it crosses (vr/vr_portals.cpp)
 		VR_PortalTrace (v1, v2, nomonsters & ~MOVE_PORTALS, ent, &trace);
+	if (lagcomp) // QVR
+		VR_LagCompEnd ();
 
 	pr_global_struct->trace_allsolid = trace.allsolid;
 	pr_global_struct->trace_startsolid = trace.startsolid;

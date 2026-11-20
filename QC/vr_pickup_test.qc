@@ -798,6 +798,99 @@ void() VR_KeyTipTest_Frame =
     }
 };
 
+// vr_pickup_test 18 (MP_PLAN B3c: in multiplayer a gun let go of from a remote player's still, open hand was seen resting
+// on his palm, 3-5 cm over the closing fist, and not taken back): single player's case. The mock's main hand still in
+// front of him, palm up, gripping; the shotgun given (impulse 154) once the grip is held; held 0.5 s, let go; after 1 s
+// it is out of the hand and on the floor: it passed through the open hand's new body (reachSink), so no gun is left
+// over a closing fist here. (A gun that does rest on a hand: vr_pickup_test 17.) Ends on "palmrest test:".
+float palmrest_step;   // 0 idle; 1 gripping, the gun to come; 2 held; 3 let go, falling
+float palmrest_frames; // frames in this step
+entity palmrest_gun;
+
+void() VR_PalmRestTest_Start =
+{
+    VR_Test_BeginFlags("palmrest test", VR_TEST_LOUD);
+    localcmd("vr_mock_hand main 0.1 1.0 -0.35 0 0 -90; vr_mock_button main grip 1\n");
+    palmrest_step = 1;
+    palmrest_frames = 0;
+    palmrest_gun = world;
+};
+
+void(float to) VR_PalmRestTest_To =
+{
+    palmrest_step = to;
+    palmrest_frames = 0;
+};
+
+// Every server frame while it runs (self is the player).
+void() VR_PalmRestTest_Frame =
+{
+    if(!palmrest_step)
+    {
+        return;
+    }
+    palmrest_frames++;
+    if(palmrest_frames > 360)
+    {
+        VR_Test_Check(FALSE, sprintf("timed out in step %g", palmrest_step));
+        VR_Test_Verdict();
+        localcmd("vr_mock_button main grip 0\n");
+        palmrest_step = 0;
+        return;
+    }
+    if(palmrest_step == 1)
+    {
+        // (the hand placed and still, its grip on the server: the give lands in a gripping hand)
+        if(palmrest_frames == 36 && VR_HandGrabUtil_IsHandGrabbing(self, cVR_MainHand))
+        {
+            localcmd("impulse 154\n");
+        }
+        if(palmrest_frames > 36 && self.weapon == WID_SHOTGUN)
+        {
+            VR_PalmRestTest_To(2);
+        }
+        return;
+    }
+    if(palmrest_step == 2)
+    {
+        if(palmrest_frames < 36)
+        {
+            return;
+        }
+        VR_Test_Check(self.weapon == WID_SHOTGUN, "the given shotgun in the gripping main hand");
+        localcmd("vr_mock_button main grip 0\n");
+        VR_PalmRestTest_To(3);
+        return;
+    }
+    if(palmrest_step == 3)
+    {
+        if(palmrest_frames < 72)
+        {
+            return;
+        }
+        float least = 999999;
+        entity e = find(world, classname, "thrown_weapon");
+        while(e != world)
+        {
+            if(vlen(e.origin - self.handpos) < least)
+            {
+                least = vlen(e.origin - self.handpos);
+                palmrest_gun = e;
+            }
+            e = find(e, classname, "thrown_weapon");
+        }
+        VR_Test_Check(self.weapon != WID_SHOTGUN && palmrest_gun != world, "let go of: out of the hand");
+        // (Let go of in the hand, it is inside the open hand's new body and passes through it, by design: vr_box3d_hands.cpp
+        // reachSink. Single player keeps no gun on a still, open palm, so none is left over a closing fist there.)
+        VR_Test_Check(palmrest_gun != world && palmrest_gun.origin_z < self.absmin_z + 12,
+            sprintf("it passes through the open hand to the floor (%.1f units below the hand, %.1f over the floor)",
+                palmrest_gun != world ? self.handpos_z - palmrest_gun.origin_z : 0,
+                palmrest_gun != world ? palmrest_gun.origin_z - self.absmin_z : 0));
+        VR_Test_Verdict();
+        palmrest_step = 0;
+    }
+};
+
 // vr_pickup_test 17 (his 2026-11-15 design; MP_PLAN B3c: a gun on an open palm sits 3-5 cm over the fist closing under
 // it): a hand closing on a gun resting on or against it takes it by the handle where the fist reaches the handle, else
 // as a prop where it lies against the hand (carried, QVR_WPNFLAG_FOREGRIP_CARRIED); no more reach anywhere. The shotgun
@@ -1033,12 +1126,23 @@ void() VR_PickupTest_Frame =
         }
         self = kself;
     }
+    if(palmrest_step && VR_Player() != world)
+    {
+        entity pself = self;
+        self = VR_Player();
+        VR_PalmRestTest_Frame();
+        self = pself;
+    }
     if(palmgrab_step && VR_Player() != world)
     {
         entity pgself = self;
         self = VR_Player();
         VR_PalmGrabTest_Frame();
         self = pgself;
+    }
+    if(vr_rdt_step && VR_Player() != world)
+    {
+        VR_ReadyTest_Frame();
     }
     float ask = cvar_hget(cvarh_vr_pickup_test);
     if(!ask)
@@ -1124,6 +1228,30 @@ void() VR_PickupTest_Frame =
     else if(ask == 17)
     {
         VR_PalmGrabTest_Start(); // (a gun resting on the open off palm taken by closing it; VR_PalmGrabTest_Frame runs it on)
+    }
+    else if(ask == 18)
+    {
+        VR_PalmRestTest_Start(); // (a gun on the open palm taken back by closing the hand; VR_PalmRestTest_Frame runs it on)
+    }
+    else if(ask == 19)
+    {
+        VR_ItemTargetsTest_Run(); // (an item's targets fire only when it is taken: vr_itemrules_test.qc)
+    }
+    else if(ask == 20)
+    {
+        VR_AmmoRollTest_Run(); // (the ammo boxes' weapon roll: once a box, against the player: vr_itemrules_test.qc)
+    }
+    else if(ask == 21)
+    {
+        VR_CtfParmsTest_Run(); // (CTF's level change carries nothing: vr_itemrules_test.qc)
+    }
+    else if(ask == 22)
+    {
+        VR_ReadyTest_Start(); // (each player's readiness his own: vr_itemrules_test.qc; VR_ReadyTest_Frame runs it on)
+    }
+    else if(ask == 23)
+    {
+        VR_MjolnirModelTest_Run(); // (a player holding Mjolnir is player.mdl: vr_itemrules_test.qc)
     }
     self = oself;
 };

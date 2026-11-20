@@ -16,7 +16,7 @@
 // tore it out batted it as a projectile at 450 to 1500 u/s (ROUND21.md, "Small gibs batted by the blade").
 float(entity e) VR_Deflect_IsProjectile =
 {
-    if(e.vr_gib || !(e.owner.flags & FL_MONSTER) || e.solid == SOLID_NOT || !e.touch || (e.takedamage && !e.vr_shootnade))
+    if(e.vr_gib || !((e.owner.flags & FL_MONSTER) || e.vr_foeshot) || e.solid == SOLID_NOT || !e.touch || (e.takedamage && !e.vr_shootnade))
     {
         return FALSE;
     }

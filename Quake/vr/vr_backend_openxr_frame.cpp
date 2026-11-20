@@ -7,6 +7,7 @@
 #include "vr_perfrec.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
+#include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 
 #ifdef QVR_HAVE_OPENXR
@@ -21,7 +22,14 @@ bool OpenXrBackend::beginFrame(TrackingState& tracking, FrameState& frame)
 
     if(frameBegun)
     {
-        endFrame(false); // the previous frame was not rendered (e.g. while loading)
+        // The previous frame was not rendered, nor finished after its panel's copy (vr_panel.cpp): the screen not
+        // drawn (a load, scr_disabled_for_loading).
+        timing.endedLate++;
+        endFrame(false);
+    }
+    if(lostByResult) // (the last xrEndFrame's)
+    {
+        return false;
     }
 
     double t0 = Sys_DoubleTime();
@@ -38,6 +46,7 @@ bool OpenXrBackend::beginFrame(TrackingState& tracking, FrameState& frame)
     }
     if(!sessionRunning)
     {
+        paceUnwaited();
         return true;
     }
 
@@ -68,6 +77,7 @@ bool OpenXrBackend::beginFrame(TrackingState& tracking, FrameState& frame)
 
     XrFrameWaitInfo waitInfo{XR_TYPE_FRAME_WAIT_INFO};
     frameState = XrFrameState{XR_TYPE_FRAME_STATE};
+    traceFrame("xrWaitFrame");
     profile::begin("xrWaitFrame", false); // the runtime's pacing alone (vr_memstats_log)
     t0 = Sys_DoubleTime();
     const XrResult waited = xrWaitFrame(session, &waitInfo, &frameState);
@@ -75,12 +85,18 @@ bool OpenXrBackend::beginFrame(TrackingState& tracking, FrameState& frame)
     profile::end();
     if(!checkFrameCall(waited, "xrWaitFrame"))
     {
+        if(lostBy(waited, "xrWaitFrame"))
+        {
+            return false;
+        }
+        paceUnwaited();
         return true;
     }
     profile::noteDisplayPeriod(static_cast<double>(frameState.predictedDisplayPeriod) * 1e-6);
     noteWaited();
 
     XrFrameBeginInfo beginInfo{XR_TYPE_FRAME_BEGIN_INFO};
+    traceFrame("xrBeginFrame", frameState.shouldRender ? "" : " (shouldRender false)");
     profile::begin("xrBeginFrame", false);
     t0 = Sys_DoubleTime();
     const XrResult begun = xrBeginFrame(session, &beginInfo);
@@ -88,7 +104,7 @@ bool OpenXrBackend::beginFrame(TrackingState& tracking, FrameState& frame)
     profile::end();
     if(!check(begun, "xrBeginFrame"))
     {
-        return true;
+        return !lostBy(begun, "xrBeginFrame");
     }
     frameBegun = true;
     QVR_PROFILE("tracking"); // the actions' sync, the views, the controllers
@@ -98,6 +114,7 @@ bool OpenXrBackend::beginFrame(TrackingState& tracking, FrameState& frame)
     XrActionsSyncInfo syncInfo{XR_TYPE_ACTIONS_SYNC_INFO};
     syncInfo.countActiveActionSets = 1;
     syncInfo.activeActionSets = &active;
+    traceFrame("xrSyncActions, xrLocateViews, the controllers");
     QVR_TRACY_CALL("xrSyncActions", xrSyncActions(session, &syncInfo));
     timeCall(CallSync, t0);
 
@@ -299,11 +316,32 @@ void OpenXrBackend::endFrame(bool rendered)
 
     endInfo.layerCount = count;
     endInfo.layers = count ? submitted : nullptr;
+    if(traceFramesLeft > 0)
+    {
+        const bool projected = count > 0 && submitted[0] == reinterpret_cast<const XrCompositionLayerBaseHeader*>(&layer);
+        const bool quadSent = count > (projected ? 1u : 0u);
+        traceFrame("xrEndFrame", va(" (%u layer%s%s%s)", count, count == 1 ? "" : "s",
+                                     projected ? ": the eyes' projection" : "",
+                                     quadSent ? (projected ? " and the panel's quad" : ": the panel's quad") : ""));
+    }
     const double t0 = Sys_DoubleTime();
     xrstall::debugStall(); // (vr_debug_frame_stall_ms: as if the runtime held the frame)
     XrResult ended = XR_SUCCESS;
     QVR_TRACY_CALL("xrEndFrame", ended = xrEndFrame(session, &endInfo));
-    checkFrameCall(ended, "xrEndFrame");
+    if(!checkFrameCall(ended, "xrEndFrame"))
+    {
+        lostBy(ended, "xrEndFrame");
+    }
+    if(traceFramesLeft > 0)
+    {
+        // The last traced frame says so: a later crash's "last OpenXR step" isn't this frame's.
+        if(--traceFramesLeft == 0)
+        {
+            step("frame %d: xrEndFrame returned; the first %d frames were traced, the next ones aren't", tracedFrame,
+                tracedFrames);
+        }
+        tracedFrame++;
+    }
     const double endMs = timeCall(CallEnd, t0);
     timing.frames++;
     // Held frames (the runtime holding them, as at the 2026-10-17 drop): said once as they start and end.
@@ -332,6 +370,38 @@ bool OpenXrBackend::checkFrameCall(XrResult result, const char* what) const
     resultText(instance, result, text);
     xrstall::callFailed(what, static_cast<int>(result), text);
     return false;
+}
+
+bool OpenXrBackend::lostBy(XrResult result, const char* call)
+{
+    if(result != XR_ERROR_SESSION_LOST && result != XR_ERROR_INSTANCE_LOST)
+    {
+        return false;
+    }
+    if(!lostByResult)
+    {
+        lostByResult = true;
+        endReason = SessionEnd::Lost;
+        const bool instanceLost = result == XR_ERROR_INSTANCE_LOST;
+        const char* code = instanceLost ? "XR_ERROR_INSTANCE_LOST" : "XR_ERROR_SESSION_LOST";
+        noteState(code);
+        xrruntime::logLine(va("%s %s: %s: the %s is lost, no loss event came first (states: %s)\n", wallClock(), call,
+            code, instanceLost ? "runtime" : "session", stateTrailText));
+    }
+    return true;
+}
+
+void OpenXrBackend::paceUnwaited()
+{
+    const XrDuration period = frameState.predictedDisplayPeriod; // (the last wait's; 0 after a failed one)
+    const double seconds = period > 0 ? za::clamp(static_cast<double>(period) * 1e-9, 1.0 / 240.0, 1.0 / 30.0) : 1.0 / 90.0;
+    const double now = Sys_DoubleTime();
+    const double wake = unwaitedLast + seconds;
+    if(now < wake)
+    {
+        Sys_Sleep(static_cast<unsigned long>((wake - now) * 1000.0 + 0.5));
+    }
+    unwaitedLast = za::max(now, wake);
 }
 
 void OpenXrBackend::noteWaited()
@@ -366,10 +436,11 @@ void OpenXrBackend::noteWaited()
     }
     if(vr_xr_log_timing.value != 0.f)
     {
-        za::String line = va("%s xr %.1fs: %d frames (%d rendered, %d last again, %d panel, %d empty; shouldRender off %d), "
+        za::String line = va("%s xr %.1fs: %d frames (%d rendered, %d last again, %d panel, %d empty, %d ended by the next "
+                             "frame; shouldRender off %d), "
                              "%d display periods missed (%.2f ms), period %.2f/%.2f ms; ms avg/max:",
             wallClock(), now - timing.since, timing.frames, timing.rendered, timing.held, timing.panels, timing.empty,
-            timing.noRender, timing.missed, timing.periodNs * 1e-6,
+            timing.endedLate, timing.noRender, timing.missed, timing.periodNs * 1e-6,
             timing.period.count ? timing.period.sum / timing.period.count : 0.0, timing.period.max);
         static constexpr const char* names[CallCount] = {
             "poll", "wait", "begin", "sync", "acquire", "waitimage", "release", "end"};
@@ -506,6 +577,15 @@ bool OpenXrBackend::createSwapchain(Swapchain& sc, int32_t width, int32_t height
     sc.handle = handle;
     sc.width = width;
     sc.height = height;
+    // A failure from here on destroys it and empties the record: a handle kept with no images or bad ones would be
+    // taken for a made swapchain (the panel's, next frame: ensurePanelSwapchain), its images acquired and never released.
+    const auto failed = [this, &sc]
+    {
+        const XrSwapchain made = sc.handle;
+        guarded("xrDestroySwapchain", [made] { return xrDestroySwapchain(made); });
+        sc = Swapchain{};
+        return false;
+    };
 
     uint32_t imageCount = 0;
     step("%s: xrEnumerateSwapchainImages (the count)", what);
@@ -514,14 +594,14 @@ bool OpenXrBackend::createSwapchain(Swapchain& sc, int32_t width, int32_t height
     if(runtimeFaulted || !check(counted, "xrEnumerateSwapchainImages (the count)") || imageCount == 0 || imageCount > 64)
     {
         xrruntime::warn("OpenXR: %s: %u images\n", what, imageCount);
-        return false;
+        return failed();
     }
     sc.images.clear();
     sc.images.resize(imageCount, SwapchainImageGl{swapchainImageGlType});
     step("%s: xrEnumerateSwapchainImages (%u OpenGL images)", what, imageCount);
     if(!contextReady(what))
     {
-        return false;
+        return failed();
     }
     XrSwapchainImageBaseHeader* images = reinterpret_cast<XrSwapchainImageBaseHeader*>(sc.images.data());
     uint32_t filled = 0;
@@ -529,14 +609,14 @@ bool OpenXrBackend::createSwapchain(Swapchain& sc, int32_t width, int32_t height
         { return xrEnumerateSwapchainImages(handle, imageCount, &filled, images); });
     if(runtimeFaulted || !check(enumerated, "xrEnumerateSwapchainImages (the images)"))
     {
-        return false;
+        return failed();
     }
     for(const SwapchainImageGl& image : sc.images)
     {
         if(image.image == 0)
         {
             xrruntime::warn("OpenXR: %s: the runtime gave %u images, one of them texture 0\n", what, filled);
-            return false;
+            return failed();
         }
     }
     // Named for vr_vram_report (the runtime's textures, in our context; a name that is not ours: a GL error, cleared).
@@ -575,6 +655,8 @@ unsigned OpenXrBackend::acquireImage(const Swapchain& sc)
 {
     XrSwapchainImageAcquireInfo acquireInfo{XR_TYPE_SWAPCHAIN_IMAGE_ACQUIRE_INFO};
     uint32_t index = 0;
+    traceFrame("xrAcquireSwapchainImage, xrWaitSwapchainImage",
+        &sc == &panel ? " (the panel)" : &sc == &swapchains[0] ? " (the left eye)" : " (the right eye)");
     double t0 = Sys_DoubleTime();
     XrResult acquired = XR_SUCCESS;
     QVR_TRACY_CALL("xrAcquireSwapchainImage", acquired = xrAcquireSwapchainImage(sc.handle, &acquireInfo, &index));
@@ -599,8 +681,10 @@ unsigned OpenXrBackend::acquireImage(const Swapchain& sc)
     return sc.images[index].image;
 }
 
-bool OpenXrBackend::releaseImage(const Swapchain& sc) const
+bool OpenXrBackend::releaseImage(const Swapchain& sc)
 {
+    traceFrame("xrReleaseSwapchainImage",
+        &sc == &panel ? " (the panel)" : &sc == &swapchains[0] ? " (the left eye)" : " (the right eye)");
     XrSwapchainImageReleaseInfo releaseInfo{XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO};
     XrResult released = XR_SUCCESS;
     QVR_TRACY_CALL("xrReleaseSwapchainImage", released = xrReleaseSwapchainImage(sc.handle, &releaseInfo));

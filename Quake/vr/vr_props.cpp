@@ -1,6 +1,7 @@
 // vr_props.cpp -- see vr_props.hpp.
 
 #include "vr_box3d.hpp"
+#include "vr_mem.hpp"
 #include "vr_modelmetadata.hpp"
 #include "vr_props.hpp"
 #include "vr_cvars.hpp"
@@ -447,6 +448,12 @@ void resetModelCache()
 {
     clearSlotCaches();
 }
+
+namespace
+{
+// Forgotten with the server's world (vr_mem.hpp's resets): the models' slots (the models' names may be others' now).
+mem::Reset serverWorldReset{"props", mem::ResetEvent::ServerWorld, mem::ResetPhase::State, &resetModelCache};
+} // namespace
 
 unsigned settingsGeneration()
 {

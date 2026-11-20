@@ -182,6 +182,14 @@ float lightAt(const glm::vec3& point)
         ownLight = {};
         return -1.f;
     }
+    if(vr_mp_lockstep_ahead.value >= 1.f)
+    {
+        // (the harness's lockstep, B14c: each move's own, read afresh -- the tenth of a second's samples fell at the
+        // client's clock since its load, and the lightmap's cached spot moved with them: two runs' .stl_light apart)
+        lightCache = {};
+        ownLight = {lightNow(point), cl.time, cl.worldmodel};
+        return ownLight.light;
+    }
     if(ownLight.world != cl.worldmodel || cl.time >= ownLight.at + 0.1 || cl.time < ownLight.at)
     {
         ownLight = {lightNow(point), cl.time, cl.worldmodel};

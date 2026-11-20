@@ -36,9 +36,13 @@ struct Lens
 // The tangent of vr_upscale_radius (0: everywhere), for the debug overlay.
 [[nodiscard]] float radiusTangent();
 
-// The eye's post-processed colours, `source` (width x height, its framebuffer `sourceFbo`), into the framebuffer
-// `target` (imageWidth x imageHeight). Leaves `target` bound.
-void resample(int eye, GLuint source, GLuint sourceFbo, int width, int height, GLuint target, int imageWidth,
-    int imageHeight);
+// VR stopped (stereo::releaseTargets): the upscaled image's target freed (made again at its next use).
+void releaseTargets();
+
+// The eye's post-processed colours, `source` (width x height, its framebuffer `sourceFbo`: the bottom left of a texture
+// allocatedWidth x allocatedHeight, larger under dynamic resolution, whose texels past the part it edges with the part's
+// last ones), into the framebuffer `target` (imageWidth x imageHeight). Leaves `target` bound.
+void resample(int eye, GLuint source, GLuint sourceFbo, int width, int height, int allocatedWidth, int allocatedHeight,
+    GLuint target, int imageWidth, int imageHeight);
 
 } // namespace qvr::upscale

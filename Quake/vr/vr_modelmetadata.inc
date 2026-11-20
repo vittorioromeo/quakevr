@@ -77,6 +77,10 @@ QVR_MODEL_ID(Scor, "progs/scor.mdl")
 QVR_MODEL_ID(Player, "progs/player.mdl")
 // Dawn of the Machine's super shambler, read from the owned MG3 pack in place (its ragdoll rig: vr_ragdoll.cpp).
 QVR_MODEL_ID(Mg3ShamblerBlood, "owned/mg3/progs/shambler_blood.mdl")
+// Dwell's Brute (QC dwell/dw_monsters.qc; DWELL.md P2b), read from Dwell's folder (its ragdoll rig: vr_ragdoll.cpp).
+QVR_MODEL_ID(DwBrute, "progs/e2/mon_brute.mdl")
+// Dwell's bullet-hell shot (QC dwell/dw_bosses.qc): flagless, given a trail and its glow (vr_view.cpp patchModelFlags).
+QVR_MODEL_ID(DwHellBullet, "progs/e2/hell_bullet.mdl")
 QVR_MODEL_ID(Legholster, "progs/legholster.mdl")
 QVR_MODEL_ID(Vrflashlight, "progs/vrflashlight.mdl")
 QVR_MODEL_ID(BulletDecal, "progs/s_bullet.spr")

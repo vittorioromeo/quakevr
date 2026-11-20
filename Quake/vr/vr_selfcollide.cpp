@@ -1562,6 +1562,13 @@ void reset()
     viewOn = false;
 }
 
+namespace
+{
+// Forgotten when the client's state is cleared (vr_mem.hpp's resets): the body's contacts and fits (a slot may be
+// another model's).
+mem::Reset clientStateReset{"selfcollide", mem::ResetEvent::ClientState, mem::ResetPhase::State, &reset};
+} // namespace
+
 void bench_f()
 {
     const hands::State& s = hands::current();

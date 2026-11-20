@@ -29,6 +29,13 @@
 // - The simulations (vr_audiosim.hpp): the map's scene built on the pool at each new map; doors and lifts moved in
 //   it; the direct paths 30 times a second and the reverb every vr_snd_reverb_interval, each a pool task, their
 //   results taken under a mutex.
+// - Threads (the channels, snd_channels, and the mix's clock): the main thread's hooks run inside Ironwail's sound entry
+//   points, after their S_MixJoin: VR_SndListener, VR_SndHandOf and VR_SndKeepStatics (S_Update), VR_SndSpatialize and
+//   VR_SndStarted (S_StartSound), VR_SndStopAll (S_StopAllSounds), VR_SndHoldsSfx (S_ForgetGameSounds), VR_SndRebase
+//   (S_RebaseSoundTime). The mixer's run inside S_Update_, on a pool worker while the screen draws (S_MixKick) or on
+//   the main thread with no mix posted: VR_SndMixEnd, VR_SndPaint (and the voices' tasks it starts), VR_SndOwns,
+//   VR_SndBus, VR_SndBypass, VR_SndShadow, VR_SndLimit, VR_SndCapture, VR_SndGameMix. Development builds check every
+//   read of the channels by name (q_sound.h, S_MixCheckAt: on the main thread only with no mix posted).
 
 #include "vr_stats.hpp"
 #include "vr_geom.hpp"
@@ -1743,6 +1750,7 @@ void init()
     Cmd_AddCommand("vr_snd_bench", bench_f);
     Cmd_AddCommand("vr_snd_wav_check", wavCheck_f);
     Cmd_AddCommand("vr_snd_wrap_test", wrapTest_f);
+    Cmd_AddCommand("vr_snd_mixcheck_test", mixCheckTest_f);
     makeInterpTable();
 }
 
@@ -2324,6 +2332,35 @@ extern "C" void VR_SndJobWait(void)
         mixTask.wait();
         mixPosted = false;
     }
+}
+
+qvr::audio::detail::MixCheckCount qvr::audio::detail::mixCheckCount;
+
+bool qvr::audio::detail::mixOnPool()
+{
+    return mixPosted;
+}
+
+// S_MixCheckAt's failure (development builds; q_sound.h): `file`:`line` read the channels or the mix's clock on the
+// main thread while the mix runs on the pool, with no S_MixJoin first: a race with the mixer. In a development build the
+// game ends with the crash report naming the reader (vr_snd_mixcheck_test counts it instead); a release has no checks.
+extern "C" void VR_SndMixRace(const char* file, int line)
+{
+    qvr::audio::detail::MixCheckCount& c = qvr::audio::detail::mixCheckCount;
+    if(c.counting)
+    {
+        ++c.caught;
+        c.file = file;
+        c.line = line;
+        return;
+    }
+#ifdef QVR_RELEASE
+    // (A release has no checked reads, q_sound.h: never reached; and never an error ending a player's game if it were.)
+    Con_DPrintf("S_MixCheck: %s:%d read the sound's channels with the mix on the pool\n", file, line);
+#else
+    Sys_Error("S_MixCheck: %s:%d read the sound's channels on the main thread while the mix runs on the pool "
+              "(S_MixJoin () first)", file, line);
+#endif
 }
 
 

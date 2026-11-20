@@ -246,7 +246,7 @@ void (entity attacker, float damage) nopain =
 */
 void() monster_oldone =
 {
-    if(MG_MonsterInhibited()) return;
+    if(VR_SF_SpawnInhibited()) return;
     if(deathmatch)
     {
         remove(self);

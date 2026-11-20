@@ -1,6 +1,7 @@
 // vr_foegrab.cpp -- holding enemies: see vr_foegrab.hpp.
 
 #include "vr_foegrab_internal.hpp"
+#include "vr_mem.hpp"
 #include "vr_modelcollide.hpp"
 #include "vr_progs.hpp"
 #include "vr_physics.hpp"
@@ -205,15 +206,15 @@ bool bodyFrame(edict_t* m, glm::vec3& origin, glm::mat3& axes)
 // The palm's middle of `ent`'s hand `h` (the move's place and turn, the hand's measured frame: grip::handFrame).
 [[nodiscard]] glm::vec3 palmOf(edict_t* ent, const VrMove& move, int h)
 {
-    const grip::HandFrame f = grip::handFrame(h, h == 0, NUM_FOR_EDICT(ent) == 1);
-    return move.hands[h].pos + held::axesFromAngles(&move.hands[h].rot[0], true) * f.palm;
+    const grip::HandFrame f = grip::handFrameOf(ent, h, h == 0); // (each player's own: B3d)
+    return move.hands[h].pos +held::axesFromAngles(&move.hands[h].rot[0], true) * f.palm;
 }
 } // namespace
 
 // The same from the controller's own point (VrHandMove::tracked: before the level held the drawn hand out of it).
 [[nodiscard]] glm::vec3 trackedPalmOf(edict_t* ent, const VrMove& move, int h)
 {
-    const grip::HandFrame f = grip::handFrame(h, h == 0, NUM_FOR_EDICT(ent) == 1);
+    const grip::HandFrame f = grip::handFrameOf(ent, h, h == 0);
     return move.hands[h].tracked + held::axesFromAngles(&move.hands[h].rot[0], true) * f.palm;
 }
 
@@ -2604,6 +2605,13 @@ void qvr::foegrab::reset()
         });
     }
 }
+
+namespace
+{
+// Forgotten with the server's world (vr_mem.hpp's resets): the holders (a saved game's held monsters let go).
+qvr::mem::Reset serverWorldReset{
+    "foegrab", qvr::mem::ResetEvent::ServerWorld, qvr::mem::ResetPhase::State, &qvr::foegrab::reset};
+} // namespace
 
 void qvr::foegrab::preThink(edict_t* ent)
 {

@@ -196,6 +196,7 @@ void CL_Disconnect (void)
 	cl.intermission = 0;
 	cl.sendprespawn = false;
 	CL_ClearSignons ();
+	VR_ServerRulesLeft (); // QVR: a remote server's rules no longer govern: the player's own back
 
 	V_ResetEffects ();
 }
@@ -231,6 +232,7 @@ void CL_EstablishConnection (const char *host)
 	if (!cls.netcon)
 		Host_Error ("CL_Connect: connect failed");
 	Con_DPrintf ("CL_EstablishConnection: connected to %s\n", host);
+	VR_MpNoteConnect (host); // QVR: where to join again after mounting the server's map package (vr/vr_mpdownload.cpp)
 
 	cls.demonum = -1;			// not in the demo loop now
 	cls.state = ca_connected;
@@ -553,6 +555,7 @@ void CL_RelinkEntities (void)
 
 // determine partial update time
 	frac = CL_LerpPoint ();
+	VR_InterpFrame (); // QVR: a remote server's interpolation buffer: its clock (vr/vr_netsnap.cpp)
 
 	cl_numvisedicts = 0;
 
@@ -602,7 +605,12 @@ void CL_RelinkEntities (void)
 			continue;
 		}
 
-		if (ent->forcelink)
+		// QVR: a remote server's others (not stepping monsters: the renderer lerps their steps): from the interpolation
+		// buffer, a delay behind the newest message (vr/vr_netsnap.cpp; MP_PLAN.md, B7b)
+		if (!(r_lerpmove.value && (ent->lerpflags & LERP_MOVESTEP)) && VR_InterpEntity (i, ent->origin, ent->angles))
+		{	// (placed)
+		}
+		else if (ent->forcelink)
 		{	// the entity was not updated in the last message
 			// so move to the final spot
 			VectorCopy (ent->msg_origins[0], ent->origin);
@@ -667,6 +675,8 @@ void CL_RelinkEntities (void)
 				ent->angles[j] = ent->msg_angles[1][j] + (j == YAW ? turn : 0.f) + f*d; // QVR: (turn)
 			}
 		}
+
+		VR_PredictRelink (i, ent->origin); // QVR: our own walk predicted; the lift we stand on at its newest (vr/vr_predict.cpp, B8)
 
 		if (ent->forcelink || ent->lerpflags & LERP_RESETMOVE)
 			CL_ResetTrail (ent);
@@ -816,6 +826,57 @@ void CL_RelinkEntities (void)
 
 /*
 ===============
+CL_ReadLockstep
+
+QVR: a lockstep client's waiting frame (vr_mp_lockstep_ahead, vr_mptest.cpp B14e): the server's messages read up to the
+one that lets its next move go (or that ends its signon), nothing relinked, no time passing; its signon replies sent.
+===============
+*/
+/*
+===============
+CL_CheckServerSilence
+
+QVR: (B16) a vanished server: a remote server silent past vr_mp_client_timeout (a crash, a lost link: NetQuake's own
+net_messagetimeout is 5 minutes) ends the game here, back to the server browser with the reason (vr/vr_nethud.cpp: the
+notice before it). Never a listen host's or single player's game (a loopback connection).
+===============
+*/
+static void CL_CheckServerSilence (void)
+{
+	if (cls.state != ca_connected || VR_ServerSilence () < 2)
+		return;
+	Con_Printf ("%s\n", VR_ServerSilenceReason ());
+	M_ServerLost ("Server stopped responding");
+	Host_EndGame ("%s", VR_ServerSilenceReason ());
+}
+
+void CL_ReadLockstep (void)
+{
+	int ret;
+
+	VR_RagdollRestore ();
+	while (cls.state == ca_connected && VR_LockstepReadsMore ())
+	{
+		ret = CL_GetMessage ();
+		if (ret == -1)
+			Host_Error ("CL_ReadLockstep: lost server connection");
+		if (!ret)
+			break;
+		cl.last_received_message = realtime;
+		VR_NoteServerMessage (ret);
+		CL_ParseServerMessage ();
+	}
+	CL_CheckServerSilence (); // QVR: (B16)
+	if (cls.state == ca_connected && cls.signon < SIGNONS && cls.message.cursize && NET_CanSendMessage (cls.netcon))
+	{
+		if (NET_SendMessage (cls.netcon, &cls.message) == -1)
+			Host_Error ("CL_ReadLockstep: lost server connection");
+		SZ_Clear (&cls.message);
+	}
+}
+
+/*
+===============
 CL_ReadFromServer
 
 Read all incoming data from the server
@@ -834,6 +895,7 @@ int CL_ReadFromServer (void)
 	VR_RagdollRestore (); // QVR: the ragdolls' own models back (vr/vr_ragdoll.cpp)
 	CL_AdvanceTime ();
 
+	if (!VR_LockstepReadHeld ()) // QVR: a lockstep client's moving frame reads nothing (its waiting frames: CL_ReadLockstep)
 	do
 	{
 		ret = CL_GetMessage ();
@@ -843,6 +905,7 @@ int CL_ReadFromServer (void)
 			break;
 
 		cl.last_received_message = realtime;
+		VR_NoteServerMessage (ret); // QVR: the byte counts by kind (vr_net_bytes)
 		VR_ProfileBegin ("parse"); // QVR: profile
 		CL_ParseServerMessage ();
 		VR_ProfileEnd (); // QVR
@@ -850,6 +913,7 @@ int CL_ReadFromServer (void)
 
 	if (cl_shownet.value)
 		Con_Printf ("\n");
+	CL_CheckServerSilence (); // QVR: (B16)
 
 	VR_ProfileBegin ("relink"); // QVR: profile
 	CL_RelinkEntities ();
@@ -1133,7 +1197,7 @@ void CL_Init (void)
 {
 	cmd_function_t *cmd;
 
-	SZ_Alloc (&cls.message, 1024);
+	SZ_Alloc (&cls.message, 4096); // QVR: was 1024; the VR client's own commands (prefs, held poses) are up to 1 KB each
 
 	CL_InitInput ();
 	CL_InitTEnts ();

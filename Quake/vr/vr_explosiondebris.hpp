@@ -8,7 +8,7 @@ namespace qvr::explosiondebris
 // The server's.
 void noteBroadcast(const glm::vec3& origin); // an explosion's temp entity broadcast (vr_server.cpp): chunks at the frame's end
 void serverFrame();                          // VR_ServerFrameEnd: the new chunks, the ended, the cap, the fades
-void serverReset();                          // a new map, a loaded game (resetServerWorld)
+void serverReset();                          // a new map, a loaded game (its mem::Reset: ServerWorld)
 void serverClear();                          // every chunk removed now (Debug > Cheats' cleanups; vr_explosion_debris_test clear)
 
 // The client's.

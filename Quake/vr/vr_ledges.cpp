@@ -114,6 +114,13 @@ struct ClipBrushes
     }
 };
 
+// The world model the maps are of: the server's, else the client's (a remote client's replay looks holds up in the same
+// maps, built from the same BSP: MP B8j part 2).
+[[nodiscard]] const qmodel_t* worldModel()
+{
+    return sv.active && sv.worldmodel ? sv.worldmodel : cl.worldmodel;
+}
+
 // The current map's, by model number (the world 0, "*N" N), for the world model they were read for.
 struct WorldClips
 {
@@ -179,7 +186,7 @@ void readClipBrushes(const qmodel_t* w)
 // The model's clip brushes (nullptr: none, or a map without the lump).
 [[nodiscard]] const ClipBrushes* clipBrushesOf(const qmodel_t* model)
 {
-    const qmodel_t* w = sv.worldmodel;
+    const qmodel_t* w = worldModel();
     if(!w)
     {
         return nullptr;
@@ -692,7 +699,7 @@ struct Cache
 
 [[nodiscard]] bool cacheCurrent()
 {
-    const qmodel_t* w = sv.worldmodel;
+    const qmodel_t* w = worldModel();
     return w && !strcmp(cache.world, w->name) && cache.vertexes == w->numvertexes && cache.surfaces == w->numsurfaces;
 }
 
@@ -704,7 +711,7 @@ void resetCache()
     dropped++;
     cache.maps.clear();
     cache.world[0] = 0;
-    if(const qmodel_t* w = sv.worldmodel)
+    if(const qmodel_t* w = worldModel())
     {
         q_strlcpy(cache.world, w->name, sizeof(cache.world));
         cache.vertexes = w->numvertexes;
@@ -715,8 +722,9 @@ void resetCache()
 // Whether `model` is the world or one of its inline models (the ones built from the map's BSP).
 [[nodiscard]] bool fromThisMap(const qmodel_t* model)
 {
-    return model && model->type == mod_brush && sv.worldmodel &&
-           (model == sv.worldmodel || (qvr::modelmeta::has(model, qvr::modelmeta::Trait::Submodel) && model->surfaces == sv.worldmodel->surfaces) ||
+    const qmodel_t* w = worldModel();
+    return model && model->type == mod_brush && w &&
+           (model == w || (qvr::modelmeta::has(model, qvr::modelmeta::Trait::Submodel) && model->surfaces == w->surfaces) ||
                qvr::brushes::isRuntime(model)); // (a box made in the game: vr_brushes.cpp)
 }
 
@@ -740,7 +748,7 @@ void printStats(const char* when)
         {
             length += e.len;
         }
-        if(sv.worldmodel && name == sv.worldmodel->name)
+        if(worldModel() && name == worldModel()->name)
         {
             world = m.get();
         }
@@ -1189,6 +1197,11 @@ const Map* of(const qmodel_t* model)
         it = cache.maps.emplace(model->name, build(model)).first;
     }
     return it->second.get();
+}
+
+const Map* world()
+{
+    return of(worldModel());
 }
 
 void afterLoad()

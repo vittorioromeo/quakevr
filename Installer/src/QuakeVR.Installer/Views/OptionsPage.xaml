@@ -98,6 +98,19 @@
                             </StackPanel>
                         </CheckBox>
                     </DockPanel>
+                    <!-- Dwell: recommended, off by default until its maps play (Dwell.OnByDefault); the size first, the credit, the found copy. -->
+                    <DockPanel Margin="0,0,0,14">
+                        <TextBlock DockPanel.Dock="Right" Text="{Binding DwellSizeText}" Style="{StaticResource Size}" />
+                        <CheckBox IsChecked="{Binding InstallDwell}" IsEnabled="{Binding DwellCanTick}">
+                            <StackPanel>
+                                <TextBlock Text="Dwell (recommended) — free, by Fairweather and the Dwell team: two episodes, 24 maps, soundtrack included" Style="{StaticResource Body}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                <TextBlock Style="{StaticResource Small}" Margin="0,2,0,0" TextWrapping="Wrap">
+                                    <Run Text="{Binding DwellText, Mode=OneWay}" />
+                                    <Hyperlink Command="{Binding OpenDwellHomeCommand}" Foreground="{StaticResource AccentHover}">Dwell's readme and home page</Hyperlink>
+                                </TextBlock>
+                            </StackPanel>
+                        </CheckBox>
+                    </DockPanel>
                     <DockPanel Margin="0,0,0,14">
                         <TextBlock DockPanel.Dock="Right" Text="about a minute" Style="{StaticResource Size}" />
                         <CheckBox IsChecked="{Binding Relight}">

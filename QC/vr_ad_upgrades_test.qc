@@ -528,6 +528,7 @@ void(float request, entity p) AD_UpgradesTest =
         VRGiveEntWeapon(p, cVR_MainHand, WID_FIST, 0, 0);
         p.ammo_shells = 100;
         AD_SyncWeaponModels(p);
+        VR_Scene_HoldGiven(p, cVR_OffHand); // (held, the mock's grip unpressed: else let go its first frame, grip mode 0)
         self = os2;
         entity t2 = spawn();
         t2.classname = "vr_adsa_timer";
@@ -548,6 +549,7 @@ void(float request, entity p) AD_UpgradesTest =
         VRGiveEntWeapon(p, cVR_MainHand, WID_FIST, 0, 0);
         p.ammo_cells = 100;
         AD_SyncWeaponModels(p);
+        VR_Scene_HoldGiven(p, cVR_OffHand); // (held, the mock's grip unpressed: else let go its first frame, grip mode 0)
         self = os;
         entity t = spawn();
         t.classname = "vr_adsa_timer";

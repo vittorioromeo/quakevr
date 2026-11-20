@@ -1,0 +1,35 @@
+# systemd unit for Quake VR's room service (README.md: install it as /etc/systemd/system/qvr-rendezvous.service)
+[Unit]
+Description=Quake VR room service (multiplayer room codes, UDP 26100)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=qvr-rendezvous
+Group=qvr-rendezvous
+ExecStart=/usr/bin/python3 /opt/qvr-rendezvous/qvr_rendezvous.py --bind 0.0.0.0 --port 26100
+Restart=always
+RestartSec=5
+# Its log (start, an hourly count of rooms and requests; never an address) goes to the journal: journalctl -u qvr-rendezvous
+StandardOutput=journal
+StandardError=journal
+Environment=PYTHONUNBUFFERED=1
+
+# Hardening: a UDP socket and nothing else
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_INET
+RestrictNamespaces=yes
+LockPersonality=yes
+MemoryMax=256M
+TasksMax=8
+
+[Install]
+WantedBy=multi-user.target

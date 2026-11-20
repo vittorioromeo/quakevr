@@ -2,6 +2,7 @@
 #include "vr_blood.hpp"
 #include "vr_geom.hpp"
 #include "vr_cvars.hpp"
+#include "vr_mem.hpp"
 #include "vr_tunables.hpp"
 #include "vr_engine.hpp"
 #include "vr_flatplay.hpp"
@@ -276,6 +277,12 @@ void clear()
     frame = -1;
     alive = false;
 }
+
+namespace
+{
+// Forgotten when the client's state is cleared (vr_mem.hpp's resets): the hits' blood.
+mem::Reset clientStateReset{"blood", mem::ResetEvent::ClientState, mem::ResetPhase::State, &clear};
+} // namespace
 void onDamage(int armor, int blood, const float* from)
 {
     advance();

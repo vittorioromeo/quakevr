@@ -165,8 +165,11 @@ public sealed class MainViewModel : ObservableObject
     string? _installDirError;
     bool _hdTextures = true;
     bool _arcaneDimensions; // (experimental: off by default)
-    AdCopy? _adFound;
-    AdOutcome? _adOutcome;
+    ModCopy? _adFound;
+    ModOutcome? _adOutcome;
+    bool _dwell = Dwell.OnByDefault; // (on: Dwell's maps play, Dwell.OnByDefault)
+    ModCopy? _dwellFound;
+    ModOutcome? _dwellOutcome;
     bool _relight = true;
     bool _desktopShortcut = true;
     bool _desktopFlatShortcut = true;
@@ -245,6 +248,8 @@ public sealed class MainViewModel : ObservableObject
         OpenUrlCommand = new RelayCommand(p => OpenUrl(p as string ?? ""));
         OpenAdHomeCommand = new RelayCommand(() => OpenUrl(_adFound is { Usable: true } f && File.Exists(Path.Combine(f.Folder, ArcaneDimensions.ReadmeFile))
             ? Path.Combine(f.Folder, ArcaneDimensions.ReadmeFile) : ArcaneDimensions.HomeUrl));
+        OpenDwellHomeCommand = new RelayCommand(() => OpenUrl(_dwellFound is { Usable: true } f && File.Exists(Path.Combine(f.Folder, Dwell.ReadmeFile))
+            ? Path.Combine(f.Folder, Dwell.ReadmeFile) : Dwell.HomeUrl));
         OpenKofiCommand = new RelayCommand(() => OpenUrl(KofiUrl));
         OpenDiscordCommand = new RelayCommand(() => OpenUrl(DiscordUrl));
         ShowCreditsCommand = new RelayCommand(() => new Views.CreditsWindow(Application.Current.MainWindow).ShowDialog());
@@ -349,6 +354,7 @@ public sealed class MainViewModel : ObservableObject
     public ICommand UninstallCommand { get; }
     public ICommand OpenUrlCommand { get; }
     public ICommand OpenAdHomeCommand { get; }
+    public ICommand OpenDwellHomeCommand { get; }
     public ICommand OpenKofiCommand { get; }
     public ICommand OpenDiscordCommand { get; }
     public ICommand ShowCreditsCommand { get; }
@@ -777,6 +783,7 @@ public sealed class MainViewModel : ObservableObject
             await EnsureVcRuntimeAsync(http, ct);
             await PrepareGameAsync(ct);
             await AddArcaneDimensionsAsync(http, ct);
+            await AddDwellAsync(http, ct);
             LoadExisting();
             BuildDoneNotes();
             GoToSettingsOrDone();
@@ -1002,6 +1009,12 @@ public sealed class MainViewModel : ObservableObject
             return;
         }
         AdFound = found;
+        var dwell = q.BaseDir is { } dq ? await Task.Run(() => Dwell.FindExisting(Dwell.SearchRoots(report.StoreRoots, dq))) : null;
+        if (version != _detailsVersion)
+        {
+            return;
+        }
+        DwellFound = dwell;
     }
 
     void BuildSystemChecks(DetectionReport r)
@@ -1074,7 +1087,8 @@ public sealed class MainViewModel : ObservableObject
         get
         {
             var need = (_coreSize ?? 200L << 20) + (HdTextures ? 650L << 20 : 0) + (Relight ? 220L << 20 : 0) +
-                       (InstallAd ? ArcaneDimensions.InstalledSize + (320L << 20) : 0);
+                       (InstallAd ? ArcaneDimensions.InstalledSize + (320L << 20) : 0) +
+                       (InstallDwell ? Dwell.InstalledSize + (385L << 20) : 0);
             try
             {
                 var root = Path.GetPathRoot(Path.GetFullPath(InstallDir));
@@ -1119,7 +1133,7 @@ public sealed class MainViewModel : ObservableObject
     public bool InstallAd { get => _arcaneDimensions && !AdFoundUsable; set { if (Set(ref _arcaneDimensions, value)) { Raise(nameof(DiskText)); } } }
 
     /// <summary>The copy of AD the game would use from the owned Quake roots (null: none).</summary>
-    public AdCopy? AdFound
+    public ModCopy? AdFound
     {
         get => _adFound;
         private set
@@ -1155,6 +1169,49 @@ public sealed class MainViewModel : ObservableObject
         "Its campaign is in Official Campaigns; its monsters and items also appear in custom maps.";
 
     /// <summary>The Update screen's box: an install without AD in its folder, and no copy of 1.80 patch 1 found.</summary>
+    // ---- Dwell (recommended, on by default: Dwell.OnByDefault; DWELL.md section 7) ----
+
+    /// <summary>Ticked: Dwell's zip is downloaded after the install and unpacked into the install's dwell folder (a v2.2
+    /// copy found in the owned roots is used instead: the box is then off and disabled).</summary>
+    public bool InstallDwell { get => _dwell && !DwellFoundUsable; set { if (Set(ref _dwell, value)) { Raise(nameof(DiskText)); } } }
+
+    /// <summary>The copy of Dwell the game would use from the owned Quake roots (null: none).</summary>
+    public ModCopy? DwellFound
+    {
+        get => _dwellFound;
+        private set
+        {
+            if (Set(ref _dwellFound, value))
+            {
+                Raise(nameof(DwellFoundUsable));
+                Raise(nameof(DwellCanTick));
+                Raise(nameof(InstallDwell));
+                Raise(nameof(DwellFoundText));
+                Raise(nameof(DwellText));
+                Raise(nameof(DwellSizeText));
+                Raise(nameof(DiskText));
+                Raise(nameof(ShowAddDwell));
+            }
+        }
+    }
+
+    public bool DwellFoundUsable => _dwellFound is { Usable: true };
+    public bool DwellCanTick => !DwellFoundUsable;
+    public string DwellFoundText => _dwellFound is { } f ? Dwell.Describe(f) : "";
+
+    /// <summary>The size first: the download and what it takes on disk.</summary>
+    public string DwellSizeText =>
+        DwellFoundUsable ? "already installed" :
+        _settings.Component(_feed, Components.Dwell) is { } c
+            ? $"{PathUtil.FormatSize(c.File.Size)} download, about {PathUtil.FormatSize(Dwell.InstalledSize)} on disk"
+            : "download unavailable";
+
+    public string DwellText => _dwellFound is { } f ? Dwell.Describe(f) :
+        "Two episodes and 24 maps, the soundtrack included, downloaded from its authors' host and installed as released.";
+
+    /// <summary>The Update screen's box: an install without Dwell in its folder, and no v2.2 copy found.</summary>
+    public bool ShowAddDwell => _existing is { } e && !e.Files.Any(f => f.Component == Components.Dwell) && !DwellFoundUsable;
+
     public bool ShowAddAd => _existing is { } e && !e.Files.Any(f => f.Component == Components.ArcaneDimensions) && !AdFoundUsable;
     public bool DesktopShortcut { get => _desktopShortcut; set => Set(ref _desktopShortcut, value); }
     public bool DesktopFlatShortcut { get => _desktopFlatShortcut; set => Set(ref _desktopFlatShortcut, value); }
@@ -1493,6 +1550,7 @@ public sealed class MainViewModel : ObservableObject
             await EnsureVcRuntimeAsync(http, ct);
             await PrepareGameAsync(ct);
             await AddArcaneDimensionsAsync(http, ct);
+            await AddDwellAsync(http, ct);
             LoadExisting();
             BuildDoneNotes();
             GoToSettingsOrDone();
@@ -1750,29 +1808,39 @@ public sealed class MainViewModel : ObservableObject
     /// <summary>Arcane Dimensions, last (after the game is installed and prepared): ticked, or installed before and
     /// needing a replace (another pinned zip) or a restore (a repair found a file damaged). Never fails the run: a failed
     /// or cancelled download is a note on the Done page saying how to add it later (Setup again, the Update screen).</summary>
-    async Task AddArcaneDimensionsAsync(HttpClient http, CancellationToken ct)
+    async Task AddArcaneDimensionsAsync(HttpClient http, CancellationToken ct) =>
+        _adOutcome = await AddModAsync(ArcaneDimensions.Spec, InstallAd, http, ct);
+
+    /// <summary>Dwell, after Arcane Dimensions, by the same step (<see cref="AddModAsync"/>).</summary>
+    async Task AddDwellAsync(HttpClient http, CancellationToken ct) =>
+        _dwellOutcome = await AddModAsync(Dwell.Spec, InstallDwell, http, ct);
+
+    /// <summary>One third-party mod component's step (Arcane Dimensions, Dwell: <see cref="ModComponent"/>): null when
+    /// there is nothing to do.</summary>
+    async Task<ModOutcome?> AddModAsync(ModSpec spec, bool ticked, HttpClient http, CancellationToken ct)
     {
-        _adOutcome = null;
         var dir = InstallDir;
+        var title = spec.Title;
         var record = InstallRecord.Load(dir);
-        var c = _settings.Component(_feed, Components.ArcaneDimensions);
-        var want = InstallAd && record is not null && !record.Files.Any(f => f.Component == Components.ArcaneDimensions);
-        if (!want && record is not null && record.Files.Any(f => f.Component == Components.ArcaneDimensions))
+        var c = _settings.Component(_feed, spec.Component);
+        var installed = record is not null && record.Files.Any(f => f.Component == spec.Component);
+        var want = ticked && record is not null && !installed;
+        if (!want && installed)
         {
-            var (action, text) = await Task.Run(() => ArcaneDimensions.Plan(dir, record, c?.File, verify: _runMode == InstallMode.Repair), CancellationToken.None);
+            var (action, text) = await Task.Run(() => ModComponent.Plan(spec, dir, record!, c?.File, verify: _runMode == InstallMode.Repair), CancellationToken.None);
             AddLog(LogLevel.Info, text);
-            want = action is AdAction.Replace or AdAction.Restore && c is not null;
+            want = action is ModAction.Replace or ModAction.Restore && c is not null;
         }
         if (!want)
         {
-            return;
+            return null;
         }
         if (c is null || _options.Offline)
         {
-            _adOutcome = new AdOutcome(false, false, $"Arcane Dimensions not installed: {(_options.Offline ? "nothing is downloaded in offline mode" : "its download isn't available")}. " +
-                                                     "Quake VR itself is installed. To add it later, run Setup again (its Update screen) and tick Arcane Dimensions.");
-            AddLog(LogLevel.Warning, _adOutcome.Message);
-            return;
+            var failed = new ModOutcome(false, false, $"{title} not installed: {(_options.Offline ? "nothing is downloaded in offline mode" : "its download isn't available")}. " +
+                                                      $"Quake VR itself is installed. To add it later, run Setup again (its Update screen) and tick {title}.");
+            AddLog(LogLevel.Warning, failed.Message);
+            return failed;
         }
         var downloads = _options.Downloads ?? Path.Combine(_probe.GetFolder(KnownFolder.LocalAppData) ?? Path.GetTempPath(), "QuakeVR-Installer", "downloads");
         var progress = new Progress<InstallProgress>(p =>
@@ -1787,15 +1855,16 @@ public sealed class MainViewModel : ObservableObject
         {
             var total = p.Total ?? c.File.Size;
             Progress = 100.0 * (total > 0 ? (double)p.Received / total : 0);
-            StatusText = $"Downloading Arcane Dimensions from {p.Source}: {PathUtil.FormatSize(p.Received)} of {PathUtil.FormatSize(total)} (Cancel skips it; Quake VR is installed)";
+            StatusText = $"Downloading {title} from {p.Source}: {PathUtil.FormatSize(p.Received)} of {PathUtil.FormatSize(total)} (Cancel skips it; Quake VR is installed)";
         });
-        _adOutcome = await ArcaneDimensions.AddAsync(http, dir, c.File, downloads, null, progress, download, ct);
-        AddLog(_adOutcome.Installed ? LogLevel.Success : LogLevel.Warning, _adOutcome.Message);
-        if (_adOutcome.Cancelled)
+        var outcome = await ModComponent.AddAsync(spec, http, dir, c.File, downloads, null, progress, download, ct);
+        AddLog(outcome.Installed ? LogLevel.Success : LogLevel.Warning, outcome.Message);
+        if (outcome.Cancelled)
         {
-            // Cancel during AD skips AD only: the rest is done, so the run ends on the Done page.
+            // Cancel during a mod step skips that one only: the rest is done, so the run ends on the Done page.
             _cts = new CancellationTokenSource();
         }
+        return outcome;
     }
 
     // ---- Done ---------------------------------------------------------------------------------------------------
@@ -1841,6 +1910,16 @@ public sealed class MainViewModel : ObservableObject
         else if (AdFoundUsable)
         {
             DoneNotes.Add(new CheckItem(CheckStatus.Ok, "Arcane Dimensions (experimental)", AdFoundText + " Play it from Official Campaigns."));
+        }
+        if (_dwellOutcome is { } dw)
+        {
+            DoneNotes.Add(dw.Installed
+                ? new CheckItem(CheckStatus.Ok, "Dwell", dw.Message)
+                : new CheckItem(CheckStatus.Warning, "Dwell", dw.Message));
+        }
+        else if (DwellFoundUsable)
+        {
+            DoneNotes.Add(new CheckItem(CheckStatus.Ok, "Dwell", DwellFoundText));
         }
         if (VcResult is { } vc && vc.Outcome != VcRedistOutcome.AlreadyInstalled)
         {

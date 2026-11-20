@@ -15,6 +15,9 @@ AD's headers and credits; AD's assets are never copied.
 Before committing any change under QC/ad: make it here (PATCHES, FUNC_PATCHES or a hook in main), regenerate, and
 run --check (it must say 0 files differ). A hand edit in QC/ad is lost on the next import.
 
+The import itself (renaming, headers, builtins, progs.src, --check) is qc_import.py's, shared with copper_import.py;
+this script holds AD's configuration: its release pin, its reviewed patches and its report lines.
+
 What it writes (QC/ad/, regenerated whole; never edit by hand, change this script):
   ad_builtins.qc   the extension builtins AD declares that Quake VR's QC does not: "#0", bound by name by the
                    engine when it has them (pr_edict.c PR_InitBuiltins), else an error only if called; standard
@@ -42,11 +45,15 @@ import re
 import struct
 import sys
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # (run with python -I: the source is untrusted data)
+import qc_import  # noqa: E402
+from qc_import import pak_files, read_pak, sha256
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.normpath(os.path.join(HERE, "..", ".."))
 QC_DIR = os.path.join(ROOT, "QC")
 OUT_DIR = os.path.join(QC_DIR, "ad")
-WRITE_DIR = OUT_DIR  # where the files go: QC/ad, or --check's folder
+
 
 # ad_v1_80p1final.zip (SHA-256 7ad993da6c760c446ca31fad71e9f5b6c9eee99b6354f161aa746b572fe70a7d), unpacked.
 PINNED = {
@@ -66,6 +73,8 @@ BRIDGE = "VR_AD_"  # the bridge's functions the patches below call (QC/vr_ad_bri
 # The precedence patches (qvr_checks qc_precedence): expressions that read differently under C priorities,
 # parenthesised as fteqcc's QC priorities (AD's own compile, and ours) read them, so behaviour stays AD's as shipped
 # (some look like AD bugs: kept, flagged "AD as shipped"). Each was verified to compile to the same instructions.
+# The imports' one rule for a look-alike bug (DWELL.md 9.7; Copper's the same): kept as shipped, unless the shipped
+# reading changes what a Quake VR player gets and the mod's intent is plain, then fixed as meant (AD's bugs 4 and 5).
 P = "parenthesised as QC priorities read it (check_qc_precedence)"
 B = "bridge"
 PATCHES = [
@@ -133,7 +142,7 @@ PATCHES = [
      "\tVR_AD_Hit(targ, inflictor, attacker, take);\n\tVR_AD_Splash(0);\n",
      1, B + ": our hit hooks on AD's monsters (damage numbers, gore, small gibs, wounds)"),
     ("ai_pathcorner.qc", "void() path_corner_touch =\n{\n",
-     "void() path_corner_touch =\n{\n\tif (VR_AD_PathCornerTouch()) return;\n",
+     "void() path_corner_touch =\n{\n\tif (VR_Rules_PathCornerTouch()) return;\n",
      1, B + ": our monsters follow AD's path_corners as ours (t_movetarget)"),
     ("items.qc", "void() weapon_touch =\n{\n\tlocal float pickupweapon, pickupmodweapon, pickupammo, moditem;\n",
      "void() weapon_touch =\n{\n\tlocal float pickupweapon, pickupmodweapon, pickupammo, moditem;\n\tif (VR_AD_WeaponTouch()) return;\n",
@@ -286,6 +295,7 @@ QVR_NAMES = {"VR_MeleeArc_Hits", "VR_MeleeBlow", "VR_MeleeReach", "VR_MeleeArc_L
              "VR_ADGun_BoltShock", "VR_ADGun_StreamFx", "VR_ADGun_StreamMuzzle", "VR_ADGun_Poison", "VR_Hit_BeginAs", "VR_Hit_End",
              "VR_Proj_Begin", "VR_Proj_End", "VR_Proj_Mark", "QVR_PROJ_LASER", "QVR_PROJ_BOLT", "QVR_PROJ_BLAST"}
 QVR_NAMES |= {"VR_HitReact_Dist"}  # (the hit reactions' patches above)
+QVR_NAMES |= {"VR_Rules_PathCornerTouch"}  # (our monsters on AD's path_corners: every ruleset's, vr_rules_monsters.qc)
 QVR_NAMES |= {"VR_ADGun_FlameDoused", "VR_ADGun_FlameScorch"}  # (the pyro's flames: water, scorch)
 _STAMP = "\tself.vr_melee_time = time; // QVR: kept out of the player's head meanwhile (vr_enemy_melee_space)\n"
 _STEP = " // QVR: (VR_MeleeSpace_Step: fight.qc)"
@@ -513,6 +523,64 @@ FUNC_PATCHES += [
      B + ": AD's explosions throw props and ragdolls (physicsblast)"),
 ]
 QVR_NAMES |= {"physicsblast", "VR_ADGun_BlastPush"}
+# Edits made by hand in QC/ad after the 2026-10-16 cleanup, moved here (2026-11-19, Copper's import: --check said 17
+# files differ). A leap's touch: dead of its own blow (a barrel's blast), its death's frames stand.
+_DEAD = ("\tif (self.health < 1) return; // QVR: dead of its own blow (a barrel's blast): its death's frames stand "
+         "(VR_Leap_BlowEnded)\n")
+FUNC_PATCHES += [
+    (f, func, "\t// Is the %s floating" % who, _DEAD + "\t// Is the %s floating" % who,
+     Q + ": a leaping monster dead of its own blow stays dead (VR_Leap_BlowEnded)")
+    for f, func, who in (("mon_bossjudicator.qc", "judge_JumpTouch", "Judge"), ("mon_demon.qc", "Demon_JumpTouch", "demon"),
+                         ("mon_dfury.qc", "dfury_JumpTouch", "fury knight"), ("mon_dog.qc", "Dog_JumpTouch", "dog"),
+                         ("mon_minotaur.qc", "mino_JumpTouch", "minotaur"), ("mon_spider.qc", "Spider_JumpTouch", "spider"),
+                         ("mon_swampling.qc", "swampling_JumpTouch", "swampling"), ("mon_tarbaby.qc", "Tar_JumpTouch", "tarbaby"),
+                         ("mon_voreling.qc", "Voreling_JumpTouch", "voreling"), ("mon_xmas_elf.qc", "Elf_JumpTouch", "elf"),
+                         ("mon_zombiek.qc", "zombiek_JumpTouch", "zombie knight"))
+] + [
+    ("items.qc", "ammo_touch", "\tlocal float best;\n\n",
+     "\tlocal float best;\n\n\tif (VR_Run_RefusesEnt(self)) return; // QVR: Melee Only, no rounds (vr_run_meleeonly.qc)\n",
+     Q + ": Melee Only refuses AD's ammo (vr_run_meleeonly.qc)"),
+    ("items.qc", "BackpackTouch", "\tlocal float pickupweapon, acount;\n\t\n",
+     "\tlocal float pickupweapon, acount;\n\n\tif (VR_Run_RefusesEnt(self)) return; // QVR: Melee Only, its rounds left in it "
+     "(vr_run_meleeonly.qc)\n", Q + ": Melee Only refuses AD's backpacks (vr_run_meleeonly.qc)"),
+    ("mon_dcrossbow.qc", "dcrossbow_shot", "self.attack_speed = SPEED_DCROSS + (skill*SPEED_BOLTSKILL);",
+     "self.attack_speed = VR_ADKnightBoltSpeed();", Q + ": the knights' bolts' speed (vr_adknight_bolt_scale)"),
+    ("mon_dcrossbow.qc", "dcrossbow_checkattack", "boltspeed = SPEED_DCROSS + (skill*SPEED_BOLTSKILL);",
+     "boltspeed = VR_ADKnightBoltSpeed();", Q + ": the knights' bolts' lead (vr_adknight_bolt_scale)"),
+    ("mon_soldier.qc", "army_fire_rocket", "ATTN_NORM);\t\n",
+     "ATTN_NORM);\n\tweaponfired(self, QVR_FIRED_ROCKET); // AD support: its tube's flash, smoke and backblast "
+     "(vr_weaponfx.cpp, vr_gunfx.cpp)\n", B + ": the rocket soldier's tube flash, smoke and backblast (weaponfired)"),
+    ("weapons.qc", "LightningDamage", "\tloffset = 8;\n",
+     "\tloffset = 8;\n\n\tVR_LGWater_Zap(lstart, lfinish); // QVR: a bolt into water electrifies its surface (weapons.qc)\n"
+     "\tVR_Lightning_Burn(lstart, lfinish); // QVR: and on a surface leaves a lasting burn\n",
+     Q + ": AD's lightning zaps water and burns surfaces (weapons.qc)"),
+    ("ai_explosion.qc", "spawn_touchblood", "\t// The vel calculation uses v_up/right",
+     "\t// AD support: no flesh (a fuel tank, an explosive box, a crate, a grenade): sparks or splinters as the hitscan\n"
+     "\t// pellets' and the nails' (vr_crates.qc VR_HitNonFlesh), not blood. AD's own breakables keep their debris colour.\n"
+     "\tif (targ.classgroup != CG_BREAKABLE &&\n"
+     "\t\tVR_HitNonFlesh(targ, source.origin, source.velocity, max(damage, 1))) return;\n"
+     "\tvr_ad_blood_sent++;\n"
+     "\tif (targ == vr_ad_blood_watch) vr_ad_blood_watched++;\n"
+     "\tif (cvar_hget(cvarh_vr_debug_shots)) bprint(sprintf(\"adshots: blood on %s (%s)\\n\", targ.classname, "
+     "source.classname));\n\n\t// The vel calculation uses v_up/right",
+     B + ": no flesh, no blood (VR_HitNonFlesh)"),
+]
+PATCHES += [
+    ("mon_dcrossbow.qc", "void() dcrossbow_crossbow_sound;\n",
+     "void() dcrossbow_crossbow_sound;\n"
+     "// QVR: the knights' bolts' speed (the launch and the tracking's lead): AD's skill formula (500 + 200 a skill) times\n"
+     "// vr_adknight_bolt_scale (1.15: 15% faster, 2026-11-11).\n"
+     "float() VR_ADKnightBoltSpeed =\n{\n"
+     "\treturn (SPEED_DCROSS + (skill*SPEED_BOLTSKILL)) * cvar_hget(cvarh_vr_adknight_bolt_scale);\n};\n",
+     1, Q + ": the knights' bolts' speed, AD's formula times vr_adknight_bolt_scale"),
+    ("breakable.qc", "\"player/axhit1.wav\";\t\t\t// ax hit meat (another player)",
+     "\"vr/derived/axhit1_voice.wav\";\t// ax hit meat (another player): axhit1 as the player's voice "
+     "(QVR_SOUND_AXHIT_VOICE, vr_voice)", 1, Q + ": an axe hit on another player in the player's voice"),
+]
+QVR_NAMES |= {"VR_Run_RefusesEnt", "cvar_hget", "cvarh_vr_adknight_bolt_scale", "weaponfired", "QVR_FIRED_ROCKET",
+              "VR_LGWater_Zap", "VR_Lightning_Burn", "VR_HitNonFlesh", "vr_ad_blood_sent", "vr_ad_blood_watch",
+              "vr_ad_blood_watched", "cvarh_vr_debug_shots", "sprintf"}
+OWN_NAMES = {"VR_ADKnightBoltSpeed"}  # Quake VR's names the patches define in AD's code: kept as written
 # (file, function: a fire function with no arguments or the shot's frame, its kind): VR_AimCone_Wait at its start.
 AIM_WAITS = [
     ("mon_soldier.qc", "army_fire", "NARROW"), ("mon_soldier.qc", "army_fire_rocket", "NARROW"),
@@ -569,152 +637,6 @@ def func_patch(text, fn, func, old, new, why):
 # (Mechanical, not patches: a global array's length named by a constant, `float a[MAX];`, is written as the number,
 # as our fteqcc flags (autoproto) take no named constant there.)
 
-KEYWORDS = set("""void float vector entity string int integer local const var nosave shared noref static inline
-if else while do for return break continue switch case default goto typedef enum enumflags struct union class
-virtual nonvirtual optional autocvar x y z""".split())
-DIRECTIVES = ("frame", "cd", "origin", "base", "skin", "flags", "scale", "modelname", "framesave", "framerestore",
-              "framevalue", "spritename", "type", "load", "flush")
-
-TOKEN = re.compile(r"""
- (?P<nl>[ \t\r]*\n)
-|(?P<ws>[ \t\r]+)
-|(?P<lc>//[^\n]*)
-|(?P<bc>/\*.*?(?:\*/|\Z))
-|(?P<str>"(?:\\.|[^"\\\n])*"?)
-|(?P<vec>'[^'\n]*'?)
-|(?P<fm>\$[A-Za-z_0-9]+)
-|(?P<num>0[xX][0-9a-fA-F]+|\d+\.?\d*(?:[eE][-+]?\d+)?|\.\d+)
-|(?P<id>[A-Za-z_][A-Za-z_0-9]*)
-|(?P<op>.)
-""", re.S | re.X)
-
-
-def tokenize(text):
-    """[(kind, text)]; a $directive line and a #preprocessor line are one 'raw' token."""
-    out = []
-    i, n = 0, len(text)
-    line_start = True
-    while i < n:
-        if line_start:
-            m = re.compile(r"[ \t]*(\$(?:%s)\b|#)[^\n]*" % "|".join(DIRECTIVES)).match(text, i)
-            if m:
-                out.append(("raw", m.group(0)))
-                i = m.end()
-                line_start = False
-                continue
-        m = TOKEN.match(text, i)
-        kind = m.lastgroup
-        out.append((kind, m.group(0)))
-        i = m.end()
-        line_start = kind == "nl" or (kind == "ws" and line_start) or (kind == "bc" and line_start and "\n" in m.group(0))
-    return out
-
-
-def code(tokens):
-    """Indices of the tokens that matter to the parser (no whitespace, comments, raw lines)."""
-    return [k for k, (kind, _) in enumerate(tokens) if kind not in ("nl", "ws", "lc", "bc", "raw")]
-
-
-def statements(tokens):
-    """Top-level statements: lists of code-token indices (a function body ends its statement)."""
-    idx = code(tokens)
-    out, cur, depth, body = [], [], 0, False
-    for k in idx:
-        t = tokens[k][1]
-        cur.append(k)
-        if t in "([{":
-            depth += 1
-            body = body or (t == "{" and depth == 1)
-        elif t in ")]}":
-            depth -= 1
-            if t == "}" and depth == 0 and body:
-                out.append(cur)
-                cur, body = [], False
-                continue
-        elif t == ";" and depth == 0:
-            out.append(cur)
-            cur, body = [], False
-    if cur:
-        out.append(cur)
-    return [s for s in out if not (len(s) == 1 and tokens[s[0]][1] == ";")]
-
-
-MODIFIERS = {"local", "const", "var", "nosave", "shared", "noref", "static", "inline"}
-TYPES = {"void", "float", "vector", "entity", "string", "int", "integer", "__variant"}
-
-
-def declared(tokens, stmt):
-    """(names, is_field, type text, is_builtin) of one top-level statement."""
-    toks = [tokens[k][1] for k in stmt]
-    while toks and toks[0] in MODIFIERS:
-        toks = toks[1:]
-    is_field = bool(toks) and toks[0] == "."
-    is_builtin = any(toks[j] == "=" and j + 1 < len(toks) and toks[j + 1] == "#" for j in range(len(toks)))
-    names, segs, seg, depth = [], [], [], 0
-    for t in toks:
-        if t in "([{":
-            depth += 1
-        elif t in ")]}":
-            depth -= 1
-        if t == "," and depth == 0:
-            segs.append(seg)
-            seg = []
-        else:
-            seg.append((t, depth))
-    segs.append(seg)
-    typ = None
-    for s in segs:
-        ids = []
-        for t, d in s:
-            if t == "=" and d == 0:
-                break
-            if d == 0 and re.match(r"[A-Za-z_]\w*$", t) and t not in TYPES and t not in MODIFIERS:
-                ids.append(t)
-        if ids:
-            names.append(ids[-1])
-            if typ is None:
-                cut = [t for t, d in s]
-                typ = "".join(cut[:cut.index(ids[-1])]).lstrip(".")
-    return names, is_field, typ or "", is_builtin
-
-
-def ids_in(tokens, stmt):
-    """Identifiers a statement uses; a vector's component (v_x) uses the vector (v)."""
-    out = set()
-    for k in stmt:
-        if tokens[k][0] == "id":
-            t = tokens[k][1]
-            out.add(t)
-            m = re.match(r"(\w+)_[xyz]$", t)
-            if m:
-                out.add(m.group(1))
-    return out
-
-
-def read_pak(path):
-    with open(path, "rb") as f:
-        hdr = f.read(12)
-        off, ln = struct.unpack("<ii", hdr[4:])
-        f.seek(off)
-        dirs = [f.read(64) for _ in range(ln // 64)]
-        out = {}
-        for e in dirs:
-            name = e[:56].split(b"\0")[0].decode("latin1")
-            o, s = struct.unpack("<ii", e[56:])
-            out[name] = (o, s)
-        return out
-
-
-def pak_files(path, want):
-    files = {}
-    with open(path, "rb") as f:
-        for name, (o, s) in read_pak(path).items():
-            if want(name):
-                f.seek(o)
-                files[name] = f.read(s)
-    return files
-
-
 ENGINE_DATA = os.path.join(ROOT, "Quake", "vr", "vr_ad_data.inc")
 
 
@@ -757,14 +679,6 @@ def engine_lists(rel, official):
         sum(owner[n] == 1 for n in shadowed), sum(owner[n] == 2 for n in shadowed), pak2_size))
 
 
-def sha256(path):
-    h = hashlib.sha256()
-    with open(path, "rb") as f:
-        for chunk in iter(lambda: f.read(1 << 20), b""):
-            h.update(chunk)
-    return h.hexdigest()
-
-
 def map_keys(release):
     """Every key AD's FGD documents or AD's maps set."""
     keys = set()
@@ -788,76 +702,6 @@ def map_keys(release):
                 lump = f.read(el).decode("latin1")
                 keys.update(re.findall(r'"([A-Za-z_]\w*)"\s*"', lump))
     return keys
-
-
-def ours():
-    """Quake VR's QC (QC/ and its subfolders but QC/ad): system names, fields with types, every top-level name,
-    builtin names, #define names."""
-    system, fields, names, builtins, macros = set(), {}, set(), {}, set()
-    funcs = set()
-    for root, dirs, files in os.walk(QC_DIR):
-        if os.path.normpath(root).startswith(os.path.normpath(OUT_DIR)):
-            continue
-        for fn in sorted(files):
-            if not fn.endswith(".qc"):
-                continue
-            with open(os.path.join(root, fn), encoding="latin1") as f:
-                text = f.read()
-            macros.update(re.findall(r"^\s*#define\s+(\w+)", text, re.M))
-            toks = tokenize(text)
-            in_sys = fn == "defs.qc" and os.path.normpath(root) == os.path.normpath(QC_DIR)
-            for st in statements(toks):
-                ns, is_field, typ, is_builtin = declared(toks, st)
-                if in_sys:
-                    # The engine's entry points (main, StartFrame, PlayerPreThink...) are Quake VR's: AD's are
-                    # renamed with the rest, so the engine never calls them.
-                    if is_field or "(" not in typ:
-                        system.update(ns)
-                    if "end_sys_fields" in ns:
-                        in_sys = False
-                names.update(ns)
-                if is_builtin:
-                    for n in ns:
-                        builtins[n] = builtin_number(toks, st)
-                        SIGS.setdefault(n, signature(toks, st))
-                elif is_field:
-                    for n in ns:
-                        fields.setdefault(n, typ)
-                elif "(" in typ:
-                    funcs.update(ns)
-                    for n in ns:
-                        SIGS.setdefault(n, signature(toks, st))
-    return system, fields, names, builtins, macros, funcs
-
-
-SIGS = {}  # Quake VR's function and builtin signatures, by name (ours())
-
-
-def signature(tokens, stmt):
-    """A function declaration's type without parameter names: 'string(string,string,...)'."""
-    out, depth = [], 0
-    toks = [tokens[k] for k in stmt]
-    name = declared(tokens, stmt)[0]
-    for kind, t in toks:
-        if depth == 0 and name and t == name[0]:
-            break
-        if t == "(":
-            depth += 1
-        elif t == ")":
-            depth -= 1
-        if depth > 0 and kind == "id" and t not in TYPES and t != "optional":
-            continue
-        if t not in MODIFIERS:
-            out.append(t)
-    return "".join(out)
-
-
-def builtin_number(tokens, stmt):
-    toks = [tokens[k][1] for k in stmt]
-    for j in range(len(toks) - 1):
-        if toks[j] == "#" and re.match(r"\d+$", toks[j + 1]):
-            return int(toks[j + 1])
-    return 0
 
 
 def verify_frames(rel):
@@ -918,11 +762,6 @@ def main():
                          "progs.src; exit 1 on any difference (run before committing a QC/ad change)")
     args = ap.parse_args()
     rel = args.release
-    if args.check:
-        global WRITE_DIR
-        WRITE_DIR = os.path.abspath(args.check)
-        if os.path.normpath(WRITE_DIR).startswith(os.path.normpath(OUT_DIR)):
-            sys.exit("ad_import: --check's folder must be outside QC/ad")
     for fn, want in PINNED.items():
         got = sha256(os.path.join(rel, fn))
         if got != want:
@@ -994,196 +833,28 @@ def main():
     if count != 1:
         sys.exit("ad_import: monster pellet speed hook missing")
     src["ai_projectiles.qc"] = projectile
-    # Mechanical: Quake VR's beam temp entities (TE_LIGHTNING1/2/3, TE_BEAM) carry a beam id byte after the entity
-    # (the client's VR_ParseBeamEntity; ours write 0 for a monster's). Every WriteEntity in AD's code (not commented out)
-    # is one of those beams' entity: the byte follows it, else the client reads the next message one byte off.
-    beam_rx = re.compile(r"^([ \t]*)WriteEntity[ \t]*\([ \t]*(MSG_\w+)[ \t]*,([^;\n]*)\);", re.M)
-    beam_ids = 0
-    for fn in src:
-        src[fn], n = beam_rx.subn(lambda m: "%sWriteEntity (%s,%s); WriteByte (%s, 0);" % (
-            m.group(1), m.group(2), m.group(3), m.group(2)), src[fn])
-        beam_ids += n
-    order = []
-    for line in src["progs.src"].splitlines()[1:]:
-        line = line.split("//")[0].strip()
-        if line.endswith(".qc") and line not in SKIP:
-            order.append(line)
-
-    system, our_fields, our_names, our_builtins, our_macros, our_funcs = ours()
-    if QVR_NAMES - our_names:
-        sys.exit("ad_import: the patches call names Quake VR's QC does not define: " + ", ".join(sorted(QVR_NAMES - our_names)))
-    our_numbers = {num: n for n, num in our_builtins.items() if num}
-    keys = map_keys(rel)
-
-    toks = {fn: tokenize(src[fn]) for fn in order}
-    stmts = {fn: statements(toks[fn]) for fn in order}
-
-    # fteqcc's autocvar(name, default): `name` is a cvar's name, not an identifier.
-    for fn in order:
-        t = toks[fn]
-        ci = code(t)
-        for a in range(len(ci) - 2):
-            if t[ci[a]][1] == "autocvar" and t[ci[a + 1]][1] == "(" and t[ci[a + 2]][0] == "id":
-                t[ci[a + 2]] = ("cvarname", t[ci[a + 2]][1])
-
-    # Global arrays sized by a named constant: the number instead.
-    consts = {}
-    for fn in order:
-        for st in stmts[fn]:
-            t = [toks[fn][k][1] for k in st]
-            if len(t) == 5 and t[0] == "float" and t[2] == "=" and re.match(r"\d+$", t[3]) and t[4] == ";":
-                consts[t[1]] = t[3]
-    for fn in order:
-        for st in stmts[fn]:
-            t = [toks[fn][k] for k in st]
-            if any(x[1] == "{" for x in t):
-                continue
-            for a in range(len(st) - 2):
-                if t[a][1] == "[" and t[a + 1][0] == "id" and t[a + 2][1] == "]" and t[a + 1][1] in consts:
-                    toks[fn][st[a + 1]] = ("num", consts[t[a + 1][1]])
-
-    # AD's own system section (defs.qc up to end_sys_fields) is the engine's: Quake VR's defines it.
-    ad_sys, ad_fields, ad_builtin_stmts = set(), {}, {}
-    skip_stmt = {fn: set() for fn in order}
-    in_sys = True
-    for k, st in enumerate(stmts["defs.qc"]):
-        ns, is_field, typ, is_builtin = declared(toks["defs.qc"], st)
-        if in_sys:
-            ad_sys.update(ns)
-            skip_stmt["defs.qc"].add(k)
-            if "end_sys_fields" in ns:
-                in_sys = False
-    for fn in order:
-        for k, st in enumerate(stmts[fn]):
-            ns, is_field, typ, is_builtin = declared(toks[fn], st)
-            if is_builtin:
-                skip_stmt[fn].add(k)
-                for n in ns:
-                    ad_builtin_stmts.setdefault(n, (fn, st))
-            elif is_field and k not in skip_stmt[fn]:
-                for n in ns:
-                    ad_fields.setdefault(n, (typ, fn))
-
-    # What stays as written.
-    keep = set(KEYWORDS) | system
-    # A builtin Quake VR declares, or wraps in a QC function of the same name (frikbot's sound, stuffcmd...).
-    # Only with the same signature: AD's strcat takes up to 8 strings, Quake VR's declaration 2 (the builtin is the
-    # same): AD's declaration is kept as ad_strcat with the builtin's number.
-    keep_builtins = {n for n in ad_builtin_stmts if (n in our_builtins or n in our_funcs)
-                     and SIGS.get(n) == signature(toks[ad_builtin_stmts[n][0]], ad_builtin_stmts[n][1])}
-    keep |= keep_builtins
-    shared_fields = sorted(n for n, (typ, fn) in ad_fields.items()
-                           if n in keys and n in our_fields and our_fields[n] == typ and n not in our_macros)
-    keep |= set(shared_fields)
-
-    def rename(name):
-        if name in keep or name.startswith("__") or name.startswith(BRIDGE) or name in QVR_NAMES:
-            return name
-        m = re.match(r"(\w+)_[xyz]$", name)
-        if m and m.group(1) in keep:
-            return name
-        return PREFIX + name
-
-    # Headers: only the statements defining what the imported code uses (to a fixed point).
-    body_ids = set()
-    for fn in order:
-        if fn in HEADERS:
-            continue
-        for st in stmts[fn]:
-            body_ids |= ids_in(toks[fn], st)
-    needed = set(body_ids)
-    kept = {fn: set() for fn in order if fn in HEADERS}
-    changed = True
-    while changed:
-        changed = False
-        for fn in kept:
-            for k, st in enumerate(stmts[fn]):
-                if k in kept[fn] or k in skip_stmt[fn]:
-                    continue
-                ns = declared(toks[fn], st)[0]
-                if set(ns) & needed:
-                    kept[fn].add(k)
-                    needed |= ids_in(toks[fn], st)
-                    changed = True
-
-    # Builtins AD uses that Quake VR's QC does not declare: by name (#0).
-    # A standard builtin under another name (AD's walkmove_builtin = #32) keeps its number, as ad_<name>.
-    bi_out, bi_renamed, bi_numbered, bi_byname = [], [], [], []
-    for n in sorted(ad_builtin_stmts):
-        if n in keep_builtins or n not in needed:
-            continue
-        fn, st = ad_builtin_stmts[n]
-        num = builtin_number(toks[fn], st)
-        if n in our_builtins and our_builtins[n]:
-            num = our_builtins[n]
-            bi_numbered.append("%s=#%d (another signature than Quake VR's: %s / %s)" % (
-                n, num, signature(toks[fn], st), SIGS.get(n)))
-            bi_out.append(emit(toks[fn], st, rename, builtin_name=PREFIX + n, number=num))
-            continue
-        if num in our_numbers:
-            bi_numbered.append("%s=#%d (Quake VR's %s)" % (n, num, our_numbers[num]))
-            bi_out.append(emit(toks[fn], st, rename, builtin_name=PREFIX + n, number=num))
-            continue
-        clash = n in our_names or n in our_macros
-        if clash:
-            bi_renamed.append(n)
-        else:
-            keep.add(n)
-            bi_byname.append(n)
-        text = emit(toks[fn], st, rename, builtin_name=(PREFIX + n if clash else n))
-        bi_out.append(text)
-
-    OUT = WRITE_DIR
-    os.makedirs(OUT, exist_ok=True)
-    banner = ("// Arcane Dimensions 1.80 patch 1 (Simon \"sock\" O'Callaghan and team; GPL-2.0-or-later, see\n"
-              "// AD's readme and docs/vr-port/CREDITS.md), %s, generated by Misc/quakevr/ad_import.py: every name\n"
-              "// AD defines is prefixed \"ad_\" (ARCANE_DIMENSIONS.md 5.2). Do not edit; change the importer.\n\n")
-    written = []
-    for fn in order:
-        t = toks[fn]
-        if fn in HEADERS:
-            body = "\n".join(emit(t, st, rename) for k, st in enumerate(stmts[fn]) if k in kept[fn]) + "\n"
-        else:
-            drop = set()
-            for k in skip_stmt[fn]:
-                drop.update(range(stmts[fn][k][0], stmts[fn][k][-1] + 1))
-            body = "".join(render(t, j, rename) for j in range(len(t)) if j not in drop)
-        out = "ad_" + fn
-        with open(os.path.join(OUT, out), "w", encoding="latin1", newline="\n") as f:
-            f.write(banner % ("my_progs/" + fn) + body)
-        written.append(out)
-    with open(os.path.join(OUT, "ad_builtins.qc"), "w", encoding="latin1", newline="\n") as f:
+    # Mechanical: the beam id byte after every beam's entity (qc_import.beam_id_bytes, every import's rule).
+    beam_ids = qc_import.beam_id_bytes(src)
+    mod = qc_import.Mod(
+        name="Arcane Dimensions", short="AD", script="ad_import.py", folder="ad", prefix=PREFIX, skip=SKIP,
+        headers=HEADERS, keep_prefixes=(BRIDGE,), qvr_names=QVR_NAMES, own_names=OWN_NAMES, keys=map_keys(rel),
+        key_fill="in an AD map the engine fills them from the key, pr_edict.c",
+        source_name=lambda fn: "my_progs/" + fn,
+        banner=("// Arcane Dimensions 1.80 patch 1 (Simon \"sock\" O'Callaghan and team; GPL-2.0-or-later, see\n"
+                "// AD's readme and docs/vr-port/CREDITS.md), %s, generated by Misc/quakevr/ad_import.py: every name\n"
+                "// AD defines is prefixed \"ad_\" (ARCANE_DIMENSIONS.md 5.2). Do not edit; change the importer.\n\n"),
         # AD as shipped: `if (string)` tests null (F322; the same in AD's own compile) and locals fteqcc can't prove
-        # set on every path (F302, reported after the last file is read). Quiet from here on: AD's files are the
-        # last in progs.src.
-        f.write(banner % "extension builtins" +
-                "#pragma warning disable F302\n#pragma warning disable F322\n\n"
-                "// Not declared by Quake VR's QC: bound by name (#0) when the engine has them.\n\n" +
-                "\n".join(bi_out) + "\n")
-    # progs.src lists each file (fteqcc numbers $frame macros from 0 in each progs.src file, not in an #include).
-    files = ["ad/" + fn for fn in ["ad_builtins.qc"] + written]
-    update_progs_src(files)
-
-    renamed_keys = sorted(n for n, (typ, fn) in ad_fields.items() if n in keys and n not in shared_fields)
-    clash_type = sorted("%s (AD %s, Quake VR %s)" % (n, ad_fields[n][0], our_fields[n]) for n in renamed_keys
-                        if n in our_fields)
-    sys_missing = sorted(ad_sys - system - {"end_sys_globals", "end_sys_fields"})
-    report = [
-        "Arcane Dimensions import (Misc/quakevr/ad_import.py); regenerate, never edit.",
-        "Source: ad_v1_80p1final.zip, " + ", ".join("%s %s" % kv for kv in sorted(PINNED.items())),
-        "Files (AD's progs.src order): %d imported, skipped %s; headers filtered: %s" % (
-            len(written), ", ".join(sorted(SKIP)), ", ".join(sorted(HEADERS))),
-        "Header statements kept: " + ", ".join("%s %d/%d" % (fn, len(kept[fn]), len(stmts[fn])) for fn in sorted(kept)),
-        "AD system names not kept (the engine's entry points: AD's are renamed, the engine never calls them): " +
-        (", ".join(sys_missing) or "none"),
-        "Builtins kept (Quake VR declares them): %d" % len(keep_builtins),
-        "Builtins by name (#0, ad_builtins.qc): %d: %s" % (len(bi_byname), ", ".join(bi_byname)),
-        "Builtins renamed (the name is Quake VR's for something else): " + (", ".join(bi_renamed) or "none"),
-        "Standard builtins under AD's own names (number kept, ad_<name>): " + (", ".join(bi_numbered) or "none"),
-        "Map-key fields shared with Quake VR (same name and type, bare): %d: %s" % (len(shared_fields), ", ".join(shared_fields)),
-        "Map-key fields renamed ad_<key> (no Quake VR field, or another type; in an AD map the engine fills them from the key, pr_edict.c): %d" % len(renamed_keys),
-        "  of them a type clash: " + (", ".join(clash_type) or "none"),
-        "  " + ", ".join(renamed_keys),
+        # set on every path (F302, reported after the last file is read). Quiet from here on: the imports are the
+        # last files in progs.src.
+        builtins_text=("#pragma warning disable F302\n#pragma warning disable F322\n\n"
+                       "// Not declared by Quake VR's QC: bound by name (#0) when the engine has them.\n\n"),
+        report_name="AD_IMPORT.txt",
+        report_head=["Arcane Dimensions import (Misc/quakevr/ad_import.py); regenerate, never edit.",
+                     "Source: ad_v1_80p1final.zip, " + ", ".join("%s %s" % kv for kv in sorted(PINNED.items()))])
+    if args.check:
+        mod.write_dir = qc_import.check_dir(mod, args.check)
+    report, _ = qc_import.run(mod, src)
+    report += [
         "Beam temp entities given Quake VR's beam id byte after WriteEntity (mechanical): %d" % beam_ids,
         "Reviewed patches: %d precedence, %d bridge hooks (VR_AD_*, QC/vr_ad_bridge.qc):" % (
             sum(1 for p in PATCHES if p[4].startswith(P)), sum(1 for p in PATCHES if p[4].startswith(B))),
@@ -1194,87 +865,9 @@ def main():
         "  %s %s: aim cone wait (VR_AimCone_Wait, %s)" % (fn, func, kind) for fn, func, kind in AIM_WAITS]
     report.append("  ai_projectiles.qc: unique Touch_Bullet prepare/hit, Launch_Bullet enemy speed/flight origin, "
                   "Launch_Missile/Launch_Grenade VR ordnance hooks (function-boundary checked)")
-    with open(os.path.join(OUT, "AD_IMPORT.txt"), "w", encoding="latin1", newline="\n") as f:
-        f.write("\n".join(report) + "\n")
-    if WRITE_DIR != OUT_DIR:
-        sys.exit(check())
+    qc_import.write_report(mod, report)
     print("\n".join(report[:12]))
 
-
-BEGIN = "// ad_import.py: begin (generated list; Misc/quakevr/ad_import.py rewrites it)"
-END = "// ad_import.py: end"
-
-
-def update_progs_src(files):
-    """Writes AD's files between the markers at the end of QC/progs.src (adds the markers the first time)."""
-    path = os.path.join(QC_DIR, "progs.src")
-    with open(path, encoding="latin1", newline="") as f:
-        text = f.read()
-    nl = "\r\n" if "\r\n" in text else "\n"
-    block = nl.join([BEGIN] + files + [END])
-    if BEGIN in text:
-        a = text.index(BEGIN)
-        b = text.index(END, a) + len(END)
-        text = text[:a] + block + text[b:]
-    else:
-        text = text.rstrip("\r\n") + nl + block + nl
-    if WRITE_DIR != OUT_DIR:  # --check: the list next to the files, compared by check()
-        path = os.path.join(WRITE_DIR, "progs.src")
-    with open(path, "w", encoding="latin1", newline="") as f:
-        f.write(text)
-
-
-def check():
-    """--check: the files just written to WRITE_DIR against QC/ad (and progs.src); prints a unified diff of each
-    difference, returns the exit code (0 when the tree is exactly what the importer makes)."""
-    import difflib
-    names = sorted(set(os.listdir(WRITE_DIR)) | set(fn for fn in os.listdir(OUT_DIR)))
-    bad = 0
-    for fn in names:
-        ours_path = os.path.join(QC_DIR, fn) if fn == "progs.src" else os.path.join(OUT_DIR, fn)
-        gen_path = os.path.join(WRITE_DIR, fn)
-        a = open(ours_path, encoding="latin1").read().splitlines() if os.path.exists(ours_path) else []
-        b = open(gen_path, encoding="latin1").read().splitlines() if os.path.exists(gen_path) else []
-        if a != b:
-            bad += 1
-            sys.stdout.writelines(l + "\n" for l in difflib.unified_diff(
-                a, b, "tree/" + fn, "importer/" + fn, lineterm="", n=1))
-    print("ad_import --check: %d of %d files differ from the importer's output (%s)" % (bad, len(names), WRITE_DIR))
-    return 1 if bad else 0
-
-
-def render(tokens, j, rename):
-    kind, text = tokens[j]
-    if kind == "id":
-        return rename(text)
-    if kind == "bc" and text.startswith("/*QUAKED"):
-        return "/*ad:QUAKED" + text[len("/*QUAKED"):]  # (TrenchBroom's generator must not take AD's yet)
-    return text
-
-
-def emit(tokens, stmt, rename, builtin_name=None, number=0):
-    """One statement's text (its own comments kept), renamed; a builtin declaration made '#<number>' and named."""
-    parts = []
-    first, last = stmt[0], stmt[-1]
-    j = first
-    while j <= last:
-        kind, text = tokens[j]
-        if builtin_name and text == "#":
-            parts.append("#%d" % number)
-            j += 1
-            while j <= last and tokens[j][0] in ("ws", "num"):
-                j += 1
-            continue
-        if builtin_name and kind == "id" and declared(tokens, stmt)[0] == [text]:
-            parts.append(builtin_name)
-        else:
-            parts.append(render(tokens, j, rename))
-        j += 1
-    text = "".join(parts)
-    is_function = "(" in declared(tokens, stmt)[2]
-    if tokens[last][1] != ";" and (tokens[last][1] != "}" or not is_function):
-        text += ";"  # (an array's initializer, `= { ... }`, ends with the brace: its semicolon was its own statement)
-    return text
 
 
 if __name__ == "__main__":

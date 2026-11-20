@@ -2,6 +2,7 @@
 
 #include "vr_animrec.hpp"
 #include "vr_hands.hpp"
+#include "vr_mem.hpp"
 #include "vr_tracy.h"
 #include "vr_engine.hpp"
 #include "vr_units.hpp"
@@ -1113,6 +1114,12 @@ void resetClientState()
     previous.valid = false;
     stateFrame = -1;
 }
+
+namespace
+{
+// Forgotten when the client's state is cleared (vr_mem.hpp's resets): what follows the client's time.
+mem::Reset clientStateReset{"hands", mem::ResetEvent::ClientState, mem::ResetPhase::State, &resetClientState};
+} // namespace
 
 void resetForPlayback()
 {

@@ -515,7 +515,7 @@ N) code button
 */
 void() func_button =
 {
-    if(MG_MonsterInhibited()) return;
+    if(VR_SF_SpawnInhibited()) return;
     if(MG_WorldCampaign()) MG_ButtonInit();
     // The hub's Continue button ("vr_continue"): there only when there is a save to continue (the engine's
     // vr_continue_available, looked at as a Quake VR map spawns: vr_continue.cpp); its save is shown over it.
@@ -995,6 +995,10 @@ string(float choice) VR_EnemyDispenser_Model =
     else if(choice == 62) { return "owned/mg3/progs/teleporter_eye.mdl"; }
     else if(choice == 63) { return "owned/mg3/progs/teleporter_eye.mdl"; }
     else if(choice == 50) { return "progs/boss.mdl"; } // (id's: MG3's spheres too, its spawn checks)
+    else if(choice == 70) { return "progs/e1/mon_kami.mdl"; }      // Dwell's (dwell/dw_monsters.qc; DWELL.md P2b)
+    else if(choice == 71) { return "progs/e2/mon_brute.mdl"; }
+    else if(choice == 72) { return "progs/e2/mon_excavator.mdl"; }
+    else if(choice == 73) { return "progs/mon_d1boss.mdl"; }
     else if(choice >= 200 && VR_AD_DispenserModel(choice) != "") { return VR_AD_DispenserModel(choice); } // AD support: AD's monsters (vr_ad_monsters.qc)
 
     return NULLSTR;
@@ -1048,6 +1052,10 @@ void(float choice) VR_EnemyDispenser_Spawn =
     else if(choice == 62) { self.classname = "monster_shub_eye"; monster_shub_eye(); }
     else if(choice == 63) { self.classname = "monster_shub_seeker"; monster_shub_seeker(); }
     else if(choice == 50) { MG3_Chthon_FromSpawner(activator); }
+    else if(choice == 70) { dw_monster_kamikaze(); } // Dwell's (their spawn functions set their classnames)
+    else if(choice == 71) { dw_monster_brute(); }
+    else if(choice == 72) { dw_monster_excavator(); }
+    else if(choice == 73) { dw_monster_d1boss(); }
 
 };
 

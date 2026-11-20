@@ -7,6 +7,7 @@
 #include "vr_gorepresets.hpp"
 #include "vr_presets.hpp"
 #include "vr_progs.hpp"
+#include "vr_serverrules.hpp"
 #include "vr_testkit.hpp"
 
 #include "Zancle/Container/Vector.hpp"
@@ -488,11 +489,21 @@ const char* menuNoteLine()
 
 void menuApply(int level)
 {
+    if(const char* why = serverrules::lockedBecause())
+    {
+        Con_Printf("vr_gameplay_preset: not here. %s\n", why);
+        return;
+    }
     presetKind.menuApply(level);
 }
 
 void menuRestoreMine()
 {
+    if(const char* why = serverrules::lockedBecause())
+    {
+        Con_Printf("My Settings: not here. %s\n", why);
+        return;
+    }
     presetKind.menuRestoreMine();
 }
 

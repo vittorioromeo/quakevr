@@ -37,13 +37,9 @@ inline float(entity xEntPlayer, float xHand) VR_HandGrabUtil_Impl_GetLastRelease
 // Public API
 // ----------------------------------------------------------------------------
 
+// (Every player's, a bot's too: its grips are its AI's, bot_setvrfields; MP B11 part 4.)
 void(entity xEntPlayer) VR_HandGrabUtil_UpdateState =
 {
-    if(!xEntPlayer.ishuman)
-    {
-        return;
-    }
-
     VR_HandGrabUtil_Impl_UpdateStateForHand(
         VRGetOffHandGrabbingBit(xEntPlayer),
         VRGetOffHandPrevGrabbingBit(xEntPlayer),
@@ -57,6 +53,16 @@ void(entity xEntPlayer) VR_HandGrabUtil_UpdateState =
         &xEntPlayer.mainhand_lastgrabtime,
         &xEntPlayer.mainhand_lastreleasetime
     );
+    if(cvar_hget(cvarh_vr_debug_carry) >= 2 && VRGetMainHandGrabbingBit(xEntPlayer) != VRGetMainHandPrevGrabbingBit(xEntPlayer))
+    {
+        dprint(sprintf("grip: %s's main hand %s at %.3f\n", xEntPlayer.netname,
+            VRGetMainHandGrabbingBit(xEntPlayer) ? "pressed" : "let go", time));
+    }
+    if(cvar_hget(cvarh_vr_debug_carry) >= 2 && VRGetOffHandGrabbingBit(xEntPlayer) != VRGetOffHandPrevGrabbingBit(xEntPlayer))
+    {
+        dprint(sprintf("grip: %s's off hand %s at %.3f\n", xEntPlayer.netname,
+            VRGetOffHandGrabbingBit(xEntPlayer) ? "pressed" : "let go", time));
+    }
 }
 
 inline float(entity xEntPlayer, float xHand) VR_HandGrabUtil_IsHandGrabbing =

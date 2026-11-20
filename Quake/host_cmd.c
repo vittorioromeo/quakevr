@@ -625,7 +625,7 @@ qboolean Download_LocalHost (const char *host)
 static curl_socket_t Download_OpenSocket (void *clientp, curlsocktype purpose, struct curl_sockaddr *address)
 {
 	download_t *download = (download_t *) clientp;
-	if (purpose == CURLSOCKTYPE_IPCXN)
+	if (purpose == CURLSOCKTYPE_IPCXN && download->refuse_local)
 	{
 		qboolean local = false;
 		if (address->family == AF_INET)
@@ -639,6 +639,52 @@ static curl_socket_t Download_OpenSocket (void *clientp, curlsocktype purpose, s
 		}
 	}
 	return socket (address->family, address->socktype, address->protocol);
+}
+
+// QVR: (B24, tests) -loopbackonly (net_main.c): a download's URL host only a literal loopback one (127.x.y.z, localhost,
+// [::1]: no name looked up), and each address it connects to 127.0.0.0/8 or ::1 (Download_OpenSocketLoopback: a
+// redirect's too)
+static const unsigned char download_ipv6loopback[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1};
+
+static qboolean Download_LoopbackURL (const char *url)
+{
+	const char	*p = strstr (url, "://");
+	char		host[64];
+	size_t		n;
+	p = p ? p + 3 : url;
+	n = strcspn (p, "/?#");
+	if (memchr (p, '@', n)) // (user info: not ours)
+		return false;
+	if (p[0] == '[')
+		return !q_strncasecmp (p, "[::1]", 5);
+	n = q_min (strcspn (p, ":/?#"), sizeof (host) - 1);
+	memcpy (host, p, n);
+	host[n] = 0;
+	if (!q_strcasecmp (host, "localhost"))
+		return true;
+	{
+		unsigned char a[4];
+		return inet_pton (AF_INET, host, a) == 1 && a[0] == 127;
+	}
+}
+
+static curl_socket_t Download_OpenSocketLoopback (void *clientp, curlsocktype purpose, struct curl_sockaddr *address)
+{
+	download_t *download = (download_t *) clientp;
+	if (purpose == CURLSOCKTYPE_IPCXN)
+	{
+		qboolean loopback = false;
+		if (address->family == AF_INET)
+			loopback = ((const unsigned char *) &((const struct sockaddr_in *) &address->addr)->sin_addr)[0] == 127;
+		else if (address->family == AF_INET6)
+			loopback = !memcmp (&((const struct sockaddr_in6 *) &address->addr)->sin6_addr, download_ipv6loopback, 16);
+		if (!loopback)
+		{
+			download->refused_offhost = true;
+			return CURL_SOCKET_BAD;
+		}
+	}
+	return Download_OpenSocket (clientp, purpose, address);
 }
 #endif
 
@@ -657,6 +703,12 @@ qboolean Download (const char *url, download_t *download)
 
 	download->response = 0;
 	download->error = NULL;
+
+	if (COM_CheckParm ("-loopbackonly") && !Download_LoopbackURL (url)) // QVR: (B24, tests) net_main.c
+	{
+		download->error = "NET SAFETY: refused a download from off this machine (-loopbackonly)";
+		return false;
+	}
 
 	multi_handle = curl_multi_init ();
 	if (!multi_handle)
@@ -697,7 +749,13 @@ qboolean Download (const char *url, download_t *download)
 	// seconds) lets the resolver's thread go instead of waiting for it, so quitting never waits on it either.
 	curl_easy_setopt (curl, CURLOPT_QUICK_EXIT, 1L);
 	download->refused_local = false;
-	if (download->refuse_local) // QVR: no local address (Download_OpenSocket)
+	download->refused_offhost = false;
+	if (COM_CheckParm ("-loopbackonly")) // QVR: (B24, tests) every connection checked (refuse_local's too)
+	{
+		curl_easy_setopt (curl, CURLOPT_OPENSOCKETFUNCTION, Download_OpenSocketLoopback);
+		curl_easy_setopt (curl, CURLOPT_OPENSOCKETDATA, download);
+	}
+	else if (download->refuse_local) // QVR: no local address (Download_OpenSocket)
 	{
 		curl_easy_setopt (curl, CURLOPT_OPENSOCKETFUNCTION, Download_OpenSocket);
 		curl_easy_setopt (curl, CURLOPT_OPENSOCKETDATA, download);
@@ -754,6 +812,8 @@ done:
 		download->error = curl_multi_strerror (mc);
 	if (download->refused_local && download->response != 200) // QVR
 		download->error = "refused: the host is a local address";
+	if (download->refused_offhost) // QVR: (B24)
+		download->error = "NET SAFETY: refused a download's connection off this machine (-loopbackonly)";
 
 	if (header)
 		curl_slist_free_all (header);
@@ -1745,7 +1805,8 @@ static void Host_Status_f (void)
 		}
 		else
 			hours = 0;
-		print_fn ("#%-2u %-16.16s  %3i  %2i:%02i:%02i\n", j+1, client->name, (int)client->edict->v.frags, hours, minutes, seconds);
+		// QVR (MP_PLAN B17): each player's ping too, the server's measure of his moves (as `ping`'s)
+		print_fn ("#%-2u %-16.16s  %3i  %2i:%02i:%02i  %4i ms\n", j+1, client->name, (int)client->edict->v.frags, hours, minutes, seconds, VR_ClientPingMs (j));
 		print_fn ("   %s\n", NET_QSocketGetAddressString(client->netconnection));
 	}
 }
@@ -2598,15 +2659,16 @@ static void Host_SavegameRun (void)
 	if (VR_RunIronmanRefusesSave ()) // QVR: the run's Ironman: no saving (the quick and auto saves come here too)
 		return;
 
-	if (cl.intermission)
+	if (cl.intermission || VR_ServerIntermission ()) // QVR: the server's QC too (a dedicated server has no client)
 	{
 		Con_Printf ("Can't save in intermission.\n");
 		return;
 	}
 
-	if (svs.maxclients != 1)
+	// QVR: a coop game is saved with each player's block (vr/vr_coopsave.cpp, MP_PLAN.md B4); deathmatch is not
+	if (svs.maxclients != 1 && deathmatch.value)
 	{
-		Con_Printf ("Can't save multiplayer games.\n");
+		Con_Printf ("Can't save deathmatch games.\n");
 		return;
 	}
 
@@ -2711,6 +2773,8 @@ static void Host_Loadgame_f (void)
 	int	version;
 	float	spawn_parms[NUM_SPAWN_PARMS];
 	qboolean kexonly = false;
+	int	coopclients;	// QVR: the save's players (0: a single player save)
+	qboolean keepclients;	// QVR: the players connected kept (a coop save of this game's number of players)
 
 	if (cmd_source != src_command)
 		return;
@@ -2853,10 +2917,39 @@ static void Host_Loadgame_f (void)
 		return;
 	}
 
-// Note: calling CL_Disconnect instead of CL_Disconnect_f to avoid stopping the music
-	CL_Disconnect ();
-	if (sv.active)
-		Host_ShutdownServer (false);
+	// QVR: a save is played with its own number of players: the edicts after theirs are numbered from it (a coop save's
+	// `// qvr_coop` line, vr/vr_coopsave.cpp; a single player save's 1). The players are kept when that is this game's
+	// number already: they reconnect, each in his slot, as at a changelevel.
+	coopclients = VR_CoopSaveClients ();
+	if (coopclients > svs.maxclientslimit)
+	{
+		Con_Printf ("ERROR: %s is a coop save of %d players; this game takes %d at most: not loaded\n", relname,
+			coopclients, svs.maxclientslimit);
+		VR_HeapFree (start);
+		start = NULL;
+		SCR_EndLoadingPlaque ();
+		return;
+	}
+	keepclients = coopclients > 1 && sv.active && svs.maxclients == coopclients;
+
+	if (!keepclients)
+	{
+	// Note: calling CL_Disconnect instead of CL_Disconnect_f to avoid stopping the music
+		CL_Disconnect ();
+		if (sv.active)
+			Host_ShutdownServer (false);
+		if (svs.maxclients != q_max (coopclients, 1))
+		{
+			Cmd_ExecuteString (va ("maxplayers %d", q_max (coopclients, 1)), src_command);
+			if (coopclients <= 1)
+				Cvar_Set ("coop", "0");
+		}
+	}
+	if (coopclients > 1)
+	{
+		Cvar_Set ("deathmatch", "0");
+		Cvar_Set ("coop", VR_CoopSaveIsCoop () ? "1" : "0");
+	}
 
 	PR_SwitchQCVM(&sv.qcvm);
 	VR_OnBeginLoadGame (); // QVR
@@ -2942,13 +3035,28 @@ static void Host_Loadgame_f (void)
 	for (i = 0; i < NUM_SPAWN_PARMS; i++)
 		svs.clients->spawn_parms[i] = spawn_parms[i];
 	VR_OnLoadGame (); // QVR
+	VR_CoopApplyLoad (); // QVR: a coop save's players' parms to their slots (vr/vr_coopsave.cpp)
 	VR_TimeMark ("load: the saved game's entities"); // QVR
 
 	PR_SwitchQCVM(NULL);
 
 	q_strlcpy (sv.lastsave, relname, sizeof (sv.lastsave));
 
-	if (cls.state != ca_dedicated)
+	if (keepclients)
+	{
+		// QVR: the players kept were sent the map's serverinfo before the save's edicts (and the models they precache)
+		// were loaded: sent again now, as to a player connecting to the loaded game
+		PR_SwitchQCVM (&sv.qcvm);
+		for (i = 0; i < svs.maxclients; i++)
+		{
+			if (!svs.clients[i].active)
+				continue;
+			SZ_Clear (&svs.clients[i].message);
+			SV_SendServerinfo (&svs.clients[i]);
+		}
+		PR_SwitchQCVM (NULL);
+	}
+	else if (cls.state != ca_dedicated)
 	{
 		CL_EstablishConnection ("local");
 		Host_Reconnect_f ();
@@ -3026,6 +3134,8 @@ static void Host_Say(qboolean teamonly)
 	}
 
 	if (Cmd_Argc () < 2)
+		return;
+	if (!fromServer && !VR_GuestMayTalk ()) // QVR: (B28) a guest's flood guard (QuakeWorld's: 4 messages in 8 s)
 		return;
 
 	save = host_client;
@@ -3107,6 +3217,8 @@ static void Host_Tell_f(void)
 	}
 
 	if (Cmd_Argc () < 3)
+		return;
+	if (!VR_GuestMayTalk ()) // QVR: (B28) a guest's flood guard (Host_Say's)
 		return;
 
 	p = Cmd_Args();
@@ -3251,6 +3363,8 @@ static void Host_Pause_f (void)
 	}
 	if (!pausable.value)
 		SV_ClientPrintf ("Pause not allowed.\n");
+	else if (!VR_GuestMay ("pause")) // QVR: (B28) a guest's pause stops everyone's game: the host's own (vr_mp_guest_admin)
+		;
 	else
 	{
 		sv.paused ^= 1;
@@ -3326,6 +3440,7 @@ static void Host_Spawn_f (void)
 	int		i;
 	client_t	*client;
 	edict_t	*ent;
+	int		loadedslot;
 
 	if (cmd_source == src_command)
 	{
@@ -3342,10 +3457,13 @@ static void Host_Spawn_f (void)
 	}
 
 // run the entrance script
-	if (sv.loadgame)
+	// QVR: a coop save's empty slot (vr/vr_coopsave.cpp) is a new player's: entered as in a level started
+	loadedslot = VR_CoopSlotLoaded (host_client - svs.clients);
+	if (loadedslot)
 	{	// loaded games are fully inited already
-		// if this is the last client to be connected, unpause
-		sv.paused = false;
+		// if this is the last client to be connected, unpause (QVR: of a coop save's players still connected)
+		if (VR_CoopSlotSpawned (host_client - svs.clients))
+			sv.paused = false;
 	}
 	else
 	{
@@ -3362,6 +3480,7 @@ static void Host_Spawn_f (void)
 		for (i=0 ; i< NUM_SPAWN_PARMS ; i++)
 			(&pr_global_struct->parm1)[i] = host_client->spawn_parms[i];
 		VR_RestoreSpawnParms (host_client - svs.clients); // QVR
+		VR_CoopRejoinSpawn (host_client - svs.clients); // QVR: (B15) one back in a game he left: what he had then
 		// call the spawn function
 		pr_global_struct->time = qcvm->time;
 		pr_global_struct->self = EDICT_TO_PROG(sv_player);
@@ -3371,6 +3490,8 @@ static void Host_Spawn_f (void)
 			Sys_Printf ("%s entered the game\n", host_client->name);
 
 		PR_ExecuteProgram (pr_global_struct->PutClientInServer);
+		if (sv.loadgame && VR_CoopSlotSpawned (host_client - svs.clients))
+			sv.paused = false; // QVR: (a new player in a loaded coop game)
 	}
 
 // send all current names, colors, and frag counts
@@ -3445,7 +3566,7 @@ static void Host_Spawn_f (void)
 	}
 	MSG_WriteByte (&host_client->message, svc_setangle);
 	for (i = 0; i < 2; i++)
-		if (sv.loadgame)
+		if (loadedslot)
 			MSG_WriteAngle (&host_client->message, ent->v.v_angle[i], sv.protocolflags );
 		else
 			MSG_WriteAngle (&host_client->message, ent->v.angles[i], sv.protocolflags );
@@ -3503,6 +3624,8 @@ static void Host_Kick_f (void)
 		}
 	}
 	else if (pr_global_struct->deathmatch)
+		return;
+	else if (!VR_GuestMay ("kick")) // QVR: (B28) NetQuake let any coop client kick the others: the host's own (vr_mp_guest_admin)
 		return;
 
 	save = host_client;
@@ -3974,15 +4097,12 @@ static void Host_Startdemos_f (void)
 
 	if (!sv.active && cls.demonum != -1 && !cls.demoplayback)
 	{
-		cls.demonum = 0;
+		/* QVR: the attract-mode demos never play (the author's decision, 2026-11-19: neither on PC nor Quest, VR or
+		   flat; cl_startdemos is ignored): startdemos (quake.rc, a mod's quake.rc) goes straight to the menu. An
+		   explicit playdemo, timedemo or demos still plays. */
 		Cbuf_InsertText ("menu_main\n");
-		if (!cl_startdemos.value)
-		{  /* QuakeSpasm customization: */
-			/* go straight to menu, no CL_NextDemo */
-			cls.demonum = -1;
-			return;
-		}
-		CL_NextDemo ();
+		cls.demonum = -1;
+		return;
 	}
 	else
 	{

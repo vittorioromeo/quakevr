@@ -134,7 +134,6 @@ void M_Main_Draw (void);
 		void M_Net_Draw (void);
 		void M_LanConfig_Draw (void);
 		void M_GameOptions_Draw (void);
-		void M_Search_Draw (void);
 		void M_ServerList_Draw (void);
 	void M_Options_Draw (void);
 		void M_Keys_Draw (void);
@@ -156,7 +155,6 @@ void M_Main_Key (int key);
 		void M_Net_Key (int key);
 		void M_LanConfig_Key (int key);
 		void M_GameOptions_Key (int key);
-		void M_Search_Key (int key);
 		void M_ServerList_Key (int key);
 	void M_Options_Key (int key);
 		void M_Keys_Key (int key);
@@ -2209,7 +2207,7 @@ void M_Menu_Save_f (void)
 		return;
 	if (cl.intermission)
 		return;
-	if (svs.maxclients != 1)
+	if (svs.maxclients != 1 && deathmatch.value) // QVR: a coop host saves its game (each player's block: vr_coopsave.cpp)
 		return;
 	if (VR_RunIronmanRefusesSave ()) // QVR: the run's Ironman: no saving (said on the console and the screen)
 		return;
@@ -4219,7 +4217,6 @@ void M_Menu_Gamepad_f (void)
 		item (OPT_CONALPHA,				"Console Alpha")				\
 		item (OPT_CONBRIGHTNESS,		"Darken Console")				\
 		item (OPT_CONFIRMQUIT,			"Quit Prompt")					\
-		item (OPT_STARTDEMOS,			"Start Demos")					\
 	end_menu ()															\
 	begin_menu (GAMEPAD_OPTIONS, m_gamepad, TITLE("Controller"))		\
 		item (GPAD_OPT_DEVICE,			"Device")						\
@@ -4848,10 +4845,6 @@ void M_AdjustSliders (int dir)
 		M_CycleCvar (&cl_confirmquit, 0, 2, dir);
 		break;
 
-	case OPT_STARTDEMOS:
-		Cbuf_AddText ("toggle cl_startdemos\n");
-		break;
-
 	//
 	// Video options
 	//
@@ -5356,10 +5349,6 @@ static void M_Options_DrawItem (int y, int item)
 		else
 			str = "Simple";
 		M_Print (x, y, str);
-		break;
-
-	case OPT_STARTDEMOS:
-		M_DrawCheckbox (x, y, cl_startdemos.value);
 		break;
 
 	case OPT_LANGUAGE:
@@ -6836,12 +6825,13 @@ void M_Quit_Draw (void) //johnfitz -- modified for new quit message
 /* LAN CONFIG MENU */
 
 int		lanConfig_cursor = -1;
-int		lanConfig_cursor_table [] = {72, 92, 124};
-#define NUM_LANCONFIG_CMDS	3
+int		lanConfig_cursor_table [] = {72, 92, 124, 156}; // QVR: (B23) 156: the room code
+#define NUM_LANCONFIG_CMDS	4
 
 int 	lanConfig_port;
 char	lanConfig_portname[6];
 char	lanConfig_joinname[22];
+char	lanConfig_roomcode[7]; // QVR: (B23) a room code to join by (net_dgrm.c: "connect @CODE")
 
 void M_Menu_LanConfig_f (void)
 {
@@ -6903,10 +6893,13 @@ void M_LanConfig_Draw (void)
 
 	if (JoiningGame)
 	{
-		M_Print (basex, lanConfig_cursor_table[1], "Search for local games...");
+		M_Print (basex, lanConfig_cursor_table[1], "Server browser..."); // QVR: (B13) "Search for local games..."
 		M_Print (basex, 108, "Join game at:");
 		M_DrawTextBox (basex+8, lanConfig_cursor_table[2]-8, 22, 1);
 		M_Print (basex+16, lanConfig_cursor_table[2], lanConfig_joinname);
+		M_Print (basex, 140, "Join by room code:"); // QVR: (B23) the host's Host Game page shows it
+		M_DrawTextBox (basex+8, lanConfig_cursor_table[3]-8, 6, 1);
+		M_Print (basex+16, lanConfig_cursor_table[3], lanConfig_roomcode);
 	}
 	else
 	{
@@ -6922,8 +6915,11 @@ void M_LanConfig_Draw (void)
 	if (lanConfig_cursor == 2)
 		M_DrawTextCursor (basex+16 + 8*strlen(lanConfig_joinname), lanConfig_cursor_table [2]);
 
+	if (lanConfig_cursor == 3)
+		M_DrawTextCursor (basex+16 + 8*strlen(lanConfig_roomcode), lanConfig_cursor_table [3]);
+
 	if (*m_return_reason)
-		M_PrintWhite (basex, 148, m_return_reason);
+		M_PrintWhite (basex, 180, m_return_reason); // QVR: (B23; NetQuake's 148: the room code's row now)
 }
 
 
@@ -6987,6 +6983,17 @@ void M_LanConfig_Key (int key)
 			break;
 		}
 
+		if (lanConfig_cursor == 3 && lanConfig_roomcode[0]) // QVR: (B23)
+		{
+			m_return_state = m_state;
+			m_return_onerror = true;
+			IN_Activate();
+			key_dest = key_game;
+			m_state = m_none;
+			Cbuf_AddText ( va ("connect \"@%s\"\n", lanConfig_roomcode) );
+			break;
+		}
+
 		break;
 
 	case K_BACKSPACE:
@@ -7001,10 +7008,13 @@ void M_LanConfig_Key (int key)
 			if (strlen(lanConfig_joinname))
 				lanConfig_joinname[strlen(lanConfig_joinname)-1] = 0;
 		}
+
+		if (lanConfig_cursor == 3 && lanConfig_roomcode[0]) // QVR: (B23)
+			lanConfig_roomcode[strlen(lanConfig_roomcode)-1] = 0;
 		break;
 	}
 
-	if (StartingGame && lanConfig_cursor == 2)
+	if (StartingGame && lanConfig_cursor >= 2) // QVR: (B23) the room code's row too
 	{
 		if (key == K_UPARROW)
 			lanConfig_cursor = 1;
@@ -7045,20 +7055,32 @@ void M_LanConfig_Char (int key)
 			lanConfig_joinname[l] = key;
 		}
 		break;
+	case 3: // QVR: (B23) a room code: its letters, upper case
+		if (key >= 'a' && key <= 'z')
+			key -= 'a' - 'A';
+		if (key < 'A' || key > 'Z')
+			return;
+		l = strlen(lanConfig_roomcode);
+		if (l < 6)
+		{
+			lanConfig_roomcode[l+1] = 0;
+			lanConfig_roomcode[l] = key;
+		}
+		break;
 	}
 }
 
 
 textmode_t M_LanConfig_TextEntry (void)
 {
-	return (lanConfig_cursor == 0 || lanConfig_cursor == 2) ? TEXTMODE_ON : TEXTMODE_OFF;
+	return (lanConfig_cursor == 0 || lanConfig_cursor == 2 || lanConfig_cursor == 3) ? TEXTMODE_ON : TEXTMODE_OFF;
 }
 
 
 void M_LanConfig_Mousemove (float cx, float cy)
 {
 	int prev = lanConfig_cursor;
-	M_UpdateCursorWithTable (cy, lanConfig_cursor_table, NUM_LANCONFIG_CMDS - StartingGame, &lanConfig_cursor);
+	M_UpdateCursorWithTable (cy, lanConfig_cursor_table, StartingGame ? 2 : NUM_LANCONFIG_CMDS, &lanConfig_cursor);
 	if (lanConfig_cursor != prev)
 		M_MouseSound ("misc/menu1.wav");
 }
@@ -7335,6 +7357,14 @@ void M_GameOptions_Draw (void)
 		M_Print (160, 128, levels[episodes[startepisode].firstLevel + startlevel].name);
 	}
 
+	// QVR: (B23) hosting with a room code (net_dgrm.c): the code players join by, and how to copy it
+	if (sv.active && NET_RoomCode ()[0])
+	{
+		M_Print (0, 184, "       Room Code");
+		M_PrintWhite (160, 184, NET_RoomCode ());
+		M_Print (160 + 8 * 7, 184, "(C: copy)");
+	}
+
 // line cursor
 	M_DrawArrowCursor (144, gameoptions_cursor_table[gameoptions_cursor]);
 
@@ -7457,6 +7487,12 @@ void M_GameOptions_Key (int key)
 {
 	switch (key)
 	{
+	case 'c': // QVR: (B23) the room code copied
+	case 'C':
+		if (sv.active && NET_RoomCode ()[0])
+			Cbuf_AddText ("vr_mp_roomcode copy\n");
+		break;
+
 	case K_ESCAPE:
 	case K_BBUTTON:
 	case K_MOUSE4:
@@ -7532,70 +7568,34 @@ void M_GameOptions_Mousemove (float cx, float cy)
 
 //=============================================================================
 /* SEARCH MENU */
-
-qboolean	searchComplete = false;
-double		searchCompleteTime;
+// QVR: (B13) the search runs on the server browser's page (its rows fill in as the replies come): m_search goes there (nothing
+// sets m_search since: mpreview D4 removed its draw and key handlers)
 
 void M_Menu_Search_f (void)
 {
-	IN_DeactivateForMenu();
-	key_dest = key_menu;
-	m_state = m_search;
-	m_entersound = false;
-	slistSilent = true;
-	slistLocal = false;
-	searchComplete = false;
-	NET_Slist_f();
-
+	VR_BrowserRefresh ();
+	M_Menu_ServerList_f ();
 }
 
-
-void M_Search_Draw (void)
-{
-	qpic_t	*p;
-	int x;
-
-	p = Draw_CachePic ("gfx/p_multi.lmp");
-	M_DrawPic ( (320-p->width)/2, 4, p);
-	x = (320/2) - ((12*8)/2) + 4;
-	M_DrawTextBox (x-8, 32, 12, 1);
-	M_Print (x, 40, "Searching...");
-
-	if(slistInProgress)
-	{
-		NET_Poll();
-		return;
-	}
-
-	if (! searchComplete)
-	{
-		searchComplete = true;
-		searchCompleteTime = realtime;
-	}
-
-	if (hostCacheCount)
-	{
-		M_Menu_ServerList_f ();
-		return;
-	}
-
-	M_PrintWhite ((320/2) - ((22*8)/2), 64, "No Quake servers found");
-	if ((realtime - searchCompleteTime) < 3.0)
-		return;
-
-	M_Menu_LanConfig_f ();
-}
-
-
-void M_Search_Key (int key)
-{
-}
 
 //=============================================================================
 /* SLIST MENU */
+// QVR: (B13) the server browser (vr/vr_serverbrowser.cpp): the favourite servers (a star), the recent ones and the LAN's,
+// a row each (name, map, players, ping; a listed one that did not answer: its address, "no reply"); the last row
+// searches again. Enter (A, a click) joins; Y or F, or a click on the star's column, makes it a favourite or not; Del
+// forgets a recent one; X or Space searches again. NetQuake's: the LAN's servers found, Enter joined.
 
-int		slist_cursor;
-qboolean slist_sorted;
+#define SLIST_TOP		40
+#define SLIST_VIEW		13
+#define SLIST_STAR_X	16	// the favourite's star; the rows' text from SLIST_STAR_X + 8
+
+static menulist_t	slist_list;
+static int			slist_mouse_x;
+
+static int M_ServerList_Count (void)
+{
+	return VR_BrowserCount () + 1; // (the last row: Search Again)
+}
 
 void M_Menu_ServerList_f (void)
 {
@@ -7603,37 +7603,61 @@ void M_Menu_ServerList_f (void)
 	key_dest = key_menu;
 	m_state = m_slist;
 	m_entersound = true;
-	slist_cursor = 0;
 	m_return_onerror = false;
 	m_return_reason[0] = 0;
-	slist_sorted = false;
+	slist_list.cursor = 0;
+	slist_list.scroll = 0;
+	slist_list.viewsize = SLIST_VIEW;
+	slist_list.numitems = M_ServerList_Count ();
+	slist_list.isactive_fn = NULL;
 }
 
 
 void M_ServerList_Draw (void)
 {
-	int	n;
+	int		i, first, count, row, y;
 	qpic_t	*p;
 
-	if (!slist_sorted)
-	{
-		slist_sorted = true;
-		NET_SlistSort ();
-	}
+	slist_list.numitems = M_ServerList_Count ();
+	if (slist_list.cursor >= slist_list.numitems)
+		slist_list.cursor = slist_list.numitems - 1;
+	M_List_Rescroll (&slist_list);
 
 	p = Draw_CachePic ("gfx/p_multi.lmp");
 	M_DrawPic ( (320-p->width)/2, 4, p);
-	for (n = 0; n < hostCacheCount; n++)
-		M_Print (16, 32 + 8*n, NET_SlistPrintServer (n));
-	M_DrawArrowCursor (0, 32 + slist_cursor*8);
+	M_PrintWhite (SLIST_STAR_X + 8, SLIST_TOP - 10, "Server         Map      Plyrs Ping");
 
+	M_List_GetVisibleRange (&slist_list, &first, &count);
+	for (i = 0; i < count; i++)
+	{
+		row = first + i;
+		y = SLIST_TOP + i * 8;
+		if (row == slist_list.numitems - 1)
+			M_Print (SLIST_STAR_X + 8, y, VR_BrowserSearching () ? "Searching..." : "Search again");
+		else
+		{
+			if (VR_BrowserRowFavourite (row))
+				M_PrintWhite (SLIST_STAR_X, y, "*");
+			M_Print (SLIST_STAR_X + 8, y, VR_BrowserRowText (row));
+		}
+	}
+	M_List_DrawScrollbar (&slist_list, 316, SLIST_TOP);
+	M_DrawArrowCursor (0, SLIST_TOP + (slist_list.cursor - first) * 8);
+
+	y = SLIST_TOP + SLIST_VIEW * 8 + 4;
+	M_Print (8, y, va ("%s join  %s favourite  %s search",
+		Key_KeynumToFriendlyString (K_ABUTTON), Key_KeynumToFriendlyString (K_YBUTTON),
+		Key_KeynumToFriendlyString (K_XBUTTON)));
 	if (*m_return_reason)
-		M_PrintWhite (16, 148, m_return_reason);
+		M_PrintWhite (8, y + 12, m_return_reason);
 }
 
 
 void M_ServerList_Key (int k)
 {
+	int			row = slist_list.cursor;
+	qboolean	searchRow = row >= slist_list.numitems - 1;
+
 	switch (k)
 	{
 	case K_ESCAPE:
@@ -7644,40 +7668,56 @@ void M_ServerList_Key (int k)
 		break;
 
 	case K_SPACE:
-		M_Menu_Search_f ();
+	case K_XBUTTON:
+		M_ThrottledSound ("misc/menu2.wav");
+		VR_BrowserRefresh ();
 		break;
 
-	case K_UPARROW:
-	case K_LEFTARROW:
-		M_ThrottledSound ("misc/menu1.wav");
-		slist_cursor--;
-		if (slist_cursor < 0)
-			slist_cursor = hostCacheCount - 1;
+	case 'f':
+	case 'F':
+	case K_YBUTTON:
+		if (searchRow)
+			break;
+		M_ThrottledSound ("misc/menu3.wav");
+		VR_BrowserToggleFavourite (row);
 		break;
 
-	case K_DOWNARROW:
-	case K_RIGHTARROW:
-		M_ThrottledSound ("misc/menu1.wav");
-		slist_cursor++;
-		if (slist_cursor >= hostCacheCount)
-			slist_cursor = 0;
+	case K_DEL:
+	case K_KP_DEL:
+	case K_BACKSPACE:
+		if (searchRow || !VR_BrowserRowRecent (row))
+			break;
+		M_ThrottledSound ("misc/menu3.wav");
+		VR_BrowserForget (row);
 		break;
 
 	case K_ENTER:
 	case K_KP_ENTER:
 	case K_ABUTTON:
 	case K_MOUSE1:
+		if (searchRow)
+		{
+			M_ThrottledSound ("misc/menu2.wav");
+			VR_BrowserRefresh ();
+			break;
+		}
+		if (k == K_MOUSE1 && slist_mouse_x < SLIST_STAR_X + 8)
+		{
+			M_ThrottledSound ("misc/menu3.wav");
+			VR_BrowserToggleFavourite (row);
+			break;
+		}
 		M_ThrottledSound ("misc/menu2.wav");
 		m_return_state = m_state;
 		m_return_onerror = true;
-		slist_sorted = false;
 		IN_Activate();
 		key_dest = key_game;
 		m_state = m_none;
-		Cbuf_AddText ( va ("connect \"%s\"\n", NET_SlistPrintServerName(slist_cursor)) );
+		VR_BrowserJoin (row);
 		break;
 
 	default:
+		M_List_Key (&slist_list, k); // (the arrows, the pages, the wheel)
 		break;
 	}
 
@@ -7686,9 +7726,10 @@ void M_ServerList_Key (int k)
 
 void M_ServerList_Mousemove (float cx, float cy)
 {
-	int prev = slist_cursor;
-	M_UpdateCursor (cy, 32, 8, hostCacheCount, &slist_cursor);
-	if (slist_cursor != prev)
+	int prev = slist_list.cursor;
+	slist_mouse_x = (int) cx;
+	M_List_Mousemove (&slist_list, (int) cy - SLIST_TOP);
+	if (slist_list.cursor != prev)
 		M_MouseSound ("misc/menu1.wav");
 }
 
@@ -8389,9 +8430,33 @@ static void UI_Mouse_f (cvar_t *cvar)
 	}
 }
 
+// QVR: (B24) Multiplayer > Join Game and Host Game straight from the console ("menu_joingame [CODE]" fills the room
+// code's box; the harness's room-code screenshots, mp_test.py roomui)
+static void M_Menu_JoinGame_f (void)
+{
+	m_multiplayer_cursor = 0; // (JoiningGame)
+	m_net_cursor = 1; // (TCPIPConfig)
+	lanConfig_cursor = -1;
+	M_Menu_LanConfig_f ();
+	if (Cmd_Argc () > 1)
+	{
+		q_strlcpy (lanConfig_roomcode, Cmd_Argv (1), sizeof (lanConfig_roomcode));
+		lanConfig_cursor = 3;
+	}
+}
+
+static void M_Menu_HostGame_f (void)
+{
+	m_multiplayer_cursor = 1; // (StartingGame)
+	m_net_cursor = 1;
+	M_Menu_GameOptions_f ();
+}
+
 void M_Init (void)
 {
 	Cmd_AddCommand ("togglemenu", M_ToggleMenu_f);
+	Cmd_AddCommand ("menu_joingame", M_Menu_JoinGame_f); // QVR: (B24)
+	Cmd_AddCommand ("menu_hostgame", M_Menu_HostGame_f); // QVR: (B24)
 
 	Cmd_AddCommand ("menu_main", M_Menu_Main_f);
 	Cmd_AddCommand ("menu_singleplayer", M_Menu_SinglePlayer_f);
@@ -8409,6 +8474,7 @@ void M_Init (void)
 	Cmd_AddCommand ("menu_credits", M_Menu_Credits_f); // needed by the 2021 re-release
 	Cmd_AddCommand ("menu_mods", M_Menu_Mods_f);
 	Cmd_AddCommand ("menu_maps", M_Menu_Maps_f);
+	Cmd_AddCommand ("menu_servers", M_Menu_Search_f); // QVR: (B13) the server browser, searching
 
 	Cvar_RegisterVariable (&ui_mouse);
 	Cvar_SetCallback (&ui_mouse, UI_Mouse_f);
@@ -8676,10 +8742,6 @@ void M_DrawPanel (void)
 		M_GameOptions_Draw ();
 		break;
 
-	case m_search:
-		M_Search_Draw ();
-		break;
-
 	case m_slist:
 		M_ServerList_Draw ();
 		break;
@@ -8834,10 +8896,6 @@ void M_Keydown (int key, qboolean repeat)
 	case m_gameoptions:
 		M_GameOptions_Key (key);
 		return;
-
-	case m_search:
-		M_Search_Key (key);
-		break;
 
 	case m_slist:
 		M_ServerList_Key (key);
@@ -9140,6 +9198,12 @@ qboolean M_ForcedCenterPrint (float *alpha)
 	if (alpha)
 		*alpha = forced ? M_Options_PreviewAlpha () : 0.f;
 	return forced;
+}
+
+void M_ServerLost (const char *reason)
+{
+	M_Menu_ServerList_f ();
+	q_strlcpy (m_return_reason, reason, sizeof (m_return_reason));
 }
 
 qboolean M_ForcedUnderwater (void)

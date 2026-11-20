@@ -188,6 +188,7 @@ void ED_ClearEdict (edict_t *e)
 	else
 		ED_RemoveFromFreeList (e);
 	memset (&e->v, 0, qcvm->progs->entityfields * 4);
+	e->thinkcost = 0; // QVR
 	VR_EdictIndex_Touch (e); // QVR
 }
 
@@ -329,19 +330,24 @@ static ddef_t *ED_FindField (const char *name)
 	return NULL;
 }
 
-// AD support: the field AD's imported QuakeC has for a map key Quake VR has no field of that type for: ad_<key>
-// (QC/ad/AD_IMPORT.txt; Arcane Dimensions, vr_ad.cpp). In a map played by AD's rules; elsewhere only for a key no
-// field of Quake VR's has (AD's artifacts, pickups and ladders spawn in any map).
-static ddef_t *ED_FindADKeyField (const char *keyname, ddef_t *ours)
+// QVR: the field an imported ruleset's QuakeC has for a map key Quake VR has no field of that type for: <prefix><key>
+// (ad_<key>: QC/ad/AD_IMPORT.txt; cu_<key>: QC/copper/COPPER_IMPORT.txt; vr_rules.cpp VR_Rules_KeyPrefix). In a map
+// played by that ruleset; elsewhere AD's only, for a key no field of Quake VR's has (AD's artifacts, pickups and
+// ladders spawn in any map).
+static ddef_t *ED_FindRulesetKeyField (const char *keyname, ddef_t *ours)
 {
-	ddef_t *ad;
-	ad = ED_FindField (va ("ad_%s", keyname));
-	if (!VR_AD_RulesOn ())
-		return ours ? NULL : ad; // (outside AD's rules: only a key no field of Quake VR's takes, for AD's entities there)
-	if (!ad || (ours && (ours->type & ~DEF_SAVEGLOBAL) == (ad->type & ~DEF_SAVEGLOBAL)))
-		return NULL; // (none, or the same key both ways: Quake VR's field is the key's)
-	return ad;
+	const char *prefix = VR_Rules_KeyPrefix ();
+	ddef_t *own = prefix ? ED_FindField (va ("%s%s", prefix, keyname)) : NULL;
+	if (own && !(ours && (ours->type & ~DEF_SAVEGLOBAL) == (own->type & ~DEF_SAVEGLOBAL)))
+		return own; // (the same key both ways: Quake VR's field is the key's)
+	if (prefix && !strcmp (prefix, "ad_"))
+		return NULL;
+	return ours ? NULL : ED_FindField (va ("ad_%s", keyname)); // (outside AD's rules: a key no field of ours takes)
 }
+
+// QVR: a map key naming a function the progs lacks (Dwell's d2end: "think" "bmodel_vanish", a function of Dwell's own
+// progs) is skipped with a warning, once a name, not a Host_Error that ends the map (DWELL.md 6).
+static char ed_missingfunction[64];
 
 /*
 ============
@@ -1487,11 +1493,11 @@ const char *ED_ParseEdict (const char *data, edict_t *ent)
 		//johnfitz
 
 		key = ED_FindField (keyname);
-		if (qcvm == &sv.qcvm) // AD support: in an AD map, AD's field takes a key Quake VR has none (of that type) for
+		if (qcvm == &sv.qcvm) // QVR: in an AD or Copper map, its field takes a key Quake VR has none (of that type) for
 		{
-			ddef_t *adkey = ED_FindADKeyField (keyname, key);
-			if (adkey)
-				key = adkey;
+			ddef_t *rkey = ED_FindRulesetKeyField (keyname, key);
+			if (rkey)
+				key = rkey;
 		}
 		if (!key)
 		{
@@ -1508,6 +1514,24 @@ const char *ED_ParseEdict (const char *data, edict_t *ent)
 			q_snprintf (com_token, sizeof (com_token), "0 %s 0", temp);
 		}
 
+		if ((key->type & ~DEF_SAVEGLOBAL) == ev_function && !ED_FindFunction (com_token) && VR_Rules_KeyPrefix () &&
+			ED_FindFunction (va ("%s%s", VR_Rules_KeyPrefix (), com_token)))
+		{
+			// QVR: a map's function key names its mod's function by the mod's own name (an info_notnull's "use"
+			// "func_void" in a Copper map): the imported ruleset's renamed one (cu_func_void)
+			char renamed[sizeof (com_token)];
+			q_snprintf (renamed, sizeof (renamed), "%s%s", VR_Rules_KeyPrefix (), com_token);
+			q_strlcpy (com_token, renamed, sizeof (com_token));
+		}
+		if ((key->type & ~DEF_SAVEGLOBAL) == ev_function && !ED_FindFunction (com_token)) // QVR: see ed_missingfunction
+		{
+			if (q_strcasecmp (ed_missingfunction, com_token))
+			{
+				q_strlcpy (ed_missingfunction, com_token, sizeof (ed_missingfunction));
+				Con_Printf ("Warning: key \"%s\" names a function this progs lacks (%s): ignored\n", keyname, com_token);
+			}
+			continue;
+		}
 		if (!ED_ParseEpair ((void *)&ent->v, key, com_token, qcvm != &sv.qcvm))
 			Host_Error ("ED_ParseEdict: parse error");
 	}
@@ -1553,21 +1577,13 @@ Used for both fresh maps and savegame loads.  A fresh map would also need
 to call ED_CallSpawnFunctions () to let the objects initialize themselves.
 ================
 */
-// The spawn function for a classname: Quake VR's, or AD's version (its QuakeC's ad_<classname>) in a map played by
-// Arcane Dimensions' rules where AD owns it (vr_ad.cpp VR_AD_OwnsClassname; ARCANE_DIMENSIONS.md 5.4), or outside them
-// for AD's artifacts, pickups, ladders and monsters (VR_AD_SpawnsOutside); NULL: none.
+// QVR: the spawn function for a classname by the map's ruleset (vr_rules.cpp VR_Rules_SpawnName): Quake VR's, or an
+// imported ruleset's version (AD's ad_<classname>) where that ruleset plays it, or outside it for the classnames it
+// spawns anywhere (AD's artifacts, pickups, ladders and monsters); NULL: none.
 static dfunction_t *ED_SpawnFunction (const char *classname)
 {
-	dfunction_t *func = ED_FindFunction (classname);
-	if (VR_AD_RulesOn ())
-	{
-		dfunction_t *adfunc = ED_FindFunction (va ("ad_%s", classname));
-		if (adfunc && VR_AD_OwnsClassname (classname, func != NULL))
-			func = adfunc;
-	}
-	else if (!func && VR_AD_SpawnsOutside (classname))
-		func = ED_FindFunction (va ("ad_%s", classname));
-	return func;
+	const char *name = VR_Rules_SpawnName (classname, ED_FindFunction (classname) != NULL);
+	return name ? ED_FindFunction (name) : NULL;
 }
 
 // QVR: an Enemy Count copy waiting for the map to spawn: its monster's keys in the map's text, its monster, which copy
@@ -2946,6 +2962,7 @@ void SaveData_Fill (savedata_t *save)
 	VR_SaveContext (save->vrcontext, sizeof (save->vrcontext)); // QVR: the campaign, the map package, the titles
 	save->vrbrushes = VR_SaveBrushLines (); // QVR: the runtime brushes (vr/vr_brushes.cpp)
 	save->vrdecals = VR_SaveDecalLines (); // QVR: the permanent decals (vr/vr_permdecals.cpp)
+	save->vrcoop = VR_SaveCoopLines (); // QVR: a coop game's per-player blocks (vr/vr_coopsave.cpp)
 	save->vrwet = VR_SaveWetLines (); // QVR: what is wet (vr/vr_drips.cpp)
 
 	/* determine buffer size */
@@ -3067,7 +3084,8 @@ void SaveData_WriteHeader (savedata_t *save)
 		fprintf (save->file, "%s\n", save->lightstyles[i]);
 
 	// QVR: the build, the format and the model list (comments: COM_Parse skips them; VR_ReadSaveInfo reads them)
-	fprintf (save->file, "// qvr_save %d progs %04x build %s\n", VR_SAVE_FORMAT, save->progscrc, VR_BuildVersion ());
+	fprintf (save->file, "// qvr_save %d progs %04x build %s\n", save->vrcoop && *save->vrcoop ? VR_SAVE_FORMAT : VR_SAVE_FORMAT_SINGLE,
+		save->progscrc, VR_BuildVersion ());
 	for (i = 1; i <= save->nummodels; i++)
 		fprintf (save->file, "// qvr_model %d %s\n", i, save->models[i]);
 	fputs (save->vrcontext, save->file); // QVR: // qvr_campaign, qvr_package, ... (vr_continue.cpp)
@@ -3078,6 +3096,8 @@ void SaveData_WriteHeader (savedata_t *save)
 		fputs (save->vrbrushes, save->file); // QVR: // qvrb lines: the runtime brushes
 	if (save->vrdecals)
 		fputs (save->vrdecals, save->file); // QVR: // qvrdecals and qvrd lines: the permanent decals
+	if (save->vrcoop)
+		fputs (save->vrcoop, save->file); // QVR: // qvr_coop and qvr_coopslot lines: the players' blocks
 	if (save->vrwet)
 		fputs (save->vrwet, save->file); // QVR: // qvrwet lines: what is wet
 

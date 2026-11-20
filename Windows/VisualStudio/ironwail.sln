@@ -13,6 +13,10 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "mimalloc", "mimalloc.vcxpro
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "recast", "recast.vcxproj", "{7C3E2A91-5B4D-4E8F-9A16-2D0B8C4F7E53}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "rnnoise", "rnnoise.vcxproj", "{CC69293B-55D8-4C61-8136-CB10DD2F5718}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "opus", "opus.vcxproj", "{AE396E8A-EB43-482D-B8EE-5392D3561319}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -72,6 +76,26 @@ Global
 		{7C3E2A91-5B4D-4E8F-9A16-2D0B8C4F7E53}.Release-Tracy|x64.Build.0 = Release-Tracy|x64
 		{7C3E2A91-5B4D-4E8F-9A16-2D0B8C4F7E53}.Release-TracyFull|x64.ActiveCfg = Release-TracyFull|x64
 		{7C3E2A91-5B4D-4E8F-9A16-2D0B8C4F7E53}.Release-TracyFull|x64.Build.0 = Release-TracyFull|x64
+		{CC69293B-55D8-4C61-8136-CB10DD2F5718}.Debug|x64.ActiveCfg = Debug|x64
+		{CC69293B-55D8-4C61-8136-CB10DD2F5718}.Debug|x64.Build.0 = Debug|x64
+		{CC69293B-55D8-4C61-8136-CB10DD2F5718}.Release|x64.ActiveCfg = Release|x64
+		{CC69293B-55D8-4C61-8136-CB10DD2F5718}.Release|x64.Build.0 = Release|x64
+		{CC69293B-55D8-4C61-8136-CB10DD2F5718}.ReleaseLTO|x64.ActiveCfg = ReleaseLTO|x64
+		{CC69293B-55D8-4C61-8136-CB10DD2F5718}.ReleaseLTO|x64.Build.0 = ReleaseLTO|x64
+		{CC69293B-55D8-4C61-8136-CB10DD2F5718}.Release-Tracy|x64.ActiveCfg = Release-Tracy|x64
+		{CC69293B-55D8-4C61-8136-CB10DD2F5718}.Release-Tracy|x64.Build.0 = Release-Tracy|x64
+		{CC69293B-55D8-4C61-8136-CB10DD2F5718}.Release-TracyFull|x64.ActiveCfg = Release-TracyFull|x64
+		{CC69293B-55D8-4C61-8136-CB10DD2F5718}.Release-TracyFull|x64.Build.0 = Release-TracyFull|x64
+		{AE396E8A-EB43-482D-B8EE-5392D3561319}.Debug|x64.ActiveCfg = Debug|x64
+		{AE396E8A-EB43-482D-B8EE-5392D3561319}.Debug|x64.Build.0 = Debug|x64
+		{AE396E8A-EB43-482D-B8EE-5392D3561319}.Release|x64.ActiveCfg = Release|x64
+		{AE396E8A-EB43-482D-B8EE-5392D3561319}.Release|x64.Build.0 = Release|x64
+		{AE396E8A-EB43-482D-B8EE-5392D3561319}.ReleaseLTO|x64.ActiveCfg = ReleaseLTO|x64
+		{AE396E8A-EB43-482D-B8EE-5392D3561319}.ReleaseLTO|x64.Build.0 = ReleaseLTO|x64
+		{AE396E8A-EB43-482D-B8EE-5392D3561319}.Release-Tracy|x64.ActiveCfg = Release-Tracy|x64
+		{AE396E8A-EB43-482D-B8EE-5392D3561319}.Release-Tracy|x64.Build.0 = Release-Tracy|x64
+		{AE396E8A-EB43-482D-B8EE-5392D3561319}.Release-TracyFull|x64.ActiveCfg = Release-TracyFull|x64
+		{AE396E8A-EB43-482D-B8EE-5392D3561319}.Release-TracyFull|x64.Build.0 = Release-TracyFull|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

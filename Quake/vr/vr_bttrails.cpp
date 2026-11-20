@@ -292,6 +292,7 @@ layout(location = 1) uniform vec4 Eye;       // xyz, w the trails' clock (real s
 layout(location = 2) uniform vec4 Params;    // x strength, y the scene's distances (1) or none (0)
 layout(location = 5) uniform vec4 Viewport;  // the scene's, in the framebuffer's pixels
 layout(location = 6) uniform vec4 CopyRect;  // the part copied, in the viewport's pixels (x0, y0, x1, y1)
+layout(location = 7) uniform vec2 CopySize;  // the copy's size, in the viewport's pixels (vr_haze.cpp copyScene)
 layout(location = 0) in vec4 WorldPos;
 layout(location = 1) in vec4 Side;
 layout(location = 2) in vec4 Data;
@@ -299,7 +300,8 @@ layout(location = 0) out vec4 Out;
 
 float SceneDistance(vec2 p) // along the view
 {
-    return texelFetch(Distances, clamp(ivec2(p * 0.5), ivec2(0), textureSize(Distances, 0) - 1), 0).r;
+    ivec2 last = min(textureSize(Distances, 0), ivec2((Viewport.xy + Viewport.zw + 1.0) * 0.5)) - 1; // (the scene's part)
+    return texelFetch(Distances, clamp(ivec2(p * 0.5), ivec2(0), last), 0).r;
 }
 
 void main()
@@ -320,7 +322,7 @@ void main()
     if (Params.y > 0.0 && SceneDistance(gl_FragCoord.xy + shift) < 1.0 / gl_FragCoord.w - 4.0)
         shift = vec2(0.0); // not what is in front of the trail (a hand, a gun, a monster): its colours would smear
     vec2 p = clamp(gl_FragCoord.xy - Viewport.xy + shift, CopyRect.xy + 0.5, CopyRect.zw - 0.5);
-    Out = vec4(texture(Scene, p / Viewport.zw).rgb, clamp(f * 4.0, 0.0, 1.0));
+    Out = vec4(textureLod(Scene, p / CopySize, 0.0).rgb, clamp(f * 4.0, 0.0, 1.0)); // (the copy: one level)
 }
 )";
 
@@ -557,7 +559,8 @@ void drawView()
         QVR_GPU_PROFILE("distances");
         distances = water::opaqueSceneDistances();
     }
-    const GLuint copy = haze::copyScene(sceneFbo, color, samples, viewport, x0, y0, x1, y1);
+    float copySize[2] = {};
+    const GLuint copy = haze::copyScene(sceneFbo, color, samples, viewport, x0, y0, x1, y1, copySize);
     if(!copy)
     {
         return;
@@ -573,6 +576,7 @@ void drawView()
     GL_Uniform4fFunc(2, strength, distances ? 1.f : 0.f, 0.f, 0.f);
     GL_Uniform4fFunc(5, static_cast<float>(viewport[0]), static_cast<float>(viewport[1]), static_cast<float>(vw), static_cast<float>(vh));
     GL_Uniform4fFunc(6, static_cast<float>(x0), static_cast<float>(y0), static_cast<float>(x1), static_cast<float>(y1));
+    GL_Uniform2fFunc(7, copySize[0], copySize[1]);
     GL_SetState(GLS_BLEND_ALPHA | GLS_NO_ZWRITE | GLS_CULL_NONE | GLS_ATTRIBS(3));
     GLuint buf;
     GLbyte* ofs;
@@ -751,6 +755,12 @@ void clear()
     ease = 0.f;
     creating = false;
 }
+
+namespace
+{
+// Forgotten when the client's state is cleared (vr_mem.hpp's resets): the bullet time trails.
+mem::Reset clientStateReset{"bttrails", mem::ResetEvent::ClientState, mem::ResetPhase::State, &clear};
+} // namespace
 
 void registerCommands()
 {

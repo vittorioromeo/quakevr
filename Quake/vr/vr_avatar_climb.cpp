@@ -97,7 +97,8 @@ struct FootHit
     glm::vec3 normal{0.f};
 };
 
-// A point trace on the listen server (the world and brush models, the player passed through); none without one.
+// A point trace on the listen server (the world and brush models, the player passed through: another player's body his
+// own box); none without one (a client of another server has no world to trace: another's feet hang, as yours do).
 [[nodiscard]] FootHit footTrace(const glm::vec3& a, const glm::vec3& z)
 {
     FootHit h;
@@ -107,7 +108,9 @@ struct FootHit
     }
     climbing.traces++;
     const progs::ServerVm vm; // (drawing: the client's VM, or none, is in)
-    const trace_t tr = worldtrace::serverLine(a, z, progs::localPlayer());
+    edict_t* pass = posingOther() && subject->player > 0 && subject->player < qcvm->num_edicts ? EDICT_NUM(subject->player)
+                                                                                               : progs::localPlayer();
+    const trace_t tr = worldtrace::serverLine(a, z, pass);
     h.solid = tr.startsolid || tr.allsolid;
     h.hit = !h.solid && tr.fraction < 1.f;
     h.frac = tr.fraction;
@@ -306,7 +309,13 @@ namespace
     for(int hand = 0; hand < 2; hand++)
     {
         glm::vec3 at, out;
-        if(climb::heldAt(hand, at, out))
+        const bool held = posingOther() ? subject->holds[hand] : climb::heldAt(hand, at, out);
+        if(posingOther() && held)
+        {
+            at = subject->holdAt[hand];
+            out = subject->holdOut[hand];
+        }
+        if(held)
         {
             sumAt += at;
             sumOut += out;

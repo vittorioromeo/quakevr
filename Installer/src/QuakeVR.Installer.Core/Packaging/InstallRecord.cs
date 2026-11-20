@@ -12,6 +12,8 @@ public static class Components
     public const string Setup = "setup";
     /// <summary>Arcane Dimensions (experimental, opt-in): sock's unmodified release in the install's ad folder (ArcaneDimensions).</summary>
     public const string ArcaneDimensions = "ad";
+    /// <summary>Dwell (optional): the authors' unmodified release in the install's dwell folder (Dwell).</summary>
+    public const string Dwell = "dwell";
 }
 
 public sealed class InstalledFile
@@ -35,6 +37,8 @@ public sealed class InstallChoices
     public bool LogShortcut { get; set; }
     /// <summary>Arcane Dimensions installed by Setup in the install's ad folder (a copy found elsewhere is not recorded).</summary>
     public bool ArcaneDimensions { get; set; }
+    /// <summary>Dwell installed by Setup in the install's dwell folder (a copy found elsewhere is not recorded).</summary>
+    public bool Dwell { get; set; }
 }
 
 /// <summary>
@@ -71,6 +75,9 @@ public sealed class InstallRecord
     /// <summary>The Arcane Dimensions zip installed in ad\ (its name and SHA-256, as downloaded and checked). Null: none.</summary>
     public string? ArcaneDimensionsFile { get; set; }
     public string? ArcaneDimensionsSha256 { get; set; }
+    /// <summary>The Dwell zip installed in dwell\ (its name and SHA-256, as downloaded and checked). Null: none.</summary>
+    public string? DwellFile { get; set; }
+    public string? DwellSha256 { get; set; }
 
     public static InstallRecord? Load(string installDir)
     {

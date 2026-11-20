@@ -651,6 +651,12 @@ void serverReset()
     serverTips.clear();
 }
 
+namespace
+{
+// Forgotten with the server's world (vr_mem.hpp's resets): the tips the server sent.
+mem::Reset serverWorldReset{"tips", mem::ResetEvent::ServerWorld, mem::ResetPhase::State, &serverReset};
+} // namespace
+
 void serverMapStarted(bool fromSave)
 {
     // The worldspawn's "_vr_tips_reset_on_start" 1 (vrtutorial): a play of the map from its start shows every tip of
@@ -833,6 +839,12 @@ void clientReset()
     pendingTest = -1;
     firedTip = -1;
 }
+
+namespace
+{
+// Forgotten when the client's state is cleared (vr_mem.hpp's resets): the map's tips.
+mem::Reset clientStateReset{"tips", mem::ResetEvent::ClientState, mem::ResetPhase::State, &clientReset};
+} // namespace
 
 // Map tip `handle` let out of its wait (a TRIGGERED tip fired, a GRABBED one's thing taken in a hand: QC, vr_tips.qc): it
 // is about what just happened, so it comes first, and the tip showing (another) fades now to make way for it. Not when it

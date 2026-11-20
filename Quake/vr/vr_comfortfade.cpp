@@ -6,6 +6,7 @@
 #include "vr_comfortfade.hpp"
 #include "vr_engine.hpp"
 #include "vr_cvars.hpp"
+#include "vr_mem.hpp"
 
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
@@ -87,6 +88,12 @@ void clear()
     fadeEnd = 0.0;
     holdShare = 0.f;
 }
+
+namespace
+{
+// Forgotten when the client's state is cleared (vr_mem.hpp's resets): the fade.
+mem::Reset clientStateReset{"comfortfade", mem::ResetEvent::ClientState, mem::ResetPhase::State, &clear};
+} // namespace
 
 void registerCommands()
 {

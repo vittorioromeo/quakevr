@@ -340,9 +340,17 @@ float QVR_VRBITS0_CROUCHED                 = VRUTIL_POWER_OF_TWO(23); // set by 
 // Globals
 // ----------------------------------------------------------------------------
 
-float readytime; // Time after loading when the player is considered ready.
-                 // Prevents shooting, grabbing/dropping weapons. (One for every client: BACKLOG.md,
-                 // "Old QuakeC notes".)
+// A player's: until this time after his spawn (PutClientInServer: 0.5 s out of deathmatch) he does not fire, reload
+// from the pouch, take a pouch grenade or use his holsters. Each player's own (a coop respawn or a late join holds only
+// him); a save made before it was a field reads 0: ready at once.
+.float vr_readytime;
+
+// itemTouch (honey_items.qc): whether the pickup it called (the item's th_die: health_touch, ammo_touch, key_touch...)
+// took the item. Cleared before the call; each pickup sets it where it takes (not at full health, ammo at the cap, a
+// key held, a hand that doesn't grip): only then the item's targets fire and a Honey secret item counts as found.
+// ITEM_TAKEN_FIRED: taken, and the pickup fired the targets itself (the Horn of Conjuring's, horn_active set).
+float item_taken;
+float ITEM_TAKEN_FIRED = 2;
 
 //
 //

@@ -491,9 +491,11 @@ void() VR_WP_Think =
     {
         setmodel(pk, "progs/backpack.mdl");
     }
-    // (far from every player and out of each one's view: not placed this frame, vr_worn_backpack_lod_near)
+    // (far from every player and out of each one's view: not placed this frame, vr_worn_backpack_lod_near. The pack
+    // itself too (unseenfar's e2): its wearer gone behind a wall, out of his PVS, while it is still in it is placed, or
+    // it would hang where its wearer left his sight.)
     float lodNear = cvar_hget(cvarh_vr_worn_backpack_lod_near);
-    if(lodNear > 0 && pk.vr_wp_state == VR_WP_WORN && g.health > 0 && !isragdoll(g) && unseenfar(g, lodNear))
+    if(lodNear > 0 && pk.vr_wp_state == VR_WP_WORN && g.health > 0 && !isragdoll(g) && unseenfar(g, lodNear, pk))
     {
         return;
     }

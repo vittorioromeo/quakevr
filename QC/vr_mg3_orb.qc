@@ -374,7 +374,7 @@ Dawn of the Machine's orb (needs the owned Dawn of the Machine data, else nothin
 */
 void() monster_orb =
 {
-    if(MG_MonsterInhibited()) return;
+    if(VR_SF_SpawnInhibited()) return;
     if(deathmatch)
     {
         remove(self);

@@ -1,0 +1,53 @@
+Copper import (Misc/quakevr/copper_import.py); regenerate, never edit.
+Source: github.com/itslunaranyo/copper master 379dd5d, sha256 (progs.src and *.qc) 91777a761b7acc5cc715cc3f29722dff834ee6636582d139501f21f8ca7f30c1
+Map keys: 170 (its /*QUAKED keys and Dwell's maps' keys)
+Files (Copper's progs.src order): 60 imported, skipped test.qc; headers filtered: defs.qc
+Header statements kept: defs.qc 119/301
+Copper system names not kept (the engine's entry points: Copper's are renamed, the engine never calls them): ClientConnect, ClientDisconnect, ClientKill, PlayerPostThink, PlayerPreThink, PutClientInServer, SetChangeParms, SetNewParms, StartFrame, main
+Entry points left out (their definitions; no imported code calls them): ClientConnect, ClientDisconnect, ClientKill, PlayerPostThink, PlayerPreThink, StartFrame, main
+Preprocessor symbols taken as defined: NO_CSQC (3 blocks resolved)
+Builtins kept (Quake VR declares them): 65
+Builtins by name (#0, cu_builtins.qc): 0: 
+Builtins renamed (the name is Quake VR's for something else): none
+Standard builtins under Copper's own names (number kept, cu_<name>): centerprint2=#73 (Quake VR's frik_big_centerprint), checkextension=#99 (Quake VR's frik_checkextension)
+Map-key fields shared with Quake VR (same name and type, bare): 29: alpha, count, deathtype, delay, dest, dest1, distance, dmg, fog_color, fog_density, gravity, healamount, height, killtarget, lip, mangle, map, noise4, pausetime, pos1, pos2, speed, speed2, state, style, volume, wad, wait, worldtype
+Map-key fields renamed cu_<key> (no Quake VR field, or another type; in a Copper map the engine fills them from the key (P1b, as AD's)): 20
+  of them a type clash: t_length (Copper float, Quake VR float), t_width (Copper float, Quake VR float), target2 (Copper string, Quake VR entity), target3 (Copper string, Quake VR entity), target4 (Copper string, Quake VR entity)
+  alpha2, exclude, fadecolor, fog_color2, fog_density2, fog_sky, include, length, notrace, rand, rmovedir, strength, svflags, switchshadstyle, t_length, t_width, target2, target3, target4, width
+Beam id bytes added (Quake VR's beam temp entities): 7
+Reviewed patches: 35
+  defs.qc: mechanical: the csqc stat fields kept with NO_CSQC
+  m_ogre.qc: mechanical: T_RadiusDamage's default damage type passed (fteqcc Q105: undefined otherwise)
+  m_shalrath.qc: mechanical: T_RadiusDamage's default damage type passed (fteqcc Q105: undefined otherwise)
+  weapons.qc: parenthesised as QC priorities read it (check_qc_precedence)
+  ai.qc: parenthesised as QC priorities read it (check_qc_precedence)
+  dev.qc: parenthesised as QC priorities read it (check_qc_precedence)
+  client.qc: parenthesised as QC priorities read it (check_qc_precedence)
+  item_keys_runes.qc: parenthesised as QC priorities read it (check_qc_precedence)
+  item_keys_runes.qc: parenthesised as QC priorities read it (check_qc_precedence)
+  item_keys_runes.qc: parenthesised as QC priorities read it (check_qc_precedence)
+  item_keys_runes.qc: parenthesised as QC priorities read it (check_qc_precedence)
+  fx.qc: parenthesised as QC priorities read it (check_qc_precedence)
+  items.qc: parenthesised as QC priorities read it (check_qc_precedence)
+  items.qc: parenthesised as QC priorities read it (check_qc_precedence)
+  projectiles.qc: parenthesised as QC priorities read it (check_qc_precedence)
+  triggers.qc: parenthesised as QC priorities read it (check_qc_precedence)
+  item_weap_ammo.qc: parenthesised as QC priorities read it (check_qc_precedence)
+  client.qc: parenthesised as QC priorities read it (check_qc_precedence)
+  client.qc: parenthesised as QC priorities read it (check_qc_precedence)
+  t_void.qc: parenthesised as QC priorities read it (check_qc_precedence)
+  combat.qc: bridge: Copper's T_Damage on one of ours (the player, our monsters) is our T_Damage
+  client.qc: bridge: target_autosave makes our autosave
+  fog.qc: bridge: Copper's fog (worldspawn, its fog blends) by our svc_fog path, not a stuffed command
+  ai.qc: bridge: our monsters follow Copper's path_corners as ours (t_movetarget), as AD's (its touch set think = th_stand, NULL on ours)
+  world.qc: bridge: Copper's own model s_explo2.spr, else s_explod.spr (a Copper map package without Copper's data)
+  fx.qc: bridge: Copper's own model s_explo2.spr, else s_explod.spr (a Copper map package without Copper's data)
+  fx.qc: bridge: Copper's own model debris1.mdl, else vr_rock1.mdl (a Copper map package without Copper's data)
+  fx.qc: bridge: Copper's own model debris2.mdl, else vr_rock1.mdl (a Copper map package without Copper's data)
+  fx.qc: bridge: Copper's own model debris3.mdl, else vr_rock1.mdl (a Copper map package without Copper's data)
+  weapons.qc: bridge: Copper's own model v_axe2.mdl, else v_axe.mdl (a Copper map package without Copper's data)
+  m_hknight.qc: bridge: Copper's own model k_spike2.mdl, else k_spike.mdl (a Copper map package without Copper's data)
+  m_shalrath.qc: bridge: Copper's own model v_spike2.mdl, else v_spike.mdl (a Copper map package without Copper's data)
+  m_wizard.qc: bridge: Copper's own model w_spike2.mdl, else w_spike.mdl (a Copper map package without Copper's data)
+  m_zombie.qc: bridge: Copper's own model zombienm.mdl, else zombie.mdl (a Copper map package without Copper's data)
+  m_zombie.qc: bridge: Copper's own model h_zombnm.mdl, else h_zombie.mdl (a Copper map package without Copper's data)

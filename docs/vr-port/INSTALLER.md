@@ -653,3 +653,11 @@ history since 2026-07-01 (none do).
 | `gamma` / `contrast` | 0.95 / 1.2 | 1 / 1 (check whether they reach the headset image) |
 | `scr_conscale`, `scr_menuscale`, `scr_sbarscale`, `scr_crosshairscale` | 3 | 1 |
 | `scr_centerprintbg` / `scr_menubgstyle` | 3 / 0 | 2 / -1 |
+
+## Dwell component (2026-11-19)
+
+Optional third-party component `dwell`, next to Arcane Dimensions on the one shared path (`ModComponent`): downloaded from
+Quaddicted, pinned (`dwellv2p2.zip`, 384,629,995 bytes, SHA-256 `15bbc5dc...`), unpacked unmodified into `<install>\dwell`,
+`Track107.ogg` renamed to lower case, recorded in install.json, kept by updates, restored by repairs, removed by the
+uninstall. Recommended, **on by default** (`Dwell.OnByDefault`, since Dwell's maps play: DWELL.md, sections 7 and 9.2;
+Installer README, "Dwell"). An existing v2.2 in an owned Quake root (progs.dat hash) is used where it is.

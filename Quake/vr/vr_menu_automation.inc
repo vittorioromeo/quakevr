@@ -485,6 +485,7 @@ za::Vector<Item> pageDebugAutomation()
         row(opt::vr_agrunt_ik_debug),
         row(opt::vr_agrunt_strike_demo),
         row(opt::vr_agrunt_debug),
+        row(opt::vr_agrunt_strike_broad),
         row(opt::vr_agrunt_test_kind),
         row(opt::vr_grapple_test_stuck),
         header("Player Hitbox"),

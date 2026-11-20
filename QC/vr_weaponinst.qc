@@ -20,6 +20,10 @@
 // Widowmaker, the Plasma Gun), set by the upgrade's pickup on the weapon it gives (vr_ad_bridge.qc AD_UpgradeGiven): it
 // goes with the weapon (hands, holsters, drops, saves; a level change: parm64), so a plain axe found later stays plain.
 .float wi_adup;
+// Dwell support: the Dwell weapon this one is (DW_VAR_*, dwell/dw_defs.qc: the Rotary Shotgun a super shotgun, the
+// Crystal Lance a lightning gun, the Rifle a shotgun; 0 our own), set by its pickup (DW_VariantGiven). As wi_adup: it
+// goes with the weapon (hands, holsters, drops, saves; a level change and a coop rejoin: parm76). One or the other.
+.float wi_dwvar;
 
 // Incandescent blades (vr_hotblade.qc): a melee weapon held in a flame or lava glows and burns what it strikes. The heat
 // is the weapon's (its record's), so it goes with it held, holstered, dropped and saved, and cools on its own clock.
@@ -118,6 +122,7 @@ entity(entity xFrom) WeaponInst_Clone =
 {
     entity r = WeaponInst_New(xFrom.wi_clip);
     r.wi_adup = xFrom.wi_adup; // (AD support: its upgrades too)
+    r.wi_dwvar = xFrom.wi_dwvar; // (Dwell support: its variant)
     r.wi_heat = xFrom.wi_heat; // (its heat: vr_hotblade.qc)
     r.wi_heat_at = xFrom.wi_heat_at;
     r.wi_hot_end = xFrom.wi_hot_end;

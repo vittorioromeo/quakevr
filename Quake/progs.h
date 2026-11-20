@@ -68,6 +68,7 @@ typedef struct edict_s
 	showbboxflags_t		showbboxflags;		/* highlighted entity link types */
 
 	float		freetime;		/* sv.time when the object was freed */
+	double		thinkcost;		/* QVR: QC statements its thinks ran (SV_RunThink; QC thinkcost: the armed grunts' census) */
 	entvars_t	v;			/* C exported fields from progs */
 
 	/* other fields from progs come immediately after */
@@ -216,6 +217,7 @@ typedef struct qcvm_s
 
 	builtin_t		builtins[MAX_BUILTINS];
 	int				numbuiltins;
+	double			instr_total;	// QVR: QC statements run in all (each outermost or nested run's, PR_ExecuteProgram)
 
 	int				argc;
 
@@ -313,6 +315,7 @@ typedef struct savedata_s
 	char			vrcontext[1536];	// QVR: what the game is played as (VR_SaveContext: the campaign, the map package, titles; the run's line, up to 1024)
 	const char		*vrbrushes;		// QVR: the runtime brushes' lines (VR_SaveBrushLines; valid until the next fill)
 	const char		*vrdecals;		// QVR: the permanent decals' lines (VR_SaveDecalLines; valid until the next fill)
+	const char		*vrcoop;		// QVR: a coop game's per-player blocks (VR_SaveCoopLines; valid until the next fill)
 	const char		*vrwet;			// QVR: the wet things' lines (VR_SaveWetLines; valid until the next fill)
 	byte			*buffer;
 	int				buffersize;

@@ -250,6 +250,13 @@ float(entity m) VR_Grapple_MonsterMass =
     if(c == "monster_super_wrath")   { return 450; }
     if(c == "monster_shambler")      { return 600; }
     if(c == "monster_super_shambler") { return 800; } // (Dawn of the Machine's: bigger)
+    // Dwell's (DWELL.md P2b): the Kamikaze a light runner (grabbed and thrown as a knight; its box would make it 134),
+    // the Brute and the Construct the shambler's (their boxes: 980), its bosses as Chthon.
+    if(c == "monster_kamikaze")      { return 90; }
+    if(c == "monster_brute")         { return 600; }
+    if(c == "monster_excavator")     { return 600; }
+    if(c == "monster_d1boss")        { return 5000; }
+    if(c == "monster_d2boss")        { return 5000; }
     if(c == "monster_lava_man")      { return 3000; }
     if(c == "monster_dragon")        { return 3000; }
     if(c == "monster_armagon")       { return 3000; }
@@ -1495,69 +1502,9 @@ void(entity h, float xHand, float xSpeed) VR_Grapple_Taut =
     }
 };
 
-// The player (self) held by the rope: never farther from `xAt` (the rope's first corner from the body: the hook, nothing
-// in the way) than `xLen` (the rope's length less its path beyond that corner) (put back on it, swept: a wall stops
-// that, the rope then stalls), no speed away from it, and reeling (`xReeling`) `xReel` units/s towards it, no faster
-// (arriving, it slows down). Swinging is what's left: gravity along the rope's circle (round the corner).
-void(entity h, float xHand, vector xAt, float xLen, float xReel, float xReeling) VR_Grapple_HoldPlayer =
-{
-    vector toA = xAt - self.origin;
-    float d = vlen(toA);
-    if(xReeling && d >= 1)
-    {
-        float closing = self.velocity * toA * (1 / d);
-        if(closing > xReel + 20)
-        {
-            self.velocity = self.velocity - toA * ((closing - xReel) / d);
-        }
-    }
-    if(d <= xLen || d < 1)
-    {
-        h.gh_taut = FALSE;
-        return;
-    }
-    vector n = toA * (1 / d);
-    float along = self.velocity * n;
-    if(!h.gh_taut)
-    {
-        VR_Grapple_Taut(h, xHand, -along + min(0, xReel)); // (paying out: how much faster than the rope runs)
-    }
-    h.gh_taut = TRUE;
-
-    float excess = d - xLen;
-    vector move = n * excess;
-    tracebox(self.origin, self.mins, self.maxs, self.origin + move, FALSE, self);
-    float moved = trace_fraction;
-    if(!trace_startsolid && !trace_allsolid)
-    {
-        setorigin(self, trace_endpos);
-        if(trace_fraction < 1)
-        {
-            // Against something (a ceiling's beam, a wall): the rest slid along it, as a body on a rope swings round.
-            vector rest = move * (1 - trace_fraction);
-            rest = rest - trace_plane_normal * (rest * trace_plane_normal);
-            tracebox(self.origin, self.mins, self.maxs, self.origin + rest, FALSE, self);
-            if(!trace_startsolid && !trace_allsolid)
-            {
-                setorigin(self, trace_endpos);
-            }
-        }
-    }
-    if(VR_Grapple_Debug() >= 3)
-    {
-        dprint(sprintf("grapple: hold %.1f over, moved %.2f of it (then slid %.2f), along %.0f, on ground %g\n", excess,
-            moved, trace_fraction, along, self.flags & FL_ONGROUND));
-    }
-    if(along < xReel)
-    {
-        self.velocity = self.velocity + n * (xReel - along);
-    }
-    // Lifted: off the floor (Quake's walking would hold it there, with its friction).
-    if((xReel > 0 && n_z > 0.1) || excess * n_z > 0.25)
-    {
-        self.flags = self.flags - (self.flags & FL_ONGROUND);
-    }
-};
+// The player held by the rope (HoldPlayer) and its reel (Wind, VR_Grapple_ReelSpeed) for a hook in the world: the
+// engine's grappleStep (vr_pmove.cpp: QC's builtin grapplehold, VR_Grapple_ServiceAnchor), the code a remote
+// client's moves run, each on its own B/Y (MP_PLAN B8j part 4).
 
 // A prop pulled at `xAt` (the hook on it) so that the point goes at least `xVel`: Box3D's push (its mass and turn: a
 // box pulled by a corner swings round), or, not a body (yet), its velocity.
@@ -2364,25 +2311,38 @@ void(entity h, float xHand, float xReeling) VR_Grapple_ServiceMonster =
 void(entity h, float xHand, float xReeling) VR_Grapple_ServiceAnchor =
 {
     vector at = gr_pa; // (the rope's first corner from you: the hook, nothing in the way)
-    float d = vlen(at - self.origin) + gr_ba;
     if(VR_Grapple_Debug() >= 3)
     {
         dprint(sprintf("grapple: anchor: corner %v, %.1f away and %.1f beyond (path %.1f), rope %.1f, you at %v\n", at,
             vlen(at - self.origin), gr_ba, gr_path, h.gh_len, self.origin));
     }
-    float speed = 0;
-    if(xReeling)
+    // The reel (VR_Grapple_ReelSpeed, VR_Grapple_Wind) and the hold (VR_Grapple_HoldPlayer), or paying out, you go away
+    // no faster than the rope comes off the drum: the engine's grappleStep (vr_pmove.cpp), the code a remote client's
+    // moves run (MP_PLAN B8j part 4). Walked move by move, his moves hold and reel him (each on its own B/Y: the hands
+    // that drive this reel, its own and the other if it has no hook out), his prediction with them; else once now.
+    float shortest = max(0, cvar_hget(cvarh_vr_grapple_min_length));
+    if((self.vr_movetakes & 2) && self.vr_movegrapple == world)
     {
-        speed = VR_Grapple_ReelSpeed(h);
-        VR_Grapple_Wind(h, d, speed, max(0, cvar_hget(cvarh_vr_grapple_min_length)));
-        speed = min(speed, sqrt(2 * GH_BRAKE * max(0, d - max(0, cvar_hget(cvarh_vr_grapple_min_length)))));
+        float rope = 0;
+        if(xHand >= 0)
+        {
+            rope = 1 + xHand + 4 * (xHand + 1);
+            float o = VR_Grapple_OtherDriver(xHand);
+            if(o >= 0)
+            {
+                rope = rope + 1 + o;
+            }
+        }
+        self.vr_movegrapple = h;
+        self.vr_movegrapple_at = at;
+        self.vr_movegrapple_rope_x = gr_ba;
+        self.vr_movegrapple_rope_y = shortest;
+        self.vr_movegrapple_rope_z = rope;
     }
-    else if(h.gh_payout > 0)
+    else
     {
-        // Paying out: you go away from the hook (let down, swinging out) no faster than the rope comes off the drum.
-        speed = -h.gh_payout;
+        grapplehold(h, xHand, at, gr_ba, xReeling, shortest);
     }
-    VR_Grapple_HoldPlayer(h, xHand, at, h.gh_len - gr_ba, speed, xReeling);
     if(vlen(at - self.origin) + gr_ba - h.gh_len > GH_SNAP_OVER)
     {
         VR_Grapple_Loosen(h, "the rope overstretched"); // (the last resort: carried away where the rope couldn't hold you)

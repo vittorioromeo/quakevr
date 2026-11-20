@@ -48,6 +48,14 @@ int VR_NoLiquidEffects(struct qmodel_s* model, const float* point);
 #define PRFL_QUAKEVR				(1 << 16)
 #define PRFL_QUAKEVR_PROGS			(1 << 17)
 #define VR_ENTITY_UPDATE_MAXSIZE	40		// bytes VR_WriteEntityUpdate may add
+// Quake VR's network version, sent after NetQuake's in the connect request ("QVR", then this long; net_dgrm.c): a
+// server whose protocol is the VR one rejects a client without it or with another, with the reason (MP_PLAN.md, B2).
+// Raise it with any change to what client and server send each other.
+#define QVR_NET_VERSION				40 // (40: a connect request gets a slot only with the server's cookie for its address, CCREP_CHALLENGE, mpfix A1; 39: the channels' first sequences drawn at random by each side, in the connect request and the accept, review 2026-11-18 finding 2; 38: what a remote client's hands hold, and where (QVR_SVC_HELDPLACE), B27; 37: the movers' exact places and the server's tick in the predict state, B24; 36: one server socket for every client, B23; 35: bots' hands solved by the clients, B11 part 3; 34: B13's selective acks, the version in the accept reply)
+// A remote client's moves (vr/vr_netmove.hpp: quantized deltas with repeats; the loopback's stay clc_move; MP_PLAN.md, B7).
+#define QVR_CLC_MOVES				16
+// A client's voice frames (vr/vr_voicechat.hpp: Opus, 20 ms each; MP_PLAN.md, B10v), after his move.
+#define QVR_CLC_VOICE				17
 #define SOLID_NOT_BUT_TOUCHABLE		5		// Quake VR: not solid, but can be (hand) touched
 
 // Host lifetime and pacing (host.c, main_sdl.c, gl_screen.c).
@@ -60,6 +68,55 @@ void VR_Shutdown (void);	// client shutdown, before video shutdown
 void VR_StopDownloads (void);	// Host_Shutdown, before NET_Shutdown (curl_global_cleanup): the map index's and the
 								// map installer's threads cancelled and joined (vr_mapindex.cpp, vr_mapinstall.cpp)
 void VR_BeginFrame (void);	// once per host frame, after input events and before console commands
+void VR_MpTestInit (void);	// Host_Init, after VR_Init: the multiplayer test aids (vr_mptest.cpp: -cmdinbox, vr_mp_*)
+void VR_MpTestFrame (void);	// once per host frame, before console commands: the inbox's new lines; vr_mp_watch
+void VR_ServerStatusInit (void);	// Host_Init: vr_sv_status_now (vr_svstatus.cpp, B17)
+void VR_ServerStatusFrame (void);	// once per host frame: a dedicated server's status line (vr_sv_status)
+int VR_ClientPingMs (int slot);	// the server's mean ping of player `slot` in ms (ping_times): status, the status line
+// The harness's lockstep (vr_mp_lockstep, vr_mptest.cpp; MP_PLAN B14b). Server: VR_LockstepFrameBegin decides at a
+// frame's start whether the world steps (every client's next move read, the clients in, vr_mp_lockstep_until not reached);
+// VR_LockstepHolds: it does not (no client thinks, no physics, no VR frame end); VR_LockstepRunMove: SV_RunClients, a
+// stepping frame's one move of his, by number (vr_server.cpp). Client: VR_LockstepWaits, at a host frame's start: its
+// moves vr_mp_lockstep_ahead ahead of the server's acknowledgement (the frame only reads: no time passes, no move).
+// (B14e) A client's view is a function of its moves alone: its frames wait (no time passes) until it is in the game,
+// then each waiting frame reads the server's messages up to the one that lets its next move go and no further
+// (VR_LockstepReadsMore: 0 stops), a moving frame reads none (VR_LockstepReadHeld). The server sends a lockstep player
+// one datagram when he is in and then one a step (VR_LockstepSkipsDatagram), and steps only with every player's reliable
+// messages acknowledged: what a client has read when it makes move N is the same every run.
+void VR_LockstepFrameBegin (void);
+int VR_LockstepHolds (void);
+void VR_LockstepRunMove (struct client_s *client);
+int VR_LockstepWaits (void);
+int VR_LockstepReadHeld (void);
+int VR_LockstepReadsMore (void);
+int VR_LockstepSkipsDatagram (int slot);
+void VR_RunBufferedMoves (struct client_s *client); // SV_RunClients, after his messages: the move buffer's tick (vr_net_movebuffer, MP_PLAN B19)
+void VR_MpNoteConnect (const char *host);	// CL_EstablishConnection: the address a client that leaves for the server's map package joins again (vr_mpdownload.cpp)
+void VR_MpWritePackage (struct sizebuf_s *msg);	// SV_SendServerinfo, to a remote client: QVR_SVC_PACKAGE, the server's map package (vr_mpdownload.cpp)
+// (B13) The server browser (vr_serverbrowser.cpp; menu.c's server list, Multiplayer > Join Game > Server Browser): the
+// LAN's servers (NetQuake's slist broadcast) with the favourites and recent servers (vr_mp_favourites, vr_mp_recent),
+// those asked by their address in the same search (net_dgrm.c). Rows: favourites, then recent, then the LAN's others.
+int VR_BrowserAddressCount (void);	// net_dgrm.c: the addresses asked besides the broadcast ...
+const char *VR_BrowserAddress (int i);	// ... each ("" out of range)
+void VR_BrowserSearchDone (void);	// net_main.c: the search ended (its rows printed when vr_mp_browse asked)
+// (review 2026-11-18, finding 6) A host name looked up on a worker, never on the game thread (vr_netlookup.cpp):
+// 1 found (*netorder_ipv4 set), 0 not yet (under way, or none started: !mayStart), -1 failed (tried again after a
+// back-off doubling from 2 s to 5 min). net_dgrm.c: the room service's name, the server browser's favourites.
+int VR_NetLookup (const char *name, unsigned int *netorder_ipv4, int mayStart);
+void VR_NetLookupInit (void);		// net_dgrm.c Datagram_Init: net_lookups
+void VR_NetLookupShutdown (void);	// net_dgrm.c Datagram_Shutdown: a lookup under way waited for
+void VR_BrowserRefresh (void);		// a new search
+int VR_BrowserSearching (void);
+int VR_BrowserCount (void);		// the rows (built again from the search's replies and the lists)
+const char *VR_BrowserRowText (int row);	// its 35 columns: name, map, players, ping (or its address, "no reply")
+int VR_BrowserRowFavourite (int row);
+int VR_BrowserRowRecent (int row);
+void VR_BrowserToggleFavourite (int row);
+void VR_BrowserForget (int row);	// off the recent list
+void VR_BrowserJoin (int row);		// connect to its address
+int VR_ServerSilence (void);			// (B16) after reading the server's messages: 0 heard, 1 silent over 3 s (the notice), 2 silent past vr_mp_client_timeout (the client drops it: VR_ServerSilenceReason; vr_nethud.cpp): cl_main.c
+const char *VR_ServerSilenceReason (void);	// (B16) the console's line of that drop
+const char *VR_NetHudLine (int line);	// (B13) the net HUD's line (vr_net_hud; NULL: none; vr_nethud.cpp): gl_screen.c
 int VR_IsActive (void);		// nonzero while vr_enabled is set and a backend session is running: the
 							// runtime paces frames (no frame cap, no sleeping when unfocused)
 int VR_Unpaced (void);		// nonzero while the mock headset runs frames unpaced (vr_mock_fast, the game's clock
@@ -103,6 +160,9 @@ void VR_PhysicsEntityEnd (struct edict_s *ent, int num, double world); // ... it
 double VR_ThinkFrame (double frametime); // SV_RunThink: how far ahead a think is due (the world's frame, also
 							// for an entity in the player's time)
 void VR_HostFrameEnd (void);	// end of _Host_Frame, after the screen and the sound (the motion recorder's row)
+void VR_OnHostError (void);	// Host_Error, Host_EndGame, before the server's shutdown and the longjmp: the frame-scoped
+							// state the jump leaves open put back (cvars::Override scopes, slow motion's pair, the
+							// profiler's scopes: vr/vr_hosterror.cpp)
 
 // The frame cap (vr_sleep.cpp).
 int VR_HiResSleepUntil (double endtime, double *now); // Sys_WaitUntil: sleeps on a high-resolution timer until its lateness before endtime; 0 without one
@@ -300,6 +360,7 @@ int VR_GLRecentSteps (char *out, int outSize, int count);	// vr_crash.cpp: the l
 void VR_LogsBegin (void);	// Host_Init after the filesystem: the run's folder, console.log; -bugreport: the report made, exit
 void VR_LogsEnd (void);	// Host_Shutdown: the OpenXR messages' summary
 void VR_LogsSystemLine (const char *line);	// a line of the run's system.txt (the GPU, the runtime)
+int VR_TerminalFd (int fd);	// Linux: the terminal's stdout (1) / stderr (2) while the OpenXR loader's output is caught, else -1 (vr_xr_runtime.cpp; signal-safe)
 void VR_LogsIncident (const char *what);	// a VR start failed, a runtime crash caught, the game crashed: the runtimes' logs copied in
 void VR_LogsInit (void);	// VR_Init: bugreport
 // Diagnostics mode (vr_diagnostics.cpp): -diagnostics or vr_diagnostics 1.
@@ -354,7 +415,9 @@ void VR_Footsteps_Frame (void);		// SV_Physics, after the edicts: the enemies' f
 void VR_MonsterHealth_Frame (void);	// SV_Physics, after the edicts: Monster Health's cut on monsters seen first (vr_mgroups.cpp)
 int VR_AD_PelletsPass (const struct edict_s *mover, const struct edict_s *target); // AD support: projectile pellets pass one another
 int VR_AD_RulesOn (void);				// AD support (vr_ad.cpp): the map spawning plays by Arcane Dimensions' rules
-int VR_AD_OwnsClassname (const char *classname, int ours);	// AD support: AD's ad_<classname> spawns it, not Quake VR's
+const char *VR_Rules_SpawnName (const char *classname, int ours);	// the spawn function's name by the map's ruleset (vr_rules.cpp): Quake VR's, an imported ruleset's (ad_<classname>) or NULL
+const char *VR_Rules_KeyPrefix (void);	// the map's ruleset's imported prefix ("ad_", "cu_") for its own map keys' fields, or NULL (vr_rules.cpp)
+int VR_Rules_ToolgunPrefixed (const char *classname, const char **plain); // the toolgun's ad_/cu_ variants: 0 none, 1 spawns, -1 refused (vr_rules.cpp)
 int VR_AD_SpawnsOutside (const char *classname);	// AD support: outside AD's rules, AD's ad_<classname> spawns it (an artifact, a pickup, a ladder)
 int VR_AD_ToolgunSpawnsOutside (const char *classname); // AD support: and the toolgun's (AD's backpacks too)
 int VR_AD_SpawnOutsideNow (void);				// AD support: AD's world setup once a map, before the first such
@@ -380,6 +443,7 @@ int VR_EdictIndex_FindFlags (int start, int field, int flags);	// PF_findflags: 
 // findradius through the area grid (vr_findradius.cpp): an edict is tested by itself while it is "dirty" (its origin,
 // size or solid changed since it was linked, or it isn't linked); the rest are found through the grid.
 edict_t *VR_FindRadius (const float *org, float rad);	// PF_findradius: the chain (the walk's, exactly)
+edict_t *VR_FindRadiusMoving (const float *org, float rad, float minSpeed); // QC findradiusmoving: only what flies
 void VR_FindRadius_Dirty (edict_t *ed);		// the engine changed the edict's origin, size or solid, or unlinked it
 void VR_FindRadius_Linked (edict_t *ed);	// SV_LinkEdict: its abs box set, about to go into the grid
 void VR_FindRadius_Reset (void);			// SV_ClearWorld: nothing linked
@@ -391,9 +455,21 @@ void VR_CheckLoadedReferences (int num_edicts);	// Host_Loadgame_f, the edicts p
 void VR_OnLoadGame (void);				// Host_Loadgame_f, after globals and edicts are restored
 // Saved games: after the light styles, `// qvr_save <format> progs <crc> build <build>` and `// qvr_model <i> <name>` for
 // the model precache list (SaveData_WriteHeader). VR_SAVE_FORMAT goes up when a save this build writes would load wrong
-// in an older one; a save of a newer format is refused (VR_ReadSaveInfo).
-#define VR_SAVE_FORMAT 1
+// in an older one; a save of a newer format is refused (VR_ReadSaveInfo). A single player save is still written as format
+// 1 (VR_SAVE_FORMAT_SINGLE: older builds load it as before); a coop save is format 2 (older builds refuse it: they would
+// load its players' edicts as a single player game's).
+#define VR_SAVE_FORMAT 2
+#define VR_SAVE_FORMAT_SINGLE 1
 int VR_ReadSaveInfo (const char *text, const char *relname);	// Host_Loadgame_f, before the old game ends: the save's build and models read (0: refused)
+// Coop saves (vr/vr_coopsave.cpp, MP_PLAN.md B4): per-player blocks in a save of more than one player.
+const char *VR_SaveCoopLines (void);	// SaveData_Fill: the `// qvr_coop` lines ("" for a single player game; valid until the next fill)
+int VR_ReadCoopLines (const char *text, const char *relname);	// VR_ReadSaveInfo: the loading save's blocks read (0: refused)
+int VR_CoopSaveClients (void);	// the loading save's players (its maxclients), 0 for a single player save
+int VR_CoopSaveIsCoop (void);	// the loading coop save's `coop`
+void VR_CoopApplyLoad (void);	// Host_Loadgame_f, the edicts loaded: each slot's saved spawn parms given to it
+int VR_CoopSlotLoaded (int slot);	// a loaded game: that slot's edict is a loaded player's (1 for every slot of a single player save's)
+int VR_CoopSlotSpawned (int slot);	// Host_Spawn_f: that slot spawned; 1: the loaded game may run (no saved player still connecting)
+int VR_CoopSlotDropped (int slot);	// SV_DropClient: a saved player still to spawn left; 1: the loaded coop game may run now
 const char *VR_SaveBrushLines (void);	// SaveData_Fill: the runtime brushes as the save's "// qvrb" lines (vr_brushes.cpp; "" none)
 const char *VR_SaveWetLines (void);	// SaveData_Fill: what is wet as the save's "// qvrwet" lines (vr_drips.cpp; "" none)
 const char *VR_SaveDecalLines (void);	// SaveData_Fill: the permanent decals as the save's "// qvrdecals" and "// qvrd" lines (vr_permdecals.cpp; "" none)
@@ -439,7 +515,24 @@ int VR_CorpseBox (struct edict_s *mover, struct edict_s *touch, const float *sta
 // Protocol (cl_input.c, cl_parse.c, cl_tent.c, cl_main.c, cl_demo.c, sv_user.c, sv_main.c, host.c,
 // host_cmd.c).
 int VR_MoveMainFire (int lmb);					// CL_SendMove's attack bit: +attack's state in, the main hand's trigger out (flatscreen play: flatplay::routeFire, the mouse's buttons by what the hands hold; otherwise as it came)
-void VR_WriteMoveExtras (struct sizebuf_s *buf);			// end of CL_SendMove
+void VR_WriteMoveExtras (struct sizebuf_s *buf, int forward, int side, int up, int buttons, int impulse); // end of CL_SendMove (a remote client's: the whole move rewritten as QVR_CLC_MOVES)
+void VR_WriteVoice (struct sizebuf_s *buf);			// CL_SendMove: voice chat's frames waiting, after the move (vr_voicechat.cpp)
+int VR_ReadVoice (struct client_s *client);			// SV_ReadClientMessage's QVR_CLC_VOICE: 0 a malformed one
+void VR_WriteVoiceTo (struct sizebuf_s *msg, struct client_s *client); // SV_SendClientDatagram: the other players' voices
+unsigned char *VR_VoicechatSound (const char *name, int *size); // S_LoadSound: a speaker's looping ring (VR_SndMemory)
+int VR_ReadQvrMoves (struct client_s *client);			// SV_ReadClientMessage's QVR_CLC_MOVES: 0 a malformed one (vr_netmove.cpp)
+int VR_AcceptsStaleMoves (struct client_s *client);		// (B20) a remote client sending QVR_CLC_MOVES under the move buffer: his overtaken datagrams read
+void VR_ReadStaleQvrMoves (struct client_s *client);		// (B20) an overtaken datagram's QVR_CLC_MOVES: only moves the buffer still waits for (vr_netmove.cpp)
+void VR_ApplyClientMove (struct client_s *client, float time, const float *angles, int forward, int side, int up, int buttons, int impulse); // sv_user.c: a move's NetQuake part run (SV_ReadClientMove's, read)
+void VR_WriteMoveAck (struct sizebuf_s *msg, struct client_s *client); // SV_SendClientDatagram: QVR_SVC_MOVEACK (vr_netmove.cpp)
+void VR_PredictBeginRead (struct client_s *client);	// SV_RunClients, before his message: the last frame's queued moves dropped (vr_predict.cpp, B8)
+int VR_PredictThink (struct edict_s *ent);			// SV_ClientThink, alive: 1 if this frame's walk runs his moves one by one (no SV_AirMove)
+int VR_PredictWalks (struct edict_s *ent);			// SV_Physics_Client: this frame's walk runs his moves one by one
+void VR_PredictPhysics (struct edict_s *ent);		// SV_Physics_Client, walking: his queued moves through vr_pmove.cpp (gravity, the walk, the room-scale walk)
+void VR_PmoveTrace (struct edict_s *ent);			// SV_Physics_Client's end: vr_pmove_trace's line for this player (B11b)
+void VR_WritePredict (struct sizebuf_s *msg, struct client_s *client); // SV_SendClientDatagram, in the snapshot: QVR_SVC_PREDICT
+void VR_WriteHeldPlaces (struct sizebuf_s *msg, struct client_s *client); // SV_SendClientDatagram, in the snapshot: QVR_SVC_HELDPLACE (vr_held.cpp, B27)
+void VR_PredictRelink (int num, float *origin);		// CL_RelinkEntities, each entity placed: our own predicted, the lift we stand on at its newest
 int VR_FlatHudOn (void);						// Sbar_Draw, the modern status bar at hudstyle 1: 1 while flatscreen play draws its own layout (vr_flat_hud; vr_flathud.cpp)
 int VR_VisorOn (void);							// Sbar_Draw, SCR_CalcRefdef: 1 while flatscreen play's visor is the HUD (vr_flat_visor; vr_visor.cpp): no status bar, no room kept for it
 int VR_FlatHudClip (int left, int *clip, int *clipSize);	// flatscreen play reloading (vr_flat_reload): 1 when the left (1) or right (0) hand's gun has a clip, which the status bars draw big with the reserve small beside it; its rounds and its size
@@ -447,10 +540,35 @@ int VR_FlatHudHand (int left, int *count, int *ammoPic);	// that layout's counte
 int VR_FlatHudTime (float *level, int *state);			// its bullet time bar: 0 while bullet time is off (vr_bullettime_enabled); the meter 0..1 and its state (0 filling, 1 ready, 2 running, 3 cooling)
 void VR_WriteDemoState (struct sizebuf_s *msg);			// CL_Record_f, recording mid-game
 void VR_AdjustMove (float *forwardmove, float *sidemove, float *upmove); // CL_SendCmd: thumbstick locomotion
+void VR_SpeedPressed (void);						// IN_SpeedDown, on the speed button's going down (not a second key's, not a repeat): vr_sprint_toggle's switch
+int VR_SpeedButton (int held);						// every run-or-walk choice (cl_input.c, in_sdl.c, VR_AdjustMove): the speed button's state, held (in_speed's) in, vr_sprint_toggle's switch out while it is on
 void VR_ReadMoveExtras (struct client_s *client);		// end of SV_ReadClientMove
+void VR_NoteEntitiesBegin (void);				// SV_WriteEntitiesToClient: a client's walk of the entities begins
+void VR_NoteEntityInSight (int ent);				// ... this one is in its PVS (its messages go to it: VR_WriteScoped)
+void VR_WriteScoped (struct sizebuf_s *msg, int local, int snap);	// SV_SendClientDatagram after the broadcast: the messages about entities it sees (an armed humanoid's pose; the avatars unless they went in its snapshot)
+// A remote client's snapshot (vr_netsnap.cpp; MP_PLAN.md, B7b): SV_SendClientDatagram asks whether this datagram's player
+// state and entities go as one (a client sending QVR_CLC_MOVES); its writers then cut each record they wrote from `at` on
+// off the message into it (key 0 the player state, an entity's number); VR_SnapEnd adds the avatars it sees and writes it.
+int VR_SnapBegin (struct client_s *client);
+void VR_SnapTake (struct sizebuf_s *msg, int at, int key);
+int VR_LagCompBegin (struct edict_s *shooter); // PF_traceline (a MOVE_HITMODEL trace): the targets where he saw them (vr/vr_lagcomp.cpp)
+void VR_LagCompEnd (void);                     // ... and back
+void VR_SnapEnd (struct sizebuf_s *msg);
+// (B13c) A remote snapshot client's send rate (vr_net_sendhz): SV_SendClientMessages sends his datagram this frame (1),
+// or holds his share of the frame's broadcast for the next one (0: VR_HoldBroadcast; VR_WriteHeldBroadcast writes it).
+int VR_SendsDatagramNow (struct client_s *client);
+void VR_HoldBroadcast (struct client_s *client);
+void VR_WriteHeldBroadcast (struct sizebuf_s *msg, struct client_s *client);
+int VR_HeldBroadcastBytes (int slot);
+void VR_ClearHeldBroadcast (int slot); // (a new connection's, a new map's: vr_netsnap.cpp serverReset)
+void VR_InterpFrame (void);				// CL_RelinkEntities, before the entities: the interpolation buffer's clock (vr_netsnap.cpp)
+int VR_InterpEntity (int num, float *origin, float *angles); // ... entity `num` placed from it (a remote server's others, a delay behind): 1, or 0 NetQuake's lerp
 int VR_MoveMerges (struct client_s *client);			// SV_ReadClientMove, at its buttons: not the first move since the server's last frame (its buttons ORed)
 void VR_ClientLoadedBits (struct client_s *client);		// SV_ConnectClient into a loaded game: the saved player's held grips (no new press)
 void VR_ClientReset (struct client_s *client);			// SV_ConnectClient, SV_DropClient: the slot's per-client VR state cleared
+int VR_GuestMay (const char *what);				// (B28) a client command that acts on everyone's game (kick, pause, scene cleaning) from host_client: 1 when he is the listen host's own client or vr_mp_guest_admin allows guests, else 0 and he is told
+int VR_GuestMayTalk (void);					// (B28) say, say_team, tell from host_client: 0 (he is told) while a guest's flood guard holds him
+int VR_ClientCommandBudget (const char *s);	// a remote client's string command s from host_client within his budget: 1 run it, 0 dropped (a flood: vr_avatarcal, name, ...)
 void VR_CalcStats (struct client_s *client, int *statsi, float *statsf); // end of SV_CalcStats
 int VR_AmmoStat (struct edict_s *ent);				// SV_WriteClientdataToMessage: the status bar's ammo count (the VR progs' .currentammo is the main hand's ammo type: their counter instead)
 int VR_ActiveWeaponStat (struct edict_s *ent);			// SV_WriteClientdataToMessage: the active weapon item bit
@@ -459,6 +577,8 @@ void VR_WriteEntityUpdate (struct sizebuf_s *msg, struct edict_s *ent, int bits)
 int VR_StepLerpInterval (struct edict_s *ent);			// SV_WriteEntitiesToClient: U_LERPFINISH's byte for a stepping monster in the air (moved every server frame), -1 else (vr_server.cpp)
 void VR_ParseEntityUpdate (int num, int bits);			// CL_ParseUpdate, after the fitz fields
 int VR_ParseServerMessage (int cmd);					// unknown svc: nonzero if handled
+void VR_NoteServerMessage (int kind);					// CL_ReadFromServer: a message read (1 reliable, 2 unreliable): the byte counts (vr_netsnap.cpp, vr_net_bytes)
+void VR_NoteServerCommand (int at);						// CL_ParseServerMessage: the next command begins at `at` (the message's size: its end)
 int VR_ParseBeamEntity (int ent);						// CL_ParseBeam: beam key for an entity
 enum { QVR_DLIGHT_MUZZLE, QVR_DLIGHT_ROCKET, QVR_DLIGHT_EXPLOSION };
 enum { QVR_DECAL_TE_GUNSHOT, QVR_DECAL_TE_EXPLOSION, QVR_DECAL_TE_SPIKE, QVR_DECAL_TE_SUPERSPIKE, QVR_DECAL_TE_MONSTERSPIKE };
@@ -520,6 +640,7 @@ void VR_OnClientClearState (void);						// CL_ParseServerInfo, after CL_ClearSta
 void VR_FlatPortalAngle (const float *before, float *angles);	// svc_setangle: a flat-screen walk through a teleporter: the view goes on as it was
 void VR_OnSetAngle (float yaw);							// svc_setangle: the server turned the view
 void VR_WriteClientSpawnState (struct sizebuf_s *msg);	// Host_Spawn_f, before the client data
+void VR_ServerFrameBegin (void);						// Host_ServerFrame, before the clients run (the host's own view state into his slot)
 void VR_ServerFrameEnd (void);							// Host_ServerFrame, before sending
 void VR_WriteRecentPrecaches (struct sizebuf_s *msg);	// SV_SendClientDatagram: late precaches before their use
 // The unreliable broadcast's room (vr_server.cpp): a full sv.datagram drops whole messages, never part of one.
@@ -533,6 +654,8 @@ void VR_SoundLog (int ent, int channel, const char *sample, int volume, int drop
 int VR_SoundLoopNote (int ent, int channel, int num);	// SV_StartSoundPitch: 1 sends it reliably (a looping sound's end: vr_server.cpp)
 void VR_SoundLoopsFreed (edict_t *ed);					// ED_Free: the loops still playing on it stopped (vr_server.cpp)
 int VR_BroadcastSendable (int before, int room);		// SV_SendClientDatagram: how much of sv.datagram fits in a datagram with room bytes left (before: its bytes so far)
+void VR_NoteClientSight (const edict_t *clent, const byte *pvs, const float *eye);	// SV_WriteEntitiesToClient: his fat PVS and eye, for his broadcast's culling (B13b)
+void VR_WriteBroadcast (struct sizebuf_s *msg, int local, const edict_t *clent);	// SV_SendClientDatagram: the broadcast, a remote client's culled by his sight (vr_net_cullbroadcast)
 void VR_ReliableSent (void);								// SV_SendClientMessages, before sv.reliable_datagram goes to the clients
 
 // Server physics (sv_phys.c, sv_user.c, world.c).
@@ -624,6 +747,7 @@ int VR_EntityTrail (int ent, int type);											// CL_RocketTrail: rockets, la
 
 // Client view (view.c): runs on the main thread, before the renderer.
 void VR_SetupViewEntities (void);						// V_RenderView, before R_RenderView
+void VR_AddMpAvatars (void);							// V_RenderView, after VR_SetupViewEntities: the other players' hands and weapons (vr_mpavatar.cpp)
 int VR_BloodActive (void); // peripheral feedback; independent of screen tints
 void VR_BloodBind (void); // uniforms 2..4 in viewblend/warpscale
 void VR_OnDamage (int armor, int blood, const float *from);	// V_ParseDamage: a hit knocks the drawn hands, the controllers buzz (vr_painknock.cpp)
@@ -659,6 +783,15 @@ void VR_RunSetupLevel (const char *map);					// the Levels list (menu.c): the Ru
 void M_LevelStart (const char *map, int skill);				// menu.c: a fresh start of a map (skill -1: left as it is: the map's own halls choose), the Run Setup screen's Start
 void M_NewGameStart (void);								// menu.c: the new game itself (map start), the Run Setup screen's Start
 int VR_RunIronman (void);								// the run's Ironman is on (vr_runsetup.cpp): no saving, the menus' Save greyed, no autosaves
+int VR_CoopPickSlot (const char *name, const char *key, int islocal);	// SV_CheckForNewClients: the slot a new player takes (-1: the first free; the host's own: 0; vr_coopsave.cpp)
+void VR_CoopNoteLeave (int slot);					// SV_DropClient (B15): a player leaving a coop game in progress: what he has kept for his return by name
+void VR_CoopRejoinParms (int slot, const char *name, const char *key);	// SV_ConnectClient, a new player: one back by name and game key gets his level-start parms (a respawn's)
+void VR_CoopRejoinSpawn (int slot);					// Host_Spawn_f, the parms in the globals: one back by name gets what he had when he left
+void VR_CoopLevelChangeParms (void);				// SV_SaveSpawnparms (a level change): each leaver's level-start parms what he carries into it
+void VR_CoopNoteBots (void);						// SV_SaveSpawnparms (MP bots): a coop game's bots at a level change: what each has kept by name, as a leaver's
+int VR_CoopBotParms (int slot, const char *name);	// QC botcarryparms (FrikBot's BotConnect, after SetNewParms): a bot of that name kept so -> what it had in the parm globals (1)
+void VR_CoopForgetLeavers (void);					// Host_ShutdownServer: the leavers' things forgotten (a new game or a load)
+int VR_ServerIntermission (void);					// Host_Savegame_f: the server's QC is in its intermission (intermission_running; vr_progs.cpp)
 int VR_ArenaNoSave (void);								// in Arena Mode (vrarena): no saving of any kind
 int VR_RunIronmanRefusesSave (void);					// Host_Savegame_f: 1 when Ironman refuses it (said on the console and the screen)
 void VR_Menu_Draw (void);								// M_Draw, m_vr
@@ -704,8 +837,11 @@ void VR_MenuBounds (int *left, int *top, int *width, int *height);	// M_UpdateBo
 void VR_MenuSavePositions (void);						// Host_WriteConfigurationToFile: each VR page's selection and scroll into vr_menu_positions
 void VR_ConfigMergeOthers (const char *path);			// Host_WriteConfigurationToFile, the game folder's config: another copy's changes in it kept (vr_cvars.cpp)
 void VR_FlatKeysForConfigWrite (void);					// Host_WriteConfigurationToFile, before Key_WriteBindings: flatscreen play's Ctrl bind (+flatcrouch, the crouch key that does not fire: vr_flat_crouch_fire) given back, so the config keeps the plain game's CTRL (vr_flatplay.cpp)
-void VR_ConfigWritten (const char *path);				// and after writing it
+void VR_ConfigNoteWrite (void);						// Host_WriteConfigurationToFile, the game folder's config: its settings as just written (kept for VR_ConfigWritten)
+void VR_ConfigWritten (const char *path);				// and after writing it (in place: not after a failed write)
 int VR_ConfigSaves (const struct cvar_s *var);			// Cvar_WriteVariables, an archived cvar: nonzero if the config gets its line (a vr_ one only if changed from its default)
+void VR_ServerRulesConfigWrite (int begin);		// around Cvar_WriteVariables: a remote server's rules written as the player's own (vr_serverrules.cpp)
+void VR_ServerRulesLeft (void);				// CL_Disconnect: a remote server's rules no longer govern: the player's own back (vr_serverrules.cpp)
 void VR_ScenarioConfigWrite (int begin);			// around Cvar_WriteVariables: a test scene's settings written as they were before it (vr_scenario.cpp)
 const struct cvar_s *VR_TunableFind (const char *name);	// Cvar_VariableValue/String, a name not found: a tuning constant's stand-in (vr_tunables.inc), or NULL
 int VR_TunableSetVar (struct cvar_s *var, const char *value);	// Cvar_SetQuick, a cvar never registered: nonzero if it is a tuning constant's stand-in, now set (a Tunables page row; vr_tunables.cpp)
@@ -781,7 +917,7 @@ void VR_SndStopAll (void);							// S_StopAllSounds, the channels cleared: every
 int VR_SndHoldsSfx (const sfx_t *sfx);				// S_ForgetGameSounds: nonzero: the game-time render still plays it (kept)
 void VR_SndRebase (int delta);						// S_RebaseSoundTime: paintedtime moved back by delta (its wrap): the voices' carried render with it
 int VR_SndKeepStatics (void);						// S_Update: nonzero: the static sounds of one sample not combined (each has its place)
-int VR_SndMixEnd (int paintedtime, int endtime);	// S_Update_: the mix-ahead's end, rounded down to whole frames of the voices
+int VR_SndMixEnd (int painted, int endtime);		// S_Update_ (its paintedtime): the mix-ahead's end, rounded down to whole frames of the voices
 void VR_SndPaint (portable_samplepair_t *buffer, int start, int end);	// S_PaintChannels, each chunk: the voices' mix added
 int VR_SndOwns (const channel_t *ch);				// S_PaintChannels: nonzero for a channel a voice renders (Quake skips it)
 void VR_SndBus (portable_samplepair_t *buffer, int count);		// S_PaintChannels, the effects' sum: clipped (wider with vr_snd_limiter), then halved
@@ -800,6 +936,8 @@ void VR_SndBandLimit (const unsigned char *data, int width, int samples, int loo
 double VR_SndBenchNow (void);						// vr_snd_bench (vr_audiobench.cpp): the time, 0 when no bench is recording
 int VR_SndJobPost (void (*fn) (void *));			// S_MixKick: fn on the game's thread pool (one at a time); 0 without a pool (not posted)
 void VR_SndJobWait (void);							// S_MixJoin: the posted fn done (run here if no worker has started it)
+void VR_SndMixRace (const char *file, int line);	// S_MixCheckAt (development builds): the channels read at file:line
+							// on the main thread with the mix on the pool, unjoined: the crash report (vr_snd_mixcheck_test counts it)
 void VR_SndBenchAdd (int stage, double since);		// vr_snd_bench: now - since into this frame's stage (VR_SNDBENCH_*: vr_audiobench.hpp's Stage)
 enum { VR_SNDBENCH_PAINT = 3, VR_SNDBENCH_QUAKE = 12, VR_SNDBENCH_FILTERS = 13 };
 
@@ -831,7 +969,8 @@ const char *VR_CampaignTag(int index);   // its status in a word or two ("missin
 const char *VR_CampaignHelp(int index);
 void VR_SelectCampaign(int index);
 int VR_CampaignUnavailable(int index);
-int VR_CampaignInstalled(int index); // data complete (the experimental AD row is offered on this alone)
+int VR_CampaignInstalled(int index); // data complete (the experimental rows are offered on this alone)
+int VR_CampaignExperimental(int index); // AD's, Dwell's: a notice first, then their developer launch
 // Setup's preparation's walk through the campaigns (vr_prepare.cpp).
 int VR_CampaignCount(void);
 const char *VR_CampaignFolder(int index);

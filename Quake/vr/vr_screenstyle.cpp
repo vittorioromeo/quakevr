@@ -3,6 +3,8 @@
 #include "vr_screenstyle.hpp"
 #include "vr_cvars.hpp"
 
+#include <cstring>
+
 namespace qvr::screenstyle
 {
 namespace
@@ -106,22 +108,6 @@ constexpr Entry table[] = {
             .box = 0.f,
             .housing = true,
             .opening = {22.f, 11.f}}},
-    // The nailgun's lava-nail model (v_lava.blend: v_nail's mesh, the same housing by the same script, its texels found
-    // on v_lava's own skin): "nail"'s numbers, weapons.txt slot 11's place slot 3's.
-    {"lava",
-        {.radius = -4.4f,
-            .bevel = 1.6f,
-            .vignette = 0.4f,
-            .sheen = 0.6f,
-            .soft = 0.55f,
-            .glass = 0.13f,
-            .tint = {0.9f, 1.f, 0.9f},
-            .crt = 0.4f,
-            .size = 1.f,
-            .offset = {0.0132f, -0.0024f, 0.0014f},
-            .box = 0.f,
-            .housing = true,
-            .opening = {22.f, 11.f}}},
     // The super nailgun: a riveted bezel in the long, low rear slope of a wedge on the receiver's top, at its back end
     // (v_nail2.blend, Misc/quakevr/make_screen_housing_nail2.py, which reads this entry's opening, radius and offset);
     // the back of the gun round the hand is free. In window heights h: the window 1.6h x 1h (h 28.56 font pixels),
@@ -164,25 +150,8 @@ constexpr Entry table[] = {
     // `radius`, `size` and `offset` from here and snaps them to the model's grid). The glass upright, 0.06 window heights
     // behind the plate's front: the offset moves it from weapons.txt's place (model -2.964 -0.218 9.762) to the
     // window's (2.551 model units a world unit). Smaller digits (size): two lines fit the window's narrower top.
-    // Its plasma model v_light_plasma.mdl (stem "light_plasma", next) takes the same housing.
+    // Its plasma model v_light_plasma.mdl (stem "light_plasma": an alias of this entry, aliases below) takes the same housing.
     {"light",
-        {.radius = -4.71f,
-            .bevel = 1.6f,
-            .vignette = 0.4f,
-            .sheen = 0.6f,
-            .soft = 0.55f,
-            .glass = 0.13f,
-            .tint = {0.9f, 1.f, 0.9f},
-            .crt = 0.4f,
-            .size = 0.8f,
-            .offset = {-0.0184f, 0.002f, -0.0742f},
-            .box = 0.f,
-            .housing = true,
-            .opening = {31.15f, 15.68f},
-            .taper = 0.7308f}},
-    // The Thunderbolt's plasma model (v_light_plasma.blend: v_light's mesh, the same plate by the same script, its skin
-    // holding v_light's texels where the plate takes them): "light"'s numbers, slot 15's place slot 7's.
-    {"light_plasma",
         {.radius = -4.71f,
             .bevel = 1.6f,
             .vignette = 0.4f,
@@ -312,6 +281,56 @@ constexpr Entry table[] = {
             .housing = true,
             .opening = {11.23f, 10.21f},
             .fillMax = 1.f}},
+    // Dwell support (DWELL.md 9.6, "dwellgun"): Dwell's Rotary Shotgun, Crystal Lance and Rifle (made from Dwell's models as
+    // they load: "progs/dw_shot3.mdl#vr", "dw_rail", "dw_rifle"; the stems exact) take the Plasma Gun's housing on their
+    // rear faces (vr_adweapons.cpp rotaryHousingSpec, lanceHousingSpec, rifleHousingSpec): the Plasma Gun's look, each
+    // window the glass the screen has without a housing (fillMax 1), its corners' cut; weapons.txt slots 52-54 put the
+    // glass on the window's middle as made (wpntxt_av, upright), the offset sinks it 0.04h behind the bezel's front.
+    {"dw_shot3.mdl#vr",
+        {.radius = -1.79f,
+            .bevel = 1.6f,
+            .vignette = 0.35f,
+            .sheen = 0.6f,
+            .soft = 0.5f,
+            .glass = 0.13f,
+            .tint = {1.f, 1.f, 1.f},
+            .crt = 0.4f,
+            .size = 1.f,
+            .offset = {0.f, 0.f, 0.0785f},
+            .box = 0.f,
+            .housing = true,
+            .opening = {11.60f, 11.19f},
+            .fillMax = 1.f}},
+    {"dw_rail.mdl#vr",
+        {.radius = -2.27f,
+            .bevel = 1.6f,
+            .vignette = 0.35f,
+            .sheen = 0.6f,
+            .soft = 0.5f,
+            .glass = 0.13f,
+            .tint = {1.f, 1.f, 1.f},
+            .crt = 0.4f,
+            .size = 1.f,
+            .offset = {0.f, 0.0045f, 0.0557f},
+            .box = 0.f,
+            .housing = true,
+            .opening = {11.34f, 10.23f},
+            .fillMax = 1.f}},
+    {"dw_rifle.mdl#vr",
+        {.radius = -1.67f,
+            .bevel = 1.6f,
+            .vignette = 0.35f,
+            .sheen = 0.6f,
+            .soft = 0.5f,
+            .glass = 0.13f,
+            .tint = {1.f, 1.f, 1.f},
+            .crt = 0.4f,
+            .size = 1.f,
+            .offset = {0.f, 0.0043f, 0.0517f},
+            .box = 0.f,
+            .housing = true,
+            .opening = {11.25f, 10.47f},
+            .fillMax = 1.f}},
 };
 
 [[nodiscard]] bool stemIs(const char* model, const char* stem)
@@ -361,6 +380,22 @@ struct MirroredTable
 
 const MirroredTable mirroredTable = makeMirroredTable();
 
+// Models that take another entry's numbers whole: looked up as it, so that a retune of it moves them too (they were
+// copies of it, field for field, whose comments said to keep them so).
+struct Alias
+{
+    const char* stem; // the model's (as Entry's)
+    const char* as;   // the entry it takes
+};
+constexpr Alias aliases[] = {
+    // The nailgun's lava-nail model (v_lava.blend: v_nail's mesh, the same housing by the same script, its texels found on
+    // v_lava's own skin): weapons.txt slot 11's place slot 3's.
+    {"lava", "nail"},
+    // The Thunderbolt's plasma model (v_light_plasma.blend: v_light's mesh, the same plate by the same script, its skin
+    // holding v_light's texels where the plate takes them): slot 15's place slot 7's.
+    {"light_plasma", "light"},
+};
+
 } // namespace
 
 const Style& fallback()
@@ -372,9 +407,18 @@ const Style& forModel(const char* model, bool mirrored)
 {
     if(model)
     {
+        const char* as = nullptr; // (an alias's entry, looked up by its stem)
+        for(const Alias& a : aliases)
+        {
+            if(stemIs(model, a.stem))
+            {
+                as = a.as;
+                break;
+            }
+        }
         for(size_t i = 0; i < tableSize; i++)
         {
-            if(stemIs(model, table[i].stem))
+            if(as ? !strcmp(table[i].stem, as) : stemIs(model, table[i].stem))
             {
                 return mirrored ? mirroredTable.styles[i] : table[i].style;
             }

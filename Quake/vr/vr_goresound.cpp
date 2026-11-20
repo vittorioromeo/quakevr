@@ -3,6 +3,7 @@
 #include "vr_goresound.hpp"
 #include "vr_bullettime.hpp"
 #include "vr_cvars.hpp"
+#include "vr_mem.hpp"
 #include "vr_tunables.hpp"
 #include "vr_engine.hpp"
 #include "vr_geom.hpp"
@@ -782,6 +783,12 @@ void clear()
     serverEnts.clear();
     lastChokeAny = -1.0;
 }
+
+namespace
+{
+// Forgotten when the client's state is cleared (vr_mem.hpp's resets): the gore's sounds.
+mem::Reset clientStateReset{"goresound", mem::ResetEvent::ClientState, mem::ResetPhase::State, &clear};
+} // namespace
 
 void registerCommands()
 {

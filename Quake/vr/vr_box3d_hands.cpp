@@ -8,6 +8,7 @@
 #include "vr_box3d_internal.hpp"
 #include "vr_weapon_ids.h"
 #include "vr_cvars.hpp"
+#include "vr_heldpose.hpp"
 #include "vr_tunables.hpp"
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Container/Array.hpp"
@@ -395,7 +396,6 @@ namespace
     return true;
 }
 
-const za::Vector<glm::vec4> noFist; // (syncHands: a hand that pushes no fist's spheres)
 } // namespace
 
 void syncHands(float dt)
@@ -420,7 +420,7 @@ void syncHands(float dt)
             const glm::vec3 angles = fieldVec(player, progs::handFields(h).rot);
             vec3_t in{angles.x, angles.y, angles.z}, fwd, right, up;
             AngleVectors(in, fwd, right, up);
-            const za::Vector<glm::vec4>& fist = i == 1 ? held::fist(h) : noFist;
+            const za::Vector<glm::vec4>& fist = held::fistOf(player, h); // (each player's own: B3)
             const bool byFist = !fist.empty();
             const glm::vec3 at = byFist ? point : point - vec(fwd) * (radius * world->m2u);
             const b3Quat turn = byFist ? toB3(glm::quat_cast(held::axesFromAngles(&angles[0], true))) : b3Quat_identity;
@@ -434,8 +434,12 @@ void syncHands(float dt)
             {
                 if(B3_IS_NON_NULL(hb.body))
                 {
+                    // (The fist's own fields only: the reach body, its key and what it ignores are syncReach's, which
+                    // destroys that body itself.)
                     b3DestroyBody(hb.body);
-                    hb = World::HandBody{};
+                    hb.body = b3_nullBodyId;
+                    hb.armed = false;
+                    hb.fist.clear();
                 }
                 continue;
             }
@@ -570,6 +574,26 @@ constexpr float reachSink = 0.01f;     // m: sunk no deeper in a new reach body,
 constexpr float reachCapsule = 0.015f; // m: another player's weapon's radius
 } // namespace
 
+int reachTouchCount()
+{
+    int n = 0;
+    for(const za::Array<World::HandBody, 2>& both : world->hands)
+    {
+        for(const World::HandBody& hb : both)
+        {
+            for(const b3BodyId body : {hb.body, hb.reach})
+            {
+                if(B3_IS_NON_NULL(body))
+                {
+                    b3ContactData contacts[32];
+                    n += b3Body_GetContactData(body, contacts, 32);
+                }
+            }
+        }
+    }
+    return n;
+}
+
 // The hand whose reach body `body` is (of client `player`), or nullptr.
 [[nodiscard]] World::HandBody* reachOf(b3BodyId body, int player)
 {
@@ -642,20 +666,35 @@ namespace
     const int modelOfs = f.weaponmodel2;
     const char* name = h ? PR_GetString(player->v.weaponmodel)
                          : (modelOfs >= 0 ? PR_GetString(fieldInt(player, modelOfs)) : "");
-    if(i == 1 && cls.state == ca_connected) // the local player: the weapon as drawn
+    // The weapon as the player's view drew it in his hand (his slot's: this game's own player's view this frame, another's
+    // as his client drew it; vr_heldpose.hpp, MP_PLAN.md B3e and B11a), its model the server's of the same name.
+    const heldpose::Hand* r = heldpose::slotHand(player, h);
+    if(r && r->drawn && name && *name && r->slot == weapons::slotForName(name))
     {
-        const view::DrawnWeapon& d = view::drawnWeapon(h);
-        if(!d.model || vr_gametime - d.when > 0.5 || strcmp(d.model->name, name) != 0)
+        const qmodel_t* model = nullptr;
+        for(int m = 1; m < MAX_MODELS && sv.model_precache[m]; m++)
         {
-            return key; // (not drawn yet)
+            if(!strcmp(sv.model_precache[m], name))
+            {
+                model = sv.models[m];
+                break;
+            }
         }
-        key.what = Key::Weapon;
-        key.model = d.model;
-        key.mirrored = d.mirrored;
-        key.mag = vr_reload_mag_collide.value ? d.mag : nullptr;
-        key.generation = shapeGeneration;
-        inHand = d.inHand;
-        return key;
+        if(model && model->type == mod_alias)
+        {
+            key.what = Key::Weapon;
+            key.model = model;
+            key.mirrored = r->mirrored;
+            // (his magazine as he draws it seated in it: the gun's own magazine model, B6b)
+            key.mag = vr_reload_mag_collide.value && r->mag ? view::magazineModelOf(model) : nullptr;
+            key.generation = shapeGeneration;
+            inHand = r->inHand;
+            return key;
+        }
+    }
+    if(r && r->placed)
+    {
+        return key; // (a view drawing it this frame has not drawn it yet: none; a remote player's pose not come: a capsule)
     }
     const int muzzleOfs = progs::handFields(h).muzzle;
     const glm::vec3 muzzle = muzzleOfs >= 0 ? fieldVec(player, muzzleOfs) : point;
@@ -1305,8 +1344,6 @@ constexpr float braceAgainst = -0.75f; // a support's normal into the prop again
 constexpr float braceGap = 0.01f;      // m: a support this near holds it
 constexpr int braceDepth = 3;          // props in a stack braced through
 
-za::Vector<b3ContactData> braceContacts; // (supportsOf: every contact, not the first few: a drawn fist touches in dozens)
-
 void addSupport(za::Array<glm::vec3, 4>& out, int& count, const glm::vec3& into)
 {
     for(int i = 0; i < count; i++)
@@ -1326,7 +1363,7 @@ void addSupport(za::Array<glm::vec3, 4>& out, int& count, const glm::vec3& into)
 // through `depth` props more, one resting on a prop held so the same way.
 void supportsOf(b3BodyId prop, za::Array<glm::vec3, 4>& out, int& count, int depth)
 {
-    za::Vector<b3ContactData>& contacts = braceContacts;
+    za::Vector<b3ContactData>& contacts = scratch.braceContacts;
     contacts.resize(static_cast<za::SizeT>(za::max(b3Body_GetContactCapacity(prop), 1)));
     const int n = b3Body_GetContactData(prop, contacts.data(), static_cast<int>(contacts.size()));
     struct Under

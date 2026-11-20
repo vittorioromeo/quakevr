@@ -136,6 +136,10 @@ void serverParts(int bits, bool clear)
         SV_ClientPrintf("scene: not in deathmatch\n");
         return;
     }
+    if(clear && !VR_GuestMay("vr_scene_clean"))
+    {
+        return; // (B28: it clears everyone's scene; counting is anyone's)
+    }
     const func_t fn = progs::bindings().Scene_Clean;
     if(!fn)
     {
@@ -182,7 +186,8 @@ void count_f()
 }
 
 // The living player a host's debug command acts on: the client in slot Cmd_Argv(`arg`) (none given: 0, you; hosting a
-// coop game, another player), in the game; null (said why) otherwise. Not in deathmatch.
+// coop game, another player), in the game; null (said why) otherwise. Not in deathmatch, but on a dedicated server
+// (MP B11: its own console may, as it may kick; its players can't send these commands).
 edict_t* slotPlayer(const char* command, int arg)
 {
     const int slot = Cmd_Argc() > arg ? Q_atoi(Cmd_Argv(arg)) : 0;
@@ -192,9 +197,9 @@ edict_t* slotPlayer(const char* command, int arg)
         Con_Printf("%s: %s\n", command, sv.active ? "no player in that slot" : "not hosting a game");
         return nullptr;
     }
-    if(deathmatch.value != 0.f)
+    if(deathmatch.value != 0.f && !isDedicated)
     {
-        Con_Printf("%s: not in deathmatch\n", command);
+        Con_Printf("%s: not in deathmatch (but on a dedicated server)\n", command);
         return nullptr;
     }
     edict_t* player = svs.clients[slot].edict;
@@ -234,40 +239,64 @@ void gotoExit_f()
     pr_global_struct->time = qcvm->time;
     SV_LinkEdict(player, true); // (its touch: changelevel_touch)
     const eval_t* map = GetEdictFieldValueByName(exit, "map");
-    Con_Printf("vr_goto_exit: in the exit to %s at %.0f %.0f %.0f\n", map && map->string ? PR_GetString(map->string) : "?",
-        player->v.origin[0], player->v.origin[1], player->v.origin[2]);
+    Con_Printf("vr_goto_exit: %s in the exit to %s at %.0f %.0f %.0f\n", PR_GetString(player->v.netname),
+        map && map->string ? PR_GetString(map->string) : "?", player->v.origin[0], player->v.origin[1], player->v.origin[2]);
 }
 
-// vr_hurt <damage> [<slot>]: the player takes that much damage from the world (QC's T_Damage, as a fall's): a real
-// death at 1000, not `kill`'s respawn at once (Debug > Tests > Cheats; from agent/mp).
+// vr_hurt <damage> [<slot>] [<attacker>]: the player takes that much damage from the world (QC's T_Damage, as a
+// fall's): a real death at 1000, not `kill`'s respawn at once (Debug > Tests > Cheats; from agent/mp). Multiplayer's
+// harness (mp_dm): the slot may be a bot's (FrikBot's bots are the edicts of slots no client is in; MP B14c) and the
+// damage from entity number <attacker> (a player or a bot: his frag in deathmatch).
 void hurt_f()
 {
     if(Cmd_Argc() < 2)
     {
-        Con_Printf("usage: vr_hurt <damage> [<slot>]\n");
+        Con_Printf("usage: vr_hurt <damage> [<slot>] [<attacker entity>]\n");
         return;
     }
-    edict_t* player = slotPlayer("vr_hurt", 2);
+    if(!sv.active)
+    {
+        Con_Printf("vr_hurt: not hosting a game\n");
+        return;
+    }
+    const progs::ServerVm vm;
+    const int slot = Cmd_Argc() > 2 ? Q_atoi(Cmd_Argv(2)) : 0;
+    edict_t* bot = slot >= 0 && slot < svs.maxclients && !svs.clients[slot].active && (isDedicated || deathmatch.value == 0.f)
+                       ? EDICT_NUM(slot + 1)
+                       : nullptr;
+    edict_t* player = bot && !bot->free && bot->v.health > 0.f && !strcmp(PR_GetString(bot->v.classname), "player")
+                          ? bot
+                          : slotPlayer("vr_hurt", 2);
     if(!player)
     {
         return;
     }
-    const progs::ServerVm vm;
+    edict_t* attacker = qcvm->edicts;
+    if(Cmd_Argc() > 3)
+    {
+        const int n = Q_atoi(Cmd_Argv(3));
+        if(n <= 0 || n >= qcvm->num_edicts || EDICT_NUM(n)->free)
+        {
+            Con_Printf("vr_hurt: no entity %d\n", n);
+            return;
+        }
+        attacker = EDICT_NUM(n);
+    }
     const func_t fn = progs::findFunction("T_Damage");
     if(!fn)
     {
         Con_Printf("vr_hurt: no T_Damage in the game's progs\n");
         return;
     }
-    edict_t* world = qcvm->edicts;
     pr_global_struct->time = qcvm->time;
     pr_global_struct->self = EDICT_TO_PROG(player);
     G_INT(OFS_PARM0) = EDICT_TO_PROG(player);
-    G_INT(OFS_PARM1) = EDICT_TO_PROG(world);
-    G_INT(OFS_PARM2) = EDICT_TO_PROG(world);
+    G_INT(OFS_PARM1) = EDICT_TO_PROG(attacker);
+    G_INT(OFS_PARM2) = EDICT_TO_PROG(attacker);
     G_FLOAT(OFS_PARM3) = static_cast<float>(Q_atof(Cmd_Argv(1)));
     PR_ExecuteProgram(fn);
-    Con_Printf("vr_hurt: %.0f health%s\n", player->v.health, player->v.health <= 0.f ? ", dead" : "");
+    Con_Printf("vr_hurt: %s at %.0f health%s\n", PR_GetString(player->v.netname), player->v.health,
+        player->v.health <= 0.f ? ", dead" : "");
 }
 
 } // namespace

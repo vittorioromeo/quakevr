@@ -281,7 +281,9 @@ Host_FixedTicks -- QVR: host_fixedtick's ticks for this frame: how many (*len se
 static int Host_FixedTicks (double *accum, double *len, double frametime)
 {
 	const double interval = host_netinterval;
-	const double tol = CLAMP (0.0, (double)host_fixedtick_tolerance.value, interval * 0.25);
+	// QVR: (B24) a dedicated server has no headset to keep pace with: its ticks are all exactly host_netinterval (a
+	// lift's step the same every tick, as the clients' replays of their moves have it: MP_PLAN B24)
+	const double tol = cls.state == ca_dedicated ? 0.0 : CLAMP (0.0, (double)host_fixedtick_tolerance.value, interval * 0.25);
 	const int maxticks = CLAMP (1, (int)host_fixedtick_max.value, 64);
 	const double pace = CLAMP (0.0, frametime, 0.2) / interval;
 	double rest;
@@ -353,6 +355,7 @@ void Host_EndGame (const char *message, ...)
 	Con_DPrintf ("Host_EndGame: %s\n",string);
 
 	PR_SwitchQCVM(NULL);
+	VR_OnHostError (); // QVR: what the longjmp would leave open put back (vr/vr_hosterror.cpp)
 
 	if (sv.active)
 		Host_ShutdownServer (false);
@@ -388,6 +391,7 @@ void Host_ReportError (const char *error, ...)
 	inerror = true;
 
 	PR_SwitchQCVM(NULL);
+	VR_OnHostError (); // QVR: what the longjmp would leave open put back (vr/vr_hosterror.cpp)
 
 	SCR_EndLoadingPlaque ();		// reenable screen updates
 
@@ -533,7 +537,11 @@ qboolean Host_WriteConfigurationToFile (const char *name)
 		Key_WriteBindings (f);
 		VR_MenuSavePositions (); // QVR: the VR pages' selections and scrolls, into their cvar
 		VR_ScenarioConfigWrite (1); // QVR: a test scene's settings written as they were before it (vr/vr_scenario.cpp)
+		VR_ServerRulesConfigWrite (1); // QVR: a remote server's rules written as the player's own (vr/vr_serverrules.cpp)
 		Cvar_WriteVariables (f);
+		if (mainconfig)
+			VR_ConfigNoteWrite (); // QVR: the settings as written (a test scene's still swapped in), for VR_ConfigWritten
+		VR_ServerRulesConfigWrite (0);
 		VR_ScenarioConfigWrite (0);
 
 		//johnfitz -- extra commands to preserve state
@@ -745,6 +753,8 @@ void SV_DropClient (qboolean crash)
 	int		i;
 	client_t *client;
 
+	VR_CoopNoteLeave (host_client - svs.clients); // QVR: (B15) what he has, for his return (a game in progress only)
+
 	if (!crash)
 	{
 		// send any final messages (don't check for errors)
@@ -782,6 +792,9 @@ void SV_DropClient (qboolean crash)
 	host_client->name[0] = 0;
 	host_client->old_frags = -999999;
 	net_activeconnections--;
+	// QVR: a loaded coop game paused for its players to come back runs once none still connected is to come
+	if (sv.paused && VR_CoopSlotDropped (host_client - svs.clients))
+		sv.paused = false;
 
 // send notification to all clients
 	for (i = 0, client = svs.clients; i < svs.maxclients; i++, client++)
@@ -820,6 +833,7 @@ void Host_ShutdownServer(qboolean crash)
 
 	VR_OnShutdownServer (); // QVR: the pool's jobs that read the world joined (a game switch frees the models next)
 	sv.active = false;
+	VR_CoopForgetLeavers (); // QVR: (B15) the game ends: no player's return to keep things for
 
 // stop all client sounds immediately
 	if (cls.state == ca_connected)
@@ -1190,10 +1204,71 @@ QVR: true while an autosave due waits for it to be safe (Host_AutosaveUnsafe), w
 (developer 1); false when it may be made: safe, or the monsters waited for vr_autosave_safe_maxdelay seconds.
 ==================
 */
+static qboolean Host_AutosaveWaitFor (int unsafe, const char *reason);
+
 static qboolean Host_AutosaveWait (void)
 {
 	const char	*reason;
 	int			unsafe = Host_AutosaveUnsafe (&reason);
+
+	return Host_AutosaveWaitFor (unsafe, reason);
+}
+
+/*
+==================
+Host_CheckCoopAutosave
+
+QVR: a coop game's autosave (MP_PLAN.md B4b): only as each level starts (vr_autosave_level_start, sv_autosave), once
+every player in the game is in it and alive and none is in danger (Host_AutosaveUnsafe for each: the longest wait
+ends it), on a dedicated server too. Its name is autosave/coop~<the single player's name>, a coop save (format 2):
+Continue and Load Autosave pass over it, `load autosave/coop~<map>` loads it. The interval's autosaves follow one
+player: none in coop.
+==================
+*/
+static void Host_CheckCoopAutosave (void)
+{
+	int			i, players = 0, unsafe = 0, u;
+	const char	*reason = "", *r;
+	client_t	*c;
+	edict_t		*own = sv_player;
+	char		single[MAX_QPATH], autosavename[MAX_QPATH];
+
+	if (sv.autosave.level_started || !sv_autosave.value || deathmatch.value || !coop.value || qcvm->time < 2.5)
+		return;
+	if (!Cvar_VariableValue ("vr_autosave_level_start") || !VR_AutosaveAllowed (sv.name) || VR_RunIronman () ||
+		COM_PrepareRun ())
+	{
+		sv.autosave.level_started = true;
+		return;
+	}
+	for (i = 0, c = svs.clients; i < svs.maxclients; i++, c++)
+	{
+		if (!c->active)
+			continue;
+		if (!c->spawned || !c->edict || c->edict->v.health <= 0.f)
+			return; // (a player still coming in, or dead: not yet)
+		sv_player = c->edict;
+		u = Host_AutosaveUnsafe (&r);
+		sv_player = own;
+		if (u > unsafe)
+		{
+			unsafe = u;
+			reason = r;
+		}
+		players++;
+	}
+	if (!players || Host_AutosaveWaitFor (unsafe, reason))
+		return;
+	sv.autosave.level_started = true;
+	sv.autosave.time = qcvm->time;
+	VR_AutosaveName (sv.name, single, sizeof (single));
+	q_snprintf (autosavename, sizeof (autosavename), "autosave/coop~%s", single + strlen ("autosave/"));
+	Con_DPrintf ("Autosave: coop, %d players\n", players);
+	Cbuf_AddText (va ("save \"%s\" 0 rotate\n", autosavename));
+}
+
+static qboolean Host_AutosaveWaitFor (int unsafe, const char *reason)
+{
 	float		maxdelay = Cvar_VariableValue ("vr_autosave_safe_maxdelay");
 
 	if (!unsafe)
@@ -1229,6 +1304,11 @@ static void Host_CheckAutosave (void)
 	float health_change, speed, elapsed, score;
 	char autosavename[MAX_QPATH]; // QVR
 
+	if (svs.maxclients > 1) // QVR: coop's, at each level's start (MP_PLAN.md B4b)
+	{
+		Host_CheckCoopAutosave ();
+		return;
+	}
 	if (!sv_autosave.value || sv_autosave_interval.value <= 0.f || svs.maxclients != 1 || sv_player->v.health <= 0.f || cl.intermission)
 		return;
 	if (!VR_AutosaveAllowed (sv.name)) // QVR: none on Quake VR's own maps (the hub, the tutorial...: vr_continue.cpp)
@@ -1415,6 +1495,9 @@ void Host_ServerFrame (void)
 
 // check for new clients
 	SV_CheckForNewClients ();
+	VR_LockstepFrameBegin (); // QVR: the harness's lockstep: whether the world steps this frame (vr_mptest.cpp, B14b)
+
+	VR_ServerFrameBegin (); // QVR: this game's own player's view state into his slot (MP_PLAN B11a)
 
 // read client messages
 	VR_ProfileBegin ("run clients"); // QVR: profile
@@ -1428,7 +1511,7 @@ void Host_ServerFrame (void)
 // move things around and think
 // always pause in single player if in console or menus
 	VR_ProfileBegin ("SV_Physics"); // QVR: profile
-	if (!sv.paused && !VR_RuntimeMenuPause () && !VR_RagtoolHolds () && !VR_RigStudioHolds () && (svs.maxclients > 1 || key_dest == key_game || VR_MenuRunsGame ())) // QVR: live preview in VR; the runtime's menu pauses; the ragdoll tool's pause
+	if (!sv.paused && !VR_RuntimeMenuPause () && !VR_RagtoolHolds () && !VR_RigStudioHolds () && !VR_LockstepHolds () && (svs.maxclients > 1 || key_dest == key_game || VR_MenuRunsGame ())) // QVR: live preview in VR; the runtime's menu pauses; the ragdoll tool's pause
 		SV_Physics ();
 	VR_ProfileEnd (); // QVR
 
@@ -1448,7 +1531,8 @@ void Host_ServerFrame (void)
 	}
 //johnfitz
 
-	VR_ServerFrameEnd (); // QVR
+	if (!VR_LockstepHolds ()) // QVR: (a held lockstep frame changes nothing: its frame end waits for the step)
+		VR_ServerFrameEnd (); // QVR
 
 // send all messages to the clients
 	VR_ProfileBegin ("send"); // QVR: profile
@@ -1676,6 +1760,26 @@ static void Host_PrintTimes (const double times[], const char *names[], int coun
 
 /*
 ==================
+Host_SendPrespawn
+
+The signon's "prespawn" once the client has loaded the map (QVR: also a lockstep client's waiting frame's, B14e)
+==================
+*/
+static void Host_SendPrespawn (void)
+{
+	if (cl.sendprespawn)
+	{
+		CL_LoadCSProgs();
+
+		cl.sendprespawn = false;
+		MSG_WriteByte (&cls.message, clc_stringcmd);
+		MSG_WriteString (&cls.message, "prespawn");
+		vid.recalc_refdef = true;
+	}
+}
+
+/*
+==================
 Host_Frame
 
 Runs all active servers
@@ -1696,6 +1800,19 @@ void _Host_Frame (double time)
 		VR_TracyAbort();
 		cbuf_executing = 0; // QVR: a Host_Error out of a command left Cbuf_Execute's depth up (cmd.c)
 		return;			// something bad happened, or the server disconnected
+	}
+
+	// QVR: a client of the harness's lockstep server its moves ahead (vr_mp_lockstep_ahead, B14b): the frame reads the
+	// inbox, the commands and the server's messages, and nothing else: no time passes, no move is made. (B14e) Also until
+	// it is in the game; it reads up to the message its next move waits for, no further (CL_ReadLockstep)
+	if (VR_LockstepWaits ())
+	{
+		VR_MpTestFrame ();
+		Cbuf_Execute ();
+		NET_Poll ();
+		Host_SendPrespawn ();
+		CL_ReadLockstep ();
+		return;
 	}
 
 	time = VR_HostFrameTime (time); // QVR: a motion take playing back: its recorded frame times
@@ -1738,6 +1855,8 @@ void _Host_Frame (double time)
 
 //check the stdin for commands (dedicated servers)
 	Host_GetConsoleCommands ();
+	VR_MpTestFrame (); // QVR: a test harness's inbox (-cmdinbox) read; vr_mp_watch's prints (vr/vr_mptest.cpp)
+	VR_ServerStatusFrame (); // QVR: a dedicated server's status line (vr_sv_status; vr/vr_svstatus.cpp)
 
 // process console commands
 	VR_ProfileBegin ("commands"); // QVR: profile
@@ -1748,15 +1867,7 @@ void _Host_Frame (double time)
 
 	NET_Poll();
 
-	if (cl.sendprespawn)
-	{
-		CL_LoadCSProgs();
-
-		cl.sendprespawn = false;
-		MSG_WriteByte (&cls.message, clc_stringcmd);
-		MSG_WriteString (&cls.message, "prespawn");
-		vid.recalc_refdef = true;
-	}
+	Host_SendPrespawn ();
 
 	CL_AccumulateCmd ();
 
@@ -1981,6 +2092,8 @@ void Host_Init (void)
 	VR_TimeMark ("console, progs, models, net, server init"); // QVR
 	VR_StepBegin ("VR init (cvars, commands)"); // QVR
 	VR_Init (); // QVR
+	VR_MpTestInit (); // QVR: -cmdinbox, vr_mp_mark, vr_mp_status (vr/vr_mptest.cpp)
+	VR_ServerStatusInit (); // QVR: vr_sv_status_now (vr/vr_svstatus.cpp)
 	VR_TimeMark ("VR init (cvars, commands)"); // QVR
 
 	Con_Printf ("Quake VR %s\n", VR_BuildInfo ()); // QVR: "1.1.0-dev build 4321 (abc1234) 2026-10-17 14:05"
@@ -2067,7 +2180,13 @@ void Host_Init (void)
 
 	if (cls.state == ca_dedicated)
 	{
+		// QVR (MP_PLAN B17): a dedicated server's defaults -- no player can pause the game for everyone (pausable 0) --
+		// then its own settings: server.cfg in the game's folder if there is one (after autoexec.cfg, before the
+		// command line's +commands, which have the last word; docs/vr-port/MULTIPLAYER.md has an example)
+		Cvar_SetQuick (&pausable, "0");
 		Cbuf_AddText ("exec autoexec.cfg\n");
+		if (COM_FileExists ("server.cfg", NULL))
+			Cbuf_AddText ("exec server.cfg\n");
 		Cbuf_AddText ("stuffcmds");
 		Cbuf_Execute ();
 		if (!sv.active)

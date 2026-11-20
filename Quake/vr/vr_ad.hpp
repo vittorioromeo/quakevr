@@ -31,7 +31,10 @@ inline constexpr int campaignIndex = 6;
 // models, sounds, HUD icons and brush models, never its maps, skies, textures, effect files or menu art.
 [[nodiscard]] bool skipOutside(const char* filename);
 
-// SV_SpawnServer, before the map's entities spawn (VR_OnSpawnServerBeforeLoad): vr_ad_rules for this map.
+// AD's folder is on the search path (the AD campaign, or its data in another campaign): its ruleset can be detected.
+[[nodiscard]] bool folderMounted();
+// SV_SpawnServer, before the map's entities spawn (VR_OnSpawnServerBeforeLoad), after its ruleset is found
+// (vr_rules.cpp): vr_ad_rules and vr_ad_mounted for this map.
 void beforeLoad();
 
 // vr_ad_info: the data, the rules and the spawns of the map now running; vr_ad_tint_info (tintInfo).

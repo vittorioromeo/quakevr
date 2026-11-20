@@ -12,7 +12,9 @@ zmin = float(sys.argv[2])
 xmin = float(sys.argv[3]) if len(sys.argv) > 3 else -1e9
 ymax = float(sys.argv[4]) if len(sys.argv) > 4 else 1e9
 path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../../../quakevr/progs/%s.mdl' % name)
-if not os.path.exists(path) and os.environ.get('RIG_PAK'):
+if os.environ.get('RIG_MDL'):
+    path = os.environ['RIG_MDL'] # (a loose model of another game's folder: Dwell's progs/e2/mon_brute.mdl)
+elif not os.path.exists(path) and os.environ.get('RIG_PAK'):
     pak = open(os.environ['RIG_PAK'], 'rb').read()
     _, off, ln = struct.unpack_from('<4sii', pak, 0)
     for i in range(ln // 64):

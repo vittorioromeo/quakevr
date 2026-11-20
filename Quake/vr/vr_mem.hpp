@@ -262,4 +262,80 @@ struct Totals
 [[nodiscard]] Totals totals();
 void printLargest(int count); // "  <system> <kind> <KiB>", the largest first
 
+// ---------------------------------------------------------------------------------------------------------------------
+// The third kind: state that is not a buffer (what a system keeps about the world it was made in: by entity number, by
+// model, a hold, a time on the client's clock), forgotten by its own function at its event. Registered next to the state,
+// as the sets are (no list elsewhere to keep in step):
+//
+//     mem::Reset worldReset{"climb", mem::ResetEvent::ServerWorld, mem::ResetPhase::State, &climb::reset}; // vr_climb.cpp
+//
+// An event's resets run in their phases' order, those of one phase by their systems' names: never in the static
+// initialisation's order (unspecified across files). `vr_resets` lists them; CODE_STYLE.md, "Scratch buffers and caches".
+
+// When the resets run (each event's hooks call resetAll; what must come before or after it stays a call there).
+enum class ResetEvent
+{
+    ServerWorld, // the server's world gone (VR_OnClearMemory, VR_OnSpawnServerBeforeLoad: a map, a changelevel, a loaded
+                 // game): what it kept by entity number would name another entity of the next world
+    ClientState, // the client's state cleared (VR_OnClientClearState: CL_ParseServerInfo, and VR_OnClearMemory but on a
+                 // dedicated server): cl_entities and cl.time start over
+    Test,        // vr_resets test's own registrations alone (made and gone inside the test)
+    Count,
+};
+
+// The order within an event: a reset that reads or changes another's state says so by its phase.
+enum class ResetPhase
+{
+    World,    // the server's Box3D world, destroyed first: whatever holds its ids forgets them after it is gone
+    State,    // a system's own state, which no other reset reads or changes: almost every one
+    Settings, // last: what puts settings back (their change hooks reach other systems, which have forgotten the world)
+};
+
+[[nodiscard]] const char* name(ResetEvent event);
+[[nodiscard]] const char* name(ResetPhase phase);
+
+// A registered reset. Static storage (a file's namespace scope, not const: the list links through it), except the test's
+// own; never copied. The list is kept in order as each is made (event, phase, system's name), so it is the same whichever
+// file's initialiser runs first.
+class Reset
+{
+public:
+    Reset(const char* system, ResetEvent event, ResetPhase phase, void (*forget)()) noexcept;
+    ~Reset();
+    Reset(const Reset&) = delete;
+    Reset& operator=(const Reset&) = delete;
+
+    [[nodiscard]] const char* system() const { return system_; }
+    [[nodiscard]] ResetEvent event() const { return event_; }
+    [[nodiscard]] ResetPhase phase() const { return phase_; }
+    void run() const { forget_(); }
+
+    [[nodiscard]] static const Reset* first();
+    [[nodiscard]] const Reset* next() const { return next_; }
+
+private:
+    const char* system_;
+    ResetEvent event_;
+    ResetPhase phase_;
+    void (*forget_)();
+    Reset* next_;
+};
+
+// Every reset of the event, in order.
+void resetAll(ResetEvent event);
+[[nodiscard]] int resetCount(ResetEvent event); // (vr_memstats)
+
+// vr_resets' watch on resetAll: each reset printed as it runs ("reset <event> <system> (<phase>)"), and recorded
+// (null: an event's start) until taken.
+struct ResetCall
+{
+    ResetEvent event;
+    const Reset* reset; // null: resetAll(event) began
+};
+void traceResets(bool on);
+void recordResets(bool on);
+[[nodiscard]] za::Vector<ResetCall> takeRecordedResets();
+
+void registerDiagCommands(); // vr_resets (vr_mem_diag.cpp)
+
 } // namespace qvr::mem

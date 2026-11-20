@@ -18,6 +18,7 @@
 
 #include "vr_throw.hpp"
 #include "vr_cvars.hpp"
+#include "vr_mem.hpp"
 #include "vr_tunables.hpp"
 #include "vr_engine.hpp"
 #include "vr_timescale.hpp"
@@ -846,5 +847,11 @@ void reset()
         g = Grip{};
     }
 }
+
+namespace
+{
+// Forgotten when the client's state is cleared (vr_mem.hpp's resets): the hands' throw histories and grips.
+mem::Reset clientStateReset{"throwing", mem::ResetEvent::ClientState, mem::ResetPhase::State, &reset};
+} // namespace
 
 } // namespace qvr::throwing

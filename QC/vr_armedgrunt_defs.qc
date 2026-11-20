@@ -93,6 +93,9 @@ float vr_agbc_stopped;     // ... stopped on its blade (VR_AG_BladeContact: T_Da
 .vector vr_agbc_mark;      // ... [that hand + 1, when]: that motion's later blows on it stop there too
 float(entity targ, entity inflictor, entity attacker, float damage) VR_AGPar_Blow; // T_Damage, T_Damage_VRMelee
 float(entity g) VR_AGPar_Guards;                                           // VR_Guard_Hand: it parries instead
+// The farthest a held weapon's line (VR_AG_WeaponLine: as drawn, a pose or two behind) reaches from its grip, with room:
+// the scans for what flies at it look this much farther round the grip first (nothing there: no line, no scan).
+float VR_AG_LINE_REACH = 192;
 // Directional parry (vr_dirparry.qc): your weapon held across a blow's line.
 .vector vr_drp_a0;         // (a held weapon) its drawn line's two ends last frame, and when (0: none)
 .vector vr_drp_b0;
@@ -115,6 +118,8 @@ void(entity pl, entity g, float h) VR_DRP_Effects;                         // VR
 void(entity pl) VR_DRP_ShowLines;                                          // the player's think: the lines shown
 void(entity g, entity w) VR_DRP_Frame;                                     // VR_AGP_Pose: its swing met your weapon
 float vr_drp_cut;          // VR_DRP_Blow's partial parry: the share of the blow taken off (0: none)
+float vr_drp_pvp;          // VR_Parry: 1 + the hand of another player's swing judged by its line (multiplayer; 0: none)
+float(entity g, float blowhand) VR_DRP_PvpApplies;                         // VR_Parry: his swing has a line (sets vr_drp_pvp)
 void(entity g) VR_AGPar_Frame;                                             // VR_AG_PropThink: a blow coming
 void(entity g, entity p) VR_AGPar_Pose;                                    // VR_AGP_Pose: the parry's pose
 vector vr_agpar_mid;       // ... its weapon's middle's target (body space), VR_AGPar_Pose's this pose

@@ -34,5 +34,7 @@ void glovesReload_f();
 [[nodiscard]] int glovePaintFlags(const entity_t* e);
 // A jointed hand's painted nails' mask (vr_nails on, looked up: make_nail_mask.py), or null (none drawn).
 [[nodiscard]] gltexture_t* nailMask(const entity_t* e);
+// VR_PrecacheSkinMasks' for `ents` (outside the draw loops): your hands and body, and other players' (vr_mpavatar.cpp).
+void precacheSkinMasks(entity_t* const* ents, int count);
 
 } // namespace qvr::render

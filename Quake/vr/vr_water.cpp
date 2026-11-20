@@ -337,13 +337,7 @@ void ensureSampler()
 // stencil written), which a shader may not read. Half the size, in R32F, each texel the distance (along the view) of
 // the nearest of its four: at 3292 x 3524 it reads the 46 MB of depth once and writes 12 MB. Multisampled depth
 // (vid_fsaa, the particles only): its first sample.
-constexpr const char* distanceVs = R"(#version 430
-void main()
-{
-    ivec2 v = ivec2(gl_VertexID & 1, gl_VertexID >> 1);
-    gl_Position = vec4(vec2(v) * 4.0 - 1.0, 0.0, 1.0);
-}
-)";
+constexpr const char* distanceVs = gfx::fullscreenTriangleVs;
 
 constexpr const char* distanceFs = R"(#version 430
 #ifdef MULTISAMPLED
@@ -493,9 +487,13 @@ GLuint makeDistances(GLuint source, bool multisampled, void (*restore)())
         target.height = height;
     }
 
-    // Into its own framebuffer (no depth or stencil: the tests pass), then back to the pass's.
+    // Into its own framebuffer (no depth or stencil: the tests pass), then back to the pass's: the half of the scene's
+    // viewport (from the corner: the readers' pixels), all of it but under dynamic resolution (its targets allocated at its
+    // ceiling, a part of them drawn: stereo::ViewSize; the readers keep to the part, SceneViewport).
+    int viewport[4];
+    R_SceneViewport(viewport);
     GL_BindFramebufferFunc(GL_FRAMEBUFFER, target.fbo);
-    glViewport(0, 0, width, height);
+    glViewport(0, 0, za::min(width, (viewport[0] + viewport[2] + 1) / 2), za::min(height, (viewport[1] + viewport[3] + 1) / 2));
     GL_SetState(GLS_BLEND_OPAQUE | GLS_NO_ZTEST | GLS_NO_ZWRITE | GLS_CULL_NONE | GLS_ATTRIBS(0));
     GL_UseProgram(program);
     GL_BindNative(GL_TEXTURE0, sourceTarget, source);
@@ -2288,6 +2286,21 @@ float surfaceRise(const glm::vec3& p, int contents, const glm::vec3& eye)
     return (h00 * (1.f - fx) + h10 * fx) * (1.f - fy) + (h01 * (1.f - fx) + h11 * fx) * fy;
 }
 
+void releaseTargets()
+{
+    for(Distances& d : distances)
+    {
+        if(d.texture)
+        {
+            GL_DeleteFramebuffersFunc(1, &d.fbo);
+            GL_DeleteNativeTexture(d.texture);
+        }
+        d = Distances{};
+    }
+    sizedDistances = SizedDistances{};
+    distancesFrame = -1;
+}
+
 void sceneDepthChanged()
 {
     distancesFrame = -1;
@@ -2411,6 +2424,10 @@ extern "C" void VR_WaterView(int contents, int* waterwarp)
     r_framedata.teleportlook[2] = za::clamp(vr_teleporter_surface_fade.value, 0.f, 4.f) * units::metresToUnits();
     int viewport[4];
     R_SceneViewport(viewport);
+    for(int i = 0; i < 4; i++) // (LiquidRefract, LiquidSceneDistance: the targets may be larger than it, dynamic resolution's)
+    {
+        r_framedata.sceneviewport[i] = static_cast<float>(viewport[i]);
+    }
     r_framedata.portaluv[2] = static_cast<float>(r_refdef.vrect.width) / za::max(viewport[2], 1);
     r_framedata.portaluv[3] = static_cast<float>(r_refdef.vrect.height) / za::max(viewport[3], 1);
     r_framedata.portaluv[0] = glx + r_refdef.vrect.x - viewport[0] * r_framedata.portaluv[2];

@@ -820,6 +820,42 @@ static void SCR_DrawFPS (void)
 
 /*
 ==============
+SCR_DrawNetHud -- QVR: (B13) the net HUD under the clock and the frame rate, its lines right-aligned (vr_net_hud;
+vr/vr_nethud.cpp)
+==============
+*/
+static void SCR_DrawNetHud (void)
+{
+	const char	*line;
+	int		i, x, y;
+
+	if (con_forcedup || scr_viewsize.value >= 130)
+		return;
+	for (i = 0; (line = VR_NetHudLine (i)) != NULL; i++)
+	{
+		if (hudstyle != HUD_CLASSIC)
+		{
+			y = 8 + 8 * i;
+			if (SCR_IsClockVisible ()) y += 8;
+			if (scr_showfps.value) y += 8;
+			x = 320 - 16 - ((int) strlen (line) << 3);
+			GL_SetCanvas (CANVAS_TOPRIGHT);
+		}
+		else
+		{
+			y = 200 - 8 - 8 * i;
+			if (SCR_IsClockVisible ()) y -= 8;
+			if (scr_showfps.value) y -= 8;
+			x = 320 - ((int) strlen (line) << 3);
+			GL_SetCanvas (CANVAS_BOTTOMRIGHT);
+		}
+		Draw_String (x, y, line);
+		scr_tileclear_updates = 0;
+	}
+}
+
+/*
+==============
 SCR_DrawSpeed
 ==============
 */
@@ -2376,6 +2412,7 @@ void SCR_UpdateScreen (void)
 		SCR_DrawConsole ();
 		M_Draw ();
 		SCR_DrawFPS (); //johnfitz
+		SCR_DrawNetHud (); // QVR
 		SCR_DrawSaving ();
 		SCR_DrawRelight (); // QVR
 		SCR_DrawTakes (); // QVR

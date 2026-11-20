@@ -43,7 +43,10 @@ float(entity ent) IsAmmoBox =
     return ent.classname == ITEM_NAME_SHELLS ||
            ent.classname == ITEM_NAME_SPIKES ||
            ent.classname == ITEM_NAME_ROCKETS ||
-           ent.classname == ITEM_NAME_CELLS;
+           ent.classname == ITEM_NAME_CELLS ||
+           ent.classname == ITEM_NAME_LAVA_SPIKES || // (Rogue's: SpawnAmmoBoxWeaponsImpl has their rows)
+           ent.classname == ITEM_NAME_MULTI_ROCKETS ||
+           ent.classname == ITEM_NAME_PLASMA;
 }
 
 float(float xFactor, float xMult) ShouldDropImpl =
@@ -115,19 +118,36 @@ void(entity ent, entity entPlayer) SpawnAmmoBoxWeaponsImpl =
     }
 }
 
+// The weapon an ammo box may carry is rolled once a box (.vr_ammobox_rolls counts it), against a player's inventory:
+// the map's boxes at the map's first PutClientInServer (SpawnAllAmmoBoxWeapons, the first player in coop: the
+// placement below runs before any player is in), a box placed after that (a crate's, the toolgun's, a trigger's) at its
+// placement against the first player. Set at that first PutClientInServer (and by a loaded game: saved with it).
+float vr_ammobox_rolled_map;
+.float vr_ammobox_rolls;
+entity vr_ammobox_roller; // the player the last roll was made against (vr_pickup_test 20 reads it)
+
+void(entity ent, entity entPlayer) VR_AmmoBox_Roll =
+{
+    ent.vr_ammobox_rolls = ent.vr_ammobox_rolls + 1;
+    vr_ammobox_roller = entPlayer;
+    SpawnAmmoBoxWeaponsImpl(ent, entPlayer);
+};
+
+// PlaceItem's: a box placed after the map's roll is rolled now.
 void(entity ent) SpawnAmmoBoxWeapons =
 {
-    entity entPlayer;
+    if(!IsAmmoBox(ent) || ent.vr_ammobox_rolls || !vr_ammobox_rolled_map)
+    {
+        return; // (not a box, rolled, or the map's roll at the first PutClientInServer takes it)
+    }
 
-    entPlayer = VR_Player();
-
+    entity entPlayer = VR_Player();
     if(entPlayer == world)
     {
-        bprint("`SpawnAmmoBoxWeapons`: player entity not found\n");
         return;
     }
 
-    SpawnAmmoBoxWeaponsImpl(ent, entPlayer);
+    VR_AmmoBox_Roll(ent, entPlayer);
 }
 
 
@@ -323,7 +343,7 @@ Sets the clipping size and plants the object on the floor
 */
 void() StartItem =
 {
-    if(MG_MonsterInhibited()) return;
+    if(VR_SF_SpawnInhibited()) return;
     if(AD_ItemStartOff()) return; // AD support: an AD map's STARTOFF item waits for its trigger (vr_ad_bridge.qc)
     VR_Run_ItemSpawned(); // the run's mutators' item hook (vr_run.qc)
     self.nextthink = time + 0.2;    // items start after other solids
@@ -439,6 +459,7 @@ void() health_touch =
             return;
     }
 
+    item_taken = TRUE; // (itemTouch: its targets fire)
     VRItemPickupHaptic(other);
 
     sprint(other, "You receive ");
@@ -458,6 +479,10 @@ void() health_touch =
     if(self.healtype == 2 && !RuneHasElder(other) && AD_MegaRot(other))
     {
         // AD support: AD's rot in an AD map (one rot however many megahealths, vr_ad_bridge.qc)
+    }
+    else if(self.healtype == 2 && !RuneHasElder(other) && VR_RN_MegaRot(other))
+    {
+        // the ruleset's one rot a player (Copper's: vr_rules_numbers.qc)
     }
     else if(self.healtype == 2 && !RuneHasElder(other))
     {
@@ -495,36 +520,30 @@ ARMOR
 // QVR: Survival Arena's Iron Skin perk (vr_arena_perks.qc, compiled late): the armour picked up is 25 heavier.
 void(entity p, float xValue) VR_ARK_ArmorBonus;
 
+// An armour's tier: 0 green (item_armor1, 100), 1 yellow (item_armor2, 150), 2 red (item_armorInv, 200).
+float(entity xArmor) VR_Armor_Tier =
+{
+    return xArmor.classname == ITEM_NAME_ARMOR1 ? 0 : xArmor.classname == ITEM_NAME_ARMOR2 ? 1 : 2;
+};
+
 void() armor_touch =
 {
     float type, value, itemId;
 
-    if(self.classname == ITEM_NAME_ARMOR1)
-    {
-        type = 0.3;
-        value = 100;
-        itemId = IID_ARMOR1;
-    }
-    else if(self.classname == ITEM_NAME_ARMOR2)
-    {
-        type = 0.6;
-        value = 150;
-        itemId = IID_ARMOR2;
-    }
-    else
-    {
-        ASSERT(self.classname == ITEM_NAME_ARMORINV);
+    ASSERT(self.classname == ITEM_NAME_ARMOR1 || self.classname == ITEM_NAME_ARMOR2 ||
+        self.classname == ITEM_NAME_ARMORINV);
+    float tier = VR_Armor_Tier(self);
+    type = VR_RN_ArmorType(tier); // (the ruleset's: vr_rules_numbers.qc)
+    value = 100 + 50 * tier;
+    itemId = tier == 2 ? IID_ARMOR3 : tier == 1 ? IID_ARMOR2 : IID_ARMOR1;
 
-        type = 0.8;
-        value = 200;
-        itemId = IID_ARMOR3;
-    }
-
-    if(other.armortype * other.armorvalue >= type * value)
+    value = VR_RN_ArmorTake(other, type, value); // (only a better one, by the ruleset's rule)
+    if(!value)
     {
         return;
     }
 
+    item_taken = TRUE; // (itemTouch: its targets fire)
     other.armortype = type;
     other.armorvalue = value;
     VR_ARK_ArmorBonus(other, value); // QVR: Survival Arena's Iron Skin (vr_arena_perks.qc)
@@ -597,19 +616,6 @@ float(entity xItem) VR_PickupObj_Enabled =
     return cvar_hget(cvarh_vr_item_objects) != 0;
 };
 
-// Its protection, armor_touch's measure: type times value.
-float(entity xArmor) VR_Armor_Protection =
-{
-    if(xArmor.classname == ITEM_NAME_ARMOR1)
-    {
-        return 0.3 * 100;
-    }
-    if(xArmor.classname == ITEM_NAME_ARMOR2)
-    {
-        return 0.6 * 150;
-    }
-    return 0.8 * 200;
-};
 
 // Dawn of the Machine's armour shards (vr_mg3_items.qc): objects as armour is, worn at the torso or put in a holster or
 // a pouch (small as they are); each adds 5 up to 200.
@@ -625,7 +631,8 @@ float(entity xPlayer, entity xArmor) VR_Armor_IsBetter =
     {
         return xPlayer.armorvalue < 200;
     }
-    return xPlayer.armortype * xPlayer.armorvalue < VR_Armor_Protection(xArmor);
+    float tier = VR_Armor_Tier(xArmor);
+    return VR_RN_ArmorTake(xPlayer, VR_RN_ArmorType(tier), 100 + 50 * tier) > 0;
 };
 
 // Whether a point is at `xPlayer`'s torso: generously, from just below the neck to the belly, in
@@ -1111,6 +1118,7 @@ void() weapon_touch =
             hadammo + WeaponIdToInitialAmmoCount(weaponId));
     }
 
+    item_taken = TRUE; // (itemTouch: its targets fire; in coop and deathmatch 2 it stays, taken by this player)
     VRItemPickupHaptic(other);
 
     sprint(other, "You got the ");
@@ -1145,12 +1153,14 @@ void() weapon_touch =
             {
                 VRGiveEntWeapon(other, cVR_MainHand, weaponId, 0, clip);
                 AD_UpgradeGiven(stemp, other, cVR_MainHand); // AD support: an upgrade's on the weapon it gives
+                DW_VariantGiven(stemp, other, cVR_MainHand); // Dwell's weapons: their variant
                 W_SetCurrentAmmoFor(cVR_MainHand);
             }
             else if(VR_Hand_Free(other, cVR_OffHand, VR_HANDFREE_LOCKED))
             {
                 VRGiveEntWeapon(other, cVR_OffHand, weaponId, 0, clip);
                 AD_UpgradeGiven(stemp, other, cVR_OffHand); // AD support
+                DW_VariantGiven(stemp, other, cVR_OffHand); // Dwell's weapons
                 W_SetCurrentAmmoFor(cVR_OffHand);
             }
             else
@@ -1177,6 +1187,7 @@ void() weapon_touch =
 
         VRGiveEntWeapon(other, touchinghand, weaponId, 0, clip);
         AD_UpgradeGiven(stemp, other, touchinghand); // AD support: an upgrade's on the weapon it gives
+        DW_VariantGiven(stemp, other, touchinghand); // Dwell's weapons: their variant
         W_SetCurrentAmmoFor(touchinghand);
     }
 
@@ -1385,6 +1396,7 @@ void() ammo_touch =
 
     bound_other_ammo();
 
+    item_taken = TRUE; // (itemTouch: its targets fire)
     VRItemPickupHaptic(other);
 
     sprint(other, "You got the ");
@@ -1696,14 +1708,23 @@ KEYS
 
 void() key_touch =
 {
-    if(VR_ItemUtil_EntHasItem(other, self.vr_itemId))
+    float had = VR_ItemUtil_EntHasItem(other, self.vr_itemId);
+    if(!VR_RN_KeyTake(other, self.vr_itemId, had)) // (one of a colour, or the ruleset's stack: vr_rules_numbers.qc)
         return;
 
+    item_taken = TRUE; // (itemTouch: its targets fire; in coop the key stays for the others)
     VRItemPickupHaptic(other);
 
-    sprint(other, "You got the ");
-    sprint(other, self.netname);
-    sprint(other,"\n");
+    if(had)
+    {
+        sprint(other, sprintf("You have %g of the %s\n", VR_RN_KeyCount(other, self.vr_itemId, TRUE), self.netname));
+    }
+    else
+    {
+        sprint(other, "You got the ");
+        sprint(other, self.netname);
+        sprint(other,"\n");
+    }
 
     sound(other, CHAN_ITEM, self.noise, 1, ATTN_NORM);
     stuffcmd(other, "bf\n");
@@ -1848,6 +1869,7 @@ END OF LEVEL RUNES
 
 void() sigil_touch =
 {
+    item_taken = TRUE; // (itemTouch: its targets fire)
     centerprint(other, "You got the rune!");
 
     sound(other, CHAN_ITEM, self.noise, 1, ATTN_NORM);
@@ -1915,6 +1937,7 @@ POWERUPS
 
 void() powerup_touch =
 {
+    item_taken = TRUE; // (itemTouch: its targets fire)
     VRItemPickupHaptic(other);
 
     sprint(other, self.MGH_powerup_expire ? "You got " : "You got the ");
@@ -2103,12 +2126,6 @@ void() BackpackTouch =
     {
         return;
     }
-
-    //ZOID--
-    // Don't let the owner pick up his own backpack for a second.
-    if((other == self.owner) && ((self.nextthink - time) > 119))
-        return;
-    //--ZOID
 
     // QVR: nothing in it (his note 2026-11-10: a bare "You get" collecting a grunt's drop): taken without a word, a sound
     // or a flash, and gone. Only what it holds more than none of counts (a negative amount, never made on purpose, took

@@ -34,6 +34,15 @@
         "https://www.simonoc.com/files/ad/ad_v1_80p1final.zip",
         "https://born-robotic.net/stuff/qstuff/ad_v1_80p1final.zip"
       ]
+    },
+    "dwell": {
+      "file": "dwellv2p2.zip",
+      "size": 384629995,
+      "sha256": "15bbc5dc0eb3fee5763835cea1aa62ab263545ca8c04aaa019982d45d1e8d11d",
+      "mirrors": [
+        "https://www.quaddicted.com/files/by-sha256/15/15bbc5dc0eb3fee5763835cea1aa62ab263545ca8c04aaa019982d45d1e8d11d/dwellv2p2.zip",
+        "https://www.quaddicted.com/filebase/dwellv2p2.zip"
+      ]
     }
   }
 }

@@ -363,6 +363,12 @@ void clear()
     lastTime = 0.0;
 }
 
+namespace
+{
+// Forgotten when the client's state is cleared (vr_mem.hpp's resets): the smouldering bodies.
+mem::Reset clientStateReset{"smoulder", mem::ResetEvent::ClientState, mem::ResetPhase::State, &clear};
+} // namespace
+
 void registerCommands()
 {
     Cmd_AddCommand("vr_smoulder_info", info_f);

@@ -9,12 +9,9 @@ float() VR_Pack_AD =
     return cvar_hget(cvarh_vr_ad_status) == 1;
 };
 
-// This map plays by AD's rules: the AD campaign, or a map the engine found made for AD before it spawned (vr_ad_rules,
-// vr_ad.cpp). It is set for every spawn, a saved game's too, from the map's own entities.
-float() AD_Rules =
-{
-    return cvar_hget(cvarh_vr_ad_rules) != 0;
-};
+// This map plays by AD's rules: the AD campaign, or a map the engine found made for AD before it spawned (its ruleset,
+// VR_Ruleset).
+float() AD_Rules = { return VR_Ruleset() == VR_RULES_AD; };
 
 // AD support: independent safe feature scope; does not change map detection or required world logic.
 float(float scope) VR_AD_FeatureScope =
@@ -57,7 +54,6 @@ float() AD_SetChangeParms;           // SetChangeParms (first): AD's level state
 void() AD_DecodeLevelParms;          // DecodeLevelParms: AD's worldspawn inventory keys and map variables
 void() AD_ChangelevelSpawn;          // trigger_changelevel: AD's keys (no map: this map; start off; ad_tears' exits)
 float() AD_ChangelevelTouch;         // changelevel_touch: FALSE when the exit is off (AD's entity state)
-float(void() start) AD_MonsterPrepare; // walk/fly/swimmonster_start: AD's spawn flags and keys on our monsters
 void(entity targ, entity attacker) AD_MonsterKilled; // Killed: AD's keys on our monsters (deathtarget)
 float(entity e) AD_Run;              // AD's code owns this entity's damage, pain and death (AD's monsters, breakables)
 float(entity e) AD_BreakKind;        // the props' impact rule (vr_carry.qc VR_Prop_Kind): an AD breakable's VR_PROPK_*, else 0
@@ -167,7 +163,6 @@ float(entity client, float density, vector colour) VR_AD_Fog;
 float(entity targ, entity inflictor, entity attacker, float damage, float checkarmor) VR_AD_DamageOurs;
 void(entity targ, entity inflictor, entity attacker, float take) VR_AD_Hit;
 void(float xSplash) VR_AD_Splash; // (vr_kdtrig.qc: AD's radius damage, for the explosions' ragdoll trigger)
-float() VR_AD_PathCornerTouch;
 float(entity pellet) VR_AD_PelletDamage;
 void(entity victim, entity pellet, float damage) VR_AD_PelletHit;
 void(entity pellet) VR_AD_PelletPrepare;

@@ -443,6 +443,12 @@ void clear()
     lastFrame = -1;
 }
 
+namespace
+{
+// Forgotten when the client's state is cleared (vr_mem.hpp's resets): the flames' springs.
+mem::Reset clientStateReset{"flamewobble", mem::ResetEvent::ClientState, mem::ResetPhase::State, &clear};
+} // namespace
+
 void registerCommands()
 {
     Cmd_AddCommand("vr_flame_wobble_info", info_f);

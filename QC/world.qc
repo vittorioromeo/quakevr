@@ -439,14 +439,6 @@ void() worldspawn =
     precache_model("progs/eyes.mdl");
     precache_model("progs/h_player.mdl");
 
-    if(vr_have_playham)
-    {
-        //HIPNOTIC
-        //MED 12/03/96 added player with hammer
-        precache_model("progs/playham.mdl");
-
-    }
-
     precache_model("progs/gib1.mdl");
     precache_model("progs/gib2.mdl");
     precache_model("progs/gib3.mdl");
@@ -583,6 +575,7 @@ void() worldspawn =
     footsteps = 1;
 
     AD_WorldSpawn(); // AD support: AD's world setup in an AD map (vr_ad_bridge.qc)
+    CU_WorldSpawn(); // Copper's world setup in a Copper map (vr_copper_bridge.qc)
 
     VR_ARENA_WorldSpawn(); // QVR: Survival Arena's wave director (vr_arena.qc; nothing runs unless the map is an arena map or vr_arena is set)
 };
@@ -601,6 +594,7 @@ void() VR_Buzzsaw_Frame; // (rogue_buzzsaw.qc: its blade cuts ragdolls)
 void() VR_DeadAnim_Frame; // (vr_deadanim.qc, after AD's files)
 void() VR_DeadAnim_TestFrame;
 void() VR_DV_Frame; // (vr_disarmviz.qc, after the armed grunts' files)
+void() VR_DMLoose_Frame; // (vr_dmloose.qc, after vr_wpnholster.qc)
 
 void() StartFrame =
 {
@@ -619,9 +613,11 @@ void() StartFrame =
     MG_WorldFrame();
     VR_AGR_Frame(); // QVR: armed humanoid replacements' loadouts, once a player is in (vr_armedrepl.qc)
     VR_ARENA_Frame(); // QVR: Survival Arena: the players down to their fists, once its clients are in (vr_arena.qc)
+    VR_DMLoose_Frame(); // QVR: deathmatch's loose gibs and dropped weapons capped, the oldest first (vr_dmloose.qc, B13b)
     MGH_PowerupFrame();
     MG3_Frame();
     AD_Frame(); // AD support: AD's frame in an AD map (vr_ad_bridge.qc)
+    CU_Frame(); // Copper's frame in a Copper map (vr_copper_bridge.qc)
     VR_FuelTank_Frame(); // AD support: the fuelled guns lying about have their tanks (vr_ad_enemyguns.qc)
     VR_FlailHead_Frame(); // AD support: the flails lying about have their heads (vr_ad_melee.qc)
     VR_MG3_Weapons_Frame(); // the Super Axe's glow and chain (vr_mg3_weapons.qc)

@@ -39,6 +39,7 @@
 #include "vr_carry2h.hpp"
 #include "vr_client.hpp"
 #include "vr_cvars.hpp"
+#include "vr_mem.hpp"
 #include "vr_tunables.hpp"
 #include "vr_flatplay.hpp"
 #include "vr_flatfgrab.hpp"
@@ -1367,6 +1368,12 @@ void reset()
     stickiness = 1.f;
 }
 
+namespace
+{
+// Forgotten when the client's state is cleared (vr_mem.hpp's resets): the two-handed grips.
+mem::Reset clientStateReset{"twohand", mem::ResetEvent::ClientState, mem::ResetPhase::State, &reset};
+} // namespace
+
 bool carrying(int hand)
 {
     const int flags = cl.stats[hand == HAND_MAIN ? protocol::STAT_QVR_WEAPONFLAGS : protocol::STAT_QVR_WEAPONFLAGS2];
@@ -1662,6 +1669,17 @@ int groundSpot(int hand, int entity)
     const GroundSpot& g = groundSpots[hand];
     // (Seen this frame or the last few: the server runs before the view in a frame.)
     return entity > 0 && g.entity == entity && g.index >= 0 && vr_gametime - g.record.time < 0.25 ? g.index + 1 : 0;
+}
+
+void groundSpotNow(int hand, int& entity, int& index)
+{
+    entity = 0;
+    index = -1;
+    if((hand == 0 || hand == 1) && groundSpot(hand, groundSpots[hand].entity) > 0)
+    {
+        entity = groundSpots[hand].entity;
+        index = groundSpots[hand].index;
+    }
 }
 
 void updateHotspots(hands::State& s)

@@ -220,6 +220,12 @@ struct Track
     float moveDur{0.1f};
 };
 inline za::Vector<Track> tracks;
+// The time the models are posed at: the game's, or (>= 0) a lag-compensated shot's (vr_lagcomp.cpp: his client's).
+inline double poseTimeOverride{-1.0};
+[[nodiscard]] inline double poseNow()
+{
+    return poseTimeOverride >= 0.0 ? poseTimeOverride : qcvm->time;
+}
 // serverFrame's edicts: those with a track's model left on (ascending; every other's is nullptr), and the ones it
 // visits (those and the monsters now: the edict index's; edictindex::flaggedOrKept).
 inline za::Vector<int> trackNums, trackScan;
