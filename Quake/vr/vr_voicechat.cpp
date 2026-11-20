@@ -1398,7 +1398,7 @@ void selftest_f()
     opus_decoder_ctl(dec, OPUS_RESET_STATE);
     for(int f = 0; f < 50; f++)
     {
-        opus_decode_float(dec, packets[f], lens[f], t.out.data() + f * frameSamples, frameSamples, 0);
+        (void)opus_decode_float(dec, packets[f], lens[f], t.out.data() + f * frameSamples, frameSamples, 0);
     }
     const int fecN = opus_decode_float(dec, packets[51], lens[51], scratch.pcm, frameSamples, 1);
     double fecErr = 0.0, sig = 0.0;
@@ -1412,7 +1412,7 @@ void selftest_f()
     opus_decoder_ctl(dec, OPUS_RESET_STATE);
     for(int f = 0; f < 50; f++)
     {
-        opus_decode_float(dec, packets[f], lens[f], t.out.data() + f * frameSamples, frameSamples, 0);
+        (void)opus_decode_float(dec, packets[f], lens[f], t.out.data() + f * frameSamples, frameSamples, 0);
     }
     double plcPower = 0.0;
     bool plcOk = true;
