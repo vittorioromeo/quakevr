@@ -18,6 +18,7 @@
         row(opt::vr_menu_status),
         row(opt::vr_menu_version),
         row(opt::vr_update_check),
+        row(opt::vr_discord),
         row(opt::vr_menu_flat_shortcuts),
         row(opt::vr_menu_flat_vr_style),
         row(opt::vr_menu_flat_scale),
