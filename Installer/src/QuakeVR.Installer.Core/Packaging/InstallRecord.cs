@@ -14,6 +14,8 @@ public static class Components
     public const string ArcaneDimensions = "ad";
     /// <summary>Dwell (optional): the authors' unmodified release in the install's dwell folder (Dwell).</summary>
     public const string Dwell = "dwell";
+    /// <summary>Quoth (optional, needs Arcane Dimensions): the authors' unmodified release in the install's quoth folder (Quoth).</summary>
+    public const string Quoth = "quoth";
 }
 
 public sealed class InstalledFile
@@ -39,6 +41,8 @@ public sealed class InstallChoices
     public bool ArcaneDimensions { get; set; }
     /// <summary>Dwell installed by Setup in the install's dwell folder (a copy found elsewhere is not recorded).</summary>
     public bool Dwell { get; set; }
+    /// <summary>Quoth installed by Setup in the install's quoth folder (a copy found elsewhere is not recorded).</summary>
+    public bool Quoth { get; set; }
 }
 
 /// <summary>
@@ -78,6 +82,9 @@ public sealed class InstallRecord
     /// <summary>The Dwell zip installed in dwell\ (its name and SHA-256, as downloaded and checked). Null: none.</summary>
     public string? DwellFile { get; set; }
     public string? DwellSha256 { get; set; }
+    /// <summary>The Quoth zip installed in quoth\ (its name and SHA-256, as downloaded and checked). Null: none.</summary>
+    public string? QuothFile { get; set; }
+    public string? QuothSha256 { get; set; }
 
     public static InstallRecord? Load(string installDir)
     {

@@ -43,6 +43,15 @@
         "https://www.quaddicted.com/files/by-sha256/15/15bbc5dc0eb3fee5763835cea1aa62ab263545ca8c04aaa019982d45d1e8d11d/dwellv2p2.zip",
         "https://www.quaddicted.com/filebase/dwellv2p2.zip"
       ]
+    },
+    "quoth": {
+      "file": "quoth2pt2full_2.zip",
+      "size": 54792367,
+      "sha256": "9fce1af35ef7f635990be949d75f7faa18cc198bc19d9adc7d0575e234ab1139",
+      "mirrors": [
+        "https://www.quaddicted.com/files/by-sha256/9f/9fce1af35ef7f635990be949d75f7faa18cc198bc19d9adc7d0575e234ab1139/quoth2pt2full_2.zip",
+        "https://www.quaddicted.com/filebase/quoth2pt2full_2.zip"
+      ]
     }
   }
 }

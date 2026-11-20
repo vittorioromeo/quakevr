@@ -170,6 +170,9 @@ public sealed class MainViewModel : ObservableObject
     bool _dwell = Dwell.OnByDefault; // (on: Dwell's maps play, Dwell.OnByDefault)
     ModCopy? _dwellFound;
     ModOutcome? _dwellOutcome;
+    bool _quoth = Quoth.OnByDefault; // (on when Arcane Dimensions is chosen: QuothCanTick)
+    ModCopy? _quothFound;
+    ModOutcome? _quothOutcome;
     bool _relight = true;
     bool _desktopShortcut = true;
     bool _desktopFlatShortcut = true;
@@ -250,6 +253,8 @@ public sealed class MainViewModel : ObservableObject
             ? Path.Combine(f.Folder, ArcaneDimensions.ReadmeFile) : ArcaneDimensions.HomeUrl));
         OpenDwellHomeCommand = new RelayCommand(() => OpenUrl(_dwellFound is { Usable: true } f && File.Exists(Path.Combine(f.Folder, Dwell.ReadmeFile))
             ? Path.Combine(f.Folder, Dwell.ReadmeFile) : Dwell.HomeUrl));
+        OpenQuothHomeCommand = new RelayCommand(() => OpenUrl(_quothFound is { Usable: true } f && File.Exists(Path.Combine(f.Folder, Quoth.ReadmeFile))
+            ? Path.Combine(f.Folder, Quoth.ReadmeFile) : Quoth.HomeUrl));
         OpenKofiCommand = new RelayCommand(() => OpenUrl(KofiUrl));
         OpenDiscordCommand = new RelayCommand(() => OpenUrl(DiscordUrl));
         ShowCreditsCommand = new RelayCommand(() => new Views.CreditsWindow(Application.Current.MainWindow).ShowDialog());
@@ -355,6 +360,7 @@ public sealed class MainViewModel : ObservableObject
     public ICommand OpenUrlCommand { get; }
     public ICommand OpenAdHomeCommand { get; }
     public ICommand OpenDwellHomeCommand { get; }
+    public ICommand OpenQuothHomeCommand { get; }
     public ICommand OpenKofiCommand { get; }
     public ICommand OpenDiscordCommand { get; }
     public ICommand ShowCreditsCommand { get; }
@@ -654,6 +660,7 @@ public sealed class MainViewModel : ObservableObject
         Raise(nameof(HasExisting), nameof(ShowAddAd), nameof(ExistingTitle), nameof(ExistingText), nameof(ExistingDetail), nameof(OfferedMode), nameof(QuickUpdate),
             nameof(ExistingNeedsPackage), nameof(OtherInstallsText), nameof(HasOtherInstalls), nameof(ReinstallSettingsText), nameof(ReinstallSavesText),
             nameof(ReinstallPersonalText), nameof(ReinstallChosen), nameof(BackupText), nameof(NextText), nameof(FooterHint), nameof(InstallTitle));
+        RaiseQuoth();
         CommandManager.InvalidateRequerySuggested();
     }
 
@@ -784,6 +791,7 @@ public sealed class MainViewModel : ObservableObject
             await PrepareGameAsync(ct);
             await AddArcaneDimensionsAsync(http, ct);
             await AddDwellAsync(http, ct);
+            await AddQuothAsync(http, ct);
             LoadExisting();
             BuildDoneNotes();
             GoToSettingsOrDone();
@@ -1015,6 +1023,12 @@ public sealed class MainViewModel : ObservableObject
             return;
         }
         DwellFound = dwell;
+        var quoth = q.BaseDir is { } qq ? await Task.Run(() => Quoth.FindExisting(Quoth.SearchRoots(report.StoreRoots, qq))) : null;
+        if (version != _detailsVersion)
+        {
+            return;
+        }
+        QuothFound = quoth;
     }
 
     void BuildSystemChecks(DetectionReport r)
@@ -1088,7 +1102,8 @@ public sealed class MainViewModel : ObservableObject
         {
             var need = (_coreSize ?? 200L << 20) + (HdTextures ? 650L << 20 : 0) + (Relight ? 220L << 20 : 0) +
                        (InstallAd ? ArcaneDimensions.InstalledSize + (320L << 20) : 0) +
-                       (InstallDwell ? Dwell.InstalledSize + (385L << 20) : 0);
+                       (InstallDwell ? Dwell.InstalledSize + (385L << 20) : 0) +
+                       (InstallQuoth ? Quoth.InstalledSize + (53L << 20) : 0);
             try
             {
                 var root = Path.GetPathRoot(Path.GetFullPath(InstallDir));
@@ -1130,7 +1145,7 @@ public sealed class MainViewModel : ObservableObject
 
     /// <summary>Ticked: AD's zip is downloaded after the install and unpacked into the install's ad folder (a copy found
     /// in the owned roots that is 1.80 patch 1 is used instead: the box is then off and disabled).</summary>
-    public bool InstallAd { get => _arcaneDimensions && !AdFoundUsable; set { if (Set(ref _arcaneDimensions, value)) { Raise(nameof(DiskText)); } } }
+    public bool InstallAd { get => _arcaneDimensions && !AdFoundUsable; set { if (Set(ref _arcaneDimensions, value)) { Raise(nameof(DiskText)); RaiseQuoth(); } } }
 
     /// <summary>The copy of AD the game would use from the owned Quake roots (null: none).</summary>
     public ModCopy? AdFound
@@ -1148,6 +1163,7 @@ public sealed class MainViewModel : ObservableObject
                 Raise(nameof(AdSizeText));
                 Raise(nameof(DiskText));
                 Raise(nameof(ShowAddAd));
+                RaiseQuoth();
             }
         }
     }
@@ -1213,6 +1229,48 @@ public sealed class MainViewModel : ObservableObject
     public bool ShowAddDwell => _existing is { } e && !e.Files.Any(f => f.Component == Components.Dwell) && !DwellFoundUsable;
 
     public bool ShowAddAd => _existing is { } e && !e.Files.Any(f => f.Component == Components.ArcaneDimensions) && !AdFoundUsable;
+
+    // ---- Quoth (experimental, needs Arcane Dimensions: Quoth.OnByDefault while AD is chosen; QUOTH.md) ----
+
+    /// <summary>Arcane Dimensions where the game will find it: ticked, already in the install, or a usable copy found.</summary>
+    public bool AdChosen => InstallAd || AdFoundUsable || (_existing is { } e && e.Files.Any(f => f.Component == Components.ArcaneDimensions));
+
+    /// <summary>Ticked: Quoth's zip is downloaded after Arcane Dimensions and unpacked into the install's quoth folder.
+    /// Off and greyed without AD (<see cref="Quoth.NeedsAdText"/>) or with a 2.2 copy found (used where it is).</summary>
+    public bool InstallQuoth { get => _quoth && QuothCanTick; set { if (Set(ref _quoth, value)) { Raise(nameof(DiskText)); } } }
+
+    /// <summary>The copy of Quoth the game would use from the owned Quake roots (null: none).</summary>
+    public ModCopy? QuothFound
+    {
+        get => _quothFound;
+        private set
+        {
+            if (Set(ref _quothFound, value))
+            {
+                RaiseQuoth();
+            }
+        }
+    }
+
+    void RaiseQuoth() => Raise(nameof(AdChosen), nameof(QuothFoundUsable), nameof(QuothCanTick), nameof(InstallQuoth), nameof(QuothText),
+        nameof(QuothSizeText), nameof(ShowAddQuoth), nameof(DiskText));
+
+    public bool QuothFoundUsable => _quothFound is { Usable: true };
+    public bool QuothCanTick => !QuothFoundUsable && AdChosen;
+
+    public string QuothSizeText =>
+        QuothFoundUsable ? "already installed" :
+        _settings.Component(_feed, Components.Quoth) is { } c
+            ? $"{PathUtil.FormatSize(c.File.Size)} download, about {PathUtil.FormatSize(Quoth.InstalledSize)} on disk"
+            : "download unavailable";
+
+    /// <summary>The row's text: why it is greyed (no AD), a copy found, else what the box does.</summary>
+    public string QuothText => !AdChosen && !QuothFoundUsable ? Quoth.NeedsAdText : _quothFound is { } f ? Quoth.Describe(f) :
+        "Experimental: Quoth 2.2, downloaded from Quaddicted and installed as released. Its own maps are a campaign in Official Campaigns; " +
+        "its monsters and items also appear in custom maps made for it. Quake VR plays them by Arcane Dimensions' rules.";
+
+    /// <summary>The Update screen's box: an install without Quoth in its folder, no 2.2 copy found.</summary>
+    public bool ShowAddQuoth => _existing is { } e && !e.Files.Any(f => f.Component == Components.Quoth) && !QuothFoundUsable;
     public bool DesktopShortcut { get => _desktopShortcut; set => Set(ref _desktopShortcut, value); }
     public bool DesktopFlatShortcut { get => _desktopFlatShortcut; set => Set(ref _desktopFlatShortcut, value); }
     public bool StartMenuShortcuts { get => _startMenuShortcuts; set => Set(ref _startMenuShortcuts, value); }
@@ -1551,6 +1609,7 @@ public sealed class MainViewModel : ObservableObject
             await PrepareGameAsync(ct);
             await AddArcaneDimensionsAsync(http, ct);
             await AddDwellAsync(http, ct);
+            await AddQuothAsync(http, ct);
             LoadExisting();
             BuildDoneNotes();
             GoToSettingsOrDone();
@@ -1815,6 +1874,15 @@ public sealed class MainViewModel : ObservableObject
     async Task AddDwellAsync(HttpClient http, CancellationToken ct) =>
         _dwellOutcome = await AddModAsync(Dwell.Spec, InstallDwell, http, ct);
 
+    /// <summary>Quoth, after Arcane Dimensions, by the same step, only where AD now is (its step may have failed).</summary>
+    async Task AddQuothAsync(HttpClient http, CancellationToken ct)
+    {
+        var adThere = AdFoundUsable || (InstallRecord.Load(InstallDir) is { } r && r.Files.Any(f => f.Component == Components.ArcaneDimensions));
+        _quothOutcome = InstallQuoth && !adThere
+            ? new ModOutcome(false, false, $"Quoth not installed: {Quoth.NeedsAdText}")
+            : await AddModAsync(Quoth.Spec, InstallQuoth, http, ct);
+    }
+
     /// <summary>One third-party mod component's step (Arcane Dimensions, Dwell: <see cref="ModComponent"/>): null when
     /// there is nothing to do.</summary>
     async Task<ModOutcome?> AddModAsync(ModSpec spec, bool ticked, HttpClient http, CancellationToken ct)
@@ -1920,6 +1988,16 @@ public sealed class MainViewModel : ObservableObject
         else if (DwellFoundUsable)
         {
             DoneNotes.Add(new CheckItem(CheckStatus.Ok, "Dwell", DwellFoundText));
+        }
+        if (_quothOutcome is { } qo)
+        {
+            DoneNotes.Add(qo.Installed
+                ? new CheckItem(CheckStatus.Ok, "Quoth (experimental)", qo.Message + " Play it from Official Campaigns.")
+                : new CheckItem(CheckStatus.Warning, "Quoth (experimental)", qo.Message));
+        }
+        else if (QuothFoundUsable && AdChosen)
+        {
+            DoneNotes.Add(new CheckItem(CheckStatus.Ok, "Quoth (experimental)", Quoth.Describe(_quothFound!) + " Play it from Official Campaigns."));
         }
         if (VcResult is { } vc && vc.Outcome != VcRedistOutcome.AlreadyInstalled)
         {

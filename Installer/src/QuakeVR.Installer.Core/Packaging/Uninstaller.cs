@@ -109,6 +109,7 @@ public static class Uninstaller
             }
             ModComponent.ClearIfGone(ArcaneDimensions.Spec, record);
             ModComponent.ClearIfGone(Dwell.Spec, record);
+            ModComponent.ClearIfGone(Quoth.Spec, record);
             record.Save(target);
         }
         else

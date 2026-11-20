@@ -129,12 +129,28 @@ public static class BuiltInComponents
         ],
     };
 
+    /// <summary>Quoth 2.2, Kell, Necros and Preach's unmodified release, from Quaddicted only (its licence: the zip passed on
+    /// only as it is; Quake VR never hosts or mirrors it): the content-addressed copy first, then the filebase (QUOTH.md;
+    /// pinned in support_assets.json's <c>thirdParty</c> too).</summary>
+    public static FeedFile Quoth() => new()
+    {
+        File = "quoth2pt2full_2.zip",
+        Size = 54_792_367,
+        Sha256 = "9fce1af35ef7f635990be949d75f7faa18cc198bc19d9adc7d0575e234ab1139",
+        Urls =
+        [
+            "https://www.quaddicted.com/files/by-sha256/9f/9fce1af35ef7f635990be949d75f7faa18cc198bc19d9adc7d0575e234ab1139/quoth2pt2full_2.zip",
+            "https://www.quaddicted.com/filebase/quoth2pt2full_2.zip",
+        ],
+    };
+
     /// <summary>Every built-in component by its feed name (new copies: a caller may change them).</summary>
     public static Dictionary<string, FeedFile> All() => new(StringComparer.OrdinalIgnoreCase)
     {
         [Components.HdTextures] = HdTextures(),
         [Components.ArcaneDimensions] = ArcaneDimensions(),
         [Components.Dwell] = Dwell(),
+        [Components.Quoth] = Quoth(),
     };
 }
 
