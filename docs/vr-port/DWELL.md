@@ -786,7 +786,12 @@ frame sequences; reading aids only, nothing pasted). Files `QC/dwell/` (GPL-2, h
   thinks 55 k a frame (the pickups' forcegrabbable thinks 39 k of it). Totals (`profile`, 720 frames): d2m8 idle
   536 k to 274 k a frame; all woken, thinks 602 k to 464 k; e1m1 38 k after. Under 150 k is not reached without
   changing what can be seen: the 20 grunts in view (57 k), the other thinks (55 k) and non-think QC (29 k) are
-  141 k alone. What changed: ROUND25.md, "Armed grunts' cost on crowded maps".
+  141 k alone. What changed: ROUND25.md, "Armed grunts' cost on crowded maps". Verified (aglod2, 2026-11-20):
+  ThinLTO build 0 warnings; aglod_test.sh 13/0 (228 with two unarmed trials, heard and shot: the same traces and
+  reaction frames with 8 frames, 2 and no LOD; 229 a worn pack walked into view); dwell_maps 28/0, dwell_monsters
+  11/0, scenario_check 137/0, flatplay 31/0, adbugs and vr_ad_test 198 pass; the agrunt numbers' failures (16, 35,
+  39, 42, 61, 91, 203) and tunables_test's two are the same on origin/next. `vr_agrunt_pose_lod_frames` 0 or 1:
+  every frame, no LOD.
 - **Left**: Copper's ogre rocket drop, nightmare refire, infight give-up and the other monster rules of 2.4 (behaviour,
   not numbers); item respawn by `wait`/`count` on our items in Copper maps.
 

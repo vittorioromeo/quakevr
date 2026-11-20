@@ -4373,3 +4373,22 @@ forcegrabbable thinks 39 k of it) and non-think QC (29 k) are 141 k alone. Test 
 or shot: posed that frame, alert, the shot one attacking within 4 s; its 3 s trace the same with 8 frames, 2 and no
 LOD (seen) or 8 and 2 (shot): 6 passed, 0 failed. Not run here: the armed-grunt suites, vr_ad_test, dwell_maps.sh,
 dwell_monsters_test.sh, scenario_check, the ThinLTO build (budget). ad_tears is not in the agent's base.
+
+### Armed-grunt LOD review (aglod2, 2026-11-20, agent/aglod)
+
+- **Worn pack LOD** (`vr_wornpack.qc`): `unseenfar(g, near, pk)`: a wearer in view but out of his PVS whose pack is
+  still in it gets its pack placed (aglod's PVS rule would have left it hanging where he last saw it). A pack is
+  placed from its wearer as his client draws it (`packWhere`'s drawn pose: a monster's steps eased, up to ~35 units
+  behind its origin at a walk), so a teleported wearer's pack lands a frame late; walking, it is on the body the first
+  frame seen. Test `vr_agrunt_test 229` (vrarena; `vr_worn_backpack_lod_near 128` set by the script, as QC's
+  `cvar_set` on a tunable does not take): a grunt walked round him into view: its pack never placed while unseen (0 of
+  56 frames), placed from the first frame seen.
+- **Unarmed grunts' pose LOD**: `vr_agrunt_test 228` trials 2 (woken by his shot's sound, `VR_Stealth_Noise`) and 3
+  (shot), fists: their traces (place, frame, turn, stealth state) and `aglod react` lines (the frame it takes him for
+  its enemy, the frames till posed after: 0) the same with 8 frames, 2 and no LOD. The pose never feeds the AI.
+- **`vr_agrunt_pose_lod_frames`** 0 or 1: every frame, no LOD (it was clamped to 2); row 1..16, help rewritten;
+  saved as its neighbours (a tunable). Checked: frames 1, 64 poses in 64 frames.
+- **Verified**: ThinLTO build 0 warnings; `aglod_test.sh` 13/0; dwell_maps 28/0; dwell_monsters 11/0; scenario_check
+  137/0; flatplay 31/0; adbugs (adrepl 5/0, adgun 9/0 and 7/0) and night1101 (vr_ad_test 198) pass. run_baseline
+  agrunt: 16, 35, 39, 42, 61, 91, 203 fail the same on origin/next, as do tunables_test's 2. 228 and 229 fail under
+  run_baseline (vrtesthall: no room, no cvar): they are aglod_test.sh's (vrarena).
