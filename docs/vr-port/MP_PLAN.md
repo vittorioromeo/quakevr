@@ -3945,3 +3945,84 @@ A1 B1 `--load 16`, A2 B2 plain, A2 B2 `--load 16`, about 30 minutes each, with t
   the clients' `Host_Error: Model *43 not found` under the A/B's two base dirs, the setup's), mp_predictslide (no
   sliding states), mp_melee (the two upright-crowbar dirparry checks), mp_flow (Load Autosave's coop listing). Base
   only, so not chased.
+
+## Sync audit 2026-11-21: every player feature, seen by another player or not
+
+His words: "Player flashlights are not synced, they should. Can you do an audit of all player features/interactions
+and find everything that should be synced but isn't?" No fixes here: the gaps, measured, and the batches to fix them.
+
+**How it was measured.** `vr_mp_near <ent> [radius] [seconds]` (Debug > Reports > Network: Drawn Near Me) lists what a
+game draws round a player (each model: whose -- its own view entity, another player's copy, an entity --, alpha,
+effects, the powerup glow), its dynamic lights there and the sounds it started in the last seconds by him or near him
+(a ring of the last 96, filled at `S_StartSoundPitch`). `mp_test.py syncaudit [--flat B]`: a dedicated server, A and B
+200 units apart on e1m1, both with sound on through SDL's dummy driver (nothing reaches a speaker); B does a thing, then
+B's report of himself and A's of B are compared, each against the idle baseline: "B has, A not" is a gap. Probes: idle,
+quad (impulse 255), ring (impulse 254), a punch in the air, a shotgun shot, a walk. Two runs, B in VR (mock) and B
+flat; both 12/0 (every report came). Status: **S** synced, **G** a gap, **E** being done elsewhere, **L** local by
+design (right as it is), **N** no such feature. Evidence: [run] syncaudit, [test] an existing mp_test scenario, [code].
+
+| Feature | Status | What another player gets (how) | Evidence |
+|---|---|---|---|
+| Head, hands (place, turn), finger curls, thumb | S | QVR_SVC_AVATAR's drawn hands, at the snapshot rate | mp_avatar [test]; hand_rig x2 both [run] |
+| Body: IK, torso yaw, lean, crouch height, legs | S | the avatar's VrBodyPose and his calibration; vr_avatar.cpp's own IK per copy | mp_body [test]; vrbody both [run] |
+| Crouch, prone and crawl, swim, in the air | S | the avatar's moves byte | mp_moves [test] |
+| Slide pose | E | agent/mpslide | |
+| Climb, hang, mantle (the holds) | S | the moves byte's hold bits and places | mp_moves, mp_climb [test] |
+| Two-handed holds, hand-off, reverse grip, parry guard | S | both drawn hands and the drawn weapon's place and turn | mp_held, mp_melee [test] |
+| Punches, swings, shoves, bashes, parries between players | S | judged by the server per player; their whooshes are server sounds | mp_melee [test]; knight/sword1-2 both [run] |
+| Height, build, gloves, skin, nails, seated, handedness | S | QVR_SVC_AVATARCAL, reliable on change | mp_avatarcal, mp_cosmetics [test] |
+| Pauldrons, armour plates | S | calibration and the gear byte (B6c) | vrpauldron(_arm) x2 both [run] |
+| Held weapon: model, frame, skin, place | S | the drawn hand's weapon | v_shot, v_axe both [run] |
+| Held weapons' parts: cylinder, magazines, ammo type, pump/bolt, SSG open, a held grenade's pin | E | agent/wpnsync (with the pump's stroke sounds, `vr/autopump_back/home`: B only [run]) | |
+| Flashlight, torso torch | E | agent/wpnsync | vrflashlight B only [run] |
+| Holstered weapons | S | VrDrawnHolsters (B6b) | mp_cosmetics [test]; holstered v_shot both [run] |
+| **Hip and leg holster sheaths** | G | not drawn on the copy (his holstered guns float at his thighs) | legholster x4 B only, VR and flat [run] |
+| **Wrist gadget and its straps** (VR) | G | not drawn on the copy; nor its screen's glow | vrgadget, vrgadget_strap x2, lights r10/r30 B only [run] |
+| **Ammo pouch and the rounds in it** | G | not drawn | vrpouch_ammo and 17 vr_shell_live B only [run] |
+| **Grenade pouch** (the back) | G | not drawn | vrpouch B only, VR and flat [run] |
+| **Ring of Shadows** | G | B sees his own body, hands and gear at alpha 0.3; A's copy of him is drawn fully opaque (the copy takes the place of Quake's eyes model). In deathmatch the ring does nothing | faded x23 B only, 0 on A [run] |
+| **Quad, Pentagram, Biosuit looks** | G | A gets only the entity light the server's effects give (one, r210); not the rim glow on hands and body, the two hand lights (r110) and their glow light (r220), nor the quad's arcs: vr_view.cpp reads `cl.items`, the own player's only | glow x3, lights B only [run]; vr_view.cpp:3365-3382 [code] |
+| **Muzzle flash of another player's shot** | G | its light (r20, r30 at the shot) not seen; the shot's sound, thump and tail layers are | B only [run] |
+| **Spent casings from another player's gun** | G | none (his own client throws them) | vr_shell B only [run] |
+| Shot sounds, Quad's attack sound | S | server sounds; vr_gunsfx's layers made on each client | guncock, gun_thump, gun_tail, damage3 both [run] |
+| **Blood on hands, arms and gear; wounds on the player's body** | G | own only: vr_wounds.cpp paints the player's body and hands only for `cl.viewentity`; another player's copy stays clean | vr_wounds.cpp:1577-1643 [code] |
+| Footsteps | S | the old trigger's server sound in multiplayer (the legs' own steps are single player's: no one else sees the feet's phase) | foot4-7 both [run]; vr_playersteps.cpp:9-12 [code] |
+| **Mantle grunt** | G | `S_LocalSound`: only he hears it | vr_climb.cpp:1667 [code] |
+| **Slide sound** | G | started on `cl.viewentity` by his client: only he hears it (mpslide does the pose, not this) | vr_slidesound.cpp:86 [code] |
+| Voice chat and the talking indicator | S | B10v | mp_voice [test] |
+| Chat, scoreboard, frags | S | Quake's | mp_dm [test] |
+| Name tags over heads | N | none in the game (the scoreboard names players) | [code] |
+| Emotes | N | none | [code] |
+| Tracers, impacts, decals, gore and gibs on monsters | S | QVR_SVC fire/tracer FX, hand impacts, wounds, gore sounds | vr_protocol.hpp [code] |
+| Drops, pickups, hand-overs, force grabs, disarms, thrown weapons | S | server entities, judged per player | mp_pickup, mp_forcegrab, mp_disarm [test] |
+| Grapple rope | S | QVR_SVC ropes | [code] |
+| Carried props, ragdolls, all physics bodies | E | queued ragsync | |
+| Dead player's ragdoll model | E | agent/mpslide | |
+| Death, respawn, gibbing | S | server entities | mp_flow (B4b) [test] |
+| The flat player's aiming pose (ADS) | E | queued adspose | |
+| Navmesh follow (`vr_nav_follow`) | S | shipped, handled | |
+| Flat bodies seen by VR players, and back | S | one code path (mpavatar::addEntities) for either: B flat drew the same hands, body, weapons and pauldrons on A as on himself | flat run [run] |
+| Force grab's glow and sparkle on the target, teleport arc | L | the aimer's own cues; others see the item fly or him arrive | |
+| Bullet time, time scale | L | single player only (`svs.maxclients == 1`): stays off in multiplayer | vr_bullettime.cpp:247, 1050 [code] |
+| Toolgun, Setup, holster setup | L | single player only (section 1.3) | [code] |
+| HUD, the gadget's screen contents, haptics, menus, voice notes | L | his own | |
+
+Counts (43 rows): 20 synced, 11 gaps, 6 elsewhere, 4 local by design, 2 not features.
+
+**Side finding.** The Debug menu's Cheats rows (Quad, Pentagram, Ring, Biosuit: `impulse 190-193`) give a holstered
+shotgun in coop instead: the single-player test impulses (`VR_TestImpulse`) are skipped in coop, and weapons.qc's
+harness "holster give" (4784) takes 190-195 next. `impulse 255` and `254` still give quad and the ring.
+
+**Fix batches**, most noticed first:
+
+| Batch | What | Effort | Risk |
+|---|---|---|---|
+| 1. Powerups on the copy | Each player's powerup bits in the avatar's gear byte (spare bits; delta'd, on change only); the copy drawn faded under the ring (and his holstered and held weapons with it) and with the glow, hand lights and quad arcs, through the code that draws yours (powerupGlow / the arcs read the player's items, not `cl.items`) | S | low (the ring's alpha in deathmatch: a gameplay fix) |
+| 2. Worn gear on the copy | Gadget and straps (his gadget arm is in his calibration), holster sheaths (his holster points are sent), grenade pouch, ammo pouch and its rounds (a count byte): placed on the copy's body by the view's own placement code, per instance as B2d made the body | M | low-medium (a dozen more entities per copy: draw cost with 16 players) |
+| 3. Another player's shot effects | His muzzle flash (model and light) and casings from the shot his client fires, on the others: from the weapon events every client gets already (the shot sound on CHAN_WEAPON, or a bit in the drawn hand) | M | low (no new message if the shot's sound is the cue) |
+| 4. Blood and wounds on other players | His wound events painted on his copy's body and hands (vr_wounds.cpp's own-player path per copy), bloody hands and drips | L | medium (wound layers per copy: GPU memory, 16 players) |
+| 5. His own sounds the others don't hear | The mantle grunt and the slide sound as server sounds (or played on the copy from its moves byte), never twice for the player himself | S | low |
+| 6. Name tags (a new feature, if wanted) | A name over each other player's head, faded with distance; a setting | S | low |
+
+Harness: `mp_test.py syncaudit` (B in VR) and `syncaudit --flat B`; each batch's fix turns its "B has, A not" lines
+into "both". Tables of the two runs: `scratch/mpaudit_table_vr.txt`, `scratch/mpaudit_table_flat.txt` (not committed).

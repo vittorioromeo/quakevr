@@ -1161,6 +1161,10 @@ za::Vector<Item> pageDebugReports()
         command("Network: Players Seen", "vr_mp_status")
             .help("vr_mp_status: the players this client sees (entity, name, where, whether the last message carried them) "
                   "and, hosting, the server's clients. The multiplayer harness (Misc/quakevr/mp) reads the same lines."),
+        command("Network: Drawn Near Me", "vr_mp_near 0")
+            .help("vr_mp_near <ent> [radius] [seconds]: the models this client draws, the lights and the sounds of the last "
+                  "seconds round a player (0: you). Run it here and on another player's game with your entity number to "
+                  "see what of you he gets (the sync audit's harness, mp_test.py syncaudit)."),
         command("Network: Lockstep Status", "vr_mp_lockstep_status")
             .help("vr_mp_lockstep_status: the multiplayer harness's reproducible runs (vr_mp_lockstep on a dedicated server, "
                   "vr_mp_lockstep_ahead on its clients): the world's step, whether it is held, each client's newest move "

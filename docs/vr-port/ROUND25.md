@@ -5995,3 +5995,19 @@ modified or bundled: nothing of it is run, copied or shipped; its maps play by A
   exit lock round 4, ne_marb's waves round 21, lpqsp1's `voreo` round 6, metmon's `phase4_relay` round 8; the three
   exits. `quoth_maps.sh` 31/0. QUOTH.md 2, 5, 6.
 - **Checks**: dev and ThinLTO builds 0 warnings (LTO exe relinked); scenario_check PASS (140 run, 0 failed); ad_world_test (vr_ad_test 61-64 on ad_crucial) PASS; dwell_maps 28/0 (Dwell v2.2 copied into the round25 test base: without it 3/25); installer self-tests 48/48; quoth_maps 31/0.
+
+## Multiplayer sync audit: every player feature, seen by another player or not (mpaudit, 2026-11-21, `agent/mpaudit`)
+
+- His ask: everything of a player that others should see or hear but don't. The table and the fix batches are MP_PLAN.md,
+  "Sync audit 2026-11-21" (43 rows: 20 synced, 11 gaps, 6 being done elsewhere, 4 local by design, 2 not features).
+- The measure: `vr_mp_near <ent> [radius] [seconds]` (Debug > Reports > Network: Drawn Near Me; vr_mptest.cpp) lists
+  the models a game draws round a player (whose, alpha, effects, the powerup glow), its dynamic lights there and the
+  sounds it started lately by or near him (`VR_MpHeardSound`, a ring of 96 filled at `S_StartSoundPitch`).
+  `mp_test.py syncaudit [--flat B]` compares B's report of himself with A's of B after each of B's actions (idle, quad,
+  ring, a punch, a shot, a walk); the harness's clients can now run with sound on (`Session.client_sound`: SDL's
+  dummy audio driver, nothing reaches a speaker). A report, not a regression: not in the suite.
+- The biggest gaps: the Ring of Shadows (others draw the ringed player fully opaque: in deathmatch it does nothing),
+  the powerups' glows and hand lights, another player's muzzle flash and casings, the worn gear (wrist gadget, holster
+  sheaths, grenade and ammo pouches), blood and wounds on other players, the mantle grunt and slide sound.
+- Side finding: in coop the Debug menu's powerup cheats (impulse 190-193) give a holstered shotgun (the harness's
+  holster give); 255 and 254 still work.
