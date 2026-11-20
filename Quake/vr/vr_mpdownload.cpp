@@ -49,6 +49,12 @@ za::String lastAddress;
 // The package the client last left a server for and mounted (one rejoin per package: a server that names another one
 // at once again is not followed round in a loop).
 za::String rejoinedFor;
+// (mpfix A3) The automatic installs since the last `connect` the player started (at most one: a server that names
+// package after package, each installed and joined again with no player action, filled the disk from the Map
+// Library's thousands), and whether the next connect is joinAgain's (not the player's). A package already installed,
+// or the stock game, is still mounted and joined again (rejoinedFor: not in a loop).
+int autoInstalls = 0;
+bool joiningAgain = false;
 
 // Index: the fetch's answer waited for this long at most (a real network fetch: the wall clock).
 constexpr double indexWaitSeconds = 120.0;
@@ -79,6 +85,7 @@ void joinAgain()
     else
     {
         Con_Printf("mp_package: %s mounted; joining again (%s)\n", title.cStr(), pending.address.cStr());
+        joiningAgain = true;
         Cbuf_AddText((za::String{"connect "} + pending.address + "\n").cStr());
     }
     rejoinedFor = pending.sha;
@@ -134,6 +141,14 @@ void mountOrInstall()
         stop();
         return;
     }
+    if(autoInstalls > 0)
+    {
+        Con_Printf("mp_package: the server plays %s, another package after the one this game installed for it: not "
+                   "installed (one automatic install a join). Install it from the Map Library, then join again.\n",
+            title.cStr());
+        stop();
+        return;
+    }
     za::String why;
     if(!mapinstall::begin(e, true, &why))
     {
@@ -143,6 +158,7 @@ void mountOrInstall()
     }
     Con_Printf("mp_package: the server plays %s: installing it from the Map Library, then joining again.\n",
         title.cStr());
+    autoInstalls++;
     pending.step = Step::Install;
 }
 
@@ -234,6 +250,11 @@ extern "C" void VR_MpNoteConnect(const char* host)
 {
     if(host && *host && q_strcasecmp(host, "local"))
     {
+        if(!mpdownload::joiningAgain)
+        {
+            mpdownload::autoInstalls = 0; // (mpfix A3) a connect the player started
+        }
+        mpdownload::joiningAgain = false;
         mpdownload::lastAddress = za::String{host};
         browser::noteConnected(host); // (B13) first in the server browser's recent list
     }
