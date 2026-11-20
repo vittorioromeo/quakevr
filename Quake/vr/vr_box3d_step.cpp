@@ -1766,6 +1766,7 @@ extern "C" void VR_PhysicsFrameEnd(void)
         sample.contacts = counters.awakeContactCount;
         sample.islands = counters.islandCount;
         sample.reachTouches = reachTouchCount();
+        ragdollContactSplit(sample.split);
         world->frameSamples.pushBack(sample);
     }
     serverPhysicsStart = 0.0;

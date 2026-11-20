@@ -17,11 +17,16 @@ label = sys.argv[4]
 extra = sys.argv[5] if len(sys.argv) > 5 else ""
 frames = int(os.environ.get("RP_FRAMES", "720"))
 flat = os.environ.get("RP_FLAT", "") == "1"
+# RP_INSIDE=1 (ragperf2): the hands kept in the bodies, whatever the blows do: each frame each hand at a part of the
+# ragdoll nearest the player, its parts in turn (vr_mock_hand_follow cycle; the tester's case: fists or the blade in them).
+inside = os.environ.get("RP_INSIDE", "") == "1"
 
 
 def motion(seconds):
     # each hand in turn (0.6 s a blow, the off hand half a beat later), sweeping left, middle, right across the fan
     lines = [] if os.environ.get("RP_OPEN") == "1" else ["0.000 grip off 1"] + ([] if weapon == "axe" else ["0.000 grip main 1"])
+    if inside:  # (the hands' places: vr_mock_hand_follow's, every frame)
+        return "\n".join(lines) + "\n"
     t = 0.0
     k = 0
     while t < seconds:
@@ -59,6 +64,9 @@ total = 60 + frames
 for f0 in range(0, total, period):
     for i, e in enumerate(ents):
         timeline.append((f0 + 4 * i, f"vr_ragdoll_act {act} {e}"))
+if inside:  # (the player walking after them, the bodies pushed off by the hands' bodies kept within arm's reach)
+    for f0 in range(0, total, 24):
+        timeline.append((f0, "vr_mock_walk_to monster 28"))
 if flat:  # flat-screen: the punch button every 0.6 s, the hands alternating
     for k, f0 in enumerate(range(0, total, 43)):
         timeline.append((f0, f"vr_flat_punch {'main' if k % 2 == 0 else 'off'}"))
@@ -66,6 +74,8 @@ timeline.append((60, "vr_ragdoll_active_list;vr_profile 1;vr_physics_steptime;vr
 timeline.append((total, "profile 12;vr_hitmodel_stats;vr_ragdoll_active_list;vr_physics_frametime m;vr_physics_steptime bins"))
 timeline.sort(key=lambda x: x[0])
 s += [] if flat else [f'vr_mock_play "{mpath.as_posix()}"']
+if inside:
+    s += ["vr_movement_mode 1", "vr_mock_hand_to_absolute 1", "vr_mock_hand_follow main cycle", "vr_mock_hand_follow off cycle"]
 now = 0
 for f, c in timeline:
     if f > now:
@@ -74,7 +84,7 @@ for f, c in timeline:
     s += [c]
 s += ["vr_profile_dump", "vr_knockdown_test 5", "wait2", "echo rp_done", "toggleconsole", "quit"]
 cmd = ["C:/Program Files/Git/bin/bash.exe", "C:/OHWorkspace/qvr-kit/run.sh", AGENT, "-Script", ";".join(s), "-QuitOn",
-       "rp_done", "-Timeout", "400", "-Filter", "^ *[0-9]+ [A-Za-z_]|broad tests|a model test|refit to|ragdoll_act|ragperf|vr_physics_|vr_ragdoll_active_list|knockdown|profile|rror|CRASH|low-impact"]
+       "rp_done", "-Timeout", "400", "-Filter", "^ *[0-9]+ [A-Za-z_]|broad tests|a model test|refit to|ragdoll_act|ragperf|vr_physics_|vr_ragdoll_active_list|knockdown|profile|rror|CRASH|low-impact|strike_broad"]
 if flat:
     cmd[3:3] = ["-ExtraArgs", "-flatscreenmode"]
 out = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, errors="replace").stdout
@@ -104,6 +114,6 @@ if csv:
             summary.append(f"prof {w}: calls {rows[w][0] / nfr:.2f} avg {rows[w][1] / nfr:.3f} ms")
     summary.append(f"csv {csv}")
 (HERE / f"rp_out_{label}.txt").write_text(out + "\n" + "\n".join(summary) + "\n")
-keep = [l for l in out.splitlines() if any(k in l for k in ("counts:", "profile total", "broad tests", "a model test", "steptime profile", "steptime: 7", "ragperf", "active_list", "m box3d:", "m solver:", "m step:",
+keep = [l for l in out.splitlines() if any(k in l for k in ("counts:", "split:", "strike_broad", "profile total", "broad tests", "a model test", "steptime profile", "steptime: 7", "ragperf", "active_list", "m box3d:", "m solver:", "m step:",
                                                              "m server physics", "frames in", "low-impact", "rror"))]
 print("\n".join(keep + summary))
