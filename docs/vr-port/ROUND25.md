@@ -4392,3 +4392,31 @@ dwell_monsters_test.sh, scenario_check, the ThinLTO build (budget). ad_tears is 
   137/0; flatplay 31/0; adbugs (adrepl 5/0, adgun 9/0 and 7/0) and night1101 (vr_ad_test 198) pass. run_baseline
   agrunt: 16, 35, 39, 42, 61, 91, 203 fail the same on origin/next, as do tunables_test's 2. 228 and 229 fail under
   run_baseline (vrtesthall: no room, no cvar): they are aglod_test.sh's (vrarena).
+
+
+## Discord Rich Presence (branch agent/discord, 2026-11-20)
+
+His request (2026-11-18): Discord shows what he plays. **DISCORD.md** is the reference (what is shared, setting up the
+application, the protocol, the join hook).
+
+- **Route**: Discord's RPC over its local IPC (`\\.\pipe\discord-ipc-0..9`; on Linux/macOS the `discord-ipc-N` unix
+  socket), HANDSHAKE then SET_ACTIVITY frames written by hand: no SDK, no library, no download. `Quake/vr/vr_discord.cpp`.
+- **Shared**: details = the map's title (worldspawn message, else the file name; "In the menus"); state = campaign ·
+  mode (Single player, Co-op, Deathmatch, Survival Arena wave N, Watching a demo) · VR or Flat screen; elapsed since
+  the map began; a large image only with `vr_discord_image`.
+- **Threads**: the main thread reads a small key a frame (no allocation) in `VR_HostFrameEnd` and hands the activity's
+  JSON over only on a change, no sooner than 15 s after the last (merged; off clears at once). A thread of its own
+  (CODE_STYLE "Threads": blocks on its pipe) connects, sends, answers PING, keeps Discord's errors for the status, and
+  reconnects with a back-off (2 s doubling to 60 s); every read and write waits 1 s at most (overlapped I/O on
+  Windows, poll() on POSIX). Quit (`VR_Shutdown`): cleared, joined. Test runs (`QVR_TEST_BACKGROUND`) never reach the
+  real Discord.
+- **Settings**: `vr_discord` 0 (Menu Settings > Discord Status, after Check for Updates), `vr_discord_appid` ""
+  (he creates the application: DISCORD.md "Setting it up"), `vr_discord_image` "". Debug > Reports: "Discord: Status"
+  (`vr_discord_status`), "Discord: Self-Test" (`vr_discord_test`).
+- **Test** `vr_discord_test` (Windows; a fake Discord on its own pipe `qvr-discord-test-<pid>-0`, frames recorded):
+  no Discord (plays, nothing connects), handshake, SP in VR, nothing re-sent unchanged past the gap, flat screen (no
+  sooner than the gap), co-op e1m2, vrarena's wave, Discord restarted (new handshake, activity again), off (cleared).
+  `run.sh <agent> -Script "vr_discord_test" -Filter vr_discord_test -QuitOn "vr_discord_test: [0-9]+ passed"`: 14/0.
+  The POSIX branch syntax-checked with WSL's clang only (not run).
+- **Open**: the application id (and logo asset) from him, then the shipped default; whether it ships on; Linux tried
+  for real; the join button (room codes: `JOIN-HOOK` in vr_discord.cpp).
