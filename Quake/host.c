@@ -546,7 +546,7 @@ qboolean Host_WriteConfigurationToFile (const char *name)
 
 		//johnfitz -- extra commands to preserve state
 		fprintf (f, "vid_restart\n");
-		if (in_mlook.state & 1) fprintf (f, "+mlook\n");
+		if (CL_SeatInputOf (0)->mlook.state & 1) fprintf (f, "+mlook\n"); // QVR: seat 0's (the config is the first player's)
 		//johnfitz
 
 		if (ferror (f) | fclose (f) || Sys_ReplaceFile (tmpname, fullname) != 0) // QVR: written to a temporary file, then replacing the config in one step

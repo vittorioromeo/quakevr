@@ -29,10 +29,10 @@
 
 #include <stdio.h>
 #include <string.h>
+#include "vr_seat.hpp"
 
 extern "C" qboolean keydown[MAX_KEYS];             // keys.c
 extern "C" int Key_StringToKeynum(const char* str); // keys.c
-extern "C" kbutton_t in_attack;                     // cl_input.c: +attack (the left mouse button)
 extern "C" int VR_FlatHudClip(int left, int* clip, int* clipSize); // vr_flathud.cpp
 
 namespace qvr::flatholster
@@ -529,7 +529,7 @@ void frame(bool on)
     // The left button: a click on the menu (flatplay::routeFire fires nothing while it is open), or a weapon picked up
     // and dragged while held, let go on another slot (a drop) or anywhere else (cancelled); the menu closed mid-drag
     // cancels it too.
-    const bool lmb = (in_attack.state & 1) != 0 || st.fakeLmb;
+    const bool lmb = (seat::current().input.attack.state & 1) != 0 || st.fakeLmb;
     if(!st.open)
     {
         st.dragFrom = -1;

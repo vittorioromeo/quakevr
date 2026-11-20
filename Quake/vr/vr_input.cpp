@@ -62,6 +62,7 @@
 #include "Zancle/Math/Sqrt.hpp"
 #include "Zancle/String/String.hpp"
 #include "vr_api.h"
+#include "vr_seat.hpp"
 
 
 extern "C" qboolean keydown[MAX_KEYS]; // keys.c
@@ -2345,7 +2346,7 @@ extern "C" void VR_AdjustMove(float* forwardmove, float* sidemove, float* upmove
 
     const float m = glm::length(moveAxes);
     // The speed button's choice (held or vr_sprint_toggle's switch, against the Default Speed), or a double tap's run.
-    const bool running = ((VR_SpeedButton(in_speed.state & 1) != 0) != (cl_alwaysrun.value != 0.f)) ||
+    const bool running = ((VR_SpeedButton(seat::current().input.speed.state & 1) != 0) != (cl_alwaysrun.value != 0.f)) ||
                          doubleTap.phase == DoubleTap::Running;
     const float threshold = CLAMP(0.1f, vr_move_autorun_threshold.value, 1.f);
     const float dt = CLAMP(0.f, static_cast<float>(host_frametime), 0.1f);

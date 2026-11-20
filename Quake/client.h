@@ -348,9 +348,22 @@ typedef struct
 	int		state;			// low bit is down state
 } kbutton_t;
 
-extern	kbutton_t	in_mlook, in_klook;
-extern 	kbutton_t 	in_strafe;
-extern 	kbutton_t 	in_speed;
+// QVR: splitscreen (docs/vr-port/SPLITSCREEN.md): the command buttons and the impulse are a seat's own (Ironwail's
+// in_forward, in_attack... globals). Their +commands and the move act on the current seat's (CL_SeatInput); C++
+// reaches them as seat::current().input (vr_seat.hpp).
+typedef struct seatinput_s
+{
+	kbutton_t	mlook, klook;
+	kbutton_t	left, right, forward, back;
+	kbutton_t	lookup, lookdown, moveleft, moveright;
+	kbutton_t	strafe, speed, use, jump, attack;
+	kbutton_t	up, down;
+	int			impulse;
+} seatinput_t;
+
+seatinput_t *CL_SeatInput (void);			// the current seat's (vr_seat.cpp)
+seatinput_t *CL_SeatInputOf (int seat);	// seat 0..3's (seat 0's: the config's +mlook line)
+float CL_KeyState (kbutton_t *key);			// a button's share of the frame held (clears its edges)
 
 void CL_InitInput (void);
 void CL_AccumulateCmd (void);

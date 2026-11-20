@@ -4689,7 +4689,7 @@ void M_AdjustSliders (int dir)
 		break;
 
 	case OPT_ALWAYSMLOOK:
-		if ((in_mlook.state & 1) || freelook.value)
+		if ((CL_SeatInput()->mlook.state & 1) || freelook.value)
 		{
 			Cvar_SetValueQuick (&freelook, 0.f);
 			Cbuf_AddText("-mlook");
@@ -5306,7 +5306,7 @@ static void M_Options_DrawItem (int y, int item)
 		break;
 
 	case OPT_ALWAYSMLOOK:
-		M_DrawCheckbox (x, y, (in_mlook.state & 1) || freelook.value);
+		M_DrawCheckbox (x, y, (CL_SeatInput()->mlook.state & 1) || freelook.value);
 		break;
 
 	case OPT_LOOKSTRAFE:

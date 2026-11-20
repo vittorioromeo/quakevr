@@ -53,13 +53,8 @@ state bit 2 is edge triggered on the down to up transition
 */
 
 
-kbutton_t	in_mlook, in_klook;
-kbutton_t	in_left, in_right, in_forward, in_back;
-kbutton_t	in_lookup, in_lookdown, in_moveleft, in_moveright;
-kbutton_t	in_strafe, in_speed, in_use, in_jump, in_attack;
-kbutton_t	in_up, in_down;
-
-int			in_impulse;
+// QVR: the buttons (in_forward, in_attack...) and the impulse are the seat's own (seatinput_t, client.h;
+// docs/vr-port/SPLITSCREEN.md): every +command and the move below act on CL_SeatInput (), the current seat's.
 
 
 void KeyDown (kbutton_t *b)
@@ -134,55 +129,55 @@ void IN_AccumMWheelPitch (float amt)
 	}
 }
 
-void IN_KLookDown (void) {KeyDown(&in_klook);}
-void IN_KLookUp (void) {KeyUp(&in_klook);}
-void IN_MLookDown (void) {KeyDown(&in_mlook);}
+void IN_KLookDown (void) {KeyDown(&CL_SeatInput()->klook);}
+void IN_KLookUp (void) {KeyUp(&CL_SeatInput()->klook);}
+void IN_MLookDown (void) {KeyDown(&CL_SeatInput()->mlook);}
 void IN_MLookUp (void) {
-	KeyUp(&in_mlook);
-	if ( !((in_mlook.state & 1) || freelook.value) && lookspring.value)
+	KeyUp(&CL_SeatInput()->mlook);
+	if ( !((CL_SeatInput()->mlook.state & 1) || freelook.value) && lookspring.value)
 		V_StartPitchDrift();
 }
-void IN_UpDown(void) {KeyDown(&in_up);}
-void IN_UpUp(void) {KeyUp(&in_up);}
-void IN_DownDown(void) {KeyDown(&in_down);}
-void IN_DownUp(void) {KeyUp(&in_down);}
-void IN_LeftDown(void) {KeyDown(&in_left);}
-void IN_LeftUp(void) {KeyUp(&in_left);}
-void IN_RightDown(void) {KeyDown(&in_right);}
-void IN_RightUp(void) {KeyUp(&in_right);}
-void IN_ForwardDown(void) {KeyDown(&in_forward);}
-void IN_ForwardUp(void) {KeyUp(&in_forward);}
-void IN_BackDown(void) {KeyDown(&in_back);}
-void IN_BackUp(void) {KeyUp(&in_back);}
-void IN_LookupDown(void) {KeyDown(&in_lookup);}
-void IN_LookupUp(void) {KeyUp(&in_lookup); IN_AccumMWheelPitch(-cl_mwheelpitch.value);}
-void IN_LookdownDown(void) {KeyDown(&in_lookdown);}
-void IN_LookdownUp(void) {KeyUp(&in_lookdown); IN_AccumMWheelPitch(cl_mwheelpitch.value);}
-void IN_MoveleftDown(void) {KeyDown(&in_moveleft);}
-void IN_MoveleftUp(void) {KeyUp(&in_moveleft);}
-void IN_MoverightDown(void) {KeyDown(&in_moveright);}
-void IN_MoverightUp(void) {KeyUp(&in_moveright);}
+void IN_UpDown(void) {KeyDown(&CL_SeatInput()->up);}
+void IN_UpUp(void) {KeyUp(&CL_SeatInput()->up);}
+void IN_DownDown(void) {KeyDown(&CL_SeatInput()->down);}
+void IN_DownUp(void) {KeyUp(&CL_SeatInput()->down);}
+void IN_LeftDown(void) {KeyDown(&CL_SeatInput()->left);}
+void IN_LeftUp(void) {KeyUp(&CL_SeatInput()->left);}
+void IN_RightDown(void) {KeyDown(&CL_SeatInput()->right);}
+void IN_RightUp(void) {KeyUp(&CL_SeatInput()->right);}
+void IN_ForwardDown(void) {KeyDown(&CL_SeatInput()->forward);}
+void IN_ForwardUp(void) {KeyUp(&CL_SeatInput()->forward);}
+void IN_BackDown(void) {KeyDown(&CL_SeatInput()->back);}
+void IN_BackUp(void) {KeyUp(&CL_SeatInput()->back);}
+void IN_LookupDown(void) {KeyDown(&CL_SeatInput()->lookup);}
+void IN_LookupUp(void) {KeyUp(&CL_SeatInput()->lookup); IN_AccumMWheelPitch(-cl_mwheelpitch.value);}
+void IN_LookdownDown(void) {KeyDown(&CL_SeatInput()->lookdown);}
+void IN_LookdownUp(void) {KeyUp(&CL_SeatInput()->lookdown); IN_AccumMWheelPitch(cl_mwheelpitch.value);}
+void IN_MoveleftDown(void) {KeyDown(&CL_SeatInput()->moveleft);}
+void IN_MoveleftUp(void) {KeyUp(&CL_SeatInput()->moveleft);}
+void IN_MoverightDown(void) {KeyDown(&CL_SeatInput()->moveright);}
+void IN_MoverightUp(void) {KeyUp(&CL_SeatInput()->moveright);}
 
 void IN_SpeedDown(void)
 {
-	const int was = in_speed.state & 1;
-	KeyDown(&in_speed);
-	if (!was && (in_speed.state & 1))
+	const int was = CL_SeatInput()->speed.state & 1;
+	KeyDown(&CL_SeatInput()->speed);
+	if (!was && (CL_SeatInput()->speed.state & 1))
 		VR_SpeedPressed (); // QVR: vr_sprint_toggle
 }
-void IN_SpeedUp(void) {KeyUp(&in_speed);}
-void IN_StrafeDown(void) {KeyDown(&in_strafe);}
-void IN_StrafeUp(void) {KeyUp(&in_strafe);}
+void IN_SpeedUp(void) {KeyUp(&CL_SeatInput()->speed);}
+void IN_StrafeDown(void) {KeyDown(&CL_SeatInput()->strafe);}
+void IN_StrafeUp(void) {KeyUp(&CL_SeatInput()->strafe);}
 
-void IN_AttackDown(void) {KeyDown(&in_attack);}
-void IN_AttackUp(void) {KeyUp(&in_attack);}
+void IN_AttackDown(void) {KeyDown(&CL_SeatInput()->attack);}
+void IN_AttackUp(void) {KeyUp(&CL_SeatInput()->attack);}
 
-void IN_UseDown (void) {KeyDown(&in_use);}
-void IN_UseUp (void) {KeyUp(&in_use);}
-void IN_JumpDown (void) {KeyDown(&in_jump);}
-void IN_JumpUp (void) {KeyUp(&in_jump);}
+void IN_UseDown (void) {KeyDown(&CL_SeatInput()->use);}
+void IN_UseUp (void) {KeyUp(&CL_SeatInput()->use);}
+void IN_JumpDown (void) {KeyDown(&CL_SeatInput()->jump);}
+void IN_JumpUp (void) {KeyUp(&CL_SeatInput()->jump);}
 
-void IN_Impulse (void) {in_impulse=Q_atoi(Cmd_Argv(1));}
+void IN_Impulse (void) {CL_SeatInput()->impulse=Q_atoi(Cmd_Argv(1));}
 
 /*
 ===============
@@ -274,6 +269,7 @@ Moves the local angle positions
 */
 void CL_AdjustAngles (void)
 {
+	seatinput_t	*in = CL_SeatInput ();
 	float	speed;
 	float	up, down;
 
@@ -283,26 +279,26 @@ void CL_AdjustAngles (void)
 		return;
 	}
 
-	if (VR_SpeedButton (in_speed.state & 1) ^ (cl_alwaysrun.value != 0.0)) // QVR: VR_SpeedButton (vr_sprint_toggle)
+	if (VR_SpeedButton (in->speed.state & 1) ^ (cl_alwaysrun.value != 0.0)) // QVR: VR_SpeedButton (vr_sprint_toggle)
 		speed = host_frametime * cl_anglespeedkey.value;
 	else
 		speed = host_frametime;
 
-	if (!(in_strafe.state & 1))
+	if (!(in->strafe.state & 1))
 	{
-		cl.viewangles[YAW] -= speed*cl_yawspeed.value*CL_KeyState (&in_right);
-		cl.viewangles[YAW] += speed*cl_yawspeed.value*CL_KeyState (&in_left);
+		cl.viewangles[YAW] -= speed*cl_yawspeed.value*CL_KeyState (&in->right);
+		cl.viewangles[YAW] += speed*cl_yawspeed.value*CL_KeyState (&in->left);
 		cl.viewangles[YAW] -= floor (cl.viewangles[YAW]/360.0) * 360.0;
 	}
-	if (in_klook.state & 1)
+	if (in->klook.state & 1)
 	{
 		V_StopPitchDrift ();
-		cl.viewangles[PITCH] -= speed*cl_pitchspeed.value * CL_KeyState (&in_forward);
-		cl.viewangles[PITCH] += speed*cl_pitchspeed.value * CL_KeyState (&in_back);
+		cl.viewangles[PITCH] -= speed*cl_pitchspeed.value * CL_KeyState (&in->forward);
+		cl.viewangles[PITCH] += speed*cl_pitchspeed.value * CL_KeyState (&in->back);
 	}
 
-	up = CL_KeyState (&in_lookup);
-	down = CL_KeyState(&in_lookdown);
+	up = CL_KeyState (&in->lookup);
+	down = CL_KeyState(&in->lookdown);
 
 	cl.viewangles[PITCH] -= speed*cl_pitchspeed.value * up;
 	cl.viewangles[PITCH] += speed*cl_pitchspeed.value * down;
@@ -349,33 +345,35 @@ Send the intended movement message to the server
 */
 void CL_BaseMove (usercmd_t *cmd)
 {
+	seatinput_t	*in = CL_SeatInput ();
+
 	if (cls.signon != SIGNONS)
 		return;
 
 	Q_memset (cmd, 0, sizeof(*cmd));
 
-	if (in_strafe.state & 1)
+	if (in->strafe.state & 1)
 	{
-		cmd->sidemove += cl_sidespeed.value * CL_KeyState (&in_right);
-		cmd->sidemove -= cl_sidespeed.value * CL_KeyState (&in_left);
+		cmd->sidemove += cl_sidespeed.value * CL_KeyState (&in->right);
+		cmd->sidemove -= cl_sidespeed.value * CL_KeyState (&in->left);
 	}
 
-	cmd->sidemove += cl_sidespeed.value * CL_KeyState (&in_moveright);
-	cmd->sidemove -= cl_sidespeed.value * CL_KeyState (&in_moveleft);
+	cmd->sidemove += cl_sidespeed.value * CL_KeyState (&in->moveright);
+	cmd->sidemove -= cl_sidespeed.value * CL_KeyState (&in->moveleft);
 
-	cmd->upmove += cl_upspeed.value * CL_KeyState (&in_up);
-	cmd->upmove -= cl_upspeed.value * CL_KeyState (&in_down);
+	cmd->upmove += cl_upspeed.value * CL_KeyState (&in->up);
+	cmd->upmove -= cl_upspeed.value * CL_KeyState (&in->down);
 
-	if (! (in_klook.state & 1) )
+	if (! (in->klook.state & 1) )
 	{
-		cmd->forwardmove += cl_forwardspeed.value * CL_KeyState (&in_forward);
-		cmd->forwardmove -= cl_backspeed.value * CL_KeyState (&in_back);
+		cmd->forwardmove += cl_forwardspeed.value * CL_KeyState (&in->forward);
+		cmd->forwardmove -= cl_backspeed.value * CL_KeyState (&in->back);
 	}
 
 //
 // adjust for speed key
 //
-	if (VR_SpeedButton (in_speed.state & 1) ^ (cl_alwaysrun.value != 0.0)) // QVR: VR_SpeedButton (vr_sprint_toggle)
+	if (VR_SpeedButton (in->speed.state & 1) ^ (cl_alwaysrun.value != 0.0)) // QVR: VR_SpeedButton (vr_sprint_toggle)
 	{
 		cmd->forwardmove *= cl_movespeedkey.value;
 		cmd->sidemove *= cl_movespeedkey.value;
@@ -392,6 +390,7 @@ CL_SendMove
 */
 void CL_SendMove (const usercmd_t *cmd)
 {
+	seatinput_t	*in = CL_SeatInput ();
 	int		i;
 	int		bits;
 	sizebuf_t	buf;
@@ -429,27 +428,27 @@ void CL_SendMove (const usercmd_t *cmd)
 	//
 		bits = 0;
 
-		if ( VR_MoveMainFire ((in_attack.state & 3) != 0) ) // QVR: flatscreen play routes the mouse's buttons by what the hands hold
+		if ( VR_MoveMainFire ((in->attack.state & 3) != 0) ) // QVR: flatscreen play routes the mouse's buttons by what the hands hold
 			bits |= 1;
-		in_attack.state &= ~2;
+		in->attack.state &= ~2;
 
-		if (VR_MoveJump (in_jump.state)) // QVR: flatscreen play, lying down: the jump press stands him up instead
+		if (VR_MoveJump (in->jump.state)) // QVR: flatscreen play, lying down: the jump press stands him up instead
 			bits |= 2;
-		in_jump.state &= ~2;
+		in->jump.state &= ~2;
 
 		if (VR_FlatFlycamOwnsInput ()) // QVR: the flatscreen fly camera has the keys (Space flies it up): no fire, no jump, no impulse reaches him
 		{
 			bits = 0;
-			in_impulse = 0;
+			in->impulse = 0;
 		}
 
 		MSG_WriteByte (&buf, bits);
 
-		MSG_WriteByte (&buf, in_impulse);
+		MSG_WriteByte (&buf, in->impulse);
 
 		// QVR: the VR block; a remote client's whole move instead as quantized deltas with repeats (vr/vr_netmove.cpp)
-		VR_WriteMoveExtras (&buf, cmd->forwardmove, cmd->sidemove, cmd->upmove, bits, in_impulse);
-		in_impulse = 0;
+		VR_WriteMoveExtras (&buf, cmd->forwardmove, cmd->sidemove, cmd->upmove, bits, in->impulse);
+		in->impulse = 0;
 	}
 
 	VR_WriteVoice (&buf); // QVR: voice chat's frames (vr/vr_voicechat.cpp, B10v)
@@ -484,18 +483,27 @@ player stops and nothing resumes on the menu's close until pressed again (a key 
 no down, harmless).
 ============
 */
-static kbutton_t *const move_buttons[] = {
-	&in_forward, &in_back, &in_moveleft, &in_moveright, &in_left, &in_right,
-	&in_lookup, &in_lookdown, &in_up, &in_down, &in_jump, &in_speed, &in_strafe,
+static const size_t move_buttons[] = { // offsets into seatinput_t: the current seat's buttons
+	offsetof (seatinput_t, forward), offsetof (seatinput_t, back), offsetof (seatinput_t, moveleft),
+	offsetof (seatinput_t, moveright), offsetof (seatinput_t, left), offsetof (seatinput_t, right),
+	offsetof (seatinput_t, lookup), offsetof (seatinput_t, lookdown), offsetof (seatinput_t, up),
+	offsetof (seatinput_t, down), offsetof (seatinput_t, jump), offsetof (seatinput_t, speed),
+	offsetof (seatinput_t, strafe),
 };
+
+static kbutton_t *CL_MoveButton (size_t i)
+{
+	return (kbutton_t *)((byte *)CL_SeatInput () + move_buttons[i]);
+}
 
 void CL_ReleaseMoveButtons (void)
 {
 	size_t i;
 	for (i = 0; i < countof (move_buttons); i++)
 	{
-		move_buttons[i]->down[0] = move_buttons[i]->down[1] = 0;
-		move_buttons[i]->state = 0;
+		kbutton_t *b = CL_MoveButton (i);
+		b->down[0] = b->down[1] = 0;
+		b->state = 0;
 	}
 }
 
@@ -504,7 +512,7 @@ int CL_MoveButtonsHeld (void)
 	size_t i;
 	int held = 0;
 	for (i = 0; i < countof (move_buttons); i++)
-		held += (move_buttons[i]->state & 1) != 0;
+		held += (CL_MoveButton (i)->state & 1) != 0;
 	return held;
 }
 

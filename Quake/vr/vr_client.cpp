@@ -92,11 +92,11 @@
 #include "vr_api.h"
 
 #include <string.h>
+#include "vr_seat.hpp"
 
 using namespace qvr;
 using namespace qvr::protocol;
 
-extern "C" kbutton_t in_attack; // cl_input.c: +attack (the main hand's trigger)
 
 namespace
 {
@@ -911,7 +911,7 @@ bool attacking(int hand)
     {
         return false; // (the fly camera has the mouse: vr_flycam.cpp)
     }
-    const bool lmb = (in_attack.state & 1) != 0;
+    const bool lmb = (seat::current().input.attack.state & 1) != 0;
     if(flatplay::active()) // (the mouse's buttons as flatscreen play routes them)
     {
         return flatplay::routeFire(lmb, offhandAttack).fire[hand];

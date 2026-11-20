@@ -36,6 +36,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
+#include "vr_seat.hpp"
 
 extern "C" int VR_IsActive(void);
 
@@ -1644,10 +1645,11 @@ void cameraInput()
     const auto down = [](const ImGuiKey key, const kbutton_t& button) {
         return ImGui::IsKeyDown(key) || (button.state & 1) != 0;
     };
-    const glm::vec3 move{(down(ImGuiKey_W, in_forward) ? 1.f : 0.f) - (down(ImGuiKey_S, in_back) ? 1.f : 0.f),
-                         (down(ImGuiKey_D, in_moveright) ? 1.f : 0.f) - (down(ImGuiKey_A, in_moveleft) ? 1.f : 0.f),
-                         (down(ImGuiKey_E, in_up) ? 1.f : 0.f) - (down(ImGuiKey_Q, in_down) ? 1.f : 0.f)};
-    const bool fast = io.KeyShift || (in_speed.state & 1) != 0;
+    const seatinput_t& in = seat::current().input;
+    const glm::vec3 move{(down(ImGuiKey_W, in.forward) ? 1.f : 0.f) - (down(ImGuiKey_S, in.back) ? 1.f : 0.f),
+                         (down(ImGuiKey_D, in.moveright) ? 1.f : 0.f) - (down(ImGuiKey_A, in.moveleft) ? 1.f : 0.f),
+                         (down(ImGuiKey_E, in.up) ? 1.f : 0.f) - (down(ImGuiKey_Q, in.down) ? 1.f : 0.f)};
+    const bool fast = io.KeyShift || (in.speed.state & 1) != 0;
     camFly(move, fast, io.DeltaTime);
 
     if(io.WantCaptureMouse)

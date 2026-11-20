@@ -1117,7 +1117,7 @@ void IN_JoyMove (usercmd_t *cmd)
 	moveEased = IN_ApplyEasing(moveDeadzone, joy_exponent_move.value);
 	lookEased = IN_ApplyEasing(lookDeadzone, joy_exponent.value);
 
-	if (VR_SpeedButton (in_speed.state & 1) ^ (cl_alwaysrun.value != 0.0 || cl_forwardspeed.value >= sv_maxspeed.value)) // QVR: VR_SpeedButton (vr_sprint_toggle)
+	if (VR_SpeedButton (CL_SeatInput()->speed.state & 1) ^ (cl_alwaysrun.value != 0.0 || cl_forwardspeed.value >= sv_maxspeed.value)) // QVR: VR_SpeedButton (vr_sprint_toggle)
 		// running
 		speed = sv_maxspeed.value;
 	else if (cl_forwardspeed.value >= sv_maxspeed.value)
@@ -1328,7 +1328,7 @@ void IN_MouseMove(usercmd_t *cmd)
 {
 	float		dmx, dmy;
 	float		sens;
-	qboolean	mlook = (in_mlook.state & 1) || freelook.value;
+	qboolean	mlook = (CL_SeatInput()->mlook.state & 1) || freelook.value;
 
 	sens = sensitivity.value * IN_FovScale ();
 
@@ -1338,7 +1338,7 @@ void IN_MouseMove(usercmd_t *cmd)
 	total_dx = 0;
 	total_dy = 0;
 
-	if (mlook && !(in_strafe.state & 1) && !lookstrafe.value)
+	if (mlook && !(CL_SeatInput()->strafe.state & 1) && !lookstrafe.value)
 	{
 		// QVR: flatscreen play's view rolled (a lean, a strafe, a hit): the mouse turns it along the rolled screen, straight
 		// up the tilted screen for straight up (vr_flat_lean_mouse; vr/vr_flatmove.cpp). Not rolled: Quake's own, below.
@@ -1357,7 +1357,7 @@ void IN_MouseMove(usercmd_t *cmd)
 		}
 	}
 
-	if ((in_strafe.state & 1) || (lookstrafe.value && mlook))
+	if ((CL_SeatInput()->strafe.state & 1) || (lookstrafe.value && mlook))
 		cmd->sidemove += m_side.value * dmx;
 	else
 		cl.viewangles[YAW] -= m_yaw.value * dmx;
@@ -1368,7 +1368,7 @@ void IN_MouseMove(usercmd_t *cmd)
 			V_StopPitchDrift ();
 	}
 
-	if (mlook && !(in_strafe.state & 1))
+	if (mlook && !(CL_SeatInput()->strafe.state & 1))
 	{
 		cl.viewangles[PITCH] += m_pitch.value * dmy;
 		/* johnfitz -- variable pitch clamping */
@@ -1379,7 +1379,7 @@ void IN_MouseMove(usercmd_t *cmd)
 	}
 	else
 	{
-		if ((in_strafe.state & 1) && noclip_anglehack)
+		if ((CL_SeatInput()->strafe.state & 1) && noclip_anglehack)
 			cmd->upmove -= m_forward.value * dmy;
 		else
 			cmd->forwardmove -= m_forward.value * dmy;

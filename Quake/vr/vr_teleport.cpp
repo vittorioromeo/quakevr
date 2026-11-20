@@ -25,8 +25,8 @@
 #include "vr_progs.hpp"
 #include "vr_testkit.hpp"
 #include "vr_trace.hpp"
+#include "vr_seat.hpp"
 
-extern "C" kbutton_t in_up; // cl_input.c (+moveup: the turning stick's push forward outside Smooth + Teleport)
 
 namespace qvr::teleport
 {
@@ -273,7 +273,7 @@ void bothTick()
             bothNext(p, nullptr);
             return;
         case 4: // eight frames' aim, the moving stick still pushed: slowing (not walking), not turning, no +moveup
-            if((in_up.state & 1) != 0)
+            if((seat::current().input.up.state & 1) != 0)
             {
                 bothCheck(false, "the aim is no +moveup");
                 bothFinish();
@@ -375,7 +375,7 @@ void bothTick()
             {
                 break;
             }
-            bothCheck(!aiming && (in_up.state & 1) != 0, va("Teleport 1: the stick's forward is +moveup, aiming %d", aiming ? 1 : 0));
+            bothCheck(!aiming && (seat::current().input.up.state & 1) != 0, va("Teleport 1: the stick's forward is +moveup, aiming %d", aiming ? 1 : 0));
             bothNext(p, "vr_mock_stick main 0 0; +teleport\n");
             return;
         case 16: // ... and +teleport aims with the off hand

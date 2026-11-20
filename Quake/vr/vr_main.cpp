@@ -128,6 +128,7 @@
 #include "vr_fontstyle.hpp"
 #include "vr_bodycal.hpp"
 #include "vr_setup.hpp"
+#include "vr_seat.hpp"
 #include "vr_seated.hpp"
 #include "vr_alloccount.hpp"
 #include "vr_ao.hpp"
@@ -2346,6 +2347,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_torso_report", torso::report_f);
     bodytrack::registerCommands(); // vr_bodytrack_status, vr_bodytrack_stats
     seated::registerCommands();    // vr_seated_status, vr_crouch_toggle, vr_seated_height_now
+    seat::registerCommands();      // vr_seat_test (splitscreen seats: two seats' state kept apart)
     Cmd_AddCommand("vr_body_crouch_report", body::crouchReport_f);
     Cmd_AddCommand("vr_holster_zones_report", zones::report_f);
     Cmd_AddCommand("vr_decal_count", decals::count_f);

@@ -38,8 +38,8 @@
 #endif
 
 #include <string.h>
+#include "vr_seat.hpp"
 
-extern "C" kbutton_t in_forward; // cl_input.c
 extern "C" double host_netinterval; // host.c
 extern "C" sizebuf_t cmd_text;     // cmd.c
 extern "C" qboolean cmd_wait;      // cmd.c
@@ -257,7 +257,7 @@ void measure()
     }
     else
     {
-        mark(StageInput, (in_forward.state & 1) != 0);
+        mark(StageInput, (seat::current().input.forward.state & 1) != 0);
         mark(StageCmd, cl.cmd.forwardmove != 0.f);
         mark(StageServer, sv.active && svs.clients[0].cmd.forwardmove != 0.f);
         mark(StageMoving, p && (p->v.velocity[0] != 0.f || p->v.velocity[1] != 0.f));
@@ -295,7 +295,7 @@ void measure()
         }
         else
         {
-            if((in_forward.state & 1) == 0 && test.stageFrame[StageUp] < 0)
+            if((seat::current().input.forward.state & 1) == 0 && test.stageFrame[StageUp] < 0)
             {
                 test.stageFrame[StageUp] = host_framecount - test.upFrame;
                 test.stageTime[StageUp] = (Sys_DoubleTime() - test.upTime) * 1000.0;

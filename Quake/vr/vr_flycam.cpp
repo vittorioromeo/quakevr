@@ -21,10 +21,10 @@
 #include "vr_zancle.hpp"
 
 #include <glm/geometric.hpp>
+#include "vr_seat.hpp"
 
 extern "C" qboolean keydown[MAX_KEYS];                  // keys.c
 extern "C" int Key_StringToKeynum(const char* str);     // keys.c
-extern "C" kbutton_t in_attack;                         // cl_input.c: +attack (the test holds it: it must not fire)
 
 namespace qvr::flycam
 {
@@ -129,9 +129,10 @@ void fly()
     if(key_dest == key_game)
     {
         const auto held = [](const kbutton_t& b) { return (b.state & 1) != 0 ? 1.f : 0.f; };
-        const float fwd = held(in_forward) - held(in_back);
-        const float side = held(in_moveright) - held(in_moveleft);
-        const float up = za::max(held(in_jump), held(in_up)) - za::max(held(in_down), keydown[K_CTRL] ? 1.f : 0.f);
+        const seatinput_t& in = seat::current().input;
+        const float fwd = held(in.forward) - held(in.back);
+        const float side = held(in.moveright) - held(in.moveleft);
+        const float up = za::max(held(in.jump), held(in.up)) - za::max(held(in.down), keydown[K_CTRL] ? 1.f : 0.f);
         glm::vec3 f, r, u;
         hands::angleVectors(cam.turn, f, r, u);
         wish = f * fwd + r * side + glm::vec3{0.f, 0.f, up};
@@ -140,7 +141,7 @@ void fly()
         {
             wish /= len;
         }
-        fast = keydown[K_SHIFT] || (in_speed.state & 1) != 0;
+        fast = keydown[K_SHIFT] || (in.speed.state & 1) != 0;
     }
     const float speed = za::max(vr_flat_flycam_speed.value, 1.f) * (fast ? za::max(vr_flat_flycam_fast.value, 0.1f) : 1.f);
     const glm::vec3 target = wish * speed;
@@ -280,12 +281,12 @@ void checkStill(const char* when)
 
 void verdict()
 {
-    in_right.state &= ~1;
-    in_lookdown.state &= ~1;
-    in_back.state &= ~1;
-    in_forward.state &= ~1;
-    in_jump.state &= ~1;
-    in_attack.state &= ~1;
+    seat::current().input.right.state &= ~1;
+    seat::current().input.lookdown.state &= ~1;
+    seat::current().input.back.state &= ~1;
+    seat::current().input.forward.state &= ~1;
+    seat::current().input.jump.state &= ~1;
+    seat::current().input.attack.state &= ~1;
     Cvar_SetValueQuick(&vr_flat_flycam_pause, test.pauseWas);
     setCvar(false);
     testkit::verdict("vr_flat_flycam_test", test.passed, test.failed);
@@ -350,10 +351,10 @@ void testFrame()
             test.yawWas = cam.turn.y;
             if(za::abs(test.turned) < 180.f)
             {
-                in_right.state |= 1; // (+right: CL_AdjustAngles, the keyboard's turn: the look the camera takes)
+                seat::current().input.right.state |= 1; // (+right: CL_AdjustAngles, the keyboard's turn: the look the camera takes)
                 return;
             }
-            in_right.state &= ~1;
+            seat::current().input.right.state &= ~1;
             test.camStart = cam.pos;
             next(Phase::Fly);
             break;
@@ -362,12 +363,12 @@ void testFrame()
             // Backwards (he is in front of it now) and a little up, the fire button and the jump held: none reach him.
             const glm::vec3 off = cam.pos - test.camStart;
             const bool far = glm::length(glm::vec3{off.x, off.y, 0.f}) >= 200.f;
-            in_back.state = far ? (in_back.state & ~1) : (in_back.state | 1);
-            in_jump.state = off.z >= riseBy ? (in_jump.state & ~1) : (in_jump.state | 1);
-            in_attack.state |= 1;
+            seat::current().input.back.state = far ? (seat::current().input.back.state & ~1) : (seat::current().input.back.state | 1);
+            seat::current().input.jump.state = off.z >= riseBy ? (seat::current().input.jump.state & ~1) : (seat::current().input.jump.state | 1);
+            seat::current().input.attack.state |= 1;
             if(far && off.z >= riseBy)
             {
-                in_attack.state &= ~1;
+                seat::current().input.attack.state &= ~1;
                 next(Phase::Brake);
             }
             break;
@@ -387,8 +388,8 @@ void testFrame()
             const bool close = glm::length(glm::vec3{off.x, off.y, 0.f}) <= nearDist;
             // (+lookdown once there, the keys' look, taken by the camera: flying forward goes where it looks)
             const bool down = close && cam.turn.x >= nearPitch;
-            in_forward.state = close ? (in_forward.state & ~1) : (in_forward.state | 1);
-            in_lookdown.state = !close || down ? (in_lookdown.state & ~1) : (in_lookdown.state | 1);
+            seat::current().input.forward.state = close ? (seat::current().input.forward.state & ~1) : (seat::current().input.forward.state | 1);
+            seat::current().input.lookdown.state = !close || down ? (seat::current().input.lookdown.state & ~1) : (seat::current().input.lookdown.state | 1);
             if(close && down)
             {
                 test.near = true;
@@ -426,9 +427,9 @@ void testFrame()
         }
         case Phase::Live:
             // The game running on: his fire, his jump and his walk held all the while (the camera flies forward).
-            in_forward.state |= 1;
-            in_jump.state |= 1;
-            in_attack.state |= 1;
+            seat::current().input.forward.state |= 1;
+            seat::current().input.jump.state |= 1;
+            seat::current().input.attack.state |= 1;
             if(test.frames == 1)
             {
                 check(!holds(), "not held with vr_flat_flycam_pause 0");
@@ -437,9 +438,9 @@ void testFrame()
             {
                 return;
             }
-            in_forward.state &= ~1;
-            in_jump.state &= ~1;
-            in_attack.state &= ~1;
+            seat::current().input.forward.state &= ~1;
+            seat::current().input.jump.state &= ~1;
+            seat::current().input.attack.state &= ~1;
             {
                 const double t = sv.active ? sv.qcvm.time : cl.time;
                 check(t - test.liveFrom > 0.9, va("pause 0: the game's time ran on (%.3f s)", t - test.liveFrom));
