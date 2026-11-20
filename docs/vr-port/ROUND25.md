@@ -4477,6 +4477,9 @@ the decimal. Strike share: `VR_AG_StrikeGap`, `_StrikeMeets`, `VR_AGS_HullGap` a
   6 inside: 0 disagreements (inside 6: about 95% skipped; swinging: every sweep skipped, none met). `vr_agrunt_test`
   94 (strikes), 60, 77, 33, 96, 35 pass. Test 35 (parry) failed one case in two of four runs in check mode only (a
   different weapon each time; its strike speeds are real time and check mode does both tests under load); on and off
-  it passed every run.
+  it passed every run. Suites: flatmelee 12/12, scenario_check pass, ragdoll_climb 6/6 (off), active-ragdoll test no
+  failures, ragdoll_stagger 3 FAIL (monster 0: the known ones, BACKLOG.md "ragdoll_stagger: what is left"), melee eval
+  162/171 with no pass turned fail (the archived takes' decap zone figures differ from the baseline); ThinLTO 0
+  warnings.
 - **Left**: the remaining QC is the melee sweep (`VR_Melee_Sweep`, `VR_Melee_Track`), the force-grabbable thinks and
   the armed grunts' prop thinks, not close-range specific; the GPU side close up (not measurable headless).
