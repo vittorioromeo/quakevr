@@ -953,7 +953,7 @@ inline bool frameTiming = false;        // vr_physics_frametime asked for once: 
 inline bool stepTiming = false;         // vr_physics_steptime asked for once: its samples kept from then on (512 KB a world)
 inline double frameLastWall = 0.0;      // vr_physics_frametime: the wall clock when it last printed
 inline int frameLastHostFrame = 0;      // and at which host frame
-void* enqueueStepTask(b3TaskCallback* fn, void* context, void* user, const char* /*name*/);
+void* enqueueStepTask(b3TaskCallback* fn, void* context, void* user, b3TaskType /*type*/);
 void finishStepTask(void* task, void* /*user*/);
 
 // Box3D's wide kernels (the contact solver, hull-hull manifolds; external/box3d/README.md): AVX2's 8 lanes where the

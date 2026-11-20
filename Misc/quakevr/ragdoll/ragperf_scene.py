@@ -87,6 +87,8 @@ cmd = ["C:/Program Files/Git/bin/bash.exe", "C:/OHWorkspace/qvr-kit/run.sh", AGE
        "rp_done", "-Timeout", "400", "-Filter", "^ *[0-9]+ [A-Za-z_]|broad tests|a model test|refit to|ragdoll_act|ragperf|vr_physics_|vr_ragdoll_active_list|knockdown|profile|rror|CRASH|low-impact|strike_broad"]
 if flat:
     cmd[3:3] = ["-ExtraArgs", "-flatscreenmode"]
+# RP_RUNARGS (box3dup): run.sh's own options before the agent, e.g. "--lto" (the ThinLTO exe, for timings)
+cmd[2:2] = os.environ.get("RP_RUNARGS", "").split()
 out = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, errors="replace").stdout
 csv = ""
 for line in out.splitlines():

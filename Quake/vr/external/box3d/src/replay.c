@@ -650,6 +650,30 @@ b3WheelJointDef b3RecR_WHEELJOINTDEF( b3RecReader* rdr )
 	return def;
 }
 
+b3MoverJointDef b3RecR_MOVERJOINTDEF( b3RecReader* rdr )
+{
+	b3MoverJointDef def = b3DefaultMoverJointDef();
+	b3RecR_JointBase( rdr, &def.base );
+	def.linearVelocity = b3RecR_VEC3( rdr );
+	def.maxForce = b3RecR_F32( rdr );
+	return def;
+}
+
+b3PogoJointDef b3RecR_POGOJOINTDEF( b3RecReader* rdr )
+{
+	b3PogoJointDef def = b3DefaultPogoJointDef();
+	b3RecR_JointBase( rdr, &def.base );
+	def.normal = b3RecR_VEC3( rdr );
+	def.hertz = b3RecR_F32( rdr );
+	def.dampingRatio = b3RecR_F32( rdr );
+	def.restLength = b3RecR_F32( rdr );
+	def.maxTensionForce = b3RecR_F32( rdr );
+	def.maxCompressionForce = b3RecR_F32( rdr );
+	def.impulse = b3RecR_F32( rdr );
+	def.velocity = b3RecR_F32( rdr );
+	return def;
+}
+
 // Outliner body tracking. Defined after the player struct; forward declared here because the
 // create/destroy dispatch sits above that struct.
 static void b3RecTrackBodyCreate( b3RecPlayer* player, b3BodyId id );
@@ -1263,6 +1287,24 @@ static void b3RecDispatch_CreateWheelJoint( const b3RecArgs_CreateWheelJoint* a,
 	b3RecCheckJointId( rdr, b3CreateWheelJoint( rdr->replayWorldId, &def ), recId );
 }
 
+static void b3RecDispatch_CreateMoverJoint( const b3RecArgs_CreateMoverJoint* a, b3RecReader* rdr )
+{
+	b3JointId recId = b3RecR_JOINTID( rdr );
+	b3MoverJointDef def = a->def;
+	def.base.bodyIdA = b3RecMakeBodyId( rdr, def.base.bodyIdA );
+	def.base.bodyIdB = b3RecMakeBodyId( rdr, def.base.bodyIdB );
+	b3RecCheckJointId( rdr, b3CreateMoverJoint( rdr->replayWorldId, &def ), recId );
+}
+
+static void b3RecDispatch_CreatePogoJoint( const b3RecArgs_CreatePogoJoint* a, b3RecReader* rdr )
+{
+	b3JointId recId = b3RecR_JOINTID( rdr );
+	b3PogoJointDef def = a->def;
+	def.base.bodyIdA = b3RecMakeBodyId( rdr, def.base.bodyIdA );
+	def.base.bodyIdB = b3RecMakeBodyId( rdr, def.base.bodyIdB );
+	b3RecCheckJointId( rdr, b3CreatePogoJoint( rdr->replayWorldId, &def ), recId );
+}
+
 static void b3RecDispatch_DestroyJoint( const b3RecArgs_DestroyJoint* a, b3RecReader* rdr )
 {
 	b3DestroyJoint( b3RecMakeJointId( rdr, a->joint ), a->wakeAttached );
@@ -1669,6 +1711,53 @@ static void b3RecDispatch_WheelJointSetTargetSteeringAngle( const b3RecArgs_Whee
 	b3WheelJoint_SetTargetSteeringAngle( b3RecMakeJointId( rdr, a->joint ), a->radians );
 }
 
+static void b3RecDispatch_MoverJointSetLinearVelocity(
+	const b3RecArgs_MoverJointSetLinearVelocity* a, b3RecReader* rdr )
+{
+	b3MoverJoint_SetLinearVelocity( b3RecMakeJointId( rdr, a->joint ), a->velocity );
+}
+
+static void b3RecDispatch_MoverJointSetMaxVelocityForce(
+	const b3RecArgs_MoverJointSetMaxVelocityForce* a, b3RecReader* rdr )
+{
+	b3MoverJoint_SetMaxVelocityForce( b3RecMakeJointId( rdr, a->joint ), a->maxForce );
+}
+
+static void b3RecDispatch_PogoJointSetRestLength( const b3RecArgs_PogoJointSetRestLength* a,
+												  b3RecReader* rdr )
+{
+	b3PogoJoint_SetRestLength( b3RecMakeJointId( rdr, a->joint ), a->length );
+}
+
+static void b3RecDispatch_PogoJointSetSpringHertz( const b3RecArgs_PogoJointSetSpringHertz* a,
+												   b3RecReader* rdr )
+{
+	b3PogoJoint_SetSpringHertz( b3RecMakeJointId( rdr, a->joint ), a->hertz );
+}
+
+static void b3RecDispatch_PogoJointSetSpringDampingRatio(
+	const b3RecArgs_PogoJointSetSpringDampingRatio* a, b3RecReader* rdr )
+{
+	b3PogoJoint_SetSpringDampingRatio( b3RecMakeJointId( rdr, a->joint ), a->dampingRatio );
+}
+
+static void b3RecDispatch_PogoJointSetMaxTensionForce(
+	const b3RecArgs_PogoJointSetMaxTensionForce* a, b3RecReader* rdr )
+{
+	b3PogoJoint_SetMaxTensionForce( b3RecMakeJointId( rdr, a->joint ), a->force );
+}
+
+static void b3RecDispatch_PogoJointSetMaxCompressionForce(
+	const b3RecArgs_PogoJointSetMaxCompressionForce* a, b3RecReader* rdr )
+{
+	b3PogoJoint_SetMaxCompressionForce( b3RecMakeJointId( rdr, a->joint ), a->force );
+}
+
+static void b3RecDispatch_PogoJointSetNormal( const b3RecArgs_PogoJointSetNormal* a, b3RecReader* rdr )
+{
+	b3PogoJoint_SetNormal( b3RecMakeJointId( rdr, a->joint ), a->normal );
+}
+
 static void b3RecDispatch_StateHash( const b3RecArgs_StateHash* a, b3RecReader* rdr )
 {
 	b3World* world = b3GetWorldFromId( rdr->replayWorldId );
@@ -1869,7 +1958,7 @@ static void b3RecComputeQueryBounds( b3RecDrawQuery* q )
 	// Sweep each point across the translation. A non-cast query has zero translation, so both ends
 	// coincide and the duplicates fold away.
 	b3Pos end = b3OffsetPos( q->origin, q->translation );
-	b3Vec3 world[2 * B3_MAX_SHAPE_CAST_POINTS];
+	b3Vec3 world[2 * B3_MAX_SHAPE_CAST_POINTS] = { 0 };
 	int n = 0;
 	for ( int i = 0; i < count; ++i )
 	{

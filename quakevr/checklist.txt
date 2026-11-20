@@ -48,6 +48,8 @@ Dwell's Rotary Shotgun in hand: the ammo screen in a brown bezel with a bolt eac
 Dwell's Crystal Lance in hand: the ammo screen in a dark metal bezel with violet studs on its handle's back; the trigger guard and trigger meet the blades' underside {test:dwell_lance}
 Dwell's Rifle in hand: the ammo screen in a brass bezel with brass nuts on its butt, readable as you aim {test:dwell_rifle}
 Multiplayer (agent/mp merged): host and join a coop game over the room service and play a level together; voice, held weapons and melee look right on both sides
+Ragdolls and props lying or sliding on floors and stairs feel as before (Box3D updated to upstream; Debug > Profiling > Physics Mesh Ghost Handling off to compare)
+Ragdoll climbs: an ogre knocked off a ledge's lip and caught straddling it (a leg still on the top) pulls itself up instead of letting go and falling
 
 [1. Flat-screen: weapons and hands]
 
