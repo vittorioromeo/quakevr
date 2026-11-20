@@ -4392,3 +4392,38 @@ dwell_monsters_test.sh, scenario_check, the ThinLTO build (budget). ad_tears is 
   137/0; flatplay 31/0; adbugs (adrepl 5/0, adgun 9/0 and 7/0) and night1101 (vr_ad_test 198) pass. run_baseline
   agrunt: 16, 35, 39, 42, 61, 91, 203 fail the same on origin/next, as do tunables_test's 2. 228 and 229 fail under
   run_baseline (vrtesthall: no room, no cvar): they are aglod_test.sh's (vrarena).
+
+## ragperf: frame drops near active ragdolls in melee (2026-11-20, agent/ragperf; measured, no fix yet)
+
+Tester report (BACKLOG.md 11): melee range against active ragdolls drops the frame rate on a lower-end PC. Scene:
+`Misc/quakevr/ragdoll/ragperf_scene.py <n> <close|far> <fists|axe> <label>` (vrfiringrange, seed 7, god + notarget;
+`n` grunts in a fan 40 units ahead or 300 out; `vr_ragdoll_act stagger <edict>` on each every 120 frames (`RP_ACT`,
+`RP_PERIOD`); the mock hands jabbing high and low across the fan, or the axe chopping; `RP_FLAT=1` flat punches; a
+720-frame window: `vr_profile`, `profile` (QC), `vr_hitmodel_stats`, and `vr_physics_frametime` with its new counts
+line: awake bodies, contacts stepped, islands, hand contacts). Timings came from shared runs (other workers testing):
+one run each, noisy by tens of percent, never used for a claim; the counts are deterministic.
+
+| case | driven a frame | contacts stepped | hand contacts | QC instr a frame | model tests a frame | Box3D step ms (noisy) |
+|---|---|---|---|---|---|---|
+| 2 close, fists | 1.8 | 220 | 0 | 36.7 k | 5.1 | 0.28 |
+| 4 close, fists | 2.7 | 465 | 0 | 52.5 k | 17.4 | 0.41 |
+| 6 close, fists | 3.9 | 668 | 0 | 66.8 k | 29.2 | 0.59 |
+| 6 far, fists | 1.0 | 89 | 0 | 49.3 k | 2.0 | 0.14 |
+| 6 close, axe | 4.1 | 768 | 0 | 64.4 k | 51.0 | 0.66 |
+| 6 close, flat punches | 4.2 | 639 | 0 | 50.7 k | 53.7 | 0.53 |
+
+- **Not the cost**: the active-ragdoll drive itself (`vr_ragdoll_active_list`: 0.03-0.05 ms a frame for 2-6 driven);
+  hit-model tests (0.6-0.9 us each, at most ~54 a frame: under 0.05 ms); the hands' and the blade's Box3D bodies: 0
+  touching contacts with the ragdolls in every case (the shoves and knockdowns throw them out of reach: `vr_ragdoll_act
+  getup` sent a grunt from 40 to 190 units away).
+- **Grows with the bodies close**: Box3D's contacts stepped, about 110 more for each driven ragdoll (its parts against
+  the range's brushes and each other: not yet split); and QC, about 7-8 k instructions a frame for each grunt near the
+  swinging hands: the armed grunts' strike sweeps (`VR_AG_StrikeMeets`: up to 17 steps of two `VR_AGS_HullGap` a grunt
+  a hand a frame while a hand swings fast; `VR_AG_StrikeGap` 0.63 M to 2.65 M instructions over 720 frames from 2 to 4
+  grunts), plus `VR_Melee_Sweep`. Far, the acts mostly did not take (1 driven), so close/far is not like for like.
+- **Left**: (1) a scene where the hands stay in the bodies (the player following them, or acts that do not throw
+  them) to see the hand-contact cost the tester meant; (2) split the ~110 contacts a driven ragdoll (self pairs, brush
+  shapes, `vr_ragdoll_collide_each`); (3) cut `VR_AG_StrikeMeets` cheaply (a broad gap test on the grunt's box before
+  the sweep, the same verdicts) and compare the `vr_agrunt` tests before and after; (4) the GPU side close up (not
+  measurable headless). No behaviour changed; the only code change is the counts line (`vr_physics_frametime`,
+  `reachTouchCount`).
