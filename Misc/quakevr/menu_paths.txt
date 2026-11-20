@@ -5550,6 +5550,7 @@ vr_debug_doom|2|Debug - Tests|Doom: Debug|Advanced VR Options > Debug > Tests > 
 |2|Debug - Tests|Arcane Dimensions: Plasma Gun Cell Test|Advanced VR Options > Debug > Tests > Arcane Dimensions: Plasma Gun Cell Test
 |2|Debug - Tests|Arcane Dimensions: Plasma Gun's First Ball|Advanced VR Options > Debug > Tests > Arcane Dimensions: Plasma Gun's First Ball
 |2|Debug - Tests|Arcane Dimensions: Upgraded Weapon Models|Advanced VR Options > Debug > Tests > Arcane Dimensions: Upgraded Weapon Models
+|2|Debug - Tests|Arcane Dimensions and Dwell: Write Made Weapon Models|Advanced VR Options > Debug > Tests > Arcane Dimensions and Dwell: Write Made Weapon Models
 |2|Debug - Tests|Arcane Dimensions: Widowmaker Tube Test|Advanced VR Options > Debug > Tests > Arcane Dimensions: Widowmaker Tube Test
 |2|Debug - Tests|Arcane Dimensions: Widowmaker Barrels Info|Advanced VR Options > Debug > Tests > Arcane Dimensions: Widowmaker Barrels Info
 vr_ad_widowmaker_spin_at|2|Debug - Tests|Arcane Dimensions: Widowmaker Barrels Held At|Advanced VR Options > Debug > Tests > Arcane Dimensions: Widowmaker Barrels Held At
