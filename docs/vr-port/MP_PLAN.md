@@ -3857,3 +3857,34 @@ the cvar table's QVR_RULE/QVR_PREF/QVR_OWN flags on 880 rows).
   load window (host.c) changes no listen or single-player path.
 - Size and start-up: Opus and RNNoise are linked into the exe (RNNoise's model is a 141k-line table); voice chat opens
   nothing unless used.
+
+## Review fixes (mpfix, 2026-11-20): areas A (transport) and C (avatars, voice)
+
+The deep review before agent/mp merges into next (`qvr-kit/scratch/mprev_A.md`, `mprev_C.md`). Finding -> state.
+
+- A1 (high) fixed: a connect request gets a slot only with the server's cookie for its address and port
+  (CCREP_CHALLENGE 0x86, 9 bytes, smaller than any request; SipHash-2-4 of the address and the 10 s time step, the key
+  drawn once a run; network version 40). A server's new client keeps one reliable chunk in flight until it acks one
+  (qvrHeard) and is dropped after QVR_UNHEARD_TIMEOUT (15 s) without an ack (300 s before). The version reject still
+  answers before the cookie (one packet each, so an old client is told why). mp_spoof step 5.
+- A2 (medium) fixed: a ghost connection closed by the driver is marked (qvrClosing: NET_GetMessage -1, its slot drops
+  and frees it), never freed under its slot; mp_spoof step 5 sends the rejoin pair in one frame (clients 3, 2, 3).
+- A3 (medium) fixed: one automatic Map Library install per `connect` the player started (vr_mpdownload.cpp
+  autoInstalls); a package already installed, or the stock game, still mounts and rejoins (rejoinedFor guards loops).
+  No size prompt (the first install is still automatic, as designed). Not harness-tested (needs a server switching
+  packages).
+- A4 (medium) fixed: a host punches a joiner 5 times over 1 s (80 over 8 s before); the joiner's requests go on 8 s.
+- A5 (low) fixed: ReadShared reads 1024 datagrams a call at most.
+- A9 (low) fixed: an empty server name becomes "*" before the duplicate-name suffix.
+- A12 (low) fixed: vr_mp_clientkey from DgrmRandom.
+- A6, A7, A8, A10, A11, A13, S1-S3, O1, O2: not done (budget); lows, listed in BACKLOG.md.
+- C1 (high) fixed: heldpose decode clamps slot/leaveSlot to the weapon table, helpKind, spotType, carriedGrip,
+  leaveFlip to their domains; weapons::value returns 0 for a slot past the table. mp_fuzz sends such a record.
+- C2 (medium) fixed: the voice jitter estimate updates only on a frame newer than the newest, by seqDiff (the copies and
+  the 16-bit wrap no longer read as jitter); vr_voicechat_selftest 4b (0.0 ms on a perfect link with copies).
+- C3, C4 (low) fixed: an uncalibrated avatar's heights clamped to the calibration's height range; calibrations from the
+  server clamped by calClamp on the client.
+- C5 (low, privacy) fixed: push-to-talk ends when the off hand's button is up (whatever ate the release), a menu or the
+  console is up, or voice chat is inactive. Not harness-tested (needs a held button eaten by a page).
+- C6 skipped: the 8 bytes are what mp_avatar / mp_held check the weapon over the wire with (mp_test.py "wpn").
+- C7, C8: not done (budget); BACKLOG.md.

@@ -56,6 +56,13 @@ mock toss keeps the hand's speed; a slow toss may hit the open palm after the 0.
   95 monster_* edicts (the extra ones: a monster_morph spawner and a knight-class entity that counts itself without
   FL_MONSTER). The 95/94 on another skill is the same one-off. vr_run_enemies_check failing r2m1 on it needs an
   exemption, not a spawn-code fix.
+- **MP review lows not fixed by mpfix (2026-11-20; `qvr-kit/scratch/mprev_A.md`, `mprev_C.md`, MP_PLAN.md "Review
+  fixes")**: A6 (room service expire() on each over-cap REGISTER), A7 (server rule values unchecked on the client:
+  refuse non-finite, clamp to the menu range), A8 (connect "host:port" sets net_hostport for the session), A10
+  (control replies 5-10x their requests: pad or rate-limit), A11 (keyless rejoin records: bots' apart, a key required
+  from v40), A13 (guest ping from his clock: clamp 0..10 s), S1-S3, O1 (drain the shared socket once a frame), O2 (a
+  datagram pool), C7 (box3d hand shapes scan the model precache per hand per frame), C8 (Voice Chat page tests
+  "talking" in the row text: export voicechat::talking).
 
 ## 2. The 1.1 release (only on his word; his list is RELEASE_TODO.md)
 

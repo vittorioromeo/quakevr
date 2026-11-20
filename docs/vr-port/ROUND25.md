@@ -5577,3 +5577,18 @@ tests hold a given weapon (`VR_Scene_HoldGiven(p, cVR_OffHand)`, as `dw_test.qc`
 adplasma 6/0, adwidow 11/0; adshadowaxe 6/0, plasma_ball_test.sh 6/0, dwell_weapons_test.sh 6/0,
 dwell_vrmodels_test.sh 13/0, scenario_check.sh PASS (137 scenes), dwell_maps.sh 28/0, 148 PASS. The Dwell scripts need Dwell v2.2 in the agent's base
 (`<base>/dwellv2p2`); without it dwell_vrmodels is 3/10 and dwell_maps 3/25.
+
+## mpfix half 1 (2026-11-20): the agent/mp review's transport and avatar/voice findings
+
+The review before agent/mp merges into next (areas A and C; details in MP_PLAN.md "Review fixes"). Network version
+40: a connect request gets a slot only with the server's cookie for its address (CCREP_CHALLENGE; a forged request
+costs one 9-byte reply, no slot, no serverinfo), a new client keeps one reliable chunk in flight until it acks and is
+dropped after 15 s without one; ghost connections are marked closing, never freed under their slot (no two slots on
+one qsocket); a room host punches 5 times over 1 s; one automatic Map Library install per connect the player started;
+the guest's held-weapon record and weapons::value bounded (a slot past the table read past the cvar table);
+the voice jitter estimate counts new frames only (about 60 ms less delay per spurt); push-to-talk released when its
+button is up, a menu opens or voice chat is inactive; avatar heights and calibrations clamped.
+Tests: mp_spoof 27/0 (step 5: 16 forged connects each challenged with 9 B, no slot; a wrong cookie challenged again;
+an accepted socket that never acks gets one chunk sequence and is dropped at 15 s; the A2 ghost pair: clients 3, 2,
+3), vr_voicechat_selftest 24/0 (4b: 0.0 ms jitter with copies and the wrap), mp_fuzz's hostile list has a heldpose
+record with slot 200.
