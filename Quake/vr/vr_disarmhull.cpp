@@ -681,6 +681,46 @@ float gap(const HandPlaced& h, const glm::vec3& a, const glm::vec3& b, float gro
     return best;
 }
 
+float boxGap(const Placed& p, const glm::vec3& lo, const glm::vec3& hi, float grow)
+{
+    if(!p.hull || !p.hull->ok)
+    {
+        return ZA_FLOAT_MAX;
+    }
+    const Hull& h = *p.hull;
+    za::Array<b3Vec3, 8> corners;
+    for(int k = 0; k < 8; k++)
+    {
+        const glm::vec3 c{(k & 1) ? hi.x : lo.x, (k & 2) ? hi.y : lo.y, (k & 4) ? hi.z : lo.z};
+        corners[static_cast<za::SizeT>(k)] = b3v(toLocal(p, c));
+    }
+    b3DistanceInput in{};
+    in.proxyA.points = h.corners.data();
+    in.proxyA.count = static_cast<int>(h.corners.size());
+    in.proxyA.radius = h.slack;
+    in.proxyB.points = corners.data();
+    in.proxyB.count = 8;
+    in.proxyB.radius = 0.f;
+    in.transform = b3Transform_identity;
+    in.useRadii = true;
+    b3SimplexCache cache{};
+    // (gap() of a path in the box: its distance (no less than the box's) less a growth; shrunk, more than its distance)
+    return b3ShapeDistance(&in, &cache, nullptr, 0).distance - za::max(grow, 0.f);
+}
+
+float boxGap(const HandPlaced& h, const glm::vec3& lo, const glm::vec3& hi, float grow)
+{
+    float best = 1e6f;
+    for(const Placed& p : h.part)
+    {
+        if(p.hull)
+        {
+            best = za::min(best, boxGap(p, lo, hi, grow));
+        }
+    }
+    return best;
+}
+
 void draw(const HandPlaced& h, float grow, const glm::vec4& colour, float width)
 {
     for(const Placed& p : h.part)
@@ -718,9 +758,9 @@ namespace
 // The hand's queries of disarmhull (what 1 / 2, 11 / 12, 15 / 16, 17 / 18, 21 / 22, 23 / 24); false: not one of them.
 [[nodiscard]] bool handQuery(edict_t* e, int what, const glm::vec3& a, const glm::vec3& b, float grow)
 {
-    const int side = (what == 1 || what == 11 || what == 15 || what == 17 || what == 21 || what == 23) ? 0
-                     : (what == 2 || what == 12 || what == 16 || what == 18 || what == 22 || what == 24) ? 1
-                                                                                                          : -1;
+    const int side = (what == 1 || what == 11 || what == 15 || what == 17 || what == 21 || what == 23 || what == 31) ? 0
+                     : (what == 2 || what == 12 || what == 16 || what == 18 || what == 22 || what == 24 || what == 32) ? 1
+                                                                                                                       : -1;
     if(side < 0)
     {
         return false;
@@ -754,7 +794,12 @@ namespace
     HandSource source = HandSource::None;
     if(!hand(e, side, hp, &source, nullptr))
     {
-        progs::returnVec(what < 10 ? glm::vec3{1e6f, 0.f, 0.f} : glm::vec3{0.f, 0.f, -1.f});
+        progs::returnVec(what < 10 || what >= 30 ? glm::vec3{1e6f, 0.f, 0.f} : glm::vec3{0.f, 0.f, -1.f});
+        return true;
+    }
+    if(what >= 30) // (the box a..b: boxGap)
+    {
+        progs::returnVec({boxGap(hp, a, b, grow), 0.f, 1.f});
         return true;
     }
     if(what <= 2)
@@ -878,6 +923,8 @@ namespace
 //   what 23 / 24: the hand hulls on side 0 / 1 Show Disarm Volumes drew last (handShown: what he sees, made while the
 //     frame drew it): '<the gap of a..b to them> <its source, plus 10 if made while its frame drew it> <frames since>';
 //     '<huge> 0 -1' none drawn.
+//   what 30 / 31 / 32: as 0 / 1 / 2 for the box a..b (its least and most corners): '<no more than the gap of any path
+//     in it> 0 1'; '<huge> 0 0' none (VR_AG_StrikeMeets' broad test, boxGap).
 void PF_disarmhull()
 {
     edict_t* e = G_EDICT(OFS_PARM0);
@@ -890,10 +937,15 @@ void PF_disarmhull()
         return;
     }
     Placed p;
-    const bool found = (what == 0 || what == 10 || what == 13 || what == 14 || what == 20) && weapon(e, p);
+    const bool found = (what == 0 || what == 10 || what == 13 || what == 14 || what == 20 || what == 30) && weapon(e, p);
     if(!found)
     {
-        progs::returnVec(what < 10 ? glm::vec3{1e6f, 0.f, 0.f} : glm::vec3{0.f, 0.f, -1.f});
+        progs::returnVec(what < 10 || what >= 30 ? glm::vec3{1e6f, 0.f, 0.f} : glm::vec3{0.f, 0.f, -1.f});
+        return;
+    }
+    if(what == 30)
+    {
+        progs::returnVec({boxGap(p, a, b, grow), 0.f, 1.f});
         return;
     }
     if(what < 10)

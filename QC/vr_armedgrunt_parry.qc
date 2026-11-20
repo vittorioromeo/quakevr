@@ -355,6 +355,48 @@ float(vector a, vector b, float r, float extra) VR_AG_StrikeGap =
     return min(dw, dh) - r;
 };
 
+vector vr_ag_bx_lo; // VR_AG_StrikeBroad's box of the sweep's points
+vector vr_ag_bx_hi;
+float vr_ag_bx_n;   // vr_agrunt_strike_broad 2's counts: sweeps, skipped by the box, disagreements
+float vr_ag_bx_skip;
+float vr_ag_bx_bad;
+
+void(vector v) VR_AG_BoxAdd =
+{
+    vr_ag_bx_lo = [min(vr_ag_bx_lo_x, v_x), min(vr_ag_bx_lo_y, v_y), min(vr_ag_bx_lo_z, v_z)];
+    vr_ag_bx_hi = [max(vr_ag_bx_hi_x, v_x), max(vr_ag_bx_hi_y, v_y), max(vr_ag_bx_hi_z, v_z)];
+};
+
+// VR_AG_StrikeMeets' broad test (ragperf2, ROUND25.md): TRUE when the box of every point its sweep and its muzzle line
+// test (the swept lines' ends `a0`..`b1`, the hand `hp`, the muzzle `mz`, a carried prop's middle `c0`..`c1`) is
+// farther than the strike's reach (`r`, a carried prop's size `cr` with it) from both its weapon's and its hand's hulls
+// (disarmhull 30 / 32 / 31: no path in the box nearer): none of those tests can meet, the same verdict as sweeping.
+// A volume without a hull (the old lines) is swept as before.
+float(entity g, entity p, vector a0, vector a1, vector b0, vector b1, vector hp, vector mz, vector c0, vector c1, float r, float cr) VR_AG_StrikeBroad =
+{
+    vr_ag_bx_lo = a0;
+    vr_ag_bx_hi = a0;
+    VR_AG_BoxAdd(a1);
+    VR_AG_BoxAdd(b0);
+    VR_AG_BoxAdd(b1);
+    VR_AG_BoxAdd(hp);
+    VR_AG_BoxAdd(mz);
+    if(cr > 0)
+    {
+        VR_AG_BoxAdd(c0);
+        VR_AG_BoxAdd(c1);
+    }
+    float grow = cvar_hget(cvarh_vr_agrunt_vol_strike);
+    float clear = r + cr + 0.01; // (a hundredth of a unit over: the two distance queries' rounding)
+    vector v = disarmhull(p, 30, vr_ag_bx_lo, vr_ag_bx_hi, grow);
+    if(!v_z || v_x <= clear)
+    {
+        return FALSE;
+    }
+    v = disarmhull(g, p.vr_ag_left ? 32 : 31, vr_ag_bx_lo, vr_ag_bx_hi, grow);
+    return v_z && v_x > clear;
+};
+
 // `pl`'s hand `h`'s blow this frame (or the hand and its gun's muzzle now) meets `g`'s held weapon `p` or the hand
 // holding it: the sweep's share then (0 .. 1), -1 never.
 float(entity g, entity p, entity pl, float h) VR_AG_StrikeMeets =
@@ -394,8 +436,25 @@ float(entity g, entity p, entity pl, float h) VR_AG_StrikeMeets =
         c1 = (c.absmin + c.absmax) * 0.5;
         c0 = c1 - (vr_ag_sw_b0 - vr_ag_sw_a0);
     }
+    // (The hand to its gun's muzzle now: tested last.)
+    vector mz = VR_HAND_FIELD(pl, h, muzzlepos, offmuzzlepos);
+    if(VRIsHandEmpty(pl, h) || vlen(mz - hp) > 48)
+    {
+        mz = hp;
+    }
+    float broad = cvar_hget(cvarh_vr_agrunt_strike_broad);
+    float clear = FALSE;
+    if(broad)
+    {
+        clear = VR_AG_StrikeBroad(g, p, vr_ag_sw_a0, vr_ag_sw_a1, vr_ag_sw_b0, vr_ag_sw_b1, hp, mz, c0, c1, VR_AG_STRIKE_R, cr);
+        if(clear && broad != 2)
+        {
+            return -1;
+        }
+    }
     float way = max(vlen(vr_ag_sw_b0 - vr_ag_sw_a0), vlen(vr_ag_sw_b1 - vr_ag_sw_a1));
     float steps = min(16, max(4, ceil(way / 2.5)));
+    float met = -1;
     float i;
     for(i = 0; i <= steps; i++)
     {
@@ -410,20 +469,29 @@ float(entity g, entity p, entity pl, float h) VR_AG_StrikeMeets =
         }
         if(gap <= 0)
         {
-            return t;
+            met = t;
+            break;
         }
     }
-    // (The hand to its gun's muzzle now.)
-    vector mz = VR_HAND_FIELD(pl, h, muzzlepos, offmuzzlepos);
-    if(VRIsHandEmpty(pl, h) || vlen(mz - hp) > 48)
+    if(met < 0 && VR_AG_StrikeGap(hp, mz, VR_AG_STRIKE_R, 0) <= 0)
     {
-        mz = hp;
+        met = 1;
     }
-    if(VR_AG_StrikeGap(hp, mz, VR_AG_STRIKE_R, 0) <= 0)
+    if(broad == 2) // (the check: both, every disagreement printed)
     {
-        return 1;
+        vr_ag_bx_n++;
+        vr_ag_bx_skip += clear ? 1 : 0;
+        if(clear && met >= 0)
+        {
+            vr_ag_bx_bad++;
+            dprint(sprintf("vr_agrunt_strike_broad: DISAGREES: the box clear, the sweep met at %g (%s)\n", met, g.classname));
+        }
+        if((vr_ag_bx_n & 255) == 0)
+        {
+            dprint(sprintf("vr_agrunt_strike_broad: %g sweeps, %g skipped by the box, %g disagreements\n", vr_ag_bx_n, vr_ag_bx_skip, vr_ag_bx_bad));
+        }
     }
-    return -1;
+    return met;
 };
 
 // `g`'s held weapon `p`'s hand line's distance from `at` (a body blow's point: test 79).

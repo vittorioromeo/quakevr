@@ -302,6 +302,7 @@ float cvarh_vr_agrunt_speed_strafe;
 float cvarh_vr_agrunt_strafe_lean;
 float cvarh_vr_agrunt_strafe_turn;
 float cvarh_vr_agrunt_strike_beat;
+float cvarh_vr_agrunt_strike_broad;
 float cvarh_vr_agrunt_strike_demo;
 float cvarh_vr_agrunt_strike_precise;
 float cvarh_vr_agrunt_strike_precise_mult;
@@ -2407,6 +2408,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_agrunt_strafe_lean = VR_CVar_Make("vr_agrunt_strafe_lean");
     cvarh_vr_agrunt_strafe_turn = VR_CVar_Make("vr_agrunt_strafe_turn");
     cvarh_vr_agrunt_strike_beat = VR_CVar_Make("vr_agrunt_strike_beat");
+    cvarh_vr_agrunt_strike_broad = VR_CVar_Make("vr_agrunt_strike_broad");
     cvarh_vr_agrunt_strike_demo = VR_CVar_Make("vr_agrunt_strike_demo");
     cvarh_vr_agrunt_strike_precise = VR_CVar_Make("vr_agrunt_strike_precise");
     cvarh_vr_agrunt_strike_precise_mult = VR_CVar_Make("vr_agrunt_strike_precise_mult");
