@@ -53,7 +53,9 @@ The guide: [MULTIPLAYER.md](MULTIPLAYER.md).
 - **One server socket**: the host talks to every player from his one port (26000), so a forwarded port works behind
   routers that change port numbers too (Quake gave each player a port of his own).
 - **You see each other as you are**: heads, hands, fingers, held weapons and bodies sized by each player's own
-  calibration, moving smoothly between the server's updates.
+  calibration, moving smoothly between the server's updates. A sliding player is seen sliding (legs out in front, leant
+  back), not crouched; a dead player's body is his own body (his build, skin tone, gloves, hands), not Quake's ranger,
+  for everyone including himself.
 - **Everything you can do alone works together**: grabbing, throwing, melee and parries, climbing and mantling, the
   grapple, holsters and pouches, reloads, force grab; hand weapons and ammo to each other, knock weapons out of other
   players' hands in deathmatch.
