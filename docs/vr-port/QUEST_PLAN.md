@@ -1856,7 +1856,8 @@ compositor's picture at each `C4Z CAP` marker), `c4z_play.sh` (C4n's play sessio
   allocation), the eye sub-image's rect changing per frame with dynres. The CPU side is unchanged or lower.
 - Not done: multiplayer over loopback on the headset (the budget; the mp code is compiled in, 6zj); the frozen fight
   (`c4y_frozen.sh`).
-- New APK built from this branch (the two fixes): not installed (his call / the coordinator's).
+- New APK built from this branch (the two fixes; `build-android/apk/QuakeVR.apk`): native 0 warnings, check_apk 20/0;
+  not installed (his call / the coordinator's). PC: dev build 0 warnings.
 
 ## 7. Installs (done 2026-11-14 at his approval, by the coordinator)
 
