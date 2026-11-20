@@ -3786,6 +3786,38 @@ signon fuzzed), and bots phase 2 if he wants it (reloads, doors and lifts in coo
 - **SP**: scenario_check 136/0, load_models 4/0, vr_run_check 12/0, flatswing 5/0, flatparry 43/0, flathands 76/0,
   flatmelee 12/0, flatplay 31/0 (LTO build).
 
+### mpguard results: mp_guard's held speed and a clean suite (2026-11-20, nothing else running)
+
+- **mp_guard 11/1 was the test's honest move, not a next commit.** `vr_mp_guard_debug 1` (new, a server's debug cvar)
+  prints each value the move guard holds by name ("mp_guard_held: slot=N throwVel[1] 41.089 of 40.000"); a share
+  under 1 also prints values over that share of their bound ("mp_guard_near:"). The held value: A's main hand's throw
+  estimate. The test jumped his hand in one frame from the mock's standing pose to over his head (1.48 m: the mock's
+  scripted velocity reads it as 1.48 m in 50 ms, 29.6 m/s) and turned the launcher 80 degrees, its flick at the
+  launcher's length on top: 35.4, 39.4, 35.6 m/s on agent/mp before next's merges (b9c0ee46c^1, dev build), 39.4 and
+  41.1 after, over 40 in 3 runs of 4 on the LTO build. No single commit: the estimate rides the frame times, and next's
+  frames came faster (its render changes; no change to vr_throw, the guard or the mock's motion in the range). The fix
+  is the move: A's arm now carries the launcher pose to pose in a 0.4 s play (`GUARD_ARM_PLAY`, at most 3.7 m/s),
+  his largest value 18 m/s (the off hand's jump to the grip). 12/0 x3 (dev), then in every suite below.
+- **mp_predictslide** (plain1: corrections 4.96, 2 results off by 4.5): a move the server never had (5% lost each way;
+  `mp_netmoves lost=1` in that segment): his replay ran it, the server did not, one move's correction. The checks now
+  take the server's lost count for the segment and allow that many states off by a move's travel at most
+  (`LOST_MOVE_MOST`). Open (a design question, not a bug): the server could run a lost move as the previous one.
+- **mp_dm test 9** (plain3: "parry: none: player at -157 degrees, 14 units", "player is stuck" spam): the swinger was
+  put 36 units ahead of the defender, inside A. The defender is now turned 45 degrees at a time until that place is
+  free of walls and other players (`VR_DMT_PairFree`; case 1 keeps case 0's place).
+- **mp_voice_lossy** (load3: A 0.38, C 0.56 of frames heard): the two talkers' shares are now taken over 250 of A's
+  frames, not 100 (the counts are read one game after another, frames in flight at the ends counted on one side);
+  0.47/0.48, 0.44/0.51 since. The mute check (B received 3 of A's frames after the mute, 1 run) counts from 8 frames
+  held back at the server (the frames on B's 50 ms link at the mute arrive first).
+- **mp_fuzz's crash (B26's open one) found**: both fuzz failures of the confirming runs were B's game aborting in
+  `rope::parseCorners`: a corrupted message cut short, `MSG_ReadByte`'s -1 as the corner count, a resize to SIZE_MAX.
+  A count under 0 now ends the parse (vr_rope.cpp).
+- **Runs** (the suite after these fixes, nothing else running; the kit's `--lto` step relinked nothing, so these ran
+  the dev build): plain 2 of 3 clean (plain1: mp_fuzz's crash above, mp_rejoin "B back from his crash has what he
+  had": items 4097 -> 4129, a rocket launcher picked up as he came back, 1 run), load 2 of 3 clean (load2: mp_fuzz's
+  crash). mp_guard 12/0 in all 6 (and 3 of 3 in the first set). Not yet 3 + 3 consecutive: the rope fix is newer than
+  them (its runs: ROUND25 "mpguard").
+
 ### Ready for next?
 
 **What still blocks the merge (his):**

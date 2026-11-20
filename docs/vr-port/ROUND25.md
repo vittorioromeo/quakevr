@@ -5413,3 +5413,17 @@ and MP-only parts left on their branches.
 - mp_dm: vr_dm_test 5 clears other loose guns and backpacks within 160 units of the bot before laying its nailgun;
   tests 2/3 hold the bots' flat guards down (`VR_DMT_HoldGuards`); `respawn_if_dead` before the grip step. 26/0 x3.
 - Details, the suite runs and what blocks the merge: MP_PLAN.md, "mpready results" and "Ready for next?".
+
+## mpguard: mp_guard's held speed, the suite's failures (agent/mp, 2026-11-20)
+
+- `vr_mp_guard_debug` (0; a server's debug cvar): 1 prints each value of a client's move the move guard holds, by
+  name, size and bound (`mp_guard_held:`); a share under 1 also those over that share of their bound (`mp_guard_near:`).
+- mp_guard 11/1 was its honest move: the mock's one-frame hand jump (1.48 m read as 29.6 m/s) and an 80 degree turn
+  put the launcher's throw estimate at 35-41 m/s against the 40 m/s bound, by frame times (next's faster frames tipped
+  it). A's arm now moves in a 0.4 s play (`GUARD_ARM_PLAY`): his largest value 18 m/s. 12/0 in 9 of 9 runs.
+- B's game's abort under mp_fuzz (B26's open crash): `rope::parseCorners` sized its corners from a cut-short message's
+  -1; a count under 0 ends the parse.
+- Test fixes: mp_predictslide allows a move the server never had (its lost count); mp_dm test 9 turns the pair until
+  the swinger's place is free (`VR_DMT_PairFree`); mp_voice's two talkers measured over 250 frames, its mute counted
+  once the in-flight frames are in.
+- Details and the runs: MP_PLAN.md, "mpguard results".
