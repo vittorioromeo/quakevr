@@ -159,6 +159,20 @@ skips it). Self-tests: `dwell: ...` (the pin and its three copies, existing copi
 Dwell-shaped zip from a local server, and the real zip from `qvr-kit/downloads/dwell/`, skipped when absent: 447 files,
 progs.dat's hash, Track107). The game plays it as campaign 7, `dwell` (Select Campaign > Dwell; `vr_dwell_status`).
 
+## Quoth (experimental, needs Arcane Dimensions)
+
+The same shared path (`Quoth.Spec`). The Options page's "Quoth (experimental) — free, by Kell, Necros and Preach" row
+sits under AD's: **ticked** while Arcane Dimensions is chosen (ticked, already in the install, or a usable copy found:
+`AdChosen`), otherwise **off and greyed** with the reason (`Quoth.NeedsAdText`): Quake VR plays Quoth's maps only by AD's
+rules (docs/vr-port/QUOTH.md). Its licence lets the zip be passed on only unmodified, so it is never hosted by us:
+`quoth2pt2full_2.zip` (54,792,367 bytes, SHA-256 `9fce1af3...1139`, `BuiltInComponents.Quoth()`; latest.json's
+`components.quoth` may override it) from Quaddicted (content-addressed, then the filebase), its six files unpacked as
+they are into `<install>\quoth` (136 MB), component `quoth`. Its step runs after AD's and only where AD now is (AD's
+failed download skips it, said on the Done page). "I already have it": a `quoth` folder in an owned root whose pak2.pak
+is 2.2's (`Quoth.Pak2Sha256`, the engine's `VR_QUOTH_PIN_SHA`) with pak0 and pak1. CLI: `--quoth [--quoth-zip <zip>]`,
+on by default (`--no-quoth`), skipped with the reason without AD. Self-tests: `quoth: ...` (the pin, existing copies,
+the real zip from `qvr-kit/downloads/modsurvey/quoth/`: install, repair, update, uninstall).
+
 ## Packages
 
 `Windows/package-quakevr.ps1` writes `manifest.json` into the package (`Windows/write-package-manifest.ps1`): the

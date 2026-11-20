@@ -229,7 +229,9 @@ var tests = new List<(string Name, Action Body)>
         var rows = System.Text.RegularExpressions.Regex.Matches(table.Groups[1].Value, @"\{""(\w+)"",\s*""([^""]*)"",\s*""\w+"",\s*(\d+),\s*(true|false),")
             .Select(m => (Folder: m.Groups[1].Value, Title: m.Groups[2].Value, Index: int.Parse(m.Groups[3].Value), Ready: m.Groups[4].Value == "true"))
             .ToList();
-        Eq(ExpansionDetector.Campaigns.Count + 1, rows.Count, "campaigns[] rows (id1 and the installer's expansions)");
+        // (Dwell's and Quoth's rows are mod components, not expansions: Packaging/Dwell.cs, Quoth.cs.)
+        Eq(ExpansionDetector.Campaigns.Count + 1, rows.Count(r => r.Folder is not (Components.Dwell or Components.Quoth)),
+            "campaigns[] rows (id1 and the installer's expansions)");
         var solo = System.Text.RegularExpressions.Regex.Match(source, @"bool soloOnly\(int index\)\s*\{\s*return ([^;]*);", System.Text.RegularExpressions.RegexOptions.Singleline);
         True(solo.Success && System.Text.RegularExpressions.Regex.IsMatch(solo.Groups[1].Value, @"^index == \d+( \|\| index == \d+)*$"),
             $"soloOnly() is a list of indices (got <{solo.Groups[1].Value}>): teach this test its new form");
@@ -245,7 +247,8 @@ var tests = new List<(string Name, Action Body)>
         // The experimental campaign: the engine's qvr::ad::campaignIndex row, not nativeReady, labelled "experimental".
         var adIndex = System.Text.RegularExpressions.Regex.Match(source, @"static_assert\(qvr::ad::campaignIndex == (\d+)");
         True(adIndex.Success, "static_assert(qvr::ad::campaignIndex == N) found in vr_gamedir.cpp");
-        True(source.Contains("index == qvr::ad::campaignIndex ? \"experimental\""), "the engine labels qvr::ad::campaignIndex \"experimental\"");
+        // (Since the third-party rows, a row's checks.experimental flag gives the label: AD's row sets it.)
+        True(source.Contains("c.checks.experimental ? \"experimental\""), "the engine labels a row with checks.experimental \"experimental\"");
         foreach (var c in ExpansionDetector.Campaigns)
         {
             var row = rows.Single(r => r.Folder == c.Folder);
@@ -1419,6 +1422,107 @@ var tests = new List<(string Name, Action Body)>
         Eq(ModCopyState.Ready, Dwell.FindExisting(Dwell.SearchRoots([], target))!.State, "the real hash validates the real install");
         Uninstaller.Uninstall(target, new UninstallOptions());
         True(!Directory.Exists(folder), "uninstall removed dwell\\");
+    }),
+    ("quoth: the pin (built in = support_assets.json's thirdParty = Quaddicted's two URLs in order), on by default, needs AD, the feed's quoth wins", () =>
+    {
+        var pinned = BuiltInComponents.Quoth();
+        Eq("quoth2pt2full_2.zip", pinned.File, "pinned file");
+        Eq(54_792_367L, pinned.Size, "pinned size");
+        Eq("9fce1af35ef7f635990be949d75f7faa18cc198bc19d9adc7d0575e234ab1139", pinned.Sha256, "pinned SHA-256");
+        Eq("www.quaddicted.com|www.quaddicted.com", string.Join("|", pinned.Mirrors.Select(u => u.Host)), "hosts in order");
+        True(pinned.Urls[0].EndsWith("/by-sha256/9f/" + pinned.Sha256 + "/quoth2pt2full_2.zip", StringComparison.Ordinal), "content-addressed first");
+        True(pinned.Urls[1].EndsWith("/filebase/quoth2pt2full_2.zip", StringComparison.Ordinal), "the filebase second");
+        True(pinned.Urls.All(u => u.StartsWith("https://", StringComparison.Ordinal) && !u.Contains("github.com")), "Quaddicted only, never ours (its licence)");
+        True(new InstallerSettings().Component(null, Components.Quoth) is { BuiltIn: true } d && d.File.Sha256 == pinned.Sha256, "the defaults: the pin");
+        True(Quoth.OnByDefault && Quoth.NeedsAdText.Contains("Arcane Dimensions"), "on by default, with AD; the reason without it");
+        var repo = new DirectoryInfo(AppContext.BaseDirectory);
+        while (repo is not null && !File.Exists(Path.Combine(repo.FullName, "Misc", "release", "support_assets.json")))
+        {
+            repo = repo.Parent;
+        }
+        if (repo is not null)
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(File.ReadAllText(Path.Combine(repo.FullName, "Misc", "release", "support_assets.json")));
+            True(!doc.RootElement.GetProperty("files").TryGetProperty("quoth", out _), "Quoth is not one of our hosted support files");
+            var j = doc.RootElement.GetProperty("thirdParty").GetProperty("quoth");
+            Eq(pinned.File, j.GetProperty("file").GetString(), "support_assets.json's file");
+            Eq(pinned.Size, j.GetProperty("size").GetInt64(), "support_assets.json's size");
+            Eq(pinned.Sha256, j.GetProperty("sha256").GetString(), "support_assets.json's SHA-256");
+            Eq(string.Join("|", pinned.Urls), string.Join("|", j.GetProperty("mirrors").EnumerateArray().Select(m => m.GetString())), "support_assets.json's hosts");
+            // The engine pins the same pak2.pak (vr_quoth_data.inc's VR_QUOTH_PIN_SHA).
+            var inc = File.ReadAllText(Path.Combine(repo.FullName, "Quake", "vr", "vr_quoth_data.inc"));
+            True(inc.Contains($"VR_QUOTH_PIN_SHA \"{Quoth.Pak2Sha256}\""), "Quoth.Pak2Sha256 = the engine's pin");
+        }
+        var feed = ReleaseFeed.Parse($$"""
+            { "schema": 1, "version": "v9", "components": { "quoth": { "file": "q.zip", "size": 3, "sha256": "{{new string('c', 64)}}", "urls": ["https://example.invalid/q.zip"] } } }
+            """);
+        True(new InstallerSettings().Component(feed, Components.Quoth) is { BuiltIn: false } f && f.File.File == "q.zip", "the feed's quoth wins");
+    }),
+    ("quoth: an existing copy (2.2 used by its pak2.pak hash, another version or a missing pak offers the download, the game's root order)", () =>
+    {
+        void MakeQuoth(string root, string pak2, bool all = true)
+        {
+            var d = Path.Combine(root, "quoth");
+            Directory.CreateDirectory(d);
+            File.WriteAllText(Path.Combine(d, "pak2.pak"), pak2);
+            File.WriteAllText(Path.Combine(d, "pak0.pak"), "pak0");
+            if (all)
+            {
+                File.WriteAllText(Path.Combine(d, "pak1.pak"), "pak1");
+            }
+        }
+        var steam = Dir("qo-steam");
+        var quake = Dir("qo-quake");
+        True(Quoth.FindExisting(Quoth.SearchRoots([steam], quake)) is null, "none: null");
+        MakeQuoth(quake, "2.2 pak2");
+        var pin = PackageManifest.HashFile(Path.Combine(quake, "quoth", "pak2.pak"));
+        var roots = Quoth.SearchRoots([steam], quake);
+        var found = Quoth.FindExisting(roots, pin)!;
+        True(found.State == ModCopyState.Ready && Quoth.Describe(found).Contains("will be used (nothing downloaded)"), "2.2 in the Quake folder: used in place");
+        var other = Quoth.FindExisting(roots, new string('0', 64))!;
+        True(other.State == ModCopyState.OtherVersion && Quoth.Describe(other).Contains("isn't 2.2"), "another pak2.pak: another version, said so");
+        var inc = Dir("qo-inc");
+        MakeQuoth(inc, "2.2 pak2", all: false);
+        Eq(ModCopyState.Incomplete, Quoth.FindExisting(Quoth.SearchRoots([], inc), pin)!.State, "no pak1.pak: incomplete");
+        var empty = Dir("qo-empty");
+        Directory.CreateDirectory(Path.Combine(empty, "quoth", "maps"));
+        True(Quoth.FindExisting(Quoth.SearchRoots([], empty), pin) is null, "a folder with none of its paks: none");
+        MakeQuoth(steam, "another pak2");
+        True(Quoth.FindExisting(Quoth.SearchRoots([steam], quake), pin)!.Folder.StartsWith(PathUtil.TryNormalize(quake)!, StringComparison.OrdinalIgnoreCase), "the Quake folder's copy wins");
+    }),
+    ("quoth: the real quoth2pt2full_2.zip from the local downloads folder (no network): install (6 files as released), reinstall kept, repair restores, update keeps, uninstall removes", () =>
+    {
+        var real = "C:/OHWorkspace/qvr-kit/downloads/modsurvey/quoth/quoth2pt2full_2.zip";
+        if (!File.Exists(real))
+        {
+            Console.WriteLine("    (skipped: the real zip is not in the local downloads folder)");
+            return;
+        }
+        var quake = Dir("qr-quake");
+        var target = Path.Combine(run, "qr-QuakeVR");
+        new InstallEngine().Install(new InstallPlan { PackagePath = Fixtures.MakePackage(Dir("qr-pkg"), "1.0.0"), TargetDir = target, QuakeDir = quake }, null, CancellationToken.None);
+        using var http = Downloader.CreateClient();
+        var pin = BuiltInComponents.Quoth();
+        var outcome = Quoth.AddAsync(http, target, pin, Dir("qr-downloads"), real, null, null, CancellationToken.None, 1).GetAwaiter().GetResult();
+        True(outcome.Installed, outcome.Message);
+        var r = InstallRecord.Load(target)!;
+        var files = r.Files.Where(f => f.Component == Components.Quoth).ToList();
+        Eq("launch.bat|pak0.pak|pak1.pak|pak2.pak|quoth.cfg|quoth2_2.txt", string.Join("|", files.Select(f => f.Path["quoth/".Length..]).Order(StringComparer.Ordinal)), "the zip's six files under quoth/");
+        Eq(Quoth.InstalledSize, files.Sum(f => f.Size), "their size is Quoth.InstalledSize");
+        True(r.Choices.Quoth && r.QuothSha256 == pin.Sha256 && r.QuothFile == pin.File && !r.Choices.ArcaneDimensions, "recorded: chosen, the zip's name and SHA-256; AD untouched");
+        var folder = Path.Combine(target, "quoth");
+        Eq(Quoth.Pak2Sha256, PackageManifest.HashFile(Path.Combine(folder, "pak2.pak")), "pak2.pak is 2.2's (the engine's pin)");
+        Eq(ModCopyState.Ready, Quoth.FindExisting(Quoth.SearchRoots([], target))!.State, "the real install is a usable 2.2 copy");
+        // Again (the Update screen's repair): same zip kept; a damaged file restored from it.
+        Eq(ModAction.Keep, Quoth.Plan(target, r, pin, verify: true).Action, "same zip, intact: kept");
+        File.WriteAllText(Path.Combine(folder, "quoth.cfg"), "damaged");
+        Eq(ModAction.Restore, Quoth.Plan(target, r, pin, verify: true).Action, "a damaged file: restored");
+        var again = Quoth.AddAsync(http, target, pin, Dir("qr-downloads"), real, null, null, CancellationToken.None, 1).GetAwaiter().GetResult();
+        True(again.Installed && PackageManifest.HashFile(Path.Combine(folder, "quoth.cfg")) == files.Single(f => f.Path == "quoth/quoth.cfg").Sha256, "reinstalled: " + again.Message);
+        var r2 = new InstallEngine().Install(new InstallPlan { Mode = InstallMode.Update, PackagePath = Fixtures.MakePackage(Dir("qr-pkg2"), "1.1.0"), TargetDir = target, QuakeDir = quake }, null, CancellationToken.None);
+        True(r2.Files.Count(f => f.Component == Components.Quoth) == 6 && r2.Choices.Quoth && r2.QuothSha256 == pin.Sha256, "a Quake VR update keeps Quoth recorded");
+        Uninstaller.Uninstall(target, new UninstallOptions());
+        True(!Directory.Exists(folder) && !Directory.Exists(target), "uninstall removed quoth\\ and the folder");
     }),
     ("arcane dimensions: a failed or cancelled download never fails the install", () =>
     {

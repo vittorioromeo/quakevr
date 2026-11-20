@@ -15,9 +15,8 @@ OUT=$W/scratch/quoth_maps
 mkdir -p "$OUT"
 BASE=$K/bases/$NAME/qbase${QVR_LANE:+.lane$QVR_LANE}
 python -I "$W/Misc/quakevr/quoth_setup.py" "$BASE"
-# (metmon1d is left out: its map is inside the zip's pak0.pak, which quoth_setup.py keeps whole and a package folder
-# does not mount; the Map Library's install unpacks it: QUOTH.md)
-PKG="apsp2 dis_sp6 e1m5quoth gatetohell ion02 kellmet1 lpqsp1 mfxsp10 mhsp01 ne_marb ne_marb2 quarantine sksp2 tris"
+# (metmon1d's map, metmon, is inside its zip's pak0.pak: quoth_setup.py unpacks it, as the Map Library's install does)
+PKG="apsp2 dis_sp6 e1m5quoth gatetohell ion02 kellmet1 lpqsp1 metmon mfxsp10 mhsp01 ne_marb ne_marb2 quarantine sksp2 tris"
 OWN="start e1m1quoth e1m2quoth ne_basetest kelltest1 kelltest2 kelltest3 kelltest4 kelltest5 kellbase1 breakable"
 S="developer 0;sv_random_seed 7;skill 1;coop 0;maxplayers 1"
 for m in $PKG; do

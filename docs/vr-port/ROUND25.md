@@ -5957,3 +5957,41 @@ modified or bundled: nothing of it is run, copied or shipped; its maps play by A
 - **Left (phase 2)**: the installer component (Quaddicted's zip, on by default like AD, needs AD); play-throughs;
   patch notes; `quoth_setup.py` unpacking a package's root pak as the Map Library does (metmon1d); func_breakable's
   `preset` and `ritem`/`rsize` (material, dropped item) need an AD import patch.
+
+## Quoth phase 2: installer, play-throughs, docs (quoth2, 2026-11-20, `agent/quoth`)
+
+- **Installer**: `Packaging/Quoth.cs` on the shared `ModComponent` path: Quaddicted's unmodified `quoth2pt2full_2.zip`
+  (pinned; `support_assets.json` `thirdParty.quoth`) into `<install>\quoth`; ticked while AD is chosen, greyed with the
+  reason (`Quoth.NeedsAdText`) otherwise; its step after AD's, only where AD now is; a 2.2 copy found is used in place;
+  CLI `--quoth`/`--no-quoth`. Self-tests: 3 new; the suite 47 of 48, the 48th (readiness) then fixed and passing (it taught the Dwell/Quoth rows and
+  `checks.experimental`, failing on next before). CLI sandboxes: no AD skipped, AD found installed, update kept,
+  uninstall removed. One real download from Quaddicted, checked.
+- **Census**: `quoth_setup.py` unpacks root paks (metmon1d's `metmon`): `quoth_maps: 31 passed, 0 failed`.
+- **Play-throughs**: `vr_ad_test 212` (Debug > Tests > AD, "Quoth: Drive This Map's Flow"): triggers touched, monsters
+  awake killed, round by round, to the map's last stage. `quoth_play.sh` (VR mock): 7 passed, 4 failed: exits from
+  start, e1m1quoth, kellbase1 taken; ne_marb's four waves to `keyblockmarb`; e1m1quoth, metmon, lpqsp1 stop at button
+  stages (the driver presses none), kellbase1 at `count3`'s `targetname3` (a third name, not in the shim). QUOTH.md 5.
+  `vr_goto_exit [<slot>] [<map>]` picks a hub's exit by its map.
+- **Left**: a button round in the driver, `targetname3`, the flat run, func_breakable's `preset`/`ritem`.
+
+## Quoth phase 2, finished: second names, more targets, point triggers, buttons (quoth3, 2026-11-20, `agent/quoth`)
+
+- **Census** (Quoth's 12 maps, the 15 sample maps): `targetname3` only in kellbase1 (`count3`), no `targetname4`;
+  `target3` 27, `target4` 13, `killtarget2` 3 (AD fires `target` and `target2` only). 0 of the 360 maps in id1, AD,
+  Hipnotic and Rogue's folders have any of them.
+- **Engine** (`pr_edict.c`, `ED_PromoteSecondName`): an entity known only by `targetname2`/`targetname3` takes it as
+  its `targetname` as it is parsed, before its spawn function (AD's trigger_counter removes itself without a name:
+  kellbase1's `count2`, `count3` were gone, `targetname2`'s alias handing its use to a removed entity).
+- **QC** (`vr_quoth.qc`): `targetname3` aliased like `targetname2`; `target3`/`target4`/`killtarget2` (`ad_` fields,
+  the engine's ruleset key mapping) fired by relays the entity's target2 now names (old target2 + target3, then
+  target4; killtarget2), its delay and activator kept. **Point triggers were inert** since phase 1: AD's trigger
+  without a model is a marker (no touch, no use); now spawned with AD's empty model (`ad_MODEL_EMPTY`), then sized.
+  `strzone` declared (`builtins.qc`, FRIK_FILE #118) for the relays' names.
+- **Driver** (`vr_ad_test 212`): presses every button a player can, once a round (a hand's press via `handtouch`: the
+  touch is a foot's in VR; shot when it has health; a locked one retried), and on a time-out prints the counters left
+  and what targets the goal. `vr_ad_test 211` (quothkeys) 7/0 on kellbase1: targetname3's alias, target3+target4
+  both used, count3 named by the engine.
+- **Play-throughs**: `quoth_play.sh` VR mock 11/0 and flat 11/0 (were 7/4): e1m1quoth's ramp room round 1, kellbase1's
+  exit lock round 4, ne_marb's waves round 21, lpqsp1's `voreo` round 6, metmon's `phase4_relay` round 8; the three
+  exits. `quoth_maps.sh` 31/0. QUOTH.md 2, 5, 6.
+- **Checks**: dev and ThinLTO builds 0 warnings (LTO exe relinked); scenario_check PASS (140 run, 0 failed); ad_world_test (vr_ad_test 61-64 on ad_crucial) PASS; dwell_maps 28/0 (Dwell v2.2 copied into the round25 test base: without it 3/25); installer self-tests 48/48; quoth_maps 31/0.

@@ -1410,6 +1410,37 @@ static qboolean ED_ParseEpair (void *base, ddef_t *key, const char *s, qboolean 
 
 /*
 ====================
+ED_PromoteSecondName
+
+QVR: Quoth's second and third names (targetname2, targetname3: docs/vr-port/QUOTH.md). An entity known only by one
+of them (kellbase1's count2 and count3: AD's trigger_counter removes itself without a targetname; a door would open
+by touch) takes it as its targetname, the field cleared; a name it keeps beside its targetname stays an alias
+(vr_quoth.qc). No official or AD map has either key.
+====================
+*/
+static const char *const ed_secondnames[] = {"targetname2", "targetname3"};
+
+static void ED_PromoteSecondName (edict_t *ent)
+{
+	ddef_t *name = ED_FindField ("targetname");
+	int	   *v = (int *)&ent->v;
+	size_t	i;
+	if (!name || (name->type & ~DEF_SAVEGLOBAL) != ev_string || *PR_GetString (v[name->ofs]))
+		return;
+	for (i = 0; i < countof (ed_secondnames); i++)
+	{
+		ddef_t *second = ED_FindField (ed_secondnames[i]);
+		if (second && (second->type & ~DEF_SAVEGLOBAL) == ev_string && *PR_GetString (v[second->ofs]))
+		{
+			v[name->ofs] = v[second->ofs];
+			v[second->ofs] = 0;
+			return;
+		}
+	}
+}
+
+/*
+====================
 ED_ParseEdict
 
 Parses an edict out of the given string, returning the new position
@@ -1545,6 +1576,8 @@ const char *ED_ParseEdict (const char *data, edict_t *ent)
 		}
 	}
 
+	if (qcvm == &sv.qcvm && init)
+		ED_PromoteSecondName (ent); // QVR: Quoth's second names, before its spawn function reads targetname
 	VR_EdictIndex_Touch (ent); // QVR: every field set from the text
 	if (!init)
 		ED_Free (ent);

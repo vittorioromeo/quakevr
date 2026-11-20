@@ -1,8 +1,8 @@
 #ifdef QVR_TESTS
 // vr_quoth_test.qc -- Quoth support (docs/vr-port/QUOTH.md): vr_ad_test 211 (quoth_maps.sh, on kellbase1, whose exit
-// lock is a spawner; any map works): an entity used by its targetname2 through the alias; the map's first spawner
-// named its thing from spawnfunction (the engine) and makes it when used; a made spawner of two grunts makes both,
-// each carrying its target. Ends with "quothkeys: N passed, M failed".
+// lock is a spawner; any map works): an entity used by its targetname2 and by its targetname3 through the aliases; the
+// map's first spawner named its thing from spawnfunction (the engine) and makes it when used; a made spawner of two
+// grunts makes both, each carrying its target. Ends with "quothkeys: N passed, M failed".
 
 float vr_qt_uses;
 float vr_qt_before;
@@ -10,6 +10,8 @@ entity vr_qt_map;  // the map's spawner (or world)
 entity vr_qt_made; // the made grunt spawner
 
 void() VR_QT_CountUse = { vr_qt_uses = vr_qt_uses + 1; };
+float vr_qt_more;
+void() VR_QT_CountMore = { vr_qt_more = vr_qt_more + 1; };
 
 float() VR_QT_Grunts =
 {
@@ -43,27 +45,54 @@ void(entity s) VR_QT_Use =
 
 void(entity p) VR_Quoth_Test =
 {
-    local entity t, u, oself, w;
+    local entity t, u, oself, w, s;
     VR_Test_BeginFlags("quothkeys", VR_TEST_LOUD); // (not ECHO: its localcmd would queue after a script's quit)
     t = spawn();
     t.classname = "vr_qt_target";
     t.use = VR_QT_CountUse;
     t.targetname2 = "vr_qt_second";
+    t.targetname3 = "vr_qt_third";
     vr_qt_uses = 0;
     vr_quoth_aliased = 0; // (this map's aliases once more: the old ones renamed first, so each entity keeps one)
     for (u = find(world, classname, "vr_quoth_alias"); u; u = find(u, classname, "vr_quoth_alias"))
         u.classname = "vr_qt_oldalias";
     for (u = find(world, classname, "vr_qt_oldalias"); u; u = find(u, classname, "vr_qt_oldalias"))
+    {
         u.owner.targetname2 = "";
+        u.owner.targetname3 = "";
+    }
+    w = spawn(); // (fired by its target3 and target4 through its relays)
+    w.classname = "vr_qt_more";
+    w.targetname = "vr_qt_more";
+    w.use = VR_QT_CountMore;
+    s = spawn();
+    s.classname = "vr_qt_source";
+    s.ad_target3 = s.ad_target4 = "vr_qt_more";
+    vr_qt_more = 0;
     VR_Quoth_Frame();
+    oself = self;
+    self = s;
+    activator = ad_activator = p;
+    ad_SUB_UseTargets();
+    self = oself;
+    VR_Test_Check(vr_qt_more == 2, sprintf("its target3 and target4 both used (%g)", vr_qt_more));
     u = spawn();
     u.target = "vr_qt_second";
     oself = self;
     self = u;
     activator = p;
     SUB_UseTargets();
-    self = oself;
     VR_Test_Check(vr_qt_uses == 1, sprintf("used by its targetname2 once (%g)", vr_qt_uses));
+    u.target = "vr_qt_third";
+    SUB_UseTargets();
+    self = oself;
+    VR_Test_Check(vr_qt_uses == 2, sprintf("used by its targetname3 once (%g in all)", vr_qt_uses - 1));
+    if (mapname == "kellbase1") // (its count3 is known only by its targetname3: the engine made that its name)
+    {
+        u = find(world, targetname, "count3");
+        VR_Test_Check(u.classname == "trigger_counter" && u.targetname3 == "",
+            sprintf("count3, named only by targetname3, kept as its targetname (%s)", u.classname));
+    }
     vr_qt_map = find(world, classname, "info_multispawn");
     if (vr_qt_map)
     {
@@ -88,5 +117,159 @@ void(entity p) VR_Quoth_Test =
     w = spawn();
     w.think = VR_QT_SpawnersDone;
     w.nextthink = time + 0.3 * 2 + 0.5;
+};
+
+// vr_ad_test 212 (quoth_play.sh): a map's flow driven as a player would, round by round (one a second): every trigger
+// a player walks into touched by him (trigger_once/multiple and the shim's point triggers; never exits, teleports,
+// hurts, pushes or jumps), every button he can press pressed once (touched, or shot if it takes damage; one still
+// locked is tried again next round), every monster awake (solid, alive) killed by him, so its death fires its target
+// (counters, waves, spawners). A goal targetname per map (its last stage) is watched by a sentinel that shares the name; ends when
+// it is used (then two more rounds) or after 90 rounds (a FAIL: "timed out"). Ends with "quothplay: N passed, M failed".
+
+float vr_qp_round;
+float vr_qp_killed;
+float vr_qp_touched;
+float vr_qp_pressed; // buttons pressed (their .vr_qp_mark 3)
+float vr_qp_goalused;
+float vr_qp_after;   // rounds run since the goal was used
+float vr_qp_made;    // monsters the spawners made (their .vr_qp_mark)
+entity vr_qp_player;
+.float vr_qp_mark;   // 1: a monster counted; 2: a trigger touched once (trigger_once: no more); 3: a button pressed
+
+void() VR_QP_GoalUse = { vr_qp_goalused = vr_qp_goalused + 1; };
+
+string() VR_QP_Goal =
+{
+    if (mapname == "ne_marb") return "keyblockmarb"; // its four waves' counters (wave1..wave4, keyblock)
+    if (mapname == "metmon") return "phase4_relay";  // its stages' counters, the final power count
+    if (mapname == "lpqsp1") return "voreo";         // its point trigger's target; hordes on the way
+    if (mapname == "kellbase1") return "exitlock";   // the 16 kills that open its exit (the plasma gun's spawner)
+    if (mapname == "e1m1quoth") return "ramproom_door";
+    return "";
+};
+
+void() VR_QP_Round =
+{
+    local entity e, oself, oother;
+    local float awake;
+    if (vr_qp_player.classname != "player")
+    {
+        // (asked for while the level was still changing: the player found once he is in)
+        vr_qp_player = VR_Player();
+        if (!vr_qp_player)
+        {
+            self.nextthink = time + 0.5;
+            return;
+        }
+    }
+    vr_qp_player.flags = vr_qp_player.flags | FL_GODMODE;
+    vr_qp_round = vr_qp_round + 1;
+    // Monsters the spawners made since the last round (no spawn mark yet) and those placed (counted on the first round).
+    for (e = nextent(world); e; e = nextent(e))
+        if (e.flags & FL_MONSTER && !e.vr_qp_mark)
+        {
+            e.vr_qp_mark = 1;
+            if (vr_qp_round > 1)
+                vr_qp_made = vr_qp_made + 1;
+        }
+    // Walk into every trigger a player can.
+    oself = self;
+    oother = other;
+    for (e = nextent(world); e; e = nextent(e))
+        if (e.touch && e.vr_qp_mark != 2 && e.solid == SOLID_TRIGGER &&
+            (e.classname == "trigger_once" || e.classname == "trigger_multiple" || e.classname == "trigger_once_point" ||
+             e.classname == "trigger_secret" || e.classname == "trigger_secret_point"))
+        {
+            if (e.classname == "trigger_once" || e.classname == "trigger_once_point" || e.classname == "trigger_secret_point")
+                e.vr_qp_mark = 2;
+            self = e;
+            other = vr_qp_player;
+            activator = vr_qp_player;
+            e.touch();
+            vr_qp_touched = vr_qp_touched + 1;
+        }
+    // Press every button a player can, once: touched, or shot (one that takes damage is never touched). One that does
+    // not move (locked until a stage unlocks it: AD's entity state) is tried again next round.
+    for (e = find(world, classname, "func_button"); e; e = find(e, classname, "func_button"))
+        if (e.vr_qp_mark != 3 && e.state == STATE_BOTTOM && (e.touch || e.takedamage))
+        {
+            if (e.takedamage)
+            {
+                self = oself;
+                T_Damage(e, vr_qp_player, vr_qp_player, e.health + 1);
+            }
+            else
+            {
+                // (a hand's press: a button's own touch is a foot's, only for one pressed by stepping on it)
+                self = e;
+                other = vr_qp_player;
+                activator = vr_qp_player;
+                if (e.handtouch)
+                    e.handtouch();
+                else
+                    e.touch();
+            }
+            if (e.state == STATE_UP)
+            {
+                e.vr_qp_mark = 3;
+                vr_qp_pressed = vr_qp_pressed + 1;
+            }
+        }
+    self = oself;
+    other = oother;
+    // Kill every monster awake.
+    for (e = nextent(world); e; e = nextent(e))
+        if (e.flags & FL_MONSTER && e.health > 0 && e.takedamage && e.solid != SOLID_NOT && e.modelindex)
+        {
+            awake = awake + 1;
+            T_Damage(e, vr_qp_player, vr_qp_player, e.health + 100);
+            vr_qp_killed = vr_qp_killed + 1;
+        }
+    if (vr_qp_goalused)
+        vr_qp_after = vr_qp_after + 1;
+    if (vr_qp_after >= 2 || vr_qp_round >= 90 || (VR_QP_Goal() == "" && vr_qp_round >= 30))
+    {
+        VR_Test_Check(vr_qp_killed > 0,
+            sprintf("%s: %g monsters killed in %g rounds, %g made by spawners, %g triggers touched, %g buttons pressed",
+            mapname, vr_qp_killed, vr_qp_round, vr_qp_made, vr_qp_touched, vr_qp_pressed));
+        if (VR_QP_Goal() != "")
+            VR_Test_Check(vr_qp_goalused > 0, sprintf("%s: its last stage (%s) %s", mapname, VR_QP_Goal(),
+                vr_qp_goalused ? sprintf("reached in round %g", vr_qp_round - vr_qp_after) : "timed out"));
+        if (VR_QP_Goal() != "" && !vr_qp_goalused) // (where the flow stopped: each counter's uses still to come, and
+        {                                           // whatever targets the goal)
+            for (e = find(world, classname, "trigger_counter"); e; e = find(e, classname, "trigger_counter"))
+                bprint(sprintf("quothplay: counter %s (%s) %g of %g left, state %g\n", e.targetname, e.target, e.count,
+                    e.height, e.ad_estate));
+            for (e = find(world, target, VR_QP_Goal()); e; e = find(e, target, VR_QP_Goal()))
+                bprint(sprintf("quothplay: source %s %s: solid %g, touch %g, use %g, state %g, size %v\n", e.classname,
+                    e.targetname, e.solid, e.touch != SUB_Null && e.touch != __NULL__, e.use != __NULL__, e.ad_estate,
+                    e.size));
+        }
+        VR_Test_Check(vr_qp_player.health > 0, "the player alive (god)");
+        VR_Test_Verdict();
+        localcmd("qp_next\n"); // (quoth_play.sh's next step, its alias; elsewhere an unknown command)
+        remove(self);
+        return;
+    }
+    self.nextthink = time + 1;
+};
+
+void(entity p) VR_Quoth_Play =
+{
+    local entity s, w;
+    VR_Test_BeginFlags("quothplay", VR_TEST_LOUD);
+    vr_qp_player = p;
+    vr_qp_round = vr_qp_killed = vr_qp_touched = vr_qp_pressed = vr_qp_goalused = vr_qp_after = vr_qp_made = 0;
+    if (VR_QP_Goal() != "")
+    {
+        s = spawn();
+        s.classname = "vr_qp_goal";
+        s.targetname = VR_QP_Goal();
+        s.use = VR_QP_GoalUse;
+    }
+    w = spawn();
+    w.classname = "vr_qp_driver";
+    w.think = VR_QP_Round;
+    w.nextthink = time + 0.5;
 };
 #endif

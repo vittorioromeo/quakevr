@@ -15,7 +15,8 @@ const string Usage = """
                       (--target <dir> [--shortcuts-dir <dir>] | --sandbox <dir>) [--quake <dir>]
                       [--textures <zip>] [--relight] [--vispatch <id1_vis.tgz>...] [--unverified]
                       [--setup-from <QuakeVR-Setup.exe>] [--registry-file <json> | --register] --accept-statement
-                      [--hd] [--no-feed] [--dry-run] [--prepare] [--ad [--ad-zip <zip>]] [--dwell [--dwell-zip <zip>]] [--no-stores]
+                      [--hd] [--no-feed] [--dry-run] [--prepare] [--ad [--ad-zip <zip>]] [--dwell [--dwell-zip <zip>]]
+                      [--quoth [--quoth-zip <zip>] | --no-quoth] [--no-stores]
                       (--feed: the package downloaded as the window does; QVR_SETUP_FEED is the default feed. --hd: the
                        HD textures, the feed's hdtextures, else the installer's built-in pack (also with --package: the feed
                        is asked, and not needed; --no-feed never asks it). --dry-run: prints what would be downloaded and
@@ -24,10 +25,13 @@ const string Usage = """
                        (experimental): a 1.80 patch 1 copy in the owned Quake roots is used where it is (--no-stores: only
                        the Quake folder's roots are looked in); else the feed's ad, else the built-in pin (306 MB, from
                        sock's hosts), checked and unpacked into <install>\ad; --ad-zip: a local copy of that zip, checked
-                       against the pin. Never fatal: a failed AD step leaves the install as it is)
+                       against the pin. Never fatal: a failed AD step leaves the install as it is. Quoth 2.2 (--quoth,
+                       --quoth-zip; on by default, --no-quoth skips it) only with Arcane Dimensions: asked for (--ad),
+                       already in the install, or a usable copy found; otherwise skipped with the reason)
     qvr-setup update [--target <dir> | --sandbox <dir>] [--package <zip|folder> | --feed <url>] [--no-feed] [--dry-run]
                       [--downloads <dir>] [--quake <dir>] [--shortcuts-dir <dir>] [--setup-from <QuakeVR-Setup.exe>]
-                      [--registry-file <json> | --register] [--prepare] [--ad [--ad-zip <zip>]] [--dwell [--dwell-zip <zip>]] [--no-stores]
+                      [--registry-file <json> | --register] [--prepare] [--ad [--ad-zip <zip>]] [--dwell [--dwell-zip <zip>]]
+                      [--quoth [--quoth-zip <zip>] | --no-quoth] [--no-stores]
                       (the install found as detect prints it; a newer package (or another build) updates, the same or an
                        older one repairs (never a downgrade); --ad adds Arcane Dimensions when it is not installed. Only program files that differ are copied; your files are
                        kept; files you changed are backed up first; HD textures only when the pack changed; the relight
@@ -153,8 +157,9 @@ string? AlreadyDownloaded(string downloads, FeedFile file)
            string.Equals(PackageManifest.HashFile(path), file.Sha256, StringComparison.OrdinalIgnoreCase) ? path : null;
 }
 
-// The third-party mod components, one code path for both (ModComponent): Arcane Dimensions (--ad, --ad-zip <zip>) and
-// Dwell (--dwell, --dwell-zip <zip>; also by default: Dwell.OnByDefault, --no-dwell skips it). A copy of
+// The third-party mod components, one code path for all (ModComponent): Arcane Dimensions (--ad, --ad-zip <zip>),
+// Dwell (--dwell, --dwell-zip <zip>; also by default: Dwell.OnByDefault, --no-dwell skips it) and Quoth (the same,
+// Quoth.OnByDefault, and only where AD is). A copy of
 // the release the game plays in the owned Quake roots (the stores' unless --no-stores, and the Quake folder's) is used
 // where it is; otherwise the zip (the feed's, else the built-in pin) is downloaded, checked and unpacked into
 // <install>\<folder>. Never fatal: a failure leaves the install as it is.
@@ -163,7 +168,14 @@ ModKind[] Mods = [
         (roots, q) => ArcaneDimensions.FindExisting(ArcaneDimensions.SearchRoots(roots, q)), ArcaneDimensions.Describe, false),
     new("dwell", Dwell.Spec, Dwell.InstalledSize,
         (roots, q) => Dwell.FindExisting(Dwell.SearchRoots(roots, q)), Dwell.Describe, Dwell.OnByDefault),
+    // Quoth after AD: its step looks for AD in the install (just added, or kept) or a usable copy (Quoth.NeedsAdText).
+    new("quoth", Quoth.Spec, Quoth.InstalledSize,
+        (roots, q) => Quoth.FindExisting(Quoth.SearchRoots(roots, q)), Quoth.Describe, Quoth.OnByDefault, NeedsAd: true),
 ];
+// Arcane Dimensions where the game finds it: in the install (Setup's), or a usable copy in the owned roots.
+bool AdThere(string target, string quake) =>
+    InstallRecord.Load(target) is { } rec && rec.Files.Any(f => f.Component == Components.ArcaneDimensions) ||
+    FoundMod(Mods[0], quake) is { Usable: true };
 bool WantMod(ModKind m) => Flag(m.Name) || Opt(m.Name + "-zip") is not null || (m.OnByDefault && !Flag("no-" + m.Name));
 bool WantAd() => Mods.Any(WantMod);
 ModCopy? FoundMod(ModKind m, string quake) => m.Find(
@@ -176,6 +188,11 @@ string ModPlanText(ModKind m, ModCopy? found, ResolvedComponent? c) =>
     $"about {PathUtil.FormatSize(m.InstalledSize)} on disk, sha256 {c.File.Sha256}) from {string.Join(" then ", c.File.Urls)}";
 async Task<int> ModStep(ModKind m, HttpClient http, ReleaseFeed? feed, string target, string quake, string downloads)
 {
+    if (m.NeedsAd && !AdThere(target, quake))
+    {
+        Console.WriteLine($"{m.Spec.Title}: not installed: {Quoth.NeedsAdText}");
+        return 0;
+    }
     var found = FoundMod(m, quake);
     var c = new InstallerSettings().Component(feed, m.Spec.Component);
     if (found is not null)
@@ -751,6 +768,6 @@ catch (Exception e) when (e is InstallException or ArgumentException or IOExcept
 }
 
 /// <summary>One third-party mod component of the CLI (<c>--name</c>, <c>--name-zip</c>): its shared-path spec, how it finds
-/// an existing copy and describes it.</summary>
+/// an existing copy and describes it. <paramref name="NeedsAd"/>: installed only where Arcane Dimensions is (Quoth).</summary>
 sealed record ModKind(string Name, ModSpec Spec, long InstalledSize, Func<IReadOnlyList<string>, string, ModCopy?> Find,
-    Func<ModCopy, string> Describe, bool OnByDefault);
+    Func<ModCopy, string> Describe, bool OnByDefault, bool NeedsAd = false);

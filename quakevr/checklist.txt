@@ -52,6 +52,11 @@ Ragdolls and props lying or sliding on floors and stairs feel as before (Box3D u
 Ragdoll climbs: an ogre knocked off a ledge's lip and caught straddling it (a leg still on the top) pulls itself up instead of letting go and falling
 Quoth (experimental): Debug > Quoth: Play (Developer); walk start's hub, play kellbase1 to its exit (the exit lock spawns the plasma gun)
 Quoth map from the Map Library (ne_marb): the waves spawn and the ring doors open
+Quoth (experimental): Setup with AD ticked installs Quoth; without AD the box is greyed with the reason
+Quoth's e1m1quoth: from start's hub, the three ramp-room buttons open its door; play it to its exit
+Quoth's kellbase1: press the three buttons; enforcers, then pyros, then eliminators arrive, and killing all 16 opens the exit lock and makes the plasma gun
+Quoth's lpqsp1: shoot the button by the vore trap; about 5 s later its secret door opens
+Quoth's metmon: each stage's switches unlock the next, and the fourth shuts down the portal sphere
 
 [1. Flat-screen: weapons and hands]
 
