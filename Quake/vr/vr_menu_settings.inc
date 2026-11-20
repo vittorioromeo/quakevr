@@ -383,6 +383,7 @@ void resetBodyEquipment()
         cycle("Default Speed", "cl_alwaysrun", {{1.f, "Run"}, {0.f, "Walk"}})
             .help("Whether you run or walk; holding the speed button does the other."),
         row(opt::vr_sprint_toggle),
+        row(opt::vr_move_doubletap),
         row(opt::vr_deadzone),
         slider("Stick Response Curve", vr_move_curve, 1.f, 3.f, 0.1f, "%.1f")
             .help("How the moving stick's push becomes speed. 1: straight. Higher: more of the travel for slow, careful "

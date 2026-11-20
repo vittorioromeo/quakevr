@@ -2483,6 +2483,11 @@ QVR_CYCLE(vr_sprint_toggle, "Speed Button",
     "Speed: Run. Toggle: click it to switch, click again to switch back; it switches back by itself when you "
     "stop, die, change level or open the menu (vr_sprint_toggle).",
     {0.f, "Hold"}, {1.f, "Toggle"})
+QVR_TOGGLE(vr_move_doubletap, "Double-Tap Stick to Run",
+    "On: push the moving stick twice quickly the same way (push, let go, push again) to run until you let it go back "
+    "to the middle. Works beside the speed button: either one makes you run (vr_move_doubletap).")
+QVR_SLIDER(vr_move_doubletap_window, "Double-Tap Window", 0.1f, 0.6f, 0.05f, "%.2f s", ext(0.05f, 2.f),
+    "How quick a double tap must be: the first push let go within this, and the second begun within this after.")
 QVR_SLIDER_BYNAME(cl_movespeedkey, "Running Mult.", 1.f, 3.f, 0.05f, "%.2f", ext(), "How much faster running is than walking.")
 QVR_TOGGLE(vr_crouch_speed, "Slower When Crouched",
     "Crouched for real (your eyes a little under standing), the stick moves you at most Crouched Speed times "
