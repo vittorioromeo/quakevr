@@ -29,10 +29,11 @@ no Quoth documentation or code was read.
 | Quoth | Instances | Played as | Inferred from |
 |---|---|---|---|
 | `monster_deathguard` | 13 | AD's `monster_death_guard` (Quoth's death guard, which AD has) | the other spelling in the same maps' spawners |
-| `trigger_once_point`, `trigger_secret_point`, `trigger_monsterjump_point`, `trigger_drolejump_point` | 3, 9, 10, 1 | AD's trigger, its volume from `size` (else `mangle`; else the point itself), centred on its origin | point entities with a trigger's keys; Copper's "quoth2-style bounding box triggers" read the same keys the same way |
+| `trigger_once_point`, `trigger_secret_point`, `trigger_monsterjump_point`, `trigger_drolejump_point` | 3, 9, 10, 1 | AD's trigger, its volume from `size` (else `mangle`; else the point itself), centred on its origin (spawned with AD's empty model: without one AD's trigger was an inert marker until phase 2's play-throughs found it) | point entities with a trigger's keys; Copper's "quoth2-style bounding box triggers" read the same keys the same way |
 | `info_multispawn`, `func_hordespawn` | 32, 18 | Quake VR's (AD's remove themselves: the AD row's `keptOurs`): when used, `count` (3) monsters of the `spawnfunction` classname, `wait` (0.3 s) apart, each with the spawner's target, angles and flags | AD's own notes (count, wait, spawnfunction; "the same"); their targets are trigger_counters (metmon's stages, ne_marb's waves) |
 | `spawnfunction` | 44 | the engine names the classname too (`spawnclassname`, unless set: Hipnotic's func_spawn asks for both); an AD-only monster resolves to AD's function (`ad_monster_drole`) | |
-| `targetname2` | 16 | a second name: an alias entity of that name hands its use to the entity (once a map, `VR_Quoth_Frame`) | doors, counters, relays and monsters with a second name their maps fire |
+| `targetname2`, `targetname3` | 16, 1 | a second (third) name: an alias entity of that name hands its use to the entity (once a map, `VR_Quoth_Frame`); an entity with no `targetname` takes it as its name as it is parsed (`ED_PromoteSecondName`, before AD's spawn function, which removes a nameless counter) | doors, counters, relays and monsters with a second name their maps fire; kellbase1's `count2`, `count3` (named only so) fed by its three buttons' target2, target3 |
+| `target3`, `target4`, `killtarget2` | 27, 13, 3 | fired after `target`, `target2` (AD fires those two): the entity's target2 becomes a relay of its own that fires its old target2 and target3, then target4, and kills killtarget2 (its delay and activator kept) | kellbase1's buttons (count1, count2, count3, their indicator light) |
 | `info_rubble` | 28 | AD's breakable spawner; glass or metal from `modelpath`, else rock | `modelpath` progs/glass.mdl, progs/metal.mdl (Quoth's rubble models) |
 | `mapobject_grill64`, `mapobject_grill128` | 1, 12 | AD's `mapobject_custom` with Quoth's `progs/grill64.spr`, `grill128.spr` | the maps' truncated `model` key |
 | `ambient_driveshaft`, `ambient_thrum` | 2, 1 | AD's looped custom ambient sound with Quoth's `necros/drivshft.wav`, `ambience/thrum.wav` (always on) | Quoth's sound names |
@@ -68,7 +69,8 @@ Results (2026-11-20, 600 frames a map, `scratch/quoth_maps/census.txt`):
 
 `quoth_maps: 30 passed, 1 failed`: the one, the verdict line of `vr_ad_test 211` not seen (its echo queued after the
 script's quit; its four checks all PASS); fixed (a broadcast verdict), checked on e1m1: `quothkeys: 2 passed, 0 failed`.
-0 of 391 official and AD maps have a shim classname or `targetname2`: their censuses do not change.
+0 of 391 official and AD maps have a shim classname or `targetname2`: their censuses do not change. Phase 2's keys
+(`targetname3`, `target3`, `target4`, `killtarget2`): 0 of the 360 maps in id1, AD, Hipnotic and Rogue's folders.
 
 Phase 2 (2026-11-20): `quoth_setup.py` unpacks a package's root `pakN.pak` as the Map Library does (game code and
 configs left out), so metmon1d's map `metmon` is in the census: `quoth_maps: 31 passed, 0 failed` (15 package maps, 12
@@ -91,23 +93,28 @@ download of the pinned URLs from Quaddicted (checked).
 `vr_ad_test 212` (Debug > Tests > Arcane Dimensions, "Quoth: Drive This Map's Flow") plays a map's flow a round a
 second: every trigger a player walks into touched, every monster awake killed by the player (god), so deaths fire
 their targets (counters, waves, spawners); a sentinel sharing the map's last-stage targetname says when it fires (90
-rounds: "timed out"). It does **not** press buttons, shoot shootable triggers or carry keys. `quoth_play.sh` chains:
-start's exit to e1m1quoth, e1m1quoth's flow and exit (to e1m2quoth), kellbase1's flow and exit (to start), ne_marb,
-lpqsp1, metmon (the verdict runs the next step: no frame waits). VR mock, 2026-11-20: `quoth_play: 7 passed, 4 failed`.
+rounds: "timed out"), and on a time-out prints each counter's uses left and what targets the goal. Each round also
+presses every button a player can, once: a hand's press (`handtouch`; a button's own touch is a foot's, for the ones
+pressed by stepping on them) or a shot (one with health); one locked until a stage unlocks it is tried again next
+round. It carries no keys. `quoth_play.sh` chains: start's exit to e1m1quoth, e1m1quoth's flow and exit (to
+e1m2quoth), kellbase1's flow and exit (to start), ne_marb, lpqsp1, metmon (the verdict runs the next step: no frame
+waits).
 
-| Map | Result | Why it stops (inferred) |
+Phase 2's first run (VR mock, no buttons): 7 passed, 4 failed (e1m1quoth, metmon, lpqsp1 at button stages, kellbase1
+at `count3`). Phase 2's second (2026-11-20, quoth3), VR mock and flat alike: `quoth_play: 11 passed, 0 failed`.
+
+| Map | Result | What it took |
 |---|---|---|
 | start -> e1m1quoth, e1m1quoth -> e1m2quoth, kellbase1 -> start | exits taken | |
-| ne_marb | its four waves (45 monsters from the spawners, 85 killed), `keyblockmarb` in round 21 | |
-| lpqsp1 | 125 killed, 32 from the hordes; `voreo` not fired | `voreotr` is a targeted point trigger: its chain starts elsewhere (a button?) |
-| metmon | 53 killed, 10 from the spawners; `phase4_relay` not fired | its stage counters count button presses (`stage*_buttonlock`) |
-| e1m1quoth | 39 killed; `ramproom_door` not fired | `ramproom_buttons` counts 3 buttons |
-| kellbase1 | 32 killed; `exitlock` not fired | `exitcount` (16) is fed by the waves behind `count1..3`; `count3` is named by `targetname3`, a key the shim does not know (a third name: check in VR) |
+| e1m1quoth | `ramproom_door` in round 1 (10 buttons pressed, 39 killed) | the button press (its ramp room counts 3) |
+| kellbase1 | `exitlock` in round 4 (7 buttons, 34 killed) | its 3 buttons fire `count1`, target2 `count2`, target3 `count3` (named only by targetname2, targetname3: AD removed both nameless counters; target3 was never fired) whose waves' 16 deaths open the exit |
+| ne_marb | its four waves to `keyblockmarb` in round 21 (47 from the spawners, 94 killed) | |
+| lpqsp1 | `voreo` in round 6 (8 buttons, 110 killed) | a shot button's target2, the point trigger `voreotr`, was an inert AD marker (every point trigger was: no model): now AD's trigger |
+| metmon | `phase4_relay` in round 8 (23 buttons, 33 from the spawners, 80 killed) | the button press (its stage locks count presses) |
 
-Not played: the flat run (`quoth_play.sh flat`), e1m2quoth's exit (to `e1m3quoth`, which Quoth 2.2 does not ship).
+Not played: e1m2quoth's exit (to `e1m3quoth`, which Quoth 2.2 does not ship); the sample maps' own exits; keys.
 
 ## 6. Left
 
-- The driver presses no buttons: a `func_button` round would let e1m1quoth, metmon and lpqsp1 finish; `targetname3`
-  (kellbase1's count3) needs a look and likely the same alias as `targetname2`.
 - `func_breakable`'s `preset` (material) and `ritem`/`rsize` (likely a dropped item): an AD import patch would map them.
+- The driver plays flows, not routes: what it reaches a player reaches only if the map's geometry agrees (VR play).

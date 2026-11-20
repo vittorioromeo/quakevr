@@ -5973,3 +5973,25 @@ modified or bundled: nothing of it is run, copied or shipped; its maps play by A
   stages (the driver presses none), kellbase1 at `count3`'s `targetname3` (a third name, not in the shim). QUOTH.md 5.
   `vr_goto_exit [<slot>] [<map>]` picks a hub's exit by its map.
 - **Left**: a button round in the driver, `targetname3`, the flat run, func_breakable's `preset`/`ritem`.
+
+## Quoth phase 2, finished: second names, more targets, point triggers, buttons (quoth3, 2026-11-20, `agent/quoth`)
+
+- **Census** (Quoth's 12 maps, the 15 sample maps): `targetname3` only in kellbase1 (`count3`), no `targetname4`;
+  `target3` 27, `target4` 13, `killtarget2` 3 (AD fires `target` and `target2` only). 0 of the 360 maps in id1, AD,
+  Hipnotic and Rogue's folders have any of them.
+- **Engine** (`pr_edict.c`, `ED_PromoteSecondName`): an entity known only by `targetname2`/`targetname3` takes it as
+  its `targetname` as it is parsed, before its spawn function (AD's trigger_counter removes itself without a name:
+  kellbase1's `count2`, `count3` were gone, `targetname2`'s alias handing its use to a removed entity).
+- **QC** (`vr_quoth.qc`): `targetname3` aliased like `targetname2`; `target3`/`target4`/`killtarget2` (`ad_` fields,
+  the engine's ruleset key mapping) fired by relays the entity's target2 now names (old target2 + target3, then
+  target4; killtarget2), its delay and activator kept. **Point triggers were inert** since phase 1: AD's trigger
+  without a model is a marker (no touch, no use); now spawned with AD's empty model (`ad_MODEL_EMPTY`), then sized.
+  `strzone` declared (`builtins.qc`, FRIK_FILE #118) for the relays' names.
+- **Driver** (`vr_ad_test 212`): presses every button a player can, once a round (a hand's press via `handtouch`: the
+  touch is a foot's in VR; shot when it has health; a locked one retried), and on a time-out prints the counters left
+  and what targets the goal. `vr_ad_test 211` (quothkeys) 7/0 on kellbase1: targetname3's alias, target3+target4
+  both used, count3 named by the engine.
+- **Play-throughs**: `quoth_play.sh` VR mock 11/0 and flat 11/0 (were 7/4): e1m1quoth's ramp room round 1, kellbase1's
+  exit lock round 4, ne_marb's waves round 21, lpqsp1's `voreo` round 6, metmon's `phase4_relay` round 8; the three
+  exits. `quoth_maps.sh` 31/0. QUOTH.md 2, 5, 6.
+- **Checks**: dev and ThinLTO builds 0 warnings (LTO exe relinked); scenario_check PASS (140 run, 0 failed); ad_world_test (vr_ad_test 61-64 on ad_crucial) PASS; dwell_maps 28/0 (Dwell v2.2 copied into the round25 test base: without it 3/25); installer self-tests 48/48; quoth_maps 31/0.
