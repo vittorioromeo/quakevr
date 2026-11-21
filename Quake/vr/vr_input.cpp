@@ -609,13 +609,14 @@ void sprintToggleFrame(bool moving)
     }
 }
 
-// Run by double-tapping the moving stick (vr_move_doubletap; a tester's idea, 2026-11-18): a quick push (half its
+// The other speed by double-tapping the moving stick (vr_move_doubletap; a tester's idea, 2026-11-18): a quick push (half its
 // travel past the deadzone or more, let go within vr_move_doubletap_window seconds), let go (back under a quarter of
-// its travel, as moveHold's letting go), then a push the same way (within 45 degrees) within the window again: running
-// until the stick is let go again. A slow first push (walking), a long gap or a push another way is no double tap (the
+// its travel, as moveHold's letting go), then a push the same way (within 45 degrees) within the window again: the
+// Default Speed's other (running, or walking with Default Speed: Run; his ask, 2026-11-21) until the stick is let go
+// again. A slow first push (walking), a long gap or a push another way is no double tap (the
 // later push may begin one). It ends as the sprint toggle does too: at death, the intermission, a new map
-// (input::resetSprintToggle), a menu over the game, the setting's going off. It runs whatever the speed button says
-// (VR_AdjustMove: running is the speed button's choice or this); the stick's only, not keys or a gamepad. Its own
+// (input::resetSprintToggle), a menu over the game, the setting's going off. It wins over the speed button
+// (VR_AdjustMove: the Default Speed's other, whatever the button says); the stick's only, not keys or a gamepad. Its own
 // clock (the frames' times summed): the same at any frame rate.
 constexpr float doubleTapPush = 0.5f;      // a push: moveStick's length (0..1 past the deadzone) this much or more
 constexpr float doubleTapLetGo = 0.25f;    // let go: under this (moveHoldLeast)
@@ -2408,9 +2409,11 @@ extern "C" void VR_AdjustMove(float* forwardmove, float* sidemove, float* upmove
         lastStickSpeed = 0.f;
         return;
     }
-    // The speed button's choice (held or vr_sprint_toggle's switch, against the Default Speed), or a double tap's run.
-    const bool running = ((VR_SpeedButton(in_speed.state & 1) != 0) != (cl_alwaysrun.value != 0.f)) ||
-                         doubleTap.phase == DoubleTap::Running;
+    // The speed button's choice (held or vr_sprint_toggle's switch, against the Default Speed); a double tap's, the
+    // Default Speed's other whatever the button says (his ask, 2026-11-21: with Default Speed: Run it walks).
+    const bool running = doubleTap.phase == DoubleTap::Running
+                             ? cl_alwaysrun.value == 0.f
+                             : (VR_SpeedButton(in_speed.state & 1) != 0) != (cl_alwaysrun.value != 0.f);
     const float threshold = CLAMP(0.1f, vr_move_autorun_threshold.value, 1.f);
     const float dt = CLAMP(0.f, static_cast<float>(host_frametime), 0.1f);
     autorunBlend = !autorunOn(running) || m == 0.f ? 0.f

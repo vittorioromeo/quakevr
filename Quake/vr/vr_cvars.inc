@@ -789,12 +789,12 @@ QVR_CVAR(vr_sprint_toggle, "0", CVAR_ARCHIVE)
 // followed 11-44 ms later by a press of 11-33 ms, read as a second click (the sprint toggle switched twice); his real
 // clicks are 100 ms long or more, 367 ms apart at the least. Both sticks, every use of the click. 0: off.
 QVR_CVAR(vr_stick_click_debounce, "0.08", CVAR_ARCHIVE)
-// 1: run by double-tapping the moving stick (vr_input.cpp doubleTapStep; a tester's idea, 2026-11-18): a quick push
+// 1: the other speed by double-tapping the moving stick (vr_input.cpp doubleTapStep; a tester's idea, 2026-11-18): a quick push
 // (half its travel or more past the deadzone, let go within vr_move_doubletap_window seconds), let go (under a quarter of
-// its travel), and a push the same way (within 45 degrees) within the window again: running until the stick is let go
-// (or as the sprint toggle ends: death, the intermission, a new map, a menu). It runs whatever the speed button says:
-// running is the speed button's choice (held, or vr_sprint_toggle's switch, against the Default Speed) or this. The VR
-// stick's only (not keys, not a gamepad). 0 (the default): off.
+// its travel), and a push the same way (within 45 degrees) within the window again: the Default Speed's other (cl_alwaysrun 0:
+// running; 1: walking; his ask, 2026-11-21) until the stick is let go (or as the sprint toggle ends: death, the
+// intermission, a new map, a menu), whatever the speed button says. The VR stick's only (not keys, not a gamepad).
+// 0 (the default): off.
 QVR_CVAR(vr_move_doubletap, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_move_doubletap_window, "0.3", CVAR_ARCHIVE) // seconds: the first push's most, and the gap's
 // The least speed (units a second) a push just past the deadzone asks on the ground (vr_input.cpp moveMinSpeed): -1

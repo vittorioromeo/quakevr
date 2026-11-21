@@ -2505,9 +2505,9 @@ QVR_CYCLE(vr_sprint_toggle, "Speed Button",
 QVR_SLIDER(vr_stick_click_debounce, "Stick Click Debounce", 0.f, 0.15f, 0.01f, "%.2f s", ext(0.f, 0.25f),
     "A stick click pressed again this soon after letting go is the switch bouncing and is ignored, so one click "
     "never counts twice (the speed toggle switching back at once). 0: off (vr_stick_click_debounce).")
-QVR_TOGGLE(vr_move_doubletap, "Double-Tap Stick to Run",
-    "On: push the moving stick twice quickly the same way (push, let go, push again) to run until you let it go back "
-    "to the middle. Works beside the speed button: either one makes you run (vr_move_doubletap).")
+QVR_TOGGLE(vr_move_doubletap, "Double-Tap for Other Speed",
+    "On: push the moving stick twice quickly the same way (push, let go, push again) for the other speed than Default "
+    "Speed until you let it go back to the middle: run, or walk with Default Speed: Run (vr_move_doubletap).")
 QVR_SLIDER(vr_move_doubletap_window, "Double-Tap Window", 0.1f, 0.6f, 0.05f, "%.2f s", ext(0.05f, 2.f),
     "How quick a double tap must be: the first push let go within this, and the second begun within this after.")
 QVR_SLIDER_BYNAME(cl_movespeedkey, "Running Mult.", 1.f, 3.f, 0.05f, "%.2f", ext(), "How much faster running is than walking.")
