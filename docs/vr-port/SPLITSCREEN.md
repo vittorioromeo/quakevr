@@ -268,3 +268,15 @@ for real costs the difference, mostly in phases 4-5).
 - `vr_seat_test` (no map needed; verdict `seat_test: N passed, M failed`): in seat 1 (a `Scope`) `+forward`, `+attack`
   and `impulse 7` land in seat 1's buttons and none of seat 0's, and the reverse for seat 0's `+back`; `CL_KeyState`
   per seat; the menu's release lets go of the current seat's only; scopes nest and restore.
+- **Before and after** (the base `87e0b44c7` and phase 1, same machine, release builds; Dev and ThinLTO 0 warnings,
+  QC 0 warnings): scenario_check PASS / PASS; flatplay 31 / 31; flatparry 43 / 43; flathands 76 / 76; flatmelee 12 /
+  12; visor 37 / 37; flatxhair 31 / 31; flatinput 19 / 19; flatkeys 37 / 37; flatmove 10 / 10; flatkeybind 8 / 8;
+  flatflycam 3 / 3; load_models 4 / 4; held/grip (held_over_props, grip_gap, grip_state) 3 / 3; active ragdolls: 2
+  FAIL rows before (ogre crawl, hknight decap), none after (code untouched: the physics' run-to-run spread); vr_agrunt
+  not run (no code of it touched); `vr_seat_test` 16 / 16.
+- **The MP plain suite**: the same result on both: the first 18 scenarios clean (netsafe to campaign), then from
+  `mp_campaign_listen` on most fail at their start ("server exited (code 0) waiting for the server on e1m1", a NET
+  SAFETY refusal of the room service in the server's log). An order effect already on the base, not phase 1's: four
+  of them alone (`--only mp_flow,mp_moves,mp_predict,mp_lagcomp`) pass on both exes (17, 20, 31, 17 checks). To look
+  into separately (BACKLOG).
+- **Effort left**: 33-44 worker-days (section 6).

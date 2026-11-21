@@ -6003,3 +6003,22 @@ modified or bundled: nothing of it is run, copied or shipped; its maps play by A
   file-scope variables in `Quake/vr`, 700-900 of them a player's), the options with effort, the phased plan and the
   questions for him. Recommended: seat processes (one game per seat over 127.0.0.1, shown as tiles of one screen),
   8-11 worker-days; in-process seats 25-35. Nothing built yet.
+
+## Splitscreen phase 1: the seat, the seat_state check, the command buttons (split1, 2026-11-21, `agent/split`)
+
+His decision (2026-11-20): true splitscreen, in process, the per-player state leaving file scope; phases, each tested
+thoroughly; the work stays on the long-lived `agent/split` branch until he says to merge it. SPLITSCREEN.md sections
+4-8: the design (a `Seat` owning one struct per subsystem; shared state marked), the access rule per subsystem
+(passed where the call depth is shallow, `seat::current()` set by the seat loop where it is not), the `seat_state`
+check, 14 phases with estimates (33-44 worker-days left) and the questions each needs.
+
+- `Quake/vr/vr_seat.hpp/.cpp`: `qvr::seat::Seat`, `at`, `current`, `inPlay` (1 until phase 6), `Scope`;
+  `CL_SeatInput()` / `CL_SeatInputOf(i)` for the engine's C.
+- Ironwail's 17 `kbutton_t` globals and `in_impulse` are now `seatinput_t` (client.h), a seat's `input`: the
+  +commands, the move, the menu's release (`CL_ReleaseMoveButtons`: offsets into the seat's buttons) act on the current
+  seat's; readers moved in host.c (the config's `+mlook`: seat 0's), in_sdl.c, menu.c and seven VR files.
+- `qvr_checks seat_state` (in the build): a new mutable file-scope variable in client-side code fails unless a seat's
+  or marked `// seat-shared: <why>`; today's 4,128 in `Misc/quakevr/seat_state_allowlist.txt`, shrinking per phase
+  (`--tighten`); `--accept` for its first writing and a merge's judged newcomers.
+- `vr_seat_test` (no map): two seats' buttons and impulse stay apart, the release is per seat, scopes nest: 16 of 16.
+- No behaviour change at one seat: the same regression set before and after (SPLITSCREEN.md section 8).
