@@ -42,7 +42,9 @@ constexpr double lineTol = 0.01;   // a line this close to a brush's face meets 
 constexpr double minOverlap = 1.0; // two brushes facing each other over less than this: nothing worth closing
 constexpr double minCell = 2.0;    // a slanted face's area cut into cells no smaller than this
 constexpr int maxCells = 64;       // ... and no more tests than this a pair
+constexpr double reachInset = 2.0; // Quake's box reaching into a blocker by this much (hull 1 is rounded by a unit or so)
 constexpr double minThick = 0.25;  // a blocker thinner than this along its line is left out (faces touching)
+// (and a gap narrower than the narrowest compiled box, minWidth (8), is left open: no box gets into it anyway)
 
 // One side of a gap: a brush (its planes in Brushes) or a box (a door's or a lift's travel).
 struct Solid
@@ -124,7 +126,7 @@ void cells(PairWork& w, double u0, double u1, double v0, double v1)
             continue;
         }
         const double gap = lb - ha;
-        if(gap >= quakeBox - gapMargin || gap <= minThick)
+        if(gap >= quakeBox - gapMargin || gap < minWidth)
         {
             ok = false;
         }
@@ -169,59 +171,92 @@ void cells(PairWork& w, double u0, double u1, double v0, double v1)
     }
 }
 
+// (The search shared out on the pool: chunks of the near sides, each with its own output, merged in the chunks' order:
+// the same blockers in the same order as on one thread.)
+jobs::Site holesSite{"hull holes"}; // (its parallelFor: vr_jobs_sites)
+constexpr za::SizeT holeChunk = 256;
+
+struct ChunkOut
+{
+    za::Vector<HoleBox> own, cross;
+    int pairs = 0;
+};
+
+// The pairs whose near side is order[from..to) along axis a.
+void searchFrom(const Brushes& b, const za::Vector<Solid>& s, const za::Vector<za::U32>& order, int a, za::SizeT from,
+    za::SizeT to, ChunkOut& out)
+{
+    const int u = (a + 1) % 3, v = (a + 2) % 3;
+    for(za::SizeT ia = from; ia < to; ++ia)
+    {
+        const Solid& A = s[order[ia]];
+        const double lower = za::max(A.lo[a], A.hi[a] - quakeBox);
+        const double upper = A.hi[a] + quakeBox - gapMargin;
+        za::SizeT lo = 0, hi = order.size();
+        while(lo < hi)
+        {
+            const za::SizeT mid = (lo + hi) / 2;
+            if(s[order[mid]].lo[a] < lower)
+            {
+                lo = mid + 1;
+            }
+            else
+            {
+                hi = mid;
+            }
+        }
+        for(za::SizeT j = lo; j < order.size() && s[order[j]].lo[a] < upper; ++j)
+        {
+            if(j == ia)
+            {
+                continue;
+            }
+            const Solid& B = s[order[j]];
+            if((A.group != 0 && B.group != 0) || B.hi[a] <= A.hi[a] + minThick)
+            {
+                continue;
+            }
+            const double u0 = za::max(A.lo[u], B.lo[u]), u1 = za::min(A.hi[u], B.hi[u]);
+            const double v0 = za::max(A.lo[v], B.lo[v]), v1 = za::min(A.hi[v], B.hi[v]);
+            if(u1 - u0 < minOverlap || v1 - v0 < minOverlap)
+            {
+                continue;
+            }
+            ++out.pairs;
+            PairWork w{b, A, B, a, u, v, 0, (A.group != 0 || B.group != 0) ? out.cross : out.own};
+            cells(w, u0, u1, v0, v1);
+        }
+    }
+}
+
 // Every pair of solids facing each other along x or y within Quake's box (at least one of them group 0): its blockers
 // into own (both group 0) or cross. Pairs looked at: returned.
 int searchPairs(const Brushes& b, const za::Vector<Solid>& s, za::Vector<HoleBox>& own, za::Vector<HoleBox>& cross)
 {
     int pairs = 0;
-    za::Vector<za::U32> order(s.size());
-    for(za::SizeT i = 0; i < s.size(); ++i)
-    {
-        order[i] = static_cast<za::U32>(i);
-    }
     for(int a = 0; a < 2; ++a)
     {
-        const int u = (a + 1) % 3, v = (a + 2) % 3;
-        za::quickSort(order.begin(), order.end(), [&s, a](za::U32 x, za::U32 y) { return s[x].lo[a] < s[y].lo[a]; });
-        for(za::SizeT ia = 0; ia < order.size(); ++ia)
+        za::Vector<za::U32> order(s.size());
+        for(za::SizeT i = 0; i < s.size(); ++i)
         {
-            const Solid& A = s[order[ia]];
-            const double lower = za::max(A.lo[a], A.hi[a] - quakeBox);
-            const double upper = A.hi[a] + quakeBox - gapMargin;
-            za::SizeT lo = 0, hi = order.size();
-            while(lo < hi)
+            order[i] = static_cast<za::U32>(i);
+        }
+        za::quickSort(order.begin(), order.end(),
+            [&s, a](za::U32 x, za::U32 y) { return s[x].lo[a] != s[y].lo[a] ? s[x].lo[a] < s[y].lo[a] : x < y; });
+        za::Vector<ChunkOut> outs((order.size() + holeChunk - 1) / holeChunk);
+        jobs::parallelFor(holesSite, outs.size(), 1,
+            [&](za::SizeT begin, za::SizeT end)
             {
-                const za::SizeT mid = (lo + hi) / 2;
-                if(s[order[mid]].lo[a] < lower)
+                for(za::SizeT c = begin; c < end; ++c)
                 {
-                    lo = mid + 1;
+                    searchFrom(b, s, order, a, c * holeChunk, za::min(order.size(), (c + 1) * holeChunk), outs[c]);
                 }
-                else
-                {
-                    hi = mid;
-                }
-            }
-            for(za::SizeT j = lo; j < order.size() && s[order[j]].lo[a] < upper; ++j)
-            {
-                if(j == ia)
-                {
-                    continue;
-                }
-                const Solid& B = s[order[j]];
-                if((A.group != 0 && B.group != 0) || B.hi[a] <= A.hi[a] + minThick)
-                {
-                    continue;
-                }
-                const double u0 = za::max(A.lo[u], B.lo[u]), u1 = za::min(A.hi[u], B.hi[u]);
-                const double v0 = za::max(A.lo[v], B.lo[v]), v1 = za::min(A.hi[v], B.hi[v]);
-                if(u1 - u0 < minOverlap || v1 - v0 < minOverlap)
-                {
-                    continue;
-                }
-                ++pairs;
-                PairWork w{b, A, B, a, u, v, 0, (A.group != 0 || B.group != 0) ? cross : own};
-                cells(w, u0, u1, v0, v1);
-            }
+            });
+        for(ChunkOut& o : outs)
+        {
+            own.emplaceBackRange(o.own.data(), o.own.size());
+            cross.emplaceBackRange(o.cross.data(), o.cross.size());
+            pairs += o.pairs;
         }
     }
     return pairs;
@@ -293,6 +328,120 @@ void dedupe(za::Vector<HoleBox>& boxes)
         }
     }
     boxes.resize(n);
+    // ... and none inside another (a grate's hole is found by both its pairs of bars, a slanted face's cells overlap).
+    auto inside = [](const HoleBox& x, const HoleBox& y)
+    {
+        return x.lo.x >= y.lo.x && x.lo.y >= y.lo.y && x.lo.z >= y.lo.z && x.hi.x <= y.hi.x && x.hi.y <= y.hi.y &&
+               x.hi.z <= y.hi.z;
+    };
+    za::Vector<char> dropped(n, 0);
+    for(za::SizeT i = 0; i < n; ++i)
+    {
+        for(za::SizeT j = i + 1; j < n && boxes[j].lo.x <= boxes[i].hi.x && !dropped[i]; ++j)
+        {
+            if(dropped[j])
+            {
+                continue;
+            }
+            if(inside(boxes[j], boxes[i]))
+            {
+                dropped[j] = 1;
+            }
+            else if(inside(boxes[i], boxes[j]))
+            {
+                dropped[i] = 1;
+            }
+        }
+    }
+    za::SizeT m = 0;
+    for(za::SizeT i = 0; i < n; ++i)
+    {
+        if(!dropped[i])
+        {
+            boxes[m++] = boxes[i];
+        }
+    }
+    boxes.resize(m);
+}
+
+// Boxes side by side with the same cross-section made one (a wall cut into pieces by the BSP gives a corridor's blocker
+// in pieces): each is gap points and solid only, so their union is too.
+void mergeBoxes(za::Vector<HoleBox>& boxes)
+{
+    for(int k = 0; k < 3; ++k)
+    {
+        const int p = (k + 1) % 3, q = (k + 2) % 3;
+        za::quickSort(boxes.begin(), boxes.end(),
+            [p, q, k](const HoleBox& x, const HoleBox& y)
+            {
+                const double xs[5] = {x.lo[p], x.hi[p], x.lo[q], x.hi[q], x.lo[k]};
+                const double ys[5] = {y.lo[p], y.hi[p], y.lo[q], y.hi[q], y.lo[k]};
+                for(int i = 0; i < 5; ++i)
+                {
+                    if(xs[i] != ys[i])
+                    {
+                        return xs[i] < ys[i];
+                    }
+                }
+                return false;
+            });
+        za::SizeT n = 0;
+        for(za::SizeT i = 0; i < boxes.size(); ++i)
+        {
+            HoleBox& last = boxes[n == 0 ? 0 : n - 1];
+            const HoleBox& x = boxes[i];
+            if(n && last.lo[p] == x.lo[p] && last.hi[p] == x.hi[p] && last.lo[q] == x.lo[q] && last.hi[q] == x.hi[q] &&
+                x.lo[k] <= last.hi[k] + 1e-6)
+            {
+                last.hi[k] = za::max(last.hi[k], x.hi[k]);
+            }
+            else
+            {
+                boxes[n++] = x;
+            }
+        }
+        boxes.resize(n);
+    }
+}
+
+// Quake's box (hull 1: what Quake compiled, clip brushes and all) placed somewhere it fits and reaching into the
+// blocker by more than `inset` on every side (a coarse lattice of its centres): a blocker it would feel. (Hull 0 has
+// solids hull 1 lacks: detail brushes compiled without collision, as Arcane Dimensions' maps have.)
+bool quakeBoxReaches(const hull_t& h1, const HoleBox& box, double inset, int maxSteps, glm::dvec3* where = nullptr)
+{
+    glm::dvec3 from, to;
+    int steps[3];
+    for(int k = 0; k < 3; ++k)
+    {
+        from[k] = box.lo[k] + inset - h1.clip_maxs[k];
+        to[k] = box.hi[k] - inset - h1.clip_mins[k];
+        steps[k] = to[k] > from[k] ? za::min(maxSteps, static_cast<int>((to[k] - from[k]) / 2.0) + 1) : 0;
+    }
+    for(int ix = 0; ix <= steps[0]; ++ix)
+    {
+        for(int iy = 0; iy <= steps[1]; ++iy)
+        {
+            for(int iz = 0; iz <= steps[2]; ++iz)
+            {
+                const int idx[3] = {ix, iy, iz};
+                glm::dvec3 c;
+                for(int k = 0; k < 3; ++k)
+                {
+                    c[k] = steps[k] ? from[k] + (to[k] - from[k]) * idx[k] / steps[k] : (from[k] + to[k]) * 0.5;
+                }
+                const int contents = pointContents(h1, h1.firstclipnode, c);
+                if(contents != CONTENTS_SOLID && contents != CONTENTS_SKY)
+                {
+                    if(where)
+                    {
+                        *where = c;
+                    }
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
 }
 
 void emitBox(Brushes& b, const HoleBox& box)
@@ -563,14 +712,18 @@ void addHoles(Brushes& b, const qmodel_t* world)
     za::Vector<HoleBox> own, cross;
     b.holePairs += searchPairs(b, solids, own, cross);
     dedupe(own);
+    mergeBoxes(own);
     dedupe(cross);
+    mergeBoxes(cross);
+    const hull_t& h1 = world->hulls[1];
+    const bool haveHull1 = h1.clipnodes && h1.firstclipnode <= h1.lastclipnode;
     {
         const int head = b.subs[0].head;
         SubModel& w = b.subs[0];
         w.firstHole = static_cast<za::U32>(b.brushes.size());
         for(const HoleBox& x : own)
         {
-            if(!insideSolid(h0, head, x))
+            if(!insideSolid(h0, head, x) && !(haveHull1 && quakeBoxReaches(h1, x, reachInset, 2)))
             {
                 emitBox(b, x);
             }
@@ -605,6 +758,7 @@ void addHoles(Brushes& b, const qmodel_t* world)
         za::Vector<HoleBox> found, none;
         b.holePairs += searchPairs(b, solids, found, none);
         dedupe(found);
+        mergeBoxes(found);
         SubModel& m = b.subs[sub];
         m.firstHole = static_cast<za::U32>(b.brushes.size());
         for(const HoleBox& x : found)
@@ -625,10 +779,6 @@ namespace
 // ---------------------------------------------------------------------------------------------------------------
 // The test aids (Debug > Tests > Player Hitbox; Movement > Player Hitbox).
 
-bool solidLeaf(int contents)
-{
-    return contents == CONTENTS_SOLID || contents == CONTENTS_SKY;
-}
 
 // vr_hull_holes_census: the map's blockers, and whether Quake's box (hull 1, the clip brushes in it) fits anywhere it
 // would reach into one of the world's own by more than a unit: it never should (a blocker only where Quake's box never was).
@@ -654,7 +804,7 @@ void census_f()
     const SubModel& w = b.subs[0];
     const za::U32 own = w.numHoles - w.crossHoles;
     const hull_t& h1 = world->hulls[1];
-    constexpr double inset = 1.0;
+    constexpr double inset = reachInset;
     int reach = 0;
     double area = 0.0;
     glm::dvec3 firstReach{0.0};
@@ -663,37 +813,11 @@ void census_f()
         const Brush& br = b.brushes[w.firstHole + i];
         const glm::dvec3 lo{br.mins}, hi{br.maxs};
         area += (hi.x - lo.x) * (hi.y - lo.y);
-        glm::dvec3 from, to;
-        int steps[3];
-        for(int k = 0; k < 3; ++k)
+        glm::dvec3 c{0.0};
+        const bool hit = quakeBoxReaches(h1, HoleBox{lo, hi}, inset, 16, &c);
+        if(hit && !reach)
         {
-            from[k] = lo[k] + inset - h1.clip_maxs[k];
-            to[k] = hi[k] - inset - h1.clip_mins[k];
-            steps[k] = to[k] > from[k] ? za::min(16, static_cast<int>((to[k] - from[k]) / 2.0) + 1) : 0;
-        }
-        bool hit = false;
-        for(int ix = 0; ix <= steps[0] && !hit; ++ix)
-        {
-            for(int iy = 0; iy <= steps[1] && !hit; ++iy)
-            {
-                for(int iz = 0; iz <= steps[2] && !hit; ++iz)
-                {
-                    const int idx[3] = {ix, iy, iz};
-                    glm::dvec3 c;
-                    for(int k = 0; k < 3; ++k)
-                    {
-                        c[k] = steps[k] ? from[k] + (to[k] - from[k]) * idx[k] / steps[k] : (from[k] + to[k]) * 0.5;
-                    }
-                    if(!solidLeaf(pointContents(h1, h1.firstclipnode, c)))
-                    {
-                        hit = true;
-                        if(!reach)
-                        {
-                            firstReach = c;
-                        }
-                    }
-                }
-            }
+            firstReach = c;
         }
         reach += hit ? 1 : 0;
     }
@@ -701,8 +825,9 @@ void census_f()
                "Quake's box fits into %d of its own%s\n",
         world->name, w.numHoles, own, w.crossHoles, modelHoles, models, b.holePairs, b.holeMs, reach,
         reach ? va(" (first: centre %.0f %.0f %.0f)", firstReach.x, firstReach.y, firstReach.z) : "");
-    Con_Printf("HOLECENSUS|%s|%u|%u|%d|%d|%d|%.1f|%d|%.0f\n", world->name, own, w.crossHoles, modelHoles, models,
-        b.holePairs, b.holeMs, reach, area);
+    const Tree& pt = tree; // (the player's: its compile, for the blockers' share of it)
+    Con_Printf("HOLECENSUS|%s|%u|%u|%d|%d|%d|%.1f|%d|%.0f|%.1f|%zu|%d\n", world->name, own, w.crossHoles, modelHoles,
+        models, b.holePairs, b.holeMs, reach, area, pt.ms, static_cast<size_t>(pt.nodes.size()), pt.fromDisk ? 1 : 0);
 }
 
 // vr_hull_holes_near [radius]: the blockers near you (a brush model's in its own space).
