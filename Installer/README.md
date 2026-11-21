@@ -14,8 +14,10 @@ can update or remove what it installed. The design, the research behind it and t
 | `src/QuakeVR.Installer.Cli` | `qvr-setup.exe`: the core from a console (detection report, install/uninstall/verify from a local package, manifests, downloads) |
 | `tests/QuakeVR.Installer.SelfTest` | The core's tests, as a console program (see "Tests") |
 
-No NuGet packages: everything is in the .NET 9 SDK (WPF, `System.Text.Json`, `System.IO.Compression`, `HttpClient`,
-COM interop for `IShellLink`, winmm's wave-out for the sounds).
+One NuGet package, `Microsoft.ML.OnnxRuntime.DirectML` 1.22.0 (MIT; Core's reliefs step, "Reliefs for Dwell and
+Quoth" below: its native `onnxruntime.dll` and `DirectML.dll` go inside the single-file exe, about 10 MB of it; its
+import library is dropped from the publish, `Directory.Build.props`). Everything else is in the .NET 9 SDK (WPF,
+`System.Text.Json`, `System.IO.Compression`, `HttpClient`, COM interop for `IShellLink`, winmm's wave-out for the sounds).
 
 ## The look, and what is shipped
 
@@ -172,6 +174,31 @@ failed download skips it, said on the Done page). "I already have it": a `quoth`
 is 2.2's (`Quoth.Pak2Sha256`, the engine's `VR_QUOTH_PIN_SHA`) with pak0 and pak1. CLI: `--quoth [--quoth-zip <zip>]`,
 on by default (`--no-quoth`), skipped with the reason without AD. Self-tests: `quoth: ...` (the pin, existing copies,
 the real zip from `qvr-kit/downloads/modsurvey/quoth/`: install, repair, update, uninstall).
+
+## Reliefs for Dwell and Quoth
+
+AD's surface relief comes from a bundle made on the developer's machine (`Misc/quakevr/pbr_generate.py`,
+docs/vr-port/PBR_PIPELINE.md) and shipped in `quakevr/textures/pbr`. Dwell's and Quoth's cannot be shipped (made from
+their textures: DWELL.md section 1, QUOTH.md), so Setup makes them on the player's PC from his own copies
+(`Core/Reliefs/ReliefMaker.cs`; DWELL.md 9.9, option A). The Options page's "Make reliefs for Dwell and Quoth" row sits
+under Dwell's: **ticked** wherever Dwell or Quoth will be there (ticked, found, or in the install: `ReliefsPossible`),
+greyed otherwise. Its step runs last, after Quoth's: the Dwell and Quoth folders the game plays (the install's own, else
+the found copies) are read like the generator reads AD (their paks and loose maps, the miptex through Quake's palette,
+`textures/` replacements PNG and TGA as the engine picks them; JPG replacements are not decoded and get none), each
+drawn texture hashed as the engine hashes it, and those without a companion (not stock, `quakevr/textures/pbr/stock.txt`;
+not in quakevr's bundle; not made before) go through PBRify's two CC0 models: `Reliefs/Models/pbrify_normal.onnx` and
+`pbrify_height.onnx` (1.6 MB each, embedded; exported once by `Misc/quakevr/pbr_export_onnx.py`), run by onnxruntime
+with DirectML, the CPU when DirectML is not there or fails. The packing is the generator's (256-pixel tiles with 48
+pixels of wrapped context, cutout and glow colours filled, calibrated height within 0.5, green orientation, flat holes,
+lighting-only animation frames sharing their first frame's relief). Output: `<install>\reliefs\textures\pbr\<hash>_norm.png`
+and its `provenance.txt` (the engine searches `<last basedir>\reliefs` below every game folder: vr_pbr.cpp,
+`VR_AddReliefsPath`). Progress in the status line; Cancel skips the rest (the next Setup run makes only the missing
+ones); a failure is a note on the Done page, never a failed install. The uninstaller removes the folder. Measured: Dwell
+and Quoth, 2323 textures, 1768 made in 115 s on an RTX 4090 (DirectML), 82 MB. Parity: 60 AD textures against
+`pbr_generate.py` (PyTorch): mean texel difference 0.0001, worst 1. CLI: `qvr-setup reliefs --target <install>
+[--mods "<dir>;<dir>"] [--palette-dirs ...] [--texture-roots ...] [--quakevr <dir>] [--cpu] [--limit N]`.
+Self-tests: `reliefs: ...` (images and packing; a made-up texture set end to end on the CPU: made, skipped, frames
+shared, holes flat, kept, made again when missing, removed by uninstall).
 
 ## Packages
 
