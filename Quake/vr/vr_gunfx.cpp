@@ -187,7 +187,7 @@ struct OtherHeat
     double lastShot{-1.0};
     double lastCool{-1.0}; // cl.time it was cooled to
 };
-OtherHeat otherHeats[MAX_SCOREBOARD + 1][2];
+OtherHeat otherHeats[MAX_SCOREBOARD + 1][2]; // seat-shared: other players' copies, by player (the effects: phase 7)
 
 za::FastNonCryptoRng rng{0x9E3779B97F4A7C15ull}; // (visual only)
 

@@ -1195,7 +1195,7 @@ struct CopyWounds
     bool painted{false};
     bool doll{false};
 };
-CopyWounds copyWounds[MAX_SCOREBOARD + 1];
+CopyWounds copyWounds[MAX_SCOREBOARD + 1]; // seat-shared: other players' copies, by player (the effects: phase 7)
 
 using geom::closestOnSegment;
 

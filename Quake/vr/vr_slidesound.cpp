@@ -59,7 +59,7 @@ struct Other
     double lastTime{-1.0};
     float speed{0.f};
 };
-Other others[MAX_SCOREBOARD + 1];
+Other others[MAX_SCOREBOARD + 1]; // seat-shared: other players' slides, by player (the listeners: phase 8)
 
 [[nodiscard]] channel_t* playing(const Voice& v, int ent)
 {
