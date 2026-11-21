@@ -7272,3 +7272,34 @@ hue band can't separate brown uniforms from brown flesh, and a full hue turn wit
   stab, pommel and slow slash refused); vrtrailer 9/9; scenario_check PASS (178 run, 0 failed); Dev and ThinLTO built,
   0 warnings. superaxe_decap_test.sh: slow 5 of 5, fast 4 of 5 (one run killed him without a beheading, its reason lost:
   the test now keeps each swing's game log, `scratch/superaxe_decap_<kind>_game.log`, and names the refusal).
+
+## bladeone: the drawn blade shape is the one source for every blade system (agent/bladeone, 2026-11-22)
+
+- **His words (11-21):** "Cuts should definitely follow the drawn blade shape. Why do we have multiple systems?" Audit and
+  the functions: docs/vr-port/BLADES.md.
+- **One start:** `VR_Blade_From(thing, own)` (vr_melee_params.qc): his `bl_from` exactly, else the kind's `VR_BLADE_FROM_*`
+  (sword 0.27, axe 0.75, club 0.3, chainsaw 0.55, crowbar 0.2, gun 0.5: the layout's first striking point, where Edit
+  Blade Shape draws the "kind's" Blade Start; VR_Melee_Layout uses the same constants). Also `VR_Blade_Along`,
+  `VR_Blade_OnEdge`, `VR_Blade_EdgePoint` (on the curve), `VR_Melee_PartAt(thing, f, own)`.
+- **Removed:** `VR_Decap_BladeFrom` with its sword 0.4 / axe 0.6 and the sword's 0.4 floor; `VR_MELEE_BLADE_FROM` 0.4
+  (rib score, pommel wait); `VR_SAW_BAR_START`; PartAt's sword 0.2 / axe 0.6 / saw 0.45. The skewer's cut-on uses the
+  drawn curve; the chainsaw's running cut the drawn line (Line Start, Blade Tip). A live blow's decap reads the struck
+  point's own share (mh_c_f) instead of the contact's projection (the Super Axe at 0.05 struck at 0.04: the swept radius).
+  `mh_bfrom` keeps the own start also for a weapon carried off its handle (its parts there).
+- **His values restored:** the Super Axe's `bl_from` 0.15 -> 0.05 (axelag's; no other agent changed a `bl_*` key in
+  weapons.txt's history). The dagger's 0.05 now counts as drawn (before: floored to 0.4).
+- **Shapes that include a guard or handle (for him, not changed):** the dagger's Blade From 0.05 lies under its guard
+  (guard 0 .. 0.2 of its line, axelag's `vr_blade_dump fit 52`); the Super Axe's 0.05 sits at the hand (its crescent's
+  first vertices at 0.18, fit 25): both now cut from there.
+- **Kept (motion, not shape):** the slash angle and speed, pommel strikes, the stab's "outer half" (`f >= 0.5`,
+  VR_Melee_DecideOn), embedding by the tip (`vr_embed_stab_tip`). Engine, open: vr_axestick.cpp guesses 0.25 and
+  vr_view_weapon.cpp 0.15 for slots with no `bl_from` (the engine has no weapon kind).
+- **New check** `vr_melee_sweep_test 7` (`bladeone: 46 passed, 0 failed`): 11 bladed weapons (sword, dagger, axe, Super
+  Axe, chainsaw, six AD swords): own start kept, the melee's first striking point there, on-edge sharp and cut, off-edge
+  blunt and refused by decap, skewer onto the edge. (AD's justice knight's and judicator's swords given by flags: not
+  drawn as swords, left out.)
+- **Suites:** decap_test.sh, limbs_test.sh, melee_arc_test.sh exit 0, no FAIL lines; vr_embed_test 40 24/0; 21 43/1 (the
+  known slow-swing lag case); 1 47/14 (thrown swords against the wall and bodies: engine axestick, untouched; not
+  compared against next). superaxe_decap: fast PASS, **slow FAIL**: with his 0.05 the slow chop's struck point gives
+  29.6 damage on a 30-health grunt and smallgib's chance 1.12 gibs him before any beheading (vrtrailer 8/9 the same).
+  Not a shape refusal; open.

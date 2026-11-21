@@ -634,7 +634,7 @@ void(float xHand, entity b) VR_HoseCut_Melee =
     vector lo = vr_rib_lo - '1 1 1' * (vr_rib_rmax + 2);
     vector hi = vr_rib_hi + '1 1 1' * (vr_rib_rmax + 2);
     float slack = max(0.4, cvar_hget(cvarh_vr_adgun_tank_rope)) * VRMetersToUnits() * 0.6;
-    float from = thing == VR_MTHING_SAW ? VR_SAW_BAR_START : VR_Decap_BladeFrom(thing, b.mh_bfrom);
+    float from = VR_Blade_From(thing, b.mh_bfrom);
     for(entity e = find(world, classname, "vr_fueltank"); e; e = find(e, classname, "vr_fueltank"))
     {
         entity eg = VR_FuelTank_Gun(e);

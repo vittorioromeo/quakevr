@@ -261,7 +261,7 @@ float(float xHand, entity b) VR_Melee_Track =
     b.mh_free_tip = vr_mline_tip;
     b.mh_free_gw = vr_mline_gw;
     b.mh_free_back = vr_mline_back;
-    b.mh_bfrom = vr_mline_free ? -1 : vr_mline_from_x;
+    b.mh_bfrom = vr_mline_from_x; // (its own also when carried off its handle: its parts there, VR_Melee_FreeLayout)
 
     // The points: kept from the last pose, laid out now.
     VR_Melee_LayoutOf(b);
@@ -1328,14 +1328,14 @@ void(entity b, float xR) VR_Melee_Ribs =
 };
 
 // How squarely a line of `b` swept from `xP0` to `xP1` crosses `e` (lower is better): its nearest to the
-// thing's middle, a share of its half size; the blade proper's lines (from VR_MELEE_BLADE_FROM out: a blade cuts with
+// thing's middle, a share of its half size; the blade proper's lines (from its drawn start out, VR_Blade_From: a blade cuts with
 // its outer part, a fist with its knuckles) before those nearer the hand, and a line already in it (`xIn`: it didn't
 // enter it) after any that entered.
 float(entity b, entity e, vector xP0, vector xP1, float xIn) VR_Melee_RibScore =
 {
     vector c = (e.absmin + e.absmax) * 0.5;
     vector line = b.mh_far - b.mh_grip;
-    float inner = (xP1 - b.mh_grip) * line < VR_MELEE_BLADE_FROM * (line * line);
+    float inner = VR_Blade_Along(b.mh_grip, b.mh_far, xP1) < VR_Blade_From(b.mh_thing, b.mh_bfrom);
     return (xIn ? 2 : 0) + (inner ? 1 : 0) + VR_PointSegmentDistance(c, xP0, xP1) / max(1, vlen(e.absmax - e.absmin) * 0.5);
 };
 
@@ -1798,7 +1798,7 @@ float(float xHand, entity b) VR_Melee_SweepNow =
     // was.
     if(edgeI >= 0 && VR_Melee_DecideOn(xHand, b, edgeI, vr_mpt_kind[edgeI], edgeEnt, edgeAt) && VR_Melee_SlapLands(b, edgeEnt))
     {
-        if(b.mh_pend_ent == world || b.mh_pend_ent != edgeEnt || vr_mpt_f[edgeI] >= VR_MELEE_BLADE_FROM)
+        if(b.mh_pend_ent == world || b.mh_pend_ent != edgeEnt || vr_mpt_f[edgeI] >= VR_Blade_From(b.mh_thing, b.mh_bfrom))
         {
             b.mh_pend_ent = world;
             b.mh_c_ent = edgeEnt;
