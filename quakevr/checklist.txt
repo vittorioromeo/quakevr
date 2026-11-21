@@ -94,6 +94,7 @@ Flat-screen or VR: A respawned player's old body still looks like him (his build
 Host a game with a room code: Host Game says whether your port 26000 is reachable (and the net HUD while hosting); forward UDP 26000 on your router and host again: it should read reachable (after redeploying the room service) {test:mp_coop_bot}
 Show Navmesh (any setting) draws each navmesh-walking bot's path in magenta, with a white post at its next corner, on the host and when joined as a client (vr_bot_navmesh 1, deathmatch with bots) {test:mp_dm_navmesh}
 Kill a player and a bot in coop (and yourself in single player): each corpse is that player's own body shape and size, its limbs bending like a person's, and a tall player's corpse is visibly longer than a short one's {test:mp_coop_bodies}
+Run the mp_dm_passive scene: a local deathmatch with a bot that stands still facing you; kill it and it comes back to the same spot, still passive {test:mp_dm_passive}
 
 [4. Flat screen]
 
