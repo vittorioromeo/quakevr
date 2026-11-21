@@ -97,6 +97,47 @@ struct VrDrawnHolsters
 void writeDrawnHolsters(sizebuf_t* buf, const VrDrawnHolsters& h, const glm::vec3& origin, bool points);
 [[nodiscard]] VrDrawnHolsters readDrawnHolsters(const glm::vec3& origin, bool points);
 
+// A gun's look beyond its model, frame and skin (MP_PLAN.md, "Held weapons' state"): what the server has of it (QC's
+// fields), drawn by the same code for this client's own guns (view::ownGunLook, from the stats) and another player's (his
+// avatar: the server writes his, writeGunLook). Its revolver's crane and cylinder, the super shotgun broken open, its
+// magazine in or out and the rounds it shows, the ammo screen's clip.
+struct VrGunLook
+{
+    static constexpr za::U8 gunBit = 1;        // a gun in that hand (the rest written)
+    static constexpr za::U8 magsShownBit = 2;  // the guns' magazines drawn (immersive reloading, or flat-screen play)
+    static constexpr za::U8 clipFullBit = 4;   // no clips at all (the reload mode 0): drawn full
+    static constexpr za::U8 magOutBit = 8;     // its magazine sliding out (QC .vr_mag_out)
+    static constexpr za::U8 ssgBreaksBit = 16; // the super shotgun breaks open (drawn open by its flag)
+    static constexpr za::U8 revolverBit = 32;  // a heavy revolver's state follows (QC .vr_rv_hud nonzero)
+    za::U8 bits{0};
+    za::U16 flags{0};   // QC's weaponflags (QVR_WPNFLAG_*: no magazine, broken open, its chambers...)
+    za::U8 clip{0};     // the rounds in it (its record's wi_clip)
+    za::U8 clipSize{0}; // its magazine's size (the ammo screen's warning colour)
+    za::I32 revolver{0}; // QC .vr_rv_hud (vr_view.cpp setupRevolverParts: chambers, swung out, the rod)
+    float cylinder{0.f}; // QC .vr_rv_cyl, degrees (written in 256ths of a turn)
+    [[nodiscard]] bool has(za::U8 bit) const { return (bits & bit) != 0; }
+};
+// Written as the bits, then with a gun its flags, clip and clip size (4 B), with a revolver its state and turn (4 B).
+void writeGunLook(sizebuf_t* buf, const VrGunLook& l);
+[[nodiscard]] VrGunLook readGunLook();
+
+// This client's torch as drawn (flashlight::netLamp; MP_PLAN.md, "Held weapons' state"): where it is (on the belt, in a
+// hand, on a gun, at the head), its model shown or not, lit; the others draw it there and light its beam from its lens
+// along its +x. Multiplayer only.
+struct VrDrawnLamp
+{
+    static constexpr za::U8 placedBit = 1; // placed (the rest written)
+    static constexpr za::U8 shownBit = 2;  // its model drawn (flat-screen play hides it at the eyes)
+    static constexpr za::U8 litBit = 4;    // lit (its reach follows)
+    za::U8 flags{0};
+    glm::vec3 origin{0.f};                 // world (the move: absolute; the avatar: from his entity's origin)
+    glm::quat rot{1.f, 0.f, 0.f, 0.f};     // its model's axes to the world (+x the beam)
+    float range{0.f};                      // the beam's reach, units
+};
+// Written as the flags, then placed its place (eighths from `origin`) and turn (16-bit x, y, z; w >= 0), lit its reach.
+void writeDrawnLamp(sizebuf_t* buf, const VrDrawnLamp& l, const glm::vec3& origin);
+[[nodiscard]] VrDrawnLamp readDrawnLamp(const glm::vec3& origin);
+
 struct VrMove
 {
     glm::vec3 headAngles{0.f}; // -> .v_viewangle (.v_angle carries the aim angles)
@@ -150,6 +191,7 @@ struct VrMove
     VrDrawnHand drawn[2];
     VrBodyPose body; // (multiplayer, with `drawn`)
     VrDrawnHolsters holsters; // (multiplayer, with `drawn`: B6b)
+    VrDrawnLamp lamp;         // (multiplayer, with `drawn`: his torch as drawn, wpnsync)
 };
 
 void writeVrMove(sizebuf_t* buf, const VrMove& move);

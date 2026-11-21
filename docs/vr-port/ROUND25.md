@@ -5996,6 +5996,25 @@ modified or bundled: nothing of it is run, copied or shipped; its maps play by A
   exits. `quoth_maps.sh` 31/0. QUOTH.md 2, 5, 6.
 - **Checks**: dev and ThinLTO builds 0 warnings (LTO exe relinked); scenario_check PASS (140 run, 0 failed); ad_world_test (vr_ad_test 61-64 on ad_crucial) PASS; dwell_maps 28/0 (Dwell v2.2 copied into the round25 test base: without it 3/25); installer self-tests 48/48; quoth_maps 31/0.
 
+## wpnsync: other players' guns and torches drawn as they are (multiplayer, 2026-11-21)
+
+His notes: the revolver's cylinder open or shut was not seen by the others; nor were player flashlights. Audit and
+detail: MP_PLAN.md, "Held weapons' state and player lights".
+
+- Another player's held and holstered guns are drawn by your own guns' routines (`view::drawGunParts`, vr_view.cpp)
+  from what the server has of them (`VrGunLook` in his avatar: QC's weapon flags, clip, clip size, the revolver's
+  state and cylinder, his reload mode): the revolver's crane swinging out and its shells, the super shotgun broken
+  open, magazines in, sliding out or dropped and the rounds they show, the ammo screen's button and clip (within
+  `vr_weapon_world_attach_range`). Your own go through the same steps from your stats (`view::ownGunLook`).
+- The Widowmaker's and Rotary Shotgun's turning barrels and the AD crossbow's string: the drawn pose's nearer frame is
+  sent as the weapon's frame.
+- His torch (`VrDrawnLamp`: on his belt, in a hand, on a gun, on his head; shown; lit; reach) goes up in his move and
+  out in his avatar: drawn with your torch's model placement and lit with your beam's spot, spill and glow lights
+  (unshadowed; `flashlight::drawOther`). Not its visible cone in the air or its cord.
+- `QVR_NET_VERSION` 41: the room service is redeployed with it.
+- Tests: `mp_test.py wpnsync` and `wpnsync_flat` (in the suite) 16/0 each.
+- Left: the auto pump's stroke and clacks after another player's shot (his client's own animation; the QC reload
+  sounds are already everyone's), the torch's visible cone and cord, the Widowmaker's motor sound, the lava guns' glow.
 ## Multiplayer sync audit: every player feature, seen by another player or not (mpaudit, 2026-11-21, `agent/mpaudit`)
 
 - His ask: everything of a player that others should see or hear but don't. The table and the fix batches are MP_PLAN.md,

@@ -4006,8 +4006,9 @@ design (right as it is), **N** no such feature. Evidence: [run] syncaudit, [test
 | Height, build, gloves, skin, nails, seated, handedness | S | QVR_SVC_AVATARCAL, reliable on change | mp_avatarcal, mp_cosmetics [test] |
 | Pauldrons, armour plates | S | calibration and the gear byte (B6c) | vrpauldron(_arm) x2 both [run] |
 | Held weapon: model, frame, skin, place | S | the drawn hand's weapon | v_shot, v_axe both [run] |
-| Held weapons' parts: cylinder, magazines, ammo type, pump/bolt, SSG open, a held grenade's pin | E | agent/wpnsync (with the pump's stroke sounds, `vr/autopump_back/home`: B only [run]) | |
-| Flashlight, torso torch | E | agent/wpnsync | vrflashlight B only [run] |
+| Held weapons' parts: the revolver's crane, cylinder and shells, magazines and their rounds, SSG open, the ammo screen's clip, the Widowmaker's and Rotary's spin, ammo type (its model), held and holstered | S | the avatar's VrGunLook and holsters' flags and clip, drawn by your own guns' routines (agent/wpnsync: "Held weapons' state and player lights") | mp_wpnsync, mp_wpnsync_flat [test] |
+| **The auto pump's stroke and its clacks** (`vr/autopump_back/home`) | G | his client's own animation after his shot: not seen or heard (the QC reload sounds are server sounds, heard) | B only [run] |
+| Flashlight, torso torch (belt, hand, gun, head; on/off, where it points) | S | VrDrawnLamp in the move and the avatar: his torch's model and its spot, spill and glow lights (agent/wpnsync); not its visible cone or cord | mp_wpnsync [test] |
 | Holstered weapons | S | VrDrawnHolsters (B6b) | mp_cosmetics [test]; holstered v_shot both [run] |
 | **Hip and leg holster sheaths** | G | not drawn on the copy (his holstered guns float at his thighs) | legholster x4 B only, VR and flat [run] |
 | **Wrist gadget and its straps** (VR) | G | not drawn on the copy; nor its screen's glow | vrgadget, vrgadget_strap x2, lights r10/r30 B only [run] |
@@ -4059,3 +4060,82 @@ harness "holster give" (4784) takes 190-195 next. `impulse 255` and `254` still 
 
 Harness: `mp_test.py syncaudit` (B in VR) and `syncaudit --flat B`; each batch's fix turns its "B has, A not" lines
 into "both". Tables of the two runs: `scratch/mpaudit_table_vr.txt`, `scratch/mpaudit_table_flat.txt` (not committed).
+
+## Held weapons' state and player lights (wpnsync, 2026-11-21)
+
+His words (11-20): "The revolver cylinder open/close state is not synced in mp. Please sync it and see if other similar
+things need syncing (e.g. selected ammo type, state of the magazine in a weapon, etc...)"; (11-21) "player flashlights
+are not synced, they should."
+
+Before: another player's held and holstered weapons were drawn as one model at his frame and skin (view::drawHands:
+VrDrawnHand's model, frame, skin, place). Everything your own view draws on top of that from your stats (the revolver's
+crane, cylinder and shells; the super shotgun's barrels broken open; the magazines and the rounds they show; the ammo
+screen's button and clip) was never drawn for anyone else, and the torch was entirely yours (its model, its lights).
+
+Now: the server writes each player's guns as it has them (QC's fields: what his own stats carry) into his avatar
+(`VrGunLook` a hand, flags and clip a holstered gun), his client sends his torch as drawn in his move (`VrDrawnLamp`), and
+the other clients draw them by the routines that draw their own: `view::drawGunParts` runs the same steps and parts
+(`ssgStep`, `revolverStep`, `magSlideStep`, `heldMagazines`, `ssgHeldParts`/`ssgHolsterParts`, `revolverParts`,
+`idleAttachments`) on the avatar's look that `setupWeapon`, `setupMagazines`, `setupSsgParts`, `setupRevolverParts` run
+on yours (`view::ownGunLook`, from the stats); `flashlight::drawOther` places his torch with your torch's `place` and
+lights it with your beam's lights (`beamLights`). `QVR_NET_VERSION` 41 (the avatar and the move grew): the room service
+must be redeployed with the new version.
+
+| State (a held weapon, its hands, the player's lights) | How it goes now | What another player sees | Check (mp_wpnsync) |
+|---|---|---|---|
+| Weapon model, frame (firing animation, the revolver's hammer), skin | VrDrawnHand (his client's drawn entity) | as he draws it | (B2b) |
+| Alternate ammo (lava nails, multi rockets, plasma): the other ammo's model | the model index in VrDrawnHand | the other model | (B2b) |
+| Reverse grip (blade down), a gun carried by its foregrip, mirrored left-hand models | his drawn entity's angles and mirror bit | as he holds it | (B3) |
+| Heavy revolver: crane swung out / home, cylinder's turn, ejector rod, each chamber live / spent / empty | **new**: VrGunLook (QC .vr_rv_hud, .vr_rv_cyl), drawn in its parts by revolverParts | the crane swinging out and home, the cylinder turning, the shells | swing >= 90 after B/Y; shells 6 -> 0 after the eject |
+| Super shotgun broken open, its loaded chambers (in the hand and holstered) | **new**: VrGunLook flags (QVR_WPNFLAG_SSG_OPEN), clip; a holster's flags and clip | the barrels dropping open, the chambers' shells | open after B/Y |
+| Magazine in or out (QVR_WPNFLAG_NOMAG), the rounds it shows (its frame), in the hand and holstered | **new**: VrGunLook flags and clip, the player's reload-mode bits | the magazine and its top rounds, none when dropped | in with rounds; gone after B/Y |
+| A magazine sliding out (the nail pistol's eject), sliding home | **new**: VrGunLook magOut bit; the seat from the flags' change | the slide out and home | (not in the scenario) |
+| Ammo screen's clip and its button (vr_weapon_screen_idle) | **new**: VrGunLook clip and clip size, idleAttachments within vr_weapon_world_attach_range | his clip, as a lying gun's screen shows it (not his reserve) | button drawn |
+| Widowmaker's and Rotary Shotgun's barrels turning, the AD crossbow's string | **new**: the nearest of the drawn pose's two frames in VrDrawnHand's frame | the barrels in one of 27 poses (no blend) | - |
+| The torch: on the belt, in a hand, on a gun, on the head; its model; lit; where the beam points | **new**: VrDrawnLamp in the move (place, turn, shown, lit, reach), passed on in the avatar | his torch's model where he has it; lit, its spot, spill and glow lights from its lens along its axis (unshadowed) | lit: 3 lights, 0.x units off his, cos 0.99+; off: none |
+| Torch's visible beam cone in the air, its lit lens glow, its cord | not sent | not drawn (one cone: yours) | - |
+| The auto pump's stroke after a shot (vr_autopump) | not sent (his client's own animation of his shots) | the shotgun whole, the fore-end still | - |
+| The Widowmaker's motor sound, the lava guns' glow light, the chainsaw's cord handle | not sent (his client's) | not heard / not lit / no handle | - |
+| Reloading in progress (a round in the other hand, the pouch) | the round is a carried prop (an entity) | the round in his hand | (B10b) |
+| Held grenade (flat-screen quick grenade) | the grenade is an entity | as it is | - |
+| Laser sight | none exists (the lasers are the menus' and the arena cards' pointer) | - | - |
+
+Bytes per player (the avatar, down to each other client): +3 B for a player with empty hands and an unlit torch on
+his belt left out (each hand's look byte, the torch's flags), +4 B a gun in a hand (flags, clip, its size) and +4 more
+for a revolver (its chambers and cylinder), +2 B a holstered gun, +12 B the torch placed (place, turn) and +2 B lit (its
+reach): about 25-35 B for an armed player with his torch out. A snapshot client gets the avatar delta-coded against
+what it acknowledged, so these bytes cost only when they change (mp_wpnsync's B link down: snap_av 620 B over the
+whole run). Up: the torch is 9 values of the delta-coded move (nothing while it is still).
+
+Checks: `mp_wpnsync` (dedicated, both VR mock) 16/0 and `mp_wpnsync_flat` (A flat-screen) 16/0: B is given the heavy
+revolver: A draws it in its parts, crane home, 6 shells (A's look of it equal to B's own stats); B's B/Y swings it
+out: A's crane at 95 deg (7 reports, the swing's animation included); B's B/Y again throws the shells out: A draws
+none; the super shotgun broken open by B/Y: A's barrels down in its parts (3 reports); the nailgun: A draws its
+magazine (B's clip 24) and its button, then none once B/Y drops it (1 report); B's torch given to his off hand and
+lit: A draws its model 0.10 units from B's own, its beam the same way (cos 1.000), its 3 lights alive; switched off:
+none. Debug aid: `vr_mp_avatars` (Debug > Reports > Network) prints `mp_gun:`, `mp_gun_holster:`, `mp_lamp:` for
+each other player and `mp_gun_own:`, `mp_lamp_own:` for yours.
+
+Single player is drawn by the same routines as before through wrappers (`magSlideStep(hand)`, `revolverStep(.., hand)`,
+`ssgStep(.., flags)` read the stats into the look): vr_magslide_test 1 63/0; vr_rv_test 1 45/1 (below).
+
+The rest: the plain `mp_test.py suite` (dev no-LTO, the author's game running: low impact) 58 of 59 clean, mp_fuzz 16/1
+("B joins again after the hostile command up clc 17": not in 60 s) then 17/0 alone; scenario_check 140/0;
+flatreload 54/0; flateject 16/1 (the revolver's open pose: the check wants -15 15 -30, moved 0 3 -1, the tunables'
+defaults are -35 0 -30, moved 0 -2 1 since "His values as defaults" a49166efa: the test's, not this change's).
+
+Weapon handling sounds (the coordinator's note from the sync audit, 2026-11-21): the sounds QC plays (the revolver's
+crane, its shells, magazines in and out, the super shotgun's break and load, the pouch's rounds: VR_RV_Sound,
+VR_Reload_* through `sound`) are the server's and heard by everyone from the player. The auto pump's two clacks are
+not: the stroke is his client's own animation after his own shot (`weaponfx::playerFired` -> `autopump::fired`,
+played with `audio::playAt` at his gun), so nobody else hears or sees it. Left for a next step: an avatar's shot event
+per hand (the server's fire message for another player) starting an autopump stroke per avatar hand, its fore-end
+drawn by `setupPumps`' parts in `view::GunParts` and its clacks at his gun; `mp_test.py syncaudit` (not on next yet at
+this writing) to show the row synced.
+
+Open:
+- `vr_rv_test 1`'s "a grunt's body: dead to 2 slugs" fails (twice): the server's damage roll on the grunt, which
+  this change doesn't reach (client drawing and avatar fields only); to compare against origin/next.
+- Left (his client's own animations, no state on the server): the auto pump's stroke, the Widowmaker's motor sound,
+  the lava guns' glow light, the chainsaw's cord handle, the torch's visible beam cone and cord. Each would need its
+  own event or field; none changes what the gun is.

@@ -2117,6 +2117,148 @@ def drawn_report(inst, prefix):
     return out
 
 
+def gun_lines(lines, prefix, ent):
+    """`prefix` lines ("mp_gun", "mp_gun_own", "mp_lamp", "mp_lamp_own") of `ent` in a report -> {side or 0: fields};
+    "at" and "dir" as 3 floats, the model a string, the rest numbers."""
+    out = {}
+    for l in lines:
+        if not l.startswith(prefix + ":"):
+            continue
+        f = {}
+        for k, v in re.findall(r"(\w+)=((?:[-\d.]+ [-\d.]+ [-\d.]+)|\S+)", l):
+            parts = v.split()
+            try:
+                f[k] = [float(x) for x in parts] if len(parts) == 3 else float(v)
+            except ValueError:
+                f[k] = v
+        if int(f.get("ent", -1)) == ent:
+            out[int(f.get("side", 0))] = f
+    return out
+
+
+LOOK_KEYS = ("bits", "flags", "clip", "rv")
+
+
+def look_same(watch, own):
+    return bool(watch) and bool(own) and all(int(watch[k]) == int(own[k]) for k in LOOK_KEYS)
+
+
+def gun_until(s, a, b, eb, side, want, what, tries=40):
+    """Reports from A and B until want(A's mp_gun of B's `side`, B's mp_gun_own of it) -> (A's, B's, reports). A definite
+    end: at most `tries` reports, then the check fails."""
+    seen = ({}, {})
+    for n in range(1, tries + 1):
+        la, lb = reports(s, [a, b])
+        seen = (gun_lines(la, "mp_gun", eb).get(side, {}), gun_lines(lb, "mp_gun_own", eb).get(side, {}))
+        if want(*seen):
+            return seen[0], seen[1], n
+    s.check(what, False, "not after %d reports: A's %s; B's own %s" % (tries, seen[0], seen[1]))
+    raise StepFailed(what)
+
+
+def press_until(s, b, eb, button, done, what, tries=40):
+    """B's main `button` pressed until done(B's own mp_gun_own of his main hand), then let go. (Let go a report before:
+    the server sees a new press, an edge; and the revolver ignores B/Y for 0.3 s after it swings: pressed again while
+    not done.)"""
+    for _ in range(tries):
+        b.cmd("vr_mock_button main %s 0" % button)
+        reports(s, [b])
+        b.cmd("vr_mock_button main %s 1" % button)
+        for _ in range(4):
+            (lb,) = reports(s, [b])
+            if done(gun_lines(lb, "mp_gun_own", eb).get(1, {})):
+                b.cmd("vr_mock_button main %s 0" % button)
+                return
+    b.cmd("vr_mock_button main %s 0" % button)
+    s.check(what, False, "B's own gun never changed")
+    raise StepFailed(what)
+
+
+RV_HELD, RV_OPEN = 131072, 4096
+
+
+def live_chambers(rv):
+    return sum(1 for i in range(6) if (int(rv) >> (2 * i)) & 3)
+
+
+def wpnsync(s, flat=""):
+    """MP_PLAN "Held weapons' state" (wpnsync): what B does to the gun in his hand and to his torch reaches A's copy of
+    him within a few reports, drawn by the code that draws A's own: the heavy revolver's cylinder swung out and its
+    shells thrown out, the super shotgun broken open, the nailgun's magazine dropped, the torch taken and lit (its
+    model, its lights, where it points). `flat` "A": A plays flat-screen."""
+    srv, a, b, ea, eb = join(s, flat=flat)
+    grips = "vr_mock_hand main 0.1 0.25 -0.35 0 0 0; vr_mock_button main grip 1; vr_mock_button off grip 0"
+
+    # The heavy revolver (WID 31, impulse 149 with the server's vr_test_give_wid), loaded, its crane home.
+    srv.cmd("vr_test_give_wid 31")
+    grip_then_give(srv, b, grips, impulse=149)
+    wa, wb, n = gun_until(s, a, b, eb, 1, lambda w, o: look_same(w, o) and int(o["rv"]) & RV_HELD and w.get("parts") == 1,
+                          "A draws B's revolver in its parts")
+    s.check("A draws B's revolver in its parts, its crane home, its shells in (his look as his own stats)",
+            wa["swing"] < 1 and wa["whole"] == 0 and wa["shells"] == live_chambers(wb["rv"]) > 0,
+            "A's %s; B's own %s; after %d reports" % (wa, wb, n))
+    press_until(s, b, eb, "secondary", lambda o: int(o.get("rv", 0)) & RV_OPEN, "B's revolver swung out (B/Y)")
+    wa, wb, n = gun_until(s, a, b, eb, 1, lambda w, o: look_same(w, o) and w.get("swing", 0) >= 90,
+                          "A sees B's revolver's cylinder swung out")
+    s.metric("revolver_open_reports", n)
+    s.check("A sees B's revolver's cylinder swung out (95 deg), its shells still in",
+            wa["shells"] == live_chambers(wb["rv"]) > 0, "A's %s; after %d reports" % (wa, n))
+    press_until(s, b, eb, "secondary", lambda o: live_chambers(o.get("rv", 0)) == 0, "B's revolver's shells out (B/Y)")
+    wa, wb, n = gun_until(s, a, b, eb, 1, lambda w, o: look_same(w, o) and w.get("shells", -1) == 0,
+                          "A sees B's revolver emptied")
+    s.check("A sees B's revolver's chambers emptied (no shells drawn)", wa["swing"] >= 90, "A's %s; after %d reports" % (wa, n))
+
+    # The super shotgun (WID 5) broken open by B/Y: its barrels down, its loaded chambers.
+    b.cmd("impulse 155")
+    gun_until(s, a, b, eb, 1, lambda w, o: look_same(w, o) and "shot2" in str(w.get("model")) and w.get("whole") == 1,
+              "A draws B's super shotgun whole (shut)")
+    press_until(s, b, eb, "secondary", lambda o: int(o.get("flags", 0)) & 32, "B's super shotgun broken open (B/Y)")
+    wa, wb, n = gun_until(s, a, b, eb, 1, lambda w, o: look_same(w, o) and w.get("parts") == 1 and w.get("ssg", 0) > 30,
+                          "A sees B's super shotgun broken open")
+    s.metric("ssg_open_reports", n)
+    s.check("A sees B's super shotgun broken open (its barrels down, in its parts)", True, "A's %s; after %d reports" % (wa, n))
+
+    # The nailgun (WID 6): its magazine in (its rounds' frame), then dropped by B/Y.
+    b.cmd("impulse 156")
+    wa, wb, n = gun_until(s, a, b, eb, 1, lambda w, o: look_same(w, o) and "nail" in str(w.get("model")) and w.get("mag") == 1,
+                          "A draws B's nailgun's magazine in")
+    s.check("A draws B's nailgun with its magazine in (B's clip %d)" % int(wb["clip"]), int(wb["clip"]) > 0,
+            "A's %s; B's own %s" % (wa, wb))
+    press_until(s, b, eb, "secondary", lambda o: int(o.get("flags", 0)) & 16, "B's nailgun's magazine dropped (B/Y)")
+    wa, wb, n = gun_until(s, a, b, eb, 1, lambda w, o: look_same(w, o) and w.get("mag") == 0,
+                          "A sees B's nailgun without its magazine")
+    s.metric("mag_out_reports", n)
+    s.check("A sees B's nailgun without its magazine", True, "A's %s; after %d reports" % (wa, n))
+
+    # The torch: B takes it in his off hand and lights it; A draws it where B does and lights its beam from it.
+    b.cmd("vr_flashlight_give left")
+    b.cmd("vr_flashlight_toggle")
+    lamp = own = {}
+    for n in range(1, 41):
+        la, lb = reports(s, [a, b])
+        lamp = gun_lines(la, "mp_lamp", eb).get(0, {})
+        own = gun_lines(lb, "mp_lamp_own", eb).get(0, {})
+        if lamp.get("lit") == 1 and own and int(own["flags"]) & 4 and lamp.get("lights", 0) >= 3:
+            break
+    s.check("A lights B's torch (its spot, spill and glow lights)", lamp.get("lit") == 1 and lamp.get("lights", 0) >= 3,
+            "A's %s; B's own %s" % (lamp, own))
+    s.check("A draws B's torch's model", lamp.get("shown") == 1, "A's %s" % lamp)
+    if lamp.get("at") and own.get("at"):
+        off = dist(lamp["at"], own["at"])
+        aim = sum(x * y for x, y in zip(lamp["dir"], own["dir"]))
+        s.metric("lamp_off", round(off, 2))
+        s.metric("lamp_aim_cos", round(aim, 4))
+        s.check("A's copy of B's torch where B's is (within 2 units), pointing his way (cos >= 0.99)",
+                off <= 2.0 and aim >= 0.99, "%.2f units off, cos %.4f" % (off, aim))
+    b.cmd("vr_flashlight_toggle")
+    for n in range(1, 41):
+        (la,) = reports(s, [a])
+        lamp = gun_lines(la, "mp_lamp", eb).get(0, {})
+        if lamp.get("lit") == 0 and lamp.get("lights", 1) == 0:
+            break
+    s.check("B's torch switched off: A's copy dark (no lights)", lamp.get("lit") == 0 and lamp.get("lights", 1) == 0,
+            "A's %s" % lamp)
+
 def weapon_until(s, srv, ent, want, tries=30):
     """The server's main-hand weapon of player `ent` by report until it is `want` (at most `tries` reports)."""
     seen = []
@@ -8191,6 +8333,10 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             teleport(s)
         elif test == "mp_held":
             held(s)
+        elif test == "mp_wpnsync":
+            wpnsync(s)
+        elif test == "mp_wpnsync_flat":
+            wpnsync(s, flat="A")
         elif test == "mp_ground":
             ground(s)
         elif test == "mp_campaign":
@@ -8327,6 +8473,8 @@ SUITE = [
     ("mp_guard", ()),
     ("mp_teleport", ()),
     ("mp_held", ()),
+    ("mp_wpnsync", ()),
+    ("mp_wpnsync_flat", ()),
     ("mp_ground", ()),
     ("mp_campaign", ()),
     ("mp_campaign_listen", ()),
@@ -8376,7 +8524,7 @@ SUITE = [
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "deathbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "navfollow", "navfollow_listen", "navfollow_vr", "syncaudit"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "deathbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "wpnsync", "wpnsync_flat", "navfollow", "navfollow_listen", "navfollow_vr", "syncaudit"])
     ap.add_argument("--base", required=True, help="the game folder (id1, quakevr...)")
     ap.add_argument("--exe", default=EXE)
     ap.add_argument("--out", default=os.path.join(REPO, "scratch", "mp"))
@@ -8437,7 +8585,7 @@ def main_run(args):
                 sys.exit(2)
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
-    elif args.test in ("bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground",
+    elif args.test in ("bandwidth", "wpnsync", "wpnsync_flat", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground",
                        "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "deathbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "navfollow", "navfollow_listen", "navfollow_vr", "syncaudit"):
         ok = run(args, "mp_" + args.test)
     elif args.test == "voice":

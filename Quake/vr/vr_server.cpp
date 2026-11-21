@@ -2328,6 +2328,53 @@ void writeAngles16(sizebuf_t* msg, const glm::vec3& a)
     }
 }
 
+// A player's guns as the server has them (QC's fields: what his own client's stats say of them), for the others to draw
+// them as his client does (MP_PLAN.md, "Held weapons' state"): each hand's look (VrGunLook: [0] off, [1] main), then each
+// holstered weapon's flags (their low byte: no magazine, broken open) and clip, the holsters `holsters` has drawn.
+void writeGunLooks(sizebuf_t* msg, edict_t* ent, const VrDrawnHolsters& holsters)
+{
+    const FieldOffsets& f = fields();
+    const bool vrProgs = bindings().isVrProgs;
+    const bool flat = vrProgs && fieldFloatOr(ent, f.vr_flatscreen, 0.f) != 0.f;
+    // (as VR_CalcStats' STAT_QVR_RELOADMODE for him, and the client's magazinesShown, ssgBreaks)
+    const int mode = vr_holster_mode.value != 0.f ? 0 : flat ? (vr_flat_reload.value != 0.f ? 2 : 0) : reloadModeBest();
+    const int magOut = static_cast<int>(fieldFloatOr(ent, f.vr_mag_out, 0.f));
+    const auto clipOf = [&](edict_t* r) { return r ? CLAMP(0, static_cast<int>(fieldFloatOr(r, f.wi_clip, 0.f)), 255) : 0; };
+    for(int h = 0; h < 2; h++)
+    {
+        const bool main = h == 1;
+        VrGunLook l;
+        l.bits = (mode == 3 || flat ? VrGunLook::magsShownBit : 0) | (mode == 0 ? VrGunLook::clipFullBit : 0) |
+                 ((mode == 3 && vr_reload_ssg_break.value != 0.f) || flat ? VrGunLook::ssgBreaksBit : 0);
+        edict_t* const inst = vrProgs ? weaponInst(ent, main ? f.weaponinst : f.weaponinst2) : nullptr;
+        const int flags = static_cast<int>(fieldFloatOr(ent, main ? f.weaponflags : f.weaponflags2, 0.f));
+        const int rv = static_cast<int>(fieldFloatOr(ent, main ? f.vr_rv_hud : f.vr_rv_hud2, 0.f));
+        if(vrProgs && (inst || flags || rv))
+        {
+            l.bits |= VrGunLook::gunBit | ((magOut & (main ? 2 : 1)) ? VrGunLook::magOutBit : 0) |
+                      (rv ? VrGunLook::revolverBit : 0);
+            l.flags = static_cast<za::U16>(flags & 0xFFFF);
+            l.clip = static_cast<za::U8>(clipOf(inst));
+            l.clipSize = static_cast<za::U8>(CLAMP(0, static_cast<int>(fieldFloatOr(ent, main ? f.weaponclipsize : f.weaponclipsize2, 0.f)), 255));
+            l.revolver = rv;
+            l.cylinder = fieldFloatOr(ent, main ? f.vr_rv_cyl : f.vr_rv_cyl2, 0.f);
+        }
+        writeGunLook(msg, l);
+    }
+    const int holsterFlags[numHolsters] = {f.holsterweaponflags0, f.holsterweaponflags1, f.holsterweaponflags2,
+        f.holsterweaponflags3, f.holsterweaponflags4, f.holsterweaponflags5};
+    const int holsterInst[numHolsters] = {f.holsterweaponinst0, f.holsterweaponinst1, f.holsterweaponinst2,
+        f.holsterweaponinst3, f.holsterweaponinst4, f.holsterweaponinst5};
+    for(int i = 0; i < VrDrawnHolsters::count && i < numHolsters; i++)
+    {
+        if(holsters.valid && (holsters.weapons & (1 << i)))
+        {
+            MSG_WriteByte(msg, vrProgs ? static_cast<int>(fieldFloatOr(ent, holsterFlags[i], 0.f)) & 255 : 0);
+            MSG_WriteByte(msg, vrProgs ? clipOf(weaponInst(ent, holsterInst[i])) : 0);
+        }
+    }
+}
+
 // Each VR player's avatar this frame (QVR_SVC_AVATAR: his head and hands as his last move placed them, his weapons) to
 // the other clients that see him (server::scopedBegin; his own client does not: his entity is not noted for himself).
 // Multiplayer only: a single player's own hands are his client's (MP_PLAN.md, B2; vr_avatar.cpp draws nothing yet).
@@ -2401,6 +2448,9 @@ void writeAvatars()
         mpavatar::writeHolds(&tmp, ent, origin); // (his climbing holds, as the moves byte says: B5c)
         writeDrawnHolsters(&tmp, m ? m->move.holsters : noHolsters, origin, false); // (his holstered weapons as he drew them: B6b)
         MSG_WriteByte(&tmp, mpavatar::gearByte(ent));        // (the armour he wears: his pauldrons' colour)
+        // (his guns as the server has them, and his torch as he drew it: wpnsync)
+        writeGunLooks(&tmp, ent, m ? m->move.holsters : noHolsters);
+        writeDrawnLamp(&tmp, m ? m->move.lamp : VrDrawnLamp{}, origin);
 
         if(static_cast<int>(avatarsSent.size()) < svs.maxclients)
         {

@@ -21,6 +21,7 @@
 #include "vr_climb.hpp"
 
 #include "vr_cvars.hpp"
+#include "vr_flashlight.hpp"
 #include "vr_handrig.hpp"
 #include "vr_hands.hpp"
 #include "vr_hull.hpp"
@@ -76,6 +77,11 @@ struct Drawn
     bool seated{false};
     // His holstered weapons (B6b: as he drew them, body::Holster's order) and pauldrons on his body (his look).
     view::ViewEntity holster[VrDrawnHolsters::count];
+    // His guns' parts as yours are drawn (wpnsync: the revolver's crane and cylinder, the super shotgun broken open, the
+    // magazines, the ammo screens; view::drawGunParts), in his hands and holsters; his torch.
+    view::GunParts gun[2];
+    view::GunParts holsterGun[VrDrawnHolsters::count];
+    view::ViewEntity lamp;
     view::ViewEntity pauldron[2];
     view::ViewEntity pauldronArm[2];
     // His armour's plates and their joints' leather on his body (B6c: the server's word on him), their pieces, their bones
@@ -166,6 +172,50 @@ void printSkeleton(const char* what, int e, const char* model, const avatar::Ske
     printVec("ankle1", k.ankle[1]);
 }
 
+// His guns and torch as last drawn (wpnsync; the harness's mp_wpnsync): each hand's look as received and what was drawn
+// of it ("mp_gun:": in parts or whole, the super shotgun's barrels' angle, the revolver's crane and cylinder and shells
+// drawn, the magazine in (its frame: the rounds shown), sliding out, the ammo screen's button), each holstered gun's
+// ("mp_gun_holster:"), the torch ("mp_lamp:": placed, its model drawn, lit, its lights alive, its lens and beam).
+void printGuns(int e, const Avatar& a, const Drawn& d)
+{
+    const auto vis = [](const view::ViewEntity& ve) { return ve.visible && ve.ent.model ? 1 : 0; };
+    for(int side = 0; side < 2; side++)
+    {
+        const VrGunLook& l = a.look[side];
+        const view::GunParts& g = d.gun[side];
+        const view::ViewEntity* p = g.part;
+        int shells = 0;
+        for(int i = 0; i < 6; i++)
+        {
+            shells += vis(p[view::GunParts::RvShell + i]);
+        }
+        Con_Printf("mp_gun: ent=%d side=%d bits=%d flags=%d clip=%d rv=%d cyl=%.1f model=%s whole=%d parts=%d ssg=%.1f "
+                   "swing=%.1f turn=%.1f shells=%d mag=%d magframe=%d magout=%d well=%d button=%d\n",
+            e, side, l.bits, l.flags, l.clip, l.revolver, static_cast<double>(l.cylinder),
+            d.weapon[side].ent.model ? d.weapon[side].ent.model->name : "-", vis(d.weapon[side]), g.inParts ? 1 : 0,
+            static_cast<double>(g.ssg.angle), static_cast<double>(g.rv.swing), static_cast<double>(g.rv.cyl), shells,
+            vis(p[view::GunParts::MagIn]), p[view::GunParts::MagIn].ent.frame, vis(p[view::GunParts::MagOut]),
+            vis(p[view::GunParts::Well]), vis(p[view::GunParts::Button]));
+    }
+    for(int i = 0; i < VrDrawnHolsters::count; i++)
+    {
+        const view::GunParts& g = d.holsterGun[i];
+        if(vis(d.holster[i]) || g.inParts)
+        {
+            Con_Printf("mp_gun_holster: ent=%d slot=%d flags=%d clip=%d parts=%d ssg=%.1f mag=%d magframe=%d\n", e, i,
+                a.holsterFlags[i], a.holsterClip[i], g.inParts ? 1 : 0, static_cast<double>(g.ssg.angle),
+                vis(g.part[view::GunParts::MagIn]), g.part[view::GunParts::MagIn].ent.frame);
+        }
+    }
+    const VrDrawnLamp& lamp = a.lamp;
+    const glm::vec3 at = d.placedAt + lamp.origin;
+    const glm::vec3 dir = lamp.rot * glm::vec3{1.f, 0.f, 0.f};
+    Con_Printf("mp_lamp: ent=%d flags=%d shown=%d lit=%d lights=%d range=%.0f at=%.1f %.1f %.1f dir=%.3f %.3f %.3f\n", e,
+        lamp.flags, vis(d.lamp), (lamp.flags & VrDrawnLamp::litBit) ? 1 : 0, flashlight::otherLights(e),
+        static_cast<double>(lamp.range), static_cast<double>(at.x), static_cast<double>(at.y), static_cast<double>(at.z),
+        static_cast<double>(dir.x), static_cast<double>(dir.y), static_cast<double>(dir.z));
+}
+
 // One line per avatar (the harness's mp_avatar): head and hands in the world (from his entity's origin now), the main
 // hand's angles, the curls and thumbs, the weapons' models; then what was drawn of it last frame.
 void printAvatar(int e, const Avatar& a, bool hands)
@@ -230,6 +280,10 @@ void printAvatar(int e, const Avatar& a, bool hands)
                 e, d.plateType, d.platePieces, plate->ent.skinnum, d.plateSlots, d.plateShown, d.plateBridge.visible ? 1 : 0,
                 d.morph.begun, coming, morph, plate->ent.model->name);
         }
+    }
+    if(d.frame == host_framecount - 1 || d.frame == host_framecount)
+    {
+        printGuns(e, a, d);
     }
     if(d.frame == host_framecount - 1 || d.frame == host_framecount)
     {
@@ -341,6 +395,19 @@ void avatars_f()
                     hs.origin[i].x, hs.origin[i].y, hs.origin[i].z);
             }
         }
+        // His own guns' looks (what the server sends the others of them: his stats) and torch (the move's: wpnsync).
+        for(int side = 0; side < 2; side++)
+        {
+            const VrGunLook l = view::ownGunLook(side);
+            Con_Printf("mp_gun_own: ent=%d side=%d bits=%d flags=%d clip=%d rv=%d cyl=%.1f\n", cl.viewentity, side, l.bits,
+                l.flags, l.clip, l.revolver, static_cast<double>(l.cylinder));
+        }
+        VrDrawnLamp lamp;
+        flashlight::netLamp(lamp);
+        const glm::vec3 dir = lamp.rot * glm::vec3{1.f, 0.f, 0.f};
+        Con_Printf("mp_lamp_own: ent=%d flags=%d at=%.1f %.1f %.1f dir=%.3f %.3f %.3f\n", cl.viewentity, lamp.flags,
+            static_cast<double>(lamp.origin.x), static_cast<double>(lamp.origin.y), static_cast<double>(lamp.origin.z),
+            static_cast<double>(dir.x), static_cast<double>(dir.y), static_cast<double>(dir.z));
     }
     if(sv.active)
     {
@@ -446,6 +513,26 @@ void setup(int e, const Avatar& a, const glm::vec3& origin, const avatar::DollPo
     out.bones[0] = d.skin[0];
     out.bones[1] = d.skin[1];
     view::drawHands(in, out);
+    // His guns as the server has them, drawn by the routines that draw yours (wpnsync): each hand's (its ammo screen within
+    // the reach a lying gun's shows at), each holstered one's (his reload mode's bits: either hand's look carries them).
+    const glm::vec3 eye{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]};
+    const float reach = za::max(vr_weapon_world_attach_range.value, 0.f);
+    for(int side = 0; side < 2; side++)
+    {
+        view::ViewEntity& w = d.weapon[side];
+        const bool near = glm::distance(glm::vec3{w.ent.origin[0], w.ent.origin[1], w.ent.origin[2]}, eye) <= reach;
+        view::drawGunParts(w, a.look[side], d.gun[side], true, near);
+    }
+    constexpr za::U8 modeBits = VrGunLook::magsShownBit | VrGunLook::clipFullBit | VrGunLook::ssgBreaksBit;
+    for(int i = 0; i < VrDrawnHolsters::count; i++)
+    {
+        VrGunLook l;
+        l.bits = static_cast<za::U8>(VrGunLook::gunBit | (a.look[1].bits & modeBits));
+        l.flags = a.holsterFlags[i];
+        l.clip = a.holsterClip[i];
+        view::drawGunParts(d.holster[i], l, d.holsterGun[i], false, false);
+    }
+    flashlight::drawOther(e, a.lamp, origin, d.lamp);
     setupBody(e, a, origin, doll);
 }
 
@@ -998,6 +1085,20 @@ void parse()
     const int gear = MSG_ReadByte();
     a.armour = gear & avatarGearArmour;
     a.sliding = (gear & avatarGearSliding) != 0;
+    // His guns as the server has them, his torch as he drew it (wpnsync).
+    for(VrGunLook& l : a.look)
+    {
+        l = readGunLook();
+    }
+    for(int i = 0; i < VrDrawnHolsters::count; i++)
+    {
+        if(a.holsters.valid && (a.holsters.weapons & (1 << i)))
+        {
+            a.holsterFlags[i] = static_cast<za::U8>(MSG_ReadByte());
+            a.holsterClip[i] = static_cast<za::U8>(MSG_ReadByte());
+        }
+    }
+    a.lamp = readDrawnLamp(glm::vec3{0.f}); // (from his entity's origin)
     a.msgTime = cl.mtime[0];
     if(ent > 0 && ent <= MAX_SCOREBOARD && ent != cl.viewentity)
     {
@@ -1147,6 +1248,11 @@ Avatar blend(const Avatar& p, const Avatar& a, float t)
             }
         }
     }
+    if((p.lamp.flags & VrDrawnLamp::placedBit) && (b.lamp.flags & VrDrawnLamp::placedBit)) // (his torch: wpnsync)
+    {
+        b.lamp.origin = glm::mix(p.lamp.origin, b.lamp.origin, t);
+        b.lamp.rot = glm::slerp(p.lamp.rot, b.lamp.rot, t);
+    }
     return b;
 }
 
@@ -1190,6 +1296,22 @@ void addDrawn(int e, const entity_t* replace)
     {
         add(ve);
     }
+    // (his guns' parts and his torch: wpnsync)
+    for(view::GunParts* g : {&d.gun[0], &d.gun[1]})
+    {
+        for(view::ViewEntity& ve : g->part)
+        {
+            add(ve);
+        }
+    }
+    for(view::GunParts& g : d.holsterGun)
+    {
+        for(view::ViewEntity& ve : g.part)
+        {
+            add(ve);
+        }
+    }
+    add(d.lamp);
     for(view::ViewEntity& ve : d.plate)
     {
         add(ve);
@@ -1513,6 +1635,15 @@ const view::ViewEntity* find(const entity_t* e)
     const view::ViewEntity* found = in(d.hand, 2);
     found = found ? found : in(d.weapon, 2);
     found = found ? found : in(d.holster, VrDrawnHolsters::count);
+    for(int side = 0; side < 2 && !found; side++)
+    {
+        found = in(d.gun[side].part, view::GunParts::Count);
+    }
+    for(int i = 0; i < VrDrawnHolsters::count && !found; i++)
+    {
+        found = in(d.holsterGun[i].part, view::GunParts::Count);
+    }
+    found = found ? found : in(&d.lamp, 1);
     found = found ? found : in(d.pauldron, 2);
     found = found ? found : in(d.pauldronArm, 2);
     found = found ? found : in(d.plate, Drawn::plateCount);

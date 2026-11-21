@@ -406,6 +406,7 @@ constexpr int keySpot = -0x0F1A51;
 constexpr int keySpill = -0x0F1A52;
 constexpr int keyLamp = -0x0F1A53;
 constexpr int soundEntity = -0x0F1A54; // its clicks' (heard from the lamp, not the head)
+constexpr int keyOthers = -0x0F1B00;   // the other players' torches' (drawOther: three a player, down from here)
 
 enum class Mode
 {
@@ -1845,20 +1846,33 @@ void shapeBeam(const Pose& p, const glm::vec3& lens, const glm::vec3& dir, float
 // faint unshadowed spill cone round it, as a real torch's reflector gives; a faint glow at the lamp.
 // No trace places the light, so nothing pops as the beam crosses an edge: the one trace left only
 // sets how far the visible beam reaches, eased over time.
+// The beam's three lights (the spot, its spill, the glow at the lamp) of a torch at `p` reaching `range`, under the keys
+// `keys` (spot, spill, lamp): yours (lightBeam) and another player's (drawOther: never shadowed, `others`).
+void beamLights(const Pose& p, float range, const int (&keys)[3], bool others)
+{
+    const glm::vec3 lens = modelPointAt(p, shape().lens);
+    const glm::vec3 dir = p.rot * glm::vec3{1.f, 0.f, 0.f};
+    const glm::vec3 at = lens + dir * 0.25f; // just out of the lens
+    const float base = za::max(0.f, vr_flashlight_brightness.value) * 1.5f;
+    const glm::vec3 warm = beamColor(); // (named for the warm white it was)
+    dlight_t* spot = light(keys[0], at, range, warm * base);
+    if(others)
+    {
+        lighting::dlightNoShadow(spot); // (one shadowed torch: yours)
+    }
+    lighting::dlightSpot(spot, dir, innerAngle, outerAngle);
+    lighting::dlightSpot(light(keys[1], at, range * 0.5f, warm * (base * 0.1f)), dir, outerAngle * 0.8f, spillAngle);
+    light(keys[2], lens + dir * (0.2f * units::metresToUnits()), 0.5f * units::metresToUnits(), warm * (base * 0.15f));
+}
+
 void lightBeam(const Pose& p)
 {
     const glm::vec3 lens = modelPointAt(p, shape().lens);
     const glm::vec3 dir = p.rot * glm::vec3{1.f, 0.f, 0.f};
     const float range = za::max(64.f, vr_flashlight_range.value);
-    const glm::vec3 at = lens + dir * 0.25f; // just out of the lens
     beamNowState = {true, lens, dir, range, cl.time};
-
-    const float base = za::max(0.f, vr_flashlight_brightness.value) * 1.5f;
-    const glm::vec3 warm = beamColor(); // (named for the warm white it was)
-
-    lighting::dlightSpot(light(keySpot, at, range, warm * base), dir, innerAngle, outerAngle);
-    lighting::dlightSpot(light(keySpill, at, range * 0.5f, warm * (base * 0.1f)), dir, outerAngle * 0.8f, spillAngle);
-    light(keyLamp, lens + dir * (0.2f * units::metresToUnits()), 0.5f * units::metresToUnits(), warm * (base * 0.15f));
+    beamLights(p, range, {keySpot, keySpill, keyLamp}, false);
+    const glm::vec3 warm = beamColor();
 
     // The visible beam's length: to where the beam lands (the world, doors and lifts; monsters too
     // when hosting), eased so that it does not jump as the beam crosses an edge (a stair's, a
@@ -2657,6 +2671,49 @@ void setupView(const hands::State& s, view::ViewEntity& ve)
         killLights();
     }
     saveState();
+}
+
+void netLamp(VrDrawnLamp& out)
+{
+    out = VrDrawnLamp{};
+    if(!st.placed || !enabled() || cls.state != ca_connected)
+    {
+        return;
+    }
+    out.flags = VrDrawnLamp::placedBit | (st.model && st.model->visible ? VrDrawnLamp::shownBit : 0) |
+                (st.on ? VrDrawnLamp::litBit : 0);
+    out.origin = st.pose.pos;
+    out.rot = st.pose.rot;
+    out.range = za::max(64.f, vr_flashlight_range.value);
+}
+
+void drawOther(int player, const VrDrawnLamp& lamp, const glm::vec3& origin, view::ViewEntity& ve)
+{
+    if(!(lamp.flags & VrDrawnLamp::placedBit))
+    {
+        ve.visible = false;
+        return;
+    }
+    const Pose p{origin + lamp.origin, lamp.rot};
+    place(ve, p, false);
+    ve.visible = ve.visible && (lamp.flags & VrDrawnLamp::shownBit) != 0;
+    if(lamp.flags & VrDrawnLamp::litBit)
+    {
+        // (keys below yours, three a player)
+        const int base = keyOthers - 3 * player;
+        beamLights(p, za::max(64.f, lamp.range), {base, base - 1, base - 2}, true);
+    }
+}
+
+int otherLights(int player)
+{
+    const int base = keyOthers - 3 * player;
+    int n = 0;
+    for(const dlight_t& dl : cl_dlights)
+    {
+        n += (dl.key <= base && dl.key > base - 3 && dl.die >= cl.time && dl.radius > 0.f) ? 1 : 0;
+    }
+    return n;
 }
 
 void drawOpaque()
