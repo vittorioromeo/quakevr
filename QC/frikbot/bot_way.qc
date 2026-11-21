@@ -737,10 +737,16 @@ void(entity this) mark_path =
 
     if(t.enemy == world)
     {
+        if(BotNav_Take(this, 2, 0)) // QVR: no waypoint route there: the navmesh's (vr_bot_navmesh (b))
+            return;
         bot_lost(this, FALSE);
         self.route_failed = TRUE;
         return;
     }
+    // QVR: the route (its waypoints' distance from the bot to the goal's, then on to it) much longer than the navmesh's
+    // path: the navmesh's (vr_bot_navmesh (c))
+    if(BotNav_Take(this, 3, t.items + vlen(realorigin(this) - t.origin)))
+        return;
 
     flag = ClientBitFlag(self.b_clientno);
 

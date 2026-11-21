@@ -394,6 +394,7 @@ frikbot/bot_ai.qc
 frikbot/bot_misc.qc
 frikbot/bot_phys.qc
 frikbot/bot_move.qc
+frikbot/bot_nav.qc // QVR: the navmesh beside the waypoints (vr_bot_navmesh, NAVMESH.md 23)
 frikbot/bot_ed.qc
 vr_meleeonly_bot_test.qc // bots under Melee Only (vr_pickup_test 15; after FrikBot)
 
@@ -605,6 +606,7 @@ vr_playerdisarm_test.qc // vr_pd_test 1: the player disarmed
 vr_dmrules_test.qc // vr_dm_test 1: deathmatch's item rules, disarms between players and bots (MP B11 part 2)
 vr_bots_test.qc // vr_dm_test 13-15: FrikBot bots from his 2026-11-21 notes (skill, weapons, the swing's windup)
 vr_botgrab_test.qc // vr_dm_test 16-18: the disarm grab at a bot's or a player's drawn weapon (bots3)
+vr_botnav_test.qc // vr_dm_test 19-20: bots on the navmesh beside their waypoints (botnav, vr_bot_navmesh)
 vr_meleerules.qc // enemy melee's rules: each blow's rule for Show Melee Arcs, an armed humanoid's blow (after the monsters)
 vr_disarmviz.qc // Debug > Show Disarm Volumes: the armed humanoids' disarm volumes (the engine draws them: vr_disarmviz.cpp)
 vr_armedrepl.qc
