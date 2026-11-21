@@ -75,6 +75,7 @@ struct Drawn
     view::ViewEntity weapon[2];
     float skin[2][handrig::data::numJoints * 12]{};
     int frame{-1}; // host_framecount it was last set up
+    int owner{0};  // ... as whose copy (his entity: a player's slot is his own; a doll slot's, the dead body's owner)
     int doll{0};   // ... as his dead body: its entity (addDolls; 0 his living body)
     glm::vec3 placedAt{0.f}; // his entity's drawn place then (the trace's: vr_mp_trace)
     // His body (vr_mp_body), as last posed (the report's: the skeleton, the wrists its arms reached for).
@@ -114,11 +115,16 @@ struct Drawn
     za::Vector<float> plateBones[plateCount];
     za::Vector<float> bridgeBones;
 };
+// By player entity (0 unused), then the doll slots (avatar::otherKeys - avatar::dollSlots on: a dead player's bodies while
+// his own slot is taken, by his living copy or a nearer body of his; mpbugs4, 2026-11-21: once he respawned, his old body
+// was id's ranger again).
 struct DrawnAll
 {
-    Drawn of[MAX_SCOREBOARD + 1];
+    Drawn of[avatar::otherKeys];
+    int dollEnt[avatar::dollSlots]{}; // the body each doll slot last drew (its entity; kept while it is out of sight)
     int addedFrame{-1};
 };
+constexpr int firstDollSlot = avatar::otherKeys - avatar::dollSlots;
 DrawnAll drawn;
 
 // How long an avatar is drawn after its last message (an unchanged one comes every vr_net_avatar_keyframe frames).
@@ -470,12 +476,13 @@ void avatars_f()
             }
         }
         // The dead players' bodies drawn as theirs (addDolls): whose, the model, the joints, the doll's entity, the look.
-        for(int e = 1; e <= MAX_SCOREBOARD; e++)
+        for(int k = 1; k < avatar::otherKeys; k++) // (the players' slots, then the doll slots: slot=)
         {
-            const Drawn& d = drawn.of[e];
+            const Drawn& d = drawn.of[k];
             if(d.doll > 0 && d.bodyPosed && d.body.ent.model && (d.frame == host_framecount - 1 || d.frame == host_framecount))
             {
-                printSkeleton("mp_doll", e, d.body.ent.model->name, d.skeleton);
+                printSkeleton("mp_doll", d.owner, d.body.ent.model->name, d.skeleton);
+                Con_Printf(" slot=%d", k);
                 view::SkinLook look;
                 const int kind = mpavatar::lookOf(&d.body.ent, look);
                 const entity_t& de = cl_entities[d.doll];
@@ -580,8 +587,8 @@ void add(view::ViewEntity& ve)
     }
 }
 
-void setupBody(int e, const Avatar& a, const glm::vec3& origin, const avatar::DollPose* doll);
-void drawPowerups(int e, int powerups);
+void setupBody(int slot, int e, const Avatar& a, const glm::vec3& origin, const avatar::DollPose* doll);
+void drawPowerups(int slot, int powerups);
 
 // A bot's holstered weapons and their sheaths (syncfix; his voice note 2026-11-21: "it should be possible to see the
 // holsters of other players and bots ... so that I can see what they're actually carrying"): no client drew them, so they
@@ -628,11 +635,13 @@ void solveBotGear(const Drawn& d, float yaw, VrDrawnHolsters& hs, view::GearDraw
 }
 
 // Avatar `e`'s hands and weapons placed on his entity as drawn now at `origin` (its lerp: they ride it between messages).
-// `doll`: his dead body's pose (addDolls), the hands at its wrists.
-void setup(int e, const Avatar& a, const glm::vec3& origin, const avatar::DollPose* doll = nullptr)
+// `doll`: his dead body's pose (addDolls), the hands at its wrists. Drawn in `slot` (his own, e; a dead body's: a doll
+// slot, firstDollSlot on, whose keyed effects -- lights, glows -- are not his: a doll has none).
+void setup(int slot, int e, const Avatar& a, const glm::vec3& origin, const avatar::DollPose* doll = nullptr)
 {
-    Drawn& d = drawn.of[e];
+    Drawn& d = drawn.of[slot];
     d.frame = host_framecount;
+    d.owner = e;
     d.placedAt = origin;
     // His hands, held and holstered weapons as his client drew them, by the routines that draw yours (view::drawHands).
     view::HandsDraw in;
@@ -730,9 +739,16 @@ void setup(int e, const Avatar& a, const glm::vec3& origin, const avatar::DollPo
         l.clip = a.holsterClip[i];
         view::drawGunParts(d.holster[i], l, d.holsterGun[i], false, false);
     }
-    flashlight::drawOther(e, a.lamp, origin, d.lamp);
-    setupBody(e, a, origin, doll);
-    drawPowerups(e, doll ? 0 : a.powerups);
+    if(doll)
+    {
+        d.lamp.visible = false; // (a dead body's torch: none; its lights are keyed by player, his living copy's)
+    }
+    else
+    {
+        flashlight::drawOther(e, a.lamp, origin, d.lamp);
+    }
+    setupBody(slot, e, a, origin, doll);
+    drawPowerups(slot, doll ? 0 : a.powerups);
 }
 
 // Each of his entities as drawn (his copy's whole: hands, weapons and their parts, holsters, torch, body, pauldrons, plates).
@@ -777,9 +793,11 @@ void forEachDrawn(Drawn& d, F&& f)
 
 // His power-ups on his copy as yours on you (syncfix; view::powerupLookOf, vr_body_powerups): the glow on his hands and
 // body (powerupGlow, the shader's), its light from his hands, Quad's arcs on his forearms, the ring's fade over all of him.
-void drawPowerups(int e, int powerups)
+// `slot`: his copy's (the lights' and arcs' key: a doll slot's past the players' lights, none).
+void drawPowerups(int slot, int powerups)
 {
-    Drawn& d = drawn.of[e];
+    Drawn& d = drawn.of[slot];
+    const int e = slot;
     d.powerups = view::powerupLookOf(powerups);
     const view::PowerupLook& look = d.powerups;
     if(look.alpha < 1.f)
@@ -932,14 +950,14 @@ constexpr int calHeight = 0, calArm = 2, calScale = 3, calBody = 12, calBuild = 
 // head, his drawn hands (their wrists, as your own body's arms take yours) and how his client poses his body (a.body),
 // at his height, arm length and world scale, his build's model and its bracers or bare forearms (his calibration's; the
 // defaults until it comes). His body mode 0 (none): his player model, as before. Both his jointed hands must be drawn.
-void setupBody(int e, const Avatar& a, const glm::vec3& origin, const avatar::DollPose* doll)
+void setupBody(int slot, int e, const Avatar& a, const glm::vec3& origin, const avatar::DollPose* doll)
 {
-    Drawn& d = drawn.of[e];
+    Drawn& d = drawn.of[slot];
     d.bodyPosed = false;
     const Calibration* c = calOf(e);
     view::BodyDraw b;
     b.shown = vr_mp_body.value != 0.f && a.body.valid && !(c && c->v[calBody] == 0) && d.hand[0].visible && d.hand[1].visible;
-    b.player = e;
+    b.player = slot; // (the posed body's state's key, avatar::poseOther: his own, or a doll slot's)
     avatar::Subject who;
     who.doll = doll;
     b.who = &who;
@@ -1071,7 +1089,7 @@ void setupBody(int e, const Avatar& a, const glm::vec3& origin, const avatar::Do
     out.cap = d.pauldron;
     out.arm = d.pauldronArm;
     d.plateReport = -1;
-    if(!view::drawBody(b, out) || !avatar::otherSkeleton(e, d.skeleton))
+    if(!view::drawBody(b, out) || !avatar::otherSkeleton(slot, d.skeleton))
     {
         return;
     }
@@ -1599,7 +1617,7 @@ int weaponOwner(const entity_t* e, int& side)
 {
     bool hand = false;
     const Drawn* d = drawnOf(e, side, hand);
-    return d && !hand ? static_cast<int>(d - drawn.of) : 0;
+    return d && !hand ? d->owner : 0;
 }
 
 bool drawnWeapon(int ent, int side, glm::vec3& butt, glm::vec3& muzzle, glm::vec3& hand)
@@ -1778,17 +1796,74 @@ void addDrawn(int e, const entity_t* replace)
 // The dead players' bodies (QC vr_deathdoll.qc's player_body; Quake's body queue): progs/player.mdl in a player's
 // colours (its colormap his; not his own entity). Each drawn as his own body (mpslide, 2026-11-20: they were id's ranger,
 // not the body he is seen in): his build's model in his look, posed from the doll (Subject::doll), his jointed hands at
-// its wrists; one a player (the first listed). For every viewer: a listen host and single player (its ragdoll), a client
+// its wrists; every body of his, his living copy drawn too or not (mpbugs4: a respawned player's old bodies were id's
+// ranger; assignDollSlots: the nearest avatar::dollSlots past his own slot, the rest the ranger). For every viewer: a listen host and single player (its ragdoll), a client
 // of another server (its death animation's frame), the dead player himself (his own settings; headless while the
 // Immersive death view is in its head).
+// A dead body addDolls draws: its entity, edict, model, owner, distance from the eyes and the slot it is drawn in.
+struct DollBody
+{
+    entity_t* e{nullptr};
+    int num{0};
+    qmodel_t* model{nullptr};
+    int owner{0};
+    float dist{0.f};
+    int slot{0};
+};
+constexpr int mostDollBodies = 64; // (the bodies looked at a frame: Quake's body queue holds 8)
+
+// The slots of the bodies (nearest first): the owner's own while his copy is not drawn (he lies dead: the nearest of his
+// bodies), else the doll slot it had (its pose's state goes on), else a free one, given afresh; 0: none left (id's ranger).
+void assignDollSlots(DollBody* bodies, int count)
+{
+    bool ownTaken[MAX_SCOREBOARD + 1]{};
+    bool slotTaken[avatar::dollSlots]{};
+    for(int i = 0; i < count; i++)
+    {
+        DollBody& b = bodies[i];
+        if(drawn.of[b.owner].frame != host_framecount && !ownTaken[b.owner])
+        {
+            ownTaken[b.owner] = true;
+            b.slot = b.owner;
+            continue;
+        }
+        for(int k = 0; k < avatar::dollSlots && !b.slot; k++)
+        {
+            if(!slotTaken[k] && drawn.dollEnt[k] == b.num)
+            {
+                slotTaken[k] = true;
+                b.slot = firstDollSlot + k;
+            }
+        }
+    }
+    for(int i = 0; i < count; i++)
+    {
+        DollBody& b = bodies[i];
+        for(int k = 0; k < avatar::dollSlots && !b.slot; k++)
+        {
+            if(!slotTaken[k])
+            {
+                slotTaken[k] = true;
+                b.slot = firstDollSlot + k;
+                drawn.dollEnt[k] = b.num;
+                avatar::forgetOther(b.slot); // (another body's feet and eases: afresh)
+                drawn.of[b.slot].morph.resync = true;
+            }
+        }
+    }
+}
+
 void addDolls()
 {
     if(vr_mp_body.value == 0.f)
     {
         return;
     }
+    DollBody bodies[mostDollBodies];
+    int count = 0;
+    const glm::vec3 eye{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]};
     const int listed = cl_numvisedicts; // (the copies' own entities are added after them)
-    for(int i = 0; i < listed; i++)
+    for(int i = 0; i < listed && count < mostDollBodies; i++)
     {
         entity_t* e = cl_visedicts[i];
         if(e < cl_entities || e >= cl_entities + cl.num_entities || !e->model)
@@ -1807,9 +1882,30 @@ void addDolls()
         {
             p = e->colormap == cl.scores[k].translations ? k + 1 : 0;
         }
-        if(p <= 0 || p == num || drawn.of[p].frame == host_framecount)
+        if(p <= 0 || p == num)
         {
-            continue; // (not a player's colours, his own entity, or his copy drawn already)
+            continue; // (not a player's colours, or his own entity)
+        }
+        // (nearest first: an insertion into the sorted list)
+        DollBody b{e, num, model, p, glm::distance(glm::vec3{e->origin[0], e->origin[1], e->origin[2]}, eye), 0};
+        int at = count++;
+        for(; at > 0 && bodies[at - 1].dist > b.dist; at--)
+        {
+            bodies[at] = bodies[at - 1];
+        }
+        bodies[at] = b;
+    }
+    assignDollSlots(bodies, count);
+    for(int i = 0; i < count; i++)
+    {
+        entity_t* e = bodies[i].e;
+        const int num = bodies[i].num;
+        qmodel_t* model = bodies[i].model;
+        const int p = bodies[i].owner;
+        const int slot = bodies[i].slot;
+        if(!slot)
+        {
+            continue; // (every doll slot taken by nearer bodies)
         }
         avatar::DollPose pose;
         Avatar a;
@@ -1831,14 +1927,14 @@ void addDolls()
         {
             h.handOrigin -= origin;
         }
-        Drawn& d = drawn.of[p];
+        Drawn& d = drawn.of[slot];
         if(d.frame < 0 || host_framecount - d.frame > freshAfterFrames)
         {
             d.morph.resync = true;
         }
-        setup(p, a, origin, &pose);
+        setup(slot, p, a, origin, &pose);
         d.doll = num;
-        addDrawn(p, e);
+        addDrawn(slot, e);
     }
 }
 
@@ -1870,7 +1966,7 @@ void addEntities()
         }
         glm::vec3 origin, angles;
         render::drawnPlace(cl_entities[e], origin, angles);
-        setup(e, blendedOf(e), origin);
+        setup(e, e, blendedOf(e), origin);
         d.doll = 0;
         // (the server's time it shows: blendedOf's -- the interpolation's, the lerp's, or the last message as it came)
         d.posedAt = vr_mp_avatar_lerp.value == 0.f ? a.msgTime
@@ -1879,9 +1975,9 @@ void addEntities()
     }
     addDolls();
     // Their skin masks (a skin tone, gloves, nails: their own look, view::lookOf) found now, outside the draw loops.
-    entity_t* shown[(MAX_SCOREBOARD + 1) * 3];
+    entity_t* shown[avatar::otherKeys * 3];
     int count = 0;
-    for(int e = 1; e <= MAX_SCOREBOARD; e++)
+    for(int e = 1; e < avatar::otherKeys; e++) // (the doll slots too)
     {
         Drawn& d = drawn.of[e];
         if(d.frame == host_framecount)
@@ -1926,8 +2022,8 @@ int lookOf(const entity_t* e, view::SkinLook& look)
     {
         return 0;
     }
-    const int owner = static_cast<int>((p - first) / sizeof(Drawn));
-    const Drawn& d = drawn.of[owner];
+    const Drawn& d = drawn.of[(p - first) / sizeof(Drawn)];
+    const int owner = d.owner; // (a doll slot's: the dead body's owner)
     const int kind = e == &d.hand[0].ent || e == &d.hand[1].ent ? 1 : e == &d.body.ent ? 2 : 0;
     const Calibration* c = calOf(owner);
     if(!kind || !c)

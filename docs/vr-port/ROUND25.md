@@ -6735,6 +6735,53 @@ add the navmesh where it is smarter: a player spotted nearby, goals by need. Des
   (checked: its Quake/ built and run): stale expectations (the hammer's part 2.8/7.0, verts 172/795; the crowbar's and
   chainsaw's vertex counts; the holstered axe found lying), not syncfix5's.
 
+## mpbugs3: his flat-screen multiplayer notes -- death drops, Dwell in deathmatch, corpses (mpbugs3, 2026-11-21, `agent/mpbugs3`)
+
+His words: "Bots/players in MP who had a dagger in their holster actually drop a sword as a prop"; "Killed bot/player
+ragdolls are still the Quake ranger model..."; Select Campaign > Dwell while hosting: "runaway loop error ...
+SelectSpawnPoint ... Host_Spawn_f".
+
+- **Death drops** (fixed): PlayerDie dropped each hand's and holster's weapon with `CreateWeaponDrop` (flags 0, a new
+  record), so a dagger (WID_SWORD with VR_SWORDKIND_DAGGER in its flags) lay as a knight's sword, and every drop lost
+  its magazine, blood, Dwell variant and AD upgrade. `VR_DeathDrops` (vr_wpnholster.qc) drops each as it was: its flags
+  (the hand's state off: foregrip carry, saw state; the reverse grip kept) and its record, moved (the dead one's
+  references cleared; a respawn makes new ones). Test `vr_dm_test 21` (vr_deathdrop_test.qc; `maxplayers 2; deathmatch
+  1`): a bot, then the player, daggers in both hands and five holsters, a knight's sword in the sixth: 20/0.
+- **Dwell from Select Campaign in deathmatch** (fixed): Dwell's start has coop starts but no `info_player_deathmatch`;
+  SelectSpawnPoint's deathmatch `while(1)` only ended on meeting its start spot again, so with none (or every start
+  blocked and no last spawn yet) it looped for ever. Coop and single player were fine. The scan ends after two passes;
+  no deathmatch start: `VR_CoopSpawnPoint` (the next clear coop start, else beside one: the first fix, the player start
+  for all, had the bot telefrag the host). Test `vr_dm_test 22` (vr_spawnloop_test.qc, set before `vr_campaign_native
+  dwell`): deathmatch 3/0 and coop 3/0 (two players spawned and alive, SelectSpawnPoint returns), single player loads.
+  `dwell_maps.sh`: 28/0, dwgate 10/0.
+- **Corpses still the ranger** (found, not fixed: out of budget): every dead body is drawn as its owner's avatar
+  (mpslide) only while he is dead; once he respawns, his body still lying is drawn as `player.mdl#rag` (one drawn copy
+  per player: `addDolls` skips a body whose owner's living copy is drawn). Measured on a VR and a flat listen host with
+  a bot. The fix (doll slots) and the avatar's own ragdoll rig (vrbody.rig2) are planned in MP_PLAN.md, "Still the
+  ranger after a respawn".
+- Checks: Dev and ThinLTO builds 0 warnings; mp_test suite --only mp_coop,mp_pickup,mp_rejoin,mp_dm: 12/0, 10/0,
+  19/0, 27/0 (netsafe 14/0); dwell_maps.sh 28/0, dwgate 10/0. Not run: the whole mp suite, scenario_check (budget).
+
+## mpbugs4: mpbugs3 made shippable; a respawned player's old body drawn as him (mpbugs4, 2026-11-21, `agent/mpbugs3`)
+
+- **The checks mpbugs3 skipped** (VR_DeathDrops runs only in deathmatch and coop: PlayerDie's `(deathmatch || coop)`;
+  single player's deaths drop nothing, unchanged): scenario_check PASS (150 run, 0 failed); `vr_dm_test 21` now also
+  holsters a shotgun with 3 rounds (guns keep their magazine: the record moves with the drop), 20/0 in deathmatch and in
+  coop; `vr_agrunt_test 215` in coop 2/0; `vr_pickup_test 12` (every weapon through a save) 352/0; dwell_weapons_test
+  9/0 (vr_ad_test 204, 213); plasma_ball_test 6/0 (an AD upgrade's record). `vr_pickup_test 15` fails one check ("a
+  grunt in reach: it swings the dagger": 12/1, twice) with no death in it: the bots' telegraphed swing (`bots`,
+  bot_fight.qc, 2026-11-21) came after its 13/0, not this branch. mp_test plain suite: 64 tests passed, mp_teleport,
+  mp_melee and mp_loss each failed 1-2 checks under the suite's load and passed alone (10/0, 30/0, 16/0). Dev and
+  ThinLTO builds 0 warnings.
+- **Old bodies after a respawn** (fixed): 8 doll slots past the players' in vr_mpavatar.cpp (`firstDollSlot`,
+  `avatar::dollSlots`, `Drawn::owner`); `assignDollSlots` gives the bodies in sight, nearest first, their owner's own
+  slot while he is dead, else the doll slot they had, else a free one (its posed state forgotten:
+  `avatar::forgetOther`); the ninth and farther are the ranger. The posed body's state (`avatar::poseOther`'s
+  `others[]`, now `avatar::otherKeys` long) is keyed by the slot; calibration, look and armour by the owner; a doll has
+  no torch, its power-up lights none. `mp_doll` lines carry `slot=`. `mp_deathbody` 23/0: after B respawns, A (the
+  host: doll slot 17) and B (a client: his own slot) still draw B's old body as B's build. MP_PLAN.md, "Still the
+  ranger after a respawn".
+- **The avatar's own ragdoll rig**: left as the plan in MP_PLAN.md (not built).
 ## reliefs: Dwell's and Quoth's reliefs made on the player's PC by Setup (DWELL.md 9.9, option A)
 
 Branch `agent/reliefs`. His choice of 2026-11-21: PBRify's CC0 models as ONNX, run by onnxruntime in a Setup step.

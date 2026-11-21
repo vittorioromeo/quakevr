@@ -762,7 +762,7 @@ void morphPlates(PlateMorphs& m, bool on, int type, int pieces, double now, Body
 struct BodyDraw
 {
     bool shown{false};                      // false: none drawn (the entities below hidden)
-    int player{0};                          // his entity (yours: cl.viewentity)
+    int player{0};                          // his entity or a doll slot (poseOther's key); yours: cl.viewentity
     const avatar::Subject* who{nullptr};    // his measures and motion; nullptr: this game's own player (the live ones)
     hands::State s;                         // the head and hands it is posed from
     const avatar::HandPose* poses{nullptr}; // the drawn hands' wrists, [HAND_OFF] and [HAND_MAIN]

@@ -808,6 +808,53 @@ void(entity thrower, float xWeapon, vector xOrigin) CreateWeaponDrop =
     );
 }
 
+// A dying player's or bot's weapon (PlayerDie, deathmatch and coop: a hand's or a holster's) dropped as CreateWeaponDrop
+// drops one, as the weapon it was: its flags (a sword's kind: the dagger, not a knight's sword; an AD gun's model) and its
+// record (its magazine, its blood, its Dwell variant, its AD upgrade) go with it, the dead one's reference cleared (his
+// note 2026-11-21: "had a dagger in their holster actually drop a sword"). `xHand`: the hand's state off the flags.
+entity(entity thrower, float xWeapon, float xFlags, entity xInst, float xHand) VR_DeathDropOf =
+{
+    if(xWeapon == WID_FIST)
+    {
+        return world;
+    }
+    if(xHand)
+    {
+        xFlags = xFlags - (xFlags & QVR_WPNFLAG_FOREGRIP_CARRIED); // a hand's state, not the weapon's (as a hand's throw)
+        xFlags = xFlags - (xFlags & QVR_WPNFLAG_SAW_STATE);
+    }
+    xInst = WeaponInst_Ensure(xInst, xWeapon, WeaponIdToBaseClipSize(xWeapon));
+    vector throwVel = randomVec(0.9);
+    throwVel_z = 1.1 + random() * 1.1;
+    return CreateThrownWeapon(thrower, xWeapon, xFlags, xInst, thrower.origin, randomVec(180),
+        LegacyThrowVelocity(xWeapon, throwVel), LegacyThrowSpin(throwVel, randomVec(20)),
+        FALSE /* disappear on hit */,
+        FALSE /* deal damage */,
+        WeaponIdToThrowDamage(xWeapon)
+    );
+}
+
+// Every weapon of a dying player or bot dropped (PlayerDie): both hands', the six holsters', each as it was
+// (VR_DeathDropOf); its records moved to the drops (the dead one's references cleared: a respawn makes new ones).
+void(entity p) VR_DeathDrops =
+{
+    VR_DeathDropOf(p, p.weapon, p.weaponflags, p.weaponinst, TRUE);
+    VR_DeathDropOf(p, p.weapon2, p.weaponflags2, p.weaponinst2, TRUE);
+    p.weaponinst = world;
+    p.weaponinst2 = world;
+    float hs = QVR_HS_LEFT_SHOULDER_HOLSTER;
+    while(hs <= QVR_HS_RIGHT_UPPER_HOLSTER)
+    {
+        if(hs != QVR_HS_HAND_SWITCH) // (not a holster)
+        {
+            VR_DeathDropOf(p, VR_Grapple_HolsterWeapon(p, hs), VR_Grapple_HolsterFlags(p, hs), VRGetEntHolsterWeaponInst(p, hs),
+                FALSE);
+            VRSetEntHolsterWeaponInst(p, hs, world);
+        }
+        hs = hs + 1;
+    }
+}
+
 void(entity thrower, float xWeapon, vector xOrigin) CreateAmmoBoxWeaponDrop =
 {
     vector throwVel;

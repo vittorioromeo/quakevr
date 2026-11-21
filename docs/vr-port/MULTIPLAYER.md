@@ -107,7 +107,11 @@ for the others. Any PC with Quake VR installed can run one (the same port rule a
 ## Deathmatch and bots
 
 - Deathmatch's item rules (weapons and items come back after their wait; dropped weapons go after 10 s) and its maps
-  (dm1-dm6, or any deathmatch map).
+  (dm1-dm6, or any deathmatch map). A map with no deathmatch starts (a campaign's, Dwell's start from Select Campaign)
+  spawns players at coop's starts, the next clear one (it used to stop the game with "runaway loop error").
+- **A dead player or bot drops every weapon he had** (deathmatch and coop: both hands and every holster), each as it
+  was: a dagger lies as a dagger (not a knight's sword), a gun keeps its magazine, a Dwell or Arcane Dimensions variant
+  its kind, a blade its blood.
 - **Players can knock each other's weapons out of their hands** (shots, blows, grabs: Armed Grunts > "Players Can
   Disarm Each Other", on by default) and parry each other's swings.
 - **Bots** (FrikBot): the host adds one with `impulse 100` in the console (each time one more), or **VR Settings > Play >

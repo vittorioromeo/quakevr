@@ -296,7 +296,14 @@ struct Subject
     glm::vec3 sightRear{0.f}, sightFront{0.f};
     int sightHand{1}; // (HAND_MAIN: the right)
 };
-// `player`: 1 .. MAX_SCOREBOARD. Returns the entity origin (the pelvis), as pose(). His swimming, lying down and climbing
+// The keys of the other bodies' state (poseOther and the lookups below): a player's entity (1 .. MAX_SCOREBOARD), or a
+// doll slot past them (otherKeys - dollSlots .. otherKeys - 1): a dead player's body drawn as his while his living copy
+// is drawn too (vr_mpavatar.cpp addDolls: a respawned player's old bodies; mpbugs4, 2026-11-21).
+inline constexpr int dollSlots = 8;
+inline constexpr int otherKeys = MAX_SCOREBOARD + 1 + dollSlots;
+// Key `key`'s state forgotten (a doll slot given to another body: its feet and eases afresh).
+void forgetOther(int key);
+// `player`: a key (above: 1 .. otherKeys - 1). Returns the entity origin (the pelvis), as pose(). His swimming, lying down and climbing
 // as the server has him (Subject::lying, waterlevel, onGround: the body's pitch; Subject::holds: the trunk hanging under
 // the head, the feet on footholds -- found on a listen host, hanging on a client of another server, which has no world to
 // trace: MP_PLAN.md, B5c). His arms are his calibration's (Subject::arms: measured, tweaked, shoulders).

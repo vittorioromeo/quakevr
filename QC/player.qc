@@ -915,6 +915,8 @@ void() GibPlayer =
         sound(self, CHAN_VOICE, "player/udeath.wav", 1, ATTN_NONE);
 };
 
+void(entity p) VR_DeathDrops; // (vr_wpnholster.qc)
+
 void() PlayerDie =
 {
     if(MGH_Active()) self.MGH_killspree=0;
@@ -952,14 +954,7 @@ void() PlayerDie =
         TeamDropFlagOfPlayer(self);
         DropRune();
 
-        if(self.weapon != WID_FIST)         { CreateWeaponDrop(self, self.weapon, self.origin); }
-        if(self.weapon2 != WID_FIST)        { CreateWeaponDrop(self, self.weapon2, self.origin); }
-        if(self.holsterweapon0 != WID_FIST) { CreateWeaponDrop(self, self.holsterweapon0, self.origin); }
-        if(self.holsterweapon1 != WID_FIST) { CreateWeaponDrop(self, self.holsterweapon1, self.origin); }
-        if(self.holsterweapon2 != WID_FIST) { CreateWeaponDrop(self, self.holsterweapon2, self.origin); }
-        if(self.holsterweapon3 != WID_FIST) { CreateWeaponDrop(self, self.holsterweapon3, self.origin); }
-        if(self.holsterweapon4 != WID_FIST) { CreateWeaponDrop(self, self.holsterweapon4, self.origin); }
-        if(self.holsterweapon5 != WID_FIST) { CreateWeaponDrop(self, self.holsterweapon5, self.origin); }
+        VR_DeathDrops(self); // every weapon as it was: its flags (the dagger) and its record (vr_wpnholster.qc)
     }
 
     if(self.ctf_killed == 2)
