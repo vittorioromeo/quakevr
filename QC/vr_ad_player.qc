@@ -334,8 +334,13 @@ void(float s) VR_AD_SetSkill =
 };
 
 // AD support: tracked hands bypass both keyboard ladder systems only while they can climb the ladder themselves (Hand
-// Climbing and Hand-Climbed Ladders both on); otherwise AD's own jump/velocity climb keeps every ladder climbable.
+// Climbing and Hand-Climbed Ladders both on; flatscreen play, its Ladders too: vr_flat_ladder); otherwise AD's own
+// jump/velocity climb keeps every ladder climbable (Quoth's too, which play as AD's).
 float(entity p) VR_AD_LadderManual =
 {
+    if(VR_FlatPlay(p))
+    {
+        return cvar_hget(cvarh_vr_climb) && cvar_hget(cvarh_vr_climb_ladders) && cvar_hget(cvarh_vr_flat_ladder);
+    }
     return VRHandsTracked(p) && cvar_hget(cvarh_vr_climb) && cvar_hget(cvarh_vr_climb_ladders);
 };

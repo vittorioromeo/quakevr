@@ -199,6 +199,10 @@ aren't Map Library packages aren't sent to joining players.
   (`vr_climb_mantle_trigger`): High Enough (the default, as before: at once), Let Go (hang and look over the top, pull
   up when your last hand lets go; let go lower and you drop), Jump, or Let Go or Jump. Flatscreen mantles and ladders
   are unchanged.
+- **Quoth's and Arcane Dimensions' ladders climb like ours.** A mod's ladder drawn on a wall or a pillar (Quoth's
+  kellbase1) now has rungs 16 units apart for your hands, as a ladder made of real rungs: grip and climb hand over hand,
+  and over the top. On the desktop screen, walking into one climbs it as the tutorial's ladder (Desktop Screen Play >
+  Ladders); with Ladders off, the mod's own climb (hold jump) works there again.
 - **Sprint by clicking the stick.** VR Settings > Locomotion and Controls > Speed Button (`vr_sprint_toggle`): Toggle
   makes a click of the speed button (the left stick's click as shipped, or Shift) switch between walking and running
   instead of holding it. The switch ends by itself, back to your Default Speed, when you stop moving for a moment, die,
