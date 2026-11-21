@@ -6097,3 +6097,60 @@ Details in DWELL.md 9.8. Each note's cause and fix:
   heading of eight, else above, where the world has room and no wall is crossed.
 - **Tests:** `dwell_weapons_test.sh` 9/0 (213: pickups taken, props laid, a bloody prop taken: 10/0); `music_test.sh`
   7/0; `dwell_maps.sh` 28/0 and 214 10/0; `dwell_monster_fixes_test.sh` (215, rig spans, 216).
+
+## comfort2: one click one switch, the double tap's other speed, slide and eye foveation by default, the revolver's swing (comfort2, 2026-11-21, `agent/comfort2`)
+
+His voice notes of 2026-11-21 (vrfiringrange 00-23-29, e1m1 01-04-14 and others).
+
+- **The speed toggle switching twice: the click bounces.** His takes' replays (`NOTES.md`
+  vrfiringrange_2026-11-21_00-23-29_replay.csv, the off hand's buttons bit 16) show 34 stick clicks, 9 of them followed
+  11-44 ms after letting go by a press of 11-33 ms (one or two frames at 90 Hz): a second press, so a second `+speed`
+  and the toggle switched back. His real clicks are 100 ms long or more and 367 ms apart at the least. The click is read
+  on one path only (OpenXR's thumbstick/click into `buttonChanged`); the bounce is the switch's. **Fix:**
+  `vr_stick_click_debounce` (0.08 s; Advanced > Movement > Locomotion > Stick Click Debounce; 0 off):
+  `debounceStickClicks` (vr_input.cpp, in `update` before anything reads the buttons, both sticks, live or a take's) swallows
+  a press that comes within the window of the click's letting go (or of a bounce's), its letting go too; a press still
+  held past the window is a press then. `vr_debug_buttons` prints each swallowed bounce. **Test** `stickclick_test.sh`
+  4/0: a clean click one press; his bounce pattern one press, one bounce swallowed; debounce off the same click two
+  presses (the cause); two clicks 0.3 s apart both count. (The keys' commands run only after a test script, which holds
+  the command buffer, so the test counts the presses leaving the debounce: `vr_doubletap_test state` prints them.)
+- **The double tap is the Default Speed's other** (his ask: with Default Speed: Run it walks): in `VR_AdjustMove`
+  a double tap's run gives `cl_alwaysrun`'s other, whatever the speed button (held or toggled) says; otherwise the speed
+  button's choice as before. Row renamed "Double-Tap for Other Speed". `doubletap_test.sh` 8/0 (new: Default Speed:
+  Run, a long push runs at 320, the taps walk at 200, and still walk with the speed toggle switched).
+- **VR sliding on by default** (`vr_slide` 1; row "Sliding", no longer "Experimental"): the turning stick's straight
+  pull down on foot slides; its down is no `+movedown` there (swimming it still dives). **The legs the slide's way**
+  (`vr_slide_legs` 1, Slide Legs Follow Slide, after Slide Body Pose): the flat slide's turn (hips and legs to the
+  slide's way, at most `vr_flat_slide_legs_twist`, back to the view past `vr_flat_slide_back_start`, eased by
+  `_turn_smooth`) moved out of flatplay's poseHands into `slide::legsTurnStep` (vr_slide.cpp, `slide::LegsTurn`), which
+  flat play calls as before (its view the look, its rest the long gun's stance) and a headset's slide calls once a frame
+  from vr_hands.cpp (`slide::headsetLegs`: its view the tracked body's yaw). The avatar turns the local headset body's
+  frame by `headsetLegsOff` and the chest back by `headsetLegsTwist`, the flat body's twist code shared (`twistChest` in
+  solveTorso); `hands::State::bodyYaw` itself is untouched (holsters, movement mode 4). Not shared: another player's
+  body (no velocity-based legs there yet). **Test** `vrslide_test.sh` 2/0 (`vr_slide_test` 40/0): two new cases slide
+  with the head turned 60 left as the slide starts (the body turns 27 off the way): `vr_slide_legs` 1, the legs (hips to
+  ankles) 0 degrees off the slide's way; 0, on the body's. Those cases set `vr_flat_slide_steer 0` (vr_move_hold keeps
+  the stick 0.4 s, forward the new view's) and turn the head back during the stand-up (setpos turns the play space by
+  the head). flatslide_test 26/0 (the moved turn).
+- **Eye-tracked foveation by default** (`vr_foveated_gaze` 1): XR_EXT_eye_gaze_interaction is asked for at VR start
+  whenever the runtime offers it (the permission point on PC runtimes: no separate permission API; a runtime that
+  refuses reports no eye tracker); the gaze while tracked, the lens centre otherwise (no tracker, a blink), frame by
+  frame, nothing to set or restart. `Backend::eyeTracking()` (NotOffered, NotAsked, NoTracker, Ready; OpenXR from its
+  start-up probe, the mock from `vr_mock_eye_tracking`, 1). VR Settings > Graphics (advanced): a line under Eye-Tracked
+  Foveation, `foveated::gazeStatus` ("your eyes (eye tracking)", "the lens centre (no eye tracking in this headset)",
+  "... (no eye tracker shared with the PC)", "... (your eyes not tracked now)", "... (eye tracking from the next VR
+  start)" after turning it back on). Off asks for nothing. **Test** `foveated_gaze_test.sh` 3/0: the mock's gaze
+  (20 right, 5 up) followed and the line says the eyes; `vr_mock_eye_tracking 0` the next frames: the lens centre, the
+  gaze ignored, the line says so; back on: the eyes again (`vr_foveated_gaze_test` 10/0 each).
+- **The heavy revolver's cylinder shut in a melee swing.** `VR_Revolver_SwingGuard` (QC vr_revolver.qc, each frame in
+  `VR_Revolver_ReloadFrame`): the flick open is refused while the gun's hand moves at `vr_revolver_open_swing_speed`
+  (2 m/s against his body; a blow is `vr_melee_speed`'s 3.2) or faster, for `vr_revolver_open_swing_hold` (0.35 s) after
+  it last did, and as long after his last blow landed (`.vr_blow_time`). The flick home and B/Y are never refused.
+  `vr_reload_debug` prints each refusal. **Test** `vr_rv_test 1` (developer 1): the guard's steps (0.8 m/s goes, 3.5
+  refused, right after refused, 0.4 s after goes, 0.1 s after a blow refused, 0.5 s goes, off goes); live, the mock
+  hand moved 4 units in a frame then the +150 roll that opens it: shut, refused once; past the hold the same roll opens
+  it. 47 passed, 1 failed: "a grunt's body: dead to 2 slugs ... the last 17.6" (its second slug hits part 2, not the
+  body), also with the grunt frozen in its first frame; it passed in the 11-15 baselines; not caused by the guard as far
+  as I can see (only the step's timing changed): **open**.
+- Menus: `menu_paths.txt` regenerated; `vr_menu_path_check maps/vrcalibration.map` 0 missing. Scenes:
+  `speed_toggle_click`, `vr_slide_legs`, `foveation_auto`, `revolver_swing` (and `vr_slide`'s title).

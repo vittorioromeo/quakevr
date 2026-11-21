@@ -347,6 +347,7 @@ void OpenXrBackend::resetRuntimeState()
     panelFailedWidth = panelFailedHeight = 0;
     visibilityMaskExtension = false;
     eyeGazeOffered = false;
+    eyeGazeAsked = false;
     eyeGazeExtension = false;
 #ifndef _WIN32
     eglExtension = false;
@@ -436,6 +437,7 @@ bool OpenXrBackend::createInstance()
             {
                 extensions.pushBack(XR_EXT_EYE_GAZE_INTERACTION_EXTENSION_NAME);
                 eyeGazeExtension = true;
+                eyeGazeAsked = true;
             }
         }
         // Body tracking (vr_bodytrack_xr.cpp): the FB tracker, Meta's full body, fidelity and calibration.
@@ -650,9 +652,9 @@ bool OpenXrBackend::createSystem()
                            gaze.supportsEyeGazeInteraction == XR_TRUE;
     }
     xrruntime::logLine(va("OpenXR: eye tracking (XR_EXT_eye_gaze_interaction): %s\n",
-        eyeGazeExtension    ? "on: the foveation follows the gaze (vr_foveated_gaze 1)"
+        eyeGazeExtension    ? "on: the foveation follows the gaze while tracked, the lens centre otherwise (vr_foveated_gaze 1)"
         : !eyeGazeOffered   ? "not offered by the runtime"
-        : vr_foveated_gaze.value != 0.f ? "offered, but the system has no eye tracker (or it is not shared with the PC)"
+        : eyeGazeAsked      ? "offered, but the system has no eye tracker (or it is not shared with the PC): the lens centre"
                                         : "offered, not used (vr_foveated_gaze 0)"));
 
     // Required before creating an OpenGL session.

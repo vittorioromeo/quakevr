@@ -171,6 +171,17 @@ struct EyeSizes
 // largest size): resampled into the image when it differs (vr_stereo.cpp).
 [[nodiscard]] int scaledEyeSize(int image, int max);
 
+// The headset's eye tracking for the foveation (vr_foveated_gaze; his ask, 2026-11-21: used when there, the lens centre
+// when not, nothing to set or restart): what the runtime said at VR start. Whether the gaze is tracked this frame is
+// FrameState::gaze.valid.
+enum class EyeTracking
+{
+    NotOffered, // the runtime has no eye-gaze extension (XR_EXT_eye_gaze_interaction)
+    NotAsked,   // offered, not asked for (vr_foveated_gaze 0 at VR start: no tracker started, no permission asked)
+    NoTracker,  // asked for, but the system has no eye tracker (or does not share it, or it was refused)
+    Ready,      // asked for and the system has it: the gaze when tracked
+};
+
 class Backend
 {
 public:
@@ -281,6 +292,12 @@ public:
     [[nodiscard]] virtual const char* systemName() const
     {
         return "";
+    }
+
+    // The eye tracking found at VR start (the foveation's centre, the menu's line: foveated::gazeStatus).
+    [[nodiscard]] virtual EyeTracking eyeTracking() const
+    {
+        return EyeTracking::NotOffered;
     }
 };
 

@@ -30,6 +30,11 @@ that ships in 1.1.1.
 
 ## Graphics
 
+- **Eye-tracked foveation by default.** With an eye-tracking headset (a Quest Pro through Virtual Desktop with eye
+  tracking shared to the PC, Varjo...) the sharp middle of Foveated Rendering follows your eyes without setting
+  anything; without one, or while your eyes are not tracked, it stays in the middle of the lens. A line under VR
+  Settings > Graphics > Eye-Tracked Foveation (`vr_foveated_gaze`, now on) says which is in use. Off never asks for
+  the eye tracker.
 - **Relighting about twice as fast.** Quake VR now ships its own build of ericw-tools' `light` (2.0.0-alpha11-qvr1)
   for the relighting (Graphics > Relighting, the installer's relight of the official maps, Download ericw-tools). With
   Bounced Light on (the default) it traces the bounced light from fewer samples and shares it between neighbours:
@@ -102,7 +107,13 @@ aren't Map Library packages aren't sent to joining players.
 
 ## Movement
 
-- **Sliding in VR: the desktop screen's slide, view and body.** While you slide in VR (Sliding (VR, Experimental)),
+- **The heavy revolver's cylinder stays shut in a melee swing.** The wrist flick that swings it out is ignored while
+  the gun's hand moves at a swing's speed and for a moment after it or after a blow lands; a deliberate flick still
+  opens it (`vr_revolver_open_swing_speed`, 2 m/s; `vr_revolver_open_swing_hold`, 0.35 s).
+- **Sliding in VR is on by default** (VR Settings > Locomotion > Sliding, `vr_slide`): while running, pull the turning
+  stick straight down to slide. Your drawn hips and legs now point the way you slide, the chest turned back to your
+  body, as on the desktop screen (Slide Legs Follow Slide, `vr_slide_legs`, on).
+- **Sliding in VR: the desktop screen's slide, view and body.** While you slide in VR (Sliding),
   your view now moves quickly but smoothly down to the desktop screen's sliding eye height and back up when the slide
   ends, on top of your own head's movement; your drawn body takes exactly the desktop screen's slide pose, its legs out
   on the floor. VR Settings > Locomotion: Slide View (`vr_slide_camera`, on; off keeps the view at your real head) and
@@ -115,11 +126,14 @@ aren't Map Library packages aren't sent to joining players.
   makes a click of the speed button (the left stick's click as shipped, or Shift) switch between walking and running
   instead of holding it. The switch ends by itself, back to your Default Speed, when you stop moving for a moment, die,
   change level or open the menu. Hold (the default) is as before.
-- **Run by double-tapping the stick.** VR Settings > Locomotion and Controls > Double-Tap Stick to Run
-  (`vr_move_doubletap`, off by default): push the moving stick twice quickly the same way (push, let go, push again) to
-  run until you let the stick go back to the middle. It works beside the speed button: either one makes you run. How
-  quick the taps must be: Advanced VR Options > Movement > Locomotion > Double-Tap Window (`vr_move_doubletap_window`,
-  0.3 s).
+- **The other speed by double-tapping the stick.** VR Settings > Locomotion and Controls > Double-Tap for Other
+  Speed (`vr_move_doubletap`, off by default): push the moving stick twice quickly the same way (push, let go, push
+  again) for the other speed than your Default Speed until you let the stick go back to the middle: run, or walk
+  if your Default Speed is Run, whatever the speed button says. How quick the taps must be: Advanced VR Options >
+  Movement > Locomotion > Double-Tap Window (`vr_move_doubletap_window`, 0.3 s).
+- **A stick click never counts twice.** The thumbstick's click can bounce as it is let go (a second press a few
+  hundredths of a second later), which switched the speed toggle straight back. Such a press is now ignored
+  (Advanced VR Options > Movement > Locomotion > Stick Click Debounce, `vr_stick_click_debounce`, 0.08 s).
 - **Ammo pouch position sliders.** VR Settings > Holster Calibration now has Ammo Pouch Forward, Right and Up beside the
   holsters' rows (the standing pouch; they agree with Holster Setup's drag and drop), and Reset Holsters resets the pouch
   too.
