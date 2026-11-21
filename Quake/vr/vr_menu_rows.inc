@@ -2551,8 +2551,8 @@ QVR_TOGGLE(vr_slope_walk, "Walk Up Slopes Slowly",
     "with the stick pushed only a little you still walk up slopes and stairs with a smooth ramp over them "
     "from a standstill. Off: Quake's (under about a quarter stick you never got going up one; going down "
     "you ran a little faster). Flat floors are the same either way (vr_slope_walk).")
-QVR_TOGGLE(vr_slide, "Sliding (VR, Experimental)",
-    "Experimental. While running, pull the turning stick straight down (firmly, within a narrow angle of straight "
+QVR_TOGGLE(vr_slide, "Sliding",
+    "While running, pull the turning stick straight down (firmly, within a narrow angle of straight "
     "down, from the middle: a turn never does it) to slide as on the desktop screen: faster at first, down a slope "
     "faster still, ending when you slow, let go or jump (the jump keeps the speed). Let go of the stick to stop. "
     "While held, the stick's down does nothing else (on foot; swimming it still dives). Off: as before (vr_slide).")
@@ -2564,6 +2564,9 @@ QVR_SLIDER(vr_slide_stick_angle, "Slide Stick Angle", 5.f, 45.f, 1.f, "%.0f deg"
 QVR_TOGGLE(vr_slide_body, "Slide Body Pose",
     "Sliding (VR): your drawn body leans back with its legs out in front while you slide, as on the desktop screen; "
     "with Slide View on it is the desktop screen's slide pose, hung from the lowered view (vr_slide_body).")
+QVR_TOGGLE(vr_slide_legs, "Slide Legs Follow Slide",
+    "Sliding (VR): with Slide Body Pose, your drawn hips and legs point the way you slide, the chest turned back to "
+    "your body, as on the desktop screen. Off: the legs face where your body faces (vr_slide_legs).")
 QVR_TOGGLE(vr_slide_camera, "Slide View",
     "Sliding (VR): your view moves quickly but smoothly down to the desktop screen's sliding eye height while you slide "
     "and back up when it ends, on top of your own head's movement (still one to one). Off: the view stays at your real "

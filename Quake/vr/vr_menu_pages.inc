@@ -341,6 +341,7 @@ void resetFlatKeys()
         row(opt::vr_slide_stick_threshold),
         row(opt::vr_slide_stick_angle),
         row(opt::vr_slide_body),
+        row(opt::vr_slide_legs),
         row(opt::vr_slide_camera),
         row(opt::vr_slide_camera_time),
         header("Desktop Screen Play"),
