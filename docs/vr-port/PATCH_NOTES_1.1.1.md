@@ -38,6 +38,8 @@ that ships in 1.1.1.
   have now reaches Dwell's and Quoth's: the installer makes it on your PC from your own copies, with the same free
   models ("Make reliefs for Dwell and Quoth", ticked when either is installed; a few minutes on a graphics card, only
   the missing ones at later runs). It is kept in the Quake VR folder's `reliefs` folder and removed by the uninstaller.
+  Already playing Dwell or Quoth in a Quake VR folder of your own? Setup finds it and offers **Make reliefs only** on
+  its first page: just the missing reliefs, nothing else installed or changed.
 - **Eye-tracked foveation by default.** With an eye-tracking headset (a Quest Pro through Virtual Desktop with eye
   tracking shared to the PC, Varjo...) the sharp middle of Foveated Rendering follows your eyes without setting
   anything; without one, or while your eyes are not tracked, it stays in the middle of the lens. A line under VR
@@ -70,6 +72,11 @@ The guide: [MULTIPLAYER.md](MULTIPLAYER.md).
   router that doesn't allow it (a symmetric NAT) the joiner is told so, and the host forwards UDP port 26000 as before.
   The service sees the players' IP addresses only while the room lives and logs none; `vr_mp_room 0` hosts without a
   code, `vr_mp_rendezvous` names another service.
+- **Is your port reachable?** While you host with a room code, Host Game says whether your game's port can be reached
+  from the internet: "Port 26000: reachable" (anyone can join, whatever their router), "not reachable from the
+  internet" (forward UDP 26000 for the players behind strict routers; room codes still work for most), or "unknown"
+  (room service off). The net HUD shows it while you host, and the console says it once. The room service checks it
+  by sending one unasked-for packet to your port from another of its ports.
 - **One server socket**: the host talks to every player from his one port (26000), so a forwarded port works behind
   routers that change port numbers too (Quake gave each player a port of his own).
 - **You see each other as you are**: heads, hands, fingers, held weapons and bodies sized by each player's own

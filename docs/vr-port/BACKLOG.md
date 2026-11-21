@@ -66,6 +66,14 @@ mock toss keeps the hand's speed; a slow toss may hit the open palm after the 0.
 - **mp_coopbots, rare flake (2026-11-20, mpfinal)**: vr_dm_test 11's "the bot kills the grunt" gave up once in ten
   takes (the grunt at 19 health at 864 frames; the fight is the bot's aim over 12 s of real time); the base before the
   review passed its ten. Known; don't chase unless it repeats.
+- **Known failing tests, flakehunt's leftovers (2026-11-21, ROUND25.md "flakehunt")**: fixed there: flateject `rv`
+  (stale pose), `vr_pickup_test 15` (the bots' reaction delay), hotblade's crowbar/chainsaw vertex totals (mdltopo).
+  Still open: hotblade `holster` (the holstered axe found lying: the test's holster move), `blade_parts`/`superaxe`
+  (the hammer's measured length 5.9 -> 7.0 and its glowing verts 295 -> 172 of 795 with no model change: wants his
+  look before the numbers move); flateject `ssg` (second casing up 0.29 against > 0.3) and `vr` (one stroke line) run
+  to run; flatfg2h key 3; twohand_regrip picks 4 and 10; stealth noises_clue; nav_lift_down; gadget_lock 13/4;
+  `vr_dm_test 19` (bot navmesh chase: 2 of 4 runs fail, the bot back on its waypoints once it sees him at the door);
+  the mp_test.py suite's order effect from mp_campaign_listen on and its fixed 27500 base port; mp_loss's margin.
 
 ## 2. The 1.1 release (only on his word; his list is RELEASE_TODO.md)
 
@@ -288,5 +296,15 @@ Each verified by an unchanged physics hash, melee eval and `vr_menu_path_check`.
   PERF_DECISIONS.md, "Open items moved from BACKLOG.md". Pickup thinks: PICKUP_THINKS.md (low priority).
 - **Stealth AI limits:** STEALTH.md, "Open items moved from BACKLOG.md".
 - **Dawn of the Machine's co-op and dm1** (MG3.md, decision 6): later.
+- **A relay for the joins hole punching can't make** (his decision 2026-11-21: low priority, not now): a TURN-like
+  fallback through the room service (or a second process beside it), used only when a room-code join's direct link
+  fails (a symmetric NAT on either side and no forwarded port): both games send to the relay, which forwards a pair's
+  datagrams by an allocation it hands out. Costs: a hop of latency (the server's distance from both players, ~20-80 ms
+  more in Europe from the one VPS), all the pair's game traffic through the VPS (~25 KB/s down a player; 16 players
+  ~400 KB/s), its own abuse limits (bytes and rooms relayed at once, an allocation per cookie-checked pair). How others
+  do it: Steam Datagram Relay (Valve's relay network always between peers, the addresses hidden; free only on Steam),
+  Epic Online Services' P2P (NAT punch first, Epic's relays when it fails), WebRTC's ICE (direct and server-reflexive
+  candidates first, a TURN server's relayed candidate last). The port check (2026-11-21, MULTIPLAYER.md) tells a host
+  first whether he needs one. Design note: Misc/rendezvous/README.md, "When the punch fails".
 - **Old QuakeC notes** (TECHDEBT_2026-10-09.md 10): Rogue's teamplay variants don't work in VR (item handling
   commented out). (`readytime`, one for every client, is each player's `.vr_readytime` since 2026-11-19.)
