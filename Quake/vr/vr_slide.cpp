@@ -46,7 +46,7 @@ struct ServerState
     bool headsetHeld[slots]{}; // a headset client's slide input, its last move (setHeadsetInput)
 };
 
-ServerState server;
+ServerState server; // seat-shared: the server's (each player's slot)
 
 // The turning stick's gesture (stickGesture): armed back in the middle, held while pulled down.
 struct Gesture
@@ -55,7 +55,7 @@ struct Gesture
     bool held{false};
 };
 
-Gesture gesture;
+Gesture gesture; // seat-shared: the headset's turning stick (one headset, one VR player)
 
 // The headset's view drop in a slide (vr_slide_camera; viewDrop): this machine's player, eased.
 struct ViewDrop
@@ -68,7 +68,7 @@ struct ViewDrop
     double lastTime{-1.0}; // vr_gametime at the last step
 };
 
-ViewDrop view;
+ViewDrop view; // seat-shared: the headset's view (one headset, one VR player)
 
 // Seconds after a headset player's slide ends that his eyes, let down by the view drop and coming back up, do not lay him
 // down (vr_hull.cpp): the slide's eyes are vr_prone_eye's own height at the defaults (22).
@@ -304,7 +304,7 @@ struct VrTest
     testkit::Tally tally;
 };
 
-VrTest vrTest;
+VrTest vrTest; // seat-shared: a test's own (one at a time)
 
 void check(bool ok, const char* what)
 {
@@ -648,7 +648,7 @@ struct PoseTest
     double slideAt{-1.0};
 };
 
-PoseTest poseTest;
+PoseTest poseTest; // seat-shared: a test's own (one at a time)
 
 void poseTest_f()
 {
@@ -700,7 +700,7 @@ namespace
 {
 // Forgotten with the server's world (vr_mem.hpp's resets): by client number, a slide held through a load or a restart
 // doesn't carry on.
-mem::Reset serverWorldReset{"slide", mem::ResetEvent::ServerWorld, mem::ResetPhase::State, &resetServer};
+mem::Reset serverWorldReset{"slide", mem::ResetEvent::ServerWorld, mem::ResetPhase::State, &resetServer}; // seat-shared: the server's reset hook
 } // namespace
 
 int clientSlot(const edict_t* ent)

@@ -23,6 +23,7 @@
 #include "vr_cvars.hpp"
 #include "vr_tunables.hpp"
 #include "vr_engine.hpp"
+#include "vr_seat.hpp"
 #include "vr_flatplay.hpp"
 #include "vr_geom.hpp"
 #include "vr_protocol.hpp"
@@ -65,7 +66,11 @@ struct GrenadeState
     double lastTime{-1e9};
 };
 
-GrenadeState gs;
+// splitscreen (SPLITSCREEN.md, phase 4a): the current seat's (seat::Part::FlatGrenade)
+[[nodiscard]] GrenadeState& gs()
+{
+    return seat::part<GrenadeState>(seat::current(), seat::Part::FlatGrenade);
+}
 
 [[nodiscard]] float secs(const Tunable& t)
 {
@@ -92,9 +97,9 @@ void report_f()
 {
     Con_Printf("flatgren: phase %d, hand %s; off: away %.2f hold %.2f wind %.2f follow %.2f; main: away %.2f hold %.2f wind %.2f "
                "follow %.2f; G presses %d\n",
-        gs.phase, gs.hand0 < 0 ? "none" : handName(gs.hand0), gs.hand[HAND_OFF].away, gs.hand[HAND_OFF].hold,
-        gs.hand[HAND_OFF].wind, gs.hand[HAND_OFF].follow, gs.hand[HAND_MAIN].away, gs.hand[HAND_MAIN].hold,
-        gs.hand[HAND_MAIN].wind, gs.hand[HAND_MAIN].follow, gs.presses);
+        gs().phase, gs().hand0 < 0 ? "none" : handName(gs().hand0), gs().hand[HAND_OFF].away, gs().hand[HAND_OFF].hold,
+        gs().hand[HAND_OFF].wind, gs().hand[HAND_OFF].follow, gs().hand[HAND_MAIN].away, gs().hand[HAND_MAIN].hold,
+        gs().hand[HAND_MAIN].wind, gs().hand[HAND_MAIN].follow, gs().presses);
 }
 
 // A place off the shoulder `sh`: `fwd` along `f`, `out` along the hand's own side of `r`, `up` along `u`, in shares of the
@@ -126,45 +131,45 @@ void init()
 
 void frame(bool on)
 {
-    double dt = gs.lastTime > -1e8 ? vr_gametime - gs.lastTime : 0.0;
-    gs.lastTime = vr_gametime;
+    double dt = gs().lastTime > -1e8 ? vr_gametime - gs().lastTime : 0.0;
+    gs().lastTime = vr_gametime;
     dt = za::clamp(dt, 0.0, 0.1);
     if(!on)
     {
-        const int presses = gs.presses;
-        gs = GrenadeState{};
-        gs.presses = presses;
+        const int presses = gs().presses;
+        gs() = GrenadeState{};
+        gs().presses = presses;
         return;
     }
 
     // G: the game picks the hand and runs it (QC VR_FlatGrenade_Key).
     const int k = vr_flat_key_grenade.string[0] ? Key_StringToKeynum(vr_flat_key_grenade.string) : -1;
     const bool down = key_dest == key_game && k > 0 && k < MAX_KEYS && Key_Seat()->down[k] != 0;
-    if(down && !gs.keyDown)
+    if(down && !gs().keyDown)
     {
-        gs.presses++;
+        gs().presses++;
         Cbuf_InsertText("impulse 57\n"); // (InsertText: now, not after what is queued)
         if(vr_flat_grenade_debug.value)
         {
             Con_Printf("flatgren: %s: quick grenade\n", vr_flat_key_grenade.string);
         }
     }
-    gs.keyDown = down;
+    gs().keyDown = down;
 
     const int stat = cl.stats[protocol::STAT_QVR_FLATGREN];
     const int phase = stat & 7;
-    if(phase != gs.phase && vr_flat_grenade_debug.value)
+    if(phase != gs().phase && vr_flat_grenade_debug.value)
     {
-        Con_Printf("flatgren: phase %d -> %d (%s hand)\n", gs.phase, phase, (stat & 8) ? "main" : "off");
+        Con_Printf("flatgren: phase %d -> %d (%s hand)\n", gs().phase, phase, (stat & 8) ? "main" : "off");
     }
-    gs.phase = phase;
+    gs().phase = phase;
     if(phase != 0)
     {
-        gs.hand0 = (stat & 8) ? HAND_MAIN : HAND_OFF;
+        gs().hand0 = (stat & 8) ? HAND_MAIN : HAND_OFF;
     }
     if(phase == phaseFetch)
     {
-        gs.printed = 0;
+        gs().printed = 0;
     }
     const float t = static_cast<float>(dt);
     if(t <= 0.f)
@@ -173,8 +178,8 @@ void frame(bool on)
     }
     for(int h : {HAND_OFF, HAND_MAIN})
     {
-        Shares& a = gs.hand[h];
-        const bool mine = phase != 0 && h == gs.hand0;
+        Shares& a = gs().hand[h];
+        const bool mine = phase != 0 && h == gs().hand0;
         const float back = secs(vr_flat_grenade_back_time);
         const float follow = secs(vr_flat_grenade_follow_time);
         step(a.away, mine && phase == phaseFetch, secs(vr_flat_grenade_fetch_time), secs(vr_flat_grenade_up_time), t);
@@ -188,7 +193,7 @@ void apply(hands::State& s)
 {
     for(int h : {HAND_OFF, HAND_MAIN})
     {
-        const Shares& a = gs.hand[h];
+        const Shares& a = gs().hand[h];
         if(!anyShare(a))
         {
             continue;
@@ -226,9 +231,9 @@ void apply(hands::State& s)
             for(int i = 0; i < 4; i++)
             {
                 const int bit = 1 << i;
-                if(full[i] >= 1.f && !(gs.printed & bit))
+                if(full[i] >= 1.f && !(gs().printed & bit))
                 {
-                    gs.printed |= bit;
+                    gs().printed |= bit;
                     const glm::vec3 d = s.pos[h] - s.head;
                     Con_Printf("flatgren: %s hand at %s: %.1f forward, %.1f right, %.1f up of the eye, pitch %.0f\n", handName(h),
                         names[i], glm::dot(d, vf), glm::dot(d, vr), glm::dot(d, vu), s.rot[h].x);
@@ -240,14 +245,14 @@ void apply(hands::State& s)
 
 int heldHand()
 {
-    return gs.phase >= phaseHeld && gs.phase <= phaseWind ? gs.hand0 : -1;
+    return gs().phase >= phaseHeld && gs().phase <= phaseWind ? gs().hand0 : -1;
 }
 
 bool busy(int h)
 {
     // (The phases only: on the way back after the throw the hand may take the grip again, so it eases from the
     // follow-through straight onto it.)
-    return h >= 0 && h < 2 && gs.phase != 0 && gs.hand0 == h;
+    return h >= 0 && h < 2 && gs().phase != 0 && gs().hand0 == h;
 }
 
 } // namespace qvr::flatgrenade

@@ -3,7 +3,10 @@
 #include "vr_seat.hpp"
 
 #include "vr_engine.hpp"
+#include "vr_flatholster.hpp"
 #include "vr_flatmove.hpp"
+#include "vr_flatplay.hpp"
+#include "vr_flatsight.hpp"
 #include "vr_testkit.hpp"
 #include "vr_visor.hpp"
 
@@ -375,6 +378,56 @@ void testViewHud()
     s1.hud = hud1;
 }
 
+// Phase 4a: flat play. A fresh seat's flat play starts as the mode's defaults; as seat 1 (a Scope) +flatcrouch,
+// +flatholsters and the ironsight's base field of view land in seat 1's and leave seat 0's as they were; seat 1
+// letting go leaves seat 0's held; each seat its own parts, made only where its code ran. Seat 0's left as it was.
+void testFlat()
+{
+    Seat& s0 = at(0);
+    Seat& s1 = at(1);
+    const auto slot = [](Seat& s, const Part p) { return s.parts[static_cast<int>(p)].get(); };
+    const float fov0 = flatsight::hipFov();
+    const bool crouch0 = flatplay::crouchCommand(), holster0 = flatholster::holdCommand();
+    {
+        const Scope in2(at(2));
+        check(!flatplay::crouchCommand() && !flatholster::holdCommand() && flatsight::hipFov() == 90.f &&
+                  flatplay::crouchRatio() == 0.f && flatplay::proneRatio() == 0.f,
+              "a fresh seat's flat play: no crouch or holster command, the sight's base FOV 90, standing");
+    }
+    {
+        const Scope in1(s1);
+        run("+flatcrouch");
+        run("+flatholsters");
+        (void)flatsight::fov(55.f);
+        check(flatplay::crouchCommand() && flatholster::holdCommand() && flatsight::hipFov() == 55.f,
+              "as seat 1: +flatcrouch, +flatholsters and the sight's base FOV are seat 1's");
+    }
+    check(flatplay::crouchCommand() == crouch0 && flatholster::holdCommand() == holster0 && flatsight::hipFov() == fov0,
+          "seat 0's crouch and holster commands and its sight unchanged by seat 1's");
+    run("+flatcrouch");
+    {
+        const Scope in1(s1);
+        run("-flatcrouch");
+        run("-flatholsters");
+        check(!flatplay::crouchCommand() && !flatholster::holdCommand(), "seat 1 lets go of its own");
+    }
+    check(flatplay::crouchCommand(), "seat 0's +flatcrouch still held after seat 1's -flatcrouch");
+    run("-flatcrouch");
+    check(flatplay::crouchCommand() == crouch0, "seat 0 lets go of its own");
+    bool apart = true;
+    for(const Part p : {Part::FlatPlay, Part::FlatHolster, Part::FlatSight})
+    {
+        apart = apart && slot(s0, p) != nullptr && slot(s1, p) != nullptr && slot(s0, p) != slot(s1, p);
+    }
+    bool none3 = true;
+    for(int p = static_cast<int>(Part::FlatPlay); p < static_cast<int>(Part::Count); ++p)
+    {
+        none3 = none3 && slot(at(3), static_cast<Part>(p)) == nullptr;
+    }
+    check(apart, "flat play, the holsters and the sight: each seat's own part");
+    check(none3, "seat 3 has none of flat play's parts made (no code of it ran as seat 3)");
+}
+
 // vr_seat_test [2]: phase 1's buttons, phase 2's bindings and devices; then (2, queued by the first) the queued binds'
 // seats and the verdict "seat_test: N passed, M failed". No map needed.
 void test_f()
@@ -389,6 +442,7 @@ void test_f()
     testBindings();
     testDevices();
     testViewHud();
+    testFlat();
 }
 
 } // namespace

@@ -20,6 +20,7 @@
 #include "vr_backend.hpp" // HAND_MAIN
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
+#include "vr_seat.hpp"
 #include "vr_flatplay.hpp"
 #include "vr_flatsight.hpp"
 #include "vr_flatxhair.hpp"
@@ -66,7 +67,6 @@ struct State
     float allowed{1.f};        // the share of the arm its sweep allowed, last drawn
     float lastFovScale{1.f};   // what the field of view was last recalculated for
 };
-State st;
 
 // One camera answered for an eye and an aim this frame (the crosshair asks several times a pose).
 struct Memo
@@ -75,7 +75,26 @@ struct Memo
     float share{-1.f}, side{0.f};
     int frame{-1};
 };
-Memo memo;
+// A seat's third-person camera (SPLITSCREEN.md, phase 4a): the seat owns it (seat::Part::FlatTp).
+struct SeatTp
+{
+    State st;
+    Memo memo;
+};
+
+// splitscreen (SPLITSCREEN.md, phase 4a): the current seat's (seat::Part::FlatTp)
+[[nodiscard]] SeatTp& seatTp()
+{
+    return seat::part<SeatTp>(seat::current(), seat::Part::FlatTp);
+}
+[[nodiscard]] State& st()
+{
+    return seatTp().st;
+}
+[[nodiscard]] Memo& memo()
+{
+    return seatTp().memo;
+}
 
 [[nodiscard]] float preferredSide()
 {
@@ -220,39 +239,39 @@ float stepSide(const glm::vec3& eye, const glm::vec3& aim, float dt)
     float mine = -1.f;
     if(vr_flat_tp_auto_swap.value == 0.f || vr_flat_tp_right.value <= 0.f)
     {
-        st.swapped = false;
+        st().swapped = false;
     }
     else
     {
         mine = allowedShare(eye, armFor(aim, pref));
-        if(!st.swapped)
+        if(!st().swapped)
         {
-            st.swapped = mine < swapBelow && allowedShare(eye, armFor(aim, -pref)) > mine + swapBetter;
+            st().swapped = mine < swapBelow && allowedShare(eye, armFor(aim, -pref)) > mine + swapBetter;
         }
         else if(mine >= swapBack)
         {
-            st.swapped = false;
+            st().swapped = false;
         }
     }
-    const float target = st.swapped ? -pref : pref;
+    const float target = st().swapped ? -pref : pref;
     const float tau = za::clamp(vr_flat_tp_ease_side.value, 0.f, 2.f);
-    st.side = tau <= 0.f ? target : geom::approachExp(st.side, target, dt, tau);
-    if(za::abs(st.side - target) < 1e-3f)
+    st().side = tau <= 0.f ? target : geom::approachExp(st().side, target, dt, tau);
+    if(za::abs(st().side - target) < 1e-3f)
     {
-        st.side = target;
+        st().side = target;
     }
     return mine;
 }
 
 void reset()
 {
-    st.share = 1.f;
-    st.side = preferredSide();
-    st.swapped = false;
-    st.drawn = false;
-    st.offLen = 0.f;
-    st.lastTime = -1e9;
-    memo = Memo{};
+    st().share = 1.f;
+    st().side = preferredSide();
+    st().swapped = false;
+    st().drawn = false;
+    st().offLen = 0.f;
+    st().lastTime = -1e9;
+    memo() = Memo{};
 }
 
 // ---------------------------------------------------------------------------------------------------------------------------
@@ -283,7 +302,7 @@ struct Test
     char startPos[96]{};         // "setpos x y z" of where it started (the aim's spot)
     glm::vec3 startOrigin{0.f};
 };
-Test test;
+Test test; // seat-shared: a test's own (one at a time)
 
 void check(bool ok, const char* what)
 {
@@ -393,20 +412,20 @@ void face(float pitch, float yaw)
 // The camera this frame: in no wall, nothing between it and the eye.
 void checkClear()
 {
-    if(!st.drawn)
+    if(!st().drawn)
     {
         return;
     }
     test.checked++;
-    const trace_t tr = worldtrace::world(st.cam, st.pivot);
-    const bool inWall = solidAt(st.cam);
+    const trace_t tr = worldtrace::world(st().cam, st().pivot);
+    const bool inWall = solidAt(st().cam);
     const bool between = tr.startsolid || tr.allsolid || tr.fraction < 0.999f;
     if(inWall || between)
     {
         if(test.bad == 0)
         {
             q_snprintf(test.firstBad, sizeof(test.firstBad), "step %d frame %d: camera %.1f %.1f %.1f %s", test.phase,
-                test.frames, st.cam.x, st.cam.y, st.cam.z, inWall ? "in a wall" : "behind a wall");
+                test.frames, st().cam.x, st().cam.y, st().cam.z, inWall ? "in a wall" : "behind a wall");
         }
         test.bad++;
     }
@@ -421,12 +440,12 @@ void checkAim(const char* when)
     const glm::vec3 aim{cl.viewangles[0], cl.viewangles[1], cl.viewangles[2]};
     const glm::vec3 point = flatsight::crosshairHit(s, aim);
     const bool known = flatxhair::lastHit(HAND_MAIN, hit, offPx);
-    const float range = glm::distance(point, st.cam);
+    const float range = glm::distance(point, st().cam);
     const float miss = glm::distance(hit, point);
     char line[400];
     q_snprintf(line, sizeof(line), "%s: the shot lands %.2f units off the crosshair's point %.0f units away (%.1f px off the centre; "
         "point %.0f %.0f %.0f, hit %.0f %.0f %.0f, camera %.0f %.0f %.0f, muzzle %.0f %.0f %.0f)",
-        when, miss, range, offPx, point.x, point.y, point.z, hit.x, hit.y, hit.z, st.cam.x, st.cam.y, st.cam.z,
+        when, miss, range, offPx, point.x, point.y, point.z, hit.x, hit.y, hit.z, st().cam.x, st().cam.y, st().cam.z,
         s.muzzle[HAND_MAIN].x, s.muzzle[HAND_MAIN].y, s.muzzle[HAND_MAIN].z);
     check(known && miss < 2.f + range * 0.01f && offPx < 6.f, line);
 }
@@ -444,14 +463,14 @@ void testFrame()
     {
         const float* o = cl_entities[cl.viewentity].origin;
         q_snprintf(line, sizeof(line), "timed out (step %d, frame %d: share %.3f of %.3f, ads %.2f, away %d, steady %d, origin %.0f %.0f %.0f, "
-            "yaw %.0f)", t.phase, t.frames, st.share, st.allowed, flatsight::adsShare(), away() ? 1 : 0, t.steady, o[0], o[1], o[2],
+            "yaw %.0f)", t.phase, t.frames, st().share, st().allowed, flatsight::adsShare(), away() ? 1 : 0, t.steady, o[0], o[1], o[2],
             cl.viewangles[YAW]);
         check(false, line);
         Cbuf_InsertText("-forward\n-back\n-moveright\n-moveleft\nvr_flat_aim 0\n");
         nextPhase(99);
     }
     const glm::vec3 origin = geom::vec(cl_entities[cl.viewentity].origin);
-    const glm::vec3 eye = st.pivot;
+    const glm::vec3 eye = st().pivot;
     if(t.phase >= 2 && t.phase < 99)
     {
         checkClear();
@@ -460,25 +479,25 @@ void testFrame()
     {
         case 1: // the option off: the view leaves the hook exactly as it came
             t.offFrames++;
-            t.offMoved += st.outOrg != st.inOrg || st.drawn ? 1 : 0;
+            t.offMoved += st().outOrg != st().inOrg || st().drawn ? 1 : 0;
             if(t.offFrames >= settleFrames)
             {
                 q_snprintf(line, sizeof(line), "off: the view as it was on %d of %d frames, field of view x%.3f",
                     t.offFrames - t.offMoved, t.offFrames, fovScale());
                 check(t.offMoved == 0 && fovScale() == 1.f && !away(), line);
-                face(0.f, openYaw(st.inOrg));
+                face(0.f, openYaw(st().inOrg));
                 Cbuf_InsertText("vr_flat_tp 1\n");
                 nextPhase(2);
             }
             break;
         case 2: // on, in the open: at the offsets
-            t.steady = st.drawn && st.share >= 0.999f && st.side == preferredSide() ? t.steady + 1 : 0;
+            t.steady = st().drawn && st().share >= 0.999f && st().side == preferredSide() ? t.steady + 1 : 0;
             if(t.steady >= settleFrames)
             {
-                const glm::vec3 want = armFor({cl.viewangles[0], cl.viewangles[1], 0.f}, st.side).whole();
-                const float off = glm::distance(st.cam - eye, want);
+                const glm::vec3 want = armFor({cl.viewangles[0], cl.viewangles[1], 0.f}, st().side).whole();
+                const float off = glm::distance(st().cam - eye, want);
                 q_snprintf(line, sizeof(line), "open: the camera %.2f units off where the offsets put it (%.1f off the eye, %.1f asked)",
-                    off, st.offLen, glm::length(want));
+                    off, st().offLen, glm::length(want));
                 check(off < 0.5f && away(), line);
                 shot();
                 face(0.f, wallYaw(eye) + 180.f);
@@ -492,10 +511,10 @@ void testFrame()
             t.lastOrigin = origin;
             if(t.steady >= settleFrames)
             {
-                const float asked = glm::length(armFor({cl.viewangles[0], cl.viewangles[1], 0.f}, st.side).whole());
+                const float asked = glm::length(armFor({cl.viewangles[0], cl.viewangles[1], 0.f}, st().side).whole());
                 q_snprintf(line, sizeof(line), "wall: backed into it, the camera pulled in to %.1f of %.1f off the eye (share %.2f of "
-                    "the arm, shoulder %.2f)", st.offLen, asked, st.share, st.side);
-                check(st.offLen < asked - 1.f && st.drawn, line);
+                    "the arm, shoulder %.2f)", st().offLen, asked, st().share, st().side);
+                check(st().offLen < asked - 1.f && st().drawn, line);
                 shot();
                 Cbuf_InsertText("-back\n+forward\n+moveright\n");
                 t.yaw = cl.viewangles[YAW];
@@ -543,7 +562,7 @@ void testFrame()
                            ? t.steady + 1
                            : 0;
             t.lastHit = hit;
-            if(t.steady >= settleFrames * 2 && st.share >= st.allowed - 1e-3f)
+            if(t.steady >= settleFrames * 2 && st().share >= st().allowed - 1e-3f)
             {
                 checkAim("aim, third person");
                 Cbuf_InsertText("vr_flat_tp_aim 0\nvr_flat_aim 1\n");
@@ -556,19 +575,19 @@ void testFrame()
             if(t.steady >= settleFrames)
             {
                 q_snprintf(line, sizeof(line), "sights, first person: the camera %.2f off the eye, away %d, field of view x%.3f",
-                    st.offLen, away() ? 1 : 0, fovScale());
-                check(st.offLen < awayMin && !away() && fovScale() == 1.f, line);
+                    st().offLen, away() ? 1 : 0, fovScale());
+                check(st().offLen < awayMin && !away() && fovScale() == 1.f, line);
                 shot();
                 Cbuf_InsertText("vr_flat_aim 0\n");
                 nextPhase(7);
             }
             break;
         case 7: // and back out
-            t.steady = flatsight::adsShare() <= 0.f && st.share >= st.allowed - 1e-3f ? t.steady + 1 : 0;
+            t.steady = flatsight::adsShare() <= 0.f && st().share >= st().allowed - 1e-3f ? t.steady + 1 : 0;
             if(t.steady >= settleFrames)
             {
-                q_snprintf(line, sizeof(line), "sights off: back out, %.1f off the eye", st.offLen);
-                check(away() && st.offLen > 10.f, line);
+                q_snprintf(line, sizeof(line), "sights off: back out, %.1f off the eye", st().offLen);
+                check(away() && st().offLen > 10.f, line);
                 Cbuf_InsertText("vr_flat_tp_aim 1\nvr_flat_aim 1\n");
                 nextPhase(8);
             }
@@ -577,11 +596,11 @@ void testFrame()
             t.steady = flatsight::adsShare() >= 1.f ? t.steady + 1 : 0;
             if(t.steady >= settleFrames * 2)
             {
-                const float asked = glm::length(armFor({cl.viewangles[0], cl.viewangles[1], 0.f}, st.side).whole());
+                const float asked = glm::length(armFor({cl.viewangles[0], cl.viewangles[1], 0.f}, st().side).whole());
                 const float hip = flatsight::hipFov() * fovScale();
                 q_snprintf(line, sizeof(line), "sights, third person: the camera %.1f off the eye (%.1f asked), field of view %.1f of %.1f",
-                    st.offLen, asked, r_refdef.basefov, hip);
-                check(away() && st.offLen <= asked + 0.5f && st.offLen > awayMin && r_refdef.basefov < hip - 1.f, line);
+                    st().offLen, asked, r_refdef.basefov, hip);
+                check(away() && st().offLen <= asked + 0.5f && st().offLen > awayMin && r_refdef.basefov < hip - 1.f, line);
                 checkAim("aim, third person sighted");
                 shot();
                 Cbuf_InsertText("vr_flat_aim 0\nvr_flat_tp_aim 0\n");
@@ -634,19 +653,19 @@ void status_f()
         vr_flat_tp.value, on() ? 1 : 0, away() ? 1 : 0);
     Con_Printf("  offsets back %g right %g up %g, field of view x%g, probe %g; shoulder %s (now %.2f%s), auto swap %g\n",
         vr_flat_tp_back.value, vr_flat_tp_right.value, vr_flat_tp_up.value, vr_flat_tp_fov.value, vr_flat_tp_probe.value,
-        preferredSide() > 0.f ? "right" : "left", st.side, st.swapped ? ", swapped" : "", vr_flat_tp_auto_swap.value);
+        preferredSide() > 0.f ? "right" : "left", st().side, st().swapped ? ", swapped" : "", vr_flat_tp_auto_swap.value);
     Con_Printf("  out %.3f of the arm, %.1f off the eye; ease out %g s, shoulder %g s; sights: %s (scale %g); body %.2f opaque\n",
-        st.share, st.offLen, vr_flat_tp_ease_out.value, vr_flat_tp_ease_side.value,
+        st().share, st().offLen, vr_flat_tp_ease_out.value, vr_flat_tp_ease_side.value,
         vr_flat_tp_aim.value != 0.f ? "stay in third person" : "first person", vr_flat_tp_aim_scale.value, bodyAlpha());
     // The sweep as it stands: how much of each leg is clear (the shoulder's, then the back's from the shoulder).
-    if(st.drawn)
+    if(st().drawn)
     {
-        const Arm arm = armFor({cl.viewangles[0], cl.viewangles[1], 0.f}, st.side);
+        const Arm arm = armFor({cl.viewangles[0], cl.viewangles[1], 0.f}, st().side);
         Con_Printf("  eye %.1f %.1f %.1f, camera %.1f %.1f %.1f; clear: the shoulder's leg %.1f of %.1f, the back's %.1f of %.1f; "
                    "allowed %.3f of the arm\n",
-            st.pivot.x, st.pivot.y, st.pivot.z, st.cam.x, st.cam.y, st.cam.z, clearAlong(st.pivot, st.pivot + arm.side, probe()),
-            glm::length(arm.side), clearAlong(st.pivot + arm.side, st.pivot + arm.whole(), probe()), glm::length(arm.back),
-            allowedShare(st.pivot, arm));
+            st().pivot.x, st().pivot.y, st().pivot.z, st().cam.x, st().cam.y, st().cam.z, clearAlong(st().pivot, st().pivot + arm.side, probe()),
+            glm::length(arm.side), clearAlong(st().pivot + arm.side, st().pivot + arm.whole(), probe()), glm::length(arm.back),
+            allowedShare(st().pivot, arm));
     }
 }
 
@@ -660,7 +679,7 @@ bool on()
 
 bool away()
 {
-    return on() && st.drawn && st.offLen > awayMin;
+    return on() && st().drawn && st().offLen > awayMin;
 }
 
 glm::vec3 camera(const glm::vec3& eye, const glm::vec3& aim)
@@ -669,17 +688,17 @@ glm::vec3 camera(const glm::vec3& eye, const glm::vec3& aim)
     {
         return eye;
     }
-    Memo& m = memo;
-    if(m.frame == host_framecount && m.share == st.share && m.side == st.side && m.eye == eye && m.aim == aim)
+    Memo& m = memo();
+    if(m.frame == host_framecount && m.share == st().share && m.side == st().side && m.eye == eye && m.aim == aim)
     {
         return m.cam;
     }
     m.frame = host_framecount;
-    m.share = st.share;
-    m.side = st.side;
+    m.share = st().share;
+    m.side = st().side;
     m.eye = eye;
     m.aim = aim;
-    m.cam = place(eye, aim, st.share, st.side);
+    m.cam = place(eye, aim, st().share, st().side);
     return m.cam;
 }
 
@@ -718,51 +737,51 @@ float bodyAlpha()
         return 1.f;
     }
     const float lowest = za::clamp(vr_flat_tp_fade_min.value, 0.f, 1.f);
-    return lowest + (1.f - lowest) * geom::smooth01((st.offLen - headNear) / (far - headNear));
+    return lowest + (1.f - lowest) * geom::smooth01((st().offLen - headNear) / (far - headNear));
 }
 
 void view(float* vieworg, const float* viewangles, float bob)
 {
     (void)viewangles;
-    st.inOrg = st.outOrg = geom::vec(vieworg);
+    st().inOrg = st().outOrg = geom::vec(vieworg);
     if(!on())
     {
-        if(st.drawn)
+        if(st().drawn)
         {
             reset();
         }
         return;
     }
     const double now = vr_gametime;
-    const float dt = st.lastTime > -1e8 ? za::clamp(static_cast<float>(now - st.lastTime), 0.f, 0.1f) : 0.f;
-    st.lastTime = now;
+    const float dt = st().lastTime > -1e8 ? za::clamp(static_cast<float>(now - st().lastTime), 0.f, 0.1f) : 0.f;
+    st().lastTime = now;
     // The eye, its walk bob left out (the camera rides the body, not the bob); the arm in the look's frame (the pose's aim:
     // the angles the crosshair's point is measured with, not the drawn view's kick and roll).
-    const glm::vec3 eye = st.inOrg - glm::vec3{0.f, 0.f, bob};
+    const glm::vec3 eye = st().inOrg - glm::vec3{0.f, 0.f, bob};
     const glm::vec3 aim{cl.viewangles[PITCH], cl.viewangles[YAW], 0.f};
-    if(!st.drawn)
+    if(!st().drawn)
     {
-        st.side = preferredSide();
-        st.share = 0.f; // (out from his eyes, eased: no pop as it comes on)
+        st().side = preferredSide();
+        st().share = 0.f; // (out from his eyes, eased: no pop as it comes on)
     }
     const float preferredShare = stepSide(eye, aim, dt);
-    const Arm arm = armFor(aim, st.side);
+    const Arm arm = armFor(aim, st().side);
     // (on the preferred side, its sweep already made: the same arm; mid-swap or swapped, its own)
-    const float allowed = preferredShare >= 0.f && st.side == preferredSide() ? preferredShare : allowedShare(eye, arm);
-    st.allowed = allowed;
+    const float allowed = preferredShare >= 0.f && st().side == preferredSide() ? preferredShare : allowedShare(eye, arm);
+    st().allowed = allowed;
     const float tau = za::clamp(vr_flat_tp_ease_out.value, 0.f, 2.f);
     // In at once (never further out than the sweep allows: no frame shows the inside of a wall), out eased.
-    st.share = allowed <= st.share || tau <= 0.f ? allowed : geom::approachExp(st.share, allowed, dt, tau);
-    if(allowed - st.share < 1e-3f)
+    st().share = allowed <= st().share || tau <= 0.f ? allowed : geom::approachExp(st().share, allowed, dt, tau);
+    if(allowed - st().share < 1e-3f)
     {
-        st.share = allowed;
+        st().share = allowed;
     }
-    const glm::vec3 cam = keepOut(eye, eye + arm.at(st.share));
-    st.pivot = eye;
-    st.cam = cam;
-    st.offLen = glm::distance(cam, eye);
-    st.drawn = true;
-    st.outOrg = cam;
+    const glm::vec3 cam = keepOut(eye, eye + arm.at(st().share));
+    st().pivot = eye;
+    st().cam = cam;
+    st().offLen = glm::distance(cam, eye);
+    st().drawn = true;
+    st().outOrg = cam;
     vieworg[0] = cam.x;
     vieworg[1] = cam.y;
     vieworg[2] = cam.z;
@@ -771,12 +790,12 @@ void view(float* vieworg, const float* viewangles, float bob)
 void frame(bool modeOn)
 {
     const float scale = modeOn ? fovScale() : 1.f;
-    if(scale != st.lastFovScale)
+    if(scale != st().lastFovScale)
     {
-        st.lastFovScale = scale;
+        st().lastFovScale = scale;
         vid.recalc_refdef = 1; // the field of view is chosen when the engine recalculates its view (gl_screen.c)
     }
-    if(!modeOn && st.drawn)
+    if(!modeOn && st().drawn)
     {
         reset();
     }

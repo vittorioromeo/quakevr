@@ -16,6 +16,8 @@
 // in, the whole window until the layouts) and the HUD (seathud_t: the centre print, the scores shown); the VR files'
 // view and HUD state (the visor, the flat crosshair, hit marks, speed FOV, the melee HUD, the death view, the lean and
 // the slide's view, the net HUD) as the seat's parts (below).
+// Phase 4a: flat play's state (the hands' pose and melee, the keys, crouch and prone, holsters, the ironsight, third
+// person, reload, carry, grenade, swap) as the seat's parts; the tests' and tools' own marked shared.
 #pragma once
 
 #include "vr_engine.hpp"
@@ -41,6 +43,16 @@ enum class Part
     FlatView,  // vr_flatmove.cpp: the flat camera's lean, the slide's view, the view last seen
     NetHud,    // vr_nethud.cpp: the connection's numbers shown
     Crosshair, // vr_crosshair.cpp: the flat crosshair's queued frame
+    // Phase 4a: flat play's own.
+    FlatPlay,    // vr_flatplay.cpp: the hands' pose, punches, shove, guard, two-handed stance, the drawn hands' feel, the
+                 // mode's keys and the crouch and prone eases, the CTRL bind taken, the slide's turn, the toolgun's keys
+    FlatHolster, // vr_flatholster.cpp: the holster menu
+    FlatSight,   // vr_flatsight.cpp: the ironsight, the grips, the weapon at walls; the crosshair's memo
+    FlatTp,      // vr_flattp.cpp: the third-person camera
+    FlatReload,  // vr_flatreload.cpp: the reload's trips
+    FlatGrab,    // vr_flatfgrab.cpp: what the hands carry (E's grab)
+    FlatGrenade, // vr_flatgrenade.cpp: the grenade's throw
+    FlatSwap,    // vr_flatswap.cpp: the hands' swap
     Count
 };
 

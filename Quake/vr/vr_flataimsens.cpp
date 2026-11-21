@@ -25,6 +25,7 @@
 #include "vr_api.h"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
+#include "vr_seat.hpp"
 #include "vr_flatplay.hpp"
 #include "vr_flatsight.hpp"
 #include "vr_testkit.hpp"
@@ -130,7 +131,7 @@ struct Test
     float matchWas{0.f};
 };
 
-Test test;
+Test test; // seat-shared: a test's own (one at a time)
 
 void next(int phase)
 {

@@ -22,6 +22,7 @@
 #include "vr_cvars.hpp"
 #include "vr_tunables.hpp"
 #include "vr_engine.hpp"
+#include "vr_seat.hpp"
 #include "vr_geom.hpp"
 #include "vr_protocol.hpp"
 #include "vr_toolgun.hpp"
@@ -75,7 +76,11 @@ struct ReloadState
     double lastTime{-1e9};
 };
 
-ReloadState rs;
+// splitscreen (SPLITSCREEN.md, phase 4a): the current seat's (seat::Part::FlatReload)
+[[nodiscard]] ReloadState& rs()
+{
+    return seat::part<ReloadState>(seat::current(), seat::Part::FlatReload);
+}
 
 [[nodiscard]] float downTime()
 {
@@ -94,7 +99,7 @@ ReloadState rs;
 
 [[nodiscard]] float share(int h)
 {
-    float a = rs.trip[h].amount;
+    float a = rs().trip[h].amount;
     if(h == HAND_MAIN && vr_flat_reload_pose.value >= 0.f)
     {
         a = za::max(a, za::clamp(vr_flat_reload_pose.value, 0.f, 1.f)); // (the tests' hand held at the holster)
@@ -145,11 +150,11 @@ void report_f()
     const int bits = cl.stats[protocol::STAT_QVR_FLATRELOAD];
     for(int h : {HAND_OFF, HAND_MAIN})
     {
-        const Trip& t = rs.trip[h];
+        const Trip& t = rs().trip[h];
         Con_Printf("flatreload: %s hand: server %d, share %.2f, hip %s, %.1f units from it, pitch %.1f, hotspot %d; R presses %d\n",
             handName(h), (bits >> h) & 1, share(h), t.hip == body::LeftHip ? "left" : "right", t.hipGap, t.pitch,
-            hands::current().hotspot[h], rs.presses);
-        const OpenPose& o = rs.openPose[h];
+            hands::current().hotspot[h], rs().presses);
+        const OpenPose& o = rs().openPose[h];
         Con_Printf("flatreload: %s hand: open %d kind %d share %.2f, turned %.1f %.1f %.1f, moved %.1f %.1f %.1f\n", handName(h),
             o.open ? 1 : 0, o.kind, geom::smooth01(o.amount), o.rot.x, o.rot.y, o.rot.z, o.move.x, o.move.y, o.move.z);
     }
@@ -166,12 +171,12 @@ void openFrame(float dt); // (below)
 
 void frame(bool on)
 {
-    double dt = rs.lastTime > -1e8 ? vr_gametime - rs.lastTime : 0.0;
-    rs.lastTime = vr_gametime;
+    double dt = rs().lastTime > -1e8 ? vr_gametime - rs().lastTime : 0.0;
+    rs().lastTime = vr_gametime;
     dt = za::clamp(dt, 0.0, 0.1);
     if(!on)
     {
-        rs = ReloadState{};
+        rs() = ReloadState{};
         return;
     }
     openFrame(static_cast<float>(dt));
@@ -179,22 +184,22 @@ void frame(bool on)
     // R: the game reloads every hand whose gun can take rounds (QC VR_FlatReload_Key).
     const int k = vr_flat_key_reload.string[0] ? Key_StringToKeynum(vr_flat_key_reload.string) : -1;
     const bool down = key_dest == key_game && k > 0 && k < MAX_KEYS && Key_Seat()->down[k] != 0;
-    if(down && !rs.keyDown)
+    if(down && !rs().keyDown)
     {
-        rs.presses++;
+        rs().presses++;
         Cbuf_InsertText("impulse 55\n");
         if(vr_flat_reload_debug.value)
         {
             Con_Printf("flatreload: %s: reload\n", vr_flat_key_reload.string);
         }
     }
-    rs.keyDown = down;
+    rs().keyDown = down;
 
     // B: the main hand's weapon to its other ammo (impulse 43: the headset's weapon button, QC VR_Impulse_WeaponButton;
     // a weapon without one: nothing). Not with the toolgun in hand: B is its adjust key there (vr_flat_key_toolgun_adjust).
     const int ka = vr_flat_key_ammo.string[0] ? Key_StringToKeynum(vr_flat_key_ammo.string) : -1;
     const bool ammoDown = key_dest == key_game && ka > 0 && ka < MAX_KEYS && Key_Seat()->down[ka] != 0;
-    if(ammoDown && !rs.ammoDown && toolgun::heldHand() != HAND_MAIN)
+    if(ammoDown && !rs().ammoDown && toolgun::heldHand() != HAND_MAIN)
     {
         Cbuf_InsertText("impulse 43\n");
         if(vr_flat_reload_debug.value)
@@ -202,12 +207,12 @@ void frame(bool on)
             Con_Printf("flatreload: %s: next ammo type\n", vr_flat_key_ammo.string);
         }
     }
-    rs.ammoDown = ammoDown;
+    rs().ammoDown = ammoDown;
 
     const int bits = cl.stats[protocol::STAT_QVR_FLATRELOAD];
     for(int h : {HAND_OFF, HAND_MAIN})
     {
-        Trip& t = rs.trip[h];
+        Trip& t = rs().trip[h];
         const bool bit = ((bits >> h) & 1) != 0;
         if(bit && !t.bit)
         {
@@ -260,7 +265,7 @@ void openFrame(float dt)
 {
     for(int h : {HAND_OFF, HAND_MAIN})
     {
-        OpenPose& o = rs.openPose[h];
+        OpenPose& o = rs().openPose[h];
         const int kind = openKind(h);
         const bool open = kind != 0;
         if(open)
@@ -304,7 +309,7 @@ void apply(hands::State& s)
     // yaw, roll and outward move mirrored for the left hand (the off hand).
     for(int h : {HAND_OFF, HAND_MAIN})
     {
-        OpenPose& o = rs.openPose[h];
+        OpenPose& o = rs().openPose[h];
         const float a = geom::smooth01(o.amount);
         o.rot = o.move = glm::vec3{0.f};
         if(a <= 0.f || o.kind == 0)
@@ -323,7 +328,7 @@ void apply(hands::State& s)
     }
     for(int h : {HAND_OFF, HAND_MAIN})
     {
-        Trip& t = rs.trip[h];
+        Trip& t = rs().trip[h];
         const float a = share(h);
         if(a <= 0.f)
         {
@@ -351,12 +356,12 @@ void apply(hands::State& s)
 
 bool busy(int h)
 {
-    return h >= 0 && h < 2 && (rs.trip[h].bit || rs.trip[h].amount > 0.f);
+    return h >= 0 && h < 2 && (rs().trip[h].bit || rs().trip[h].amount > 0.f);
 }
 
 float openShare(int h)
 {
-    return h >= 0 && h < 2 ? geom::smooth01(rs.openPose[h].amount) : 0.f;
+    return h >= 0 && h < 2 ? geom::smooth01(rs().openPose[h].amount) : 0.f;
 }
 
 } // namespace qvr::flatreload

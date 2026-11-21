@@ -4,6 +4,7 @@
 #include "vr_bloom.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
+#include "vr_seat.hpp"
 #include "vr_flatplay.hpp"
 #include "vr_gfx.hpp"
 #include "vr_glutil.hpp"
@@ -77,12 +78,12 @@ void main()
 }
 )";
 
-GLuint program = 0;
-bool failed = false;
-gfx::RenderTarget copy; // the view, copied: what the pass reads
-GLenum copyFormat = 0;   // its format: the window's scene's (float with vr_flat_tonemap)
-long long passCount = 0;
-bool windowFloat = false; // the window's targets were last made float (windowSceneFormat)
+GLuint program = 0; // seat-shared: the look pass's GL objects (program..windowFloat: phase 7's per-view caches)
+bool failed = false; // seat-shared: the look pass's GL program
+gfx::RenderTarget copy; // seat-shared: the look pass's GL copy; the view, copied: what the pass reads
+GLenum copyFormat = 0; // seat-shared: the look pass's GL copy; its format: the window's scene's (float with vr_flat_tonemap)
+long long passCount = 0; // seat-shared: the look pass's counter
+bool windowFloat = false; // seat-shared: the window's targets; the window's targets were last made float (windowSceneFormat)
 
 // vr_flat_tonemap changed: the window's targets made again in the format it asks for (as vid_fsaa's change does).
 void onToneChanged(cvar_t* /*var*/)

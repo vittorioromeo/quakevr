@@ -19,6 +19,7 @@
 #include "vr_backend.hpp" // HAND_OFF / HAND_MAIN / HAND_COUNT
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
+#include "vr_seat.hpp"
 #include "vr_flatplay.hpp"
 #include "vr_flatsight.hpp"
 #include "vr_geom.hpp"
@@ -139,7 +140,7 @@ struct Sweep
     za::Vector<unsigned char> parts;
     za::Vector<Tri> near;    // the torso, neck and head
     za::Vector<Tri> nearArm; // the arms
-} sw;
+} sw; // seat-shared: a tool's own (vr_flat_sweep: one at a time)
 
 [[nodiscard]] edict_t* hisEdict()
 {
@@ -719,7 +720,7 @@ struct Walk
     int measured{0};
 };
 
-Walk wk;
+Walk wk; // seat-shared: a probe's own (vr_flat_walk_probe: one at a time)
 
 void walk_f()
 {

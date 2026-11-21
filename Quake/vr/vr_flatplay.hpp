@@ -129,6 +129,8 @@ void frame();
 // Whether the crouch key (Left Ctrl, +flatcrouch) is held now: the move's word for the server (protocol::moveFlatCrouchBit),
 // which keeps his box crouched under a low ceiling after it is let go (vr_hull.cpp updateCrouch). False outside the mode.
 [[nodiscard]] bool crouchHeld();
+// vr_seat_test: the current seat's +flatcrouch held (the command alone, in or out of the mode).
+[[nodiscard]] bool crouchCommand();
 // vr_flat_crouch_trace's sample, once a frame from VR_FlatViewDrop with the drawn eye's height (world z).
 void traceCrouch(float eyeZ);
 

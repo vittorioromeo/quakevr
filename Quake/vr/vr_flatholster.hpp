@@ -23,6 +23,8 @@ void frame(bool on);
 [[nodiscard]] bool shown();
 // It is open (the key held): the mouse's buttons fire nothing (flatplay::routeFire).
 [[nodiscard]] bool open();
+// vr_seat_test: the current seat's +flatholsters held (the command alone).
+[[nodiscard]] bool holdCommand();
 
 // The time scale it asks for (timescale::wanted): vr_flat_holster_menu_timescale while open, else 1.
 [[nodiscard]] float timeScale();

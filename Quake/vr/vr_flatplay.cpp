@@ -31,6 +31,7 @@
 #include "vr_tracy.h"
 
 #include "vr_engine.hpp"
+#include "vr_seat.hpp"
 #include "vr_api.h"
 #include "vr_avatar.hpp"
 #include "vr_bullettime.hpp"
@@ -98,12 +99,20 @@ namespace
 {
 
 // The mode's state for the session (no function-local statics: a named file-scope struct, CODE_STYLE.md).
-struct FlatState
+// The process's own: the command line's flag and the console lines printed once.
+struct FlatSession
 {
     bool flag{false};            // -flatscreenmode on the command line
     bool announced{false};       // its console line was printed
     bool backendNoted{false};    // the "-flatscreenmode implies no VR backend" line was printed
     bool wasOn{false};           // last frame: to say so when a headset takes the game back
+};
+
+FlatSession session; // seat-shared: the process's (the command line, its console lines once)
+
+// A player's flatscreen play: his hands' pose, punches, shove, guard, two-handed stance (a seat's: SeatFlat).
+struct FlatState
+{
     float dualT{0.f};            // a gun in each hand, eased as the hands are (handEase): the drawn turn of dualProneTurn
 
     bool keyGrab{false};         // E, last frame (press edges)
@@ -182,12 +191,11 @@ struct FlatState
     double probeTime[2]{-1e9, -1e9};
 };
 
-FlatState fs;
 
 // The bot being posed (poseBot, MP bots phase 1), for that call only: what its hands hold, its swing's clock and its
 // guard stand in for the local player's (heldIn, heldWid, bodyPose, propInFist, armSpan, overheadSwing, parryPose).
 // Null otherwise: the local player's pose as ever.
-const BotPoseIn* bot = nullptr;
+const BotPoseIn* bot = nullptr; // seat-shared: the server's bot being posed, for that call only
 
 // The looks the drawn hands are given on top of the game's pose (drawnOffset; stepFeel once a frame). Not the game's:
 // the shots go from the steady hands, along the crosshair.
@@ -214,7 +222,6 @@ struct Feel
     glm::vec3 drawnAt[2]{glm::vec3{0.f}, glm::vec3{0.f}};   // each drawn hand, as last drawn (before a wall's tilt): drawnHand
 };
 
-Feel feel;
 
 // The keys beyond E and V, and the crouch one of them holds. Its own struct, apart from FlatState's pose fields: the
 // mode's keys and its pose are worked on apart (FLATPLAY.md).
@@ -246,7 +253,6 @@ struct FlatKeys
     int times{0};           // Z: bullet time asked to start or stop
 };
 
-FlatKeys keyState;
 
 // The crouch's ease (vr_flat_crouch_smooth): the share at even progress x, and back. 1: smoothstep, its steepest 1.5
 // times the even speed, at the middle; 0: even.
@@ -282,15 +288,15 @@ struct CrouchTrace
     float allowed{0.f};   // the most the ease allows the eye a frame, at the frames' own times
 };
 
-CrouchTrace crouchTrace;
-float traceHandZ{0.f}; // poseHands' main hand this frame, world z
-glm::vec3 traceHand{0.f};    // poseHands' main hand this frame, world (vr_flatslide_ramp_test)
-glm::vec3 traceHead{0.f};    // poseHands' head this frame, world (vr_flatslide_ramp_test)
-glm::vec3 traceViewOrg{0.f}; // VR_FlatViewDrop's view origin this frame, world (vr_flatslide_ramp_test)
-bool traceBodyOn{false};     // the drawn body's points below wanted (vr_flatslide_ramp_test: the Follower's torso solve)
-glm::vec3 traceShoulder{0.f}; // poseHands' main shoulder this frame, world (the body's chest, solveTorso's)
-glm::vec3 tracePelvis{0.f};   // the body's pelvis this frame, world (only while traceBodyOn)
-int traceArmHolds{0};         // drawn hands the arm's hold pulled in so far (drawnOffset; the slide jitter measure)
+CrouchTrace crouchTrace; // seat-shared: a probe's own (vr_flat_crouch_trace: one at a time)
+float traceHandZ{0.f}; // seat-shared: the tests' probes (traceHandZ..traceArmHolds: one at a time); poseHands' main hand this frame, world z
+glm::vec3 traceHand{0.f}; // seat-shared: a test's probe; poseHands' main hand this frame, world (vr_flatslide_ramp_test)
+glm::vec3 traceHead{0.f}; // seat-shared: a test's probe; poseHands' head this frame, world (vr_flatslide_ramp_test)
+glm::vec3 traceViewOrg{0.f}; // seat-shared: a test's probe; VR_FlatViewDrop's view origin this frame, world (vr_flatslide_ramp_test)
+bool traceBodyOn{false}; // seat-shared: a test's probe; the drawn body's points below wanted (vr_flatslide_ramp_test: the Follower's torso solve)
+glm::vec3 traceShoulder{0.f}; // seat-shared: a test's probe; poseHands' main shoulder this frame, world (the body's chest, solveTorso's)
+glm::vec3 tracePelvis{0.f}; // seat-shared: a test's probe; the body's pelvis this frame, world (only while traceBodyOn)
+int traceArmHolds{0}; // seat-shared: a test's probe; drawn hands the arm's hold pulled in so far (drawnOffset; the slide jitter measure)
 
 // Left Ctrl, the bind the mode takes over (the crouch key must not fire the weapon). Ctrl is the engine's fire key in the
 // plain game -- Quake/default_cfg.h binds CTRL +attack -- and flatscreen play reads Ctrl itself for the crouch, so a hold
@@ -305,7 +311,63 @@ struct CtrlBind
     bool taken{false};   // the mode has it (+flatcrouch)
 };
 
-CtrlBind ctrlBind;
+// The toolgun in flatscreen play (vr_toolgun.cpp has the headset's buttons): F7 (vr_flat_key_toolgun) puts it in the
+// main hand and back (impulse 49, QC weapons.qc VR_FlatToolgun_Toggle); with it held, the main hand's fire button (the
+// left mouse button) is its trigger, mouse 3 (vr_flat_key_toolgun_menu) its B/Y: the panel, a screen overlay with the
+// mouse's cursor while open (vr_toolgun_panel.cpp drawFlat, flatMouse), the left button clicking on it; and B
+// (vr_flat_key_toolgun_adjust) held its X/A: the mouse the tool's (toolgun::flatNudge) instead of the view's.
+struct FlatToolgunKeys
+{
+    bool key{false};    // vr_flat_key_toolgun, last frame
+    bool menu{false};   // vr_flat_key_toolgun_menu, last frame
+    bool fire{false};   // the main hand's fire, last frame, while the toolgun was held
+    bool click{false};  // that press went to the panel (its release goes there too)
+    bool adjust{false}; // vr_flat_key_toolgun_adjust held, last frame, while the toolgun was held
+};
+
+// A seat's flatscreen play (SPLITSCREEN.md, phase 4a): the seat owns it (seat::Part::FlatPlay), the file reads the
+// current seat's through the accessors below.
+struct SeatFlat
+{
+    FlatState fs;
+    Feel feel;
+    FlatKeys keyState;
+    CtrlBind ctrlBind; // (the seat's CTRL binding: phase 2's bindings are the seat's)
+    // The slide's turn of the body (poseHands; slide::LegsTurn, a headset's slide shares it): the chest's turn back to
+    // the view is trunkTwist.
+    slide::LegsTurn slideTurn;
+    FlatToolgunKeys flatTg;
+};
+
+// splitscreen (SPLITSCREEN.md, phase 4a): the current seat's (seat::Part::FlatPlay)
+[[nodiscard]] SeatFlat& seatFlat()
+{
+    return seat::part<SeatFlat>(seat::current(), seat::Part::FlatPlay);
+}
+[[nodiscard]] FlatState& fs()
+{
+    return seatFlat().fs;
+}
+[[nodiscard]] Feel& feel()
+{
+    return seatFlat().feel;
+}
+[[nodiscard]] FlatKeys& keyState()
+{
+    return seatFlat().keyState;
+}
+[[nodiscard]] CtrlBind& ctrlBind()
+{
+    return seatFlat().ctrlBind;
+}
+[[nodiscard]] slide::LegsTurn& slideTurn()
+{
+    return seatFlat().slideTurn;
+}
+[[nodiscard]] FlatToolgunKeys& flatTg()
+{
+    return seatFlat().flatTg;
+}
 
 // The pose, measured from the shoulders (hands::bodyAnchor with vr_shoulder_offset, the same anchor the body's own
 // holsters are placed at): the arms stay on the body whatever the height calibration. Forward, side and down in the
@@ -350,10 +412,6 @@ constexpr float bobEase = 6.f;
 constexpr float breathRate = 1.6f; // rad/s
 constexpr float breathUp = 0.2f;
 constexpr float breathSide = 0.1f;
-
-// The slide's turn of the body (poseHands; slide::LegsTurn, a headset's slide shares it): the chest's turn back to the
-// view is trunkTwist.
-slide::LegsTurn slideTurn;
 
 // Sliding: the walk's bob (the drawn view's, the hands', the body's ride) times this, vr_flat_slide_bob of it at a full
 // slide pose (no walk: the feet stayed on the floor while the body bobbed through it).
@@ -540,7 +598,7 @@ struct SwingTimes
 // How long `h`'s punch lasts: the fist's throw, or a weapon's overhead swing.
 [[nodiscard]] float punchLen(int h)
 {
-    if(!fs.punchOverhead[h])
+    if(!fs().punchOverhead[h])
     {
         return punchTotal;
     }
@@ -551,7 +609,7 @@ struct SwingTimes
 // And how long its last part, the arm drawn back, takes.
 [[nodiscard]] float punchBackLen(int h)
 {
-    return fs.punchOverhead[h] ? swingTimes().back : punchBack;
+    return fs().punchOverhead[h] ? swingTimes().back : punchBack;
 }
 
 [[nodiscard]] float ease(float k, float dt)
@@ -590,9 +648,9 @@ constexpr glm::vec3 anchorFromShoulder{2.5f, -3.f, 12.f};
 // turn and the chest's share in it), kept by poseHands; with vr_flat_body_pose 0 the old anchor (hands::bodyAnchor).
 [[nodiscard]] glm::vec3 shoulder(const hands::State& s, int h)
 {
-    if(bodyPose() && fs.shouldersKnown)
+    if(bodyPose() && fs().shouldersKnown)
     {
-        return fs.shoulders[h];
+        return fs().shoulders[h];
     }
     const glm::vec3 off{vr_shoulder_offset_x.value, vr_shoulder_offset_y.value, vr_shoulder_offset_z.value};
     return h == HAND_OFF ? hands::bodyAnchor(s, {off.x, -off.y, off.z}) : hands::bodyAnchor(s, off); // mirrored across the body's centre line: only the side changes (as vr_body.cpp's and vr_twohand.cpp's shoulders)
@@ -659,7 +717,7 @@ constexpr float stanceFadeTo = 55.f;
 // Lying down's share of the held weapon's pose (vr_flat_gun_*_prone): how far down he is, with the body pose on.
 [[nodiscard]] float proneShare()
 {
-    return bodyPose() ? keyState.proneRatio : 0.f;
+    return bodyPose() ? keyState().proneRatio : 0.f;
 }
 
 // A lying-down gun pose number at the look `pitch` (Quake's: positive down): `level` at a level look, going to `down`
@@ -697,7 +755,7 @@ constexpr float dualProneTurnMost = 45.f;
 // tuning has it (1 level, -4 at either end, -2 crouched).
 [[nodiscard]] float gunOutAt(float pitch)
 {
-    const float crouched = bodyPose() ? keyState.ratio : 0.f;
+    const float crouched = bodyPose() ? keyState().ratio : 0.f;
     const float level = poseNum(vr_flat_gun_out) + (poseNum(vr_flat_gun_out_crouch) - poseNum(vr_flat_gun_out)) * crouched;
     const float end = poseNum(pitch >= 0.f ? vr_flat_gun_out_down : vr_flat_gun_out_up);
     const float w = geom::smooth01(za::clamp(glm::abs(pitch) / lookMost, 0.f, 1.f));
@@ -720,14 +778,14 @@ constexpr float dualProneTurnMost = 45.f;
         // (The stance's own, on a long gun: flatsight::stanceAndLook. A level look's: a look up or down takes it off, and so does
         // some of it a crouch, whose trunk leans into the gun.)
         const float away = bodyPose() ? za::clamp((glm::abs(pitch) - stanceFadeFrom) / (stanceFadeTo - stanceFadeFrom), 0.f, 1.f) : 0.f;
-        const float crouched = bodyPose() ? keyState.ratio * za::clamp(vr_flat_stance_fade_crouch.value, 0.f, 1.f) : 0.f;
+        const float crouched = bodyPose() ? keyState().ratio * za::clamp(vr_flat_stance_fade_crouch.value, 0.f, 1.f) : 0.f;
         const float fade = (1.f - crouched) * (1.f - za::clamp(vr_flat_stance_fade.value, 0.f, 1.f) * away * away * (3.f - 2.f * away));
         const float stance = (stanceAsked >= 0.f ? stanceAsked : flatsight::stanceShare(h)) * fade;
         // (A gun whose grip the free hand takes for real gets the stance's height, not its way back or in: the same height on the
         // screen as the others. Pulled back, the free hand's punch missed: FLATPLAY.md, "The stance".)
         const float lift = (stanceAsked >= 0.f ? stanceAsked : flatsight::stanceLift(h)) * fade;
         // (Crouched, the gun goes out at its side, its stock off the chest the crouch leans forward.)
-        const float crouchOut = bodyPose() ? keyState.ratio * za::clamp(vr_flat_crouch_gun_out.value, -poseTweakMax, poseTweakMax) : 0.f;
+        const float crouchOut = bodyPose() ? keyState().ratio * za::clamp(vr_flat_crouch_gun_out.value, -poseTweakMax, poseTweakMax) : 0.f;
         // (A pistol's stance: both hands in front of him, its own numbers. A long gun's: towards the shoulder pocket.)
         const bool pistol = flatsight::stancePistol();
         const float back = poseNum(pistol ? vr_flat_pistol_back : vr_flat_stance_back);
@@ -735,7 +793,7 @@ constexpr float dualProneTurnMost = 45.f;
         const float upBy = poseNum(pistol ? vr_flat_pistol_up : vr_flat_stance_up);
         // (Gun Forward and Gun Down crouched take over from the standing ones by how deep the crouch is, as Gun Out
         // Crouched does in gunOutAt: vr_flat_gun_ahead_crouch, vr_flat_gun_down_crouch.)
-        const float deep = bodyPose() ? keyState.ratio : 0.f;
+        const float deep = bodyPose() ? keyState().ratio : 0.f;
         const float aheadUp = poseNum(vr_flat_gun_ahead) + (poseNum(vr_flat_gun_ahead_crouch) - poseNum(vr_flat_gun_ahead)) * deep;
         const float belowUp = poseNum(vr_flat_gun_down) + (poseNum(vr_flat_gun_down_crouch) - poseNum(vr_flat_gun_down)) * deep;
         // (Lying down, Gun Forward / Down Prone take over by how far down he is, each going to its own looking straight
@@ -795,13 +853,13 @@ constexpr float dualProneTurnMost = 45.f;
 // frame as `rest`: the fist is thrown at it by vr_flat_punch_aim (his notes 2026-11-08: it hit low, beside the target).
 [[nodiscard]] glm::vec3 punchSwing(int h, const glm::vec3& rest, const glm::vec3& target)
 {
-    const double t = vr_gametime - fs.punchAt[h];   // the press's own clock: seconds since the punch was started. Each
+    const double t = vr_gametime - fs().punchAt[h];   // the press's own clock: seconds since the punch was started. Each
                                                     // phase's start is on that same clock, so a phase eased from its
                                                     // start actually moves: given the press's absolute time instead, the
                                                     // easing never got past its first step and the whole punch arrived as
                                                     // three snaps between its poses (measured: 7, 16 and 22 units in a
                                                     // frame - longer than the 3 units a blow has to find in its sweep).
-    if(t < 0.0 || t > punchTotal || fs.punchOverhead[h])
+    if(t < 0.0 || t > punchTotal || fs().punchOverhead[h])
     {
         return rest; // (a weapon's overhead swing is overheadSwing's)
     }
@@ -880,10 +938,10 @@ constexpr float dualProneTurnMost = 45.f;
     turn = glm::vec3{0.f};
     // (A bot's: its main hand's swing on the server's clock, poseBot. The same swing.)
     const bool botSwing = bot != nullptr && h == HAND_MAIN;
-    const double t = botSwing ? bot->now - bot->swingAt : vr_gametime - fs.punchAt[h];
+    const double t = botSwing ? bot->now - bot->swingAt : vr_gametime - fs().punchAt[h];
     const SwingTimes w = swingTimes(botSwing ? bot->windup : 0.f);
     const float len = botSwing ? w.wind + w.top + w.strike + w.dwell + w.back : punchLen(h);
-    if((!botSwing && (bot != nullptr || !fs.punchOverhead[h])) || t < 0.0 || t > len)
+    if((!botSwing && (bot != nullptr || !fs().punchOverhead[h])) || t < 0.0 || t > len)
     {
         return rest;
     }
@@ -990,23 +1048,23 @@ constexpr float dualProneTurnMost = 45.f;
 void stepParry(int h, float dt)
 {
     const bool want = parryAsked(h);
-    if(want && !fs.parryWant[h])
+    if(want && !fs().parryWant[h])
     {
-        fs.parryAskedAt[h] = vr_gametime;
-        fs.parries++;
+        fs().parryAskedAt[h] = vr_gametime;
+        fs().parries++;
     }
-    fs.parryWant[h] = want;
+    fs().parryWant[h] = want;
     const float time = za::clamp((want ? vr_flat_parry_in_time : vr_flat_parry_out_time).value, 0.f, 2.f);
     const float step = time > 0.f ? dt / time : 1.f;
-    const float was = fs.parry[h];
-    fs.parry[h] = za::clamp(fs.parry[h] + (want ? step : -step), 0.f, 1.f);
-    if(want && was < 1.f && fs.parry[h] >= 1.f)
+    const float was = fs().parry[h];
+    fs().parry[h] = za::clamp(fs().parry[h] + (want ? step : -step), 0.f, 1.f);
+    if(want && was < 1.f && fs().parry[h] >= 1.f)
     {
-        fs.parryReachedAt[h] = vr_gametime;
+        fs().parryReachedAt[h] = vr_gametime;
         if(vr_flatplay_debug.value)
         {
             Con_Printf("flatparry: %s hand in the guard, %.3f s after the button\n", h == HAND_MAIN ? "main" : "off",
-                vr_gametime - fs.parryAskedAt[h]);
+                vr_gametime - fs().parryAskedAt[h]);
         }
     }
 }
@@ -1027,7 +1085,7 @@ void parryPose(hands::State& s, int h, const glm::vec3& root, const glm::vec3& e
     const glm::vec3& up, float yaw)
 {
     // (a bot's guard, poseBot: its AI's share, its main hand's)
-    const float share = geom::smooth01(bot != nullptr ? (h == HAND_MAIN ? bot->parry : 0.f) : fs.parry[h]);
+    const float share = geom::smooth01(bot != nullptr ? (h == HAND_MAIN ? bot->parry : 0.f) : fs().parry[h]);
     if(share <= 0.f)
     {
         return;
@@ -1087,28 +1145,28 @@ void parryPose(hands::State& s, int h, const glm::vec3& root, const glm::vec3& e
 void stepTwoHand(const hands::State& s, int h, float dt)
 {
     const bool want = twoHandAsked(s, h);
-    if(want && !fs.twoHWant[h])
+    if(want && !fs().twoHWant[h])
     {
-        fs.twoHAskedAt[h] = vr_gametime;
+        fs().twoHAskedAt[h] = vr_gametime;
     }
-    fs.twoHWant[h] = want;
+    fs().twoHWant[h] = want;
     if(!swungMelee(h))
     {
-        fs.twoH[h] = 0.f;
+        fs().twoH[h] = 0.f;
         return;
     }
     const float time = za::clamp(vr_flat_melee_2h_time.value, 0.f, 2.f);
     const float step = time > 0.f ? dt / time : 1.f;
-    const float was = fs.twoH[h];
-    fs.twoH[h] = za::clamp(was + (want ? step : -step), 0.f, 1.f);
-    if(want && was < 1.f && fs.twoH[h] >= 1.f)
+    const float was = fs().twoH[h];
+    fs().twoH[h] = za::clamp(was + (want ? step : -step), 0.f, 1.f);
+    if(want && was < 1.f && fs().twoH[h] >= 1.f)
     {
-        fs.twoHReachedAt[h] = vr_gametime;
-        fs.twoHTaken++;
+        fs().twoHReachedAt[h] = vr_gametime;
+        fs().twoHTaken++;
         if(vr_flatplay_debug.value)
         {
             Con_Printf("flat2h: %s hand in the two-handed stance, %.3f s after it was asked for\n", h == HAND_MAIN ? "main" : "off",
-                vr_gametime - fs.twoHAskedAt[h]);
+                vr_gametime - fs().twoHAskedAt[h]);
         }
     }
 }
@@ -1148,7 +1206,7 @@ void twoHandParryPose(hands::State& s, int h, const glm::vec3& fwd, const glm::v
 // report. A jump in a transition (into or out of the stance, a let-go and a take of the grip) shows here.
 void probeTwoHand()
 {
-    auto& p = fs.twoHProbe;
+    auto& p = fs().twoHProbe;
     const hands::State& hs = hands::current();
     glm::vec3 pos[2], rot[2];
     if(!view::drawnHandPose(HAND_MAIN, pos[HAND_MAIN], rot[HAND_MAIN]) || !view::drawnHandPose(HAND_OFF, pos[HAND_OFF], rot[HAND_OFF]))
@@ -1180,14 +1238,14 @@ void probeTwoHand()
 
 void twoHandReport_f()
 {
-    auto& p = fs.twoHProbe;
+    auto& p = fs().twoHProbe;
     const int h = loneWeaponHand();
     Con_Printf("flat2h: drawn hands, most a frame since the last report (%d frames): main %.2f units %.1f deg, off %.2f units "
                "%.1f deg; the main hand now %.2f %.2f %.2f off the head (x y z); stance share main %.2f off %.2f, asked %d %d; "
                "the free hand %s\n",
         p.frames, p.step[HAND_MAIN], p.turn[HAND_MAIN], p.step[HAND_OFF], p.turn[HAND_OFF], p.rel[HAND_MAIN].x, p.rel[HAND_MAIN].y,
         p.rel[HAND_MAIN].z, melee2HShare(HAND_MAIN),
-        melee2HShare(HAND_OFF), fs.twoHWant[HAND_MAIN] ? 1 : 0, fs.twoHWant[HAND_OFF] ? 1 : 0,
+        melee2HShare(HAND_OFF), fs().twoHWant[HAND_MAIN] ? 1 : 0, fs().twoHWant[HAND_OFF] ? 1 : 0,
         h >= 0 && twohand::helping(1 - h) ? "holds the grip" : "does not hold the grip");
     p.step[0] = p.step[1] = p.turn[0] = p.turn[1] = 0.f;
     p.frames = 0;
@@ -1234,7 +1292,7 @@ void twoHandReport_f()
 // Whether `h`'s punch has reached its draw-back (or is not running).
 [[nodiscard]] bool drawingBack(int h)
 {
-    return !punching(h) || vr_gametime - fs.punchAt[h] >= punchLen(h) - punchBackLen(h);
+    return !punching(h) || vr_gametime - fs().punchAt[h] >= punchLen(h) - punchBackLen(h);
 }
 
 // A hand's punch, from V, from its fire button, or from vr_flat_punch. Each hand has its own clock. One hand at a time
@@ -1249,7 +1307,7 @@ void startPunch(int h, const char* from)
     }
     if(vr_flat_punch_both.value != 0.f)
     {
-        if(fs.punchFrame[1 - h] == host_framecount && !(punchesWith(HAND_OFF) && punchesWith(HAND_MAIN)))
+        if(fs().punchFrame[1 - h] == host_framecount && !(punchesWith(HAND_OFF) && punchesWith(HAND_MAIN)))
         {
             return;
         }
@@ -1262,22 +1320,22 @@ void startPunch(int h, const char* from)
         }
         return;
     }
-    fs.punchAt[h] = vr_gametime;
-    fs.punchFrame[h] = host_framecount;
+    fs().punchAt[h] = vr_gametime;
+    fs().punchFrame[h] = host_framecount;
     // (A prop in the fist: the overhead swing as a weapon's, vr_flat_prop_melee; 0 the fist's punch.)
-    fs.punchOverhead[h] = heldIn(h) >= 0 ? vr_flat_swing.value != 0.f : propInFist(h) && vr_flat_prop_melee.value != 0.f;
-    fs.punches[h]++;
+    fs().punchOverhead[h] = heldIn(h) >= 0 ? vr_flat_swing.value != 0.f : propInFist(h) && vr_flat_prop_melee.value != 0.f;
+    fs().punches[h]++;
     if(vr_flatplay_debug.value)
     {
         Con_Printf("flatplay: %s punch (%s): %s%s\n", h == HAND_MAIN ? "main" : "off", from,
-            punchesWith(h) ? "melee" : "not a swinging weapon", fs.punchOverhead[h] ? ", overhead swing" : "");
+            punchesWith(h) ? "melee" : "not a swinging weapon", fs().punchOverhead[h] ? ", overhead swing" : "");
     }
 }
 
 // Whether `h` pushes in the shove (the one hand, or both).
 [[nodiscard]] bool inShove(int h)
 {
-    return h == fs.shoveHand || fs.shoveBoth;
+    return h == fs().shoveHand || fs().shoveBoth;
 }
 
 // The shove's parts (his notes 2026-11-10: a windup like the fist's, then a fast push; each part its own time): seconds of
@@ -1313,7 +1371,7 @@ struct ShovePhase
 
 [[nodiscard]] ShovePhase shovePhase(int h)
 {
-    const double t = vr_gametime - fs.shoveAt;
+    const double t = vr_gametime - fs().shoveAt;
     const float total = shoveTotal();
     if(!inShove(h) || t < 0.0 || t > total)
     {
@@ -1346,15 +1404,15 @@ constexpr float shovePassGrace = 0.15f;
 [[nodiscard]] bool shovePassesBodies(int h)
 {
     const ShoveTimes w = shoveTimes();
-    const double t = vr_gametime - fs.shoveAt;
-    return vr_flat_shove_pass_bodies.value != 0.f && inShove(h) && fs.shoveSent && t >= w.wind + w.push + w.hold &&
+    const double t = vr_gametime - fs().shoveAt;
+    return vr_flat_shove_pass_bodies.value != 0.f && inShove(h) && fs().shoveSent && t >= w.wind + w.push + w.hold &&
            t <= shoveTotal() + shovePassGrace;
 }
 
 [[nodiscard]] bool shovingNow(int h)
 {
     const ShovePhase p = shovePhase(h);
-    return p.wind > 0.f || p.out > 0.f || (inShove(h) && !fs.shoveSent);
+    return p.wind > 0.f || p.out > 0.f || (inShove(h) && !fs().shoveSent);
 }
 
 // The shove's hand offset in the view's frame (forward, right, up): pushed out ahead and in towards the middle.
@@ -1379,7 +1437,7 @@ constexpr float shovePassGrace = 0.15f;
                                         side * poseNum(main ? vr_flat_shove_main_out : vr_flat_shove_off_out),
                                         poseNum(main ? vr_flat_shove_main_up : vr_flat_shove_off_up)};
     const float aimShare = za::clamp(vr_flat_shove_aim.value, 0.f, 1.f);
-    const glm::vec3 aimAt = toTarget + glm::vec3{0.f, fs.shoveBoth ? side * 0.5f * za::clamp(vr_flat_shove_both_apart.value, 0.f, 24.f) : 0.f, 0.f};
+    const glm::vec3 aimAt = toTarget + glm::vec3{0.f, fs().shoveBoth ? side * 0.5f * za::clamp(vr_flat_shove_both_apart.value, 0.f, 24.f) : 0.f, 0.f};
     if(out <= 0.f || aimShare <= 0.f || glm::length(aimAt) < 1.f)
     {
         return plain + nudge + wound;
@@ -1401,29 +1459,29 @@ void startShove(const char* from)
     {
         return;
     }
-    if(vr_gametime < fs.shoveReady)
+    if(vr_gametime < fs().shoveReady)
     {
         if(vr_flatplay_debug.value)
         {
-            Con_Printf("flatplay: shove (%s): cooling down, %.2f s left\n", from, fs.shoveReady - vr_gametime);
+            Con_Printf("flatplay: shove (%s): cooling down, %.2f s left\n", from, fs().shoveReady - vr_gametime);
         }
         return;
     }
     const int h = heldIn(HAND_OFF) < 0 || heldIn(HAND_MAIN) >= 0 ? HAND_OFF : HAND_MAIN;
-    fs.shoveHand = h;
+    fs().shoveHand = h;
     // Both hands free: both push (his notes 2026-11-08), the headset's two-handed shove (vr_flat_shove_both 0: the one).
     const bool bothFree = heldIn(HAND_OFF) < 0 && heldIn(HAND_MAIN) < 0;
     const bool bothArmed = heldIn(HAND_OFF) >= 0 && heldIn(HAND_MAIN) >= 0;
-    fs.shoveBoth = vr_flat_shove_both_always.value != 0.f ||
+    fs().shoveBoth = vr_flat_shove_both_always.value != 0.f ||
                    (vr_flat_shove_both.value != 0.f && (bothFree || (bothArmed && vr_flat_shove_both_armed.value != 0.f)));
-    fs.shoveAt = vr_gametime;
-    fs.shoveSent = false;
-    fs.shoveReady = vr_gametime + za::fmax(vr_flat_shove_cooldown.value, shoveTotal());
-    fs.shoves++;
+    fs().shoveAt = vr_gametime;
+    fs().shoveSent = false;
+    fs().shoveReady = vr_gametime + za::fmax(vr_flat_shove_cooldown.value, shoveTotal());
+    fs().shoves++;
     if(vr_flatplay_debug.value)
     {
         Con_Printf("flatplay: shove (%s): %s (holding: off %d, main %d)\n", from,
-            fs.shoveBoth ? "both hands" : h == HAND_MAIN ? "main hand" : "off hand", heldWid(HAND_OFF), heldWid(HAND_MAIN));
+            fs().shoveBoth ? "both hands" : h == HAND_MAIN ? "main hand" : "off hand", heldWid(HAND_OFF), heldWid(HAND_MAIN));
     }
 }
 
@@ -1432,12 +1490,12 @@ void startShove(const char* from)
 void shoveFrame()
 {
     const ShoveTimes w = shoveTimes();
-    if(fs.shoveSent || vr_gametime - fs.shoveAt < w.wind + w.push)
+    if(fs().shoveSent || vr_gametime - fs().shoveAt < w.wind + w.push)
     {
         return;
     }
-    fs.shoveSent = true;
-    Cbuf_InsertText(fs.shoveBoth ? "impulse 56\n" : fs.shoveHand == HAND_MAIN ? "impulse 54\n" : "impulse 53\n");
+    fs().shoveSent = true;
+    Cbuf_InsertText(fs().shoveBoth ? "impulse 56\n" : fs().shoveHand == HAND_MAIN ? "impulse 54\n" : "impulse 53\n");
 }
 
 // How a hand must be turned for the weapon it holds to shoot along `aim`, whatever its Shot Pitch and Yaw (the drawn
@@ -1502,9 +1560,9 @@ void pollKeys()
     fire[HAND_OFF] = client::attacking(HAND_OFF);
     fire[HAND_MAIN] = client::attacking(HAND_MAIN);
 
-    if(grab && !fs.keyGrab)
+    if(grab && !fs().keyGrab)
     {
-        fs.grabs++;
+        fs().grabs++;
         // The hand turns its palm out first, then the grab is asked for with it (vr_flatfgrab.cpp: QC
         // vr_wpnforcegrab.qc, the force grab on what the view is pointed at).
         flatfgrab::press();
@@ -1514,7 +1572,7 @@ void pollKeys()
         }
     }
     const int vHand = vKeyHand();
-    if(v && !fs.keyV && !flatgrenade::busy(vHand))
+    if(v && !fs().keyV && !flatgrenade::busy(vHand))
     {
         startPunch(vHand, "V");
     }
@@ -1522,15 +1580,15 @@ void pollKeys()
     {
         // The fire button punches only with a weapon a swing strikes with; a gun's trigger fires the gun as it does now.
         // (Not a hand busy with the quick grenade: its fire button arms and throws it, vr_flatgrenade.cpp.)
-        if(fire[h] && !fs.keyFire[h] && punchesWith(h) && !flatgrenade::busy(h))
+        if(fire[h] && !fs().keyFire[h] && punchesWith(h) && !flatgrenade::busy(h))
         {
             startPunch(h, h == HAND_MAIN ? "the main hand's fire button" : "the off hand's fire button");
         }
     }
-    fs.keyGrab = grab;
-    fs.keyV = v;
-    fs.keyFire[HAND_OFF] = fire[HAND_OFF];
-    fs.keyFire[HAND_MAIN] = fire[HAND_MAIN];
+    fs().keyGrab = grab;
+    fs().keyV = v;
+    fs().keyFire[HAND_OFF] = fire[HAND_OFF];
+    fs().keyFire[HAND_MAIN] = fire[HAND_MAIN];
 }
 
 // Left Ctrl crouches while it is held and stands up when it is let go, F switches the flashlight, H drops what a hand
@@ -1558,15 +1616,15 @@ void getUp(const char* why)
 {
     if(!qvr::hull::localRiseFits())
     {
-        keyState.riseWanted = true;
+        keyState().riseWanted = true;
         if(vr_flatplay_debug.value)
         {
             Con_Printf("flatplay: %s: no room to get up: still lying, up once it fits\n", why);
         }
         return;
     }
-    keyState.prone = false;
-    keyState.riseWanted = false;
+    keyState().prone = false;
+    keyState().riseWanted = false;
     if(vr_flatplay_debug.value)
     {
         Con_Printf("flatplay: %s: get up\n", why);
@@ -1579,21 +1637,21 @@ void toggleProne(const char* why)
 {
     if(vr_prone.value == 0.f)
     {
-        keyState.prone = false;
-        keyState.riseWanted = false;
+        keyState().prone = false;
+        keyState().riseWanted = false;
         Con_Printf("flatplay: lying down is off (vr_prone)\n");
         return;
     }
-    if(keyState.prone && keyState.riseWanted)
+    if(keyState().prone && keyState().riseWanted)
     {
-        keyState.riseWanted = false;
+        keyState().riseWanted = false;
         if(vr_flatplay_debug.value)
         {
             Con_Printf("flatplay: %s: stay lying\n", why);
         }
         return;
     }
-    if(keyState.prone)
+    if(keyState().prone)
     {
         getUp(why);
         return;
@@ -1608,8 +1666,8 @@ void toggleProne(const char* why)
         }
         return;
     }
-    keyState.prone = true;
-    keyState.riseWanted = false;
+    keyState().prone = true;
+    keyState().riseWanted = false;
     if(vr_flatplay_debug.value)
     {
         Con_Printf("flatplay: %s: lie down\n", why);
@@ -1626,27 +1684,13 @@ void proneToggle_f()
     toggleProne("vr_prone_toggle");
 }
 
-// The toolgun in flatscreen play (vr_toolgun.cpp has the headset's buttons): F7 (vr_flat_key_toolgun) puts it in the
-// main hand and back (impulse 49, QC weapons.qc VR_FlatToolgun_Toggle); with it held, the main hand's fire button (the
-// left mouse button) is its trigger, mouse 3 (vr_flat_key_toolgun_menu) its B/Y: the panel, a screen overlay with the
-// mouse's cursor while open (vr_toolgun_panel.cpp drawFlat, flatMouse), the left button clicking on it; and B
-// (vr_flat_key_toolgun_adjust) held its X/A: the mouse the tool's (toolgun::flatNudge) instead of the view's.
-struct FlatToolgunKeys
-{
-    bool key{false};    // vr_flat_key_toolgun, last frame
-    bool menu{false};   // vr_flat_key_toolgun_menu, last frame
-    bool fire{false};   // the main hand's fire, last frame, while the toolgun was held
-    bool click{false};  // that press went to the panel (its release goes there too)
-    bool adjust{false}; // vr_flat_key_toolgun_adjust held, last frame, while the toolgun was held
-};
-FlatToolgunKeys flatTg;
 
 void toolgunKeys()
 {
     const bool inGame = key_dest == key_game;
     const auto down = [inGame](const cvar_t& c) { return inGame && flatKeyHeld(c); };
     const bool key = down(vr_flat_key_toolgun);
-    if(key && !flatTg.key)
+    if(key && !flatTg().key)
     {
         Cbuf_InsertText("impulse 49\n");
         if(vr_flatplay_debug.value)
@@ -1654,40 +1698,40 @@ void toolgunKeys()
             Con_Printf("flatplay: %s: the toolgun\n", vr_flat_key_toolgun.string);
         }
     }
-    flatTg.key = key;
+    flatTg().key = key;
     const bool held = toolgun::heldHand() == HAND_MAIN;
     const bool menu = down(vr_flat_key_toolgun_menu);
-    if(menu && !flatTg.menu && held)
+    if(menu && !flatTg().menu && held)
     {
         (void)toolgun::button(HAND_MAIN, posing::Button::Secondary, true);
         (void)toolgun::button(HAND_MAIN, posing::Button::Secondary, false);
     }
-    flatTg.menu = menu;
+    flatTg().menu = menu;
     const bool fire = held && client::attacking(HAND_MAIN);
-    if(fire != flatTg.fire)
+    if(fire != flatTg().fire)
     {
         if(fire)
         {
             // With the panel open a press is a click on it (where the cursor is), else the toolgun's trigger.
-            flatTg.click = toolgun::panel::flatShown() && toolgun::panel::flatClick(true);
-            if(!flatTg.click)
+            flatTg().click = toolgun::panel::flatShown() && toolgun::panel::flatClick(true);
+            if(!flatTg().click)
             {
                 (void)toolgun::button(HAND_MAIN, posing::Button::Trigger, true);
             }
         }
         else
         {
-            (void)(za::exchange(flatTg.click, false) ? toolgun::panel::flatClick(false)
+            (void)(za::exchange(flatTg().click, false) ? toolgun::panel::flatClick(false)
                                                      : toolgun::button(HAND_MAIN, posing::Button::Trigger, false));
         }
     }
-    flatTg.fire = fire;
+    flatTg().fire = fire;
     const bool adjust = held && down(vr_flat_key_toolgun_adjust);
-    if(adjust != flatTg.adjust)
+    if(adjust != flatTg().adjust)
     {
         (void)toolgun::button(HAND_MAIN, posing::Button::Primary, adjust);
     }
-    flatTg.adjust = adjust;
+    flatTg().adjust = adjust;
 }
 
 } // namespace
@@ -1699,7 +1743,7 @@ glm::vec3 blendHandAngles(const glm::vec3& a, const glm::vec3& b, float k)
 
 void swapHands(const char* what)
 {
-    keyState.swaps++;
+    keyState().swaps++;
     // The same InsertText as F and H: the swap travels as the impulse the game code reads (QC weapons.qc, 48 ->
     // vr_wpnholster.qc VR_FlatSwapHands), so `impulse 48` on the console swaps the same.
     // With vr_flat_swap_anim the hands meet first and the swap is sent as they do (vr_flatswap.cpp).
@@ -1725,7 +1769,7 @@ extern "C" int VR_FlatToolgunMouse(int dx, int dy)
     {
         return 1;
     }
-    if(flatTg.adjust)
+    if(flatTg().adjust)
     {
         return toolgun::flatNudge(-static_cast<float>(dy) * vr_flat_toolgun_push_scale.value,
                    -static_cast<float>(dx) * vr_flat_toolgun_turn_scale.value)
@@ -1763,17 +1807,17 @@ void pollKeysFlat()
     const int dropKey = vr_flat_key_drop.string[0] ? Key_StringToKeynum(vr_flat_key_drop.string) : -1;
     const bool drop = inGame && dropKey > 0 && dropKey < MAX_KEYS && Key_Seat()->down[dropKey] != 0;
 
-    if(ctrl && !keyState.keyCtrl)
+    if(ctrl && !keyState().keyCtrl)
     {
-        keyState.crouches++;
+        keyState().crouches++;
         if(vr_flatplay_debug.value)
         {
             Con_Printf("flatplay: Left Ctrl: crouch\n");
         }
     }
-    if(flash && !keyState.keyFlash)
+    if(flash && !keyState().keyFlash)
     {
-        keyState.toggles++;
+        keyState().toggles++;
         // InsertText, not AddText: the switch runs next. AddText would put it after the commands already queued, which
         // in a test run means after the script's waits (vr_mapinstall.cpp says the same). The console's own switch is
         // vr_flashlight_toggle (vr_flashlight.cpp), so a bind or the console does the very same thing.
@@ -1783,9 +1827,9 @@ void pollKeysFlat()
             Con_Printf("flatplay: %s: the flashlight\n", vr_flat_key_flashlight.string);
         }
     }
-    if(drop && !keyState.keyDrop)
+    if(drop && !keyState().keyDrop)
     {
-        keyState.drops++;
+        keyState().drops++;
         // The same InsertText as the F above: the drop is asked for now, not after what is already queued. It travels as
         // the impulse the game code reads (QC weapons.qc ImpulseCommands, vr_wpnforcegrab.qc VR_Forcegrab_FlatDrop), so
         // `impulse 47` on the console drops the same thing.
@@ -1800,13 +1844,13 @@ void pollKeysFlat()
     const int timeKey = Key_StringToKeynum(vr_flat_key_bullettime.string);
     const bool swap = inGame && swapKey > 0 && swapKey < MAX_KEYS && Key_Seat()->down[swapKey] != 0;
     const bool slow = inGame && timeKey > 0 && timeKey < MAX_KEYS && Key_Seat()->down[timeKey] != 0;
-    if(swap && !keyState.keySwap)
+    if(swap && !keyState().keySwap)
     {
         swapHands(vr_flat_key_swap.string);
     }
-    if(slow && !keyState.keyTime)
+    if(slow && !keyState().keyTime)
     {
-        keyState.times++;
+        keyState().times++;
         // Bullet time's own press (vr_bullettime.cpp keyPress): the rules of the gadget's tap and of the stick press --
         // the meter, the cooldown, the bounce guard -- with nothing of the flatscreen's own.
         bullettime::keyPress("flatscreen key");
@@ -1815,41 +1859,41 @@ void pollKeysFlat()
             Con_Printf("flatplay: %s: bullet time\n", vr_flat_key_bullettime.string);
         }
     }
-    keyState.keyCtrl = ctrl;
-    keyState.keyFlash = flash;
-    keyState.keyDrop = drop;
-    keyState.keySwap = swap;
-    keyState.keyTime = slow;
+    keyState().keyCtrl = ctrl;
+    keyState().keyFlash = flash;
+    keyState().keyDrop = drop;
+    keyState().keySwap = swap;
+    keyState().keyTime = slow;
     // X (vr_flat_key_prone): lie down, get up (vr_prone_toggle's toggle).
     const int proneKey = Key_StringToKeynum(vr_flat_key_prone.string);
     const bool proneDown = inGame && proneKey > 0 && proneKey < MAX_KEYS && Key_Seat()->down[proneKey] != 0;
-    if(proneDown && !keyState.keyProne)
+    if(proneDown && !keyState().keyProne)
     {
         toggleProne("flatscreen key");
     }
-    keyState.keyProne = proneDown;
+    keyState().keyProne = proneDown;
     // The crouch pressed while lying down (Left Ctrl, +flatcrouch): up out of it into the crouch, the one easing out as the
     // other eases in (the eyes take the deeper of the two: crouchDrop), the gun's pose from the prone one to the crouch
     // one (targetOffset). It used to keep him lying down with the crouch's gun pose on top.
-    const bool crouchNow = ctrl || keyState.cmdHeld;
-    if(crouchNow && !keyState.crouchWas && keyState.prone)
+    const bool crouchNow = ctrl || keyState().cmdHeld;
+    if(crouchNow && !keyState().crouchWas && keyState().prone)
     {
         getUp("crouch while lying down"); // (up to a crouch, where it fits)
     }
-    keyState.crouchWas = crouchNow;
+    keyState().crouchWas = crouchNow;
     // A get-up that waited for room: up as soon as the lowest crouched box fits (crawled out of the vent).
-    if(keyState.prone && keyState.riseWanted && qvr::hull::localRiseFits())
+    if(keyState().prone && keyState().riseWanted && qvr::hull::localRiseFits())
     {
         getUp("room to get up");
     }
     // Mouse 5 (vr_flat_key_shove): a shove.
     const int shoveKey = Key_StringToKeynum(vr_flat_key_shove.string);
     const bool shove = inGame && shoveKey > 0 && shoveKey < MAX_KEYS && Key_Seat()->down[shoveKey] != 0;
-    if(shove && !fs.keyShove)
+    if(shove && !fs().keyShove)
     {
         startShove(vr_flat_key_shove.string);
     }
-    fs.keyShove = shove;
+    fs().keyShove = shove;
     shoveFrame();
     toolgunKeys();
     flatholster::frame(true); // the wheel's button: the holster menu (vr_flatholster.cpp)
@@ -1857,31 +1901,31 @@ void pollKeysFlat()
     // Down while held, back up when let go, each way in vr_flat_crouch_time seconds. Stepped once a frame, like the pose.
     // `lin` goes at an even speed; the share everything reads (`ratio`: the view, his head and box, the body, the arms,
     // the weapon) is it through crouchShape, which starts and ends gently (vr_flat_crouch_smooth 1).
-    double dt = keyState.lastTime > -1e8 ? vr_gametime - keyState.lastTime : 0.0;
-    keyState.lastTime = vr_gametime;
+    double dt = keyState().lastTime > -1e8 ? vr_gametime - keyState().lastTime : 0.0;
+    keyState().lastTime = vr_gametime;
     dt = za::clamp(dt, 0.0, 0.1);
-    keyState.lastDt = static_cast<float>(dt);
-    const float want = (ctrl || keyState.cmdHeld) ? 1.f : 0.f;
+    keyState().lastDt = static_cast<float>(dt);
+    const float want = (ctrl || keyState().cmdHeld) ? 1.f : 0.f;
     if(dt > 0.0)
     {
         const float step = static_cast<float>(dt) / za::clamp(vr_flat_crouch_time.value, 0.05f, 2.f);
-        keyState.lin += za::clamp(want - keyState.lin, -step, step);
+        keyState().lin += za::clamp(want - keyState().lin, -step, step);
     }
-    keyState.ratio = crouchShape(keyState.lin);
+    keyState().ratio = crouchShape(keyState().lin);
     // Lying down (vr_flat_key_prone): down while asked, up when not, each way in vr_prone_body_time; off
     // (vr_prone 0) it never goes down.
     // (Dead, or between maps: up again, so a respawn or the next map starts standing, as the server starts him.)
     if(vr_prone.value == 0.f || cls.signon != SIGNONS || cl.stats[STAT_HEALTH] <= 0)
     {
-        keyState.prone = false;
-        keyState.riseWanted = false;
+        keyState().prone = false;
+        keyState().riseWanted = false;
     }
     if(dt > 0.0)
     {
         const float step = static_cast<float>(dt) / za::clamp(vr_prone_body_time.value, 0.1f, 3.f);
-        keyState.proneLin += za::clamp((keyState.prone ? 1.f : 0.f) - keyState.proneLin, -step, step);
+        keyState().proneLin += za::clamp((keyState().prone ? 1.f : 0.f) - keyState().proneLin, -step, step);
     }
-    keyState.proneRatio = crouchShape(keyState.proneLin);
+    keyState().proneRatio = crouchShape(keyState().proneLin);
     // Let go under a low ceiling, he rises only as far as his box lets him: the server keeps his box crouched where the
     // standing one does not fit (the headset's checks: vr_hull.cpp updateCrouch), and his eyes stop flatEyeHeadroom under
     // its top (hull::localEyeCap) -- in a 40-high tunnel he stays down, in a 48-high gap he comes up to 36 over his feet.
@@ -1895,19 +1939,19 @@ void pollKeysFlat()
     {
         const float standEye = cl.viewheight + 24.f;
         const float least = za::clamp((standEye - cap) / down, 0.f, 1.f);
-        if(keyState.ratio < least)
+        if(keyState().ratio < least)
         {
-            keyState.ratio = least;
-            keyState.lin = crouchUnshape(least); // (held there: it rises from here, not from where the ease had got to)
+            keyState().ratio = least;
+            keyState().lin = crouchUnshape(least); // (held there: it rises from here, not from where the ease had got to)
         }
         // Kept lying down (the server keeps his box low under a ceiling the crouched one does not fit): the lying drop
         // holds his eyes under that box's top the same way.
         const float proneDown = proneDrop();
         const float need = standEye - cap;
-        if(need > down && proneDown > 0.f && keyState.proneRatio * proneDown < need)
+        if(need > down && proneDown > 0.f && keyState().proneRatio * proneDown < need)
         {
-            keyState.proneRatio = za::clamp(need / proneDown, 0.f, 1.f);
-            keyState.proneLin = crouchUnshape(keyState.proneRatio);
+            keyState().proneRatio = za::clamp(need / proneDown, 0.f, 1.f);
+            keyState().proneLin = crouchUnshape(keyState().proneRatio);
         }
     }
 }
@@ -1915,12 +1959,12 @@ void pollKeysFlat()
 // +flatcrouch / -flatcrouch: the crouch held and let go from the console (the same hold Left Ctrl gives).
 void crouchHold_f()
 {
-    keyState.cmdHeld = true;
+    keyState().cmdHeld = true;
 }
 
 void crouchRelease_f()
 {
-    keyState.cmdHeld = false;
+    keyState().cmdHeld = false;
 }
 
 // Ctrl's bind, taken over and given back (CtrlBind above). Key_SetBinding is what the console's `bind` uses, so the mode's
@@ -1928,7 +1972,7 @@ void crouchRelease_f()
 // that), and a `bind CTRL ...` said on the console during the mode takes it away until the mode asks for it again.
 [[nodiscard]] bool ctrlHolds()
 {
-    return ctrlBind.taken && Key_Seat()->bindings[K_CTRL] && !q_strcasecmp(Key_Seat()->bindings[K_CTRL], "+flatcrouch");
+    return ctrlBind().taken && Key_Seat()->bindings[K_CTRL] && !q_strcasecmp(Key_Seat()->bindings[K_CTRL], "+flatcrouch");
 }
 
 void takeCtrlBind()
@@ -1944,24 +1988,24 @@ void takeCtrlBind()
     // something else has just changed Ctrl's bind -- a config, a `bind CTRL ...` said on the console, an unbindall -- and
     // that value is the plain game's, so it is what the mode gives back before the engine writes its config out. Keeping
     // only the first one remembered would keep the empty state of that first frame and write it out as the player's bind.
-    q_strlcpy(ctrlBind.was, Key_Seat()->bindings[K_CTRL] ? Key_Seat()->bindings[K_CTRL] : "", sizeof(ctrlBind.was));
+    q_strlcpy(ctrlBind().was, Key_Seat()->bindings[K_CTRL] ? Key_Seat()->bindings[K_CTRL] : "", sizeof(ctrlBind().was));
     Key_SetBinding(K_CTRL, "+flatcrouch");
-    ctrlBind.taken = true;
+    ctrlBind().taken = true;
     if(vr_flatplay_debug.value)
     {
         Con_Printf("flatplay: CTRL `%s` -> +flatcrouch (vr_flat_crouch_fire 0: the crouch key does not fire the "
-                   "weapon)\n", ctrlBind.was[0] ? ctrlBind.was : "unbound");
+                   "weapon)\n", ctrlBind().was[0] ? ctrlBind().was : "unbound");
     }
 }
 
 void giveCtrlBindBack()
 {
-    if(!ctrlBind.taken)
+    if(!ctrlBind().taken)
     {
         return;
     }
-    ctrlBind.taken = false;
-    Key_SetBinding(K_CTRL, ctrlBind.was[0] ? ctrlBind.was : nullptr);
+    ctrlBind().taken = false;
+    Key_SetBinding(K_CTRL, ctrlBind().was[0] ? ctrlBind().was : nullptr);
 }
 
 // Quake angles' axes as columns: forward, right, up.
@@ -1976,76 +2020,76 @@ void giveCtrlBindBack()
 void stepFeel()
 {
     const double t = vr_gametime;
-    if(feel.seen && t == feel.lastTime)
+    if(feel().seen && t == feel().lastTime)
     {
         return;
     }
     const glm::vec2 view{cl.viewangles[0], cl.viewangles[1]};
     const glm::vec3 vel{cl.velocity[0], cl.velocity[1], cl.velocity[2]};
-    if(!feel.seen || t < feel.lastTime)
+    if(!feel().seen || t < feel().lastTime)
     {
-        feel = Feel{};
-        feel.seen = true;
-        feel.lastTime = t;
-        feel.view = view;
-        feel.vel = vel;
+        feel() = Feel{};
+        feel().seen = true;
+        feel().lastTime = t;
+        feel().view = view;
+        feel().vel = vel;
         return;
     }
-    const float dt = static_cast<float>(za::min(t - feel.lastTime, 0.1));
-    feel.lastTime = t;
-    feel.dt = dt;
+    const float dt = static_cast<float>(za::min(t - feel().lastTime, 0.1));
+    feel().lastTime = t;
+    feel().dt = dt;
 
     // The turn's lag: the hands keep their direction as the view turns, the spring brings them back.
-    glm::vec2 turned{za::remainder(view.x - feel.view.x, 360.f), za::remainder(view.y - feel.view.y, 360.f)};
-    feel.view = view;
+    glm::vec2 turned{za::remainder(view.x - feel().view.x, 360.f), za::remainder(view.y - feel().view.y, 360.f)};
+    feel().view = view;
     if(za::fabs(turned.x) > lagSnapDeg || za::fabs(turned.y) > lagSnapDeg)
     {
         turned = glm::vec2{0.f}; // set, not turned
-        feel.lag = feel.lagRate = glm::vec2{0.f};
+        feel().lag = feel().lagRate = glm::vec2{0.f};
     }
     if(vr_flat_turnlag.value != 0.f) // (negative: drawnOffset shows it the other way, the hands leading the turn)
     {
-        feel.lag -= turned;
+        feel().lag -= turned;
         // Critically damped, stepped exactly: x(t) = (x0 + (v0 + w x0) t) e^-wt.
         const float w = lagStiffness * za::clamp(vr_flat_turnlag_speed.value, 0.1f, 5.f);
         const float e = za::exp(-w * dt);
-        const glm::vec2 x0 = feel.lag, v0 = feel.lagRate;
+        const glm::vec2 x0 = feel().lag, v0 = feel().lagRate;
         const glm::vec2 c = v0 + x0 * w;
-        feel.lag = (x0 + c * dt) * e;
-        feel.lagRate = (v0 - c * (w * dt)) * e;
+        feel().lag = (x0 + c * dt) * e;
+        feel().lagRate = (v0 - c * (w * dt)) * e;
     }
     else
     {
-        feel.lag = feel.lagRate = glm::vec2{0.f};
+        feel().lag = feel().lagRate = glm::vec2{0.f};
     }
 
     // The step's sway: the change of velocity, in the view's frame (level), kicks the hands the other way.
-    const glm::vec3 dv = t < feel.noKickUntil ? glm::vec3{0.f} : vel - feel.vel; // (a gate turned it: VR_FlatPortalAngle)
-    feel.vel = vel;
+    const glm::vec3 dv = t < feel().noKickUntil ? glm::vec3{0.f} : vel - feel().vel; // (a gate turned it: VR_FlatPortalAngle)
+    feel().vel = vel;
     const float sway = za::clamp(vr_flat_sway.value, 0.f, 3.f);
     if(sway > 0.f)
     {
         const glm::mat3 level = axes(glm::vec3{0.f, view.y, 0.f});
         const glm::vec3 dvLocal{glm::dot(dv, level[0]), glm::dot(dv, level[1]), dv.z};
-        feel.swayRate -= glm::vec3{dvLocal.x * swayKick, dvLocal.y * swayKick, dvLocal.z * swayKickUp} * sway;
+        feel().swayRate -= glm::vec3{dvLocal.x * swayKick, dvLocal.y * swayKick, dvLocal.z * swayKickUp} * sway;
         // The spring, in small steps (semi-implicit: stable at any frame rate).
         const int steps = za::max(1, static_cast<int>(dt * 240.f + 0.5f));
         const float h = dt / static_cast<float>(steps);
         for(int i = 0; i < steps; i++)
         {
-            const glm::vec3 acc = -feel.sway * (swayStiffness * swayStiffness) - feel.swayRate * (2.f * swayDamping * swayStiffness);
-            feel.swayRate += acc * h;
-            feel.sway += feel.swayRate * h;
+            const glm::vec3 acc = -feel().sway * (swayStiffness * swayStiffness) - feel().swayRate * (2.f * swayDamping * swayStiffness);
+            feel().swayRate += acc * h;
+            feel().sway += feel().swayRate * h;
         }
         const float cap = maxSway * sway;
-        if(const float len = glm::length(feel.sway); len > 1e-4f)
+        if(const float len = glm::length(feel().sway); len > 1e-4f)
         {
-            feel.sway *= softCap(len, cap) / len;
+            feel().sway *= softCap(len, cap) / len;
         }
     }
     else
     {
-        feel.sway = feel.swayRate = glm::vec3{0.f};
+        feel().sway = feel().swayRate = glm::vec3{0.f};
     }
 
     // The walk's bob: its size eased with the speed on the ground, its cycle with the speed.
@@ -2053,13 +2097,13 @@ void stepFeel()
     // (Sliding: no walk, no bob, vr_flat_slide_bob of it: slideBobScale.)
     const float ampTarget =
         cl.onground && !noclip_anglehack ? za::clamp(speed / runSpeed, 0.f, 1.3f) * slideBobScale() : 0.f;
-    feel.amp += (ampTarget - feel.amp) * ease(bobEase, dt);
-    if(feel.amp > 1e-3f)
+    feel().amp += (ampTarget - feel().amp) * ease(bobEase, dt);
+    if(feel().amp > 1e-3f)
     {
-        feel.phase = za::remainder(feel.phase + dt * 2.f * glm::pi<float>() * bobRate * za::clamp(speed / runSpeed, 0.35f, 1.3f),
+        feel().phase = za::remainder(feel().phase + dt * 2.f * glm::pi<float>() * bobRate * za::clamp(speed / runSpeed, 0.35f, 1.3f),
             4.f * glm::pi<float>());
     }
-    feel.breath = za::remainder(feel.breath + dt * breathRate, 4.f * glm::pi<float>());
+    feel().breath = za::remainder(feel().breath + dt * breathRate, 4.f * glm::pi<float>());
 }
 
 // The walk's forward and back bob (vr_flat_bob_fwd, his words 2026-11-06): along the view's own forward (`camAngles`, its
@@ -2075,7 +2119,7 @@ void stepFeel()
     }
     const float ads = flatsight::poseShare(); // (a zoom-only gun stays in its pose: its walk bob too)
     const float share = 1.f + (za::clamp(vr_flat_ads_bob_fwd.value, 0.f, 1.f) - 1.f) * ads;
-    return axes(camAngles)[0] * (amount * bobFwd * share * feel.amp * -za::cos(2.f * feel.phase));
+    return axes(camAngles)[0] * (amount * bobFwd * share * feel().amp * -za::cos(2.f * feel().phase));
 }
 
 } // namespace
@@ -2167,24 +2211,24 @@ int jumpBit(int state)
     const bool fresh = (state & 2) != 0;
     if(!active() || vr_flat_prone_jump_stands.value == 0.f)
     {
-        keyState.jumpSwallow = false;
+        keyState().jumpSwallow = false;
         return (state & 3) != 0 ? 1 : 0;
     }
     if(fresh)
     {
-        keyState.jumpSwallow = false; // a new press
-        if(keyState.prone || keyState.proneRatio > 0.f)
+        keyState().jumpSwallow = false; // a new press
+        if(keyState().prone || keyState().proneRatio > 0.f)
         {
-            if(keyState.prone)
+            if(keyState().prone)
             {
                 getUp("jump while lying down");
             }
-            keyState.jumpSwallow = true;
+            keyState().jumpSwallow = true;
         }
     }
-    if(keyState.jumpSwallow)
+    if(keyState().jumpSwallow)
     {
-        keyState.jumpSwallow = held;
+        keyState().jumpSwallow = held;
         return 0;
     }
     return (state & 3) != 0 ? 1 : 0;
@@ -2220,7 +2264,7 @@ namespace
 {
 
 // The punch counts (fs.punches) at vr_flat_route_probe's last `start`: what punched since.
-int routeProbePunches[HAND_COUNT]{0, 0};
+int routeProbePunches[HAND_COUNT]{0, 0}; // seat-shared: a probe's own (vr_flat_route_probe)
 
 // vr_flat_route_probe [start]: the mouse's routing by what the hands hold now, into vr_flat_route_seen for a test to read
 // (QC vr_flatitems_test 10) and printed: bits 1 LMB fires the main hand, 2 LMB the off hand, 4 RMB the main hand, 8 RMB
@@ -2231,16 +2275,16 @@ void routeProbe_f()
 {
     if(Cmd_Argc() > 1 && q_strcasecmp(Cmd_Argv(1), "start") == 0)
     {
-        routeProbePunches[HAND_MAIN] = fs.punches[HAND_MAIN];
-        routeProbePunches[HAND_OFF] = fs.punches[HAND_OFF];
+        routeProbePunches[HAND_MAIN] = fs().punches[HAND_MAIN];
+        routeProbePunches[HAND_OFF] = fs().punches[HAND_OFF];
         return;
     }
     const FireRoute l = routeButtons(true, false);
     const FireRoute r = routeButtons(false, true);
     int bits = (l.fire[HAND_MAIN] ? 1 : 0) | (l.fire[HAND_OFF] ? 2 : 0) | (r.fire[HAND_MAIN] ? 4 : 0) |
                (r.fire[HAND_OFF] ? 8 : 0) | (r.rmbAims ? 16 : 0) | (flatsight::adsShare() > 0.f ? 32 : 0);
-    bits |= (fs.punches[HAND_MAIN] != routeProbePunches[HAND_MAIN] ? 64 : 0) |
-            (fs.punches[HAND_OFF] != routeProbePunches[HAND_OFF] ? 128 : 0);
+    bits |= (fs().punches[HAND_MAIN] != routeProbePunches[HAND_MAIN] ? 64 : 0) |
+            (fs().punches[HAND_OFF] != routeProbePunches[HAND_OFF] ? 128 : 0);
     Cvar_SetValueQuick(&vr_flat_route_seen, static_cast<float>(bits));
     Con_Printf("flatroute: %d (main weapon %d thing %d, off weapon %d thing %d; LMB main %d off %d, RMB main %d off %d, "
                "aims %d, ads %.2f, punched main %d off %d)\n",
@@ -2277,17 +2321,17 @@ bool swungMelee(int h)
 
 float parryShare(int h)
 {
-    return h >= 0 && h < HAND_COUNT ? geom::smooth01(fs.parry[h]) : 0.f;
+    return h >= 0 && h < HAND_COUNT ? geom::smooth01(fs().parry[h]) : 0.f;
 }
 
 float melee2HShare(int h)
 {
-    return active() && h >= 0 && h < HAND_COUNT ? geom::smooth01(fs.twoH[h]) : 0.f;
+    return active() && h >= 0 && h < HAND_COUNT ? geom::smooth01(fs().twoH[h]) : 0.f;
 }
 
 bool punching(int h)
 {
-    const double t = vr_gametime - fs.punchAt[h];
+    const double t = vr_gametime - fs().punchAt[h];
     return t >= 0.0 && t <= punchLen(h);
 }
 
@@ -2304,7 +2348,7 @@ float fistShare(int h)
     }
     // (Opened by E's grab as its palm turns out, and by a prop held up in it: flatfgrab.)
     const float open = za::max(flatfgrab::openShare(h), flatfgrab::carryShare(h));
-    return (punching(h) ? 1.f : za::clamp(fs.guard[h] * fs.hang[h], 0.f, 1.f)) * (1.f - open);
+    return (punching(h) ? 1.f : za::clamp(fs().guard[h] * fs().hang[h], 0.f, 1.f)) * (1.f - open);
 }
 
 glm::vec3 aimRotAt(const glm::vec3& angles, int h)
@@ -2316,22 +2360,22 @@ bool active()
 {
     // The flag, and no headset session: asked where it is needed rather than remembered, so that a system asked before
     // the first frame (a fresh start's flashlight) gives the same answer as one asked later.
-    return fs.flag && !vrActive();
+    return session.flag && !vrActive();
 }
 
 bool flagGiven()
 {
-    return fs.flag;
+    return session.flag;
 }
 
 void noteBackendImplied()
 {
     // One line, named by the flag that implied it (the same shape as the engine's COM_CheckParmImplied).
-    if(fs.backendNoted)
+    if(session.backendNoted)
     {
         return;
     }
-    fs.backendNoted = true;
+    session.backendNoted = true;
     Con_Printf("Command line: -flatscreenmode implies no VR backend: none is started (flatscreen play runs only while "
                "no headset session is up; start the game without the flag to play in a headset)\n");
 }
@@ -2344,14 +2388,14 @@ float crouchDrop()
 {
     // Lying down (vr_flat_key_prone) goes lower than the crouch: the deeper of the two.
     // A slide (vr_flatmove.cpp) takes him vr_flat_slide_drop lower than the crouch.
-    return active() ? za::max(keyState.ratio * za::clamp(vr_flat_crouch_drop.value, 0.f, 40.f), keyState.proneRatio * proneDrop()) +
+    return active() ? za::max(keyState().ratio * za::clamp(vr_flat_crouch_drop.value, 0.f, 40.f), keyState().proneRatio * proneDrop()) +
                           flatmove::slideDrop()
                     : 0.f;
 }
 
 float proneRatio()
 {
-    return active() ? keyState.proneRatio : 0.f;
+    return active() ? keyState().proneRatio : 0.f;
 }
 
 glm::vec3 lastViewOrigin()
@@ -2386,7 +2430,7 @@ glm::vec3 lastPelvis()
 
 glm::vec3 lastDrawnMainHand()
 {
-    return feel.drawnAt[HAND_MAIN];
+    return feel().drawnAt[HAND_MAIN];
 }
 
 int armHolds()
@@ -2397,13 +2441,18 @@ int armHolds()
 // Its eased share: 0 standing .. 1 fully crouched (vr_flatplay_status, the tests).
 float crouchRatio()
 {
-    return active() ? keyState.ratio : 0.f;
+    return active() ? keyState().ratio : 0.f;
 }
 
 bool crouchHeld()
 {
     // (Lying down asked for holds it too: the server's box follows his eyes down, and he lies once they are low.)
-    return active() && (keyState.keyCtrl || keyState.cmdHeld || keyState.prone);
+    return active() && (keyState().keyCtrl || keyState().cmdHeld || keyState().prone);
+}
+
+bool crouchCommand()
+{
+    return keyState().cmdHeld;
 }
 
 // The flatscreen look's window, in the plain game's pitch -- Quake's pitch is positive looking down, so looking up is
@@ -2435,7 +2484,7 @@ void keysForConfigWrite()
 
 void init()
 {
-    fs.flag = COM_CheckParm("-flatscreenmode") != 0 || ragtool::flagGiven(); // (-ragtool: the ragdoll tool, flat)
+    session.flag = COM_CheckParm("-flatscreenmode") != 0 || ragtool::flagGiven(); // (-ragtool: the ragdoll tool, flat)
     Cmd_AddCommand("vr_flatplay_status", status_f);
     Cmd_AddCommand("vr_flat_melee_2h_report", twoHandReport_f); // the two-handed stance's probe (tests)
     flatmove::init(); // the slide and the lean (vr_flatmove.cpp)
@@ -2492,9 +2541,9 @@ void frame()
         flatswap::probe(); // the swap's watch: the hands and the weapon as last drawn (vr_flatswap_vis_report)
     }
 
-    if(on && !fs.announced)
+    if(on && !session.announced)
     {
-        fs.announced = true;
+        session.announced = true;
         Con_Printf("Quake VR: flatscreen play (-flatscreenmode): the VR gameplay on the desktop screen. E grabs what you "
                    "look at, 1 and 2 cycle the weapons collected (and the empty hand) into the left and right hand, V punches, either "
                    "hand's fire button punches with a weapon a swing strikes with (with a gun it fires the gun, as in VR), Left Ctrl "
@@ -2503,11 +2552,11 @@ void frame()
                    "held the left mouse button fires it and the right one aims down its sights. vr_flatplay_status says what "
                    "the mode is doing.\n");
     }
-    if(!on && fs.wasOn)
+    if(!on && session.wasOn)
     {
         Con_Warning("Quake VR: a headset took the game back: flatscreen play is off.\n");
     }
-    fs.wasOn = on;
+    session.wasOn = on;
 
     // Left Ctrl, the crouch key that is also the plain game's fire key: while the mode runs it is the mode's bind
     // (+flatcrouch) unless vr_flat_crouch_fire asks Ctrl to keep firing. Given back the frame the mode is not running.
@@ -2522,15 +2571,15 @@ void frame()
 
     if(!on)
     {
-        fs.localSeen[0] = fs.localSeen[1] = false;
-        fs.mountSeen[0] = fs.mountSeen[1] = false;
-        fs.twoH[0] = fs.twoH[1] = 0.f;
-        fs.twoHWant[0] = fs.twoHWant[1] = false;
-        fs.twoHProbe.known = false;
-        fs.probeTime[0] = fs.probeTime[1] = -1e9;
-        fs.lastTime = -1e9;
-        feel = Feel{};
-        keyState = FlatKeys{}; // no crouch held, no key edges: a headset player crouches with his own head
+        fs().localSeen[0] = fs().localSeen[1] = false;
+        fs().mountSeen[0] = fs().mountSeen[1] = false;
+        fs().twoH[0] = fs().twoH[1] = 0.f;
+        fs().twoHWant[0] = fs().twoHWant[1] = false;
+        fs().twoHProbe.known = false;
+        fs().probeTime[0] = fs().probeTime[1] = -1e9;
+        fs().lastTime = -1e9;
+        feel() = Feel{};
+        keyState() = FlatKeys{}; // no crouch held, no key edges: a headset player crouches with his own head
         flatmove::frame(false);
         slidesound::frame(vr_slide.value != 0.f); // (a headset's slide, vr_slide: its scrape too)
         flatreload::frame(false);
@@ -2543,7 +2592,7 @@ void frame()
 
     if(frozen)
     {
-        keyState.lastTime = vr_gametime; // (the crouch's ease held where it was, not stepped a long frame on landing)
+        keyState().lastTime = vr_gametime; // (the crouch's ease held where it was, not stepped a long frame on landing)
         return;
     }
     pollKeys();
@@ -2588,9 +2637,9 @@ struct MeleeLean
         {
             continue;
         }
-        const double t = vr_gametime - fs.punchAt[h];
+        const double t = vr_gametime - fs().punchAt[h];
         const float side = h == HAND_OFF ? -1.f : 1.f;
-        if(fs.punchOverhead[h])
+        if(fs().punchOverhead[h])
         {
             // -1 at the windup's top, held, through 0 to 1 at the strike's end, held, back to 0.
             const SwingTimes w = swingTimes();
@@ -2626,7 +2675,7 @@ glm::vec3 meleeViewTilt()
 
 float trunkTwist()
 {
-    return active() && bodyPose() ? slideTurn.twist + meleeLean().twist : 0.f;
+    return active() && bodyPose() ? slideTurn().twist + meleeLean().twist : 0.f;
 }
 
 float proneNeckDrop()
@@ -2683,7 +2732,7 @@ bool drawnSkeleton(const hands::State& s, avatar::Skeleton& out)
 
 glm::vec3 levelHang(const hands::State& s, int h)
 {
-    if(!active() || !bodyPose() || fs.hang[h] <= 0.f || !fs.shouldersKnown)
+    if(!active() || !bodyPose() || fs().hang[h] <= 0.f || !fs().shouldersKnown)
     {
         return glm::vec3{0.f};
     }
@@ -2695,7 +2744,7 @@ glm::vec3 levelHang(const hands::State& s, int h)
     // (Without the stance: the stance follows from the choice, so it can't move what chooses. It did: a shotgun's cup chosen, the stance
     // brought the gun back, the grip ahead was nearer, a real grip took the stance off, the gun went out, the cup was nearer.)
     const glm::vec3 restHeld = targetOffset(held, reach, false, 0.f, 0.f);
-    const glm::vec3 apart = fs.shoulders[h] - fs.shoulders[held] + level * (restFree - restHeld);
+    const glm::vec3 apart = fs().shoulders[h] - fs().shoulders[held] + level * (restFree - restHeld);
     const glm::mat3 toGun = axes(s.rot[held]) * glm::transpose(level);
     return s.pos[held] + toGun * apart - s.pos[h];
 }
@@ -2976,10 +3025,10 @@ void handOffWall(hands::State& s, int h, const glm::vec3& root, float dt)
     const float len = glm::length(way);
     const bool mine = vr_flat_hand_collide.value != 0.f && vr_flat_gun_collide.value != 0.f && heldIn(h) < 0 &&
                       (acting || heldIn(1 - h) < 0) && len > 0.01f;
-    fs.wallDepth[h] = 0.f;
+    fs().wallDepth[h] = 0.f;
     if(!mine)
     {
-        fs.wallBack[h] = 0.f;
+        fs().wallBack[h] = 0.f;
         return;
     }
     // (A punch's margin may be negative: that far into the surface, its bite: stopped on it, the fist's blow line never
@@ -2989,8 +3038,8 @@ void handOffWall(hands::State& s, int h, const glm::vec3& root, float dt)
     const float bite = acting ? za::max(0.f, -punchMargin) : 0.f;
     const auto depthAt = [&](float t) { return handpose::pointWallDepth(s.head, s.pos[h] + way * t, margin); };
     float need = 0.f;
-    fs.wallDepth[h] = depthAt(0.f);
-    if(fs.wallDepth[h] > 0.f)
+    fs().wallDepth[h] = depthAt(0.f);
+    if(fs().wallDepth[h] > 0.f)
     {
         float lo = 0.f, hi = 1.f;
         if(depthAt(1.f) <= 0.f)
@@ -3004,21 +3053,21 @@ void handOffWall(hands::State& s, int h, const glm::vec3& root, float dt)
         need = za::max(0.f, hi * len - bite);
     }
     // (Back at once; out eased, from the pose's first making each frame: the move's and the view's remakes keep it.)
-    if(need >= fs.wallBack[h] || acting)
+    if(need >= fs().wallBack[h] || acting)
     {
-        fs.wallBack[h] = need;
+        fs().wallBack[h] = need;
     }
     else if(dt > 0.f)
     {
-        fs.wallBack[h] += (need - fs.wallBack[h]) * ease(handBackOut, dt);
+        fs().wallBack[h] += (need - fs().wallBack[h]) * ease(handBackOut, dt);
     }
-    s.pos[h] += way * (za::min(fs.wallBack[h], len) / len);
+    s.pos[h] += way * (za::min(fs().wallBack[h], len) / len);
     // The tests' probe (vr_flatplay_debug 2): how deep the pose had the hand (its margin in), how far back it went, and how
     // deep its point is now (0: clear of the surface; its margin not counted), each frame it met a wall.
-    if(vr_flatplay_debug.value >= 2 && dt > 0.f && (fs.wallDepth[h] > 0.f || fs.wallBack[h] > 0.f))
+    if(vr_flatplay_debug.value >= 2 && dt > 0.f && (fs().wallDepth[h] > 0.f || fs().wallBack[h] > 0.f))
     {
         Con_Printf("flatwall: %s hand t %.3f %s in %.2f back %.2f now %.2f\n", h == HAND_MAIN ? "main" : "off", vr_gametime,
-            punching(h) ? "punch" : shoving(h) ? "shove" : "rest", fs.wallDepth[h], fs.wallBack[h],
+            punching(h) ? "punch" : shoving(h) ? "shove" : "rest", fs().wallDepth[h], fs().wallBack[h],
             handpose::pointWallDepth(s.head, s.pos[h], 0.f));
     }
 }
@@ -3077,7 +3126,7 @@ struct MeleeProbe
     bool overlap[2]{false, false};
     int lines{0};
 };
-MeleeProbe meleeProbe;
+MeleeProbe meleeProbe; // seat-shared: a probe's own (vr_flat_melee_probe: one at a time)
 
 void probeMelee(const hands::State& s, const glm::vec3& aim, const glm::vec3& eye, const glm::vec3& viewUp)
 {
@@ -3126,10 +3175,10 @@ void probeMelee(const hands::State& s, const glm::vec3& aim, const glm::vec3& ey
             // vr_flat_swing_end_down, and the fist's keeps near its own height.)
             if(!p.shove[h] && punching(h))
             {
-                const double t = vr_gametime - fs.punchAt[h];
+                const double t = vr_gametime - fs().punchAt[h];
                 const SwingTimes w = swingTimes();
-                const double from = fs.punchOverhead[h] ? w.wind + w.top + w.strike : punchWind + punchStrike;
-                const double to = from + (fs.punchOverhead[h] ? w.dwell : punchDwell);
+                const double from = fs().punchOverhead[h] ? w.wind + w.top + w.strike : punchWind + punchStrike;
+                const double to = from + (fs().punchOverhead[h] ? w.dwell : punchDwell);
                 if(t >= from && t <= to)
                 {
                     glm::vec3 d = s.pos[h] - org;
@@ -3149,7 +3198,7 @@ void probeMelee(const hands::State& s, const glm::vec3& aim, const glm::vec3& ey
             p.lines++;
             // (Short: a console line wraps past its width, and the tests read it whole.)
             Con_Printf("flatmelee: %s %s: n %d eye %.1f up %.0f dn %.0f palm %.2f fing %.2f vp %.2f %.2f roll %.2f both %d off %.1f\n",
-                h == HAND_MAIN ? "main" : "off", p.shove[h] ? (fs.shoveBoth ? "shove both" : "shove") : fs.punchOverhead[h] ? "swing" : "punch",
+                h == HAND_MAIN ? "main" : "off", p.shove[h] ? (fs().shoveBoth ? "shove both" : "shove") : fs().punchOverhead[h] ? "swing" : "punch",
                 p.frames[h], static_cast<double>(p.overEye[h]), static_cast<double>(p.up[h]), static_cast<double>(p.down[h]),
                 static_cast<double>(p.palm[h]), static_cast<double>(p.fingers[h]), static_cast<double>(p.pitchLo[h]),
                 static_cast<double>(p.pitchHi[h]), static_cast<double>(p.roll[h]), p.overlap[h] ? 1 : 0, static_cast<double>(p.off[h]));
@@ -3190,39 +3239,39 @@ void smoothShove(hands::State& s, const glm::vec3& aim)
         const glm::vec3 d = p - s.head;
         return glm::vec3{glm::dot(d, f), glm::dot(d, r), glm::dot(d, u)};
     };
-    const bool newFrame = fs.smoothAt != vr_gametime;
+    const bool newFrame = fs().smoothAt != vr_gametime;
     if(newFrame)
     {
-        fs.smoothDt = za::clamp(static_cast<float>(vr_gametime - fs.smoothAt), 0.f, 0.1f);
-        fs.smoothAt = vr_gametime;
-        fs.smoothFrom[0] = fs.smoothOut[0];
-        fs.smoothFrom[1] = fs.smoothOut[1];
-        fs.smoothVelFrom[0] = fs.smoothVel[0];
-        fs.smoothVelFrom[1] = fs.smoothVel[1];
+        fs().smoothDt = za::clamp(static_cast<float>(vr_gametime - fs().smoothAt), 0.f, 0.1f);
+        fs().smoothAt = vr_gametime;
+        fs().smoothFrom[0] = fs().smoothOut[0];
+        fs().smoothFrom[1] = fs().smoothOut[1];
+        fs().smoothVelFrom[0] = fs().smoothVel[0];
+        fs().smoothVelFrom[1] = fs().smoothVel[1];
     }
     for(int h = 0; h < HAND_COUNT; h++)
     {
         const glm::vec3 target = toLocal(s.pos[h]);
-        if(T <= 0.f || !(shoving(h) || fs.smoothOn[h]))
+        if(T <= 0.f || !(shoving(h) || fs().smoothOn[h]))
         {
-            fs.smoothOut[h] = target;
-            fs.smoothVel[h] = glm::vec3{0.f};
-            fs.smoothOn[h] = false;
+            fs().smoothOut[h] = target;
+            fs().smoothVel[h] = glm::vec3{0.f};
+            fs().smoothOn[h] = false;
             continue;
         }
         // A critically damped follow (the hand's speed eased as well as its place: a plain exponential one still took the
         // push's whole speed at once), stable at any frame time: 95% of a step in T, its own time 2.37 times less.
         const float omega = 2.f / (T / 2.37f);
-        const float x = omega * fs.smoothDt;
+        const float x = omega * fs().smoothDt;
         const float decay = 1.f / (1.f + x + 0.48f * x * x + 0.235f * x * x * x);
-        const glm::vec3 change = fs.smoothFrom[h] - target;
-        const glm::vec3 temp = (fs.smoothVelFrom[h] + omega * change) * fs.smoothDt;
-        fs.smoothVel[h] = (fs.smoothVelFrom[h] - omega * temp) * decay;
+        const glm::vec3 change = fs().smoothFrom[h] - target;
+        const glm::vec3 temp = (fs().smoothVelFrom[h] + omega * change) * fs().smoothDt;
+        fs().smoothVel[h] = (fs().smoothVelFrom[h] - omega * temp) * decay;
         const glm::vec3 out = target + (change + temp) * decay;
-        fs.smoothOut[h] = out;
+        fs().smoothOut[h] = out;
         if(newFrame)
         {
-            fs.smoothOn[h] = shoving(h) || glm::distance(out, target) > 0.05f || glm::length(fs.smoothVel[h]) > 1.f;
+            fs().smoothOn[h] = shoving(h) || glm::distance(out, target) > 0.05f || glm::length(fs().smoothVel[h]) > 1.f;
         }
         s.pos[h] = s.head + f * out.x + r * out.y + u * out.z;
     }
@@ -3232,15 +3281,15 @@ void poseHands(hands::State& s, const glm::vec3& aim)
 {
     // Made at the frame's start, again for the move and again for the view (hands::relatch): the same frame's poses
     // differ only by the view's turn and the player's move since. The easing steps once a frame.
-    double dt = fs.lastTime > -1e8 ? vr_gametime - fs.lastTime : 0.0;
-    fs.lastTime = vr_gametime;
+    double dt = fs().lastTime > -1e8 ? vr_gametime - fs().lastTime : 0.0;
+    fs().lastTime = vr_gametime;
     dt = za::clamp(dt, 0.0, 0.1);
 
     // The flat branch turns the body to the view the same way; a long gun's stance turns it off the view (the view stays).
     // Sliding (vr_flatmove.cpp; his words 2026-11-08): no stance turn (the leant-back trunk turned off the view bent the
     // legs), eased out over vr_flat_slide_turn_time; and with vr_flat_slide_legs the hips and legs face the slide's way,
     // the chest turned back to the view (trunkTwist), at most vr_flat_slide_legs_twist off it.
-    s.bodyYaw = slide::legsTurnStep(slideTurn, flatmove::slidePose(), vr_flat_slide_legs.value != 0.f, aim.y,
+    s.bodyYaw = slide::legsTurnStep(slideTurn(), flatmove::slidePose(), vr_flat_slide_legs.value != 0.f, aim.y,
         flatsight::stanceYaw(), glm::vec2{cl.velocity[0], cl.velocity[1]}, dt);
 
     const float reach = za::clamp(vr_flat_reach.value, 0.25f, 3.f);
@@ -3259,7 +3308,7 @@ void poseHands(hands::State& s, const glm::vec3& aim)
     // at the slide's lower eye instead, the crouched trunk tilts further forward: the guns 3 higher and 4 further out.)
     // (Whenever the body has any of the slide in it: easing out after the slide too.)
     const bool unslide = onBody && vr_flat_slide_arms.value != 0.f && avatar::slideIn();
-    const float slid = unslide ? geom::smooth01(slideTurn.lin) : 0.f;
+    const float slid = unslide ? geom::smooth01(slideTurn().lin) : 0.f;
     if(unslide && !rig.on)
     {
         rig.on = true;
@@ -3289,7 +3338,7 @@ void poseHands(hands::State& s, const glm::vec3& aim)
     avatar::SlideOff slideOff(unslide); // (to the hands' loop's end: slideOff.end())
 
     // The arms' joints as the body stands this frame: the chest's share and the crouch in them, the stance's turn just made.
-    fs.shouldersKnown = onBody;
+    fs().shouldersKnown = onBody;
     glm::vec3 roots[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // upright
     if(onBody)
     {
@@ -3301,11 +3350,11 @@ void poseHands(hands::State& s, const glm::vec3& aim)
         for(int h = 0; h < HAND_COUNT; h++)
         {
             roots[h].z += lift;
-            fs.shoulders[h] = rig(roots[h]);
+            fs().shoulders[h] = rig(roots[h]);
         }
     }
-    fs.levelShouldersKnown = onBody && flatswap::busy();
-    if(fs.levelShouldersKnown)
+    fs().levelShouldersKnown = onBody && flatswap::busy();
+    if(fs().levelShouldersKnown)
     {
         // (The hand swap's guard plays the same against the view at any pitch: off the shoulders of a level look.)
         hands::State levelLook = upright;
@@ -3316,7 +3365,7 @@ void poseHands(hands::State& s, const glm::vec3& aim)
         for(int h = 0; h < HAND_COUNT; h++)
         {
             levelRoots[h].z += lift;
-            fs.levelShoulders[h] = rig(levelRoots[h]);
+            fs().levelShoulders[h] = rig(levelRoots[h]);
         }
     }
 
@@ -3333,7 +3382,7 @@ void poseHands(hands::State& s, const glm::vec3& aim)
 
     const bool mainHolds = heldIn(HAND_MAIN) >= 0;
     const bool offHolds = heldIn(HAND_OFF) >= 0;
-    fs.dualT += ((mainHolds && offHolds ? 1.f : 0.f) - fs.dualT) * (dt > 0.0 ? ease(handEase, static_cast<float>(dt)) : 0.f);
+    fs().dualT += ((mainHolds && offHolds ? 1.f : 0.f) - fs().dualT) * (dt > 0.0 ? ease(handEase, static_cast<float>(dt)) : 0.f);
 
     // The eye's nudge (vr_flat_cam_*) carries the hands: the drawn hands stay where they are on the screen, and these are
     // the drawn hands, so the muzzle the shots go from is the one he sees, and it stands where the crosshair's ray is read.
@@ -3351,14 +3400,14 @@ void poseHands(hands::State& s, const glm::vec3& aim)
         // turn's lag) are the drawn hands' only (drawnOffset): the game's hands, and the shots, stay on the crosshair.
         // (E's grab poses its hand over all of this: flatfgrab::apply below.)
         const glm::vec3 rest = targetOffset(h, reach, h == HAND_OFF ? mainHolds : offHolds, aim.x);
-        if(!fs.localSeen[h])
+        if(!fs().localSeen[h])
         {
-            fs.local[h] = rest;
-            fs.localSeen[h] = true;
+            fs().local[h] = rest;
+            fs().localSeen[h] = true;
         }
         else if(dt > 0.0)
         {
-            fs.local[h] += (rest - fs.local[h]) * ease(handEase, static_cast<float>(dt));
+            fs().local[h] += (rest - fs().local[h]) * ease(handEase, static_cast<float>(dt));
         }
         // The punch is not eased. Its own phases (chambered, thrown, drawn back) are its motion, and the game's melee
         // rules ask the striking hand for vr_melee_speed (3.2 m/s, a weapon's swing 1.25 times that, twice that for a
@@ -3372,8 +3421,8 @@ void poseHands(hands::State& s, const glm::vec3& aim)
         // (A weapon's overhead swing: not its windup, unless vr_flat_swing_wind_strikes. The raise went up through a knight
         // 20 to 26 units ahead and landed a weak blow there, x0.5 to x0.8, which knocked it out of the strike's way: the
         // raised-behind-the-head swing then did 11 to 24 damage, not 70, 2026-11-11.)
-        if(punching(h) && fs.punchOverhead[h] && vr_flat_swing_wind_strikes.value == 0.f &&
-           vr_gametime - fs.punchAt[h] < static_cast<double>(swingTimes().wind))
+        if(punching(h) && fs().punchOverhead[h] && vr_flat_swing_wind_strikes.value == 0.f &&
+           vr_gametime - fs().punchAt[h] < static_cast<double>(swingTimes().wind))
         {
             handsource::mark(h, handsource::Source::Synthesized, "swing windup");
         }
@@ -3401,7 +3450,7 @@ void poseHands(hands::State& s, const glm::vec3& aim)
                                                         armSpan()
                                                   : restOld;
         const glm::vec3 swing = punchSwing(h, punchRest, target) - punchRest + shoveOffset(h, target - restOld);
-        const glm::vec3 off = onBody ? fs.local[h] + swing : fs.local[h] - fromAnchor + swing;
+        const glm::vec3 off = onBody ? fs().local[h] + swing : fs().local[h] - fromAnchor + swing;
         if(onBody)
         {
             const glm::vec3 gunView = heldIn(h) < 0 ? glm::vec3{0.f}
@@ -3410,7 +3459,7 @@ void poseHands(hands::State& s, const glm::vec3& aim)
                                                           viewUp * za::clamp(vr_flat_gun_view_up.value, -poseTweakMax, poseTweakMax);
             // (The nudge and the gun's own view offsets carry the hand after the body's limits: the stock's is measured with them.
             // Leaning, posed upright and turned with the body; a punch's or a shove's swing after it, on the crosshair's point.)
-            s.pos[h] = rig(handOnBody(upright, roots, h, aim, fs.local[h], eye - rig.shift, nudge + gunView) + nudge + gunView) +
+            s.pos[h] = rig(handOnBody(upright, roots, h, aim, fs().local[h], eye - rig.shift, nudge + gunView) + nudge + gunView) +
                        fwd * swing.x + right * swing.y + up * swing.z;
         }
         else
@@ -3448,7 +3497,7 @@ void poseHands(hands::State& s, const glm::vec3& aim)
         twoHandParryPose(s, h, fwd, right, up);
         // Up (half way in and still asked for): the server parries any melee blow from in front with it, whatever its way
         // (QC VR_Parry_FlatGuard, vr_flat_parry_cone; his notes 2026-11-10: the directional parry is the headset's).
-        if(fs.parryWant[h] && meleeIn(h) && parryShare(h) >= 0.5f)
+        if(fs().parryWant[h] && meleeIn(h) && parryShare(h) >= 0.5f)
         {
             handsource::guarding(h);
         }
@@ -3456,7 +3505,7 @@ void poseHands(hands::State& s, const glm::vec3& aim)
         // A weapon's overhead swing (vr_flat_swing): its own way round the shoulder from where the hand is posed, the
         // weapon turned up over the head and down through the strike (overheadSwing). (A prop's in the fist: below, from
         // the guard it is held in, which stays its rest all through.)
-        const bool overhead = fs.punchOverhead[h] && punching(h);
+        const bool overhead = fs().punchOverhead[h] && punching(h);
         const bool propSwing = overhead && heldIn(h) < 0;
         const auto swingOverhead = [&] {
             glm::vec3 turn{0.f};
@@ -3482,16 +3531,16 @@ void poseHands(hands::State& s, const glm::vec3& aim)
         const float takeTime = poseNum(vr_flat_empty_take_time);
         if(heldIn(h) >= 0 && (restPose < 0 || takeTime <= 0.f))
         {
-            fs.hang[h] = 0.f; // (a weapon's shots go along the crosshair from the frame it is taken)
+            fs().hang[h] = 0.f; // (a weapon's shots go along the crosshair from the frame it is taken)
         }
         else if(dt > 0.0)
         {
             // (A weapon taken comes up out of the rest over vr_flat_empty_take_time: 95% of the way in that time.)
             const float k = heldIn(h) >= 0 ? 3.f / takeTime : handEase;
-            fs.hang[h] += ((hangs ? 1.f : 0.f) - fs.hang[h]) * ease(k, static_cast<float>(dt));
-            if(heldIn(h) < 0 || fs.hang[h] < 0.01f)
+            fs().hang[h] += ((hangs ? 1.f : 0.f) - fs().hang[h]) * ease(k, static_cast<float>(dt));
+            if(heldIn(h) < 0 || fs().hang[h] < 0.01f)
             {
-                fs.guard[h] += ((guardWanted ? 1.f : 0.f) - fs.guard[h]) * ease(handEase, static_cast<float>(dt));
+                fs().guard[h] += ((guardWanted ? 1.f : 0.f) - fs().guard[h]) * ease(handEase, static_cast<float>(dt));
             }
             if(flatswap::easesIntoPoses())
             {
@@ -3499,18 +3548,18 @@ void poseHands(hands::State& s, const glm::vec3& aim)
                 // prop or a weapon is in its new pose at once, which the swap eases it into. Eased here as well, the
                 // pose went down through the relaxed rest and back up on the way, a brick out of sight under the view:
                 // vr_flatswap_test 15; and the two-handed kind's attach, the axe out of sight: vr_flatswap_test 3.)
-                fs.hang[h] = heldIn(h) >= 0 ? 0.f : hangs ? 1.f : 0.f;
+                fs().hang[h] = heldIn(h) >= 0 ? 0.f : hangs ? 1.f : 0.f;
                 if(heldIn(h) < 0)
                 {
-                    fs.guard[h] = guardWanted ? 1.f : 0.f;
+                    fs().guard[h] = guardWanted ? 1.f : 0.f;
                 }
             }
-            if(fs.hang[h] < 0.01f && heldIn(h) >= 0)
+            if(fs().hang[h] < 0.01f && heldIn(h) >= 0)
             {
-                fs.hang[h] = 0.f;
+                fs().hang[h] = 0.f;
             }
         }
-        if(fs.hang[h] > 0.f)
+        if(fs().hang[h] > 0.f)
         {
             glm::vec3 levelFwd, levelRight, levelUp;
             hands::angleVectors({0.f, aim.y, 0.f}, levelFwd, levelRight, levelUp);
@@ -3519,7 +3568,7 @@ void poseHands(hands::State& s, const glm::vec3& aim)
             if(restPose >= 0 || propFist)
             {
                 // (Shares of the arm's reach off the shoulder, level with the body; the punch's or shove's swing on top.)
-                const float span = armSpan(), g = fs.guard[h];
+                const float span = armSpan(), g = fs().guard[h];
                 const auto mixed = [g](const Tunable& relaxed, const Tunable& guard) {
                     return poseNum(relaxed) + (poseNum(guard) - poseNum(relaxed)) * g;
                 };
@@ -3531,9 +3580,9 @@ void poseHands(hands::State& s, const glm::vec3& aim)
                 rollTo = sideOf * mixed(vr_flat_relaxed_roll, vr_flat_guard_roll);
             }
             const glm::vec3 level = shoulder(s, h) + nudge + levelFwd * at.x + levelRight * at.y + levelUp * at.z;
-            s.pos[h] += (level - s.pos[h]) * fs.hang[h];
-            s.rot[h].x += (pitchTo - s.rot[h].x) * fs.hang[h];
-            s.rot[h].z += (rollTo - s.rot[h].z) * fs.hang[h];
+            s.pos[h] += (level - s.pos[h]) * fs().hang[h];
+            s.rot[h].x += (pitchTo - s.rot[h].x) * fs().hang[h];
+            s.rot[h].z += (rollTo - s.rot[h].z) * fs().hang[h];
         }
         if(propSwing)
         {
@@ -3589,7 +3638,7 @@ void poseHands(hands::State& s, const glm::vec3& aim)
         const float speed = glm::length(glm::vec2{cl.velocity[0], cl.velocity[1]});
         Con_Printf("flatplay: aim %.1f %.1f speed %.0f punch off %s main %s grab %d hands: off (%.1f, %.1f, %.1f) "
                    "main (%.1f, %.1f, %.1f) from the head\n",
-            aim.x, aim.y, speed, punching(HAND_OFF) ? "running" : "no", punching(HAND_MAIN) ? "running" : "no", fs.grabs,
+            aim.x, aim.y, speed, punching(HAND_OFF) ? "running" : "no", punching(HAND_MAIN) ? "running" : "no", fs().grabs,
             a.x, a.y, a.z, b.x, b.y, b.z);
     }
 }
@@ -3626,16 +3675,16 @@ void probeArm(const hands::State& s, int h, const glm::vec3& drawn, const glm::v
     // the arm itself was 0.00 units short of the hand (measured 2026-11-03). A fresh mount reads 0 where it should.
     if(glm::distance(joint, drawn) + 1.f < span)
     {
-        fs.armMount[h] = glm::transpose(handAxes) * (f.point - drawn); // the arm's wrist, in the hand's own frame
-        fs.mountSeen[h] = true;
+        fs().armMount[h] = glm::transpose(handAxes) * (f.point - drawn); // the arm's wrist, in the hand's own frame
+        fs().mountSeen[h] = true;
     }
     const float d = glm::distance(joint, drawn);
-    const float gap = fs.mountSeen[h] ? glm::distance(f.point, drawn + handAxes * fs.armMount[h]) : -1.f;
+    const float gap = fs().mountSeen[h] ? glm::distance(f.point, drawn + handAxes * fs().armMount[h]) : -1.f;
     const float bend = glm::degrees(za::acos(za::clamp(glm::dot(f.axes[0], hands::forward(drawnRot)), -1.f, 1.f)));
-    const double dt = vr_gametime - fs.probeTime[h];
-    fs.probeTime[h] = vr_gametime;
-    const float speed = dt > 0.0 ? glm::distance(drawn, fs.lastDrawn[h]) / static_cast<float>(dt) : 0.f;
-    fs.lastDrawn[h] = drawn;
+    const double dt = vr_gametime - fs().probeTime[h];
+    fs().probeTime[h] = vr_gametime;
+    const float speed = dt > 0.0 ? glm::distance(drawn, fs().lastDrawn[h]) / static_cast<float>(dt) : 0.f;
+    fs().lastDrawn[h] = drawn;
     Con_Printf("flatarm: hand %s t %.4f punch %d off-wrist %.2f u (%.0f mm) past its arm %.2f u arm %.2f shoulder to "
                "hand %.2f ik %.2f speed %.0f bend %.0f pitch %.1f\n",
         h == HAND_MAIN ? "main" : "off", vr_gametime, punching(h) ? 1 : 0, gap, gap * 1000.f / m2w,
@@ -3645,15 +3694,15 @@ void probeArm(const hands::State& s, int h, const glm::vec3& drawn, const glm::v
 glm::mat3 drawnWallTurn(int h, glm::vec3& shift)
 {
     const bool on = active() && h >= 0 && h < 2;
-    shift = on ? feel.wallShift[h] : glm::vec3{0.f};
-    return on ? feel.wallTurn[h] : glm::mat3{1.f};
+    shift = on ? feel().wallShift[h] : glm::vec3{0.f};
+    return on ? feel().wallTurn[h] : glm::mat3{1.f};
 }
 
 void drawnOffset(const hands::State& s, int h, glm::vec3& pos, glm::vec3& angles)
 {
     pos = angles = glm::vec3{0.f};
-    feel.wallTurn[h] = glm::mat3{1.f};
-    feel.wallShift[h] = glm::vec3{0.f};
+    feel().wallTurn[h] = glm::mat3{1.f};
+    feel().wallShift[h] = glm::vec3{0.f};
     if(!active() || !s.valid)
     {
         return;
@@ -3689,7 +3738,7 @@ void drawnOffset(const hands::State& s, int h, glm::vec3& pos, glm::vec3& angles
     const float onSight = flatsight::drawnSight(h, sightHand, sightTurn);
     const float looks = 1.f - onSight;
 
-    const glm::vec2 lag{softCap(feel.lag.x * lagShown * lagAmount, lagCap) * looks, softCap(feel.lag.y * lagShown * lagAmount, lagCap) * looks};
+    const glm::vec2 lag{softCap(feel().lag.x * lagShown * lagAmount, lagCap) * looks, softCap(feel().lag.y * lagShown * lagAmount, lagCap) * looks};
 
     // (Leaning, the pose is already turned with the body and its guns rolled (poseHands' leanRig): the view's lean roll is the pose's
     // own, not a turn of the drawn hands round the eye on top of it.)
@@ -3700,14 +3749,14 @@ void drawnOffset(const hands::State& s, int h, glm::vec3& pos, glm::vec3& angles
 
     // The step's sway and the walk's bob, in the view's frame.
     const float bob = za::clamp(vr_flat_bob.value, 0.f, 3.f);
-    const float rest = 1.f - za::clamp(feel.amp, 0.f, 1.f);
-    const glm::vec3 walkBob{0.f, bob * bobSide * feel.amp * za::sin(feel.phase), bob * bobUp * feel.amp * (za::cos(2.f * feel.phase) - 1.f) * 0.5f};
-    const glm::vec3 breath{0.f, bob * breathSide * rest * za::sin(feel.breath * 0.5f), bob * breathUp * rest * za::sin(feel.breath)};
-    const glm::vec3 local = (feel.sway + walkBob + breath) * looks;
+    const float rest = 1.f - za::clamp(feel().amp, 0.f, 1.f);
+    const glm::vec3 walkBob{0.f, bob * bobSide * feel().amp * za::sin(feel().phase), bob * bobUp * feel().amp * (za::cos(2.f * feel().phase) - 1.f) * 0.5f};
+    const glm::vec3 breath{0.f, bob * breathSide * rest * za::sin(feel().breath * 0.5f), bob * breathUp * rest * za::sin(feel().breath)};
+    const glm::vec3 local = (feel().sway + walkBob + breath) * looks;
     // In the ironsight the sway and the walk's bob are kept at vr_flat_ads_sway / vr_flat_ads_bob of themselves (no breathing: at rest
     // the sights stay exact).
     const glm::vec3 adsLocal =
-        feel.sway * za::clamp(vr_flat_ads_sway.value, 0.f, 1.f) + walkBob * za::clamp(vr_flat_ads_bob.value, 0.f, 1.f);
+        feel().sway * za::clamp(vr_flat_ads_sway.value, 0.f, 1.f) + walkBob * za::clamp(vr_flat_ads_bob.value, 0.f, 1.f);
 
     glm::vec3 drawn = to + turn * (s.pos[h] - from) + camAxes * local;
 
@@ -3742,37 +3791,37 @@ void drawnOffset(const hands::State& s, int h, glm::vec3& pos, glm::vec3& angles
     drawn += (view + forwardBob + camAxes * (sightHand + adsLocal) - drawn) * onSight;
 
     pos = drawn - s.pos[h];
-    feel.drawnAt[h] = drawn;
+    feel().drawnAt[h] = drawn;
 
     // The hand's turn in the view's frame (the pose's: onto what the crosshair is on), eased as gunTurnEase says.
     const glm::quat gunTurn = glm::quat_cast(glm::transpose(poseAxes) * axes(s.rot[h]));
-    if(!feel.gunTurnSeen[h])
+    if(!feel().gunTurnSeen[h])
     {
-        feel.gunTurn[h] = gunTurn;
-        feel.gunTurnSeen[h] = true;
+        feel().gunTurn[h] = gunTurn;
+        feel().gunTurnSeen[h] = true;
     }
-    else if(feel.gunTurnAt[h] != feel.lastTime)
+    else if(feel().gunTurnAt[h] != feel().lastTime)
     {
-        feel.gunTurn[h] = glm::slerp(feel.gunTurn[h], gunTurn, ease(gunTurnEase, feel.dt));
+        feel().gunTurn[h] = glm::slerp(feel().gunTurn[h], gunTurn, ease(gunTurnEase, feel().dt));
     }
-    feel.gunTurnAt[h] = feel.lastTime;
-    const glm::quat drawnTurn = onSight > 0.f ? glm::slerp(feel.gunTurn[h], glm::quat_cast(sightTurn), onSight) : feel.gunTurn[h];
+    feel().gunTurnAt[h] = feel().lastTime;
+    const glm::quat drawnTurn = onSight > 0.f ? glm::slerp(feel().gunTurn[h], glm::quat_cast(sightTurn), onSight) : feel().gunTurn[h];
     // At a wall the way back couldn't clear, the muzzle tilted up round the hand (flatsight::wallTilt): drawn only.
     glm::vec3 tiltPivot{0.f};
     const float tilt = flatsight::wallTilt(h, &tiltPivot);
     const glm::mat3 wallTurn = flatsight::wallTurn(h, drawnAxes);
-    feel.wallTurn[h] = wallTurn;
+    feel().wallTurn[h] = wallTurn;
     if(tilt != 0.f)
     {
         const glm::vec3 pivot = drawnAxes * tiltPivot;
         // (Sighted, the tilted gun comes down off the eye too, by vr_flat_wall_tilt_drop, all of it by wallDropFull's tilt:
         // tilted on the sight line, its underside filled the screen.)
         const float drop = za::clamp(vr_flat_wall_tilt_drop.value, 0.f, 20.f) * onSight * geom::smooth01(za::clamp(tilt / wallDropFull, 0.f, 1.f));
-        feel.wallShift[h] = pivot - wallTurn * pivot - drawnAxes[2] * drop;
-        pos += feel.wallShift[h];
+        feel().wallShift[h] = pivot - wallTurn * pivot - drawnAxes[2] * drop;
+        pos += feel().wallShift[h];
     }
     // Dual wielding lying down, the drawn gun's own turn in its hand (vr_flat_dual_prone_*_pitch / _yaw / _roll): drawn only.
-    const float dualShare = heldIn(h) >= 0 ? proneShare() * fs.dualT : 0.f;
+    const float dualShare = heldIn(h) >= 0 ? proneShare() * fs().dualT : 0.f;
     const glm::mat3 dualTurn = dualShare > 0.f ? axes(dualProneTurn(h) * dualShare) : glm::mat3{1.f};
     const glm::mat3 handAxes = wallTurn * drawnAxes * glm::mat3_cast(drawnTurn) * dualTurn;
     const glm::vec3 drawnRot = hands::anglesFromVectors(handAxes[0], handAxes[2]);
@@ -3780,10 +3829,10 @@ void drawnOffset(const hands::State& s, int h, glm::vec3& pos, glm::vec3& angles
     {
         angles[i] = za::remainder(drawnRot[i] - s.rot[h][i], 360.f);
     }
-    angles.x += looks * bob * breathPitch * rest * za::sin(feel.breath);
+    angles.x += looks * bob * breathPitch * rest * za::sin(feel().breath);
     const float bobTurn = looks + onSight * za::clamp(vr_flat_ads_bob.value, 0.f, 1.f);
-    angles.y += bobTurn * bob * bobYaw * feel.amp * za::sin(feel.phase);
-    angles.z += bobTurn * bob * bobRoll * feel.amp * za::sin(feel.phase);
+    angles.y += bobTurn * bob * bobYaw * feel().amp * za::sin(feel().phase);
+    angles.z += bobTurn * bob * bobRoll * feel().amp * za::sin(feel().phase);
 
     probeArm(s, h, drawn, drawnRot);
 }
@@ -3802,7 +3851,7 @@ void crosshairRay(const hands::State& s, const glm::vec3& aim, glm::vec3& org, g
 
 glm::vec3 drawnHand(int h)
 {
-    return feel.drawnAt[h];
+    return feel().drawnAt[h];
 }
 
 float gunRoll(int h)
@@ -3823,7 +3872,7 @@ glm::vec3 shoulderOf(const hands::State& s, int h)
 
 glm::vec3 levelShoulderOf(const hands::State& s, int h)
 {
-    return bodyPose() && fs.shouldersKnown && fs.levelShouldersKnown ? fs.levelShoulders[h] : shoulder(s, h);
+    return bodyPose() && fs().shouldersKnown && fs().levelShouldersKnown ? fs().levelShoulders[h] : shoulder(s, h);
 }
 
 float armReach()
@@ -3869,7 +3918,7 @@ glm::vec3 eyeNudge(const glm::vec3& aim)
     return camShiftWorld(aim);
 }
 
-Orbit orbit;
+Orbit orbit; // seat-shared: a tool's camera (vr_flat_orbit: one at a time)
 
 // vr_flat_orbit [yaw] [distance] [down]: the drawn view off him, looking back at his pose. No arguments: back in his eyes.
 void orbit_f()
@@ -3912,7 +3961,7 @@ void printDrawn(const float* origin, const float* angles)
                "ground %d lag %.2f\n",
         vr_gametime, glm::dot(d, f), glm::dot(d, r), glm::dot(d, u), za::remainder(rel.y, 360.f), -rel.x,
         za::remainder(rel.z, 360.f), camAngles.x, camAngles.y, glm::length(glm::vec2{cl.velocity[0], cl.velocity[1]}),
-        feel.amp, cl.onground ? 1 : 0, feel.lag.y);
+        feel().amp, cl.onground ? 1 : 0, feel().lag.y);
     // The camera this frame is drawn from, and the player it is drawn for: the eye's place and the eye's own nudges
     // (vr_flat_cam_fwd forward, vr_flat_cam_side the view's right, vr_flat_cam_up), against the origin he really stands
     // at -- which these do not touch (his box and his server-side position are measured from there: vr_hull.cpp,
@@ -3929,7 +3978,7 @@ struct ModelFovBatches
 {
     long long drawn{0};
     long long inEye{0};
-} modelFovBatches;
+} modelFovBatches; // seat-shared: the render's counters (phase 7's)
 
 // The model FOV's numbers, and each part's distance from the eye as posed: what vr_flat_model_fov_near and _far are set from.
 void modelFovStatus()
@@ -3960,9 +4009,9 @@ void modelFovStatus()
 
 void status_f()
 {
-    Con_Printf("flatscreen play: -flatscreenmode %s, a headset session %s, the mode %s\n", fs.flag ? "given" : "not given",
+    Con_Printf("flatscreen play: -flatscreenmode %s, a headset session %s, the mode %s\n", session.flag ? "given" : "not given",
         vrActive() ? "up" : "none", active() ? "on" : "off");
-    if(!fs.flag)
+    if(!session.flag)
     {
         Con_Printf("  start the game with -flatscreenmode to play it on the desktop screen.\n");
         return;
@@ -4011,24 +4060,24 @@ void status_f()
     Con_Printf("  E pressed %d times (force grab); punches: the main hand %d, the off hand %d. E and V are read from the "
                "keyboard, not from bindings; each hand's punch starts from V, from its fire button with a weapon a swing "
                "strikes with (LMB / +attack the main hand, RMB / +offhandattack the off hand), or from vr_flat_punch.\n",
-        fs.grabs, fs.punches[HAND_MAIN], fs.punches[HAND_OFF]);
+        fs().grabs, fs().punches[HAND_MAIN], fs().punches[HAND_OFF]);
     for(int h = 0; h < HAND_COUNT; h++)
     {
         // The melee parry's guard (vr_flat_parry_*): RMB held with one melee weapon.
-        if(meleeIn(h) || fs.parry[h] > 0.f)
+        if(meleeIn(h) || fs().parry[h] > 0.f)
         {
             Con_Printf("  parry guard: %s hand %s, share %.2f (vr_flat_parry %g, in %g s, out %g s; raised %d times)%s\n",
-                h == HAND_MAIN ? "main" : "off", fs.parryWant[h] ? "asked for" : "not asked for", parryShare(h),
-                vr_flat_parry.value, vr_flat_parry_in_time.value, vr_flat_parry_out_time.value, fs.parries,
-                fs.parryReachedAt[h] >= fs.parryAskedAt[h] && fs.parryAskedAt[h] > -1e8 ? "" : ", not reached yet");
+                h == HAND_MAIN ? "main" : "off", fs().parryWant[h] ? "asked for" : "not asked for", parryShare(h),
+                vr_flat_parry.value, vr_flat_parry_in_time.value, vr_flat_parry_out_time.value, fs().parries,
+                fs().parryReachedAt[h] >= fs().parryAskedAt[h] && fs().parryAskedAt[h] > -1e8 ? "" : ", not reached yet");
         }
         // The two-handed melee stance (vr_flat_melee_2h_*): the other hand empty.
-        if(swungMelee(h) || fs.twoH[h] > 0.f)
+        if(swungMelee(h) || fs().twoH[h] > 0.f)
         {
             Con_Printf("  two-handed stance: %s hand %s, share %.2f (vr_flat_melee_2h %g, %g s; taken %d times)%s\n",
-                h == HAND_MAIN ? "main" : "off", fs.twoHWant[h] ? "asked for" : "not asked for", melee2HShare(h),
-                vr_flat_melee_2h.value, vr_flat_melee_2h_time.value, fs.twoHTaken,
-                fs.twoHReachedAt[h] >= fs.twoHAskedAt[h] && fs.twoHAskedAt[h] > -1e8 ? "" : ", not reached yet");
+                h == HAND_MAIN ? "main" : "off", fs().twoHWant[h] ? "asked for" : "not asked for", melee2HShare(h),
+                vr_flat_melee_2h.value, vr_flat_melee_2h_time.value, fs().twoHTaken,
+                fs().twoHReachedAt[h] >= fs().twoHAskedAt[h] && fs().twoHAskedAt[h] > -1e8 ? "" : ", not reached yet");
         }
     }
     const int lone = routeButtons(false, false).rmbAims ? loneWeaponHand() : -1;
@@ -4037,14 +4086,14 @@ void status_f()
                "(vr_flat_key_swap: the hands swapped), %s %d (vr_flat_key_bullettime: bullet time).\n",
         lone < 0 ? "LMB the right hand, RMB the left" : lone == HAND_MAIN ? "LMB the right hand's weapon, RMB aims"
                                                                            : "LMB the left hand's weapon, RMB aims",
-        vr_flat_aim_mode.value, vr_flat_aim_mode.value != 0.f ? "toggle" : "hold", vr_flat_key_swap.string, keyState.swaps,
-        vr_flat_key_bullettime.string, keyState.times);
+        vr_flat_aim_mode.value, vr_flat_aim_mode.value != 0.f ? "toggle" : "hold", vr_flat_key_swap.string, keyState().swaps,
+        vr_flat_key_bullettime.string, keyState().times);
     Con_Printf("  Left Ctrl pressed %d times (crouch), F %d (the flashlight), G %d (what the hand holds dropped), read the "
                "same way. Crouched %g (held %d): his head %.1f units down of %g standing, eased in %g s each way. Ctrl is "
                "bound to `%s` now (vr_flat_crouch_fire %g: 0 the mode holds +flatcrouch, so the crouch key fires nothing, "
                "and the plain game's bind is what the config keeps; 1 Ctrl keeps its own bind and fires as it crouches).\n",
-        keyState.crouches, keyState.toggles, keyState.drops, keyState.ratio,
-        (keyState.cmdHeld || keyState.keyCtrl) ? 1 : 0, crouchDrop(),
+        keyState().crouches, keyState().toggles, keyState().drops, keyState().ratio,
+        (keyState().cmdHeld || keyState().keyCtrl) ? 1 : 0, crouchDrop(),
         za::clamp(vr_flat_crouch_drop.value, 0.f, 40.f), za::clamp(vr_flat_crouch_time.value, 0.05f, 2.f),
         Key_Seat()->bindings[K_CTRL] ? Key_Seat()->bindings[K_CTRL] : "nothing", vr_flat_crouch_fire.value);
     Con_Printf("  the game code: reloading %s (R; auto %s), body interactions on, 1, 2 and the wheel cycle (empty hand "
@@ -4067,7 +4116,7 @@ struct FlickTest
     int settle{0};   // still frames left before the verdict line
     float deg{25.f}; // the turn a frame
 };
-FlickTest flickTest;
+FlickTest flickTest; // seat-shared: a test's own (one at a time)
 constexpr int flickSettle = 36; // half a second: the server's frames and the gestures' own windows (the revolver's 0.25 s)
 
 void flickTestFrame()
@@ -4191,7 +4240,7 @@ void traceCrouch(float eyeZ)
     const float down = za::clamp(vr_flat_crouch_drop.value, 0.f, 40.f);
     // The most the eye may move a frame: the drop over the crouch's time at the ease's steepest (1.5: smoothstep's).
     const float steepest = crouchSmooth() ? 1.5f : 1.f;
-    const float allow = down * steepest * keyState.lastDt / za::clamp(vr_flat_crouch_time.value, 0.05f, 2.f);
+    const float allow = down * steepest * keyState().lastDt / za::clamp(vr_flat_crouch_time.value, 0.05f, 2.f);
     const float eyeStep = t.have ? eyeZ - t.eye : 0.f;
     const float handStep = t.have ? traceHandZ - t.hand : 0.f;
     if(t.have)
@@ -4205,7 +4254,7 @@ void traceCrouch(float eyeZ)
     t.hand = traceHandZ;
     ++t.frames;
     Con_Printf("flatcrouch: frame %d held %d ratio %.3f eye %.2f (%+.2f) hand %.2f (%+.2f) cap %.1f\n", t.frames,
-        crouchHeld() ? 1 : 0, keyState.ratio, eyeZ, eyeStep, traceHandZ, handStep, qvr::hull::localEyeCap());
+        crouchHeld() ? 1 : 0, keyState().ratio, eyeZ, eyeStep, traceHandZ, handStep, qvr::hull::localEyeCap());
     if(--t.left > 0)
     {
         return;
@@ -4350,8 +4399,8 @@ extern "C" void VR_FlatPortalAngle(const float* before, float* angles)
     angles[YAW] = za::remainder(before[YAW] + turn, 360.f);
     angles[ROLL] = before[ROLL];
     // (His velocity is turned with him, over a tick as the client lerps it: no kick of the sway from that either.)
-    qvr::flatplay::feel.view.y = za::remainder(qvr::flatplay::feel.view.y + turn, 360.f);
-    qvr::flatplay::feel.noKickUntil = vr_gametime + qvr::flatplay::portalNoKickTime;
+    qvr::flatplay::feel().view.y = za::remainder(qvr::flatplay::feel().view.y + turn, 360.f);
+    qvr::flatplay::feel().noKickUntil = vr_gametime + qvr::flatplay::portalNoKickTime;
 }
 
 // V_CalcRefdef, after it: vr_flat_orbit's camera, off him: looking at his own pose from `yaw` degrees round the view, `dist`

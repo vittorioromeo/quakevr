@@ -21,6 +21,7 @@
 #include "vr_cvars.hpp"
 #include "vr_tunables.hpp"
 #include "vr_engine.hpp"
+#include "vr_seat.hpp"
 #include "vr_fgfx.hpp"
 #include "vr_flashlight.hpp"
 #include "vr_flatplay.hpp"
@@ -87,7 +88,11 @@ struct GrabState
     float gameStep{0.f};
 };
 
-GrabState gs;
+// splitscreen (SPLITSCREEN.md, phase 4a): the current seat's (seat::Part::FlatGrab)
+[[nodiscard]] GrabState& gs()
+{
+    return seat::part<GrabState>(seat::current(), seat::Part::FlatGrab);
+}
 
 [[nodiscard]] const char* handName(int h)
 {
@@ -118,7 +123,7 @@ GrabState gs;
 // torch, not on a grab of its own, and nothing still flying to it.
 [[nodiscard]] bool canTake(int h)
 {
-    const Phase p = gs.grab[h].phase;
+    const Phase p = gs().grab[h].phase;
     return held::handEmpty(h) && !flashlight::holds(h) && (p == Phase::Idle || p == Phase::Back) && !flying(h);
 }
 
@@ -130,11 +135,11 @@ GrabState gs;
 
 void send(int h)
 {
-    Grab& g = gs.grab[h];
+    Grab& g = gs().grab[h];
     g.phase = Phase::Pull;
     g.at = vr_gametime;
     g.sawFlight = false;
-    gs.sent++;
+    gs().sent++;
     Cbuf_InsertText(h == HAND_OFF ? "impulse 50\n" : "impulse 51\n"); // QC weapons.qc: VR_Forcegrab_FlatGrab with that hand
     if(vr_flatplay_debug.value)
     {
@@ -144,7 +149,7 @@ void send(int h)
 
 void startBack(int h, const char* why)
 {
-    Grab& g = gs.grab[h];
+    Grab& g = gs().grab[h];
     g.phase = Phase::Back;
     g.at = vr_gametime;
     g.backFrom = g.share;
@@ -158,7 +163,7 @@ void report_f()
 {
     for(int h : {HAND_OFF, HAND_MAIN})
     {
-        const Grab& g = gs.grab[h];
+        const Grab& g = gs().grab[h];
         int ent = 0, state = 0;
         glm::vec3 at{0.f};
         const bool known = fgfx::handTarget(h, ent, state, at);
@@ -168,14 +173,14 @@ void report_f()
             known ? ent : 0, known ? state : 0, held::handEmpty(h) ? 1 : 0);
         // (Its own short line, the console's width: the tests read it whole.)
         Con_Printf("flatfgrab: %s prop: in fist %d, fist %.2f, torch %d, upright %.2f, off %.1f deg\n", handName(h),
-            flatplay::propInFist(h) ? 1 : 0, flatplay::fistShare(h), torchIn(h) ? 1 : 0, geom::smooth01(gs.upright[h]),
-            gs.torchOff[h]);
+            flatplay::propInFist(h) ? 1 : 0, flatplay::fistShare(h), torchIn(h) ? 1 : 0, geom::smooth01(gs().upright[h]),
+            gs().torchOff[h]);
     }
-    Con_Printf("flatfgrab: presses %d, sent %d, refused %d (no free hand), second presses on a busy hand %d\n", gs.presses,
-        gs.sent, gs.refused, gs.doubled);
-    Con_Printf("flatfgrab: drawn off hand: most %.2f units a frame off the main hand since the last report\n", gs.drawnStep);
-    Con_Printf("flatfgrab: game off hand: most %.2f units a frame off the head since the last report\n", gs.gameStep);
-    gs.drawnStep = gs.gameStep = 0.f;
+    Con_Printf("flatfgrab: presses %d, sent %d, refused %d (no free hand), second presses on a busy hand %d\n", gs().presses,
+        gs().sent, gs().refused, gs().doubled);
+    Con_Printf("flatfgrab: drawn off hand: most %.2f units a frame off the main hand since the last report\n", gs().drawnStep);
+    Con_Printf("flatfgrab: game off hand: most %.2f units a frame off the head since the last report\n", gs().gameStep);
+    gs().drawnStep = gs().gameStep = 0.f;
     // Where the effect starts on each hand (fgfx::palmOrigin), in the hand's frame (forward, left, up), against the palm's
     // middle and the old start (2 units ahead of the hand's point): headset or flat.
     const hands::State& s = hands::current();
@@ -241,7 +246,7 @@ void placeFrame(const glm::vec3& aim, glm::vec3& fwd, glm::vec3& right, glm::vec
 
 void grabPose(hands::State& s, int h, const glm::vec3& aim)
 {
-    Grab& g = gs.grab[h];
+    Grab& g = gs().grab[h];
     const float k = geom::smooth01(g.share);
     if(k <= 0.f)
     {
@@ -325,7 +330,7 @@ void carryPose(hands::State& s, int h, const glm::vec3& aim)
 // gs.torchOff: how far off upright the stick is after it (vr_flat_fg_report, the tests).
 void uprightPose(hands::State& s, int h)
 {
-    gs.torchOff[h] = -1.f;
+    gs().torchOff[h] = -1.f;
     glm::vec3 origin{0.f}, other{0.f};
     glm::mat3 axes{1.f};
     bool both = false;
@@ -336,7 +341,7 @@ void uprightPose(hands::State& s, int h)
     const glm::mat3 hand = held::axesFromAngles(&s.rot[h].x, true);
     const glm::vec3 stick = glm::normalize(hand * axes[0]);
     const glm::vec3 up{0.f, 0.f, 1.f};
-    const float k = geom::smooth01(gs.upright[h]);
+    const float k = geom::smooth01(gs().upright[h]);
     glm::vec3 now = stick;
     if(k > 0.f)
     {
@@ -348,7 +353,7 @@ void uprightPose(hands::State& s, int h)
         s.rot[h] = hands::anglesFromVectors(glm::normalize(m[0]), glm::normalize(m[2]));
         now = glm::normalize(glm::mat3_cast(turn) * stick);
     }
-    gs.torchOff[h] = glm::degrees(za::acos(za::clamp(glm::dot(now, up), -1.f, 1.f)));
+    gs().torchOff[h] = glm::degrees(za::acos(za::clamp(glm::dot(now, up), -1.f, 1.f)));
 }
 
 } // namespace
@@ -365,12 +370,12 @@ void press()
     {
         return;
     }
-    gs.presses++;
+    gs().presses++;
     if(vr_flat_fg_pose.value == 0.f)
     {
         // The pose off: the grab at once, the game choosing the hand (as before 2026-11-10; it still takes no second
         // object to a hand that is pulling one).
-        gs.sent++;
+        gs().sent++;
         Cbuf_InsertText("impulse 46\n");
         return;
     }
@@ -385,20 +390,20 @@ void press()
             break;
         }
     }
-    if(gs.grab[HAND_MAIN].phase == Phase::Turn || gs.grab[HAND_MAIN].phase == Phase::Pull || flying(HAND_MAIN))
+    if(gs().grab[HAND_MAIN].phase == Phase::Turn || gs().grab[HAND_MAIN].phase == Phase::Pull || flying(HAND_MAIN))
     {
-        gs.doubled++; // (a press while the main hand is still on its grab: it goes to the off hand, or nowhere)
+        gs().doubled++; // (a press while the main hand is still on its grab: it goes to the off hand, or nowhere)
     }
     if(h < 0)
     {
-        gs.refused++;
+        gs().refused++;
         if(vr_flatplay_debug.value)
         {
             Con_Printf("flatfgrab: no free hand for the grab\n");
         }
         return;
     }
-    Grab& g = gs.grab[h];
+    Grab& g = gs().grab[h];
     g.detached = onGrip(h);
     g.turnTime = za::max(0.f, vr_flat_fg_turn_time.value) + (g.detached ? za::max(0.f, vr_flat_fg_detach_time.value) : 0.f);
     g.phase = Phase::Turn;
@@ -418,17 +423,17 @@ void press()
 
 void frame(bool on)
 {
-    double dt = gs.lastTime > -1e8 ? vr_gametime - gs.lastTime : 0.0;
-    gs.lastTime = vr_gametime;
+    double dt = gs().lastTime > -1e8 ? vr_gametime - gs().lastTime : 0.0;
+    gs().lastTime = vr_gametime;
     dt = za::clamp(dt, 0.0, 0.1);
     if(!on)
     {
-        const GrabState kept = gs;
-        gs = GrabState{};
-        gs.presses = kept.presses;
-        gs.sent = kept.sent;
-        gs.refused = kept.refused;
-        gs.doubled = kept.doubled;
+        const GrabState kept = gs();
+        gs() = GrabState{};
+        gs().presses = kept.presses;
+        gs().sent = kept.sent;
+        gs().refused = kept.refused;
+        gs().doubled = kept.doubled;
         return;
     }
     {
@@ -436,29 +441,29 @@ void frame(bool on)
         if(view::drawnHandPose(HAND_OFF, offPos, offRot) && view::drawnHandPose(HAND_MAIN, mainPos, mainRot))
         {
             const glm::vec3 rel = offPos - mainPos;
-            gs.drawnStep = gs.drawnKnown ? za::max(gs.drawnStep, glm::distance(rel, gs.drawnRel)) : gs.drawnStep;
-            gs.drawnRel = rel;
-            gs.drawnKnown = true;
+            gs().drawnStep = gs().drawnKnown ? za::max(gs().drawnStep, glm::distance(rel, gs().drawnRel)) : gs().drawnStep;
+            gs().drawnRel = rel;
+            gs().drawnKnown = true;
         }
         else
         {
-            gs.drawnKnown = false;
+            gs().drawnKnown = false;
         }
         const hands::State& hs = hands::current();
         const glm::vec3 game = hs.pos[HAND_OFF] - hs.head;
-        const float step = gs.gameKnown ? glm::distance(game, gs.gameRel) : 0.f;
-        gs.gameStep = za::max(gs.gameStep, step);
+        const float step = gs().gameKnown ? glm::distance(game, gs().gameRel) : 0.f;
+        gs().gameStep = za::max(gs().gameStep, step);
         if(vr_flatplay_debug.value >= 3.f)
         {
             Con_Printf("flatfgrab: frame: off hand moved %.2f (game, off the head), shoving %d\n", step, flatplay::shoving(HAND_OFF) ? 1 : 0);
         }
-        gs.gameRel = game;
-        gs.gameKnown = hs.valid;
+        gs().gameRel = game;
+        gs().gameKnown = hs.valid;
     }
     const double now = vr_gametime;
     for(int h = 0; h < HAND_COUNT; h++)
     {
-        Grab& g = gs.grab[h];
+        Grab& g = gs().grab[h];
         const double t = now - g.at;
         switch(g.phase)
         {
@@ -512,11 +517,11 @@ void frame(bool on)
         const bool carrying = za::round(flatplay::poseNum(vr_flat_carry_pose)) == 1.f && ent != 0 && flatplay::heldIn(h) < 0 &&
                               held::heldEntity(h == HAND_MAIN ? HAND_OFF : HAND_MAIN) != ent;
         const float ease = static_cast<float>(dt) / za::max(0.02f, vr_flat_carry_time.value);
-        gs.carry[h] = za::clamp(gs.carry[h] + (carrying ? ease : -ease), 0.f, 1.f);
+        gs().carry[h] = za::clamp(gs().carry[h] + (carrying ? ease : -ease), 0.f, 1.f);
         // A torch held in one hand turned flame up (vr_flat_torch_upright), not while it strikes or reaches.
         const bool upright = vr_flat_torch_upright.value != 0.f && torchIn(h) && !flatplay::punching(h) &&
                              !flatplay::shoving(h) && g.phase != Phase::Turn && g.phase != Phase::Pull;
-        gs.upright[h] = za::clamp(gs.upright[h] + (upright ? ease : -ease), 0.f, 1.f);
+        gs().upright[h] = za::clamp(gs().upright[h] + (upright ? ease : -ease), 0.f, 1.f);
     }
 }
 
@@ -540,18 +545,18 @@ bool busy(int h)
     {
         return false;
     }
-    const Phase p = gs.grab[h].phase;
+    const Phase p = gs().grab[h].phase;
     return p == Phase::Turn || p == Phase::Pull;
 }
 
 float openShare(int h)
 {
-    return h >= 0 && h < HAND_COUNT && flatplay::active() ? geom::smooth01(gs.grab[h].share) : 0.f;
+    return h >= 0 && h < HAND_COUNT && flatplay::active() ? geom::smooth01(gs().grab[h].share) : 0.f;
 }
 
 float carryShare(int h)
 {
-    return h >= 0 && h < HAND_COUNT && flatplay::active() ? geom::smooth01(gs.carry[h]) : 0.f;
+    return h >= 0 && h < HAND_COUNT && flatplay::active() ? geom::smooth01(gs().carry[h]) : 0.f;
 }
 
 } // namespace qvr::flatfgrab

@@ -65,7 +65,7 @@ constexpr float leanAheadKeep = 2.f;   // and this far short of a wall ahead
 // held at 4 times, the move a little off the screen's axis there rather than a spin.
 constexpr float lookPoleCos = 0.25f;
 
-bool leanHitOff = false; // vr_flatlean_test: the same shot with his box alone
+bool leanHitOff = false; // seat-shared: a test's own (one at a time); vr_flatlean_test: the same shot with his box alone
 
 // -------------------------------------------------------------------------------------------------------------- client
 
