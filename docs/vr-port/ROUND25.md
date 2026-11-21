@@ -6110,3 +6110,34 @@ navmesh", and "do bots use the navmesh? If not, should they?" (NAVMESH.md 22 and
   default). No sliding shots yet.
 - Not run (budget): the flat suites, scenario_check, the mp plain suite, mp_body / mp_avatar / mp_slide / mp_deathbody,
   the ThinLTO build. Sheets: the worktree's `scratch/adspose2_sheet_w05.png` (super shotgun), `_w06`, `_w08`.
+## expbugs: Dwell, Quoth and campaign bugs from his 2026-11-21 notes (expbugs, 2026-11-21, `agent/expbugs`)
+
+Details in DWELL.md 9.8. Each note's cause and fix:
+
+- **Music from Dwell in Quake's and SoA's maps** (hip1m1, start notes): Dwell's folder is mounted in every campaign for
+  its models and sounds; `VR_FindMusicTrack` read every search path, so Dwell's `music/track02..05` won over the
+  rerelease's (Quoth has no music). It now skips the paths `VR_SkipSearchPath` skips. In Dwell's own campaign, a track
+  above 127 the search path has as a plain file plays it (Dwell numbers its tracks 69-254: start's 254 was read as a
+  campaign-track code and played nothing). `vr_music_which [track]`, Debug > Tools > Music File. `music_test.sh`.
+- **Dwell's start: runes placed, the gates seen but not taken** (the note's map was Dwell's start, "The Dwelling"): our
+  PutClientInServer never fired the spawn point's targets, as Copper's does; start's `start1_targets` unlocks the
+  pedestals' relays (target_lock START_LOCKED), so placing runes opened nothing: the portal sheets fade in by distance
+  anyway, and walking through one met the solid wall before the real trigger_teleport 600 units on. `CU_PlayerSpawnedAt`
+  (vr_copper_bridge.qc) fires them once the locks' 0.25 s have passed. Not a seamless-teleporter bug (the portal code
+  finds no sides there; the teleporters work).
+- **Assertion and vanishing Dwell weapons**: `weapon_touch` looked the weapon up by classname (`weapon_rifle` is none of
+  ours): ASSERT, then objerror removed the pickup. It uses `self.weapon`. **Floating spinning weapons from the toolgun**
+  (Dwell's three, MG3's bloody shotgun and super shotgun): they were their map pickups; now props
+  (func_weapon_grabbable) with their variant (`vr_grab_dwvar`) or bloody bit (`MG3_Bloody_PropTaken`: the bit and 30
+  shells when a player's hand takes it).
+- **Kamikaze bursting at once, no explosion drawn**: `EntitiesTouching` (doors.qc) compares mins/maxs, true for any two
+  monsters' relative boxes; now its absolute box within 8 units, or 64 apart. `DW_Boom` (TE_EXPLOSION) on its burst and
+  the Construct's death.
+- **Brute ragdoll triangle across his arms**: a 14-vertex piece across his front was split, its 7 right-side vertices on
+  hand_r (motion clustering). `quakevr/rigs/mon_brute.rig.txt` (Rig Studio weights) puts them on hand_l.
+  `vr_ragdoll_rig_spans <model> [max]` (Debug > Ragdolls) lists triangles across unjoined bones: the Brute's 6, now 0.
+- **Stuck inside the Sculptor**: its 288-unit SOLID_BBOX box (the precise hits) flies noclip; onto a player, it left him
+  inside. `dw_d2_freeplayers` (each think) puts him just outside: straight away from its middle, else the nearest
+  heading of eight, else above, where the world has room and no wall is crossed.
+- **Tests:** `dwell_weapons_test.sh` 9/0 (213: pickups taken, props laid, a bloody prop taken: 10/0); `music_test.sh`
+  7/0; `dwell_maps.sh` 28/0 and 214 10/0; `dwell_monster_fixes_test.sh` (215, rig spans, 216).
