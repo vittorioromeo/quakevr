@@ -87,7 +87,7 @@ struct VrDrawnHolsters
     glm::vec3 at[count]{};
     za::U8 weapons{0};  // bit h: a weapon drawn in holster h
     za::U8 mirrored{0}; // bit h: drawn mirrored (the left-hand holsters)
-    za::U16 model[count]{}; // model_precache index
+    za::U16 model[count]{}; // view::gearModel's index (the view's own models: the server precaches none)
     za::U8 frame[count]{};
     za::U8 skin[count]{};
     glm::vec3 origin[count]{}; // world
@@ -138,6 +138,40 @@ struct VrDrawnLamp
 // Written as the flags, then placed its place (eighths from `origin`) and turn (16-bit x, y, z; w >= 0), lit its reach.
 void writeDrawnLamp(sizebuf_t* buf, const VrDrawnLamp& l, const glm::vec3& origin);
 [[nodiscard]] VrDrawnLamp readDrawnLamp(const glm::vec3& origin);
+
+// A player's worn gear as his client drew it (syncfix, MP_PLAN.md "Sync audit": batch 2), drawn on his copy as he drew it
+// (B6b's way for his holstered weapons): the holster sheaths (body::Holster's order: the hips' and the uppers' drawn),
+// the wrist gadget and its two straps, the grenade pouch, the ammo pouch. A bot's (solveBit): none drawn by a client --
+// each client places its holstered weapons and sheaths on its body as drawn (mpavatar.cpp, solveBotGear).
+struct VrDrawnGear
+{
+    static constexpr int sheaths = 6; // (indices 0..5: body::Holster's; the shoulders' have none)
+    static constexpr int gadget = 6, strap = 7, pouch = 9, ammoPouch = 10;
+    static constexpr int count = 11;
+    static constexpr za::U16 solveBit = 0x8000; // in `shown`: a bot's, placed by each client
+    za::U16 shown{0};    // bit i: piece i drawn
+    za::U16 mirrored{0}; // bit i: drawn mirrored
+    za::U16 model[count]{}; // model_precache index
+    za::U8 frame[count]{};
+    za::U8 skin[count]{};
+    za::U8 scale[count]{}; // thirty-seconds (its size: Holster Setup's for a sheath)
+    glm::vec3 origin[count]{}; // world (the avatar: from his entity's origin)
+    glm::vec3 angles[count]{}; // entity_t's
+    // What the ammo pouch holds (syncfix2: the avatar only, the server's word: QC .vr_pouch_kind, .vr_pouch_count, what
+    // your STAT_QVR_POUCHKIND and _POUCHCOUNT carry), its rounds drawn in his pouch by your pouch's code.
+    za::U8 pouchKind{0};
+    za::U8 pouchCount{0};
+    // The hand whose wrist wears the gadget (0 off, 1 main: VrMove::drawn's): the move sends the gadget and its straps
+    // from that hand, the rest from the body (syncfix3: still while he walks or turns; the wire only).
+    za::U8 wrist{0};
+};
+// Written as the shown and mirrored shorts, then each piece drawn: its model, frame, skin, scale, place (eighths from
+// `origin`), turn (16-bit): 17 B a piece; the ammo pouch's kind and count after it when it is drawn (2 B). syncfix3: the
+// wrist byte after the shorts, and each piece's place and turn from what wears it: the gadget and its straps from
+// `hands[wrist]` (its place, then turned by its yaw; its angles taken off), the rest from `origin` turned by `bodyYaw`
+// (writer and reader the same values: the avatar's hands and body as they are written and read).
+void writeDrawnGear(sizebuf_t* buf, const VrDrawnGear& g, const glm::vec3& origin, float bodyYaw, const VrDrawnHand* hands);
+[[nodiscard]] VrDrawnGear readDrawnGear(const glm::vec3& origin, float bodyYaw, const VrDrawnHand* hands);
 
 struct VrMove
 {
@@ -193,6 +227,7 @@ struct VrMove
     VrBodyPose body; // (multiplayer, with `drawn`)
     VrDrawnHolsters holsters; // (multiplayer, with `drawn`: B6b)
     VrDrawnLamp lamp;         // (multiplayer, with `drawn`: his torch as drawn, wpnsync)
+    VrDrawnGear gear;         // (multiplayer, with `drawn`: his worn gear as drawn, syncfix)
 };
 
 void writeVrMove(sizebuf_t* buf, const VrMove& move);

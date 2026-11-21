@@ -1120,6 +1120,31 @@ void projectileArcs(int ent, const glm::vec3& at, const glm::vec3& along)
     }
 }
 
+namespace
+{
+// The arcs on one hand and forearm: from the fingers along the wrist to the elbow (armArcs, otherArmArcs).
+void handArcs(Random& rnd, const glm::vec3& wrist, const glm::vec3& dir, const glm::vec3& fingers, float m2w, int bolts, float longChance)
+{
+    const glm::vec3 elbow = wrist - dir * (0.26f * m2w);
+    for(int bolt = 0; bolt < bolts; bolt++)
+    {
+        if(rnd() < 0.3f)
+        {
+            continue; // flicker
+        }
+        const float along = rnd();
+        glm::vec3 a = along < 0.25f ? fingers : glm::mix(wrist, elbow, (along - 0.25f) / 0.75f);
+        a += rnd.dir() * (0.03f * m2w);
+        arc(rnd, a, a + rnd.dir() * ((0.04f + 0.06f * rnd()) * m2w), 5, 0.012f * m2w, 1.f);
+    }
+    if(rnd() < longChance)
+    {
+        arc(rnd, fingers + rnd.dir() * (0.02f * m2w), glm::mix(wrist, elbow, 0.5f + 0.5f * rnd()) + rnd.dir() * (0.03f * m2w),
+            8, 0.02f * m2w, 1.f);
+    }
+}
+} // namespace
+
 void armArcs(const hands::State& s, unsigned seed, int bolts, float longChance)
 {
     Random rnd{seed};
@@ -1134,27 +1159,21 @@ void armArcs(const hands::State& s, unsigned seed, int bolts, float longChance)
             wrist = w;
             dir = glm::normalize(d);
         }
-        const glm::vec3 elbow = wrist - dir * (0.26f * m2w);
-        const glm::vec3 fingers = ownFingers(s, hand, wrist, dir, 0.05f * m2w, m2w);
-
-        for(int bolt = 0; bolt < bolts; bolt++)
-        {
-            if(rnd() < 0.3f)
-            {
-                continue; // flicker
-            }
-            const float along = rnd();
-            glm::vec3 a = along < 0.25f ? fingers : glm::mix(wrist, elbow, (along - 0.25f) / 0.75f);
-            a += rnd.dir() * (0.03f * m2w);
-            arc(rnd, a, a + rnd.dir() * ((0.04f + 0.06f * rnd()) * m2w), 5, 0.012f * m2w, 1.f);
-        }
-        if(rnd() < longChance)
-        {
-            arc(rnd, fingers + rnd.dir() * (0.02f * m2w), glm::mix(wrist, elbow, 0.5f + 0.5f * rnd()) + rnd.dir() * (0.03f * m2w),
-                8, 0.02f * m2w, 1.f);
-        }
+        handArcs(rnd, wrist, dir, ownFingers(s, hand, wrist, dir, 0.05f * m2w, m2w), m2w, bolts, longChance);
     }
     ownArmArcs(false);
+}
+
+void otherArmArcs(const glm::vec3 wrist[2], const glm::vec3 along[2], unsigned seed, int bolts, float longChance)
+{
+    Random rnd{seed};
+    const float m2w = units::metresToUnits();
+    for(int hand = 0; hand < 2; hand++)
+    {
+        const float n = glm::length(along[hand]);
+        const glm::vec3 dir = n > 1e-4f ? along[hand] / n : glm::vec3{1.f, 0.f, 0.f};
+        handArcs(rnd, wrist[hand], dir, wrist[hand] + dir * (0.15f * m2w), m2w, bolts, longChance);
+    }
 }
 
 void parse()

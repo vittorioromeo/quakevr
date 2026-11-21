@@ -688,6 +688,20 @@ static curl_socket_t Download_OpenSocketLoopback (void *clientp, curlsocktype pu
 }
 #endif
 
+// QVR: (syncfix2, tests) -loopbackonly's fence before an HTTP fetch is started (the map index, Slipseer, the update
+// check, the add-on list): qtrue when `url` is off this machine and would be refused. Callers on the main thread print
+// the refusal (NET_LoopbackRefused) for a fetch asked for, and quietly skip their own start-up fetch; Download refuses
+// again on any thread.
+qboolean Download_OffhostRefused (const char *url)
+{
+#ifdef WITHOUT_CURL
+	(void) url;
+	return false;
+#else
+	return COM_CheckParm ("-loopbackonly") && !Download_LoopbackURL (url);
+#endif
+}
+
 qboolean Download (const char *url, download_t *download)
 {
 #ifdef WITHOUT_CURL
@@ -1472,6 +1486,17 @@ static void Modlist_FindOnline (void)
 	while (p > 0 && extramods_addons_url[p - 1] == '/')
 		--p;
 	extramods_addons_url[p] = '\0';
+
+	// QVR: (syncfix2, tests) -loopbackonly: an add-on server off this machine is never asked (the refusal printed when
+	// -addons named it)
+	if (Download_OffhostRefused (extramods_addons_url))
+	{
+		if (COM_CheckParm ("-addons"))
+			NET_LoopbackRefused (va ("the add-on server %s", extramods_addons_url));
+		else
+			Con_SafePrintf ("\nAdd-on server disabled (-loopbackonly)\n");
+		return;
+	}
 
 	Con_SafePrintf ("\nUsing add-on server \"%s\"\n", extramods_addons_url);
 

@@ -1314,16 +1314,21 @@ void emissive::hotBladeLight(int index, const glm::vec3& pos, const glm::vec3& c
 
 void emissive::powerupLight(int index, const glm::vec3& pos, float strength, float radius, const glm::vec3& color)
 {
-    if(index < 0 || index >= powerupLights)
+    if(index >= 0 && index < powerupLights)
     {
-        return;
+        powerupGlowLight(powerupLightKey - index, pos, strength, radius, color);
     }
+}
+
+// A power-up light (yours, another player's copy's) under dlight `key`; strength 0: out.
+void emissive::powerupGlowLight(int key, const glm::vec3& pos, float strength, float radius, const glm::vec3& color)
+{
     if(strength <= 0.f || radius <= 0.f)
     {
-        killDlight(powerupLightKey - index);
+        killDlight(key);
         return;
     }
-    dlight_t* dl = CL_AllocDlight(powerupLightKey - index);
+    dlight_t* dl = CL_AllocDlight(key);
     geom::store(pos, dl->origin);
     dl->die = static_cast<float>(cl.time + 0.05);
     const float k = za::clamp(strength, 0.f, 2.f);
@@ -1335,6 +1340,14 @@ void emissive::powerupLight(int index, const glm::vec3& pos, float strength, flo
     else
     {
         setGlow(dl, color, reach * za::sqrt(k), 0.f); // (Quake's falloff: the reach dims it)
+    }
+}
+
+void emissive::otherPowerupLight(int player, int hand, const glm::vec3& pos, float strength, float radius, const glm::vec3& color)
+{
+    if(player >= 1 && player <= MAX_SCOREBOARD && hand >= 0 && hand <= 1)
+    {
+        powerupGlowLight(powerupLightKey - powerupLights - (player - 1) * 2 - hand, pos, strength, radius, color); // (-0x5982 .. -0x59A1)
     }
 }
 

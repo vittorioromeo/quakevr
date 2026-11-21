@@ -770,7 +770,8 @@ def netsafe(s):
     game it would start, or a command it would send, pointed off this machine is refused before it happens. Then the
     engine's fence (-loopbackonly, which every harness game has): a dedicated server hosting a room with its room
     service at a link-local address (169.254.0.1: never routed, so even a broken fence reaches no internet host) and
-    then at a name under .invalid (never looked up) prints NET SAFETY refusals and sends nothing."""
+    then at a name under .invalid (never looked up) prints NET SAFETY refusals and sends nothing. (syncfix2) HTTP too:
+    a client's start-up map index reads its cache only; maps_fetch and vr_update_check_now print their refusals."""
     from mp_harness import command_net_problem, launch_net_values, net_safety_problem
     unsafe = [
         ("a default game with vr_mp_room 1", net_safety_problem(*launch_net_values(["x", "+vr_mp_room", "1"]))),
@@ -816,6 +817,29 @@ def netsafe(s):
     _, line = g.wait(r"NET SAFETY: refused qvr-netsafe\.invalid", 30, since, "the named service refused")
     s.check("-loopbackonly refuses a name without looking it up", True, line.strip())
     g.cmd("vr_mp_room 0")
+    # (syncfix2) HTTP: a client's start-up map index reads its cache only (no fetch started), Slipseer's and the update
+    # check's start-up passes never go out; asked for (maps_fetch, vr_update_check_now), each prints its refusal.
+    c = Instance(s, "httpfence", s.take_port(), dedicated=0, net_guard_test=True, extra=["+vr_maps_fetch", "1"])
+    s.instances.append(c)
+    c.start()
+    _, line = c.wait(r"map index: started \(", 120, what="the start-up map index pass")
+    s.check("a client's start-up map index reads its cache only (no HTTP fetch)", "its cache only:" in line,
+            line.strip())
+    # (syncfix3: its end first -- a maps_fetch while it reads is "a fetch is already under way", no refusal: the
+    # rerun-alone flake, the game started faster than in the suite)
+    c.wait(r"map index: (\d+ packages, from the cache|none \()", 60, what="the start-up map index pass's end")
+    since = c.mark()
+    c.cmd("maps_fetch")
+    _, line = c.wait(r"NET SAFETY: refused the map index fetch from https://", 30, since, "the map index fetch refused")
+    s.check("-loopbackonly refuses an asked-for map index fetch", True, line.strip())
+    _, line = c.wait(r"NET SAFETY: refused Slipseer's listing fetch", 30, since, "Slipseer's fetch refused")
+    s.check("-loopbackonly refuses an asked-for Slipseer fetch", True, line.strip())
+    c.cmd("vr_update_check_now")
+    _, line = c.wait(r"NET SAFETY: refused the update check at https://", 30, since, "the update check refused")
+    s.check("-loopbackonly refuses an asked-for update check", True, line.strip())
+    c.read()
+    went = [ln for ln in c.lines if "curl" in ln.lower() or re.search(r"\b[1-9]\d* fetched now", ln)]
+    s.check("no HTTP transfer started (no curl error, nothing 'fetched now')", not went, "; ".join(went[:3]))
 
 
 def roomui(s):
@@ -1403,7 +1427,7 @@ def cosmetics_b6c(s, srv, a, b, ea, eb):
 
 
 HOLSTER_UNITS = 1.0  # B's holstered weapon at A, and the server's holsterpos for B, within this of where B drew it
-HOLSTER_SLOT = 2     # the holster B is given a shotgun in (impulse 190 + it: the holsterweapon<slot> fields, body::Holster)
+HOLSTER_SLOT = 2     # the holster B is given a shotgun in (impulse 90 + it: the holsterweapon<slot> fields, body::Holster)
 
 
 def holsters_of(lines, prefix):
@@ -1912,17 +1936,24 @@ def ragsync_phase(s, srv, a, b, eb, on, left):
     b.cmd("vr_net_bytes")
     _, moved = b.wait(r"mp_netbytes: ", 10, since_bb)
     moved_rag = int(fields(moved)["snap_rag"])
-    # Settled: two seconds more, B's ragdoll bytes then.
-    since_bb = b.mark()
-    b.cmd("vr_net_bytes reset; echo mp_ragsettle_begin")
-    b.wait(r"mp_ragsettle_begin", 10, since_bb)
-    mark = srv.mark()
-    srv.cmd("vr_mp_after 2 ragsettled%d" % on)  # (two seconds of the server's game time, counted)
-    srv.wait(r"mp_after: .* ragsettled%d" % on, 60, mark, "two settled seconds")
-    since_bb = b.mark()
-    b.cmd("vr_net_bytes")
-    _, settled = b.wait(r"mp_netbytes: ", 30, since_bb)
-    settled_rag = int(fields(settled)["snap_rag"])
+    # Settled: B's ragdoll bytes over two seconds once they have settled. (smallfix: a ragdoll still sliding or rolling
+    # after the play's last blast made the one window right after it fail; up to 5 windows of 2 s, the first quiet one
+    # counts, how many it took a note: ragdolls that never settle still fail.)
+    settled_rag, windows = 0, 0
+    for windows in range(1, 6):
+        since_bb = b.mark()
+        b.cmd("vr_net_bytes reset; echo mp_ragsettle_begin")
+        b.wait(r"mp_ragsettle_begin", 10, since_bb)
+        mark = srv.mark()
+        srv.cmd("vr_mp_after 2 ragsettled%d_%d" % (on, windows))  # (two seconds of the server's game time, counted)
+        srv.wait(r"mp_after: .* ragsettled%d_%d" % (on, windows), 60, mark, "two settled seconds")
+        since_bb = b.mark()
+        b.cmd("vr_net_bytes")
+        _, settled = b.wait(r"mp_netbytes: ", 30, since_bb)
+        settled_rag = int(fields(settled)["snap_rag"])
+        if settled_rag / 2.0 <= 0.02 * moved_rag / RAG_SECONDS + 1:
+            break
+    s.note("%s: settled after %d window(s) of 2 s" % (label, windows))
     ha, pa = rag_series(a.lines[since_a:], "sv")
     hb, pb = rag_series(b.lines[since_b:], "cl")
     out = {}
@@ -2004,7 +2035,7 @@ def cosmetics_b6b(s, srv, a, b, ea, eb):
     b.quiet(r"mp_(move|pos): ", 0.5, 20, "both at rest")
     since = srv.mark()
     srv.cmd("developer 1")
-    b.cmd("impulse %d" % (190 + HOLSTER_SLOT))
+    b.cmd("impulse %d" % (90 + HOLSTER_SLOT))
     srv.wait(r"holster give: .* holster %d a shotgun" % HOLSTER_SLOT, 10, since, "B's holster given a shotgun")
 
     def holstered(lines):
@@ -4304,7 +4335,7 @@ def disarm(s):
     holsters_synced(s, a, b, eb, "holsters at the start")
     for slot in range(6):
         since = srv.mark()
-        b.cmd("impulse %d" % (190 + slot))
+        b.cmd("impulse %d" % (90 + slot))
         wait_quietly(srv, r"holster give: .* holster %d a shotgun" % slot, 5, since, "B's holster %d given" % slot)
     holsters_synced(s, a, b, eb, "a shotgun given in each holster")
     since = srv.mark()
@@ -7333,6 +7364,19 @@ def wristscore(s):
                 s.note("screenshot (A's wrist scoreboard page): %s" % out)
                 break
 
+    # B's AD page follows the server's game (STAT_QVR_ADHUD's ADHUD_DATA bit; before, a client kept his last local map's
+    # vr_ad_mounted): the server in this base has AD's data exactly when A's single-player e1m1 offered the page. (Every
+    # agent base has AD's data, so only the "offered" case runs here; B's own cvar is printed for the record.)
+    since_b = b.mark()
+    b.cmd("vr_ad_mounted; vr_gadget_page 1; vr_gadget_page 1; vr_gadget_page 1")
+    b.wait(r"gadget page: ", 10, since_b, "B's pages")
+    while len([l for l in b.lines[since_b:] if "gadget page: " in l]) < 3:
+        b.wait(r"gadget page: ", 10, b.mark(), "B's three pages")
+    b_pages = [l.split("gadget page: ", 1)[1].split()[0] for l in b.lines[since_b:] if "gadget page: " in l]
+    b_own = [l.strip() for l in b.lines[since_b:] if '"vr_ad_mounted" is' in l]
+    s.check("B's AD page follows the server's game (offered: %s)" % ("1" in pages),
+            ("1" in b_pages) == ("1" in pages), "B's pages %s; A's single-player %s; B's own %s" % (b_pages, pages, b_own))
+
 
 # ---- B13: the server browser, the net HUD, the soak ----
 def browser_rows(inst, since):
@@ -8965,21 +9009,43 @@ def sync_nothing(s, srv, a, b, ea, eb):
 
 
 def sync_cheat(impulse):
-    """Quake's own powerup cheats (impulse 255 quad, 254 ring: 30 s; coop allows them). Not the Debug menu's 190-193:
-    in coop those are the harness's holster gives (weapons.qc)."""
+    """The Debug menu's powerup cheats (impulse 190 quad, 191 pentagram, 192 ring, 193 biosuit: an hour; syncfix: in coop
+    they give the powerups again, the harness's holster gives moved to 90-95)."""
     def on(s, srv, a, b, ea, eb):
         b.cmd("impulse %d" % impulse)
         sync_wait(srv, 1.0)
     return on
 
 
-SYNC_PROBES = (  # (name, B's action, its undo); idle first: the baseline
-    ("idle", sync_nothing, None),
-    ("quad", sync_cheat(255), None),  # (it lasts the run: the probes after it compare against idle as before)
-    ("ring", sync_cheat(254), None),
-    ("punch", sync_punch, sync_punch_off),
-    ("shoot", sync_shoot, None),
-    ("walk", sync_walk, sync_walk_off),  # (last: B walks off his spot)
+def no_gap(prefix, drawn_only=False):
+    """A synced row: nothing of `prefix` ("glow:", "faded:", "light:", ...) that B has of himself and A has not of him;
+    and A has some (the probe did show it). `drawn_only`: only of the models A draws of him at all (a model he lacks is
+    another row's gap)."""
+    def check(gap, seen_added, seen, own):
+        missing = sorted(k for k in gap if k.startswith(prefix) and
+                         (not drawn_only or "model:" + k.split(":", 1)[1] in seen))
+        got = sorted(k for k in seen_added if k.startswith(prefix))
+        mine = any(k.startswith(prefix) for k in own)  # (B has none himself: a flat player's gadget, say)
+        return not missing and (bool(got) or not mine), "B only: %s; A has: %s%s" % (missing or "-", got or "-", "" if mine else " (B has none)")
+    return check
+
+
+SYNC_PROBES = (  # (name, B's action, its undo, the synced rows' checks); idle first: the baseline
+    ("idle", sync_nothing, None, (("the holster sheaths", no_gap("model:legholster.mdl")),  # (syncfix batch 2: worn gear)
+                                  ("the wrist gadget", no_gap("model:vrgadget.mdl")),
+                                  ("its straps", no_gap("model:vrgadget_strap.mdl")),
+                                  ("the grenade pouch", no_gap("model:vrpouch.mdl")),
+                                  ("the ammo pouch", no_gap("model:vrpouch_ammo.mdl")),
+                                  # (syncfix2: the rounds in it, the gadget screen's two lights)
+                                  ("the rounds in the ammo pouch", no_gap("model:vr_shell_live")),
+                                  ("the gadget screen's glow", no_gap("light:r10")),
+                                  ("the gadget screen's beam", no_gap("light:r30")))),
+    # (they last the run: the probes after them compare against idle as before)
+    ("quad", sync_cheat(190), None, (("Quad's glow on his copy", no_gap("glow:")), ("its hand lights", no_gap("light:r1")))),
+    ("ring", sync_cheat(192), None, (("the ring's fade on his copy", no_gap("faded:", drawn_only=True)),)),
+    ("punch", sync_punch, sync_punch_off, ()),
+    ("shoot", sync_shoot, None, (("his spent casings", no_gap("model:vr_shell.mdl")),)),  # (syncfix2: batch 3)
+    ("walk", sync_walk, sync_walk_off, ()),  # (last: B walks off his spot)
 )
 
 
@@ -8990,8 +9056,8 @@ def syncaudit(s, flat):
     put_at(srv, a, ea, SYNC_SPOT, 90)
     sync_wait(srv, 1.0)
     base_b = base_a = None
-    table = []
-    for name, act, undo in SYNC_PROBES:
+    rows_out = []
+    for name, act, undo, rows in SYNC_PROBES:
         t0 = time.time()
         act(s, srv, a, b, ea, eb)
         seconds = time.time() - t0 + 0.3
@@ -9007,15 +9073,77 @@ def syncaudit(s, flat):
             both = {k: n for k, n in add_b.items() if k in add_a}
         s.metric("sync_%s" % name, {"own": own, "seen": seen, "gap": gap, "extra": extra, "both": both})
         s.note("%s: B has, A not: %s | A has, B not: %s | both: %s" % (name, gap or "-", extra or "-", both or "-"))
-        table.append("%-6s gap(B only): %s\n%-6s extra(A only): %s\n%-6s both: %s" % (
+        rows_out.append("%-6s gap(B only): %s\n%-6s extra(A only): %s\n%-6s both: %s" % (
             name, gap or "-", "", extra or "-", "", both or "-"))
         s.check("%s: both reports came (B's own view of himself, A's of B)" % name, bool(own) and bool(seen),
                 "B %d kinds, A %d kinds" % (len(own), len(seen)))
+        for row, check in rows:  # (syncfix: the audit's gaps fixed, each row's own check)
+            ok, detail = check(gap, add_a if base_b is not own else seen, seen, own)
+            s.check("%s: %s synced" % (name, row), ok, detail)
         if undo:
             undo(s, srv, a, b, ea, eb)
+    # A bot's holsters and what it carries (syncfix batch 2; his voice note 2026-11-21): A adds a coop bot; what A draws
+    # round it: its holster sheaths placed on its body by A's own client (no client of its own drew them). It stands
+    # still where it spawned (vr_bot_freeze, syncfix3: the pictures below).
+    srv.cmd("vr_bot_freeze 1")
+    a.cmd("impulse 100")
+    table = {}
+    for _ in range(10):
+        since_a = a.mark()
+        table = frag_table(a)
+        if len(table) >= 3:
+            break
+        wait_quietly(a, r"mp_frags: ", 3, since_a, "A's scoreboard")
+    bots = sorted(slot for slot in table if slot not in (ea - 1, eb - 1))
+    seen_bot, own_sheaths = {}, 0
+    for _ in range(10):  # (until A's copy of it is posed: its sheaths go on its body as drawn)
+        sync_wait(srv, 0.5)
+        lines = near_lines(a, bots[0] + 1, 1.0) if bots else []
+        seen_bot = near_counts(lines)
+        # (its own: within 30 units of its origin -- B's, if near, stand farther)
+        own_sheaths = sum(1 for l in lines if re.search(r"model=legholster\.mdl d=(\S+)", l) and
+                          float(re.search(r"model=legholster\.mdl d=(\S+)", l).group(1)) <= 30.0)
+        if own_sheaths >= 4:
+            break
+    s.metric("sync_bot", seen_bot)
+    s.note("bot: A draws round it: %s" % (seen_bot or "-"))
+    s.check("bot: its holster sheaths on its copy at A (4: the hips', the uppers')", own_sheaths >= 4,
+            "%d within 30 units; %s" % (own_sheaths, seen_bot or "no bot"))
+    # (syncfix2, syncfix3) A looks at the bot from its front, its two sides and its back, the bot standing still
+    # (vr_bot_freeze, from where it spawned: the start's lit room) and A facing its middle: the sheaths and what they
+    # hold on its body, for a person to judge (bot_holsters_<side>.png).
+    shots = []
+    at = byaw = None
+    if bots:
+        since = srv.mark()  # (a bot has no mp_client line: its edict's origin and angles)
+        srv.cmd("edict %d; echo mp_edict_done" % (bots[0] + 1))
+        n, _ = srv.wait(r"mp_edict_done", 10, since, "the bot's edict")
+        for l in srv.lines[since:n]:
+            m = re.search(r"^\s*(origin|angles)\s+'\s*([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)", l)
+            if m and m.group(1) == "origin":
+                at = [float(m.group(i)) for i in (2, 3, 4)]
+            elif m:
+                byaw = float(m.group(3))
+    if at is not None:
+        byaw = byaw or 0.0
+        s.note("bot at %s facing %.0f (frozen)" % (at, byaw))
+        a.cmd("vr_flashlight_clip_head right; vr_flashlight 1")  # (A's head torch on it: lit from where A looks)
+        for side, off in (("front", 0), ("left", 90), ("back", 180), ("right", 270)):
+            r = math.radians(byaw + off)  # (A stands that way from it and looks back at it)
+            try:  # (a side against a wall: none from there; an aid, not a check)
+                put_at(srv, a, ea, (at[0] + 60 * math.cos(r), at[1] + 60 * math.sin(r), at[2]),
+                       (byaw + off + 180) % 360, tries=15)
+            except StepFailed:
+                s.note("bot: no picture from its %s (no room there)" % side)
+                continue
+            sync_wait(srv, 0.5)
+            shots.append(a.screenshot("bot_holsters_" + side))
+        a.cmd("vr_flashlight 0")
+    srv.cmd("vr_bot_freeze 0")
+    s.note("bot holster screenshots: %s" % (", ".join(str(p) for p in shots) or "-"))
     with open(os.path.join(s.out, "syncaudit_table.txt"), "w", encoding="ascii") as f:
         f.write("B %s, A VR mock, dedicated server; radius %g round B\n" % ("flat" if flat else "VR mock", SYNC_RADIUS))
-        f.write("\n".join(table) + "\n")
+        f.write("\n".join(rows_out + ["bot    A draws round it: %s" % (seen_bot or "-")]) + "\n")
 
 
 def run(args, test, lag=0.0, jitter=0.0, loss=0.0):

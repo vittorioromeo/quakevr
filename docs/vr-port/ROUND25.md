@@ -6066,6 +6066,49 @@ navmesh", and "do bots use the navmesh? If not, should they?" (NAVMESH.md 22 and
   is far from the start). `navfollow_vr` (B a mock headset: the play-space turn) 12/0. mp suite --only coop, cmdguard,
   predict, teleport: passed. scenario_check PASS.
 
+## syncfix: the sync audit's gaps, batches 1-2 (syncfix, 2026-11-21, `agent/syncfix`)
+
+- Batch 1, power-ups on the copy: the avatar's gear byte carries each player's Quad, Pentagram, Ring, Biosuit (its spare
+  bits 4-32: no new bytes). The look is one function for you and the copies (`view::powerupLookOf`: vr_view.cpp's glow
+  turns, the glow's shader code `powerupGlowCode`, its hand lights, Quad's arcs, the ring's 0.3 fade; vr_body_powerups
+  off: none). A copy's hands and body glow (`mpavatar::powerupGlow`, asked by `view::powerupGlow`), two hand lights per
+  copy (`emissive::otherPowerupLight`, keys after yours), Quad's arcs on its forearms (`shock::otherArmArcs`, armArcs'
+  per-hand code shared as `handArcs`), and under the Ring the whole copy faded (`forEachDrawn`), deathmatch too.
+- Side finding fixed: the harness's QC holster give moved from impulse 190-195 to 90-95 (QVR_TESTS only; mp_test.py's
+  two callers): in coop the Debug menu's power-up cheats (190-193) give the power-ups again.
+- Batch 2, worn gear: the client sends its sheaths (the hips' and the uppers'), wrist gadget, its two straps, grenade
+  pouch and ammo pouch as drawn (`VrDrawnGear` in the move, delta-coded; `view::netGear`), the server passes them in the
+  avatar (17 B a piece shown: model as `view::gearModel`'s index, the view's own models the server never precaches),
+  each client draws them on the copy by `view::drawGear` at his scale. Bots (his voice note 11-21): the server sends a
+  bot's holstered weapons (its QC holster models: what it carries) and `VrDrawnGear::solveBit`; each client places them
+  and their sheaths on the bot's body as last drawn (its skeleton) by your holsters' pose code (`view::holsterOnOther`:
+  holsterOnBody, holsterOnBack). `QVR_NET_VERSION` 42: the room service must be redeployed. avatarMaxBytes 260 -> 520
+  (it overflowed with the gear: a Host_Error on the server).
+- Not yet: the rounds in the ammo pouch, the gadget's screen glow lights; batches 3-5 (shot effects, wounds, sounds).
+- Checks: `mp_test.py syncaudit` (B VR and `--flat B`) has per-row checks now: quad's glow and hand lights, the ring's
+  fade (on the models A draws), the five gear models at idle, a coop bot's sheaths. Results: MP_PLAN.md's audit table.
+
+## syncfix2: batch 2's rest, batch 3's flash and casings, test runs off the internet (syncfix2, 2026-11-21, `agent/syncfix`)
+
+- Batch 2's rest: the rounds in another player's ammo pouch (the server's .vr_pouch_kind/.vr_pouch_count in the avatar's
+  gear, +2 B while the pouch is drawn; posed in his copy's pouch by `view::posePouchItems`, yours by the same code) and
+  his gadget screen's two lights (`gadget::otherGlow`: the pose back from his copy's gadget, your glow's lights, keys
+  -0x5C40.. per player). A bot's holsters: syncaudit now takes A's screenshots of the bot from four sides
+  (`A_bot_holsters_from_*.png`); the bot walks, so 2 of 4 were taken and it stood off centre: no judgement from them.
+- Batch 3: another player's shot (QVR_SVC_FIRED, broadcast already) draws your flash model at his copy's gun
+  (weaponfx's enemy flashes, `hand` >= 0) and its sparks and smoke (`gunfx::otherFired`); his casings come from the QC's
+  eject also sent to the others who see him (QVR_SVC_EJECTOTHER, 8 B a shot each, reliable), thrown out of his copy's
+  gun by `shells::ejectFrom` (none of your hand's own state: auto pump timing, flick, broken-open barrels, the revolver's
+  crane). Still a gap: the two lights the audit took for the flash are his ammo screen's light (r20) and his barrel's
+  heat glow (r30), both from his own hands' state.
+- Test runs and the internet: `Download_OffhostRefused` (host_cmd.c) is -loopbackonly's fence before a fetch starts:
+  the map index's start-up pass reads its cache only ("started (its cache only: ..."), Slipseer and the update check
+  never go out, the add-on list is off; asked for (maps_fetch, vr_update_check_now, -addons <url>, a server's package
+  not in the index) each prints its "NET SAFETY: refused ..." line. The start-up passes stay quiet: a NET SAFETY line
+  fails every harness run. `mp_test.py netsafe` checks all four (14/0).
+- Checks: syncaudit (B VR) 25/0 (new rows: the pouch's rounds, the gadget's glow and beam, his casings); netsafe 14/0;
+  Dev build 0 warnings. Not done (budget): batch 4 (wounds), batch 5 (mantle grunt, slide sound, the auto pump),
+  `syncaudit --flat B`, the ThinLTO build, scenario_check and the single-player tests for what this touched.
 ## adspose: a sighted flat player seen from outside (adspose, 2026-11-21, `agent/adspose`, unfinished)
 
 - His words: "The ADS pose for some weapons looks silly". Measured (`mp_test.py adspose`: flat B on his sights with every
@@ -6569,3 +6612,79 @@ wristscore). `QVR_NET_VERSION` stays 42: nothing new is sent (the client rebuild
   0.12-0.16 units p95 (limit 2). One baseline run's "settled ragdolls cost nothing" failed (4096 B in 2 s), not seen since.
 - Checks: the plain suite 66 of 67 (mp_predict's "B swam" 148 of 150 states; 31/0 on its --only rerun);
   `vr_netsnap_selftest` 15/0; scenario_check PASS (150 scenes); Dev and ThinLTO builds 0 warnings.
+## syncfix4: agent/syncfix's checks before it ships (syncfix4, 2026-11-21, `agent/syncfix`)
+
+- Merged origin/next: `QVR_SVC_EJECTOTHER` is 52 now (next took 51 for QVR_SVC_RAGPOSE); both sides' notes on
+  QVR_NET_VERSION 42's line (one version for both: the room service is redeployed once).
+- The worn gear in the move: its places in quarters, its turns in 4096ths of a turn (`gearScale`, `gearAngScale` in
+  vr_netmove.cpp; were eighths and 65536ths). mp_loss's "B's link up walking at 10% loss" (bound 12288 B/s) read 12975
+  in the plain suite (fail) and 12239 alone; with the coarser steps 11636 (mean 144 B a move; origin/next 9672, 119 B).
+  The margin is still small: the rest is the gear's real motion on a walking body.
+- The test harness: `sa_shockarcs_test.sh` and `waterzap_test.sh` given only the agent name never ended (`shift 2`
+  failed with one argument left and the option loop spun): the last syncfix worker stalled there.
+- Checks: syncaudit 25/0 (B VR and `--flat B`), netsafe 14/0, before and after the change; the plain suite 63 of 65
+  tests clean, mp_loss (above) and mp_debugviz_listen (a bot's disarm volumes 55 units off the weapon drawn, once) both
+  pass alone; sa_shockarcs 4/0, gunfx 73/0, spentshake 4/0, holsterzones 13/0, flatholster 54/0, armorgear 2/0, dead_gear
+  9/0, pouch 29/0, pouchcatch 7/0, pouch_slider 6/0, gadget_tap_melee 11/0, holsteritems, holsters2, holstersetup and
+  magholster with no failure. On origin/next too, the same failures: flateject 15/2 (`rv`: the test still wants the
+  revolver's open pose from before his 11-11 defaults; `ssgold`'s second casing sideways) and gadget_lock 13/4 (C and H).
+  After the gear change: mp_moves 20/0, mp_fuzz 17/0, mp_avatar 18/0, mp_wpnsync 16/0. Dev and ThinLTO builds 0 warnings.
+- Bytes per player (the plain suite's mp_bytes, B's link, origin/next of 03:20 then this branch): the up link +5% to
+  +49% (mp_coop 5488 -> 6950 B/s, mp_loss 8911 -> 9624, mp_predict 12738 -> 17391), the avatars' share of the down link
+  about twice (mp_coop 627 -> 1379 B/s), the down link within -10% .. +15% (mp_rejoin's +37%: its join burst).
+- A bot's holsters: syncaudit's four pictures (vr_bot_freeze, A's head torch) show it still and centred from the front and
+  back, slightly off centre from the sides, the hips at the frame's lower edge.
+## smallfix: scenario skips, the wrist AD page in a remote game, vr_rv_test 1, ragsync (2026-11-21, `agent/smallfix`)
+
+- **Scenes needing an add-on**: `vr_scenario runall` skips a scene whose give/spawn names a toolgun entry this game cannot
+  make (toolgun `spawnableAvailable`: Dwell, AD, an MG3 campaign item): `SCNRUN|<id>|SKIP|line N: "<entry>": <why>`,
+  nothing placed, not a failure; `SCNRUNSUM|N run|M failed|K skipped`. There was no declaration to copy (the dwell_*
+  scenes only use `cmd vr_ad_test`): the toolgun's own availability is the rule. A probe scene (an MG3 upgrade) skipped.
+- **The wrist AD page in a remote game**: STAT_QVR_ADHUD bit 13 (`protocol::ADHUD_DATA`, set by the server from its
+  `vr_ad_mounted`); `ad::clientDataInPlay()` (vr_ad.cpp) is the local cvar with a local server, the bit on a remote one;
+  the gadget's page checks use it. `mp_test.py wristscore` 11/0 with a new check (B's AD page offered as the server's
+  game); every agent base has AD's data, so the server-without-AD case is not exercised.
+- **vr_rv_test 1** "a grunt's body": its grunts were armed replacements (vr_agrunt_repl, on by default) with a random
+  weapon; a shotgun before the chest stopped the first body slug (VR_AGS_Shot, 0 dealt: the game is right). The test
+  spawns plain grunts now (vr_agrunt_repl 0 around the spawn) and its slug lines say what each hit. 48/0.
+- **mp_ragsync**: the settled-bytes check waits up to 5 windows of 2 s for a quiet one (noted). The crate/sword p95
+  failures are the game's (2 of 3 runs here): in the ragdolls-on play B draws the blasted crate at exact server-tick
+  places 1-2 ticks AHEAD of its interpolation clock (not lerped, as if `netsnap::interpEntity` returned false and the
+  NetQuake path drew the newest), only during the gib blast; in the ragdolls-off play the same crate is 0.04 u p95.
+  Open: suspect `h.model != ent.model` in interpEntity (a model swapped by the ragdoll pass?) or netrag's client frame.
+  Tools: `scratch/smallfix_raglag.py <run dir>` (worst samples, best time shift), `smallfix_raggap.py <dir> <ent> <t0> <t1>`.
+## botnav: bots' waypoints and the navmesh together, vr_bot_navmesh (2026-11-21, `agent/botnav`)
+
+His voice note (2026-11-21): keep FrikBot's waypoints (they make the bots go for powerups, weapons, health on any map),
+add the navmesh where it is smarter: a player spotted nearby, goals by need. Design and rules: NAVMESH.md 23 (rewritten).
+
+- **`vr_bot_navmesh`** (cvar, archived, **0** by default: FrikBot exactly as before; the host's). 1: the navmesh walks a
+  bot (a) to a player it saw within `vr_bot_navmesh_memory` (5 s) and `vr_bot_navmesh_range` (1200 units) once he is out
+  of its sight (in sight: FrikBot's walk and fight), unless its goal is a powerup or, under 60 health, health/armour;
+  (b) to a goal with no waypoint route (`mark_path`'s failure, `bot_path`'s broken route, or no waypoint near:
+  `BotNav_Look`, the best goal within the range, a player only in sight); (c) when the route is over
+  `vr_bot_navmesh_detour` (1.5) times the mesh's path + 128. Waypoints again when the player is lost or far, the goal
+  reached, the mesh has no path, and always in water / on a train, rocket-jump or surfacing waypoint. The three tunables
+  are Debug > Tunables rows ("Bots: Navmesh ...").
+- **Engine:** builtin `navbot(bot, goal, what)` (vr_builtins_nav.inc -> `navfollow::botStep`, vr_navfollow.cpp): the
+  follower of NAVMESH.md 22 reused as is (`replan`, `steer`), one plan per bot by client slot, timed in server time (the
+  class's build lands on its fixed frame); what 0 plan + steer (the corner), 1 state/flags/path left, 2 drop, 3 probe.
+- **QC:** frikbot/bot_nav.qc (new; `BotNav_Note`, `BotNav_Step`, `BotNav_Take`, `BotNav_Look`), hooks in BotAI (one
+  branch before frik_movetogoal/bot_path; the begin_route failure; the death reset), bot_path's broken route, mark_path
+  ((b) and (c)). The corner becomes keys through `frik_KeysForDir` as a waypoint does; the follower's hop as `bot_jump`;
+  the goal's search time kept on while the path left shrinks; waypoint flags cleared while walking the mesh (AI_WAIT
+  held it still). Developer 1: `botnav: <bot> navmesh to <goal> (seen | no route | shorter)` / `... waypoints (why)`.
+- **Found on the way:** a tunable can't be the switch (a release build folds tunables to constants; QC's cvar_set on one
+  does nothing), so `vr_bot_navmesh` is a cvar; the player seen must be noted before BotAI's routing branch (a bot that
+  is computing a route skips the walk: it never noticed him otherwise).
+- **Tests** (`vr_dm_test 19-20`, QC/vr_botnav_test.qc; `maxplayers 4;deathmatch 1;developer 1;map e1m1;impulse 100;
+  vr_dm_test 19`): 19 the bot at e1m1's start notices the human 160 ahead, he is put past the first room's west door
+  (out of sight, no waypoint through it): navmesh 0 (contrast) FrikBot walks at the wall then roams (reached him by luck
+  in 754 frames once, never in 1800 another run); navmesh 1 reaches him in 258 frames by the chase, 6/0. 20 navmesh 1, the
+  human never seen, a rocket launcher at the end of a 4-waypoint chain: taken by the waypoints in 97 frames (target1 a
+  waypoint, the mesh never used), 3/0.
+- **Checked:** mp_test.py dm 27/0, coopbots 13/0, botgrab 9/0 with vr_bot_navmesh 0 (the verdicts as before) and the same
+  with 1 (--server-set "+vr_bot_navmesh 1"); scenario_check PASS (148); Dev and ThinLTO builds 0 warnings.
+- **Not ready to default on:** proven on e1m1's door and one waypoint chain only; deathmatch balance (a bot that always
+  finds you), locked or button doors (the follower walks through door polygons) and the follower's drop/teleporter links
+  with bots are untried.

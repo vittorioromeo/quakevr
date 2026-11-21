@@ -771,7 +771,7 @@ void run() noexcept
     } done;
     const za::String url = runUrl;
     Index built;
-    note("map index: started (%s, cache %s)", url.cStr(), cachePath().cStr());
+    note("map index: started (%s%s, cache %s)", runCacheOnly ? "its cache only: " : "", url.cStr(), cachePath().cStr());
 
     if(runCacheOnly)
     {
@@ -1195,9 +1195,16 @@ void start(bool asked)
     }
     SDL_AtomicSet(&cancel, 0);
     runUrl = indexUrl();
+    // -loopbackonly (every harness and kit run): an index off this machine is never fetched, only its cache read; the
+    // start-up pass quietly, a fetch asked for (maps_fetch, a server's package not in the index) with the refusal line.
+    const bool offhost = Download_OffhostRefused(runUrl.cStr());
+    if(offhost && asked)
+    {
+        NET_LoopbackRefused(va("the map index fetch from %s", runUrl.cStr()));
+    }
     // vr_maps_fetch 0: nothing is fetched, but the cached copy is read (of any age), as the cvar says.
     // A test run (QVR_TEST_BACKGROUND: the kit's run.ps1) reads the cache only at start-up: no network unless asked.
-    runCacheOnly = !asked && (!vr_maps_fetch.value || getenv("QVR_TEST_BACKGROUND"));
+    runCacheOnly = offhost || (!asked && (!vr_maps_fetch.value || getenv("QVR_TEST_BACKGROUND")));
     running.storeSeqCst(true);
     worker = za::Thread(run);
 }

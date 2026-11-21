@@ -40,6 +40,9 @@ void scoresReport();
 
 // Set by the view every frame (before each eye's scene). It also places the screen's lights.
 void setPose(const Pose& pose);
+// Another player's gadget screen's lights (syncfix2: his copy's gadget, drawn at `origin` turned `angles` (entity_t's)
+// sized `scale`), as yours light: player `player`'s own two keys, for this frame.
+void otherGlow(int player, const glm::vec3& origin, const glm::vec3& angles, float scale);
 [[nodiscard]] const Pose& pose();
 
 // The screen's corners (in model space: the lower-left one, and its extent along x and y), where

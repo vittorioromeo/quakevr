@@ -683,34 +683,57 @@ on one PC, `mp_local.ps1`).
   the idle; `vr_nav_follow 0` stops it. 12/0 and 11/0. No teleporter in the test: e1m1's only one (its trigger at 1312 1088
   -368) is far from the start.
 
-## 23. The bots on the navmesh: a plan (2026-11-20, not done)
+## 23. The bots: waypoints and the navmesh together (2026-11-21, vr_bot_navmesh, off by default)
 
-His question: do bots use the navmesh? No. FrikBot (QC/frikbot) finds its way by **waypoints**: compiled-in waypoint files
-(FrikBot's `waypoints/map_*.qc`, none of which we ship), else waypoints dropped where players walked (`DynamicWaypoint`, bot_way.qc) and by roaming
-(`frik_bot_roam`: random traces that spawn temporary waypoints); routes are searched over the waypoint links
-(`begin_route`, `FindRoute`, `bot_get_path`), the next waypoint is `.target1`, and `frik_movetogoal` (bot_move.qc)
-presses the keys toward it (`frik_KeysForDir`), dodges obstructions, recognises plats. Its walk already goes through
-the players' moves (`predict::botThink`: its keys as a move). So on every map here the bots wander until players have
-walked the ways; on a custom map they never know the far side of a door they haven't seen used.
+His question (2026-11-20): do bots use the navmesh? No: FrikBot (QC/frikbot) finds its way by **waypoints**: compiled-in
+waypoint files (FrikBot's `waypoints/map_*.qc`, none of which we ship), else waypoints dropped where players walked
+(`DynamicWaypoint`, bot_way.qc) and by roaming (`frik_bot_roam`: random traces that spawn temporary waypoints); routes
+are searched over the waypoint links (`begin_route`, `FindRoute`, `bot_get_path`), the next waypoint is `.target1` (the
+top of the bot's target stack, the goal under it), and `frik_movetogoal` (bot_move.qc) presses the keys toward it
+(`frik_KeysForDir`). Its walk goes through the players' moves (`predict::botThink`). So on a map nobody has walked yet a
+bot sees no way past a door, and a player it chases out of sight is walked at in a straight line, into the wall, till its
+5 s search time runs out.
 
-**Should they? Yes, for long-range navigation**, through the follower:
+**His design (voice note 2026-11-21): both.** The waypoints make the bots behave naturally on any map (they go for the
+powerups, the weapons, the health: FrikBot's goal choice and priorities), so they stay; the navmesh is used where it is
+better, chosen per goal:
 
-- **The navmesh replaces** the waypoints and the roaming: a goal chosen as now (an item, a player, an enemy), its plan
-  on the mesh (`navfollow::replan` for the bot's edict: the same 16 x 56 class as the players), and each frame
-  `navfollow::steer`'s corner taken as `.target1`'s place (a builtin returning the next corner and its link kind, or
-  the yaw and keys outright). Every map has a mesh at load, no waypoint files or learning; doors, drops, lifts and
-  teleporters as the monsters and vr_nav_follow use them.
-- **FrikBot keeps** combat (aiming, strafing, dodging, `bot_fight.qc`), item and enemy choice (`bot_ai.qc`'s goals and
-  priorities), obstruction dodging near the bot, plat recognition, rocket jumps and everything a waypoint flag says that
-  the mesh can't (precision jumps, rocket-jump ways): the learnt waypoints kept as the fallback where the mesh has no path.
-- **Effort:** about 3-4 days: a builtin (`navnext(bot, goal)`: the next corner and kind; the plan per bot kept by edict
-  like the monsters' agents) half a day; QC: bot_ai's route choice and bot_move's goal walking switched to it behind a
-  cvar (`vr_bot_navmesh`, off first), with waypoints as the fallback when there is no mesh or no path, 1-2 days; tests
-  (the coop and deathmatch bot scenarios, a "bot reaches the far side of a closed door" check on e1m1, the lockstep
-  runs: plans land on fixed server frames, as the monsters' do) 1 day.
-- **Risks:** locked doors and doors opened by buttons (the follower walks through blocked door polygons: a bot could
-  press at a locked door; it needs the door's state: blocked unless it opens on touch); the bots' gravity and air
-  control are FrikBot's own (`frik_obstructed`), so a drop or a teleporter's walk-in may need the link handling the
-  monsters have; water and ladders are not in the mesh (swimming bots keep FrikBot's way); one more class per map (a
-  player's size, built at load or on first use: on a big AD map seconds on the pool, cached on disk); deathmatch
-  balance (bots that always know the way are stronger: their skill could add a reaction delay or a detour).
+- **Kept from FrikBot:** the goal choice (`bot_look_for_crap`, `priority_for_thing`: items, powerups, weapons, health,
+  players), the waypoint roaming and routes, combat (aiming, strafing, dodging, `bot_fight.qc`), plats, rocket jumps and
+  everything a waypoint flag says that the mesh can't (precision jumps, trains, surfacing).
+- **The navmesh** (through the follower, 22: `navfollow::replan` and `navfollow::steer` for the bot's edict, the players'
+  16 x 56 class) walks the bot to a goal when:
+  - **(a) a player it has seen is within reach:** a deathmatch foe (its `.enemy`, or a player on its target stack: it
+    went for him), a coop player it follows: seen within `vr_bot_navmesh_memory` (5 s, FrikBot's own search time) and
+    within `vr_bot_navmesh_range` (1200 units) of it. It is walked to his live position along the mesh, through doors it
+    never used. Not when the bot's goal is something it needs more: a health or armour item while under 60 health, a
+    powerup (FrikBot's vital items).
+  - **(b) a goal has no waypoint route:** the route found none to the goal FrikBot chose (`mark_path`: the goal's nearest
+    waypoint never reached), the route broke on the way (`bot_path`: no next waypoint), or there are no waypoints near
+    at all (`begin_route` failed: then it looks for the best goal within `vr_bot_navmesh_range`, seen or not, instead of
+    only what it sees within 500): taken when the mesh has a whole path there.
+  - **(c) the waypoint route is much longer than the mesh's path:** over `vr_bot_navmesh_detour` (1.5) times it, and 128
+    units more (`mark_path`: the route's length is its waypoints' distance from the bot to the goal's waypoint, then on
+    to the goal).
+- **Back to waypoints** when the player is lost (dead, unseen past the memory, beyond the range), a goal is reached or
+  taken, the mesh has no path (or none yet: the class building), and always **in water** (waterlevel 2 or more) and on a
+  waypoint's special ways (a train ride, a rocket jump, surfacing): the mesh has no water or ladders. Its waypoint route
+  is then found again from where it stands.
+- **The walk:** the builtin `navbot(bot, goal, what)` (vr_navfollow.cpp `navfollow::botStep`): what 0 plans (kept per
+  bot, by its client slot; found again every `vr_nav_follow_repath` of server time, the class's build landing on its
+  fixed server frame as the monsters' do, 20) and steers: the next corner, which the QC turns into keys
+  (`frik_KeysForDir`, as for a waypoint); what 1 that step's state, flags (walk, the follower's hop when stuck, arrived,
+  partial) and the path left; what 2 drops the plan; what 3 a one-off probe (a whole path? its length) for (b) and (c).
+  An item is walked onto (no stop short), a player to within 48 units. While the path left shrinks the goal's search time
+  is kept on (a long walk is not given up at 5 s).
+- **Determinism:** the plans are server-side and timed in server time; the mesh's builds land on fixed frames: the same
+  in lockstep and the tests' fast mode.
+- **Shown:** developer 1 prints `botnav: <bot> navmesh to <goal> (seen | no route | shorter)` and `botnav: <bot>
+  waypoints (...)` when it switches.
+- **Tests** (`vr_dm_test 19-20`, vr_botnav_test.qc, deathmatch on e1m1): 19 a bot that saw the human walks to him
+  through the first room's west door after he is put past it (vr_bot_navmesh 0 for contrast, then 1: checked within
+  96 units); 20 with the human never seen, a rocket launcher at the end of a waypoint chain: taken by the waypoints
+  (target1 a waypoint, the mesh never used).
+- **Open:** deathmatch balance (a bot that always finds its way is stronger: its skill could add a reaction delay or a
+  detour); locked doors and doors opened by buttons (the follower walks through door polygons: a bot can press at a
+  locked door till its goal is given up); teleporters and drops are the follower's links, untested with bots here.

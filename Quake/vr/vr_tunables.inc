@@ -2463,6 +2463,9 @@ QVR_TUNABLE(vr_nav_repath_move, "64") // ... or when its foe moved this far from
 QVR_TUNABLE(vr_nav_follow_stop, "64") // vr_nav_follow (vr_navfollow.cpp): the follower stands this far short of the player it follows (units along the path)
 QVR_TUNABLE(vr_nav_follow_idle, "1") // vr_nav_follow: after his own move, look or jump, the follower walks on once he gave none this long (seconds)
 QVR_TUNABLE(vr_nav_follow_repath, "0.25") // vr_nav_follow: the server finds the follower's path again this often (seconds)
+QVR_TUNABLE(vr_bot_navmesh_range, "1200") // vr_bot_navmesh: a player a bot saw is chased along the navmesh within this distance (units); also how far a bot with no waypoint near looks for goals
+QVR_TUNABLE(vr_bot_navmesh_memory, "5") // vr_bot_navmesh: a player a bot saw is chased along the navmesh this long after it last saw him (seconds)
+QVR_TUNABLE(vr_bot_navmesh_detour, "1.5") // vr_bot_navmesh: a goal's waypoint route this many times longer than the navmesh's path (and 128 units more) is walked by the navmesh
 QVR_TUNABLE(vr_nav_corner_reached, "8") // a path corner this close (units, flat) counts as reached: the monster heads for the next
 QVR_TUNABLE(vr_nav_water_cost, "2") // the paths' cost of a unit of floor under water (1 a dry floor's)
 QVR_TUNABLE(vr_nav_slime_cost, "20") // ... under slime

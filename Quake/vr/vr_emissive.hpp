@@ -39,6 +39,9 @@ void hotBladeLight(int index, const glm::vec3& pos, const glm::vec3& color, floa
 inline constexpr int powerupLights = 2;
 inline constexpr int powerupLightKey = -0x5980; // their dlights' keys: this - the index
 void powerupLight(int index, const glm::vec3& pos, float strength, float radius, const glm::vec3& color);
+// Another player's copy's (syncfix: player entity `player`, 1..16, `hand` 0 off, 1 main): keys after yours.
+void otherPowerupLight(int player, int hand, const glm::vec3& pos, float strength, float radius, const glm::vec3& color);
+void powerupGlowLight(int key, const glm::vec3& pos, float strength, float radius, const glm::vec3& color);
 
 // Is `model` a lava nailgun's (its lava ammo's model)?
 [[nodiscard]] bool isLavaGun(const qmodel_t* model);

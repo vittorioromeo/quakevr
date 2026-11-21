@@ -48,6 +48,7 @@
 #include "vr_physsound.hpp"
 #include "vr_portals.hpp"
 #include "vr_nav.hpp"
+#include "vr_navfollow.hpp"
 #include "vr_props.hpp"
 #include "vr_propthink.hpp"
 #include "vr_protocol.hpp"
@@ -1073,6 +1074,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"navsteer", PF_navsteer},
     {"navlink", PF_navlink},
     {"navobstacles", PF_navobstacles},
+    {"navbot", PF_navbot},
     {"navreach", PF_navreach},
     {"bodyshock", PF_bodyshock},
     {"bodyshockdeath", PF_bodyshockdeath},
