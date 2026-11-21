@@ -6968,3 +6968,12 @@ it); an in-game indication of whether the chosen port is forwarded.
   ("the swing beheaded him", "he is dead (health 30)") want a look; both passed 3 of 3 on 2026-11-12.
 - **To publish once fixed:** the same command. `-NoBranchPush` matters: without it the script pushes agent/release12 to
   its upstream, origin/next; with it the tag alone carries the version commit.
+- **Follow-up (release12b):** mapgun_pickup/transfer fixed (`-cmatch`), 3/3 each. vrtrailer is NOT a regression since
+  1.1 or 11-12: built and run in this worktree, v1.1.0 (5187f3e5e) and f033d4c6d (11-12, the BACKLOG's "3 of 3")
+  fail it the same way ("decap: no: along the blade, a stab (0.76) at the head"; on the real clock the grunt is
+  knocked 150 units away, not beheaded). So something outside the code changed: not the cfg baseline (equal to the
+  compiled defaults and to the `release` worktree's), not `quakevr/cache`, not low-impact mode, not fast mode
+  (`-RealTime` fails too). The 1.1.0 release ran without `-RunTests` (takeslight's out/release/1.1.0 has no tests), so
+  "passed at 1.1" was never measured. Left: the kit's base folder and testbatch since 11-12, or the swing mock against
+  the Super Axe's held pose. weapon_catch's two handle checks print nothing (no fist line: the off hand never nears
+  the let-go shotgun); not bisected (budget).
