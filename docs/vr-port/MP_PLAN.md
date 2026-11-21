@@ -4164,7 +4164,7 @@ loopback (the harness's), interpolation delay 0.12-0.25 s.
 | Active ragdolls (stagger, knockdown and get-up, crawl, ledge climb, grabs, struggles) | server Box3D (parts, ragdoll::publish) | as dead ones | as dead ones | included above (the knocked-down grunt) | **G**, fixed |
 | A dead player's body (vr_deathdoll) | server Box3D (parts) | as dead ones; mpslide's body drawn on it | as dead ones | as above | **G**, fixed |
 | Props: crates, barrels, held, thrown, stood on, shoved | server Box3D | entity origin (int32 1/16 units) and angles (shorts), snapshot, delta-coded | yes (netsnap interpEntity) | crate 0.04 units, 0.01 deg | **F** |
-| Dropped and thrown weapons, embedded blades | server Box3D (props; a blade on the part it skewers) | entity | yes | sword 0.04 units, 0.35 deg; dropped shotgun 0.04 (1.75 with ragdolls sent: rate waits) | **F** (a skewering blade sat on a part B drew elsewhere: fixed with the ragdolls) |
+| Dropped and thrown weapons, embedded blades | server Box3D (props; a blade on the part it skewers) | entity | yes | sword 0.04 units, 0.35 deg; dropped shotgun 0.04 (with ragdolls sent too, ragsync2; 1.75-2.3 before it) | **F** (a skewering blade sat on a part B drew elsewhere: fixed with the ragdolls) |
 | Gibs, heads, cut limbs | server Box3D (props) | entity; small gibs under vr_net_cosmetic_bytes (B12c) | yes | gibs 2.8-7 units, 11-25 deg (their budget's waits); heads 0.05 | **F** (cosmetic budget by design) |
 | Grenades, explosion chunks, rubble | server Box3D (props; chunks cosmetic) | entity | yes | not in this play (as gibs: entities) | **F** |
 | Pushable corpses (bosses, not ragdolls) | server Box3D | entity | yes | (as props) | **F** |
@@ -4182,7 +4182,11 @@ loopback (the harness's), interpolation delay 0.12-0.25 s.
   asleep, keeps the last real publish's: ragdoll::serverPose). Measured: 0 B over 2 s once settled.
 - **The priority accumulator**: the moving ones' changed records under `vr_net_ragdoll_bytes` (400) a snapshot, nearest,
   ahead and longest waiting first (netsnap holdRagdolls: the rest held as the base's, their wait raising their
-  priority; a new one and the first changed one always go), all under the client's `vr_net_rate` like everything.
+  priority). **They take from the ragdolls only** (ragsync2): in the encoder a ragdoll's changed record is chosen after
+  every other entry, whatever its priority, in the room they leave in the 1400-byte datagram, never by the first-finite
+  rule (no bucket debt), and under his `vr_net_rate` only from what his bucket would spill by his next datagram (what it
+  cannot hold anyway): the others never wait behind them, in that datagram or the ones after. A heavy fight that fills
+  his link starves the ragdolls (drawn between the poses they have), not the entities.
 - **The client** keeps each ragdoll's last 24 poses with their server times (a third of a second: past the
   interpolation buffer's longest delay) and draws it between the two around the clock its entities are drawn at, each
   part slerped, through the listen host's own drawing (ragdoll::publishNet, swapModels, skinned models, the death view's
@@ -4191,9 +4195,13 @@ loopback (the harness's), interpolation delay 0.12-0.25 s.
   at 72 Hz alone; a crowded coop fight is capped by `vr_net_ragdoll_bytes` (400 B a snapshot: 29 KB/s at 72 Hz, about
   one moving grunt at full rate, more at a share each) and then by his rate.
 - **Protocol**: QVR_NET_VERSION 42 (a new message in the snapshot): **the room service must be redeployed** with it.
-- **A client's own hands on a ragdoll**: the server's ragdoll follows his sent hands (the grab fit per slot, as the
-  listen host's); his client draws the server's result an interpolation delay later. The listen host's local lead
-  (vr_ragdoll_held_local: the limb moved with the hand between steps) is not applied to a remote client's drawing yet:
-  **open** (it needs his hands' places at each pose's time).
-- **Open**: the dropped shotgun and backpacks moved 1.75-2.3 units off (p95) at B while two ragdolls were sent (0.04
-  without): the rate's waits shared with the ragdolls' records; the small gibs' cosmetic budget as before.
+- **A client's own hands on a ragdoll** (ragsync2): the server's ragdoll follows his sent hands (the grab fit per slot,
+  as the listen host's). In his own snapshot a ragdoll he holds carries which of his hands hold it and where the server
+  had them at that pose (his hand fields, int32 eighths: 12 bytes a hand, only while held; flag bits in the bleeds
+  byte); his client leads its drawing with his hands since, by the listen host's code (leadWithHands, vr_ragdoll_held_local):
+  the limb in his hand at his frame rate, not an interpolation delay behind. Not harness-tested (no scenario has a remote
+  client hold a ragdoll): his to try in VR.
+- **Measured after** (ragsync2, `mp_test.py ragsync`): with the ragdolls sent the others' records that waited over the
+  play 443 (662 in the play without them), the dropped shotgun 0.04 units p95 (2.3 before), the crate and sword 0.04;
+  the backpacks 0.04 over all samples, one flung backpack 3.2 units p95 while it flew (one 0.8 s burst as a grunt was
+  gibbed, likely the gib storm's full datagram; not traced further); the small gibs' cosmetic budget as before.

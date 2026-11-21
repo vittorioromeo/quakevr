@@ -70,7 +70,8 @@ The guide: [MULTIPLAYER.md](MULTIPLAYER.md).
   for everyone including himself.
 - **Ragdolls as the host has them**: dead monsters, staggering, knocked-down and climbing ones and dead players' bodies
   fall, tumble and get up the same way for everyone (before, a joining player saw the death animation instead); props,
-  thrown weapons and gibs already moved the same for everyone.
+  thrown weapons and gibs already moved the same for everyone, and still do while ragdolls are sent (the ragdolls only
+  use the room the rest leaves). A corpse you hold follows your hand smoothly, as for the host.
 - **Other players' guns and torches as they are**: the heavy revolver's cylinder swinging out and its shells, a super
   shotgun broken open, magazines in or dropped and the rounds they show, the ammo screen's count, the Widowmaker's
   spinning barrels; another player's flashlight is drawn where he carries it and lights the world where it points.
