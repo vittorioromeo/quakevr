@@ -7169,6 +7169,14 @@ softlock in kellbase1 at (-8, -959.8, 664.1).
 - **Where it stands: 8 of 9.** The grunt dies (103.7, blades, melee) but "decap: no: along the blade, a stab (0.82) at
   the head (0.63 along the blade)". Grid (reach:neck:duration:lead): 0.62-0.8 with the old 0.16 s strike with the
   handle (f 0.11-0.46) as the lagging head trails; 0.5-0.75 slower ones miss (the head centre is about 1.0 m ahead
-  of the eye: 33 units at 31.5 units/m). Next: a lateral hand path (constant reach, the hand going straight left at
-  the neck) so the blade meets it moving across its line, then vrtrailer 3x and the decap suites.
-  Scratch: `scratch/testenv_grid.sh`, `testenv_probe.sh`, `testenv_parse.py`, `testenv_measure.sh`.
+  of the eye: 33 units at 31.5 units/m). A lateral path (`--lateral 1`: the hand nearly straight left at the reach,
+  the head ahead; a fully straight one held the axe into the grunt's box on the walk up and knocked it out of the
+  hand) does not behead either: reach 0.75-0.8 at neck 0.22-0.25 meets nothing, at neck 0.3 it strikes his body
+  (87.1, gibbed, no head judgement). The committed mock stays the closest (curved, reach 0.8, neck 0.3, 0.3 s, lead
+  45: killed, a stab at 0.63 along the blade). Stopped there (the coordinator: no widening); vrtrailer 3x, the
+  suites, scenario_check and the ThinLTO build not run (only the test's Python/shell and docs changed).
+  Scratch tools parked in `F:/QVR-Parked/2026-11-21/posebake_testenv/` (testenv_grid.sh, _probe.sh, _parse.py,
+  _measure.sh).
+- **Player-facing? Probably, for fast swings:** at the old 0.16 s swing the drawn axe's blow line trailed the
+  controller by about 55 degrees, so the handle reached the neck before the blade (f 0.11-0.46, "hilt or handle"); a
+  real fast flat swing likely reads the same. Not measured with real takes; not fixed here.
