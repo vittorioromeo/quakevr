@@ -665,15 +665,44 @@ input don't have them.
 - **Debug view.** Debug > Show Gap Blockers (`vr_hull_holes_show`; `vr_hull_holes_show_range` 1024) draws them
   round you as translucent boxes: the world's cyan, between the world and a brush model yellow, a brush model's own
   magenta (where it is now), and the ones dropped because Quake's box reaches them red. The counts float in front of
-  you. Scene `brushholes_show`.
+  you. Scene `brushholes_show`. Since holes2 the world's over a fall are green, and the diagonal ones are drawn turned.
+- **holes2 (2026-11-22): the misses closed, the limits tunable.** Your note: "a few that I can still fall through".
+  Four more searches; every blocker they add is kept only where hull 1 shows Quake's box can't reach into it (the
+  drop test above, now "Quake's box less the reach on every side meets the blocker", the same shape the census tests):
+  - *Diagonals* (`vr_hull_holes_diag` 1): between two upright prisms with a face turned in x and y (slanted bars,
+    turned grates, a round hole's wedges, a turned wall; not rocks' or arches' pieces), along both 45-degree lines,
+    under 45.25 (32 x 1.414: for parallel faces at any angle that is exactly where Quake's box stops fitting). The
+    blocker is the turned box between the faces (`emitTilt`: its six faces, then its bounds as axial bevels).
+  - *Two brush models* (`vr_hull_holes_models` 1): two func_walls, a func_wall and a door's or lift's travel, two
+    travels: their gaps go into the world's tree like the world's against a model (never wider than 32).
+  - *Seen from above* (`vr_hull_holes_vert` 1): two thin solids (16 or less in z) at different heights, closer in z
+    than Quake's box is tall, whose outlines from above face each other with a gap under the limit (a louvred grate):
+    the blocker at the lower one's height. Kept only over a fall (nothing under it for 104: Quake's box and its jump)
+    with the way down open (nothing over it for 66) and where Quake's box *standing* (its bottom no lower than the
+    blocker's, less the reach) can't reach into it: one hanging under a grate over a pit can't be there to stand.
+  - *Wide* (`vr_hull_holes_wide` 48): the same for the world's thin solids' gaps along x or y from the limit up to 48
+    (a gap Quake's box only can't pass for its shape).
+  The world's blockers are [line test][diagonal][over a fall][with brush models] (`SubModel::standHoles`).
+- **Settings** (all at the next map load, or Rebuild Gap Blockers Now: `vr_hull_holes_rebuild` saves the game as
+  `holes_rebuild` and loads it, one player only): `vr_hull_holes_max` 32 (wider kept only where hull 1 says so; with
+  brush models never past 32), `vr_hull_holes_min` 8, `vr_hull_holes_wide` 48, `vr_hull_holes_diag`, `_models`,
+  `_vert` 1 (Movement > Player Hitbox); `vr_hull_holes_cells` 64 (tests a slanted pair), `vr_hull_holes_cell` 2,
+  `vr_hull_holes_reach` 2 (Debug, beside Show Gap Blockers). `holesKey` has them all; `buildVersion` 4.
+- **Report a miss:** Debug > Mark a Gap I Got Through (`vr_hull_holes_mark [radius] [note]`, 96): the map, where you
+  are, the settings (now and as built), where Quake's box fits round you, the world's solids within the radius and up
+  to 256 above (a slanted one's turned planes), the gaps on the lines through you along x, y and both diagonals at
+  your feet, your middle and each nearby thin solid's height (with the limit), and the blockers and dropped boxes
+  near. Printed and added to `quakevr/hull_holes_marks.txt`.
 - **Aids.** On Debug > Tests > Player Hitbox:
   - `vr_hull_holes_census`: counts, time, and whether Quake's box reaches into any of the world's own blockers on a
     17-point-a-side lattice. Its `HOLECENSUS|...` line has the same numbers.
   - `vr_hull_holes_near [radius]`: lists the blockers near you.
   - `vr_hull_holes_test`: the test map, below.
 - **Test map.** `maps/vrbrushholes` (`Misc/quakevr/make_vrbrushholes_map.py`) has a grate over a pit, a bar gate (a
-  shut func_door), a lift held up with 20-unit slots, and a row of pillars. Its checklist scenes are
-  `brushholes_grate`, `_gate`, `_lift` and `_pillars`.
+  shut func_door), a lift held up with 20-unit slots, and a row of pillars; since holes2 also a diagonal grate (bars
+  turned 45 degrees, 30 apart across them: 42 along x and y), a louvred grate (bars at z -8..0 with 48-unit gaps, one
+  at z -16..-8 under each: 20 from above) and two func_walls 24 apart. Its checklist scenes are `brushholes_grate`,
+  `_gate`, `_lift`, `_pillars`, `_diag`, `_louvre` and `_walls`. `vr_hull_holes_test` has 23 checks (on and off).
 
 Census (`vr_hull_cache 0`, a low-impact run, so the times are rough):
 
@@ -688,6 +717,17 @@ and after the first load it is read from the disk cache. ad_tears' search was 1.
 it to 0.5-0.7 s in a low-impact run. Most of what is left is slanted faces cut into cells (512k pairs). Coarser cells
 (4 units, 32 tests) gave 0.31 s, but 3,918 blockers instead of 11,481, leaving AD's slanted gaps open, so they stay
 fine. The blockers aren't on disk: a cold load searches again, while a reload keeps them (`vr_hull_keep`).
+
+holes2's census (the same low-impact runs; Quoth's maps weren't in the kit's base):
+
+| Maps | World blockers (own / with models) | Diagonal / over a fall | In models | Search (most) | Quake's box reaches |
+|---|---|---|---|---|---|
+| id1, 38 | 9,410 / 814 | 1,276 / 181 | 302 | 34 ms (e2m2) | 0 |
+| AD, 14 | 90,427 / 5,178 | 12,473 / 3,330 | 6,571 | 0.98 s (ad_tears) | 0 |
+
+ad_tears in one run: 1,020 ms with the new searches against 680 ms without them (diagonal 1,327 blockers, over a fall
+1,951; the player's tree 1,857 against 1,951 ms: noise). The first try (any brush with a turned face, solids up to
+32 thick, no open-above test) gave 18,364 diagonal and 29,843 over-a-fall blockers there (rafters, rocks) and 1.6 s.
 
 ## Brush models' hulls prepared at load (2026-10-05)
 
