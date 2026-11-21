@@ -3979,6 +3979,46 @@ not their own customized player model".
   gloves, both hands, its pelvis 7.7-7.9 units from the doll's origin. Single player: `vr_hurt 110 0` drew
   `mp_doll` with the brawny build and tone -0.50 (a screenshot from `vr_mock_camera`).
 
+### Still the ranger after a respawn (mpbugs3, 2026-11-21: found, not fixed; the avatar ragdoll rig planned)
+
+His words: "Killed bot/player ragdolls are still the Quake ranger model. Could it be possible to rig our own custom
+model (the one we use for the IK) and use that as a corpse ragdoll?"
+
+- **Measured** (one listen host, coop, a FrikBot bot, `vr_hurt 110 1`, then `vr_mp_avatars` and `vr_mp_near`): while
+  the bot lies dead its body is drawn as its avatar (`mp_doll: ent=2 model=progs/vrbody.mdl ... ragdoll=1`), on a VR
+  host and on a flat one (`-flatscreenmode`), and the dead host's own body too. **Once the bot has respawned** (500
+  frames later) its old body still lies there (a dead player's body stays until VR_Knockdown_MakeRoom takes it) and is
+  drawn as `player.mdl#rag`, the ranger, with no `mp_doll` line. In deathmatch, where everyone respawns at once, every
+  corpse he looks at is one whose owner is up again: hence "still the ranger".
+- **Why**: `drawn.of[]` holds one drawn copy per player, keyed by his entity. `addDolls` skips a body whose player's
+  copy was drawn this frame (`drawn.of[p].frame == host_framecount`: his living copy, added first by `addEntities`), so
+  only a body whose owner is dead (not sent) gets the copy. Not bots, flat players, ragsync or the colormap: those all
+  work (the bot's body carries its colormap, `f + 1`).
+- **The fix (next)**: doll slots beside the players' (`drawn.of[MAX_SCOREBOARD + 1 + k]`, k < 8: the nearest bodies
+  first), each with its owner's player number; `setup`, `setupBody` and `drawPowerups` take the slot (`Drawn&`) and the
+  owner (`calOf`, `avatars`, the look) apart, the per-player keyed side effects (`flashlight::drawOther`,
+  `emissive::otherPowerupLight`, `gadget::otherGlow`, `view::otherQuadArcs`, the morph state of `avatar::poseOther`)
+  skipped or keyed by the slot for a doll; the look-mask loop and the `mp_doll` report walk the slots too. Harness
+  check: `mp_deathbody` gains a case "B dies, respawns, A and B still draw his old body as his own" (both sides).
+- **The avatar's own ragdoll (planned, not built)**: today the body is the ranger's ragdoll (player.mdl's rig,
+  player_bones.json) with the avatar's mesh posed onto its bones each frame (`solveDoll`). For the avatar's own:
+  1. A rig2 for `progs/vrbody.mdl` (`quakevr/rigs/vrbody.rig2.txt`, `make_rig2.py`): its 20 bones from the md5mesh's
+     skeleton (pelvis, spine, chest, neck, head, clavicles, upper arms, forearms, hands, thighs, shins, feet), the
+     weights from the md5's own (each vertex's bone), the joint limits copied from `vrgrunt.rig2.txt` (a human of the
+     same proportions); checked in the Rig Studio (`vr_ragdoll_rig_spans`: no spanning triangles).
+  2. The server's body (vr_deathdoll.qc) made with `progs/vrbody.mdl` (the build's model: the calibration the server
+     keeps per slot, `cal.slot`) instead of player.mdl, flagged as a player's body (a field the engine reads, not the
+     colormap and the model name), so Box3D builds the avatar's ragdoll from its rig2 at the avatar's scale (his
+     height: the body's `scale`).
+  3. ragsync sends it as any ragdoll (`QVR_SVC_RAGPOSE`: its part count is the rig's, 20); a client draws the vrbody
+     parts directly (`ragdoll::publishNet`), skinned with the dead player's look (tone, gloves, nails: `view::lookOf` by
+     the body's owner); his hands at its hand bones. `addDolls`/`solveDoll` are then only the fallback (an older
+     server's player.mdl body, `vr_mp_body 1`).
+  4. Single player and the Immersive death view: the view in the vrbody's head bone (`ragdoll::headHidden` as now).
+  Costs: a rig (an afternoon with the Rig Studio), the QC body model switch, the engine's owner field and look; risk:
+  the vrbody mesh's proportions per build (a rig per build, or one rig scaled). Its value over the fix above: the
+  corpse's limbs are the avatar's own lengths (no stretched ranger proportions), grabs and gibs on the real shape.
+
 ## Sync audit 2026-11-21: every player feature, seen by another player or not
 
 His words: "Player flashlights are not synced, they should. Can you do an audit of all player features/interactions

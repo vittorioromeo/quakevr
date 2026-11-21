@@ -820,6 +820,11 @@ frame sequences; reading aids only, nothing pasted). Files `QC/dwell/` (GPL-2, h
   `start1_targets` (a target_lock unlocking the pedestals' relays) never ran: runes placed opened nothing and the walls
   before the episodes' teleporters stayed. `CU_PlayerSpawnedAt` fires them, after the START_LOCKED locks' 0.25 s (a
   player spawned sooner had them locked again). Test `vr_ad_test 214` in `dwell_maps.sh`.
+- **Started in a deathmatch game** (Select Campaign while hosting, mpbugs3): start has coop starts but no
+  `info_player_deathmatch`, and SelectSpawnPoint's deathmatch scan never ended ("runaway loop error", Host_Error in
+  Host_Spawn_f). The scan now ends after two passes; with no deathmatch start it takes coop's starts
+  (`VR_CoopSpawnPoint`: the next clear one, else beside one), so two players don't telefrag on the player start. Test
+  `vr_dm_test 22` (set before `vr_campaign_native dwell`; deathmatch and coop, a bot as the second player).
 - **Kamikaze**: `EntitiesTouching` compares mins/maxs (a brush's absolute box): two monsters' relative boxes always
   overlap, so it burst the moment it had an enemy. Now its box within 8 units or 64 units apart; its burst (and the
   Construct's death) sends `TE_EXPLOSION` (`DW_Boom`). **Brute**: the 14-vertex piece across his front was split

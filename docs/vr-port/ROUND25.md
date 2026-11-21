@@ -6734,3 +6734,29 @@ add the navmesh where it is smarter: a player spotted nearby, goals by need. Des
 - hotblade_test.sh: 27 of 30, `holster`, `blade_parts` and `superaxe` fail **the same on origin/next's engine**
   (checked: its Quake/ built and run): stale expectations (the hammer's part 2.8/7.0, verts 172/795; the crowbar's and
   chainsaw's vertex counts; the holstered axe found lying), not syncfix5's.
+
+## mpbugs3: his flat-screen multiplayer notes -- death drops, Dwell in deathmatch, corpses (mpbugs3, 2026-11-21, `agent/mpbugs3`)
+
+His words: "Bots/players in MP who had a dagger in their holster actually drop a sword as a prop"; "Killed bot/player
+ragdolls are still the Quake ranger model..."; Select Campaign > Dwell while hosting: "runaway loop error ...
+SelectSpawnPoint ... Host_Spawn_f".
+
+- **Death drops** (fixed): PlayerDie dropped each hand's and holster's weapon with `CreateWeaponDrop` (flags 0, a new
+  record), so a dagger (WID_SWORD with VR_SWORDKIND_DAGGER in its flags) lay as a knight's sword, and every drop lost
+  its magazine, blood, Dwell variant and AD upgrade. `VR_DeathDrops` (vr_wpnholster.qc) drops each as it was: its flags
+  (the hand's state off: foregrip carry, saw state; the reverse grip kept) and its record, moved (the dead one's
+  references cleared; a respawn makes new ones). Test `vr_dm_test 21` (vr_deathdrop_test.qc; `maxplayers 2; deathmatch
+  1`): a bot, then the player, daggers in both hands and five holsters, a knight's sword in the sixth: 20/0.
+- **Dwell from Select Campaign in deathmatch** (fixed): Dwell's start has coop starts but no `info_player_deathmatch`;
+  SelectSpawnPoint's deathmatch `while(1)` only ended on meeting its start spot again, so with none (or every start
+  blocked and no last spawn yet) it looped for ever. Coop and single player were fine. The scan ends after two passes;
+  no deathmatch start: `VR_CoopSpawnPoint` (the next clear coop start, else beside one: the first fix, the player start
+  for all, had the bot telefrag the host). Test `vr_dm_test 22` (vr_spawnloop_test.qc, set before `vr_campaign_native
+  dwell`): deathmatch 3/0 and coop 3/0 (two players spawned and alive, SelectSpawnPoint returns), single player loads.
+  `dwell_maps.sh`: 28/0, dwgate 10/0.
+- **Corpses still the ranger** (found, not fixed: out of budget): every dead body is drawn as its owner's avatar
+  (mpslide) only while he is dead; once he respawns, his body still lying is drawn as `player.mdl#rag` (one drawn copy
+  per player: `addDolls` skips a body whose owner's living copy is drawn). Measured on a VR and a flat listen host with
+  a bot. The fix (doll slots) and the avatar's own ragdoll rig (vrbody.rig2) are planned in MP_PLAN.md, "Still the
+  ranger after a respawn".
+- Checks: Dev build 0 warnings; mp_test coop, pickup, rejoin, dm: see the report.
