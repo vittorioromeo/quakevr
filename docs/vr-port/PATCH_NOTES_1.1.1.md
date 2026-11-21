@@ -16,7 +16,14 @@ that ships in 1.1.1.
   now stay what they are in your holsters, through saves, level changes and coop rejoins; the Rotary Shotgun reloads
   and spins up as the Widowmaker; Haste, Berserk and the Wetsuit show their seconds left on the wrist (and the flat
   visor), and Haste and Berserk tint the screen in Dwell's colours. An armed grunt that picks up one of Dwell's
-  weapons fires it as Dwell's. Fixed: the Crystal Lance's first shot ended the game with a network error.
+  weapons fires it as Dwell's. Fixed: the Crystal Lance's first shot ended the game with a network error. Fixed:
+  picking up Dwell's weapons in its maps failed with an error and they vanished; the toolgun now lays Dwell's weapons
+  and Dawn of the Machine's bloody shotguns as props, like every other weapon (a bloody one still grants its bonus
+  when you take it); in Dwell's start map, the runes placed on the pedestals now open the way to the episodes'
+  teleporters; the Kamikaze chases you before it bursts, and its burst shows an explosion; the Brute's ragdoll no
+  longer stretches a triangle between his hands; the Sculptor no longer traps you inside it when it flies or
+  teleports onto you. Dwell's music no longer plays in Quake's and the mission packs' maps while Dwell is installed,
+  and Dwell's start map and later maps play their own tracks.
 - **Quoth (experimental).** Quoth 2.2's own maps (Select Campaign > Quoth) and custom maps made for Quoth play by
   Arcane Dimensions' rules, so they need AD. The installer offers Quoth (free, by Kell, Necros and Preach), downloaded
   from Quaddicted and installed as released: ticked when Arcane Dimensions is chosen, greyed out without it.

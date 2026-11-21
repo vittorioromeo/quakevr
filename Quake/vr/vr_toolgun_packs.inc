@@ -52,8 +52,8 @@ QVR_PACK("Weapons", "SoA", "SoA Mjolnir", "func_weapon_grabbable", "progs/v_hamm
 QVR_PACK("Weapons", "SoA", "SoA Proximity Gun", "func_weapon_grabbable", "progs/v_prox.mdl", 8.f, "weapon", 9.f, 0, 0, nullptr, 0)
 QVR_PACK("Weapons", "SoA", "SoA Laser Cannon", "func_weapon_grabbable", "progs/v_laserg.mdl", 8.f, "weapon", 12.f, 0, 0, nullptr, 0)
 QVR_PACK("Weapons", "MG3", "MG3 Super Axe", "func_weapon_grabbable", "owned/mg3/progs/v_hammer.mdl", 8.f, "weapon", 18.f, 0, 1, "owned/mg3/progs/v_hammer_glow.mdl", 0)
-QVR_PACK("Weapons", "MG3", "MG3 Bloody Shotgun", "weapon_bloody_sg", "progs/g_shot0.mdl", 8.f, nullptr, 0.f, 0, 0, nullptr, 0)
-QVR_PACK("Weapons", "MG3", "MG3 Bloody Super Shotgun", "weapon_bloody_ssg", "progs/g_shot.mdl", 8.f, nullptr, 0.f, 0, 0, nullptr, 0)
+QVR_PACK("Weapons", "MG3", "MG3 Bloody Shotgun", "toolgun_bloody_sg", "progs/g_shot0.mdl", 8.f, nullptr, 0.f, 0, 0, nullptr, 0)
+QVR_PACK("Weapons", "MG3", "MG3 Bloody Super Shotgun", "toolgun_bloody_ssg", "progs/g_shot.mdl", 8.f, nullptr, 0.f, 0, 0, nullptr, 0)
 
 // Items: id's not listed before.
 QVR_PACK("Items", nullptr, "Small Health", "item_health", "maps/b_bh10.bsp", 0.f, "spawnflags", 1.f, 0, 0, nullptr, 0)
@@ -202,9 +202,9 @@ QVR_PACK("Monsters", "Dwell", "Brute", "dw_monster_brute", "progs/e2/mon_brute.m
 QVR_PACK("Monsters", "Dwell", "Construct", "dw_monster_excavator", "progs/e2/mon_excavator.mdl", 16.f, nullptr, 0.f, 0, 1, nullptr, 0)
 QVR_PACK("Monsters", "Dwell", "The Awoken (boss)", "dw_monster_d1boss", "progs/mon_d1boss.mdl", 96.f, nullptr, 0.f, 0, 1, nullptr, 0)
 QVR_PACK("Monsters", "Dwell", "The Sculptor (boss)", "dw_monster_d2boss", "progs/mon_d2boss.mdl", 64.f, nullptr, 0.f, 0, 1, nullptr, 0)
-QVR_PACK("Weapons", "Dwell", "Rotary Shotgun", "dw_weapon_quad_shotgun", "progs/g_shot3.mdl", 0.f, nullptr, 0.f, 0, 1, "progs/e1/mon_kami.mdl", 0) // (the rerelease has a g_shot3 too: probe a file only Dwell has)
-QVR_PACK("Weapons", "Dwell", "Crystal Lance", "dw_weapon_railgun", "progs/g_rail.mdl", 0.f, nullptr, 0.f, 0, 1, nullptr, 0)
-QVR_PACK("Weapons", "Dwell", "Rifle", "dw_weapon_rifle", "progs/v_rifle.mdl", 0.f, nullptr, 0.f, 0, 1, nullptr, 0)
+QVR_PACK("Weapons", "Dwell", "Rotary Shotgun", "toolgun_dw_rotary", "progs/g_shot3.mdl", 8.f, nullptr, 0.f, 0, 1, "progs/e1/mon_kami.mdl", 0) // (the rerelease has a g_shot3 too: probe a file only Dwell has)
+QVR_PACK("Weapons", "Dwell", "Crystal Lance", "toolgun_dw_lance", "progs/g_rail.mdl", 8.f, nullptr, 0.f, 0, 1, nullptr, 0)
+QVR_PACK("Weapons", "Dwell", "Rifle", "toolgun_dw_rifle", "progs/v_rifle.mdl", 8.f, nullptr, 0.f, 0, 1, nullptr, 0)
 QVR_PACK("Items", "Dwell", "Haste", "dw_item_artifact_haste", "progs/e2/item_haste.mdl", 24.f, nullptr, 0.f, 0, 1, nullptr, 0)
 QVR_PACK("Items", "Dwell", "Berserk", "dw_item_artifact_berserk", "progs/item_berserk.mdl", 24.f, nullptr, 0.f, 0, 1, nullptr, 0)
 QVR_PACK("Items", "Dwell", "Wetsuit", "dw_item_artifact_wetsuit", "progs/item_diving.mdl", 24.f, nullptr, 0.f, 0, 1, nullptr, 0)

@@ -14,6 +14,7 @@ void() dw_kami_stand = { DW_Seq(24, 48, DW_AI_STAND, 0, __NULL__, __NULL__); };
 
 void() dw_kami_explode =
 {
+    DW_Boom(self.origin); // (the explosion's sight: BecomeExplosion alone drew none, his note 2026-11-21)
     sound(self, CHAN_VOICE, "zombie/z_gib.wav", 1, ATTN_NORM);
     ThrowGib("progs/gib3.mdl", -60);
     ThrowGib("progs/gib3.mdl", -60);
@@ -32,12 +33,26 @@ void() dw_kami_die =
     self.nextthink = time + 0.05;
 };
 
-// Each running frame: at its enemy (bursting when touching it or within melee range), screaming every few frames, and
-// back to standing after 60 s with no enemy in sight.
+// Reached `e`: their boxes within 8 units of touching, or 64 units apart (EntitiesTouching compares mins and maxs, a
+// brush's own box: two monsters' relative boxes always overlap, so it burst the moment it had an enemy, his note
+// 2026-11-21; RANGE_MELEE, 120 units, burst it short of you).
+float(entity e) dw_kami_reached =
+{
+    vector lo = self.absmin - '8 8 8', hi = self.absmax + '8 8 8';
+    if(e.absmin_x <= hi_x && e.absmax_x >= lo_x && e.absmin_y <= hi_y && e.absmax_y >= lo_y && e.absmin_z <= hi_z &&
+       e.absmax_z >= lo_z)
+    {
+        return TRUE;
+    }
+    return vlen(VR_AI_Origin(e) - self.origin) < 64;
+};
+
+// Each running frame: at its enemy (bursting when it reaches it), screaming every few frames, and back to standing after
+// 60 s with no enemy in sight.
 void() dw_kami_runev =
 {
     if(!self.enemy) { return; }
-    if(EntitiesTouching(self, self.enemy) || range(self.enemy) == RANGE_MELEE)
+    if(dw_kami_reached(self.enemy))
     {
         Killed(self, self.enemy);
         return;
@@ -297,6 +312,7 @@ void() dw_exca_die =
     ThrowGib("progs/e2/gib_excavatorb.mdl", -100);
     ThrowGib("progs/e2/gib_excavatora.mdl", -100);
     sound(self, CHAN_WEAPON, "weapons/r_exp3.wav", 1, ATTN_NORM);
+    DW_Boom(self.origin); // (as the Kamikaze's: BecomeExplosion alone drew none)
     BecomeExplosion();
 };
 
