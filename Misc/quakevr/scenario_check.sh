@@ -4,7 +4,8 @@
 #   vr_scenario validate   each file's map, entries, settings and commands (SCNOK/SCNERR), each toolgun entry found
 #                          while selected (SCNSEL), every checklist tag's file (SCNSUM)
 #   vr_scenario runall     each scene started and held 3 s of game time: none "not started", everything placed
-#                          (SCNPLACED), still there (SCNKEPT), the given weapons still in hand (SCNHANDS), SCNRUN OK
+#                          (SCNPLACED), still there (SCNKEPT), the given weapons still in hand (SCNHANDS), SCNRUN OK;
+#                          SCNRUN SKIP (not a failure) when a scene names an add-on's entry this base lacks (Dwell, AD)
 # Ends on runall's SCNRUNSUM line (the game quits itself); prints PASS or FAIL and exits 1 on any failure.
 # (ROUND22.md, "Checklist Tests that didn't start": the toolgun's selected entry broke every scene naming it.)
 AGENT=${1:?worktree name}
