@@ -55,6 +55,7 @@
 #include "vr_netmove.hpp"
 #include "vr_predict.hpp"
 #include "vr_netsnap.hpp"
+#include "vr_netragdoll.hpp"
 
 
 using namespace qvr;
@@ -970,6 +971,17 @@ extern "C" void VR_SnapEnd(sizebuf_t* msg)
                 }
             }
             qvr::netsnap::serverRecord(qvr::netsnap::poseKey + e, w.poseJoin, len);
+        }
+    }
+    // (ragsync) The ragdolls in its sight: a record each, their parts as the server last stepped them (vr_netragdoll.cpp).
+    if(qvr::vr_net_ragdolls.value != 0.f)
+    {
+        for(int e = 1; e < qcvm->num_edicts; e++)
+        {
+            if(scopedInSight(r, e))
+            {
+                qvr::netrag::serverRecord(e);
+            }
         }
     }
     qvr::netsnap::serverEnd(msg);

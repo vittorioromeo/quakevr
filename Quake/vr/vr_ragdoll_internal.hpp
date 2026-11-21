@@ -54,6 +54,8 @@ struct Published
     za::Array<glm::vec3, maxBones> prevPos{};
     double time{0.0}, prevTime{0.0};
     bool still{false}; // republished (box3d: asleep): the step before is the same pose (copied once)
+    double poseTime{0.0}; // the server's: its last publish's time (serverPose: a republish keeps it)
+    bool net{false};      // a remote server's (publishNet): drawn at netDraw.clock, not cl.time
     // The local player's hands on its limbs at each step (bit 0 the off hand, 1 the main; their places as the client
     // had them then: vr_ragdoll_held_local).
     int heldBy{0}, prevHeldBy{0};
