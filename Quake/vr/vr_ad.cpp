@@ -212,6 +212,15 @@ void beforeLoad()
     Cvar_SetROM("vr_ad_mounted", mapState.mounted ? "1" : "0");
 }
 
+bool clientDataInPlay()
+{
+    if(sv.active || cls.state != ca_connected)
+    {
+        return qvr::vr_ad_mounted.value != 0.f;
+    }
+    return (cl.stats[protocol::STAT_QVR_ADHUD] & protocol::ADHUD_DATA) != 0; // (a remote server's: wristscore's note)
+}
+
 void registerCommands()
 {
     Cmd_AddCommand("vr_ad_info", statusCommand);

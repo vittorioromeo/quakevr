@@ -37,6 +37,7 @@
 #include "vr_seated.hpp"
 #include "vr_shock.hpp"
 #include "vr_units.hpp"
+#include "vr_view.hpp"
 #include "vr_portals.hpp"
 #include "vr_testkit.hpp"
 #include "vr_tips.hpp"
@@ -2051,6 +2052,10 @@ extern "C" void VR_CalcStats(client_t* client, int* statsi, float* statsf)
     stat(STAT_QVR_AMMOPLASMA, f.ammo_plasma);
     statsf[STAT_QVR_STEALTH] = fieldFloatOr(ent, f.stl_hud, -1.f);
     stat(STAT_QVR_ADHUD, f.vr_ad_hud); // AD support: AD's row on the wrist gadget (vr_gadget.cpp)
+    if(vr_ad_mounted.value != 0.f) // (and whether AD's data is in play here: a remote client's AD page, ad::clientDataInPlay)
+    {
+        statsf[STAT_QVR_ADHUD] = static_cast<float>(static_cast<int>(statsf[STAT_QVR_ADHUD]) | ADHUD_DATA);
+    }
     stat(STAT_QVR_ADKEYS, f.vr_ad_hudkeys);
     stat(STAT_QVR_ADTIME, f.vr_ad_hudtime);
     stat(STAT_QVR_ADTINT, f.vr_ad_tint); // AD support: AD's screen tint (vr_ad.cpp VR_AD_TintBlend)
@@ -2425,8 +2430,7 @@ void writeAvatars()
         // weapons go instead, for each client to place its hands and weapons on as it places its own
         // (VrDrawnHand::solveBit, view::solveHands); its head at its eyes, its body a standing player's of its eye height.
         edict_t* const ent = c.active ? c.edict : EDICT_NUM(i + 1);
-        const bool bot = !c.active && !ent->free && ent->v.modelindex != 0.f && f.ishuman >= 0 &&
-                         fieldFloatOr(ent, f.ishuman, 1.f) == 0.f && !strcmp(PR_GetString(ent->v.classname), "player");
+        const bool bot = server::isBot(i);
         if(!bot && (!c.active || !c.spawned || !c.edict || !m))
         {
             continue;
@@ -2448,6 +2452,13 @@ void writeAvatars()
                 d.handAngles = fieldVec(ent, handFields(h).rot);
                 d.weaponModel = static_cast<za::U16>(h ? SV_ModelIndex(PR_GetString(ent->v.weaponmodel)) : modelIndexOfField(ent, f.weaponmodel2));
                 d.weaponFrame = static_cast<za::U8>(za::clamp(static_cast<int>(h ? ent->v.weaponframe : fieldFloatOr(ent, f.weaponframe2, 0.f)), 0, 255));
+                // (bots3) its weapon where the server has it (its disarm volume's, its muzzle's): every client draws it there
+                if(view::HeldPlace p; server::botHeld(ent, h, p))
+                {
+                    d.flags |= VrDrawnHand::weaponBit;
+                    d.weaponOrigin = p.origin;
+                    d.weaponAngles = p.angles;
+                }
             }
         }
         // (offsets from the origin his client placed them from: the hands as drawn on his body, wherever the server has it)
@@ -2519,6 +2530,7 @@ extern "C" void VR_ServerFrameBegin()
     // This game's own player's drawn weapon poses, ground spots and holster presses into his slot, as a remote player's
     // messages put his: the server's readers ask the slot alone (MP_PLAN B11a).
     qvr::heldpose::publishOwn();
+    qvr::heldpose::placeBots(); // (bots3: each bot's weapons as every client draws them)
 }
 
 extern "C" void VR_ServerFrameEnd()
@@ -2586,6 +2598,31 @@ extern "C" void VR_ServerFrameEnd()
 
 namespace qvr::server
 {
+
+bool isBot(int slot)
+{
+    if(!sv.active || slot < 0 || slot >= svs.maxclients || svs.clients[slot].active || slot + 1 >= sv.qcvm.num_edicts)
+    {
+        return false;
+    }
+    const FieldOffsets& f = fields();
+    edict_t* const ent = EDICT_NUM(slot + 1);
+    return !ent->free && ent->v.modelindex != 0.f && f.ishuman >= 0 && fieldFloatOr(ent, f.ishuman, 1.f) == 0.f &&
+           !strcmp(PR_GetString(ent->v.classname), "player");
+}
+
+bool botHeld(edict_t* bot, int hand, view::HeldPlace& out)
+{
+    const FieldOffsets& f = fields();
+    const int index = hand ? SV_ModelIndex(PR_GetString(bot->v.weaponmodel)) : modelIndexOfField(bot, f.weaponmodel2);
+    qmodel_t* const model = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
+    const progs::HandFields& hf = progs::handFields(hand);
+    if(!model || hf.pos < 0 || hf.rot < 0)
+    {
+        return false;
+    }
+    return view::placeHeld(model, hand, fieldVec(bot, hf.pos), fieldVec(bot, hf.rot), out);
+}
 
 // vr_dumpplayer: prints the local player's VR fields as the server sees them.
 void dumpPlayer_f()

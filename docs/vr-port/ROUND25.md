@@ -6515,6 +6515,34 @@ His note e1m1_2026-11-21_00-43-41 ("compressed by the lift"); worldai measured a
   Debug > Logging > Lift Riders (vr_debug_lift); menu_paths.txt regenerated (Cries Heard, Lift Riders, both test rows).
 - Not run (out of budget): stealth_tests.sh all (noises_clue on origin/next), the nav suite, scenario_check, ThinLTO.
 
+## bots3: a bot's weapon placed once, on the server; the grab at the drawn weapon (2026-11-21, `agent/bots3`)
+
+Item 1 of the brief done and tested; items 2 (Show Disarm Volumes on bots and players) and 3 (Show Hit Zones on bots and
+players) not started (out of budget).
+
+- **One placement.** `view::placeHeld` (vr_view_weapon.cpp) places a weapon in another's hand as setupWeapon draws
+  another's (weaponTurn's angle offsets, the model transform's offset, the muzzle anchor, the hotspots), pure math on the
+  model and the Weapon Offsets, so the dedicated server runs it. `server::botHeld` runs it at a bot's handpos/handrot:
+  (a) the bot's avatar sends the weapon's place and turn (the solveBit hand's weaponBit, 12 B more; `QVR_NET_VERSION`
+  42) and each client draws it there (`view::solveHands`' `placed`: the hand fitted to it), whatever its own weapon
+  settings; (b) `heldpose::placeBots` (each server frame) puts the bot's hotspots into its heldpose slot (in the hand's
+  frame: on the hand now, lag compensated) for QC weaponhotspot; (c) `weapondrawnpose(bot, hand, 53)` gives its muzzle,
+  which bot_setvrfields now sets as `.muzzlepos`/`.offmuzzlepos` (was handpos + 24 along handrot: the grab's and the
+  parry's line pointed where no weapon was drawn). Players: unchanged; a remote player's weapon is drawn where his client
+  drew it, and the server's line and hotspots are his client's too: the test shows the grab at his drawn weapon holds.
+- **Test** (`mp_test.py botgrab`, in the suite; vr_dm_test 16-18, vr_botgrab_test.qc): B, then a bot, held 64 units in
+  front of A; A's client reports where it draws the victim's weapon (`vr_mp_avatars`' new `mp_drawnwpn:` butt and
+  muzzle); the server closes A's empty hand at its middle: taken (gap to the server's weapon 0.5 units for B's shotgun,
+  0.3 for the bot's axe; the reach is 2.5); 14 units off it: nothing. 9/0. Not run before the fix (no switch kept).
+- **Checks:** mp_test dm 27/0 (the bots' blows and parries with the new muzzle line), coopbots 13/0, botgrab 9/0; Dev
+  build 0 warnings. Not run (budget): vr_pd_test, the vr_agrunt disarm cases, the plain suite, scenario_check, ThinLTO.
+- **Left:** items 2 and 3. Findings: vr_disarmviz.qc draws only armed humanoids' weapons (VR_DV_Frame) and only on the
+  host (disarmviz::draw needs sv.active); for players and bots the volume is VR_PDG_Gap's (VR_Parry_WeaponLine's line,
+  the hotspots, vr_player_disarm_reach): send it as a new kind from VR_DV_Frame for each living client holding a weapon,
+  and on a client rebuild it from the drawn weapon (mpavatar's `drawnWeaponLine`, the reach). Hit zones: VR_Decap_DebugFrame
+  sends only FL_MONSTER zones; players have positional ones (PositionalHead "player": head 4/23/7.2, the box's zones from
+  mins/maxs): send them for clients too (drawn as boxes, not on player.mdl's invisible surface), and on a client rebuild
+  them from the entity's place and yaw (its box is not sent: crouching changes maxs).
 ## wristscore: the multiplayer scoreboard on the wrist gadget (wristscore, 2026-11-21, `agent/wristscore`)
 
 His words (2026-11-21): an extra wrist gadget page for the multiplayer scoreboard, cycled through, or in place of AD's.
@@ -6575,3 +6603,132 @@ SPLITSCREEN.md section 11 has the details; in short (seats numbered from 0 as in
   16/0, flatparry 43/0, same on both. The MP suite was not part of this phase's set (no network code touched).
 - In VR (the author): nothing changes with one seat. Flat: the hands, punches, shove, parry, crouch and prone, holster
   menu, ironsight, third person, reload, E's carry, grenades, the hands' swap and the toolgun's keys behave as before.
+## The Crystal Lance as a two-handed lance; a general pole grip (branch agent/dwellwpn2, 2026-11-21)
+
+His notes of 2026-11-21 (DWELL.md 9.9 has the detail). Built: item 1. Not built: item 2 (the Rotary's gauntlet grip and
+a findable reload: the plan is in DWELL.md 9.9) and item 3 (reliefs for Dwell and Quoth: shipping AD's way is not
+allowed for them; the plan for generating them on the user's machine is in DWELL.md 9.9). Item 4: no work, as asked.
+- `vr_dw_lance_pole` (1): the Lance's model `progs/dw_lance.mdl#vr` from Dwell's world model `g_rail.mdl` (recipe,
+  read in place), the lightning gun's grip under its pole; weapons.txt slot 55 (numSlots 56). New recipe options
+  `keepOpen`, `keepScale`. 0: the pistol (slot 53), as before.
+- `FREE_POLE` (`vr_twohand.cpp`; weapon key `anygrip_mode 3`): the other hand anywhere on the weapon slides along its
+  long axis between butt (Blade Near) and tip, aiming it through the hand; in VR its hotspots never take the other hand
+  (`twohand::poleGrip`); flat keeps its fixed hold. `vr_debug_2h_grip 2` prints the place along the pole; `vr_status`
+  says "on its pole".
+- QC `DW_LanceMelee`: its swing a blade's (the axe's damage) instead of the gun's club.
+- Tests: `dwell_lance_test.sh` 8/0 (vr_ad_test 217 5/0; the pole taken at 21.1 from the handle, slid 20.8 -> 26.2 ->
+  8.9 along it, never let go), `dwell_vrmodels_test.sh` 13/0 (7 models made; screenshots `scratch/dwell_vrmodels_*.png`).
+  Dwell v2.2 was unpacked into the kit's `bases/mp/qbase/dwellv2p2` for these (the kit's pinned zip).
+- Left: the main hand does not slide; no ammo screen housing on the lance; flat's hold point and sights unmeasured; the
+  blow's damage on a monster untested; not run: dwell_weapons_test.sh, dwell_maps.sh, the melee/two-hand and flat suites,
+  scenario_check, a ThinLTO build.
+
+## dwellwpn3: the Lance's checks; the Rotary Shotgun as a gauntlet; the reliefs' options (branch agent/dwellwpn2, 2026-11-21)
+
+His notes of 2026-11-21 (DWELL.md 9.9 has the detail).
+- The Lance's checks (headless, Dev build): dwell_lance 8/0, dwell_weapons 9/0, dwell_maps 28/0 (dwgate 10/0), flatmelee
+  12/0, flatparry 43/0, flattwohand 9/0, flatmelee2h 16/0, flatplay 31/0, flathands 76/0, grip_state PASS, empty_melee
+  2/0, vr_agrunt_test 212 6/0, 213 1/0, 77 12/0, 92 22/0, 18 24/0, scenario_check PASS (148 scenes); ThinLTO and Dev 0
+  warnings. Not clean, and not the pole grip's (its code runs only for a weapon whose own Other Hand Anywhere is 3, the
+  Lance alone, and never in flat play): flatfg2h 10/1 twice (key 3: the axe's drawn off hand leaving the grip, 5.95 a
+  frame against the launcher's 2.90); twohand_regrip's grunt head (pick 4) and hand grenade (pick 10) never held in both
+  (props, no weapon slot). Baselines on next not run.
+- The Rotary as a gauntlet (`vr_dw_rotary_gauntlet` 1): `progs/dw_rotary.mdl#vr` (vr_adweapons.cpp: a recipe over Dwell's
+  view model laid round the super nailgun's hand; `rotaryGauntletParts`: the back's window, the shell port block on the
+  inner side), weapons.txt slot 56 (numSlots 57; the super nailgun's hold values), the `DwVrRotary` load point (5 7.25 0;
+  the Widowmaker's port settings). Why it could not be reloaded: its model had no load point, so only the gun brought to
+  the pouch loaded it. Test `Misc/quakevr/dwell_rotary_test.sh` (vr_ad_test 218) 3/0 (dwrotary 8/0: drawn as a gauntlet,
+  the port found the first frame, handfuls of 2 there fill its 16 tube, the old grip with the setting 0; 8 models made);
+  dwell_vrmodels 13/0. Screenshots `scratch/dww3_rotary.png` (top: before, bottom: after; outer and inner sides).
+- Scenes: `dwell_rotary_gauntlet`, `dwell_lance_pole` (new); `dwell_rotary` and `dwell_lance` now set the old holds (their
+  lines describe them).
+- The reliefs: the options and costs in DWELL.md 9.9 (A ONNX in Setup, B in the engine, C a script, D no model);
+  recommended D first, then A. Nothing built.
+- Left: the port's radius is the Widowmaker's (1.25); his hand's fit inside the housing and the port's place to tune in
+  VR (slot 57 in Weapon Offsets); the port block is dim in dark rooms.
+## bots4: bots3's checks; Show Disarm Volumes and Show Hit Zones on bots and players (2026-11-21, `agent/bots3`)
+
+Finishes bots3 (items 2 and 3; item 1's missing checks). Merged origin/next (mp_test.py's suite list: botgrab beside
+wristscore). `QVR_NET_VERSION` stays 42: nothing new is sent (the client rebuilds what it shows).
+
+- **Show Disarm Volumes on players and bots.** Host: `vr_disarmviz.qc` VR_DV_Player sends, for each living client
+  (bots and humans) holding a weapon, new kinds 21-24 (`vr_disarmviz.cpp` PlayerGrab/Spot/ShotW/ShotH): another
+  player's grab (VR_PDG_Gap: VR_Parry_WeaponLine's butt..end and each hotspot, `vr_player_disarm_reach` round them, while
+  `vr_player_disarm_pvp` and `_grab`), a shot's (VR_PD_Meet: the line, VR_AGS_W_RADIUS + `vr_agrunt_vol_shot_weapon`;
+  the hand, VR_AGS_H_RADIUS + `_hand`, by `vr_agrunt_shotdisarm_parts`, while VR_PD_Can). Drawn as wire capsules (orange
+  the grab, faint orange a hotspot, magenta and cyan the shots). Client (no server here): `disarmviz::draw` rebuilds them
+  from each other player's weapon as drawn (`mpavatar::drawnWeapon`: drawnWeaponLine's butt..muzzle, the hand) with the
+  host's rules (QVR_RULE cvars are the host's on a client); no hotspots (not sent). The viewer's own are never drawn.
+- **Show Hit Zones on players and bots.** Host: VR_Decap_DebugFrame now sends the positional zones of living clients too
+  (not the decapitation ones); `zonesDraw` outlines a player's on his box (never on player.mdl's surface: his avatar is
+  what is drawn), not the viewer's own, his entity's model not required. Client: `zonesDraw` rebuilds each other drawn
+  player's zones (`playerZones`: client.qc's standing box -16 -16 -24 .. 16 16 26, PositionalHead's "player" head 4/0/23
+  r 7.2: keep in step) at his entity's drawn place and yaw. The host's monsters' zones stay host-only (they need its QC).
+- **Decisions (conservative):** a client draws a crouched player's zones standing (his box isn't sent) and a dead
+  player's while his avatar is drawn (the host's QC skips the dead); no protocol change for either.
+- **Test** `mp_test.py debugviz` (client) and `debugviz_listen` (A hosts), in the suite after botgrab: deathmatch on dm4,
+  B with a shotgun held out and then a bot held 64 units in front of A (vr_dm_test 16; `vr_dm_test 0` between the cases);
+  A's `vr_mp_avatars` prints a new `mp_debugviz:` line per player (volumes, the first grab capsule, zones, the head zone's
+  centre). Client 9/0: 3 volumes each, the grab line on the drawn weapon (0.0 units), 5 zones, head zone 6-9 units from the
+  drawn head. Host 8/0: 5 volumes each (two hotspots), the server's grab line 1.8-1.9 units off the drawn weapon (at most 4).
+- **Item 1's checks:** vr_pd_test 1 12/0, 2 8/0 (one timeout "case 0" in the first run, passed on the rerun); vr_agrunt_test
+  2 4/0, 33 6/0, 93 0/0, 94 15/0, 99 47/0, 203 81/0, 16 273/1 (the "disarmhull hunt" grip 2.76 units off: the same on an
+  origin/next build, 2.80; the first run's "dual nail pistols, the left one" passed on the rerun); the plain suite 62 of 64
+  (mp_wpnsync_flat's torch 10.6 units off once, 16/0 on the rerun; mp_coopbots vr_dm_test 11, BACKLOG's rare flake);
+  scenario_check PASS (148 scenes), vr_agrunt_test 97 (Show Disarm Volumes) 5/0 with Show Hit Zones on; Dev and
+  ThinLTO builds 0 warnings.
+
+## smallfix: scenario skips, the wrist AD page in a remote game, vr_rv_test 1, ragsync (2026-11-21, `agent/smallfix`)
+
+- **Scenes needing an add-on**: `vr_scenario runall` skips a scene whose give/spawn names a toolgun entry this game cannot
+  make (toolgun `spawnableAvailable`: Dwell, AD, an MG3 campaign item): `SCNRUN|<id>|SKIP|line N: "<entry>": <why>`,
+  nothing placed, not a failure; `SCNRUNSUM|N run|M failed|K skipped`. There was no declaration to copy (the dwell_*
+  scenes only use `cmd vr_ad_test`): the toolgun's own availability is the rule. A probe scene (an MG3 upgrade) skipped.
+- **The wrist AD page in a remote game**: STAT_QVR_ADHUD bit 13 (`protocol::ADHUD_DATA`, set by the server from its
+  `vr_ad_mounted`); `ad::clientDataInPlay()` (vr_ad.cpp) is the local cvar with a local server, the bit on a remote one;
+  the gadget's page checks use it. `mp_test.py wristscore` 11/0 with a new check (B's AD page offered as the server's
+  game); every agent base has AD's data, so the server-without-AD case is not exercised.
+- **vr_rv_test 1** "a grunt's body": its grunts were armed replacements (vr_agrunt_repl, on by default) with a random
+  weapon; a shotgun before the chest stopped the first body slug (VR_AGS_Shot, 0 dealt: the game is right). The test
+  spawns plain grunts now (vr_agrunt_repl 0 around the spawn) and its slug lines say what each hit. 48/0.
+- **mp_ragsync**: the settled-bytes check waits up to 5 windows of 2 s for a quiet one (noted). The crate/sword p95
+  failures are the game's (2 of 3 runs here): in the ragdolls-on play B draws the blasted crate at exact server-tick
+  places 1-2 ticks AHEAD of its interpolation clock (not lerped, as if `netsnap::interpEntity` returned false and the
+  NetQuake path drew the newest), only during the gib blast; in the ragdolls-off play the same crate is 0.04 u p95.
+  Open: suspect `h.model != ent.model` in interpEntity (a model swapped by the ragdoll pass?) or netrag's client frame.
+  Tools: `scratch/smallfix_raglag.py <run dir>` (worst samples, best time shift), `smallfix_raggap.py <dir> <ent> <t0> <t1>`.
+## botnav: bots' waypoints and the navmesh together, vr_bot_navmesh (2026-11-21, `agent/botnav`)
+
+His voice note (2026-11-21): keep FrikBot's waypoints (they make the bots go for powerups, weapons, health on any map),
+add the navmesh where it is smarter: a player spotted nearby, goals by need. Design and rules: NAVMESH.md 23 (rewritten).
+
+- **`vr_bot_navmesh`** (cvar, archived, **0** by default: FrikBot exactly as before; the host's). 1: the navmesh walks a
+  bot (a) to a player it saw within `vr_bot_navmesh_memory` (5 s) and `vr_bot_navmesh_range` (1200 units) once he is out
+  of its sight (in sight: FrikBot's walk and fight), unless its goal is a powerup or, under 60 health, health/armour;
+  (b) to a goal with no waypoint route (`mark_path`'s failure, `bot_path`'s broken route, or no waypoint near:
+  `BotNav_Look`, the best goal within the range, a player only in sight); (c) when the route is over
+  `vr_bot_navmesh_detour` (1.5) times the mesh's path + 128. Waypoints again when the player is lost or far, the goal
+  reached, the mesh has no path, and always in water / on a train, rocket-jump or surfacing waypoint. The three tunables
+  are Debug > Tunables rows ("Bots: Navmesh ...").
+- **Engine:** builtin `navbot(bot, goal, what)` (vr_builtins_nav.inc -> `navfollow::botStep`, vr_navfollow.cpp): the
+  follower of NAVMESH.md 22 reused as is (`replan`, `steer`), one plan per bot by client slot, timed in server time (the
+  class's build lands on its fixed frame); what 0 plan + steer (the corner), 1 state/flags/path left, 2 drop, 3 probe.
+- **QC:** frikbot/bot_nav.qc (new; `BotNav_Note`, `BotNav_Step`, `BotNav_Take`, `BotNav_Look`), hooks in BotAI (one
+  branch before frik_movetogoal/bot_path; the begin_route failure; the death reset), bot_path's broken route, mark_path
+  ((b) and (c)). The corner becomes keys through `frik_KeysForDir` as a waypoint does; the follower's hop as `bot_jump`;
+  the goal's search time kept on while the path left shrinks; waypoint flags cleared while walking the mesh (AI_WAIT
+  held it still). Developer 1: `botnav: <bot> navmesh to <goal> (seen | no route | shorter)` / `... waypoints (why)`.
+- **Found on the way:** a tunable can't be the switch (a release build folds tunables to constants; QC's cvar_set on one
+  does nothing), so `vr_bot_navmesh` is a cvar; the player seen must be noted before BotAI's routing branch (a bot that
+  is computing a route skips the walk: it never noticed him otherwise).
+- **Tests** (`vr_dm_test 19-20`, QC/vr_botnav_test.qc; `maxplayers 4;deathmatch 1;developer 1;map e1m1;impulse 100;
+  vr_dm_test 19`): 19 the bot at e1m1's start notices the human 160 ahead, he is put past the first room's west door
+  (out of sight, no waypoint through it): navmesh 0 (contrast) FrikBot walks at the wall then roams (reached him by luck
+  in 754 frames once, never in 1800 another run); navmesh 1 reaches him in 258 frames by the chase, 6/0. 20 navmesh 1, the
+  human never seen, a rocket launcher at the end of a 4-waypoint chain: taken by the waypoints in 97 frames (target1 a
+  waypoint, the mesh never used), 3/0.
+- **Checked:** mp_test.py dm 27/0, coopbots 13/0, botgrab 9/0 with vr_bot_navmesh 0 (the verdicts as before) and the same
+  with 1 (--server-set "+vr_bot_navmesh 1"); scenario_check PASS (148); Dev and ThinLTO builds 0 warnings.
+- **Not ready to default on:** proven on e1m1's door and one waypoint chain only; deathmatch balance (a bot that always
+  finds you), locked or button doors (the follower walks through door polygons) and the follower's drop/teleporter links
+  with bots are untried.

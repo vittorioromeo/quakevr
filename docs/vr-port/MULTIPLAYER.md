@@ -126,6 +126,21 @@ for the others. Any PC with Quake VR installed can run one (the same port rule a
   flat-screen player's (from their box's eyes, a default player's arms), so their blows reach what a player's do.
 - **Co-op bots**: in a co-op game a bot fights the monsters beside you, never the players, follows the players loosely,
   and comes along to the next level with what it had (as a player who left and came back does).
+- **A bot's weapon is where you see it**: the server places it in the bot's hand (with the weapon's own offsets) and
+  every player draws it there; a grab on it (or a blow, a parry, a shot) is measured on that weapon.
+- **How bots find their way**: by FrikBot's waypoints (dropped where players walk, and by roaming), going for items,
+  powerups, weapons and health. **`vr_bot_navmesh 1`** (off by default, the host's setting) adds the map's navmesh
+  (NAVMESH.md 23): a bot walks it to a player it has seen in the last `vr_bot_navmesh_memory` (5) s within
+  `vr_bot_navmesh_range` (1200) units once he is out of its sight (through doors it never used; in sight it fights as
+  before), unless it is after a powerup or, under 60 health, health or armour; and to a goal its waypoints have no route
+  to (or one much longer than the navmesh's path). In water, and on a waypoint's special ways, it keeps its waypoints.
+  Developer 1 prints `botnav:` lines when a bot switches.
+- **Debug views on players and bots**: Debug > Show Disarm Volumes outlines each other player's (and bot's) held
+  weapon as a grab (orange: the weapon's line and its hotspots, Players Can Disarm Each Other's reach round them) and a
+  shot (magenta on the weapon, cyan on the hand) test it; Debug > Show Hit Zones outlines their positional damage zones
+  (head red, body green, limbs yellow, legs blue) on their box. The host draws the server's own volumes and zones; a
+  player who joined rebuilds them from what he draws (the host's rules, the weapon as drawn, a standing box: a
+  crouched player's zones are drawn standing there, and the hotspots are left out). Your own are not drawn.
 
 ## The scoreboard on the wrist
 

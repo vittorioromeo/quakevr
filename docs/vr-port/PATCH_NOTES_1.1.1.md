@@ -12,7 +12,11 @@ that ships in 1.1.1.
   weapons and powerups work as variants of ours. Dwell's Rotary Shotgun, Crystal Lance and Rifle look like themselves
   in your hands, holsters and on armed grunts (made from Dwell's own models, with a grip to hold), the Rotary's four
   barrels turning as you fire; each shows its ammo screen in a riveted bezel on its back, as our guns do; the holster menu (flat and on the wrist) names them, and AD's Widowmaker, Shadow Axe
-  and Plasma Gun too. Dwell's weapons
+  and Plasma Gun too. The Crystal Lance is now a two-handed lance, made from Dwell's own pickup model: hold its grip
+  and put your other hand anywhere on its pole (it slides along it) to aim it, swing its crystal head as a blade, and
+  fire its beam from the tip (Settings: `vr_dw_lance_pole 0` brings back the pistol). The Rotary Shotgun is held as a
+  gauntlet, your hand inside its housing as in the super nailgun, and its shell port is a block on the housing's inner
+  side: hold a handful of shells from the pouch there to fill its tube (`vr_dw_rotary_gauntlet 0`: the old grip). Dwell's weapons
   now stay what they are in your holsters, through saves, level changes and coop rejoins; the Rotary Shotgun reloads
   and spins up as the Widowmaker; Haste, Berserk and the Wetsuit show their seconds left on the wrist (and the flat
   visor), and Haste and Berserk tint the screen in Dwell's colours. An armed grunt that picks up one of Dwell's
@@ -85,11 +89,19 @@ The guide: [MULTIPLAYER.md](MULTIPLAYER.md).
 - **Deathmatch with bots** (FrikBot: `impulse 100`) that fight, swing and grab with their hands like players.
 - **Bots with a flat-screen player's hands**: they dual wield, swing melee weapons overhead and parry blows by their
   skill; **co-op bots** (VR Settings > Play > Add Co-op Bot) fight the monsters beside you and follow you to the next level.
+- **Grab a bot's weapon where you see it**: a bot's weapon is placed once, by the server, and every player draws it
+  there, so closing your hand on it takes it (grabbing beside it no longer does); its blows and parries come from that
+  weapon too.
+- **Debug > Show Disarm Volumes and Show Hit Zones work on bots and other players**, hosting or joining: the volumes
+  a grab and a shot on their weapon test, and their head, body, limb and leg zones, outlined on them.
 - **Bots toned down by skill**: at the lower skills they aim off and behind a moving target, wait a moment before
   firing at someone they've just seen, pause between bursts, turn slower and notice players from less far; their
   melee swings are held raised a little before they come down, so you can see them coming and parry. They're the
   size of a player now, and they draw and fire every gun they carry (the heavy revolver, the nail pistol and the
   mission packs' guns too), falling back to their melee weapon only when out of ammo.
+- **Opt-in: bots that find their way** (`vr_bot_navmesh 1`, off by default): bots still roam by their waypoints for
+  items, powerups and health, but chase a player they've seen through doors they never used, and reach goals their
+  waypoints have no way to, along the map's navmesh.
 - **Proximity voice chat** (Opus, with RNNoise noise suppression): push-to-talk or voice activation, heard at the
   talker's head; per-player mute and volume (VR Settings > HUD, Haptics and Sound > Sound > Voice Chat).
 - **Server Browser** (Multiplayer > Join Game): favourites, the servers you joined last and the LAN's, with their
@@ -111,7 +123,8 @@ The guide: [MULTIPLAYER.md](MULTIPLAYER.md).
   the gun from below (no forearm across the face), standing, crouched or sliding.
 - **The scoreboard on your wrist**: in multiplayer the wrist gadget's outer button also turns to a scoreboard page:
   every player's colours, frags and name in the scoreboard's order, your row lit, who is talking on voice chat, and in
-  coop the level's kills and secrets. Live, up to 16 players.
+  coop the level's kills and secrets. Live, up to 16 players. Its Arcane Dimensions page is offered only when the
+  server you joined has Arcane Dimensions' data, not because your last local game did.
 
 **Single player only**: time scale and bullet time, saving at will (the host's level-start coop autosave instead),
 the crates Quake VR places about maps, Dimension of the Past and Dimension of the Machine.

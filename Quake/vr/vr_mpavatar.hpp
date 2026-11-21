@@ -97,6 +97,13 @@ void addEntities();
 // interpolated ones), and the host frame it was set up in; false: not drawn yet. (vr_mp_trace: mp_loss.)
 [[nodiscard]] bool drawnPlaces(int ent, glm::vec3& body, glm::vec3 hands[2], int& frame);
 
+// (bots4) Player entity `ent`'s weapon in hand `side` ([0] off, [1] main) as drawn last frame or this one: its butt and
+// muzzle, and the hand holding it. False: none drawn there. (A client's Show Disarm Volumes: vr_disarmviz.cpp.)
+[[nodiscard]] bool drawnWeapon(int ent, int side, glm::vec3& butt, glm::vec3& muzzle, glm::vec3& hand);
+
+// (bots4) Player entity `ent`'s copy was drawn last frame or this one (a client's Show Hit Zones: vr_hitmodel.cpp).
+[[nodiscard]] bool drawnNow(int ent);
+
 // A new connection: no avatars.
 void clear();
 

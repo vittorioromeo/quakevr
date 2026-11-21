@@ -37,6 +37,10 @@ inline constexpr int campaignIndex = 6;
 // (vr_rules.cpp): vr_ad_rules and vr_ad_mounted for this map.
 void beforeLoad();
 
+// The client's view of whether AD's data is in play in the game it is in (the wrist's AD page): vr_ad_mounted with a
+// local server; on a remote one the server's (STAT_QVR_ADHUD's ADHUD_DATA bit), not this client's last local map's.
+[[nodiscard]] bool clientDataInPlay();
+
 // vr_ad_info: the data, the rules and the spawns of the map now running; vr_ad_tint_info (tintInfo).
 void registerCommands();
 

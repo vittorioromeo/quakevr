@@ -29,6 +29,8 @@ The toolgun's Dwell weapons and MG3 bloody shotguns lie on the floor as props, n
 Dwell's Kamikaze sees you, chases you screaming and bursts only when it reaches you, with an explosion drawn {test:expbugs_kamikaze}
 Dwell's Brute's ragdoll: the cannon stays on his left arm, no triangle stretches from his right hand across his arms {test:expbugs_brute}
 Dwell d2end: fight the Sculptor; when it flies or teleports onto you, you are put just outside it, never stuck inside moving with it
+The Crystal Lance is a two-handed lance: hold its grip, put the other hand anywhere on its pole and slide it; swing the crystal head; fire from the tip {test:dwell_lance_pole}
+The Rotary Shotgun is held as a gauntlet, your hand inside its housing like the super nailgun; hold a handful of shells from the pouch at the port block on its inner side to fill its tube {test:dwell_rotary_gauntlet}
 
 [2. Quoth]
 Quoth (experimental): Debug > Quoth: Play (Developer); walk start's hub, play kellbase1 to its exit (the exit lock spawns the plasma gun)
@@ -61,6 +63,11 @@ Coop, as a client: kill a grunt and knock one down near both players; the client
 Coop, as a client: a dead player's body tumbles the same for both
 Coop: throw a crate and a sword between the players; both see them tumble the same
 Coop, as a client: hold a corpse's arm and swing it; the limb stays in your hand
+Grab a bot's weapon where you see it (gun and sword): it comes away in your hand; grabbing beside it does nothing.
+Debug > Show Disarm Volumes in a deathmatch with a bot and another player, hosting and then joining: orange outlines along each one's held weapon (the grab), magenta on it and cyan on the hand (shots), none on your own.
+Debug > Show Hit Zones in a deathmatch with a bot and another player, hosting and then joining: each one's head (red sphere), body, limbs and legs outlined on him, turning with him; none on you.
+Try vr_bot_navmesh 1 (host console) in deathmatch with bots: a bot that saw you follows you through doors once you are out of sight, still goes for items, powerups and health by its waypoints, and stays on waypoints in water
+Join a server without Arcane Dimensions after playing an AD map locally: the wrist gadget offers no AD page
 
 [4. Flat screen]
 Flat-screen: walk forward into the tutorial's rung ladder (lesson 3): your hands take the rungs and you climb hand over hand at a steady pace, and climb over the top onto the platform. {test:flat_ladder}

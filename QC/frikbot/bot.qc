@@ -280,6 +280,16 @@ void(entity ent)            target_add;
 void()                KickABot;
 void()                BotImpulses;
 void(entity targ, float success) bot_lost;
+// QVR: the navmesh beside the waypoints (vr_bot_navmesh, bot_nav.qc; NAVMESH.md 23)
+.entity vr_botnav;        // the goal it walks by the navmesh (world: by the waypoints)
+.float vr_botnav_why;     // why: 1 a player it saw, 2 no waypoint route, 3 the route much longer
+.entity vr_botnav_foe;    // the player it saw last (a deathmatch foe, a coop player it follows)
+.float vr_botnav_seen;    // ... when
+.float vr_botnav_left;    // the path left at its last progress (its goal's search time kept on while it shrinks)
+float() BotNav_Step;
+float(entity g, float why, float route) BotNav_Take;
+float() BotNav_Look;
+void() BotNav_Note;
 string(float r)            BotName;
 void() bot_chat;
 void(float tpic) bot_start_topic;

@@ -24,6 +24,7 @@
 #include "vr_glutil.hpp"
 #include "vr_hue.hpp"
 #include "vr_engine.hpp"
+#include "vr_ad.hpp"
 #include "vr_cvars.hpp"
 #include "vr_tunables.hpp"
 #include "vr_lighting.hpp"
@@ -1527,7 +1528,7 @@ namespace
 {
 [[nodiscard]] bool pageAvailable(int p)
 {
-    return p == PageHud || (p == PageAd && vr_ad_mounted.value != 0.f) || (p == PageScores && scoresAvailable());
+    return p == PageHud || (p == PageAd && ad::clientDataInPlay()) || (p == PageScores && scoresAvailable());
 }
 } // namespace
 

@@ -171,6 +171,7 @@ struct State
     Spot slotSpot[MAX_SCOREBOARD][2];
     int slotMag[MAX_SCOREBOARD]{};
     Holsters slotHolsters[MAX_SCOREBOARD]; // (this game's own: publishOwn's)
+    bool slotBot[MAX_SCOREBOARD]{};        // (bots3) the slot's hands placed by placeBots (a bot's)
 };
 State state;
 
@@ -638,6 +639,67 @@ void publishOwn()
     for(int i = 0; i < body::HolsterCount && hs.valid; i++)
     {
         hs.at[i] = body::holsterPosition(hands::current(), static_cast<body::Holster>(i));
+    }
+}
+
+void placeBots()
+{
+    if(!sv.active)
+    {
+        return;
+    }
+    for(int slot = 0; slot < svs.maxclients && slot < MAX_SCOREBOARD; slot++)
+    {
+        edict_t* const bot = server::isBot(slot) ? edictOf(slot + 1) : nullptr;
+        if(!bot)
+        {
+            if(state.slotBot[slot])
+            {
+                // (the bot gone: its slot's hands forgotten, a client coming into it sends his own)
+                state.slotBot[slot] = false;
+                state.slotHas[slot][0] = state.slotHas[slot][1] = false;
+                state.slot[slot][0] = state.slot[slot][1] = Hand{};
+            }
+            continue;
+        }
+        state.slotBot[slot] = true;
+        for(int hand = 0; hand < 2; hand++)
+        {
+            // Its weapon as every client draws it (server::botHeld: view::placeHeld at its controller), in the hand's frame
+            // (the readers place it on the hand now: toWorld, the lag compensation's hand too).
+            Hand h;
+            view::HeldPlace p;
+            glm::vec3 pos;
+            glm::mat3 axes;
+            handPose(bot, hand, pos, axes);
+            if(server::botHeld(bot, hand, p))
+            {
+                const glm::mat3 toHand = glm::transpose(axes);
+                h.drawn = true;
+                h.mirrored = p.mirrored;
+                h.slot = p.slot;
+                float m[16];
+                vec3_t origin{p.origin.x, p.origin.y, p.origin.z}, angles{p.angles.x, p.angles.y, p.angles.z};
+                R_EntityMatrix(m, origin, angles, ENTSCALE_DEFAULT); // (as view::DrawnWeapon::inHand's)
+                glm::mat4 entity;
+                for(int c = 0; c < 16; c++)
+                {
+                    entity[c / 4][c % 4] = m[c];
+                }
+                glm::mat4 handMat{axes};
+                handMat[3] = glm::vec4{pos, 1.f};
+                h.inHand = glm::inverse(handMat) * entity;
+                for(int i = 0; i < maxSpots; i++)
+                {
+                    h.spotType[i] = p.spotType[i];
+                    h.spotPos[i] = toHand * (p.spot[i] - pos);
+                    h.spotBias[i] = p.spotBias[i];
+                    h.spotShare[i] = p.spotShare[i];
+                }
+            }
+            state.slot[slot][hand] = h;
+            state.slotHas[slot][hand] = true;
+        }
     }
 }
 
