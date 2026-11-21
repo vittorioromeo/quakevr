@@ -188,7 +188,12 @@ entity(float xDist, float xYaw, float xOgre) VR_RVT_Monster =
     self.classname = xOgre ? "monster_ogre" : "monster_army";
     setorigin(self, at);
     self.angles_y = vectoyaw(p.origin - at);
+    // A plain grunt, not its armed replacement (vr_agrunt_repl, on by default): the gun an armed one holds before its
+    // chest stops a body slug (VR_AGS_Shot), as in the game, and its weapon is a random roll (smallfix, 2026-11-21).
+    float repl = cvar_hget(cvarh_vr_agrunt_repl);
+    cvar_set("vr_agrunt_repl", "0");
     if(xOgre) { monster_ogre(); } else { monster_army(); }
+    cvar_set("vr_agrunt_repl", ftos(repl));
     droptofloor();
     entity m = self;
     self = os;
@@ -886,7 +891,7 @@ void() VR_Revolver_TestFrame =
         float alive = (g.health > 0 && g.deadflag == DEAD_NO && !g.vr_decap_died); // (a body's health is its corpse's)
         if(vr_rvt_frames == 1)
         {
-            dprint(sprintf("rvtest: %s, health %g\n", g.classname, g.health));
+            dprint(sprintf("rvtest: %s, health %g, holding %s\n", g.classname, g.health, g.vr_ag_prop ? g.vr_ag_prop.netname : "nothing"));
             vr_rvt_k = vr_decap_pops;
         }
         if(alive && g.takedamage && vr_rvt_n < 8 && (vr_rvt_frames % 6) == 2)
@@ -896,8 +901,9 @@ void() VR_Revolver_TestFrame =
             g.nextthink = 0;
             VR_RVT_SlugAt(g, s == 15 ? -1 : (s == 16 ? 6 : 16)); // (the ogre's chest)
             vr_rvt_n++;
-            dprint(sprintf("rvtest: slug %g into %s: %.1f dealt (part %g), its health %g, dead %g\n", vr_rvt_n, g.classname,
-                vr_rv_lastdmg, vr_rv_lastpart, g.health, g.deadflag));
+            dprint(sprintf("rvtest: slug %g into %s: %.1f dealt (part %g) to %s, its health %g, dead %g\n", vr_rvt_n, g.classname,
+                vr_rv_lastdmg, vr_rv_lastpart, vr_rv_lasthit == g ? "it" : (vr_rv_lasthit ? vr_rv_lasthit.classname : "nothing"),
+                g.health, g.deadflag));
         }
         if(!alive && !vr_rvt_saw1)
         {
