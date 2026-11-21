@@ -595,4 +595,9 @@ za::String baseCacheDir()
     return za::String{com_basedirs[com_numbasedirs > 0 ? com_numbasedirs - 1 : 0]} + "/cache";
 }
 
+za::String reliefsDir()
+{
+    return za::String{com_basedirs[com_numbasedirs > 0 ? com_numbasedirs - 1 : 0]} + "/reliefs";
+}
+
 } // namespace qvr::files

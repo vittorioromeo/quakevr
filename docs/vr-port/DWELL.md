@@ -900,6 +900,16 @@ frame sequences; reading aids only, nothing pasted). Files `QC/dwell/` (GPL-2, h
 
   Recommendation (conservative): D first (cheap, nothing to install, every player gets it); A when he wants AD's look on
   Dwell and Quoth (one Setup step, no install for players). B only if a Setup step is unwanted; C as a stopgap.
+- **Reliefs for Dwell and Quoth: option A built (his choice, 2026-11-21; branch `agent/reliefs`, ROUND25.md "reliefs").**
+  `Misc/quakevr/pbr_export_onnx.py` exported PBRify 1.7.2's two CC0 models once to ONNX (1.6 MB each, in
+  `Installer/src/QuakeVR.Installer.Core/Reliefs/Models/`; parity of the whole generator on 40 AD textures: mean texel
+  difference 0.0001, worst 1). Setup's "Make reliefs for Dwell and Quoth" (Installer/README.md, "Reliefs for Dwell and
+  Quoth"; on wherever either is there) runs them by onnxruntime (DirectML, CPU fallback) over the Dwell and Quoth folders
+  the game plays, writing AD's format into `<Quake VR folder>\reliefs\textures\pbr` (the hash names and a
+  `provenance.txt`); only the missing ones, again at every Setup run; the uninstaller removes it. The engine appends
+  `<last basedir>/reliefs` at the bottom of the base search path (`VR_AddReliefsPath`, vr_pbr.cpp) and reads its
+  provenance too: the lookup itself unchanged, as planned. Measured: 1768 reliefs for 2323 textures in 115 s (DirectML),
+  82 MB; d1m1 draws 168 of them, kellbase1 60, at AD's generated strength. Setup grows by 9.7 MB (61.5 to 71.3 MB).
 
 ## 10. Open questions for Vittorio (real decisions only)
 

@@ -88,6 +88,11 @@ repair restores a damaged file, update keeps, uninstall removes), the CLI into s
 reason; with AD found: installed; update: "unchanged, not downloaded"; uninstall: 17 files, folder removed), and one
 download of the pinned URLs from Quaddicted (checked).
 
+Reliefs (AD's learned surface relief; DWELL.md 9.9, option A): Setup's "Make reliefs for Dwell and Quoth" makes them on
+the player's PC from his own Quoth copy into `<install>\reliefs` (Installer/README.md, "Reliefs for Dwell and Quoth");
+nothing made from Quoth's files is shipped. Quoth's 531 textures: 236 get one (the rest are stock or AD's, which keep
+theirs), from its own TGA replacements where the engine draws one; kellbase1 draws 60 of them.
+
 ## 5. Play-throughs (phase 2): `quoth_play.sh [flat]`
 
 `vr_ad_test 212` (Debug > Tests > Arcane Dimensions, "Quoth: Drive This Map's Flow") plays a map's flow a round a

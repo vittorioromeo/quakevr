@@ -6,6 +6,7 @@ using QuakeVR.Installer.Core.Detection;
 using QuakeVR.Installer.Core.Packaging;
 using QuakeVR.Installer.Core.Platform;
 using QuakeVR.Installer.Core.Prerequisites;
+using QuakeVR.Installer.Core.Reliefs;
 using QuakeVR.Installer.Core.Shortcuts;
 using QuakeVR.Installer.SelfTest;
 
@@ -1523,6 +1524,107 @@ var tests = new List<(string Name, Action Body)>
         True(r2.Files.Count(f => f.Component == Components.Quoth) == 6 && r2.Choices.Quoth && r2.QuothSha256 == pin.Sha256, "a Quake VR update keeps Quoth recorded");
         Uninstaller.Uninstall(target, new UninstallOptions());
         True(!Directory.Exists(folder) && !Directory.Exists(target), "uninstall removed quoth\\ and the folder");
+    }),
+    ("reliefs: images and packing (the engine's hash contract, PNG round trip, TGA bottom-left and RLE, normals, calibrated height)", () =>
+    {
+        var flat = new byte[3 * 2 * 4];
+        for (var i = 3; i < flat.Length; i += 4)
+        {
+            flat[i] = 255;
+        }
+        Eq("cde616e3c2a2eae36a3194dc72b99edf279909d7417330ab6ab166948be3a42f", ReliefMaker.ContentHash(3, 2, flat), "pbr_generate.py's self-test digest (SHA-256 of qvr-pbr-v1 NUL, dims, RGBA)");
+        var rng = new Random(5);
+        var px = new byte[37 * 23 * 4];
+        rng.NextBytes(px);
+        var back = ReliefImages.DecodePng(ReliefImages.EncodePng(new RgbaImage(37, 23, px)))!;
+        True(back.Width == 37 && back.Height == 23 && back.Pixels.AsSpan().SequenceEqual(px), "PNG: encoded then decoded, the same RGBA");
+        var tga = ReliefImages.Decode("x.tga", ReliefFixtures.Tga24(3, 2, (x, y) => ((byte)(x * 10), (byte)(y * 20), 7)))!;
+        True(tga.Pixels[0] == 0 && tga.Pixels[1] == 0 && tga.Pixels[(1 * 3 + 2) * 4] == 20 && tga.Pixels[(1 * 3 + 2) * 4 + 1] == 20 &&
+             tga.Pixels[(1 * 3 + 2) * 4 + 3] == 255, "TGA 24-bit bottom-left: rows top to bottom, opaque");
+        var rle = ReliefImages.Decode("x.tga", ReliefFixtures.Tga32Rle(4, 2, 5, (1, 2, 3, 4), (9, 8, 7, 6)))!;
+        True(rle.Pixels.AsSpan(4 * 4, 4).SequenceEqual(new byte[] { 1, 2, 3, 4 }) && rle.Pixels.AsSpan(5 * 4, 4).SequenceEqual(new byte[] { 9, 8, 7, 6 }), "TGA 32-bit RLE top-left");
+        True(ReliefImages.Decode("x.jpg", [1, 2, 3]) is null, "a JPG is not decoded (no relief for it)");
+        var n = ReliefMaker.NormalBytes([0.5f, 0.5f, 1f, 0.5f, 0.5f, 0f], 2);
+        True(n[2] == 255 && n[5] == 255 && n[0] == 128, "normal bytes: flat is (128, 128, 255); a backward normal clamps into the hemisphere");
+        var pred = Enumerable.Range(0, 100).Select(i => i / 100f).ToArray();
+        var height = ReliefMaker.CalibratedHeight(pred, new bool[100], ReliefMaker.Depth);
+        True(height.Min() == 128 && height.Max() == 255 && height[99] == 255, "calibrated height: the 5..95 percentile span fills the 0.5 depth bound");
+        True(ReliefMaker.CalibratedHeight(new float[100], new bool[100], ReliefMaker.Depth).All(v => v == 255), "a flat prediction stays flat");
+        var mask = new bool[9];
+        mask[4] = true;
+        var filled = ReliefMaker.FillMasked([.. Enumerable.Repeat((byte)77, 36)], mask, 3, 3);
+        True(filled.All(v => v == 77), "cutout colours filled from their neighbours");
+    }),
+    ("reliefs: a small texture set end to end on the CPU (made, skipped: stock, Quake VR's bundle, replaced; animation frames share; holes flat; again: kept; one missing: made; uninstall removes the folder)", () =>
+    {
+        var quake = Dir("rl-quake");
+        var target = Path.Combine(run, "rl-QuakeVR");
+        new InstallEngine().Install(new InstallPlan { PackagePath = Fixtures.MakePackage(Dir("rl-pkg"), "1.0.0"), TargetDir = target, QuakeDir = quake }, null, CancellationToken.None);
+        var mod = Path.Combine(target, Quoth.Folder);
+        Directory.CreateDirectory(Path.Combine(mod, "maps"));
+        Directory.CreateDirectory(Path.Combine(mod, "textures"));
+        byte Brick(int x, int y) => (byte)((y % 16 == 0 || (x + (y / 16 % 2) * 16) % 32 == 0) ? 20 : 100 + (x * 3 + y * 5) % 40);
+        File.WriteAllBytes(Path.Combine(mod, "maps", "test.bsp"), ReliefFixtures.Bsp(
+            ("brick", 64, 64, Brick),
+            ("+0lit", 32, 32, (x, y) => (byte)(60 + Brick(x, y) / 4)),
+            ("+1lit", 32, 32, (x, y) => (byte)(61 + Brick(x, y) / 4)),
+            ("{fence", 32, 32, (x, y) => x % 8 < 3 ? (byte)255 : Brick(x, y)),
+            ("sky1", 32, 32, Brick), ("clip", 16, 16, Brick), ("*water", 16, 16, Brick),
+            ("stockone", 16, 16, (x, y) => (byte)(x * y)),
+            ("shipped", 16, 16, (x, y) => (byte)(x + y)),
+            ("ovr", 16, 16, (x, y) => (byte)(x ^ y))));
+        File.WriteAllBytes(Path.Combine(mod, "textures", "ovr.tga"), ReliefFixtures.Tga24(24, 24, (x, y) => ((byte)(x * 9), (byte)(y * 9), (byte)((x / 4 + y / 4) % 2 * 200))));
+        var palette = ReliefFixtures.Palette();
+        string Hash(int w, int h, Func<int, int, byte> pixel)
+        {
+            var rgba = new byte[w * h * 4];
+            for (var i = 0; i < w * h; ++i)
+            {
+                var index = pixel(i % w, i / w);
+                (rgba[i * 4], rgba[i * 4 + 1], rgba[i * 4 + 2], rgba[i * 4 + 3]) = (palette[index * 3], palette[index * 3 + 1], palette[index * 3 + 2], 255);
+            }
+            return ReliefMaker.ContentHash(w, h, rgba);
+        }
+        var bundle = Directory.CreateDirectory(Path.Combine(target, "quakevr", "textures", "pbr")).FullName;
+        File.WriteAllText(Path.Combine(bundle, "stock.txt"), "qvr-pbr-stock-v1\n" + Hash(16, 16, (x, y) => (byte)(x * y))[..32] + "\n");
+        File.WriteAllBytes(Path.Combine(bundle, Hash(16, 16, (x, y) => (byte)(x + y))[..32] + "_norm.png"), [0]);
+        var summary = ReliefMaker.Run(target, [mod], [Path.Combine(target, "quakevr")], palette, forceCpu: true, null, CancellationToken.None);
+        Eq("8 textures, 5 made, 3 not needed, 0 failed, CPU", $"{summary.Textures} textures, {summary.Made} made, {summary.NotNeeded} not needed, {summary.Failed} failed, {summary.Device}", summary.Describe());
+        var outDir = ReliefMaker.TextureDir(target);
+        var lines = File.ReadAllLines(Path.Combine(outDir, "provenance.txt"));
+        Eq("qvr-pbr-provenance-v1", lines[0], "the engine's provenance header");
+        Eq(5, lines.Length - 1, "one provenance record a companion");
+        foreach (var line in lines.Skip(1))
+        {
+            var parts = line.Split(' ');
+            var png = ReliefImages.DecodePng(File.ReadAllBytes(Path.Combine(outDir, parts[0] + "_norm.png")))!;
+            Eq(parts[1], ReliefMaker.ContentHash(png.Width, png.Height, png.Pixels), $"{parts[0]}: the record binds the decoded companion");
+            Eq("3", parts[2], "generated normal and height");
+            var worst = 0.0;
+            for (var i = 0; i < png.Width * png.Height; ++i)
+            {
+                double x = png.Pixels[i * 4] / 127.5 - 1, y = png.Pixels[i * 4 + 1] / 127.5 - 1, z = png.Pixels[i * 4 + 2] / 127.5 - 1;
+                worst = Math.Max(worst, Math.Abs(Math.Sqrt(x * x + y * y + z * z) - 1) + (z < 0 ? 1 : 0));
+                True(png.Pixels[i * 4 + 3] >= 127, "height within the 0.5 depth bound");
+            }
+            True(worst <= .02, $"{parts[0]}: unit normals in the hemisphere ({worst:0.000})");
+        }
+        string Companion(string hash) => Path.Combine(outDir, hash[..32] + "_norm.png");
+        var fence = ReliefImages.DecodePng(File.ReadAllBytes(Companion(Hash(32, 32, (x, y) => x % 8 < 3 ? (byte)255 : Brick(x, y)))))!;
+        True(fence.Pixels.AsSpan(0, 4).SequenceEqual(new byte[] { 128, 128, 255, 255 }), "a fence's holes are flat");
+        True(File.ReadAllBytes(Companion(Hash(32, 32, (x, y) => (byte)(60 + Brick(x, y) / 4)))).AsSpan()
+             .SequenceEqual(File.ReadAllBytes(Companion(Hash(32, 32, (x, y) => (byte)(61 + Brick(x, y) / 4))))), "a lighting-only animation frame shares its first frame's relief");
+        True(!File.Exists(Companion(Hash(16, 16, (x, y) => (byte)(x ^ y)))), "a miptex its TGA replaces gets none (the engine draws the TGA)");
+        True(Directory.GetFiles(outDir, "*_norm.png").Any(p => ReliefImages.DecodePng(File.ReadAllBytes(p))!.Width == 24), "the TGA replacement got one");
+        var again = ReliefMaker.Run(target, [mod], [Path.Combine(target, "quakevr")], palette, forceCpu: true, null, CancellationToken.None);
+        Eq("0 made, 5 kept", $"{again.Made} made, {again.Kept} kept", "again: nothing made");
+        File.Delete(Companion(Hash(64, 64, Brick)));
+        var third = ReliefMaker.Run(target, [mod], [Path.Combine(target, "quakevr")], palette, forceCpu: true, null, CancellationToken.None);
+        Eq("1 made, 4 kept, 5 records", $"{third.Made} made, {third.Kept} kept, {File.ReadAllLines(Path.Combine(outDir, "provenance.txt")).Length - 1} records", "a missing one: made again, the index complete");
+        Directory.Delete(mod, true);
+        Directory.Delete(Path.Combine(target, "quakevr", "textures"), true);
+        Uninstaller.Uninstall(target, new UninstallOptions());
+        True(!Directory.Exists(ReliefMaker.Folder(target)) && !Directory.Exists(target), "uninstall removed the reliefs folder and the install");
     }),
     ("arcane dimensions: a failed or cancelled download never fails the install", () =>
     {

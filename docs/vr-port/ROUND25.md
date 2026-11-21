@@ -6782,3 +6782,35 @@ SelectSpawnPoint ... Host_Spawn_f".
   host: doll slot 17) and B (a client: his own slot) still draw B's old body as B's build. MP_PLAN.md, "Still the
   ranger after a respawn".
 - **The avatar's own ragdoll rig**: left as the plan in MP_PLAN.md (not built).
+## reliefs: Dwell's and Quoth's reliefs made on the player's PC by Setup (DWELL.md 9.9, option A)
+
+Branch `agent/reliefs`. His choice of 2026-11-21: PBRify's CC0 models as ONNX, run by onnxruntime in a Setup step.
+
+- **The models.** `Misc/quakevr/pbr_export_onnx.py export` loads PBRify 1.7.2's two pinned checkpoints (spandrel) and
+  writes `pbrify_normal.onnx`/`pbrify_height.onnx` (opset 17, any 1x3xHxW; 1.6 MB each, the .pth's 9 MB is training
+  state) into `Installer/src/QuakeVR.Installer.Core/Reliefs/Models/` (embedded in Setup; `*.onnx binary` in
+  .gitattributes). `parity` runs `pbr_generate.py generate --limit 40` over AD with the .pth and with the .onnx: 39
+  companions, mean texel difference 0.0001, worst 1. The build-time environment (Python 3.13, torch 2.8 CPU, spandrel,
+  onnx, onnxruntime) and the archive are in `qvr-kit/downloads/reliefs/` (never the player's).
+- **Setup's step** (`Core/Reliefs/ReliefMaker.cs`, `ReliefImages.cs`; Installer/README.md, "Reliefs for Dwell and
+  Quoth"): pbr_generate.py's scan and packing in C# (PAK/loose files reused from `Assets/QuakeAssets.cs`; PNG and TGA
+  decoded and PNG written without a toolkit; tiles, fill, calibrated height, green orientation, holes, animation
+  anchors). onnxruntime 1.22.0 with DirectML, the CPU if DirectML is missing or a run fails. Skips stock textures
+  (stock.txt), quakevr's bundle and companions already made; writes `provenance.txt` (flags 3) beside them. The
+  Options row (`MakeReliefs`, ticked wherever Dwell or Quoth will be there) and the step after Quoth's in both the
+  install and the update flows; a note on the Done page; Cancel skips the rest. `qvr-setup reliefs` for the console.
+  The uninstaller removes `<install>\reliefs`. The publish drops onnxruntime.lib (`Directory.Build.props`), which would
+  otherwise sit beside QuakeVR-Setup.exe.
+- **The engine** (`vr_pbr.cpp` `VR_AddReliefsPath`, `files::reliefsDir`): `<last basedir>/reliefs` (the Quake VR folder
+  the shortcuts pass last; the cache's convention) is appended at the bottom of the base search path when it exists
+  (kept across game folder changes; "Reliefs: <dir>" printed), and `loadProvenance` also parses its provenance.txt
+  (COM's search finds quakevr's first). No lookup change: the hash names match.
+- **Checks.** C# against the generator: 60 AD textures, 2419 sources and 69 not drawn as the generator counts, the 39
+  in common mean 0.0001 / worst 1, every provenance digest right. Full Dwell + Quoth (DirectML): 2323 textures, 1768
+  made in 115.5 s, 555 not needed, 82 MB; a single-file published qvr-setup also loads DirectML. Engine, the
+  shortcuts' two basedirs: d1m1 draws 168 companions from reliefs/ (36 from quakevr's bundle; 0 before), kellbase1 60
+  (27; 0 before), all at the generated strength 2.50 (provenance verified); screenshots before/after show the relief.
+  Self-tests `reliefs: ...` 2/2. scenario_check 150 run / 0 failed. QuakeVR-Setup.exe 61.5 MB to 71.3 MB (+9.7).
+- **Not done / differences.** JPG replacements are not decoded (no relief for them); comparison packs' authored maps
+  (`--authored`) do not apply to these mods. The window itself was not run (no GUI here): the Options row and the
+  step's progress want a look in Setup.
