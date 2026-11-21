@@ -4741,8 +4741,10 @@ QVR_CYCLE(vr_foveated, "Foveated Rendering",
     "cards only.",
     {0.f, "Off"}, {1.f, "Conservative"}, {2.f, "Balanced"}, {3.f, "Aggressive"})
 QVR_TOGGLE(vr_foveated_gaze, "Eye-Tracked Foveation",
-    "With an eye-tracking headset (Quest Pro via Virtual Desktop with eye tracking shared to the PC, Varjo...): "
-    "the sharp middle of Foveated Rendering follows your eyes. Takes effect at the next VR start.")
+    "On: with an eye-tracking headset (Quest Pro via Virtual Desktop with eye tracking shared to the PC, Varjo...) "
+    "the sharp middle of Foveated Rendering follows your eyes; without one (or while your eyes are not tracked) it "
+    "stays in the middle of the lens. The line below says which. Off: always the middle, no eye tracker asked for "
+    "(turned back on, it is used from the next VR start).")
 
 // vr_menu_settings.inc: pageVrsGraphics
 QVR_TOGGLE_BYNAME(vr_taa, "Temporal Antialiasing (TAA)",

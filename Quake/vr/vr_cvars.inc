@@ -738,10 +738,16 @@ QVR_CVAR(vr_foveated, "3", CVAR_ARCHIVE)               // fixed foveated renderi
 QVR_CVAR(vr_foveated_debug, "0", CVAR_NONE)            // show the shading rates (yellow 2x2, red 4x4) and vr_upscale_radius (cyan) in the eyes and the mirror
 // Eye-tracked foveation (ROUND25.md, "Quest Pro"): the full-rate region follows the eyes' gaze, not the lens centre
 // (XR_EXT_eye_gaze_interaction: Quest Pro via Virtual Desktop with eye tracking forwarded, Varjo, Vive Pro Eye...).
-// The extension is asked for at VR start: a change takes effect at the next one. Off by default until tried.
-QVR_CVAR(vr_foveated_gaze, "0", CVAR_ARCHIVE)
+// 1 (the default since his ask, 2026-11-21: "if we detect that eye tracking is available, we use it; if we don't, we
+// just foveate in the centre"): the extension asked for at VR start when the runtime offers it; the gaze used while
+// tracked, the lens centre otherwise (no tracker, a blink), frame by frame, nothing to restart. 0: never asked for (no
+// tracker started, no permission asked); set back to 1, it is used from the next VR start (the menu line says so).
+QVR_CVAR(vr_foveated_gaze, "1", CVAR_ARCHIVE)
 // Mock backend: a gaze "right up" in degrees from the head's forward ("": no eye tracking), for vr_foveated_gaze.
 QVR_CVAR(vr_mock_gaze, "", CVAR_NONE)
+// Mock backend: 1 it has an eye tracker (EyeTracking::Ready, vr_mock_gaze its gaze); 0 the runtime offers none
+// (NotOffered, no gaze): the foveation's fallback to the lens centre, switched live (vr_foveated_gaze_test).
+QVR_CVAR(vr_mock_eye_tracking, "1", CVAR_NONE)
 
 QVR_CVAR(vr_enabled, "0", CVAR_NONE)
 // No main hand setting (ROUND21.md, "Handedness: separate options"): the hands are the physical ones, and each thing
