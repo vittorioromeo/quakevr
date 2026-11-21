@@ -6815,6 +6815,37 @@ Branch `agent/reliefs`. His choice of 2026-11-21: PBRify's CC0 models as ONNX, r
   (`--authored`) do not apply to these mods. The window itself was not run (no GUI here): the Options row and the
   step's progress want a look in Setup.
 
+## flakehunt: the bots' paths in Show Navmesh; known failing tests (flakehunt, 2026-11-21, `agent/flakehunt`)
+
+His words: "15. Yes" (hunt the flakes); "8. I still need to try [vr_bot_navmesh]. Ensure the debug view works here too."
+
+- **The bots' navmesh paths in Show Navmesh** (`vr_nav_debug` any value, on the host and on a remote client): each
+  bot walking the navmesh (vr_bot_navmesh 1) has its path drawn magenta (a teleporter's jump cyan), its next corner a
+  white post, beside vr_nav_follow's yellow path. The plans are the server's (vr_navfollow.cpp `bots[]`), so a client
+  asks for them while its vr_nav_debug is on ("vr_nav_botpaths 1|0", a client command on sv_user.c's list; sent from
+  `navfollow::debugDraw`, again on a new connection, never in a demo); the server sends a bot's path when it or its
+  next corner changes, every path at once to a client that just asked (QVR_SVC_BOTPATH 53, reliable; bots found by
+  `server::isBot`: they hold no svs.clients slot). The listen host draws them through its own loopback client: one
+  path for both. `vr_nav_follow_status` prints a second line, `navbots: asked paths corners drawn`. Net version not
+  bumped: peers already match exactly, and an older server ignores the unknown command. Deathmatch allowed (bots only).
+- **Check:** `mp_test.py botnavdebug` (dedicated, A remote) and `botnavdebug_listen` (A the host), not in the suite:
+  deathmatch e1m1, A with vr_nav_debug 2 adds a bot, the server's `vr_dm_test 19` has it chase A by the navmesh; A
+  has the path and draws it (remote: paths 1, corners 5, drawn 4; host: 1, 4, 3); vr_nav_debug 0 drops it. 6/0, 4/0.
+  vr_dm_test 19's own verdict is noted, not checked: it failed 2 of 4 runs here (single process too; the bot sees him
+  at the door, goes back to its waypoints and wanders off), a bot-AI flake of its own (BACKLOG).
+- **flateject `rv`** fixed (the test): it wanted the revolver's open pose from before his 11-11 defaults; the check now
+  reads the pose's defaults from vr_tunables.inc. The game is right (his values: turned -35 0 -30, moved 0 -2 1).
+  Run: 15/2, the other two run to run (`ssg` second casing up 0.29 vs > 0.3; `vr` one stroke line), not chased.
+- **vr_pickup_test 15** fixed (the test): its one `bot_fight_style()` call against a fresh enemy now meets
+  `bot_fire_ready`'s reaction delay (the bots' toning down, 2026-11-21: by design), so no swing yet; the test marks the
+  reaction as over (its subject is the weapon swung). 13/0.
+- **hotblade `blade_parts`**: the crowbar's and chainsaw's vertex totals were stale since mdltopo's topology fixes
+  (464 -> 446, 285 -> 279; glowing 271 and 18), updated. Left: the hammer (blade_parts, superaxe) measures 2.8/7.0
+  with 172 of 795 verts glowing against 2.3/5.9 and 295, with no v_hammer.mdl change: the same 40% of a longer length,
+  but fewer verts lit: wants his look at a hot hammer before the numbers move. `holster`: the holstered axe is found
+  lying (holsters' glow all 0): the test's holster move, not the glow. 27 of 30 as before, the three for these reasons.
+- **Not reached (budget)**: flatfg2h key 3, twohand_regrip picks 4/10, stealth noises_clue, nav_lift_down, gadget_lock
+  13/4, the mp_test.py suite's order effect and port clashes, mp_loss's margin. Listed in BACKLOG section 1.
 ## reliefs2: Setup finds an existing Quake VR folder and makes only its missing reliefs (reliefs2, 2026-11-21, `agent/reliefs2`)
 
 His words: detect an existing installation and only generate the reliefs not generated yet, so he can run it on his own

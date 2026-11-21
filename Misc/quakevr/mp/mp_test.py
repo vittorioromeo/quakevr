@@ -136,6 +136,9 @@ Tests:
              navmesh by his own client's moves on e1m1, down the step and through the first room's door; A walks on, B
              follows and arrives within reach; B's own move hands control back, the follow walks on after
              vr_nav_follow_idle; vr_nav_follow 0 stops it. navfollow_listen: the same with the listen host A following B.
+    botnavdebug (flakehunt, 2026-11-21, not in the suite) the bots' navmesh paths in vr_nav_debug on a client: a
+             deathmatch server on e1m1, A (remote; botnavdebug_listen: the host) with vr_nav_debug 2 adds a bot; the
+             server's vr_dm_test 19 has it chase A by the navmesh: A's client has its path and draws it; off drops it.
     roomnonce  (review 2026-11-18, finding 11) the room service's replies to a host checked (a stand-in service):
              REFUSED, BADVERSION and REGISTERED with another nonce change nothing; COOKIE (protocol version 2) with
              his nonce has him register again at once with it, then REGISTERED gives his code; a REFUSED with his
@@ -3534,6 +3537,70 @@ def navfollow(s, listen=False, flat="AB"):
     follower.wait(r"vr_nav_follow: off", 20, since, "the follow off")
     st = navfollow_status(follower)
     s.check("vr_nav_follow 0: off", st.get("state") == 0 and st.get("driving") == 0, str(st))
+
+
+def navbots_status(inst):
+    """`vr_nav_follow_status`'s navbots line on `inst` -> its fields (asked, paths, corners, drawn)."""
+    since = inst.mark()
+    inst.cmd("vr_nav_follow_status")
+    _, line = inst.wait(r"navbots: asked=", 10, since, "%s's bot paths status" % inst.name)
+    return {k: int(v) for k, v in fields(line).items() if re.fullmatch(r"-?\d+", v)}
+
+
+def botnavdebug(s, listen=False):
+    """(flakehunt; his word 2026-11-21: "Ensure the debug view works here too") The bots' navmesh paths in the navmesh
+    debug view (vr_nav_debug) on a client: a deathmatch server on e1m1 (dedicated: A a remote client; listen: A the
+    host), A draws the navmesh (vr_nav_debug 2) and adds a bot (impulse 100); the server's QC test vr_dm_test 19 makes
+    the bot chase A by the navmesh past the first room's west door (vr_bot_navmesh 1). While it walks A's client has a
+    bot path from the server (QVR_SVC_BOTPATH) and draws it (navbots: paths >= 1, drawn lines >= 1); the test passes;
+    vr_nav_debug 0 drops the paths (asked=0, paths=0)."""
+    level = "e1m1"
+    if listen:
+        a = srv = s.server(dedicated=False, name="A")
+    else:
+        srv = s.server(dedicated=True)
+    srv.start()
+    srv.cmd("%scoop 0; deathmatch 1; noexit 1; fraglimit 0; timelimit %d; skill 1; map %s; vr_mp_status" % (
+        "disconnect; maxplayers 4; listen 1; " if listen else "", DM_TIMELIMIT, level))
+    srv.wait(r"mp_server: map=%s" % level, 120, what="the server on %s" % level)
+    if not listen:
+        a = s.client("A").start()
+        a.cmd(s.connect_cmd(a))
+    a.wait(r"mp_event: .*joined map=%s" % level, 120, what="A joined %s" % level)
+    a.cmd("name A; vr_nav_debug 2")
+    since_a = a.mark()
+    a.cmd("impulse 100")
+    wait_quietly(a, r"mp_frags: .*named=1", 10, since_a, "the bot named at A")
+    since_srv = srv.mark()
+    srv.cmd("developer 1; vr_dm_test 19")
+    # (case 1's chase: the bot's "navmesh to A (a player it saw)" line, after case 0's walk with the navmesh off)
+    wait_quietly(srv, r"botnav: .* navmesh to A", 150, since_srv, "the bot's navmesh chase begun")
+    best, verdict = {}, None
+    for _ in range(200):
+        st = navbots_status(a)
+        if st.get("paths", 0) >= 1 and st.get("drawn", 0) >= best.get("drawn", 0):
+            best = st
+        verdict = srv.find(r"dmtest: \d+ passed, \d+ failed", since_srv)
+        if verdict or (best.get("paths", 0) >= 1 and best.get("drawn", 0) >= 1):
+            break
+    s.check("A's client (%s) has the bot's navmesh path from the server and draws it (vr_nav_debug 2)" % (
+        "the listen host" if listen else "a remote client"),
+        best.get("paths", 0) >= 1 and best.get("corners", 0) >= 2 and best.get("drawn", 0) >= 1, str(best))
+    if not verdict:
+        _, verdict = srv.wait(r"dmtest: \d+ passed, \d+ failed", 150, since_srv, "vr_dm_test 19's verdict")
+    else:
+        verdict = verdict[1]
+    # (the chase's own outcome is vr_dm_test 19's, a bot-AI test of its own with a known flake: the bot sees him at the
+    # door, goes back to its waypoints and wanders; noted here, the drawing being this scenario's)
+    s.note("vr_dm_test 19 (the bot's navmesh chase): %s" % verdict.strip())
+    a.cmd("vr_nav_debug 0")
+    st = {}
+    for _ in range(20):
+        st = navbots_status(a)
+        if st.get("asked") == 0:
+            break
+    s.check("vr_nav_debug 0: the bots' paths dropped (asked=0, paths=0)", st.get("asked") == 0 and st.get("paths") == 0,
+            str(st))
 
 
 def coopbots(s):
@@ -9313,6 +9380,10 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             navfollow(s, listen=True)
         elif test == "mp_navfollow_vr":
             navfollow(s, flat="A")
+        elif test == "mp_botnavdebug":
+            botnavdebug(s)
+        elif test == "mp_botnavdebug_listen":
+            botnavdebug(s, listen=True)
         elif test == "mp_teleport":
             teleport(s)
         elif test == "mp_held":
@@ -9525,7 +9596,7 @@ SUITE = [
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "debugviz", "debugviz_listen", "wristscore", "wpnsync", "wpnsync_flat", "navfollow", "navfollow_listen", "navfollow_vr", "syncaudit", "ragsync"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "debugviz", "debugviz_listen", "wristscore", "wpnsync", "wpnsync_flat", "navfollow", "navfollow_listen", "navfollow_vr", "botnavdebug", "botnavdebug_listen", "syncaudit", "ragsync"])
     ap.add_argument("--base", required=True, help="the game folder (id1, quakevr...)")
     ap.add_argument("--exe", default=EXE)
     ap.add_argument("--out", default=os.path.join(REPO, "scratch", "mp"))
@@ -9587,7 +9658,7 @@ def main_run(args):
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
     elif args.test in ("bandwidth", "wpnsync", "wpnsync_flat", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground",
-                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "debugviz", "debugviz_listen", "wristscore", "navfollow", "navfollow_listen", "navfollow_vr", "syncaudit", "ragsync"):
+                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "debugviz", "debugviz_listen", "wristscore", "navfollow", "navfollow_listen", "navfollow_vr", "botnavdebug", "botnavdebug_listen", "syncaudit", "ragsync"):
         ok = run(args, "mp_" + args.test)
     elif args.test == "voice":
         ok = run(args, "mp_voice", args.lag, args.jitter, args.loss)

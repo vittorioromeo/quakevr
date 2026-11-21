@@ -79,6 +79,12 @@ void() VR_MeleeOnlyBotTest_Run =
         bot.angles = a;
         bot.enemy = g;
         bot.button0 = FALSE;
+        // (its reaction to a new enemy already over: bot_fire_ready's delay, the bots' 2026-11-21 toning down, holds its
+        // first swing back by design; the check is the weapon it swings)
+        bot.vr_botreact_of = g;
+        bot.vr_botreact_seen = time;
+        bot.vr_botreact_at = 0;
+        bot.vr_botburst_until = 0;
         bot_fight_style();
         VR_Test_Check(bot.button0 && bot.weapon == WID_SWORD, "a grunt in reach: it swings the dagger");
         if(!bot.button0)
