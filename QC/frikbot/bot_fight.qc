@@ -742,10 +742,21 @@ void() bot_setvrfields =
         synth = synth | VR_HANDGUARD_MAIN; // (the flat guard's: any blow from the front parried, VR_Parry_FlatGuard)
     }
     self.handsynth = synth;
-    makevectors(self.handrot);
-    self.muzzlepos = self.handpos + (v_forward * 24);
-    makevectors(self.offhandrot);
-    self.offmuzzlepos = self.offhandpos + (v_forward * 24);
+    // Its muzzles where every client draws its weapons (bots3: the engine places them by the weapons' offsets, as each
+    // client places its own; the disarm grab's and the parry's line runs from the hand to it); an empty hand or a fist:
+    // 24 units ahead of the hand.
+    self.muzzlepos = weapondrawnpose(self, cVR_MainHand, 53);
+    if(self.muzzlepos == '0 0 0')
+    {
+        makevectors(self.handrot);
+        self.muzzlepos = self.handpos + (v_forward * 24);
+    }
+    self.offmuzzlepos = weapondrawnpose(self, cVR_OffHand, 53);
+    if(self.offmuzzlepos == '0 0 0')
+    {
+        makevectors(self.offhandrot);
+        self.offmuzzlepos = self.offhandpos + (v_forward * 24);
+    }
     makevectors(self.v_angle);
     vector chest = self.origin + '0 0 16' + (v_forward * 8);
 

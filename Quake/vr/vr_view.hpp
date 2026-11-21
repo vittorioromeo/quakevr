@@ -584,8 +584,27 @@ void netHands(VrDrawnHand out[2]);
 // which no client draws, from its controllers (`pos`, `rot`, world; [0] off, [1] main) and the weapons in them
 // (`model`: model_precache indices, 0 an empty hand; `frame`), written as netHands writes yours (world). His own
 // drawing state (his hands' fit eased from frame to frame) is kept per player entity `player`, swapped in for it.
+// `placed` (may be null): each hand's weapon where the server placed it (its avatar's weaponOrigin, weaponAngles with
+// weaponBit: placeHeld's, bots3), drawn there and the hand fitted to it.
 void solveHands(int player, const glm::vec3 pos[2], const glm::vec3 rot[2], const int model[2], const int frame[2],
-    VrDrawnHand out[2]);
+    VrDrawnHand out[2], const VrDrawnHand* placed = nullptr);
+// The weapon `model` in another player's hand `hand` (0 off: drawn mirrored, 1 main) at `pos`, `rot` (world; the hands'
+// angles), placed as setupWeapon places another's (the weapon's angle and model offsets, no reverse grip, no carry): its
+// entity's origin and angles (the pitch as entities have it), its muzzle and its hotspots (world; a blade hotspot's middle,
+// as weaponHotspot gives it). Pure math on the model and the Weapon Offsets: the server runs it for a bot (bots3: its
+// disarm volume, its muzzle, its avatar's weapon place, one placement drawn by every client). False: no weapon (an empty
+// hand, a fist, a model with no Weapon Offsets slot).
+struct HeldPlace
+{
+    int slot{-1};
+    bool mirrored{false};
+    glm::vec3 origin{0.f}, angles{0.f};
+    glm::vec3 muzzle{0.f};
+    int spotType[4]{};
+    glm::vec3 spot[4]{};
+    float spotBias[4]{}, spotShare[4]{};
+};
+[[nodiscard]] bool placeHeld(qmodel_t* model, int hand, const glm::vec3& pos, const glm::vec3& rot, HeldPlace& out);
 // ... and the holsters as drawn last (B6b): their points and the weapons in them, in body::Holster's order (their stats').
 void netHolsters(VrDrawnHolsters& out);
 

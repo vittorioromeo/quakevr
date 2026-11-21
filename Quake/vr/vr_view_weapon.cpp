@@ -1744,3 +1744,55 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame, bool flo
     placeMorph(wf, frame);
 }
 } // namespace view_detail
+
+bool view::placeHeld(qmodel_t* model, int hand, const glm::vec3& pos, const glm::vec3& rot, HeldPlace& out)
+{
+    using namespace view_detail;
+    static_assert(weapons::maxHotspots == 4);
+    out = HeldPlace{};
+    const int slot = model && model->type == mod_alias ? weapons::slotForModel(model) : -1;
+    if(slot < 0 || slot == weapons::fistSlot() || isHandModel(model))
+    {
+        return false;
+    }
+    // (setupWeapon's for another's: drawn as held by `hand` at its controller, the off hand's mirrored)
+    out.slot = slot;
+    out.mirrored = hand == HAND_OFF;
+    const glm::vec3 wt = weaponTurn(rot, slot, out.mirrored, 0.f);
+    out.origin = pos;
+    out.angles = glm::vec3{-wt.x, wt.y, wt.z};
+    entity_t e{};
+    e.model = model;
+    e.scale = ENTSCALE_DEFAULT;
+    for(int i = 0; i < 3; i++)
+    {
+        e.origin[i] = out.origin[i];
+        e.angles[i] = out.angles[i];
+    }
+    out.muzzle = anchorPosition(e, out.mirrored, 1.f, weapons::anchor(slot, Key::MuzzleAnchor),
+        weapons::vec(slot, Key::MuzzleOffsetX, Key::MuzzleOffsetY, Key::MuzzleOffsetZ));
+    // (placeHotspots' and weaponHotspot's, upright: a grip's point on the weapon as drawn, a blade's middle along the hand
+    // to the muzzle)
+    const glm::mat4 frame = hotspotFrame(e, out.mirrored);
+    for(int i = 0; i < weapons::maxHotspots; i++)
+    {
+        const weapons::Hotspot h = weapons::hotspot(slot, i);
+        if(weapons::isGripType(h.type))
+        {
+            out.spot[i] = glm::vec3{frame * glm::vec4{h.pos, 1.f}};
+        }
+        else if(h.type == weapons::HotspotType::Blade)
+        {
+            const glm::vec3 toTip = out.muzzle - pos;
+            out.spot[i] = glm::mix(pos + toTip * weapons::bladeFrom(h), pos + toTip * weapons::bladeTo(h), 0.5f);
+            out.spotShare[i] = h.pos.x;
+        }
+        else
+        {
+            continue;
+        }
+        out.spotType[i] = static_cast<int>(h.type);
+        out.spotBias[i] = h.bias;
+    }
+    return true;
+}

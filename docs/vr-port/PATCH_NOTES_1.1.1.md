@@ -89,6 +89,11 @@ The guide: [MULTIPLAYER.md](MULTIPLAYER.md).
 - **Deathmatch with bots** (FrikBot: `impulse 100`) that fight, swing and grab with their hands like players.
 - **Bots with a flat-screen player's hands**: they dual wield, swing melee weapons overhead and parry blows by their
   skill; **co-op bots** (VR Settings > Play > Add Co-op Bot) fight the monsters beside you and follow you to the next level.
+- **Grab a bot's weapon where you see it**: a bot's weapon is placed once, by the server, and every player draws it
+  there, so closing your hand on it takes it (grabbing beside it no longer does); its blows and parries come from that
+  weapon too.
+- **Debug > Show Disarm Volumes and Show Hit Zones work on bots and other players**, hosting or joining: the volumes
+  a grab and a shot on their weapon test, and their head, body, limb and leg zones, outlined on them.
 - **Bots toned down by skill**: at the lower skills they aim off and behind a moving target, wait a moment before
   firing at someone they've just seen, pause between bursts, turn slower and notice players from less far; their
   melee swings are held raised a little before they come down, so you can see them coming and parry. They're the
