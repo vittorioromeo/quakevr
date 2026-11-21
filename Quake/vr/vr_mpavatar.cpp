@@ -719,7 +719,7 @@ void setup(int e, const Avatar& a, const glm::vec3& origin, const avatar::DollPo
     {
         view::ViewEntity& w = d.weapon[side];
         const bool near = glm::distance(glm::vec3{w.ent.origin[0], w.ent.origin[1], w.ent.origin[2]}, eye) <= reach;
-        view::drawGunParts(w, a.look[side], d.gun[side], true, near);
+        view::drawGunParts(w, a.look[side], d.gun[side], true, near, doll ? 0 : e, side);
     }
     constexpr za::U8 modeBits = VrGunLook::magsShownBit | VrGunLook::clipFullBit | VrGunLook::ssgBreaksBit;
     for(int i = 0; i < VrDrawnHolsters::count; i++)
@@ -1575,6 +1575,31 @@ bool drawnPlaces(int ent, glm::vec3& body, glm::vec3 handsAt[2], int& frame)
 bool drawnNow(int ent)
 {
     return ent > 0 && ent <= MAX_SCOREBOARD && drawn.of[ent].frame >= 0 && drawn.of[ent].frame >= host_framecount - 1;
+}
+
+bool woundTargets(int ent, entity_t* out[3], bool& doll)
+{
+    out[0] = out[1] = out[2] = nullptr;
+    doll = false;
+    if(ent <= 0 || ent > MAX_SCOREBOARD)
+    {
+        return false;
+    }
+    Drawn& d = drawn.of[ent];
+    const bool now = drawnNow(ent);
+    const auto pick = [&](view::ViewEntity& ve) { return !now || (ve.visible && ve.ent.model) ? &ve.ent : nullptr; };
+    out[0] = pick(d.body);
+    out[1] = pick(d.hand[0]);
+    out[2] = pick(d.hand[1]);
+    doll = now && d.doll != 0;
+    return now;
+}
+
+int weaponOwner(const entity_t* e, int& side)
+{
+    bool hand = false;
+    const Drawn* d = drawnOf(e, side, hand);
+    return d && !hand ? static_cast<int>(d - drawn.of) : 0;
 }
 
 bool drawnWeapon(int ent, int side, glm::vec3& butt, glm::vec3& muzzle, glm::vec3& hand)

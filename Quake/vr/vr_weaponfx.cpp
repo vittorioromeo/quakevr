@@ -586,7 +586,11 @@ void otherPlayerFired(int ent, int hand)
     {
         return;
     }
-    gunfx::otherFired(ent, *w, slot);
+    gunfx::otherFired(ent, *w, slot, hand);
+    if(slot == weapons::slotForName("progs/v_shot.mdl"))
+    {
+        autopump::otherFired(ent, hand); // (his shotgun's auto pump's clacks, as yours: syncfix5)
+    }
     const int variant = adguns::variantOf(w->ent.model->name);
     const adguns::FireFeel feel = variant >= 0 ? adguns::fireFeel(variant) : adguns::FireFeel{};
     if(!vr_muzzle_flash.value || weapons::value(slot, Key::Flash) == 0.f || feel.flash <= 0.f)

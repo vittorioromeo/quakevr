@@ -39,6 +39,7 @@
 #include "vr_trace.hpp"
 #include "vr_view.hpp"
 #include "vr_lagcomp.hpp"
+#include "vr_wounds.hpp"
 
 #include "Zancle/Chrono/Time.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -682,8 +683,9 @@ void near_f()
         {
             q_strlcpy(whose, "other", sizeof(whose));
         }
-        Con_Printf("mp_near_ent: whose=%s model=%s d=%.1f alpha=%d fx=%d skin=%d frame=%d glow=%.2f\n", whose,
-            COM_SkipPath(e->model->name), d, e->alpha, e->effects, e->skinnum, e->frame, qvr::view::powerupGlow(e));
+        Con_Printf("mp_near_ent: whose=%s model=%s d=%.1f alpha=%d fx=%d skin=%d frame=%d glow=%.2f wound=%d\n", whose,
+            COM_SkipPath(e->model->name), d, e->alpha, e->effects, e->skinnum, e->frame, qvr::view::powerupGlow(e),
+            qvr::wounds::bloody(e) ? 1 : 0); // (wound: a painted wounds mask on it, syncfix5)
     }
     for(const dlight_t& l : cl_dlights)
     {
