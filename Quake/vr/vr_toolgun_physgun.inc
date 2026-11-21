@@ -513,40 +513,40 @@ void sticksFrame(float dt)
 void ghostHoldFrame(const hands::State& s, float dt)
 {
     const bool turning = tg().adjust && tg().hand >= 0 && key_dest == key_game && ghostShowing();
-    const bool wasTurning = turning && arm().ghostHold.turn == tg().hand;
-    const float before = arm().ghostHold.yaw;
-    arm().ghostHold.turn = turning ? tg().hand : -1;
+    const bool wasTurning = turning && gh().ghostHold.turn == tg().hand;
+    const float before = gh().ghostHold.yaw;
+    gh().ghostHold.turn = turning ? tg().hand : -1;
     // Turning fixes the ghost where it stands at the press (updateGhost); let go, it follows the aim again.
     if(!turning)
     {
-        arm().ghostHold.fixed = false;
+        gh().ghostHold.fixed = false;
     }
-    else if(!arm().ghostHold.fixed)
+    else if(!gh().ghostHold.fixed)
     {
-        arm().ghostHold.fixed = true;
-        arm().ghostHold.point = ghostPoint(tg().aim);
-        arm().ghostHold.dir = tg().aim.dir;
+        gh().ghostHold.fixed = true;
+        gh().ghostHold.point = ghostPoint(tg().aim);
+        gh().ghostHold.dir = tg().aim.dir;
     }
     // The hand's yaw in the play space: the player's own turn (the stick's, still the player's) turns the ghost nothing.
     // (Kept current while not turning, so the turn does not jump when it starts.)
-    arm().ghostHold.yaw = tg().handRot.y - s.turnYaw;
+    gh().ghostHold.yaw = tg().handRot.y - s.turnYaw;
     if(dt <= 0.f || key_dest != key_game || !ghostShowing())
     {
         return;
     }
-    if(arm().ghostHold.move >= 0 && s.valid)
+    if(gh().ghostHold.move >= 0 && s.valid)
     {
         glm::vec3 fwd, right;
         levelAxes(ghostDir(), fwd, right);
-        const glm::vec3 gone = s.vel[arm().ghostHold.move] * dt * units::metresToUnits(); // metres a second in Quake axes,
+        const glm::vec3 gone = s.vel[gh().ghostHold.move] * dt * units::metresToUnits(); // metres a second in Quake axes,
         // without the player's own (hands::State::vel is metres: the offsets are units)
         // The offsets are components along the gun's level way, not a world vector: add the components.
         tg().offset += glm::vec3{glm::dot(gone, fwd), glm::dot(gone, right), gone.z};
-        arm().ghostHold.seen += gone;
+        gh().ghostHold.seen += gone;
     }
     if(wasTurning)
     {
-        const float turned = za::remainder(arm().ghostHold.yaw - before, 360.f) * handTurnWeight(tg().handRot.x) * ghostTurnRate;
+        const float turned = za::remainder(gh().ghostHold.yaw - before, 360.f) * handTurnWeight(tg().handRot.x) * ghostTurnRate;
         tg().turn.y += turned;
     }
 }

@@ -65,7 +65,7 @@ enum class Part
     HandSource,   // vr_handsource.cpp: each hand's source this frame (tracked, flat, ...)
     HeldPose,     // vr_heldpose.cpp: what went up to the server last, each hand's
     Toolgun,      // vr_toolgun.cpp: the toolgun's state
-    ToolgunArm,   // vr_toolgun.cpp: the toolgun's ghosts and armed entry
+    ToolgunGhosts, // vr_toolgun.cpp: the toolgun's ghosts (held, looked at)
     ToolgunBrush, // vr_toolgun_brush.cpp: the Brush tool's state
     ToolgunPanel, // vr_toolgun_panel.cpp: the toolgun's panel
     Count

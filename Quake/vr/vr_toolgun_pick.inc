@@ -104,7 +104,7 @@ constexpr float wallStandoff = 10.f;
 // The aim's way the ghost goes by: the aim's, or the one it had when the turn's hold fixed the ghost.
 [[nodiscard]] const glm::vec3& ghostDir()
 {
-    return arm().ghostHold.fixed ? arm().ghostHold.dir : tg().aim.dir;
+    return gh().ghostHold.fixed ? gh().ghostHold.dir : tg().aim.dir;
 }
 
 void probeLook();
@@ -120,13 +120,13 @@ void updateGhost()
     {
         return;
     }
-    const glm::vec3 point = arm().ghostHold.fixed ? arm().ghostHold.point : ghostPoint(tg().aim);
+    const glm::vec3 point = gh().ghostHold.fixed ? gh().ghostHold.point : ghostPoint(tg().aim);
     const glm::vec3& dir = ghostDir();
     glm::vec3 fwd, right;
     levelAxes(dir, fwd, right);
     tg().ghostOrigin = point + fwd * tg().offset.x + right * tg().offset.y + glm::vec3{0.f, 0.f, tg().offset.z};
     tg().ghostAngles = glm::vec3{tg().turn.x, yawOf(dir) + 180.f + tg().turn.y, tg().turn.z};
-    if(!arm().ghostHold.fixed && wallAim(tg().aim))
+    if(!gh().ghostHold.fixed && wallAim(tg().aim))
     {
         tg().ghostAngles.y = yawOf(tg().aim.normal) + tg().turn.y; // a wall torch faces out of its wall
     }
@@ -150,7 +150,7 @@ void updateGhost()
 void probeLook()
 {
     const Selection& sel = tg().sel;
-    GhostLook& look = arm().ghostLook;
+    GhostLook& look = gh().ghostLook;
     if(!probedChoice(sel) || !sv.active)
     {
         return;
@@ -161,7 +161,7 @@ void probeLook()
         look.entry = sel.entry;
         copyText(look.classname, sizeof(look.classname), sel.classname);
     }
-    const bool onFloor = !arm().ghostHold.fixed && tg().offset == glm::vec3{0.f} && tg().aim.normal.z > 0.7f &&
+    const bool onFloor = !gh().ghostHold.fixed && tg().offset == glm::vec3{0.f} && tg().aim.normal.z > 0.7f &&
                          !(tg().aim.target && tg().aim.targetDistance < tg().aim.worldDistance);
     if(look.valid || look.tries >= 3 || !onFloor || (sel.entry >= 0 && !toolgun::spawnableAvailable(sel.entry)))
     {

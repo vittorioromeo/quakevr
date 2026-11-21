@@ -547,26 +547,26 @@ struct ArmedGhost
     glm::vec3 angles[2]{glm::vec3{0.f}, glm::vec3{0.f}};
 };
 
-// A seat's toolgun ghosts and armed entry: the held ghost, the look-at ghost, the armed catalogue and its ghost (phase
-// 4b)
-struct ToolgunArm
+ArmedCatalogue armedCat; // seat-shared: QC's catalogue of armed monsters (the progs' data)
+ArmedGhost armedGhost;   // seat-shared: QC's ghost for a choice (a memo, keyed by the catalogue and the choice)
+
+// A seat's toolgun ghosts: the one held and the one looked at (phase 4b)
+struct Ghosts
 {
     GhostHold ghostHold;
     GhostLook ghostLook;
-    ArmedCatalogue armedCat;
-    ArmedGhost armedGhost;
 };
 
-// splitscreen (SPLITSCREEN.md, phase 4b): the current seat's (seat::Part::ToolgunArm)
-[[nodiscard]] ToolgunArm& arm()
+// splitscreen (SPLITSCREEN.md, phase 4b): the current seat's (seat::Part::ToolgunGhosts)
+[[nodiscard]] Ghosts& gh()
 {
-    return seat::part<ToolgunArm>(seat::current(), seat::Part::ToolgunArm);
+    return seat::part<Ghosts>(seat::current(), seat::Part::ToolgunGhosts);
 }
 
 // The catalogue made again when the map, the progs or AD's data changed (the host frame, a game running).
 void armedRefresh()
 {
-    ArmedCatalogue& c = arm().armedCat;
+    ArmedCatalogue& c = armedCat;
     if(!sv.active)
     {
         c.valid = false;
@@ -645,7 +645,7 @@ void armedRefresh()
 
 [[nodiscard]] const ArmedWeapon* armedWeaponOf(int code)
 {
-    for(const ArmedWeapon& w : arm().armedCat.weapons)
+    for(const ArmedWeapon& w : armedCat.weapons)
     {
         if(w.code == code)
         {
@@ -694,17 +694,17 @@ void armedRefresh()
 void armedGhostRefresh()
 {
     const Selection& sel = tg().sel;
-    ArmedGhost& g = arm().armedGhost;
-    if(!sel.armed || !arm().armedCat.valid || !sv.active)
+    ArmedGhost& g = armedGhost;
+    if(!sel.armed || !armedCat.valid || !sv.active)
     {
         return;
     }
-    if(g.generation == arm().armedCat.generation && g.kind == sel.kind && g.code == sel.value && g.code2 == sel.value2)
+    if(g.generation == armedCat.generation && g.kind == sel.kind && g.code == sel.value && g.code2 == sel.value2)
     {
         return;
     }
     g = {};
-    g.generation = arm().armedCat.generation;
+    g.generation = armedCat.generation;
     g.kind = sel.kind;
     g.code = sel.value;
     g.code2 = sel.value2;
@@ -727,7 +727,7 @@ void armedGhostRefresh()
 void armedChoose()
 {
     armedRefresh();
-    const ArmedCatalogue& c = arm().armedCat;
+    const ArmedCatalogue& c = armedCat;
     if(!c.valid || c.kindCount <= 0)
     {
         Con_Printf("toolgun: no armed monsters here (no game running)\n");
@@ -1018,8 +1018,8 @@ void reset()
     tg().glowNum = tg().glow2 = 0;
     tg().ghost = false;
     tg().aim = {};
-    arm().ghostHold = {};
-    arm().ghostLook = {};
+    gh().ghostHold = {};
+    gh().ghostLook = {};
     spawnTrace = {};
     toolgun::brushtool::reset();
 }
@@ -1082,13 +1082,13 @@ bool button(int hand, posing::Button b, bool down)
         if(b == posing::Button::Primary)
         {
             tg().adjust = false;
-            if(arm().ghostHold.turn == hand)
+            if(gh().ghostHold.turn == hand)
             {
-                arm().ghostHold.turn = -1;
+                gh().ghostHold.turn = -1;
             }
-            if(arm().ghostHold.move == hand)
+            if(gh().ghostHold.move == hand)
             {
-                arm().ghostHold.move = -1;
+                gh().ghostHold.move = -1;
             }
         }
         else if(b == posing::Button::Trigger && hand == tg().hand)
@@ -1162,8 +1162,8 @@ bool button(int hand, posing::Button b, bool down)
     // release are the tool's, so no key reaches the game: neither its jump nor the hook's unreel while it is held.
     if(b == posing::Button::Primary && key_dest == key_game && ghostShowing())
     {
-        arm().ghostHold.move = hand;
-        arm().ghostHold.seen = glm::vec3{0.f};
+        gh().ghostHold.move = hand;
+        gh().ghostHold.seen = glm::vec3{0.f};
         taken = true;
         return true;
     }
@@ -1254,7 +1254,7 @@ void frame(const hands::State& s)
         tg().gizmo = {};
         tg().adjust = tg().trigger = tg().firePressed = tg().freezePressed = false;
         tg().aim = {};
-        arm().ghostHold = {};
+        gh().ghostHold = {};
         toolgun::brushtool::reset();
         return;
     }
@@ -1270,7 +1270,7 @@ void frame(const hands::State& s)
     const Tool tool = currentTool();
     if(tool != Tool::Spawn)
     {
-        arm().ghostHold = {}; // (another tool: its A/X is the sticks' again)
+        gh().ghostHold = {}; // (another tool: its A/X is the sticks' again)
     }
     if(tool != Tool::Physgun && tg().drag.num)
     {
@@ -1426,7 +1426,7 @@ void tempEntities()
         }
         return model && !client::lateBrushModel(model) ? model : nullptr;
     };
-    const GhostLook& look = arm().ghostLook;
+    const GhostLook& look = gh().ghostLook;
     const bool looked = look.valid && probedChoice(tg().sel) && look.entry == tg().sel.entry && !strcmp(look.classname, tg().sel.classname);
     qmodel_t* model = modelNamed(looked ? look.model : tg().sel.model);
     if(!model)
@@ -1435,7 +1435,7 @@ void tempEntities()
     }
     // An armed monster's held weapons (ArmedGhost: where the layer's pose holds them on the body standing, turned with
     // the ghost).
-    const ArmedGhost& ag = arm().armedGhost;
+    const ArmedGhost& ag = armedGhost;
     if(tg().sel.armed && ag.kind == tg().sel.kind && ag.code == tg().sel.value && ag.code2 == tg().sel.value2)
     {
         const glm::mat3 body = held::axesFromAngles(&tg().ghostAngles[0], false);
@@ -1481,7 +1481,7 @@ void tempEntities()
 
 const client::EntityVr* ghostVr(const entity_t* e)
 {
-    return e && e == tg().ghostEnt && tg().ghostLooked ? &arm().ghostLook.vr : nullptr;
+    return e && e == tg().ghostEnt && tg().ghostLooked ? &gh().ghostLook.vr : nullptr;
 }
 
 float entityGlow(const entity_t* e)
@@ -1570,19 +1570,19 @@ void selectSpawnable(int i, bool say)
 namespace armed
 {
 void refresh() { armedRefresh(); }
-int generation() { return arm().armedCat.valid ? arm().armedCat.generation : 0; }
-int kindCount() { return arm().armedCat.valid ? arm().armedCat.kindCount : 0; }
-const char* kindName(int k) { return k >= 0 && k < kindCount() ? arm().armedCat.kinds[k].name : ""; }
-const char* kindModel(int k) { return k >= 0 && k < kindCount() ? arm().armedCat.kinds[k].model : ""; }
-const char* kindSpawn(int k) { return k >= 0 && k < kindCount() ? arm().armedCat.kinds[k].spawn : ""; }
-int weaponCount() { return arm().armedCat.valid ? static_cast<int>(arm().armedCat.weapons.size()) : 0; }
-int weaponCode(int i) { return i >= 0 && i < weaponCount() ? arm().armedCat.weapons[i].code : 0; }
+int generation() { return armedCat.valid ? armedCat.generation : 0; }
+int kindCount() { return armedCat.valid ? armedCat.kindCount : 0; }
+const char* kindName(int k) { return k >= 0 && k < kindCount() ? armedCat.kinds[k].name : ""; }
+const char* kindModel(int k) { return k >= 0 && k < kindCount() ? armedCat.kinds[k].model : ""; }
+const char* kindSpawn(int k) { return k >= 0 && k < kindCount() ? armedCat.kinds[k].spawn : ""; }
+int weaponCount() { return armedCat.valid ? static_cast<int>(armedCat.weapons.size()) : 0; }
+int weaponCode(int i) { return i >= 0 && i < weaponCount() ? armedCat.weapons[i].code : 0; }
 const char* codeName(int code) { return armedCodeName(code); }
 int fits(int kind, int code) { return armedFits(kind, code); }
 bool oneHanded(int kind, int code) { return armedOneHanded(kind, code); }
 bool pairs(int kind, int code, int code2) { return armedPairs(kind, code, code2); }
-int infectCount() { return arm().armedCat.valid ? arm().armedCat.infectCount : 0; }
-const char* infectName(int row) { return row >= 0 && row < infectCount() ? arm().armedCat.infect[row] : ""; }
+int infectCount() { return armedCat.valid ? armedCat.infectCount : 0; }
+const char* infectName(int row) { return row >= 0 && row < infectCount() ? armedCat.infect[row] : ""; }
 bool chosen() { return tg().sel.valid && tg().sel.armed; }
 
 void choose()
@@ -1593,7 +1593,7 @@ void choose()
 
 const char* ghostModel(int hand)
 {
-    const ArmedGhost& g = arm().armedGhost;
+    const ArmedGhost& g = armedGhost;
     return hand >= 0 && hand < g.count && chosen() && g.kind == tg().sel.kind && g.code == tg().sel.value && g.code2 == tg().sel.value2
                ? g.model[hand]
                : "";
@@ -1998,7 +1998,7 @@ void selectArmed_f()
 void armedList_f()
 {
     armedRefresh();
-    const ArmedCatalogue& c = arm().armedCat;
+    const ArmedCatalogue& c = armedCat;
     if(!c.valid)
     {
         Con_Printf("armedlist: no game running\n");
@@ -2054,7 +2054,7 @@ void armedReset_f()
     armedDefaults();
     tg().offset = tg().turn = glm::vec3{0.f};
     armedRefresh();
-    if(arm().armedCat.valid && arm().armedCat.kindCount > 0)
+    if(armedCat.valid && armedCat.kindCount > 0)
     {
         toolgun::armed::choose();
     }
@@ -2079,7 +2079,7 @@ void armedInfectedTest_f()
     int passed = 0, failed = 0;
     armedRefresh();
     const func_t one = sv.active ? [] { const progs::ServerVm vm; return findFunction("VR_Infect_TestOne"); }() : 0;
-    if(!sv.active || !arm().armedCat.valid || arm().armedCat.kindCount < 2 || arm().armedCat.infectCount < 3 || !one)
+    if(!sv.active || !armedCat.valid || armedCat.kindCount < 2 || armedCat.infectCount < 3 || !one)
     {
         Con_Printf("toolgun infected test: FAIL: a game with the armed monsters' table, the outcomes and the tests' QC\n");
         qvr::testkit::verdict("toolgun infected test", passed, 1);
@@ -2093,13 +2093,13 @@ void armedInfectedTest_f()
         at = glm::vec3{player->v.origin[0] + za::cos(yaw) * 200.f, player->v.origin[1] + za::sin(yaw) * 200.f, player->v.origin[2] + 8.f};
         angles = glm::vec3{0.f, player->v.angles[1] + 180.f, 0.f};
     }
-    for(int kind = 0; kind < arm().armedCat.kindCount; kind++)
+    for(int kind = 0; kind < armedCat.kindCount; kind++)
     {
         Cvar_SetValueQuick(&vr_toolgun_armed_kind, static_cast<float>(kind));
         Cvar_SetValueQuick(&vr_toolgun_armed_weapon, -1.f); // (its fists: the quickest spawn)
         Cvar_SetValueQuick(&vr_toolgun_armed_weapon2, 0.f);
         toolgun::armed::choose();
-        for(int row = 1; row < arm().armedCat.infectCount; row++)
+        for(int row = 1; row < armedCat.infectCount; row++)
         {
             Cvar_SetValueQuick(&vr_toolgun_armed_infected, static_cast<float>(row));
             edict_t* e = spawnChoice(tg().sel, at, angles);
@@ -2116,7 +2116,7 @@ void armedInfectedTest_f()
             }
             if(!ok)
             {
-                Con_Printf("toolgun infected test: FAIL: %s infected with %s\n", arm().armedCat.kinds[kind].name, arm().armedCat.infect[row]);
+                Con_Printf("toolgun infected test: FAIL: %s infected with %s\n", armedCat.kinds[kind].name, armedCat.infect[row]);
             }
             (ok ? passed : failed)++;
         }
@@ -2139,7 +2139,7 @@ void armedArmourTest_f()
     };
     armedRefresh();
     const progs::FieldOffsets& f = fields();
-    if(!sv.active || svs.maxclients < 1 || !arm().armedCat.valid || arm().armedCat.kindCount < 2 || f.vr_ar_type < 0 || f.vr_ar_mask < 0)
+    if(!sv.active || svs.maxclients < 1 || !armedCat.valid || armedCat.kindCount < 2 || f.vr_ar_type < 0 || f.vr_ar_mask < 0)
     {
         verdict(false, "a game with the armed monsters' table (grunt, enforcer) and the armour's fields");
         qvr::testkit::verdict("toolgun armour test", passed, failed);
@@ -2209,7 +2209,7 @@ void armedPairTest_f()
     };
     armedRefresh();
     const progs::FieldOffsets& f = fields();
-    if(!sv.active || svs.maxclients < 1 || !arm().armedCat.valid || arm().armedCat.kindCount < 1 || f.vr_ag_wid < 0 || f.vr_ag_wid2 < 0 ||
+    if(!sv.active || svs.maxclients < 1 || !armedCat.valid || armedCat.kindCount < 1 || f.vr_ag_wid < 0 || f.vr_ag_wid2 < 0 ||
         f.vr_ag_gunaxe < 0)
     {
         verdict(false, "a game with the armed monsters' table and the armed grunts' fields");
@@ -2346,13 +2346,13 @@ void status_f()
     {
         Con_Printf("toolgun: ghost offsets %.1f %.1f %.1f, turn %.1f %.1f %.1f, held %s %s, %s\n", tg().offset.x, tg().offset.y,
             tg().offset.z, tg().turn.x, tg().turn.y, tg().turn.z,
-            arm().ghostHold.move >= 0 ? (arm().ghostHold.move == HAND_MAIN ? "move:main" : "move:off") : "move:none",
-            arm().ghostHold.turn >= 0 ? (arm().ghostHold.turn == HAND_MAIN ? "turn:main" : "turn:off") : "turn:none",
-            arm().ghostHold.fixed ? "fixed" : "following");
+            gh().ghostHold.move >= 0 ? (gh().ghostHold.move == HAND_MAIN ? "move:main" : "move:off") : "move:none",
+            gh().ghostHold.turn >= 0 ? (gh().ghostHold.turn == HAND_MAIN ? "turn:main" : "turn:off") : "turn:none",
+            gh().ghostHold.fixed ? "fixed" : "following");
         if(tg().ghostEnt && tg().ghostLooked)
         {
             // (as the item will be once placed: its probe's, GhostLook)
-            const GhostLook& l = arm().ghostLook;
+            const GhostLook& l = gh().ghostLook;
             Con_Printf("toolgun: ghost drawn %s at %.1f %.1f %.1f, scale %.3f, offset %.1f %.1f %.1f (probed)\n", l.model,
                 tg().ghostEnt->origin[0], tg().ghostEnt->origin[1], tg().ghostEnt->origin[2], 1.f + l.vr.scale.x, l.vr.offset.x,
                 l.vr.offset.y, l.vr.offset.z);
@@ -2373,12 +2373,12 @@ void status_f()
                     w->angles[2]);
             }
         }
-        if(arm().ghostHold.move >= 0)
+        if(gh().ghostHold.move >= 0)
         {
-            const glm::vec3& p = hands::current().pos[arm().ghostHold.move];
-            const glm::vec3& v = hands::current().vel[arm().ghostHold.move];
+            const glm::vec3& p = hands::current().pos[gh().ghostHold.move];
+            const glm::vec3& v = hands::current().vel[gh().ghostHold.move];
             Con_Printf("toolgun: the holding hand at %.1f %.1f %.1f, moving %.1f %.1f %.1f, followed %.1f %.1f %.1f\n", p.x, p.y,
-                p.z, v.x, v.y, v.z, arm().ghostHold.seen.x, arm().ghostHold.seen.y, arm().ghostHold.seen.z);
+                p.z, v.x, v.y, v.z, gh().ghostHold.seen.x, gh().ghostHold.seen.y, gh().ghostHold.seen.z);
         }
     }
     if(tg().drag.num)
