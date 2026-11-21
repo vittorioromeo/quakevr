@@ -8,6 +8,7 @@
 #include "vr_geom.hpp"
 #include "vr_held.hpp"
 #include "vr_lines.hpp"
+#include "vr_mpavatar.hpp"
 #include "vr_physics.hpp"
 #include "vr_progs.hpp"
 #include "vr_text3d.hpp"
@@ -51,7 +52,17 @@ enum Kind : int
     DirBlade = 13,    // ... its blade's line where they met
     DirWay = 14,      // ... its blade's way there
     HandHit = 20,     // the hand holding it: its strike volume (vr_agrunt_vol_strike)
+    // (bots4) A player's held weapon (a bot's, a human's; num the player): capsules a..b grown by radius.
+    PlayerGrab = 21,  // another player's grab (VR_PDG_Gap: its line, vr_player_disarm_reach)
+    PlayerSpot = 22,  // ... a hotspot of it (a = b)
+    PlayerShotW = 23, // a shot on it (VR_PD_Meet: its line)
+    PlayerShotH = 24, // ... on the hand holding it (a = b)
 };
+
+// (bots4) The QC's radii round a weapon's line and a hand (vr_armedgrunt_shot.qc VR_AGS_W_RADIUS, VR_AGS_H_RADIUS: keep
+// in step), for a client's rebuild of another player's shot volumes.
+constexpr float shotWeaponRadius = 3.f;
+constexpr float shotHandRadius = 3.5f;
 
 // The notes' kinds (debugdisarmnote): 0 a state; the hits.
 constexpr za::Array<const char*, 7> noteNames{"state", "parry", "disarm", "body blow", "shot", "blocked", "tug"};
@@ -112,6 +123,15 @@ struct Viz
     double hitTime{-1.0};
     za::Array<Verdict, maxVerdicts> verdicts{};
     int nextVerdict{0};
+    // (bots4) Each player's volumes as last drawn (the harness's mp_debugviz line): the host frame, how many, the first
+    // grab capsule's ends.
+    struct Shown
+    {
+        int frame{-1};
+        int count{0};
+        glm::vec3 a{0.f}, b{0.f};
+    };
+    za::Array<Shown, MAX_SCOREBOARD + 1> players{};
 };
 Viz viz;
 
@@ -209,11 +229,114 @@ void handHull(const Shape& s, const glm::vec4& colour, float width)
     }
 }
 
+// (bots4) A wire capsule a..b of radius r (a sphere when they meet): a ring round each end across its axis, the four
+// sides, and each end's two half rings away from the other end.
+void capsule(const glm::vec3& a, const glm::vec3& b, float r, const glm::vec4& colour, float width)
+{
+    constexpr int steps = 16;
+    const glm::vec3 d = b - a;
+    const float len = glm::length(d);
+    const glm::vec3 axis = len > 0.01f ? d / len : glm::vec3{0.f, 0.f, 1.f};
+    const glm::vec3 helper = za::abs(axis.z) < 0.9f ? glm::vec3{0.f, 0.f, 1.f} : glm::vec3{1.f, 0.f, 0.f};
+    const glm::vec3 u = glm::normalize(glm::cross(axis, helper)), v = glm::cross(axis, u);
+    const auto arc = [&](const glm::vec3& c, const glm::vec3& x, const glm::vec3& y, float from, float to) {
+        for(int i = 0; i < steps; i++)
+        {
+            const float t0 = from + (to - from) * static_cast<float>(i) / steps;
+            const float t1 = from + (to - from) * static_cast<float>(i + 1) / steps;
+            lines::line(c + (x * za::cos(t0) + y * za::sin(t0)) * r, c + (x * za::cos(t1) + y * za::sin(t1)) * r, width,
+                colour, colour);
+        }
+    };
+    constexpr float pi = 3.14159265f;
+    arc(a, u, v, 0.f, 2.f * pi);
+    arc(b, u, v, 0.f, 2.f * pi);
+    arc(a, u, -axis, 0.f, pi);
+    arc(a, v, -axis, 0.f, pi);
+    arc(b, u, axis, 0.f, pi);
+    arc(b, v, axis, 0.f, pi);
+    if(len > 0.01f)
+    {
+        for(const glm::vec3& side : {u, -u, v, -v})
+        {
+            lines::line(a + side * r, b + side * r, width, colour, colour);
+        }
+    }
+}
+
+// (bots4) Player `num`'s volume of `kind` (PlayerGrab...), drawn and counted (the harness's line). Not the viewer's own.
+void playerVolume(int num, int kind, const glm::vec3& a, const glm::vec3& b, float r)
+{
+    if(num <= 0 || num > MAX_SCOREBOARD || num == cl.viewentity)
+    {
+        return;
+    }
+    constexpr float thin = 0.12f;
+    switch(kind)
+    {
+    case PlayerGrab: capsule(a, b, r, orange, thin * 1.5f); break;
+    case PlayerSpot: capsule(a, b, r, faint(orange), thin); break;
+    case PlayerShotW: capsule(a, b, r, magenta, thin); break;
+    case PlayerShotH: capsule(a, b, r, cyan, thin); break;
+    default: return;
+    }
+    Viz::Shown& s = viz.players[static_cast<za::SizeT>(num)];
+    if(s.frame != host_framecount)
+    {
+        s = Viz::Shown{host_framecount, 0, a, b};
+    }
+    else if(kind == PlayerGrab && s.count == 0)
+    {
+        s.a = a;
+        s.b = b;
+    }
+    s.count++;
+}
+
+// (bots4) A client (no server here): the other players' volumes rebuilt from their weapons as drawn here (mpavatar:
+// a bot's placed by the server, a player's where his client drew it), by the rules the host sent (QVR_RULE: grab
+// and pvp, the reach, the shot volumes). No hotspots (not sent): the line and the hand.
+void clientPlayers()
+{
+    const float reach = vr_player_disarm_reach.value * 0.01f * units::metresToUnits();
+    const bool grab = vr_player_disarm_pvp.value != 0.f && vr_player_disarm_grab.value != 0.f;
+    const bool shot = (vr_player_disarm.value != 0.f || vr_player_disarm_pvp.value != 0.f) &&
+                      vr_player_disarm_chance.value > 0.f;
+    const int parts = static_cast<int>(vr_agrunt_shotdisarm_parts.value);
+    for(int e = 1; e <= za::min(cl.maxclients, MAX_SCOREBOARD); e++)
+    {
+        for(int side = 0; side < 2; side++)
+        {
+            glm::vec3 butt{0.f}, muzzle{0.f}, hand{0.f};
+            if(e == cl.viewentity || !mpavatar::drawnWeapon(e, side, butt, muzzle, hand))
+            {
+                continue;
+            }
+            if(grab)
+            {
+                playerVolume(e, PlayerGrab, butt, muzzle, reach);
+            }
+            if(shot && parts != 1)
+            {
+                playerVolume(e, PlayerShotW, butt, muzzle, shotWeaponRadius + vr_agrunt_vol_shot_weapon.value);
+            }
+            if(shot && parts != 0)
+            {
+                playerVolume(e, PlayerShotH, hand, hand, shotHandRadius + vr_agrunt_vol_shot_hand.value);
+            }
+        }
+    }
+}
+
 void drawShape(const Shape& s)
 {
     constexpr float thin = 0.12f, thick = 0.3f;
     switch(s.kind)
     {
+    case PlayerGrab:
+    case PlayerSpot:
+    case PlayerShotW:
+    case PlayerShotH: playerVolume(s.num, s.kind, s.a, s.b, s.radius); break;
     case WeaponHit:
     {
         // (its hull grown by the strike's units, and its line: the parry's)
@@ -429,10 +552,31 @@ void serverFrame()
     viz.fistTime = sv.qcvm.time;
 }
 
+bool playerShown(int ent, int& count, glm::vec3& a, glm::vec3& b)
+{
+    if(ent <= 0 || ent > MAX_SCOREBOARD || viz.players[static_cast<za::SizeT>(ent)].frame < host_framecount - 1)
+    {
+        return false;
+    }
+    const Viz::Shown& s = viz.players[static_cast<za::SizeT>(ent)];
+    count = s.count;
+    a = s.a;
+    b = s.b;
+    return true;
+}
+
 void draw(const glm::vec3& eye)
 {
-    if(!on() || !sv.active)
+    if(!on())
     {
+        return;
+    }
+    if(!sv.active)
+    {
+        if(cls.state == ca_connected && !cls.demoplayback)
+        {
+            clientPlayers(); // (bots4: a client's own rebuild of the other players' volumes)
+        }
         return;
     }
     if(fresh(viz.time))

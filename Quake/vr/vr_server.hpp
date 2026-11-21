@@ -6,6 +6,10 @@ namespace qvr
 {
 struct VrMove;
 }
+namespace qvr::view
+{
+struct HeldPlace;
+}
 
 namespace qvr::server
 {
@@ -22,6 +26,13 @@ void init(); // registers commands
 // Holster `slot` (body::Holster's order) of the client `player` as his client drew it, carried with his entity since
 // (MP_PLAN.md, B6b: QC's holsterpos for a remote player). False: none sent.
 [[nodiscard]] bool holsterPoint(struct edict_s* player, int slot, glm::vec3& out);
+
+// (bots3) Whether client slot `slot`'s entity is a bot (FrikBot: a "player" whose QC is not a human's, the slot itself not
+// active; MP_PLAN.md B11 part 3).
+[[nodiscard]] bool isBot(int slot);
+// A bot's weapon in `hand` (0 off, 1 main) placed as every client draws it (view::placeHeld at its QC handpos, handrot;
+// its avatar sends this place): false none (an empty hand, a fist).
+[[nodiscard]] bool botHeld(struct edict_s* bot, int hand, view::HeldPlace& out);
 
 // How many of client `clientNum`'s moves came in a server frame that had one of his already (merged: their VR bits ORed,
 // the hands' last pose kept) since he connected: vr_mp_status `merged=` (MP_PLAN.md, B5d: melee at jitter).

@@ -375,6 +375,16 @@ void PF_weapondrawnpose()
         progs::returnVec(what == 49 ? rot : shift);
         return;
     }
+    if(what == 53)
+    {
+        // weapondrawnpose(bot, hand, 53): a bot's weapon's muzzle (a blade's tip) as every client draws it (bots3:
+        // server::botHeld, view::placeHeld at its handpos, handrot); '0 0 0' none (not a bot, an empty hand, a fist).
+        // QC bot_setvrfields' muzzlepos: the disarm grab's and the parry's weapon line (VR_Melee_Line).
+        view::HeldPlace p;
+        const int slot = progs::clientSlot(player);
+        progs::returnVec(server::isBot(slot) && server::botHeld(player, hand, p) ? p.muzzle : glm::vec3{0.f});
+        return;
+    }
     if(what == 51 || what == 52)
     {
         // weapondrawnpose(player, hand, 51 / 52): this listen server's own `hand` as drawn last (view::drawnHandPose), world axes:

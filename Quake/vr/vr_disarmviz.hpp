@@ -25,4 +25,8 @@ void serverFrame();                // VR_ServerFrameEnd: the fists measured agai
 void draw(const glm::vec3& eye);   // the view's debug draws
 [[nodiscard]] bool on();           // vr_debug_disarm (the flat view's overlay draws the lines then)
 
+// (bots4) Player entity `ent`'s volumes drawn last frame or this one (the host's from the QC, a client's rebuilt from the
+// weapons it draws): how many, and the first grab capsule's ends. False: none. (vr_mp_avatars' mp_debugviz line.)
+[[nodiscard]] bool playerShown(int ent, int& count, glm::vec3& a, glm::vec3& b);
+
 } // namespace qvr::disarmviz
