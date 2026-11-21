@@ -47,7 +47,7 @@ constexpr double gapMargin = 0.1;    // ... by this much at least (32 exactly is
 constexpr double lineTol = 0.01;     // a line this close to a brush's face meets it
 constexpr double minOverlap = 1.0;   // two brushes facing each other over less than this: nothing worth closing
 constexpr double minThick = 0.25;    // a blocker thinner than this along its line is left out (faces touching)
-constexpr double thinSolid = 32.0;   // the gaps seen from above and the wide ones: between solids no thicker than this in z
+constexpr double thinSolid = 16.0;   // the gaps seen from above and the wide ones: between solids no thicker than this in z (bars)
 constexpr double fallDepth = 104.0;  // "over a fall": nothing under a blocker for this far (Quake's box, 56, and its jump)
 constexpr double rootHalf = 0.70710678118654752440;
 
@@ -89,7 +89,8 @@ struct Solid
     glm::dvec3 lo{0.0}, hi{0.0};
     int group = 0;        // 0: the model's own brushes; 1: a still brush model's (func_wall); 2: a mover's travel
     int model = 0;        // its submodel (two of one brush model aren't a pair in the world's search)
-    bool slanted = false; // a face turned in x and y both (a slanted bar, a round hole's wedge): the diagonal search
+    bool slanted = false; // an upright prism with a face turned in x and y (a slanted bar, a round hole's wedge, a
+                          // turned wall; not a rock's or an arch's piece): the diagonal search, between two of them
 };
 
 struct HoleBox
@@ -513,7 +514,7 @@ void tryTilt(const Brushes& b, const Solid& S, const Solid& T, int d, Found& out
 void searchFrom(const Brushes& b, const za::Vector<Solid>& s, const SolidGrid& g, za::SizeT from, za::SizeT to,
     bool world, Found& out)
 {
-    const double reach = za::max(cfg.maxGap, world ? cfg.wide : 0.0);
+    const double wideReach = za::max(cfg.maxGap, world ? cfg.wide : 0.0); // (from a thin solid: the wide band)
     const double tiltReach = cfg.maxGap / rootHalf;
     for(za::SizeT ia = from; ia < to; ++ia)
     {
@@ -522,6 +523,7 @@ void searchFrom(const Brushes& b, const za::Vector<Solid>& s, const SolidGrid& g
         {
             const int h = 1 - a; // the other one of x and y
             double qlo[2], qhi[2];
+            const double reach = A.hi.z - A.lo.z <= thinSolid ? wideReach : cfg.maxGap;
             qlo[a] = A.hi[a] - reach;
             qhi[a] = A.hi[a] + reach;
             qlo[h] = A.lo[h];
@@ -548,7 +550,7 @@ void searchFrom(const Brushes& b, const za::Vector<Solid>& s, const SolidGrid& g
                 tryPair(b, A, s[k], a, world, out);
             }
         }
-        if(!cfg.diag || A.group != 0)
+        if(!cfg.diag || A.group != 0 || !A.slanted)
         {
             continue;
         }
@@ -557,7 +559,7 @@ void searchFrom(const Brushes& b, const za::Vector<Solid>& s, const SolidGrid& g
         const auto tilted = [&](za::U32 ib)
         {
             const Solid& B = s[ib];
-            if(ib <= ia || B.group != 0 || (!A.slanted && !B.slanted))
+            if(ib <= ia || B.group != 0 || (!A.slanted || !B.slanted))
             {
                 return;
             }
@@ -829,20 +831,16 @@ bool shapeMeetsEmpty(const hull_t& h, int num, const glm::dvec3& c, const glm::d
 }
 
 // Quake's box (hull 1 from node head) placed anywhere it fits (its centre at or over minCz) reaching into the blocker
-// by more than inset: every centre whose box does so tested at once.
+// by more than inset (its box less inset on every side meeting the blocker, as the census tests it): every centre whose
+// box does so tested at once.
 bool quakeBoxFits(const hull_t& h1, int head, const OBox& box, double inset, double minCz = -1e300)
 {
     glm::dvec3 e[3], half, c = box.c;
     for(int k = 0; k < 3; ++k)
     {
-        const double len = glm::length(box.e[k]);
-        if(len <= inset)
-        {
-            return false;
-        }
-        e[k] = box.e[k] * ((len - inset) / len);
+        e[k] = box.e[k];
         c[k] -= (h1.clip_mins[k] + h1.clip_maxs[k]) * 0.5;
-        half[k] = (h1.clip_maxs[k] - h1.clip_mins[k]) * 0.5;
+        half[k] = za::max(0.0, (h1.clip_maxs[k] - h1.clip_mins[k]) * 0.5 - inset);
     }
     // (e[2] is vertical, the others level: the centres' heights an interval, cut at minCz)
     const double zlo = za::max(c.z - e[2].z - half.z, minCz), zhi = c.z + e[2].z + half.z;
@@ -871,6 +869,22 @@ bool overFall(const hull_t& h0, int head, const HoleBox& box)
             {
                 return false;
             }
+        }
+    }
+    return true;
+}
+
+// Open above: nothing solid over the blocker's middle for a box's height and more (the way down a gap you'd fall
+// through: not a rafter under a ceiling, where no one walks).
+bool openAbove(const hull_t& h0, int head, const HoleBox& box)
+{
+    const glm::dvec3 c{(box.lo.x + box.hi.x) * 0.5, (box.lo.y + box.hi.y) * 0.5, box.hi.z};
+    for(double d = 2.0; d <= quakeHeight + 10.0; d += 8.0)
+    {
+        const int contents = pointContents(h0, head, c + glm::dvec3{0.0, 0.0, d});
+        if(contents == CONTENTS_SOLID || contents == CONTENTS_SKY)
+        {
+            return false;
         }
     }
     return true;
@@ -1091,11 +1105,14 @@ void addSolids(const Brushes& b, za::SizeT sub, int group, za::Vector<Solid>& ou
         s.hi = glm::dvec3{br.maxs};
         s.group = group;
         s.model = static_cast<int>(sub);
-        for(za::U32 k = 0; k < br.count && !s.slanted; ++k)
+        bool upright = true, turned = false; // (an upright prism: every face level or upright; one turned in x and y)
+        for(za::U32 k = 0; k < br.count && upright; ++k)
         {
             const glm::vec3& n = b.planes[br.first + k].normal;
-            s.slanted = za::abs(n.x) > 0.01f && za::abs(n.y) > 0.01f;
+            upright = za::abs(n.z) < 0.001f || za::abs(n.z) > 0.999f;
+            turned = turned || (za::abs(n.x) > 0.01f && za::abs(n.y) > 0.01f);
         }
+        s.slanted = upright && turned;
         lo = glm::min(lo, s.lo);
         hi = glm::max(hi, s.hi);
         if(group >= 0)
@@ -1132,7 +1149,7 @@ void checkBoxes(const za::Vector<HoleBox>& boxes, Kind kind, const hull_t& h0, i
                 {
                     v = 1;
                 }
-                else if(kind == Kind::Stand && !overFall(h0, head, x))
+                else if(kind == Kind::Stand && (!overFall(h0, head, x) || !openAbove(h0, head, x)))
                 {
                     v = 3;
                 }
@@ -1453,7 +1470,7 @@ void census_f()
     const za::U32 own = w.numHoles - w.crossHoles;
     const hull_t& h1 = world->hulls[1];
     const double inset = cfg.reach;
-    int reach = 0, tilted = 0;
+    int reach = 0, tilted = 0, reachTilt = 0, reachStand = 0;
     double area = 0.0;
     glm::dvec3 firstReach{0.0};
     for(za::U32 i = 0; i < own; ++i)
@@ -1471,6 +1488,8 @@ void census_f()
             firstReach = c;
         }
         reach += hit ? 1 : 0;
+        reachTilt += hit && br.count == 10u ? 1 : 0;
+        reachStand += hit && i >= own - w.standHoles ? 1 : 0;
     }
     // ... and the brush models' own, in each model's hull 1 (counted in reach too).
     for(za::SizeT s = 1; s < b.subs.size() && static_cast<int>(s) < world->numsubmodels; ++s)
@@ -1498,9 +1517,9 @@ void census_f()
         reach ? va(" (first: centre %.0f %.0f %.0f)", firstReach.x, firstReach.y, firstReach.z) : "");
     const Tree& pt = tree; // (the player's: its compile, for the blockers' share of it)
     Con_Printf("holes: phases %.1f %.1f %.1f %.1f ms\n", holePhases[0], holePhases[1], holePhases[2], holePhases[3]);
-    Con_Printf("HOLECENSUS|%s|%u|%u|%d|%d|%d|%.1f|%d|%.0f|%.1f|%zu|%d|%d|%u\n", world->name, own, w.crossHoles, modelHoles,
+    Con_Printf("HOLECENSUS|%s|%u|%u|%d|%d|%d|%.1f|%d|%.0f|%.1f|%zu|%d|%d|%u|%d|%d\n", world->name, own, w.crossHoles, modelHoles,
         models, b.holePairs, b.holeMs, reach, area, pt.ms, static_cast<size_t>(pt.nodes.size()), pt.fromDisk ? 1 : 0,
-        tilted, w.standHoles);
+        tilted, w.standHoles, reachTilt, reachStand);
 }
 
 // vr_hull_holes_near [radius]: the blockers near you (a brush model's in its own space).
