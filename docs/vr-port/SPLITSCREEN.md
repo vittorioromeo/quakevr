@@ -225,10 +225,10 @@ ends with the effort left re-estimated (below).
 | 2 | Keys, bindings and devices per seat; up to 4 controllers opened, each a seat's; the mouse and stick accumulators | done (1) | ~~3~~ answered: seat 1 is always the keyboard and mouse |
 | 3 | View and HUD per seat, drawn into a rectangle (one rectangle, the window, until phase 7) | done (1) | - |
 | 4a | Flat play's state (`FlatState`, holsters, sights, third person, toolgun keys; the visor and the lean went in phase 3) | done (1) | - |
-| 4b | Hands, held, two-hand, grips, motion, throw, climb, avatar | 4-5 | - |
+| 4b | Hands, held, two-hand, grips, throw, the toolgun; the motion recorder marked the headset's (the drawn body and climbing's pins: phase 7) | done (1) | - |
 | 5 | `cl`, `cls`, prediction, snapshots, the move | 4-5 | - |
 | 6 | The loopback grown to 4, the seat loop (each seat's client frame in its `Scope`), own slots: two seats join a listen server and play (headless test: two seats move apart) | 2-3 | 5 (saving), 6 (drop-in/out: whether a seat may join a running game) |
-| 7 | Per-seat render: rectangles, per-view caches; the effects (each seat's client world) | 4-5 | 2 (layouts: what the tiles are) |
+| 7 | Per-seat render: rectangles, per-view caches; the effects (each seat's client world); the drawn body (`vr_avatar*`) and climbing's client pins (4b's leftovers) | 5-6 | 2 (layouts: what the tiles are) |
 | 8 | Sound: a listener per seat, nearest-listener spatialisation, duplicate starts dropped | 1-2 | - |
 | 9 | Menus and console per seat (`key_dest`, the stack) | 2 | 4 (menu and pause) |
 | 10 | UX: Multiplayer > Splitscreen and the join screen | 2-3 | 3, 4, 6 |
@@ -243,7 +243,9 @@ for real costs the difference, mostly in phases 4-5). **After phase 2: 31-41 wor
 28-38 worker-days** (phase 3 took one; 4a lost the visor and the lean to it, and has the seat's parts to follow;
 phase 7 starts from a seat's window area that `SCR_CalcRefdef` already lays out in). **After phase 4a: 26-35
 worker-days** (4a took one of its three: the seat's parts made it mechanical; 4b is unchanged, its hands state being
-larger and shared with the headset's code paths).
+larger and shared with the headset's code paths). **After phase 4b: 22-31 worker-days** (4b took one of its four to
+five: the seat's parts again; the drawn body (`vr_avatar*`) and climbing's client pins, left, go with phase 7's per-seat
+render: about a day more there).
 
 ## 7. Questions for him (the phase that needs each)
 
@@ -418,3 +420,44 @@ His answer to question 3 (2026-11-21): seat 1 is always the keyboard and mouse; 
   ragdoll scratch, the body and lift logs marked shared; the client's net ragdolls (`clientRags`, `netDraw`) accepted
   (phase 5's). The merge's view.c conflict: next's lift-rise height is the seat view's (`seatview_t.liftz`).
 - **Before and after**: ROUND25.md "split4a".
+
+## 12. Phase 4b (2026-11-21): the hands
+
+(Seats numbered from 0 as in the code.)
+
+- **The hands' per-player state: the seat's parts** (phase 3's pattern; the access rule: current, `hands::current()`
+  and the rest reading the current seat's through each file's one-line accessor; 14 `seat::Part`s):
+  - `vr_hands` (`Part::Hands`, `Rig`): `hands::current()`'s state and its frame, the seated tracking, the calibrated
+    offsets, the play space's turn and its pending yaw, the velocities' previous samples, the stairs' easing, the
+    room-scale walk, the lean and its sense, Reset Position, the teleporter walk.
+  - `vr_held` (`HeldSeat`): the fists, the frames placed, what each hand holds and its ease, the hold in both hands,
+    the hands' eases off a grip, the releases, the meets, the weapons' boxes, the hands drawn from, the remote
+    server's places, the skewered gibs. Its types moved up beside the fists (qvr::held's); the code in the file's
+    global unnamed namespace reaches them through using-declarations.
+  - `vr_twohand` (`TwoHand`): the aim and stock transitions, the grips, the help and carry records, the handles, the
+    ground spots, the free grips, the retakes, the grip's feedback, the frame time.
+  - `vr_view_hands` (`ViewHands`: a hand on an embedded blade, on a skewered gib, on a long gun's hotspot),
+    `vr_view_weapon` (`ViewWeaponSeat`: the reverse grips as drawn), `vr_throw` (`ThrowSeat`: the motion histories,
+    the controllers' own, the physgun's point, the grips' clicks), `vr_grip` (the hands' frames), `vr_gripfit` (the
+    rig frames), `vr_handsource` (each hand's source this frame), `vr_heldpose` (what went up: its `State` split into
+    the client's `Sent`, a seat's, and the server's `Slots`, shared).
+  - The toolgun (4a left it here): `vr_toolgun`'s state (`tg()`) and its two ghosts (held, looked at), the Brush
+    tool's (`bt()`), the panel's (`ps()`).
+- **Marked shared** (181): the server's per-slot state (fists, frames, rig frames, held props, heldpose's slots), the
+  caches of the shared models (boxes, meshes, centres, posed spheres, reverse geometry, the drawn pose's), scratch,
+  the reset hooks (they reset the current seat's), the tests' and debug readouts' own, other players' rigs (by
+  player), the grip clicks' random pitch, the toolgun's armed catalogue and its ghost (QC's data and a memo), the
+  icons, the weapons' settings table; and the **motion recorder** (`vr_motion*`, 109: the headset's tool, one
+  recording, playback, evaluation or review at a time).
+- **Left for phase 7** (in the allowlist): the drawn body (`vr_avatar*`: the posed body, its skeleton, the arms' and
+  legs' eases, gait and stance; it poses every player's body, the local one among them) and climbing's client pins
+  (`vr_climb`); the server's climbers are already per slot.
+- **`vr_seat_test`** (verdict `seat_test: N passed, M failed`, 61 checks): phases 1-4a's 56 plus 5: a fresh seat's
+  hands (no turn, tracked, no measured frame, no throw's samples); as seat 1 the play space's turn
+  (`hands::setPlaySpaceYaw`), a hand's source (`handsource::mark`), its frame (`grip::setHandFrame`) and a throw's
+  sample (`throwing::sample`) are seat 1's and seat 0's are unchanged; each seat its own rig, sources, frames and
+  throws; seat 3 has none of the hands' parts made.
+- **`seat_state` allowlist: 3,975 -> 3,697** (278 gone: 97 moved into the seat's parts, 181 marked shared; the
+  check counts 289 `seat-shared` marks now). Merging next brought 4 newcomers, all marked shared: the hit zones'
+  debug readout, navfollow's server bots and their clock, the scenario runner's counts.
+- **Before and after**: ROUND25.md "split4b".

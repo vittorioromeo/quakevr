@@ -6732,3 +6732,33 @@ add the navmesh where it is smarter: a player spotted nearby, goals by need. Des
 - **Not ready to default on:** proven on e1m1's door and one waypoint chain only; deathmatch balance (a bot that always
   finds you), locked or button doors (the follower walks through door polygons) and the follower's drop/teleporter links
   with bots are untried.
+
+## split4b: splitscreen phase 4b, the hands per seat (split4b, 2026-11-21, `agent/split`)
+
+SPLITSCREEN.md section 12 has the details; in short (seats numbered from 0 as in the code):
+
+- The client-side hands are the seat's parts (`seat::part<T>`, read through each file's accessor, the current seat's;
+  14 new `seat::Part`s): the rig (`hands::current()`'s state, the play space's turn, the walk and the lean), what the
+  hands hold (eases, both hands, meets, skewered gibs), the two-handed holds and grips, the drawn hands' pins and the
+  drawn weapons' reverse grips, the throws' motion histories, the hands' frames, rig frames and sources, what went up
+  to the server (vr_heldpose's `State` split: the client's a seat's, the server's slots shared), the toolgun's state,
+  ghosts, Brush tool and panel. The files' scattered globals were gathered into one struct each (types moved up where
+  the first use came earlier; vr_held's global-namespace code reaches them through using-declarations).
+- Marked shared: the server's per-slot state, the caches of shared models, scratch, the reset hooks, tests and debug
+  readouts, other players' rigs, the toolgun's armed catalogue (QC's data) and its ghost memo, the weapons' settings;
+  the motion recorder (`vr_motion*`: the headset's tool). Left in the allowlist for phase 7: the drawn body
+  (`vr_avatar*`) and climbing's client pins.
+- `vr_seat_test` 61 of 61 (56 + 5: a fresh seat's hands; as seat 1 the play space's turn, a hand's source, its frame and
+  a throw's sample stay seat 1's; each seat its own parts; none made for seat 3).
+- `seat_state` allowlist 3,975 -> 3,697 (97 moved, 181 marked). Merging next: bots4's hit-zone readout, botnav's server
+  bots and their clock, the scenario runner's counts marked shared.
+- **Before and after** (the merged base `0f796f9a7` and phase 4b, same machine, quick builds; QC 0 warnings, Dev and
+  ThinLTO 0 warnings): 67 suites (scenario_check, load_models, held_over_props, crate_grip, twohand_regrip,
+  emptyreload, throw_grace, throw_trigger, throw_spin, gib_2h_throw, magthrow, screenhands, ghost_climb, toolgun_fire,
+  toolgun_panel and the 52 `flat*_test.sh`): 63 identical (same exit, the same failing checks by name: flatads,
+  flatfg2h, flatfix, flatfx, flatmenu_esc, flatsweep, flatwall, flatxhair already failing on the base); four differ, all
+  run-to-run spread: flateject 14/3 -> 15/2 and flathud 9/2 -> 11/0 (base-only fails); flatswap (failed on both, other
+  frames) and flatswing 5/0 -> 4/1 (8 of 11 knight swings landed, 9 needed) both pass on a rerun of phase 4b
+  (flatswap 0 FAIL lines, flatswing 5/0). Logs: scratch/split4b_before, scratch/split4b_after.
+- In VR (the author): nothing changes with one seat. Hands, grabs, two-handed grips, throws, held props, skewers,
+  holster swaps and the toolgun (ghosts, Brush tool, panel) behave as before, flat and in the headset.
