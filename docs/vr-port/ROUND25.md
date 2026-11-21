@@ -6066,6 +6066,50 @@ navmesh", and "do bots use the navmesh? If not, should they?" (NAVMESH.md 22 and
   is far from the start). `navfollow_vr` (B a mock headset: the play-space turn) 12/0. mp suite --only coop, cmdguard,
   predict, teleport: passed. scenario_check PASS.
 
+## adspose: a sighted flat player seen from outside (adspose, 2026-11-21, `agent/adspose`, unfinished)
+
+- His words: "The ADS pose for some weapons looks silly". Measured (`mp_test.py adspose`: flat B on his sights with every
+  weapon that has a sight line, standing, crouched, looking 40 up and down; flat A at his side): A's copy's drawn eyes were
+  0 off B's eye at a level look but 2.8 to 5.1 off at the looks (the copy's head is the head B sends; his view's eye is that
+  turned about his neck, `vr_flat_eye_pivot`), the head turning back with the look under a gun that stays on the eye's ray.
+  The local body seen from outside (orbit, third-person camera) kept the eye view's crouch shoulder drop and chest carry
+  (its head 3.4 under the eye crouched): from the side, the gun over the head and the arms up past it.
+- Now (FLATPLAY.md, "Seen from outside"): the drawn eyes at the eye at every look (`flatplay::neckTurn` on the copy), and on
+  the sights the head behind the rear sight along the line, tilted 14 degrees onto the stock, its middle 1.2 off the line,
+  the chest pitched 0.4 of the look (`vr_flat_seen_*`, Debug > Tunables). After: worst 3.8 (the shotguns 1.2 to 1.9: the
+  cheek offset). Shots: the worktree's `scratch/adspose_before/`, `scratch/adspose_after/`, `scratch/adspose_sp_seen*.png`.
+- Open: looking up the arms still cross in front of the face (the gun's hand stays where the eye view put it); in the orbit
+  view looking up 40 the local head joint read 5.7 under the eye (not explained); A's camera misses crouched B in the
+  shots; the flat suites, scenario_check, the other avatar scenarios and the ThinLTO build not run yet.
+## adspose2: the arms on the sights seen from outside, the orbit view's low head, crouched and sliding shots (adspose2, 2026-11-21, `agent/adspose`)
+
+- The arms (FLATPLAY.md, "Seen from outside"): on the sights, seen from outside, each elbow is solved off the sight
+  line's down (the gun hand's out at its side and a little back, the other under the fore-end), over the arm's own pole
+  and with the wrist's ease kept off it (`Body::seenAds`, **Seen: Elbows Under The Gun**, `vr_flat_seen_elbows` 1).
+  Not shared with `vr_agarms.cpp` (a sampled solve over a monster rig; the rule carries over, not the code).
+- The orbit view's "head 5.7 under the eye at 40 up", explained: seen from outside the local body's eye was taken as the
+  head plus the neck's turn (`eyeNudge`), but outside his own view the crosshair's ray and the sights are solved from the
+  head itself (`crosshairRay`: `viewIsHisOwn` false) -- the neck's turn added twice: the drawn eyes 4.7 behind and under
+  the eye at 40 up (0 at a level look). Now the local eye is `crosshairRay`'s: the drawn eyes 1.2 off (the cheek) at
+  level and 40 up. The head joint still sits 3.3 under the eye at 40 up: the skull's base behind and below the eyes
+  (`vr_body_eye_forward` / `_up`, 0.08 m each) with the head pitched along the sights.
+- The copy's eye: the neck's turn and the chest's share (`flatplay::seenEyeShift`), the head at the eye with only the
+  cheek's offset (not snapped onto the sight line).
+- The elbows' down is half the gun's, half the world's: the gun's alone, looking down 40, took the gun hand's elbow back
+  to eye height behind the head (a wing by the face from in front).
+- Measured (`mp_test.py adspose`, every weapon with a sight line, standing and crouched, level / 40 up / 40 down, A's
+  shots from the side and from in front aimed at B's head -- the old camera missed crouched B): before
+  (`MP_ADSPOSE_SEEN=0`, the body as before adspose) 92 of 138 poses failed a check (the copy's eyes worst 4.5 off, an
+  elbow 2.1 over the eyes, an arm 9.9 over the sight line in front of the face); with the arms (the run before the
+  elbows' world down) every check passed over 138 poses (the copy's eyes 1.2 off at most: the cheek's offset; threshold
+  back to 2). After the world down, 4 weapons: one pose (super shotgun standing, 40 down) read the copy's eyes 7.0 off
+  with an arm 5.5 over the line; the same 7.0 came and went on other weapons' crouched looks between runs (a reading
+  taken mid-change, or the copy's sight weight dropping for a frame: not found).
+- Slides: B on his sights slides (his own body: sliding 1.00) but the dedicated server never takes the test's slow slide
+  (60 units/s, `vr_flat_slide_min 20`, no friction): A's copy never slides; `MP_ADSPOSE_SLIDE=1` runs them (off by
+  default). No sliding shots yet.
+- Not run (budget): the flat suites, scenario_check, the mp plain suite, mp_body / mp_avatar / mp_slide / mp_deathbody,
+  the ThinLTO build. Sheets: the worktree's `scratch/adspose2_sheet_w05.png` (super shotgun), `_w06`, `_w08`.
 ## Bots (his voice notes 2026-11-21; agent/bots)
 
 Items 1-4 of the brief done and tested; 5 (disarm volumes on bots and players), 6 (hitboxes on bots and players) and
@@ -6149,6 +6193,39 @@ Details in DWELL.md 9.8. Each note's cause and fix:
 - **Tests:** `dwell_weapons_test.sh` 9/0 (213: pickups taken, props laid, a bloody prop taken: 10/0); `music_test.sh`
   7/0; `dwell_maps.sh` 28/0 and 214 10/0; `dwell_monster_fixes_test.sh` (215, rig spans, 216).
 
+## adspose3: the flat aiming pose's checks, the intermittent 7.0, sliding seen from outside (adspose3, 2026-11-21, `agent/adspose`)
+
+- **The 7.0 (adspose2's "a reading taken mid-change"), found: the test, not the pose.** In the bad rows A's copy was the
+  pose of the look before (super shotgun standing, 40 down: its arms' reach 12.2 / 5.4, the 40-up row's to the decimal).
+  `settle` took the copy as still when it was unchanged over 3 reports, but the copy is posed from the interpolated
+  avatar (`blendedOf`, behind B's last message by the interpolation's delay), longer than 3 reports on a free machine:
+  an unchanged copy could still be the old pose. Now each pose waits for B still (eye and rear sight over two reports)
+  and for the copy posed from an avatar B sent after that: `mp_adspose_own:` carries `stime=` (the server's time of B's
+  last message), `mp_body:` `posedat=` (the server's time of the avatar the copy was drawn from: `Drawn::posedAt`), the
+  copy taken once `posedat` is 0.1 s past B's still `stime` (`ADS_POSED_AFTER`).
+- **Sliding over the network.** The slow slide never started on the dedicated server because the slide's start (40
+  units south of the spot) is inside the wall behind e1m1's coop starts: the server put B 40 north of the spot instead,
+  against what stops him there, at rest (new debug lines with `vr_flatplay_debug`: `slide: none on the press: ground,
+  speed (least), cooldown` and `slide: on at N u/s`; the server's read "speed 0"). Now B starts at the spot, the server's
+  word that he is there, walks (60 u/s asked: about half on his sights; 30 slid not at all) 4 units north as the server
+  has him, then crouches: he has 38 units before he is stopped. A slide row waits for his eye's height steady in the slide
+  (the crouch's ease) and the copy posed after it. Moving, the copy runs the interpolation's delay behind along the way
+  (8.5 units): its eyes' height is judged (0.00 off), not the whole distance. Slides are on by default
+  (`MP_ADSPOSE_SLIDE=0` leaves them out). No pose problem seen sliding: the body leant back, the head behind the sights,
+  the elbows under the gun.
+- **Results** (`mp_test.py adspose`, every weapon with a sight line: 25 weapons x stand / crouch / slide x level / 40 up /
+  40 down = 225 poses), three runs in a row 12/0 each: the copy's eyes within 1.20 of B's eye standing and crouched (the
+  cheek's offset), sliding 0.00 in height, elbows under the gun (worst 0.34 below the eyes), no arm above the line before
+  the face (worst 0.71 below), 75 of 75 slides seen. Sheets (before = `MP_ADSPOSE_SEEN=0`, after; side and front): the
+  worktree's `scratch/adspose3_sheet_w05.png` (super shotgun), `_w06` (nailgun), `_w08` (rocket launcher).
+- **Checks:** flatplay 31/0, flatsight 12/0, flathands 76/0, flatmelee 12/0, flatslide (with the lean, the slide pose,
+  prone dual, flatmantle) 26/0, flatreload 54/0; mp_body 13/0, mp_avatar 18/0, mp_slide 8/0, mp_deathbody 20/0; the mp
+  plain suite 75 of 76 scenarios (mp_predict's crawl 242 of 250 lying states, then 31/0 alone); scenario_check 140 of
+  143 (the three expbugs_* scenes: Dwell's Brute, Kamikaze, Rotary Shotgun "not made" in its AD folders, from
+  origin/next's merge); Dev and ThinLTO builds 0 warnings.
+- **Testing note:** an mp_test.py run and a run.sh test in the same worktree at once disturb each other (the run.sh
+  script's commands reached the mp server: it loaded vrtesthall and quit), and a build mid-run rewrites progs.dat under
+  running games: every check above was run alone.
 ## bots2: the bots' items 1-4 verified, the wind-up's lost blows fixed (2026-11-21, `agent/bots`)
 
 Items 5 (disarm at the drawn weapon) and 6 (hitboxes on bots and players) not started (out of budget); findings below.

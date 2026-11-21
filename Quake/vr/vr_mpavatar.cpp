@@ -34,7 +34,10 @@
 #include "vr_server.hpp"
 #include "vr_slide.hpp"
 #include "vr_flatplay.hpp"
+#include "vr_flatsight.hpp"
+#include "vr_geom.hpp"
 #include "vr_ragdoll.hpp"
+#include "vr_sightalign.hpp"
 #include "vr_view.hpp"
 #include "vr_mem.hpp"
 
@@ -76,6 +79,7 @@ struct Drawn
     float eyeHeight{0.f};
     float eyeUnits{0.f}; // ... in world units, its feet to its eyes (eyeHeight at its world scale: a bot's, the default player's)
     bool seated{false};
+    double posedAt{0.0}; // the server's time of the avatar it was posed from (interpolated: the time drawn; the report's)
     // His holstered weapons (B6b: as he drew them, body::Holster's order) and pauldrons on his body (his look).
     view::ViewEntity holster[VrDrawnHolsters::count];
     // His guns' parts as yours are drawn (wpnsync: the revolver's crane and cylinder, the super shotgun broken open, the
@@ -164,6 +168,7 @@ void printSkeleton(const char* what, int e, const char* model, const avatar::Ske
     Con_Printf("%s: ent=%d model=%s m2w=%.3f", what, e, model, k.m2w);
     printVec("head", k.head);
     printVec("headjoint", k.headJoint);
+    printVec("headeye", k.headEye);
     printVec("pelvis", k.pelvis);
     printVec("wrist0", k.wrist[HAND_OFF]);
     printVec("wrist1", k.wrist[HAND_MAIN]);
@@ -171,6 +176,8 @@ void printSkeleton(const char* what, int e, const char* model, const avatar::Ske
     printVec("shoulder1", k.shoulder[HAND_MAIN]);
     printVec("ankle0", k.ankle[0]);
     printVec("ankle1", k.ankle[1]);
+    printVec("elbow0", k.elbow[HAND_OFF]);
+    printVec("elbow1", k.elbow[HAND_MAIN]);
 }
 
 // His guns and torch as last drawn (wpnsync; the harness's mp_wpnsync): each hand's look as received and what was drawn
@@ -260,8 +267,8 @@ void printAvatar(int e, const Avatar& a, bool hands)
         (void)avatar::otherPitch(e, pitch, lying, sliding);
         float climbWeight = 0.f;
         (void)avatar::otherClimb(e, climbWeight);
-        Con_Printf(" eyeheight=%.3f eyeunits=%.1f yaw=%.1f moves=%d pitch=%.1f lying=%.2f sliding=%.2f slide=%d climb=%.2f seated=%d\n",
-            d.eyeHeight, d.eyeUnits, a.body.yaw, a.moves, pitch, lying, sliding, a.sliding ? 1 : 0, climbWeight, d.seated ? 1 : 0);
+        Con_Printf(" eyeheight=%.3f eyeunits=%.1f yaw=%.1f moves=%d pitch=%.1f lying=%.2f sliding=%.2f slide=%d climb=%.2f seated=%d posedat=%.3f\n",
+            d.eyeHeight, d.eyeUnits, a.body.yaw, a.moves, pitch, lying, sliding, a.sliding ? 1 : 0, climbWeight, d.seated ? 1 : 0, d.posedAt);
         view::printPauldrons("mp_pauldron", e, d.pauldron);
         if(const view::ViewEntity* plate = d.plateReport >= 0 ? &d.plate[d.plateReport] : nullptr;
             plate && plate->visible && plate->ent.model && !d.plateBones[d.plateReport].empty())
@@ -359,6 +366,44 @@ void avatars_f()
             float pitch = 0.f, lying = 0.f, sliding = 0.f;
             (void)avatar::ownPitch(pitch, lying, sliding);
             Con_Printf(" pitch=%.1f lying=%.2f sliding=%.2f\n", pitch, lying, sliding);
+            // Flat-screen play (adspose): the eye the view and the sights are solved from, the held gun's rear sight, the
+            // ironsight's travel: against the drawn head's eyes (headeye) others see.
+            if(flatplay::active())
+            {
+                const hands::State& s = hands::current();
+                glm::vec3 org{0.f}, dir{0.f}, rear{0.f};
+                flatplay::crosshairRay(s, geom::vec(cl.viewangles), org, dir);
+                const char* model = "none";
+                const bool sight = flatsight::rearSight(s, HAND_MAIN, rear, &model);
+                Con_Printf("mp_adspose_own: ent=%d", cl.viewentity);
+                printVec("eye", org);
+                printVec("rear", sight ? rear : org);
+                // (stime: the server's time of his last message -- the harness waits for another player's copy posed
+                // from an avatar later than it, adspose3)
+                Con_Printf(" sight=%d ads=%.2f look=%.1f eyeup=%.2f stime=%.3f wmodel=%s\n", sight ? 1 : 0, flatsight::adsShare(),
+                    cl.viewangles[0], org.z - s.playerOrigin.z, cl.mtime[0], model);
+                // The drawn head (with it, as seen from outside) against the eye: its top and its lowest point above the
+                // head joint, and how far its face stands ahead of the eye (along the look, level).
+                za::Vector<glm::vec3> verts;
+                za::Vector<unsigned> tris;
+                za::Vector<unsigned char> parts;
+                if(avatar::posedMesh(verts, tris, parts, true))
+                {
+                    const glm::vec3 fwd = glm::normalize(glm::vec3{dir.x, dir.y, 0.f} + glm::vec3{1e-6f, 0.f, 0.f});
+                    float top = -1e9f, low = 1e9f, front = -1e9f;
+                    for(za::SizeT i = 0; i + 2 < tris.size(); i += 3)
+                    {
+                        for(za::SizeT j = 0; parts[i / 3] == 1 && j < 3; j++)
+                        {
+                            const glm::vec3 v = verts[tris[i + j]] - org;
+                            top = za::max(top, v.z);
+                            low = v.z > k.headJoint.z - org.z ? za::min(low, v.z) : low;
+                            front = za::abs(v.z) < 1.f ? za::max(front, glm::dot(v, fwd)) : front;
+                        }
+                    }
+                    Con_Printf("mp_adspose_head: top=%.2f low=%.2f front=%.2f\n", top, low, front);
+                }
+            }
         }
         // The dead players' bodies drawn as theirs (addDolls): whose, the model, the joints, the doll's entity, the look.
         for(int e = 1; e <= MAX_SCOREBOARD; e++)
@@ -732,6 +777,27 @@ void setupBody(int e, const Avatar& a, const glm::vec3& origin, const avatar::Do
         who.holdOut[h] = a.holdOut[h];
     }
     who.player = e;
+    // (adspose: a flat-screen player's gun with a sight line as drawn here, the one nearest his head: on its sights his
+    // drawn head goes behind the rear sight, the cheek on the stock -- avatar::solveTorso's seenAds)
+    who.flat = a.flat;
+    if(a.flat && !doll)
+    {
+        float best = 1e9f;
+        for(int side = 0; side < 2; side++)
+        {
+            const view::ViewEntity& w = d.weapon[side];
+            const sightalign::SightLine line = w.visible && w.ent.model ? sightalign::sightLine(w.ent.model) : sightalign::SightLine{};
+            const glm::vec3 rear = line.valid ? view::modelPoint(w, line.rear) : glm::vec3{0.f};
+            if(line.valid && glm::distance(rear, origin + a.head) < best)
+            {
+                best = glm::distance(rear, origin + a.head);
+                who.sight = true;
+                who.sightRear = rear;
+                who.sightFront = view::modelPoint(w, line.front);
+                who.sightHand = side == 0 ? HAND_OFF : HAND_MAIN;
+            }
+        }
+    }
 
     hands::State& s = b.s;
     s.valid = true;
@@ -1521,6 +1587,9 @@ void addEntities()
         render::drawnPlace(cl_entities[e], origin, angles);
         setup(e, blendedOf(e), origin);
         d.doll = 0;
+        // (the server's time it shows: blendedOf's -- the interpolation's, the lerp's, or the last message as it came)
+        d.posedAt = vr_mp_avatar_lerp.value == 0.f ? a.msgTime
+                                                    : za::min(netsnap::interpActive() ? netsnap::interpTime() : cl.time, a.msgTime);
         addDrawn(e, &cl_entities[e]); // (in his player model's place: it would stand round the body)
     }
     addDolls();

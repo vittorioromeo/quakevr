@@ -210,6 +210,9 @@ struct SweepNumbers
     float wallOn{0.f}; // the held hand's wall state (0..1): there its arm and the stock go into the torso on purpose
 };
 [[nodiscard]] SweepNumbers sweepNumbers(const hands::State& s);
+// Hand `h`'s weapon's rear sight in the world, as the view last placed it (the ADS pose report, vr_mp_avatars'
+// mp_adspose_own), and (`model`, if given) its model's name. False: no sight line on what it holds, or outside the mode.
+[[nodiscard]] bool rearSight(const hands::State& s, int h, glm::vec3& rear, const char** model = nullptr);
 
 // Tests (vr_flatplay_debug 2, the move pass, next to flatplay::printMove): what the two parts did to this frame's shot.
 void print(const hands::State& s);

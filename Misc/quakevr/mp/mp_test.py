@@ -1491,6 +1491,228 @@ def slide(s, flat=True):
             copy[0] >= SLIDE_SHARE and copy[1] < -1.0, "sliding %.2f, pitch %.1f; after %d reports" % (copy + (n,)))
 
 
+ADS_HEAD_EYE = 2.0   # mp_adspose: A's copy of sighted flat B: its drawn eyes within this of B's eye (units; before adspose 5.1, adspose 3.8; the cheek's offset 1.2)
+ADS_REACH = 1.02     # (noted) no arm stretched past this share of its own length
+ADS_WIDS = list(range(1, 32)) + [0]  # the weapons tried (vr_test_give_wid; 0: impulse 2, the shotgun he starts with, which a give does not take him back to): those with a sight line are measured
+ADS_POSTURES = ("stand", "crouch", "slide")  # each weapon: standing, crouched, sliding (the slow slide below; MP_ADSPOSE_SLIDE=0: none) ...
+ADS_LOOKS = (("level", 0.0), ("up", -40.0), ("down", 40.0))  # ... each looking level, 40 up, 40 down
+ADS_CAMS = (("side", (52.0, 10.0), 180.0), ("front", (6.0, 64.0), 270.0))  # A's spots off B (B faces north) and his yaw
+ADS_VIEW_FOV = 55.0  # A's field of view: B fills the shot
+ADS_VIEW_HEIGHT = 22.0  # A's eye above his origin (A aims at B's copy's head: crouched or sliding B in the shot too)
+ADS_FACE_W = 0.08    # metres: the face's half width and ...
+ADS_FACE_AHEAD = (-0.12, 0.45)  # ... its depth along the sights off the drawn eyes: an arm above the sight line there crosses the face
+ADS_POSED_AFTER = 0.1  # s of the server's time: B's moves after his still message reach the server and come back to A
+ADS_SLIDE_START = 0.0  # a slide starts this far south of the spot, slowly (the rules below), A's camera following (adspose3: 0 -- 40 south was in the wall behind the coop starts, the server put him 40 north of the spot, stuck)
+ADS_SLIDE_RULES = "vr_flat_slide_min 20; vr_flat_slide_boost 0; vr_flat_slide_friction 0; vr_flat_slide_end 5; vr_flat_slide_stamina 0; vr_flat_slide_cooldown 0"
+ADS_SLIDE_WALK = "cl_alwaysrun 0; cl_forwardspeed 60"  # B's walk into the slide, kept (no friction): on his sights about half
+# that (adspose3: 30 slid not at all, under vr_flat_slide_min 20); he has 38 units north of the spot before he is stopped
+
+
+def seg_points(a, b, n=12):
+    return [[a[i] + (b[i] - a[i]) * k / n for i in range(3)] for k in range(n + 1)]
+
+
+def adspose_numbers(own, adsl, copy, pitch):
+    """B's own body (mp_body_own), his ADS line (mp_adspose_own) and A's copy of his body (mp_body) at a look `pitch`
+    (B faces north) -> the measures: eye to the copy's drawn eyes, rear sight to them, the arms' reach; per arm its elbow
+    above the copy's drawn eyes along the look's up (under the gun: negative), and how far any of it stands above the
+    sight line in front of the face (nothing across the face: negative)."""
+    out = {"copy_eye": dist(copy["headeye"], adsl["eye"]), "rear_eye": dist(adsl["rear"], copy["headeye"]),
+           "head_up": adsl["eye"][2] - copy["headeye"][2]}
+    p = math.radians(pitch)
+    fwd, up, right = (0.0, math.cos(p), -math.sin(p)), (0.0, math.sin(p), math.cos(p)), (1.0, 0.0, 0.0)
+    m = copy["m2w"][0]
+    e = copy["headeye"]
+    dot = lambda v, w: sum(x * y for x, y in zip(v, w))
+    for h in (0, 1):
+        S, E, W = copy["shoulder%d" % h], copy["elbow%d" % h], copy["wrist%d" % h]
+        out["reach%d" % h] = dist(S, W)
+        out["elbow%d" % h] = dot([E[i] - e[i] for i in range(3)], up)
+        face = -99.0
+        for q in seg_points(S, E) + seg_points(E, W):
+            d = [q[i] - e[i] for i in range(3)]
+            if abs(dot(d, right)) < ADS_FACE_W * m and ADS_FACE_AHEAD[0] * m < dot(d, fwd) < ADS_FACE_AHEAD[1] * m:
+                face = max(face, dot(d, up))
+        out["face%d" % h] = face
+    return out
+
+
+def ads_cam(srv, a, ea, at, pitch, yaw, tries=60):
+    """A put at `at` looking `pitch` down, `yaw` (setpos), until the server has him there (a definite end: `tries`)."""
+    a.cmd("setpos %.1f %.1f %.1f %.1f %.1f 0; noclip" % (at[0], at[1], at[2], pitch, yaw))
+    for _ in range(tries):
+        got = org_of(status(srv), "mp_client", "slot", ea - 1)
+        if got and math.hypot(got[0] - at[0], got[1] - at[1]) <= 4:
+            return
+    raise StepFailed("A never put at %s" % (at,))
+
+
+def adspose(s):
+    """adspose (2026-11-21): his words, "The ADS pose for some weapons looks silly". A flat B holds each weapon with a
+    sight line on its sights (vr_flat_aim 1), standing, crouched and sliding, each looking level, 40 up and 40 down; flat
+    A watches from his side and from in front, aimed at his head. Measured: A's copy of B's drawn eyes against the eye
+    B's view and sights are solved from (mp_adspose_own), the rear sight against them, the arms (adspose2: the elbows
+    under the gun, nothing across the face); a screenshot from A of each. MP_ADSPOSE_SEEN=0 in the environment: both with
+    vr_flat_seen_ads 0, the body as before adspose (the before shots); MP_ADSPOSE_WIDS=5,8: those weapons only;
+    MP_ADSPOSE_SLIDE=0: no slides (adspose3: they start on the dedicated server, B walked into them from the spot)."""
+    seen = os.environ.get("MP_ADSPOSE_SEEN", "1")
+    srv, a, b, ea, eb = join(s, flat="AB")
+    srv.cmd(ADS_SLIDE_RULES)
+    put_at(srv, b, eb, OPEN_SPOT, 90)
+    put_at(srv, a, ea, (OPEN_SPOT[0] + ADS_CAMS[0][1][0], OPEN_SPOT[1] + ADS_CAMS[0][1][1], OPEN_SPOT[2]), ADS_CAMS[0][2])
+    b.cmd("god; notarget; vr_flat_seen_ads %s; %s; %s" % (seen, ADS_SLIDE_RULES, ADS_SLIDE_WALK))
+    a.cmd("god; notarget; impulse 1; fov %g; vr_flat_seen_ads %s" % (ADS_VIEW_FOV, seen))
+    b.quiet(r"mp_(move|pos): ", 0.5, 20, "both at rest")
+    rows, worst = [], {"copy_eye": 0.0, "rear_eye": 0.0, "elbow": -99.0, "face": -99.0, "slide_up": 0.0}
+    last_model, stand_up, slides = "", None, [0, 0]
+
+    def settle(pitch, crouched, first):
+        """B's weapon in his hand, on its sights at the look and the crouch asked for and still (his eye and rear sight
+        over two reports), A's copy of his body posed from an avatar B sent after that (the server's times: B's message
+        when he was still, the copy's drawn time ADS_POSED_AFTER later) and still over 3 reports running -> (adsl, own,
+        copy, model) or None (no sight line). A definite end: 120 reports (the travel is 18 frames, the stance's ease 29,
+        the crouch's). adspose3: the copy was taken still while it still showed the look before (the interpolation's
+        delay is longer than 3 reports): its eyes 7.0 off, an arm over the line."""
+        got, still, model, prev_b, still_since = None, 0, "-", None, None
+        for k in range(120):
+            la, lb = reports(s, [a, b])
+            adsl = by_ent(lb, "mp_adspose_own").get(eb)
+            own, copy = body_of(lb, "mp_body_own").get(eb), body_of(la, "mp_body").get(eb)
+            m = next((re.search(r"wmodel=(\S+)", l) for l in lb if l.startswith("mp_adspose_own:")), None)
+            model = m.group(1) if m else "-"
+            b_ready = adsl and own and copy and (model != last_model or not first or k >= 30) and \
+                abs(adsl["look"][0] - pitch) < 1.0 and (adsl["sight"][0] == 0 or adsl["ads"][0] >= 0.99) and \
+                (stand_up is None or (adsl["eyeup"][0] < stand_up - 4.0) == crouched)
+            b_still = b_ready and prev_b is not None and dist(prev_b["eye"], adsl["eye"]) < 0.05 and \
+                dist(prev_b["rear"], adsl["rear"]) < 0.05
+            still_since = (still_since if still_since is not None else prev_b["stime"][0]) if b_still else None
+            prev_b = adsl if b_ready else None
+            ready = b_still and "posedat" in copy and copy["posedat"][0] >= still_since + ADS_POSED_AFTER
+            if ready and got and all(dist(got[2][j], copy[j]) < 0.05 for j in ("headeye", "wrist0", "wrist1")):
+                still += 1
+            else:
+                still = 0
+            got = (adsl, own, copy, model) if ready else None
+            if still >= 3:
+                return got
+        return None
+
+    def slide_at(pitch):
+        """B walks north into a slow slide (the rules above) on his sights at the look -> (adsl, own, copy) while A's copy
+        of him slides and he is on them, or None (a definite end: 60 + 80 + 150 reports)."""
+        start = (OPEN_SPOT[0], OPEN_SPOT[1] - ADS_SLIDE_START, OPEN_SPOT[2])
+        # (adspose3: B at the start as the server has him first, then walking 4 units north of it as the server has him --
+        # the copy's place was read before, still at the spot 40 north of the start, and the crouch went at once with B at
+        # rest on the server: "slide: none on the press: speed 0"; 4 units: his walk's speed reached)
+        b.cmd("-forward; -flatcrouch")
+        b.cmd("setpos %.1f %.1f %.1f %.1f 90 0; noclip" % (start[0], start[1], start[2], pitch))
+        got = None
+        for _ in range(60):
+            got = org_of(status(srv), "mp_client", "slot", eb - 1)
+            if got and math.hypot(got[0] - start[0], got[1] - start[1]) <= 4:
+                break
+        b.cmd("+forward")
+        for _ in range(80):
+            got = org_of(status(srv), "mp_client", "slot", eb - 1)
+            if got and got[1] - start[1] >= 4.0:
+                break
+        b.cmd("+flatcrouch")
+        seen_most = [0.0, 0.0, 0.0, 0.0]  # (a miss's note: the most of A's copy's slide, B's own, his travel; how far he went)
+        prev_up, low_since = None, None
+        for _ in range(150):
+            la, lb = reports(s, [a, b])
+            adsl = by_ent(lb, "mp_adspose_own").get(eb)
+            own, copy = body_of(lb, "mp_body_own").get(eb), body_of(la, "mp_body").get(eb)
+            seen_most = [max(seen_most[0], copy.get("sliding", [0])[0] if copy else 0), max(seen_most[1], own.get("sliding", [0])[0] if own else 0),
+                         max(seen_most[2], adsl["ads"][0] if adsl else 0), max(seen_most[3], copy["pelvis"][1] - start[1] if copy else 0)]
+            b_on = adsl and own and own.get("sliding", [0])[0] >= SLIDE_SHARE and abs(adsl["look"][0] - pitch) < 1.0 and \
+                adsl["ads"][0] >= 0.99
+            # (adspose3: B down in his slide -- his eye's height over his origin still over two reports: the crouch's ease
+            # gone -- and A's copy posed from his avatar after that: taken at once, the copy still came down, 6 over)
+            low = b_on and prev_up is not None and abs(adsl["eyeup"][0] - prev_up) < 0.05
+            low_since = (low_since if low_since is not None else adsl["stime"][0]) if low else None
+            prev_up = adsl["eyeup"][0] if b_on else None
+            if low and copy and "sliding" in copy and copy["sliding"][0] >= SLIDE_SHARE and \
+                    copy.get("posedat", [0])[0] >= low_since + ADS_POSED_AFTER:
+                return adsl, own, copy
+        s.note("slide missed: A's copy sliding %.2f at most, B's own %.2f, on the sights %.2f, %.0f units north" % tuple(seen_most))
+        return None
+
+    def shots(name, copy, lead):
+        """A at each camera spot off B's copy (`lead`: units north he moves meanwhile), aimed at its head; a shot each."""
+        aim = [copy["headeye"][0], copy["headeye"][1] + lead, copy["headeye"][2] - 8.0]
+        for cam, off, yaw in ADS_CAMS:
+            at = (copy["pelvis"][0] + off[0], copy["pelvis"][1] + off[1] + lead, OPEN_SPOT[2])
+            down = math.degrees(math.atan2(at[2] + ADS_VIEW_HEIGHT - aim[2], math.hypot(aim[0] - at[0], aim[1] - at[1])))
+            ads_cam(srv, a, ea, at, down, yaw)
+            a.screenshot("%s_%s" % (name, cam))
+
+    wids = [int(w) for w in os.environ["MP_ADSPOSE_WIDS"].split(",")] if os.environ.get("MP_ADSPOSE_WIDS") else ADS_WIDS
+    for wid in wids:
+        srv.cmd("vr_test_give_wid %d" % max(wid, 1))
+        b.cmd("%s; vr_flat_aim 1" % ("impulse 149" if wid else "impulse 2"))
+        sighted = True
+        for posture in [p for p in ADS_POSTURES if p != "slide" or os.environ.get("MP_ADSPOSE_SLIDE", "1") == "1"]:
+            for look, pitch in ADS_LOOKS:
+                first = posture == ADS_POSTURES[0] and look == ADS_LOOKS[0][0]
+                if posture == "slide":
+                    got = slide_at(pitch)
+                    slides[0 if got else 1] += 1
+                    if not got:
+                        b.cmd("-forward; -flatcrouch")
+                        s.note("wid %d %s slide %s: no slide on the sights seen" % (wid, last_model, look))
+                        continue
+                    adsl, own, copy = got
+                    model = last_model
+                else:
+                    b.cmd("-forward; %s; setpos %.1f %.1f %.1f %.1f 90 0; noclip" % (
+                        "+flatcrouch" if posture == "crouch" else "-flatcrouch", OPEN_SPOT[0], OPEN_SPOT[1], OPEN_SPOT[2], pitch))
+                    got = settle(pitch, posture == "crouch", first)
+                    if not got or got[0]["sight"][0] == 0:
+                        sighted = False
+                        break  # (no sight line on it: the next weapon)
+                    adsl, own, copy, model = got
+                    last_model = model
+                    if first:
+                        stand_up = adsl["eyeup"][0]
+                n = adspose_numbers(own, adsl, copy, pitch)
+                rows.append((wid, model, posture, look, n))
+                s.note("wid %d %s %s %s: eye->copy's drawn eyes %.1f (eye above them %.1f), rear sight->drawn eyes %.1f, "
+                       "reach %.1f %.1f, elbows over the eyes %.1f %.1f, arms over the line before the face %.1f %.1f" % (
+                           wid, model, posture, look, n["copy_eye"], n["head_up"], n["rear_eye"], n["reach0"], n["reach1"],
+                           n["elbow0"], n["elbow1"], n["face0"], n["face1"]))
+                if posture != "slide":
+                    worst["copy_eye"] = max(worst["copy_eye"], n["copy_eye"])
+                    worst["rear_eye"] = max(worst["rear_eye"], n["rear_eye"])
+                else:  # (moving, the copy is the interpolation's delay behind along the way: its eyes' height judged)
+                    worst["slide_up"] = max(worst["slide_up"], abs(n["head_up"]))
+                worst["elbow"] = max(worst["elbow"], n["elbow0"], n["elbow1"])
+                worst["face"] = max(worst["face"], n["face0"], n["face1"])
+                shots("ads_w%02d_%s_%s" % (wid, posture, look), copy, 10.0 if posture == "slide" else 0.0)
+                if posture == "slide":
+                    b.cmd("-forward; -flatcrouch")
+            if not sighted:
+                break
+    b.cmd("vr_flat_aim 0; -flatcrouch; -forward")
+    s.metric("ads_rows", len(rows))
+    s.metric("ads_copy_eye_worst", worst["copy_eye"])
+    s.metric("ads_elbow_worst", worst["elbow"])
+    s.metric("ads_face_worst", worst["face"])
+    s.check("weapons with a sight line measured (at least 8 sighted poses)", len(rows) >= 8, "%d" % len(rows))
+    if os.environ.get("MP_ADSPOSE_SLIDE", "1") == "1":
+        s.check("slides on the sights seen (every weapon's three looks)", slides[1] == 0, "%d seen, %d missed" % tuple(slides))
+        s.check("A's copy of sighted sliding B: its drawn eyes within %g of B's eye's height" % ADS_HEAD_EYE,
+                worst["slide_up"] <= ADS_HEAD_EYE, "worst %.2f" % worst["slide_up"])
+    s.check("A's copy of sighted B: its drawn eyes within %g of B's eye (standing, crouched)" % ADS_HEAD_EYE,
+            worst["copy_eye"] <= ADS_HEAD_EYE, "worst %.2f" % worst["copy_eye"])
+    s.check("A's copy of sighted B: both elbows under the gun (below the drawn eyes along the look's up) at every look",
+            worst["elbow"] < 0.0, "worst %.2f above" % worst["elbow"])
+    s.check("A's copy of sighted B: no arm above the sight line in front of the face at any look", worst["face"] <= 0.0,
+            "worst %.2f above" % worst["face"])
+    # (the rear sight's distance is B's own relief, not the copy's: the laser cannon's is 24 to 29; noted, not judged)
+    s.note("the rear sight off the copy's drawn eyes: worst %.2f" % worst["rear_eye"])
+
+
 def dolls_of(lines):
     """"mp_doll:" lines -> {player ent: fields (avatar_fields) with "model" and "dollmodel"}."""
     out = {}
@@ -8373,6 +8595,8 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             slide(s)
         elif test == "mp_slide_vr":
             slide(s, flat=False)
+        elif test == "mp_adspose":
+            adspose(s)
         elif test == "mp_deathbody":
             deathbody(s)
         elif test == "mp_loss":
@@ -8492,6 +8716,7 @@ SUITE = [
     ("mp_flatbody", ()),
     ("mp_slide", ()),
     ("mp_slide_vr", ()),
+    ("mp_adspose", ()),
     ("mp_deathbody", ()),
     ("mp_loss", ()),
     ("mp_predict", ()),
@@ -8524,7 +8749,7 @@ SUITE = [
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "deathbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "wpnsync", "wpnsync_flat", "navfollow", "navfollow_listen", "navfollow_vr", "syncaudit"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "wpnsync", "wpnsync_flat", "navfollow", "navfollow_listen", "navfollow_vr", "syncaudit"])
     ap.add_argument("--base", required=True, help="the game folder (id1, quakevr...)")
     ap.add_argument("--exe", default=EXE)
     ap.add_argument("--out", default=os.path.join(REPO, "scratch", "mp"))
@@ -8586,7 +8811,7 @@ def main_run(args):
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
     elif args.test in ("bandwidth", "wpnsync", "wpnsync_flat", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground",
-                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "deathbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "navfollow", "navfollow_listen", "navfollow_vr", "syncaudit"):
+                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "navfollow", "navfollow_listen", "navfollow_vr", "syncaudit"):
         ok = run(args, "mp_" + args.test)
     elif args.test == "voice":
         ok = run(args, "mp_voice", args.lag, args.jitter, args.loss)

@@ -254,6 +254,13 @@ void crosshairRay(const hands::State& s, const glm::vec3& aim, glm::vec3& org, g
 // The eye's nudge (vr_flat_cam_*) in the world at the view's angles `aim`: 0 0 0 at the defaults, and outside the mode. The
 // drawn body measures whether the view is inside its head from the eye it nudges (vr_avatar.cpp).
 [[nodiscard]] glm::vec3 eyeNudge(const glm::vec3& aim);
+// The neck's turn of the eye for a look at `aim` (vr_flat_eye_pivot, _fwd, _up; FLATPLAY.md, "The neck"), against a level
+// look's eye, whoever's it is and whether or not this game plays flat: another flat-screen player's copy puts its drawn eyes
+// there off the head he sends (adspose; his own values are taken to be these). 0 0 0 with the pivot off.
+[[nodiscard]] glm::vec3 neckTurn(const glm::vec3& aim);
+// adspose: another flat-screen player's eye off the head he sends, as his own view has it: the neck's turn and the chest's
+// share of the look carrying it (neckPivotShift's, by this game's vr_flat_eye_* and vr_flat_chest_*, without the melee's lean).
+[[nodiscard]] glm::vec3 seenEyeShift(const glm::vec3& aim);
 
 // vr_flat_orbit: the drawn view off him, looking back at his own pose (a test aid: Debug > Reports).
 struct Orbit
