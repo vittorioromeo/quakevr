@@ -82,6 +82,10 @@ struct SubModel
     int head;                     // its head node in them
     za::U32 base;           // its hull 0's leaves in leafBrush: [base + node * 2 + side]
     za::U32 firstBrush, numBrushes;
+    // Its hole blockers (vr_hull_holes.cpp: gaps Quake's 32 box never fit, closed for a narrower box): brushes
+    // [firstHole, firstHole + numHoles), compiled into its trees after its own; the last crossHoles of the world's are
+    // gaps between the world and a brush model (a lift's travel, a func_wall).
+    za::U32 firstHole = 0, numHoles = 0, crossHoles = 0;
 };
 
 // The server map's solid space as brushes: pointers into the hunk (the world's hull 0), released at every map change.
@@ -104,6 +108,8 @@ struct Brushes
     int bevels = 0;             // planes added as Quake 2's bevels (axial, edge)
     int dropped = 0;            // solid leaves with no volume left (slivers under the build's epsilon)
     int hull1Leaves = 0;        // the world's hull 1 solid leaves looked at for clip brushes
+    int holePairs = 0;          // brush pairs looked at for holes (addHoles), and its time
+    double holeMs = 0.0;
     int numnodes = 0;
     za::U64 key = 0;            // the world's content (keyOf): what they are kept under for the same map's next load
     // The world's own (build): external models' brushes, planes and leaves follow (subOf), let go when kept.
@@ -112,7 +118,7 @@ struct Brushes
     auto members()
     {
         return qvr::mem::list(clipnodes, planes, brushes, leafBrush, subs, modelSub, clips, leafClipStart, leafClipList, clipStamp, stamp, hull1Clip, ms,
-            clipMs, bevels, dropped, hull1Leaves, numnodes, key, worldSubs, worldPlanes, worldBrushes, worldLeafBrush, worldBevels,
+            clipMs, bevels, dropped, hull1Leaves, holePairs, holeMs, numnodes, key, worldSubs, worldPlanes, worldBrushes, worldLeafBrush, worldBevels,
             worldDropped);
     }
 };
@@ -285,6 +291,26 @@ bool boxInSolid(const Brushes& b, const hull_t& hull, int head, const glm::dvec3
 const Tree& treeFor(const Brushes& b, za::SizeT sub, const glm::vec3& ext, const char* target = nullptr);
 trace_t treeTrace(const Tree& t, int head, const glm::vec3& start, const glm::vec3& end);
 void build(Brushes& b, qmodel_t* world, za::U64 key);
+// Hole blockers (vr_hull_holes.cpp, vr_hull_holes): after build's brushes, the boxes that close the gaps narrower than
+// Quake's 32 box (grates, bars, pillar rows, a lift's edge) for every narrower box; holesKey: what they depend on
+// beyond the world's geometry (the setting, the entities), mixed into keyOf.
+void addHoles(Brushes& b, const qmodel_t* world);
+za::U64 holesKey(const qmodel_t* world);
+void registerHoleCommands(); // vr_hull_holes_census, _test, _near
+// A model's brushes as its trees are compiled from them: its own, then its hole blockers.
+template <class F>
+void eachTreeBrush(const Brushes& b, za::SizeT sub, F&& f)
+{
+    const SubModel& sm = b.subs[sub];
+    for(za::U32 i = 0; i < sm.numBrushes; ++i)
+    {
+        f(b.brushes[sm.firstBrush + i]);
+    }
+    for(za::U32 i = 0; i < sm.numHoles; ++i)
+    {
+        f(b.brushes[sm.firstHole + i]);
+    }
+}
 void cutBack(Brushes& b);
 void cutBack(Tree& t);
 // A box turned about its middle (a body carried through a gate turned by an angle that isn't a right angle): its axes in
