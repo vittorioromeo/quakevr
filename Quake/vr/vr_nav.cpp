@@ -4393,6 +4393,88 @@ float reach(edict_t* ent, edict_t* goal)
     return wholePath(ent, feet(goal), gap) ? 1.f : 0.f;
 }
 
+int followPath(const edict_t* self, const glm::vec3& from, const glm::vec3& to, PathCorner* out, int max, bool& partial)
+{
+    partial = false;
+    if(vr_nav.value == 0.f || !sv.active || !state.ready || !self || max < 2)
+    {
+        return -1;
+    }
+    NavClass* c = readyClass(classFor(self, true));
+    if(!c)
+    {
+        return -1;
+    }
+    tickWorld();
+    setCosts();
+    // A player opens a door by walking at it: the polygons a door stands on are walked (a lift's too: he rides it).
+    dtQueryFilter filt = filter;
+    filt.setExcludeFlags(0);
+    const glm::vec3 startRc = toRc(from), goalRc = toRc(to);
+    const float startExt[3] = {c->radius + 16.f, 48.f, c->radius + 16.f};
+    const float goalExt[3] = {64.f, 96.f, 64.f};
+    dtPolyRef startRef = 0, endRef = 0;
+    float startPt[3], endPt[3];
+    if(dtStatusFailed(c->query->findNearestPoly(&startRc.x, startExt, &filt, &startRef, startPt)) || !startRef ||
+        dtStatusFailed(c->query->findNearestPoly(&goalRc.x, goalExt, &filt, &endRef, endPt)) || !endRef)
+    {
+        return 0;
+    }
+    dtPolyRef polys[maxPath];
+    int n = 0;
+    (void)c->query->findPath(startRef, endRef, startPt, endPt, &filt, polys, &n, maxPath);
+    if(n <= 0)
+    {
+        return 0;
+    }
+    partial = polys[n - 1] != endRef;
+    if(partial)
+    {
+        (void)c->query->closestPointOnPoly(polys[n - 1], endPt, endPt, nullptr);
+    }
+    constexpr int maxStraight = 32;
+    float pts[maxStraight * 3];
+    unsigned char flags[maxStraight];
+    dtPolyRef refs[maxStraight];
+    int nc = 0;
+    (void)c->query->findStraightPath(startPt, endPt, polys, n, pts, flags, refs, &nc, za::min(maxStraight, max));
+    int count = 0;
+    for(int i = 0; i < nc && count < max; ++i)
+    {
+        PathCorner& pc = out[count++];
+        pc.at = fromRc(&pts[i * 3]);
+        pc.link = LinkKind::none;
+        const dtMeshTile* tile = nullptr;
+        const dtPoly* poly = nullptr;
+        const dtOffMeshConnection* con = nullptr;
+        if(!(flags[i] & DT_STRAIGHTPATH_OFFMESH_CONNECTION) || !refs[i] || i + 1 >= nc ||
+            dtStatusFailed(c->mesh->getTileAndPolyByRef(refs[i], &tile, &poly)) ||
+            !(con = c->mesh->getOffMeshConnectionByRef(refs[i])))
+        {
+            continue;
+        }
+        // A link's start: what it is, and where the walk goes on from it (a teleporter's trigger, a lift's middle).
+        const unsigned char area = poly->getArea();
+        pc.link = area == areaTele ? LinkKind::tele : area == areaLift ? LinkKind::ride : LinkKind::drop;
+        const za::SizeT k = static_cast<za::SizeT>(con->userId) - 1;
+        if(count < max && pc.link == LinkKind::tele && k < state.geo.gates.size())
+        {
+            const Gate& g = state.geo.gates[k];
+            out[count++] = {{(g.lo.x + g.hi.x) * 0.5f, (g.lo.y + g.hi.y) * 0.5f, pc.at.z}, LinkKind::tele};
+        }
+        else if(count < max && pc.link == LinkKind::ride)
+        {
+            const edict_t* m = rideMover(static_cast<int>(k));
+            if(m)
+            {
+                const glm::vec3 mid = moverMiddle(m);
+                out[count++] = {{mid.x, mid.y, m->v.absmax[2]}, LinkKind::ride};
+            }
+        }
+    }
+    return count;
+}
+
 // vr_nav_teletest <name> <classnames> <gates|all> [angles] [distance] [seconds]: the teleporter walk-in metric. For each
 // classname listed (comma-separated: the scene's walker of each, the last spawned), each gate listed (vr_nav_links'
 // numbers, comma-separated, or all) and each of `angles` approaches (spread over 140 degrees in front of a thin

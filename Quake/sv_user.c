@@ -658,6 +658,8 @@ nextmsg:
 					ret = 1;
 				else if (q_strncasecmp(s, "vr_scene_clean", 14) == 0 || q_strncasecmp(s, "vr_scene_count", 14) == 0)
 					ret = 1; // QVR: Debug > Cheats and Recording's (vr_cheats.cpp: not in deathmatch)
+				else if (q_strncasecmp(s, "vr_nav_follow_ask ", 18) == 0)
+					ret = 1; // QVR: vr_nav_follow, the debug autopilot after another player (vr_navfollow.cpp: not in deathmatch)
 				else if (q_strncasecmp(s, "vr_avatarcal ", 13) == 0)
 					ret = 1; // QVR: the player's avatar calibration, kept and passed on (vr_mpavatar.cpp)
 				else if (q_strncasecmp(s, "vr_voicechat_listen ", 20) == 0)

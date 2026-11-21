@@ -1165,6 +1165,11 @@ za::Vector<Item> pageDebugReports()
             .help("vr_mp_near <ent> [radius] [seconds]: the models this client draws, the lights and the sounds of the last "
                   "seconds round a player (0: you). Run it here and on another player's game with your entity number to "
                   "see what of you he gets (the sync audit's harness, mp_test.py syncaudit)."),
+        command("Network: Follow the Next Player (Navmesh)", "vr_nav_follow next")
+            .help("vr_nav_follow next: you walk after the next other player along the navmesh (each press the next one; past "
+                  "the last, off), your view turned and forward pressed as your own keys would. Your own move, look or "
+                  "jump hands control back; it walks on after vr_nav_follow_idle s. vr_nav_follow <name | slot | 0> in "
+                  "the console; Show Navmesh draws its path."),
         command("Network: Lockstep Status", "vr_mp_lockstep_status")
             .help("vr_mp_lockstep_status: the multiplayer harness's reproducible runs (vr_mp_lockstep on a dedicated server, "
                   "vr_mp_lockstep_ahead on its clients): the world's step, whether it is held, each client's newest move "
