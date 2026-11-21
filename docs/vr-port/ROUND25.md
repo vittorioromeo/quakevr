@@ -7060,3 +7060,29 @@ that hull 1 lets Quake's box reach into, from AD's non-colliding detail) and the
 - **Test:** `Misc/quakevr/ragdoll/shove_blood_test.sh` 3/0: an unhurt grunt shoved down bled 0 frames; one shot 3 s
   before the shove 0 (was 220); one shot 2 frames before the shove 106. `stagger_test.sh steady` (grunt, 3 each) PASS.
 - **Checklist scenes:** `noclip_fly`, `shove_no_blood` (`vr_scenario runall`: 2 run, 0 failed).
+
+## lancespear: the Crystal Lance a plain pole held like a spear (branch agent/lancespear, 2026-11-21)
+
+His words (flat PC): "a pure lance pole, without the handle and buttons ... held like a spear ... new cvars to properly
+set up the pose in flat mode".
+- **The model** (`vr_adweapons.cpp` recipe `progs/dw_lance.mdl#vr`): Dwell's `g_rail.mdl` pole and crystal head only
+  (nothing grafted: the lightning gun's grip, guard and trigger gone), laid as the axe's handle lies in the fist
+  (v_axe.mdl's (0.3419 0 0.9397), the pole's point 16 from the butt at the fist (1.72 0 0.63)), 1.5 times, packed past
+  the axe's corner (keepScale 0.34). Slot 55 (weapons.txt): the axe's hold values (pitch 15.5, x y z, hand_*, fgr_*,
+  scale 0.34), its anchors moved by the keepScale move (2.995 5.18 12.03), `muzzle_av` the head's tip, no button or
+  ammo screen (`wpnbtnmode`/`wpntxtmode` 0, hs2 off), `shot_pitch 92.5`: the pole's way from the hand's aim (70 up in
+  the model + 22.5 of pitch), so the beam goes along the pole. In VR the controller is tipped forward to level it, as
+  a stick held in a fist is.
+- **Pole weapons** (`twohand::poleWeapon`: a weapon's own Other Hand Anywhere 3, any mode of play; `poleGrip` is it
+  outside flat play). VR: the existing pole grip (the other hand anywhere on it, sliding).
+- **Flat play, the spear pose** (Debug > Tunables, "Spear ..."): the holding hand aimed as a gun's (its shot, so its
+  pole, at the crosshair) then moved by `vr_flat_pole_fwd` 2, `_up` -2, `_out` 3 and rolled about the pole by `_roll` 0
+  (`vr_flatplay.cpp` polePose); the other hand on the pole `vr_flat_pole_off_along` 16 ahead of the holding hand
+  (`vr_view_weapon.cpp` chooseGrip), its grip channel closed round the pole and rolled by `vr_flat_pole_off_roll` 0
+  (`vr_view_hands.cpp` steadyOther). No pitch/yaw of the main hand: flat aims the beam at the crosshair anyway.
+- **vr_status** prints, for a held weapon, "the shot N deg off the line from the hand to the muzzle".
+- **Tests**: `dwell_lance_test.sh` 9/0 (the main hand pitched -22 so the spear lies level; new check: the beam within
+  6 degrees of the hand-to-tip line, 3.4: the hand's side offset). Screenshots `scratch/ls_final_vr.png` (side, eyes,
+  both hands) and `scratch/ls_final_flat.png`; before: `scratch/ls_before_*.png`.
+- Left: his fit in VR (Weapon Offsets slot 56: Pitch, Hand, Shot Pitch); the Shot Pitch slider now reaches +-180 (it was +-45; the
+  lance's 92.5); the thrust and its damage unchanged (not re-measured).
