@@ -6066,6 +6066,57 @@ navmesh", and "do bots use the navmesh? If not, should they?" (NAVMESH.md 22 and
   is far from the start). `navfollow_vr` (B a mock headset: the play-space turn) 12/0. mp suite --only coop, cmdguard,
   predict, teleport: passed. scenario_check PASS.
 
+## Bots (his voice notes 2026-11-21; agent/bots)
+
+Items 1-4 of the brief done and tested; 5 (disarm volumes on bots and players), 6 (hitboxes on bots and players) and
+phase 2 (the navmesh/waypoint design) not started (out of budget).
+
+- **Toned down by skill** (frikbot/bot_fight.qc, after bot_weapon_switch): before, botflatpose turned the guns dead on
+  the enemy's middle every frame and bot_shoot fired the moment the view was within 30 degrees. Now `bot_aim_point`
+  aims at his middle less his velocity times 0.12/0.08/0.05/0.02 s (skills 0-3) plus an error in a disc of
+  6/4/2.5/1.2 degrees redrawn every ~0.35 s (both times `vr_bot_aim_error`, default 1; 0 dead on);
+  `bot_fire_ready` (in bot_shoot) holds fire 0.8/0.55/0.35/0.2 s after a new enemy (or the same one after a second
+  with no shot at him) and fires in bursts of 0.9/1.2/1.8/3 s with pauses of 0.7/0.5/0.3/0.15 s (both times
+  `vr_bot_reaction`; 0 at once, no pauses); skills 0/1 turn at 0.6/0.8 of the keys' speed (bot_phys.qc CL_KeyMove);
+  bot_dodge_stuff notices a player in its view no further than 800/1200/1800 units (skill 3 and heard: anywhere).
+  vr_dm_test 13 (a bot 250 units from the human strafing 250 u/s, 64 each way, its shotgun 10 s a case, dm4):
+
+  | skill | aim error, reaction | first shot | shots | hits |
+  |---|---|---|---|---|
+  | 0 | 1, 1 | 0.86 s | 12 | 3 (25%) |
+  | 1 | 1, 1 | 0.68 s | 17 | 5 (29%) |
+  | 2 | 1, 1 | 0.39 s | 19 | 15 (79%) |
+  | 3 | 1, 1 | 0.32 s | 19 | 19 (100%) |
+  | 0 | 0, 0 (before) | 0.18 s | 20 | 20 (100%) |
+  | 1 | 0, 0 (before) | 0.17 s | 20 | 20 (100%) |
+
+  ("before" is the new code with both tunables 0: dead on, at once, no pauses; the turn and notice limits stay.)
+- **Size** (vr_units.hpp botEyeUnits): a bot's body was drawn at its box's eye height (46 units = 1.46 m at the
+  host's scale 1.2) with no calibration's world scale (setupBody's default units::perMetre, scale 1): 38 units of eye
+  height against a default player's 51.8. Now its eye height is the default player's (modelEyeHeight 1.646 m at
+  vr_world_scale's default 1.2, `units::botEyeUnits`): the server sends 1.646 m (writeAvatars), the client draws a bot
+  at the default scale (setupBody, bots only: the solveBit hands), its drawn head is raised to it (writeAvatars'
+  head, `botEyeRaise`) and its hands are posed from that eye and arm span (botflatpose). `vr_mp_avatars`' mp_body line
+  prints `eyeunits=` (feet to eyes in units). Not checked in a harness run yet: mp_test.py dm's bot body lines will
+  show it (a bot's eyeunits should be ~51.8).
+- **Weapons** (bot_pick_weapon, weapon_range): the revolver, the nail pistol, the laser cannon and the proximity gun
+  were not in FrikBot's list, so his revolver-loadout bot (the run's Starting gun, vr_run_startgun.qc) only had its
+  melee holster's dagger. Now a list (bot_pick_nth) with ammo checks (bot_can_fire: two shells/nails for the double
+  guns, the held gun's clip counted); weapon_range's unknown weapons by their armed-humanoid class instead of a bprint.
+  vr_run_meleeonly: CVAR_NONE, never written to a config; mp_local.ps1 -Melee sets it on the host's command line only,
+  and Run Setup's new game sets every mutator from the screen's picks (his cfg: vr_runpick_meleeonly 0); nothing keeps
+  it. vr_dm_test 14: revolver only + shells: drawn and fired at the human (0.69 s); no ammo: its melee weapon; a nail
+  pistol: drawn.
+- **Wind-up** (`vr_bot_swing_windup` 0.3 s at skill 0, x1/0.75/0.5/0.25 by skill; bot_windup, set at W_Fire_Melee in
+  .vr_botwindup): botflatpose's 5th argument holds the overhead swing at its top that much longer (flatplay
+  swingTimes(extraTop), the bot's swing only); the next swing, its attack_finished and the other bots' parry window
+  (bot_blow_coming) grow by it. vr_dm_test 15 (two bots 36 apart, dm6): skill 1's blow lands 0.639 s after its start
+  (a player's strike from 0.32 s). Open: with windup 0 the blow did not land on the held bot in two runs (case 1,
+  printed only), and the skill 0 defender's parry passed one run of two: the test needs a look.
+- **Reaction semantic** found by the test: a bot held in place never set the human as its enemy (FrikBot's look),
+  so vr_bots_test sets it when unset; the run's console adds one bot per run however many `impulse 100`s it sends,
+  so test 15 adds the second by BotConnect itself.
+
 ## expbugs: Dwell, Quoth and campaign bugs from his 2026-11-21 notes (expbugs, 2026-11-21, `agent/expbugs`)
 
 Details in DWELL.md 9.8. Each note's cause and fix:
@@ -6098,6 +6149,32 @@ Details in DWELL.md 9.8. Each note's cause and fix:
 - **Tests:** `dwell_weapons_test.sh` 9/0 (213: pickups taken, props laid, a bloody prop taken: 10/0); `music_test.sh`
   7/0; `dwell_maps.sh` 28/0 and 214 10/0; `dwell_monster_fixes_test.sh` (215, rig spans, 216).
 
+## bots2: the bots' items 1-4 verified, the wind-up's lost blows fixed (2026-11-21, `agent/bots`)
+
+Items 5 (disarm at the drawn weapon) and 6 (hitboxes on bots and players) not started (out of budget); findings below.
+
+- **Lost blows were the size, not the wind-up.** The Bots section posed a bot's hands from its drawn head
+  (`botEyeRaise`, 6 units over its box's eyes) with the default player's arms. Its overhead swing's top then went that
+  much higher and the blow struck a wall first (the pommel on the way down) or missed: vr_dm_test 15's windup-0 case
+  never landed and its parry case failed by turns; mp_dm's vr_dm_test 2, 3 (a bot's blow on the human, read and parried)
+  and 9 (bot parries bot) failed. Shown with an env switch: the old pose 3/0, the raised one 2/1. Now
+  `PF_botflatpose` poses from the box's eyes (`view_ofs`, as a flat-screen player's camera) with the default player's
+  eye height for its arms (`units::botEyeUnits`): a default-size flat player's hands. The body and head are still drawn
+  at the default player's size (mp_body `eyeunits=51.8` for both bots in mp_dm, the head 51 units over the feet).
+- **vr_dm_test 15** now checks the windup-0 case (the old swing: lands in its strike, 0.32-0.55 s; 0.403 s) and holds
+  `vr_bot_aim_error` 0 meanwhile (the aim's random error moved the blade's way case to case; test 13 measures it).
+  Three runs: 4/0 each (windup 0.3 at skill 1: lands 0.597 s; windup 0: 0.403 s; the skill-0 parry).
+- **Checks:** mp_test dm 27/0 (was 24/3), coopbots 13/0; the plain suite: 62 scenarios, one failure (mp_predict's
+  "corrections on flat ground", max 0.000 over 47 states, under the suite's load; alone 31/0); scenario_check PASS
+  (143 run, 0 failed); Dev and ThinLTO builds 0 warnings. No screenshot of a bot beside a player (the numbers above).
+- **Item 5 findings:** VR_PDG_Gap reads VR_Parry_WeaponLine (the hand, `.muzzlepos`, the blade shape) and
+  `weaponhotspot` (heldpose's slot). A human's muzzle and hotspots come from his client's drawing; a bot has no heldpose
+  slot (no hotspots) and its muzzle is `handpos + 24 forward` (bot_setvrfields), while each client places its weapon by
+  `view::solveHands` -> setupWeapon (the weapon and hand offsets). The fix: one placement of a bot's weapon in its hand
+  (inHand, muzzle, hotspots) made on the server (the dedicated one has no view: the offsets' math must run there) into
+  its heldpose slot and `.muzzlepos`, sent with its avatar and drawn as is (no solveBit re-solve).
+- **Item 6 findings:** Show Hit Zones (`vr_debug_hitzones`, vr_hitmodel.cpp zonesDraw) draws only zones the QC sends
+  (zoneAdd) and only with `sv.active` (the host); players and bots are drawn as vrbody avatars, not their entity's model.
 ## comfort2: one click one switch, the double tap's other speed, slide and eye foveation by default, the revolver's swing (comfort2, 2026-11-21, `agent/comfort2`)
 
 His voice notes of 2026-11-21 (vrfiringrange 00-23-29, e1m1 01-04-14 and others).

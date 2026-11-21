@@ -536,9 +536,10 @@ struct SwingTimes
     float wind, top, strike, dwell, back;
 };
 
-[[nodiscard]] SwingTimes swingTimes()
+// (A bot's held at its top longer, by its BotPoseIn::windup: its blow telegraphed, his voice note 2026-11-21.)
+[[nodiscard]] SwingTimes swingTimes(float extraTop = 0.f)
 {
-    return {za::clamp(vr_flat_swing_wind.value, 0.05f, 1.f), za::clamp(vr_flat_swing_top.value, 0.f, 0.5f),
+    return {za::clamp(vr_flat_swing_wind.value, 0.05f, 1.f), za::clamp(vr_flat_swing_top.value, 0.f, 0.5f) + extraTop,
         za::clamp(vr_flat_swing_strike.value, 0.05f, 0.5f), za::clamp(vr_flat_swing_dwell.value, 0.f, 0.5f),
         za::clamp(vr_flat_swing_back.value, 0.05f, 1.f)};
 }
@@ -887,7 +888,7 @@ constexpr float dualProneTurnMost = 45.f;
     // (A bot's: its main hand's swing on the server's clock, poseBot. The same swing.)
     const bool botSwing = bot != nullptr && h == HAND_MAIN;
     const double t = botSwing ? bot->now - bot->swingAt : vr_gametime - fs.punchAt[h];
-    const SwingTimes w = swingTimes();
+    const SwingTimes w = swingTimes(botSwing ? bot->windup : 0.f);
     const float len = botSwing ? w.wind + w.top + w.strike + w.dwell + w.back : punchLen(h);
     if((!botSwing && (bot != nullptr || !fs.punchOverhead[h])) || t < 0.0 || t > len)
     {
@@ -4259,7 +4260,7 @@ void poseBot(const BotPoseIn& in, BotPoseOut& out)
         out.pos[h] = s.pos[h];
         out.rot[h] = s.rot[h];
     }
-    const SwingTimes w = swingTimes();
+    const SwingTimes w = swingTimes(in.windup);
     const double t = in.now - in.swingAt;
     out.swingPhase = t < 0.0 || t > w.wind + w.top + w.strike + w.dwell + w.back ? 0 : t < w.wind ? 1 : 2;
     bot = nullptr;

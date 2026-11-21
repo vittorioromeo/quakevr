@@ -117,6 +117,13 @@ for the others. Any PC with Quake VR installed can run one (the same port rule a
   melee sweep a player's is, and you can parry it), and **raise their guard** against a blow they see coming, more often
   and sooner the higher their skill (`skill` when added; `vr_bot_parry_chance` forces a chance, `vr_bot_dual_wield 0`
   turns the second gun off).
+- **Bots by skill** (the `skill` they were added at, 0-3): the lower, the more their aim strays and lags behind a moving
+  target (`vr_bot_aim_error`, 1: by skill, 0: dead on), the longer they wait before firing at someone they've just seen
+  and pause between bursts (`vr_bot_reaction`), the slower they turn and the less far they notice players; their melee
+  swing is held raised before it comes down (`vr_bot_swing_windup`, 0.3 s at skill 0, less the higher). They draw any
+  gun they carry that has ammo (the revolver, the nail pistol, the mission packs' guns), else their melee weapon. They
+  are drawn at a default player's size (1.646 m eyes at world scale 1.2); their hands are posed as a default-size
+  flat-screen player's (from their box's eyes, a default player's arms), so their blows reach what a player's do.
 - **Co-op bots**: in a co-op game a bot fights the monsters beside you, never the players, follows the players loosely,
   and comes along to the next level with what it had (as a player who left and came back does).
 
