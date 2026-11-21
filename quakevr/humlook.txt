@@ -21,7 +21,7 @@
 #   tint r g b amount
 #
 # type     category  part     hue width feather satmin lightmin lightmax  shift satmul lightmul  tint_r tint_g tint_b amount
-grunt      explosive clothes   40   18     8      0.15   0.03     0.30     -36   2.0    1.05      1 1 1 0
+grunt      explosive clothes   40   18     8      0.15   0.03     0.30     -36   2.0    0.90      1 1 1 0
 grunt      energy    clothes   40   18     8      0.15   0.03     0.30     180   1.7    1.15      1 1 1 0
 grunt      flame     clothes   40   18     8      0.15   0.03     0.30     -18   2.4    1.45      1 1 1 0
 grunt      poison    clothes   40   18     8      0.15   0.03     0.30      65   1.6    1.10      1 1 1 0
@@ -29,11 +29,11 @@ grunt      explosive pack      30   30    10      0.10   0.02     0.60     -30  
 grunt      energy    pack      30   30    10      0.10   0.02     0.60     190   1.7    1.15      1 1 1 0
 grunt      flame     pack      30   30    10      0.10   0.02     0.60      -4   2.2    1.35      1 1 1 0
 grunt      poison    pack      30   30    10      0.10   0.02     0.60      70   1.6    1.10      1 1 1 0
-enforcer   explosive clothes   40   18     8      0.15   0.03     0.30     -36   2.0    1.05      1 1 1 0
+enforcer   explosive clothes   40   18     8      0.15   0.03     0.30     -36   2.0    0.90      1 1 1 0
 enforcer   energy    clothes   40   18     8      0.15   0.03     0.30     180   1.7    1.15      1 1 1 0
 enforcer   flame     clothes   40   18     8      0.15   0.03     0.30     -18   2.4    1.45      1 1 1 0
 enforcer   poison    clothes   40   18     8      0.15   0.03     0.30      65   1.6    1.10      1 1 1 0
-knight     explosive clothes   40   18     8      0.15   0.03     0.30     -36   2.0    1.05      1 1 1 0
+knight     explosive clothes   40   18     8      0.15   0.03     0.30     -36   2.0    0.90      1 1 1 0
 knight     energy    clothes   40   18     8      0.15   0.03     0.30     180   1.7    1.15      1 1 1 0
 knight     flame     clothes   40   18     8      0.15   0.03     0.30     -18   2.4    1.45      1 1 1 0
 knight     poison    clothes   40   18     8      0.15   0.03     0.30      65   1.6    1.10      1 1 1 0
@@ -41,7 +41,7 @@ knight     explosive pack      30   30    10      0.10   0.02     0.60     -30  
 knight     energy    pack      30   30    10      0.10   0.02     0.60     190   1.7    1.15      1 1 1 0
 knight     flame     pack      30   30    10      0.10   0.02     0.60      -4   2.2    1.35      1 1 1 0
 knight     poison    pack      30   30    10      0.10   0.02     0.60      70   1.6    1.10      1 1 1 0
-dknight    explosive clothes   40   18     8      0.15   0.03     0.30     -36   2.0    1.05      1 1 1 0
+dknight    explosive clothes   40   18     8      0.15   0.03     0.30     -36   2.0    0.90      1 1 1 0
 dknight    energy    clothes   40   18     8      0.15   0.03     0.30     180   1.7    1.15      1 1 1 0
 dknight    flame     clothes   40   18     8      0.15   0.03     0.30     -18   2.4    1.45      1 1 1 0
 dknight    poison    clothes   40   18     8      0.15   0.03     0.30      65   1.6    1.10      1 1 1 0

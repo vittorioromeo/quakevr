@@ -105,12 +105,14 @@ void(entity p) VR_HUM_Test =
     cvar_set("vr_agrunt_repl_variants", "1");
     cvar_set("vr_agknight", "1");
     makevectors([0, p.v_angle_y, 0]);
-    vector at = p.origin + v_forward * 200;
+    vector hf = v_forward; // (kept: each spawn makes its own vectors)
+    vector hr = v_right;
+    vector at = p.origin + hf * 200;
     float v;
     for(v = 1; v < VR_HUM_V_COUNT; v++)
     {
         float before = total_monsters;
-        entity e = VR_HUMT_Spawn(v, at + v_right * (v - 4.5) * 56);
+        entity e = VR_HUMT_Spawn(v, at + hr * (v - 4.5) * 56);
         float kind = VR_HUM_Row(v);
         VR_AG_Decode(VR_HUM_Weapon(v));
         float wid = vr_ag_dec_wid;
@@ -126,23 +128,23 @@ void(entity p) VR_HUM_Test =
     entity relay = spawn();
     relay.targetname = "vr_humt_relay";
     relay.use = VR_HUMT_Used;
-    entity r = VR_HUMT_Spawn(VR_HUM_V_ROCKET, at + v_forward * 96);
+    entity r = VR_HUMT_Spawn(VR_HUM_V_ROCKET, at + hf * 96);
     r.target = "vr_humt_relay";
     // Off: AD's own.
     cvar_set("vr_agrunt_repl_variants", "0");
-    entity off = VR_HUMT_Spawn(VR_HUM_V_PLASMA, at + v_forward * 160);
+    entity off = VR_HUMT_Spawn(VR_HUM_V_PLASMA, at + hf * 160);
     cvar_set("vr_agrunt_repl_variants", "1");
     VR_Test_Check(!off.vr_ag && off.classname == "monster_army_plasma", sprintf("off: the plasma soldier AD's (%s, armed %g)",
         off.classname, off.vr_ag));
     // Looks by weapon, however armed (a toolgun spawn: "weapon").
     entity os = self;
     entity g1 = spawn();
-    setorigin(g1, at - v_forward * 60);
+    setorigin(g1, at - hf * 60);
     g1.weapon = WID_ROCKET_LAUNCHER;
     self = g1;
     monster_vr_grunt();
     entity g2 = spawn();
-    setorigin(g2, at - v_forward * 60 + v_right * 60);
+    setorigin(g2, at - hf * 60 + hr * 60);
     g2.weapon = WID_NAILGUN;
     self = g2;
     monster_vr_enforcer();
@@ -189,13 +191,15 @@ void(entity p) VR_HUM_Lineup =
     w[3] = VR_ADGun_Available() ? WID_ADPYRO : WID_FLAREGUN; // (without AD's data: the flare gun, flame too)
     w[4] = VR_ADGun_Available() ? WID_ADFUMIGATOR : WID_SUPER_NAILGUN; // (... nails: as it is)
     makevectors([0, p.angles_y, 0]); // (its body's yaw: the view's in the tests' mock headset)
+    vector fw = v_forward; // (kept: each spawn makes its own vectors)
+    vector rt = v_right;
     entity os = self;
     float made = 0;
     float i;
     for(i = 0; i < 5; i++)
     {
         entity g = spawn();
-        setorigin(g, p.origin + v_forward * 150 + v_right * (i - 2) * 44);
+        setorigin(g, p.origin + fw * 150 + rt * (i - 2) * 44);
         g.angles_y = vectoyaw(p.origin - g.origin);
         g.weapon = w[i];
         self = g;
@@ -203,6 +207,7 @@ void(entity p) VR_HUM_Lineup =
         self = os;
         g.vr_humt_row = 1;
         made = made + (g.vr_ag ? 1 : 0);
+        bprint(sprintf("humlineup: %g at %v (you %v), armed %g, look %g\n", i, g.origin, p.origin, g.vr_ag, g.vr_hum_look));
     }
     bprint(sprintf("humlineup: row %g: %g made\n", kind, made));
 };
