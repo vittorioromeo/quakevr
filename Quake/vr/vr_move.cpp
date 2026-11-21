@@ -217,6 +217,11 @@ void writeDrawnGear(sizebuf_t* buf, const VrDrawnGear& g, const glm::vec3& origi
             writeAngles16(buf, g.angles[i]);
         }
     }
+    if(g.shown & (1 << VrDrawnGear::ammoPouch))
+    {
+        MSG_WriteByte(buf, g.pouchKind);
+        MSG_WriteByte(buf, g.pouchCount);
+    }
 }
 
 VrDrawnGear readDrawnGear(const glm::vec3& origin)
@@ -235,6 +240,11 @@ VrDrawnGear readDrawnGear(const glm::vec3& origin)
             g.origin[i] = readEighths(origin);
             g.angles[i] = readAngles16();
         }
+    }
+    if(g.shown & (1 << VrDrawnGear::ammoPouch))
+    {
+        g.pouchKind = static_cast<za::U8>(MSG_ReadByte());
+        g.pouchCount = static_cast<za::U8>(MSG_ReadByte());
     }
     return g;
 }

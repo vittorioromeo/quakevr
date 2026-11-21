@@ -167,6 +167,9 @@ void printOwnLooks(int ent);
 [[nodiscard]] float powerupGlow(const entity_t* e);
 // Your worn gear as drawn this frame, for the others (syncfix: the move's VrDrawnGear).
 void netGear(VrDrawnGear& out);
+// The rounds in an ammo pouch `pouch` (placed this frame or not) holding `kind` (STAT_QVR_POUCHKIND's), `count` left:
+// yours (setupAmmoPouchItems) and another player's in his copy's pouch (syncfix2), one code -> how many placed in `out`.
+int posePouchItems(const ViewEntity& pouch, bool placed, int kind, int count, ViewEntity (&out)[pouchitems::most]);
 // VrDrawnGear::model's model (1 the sheath, 2 the gadget, 3 its strap, 4 the grenade pouch, 5 the ammo pouch), or nullptr.
 [[nodiscard]] qmodel_t* gearModel(int index);
 // A holster's sheath and gun on another player's body (a bot's: no client drew them; syncfix), posed as yours are

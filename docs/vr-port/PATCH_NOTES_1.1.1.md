@@ -61,7 +61,11 @@ The guide: [MULTIPLAYER.md](MULTIPLAYER.md).
   spinning barrels; another player's flashlight is drawn where he carries it and lights the world where it points.
 - **Other players' power-ups and gear**: a player with Quad Damage, the Pentagram or the Biosuit glows as you do (his
   hands and body, the light from his hands, Quad's arcs), under the Ring of Shadows he is faded (in deathmatch too); his
-  holster sheaths, wrist gadget, grenade and ammo pouches are drawn on him, and a bot's holsters with what it carries.
+  holster sheaths, wrist gadget, grenade and ammo pouches are drawn on him, and a bot's holsters with what it carries;
+  the rounds in his ammo pouch and his gadget screen's glow too.
+- **Other players' shots**: their muzzle flash, sparks and smoke at their gun, and their spent casings thrown out of it.
+- **Test runs stay off the internet**: with `-loopbackonly` (every test run) the map index, Slipseer, the update check
+  and the add-on list are never fetched; asked for, each prints its "NET SAFETY" refusal.
 - **Everything you can do alone works together**: grabbing, throwing, melee and parries, climbing and mantling, the
   grapple, holsters and pouches, reloads, force grab; hand weapons and ammo to each other, knock weapons out of other
   players' hands in deathmatch.

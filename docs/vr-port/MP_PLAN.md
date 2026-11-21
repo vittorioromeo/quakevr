@@ -4011,13 +4011,13 @@ design (right as it is), **N** no such feature. Evidence: [run] syncaudit, [test
 | Flashlight, torso torch (belt, hand, gun, head; on/off, where it points) | S | VrDrawnLamp in the move and the avatar: his torch's model and its spot, spill and glow lights (agent/wpnsync); not its visible cone or cord | mp_wpnsync [test] |
 | Holstered weapons | S | VrDrawnHolsters (B6b) | mp_cosmetics [test]; holstered v_shot both [run] |
 | Hip and leg holster sheaths | S | VrDrawnGear (syncfix batch 2): his sheaths as he drew them; a bot's (and its holstered weapons, what it carries) placed by each client on its body as drawn (view::holsterOnOther) | syncaudit idle, bot [run] |
-| Wrist gadget and its straps (VR) | S | VrDrawnGear (syncfix batch 2); not its screen's glow lights (r10/r30: its screen is his own) | syncaudit idle [run] |
-| Ammo pouch (**the rounds in it: G**) | S/G | the pouch: VrDrawnGear (syncfix batch 2); the rounds in it not yet (17 vr_shell_live B only) | syncaudit idle [run] |
+| Wrist gadget and its straps (VR) | S | VrDrawnGear (syncfix batch 2); its screen's two glow lights (r10/r30) lit at his copy's gadget by your gadget's code (gadget::otherGlow, syncfix2); its screen's contents stay his own | syncaudit idle [run] |
+| Ammo pouch and the rounds in it | S | the pouch: VrDrawnGear (syncfix batch 2); the rounds: what it holds (the server's .vr_pouch_kind/.vr_pouch_count, +2 B in the avatar while drawn) posed in his copy's pouch by your pouch's code (view::posePouchItems, syncfix2) | syncaudit idle [run] |
 | Grenade pouch (the back) | S | VrDrawnGear (syncfix batch 2) | syncaudit idle [run] |
 | Ring of Shadows | S | the gear byte's ring bit (syncfix batch 1): his whole copy faded as he sees himself (view::powerupLookOf's alpha 0.3), deathmatch too | syncaudit ring [run] |
 | Quad, Pentagram, Biosuit looks | S | the gear byte's power-up bits (syncfix batch 1), drawn by the code that draws yours (view::powerupLookOf): the glow on his hands and body, its two hand lights, Quad's arcs | syncaudit quad [run] |
-| **Muzzle flash of another player's shot** | G | its light (r20, r30 at the shot) not seen; the shot's sound, thump and tail layers are | B only [run] |
-| **Spent casings from another player's gun** | G | none (his own client throws them) | vr_shell B only [run] |
+| Muzzle flash of another player's shot (**its two lights: G**) | S/G | the shot's QVR_SVC_FIRED (already broadcast) now drawn at his copy's gun: your flash model (size, time, an AD gun's colour) and the shot's sparks and smoke (gunfx::otherFired, syncfix2; Quake's EF_MUZZLEFLASH light was always seen). The two lights the audit listed are not the flash: r20 his gun's ammo-screen light (weaponScreenLight), r30 his barrel's heat glow (vr_hotblade): both his own hands' state, not yet | B only [run] |
+| Spent casings from another player's gun | S | QVR_SVC_EJECTOTHER (the QC's eject, also sent to the others who see him: 8 B a shot each, reliable) thrown out of his copy's gun by your casings' code (vr_shells.cpp ejectFrom; his auto pump's timing, flicks and the revolver's crane are his own) | syncaudit shoot [run] |
 | Shot sounds, Quad's attack sound | S | server sounds; vr_gunsfx's layers made on each client | guncock, gun_thump, gun_tail, damage3 both [run] |
 | **Blood on hands, arms and gear; wounds on the player's body** | G | own only: vr_wounds.cpp paints the player's body and hands only for `cl.viewentity`; another player's copy stays clean | vr_wounds.cpp:1577-1643 [code] |
 | Footsteps | S | the old trigger's server sound in multiplayer (the legs' own steps are single player's: no one else sees the feet's phase) | foot4-7 both [run]; vr_playersteps.cpp:9-12 [code] |
@@ -4041,7 +4041,7 @@ design (right as it is), **N** no such feature. Evidence: [run] syncaudit, [test
 | Toolgun, Setup, holster setup | L | single player only (section 1.3) | [code] |
 | HUD, the gadget's screen contents, haptics, menus, voice notes | L | his own | |
 
-Counts (43 rows): 27 synced, 6 gaps (the ammo pouch's rounds among them), 4 elsewhere, 4 local by design, 2 not features (the slide pose and the dead body synced by mpslide since the audit; batches 1-2 by syncfix: ROUND25.md "syncfix").
+Counts (43 rows): 29 synced, 5 gaps (the muzzle flash's two lights, the auto pump, wounds, the mantle grunt, the slide sound), 4 elsewhere, 4 local by design, 2 not features (the slide pose and the dead body synced by mpslide since the audit; batches 1-2 by syncfix, batch 2's rest and batch 3's flash and casings by syncfix2: ROUND25.md "syncfix", "syncfix2").
 
 **Side finding.** The Debug menu's Cheats rows (Quad, Pentagram, Ring, Biosuit: `impulse 190-193`) give a holstered
 shotgun in coop instead: the single-player test impulses (`VR_TestImpulse`) are skipped in coop, and weapons.qc's

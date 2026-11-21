@@ -78,6 +78,9 @@ void looseFrame();
 // A monster's gun fired, its muzzle `m` (vr_weaponfx.cpp: a grunt's, an enforcer's, an armed grunt's held weapon of
 // model `model`, null for a monster's own gun of weapon `wid`).
 void enemyFired(int ent, const qmodel_t* model, int wid, const Muzzle& m);
+// Another player's shot (syncfix2): its sparks and smoke at his copy's weapon `w` (of slot `slot`), as a monster's
+// (vr_gunfx_enemies), from its drawn muzzle as yours.
+void otherFired(int ent, const view::ViewEntity& w, int slot);
 
 // A casing thrown out of a shotgun's port at `at` going `dir` (vr_shells.cpp): the port's quick puff (`hot`: a flick
 // reload's, more).

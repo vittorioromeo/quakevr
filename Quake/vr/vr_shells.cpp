@@ -14,6 +14,7 @@
 #include "vr_mem.hpp"
 #include "vr_modelmetadata.hpp"
 #include "vr_shells.hpp"
+#include "vr_mpavatar.hpp"
 #include "vr_autopump.hpp"
 #include "vr_engine.hpp"
 #include "vr_anchor.hpp"
@@ -200,6 +201,7 @@ struct Pending
     double time;    // when it goes (the QC's delay),
     double created; // when the QC said so (the shot: the shotgun's auto pump stroke it waits for)
     double opened{-1.0}; // FlagAfterOpen: when the gun was drawn fully open (the QC's delay counts from it)
+    int ent{0};          // another player's (his entity: out of his copy's weapon, syncfix2); 0 yours
 };
 
 // Each hand's ejection port as last seen, for its speed.
@@ -457,21 +459,21 @@ void trackPorts(const view::ViewEntity (&weapons)[2])
     return w && w->model == modelmeta::Id::VShot && autopump::rearTime(p.hand, p.created, rear, backSpeed);
 }
 
-void eject(const view::ViewEntity (&weapons)[2], const Pending& p)
+// Out of `ve` (your hand's weapon; `own` false: another player's copy's, syncfix2 -- none of your hand's own state then:
+// its auto pump's stroke, the flick's spin, the broken-open barrels, the revolver's crane, the port's speed, your face).
+void ejectFrom(const view::ViewEntity& ve, const Pending& p, bool own, bool pumped, double rear, float backSpeed)
 {
-    const view::ViewEntity& ve = weapons[p.hand];
     const Weapon* w = ve.visible ? weaponFor(ve.ent.model) : nullptr;
-    if(!w || p.kind < 0 || p.kind >= static_cast<int>(za::getArraySize(kindModels)))
+    if(!w || p.kind < 0 || p.kind >= static_cast<int>(za::getArraySize(kindModels)) || w->ports <= 0 ||
+        (!own && w->model == modelmeta::Id::VRevolver))
     {
         return; // the weapon is gone from the hand (thrown, holstered) or has no port
     }
 
-    const bool flick = (p.flags & FlagFlick) != 0;
+    const bool flick = own && (p.flags & FlagFlick) != 0;
     const glm::vec3 shift = animationShift(ve, *w);
     const float upm = unitsPerMetre();
-    double rear = 0.0;
-    float backSpeed = 0.f;
-    const bool pumped = pumpedEject(weapons, p, rear, backSpeed);
+    const glm::vec3 portVel = own ? tracks[p.hand].vel : glm::vec3{0.f};
     if(vr_debug_weaponfx.value)
     {
         Con_Printf("shells eject hand %d kind %d skin %d x%d t %.3f%s\n", p.hand, p.kind, kindSkins[p.kind], p.count, cl.time,
@@ -487,7 +489,7 @@ void eject(const view::ViewEntity (&weapons)[2], const Pending& p)
         glm::vec3 at = w->port[port] + shift;
         const Ejection ej = ejectionFor(*w, port);
         glm::vec3 portDir = ej.dir;
-        if(const float open = w->model == modelmeta::Id::VShot2 ? view::ssgOpenAngle(p.hand) : 0.f; open > 0.f)
+        if(const float open = own && w->model == modelmeta::Id::VShot2 ? view::ssgOpenAngle(p.hand) : 0.f; open > 0.f)
         {
             // The super shotgun broken open (immersive reloading): out of its chambers as they are drawn, turned down
             // with the barrels (vr_view.cpp; make_ssg_open.py's breech face at x 12.7, z 7), backwards and up.
@@ -538,7 +540,7 @@ void eject(const view::ViewEntity (&weapons)[2], const Pending& p)
             const float speed = ej.speed * upm * vrand::range(rng, 0.8f, 1.2f);
             const glm::vec3 scatter = onSphere() * (speed * ej.spread);
             const float carried = (p.flags & FlagPushed) ? vr_revolver_eject_impulse.value : 0.9f;
-            s.vel = dir * speed + scatter + tracks[p.hand].vel * carried;
+            s.vel = dir * speed + scatter + portVel * carried;
             if(vr_debug_weaponfx.value && (p.flags & FlagPushed))
             {
                 Con_Printf("shells pushed hand %d: port %.2f m/s, out at %.2f m/s, %.2f along the port's velocity\n", p.hand,
@@ -563,7 +565,7 @@ void eject(const view::ViewEntity (&weapons)[2], const Pending& p)
         }
         else
         {
-            s.vel = awayFromFace(pos, s.vel, p.hand, revolver ? &s.strokeOut : nullptr);
+            s.vel = own ? awayFromFace(pos, s.vel, p.hand, revolver ? &s.strokeOut : nullptr) : s.vel;
         }
         if(vr_debug_weaponfx.value)
         {
@@ -612,6 +614,14 @@ void eject(const view::ViewEntity (&weapons)[2], const Pending& p)
             gunfx::portSmoke(pos, dir, flick); // the port's quick puff (the revolver's cylinder: none)
         }
     }
+}
+
+void eject(const view::ViewEntity (&weapons)[2], const Pending& p)
+{
+    double rear = 0.0;
+    float backSpeed = 0.f;
+    const bool pumped = pumpedEject(weapons, p, rear, backSpeed);
+    ejectFrom(weapons[p.hand], p, true, pumped, rear, backSpeed);
 }
 
 void tink(Shell& s, float impact, const glm::vec3& normal)
@@ -935,6 +945,24 @@ void parseEject()
     pending.pushBack({hand, kind, za::min(count, 8), flags, cl.time + delay, cl.time});
 }
 
+void parseEjectOther()
+{
+    const int ent = MSG_ReadShort();
+    const int hand = MSG_ReadByte();
+    const int kind = MSG_ReadByte();
+    const int count = MSG_ReadByte();
+    const int flags = MSG_ReadByte();
+    const float delay = MSG_ReadByte() / 100.f;
+    if(!vr_shells.value || ent <= 0 || ent > MAX_SCOREBOARD || ent == cl.viewentity || (hand != HAND_OFF && hand != HAND_MAIN) ||
+        pending.size() >= 16)
+    {
+        return;
+    }
+    Pending p{hand, kind, za::min(count, 8), flags, cl.time + delay, cl.time};
+    p.ent = ent;
+    pending.pushBack(p);
+}
+
 void frame(const view::ViewEntity (&weapons)[2])
 {
     if(lastFrame == host_framecount)
@@ -948,8 +976,26 @@ void frame(const view::ViewEntity (&weapons)[2])
 
     for(za::SizeT i = 0; i < pending.size();)
     {
-        // A flick's casings wait for the spin to turn the barrels down.
         Pending& pe = pending[i];
+        // Another player's (syncfix2): out of his copy's weapon in that hand as drawn now, after the QC's delay.
+        if(pe.ent)
+        {
+            if(cl.time >= pe.time)
+            {
+                const view::ViewEntity* ve = mpavatar::drawnWeapon(pe.ent, pe.hand);
+                if(vr_shells.value && ve)
+                {
+                    ejectFrom(*ve, pe, false, false, 0.0, 0.f);
+                }
+                pending.erase(pending.begin() + static_cast<za::PtrDiffT>(i));
+            }
+            else
+            {
+                i++;
+            }
+            continue;
+        }
+        // A flick's casings wait for the spin to turn the barrels down.
         const float spun = (pe.flags & FlagFlick) ? flick::spinAngle(pe.hand) : -1.f;
         const bool waitSpin = spun >= 0.f && spun < flickEjectAngle && cl.time < pe.time + flickEjectWait;
         // The broken-open super shotgun's wait for it to be drawn fully open: its barrels down (vr_reload_ssg_open_angle)

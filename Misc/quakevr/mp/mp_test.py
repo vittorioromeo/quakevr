@@ -767,7 +767,8 @@ def netsafe(s):
     game it would start, or a command it would send, pointed off this machine is refused before it happens. Then the
     engine's fence (-loopbackonly, which every harness game has): a dedicated server hosting a room with its room
     service at a link-local address (169.254.0.1: never routed, so even a broken fence reaches no internet host) and
-    then at a name under .invalid (never looked up) prints NET SAFETY refusals and sends nothing."""
+    then at a name under .invalid (never looked up) prints NET SAFETY refusals and sends nothing. (syncfix2) HTTP too:
+    a client's start-up map index reads its cache only; maps_fetch and vr_update_check_now print their refusals."""
     from mp_harness import command_net_problem, launch_net_values, net_safety_problem
     unsafe = [
         ("a default game with vr_mp_room 1", net_safety_problem(*launch_net_values(["x", "+vr_mp_room", "1"]))),
@@ -813,6 +814,26 @@ def netsafe(s):
     _, line = g.wait(r"NET SAFETY: refused qvr-netsafe\.invalid", 30, since, "the named service refused")
     s.check("-loopbackonly refuses a name without looking it up", True, line.strip())
     g.cmd("vr_mp_room 0")
+    # (syncfix2) HTTP: a client's start-up map index reads its cache only (no fetch started), Slipseer's and the update
+    # check's start-up passes never go out; asked for (maps_fetch, vr_update_check_now), each prints its refusal.
+    c = Instance(s, "httpfence", s.take_port(), dedicated=0, net_guard_test=True, extra=["+vr_maps_fetch", "1"])
+    s.instances.append(c)
+    c.start()
+    _, line = c.wait(r"map index: started \(", 120, what="the start-up map index pass")
+    s.check("a client's start-up map index reads its cache only (no HTTP fetch)", "its cache only:" in line,
+            line.strip())
+    since = c.mark()
+    c.cmd("maps_fetch")
+    _, line = c.wait(r"NET SAFETY: refused the map index fetch from https://", 30, since, "the map index fetch refused")
+    s.check("-loopbackonly refuses an asked-for map index fetch", True, line.strip())
+    _, line = c.wait(r"NET SAFETY: refused Slipseer's listing fetch", 30, since, "Slipseer's fetch refused")
+    s.check("-loopbackonly refuses an asked-for Slipseer fetch", True, line.strip())
+    c.cmd("vr_update_check_now")
+    _, line = c.wait(r"NET SAFETY: refused the update check at https://", 30, since, "the update check refused")
+    s.check("-loopbackonly refuses an asked-for update check", True, line.strip())
+    c.read()
+    went = [ln for ln in c.lines if "curl" in ln.lower() or re.search(r"\b[1-9]\d* fetched now", ln)]
+    s.check("no HTTP transfer started (no curl error, nothing 'fetched now')", not went, "; ".join(went[:3]))
 
 
 def roomui(s):
@@ -8269,12 +8290,16 @@ SYNC_PROBES = (  # (name, B's action, its undo, the synced rows' checks); idle f
                                   ("the wrist gadget", no_gap("model:vrgadget.mdl")),
                                   ("its straps", no_gap("model:vrgadget_strap.mdl")),
                                   ("the grenade pouch", no_gap("model:vrpouch.mdl")),
-                                  ("the ammo pouch", no_gap("model:vrpouch_ammo.mdl")))),
+                                  ("the ammo pouch", no_gap("model:vrpouch_ammo.mdl")),
+                                  # (syncfix2: the rounds in it, the gadget screen's two lights)
+                                  ("the rounds in the ammo pouch", no_gap("model:vr_shell_live")),
+                                  ("the gadget screen's glow", no_gap("light:r10")),
+                                  ("the gadget screen's beam", no_gap("light:r30")))),
     # (they last the run: the probes after them compare against idle as before)
     ("quad", sync_cheat(190), None, (("Quad's glow on his copy", no_gap("glow:")), ("its hand lights", no_gap("light:r1")))),
     ("ring", sync_cheat(192), None, (("the ring's fade on his copy", no_gap("faded:", drawn_only=True)),)),
     ("punch", sync_punch, sync_punch_off, ()),
-    ("shoot", sync_shoot, None, ()),
+    ("shoot", sync_shoot, None, (("his spent casings", no_gap("model:vr_shell.mdl")),)),  # (syncfix2: batch 3)
     ("walk", sync_walk, sync_walk_off, ()),  # (last: B walks off his spot)
 )
 
@@ -8337,6 +8362,26 @@ def syncaudit(s, flat):
     s.note("bot: A draws round it: %s" % (seen_bot or "-"))
     s.check("bot: its holster sheaths on its copy at A (4: the hips', the uppers')", own_sheaths >= 4,
             "%d within 30 units; %s" % (own_sheaths, seen_bot or "no bot"))
+    # (syncfix2) A looks at the bot from the four sides (its front, sides and back whichever way it faces): the sheaths
+    # and what they hold on its body, for a person to judge (bot_holsters_from_*.png).
+    shots = []
+    for side, yaw in (("north", 270), ("east", 180), ("south", 90), ("west", 0)) if bots else ():
+        since = srv.mark()  # (a bot has no mp_client line: its edict's origin)
+        srv.cmd("edict %d; echo mp_edict_done" % (bots[0] + 1))
+        n, _ = srv.wait(r"mp_edict_done", 10, since, "the bot's edict")
+        m = next((re.search(r"origin\s+'\s*([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)", l) for l in srv.lines[since:n]
+                  if re.search(r"^\s*origin\s", l)), None)
+        if not m:
+            break
+        at = [float(m.group(i)) for i in (1, 2, 3)]
+        r = math.radians(yaw + 180)
+        try:  # (a side against a wall: none from there; an aid, not a check)
+            put_at(srv, a, ea, (at[0] + 56 * math.cos(r), at[1] + 56 * math.sin(r), at[2]), yaw, tries=15)
+        except StepFailed:
+            continue
+        sync_wait(srv, 0.5)
+        shots.append(a.screenshot("bot_holsters_from_" + side))
+    s.note("bot holster screenshots: %s" % (", ".join(str(p) for p in shots) or "-"))
     with open(os.path.join(s.out, "syncaudit_table.txt"), "w", encoding="ascii") as f:
         f.write("B %s, A VR mock, dedicated server; radius %g round B\n" % ("flat" if flat else "VR mock", SYNC_RADIUS))
         f.write("\n".join(rows_out + ["bot    A draws round it: %s" % (seen_bot or "-")]) + "\n")

@@ -156,9 +156,13 @@ struct VrDrawnGear
     za::U8 scale[count]{}; // thirty-seconds (its size: Holster Setup's for a sheath)
     glm::vec3 origin[count]{}; // world (the avatar: from his entity's origin)
     glm::vec3 angles[count]{}; // entity_t's
+    // What the ammo pouch holds (syncfix2: the avatar only, the server's word: QC .vr_pouch_kind, .vr_pouch_count, what
+    // your STAT_QVR_POUCHKIND and _POUCHCOUNT carry), its rounds drawn in his pouch by your pouch's code.
+    za::U8 pouchKind{0};
+    za::U8 pouchCount{0};
 };
 // Written as the shown and mirrored shorts, then each piece drawn: its model, frame, skin, scale, place (eighths from
-// `origin`), turn (16-bit): 17 B a piece.
+// `origin`), turn (16-bit): 17 B a piece; the ammo pouch's kind and count after it when it is drawn (2 B).
 void writeDrawnGear(sizebuf_t* buf, const VrDrawnGear& g, const glm::vec3& origin);
 [[nodiscard]] VrDrawnGear readDrawnGear(const glm::vec3& origin);
 

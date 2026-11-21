@@ -1041,6 +1041,8 @@ void dripBlood(const hands::State& s);
 void pressWeaponButtons(const hands::State& s);
 void setupButton(int hand);
 void setupFrontButton(int hand);
+// (view::posePouchItems: yours and another player's, syncfix2)
+int posePouchItemsIn(const view::ViewEntity& pouch, bool placed, int kind, int count, view::ViewEntity (&out)[pouchitems::most]);
 } // namespace view_detail
 
 using namespace ::view_detail;

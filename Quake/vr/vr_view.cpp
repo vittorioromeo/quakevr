@@ -2836,15 +2836,22 @@ void setupPumps()
 // pouch is (pouch reloading finds the magazines drawn: ammoPouchMags), drawn when it is.
 void setupAmmoPouchItems(const view::ViewEntity& pouch, bool placed)
 {
-    const int kind = cl.stats[protocol::STAT_QVR_POUCHKIND];
+    ammoPouchItems = posePouchItemsIn(pouch, placed, cl.stats[protocol::STAT_QVR_POUCHKIND],
+        cl.stats[protocol::STAT_QVR_POUCHCOUNT], entities.ammoPouchItem);
+}
+
+} // namespace
+
+// The rounds in an ammo pouch (yours: setupAmmoPouchItems; another player's on his copy, syncfix2: view::posePouchItems)
+// -> how many placed.
+int posePouchItemsIn(const view::ViewEntity& pouch, bool placed, int kind, int count,
+    view::ViewEntity (&out)[pouchitems::most])
+{
     pouchitems::Item items[pouchitems::most];
-    const int n = placed && pouch.ent.model
-                      ? pouchitems::posed(kind & 23, (kind & 8) != 0, cl.stats[protocol::STAT_QVR_POUCHCOUNT], items)
-                      : 0;
-    ammoPouchItems = n;
+    const int n = placed && pouch.ent.model ? pouchitems::posed(kind & 23, (kind & 8) != 0, count, items) : 0;
     for(int j = 0; j < pouchitems::most; j++)
     {
-        view::ViewEntity& ve = entities.ammoPouchItem[j];
+        view::ViewEntity& ve = out[j];
         if(j >= n)
         {
             ve.visible = false;
@@ -2863,7 +2870,11 @@ void setupAmmoPouchItems(const view::ViewEntity& pouch, bool placed)
         ve.lightMultiply = pouch.lightMultiply;
         ve.lightMod = pouch.lightMod;
     }
+    return n;
 }
+
+namespace
+{
 
 void setupAmmoPouch(const hands::State& s)
 {
@@ -4666,6 +4677,11 @@ qmodel_t* holsterOnOther(int holster, const glm::vec3& pos, const glm::vec3& out
     gun.angles = pose.weaponAngles;
     gun.mirrored = mirrored;
     return slotModel;
+}
+
+int posePouchItems(const ViewEntity& pouch, bool placed, int kind, int count, ViewEntity (&out)[pouchitems::most])
+{
+    return view_detail::posePouchItemsIn(pouch, placed, kind, count, out);
 }
 
 void netGear(VrDrawnGear& out)

@@ -1404,6 +1404,23 @@ void enemyFired(int ent, const qmodel_t* model, int wid, const Muzzle& m)
     shot(id, m, 2 + ent, false, false, slotOf(id, model));
 }
 
+void otherFired(int ent, const view::ViewEntity& w, int slot)
+{
+    if(!on(vr_gunfx_enemies) || !w.visible || !w.ent.model)
+    {
+        return;
+    }
+    const int wid = weaponIdOf(w.ent.model);
+    Muzzle m;
+    if(kindOf(wid) == Kind::None || !muzzleOf(w, slot, m))
+    {
+        return;
+    }
+    m.gunLength = 1.1f * units::metresToUnits();
+    const bool ports = wid == WID_SHOTGUN || wid == WID_SUPER_SHOTGUN; // (their casings' own puffs: vr_shells.cpp)
+    shot(wid, m, 2 + ent, false, ports, slot);
+}
+
 void portSmoke(const glm::vec3& at, const glm::vec3& dir, bool hot)
 {
     if(!on(vr_gunfx) || !on(vr_gunfx_port) || !particles::enabled())

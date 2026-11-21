@@ -118,7 +118,7 @@ struct CommandBudget
 za::Vector<CommandBudget> commandBudgets;
 
 // Per client slot: its avatar as last sent (writeAvatars: an unchanged one waits for its keyframe); and the counts.
-constexpr int avatarMaxBytes = 520; // (2 + 2 + 1 + 12 + 8 + 2 * 47 + 8 + 2 * 7 holds + 3 + 6 * 16 holsters + 1 = 241; the guns' looks and the torch 2 * 12 + 12 + 19: 296; the worn gear 4 + 11 * 17: 487 at most)
+constexpr int avatarMaxBytes = 520; // (2 + 2 + 1 + 12 + 8 + 2 * 47 + 8 + 2 * 7 holds + 3 + 6 * 16 holsters + 1 = 241; the guns' looks and the torch 2 * 12 + 12 + 19: 296; the worn gear 4 + 11 * 17 + 2 (the ammo pouch's rounds): 489 at most)
 struct AvatarSent
 {
     byte bytes[avatarMaxBytes]{};
@@ -2475,9 +2475,16 @@ void writeAvatars()
         writeGunLooks(&tmp, ent, m ? m->move.holsters : botHolsters);
         writeDrawnLamp(&tmp, m ? m->move.lamp : VrDrawnLamp{}, origin);
         // (his worn gear as he drew it; a bot's placed by each client on its body: syncfix)
-        VrDrawnGear botGear;
-        botGear.shown = VrDrawnGear::solveBit;
-        writeDrawnGear(&tmp, m ? m->move.gear : botGear, origin);
+        VrDrawnGear gear;
+        gear.shown = VrDrawnGear::solveBit;
+        if(m)
+        {
+            gear = m->move.gear;
+            // (what his ammo pouch holds, the server's word: your STAT_QVR_POUCHKIND and _POUCHCOUNT's fields, syncfix2)
+            gear.pouchKind = static_cast<za::U8>(za::clamp(static_cast<int>(fieldFloatOr(ent, f.vr_pouch_kind, 0.f)), 0, 255));
+            gear.pouchCount = static_cast<za::U8>(za::clamp(static_cast<int>(fieldFloatOr(ent, f.vr_pouch_count, 0.f)), 0, 255));
+        }
+        writeDrawnGear(&tmp, gear, origin);
 
         if(static_cast<int>(avatarsSent.size()) < svs.maxclients)
         {
@@ -2861,19 +2868,44 @@ void sendCollectSeen(edict_t* seen, int hand, int hotspot, int ent, int modelInd
 // draws them, from its own weapon model.
 void sendEject(edict_t* player, int hand, int kind, int count, int flags, float delay)
 {
-    sizebuf_t* msg = clientMessage(player);
-    if(!msg || count <= 0)
+    if(count <= 0 || !player)
     {
         return;
     }
-
-    MSG_WriteByte(msg, svc_quakevr);
-    MSG_WriteByte(msg, QVR_SVC_EJECT);
-    MSG_WriteByte(msg, hand);
-    MSG_WriteByte(msg, kind);
-    MSG_WriteByte(msg, CLAMP(0, count, 255));
-    MSG_WriteByte(msg, flags);
-    MSG_WriteByte(msg, CLAMP(0, static_cast<int>(delay * 100.f + 0.5f), 255));
+    const auto write = [&](sizebuf_t* msg, bool other) {
+        MSG_WriteByte(msg, svc_quakevr);
+        MSG_WriteByte(msg, other ? QVR_SVC_EJECTOTHER : QVR_SVC_EJECT);
+        if(other)
+        {
+            MSG_WriteShort(msg, NUM_FOR_EDICT(player));
+        }
+        MSG_WriteByte(msg, hand);
+        MSG_WriteByte(msg, kind);
+        MSG_WriteByte(msg, CLAMP(0, count, 255));
+        MSG_WriteByte(msg, flags);
+        MSG_WriteByte(msg, CLAMP(0, static_cast<int>(delay * 100.f + 0.5f), 255));
+    };
+    if(sizebuf_t* msg = clientMessage(player))
+    {
+        write(msg, false);
+    }
+    // (syncfix2) The others who see him: his casings out of his copy's weapon (8 B a shot each).
+    if(svs.maxclients <= 1 || !sv.worldmodel)
+    {
+        return;
+    }
+    for(int i = 0; i < svs.maxclients; ++i)
+    {
+        const client_t& c = svs.clients[i];
+        if(!c.active || !c.spawned || !c.edict || c.edict == player || !SV_VisibleToClient(c.edict, player, sv.worldmodel))
+        {
+            continue;
+        }
+        if(sizebuf_t* msg = clientMessage(c.edict))
+        {
+            write(msg, true);
+        }
+    }
 }
 
 void sendViewMessage(edict_t* player, const char* text, float seconds, bool arena)

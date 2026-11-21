@@ -84,6 +84,9 @@ void parse();
 
 // Player entity `ent`'s avatar (1..MAX_SCOREBOARD), or nullptr: none received.
 [[nodiscard]] const Avatar* of(int ent);
+// Player `ent`'s copy's weapon in `hand` as drawn this frame or the last (his shots' casings and flash, syncfix2), or
+// nullptr (no copy drawn, the hand empty).
+[[nodiscard]] const view::ViewEntity* drawnWeapon(int ent, int hand);
 
 // VR_AddMpAvatars (view.c, after the view's entities): each other player's hands and weapons in sight to cl_visedicts
 // (vr_mp_avatar_draw; multiplayer only).

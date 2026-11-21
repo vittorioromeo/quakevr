@@ -39,6 +39,8 @@
 #include "vr_body.hpp"
 #include "vr_view.hpp"
 #include "vr_mem.hpp"
+#include "vr_gadget.hpp"
+#include "vr_geom.hpp"
 
 namespace qvr::mpavatar
 {
@@ -86,6 +88,8 @@ struct Drawn
     view::ViewEntity lamp;
     view::PowerupLook powerups; // his power-ups' look as drawn (syncfix)
     view::ViewEntity gear[VrDrawnGear::count]; // his worn gear (syncfix: VrDrawnGear's order)
+    view::ViewEntity pouchItem[pouchitems::most]; // the rounds in his ammo pouch (syncfix2: view::posePouchItems)
+    int pouchItems{0};
     view::ViewEntity pauldron[2];
     view::ViewEntity pauldronArm[2];
     // His armour's plates and their joints' leather on his body (B6c: the server's word on him), their pieces, their bones
@@ -585,6 +589,16 @@ void setup(int e, const Avatar& a, const glm::vec3& origin, const avatar::DollPo
         const bool scaled = !(a.gear.shown & VrDrawnGear::solveBit) && a.gear.scale[i] > 0;
         d.gear[i].scale = glm::vec3{scaled ? static_cast<float>(a.gear.scale[i]) / 32.f : 1.f};
     }
+    // The rounds in his ammo pouch (what the server says it holds) and his wrist gadget's screen glow, by your pouch's and
+    // your gadget's code (syncfix2).
+    const view::ViewEntity& ammoPouch = d.gear[VrDrawnGear::ammoPouch];
+    d.pouchItems = view::posePouchItems(ammoPouch, (a.gear.shown & (1 << VrDrawnGear::ammoPouch)) != 0, a.gear.pouchKind,
+        a.gear.pouchCount, d.pouchItem);
+    const view::ViewEntity& gadgetEnt = d.gear[VrDrawnGear::gadget];
+    if(!doll && gadgetEnt.visible && gadgetEnt.ent.model && !(a.gear.shown & VrDrawnGear::solveBit))
+    {
+        gadget::otherGlow(e, geom::vec(gadgetEnt.ent.origin), geom::vec(gadgetEnt.ent.angles), gadgetEnt.scale.x);
+    }
     view::HandsEntities out;
     out.hand = d.hand;
     out.weapon = d.weapon;
@@ -641,6 +655,10 @@ void forEachDrawn(Drawn& d, F&& f)
     }
     f(d.lamp);
     for(view::ViewEntity& ve : d.gear)
+    {
+        f(ve);
+    }
+    for(view::ViewEntity& ve : d.pouchItem)
     {
         f(ve);
     }
@@ -1427,6 +1445,17 @@ const Avatar* of(int ent)
     return ent > 0 && ent <= MAX_SCOREBOARD && avatars[ent].valid ? &avatars[ent] : nullptr;
 }
 
+const view::ViewEntity* drawnWeapon(int ent, int hand)
+{
+    if(!of(ent) || hand < 0 || hand > 1)
+    {
+        return nullptr;
+    }
+    const Drawn& d = drawn.of[ent];
+    const view::ViewEntity& w = d.weapon[hand];
+    return d.frame >= host_framecount - 1 && w.visible && w.ent.model ? &w : nullptr;
+}
+
 // Player `e`'s copy as set up this frame (setup) into the drawn entities: his hands, weapons, holsters, pauldrons, plates
 // and body, the body in `replace`'s place in the list (his player model, or his dead body's: it would stand round it).
 void addDrawn(int e, const entity_t* replace)
@@ -1460,6 +1489,10 @@ void addDrawn(int e, const entity_t* replace)
     }
     add(d.lamp);
     for(view::ViewEntity& ve : d.gear)
+    {
+        add(ve);
+    }
+    for(view::ViewEntity& ve : d.pouchItem)
     {
         add(ve);
     }

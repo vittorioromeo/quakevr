@@ -6088,3 +6088,25 @@ navmesh", and "do bots use the navmesh? If not, should they?" (NAVMESH.md 22 and
 - Checks: `mp_test.py syncaudit` (B VR and `--flat B`) has per-row checks now: quad's glow and hand lights, the ring's
   fade (on the models A draws), the five gear models at idle, a coop bot's sheaths. Results: MP_PLAN.md's audit table.
 
+## syncfix2: batch 2's rest, batch 3's flash and casings, test runs off the internet (syncfix2, 2026-11-21, `agent/syncfix`)
+
+- Batch 2's rest: the rounds in another player's ammo pouch (the server's .vr_pouch_kind/.vr_pouch_count in the avatar's
+  gear, +2 B while the pouch is drawn; posed in his copy's pouch by `view::posePouchItems`, yours by the same code) and
+  his gadget screen's two lights (`gadget::otherGlow`: the pose back from his copy's gadget, your glow's lights, keys
+  -0x5C40.. per player). A bot's holsters: syncaudit now takes A's screenshots of the bot from four sides
+  (`A_bot_holsters_from_*.png`); the bot walks, so 2 of 4 were taken and it stood off centre: no judgement from them.
+- Batch 3: another player's shot (QVR_SVC_FIRED, broadcast already) draws your flash model at his copy's gun
+  (weaponfx's enemy flashes, `hand` >= 0) and its sparks and smoke (`gunfx::otherFired`); his casings come from the QC's
+  eject also sent to the others who see him (QVR_SVC_EJECTOTHER, 8 B a shot each, reliable), thrown out of his copy's
+  gun by `shells::ejectFrom` (none of your hand's own state: auto pump timing, flick, broken-open barrels, the revolver's
+  crane). Still a gap: the two lights the audit took for the flash are his ammo screen's light (r20) and his barrel's
+  heat glow (r30), both from his own hands' state.
+- Test runs and the internet: `Download_OffhostRefused` (host_cmd.c) is -loopbackonly's fence before a fetch starts:
+  the map index's start-up pass reads its cache only ("started (its cache only: ..."), Slipseer and the update check
+  never go out, the add-on list is off; asked for (maps_fetch, vr_update_check_now, -addons <url>, a server's package
+  not in the index) each prints its "NET SAFETY: refused ..." line. The start-up passes stay quiet: a NET SAFETY line
+  fails every harness run. `mp_test.py netsafe` checks all four (14/0).
+- Checks: syncaudit (B VR) 25/0 (new rows: the pouch's rounds, the gadget's glow and beam, his casings); netsafe 14/0;
+  Dev build 0 warnings. Not done (budget): batch 4 (wounds), batch 5 (mantle grunt, slide sound, the auto pump),
+  `syncaudit --flat B`, the ThinLTO build, scenario_check and the single-player tests for what this touched.
+

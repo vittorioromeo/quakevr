@@ -16,6 +16,8 @@ namespace qvr::shells
 
 // QVR_SVC_EJECT: casings out of a hand's weapon, now or after a delay.
 void parseEject();
+// QVR_SVC_EJECTOTHER: another player's casings out of his copy's weapon (syncfix2: mpavatar::drawnWeapon).
+void parseEjectOther();
 
 // Once per frame, from the view setup: follows the weapons' ejection ports (their speed goes
 // into the casings), throws out what is due, moves the casings and adds them to the scene.
