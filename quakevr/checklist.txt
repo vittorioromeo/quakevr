@@ -51,6 +51,8 @@ Quoth's e1m1quoth: from start's hub, the three ramp-room buttons open its door; 
 Quoth's kellbase1: press the three buttons; enforcers, then pyros, then eliminators arrive, and killing all 16 opens the exit lock and makes the plasma gun
 Quoth's lpqsp1: shoot the button by the vore trap; about 5 s later its secret door opens
 Quoth's metmon: each stage's switches unlock the next, and the fourth shuts down the portal sphere
+Quoth/AD ladders: climb kellbase1's pillar ladders up, over the top and back down onto them, with VR hands and in flat {test:ad_mod_ladder}
+kellbase1: come up from below into the top-doors corridor before clearing the arena: after 10 s the doors behind you reopen, so you are never stuck
 
 [3. Multiplayer and bots]
 Multiplayer: host and join a coop game over the room service and play a level together; voice, held weapons and melee look right on both sides
