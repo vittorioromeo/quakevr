@@ -3,6 +3,7 @@
 #include "vr_seat.hpp"
 
 #include "vr_engine.hpp"
+#include "vr_testkit.hpp"
 
 namespace qvr::seat
 {
@@ -22,11 +23,12 @@ struct Seats
 // it presses it lets go of. Verdict: "seat_test: N passed, M failed".
 void test_f()
 {
-    int passed = 0;
-    int failed = 0;
+    testkit::Tally tally;
     const auto check = [&](const bool ok, const char* what) {
-        ok ? ++passed : ++failed;
-        Con_Printf("seat_test: %s %s\n", ok ? "PASS" : "FAIL", what);
+        if(tally.check(ok, "seat_test", what))
+        {
+            Con_DPrintf("seat_test: PASS %s\n", what);
+        }
     };
     const auto run = [](const char* text) { Cmd_ExecuteString(text, src_command); };
     const auto held = [](const kbutton_t& b) { return (b.state & 1) != 0; };
@@ -68,7 +70,7 @@ void test_f()
     }
     run("-back 202");
     check(!held(s0.input.back) && CL_MoveButtonsHeld() == 0, "-back in seat 0: nothing held");
-    Con_Printf("seat_test: %d passed, %d failed\n", passed, failed);
+    tally.verdict("seat_test");
 }
 
 } // namespace
