@@ -329,9 +329,9 @@ constexpr float POUCH_X_DEFAULT = -7.f; // vr_cvars.inc: at it, the pouch on the
     return outOfTheTorso(standing, true, pos + fwd * (at - now));
 }
 
-// The ammo pouch (ammoPouchPosition): without the body, at the hips' height and X, between them (vr_ammo_pouch_x/y/z
-// from there); with it, on the belly's ring as a hip holster at its default X is (frontOfTheBody), X moving it on from
-// there (round the hips going back).
+// The ammo pouch (ammoPouchPosition): the old placement at the hips' height and X, between them (vr_ammo_pouch_x/y/z
+// from there), put on the belly's ring as a hip holster at its default X is (frontOfTheBody), X moving it on from there
+// (round the hips going back); the body drawn or not (vr_body_mode 0: the player's own belly is there).
 [[nodiscard]] glm::vec3 legacyAmmoPouchPosition(const hands::State& s)
 {
     return hands::bodyAnchor(s, {HIP_X_DEFAULT + vr_ammo_pouch_x.value, vr_ammo_pouch_y.value, vr_ammo_pouch_z.value}) +
@@ -597,12 +597,9 @@ glm::vec3 pouchPosition(const hands::State& s, HolsterPlate* plate)
     }
     const avatar::Follower follow{s};
     const hands::State standing = avatar::standing(s);
-    glm::vec3 pos = fitToBody(standing, legacyPouchPosition(standing), true);
-    if(vr_body_mode.value < 1.f)
-    {
-        return follow(avatar::Part::Pelvis, pos);
-    }
-    pos = pouchOnTheBody(standing, pos);
+    // On the body drawn or not (vr_body_mode 0 too): the old placement's point is in the player's own torso, which a real
+    // hand can't reach (his note 2026-11-21, "with vr_body_mode 0 I was not able to interact with the ammo pouch").
+    const glm::vec3 pos = pouchOnTheBody(standing, fitToBody(standing, legacyPouchPosition(standing), true));
     const glm::vec3 now = follow(avatar::Part::Pelvis, pos);
     if(plate)
     {
@@ -646,12 +643,8 @@ glm::vec3 ammoPouchPosition(const hands::State& s, HolsterPlate* plate)
     const avatar::Follower follow{s};
     const glm::vec3 crouched = crouchShift(s, -1, follow.crouchPose());
     const hands::State standing = avatar::standing(s);
-    glm::vec3 pos = fitToBody(standing, legacyAmmoPouchPosition(standing), true);
-    if(vr_body_mode.value < 1.f)
-    {
-        return follow(avatar::Part::Pelvis, pos) + crouched;
-    }
-    pos = ammoPouchOnTheBody(standing, pos);
+    // On the body drawn or not, as the grenade pouch (pouchPosition): without it, the old placement was in the belly.
+    glm::vec3 pos = ammoPouchOnTheBody(standing, fitToBody(standing, legacyAmmoPouchPosition(standing), true));
     if(view::playerArmourShown())
     {
         glm::vec3 fwd, right, up;
@@ -846,6 +839,17 @@ void crouchReport_f()
     }
     const glm::vec3 a = rel(ammoPouchPosition(s));
     Con_Printf("crouch holster pouch %.2f %.2f %.2f\n", a.x, a.y, a.z);
+    // How far out of the player's torso each piece of gear the hands reach for is, drawn body or not (the torso's ring
+    // there, as outOfTheTorso: 1 on its surface, under 1 inside the player, where a real hand can't go).
+    const hands::State st = avatar::standing(s);
+    const auto ring = [&](bool hipRing, const glm::vec3& p) {
+        const glm::vec2 r = torsoRing(torsoShape(), hipRing);
+        const float x = glm::dot(p - st.head, fwd) - torsoShape().axis, y = glm::dot(p - st.head, right);
+        return za::sqrt((x / r.x) * (x / r.x) + (y / r.y) * (y / r.y));
+    };
+    Con_Printf("gear ring: body %d lhip %.2f rhip %.2f lupper %.2f rupper %.2f ammo %.2f grenade %.2f\n",
+        static_cast<int>(vr_body_mode.value), ring(true, h[LeftHip]), ring(true, h[RightHip]), ring(false, h[LeftUpper]),
+        ring(false, h[RightUpper]), ring(true, ammoPouchPosition(s)), ring(true, pouchPosition(s)));
 }
 
 void updateHotspots(hands::State& s)
