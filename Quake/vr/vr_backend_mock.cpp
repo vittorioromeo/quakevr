@@ -1886,6 +1886,12 @@ public:
         return "mock";
     }
 
+    // vr_mock_eye_tracking: an eye tracker (its gaze vr_mock_gaze) or none offered, read live (the foveation's switch).
+    [[nodiscard]] EyeTracking eyeTracking() const override
+    {
+        return vr_mock_eye_tracking.value != 0.f ? EyeTracking::Ready : EyeTracking::NotOffered;
+    }
+
     // vr_mock_angvel_local stands for VirtualDesktopXR's angular velocity (vr_angvel_frame -1 starts from the name).
     [[nodiscard]] const char* runtimeName() const override
     {
@@ -2100,7 +2106,7 @@ public:
         }
         // vr_mock_gaze "right up" (degrees from the head's forward): a tracked gaze (vr_foveated_gaze).
         frame.gaze = Pose{};
-        if(vr_mock_gaze.string[0])
+        if(vr_mock_gaze.string[0] && vr_mock_eye_tracking.value != 0.f)
         {
             char* end = nullptr;
             const float right = strtof(vr_mock_gaze.string, &end);

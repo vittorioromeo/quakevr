@@ -2,6 +2,7 @@
 // for the build's speed); what they share is in vr_menu_internal.hpp.
 
 #include "vr_flatplay.hpp"
+#include "vr_foveated.hpp"
 #include "vr_menu_internal.hpp"
 #include "vr_cvars.hpp"
 

@@ -353,21 +353,9 @@ constexpr float breathRate = 1.6f; // rad/s
 constexpr float breathUp = 0.2f;
 constexpr float breathSide = 0.1f;
 
-// The slide's turn of the body (poseHands): its eased share (no stance turn, the hips and legs to the slide's way), the
-// slide's way (degrees, kept from the last frame it was moving) and the chest's turn back to the view (trunkTwist).
-struct SlideTurn
-{
-    float lin{0.f};
-    float yaw{0.f};
-    float twist{0.f};
-    // The hips' yaw eased after where they are asked to face (vr_flat_slide_turn_smooth): its lag behind it (degrees) and
-    // the lag's rate, a critically damped spring; `easing` while a slide's share holds it.
-    float lag{0.f};
-    float lagRate{0.f};
-    float yaw0{0.f}; // the eased yaw last frame
-    bool easing{false};
-};
-SlideTurn slideTurn;
+// The slide's turn of the body (poseHands; slide::LegsTurn, a headset's slide shares it): the chest's turn back to the
+// view is trunkTwist.
+slide::LegsTurn slideTurn;
 
 // Sliding: the walk's bob (the drawn view's, the hands', the body's ride) times this, vr_flat_slide_bob of it at a full
 // slide pose (no walk: the feet stayed on the floor while the body bobbed through it).
@@ -3259,71 +3247,8 @@ void poseHands(hands::State& s, const glm::vec3& aim)
     // Sliding (vr_flatmove.cpp; his words 2026-11-08): no stance turn (the leant-back trunk turned off the view bent the
     // legs), eased out over vr_flat_slide_turn_time; and with vr_flat_slide_legs the hips and legs face the slide's way,
     // the chest turned back to the view (trunkTwist), at most vr_flat_slide_legs_twist off it.
-    {
-        SlideTurn& t = slideTurn;
-        const bool slide = flatmove::slidePose();
-        if(dt > 0.0)
-        {
-            const float step = static_cast<float>(dt) / za::clamp(vr_flat_slide_turn_time.value, 0.02f, 1.f);
-            t.lin += za::clamp((slide ? 1.f : 0.f) - t.lin, -step, step);
-        }
-        const glm::vec2 vel{cl.velocity[0], cl.velocity[1]};
-        // (Taken once a frame, with the easing's step: the frame's later poses had the server's newer velocity, and its
-        // change went into the body past the easing below -- a step of 11 degrees in a frame sliding sideways.)
-        if(slide && glm::length(vel) > 60.f && (dt > 0.0 || !t.easing))
-        {
-            t.yaw = geom::yawOf(glm::vec3{vel, 0.f});
-        }
-        const float share = geom::smooth01(t.lin);
-        float off = 0.f;
-        if(vr_flat_slide_legs.value != 0.f && share > 0.f)
-        {
-            off = geom::yawDelta(t.yaw, aim.y);
-            const float most = za::clamp(vr_flat_slide_legs_twist.value, 0.f, 90.f);
-            // Sliding away from the view (his note 2026-11-10: "Sliding backwards or diagonally backwards while looking
-            // ahead looks a bit jittery/funky -- the legs should still stay in front"): the legs come back to the view
-            // as the slide's way goes past vr_flat_slide_back_start off it, all of the way by vr_flat_slide_back_full
-            // (on the back, the legs out in front, as a forward slide). Straight back the way's side flipped with every
-            // twitch of the view, and the hips swung from one most twist to the other.
-            const float backStart = za::clamp(vr_flat_slide_back_start.value, 0.f, 180.f);
-            const float backFull = za::clamp(vr_flat_slide_back_full.value, backStart, 180.f);
-            const float back = geom::smoothstep(backStart, backFull, za::fabs(off), 0.01f);
-            off = za::clamp(off, -most, most) * (1.f - back) * share;
-        }
-        // The hips eased after it (his note 2026-11-08: the body turned in abrupt steps sliding): the slide's way follows the
-        // velocity, which steps with the server's frames and the steering, and a look past the twist's limit drags them
-        // round at once. The lag fades with the slide's share; the chest stays on the view (the twist takes the lag too).
-        const float want = aim.y + flatsight::stanceYaw() * (1.f - share) + off;
-        const float smooth = za::clamp(vr_flat_slide_turn_smooth.value, 0.f, 1.f);
-        if(share > 0.f && smooth > 0.f)
-        {
-            if(!t.easing)
-            {
-                t.easing = true;
-                t.lag = t.lagRate = 0.f;
-                t.yaw0 = want;
-            }
-            else if(dt > 0.0)
-            {
-                const float step = static_cast<float>(dt);
-                const float omega = 4.74f / za::max(0.02f, smooth); // (95% of a step in `smooth`: vr_avatar_pitch.cpp's easePitch)
-                const float x = za::clamp(geom::yawDelta(t.yaw0, want), -120.f, 120.f);
-                const float temp = (t.lagRate + omega * x) * step;
-                const float decay = za::exp(-omega * step);
-                t.lagRate = (t.lagRate - omega * temp) * decay;
-                t.lag = (x + temp) * decay;
-                t.yaw0 = want + t.lag;
-            }
-        }
-        else
-        {
-            t.easing = false;
-            t.lag = t.lagRate = 0.f;
-        }
-        const float lag = t.lag * share;
-        t.twist = -(off + lag);
-        s.bodyYaw = want + lag;
-    }
+    s.bodyYaw = slide::legsTurnStep(slideTurn, flatmove::slidePose(), vr_flat_slide_legs.value != 0.f, aim.y,
+        flatsight::stanceYaw(), glm::vec2{cl.velocity[0], cl.velocity[1]}, dt);
 
     const float reach = za::clamp(vr_flat_reach.value, 0.25f, 3.f);
 
