@@ -528,21 +528,39 @@ player's copy put its head at the head the flat player sends, which the neck's t
 eye. Seen from outside -- another flat-screen player's copy (`vr_mpavatar.cpp`), and the local body while the third-person
 camera stands away from the eyes or the orbit aid is on (`localSeenFromOutside`) -- `avatar::solveTorso` now:
 
-- puts the drawn eyes at the eye at every look: the head turns with the look about the eye (the copy's eye is the head he
-  sends turned about the neck, `flatplay::neckTurn`, with this game's `vr_flat_eye_*`), and the local body's own crouch
-  and look offsets (`crouchNeck`, `headLean`: the eye view's) are left out;
+- puts the drawn eyes at the eye at every look: the head turns with the look about the eye. The copy's eye is the head he
+  sends carried as his own view carries it (`flatplay::seenEyeShift`: the neck's turn and the chest's share of the look,
+  with this game's `vr_flat_eye_*` and `vr_flat_chest_*`; not the melee's lean, which it doesn't know). The local body's is
+  the eye the crosshair's ray and the sights are solved from (`flatplay::crosshairRay`: seen from outside that is the head
+  itself, the neck's turn not added -- adding it stood the drawn eyes 4.7 behind and under the eye at 40 up, the orbit
+  view's "head 5.7 under the eye"); its own crouch and look offsets (`crouchNeck`, `headLean`: the eye view's) are left out;
 - on the sights (`seenAds`: the gun's sight line within 14 degrees of the look, the eye within 3 units of the line, the
   rear sight up to 22 ahead; eased out by 25 degrees, 7 units, 30 ahead, so the ironsight's travel takes it there and
-  back), stands the head behind the rear sight on the line, looking along it, tilted onto the stock by
-  **Seen: Cheek Tilt** (`vr_flat_seen_cheek_roll`, 14 degrees) with its middle **Seen: Head Off The Sights**
+  back), keeps the head at the eye (which the ironsight stood behind the rear sight; not snapped onto the line, which a
+  gun held up to 3 off the eye's line took the drawn eyes away from his), looking along the sights, tilted onto the stock
+  by **Seen: Cheek Tilt** (`vr_flat_seen_cheek_roll`, 14 degrees) with its middle **Seen: Head Off The Sights**
   (`vr_flat_seen_cheek_side`, 1.2 units) away from the gun, and pitches the chest by **Seen: Chest With The Look**
-  (`vr_flat_seen_chest`, 0.4) of the look; **Seen: Cheek On The Stock** (`vr_flat_seen_ads`, 1) turns it off. Debug >
-  Tunables. A headset player's body is never posed so; the first-person view, the sights and the hands are untouched.
+  (`vr_flat_seen_chest`, 0.4) of the look;
+- on the sights, holds the gun from below (**Seen: Elbows Under The Gun**, `vr_flat_seen_elbows`, 1: its share): each
+  arm's elbow is solved off the sight line's down, the gun hand's out at its side (0.8 of it) and a little back, the other
+  under the fore-end (0.25 out), in place of the arm's own pole (the chest's: looking down the tuck's back turned up past
+  the head, the spread's wings stood level with the face) and with the wrist's ease kept off it, so no forearm crosses the
+  face and no elbow rises past the head at any look, standing, crouched or sliding. The hands stay where he holds them
+  (the support hand on the hotspot, as the stance's look puts it).
 
-Reports: `vr_mp_avatars`' `mp_body` lines carry `headeye=` (the drawn head's eyes), a flat client's `mp_adspose_own:`
-(the eye, the rear sight, the travel, the weapon) and `mp_adspose_head:` (the drawn head's top and lowest point against
-the eye). `mp_test.py adspose` measures every weapon with a sight line standing, crouched and looking up and down, with a
-screenshot from the other player's side.
+**Seen: Cheek On The Stock** (`vr_flat_seen_ads`, 1) at 0 turns all of it off: the body drawn as his eye view poses it,
+as before (the before shots). Debug > Tunables. A headset player's body is never posed so; the first-person view, the
+sights and the hands are untouched.
+
+Not shared with the armed humanoids' arms (`vr_agarms.cpp`): theirs is a sampled solve over the monster model's own rig
+(its rest joints, cone limits, body proxies, level of detail), the avatar's a two-bone solve with poles on the player
+body's skeleton; what carries over is the rule (the elbows down, out and a little back: `elbowPref`), not the code.
+
+Reports: `vr_mp_avatars`' `mp_body` lines carry `headeye=` (the drawn head's eyes) and `elbow0=` / `elbow1=`, a flat
+client's `mp_adspose_own:` (the eye, the rear sight, the travel, the weapon) and `mp_adspose_head:` (the drawn head's
+top and lowest point against the eye). `mp_test.py adspose` measures every weapon with a sight line standing, crouched
+and sliding (a slow slide: the rules it sets), each looking level, 40 up and 40 down, with a screenshot from the other
+player's side and from in front, aimed at the head; `MP_ADSPOSE_SEEN=0` takes the before shots.
 
 ## The ironsight, and the free hand's grip
 

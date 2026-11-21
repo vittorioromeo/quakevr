@@ -86,7 +86,8 @@ The guide: [MULTIPLAYER.md](MULTIPLAYER.md).
 - **Hardened against broken packets**: a malformed message from a player drops only him; a malformed one from a
   server ends that game with the reason instead of closing Quake VR (also a damaged demo in single player).
 - **A flat-screen player aiming down the sights looks the part** to others (and in the third-person camera): his head
-  at his eye behind the rear sight, the cheek on the stock, the chest following the gun up and down.
+  at his eye behind the rear sight, the cheek on the stock, the chest following the gun up and down, the arms holding
+  the gun from below (no forearm across the face), standing, crouched or sliding.
 
 **Single player only**: time scale and bullet time, saving at will (the host's level-start coop autosave instead),
 the crates Quake VR places about maps, Dimension of the Past and Dimension of the Machine.
