@@ -1497,6 +1497,7 @@ void() PutClientInServer =
     AD_UpgradesToWeapons(self); // AD support: an older game's upgrades (the player's) onto his weapons (vr_ad_bridge.qc)
     VR_Toolgun_SpawnInHolster(); // vr_debug_spawn_toolgun (vr_toolgun.qc)
     SpawnAllAmmoBoxWeapons(self);
+    CU_PlayerSpawnedAt(spot); // Copper's rules: its spawn point's targets (vr_copper_bridge.qc)
 };
 
 // The map's first PutClientInServer (`p`, the first player in coop; not a loaded game's: none): each ammo box's weapon

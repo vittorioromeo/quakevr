@@ -1015,6 +1015,10 @@ za::Vector<Item> pageDebugReports()
         command("Official Campaign Status", "vr_campaign_status").help("Owned data and language readiness; active native campaign context."),
         command("Dopa Finale Text", "loc_probe $map_dopa_endtext_final").help("Preview the resolved completion text. loc_probe <key> [arguments] also checks formatted expansion strings."),
         command("Campaign File Sources", "vr_campaign_probe").help("Actual resolved sources for VR progs and colliding official maps; vr_campaign_probe <filename> checks any virtual file."),
+        command("Music File", "vr_music_which")
+            .help("vr_music_which [track]: the file a CD track plays from (the map's own track by default) and the folder it "
+                  "comes from: the active campaign's, Quake's, a mod's or a map package's (never another campaign's mounted "
+                  "for its models and sounds, Dwell's or Quoth's)."),
         command("Mission Pack Status", "vr_pack_status")
             .help("Prints whether Hipnotic and Rogue are available, missing or incomplete/corrupt. Both are optional for the Quake campaign."),
         command("Headset", "vr_status").help("vr_status: the backend, the eyes' sizes, the hidden area, the head's and hands' poses."),
@@ -1078,6 +1082,9 @@ za::Vector<Item> pageDebugReports()
         command("Cut the Nearest Monster's Arm Off", "vr_test_cut 1").help("vr_test_cut 1: the same at its left arm: his right hand to the stump."),
         command("Cut Both Its Legs Off", "vr_test_cut 5").help("vr_test_cut 5: the same at both legs: he crawls on his arms."),
         command("Ragdolls", "vr_ragdoll_list 2").help("vr_ragdoll_list [1|2]: each ragdoll (how long limp, its parts awake, where it lies; with 1 each part's mass, place and speed and the hands holding it; with 2 also how far its flames are from its limbs), and Box3D's bodies (Gibs and Corpses > Ragdoll Settings)."),
+        command("Dwell Brute's Spanning Triangles", "vr_ragdoll_rig_spans progs/e2/mon_brute.mdl")
+            .help("vr_ragdoll_rig_spans <model> [max]: a rig's triangles whose corners lie on bones not joined to each "
+                  "other (they stretch across the ragdoll as its limbs part), each one's vertices and bones, and how many."),
         command("Every Ragdoll Rig", "vr_ragdoll_rig_sweep").help("vr_ragdoll_rig_sweep: every monster model with a ragdoll table in the loaded game folders (Arcane Dimensions' with -game ad), its rig derived: how many rigged, and why any did not (\"bone ... got 0 vertices\")."),
         command("Grunt's Ragdoll Rig", "vr_ragdoll_info").help("vr_ragdoll_info [model]: the rig derived from the grunt's animation: each bone's vertices, joint, pivot and limits, how well the bones fit the frames."),
         command("Smooth Animation Check", "vr_anim_smooth_check").help("vr_anim_smooth_check [model ...]: each rigged monster's frames drawn as Model Animation Smooth draws them (r_lerpmodels 3): the weights at the frames (exact), how near a frame the shape is just off it, how far mid-frame it is from Quake's blend, and how much limbs turning 30 degrees or more shrink mid-frame (Quake's blend, the spline, with the swung limbs)."),

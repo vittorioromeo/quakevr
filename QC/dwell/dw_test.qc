@@ -466,6 +466,285 @@ void(entity p, float xRequest) DW_ModelsTest =
     bprint(sprintf("dwmodels: %s in the main hand\n", DW_VariantName(DW_VariantFor(wid))));
 };
 
+// vr_ad_test 213 (his notes 2026-11-21): Dwell's map pickups taken by the body's touch (weapon_touch: they asserted on
+// their classnames and were removed), and the toolgun's Dwell weapons and bloody shotguns laid as props (not floating
+// pickups), with their variant or bloody bit, a bloody one's taken by the hand. "dwpickup: N passed, M failed"; the
+// script fails on any "Assertion failure".
+entity(entity p, string xClass, void() xSpawn) DW_PickupTest_Make =
+{
+    entity os = self;
+    makevectors('0 1 0' * p.angles_y);
+    self = spawn();
+    self.classname = xClass;
+    setorigin(self, p.origin + v_forward * 64 + '0 0 16');
+    vr_grab_made = world;
+    xSpawn();
+    entity e = self;
+    self = os;
+    return e;
+};
+
+void(entity p) DW_PickupTest =
+{
+    VR_Test_BeginFlags("dwpickup", VR_TEST_LOUD);
+    entity os = self;
+    self = p;
+    VRGiveEntWeapon(p, cVR_MainHand, WID_FIST, 0, 0);
+    VRGiveEntWeapon(p, cVR_OffHand, WID_FIST, 0, 0);
+    self = os;
+    float touching = p.touchinghand;
+    p.touchinghand = cVR_FakeHand; // (the body's touch: the first free hand)
+    entity pk = DW_PickupTest_Make(p, "weapon_rifle", dw_weapon_rifle);
+    self = pk; other = p; weapon_touch(); self = os;
+    VR_Test_Check(pk.model == "" && p.weapon == WID_SHOTGUN && p.weaponinst.wi_dwvar == DW_VAR_RIFLE,
+        sprintf("the map's Rifle taken: weapon %g variant %g, pickup %s", p.weapon, p.weaponinst.wi_dwvar,
+        pk.model == "" ? "gone" : "still there"));
+    pk = DW_PickupTest_Make(p, "weapon_railgun", dw_weapon_railgun);
+    self = pk; other = p; weapon_touch(); self = os;
+    VR_Test_Check(pk.model == "" && p.weapon2 == WID_LIGHTNING && p.weaponinst2.wi_dwvar == DW_VAR_LANCE,
+        sprintf("the map's Crystal Lance taken: off hand weapon %g variant %g", p.weapon2, p.weaponinst2.wi_dwvar));
+    p.touchinghand = touching;
+
+    float k;
+    for(k = 0; k < 3; k++)
+    {
+        float wid = k == 0 ? WID_SUPER_SHOTGUN : k == 1 ? WID_LIGHTNING : WID_SHOTGUN;
+        float vr = k == 0 ? DW_VAR_ROTARY : k == 1 ? DW_VAR_LANCE : DW_VAR_RIFLE;
+        DW_PickupTest_Make(p, "toolgun", k == 0 ? toolgun_dw_rotary : k == 1 ? toolgun_dw_lance : toolgun_dw_rifle);
+        entity w = vr_grab_made;
+        VR_Test_Check(w != world && w.classname == "thrown_weapon" && w.weapon == wid && w.weaponinst.wi_dwvar == vr &&
+            w.model == DW_VRModelOf(wid), sprintf("the toolgun's %s laid as a prop: %s, weapon %g variant %g, model %s",
+            DW_VariantName(vr), w.classname, w.weapon, w.weaponinst.wi_dwvar, w.model));
+        if(k == 0 && w != world)
+        {
+            VR_Test_Check(w.weaponinst.wi_clip == VR_ClipSizeOf(WID_SUPER_SHOTGUN, w.weaponinst),
+                sprintf("the toolgun's Rotary Shotgun comes loaded: %g", w.weaponinst.wi_clip));
+        }
+    }
+
+    float bits = MG3_BloodyBits();
+    MG3_SetBloodyBits(0);
+    for(k = 0; k < 2; k++)
+    {
+        DW_PickupTest_Make(p, "toolgun", k == 0 ? toolgun_bloody_sg : toolgun_bloody_ssg);
+        entity b = vr_grab_made;
+        float bwid = k == 0 ? WID_SHOTGUN : WID_SUPER_SHOTGUN;
+        float bit = k == 0 ? MG3_BLOODY_SG : MG3_BLOODY_SSG;
+        VR_Test_Check(b != world && b.classname == "thrown_weapon" && b.weapon == bwid && b.vr_bloody_bit == bit &&
+            b.model == WeaponIdToModel(bwid, 0), sprintf("the toolgun's %s laid as a prop: %s, weapon %g, bit %g, model %s",
+            b.netname, b.classname, b.weapon, b.vr_bloody_bit, b.model));
+        if(b == world) { continue; }
+        float hand = k == 0 ? cVR_MainHand : cVR_OffHand;
+        self = p;
+        VRGiveEntWeapon(p, hand, WID_FIST, 0, 0);
+        self = os;
+        float shells = p.ammo_shells;
+        float* wp = VRGetEntWeaponPtr(p, hand);
+        float* fp = VRGetEntWeaponFlagsPtr(p, hand);
+        wpnthrow_handtouch_impl(hand, b, p, wp, fp);
+        self = os;
+        VR_Test_Check(VRGetEntWeapon(p, hand) == bwid && (MG3_BloodyBits() & bit) && p.ammo_shells > shells,
+            sprintf("taken: the hand holds %g, bloody bits %g, shells %g -> %g", VRGetEntWeapon(p, hand), MG3_BloodyBits(),
+            shells, p.ammo_shells));
+    }
+    MG3_SetBloodyBits(bits);
+    VR_Test_Verdict();
+};
+
+// vr_ad_test 214 (Dwell's start, his note 2026-11-21: two runes placed, the gates looked open, walking through teleported
+// nowhere): the spawn point's targets fired (start1_targets unlocks the pedestals' relays: Copper's PutClientInServer),
+// both working pedestals touched by the player, then (once the relays' 2 s delay has passed: the walls toggled) each
+// episode's corridor walkable from the portal sheet to its teleporter (the player's hull traced), and its teleporter
+// taking the player to its tunnel. "dwgate: N passed, M failed"; gives up after 10 s.
+float dw_gt_until;
+entity(string xField, string xValue, string xClass) DW_GateTest_Find =
+{
+    entity e = world;
+    while((e = find(e, classname, xClass)))
+    {
+        if((xField == "target" ? e.target : e.targetname) == xValue) { return e; }
+    }
+    return world;
+};
+
+void() DW_GateTest_Think =
+{
+    entity p = self.owner;
+    entity w1 = DW_GateTest_Find("targetname", "ep1_fakewall", "func_wall");
+    entity w2 = DW_GateTest_Find("targetname", "ep2_fakewall", "func_wall");
+    // (gone: not solid, its model and its solid stand-in, Copper's "buddy", gone: cu_bmodel_vanish)
+    float open = w1 && w2 && w1.solid == SOLID_NOT && w2.solid == SOLID_NOT && !w1.modelindex && !w2.modelindex &&
+                 !w1.cu_buddy && !w2.cu_buddy;
+    if(!open && time < dw_gt_until)
+    {
+        self.nextthink = time + 0.1;
+        return;
+    }
+    VR_Test_Check(open, sprintf("the corridors' walls toggled away (solid %g, %g)", w1.solid, w2.solid));
+    float k;
+    for(k = 1; k <= 2; k++)
+    {
+        string dest = k == 1 ? "ep1_tunneltele" : "ep2_tunneltele";
+        entity t = DW_GateTest_Find("target", dest, "trigger_teleport");
+        entity sheet = DW_GateTest_Find("targetname", k == 1 ? "ep1_portal" : "ep2_portal", "func_fade");
+        entity d = find(world, targetname, dest);
+        if(!t || !sheet || !d)
+        {
+            VR_Test_Check(FALSE, sprintf("episode %g's teleporter, portal sheet and destination found", k));
+            continue;
+        }
+        vector mid = (t.absmin + t.absmax) * 0.5;
+        vector from = (sheet.absmin + sheet.absmax) * 0.5;
+        from_z = mid_z = t.absmin_z + 24 + 2; // (standing height: the hull's bottom on the floor)
+        tracebox(from, VEC_HULL_MIN, VEC_HULL_MAX, mid, FALSE, p);
+        VR_Test_Check(trace_fraction >= 1 || trace_ent == t, sprintf("episode %g: walkable from the portal to its "
+            "teleporter (%v to %v: blocked at %v by '%s', its owner '%s')", k, from, mid, trace_endpos,
+            trace_ent.classname, trace_ent.owner.classname));
+        VR_Test_Check(!(t.cu_customflags & cu_CFL_LOCKED), sprintf("episode %g's teleporter unlocked", k));
+        setorigin(p, mid);
+        p.velocity = '0 0 0';
+        entity os = self;
+        self = t; other = p;
+        t.touch();
+        self = os;
+        VR_Test_Check(vlen(p.origin - d.origin) < 64, sprintf("episode %g's teleporter took the player to %v (%v)", k,
+            d.origin, p.origin));
+    }
+    VR_Test_Verdict();
+    remove(self);
+};
+
+void(entity p) DW_GateTest =
+{
+    VR_Test_BeginFlags("dwgate", VR_TEST_LOUD);
+    entity r1 = DW_GateTest_Find("targetname", "rune1_set", "trigger_relay");
+    entity r2 = DW_GateTest_Find("targetname", "rune2_set", "trigger_relay");
+    VR_Test_Check(r1 && r2 && !(r1.cu_customflags & cu_CFL_LOCKED) && !(r2.cu_customflags & cu_CFL_LOCKED),
+        "the pedestals' relays unlocked by the spawn point's targets (start1_targets)");
+    float k;
+    for(k = 1; k <= 2; k++)
+    {
+        entity ped = DW_GateTest_Find("target", k == 1 ? "rune1_set" : "rune2_set", "trigger_once");
+        VR_Test_Check(ped != world, sprintf("rune %g's pedestal found", k));
+        if(!ped) { continue; }
+        entity os = self;
+        self = ped; other = p;
+        ped.touch();
+        self = os;
+    }
+    dw_gt_until = time + 10;
+    entity t = spawn();
+    t.classname = "dw_gatetest";
+    t.owner = p;
+    t.think = DW_GateTest_Think;
+    t.nextthink = time + 0.1;
+};
+
+// vr_ad_test 215 (his note 2026-11-21: the Kamikaze burst at once, without chasing him, and with no explosion drawn): one
+// made up to 500 units away down the clearest line, facing the player (not notarget); it must wake, run at him and burst
+// near him, its explosion drawn (DW_Boom). "dwkami: N passed, M failed"; gives up after 15 s.
+entity dw_kt_kami;
+float dw_kt_born, dw_kt_booms, dw_kt_last, dw_kt_far;
+void() DW_KamiTest_Think =
+{
+    entity p = self.owner;
+    entity k = dw_kt_kami;
+    // (alive until its death: dw_kami_die takes its damage away; freed, an entity keeps its classname)
+    if(k.classname == "monster_kamikaze" && k.takedamage != DAMAGE_NO && time < dw_kt_born + 15)
+    {
+        dw_kt_last = vlen(VR_AI_Origin(p) - k.origin);
+        self.nextthink = time + 0.05;
+        return;
+    }
+    if(!self.cnt) // (dead: its burst follows 0.05 s later, dw_kami_die; the verdict 0.3 s on)
+    {
+        self.cnt = 1;
+        self.ltime = time;
+        self.nextthink = time + 0.3;
+        return;
+    }
+    VR_Test_Check(self.ltime >= dw_kt_born + 0.5, sprintf("it chased first: burst %.2f s after it was made, %g units away",
+        self.ltime - dw_kt_born, dw_kt_far));
+    VR_Test_Check(self.ltime < dw_kt_born + 15, "it burst within 15 s");
+    VR_Test_Check(dw_kt_last < 100, sprintf("it burst near the player: %.0f units from him", dw_kt_last));
+    VR_Test_Check(dw_boom_count > dw_kt_booms, sprintf("its explosion drawn (%g explosions)", dw_boom_count - dw_kt_booms));
+    VR_Test_Verdict();
+    remove(self);
+};
+
+void(entity p) DW_KamiTest =
+{
+    VR_Test_BeginFlags("dwkami", VR_TEST_LOUD);
+    float yaw, best = 0, bestYaw = 0;
+    for(yaw = 0; yaw < 360; yaw += 45)
+    {
+        tracebox(p.origin, '-16 -16 -24', '16 16 24', p.origin + DW_Yaw(yaw) * 600, TRUE, p);
+        if(trace_fraction * 600 > best) { best = trace_fraction * 600; bestYaw = yaw; }
+    }
+    dw_kt_far = min(500, best - 32);
+    VR_Test_Check(dw_kt_far >= 250, sprintf("room for the chase: %g units clear at yaw %g", best, bestYaw));
+    entity os = self;
+    self = spawn();
+    setorigin(self, p.origin + DW_Yaw(bestYaw) * dw_kt_far);
+    self.angles = '0 1 0' * (bestYaw + 180);
+    dw_monster_kamikaze();
+    dw_kt_kami = self;
+    self = os;
+    dw_kt_born = time;
+    dw_kt_booms = dw_boom_count;
+    dw_kt_last = dw_kt_far;
+    entity t = spawn();
+    t.classname = "dw_kamitest";
+    t.owner = p;
+    t.think = DW_KamiTest_Think;
+    t.nextthink = time + 0.5; // (its start, walkmonster_start's, has given it its damage by then)
+};
+
+// vr_ad_test 216 (d2end; his note 2026-11-21: stuck inside the Sculptor, moving with it): the map's Sculptor with its
+// fighting box and controller, the player put inside its box (60 units from its middle); its failsafe must put him just
+// outside, where he is free (his box clear of everything). "dwstuck: N passed, M failed"; gives up after 3 s.
+float dw_st_until;
+vector dw_st_from;
+void() DW_StuckTest_Think =
+{
+    entity p = self.owner;
+    entity b = self.enemy;
+    float inside = p.absmin_x < b.absmax_x && p.absmax_x > b.absmin_x && p.absmin_y < b.absmax_y &&
+                   p.absmax_y > b.absmin_y && p.absmin_z < b.absmax_z && p.absmax_z > b.absmin_z;
+    if(inside && time < dw_st_until)
+    {
+        self.nextthink = time + 0.05;
+        return;
+    }
+    VR_Test_Check(!inside, sprintf("the player put out of its box: at %v, its box %v to %v", p.origin, b.absmin, b.absmax));
+    tracebox(p.origin, p.mins, p.maxs, p.origin, FALSE, p);
+    VR_Test_Check(!trace_startsolid, sprintf("he is free there (in %s)", trace_ent.classname));
+    VR_Test_Check(vlen(p.origin - dw_st_from) < 240, sprintf("moved %.0f units: just outside it", vlen(p.origin - dw_st_from)));
+    VR_Test_Verdict();
+    remove(self);
+};
+
+void(entity p) DW_StuckTest =
+{
+    VR_Test_BeginFlags("dwstuck", VR_TEST_LOUD);
+    entity b = find(world, classname, "monster_d2boss");
+    VR_Test_Check(b != world, "the map's Sculptor found");
+    if(!b) { VR_Test_Verdict(); return; }
+    DW_D2_FightBox(b);
+    b.think = dw_d2_think;
+    b.nextthink = time + 0.1;
+    dw_st_from = b.origin + '60 0 0';
+    setorigin(p, dw_st_from);
+    p.velocity = '0 0 0';
+    dw_st_until = time + 3;
+    entity t = spawn();
+    t.classname = "dw_stucktest";
+    t.owner = p;
+    t.enemy = b;
+    t.think = DW_StuckTest_Think;
+    t.nextthink = time + 0.05;
+};
+
 void(entity p, float xRequest) DW_WeaponsTest =
 {
     if(xRequest >= 205 && xRequest <= 208)
