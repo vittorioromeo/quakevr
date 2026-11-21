@@ -77,6 +77,9 @@ Coop, as a client: throw a crate while ragdolls are moving nearby; it flies smoo
 Another player's shotgun clacks after his shot; his ammo screen glows and his barrel glows after a burst
 Another player's slide is heard from him, and his mantle grunt too
 A hit player's copy shows the wound (both arms share one); it clears when he respawns
+Flat-screen or VR: Kill a bot or player holding a dagger (hand or holster): the dropped prop is a dagger, guns keep their magazine.
+Flat-screen or VR: Host deathmatch, Select Campaign > Dwell: no error, players spawn at start's coop spots.
+Flat-screen or VR: A respawned player's old body still looks like him (his build, skin and gloves), not Quake's ranger.
 
 [4. Flat screen]
 Flat-screen: walk forward into the tutorial's rung ladder (lesson 3): your hands take the rungs and you climb hand over hand at a steady pace, and climb over the top onto the platform. {test:flat_ladder}
