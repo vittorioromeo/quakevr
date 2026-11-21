@@ -6716,3 +6716,21 @@ add the navmesh where it is smarter: a player spotted nearby, goals by need. Des
   the slide); mp_loss 16/0, B's link up walking at 10% loss 9525 B/s (bound 12288; mean 123 B a move). Dev build 0 warnings.
 - Not done (budget): mp_slide_vr, mp_climb (the grunt check), the plain suite, scenario_check, the single-player slide,
   auto pump and wound tests, the ThinLTO build; the hurt probe's missing wound event.
+
+## syncfix6: syncfix5 made shippable -- wounds on other players seen, the checks run (syncfix6, 2026-11-21, `agent/syncfix5`)
+
+- **The hurt probe's missing wound was the console command's, not the game's:** `vr_hurt` runs before the server frame,
+  whose `SV_ClearDatagram` dropped everything its T_Damage broadcast (the wound, the pain sound) before it was sent (the
+  hit record was fine: real damage comes inside the frame and was never affected). `server::commandBroadcastBegin/End`
+  (vr_server.cpp) now wrap its QuakeC run: sv.datagram emptied first (last frame's, sent already), what the run wrote
+  queued for the next frame (`queueBroadcast`, whole messages). The Debug menu's Take Damage paints your wound too now.
+- syncaudit's hurt row needs B's own wound (`no_gap(..., need_own=True)`: an empty probe fails, no longer passes):
+  VR B and `--flat B` both 30/0, `wounded:vrbody_bare.mdl` and `wounded:hand_rig.mdl` at B on himself and at A on his
+  copy, the pain sound now "both". Left: B's blood pour (`vr/gore/pour2.wav`) is his only (a local sound; one line).
+- Checks: mp_slide_vr 8/0, mp_climb 14/0 (the mantle grunt heard by the watcher, both ways), mp_test.py plain suite 66 of
+  67 (mp_ground 15/1, its known 'None' grip flake; 16/0 alone), mp_loss 16/0 twice, B's link up walking at 10% loss
+  10999 and 10012 B/s (bound 12288; 9525 in syncfix5: the loss's luck), scenario_check 150 run / 0 failed, vrslide 40/0,
+  flatslide 9/0 (+ lean 26/0), autopump 14/0, selfshot 34/0 (own wounds), Dev and ThinLTO builds 0 warnings.
+- hotblade_test.sh: 27 of 30, `holster`, `blade_parts` and `superaxe` fail **the same on origin/next's engine**
+  (checked: its Quake/ built and run): stale expectations (the hammer's part 2.8/7.0, verts 172/795; the crowbar's and
+  chainsaw's vertex counts; the holstered axe found lying), not syncfix5's.
