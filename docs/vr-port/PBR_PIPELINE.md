@@ -35,6 +35,8 @@ Download the archive from the release page, verify it with `Get-FileHash -Algori
 `scratch/pbrify172`. Models belong in `scratch/pbrify172/PBRify_Remix-1.7.2/Models`. No GUI is required.
 `--device cpu` also works; the recorded AD run used CUDA on an RTX 4090. ONNX exports are supported through an
 installed onnxruntime with explicit `--normal-sha256` and `--height-sha256` for the exported files.
+`Misc/quakevr/pbr_export_onnx.py` makes those exports (the installer's, for Dwell's and Quoth's reliefs made on the
+player's PC: Installer/README.md, "Reliefs for Dwell and Quoth") and checks this runner's parity with them.
 
 | Model | Verified SHA256 |
 | --- | --- |

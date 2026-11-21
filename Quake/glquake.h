@@ -525,6 +525,9 @@ void R_EntityMatrix (float matrix[16], vec3_t origin, vec3_t angles, unsigned ch
 int VR_DebugDrawnOn (void); // QVR: vr_debug_drawn_moves set: some models' drawn moves are logged (vr_stealth.cpp)
 void VR_DebugDrawnRestart (const entity_t *e, int moved); // QVR: a new move lerp starts (moved: its origin changed, not only its angles)
 void VR_DebugDrawnMove (const entity_t *e, const float *drawn); // QVR: where it is drawn this frame
+int VR_DebugLiftOn (void); // QVR: vr_debug_lift: riders sinking into a moving lift measured (vr_stealth.cpp)
+void VR_DebugLiftDrawn (const entity_t *e, const float *drawn); // QVR: a model drawn this frame, where (a monster on a lift)
+float VR_ViewLiftRise (float rise, float frametime); // QVR: V_CalcRefdef: the part of this frame's rise a lift carried (followed at once, not smoothed as a step; vr_view_lift_follow)
 float R_MoveLerpBlend (const entity_t *e);
 void R_MoveLerpStart (const entity_t *e, vec3_t origin, vec3_t angles); // QVR: where a move begun this frame starts from (where the last one is drawn)
 int VR_MoveLerpContinuous (void); // QVR: vr_monster_lerp_continue (vr_stealth.cpp) // QVR: how far along its move from previousorigin to currentorigin a stepping entity is drawn now

@@ -142,6 +142,7 @@ string(string s, float start, float length) substring = #116; // FRIK_FILE
 float(string s, float index) str2chr = #222;                  // FTE_STRINGS
 float(float y, float x) atan2 = #474;   // DP_QC_ASINACOSATANATAN2TAN, radians
 string(string fmt, ...) sprintf = #627; // DP_QC_SPRINTF
+string(string s, ...) strzone = #118;   // FRIK_FILE: a string kept past this frame (saved with the game)
 
 // ----------------------------------------------------------------------------
 // Quake VR builtins (#0: bound by name by the engine's VR module)
@@ -841,7 +842,7 @@ void(entity h, float hand, vector at, float beyond, float reeling, float shortes
 float(vector move) botmovethink = #0; // QVR: bot self's frame through the moves players' walks run (vr_pmove.cpp, vr_pmove_bots): its stick `move` (.movevect) as one move; 1: it walks through them this frame (botmovewalk), 0: FrikBot's own physics
 vector() botmovewalk = #0; // QVR: bot self's walk this frame (gravity, the walk or swim, the steps), linked with its touches -> how far short of its stick's want a wall held it ('0 0 0': not held)
 float(entity e) botcarryparms = #0; // QVR: bot e connecting (BotConnect, after SetNewParms): in coop, what a bot of its name had at the last level change (the leavers' rules, vr_coopsave.cpp) into the parm globals -> 1; 0: none kept
-float(entity e, vector target, float swingAt, float parry) botflatpose = #0; // QVR: bot e's hands posed by flat-screen play's code (vr_flatplay.cpp poseBot: one gun or two, aimed at target ('0 0 0': its view), its overhead swing begun at swingAt (0: none), its guard's share parry) into .handpos/.handrot, .offhandpos/.offhandrot -> its swing's phase: 0 none, 1 the windup, 2 the strike and after
+float(entity e, vector target, float swingAt, float parry, float windup) botflatpose = #0; // QVR: bot e's hands posed by flat-screen play's code (vr_flatplay.cpp poseBot: one gun or two, aimed at target ('0 0 0': its view), its overhead swing begun at swingAt (0: none) held raised windup s longer than a player's, its guard's share parry) into .handpos/.handrot, .offhandpos/.offhandrot -> its swing's phase: 0 none, 1 the windup, 2 the strike and after
 float QVR_SPLASH_SILENT = 0; // the caller plays its own sound
 float QVR_SPLASH_SHOT = 1;   // a small plip
 float QVR_SPLASH_THING = 2;  // a splash, small or big by strength
@@ -859,5 +860,6 @@ float(float gate, float what) portal_ai_gateinfo = #0;     // QVR: what 0 the ga
 float(entity monster, entity goal) navsteer = #0; // QVR: the yaw toward the next corner of its navmesh path to goal (vr_nav), -1: Quake's chase
 float(entity monster) navlink = #0; // QVR: what its last navsteer asks besides the yaw: 0 walk, 1 walk off the ledge (a drop link), 2 stand (waiting for or riding a lift, falling)
 float(entity monster, entity goal) navreach = #0; // QVR: 1 a whole navmesh path from the monster's feet to the goal's (vr_nav), 0 none, -1 no navmesh for it (yet)
+vector(entity bot, entity goal, float what) navbot = #0; // QVR: a bot's walk on the navmesh (vr_bot_navmesh, frikbot/bot_nav.qc): what 0 plan and steer -> the corner to walk to; 1 that step '<state 1 on, 2 building, 3 no path> <flags 1 walk, 2 hop, 4 arrived, 8 partial> <path left>'; 2 drop its plan; 3 probe '<1 whole, 0 none or partial, -1 building> <length> <corners>'
 float(float what) navobstacles = #0; // QVR: props as obstacles (vr_nav_props): 0 what is left to do (0: the navmesh current), 1 props blocking, 2 rebuild batches, 3 tiles rebuilt or given back, 4 the rebuilds' pool ms in all, 5 the worst batch's, 6 its worst main-thread ms
 vector(float gate, float what, vector p) portal_ai_gate = #0; // QVR: what 0 its face's middle, 1 its normal (into its room), 2 p held to its aperture, 3 p carried through

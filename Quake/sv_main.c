@@ -959,7 +959,7 @@ void SV_WriteEntitiesToClient (edict_t	*clent, sizebuf_t *msg)
 		if ( ent->v.angles[2] != ent->baseline.angles[2] )
 			bits |= U_ANGLE3;
 
-		if (ent->v.movetype == MOVETYPE_STEP)
+		if (ent->v.movetype == MOVETYPE_STEP && !VR_StepRidesLift (ent)) // QVR: on a moving lift: drawn as the lift is
 			bits |= U_STEP;	// don't mess up the step animation
 
 		if (ent->baseline.colormap != ent->v.colormap)

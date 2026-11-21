@@ -559,7 +559,8 @@ void() bot_path =
         {
             if(self.target1.classname != "temp_waypoint")
                 if(self.target1.classname != "player")
-                    bot_lost(self.target1, FALSE);
+                    if(self.target1.classname == "waypoint" || !BotNav_Take(self.target1, 2, 0)) // QVR: vr_bot_navmesh (b)
+                        bot_lost(self.target1, FALSE);
         }
 
         return;
@@ -1048,6 +1049,16 @@ void() BotAI =
         ClearMyRoute();
         self.target1 = self.target2 = self.target3 = self.target4 = self.enemy = world;
         self.last_way = world;
+        self.vr_botnav = self.vr_botnav_foe = world; // QVR (vr_bot_navmesh)
+        return;
+    }
+
+    // Quake VR: vr_bot_freeze (Debug > Logging > Freeze Bots; mp_test.py syncaudit's holster pictures): it stands
+    // still, nothing pressed or fired; its aim and route kept for when it plays again.
+    if(cvar_hget(cvarh_vr_bot_freeze))
+    {
+        self.button0 = self.button2 = 0;
+        self.keys = 0;
         return;
     }
 
@@ -1089,6 +1100,7 @@ void() BotAI =
 
     // target1 is like goalentity in normal Quake monster AI.
     // it's the bot's most immediate target
+    BotNav_Note(); // QVR: the player in sight noted (vr_bot_navmesh, bot_nav.qc)
     if(route_table == self)
     {
         if(busy_waypoints <= 0)
@@ -1100,6 +1112,10 @@ void() BotAI =
         }
         self.b_aiflags = 0;
         self.keys = 0;
+    }
+    else if(BotNav_Step())
+    {
+        // QVR: walked by the navmesh this frame (vr_bot_navmesh, bot_nav.qc)
     }
     else if(self.target1)
     {
@@ -1120,7 +1136,10 @@ void() BotAI =
             }
             else if(!begin_route())
             {
-                bot_look_for_crap(FALSE);
+                if(!BotNav_Look()) // QVR: no waypoint near: a goal the navmesh reaches (vr_bot_navmesh)
+                {
+                    bot_look_for_crap(FALSE);
+                }
                 self.keys = 0;
             }
         }

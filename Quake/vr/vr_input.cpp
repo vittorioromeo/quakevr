@@ -45,6 +45,7 @@
 #include "vr_arenacards.hpp"
 #include "vr_waveeditor.hpp"
 #include "vr_weaponstudio.hpp" // (its window pausing his own walking: VR_AdjustMove below)
+#include "vr_navfollow.hpp"   // (vr_nav_follow walks him: VR_AdjustMove below)
 #include "vr_flycam.hpp"       // (the flatscreen fly camera has his move keys too: VR_AdjustMove below)
 #include "vr_geom.hpp"
 #include "vr_slide.hpp"
@@ -168,6 +169,59 @@ void escape()
 }
 
 InputState previous; // last frame's input
+
+// A stick click's switch bouncing (vr_stick_click_debounce): a press within that many seconds of the click's letting go
+// (or of a bounce's) is swallowed whole, its letting go too, so the game, the menu gestures and every tool see one click
+// (his takes: let go, then 11-44 ms later a press of 11-33 ms; the sprint toggle switched twice, 2026-11-21). A press
+// still held past the window is a press then. Before everything else reads the buttons (update), live or a take's.
+struct ClickDebounce
+{
+    bool held{false};        // the click as passed on
+    bool bouncing{false};    // a press being swallowed
+    double releasedAt{-1e9}; // realtime the click (or its last bounce) let go
+    int bounces{0};          // swallowed so far (vr_debug_buttons, the test)
+    int presses{0};          // passed on so far (the test: its key, bound to +speed or the like)
+};
+ClickDebounce clickDebounce[HAND_COUNT];
+
+void debounceStickClicks(InputState& in)
+{
+    const double window = CLAMP(0.0, static_cast<double>(vr_stick_click_debounce.value), 0.25);
+    for(int h = 0; h < HAND_COUNT; h++)
+    {
+        ClickDebounce& d = clickDebounce[h];
+        const bool raw = in.hands[h].stickClick;
+        if(raw && !d.held)
+        {
+            if(realtime - d.releasedAt < window)
+            {
+                if(!d.bouncing)
+                {
+                    d.bounces++;
+                    if(vr_debug_buttons.value)
+                    {
+                        Con_Printf("button: %s stick click bounced %.0f ms after letting go (vr_stick_click_debounce): ignored\n",
+                            h == HAND_MAIN ? "main" : "off", (realtime - d.releasedAt) * 1000.0);
+                    }
+                }
+                d.bouncing = true;
+            }
+            else
+            {
+                d.held = true;
+                d.bouncing = false;
+                d.presses++;
+            }
+        }
+        else if(!raw && (d.held || d.bouncing))
+        {
+            d.held = false;
+            d.bouncing = false;
+            d.releasedAt = realtime;
+        }
+        in.hands[h].stickClick = d.held;
+    }
+}
 
 void menuButton(int hand, bool now, bool before, const char* source)
 {
@@ -555,13 +609,14 @@ void sprintToggleFrame(bool moving)
     }
 }
 
-// Run by double-tapping the moving stick (vr_move_doubletap; a tester's idea, 2026-11-18): a quick push (half its
+// The other speed by double-tapping the moving stick (vr_move_doubletap; a tester's idea, 2026-11-18): a quick push (half its
 // travel past the deadzone or more, let go within vr_move_doubletap_window seconds), let go (back under a quarter of
-// its travel, as moveHold's letting go), then a push the same way (within 45 degrees) within the window again: running
-// until the stick is let go again. A slow first push (walking), a long gap or a push another way is no double tap (the
+// its travel, as moveHold's letting go), then a push the same way (within 45 degrees) within the window again: the
+// Default Speed's other (running, or walking with Default Speed: Run; his ask, 2026-11-21) until the stick is let go
+// again. A slow first push (walking), a long gap or a push another way is no double tap (the
 // later push may begin one). It ends as the sprint toggle does too: at death, the intermission, a new map
-// (input::resetSprintToggle), a menu over the game, the setting's going off. It runs whatever the speed button says
-// (VR_AdjustMove: running is the speed button's choice or this); the stick's only, not keys or a gamepad. Its own
+// (input::resetSprintToggle), a menu over the game, the setting's going off. It wins over the speed button
+// (VR_AdjustMove: the Default Speed's other, whatever the button says); the stick's only, not keys or a gamepad. Its own
 // clock (the frames' times summed): the same at any frame rate.
 constexpr float doubleTapPush = 0.5f;      // a push: moveStick's length (0..1 past the deadzone) this much or more
 constexpr float doubleTapLetGo = 0.25f;    // let go: under this (moveHoldLeast)
@@ -786,8 +841,10 @@ void doubleTapTest_f()
     }
     if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "state"))
     {
-        Con_Printf("doubletap state %s: running %d phase %d speed %.0f\n", Cmd_Argc() > 2 ? Cmd_Argv(2) : "",
-            doubleTap.phase == DoubleTap::Running ? 1 : 0, static_cast<int>(doubleTap.phase), static_cast<double>(lastStickSpeed));
+        Con_Printf("doubletap state %s: running %d phase %d speed %.0f toggle %d presses %d bounces %d\n",
+            Cmd_Argc() > 2 ? Cmd_Argv(2) : "", doubleTap.phase == DoubleTap::Running ? 1 : 0,
+            static_cast<int>(doubleTap.phase), static_cast<double>(lastStickSpeed), sprintToggle.on ? 1 : 0, clickDebounce[HAND_OFF].presses,
+            clickDebounce[HAND_OFF].bounces + clickDebounce[HAND_MAIN].bounces);
         return;
     }
     const float window = vr_move_doubletap_window.value;
@@ -2188,7 +2245,8 @@ void update(const InputState& tracked)
 {
     // Without VR, everything is released (keys held when the session ends must come up).
     const bool active = vrActive();
-    const InputState& raw = active ? tracked : released;
+    InputState raw = active ? tracked : released;
+    debounceStickClicks(raw);
     // Doom on the wrist gadget with the focus takes the gadget hand's stick and buttons (its menu button stays Quake's):
     // Quake sees them let go meanwhile (vr_doom.hpp).
     InputState masked;
@@ -2344,9 +2402,18 @@ extern "C" void VR_AdjustMove(float* forwardmove, float* sidemove, float* upmove
     }
 
     const float m = glm::length(moveAxes);
-    // The speed button's choice (held or vr_sprint_toggle's switch, against the Default Speed), or a double tap's run.
-    const bool running = ((VR_SpeedButton(in_speed.state & 1) != 0) != (cl_alwaysrun.value != 0.f)) ||
-                         doubleTap.phase == DoubleTap::Running;
+    // vr_nav_follow (vr_navfollow.cpp): walked after another player along the navmesh, as his own keys would, till his
+    // own move, look or jump hands it back.
+    if(navfollow::clientMove(forwardmove, sidemove, upmove, m != 0.f))
+    {
+        lastStickSpeed = 0.f;
+        return;
+    }
+    // The speed button's choice (held or vr_sprint_toggle's switch, against the Default Speed); a double tap's, the
+    // Default Speed's other whatever the button says (his ask, 2026-11-21: with Default Speed: Run it walks).
+    const bool running = doubleTap.phase == DoubleTap::Running
+                             ? cl_alwaysrun.value == 0.f
+                             : (VR_SpeedButton(in_speed.state & 1) != 0) != (cl_alwaysrun.value != 0.f);
     const float threshold = CLAMP(0.1f, vr_move_autorun_threshold.value, 1.f);
     const float dt = CLAMP(0.f, static_cast<float>(host_frametime), 0.1f);
     autorunBlend = !autorunOn(running) || m == 0.f ? 0.f

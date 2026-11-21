@@ -51,8 +51,28 @@ struct Avatar
     glm::vec3 holdOut[2]{}; // ... and the way out from the face (horizontal, unit)
     VrDrawnHolsters holsters; // his holstered weapons as he drew them, from his entity's origin (B6b; no points)
     int armour{0};            // the armour he wears (gearByte: his pauldrons' colour)
+    bool sliding{false};      // the server has him sliding (gearByte's avatarGearSliding: his body's slide pose)
+    int powerups{0};          // his power-ups (gearByte's avatarGearQuad...: as IT_QUAD, IT_INVULNERABILITY, IT_SUIT, IT_INVISIBILITY)
+    // His guns as the server has them (MP_PLAN.md, "Held weapons' state"): each hand's look ([0] off, [1] main), each
+    // holstered weapon's flags (low byte) and clip; his torch as he drew it (from his entity's origin).
+    VrGunLook look[2];
+    za::U8 holsterFlags[VrDrawnHolsters::count]{};
+    za::U8 holsterClip[VrDrawnHolsters::count]{};
+    VrDrawnLamp lamp;
+    VrDrawnGear gear; // his worn gear as he drew it (syncfix), from his entity's origin; a bot's: placed here
 };
-// The server's gear byte for client entity `ent` (after the holsters): the armour he wears, 0 none .. 3 red.
+// The gear byte's slide bit (mpslide, 2026-11-20): the server's slide (slide::onServer, a flat-screen player's or a
+// headset's), so the others pose his body slid as he sees his own (the armour is the byte's low two bits).
+inline constexpr int avatarGearArmour = 3;
+// syncfix (2026-11-21): his power-ups, drawn on his copy as yours on you (view::powerupLookOf: the glow, its hand lights,
+// Quad's arcs, the ring's fade).
+inline constexpr int avatarGearQuad = 4;
+inline constexpr int avatarGearPent = 8;
+inline constexpr int avatarGearRing = 16;
+inline constexpr int avatarGearSuit = 32;
+inline constexpr int avatarGearSliding = 128;
+// The server's gear byte for client entity `ent` (after the holsters): the armour he wears, 0 none .. 3 red; his
+// power-ups; his slide.
 [[nodiscard]] int gearByte(const edict_t* ent);
 
 // vr_client.cpp's dispatch: QVR_SVC_AVATAR's body (after its sub-command byte).
@@ -64,6 +84,9 @@ void parse();
 
 // Player entity `ent`'s avatar (1..MAX_SCOREBOARD), or nullptr: none received.
 [[nodiscard]] const Avatar* of(int ent);
+// Player `ent`'s copy's weapon in `hand` as drawn this frame or the last (his shots' casings and flash, syncfix2), or
+// nullptr (no copy drawn, the hand empty).
+[[nodiscard]] const view::ViewEntity* drawnWeapon(int ent, int hand);
 
 // VR_AddMpAvatars (view.c, after the view's entities): each other player's hands and weapons in sight to cl_visedicts
 // (vr_mp_avatar_draw; multiplayer only).
@@ -85,6 +108,25 @@ void addEntities();
 // Player entity `ent`'s copy as drawn last (addEntities: his entity's drawn place and his hands' drawn places, B7's
 // interpolated ones), and the host frame it was set up in; false: not drawn yet. (vr_mp_trace: mp_loss.)
 [[nodiscard]] bool drawnPlaces(int ent, glm::vec3& body, glm::vec3 hands[2], int& frame);
+
+// The power-up glow's shader code on `e` if it is another player's copy's hand or body (view::powerupGlow), else 0.
+[[nodiscard]] float powerupGlow(const entity_t* e);
+
+// (bots4) Player entity `ent`'s weapon in hand `side` ([0] off, [1] main) as drawn last frame or this one: its butt and
+// muzzle, and the hand holding it. False: none drawn there. (A client's Show Disarm Volumes: vr_disarmviz.cpp.)
+[[nodiscard]] bool drawnWeapon(int ent, int side, glm::vec3& butt, glm::vec3& muzzle, glm::vec3& hand);
+
+// (bots4) Player entity `ent`'s copy was drawn last frame or this one (a client's Show Hit Zones: vr_hitmodel.cpp).
+[[nodiscard]] bool drawnNow(int ent);
+
+// (syncfix5) The models player entity `ent`'s copy is drawn with that his wounds are painted on (vr_wounds.cpp): `out` his
+// body and his two jointed hands ([1] off, [2] main; each null when not drawn), drawn last frame or this one; `doll` whether
+// they draw his dead body. False: no copy of him drawn now (`out` still his copy's three entities, for their masks).
+bool woundTargets(int ent, entity_t* out[3], bool& doll);
+
+// (syncfix5) The player (1..MAX_SCOREBOARD) whose copy's held weapon `e` is, its hand in `side`, else 0 (his hot barrel's
+// glow: vr_hotblade.cpp).
+[[nodiscard]] int weaponOwner(const entity_t* e, int& side);
 
 // A new connection: no avatars.
 void clear();

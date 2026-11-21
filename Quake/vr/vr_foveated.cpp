@@ -500,6 +500,36 @@ void precompilePrograms()
     }
 }
 
+const char* gazeStatus()
+{
+    if(vr_foveated.value == 0.f)
+    {
+        return "Foveation: off";
+    }
+    if(support == 0)
+    {
+        return "Foveation: needs an NVIDIA graphics card";
+    }
+    const Backend* const be = backend();
+    if(!be)
+    {
+        return "Foveation centre: shown in VR";
+    }
+    if(vr_foveated_gaze.value == 0.f)
+    {
+        return "Foveation centre: the lens centre (eye tracking off)";
+    }
+    switch(be->eyeTracking())
+    {
+        case EyeTracking::NotOffered: return "Foveation centre: the lens centre (no eye tracking in this headset)";
+        case EyeTracking::NotAsked: return "Foveation centre: the lens centre (eye tracking from the next VR start)";
+        case EyeTracking::NoTracker: return "Foveation centre: the lens centre (no eye tracker shared with the PC)";
+        case EyeTracking::Ready: break;
+    }
+    return frameState().gaze.valid ? "Foveation centre: your eyes (eye tracking)"
+                                   : "Foveation centre: the lens centre (your eyes not tracked now)";
+}
+
 void gazeTest_f()
 {
     constexpr const char* name = "vr_foveated_gaze_test";
@@ -544,6 +574,8 @@ void gazeTest_f()
             live.centre + glm::vec2{za::tan(glm::radians(right)), za::tan(glm::radians(up))} * live.pixelsPerTangent;
         const float was = vr_foveated_gaze.value;
         bool gazed = false;
+        const Backend* const be = backend();
+        const bool tracker = be && be->eyeTracking() == EyeTracking::Ready;
         Cvar_SetValueQuick(&vr_foveated_gaze, 0.f);
         const glm::vec2 off = fovealCentre(0, live, size, size, gazed);
         tally.check(!gazed && off == live.centre, name, "vr_foveated_gaze 0: the lens centre");
@@ -552,9 +584,20 @@ void gazeTest_f()
         Cvar_SetValueQuick(&vr_foveated_gaze, was);
         Con_Printf("%s: mock gaze %s: centre %.0f %.0f (want %.0f %.0f; the lens's %.0f %.0f)\n", name,
             vr_mock_gaze.string, on.x, on.y, want.x, want.y, live.centre.x, live.centre.y);
-        tally.check(gazed && za::abs(on.x - want.x) <= static_cast<float>(tileWidth) &&
-                        za::abs(on.y - want.y) <= static_cast<float>(tileHeight),
-            name, "mock gaze: the centre follows it");
+        Con_Printf("%s: eye tracker %d, status \"%s\"\n", name, tracker ? 1 : 0, gazeStatus());
+        if(tracker)
+        {
+            tally.check(gazed && za::abs(on.x - want.x) <= static_cast<float>(tileWidth) &&
+                            za::abs(on.y - want.y) <= static_cast<float>(tileHeight),
+                name, "mock gaze: the centre follows it");
+            tally.check(strstr(gazeStatus(), "your eyes") != nullptr, name, "the menu line says the eyes");
+        }
+        else
+        {
+            // (vr_mock_eye_tracking 0: the runtime offers none; the same frame's foveation, nothing restarted.)
+            tally.check(!gazed && on == live.centre, name, "no eye tracker: the lens centre, the gaze ignored");
+            tally.check(strstr(gazeStatus(), "no eye tracking") != nullptr, name, "the menu line says the lens centre");
+        }
     }
     tally.verdict(name);
 }

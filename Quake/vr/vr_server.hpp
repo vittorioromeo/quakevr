@@ -6,6 +6,10 @@ namespace qvr
 {
 struct VrMove;
 }
+namespace qvr::view
+{
+struct HeldPlace;
+}
 
 namespace qvr::server
 {
@@ -22,6 +26,13 @@ void init(); // registers commands
 // Holster `slot` (body::Holster's order) of the client `player` as his client drew it, carried with his entity since
 // (MP_PLAN.md, B6b: QC's holsterpos for a remote player). False: none sent.
 [[nodiscard]] bool holsterPoint(struct edict_s* player, int slot, glm::vec3& out);
+
+// (bots3) Whether client slot `slot`'s entity is a bot (FrikBot: a "player" whose QC is not a human's, the slot itself not
+// active; MP_PLAN.md B11 part 3).
+[[nodiscard]] bool isBot(int slot);
+// A bot's weapon in `hand` (0 off, 1 main) placed as every client draws it (view::placeHeld at its QC handpos, handrot;
+// its avatar sends this place): false none (an empty hand, a fist).
+[[nodiscard]] bool botHeld(struct edict_s* bot, int hand, view::HeldPlace& out);
 
 // How many of client `clientNum`'s moves came in a server frame that had one of his already (merged: their VR bits ORed,
 // the hands' last pose kept) since he connected: vr_mp_status `merged=` (MP_PLAN.md, B5d: melee at jitter).
@@ -96,6 +107,13 @@ void sendTracer(struct edict_s* shooter, int hand, const float from[3], const fl
 // before the server frame: written at the next frame's start, after SV_ClearDatagram (sv.datagram itself would be
 // cleared before it was sent). An explosion's temp entity launches its chunks (vr_explosiondebris.cpp) as QuakeC's does.
 void queueBroadcast(const unsigned char* data, int len);
+
+// An engine console command's run of the server's QuakeC whose broadcast must reach the clients (vr_hurt's T_Damage:
+// its wound, its sounds): begin empties sv.datagram (the last frame's broadcast, sent already; the frame's
+// SV_ClearDatagram would drop it anyway), so the run writes into the whole room; end queues what it wrote for the next
+// frame (queueBroadcast), whole messages at a time (unreliable: what has no room in the queue goes nowhere).
+void commandBroadcastBegin();
+void commandBroadcastEnd();
 
 // A message about entity `ent` (an armed humanoid's pose) for the datagrams of the clients that have it in sight this frame
 // (vr_net_cullposes; the loopback client gets them all): written into the buffer returned, then scopedEnd. nullptr: culling

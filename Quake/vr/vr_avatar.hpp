@@ -248,9 +248,25 @@ struct Skeleton
     unsigned steps[2]{0u, 0u}; // each foot's touchdowns so far: the walk's swings ending, the standing steps (counting up)
     glm::vec3 head{0.f};       // the head it was posed under (hands::State::head)
     glm::vec3 headJoint{0.f};  // the head bone as posed (the skull's base)
+    glm::vec3 headEye{0.f};    // the drawn head's eyes, seen from outside (the head bone turned: vr_body_eye_forward / _up)
     glm::vec3 pelvis{0.f};     // the pelvis as posed
 };
 [[nodiscard]] bool skeleton(Skeleton& out);
+
+// A dead player's body (QC vr_deathdoll.qc's player_body, Quake's body queue: progs/player.mdl in his colours) drawn as
+// his own body (mpslide, 2026-11-20; vr_mpavatar.cpp addDolls): the joints and turns of the doll's rig as drawn now (its
+// ragdoll's parts, or its death animation's frame where no ragdoll is published), world units. Each turn is the rig bone's
+// from its rest pose; each rest direction its bone's in that pose (the body's bones are turned from their bind to it).
+struct DollPose
+{
+    glm::vec3 pelvis{0.f}, waist{0.f}, neck{0.f}, head{0.f}; // the pelvis's middle, the chest's and the head's joints, the head's middle
+    glm::quat pelvisRot{1.f, 0.f, 0.f, 0.f}, chestRot{1.f, 0.f, 0.f, 0.f}, headRot{1.f, 0.f, 0.f, 0.f};
+    glm::vec3 pelvisRest{0.f, 0.f, 1.f}, chestRest{0.f, 0.f, 1.f}, headRest{0.f, 0.f, 1.f};
+    glm::vec3 hip[2]{}, knee[2]{}, ankle[2]{};        // [0] left, [1] right
+    glm::quat shinRot[2]{glm::quat{1.f, 0.f, 0.f, 0.f}, glm::quat{1.f, 0.f, 0.f, 0.f}};
+    glm::vec3 shinRest[2]{glm::vec3{0.f, 0.f, -1.f}, glm::vec3{0.f, 0.f, -1.f}};
+    bool hideHead{false}; // the death view in its head (Immersive): drawn headless
+};
 
 // Another player's body (MP_PLAN.md, B2d; vr_mpavatar.cpp draws them): posed by pose()'s own code from his avatar (his
 // head, the hands as his client drew them), sized by his calibration, with its own motion (feet, gait, the arms' easing)
@@ -264,14 +280,30 @@ struct Subject
     glm::vec3 velocity{0.f};                // his entity's, world units a second
     bool onGround{true};
     bool lying{false};                      // the server has him lying down (his lying box: vr_prone)
+    bool sliding{false};                    // the server has him sliding (slide::onServer: the slide pose)
     int waterlevel{0};                      // Quake's, the server's (3: under; swimming off the ground)
     bool holds[2]{};                        // [0] off hand, [1] main: holds a ledge (the server's: climb::serverHold)
     glm::vec3 holdAt[2]{};                  // ... where (world), and the way out from its face (horizontal)
     glm::vec3 holdOut[2]{};
     int player{0};                          // his entity (a listen host's foothold traces pass his own box by)
     bool seated{false};                     // he plays seated (posed as his own seated body: no leg fit; B6b)
+    const DollPose* doll{nullptr};          // his dead body: the trunk, head and legs the doll's, the arms to the hands
+    // adspose: a flat-screen player's gun with a sight line as drawn here (world): its rear and front sights and the hand
+    // holding it (HAND_OFF: the left). solveTorso puts his drawn eyes behind the rear sight while he is on it, the cheek on
+    // the stock (vr_flat_seen_ads). `sight` false: none (a headset player's body is never posed so).
+    bool flat{false}; // a flat-screen player: his drawn eyes off the head he sends as his view's (flatplay::neckTurn)
+    bool sight{false};
+    glm::vec3 sightRear{0.f}, sightFront{0.f};
+    int sightHand{1}; // (HAND_MAIN: the right)
 };
-// `player`: 1 .. MAX_SCOREBOARD. Returns the entity origin (the pelvis), as pose(). His swimming, lying down and climbing
+// The keys of the other bodies' state (poseOther and the lookups below): a player's entity (1 .. MAX_SCOREBOARD), or a
+// doll slot past them (otherKeys - dollSlots .. otherKeys - 1): a dead player's body drawn as his while his living copy
+// is drawn too (vr_mpavatar.cpp addDolls: a respawned player's old bodies; mpbugs4, 2026-11-21).
+inline constexpr int dollSlots = 8;
+inline constexpr int otherKeys = MAX_SCOREBOARD + 1 + dollSlots;
+// Key `key`'s state forgotten (a doll slot given to another body: its feet and eases afresh).
+void forgetOther(int key);
+// `player`: a key (above: 1 .. otherKeys - 1). Returns the entity origin (the pelvis), as pose(). His swimming, lying down and climbing
 // as the server has him (Subject::lying, waterlevel, onGround: the body's pitch; Subject::holds: the trunk hanging under
 // the head, the feet on footholds -- found on a listen host, hanging on a client of another server, which has no world to
 // trace: MP_PLAN.md, B5c). His arms are his calibration's (Subject::arms: measured, tweaked, shoulders).
@@ -279,8 +311,10 @@ glm::vec3 poseOther(int player, const Subject& who, const hands::State& s, qmode
     const HandPose handPoses[2]);
 // Player `player`'s body as posed this frame (false: not posed this frame), and its shoulders (the pauldrons).
 [[nodiscard]] bool otherSkeleton(int player, Skeleton& out);
-// Player `player`'s body's pitch as posed this frame (degrees forward; lying: 0 .. 1 how far laid down), false: not posed.
-[[nodiscard]] bool otherPitch(int player, float& angle, float& lying);
+// Player `player`'s body's pitch as posed this frame (degrees forward; lying: 0 .. 1 how far laid down; sliding: 0 .. 1
+// its slide pose's share), false: not posed. ownPitch: your own body's, as last posed.
+[[nodiscard]] bool otherPitch(int player, float& angle, float& lying, float& sliding);
+[[nodiscard]] bool ownPitch(float& angle, float& lying, float& sliding);
 // Player `player`'s body's climbing as posed this frame or the last (0 .. 1: the hanging trunk's and the feet's weight),
 // false: not posed.
 [[nodiscard]] bool otherClimb(int player, float& weight);

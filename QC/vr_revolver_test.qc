@@ -24,7 +24,8 @@
 //     deliberate one does. Then a spin (900 degrees a second): it slows, stops on a chamber; the chamber under the hammer moved with its turn.
 //  10 a flick of the wrist the other way (the mock's roll with vr_mock_turn_velocity 1): it swings home.
 //  11 pulls until two shots: each pull a shot or a click as its chambers say, from the one after the hammer's on.
-//  12 a flick towards its cylinder's side: it swings out. 13 its shells leave only by a linear push of the hand: the muzzle
+//  12 the same flick as a swing ends (the hand moved 4 units in a frame, then rolled; and back: his note 2026-11-21) leaves it shut
+//     (vr_revolver_open_swing_speed); past the guard's hold, a flick towards its cylinder's side: it swings out. 13 its shells leave only by a linear push of the hand: the muzzle
 //     tilted up, a flick of the wrist (720 deg/s about a wrist right under the hand), a push across it, a slower one
 //     along it and one right after loading drop nothing; a push along it (1.6 m/s) throws its two spent and two live shells
 //     out (two live rounds lying about), the live ones at the hand's velocity x vr_revolver_eject_impulse. Then the same
@@ -187,7 +188,12 @@ entity(float xDist, float xYaw, float xOgre) VR_RVT_Monster =
     self.classname = xOgre ? "monster_ogre" : "monster_army";
     setorigin(self, at);
     self.angles_y = vectoyaw(p.origin - at);
+    // A plain grunt, not its armed replacement (vr_agrunt_repl, on by default): the gun an armed one holds before its
+    // chest stops a body slug (VR_AGS_Shot), as in the game, and its weapon is a random roll (smallfix, 2026-11-21).
+    float repl = cvar_hget(cvarh_vr_agrunt_repl);
+    cvar_set("vr_agrunt_repl", "0");
     if(xOgre) { monster_ogre(); } else { monster_army(); }
+    cvar_set("vr_agrunt_repl", ftos(repl));
     droptofloor();
     entity m = self;
     self = os;
@@ -309,6 +315,26 @@ void() VR_RVT_Flicks =
             VR_Revolver_FlickForce(250, 1), VR_Revolver_FlickForce(400, -1)));
     cvar_set("vr_revolver_flick_hand_weight", ftos(hw0));
     cvar_set("vr_revolver_flick_hand_cap", ftos(hc0));
+    // The swing guard (his note 2026-11-21: a melee swing opened it): 2 m/s, held 0.35 s after, and after a blow.
+    float gs0 = cvar_hget(cvarh_vr_revolver_open_swing_speed);
+    float gh0 = cvar_hget(cvarh_vr_revolver_open_swing_hold);
+    cvar_set("vr_revolver_open_swing_speed", "2");
+    cvar_set("vr_revolver_open_swing_hold", "0.35");
+    h.rvh_swing = 0;
+    float g1 = VR_Revolver_SwingGuard(h, 0.8, -1);
+    float g2 = VR_Revolver_SwingGuard(h, 3.5, -1);
+    float g3 = VR_Revolver_SwingGuard(h, 0.5, -1);
+    h.rvh_swing = time - 0.4;
+    float g4 = VR_Revolver_SwingGuard(h, 0.5, -1);
+    float g5 = VR_Revolver_SwingGuard(h, 0.5, 0.1);
+    float g6 = VR_Revolver_SwingGuard(h, 0.5, 0.5);
+    cvar_set("vr_revolver_open_swing_speed", "0");
+    float g7 = VR_Revolver_SwingGuard(h, 5, 0);
+    cvar_set("vr_revolver_open_swing_speed", ftos(gs0));
+    cvar_set("vr_revolver_open_swing_hold", ftos(gh0));
+    VR_Test_Check(!g1 && g2 && g3 && !g4 && g5 && !g6 && !g7,
+        sprintf("the swing guard: a flick at 0.8 m/s goes (%g), at 3.5 m/s refused (%g), right after (%g), 0.4 s after goes (%g); "
+            "0.1 s after a blow refused (%g), 0.5 s after goes (%g); off goes (%g)", g1, g2, g3, g4, g5, g6, g7));
     // The eject push, accumulated (its defaults: 5 cm, reaching 1 m/s): a curved push with a wiggling wrist goes; a wiggle in
     // place, a sweep far off the way, a fast turn and a slow push don't.
     float pe0 = cvar_hget(cvarh_vr_revolver_eject_speed);
@@ -696,9 +722,21 @@ void() VR_Revolver_TestFrame =
     }
     else if(s == 12)
     {
-        if(vr_rvt_frames == 2) { vr_rv_rollmax = 0; }
-        if(vr_rvt_frames == 26) { localcmd("vr_mock_hand_turn main 0 0 150\n"); }
-        if(rec.wi_rv_open || vr_rvt_frames == 60)
+        if(vr_rvt_frames == 2) { vr_rvt_n = vr_rv_swingrefused; }
+        // (The swing's move, then the roll as it ends: the mock's move cuts short a turn still easing in.)
+        if(vr_rvt_frames == 8) { localcmd("vr_mock_hand_to main by 0 0 4\n"); }
+        if(vr_rvt_frames == 9) { localcmd("vr_mock_hand_turn main 0 0 150\n"); }
+        if(vr_rvt_frames == 30) { localcmd("vr_mock_hand_to main by 0 0 -4\n"); }
+        if(vr_rvt_frames == 31) { localcmd("vr_mock_hand_turn main 0 0 -150\n"); }
+        if(vr_rvt_frames == 75)
+        {
+            VR_Test_Check(!rec.wi_rv_open && vr_rv_swingrefused > vr_rvt_n,
+                sprintf("a flick (+150) as a swing ends (the hand 4 units in a frame): still shut (%g), refused as a swing %g time(s)",
+                    rec.wi_rv_open, vr_rv_swingrefused - vr_rvt_n));
+            vr_rv_rollmax = 0;
+            localcmd("vr_mock_hand_turn main 0 0 150\n");
+        }
+        if((rec.wi_rv_open && vr_rvt_frames > 75) || vr_rvt_frames == 115)
         {
             VR_Test_Check(rec.wi_rv_open && substring(vr_rv_lasthow, 0, 7) == "a flick",
                 sprintf("a flick towards its cylinder's side (the mock's roll +150 in a frame): out (%g) by %s; the wrist's roll %.0f deg/s",
@@ -853,7 +891,7 @@ void() VR_Revolver_TestFrame =
         float alive = (g.health > 0 && g.deadflag == DEAD_NO && !g.vr_decap_died); // (a body's health is its corpse's)
         if(vr_rvt_frames == 1)
         {
-            dprint(sprintf("rvtest: %s, health %g\n", g.classname, g.health));
+            dprint(sprintf("rvtest: %s, health %g, holding %s\n", g.classname, g.health, g.vr_ag_prop ? g.vr_ag_prop.netname : "nothing"));
             vr_rvt_k = vr_decap_pops;
         }
         if(alive && g.takedamage && vr_rvt_n < 8 && (vr_rvt_frames % 6) == 2)
@@ -863,8 +901,9 @@ void() VR_Revolver_TestFrame =
             g.nextthink = 0;
             VR_RVT_SlugAt(g, s == 15 ? -1 : (s == 16 ? 6 : 16)); // (the ogre's chest)
             vr_rvt_n++;
-            dprint(sprintf("rvtest: slug %g into %s: %.1f dealt (part %g), its health %g, dead %g\n", vr_rvt_n, g.classname,
-                vr_rv_lastdmg, vr_rv_lastpart, g.health, g.deadflag));
+            dprint(sprintf("rvtest: slug %g into %s: %.1f dealt (part %g) to %s, its health %g, dead %g\n", vr_rvt_n, g.classname,
+                vr_rv_lastdmg, vr_rv_lastpart, vr_rv_lasthit == g ? "it" : (vr_rv_lasthit ? vr_rv_lasthit.classname : "nothing"),
+                g.health, g.deadflag));
         }
         if(!alive && !vr_rvt_saw1)
         {

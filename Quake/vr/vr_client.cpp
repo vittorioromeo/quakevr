@@ -4,9 +4,11 @@
 #include "vr_agarmor.hpp"
 #include "vr_mpavatar.hpp"
 #include "vr_voicechat.hpp"
+#include "vr_navfollow.hpp"
 #include "vr_netmove.hpp"
 #include "vr_predict.hpp"
 #include "vr_netsnap.hpp"
+#include "vr_netragdoll.hpp"
 #include "vr_mpdownload.hpp"
 #include "vr_clientprefs.hpp"
 #include "vr_moveguard.hpp"
@@ -562,6 +564,8 @@ void poseMove(VrMove& move)
         move.body.standingHeight = hs.standingHeight;
         move.body.leanHold = hs.leanHold;
         view::netHolsters(move.holsters); // (and his holsters: B6b)
+        flashlight::netLamp(move.lamp);   // (and his torch: wpnsync)
+        view::netGear(move.gear);         // (and his worn gear: syncfix)
     }
 
     move.headVel = hs.headVel;
@@ -1013,7 +1017,7 @@ extern "C" int VR_MoveMainFire(int lmb)
 
 extern "C" int VR_MoveJump(int state)
 {
-    return flatplay::jumpBit(state);
+    return flatplay::jumpBit(navfollow::jumpNow() ? state | 3 : state); // (vr_nav_follow's hop: a fresh press)
 }
 
 extern "C" void VR_WriteMoveExtras(sizebuf_t* buf, int forward, int side, int up, int buttons, int impulse)
@@ -1138,6 +1142,7 @@ extern "C" int VR_ParseServerMessage(int cmd)
         case QVR_SVC_AVATAR: mpavatar::parse(); break; // another player's head and hands (vr_mpavatar.cpp)
         case QVR_SVC_MOVEACK: netmove::parseAck(); break; // the newest of our moves the server read (vr_netmove.cpp)
         case QVR_SVC_PREDICT: predict::parseState(); break; // our state after the newest of our moves the server ran (vr_predict.cpp)
+        case QVR_SVC_NAVFOLLOW: navfollow::parse(); break; // our vr_nav_follow path (vr_navfollow.cpp)
         case QVR_SVC_HELDPLACE: held::parsePlaces(); break; // where the server has what our hands hold (vr_held.cpp, B27)
         case QVR_SVC_SNAPSHOT: netsnap::parse(); break; // our state, the entities and avatars, delta-coded (vr_netsnap.cpp)
         case QVR_SVC_PACKAGE: mpdownload::parsePackage(); break; // the server's map package (vr_mpdownload.cpp)
@@ -1153,6 +1158,7 @@ extern "C" int VR_ParseServerMessage(int cmd)
         case QVR_SVC_TIP_DELAY:
         case QVR_SVC_TIP_FLAGS: tips::clientParse(subcmd); break;
         case QVR_SVC_EJECT: shells::parseEject(); break;
+        case QVR_SVC_EJECTOTHER: shells::parseEjectOther(); break; // (another player's: syncfix2)
         case QVR_SVC_WOUND: wounds::parseEvent(); break;
         case QVR_SVC_WOUNDCLEAR: wounds::parseClear(); break;
         case QVR_SVC_BLADEWOUND: wounds::parseBladeWound(); break;
@@ -1165,6 +1171,7 @@ extern "C" int VR_ParseServerMessage(int cmd)
             break;
         }
         case QVR_SVC_RIGSEQ: rigseq::parseMessage(); break;
+        case QVR_SVC_RAGPOSE: netrag::clientParse(); break;
         case QVR_SVC_ARMOR: agarmor::parseEvent(); break;
         case QVR_SVC_XRAY: arenaxray::parseEvent(); break;
         case QVR_SVC_GORESOUND: goresound::parseEvent(); break;
@@ -1323,7 +1330,7 @@ extern "C" void VR_TuneDlight(int kind, int ent, void* dlight)
     {
         color(0.6f, 0.8f, 1.f);
     }
-    else if(strstr(n, "dw_rail")) // (Dwell's Crystal Lance: its crystals' violet)
+    else if(strstr(n, "dw_rail") || strstr(n, "dw_lance")) // (Dwell's Crystal Lance: its crystals' violet)
     {
         color(0.8f, 0.55f, 1.f);
     }

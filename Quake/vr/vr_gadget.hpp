@@ -29,14 +29,20 @@ struct Pose
 // Whether the HUD is the gadget's (vr_hud_mode 1, in the headset, in game).
 [[nodiscard]] bool active();
 
-// AD support: the screen's pages (the gadget's outer button, vr_gearlights.cpp; vr_gadget_page): the HUD, and Arcane
-// Dimensions' page (its artifacts with their times, keys, debuffs and the carried weapons' upgrades) while its data is
-// loaded. togglePage: to the other one; false (the HUD kept) without AD's data. page: the one shown (0 the HUD, 1 AD's).
+// The screen's pages (the gadget's outer button, vr_gearlights.cpp; vr_gadget_page): the HUD, Arcane Dimensions' page
+// (AD support: its artifacts with their times, keys, debuffs and the carried weapons' upgrades) while its data is
+// loaded, and the scoreboard (vr_gadget_scores.inc) in a multiplayer game. togglePage: to the next that can be shown,
+// the HUD after the last; false (the HUD kept) with no other. page: the one shown (0 the HUD, 1 AD's, 2 the scoreboard).
 bool togglePage();
 [[nodiscard]] int page();
+// vr_gadget_scores: the scoreboard page's rows as it draws them ("wristscore: " lines; tests, the Debug menu).
+void scoresReport();
 
 // Set by the view every frame (before each eye's scene). It also places the screen's lights.
 void setPose(const Pose& pose);
+// Another player's gadget screen's lights (syncfix2: his copy's gadget, drawn at `origin` turned `angles` (entity_t's)
+// sized `scale`), as yours light: player `player`'s own two keys, for this frame.
+void otherGlow(int player, const glm::vec3& origin, const glm::vec3& angles, float scale);
 [[nodiscard]] const Pose& pose();
 
 // The screen's corners (in model space: the lower-left one, and its extent along x and y), where

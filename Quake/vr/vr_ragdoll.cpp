@@ -3,6 +3,7 @@
 // joints are vr_box3d.cpp's ("Ragdolls"); ROUND21.md, "Ragdolls".
 
 #include "vr_modelmetadata.hpp"
+#include "vr_netragdoll.hpp"
 #include "vr_ragdoll_internal.hpp"
 #include "vr_tracy.h"
 #include "vr_api_render.h"
@@ -2659,6 +2660,60 @@ void rigSweep_f()
     Con_Printf("vr_ragdoll_rig_sweep: %d rigged, %d failed, %d absent\n", rigged, failed, absent);
 }
 
+// vr_ragdoll_rig_spans <model> [max]: the rig's triangles whose corners lie on bones not joined to each other (neither the
+// same bone nor parent and child): each stretches across the ragdoll as its limbs part (Dwell's Brute: a cannon vertex
+// on the right hand, a triangle across his arms, his note 2026-11-21). Each one's corners (vertex, bone, rest-pose place),
+// then "vr_ragdoll_rig_spans: <model>: N spanning triangles".
+void rigSpans_f()
+{
+    if(Cmd_Argc() < 2)
+    {
+        Con_Printf("vr_ragdoll_rig_spans <model> [max]\n");
+        return;
+    }
+    qmodel_t* model = Mod_ForName(Cmd_Argv(1), false);
+    const Rig* rig = model && model->type == mod_alias ? rigFor(model) : nullptr;
+    const auto* hdr = rig ? static_cast<const aliashdr_t*>(Mod_Extradata(model)) : nullptr;
+    if(!rig || !hdr || rig->numVerts != hdr->numverts)
+    {
+        Con_Printf("vr_ragdoll_rig_spans: %s: no rig\n", Cmd_Argv(1));
+        return;
+    }
+    const int max = Cmd_Argc() > 2 ? Q_atoi(Cmd_Argv(2)) : 8;
+    const auto joined = [rig](int a, int b) { return a == b || rig->bones[a].parent == b || rig->bones[b].parent == a; };
+    const auto* desc = reinterpret_cast<const aliasmesh_t*>(reinterpret_cast<const byte*>(hdr) + hdr->meshdesc);
+    const auto* idx = reinterpret_cast<const unsigned short*>(reinterpret_cast<const byte*>(hdr) + hdr->indexes);
+    const auto* rest = reinterpret_cast<const trivertx_t*>(reinterpret_cast<const byte*>(hdr) + hdr->vertexes);
+    int spans = 0;
+    for(int i = 0; i + 2 < hdr->numindexes; i += 3)
+    {
+        int v[3], b[3];
+        for(int k = 0; k < 3; k++)
+        {
+            v[k] = desc[idx[i + k]].vertindex;
+            b[k] = rig->vertBone[static_cast<za::SizeT>(v[k])];
+        }
+        if(joined(b[0], b[1]) && joined(b[1], b[2]) && joined(b[0], b[2]))
+        {
+            continue;
+        }
+        if(++spans <= max)
+        {
+            char line[256] = {};
+            for(int k = 0; k < 3; k++)
+            {
+                const trivertx_t& t = rest[v[k]];
+                const size_t n = strlen(line);
+                q_snprintf(line + n, sizeof(line) - n, " %d %s (%.1f %.1f %.1f)", v[k], rig->bones[b[k]].name,
+                    hdr->scale_origin[0] + hdr->scale[0] * t.v[0], hdr->scale_origin[1] + hdr->scale[1] * t.v[1],
+                    hdr->scale_origin[2] + hdr->scale[2] * t.v[2]);
+            }
+            Con_Printf("vr_ragdoll_rig_spans: triangle %d:%s\n", i / 3, line);
+        }
+    }
+    Con_Printf("vr_ragdoll_rig_spans: %s: %d spanning triangles\n", model->name, spans);
+}
+
 void retireAuthored()
 {
     for(za::UniquePtr<Rig>& r : authoredRigs.rigs)
@@ -2848,6 +2903,18 @@ bool collapsed(const Rig& rig, int pose, int b)
     return rig.poseHidden[static_cast<za::SizeT>(pose * rig.numBones + b)] != 0;
 }
 
+namespace
+{
+// A remote server's ragdolls on its client (publishNet): any published (swapModels draws them without a server of its
+// own), and the clock they are drawn at this frame (the interpolation buffer's).
+struct NetDraw
+{
+    bool any{false};
+    double clock{0.0};
+};
+NetDraw netDraw;
+} // namespace
+
 void publish(int num, const Rig* rig, int bodies, const glm::quat* rot, const glm::vec3* pos, float scale, double time,
     int heldBy, uint32_t cut, bool bleeds)
 {
@@ -2896,6 +2963,8 @@ void publish(int num, const Rig* rig, int bodies, const glm::quat* rot, const gl
     p.cut = cut;
     p.bleeds = bleeds;
     p.scale = scale;
+    p.net = false;
+    p.poseTime = time;
     p.time = time;
     for(int b = 0; b < bodies; b++)
     {
@@ -2961,6 +3030,77 @@ void unpublishAll()
     {
         p.rig = nullptr;
     }
+    netDraw.any = false;
+}
+
+bool serverPose(int num, NetPose& out)
+{
+    if(!published(num))
+    {
+        return false;
+    }
+    const Published& p = draw.byNum[static_cast<za::SizeT>(num)];
+    if(p.net)
+    {
+        return false;
+    }
+    out.rig = p.rig;
+    out.bodies = p.bodies;
+    out.cut = p.cut;
+    out.bleeds = p.bleeds;
+    out.scale = p.scale;
+    out.time = p.poseTime;
+    out.rot = p.rot.data();
+    out.pos = p.pos.data();
+    return true;
+}
+
+void publishNet(int num, const NetPose& older, const NetPose& newer, double clock)
+{
+    if(num <= 0 || !newer.rig || newer.bodies <= 0 || newer.bodies > maxBones || older.rig != newer.rig ||
+        older.bodies != newer.bodies)
+    {
+        return;
+    }
+    if(num >= static_cast<int>(draw.byNum.size()))
+    {
+        draw.byNum.resize(static_cast<za::SizeT>(num) + 32);
+    }
+    Published& p = draw.byNum[static_cast<za::SizeT>(num)];
+    if(p.rig != newer.rig)
+    {
+        p.drawn = false;
+        p.drawnFrame = -1;
+    }
+    p.rig = newer.rig;
+    p.net = true;
+    p.still = false;
+    p.bodies = newer.bodies;
+    p.cut = newer.cut;
+    p.bleeds = newer.bleeds;
+    p.scale = newer.scale;
+    p.prevTime = older.time;
+    p.time = newer.time;
+    p.poseTime = newer.time;
+    // (ragsync2) His own hands on it: led with them since these poses (leadWithHands), as the listen host's.
+    p.heldBy = hands::current().valid ? newer.heldBy & 3 : 0;
+    p.prevHeldBy = older.heldBy & 3;
+    for(int h = 0; h < 2; h++)
+    {
+        p.hand[h] = newer.hand[h];
+        p.prevHand[h] = older.hand[h];
+    }
+    for(int b = 0; b < newer.bodies; b++)
+    {
+        const za::SizeT i = static_cast<za::SizeT>(b);
+        p.prevRot[i] = older.rot[b];
+        p.prevPos[i] = older.pos[b];
+        p.rot[i] = newer.rot[b];
+        p.pos[i] = newer.pos[b];
+    }
+    p.drawnFrame = p.drawnFrame == host_framecount ? -1 : p.drawnFrame; // (drawn again with these)
+    netDraw.clock = clock;
+    netDraw.any = true;
 }
 
 namespace
@@ -3104,9 +3244,10 @@ void drawnPose(int num)
     p.drawnFrame = host_framecount;
     p.drawLead = glm::vec3{0.f};
     float f = 1.f;
-    if(vr_ragdoll_smooth.value != 0.f && !cl_nolerp.value && p.time > p.prevTime)
+    const double now = p.net ? netDraw.clock : cl.time; // (a remote server's: its entities' clock, netragdoll)
+    if((p.net || (vr_ragdoll_smooth.value != 0.f && !cl_nolerp.value)) && p.time > p.prevTime)
     {
-        f = za::clamp(static_cast<float>((cl.time - p.prevTime) / (p.time - p.prevTime)), 0.f, 1.f);
+        f = za::clamp(static_cast<float>((now - p.prevTime) / (p.time - p.prevTime)), 0.f, 1.f);
     }
     p.drawBlend = f;
     for(int b = 0; b < p.bodies; b++)
@@ -3460,7 +3601,7 @@ void swapModels()
         gunCheckNext = cl.time + 0.25;
     }
     draw.swapped.clear();
-    if(!sv.active || cls.state != ca_connected)
+    if((!sv.active && !netDraw.any) || cls.state != ca_connected) // (a remote server's: vr_netragdoll.cpp)
     {
         return;
     }
@@ -4042,6 +4183,11 @@ void hideHeadOf(int num)
     hiddenHeadNum = num;
 }
 
+bool headHidden(int num)
+{
+    return num > 0 && num == hiddenHeadNum;
+}
+
 } // namespace qvr::ragdoll
 
 // ----------------------------------------------------------------------------
@@ -4176,7 +4322,9 @@ extern "C" int VR_SyntheticModel(qmodel_t* mod)
 
 extern "C" void VR_RagdollSwap(void)
 {
+    netrag::clientFrame(); // (a remote server's ragdolls: their poses around this frame's clock, vr_netragdoll.cpp)
     ragdoll::swapModels(); // (the authored rig's: VR_Rig2Swap, after the armed ones' arms are solved)
+    netrag::logFrame();    // (vr_mp_bodylog)
     rig2::advanceLerps();  // (the live grunts' frame lerps, as drawing their .mdl would)
 }
 

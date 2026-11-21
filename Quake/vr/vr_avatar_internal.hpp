@@ -92,6 +92,11 @@ struct Body
     glm::vec3 fwd{FWD};
     glm::vec3 left{0.f, 1.f, 0.f};
     float crouchPose{0.f}; // the crouched pose's share (crouchPoseWeight; solveArm's shoulders and elbows)
+    // adspose: a flat-screen player on his sights seen from outside (solveTorso's seenAds): how far on them (0: not), the
+    // sight line's way, its up and right (world), the hand holding the gun; solveArm takes the elbows under the gun.
+    float seenAds{0.f};
+    glm::vec3 seenDir{0.f}, seenUp{0.f}, seenRight{0.f};
+    int seenHand{1}; // (HAND_MAIN)
     za::Array<Bone, JointCount> bones{};
 };
 

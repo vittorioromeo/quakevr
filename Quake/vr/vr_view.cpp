@@ -15,6 +15,7 @@
 #include "vr_disarmviz.hpp"
 #include "vr_ledgeshow.hpp"
 #include "vr_nav.hpp"
+#include "vr_navfollow.hpp"
 #include "vr_gunsfx.hpp"
 #include "vr_holstersetup.hpp"
 #include "vr_hotblade.hpp"
@@ -257,7 +258,11 @@ constexpr MagMount magMounts[] = {
 
 [[nodiscard]] float magSlideTravel(int hand, const MagMount& mount)
 {
-    const MagSlide& st = magSlides[hand];
+    return magSlideTravel(magSlides[hand], mount);
+}
+
+[[nodiscard]] float magSlideTravel(const MagSlide& st, const MagMount& mount)
+{
     if(st.mode == MagSlide::Mode::None)
     {
         return 0.f;
@@ -282,7 +287,12 @@ constexpr MagMount magMounts[] = {
 
 void magSlideStep(int hand, const qmodel_t* gun)
 {
-    MagSlide& st = magSlides[hand];
+    magSlideStep(magSlides[hand], gun, view::ownGunLook(hand),
+        cl.stats[hand == HAND_MAIN ? protocol::STAT_QVR_WEAPONUID : protocol::STAT_QVR_WEAPONUID2]);
+}
+
+void magSlideStep(MagSlide& st, const qmodel_t* gun, const VrGunLook& look, int uid)
+{
     if(st.frame == host_framecount)
     {
         return;
@@ -290,11 +300,9 @@ void magSlideStep(int hand, const qmodel_t* gun)
     st.frame = host_framecount;
     st.dt = st.time >= 0.0 ? static_cast<float>(CLAMP(0.0, vr_gametime - st.time, 0.1)) : 0.f;
     st.time = vr_gametime;
-    const bool main = hand == HAND_MAIN;
-    const bool noMag = (cl.stats[main ? protocol::STAT_QVR_WEAPONFLAGS : protocol::STAT_QVR_WEAPONFLAGS2] & weaponFlagNoMag) != 0;
-    const int uid = cl.stats[main ? protocol::STAT_QVR_WEAPONUID : protocol::STAT_QVR_WEAPONUID2];
-    const bool out = (cl.stats[protocol::STAT_QVR_MAGOUT] & (main ? 2 : 1)) != 0;
-    const MagMount* const mount = magazinesShown() ? magMountFor(gun) : nullptr;
+    const bool noMag = (look.flags & weaponFlagNoMag) != 0;
+    const bool out = look.has(VrGunLook::magOutBit);
+    const MagMount* const mount = look.has(VrGunLook::magsShownBit) ? magMountFor(gun) : nullptr;
     const bool sameGun = st.uid == uid && st.gun == gun;
     const float seat = !mount ? 0.f : mount->kind == 3 ? vr_nailpistol_mag_seat_time.value : vr_reload_mag_seat_time.value;
     if(out && mount)
@@ -320,7 +328,7 @@ void magSlideStep(int hand, const qmodel_t* gun)
     }
     if(!noMag)
     {
-        st.rounds = cl.stats[main ? protocol::STAT_QVR_WEAPONCLIP : protocol::STAT_QVR_WEAPONCLIP2];
+        st.rounds = look.clip;
     }
     st.noMag = noMag;
     st.uid = uid;
@@ -439,9 +447,13 @@ glm::vec3 revolverCraneTurn(const glm::vec3& p, float swing)
 float revolverStep(RevolverDrawn& st, const qmodel_t* gun, int hand)
 {
     const bool main = hand == HAND_MAIN;
+    return revolverStep(st, gun, cl.stats[main ? protocol::STAT_QVR_REVOLVER : protocol::STAT_QVR_REVOLVER2],
+        cl.statsf[main ? protocol::STAT_QVR_REVOLVERCYL : protocol::STAT_QVR_REVOLVERCYL2]);
+}
+
+float revolverStep(RevolverDrawn& st, const qmodel_t* gun, int bits, float turn)
+{
     const bool rv = gun && modelmeta::is(gun, modelmeta::Id::VRevolver);
-    const int bits = cl.stats[main ? protocol::STAT_QVR_REVOLVER : protocol::STAT_QVR_REVOLVER2];
-    const float turn = cl.statsf[main ? protocol::STAT_QVR_REVOLVERCYL : protocol::STAT_QVR_REVOLVERCYL2];
     const float target = rv && (bits & rvHeldBit) && (bits & rvOpenBit) ? rvSwingOut : 0.f;
     const float dt = st.time >= 0.0 ? static_cast<float>(CLAMP(0.0, vr_gametime - st.time, 0.1)) : 0.f;
     st.time = vr_gametime;
@@ -463,8 +475,13 @@ float revolverStep(RevolverDrawn& st, const qmodel_t* gun, int hand)
 // The angle the super shotgun `gun` (flags `flags`) is drawn open at now, stepped towards open or shut.
 float ssgStep(SsgDrawn& st, const qmodel_t* gun, int flags)
 {
+    return ssgStep(st, gun, flags, ssgBreaks());
+}
+
+float ssgStep(SsgDrawn& st, const qmodel_t* gun, int flags, bool breaks)
+{
     const bool ssg = gun && modelmeta::is(gun, modelmeta::Id::VShot2);
-    const float target = ssg && ssgBreaks() && (flags & weaponFlagSsgOpen) ? CLAMP(0.f, vr_reload_ssg_open_angle.value, 80.f) : 0.f;
+    const float target = ssg && breaks && (flags & weaponFlagSsgOpen) ? CLAMP(0.f, vr_reload_ssg_open_angle.value, 80.f) : 0.f;
     const float dt = st.time >= 0.0 ? static_cast<float>(CLAMP(0.0, vr_gametime - st.time, 0.1)) : 0.f;
     st.time = vr_gametime;
     if(gun != st.gun)
@@ -1821,7 +1838,7 @@ bool holsterLive[HolsterCount]{};
 // front button, `front` (setupFrontButton); the screen queued when `queueText` (once a frame). `clip`: its clip if known
 // (a holstered gun's), else -1.
 void idleAttachments(const entity_t& e, bool mirrored, int slot, view::ViewEntity& button, view::ViewEntity& front, int clip,
-    int clipSize, bool queueText, bool total = true, const char* seenCvar = nullptr)
+    int clipSize, bool queueText, bool total = true, const char* seenCvar = nullptr, int lightPlayer = 0, int lightSide = 0)
 {
     const bool on = vr_weapon_screen_idle.value != 0.f && slot >= 0 && e.model && !isHandModel(e.model) &&
                     slot != weapons::fistSlot();
@@ -1882,6 +1899,11 @@ void idleAttachments(const entity_t& e, bool mirrored, int slot, view::ViewEntit
         }
         glm::vec3 tint{};
         const bool warn = idleAmmoWarning(e.model, clip, clipSize, tint, seenCvar); // (low or empty: vr_ammo_color_warn)
+        if(lightPlayer > 0 && vr_weapon_screen.value != 0.f)
+        {
+            // Another player's held gun (syncfix5): its faint glow as your held gun's (vr_weapon_screen_light).
+            emissive::otherWeaponScreenLight(lightPlayer, lightSide, pos, idleAttachmentAngles(drawn, slot, mirrored, angles));
+        }
         text3d::queue(idleWeaponText(e.model, clip, clipSize, total), pos, idleAttachmentAngles(drawn, slot, mirrored, angles),
             text3d::Align::Centre, 0.1f * weapons::value(slot, Key::WpnTextScale), vr_weapon_screen.value != 0.f,
             warn ? &tint : nullptr, &screenstyle::forModel(e.model ? e.model->name : nullptr, mirrored),
@@ -2252,21 +2274,48 @@ void setSsgPart(view::ViewEntity& part, const view::ViewEntity& gun, const char*
 // Every frame, after the guns are placed: the super shotguns broken open (immersive reloading, phase 2b), in the hands
 // (their drawn angle stepped by setupWeapon) and the holsters (as they are), in their two parts; the gun itself is then
 // not drawn (drawnInParts). The barrels' skin: how many chambers are loaded.
+// A super shotgun `gun` in a hand, its barrels stepped (ssgStep), drawn in its parts `frame` and `barrels` while open (the
+// barrels' skin: `clip`, its loaded chambers); whether it is.
+bool ssgHeldParts(const view::ViewEntity& gun, SsgDrawn& st, int clip, view::ViewEntity& frame, view::ViewEntity& barrels)
+{
+    st.parts = gun.visible && st.gun == gun.ent.model && st.angle > 0.f;
+    if(!st.parts)
+    {
+        frame.visible = barrels.visible = false;
+        return false;
+    }
+    setSsgPart(frame, gun, ssgFrameModel, 0.f, 0);
+    setSsgPart(barrels, gun, ssgBarrelsModel, st.angle, CLAMP(0, clip, 2));
+    return true;
+}
+
+// A holstered super shotgun `gun` (its flags `flags`, `clip` loaded): stepped and drawn in its parts while open.
+bool ssgHolsterParts(const view::ViewEntity& gun, SsgDrawn& st, int flags, int clip, bool breaks, view::ViewEntity& frame,
+    view::ViewEntity& barrels)
+{
+    const float deg = ssgStep(st, gun.visible ? gun.ent.model : nullptr, flags, breaks);
+    st.parts = gun.visible && deg > 0.f;
+    if(!st.parts)
+    {
+        frame.visible = barrels.visible = false;
+        return false;
+    }
+    setSsgPart(frame, gun, ssgFrameModel, 0.f, 0);
+    setSsgPart(barrels, gun, ssgBarrelsModel, deg, CLAMP(0, clip, 2));
+    return true;
+}
+
 void setupSsgParts()
 {
     for(int hand = 0; hand < 2; hand++)
     {
         const view::ViewEntity& gun = entities.weapon[hand];
         SsgDrawn& st = ssgHands[hand];
-        st.parts = gun.visible && st.gun == gun.ent.model && st.angle > 0.f;
-        if(!st.parts)
+        const int clip = cl.stats[hand == HAND_MAIN ? protocol::STAT_QVR_WEAPONCLIP : protocol::STAT_QVR_WEAPONCLIP2];
+        if(!ssgHeldParts(gun, st, clip, entities.ssgFrame[hand], entities.ssgBarrels[hand]))
         {
-            entities.ssgFrame[hand].visible = entities.ssgBarrels[hand].visible = false;
             continue;
         }
-        const int clip = cl.stats[hand == HAND_MAIN ? protocol::STAT_QVR_WEAPONCLIP : protocol::STAT_QVR_WEAPONCLIP2];
-        setSsgPart(entities.ssgFrame[hand], gun, ssgFrameModel, 0.f, 0);
-        setSsgPart(entities.ssgBarrels[hand], gun, ssgBarrelsModel, st.angle, CLAMP(0, clip, 2));
         if(vr_reload_debug.value >= 2 && developer.value)
         {
             // (The barrels as drawn against the gun's turned model space: the breech's middle, both ways.)
@@ -2281,19 +2330,9 @@ void setupSsgParts()
     }
     for(int h = 0; h < HolsterCount; h++)
     {
-        const view::ViewEntity& gun = entities.holster[h];
-        SsgDrawn& st = ssgHolsters[h];
-        const float deg =
-            ssgStep(st, gun.visible ? gun.ent.model : nullptr, holsterStat(h, protocol::STAT_QVR_HOLSTERWEAPONFLAGS0));
-        st.parts = gun.visible && deg > 0.f;
-        if(!st.parts)
-        {
-            entities.holsterSsgFrame[h].visible = entities.holsterSsgBarrels[h].visible = false;
-            continue;
-        }
-        setSsgPart(entities.holsterSsgFrame[h], gun, ssgFrameModel, 0.f, 0);
-        setSsgPart(entities.holsterSsgBarrels[h], gun, ssgBarrelsModel, deg,
-            CLAMP(0, holsterStat(h, protocol::STAT_QVR_HOLSTERWEAPONCLIP0), 2));
+        (void)ssgHolsterParts(entities.holster[h], ssgHolsters[h], holsterStat(h, protocol::STAT_QVR_HOLSTERWEAPONFLAGS0),
+            holsterStat(h, protocol::STAT_QVR_HOLSTERWEAPONCLIP0), ssgBreaks(), entities.holsterSsgFrame[h],
+            entities.holsterSsgBarrels[h]);
     }
 }
 
@@ -2421,46 +2460,45 @@ float setRevolverPart(view::ViewEntity& part, const view::ViewEntity& gun, const
 
 // Every frame, after the guns are placed: the heavy revolvers in the hands (their swing and turn stepped by
 // setupWeapon), in their parts; the gun itself is then not drawn (drawnInParts). The shells: their chambers' states.
-void setupRevolverParts()
+// The heavy revolver `gun` in hand `hand` (-1: another player's), its crane and cylinder stepped (revolverStep), its
+// state `bits` (QC .vr_rv_hud), drawn in its parts: `frame`, `crane`, `cyl` and the six `shells`. Whether it is.
+bool revolverParts(const view::ViewEntity& gun, RevolverDrawn& st, int bits, view::ViewEntity& frame, view::ViewEntity& crane,
+    view::ViewEntity& cyl, view::ViewEntity* shells, int hand)
 {
-    for(int hand = 0; hand < 2; hand++)
     {
-        const view::ViewEntity& gun = entities.weapon[hand];
-        RevolverDrawn& st = rvHands[hand];
-        const int bits = cl.stats[hand == HAND_MAIN ? protocol::STAT_QVR_REVOLVER : protocol::STAT_QVR_REVOLVER2];
         st.parts = gun.visible && gun.ent.model && st.gun == gun.ent.model &&
                    modelmeta::is(gun.ent.model, modelmeta::Id::VRevolver) && (bits & rvHeldBit) && viewModel(rvFrameModel) &&
                    viewModel(rvCraneModel) && viewModel(rvCylModel) && viewModel(rvShellModel);
         if(!st.parts)
         {
-            entities.rvFrame[hand].visible = entities.rvCrane[hand].visible = entities.rvCyl[hand].visible = false;
-            for(view::ViewEntity& sh : entities.rvShell[hand])
+            frame.visible = crane.visible = cyl.visible = false;
+            for(int i = 0; i < 6; i++)
             {
-                sh.visible = false;
+                shells[i].visible = false;
             }
-            continue;
+            return false;
         }
         const float swing = -st.swing;
         const glm::vec3 cylAt = rvPivot + rvTurnX(rvCylInCrane, swing);
         const float turn = swing + st.cyl;
-        setRevolverPart(entities.rvFrame[hand], gun, rvFrameModel, glm::vec3{0.f}, 0.f, 0, 0, true);
-        if(vr_reload_debug.value >= 3 && developer.value && entities.rvFrame[hand].ent.model)
+        setRevolverPart(frame, gun, rvFrameModel, glm::vec3{0.f}, 0.f, 0, 0, true);
+        if(vr_reload_debug.value >= 3 && developer.value && frame.ent.model && hand >= 0)
         {
             // (Each frame: the hammer's frames as drawn, the two poses blended and how far, against the gun's own frame.)
-            const view::ViewEntity& fr = entities.rvFrame[hand];
+            const view::ViewEntity& fr = frame;
             const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(fr.ent.model));
             const anchor::DrawnPoses d = anchor::drawnPoses(fr.ent, hdr);
             Con_Printf("revolver frames: t %.4f hand %d frame %d gun %d poses %d %d blend %.3f\n", vr_gametime, hand, fr.ent.frame,
                 gun.ent.frame, d.a, d.b, static_cast<double>(d.blend));
         }
-        float err = setRevolverPart(entities.rvCrane[hand], gun, rvCraneModel, rvPivot, swing, 0, 0, false);
-        err = za::max(err, setRevolverPart(entities.rvCyl[hand], gun, rvCylModel, cylAt, turn, (bits & rvRodBit) ? 1 : 0, 0, false));
+        float err = setRevolverPart(crane, gun, rvCraneModel, rvPivot, swing, 0, 0, false);
+        err = za::max(err, setRevolverPart(cyl, gun, rvCylModel, cylAt, turn, (bits & rvRodBit) ? 1 : 0, 0, false));
         int loaded = 0;
         for(int i = 0; i < 6; i++)
         {
-            view::ViewEntity& sh = entities.rvShell[hand][i];
+            view::ViewEntity& sh = shells[i];
             const int c = (bits >> (2 * i)) & 3;
-            if(c == 0 || collectfx::chamberFilling(hand, i)) // (a shell going in: its own copy until it is in)
+            if(c == 0 || (hand >= 0 && collectfx::chamberFilling(hand, i))) // (a shell going in: its own copy until it is in)
             {
                 sh.visible = false;
                 continue;
@@ -2475,6 +2513,17 @@ void setupRevolverParts()
             Con_Printf("revolver: hand %d swung %.1f deg, cylinder %.1f deg, %d shells drawn, parts placed %.4f units off\n",
                 hand, static_cast<double>(st.swing), static_cast<double>(st.cyl), loaded, static_cast<double>(err));
         }
+    }
+    return true;
+}
+
+void setupRevolverParts()
+{
+    for(int hand = 0; hand < 2; hand++)
+    {
+        (void)revolverParts(entities.weapon[hand], rvHands[hand],
+            cl.stats[hand == HAND_MAIN ? protocol::STAT_QVR_REVOLVER : protocol::STAT_QVR_REVOLVER2], entities.rvFrame[hand],
+            entities.rvCrane[hand], entities.rvCyl[hand], entities.rvShell[hand], hand);
     }
 }
 
@@ -2554,24 +2603,29 @@ void magSlideProbe()
 
 // The magazines in the guns in the hands (as setupMagazines): placed right after the guns (a hand holding one wraps it),
 // and again with the rest.
+// A held gun's magazine as `look` has it (in, sliding home or out: its slide `st` stepped), the one sliding out and its
+// well, in `mag`, `magOut`, `well`.
+void heldMagazines(const view::ViewEntity& gun, const VrGunLook& look, MagSlide& st, view::ViewEntity& mag,
+    view::ViewEntity& magOut, view::ViewEntity& well)
+{
+    const bool on = look.has(VrGunLook::magsShownBit);
+    // (No clips at all, flat-screen play's Reloading off: drawn full.)
+    const int clip = look.has(VrGunLook::clipFullBit) ? 2 : look.clip;
+    const MagMount* const mount = magMountFor(gun.ent.model);
+    const float slide = mount ? magSlideTravel(st, *mount) : 0.f;
+    const bool out = st.mode == MagSlide::Mode::Out;
+    setMagazine(mag, gun, on && !(look.flags & weaponFlagNoMag), false, clip, out ? 0.f : slide);
+    setMagazine(magOut, gun, on && out, false, st.rounds, out ? slide : 0.f);
+    setMagazine(well, gun, on, true);
+}
+
 void setupHeldMagazines()
 {
-    const bool on = magazinesShown();
     for(int hand = 0; hand < 2; hand++)
     {
-        const int flags = cl.stats[hand == HAND_MAIN ? protocol::STAT_QVR_WEAPONFLAGS : protocol::STAT_QVR_WEAPONFLAGS2];
-        // (No clips at all, flat-screen play's Reloading off: drawn full.)
-        const int clip = cl.stats[protocol::STAT_QVR_RELOADMODE] == 0
-                             ? 2
-                             : cl.stats[hand == HAND_MAIN ? protocol::STAT_QVR_WEAPONCLIP : protocol::STAT_QVR_WEAPONCLIP2];
         const view::ViewEntity& gun = entities.weapon[hand];
         magSlideStep(hand, gun.ent.model);
-        const MagMount* const mount = magMountFor(gun.ent.model);
-        const float slide = mount ? magSlideTravel(hand, *mount) : 0.f;
-        const bool out = magSlidingOut(hand);
-        setMagazine(entities.mag[hand], gun, on && !(flags & weaponFlagNoMag), false, clip, out ? 0.f : slide);
-        setMagazine(entities.magOut[hand], gun, on && out, false, magSlides[hand].rounds, out ? slide : 0.f);
-        setMagazine(entities.well[hand], entities.weapon[hand], on, true);
+        heldMagazines(gun, view::ownGunLook(hand), magSlides[hand], entities.mag[hand], entities.magOut[hand], entities.well[hand]);
     }
 }
 
@@ -2787,15 +2841,22 @@ void setupPumps()
 // pouch is (pouch reloading finds the magazines drawn: ammoPouchMags), drawn when it is.
 void setupAmmoPouchItems(const view::ViewEntity& pouch, bool placed)
 {
-    const int kind = cl.stats[protocol::STAT_QVR_POUCHKIND];
+    ammoPouchItems = posePouchItemsIn(pouch, placed, cl.stats[protocol::STAT_QVR_POUCHKIND],
+        cl.stats[protocol::STAT_QVR_POUCHCOUNT], entities.ammoPouchItem);
+}
+
+} // namespace
+
+// The rounds in an ammo pouch (yours: setupAmmoPouchItems; another player's on his copy, syncfix2: view::posePouchItems)
+// -> how many placed.
+int posePouchItemsIn(const view::ViewEntity& pouch, bool placed, int kind, int count,
+    view::ViewEntity (&out)[pouchitems::most])
+{
     pouchitems::Item items[pouchitems::most];
-    const int n = placed && pouch.ent.model
-                      ? pouchitems::posed(kind & 23, (kind & 8) != 0, cl.stats[protocol::STAT_QVR_POUCHCOUNT], items)
-                      : 0;
-    ammoPouchItems = n;
+    const int n = placed && pouch.ent.model ? pouchitems::posed(kind & 23, (kind & 8) != 0, count, items) : 0;
     for(int j = 0; j < pouchitems::most; j++)
     {
-        view::ViewEntity& ve = entities.ammoPouchItem[j];
+        view::ViewEntity& ve = out[j];
         if(j >= n)
         {
             ve.visible = false;
@@ -2814,7 +2875,11 @@ void setupAmmoPouchItems(const view::ViewEntity& pouch, bool placed)
         ve.lightMultiply = pouch.lightMultiply;
         ve.lightMod = pouch.lightMod;
     }
+    return n;
 }
+
+namespace
+{
 
 void setupAmmoPouch(const hands::State& s)
 {
@@ -3341,6 +3406,11 @@ void quadArcs(const hands::State& s)
                                      : 0;
 }
 
+namespace
+{
+qvr::view::PowerupLook lookOf(int items); // (below)
+} // namespace
+
 void showPlayerState(view::ViewEntity& ve, const hands::State& s)
 {
     if(vr_body_state.value)
@@ -3372,11 +3442,12 @@ void showPlayerState(view::ViewEntity& ve, const hands::State& s)
         ve.lightMultiply = true;
         ve.lightMod = glm::vec3{0.8f, 1.25f, 0.8f};
     }
-    if(cl.items & IT_INVISIBILITY)
+    const qvr::view::PowerupLook look = lookOf(cl.items & (IT_INVISIBILITY | IT_QUAD)); // (the ring's fade, Quad's arcs)
+    if(look.alpha < 1.f)
     {
-        ve.ent.alpha = ENTALPHA_ENCODE(0.3f);
+        ve.ent.alpha = ENTALPHA_ENCODE(look.alpha);
     }
-    if((cl.items & IT_QUAD) && static_cast<int>(vr_quad_look.value) != 1) // 1: the blue glow only (powerupGlow)
+    if(look.arcs)
     {
         quadArcs(s);
     }
@@ -3406,15 +3477,6 @@ const PowerupGlowLook powerupGlowLooks[] = {
 constexpr int powerupGlowKinds = 3;
 constexpr double powerupGlowTurn = 1.6; // seconds each glow shows when more than one take turns
 
-struct PowerupGlowState
-{
-    float level = 0.f; // the glow's strength this frame (0 none), pulsing
-    float code = 0.f;  // its colour coded for the shader (r + 16g + 256b, 16 levels a channel)
-    int shown = 0;     // how many power-ups glow (taking turns)
-    int kind = -1;     // the one glowing now (or fading out), powerupGlowLooks
-};
-PowerupGlowState powerupGlowState;
-
 float powerupGlowStrength(int kind)
 {
     switch(kind)
@@ -3435,26 +3497,27 @@ float powerupGlowLight(int kind)
     }
 }
 
-void powerupGlow(const hands::State& s)
+// The look of power-ups `items` (view::powerupLookOf: yours and another player's copy alike).
+qvr::view::PowerupLook lookOf(int items)
 {
-    PowerupGlowState& g = powerupGlowState;
-    g = PowerupGlowState{};
-    const bool can = vr_body_powerups.value != 0.f && cl.stats[STAT_HEALTH] > 0 && !cl.intermission && s.valid && !deathview::immersive();
-    int shown[powerupGlowKinds];
-    for(int k = 0; can && k < powerupGlowKinds; k++)
+    qvr::view::PowerupLook g;
+    if(vr_body_powerups.value == 0.f)
     {
-        if((cl.items & powerupGlowLooks[k].item) && (powerupGlowStrength(k) > 0.f || powerupGlowLight(k) > 0.f))
+        return g;
+    }
+    g.alpha = (items & IT_INVISIBILITY) ? 0.3f : 1.f;
+    g.arcs = (items & IT_QUAD) && static_cast<int>(vr_quad_look.value) != 1; // 1: the blue glow only
+    int shown[powerupGlowKinds];
+    for(int k = 0; k < powerupGlowKinds; k++)
+    {
+        if((items & powerupGlowLooks[k].item) && (powerupGlowStrength(k) > 0.f || powerupGlowLight(k) > 0.f))
         {
             shown[g.shown++] = k;
         }
     }
     if(g.shown == 0)
     {
-        for(int hand = 0; hand < 2; hand++)
-        {
-            emissive::powerupLight(hand, s.pos[hand], 0.f, 0.f, glm::vec3{0.f});
-        }
-        return;
+        return g;
     }
     // Taking turns: each shows for powerupGlowTurn seconds, crossfading into the next over its last third.
     const double t = cl.time;
@@ -3471,16 +3534,27 @@ void powerupGlow(const hands::State& s)
         return glm::mix(geom::vec(ca), geom::vec(cb), w);
     };
     const glm::vec3 shade = mixed(powerupGlowLooks[a].shade, powerupGlowLooks[b].shade);
-    const glm::vec3 lightColor = mixed(powerupGlowLooks[a].light, powerupGlowLooks[b].light);
+    g.lightColor = mixed(powerupGlowLooks[a].light, powerupGlowLooks[b].light);
     const float strengthA = za::clamp(powerupGlowStrength(a), 0.f, 2.f) * powerupGlowLooks[a].gain;
     const float strengthB = za::clamp(powerupGlowStrength(b), 0.f, 2.f) * powerupGlowLooks[b].gain;
     g.level = glm::mix(strengthA, strengthB, w) * pulse;
     const auto level16 = [](float c) { return static_cast<float>(za::clamp(static_cast<int>(c * 15.f + 0.5f), 0, 15)); };
     g.code = level16(shade.r) + 16.f * level16(shade.g) + 256.f * level16(shade.b);
-    const float light = za::clamp(glm::mix(powerupGlowLight(a), powerupGlowLight(b), w), 0.f, 2.f) * pulse;
+    g.light = za::clamp(glm::mix(powerupGlowLight(a), powerupGlowLight(b), w), 0.f, 2.f) * pulse;
+    return g;
+}
+
+qvr::view::PowerupLook powerupGlowState; // yours, as drawn this frame
+
+void powerupGlow(const hands::State& s)
+{
+    const bool can = cl.stats[STAT_HEALTH] > 0 && !cl.intermission && s.valid && !deathview::immersive();
+    qvr::view::PowerupLook& g = powerupGlowState;
+    g = can ? lookOf(cl.items) : qvr::view::PowerupLook{};
     for(int hand = 0; hand < 2; hand++) // (the body's own: Quake's blue quad and red pentagram lights round you, cl_main.c)
     {
-        emissive::powerupLight(hand, s.pos[hand], light * 0.8f, 110.f, lightColor); // (inside the hand: lights the world, not it)
+        // (inside the hand: lights the world, not it)
+        emissive::powerupLight(hand, s.pos[hand], g.shown > 0 ? g.light * 0.8f : 0.f, 110.f, g.lightColor);
     }
 }
 } // namespace
@@ -3489,7 +3563,7 @@ void powerupGlow(const hands::State& s)
 // take turns), its strength on the hands and the body, and its lights.
 void powerupInfo_f()
 {
-    const PowerupGlowState& g = powerupGlowState;
+    const qvr::view::PowerupLook& g = powerupGlowState;
     Con_Printf("powerups: quad %d pent %d suit %d look %d arcsframe %d\n", (cl.items & IT_QUAD) ? 1 : 0,
         (cl.items & IT_INVULNERABILITY) ? 1 : 0, (cl.items & IT_SUIT) ? 1 : 0, static_cast<int>(vr_quad_look.value), oncePerFrame.quadArcs);
     const float hand = view::powerupGlow(&entities.hand[0].ent);
@@ -3512,6 +3586,69 @@ void powerupInfo_f()
 
 namespace qvr::view
 {
+VrGunLook ownGunLook(int hand)
+{
+    const bool main = hand == HAND_MAIN;
+    VrGunLook l;
+    const int rv = cl.stats[main ? protocol::STAT_QVR_REVOLVER : protocol::STAT_QVR_REVOLVER2];
+    l.bits = VrGunLook::gunBit | (magazinesShown() ? VrGunLook::magsShownBit : 0) |
+             (cl.stats[protocol::STAT_QVR_RELOADMODE] == 0 ? VrGunLook::clipFullBit : 0) |
+             ((cl.stats[protocol::STAT_QVR_MAGOUT] & (main ? 2 : 1)) ? VrGunLook::magOutBit : 0) |
+             (ssgBreaks() ? VrGunLook::ssgBreaksBit : 0) | (rv ? VrGunLook::revolverBit : 0);
+    l.flags = static_cast<za::U16>(cl.stats[main ? protocol::STAT_QVR_WEAPONFLAGS : protocol::STAT_QVR_WEAPONFLAGS2] & 0xFFFF);
+    l.clip = static_cast<za::U8>(CLAMP(0, cl.stats[main ? protocol::STAT_QVR_WEAPONCLIP : protocol::STAT_QVR_WEAPONCLIP2], 255));
+    l.clipSize =
+        static_cast<za::U8>(CLAMP(0, cl.stats[main ? protocol::STAT_QVR_WEAPONCLIPSIZE : protocol::STAT_QVR_WEAPONCLIPSIZE2], 255));
+    l.revolver = rv;
+    l.cylinder = cl.statsf[main ? protocol::STAT_QVR_REVOLVERCYL : protocol::STAT_QVR_REVOLVERCYL2];
+    return l;
+}
+
+void drawGunParts(ViewEntity& gun, const VrGunLook& look, GunParts& g, bool held, bool screen, int player, int side)
+{
+    ViewEntity* const p = g.part;
+    const qmodel_t* const model = gun.visible && look.has(VrGunLook::gunBit) ? gun.ent.model : nullptr;
+    const bool breaks = look.has(VrGunLook::ssgBreaksBit);
+    bool parts = false;
+    if(held)
+    {
+        // As your own hands' guns, in the same order: the steps (setupWeapon), the magazines, the open super shotgun, the
+        // revolver (setupMagazines, setupSsgParts, setupRevolverParts).
+        (void)ssgStep(g.ssg, model, look.flags, breaks);
+        (void)revolverStep(g.rv, model, look.revolver, look.cylinder);
+        magSlideStep(g.mag, model, look, 0); // (his gun's id: not sent, its model tells a new one)
+        heldMagazines(gun, look, g.mag, p[GunParts::MagIn], p[GunParts::MagOut], p[GunParts::Well]);
+        parts = ssgHeldParts(gun, g.ssg, look.clip, p[GunParts::SsgFrame], p[GunParts::SsgBarrels]);
+        parts = revolverParts(gun, g.rv, look.revolver, p[GunParts::RvFrame], p[GunParts::RvCrane], p[GunParts::RvCyl],
+                    &p[GunParts::RvShell], -1) || parts;
+    }
+    else
+    {
+        // As your own holsters' (setupSsgParts, setupMagazines): no revolver in parts, no magazine sliding.
+        parts = ssgHolsterParts(gun, g.ssg, look.flags, look.clip, breaks, p[GunParts::SsgFrame], p[GunParts::SsgBarrels]);
+        setMagazine(p[GunParts::MagIn], gun, look.has(VrGunLook::magsShownBit) && !(look.flags & weaponFlagNoMag), false,
+            look.clip);
+        setMagazine(p[GunParts::Well], gun, look.has(VrGunLook::magsShownBit), true);
+        for(const int i : {GunParts::RvFrame, GunParts::RvCrane, GunParts::RvCyl, GunParts::MagOut})
+        {
+            p[i].visible = false;
+        }
+        for(int i = 0; i < 6; i++)
+        {
+            p[GunParts::RvShell + i].visible = false;
+        }
+    }
+    // Its button and ammo screen (its clip), as a gun not in your hands carries them (idleAttachments).
+    const int slot = model && screen ? weapons::slotForModel(model) : -1;
+    idleAttachments(gun.ent, gun.mirrored, slot, p[GunParts::Button], p[GunParts::Front], look.clip, look.clipSize, slot >= 0,
+        false, nullptr, held ? player : 0, side);
+    g.inParts = parts;
+    if(parts)
+    {
+        gun.visible = false; // (its parts are copies of it, made above)
+    }
+}
+
 bool gunToWorld(int hand, const glm::vec3& p, glm::vec3& out)
 {
     if(hand < 0 || hand > 1 || !entities.weapon[hand].visible || !entities.weapon[hand].ent.model)
@@ -3903,8 +4040,16 @@ const entity_t* cloneSource(const entity_t* e)
 
 float powerupGlow(const entity_t* e)
 {
-    const PowerupGlowState& g = powerupGlowState;
-    if(g.level <= 0.f || !e)
+    const PowerupLook& g = view_detail::powerupGlowState;
+    if(!e)
+    {
+        return 0.f;
+    }
+    if(const float other = mpavatar::powerupGlow(e); other != 0.f)
+    {
+        return other; // (another player's copy: his own power-ups)
+    }
+    if(g.level <= 0.f)
     {
         return 0.f;
     }
@@ -3912,17 +4057,29 @@ float powerupGlow(const entity_t* e)
     {
         e = source;
     }
-    float strength = 0.f;
     bool weapon = false;
     if(e == &entities.body.ent)
     {
-        strength = za::min(g.level * 0.3f, 1.f); // less: seen from inside, its edges are all round the view
+        return powerupGlowCode(g, true);
     }
-    else if(handOf(e, weapon) >= 0 && (!weapon || isHandModel(e->model)))
-    {
-        strength = za::min(g.level * 0.6f, 1.f);
-    }
-    return strength > 0.f ? -2.f - 2.f * g.code - strength : 0.f; // (vr_glsl.h QVR_ALIAS_FS_GLOW decodes it)
+    return handOf(e, weapon) >= 0 && (!weapon || isHandModel(e->model)) ? powerupGlowCode(g, false) : 0.f;
+}
+
+float powerupGlowCode(const PowerupLook& look, bool body)
+{
+    // (the body less: seen from inside, its edges are all round the view)
+    const float strength = look.level > 0.f ? za::min(look.level * (body ? 0.3f : 0.6f), 1.f) : 0.f;
+    return strength > 0.f ? -2.f - 2.f * look.code - strength : 0.f; // (vr_glsl.h QVR_ALIAS_FS_GLOW decodes it)
+}
+
+PowerupLook powerupLookOf(int items)
+{
+    return view_detail::lookOf(items);
+}
+
+void otherQuadArcs(int player, const glm::vec3 wrist[2], const glm::vec3 along[2])
+{
+    shock::otherArmArcs(wrist, along, static_cast<unsigned>(host_framecount) * 2654435761u + static_cast<unsigned>(player) * 40503u, 5, 0.2f);
 }
 
 void bareLight(const entity_t* e, float lightcolor[3])
@@ -4492,6 +4649,82 @@ entity_t* holsteredWeapon(int stat)
         }
     }
     return nullptr;
+}
+
+namespace
+{
+// The worn gear's models (VrDrawnGear::model: 1 + the index here).
+const char* const gearModelNames[] = {"progs/legholster.mdl", "progs/vrgadget.mdl", "progs/vrgadget_strap.mdl", "progs/vrpouch.mdl",
+    "progs/vrpouch_ammo.mdl"};
+constexpr int gearModelCount = static_cast<int>(sizeof(gearModelNames) / sizeof(gearModelNames[0]));
+} // namespace
+
+qmodel_t* gearModel(int index)
+{
+    return index >= 1 && index <= gearModelCount ? viewModel(gearModelNames[index - 1]) : nullptr;
+}
+
+qmodel_t* holsterOnOther(int holster, const glm::vec3& pos, const glm::vec3& out, float yaw, GearDraw& sheath, GearDraw& gun)
+{
+    const bool shoulder = holster == body::LeftShoulder || holster == body::RightShoulder;
+    const bool mirrored = holster == body::LeftHip || holster == body::LeftUpper || holster == body::LeftShoulder;
+    qmodel_t* const slotModel = vr_leg_holster_model_enabled.value && !shoulder ? viewModel("progs/legholster.mdl") : nullptr;
+    body::HolsterPlate plate;
+    plate.out = out;
+    plate.up = glm::vec3{0.f, 0.f, 1.f};
+    const HolsterPose pose = shoulder ? holsterOnBack(pos, yaw, mirrored)
+                                      : holsterOnBody(pos, plate, mirrored, holster == body::LeftUpper || holster == body::RightUpper, slotModel);
+    sheath.model = slotModel;
+    sheath.origin = pose.slotPos;
+    sheath.angles = pose.slotAngles;
+    sheath.mirrored = mirrored;
+    gun.origin = pose.weaponPos;
+    gun.angles = pose.weaponAngles;
+    gun.mirrored = mirrored;
+    return slotModel;
+}
+
+int posePouchItems(const ViewEntity& pouch, bool placed, int kind, int count, ViewEntity (&out)[pouchitems::most])
+{
+    return view_detail::posePouchItemsIn(pouch, placed, kind, count, out);
+}
+
+void netGear(VrDrawnGear& out)
+{
+    out = VrDrawnGear{};
+    const auto piece = [&](int i, const ViewEntity& ve) {
+        if(!ve.visible || !ve.ent.model || ve.ent.model->type != mod_alias || ENTALPHA_DECODE(ve.ent.alpha) <= 0.f)
+        {
+            return;
+        }
+        int index = 0; // (the view's own models, never the server's: by gearModelNames)
+        for(int k = 0; k < gearModelCount && !index; k++)
+        {
+            index = !strcmp(ve.ent.model->name, gearModelNames[k]) ? k + 1 : 0;
+        }
+        if(index <= 0)
+        {
+            return;
+        }
+        out.shown = static_cast<za::U16>(out.shown | (1 << i));
+        out.mirrored = static_cast<za::U16>(out.mirrored | (ve.mirrored ? 1 << i : 0));
+        out.model[i] = static_cast<za::U16>(index);
+        out.frame[i] = static_cast<za::U8>(za::clamp(ve.ent.frame, 0, 255));
+        out.skin[i] = static_cast<za::U8>(za::clamp(ve.ent.skinnum, 0, 255));
+        out.scale[i] = static_cast<za::U8>(za::clamp(static_cast<int>(ve.scale.x * 32.f + 0.5f), 1, 255));
+        out.origin[i] = glm::vec3{ve.ent.origin[0], ve.ent.origin[1], ve.ent.origin[2]};
+        out.angles[i] = glm::vec3{ve.ent.angles[0], ve.ent.angles[1], ve.ent.angles[2]};
+    };
+    for(int h = 0; h < HolsterCount; h++)
+    {
+        piece(static_cast<int>(bodyHolster[h]), entities.holsterSlot[h]);
+    }
+    piece(VrDrawnGear::gadget, entities.gadget);
+    piece(VrDrawnGear::strap, entities.gadgetStrap[0]);
+    piece(VrDrawnGear::strap + 1, entities.gadgetStrap[1]);
+    piece(VrDrawnGear::pouch, entities.pouch);
+    piece(VrDrawnGear::ammoPouch, entities.ammoPouch);
+    out.wrist = static_cast<za::U8>(hands::gadgetHand() == HAND_MAIN ? 1 : 0); // (the move sends its pieces from it)
 }
 
 void netHolsters(VrDrawnHolsters& out)
@@ -5450,6 +5683,7 @@ extern "C" void VR_SetupViewEntities()
         ragtool::draw(); // the ragdoll tool's subject: its skeleton, limits, targets, contacts, balance
         ledges::debugDraw(); // vr_debug_ledges
         nav::debugDraw(s.head); // vr_nav_debug
+        navfollow::debugDraw(); // vr_nav_debug: vr_nav_follow's path
         hitmodel::debugDraw(); // vr_debug_hits
         ambient::gridDebugDraw(s.head); // vr_model_light_grid_show
         hitmodel::zonesDraw(); // vr_debug_hitzones

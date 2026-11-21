@@ -98,6 +98,19 @@
                             </StackPanel>
                         </CheckBox>
                     </DockPanel>
+                    <!-- Quoth: experimental, needs AD (off and greyed without it, the reason in its text: QuothCanTick); on with AD (Quoth.OnByDefault). -->
+                    <DockPanel Margin="0,0,0,14">
+                        <TextBlock DockPanel.Dock="Right" Text="{Binding QuothSizeText}" Style="{StaticResource Size}" />
+                        <CheckBox IsChecked="{Binding InstallQuoth}" IsEnabled="{Binding QuothCanTick}">
+                            <StackPanel>
+                                <TextBlock Text="Quoth (experimental) — free, by Kell, Necros and Preach" Style="{StaticResource Body}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                <TextBlock Style="{StaticResource Small}" Margin="0,2,0,0" TextWrapping="Wrap">
+                                    <Run Text="{Binding QuothText, Mode=OneWay}" />
+                                    <Hyperlink Command="{Binding OpenQuothHomeCommand}" Foreground="{StaticResource AccentHover}">Quoth's readme and home page</Hyperlink>
+                                </TextBlock>
+                            </StackPanel>
+                        </CheckBox>
+                    </DockPanel>
                     <!-- Dwell: recommended, off by default until its maps play (Dwell.OnByDefault); the size first, the credit, the found copy. -->
                     <DockPanel Margin="0,0,0,14">
                         <TextBlock DockPanel.Dock="Right" Text="{Binding DwellSizeText}" Style="{StaticResource Size}" />
@@ -108,6 +121,16 @@
                                     <Run Text="{Binding DwellText, Mode=OneWay}" />
                                     <Hyperlink Command="{Binding OpenDwellHomeCommand}" Foreground="{StaticResource AccentHover}">Dwell's readme and home page</Hyperlink>
                                 </TextBlock>
+                            </StackPanel>
+                        </CheckBox>
+                    </DockPanel>
+                    <!-- Reliefs for Dwell and Quoth: made on this PC after them (ReliefMaker); on wherever either is there (ReliefsPossible). -->
+                    <DockPanel Margin="0,0,0,14">
+                        <TextBlock DockPanel.Dock="Right" Text="a few minutes" Style="{StaticResource Size}" />
+                        <CheckBox IsChecked="{Binding MakeReliefs}" IsEnabled="{Binding ReliefsPossible}">
+                            <StackPanel>
+                                <TextBlock Text="Make reliefs for Dwell and Quoth" Style="{StaticResource Body}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                <TextBlock Text="{Binding ReliefsText}" Style="{StaticResource Small}" Margin="0,2,0,0" TextWrapping="Wrap" />
                             </StackPanel>
                         </CheckBox>
                     </DockPanel>

@@ -537,6 +537,25 @@ void startPass(bool useCache)
     }
     SDL_AtomicSet(&cancel, 0);
     feedsNow(runFeeds);
+    // -loopbackonly (every harness and kit run): a feed off this machine is never asked, the refusal printed for a check
+    // asked for (vr_update_check_now); with none left there is no pass.
+    za::Vector<za::String> allowed;
+    for(const za::String& f : runFeeds)
+    {
+        if(!Download_OffhostRefused(f.cStr()))
+        {
+            allowed.pushBack(f);
+        }
+        else if(askedPass)
+        {
+            NET_LoopbackRefused(va("the update check at %s", f.cStr()));
+        }
+    }
+    if(allowed.empty())
+    {
+        return;
+    }
+    runFeeds = allowed;
     runUseCache = useCache;
     running.storeSeqCst(true);
     worker = za::Thread(run);

@@ -2027,6 +2027,16 @@ void ensureThread()
 
 [[nodiscard]] bool networkOk(bool asked)
 {
+    // -loopbackonly (every harness and kit run): Slipseer is never fetched, its cache only read; the refusal printed
+    // for a fetch asked for (maps_fetch).
+    if(Download_OffhostRefused(siteRoot))
+    {
+        if(asked)
+        {
+            NET_LoopbackRefused("Slipseer's listing fetch");
+        }
+        return false;
+    }
     return asked || (vr_maps_fetch.value && !getenv("QVR_TEST_BACKGROUND"));
 }
 

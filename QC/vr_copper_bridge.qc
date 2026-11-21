@@ -77,6 +77,43 @@ void() CU_Frame =
     cu_framecount = cu_framecount + 1;
 };
 
+// PutClientInServer: Copper's spawn points fire their targets when a player spawns at one, with him as activator (its
+// PutClientInServer; ours never did). Dwell's start unlocks its rune pedestals' relays from its info_player_start
+// (start1_targets: placed runes opened no gate, the walls behind the portals stayed solid, his note 2026-11-21) and
+// opens the finished episodes' gates from its info_player_start2.
+// (fired after the target_locks' START_LOCKED lock, 0.25 s after the map's spawn: a player spawned sooner, as ours on a
+// map's load, had his spot's unlock undone by it)
+void() CU_SpawnTargets_Think =
+{
+    if(self.enemy.classname == "player")
+    {
+        cu_activator = self.enemy;
+        cu_SUB_UseEntTargets(self.owner);
+    }
+    remove(self);
+};
+
+void(entity xSpot) CU_PlayerSpawnedAt =
+{
+    if(!CU_Rules() || xSpot == world || xSpot.target == "" ||
+       substring(xSpot.classname, 0, 12) != "info_player_")
+    {
+        return;
+    }
+    float after = 0;
+    entity l = world;
+    while((l = find(l, classname, "target_lock")))
+    {
+        if(l.think == cu_lock_targets && l.nextthink > time) { after = max(after, l.nextthink); }
+    }
+    entity t = spawn();
+    t.classname = "cu_spawntargets";
+    t.owner = xSpot;
+    t.enemy = self;
+    t.think = CU_SpawnTargets_Think;
+    t.nextthink = after > 0 ? after + 0.05 : time;
+};
+
 void() VR_CU_Autosave =
 {
     if(!deathmatch && !coop)

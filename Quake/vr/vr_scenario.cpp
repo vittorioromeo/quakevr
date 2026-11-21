@@ -100,8 +100,9 @@ struct State
     za::Vector<za::String> queue;   // vr_scenario runall's ids still to run
     za::String error;               // lastError()
     za::String hint;                // the hint shown
+    za::String skipWhy;             // runall: why the current one is skipped (an add-on it needs not here), "" to run it
     za::Vector<const char*> live;   // while the config is written: each changed setting's own string (put back after)
-    auto members() { return qvr::mem::list(placed, run, lastHint, saved, errors, notes, queue, error, hint, live); }
+    auto members() { return qvr::mem::list(placed, run, lastHint, saved, errors, notes, queue, error, hint, skipWhy, live); }
 };
 mem::Cache<State> state{"scenario", mem::Never};
 
@@ -118,7 +119,7 @@ double hintUntil = 0.0;     // realtime the hint shows until
 bool runAll = false;        // vr_scenario runall in progress
 bool runAllQuit = false;    // and the game quit after it
 int runAllFrames = 0;       // its frames since the current one was placed
-int runAllCount = 0, runAllFailed = 0;
+int runAllCount = 0, runAllFailed = 0, runAllSkipped = 0;
 float givenWeapon[2] = {-1.f, -1.f}; // per QC hand (0 off, 1 main): the weapon its give left there (-1: none given)
 double placedAt = 0.0;      // the server's time when the current one was placed
 // runall: each scene runs this long in game time; a hand given a weapon must still hold it then (it stays until let go).
@@ -560,10 +561,31 @@ void place()
     const progs::ServerVm vm;
     const Scenario& s = state.run;
     state.notes.clear();
+    state.skipWhy.clear();
     edict_t* p = progs::localPlayer();
     if(!p)
     {
         note("no player");
+        return;
+    }
+    // vr_scenario runall: a scene naming a toolgun entry this game can't make (an add-on's: Dwell's, Arcane
+    // Dimensions'... not installed or not in play) is skipped with the toolgun's reason, nothing placed: not a failure.
+    for(const Give& g : s.gives)
+    {
+        if(runAll && state.skipWhy.empty() && !toolgun::spawnableAvailable(g.entry))
+        {
+            state.skipWhy = va("line %d: \"%s\": %s", g.line, g.what.cStr(), toolgun::spawnableUnavailableWhy(g.entry));
+        }
+    }
+    for(const Spawn& sp : s.spawns)
+    {
+        if(runAll && state.skipWhy.empty() && !sp.armed && sp.entry >= 0 && !toolgun::spawnableAvailable(sp.entry))
+        {
+            state.skipWhy = va("line %d: \"%s\": %s", sp.line, sp.what.cStr(), toolgun::spawnableUnavailableWhy(sp.entry));
+        }
+    }
+    if(!state.skipWhy.empty())
+    {
         return;
     }
     if(s.hasStart)
@@ -719,7 +741,7 @@ void runNext()
     {
         runAll = false;
         end();
-        Con_Printf("SCNRUNSUM|%d run|%d failed\n", runAllCount, runAllFailed);
+        Con_Printf("SCNRUNSUM|%d run|%d failed|%d skipped\n", runAllCount, runAllFailed, runAllSkipped);
         if(runAllQuit)
         {
             Cbuf_AddText("toggleconsole\nquit\n");
@@ -1035,6 +1057,13 @@ void frame()
     {
         return;
     }
+    if(runAll && !state.skipWhy.empty())
+    {
+        runAllSkipped++;
+        Con_Printf("SCNRUN|%s|SKIP|%s\n", state.run.id.cStr(), state.skipWhy.cStr());
+        runNext();
+        return;
+    }
     if(runAll && ++runAllFrames >= 30 && (!sv.active || sv.qcvm.time - placedAt >= runAllHoldSeconds))
     {
         // The hands given a weapon still hold it (nothing let go of it: the grips stay unpressed throughout).
@@ -1134,7 +1163,7 @@ void command_f()
             allIds(state.queue);
         }
         runAll = true;
-        runAllCount = runAllFailed = 0;
+        runAllCount = runAllFailed = runAllSkipped = 0;
         runNext();
     }
     else if(!q_strcasecmp(a, "where"))

@@ -211,8 +211,9 @@ edict_t* slotPlayer(const char* command, int arg)
     return player;
 }
 
-// vr_goto_exit [<slot>]: the player put in the level's exit (its first trigger_changelevel's middle), touching it as
-// if he walked in: the intermission, or the next level (Debug > Tests > Cheats; from agent/mp).
+// vr_goto_exit [<slot>] [<map>]: the player put in the level's exit (its first trigger_changelevel's middle; with
+// <map>, the one to that map: a hub's), touching it as if he walked in: the intermission, or the next level (Debug >
+// Tests > Cheats; from agent/mp).
 void gotoExit_f()
 {
     edict_t* player = slotPlayer("vr_goto_exit", 1);
@@ -221,15 +222,21 @@ void gotoExit_f()
         return;
     }
     const progs::ServerVm vm;
+    const char* wanted = Cmd_Argc() > 2 ? Cmd_Argv(2) : nullptr;
     edict_t* exit = nullptr;
     for(int i = svs.maxclients + 1; i < qcvm->num_edicts && !exit; i++)
     {
         edict_t* e = EDICT_NUM(i);
-        exit = !e->free && !strcmp(PR_GetString(e->v.classname), "trigger_changelevel") ? e : nullptr;
+        if(e->free || strcmp(PR_GetString(e->v.classname), "trigger_changelevel"))
+        {
+            continue;
+        }
+        const eval_t* to = GetEdictFieldValueByName(e, "map");
+        exit = !wanted || (to && to->string && !q_strcasecmp(PR_GetString(to->string), wanted)) ? e : nullptr;
     }
     if(!exit)
     {
-        Con_Printf("vr_goto_exit: no exit (trigger_changelevel) in this level\n");
+        Con_Printf("vr_goto_exit: no exit (trigger_changelevel)%s%s in this level\n", wanted ? " to " : "", wanted ? wanted : "");
         return;
     }
     for(int k = 0; k < 3; k++)
@@ -294,7 +301,11 @@ void hurt_f()
     G_INT(OFS_PARM1) = EDICT_TO_PROG(attacker);
     G_INT(OFS_PARM2) = EDICT_TO_PROG(attacker);
     G_FLOAT(OFS_PARM3) = static_cast<float>(Q_atof(Cmd_Argv(1)));
+    // (its wound, sounds and gore are broadcast: a command runs before the server frame, whose SV_ClearDatagram would
+    // drop them written to sv.datagram now; they open the next frame's)
+    server::commandBroadcastBegin();
     PR_ExecuteProgram(fn);
+    server::commandBroadcastEnd();
     Con_Printf("vr_hurt: %s at %.0f health%s\n", PR_GetString(player->v.netname), player->v.health,
         player->v.health <= 0.f ? ", dead" : "");
 }

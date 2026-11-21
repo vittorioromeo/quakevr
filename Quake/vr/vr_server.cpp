@@ -37,6 +37,7 @@
 #include "vr_seated.hpp"
 #include "vr_shock.hpp"
 #include "vr_units.hpp"
+#include "vr_view.hpp"
 #include "vr_portals.hpp"
 #include "vr_testkit.hpp"
 #include "vr_tips.hpp"
@@ -55,6 +56,7 @@
 #include "vr_netmove.hpp"
 #include "vr_predict.hpp"
 #include "vr_netsnap.hpp"
+#include "vr_netragdoll.hpp"
 
 
 using namespace qvr;
@@ -118,7 +120,7 @@ struct CommandBudget
 za::Vector<CommandBudget> commandBudgets;
 
 // Per client slot: its avatar as last sent (writeAvatars: an unchanged one waits for its keyframe); and the counts.
-constexpr int avatarMaxBytes = 260; // (2 + 2 + 1 + 12 + 8 + 2 * 47 + 8 + 2 * 7 holds + 3 + 6 * 16 holsters + 1 = 241 at most)
+constexpr int avatarMaxBytes = 520; // (2 + 2 + 1 + 12 + 8 + 2 * 47 + 8 + 2 * 7 holds + 3 + 6 * 16 holsters + 1 = 241; the guns' looks and the torch 2 * 12 + 12 + 19: 296; the worn gear 4 + 11 * 17 + 2 (the ammo pouch's rounds): 489 at most)
 struct AvatarSent
 {
     byte bytes[avatarMaxBytes]{};
@@ -972,6 +974,17 @@ extern "C" void VR_SnapEnd(sizebuf_t* msg)
             qvr::netsnap::serverRecord(qvr::netsnap::poseKey + e, w.poseJoin, len);
         }
     }
+    // (ragsync) The ragdolls in its sight: a record each, their parts as the server last stepped them (vr_netragdoll.cpp).
+    if(qvr::vr_net_ragdolls.value != 0.f)
+    {
+        for(int e = 1; e < qcvm->num_edicts; e++)
+        {
+            if(scopedInSight(r, e))
+            {
+                qvr::netrag::serverRecord(e);
+            }
+        }
+    }
     qvr::netsnap::serverEnd(msg);
 }
 
@@ -985,6 +998,37 @@ void qvr::server::queueBroadcast(const byte* data, int len)
     }
     memcpy(b.queued + used, data, static_cast<size_t>(len));
     b.queuedEnds[b.numQueued++] = used + len;
+}
+
+void qvr::server::commandBroadcastBegin()
+{
+    BroadcastRoom& b = broadcastRoom;
+    b.numMarks = 0;
+    b.qcEnd = -1;
+    b.dropAt = -1;
+    b.msgAt = 0;
+    SZ_Clear(&sv.datagram);
+}
+
+void qvr::server::commandBroadcastEnd()
+{
+    const BroadcastRoom& b = broadcastRoom;
+    const int used = b.numQueued > 0 ? b.queuedEnds[b.numQueued - 1] : 0;
+    if(sv.datagram.cursize + used <= static_cast<int>(sizeof(b.queued)))
+    {
+        queueBroadcast(sv.datagram.data, sv.datagram.cursize); // (all of it in one: its messages whole, one after another)
+        return;
+    }
+    int from = 0;
+    for(int i = 0; i <= b.numMarks && from < sv.datagram.cursize; i++)
+    {
+        const int end = i < b.numMarks ? q_min(b.marks[i], sv.datagram.cursize) : sv.datagram.cursize;
+        if(end > from)
+        {
+            queueBroadcast(sv.datagram.data + from, end - from);
+            from = end;
+        }
+    }
 }
 
 // PR_ExecuteProgram, a run of the server's QuakeC from the engine (not nested in a builtin): QuakeC is between messages.
@@ -2039,6 +2083,10 @@ extern "C" void VR_CalcStats(client_t* client, int* statsi, float* statsf)
     stat(STAT_QVR_AMMOPLASMA, f.ammo_plasma);
     statsf[STAT_QVR_STEALTH] = fieldFloatOr(ent, f.stl_hud, -1.f);
     stat(STAT_QVR_ADHUD, f.vr_ad_hud); // AD support: AD's row on the wrist gadget (vr_gadget.cpp)
+    if(vr_ad_mounted.value != 0.f) // (and whether AD's data is in play here: a remote client's AD page, ad::clientDataInPlay)
+    {
+        statsf[STAT_QVR_ADHUD] = static_cast<float>(static_cast<int>(statsf[STAT_QVR_ADHUD]) | ADHUD_DATA);
+    }
     stat(STAT_QVR_ADKEYS, f.vr_ad_hudkeys);
     stat(STAT_QVR_ADTIME, f.vr_ad_hudtime);
     stat(STAT_QVR_ADTINT, f.vr_ad_tint); // AD support: AD's screen tint (vr_ad.cpp VR_AD_TintBlend)
@@ -2131,6 +2179,23 @@ extern "C" int VR_StepLerpInterval(edict_t* ent)
     }
     const int interval = static_cast<int>(host_frametime * 255.0 + 0.5);
     return interval < 1 ? 1 : interval > 25 ? 25 : interval;
+}
+
+// A stepping monster standing on a moving lift (a MOVETYPE_PUSH it rides, moving): the lift moves it every server
+// frame, so it is sent without U_STEP and drawn as the lift is (between the last two messages), not along its steps to
+// its next think. Drawn to its think it fell ~13 units behind the drawn lift riding e1m1's plat up, and ~1.8 drawn over
+// a frame (the step lerp's finish counts from the message's time, its start from the client's: vr_debug_lift; his note
+// of 2026-11-21, riders "compressed by the lift"). Its own steps on a moving lift are drawn over the frame too.
+extern "C" int VR_StepRidesLift(edict_t* ent)
+{
+    if(static_cast<int>(ent->v.movetype) != MOVETYPE_STEP || !(static_cast<int>(ent->v.flags) & FL_ONGROUND) ||
+       ent->v.groundentity <= 0)
+    {
+        return 0;
+    }
+    const edict_t* g = PROG_TO_EDICT(ent->v.groundentity);
+    return !g->free && static_cast<int>(g->v.movetype) == MOVETYPE_PUSH &&
+           (g->v.velocity[0] != 0.f || g->v.velocity[1] != 0.f || g->v.velocity[2] != 0.f);
 }
 
 namespace
@@ -2328,6 +2393,74 @@ void writeAngles16(sizebuf_t* msg, const glm::vec3& a)
     }
 }
 
+// A player's guns as the server has them (QC's fields: what his own client's stats say of them), for the others to draw
+// them as his client does (MP_PLAN.md, "Held weapons' state"): each hand's look (VrGunLook: [0] off, [1] main), then each
+// holstered weapon's flags (their low byte: no magazine, broken open) and clip, the holsters `holsters` has drawn.
+void writeGunLooks(sizebuf_t* msg, edict_t* ent, const VrDrawnHolsters& holsters)
+{
+    const FieldOffsets& f = fields();
+    const bool vrProgs = bindings().isVrProgs;
+    const bool flat = vrProgs && fieldFloatOr(ent, f.vr_flatscreen, 0.f) != 0.f;
+    // (as VR_CalcStats' STAT_QVR_RELOADMODE for him, and the client's magazinesShown, ssgBreaks)
+    const int mode = vr_holster_mode.value != 0.f ? 0 : flat ? (vr_flat_reload.value != 0.f ? 2 : 0) : reloadModeBest();
+    const int magOut = static_cast<int>(fieldFloatOr(ent, f.vr_mag_out, 0.f));
+    const auto clipOf = [&](edict_t* r) { return r ? CLAMP(0, static_cast<int>(fieldFloatOr(r, f.wi_clip, 0.f)), 255) : 0; };
+    for(int h = 0; h < 2; h++)
+    {
+        const bool main = h == 1;
+        VrGunLook l;
+        l.bits = (mode == 3 || flat ? VrGunLook::magsShownBit : 0) | (mode == 0 ? VrGunLook::clipFullBit : 0) |
+                 ((mode == 3 && vr_reload_ssg_break.value != 0.f) || flat ? VrGunLook::ssgBreaksBit : 0);
+        edict_t* const inst = vrProgs ? weaponInst(ent, main ? f.weaponinst : f.weaponinst2) : nullptr;
+        const int flags = static_cast<int>(fieldFloatOr(ent, main ? f.weaponflags : f.weaponflags2, 0.f));
+        const int rv = static_cast<int>(fieldFloatOr(ent, main ? f.vr_rv_hud : f.vr_rv_hud2, 0.f));
+        if(vrProgs && (inst || flags || rv))
+        {
+            l.bits |= VrGunLook::gunBit | ((magOut & (main ? 2 : 1)) ? VrGunLook::magOutBit : 0) |
+                      (rv ? VrGunLook::revolverBit : 0);
+            l.flags = static_cast<za::U16>(flags & 0xFFFF);
+            l.clip = static_cast<za::U8>(clipOf(inst));
+            l.clipSize = static_cast<za::U8>(CLAMP(0, static_cast<int>(fieldFloatOr(ent, main ? f.weaponclipsize : f.weaponclipsize2, 0.f)), 255));
+            l.revolver = rv;
+            l.cylinder = fieldFloatOr(ent, main ? f.vr_rv_cyl : f.vr_rv_cyl2, 0.f);
+        }
+        writeGunLook(msg, l);
+    }
+    const int holsterFlags[numHolsters] = {f.holsterweaponflags0, f.holsterweaponflags1, f.holsterweaponflags2,
+        f.holsterweaponflags3, f.holsterweaponflags4, f.holsterweaponflags5};
+    const int holsterInst[numHolsters] = {f.holsterweaponinst0, f.holsterweaponinst1, f.holsterweaponinst2,
+        f.holsterweaponinst3, f.holsterweaponinst4, f.holsterweaponinst5};
+    for(int i = 0; i < VrDrawnHolsters::count && i < numHolsters; i++)
+    {
+        if(holsters.valid && (holsters.weapons & (1 << i)))
+        {
+            MSG_WriteByte(msg, vrProgs ? static_cast<int>(fieldFloatOr(ent, holsterFlags[i], 0.f)) & 255 : 0);
+            MSG_WriteByte(msg, vrProgs ? clipOf(weaponInst(ent, holsterInst[i])) : 0);
+        }
+    }
+}
+
+// A bot's holstered weapons (syncfix; the voice note 2026-11-21: "so that I can see what they're actually carrying"): its
+// QC holsters' models, frames 0, places left to each client (VrDrawnGear::solveBit: on its body as drawn).
+[[nodiscard]] VrDrawnHolsters botHolstered(edict_t* ent)
+{
+    const FieldOffsets& f = fields();
+    const int holsterModel[numHolsters] = {f.holsterweaponmodel0, f.holsterweaponmodel1, f.holsterweaponmodel2,
+        f.holsterweaponmodel3, f.holsterweaponmodel4, f.holsterweaponmodel5};
+    VrDrawnHolsters h;
+    h.valid = true;
+    for(int i = 0; i < VrDrawnHolsters::count && i < numHolsters; i++)
+    {
+        const int model = holsterModel[i] >= 0 ? modelIndexOfField(ent, holsterModel[i]) : 0;
+        if(model > 0)
+        {
+            h.weapons = static_cast<za::U8>(h.weapons | (1 << i));
+            h.model[i] = static_cast<za::U16>(model);
+        }
+    }
+    return h;
+}
+
 // Each VR player's avatar this frame (QVR_SVC_AVATAR: his head and hands as his last move placed them, his weapons) to
 // the other clients that see him (server::scopedBegin; his own client does not: his entity is not noted for himself).
 // Multiplayer only: a single player's own hands are his client's (MP_PLAN.md, B2; vr_avatar.cpp draws nothing yet).
@@ -2349,8 +2482,7 @@ void writeAvatars()
         // weapons go instead, for each client to place its hands and weapons on as it places its own
         // (VrDrawnHand::solveBit, view::solveHands); its head at its eyes, its body a standing player's of its eye height.
         edict_t* const ent = c.active ? c.edict : EDICT_NUM(i + 1);
-        const bool bot = !c.active && !ent->free && ent->v.modelindex != 0.f && f.ishuman >= 0 &&
-                         fieldFloatOr(ent, f.ishuman, 1.f) == 0.f && !strcmp(PR_GetString(ent->v.classname), "player");
+        const bool bot = server::isBot(i);
         if(!bot && (!c.active || !c.spawned || !c.edict || !m))
         {
             continue;
@@ -2361,10 +2493,9 @@ void writeAvatars()
         {
             body.valid = true;
             body.yaw = ent->v.v_angle[1];
-            // (its own eye height, metres: its standing eyes over its feet -- the model's default drew it smaller than a
-            // human of the same box; B11 part 3, part 3. Standing: a dead bot's lowered view is not its height)
-            body.headHeight = body.standingHeight =
-                (static_cast<float>(DEFAULT_VIEWHEIGHT) - ent->v.mins[2]) / units::metresToUnits();
+            // (its eye height, metres: the default player's, drawn at the default world scale (units::botEyeUnits; his
+            // notes 2026-11-21: "the same height as the player"); a dead bot's lowered view is not its height)
+            body.headHeight = body.standingHeight = units::modelEyeHeight;
             for(int h = 0; h < 2; h++)
             {
                 VrDrawnHand& d = drawn[h];
@@ -2373,6 +2504,13 @@ void writeAvatars()
                 d.handAngles = fieldVec(ent, handFields(h).rot);
                 d.weaponModel = static_cast<za::U16>(h ? SV_ModelIndex(PR_GetString(ent->v.weaponmodel)) : modelIndexOfField(ent, f.weaponmodel2));
                 d.weaponFrame = static_cast<za::U8>(za::clamp(static_cast<int>(h ? ent->v.weaponframe : fieldFloatOr(ent, f.weaponframe2, 0.f)), 0, 255));
+                // (bots3) its weapon where the server has it (its disarm volume's, its muzzle's): every client draws it there
+                if(view::HeldPlace p; server::botHeld(ent, h, p))
+                {
+                    d.flags |= VrDrawnHand::weaponBit;
+                    d.weaponOrigin = p.origin;
+                    d.weaponAngles = p.angles;
+                }
             }
         }
         // (offsets from the origin his client placed them from: the hands as drawn on his body, wherever the server has it)
@@ -2388,7 +2526,10 @@ void writeAvatars()
         MSG_WriteShort(&tmp, i + 1);
         MSG_WriteByte(&tmp, mpavatar::movesByte(ent, m && (m->move.vrBits0 & protocol::moveFlatplayBit) != 0));
         // (rebaseHands moves the head and its base along together)
-        writeEighths(&tmp, m ? m->move.headPos - m->base : v3(ent->v.view_ofs));
+        // (a bot's head: its eyes raised to the default player's height, units::botEyeRaise)
+        writeEighths(&tmp, m ? m->move.headPos - m->base
+                             : v3(ent->v.view_ofs) + glm::vec3{0.f, 0.f,
+                                   units::botEyeRaise(static_cast<float>(DEFAULT_VIEWHEIGHT) - ent->v.mins[2])});
         writeAngles16(&tmp, m ? m->move.headAngles : v3(ent->v.v_angle));
         writeBodyPose(&tmp, m ? m->move.body : body); // (his body's yaw, crouch and lean, as his client poses it: B2d)
         const VrDrawnHand* const hands = m ? m->move.drawn : drawn;
@@ -2399,8 +2540,25 @@ void writeAvatars()
         MSG_WriteLong(&tmp, static_cast<int>(ent->v.weapon));
         MSG_WriteLong(&tmp, static_cast<int>(fieldFloatOr(ent, f.weapon2, 0.f)));
         mpavatar::writeHolds(&tmp, ent, origin); // (his climbing holds, as the moves byte says: B5c)
-        writeDrawnHolsters(&tmp, m ? m->move.holsters : noHolsters, origin, false); // (his holstered weapons as he drew them: B6b)
+        // (his holstered weapons as he drew them: B6b; a bot's, what it carries, placed by each client: syncfix)
+        const VrDrawnHolsters botHolsters = bot ? botHolstered(ent) : noHolsters;
+        writeDrawnHolsters(&tmp, m ? m->move.holsters : botHolsters, origin, false);
         MSG_WriteByte(&tmp, mpavatar::gearByte(ent));        // (the armour he wears: his pauldrons' colour)
+        // (his guns as the server has them, and his torch as he drew it: wpnsync)
+        writeGunLooks(&tmp, ent, m ? m->move.holsters : botHolsters);
+        writeDrawnLamp(&tmp, m ? m->move.lamp : VrDrawnLamp{}, origin);
+        // (his worn gear as he drew it; a bot's placed by each client on its body: syncfix)
+        VrDrawnGear gear;
+        gear.shown = VrDrawnGear::solveBit;
+        if(m)
+        {
+            gear = m->move.gear;
+            // (what his ammo pouch holds, the server's word: your STAT_QVR_POUCHKIND and _POUCHCOUNT's fields, syncfix2)
+            gear.pouchKind = static_cast<za::U8>(za::clamp(static_cast<int>(fieldFloatOr(ent, f.vr_pouch_kind, 0.f)), 0, 255));
+            gear.pouchCount = static_cast<za::U8>(za::clamp(static_cast<int>(fieldFloatOr(ent, f.vr_pouch_count, 0.f)), 0, 255));
+        }
+        const VrBodyPose& wroteBody = m ? m->move.body : body; // (the yaw as the client reads it back: writeBodyPose)
+        writeDrawnGear(&tmp, gear, origin, wroteBody.valid ? wroteBody.yaw : 0.f, hands);
 
         if(static_cast<int>(avatarsSent.size()) < svs.maxclients)
         {
@@ -2438,6 +2596,7 @@ extern "C" void VR_ServerFrameBegin()
     // This game's own player's drawn weapon poses, ground spots and holster presses into his slot, as a remote player's
     // messages put his: the server's readers ask the slot alone (MP_PLAN B11a).
     qvr::heldpose::publishOwn();
+    qvr::heldpose::placeBots(); // (bots3: each bot's weapons as every client draws them)
 }
 
 extern "C" void VR_ServerFrameEnd()
@@ -2505,6 +2664,31 @@ extern "C" void VR_ServerFrameEnd()
 
 namespace qvr::server
 {
+
+bool isBot(int slot)
+{
+    if(!sv.active || slot < 0 || slot >= svs.maxclients || svs.clients[slot].active || slot + 1 >= sv.qcvm.num_edicts)
+    {
+        return false;
+    }
+    const FieldOffsets& f = fields();
+    edict_t* const ent = EDICT_NUM(slot + 1);
+    return !ent->free && ent->v.modelindex != 0.f && f.ishuman >= 0 && fieldFloatOr(ent, f.ishuman, 1.f) == 0.f &&
+           !strcmp(PR_GetString(ent->v.classname), "player");
+}
+
+bool botHeld(edict_t* bot, int hand, view::HeldPlace& out)
+{
+    const FieldOffsets& f = fields();
+    const int index = hand ? SV_ModelIndex(PR_GetString(bot->v.weaponmodel)) : modelIndexOfField(bot, f.weaponmodel2);
+    qmodel_t* const model = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
+    const progs::HandFields& hf = progs::handFields(hand);
+    if(!model || hf.pos < 0 || hf.rot < 0)
+    {
+        return false;
+    }
+    return view::placeHeld(model, hand, fieldVec(bot, hf.pos), fieldVec(bot, hf.rot), out);
+}
 
 // vr_dumpplayer: prints the local player's VR fields as the server sees them.
 void dumpPlayer_f()
@@ -2784,19 +2968,44 @@ void sendCollectSeen(edict_t* seen, int hand, int hotspot, int ent, int modelInd
 // draws them, from its own weapon model.
 void sendEject(edict_t* player, int hand, int kind, int count, int flags, float delay)
 {
-    sizebuf_t* msg = clientMessage(player);
-    if(!msg || count <= 0)
+    if(count <= 0 || !player)
     {
         return;
     }
-
-    MSG_WriteByte(msg, svc_quakevr);
-    MSG_WriteByte(msg, QVR_SVC_EJECT);
-    MSG_WriteByte(msg, hand);
-    MSG_WriteByte(msg, kind);
-    MSG_WriteByte(msg, CLAMP(0, count, 255));
-    MSG_WriteByte(msg, flags);
-    MSG_WriteByte(msg, CLAMP(0, static_cast<int>(delay * 100.f + 0.5f), 255));
+    const auto write = [&](sizebuf_t* msg, bool other) {
+        MSG_WriteByte(msg, svc_quakevr);
+        MSG_WriteByte(msg, other ? QVR_SVC_EJECTOTHER : QVR_SVC_EJECT);
+        if(other)
+        {
+            MSG_WriteShort(msg, NUM_FOR_EDICT(player));
+        }
+        MSG_WriteByte(msg, hand);
+        MSG_WriteByte(msg, kind);
+        MSG_WriteByte(msg, CLAMP(0, count, 255));
+        MSG_WriteByte(msg, flags);
+        MSG_WriteByte(msg, CLAMP(0, static_cast<int>(delay * 100.f + 0.5f), 255));
+    };
+    if(sizebuf_t* msg = clientMessage(player))
+    {
+        write(msg, false);
+    }
+    // (syncfix2) The others who see him: his casings out of his copy's weapon (8 B a shot each).
+    if(svs.maxclients <= 1 || !sv.worldmodel)
+    {
+        return;
+    }
+    for(int i = 0; i < svs.maxclients; ++i)
+    {
+        const client_t& c = svs.clients[i];
+        if(!c.active || !c.spawned || !c.edict || c.edict == player || !SV_VisibleToClient(c.edict, player, sv.worldmodel))
+        {
+            continue;
+        }
+        if(sizebuf_t* msg = clientMessage(c.edict))
+        {
+            write(msg, true);
+        }
+    }
 }
 
 void sendViewMessage(edict_t* player, const char* text, float seconds, bool arena)

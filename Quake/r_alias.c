@@ -592,6 +592,8 @@ void R_SetupEntityTransform (entity_t *e, lerpdata_t *lerpdata)
 
 	if (VR_DebugDrawnOn ()) // QVR: a stepping monster's drawn place jumping between frames, logged
 		VR_DebugDrawnMove (e, lerpdata->origin);
+	if (VR_DebugLiftOn ()) // QVR: riders sinking into a moving lift, measured (vr_debug_lift)
+		VR_DebugLiftDrawn (e, lerpdata->origin);
 }
 
 /*

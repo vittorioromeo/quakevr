@@ -19,6 +19,9 @@ namespace qvr::autopump
 // A shot of the shotgun in `hand` (QVR_SVC_FIRED, vr_weaponfx_test: weaponfx::playerFired): a stroke starts; one still
 // running starts over.
 void fired(int hand);
+// (syncfix5) Another player's (entity `ent`) shotgun in his `hand` fired (QVR_SVC_FIRED: weaponfx's otherPlayerFired): its
+// stroke's clacks heard at his copy's gun as yours are at yours (frame).
+void otherFired(int ent, int hand);
 
 // How far back the fore-end of the shotgun in `hand` is now, in its model's units (0 at rest, or off).
 [[nodiscard]] float travel(int hand);

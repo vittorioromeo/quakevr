@@ -49,6 +49,75 @@ struct ViewEntity
                            // offset (a map's spinning weapon pickup is moved by its model_offset: vr_render.cpp)
 };
 
+// The steps of a gun drawn in its parts (vr_view.cpp; your own hands' and holsters' guns, and another player's: his
+// avatar's GunParts): a magazine sliding home or out, the super shotgun's barrels dropping open, the heavy revolver's
+// crane and cylinder.
+struct MagSlide
+{
+    enum class Mode
+    {
+        None,
+        Seat,
+        Out
+    };
+    Mode mode{Mode::None};
+    double start{0.0};            // vr_gametime it began
+    double time{-1.0};            // vr_gametime of the last step
+    float dt{0.f};                // its game time
+    int frame{-1};                // host_framecount of the last step
+    int uid{0};                   // the gun's id, last step
+    const qmodel_t* gun{nullptr}; // its model
+    bool noMag{false};            // its magazine out, last step
+    int rounds{2};                // what its magazine held as it last sat in the gun (drawn sliding out: its top nails)
+};
+struct SsgDrawn
+{
+    float angle{0.f};             // degrees the barrels are drawn turned down
+    double time{-1.0};            // vr_gametime of its last step
+    const qmodel_t* gun{nullptr}; // the model it was for (another gun: no animation)
+    bool parts{false};            // drawn in its parts this frame (the gun itself not drawn)
+};
+struct RevolverDrawn
+{
+    float swing{0.f};
+    float cyl{0.f};
+    double time{-1.0};            // vr_gametime of its last step
+    const qmodel_t* gun{nullptr}; // the model it was for (another gun: no animation)
+    bool parts{false};            // drawn in its parts this frame (the gun itself not drawn)
+};
+// Another player's gun drawn in its parts as yours are (MP_PLAN.md, "Held weapons' state"; vr_mpavatar.cpp keeps one
+// for each of his hands and holsters): the entities and their steps.
+struct GunParts
+{
+    enum Part
+    {
+        SsgFrame,
+        SsgBarrels,
+        RvFrame,
+        RvCrane,
+        RvCyl,
+        RvShell, // (6)
+        MagIn = RvShell + 6,
+        MagOut,
+        Well,
+        Button,
+        Front,
+        Count
+    };
+    ViewEntity part[Count];
+    SsgDrawn ssg;
+    RevolverDrawn rv;
+    MagSlide mag;
+    bool inParts{false}; // drawn in its parts this frame: the gun itself hidden
+};
+// Your own gun's look in `hand` (HAND_OFF, HAND_MAIN) from the stats: what the server sends another player's as.
+[[nodiscard]] VrGunLook ownGunLook(int hand);
+// The gun `gun` (placed, its model and frame) as `look` has it, in its parts `g` (the same routines as yours):
+// `held` in a hand (the revolver in its parts, a magazine sliding; else a holster's: broken open, its magazine);
+// `screen`: its button and ammo screen too (its clip). The gun is hidden while drawn in its parts. `player` (1..16, with
+// `side` 0 off, 1 main: another player's held gun, syncfix5): its screen casts your screen's light too.
+void drawGunParts(ViewEntity& gun, const VrGunLook& look, GunParts& g, bool held, bool screen, int player = 0, int side = 0);
+
 // Null if `e` is not a VR view entity.
 [[nodiscard]] const ViewEntity* find(const entity_t* e);
 
@@ -97,6 +166,38 @@ void printOwnLooks(int ent);
 // hands and body (and their copies in a mirror) the alias shader's code, -2 - 2 x its colour (r + 16g + 256b, 16 levels
 // a channel) - its strength (0..1); else 0.
 [[nodiscard]] float powerupGlow(const entity_t* e);
+// Your worn gear as drawn this frame, for the others (syncfix: the move's VrDrawnGear).
+void netGear(VrDrawnGear& out);
+// The rounds in an ammo pouch `pouch` (placed this frame or not) holding `kind` (STAT_QVR_POUCHKIND's), `count` left:
+// yours (setupAmmoPouchItems) and another player's in his copy's pouch (syncfix2), one code -> how many placed in `out`.
+int posePouchItems(const ViewEntity& pouch, bool placed, int kind, int count, ViewEntity (&out)[pouchitems::most]);
+// VrDrawnGear::model's model (1 the sheath, 2 the gadget, 3 its strap, 4 the grenade pouch, 5 the ammo pouch), or nullptr.
+[[nodiscard]] qmodel_t* gearModel(int index);
+// A holster's sheath and gun on another player's body (a bot's: no client drew them; syncfix), posed as yours are
+// (holsterOnBody, holsterOnBack): holster `holster` (body::Holster) at `pos`, the body's surface facing `out` there, the
+// body turned `yaw`. Returns the sheath's model (none for the shoulders, or with vr_leg_holster_model_enabled 0).
+qmodel_t* holsterOnOther(int holster, const glm::vec3& pos, const glm::vec3& out, float yaw, struct GearDraw& sheath, struct GearDraw& gun);
+
+// A player's power-ups as drawn on him (syncfix: yours from cl.items, another player's copy from his avatar's gear byte,
+// one code for both): the glow taking turns (its shader code and strength), its light from the hands, the quad's arcs,
+// the ring's fade (vr_body_powerups: none at all when off).
+struct PowerupLook
+{
+    float level{0.f};   // the glow's strength this frame (0 none), pulsing
+    float code{0.f};    // its colour coded for the shader (r + 16g + 256b, 16 levels a channel)
+    int shown{0};       // how many power-ups glow (taking turns)
+    int kind{-1};       // the one glowing now (or fading out)
+    float light{0.f};   // the hands' light's strength (0 none) and colour
+    glm::vec3 lightColor{0.f};
+    bool arcs{false};   // Quad's arcs on the hands and forearms (vr_quad_look not 1)
+    float alpha{1.f};   // the ring's fade on his body, hands and worn gear (1 none)
+};
+// The look of power-ups `items` (IT_QUAD, IT_INVULNERABILITY, IT_SUIT, IT_INVISIBILITY bits) at cl.time.
+[[nodiscard]] PowerupLook powerupLookOf(int items);
+// The shader's glow code of `look` on a body (`body`) or a hand (as powerupGlow's).
+[[nodiscard]] float powerupGlowCode(const PowerupLook& look, bool body);
+// Quad's arcs on another player's hands: each wrist ([0] off, [1] main), the way his hands point; once a frame.
+void otherQuadArcs(int player, const glm::vec3 wrist[2], const glm::vec3 along[2]);
 
 // With bare forearms (vr_body_bracers 0) the jointed hands are drawn in your body's light, so that the skin is lit alike
 // on both sides of the wrist: bareLight (r_alias.c's light colour, R_SetupAliasLighting) and bareShade (the instance's
@@ -516,8 +617,27 @@ void netHands(VrDrawnHand out[2]);
 // which no client draws, from its controllers (`pos`, `rot`, world; [0] off, [1] main) and the weapons in them
 // (`model`: model_precache indices, 0 an empty hand; `frame`), written as netHands writes yours (world). His own
 // drawing state (his hands' fit eased from frame to frame) is kept per player entity `player`, swapped in for it.
+// `placed` (may be null): each hand's weapon where the server placed it (its avatar's weaponOrigin, weaponAngles with
+// weaponBit: placeHeld's, bots3), drawn there and the hand fitted to it.
 void solveHands(int player, const glm::vec3 pos[2], const glm::vec3 rot[2], const int model[2], const int frame[2],
-    VrDrawnHand out[2]);
+    VrDrawnHand out[2], const VrDrawnHand* placed = nullptr);
+// The weapon `model` in another player's hand `hand` (0 off: drawn mirrored, 1 main) at `pos`, `rot` (world; the hands'
+// angles), placed as setupWeapon places another's (the weapon's angle and model offsets, no reverse grip, no carry): its
+// entity's origin and angles (the pitch as entities have it), its muzzle and its hotspots (world; a blade hotspot's middle,
+// as weaponHotspot gives it). Pure math on the model and the Weapon Offsets: the server runs it for a bot (bots3: its
+// disarm volume, its muzzle, its avatar's weapon place, one placement drawn by every client). False: no weapon (an empty
+// hand, a fist, a model with no Weapon Offsets slot).
+struct HeldPlace
+{
+    int slot{-1};
+    bool mirrored{false};
+    glm::vec3 origin{0.f}, angles{0.f};
+    glm::vec3 muzzle{0.f};
+    int spotType[4]{};
+    glm::vec3 spot[4]{};
+    float spotBias[4]{}, spotShare[4]{};
+};
+[[nodiscard]] bool placeHeld(qmodel_t* model, int hand, const glm::vec3& pos, const glm::vec3& rot, HeldPlace& out);
 // ... and the holsters as drawn last (B6b): their points and the weapons in them, in body::Holster's order (their stats').
 void netHolsters(VrDrawnHolsters& out);
 
@@ -642,7 +762,7 @@ void morphPlates(PlateMorphs& m, bool on, int type, int pieces, double now, Body
 struct BodyDraw
 {
     bool shown{false};                      // false: none drawn (the entities below hidden)
-    int player{0};                          // his entity (yours: cl.viewentity)
+    int player{0};                          // his entity or a doll slot (poseOther's key); yours: cl.viewentity
     const avatar::Subject* who{nullptr};    // his measures and motion; nullptr: this game's own player (the live ones)
     hands::State s;                         // the head and hands it is posed from
     const avatar::HandPose* poses{nullptr}; // the drawn hands' wrists, [HAND_OFF] and [HAND_MAIN]

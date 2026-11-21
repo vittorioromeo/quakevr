@@ -1,8 +1,8 @@
 // vr_ad_gadget.inc -- AD support: the wrist gadget's Arcane Dimensions page (docs/vr-port/ARCANE_DIMENSIONS.md; its
 // outer button: vr_ad_gearlights.inc). Included by vr_gadget.cpp (inside its anonymous namespace: its drawing helpers).
 
-// AD support: the gadget's Arcane Dimensions page (its outer button: vr_gearlights.cpp; vr_gadget_page), in place of
-// the HUD while it is chosen and AD's data is loaded: every artifact held with its own time left (the main page shows
+// AD support: the gadget's Arcane Dimensions page (its outer button: vr_gearlights.cpp; vr_gadget_page; the pages'
+// turn: vr_gadget.cpp togglePage), in place of the HUD while it is chosen and AD's data is loaded: every artifact held with its own time left (the main page shows
 // their icons and the soonest's), the custom keys, the debuffs with what is still to come, and the weapons carried that
 // have an upgrade (the Shadow Axe, the Widowmaker, the Plasma Gun: vr_ad_bridge.qc), with where each is.
 //   ARCANE DIMENSIONS
@@ -15,15 +15,9 @@
 //   UPGRADES
 //   SHADOW AXE   MAIN
 //   WIDOWMAKER   HIP R, BACK L
-struct PageState
-{
-    int page{0}; // 0 the HUD, 1 the AD page (togglePage)
-};
-PageState pageState;
-
 [[nodiscard]] bool adPageShown()
 {
-    return pageState.page == 1 && vr_ad_mounted.value != 0.f;
+    return pageState.page == PageAd && ad::clientDataInPlay(); // (a remote server's, not the last local map's)
 }
 
 void adPage(const Readout& r, const Palette& pal)
@@ -144,16 +138,4 @@ void adPage(const Readout& r, const Palette& pal)
     {
         drawText(margin, y, 8.f, "NONE CARRIED", pal.dim, pal);
     }
-}
-
-// togglePage (vr_gadget.hpp): the AD page and back while AD's data is loaded; false (the HUD kept) without it.
-[[nodiscard]] bool adTogglePage()
-{
-    if(vr_ad_mounted.value == 0.f)
-    {
-        pageState.page = 0;
-        return false;
-    }
-    pageState.page = pageState.page == 0 ? 1 : 0;
-    return true;
 }

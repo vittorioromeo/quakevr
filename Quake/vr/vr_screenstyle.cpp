@@ -394,6 +394,9 @@ constexpr Alias aliases[] = {
     // The Thunderbolt's plasma model (v_light_plasma.blend: v_light's mesh, the same plate by the same script, its skin
     // holding v_light's texels where the plate takes them): slot 15's place slot 7's.
     {"light_plasma", "light"},
+    // Dwell support (dwellwpn3): the Rotary Shotgun as a gauntlet (vr_dw_rotary_gauntlet; vr_adweapons.cpp
+    // rotaryGauntletHousingSpec: a window of the same size on its back, laid round the super nailgun's hand).
+    {"dw_rotary.mdl#vr", "dw_shot3.mdl#vr"},
 };
 
 } // namespace

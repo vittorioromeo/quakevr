@@ -8,7 +8,9 @@
 #include "Zancle/Base/IsFinite.hpp"
 #include "Zancle/Base/Macros.hpp"
 #include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/Round.hpp"
+#include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Sqrt.hpp"
 #include "Zancle/Vocabulary/Optional.hpp"
 
@@ -106,6 +108,12 @@ void writeDrawnHand(sizebuf_t* buf, const VrDrawnHand& h, const glm::vec3& origi
         writeAngles16(buf, h.handAngles);
         MSG_WriteShort(buf, h.weaponModel);
         MSG_WriteByte(buf, h.weaponFrame);
+        if(h.flags & VrDrawnHand::weaponBit)
+        {
+            // (bots3: its weapon where the server placed it, view::placeHeld: drawn there by every client)
+            writeEighths(buf, h.weaponOrigin, origin);
+            writeAngles16(buf, h.weaponAngles);
+        }
         return;
     }
     if(h.flags & VrDrawnHand::handBit)
@@ -136,6 +144,183 @@ void writeDrawnHand(sizebuf_t* buf, const VrDrawnHand& h, const glm::vec3& origi
     }
 }
 
+void writeGunLook(sizebuf_t* buf, const VrGunLook& l)
+{
+    // (the player's mode bits with or without a gun: his holstered guns are drawn by them)
+    const za::U8 bits = (l.bits & VrGunLook::gunBit) ? l.bits : (l.bits & ~VrGunLook::revolverBit);
+    MSG_WriteByte(buf, bits);
+    if(!(bits & VrGunLook::gunBit))
+    {
+        return;
+    }
+    MSG_WriteShort(buf, l.flags);
+    MSG_WriteByte(buf, l.clip);
+    MSG_WriteByte(buf, l.clipSize);
+    if(bits & VrGunLook::revolverBit)
+    {
+        const int rv = l.revolver & 0xFFFFFF; // (18 bits used: vr_protocol.hpp, STAT_QVR_REVOLVER)
+        MSG_WriteByte(buf, rv & 255);
+        MSG_WriteByte(buf, (rv >> 8) & 255);
+        MSG_WriteByte(buf, (rv >> 16) & 255);
+        MSG_WriteByte(buf, static_cast<int>(za::round(l.cylinder / 360.f * 256.f)) & 255);
+    }
+}
+
+VrGunLook readGunLook()
+{
+    VrGunLook l;
+    l.bits = static_cast<za::U8>(MSG_ReadByte());
+    if(!(l.bits & VrGunLook::gunBit))
+    {
+        l.bits &= static_cast<za::U8>(~VrGunLook::revolverBit);
+        return l;
+    }
+    l.flags = static_cast<za::U16>(MSG_ReadShort());
+    l.clip = static_cast<za::U8>(MSG_ReadByte());
+    l.clipSize = static_cast<za::U8>(MSG_ReadByte());
+    if(l.bits & VrGunLook::revolverBit)
+    {
+        const int b0 = MSG_ReadByte();
+        const int b1 = MSG_ReadByte();
+        const int b2 = MSG_ReadByte();
+        l.revolver = b0 | (b1 << 8) | (b2 << 16);
+        l.cylinder = static_cast<float>(MSG_ReadByte()) * (360.f / 256.f);
+    }
+    return l;
+}
+
+void writeDrawnLamp(sizebuf_t* buf, const VrDrawnLamp& l, const glm::vec3& origin)
+{
+    const za::U8 flags = (l.flags & VrDrawnLamp::placedBit) ? l.flags : 0;
+    MSG_WriteByte(buf, flags);
+    if(!flags)
+    {
+        return;
+    }
+    writeEighths(buf, l.origin, origin);
+    const glm::quat q = l.rot.w < 0.f ? -l.rot : l.rot;
+    for(int i = 0; i < 3; i++)
+    {
+        MSG_WriteShort(buf, za::clamp(static_cast<int>(za::round(q[i] * 32767.f)), -32767, 32767));
+    }
+    if(flags & VrDrawnLamp::litBit)
+    {
+        MSG_WriteShort(buf, za::clamp(static_cast<int>(za::round(l.range)), 0, 32767));
+    }
+}
+
+namespace
+{
+// (syncfix3) What a gear piece is placed from: the gadget and its straps from the hand that wears them (its place and
+// turn), the rest from his body (`origin`, its yaw). Unchanged while he walks, turns or swings his arms: the avatar's
+// bytes stay the same, so its snapshot record's delta stays small (the move's own: vr_netmove.cpp's visitMove).
+struct GearFrame
+{
+    glm::vec3 from;
+    glm::vec3 turn;
+};
+
+[[nodiscard]] GearFrame gearFrame(int piece, int wrist, const glm::vec3& origin, float bodyYaw, const VrDrawnHand* hands)
+{
+    if(piece >= VrDrawnGear::gadget && piece < VrDrawnGear::pouch)
+    {
+        const VrDrawnHand& h = hands[wrist ? 1 : 0];
+        return GearFrame{h.handOrigin, h.handAngles};
+    }
+    return GearFrame{origin, glm::vec3{0.f, bodyYaw, 0.f}};
+}
+
+[[nodiscard]] glm::vec3 gearLocal(const glm::vec3& x, const GearFrame& f)
+{
+    const glm::vec3 d = x - f.from;
+    const float c = za::cos(glm::radians(f.turn[1])), s = za::sin(glm::radians(f.turn[1]));
+    return glm::vec3{d.x * c + d.y * s, d.y * c - d.x * s, d.z};
+}
+
+[[nodiscard]] glm::vec3 gearWorld(const glm::vec3& l, const GearFrame& f)
+{
+    const float c = za::cos(glm::radians(f.turn[1])), s = za::sin(glm::radians(f.turn[1]));
+    return f.from + glm::vec3{l.x * c - l.y * s, l.x * s + l.y * c, l.z};
+}
+} // namespace
+
+void writeDrawnGear(sizebuf_t* buf, const VrDrawnGear& g, const glm::vec3& origin, float bodyYaw, const VrDrawnHand* hands)
+{
+    MSG_WriteShort(buf, g.shown);
+    MSG_WriteShort(buf, g.mirrored);
+    MSG_WriteByte(buf, g.wrist);
+    for(int i = 0; i < VrDrawnGear::count; i++)
+    {
+        if(g.shown & (1 << i))
+        {
+            const GearFrame f = gearFrame(i, g.wrist, origin, bodyYaw, hands);
+            MSG_WriteShort(buf, g.model[i]);
+            MSG_WriteByte(buf, g.frame[i]);
+            MSG_WriteByte(buf, g.skin[i]);
+            MSG_WriteByte(buf, g.scale[i]);
+            writeEighths(buf, gearLocal(g.origin[i], f), glm::vec3{0.f});
+            writeAngles16(buf, g.angles[i] - f.turn);
+        }
+    }
+    if(g.shown & (1 << VrDrawnGear::ammoPouch))
+    {
+        MSG_WriteByte(buf, g.pouchKind);
+        MSG_WriteByte(buf, g.pouchCount);
+    }
+}
+
+VrDrawnGear readDrawnGear(const glm::vec3& origin, float bodyYaw, const VrDrawnHand* hands)
+{
+    VrDrawnGear g;
+    g.shown = static_cast<za::U16>(MSG_ReadShort());
+    g.mirrored = static_cast<za::U16>(MSG_ReadShort());
+    g.wrist = static_cast<za::U8>(MSG_ReadByte() ? 1 : 0);
+    for(int i = 0; i < VrDrawnGear::count; i++)
+    {
+        if(g.shown & (1 << i))
+        {
+            const GearFrame f = gearFrame(i, g.wrist, origin, bodyYaw, hands);
+            g.model[i] = static_cast<za::U16>(MSG_ReadShort());
+            g.frame[i] = static_cast<za::U8>(MSG_ReadByte());
+            g.skin[i] = static_cast<za::U8>(MSG_ReadByte());
+            g.scale[i] = static_cast<za::U8>(MSG_ReadByte());
+            g.origin[i] = gearWorld(readEighths(glm::vec3{0.f}), f);
+            const glm::vec3 a = readAngles16() + f.turn; // (in -180..180, as a whole turn read back is)
+            g.angles[i] = a - 360.f * glm::floor((a + 180.f) / 360.f);
+        }
+    }
+    if(g.shown & (1 << VrDrawnGear::ammoPouch))
+    {
+        g.pouchKind = static_cast<za::U8>(MSG_ReadByte());
+        g.pouchCount = static_cast<za::U8>(MSG_ReadByte());
+    }
+    return g;
+}
+
+VrDrawnLamp readDrawnLamp(const glm::vec3& origin)
+{
+    VrDrawnLamp l;
+    l.flags = static_cast<za::U8>(MSG_ReadByte());
+    if(!(l.flags & VrDrawnLamp::placedBit))
+    {
+        l.flags = 0;
+        return l;
+    }
+    l.origin = readEighths(origin);
+    glm::vec3 v;
+    for(int i = 0; i < 3; i++)
+    {
+        v[i] = static_cast<float>(MSG_ReadShort()) / 32767.f;
+    }
+    const float w2 = 1.f - glm::dot(v, v);
+    l.rot = glm::normalize(glm::quat{w2 > 0.f ? za::sqrt(w2) : 0.f, v.x, v.y, v.z});
+    if(l.flags & VrDrawnLamp::litBit)
+    {
+        l.range = static_cast<float>(MSG_ReadShort());
+    }
+    return l;
+}
+
 VrDrawnHand readDrawnHand(const glm::vec3& origin)
 {
     VrDrawnHand h;
@@ -146,6 +331,11 @@ VrDrawnHand readDrawnHand(const glm::vec3& origin)
         h.handAngles = readAngles16();
         h.weaponModel = static_cast<za::U16>(MSG_ReadShort());
         h.weaponFrame = static_cast<za::U8>(MSG_ReadByte());
+        if(h.flags & VrDrawnHand::weaponBit)
+        {
+            h.weaponOrigin = readEighths(origin);
+            h.weaponAngles = readAngles16();
+        }
         return h;
     }
     if(h.flags & VrDrawnHand::handBit)
@@ -335,6 +525,7 @@ void writeVrMove(sizebuf_t* buf, const VrMove& move)
     }
     writeBodyPose(buf, move.body);
     writeDrawnHolsters(buf, move.holsters, move.origin, true);
+    writeDrawnLamp(buf, move.lamp, move.origin);
 }
 
 za::Optional<VrMove> readVrMove()
@@ -411,6 +602,7 @@ za::Optional<VrMove> readVrMove()
     }
     move.body = readBodyPose();
     move.holsters = readDrawnHolsters(in.finite ? move.origin : glm::vec3{0.f}, true);
+    move.lamp = readDrawnLamp(in.finite ? move.origin : glm::vec3{0.f});
 
     if(!in.finite)
     {

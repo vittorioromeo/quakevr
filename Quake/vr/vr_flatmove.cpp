@@ -2511,10 +2511,10 @@ float slideShare()
     return flatplay::active() ? client.slide.share : 0.f;
 }
 
-float slideNeckBack()
+float slideNeckBack(bool other)
 {
     // (A headset's slide pose too, vr_slide_body: the same body, vr_slide.cpp.)
-    return flatplay::active() || slide::headsetPose() ? za::clamp(vr_flat_slide_neck_back.value, 0.f, 20.f) : 0.f;
+    return other || flatplay::active() || slide::headsetPose() ?za::clamp(vr_flat_slide_neck_back.value, 0.f, 20.f) : 0.f;
 }
 
 float slideDrop()

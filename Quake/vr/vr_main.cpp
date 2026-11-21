@@ -30,6 +30,7 @@
 #include "vr_box3d.hpp"
 #include "vr_hull.hpp"
 #include "vr_nav.hpp"
+#include "vr_navfollow.hpp"
 #include "vr_unstick.hpp"
 #include "vr_engine.hpp"
 #include "vr_files.hpp"
@@ -542,6 +543,7 @@ void VR_Status_f()
                 : twohand::carrying(1 - h)          ? " (anywhere: both hands on the carried weapon)"
                 : freeMode == twohand::FREE_SUPPORT ? " (anywhere: supporting)"
                 : freeMode == twohand::FREE_RIGID   ? " (anywhere: rigid)"
+                : freeMode == twohand::FREE_POLE    ? " (anywhere: on its pole)"
                                                     : " (anywhere: as a foregrip)",
                 twohand::carrying(h) ? ", carrying off its handle" : "");
         }
@@ -2293,6 +2295,7 @@ extern "C" void VR_Init()
     modelkeep::init();
     hull::init();
     nav::init();
+    navfollow::init();
     unstick::init();
     particles::init();
     decals::init();
@@ -2345,6 +2348,7 @@ extern "C" void VR_Init()
     // (at start-up, not with the other ragdoll commands at the first physics use: they run before any map, the campaign's
     // game folders on the search path)
     Cmd_AddCommand("vr_ragdoll_rig_sweep", ragdoll::rigSweep_f);
+    Cmd_AddCommand("vr_ragdoll_rig_spans", ragdoll::rigSpans_f);
     Cmd_AddCommand("vr_ragdoll_info", ragdoll::info_f);
     Cmd_AddCommand("vr_torso_report", torso::report_f);
     bodytrack::registerCommands(); // vr_bodytrack_status, vr_bodytrack_stats

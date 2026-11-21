@@ -103,6 +103,8 @@ vr_ai_props.qc
 vr_stealth_test2.qc
 vr_stealth_test3.qc
 vr_stealth_test4.qc
+vr_stealth_test5.qc
+vr_stealth_test6.qc
 vr_stealth_test.qc
 // Holding enemies (the engine calls it; after the stealth AI and the grapple, whose functions it uses).
 vr_foegrab.qc
@@ -392,8 +394,11 @@ frikbot/bot_ai.qc
 frikbot/bot_misc.qc
 frikbot/bot_phys.qc
 frikbot/bot_move.qc
+frikbot/bot_nav.qc // QVR: the navmesh beside the waypoints (vr_bot_navmesh, NAVMESH.md 23)
 frikbot/bot_ed.qc
 vr_meleeonly_bot_test.qc // bots under Melee Only (vr_pickup_test 15; after FrikBot)
+vr_deathdrop_test.qc // a dying player's and bot's weapons dropped as they were (vr_dm_test 21; after FrikBot)
+vr_spawnloop_test.qc // a multiplayer game's spawns on a map with no deathmatch start (vr_dm_test 22; after FrikBot)
 
 waypoints/map_dm1.qc
 waypoints/map_dm2.qc
@@ -601,6 +606,9 @@ vr_playerdisarm.qc // the player disarmed: monsters' shots and blows on your wea
 vr_playerdisarm_grab.qc // another player's weapon taken by a grab and a pull (MP B10)
 vr_playerdisarm_test.qc // vr_pd_test 1: the player disarmed
 vr_dmrules_test.qc // vr_dm_test 1: deathmatch's item rules, disarms between players and bots (MP B11 part 2)
+vr_bots_test.qc // vr_dm_test 13-15: FrikBot bots from his 2026-11-21 notes (skill, weapons, the swing's windup)
+vr_botgrab_test.qc // vr_dm_test 16-18: the disarm grab at a bot's or a player's drawn weapon (bots3)
+vr_botnav_test.qc // vr_dm_test 19-20: bots on the navmesh beside their waypoints (botnav, vr_bot_navmesh)
 vr_meleerules.qc // enemy melee's rules: each blow's rule for Show Melee Arcs, an armed humanoid's blow (after the monsters)
 vr_disarmviz.qc // Debug > Show Disarm Volumes: the armed humanoids' disarm volumes (the engine draws them: vr_disarmviz.cpp)
 vr_armedrepl.qc
@@ -748,4 +756,7 @@ dwell/dw_items.qc
 dwell/dw_monsters.qc
 dwell/dw_bosses.qc
 dwell/dw_test.qc
+// Quoth's maps under AD's rules: the classnames and keys AD lacks (QUOTH.md).
+vr_quoth.qc
+vr_quoth_test.qc
 vr_rules_test.qc

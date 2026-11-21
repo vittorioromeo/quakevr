@@ -279,6 +279,13 @@ public:
     [[nodiscard]] bool runtimeMenuOpen() const override;
 
     [[nodiscard]] const char* systemName() const override;
+    [[nodiscard]] EyeTracking eyeTracking() const override
+    {
+        return eyeGazeExtension ? EyeTracking::Ready
+               : eyeGazeAsked   ? EyeTracking::NoTracker
+               : eyeGazeOffered ? EyeTracking::NotAsked
+                                : EyeTracking::NotOffered;
+    }
 
     bool setEyeImageRect(int eye, int width, int height) override
     {
@@ -369,6 +376,7 @@ private:
     // Eye tracking (vr_foveated_gaze): XR_EXT_eye_gaze_interaction offered, enabled (asked for, and the system has it),
     // its pose action and space (FrameState::gaze).
     bool eyeGazeOffered{false};
+    bool eyeGazeAsked{false};
     bool eyeGazeExtension{false};
     XrAction gazeAction{XR_NULL_HANDLE};
     XrSpace gazeSpace{XR_NULL_HANDLE};

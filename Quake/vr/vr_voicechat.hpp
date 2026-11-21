@@ -84,6 +84,8 @@ void parse();
 [[nodiscard]] unsigned long long players();
 [[nodiscard]] const char* playerLine(int slot);
 [[nodiscard]] bool muted(int slot);
+// The talking indicator's (the wrist gadget's scoreboard page): the player in the slot heard now, or you sending.
+[[nodiscard]] bool talkingNow(int slot);
 [[nodiscard]] float playerVolume(int slot);
 void setMuted(int slot, bool on);
 void setPlayerVolume(int slot, float volume);

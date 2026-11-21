@@ -83,6 +83,13 @@
                                     <Run Text="{Binding DwellSizeText, Mode=OneWay}" />
                                 </TextBlock>
                             </CheckBox>
+                            <!-- Quoth: greyed until AD is ticked or installed (QuothCanTick). -->
+                            <CheckBox IsChecked="{Binding InstallQuoth}" IsEnabled="{Binding QuothCanTick}" Margin="0,8,0,0" Visibility="{Binding ShowAddQuoth, Converter={StaticResource BoolToVis}}">
+                                <TextBlock Style="{StaticResource Small}" TextWrapping="Wrap">
+                                    <Run Text="Add Quoth (experimental, free, by Kell, Necros and Preach; needs Arcane Dimensions):" />
+                                    <Run Text="{Binding QuothSizeText, Mode=OneWay}" />
+                                </TextBlock>
+                            </CheckBox>
                             <TextBlock Text="{Binding OtherInstallsText}" Style="{StaticResource Small}" Foreground="{StaticResource Faint}" Margin="0,6,0,0"
                                        TextWrapping="Wrap" Visibility="{Binding HasOtherInstalls, Converter={StaticResource BoolToVis}}" />
                             <WrapPanel Margin="0,8,0,0">

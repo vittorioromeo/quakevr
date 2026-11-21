@@ -77,6 +77,7 @@ public static class Uninstaller
                 ++result.ShortcutsRemoved;
             }
         }
+        result.FilesRemoved += Reliefs.ReliefMaker.Remove(target); // the reliefs Setup made here (made, never recorded)
         FirstStartRelight.Set(target, false); // (the game had not started since: the installer's marker)
         InstallEngine.RemoveEmptyDirectories(record.Directories.Select(d => PathUtil.SafeCombine(target, d)));
 
@@ -109,6 +110,7 @@ public static class Uninstaller
             }
             ModComponent.ClearIfGone(ArcaneDimensions.Spec, record);
             ModComponent.ClearIfGone(Dwell.Spec, record);
+            ModComponent.ClearIfGone(Quoth.Spec, record);
             record.Save(target);
         }
         else

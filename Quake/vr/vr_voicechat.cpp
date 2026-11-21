@@ -1738,6 +1738,15 @@ bool muted(int slot)
     return listed(slot) && speakers[slot].muted;
 }
 
+bool talkingNow(int slot)
+{
+    if(slot + 1 == cl.viewentity)
+    {
+        return cap.sending; // (you: while you send)
+    }
+    return listed(slot) && talking(slot);
+}
+
 float playerVolume(int slot)
 {
     return listed(slot) ? speakers[slot].volume : 1.f;

@@ -379,6 +379,16 @@ za::Vector<Item> pageDebugTests()
             .help("AD support in progress (ARCANE_DIMENSIONS.md): a new Arcane Dimensions game at its hub, its own start "
                   "map, with the latest release (1.80 patch 1) in an ad folder. Its maps play by its rules; the console "
                   "says what is missing."),
+        command("Quoth: Play (Developer)", "vr_campaign_native quoth") // Quoth support (QUOTH.md)
+            .help("Quoth's own maps (its start hub, e1m1quoth, kellbase1, its test maps) by Arcane Dimensions' rules, "
+                  "with Quoth 2.2 in a quoth folder and Arcane Dimensions installed. The console says what is missing."),
+        command("Quoth: Second Names and Spawners Test", "vr_ad_test 211")
+            .help("Any map: an entity used by its second name (Quoth's targetname2), the map's monster spawner (kellbase1's "
+                  "exit lock) and two grunts from a made one ahead of you. The console prints each check and a verdict."),
+        command("Quoth: Drive This Map's Flow", "vr_ad_test 212")
+            .help("Plays the map's flow for you, a round a second: every trigger you could walk into touched, every monster "
+                  "awake killed by you (god mode), so waves, spawners and counters run. On ne_marb, metmon, lpqsp1, "
+                  "kellbase1 and e1m1quoth it ends when the last stage fires; elsewhere after 30 rounds."),
         adSpawnRow(310, command("Arcane Dimensions: Widowmaker Pickup Ahead", "vr_ad_test 5")) // AD support
             .help("In an Arcane Dimensions map: a Widowmaker pickup (AD's upgrade) appears ahead of you, to take with a "
                   "hand. Arcane Dimensions: Upgrades Report then says whether you have the upgrade."),

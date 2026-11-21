@@ -184,6 +184,29 @@ void unpublish(int num);
 [[nodiscard]] bool published(int num); // edict `num` has a ragdoll published (drawn with it, not its animation)
 void unpublishAll();
 
+// Multiplayer (ragsync, vr_netragdoll.cpp; MP_PLAN.md, "Ragdolls and physics bodies in multiplayer"). serverPose: the
+// server's ragdoll `num` as last published, for a remote client's snapshot: `time` its last real publish's (a republish,
+// asleep, keeps it: an unchanged record, sent nothing). publishNet: a remote server's ragdoll on its client, drawn between
+// two of its poses (times older.time <= newer.time) at the client's clock `clock` (the interpolation buffer's, as its
+// entities).
+struct NetPose
+{
+    const Rig* rig{nullptr};
+    int bodies{0};
+    uint32_t cut{0};
+    bool bleeds{false};
+    float scale{1.f};
+    double time{0.0};
+    const glm::quat* rot{nullptr};
+    const glm::vec3* pos{nullptr};
+    // (ragsync2) The client's own hands holding it (1 the off hand, 2 the main) and where the server had them at that
+    // pose (world units): his drawing led with his hands since, as the listen host's (vr_ragdoll_held_local).
+    int heldBy{0};
+    glm::vec3 hand[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+};
+[[nodiscard]] bool serverPose(int num, NetPose& out);
+void publishNet(int num, const NetPose& older, const NetPose& newer, double clock);
+
 // The client, around a frame's drawing: the corpses that are ragdolls drawn with their skinned model (CL_RelinkEntities'
 // end), and their own models put back before the server's messages are read (CL_ReadFromServer).
 void swapModels();
@@ -245,6 +268,8 @@ void boneTriangles(const Rig& rig, int bone, za::Vector<glm::vec3>& out);
 // The death view (vr_deathview.cpp, Immersive): edict `num`'s ragdoll drawn without its head this frame (the camera is in
 // it), 0 none. Set before the client's swapModels.
 void hideHeadOf(int num);
+// ... whether edict `num`'s is (a dead player's body drawn as his own: vr_mpavatar.cpp addDolls, headless too).
+[[nodiscard]] bool headHidden(int num);
 
 // vr_ragdoll_info: the rig of the nearest dead monster's model (or the grunt's), its bones and how it was derived.
 void info_f();
@@ -252,5 +277,6 @@ void info_f();
 // vr_ragdoll_rig_sweep: every seed table's model the game folders have, its rig derived: "N rigged, M failed, K absent"
 // (each failure's own line before it).
 void rigSweep_f();
+void rigSpans_f(); // vr_ragdoll_rig_spans <model> [max]: triangles across unjoined bones
 
 } // namespace qvr::ragdoll

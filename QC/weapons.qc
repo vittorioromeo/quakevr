@@ -3798,13 +3798,14 @@ void(float xHand, float* xOutAttackFinished) W_Fire_Melee =
         // A bot (MP bots phase 1): a flat-screen player's overhead swing (frikbot/bot_fight.qc bot_setvrfields,
         // botflatpose), its blow the melee's sweep as a flat player's is -- not player_axe*'s traced one. None while its
         // guard is up (bot_parry_frame) or its last swing goes on.
-        if(self.vr_botparry > 0 || (self.vr_botswing > 0 && time - self.vr_botswing < BOT_SWING_LEN))
+        if(self.vr_botparry > 0 || (self.vr_botswing > 0 && time - self.vr_botswing < BOT_SWING_LEN + self.vr_botwindup))
         {
             return;
         }
         VR_SoundVaried(self, VRGetGunChannel(xHand), "weapons/ax1.wav", 1, ATTN_NORM);
         self.vr_botswing = time;
-        *xOutAttackFinished = time + BOT_SWING_LEN;
+        self.vr_botwindup = bot_windup(self); // (held raised that much longer: its telegraph, by its skill)
+        *xOutAttackFinished = time + BOT_SWING_LEN + self.vr_botwindup;
         return;
     }
     if(!VRHandsTracked(self) ||
@@ -4778,12 +4779,13 @@ void() ImpulseCommands =
     }
 
 #ifdef QVR_TESTS
-    // Tests (not deathmatch; not in a release's progs: any coop player could give himself one): impulse 190 + a holster
+    // Tests (not deathmatch; not in a release's progs: any coop player could give himself one): impulse 90 + a holster
     // slot (0..5, the holsterweapon<slot> fields) puts a loaded shotgun in that holster (the multiplayer harness's
-    // mp_cosmetics: another player's holstered weapons).
-    if(!deathmatch && self.impulse >= 190 && self.impulse < 196)
+    // mp_cosmetics: another player's holstered weapons). (syncfix: it was 190 + the slot, which in coop took the Debug
+    // menu's power-up cheats, impulse 190-193, below.)
+    if(!deathmatch && self.impulse >= 90 && self.impulse < 96)
     {
-        float hs = self.impulse - 190;
+        float hs = self.impulse - 90;
         self.impulse = 0;
         VR_WeaponUtil_EntAddWeapon(self, WID_SHOTGUN);
         entity hsInst = WeaponInst_New(WeaponIdToBaseClipSize(WID_SHOTGUN));

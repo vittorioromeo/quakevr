@@ -2,8 +2,9 @@
 // Arcane Dimensions' page and back, vr_ad_gadget.inc). Included by vr_gearlights.cpp (inside its anonymous namespace:
 // the inner button's hit volume, fingertip, cooldown and buzz).
 
-// AD support: the outer button (x -0.55), the screen's pages' (gadget::togglePage: Arcane Dimensions' page and back,
-// while its data is loaded; else it does nothing). The same hit volume, cut and cooldown as the inner one's.
+// AD support: the outer button (x -0.55), the screen's pages' (gadget::togglePage: the HUD, Arcane Dimensions' page
+// while its data is loaded, the scoreboard in a multiplayer game, in turn; with neither it does nothing). The same hit
+// volume, cut and cooldown as the inner one's.
 constexpr glm::vec3 pageButtonLocal{-0.55f, -1.38f, -0.05f};
 // The outer button's (AD support): the fingertip in its hit volume, and its last press that counted.
 struct PageButton
@@ -13,8 +14,8 @@ struct PageButton
 };
 PageButton pageButton;
 
-// A press of the outer button (the fingertip's arrival, or vr_gadget_page_press): the screen's other page (AD support),
-// with a click and a tick; nothing without AD's data, while Doom is on the gadget or a screen tap is under way, or
+// A press of the outer button (the fingertip's arrival, or vr_gadget_page_press): the screen's next page (AD's, the
+// scoreboard's), with a click and a tick; nothing without another page (no AD data, single player), while Doom is on the gadget or a screen tap is under way, or
 // within vr_gadget_button_cooldown of its last press.
 void pressPage(int hand)
 {
@@ -31,7 +32,7 @@ void pressPage(int hand)
     {
         if(vr_debug_gadget_button.value)
         {
-            Con_Printf("gadget page button: pressed (no other page: Arcane Dimensions' data isn't loaded)\n");
+            Con_Printf("gadget page button: pressed (no other page: no Arcane Dimensions data, not multiplayer)\n");
         }
         return;
     }
@@ -72,7 +73,8 @@ void pressPageButton(const hands::State& s, int hand)
     pressPage(hand);
 }
 
-// AD support: the outer button's press without a fingertip; the page toggled without the button.
+// AD support: the outer button's press without a fingertip; the next page without the button (vr_gadget_page; with
+// an argument, prints the page shown after: 0 the HUD, 1 AD's, 2 the scoreboard).
 void pressPage_f()
 {
     pressPage(-1);
@@ -80,11 +82,16 @@ void pressPage_f()
 
 void page_f()
 {
-    (void)gadget::togglePage();
+    const bool turned = gadget::togglePage();
+    if(Cmd_Argc() > 1)
+    {
+        Con_Printf("gadget page: %d%s\n", gadget::page(), turned ? "" : " (no other page)");
+    }
 }
 
 void pageCommands()
 {
     Cmd_AddCommand("vr_gadget_page_press", pressPage_f);
     Cmd_AddCommand("vr_gadget_page", page_f);
+    Cmd_AddCommand("vr_gadget_scores", gadget::scoresReport); // (the scoreboard page: vr_gadget_scores.inc)
 }

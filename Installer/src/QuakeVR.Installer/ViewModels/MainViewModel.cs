@@ -10,6 +10,7 @@ using QuakeVR.Installer.Core.Detection;
 using QuakeVR.Installer.Core.Packaging;
 using QuakeVR.Installer.Core.Platform;
 using QuakeVR.Installer.Core.Prerequisites;
+using QuakeVR.Installer.Core.Reliefs;
 using QuakeVR.Installer.Core.Shortcuts;
 
 namespace QuakeVR.Installer.ViewModels;
@@ -170,6 +171,12 @@ public sealed class MainViewModel : ObservableObject
     bool _dwell = Dwell.OnByDefault; // (on: Dwell's maps play, Dwell.OnByDefault)
     ModCopy? _dwellFound;
     ModOutcome? _dwellOutcome;
+    bool _quoth = Quoth.OnByDefault; // (on when Arcane Dimensions is chosen: QuothCanTick)
+    ModCopy? _quothFound;
+    ModOutcome? _quothOutcome;
+    bool _reliefs = true; // (on wherever Dwell or Quoth will be there: ReliefsPossible)
+    string? _reliefsNote;
+    CheckStatus _reliefsStatus;
     bool _relight = true;
     bool _desktopShortcut = true;
     bool _desktopFlatShortcut = true;
@@ -250,6 +257,8 @@ public sealed class MainViewModel : ObservableObject
             ? Path.Combine(f.Folder, ArcaneDimensions.ReadmeFile) : ArcaneDimensions.HomeUrl));
         OpenDwellHomeCommand = new RelayCommand(() => OpenUrl(_dwellFound is { Usable: true } f && File.Exists(Path.Combine(f.Folder, Dwell.ReadmeFile))
             ? Path.Combine(f.Folder, Dwell.ReadmeFile) : Dwell.HomeUrl));
+        OpenQuothHomeCommand = new RelayCommand(() => OpenUrl(_quothFound is { Usable: true } f && File.Exists(Path.Combine(f.Folder, Quoth.ReadmeFile))
+            ? Path.Combine(f.Folder, Quoth.ReadmeFile) : Quoth.HomeUrl));
         OpenKofiCommand = new RelayCommand(() => OpenUrl(KofiUrl));
         OpenDiscordCommand = new RelayCommand(() => OpenUrl(DiscordUrl));
         ShowCreditsCommand = new RelayCommand(() => new Views.CreditsWindow(Application.Current.MainWindow).ShowDialog());
@@ -355,6 +364,7 @@ public sealed class MainViewModel : ObservableObject
     public ICommand OpenUrlCommand { get; }
     public ICommand OpenAdHomeCommand { get; }
     public ICommand OpenDwellHomeCommand { get; }
+    public ICommand OpenQuothHomeCommand { get; }
     public ICommand OpenKofiCommand { get; }
     public ICommand OpenDiscordCommand { get; }
     public ICommand ShowCreditsCommand { get; }
@@ -654,6 +664,7 @@ public sealed class MainViewModel : ObservableObject
         Raise(nameof(HasExisting), nameof(ShowAddAd), nameof(ExistingTitle), nameof(ExistingText), nameof(ExistingDetail), nameof(OfferedMode), nameof(QuickUpdate),
             nameof(ExistingNeedsPackage), nameof(OtherInstallsText), nameof(HasOtherInstalls), nameof(ReinstallSettingsText), nameof(ReinstallSavesText),
             nameof(ReinstallPersonalText), nameof(ReinstallChosen), nameof(BackupText), nameof(NextText), nameof(FooterHint), nameof(InstallTitle));
+        RaiseQuoth();
         CommandManager.InvalidateRequerySuggested();
     }
 
@@ -784,6 +795,8 @@ public sealed class MainViewModel : ObservableObject
             await PrepareGameAsync(ct);
             await AddArcaneDimensionsAsync(http, ct);
             await AddDwellAsync(http, ct);
+            await AddQuothAsync(http, ct);
+            await MakeReliefsAsync(ct);
             LoadExisting();
             BuildDoneNotes();
             GoToSettingsOrDone();
@@ -1015,6 +1028,12 @@ public sealed class MainViewModel : ObservableObject
             return;
         }
         DwellFound = dwell;
+        var quoth = q.BaseDir is { } qq ? await Task.Run(() => Quoth.FindExisting(Quoth.SearchRoots(report.StoreRoots, qq))) : null;
+        if (version != _detailsVersion)
+        {
+            return;
+        }
+        QuothFound = quoth;
     }
 
     void BuildSystemChecks(DetectionReport r)
@@ -1088,7 +1107,8 @@ public sealed class MainViewModel : ObservableObject
         {
             var need = (_coreSize ?? 200L << 20) + (HdTextures ? 650L << 20 : 0) + (Relight ? 220L << 20 : 0) +
                        (InstallAd ? ArcaneDimensions.InstalledSize + (320L << 20) : 0) +
-                       (InstallDwell ? Dwell.InstalledSize + (385L << 20) : 0);
+                       (InstallDwell ? Dwell.InstalledSize + (385L << 20) : 0) +
+                       (InstallQuoth ? Quoth.InstalledSize + (53L << 20) : 0);
             try
             {
                 var root = Path.GetPathRoot(Path.GetFullPath(InstallDir));
@@ -1130,7 +1150,7 @@ public sealed class MainViewModel : ObservableObject
 
     /// <summary>Ticked: AD's zip is downloaded after the install and unpacked into the install's ad folder (a copy found
     /// in the owned roots that is 1.80 patch 1 is used instead: the box is then off and disabled).</summary>
-    public bool InstallAd { get => _arcaneDimensions && !AdFoundUsable; set { if (Set(ref _arcaneDimensions, value)) { Raise(nameof(DiskText)); } } }
+    public bool InstallAd { get => _arcaneDimensions && !AdFoundUsable; set { if (Set(ref _arcaneDimensions, value)) { Raise(nameof(DiskText)); RaiseQuoth(); } } }
 
     /// <summary>The copy of AD the game would use from the owned Quake roots (null: none).</summary>
     public ModCopy? AdFound
@@ -1148,6 +1168,7 @@ public sealed class MainViewModel : ObservableObject
                 Raise(nameof(AdSizeText));
                 Raise(nameof(DiskText));
                 Raise(nameof(ShowAddAd));
+                RaiseQuoth();
             }
         }
     }
@@ -1173,7 +1194,7 @@ public sealed class MainViewModel : ObservableObject
 
     /// <summary>Ticked: Dwell's zip is downloaded after the install and unpacked into the install's dwell folder (a v2.2
     /// copy found in the owned roots is used instead: the box is then off and disabled).</summary>
-    public bool InstallDwell { get => _dwell && !DwellFoundUsable; set { if (Set(ref _dwell, value)) { Raise(nameof(DiskText)); } } }
+    public bool InstallDwell { get => _dwell && !DwellFoundUsable; set { if (Set(ref _dwell, value)) { Raise(nameof(DiskText), nameof(ReliefsPossible), nameof(MakeReliefs)); } } }
 
     /// <summary>The copy of Dwell the game would use from the owned Quake roots (null: none).</summary>
     public ModCopy? DwellFound
@@ -1191,6 +1212,7 @@ public sealed class MainViewModel : ObservableObject
                 Raise(nameof(DwellSizeText));
                 Raise(nameof(DiskText));
                 Raise(nameof(ShowAddDwell));
+                Raise(nameof(ReliefsPossible), nameof(MakeReliefs));
             }
         }
     }
@@ -1213,6 +1235,62 @@ public sealed class MainViewModel : ObservableObject
     public bool ShowAddDwell => _existing is { } e && !e.Files.Any(f => f.Component == Components.Dwell) && !DwellFoundUsable;
 
     public bool ShowAddAd => _existing is { } e && !e.Files.Any(f => f.Component == Components.ArcaneDimensions) && !AdFoundUsable;
+
+    // ---- Quoth (experimental, needs Arcane Dimensions: Quoth.OnByDefault while AD is chosen; QUOTH.md) ----
+
+    /// <summary>Arcane Dimensions where the game will find it: ticked, already in the install, or a usable copy found.</summary>
+    public bool AdChosen => InstallAd || AdFoundUsable || (_existing is { } e && e.Files.Any(f => f.Component == Components.ArcaneDimensions));
+
+    /// <summary>Ticked: Quoth's zip is downloaded after Arcane Dimensions and unpacked into the install's quoth folder.
+    /// Off and greyed without AD (<see cref="Quoth.NeedsAdText"/>) or with a 2.2 copy found (used where it is).</summary>
+    public bool InstallQuoth { get => _quoth && QuothCanTick; set { if (Set(ref _quoth, value)) { Raise(nameof(DiskText), nameof(ReliefsPossible), nameof(MakeReliefs)); } } }
+
+    /// <summary>The copy of Quoth the game would use from the owned Quake roots (null: none).</summary>
+    public ModCopy? QuothFound
+    {
+        get => _quothFound;
+        private set
+        {
+            if (Set(ref _quothFound, value))
+            {
+                RaiseQuoth();
+            }
+        }
+    }
+
+    void RaiseQuoth() => Raise(nameof(AdChosen), nameof(QuothFoundUsable), nameof(QuothCanTick), nameof(InstallQuoth), nameof(QuothText),
+        nameof(QuothSizeText), nameof(ShowAddQuoth), nameof(DiskText), nameof(ReliefsPossible), nameof(MakeReliefs));
+
+    public bool QuothFoundUsable => _quothFound is { Usable: true };
+    public bool QuothCanTick => !QuothFoundUsable && AdChosen;
+
+    public string QuothSizeText =>
+        QuothFoundUsable ? "already installed" :
+        _settings.Component(_feed, Components.Quoth) is { } c
+            ? $"{PathUtil.FormatSize(c.File.Size)} download, about {PathUtil.FormatSize(Quoth.InstalledSize)} on disk"
+            : "download unavailable";
+
+    /// <summary>The row's text: why it is greyed (no AD), a copy found, else what the box does.</summary>
+    public string QuothText => !AdChosen && !QuothFoundUsable ? Quoth.NeedsAdText : _quothFound is { } f ? Quoth.Describe(f) :
+        "Experimental: Quoth 2.2, downloaded from Quaddicted and installed as released. Its own maps are a campaign in Official Campaigns; " +
+        "its monsters and items also appear in custom maps made for it. Quake VR plays them by Arcane Dimensions' rules.";
+
+    /// <summary>The Update screen's box: an install without Quoth in its folder, no 2.2 copy found.</summary>
+    public bool ShowAddQuoth => _existing is { } e && !e.Files.Any(f => f.Component == Components.Quoth) && !QuothFoundUsable;
+
+    // ---- Reliefs for Dwell and Quoth (on wherever either will be there; Core/Reliefs/ReliefMaker.cs, DWELL.md 9.9) ----
+
+    /// <summary>Dwell or Quoth will be where the game finds it: ticked, found, or already in the install.</summary>
+    public bool ReliefsPossible => InstallDwell || DwellFoundUsable || InstallQuoth || (QuothFoundUsable && AdChosen) ||
+                                   (_existing is { } e && e.Files.Any(f => f.Component is Components.Dwell or Components.Quoth));
+
+    /// <summary>Ticked: after Dwell and Quoth, their textures' reliefs are made on this PC (a few minutes on a graphics
+    /// card, longer on the processor), only the missing ones. Off and greyed when neither is there.</summary>
+    public bool MakeReliefs { get => _reliefs && ReliefsPossible; set => Set(ref _reliefs, value); }
+
+    public string ReliefsText =>
+        "AD's surface relief (the depth in bricks, panels and rock) for Dwell's and Quoth's textures, made on this PC from your copies " +
+        "by the same CC0 models: a few minutes on a graphics card. Kept in the install's reliefs folder; Setup makes only the missing ones.";
     public bool DesktopShortcut { get => _desktopShortcut; set => Set(ref _desktopShortcut, value); }
     public bool DesktopFlatShortcut { get => _desktopFlatShortcut; set => Set(ref _desktopFlatShortcut, value); }
     public bool StartMenuShortcuts { get => _startMenuShortcuts; set => Set(ref _startMenuShortcuts, value); }
@@ -1551,6 +1629,8 @@ public sealed class MainViewModel : ObservableObject
             await PrepareGameAsync(ct);
             await AddArcaneDimensionsAsync(http, ct);
             await AddDwellAsync(http, ct);
+            await AddQuothAsync(http, ct);
+            await MakeReliefsAsync(ct);
             LoadExisting();
             BuildDoneNotes();
             GoToSettingsOrDone();
@@ -1815,6 +1895,80 @@ public sealed class MainViewModel : ObservableObject
     async Task AddDwellAsync(HttpClient http, CancellationToken ct) =>
         _dwellOutcome = await AddModAsync(Dwell.Spec, InstallDwell, http, ct);
 
+    /// <summary>Quoth, after Arcane Dimensions, by the same step, only where AD now is (its step may have failed).</summary>
+    async Task AddQuothAsync(HttpClient http, CancellationToken ct)
+    {
+        var adThere = AdFoundUsable || (InstallRecord.Load(InstallDir) is { } r && r.Files.Any(f => f.Component == Components.ArcaneDimensions));
+        _quothOutcome = InstallQuoth && !adThere
+            ? new ModOutcome(false, false, $"Quoth not installed: {Quoth.NeedsAdText}")
+            : await AddModAsync(Quoth.Spec, InstallQuoth, http, ct);
+    }
+
+    /// <summary>The Dwell and Quoth folders the game plays: the install's own, else a usable copy found in the owned roots.</summary>
+    List<string> ReliefModDirs()
+    {
+        var dirs = new List<string>();
+        foreach (var (folder, found) in new[] { (Dwell.Folder, _dwellFound), (Quoth.Folder, _quothFound) })
+        {
+            var own = Path.Combine(InstallDir, folder);
+            if (Directory.Exists(own))
+            {
+                dirs.Add(own);
+            }
+            else if (found is { Usable: true } f && Directory.Exists(f.Folder))
+            {
+                dirs.Add(f.Folder);
+            }
+        }
+        return dirs;
+    }
+
+    /// <summary>"Make reliefs for Dwell and Quoth", last (Core/Reliefs/ReliefMaker.cs): AD's relief companions made here
+    /// from the player's own copies (they may not be shipped), into the install's reliefs folder; only the missing ones.
+    /// Never fails the run: Cancel skips the rest (the next Setup run makes them), a failure is a note.</summary>
+    async Task MakeReliefsAsync(CancellationToken ct)
+    {
+        _reliefsNote = null;
+        var mods = ReliefModDirs();
+        if (!MakeReliefs || mods.Count == 0)
+        {
+            return;
+        }
+        var dir = InstallDir;
+        var quake = InstallRecord.Load(dir)?.QuakeDir ?? SelectedQuake?.Install.BaseDir;
+        var palette = ReliefMaker.FindPalette([.. mods, .. quake is null ? Array.Empty<string>() : [Path.Combine(quake, "id1")]]);
+        if (palette is null)
+        {
+            (_reliefsStatus, _reliefsNote) = (CheckStatus.Warning, "Not made: Quake's palette (id1's gfx/palette.lmp) wasn't found.");
+            AddLog(LogLevel.Warning, $"{ReliefMaker.Title}: {_reliefsNote}");
+            return;
+        }
+        var progress = new Progress<InstallProgress>(p =>
+        {
+            StatusText = p.Status;
+            Progress = 100.0 * p.Fraction;
+            if (p.Log is not null)
+            {
+                AddLog(p.Level, p.Log);
+            }
+        });
+        try
+        {
+            var summary = await Task.Run(() => ReliefMaker.Run(dir, mods, [Path.Combine(dir, "quakevr")], palette, forceCpu: false, progress, ct), CancellationToken.None);
+            (_reliefsStatus, _reliefsNote) = (summary.Failed > 0 ? CheckStatus.Warning : CheckStatus.Ok, summary.Describe() + ".");
+            AddLog(summary.Failed > 0 ? LogLevel.Warning : LogLevel.Success, $"{ReliefMaker.Title}: {summary.Describe()}.");
+            if (summary.Cancelled)
+            {
+                _cts = new CancellationTokenSource(); // (as a mod step's Cancel: this one skipped, the run ends on Done)
+            }
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or InvalidDataException or Microsoft.ML.OnnxRuntime.OnnxRuntimeException)
+        {
+            (_reliefsStatus, _reliefsNote) = (CheckStatus.Warning, $"Not made: {e.Message.TrimEnd('.')}. Run Setup again to retry; the maps play without them.");
+            AddLog(LogLevel.Warning, $"{ReliefMaker.Title}: {_reliefsNote}");
+        }
+    }
+
     /// <summary>One third-party mod component's step (Arcane Dimensions, Dwell: <see cref="ModComponent"/>): null when
     /// there is nothing to do.</summary>
     async Task<ModOutcome?> AddModAsync(ModSpec spec, bool ticked, HttpClient http, CancellationToken ct)
@@ -1920,6 +2074,20 @@ public sealed class MainViewModel : ObservableObject
         else if (DwellFoundUsable)
         {
             DoneNotes.Add(new CheckItem(CheckStatus.Ok, "Dwell", DwellFoundText));
+        }
+        if (_quothOutcome is { } qo)
+        {
+            DoneNotes.Add(qo.Installed
+                ? new CheckItem(CheckStatus.Ok, "Quoth (experimental)", qo.Message + " Play it from Official Campaigns.")
+                : new CheckItem(CheckStatus.Warning, "Quoth (experimental)", qo.Message));
+        }
+        else if (QuothFoundUsable && AdChosen)
+        {
+            DoneNotes.Add(new CheckItem(CheckStatus.Ok, "Quoth (experimental)", Quoth.Describe(_quothFound!) + " Play it from Official Campaigns."));
+        }
+        if (_reliefsNote is { } rn)
+        {
+            DoneNotes.Add(new CheckItem(_reliefsStatus, "Reliefs for Dwell and Quoth", rn));
         }
         if (VcResult is { } vc && vc.Outcome != VcRedistOutcome.AlreadyInstalled)
         {

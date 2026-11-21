@@ -14,6 +14,7 @@
 #include "vr_ad.hpp"
 #include "vr_cvars.hpp"
 #include "vr_dwell.hpp"
+#include "vr_quoth.hpp"
 #include "vr_mapinstall.hpp"
 #include "vr_mapindex.hpp"
 #include "vr_engine.hpp"
@@ -86,6 +87,12 @@ constexpr const char* adOwnedClashes[] = {
     "weapon_axe", // (Quake VR has a weapon_axe since 2026-11-08: a grabbable axe; AD maps keep AD's pickup)
 };
 
+// Quoth's maps play by AD's rules (QUOTH.md: AD re-implements nearly every Quoth classname): its campaign, and a Map
+// Library package made for Quoth.
+constexpr const char* adMadeFor[] = {"Quoth"};
+// Ours under AD's rules too: Quoth's monster spawners (AD's remove themselves; vr_quoth.qc's spawn the monsters).
+constexpr const char* adKeptOurs[] = {"info_multispawn", "func_hordespawn"};
+
 // Copper's detection data (DWELL.md 5.2): its own classnames (cu_<classname>, none of Quake VR's) but the compiler's
 // and the ones AD has too (nobody's signal anyway); Dwell's own classnames (no spawn function yet: P2), each a signal;
 // the worldspawn _tb_mod key (TrenchBroom's game configuration) naming Copper or Dwell.
@@ -147,7 +154,7 @@ constexpr Ruleset rulesets[] = {
     {qvr::rules::MG, "Machine Games", nullptr, false, 0, never, {}, {}, {}, {}, nullptr, nullptr, {}, {}, {}, {}},
     {qvr::rules::AD, "Arcane Dimensions", "ad_", true, 2, qvr::ad::folderMounted, names(adNotSignals),
         names(adNotSignalPrefixes), names(adWorldSignals), names(adOwnedClashes), VR_AD_SpawnsOutside,
-        VR_AD_ToolgunSpawnsOutside, {}, {}, {}, {}},
+        VR_AD_ToolgunSpawnsOutside, {}, {}, names(adMadeFor), names(adKeptOurs)},
     // Copper's (DWELL.md 5.2, P1b): its code is in the progs (QC/copper, cu_<name>), so it is detected with no data
     // mounted; Dwell's campaign and packages made for Copper or Dwell play by it too. None of its classnames spawns
     // outside its rules.
@@ -174,13 +181,14 @@ constexpr Ruleset rulesets[] = {
 }
 static_assert(countof(rulesets) == qvr::rules::Count, "one row a ruleset, in Id order");
 
-// The campaigns' own rulesets (vr_gamedir.cpp campaigns[]: id1, hipnotic, rogue, dopa, mg1, mg3, ad, dwell).
+// The campaigns' own rulesets (vr_gamedir.cpp campaigns[]: id1, hipnotic, rogue, dopa, mg1, mg3, ad, dwell, quoth).
 constexpr Id campaignRulesets[] = {
     qvr::rules::ID, qvr::rules::ID, qvr::rules::ID, qvr::rules::MG, qvr::rules::MG, qvr::rules::MG, qvr::rules::AD,
-    qvr::rules::COPPER,
+    qvr::rules::COPPER, qvr::rules::AD,
 };
 static_assert(campaignRulesets[qvr::ad::campaignIndex] == qvr::rules::AD, "AD's campaign plays by AD's rules");
 static_assert(campaignRulesets[qvr::dwell::campaignIndex] == qvr::rules::COPPER, "Dwell's campaign plays by Copper's");
+static_assert(campaignRulesets[qvr::quoth::campaignIndex] == qvr::rules::AD, "Quoth's campaign plays by AD's");
 
 struct Detection
 {
@@ -296,7 +304,7 @@ void beforeLoad()
     countSignals(sv.worldmodel ? sv.worldmodel->entities : "");
     mapRules.importedSpawns = mapRules.oursShared = 0;
     mapRules.package[0] = '\0';
-    // A Map Library package made for a ruleset's mod (vr_mapinstall.cpp madeFor: "Copper", "Dwell") plays by it, like
+    // A Map Library package made for a ruleset's mod (vr_mapinstall.cpp madeFor: "Copper", "Dwell", "Quoth") plays by it, like
     // a campaign, when the map is the package's own.
     const za::String& sha = qvr::mapinstall::active();
     const char* mapName = sv.name;

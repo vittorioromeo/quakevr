@@ -7,8 +7,13 @@
 # brighter and bluer in the view's lower half, on the arms (sa_shockarcs_diff.py), and the bolts reached the client.
 # Ends `shockarcs: <n> passed, <m> failed`.
 AGENT=${1:?agent}
-OUT=${2:-C:/OHWorkspace/qvr-kit/scratch/shockarcs}
-shift 2
+OUT=C:/OHWorkspace/qvr-kit/scratch/shockarcs
+shift
+# (syncfix4: the out dir only when given; with the agent alone `shift 2` failed and the loop below never ended)
+case "$1" in
+    --*|"") ;;
+    *) OUT=$1; shift ;;
+esac
 MAPS="vrfiringrange"
 MODES="flat"
 CASES="1 2 3 4"
@@ -18,7 +23,7 @@ while [ $# -gt 0 ]; do
         --modes) MODES=$2 ;;
         --cases) CASES=$2 ;;
     esac
-    shift 2
+    shift 2 || break
 done
 KIT=C:/OHWorkspace/qvr-kit
 HERE=$(dirname "$0")

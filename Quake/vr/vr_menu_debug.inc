@@ -421,6 +421,7 @@ za::Vector<Item> pageDebugLogging()
         row(opt::vr_debug_flame_wobble),
         row(opt::vr_debug_wallbuttons),
         row(opt::vr_debug_pose_check),
+        row(opt::vr_debug_lift),
         row(opt::vr_debug_shots),
         row(opt::vr_debug_missiles),
         row(opt::vr_debug_throw),
@@ -475,6 +476,7 @@ za::Vector<Item> pageDebugLogging()
         row(opt::vr_debug_arm),
         row(opt::vr_debug_2h_grip),
         row(opt::vr_verbosebots),
+        row(opt::vr_bot_freeze),
         row(opt::vr_debug_glstate),
         header("Trace Files (game folder)"),
         row(opt::vr_debug_grasp_trace),
@@ -1072,6 +1074,10 @@ za::Vector<Item> pageDebugReports()
         command("Official Campaign Status", "vr_campaign_status").help("Owned data and language readiness; active native campaign context."),
         command("Dopa Finale Text", "loc_probe $map_dopa_endtext_final").help("Preview the resolved completion text. loc_probe <key> [arguments] also checks formatted expansion strings."),
         command("Campaign File Sources", "vr_campaign_probe").help("Actual resolved sources for VR progs and colliding official maps; vr_campaign_probe <filename> checks any virtual file."),
+        command("Music File", "vr_music_which")
+            .help("vr_music_which [track]: the file a CD track plays from (the map's own track by default) and the folder it "
+                  "comes from: the active campaign's, Quake's, a mod's or a map package's (never another campaign's mounted "
+                  "for its models and sounds, Dwell's or Quoth's)."),
         command("Mission Pack Status", "vr_pack_status")
             .help("Prints whether Hipnotic and Rogue are available, missing or incomplete/corrupt. Both are optional for the Quake campaign."),
         command("Headset", "vr_status").help("vr_status: the backend, the eyes' sizes, the hidden area, the head's and hands' poses."),
@@ -1135,6 +1141,9 @@ za::Vector<Item> pageDebugReports()
         command("Cut the Nearest Monster's Arm Off", "vr_test_cut 1").help("vr_test_cut 1: the same at its left arm: his right hand to the stump."),
         command("Cut Both Its Legs Off", "vr_test_cut 5").help("vr_test_cut 5: the same at both legs: he crawls on his arms."),
         command("Ragdolls", "vr_ragdoll_list 2").help("vr_ragdoll_list [1|2]: each ragdoll (how long limp, its parts awake, where it lies; with 1 each part's mass, place and speed and the hands holding it; with 2 also how far its flames are from its limbs), and Box3D's bodies (Gibs and Corpses > Ragdoll Settings)."),
+        command("Dwell Brute's Spanning Triangles", "vr_ragdoll_rig_spans progs/e2/mon_brute.mdl")
+            .help("vr_ragdoll_rig_spans <model> [max]: a rig's triangles whose corners lie on bones not joined to each "
+                  "other (they stretch across the ragdoll as its limbs part), each one's vertices and bones, and how many."),
         command("Every Ragdoll Rig", "vr_ragdoll_rig_sweep").help("vr_ragdoll_rig_sweep: every monster model with a ragdoll table in the loaded game folders (Arcane Dimensions' with -game ad), its rig derived: how many rigged, and why any did not (\"bone ... got 0 vertices\")."),
         command("Grunt's Ragdoll Rig", "vr_ragdoll_info").help("vr_ragdoll_info [model]: the rig derived from the grunt's animation: each bone's vertices, joint, pivot and limits, how well the bones fit the frames."),
         command("Smooth Animation Check", "vr_anim_smooth_check").help("vr_anim_smooth_check [model ...]: each rigged monster's frames drawn as Model Animation Smooth draws them (r_lerpmodels 3): the weights at the frames (exact), how near a frame the shape is just off it, how far mid-frame it is from Quake's blend, and how much limbs turning 30 degrees or more shrink mid-frame (Quake's blend, the spline, with the swung limbs)."),
@@ -1200,6 +1209,8 @@ za::Vector<Item> pageDebugReports()
         command("Sight Lines", "vr_sight_lines").help("vr_sight_lines: every weapon's sight line (Align Sights)."),
         command("Sight Check", "vr_sight_check").help("vr_sight_check: the held weapon's sights against its aim."),
         command("Wrist Gadget", "vr_gadget_info").help("vr_gadget_info: the gadget's pose (once it has been drawn) and the hologram's messages up now."),
+        command("Wrist Gadget Next Page", "vr_gadget_page 1").help("vr_gadget_page 1: the wrist gadget's next page, as its outer button (the HUD, Arcane Dimensions' page with its data loaded, the scoreboard in multiplayer), and prints the one shown."),
+        command("Wrist Gadget Scoreboard", "vr_gadget_scores").help("vr_gadget_scores: the wrist gadget's scoreboard page's rows as it draws them (multiplayer: each player's frags, in the scoreboard's order, you, talking)."),
         command("View Text Follow", "vr_view_text_status").help("vr_view_text_status: the messages in front of you: the yaw they follow now (vr_view_text_smooth) and the head's."),
         header("Other"),
         command("Limits", "vr_limits")
@@ -1218,6 +1229,22 @@ za::Vector<Item> pageDebugReports()
         command("Network: Players Seen", "vr_mp_status")
             .help("vr_mp_status: the players this client sees (entity, name, where, whether the last message carried them) "
                   "and, hosting, the server's clients. The multiplayer harness (Misc/quakevr/mp) reads the same lines."),
+        command("Network: Drawn Near Me", "vr_mp_near 0")
+            .help("vr_mp_near <ent> [radius] [seconds]: the models this client draws, the lights and the sounds of the last "
+                  "seconds round a player (0: you). Run it here and on another player's game with your entity number to "
+                  "see what of you he gets (the sync audit's harness, mp_test.py syncaudit)."),
+        command("Network: Log Physics Bodies (5 s)", "vr_mp_bodylog 5 700")
+            .help("vr_mp_bodylog <seconds> [radius]: logs each tick the physics things within the radius (props, gibs, "
+                  "dropped weapons, every ragdoll part): a listen host the server's truth, a remote client what it draws "
+                  "(mp_bl, mp_bp lines). Run it on both games at once to compare (mp_test.py ragsync)."),
+        toggle("Network: Send Ragdolls' Parts", vr_net_ragdolls)
+            .help("vr_net_ragdolls: hosting, each ragdoll in a remote player's sight goes in his snapshots by its parts "
+                  "(drawn as the server has it); off, his game draws the corpse's death animation (as before ragsync)."),
+        command("Network: Follow the Next Player (Navmesh)", "vr_nav_follow next")
+            .help("vr_nav_follow next: you walk after the next other player along the navmesh (each press the next one; past "
+                  "the last, off), your view turned and forward pressed as your own keys would. Your own move, look or "
+                  "jump hands control back; it walks on after vr_nav_follow_idle s. vr_nav_follow <name | slot | 0> in "
+                  "the console; Show Navmesh draws its path."),
         command("Network: Lockstep Status", "vr_mp_lockstep_status")
             .help("vr_mp_lockstep_status: the multiplayer harness's reproducible runs (vr_mp_lockstep on a dedicated server, "
                   "vr_mp_lockstep_ahead on its clients): the world's step, whether it is held, each client's newest move "

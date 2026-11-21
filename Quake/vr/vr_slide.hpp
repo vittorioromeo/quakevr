@@ -85,6 +85,33 @@ void setHeadsetInput(const edict_t* ent, bool held);
 // vignette, the slide's sound; and the slide's pose wanted (off a ledge mid-slide too) with vr_slide_body.
 [[nodiscard]] bool headsetSliding();
 [[nodiscard]] bool headsetPose();
+
+// The slide's turn of the body, flatscreen play's and a headset's one (his ask, 2026-11-21: a headset's legs the flat
+// slide's way): its eased share (no stance turn, the hips and legs to the slide's way), the slide's way (degrees, kept
+// from the last frame it was moving), the chest's turn back to the view (degrees about the trunk, + left), and the hips'
+// yaw eased after where they are asked to face (vr_flat_slide_turn_smooth: the lag, its rate, a critically damped spring;
+// `easing` while a slide's share holds it).
+struct LegsTurn
+{
+    float lin{0.f};
+    float yaw{0.f};
+    float twist{0.f};
+    float lag{0.f};
+    float lagRate{0.f};
+    float yaw0{0.f}; // the eased yaw last frame
+    bool easing{false};
+};
+// One step of it (flatplay poseHands; headsetLegs): `slide` the slide's pose wanted, `legs` the hips and legs to its way
+// (vr_flat_slide_legs; a headset's vr_slide_legs), `view` the yaw the chest keeps facing (the flat view's; the tracked
+// body's), `rest` the turn off it outside a slide (a flat long gun's stance; 0), `vel` the speed along the ground, `dt`
+// seconds since the last step (0: the same frame again). The tunables are the flat slide's (vr_flat_slide_turn_time,
+// _turn_smooth, _legs_twist, _back_start, _back_full). Returns the hips' yaw; t.twist the chest's turn back.
+[[nodiscard]] float legsTurnStep(LegsTurn& t, bool slide, bool legs, float view, float rest, glm::vec2 vel, double dt);
+// A headset's slide (vr_slide_legs): stepped once a frame from vr_hands.cpp with the tracked body's yaw; the drawn body's
+// hips and legs turned off it by headsetLegsOff (degrees, + left) and its chest back by headsetLegsTwist (the avatar).
+void headsetLegs(float bodyYaw);
+[[nodiscard]] float headsetLegsOff();
+[[nodiscard]] float headsetLegsTwist();
 // Player `ent` a headset player whose slide ended moments ago (vr_hull.cpp: his eyes, let down by the view drop, coming
 // back up do not lay him down).
 [[nodiscard]] bool headsetRising(const edict_t* ent);

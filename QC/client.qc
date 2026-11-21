@@ -1249,6 +1249,10 @@ entity() SelectSpawnPoint =
             }
         }
 
+        // VR (mpbugs3): the scan ends after two passes past the last start: a map with no deathmatch start (Dwell's start,
+        // any single player map) looped here for ever ("runaway loop error" from Select Campaign in a multiplayer game,
+        // his note 2026-11-21), and so did every start blocked with no last spawn yet (startspot world: never met again).
+        float wraps = 0;
         while(1)
         {
             if(t == TEAM1)
@@ -1300,6 +1304,29 @@ entity() SelectSpawnPoint =
             }
             else
             {
+                if(t == 0)
+                {
+                    wraps = wraps + 1;
+                }
+                if(wraps >= 2)
+                {
+                    spot = find(world, classname, "info_player_deathmatch");
+                    if(!spot)
+                    {
+                        // The coop starts and the player start, as coop picks them (the next clear one, else beside
+                        // one): not the player start for all, each spawn telefragging the one on it.
+                        dprint("SelectSpawnPoint: deathmatch, no info_player_deathmatch: coop's starts\n");
+                        spot = VR_CoopSpawnPoint();
+                        if(spot)
+                            return spot;
+                        break; // (the player start below, as single player)
+                    }
+                    entity besideAll = VR_DMBesideSpot(spot); // every start taken: a place beside one, else the first
+                    if(besideAll)
+                        return besideAll;
+                    lastspawn = spot;
+                    return spot;
+                }
                 // pgm fix for ctf in levels w/o ctf support
                 t = 0;
             }
@@ -1497,6 +1524,7 @@ void() PutClientInServer =
     AD_UpgradesToWeapons(self); // AD support: an older game's upgrades (the player's) onto his weapons (vr_ad_bridge.qc)
     VR_Toolgun_SpawnInHolster(); // vr_debug_spawn_toolgun (vr_toolgun.qc)
     SpawnAllAmmoBoxWeapons(self);
+    CU_PlayerSpawnedAt(spot); // Copper's rules: its spawn point's targets (vr_copper_bridge.qc)
 };
 
 // The map's first PutClientInServer (`p`, the first player in coop; not a loaded game's: none): each ammo box's weapon
@@ -3054,6 +3082,8 @@ float(float xHand, float xWpnId, string xSound, void(float xHand) xWpnFn) DoXHan
     return FALSE;
 }
 
+float(float xHand) DW_LanceHeld; // (dwell/dw_items.qc)
+void(float xHand) DW_LanceMelee;
 float(float xHand, entity b, entity g, vector xAt, vector xDir, float xSpeed, float xKind) VR_Skewer_Blow; // (vr_skewer.qc)
 void(float xHand, entity b) VR_Skewer_SwingHit;
 float(float xHand, entity b) VR_Skewer_GoesBy;
@@ -3109,6 +3139,9 @@ void(float xHand) VR_Melee_Deal =
                 if(!DoXHandMelee(xHand, WID_CHAINSAW, "", W_ChainsawMelee))
                 if(!DoXHandMelee(xHand, WID_CROWBAR, "", W_CrowbarMelee))
                 if(!DoXHandMelee(xHand, WID_SUPERAXE, "", W_SuperAxeMelee)) // vr_mg3_weapons.qc
+                if(DW_LanceHeld(xHand)) // Dwell support: the Crystal Lance as a lance, its crystal head (dw_items.qc)
+                    DoXHandMeleeImpl(xHand, "", DW_LanceMelee);
+                else
                     DoXHandMeleeImpl(xHand, "", W_GunMelee);
         vr_melee_blowhand = 0;
         vr_melee_blunt = FALSE;

@@ -21,6 +21,9 @@ namespace qvr::emissive
 // vr_view.cpp, as a weapon's ammo screen is queued: its light, in front of the screen centred at
 // `pos` and facing along `angles` (Quake angles; the readable side faces right x up).
 void weaponScreenLight(int hand, const glm::vec3& pos, const glm::vec3& angles);
+// (syncfix5) Another player's copy's held gun's (player entity `player`, 1..16, `hand` 0 off, 1 main): the same light, keys
+// -0x5C60 .. -0x5C7F.
+void otherWeaponScreenLight(int player, int hand, const glm::vec3& pos, const glm::vec3& angles);
 
 // vr_view.cpp: a lava nailgun's glow (v_lava.mdl, v_lava2.mdl) at `pos`, `strength` of a held one's (the holstered
 // and lying ones: vr_lavagun_light_idle; fading in and out as the gun morphs), for this frame. `index`: which gun
@@ -32,6 +35,9 @@ void lavaGunLight(int index, const glm::vec3& pos, float strength);
 // `color`, `strength` 0..2 (its glow times vr_hotblade_light; 0: none, its light put out), reaching `radius` units.
 inline constexpr int hotBladeLights = 16;
 void hotBladeLight(int index, const glm::vec3& pos, const glm::vec3& color, float strength, float radius);
+// (syncfix5) Another player's copy's hot barrel in `hand` (player entity `player`, 1..16): the same light, keys -0x5A20 ..
+// -0x5A3F (lasting a frame: none cast, it goes out by itself).
+void otherHotBarrelLight(int player, int hand, const glm::vec3& pos, const glm::vec3& color, float strength, float radius);
 
 // A power-up's glow on you (vr_view.cpp powerupGlow: Quad's blue, the pentagram's red, the biosuit's green): light
 // `index` (0, 1 the hands) this frame at `pos` in `color`, reaching `radius` units, `strength` 0..2 (0: put out).
@@ -39,6 +45,9 @@ void hotBladeLight(int index, const glm::vec3& pos, const glm::vec3& color, floa
 inline constexpr int powerupLights = 2;
 inline constexpr int powerupLightKey = -0x5980; // their dlights' keys: this - the index
 void powerupLight(int index, const glm::vec3& pos, float strength, float radius, const glm::vec3& color);
+// Another player's copy's (syncfix: player entity `player`, 1..16, `hand` 0 off, 1 main): keys after yours.
+void otherPowerupLight(int player, int hand, const glm::vec3& pos, float strength, float radius, const glm::vec3& color);
+void powerupGlowLight(int key, const glm::vec3& pos, float strength, float radius, const glm::vec3& color);
 
 // Is `model` a lava nailgun's (its lava ammo's model)?
 [[nodiscard]] bool isLavaGun(const qmodel_t* model);

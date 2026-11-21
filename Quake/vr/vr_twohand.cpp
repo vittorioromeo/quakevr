@@ -57,7 +57,9 @@
 #include "vr_geom.hpp"
 #include "vr_weapon_ids.h"
 
+#include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Acos.hpp"
+#include "Zancle/Math/Sqrt.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/MinMax.hpp"
@@ -115,6 +117,7 @@ float gripLength[2]{0.f, 0.f};             // per holding hand: the hand-to-tip 
 constexpr float foregripTake = gripTakeUnits; // units from the grip point to take hold
 constexpr float foregripKeep = 20.f;  // and to keep it
 constexpr float bladeTake = 6.f;      // units from the blade's outer part (its Blade hotspot's range)
+constexpr float poleMinApart = 4.f;   // a pole grip nearer the holding hand than this (units) keeps its last turn
 constexpr float bladeKeepMin = 0.25f; // the hands kept this share of the blade's length apart,
 constexpr float bladeKeepMax = 1.35f; // at most this
 
@@ -182,6 +185,13 @@ struct FreeGrip
     glm::quat turn{1.f, 0.f, 0.f, 0.f}; // the aim's turn it gave last (in the holding hand's frame): eased out once let go
     double lastOn = -1.0;    // the last frame it held (helpKind: a moment ago)
     bool counts = true;      // two hands on it for the server (aiming): not a weapon with Two-Handed: Not Allowed
+    // A pole grip (FREE_POLE): the pole's line in the holding hand's frame (through `base`, where it took hold, along
+    // `axis`), the hand's place on it now (`point` = base + axis * u, u between uMin and uMax: the butt and the tip), and
+    // where it was when the drawn hand's place was taken (handPoint: the drawn hand slides along with it).
+    glm::vec3 base{0.f};
+    glm::vec3 axis{1.f, 0.f, 0.f};
+    float u = 0.f, uMin = -1e9f, uMax = 1e9f;
+    glm::vec3 handPoint{0.f};
 };
 FreeGrip freeGrips[2];
 bool freeCandidate[2]{false, false}; // the view's (setFreeCandidate), at candidateTime
@@ -513,12 +523,35 @@ void applySword(hands::State& s, const glm::vec3 (&originalRots)[2], int holding
     }
     const float own = weapons::value(slot, Key::AnyGripMode);
     const int mode = static_cast<int>(own >= 0.f ? own : vr_weapon_anygrip_mode.value);
+    if(mode == FREE_POLE && own >= 0.f)
+    {
+        return FREE_POLE; // (a weapon's own only: the global setting has no pole)
+    }
     return mode < FREE_FOREGRIP || mode > FREE_RIGID ? FREE_FOREGRIP : mode;
 }
 
 [[nodiscard]] const char* freeModeName(int mode)
 {
-    return mode == FREE_SUPPORT ? "support" : mode == FREE_RIGID ? "rigid" : "foregrip";
+    return mode == FREE_SUPPORT ? "support" : mode == FREE_RIGID ? "rigid" : mode == FREE_POLE ? "pole" : "foregrip";
+}
+
+// A pole grip's place along its pole for the hand at `h` (the holding hand's frame): the u whose point is as far from the
+// holding hand as the hand is (so a turn about the holding hand puts it there), the root nearest the last; `gap` how far
+// the hand is off that (0 on the pole; past its butt or tip, or nearer the holding hand than the line passes).
+[[nodiscard]] float poleSlide(const FreeGrip& g, const glm::vec3& h, float& gap)
+{
+    const float pa = glm::dot(g.base, g.axis);
+    const float disc = pa * pa - glm::dot(g.base, g.base) + glm::dot(h, h);
+    float u = -pa; // (the line's nearest point to the holding hand: no root)
+    if(disc >= 0.f)
+    {
+        const float r = za::sqrt(disc);
+        const float a = -pa + r, b = -pa - r;
+        u = za::abs(a - g.u) <= za::abs(b - g.u) ? a : b;
+    }
+    u = za::clamp(u, g.uMin, g.uMax);
+    gap = za::abs(glm::length(h) - glm::length(g.base + g.axis * u));
+    return u;
 }
 
 // How far (units) a free grip's hand may be off its place on the weapon before it lets go, as a prop held in both hands
@@ -621,6 +654,29 @@ bool updateFree(hands::State& s, const glm::vec3 (&originalRots)[2], int holding
         off = glm::distance(s.pos[helping], holdingPos + hands::redirect(g.point, aimRot));
         limit = foregripKeep * stickinessOf(1.f);
     }
+    else if(g.mode == FREE_POLE)
+    {
+        // Slid along the pole to where the hand is (as far from the holding hand), then the least turn putting that place
+        // on the line from the holding hand through the hand; within a few units of the holding hand, the last turn kept.
+        const glm::vec3 h = relativeTo(holdingPos, rot0, s.pos[helping], rot0).pos;
+        g.u = poleSlide(g, h, off);
+        g.point = g.base + g.axis * g.u;
+        if(vr_debug_2h_grip.value >= 2 && vr_gametime >= debugPrintAt)
+        {
+            Con_Printf("2h grip: on the pole %.1f units along it from where it took hold (%.1f .. %.1f), %.1f from the "
+                       "holding hand along it, %.1f off\n", g.u, g.uMin, g.uMax, glm::dot(g.point, g.axis), off);
+            debugPrintAt = vr_gametime + 0.25;
+        }
+        if(glm::length(h) > poleMinApart && glm::length(g.point) > poleMinApart)
+        {
+            aimRot = turnAngles(rot0, safeNormalize(hands::redirect(g.point, rot0)), safeNormalize(s.pos[helping] - holdingPos));
+        }
+        else
+        {
+            aimRot = anglesOfQuat(glm::quat_cast(hands::basisOf(rot0)) * g.turn);
+        }
+        limit = foregripKeep * stickinessOf(1.f);
+    }
     else
     {
         off = glm::distance(s.pos[helping], holdingPos + hands::redirect(g.point, rot0));
@@ -668,6 +724,30 @@ FreeGrip& beginFree(const hands::State& s, const glm::vec3 (&originalRots)[2], i
     if(g.mode == FREE_FOREGRIP && glm::length(g.point) < 3.f)
     {
         g.mode = FREE_SUPPORT; // (at the handle: nothing to aim by)
+    }
+    if(g.mode == FREE_POLE)
+    {
+        // The pole: the weapon's long axis (its blade line, bladeDirection) in the holding hand's frame, through where the
+        // hand took hold; from its butt (Blade Near: that share of the hand-to-tip length behind the hand) to its tip (the
+        // muzzle), along the axis.
+        const glm::vec3& rot0 = originalRots[holding];
+        g.axis = safeNormalize(relativeTo(glm::vec3{0.f}, rot0, bladeDirection(slot, holding, rot0), rot0).pos);
+        g.base = point;
+        g.u = 0.f;
+        const float pa = glm::dot(point, g.axis);
+        if(s.muzzleValid[holding])
+        {
+            const float tip = glm::dot(relativeTo(s.pos[holding], rot0, s.muzzle[holding], rot0).pos, g.axis);
+            const float nearShare = weapons::value(slot, Key::BladeNear);
+            g.uMax = tip - pa;
+            g.uMin = -(nearShare >= 0.f ? nearShare : 0.5f) * tip - pa;
+        }
+        else
+        {
+            g.uMin = -1e9f;
+            g.uMax = 1e9f;
+        }
+        g.handPoint = point;
     }
     g.hold = carry2h::record(frameOf(s.pos[holding], originalRots[holding]), bothFrames(s, originalRots).f);
     g.lastOn = vr_gametime;
@@ -1092,7 +1172,17 @@ void applyHand(hands::State& s, const glm::vec3 (&originalRots)[2], int holding,
     {
         return;
     }
-    applyHotspots(s, originalRots, holding, helping, mode);
+    // (A pole grip's weapon in VR: no hotspot takes the other hand, any place on it is the pole.)
+    if(!(holdingWeapon && poleGrip(slot)))
+    {
+        applyHotspots(s, originalRots, holding, helping, mode);
+    }
+    else
+    {
+        shouldAim[holding] = false;
+        transition(aimTransition[holding], false, 5.f);
+        stockTransition[holding] = 0.f;
+    }
     // Let go of: its turn of the aim eased out (as a hotspot's), unless a hotspot aims it now.
     if(!g.on && g.t > 0.f)
     {
@@ -1559,6 +1649,11 @@ void armFlatGrip(int helping, bool armed)
     gripArmed[helping] = armed;
 }
 
+bool poleGrip(int slot)
+{
+    return slot >= 0 && !flatplay::active() && freeModeFor(slot) == FREE_POLE;
+}
+
 bool freeHelping(int hand)
 {
     return helpingHand[hand] && freeGrips[1 - hand].on;
@@ -1580,9 +1675,15 @@ bool freeHand(int hand, const glm::vec3& trackedPos, const glm::vec3& trackedRot
     if(g.handPending)
     {
         g.hand = relativeTo(holderPos, holderRot, trackedPos, trackedRot);
+        g.handPoint = g.point;
         g.handPending = false;
     }
-    fromRelative(holderPos, holderRot, g.hand, pos, rot);
+    RelPose on = g.hand;
+    if(g.mode == FREE_POLE)
+    {
+        on.pos += g.point - g.handPoint; // (slid along the pole with the hand)
+    }
+    fromRelative(holderPos, holderRot, on, pos, rot);
     return true;
 }
 

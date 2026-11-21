@@ -12,8 +12,11 @@
 #include "vr_selfcollide.hpp"
 #include "vr_engine.hpp"
 #include "vr_flatplay.hpp"
+#include "vr_slide.hpp"
 #include "vr_flatmove.hpp"
 #include "vr_flatsight.hpp"
+#include "vr_flattp.hpp"
+#include "vr_sightalign.hpp"
 #include "vr_units.hpp"
 #include "vr_backend.hpp"
 #include "vr_bodycal.hpp"
@@ -308,6 +311,111 @@ namespace
     return (fit - 1.f) * leg;
 }
 
+// adspose (FLATPLAY.md, "Seen from outside"): the local flat-screen body is drawn from outside its eyes this frame (the
+// third-person camera away from them, the orbit aid): posed for being seen, the head at the eye, not for the eye's view.
+[[nodiscard]] bool localSeenFromOutside()
+{
+    return localFlat() && (flattp::away() || flatplay::orbit.dist > 0.f);
+}
+
+// A flat-screen player's gun with a sight line, seen from outside: another's as his copy draws it (Subject::sight), or
+// the local body's own seen from outside; the one whose rear sight is nearest `eye`. False: none, or a headset player.
+struct GunSight
+{
+    glm::vec3 rear{0.f}, front{0.f};
+    int hand{HAND_MAIN};
+};
+[[nodiscard]] bool gunSight(const hands::State& s, const glm::vec3& eye, GunSight& out)
+{
+    if(posingOther())
+    {
+        out = GunSight{subject->sightRear, subject->sightFront, subject->sightHand};
+        return subject->sight;
+    }
+    if(!localSeenFromOutside())
+    {
+        return false;
+    }
+    float best = 1e9f;
+    for(int h = 0; h < HAND_COUNT; h++)
+    {
+        view::WeaponFrame wf;
+        const sightalign::SightLine line = view::weaponFrame(s, h, wf) ? sightalign::sightLine(wf.model) : sightalign::SightLine{};
+        const glm::vec3 rear{wf.modelToWorld * glm::vec4{line.rear, 1.f}};
+        if(line.valid && glm::distance(rear, eye) < best)
+        {
+            best = glm::distance(rear, eye);
+            out = GunSight{rear, glm::vec3{wf.modelToWorld * glm::vec4{line.front, 1.f}}, h};
+        }
+    }
+    return best < 1e9f;
+}
+
+// The head of a flat-screen player on his sights, seen from outside (vr_flat_seen_*): his eye is on the sight line behind
+// the rear sight (the ironsight solved the gun so: vr_flatsight.cpp), so the drawn head is put there, looking along the
+// sights, tilted onto the stock (the cheek weld) with its middle off the line away from the gun, the aiming eye over it;
+// the chest pitched by a share of the look, the shoulders going up and down with the gun. `w` how far on the sights the
+// gun is (0: not: the sight line off the look, or off the eye, or the rear sight not ahead of it), eased so that the
+// ironsight's travel takes the head there and back. Its middle eye `mid` and its turn `rot` (solveTorso's basis: x up, z
+// forward).
+struct SeenAds
+{
+    float w{0.f};
+    glm::vec3 mid{0.f};
+    glm::mat3 rot{1.f};
+    float chest{0.f};
+    glm::vec3 dir{0.f}, up{0.f}, right{0.f}; // the sight line's way, its up and right (untilted)
+    int hand{HAND_MAIN};
+};
+[[nodiscard]] SeenAds seenAds(const hands::State& s, const glm::vec3& eye, const glm::vec3& hf, const glm::vec3& hu)
+{
+    SeenAds out;
+    GunSight g;
+    if(vr_flat_seen_ads.value == 0.f || !gunSight(s, eye, g))
+    {
+        return out;
+    }
+    const float len = glm::distance(g.front, g.rear);
+    if(len < 1.f)
+    {
+        return out;
+    }
+    const glm::vec3 dir = (g.front - g.rear) / len;
+    const glm::vec3 back = eye - g.rear;
+    const float t = glm::dot(back, dir); // (negative: the eye behind the rear sight)
+    const float off = glm::length(back - dir * t);
+    // (On the look: within 14 degrees all, none past 25; the eye within 3 units of the line, none past 7 -- the copy's eye
+    // is the head he sends, which the neck's turn leaves up to 5.5 off his view's: FLATPLAY.md, "The neck"; the rear sight
+    // ahead of the eye by up to 22, none past 30: the relief is 14 at most.)
+    out.w = geom::smooth01((glm::dot(dir, hf) - 0.906f) / 0.064f) * (1.f - geom::smooth01((off - 3.f) / 4.f)) *
+            (1.f - geom::smooth01((-t - 22.f) / 8.f)) * geom::smooth01((2.f - t) / 2.f);
+    if(out.w <= 0.f)
+    {
+        return out;
+    }
+    const glm::vec3 up = safeNormalize(hu - dir * glm::dot(hu, dir), UP);
+    const glm::vec3 right = safeNormalize(glm::cross(dir, up), -FWD);
+    const float side = g.hand == HAND_OFF ? -1.f : 1.f; // (the gun's side: HAND_OFF is the left controller, left-handed too)
+    // (the head at the eye, which the ironsight stood behind the rear sight: only the cheek's offset off it, not snapped
+    // onto the line, which a gun held off the eye's line by up to 3 units took the drawn eyes away from his own)
+    out.mid = eye - right * (side * za::clamp(vr_flat_seen_cheek_side.value, 0.f, 4.f));
+    const glm::vec3 tilted = glm::angleAxis(glm::radians(side * za::clamp(vr_flat_seen_cheek_roll.value, 0.f, 30.f)), dir) * up;
+    out.rot = basis(tilted, dir);
+    out.chest = s.headAngles.x * za::clamp(vr_flat_seen_chest.value, 0.f, 1.f);
+    out.dir = dir;
+    out.up = up;
+    out.right = right;
+    out.hand = g.hand;
+    return out;
+}
+
+// solveArm on the sights seen from outside (Body::seenAds): the elbows' way off the gun's down, out at the arm's side by
+// these shares of it (the gun hand's well out: a rifleman's raised a little; the other under the fore-end), the gun hand's
+// a little back along the line.
+constexpr float seenGunElbowOut = 0.8f;
+constexpr float seenSupportElbowOut = 0.25f;
+constexpr float seenGunElbowBack = 0.f;
+
 // The spine from the head. The top of the neck is found behind and below the eyes. A crouch lowers
 // the pelvis straight down under the neck (the legs bend) and tilts the back forward about it, as a
 // person crouching does; when the pelvis can go no lower, the back bends further.
@@ -327,8 +435,11 @@ void solveTorso(const hands::State& s, Body& b, float scale = 0.f, bool crouchPo
     b.floorZ = s.head.z - s.headHeight * detail::metresToUnits();
     const float standLift = legFit(s, b);
 
+    // A headset's slide (vr_slide_legs; slide::headsetLegs, the flat slide's turn): the hips and legs to the slide's
+    // way, the chest turned back to the tracked body's below (the local body only: the flat one turns its s.bodyYaw).
+    const bool headsetSlideLegs = crouchPose && !subject && !flatplay::active();
     glm::vec3 right, up;
-    hands::angleVectors({0.f, s.bodyYaw, 0.f}, b.fwd, right, up);
+    hands::angleVectors({0.f, s.bodyYaw + (headsetSlideLegs ? slide::headsetLegsOff() : 0.f), 0.f}, b.fwd, right, up);
     b.left = -right;
 
     glm::vec3 hf, hr, hu;
@@ -341,7 +452,39 @@ void solveTorso(const hands::State& s, Body& b, float scale = 0.f, bool crouchPo
     {
         hands::angleVectors({0.f, s.headAngles.y, 0.f}, nf, nr, nu);
     }
-    const glm::vec3 standingTop = s.head - (nf * vr_body_eye_forward.value + nu * vr_body_eye_up.value) * b.m2w;
+    glm::vec3 standingTop = s.head - (nf * vr_body_eye_forward.value + nu * vr_body_eye_up.value) * b.m2w;
+    // adspose: seen from outside (another's flat body, the local one from the third-person camera), the head is at the eye
+    // (the flat eye's own crouch and look offsets below are the eye view's: they leave the head under it) and, on the
+    // sights, on the stock (seenAds).
+    // (another flat-screen player's eye: the head he sends turned about his neck as his own view is: flatplay::neckTurn)
+    // (vr_flat_seen_ads 0: none of it, the body as the eye view poses it)
+    const bool seenOn = vr_flat_seen_ads.value != 0.f;
+    const float seen = seenOn && localSeenFromOutside() ? 1.f : 0.f;
+    const bool flatOther = seenOn && posingOther() && subject->flat;
+    // (the local one's: the eye the crosshair's ray and the sights are solved from, flatplay::crosshairRay's -- in his own
+    // view the head turned about the neck, seen from outside the head itself: adding the neck's turn there again stood the
+    // drawn eyes 4.7 behind and under it at 40 up, the orbit view's "head 5.7 under the eye", adspose2)
+    glm::vec3 eyeAt = s.head + (flatOther ? flatplay::seenEyeShift(s.headAngles) : glm::vec3{0.f});
+    if(!posingOther() && localFlat())
+    {
+        glm::vec3 rayDir;
+        flatplay::crosshairRay(s, s.headAngles, eyeAt, rayDir);
+    }
+    if(seen > 0.f || flatOther)
+    {
+        standingTop = eyeAt - (hf * vr_body_eye_forward.value + hu * vr_body_eye_up.value) * b.m2w; // (the head turns with the look)
+    }
+    const SeenAds ads = crouchPose ? seenAds(s, eyeAt, hf, hu) : SeenAds{};
+    if(ads.w > 0.f)
+    {
+        standingTop = glm::mix(standingTop, ads.mid - (ads.rot[2] * vr_body_eye_forward.value + ads.rot[0] * vr_body_eye_up.value) * b.m2w,
+            ads.w);
+    }
+    b.seenAds = ads.w * za::clamp(vr_flat_seen_elbows.value, 0.f, 1.f);
+    b.seenDir = ads.dir;
+    b.seenUp = ads.up;
+    b.seenRight = ads.right;
+    b.seenHand = ads.hand;
 
     const float torsoLen = glm::distance(bd.pos[Pelvis], bd.pos[Head]) * b.m2w;
 
@@ -397,12 +540,12 @@ void solveTorso(const hands::State& s, Body& b, float scale = 0.f, bool crouchPo
     const float w = b.crouchPose;
     glm::vec3 top = standingTop - (nf * vr_body_crouch_eye_forward.value + nu * vr_body_crouch_eye_up.value) * (w * b.m2w);
     // Flatscreen play: the crouch takes his shoulders further down off the eye than his head goes (world units, as the mode's own).
-    top += posingOther() ? glm::vec3{0.f} : flatplay::crouchNeck(nf, s.headAngles.x) * w;
+    top += posingOther() ? glm::vec3{0.f} : flatplay::crouchNeck(nf, s.headAngles.x) * (w * (1.f - seen));
     // Sliding (flat-screen play, vr_flatmove.cpp): the leant-back trunk hangs off a neck further back than the eye (the
     // chin to the chest): the chest under the view, the legs out in front seen past it (vr_flat_slide_neck_back).
     // (Not the reference poses: the Follower's upright reference moved back with it, the holsters and pouches it carries
     // ended up that far forward on the slid body, the ammo pouch in front of the camera: his note 2026-11-08.)
-    top -= b.fwd * (crouchPose ? flatmove::slideNeckBack() * bodyPitch.sliding : 0.f);
+    top -= b.fwd * (crouchPose ? flatmove::slideNeckBack(posingOther()) * bodyPitch.sliding : 0.f);
     // Flat-screen lying down: the trunk hangs from further under the eye (vr_flat_prone_neck_drop; the head and the neck
     // are not drawn), so the body lies lower than the view, the chest almost on the floor (his note 2026-11-08: the torso
     // too high), the view and the gun's poses (made for that eye: their floor clearance) as they were.
@@ -472,6 +615,21 @@ void solveTorso(const hands::State& s, Body& b, float scale = 0.f, bool crouchPo
         c.pos = sp.pos + torsoTurn * chestFromSpine;
         c.rot = torsoTurn * c.rot;
     }
+    // Sliding with the hips and legs to the slide's way (flatscreen play's vr_flat_slide_legs, flatplay::trunkTwist; a
+    // headset's vr_slide_legs, slide::headsetLegsTwist): the chest turned back to the view about the trunk, half of it
+    // in the spine.
+    const auto twistChest = [&](float twist)
+    {
+        // (Turned about the upright trunk, then leant back with it by the body's pitch: the chest's facing seen from
+        // above turns further, by 1 / cos(pitch). Less here, so that it faces the view.)
+        twist = glm::degrees(za::atan2(za::sin(glm::radians(twist)) * za::cos(glm::radians(bodyPitch.angle)), za::cos(glm::radians(twist))));
+        const glm::vec3 axis = safeNormalize(c.pos - p.pos, UP);
+        const glm::mat3 half = glm::mat3_cast(glm::angleAxis(glm::radians(0.5f * twist), axis));
+        const glm::vec3 fromSpine = c.pos - sp.pos;
+        sp.rot = half * sp.rot;
+        c.pos = sp.pos + half * fromSpine;
+        c.rot = half * half * c.rot;
+    };
     // Flatscreen play: the chest takes a share of the look's pitch, half of it in the spine below (flatplay::chestPitch), and leans
     // into a gun sighted in both hands (flatsight::stanceLean: the head stays, the collapsed neck spans it).
     if(crouchPose && localFlat())
@@ -484,20 +642,24 @@ void solveTorso(const hands::State& s, Body& b, float scale = 0.f, bool crouchPo
         sp.rot = spineTurn * sp.rot;
         c.pos = sp.pos + spineTurn * chestFromSpine;
         c.rot = bodyTurn(b, lean, 0.f, 0.f) * c.rot;
-        // Sliding with the hips and legs to the slide's way (vr_flat_slide_legs; flatplay::trunkTwist): the chest turned back
-        // to the view about the trunk, half of it in the spine.
-        if(float twist = flatplay::trunkTwist(); twist != 0.f)
+        if(const float twist = flatplay::trunkTwist(); twist != 0.f)
         {
-            // (Turned about the upright trunk, then leant back with it by the body's pitch: the chest's facing seen from
-            // above turns further, by 1 / cos(pitch). Less here, so that it faces the view.)
-            twist = glm::degrees(za::atan2(za::sin(glm::radians(twist)) * za::cos(glm::radians(bodyPitch.angle)), za::cos(glm::radians(twist))));
-            const glm::vec3 axis = safeNormalize(c.pos - p.pos, UP);
-            const glm::mat3 half = glm::mat3_cast(glm::angleAxis(glm::radians(0.5f * twist), axis));
-            const glm::vec3 fromSpine = c.pos - sp.pos;
-            sp.rot = half * sp.rot;
-            c.pos = sp.pos + half * fromSpine;
-            c.rot = half * half * c.rot;
+            twistChest(twist);
         }
+    }
+    if(const float twist = headsetSlideLegs ? slide::headsetLegsTwist() : 0.f; twist != 0.f)
+    {
+        twistChest(twist);
+    }
+    // adspose: on the sights, seen from outside, the chest pitched by a share of the look (half of it in the spine): the
+    // shoulders go up and down with the gun, not left under it (vr_flat_seen_chest). Not in a slide (its trunk is straight).
+    if(const float lean = ads.chest * ads.w * (1.f - bodyPitch.sliding); lean != 0.f)
+    {
+        const glm::vec3 chestFromSpine = c.pos - sp.pos;
+        const glm::mat3 spineTurn = bodyTurn(b, 0.5f * lean, 0.f, 0.f);
+        sp.rot = spineTurn * sp.rot;
+        c.pos = sp.pos + spineTurn * chestFromSpine;
+        c.rot = bodyTurn(b, lean, 0.f, 0.f) * c.rot;
     }
     // The tracked chest's twist from the hips (the hips face bodyYaw: bodytrack::bodyYaw), half in the spine.
     if(tracked.weight > 0.f && tracked.twist != 0.f)
@@ -550,7 +712,8 @@ void solveTorso(const hands::State& s, Body& b, float scale = 0.f, bool crouchPo
     Bone& n = b.bones[Neck];
     n = Bone{};
     n.pos = childPos(b, Neck);
-    const glm::vec3 headAt = top + (posingOther() ? glm::vec3{0.f} : flatplay::headLean(s.headAngles)); // (flatscreen play: the chest's share of the look carries the head)
+    // (flatscreen play: the chest's share of the look carries the head; seen from outside it stays at the eye)
+    const glm::vec3 headAt = top + (posingOther() ? glm::vec3{0.f} : flatplay::headLean(s.headAngles) * (1.f - seen));
     n.rot = basis(headAt - n.pos, turn * b.fwd);
     n.size = COLLAPSED;
 
@@ -558,6 +721,10 @@ void solveTorso(const hands::State& s, Body& b, float scale = 0.f, bool crouchPo
     h = Bone{};
     h.pos = headAt;
     h.rot = basis(hu, hf);
+    if(ads.w > 0.f)
+    {
+        h.rot = glm::mat3_cast(glm::slerp(glm::quat_cast(h.rot), glm::quat_cast(ads.rot), ads.w)); // (on the stock)
+    }
     h.size = COLLAPSED;
 }
 
@@ -565,6 +732,14 @@ void solveTorso(const hands::State& s, Body& b, float scale = 0.f, bool crouchPo
 
 namespace detail
 {
+
+// The drawn head's eyes (seen from outside): the head bone's own frame (x up, z forward: solveTorso's basis(hu, hf)), the
+// eyes vr_body_eye_forward ahead of the skull's base and vr_body_eye_up above it, as solveTorso stands the base under them.
+[[nodiscard]] glm::vec3 headEyeOf(const Body& b)
+{
+    const Bone& h = b.bones[Head];
+    return h.pos + (h.rot[0] * vr_body_eye_up.value + h.rot[2] * vr_body_eye_forward.value) * b.m2w;
+}
 
 // Two-bone chain from `root` towards `target`, bending towards `pole`: the middle joint.
 [[nodiscard]] glm::vec3 twoBone(const glm::vec3& root, const glm::vec3& target, float a, float b, const glm::vec3& pole,
@@ -1155,6 +1330,25 @@ void solveArm(Body& b, int side, const HandPose& handPose)
         const glm::vec3 planted = side - UP * 0.25f;
         pole = glm::mix(pole, planted * (glm::length(pole) / glm::length(planted)), flare);
     }
+    // adspose: a flat-screen player on his sights seen from outside (Body::seenAds, vr_flat_seen_elbows): the arms hold the
+    // gun from below, as a rifleman's do: the gun hand's elbow down and out at its side (seenGunElbowOut), the other's
+    // down under the fore-end and a little out (seenSupportElbowOut), in the sight line's frame, so neither forearm stands
+    // up across the face whatever the look (the arm's own pole is the chest's: looking down the tuck's back turned up
+    // past the head, the spread's wings out level with it). Over the rest, and the wrist's ease below swings it back by
+    // as little of that share.
+    if(b.seenAds > 0.f)
+    {
+        const bool gunArm = (side == 0 ? HAND_OFF : HAND_MAIN) == b.seenHand;
+        const glm::vec3 outward = b.seenRight * (side == 0 ? -1.f : 1.f);
+        // (down: half the gun's, half the world's -- the gun's alone, looking down 40, took the gun hand's elbow back to the
+        // eye's height behind the head, a wing up by the face from in front)
+        const glm::vec3 down = safeNormalize(-b.seenUp - UP, -UP);
+        const glm::vec3 way = safeNormalize(down + outward * (gunArm ? seenGunElbowOut : seenSupportElbowOut) -
+                                                b.seenDir * (gunArm ? seenGunElbowBack : 0.f),
+            -cUp);
+        pole = glm::mix(pole, way * glm::length(pole), b.seenAds);
+        flatElbow = za::max(flatElbow, b.seenAds);
+    }
     glm::vec3 elbow = twoBone(u.pos, wrist, a, l, pole, lateral, bend);
 
     // The hand bone's axes: the drawn hand's (or, without one, the wrist's roll only).
@@ -1411,7 +1605,7 @@ struct Other
     Skeleton skeleton;
     bool bareArms{false};
 };
-Other others[MAX_SCOREBOARD + 1];
+Other others[otherKeys]; // (the players' then the doll slots': vr_avatar.hpp)
 
 void swapOther(Other& o)
 {
@@ -1427,7 +1621,7 @@ void swapOther(Other& o)
 // The other player's body drawn as `e` this frame, or null.
 [[nodiscard]] const Other* otherDrawn(const entity_t* e)
 {
-    if(!e || cl.maxclients <= 1)
+    if(!e) // (single player too: your own dead body, Subject::doll)
     {
         return nullptr;
     }
@@ -1732,44 +1926,125 @@ bool usable(qmodel_t* model)
     return true;
 }
 
+// The turn taking direction `from` to `to` (the shortest).
+[[nodiscard]] glm::quat turnBetween(const glm::vec3& from, const glm::vec3& to)
+{
+    const glm::vec3 a = safeNormalize(from, UP);
+    const glm::vec3 c = safeNormalize(to, UP);
+    const float d = glm::dot(a, c);
+    if(d < -0.9999f)
+    {
+        return glm::angleAxis(glm::pi<float>(), safeNormalize(glm::cross(a, za::abs(a.z) < 0.9f ? UP : FWD), FWD));
+    }
+    const glm::vec3 axis = glm::cross(a, c);
+    return glm::normalize(glm::quat{1.f + d, axis.x, axis.y, axis.z});
+}
+
+// A dead player's body (Subject::doll; vr_mpavatar.cpp addDolls): the trunk and head turned as the doll's (each bone's bind
+// turned onto its rig bone's rest direction, then with that bone), from the doll's pelvis, the body's own lengths down
+// from it; the legs reaching the doll's ankles (scaled to the body's legs) and bending to its knees, the feet with its
+// shins; the arms by solveArm to the hands drawn at the doll's wrists (as a living body's to its hands).
+void solveDoll(Body& b, const DollPose& d, const HandPose handPoses[2], glm::mat3 still[2])
+{
+    const Bind& bd = bind();
+    b.m2w = detail::metresToUnits() * detail::bodyScale();
+    b.legM2w = b.m2w;
+    const glm::mat3 chest = glm::mat3_cast(d.chestRot);
+    b.fwd = safeNormalize(chest * FWD, FWD);
+    b.left = safeNormalize(chest * glm::vec3{0.f, 1.f, 0.f}, glm::cross(UP, b.fwd));
+    b.floorZ = za::min(d.ankle[0].z, d.ankle[1].z);
+    const auto turned = [&](int j, const glm::quat& q, const glm::vec3& rest) {
+        return glm::mat3_cast(q * turnBetween(bd.rot[j][0], rest)) * bd.rot[j];
+    };
+    Bone& p = b.bones[Pelvis];
+    p = Bone{};
+    p.pos = d.pelvis;
+    p.rot = turned(Pelvis, d.pelvisRot, d.pelvisRest);
+    const glm::quat spineRot = glm::slerp(d.pelvisRot, d.chestRot, 0.5f);
+    const int trunk[] = {Spine, Chest, Neck, Head};
+    for(const int j : trunk)
+    {
+        Bone& bone = b.bones[j];
+        bone = Bone{};
+        bone.pos = childPos(b, j);
+        bone.rot = j == Spine ? turned(j, spineRot, glm::normalize(d.pelvisRest + d.chestRest))
+                   : j == Chest ? turned(j, d.chestRot, d.chestRest)
+                                : turned(j, d.headRot, d.headRest);
+        bone.size = d.hideHead && (j == Neck || j == Head) ? COLLAPSED : 1.f;
+    }
+    solveArm(b, 0, handPoses[HAND_OFF]);
+    solveArm(b, 1, handPoses[HAND_MAIN]);
+    for(int side = 0; side < 2; side++)
+    {
+        const int thigh = side == 0 ? ThighL : ThighR;
+        Bone& t = b.bones[thigh];
+        Bone& c = b.bones[thigh + 1];
+        Bone& f = b.bones[thigh + 2];
+        t = c = f = Bone{};
+        t.pos = childPos(b, thigh);
+        const float a = boneLength(thigh, thigh + 1) * b.legM2w;
+        const float l = boneLength(thigh + 1, thigh + 2) * b.legM2w;
+        const float dollLeg = glm::distance(d.hip[side], d.knee[side]) + glm::distance(d.knee[side], d.ankle[side]);
+        const glm::vec3 target = t.pos + (d.ankle[side] - d.hip[side]) * ((a + l) / za::max(dollLeg, 1.f));
+        glm::vec3 bend;
+        const glm::vec3 knee =
+            twoBone(t.pos, target, a, l, d.knee[side] - 0.5f * (d.hip[side] + d.ankle[side]), b.fwd, bend);
+        t.rot = basis(knee - t.pos, bend);
+        c.pos = knee;
+        const glm::vec3 shinDir = safeNormalize(target - knee, -UP);
+        c.rot = basis(shinDir, bend);
+        f.pos = knee + shinDir * l;
+        f.rot = glm::mat3_cast(d.shinRot[side] * turnBetween(bd.rot[thigh + 1][0], d.shinRest[side])) * bd.rot[thigh + 2];
+        still[side] = t.rot;
+    }
+}
+
 glm::vec3 pose(const hands::State& s, qmodel_t* model, const entity_t* ent, const HandPose handPoses[2], bool legs)
 {
     QVR_PROFILE("avatar IK");
     Body b;
-    solveTorso(s, b);
-    debugHead = posingOther() ? debugHead : s.head;
     const ModelInfo* known = infoOf(model);
     bareArms = known && known->bare;
-
-    // The left arm reaches for the left controller (HAND_OFF, left-handed too), the right for the right.
-    solveArm(b, 0, handPoses[HAND_OFF]);
-    solveArm(b, 1, handPoses[HAND_MAIN]);
-    const float dt = legsDeltaTime();
-    if(legs)
+    glm::mat3 still[2];
+    const DollPose* doll = posingOther() ? subject->doll : nullptr;
+    if(doll)
     {
-        updateWater(b, s, dt);
+        solveDoll(b, *doll, handPoses, still);
     }
-    // (Another player's from how the server has him: lying down, swimming, climbing: MP_PLAN.md, B5b, B5c.)
-    updateBodyPitch(s, dt); // (next frame's solveTorso: the trunk's turn)
-    updateGait(b, dt);
-    const glm::vec3 stand = s.head - glm::vec3{s.lean.x, s.lean.y, 0.f}; // where the body stands (the box's middle)
-    updateStance(b, stand, dt);
+    else
     {
-        const double t0 = vr_debug_climb_feet.value >= 2.f && !posingOther() ? Sys_DoubleTime() : 0.0;
-        updateClimbing(b, dt, legs); // (another player's from his holds: Subject::holds)
+        solveTorso(s, b);
+        debugHead = posingOther() ? debugHead : s.head;
+
+        // The left arm reaches for the left controller (HAND_OFF, left-handed too), the right for the right.
+        solveArm(b, 0, handPoses[HAND_OFF]);
+        solveArm(b, 1, handPoses[HAND_MAIN]);
+        const float dt = legsDeltaTime();
+        if(legs)
+        {
+            updateWater(b, s, dt);
+        }
+        // (Another player's from how the server has him: lying down, swimming, climbing: MP_PLAN.md, B5b, B5c.)
+        updateBodyPitch(s, dt); // (next frame's solveTorso: the trunk's turn)
+        updateGait(b, dt);
+        const glm::vec3 stand = s.head - glm::vec3{s.lean.x, s.lean.y, 0.f}; // where the body stands (the box's middle)
+        updateStance(b, stand, dt);
+        {
+            const double t0 = vr_debug_climb_feet.value >= 2.f && !posingOther() ? Sys_DoubleTime() : 0.0;
+            updateClimbing(b, dt, legs); // (another player's from his holds: Subject::holds)
+            if(!posingOther())
+            {
+                climbing.updateMs = vr_debug_climb_feet.value >= 2.f ? (Sys_DoubleTime() - t0) * 1000.0 : 0.0;
+            }
+        }
+        solveLeg(b, stand, 0, legs, still[0]);
+        solveLeg(b, stand, 1, legs, still[1]);
         if(!posingOther())
         {
-            climbing.updateMs = vr_debug_climb_feet.value >= 2.f ? (Sys_DoubleTime() - t0) * 1000.0 : 0.0;
+            logClimbing(b);
+            traceLean(b, s);
+            captureLieProbe(b, s);
         }
-    }
-    glm::mat3 still[2];
-    solveLeg(b, stand, 0, legs, still[0]);
-    solveLeg(b, stand, 1, legs, still[1]);
-    if(!posingOther())
-    {
-        logClimbing(b);
-        traceLean(b, s);
-        captureLieProbe(b, s);
     }
 
     // The thighs relative to the pelvis, as they are and standing still (Follower::thigh).
@@ -1792,6 +2067,7 @@ glm::vec3 pose(const hands::State& s, qmodel_t* model, const entity_t* ent, cons
         k.m2w = b.m2w;
         k.head = s.head;
         k.headJoint = b.bones[Head].pos;
+        k.headEye = headEyeOf(b);
         k.pelvis = b.bones[Pelvis].pos;
         k.legs = legs;
         for(int side = 0; side < 2; side++)
@@ -1892,7 +2168,7 @@ glm::vec3 pose(const hands::State& s, qmodel_t* model, const entity_t* ent, cons
         skinBone(bone, bone.size, inv, &posed.skin[i * 12]);
         // The shadow maps': the neck and head as the model has them (the eye views collapse them, solveTorso).
         float* shadow = &posed.shadowSkin[i * 12];
-        if(j == Neck || j == Head)
+        if((j == Neck || j == Head) && !(doll && doll->hideHead))
         {
             skinBone(bone, 1.f, inv, shadow);
         }
@@ -1941,7 +2217,7 @@ bool skeleton(Skeleton& out)
 glm::vec3 poseOther(int player, const Subject& who, const hands::State& s, qmodel_t* model, const entity_t* ent,
     const HandPose handPoses[2])
 {
-    if(player < 1 || player > MAX_SCOREBOARD || subject)
+    if(player < 1 || player >= otherKeys || subject)
     {
         return s.head;
     }
@@ -1960,9 +2236,17 @@ glm::vec3 poseOther(int player, const Subject& who, const hands::State& s, qmode
     return origin;
 }
 
+void forgetOther(int key)
+{
+    if(key >= 1 && key < otherKeys)
+    {
+        others[key] = Other{};
+    }
+}
+
 bool otherSkeleton(int player, Skeleton& out)
 {
-    if(player < 1 || player > MAX_SCOREBOARD || others[player].frame != host_framecount || !others[player].posed.ent)
+    if(player < 1 || player >= otherKeys || others[player].frame != host_framecount || !others[player].posed.ent)
     {
         return false;
     }
@@ -1970,21 +2254,34 @@ bool otherSkeleton(int player, Skeleton& out)
     return true;
 }
 
-bool otherPitch(int player, float& angle, float& lying)
+bool otherPitch(int player, float& angle, float& lying, float& sliding)
 {
     // (this frame or the last: a report between two frames' poses)
-    if(player < 1 || player > MAX_SCOREBOARD || others[player].frame < host_framecount - 1 || !others[player].posed.ent)
+    if(player < 1 || player >= otherKeys || others[player].frame < host_framecount - 1 || !others[player].posed.ent)
     {
         return false;
     }
     angle = others[player].motion.bodyPitch.angle;
     lying = others[player].motion.bodyPitch.lying;
+    sliding = others[player].motion.bodyPitch.sliding;
+    return true;
+}
+
+bool ownPitch(float& angle, float& lying, float& sliding)
+{
+    if(!posed.ent)
+    {
+        return false;
+    }
+    angle = bodyPitch.angle;
+    lying = bodyPitch.lying;
+    sliding = bodyPitch.sliding;
     return true;
 }
 
 bool otherClimb(int player, float& weight)
 {
-    if(player < 1 || player > MAX_SCOREBOARD || others[player].frame < host_framecount - 1 || !others[player].posed.ent)
+    if(player < 1 || player >= otherKeys || others[player].frame < host_framecount - 1 || !others[player].posed.ent)
     {
         return false;
     }
@@ -1994,7 +2291,7 @@ bool otherClimb(int player, float& weight)
 
 bool otherShoulder(int player, int side, Shoulder& out)
 {
-    if(player < 1 || player > MAX_SCOREBOARD || side < 0 || side > 1 || others[player].frame != host_framecount ||
+    if(player < 1 || player >= otherKeys || side < 0 || side > 1 || others[player].frame != host_framecount ||
         !others[player].posed.ent)
     {
         return false;

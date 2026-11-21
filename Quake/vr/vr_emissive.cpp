@@ -1250,7 +1250,38 @@ extern "C" void VR_TorchLights(void)
     }
 }
 
+namespace
+{
+void screenLight(int key, const glm::vec3& pos, const glm::vec3& angles);
+void hotLight(int key, const glm::vec3& pos, const glm::vec3& color, float strength, float radius);
+} // namespace
+
 void emissive::weaponScreenLight(int hand, const glm::vec3& pos, const glm::vec3& angles)
+{
+    screenLight(screenLightKey - hand, pos, angles);
+}
+
+void emissive::otherWeaponScreenLight(int player, int hand, const glm::vec3& pos, const glm::vec3& angles)
+{
+    constexpr int otherScreenLightKey = -0x5C60; // - (player - 1) * 2 - hand (syncfix5): to -0x5C7F
+    if(player >= 1 && player <= MAX_SCOREBOARD && hand >= 0 && hand <= 1)
+    {
+        screenLight(otherScreenLightKey - (player - 1) * 2 - hand, pos, angles);
+    }
+}
+
+void emissive::otherHotBarrelLight(int player, int hand, const glm::vec3& pos, const glm::vec3& color, float strength, float radius)
+{
+    constexpr int otherHotLightKey = -0x5A20; // - (player - 1) * 2 - hand (syncfix5): to -0x5A3F
+    if(player >= 1 && player <= MAX_SCOREBOARD && hand >= 0 && hand <= 1 && strength > 0.f && radius > 0.f)
+    {
+        hotLight(otherHotLightKey - (player - 1) * 2 - hand, pos, color, strength, radius);
+    }
+}
+
+namespace
+{
+void screenLight(int key, const glm::vec3& pos, const glm::vec3& angles)
 {
     const float k = vr_weapon_screen_light.value * gearlights::light(); // (dimmed: the gear lights)
     const float bright = za::clamp(vr_gadget_screen_brightness.value, 0.f, 2.f);
@@ -1267,7 +1298,7 @@ void emissive::weaponScreenLight(int hand, const glm::vec3& pos, const glm::vec3
     // (the hand holding the gun, the arm, a wall close by) is lit in its text's colour, and
     // nothing beside or behind it (the gun's sides and back, outside its cone), nor the room (out of
     // its reach). DarkPlaces' falloff is full to about 40% of the radius.
-    dlight_t* dl = CL_AllocDlight(screenLightKey - hand);
+    dlight_t* dl = CL_AllocDlight(key);
     const glm::vec3 p = pos + n * screenLightOut;
     geom::store(p, dl->origin);
     dl->die = static_cast<float>(cl.time + 0.05);
@@ -1285,6 +1316,7 @@ void emissive::weaponScreenLight(int hand, const glm::vec3& pos, const glm::vec3
     lighting::dlightNoShadow(dl);
     lighting::dlightRig(dl);
 }
+} // namespace
 
 void emissive::hotBladeLight(int index, const glm::vec3& pos, const glm::vec3& color, float strength, float radius)
 {
@@ -1298,7 +1330,14 @@ void emissive::hotBladeLight(int index, const glm::vec3& pos, const glm::vec3& c
         killDlight(hotBladeLightKey - index);
         return;
     }
-    dlight_t* dl = CL_AllocDlight(hotBladeLightKey - index);
+    hotLight(hotBladeLightKey - index, pos, color, strength, radius);
+}
+
+namespace
+{
+void hotLight(int key, const glm::vec3& pos, const glm::vec3& color, float strength, float radius)
+{
+    dlight_t* dl = CL_AllocDlight(key);
     geom::store(pos, dl->origin);
     dl->die = static_cast<float>(cl.time + 0.05);
     const float k = za::clamp(strength, 0.f, 2.f);
@@ -1312,19 +1351,25 @@ void emissive::hotBladeLight(int index, const glm::vec3& pos, const glm::vec3& c
         setGlow(dl, color, reach * za::sqrt(za::clamp(0.8f * k, 0.f, 2.f)), 0.f); // (Quake's falloff: the reach dims it)
     }
 }
+} // namespace
 
 void emissive::powerupLight(int index, const glm::vec3& pos, float strength, float radius, const glm::vec3& color)
 {
-    if(index < 0 || index >= powerupLights)
+    if(index >= 0 && index < powerupLights)
     {
-        return;
+        powerupGlowLight(powerupLightKey - index, pos, strength, radius, color);
     }
+}
+
+// A power-up light (yours, another player's copy's) under dlight `key`; strength 0: out.
+void emissive::powerupGlowLight(int key, const glm::vec3& pos, float strength, float radius, const glm::vec3& color)
+{
     if(strength <= 0.f || radius <= 0.f)
     {
-        killDlight(powerupLightKey - index);
+        killDlight(key);
         return;
     }
-    dlight_t* dl = CL_AllocDlight(powerupLightKey - index);
+    dlight_t* dl = CL_AllocDlight(key);
     geom::store(pos, dl->origin);
     dl->die = static_cast<float>(cl.time + 0.05);
     const float k = za::clamp(strength, 0.f, 2.f);
@@ -1336,6 +1381,14 @@ void emissive::powerupLight(int index, const glm::vec3& pos, float strength, flo
     else
     {
         setGlow(dl, color, reach * za::sqrt(k), 0.f); // (Quake's falloff: the reach dims it)
+    }
+}
+
+void emissive::otherPowerupLight(int player, int hand, const glm::vec3& pos, float strength, float radius, const glm::vec3& color)
+{
+    if(player >= 1 && player <= MAX_SCOREBOARD && hand >= 0 && hand <= 1)
+    {
+        powerupGlowLight(powerupLightKey - powerupLights - (player - 1) * 2 - hand, pos, strength, radius, color); // (-0x5982 .. -0x59A1)
     }
 }
 

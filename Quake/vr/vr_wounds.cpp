@@ -27,6 +27,7 @@
 #include "vr_geom.hpp"
 #include "vr_mem.hpp"
 #include "vr_selfshot.hpp"
+#include "vr_mpavatar.hpp"
 
 #include "Zancle/Algorithm/Copy.hpp"
 #include "Zancle/Algorithm/Remove.hpp"
@@ -1159,6 +1160,43 @@ PlayerCapsules playerCapsules(entity_t* const own[3])
     return selfshot::build(own);
 }
 
+// Another player's copy's (syncfix5): yours (selfshot::build) round his drawn body and hands -- the torso and the legs
+// round the pelvis, each forearm back from the hand along its drawn way, the hand.
+PlayerCapsules copyCapsules(entity_t* const copy[3])
+{
+    PlayerCapsules out;
+    const glm::vec3 up{0.f, 0.f, 1.f};
+    if(copy[0])
+    {
+        const glm::vec3 pelvis = geom::vec(copy[0]->origin);
+        out.pushBack({pelvis - up * 4.f, pelvis + up * 24.f, 7.5f, selfshot::PartTorso});
+        out.pushBack({pelvis - up * 30.f, pelvis - up * 4.f, 6.f, selfshot::PartLegs});
+    }
+    for(int hand = 0; hand < 2; hand++)
+    {
+        if(const entity_t* h = copy[1 + hand])
+        {
+            const int part = hand == 0 ? selfshot::PartOffForearm : selfshot::PartMainForearm;
+            vec3_t a{-h->angles[0], h->angles[1], h->angles[2]}, f, r, u;
+            AngleVectors(a, f, r, u);
+            const glm::vec3 c = geom::vec(h->origin), fwd = geom::vec(f);
+            out.pushBack({c - fwd * 12.f, c - fwd * 2.f, 2.3f, part});
+            out.pushBack({c - fwd * 2.f, c + fwd * 3.f, 3.2f, part + 1});
+        }
+    }
+    return out;
+}
+
+// Each other player's copy's wounds (syncfix5): kept on him and on his dead body, forgotten when he lives again (his copy
+// drawn living after his dead body) or leaves; there is no health of his here to heal them by.
+struct CopyWounds
+{
+    entity_t* ents[3]{};
+    bool painted{false};
+    bool doll{false};
+};
+CopyWounds copyWounds[MAX_SCOREBOARD + 1];
+
 using geom::closestOnSegment;
 
 // The first capsule the line through `org` going `dir` goes into (`from` to `to` units along it, `step` apart): where,
@@ -1231,7 +1269,8 @@ struct Target
     entity_t* ent{nullptr};
     int num{-1};     // its entity number (cl_entities), -1: the player's own body or hand
     bool view{false};
-    const PlayerCapsules* capsules{nullptr}; // the player's: where blows meet it
+    bool copy{false}; // another player's copy's body or hand (syncfix5): placed by capsules as yours, in a pooled mask
+    const PlayerCapsules* capsules{nullptr}; // the player's (or the copy's): where blows meet it
     glm::vec3 shift{0.f}; // the player's: where the body is drawn off the player's box (room-scale), added to the blow
 };
 
@@ -1329,12 +1368,13 @@ void wound(const Target& t, const Event& ev)
     const glm::vec3 dir = glm::length(ev.dir) > 0.1f ? glm::normalize(ev.dir) : glm::vec3{0.f, 0.f, -1.f};
 
     Surface surf;
-    const bool mesh = !t.view && surfaceOf(*t.ent, t.num, surf);
+    const bool jointed = t.view || t.copy; // (a player's body and hands, yours or another's copy: no triangles here)
+    const bool mesh = !jointed && surfaceOf(*t.ent, t.num, surf);
 
     // A blow at a point: where it meets the model (its triangles), else (the player's jointed body and hands) as it
     // goes, over what faces it within its radius of its line.
     // The player's own are seen close: smaller wounds; the hands' smaller still (a hand is a few units across).
-    const float own = !t.view ? 1.f : modelmeta::has(t.ent->model, modelmeta::Trait::Hand) ? 0.65f : 0.75f;
+    const float own = !jointed ? 1.f : modelmeta::has(t.ent->model, modelmeta::Trait::Hand) ? 0.65f : 0.75f;
     const auto blow = [&](const glm::vec3& org, const glm::vec3& way, int kind, const glm::vec4& what, float scale) {
         const bool blunt = kind == KindMelee && ev.kind == KindMelee && ev.extra == 1; // (QC vr_wounds.qc VR_Wound_Hit)
         WoundSize ws = woundSize(kind, ev.amount, blunt);
@@ -1354,7 +1394,7 @@ void wound(const Target& t, const Event& ev)
                     static_cast<float>(ev.amount) / static_cast<float>(ev.kind == KindShot ? za::max(1, ev.extra) : 1));
             }
         }
-        else if(t.view && t.capsules)
+        else if(jointed && t.capsules)
         {
             // Your own shot: where it struck (strikePrecise). Else not struck where the jitter put it: a little nearer
             // the line's middle, a few times.
@@ -1368,7 +1408,7 @@ void wound(const Target& t, const Event& ev)
             {
                 return;
             }
-            if(!ownStruck.have)
+            if(!ownStruck.have && t.view)
             {
                 ownStruck = OwnStruck{true, at, n, way, part};
             }
@@ -1383,7 +1423,7 @@ void wound(const Target& t, const Event& ev)
     };
     // The player's: spread over the body (the server's point is the box's middle, not where it struck).
     const auto spread = [&](const glm::vec3& org, const glm::vec3& way) {
-        if(!t.view || ev.precise) // (your own shot's point is where it struck)
+        if(!jointed || ev.precise) // (your own shot's point is where it struck)
         {
             return org;
         }
@@ -1574,6 +1614,10 @@ void apply(const Event& ev)
     PlayerCapsules caps;
     Target targets[3];
     int count = 0;
+    entity_t* copy[3]{};
+    bool copyDoll = false;
+    const bool onCopy = ev.num != cl.viewentity && mpavatar::woundTargets(ev.num, copy, copyDoll) &&
+                        (copy[0] || copy[1] || copy[2]);
     if(ev.num == cl.viewentity)
     {
         logPlayerWound(ev);
@@ -1614,12 +1658,37 @@ void apply(const Event& ev)
             }
         }
     }
+    else if(onCopy)
+    {
+        // Another player (syncfix5): his copy's body and jointed hands, as drawn (his own entity is not drawn), placed as
+        // yours are (capsules round them), in the pool's masks (his copy's, not yours: no healing, no gore of yours).
+        caps = copyCapsules(copy);
+        const entity_t& pl = cl_entities[ev.num];
+        CopyWounds& cw = copyWounds[ev.num];
+        for(int i = 0; i < 3; i++)
+        {
+            if(entity_t* e = copy[i])
+            {
+                Target& t = targets[count++];
+                t.ent = e;
+                t.num = ev.num;
+                t.copy = true;
+                t.capsules = &caps;
+                if(copy[0])
+                {
+                    t.shift = glm::vec3{copy[0]->origin[0] - pl.origin[0], copy[0]->origin[1] - pl.origin[1], 0.f};
+                }
+                cw.ents[i] = e;
+            }
+        }
+        cw.painted = true;
+    }
     else if(ev.num > 0 && ev.num < cl.num_entities)
     {
         entity_t& e = cl_entities[ev.num];
         if(e.model && e.model->type == mod_alias && e.msgtime >= cl.mtime[1] - 0.2)
         {
-            targets[count++] = Target{&e, ev.num, false, nullptr, glm::vec3{0.f}};
+            targets[count++] = Target{&e, ev.num, false, false, nullptr, glm::vec3{0.f}};
         }
     }
     // The same draws for each (the player's body and hands: the same point, the same wound).
@@ -3371,6 +3440,44 @@ void parseWeaponGone()
     }
 }
 
+namespace
+{
+// The other players' copies' wounds forgotten (syncfix5) when he lives again (his copy drawn living after his dead body)
+// or his place on the scoreboard is empty (he left).
+void copyLives()
+{
+    for(int p = 1; p <= MAX_SCOREBOARD; p++)
+    {
+        CopyWounds& cw = copyWounds[p];
+        if(!cw.painted)
+        {
+            continue;
+        }
+        entity_t* now[3]{};
+        bool doll = false;
+        const bool drawnNow = mpavatar::woundTargets(p, now, doll);
+        const bool left = p > cl.maxclients || !cl.scores[p - 1].name[0];
+        if(left || (drawnNow && cw.doll && !doll))
+        {
+            for(entity_t* e : cw.ents)
+            {
+                if(const auto it = e ? maskOf.find(e) : maskOf.end(); it != maskOf.end())
+                {
+                    freeMask(it->second);
+                }
+            }
+            if(vr_wounds_debug.value)
+            {
+                Con_Printf("wounds: player %d's copy's wounds forgotten (%s)\n", p, left ? "he left" : "he lives again");
+            }
+            cw = CopyWounds{};
+            continue;
+        }
+        cw.doll = drawnNow ? doll : cw.doll;
+    }
+}
+} // namespace
+
 void frame()
 {
     if(!enabled() || !glprogs.woundpaint[0])
@@ -3398,6 +3505,7 @@ void frame()
     gearFrame(); // (before checkEntities: a hand's weapon let go keeps its blood)
     payOwedBlood(); // (a blade that stayed in: the blood of the blow that put it there)
     checkEntities();
+    copyLives();
     playerState();
     const auto t1 = Sys_DoubleTime();
     enqueue(); // (vr_wounds_budget: a burst's spread over the next frames, each in its body's frame)
@@ -3436,6 +3544,10 @@ bool replacesSkins()
 
 void clear()
 {
+    for(CopyWounds& cw : copyWounds)
+    {
+        cw = CopyWounds{};
+    }
     dents::clear(); // the flesh dents too (vr_dents.cpp)
     for(int i = 0; i < maskCount(); i++)
     {

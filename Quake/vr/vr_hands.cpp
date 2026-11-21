@@ -675,6 +675,12 @@ void easeStairs(const entity_t& player)
     {
         smoothZ += z - lastRawOrigin.z; // through a teleporter: still that far under the origin
     }
+    else if(lastRawOriginValid && cl.onground && z > lastRawOrigin.z && lastTime >= 0.0)
+    {
+        // carried up by a lift the body rides with it: only a step's jump is eased (V_CalcRefdef's rule: the eye
+        // 12 units behind a rising plat, "compressed by the lift", his note of 2026-11-21; vr_view_lift_follow)
+        smoothZ += VR_ViewLiftRise(z - lastRawOrigin.z, static_cast<float>(cl.time - lastTime));
+    }
     lastRawOrigin = state.playerOrigin;
     lastRawOriginValid = true;
     if(!noclip_anglehack && cl.onground && z - smoothZ > 0.f && lastTime >= 0.0)
@@ -949,6 +955,11 @@ void update()
                                                      t.hands[HAND_OFF].valid && t.hands[HAND_MAIN].valid))
                     : flatplay::active() ? state.bodyYaw
                                          : yaw;
+    // A headset's slide: the drawn hips and legs to the slide's way (vr_slide_legs; the avatar reads it).
+    if(vrActive())
+    {
+        slide::headsetLegs(state.bodyYaw);
+    }
 
     state.crouchRatio = state.headHeight > 0.f
                             ? CLAMP(0.f, units::eyeHeight() / state.headHeight - 1.f, 1.f)

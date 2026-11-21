@@ -6,6 +6,7 @@ using QuakeVR.Installer.Core.Detection;
 using QuakeVR.Installer.Core.Packaging;
 using QuakeVR.Installer.Core.Platform;
 using QuakeVR.Installer.Core.Prerequisites;
+using QuakeVR.Installer.Core.Reliefs;
 using QuakeVR.Installer.Core.Shortcuts;
 using QuakeVR.Installer.SelfTest;
 
@@ -229,7 +230,9 @@ var tests = new List<(string Name, Action Body)>
         var rows = System.Text.RegularExpressions.Regex.Matches(table.Groups[1].Value, @"\{""(\w+)"",\s*""([^""]*)"",\s*""\w+"",\s*(\d+),\s*(true|false),")
             .Select(m => (Folder: m.Groups[1].Value, Title: m.Groups[2].Value, Index: int.Parse(m.Groups[3].Value), Ready: m.Groups[4].Value == "true"))
             .ToList();
-        Eq(ExpansionDetector.Campaigns.Count + 1, rows.Count, "campaigns[] rows (id1 and the installer's expansions)");
+        // (Dwell's and Quoth's rows are mod components, not expansions: Packaging/Dwell.cs, Quoth.cs.)
+        Eq(ExpansionDetector.Campaigns.Count + 1, rows.Count(r => r.Folder is not (Components.Dwell or Components.Quoth)),
+            "campaigns[] rows (id1 and the installer's expansions)");
         var solo = System.Text.RegularExpressions.Regex.Match(source, @"bool soloOnly\(int index\)\s*\{\s*return ([^;]*);", System.Text.RegularExpressions.RegexOptions.Singleline);
         True(solo.Success && System.Text.RegularExpressions.Regex.IsMatch(solo.Groups[1].Value, @"^index == \d+( \|\| index == \d+)*$"),
             $"soloOnly() is a list of indices (got <{solo.Groups[1].Value}>): teach this test its new form");
@@ -245,7 +248,8 @@ var tests = new List<(string Name, Action Body)>
         // The experimental campaign: the engine's qvr::ad::campaignIndex row, not nativeReady, labelled "experimental".
         var adIndex = System.Text.RegularExpressions.Regex.Match(source, @"static_assert\(qvr::ad::campaignIndex == (\d+)");
         True(adIndex.Success, "static_assert(qvr::ad::campaignIndex == N) found in vr_gamedir.cpp");
-        True(source.Contains("index == qvr::ad::campaignIndex ? \"experimental\""), "the engine labels qvr::ad::campaignIndex \"experimental\"");
+        // (Since the third-party rows, a row's checks.experimental flag gives the label: AD's row sets it.)
+        True(source.Contains("c.checks.experimental ? \"experimental\""), "the engine labels a row with checks.experimental \"experimental\"");
         foreach (var c in ExpansionDetector.Campaigns)
         {
             var row = rows.Single(r => r.Folder == c.Folder);
@@ -1419,6 +1423,208 @@ var tests = new List<(string Name, Action Body)>
         Eq(ModCopyState.Ready, Dwell.FindExisting(Dwell.SearchRoots([], target))!.State, "the real hash validates the real install");
         Uninstaller.Uninstall(target, new UninstallOptions());
         True(!Directory.Exists(folder), "uninstall removed dwell\\");
+    }),
+    ("quoth: the pin (built in = support_assets.json's thirdParty = Quaddicted's two URLs in order), on by default, needs AD, the feed's quoth wins", () =>
+    {
+        var pinned = BuiltInComponents.Quoth();
+        Eq("quoth2pt2full_2.zip", pinned.File, "pinned file");
+        Eq(54_792_367L, pinned.Size, "pinned size");
+        Eq("9fce1af35ef7f635990be949d75f7faa18cc198bc19d9adc7d0575e234ab1139", pinned.Sha256, "pinned SHA-256");
+        Eq("www.quaddicted.com|www.quaddicted.com", string.Join("|", pinned.Mirrors.Select(u => u.Host)), "hosts in order");
+        True(pinned.Urls[0].EndsWith("/by-sha256/9f/" + pinned.Sha256 + "/quoth2pt2full_2.zip", StringComparison.Ordinal), "content-addressed first");
+        True(pinned.Urls[1].EndsWith("/filebase/quoth2pt2full_2.zip", StringComparison.Ordinal), "the filebase second");
+        True(pinned.Urls.All(u => u.StartsWith("https://", StringComparison.Ordinal) && !u.Contains("github.com")), "Quaddicted only, never ours (its licence)");
+        True(new InstallerSettings().Component(null, Components.Quoth) is { BuiltIn: true } d && d.File.Sha256 == pinned.Sha256, "the defaults: the pin");
+        True(Quoth.OnByDefault && Quoth.NeedsAdText.Contains("Arcane Dimensions"), "on by default, with AD; the reason without it");
+        var repo = new DirectoryInfo(AppContext.BaseDirectory);
+        while (repo is not null && !File.Exists(Path.Combine(repo.FullName, "Misc", "release", "support_assets.json")))
+        {
+            repo = repo.Parent;
+        }
+        if (repo is not null)
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(File.ReadAllText(Path.Combine(repo.FullName, "Misc", "release", "support_assets.json")));
+            True(!doc.RootElement.GetProperty("files").TryGetProperty("quoth", out _), "Quoth is not one of our hosted support files");
+            var j = doc.RootElement.GetProperty("thirdParty").GetProperty("quoth");
+            Eq(pinned.File, j.GetProperty("file").GetString(), "support_assets.json's file");
+            Eq(pinned.Size, j.GetProperty("size").GetInt64(), "support_assets.json's size");
+            Eq(pinned.Sha256, j.GetProperty("sha256").GetString(), "support_assets.json's SHA-256");
+            Eq(string.Join("|", pinned.Urls), string.Join("|", j.GetProperty("mirrors").EnumerateArray().Select(m => m.GetString())), "support_assets.json's hosts");
+            // The engine pins the same pak2.pak (vr_quoth_data.inc's VR_QUOTH_PIN_SHA).
+            var inc = File.ReadAllText(Path.Combine(repo.FullName, "Quake", "vr", "vr_quoth_data.inc"));
+            True(inc.Contains($"VR_QUOTH_PIN_SHA \"{Quoth.Pak2Sha256}\""), "Quoth.Pak2Sha256 = the engine's pin");
+        }
+        var feed = ReleaseFeed.Parse($$"""
+            { "schema": 1, "version": "v9", "components": { "quoth": { "file": "q.zip", "size": 3, "sha256": "{{new string('c', 64)}}", "urls": ["https://example.invalid/q.zip"] } } }
+            """);
+        True(new InstallerSettings().Component(feed, Components.Quoth) is { BuiltIn: false } f && f.File.File == "q.zip", "the feed's quoth wins");
+    }),
+    ("quoth: an existing copy (2.2 used by its pak2.pak hash, another version or a missing pak offers the download, the game's root order)", () =>
+    {
+        void MakeQuoth(string root, string pak2, bool all = true)
+        {
+            var d = Path.Combine(root, "quoth");
+            Directory.CreateDirectory(d);
+            File.WriteAllText(Path.Combine(d, "pak2.pak"), pak2);
+            File.WriteAllText(Path.Combine(d, "pak0.pak"), "pak0");
+            if (all)
+            {
+                File.WriteAllText(Path.Combine(d, "pak1.pak"), "pak1");
+            }
+        }
+        var steam = Dir("qo-steam");
+        var quake = Dir("qo-quake");
+        True(Quoth.FindExisting(Quoth.SearchRoots([steam], quake)) is null, "none: null");
+        MakeQuoth(quake, "2.2 pak2");
+        var pin = PackageManifest.HashFile(Path.Combine(quake, "quoth", "pak2.pak"));
+        var roots = Quoth.SearchRoots([steam], quake);
+        var found = Quoth.FindExisting(roots, pin)!;
+        True(found.State == ModCopyState.Ready && Quoth.Describe(found).Contains("will be used (nothing downloaded)"), "2.2 in the Quake folder: used in place");
+        var other = Quoth.FindExisting(roots, new string('0', 64))!;
+        True(other.State == ModCopyState.OtherVersion && Quoth.Describe(other).Contains("isn't 2.2"), "another pak2.pak: another version, said so");
+        var inc = Dir("qo-inc");
+        MakeQuoth(inc, "2.2 pak2", all: false);
+        Eq(ModCopyState.Incomplete, Quoth.FindExisting(Quoth.SearchRoots([], inc), pin)!.State, "no pak1.pak: incomplete");
+        var empty = Dir("qo-empty");
+        Directory.CreateDirectory(Path.Combine(empty, "quoth", "maps"));
+        True(Quoth.FindExisting(Quoth.SearchRoots([], empty), pin) is null, "a folder with none of its paks: none");
+        MakeQuoth(steam, "another pak2");
+        True(Quoth.FindExisting(Quoth.SearchRoots([steam], quake), pin)!.Folder.StartsWith(PathUtil.TryNormalize(quake)!, StringComparison.OrdinalIgnoreCase), "the Quake folder's copy wins");
+    }),
+    ("quoth: the real quoth2pt2full_2.zip from the local downloads folder (no network): install (6 files as released), reinstall kept, repair restores, update keeps, uninstall removes", () =>
+    {
+        var real = "C:/OHWorkspace/qvr-kit/downloads/modsurvey/quoth/quoth2pt2full_2.zip";
+        if (!File.Exists(real))
+        {
+            Console.WriteLine("    (skipped: the real zip is not in the local downloads folder)");
+            return;
+        }
+        var quake = Dir("qr-quake");
+        var target = Path.Combine(run, "qr-QuakeVR");
+        new InstallEngine().Install(new InstallPlan { PackagePath = Fixtures.MakePackage(Dir("qr-pkg"), "1.0.0"), TargetDir = target, QuakeDir = quake }, null, CancellationToken.None);
+        using var http = Downloader.CreateClient();
+        var pin = BuiltInComponents.Quoth();
+        var outcome = Quoth.AddAsync(http, target, pin, Dir("qr-downloads"), real, null, null, CancellationToken.None, 1).GetAwaiter().GetResult();
+        True(outcome.Installed, outcome.Message);
+        var r = InstallRecord.Load(target)!;
+        var files = r.Files.Where(f => f.Component == Components.Quoth).ToList();
+        Eq("launch.bat|pak0.pak|pak1.pak|pak2.pak|quoth.cfg|quoth2_2.txt", string.Join("|", files.Select(f => f.Path["quoth/".Length..]).Order(StringComparer.Ordinal)), "the zip's six files under quoth/");
+        Eq(Quoth.InstalledSize, files.Sum(f => f.Size), "their size is Quoth.InstalledSize");
+        True(r.Choices.Quoth && r.QuothSha256 == pin.Sha256 && r.QuothFile == pin.File && !r.Choices.ArcaneDimensions, "recorded: chosen, the zip's name and SHA-256; AD untouched");
+        var folder = Path.Combine(target, "quoth");
+        Eq(Quoth.Pak2Sha256, PackageManifest.HashFile(Path.Combine(folder, "pak2.pak")), "pak2.pak is 2.2's (the engine's pin)");
+        Eq(ModCopyState.Ready, Quoth.FindExisting(Quoth.SearchRoots([], target))!.State, "the real install is a usable 2.2 copy");
+        // Again (the Update screen's repair): same zip kept; a damaged file restored from it.
+        Eq(ModAction.Keep, Quoth.Plan(target, r, pin, verify: true).Action, "same zip, intact: kept");
+        File.WriteAllText(Path.Combine(folder, "quoth.cfg"), "damaged");
+        Eq(ModAction.Restore, Quoth.Plan(target, r, pin, verify: true).Action, "a damaged file: restored");
+        var again = Quoth.AddAsync(http, target, pin, Dir("qr-downloads"), real, null, null, CancellationToken.None, 1).GetAwaiter().GetResult();
+        True(again.Installed && PackageManifest.HashFile(Path.Combine(folder, "quoth.cfg")) == files.Single(f => f.Path == "quoth/quoth.cfg").Sha256, "reinstalled: " + again.Message);
+        var r2 = new InstallEngine().Install(new InstallPlan { Mode = InstallMode.Update, PackagePath = Fixtures.MakePackage(Dir("qr-pkg2"), "1.1.0"), TargetDir = target, QuakeDir = quake }, null, CancellationToken.None);
+        True(r2.Files.Count(f => f.Component == Components.Quoth) == 6 && r2.Choices.Quoth && r2.QuothSha256 == pin.Sha256, "a Quake VR update keeps Quoth recorded");
+        Uninstaller.Uninstall(target, new UninstallOptions());
+        True(!Directory.Exists(folder) && !Directory.Exists(target), "uninstall removed quoth\\ and the folder");
+    }),
+    ("reliefs: images and packing (the engine's hash contract, PNG round trip, TGA bottom-left and RLE, normals, calibrated height)", () =>
+    {
+        var flat = new byte[3 * 2 * 4];
+        for (var i = 3; i < flat.Length; i += 4)
+        {
+            flat[i] = 255;
+        }
+        Eq("cde616e3c2a2eae36a3194dc72b99edf279909d7417330ab6ab166948be3a42f", ReliefMaker.ContentHash(3, 2, flat), "pbr_generate.py's self-test digest (SHA-256 of qvr-pbr-v1 NUL, dims, RGBA)");
+        var rng = new Random(5);
+        var px = new byte[37 * 23 * 4];
+        rng.NextBytes(px);
+        var back = ReliefImages.DecodePng(ReliefImages.EncodePng(new RgbaImage(37, 23, px)))!;
+        True(back.Width == 37 && back.Height == 23 && back.Pixels.AsSpan().SequenceEqual(px), "PNG: encoded then decoded, the same RGBA");
+        var tga = ReliefImages.Decode("x.tga", ReliefFixtures.Tga24(3, 2, (x, y) => ((byte)(x * 10), (byte)(y * 20), 7)))!;
+        True(tga.Pixels[0] == 0 && tga.Pixels[1] == 0 && tga.Pixels[(1 * 3 + 2) * 4] == 20 && tga.Pixels[(1 * 3 + 2) * 4 + 1] == 20 &&
+             tga.Pixels[(1 * 3 + 2) * 4 + 3] == 255, "TGA 24-bit bottom-left: rows top to bottom, opaque");
+        var rle = ReliefImages.Decode("x.tga", ReliefFixtures.Tga32Rle(4, 2, 5, (1, 2, 3, 4), (9, 8, 7, 6)))!;
+        True(rle.Pixels.AsSpan(4 * 4, 4).SequenceEqual(new byte[] { 1, 2, 3, 4 }) && rle.Pixels.AsSpan(5 * 4, 4).SequenceEqual(new byte[] { 9, 8, 7, 6 }), "TGA 32-bit RLE top-left");
+        True(ReliefImages.Decode("x.jpg", [1, 2, 3]) is null, "a JPG is not decoded (no relief for it)");
+        var n = ReliefMaker.NormalBytes([0.5f, 0.5f, 1f, 0.5f, 0.5f, 0f], 2);
+        True(n[2] == 255 && n[5] == 255 && n[0] == 128, "normal bytes: flat is (128, 128, 255); a backward normal clamps into the hemisphere");
+        var pred = Enumerable.Range(0, 100).Select(i => i / 100f).ToArray();
+        var height = ReliefMaker.CalibratedHeight(pred, new bool[100], ReliefMaker.Depth);
+        True(height.Min() == 128 && height.Max() == 255 && height[99] == 255, "calibrated height: the 5..95 percentile span fills the 0.5 depth bound");
+        True(ReliefMaker.CalibratedHeight(new float[100], new bool[100], ReliefMaker.Depth).All(v => v == 255), "a flat prediction stays flat");
+        var mask = new bool[9];
+        mask[4] = true;
+        var filled = ReliefMaker.FillMasked([.. Enumerable.Repeat((byte)77, 36)], mask, 3, 3);
+        True(filled.All(v => v == 77), "cutout colours filled from their neighbours");
+    }),
+    ("reliefs: a small texture set end to end on the CPU (made, skipped: stock, Quake VR's bundle, replaced; animation frames share; holes flat; again: kept; one missing: made; uninstall removes the folder)", () =>
+    {
+        var quake = Dir("rl-quake");
+        var target = Path.Combine(run, "rl-QuakeVR");
+        new InstallEngine().Install(new InstallPlan { PackagePath = Fixtures.MakePackage(Dir("rl-pkg"), "1.0.0"), TargetDir = target, QuakeDir = quake }, null, CancellationToken.None);
+        var mod = Path.Combine(target, Quoth.Folder);
+        Directory.CreateDirectory(Path.Combine(mod, "maps"));
+        Directory.CreateDirectory(Path.Combine(mod, "textures"));
+        byte Brick(int x, int y) => (byte)((y % 16 == 0 || (x + (y / 16 % 2) * 16) % 32 == 0) ? 20 : 100 + (x * 3 + y * 5) % 40);
+        File.WriteAllBytes(Path.Combine(mod, "maps", "test.bsp"), ReliefFixtures.Bsp(
+            ("brick", 64, 64, Brick),
+            ("+0lit", 32, 32, (x, y) => (byte)(60 + Brick(x, y) / 4)),
+            ("+1lit", 32, 32, (x, y) => (byte)(61 + Brick(x, y) / 4)),
+            ("{fence", 32, 32, (x, y) => x % 8 < 3 ? (byte)255 : Brick(x, y)),
+            ("sky1", 32, 32, Brick), ("clip", 16, 16, Brick), ("*water", 16, 16, Brick),
+            ("stockone", 16, 16, (x, y) => (byte)(x * y)),
+            ("shipped", 16, 16, (x, y) => (byte)(x + y)),
+            ("ovr", 16, 16, (x, y) => (byte)(x ^ y))));
+        File.WriteAllBytes(Path.Combine(mod, "textures", "ovr.tga"), ReliefFixtures.Tga24(24, 24, (x, y) => ((byte)(x * 9), (byte)(y * 9), (byte)((x / 4 + y / 4) % 2 * 200))));
+        var palette = ReliefFixtures.Palette();
+        string Hash(int w, int h, Func<int, int, byte> pixel)
+        {
+            var rgba = new byte[w * h * 4];
+            for (var i = 0; i < w * h; ++i)
+            {
+                var index = pixel(i % w, i / w);
+                (rgba[i * 4], rgba[i * 4 + 1], rgba[i * 4 + 2], rgba[i * 4 + 3]) = (palette[index * 3], palette[index * 3 + 1], palette[index * 3 + 2], 255);
+            }
+            return ReliefMaker.ContentHash(w, h, rgba);
+        }
+        var bundle = Directory.CreateDirectory(Path.Combine(target, "quakevr", "textures", "pbr")).FullName;
+        File.WriteAllText(Path.Combine(bundle, "stock.txt"), "qvr-pbr-stock-v1\n" + Hash(16, 16, (x, y) => (byte)(x * y))[..32] + "\n");
+        File.WriteAllBytes(Path.Combine(bundle, Hash(16, 16, (x, y) => (byte)(x + y))[..32] + "_norm.png"), [0]);
+        var summary = ReliefMaker.Run(target, [mod], [Path.Combine(target, "quakevr")], palette, forceCpu: true, null, CancellationToken.None);
+        Eq("8 textures, 5 made, 3 not needed, 0 failed, CPU", $"{summary.Textures} textures, {summary.Made} made, {summary.NotNeeded} not needed, {summary.Failed} failed, {summary.Device}", summary.Describe());
+        var outDir = ReliefMaker.TextureDir(target);
+        var lines = File.ReadAllLines(Path.Combine(outDir, "provenance.txt"));
+        Eq("qvr-pbr-provenance-v1", lines[0], "the engine's provenance header");
+        Eq(5, lines.Length - 1, "one provenance record a companion");
+        foreach (var line in lines.Skip(1))
+        {
+            var parts = line.Split(' ');
+            var png = ReliefImages.DecodePng(File.ReadAllBytes(Path.Combine(outDir, parts[0] + "_norm.png")))!;
+            Eq(parts[1], ReliefMaker.ContentHash(png.Width, png.Height, png.Pixels), $"{parts[0]}: the record binds the decoded companion");
+            Eq("3", parts[2], "generated normal and height");
+            var worst = 0.0;
+            for (var i = 0; i < png.Width * png.Height; ++i)
+            {
+                double x = png.Pixels[i * 4] / 127.5 - 1, y = png.Pixels[i * 4 + 1] / 127.5 - 1, z = png.Pixels[i * 4 + 2] / 127.5 - 1;
+                worst = Math.Max(worst, Math.Abs(Math.Sqrt(x * x + y * y + z * z) - 1) + (z < 0 ? 1 : 0));
+                True(png.Pixels[i * 4 + 3] >= 127, "height within the 0.5 depth bound");
+            }
+            True(worst <= .02, $"{parts[0]}: unit normals in the hemisphere ({worst:0.000})");
+        }
+        string Companion(string hash) => Path.Combine(outDir, hash[..32] + "_norm.png");
+        var fence = ReliefImages.DecodePng(File.ReadAllBytes(Companion(Hash(32, 32, (x, y) => x % 8 < 3 ? (byte)255 : Brick(x, y)))))!;
+        True(fence.Pixels.AsSpan(0, 4).SequenceEqual(new byte[] { 128, 128, 255, 255 }), "a fence's holes are flat");
+        True(File.ReadAllBytes(Companion(Hash(32, 32, (x, y) => (byte)(60 + Brick(x, y) / 4)))).AsSpan()
+             .SequenceEqual(File.ReadAllBytes(Companion(Hash(32, 32, (x, y) => (byte)(61 + Brick(x, y) / 4))))), "a lighting-only animation frame shares its first frame's relief");
+        True(!File.Exists(Companion(Hash(16, 16, (x, y) => (byte)(x ^ y)))), "a miptex its TGA replaces gets none (the engine draws the TGA)");
+        True(Directory.GetFiles(outDir, "*_norm.png").Any(p => ReliefImages.DecodePng(File.ReadAllBytes(p))!.Width == 24), "the TGA replacement got one");
+        var again = ReliefMaker.Run(target, [mod], [Path.Combine(target, "quakevr")], palette, forceCpu: true, null, CancellationToken.None);
+        Eq("0 made, 5 kept", $"{again.Made} made, {again.Kept} kept", "again: nothing made");
+        File.Delete(Companion(Hash(64, 64, Brick)));
+        var third = ReliefMaker.Run(target, [mod], [Path.Combine(target, "quakevr")], palette, forceCpu: true, null, CancellationToken.None);
+        Eq("1 made, 4 kept, 5 records", $"{third.Made} made, {third.Kept} kept, {File.ReadAllLines(Path.Combine(outDir, "provenance.txt")).Length - 1} records", "a missing one: made again, the index complete");
+        Directory.Delete(mod, true);
+        Directory.Delete(Path.Combine(target, "quakevr", "textures"), true);
+        Uninstaller.Uninstall(target, new UninstallOptions());
+        True(!Directory.Exists(ReliefMaker.Folder(target)) && !Directory.Exists(target), "uninstall removed the reliefs folder and the install");
     }),
     ("arcane dimensions: a failed or cancelled download never fails the install", () =>
     {

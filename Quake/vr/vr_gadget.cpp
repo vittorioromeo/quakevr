@@ -24,6 +24,7 @@
 #include "vr_glutil.hpp"
 #include "vr_hue.hpp"
 #include "vr_engine.hpp"
+#include "vr_ad.hpp"
 #include "vr_cvars.hpp"
 #include "vr_tunables.hpp"
 #include "vr_lighting.hpp"
@@ -36,6 +37,7 @@
 #include "vr_text3d.hpp"
 #include "vr_takes.hpp"
 #include "vr_visor.hpp"
+#include "vr_voicechat.hpp"
 #include "vr_weapon_ids.h"
 #include "vr_worldtext.hpp"
 #include "vr_hands.hpp"
@@ -94,6 +96,7 @@ constexpr float logFade = 1.f;
 // take -0x5C00 and below): the beam in front of it, and the faint glow round it.
 constexpr int beamLightKey = -0x5C10;
 constexpr int glowLightKey = -0x5C11;
+constexpr int otherLightKey = -0x5C40; // another player's (syncfix2): - (player - 1) * 2 - light, to -0x5C5F
 
 // The screen's CRT strength (vr_gadget_crt).
 [[nodiscard]] float crtStrength()
@@ -331,9 +334,16 @@ struct Palette
     return p;
 }
 
+// The screen's brightness (dimmed: the gear lights): its palette's, and the colours it draws of its own (the players'
+// shirts and trousers on the scoreboard page).
+[[nodiscard]] float screenBrightness()
+{
+    return CLAMP(0.f, vr_gadget_screen_brightness.value, 2.f) * gearlights::screen();
+}
+
 [[nodiscard]] Palette palette()
 {
-    return paletteAt(CLAMP(0.f, vr_gadget_screen_brightness.value, 2.f) * gearlights::screen()); // (dimmed: the gear lights)
+    return paletteAt(screenBrightness());
 }
 
 using gfx::draw2D::fill;
@@ -937,7 +947,24 @@ void infoRows(const Readout& r, const Palette& pal)
     drawText(margin, infoY[1], 8.f, line, pal.label, pal);
 }
 
-#include "vr_ad_gadget.inc" // AD support: the Arcane Dimensions page (adPage, adPageShown, adTogglePage)
+// The screen's pages, in turn (the outer button: vr_ad_gearlights.inc; vr_gadget_page; togglePage): the HUD, Arcane
+// Dimensions' page (AD support: its data loaded) and the scoreboard (multiplayer). The one chosen; one that can't be
+// shown now (AD's data gone, back to single player) shows the HUD.
+enum : int
+{
+    PageHud = 0,
+    PageAd = 1,
+    PageScores = 2,
+    PageCount = 3,
+};
+struct PageState
+{
+    int page{PageHud};
+};
+PageState pageState;
+
+#include "vr_ad_gadget.inc"      // AD support: the Arcane Dimensions page (adPage, adPageShown)
+#include "vr_gadget_scores.inc" // the multiplayer scoreboard's page (scoresPage, scoresPageShown, scoresAvailable)
 
 void layout()
 {
@@ -959,6 +986,7 @@ void layout()
     fill(width - 2.f, 0.f, 2.f, height, frame);
     if(takes::gadgetPage()) { takes::drawGadgetPage(width, height); return; } // a take session's buttons (vr_takes_gadget)
     if(adPageShown()) { adPage(r, pal); return; } // AD support: the Arcane Dimensions page in its place (togglePage)
+    if(scoresPageShown()) { scoresPage(r, pal); return; } // the multiplayer scoreboard in its place (togglePage)
 
     // Health (the face its icon; red under 25) and armour.
     const int face = r.health >= 100 ? 4 : CLAMP(0, r.health / 20, 4);
@@ -1011,7 +1039,7 @@ void light(int key, const Pose& pose, float out, float radius, float k)
 // beyond the wrist stays dark while the screen faces the player), and a faint small one just in
 // front of it lights the hand and forearm round it. Placed before each eye's scene, they last
 // until the next frame's.
-void glow(const Pose& pose)
+void glow(const Pose& pose, int beamKey = beamLightKey, int glowKey = glowLightKey)
 {
     const float k = vr_gadget_light.value * gearlights::light(); // (dimmed: the gear lights)
     const float bright = CLAMP(0.f, vr_gadget_screen_brightness.value, 2.f);
@@ -1019,8 +1047,8 @@ void glow(const Pose& pose)
     {
         return;
     }
-    light(beamLightKey, pose, 14.f, 36.f, bright * k * 1.1f);
-    light(glowLightKey, pose, 1.5f * pose.scale, 16.f, bright * k * 0.35f);
+    light(beamKey, pose, 14.f, 36.f, bright * k * 1.1f);
+    light(glowKey, pose, 1.5f * pose.scale, 16.f, bright * k * 0.35f);
 }
 
 // Lines of text kept from call to call (the frames' messages and log): clear() keeps the strings and their buffers,
@@ -1224,6 +1252,23 @@ bool active()
 {
     return vr_hud_mode.value == 1.f && vrActive() && cls.state == ca_connected && cls.signon == SIGNONS &&
            !cl.intermission && !body::gearHiddenForDeath();
+}
+
+void otherGlow(int player, const glm::vec3& origin, const glm::vec3& angles, float scale)
+{
+    if(player < 1 || player > MAX_SCOREBOARD)
+    {
+        return;
+    }
+    // The pose back from its entity's turn (the view places it with anglesFromVectors(right, out), the pitch negated).
+    glm::vec3 right, side, out;
+    hands::angleVectors(glm::vec3{-angles.x, angles.y, angles.z}, right, side, out);
+    Pose p;
+    p.valid = true;
+    p.origin = origin;
+    p.axes = glm::mat3{right, glm::cross(out, right), out};
+    p.scale = scale;
+    glow(p, otherLightKey - (player - 1) * 2, otherLightKey - (player - 1) * 2 - 1);
 }
 
 void setPose(const Pose& pose)
@@ -1498,14 +1543,39 @@ VisorSides visorSides()
     return visor.sides;
 }
 
+namespace
+{
+[[nodiscard]] bool pageAvailable(int p)
+{
+    return p == PageHud || (p == PageAd && ad::clientDataInPlay()) || (p == PageScores && scoresAvailable());
+}
+} // namespace
+
 bool togglePage()
 {
-    return adTogglePage(); // AD support (vr_ad_gadget.inc)
+    // From the page shown to the next that can be shown, the HUD after the last; false (the HUD kept) with no other.
+    const int from = page();
+    for(int step = 1; step < PageCount; step++)
+    {
+        const int to = (from + step) % PageCount;
+        if(pageAvailable(to))
+        {
+            pageState.page = to;
+            return true;
+        }
+    }
+    pageState.page = PageHud;
+    return false;
 }
 
 int page()
 {
-    return adPageShown() ? 1 : 0; // AD support (vr_ad_gadget.inc)
+    return adPageShown() ? PageAd : scoresPageShown() ? PageScores : PageHud;
+}
+
+void scoresReport()
+{
+    scoresReport_f(); // (vr_gadget_scores.inc)
 }
 
 void drawScreen()

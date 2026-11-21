@@ -51,7 +51,7 @@ int VR_NoLiquidEffects(struct qmodel_s* model, const float* point);
 // Quake VR's network version, sent after NetQuake's in the connect request ("QVR", then this long; net_dgrm.c): a
 // server whose protocol is the VR one rejects a client without it or with another, with the reason (MP_PLAN.md, B2).
 // Raise it with any change to what client and server send each other.
-#define QVR_NET_VERSION				40 // (40: a connect request gets a slot only with the server's cookie for its address, CCREP_CHALLENGE, mpfix A1; 39: the channels' first sequences drawn at random by each side, in the connect request and the accept, review 2026-11-18 finding 2; 38: what a remote client's hands hold, and where (QVR_SVC_HELDPLACE), B27; 37: the movers' exact places and the server's tick in the predict state, B24; 36: one server socket for every client, B23; 35: bots' hands solved by the clients, B11 part 3; 34: B13's selective acks, the version in the accept reply)
+#define QVR_NET_VERSION				42 // (42: the ragdolls' parts in the snapshot, QVR_SVC_RAGPOSE, ragsync; a bot's weapons placed by the server in its avatar, bots3; the players' worn gear in the move and the avatar, their power-ups in its gear byte, a bot's holstered weapons, syncfix; 41: the players' guns' looks and torches in the avatar, their torch in the move, wpnsync; 40: a connect request gets a slot only with the server's cookie for its address, CCREP_CHALLENGE, mpfix A1; 39: the channels' first sequences drawn at random by each side, in the connect request and the accept, review 2026-11-18 finding 2; 38: what a remote client's hands hold, and where (QVR_SVC_HELDPLACE), B27; 37: the movers' exact places and the server's tick in the predict state, B24; 36: one server socket for every client, B23; 35: bots' hands solved by the clients, B11 part 3; 34: B13's selective acks, the version in the accept reply)
 // A remote client's moves (vr/vr_netmove.hpp: quantized deltas with repeats; the loopback's stay clc_move; MP_PLAN.md, B7).
 #define QVR_CLC_MOVES				16
 // A client's voice frames (vr/vr_voicechat.hpp: Opus, 20 ms each; MP_PLAN.md, B10v), after his move.
@@ -70,6 +70,7 @@ void VR_StopDownloads (void);	// Host_Shutdown, before NET_Shutdown (curl_global
 void VR_BeginFrame (void);	// once per host frame, after input events and before console commands
 void VR_MpTestInit (void);	// Host_Init, after VR_Init: the multiplayer test aids (vr_mptest.cpp: -cmdinbox, vr_mp_*)
 void VR_MpTestFrame (void);	// once per host frame, before console commands: the inbox's new lines; vr_mp_watch
+void VR_MpHeardSound (int entnum, int entchannel, const char *name, const float *origin); // S_StartSoundPitch: a sound started, kept for vr_mp_near (vr_mptest.cpp)
 void VR_ServerStatusInit (void);	// Host_Init: vr_sv_status_now (vr_svstatus.cpp, B17)
 void VR_ServerStatusFrame (void);	// once per host frame: a dedicated server's status line (vr_sv_status)
 int VR_ClientPingMs (int slot);	// the server's mean ping of player `slot` in ms (ping_times): status, the status line
@@ -316,6 +317,7 @@ void VR_AfterAddGameDirectory (const char *dir);	// end of COM_AddGameDirectory
 void VR_OnGameDirChanged (void);	// COM_SwitchGame, after Mod_ResetAll and the renderer's reload: caches of models and game files emptied
 int VR_SkipSearchPath (const char *filename, const char *path);	// COM_FindFile: nonzero to skip a search path
 void COM_AddAddonPath (const char *path);
+void VR_AddReliefsPath (void);	// COM_InitFilesystem: <last basedir>/reliefs (Setup's Dwell/Quoth reliefs) at the bottom of the base search path
 void VR_CheckSpawnCampaignMap (const char *map);	// SV_SpawnServer: the map against the running campaign (Host_Error, never a switch)
 void VR_ReloadVRGameKeepCampaign (void);	// vr_gamedir.cpp: the game folders rebuilt, the selected campaign kept
 int VR_QuakeVRMounted (void);	// vr_gamedir.cpp: quakevr is on the search path	// common.c: a map package's folder on top of the search path (vr_mapinstall.cpp)
@@ -575,6 +577,7 @@ int VR_ActiveWeaponStat (struct edict_s *ent);			// SV_WriteClientdataToMessage:
 int VR_EntityUpdateBits (struct edict_s *ent);			// SV_WriteEntitiesToClient, before U_EXTEND*
 void VR_WriteEntityUpdate (struct sizebuf_s *msg, struct edict_s *ent, int bits); // after the update
 int VR_StepLerpInterval (struct edict_s *ent);			// SV_WriteEntitiesToClient: U_LERPFINISH's byte for a stepping monster in the air (moved every server frame), -1 else (vr_server.cpp)
+int VR_StepRidesLift (struct edict_s *ent);				// SV_WriteEntitiesToClient: a stepping monster on a moving lift, sent without U_STEP (drawn as the lift is; vr_server.cpp)
 void VR_ParseEntityUpdate (int num, int bits);			// CL_ParseUpdate, after the fitz fields
 int VR_ParseServerMessage (int cmd);					// unknown svc: nonzero if handled
 void VR_NoteServerMessage (int kind);					// CL_ReadFromServer: a message read (1 reliable, 2 unreliable): the byte counts (vr_netsnap.cpp, vr_net_bytes)

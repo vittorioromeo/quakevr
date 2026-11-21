@@ -225,6 +225,12 @@ constexpr LoadPort loadPorts[] = {
     {modelmeta::Id::AdVrWidowmaker, {6.5f, 3.6f, 5.6f},
         {&vr_reload_port_widow_x, &vr_reload_port_widow_y, &vr_reload_port_widow_z}, &vr_reload_port_widow_radius, false,
         false, 0.f, true},
+    // Dwell support (dwellwpn3): the Rotary Shotgun as a gauntlet's shell port (vr_adweapons.cpp rotaryGauntletParts: the
+    // opening's middle, on the block on its housing's inner side). The QC loads it as the Widowmaker (its tube, a handful
+    // a touch, vr_reload_port_widow_radius), so the Widowmaker's Load Point offsets move it too.
+    {modelmeta::Id::DwVrRotary, {5.f, 7.25f, 0.f},
+        {&vr_reload_port_widow_x, &vr_reload_port_widow_y, &vr_reload_port_widow_z}, &vr_reload_port_widow_radius, false,
+        false, 0.f, true},
     // The launchers' muzzles (front loaded; QC vr_reload.qc, "Front-loaded launchers"): the middle of the barrel's mouth
     // (measured on the models: the grenade launcher's hexagonal barrel ends at x 31.4, its middle 5.9 up; the rocket
     // launcher's tube at x 56.1, 4.55 up), the way in back along the barrel (-x), the opening facing forward.
@@ -305,57 +311,34 @@ constexpr int weaponFlagRevGrip = 8192; // QC's QVR_WPNFLAG_REVGRIP (vr_defs.qc)
 // drawing, stepped by game time and worked out from the gun as drawn each frame (setMagazine), so it is right however the
 // gun moves. Seating: the gun's magazine in, without its gun changing (WEAPONUID): from vr_nailpistol_mag_travel out (the
 // nail pistol's) or vr_reload_mag_seat_travel out, home. Sliding out: while the server says (STAT_QVR_MAGOUT).
-struct MagSlide
-{
-    enum class Mode
-    {
-        None,
-        Seat,
-        Out
-    };
-    Mode mode{Mode::None};
-    double start{0.0};            // vr_gametime it began
-    double time{-1.0};            // vr_gametime of the last step
-    float dt{0.f};                // its game time
-    int frame{-1};                // host_framecount of the last step
-    int uid{0};                   // the gun's id, last step
-    const qmodel_t* gun{nullptr}; // its model
-    bool noMag{false};            // its magazine out, last step
-    int rounds{2};                // what its magazine held as it last sat in the gun (drawn sliding out: its top nails)
-};
+using view::MagSlide; // (vr_view.hpp: another player's guns are drawn by the same steps)
 inline MagSlide magSlides[2];
 void magSlideStep(int hand, const qmodel_t* gun); // once a frame (the first call); its gun as drawn
+// Any gun's (another player's too: view::drawGunParts), by its look and its id (`uid`; 0: its model tells a new one).
+void magSlideStep(MagSlide& st, const qmodel_t* gun, const VrGunLook& look, int uid);
 [[nodiscard]] glm::vec3 magOutAxis(const MagMount& mount);           // the well's line outward, in the gun's model space
 [[nodiscard]] float magSlideTravel(int hand, const MagMount& mount); // how far out along it now (model units)
+[[nodiscard]] float magSlideTravel(const MagSlide& st, const MagMount& mount);
 [[nodiscard]] inline bool magSlidingOut(int hand)
 {
     return magSlides[hand].mode == MagSlide::Mode::Out;
 }
 
-struct SsgDrawn
-{
-    float angle{0.f};             // degrees the barrels are drawn turned down
-    double time{-1.0};            // vr_gametime of its last step
-    const qmodel_t* gun{nullptr}; // the model it was for (another gun: no animation)
-    bool parts{false};            // drawn in its parts this frame (the gun itself not drawn)
-};
+using view::SsgDrawn;
 inline SsgDrawn ssgHands[2];
 // The heavy revolver in a hand (QC vr_revolver.qc; STAT_QVR_REVOLVER*, STAT_QVR_REVOLVERCYL*), drawn in its parts
 // (setupRevolverParts): its crane swung out `swing` degrees (0 home .. 95 out, about the bore, to its +y), its cylinder
 // turned `cyl` degrees (its model's +y towards +z), both stepped smoothly towards the server's (revolverStep).
-struct RevolverDrawn
-{
-    float swing{0.f};
-    float cyl{0.f};
-    double time{-1.0};            // vr_gametime of its last step
-    const qmodel_t* gun{nullptr}; // the model it was for (another gun: no animation)
-    bool parts{false};            // drawn in its parts this frame (the gun itself not drawn)
-};
+using view::RevolverDrawn;
 inline RevolverDrawn rvHands[2];
 float revolverStep(RevolverDrawn& st, const qmodel_t* gun, int hand);
+// Any revolver's, by its state `bits` (QC .vr_rv_hud) and its cylinder's turn (.vr_rv_cyl).
+float revolverStep(RevolverDrawn& st, const qmodel_t* gun, int bits, float turn);
 // A point of v_revolver.mdl (its Body's frame) on its crane, the crane swung out `swing` degrees.
 [[nodiscard]] glm::vec3 revolverCraneTurn(const glm::vec3& p, float swing);
 float ssgStep(SsgDrawn& st, const qmodel_t* gun, int flags);
+// Any super shotgun's, `breaks`: whether it breaks open (yours: ssgBreaks; another's: his look).
+float ssgStep(SsgDrawn& st, const qmodel_t* gun, int flags, bool breaks);
 [[nodiscard]] glm::vec3 ssgTurnWorld(const view::ViewEntity& gun, const glm::vec3& w, float deg);
 [[nodiscard]] glm::mat3 ssgWorldTurn(const view::ViewEntity& gun, float deg);
 
@@ -1064,6 +1047,8 @@ void dripBlood(const hands::State& s);
 void pressWeaponButtons(const hands::State& s);
 void setupButton(int hand);
 void setupFrontButton(int hand);
+// (view::posePouchItems: yours and another player's, syncfix2)
+int posePouchItemsIn(const view::ViewEntity& pouch, bool placed, int kind, int count, view::ViewEntity (&out)[pouchitems::most]);
 } // namespace view_detail
 
 using namespace ::view_detail;

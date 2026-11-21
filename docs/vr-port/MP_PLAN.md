@@ -3945,3 +3945,313 @@ A1 B1 `--load 16`, A2 B2 plain, A2 B2 `--load 16`, about 30 minutes each, with t
   the clients' `Host_Error: Model *43 not found` under the A/B's two base dirs, the setup's), mp_predictslide (no
   sliding states), mp_melee (the two upright-crowbar dirparry checks), mp_flow (Load Autosave's coop listing). Base
   only, so not chased.
+
+## The slide pose and the dead body as others see them (mpslide, 2026-11-20)
+
+His words: "the sliding player is just crouched" from another client; "their ragdoll is the default Quake ranger model,
+not their own customized player model".
+
+- **The slide.** What was wrong: vr_avatar_pitch.cpp's slide source read only the local player's slide
+  (`flatmove::slidePose`, `slide::headsetPose`) and skipped another player's body outright, and nothing about a slide
+  was sent: his copy got the crouched box's crouch only. The fix: the server's slide (`slide::onServer`, flat or
+  headset) is bit 128 of the avatar's gear byte (`avatarGearSliding`; the armour stays its low two bits; no new message,
+  no protocol version change: an older client would only misread a slider's armour colour), `Avatar::sliding` ->
+  `Subject::sliding`, and the same pose code takes it (`BodyPitch::sliding`, the neck back:
+  `flatmove::slideNeckBack(other)`). Tests: `mp_slide` (flat B: his own body sliding 0.92, A's copy 0.57, leant
+  back), `mp_slide_vr` (a headset B's vr_slide: A's copy 0.51). Open: a remote flat client's own slide pose is his
+  client's guess (crouch held, on the ground, fast: `flatmove::sliding`), longer than the server's slide, so his copy's
+  ease peaks lower; a headset client of another server poses no slide of his own (`slide::headsetPose` is the host's).
+- **The dead body.** What was wrong: the body a player leaves (QC vr_deathdoll.qc's player_body, or Quake's body
+  queue) is `progs/player.mdl` in his colours, drawn as that model (its ragdoll on a listen host and in single player,
+  its death animation on a client of another server); his avatar body (build, look) is only drawn on his living
+  entity, which the others are not sent while he is dead. The fix (`mpavatar::addDolls`, every frame, single player
+  too): an entity drawn with `progs/player.mdl` (or its ragdoll's skinned copy) whose colormap is a player's and which
+  is not his own entity is his dead body; it is drawn as his body by the routines that draw a living player's copy
+  (`setup`, `setupBody`, `view::drawBody`, `avatar::poseOther`), with `Subject::doll` (`avatar::DollPose`): the
+  trunk, head and legs from the doll's rig bones (`ragdoll::drawnPart`, or `ragdoll::bonePose` of its frame on the
+  entity), each body bone's bind turned onto its rig bone's rest direction then with it (`solveDoll`), the legs
+  reaching its ankles scaled to his legs, bending to its knees; the arms by `solveArm` to his jointed hands drawn open
+  at its wrists. His calibration (build, bracers, height, scale) and look (tone, gloves, nails) as sent; your own
+  dead body your own settings (`calOf`: `CalState::own`). Headless while the Immersive death view is in its head
+  (`ragdoll::headHidden`). The ragdoll's physics, grabs and hits are unchanged (only the drawing). Off with
+  `vr_mp_body 0`. Test: `mp_deathbody` (20/0): a VR listen host and a flat client, each dying: host-own (ragdoll),
+  client-other (animation), host-other (ragdoll), client-own (animation): the dead player's build's model, his tone and
+  gloves, both hands, its pelvis 7.7-7.9 units from the doll's origin. Single player: `vr_hurt 110 0` drew
+  `mp_doll` with the brawny build and tone -0.50 (a screenshot from `vr_mock_camera`).
+
+### Still the ranger after a respawn (mpbugs3 found it, mpbugs4 fixed it, 2026-11-21; the avatar ragdoll rig planned)
+
+His words: "Killed bot/player ragdolls are still the Quake ranger model. Could it be possible to rig our own custom
+model (the one we use for the IK) and use that as a corpse ragdoll?"
+
+- **Measured** (one listen host, coop, a FrikBot bot, `vr_hurt 110 1`, then `vr_mp_avatars` and `vr_mp_near`): while
+  the bot lies dead its body is drawn as its avatar (`mp_doll: ent=2 model=progs/vrbody.mdl ... ragdoll=1`), on a VR
+  host and on a flat one (`-flatscreenmode`), and the dead host's own body too. **Once the bot has respawned** (500
+  frames later) its old body still lies there (a dead player's body stays until VR_Knockdown_MakeRoom takes it) and is
+  drawn as `player.mdl#rag`, the ranger, with no `mp_doll` line. In deathmatch, where everyone respawns at once, every
+  corpse he looks at is one whose owner is up again: hence "still the ranger".
+- **Why**: `drawn.of[]` holds one drawn copy per player, keyed by his entity. `addDolls` skips a body whose player's
+  copy was drawn this frame (`drawn.of[p].frame == host_framecount`: his living copy, added first by `addEntities`), so
+  only a body whose owner is dead (not sent) gets the copy. Not bots, flat players, ragsync or the colormap: those all
+  work (the bot's body carries its colormap, `f + 1`).
+- **The fix (mpbugs4, built)**: 8 doll slots past the players' (`drawn.of[firstDollSlot + k]`, `avatar::dollSlots`;
+  `Drawn::owner` the body's owner). `assignDollSlots`: the bodies in sight nearest first; a body takes its owner's own
+  slot while his copy is not drawn (he lies dead: the nearest of his bodies), else the doll slot it had last (its pose's
+  state goes on), else a free one (`avatar::forgetOther`, its plates resynced); past 8, the ranger. `setup`,
+  `setupBody` and `drawPowerups` take the slot and the owner apart: the calibration, look and armour the owner's; the
+  posed body's state (`avatar::poseOther`'s `others[]`, now `avatar::otherKeys` long), its skeleton and pauldrons the
+  slot's; a doll has no torch, and the power-up lights and arcs are keyed by the slot (none past the players'). `lookOf`
+  and `weaponOwner` read `Drawn::owner`; the look masks and the `mp_doll` report (`slot=`) walk every slot. Harness:
+  `mp_deathbody` (23/0): B respawns, A (the host, his ragdoll: doll slot 17) and B himself (a client: his own slot)
+  still draw B's old body as B's build.
+- **The avatar's own ragdoll (planned, not built)**: today the body is the ranger's ragdoll (player.mdl's rig,
+  player_bones.json) with the avatar's mesh posed onto its bones each frame (`solveDoll`). For the avatar's own:
+  1. A rig2 for `progs/vrbody.mdl` (`quakevr/rigs/vrbody.rig2.txt`, `make_rig2.py`): its 20 bones from the md5mesh's
+     skeleton (pelvis, spine, chest, neck, head, clavicles, upper arms, forearms, hands, thighs, shins, feet), the
+     weights from the md5's own (each vertex's bone), the joint limits copied from `vrgrunt.rig2.txt` (a human of the
+     same proportions); checked in the Rig Studio (`vr_ragdoll_rig_spans`: no spanning triangles).
+  2. The server's body (vr_deathdoll.qc) made with `progs/vrbody.mdl` (the build's model: the calibration the server
+     keeps per slot, `cal.slot`) instead of player.mdl, flagged as a player's body (a field the engine reads, not the
+     colormap and the model name), so Box3D builds the avatar's ragdoll from its rig2 at the avatar's scale (his
+     height: the body's `scale`).
+  3. ragsync sends it as any ragdoll (`QVR_SVC_RAGPOSE`: its part count is the rig's, 20); a client draws the vrbody
+     parts directly (`ragdoll::publishNet`), skinned with the dead player's look (tone, gloves, nails: `view::lookOf` by
+     the body's owner); his hands at its hand bones. `addDolls`/`solveDoll` are then only the fallback (an older
+     server's player.mdl body, `vr_mp_body 1`).
+  4. Single player and the Immersive death view: the view in the vrbody's head bone (`ragdoll::headHidden` as now).
+  Costs: a rig (an afternoon with the Rig Studio), the QC body model switch, the engine's owner field and look; risk:
+  the vrbody mesh's proportions per build (a rig per build, or one rig scaled). Its value over the fix above: the
+  corpse's limbs are the avatar's own lengths (no stretched ranger proportions), grabs and gibs on the real shape.
+
+## Sync audit 2026-11-21: every player feature, seen by another player or not
+
+His words: "Player flashlights are not synced, they should. Can you do an audit of all player features/interactions
+and find everything that should be synced but isn't?" No fixes here: the gaps, measured, and the batches to fix them.
+
+**How it was measured.** `vr_mp_near <ent> [radius] [seconds]` (Debug > Reports > Network: Drawn Near Me) lists what a
+game draws round a player (each model: whose -- its own view entity, another player's copy, an entity --, alpha,
+effects, the powerup glow), its dynamic lights there and the sounds it started in the last seconds by him or near him
+(a ring of the last 96, filled at `S_StartSoundPitch`). `mp_test.py syncaudit [--flat B]`: a dedicated server, A and B
+200 units apart on e1m1, both with sound on through SDL's dummy driver (nothing reaches a speaker); B does a thing, then
+B's report of himself and A's of B are compared, each against the idle baseline: "B has, A not" is a gap. Probes: idle,
+quad (impulse 255), ring (impulse 254), a punch in the air, a shotgun shot, a walk. Two runs, B in VR (mock) and B
+flat; both 12/0 (every report came). Status: **S** synced, **G** a gap, **E** being done elsewhere, **L** local by
+design (right as it is), **N** no such feature. Evidence: [run] syncaudit, [test] an existing mp_test scenario, [code].
+
+| Feature | Status | What another player gets (how) | Evidence |
+|---|---|---|---|
+| Head, hands (place, turn), finger curls, thumb | S | QVR_SVC_AVATAR's drawn hands, at the snapshot rate | mp_avatar [test]; hand_rig x2 both [run] |
+| Body: IK, torso yaw, lean, crouch height, legs | S | the avatar's VrBodyPose and his calibration; vr_avatar.cpp's own IK per copy | mp_body [test]; vrbody both [run] |
+| Crouch, prone and crawl, swim, in the air | S | the avatar's moves byte | mp_moves [test] |
+| Slide pose | S | the avatar's slide state (agent/mpslide, merged: section above) | mp_slide, mp_slide_vr [test] |
+| Climb, hang, mantle (the holds) | S | the moves byte's hold bits and places | mp_moves, mp_climb [test] |
+| Two-handed holds, hand-off, reverse grip, parry guard | S | both drawn hands and the drawn weapon's place and turn | mp_held, mp_melee [test] |
+| Punches, swings, shoves, bashes, parries between players | S | judged by the server per player; their whooshes are server sounds | mp_melee [test]; knight/sword1-2 both [run] |
+| Height, build, gloves, skin, nails, seated, handedness | S | QVR_SVC_AVATARCAL, reliable on change | mp_avatarcal, mp_cosmetics [test] |
+| Pauldrons, armour plates | S | calibration and the gear byte (B6c) | vrpauldron(_arm) x2 both [run] |
+| Held weapon: model, frame, skin, place | S | the drawn hand's weapon | v_shot, v_axe both [run] |
+| Held weapons' parts: the revolver's crane, cylinder and shells, magazines and their rounds, SSG open, the ammo screen's clip, the Widowmaker's and Rotary's spin, ammo type (its model), held and holstered | S | the avatar's VrGunLook and holsters' flags and clip, drawn by your own guns' routines (agent/wpnsync: "Held weapons' state and player lights") | mp_wpnsync, mp_wpnsync_flat [test] |
+| The auto pump's stroke and its clacks (`vr/autopump_back/home`) | S | his shot's QVR_SVC_FIRED (already broadcast) starts the stroke on each client, timed as yours; its clacks heard at his copy's gun (autopump::otherFired, syncfix5); his copy's fore-end is drawn still | syncaudit shoot [run] |
+| Flashlight, torso torch (belt, hand, gun, head; on/off, where it points) | S | VrDrawnLamp in the move and the avatar: his torch's model and its spot, spill and glow lights (agent/wpnsync); not its visible cone or cord | mp_wpnsync [test] |
+| Holstered weapons | S | VrDrawnHolsters (B6b) | mp_cosmetics [test]; holstered v_shot both [run] |
+| Hip and leg holster sheaths | S | VrDrawnGear (syncfix batch 2): his sheaths as he drew them; a bot's (and its holstered weapons, what it carries) placed by each client on its body as drawn (view::holsterOnOther) | syncaudit idle, bot [run] |
+| Wrist gadget and its straps (VR) | S | VrDrawnGear (syncfix batch 2); its screen's two glow lights (r10/r30) lit at his copy's gadget by your gadget's code (gadget::otherGlow, syncfix2); its screen's contents stay his own | syncaudit idle [run] |
+| Ammo pouch and the rounds in it | S | the pouch: VrDrawnGear (syncfix batch 2); the rounds: what it holds (the server's .vr_pouch_kind/.vr_pouch_count, +2 B in the avatar while drawn) posed in his copy's pouch by your pouch's code (view::posePouchItems, syncfix2) | syncaudit idle [run] |
+| Grenade pouch (the back) | S | VrDrawnGear (syncfix batch 2) | syncaudit idle [run] |
+| Ring of Shadows | S | the gear byte's ring bit (syncfix batch 1): his whole copy faded as he sees himself (view::powerupLookOf's alpha 0.3), deathmatch too | syncaudit ring [run] |
+| Quad, Pentagram, Biosuit looks | S | the gear byte's power-up bits (syncfix batch 1), drawn by the code that draws yours (view::powerupLookOf): the glow on his hands and body, its two hand lights, Quad's arcs | syncaudit quad [run] |
+| Muzzle flash of another player's shot, his ammo screen's light, his barrel's heat | S | the shot's QVR_SVC_FIRED (already broadcast) drawn at his copy's gun: your flash model (size, time, an AD gun's colour) and the shot's sparks and smoke (gunfx::otherFired, syncfix2; Quake's EF_MUZZLEFLASH light was always seen). His held gun's ammo screen casts your screen's light (r20, emissive::otherWeaponScreenLight); his barrel heats from his shots as yours and glows and lights (r30) on his copy's gun (gunfx::otherBarrelHeat, vr_hotblade.cpp; syncfix5) | syncaudit shoot [run] |
+| Spent casings from another player's gun | S | QVR_SVC_EJECTOTHER (the QC's eject, also sent to the others who see him: 8 B a shot each, reliable) thrown out of his copy's gun by your casings' code (vr_shells.cpp ejectFrom; his auto pump's timing, flicks and the revolver's crane are his own) | syncaudit shoot [run] |
+| Shot sounds, Quad's attack sound | S | server sounds; vr_gunsfx's layers made on each client | guncock, gun_thump, gun_tail, damage3 both [run] |
+| Wounds on another player's body and hands | S | the server's wound event on him (QVR_SVC_WOUND, already sent to every client) painted on his copy's body and jointed hands, placed by capsules round them as yours, in the pool's masks (no new data; up to 3 masks a player, the monsters' pool); kept on his dead body, forgotten when he lives again or leaves (syncfix5). His arms share their skin's texels: a wound on one arm shows on both (yours has a mask a side). Blood thrown onto his hands from what he hits (your spatter) is still yours only | syncaudit hurt (B's own body and hands painted and A's copy of him: wounded:vrbody_bare.mdl, hand_rig.mdl; syncfix6: vr_hurt's broadcast had been dropped) |
+| Footsteps | S | the old trigger's server sound in multiplayer (the legs' own steps are single player's: no one else sees the feet's phase) | foot4-7 both [run]; vr_playersteps.cpp:9-12 [code] |
+| Mantle grunt | S | a server sound already (climb::grunt, CHAN_VOICE: the audit read the test command's `S_LocalSound`) | mp_climb [test] |
+| Slide sound | S | each client plays it on another player's entity from his copy's slide (the server's slide in his avatar: mpslide), the scrape following his speed (slidesound::othersFrame, syncfix5); no new data | mp_slide [test] |
+| Voice chat and the talking indicator | S | B10v | mp_voice [test] |
+| Chat, scoreboard, frags | S | Quake's | mp_dm [test] |
+| Name tags over heads | N | none in the game (the scoreboard names players) | [code] |
+| Emotes | N | none | [code] |
+| Tracers, impacts, decals, gore and gibs on monsters | S | QVR_SVC fire/tracer FX, hand impacts, wounds, gore sounds | vr_protocol.hpp [code] |
+| Drops, pickups, hand-overs, force grabs, disarms, thrown weapons | S | server entities, judged per player | mp_pickup, mp_forcegrab, mp_disarm [test] |
+| Grapple rope | S | QVR_SVC ropes | [code] |
+| Carried props, ragdolls, all physics bodies | E | queued ragsync | |
+| Dead player's ragdoll model | S | drawn through his avatar: his build, tone, gloves (agent/mpslide, merged: section above) | mp_deathbody [test] |
+| Death, respawn, gibbing | S | server entities | mp_flow (B4b) [test] |
+| The flat player's aiming pose (ADS) | E | queued adspose | |
+| Navmesh follow (`vr_nav_follow`) | S | shipped, handled | |
+| Flat bodies seen by VR players, and back | S | one code path (mpavatar::addEntities) for either: B flat drew the same hands, body, weapons and pauldrons on A as on himself | flat run [run] |
+| Force grab's glow and sparkle on the target, teleport arc | L | the aimer's own cues; others see the item fly or him arrive | |
+| Bullet time, time scale | L | single player only (`svs.maxclients == 1`): stays off in multiplayer | vr_bullettime.cpp:247, 1050 [code] |
+| Toolgun, Setup, holster setup | L | single player only (section 1.3) | [code] |
+| HUD, the gadget's screen contents, haptics, menus, voice notes | L | his own | |
+
+Counts (43 rows): 34 synced, 0 gaps, 4 elsewhere, 4 local by design, 2 not features (the slide pose and the dead body synced by mpslide since the audit; batches 1-2 by syncfix, batch 2's rest and batch 3's flash and casings by syncfix2, the gun lights, the auto pump, wounds and the slide sound by syncfix5, wounds seen in a run by syncfix6; the mantle grunt was a server sound: ROUND25.md "syncfix", "syncfix2", "syncfix5", "syncfix6").
+
+**Side finding.** The Debug menu's Cheats rows (Quad, Pentagram, Ring, Biosuit: `impulse 190-193`) give a holstered
+shotgun in coop instead: the single-player test impulses (`VR_TestImpulse`) are skipped in coop, and weapons.qc's
+harness "holster give" (4784) takes 190-195 next. `impulse 255` and `254` still give quad and the ring.
+
+**Fix batches**, most noticed first:
+
+| Batch | What | Effort | Risk |
+|---|---|---|---|
+| 1. Powerups on the copy | Each player's powerup bits in the avatar's gear byte (spare bits; delta'd, on change only); the copy drawn faded under the ring (and his holstered and held weapons with it) and with the glow, hand lights and quad arcs, through the code that draws yours (powerupGlow / the arcs read the player's items, not `cl.items`) | S | low (the ring's alpha in deathmatch: a gameplay fix) |
+| 2. Worn gear on the copy | Gadget and straps (his gadget arm is in his calibration), holster sheaths (his holster points are sent), grenade pouch, ammo pouch and its rounds (a count byte): placed on the copy's body by the view's own placement code, per instance as B2d made the body | M | low-medium (a dozen more entities per copy: draw cost with 16 players) |
+| 3. Another player's shot effects | His muzzle flash (model and light) and casings from the shot his client fires, on the others: from the weapon events every client gets already (the shot sound on CHAN_WEAPON, or a bit in the drawn hand) | M | low (no new message if the shot's sound is the cue) |
+| 4. Blood and wounds on other players | His wound events painted on his copy's body and hands (vr_wounds.cpp's own-player path per copy), bloody hands and drips | L | medium (wound layers per copy: GPU memory, 16 players) |
+| 5. His own sounds the others don't hear | The mantle grunt and the slide sound as server sounds (or played on the copy from its moves byte), never twice for the player himself | S | low |
+| 6. Name tags (a new feature, if wanted) | A name over each other player's head, faded with distance; a setting | S | low |
+
+Harness: `mp_test.py syncaudit` (B in VR) and `syncaudit --flat B`; each batch's fix turns its "B has, A not" lines
+into "both". Tables of the two runs: `scratch/mpaudit_table_vr.txt`, `scratch/mpaudit_table_flat.txt` (not committed).
+
+## Held weapons' state and player lights (wpnsync, 2026-11-21)
+
+His words (11-20): "The revolver cylinder open/close state is not synced in mp. Please sync it and see if other similar
+things need syncing (e.g. selected ammo type, state of the magazine in a weapon, etc...)"; (11-21) "player flashlights
+are not synced, they should."
+
+Before: another player's held and holstered weapons were drawn as one model at his frame and skin (view::drawHands:
+VrDrawnHand's model, frame, skin, place). Everything your own view draws on top of that from your stats (the revolver's
+crane, cylinder and shells; the super shotgun's barrels broken open; the magazines and the rounds they show; the ammo
+screen's button and clip) was never drawn for anyone else, and the torch was entirely yours (its model, its lights).
+
+Now: the server writes each player's guns as it has them (QC's fields: what his own stats carry) into his avatar
+(`VrGunLook` a hand, flags and clip a holstered gun), his client sends his torch as drawn in his move (`VrDrawnLamp`), and
+the other clients draw them by the routines that draw their own: `view::drawGunParts` runs the same steps and parts
+(`ssgStep`, `revolverStep`, `magSlideStep`, `heldMagazines`, `ssgHeldParts`/`ssgHolsterParts`, `revolverParts`,
+`idleAttachments`) on the avatar's look that `setupWeapon`, `setupMagazines`, `setupSsgParts`, `setupRevolverParts` run
+on yours (`view::ownGunLook`, from the stats); `flashlight::drawOther` places his torch with your torch's `place` and
+lights it with your beam's lights (`beamLights`). `QVR_NET_VERSION` 41 (the avatar and the move grew): the room service
+must be redeployed with the new version.
+
+| State (a held weapon, its hands, the player's lights) | How it goes now | What another player sees | Check (mp_wpnsync) |
+|---|---|---|---|
+| Weapon model, frame (firing animation, the revolver's hammer), skin | VrDrawnHand (his client's drawn entity) | as he draws it | (B2b) |
+| Alternate ammo (lava nails, multi rockets, plasma): the other ammo's model | the model index in VrDrawnHand | the other model | (B2b) |
+| Reverse grip (blade down), a gun carried by its foregrip, mirrored left-hand models | his drawn entity's angles and mirror bit | as he holds it | (B3) |
+| Heavy revolver: crane swung out / home, cylinder's turn, ejector rod, each chamber live / spent / empty | **new**: VrGunLook (QC .vr_rv_hud, .vr_rv_cyl), drawn in its parts by revolverParts | the crane swinging out and home, the cylinder turning, the shells | swing >= 90 after B/Y; shells 6 -> 0 after the eject |
+| Super shotgun broken open, its loaded chambers (in the hand and holstered) | **new**: VrGunLook flags (QVR_WPNFLAG_SSG_OPEN), clip; a holster's flags and clip | the barrels dropping open, the chambers' shells | open after B/Y |
+| Magazine in or out (QVR_WPNFLAG_NOMAG), the rounds it shows (its frame), in the hand and holstered | **new**: VrGunLook flags and clip, the player's reload-mode bits | the magazine and its top rounds, none when dropped | in with rounds; gone after B/Y |
+| A magazine sliding out (the nail pistol's eject), sliding home | **new**: VrGunLook magOut bit; the seat from the flags' change | the slide out and home | (not in the scenario) |
+| Ammo screen's clip and its button (vr_weapon_screen_idle) | **new**: VrGunLook clip and clip size, idleAttachments within vr_weapon_world_attach_range | his clip, as a lying gun's screen shows it (not his reserve) | button drawn |
+| Widowmaker's and Rotary Shotgun's barrels turning, the AD crossbow's string | **new**: the nearest of the drawn pose's two frames in VrDrawnHand's frame | the barrels in one of 27 poses (no blend) | - |
+| The torch: on the belt, in a hand, on a gun, on the head; its model; lit; where the beam points | **new**: VrDrawnLamp in the move (place, turn, shown, lit, reach), passed on in the avatar | his torch's model where he has it; lit, its spot, spill and glow lights from its lens along its axis (unshadowed) | lit: 3 lights, 0.x units off his, cos 0.99+; off: none |
+| Torch's visible beam cone in the air, its lit lens glow, its cord | not sent | not drawn (one cone: yours) | - |
+| The auto pump's stroke after a shot (vr_autopump) | not sent (his client's own animation of his shots) | the shotgun whole, the fore-end still | - |
+| The Widowmaker's motor sound, the lava guns' glow light, the chainsaw's cord handle | not sent (his client's) | not heard / not lit / no handle | - |
+| Reloading in progress (a round in the other hand, the pouch) | the round is a carried prop (an entity) | the round in his hand | (B10b) |
+| Held grenade (flat-screen quick grenade) | the grenade is an entity | as it is | - |
+| Laser sight | none exists (the lasers are the menus' and the arena cards' pointer) | - | - |
+
+Bytes per player (the avatar, down to each other client): +3 B for a player with empty hands and an unlit torch on
+his belt left out (each hand's look byte, the torch's flags), +4 B a gun in a hand (flags, clip, its size) and +4 more
+for a revolver (its chambers and cylinder), +2 B a holstered gun, +12 B the torch placed (place, turn) and +2 B lit (its
+reach): about 25-35 B for an armed player with his torch out. A snapshot client gets the avatar delta-coded against
+what it acknowledged, so these bytes cost only when they change (mp_wpnsync's B link down: snap_av 620 B over the
+whole run). Up: the torch is 9 values of the delta-coded move (nothing while it is still).
+
+Checks: `mp_wpnsync` (dedicated, both VR mock) 16/0 and `mp_wpnsync_flat` (A flat-screen) 16/0: B is given the heavy
+revolver: A draws it in its parts, crane home, 6 shells (A's look of it equal to B's own stats); B's B/Y swings it
+out: A's crane at 95 deg (7 reports, the swing's animation included); B's B/Y again throws the shells out: A draws
+none; the super shotgun broken open by B/Y: A's barrels down in its parts (3 reports); the nailgun: A draws its
+magazine (B's clip 24) and its button, then none once B/Y drops it (1 report); B's torch given to his off hand and
+lit: A draws its model 0.10 units from B's own, its beam the same way (cos 1.000), its 3 lights alive; switched off:
+none. Debug aid: `vr_mp_avatars` (Debug > Reports > Network) prints `mp_gun:`, `mp_gun_holster:`, `mp_lamp:` for
+each other player and `mp_gun_own:`, `mp_lamp_own:` for yours.
+
+Single player is drawn by the same routines as before through wrappers (`magSlideStep(hand)`, `revolverStep(.., hand)`,
+`ssgStep(.., flags)` read the stats into the look): vr_magslide_test 1 63/0; vr_rv_test 1 45/1 (below).
+
+The rest: the plain `mp_test.py suite` (dev no-LTO, the author's game running: low impact) 58 of 59 clean, mp_fuzz 16/1
+("B joins again after the hostile command up clc 17": not in 60 s) then 17/0 alone; scenario_check 140/0;
+flatreload 54/0; flateject 16/1 (the revolver's open pose: the check wants -15 15 -30, moved 0 3 -1, the tunables'
+defaults are -35 0 -30, moved 0 -2 1 since "His values as defaults" a49166efa: the test's, not this change's).
+
+Weapon handling sounds (the coordinator's note from the sync audit, 2026-11-21): the sounds QC plays (the revolver's
+crane, its shells, magazines in and out, the super shotgun's break and load, the pouch's rounds: VR_RV_Sound,
+VR_Reload_* through `sound`) are the server's and heard by everyone from the player. The auto pump's two clacks are
+not: the stroke is his client's own animation after his own shot (`weaponfx::playerFired` -> `autopump::fired`,
+played with `audio::playAt` at his gun), so nobody else hears or sees it. Left for a next step: an avatar's shot event
+per hand (the server's fire message for another player) starting an autopump stroke per avatar hand, its fore-end
+drawn by `setupPumps`' parts in `view::GunParts` and its clacks at his gun; `mp_test.py syncaudit` (not on next yet at
+this writing) to show the row synced.
+
+Open:
+- `vr_rv_test 1`'s "a grunt's body: dead to 2 slugs" fails (twice): the server's damage roll on the grunt, which
+  this change doesn't reach (client drawing and avatar fields only); to compare against origin/next.
+- Left (his client's own animations, no state on the server): the auto pump's stroke, the Widowmaker's motor sound,
+  the lava guns' glow light, the chainsaw's cord handle, the torch's visible beam cone and cord. Each would need its
+  own event or field; none changes what the gun is.
+
+## Ragdolls and physics bodies in multiplayer (ragsync, 2026-11-21)
+
+His words (2026-11-20): "Ragdolls don't seem to be synchronized. Especially in coop, they should be, for active
+ragdolls, etc." and "Can you check if props and other physics entities are synchronized? They also should."
+
+**How it was measured.** `vr_mp_bodylog <seconds> [radius]` (vr_netragdoll.cpp) logs each tick the physics things
+near the player: a listen host the server's truth (each entity's origin and angles, each ragdoll part's joint and turn
+at its step's time), a remote client what it draws (the entities' drawn places at its interpolation clock, a ragdoll's
+drawn parts, or for one drawn animated the rig bones its frame places). `mp_test.py ragsync`: a VR listen host A and a
+flat client B side by side in vrtesthall; the same play twice (a grunt knocked down: an active ragdoll; killed: a dead
+one; a crate and a knight's sword thrown tumbling; another grunt knocked down and gibbed), the ragdolls out of B's
+snapshot (`vr_net_ragdolls 0`, as before) and in it; each of B's samples against A's at the same server time
+(interpolated between A's ticks); "moving": A's moved more than 0.05 units or 0.1 degrees that tick. Real-time
+loopback (the harness's), interpolation delay 0.12-0.25 s.
+
+**The audit.** Box3D runs on the server only (2.2, item 1). Status: **F** fine already, **G** a gap (fixed here),
+**L** local by design.
+
+| Kind | Simulated | Reaches a client | Turn interpolated | B against A while moving, p95 [run] | Status |
+|---|---|---|---|---|---|
+| Dead monster ragdolls | server Box3D (parts) | before: nothing (the corpse's death animation at its origin); now QVR_SVC_RAGPOSE | before: no; now each part slerped | before 24.3 units, 153 deg (mean 11.2, 76); now 0.18 units, 0.21 deg (max 1.0, 8.4) | **G**, fixed |
+| Active ragdolls (stagger, knockdown and get-up, crawl, ledge climb, grabs, struggles) | server Box3D (parts, ragdoll::publish) | as dead ones | as dead ones | included above (the knocked-down grunt) | **G**, fixed |
+| A dead player's body (vr_deathdoll) | server Box3D (parts) | as dead ones; mpslide's body drawn on it | as dead ones | as above | **G**, fixed |
+| Props: crates, barrels, held, thrown, stood on, shoved | server Box3D | entity origin (int32 1/16 units) and angles (shorts), snapshot, delta-coded | yes (netsnap interpEntity) | crate 0.04 units, 0.01 deg | **F** |
+| Dropped and thrown weapons, embedded blades | server Box3D (props; a blade on the part it skewers) | entity | yes | sword 0.04 units, 0.35 deg; dropped shotgun 0.04 (with ragdolls sent too, ragsync2; 1.75-2.3 before it) | **F** (a skewering blade sat on a part B drew elsewhere: fixed with the ragdolls) |
+| Gibs, heads, cut limbs | server Box3D (props) | entity; small gibs under vr_net_cosmetic_bytes (B12c) | yes | gibs 2.8-7 units, 11-25 deg (their budget's waits); heads 0.05 | **F** (cosmetic budget by design) |
+| Grenades, explosion chunks, rubble | server Box3D (props; chunks cosmetic) | entity | yes | not in this play (as gibs: entities) | **F** |
+| Pushable corpses (bosses, not ragdolls) | server Box3D | entity | yes | (as props) | **F** |
+| What a remote player's hands hold | server, placed in his sent hands | QVR_SVC_HELDPLACE (B27) | yes | (mp_held) | **F** |
+| Blood, casings, decals, blood streams, sparks | each client (events) | events (QVR_SVC_EJECT, WOUND, BLADEWOUND...) | n/a | n/a | **L**: cosmetic, nobody can tell |
+
+**The design (built).**
+- **The server's ragdolls are authoritative**; a client simulates none (its game has no Box3D world of a remote server).
+- **One record per ragdoll** in each remote client's snapshot: key `netsnap::ragKey + entity` (a sixth key class),
+  QVR_SVC_RAGPOSE: its part count, the authored-rig bit, the cut bones, bleeds, scale, its step's time (ms), the root
+  part's place (int32 eighths) and every part's turn (smallest three, 15 bits each: 0.005 degrees), the others' places
+  from the root (int16 eighths). 18 + 12 bytes a part: a grunt (20 parts) 270 B, a player's body similar.
+- **PVS-culled** (the entity in the client's sight: scopedInSight), **delta-coded** with the other records (a part's
+  bytes in 8-byte groups), and **a settled ragdoll costs nothing**: its record is unchanged, the time too (a republish,
+  asleep, keeps the last real publish's: ragdoll::serverPose). Measured: 0 B over 2 s once settled.
+- **The priority accumulator**: the moving ones' changed records under `vr_net_ragdoll_bytes` (400) a snapshot, nearest,
+  ahead and longest waiting first (netsnap holdRagdolls: the rest held as the base's, their wait raising their
+  priority). **They take from the ragdolls only** (ragsync2): in the encoder a ragdoll's changed record is chosen after
+  every other entry, whatever its priority, in the room they leave in the 1400-byte datagram, never by the first-finite
+  rule (no bucket debt), and under his `vr_net_rate` only from what his bucket would spill by his next datagram (what it
+  cannot hold anyway): the others never wait behind them, in that datagram or the ones after. A heavy fight that fills
+  his link starves the ragdolls (drawn between the poses they have), not the entities.
+- **The client** keeps each ragdoll's last 24 poses with their server times (a third of a second: past the
+  interpolation buffer's longest delay) and draws it between the two around the clock its entities are drawn at, each
+  part slerped, through the listen host's own drawing (ragdoll::publishNet, swapModels, skinned models, the death view's
+  hidden head, mpslide's dead player's body). A rig that doesn't fit his (another part count) is drawn animated.
+- **Bandwidth**: the play's two ragdolls cost B 3.0 KB/s on average over 16 s (48 KB), a moving grunt about 19 KB/s
+  at 72 Hz alone; a crowded coop fight is capped by `vr_net_ragdoll_bytes` (400 B a snapshot: 29 KB/s at 72 Hz, about
+  one moving grunt at full rate, more at a share each) and then by his rate.
+- **Protocol**: QVR_NET_VERSION 42 (a new message in the snapshot): **the room service must be redeployed** with it.
+- **A client's own hands on a ragdoll** (ragsync2): the server's ragdoll follows his sent hands (the grab fit per slot,
+  as the listen host's). In his own snapshot a ragdoll he holds carries which of his hands hold it and where the server
+  had them at that pose (his hand fields, int32 eighths: 12 bytes a hand, only while held; flag bits in the bleeds
+  byte); his client leads its drawing with his hands since, by the listen host's code (leadWithHands, vr_ragdoll_held_local):
+  the limb in his hand at his frame rate, not an interpolation delay behind. Not harness-tested (no scenario has a remote
+  client hold a ragdoll): his to try in VR.
+- **Measured after** (ragsync2, `mp_test.py ragsync`): with the ragdolls sent the others' records that waited over the
+  play 443 (662 in the play without them), the dropped shotgun 0.04 units p95 (2.3 before), the crate and sword 0.04;
+  the backpacks 0.04 over all samples, one flung backpack 3.2 units p95 while it flew (one 0.8 s burst as a grunt was
+  gibbed, likely the gib storm's full datagram; not traced further); the small gibs' cosmetic budget as before.
+- **raginterp** (2026-11-21, the regression smallfix found): with the ragdolls sent the crate and sword at B were 6.5 /
+  2.9 units p95 in some runs, drawn in steps 1-2 ticks ahead. Not the ragdoll code: the entities' interpolation history
+  kept 8 messages (0.11 s) while the adaptive delay may reach 0.25 s (and the clock lag its target 0.25 s more, catching
+  up after a hitch); the ragdolls' bigger snapshots arrived less evenly, the delay grew past 7 ticks and the clock fell
+  before each entity's oldest message, which interpEntity holds ("before the oldest"): drawn at the oldest, stepping
+  ahead. Now 40 messages (vr_netsnap.cpp historyLen, a static_assert ties it to delayMost + snapAfter).
