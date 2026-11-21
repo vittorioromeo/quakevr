@@ -6978,4 +6978,13 @@ it); an in-game indication of whether the chosen port is forwarded.
   the Super Axe's held pose. weapon_catch's two handle checks print nothing (no fist line: the off hand never nears
   the let-go shotgun); not bisected (budget). **weapon_catch on a v1.1.0 build in this worktree: 5/5 PASS** (handle
   taken 6.76 of 10 cm; leniency 0 allowed 5.00, not taken): a real regression between v1.1.0 and origin/next, so the
-  pre-release was not published. Next: bisect v1.1.0..origin/next (first parent) on weapon_catch's handle checks.
+  pre-release was not published.
+- **weapon_catch bisected** (first parent v1.1.0..origin/next, the handle checks, 7 steps, 2 skipped for a failed old
+  build): first bad **685a33c66 "Merge branch 'agent/box3dup'"** (Box3D updated to upstream 1767150d, b2b1f57cf; the
+  mesh ghost switch 88dd064ba). Its parent a82c8e3cd passes, it fails. Not the ghost handling: `vr_box3d_mesh_ghosts 0`
+  fails the same way. What happens (`scratch/rel12_wcdbg.sh`, the handle set-up alone): `vr_mock_walk_to nearest
+  thrown_weapon 30` reports "arrived at 484 -329 88", but the player's edict stays at 502.5 -226.3 72 the whole time,
+  and the let-go shotgun lies at 490 -300 50, about 74 units (1.9 m) from the body. So the off hand's targets
+  (`vr_mock_hand_to off nearest thrown_weapon h`) are out of reach, no grab check runs, and nothing is printed. Left:
+  why, since the Box3D update, the body no longer follows the walk to the gun (blocked by the prop, or by the walk's
+  own head-to-body offset). Then a fix that keeps the update.
