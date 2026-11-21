@@ -392,6 +392,7 @@ extern "C" int VR_AliasSkinUse(int needs)
 // instead (glprogs.alias_body: the skin form with QVR_APLAIN_VLIGHT): its light per vertex. Its pixels were ~4 times the
 // world's cost, ~4 of its ~5 ms in its per-pixel light with the torso in view (6zo). Only where the vertex light leaves
 // nothing out: no dynamic occlusion (QVR_ALIAS_VS_VLIGHT has none) and no shadowed lights (its loop reads no shadows).
+// A probe (vr_gl_alias_body 0): measured slower on the Quest 3 (6zp: pitch 35 +3.2 ms, pitch 70 +3.5 at 0.7).
 extern "C" int VR_AliasBodyLight(const entity_t* e)
 {
     if(vr_gl_alias_body.value == 0.f || vr_gl_alias_plain.value == 0.f || !e || VR_ViewEntityGroup(e) != VR_DRAW_BODY)

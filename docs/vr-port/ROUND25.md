@@ -7802,3 +7802,13 @@ softlock in kellbase1 at (-8, -959.8, 664.1).
   body off, dlmap, both, 3 rounds, each marked), then `quest_worn_ab.py report`.
 - **Open (C5e)**: the cut (a body-only light form), `vr_depth_float 0`, the resolution step. Unworn runs over ~11 ms
   GPU are paced at 40-55 ms by the runtime: measure at 0.7.
+## Quest C5e: the body lit at its vertices, measured slower (questc5e, 2026-11-22; branch agent/quest)
+
+- **`vr_gl_alias_body`** (new tunable, 0; Debug > Tunables, "Body Lit at Vertices (Quest)"; ES only): your body drawn by
+  its own form, the skin form with the ambient cube and the dynamic lights per vertex (`glprogs.alias_body`, C4y's
+  vertex light), only with no dynamic occlusion and no shadowed lights. The look holds (PC `-glescompat` 0.5% of
+  pixels over 8 levels; Quest eyeshots at pitch 35 and 70 alike).
+- **Slower on the Quest 3** (posed head, 0.7, span): pitch 35 8.09 -> 11.24 ms (body off 7.35), pitch 70 13.31 -> 16.80
+  (off 6.68): the vertex shader's loop over every light, per bin. So 0, a probe. QUEST_PLAN.md 6zp has the next road
+  (the dynamic lights compiled out of the body's form, Quake's flat add on the CPU).
+- The perf trace's forms list names it ("body"); the batches' form is printed by `vr_gl_passes`.

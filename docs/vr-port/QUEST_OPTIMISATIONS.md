@@ -136,3 +136,4 @@ the PC default where the docs state it. **ES only?** says whether the code path 
 |---|---|---|---|---|---|
 | (finding) the body's worn cost | its fragment shading, by the pixels it covers: pitch 35 +1.9 ms, pitch 70 +11.9 ms span at 1.0; its light ~4 of ~5 ms at 0.7 (dynamic lights on it 1.85, ambient/bumps 0.9), its look 0.15 | (a cause, no cut yet: C5e) | `vr_debug_head_pose` (test aid) | no | No: PC body 0.07 ms a pass, the eyes within 0.02 ms |
 | Model dynamic lights per pixel off | `vr_dlight_models 0`: Quake's flat add for every model | -1.85 ms with the torso in view (pitch 70, 0.7) | `vr_dlight_models` (his config 1; not in the Quest preset) | no | No (a look change) |
+| Body lit at its vertices (C5e) | the body's skin form with the own light and dynamic lights per vertex | **slower**: pitch 35 8.09 -> 11.24 ms, pitch 70 13.31 -> 16.80 (0.7) | `vr_gl_alias_body` 0 (a probe) | yes | No |
