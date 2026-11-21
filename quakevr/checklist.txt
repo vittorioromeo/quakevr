@@ -68,6 +68,11 @@ Debug > Show Disarm Volumes in a deathmatch with a bot and another player, hosti
 Debug > Show Hit Zones in a deathmatch with a bot and another player, hosting and then joining: each one's head (red sphere), body, limbs and legs outlined on him, turning with him; none on you.
 Try vr_bot_navmesh 1 (host console) in deathmatch with bots: a bot that saw you follows you through doors once you are out of sight, still goes for items, powerups and health by its waypoints, and stays on waypoints in water
 Join a server without Arcane Dimensions after playing an AD map locally: the wrist gadget offers no AD page
+Two players (mp_local.ps1): one takes Quad Damage, then the Pentagram, then the Ring from Debug > Cheats; the other sees the glow on his hands and body, the light from his hands and Quad's arcs on his forearms, and under the Ring sees his whole body, hands, weapons and gear faded as he sees himself.
+Two players: look at the other player standing still; his holster sheaths, wrist gadget and its straps, grenade pouch and ammo pouch are drawn on him where he wears them.
+Add a coop bot (impulse 100) and look at it: its holster sheaths are drawn on its body, with the weapons it carries in them.
+Two players: look at the other player's ammo pouch while he holds the shotgun; its shells are drawn in it and go down as he reloads from it; his wrist gadget's screen lights his hand and forearm faintly.
+Two players: the other player fires the shotgun near you; you see the flash, sparks and smoke at his gun's muzzle and the spent shell thrown out of its port, falling and tinking on the floor.
 
 [4. Flat screen]
 Flat-screen: walk forward into the tutorial's rung ladder (lesson 3): your hands take the rungs and you climb hand over hand at a steady pace, and climb over the top onto the platform. {test:flat_ladder}
