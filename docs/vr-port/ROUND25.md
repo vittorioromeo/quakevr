@@ -6970,7 +6970,15 @@ that hull 1 lets Quake's box reach into, from AD's non-colliding detail) and the
   `vr_mhull_army 16`: 15/0 with the setting on (stopped, and 8 units from the bars, the pillars and a wall) and 15/0 as
   `brushholes_off` with it off (they pass, so the scene really has holes). Checklist scenes: `brushholes_grate`,
   `brushholes_gate`, `brushholes_lift`, `brushholes_pillars` (runall 4 OK).
-- Census: id1 (38 maps) 9,812 world blockers, search at most 15 ms; Quoth (6) 4,206; AD (26) 138,495, search up to
-  1.4 s on ad_tears. Quake's box still reaches 1 on id1 and 39 on AD (36 on ad_azad), grazing hull 1's rounding.
-- Open: ad_tears' search time; func_trains' gaps with the world (only their own gaps are closed); a func_wall that is
+- Follow-up (the coordinator and the author): the drop test is now exact. Every centre of Quake's box that would
+  reach a blocker by 2 units goes down hull 1's tree at once, for the world's blockers and the models' own, erring
+  toward dropping. The search uses a 64-unit grid, and the checks and the brush models run on the pool. The debug view
+  is Debug > Show Gap Blockers (`vr_hull_holes_show`, `vr_hull_holes_show_range` 1024): world cyan, with brush models
+  yellow, models' own magenta, dropped red, the counts in front of you. Scene `brushholes_show`.
+- Census: id1 (38 maps) 8,018 world blockers, search at most 53 ms; Quoth (6) 3,533; AD (26) 103,707, at most 0.5 s
+  (ad_tears, was 1.6 s). Quake's box reaches none, on any of the 70 maps.
+- Checks: `vr_hull_holes_test` 15/0 on and 15/0 off; 5 scenes OK; `vr_nav_cliptest` and `vr_nav_toptest` pass on e1m1
+  and e4m7; a 60 s hull walk on e1m2 had 0 stuck; run_test_suite changelevel_signon, held_over_props, slider_step,
+  slopes and turned_box pass, teleporters_chase flaky (known).
+- Open: ad_tears' search time (slanted cells; coarser ones leave gaps open); func_trains' gaps with the world (only their own gaps are closed); a func_wall that is
   killtargeted is left out of the world's pairs (its blockers would stay behind).

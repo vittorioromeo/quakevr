@@ -650,15 +650,22 @@ input don't have them.
   blockers move with it); and the world against brush models that stay or travel a line. A func_wall without a
   targetname is used as itself. A func_door's or func_plat's whole travel (from the entity string: QC's lip, height
   and movedir rules) is used as one box. func_trains get their own gaps only. A model with an origin key is skipped.
-- **Kept out.** A blocker wholly inside solid. A world blocker that Quake's hull 1 (clip brushes and all) lets the
-  32 box reach into by 2 units on a 3x3x3 lattice of its centres: hull 0 has solids that hull 1 doesn't (detail brushes
-  compiled without collision, as in Arcane Dimensions). Duplicates and boxes inside others are dropped, and boxes side
-  by side with the same cross-section are merged.
-- **Cost and caching.** The search runs on the pool (`hull holes` site). The blockers are part of the map's brushes, so
+- **Kept out.** A blocker wholly inside solid. A blocker that Quake's box could reach into by more than 2 units
+  somewhere it fits in hull 1 (the world's, or the model's own; clip brushes and all). Every centre of such a box is
+  tested at once: that box of centres goes down hull 1's tree, and if it meets any empty leaf the blocker is dropped.
+  This errs toward dropping, since a leaf met only past its corners counts too. The test is needed because hull 0 has
+  solids that hull 1 doesn't (detail brushes compiled without collision, as in Arcane Dimensions). Duplicates are
+  dropped, and boxes side by side with the same cross-section are merged.
+- **Cost and caching.** The search runs on the pool (`hull holes` site), over a 64-unit grid of the solids over x
+  and y; the checks and the brush models run on it too. The blockers are part of the map's brushes, so
   they are kept for a reload (`vr_hull_keep`) and are inside the disk-cached trees. `keyOf` mixes in `holesKey` (the
   setting and the entity string), with `buildVersion` 3.
 - **Setting.** Movement > Player Hitbox > Close Gaps Quake's Box Never Fit (`vr_hull_holes`, 1). It takes effect at the
   next map load.
+- **Debug view.** Debug > Show Gap Blockers (`vr_hull_holes_show`; `vr_hull_holes_show_range` 1024) draws them
+  round you as translucent boxes: the world's cyan, between the world and a brush model yellow, a brush model's own
+  magenta (where it is now), and the ones dropped because Quake's box reaches them red. The counts float in front of
+  you. Scene `brushholes_show`.
 - **Aids.** On Debug > Tests > Player Hitbox:
   - `vr_hull_holes_census`: counts, time, and whether Quake's box reaches into any of the world's own blockers on a
     17-point-a-side lattice. Its `HOLECENSUS|...` line has the same numbers.
@@ -672,14 +679,15 @@ Census (`vr_hull_cache 0`, a low-impact run, so the times are rough):
 
 | Maps | World blockers (own / with models) | In models | Search (most) | Quake's box reaches |
 |---|---|---|---|---|
-| id1, 38 | 9,812 / 672 | 328 | 14.6 ms | 1 (e4m1) |
-| Quoth, 6 | 4,206 / 328 | 104 | 44 ms | 0 |
-| AD, 26 | 138,495 / 6,774 | 12,205 | 1,370 ms (ad_tears) | 39 (ad_azad 36) |
+| id1, 38 | 8,018 / 748 | 232 | 53 ms | 0 |
+| Quoth, 6 | 3,533 / 345 | 115 | 46 ms | 0 |
+| AD, 26 | 103,707 / 7,975 | 9,950 | 500 ms (ad_tears) | 0 |
 
 The world's compiled tree grows by 10-30% in nodes. On ad_tears it took 1,310 ms against 1,131 ms without blockers,
-and after the first load it is read from the disk cache. The few that Quake's box still reaches are ones the load's
-coarser lattice missed, grazing hull 1's rounding next to non-colliding detail. Open: ad_tears' search (512k pairs)
-is the slowest part of its load.
+and after the first load it is read from the disk cache. ad_tears' search was 1.4-1.6 s; the grid and the pool cut
+it to 0.5-0.7 s in a low-impact run. Most of what is left is slanted faces cut into cells (512k pairs). Coarser cells
+(4 units, 32 tests) gave 0.31 s, but 3,918 blockers instead of 11,481, leaving AD's slanted gaps open, so they stay
+fine. The blockers aren't on disk: a cold load searches again, while a reload keeps them (`vr_hull_keep`).
 
 ## Brush models' hulls prepared at load (2026-10-05)
 

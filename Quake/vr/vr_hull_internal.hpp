@@ -109,6 +109,7 @@ struct Brushes
     int dropped = 0;            // solid leaves with no volume left (slivers under the build's epsilon)
     int hull1Leaves = 0;        // the world's hull 1 solid leaves looked at for clip brushes
     int holePairs = 0;          // brush pairs looked at for holes (addHoles), and its time
+    za::Vector<glm::vec3> holeDropped; // the world's gap boxes left out as Quake's box reaches them: lo, hi pairs
     double holeMs = 0.0;
     int numnodes = 0;
     za::U64 key = 0;            // the world's content (keyOf): what they are kept under for the same map's next load
@@ -118,7 +119,7 @@ struct Brushes
     auto members()
     {
         return qvr::mem::list(clipnodes, planes, brushes, leafBrush, subs, modelSub, clips, leafClipStart, leafClipList, clipStamp, stamp, hull1Clip, ms,
-            clipMs, bevels, dropped, hull1Leaves, holePairs, holeMs, numnodes, key, worldSubs, worldPlanes, worldBrushes, worldLeafBrush, worldBevels,
+            clipMs, bevels, dropped, hull1Leaves, holePairs, holeDropped, holeMs, numnodes, key, worldSubs, worldPlanes, worldBrushes, worldLeafBrush, worldBevels,
             worldDropped);
     }
 };
@@ -260,7 +261,8 @@ inline za::SizeT heldBytes(const Brushes& b)
 {
     return mem::heldBytes(b.planes) + mem::heldBytes(b.brushes) + mem::heldBytes(b.leafBrush) + mem::heldBytes(b.subs) +
            mem::heldBytes(b.modelSub) + mem::heldBytes(b.clips) + mem::heldBytes(b.leafClipStart) +
-           mem::heldBytes(b.leafClipList) + mem::heldBytes(b.clipStamp) + mem::heldBytes(b.hull1Clip);
+           mem::heldBytes(b.leafClipList) + mem::heldBytes(b.clipStamp) + mem::heldBytes(b.hull1Clip) +
+           mem::heldBytes(b.holeDropped);
 }
 
 inline za::SizeT heldBytes(const Tree& t)
