@@ -78,6 +78,10 @@ void SV_Impact (edict_t *e1, edict_t *e2);
 entity_t *CL_NewTempEntity (void);				// cl_tent.c: a visedict for this frame (after CL_UpdateTEnts)
 int Con_NotifyLine (int age, const char **text, int *length, double *seconds, int *server); // console.c: a notify line (the wrist gadget's log)
 int Cvar_Count (void);								// cvar.c
+void Sbar_SortFrags (void);							// sbar.c: the scoreboard's order (the wrist gadget's scoreboard page)
+extern int fragsort[];								// sbar.c: its slots, by frags (Sbar_SortFrags)
+extern int scoreboardlines;							// sbar.c: how many
+int Sbar_ColorForMap (int m);						// sbar.c: a shirt or trousers colour's palette index
 void Key_Console (int key);							// keys.c: a key in the console's line (the VR Console page)
 void Char_Console (int key);						// keys.c: a letter typed into it
 extern char *con_text;								// console.c: the console's text (the VR Console page)

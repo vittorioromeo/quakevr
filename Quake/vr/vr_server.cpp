@@ -2145,6 +2145,23 @@ extern "C" int VR_StepLerpInterval(edict_t* ent)
     return interval < 1 ? 1 : interval > 25 ? 25 : interval;
 }
 
+// A stepping monster standing on a moving lift (a MOVETYPE_PUSH it rides, moving): the lift moves it every server
+// frame, so it is sent without U_STEP and drawn as the lift is (between the last two messages), not along its steps to
+// its next think. Drawn to its think it fell ~13 units behind the drawn lift riding e1m1's plat up, and ~1.8 drawn over
+// a frame (the step lerp's finish counts from the message's time, its start from the client's: vr_debug_lift; his note
+// of 2026-11-21, riders "compressed by the lift"). Its own steps on a moving lift are drawn over the frame too.
+extern "C" int VR_StepRidesLift(edict_t* ent)
+{
+    if(static_cast<int>(ent->v.movetype) != MOVETYPE_STEP || !(static_cast<int>(ent->v.flags) & FL_ONGROUND) ||
+       ent->v.groundentity <= 0)
+    {
+        return 0;
+    }
+    const edict_t* g = PROG_TO_EDICT(ent->v.groundentity);
+    return !g->free && static_cast<int>(g->v.movetype) == MOVETYPE_PUSH &&
+           (g->v.velocity[0] != 0.f || g->v.velocity[1] != 0.f || g->v.velocity[2] != 0.f);
+}
+
 namespace
 {
 // What a thing that is not a weapon prop tells its loot beam (vr_lootbeams.cpp), sent with U_QVR_WEAPONUID and weapon id

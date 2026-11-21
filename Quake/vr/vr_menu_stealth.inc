@@ -35,6 +35,7 @@
         header("Spreading the Alarm"),
         row(opt::vr_stealth_share_near),
         row(opt::vr_stealth_share_view),
+        row(opt::vr_stealth_share_hear),
         header("What Else Draws Them"),
         row(opt::vr_stealth_flashlight),
         header("Showing It"),
@@ -75,6 +76,13 @@
             .help("vrteleporters (it loads it), you in room U: a grunt in room T sees you through T's north gate, walks "
                   "through to where you stood and back; a knock in U heard through the gate, the same walk; a dog sees "
                   "you through it and comes through; Quake's AI: only the grunt sees you through (about 2 minutes)."),
+        command("The Alarm Spreading", "map vralert; wait60; god; vr_stealth_test 130")
+            .help("vralert (it loads it): its grunt V hurt, alerted, then killed by you (from a sealed booth): N near it and S "
+                  "seeing it join (Hostile), A in ambush stays put, W behind a wall hears V's cry and comes to look, F far "
+                  "off never hears (about 10 s). Or load vralert and shoot V yourself."),
+        command("Riders on a Lift", "map e1m1; wait60; god; notarget; vr_stealth_test 131")
+            .help("e1m1 (it loads it): you and a grunt ride two of its plats up and down; how far each sinks into the lift "
+                  "(boxes, drawn bodies, your eye: Debug > Logging > Lift Riders), at most half a unit (about 40 s)."),
         command("A Horde (Profiler)", "god; vr_stealth_test 103")
             .help("60 grunts round you, one in six dead, a knock every 2 s, for 20 s: vr_profile's \"stealth\" scope (under "
                   "quakec) is their AI's time."),
