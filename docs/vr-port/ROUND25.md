@@ -6141,3 +6141,37 @@ Details in DWELL.md 9.8. Each note's cause and fix:
   heading of eight, else above, where the world has room and no wall is crossed.
 - **Tests:** `dwell_weapons_test.sh` 9/0 (213: pickups taken, props laid, a bloody prop taken: 10/0); `music_test.sh`
   7/0; `dwell_maps.sh` 28/0 and 214 10/0; `dwell_monster_fixes_test.sh` (215, rig spans, 216).
+
+## adspose3: the flat aiming pose's checks, the intermittent 7.0, sliding seen from outside (adspose3, 2026-11-21, `agent/adspose`)
+
+- **The 7.0 (adspose2's "a reading taken mid-change"), found: the test, not the pose.** In the bad rows A's copy was the
+  pose of the look before (super shotgun standing, 40 down: its arms' reach 12.2 / 5.4, the 40-up row's to the decimal).
+  `settle` took the copy as still when it was unchanged over 3 reports, but the copy is posed from the interpolated
+  avatar (`blendedOf`, behind B's last message by the interpolation's delay), longer than 3 reports on a free machine:
+  an unchanged copy could still be the old pose. Now each pose waits for B still (eye and rear sight over two reports)
+  and for the copy posed from an avatar B sent after that: `mp_adspose_own:` carries `stime=` (the server's time of B's
+  last message), `mp_body:` `posedat=` (the server's time of the avatar the copy was drawn from: `Drawn::posedAt`), the
+  copy taken once `posedat` is 0.1 s past B's still `stime` (`ADS_POSED_AFTER`).
+- **Sliding over the network.** The slow slide never started on the dedicated server because the slide's start (40
+  units south of the spot) is inside the wall behind e1m1's coop starts: the server put B 40 north of the spot instead,
+  against what stops him there, at rest (new debug lines with `vr_flatplay_debug`: `slide: none on the press: ground,
+  speed (least), cooldown` and `slide: on at N u/s`; the server's read "speed 0"). Now B starts at the spot, the server's
+  word that he is there, walks (60 u/s asked: about half on his sights; 30 slid not at all) 4 units north as the server
+  has him, then crouches: he has 38 units before he is stopped. A slide row waits for his eye's height steady in the slide
+  (the crouch's ease) and the copy posed after it. Moving, the copy runs the interpolation's delay behind along the way
+  (8.5 units): its eyes' height is judged (0.00 off), not the whole distance. Slides are on by default
+  (`MP_ADSPOSE_SLIDE=0` leaves them out). No pose problem seen sliding: the body leant back, the head behind the sights,
+  the elbows under the gun.
+- **Results** (`mp_test.py adspose`, every weapon with a sight line: 25 weapons x stand / crouch / slide x level / 40 up /
+  40 down = 225 poses), three runs in a row 12/0 each: the copy's eyes within 1.20 of B's eye standing and crouched (the
+  cheek's offset), sliding 0.00 in height, elbows under the gun (worst 0.34 below the eyes), no arm above the line before
+  the face (worst 0.71 below), 75 of 75 slides seen. Sheets (before = `MP_ADSPOSE_SEEN=0`, after; side and front): the
+  worktree's `scratch/adspose3_sheet_w05.png` (super shotgun), `_w06` (nailgun), `_w08` (rocket launcher).
+- **Checks:** flatplay 31/0, flatsight 12/0, flathands 76/0, flatmelee 12/0, flatslide (with the lean, the slide pose,
+  prone dual, flatmantle) 26/0, flatreload 54/0; mp_body 13/0, mp_avatar 18/0, mp_slide 8/0, mp_deathbody 20/0; the mp
+  plain suite 75 of 76 scenarios (mp_predict's crawl 242 of 250 lying states, then 31/0 alone); scenario_check 140 of
+  143 (the three expbugs_* scenes: Dwell's Brute, Kamikaze, Rotary Shotgun "not made" in its AD folders, from
+  origin/next's merge); Dev and ThinLTO builds 0 warnings.
+- **Testing note:** an mp_test.py run and a run.sh test in the same worktree at once disturb each other (the run.sh
+  script's commands reached the mp server: it loaded vrtesthall and quit), and a build mid-run rewrites progs.dat under
+  running games: every check above was run alone.
