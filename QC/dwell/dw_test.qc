@@ -466,6 +466,91 @@ void(entity p, float xRequest) DW_ModelsTest =
     bprint(sprintf("dwmodels: %s in the main hand\n", DW_VariantName(DW_VariantFor(wid))));
 };
 
+// vr_ad_test 213 (his notes 2026-11-21): Dwell's map pickups taken by the body's touch (weapon_touch: they asserted on
+// their classnames and were removed), and the toolgun's Dwell weapons and bloody shotguns laid as props (not floating
+// pickups), with their variant or bloody bit, a bloody one's taken by the hand. "dwpickup: N passed, M failed"; the
+// script fails on any "Assertion failure".
+entity(entity p, string xClass, void() xSpawn) DW_PickupTest_Make =
+{
+    entity os = self;
+    makevectors('0 1 0' * p.angles_y);
+    self = spawn();
+    self.classname = xClass;
+    setorigin(self, p.origin + v_forward * 64 + '0 0 16');
+    vr_grab_made = world;
+    xSpawn();
+    entity e = self;
+    self = os;
+    return e;
+};
+
+void(entity p) DW_PickupTest =
+{
+    VR_Test_BeginFlags("dwpickup", VR_TEST_LOUD);
+    entity os = self;
+    self = p;
+    VRGiveEntWeapon(p, cVR_MainHand, WID_FIST, 0, 0);
+    VRGiveEntWeapon(p, cVR_OffHand, WID_FIST, 0, 0);
+    self = os;
+    float touching = p.touchinghand;
+    p.touchinghand = cVR_FakeHand; // (the body's touch: the first free hand)
+    entity pk = DW_PickupTest_Make(p, "weapon_rifle", dw_weapon_rifle);
+    self = pk; other = p; weapon_touch(); self = os;
+    VR_Test_Check(pk.model == "" && p.weapon == WID_SHOTGUN && p.weaponinst.wi_dwvar == DW_VAR_RIFLE,
+        sprintf("the map's Rifle taken: weapon %g variant %g, pickup %s", p.weapon, p.weaponinst.wi_dwvar,
+        pk.model == "" ? "gone" : "still there"));
+    pk = DW_PickupTest_Make(p, "weapon_railgun", dw_weapon_railgun);
+    self = pk; other = p; weapon_touch(); self = os;
+    VR_Test_Check(pk.model == "" && p.weapon2 == WID_LIGHTNING && p.weaponinst2.wi_dwvar == DW_VAR_LANCE,
+        sprintf("the map's Crystal Lance taken: off hand weapon %g variant %g", p.weapon2, p.weaponinst2.wi_dwvar));
+    p.touchinghand = touching;
+
+    float k;
+    for(k = 0; k < 3; k++)
+    {
+        float wid = k == 0 ? WID_SUPER_SHOTGUN : k == 1 ? WID_LIGHTNING : WID_SHOTGUN;
+        float vr = k == 0 ? DW_VAR_ROTARY : k == 1 ? DW_VAR_LANCE : DW_VAR_RIFLE;
+        DW_PickupTest_Make(p, "toolgun", k == 0 ? toolgun_dw_rotary : k == 1 ? toolgun_dw_lance : toolgun_dw_rifle);
+        entity w = vr_grab_made;
+        VR_Test_Check(w != world && w.classname == "thrown_weapon" && w.weapon == wid && w.weaponinst.wi_dwvar == vr &&
+            w.model == DW_VRModelOf(wid), sprintf("the toolgun's %s laid as a prop: %s, weapon %g variant %g, model %s",
+            DW_VariantName(vr), w.classname, w.weapon, w.weaponinst.wi_dwvar, w.model));
+        if(k == 0 && w != world)
+        {
+            VR_Test_Check(w.weaponinst.wi_clip == VR_ClipSizeOf(WID_SUPER_SHOTGUN, w.weaponinst),
+                sprintf("the toolgun's Rotary Shotgun comes loaded: %g", w.weaponinst.wi_clip));
+        }
+    }
+
+    float bits = MG3_BloodyBits();
+    MG3_SetBloodyBits(0);
+    for(k = 0; k < 2; k++)
+    {
+        DW_PickupTest_Make(p, "toolgun", k == 0 ? toolgun_bloody_sg : toolgun_bloody_ssg);
+        entity b = vr_grab_made;
+        float bwid = k == 0 ? WID_SHOTGUN : WID_SUPER_SHOTGUN;
+        float bit = k == 0 ? MG3_BLOODY_SG : MG3_BLOODY_SSG;
+        VR_Test_Check(b != world && b.classname == "thrown_weapon" && b.weapon == bwid && b.vr_bloody_bit == bit &&
+            b.model == WeaponIdToModel(bwid, 0), sprintf("the toolgun's %s laid as a prop: %s, weapon %g, bit %g, model %s",
+            b.netname, b.classname, b.weapon, b.vr_bloody_bit, b.model));
+        if(b == world) { continue; }
+        float hand = k == 0 ? cVR_MainHand : cVR_OffHand;
+        self = p;
+        VRGiveEntWeapon(p, hand, WID_FIST, 0, 0);
+        self = os;
+        float shells = p.ammo_shells;
+        float* wp = VRGetEntWeaponPtr(p, hand);
+        float* fp = VRGetEntWeaponFlagsPtr(p, hand);
+        wpnthrow_handtouch_impl(hand, b, p, wp, fp);
+        self = os;
+        VR_Test_Check(VRGetEntWeapon(p, hand) == bwid && (MG3_BloodyBits() & bit) && p.ammo_shells > shells,
+            sprintf("taken: the hand holds %g, bloody bits %g, shells %g -> %g", VRGetEntWeapon(p, hand), MG3_BloodyBits(),
+            shells, p.ammo_shells));
+    }
+    MG3_SetBloodyBits(bits);
+    VR_Test_Verdict();
+};
+
 void(entity p, float xRequest) DW_WeaponsTest =
 {
     if(xRequest >= 205 && xRequest <= 208)

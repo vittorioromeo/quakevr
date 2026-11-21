@@ -948,6 +948,8 @@ void() MG3_BloodyNightmareStrip;
 void() MG3_BloodyNightmareLevel;
 float(entity targ, entity attacker, float damage) MG3_BloodyNightmareDamage;
 void() MG3_Frame;
+void(entity xProp, entity xTaker) MG3_Bloody_PropTaken; // wpnthrow_handtouch_impl: a bloody shotgun's prop taken
+nosave entity vr_grab_made; // VR_WeaponGrabbable_Make: the weapon it laid last (world: none)
 float MG3_ITEM_SPAWNED = 4; // an item a trigger brings (upstream SPAWNED, campaign 5)
 .float lavasuit_finished, lavasuit_time; // the lava suit (vr_mg3_items.qc): its end, its warning's next flash
 // Dawn of the Machine's monsters (M3-20/21): a slime's generations to come and its kin (vr_mg3_slime.qc), a lava man of

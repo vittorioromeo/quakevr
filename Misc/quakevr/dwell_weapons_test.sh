@@ -28,5 +28,13 @@ log=$(bash $KIT/run.sh $AGENT -Script "map e1m1;wait10;vr_ad_test 204" -QuitOn "
 echo "$log" | grep -E "FAIL" | head -6
 expect_verdict "$log" dwgrunt "an armed grunt keeps a Dwell weapon; the powerups' tints"
 check $(grep -q "exit=quit-on" <<<"$log" && echo 1 || echo 0) "grunt: the run ended on the verdict"
+# vr_ad_test 213 (his notes 2026-11-21): Dwell's map pickups taken (they asserted and vanished), the toolgun's Dwell
+# weapons and MG3 bloody shotguns laid as props (they floated as pickups), a bloody prop taken by the hand.
+log=$(bash $KIT/run.sh $AGENT -Script "map e1m1;wait10;vr_ad_test 213" -QuitOn "dwpickup: [0-9]+ passed" -Timeout 300 \
+    -Filter "dwpickup|Assertion|rror|exit=" 2>&1 | tr -d '\r')
+echo "$log" | grep -E "FAIL|Assertion" | head -6
+expect_verdict "$log" dwpickup "Dwell's pickups taken; the toolgun's Dwell and bloody weapons as props"
+check $(grep -q "Assertion failure" <<<"$log" && echo 0 || echo 1) "pickups: no assertion failure"
+check $(grep -q "exit=quit-on" <<<"$log" && echo 1 || echo 0) "pickups: the run ended on the verdict"
 verdict
 exit $fail

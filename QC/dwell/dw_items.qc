@@ -165,6 +165,23 @@ Dwell's Rifle (for now a shotgun firing one 50 bullet).
 */
 void() dw_weapon_rifle = { dw_weapon("progs/v_rifle.mdl", WID_SHOTGUN, DW_VAR_RIFLE, "Rifle"); };
 
+// The toolgun's Dwell weapons: the weapon laid as a prop (func_weapon_grabbable: a rigid body like every other weapon
+// there) with its variant on its record, not the floating pickup (his note 2026-11-21; AD_UpgradeProp, the same).
+void(float xWid, float xVar) DW_WeaponProp =
+{
+    if(!DW_Data() || !VR_Pack_WeaponAvailable(xWid)) { remove(self); return; }
+    self.classname = "func_weapon_grabbable";
+    self.weapon = xWid;
+    vr_grab_dwvar = xVar;
+    func_weapon_grabbable();
+    vr_grab_dwvar = 0;
+};
+
+// (the toolgun's entries: Quake VR/vr_toolgun_packs.inc, by these names)
+void() toolgun_dw_rotary = { DW_WeaponProp(WID_SUPER_SHOTGUN, DW_VAR_ROTARY); };
+void() toolgun_dw_lance = { DW_WeaponProp(WID_LIGHTNING, DW_VAR_LANCE); };
+void() toolgun_dw_rifle = { DW_WeaponProp(WID_SHOTGUN, DW_VAR_RIFLE); };
+
 // weapon_touch: the pickup's variant on the weapon it gave (none: a plain one; one or the other: no AD upgrade on it).
 void(entity xPickup, entity p, float xHand) DW_VariantGiven =
 {
