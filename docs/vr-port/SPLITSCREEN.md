@@ -222,7 +222,7 @@ ends with the effort left re-estimated (below).
 | # | Phase | Days | Needs his answer |
 |---|---|---|---|
 | 1 | The seat type, the `seat_state` check, the command buttons and impulse | done (1) | - |
-| 2 | Keys, bindings and devices per seat; up to 4 controllers opened, each a seat's; the mouse and stick accumulators | 2-3 | 3 (who is seat 1: the default device-to-seat map) |
+| 2 | Keys, bindings and devices per seat; up to 4 controllers opened, each a seat's; the mouse and stick accumulators | done (1) | ~~3~~ answered: seat 1 is always the keyboard and mouse |
 | 3 | View and HUD per seat, drawn into a rectangle (one rectangle, the window, until phase 7) | 3-4 | - |
 | 4a | Flat play's state (`FlatState`, holsters, sights, third person, visor, toolgun keys) | 3-4 | - |
 | 4b | Hands, held, two-hand, grips, motion, throw, climb, avatar | 4-5 | - |
@@ -238,14 +238,15 @@ ends with the effort left re-estimated (below).
 | 14 | Online (network guests with a splitscreen host; a splitscreen group joining a remote host), docs, checklist | 1-2 | 8 (a VR host with flat seats: later or never) |
 
 **Effort left after phase 1: 33-44 worker-days** (phase 0's (a1) was 25-35 with the swap registry; moving the state
-for real costs the difference, mostly in phases 4-5).
+for real costs the difference, mostly in phases 4-5). **After phase 2: 31-41 worker-days** (phase 2 took one; phase
+10's join screen is a little cheaper: the pads, their seats and the per-seat command buffer exist).
 
 ## 7. Questions for him (the phase that needs each)
 
 1. ~~Seat processes or in-process seats?~~ In-process, true splitscreen (2026-11-20).
 2. **Layout defaults** (phases 7, 11): 2 players side by side or stacked? 3 players: one wide tile on top and two below,
    three columns, or a 2x2 grid with the fourth tile showing the map or scores?
-3. **Who is seat 1** (phases 2, 10): keyboard and mouse always, or whoever presses first (four controllers, no keyboard)?
+3. ~~**Who is seat 1** (phases 2, 10)~~: the keyboard and mouse, always; controllers join as seats 2-4 (2026-11-21).
 4. **Menu and pause** (phases 9, 10, 13): does seat 1's menu pause everyone (single player's habit) or never
    (multiplayer's)? Can the other seats open the full menu or only their seat menu?
 5. **Saving** (phase 6): multiplayer rules (level-start autosave only), or save at will when every player is local?
@@ -280,3 +281,51 @@ for real costs the difference, mostly in phases 4-5).
   of them alone (`--only mp_flow,mp_moves,mp_predict,mp_lagcomp`) pass on both exes (17, 20, 31, 17 checks). To look
   into separately (BACKLOG).
 - **Effort left**: 33-44 worker-days (section 6).
+
+## 9. Phase 2 (2026-11-21): keys, bindings, devices
+
+His answer to question 3 (2026-11-21): seat 1 is always the keyboard and mouse; controllers join as seats 2-4.
+(Below, seats are numbered from 0 as in the code: seat 0 is his "seat 1".)
+
+- **The seat's keys** (`seatkeys_t`, keys.h; a `Seat`'s `keys`): the keys held and the bindings (Ironwail's `keydown[]`
+  and `keybindings[]`), the gyro and alt-modifier buttons (`+gyroaction`, `+altmodifier`), the mouse's motion since
+  the last move. C reaches the current seat's through `Key_Seat()`, any seat's through `Key_SeatOf(i)`; the ~80
+  readers (console, menus, demo keys, flat play's keys, the VR menus) read the current seat's. `bind`, `unbind`,
+  `unbindall`, `bindlist` act on the current seat's; the config writes seat 0's (the other seats' are not saved: the
+  profiles' phase, 12). `Key_ClearStates` lets go of every seat's keys, each as its own seat.
+- **The command buffer runs text as the seat that queued it** (cmd.c). A pad's bind runs later than its key event (the
+  buffer runs in the host frame): where the queueing seat changes, the buffer gets a marker line `_seat <n>`;
+  `Cbuf_Execute` runs each line as the seat of the last marker before it and makes the caller's seat current again
+  after; an insert from another seat is wrapped in markers; `Cbuf_TailToFront` (vr_mock_key's) keeps them right.
+  **One seat: no marker is ever written: the buffer is byte for byte as before.** A bind with `wait` in it carries its
+  seat over the frame (the head's seat is kept).
+- **Devices** (in_sdl.c): up to four game controllers open at once (`joypad_t joy_pads[4]`: Ironwail's
+  `joy_active_*` globals, the axes, button timers, gyro, gyro centring and flick stick are now each pad's). Pad 0 is
+  the controller Ironwail would use (`joy_device`, the Options menu's gamepad, `IN_UseNextGamepad`: chosen exactly as
+  before); pads 1-3 are the others plugged in (hot-plug opens and closes them). **Which seat a pad drives**
+  (`IN_PadSeat`, the one place): with n seats in play, pads 0..n-2 drive seats 1..n-1 and pad n-1 drives seat 0 (the
+  keyboard player's own pad); the rest none. **With one seat: pad 0 drives seat 0, as it always did, and the other
+  pads are open but drive nothing.** The keyboard and mouse events make seat 0 current (`IN_SendKeyEvents`); each pad
+  is polled with its seat current (`IN_Commands`), so its key events and binds are that seat's; a pad whose seat
+  changes lets go of what it held there first. The move reads the current seat's pad (`IN_JoyMove`, `IN_GyroMove`) and
+  mouse motion (`IN_MouseMove`; the mouse's motion always goes to seat 0's). The menus' gamepad (name, glyphs, rumble,
+  gyro calibration) stays pad 0's: one menu until phase 9. A controller seat with no bindings gets a copy of seat 0's
+  when its pad first drives it.
+- **Tools**: `seat <1-4> <command>` runs a command as that seat (`seat 2 bind YBUTTON +jump`); `in_pads` (Debug >
+  Flatscreen Play > Splitscreen: Gamepads and Seats) lists the pads and the seat each drives.
+- **`vr_seat_test`** (no map; verdict `seat_test: N passed, M failed`, 35 checks): phase 1's 16, plus bindings per seat
+  (through `seat`, a copy of seat 0's is the seat's own strings, unbind and unbindall per seat); with two seats in
+  play two mock pads (polled by `IN_Commands` as real ones): pad 0's button is seat 1's key only, pad 1's seat 0's,
+  the keyboard's key (a real SDL event, handled while seat 1 is current) seat 0's only; pad 0's stick moves seat 1
+  only, the mouse's motion stays seat 0's; back to one seat pad 0 lets go in seat 1 and drives seat 0, pad 1 lets go;
+  the queued binds then run as the seats that pressed them, in order, and the next command as seat 0 after a queue
+  ending in seat 1's. (Its first run caught a real bug: an insert holding markers of its own did not restore the
+  seat after it.)
+- **`seat_state` allowlist: 4,130 -> 4,099** (31 gone: keys.c's `keydown`, `keybindings` and in_sdl.c's 21 pad,
+  gyro, flick and mouse globals moved into the seat or the pads; in_sdl.c's 6 others (the window's focus and text
+  mode, the mouse's presence, the calibration's two, the menus' last device) and keys.c's two init tables marked
+  shared; the new pad table and the command buffer's two seats are marked shared).
+  Merging next brought 4 newcomers: navfollow's server state marked shared; its client state and vr_mptest's `heard`
+  accepted (phases 4a/5 judge them).
+- **Before and after**: see ROUND25.md "split2" (the same set as phase 1, on the merged base `12c955bd4` and on phase 2).
+- **Effort left: 31-41 worker-days** (section 6).

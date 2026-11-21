@@ -6123,3 +6123,41 @@ Details in DWELL.md 9.8. Each note's cause and fix:
   heading of eight, else above, where the world has room and no wall is crossed.
 - **Tests:** `dwell_weapons_test.sh` 9/0 (213: pickups taken, props laid, a bloody prop taken: 10/0); `music_test.sh`
   7/0; `dwell_maps.sh` 28/0 and 214 10/0; `dwell_monster_fixes_test.sh` (215, rig spans, 216).
+
+## split2: splitscreen phase 2, keys, bindings and devices per seat (split2, 2026-11-21, `agent/split`)
+
+His answer to question 3 (2026-11-21): seat 1 is always the keyboard and mouse; controllers join as seats 2-4.
+SPLITSCREEN.md section 9 has the design; in short (seats numbered from 0 as in the code):
+
+- `seatkeys_t` (keys.h), a seat's `keys`: the keys held and the bindings (Ironwail's `keydown[]`, `keybindings[]`),
+  the `+gyroaction` and `+altmodifier` buttons, the mouse's motion. `Key_Seat()` / `Key_SeatOf(i)`; ~80 readers moved
+  (console, menus, demo keys, flat play's keys, the VR menus). The config writes seat 0's bindings; `Key_ClearStates`
+  lets go of every seat's.
+- cmd.c: the command buffer runs text as the seat that queued it (`_seat <n>` marker lines where the queueing seat
+  changes; nothing is ever marked with one seat), so a pad's bind, run later in the frame, presses its own seat's
+  buttons.
+- in_sdl.c: up to four controllers open (`joy_pads[4]`; pad 0 = the one Ironwail would use, chosen as before). With n
+  seats in play pads 0..n-2 drive seats 1..n-1, pad n-1 drives seat 0; **one seat: pad 0 drives seat 0 as always, the
+  other pads are open but drive nothing.** Keyboard and mouse events are seat 0's; each pad is polled with its seat
+  current; the move reads the current seat's pad and mouse motion; the menus' gamepad stays pad 0's (phase 9).
+- `seat <1-4> <command>` (e.g. `seat 2 bind YBUTTON +jump`); `in_pads` (Debug > Flatscreen Play > Splitscreen:
+  Gamepads and Seats) lists the pads and their seats.
+- `vr_seat_test` 35 of 35 (16 of phase 1 + bindings per seat, two mock pads each driving only its seat, the keyboard
+  only seat 0 through a real SDL event, sticks and mouse per seat, the queued binds' seats in order). Its first run
+  found a bug in the markers (an insert holding its own markers did not restore the seat after it), fixed.
+- `seat_state` allowlist 4,130 -> 4,099; merging next: navfollow's server state marked shared, its client state and
+  vr_mptest's `heard` accepted.
+- **Before and after** (the merged base `12c955bd4` and phase 2, same machine, quick builds; QC 0 warnings, Dev 0 and
+  ThinLTO 0 warnings): scenario_check 143 run 0 failed / same; flatplay 31/0; flatparry 43/0; flathands 76/0;
+  flatmelee 12/0; visor 37/0; flatinput 19/0; flatkeys 37/0; flatmove 10/0; flatkeybind 8/0; flatflycam 3/0;
+  load_models 4/0; held_over_props, grip_gap (7, 6 checks), grip_state PASS: all identical. flatxhair 30/1 before (a
+  6-pixel centroid off by 2 px: the known pixel spread), 31/0 after.
+- **The MP plain suite** is not a clean before/after on this machine today: the shared `bases/mp/qbase` was in use by
+  other runs (the after run's servers died on "Unable to bind to 127.0.0.1:27500"; the before's on the NET SAFETY
+  refusal phase 1 saw), and its `quakevr` links to the `mp` worktree's QC, which names 5 cvars this branch lacks (every
+  dmtest fails "5 cvar handle(s) name no cvar or tunable": `vr_bot_aim_error`, `vr_bot_reaction`,
+  `vr_bot_swing_windup`, `vr_revolver_open_swing_*`). Rerun of phase 2 on its own port (`--port 28640`): 47 of 62
+  scenarios clean; the 15 others are those two causes only (12 start refusals from mp_browser on, the dmtest cvar
+  check in mp_dm, mp_lagcomp, mp_coopbots). To look at separately: the mp base's link and a per-run port.
+- In VR (the author): nothing changes with one seat. With a gamepad: it drives the game as before; `in_pads` lists
+  it as pad 1 driving seat 1. With two gamepads plugged in: both open, the second drives nothing (until the seat loop).
