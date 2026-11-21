@@ -56,7 +56,7 @@ void frame(bool on);
 // How much further down the slide puts his eyes now (units; flatplay::crouchDrop adds it).
 [[nodiscard]] float slideDrop();
 // How far behind the eye the slide's leant-back trunk hangs from (units: vr_flat_slide_neck_back; the avatar takes it by
-// its slide share). 0 outside the mode.
-[[nodiscard]] float slideNeckBack();
+// its slide share). 0 outside the mode; `other`: another player's body (his slide, whatever this client's mode).
+[[nodiscard]] float slideNeckBack(bool other = false);
 
 } // namespace qvr::flatmove

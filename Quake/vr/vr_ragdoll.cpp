@@ -4042,6 +4042,11 @@ void hideHeadOf(int num)
     hiddenHeadNum = num;
 }
 
+bool headHidden(int num)
+{
+    return num > 0 && num == hiddenHeadNum;
+}
+
 } // namespace qvr::ragdoll
 
 // ----------------------------------------------------------------------------

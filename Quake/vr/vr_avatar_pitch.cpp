@@ -457,8 +457,10 @@ void updateBodyPitch(const hands::State& s, float dt)
     // Sliding (flat-screen play, vr_flatmove.cpp; a headset's with vr_slide and vr_slide_body, vr_slide.cpp): the trunk leant back about the neck until the hips sit
     // vr_flat_slide_hip_floor over the floor (at most vr_flat_slide_body_angle), so the hips come forward under the lowered
     // eyes, the buttocks and the legs on the floor in front (solveLeg), only the trunk held up.
-    // (Another player's body: not his slide, which is his own client's.)
-    if(!posingOther() && (flatplay::active() ? flatmove::slidePose() : slide::headsetPose()) && !swimming && !lying)
+    // Another player's body: the server's word on his slide (Subject::sliding, his avatar's gear byte), the same pose.
+    // (Before mpslide, 2026-11-20, never: his copy stayed crouched while his own client showed the slide.)
+    const bool slid = posingOther() ? subject->sliding : flatplay::active() ? flatmove::slidePose() : slide::headsetPose();
+    if(slid && !swimming && !lying)
     {
         const float drop = neckOverFloor - za::clamp(vr_flat_slide_hip_floor.value, 0.f, 12.f);
         p.target = -slidePitchTarget(vr_flat_slide_body_angle.value, drop, torso, vr_body_torso_back.value * m2w);

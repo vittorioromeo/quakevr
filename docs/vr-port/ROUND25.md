@@ -5996,6 +5996,15 @@ modified or bundled: nothing of it is run, copied or shipped; its maps play by A
   exits. `quoth_maps.sh` 31/0. QUOTH.md 2, 5, 6.
 - **Checks**: dev and ThinLTO builds 0 warnings (LTO exe relinked); scenario_check PASS (140 run, 0 failed); ad_world_test (vr_ad_test 61-64 on ad_crucial) PASS; dwell_maps 28/0 (Dwell v2.2 copied into the round25 test base: without it 3/25); installer self-tests 48/48; quoth_maps 31/0.
 
+## mpslide: the slide pose and the dead body in multiplayer (mpslide, 2026-11-20, `agent/mpslide`)
+
+- **Another player's slide** is posed as your own: the server's slide is a bit in his avatar's gear byte
+  (`avatarGearSliding`, no protocol change); before, his copy only crouched. `mp_slide`, `mp_slide_vr`.
+- **A dead player's body** (his ragdoll, or its death animation on a client of another server) is drawn as his own
+  body: his build's model, skin tone, gloves, jointed hands, posed from the doll's rig (`mpavatar::addDolls`,
+  `avatar::DollPose`, `solveDoll`), for every viewer including himself and in single player; before, id's ranger.
+  `mp_deathbody` 20/0. Details: MP_PLAN.md, "The slide pose and the dead body as others see them".
+- Reports: `vr_mp_avatars` prints `mp_doll:` lines and the bodies' `sliding=`.
 ## navfollow: a debug autopilot after another player by the navmesh (navfollow, 2026-11-20, `agent/navfollow`)
 
 His words: "a debug command I can enable in one of the players' windows so that it follows the other player using the
