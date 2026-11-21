@@ -172,7 +172,12 @@ aren't Map Library packages aren't sent to joining players.
 - **Noclip flies where you look.** Moving forward in noclip now goes the way the camera points, so looking up or down
   flies up or down; strafing stays level and jump and crouch still go straight up and down. Flat and in the headset
   (there, what steers your walking steers the flight: the head, or the moving hand with hand-relative movement).
-
+- **No more slipping through grates, bars, pillar rows or beside lifts.** Your narrower hitbox (and narrow monsters')
+  could pass or fall through gaps Quake's own box never fit: between a grate's bars, a gate's bars, a row of pillars,
+  a lift and its shaft's wall. Each map now gets invisible blockers in exactly those gaps when it loads (nothing in
+  the map files changes; shots and sight go through them), so you are stopped where Quake stopped you, and still get
+  as close to walls, bars and pillars as your width lets you. Settings > Movement > Player Hitbox > Close Gaps Quake's
+  Box Never Fit (`vr_hull_holes`, on; takes effect at the next map load).
 - **Riding a lift no longer sinks you or the monsters into it.** Going up, your eye trailed a rising lift by up to 12
   units (the stair-step easing took the lift's rise for a step) and a monster riding it was drawn as far as 13 units
   into it; now your eye rides with the lift (only a step's jump is eased: `vr_view_lift_follow`, 400 units a second;
@@ -194,6 +199,10 @@ aren't Map Library packages aren't sent to joining players.
   (`vr_climb_mantle_trigger`): High Enough (the default, as before: at once), Let Go (hang and look over the top, pull
   up when your last hand lets go; let go lower and you drop), Jump, or Let Go or Jump. Flatscreen mantles and ladders
   are unchanged.
+- **Quoth's and Arcane Dimensions' ladders climb like ours.** A mod's ladder drawn on a wall or a pillar (Quoth's
+  kellbase1) now has rungs 16 units apart for your hands, as a ladder made of real rungs: grip and climb hand over hand,
+  and over the top. On the desktop screen, walking into one climbs it as the tutorial's ladder (Desktop Screen Play >
+  Ladders); with Ladders off, the mod's own climb (hold jump) works there again.
 - **Sprint by clicking the stick.** VR Settings > Locomotion and Controls > Speed Button (`vr_sprint_toggle`): Toggle
   makes a click of the speed button (the left stick's click as shipped, or Shift) switch between walking and running
   instead of holding it. The switch ends by itself, back to your Default Speed, when you stop moving for a moment, die,

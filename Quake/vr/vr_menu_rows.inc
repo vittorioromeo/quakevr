@@ -1154,6 +1154,13 @@ QVR_CYCLE(vr_nav_cache, "Navmeshes on Disk",
     "The monsters' navmeshes kept on disk (cache/navmesh) and read at the map's next load instead of built again. "
     "Check: read, then built anyway and compared. Off: built at every load (vr_nav_cache).",
     {0.f, "Off"}, {1.f, "On"}, {2.f, "Check"})
+QVR_TOGGLE(vr_hull_holes_show, "Show Gap Blockers",
+    "Draws the invisible blockers that close gaps Quake's box never fit (Close Gaps Quake's Box Never Fit): the "
+    "world's cyan, between the world and a door, lift or func_wall yellow, a door's or func_wall's own magenta "
+    "(they move with it), and red the ones left out because Quake's own box reaches into them. Their counts float "
+    "in front of you (vr_hull_holes_show).")
+QVR_SLIDER(vr_hull_holes_show_range, "Gap Blockers Range", 256.f, 4096.f, 256.f, "%.0f", noExt,
+    "How far from you the gap blockers are drawn, in units (vr_hull_holes_show_range).")
 QVR_CYCLE(vr_nav_debug, "Show Navmesh",
     "The monsters' navmesh drawn round you: its polygons by area (ground teal, water blue, slime green, lava orange, "
     "blocked by a door or lift red) and edges. Paths: also each chasing monster's path (yellow, its next corner a "
@@ -5530,6 +5537,11 @@ QVR_TOGGLE(vr_hull_edge_probe, "Ledge Test Fix",
 QVR_TOGGLE(vr_hull_brushmodels, "Doors, Lifts and Walls Too",
     "The width above against brush models as well (doors, lifts, trains, func_walls, the firing range's "
     "panels and tables). Off: only the world's walls; brush models meet Quake's box.")
+QVR_TOGGLE(vr_hull_holes, "Close Gaps Quake's Box Never Fit",
+    "Gaps narrower than Quake's 32-unit box (between a grate's bars, a gate's bars, a row of pillars, a lift and "
+    "its shaft) get invisible blockers, so your narrower box (and narrow monsters') can't slip or fall through "
+    "where Quake's never could; you still get as close as your width lets you everywhere else. Takes effect at "
+    "the next map load (vr_hull_holes).")
 QVR_TOGGLE(vr_hull_hit_head, "Height Shots Hit: Your Head's",
     "Shots and missiles meet you only up to the top of your head: crouched behind a crate, those flying "
     "over it miss you (Quake's box stands as tall), and monsters' bullets aim no higher than your body. "

@@ -6951,6 +6951,37 @@ it); an in-game indication of whether the chosen port is forwarded.
   (mode 0 was 0.86 and 0.47 before the fix: FAIL), a shell from the ammo pouch, a magazine from it seated in the nailgun,
   a grenade from the grenade pouch. Checklist scene `pouchbody` (Only Hands, the shotgun and the nailgun, ammo).
 
+## brushholes: invisible blockers in the gaps Quake's box never fit (branch agent/brushholes, 2026-11-21)
+
+The author's note: grates, gates, pillars and lifts let the narrower boxes (yours at 16, narrow monsters') pass or fall
+through. At map load, `Quake/vr/vr_hull_holes.cpp` finds every gap narrower than 32 between two solids facing each
+other along x or y: within the world, within each solid func_* model, and between the world and a func_wall or a
+door's or lift's whole travel. It adds blocker brushes there, to the compiled trees only (not hull 0: shots, sight and
+the navmesh don't have them). Quake's box could never hold a point of such a gap, so nothing Quake allowed changes,
+and you still stop 8 units from walls, bars and pillars. How it works, what is kept out (gaps under 8; world blockers
+that hull 1 lets Quake's box reach into, from AD's non-colliding detail) and the census are in HULLS.md, "Holes".
+
+- Setting: `vr_hull_holes` 1 (Movement > Player Hitbox > Close Gaps Quake's Box Never Fit; it takes effect at the next
+  map load). `keyOf`'s buildVersion went from 2 to 3, so every map's trees are compiled once again; the blockers are kept
+  for a reload and are inside the disk-cached trees.
+- Aids (Debug > Tests > Player Hitbox): `vr_hull_holes_census`, `vr_hull_holes_near`, `vr_hull_holes_test`.
+- Test: `vr_hull_holes_test` on the new `maps/vrbrushholes` (`Misc/quakevr/make_vrbrushholes_map.py`: a grate over a
+  pit, a bar gate, a lift held up with 20-unit slots, pillars 24 apart). The player's box and a grunt's at
+  `vr_mhull_army 16`: 15/0 with the setting on (stopped, and 8 units from the bars, the pillars and a wall) and 15/0 as
+  `brushholes_off` with it off (they pass, so the scene really has holes). Checklist scenes: `brushholes_grate`,
+  `brushholes_gate`, `brushholes_lift`, `brushholes_pillars` (runall 4 OK).
+- Follow-up (the coordinator and the author): the drop test is now exact. Every centre of Quake's box that would
+  reach a blocker by 2 units goes down hull 1's tree at once, for the world's blockers and the models' own, erring
+  toward dropping. The search uses a 64-unit grid, and the checks and the brush models run on the pool. The debug view
+  is Debug > Show Gap Blockers (`vr_hull_holes_show`, `vr_hull_holes_show_range` 1024): world cyan, with brush models
+  yellow, models' own magenta, dropped red, the counts in front of you. Scene `brushholes_show`.
+- Census: id1 (38 maps) 8,018 world blockers, search at most 53 ms; Quoth (6) 3,533; AD (26) 103,707, at most 0.5 s
+  (ad_tears, was 1.6 s). Quake's box reaches none, on any of the 70 maps.
+- Checks: `vr_hull_holes_test` 15/0 on and 15/0 off; 5 scenes OK; `vr_nav_cliptest` and `vr_nav_toptest` pass on e1m1
+  and e4m7; a 60 s hull walk on e1m2 had 0 stuck; run_test_suite changelevel_signon, held_over_props, slider_step,
+  slopes and turned_box pass, teleporters_chase flaky (known).
+- Open: ad_tears' search time (slanted cells; coarser ones leave gaps open); func_trains' gaps with the world (only their own gaps are closed); a func_wall that is
+  killtargeted is left out of the world's pairs (its blockers would stay behind).
 ## humrepl: AD's and Quoth's humanoid variants as armed humanoids; recolours by weapon (branch agent/humrepl, 2026-11-21)
 
 - **His ask (2026-11-21):** the expansions' hardcoded humanoid variants as the closest armed humanoid with the matching
@@ -7066,3 +7097,51 @@ lines from the checklist: a local MP session with a bot that stays still and isn
   passive bot moved 1 unit in 3 s with its weapon held (sword 13, shotgun 4), active ones 250-520. `scenario_check.sh`
   (now -loopbackonly; SCNMP/SCNBOT) PASS: 169 run, 0 failed, 0 skipped. Dev and ThinLTO builds 0 warnings.
 - **Not covered by runall:** a passive bot's re-placing after a respawn (needs it killed: try it in VR in mp_dm_passive).
+
+## modladders: Quoth's and AD's ladders on our climbing; kellbase1's corridor (branch agent/modladders, 2026-11-21)
+
+His words: Quoth/AD ladders (kellbase1) climbable like VR brush ladders, the flat IK ladder there too; a possible
+softlock in kellbase1 at (-8, -959.8, 664.1).
+
+- **What was wrong:** Quoth's `trigger_ladder` plays as AD's (QUOTH.md). kellbase1's six are thin brushes (2-14 units)
+  over drawn ladders (a non-solid ladder on a pillar, a player clip 22 units behind *48). A hand was held anywhere in the
+  volume (no rungs: `ladderHold`'s fallback took the hand's own height), and only within the touch distance (1.6 units)
+  of a 2-unit slab; the flat ladder's probes (20 units ahead) never landed in it: "0 ledges ahead". In flat play the QC
+  also bypassed AD's jump climb (`VR_AD_LadderManual`) by the hands-tracked bit alone, so with Ladders off nothing climbed.
+- **Fix (vr_climb.cpp):** `ladderHold` gives a ladder with no real rung in reach its own rungs, `ladderRungStep` (16)
+  apart down from the volume's top (`origin + maxs`, not the link's padded box), the hold clamped into the volume; a hand
+  in the wall behind a volume holds it within `ladderInWall` (12); findHold's lenient stage tries the ladder with the
+  leniency radius across (the flat ladder's radius 16 finds the slab). Real rungs still come first (`rungNear`).
+  `flatLadderFrame` stops drawing the body in past `ladderInBox` (8) beyond its holds (a free-standing ladder has no wall).
+  QC `VR_AD_LadderManual`: flat play is manual only with `vr_flat_ladder` on (else AD's/Quoth's own jump climb).
+- **Test:** `Misc/quakevr/modladder_test.sh` 5/0: kellbase1 flat up and over the top (mantled, feet 896, 11 hand
+  changes), down looking down; `vr_flat_ladder 0` Quoth's jump climb (feet 640..882) and AD's on ad_test3; VR hands
+  (`vr_climb_try`) exact holds at 705/721/769/785/881 (rungs 16 apart), none over the top or with Hand-Climbed Ladders off.
+  `vr_flatladder_test` takes a map table (vrtutorial, kellbase1, ad_test3) and sets each case on its floor (and
+  `oldorigin`). flatladder_test.sh 2/0 (vrtutorial unchanged). ad_world_test.sh's flat-ladder holds now expect the
+  nearest rung (not run here).
+- **Down from the top** (follow-up): a volume rung faces the eye (`ladderHold`'s `eye`: the mount looks from over the
+  drop) and carries `Ledge::volume`; `flatLadderMount` takes volume rungs up to `ladderVolumeGap` (24) past the floor's
+  edge (kellbase1's catwalk edge is 20 past its ladder), its top rung one under the edge, and hangs with the box
+  `ladderInBox` into the rungs (the clip behind). VR: from the catwalk a hand reaching down holds the top rung (881).
+- **Tests now:** modladder_test.sh 9/0 (kellbase1 flat up / down from the top / looking down, its jump climb; AD's
+  ad_e1m1 wall ladder the same four; VR holds incl. from the top; the corridor fail-safe and its negative).
+  flatladder_test.sh 2/0, ad_world_test.sh PASS, scenario_check 154/0. Not run: the other climb suites (only volume
+  ladders' paths changed).
+- **Not done:** ad_test3's ladder (real stepped rungs) does not take from its floor in flat play (2 ledges found, not a
+  pair in reach): pre-existing, real-rung geometry.
+- **kellbase1's corridor:** the corridor between the top doors (y -1176, `topdoors`: TOGGLE doors) and the south exit
+  doors (y -720, `exitlock`, "locked"). `topdoors` is toggled by three things: `topcount` (3 sentinels killed below,
+  "the top doors are open"), the corridor's `trigger_once` at y -740 (closes them 1 s after you reach the exit doors) and
+  `exitcount` (16 arena kills: wires 4 defenders, then the platform buttons' enforcers, pyros, eliminators; it also opens
+  every `exitlock` door). A normal route gets there first: the lower chain is all below the arena, from the start
+  (z 48): 4 pyros (2 placed at z -48, 2 by `hotstuff`) feed `pyrocount`, which opens the `hatch` and spawns 3 sentinels
+  (z 112, -640) feeding `topcount`; the 900-unit ladders *25, *26 (z -255..639) climb from there to the top doors' south
+  side. Entering the corridor then, before the arena's 16 kills, shuts you in: the map's own logic (ours don't change
+  it: `vr_ad_test 212` drives the flow to "its last stage (exitlock) reached in round 4", armed replacements on). Shown
+  from the entity chain, not walked.
+- **Fail-safe** (QC `vr_quoth.qc` `VR_Quoth_KellThink`, kellbase1 only, once a map): a living player in the corridor
+  10 s with the top doors and the south exit doors shut and no living monster in it gets the top doors toggled open
+  (`developer 1`: "quoth: kellbase1's corridor: shut in, the top doors opened again"). In the arena: nothing.
+- **Checklist scene:** `ad_mod_ladder` (ad_crucial's ladder; a scene named `mod_...` ran after one that left AD's
+  folders: "no map").
