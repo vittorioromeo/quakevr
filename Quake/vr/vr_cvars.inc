@@ -2690,6 +2690,12 @@ QVR_CVAR(vr_revolver_open_flick_speed, "400", CVAR_ARCHIVE) // the flick open's 
 QVR_CVAR(vr_revolver_open_flick_angle, "120", CVAR_ARCHIVE) // and its wrist flick: degrees it must roll that way in one go
 QVR_CVAR(vr_revolver_close_flick_speed, "350", CVAR_ARCHIVE) // the flick shut (always on: the wrist rolled the other way, the cylinder swung home): its force, degrees a second
 QVR_CVAR(vr_revolver_close_flick_angle, "75", CVAR_ARCHIVE) // and its wrist flick, degrees
+// A melee swing is no flick (his note 2026-11-21: "if I'm doing a melee attack, I often open the cylinder"): the flick
+// open is refused while the gun's hand moves this fast (m/s, against his body; vr_melee_speed's blow is 3.2) and for
+// vr_revolver_open_swing_hold seconds after it last did, or after a blow of his landed (QC VR_Revolver_SwingGuard).
+// A deliberate flick, the wrist rolled with the arm near still, still opens it. 0: no guard.
+QVR_CVAR(vr_revolver_open_swing_speed, "2", CVAR_ARCHIVE)
+QVR_CVAR(vr_revolver_open_swing_hold, "0.35", CVAR_ARCHIVE) // seconds
 QVR_CVAR(vr_revolver_open_flick_time, "0.25", CVAR_ARCHIVE) // the flick open's time window: its wrist flick must be rolled within this many seconds of the flick's start (0: no limit)
 QVR_CVAR(vr_revolver_open_button, "1", CVAR_ARCHIVE) // B/Y (its eject button) swings the cylinder out; out, B/Y pushes the ejector
 QVR_CVAR(vr_revolver_close_button, "0", CVAR_ARCHIVE) // out, B/Y swings it home instead (an accessibility option: the shells then leave by the hand's push or the ejector rod alone)

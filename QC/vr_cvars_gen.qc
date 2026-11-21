@@ -1745,6 +1745,8 @@ float cvarh_vr_revolver_open_flick;
 float cvarh_vr_revolver_open_flick_angle;
 float cvarh_vr_revolver_open_flick_speed;
 float cvarh_vr_revolver_open_flick_time;
+float cvarh_vr_revolver_open_swing_hold;
+float cvarh_vr_revolver_open_swing_speed;
 float cvarh_vr_revolver_smoke;
 float cvarh_vr_revolver_spin;
 float cvarh_vr_revolver_spin_friction;
@@ -3864,6 +3866,8 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_revolver_open_flick_angle = VR_CVar_Make("vr_revolver_open_flick_angle");
     cvarh_vr_revolver_open_flick_speed = VR_CVar_Make("vr_revolver_open_flick_speed");
     cvarh_vr_revolver_open_flick_time = VR_CVar_Make("vr_revolver_open_flick_time");
+    cvarh_vr_revolver_open_swing_hold = VR_CVar_Make("vr_revolver_open_swing_hold");
+    cvarh_vr_revolver_open_swing_speed = VR_CVar_Make("vr_revolver_open_swing_speed");
     cvarh_vr_revolver_smoke = VR_CVar_Make("vr_revolver_smoke");
     cvarh_vr_revolver_spin = VR_CVar_Make("vr_revolver_spin");
     cvarh_vr_revolver_spin_friction = VR_CVar_Make("vr_revolver_spin_friction");
