@@ -4771,6 +4771,9 @@ vr_nav_slope|2|Tunables|Navmesh: Steepest Floor|Advanced VR Options > Debug > Tu
 vr_nav_radius_step|2|Tunables|Navmesh: Size Classes|Advanced VR Options > Debug > Tunables > Navmesh: Size Classes
 vr_nav_repath|2|Tunables|Navmesh: Repath Every|Advanced VR Options > Debug > Tunables > Navmesh: Repath Every
 vr_nav_repath_move|2|Tunables|Navmesh: Repath When Foe Moved|Advanced VR Options > Debug > Tunables > Navmesh: Repath When Foe Moved
+vr_nav_follow_stop|2|Tunables|Navmesh: Follow Stops Short|Advanced VR Options > Debug > Tunables > Navmesh: Follow Stops Short
+vr_nav_follow_idle|2|Tunables|Navmesh: Follow Resumes After|Advanced VR Options > Debug > Tunables > Navmesh: Follow Resumes After
+vr_nav_follow_repath|2|Tunables|Navmesh: Follow Repath Every|Advanced VR Options > Debug > Tunables > Navmesh: Follow Repath Every
 vr_nav_corner_reached|2|Tunables|Navmesh: Corner Reached|Advanced VR Options > Debug > Tunables > Navmesh: Corner Reached
 vr_nav_water_cost|2|Tunables|Navmesh: Water Cost|Advanced VR Options > Debug > Tunables > Navmesh: Water Cost
 vr_nav_slime_cost|2|Tunables|Navmesh: Slime Cost|Advanced VR Options > Debug > Tunables > Navmesh: Slime Cost
@@ -5347,6 +5350,8 @@ vr_debug_screen_offhand|2|Debug - Reports|Off Hand's Ammo Screen|Advanced VR Opt
 |2|Debug - Reports|Network: Entities Sent|Advanced VR Options > Debug > Reports > Network: Entities Sent
 |2|Debug - Reports|Server Rules|Advanced VR Options > Debug > Reports > Server Rules
 |2|Debug - Reports|Network: Players Seen|Advanced VR Options > Debug > Reports > Network: Players Seen
+|2|Debug - Reports|Network: Drawn Near Me|Advanced VR Options > Debug > Reports > Network: Drawn Near Me
+|2|Debug - Reports|Network: Follow the Next Player (Navmesh)|Advanced VR Options > Debug > Reports > Network: Follow the Next Player (Navmesh)
 |2|Debug - Reports|Network: Lockstep Status|Advanced VR Options > Debug > Reports > Network: Lockstep Status
 vr_mp_lockstep_movelog|2|Debug - Reports|Network: Lockstep Move Log|Advanced VR Options > Debug > Reports > Network: Lockstep Move Log
 |2|Debug - Reports|Network: Held Weapons|Advanced VR Options > Debug > Reports > Network: Held Weapons

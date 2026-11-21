@@ -170,6 +170,9 @@ class Instance:
         self.net_guard_test = net_guard_test
         self.net_state = None
         self.size = (480, 270)  # (the window: a readable screenshot sets more before start(); mp_test.py roomui)
+        # (the sync audit, 2026-11-21: sound on, through SDL's dummy driver -- nothing reaches a speaker -- so vr_mp_near
+        # lists the sounds this game started; set before start())
+        self.sound = False
         # (B25: each game its own vr_mp_clientkey, as two real games have; a game "back from a crash" (mp_rejoin's B2)
         # is started with the crashed one's)
         self.clientkey = ("qvrtest%s%d" % (re.sub(r"\W", "", name), port))[:23]
@@ -183,8 +186,8 @@ class Instance:
     def args(self):
         a = [self.s.exe, "-basedir", self.s.base] + GAMES + [
             "-condebug", "-condebugfile", self.log, "-cmdinbox", self.inbox,
-            "-foreignconfigs", "-noconfigwrite", "-noaddons", "-nosound", "-nomic",
-            "-ip", "127.0.0.1", "-port", str(self.port)]
+            "-foreignconfigs", "-noconfigwrite", "-noaddons", "-nomic",
+            "-ip", "127.0.0.1", "-port", str(self.port)] + ([] if self.sound else ["-nosound"])
         if self.dedicated:
             a += ["-dedicated", str(self.dedicated)]
         else:
@@ -216,6 +219,8 @@ class Instance:
             pass
         env = dict(os.environ, QVR_TEST_HIDDEN="1", QVR_NO_ERROR_DIALOG="1", QVR_TEST_BACKGROUND="1",
                    SDL_ASSERT="abort")
+        if self.sound:
+            env["SDL_AUDIODRIVER"] = "dummy"
         # (B25: normal priority, as the kit's runs: below normal, every build and fast-mode test of other work on the
         # machine came first and these real-time games went without -- under mp_load's busy workers a dedicated server
         # did not print its first lines in 60 s; QVR_MP_PRIORITY=below for the old way)
@@ -405,6 +410,7 @@ class Session:
         """A client; with lag, jitter or loss (or proxy=True: to count its traffic) it talks to the server through a
         proxy of its own. connect_cmd() is the console command that joins the server."""
         inst = Instance(self, name, self.take_port(), flat=flat, extra=extra)
+        inst.sound = getattr(self, "client_sound", False)  # (mp_test.py syncaudit: every client's sound on)
         inst.target = self.port
         if proxy or lag_ms or jitter_ms or loss:
             p = Proxy(self.take_port(), self.port, lag_ms, jitter_ms, loss, seed).start()

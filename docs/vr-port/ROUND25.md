@@ -6022,3 +6022,104 @@ check, 14 phases with estimates (33-44 worker-days left) and the questions each 
   (`--tighten`); `--accept` for its first writing and a merge's judged newcomers.
 - `vr_seat_test` (no map): two seats' buttons and impulse stay apart, the release is per seat, scopes nest: 16 of 16.
 - No behaviour change at one seat: the same regression set before and after (SPLITSCREEN.md section 8).
+## wpnsync: other players' guns and torches drawn as they are (multiplayer, 2026-11-21)
+
+His notes: the revolver's cylinder open or shut was not seen by the others; nor were player flashlights. Audit and
+detail: MP_PLAN.md, "Held weapons' state and player lights".
+
+- Another player's held and holstered guns are drawn by your own guns' routines (`view::drawGunParts`, vr_view.cpp)
+  from what the server has of them (`VrGunLook` in his avatar: QC's weapon flags, clip, clip size, the revolver's
+  state and cylinder, his reload mode): the revolver's crane swinging out and its shells, the super shotgun broken
+  open, magazines in, sliding out or dropped and the rounds they show, the ammo screen's button and clip (within
+  `vr_weapon_world_attach_range`). Your own go through the same steps from your stats (`view::ownGunLook`).
+- The Widowmaker's and Rotary Shotgun's turning barrels and the AD crossbow's string: the drawn pose's nearer frame is
+  sent as the weapon's frame.
+- His torch (`VrDrawnLamp`: on his belt, in a hand, on a gun, on his head; shown; lit; reach) goes up in his move and
+  out in his avatar: drawn with your torch's model placement and lit with your beam's spot, spill and glow lights
+  (unshadowed; `flashlight::drawOther`). Not its visible cone in the air or its cord.
+- `QVR_NET_VERSION` 41: the room service is redeployed with it.
+- Tests: `mp_test.py wpnsync` and `wpnsync_flat` (in the suite) 16/0 each.
+- Left: the auto pump's stroke and clacks after another player's shot (his client's own animation; the QC reload
+  sounds are already everyone's), the torch's visible cone and cord, the Widowmaker's motor sound, the lava guns' glow.
+## Multiplayer sync audit: every player feature, seen by another player or not (mpaudit, 2026-11-21, `agent/mpaudit`)
+
+- His ask: everything of a player that others should see or hear but don't. The table and the fix batches are MP_PLAN.md,
+  "Sync audit 2026-11-21" (43 rows: 22 synced, 11 gaps, 4 being done elsewhere, 4 local by design, 2 not features; the slide pose and dead body synced by mpslide).
+- The measure: `vr_mp_near <ent> [radius] [seconds]` (Debug > Reports > Network: Drawn Near Me; vr_mptest.cpp) lists
+  the models a game draws round a player (whose, alpha, effects, the powerup glow), its dynamic lights there and the
+  sounds it started lately by or near him (`VR_MpHeardSound`, a ring of 96 filled at `S_StartSoundPitch`).
+  `mp_test.py syncaudit [--flat B]` compares B's report of himself with A's of B after each of B's actions (idle, quad,
+  ring, a punch, a shot, a walk); the harness's clients can now run with sound on (`Session.client_sound`: SDL's
+  dummy audio driver, nothing reaches a speaker). A report, not a regression: not in the suite.
+- The biggest gaps: the Ring of Shadows (others draw the ringed player fully opaque: in deathmatch it does nothing),
+  the powerups' glows and hand lights, another player's muzzle flash and casings, the worn gear (wrist gadget, holster
+  sheaths, grenade and ammo pouches), blood and wounds on other players, the mantle grunt and slide sound.
+- Side finding: in coop the Debug menu's powerup cheats (impulse 190-193) give a holstered shotgun (the harness's
+  holster give); 255 and 254 still work.
+## mpslide: the slide pose and the dead body in multiplayer (mpslide, 2026-11-20, `agent/mpslide`)
+
+- **Another player's slide** is posed as your own: the server's slide is a bit in his avatar's gear byte
+  (`avatarGearSliding`, no protocol change); before, his copy only crouched. `mp_slide`, `mp_slide_vr`.
+- **A dead player's body** (his ragdoll, or its death animation on a client of another server) is drawn as his own
+  body: his build's model, skin tone, gloves, jointed hands, posed from the doll's rig (`mpavatar::addDolls`,
+  `avatar::DollPose`, `solveDoll`), for every viewer including himself and in single player; before, id's ranger.
+  `mp_deathbody` 20/0. Details: MP_PLAN.md, "The slide pose and the dead body as others see them".
+- Reports: `vr_mp_avatars` prints `mp_doll:` lines and the bodies' `sliding=`.
+## navfollow: a debug autopilot after another player by the navmesh (navfollow, 2026-11-20, `agent/navfollow`)
+
+His words: "a debug command I can enable in one of the players' windows so that it follows the other player using the
+navmesh", and "do bots use the navmesh? If not, should they?" (NAVMESH.md 22 and 23).
+
+- **`vr_nav_follow <name | slot | next | 0>`** (Debug > Network: Follow the Next Player): the server plans the player's
+  path to the other on its navmesh (`nav::followPath`: a player's 16 x 56 class; doors and lifts walked, the monsters'
+  drop, lift and teleporter links) every `vr_nav_follow_repath` (0.25) s and sends him its corners when they change
+  (`QVR_SVC_NAVFOLLOW`, reliable); his client turns the view to the next corner and presses forward in `VR_AdjustMove`,
+  hops through `VR_MoveJump` when stuck, stops `vr_nav_follow_stop` (64) units short along the path. A listen host and
+  a remote client alike; the moves are a human's (prediction, the server's moves, lag compensation unchanged).
+- **Hand-back:** his own move, look (flat) or jump takes over at once; the command stays on and walks on after
+  `vr_nav_follow_idle` (1) s without input. Refused in deathmatch (`sv_user.c` allows `vr_nav_follow_ask` otherwise).
+- **Server's corners, not a client navmesh:** the mesh needs the server's QC state (movers, rides, teleporters, props);
+  a client's build would differ and cost each client a build; the corners are a small message.
+- **The follower** (`vr_navfollow.hpp`): `Plan`/`replan` (where the mesh is) and `Steer`/`steer` (where the moves are
+  made: corners in, yaw/forward/jump out), shared by the client's autopilot and, later, the bots. Flat and VR share it:
+  only the turn differs (the view's yaw, or a headset's play space by `hands::addTurn`).
+- **Bots:** they don't use the navmesh (FrikBot's learnt waypoints and roaming); NAVMESH.md 23 plans its long-range
+  navigation through the follower (FrikBot keeps combat, strafing, item choice), 3-4 days, not done (his call).
+- **Shown:** `vr_nav_debug` on draws the follower's path on its own client (a remote one too). `vr_nav_follow_status`.
+- **Tests:** `mp_test.py navfollow` (B remote follows A) 12/0 and `navfollow_listen` (host A follows B) 11/0, flat, coop
+  e1m1: from a coop start down the step and through the first room's west door to within 112 units, arrived; the
+  leader walks on and is followed; +back hands it back, it walks on; `vr_nav_follow 0` stops it. No teleporter (e1m1's
+  is far from the start). `navfollow_vr` (B a mock headset: the play-space turn) 12/0. mp suite --only coop, cmdguard,
+  predict, teleport: passed. scenario_check PASS.
+
+## expbugs: Dwell, Quoth and campaign bugs from his 2026-11-21 notes (expbugs, 2026-11-21, `agent/expbugs`)
+
+Details in DWELL.md 9.8. Each note's cause and fix:
+
+- **Music from Dwell in Quake's and SoA's maps** (hip1m1, start notes): Dwell's folder is mounted in every campaign for
+  its models and sounds; `VR_FindMusicTrack` read every search path, so Dwell's `music/track02..05` won over the
+  rerelease's (Quoth has no music). It now skips the paths `VR_SkipSearchPath` skips. In Dwell's own campaign, a track
+  above 127 the search path has as a plain file plays it (Dwell numbers its tracks 69-254: start's 254 was read as a
+  campaign-track code and played nothing). `vr_music_which [track]`, Debug > Tools > Music File. `music_test.sh`.
+- **Dwell's start: runes placed, the gates seen but not taken** (the note's map was Dwell's start, "The Dwelling"): our
+  PutClientInServer never fired the spawn point's targets, as Copper's does; start's `start1_targets` unlocks the
+  pedestals' relays (target_lock START_LOCKED), so placing runes opened nothing: the portal sheets fade in by distance
+  anyway, and walking through one met the solid wall before the real trigger_teleport 600 units on. `CU_PlayerSpawnedAt`
+  (vr_copper_bridge.qc) fires them once the locks' 0.25 s have passed. Not a seamless-teleporter bug (the portal code
+  finds no sides there; the teleporters work).
+- **Assertion and vanishing Dwell weapons**: `weapon_touch` looked the weapon up by classname (`weapon_rifle` is none of
+  ours): ASSERT, then objerror removed the pickup. It uses `self.weapon`. **Floating spinning weapons from the toolgun**
+  (Dwell's three, MG3's bloody shotgun and super shotgun): they were their map pickups; now props
+  (func_weapon_grabbable) with their variant (`vr_grab_dwvar`) or bloody bit (`MG3_Bloody_PropTaken`: the bit and 30
+  shells when a player's hand takes it).
+- **Kamikaze bursting at once, no explosion drawn**: `EntitiesTouching` (doors.qc) compares mins/maxs, true for any two
+  monsters' relative boxes; now its absolute box within 8 units, or 64 apart. `DW_Boom` (TE_EXPLOSION) on its burst and
+  the Construct's death.
+- **Brute ragdoll triangle across his arms**: a 14-vertex piece across his front was split, its 7 right-side vertices on
+  hand_r (motion clustering). `quakevr/rigs/mon_brute.rig.txt` (Rig Studio weights) puts them on hand_l.
+  `vr_ragdoll_rig_spans <model> [max]` (Debug > Ragdolls) lists triangles across unjoined bones: the Brute's 6, now 0.
+- **Stuck inside the Sculptor**: its 288-unit SOLID_BBOX box (the precise hits) flies noclip; onto a player, it left him
+  inside. `dw_d2_freeplayers` (each think) puts him just outside: straight away from its middle, else the nearest
+  heading of eight, else above, where the world has room and no wall is crossed.
+- **Tests:** `dwell_weapons_test.sh` 9/0 (213: pickups taken, props laid, a bloody prop taken: 10/0); `music_test.sh`
+  7/0; `dwell_maps.sh` 28/0 and 214 10/0; `dwell_monster_fixes_test.sh` (215, rig spans, 216).

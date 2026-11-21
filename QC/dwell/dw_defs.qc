@@ -35,6 +35,7 @@ float dw_variant_shots; // Dwell's shots fired, anyone's (vr_ad_test 204)
 const float DW_VAR_ROTARY = 1;
 const float DW_VAR_LANCE = 2;
 const float DW_VAR_RIFLE = 3;
+nosave float vr_grab_dwvar; // VR_WeaponGrabbable_Make: the variant the placed weapon's record gets (the toolgun's props)
 
 float(entity targ, entity attacker, float damage, float isVRMelee) DW_DamageScale; // T_DamageImpl: berserk
 void(entity xPickup, entity p, float xHand) DW_VariantGiven;                      // weapon_touch

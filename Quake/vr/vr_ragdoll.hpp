@@ -245,6 +245,8 @@ void boneTriangles(const Rig& rig, int bone, za::Vector<glm::vec3>& out);
 // The death view (vr_deathview.cpp, Immersive): edict `num`'s ragdoll drawn without its head this frame (the camera is in
 // it), 0 none. Set before the client's swapModels.
 void hideHeadOf(int num);
+// ... whether edict `num`'s is (a dead player's body drawn as his own: vr_mpavatar.cpp addDolls, headless too).
+[[nodiscard]] bool headHidden(int num);
 
 // vr_ragdoll_info: the rig of the nearest dead monster's model (or the grunt's), its bones and how it was derived.
 void info_f();
@@ -252,5 +254,6 @@ void info_f();
 // vr_ragdoll_rig_sweep: every seed table's model the game folders have, its rig derived: "N rigged, M failed, K absent"
 // (each failure's own line before it).
 void rigSweep_f();
+void rigSpans_f(); // vr_ragdoll_rig_spans <model> [max]: triangles across unjoined bones
 
 } // namespace qvr::ragdoll

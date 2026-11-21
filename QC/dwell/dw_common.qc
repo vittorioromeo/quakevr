@@ -112,10 +112,12 @@ void(string t) DW_UseNamed =
 };
 
 // The explosion's sight and sound at `org`.
+float dw_boom_count; // (DW_Boom: explosions drawn, for tests)
 void(vector org) DW_Boom =
 {
     WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
     WriteByte(MSG_BROADCAST, TE_EXPLOSION);
+    dw_boom_count = dw_boom_count + 1;
     WriteCoord(MSG_BROADCAST, org_x);
     WriteCoord(MSG_BROADCAST, org_y);
     WriteCoord(MSG_BROADCAST, org_z);

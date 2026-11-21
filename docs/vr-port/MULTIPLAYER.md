@@ -154,6 +154,10 @@ These stay off in multiplayer (the world can't slow down or stop for one player)
 - **Can't connect over the internet**: by a room code, the message says why ("No direct link to the host": one of
   your routers doesn't allow hole punching; the host forwards UDP 26000). By address: almost always the host's port
   forwarding (UDP 26000, to the right PC) or a firewall. Try from the same LAN first.
+- **Testing with two games on one PC** (`mp_local.ps1`): `vr_nav_follow <name | slot | next | 0>` in one player's console
+  (Debug > Network: Follow the Next Player) walks him after the other along the navmesh by his own moves, so one keyboard
+  plays both; your own move, look or jump takes over, it walks on a second later; `0` stops it (coop and single player
+  servers only; NAVMESH.md 22).
 
 ## Known issues (beta)
 

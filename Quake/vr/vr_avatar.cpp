@@ -402,7 +402,7 @@ void solveTorso(const hands::State& s, Body& b, float scale = 0.f, bool crouchPo
     // chin to the chest): the chest under the view, the legs out in front seen past it (vr_flat_slide_neck_back).
     // (Not the reference poses: the Follower's upright reference moved back with it, the holsters and pouches it carries
     // ended up that far forward on the slid body, the ammo pouch in front of the camera: his note 2026-11-08.)
-    top -= b.fwd * (crouchPose ? flatmove::slideNeckBack() * bodyPitch.sliding : 0.f);
+    top -= b.fwd * (crouchPose ? flatmove::slideNeckBack(posingOther()) * bodyPitch.sliding : 0.f);
     // Flat-screen lying down: the trunk hangs from further under the eye (vr_flat_prone_neck_drop; the head and the neck
     // are not drawn), so the body lies lower than the view, the chest almost on the floor (his note 2026-11-08: the torso
     // too high), the view and the gun's poses (made for that eye: their floor clearance) as they were.
@@ -1427,7 +1427,7 @@ void swapOther(Other& o)
 // The other player's body drawn as `e` this frame, or null.
 [[nodiscard]] const Other* otherDrawn(const entity_t* e)
 {
-    if(!e || cl.maxclients <= 1)
+    if(!e) // (single player too: your own dead body, Subject::doll)
     {
         return nullptr;
     }
@@ -1732,44 +1732,125 @@ bool usable(qmodel_t* model)
     return true;
 }
 
+// The turn taking direction `from` to `to` (the shortest).
+[[nodiscard]] glm::quat turnBetween(const glm::vec3& from, const glm::vec3& to)
+{
+    const glm::vec3 a = safeNormalize(from, UP);
+    const glm::vec3 c = safeNormalize(to, UP);
+    const float d = glm::dot(a, c);
+    if(d < -0.9999f)
+    {
+        return glm::angleAxis(glm::pi<float>(), safeNormalize(glm::cross(a, za::abs(a.z) < 0.9f ? UP : FWD), FWD));
+    }
+    const glm::vec3 axis = glm::cross(a, c);
+    return glm::normalize(glm::quat{1.f + d, axis.x, axis.y, axis.z});
+}
+
+// A dead player's body (Subject::doll; vr_mpavatar.cpp addDolls): the trunk and head turned as the doll's (each bone's bind
+// turned onto its rig bone's rest direction, then with that bone), from the doll's pelvis, the body's own lengths down
+// from it; the legs reaching the doll's ankles (scaled to the body's legs) and bending to its knees, the feet with its
+// shins; the arms by solveArm to the hands drawn at the doll's wrists (as a living body's to its hands).
+void solveDoll(Body& b, const DollPose& d, const HandPose handPoses[2], glm::mat3 still[2])
+{
+    const Bind& bd = bind();
+    b.m2w = detail::metresToUnits() * detail::bodyScale();
+    b.legM2w = b.m2w;
+    const glm::mat3 chest = glm::mat3_cast(d.chestRot);
+    b.fwd = safeNormalize(chest * FWD, FWD);
+    b.left = safeNormalize(chest * glm::vec3{0.f, 1.f, 0.f}, glm::cross(UP, b.fwd));
+    b.floorZ = za::min(d.ankle[0].z, d.ankle[1].z);
+    const auto turned = [&](int j, const glm::quat& q, const glm::vec3& rest) {
+        return glm::mat3_cast(q * turnBetween(bd.rot[j][0], rest)) * bd.rot[j];
+    };
+    Bone& p = b.bones[Pelvis];
+    p = Bone{};
+    p.pos = d.pelvis;
+    p.rot = turned(Pelvis, d.pelvisRot, d.pelvisRest);
+    const glm::quat spineRot = glm::slerp(d.pelvisRot, d.chestRot, 0.5f);
+    const int trunk[] = {Spine, Chest, Neck, Head};
+    for(const int j : trunk)
+    {
+        Bone& bone = b.bones[j];
+        bone = Bone{};
+        bone.pos = childPos(b, j);
+        bone.rot = j == Spine ? turned(j, spineRot, glm::normalize(d.pelvisRest + d.chestRest))
+                   : j == Chest ? turned(j, d.chestRot, d.chestRest)
+                                : turned(j, d.headRot, d.headRest);
+        bone.size = d.hideHead && (j == Neck || j == Head) ? COLLAPSED : 1.f;
+    }
+    solveArm(b, 0, handPoses[HAND_OFF]);
+    solveArm(b, 1, handPoses[HAND_MAIN]);
+    for(int side = 0; side < 2; side++)
+    {
+        const int thigh = side == 0 ? ThighL : ThighR;
+        Bone& t = b.bones[thigh];
+        Bone& c = b.bones[thigh + 1];
+        Bone& f = b.bones[thigh + 2];
+        t = c = f = Bone{};
+        t.pos = childPos(b, thigh);
+        const float a = boneLength(thigh, thigh + 1) * b.legM2w;
+        const float l = boneLength(thigh + 1, thigh + 2) * b.legM2w;
+        const float dollLeg = glm::distance(d.hip[side], d.knee[side]) + glm::distance(d.knee[side], d.ankle[side]);
+        const glm::vec3 target = t.pos + (d.ankle[side] - d.hip[side]) * ((a + l) / za::max(dollLeg, 1.f));
+        glm::vec3 bend;
+        const glm::vec3 knee =
+            twoBone(t.pos, target, a, l, d.knee[side] - 0.5f * (d.hip[side] + d.ankle[side]), b.fwd, bend);
+        t.rot = basis(knee - t.pos, bend);
+        c.pos = knee;
+        const glm::vec3 shinDir = safeNormalize(target - knee, -UP);
+        c.rot = basis(shinDir, bend);
+        f.pos = knee + shinDir * l;
+        f.rot = glm::mat3_cast(d.shinRot[side] * turnBetween(bd.rot[thigh + 1][0], d.shinRest[side])) * bd.rot[thigh + 2];
+        still[side] = t.rot;
+    }
+}
+
 glm::vec3 pose(const hands::State& s, qmodel_t* model, const entity_t* ent, const HandPose handPoses[2], bool legs)
 {
     QVR_PROFILE("avatar IK");
     Body b;
-    solveTorso(s, b);
-    debugHead = posingOther() ? debugHead : s.head;
     const ModelInfo* known = infoOf(model);
     bareArms = known && known->bare;
-
-    // The left arm reaches for the left controller (HAND_OFF, left-handed too), the right for the right.
-    solveArm(b, 0, handPoses[HAND_OFF]);
-    solveArm(b, 1, handPoses[HAND_MAIN]);
-    const float dt = legsDeltaTime();
-    if(legs)
+    glm::mat3 still[2];
+    const DollPose* doll = posingOther() ? subject->doll : nullptr;
+    if(doll)
     {
-        updateWater(b, s, dt);
+        solveDoll(b, *doll, handPoses, still);
     }
-    // (Another player's from how the server has him: lying down, swimming, climbing: MP_PLAN.md, B5b, B5c.)
-    updateBodyPitch(s, dt); // (next frame's solveTorso: the trunk's turn)
-    updateGait(b, dt);
-    const glm::vec3 stand = s.head - glm::vec3{s.lean.x, s.lean.y, 0.f}; // where the body stands (the box's middle)
-    updateStance(b, stand, dt);
+    else
     {
-        const double t0 = vr_debug_climb_feet.value >= 2.f && !posingOther() ? Sys_DoubleTime() : 0.0;
-        updateClimbing(b, dt, legs); // (another player's from his holds: Subject::holds)
+        solveTorso(s, b);
+        debugHead = posingOther() ? debugHead : s.head;
+
+        // The left arm reaches for the left controller (HAND_OFF, left-handed too), the right for the right.
+        solveArm(b, 0, handPoses[HAND_OFF]);
+        solveArm(b, 1, handPoses[HAND_MAIN]);
+        const float dt = legsDeltaTime();
+        if(legs)
+        {
+            updateWater(b, s, dt);
+        }
+        // (Another player's from how the server has him: lying down, swimming, climbing: MP_PLAN.md, B5b, B5c.)
+        updateBodyPitch(s, dt); // (next frame's solveTorso: the trunk's turn)
+        updateGait(b, dt);
+        const glm::vec3 stand = s.head - glm::vec3{s.lean.x, s.lean.y, 0.f}; // where the body stands (the box's middle)
+        updateStance(b, stand, dt);
+        {
+            const double t0 = vr_debug_climb_feet.value >= 2.f && !posingOther() ? Sys_DoubleTime() : 0.0;
+            updateClimbing(b, dt, legs); // (another player's from his holds: Subject::holds)
+            if(!posingOther())
+            {
+                climbing.updateMs = vr_debug_climb_feet.value >= 2.f ? (Sys_DoubleTime() - t0) * 1000.0 : 0.0;
+            }
+        }
+        solveLeg(b, stand, 0, legs, still[0]);
+        solveLeg(b, stand, 1, legs, still[1]);
         if(!posingOther())
         {
-            climbing.updateMs = vr_debug_climb_feet.value >= 2.f ? (Sys_DoubleTime() - t0) * 1000.0 : 0.0;
+            logClimbing(b);
+            traceLean(b, s);
+            captureLieProbe(b, s);
         }
-    }
-    glm::mat3 still[2];
-    solveLeg(b, stand, 0, legs, still[0]);
-    solveLeg(b, stand, 1, legs, still[1]);
-    if(!posingOther())
-    {
-        logClimbing(b);
-        traceLean(b, s);
-        captureLieProbe(b, s);
     }
 
     // The thighs relative to the pelvis, as they are and standing still (Follower::thigh).
@@ -1892,7 +1973,7 @@ glm::vec3 pose(const hands::State& s, qmodel_t* model, const entity_t* ent, cons
         skinBone(bone, bone.size, inv, &posed.skin[i * 12]);
         // The shadow maps': the neck and head as the model has them (the eye views collapse them, solveTorso).
         float* shadow = &posed.shadowSkin[i * 12];
-        if(j == Neck || j == Head)
+        if((j == Neck || j == Head) && !(doll && doll->hideHead))
         {
             skinBone(bone, 1.f, inv, shadow);
         }
@@ -1970,7 +2051,7 @@ bool otherSkeleton(int player, Skeleton& out)
     return true;
 }
 
-bool otherPitch(int player, float& angle, float& lying)
+bool otherPitch(int player, float& angle, float& lying, float& sliding)
 {
     // (this frame or the last: a report between two frames' poses)
     if(player < 1 || player > MAX_SCOREBOARD || others[player].frame < host_framecount - 1 || !others[player].posed.ent)
@@ -1979,6 +2060,19 @@ bool otherPitch(int player, float& angle, float& lying)
     }
     angle = others[player].motion.bodyPitch.angle;
     lying = others[player].motion.bodyPitch.lying;
+    sliding = others[player].motion.bodyPitch.sliding;
+    return true;
+}
+
+bool ownPitch(float& angle, float& lying, float& sliding)
+{
+    if(!posed.ent)
+    {
+        return false;
+    }
+    angle = bodyPitch.angle;
+    lying = bodyPitch.lying;
+    sliding = bodyPitch.sliding;
     return true;
 }
 

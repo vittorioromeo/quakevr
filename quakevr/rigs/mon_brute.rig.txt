@@ -1,0 +1,9 @@
+qvrrig 1
+model progs/e2/mon_brute.mdl
+weight 759 hand_l 1
+weight 761 hand_l 1
+weight 771 hand_l 1
+weight 772 hand_l 1
+weight 774 hand_l 1
+weight 775 hand_l 1
+weight 777 hand_l 1

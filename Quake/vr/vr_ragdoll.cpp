@@ -2659,6 +2659,60 @@ void rigSweep_f()
     Con_Printf("vr_ragdoll_rig_sweep: %d rigged, %d failed, %d absent\n", rigged, failed, absent);
 }
 
+// vr_ragdoll_rig_spans <model> [max]: the rig's triangles whose corners lie on bones not joined to each other (neither the
+// same bone nor parent and child): each stretches across the ragdoll as its limbs part (Dwell's Brute: a cannon vertex
+// on the right hand, a triangle across his arms, his note 2026-11-21). Each one's corners (vertex, bone, rest-pose place),
+// then "vr_ragdoll_rig_spans: <model>: N spanning triangles".
+void rigSpans_f()
+{
+    if(Cmd_Argc() < 2)
+    {
+        Con_Printf("vr_ragdoll_rig_spans <model> [max]\n");
+        return;
+    }
+    qmodel_t* model = Mod_ForName(Cmd_Argv(1), false);
+    const Rig* rig = model && model->type == mod_alias ? rigFor(model) : nullptr;
+    const auto* hdr = rig ? static_cast<const aliashdr_t*>(Mod_Extradata(model)) : nullptr;
+    if(!rig || !hdr || rig->numVerts != hdr->numverts)
+    {
+        Con_Printf("vr_ragdoll_rig_spans: %s: no rig\n", Cmd_Argv(1));
+        return;
+    }
+    const int max = Cmd_Argc() > 2 ? Q_atoi(Cmd_Argv(2)) : 8;
+    const auto joined = [rig](int a, int b) { return a == b || rig->bones[a].parent == b || rig->bones[b].parent == a; };
+    const auto* desc = reinterpret_cast<const aliasmesh_t*>(reinterpret_cast<const byte*>(hdr) + hdr->meshdesc);
+    const auto* idx = reinterpret_cast<const unsigned short*>(reinterpret_cast<const byte*>(hdr) + hdr->indexes);
+    const auto* rest = reinterpret_cast<const trivertx_t*>(reinterpret_cast<const byte*>(hdr) + hdr->vertexes);
+    int spans = 0;
+    for(int i = 0; i + 2 < hdr->numindexes; i += 3)
+    {
+        int v[3], b[3];
+        for(int k = 0; k < 3; k++)
+        {
+            v[k] = desc[idx[i + k]].vertindex;
+            b[k] = rig->vertBone[static_cast<za::SizeT>(v[k])];
+        }
+        if(joined(b[0], b[1]) && joined(b[1], b[2]) && joined(b[0], b[2]))
+        {
+            continue;
+        }
+        if(++spans <= max)
+        {
+            char line[256] = {};
+            for(int k = 0; k < 3; k++)
+            {
+                const trivertx_t& t = rest[v[k]];
+                const size_t n = strlen(line);
+                q_snprintf(line + n, sizeof(line) - n, " %d %s (%.1f %.1f %.1f)", v[k], rig->bones[b[k]].name,
+                    hdr->scale_origin[0] + hdr->scale[0] * t.v[0], hdr->scale_origin[1] + hdr->scale[1] * t.v[1],
+                    hdr->scale_origin[2] + hdr->scale[2] * t.v[2]);
+            }
+            Con_Printf("vr_ragdoll_rig_spans: triangle %d:%s\n", i / 3, line);
+        }
+    }
+    Con_Printf("vr_ragdoll_rig_spans: %s: %d spanning triangles\n", model->name, spans);
+}
+
 void retireAuthored()
 {
     for(za::UniquePtr<Rig>& r : authoredRigs.rigs)
@@ -4040,6 +4094,11 @@ void boneTriangles(const Rig& rig, int bone, za::Vector<glm::vec3>& out)
 void hideHeadOf(int num)
 {
     hiddenHeadNum = num;
+}
+
+bool headHidden(int num)
+{
+    return num > 0 && num == hiddenHeadNum;
 }
 
 } // namespace qvr::ragdoll

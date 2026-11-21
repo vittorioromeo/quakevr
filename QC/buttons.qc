@@ -849,6 +849,8 @@ entity(entity xSpawner) VR_WeaponGrabbable_Make =
     VR_ADMelee_Placed(xSpawner.weapon, xSpawner.weaponflags); // AD support: an AD melee weapon (vr_ad_melee.qc)
     entity inst = WeaponInst_New(WeaponIdToBaseClipSize(xSpawner.weapon)); // a new one, loaded
     inst.wi_adup = vr_grab_adup; // AD support: an upgrade's prop (the toolgun)
+    inst.wi_dwvar = vr_grab_dwvar; // Dwell's weapons: a variant's prop (the toolgun; dw_items.qc DW_WeaponProp)
+    if(inst.wi_dwvar) { inst.wi_adup = 0; }
     inst.wi_clip = VR_ClipSizeOf(xSpawner.weapon, inst); // (the Widowmaker's: its whole tube, not the super shotgun's 2)
     entity w = CreateThrownWeapon(xSpawner, xSpawner.weapon, xSpawner.weaponflags,
         inst,
@@ -858,6 +860,7 @@ entity(entity xSpawner) VR_WeaponGrabbable_Make =
         FALSE /* deal damage */,
         WeaponIdToThrowDamage(xSpawner.weapon)
     );
+    vr_grab_made = w;
     w.vr_grab_by_handle = (xSpawner.spawnflags & WEAPON_GRABBABLE_BY_HANDLE) ? 1 : 0;
     if(w)
     {

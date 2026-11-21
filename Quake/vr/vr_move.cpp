@@ -136,6 +136,95 @@ void writeDrawnHand(sizebuf_t* buf, const VrDrawnHand& h, const glm::vec3& origi
     }
 }
 
+void writeGunLook(sizebuf_t* buf, const VrGunLook& l)
+{
+    // (the player's mode bits with or without a gun: his holstered guns are drawn by them)
+    const za::U8 bits = (l.bits & VrGunLook::gunBit) ? l.bits : (l.bits & ~VrGunLook::revolverBit);
+    MSG_WriteByte(buf, bits);
+    if(!(bits & VrGunLook::gunBit))
+    {
+        return;
+    }
+    MSG_WriteShort(buf, l.flags);
+    MSG_WriteByte(buf, l.clip);
+    MSG_WriteByte(buf, l.clipSize);
+    if(bits & VrGunLook::revolverBit)
+    {
+        const int rv = l.revolver & 0xFFFFFF; // (18 bits used: vr_protocol.hpp, STAT_QVR_REVOLVER)
+        MSG_WriteByte(buf, rv & 255);
+        MSG_WriteByte(buf, (rv >> 8) & 255);
+        MSG_WriteByte(buf, (rv >> 16) & 255);
+        MSG_WriteByte(buf, static_cast<int>(za::round(l.cylinder / 360.f * 256.f)) & 255);
+    }
+}
+
+VrGunLook readGunLook()
+{
+    VrGunLook l;
+    l.bits = static_cast<za::U8>(MSG_ReadByte());
+    if(!(l.bits & VrGunLook::gunBit))
+    {
+        l.bits &= static_cast<za::U8>(~VrGunLook::revolverBit);
+        return l;
+    }
+    l.flags = static_cast<za::U16>(MSG_ReadShort());
+    l.clip = static_cast<za::U8>(MSG_ReadByte());
+    l.clipSize = static_cast<za::U8>(MSG_ReadByte());
+    if(l.bits & VrGunLook::revolverBit)
+    {
+        const int b0 = MSG_ReadByte();
+        const int b1 = MSG_ReadByte();
+        const int b2 = MSG_ReadByte();
+        l.revolver = b0 | (b1 << 8) | (b2 << 16);
+        l.cylinder = static_cast<float>(MSG_ReadByte()) * (360.f / 256.f);
+    }
+    return l;
+}
+
+void writeDrawnLamp(sizebuf_t* buf, const VrDrawnLamp& l, const glm::vec3& origin)
+{
+    const za::U8 flags = (l.flags & VrDrawnLamp::placedBit) ? l.flags : 0;
+    MSG_WriteByte(buf, flags);
+    if(!flags)
+    {
+        return;
+    }
+    writeEighths(buf, l.origin, origin);
+    const glm::quat q = l.rot.w < 0.f ? -l.rot : l.rot;
+    for(int i = 0; i < 3; i++)
+    {
+        MSG_WriteShort(buf, za::clamp(static_cast<int>(za::round(q[i] * 32767.f)), -32767, 32767));
+    }
+    if(flags & VrDrawnLamp::litBit)
+    {
+        MSG_WriteShort(buf, za::clamp(static_cast<int>(za::round(l.range)), 0, 32767));
+    }
+}
+
+VrDrawnLamp readDrawnLamp(const glm::vec3& origin)
+{
+    VrDrawnLamp l;
+    l.flags = static_cast<za::U8>(MSG_ReadByte());
+    if(!(l.flags & VrDrawnLamp::placedBit))
+    {
+        l.flags = 0;
+        return l;
+    }
+    l.origin = readEighths(origin);
+    glm::vec3 v;
+    for(int i = 0; i < 3; i++)
+    {
+        v[i] = static_cast<float>(MSG_ReadShort()) / 32767.f;
+    }
+    const float w2 = 1.f - glm::dot(v, v);
+    l.rot = glm::normalize(glm::quat{w2 > 0.f ? za::sqrt(w2) : 0.f, v.x, v.y, v.z});
+    if(l.flags & VrDrawnLamp::litBit)
+    {
+        l.range = static_cast<float>(MSG_ReadShort());
+    }
+    return l;
+}
+
 VrDrawnHand readDrawnHand(const glm::vec3& origin)
 {
     VrDrawnHand h;
@@ -335,6 +424,7 @@ void writeVrMove(sizebuf_t* buf, const VrMove& move)
     }
     writeBodyPose(buf, move.body);
     writeDrawnHolsters(buf, move.holsters, move.origin, true);
+    writeDrawnLamp(buf, move.lamp, move.origin);
 }
 
 za::Optional<VrMove> readVrMove()
@@ -411,6 +501,7 @@ za::Optional<VrMove> readVrMove()
     }
     move.body = readBodyPose();
     move.holsters = readDrawnHolsters(in.finite ? move.origin : glm::vec3{0.f}, true);
+    move.lamp = readDrawnLamp(in.finite ? move.origin : glm::vec3{0.f});
 
     if(!in.finite)
     {
