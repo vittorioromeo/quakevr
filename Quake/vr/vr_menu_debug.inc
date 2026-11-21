@@ -1015,6 +1015,10 @@ za::Vector<Item> pageDebugReports()
         command("Official Campaign Status", "vr_campaign_status").help("Owned data and language readiness; active native campaign context."),
         command("Dopa Finale Text", "loc_probe $map_dopa_endtext_final").help("Preview the resolved completion text. loc_probe <key> [arguments] also checks formatted expansion strings."),
         command("Campaign File Sources", "vr_campaign_probe").help("Actual resolved sources for VR progs and colliding official maps; vr_campaign_probe <filename> checks any virtual file."),
+        command("Music File", "vr_music_which")
+            .help("vr_music_which [track]: the file a CD track plays from (the map's own track by default) and the folder it "
+                  "comes from: the active campaign's, Quake's, a mod's or a map package's (never another campaign's mounted "
+                  "for its models and sounds, Dwell's or Quoth's)."),
         command("Mission Pack Status", "vr_pack_status")
             .help("Prints whether Hipnotic and Rogue are available, missing or incomplete/corrupt. Both are optional for the Quake campaign."),
         command("Headset", "vr_status").help("vr_status: the backend, the eyes' sizes, the hidden area, the head's and hands' poses."),

@@ -185,6 +185,23 @@ void sayMissing(int code, const char* what)
 
 } // namespace
 
+// vr_music_which [track]: the file a track plays from (the map's own by default), "VR music which: track N -> <path>
+// (from <source>)" or "-> none"; for tests (music_test.sh: Dwell's and Quoth's folders never play over another
+// campaign's tracks) and Debug > Tools' "Music File".
+extern "C" void VR_MusicWhich_f()
+{
+    const int track = Cmd_Argc() > 1 ? Q_atoi(Cmd_Argv(1)) : cl.cdtrack;
+    constexpr const char* exts[] = {"ogg", "opus", "mp3", "flac", "wav"};
+    vr_musicfile_t file{};
+    if(!VR_FindMusicTrack(track, exts, int(countof(exts)), &file))
+    {
+        Con_Printf("VR music which: track %d -> none\n", track);
+        return;
+    }
+    Con_Printf("VR music which: track %d -> %s%s%s (from %s)\n", track, file.path, file.pak ? " : " : "",
+        file.pak ? file.name : "", file.source[0] ? file.source : "a campaign folder");
+}
+
 extern "C" int VR_MusicCampaignTrack(const char* folder, int track)
 {
     if(!folder || track < 2 || track >= campaignTrackSpan) { return 0; }
@@ -200,6 +217,26 @@ extern "C" int VR_FindMusicTrack(int track, const char* const* exts, int numExts
     if(track < 0 || track >= maxTracks || numExts <= 0) { return 0; }
     *out = vr_musicfile_t{};
 
+    // A mod's or map package's own track wins, as the search path says (the active third-party campaign's too: Dwell
+    // numbers its own tracks 69-254, DWELL.md 4, which are its files, not a campaign's own track below).
+    vr_musicfile_t top{};
+    char topFolder[MAX_OSPATH] = {};
+    bool haveTop = false;
+    // (a folder the search path skips for this file is skipped here too: Dwell's, Quoth's and AD's folders are mounted
+    // in every campaign for their models and sounds only, VR_SkipSearchPath; Dwell's music/track02..05 played over
+    // Quake's and Scourge of Armagon's, his note 2026-11-21)
+    char wanted[MAX_QPATH];
+    q_snprintf(wanted, sizeof(wanted), "music/track%02d.ogg", track);
+    for(const searchpath_t* sp = com_searchpaths; sp && !haveTop; sp = sp->next)
+    {
+        if(VR_SkipSearchPath(wanted, sp->pack ? sp->pack->filename : sp->filename)) { continue; }
+        if(!findInSearchPath(sp, track, exts, numExts, &top)) { continue; }
+        haveTop = true;
+        folderOf(sp, topFolder, sizeof(topFolder));
+        q_strlcpy(top.source, sp->pack ? sp->pack->filename : sp->filename, sizeof(top.source));
+    }
+    if(haveTop && !isCampaignFolder(topFolder)) { *out = top; return 1; }
+
     if(track >= campaignTrackBase) // a campaign's own track: that folder's only
     {
         const int folder = (track - campaignTrackBase) / campaignTrackSpan, n = (track - campaignTrackBase) % campaignTrackSpan;
@@ -210,19 +247,6 @@ extern "C" int VR_FindMusicTrack(int track, const char* const* exts, int numExts
         sayMissing(track, what);
         return 0;
     }
-
-    // A mod's or map package's own track wins, as the search path says.
-    vr_musicfile_t top{};
-    char topFolder[MAX_OSPATH] = {};
-    bool haveTop = false;
-    for(const searchpath_t* sp = com_searchpaths; sp && !haveTop; sp = sp->next)
-    {
-        if(!findInSearchPath(sp, track, exts, numExts, &top)) { continue; }
-        haveTop = true;
-        folderOf(sp, topFolder, sizeof(topFolder));
-        q_strlcpy(top.source, sp->pack ? sp->pack->filename : sp->filename, sizeof(top.source));
-    }
-    if(haveTop && !isCampaignFolder(topFolder)) { *out = top; return 1; }
 
     // The active campaign's track, then Quake's. Without the quakevr folder (plain Quake, a mod), every campaign
     // folder on the search path in its order.

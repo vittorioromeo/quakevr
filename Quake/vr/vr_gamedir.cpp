@@ -1087,8 +1087,10 @@ extern "C" void VR_ReloadVRGameKeepCampaign()
     rebuildingCampaign = false;
 }
 
+extern "C" void VR_MusicWhich_f(); // vr_music.cpp
 extern "C" void VR_RegisterPackStatus()
 {
+    Cmd_AddCommand("vr_music_which", VR_MusicWhich_f);
     Cvar_SetROM("vr_hipnotic_status", va("%d", packStatus[0]));
     Cvar_SetROM("vr_rogue_status", va("%d", packStatus[1]));
     Cmd_AddCommand("vr_pack_status", reportPackStatus);
