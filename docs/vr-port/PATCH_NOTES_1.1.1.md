@@ -246,6 +246,10 @@ aren't Map Library packages aren't sent to joining players.
 
 ## Monsters
 
+- **The Super Axe beheads and cuts limbs reliably.** Blows with the inner curve of its head (the part of its blade
+  nearest your hands) counted as hits with the handle and never took a head or a limb off; now an axe's own blade
+  shape decides where its cutting part starts, and the Super Axe's starts where its crescent edge does (a sword
+  still never cuts with its guard or hilt).
 - **A shove never makes an enemy bleed.** An enemy you had hurt earlier, even a single pellet long before, bled from
   every limb as a later shove sent it sprawling. Now a knocked-down or staggering enemy's limbs bleed only for blood
   drawn as it went down or while it is down (shot as you shove it, cut while it lies there); a corpse's still do.

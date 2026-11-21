@@ -26,6 +26,7 @@ Flat-screen: the Crystal Lance is held as a spear in both hands, the right hand 
 Flat-screen or VR: armed grunts, enforcers, knights and death knights recoloured by their weapon look dyed rather than painted over: the cloth keeps its shading, the rocket launcher's red reads red (not pink), and faces, bare arms and hands keep their own colour. {test:humrepl_looks}
 Flat-screen or VR: Debug > Tools > Texture Studio: Line Up, then move a category's Red, Strength, Lightness and Tint; the matching humanoid changes as you move them, Show the Masks paints clothes green and pack blue, and Save then Reload keeps your values. {test:humrepl_studio}
 Flat-screen or VR: in the Texture Studio turn on Paint, close the menu and point at a lined-up grunt: the trigger (flat: attack) paints with the chosen class, the grip erases, B/Y (or Undo on the page) takes a stroke back, and cycling a palette row changes the whole type at once. {test:humrepl_studio}
+Super Axe in both hands: slash enemies' necks edge first, fast and slow, also with the inner curve of the head: it beheads (and cuts limbs) as often as the axe and swords do, never from a hit with the handle. {test:superaxe_behead}
 
 [1. Dwell]
 Dwell: Select Campaign > Dwell, play start and d1m1 (triggered monsters wait, checkpoints autosave); Map Library: Ancient and Underdark Overbright udob1 load and play by Copper rules {test:hub_start}
