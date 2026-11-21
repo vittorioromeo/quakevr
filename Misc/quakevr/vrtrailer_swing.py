@@ -90,7 +90,7 @@ def main():
     ap.add_argument("--off", type=float, default=0.6, help="the off hand's place up the handle (0 the main hand, 1 the head)")
     ap.add_argument("--reach", type=float, default=0.8, help="metres the hands reach forward half way through the swing")
     ap.add_argument("--distance", type=float, default=0.9, help="metres from the head to the grunt's middle (the take's note)")
-    ap.add_argument("--lead", type=float, default=45.0, help="degrees the head's way is turned on into the swing")
+    ap.add_argument("--lead", type=float, default=0.0, help="degrees the head's way is turned on into the swing (0: the shipped Super Axe needs none, ROUND25.md axelag)")
     ap.add_argument("--lateral", type=int, default=0, help="1: the hand straight across at --reach, the head ahead")
     args = ap.parse_args()
     settings = shipped_settings()

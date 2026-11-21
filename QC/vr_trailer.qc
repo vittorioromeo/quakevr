@@ -95,6 +95,7 @@ void() VR_Trailer_Setup =
     }
     if(vr_trailer_grunt != world)
     {
+        VR_AgArmor_Give(vr_trailer_grunt, 0, 0); // (bare-headed: the skill's armour roll gave him a helmet, which stops the beheading)
         vr_trailer_grunt_org = vr_trailer_grunt.origin;
         vr_trailer_grunt_ang = vr_trailer_grunt.angles;
         vr_trailer_grunt_class = vr_trailer_grunt.classname;
@@ -161,6 +162,7 @@ void() VR_Trailer_Reset =
         monster_army(); // (the scene's one kind: a grunt)
         self = oself;
         vr_trailer_grunt = g;
+        VR_AgArmor_Give(g, 0, 0); // (bare-headed, as VR_Trailer_Setup leaves him)
     }
     // the Super Axe: out of the player's hands, off the bridge, on its pedestal again
     entity p = VR_Player();

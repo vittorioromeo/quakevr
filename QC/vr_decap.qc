@@ -17,6 +17,20 @@
 
 float VR_DECAP_BLADE_SWORD = 0.4;  // the blade proper: from this share of the way from the grip to the tip (VR_MELEE_BLADE_FROM)
 float VR_DECAP_BLADE_AXE = 0.6;    // an axe's head (25..37 units up its 40)
+
+// Where the blade proper (what beheads and cuts limbs) starts on a held blade's line, a share of the way from the grip
+// to the tip: the weapon's own Blade From (Edit Blade Shape: `xOwnFrom`, its blow's mh_bfrom or VR_Melee_Line's
+// vr_mline_from_x; its striking points are laid from there, VR_Melee_LayoutFrom) when it has one, else its kind's. (Before
+// 2026-11-21 always the kind's: the Super Axe's crescent edge, drawn from 0.15 of its line by his Blade Shape, read as
+// "the hilt or handle" below 0.6 and never beheaded there; ROUND25.md "axelag".)
+float(float xThing, float xOwnFrom) VR_Decap_BladeFrom =
+{
+    if(xOwnFrom > 0 && xOwnFrom < 1)
+    {
+        return xOwnFrom;
+    }
+    return (xThing == VR_MTHING_AXE) ? VR_DECAP_BLADE_AXE : VR_DECAP_BLADE_SWORD;
+};
 float VR_DECAP_DIED_LATE = 0.3;    // s: a thrown axe's blade going in this soon after its hit box killed the monster still beheads it
 float VR_DECAP_SPURT_TICK = 0.05;  // s between the fountain's spurts
 float VR_DECAP_BEAT = 2.2;         // Hz: its pulses
@@ -295,7 +309,7 @@ float(float xHand, vector xAt, float xLive) VR_Decap_Slash =
     {
         no = (b.mh_kind == VR_MKIND_STAB) ? "a stab" : "a pommel or hilt";
     }
-    else if(f < ((thing == VR_MTHING_AXE) ? VR_DECAP_BLADE_AXE : VR_DECAP_BLADE_SWORD))
+    else if(f < VR_Decap_BladeFrom(thing, b.mh_bfrom))
     {
         no = (f < 0) ? "the pommel" : "the hilt or handle";
     }

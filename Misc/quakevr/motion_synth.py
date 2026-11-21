@@ -399,7 +399,7 @@ WEAPON_FAR = {"axe": (0.155, -0.012, 0.209), "mjolnir": (0.159, -0.0025, 0.205),
               # 2026-11-10, a1da23a80) from its grip, measured (developer 3's melee trace, the controller level, at
               # vr_world_scale 1.2; the same at vr_gunangle 70 and 39.5, ROUND25.md "testenv"). It was an estimate
               # on the handle's line at the head's middle, 23 degrees steeper (0.284, -0.022, 0.383).
-              "superaxe": (0.237, -0.016, 0.140)}
+              "superaxe": (0.092, -0.010, 0.353)}
 
 
 def weapon_pose(hand, weapon, axis, right):
