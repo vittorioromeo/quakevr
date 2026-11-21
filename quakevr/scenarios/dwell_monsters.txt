@@ -1,0 +1,10 @@
+# dwell_monsters: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one" (needs Dwell installed)
+title Dwell's Brute, Kamikaze and Construct; a sword and a shotgun in your hands
+map vrtesthall
+start 0 -288 25 90
+god
+give "Knight's Sword" main
+give "Shotgun" off
+spawn "Brute" 300 -80
+spawn "Kamikaze" 360 80
+spawn "Construct" 420 0

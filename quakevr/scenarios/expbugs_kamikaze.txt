@@ -1,7 +1,0 @@
-# expbugs_kamikaze: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Dwell's Kamikaze chases before
-# it bursts, and its burst is drawn (his note 2026-11-21: it burst at once, sound and gibs only). Needs Dwell installed.
-title Dwell's Kamikaze: the chase and the explosion
-map vrfiringrange
-god
-spawn "Kamikaze" 450 0
-hint The Kamikaze far ahead sees you, runs at you screaming and bursts only when it reaches you, with an explosion (fire and smoke), its sound and gibs. Spawn another from the toolgun (Monsters > Dwell) to see it again.

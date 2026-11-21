@@ -1,0 +1,8 @@
+# mp_dm_passive: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one" (killed, it respawns and is put back)
+title Deathmatch on dm3 with a passive bot in front of you (stands still, never attacks, takes hits)
+mp dm
+map dm3
+start 632 -648 88 0
+god
+give "Shotgun" main
+bot passive 128 0
