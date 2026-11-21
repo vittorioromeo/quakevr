@@ -75,6 +75,11 @@ The toolgun's Dwell weapons and MG3 bloody shotguns lie on the floor as props, n
 Dwell's Kamikaze sees you, chases you screaming and bursts only when it reaches you, with an explosion drawn {test:expbugs_kamikaze}
 Dwell's Brute's ragdoll: the cannon stays on his left arm, no triangle stretches from his right hand across his arms {test:expbugs_brute}
 Dwell d2end: fight the Sculptor; when it flies or teleports onto you, you are put just outside it, never stuck inside moving with it
+Click the moving stick once at a time with Speed Button: Toggle: each click switches the speed once, never twice {test:speed_toggle_click}
+With Default Speed: Run, double-tap the stick: you walk until you let go {test:speed_toggle_click}
+Sliding is on by default in VR: slide and look left or right: your hips and legs keep pointing the way you slide, the chest turned back to your body {test:vr_slide_legs}
+With eye tracking (Quest Pro) the clear middle of foveation follows your eyes with no setting or restart; without it, it stays centred, and the menu line says which {test:foveation_auto}
+Pistol-whip with the heavy revolver: the cylinder stays shut; a deliberate wrist flick still opens it {test:revolver_swing}
 
 [1. Flat-screen: weapons and hands]
 
