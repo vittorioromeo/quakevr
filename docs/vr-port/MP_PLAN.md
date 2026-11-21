@@ -4205,3 +4205,9 @@ loopback (the harness's), interpolation delay 0.12-0.25 s.
   play 443 (662 in the play without them), the dropped shotgun 0.04 units p95 (2.3 before), the crate and sword 0.04;
   the backpacks 0.04 over all samples, one flung backpack 3.2 units p95 while it flew (one 0.8 s burst as a grunt was
   gibbed, likely the gib storm's full datagram; not traced further); the small gibs' cosmetic budget as before.
+- **raginterp** (2026-11-21, the regression smallfix found): with the ragdolls sent the crate and sword at B were 6.5 /
+  2.9 units p95 in some runs, drawn in steps 1-2 ticks ahead. Not the ragdoll code: the entities' interpolation history
+  kept 8 messages (0.11 s) while the adaptive delay may reach 0.25 s (and the clock lag its target 0.25 s more, catching
+  up after a hitch); the ragdolls' bigger snapshots arrived less evenly, the delay grew past 7 ticks and the clock fell
+  before each entity's oldest message, which interpEntity holds ("before the oldest"): drawn at the oldest, stepping
+  ahead. Now 40 messages (vr_netsnap.cpp historyLen, a static_assert ties it to delayMost + snapAfter).

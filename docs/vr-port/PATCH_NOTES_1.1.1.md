@@ -76,6 +76,9 @@ The guide: [MULTIPLAYER.md](MULTIPLAYER.md).
   fall, tumble and get up the same way for everyone (before, a joining player saw the death animation instead); props,
   thrown weapons and gibs already moved the same for everyone, and still do while ragdolls are sent (the ragdolls only
   use the room the rest leaves). A corpse you hold follows your hand smoothly, as for the host.
+- **Fixed: thrown props jumping at a joining player.** A thrown crate or sword (any moving thing) could move in small
+  jumps, a moment ahead of everything else, when the connection was uneven (ragdolls moving, a hitch on the host); it
+  now always moves smoothly.
 - **Other players' guns and torches as they are**: the heavy revolver's cylinder swinging out and its shells, a super
   shotgun broken open, magazines in or dropped and the rounds they show, the ammo screen's count, the Widowmaker's
   spinning barrels; another player's flashlight is drawn where he carries it and lights the world where it points.
