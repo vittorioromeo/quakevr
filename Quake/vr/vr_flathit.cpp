@@ -14,6 +14,7 @@
 #include "vr_api.h"
 #include "vr_tunables.hpp"
 #include "vr_engine.hpp"
+#include "vr_seat.hpp"
 #include "vr_flatplay.hpp"
 #include "vr_flatsight.hpp"
 #include "vr_geom.hpp"
@@ -72,7 +73,11 @@ struct State
     Probe probe;
 };
 
-State st;
+// splitscreen (SPLITSCREEN.md, phase 3): the current seat's (seat::Part::FlatHit)
+[[nodiscard]] State& st()
+{
+    return seat::part<State>(seat::current(), seat::Part::FlatHit);
+}
 
 [[nodiscard]] float tune(const Tunable& v, float lo, float hi)
 {
@@ -92,11 +97,11 @@ State st;
 
 void clearHits()
 {
-    for(Hit& h : st.hits)
+    for(Hit& h : st().hits)
     {
         h = {};
     }
-    st.next = 0;
+    st().next = 0;
 }
 
 // The sighted share of a punch or a knock: 1 hipfire, `sighted` as far as the ironsight has come.
@@ -112,7 +117,7 @@ void clearHits()
     const float attack = tune(vr_flat_hitpunch_attack, 0.f, 0.5f);
     const float back = tune(vr_flat_hitpunch_time, 0.01f, 3.f);
     glm::vec2 want{0.f};
-    for(const Hit& h : st.hits)
+    for(const Hit& h : st().hits)
     {
         const float age = static_cast<float>(cl.time - h.at);
         if(age < 0.f || age >= attack + back)
@@ -128,7 +133,7 @@ void clearHits()
     {
         want *= size > 0.f ? most / size : 0.f;
     }
-    st.probe.punchRaw = za::max(st.probe.punchRaw, glm::length(want));
+    st().probe.punchRaw = za::max(st().probe.punchRaw, glm::length(want));
     return want * sightedShare(vr_flat_hitpunch_ads);
 }
 
@@ -155,14 +160,14 @@ void clearHits()
 
 void probe_f()
 {
-    Probe& p = st.probe;
+    Probe& p = st().probe;
     Con_Printf("flathitknock: raw %.4f drawn %.4f share %.3f (vr_flat_ads_hitreact %g, ads %.3f)\n", p.rawKnock, p.drawnKnock,
         p.share, vr_flat_ads_hitreact.value, flatsight::adsShare());
-    Con_Printf("flathitpunch: hits %d peak %.3f raw %.3f now %.3f %.3f (pitch yaw) aim %.3f %.3f fov %.3f %.3f\n", st.count, p.punchPeak, p.punchRaw, st.applied.x,
-        st.applied.y, cl.viewangles[PITCH], cl.viewangles[YAW], r_refdef.fov_x, r_refdef.fov_y);
+    Con_Printf("flathitpunch: hits %d peak %.3f raw %.3f now %.3f %.3f (pitch yaw) aim %.3f %.3f fov %.3f %.3f\n", st().count, p.punchPeak, p.punchRaw, st().applied.x,
+        st().applied.y, cl.viewangles[PITCH], cl.viewangles[YAW], r_refdef.fov_x, r_refdef.fov_y);
     for(int i = 0; i < maxHits; i++)
     {
-        const Hit& h = st.hits[i];
+        const Hit& h = st().hits[i];
         if(const float a = markAlpha(h); a > 0.f)
         {
             Con_Printf("flathitmark: %d angle %.1f alpha %.3f\n", i, markAngle(h), a);
@@ -177,11 +182,11 @@ void test_f()
     {
         Con_Printf("vr_flat_hit_test <a, b, waitN, ...>: runs those commands (a comma between them; waitN: N frames) at the next "
                    "hit in flatscreen play, once (armed: %s)\n",
-            st.onHit[0] ? "yes" : "no");
+            st().onHit[0] ? "yes" : "no");
         return;
     }
     // (Commas, not semicolons: a test script's line is split at those. waitN as the kit's scripts write it.)
-    st.onHit[0] = 0;
+    st().onHit[0] = 0;
     const char* s = Cmd_Args();
     while(*s)
     {
@@ -202,10 +207,10 @@ void test_f()
             const int waits = !strncmp(cmd, "wait", 4) && cmd[4] >= '0' && cmd[4] <= '9' ? za::clamp(atoi(cmd + 4), 1, 600) : 0;
             for(int i = 0; i < (waits ? waits : 1); i++)
             {
-                q_strlcat(st.onHit, waits ? "wait\n" : cmd, sizeof(st.onHit));
+                q_strlcat(st().onHit, waits ? "wait\n" : cmd, sizeof(st().onHit));
                 if(!waits)
                 {
-                    q_strlcat(st.onHit, "\n", sizeof(st.onHit));
+                    q_strlcat(st().onHit, "\n", sizeof(st().onHit));
                 }
             }
         }
@@ -253,34 +258,34 @@ void onDamage(int armor, int blood, const float* from)
         punch.y = -deg * yawShare * glm::dot(blow, right);
     }
 
-    Hit& h = st.hits[st.next];
+    Hit& h = st().hits[st().next];
     h = {cl.time, punch, f, directed, 0.5f + 0.5f * za::clamp(damage / refDamage, 0.f, 1.f)};
-    st.next = (st.next + 1) % maxHits;
-    st.count++;
-    Con_DPrintf("flathit: hit %d damage %d %s punch %.2f %.2f (pitch yaw)\n", st.count, armor + blood,
+    st().next = (st().next + 1) % maxHits;
+    st().count++;
+    Con_DPrintf("flathit: hit %d damage %d %s punch %.2f %.2f (pitch yaw)\n", st().count, armor + blood,
         directed ? va("from %.1f deg", markAngle(h)) : "from nowhere", punch.x, punch.y);
 
-    if(st.onHit[0])
+    if(st().onHit[0])
     {
-        Cbuf_InsertText(st.onHit); // (ahead of what the script still has queued: its waits are the test's safety net)
-        st.onHit[0] = 0;
+        Cbuf_InsertText(st().onHit); // (ahead of what the script still has queued: its waits are the test's safety net)
+        st().onHit[0] = 0;
     }
 }
 
 void frame()
 {
-    if(!playing() || cl.time < st.lastTime - 0.1)
+    if(!playing() || cl.time < st().lastTime - 0.1)
     {
         // Out of the mode, dead, a new level: the hits go and what the punch had put into the aim stays (the view is his).
         clearHits();
-        st.applied = glm::vec2{0.f};
-        st.lastTime = cl.time;
+        st().applied = glm::vec2{0.f};
+        st().lastTime = cl.time;
         return;
     }
-    st.lastTime = cl.time;
+    st().lastTime = cl.time;
     const glm::vec2 want = punchWanted();
-    st.probe.punchPeak = za::max(st.probe.punchPeak, glm::length(want));
-    const glm::vec2 change = want - st.applied;
+    st().probe.punchPeak = za::max(st().probe.punchPeak, glm::length(want));
+    const glm::vec2 change = want - st().applied;
     if(change == glm::vec2{0.f})
     {
         return;
@@ -288,9 +293,9 @@ void frame()
     // Pitch within the look's own clamp: what it couldn't take is not owed back.
     const float pitchWas = cl.viewangles[PITCH];
     cl.viewangles[PITCH] = za::clamp(pitchWas + change.x, cl_minpitch.value, cl_maxpitch.value);
-    st.applied.x += cl.viewangles[PITCH] - pitchWas;
+    st().applied.x += cl.viewangles[PITCH] - pitchWas;
     cl.viewangles[YAW] += change.y;
-    st.applied.y += change.y;
+    st().applied.y += change.y;
 }
 
 void keepHitReact(int h, glm::vec3& pos, glm::vec3& angles)
@@ -301,7 +306,7 @@ void keepHitReact(int h, glm::vec3& pos, glm::vec3& angles)
         return;
     }
     const float share = sightedShare(vr_flat_ads_hitreact);
-    Probe& p = st.probe;
+    Probe& p = st().probe;
     p.rawKnock = za::max(p.rawKnock, glm::length(pos));
     pos *= share;
     angles *= share;
@@ -325,7 +330,7 @@ extern "C" void VR_FlatHitDraw(void)
     const float outer = inner + tune(vr_flat_hitdir_width, 0.002f, 0.1f) * height;
     const float half = glm::radians(tune(vr_flat_hitdir_arc, 5.f, 180.f)) * 0.5f;
     bool canvas = false;
-    for(const Hit& h : st.hits)
+    for(const Hit& h : st().hits)
     {
         const float alpha = markAlpha(h);
         if(alpha <= 0.f)

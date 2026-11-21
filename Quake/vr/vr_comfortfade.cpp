@@ -31,7 +31,7 @@ void info_f()
 {
     Con_Printf("comfortfade: real time %.2f fade %.2f..%.2f bonus %.0f%% (%d %d %d) blend alpha %.2f\n", realtime, fadeStart,
         fadeEnd, cl.cshifts[CSHIFT_BONUS].percent, cl.cshifts[CSHIFT_BONUS].destcolor[0],
-        cl.cshifts[CSHIFT_BONUS].destcolor[1], cl.cshifts[CSHIFT_BONUS].destcolor[2], v_blend[3]);
+        cl.cshifts[CSHIFT_BONUS].destcolor[1], cl.cshifts[CSHIFT_BONUS].destcolor[2], V_SeatView()->blend[3]);
 }
 
 } // namespace

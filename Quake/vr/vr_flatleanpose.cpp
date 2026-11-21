@@ -80,6 +80,7 @@ struct Test
     int blockedWall{0};   // every pair's guns stopped leant at the wall that fired upright
 };
 
+// seat-shared: a test's own (one at a time)
 Test test;
 
 void check(bool ok, const char* what)
@@ -484,6 +485,7 @@ struct SlideTest
     int pitches{slidePitchCount};
 };
 
+// seat-shared: a test's own (one at a time)
 SlideTest slideTest;
 
 // The slide's own gun offsets: taken off for the run, given back after.

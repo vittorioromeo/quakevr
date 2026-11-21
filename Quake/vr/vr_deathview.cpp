@@ -19,6 +19,7 @@
 #include "vr_mem.hpp"
 #include "vr_tunables.hpp"
 #include "vr_engine.hpp"
+#include "vr_seat.hpp"
 #include "vr_flatplay.hpp"
 #include "vr_progs.hpp"
 #include "vr_ragdoll.hpp"
@@ -63,7 +64,11 @@ struct State
     bool vomitRefSet{false}; // Vomit Mode: your head's yaw taken as the bone's straight ahead
     float vomitYawRef{0.f};
 };
-State state;
+// splitscreen (SPLITSCREEN.md, phase 3): the current seat's (seat::Part::DeathView)
+[[nodiscard]] State& state()
+{
+    return seat::part<State>(seat::current(), seat::Part::DeathView);
+}
 
 // The ragdoll body of player `player` (a listen server's edicts; QC vr_deathdoll.qc): its edict, 0 none.
 [[nodiscard]] int dollOf(int player)
@@ -110,7 +115,7 @@ State state;
 // The share of the Immersive view in effect: inHead eased (smoothstep: no jolt at either end).
 [[nodiscard]] float weight()
 {
-    return glm::smoothstep(0.f, 1.f, state.inHead);
+    return glm::smoothstep(0.f, 1.f, state().inHead);
 }
 
 [[nodiscard]] bool dead()
@@ -147,96 +152,96 @@ bool readHead(int num, glm::vec3& eyes, float& yaw, glm::quat* turn = nullptr)
 
 void deactivate()
 {
-    if(state.active || state.reached)
+    if(state().active || state().reached)
     {
-        if(state.reached && !dead() && cls.state == ca_connected)
+        if(state().reached && !dead() && cls.state == ca_connected)
         {
             comfortfade::start(vr_death_view_fade.value); // (back on your feet: the jump unseen)
         }
     }
-    state.active = false;
-    state.reached = false;
-    state.doll = 0;
-    state.headValid = false;
-    state.yaw = 0.f;
-    state.vomitRefSet = false;
+    state().active = false;
+    state().reached = false;
+    state().doll = 0;
+    state().headValid = false;
+    state().yaw = 0.f;
+    state().vomitRefSet = false;
     ragdoll::hideHeadOf(0);
 }
 
 void update(const hands::State& s)
 {
-    if(state.frame == host_framecount)
+    if(state().frame == host_framecount)
     {
         return;
     }
-    state.frame = host_framecount;
+    state().frame = host_framecount;
     const double now = realtime;
-    const float dt = static_cast<float>(za::clamp(now - state.last, 0.0, 0.1));
-    state.last = now;
+    const float dt = static_cast<float>(za::clamp(now - state().last, 0.0, 0.1));
+    state().last = now;
 
     if(!dead() || (mode() < 2 && !vomit()) || !s.valid)
     {
-        if(state.active || state.reached)
+        if(state().active || state().reached)
         {
             deactivate();
         }
-        state.doll = !dead() ? 0 : dollOf(cl.viewentity);
+        state().doll = !dead() ? 0 : dollOf(cl.viewentity);
         return;
     }
-    state.doll = dollOf(cl.viewentity);
-    float yaw = state.headYaw;
-    state.headValid = readHead(state.doll, state.headEyes, yaw, &state.headRot);
-    if(state.headValid)
+    state().doll = dollOf(cl.viewentity);
+    float yaw = state().headYaw;
+    state().headValid = readHead(state().doll, state().headEyes, yaw, &state().headRot);
+    if(state().headValid)
     {
-        state.headYaw = yaw;
+        state().headYaw = yaw;
     }
-    if(!state.reached)
+    if(!state().reached)
     {
-        if(!state.headValid)
+        if(!state().headValid)
         {
             return; // (not a ragdoll yet: the view where it was)
         }
-        state.reached = true;
-        state.active = true;
-        state.anchor = state.headEyes;
-        state.trackedRef = s.head;
-        state.yawRef = state.headYaw;
-        state.yaw = 0.f;
-        state.inHead = menuOpen() ? 0.f : 1.f;
+        state().reached = true;
+        state().active = true;
+        state().anchor = state().headEyes;
+        state().trackedRef = s.head;
+        state().yawRef = state().headYaw;
+        state().yaw = 0.f;
+        state().inHead = menuOpen() ? 0.f : 1.f;
         comfortfade::start(vr_death_view_fade.value);
-        Con_DPrintf("deathview: in body %d's head at %.1f %.1f %.1f\n", state.doll, state.anchor.x, state.anchor.y, state.anchor.z);
+        Con_DPrintf("deathview: in body %d's head at %.1f %.1f %.1f\n", state().doll, state().anchor.x, state().anchor.y, state().anchor.z);
     }
-    state.active = true;
+    state().active = true;
     {
         const float time = za::max(vr_death_view_menu_time.value, 0.f);
         const float goal = menuOpen() ? 0.f : 1.f;
         const float most = time > 0.f ? dt / time : 1.f;
-        state.inHead = state.inHead < goal ? za::min(goal, state.inHead + most) : za::max(goal, state.inHead - most);
+        state().inHead = state().inHead < goal ? za::min(goal, state().inHead + most) : za::max(goal, state().inHead - most);
     }
-    if(state.headValid && vomit())
+    if(state().headValid && vomit())
     {
-        state.anchor = state.headEyes; // (the head's own: no smoothing; its turn is taken whole in eyeView)
-        state.yaw = 0.f;
+        state().anchor = state().headEyes; // (the head's own: no smoothing; its turn is taken whole in eyeView)
+        state().yaw = 0.f;
     }
-    else if(state.headValid)
+    else if(state().headValid)
     {
         const float tau = za::max(vr_death_view_smooth.value, 0.f);
         const float k = tau > 0.f ? 1.f - za::exp(-dt / tau) : 1.f;
-        state.anchor += (state.headEyes - state.anchor) * k;
+        state().anchor += (state().headEyes - state().anchor) * k;
         if(vr_death_view_turn.value != 0.f)
         {
-            const float want = geom::wrap180(state.headYaw - state.yawRef);
-            float step = geom::wrap180(want - state.yaw) * k;
+            const float want = geom::wrap180(state().headYaw - state().yawRef);
+            float step = geom::wrap180(want - state().yaw) * k;
             const float most = za::max(vr_death_view_turn_speed.value, 0.f) * dt;
             step = za::clamp(step, -most, most);
-            state.yaw = geom::wrap180(state.yaw + step);
+            state().yaw = geom::wrap180(state().yaw + step);
         }
         else
         {
-            state.yaw = 0.f;
+            state().yaw = 0.f;
         }
     }
-    ragdoll::hideHeadOf(state.headValid && weight() > 0.5f ? state.doll : 0);
+    ragdoll::hideHeadOf(state().headValid && weight() > 0.5f ? state().doll : 0);
 }
 
 void status_f()
@@ -257,12 +262,12 @@ void status_f()
                "headhidden %d camera %.1f %.1f %.1f (%.1f from the eyes) turn %.1f hiddenfromothers %d inhead %.2f menu %d "
                "vomit %d camangles %.1f %.1f %.1f\n",
         mode(), cl.stats[STAT_HEALTH], doll, parts ? 1 : 0, rag ? 1 : 0, eyes.x, eyes.y, eyes.z, yaw, immersive() ? 1 : 0,
-        immersive() && state.headValid ? 1 : 0, state.eye0.x, state.eye0.y, state.eye0.z,
-        rag ? glm::length(state.eye0 - eyes) : -1.f, state.yaw, hiddenFromOthers ? 1 : 0, state.inHead, menuOpen() ? 1 : 0,
-        vomit() ? 1 : 0, state.eye0Angles.x, state.eye0Angles.y, state.eye0Angles.z);
+        immersive() && state().headValid ? 1 : 0, state().eye0.x, state().eye0.y, state().eye0.z,
+        rag ? glm::length(state().eye0 - eyes) : -1.f, state().yaw, hiddenFromOthers ? 1 : 0, state().inHead, menuOpen() ? 1 : 0,
+        vomit() ? 1 : 0, state().eye0Angles.x, state().eye0Angles.y, state().eye0Angles.z);
     if(rag && vomit())
     {
-        const glm::mat3 b = glm::mat3_cast(state.headRot);
+        const glm::mat3 b = glm::mat3_cast(state().headRot);
         const glm::vec3 a = hands::anglesFromVectors(b[0], b[2]);
         Con_Printf("deathview: head bone angles %.1f %.1f %.1f\n", a.x, a.y, a.z);
     }
@@ -273,47 +278,47 @@ void status_f()
 void eyeView(const hands::State& s, int eye, glm::vec3& origin, glm::vec3& angles)
 {
     update(s);
-    if(state.active && vomit())
+    if(state().active && vomit())
     {
         // Vomit Mode: the eye where the head bone's eyes are, its spacing from your head's centre turned from your head's
         // axes into the bone's, and the bone's whole turn as the view's (as far in as the menu lets it: weight).
         // Your own head's turn on top of the bone's (the author's note vrfiringrange_2026-10-23_17-45-04): its yaw from
         // where it faced as the view went there, its pitch and roll as they are; looking straight ahead is the bone's.
         const float w = weight();
-        if(!state.vomitRefSet)
+        if(!state().vomitRefSet)
         {
-            state.vomitRefSet = true;
-            state.vomitYawRef = angles.y;
+            state().vomitRefSet = true;
+            state().vomitYawRef = angles.y;
         }
         const glm::mat3 own = hands::basisOf(angles); // (forward, left, up)
-        const glm::mat3 rel = hands::basisOf(glm::vec3{angles.x, geom::wrap180(angles.y - state.vomitYawRef), angles.z});
-        const glm::quat full = glm::normalize(state.headRot * glm::quat_cast(rel));
+        const glm::mat3 rel = hands::basisOf(glm::vec3{angles.x, geom::wrap180(angles.y - state().vomitYawRef), angles.z});
+        const glm::quat full = glm::normalize(state().headRot * glm::quat_cast(rel));
         const glm::mat3 view = glm::mat3_cast(full);
         const glm::vec3 spacing = glm::transpose(own) * (origin - s.head);
-        origin = glm::mix(origin, state.anchor + view * spacing, w);
+        origin = glm::mix(origin, state().anchor + view * spacing, w);
         const glm::mat3 turn = glm::mat3_cast(glm::slerp(glm::quat_cast(own), full, w));
         angles = hands::anglesFromVectors(turn[0], turn[2]);
     }
-    else if(state.active)
+    else if(state().active)
     {
         // In the head as far as the menu lets it (weight): from Third Person's place (the view as given) to the head's.
         const float w = weight();
-        const float r = glm::radians(state.yaw), c = za::cos(r), n = za::sin(r);
-        const glm::vec3 d = origin - state.trackedRef; // (your own head since: its steps and the eyes' spacing)
-        origin = glm::mix(origin, state.anchor + glm::vec3{c * d.x - n * d.y, n * d.x + c * d.y, d.z}, w);
-        angles.y += state.yaw * w;
+        const float r = glm::radians(state().yaw), c = za::cos(r), n = za::sin(r);
+        const glm::vec3 d = origin - state().trackedRef; // (your own head since: its steps and the eyes' spacing)
+        origin = glm::mix(origin, state().anchor + glm::vec3{c * d.x - n * d.y, n * d.x + c * d.y, d.z}, w);
+        angles.y += state().yaw * w;
     }
     if(eye == 0)
     {
-        state.eye0 = origin;
-        state.eye0Angles = angles;
+        state().eye0 = origin;
+        state().eye0Angles = angles;
     }
 }
 
 void flatView(glm::vec3& origin, glm::vec3& angles)
 {
     update(hands::current());
-    if(!state.active)
+    if(!state().active)
     {
         return;
     }
@@ -323,39 +328,39 @@ void flatView(glm::vec3& origin, glm::vec3& angles)
         // The bone's whole turn, exactly (the author's note 2026-11-08: the mouse must not move this camera at all);
         // vr_flat_death_vomit_look 1 puts the mouse's look back on top of it (its yaw from where it faced as the view
         // went there), as before.
-        if(!state.vomitRefSet)
+        if(!state().vomitRefSet)
         {
-            state.vomitRefSet = true;
-            state.vomitYawRef = angles.y;
+            state().vomitRefSet = true;
+            state().vomitYawRef = angles.y;
         }
         const glm::mat3 own = hands::basisOf(angles);
         const glm::mat3 rel = vr_flat_death_vomit_look.value != 0.f
-                                  ? hands::basisOf(glm::vec3{angles.x, geom::wrap180(angles.y - state.vomitYawRef), 0.f})
+                                  ? hands::basisOf(glm::vec3{angles.x, geom::wrap180(angles.y - state().vomitYawRef), 0.f})
                                   : glm::mat3{1.f};
-        const glm::quat full = glm::normalize(state.headRot * glm::quat_cast(rel));
+        const glm::quat full = glm::normalize(state().headRot * glm::quat_cast(rel));
         const glm::mat3 turn = glm::mat3_cast(glm::slerp(glm::quat_cast(own), full, w));
-        origin = glm::mix(origin, state.anchor, w);
+        origin = glm::mix(origin, state().anchor, w);
         angles = hands::anglesFromVectors(turn[0], turn[2]);
     }
     else
     {
         // The eyes in the head's (smoothed), its turn in yaw added; his own look's pitch, no roll (Quake's dead 80 gone).
-        origin = glm::mix(origin, state.anchor, w);
-        angles.y += state.yaw * w;
+        origin = glm::mix(origin, state().anchor, w);
+        angles.y += state().yaw * w;
         angles.z *= 1.f - w;
     }
-    state.eye0 = origin;
-    state.eye0Angles = angles;
+    state().eye0 = origin;
+    state().eye0Angles = angles;
 }
 
 bool immersive()
 {
-    return state.active && weight() > 0.5f; // (out for a menu: the hands and gear drawn again, for its pointer)
+    return state().active && weight() > 0.5f; // (out for a menu: the hands and gear drawn again, for its pointer)
 }
 
 void clear()
 {
-    state = State{};
+    state() = State{};
     ragdoll::hideHeadOf(0);
 }
 

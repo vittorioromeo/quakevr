@@ -366,6 +366,26 @@ extern "C" seatinput_t* CL_SeatInputOf(const int seat)
     return &qvr::seat::at(seat).input;
 }
 
+extern "C" seatview_t* V_SeatView()
+{
+    return &qvr::seat::current().view;
+}
+
+extern "C" seatview_t* V_SeatViewOf(const int seat)
+{
+    return &qvr::seat::at(seat).view;
+}
+
+extern "C" seathud_t* SCR_SeatHud()
+{
+    return &qvr::seat::current().hud;
+}
+
+extern "C" seathud_t* SCR_SeatHudOf(const int seat)
+{
+    return &qvr::seat::at(seat).hud;
+}
+
 extern "C" int CL_SeatIndex()
 {
     return qvr::seat::current().index;

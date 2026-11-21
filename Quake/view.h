@@ -26,8 +26,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 extern	cvar_t		vid_gamma;
 extern	cvar_t		vid_contrast;
 
-extern float v_blend[4];
-
 void V_Init (void);
 void V_RenderView (void);
 void V_CalcBlend (void);

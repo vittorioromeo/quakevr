@@ -2394,7 +2394,7 @@ void R_WarpScaleView (void)
 	srcw = r_refdef.vrect.width / r_refdef.scale;
 	srch = r_refdef.vrect.height / r_refdef.scale;
 
-	needwarpscale = r_refdef.scale != 1 || water_warp || VR_BloodActive () || (v_blend[3] && gl_polyblend.value && !softemu)
+	needwarpscale = r_refdef.scale != 1 || water_warp || VR_BloodActive () || (V_SeatView ()->blend[3] && gl_polyblend.value && !softemu)
 		|| VR_FlatTaaActive (); // QVR: flat TAA's scene in its own target: copied to the window here (vr/vr_temporal.cpp)
 	fbodest = GL_NeedsPostprocess () ? framebufs.composite.fbo : 0;
 
@@ -2434,8 +2434,8 @@ void R_WarpScaleView (void)
 	t = M_ForcedUnderwater () ? realtime : cl.time;
 	GL_Uniform4fFunc (0, smax, tmax, water_warp ? 1.f/256.f : 0.f, (float)t);
 	VR_BloodBind (); // QVR: before the existing color shift (black fades stay black)
-	if (v_blend[3] && gl_polyblend.value && !softemu)
-		GL_Uniform4fvFunc (1, 1, v_blend);
+	if (V_SeatView ()->blend[3] && gl_polyblend.value && !softemu)
+		GL_Uniform4fvFunc (1, 1, V_SeatView ()->blend);
 	else
 		GL_Uniform4fFunc (1, 0.f, 0.f, 0.f, 0.f);
 	GL_BindNative (GL_TEXTURE0, GL_TEXTURE_2D, msaa ? framebufs.resolved_scene.color_tex : framebufs.scene.color_tex);

@@ -24,6 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.h"
 #include "vr/vr_api.h"
 
+// seat-shared: the status bar's pictures, redraw count or draw scratch
 static int		sb_updates;		// if >= vid.numpages, no update needed
 
 #define STAT_MINUS		10	// num frame for '-' stats digit
@@ -31,40 +32,63 @@ static int		sb_updates;		// if >= vid.numpages, no update needed
 #define SBAR2_MARGIN_X	16
 #define SBAR2_MARGIN_Y	10
 
+// seat-shared: the status bar's pictures, redraw count or draw scratch
 static qpic_t		*sb_nums[2][11];
+// seat-shared: the status bar's pictures, redraw count or draw scratch
 static qpic_t		*sb_colon, *sb_slash;
+// seat-shared: the status bar's pictures, redraw count or draw scratch
 static qpic_t		*sb_ibar;
+// seat-shared: the status bar's pictures, redraw count or draw scratch
 static qpic_t		*sb_sbar;
+// seat-shared: the status bar's pictures, redraw count or draw scratch
 static qpic_t		*sb_scorebar;
 
+// seat-shared: the status bar's pictures, redraw count or draw scratch
 static qpic_t		*sb_weapons[7][8];   // 0 is active, 1 is owned, 2-5 are flashes
+// seat-shared: the status bar's pictures, redraw count or draw scratch
 static qpic_t		*sb_ammo[4];
+// seat-shared: the status bar's pictures, redraw count or draw scratch
 static qpic_t		*sb_sigil[4];
+// seat-shared: the status bar's pictures, redraw count or draw scratch
 static qpic_t		*sb_armor[3];
+// seat-shared: the status bar's pictures, redraw count or draw scratch
 static qpic_t		*sb_items[32];
 
+// seat-shared: the status bar's pictures, redraw count or draw scratch
 static qpic_t		*sb_faces[7][2];	// 0 is gibbed, 1 is dead, 2-6 are alive
 							// 0 is static, 1 is temporary animation
+// seat-shared: the status bar's pictures, redraw count or draw scratch
 static qpic_t		*sb_face_invis;
+// seat-shared: the status bar's pictures, redraw count or draw scratch
 static qpic_t		*sb_face_quad;
+// seat-shared: the status bar's pictures, redraw count or draw scratch
 static qpic_t		*sb_face_invuln;
+// seat-shared: the status bar's pictures, redraw count or draw scratch
 static qpic_t		*sb_face_invis_invuln;
 
-static qboolean	sb_showscores;
+// QVR: splitscreen phase 3: sb_showscores is the seat's HUD's (seathud_t's showscores).
 
 int		sb_lines;			// scan lines to draw
 
+// seat-shared: the status bar's pictures, redraw count or draw scratch
 static qpic_t		*rsb_invbar[2];
+// seat-shared: the status bar's pictures, redraw count or draw scratch
 static qpic_t		*rsb_weapons[5];
+// seat-shared: the status bar's pictures, redraw count or draw scratch
 static qpic_t		*rsb_items[2];
+// seat-shared: the status bar's pictures, redraw count or draw scratch
 static qpic_t		*rsb_ammo[3];
+// seat-shared: the status bar's pictures, redraw count or draw scratch
 static qpic_t		*rsb_teambord;		// PGM 01/19/97 - team color border
 
 //MED 01/04/97 added two more weapons + 3 alternates for grenade launcher
+// seat-shared: the status bar's pictures, redraw count or draw scratch
 static qpic_t		*hsb_weapons[7][5];   // 0 is active, 1 is owned, 2-5 are flashes
 //MED 01/04/97 added array to simplify weapon parsing
+// seat-shared: the status bar's pictures, redraw count or draw scratch
 static int		hipweapons[4] = {HIT_LASER_CANNON_BIT,HIT_MJOLNIR_BIT,4,HIT_PROXIMITY_GUN_BIT};
 //MED 01/04/97 added hipnotic items array
+// seat-shared: the status bar's pictures, redraw count or draw scratch
 static qpic_t		*hsb_items[2];
 
 void Sbar_MiniDeathmatchOverlay (void);
@@ -78,7 +102,7 @@ Sbar_ShowingScores
 */
 qboolean Sbar_ShowingScores (void)
 {
-	return sb_showscores || cl.stats[STAT_HEALTH] <= 0;
+	return SCR_SeatHud ()->showscores || cl.stats[STAT_HEALTH] <= 0;
 }
 
 /*
@@ -90,9 +114,9 @@ Tab key down
 */
 void Sbar_ShowScores (void)
 {
-	if (sb_showscores)
+	if (SCR_SeatHud ()->showscores)
 		return;
-	sb_showscores = true;
+	SCR_SeatHud ()->showscores = true;
 	sb_updates = 0;
 }
 
@@ -105,7 +129,7 @@ Tab key up
 */
 void Sbar_DontShowScores (void)
 {
-	sb_showscores = false;
+	SCR_SeatHud ()->showscores = false;
 	sb_updates = 0;
 }
 
@@ -431,7 +455,9 @@ void Sbar_DrawSmallNum (int x, int y, int num)
 
 //=============================================================================
 
+// seat-shared: the status bar's pictures, redraw count or draw scratch
 int		fragsort[MAX_SCOREBOARD];
+// seat-shared: the status bar's pictures, redraw count or draw scratch
 int		scoreboardlines;
 
 /*
@@ -1251,13 +1277,13 @@ static void Sbar_DrawSigils (void)
 			t = q_max (t, cl.item_gettime[28+i]);
 	t = q_max (t, cl.spawntime);
 
-	if (!sb_showscores && (cl.time - t > 3.f || scr_viewsize.value >= 120))
+	if (!SCR_SeatHud ()->showscores && (cl.time - t > 3.f || scr_viewsize.value >= 120))
 		return;
 
 	GL_SetCanvas (CANVAS_SBAR);
 
 	x = 160 - 32/2;
-	if (sb_showscores)
+	if (SCR_SeatHud ()->showscores)
 		y = -20;
 	else if (hudstyle == HUD_CLASSIC || hudstyle == HUD_MODERN_CENTERAMMO)
 		y = -8;
@@ -1732,17 +1758,17 @@ void Sbar_Draw (void)
 		w = glcanvas.right - glcanvas.left;
 		h = glcanvas.bottom - glcanvas.top;
 		G_VECTORSET(OFS_PARM0, w, h, 0);
-		G_FLOAT(OFS_PARM1) = sb_showscores;
+		G_FLOAT(OFS_PARM1) = SCR_SeatHud ()->showscores;
 		PR_ExecuteProgram(cl.qcvm.extfuncs.CSQC_DrawHud);
 		if (cl.qcvm.extfuncs.CSQC_DrawScores)
 		{
 			G_VECTORSET(OFS_PARM0, w, h, 0);
-			G_FLOAT(OFS_PARM1) = sb_showscores;
+			G_FLOAT(OFS_PARM1) = SCR_SeatHud ()->showscores;
 			if (key_dest != key_menu)
 				PR_ExecuteProgram(cl.qcvm.extfuncs.CSQC_DrawScores);
 		}
 		else
-			deathmatchoverlay = (sb_showscores || cl.stats[STAT_HEALTH] <= 0);
+			deathmatchoverlay = (SCR_SeatHud ()->showscores || cl.stats[STAT_HEALTH] <= 0);
 		PR_SwitchQCVM(NULL);
 
 		if (deathmatchoverlay && cl.gametype == GAME_DEATHMATCH)
@@ -1758,7 +1784,7 @@ void Sbar_Draw (void)
 
 	if (VR_VisorOn ()) // QVR: flatscreen play's visor is the HUD (vr/vr_visor.cpp); the scores still on TAB and at death
 	{
-		if (sb_showscores || cl.stats[STAT_HEALTH] <= 0)
+		if (SCR_SeatHud ()->showscores || cl.stats[STAT_HEALTH] <= 0)
 		{
 			GL_SetCanvas (CANVAS_SBAR);
 			Sbar_DrawPicAlpha (0, 0, sb_scorebar, scr_sbaralpha.value);
@@ -1825,7 +1851,7 @@ void Sbar_Draw (void)
 			}
 		}
 
-		if (sb_showscores || cl.stats[STAT_HEALTH] <= 0)
+		if (SCR_SeatHud ()->showscores || cl.stats[STAT_HEALTH] <= 0)
 		{
 			Sbar_DrawPicAlpha (0, 0, sb_scorebar, scr_sbaralpha.value); //johnfitz -- scr_sbaralpha
 			Sbar_DrawScoreboard ();
@@ -1892,7 +1918,7 @@ void Sbar_Draw (void)
 	}
 	else
 	{
-		if (sb_showscores || cl.stats[STAT_HEALTH] <= 0)
+		if (SCR_SeatHud ()->showscores || cl.stats[STAT_HEALTH] <= 0)
 		{
 			GL_SetCanvas (CANVAS_SBAR); //johnfitz
 			Sbar_DrawPicAlpha (0, 0, sb_scorebar, scr_sbaralpha.value); //johnfitz -- scr_sbaralpha
@@ -2215,7 +2241,7 @@ void Sbar_IntermissionOverlay (void)
 		w = glcanvas.right - glcanvas.left;
 		h = glcanvas.bottom - glcanvas.top;
 		G_VECTORSET(OFS_PARM0, w, h, 0);
-		G_FLOAT(OFS_PARM1) = sb_showscores;
+		G_FLOAT(OFS_PARM1) = SCR_SeatHud ()->showscores;
 		PR_ExecuteProgram(cl.qcvm.extfuncs.CSQC_DrawScores);
 		PR_SwitchQCVM(NULL);
 		return;

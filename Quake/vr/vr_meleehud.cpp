@@ -6,6 +6,7 @@
 #include "vr_cvars.hpp"
 #include "vr_particles.hpp"
 #include "vr_protocol.hpp"
+#include "vr_seat.hpp"
 #include "vr_twohand.hpp"
 #include "vr_view.hpp"
 
@@ -25,13 +26,22 @@ namespace
 constexpr float emberRate = 42.f;   // embers a second off each hand's weapon as the window opens (fewer as it closes)
 constexpr float glowFadeOut = 0.2f; // s the glow takes to go when the window closes (a counter landed: at once)
 
-float glow = 0.f;          // the glow now, 0..1 (following the window, fading out after it)
-double openedAt = -1.0;    // realtime the window last opened (its flare)
-float lastCounter = 0.f;   // the window's share left last frame
-float emberDue[2] = {0.f}; // each hand's embers owed (a fraction of one carried over)
-double lastQueue = -1.0;
+// A seat's parry-window HUD.
+struct Hud
+{
+    float glow = 0.f;          // the glow now, 0..1 (following the window, fading out after it)
+    double openedAt = -1.0;    // realtime the window last opened (its flare)
+    float lastCounter = 0.f;   // the window's share left last frame
+    float emberDue[2] = {0.f, 0.f}; // each hand's embers owed (a fraction of one carried over)
+    double lastQueue = -1.0;
+    za::FastNonCryptoRng rng{0x5C0FFEEu}; // a fixed seed: the same embers every run
+};
 
-za::FastNonCryptoRng rng{0x5C0FFEEu}; // a fixed seed: the same embers every run
+// splitscreen (SPLITSCREEN.md, phase 3): the current seat's (seat::Part::MeleeHud)
+[[nodiscard]] Hud& hud()
+{
+    return seat::part<Hud>(seat::current(), seat::Part::MeleeHud);
+}
 
 // A hand with nothing in it to glow for: empty, not steadying the other's weapon, carrying or climbing.
 [[nodiscard]] bool bareFist(int hand)
@@ -59,7 +69,7 @@ void ember(const hands::State& s, int hand, float bright)
         {
             return;
         }
-        const int vertex = rng.getI(0, hdr->numverts - 1);
+        const int vertex = hud().rng.getI(0, hdr->numverts - 1);
         const glm::vec3 p = view::vertexPosition(*ve, vertex);
         glm::vec3 out{0.f};
         view::WeaponMount mount;
@@ -72,7 +82,7 @@ void ember(const hands::State& s, int hand, float bright)
             const float l = glm::length(out);
             out = l > 1e-3f ? out / l : glm::vec3{0.f};
         }
-        particles::counterEmber(p + out * 0.25f, out * vrand::range(rng, 1.5f, 5.f) + glm::vec3{vrand::range(rng, -1.f, 1.f), vrand::range(rng, -1.f, 1.f), vrand::range(rng, 2.f, 7.f)},
+        particles::counterEmber(p + out * 0.25f, out * vrand::range(hud().rng, 1.5f, 5.f) + glm::vec3{vrand::range(hud().rng, -1.f, 1.f), vrand::range(hud().rng, -1.f, 1.f), vrand::range(hud().rng, 2.f, 7.f)},
             bright);
         return;
     }
@@ -83,8 +93,8 @@ void ember(const hands::State& s, int hand, float bright)
     }
     // The knuckles: about 9 cm from the wrist towards the fingers, 2 cm over the back of the hand, 8 cm across.
     const float cm = za::max(0.1f, vr_world_scale.value) / 3.81f; // units a centimetre (a unit is 1.5 inches)
-    const glm::vec3 knuckles = h.wrist + h.forward * (9.f * cm) + h.back * (2.f * cm) + h.up * (vrand::range(rng, -4.f, 4.f) * cm);
-    particles::counterEmber(knuckles, h.back * vrand::range(rng, 1.f, 4.f) + glm::vec3{vrand::range(rng, -1.f, 1.f), vrand::range(rng, -1.f, 1.f), vrand::range(rng, 2.f, 7.f)},
+    const glm::vec3 knuckles = h.wrist + h.forward * (9.f * cm) + h.back * (2.f * cm) + h.up * (vrand::range(hud().rng, -4.f, 4.f) * cm);
+    particles::counterEmber(knuckles, h.back * vrand::range(hud().rng, 1.f, 4.f) + glm::vec3{vrand::range(hud().rng, -1.f, 1.f), vrand::range(hud().rng, -1.f, 1.f), vrand::range(hud().rng, 2.f, 7.f)},
         bright);
 }
 
@@ -109,39 +119,39 @@ State state()
 
 void queue(const hands::State& s)
 {
-    const float dt = lastQueue < 0.0 ? 0.f : static_cast<float>(za::clamp(realtime - lastQueue, 0.0, 0.1));
-    lastQueue = realtime;
+    const float dt = hud().lastQueue < 0.0 ? 0.f : static_cast<float>(za::clamp(realtime - hud().lastQueue, 0.0, 0.1));
+    hud().lastQueue = realtime;
 
     const float counter = state().counter;
-    if(counter > lastCounter + 0.25f)
+    if(counter > hud().lastCounter + 0.25f)
     {
-        openedAt = realtime; // (re)opened: a parry
+        hud().openedAt = realtime; // (re)opened: a parry
     }
-    lastCounter = counter;
+    hud().lastCounter = counter;
 
     // The glow follows the window down (a quarter of it left at the end), flares as it opens, and fades out after it.
     float target = 0.f;
     if(counter > 0.f)
     {
-        const float flare = openedAt >= 0.0 ? za::max(0.f, 1.f - static_cast<float>(realtime - openedAt) / 0.25f) : 0.f;
+        const float flare = hud().openedAt >= 0.0 ? za::max(0.f, 1.f - static_cast<float>(realtime - hud().openedAt) / 0.25f) : 0.f;
         target = za::min(1.f, 0.25f + 0.5f * counter + 0.4f * flare);
     }
-    glow = target >= glow ? target : za::max(target, glow - dt / glowFadeOut);
+    hud().glow = target >= hud().glow ? target : za::max(target, hud().glow - dt / glowFadeOut);
 
     if(!vr_counter_glow.value || counter <= 0.f)
     {
-        emberDue[0] = emberDue[1] = 0.f;
+        hud().emberDue[0] = hud().emberDue[1] = 0.f;
         return;
     }
     for(int hand = 0; hand < 2; hand++)
     {
         if(!view::heldWeapon(hand) && !bareFist(hand))
         {
-            emberDue[hand] = 0.f;
+            hud().emberDue[hand] = 0.f;
             continue;
         }
-        emberDue[hand] += dt * emberRate * (0.3f + 0.7f * counter);
-        for(; emberDue[hand] >= 1.f; emberDue[hand] -= 1.f)
+        hud().emberDue[hand] += dt * emberRate * (0.3f + 0.7f * counter);
+        for(; hud().emberDue[hand] >= 1.f; hud().emberDue[hand] -= 1.f)
         {
             ember(s, hand, 0.55f + 0.45f * counter);
         }
@@ -150,7 +160,7 @@ void queue(const hands::State& s)
 
 float entityGlow(const entity_t* e)
 {
-    if(glow <= 0.f || !vr_counter_glow.value)
+    if(hud().glow <= 0.f || !vr_counter_glow.value)
     {
         return 0.f;
     }
@@ -162,7 +172,7 @@ float entityGlow(const entity_t* e)
     }
     // A weapon's whole length; a bare fist less (the whole hand would glow).
     const float breathe = 0.85f + 0.15f * static_cast<float>(za::sin(realtime * 11.0));
-    return za::clamp(glow * breathe * (weapon ? 1.f : 0.6f), 0.f, 1.f);
+    return za::clamp(hud().glow * breathe * (weapon ? 1.f : 0.6f), 0.f, 1.f);
 }
 
 } // namespace qvr::meleehud

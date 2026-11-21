@@ -18,6 +18,7 @@
 #include "vr_climb.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
+#include "vr_seat.hpp"
 #include "vr_flatmove.hpp"
 #include "vr_flatplay.hpp"
 #include "vr_geom.hpp"
@@ -56,7 +57,11 @@ struct State
     bool mantleOut{false};  // narrowing from a mantle's widening (vr_flat_mantle_fov_ease_out)
 };
 
-State st;
+// splitscreen (SPLITSCREEN.md, phase 3): the current seat's (seat::Part::SpeedFov)
+[[nodiscard]] State& st()
+{
+    return seat::part<State>(seat::current(), seat::Part::SpeedFov);
+}
 
 // vr_flat_speed_fov_test's steps (0: not running).
 struct Test
@@ -85,6 +90,7 @@ struct Test
     float bhopPeak{0.f}, bhopFovPeak{0.f};
 };
 
+// seat-shared: a test's own (one at a time)
 Test test;
 
 [[nodiscard]] float targetFor(float speed)
@@ -126,7 +132,7 @@ void testFrame(float dt)
     {
         return;
     }
-    const float speed = st.speed;
+    const float speed = st().speed;
     const float fov = r_refdef.basefov;
     const bool ground = cl.onground;
     if(t.lastFov > 0.f && dt > 0.f)
@@ -160,7 +166,7 @@ void testFrame(float dt)
                 t.walkSpeed = speed;
                 t.walkFov = fov;
                 q_snprintf(line, sizeof(line), "walking at %.0f u/s the fov is the view's own: %.3f of %.3f", speed, fov, t.base);
-                check(za::abs(fov - t.base) < 0.01f && st.mult == 1.f, line);
+                check(za::abs(fov - t.base) < 0.01f && st().mult == 1.f, line);
                 Cbuf_InsertText("cl_alwaysrun 1\n");
                 nextPhase(2);
             }
@@ -171,7 +177,7 @@ void testFrame(float dt)
                 t.runSpeed = speed;
                 t.runFov = fov;
                 q_snprintf(line, sizeof(line), "running at %.0f u/s the fov is the view's own: %.3f of %.3f", speed, fov, t.base);
-                check(za::abs(fov - t.base) < 0.01f && st.mult == 1.f, line);
+                check(za::abs(fov - t.base) < 0.01f && st().mult == 1.f, line);
                 shot();
                 t.biggestStep = t.biggestRatio = 0.f;
                 t.seenSlide = t.shotEarly = false;
@@ -317,7 +323,7 @@ void test_f()
 void status_f()
 {
     Con_Printf("speed fov: %s, speed %.0f u/s, x%.3f (the speed's x%.3f), fov %.2f of %.2f (vr_flat_speed_fov_max %g from %g to %g u/s, ease %g s in, %g s out)\n",
-        vr_flat_speed_fov.value != 0.f ? "on" : "off", st.speed, st.mult, st.target, r_refdef.basefov, scr_fov.value,
+        vr_flat_speed_fov.value != 0.f ? "on" : "off", st().speed, st().mult, st().target, r_refdef.basefov, scr_fov.value,
         vr_flat_speed_fov_max.value, vr_flat_speed_fov_from.value, vr_flat_speed_fov_top.value, vr_flat_speed_fov_ease.value,
         vr_flat_speed_fov_ease_out.value);
 }
@@ -334,39 +340,39 @@ void frame(bool on)
 {
     if(!on)
     {
-        if(st.mult != 1.f)
+        if(st().mult != 1.f)
         {
             vid.recalc_refdef = 1;
         }
-        st = State{};
+        st() = State{};
         test = Test{};
         return;
     }
     const double now = vr_gametime;
-    const float dt = st.lastTime > -1e8 ? za::clamp(static_cast<float>(now - st.lastTime), 0.f, 0.1f) : 0.f;
-    st.lastTime = now;
-    st.speed = za::sqrt(cl.velocity[0] * cl.velocity[0] + cl.velocity[1] * cl.velocity[1]);
+    const float dt = st().lastTime > -1e8 ? za::clamp(static_cast<float>(now - st().lastTime), 0.f, 0.1f) : 0.f;
+    st().lastTime = now;
+    st().speed = za::sqrt(cl.velocity[0] * cl.velocity[0] + cl.velocity[1] * cl.velocity[1]);
     // A slide's own extra on top of its speed's (vr_flat_slide_fov_bonus): the ease takes it in and out. A mantle's the
     // same way, smaller (vr_flat_mantle_fov_bonus; the server's mantle phase, climb::mantling), with its own eases.
     const bool mantle = climb::mantling();
     const float bonus = (flatmove::sliding() ? za::clamp(vr_flat_slide_fov_bonus.value, 0.f, maxMultiplier - 1.f) : 0.f) +
                         (mantle ? za::clamp(vr_flat_mantle_fov_bonus.value, 0.f, maxMultiplier - 1.f) : 0.f);
-    st.target = vr_flat_speed_fov.value != 0.f && !cl.intermission ? za::min(maxMultiplier, targetFor(st.speed) + bonus) : 1.f;
-    const float was = st.mult;
-    const bool widening = st.target > st.mult;
+    st().target = vr_flat_speed_fov.value != 0.f && !cl.intermission ? za::min(maxMultiplier, targetFor(st().speed) + bonus) : 1.f;
+    const float was = st().mult;
+    const bool widening = st().target > st().mult;
     if(mantle || widening)
     {
-        st.mantleOut = mantle; // (narrowing after a mantle: its ease out, till it settles or something else widens it)
+        st().mantleOut = mantle; // (narrowing after a mantle: its ease out, till it settles or something else widens it)
     }
     const float tau = widening ? (mantle ? vr_flat_mantle_fov_ease.value : vr_flat_speed_fov_ease.value)
-                               : (st.mantleOut ? vr_flat_mantle_fov_ease_out.value : vr_flat_speed_fov_ease_out.value);
-    st.mult = tau <= 0.f ? st.target : geom::approachExp(st.mult, st.target, dt, tau);
-    if(za::abs(st.mult - st.target) < 1e-4f)
+                               : (st().mantleOut ? vr_flat_mantle_fov_ease_out.value : vr_flat_speed_fov_ease_out.value);
+    st().mult = tau <= 0.f ? st().target : geom::approachExp(st().mult, st().target, dt, tau);
+    if(za::abs(st().mult - st().target) < 1e-4f)
     {
-        st.mult = st.target; // settled: exactly 1 again, so the view is exactly its own
-        st.mantleOut = st.mantleOut && mantle;
+        st().mult = st().target; // settled: exactly 1 again, so the view is exactly its own
+        st().mantleOut = st().mantleOut && mantle;
     }
-    if(st.mult != was)
+    if(st().mult != was)
     {
         vid.recalc_refdef = 1; // the field of view is chosen when the engine recalculates its view (gl_screen.c)
     }
@@ -375,21 +381,21 @@ void frame(bool on)
 
 float widen(float fov, float adsShare)
 {
-    const float m = 1.f + (st.mult - 1.f) * (1.f - za::clamp(adsShare, 0.f, 1.f));
+    const float m = 1.f + (st().mult - 1.f) * (1.f - za::clamp(adsShare, 0.f, 1.f));
     const float out = m == 1.f ? fov : za::min(mostFov, fov * m);
-    st.widenedIn = fov;
-    st.widenedOut = out;
+    st().widenedIn = fov;
+    st().widenedOut = out;
     return out;
 }
 
 float multiplier()
 {
-    return st.mult;
+    return st().mult;
 }
 
 float lookFov(float basefov)
 {
-    return st.widenedOut == basefov && st.widenedIn > 0.f ? st.widenedIn : basefov;
+    return st().widenedOut == basefov && st().widenedIn > 0.f ? st().widenedIn : basefov;
 }
 
 } // namespace qvr::flatspeedfov

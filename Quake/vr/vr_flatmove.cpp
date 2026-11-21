@@ -10,6 +10,7 @@
 #include "vr_cvars.hpp"
 #include "vr_tunables.hpp"
 #include "vr_engine.hpp"
+#include "vr_seat.hpp"
 #include "vr_flatplay.hpp"
 #include "vr_flatsight.hpp"
 #include "vr_flatspeedfov.hpp"
@@ -268,12 +269,24 @@ struct LeanMouseTest
     float cvarWas{1.f};
 };
 
-struct ClientState
+// splitscreen: the flat camera's lean, the slide's view and the view last seen are each seat's (seat::Part::FlatView).
+struct FlatView
 {
     SeenView seen;
-    LeanMouseTest leanMouseTest;
     Lean lean;
     SlideView slide;
+};
+
+// splitscreen (SPLITSCREEN.md, phase 3): the current seat's (seat::Part::FlatView)
+[[nodiscard]] FlatView& seatView()
+{
+    return seat::part<FlatView>(seat::current(), seat::Part::FlatView);
+}
+
+// The tests' state (one test at a time).
+struct ClientState
+{
+    LeanMouseTest leanMouseTest;
     SlideTest slideTest;
     SlideHitTest slideHitTest;
     RoughTest roughTest;
@@ -285,7 +298,7 @@ struct ClientState
     LadderTest ladderTest;
 };
 
-ClientState client;
+ClientState client; // seat-shared: the frame-driven tests' own (one at a time)
 
 [[nodiscard]] bool keyHeld(const char* bindName)
 {
@@ -367,7 +380,7 @@ ClientState client;
 
 void stepLean(bool on, float dt)
 {
-    Lean& l = client.lean;
+    Lean& l = seatView().lean;
     const bool kl = on && keyHeld(vr_flat_key_lean_left.string);
     const bool kr = on && keyHeld(vr_flat_key_lean_right.string);
     int want = 0;
@@ -448,7 +461,7 @@ void stepLean(bool on, float dt)
 
 void stepSlideView(bool on, float dt)
 {
-    SlideView& v = client.slide;
+    SlideView& v = seatView().slide;
     const float time = za::clamp(vr_flat_slide_body_time.value, 0.05f, 1.f);
     const float want = on && slidePose() ? 1.f : 0.f;
     if(dt > 0.f)
@@ -1199,7 +1212,7 @@ void leanTestFrame()
     switch(t.phase)
     {
         case 1:
-            client.lean.cmdR = true;
+            seatView().lean.cmdR = true;
             next(2);
             break;
         case 2: // a full lean right, in the open
@@ -1210,9 +1223,9 @@ void leanTestFrame()
                 const glm::vec3 straight{pl.origin[0], pl.origin[1], pl.origin[2] + cl.viewheight - flatplay::crouchDrop()};
                 const float side = glm::dot(s.head - straight, levelRight(cl.viewangles[YAW]));
                 q_snprintf(line, sizeof(line), "leant right: the eye %.1f units right (of %.0f), roll %.1f (of %.0f), down %.1f",
-                    side, full, client.lean.roll, vr_flat_lean_angle.value, straight.z - s.head.z);
+                    side, full, seatView().lean.roll, vr_flat_lean_angle.value, straight.z - s.head.z);
                 testCheck(t.tally, tag,
-                    za::abs(side - full) < 0.5f && za::abs(client.lean.roll - vr_flat_lean_angle.value) < 0.1f, line);
+                    za::abs(side - full) < 0.5f && za::abs(seatView().lean.roll - vr_flat_lean_angle.value) < 0.1f, line);
                 // The server: a line from his right past his box's side, at the leant head's height, meets him.
                 progs::ServerVm vm;
                 edict_t* e = progs::localPlayer();
@@ -1243,13 +1256,13 @@ void leanTestFrame()
             {
                 const float v = za::sqrt(cl.velocity[0] * cl.velocity[0] + cl.velocity[1] * cl.velocity[1]);
                 Cbuf_InsertText("-forward\n");
-                client.lean.cmdR = false;
+                seatView().lean.cmdR = false;
                 t.leantSpeed = v;
                 next(4);
             }
             break;
         case 4: // straight again, the speed back
-            if(inPhase > 0.3 && client.lean.dist == 0.f)
+            if(inPhase > 0.3 && seatView().lean.dist == 0.f)
             {
                 Cbuf_InsertText("+forward\n");
                 next(5);
@@ -1287,7 +1300,7 @@ void leanTestFrame()
                 const glm::vec3 to = o + r * (t.wallSide * (frac * 2048.f - 17.f));
                 q_snprintf(line, sizeof(line), "setpos %.1f %.1f %.1f\n", to.x, to.y, to.z);
                 Cbuf_InsertText(line);
-                (toLeft ? client.lean.cmdL : client.lean.cmdR) = true;
+                (toLeft ? seatView().lean.cmdL : seatView().lean.cmdR) = true;
                 next(7);
             }
             break;
@@ -1299,18 +1312,18 @@ void leanTestFrame()
                 const trace_t tr = worldtrace::world(s.head, s.head + r * (t.wallSide * 64.f));
                 const float gap = tr.fraction * 64.f;
                 const float margin = za::clamp(vr_flat_lean_margin.value, 0.f, 16.f);
-                const float leant = t.wallSide * client.lean.dist;
+                const float leant = t.wallSide * seatView().lean.dist;
                 q_snprintf(line, sizeof(line), "leant %s into a wall: the eye %.1f units off it (margin %.0f; upright %.1f), lean %.1f of %.0f",
                     t.wallSide < 0.f ? "left" : "right", gap, margin, gap + leant, leant, full);
                 testCheck(t.tally, tag, gap > margin - 0.6f && leant > 0.f && leant < full - 1.f, line);
-                client.lean.cmdL = client.lean.cmdR = false;
+                seatView().lean.cmdL = seatView().lean.cmdR = false;
                 next(8);
             }
             break;
         case 8: // straight again by the wall: lean away from it
         case 10:
         case 12:
-            if(inPhase > 0.1 && client.lean.dist == 0.f)
+            if(inPhase > 0.1 && seatView().lean.dist == 0.f)
             {
                 if(t.phase == 10)
                 {
@@ -1319,7 +1332,7 @@ void leanTestFrame()
                     cl.viewangles[YAW] = anglemod(cl.viewangles[YAW] - 90.f * t.wallSide);
                 }
                 const bool right = t.phase == 8 ? t.wallSide < 0.f : t.phase == 10;
-                (right ? client.lean.cmdR : client.lean.cmdL) = true;
+                (right ? seatView().lean.cmdR : seatView().lean.cmdL) = true;
                 next(t.phase + 1);
             }
             break;
@@ -1331,7 +1344,7 @@ void leanTestFrame()
                 const hands::State& s = hands::current();
                 const entity_t& pl = cl_entities[cl.viewentity];
                 const glm::vec3 straight{pl.origin[0], pl.origin[1], pl.origin[2] + cl.viewheight - flatplay::crouchDrop()};
-                const float way = client.lean.cmdR ? 1.f : -1.f;
+                const float way = seatView().lean.cmdR ? 1.f : -1.f;
                 const float out = way * glm::dot(s.head - straight, levelRight(cl.viewangles[YAW]));
                 // All of the lean, or as far as the hall leaves room that way (leanRoom's lines: the eye, under it, the
                 // weapon's place ahead -- facing the wall, its line sideways can meet the wall's trim), most of it at least.
@@ -1340,7 +1353,7 @@ void leanTestFrame()
                 q_snprintf(line, sizeof(line), "%s, leant %s: the eye %.1f units out (of %.0f; room for %.1f)",
                     t.phase == 9 ? "a wall at his side" : "facing a wall he stands against", way > 0.f ? "right" : "left", out, full, room);
                 testCheck(t.tally, tag, za::abs(out - want) < 0.5f && want > full * 0.75f, line);
-                client.lean.cmdL = client.lean.cmdR = false;
+                seatView().lean.cmdL = seatView().lean.cmdR = false;
                 next(t.phase == 13 ? 99 : t.phase + 1);
             }
             break;
@@ -1402,24 +1415,24 @@ void leanMouseTestFrame()
     switch(t.phase)
     {
         case 1: // the step's lean, pitch and setting; then two views built as they stand
-            client.lean.cmdL = st.lean < 0;
-            client.lean.cmdR = st.lean > 0;
+            seatView().lean.cmdL = st.lean < 0;
+            seatView().lean.cmdR = st.lean > 0;
             Cvar_SetValueQuick(&vr_flat_lean_mouse, st.on ? 1.f : 0.f);
             cl.viewangles[PITCH] = st.pitch;
-            if(client.lean.lin == static_cast<float>(st.lean) &&
-                za::abs(client.lean.roll - static_cast<float>(st.lean) * leanFullAngle()) < 1e-3f)
+            if(seatView().lean.lin == static_cast<float>(st.lean) &&
+                za::abs(seatView().lean.roll - static_cast<float>(st.lean) * leanFullAngle()) < 1e-3f)
             {
-                t.seenAt = client.seen.count;
+                t.seenAt = seatView().seen.count;
                 next(2);
             }
             break;
         case 2:
             cl.viewangles[PITCH] = st.pitch;
-            if(client.seen.count >= t.seenAt + 2)
+            if(seatView().seen.count >= t.seenAt + 2)
             {
-                t.before = client.seen.angles;
+                t.before = seatView().seen.angles;
                 t.lookBefore = glm::vec3{cl.viewangles[0], cl.viewangles[1], cl.viewangles[2]};
-                t.turnsAt = client.seen.turns;
+                t.turnsAt = seatView().seen.turns;
                 IN_MockMouseMotion(st.dx, st.dy);
                 next(3);
             }
@@ -1427,16 +1440,16 @@ void leanMouseTestFrame()
         case 3: // the move taken: then the view built from it
             if(cl.viewangles[PITCH] != t.lookBefore.x || cl.viewangles[YAW] != t.lookBefore.y)
             {
-                t.turned = client.seen.turns - t.turnsAt;
-                t.seenAt = client.seen.count;
+                t.turned = seatView().seen.turns - t.turnsAt;
+                t.seenAt = seatView().seen.count;
                 next(4);
             }
             break;
         case 4:
-            if(client.seen.count > t.seenAt)
+            if(seatView().seen.count > t.seenAt)
             {
                 const bool upDown = st.dx == 0;
-                const glm::vec3 now3 = client.seen.angles;
+                const glm::vec3 now3 = seatView().seen.angles;
                 vec3_t a0{t.before.x, t.before.y, t.before.z};
                 vec3_t a1{now3.x, now3.y, now3.z};
                 vec3_t f0, r0, u0, f1, r1, u1;
@@ -1485,7 +1498,7 @@ void leanMouseTestFrame()
             }
             break;
         default:
-            client.lean.cmdL = client.lean.cmdR = false;
+            seatView().lean.cmdL = seatView().lean.cmdR = false;
             Cvar_SetValueQuick(&vr_flat_lean_mouse, t.cvarWas);
             t.tally.verdict(tag);
             t = LeanMouseTest{};
@@ -1538,7 +1551,7 @@ void proneTestFrame()
         case 2: // lying down: lean right
             if(inPhase > 0.3 && flatplay::proneRatio() >= 1.f)
             {
-                client.lean.cmdR = true;
+                seatView().lean.cmdR = true;
                 next(3);
             }
             break;
@@ -1551,15 +1564,15 @@ void proneTestFrame()
                 const float dist = za::clamp(vr_flat_lean_prone_dist.value, 0.f, leanDistMost);
                 const float angle = za::clamp(vr_flat_lean_prone_angle.value, 0.f, leanAngleMost);
                 q_snprintf(line, sizeof(line), "lying down, leant right: the eye %.1f units right (of %.0f), roll %.1f (of %.0f), the body's roll %.1f",
-                    side, dist, client.lean.roll, angle, proneLeanRoll());
+                    side, dist, seatView().lean.roll, angle, proneLeanRoll());
                 testCheck(t.tally, tag,
-                    za::abs(side - dist) < 0.3f && za::abs(client.lean.roll - angle) < 0.1f && za::abs(proneLeanRoll() - angle) < 0.1f, line);
-                client.lean.cmdR = false;
+                    za::abs(side - dist) < 0.3f && za::abs(seatView().lean.roll - angle) < 0.1f && za::abs(proneLeanRoll() - angle) < 0.1f, line);
+                seatView().lean.cmdR = false;
                 next(4);
             }
             break;
         case 4: // straight again: the crouch pressed
-            if(inPhase > 0.1 && client.lean.dist == 0.f)
+            if(inPhase > 0.1 && seatView().lean.dist == 0.f)
             {
                 t.handWas = handInView();
                 t.biggestStep = 0.f;
@@ -2319,7 +2332,7 @@ void leanTest_f()
     {
         if(client.leanTest.phase == 6)
         {
-            client.lean.cmdL = true;
+            seatView().lean.cmdL = true;
             client.leanTest.phase = 7;
             client.leanTest.phaseAt = vr_gametime;
         }
@@ -2397,8 +2410,8 @@ void proneDualTest_f()
 void status_f()
 {
     Con_Printf("flatmove: lean %.2f (eye %.1f %.1f %.1f, roll %.1f), sliding %d (pose %.2f, drop %.1f)",
-        leanShare(), client.lean.shift.x, client.lean.shift.y, client.lean.shift.z, client.lean.roll, sliding() ? 1 : 0,
-        client.slide.share, slideDrop());
+        leanShare(), seatView().lean.shift.x, seatView().lean.shift.y, seatView().lean.shift.z, seatView().lean.roll, sliding() ? 1 : 0,
+        seatView().slide.share, slideDrop());
     if(sv.active)
     {
         const Slide& s = slide::state(1);
@@ -2408,10 +2421,10 @@ void status_f()
     Con_Printf("\n");
 }
 
-void leanLeftDown_f() { client.lean.cmdL = true; }
-void leanLeftUp_f() { client.lean.cmdL = false; }
-void leanRightDown_f() { client.lean.cmdR = true; }
-void leanRightUp_f() { client.lean.cmdR = false; }
+void leanLeftDown_f() { seatView().lean.cmdL = true; }
+void leanLeftUp_f() { seatView().lean.cmdL = false; }
+void leanRightDown_f() { seatView().lean.cmdR = true; }
+void leanRightUp_f() { seatView().lean.cmdR = false; }
 
 } // namespace
 
@@ -2437,11 +2450,11 @@ void init()
 
 void frame(bool on)
 {
-    double dt = client.lean.lastTime > -1e8 ? vr_gametime - client.lean.lastTime : 0.0;
-    client.lean.lastTime = vr_gametime;
+    double dt = seatView().lean.lastTime > -1e8 ? vr_gametime - seatView().lean.lastTime : 0.0;
+    seatView().lean.lastTime = vr_gametime;
     dt = za::clamp(dt, 0.0, 0.1);
     stepLean(on, static_cast<float>(dt));
-    client.lean.lastTime = vr_gametime;
+    seatView().lean.lastTime = vr_gametime;
     stepSlideView(on, static_cast<float>(dt));
     if(on)
     {
@@ -2461,23 +2474,23 @@ void frame(bool on)
 
 glm::vec3 leanShift()
 {
-    return flatplay::active() ? client.lean.shift : glm::vec3{0.f};
+    return flatplay::active() ? seatView().lean.shift : glm::vec3{0.f};
 }
 
 float leanRoll()
 {
-    return flatplay::active() ? client.lean.roll : 0.f;
+    return flatplay::active() ? seatView().lean.roll : 0.f;
 }
 
 float leanShare()
 {
-    const float full = client.lean.full;
-    return full > 0.f ? client.lean.dist / full : 0.f;
+    const float full = seatView().lean.full;
+    return full > 0.f ? seatView().lean.dist / full : 0.f;
 }
 
 float proneLeanRoll()
 {
-    return flatplay::active() ? client.lean.roll * flatplay::proneRatio() : 0.f;
+    return flatplay::active() ? seatView().lean.roll * flatplay::proneRatio() : 0.f;
 }
 
 bool slidePose()
@@ -2506,7 +2519,7 @@ bool sliding()
 
 float slideShare()
 {
-    return flatplay::active() ? client.slide.share : 0.f;
+    return flatplay::active() ? seatView().slide.share : 0.f;
 }
 
 float slideNeckBack(bool other)
@@ -2611,7 +2624,7 @@ extern "C" void VR_FlatMoveScale(float* forwardmove, float* sidemove)
 
 extern "C" void VR_FlatViewLean(float* vieworg, float* viewangles)
 {
-    flatmove::SeenView& seen = flatmove::client.seen;
+    flatmove::SeenView& seen = flatmove::seatView().seen;
     seen.roll = 0.f;
     if(!flatplay::active() || chase_active.value)
     {
@@ -2641,7 +2654,7 @@ extern "C" void VR_FlatViewLean(float* vieworg, float* viewangles)
 // rolled, or vr_flat_lean_mouse 0: false, left as it was (Quake's own, to the bit).
 extern "C" int VR_FlatLookTurn(float* right, float* down)
 {
-    flatmove::SeenView& seen = flatmove::client.seen;
+    flatmove::SeenView& seen = flatmove::seatView().seen;
     if(vr_flat_lean_mouse.value == 0.f || !flatplay::active() || seen.roll == 0.f || (*right == 0.f && *down == 0.f))
     {
         return 0;

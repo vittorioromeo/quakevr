@@ -2087,7 +2087,7 @@ SV_SpawnServer
 This is called at the start of each level
 ================
 */
-extern float		scr_centertime_off;
+
 static void SV_SpawnServerRun (const char *server);
 
 // QVR: a map's load, a scope of its own for the profiler (its hitch log).
@@ -2113,7 +2113,8 @@ static void SV_SpawnServerRun (const char *server)
 	// let's not have any servers with no name
 	if (hostname.string[0] == 0)
 		Cvar_Set ("hostname", "UNNAMED");
-	scr_centertime_off = 0;
+	for (i = 0; i < 4; i++) // QVR: splitscreen: every local seat's centre print (the seat's HUD)
+		SCR_SeatHudOf (i)->centertime_off = 0;
 
 	Con_DPrintf ("SpawnServer: %s\n",server);
 	svs.changelevel_issued = false;		// now safe to issue another

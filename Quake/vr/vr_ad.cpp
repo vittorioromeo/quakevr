@@ -388,7 +388,7 @@ void qvr::ad::tintInfo()
     Con_Printf("adtint: stat %d %d (%s), shown %.1f (%.0f %.0f %.0f), scale %.2f, blend alpha %.3f\n",
         cl.stats[protocol::STAT_QVR_ADTINT], cl.stats[protocol::STAT_QVR_ADTINTDEN] & 255,
         (cl.stats[protocol::STAT_QVR_ADTINTDEN] & 256) ? "fade" : "tint", tintState.shown, tintState.colour[0],
-        tintState.colour[1], tintState.colour[2], qvr::vr_ad_tints.value, v_blend[3]);
+        tintState.colour[1], tintState.colour[2], qvr::vr_ad_tints.value, V_SeatView()->blend[3]);
 }
 
 void qvr::ad::skyFogInfo()

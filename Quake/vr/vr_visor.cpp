@@ -5,6 +5,7 @@
 #include "vr_cvars.hpp"
 #include "vr_diskcache.hpp"
 #include "vr_engine.hpp"
+#include "vr_seat.hpp"
 #include "vr_flatplay.hpp"
 #include "vr_flatholster.hpp"
 #include "vr_gadget.hpp"
@@ -106,7 +107,11 @@ struct State
     za::Array<Panel, VisorPanelCount> panels{};
     gadget::VisorInput input;
 };
-State state;
+// splitscreen (SPLITSCREEN.md, phase 3): the current seat's (seat::Part::Visor)
+[[nodiscard]] State& state()
+{
+    return seat::part<State>(seat::current(), seat::Part::Visor);
+}
 
 [[nodiscard]] float hash(unsigned n)
 {
@@ -164,20 +169,20 @@ using geom::smoothstep;
 [[nodiscard]] float centerPop()
 {
     const float popTime = za::clamp(vr_flat_visor_center_pop.value, 0.f, 1.f);
-    return popTime > 0.f ? za::clamp((state.clock - state.center.popAt) / popTime, 0.f, 1.f) : 1.f;
+    return popTime > 0.f ? za::clamp((state().clock - state().center.popAt) / popTime, 0.f, 1.f) : 1.f;
 }
 
 // Once a frame, with the view set up (R_RenderView): the clock, the sway and the effects.
 void update()
 {
-    if(state.lastFrame == host_framecount)
+    if(state().lastFrame == host_framecount)
     {
         return;
     }
-    state.lastFrame = host_framecount;
+    state().lastFrame = host_framecount;
     const float dt = za::clamp(static_cast<float>(host_frametime), 0.f, 0.1f);
-    state.clock += dt;
-    State& s = state;
+    state().clock += dt;
+    State& s = state();
 
     // A new map (or a save loaded), a spawn: the power-on sweep.
     const int health = static_cast<int>(readHealth());
@@ -323,13 +328,14 @@ struct GlassGrid
     za::Array<za::Array<gfx::Vertex, gridX * gridY * 6>, 2> tris{};
     za::Array<int, 2> count{};
 };
+// seat-shared: GL resources (the glass's grid and passes; phase 7's per-view caches)
 GlassGrid glassGrid;
 
 // The glass: a faint dark rim at the edges, the fog towards them, a reflection streak. In clip space (x, y -1..1).
 void drawGlass(float aspect)
 {
     const float rim = za::clamp(vr_flat_visor_frame.value, 0.f, 3.f);
-    const float fog = state.fog * za::clamp(vr_flat_visor_fog.value, 0.f, 2.f);
+    const float fog = state().fog * za::clamp(vr_flat_visor_fog.value, 0.f, 2.f);
     if(rim <= 0.f && fog <= 0.f)
     {
         return;
@@ -596,6 +602,7 @@ struct LayerPass
     glm::vec4 drawnRect{0.f};
     bool tintDrawn{false};
 };
+// seat-shared: GL resources (the glass's grid and passes; phase 7's per-view caches)
 LayerPass layerPass;
 
 // The frosted glass (vr_flat_visor_glass_*): the view at half its size, blurred back and forth between two targets.
@@ -606,6 +613,7 @@ struct GlassPass
     gfx::RenderTarget sceneA, sceneB;
     bool on{false}; // this frame
 };
+// seat-shared: GL resources (the glass's grid and passes; phase 7's per-view caches)
 GlassPass glassPass;
 
 [[nodiscard]] glm::vec4 premul(const glm::vec3& rgb, float a)
@@ -686,14 +694,14 @@ void useSlot(const PanelLayer& pl, int s)
 // x) and its mount's (the boot's sweep too: y).
 [[nodiscard]] glm::vec2 panelFade(int p)
 {
-    const float g = state.glitch;
+    const float g = state().glitch;
     const float flicker = g > 0.f ? 1.f - 0.45f * g * hash(static_cast<unsigned>(host_framecount) * 2654435761u) : 1.f;
-    const float b = state.input.boot[p];
+    const float b = state().input.boot[p];
     const float stutter = b < 0.15f && hash(static_cast<unsigned>(host_framecount) * 7u + static_cast<unsigned>(p)) < 0.4f ? 0.35f : 1.f;
-    const float hide = p == gadget::VisorLog      ? smoothstep(0.f, 1.f, state.logFade) // (vr_flat_visor_autohide_log)
-                       : p == gadget::VisorCenter ? smoothstep(0.f, 1.f, state.center.fade)
+    const float hide = p == gadget::VisorLog      ? smoothstep(0.f, 1.f, state().logFade) // (vr_flat_visor_autohide_log)
+                       : p == gadget::VisorCenter ? smoothstep(0.f, 1.f, state().center.fade)
                                                   : 1.f;
-    const float fade = state.fade * flicker * stutter * hide;
+    const float fade = state().fade * flicker * stutter * hide;
     return {fade, fade * smoothstep(0.f, 0.2f, b)};
 }
 
@@ -751,11 +759,11 @@ struct PanelSignature
 [[nodiscard]] PanelSignature panelSignature(int p)
 {
     const gadget::VisorImage img = gadget::visorImage(p);
-    const float alarm = p == gadget::VisorVitals ? state.alarm : 0.f;
+    const float alarm = p == gadget::VisorVitals ? state().alarm : 0.f;
     unsigned long long picture = diskcache::fnvStart;
     const auto add = [&picture](const auto& v) { picture = diskcache::fnv(picture, &v, sizeof(v)); };
-    add(img.texture), add(img.version), add(state.glitch);
-    if(state.glitch > 0.f)
+    add(img.texture), add(img.version), add(state().glitch);
+    if(state().glitch > 0.f)
     {
         add(host_framecount); // (Shade::Screen's glitch: torn anew every frame)
     }
@@ -768,7 +776,7 @@ void drawPanel(int p, bool all)
 {
     LayerPass& lp = layerPass;
     PanelLayer& pl = lp.panels[p];
-    Panel& out = state.panels[p];
+    Panel& out = state().panels[p];
     if(!pl.built)
     {
         return;
@@ -808,7 +816,7 @@ void drawPanel(int p, bool all)
     useSlot(pl, SlotContents);
     drawContents(L, p, pl.mount, img,
         {.shade = gfx::Shade::Screen, .blend = gfx::Blend::Premultiplied, .depthTest = false, .depthWrite = false,
-            .params = {time, crt * za::clamp(vr_flat_visor_ink_crt.value, 0.f, 1.f), state.glitch, gadget::textGlow()},
+            .params = {time, crt * za::clamp(vr_flat_visor_ink_crt.value, 0.f, 1.f), state().glitch, gadget::textGlow()},
             .screen = {img.size.x, img.size.y, 0.5f}, .trueColor = true,
             .inkAlpha = 1.f},
         phosphor, lp.mvp, out.rect);
@@ -818,7 +826,7 @@ void drawPanel(int p, bool all)
     }
 
     // The vitals' mount pulses red at low health (its face, its line and its glows).
-    const float alarm = p == gadget::VisorVitals ? state.alarm : 0.f;
+    const float alarm = p == gadget::VisorVitals ? state().alarm : 0.f;
     const glm::vec3 alarmFace{0.16f, 0.015f, 0.01f};
     const glm::vec3 faceRgb = glm::mix(colors.face, alarmFace, za::clamp(alarm, 0.f, 1.f) * 0.85f);
     const glm::vec3 lineRgb = glm::mix(colors.line, colors.warn, za::clamp(alarm * 1.5f, 0.f, 1.f));
@@ -1074,7 +1082,7 @@ void eachBox(int x, int y, int w, int h, float scale, float pad, F&& draw)
     for(int p = 0; p < VisorPanelCount; p++)
     {
         const glm::ivec4 b = boxOf(p, w, h, scale, pad);
-        if(state.panels[p].drawn && b.z > b.x && b.w > b.y)
+        if(state().panels[p].drawn && b.z > b.x && b.w > b.y)
         {
             draw(x + b.x, y + (h - b.w), b.z - b.x, b.w - b.y); // (y up)
         }
@@ -1186,12 +1194,12 @@ void eachBox(int x, int y, int w, int h, float scale, float pad, F&& draw)
 void composite(int x, int y, int w, int h, const za::Array<glm::vec2, VisorPanelCount>& fades, bool alphaOnly)
 {
     const LayerPass& lp = layerPass;
-    const glm::vec2 shift = swayShift(lp.L, state.sway, lp.tx);
+    const glm::vec2 shift = swayShift(lp.L, state().sway, lp.tx);
     const glm::vec2 plate = shift * lp.plateParallax, contents = shift * lp.contentParallax;
     glEnable(GL_SCISSOR_TEST);
     for(int p = 0; p < VisorPanelCount; p++)
     {
-        if(!state.panels[p].drawn)
+        if(!state().panels[p].drawn)
         {
             continue;
         }
@@ -1307,7 +1315,7 @@ void draw(unsigned framebuffer, int x, int y, int w, int h)
     for(int p = 0; p < VisorPanelCount; p++)
     {
         fades[p] = panelFade(p);
-        state.panels[p].drawn = lp.panels[p].built && fades[p].x > 0.f;
+        state().panels[p].drawn = lp.panels[p].built && fades[p].x > 0.f;
     }
     // Bullet time's mask wanted (its look leaves the panels alone: tintMask), its target ready.
     lp.tintDrawn = vr_flat_visor_no_bt_tint.value != 0.f && bullettime::look().strength > 0.f &&
@@ -1315,7 +1323,7 @@ void draw(unsigned framebuffer, int x, int y, int w, int h)
     {
         // How far the sway moves the panels from where they lie at rest now (view pixels: the lens magnifies it at most
         // about 1.6 times towards the corners).
-        const glm::vec2 shift = swayShift(lp.L, state.sway, lp.tx);
+        const glm::vec2 shift = swayShift(lp.L, state().sway, lp.tx);
         const float most = glm::length(shift) * za::max(1.f, za::max(za::abs(lp.plateParallax), lp.contentParallax));
         lp.swayPad = most > 0.f ? most * 1.6f + 1.f : 0.f;
     }
@@ -1369,7 +1377,7 @@ void draw(unsigned framebuffer, int x, int y, int w, int h)
 
 void report_f()
 {
-    const State& s = state;
+    const State& s = state();
     Con_Printf("visor: active %d frame %d; sway %.3f %.3f (lag %.3f %.3f, bob %.3f); glitch %.3f fog %.3f underwater %d "
                "fade %.3f alarm %.3f boot %.2f %.2f %.2f; log lines %d\n",
         active() ? 1 : 0, host_framecount, s.sway.x, s.sway.y, s.lag.x, s.lag.y, s.bobAmp, s.glitch, s.fog,
@@ -1400,7 +1408,7 @@ void fx_f()
     const char* what = Cmd_Argc() > 1 ? Cmd_Argv(1) : "";
     if(!q_strcasecmp(what, "damage"))
     {
-        state.fxDamage = Cmd_Argc() > 2 ? za::max(1, Q_atoi(Cmd_Argv(2))) : 20;
+        state().fxDamage = Cmd_Argc() > 2 ? za::max(1, Q_atoi(Cmd_Argv(2))) : 20;
     }
     else if(!q_strcasecmp(what, "hit"))
     {
@@ -1414,11 +1422,11 @@ void fx_f()
     }
     else if(!q_strcasecmp(what, "boot"))
     {
-        state.bootAt = state.clock;
+        state().bootAt = state().clock;
     }
     else if(!q_strcasecmp(what, "fog"))
     {
-        state.fxFogHold = Cmd_Argc() > 2 ? za::clamp(static_cast<float>(Q_atof(Cmd_Argv(2))), 0.f, 30.f) : 1.f;
+        state().fxFogHold = Cmd_Argc() > 2 ? za::clamp(static_cast<float>(Q_atof(Cmd_Argv(2))), 0.f, 30.f) : 1.f;
     }
     else if(!q_strcasecmp(what, "center"))
     {
@@ -1451,7 +1459,7 @@ void fx_f()
 
 void onDamage(int armor, int blood)
 {
-    state.hitDamage += za::max(0, armor) + za::max(0, blood);
+    state().hitDamage += za::max(0, armor) + za::max(0, blood);
 }
 
 bool active()
@@ -1479,13 +1487,13 @@ unsigned tintMask(glm::vec4& rect)
 void renderPanels()
 {
     const bool on = active();
-    if(on != za::exchange(state.wasActive, on))
+    if(on != za::exchange(state().wasActive, on))
     {
         vid.recalc_refdef = 1; // (the classic status bar's lines: SCR_CalcRefdef)
     }
     if(on)
     {
-        gadget::renderVisor(state.input);
+        gadget::renderVisor(state().input);
     }
 }
 
@@ -1513,11 +1521,11 @@ extern "C" int VR_CenterPrintOnVisor(const char* text, float alpha)
     {
         return 0;
     }
-    auto& c = visor::state.center;
+    auto& c = visor::state().center;
     if(c.fade <= 0.f || std::strncmp(c.text.data(), text, c.text.size() - 1) != 0)
     {
         q_strlcpy(c.text.data(), text, c.text.size());
-        c.popAt = visor::state.clock;
+        c.popAt = visor::state().clock;
         c.pops++;
     }
     c.claimed = host_framecount;

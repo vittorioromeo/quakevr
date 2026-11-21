@@ -48,7 +48,6 @@ typedef struct
 	float	percent;		// 0-256
 } cshift_t;
 
-extern cshift_t		cshift_empty;
 
 #define	CSHIFT_CONTENTS	0
 #define	CSHIFT_DAMAGE	1
@@ -363,6 +362,37 @@ typedef struct seatinput_s
 
 seatinput_t *CL_SeatInput (void);			// the current seat's (vr_seat.cpp)
 seatinput_t *CL_SeatInputOf (int seat);	// seat 0..3's (seat 0's: the config's +mlook line)
+// QVR: splitscreen phase 3: a seat's view (view.c's globals and statics) and the window area it is drawn in. The view's
+// and HUD's draws take the seat's (V_RenderView, SCR_UpdateScreen's 2D pass: the current seat's, passed down); a
+// message or command that changes them (a hit's kick, v_cshift, a centre print, +showscores) the current seat's.
+typedef struct seatview_s
+{
+	vec3_t		punchangles[2];		// cl.punchangle as the view saw it: 0 now, 1 before (johnfitz's v_punchangles)
+	float		dmg_time, dmg_roll, dmg_pitch;	// a hit's kick (V_ParseDamage)
+	float		blend[4];			// the screen's tint, rgba 0..1 (v_blend)
+	cshift_t	contents;			// v_cshift's empty contents' tint (cshift_empty; the demo rewind keeps it)
+	float		gunyaw, gunpitch;	// CalcGunAngle's smoothing (its old statics)
+	float		stepz;				// V_CalcRefdef's stair smoothing (its old static oldz)
+	vrect_t		rect;				// the window area this seat's view and HUD are drawn in: the whole window until
+									// the layouts (SPLITSCREEN.md phases 7, 11: SCR_SeatRect)
+	vrect_t		viewrect;			// the 3D view's part of it (scr_vrect: viewsize, the status bar's room)
+} seatview_t;
+
+// QVR: splitscreen phase 3: a seat's HUD state (gl_screen.c's centre print, sbar.c's scores shown).
+typedef struct seathud_s
+{
+	char		centerstring[1024];	// the centre print (scr_centerstring...)
+	float		centertime_start;	// cl.time it began: the finale's slow printing
+	float		centertime_off;		// seconds it has left
+	int			center_lines, center_maxcols, erase_lines, erase_center;
+	qboolean	showscores;			// +showscores held (sb_showscores)
+} seathud_t;
+
+seatview_t *V_SeatView (void);				// the current seat's (vr_seat.cpp)
+seatview_t *V_SeatViewOf (int seat);
+seathud_t *SCR_SeatHud (void);				// the current seat's
+seathud_t *SCR_SeatHudOf (int seat);
+
 int CL_SeatIndex (void);					// the current seat (0 outside a seat loop)
 int CL_SeatSet (int seat);					// makes a seat current, returns the one that was (C's seat::Scope: set it back)
 int CL_SeatCount (void);					// the seats there are (seat::maxSeats)

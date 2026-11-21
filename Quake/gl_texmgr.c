@@ -2753,7 +2753,7 @@ int GLPalette_Postprocess (void)
 	if (!softemu)
 		return 0;
 
-	blend = (v_blend[3] && gl_polyblend.value) ? v_blend : vec4_origin;
+	blend = (V_SeatView ()->blend[3] && gl_polyblend.value) ? V_SeatView ()->blend : vec4_origin;
 
 	/* can we use the original palette? */
 	if (vid_gamma.value == 1.f &&

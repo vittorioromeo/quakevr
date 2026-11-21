@@ -6,6 +6,7 @@
 #include "vr_backend.hpp" // HAND_OFF / HAND_MAIN / HAND_COUNT
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
+#include "vr_seat.hpp"
 #include "vr_flatplay.hpp"
 #include "vr_flatreload.hpp"
 #include "vr_flatsight.hpp"
@@ -123,7 +124,11 @@ struct State
     za::Vector<gfx::Vertex> tris;
     za::Vector<gfx::Vertex> glows;
 };
-State st;
+// splitscreen (SPLITSCREEN.md, phase 3): the current seat's (seat::Part::FlatXhair)
+[[nodiscard]] State& st()
+{
+    return seat::part<State>(seat::current(), seat::Part::FlatXhair);
+}
 
 // vr_flat_xhair_turntest: the mouse turns the view back and forth, and each frame the crosshairs are measured (pixels at
 // 1080 rows): how far each one shown moves from the frame before (its jitter) and how far its hit is off the centre.
@@ -152,6 +157,7 @@ struct TurnTest
         glm::vec2 shownWas{0.f};
     } hand[HAND_COUNT];
 };
+// seat-shared: a test's own (one at a time)
 TurnTest turn;
 
 [[nodiscard]] float tune(const cvar_t& v, float lo, float hi)
@@ -199,14 +205,14 @@ TurnTest turn;
 }
 
 // A world point on the view (pixels from its top left); false behind the eye.
-[[nodiscard]] bool project(const glm::vec3& p, glm::vec2& out, const glm::mat4& viewProj = st.viewProj)
+[[nodiscard]] bool project(const glm::vec3& p, glm::vec2& out, const glm::mat4& viewProj = st().viewProj)
 {
     const glm::vec4 c = viewProj * glm::vec4{p, 1.f};
     if(c.w <= 1e-3f)
     {
         return false;
     }
-    out = {(c.x / c.w * 0.5f + 0.5f) * st.view.x, (0.5f - c.y / c.w * 0.5f) * st.view.y};
+    out = {(c.x / c.w * 0.5f + 0.5f) * st().view.x, (0.5f - c.y / c.w * 0.5f) * st().view.y};
     return true;
 }
 
@@ -220,13 +226,13 @@ TurnTest turn;
 // Where hand `k`'s crosshair is shown this frame (two guns as one: the one between them, or the centre).
 [[nodiscard]] glm::vec2 shownAt(int k)
 {
-    const Aim& l = st.aim[HAND_OFF];
-    const Aim& r = st.aim[HAND_MAIN];
-    if(l.shown && r.shown && st.merged)
+    const Aim& l = st().aim[HAND_OFF];
+    const Aim& r = st().aim[HAND_MAIN];
+    if(l.shown && r.shown && st().merged)
     {
-        return l.snapped && r.snapped ? st.centre : (l.drawn + r.drawn) * 0.5f;
+        return l.snapped && r.snapped ? st().centre : (l.drawn + r.drawn) * 0.5f;
     }
-    return st.aim[k].drawn;
+    return st().aim[k].drawn;
 }
 
 // vr_flat_xhair_turntest: this frame's crosshairs into the run's sums.
@@ -240,7 +246,7 @@ void measureTurn(float px)
     for(int k = 0; k < HAND_COUNT; k++)
     {
         TurnTest::Hand& t = turn.hand[k];
-        const Aim& a = st.aim[k];
+        const Aim& a = st().aim[k];
         if(!a.shown)
         {
             t.was = false;
@@ -250,10 +256,10 @@ void measureTurn(float px)
         if(turn.trace)
         {
             Con_Printf("flatxhair frame: %d %s raw %.1f %.1f shown %.1f %.1f wall %.2f\n", turn.measured, k == HAND_MAIN ? "main" : "off",
-                (a.raw.x - st.centre.x) / px, (a.raw.y - st.centre.y) / px, (at.x - st.centre.x) / px, (at.y - st.centre.y) / px,
+                (a.raw.x - st().centre.x) / px, (a.raw.y - st().centre.y) / px, (at.x - st().centre.x) / px, (at.y - st().centre.y) / px,
                 flatsight::wallShot(k));
         }
-        const float off = glm::distance(a.raw, st.centre) / px;
+        const float off = glm::distance(a.raw, st().centre) / px;
         t.seen++;
         t.snapped += a.snapped ? 1 : 0;
         t.offSq += static_cast<double>(off * off);
@@ -293,36 +299,36 @@ void turnReport()
 // Once a frame: each hand's hit, its place on the view, snapped and smoothed.
 void update(int w, int h)
 {
-    if(st.frame == host_framecount)
+    if(st().frame == host_framecount)
     {
         return;
     }
-    st.frame = host_framecount;
-    st.view = {static_cast<float>(w), static_cast<float>(h)};
-    st.viewProj = glm::make_mat4(r_matviewproj);
+    st().frame = host_framecount;
+    st().view = {static_cast<float>(w), static_cast<float>(h)};
+    st().viewProj = glm::make_mat4(r_matviewproj);
     // The shot's line is the last move's, and a move goes with the server's tick (72 a second), not each frame drawn: at
     // 144 frames a second every other frame drew it a frame behind the view, and turning at 360 degrees a second its point
     // swung 30 pixels off the centre and back (ROUND24.md, "The visor crosshair's jitter"). The hit is placed against the
     // view of the frame its move was made in instead: the gun turns with the view, so that is where it goes (its next move's
     // line), and a centred one stays on the centre whatever the turn.
-    if(st.shotFresh)
+    if(st().shotFresh)
     {
-        st.shotViewProj = st.viewProj;
-        st.shotFresh = false;
+        st().shotViewProj = st().viewProj;
+        st().shotFresh = false;
     }
     float sx = 0.f, sy = 0.f;
     VR_FlatCrosshairShift(&sx, &sy); // (fractions of the height, x right, y down: the ironsight's picture moved)
-    st.centre = st.view * 0.5f + glm::vec2{sx, sy} * st.view.y;
+    st().centre = st().view * 0.5f + glm::vec2{sx, sy} * st().view.y;
 
-    const float px = st.view.y / 1080.f;
+    const float px = st().view.y / 1080.f;
     const float snap = tune(vr_flat_xhair_snap, 0.f, 200.f) * px;
     const float tau = tune(vr_flat_xhair_smooth, 0.f, 0.5f);
     const float dt = za::clamp(static_cast<float>(host_frametime), 0.f, 0.1f);
     const float follow = tau > 0.f ? 1.f - za::exp(-dt / tau) : 1.f;
     for(int k = 0; k < HAND_COUNT; k++)
     {
-        Aim& a = st.aim[k];
-        a.shown = st.shot[k].valid && gunIn(k);
+        Aim& a = st().aim[k];
+        a.shown = st().shot[k].valid && gunIn(k);
         if(!a.shown)
         {
             a.had = false;
@@ -342,28 +348,28 @@ void update(int w, int h)
         const float spreadTo = za::min(tune(vr_flat_xhair_kick, 0.f, 10.f) * a.kick, tune(vr_flat_xhair_kick_max, 0.f, 64.f)) * px;
         const float kickTau = tune(vr_flat_xhair_kick_smooth, 0.f, 0.3f);
         a.spread = a.had && kickTau > 0.f ? a.spread + (spreadTo - a.spread) * (1.f - za::exp(-dt / kickTau)) : spreadTo;
-        a.hit = shotHit(st.shot[k]);
-        if(!project(a.hit, a.raw, st.shotViewProj))
+        a.hit = shotHit(st().shot[k]);
+        if(!project(a.hit, a.raw, st().shotViewProj))
         {
-            a.raw = st.centre;
+            a.raw = st().centre;
         }
-        const float off = glm::distance(a.raw, st.centre);
+        const float off = glm::distance(a.raw, st().centre);
         // (Away reloading, its muzzle down at the hip: held on the centre, where it comes back to, not on the floor's hit.)
         a.snapped = a.reloading || off <= (a.snapped && a.had ? snap * unsnapShare : snap);
-        const glm::vec2 want = glm::clamp(a.snapped ? st.centre : a.raw, glm::vec2{0.f}, st.view);
+        const glm::vec2 want = glm::clamp(a.snapped ? st().centre : a.raw, glm::vec2{0.f}, st().view);
         a.drawn = a.had ? a.drawn + (want - a.drawn) * follow : want;
         a.had = true;
     }
-    const Aim& l = st.aim[HAND_OFF];
-    const Aim& r = st.aim[HAND_MAIN];
+    const Aim& l = st().aim[HAND_OFF];
+    const Aim& r = st().aim[HAND_MAIN];
     if(l.shown && r.shown)
     {
         const float apart = glm::distance(l.drawn, r.drawn);
-        st.merged = (l.snapped && r.snapped) || apart <= (st.merged ? snap * unsnapShare : snap);
+        st().merged = (l.snapped && r.snapped) || apart <= (st().merged ? snap * unsnapShare : snap);
     }
     else
     {
-        st.merged = true;
+        st().merged = true;
     }
     measureTurn(px);
 }
@@ -382,7 +388,7 @@ struct Ink
 {
     const float alpha = ink.alpha * a;
     gfx::Vertex v;
-    v.pos = {p.x / st.view.x * 2.f - 1.f, 1.f - p.y / st.view.y * 2.f, 0.f};
+    v.pos = {p.x / st().view.x * 2.f - 1.f, 1.f - p.y / st().view.y * 2.f, 0.f};
     v.color = {ink.rgb * alpha, ink.glow ? 0.f : alpha};
     return v;
 }
@@ -400,7 +406,7 @@ void quad(za::Vector<gfx::Vertex>& out, const gfx::Vertex& a, const gfx::Vertex&
 // A box about `c` along `u` (unit) and its perpendicular: solid within half sizes `in`, fading to nothing at `outer`.
 void box(const glm::vec2& c, const glm::vec2& u, const glm::vec2& in, const glm::vec2& outer, const Ink& ink)
 {
-    za::Vector<gfx::Vertex>& out = ink.glow ? st.glows : st.tris;
+    za::Vector<gfx::Vertex>& out = ink.glow ? st().glows : st().tris;
     const glm::vec2 v{-u.y, u.x};
     const float xs[4] = {-outer.x, -in.x, in.x, outer.x};
     const float ys[4] = {-outer.y, -in.y, in.y, outer.y};
@@ -437,7 +443,7 @@ void bar(const glm::vec2& a, const glm::vec2& b, float width, float grow, float 
 // A ring about `c` from radius `r0` to `r1` (0: a disc), with the same edges.
 void ring(const glm::vec2& c, float r0, float r1, float grow, float ramp, const Ink& ink)
 {
-    za::Vector<gfx::Vertex>& out = ink.glow ? st.glows : st.tris;
+    za::Vector<gfx::Vertex>& out = ink.glow ? st().glows : st().tris;
     r0 = r0 > 0.f ? za::max(0.f, r0 - grow) : 0.f;
     r1 += grow;
     // The radii across it and the opacity at each.
@@ -488,7 +494,7 @@ void ring(const glm::vec2& c, float r0, float r1, float grow, float ramp, const 
 // chevron dropped; the dot alone has no lines to move).
 void shape(const glm::vec2& c, int style, float grow, float ramp, int side, float spread, const Ink& ink)
 {
-    const float px = st.view.y / 1080.f;
+    const float px = st().view.y / 1080.f;
     const float size0 = tune(vr_flat_xhair_size, 1.f, 64.f) * px;
     const float thick = tune(vr_flat_xhair_thickness, 0.5f, 12.f) * px;
     const float gap = za::min(tune(vr_flat_xhair_gap, 0.f, 48.f) * px, size0 * 0.9f) + spread;
@@ -568,8 +574,8 @@ void drawLists()
         }
         v.clear();
     };
-    flush(st.glows);
-    flush(st.tris);
+    flush(st().glows);
+    flush(st().tris);
 }
 
 // One crosshair at `c`: glow, outline, lines.
@@ -586,7 +592,7 @@ void one(const glm::vec2& c, int side, float dim, float spread)
         return;
     }
     const int style = static_cast<int>(tune(vr_flat_xhair_style, 0.f, static_cast<float>(StyleCount - 1)));
-    const float px = st.view.y / 1080.f;
+    const float px = st().view.y / 1080.f;
     const float glow = tune(vr_flat_xhair_glow, 0.f, 2.f);
     const float outline = tune(vr_flat_xhair_outline, 0.f, 6.f) * px;
     if(glow > 0.f)
@@ -605,13 +611,13 @@ void one(const glm::vec2& c, int side, float dim, float spread)
 void draw(unsigned framebuffer, int x, int y, int w, int h)
 {
     update(w, h);
-    st.drawnAny = false;
-    const Aim& l = st.aim[HAND_OFF];
-    const Aim& r = st.aim[HAND_MAIN];
+    st().drawnAny = false;
+    const Aim& l = st().aim[HAND_OFF];
+    const Aim& r = st().aim[HAND_MAIN];
     GL_BeginGroup("VR flat crosshair");
     GL_BindFramebufferFunc(GL_FRAMEBUFFER, framebuffer);
     glViewport(x, y, w, h);
-    if(l.shown && r.shown && !st.merged)
+    if(l.shown && r.shown && !st().merged)
     {
         one(l.drawn, -1, l.dim, l.spread);
         one(r.drawn, 1, r.dim, r.spread);
@@ -628,9 +634,9 @@ void draw(unsigned framebuffer, int x, int y, int w, int h)
     }
     else
     {
-        one(st.centre, 0, 1.f, 0.f); // (no gun: where he looks, for the hands, the grab and the punch)
+        one(st().centre, 0, 1.f, 0.f); // (no gun: where he looks, for the hands, the grab and the punch)
     }
-    st.drawnAny = true;
+    st().drawnAny = true;
     GL_EndGroup();
 }
 
@@ -642,20 +648,20 @@ void probe_f()
         return;
     }
     // (Short lines: the console wraps long ones.)
-    const float px = st.view.y / 1080.f;
-    Con_Printf("flatxhair: on %d drawn %d merged %d style %d\n", playing() ? 1 : 0, st.drawnAny ? 1 : 0, st.merged ? 1 : 0,
+    const float px = st().view.y / 1080.f;
+    Con_Printf("flatxhair: on %d drawn %d merged %d style %d\n", playing() ? 1 : 0, st().drawnAny ? 1 : 0, st().merged ? 1 : 0,
         static_cast<int>(vr_flat_xhair_style.value));
-    Con_Printf("flatxhair: view %.0f %.0f centre %.1f %.1f snap %.1f px\n", st.view.x, st.view.y, st.centre.x, st.centre.y,
+    Con_Printf("flatxhair: view %.0f %.0f centre %.1f %.1f snap %.1f px\n", st().view.x, st().view.y, st().centre.x, st().centre.y,
         tune(vr_flat_xhair_snap, 0.f, 200.f) * px);
     // (Why not, when not: the mode's cvar, a menu, dead, an intermission, viewsize 130.)
     Con_Printf("flatxhair: why xhair %g menu %d health %d intermission %d viewsize %g\n", vr_flat_xhair.value,
         key_dest == key_menu ? 1 : 0, cl.stats[STAT_HEALTH], cl.intermission, scr_viewsize.value);
     for(int k = 0; k < HAND_COUNT; k++)
     {
-        const Aim& a = st.aim[k];
+        const Aim& a = st().aim[k];
         const char* name = k == HAND_MAIN ? "main" : "off";
         Con_Printf("flatxhair: %s shown %d snapped %d blocked %d drawn %.1f %.1f off %.1f\n", name, a.shown ? 1 : 0,
-            a.snapped ? 1 : 0, a.blocked ? 1 : 0, a.drawn.x, a.drawn.y, glm::distance(a.drawn, st.centre));
+            a.snapped ? 1 : 0, a.blocked ? 1 : 0, a.drawn.x, a.drawn.y, glm::distance(a.drawn, st().centre));
         Con_Printf("flatxhair: %s dim %.2f reload %d wall %.2f\n", name, a.dim, a.reloading ? 1 : 0, flatsight::wallShot(k));
         Con_Printf("flatxhair: %s kick %.2f spread %.2f px\n", name, a.kick, a.spread);
         // The gun as drawn: where its barrel's line (the weapon's Shot Pitch and Yaw on its drawn angles) goes from its drawn
@@ -664,32 +670,32 @@ void probe_f()
         glm::vec2 gunAt{0.f};
         if(a.shown && flatsight::drawnGun(k, gunMuzzle, gunRot))
         {
-            const ShotLine gun{true, gunMuzzle, st.shot[k].hand,
+            const ShotLine gun{true, gunMuzzle, st().shot[k].hand,
                 hands::forward(weapons::shotAngles(gunRot, weapons::heldSlot(k), k == HAND_OFF))};
-            const float apart = glm::degrees(za::acos(za::clamp(glm::dot(gun.dir, st.shot[k].dir), -1.f, 1.f)));
+            const float apart = glm::degrees(za::acos(za::clamp(glm::dot(gun.dir, st().shot[k].dir), -1.f, 1.f)));
             const bool seen = project(shotHit(gun), gunAt);
             Con_Printf("flatxhair: %s gun way %.1f deg seen %d from drawn %.1f px\n", name, apart, seen ? 1 : 0,
                 glm::distance(gunAt, a.drawn));
             Con_Printf("flatxhair: %s dirs gun %.2f %.2f %.2f shot %.2f %.2f %.2f\n", name, gun.dir.x, gun.dir.y, gun.dir.z,
-                st.shot[k].dir.x, st.shot[k].dir.y, st.shot[k].dir.z);
+                st().shot[k].dir.x, st().shot[k].dir.y, st().shot[k].dir.z);
         }
         Con_Printf("flatxhair: %s raw %.1f %.1f off %.1f hit %.1f %.1f %.1f\n", name, a.raw.x, a.raw.y,
-            glm::distance(a.raw, st.centre), a.hit.x, a.hit.y, a.hit.z);
+            glm::distance(a.raw, st().centre), a.hit.x, a.hit.y, a.hit.z);
         // Through teleporters (vr_portals_walk): where the shot as sent lands in the world, against what the middle of the
         // screen is on (its ray on through the gates as the shots go), the far room's places both.
-        if(st.shot[k].valid)
+        if(st().shot[k].valid)
         {
             glm::vec3 org, dir;
             flatplay::crosshairRay(hands::current(), geom::vec(cl.viewangles), org, dir);
             const auto centre = worldtrace::shotLine(org, org + dir * shotRange, MOVE_NORMAL | MOVE_HITGIBS | MOVE_HITMODEL);
-            const worldtrace::ShotStop shot = shotStop(st.shot[k]);
+            const worldtrace::ShotStop shot = shotStop(st().shot[k]);
             if(centre)
             {
                 Con_Printf("flatxhair: %s gates shot %d centre %d lands %.1f %.1f %.1f apart %.2f\n", name, shot.gates,
                     centre->gates, shot.at.x, shot.at.y, shot.at.z, glm::distance(shot.at, centre->at));
             }
         }
-        Pellets& p = st.pellets[k];
+        Pellets& p = st().pellets[k];
         if(p.count > 0)
         {
             // Where his pellets landed (their mean), on the view now, against the drawn crosshair and the centre.
@@ -697,7 +703,7 @@ void probe_f()
             glm::vec2 at{0.f};
             const bool seen = project(mean, at);
             Con_Printf("flatxhair: %s pellets %d from drawn %.1f px from centre %.1f px from gun %.1f px\n", name, p.count,
-                glm::distance(at, a.drawn), glm::distance(at, st.centre), glm::distance(at, gunAt));
+                glm::distance(at, a.drawn), glm::distance(at, st().centre), glm::distance(at, gunAt));
             Con_Printf("flatxhair: %s landed %.1f %.1f %.1f seen %d at %.1f %.1f from hit %.1f\n", name, mean.x, mean.y, mean.z,
                 seen ? 1 : 0, at.x, at.y, glm::distance(mean, a.hit));
             if(p.offCount > 0)
@@ -735,10 +741,10 @@ bool replacesCrosshair()
 
 void noteMove(const VrMove& move)
 {
-    st.shotFresh = true;
+    st().shotFresh = true;
     for(int k = 0; k < HAND_COUNT; k++)
     {
-        ShotLine& s = st.shot[k];
+        ShotLine& s = st().shot[k];
         s.valid = true;
         s.muzzle = move.muzzlePos[k];
         s.hand = move.hands[k].pos;
@@ -750,13 +756,13 @@ void noteTracer(int hand, const glm::vec3& to)
 {
     if(hand >= 0 && hand < HAND_COUNT)
     {
-        Pellets& p = st.pellets[hand];
+        Pellets& p = st().pellets[hand];
         p.sum += to;
         p.count++;
         glm::vec2 at{0.f};
-        if(st.aim[hand].shown && st.aim[hand].had && project(to, at))
+        if(st().aim[hand].shown && st().aim[hand].had && project(to, at))
         {
-            p.offSum += at - st.aim[hand].drawn;
+            p.offSum += at - st().aim[hand].drawn;
             p.offCount++;
         }
     }
@@ -764,13 +770,13 @@ void noteTracer(int hand, const glm::vec3& to)
 
 bool lastHit(int hand, glm::vec3& hit, float& offPx)
 {
-    if(hand < 0 || hand >= HAND_COUNT || !st.aim[hand].shown)
+    if(hand < 0 || hand >= HAND_COUNT || !st().aim[hand].shown)
     {
         return false;
     }
-    const Aim& a = st.aim[hand];
+    const Aim& a = st().aim[hand];
     hit = a.hit;
-    offPx = glm::distance(a.raw, st.centre) * 1080.f / za::max(1.f, st.view.y);
+    offPx = glm::distance(a.raw, st().centre) * 1080.f / za::max(1.f, st().view.y);
     return true;
 }
 
@@ -830,7 +836,7 @@ extern "C" void VR_DrawFlatCrosshair(unsigned framebuffer, int x, int y, int w, 
     }
     if(!flatxhair::playing() || flycam::on())
     {
-        flatxhair::st.drawnAny = false;
+        flatxhair::st().drawnAny = false;
         return;
     }
     QVR_GPU_PROFILE("flat crosshair");

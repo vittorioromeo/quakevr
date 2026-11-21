@@ -70,7 +70,6 @@ entity_t		*cl_visedicts[MAX_VISEDICTS];
 
 extern cvar_t	r_lerpmodels, r_lerpmove; //johnfitz
 
-extern vec3_t	v_punchangles[2];
 
 void CL_FreeState(void)
 {
@@ -116,7 +115,7 @@ void CL_ClearState (void)
 	cl_entities = (entity_t *) Hunk_AllocName (cl_max_edicts*sizeof(entity_t), "cl_entities");
 	//johnfitz
 
-	memset (v_punchangles, 0, sizeof (v_punchangles));
+	memset (V_SeatView ()->punchangles, 0, sizeof (V_SeatView ()->punchangles)); // QVR: the seat's view
 }
 
 /*

@@ -61,6 +61,7 @@ cvar_t	v_ipitch_level = {"v_ipitch_level", "0.3", CVAR_NONE};
 cvar_t	v_idlescale = {"v_idlescale", "0", CVAR_NONE};
 
 cvar_t	crosshair = {"crosshair", "0", CVAR_ARCHIVE};
+// seat-shared: the crosshair cvar's character (a preference)
 char	crosshair_char = '\0';
 
 cvar_t	gl_cshiftpercent = {"gl_cshiftpercent", "100", CVAR_ARCHIVE};
@@ -71,7 +72,9 @@ cvar_t	gl_cshiftpercent_powerup = {"gl_cshiftpercent_powerup", "100", CVAR_ARCHI
 
 cvar_t	r_viewmodel_quake = {"r_viewmodel_quake", "0", CVAR_ARCHIVE};
 
-vec3_t	v_punchangles[2]; //johnfitz -- copied from cl.punchangle.  0 is current, 1 is previous value. never the same unless map just loaded
+// QVR: splitscreen phase 3: v_punchangles, the hit's kick (v_dmg_*), v_blend, cshift_empty and the gun's and the step's
+// smoothing statics are the seat's view (seatview_t, client.h): the draws pass the seat's, messages and commands change
+// the current seat's.
 
 /*
 ===============
@@ -253,14 +256,10 @@ void V_DriftPitch (void)
 ==============================================================================
 */
 
-cshift_t cshift_empty = { {130,80,50}, 0 };
-static cshift_t cshift_water = { {130,80,50}, 128 };
-static cshift_t cshift_slime = { {0,25,5}, 150 };
-static cshift_t cshift_lava = { {255,80,0}, 150 };
+static const cshift_t cshift_water = { {130,80,50}, 128 };
+static const cshift_t cshift_slime = { {0,25,5}, 150 };
+static const cshift_t cshift_lava = { {255,80,0}, 150 };
 
-static float v_dmg_time, v_dmg_roll, v_dmg_pitch;
-
-float		v_blend[4];		// rgba 0.0 - 1.0; see note in V_PolyBlend for more info
 
 //johnfitz -- deleted BuildGammaTable(), V_CheckGamma(), gammatable[], and ramps[][]
 
@@ -271,11 +270,12 @@ V_ResetEffects
 */
 void V_ResetEffects (void)
 {
-	cshift_empty.percent = 0;
-	memset (v_blend, 0, sizeof (v_blend));
-	v_dmg_time = 0.f;
-	v_dmg_roll = 0.f;
-	v_dmg_pitch = 0.f;
+	seatview_t *sv = V_SeatView (); // QVR: splitscreen: the current seat's
+	sv->contents.percent = 0;
+	memset (sv->blend, 0, sizeof (sv->blend));
+	sv->dmg_time = 0.f;
+	sv->dmg_roll = 0.f;
+	sv->dmg_pitch = 0.f;
 }
 
 /*
@@ -285,6 +285,7 @@ V_ParseDamage
 */
 void V_ParseDamage (void)
 {
+	seatview_t *sv = V_SeatView (); // QVR: splitscreen: the current seat's
 	int		armor, blood;
 	vec3_t	from;
 	int		i;
@@ -342,12 +343,12 @@ void V_ParseDamage (void)
 	AngleVectors (ent->angles, forward, right, up);
 
 	side = DotProduct (from, right);
-	v_dmg_roll = count*side*v_kickroll.value;
+	sv->dmg_roll = count*side*v_kickroll.value;
 
 	side = DotProduct (from, forward);
-	v_dmg_pitch = count*side*v_kickpitch.value;
+	sv->dmg_pitch = count*side*v_kickpitch.value;
 
-	v_dmg_time = v_kicktime.value;
+	sv->dmg_time = v_kicktime.value;
 }
 
 
@@ -358,10 +359,11 @@ V_cshift_f
 */
 void V_cshift_f (void)
 {
-	cshift_empty.destcolor[0] = atoi(Cmd_Argv(1));
-	cshift_empty.destcolor[1] = atoi(Cmd_Argv(2));
-	cshift_empty.destcolor[2] = atoi(Cmd_Argv(3));
-	cshift_empty.percent = atoi(Cmd_Argv(4));
+	seatview_t *sv = V_SeatView (); // QVR: splitscreen: the current seat's
+	sv->contents.destcolor[0] = atoi(Cmd_Argv(1));
+	sv->contents.destcolor[1] = atoi(Cmd_Argv(2));
+	sv->contents.destcolor[2] = atoi(Cmd_Argv(3));
+	sv->contents.percent = atoi(Cmd_Argv(4));
 }
 
 
@@ -394,7 +396,7 @@ void V_SetContentsColor (int contents)
 	case CONTENTS_EMPTY:
 	case CONTENTS_SOLID:
 	case CONTENTS_SKY: //johnfitz -- no blend in sky
-		cl.cshifts[CSHIFT_CONTENTS] = cshift_empty;
+		cl.cshifts[CSHIFT_CONTENTS] = V_SeatView ()->contents;
 		break;
 	case CONTENTS_LAVA:
 		cl.cshifts[CSHIFT_CONTENTS] = cshift_lava;
@@ -453,6 +455,7 @@ V_CalcBlend
 */
 void V_CalcBlend (void)
 {
+	seatview_t *sv = V_SeatView (); // QVR: splitscreen: the current seat's
 	static const cvar_t	* const cshiftpercent_cvars[NUM_CSHIFTS] =
 	{
 		&gl_cshiftpercent_contents,
@@ -494,14 +497,14 @@ void V_CalcBlend (void)
 	if (gl_cshiftpercent.value && !cl.intermission)
 		VR_AD_TintBlend (&r, &g, &b, &a, gl_cshiftpercent.value); // QVR: AD support: Arcane Dimensions' screen tint (vr_ad.cpp)
 
-	v_blend[0] = r/255.0;
-	v_blend[1] = g/255.0;
-	v_blend[2] = b/255.0;
-	v_blend[3] = a;
-	if (v_blend[3] > 1)
-		v_blend[3] = 1;
-	if (v_blend[3] < 0)
-		v_blend[3] = 0;
+	sv->blend[0] = r/255.0;
+	sv->blend[1] = g/255.0;
+	sv->blend[2] = b/255.0;
+	sv->blend[3] = a;
+	if (sv->blend[3] > 1)
+		sv->blend[3] = 1;
+	if (sv->blend[3] < 0)
+		sv->blend[3] = 0;
 }
 
 /*
@@ -553,9 +556,9 @@ void V_UpdateBlend (void)
 V_PolyBlend -- johnfitz -- moved here from gl_rmain.c
 ============
 */
-void V_PolyBlend (void)
+static void V_PolyBlend (seatview_t *sv)
 {
-	if (!gl_polyblend.value || !v_blend[3])
+	if (!gl_polyblend.value || !sv->blend[3])
 		return;
 
 	if (softemu)
@@ -568,8 +571,8 @@ void V_PolyBlend (void)
 		// to make it easier to read (e.g. books in Arcane Dimensions). Applying the effect
 		// at the end of the frame would defeat its purpose (and make the UI harder to use),
 		// so we detect this case and apply the effect here.
-		int maxcolor = q_max (cshift_empty.destcolor[0], q_max (cshift_empty.destcolor[1], cshift_empty.destcolor[2]));
-		if (!cshift_empty.percent || maxcolor > 0)
+		int maxcolor = q_max (sv->contents.destcolor[0], q_max (sv->contents.destcolor[1], sv->contents.destcolor[2]));
+		if (!sv->contents.percent || maxcolor > 0)
 			return;
 	}
 	else
@@ -583,12 +586,12 @@ void V_PolyBlend (void)
 
 	GL_UseProgram (glprogs.viewblend);
 	GL_SetState (GLS_BLEND_ALPHA | GLS_NO_ZTEST | GLS_NO_ZWRITE | GLS_CULL_NONE | GLS_ATTRIBS(0));
-	GL_Uniform4fvFunc (0, 1, v_blend);
+	GL_Uniform4fvFunc (0, 1, sv->blend);
 	VR_BloodBind (); // QVR: zero when no peripheral effect is active
 
 	glDrawArrays (GL_TRIANGLES, 0, 3);
 
-	v_blend[3] = 0.f; // make sure this doesn't get applied again later in the pipeline
+	sv->blend[3] = 0.f; // make sure this doesn't get applied again later in the pipeline
 }
 
 /*
@@ -612,11 +615,9 @@ float angledelta (float a)
 CalcGunAngle
 ==================
 */
-void CalcGunAngle (void)
+static void CalcGunAngle (seatview_t *sv)
 {
 	float	yaw, pitch, move;
-	static float oldyaw = 0;
-	static float oldpitch = 0;
 
 	yaw = r_refdef.viewangles[YAW];
 	pitch = -r_refdef.viewangles[PITCH];
@@ -632,30 +633,30 @@ void CalcGunAngle (void)
 	if (pitch < -10)
 		pitch = -10;
 	move = host_frametime*20;
-	if (yaw > oldyaw)
+	if (yaw > sv->gunyaw)
 	{
-		if (oldyaw + move < yaw)
-			yaw = oldyaw + move;
+		if (sv->gunyaw + move < yaw)
+			yaw = sv->gunyaw + move;
 	}
 	else
 	{
-		if (oldyaw - move > yaw)
-			yaw = oldyaw - move;
+		if (sv->gunyaw - move > yaw)
+			yaw = sv->gunyaw - move;
 	}
 
-	if (pitch > oldpitch)
+	if (pitch > sv->gunpitch)
 	{
-		if (oldpitch + move < pitch)
-			pitch = oldpitch + move;
+		if (sv->gunpitch + move < pitch)
+			pitch = sv->gunpitch + move;
 	}
 	else
 	{
-		if (oldpitch - move > pitch)
-			pitch = oldpitch - move;
+		if (sv->gunpitch - move > pitch)
+			pitch = sv->gunpitch - move;
 	}
 
-	oldyaw = yaw;
-	oldpitch = pitch;
+	sv->gunyaw = yaw;
+	sv->gunpitch = pitch;
 
 	cl.viewent.angles[YAW] = r_refdef.viewangles[YAW] + yaw;
 	cl.viewent.angles[PITCH] = - (r_refdef.viewangles[PITCH] + pitch);
@@ -715,18 +716,18 @@ V_CalcViewRoll
 Roll is induced by movement and damage
 ==============
 */
-void V_CalcViewRoll (void)
+static void V_CalcViewRoll (seatview_t *sv)
 {
 	float		side;
 
 	side = V_CalcRoll (cl_entities[cl.viewentity].angles, cl.velocity);
 	r_refdef.viewangles[ROLL] += side;
 
-	if (v_dmg_time > 0)
+	if (sv->dmg_time > 0)
 	{
-		r_refdef.viewangles[ROLL] += v_dmg_time/v_kicktime.value*v_dmg_roll;
-		r_refdef.viewangles[PITCH] += v_dmg_time/v_kicktime.value*v_dmg_pitch;
-		v_dmg_time -= fabs (cl.time - cl.oldtime);
+		r_refdef.viewangles[ROLL] += sv->dmg_time/v_kicktime.value*sv->dmg_roll;
+		r_refdef.viewangles[PITCH] += sv->dmg_time/v_kicktime.value*sv->dmg_pitch;
+		sv->dmg_time -= fabs (cl.time - cl.oldtime);
 	}
 
 	if (cl.stats[STAT_HEALTH] <= 0)
@@ -768,14 +769,13 @@ void V_CalcIntermissionRefdef (void)
 V_CalcRefdef
 ==================
 */
-void V_CalcRefdef (void)
+static void V_CalcRefdef (seatview_t *sv)
 {
 	entity_t	*ent, *view;
 	int			i;
 	vec3_t		forward, right, up;
 	vec3_t		angles;
 	float		bob;
-	static float oldz = 0;
 
 	V_DriftPitch ();
 
@@ -804,7 +804,7 @@ void V_CalcRefdef (void)
 	r_refdef.vieworg[2] += 1.0/32;
 
 	VectorCopy (cl.viewangles, r_refdef.viewangles);
-	V_CalcViewRoll ();
+	V_CalcViewRoll (sv);
 	V_AddIdle ();
 
 // offsets
@@ -823,7 +823,7 @@ void V_CalcRefdef (void)
 // set up gun position
 	VectorCopy (cl.viewangles, view->angles);
 
-	CalcGunAngle ();
+	CalcGunAngle (sv);
 
 	VectorCopy (ent->origin, view->origin);
 	view->origin[2] += cl.viewheight;
@@ -869,14 +869,14 @@ void V_CalcRefdef (void)
 		if (punchblend < 0.0f) punchblend = 0.0f;
 		if (punchblend > 1.0f) punchblend = 1.0f;
 
-		r_refdef.viewangles[0] += v_punchangles[1][0] + (v_punchangles[0][0] - v_punchangles[1][0]) * punchblend;
-		r_refdef.viewangles[1] += v_punchangles[1][1] + (v_punchangles[0][1] - v_punchangles[1][1]) * punchblend;
-		r_refdef.viewangles[2] += v_punchangles[1][2] + (v_punchangles[0][2] - v_punchangles[1][2]) * punchblend;
+		r_refdef.viewangles[0] += sv->punchangles[1][0] + (sv->punchangles[0][0] - sv->punchangles[1][0]) * punchblend;
+		r_refdef.viewangles[1] += sv->punchangles[1][1] + (sv->punchangles[0][1] - sv->punchangles[1][1]) * punchblend;
+		r_refdef.viewangles[2] += sv->punchangles[1][2] + (sv->punchangles[0][2] - sv->punchangles[1][2]) * punchblend;
 	}
 //johnfitz
 
 // smooth out stair step ups
-	if (!noclip_anglehack && cl.onground && ent->origin[2] - oldz > 0) //johnfitz -- added exception for noclip
+	if (!noclip_anglehack && cl.onground && ent->origin[2] - sv->stepz > 0) //johnfitz -- added exception for noclip
 	//FIXME: noclip_anglehack is set on the server, so in a nonlocal game this won't work.
 	{
 		float steptime;
@@ -886,16 +886,16 @@ void V_CalcRefdef (void)
 			//FIXME	I_Error ("steptime < 0");
 			steptime = 0;
 
-		oldz += steptime * 80;
-		if (oldz > ent->origin[2])
-			oldz = ent->origin[2];
-		if (ent->origin[2] - oldz > 12)
-			oldz = ent->origin[2] - 12;
-		r_refdef.vieworg[2] += oldz - ent->origin[2];
-		view->origin[2] += oldz - ent->origin[2];
+		sv->stepz += steptime * 80;
+		if (sv->stepz > ent->origin[2])
+			sv->stepz = ent->origin[2];
+		if (ent->origin[2] - sv->stepz > 12)
+			sv->stepz = ent->origin[2] - 12;
+		r_refdef.vieworg[2] += sv->stepz - ent->origin[2];
+		view->origin[2] += sv->stepz - ent->origin[2];
 	}
 	else
-		oldz = ent->origin[2];
+		sv->stepz = ent->origin[2];
 
 	if (chase_active.value)
 		Chase_UpdateForDrawing (); //johnfitz
@@ -933,8 +933,6 @@ The player's clipping box goes from (-16 -16 -24) to (16 16 32) from
 the entity origin, so any view position inside that will be valid
 ==================
 */
-extern vrect_t	scr_vrect;
-
 /*
 ==================
 V_SetupView -- QVR
@@ -949,7 +947,7 @@ void V_SetupView (void) // QVR
 		if (cl.intermission)
 			V_CalcIntermissionRefdef ();
 		else if (!cl.paused /* && (cl.maxclients > 1 || key_dest == key_game) */)
-			V_CalcRefdef ();
+			V_CalcRefdef (V_SeatView ()); // QVR: splitscreen: the seat's view
 	}
 
 	//johnfitz -- removed lcd code
@@ -979,7 +977,7 @@ void V_RenderView (void)
 
 	{
 		VR_TRACY_SCOPE ("view: poly blend"); // QVR: profiling builds only
-		V_PolyBlend (); //johnfitz -- moved here from R_Renderview ();
+		V_PolyBlend (V_SeatView ()); //johnfitz -- moved here from R_Renderview (); (QVR: the seat's)
 	}
 }
 

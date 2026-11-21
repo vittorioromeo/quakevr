@@ -7,6 +7,7 @@
 
 #include "vr_crosshair.hpp"
 #include "vr_engine.hpp"
+#include "vr_seat.hpp"
 #include "vr_backend.hpp"
 #include "vr_cvars.hpp"
 #include "vr_flatsight.hpp"
@@ -46,7 +47,16 @@ enum Mode : int
 }
 
 // The frame flatscreen play's crosshairs were last queued (VR_SetupViewEntities may run more than once a frame).
-int flatQueuedFrame = -1;
+// A seat's flat crosshair: the frame it was last queued in (once a frame).
+struct Flat
+{
+    int queuedFrame = -1;
+};
+// splitscreen (SPLITSCREEN.md, phase 3): the current seat's (seat::Part::Crosshair)
+[[nodiscard]] Flat& flat()
+{
+    return seat::part<Flat>(seat::current(), seat::Part::Crosshair);
+}
 
 // Gun `h`'s muzzle as drawn (flatscreen play: the drawn weapon stands off the game's hand by the looks: sway, bob, the
 // sights), else the game's.
@@ -129,11 +139,11 @@ void queue(const hands::State& s)
 
 void queueFlat(const hands::State& s)
 {
-    if(flatQueuedFrame == host_framecount)
+    if(flat().queuedFrame == host_framecount)
     {
         return;
     }
-    flatQueuedFrame = host_framecount;
+    flat().queuedFrame = host_framecount;
     queueFor(s, true);
 }
 

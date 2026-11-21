@@ -265,7 +265,7 @@ static qboolean CL_NextDemoFrame (void)
 			// Take a snapshot of the tracked data at the beginning of this frame
 			for (i = 0; i < MAX_LIGHTSTYLES; i++)
 				q_strlcpy (demo_rewind.prev.lightstyles[i], cl_lightstyle[i].map, MAX_STYLESTRING);
-			memcpy (&demo_rewind.prev.cshift, &cshift_empty, sizeof (cshift_empty));
+			memcpy (&demo_rewind.prev.cshift, &V_SeatView ()->contents, sizeof (V_SeatView ()->contents));
 		}
 		return true;
 	}
@@ -314,7 +314,7 @@ void CL_FinishDemoFrame (void)
 		SDL_assert (lastframe->datasize == 0);
 
 		// Save the previous cshift value if it changed this frame
-		if (memcmp (&demo_rewind.prev.cshift, &cshift_empty, sizeof (cshift_t)) != 0)
+		if (memcmp (&demo_rewind.prev.cshift, &V_SeatView ()->contents, sizeof (cshift_t)) != 0)
 		{
 			VEC_PUSH (demo_rewind.frame_events, DFE_CSHIFT);
 			Vec_Append ((void**)&demo_rewind.frame_events, 1, &demo_rewind.prev.cshift, sizeof (cshift_t));
@@ -377,8 +377,8 @@ void CL_FinishDemoFrame (void)
 
 				case DFE_CSHIFT:
 					{
-						memcpy (&cshift_empty, data, sizeof (cshift_empty));
-						begin += sizeof (cshift_empty);
+						memcpy (&V_SeatView ()->contents, data, sizeof (V_SeatView ()->contents));
+						begin += sizeof (V_SeatView ()->contents);
 					}
 					break;
 

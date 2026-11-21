@@ -76,6 +76,7 @@ console is:
 */
 
 
+// seat-shared: the window's (its size, the loading plaque, the dialog, the pics, the HUD style cvar's)
 int			glx, gly, glwidth, glheight;
 
 float		scr_con_current;
@@ -130,22 +131,29 @@ extern	edict_t	**bbox_linked;
 extern	cvar_t	r_showfields;
 extern	cvar_t	r_showfields_align;
 
+// seat-shared: the window's (its size, the loading plaque, the dialog, the pics, the HUD style cvar's)
 qboolean	scr_initialized;		// ready to draw
 
+// seat-shared: the window's (its size, the loading plaque, the dialog, the pics, the HUD style cvar's)
 qpic_t		*scr_net;
+// seat-shared: the window's (its size, the loading plaque, the dialog, the pics, the HUD style cvar's)
 qpic_t		*scr_turtle;
 
 int			clearconsole;
 int			clearnotify;
 
-vrect_t		scr_vrect;
 
+// seat-shared: the window's (its size, the loading plaque, the dialog, the pics, the HUD style cvar's)
 qboolean	scr_disabled_for_loading;
+// seat-shared: the window's (its size, the loading plaque, the dialog, the pics, the HUD style cvar's)
 qboolean	scr_drawloading;
+// seat-shared: the window's (its size, the loading plaque, the dialog, the pics, the HUD style cvar's)
 float		scr_disabled_time;
 
+// seat-shared: the window's (its size, the loading plaque, the dialog, the pics, the HUD style cvar's)
 int	scr_tileclear_updates = 0; //johnfitz
 
+// seat-shared: the window's (its size, the loading plaque, the dialog, the pics, the HUD style cvar's)
 hudstyle_t	hudstyle;
 
 static void SCR_ScreenShot_f (void);
@@ -158,13 +166,8 @@ CENTER PRINTING
 ===============================================================================
 */
 
-char		scr_centerstring[1024];
-float		scr_centertime_start;	// for slow victory printing
-float		scr_centertime_off;
-int			scr_center_lines;
-int			scr_center_maxcols;
-int			scr_erase_lines;
-int			scr_erase_center;
+// QVR: splitscreen phase 3: the centre print (scr_centerstring, its times and sizes) is the seat's HUD (seathud_t,
+// client.h); scr_vrect the seat's view (seatview_t's viewrect).
 
 /*
 ==============
@@ -200,54 +203,55 @@ for a few moments
 */
 void SCR_CenterPrint (const char *str) //update centerprint data
 {
+	seathud_t *hud = SCR_SeatHud (); // QVR: splitscreen: the current seat's
 	int cols;
 
 	VR_GameCenterPrint (str); // QVR: the wrist gadget's hologram shows the game's
 
 	cols = scr_usekfont.value ? SCR_GetCenterPrintWrapLimit () : 0;
-	COM_WordWrap (scr_centerstring, str, sizeof (scr_centerstring), cols);
+	COM_WordWrap (hud->centerstring, str, sizeof (hud->centerstring), cols);
 
-	if (!scr_centerstring[0])
+	if (!hud->centerstring[0])
 	{
-		scr_center_lines = 0;
-		scr_center_maxcols = 0;
+		hud->center_lines = 0;
+		hud->center_maxcols = 0;
 		return;
 	}
 
-	scr_centertime_off = scr_centertime.value;
-	scr_centertime_start = cl.time;
+	hud->centertime_off = scr_centertime.value;
+	hud->centertime_start = cl.time;
 	if (!cl.intermission)
-		scr_centertime_off += q_max (0.f, con_notifyfade.value * con_notifyfadetime.value);
+		hud->centertime_off += q_max (0.f, con_notifyfade.value * con_notifyfadetime.value);
 
 // count the number of lines for centering
-	scr_center_lines = 1;
-	scr_center_maxcols = 0;
-	str = scr_centerstring;
+	hud->center_lines = 1;
+	hud->center_maxcols = 0;
+	str = hud->centerstring;
 	cols = 0;
 	while (*str)
 	{
 		if (*str == '\n')
 		{
-			scr_center_lines++;
-			scr_center_maxcols = q_max (scr_center_maxcols, cols);
+			hud->center_lines++;
+			hud->center_maxcols = q_max (hud->center_maxcols, cols);
 			cols = -1; // compensate the following ++
 		}
 		str++;
 		cols++;
 	}
-	scr_center_maxcols = q_max (scr_center_maxcols, cols);
+	hud->center_maxcols = q_max (hud->center_maxcols, cols);
 }
 
-static void SCR_DrawCenterStringBG (int y, float alpha)
+static void SCR_DrawCenterStringBG (seathud_t *hud, int y, float alpha)
 {
 	const char *str;
 	int i, len, lines, x;
 
-	if (cl.intermission || q_min (scr_center_lines, scr_center_maxcols) <= 0 || alpha <= 0.f)
+	if (cl.intermission || q_min (hud->center_lines, hud->center_maxcols) <= 0 || alpha <= 0.f)
 		return;
 
 	// skip leading empty lines (might be there just to reposition the text)
-	str = scr_centerstring;
+	str = hud->centerstring;
 	while (*str == '\n')
 	{
 		str++;
@@ -268,7 +272,7 @@ static void SCR_DrawCenterStringBG (int y, float alpha)
 	switch ((int)scr_centerprintbg.value)
 	{
 	case 1:
-		len = (scr_center_maxcols + 3) & ~1;
+		len = (hud->center_maxcols + 3) & ~1;
 		x = (320 - len * 8) / 2;
 		GL_PushCanvasColor (1.f, 1.f, 1.f, alpha * scr_menubgalpha.value);
 		M_DrawTextBox (x - 8, y - 12, len, lines + 1);
@@ -276,7 +280,7 @@ static void SCR_DrawCenterStringBG (int y, float alpha)
 		break;
 
 	case 2:
-		len = scr_center_maxcols + 2;
+		len = hud->center_maxcols + 2;
 		x = (320 - len* 8) / 2;
 		Draw_PartialFadeScreen (x, x + len * 8, y - 4, y + lines * 8 + 4, alpha);
 		break;
@@ -291,13 +295,13 @@ static void SCR_DrawCenterStringBG (int y, float alpha)
 }
 
 // QVR: the centre print's fade out at the end of its time (con_notifyfade; shared with the visor's popup)
-static float SCR_CenterPrintFade (void)
+static float SCR_CenterPrintFade (seathud_t *hud)
 {
 	float fade = q_max (con_notifyfade.value * con_notifyfadetime.value, 0.f);
-	return fade ? q_min (scr_centertime_off / fade, 1.f) : 1.f;
+	return fade ? q_min (hud->centertime_off / fade, 1.f) : 1.f;
 }
 
-void SCR_DrawCenterString (void) //actually do the drawing
+static void SCR_DrawCenterString (seathud_t *hud) //actually do the drawing
 {
 	char	*start;
 	int		l;
@@ -311,13 +315,13 @@ void SCR_DrawCenterString (void) //actually do the drawing
 // the finale prints the characters one at a time
 	if (cl.intermission)
 	{
-		remaining = scr_printspeed.value * (cl.time - scr_centertime_start);
+		remaining = scr_printspeed.value * (cl.time - hud->centertime_start);
 		alpha = 1.f;
 	}
 	else
 	{
 		remaining = 9999;
-		alpha = SCR_CenterPrintFade ();
+		alpha = SCR_CenterPrintFade (hud);
 	}
 
 	if (M_ForcedCenterPrint (&forcedalpha))
@@ -325,17 +329,17 @@ void SCR_DrawCenterString (void) //actually do the drawing
 
 	GL_PushCanvasColor (1.f, 1.f, 1.f, alpha);
 
-	scr_erase_center = 0;
-	start = scr_centerstring;
+	hud->erase_center = 0;
+	start = hud->centerstring;
 
-	if (scr_center_lines <= 4)
+	if (hud->center_lines <= 4)
 		y = 200*0.35;	//johnfitz -- 320x200 coordinate system
 	else
 		y = 48;
 	if (crosshair.value && scr_viewsize.value < 130)
 		y -= 8;
 
-	SCR_DrawCenterStringBG (y, alpha);
+	SCR_DrawCenterStringBG (hud, y, alpha);
 
 	do
 	{
@@ -365,19 +369,20 @@ void SCR_DrawCenterString (void) //actually do the drawing
 // QVR: a centre print shown `seconds` at least (QC viewmessage without a headset: vr_worldtext.cpp).
 void SCR_CenterPrintFor (const char *str, float seconds)
 {
+	seathud_t *hud = SCR_SeatHud (); // QVR: splitscreen: the current seat's
 	SCR_CenterPrint (str);
-	if (scr_center_lines > 0)
-		scr_centertime_off = q_max (scr_centertime_off, seconds);
+	if (hud->center_lines > 0)
+		hud->centertime_off = q_max (hud->centertime_off, seconds);
 }
 
-void SCR_CheckDrawCenterString (void)
+static void SCR_CheckDrawCenterString (seathud_t *hud)
 {
-	if (scr_center_lines > scr_erase_lines)
-		scr_erase_lines = scr_center_lines;
+	if (hud->center_lines > hud->erase_lines)
+		hud->erase_lines = hud->center_lines;
 
-	scr_centertime_off -= host_frametime;
+	hud->centertime_off -= host_frametime;
 
-	if (scr_centertime_off <= 0 && !cl.intermission)
+	if (hud->centertime_off <= 0 && !cl.intermission)
 		return;
 	if (!M_ForcedCenterPrint (NULL))
 	{
@@ -387,22 +392,24 @@ void SCR_CheckDrawCenterString (void)
 			return;
 		if (VR_CenterPrintOnWrist ()) // QVR: the wrist gadget's hologram shows it
 			return;
-		if (VR_CenterPrintOnVisor (scr_centerstring, SCR_CenterPrintFade ())) // QVR: flatscreen play's visor's popup shows it
+		if (VR_CenterPrintOnVisor (hud->centerstring, SCR_CenterPrintFade (hud))) // QVR: flatscreen play's visor's popup shows it
 			return;
 	}
 
-	SCR_DrawCenterString ();
+	SCR_DrawCenterString (hud);
 }
 
 // QVR: a centre print is up (in view or in the wrist's hologram): new tips wait until it is gone (vr_tips.cpp).
 qboolean SCR_CenterPrintShowing (void)
 {
-	return scr_center_lines > 0 && scr_centertime_off > 0.f && !cl.intermission;
+	seathud_t *hud = SCR_SeatHud (); // QVR: splitscreen: the current seat's
+	return hud->center_lines > 0 && hud->centertime_off > 0.f && !cl.intermission;
 }
 
 void SCR_ClearCenterString (void)
 {
-	scr_centertime_off = 0;
+	seathud_t *hud = SCR_SeatHud (); // QVR: splitscreen: the current seat's
+	hud->centertime_off = 0;
 }
 
 //=============================================================================
@@ -514,10 +521,31 @@ Must be called whenever vid changes
 Internal use only
 =================
 */
+/*
+==================
+SCR_SeatRect -- QVR
+
+The window area seat `seat`'s view and HUD are drawn in. The layouts are not decided yet (SPLITSCREEN.md, question 2;
+phases 7, 11): every seat's is the whole window, as one seat's always is.
+==================
+*/
+void SCR_SeatRect (int seat, vrect_t *out)
+{
+	(void) seat;
+	out->x = 0;
+	out->y = 0;
+	out->width = glwidth;
+	out->height = glheight;
+}
+
 static void SCR_CalcRefdef (void)
 {
 	float		size, scale; //johnfitz -- scale
 	float		zoom;
+	seatview_t	*sv = V_SeatView (); // QVR: splitscreen: the seat's view, drawn in its window area
+	vrect_t		*rect = &sv->rect;
+
+	SCR_SeatRect (CL_SeatIndex (), rect); // QVR
 
 // force the status bar to redraw
 	Sbar_Changed ();
@@ -544,7 +572,7 @@ static void SCR_CalcRefdef (void)
 
 	//johnfitz -- rewrote this section
 	size = scr_viewsize.value;
-	scale = CLAMP (1.0f, scr_sbarscale.value, (float)glwidth / 320.0f);
+	scale = CLAMP (1.0f, scr_sbarscale.value, (float)rect->width / 320.0f); // QVR: the seat's area (was glwidth)
 	scale *= (float) vid.height / vid.guiheight;
 
 	if (size >= 120 || cl.intermission || scr_sbaralpha.value < 1 || hudstyle != HUD_CLASSIC || cl.qcvm.extfuncs.CSQC_DrawHud //johnfitz -- scr_sbaralpha.value
@@ -559,10 +587,11 @@ static void SCR_CalcRefdef (void)
 	//johnfitz
 
 	//johnfitz -- rewrote this section
-	r_refdef.vrect.width = q_max(glwidth * size, 96.0f); //no smaller than 96, for icons
-	r_refdef.vrect.height = q_min((int)(glheight * size), glheight - sb_lines); //make room for sbar
-	r_refdef.vrect.x = (glwidth - r_refdef.vrect.width)/2;
-	r_refdef.vrect.y = (glheight - sb_lines - r_refdef.vrect.height)/2;
+	// QVR: in the seat's window area (the whole window with one seat: glwidth, glheight as before)
+	r_refdef.vrect.width = q_max(rect->width * size, 96.0f); //no smaller than 96, for icons
+	r_refdef.vrect.height = q_min((int)(rect->height * size), rect->height - sb_lines); //make room for sbar
+	r_refdef.vrect.x = rect->x + (rect->width - r_refdef.vrect.width)/2;
+	r_refdef.vrect.y = rect->y + (rect->height - sb_lines - r_refdef.vrect.height)/2;
 	//johnfitz
 
 	zoom = cl.zoom;
@@ -574,7 +603,7 @@ static void SCR_CalcRefdef (void)
 	r_refdef.fov_x = AdaptFovx (r_refdef.basefov, vid.width, vid.height);
 	r_refdef.fov_y = CalcFovy (r_refdef.fov_x, r_refdef.vrect.width, r_refdef.vrect.height);
 
-	scr_vrect = r_refdef.vrect;
+	sv->viewrect = r_refdef.vrect; // QVR: the seat's (scr_vrect)
 }
 
 
@@ -1150,7 +1179,7 @@ static void SCR_DrawTurtle (void)
 
 	GL_SetCanvas (CANVAS_DEFAULT); //johnfitz
 
-	Draw_Pic (scr_vrect.x, scr_vrect.y, scr_turtle);
+	Draw_Pic (V_SeatView ()->viewrect.x, V_SeatView ()->viewrect.y, scr_turtle); // QVR: the seat's view
 }
 
 /*
@@ -1167,7 +1196,7 @@ static void SCR_DrawNet (void)
 
 	GL_SetCanvas (CANVAS_DEFAULT); //johnfitz
 
-	Draw_Pic (scr_vrect.x+64, scr_vrect.y, scr_net);
+	Draw_Pic (V_SeatView ()->viewrect.x+64, V_SeatView ()->viewrect.y, scr_net); // QVR: the seat's view
 }
 
 /*
@@ -2062,6 +2091,8 @@ SCR_BeginLoadingPlaque
 */
 void SCR_BeginLoadingPlaque (void)
 {
+	int i; // QVR
+
 	S_StopAllSounds (true);
 
 	if (cls.state != ca_connected)
@@ -2079,7 +2110,8 @@ void SCR_BeginLoadingPlaque (void)
 		scr_drawloading = true;
 	}
 
-	scr_centertime_off = 0;
+	for (i = 0; i < 4; i++) // QVR: splitscreen: every seat's centre print
+		SCR_SeatHudOf (i)->centertime_off = 0;
 	Sbar_Changed ();
 	SCR_UpdateScreen ();
 	scr_drawloading = false;
@@ -2102,7 +2134,9 @@ void SCR_EndLoadingPlaque (void)
 
 //=============================================================================
 
+// seat-shared: the window's (its size, the loading plaque, the dialog, the pics, the HUD style cvar's)
 const char	*scr_notifystring;
+// seat-shared: the window's (its size, the loading plaque, the dialog, the pics, the HUD style cvar's)
 qboolean	scr_drawdialog;
 
 static void SCR_DrawNotifyString (void)
@@ -2291,6 +2325,7 @@ needs almost the entire 256k of stack space!
 */
 void SCR_UpdateScreen (void)
 {
+	seathud_t *hud = SCR_SeatHud (); // QVR: splitscreen: the seat's HUD, passed to its draws
 	vid.numpages = (gl_triplebuffer.value) ? 3 : 2;
 
 	if (scr_disabled_for_loading)
@@ -2381,7 +2416,7 @@ void SCR_UpdateScreen (void)
 	else if (cl.intermission == 2 && key_dest == key_game) //end of episode
 	{
 		Sbar_FinaleOverlay ();
-		SCR_CheckDrawCenterString ();
+		SCR_CheckDrawCenterString (hud);
 		SCR_DrawDemoControls ();
 	}
 	else
@@ -2391,7 +2426,7 @@ void SCR_UpdateScreen (void)
 		SCR_DrawNet ();
 		SCR_DrawTurtle ();
 		SCR_DrawPause ();
-		SCR_CheckDrawCenterString ();
+		SCR_CheckDrawCenterString (hud);
 		SCR_DrawSbar (); // QVR
 		SCR_DrawDevStats (); //johnfitz
 		SCR_DrawClock (); //johnfitz

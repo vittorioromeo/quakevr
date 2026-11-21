@@ -1508,7 +1508,6 @@ Draw_GetCanvasTransform
 */
 void Draw_GetCanvasTransform (canvastype type, drawtransform_t *transform)
 {
-	extern vrect_t scr_vrect;
 	float s, s2;
 
 	switch (type)
@@ -1565,7 +1564,7 @@ void Draw_GetCanvasTransform (canvastype type, drawtransform_t *transform)
 		s = CLAMP (1.0f, scr_crosshairscale.value, 10.0f);
 		Draw_Transform (vid.guiwidth/s/2, vid.guiheight/s/2, s, CANVAS_ALIGN_LEFT, CANVAS_ALIGN_BOTTOM, transform);
 		transform->offset[0] += 1.f;
-		transform->offset[1] += 1.f - ((scr_vrect.y + scr_vrect.height / 2) * 2 / (float)glheight);
+		transform->offset[1] += 1.f - ((V_SeatView ()->viewrect.y + V_SeatView ()->viewrect.height / 2) * 2 / (float)glheight);
 		break;
 	case CANVAS_BOTTOMLEFT: //used by devstats
 		s = (float)vid.guiwidth/vid.conwidth; //use console scale

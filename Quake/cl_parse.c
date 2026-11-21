@@ -103,7 +103,6 @@ const char *svc_strings[] =
 
 qboolean warn_about_nehahra_protocol; //johnfitz
 
-extern vec3_t	v_punchangles[2]; //johnfitz
 
 //=============================================================================
 
@@ -795,11 +794,11 @@ void CL_ParseClientdata (void)
 			cl.mvelocity[0][i] = 0;
 	}
 
-	//johnfitz -- update v_punchangles
-	if (v_punchangles[0][0] != cl.punchangle[0] || v_punchangles[0][1] != cl.punchangle[1] || v_punchangles[0][2] != cl.punchangle[2])
+	//johnfitz -- update V_SeatView ()->punchangles
+	if (V_SeatView ()->punchangles[0][0] != cl.punchangle[0] || V_SeatView ()->punchangles[0][1] != cl.punchangle[1] || V_SeatView ()->punchangles[0][2] != cl.punchangle[2])
 	{
-		VectorCopy (v_punchangles[0], v_punchangles[1]);
-		VectorCopy (cl.punchangle, v_punchangles[0]);
+		VectorCopy (V_SeatView ()->punchangles[0], V_SeatView ()->punchangles[1]);
+		VectorCopy (cl.punchangle, V_SeatView ()->punchangles[0]);
 		cl.punchtime = cl.time;
 	}
 	//johnfitz
