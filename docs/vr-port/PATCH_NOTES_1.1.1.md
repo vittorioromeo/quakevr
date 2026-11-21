@@ -106,6 +106,9 @@ The guide: [MULTIPLAYER.md](MULTIPLAYER.md).
   melee swings are held raised a little before they come down, so you can see them coming and parry. They're the
   size of a player now, and they draw and fire every gun they carry (the heavy revolver, the nail pistol and the
   mission packs' guns too), falling back to their melee weapon only when out of ammo.
+- **Opt-in: bots that find their way** (`vr_bot_navmesh 1`, off by default): bots still roam by their waypoints for
+  items, powerups and health, but chase a player they've seen through doors they never used, and reach goals their
+  waypoints have no way to, along the map's navmesh.
 - **Proximity voice chat** (Opus, with RNNoise noise suppression): push-to-talk or voice activation, heard at the
   talker's head; per-player mute and volume (VR Settings > HUD, Haptics and Sound > Sound > Voice Chat).
 - **Server Browser** (Multiplayer > Join Game): favourites, the servers you joined last and the LAN's, with their
@@ -127,7 +130,8 @@ The guide: [MULTIPLAYER.md](MULTIPLAYER.md).
   the gun from below (no forearm across the face), standing, crouched or sliding.
 - **The scoreboard on your wrist**: in multiplayer the wrist gadget's outer button also turns to a scoreboard page:
   every player's colours, frags and name in the scoreboard's order, your row lit, who is talking on voice chat, and in
-  coop the level's kills and secrets. Live, up to 16 players.
+  coop the level's kills and secrets. Live, up to 16 players. Its Arcane Dimensions page is offered only when the
+  server you joined has Arcane Dimensions' data, not because your last local game did.
 
 **Single player only**: time scale and bullet time, saving at will (the host's level-start coop autosave instead),
 the crates Quake VR places about maps, Dimension of the Past and Dimension of the Machine.

@@ -66,6 +66,8 @@ Coop, as a client: hold a corpse's arm and swing it; the limb stays in your hand
 Grab a bot's weapon where you see it (gun and sword): it comes away in your hand; grabbing beside it does nothing.
 Debug > Show Disarm Volumes in a deathmatch with a bot and another player, hosting and then joining: orange outlines along each one's held weapon (the grab), magenta on it and cyan on the hand (shots), none on your own.
 Debug > Show Hit Zones in a deathmatch with a bot and another player, hosting and then joining: each one's head (red sphere), body, limbs and legs outlined on him, turning with him; none on you.
+Try vr_bot_navmesh 1 (host console) in deathmatch with bots: a bot that saw you follows you through doors once you are out of sight, still goes for items, powerups and health by its waypoints, and stays on waypoints in water
+Join a server without Arcane Dimensions after playing an AD map locally: the wrist gadget offers no AD page
 
 [4. Flat screen]
 Flat-screen: walk forward into the tutorial's rung ladder (lesson 3): your hands take the rungs and you climb hand over hand at a steady pace, and climb over the top onto the platform. {test:flat_ladder}

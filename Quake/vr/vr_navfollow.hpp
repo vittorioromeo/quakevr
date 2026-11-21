@@ -64,6 +64,22 @@ struct Input
 [[nodiscard]] Input steer(Steer& s, const nav::PathCorner* corners, int count, za::U32 serial, const glm::vec3& feet,
                           double now, float stop);
 
+// ---- Bots: FrikBot's walk on the navmesh (vr_bot_navmesh; NAVMESH.md 23) --------------------------------------------
+
+// The builtin navbot(bot, goal, what) (QC frikbot/bot_nav.qc). what 0: `bot`'s plan to `goal` (kept per bot, by its client
+// slot: found again every vr_nav_follow_repath of server time, at once for a new goal) and its steering -> the corner to
+// walk to (its feet; the bot's own feet when it has no path). 1: that step -> (its plan's State, its BotFlags, the path
+// left in units). 2: its plan dropped. 3: a one-off probe from its feet to the goal's -> (1 a whole path, 0 none or
+// partial, -1 no navmesh for its size yet; its length; its corners).
+enum BotFlags : int
+{
+    botWalk = 1,    // walk toward the corner
+    botJump = 2,    // the follower's hop (stuck half a second walking)
+    botArrived = 4, // within its stop of the goal along the path (an item: on it; a player: 48 units)
+    botPartial = 8, // the path stops short of the goal
+};
+[[nodiscard]] glm::vec3 botStep(const edict_t* bot, const edict_t* goal, int what);
+
 // ---- vr_nav_follow ---------------------------------------------------------------------------------------------------
 
 void init(); // the commands

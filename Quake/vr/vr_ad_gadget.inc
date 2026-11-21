@@ -17,7 +17,7 @@
 //   WIDOWMAKER   HIP R, BACK L
 [[nodiscard]] bool adPageShown()
 {
-    return pageState.page == PageAd && vr_ad_mounted.value != 0.f;
+    return pageState.page == PageAd && ad::clientDataInPlay(); // (a remote server's, not the last local map's)
 }
 
 void adPage(const Readout& r, const Palette& pal)

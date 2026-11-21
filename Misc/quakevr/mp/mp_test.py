@@ -1936,17 +1936,24 @@ def ragsync_phase(s, srv, a, b, eb, on, left):
     b.cmd("vr_net_bytes")
     _, moved = b.wait(r"mp_netbytes: ", 10, since_bb)
     moved_rag = int(fields(moved)["snap_rag"])
-    # Settled: two seconds more, B's ragdoll bytes then.
-    since_bb = b.mark()
-    b.cmd("vr_net_bytes reset; echo mp_ragsettle_begin")
-    b.wait(r"mp_ragsettle_begin", 10, since_bb)
-    mark = srv.mark()
-    srv.cmd("vr_mp_after 2 ragsettled%d" % on)  # (two seconds of the server's game time, counted)
-    srv.wait(r"mp_after: .* ragsettled%d" % on, 60, mark, "two settled seconds")
-    since_bb = b.mark()
-    b.cmd("vr_net_bytes")
-    _, settled = b.wait(r"mp_netbytes: ", 30, since_bb)
-    settled_rag = int(fields(settled)["snap_rag"])
+    # Settled: B's ragdoll bytes over two seconds once they have settled. (smallfix: a ragdoll still sliding or rolling
+    # after the play's last blast made the one window right after it fail; up to 5 windows of 2 s, the first quiet one
+    # counts, how many it took a note: ragdolls that never settle still fail.)
+    settled_rag, windows = 0, 0
+    for windows in range(1, 6):
+        since_bb = b.mark()
+        b.cmd("vr_net_bytes reset; echo mp_ragsettle_begin")
+        b.wait(r"mp_ragsettle_begin", 10, since_bb)
+        mark = srv.mark()
+        srv.cmd("vr_mp_after 2 ragsettled%d_%d" % (on, windows))  # (two seconds of the server's game time, counted)
+        srv.wait(r"mp_after: .* ragsettled%d_%d" % (on, windows), 60, mark, "two settled seconds")
+        since_bb = b.mark()
+        b.cmd("vr_net_bytes")
+        _, settled = b.wait(r"mp_netbytes: ", 30, since_bb)
+        settled_rag = int(fields(settled)["snap_rag"])
+        if settled_rag / 2.0 <= 0.02 * moved_rag / RAG_SECONDS + 1:
+            break
+    s.note("%s: settled after %d window(s) of 2 s" % (label, windows))
     ha, pa = rag_series(a.lines[since_a:], "sv")
     hb, pb = rag_series(b.lines[since_b:], "cl")
     out = {}
@@ -7356,6 +7363,19 @@ def wristscore(s):
                 os.replace(p, out)  # (moved out of the shared base)
                 s.note("screenshot (A's wrist scoreboard page): %s" % out)
                 break
+
+    # B's AD page follows the server's game (STAT_QVR_ADHUD's ADHUD_DATA bit; before, a client kept his last local map's
+    # vr_ad_mounted): the server in this base has AD's data exactly when A's single-player e1m1 offered the page. (Every
+    # agent base has AD's data, so only the "offered" case runs here; B's own cvar is printed for the record.)
+    since_b = b.mark()
+    b.cmd("vr_ad_mounted; vr_gadget_page 1; vr_gadget_page 1; vr_gadget_page 1")
+    b.wait(r"gadget page: ", 10, since_b, "B's pages")
+    while len([l for l in b.lines[since_b:] if "gadget page: " in l]) < 3:
+        b.wait(r"gadget page: ", 10, b.mark(), "B's three pages")
+    b_pages = [l.split("gadget page: ", 1)[1].split()[0] for l in b.lines[since_b:] if "gadget page: " in l]
+    b_own = [l.strip() for l in b.lines[since_b:] if '"vr_ad_mounted" is' in l]
+    s.check("B's AD page follows the server's game (offered: %s)" % ("1" in pages),
+            ("1" in b_pages) == ("1" in pages), "B's pages %s; A's single-player %s; B's own %s" % (b_pages, pages, b_own))
 
 
 # ---- B13: the server browser, the net HUD, the soak ----
