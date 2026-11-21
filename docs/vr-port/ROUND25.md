@@ -6375,3 +6375,32 @@ His note e1m1_2026-11-21_00-43-41 ("compressed by the lift"); worldai measured a
   measure, old drawing) the eye 12/14 and the monster 12.9 failed; after 24 passed, 0 failed (12 headset, 12 flat).
   Debug > Logging > Lift Riders (vr_debug_lift); menu_paths.txt regenerated (Cries Heard, Lift Riders, both test rows).
 - Not run (out of budget): stealth_tests.sh all (noises_clue on origin/next), the nav suite, scenario_check, ThinLTO.
+
+## bots3: a bot's weapon placed once, on the server; the grab at the drawn weapon (2026-11-21, `agent/bots3`)
+
+Item 1 of the brief done and tested; items 2 (Show Disarm Volumes on bots and players) and 3 (Show Hit Zones on bots and
+players) not started (out of budget).
+
+- **One placement.** `view::placeHeld` (vr_view_weapon.cpp) places a weapon in another's hand as setupWeapon draws
+  another's (weaponTurn's angle offsets, the model transform's offset, the muzzle anchor, the hotspots), pure math on the
+  model and the Weapon Offsets, so the dedicated server runs it. `server::botHeld` runs it at a bot's handpos/handrot:
+  (a) the bot's avatar sends the weapon's place and turn (the solveBit hand's weaponBit, 12 B more; `QVR_NET_VERSION`
+  42) and each client draws it there (`view::solveHands`' `placed`: the hand fitted to it), whatever its own weapon
+  settings; (b) `heldpose::placeBots` (each server frame) puts the bot's hotspots into its heldpose slot (in the hand's
+  frame: on the hand now, lag compensated) for QC weaponhotspot; (c) `weapondrawnpose(bot, hand, 53)` gives its muzzle,
+  which bot_setvrfields now sets as `.muzzlepos`/`.offmuzzlepos` (was handpos + 24 along handrot: the grab's and the
+  parry's line pointed where no weapon was drawn). Players: unchanged; a remote player's weapon is drawn where his client
+  drew it, and the server's line and hotspots are his client's too: the test shows the grab at his drawn weapon holds.
+- **Test** (`mp_test.py botgrab`, in the suite; vr_dm_test 16-18, vr_botgrab_test.qc): B, then a bot, held 64 units in
+  front of A; A's client reports where it draws the victim's weapon (`vr_mp_avatars`' new `mp_drawnwpn:` butt and
+  muzzle); the server closes A's empty hand at its middle: taken (gap to the server's weapon 0.5 units for B's shotgun,
+  0.3 for the bot's axe; the reach is 2.5); 14 units off it: nothing. 9/0. Not run before the fix (no switch kept).
+- **Checks:** mp_test dm 27/0 (the bots' blows and parries with the new muzzle line), coopbots 13/0, botgrab 9/0; Dev
+  build 0 warnings. Not run (budget): vr_pd_test, the vr_agrunt disarm cases, the plain suite, scenario_check, ThinLTO.
+- **Left:** items 2 and 3. Findings: vr_disarmviz.qc draws only armed humanoids' weapons (VR_DV_Frame) and only on the
+  host (disarmviz::draw needs sv.active); for players and bots the volume is VR_PDG_Gap's (VR_Parry_WeaponLine's line,
+  the hotspots, vr_player_disarm_reach): send it as a new kind from VR_DV_Frame for each living client holding a weapon,
+  and on a client rebuild it from the drawn weapon (mpavatar's `drawnWeaponLine`, the reach). Hit zones: VR_Decap_DebugFrame
+  sends only FL_MONSTER zones; players have positional ones (PositionalHead "player": head 4/23/7.2, the box's zones from
+  mins/maxs): send them for clients too (drawn as boxes, not on player.mdl's invisible surface), and on a client rebuild
+  them from the entity's place and yaw (its box is not sent: crouching changes maxs).

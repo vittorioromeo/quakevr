@@ -3767,7 +3767,7 @@ void swapSubject(SubjectHands& o)
 } // namespace view_detail
 
 void view::solveHands(int player, const glm::vec3 pos[2], const glm::vec3 rot[2], const int model[2], const int frame[2],
-    VrDrawnHand out[2])
+    VrDrawnHand out[2], const VrDrawnHand* placed)
 {
     out[0] = out[1] = VrDrawnHand{};
     if(player < 1 || player > MAX_SCOREBOARD)
@@ -3814,6 +3814,17 @@ void view::solveHands(int player, const glm::vec3 pos[2], const glm::vec3 rot[2]
     otherSubject = true;
     setupWeapon(s, HAND_MAIN, models[HAND_MAIN], frame[HAND_MAIN]);
     setupWeapon(s, HAND_OFF, models[HAND_OFF], frame[HAND_OFF]);
+    // (bots3) The server's place of each weapon (view::placeHeld on its model and Weapon Offsets: the disarm volume's, the
+    // muzzle's), drawn as is, the hand fitted to it there: every client draws it where the server has it, whatever its
+    // own weapon settings.
+    for(int h = 0; h < 2 && placed; h++)
+    {
+        view::ViewEntity& ve = entities.weapon[h];
+        if((placed[h].flags & VrDrawnHand::weaponBit) && ve.visible && ve.ent.model)
+        {
+            place(ve, ve.ent.model, placed[h].weaponOrigin, placed[h].weaponAngles, ve.ent.frame, ve.mirrored);
+        }
+    }
     setupHand(s, HAND_MAIN);
     setupHand(s, HAND_OFF);
     netHands(out);

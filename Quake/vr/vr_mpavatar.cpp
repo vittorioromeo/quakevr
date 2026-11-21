@@ -224,6 +224,31 @@ void printGuns(int e, const Avatar& a, const Drawn& d)
         static_cast<double>(dir.x), static_cast<double>(dir.y), static_cast<double>(dir.z));
 }
 
+// (bots3) A held weapon as drawn (`w`: his hand's weapon entity): its butt and muzzle in the world (its model's own,
+// view::weaponLocalGeometry, on the entity's place, turn and mirroring). False: none drawn, no weapon slot.
+[[nodiscard]] bool drawnWeaponLine(const view::ViewEntity& w, glm::vec3& butt, glm::vec3& muzzle)
+{
+    glm::vec3 second{0.f};
+    int secondType = 0;
+    if(!w.visible || !w.ent.model || !view::weaponLocalGeometry(w.ent.model, muzzle, butt, second, secondType))
+    {
+        return false;
+    }
+    float m[16];
+    vec3_t origin, angles;
+    VectorCopy(w.ent.origin, origin);
+    VectorCopy(w.ent.angles, angles);
+    R_EntityMatrix(m, origin, angles, ENTSCALE_DEFAULT);
+    const auto world = [&](const glm::vec3& p) {
+        const glm::vec3 q{p.x, w.mirrored ? -p.y : p.y, p.z};
+        return glm::vec3{m[0] * q.x + m[4] * q.y + m[8] * q.z + m[12], m[1] * q.x + m[5] * q.y + m[9] * q.z + m[13],
+            m[2] * q.x + m[6] * q.y + m[10] * q.z + m[14]};
+    };
+    butt = world(butt);
+    muzzle = world(muzzle);
+    return true;
+}
+
 // One line per avatar (the harness's mp_avatar): head and hands in the world (from his entity's origin now), the main
 // hand's angles, the curls and thumbs, the weapons' models; then what was drawn of it last frame.
 void printAvatar(int e, const Avatar& a, bool hands)
@@ -255,6 +280,19 @@ void printAvatar(int e, const Avatar& a, bool hands)
                 w.visible && w.ent.model ? w.ent.model->name : "-", side, w.visible ? glm::length(wo - ho) : -1.f);
         }
         Con_Printf("\n");
+    }
+    for(int side = 0; side < 2 && d.frame >= host_framecount - 1; side++)
+    {
+        // (bots3) Each weapon as drawn here: its butt and muzzle (the harness's grab at the drawn weapon: mp_test.py
+        // botgrab), a bot's or a player's.
+        glm::vec3 butt, muzzle;
+        if(drawnWeaponLine(d.weapon[side], butt, muzzle))
+        {
+            Con_Printf("mp_drawnwpn: ent=%d side=%d mdl=%s", e, side, d.weapon[side].ent.model->name);
+            printVec("butt", butt);
+            printVec("muzzle", muzzle);
+            Con_Printf("\n");
+        }
     }
     if(d.bodyPosed && d.body.ent.model && (d.frame == host_framecount - 1 || d.frame == host_framecount))
     {
@@ -536,14 +574,17 @@ void setup(int e, const Avatar& a, const glm::vec3& origin, const avatar::DollPo
     {
         glm::vec3 pos[2], rot[2];
         int model[2], frame[2];
+        VrDrawnHand placed[2]; // (bots3: each weapon where the server placed it, world)
         for(int h = 0; h < 2; h++)
         {
             pos[h] = origin + a.hands[h].handOrigin;
             rot[h] = a.hands[h].handAngles;
             model[h] = a.hands[h].weaponModel;
             frame[h] = a.hands[h].weaponFrame;
+            placed[h] = a.hands[h];
+            placed[h].weaponOrigin = origin + a.hands[h].weaponOrigin;
         }
-        view::solveHands(e, pos, rot, model, frame, solved);
+        view::solveHands(e, pos, rot, model, frame, solved, placed);
         for(VrDrawnHand& h : solved)
         {
             h.handOrigin -= origin; // (offsets from his entity's origin, as received)

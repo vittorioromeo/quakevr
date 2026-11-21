@@ -2830,6 +2830,10 @@ QVR_CVAR(vr_player_disarm_slip, "15", CVAR_ARCHIVE | QVR_RULE)      // cm: ... a
 QVR_CVAR(vr_dm_gibs_max, "64", CVAR_ARCHIVE)                  // deathmatch: the most loose gibs and heads lying about; past it the oldest go first (not one held, skewered or pulled; small gibs and limbs have their own caps). 0: no cap (QC vr_dmloose.qc; MP_PLAN B13b)
 QVR_CVAR(vr_dm_weapons_max, "32", CVAR_ARCHIVE)               // deathmatch: the most dropped and thrown weapons lying about (each also gone after 10 s); past it the oldest go first. 0: no cap (QC vr_dmloose.qc; MP_PLAN B13b)
 QVR_CVAR(vr_dm_test, "0", CVAR_NONE)                        // deathmatch's rules' test on a deathmatch server with a human and a bot (QC vr_dmrules_test.qc; Debug > Tests > Deathmatch Rules; mp_test.py dm)
+QVR_CVAR(vr_dm_test_who, "0", CVAR_NONE)                    // vr_dm_test 16-18's victim (QC vr_botgrab_test.qc; mp_test.py botgrab): 0 the first bot, 1 the second living human
+QVR_CVAR(vr_dm_test_x, "0", CVAR_NONE)                      // vr_dm_test 17-18's grab point (world; the harness's, where a client draws the victim's weapon)
+QVR_CVAR(vr_dm_test_y, "0", CVAR_NONE)                      // ... its y
+QVR_CVAR(vr_dm_test_z, "0", CVAR_NONE)                      // ... its z
 QVR_CVAR(vr_pd_test, "0", CVAR_NONE)                        // the player disarm's test (QC vr_playerdisarm_test.qc; Debug > Tests > Player Disarm): 1 shots at your gun and body, the option off
 QVR_CVAR(vr_agrunt_shotdisarm_debug, "0", CVAR_NONE)          // 1: prints each shot's part (weapon/hand/body), the damage adding up, the roll; 2: also shows the hit volumes (sparks)
 QVR_CVAR(vr_agrunt_fall_drop, "1", CVAR_ARCHIVE | QVR_RULE)  // 1: knocked down (on the floor, not a stagger) it drops its weapon beside it, and takes it back when it gets up
