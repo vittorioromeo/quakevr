@@ -71,8 +71,9 @@ struct Bot
     Input last;
     float left = 0.f; // the path left from its feet at its last step
 };
+// seat-shared: the server's bots (one per player slot)
 Bot bots[maxSlots];
-double botTimeSeen = -1.0; // (a new server's clock starts again: every plan dropped)
+double botTimeSeen = -1.0; // (seat-shared: the server's; a new server's clock starts again: every plan dropped)
 
 // The path's length from `feet` on from corner `next`.
 float pathLeft(const nav::PathCorner* corners, int count, int next, const glm::vec3& feet)

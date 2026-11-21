@@ -1953,6 +1953,7 @@ struct PlayerZonesShown
     int count{0};
     glm::vec3 head{0.f};
 };
+// seat-shared: a debug view's readout of what was drawn (the harness's mp_debugviz line)
 za::Array<PlayerZonesShown, MAX_SCOREBOARD + 1> playerZonesShown{};
 
 [[nodiscard]] bool isPlayerNum(int num)

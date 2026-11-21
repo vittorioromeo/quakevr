@@ -119,6 +119,7 @@ double hintUntil = 0.0;     // realtime the hint shows until
 bool runAll = false;        // vr_scenario runall in progress
 bool runAllQuit = false;    // and the game quit after it
 int runAllFrames = 0;       // its frames since the current one was placed
+// seat-shared: the scenario runner's counts (a test's own, one at a time)
 int runAllCount = 0, runAllFailed = 0, runAllSkipped = 0;
 float givenWeapon[2] = {-1.f, -1.f}; // per QC hand (0 off, 1 main): the weapon its give left there (-1: none given)
 double placedAt = 0.0;      // the server's time when the current one was placed
