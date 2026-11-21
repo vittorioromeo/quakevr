@@ -45,7 +45,8 @@ inline constexpr int clientdataKey = 0;   // the player's own state (svc_clientd
 inline constexpr int predictKey = 2 << 16; // his walk's state (QVR_SVC_PREDICT, vr_predict.cpp)
 inline constexpr int heldKey = predictKey + 1; // what his hands hold, and where (QVR_SVC_HELDPLACE, vr_held.cpp, B27)
 inline constexpr int poseKey = 3 << 16;    // + an armed humanoid's entity: its pose this frame (QVR_SVC_ARMPOSE, B12)
-inline constexpr int keyLimit = 4 << 16;   // every key below this
+inline constexpr int ragKey = 4 << 16;     // + a ragdoll's entity: its parts' places (QVR_SVC_RAGPOSE, vr_netragdoll.cpp)
+inline constexpr int keyLimit = 5 << 16;   // every key below this
 
 // Two kept places of an entity `span` seconds apart further than this on an axis: a teleport, not lerped across (100
 // units at the frames' rate as before; a slower send rate or a lost message lets a body at twice sv_maxvelocity's
@@ -100,10 +101,10 @@ int encode(const Snapshot* base, const Snapshot& cur, sizebuf_t* body, int budge
 // `tally` (keyClasses counts, or nullptr): each entry's bytes added by its key's class (keyClass).
 [[nodiscard]] bool decode(const Snapshot* base, int bodyLen, Snapshot& out, unsigned pflags, const Trend* trend,
     long long* tally = nullptr);
-inline constexpr int keyClasses = 5; // 0 the player state, 1 an entity, 2 an avatar, 3 the walk's state, 4 a pose
+inline constexpr int keyClasses = 6; // 0 the player state, 1 an entity, 2 an avatar, 3 the walk's state, 4 a pose, 5 a ragdoll
 [[nodiscard]] constexpr int keyClass(int key)
 {
-    return key == clientdataKey ? 0 : key < avatarKey ? 1 : key < predictKey ? 2 : key < poseKey ? 3 : 4;
+    return key == clientdataKey ? 0 : key < avatarKey ? 1 : key < predictKey ? 2 : key < poseKey ? 3 : key < ragKey ? 4 : 5;
 }
 
 // Server (sv_main.c through vr_api.h). begin: whether this datagram's records go into a snapshot (a remote client that
@@ -135,6 +136,7 @@ struct ServerCounts
     long long bytes{0};
     long long cosmeticBytes{0}; // (B12c) the cosmetic fragments' entries' bytes ...
     long long cosmeticWaited{0}; // ... and their changed records that waited for their budget (or his rate)
+    long long ragHeld{0};  // (ragsync) ragdolls' changed records held by vr_net_ragdoll_bytes
     za::U32 seq{0}, acked{0};
 };
 [[nodiscard]] ServerCounts serverCounts(int slot);

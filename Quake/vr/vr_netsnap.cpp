@@ -12,6 +12,7 @@
 #include "vr_progs.hpp"
 #include "vr_testkit.hpp"
 #include "vr_mem.hpp"
+#include "vr_netragdoll.hpp"
 
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -1065,19 +1066,20 @@ constexpr int netHeader = 8;       // NetQuake's datagram header (the bytes his 
 {
     const int cls = keyClass(key);
     const int ents = qcvm ? qcvm->max_edicts : 0;
-    const int e = cls == 1 ? key : cls == 2 ? key - avatarKey : cls == 4 ? key - poseKey : -1;
+    const int e = cls == 1 ? key : cls == 2 ? key - avatarKey : cls == 4 ? key - poseKey : cls == 5 ? key - ragKey : -1;
     if(e < 0 || e >= ents)
     {
         return -1;
     }
-    return (cls == 1 ? 0 : cls == 2 ? 1 : 2) * ents + e;
+    return (cls == 1 ? 0 : cls == 2 ? 1 : cls == 4 ? 2 : 3) * ents + e;
 }
+constexpr int waitKinds = 4; // (waitIndex's: entities, avatars, poses, ragdolls)
 
 // A record's weight for the player at `eye` looking along `fwd`: nearer and ahead first.
 [[nodiscard]] float weightOf(int key, const float eye[3], const float fwd[3])
 {
     const int cls = keyClass(key);
-    const int e = cls == 1 ? key : cls == 2 ? key - avatarKey : key - poseKey;
+    const int e = cls == 1 ? key : cls == 2 ? key - avatarKey : cls == 5 ? key - ragKey : key - poseKey;
     if(e <= 0 || e >= qcvm->num_edicts)
     {
         return 1.f;
@@ -1109,9 +1111,79 @@ struct Building
     za::Vector<float> prio;    // each record's priority (cur's order)
     za::Vector<za::U8> unsent; // each record that waited
     za::Vector<za::U8> cosmetic; // each record a cosmetic fragment's (B12c)
+    za::Vector<za::U8> held;     // each ragdoll's record held as the base's (ragsync: holdRagdolls)
+    za::Vector<za::SizeT> ragOrder; // (holdRagdolls: the changed ones, by priority)
     int chargeSlot{-1};        // the slot whose datagram serverCharge charges (serverEnd's)
 };
 Building building;
+
+// (ragsync) The ragdolls' changed records under vr_net_ragdoll_bytes a snapshot: the highest priorities (near, ahead,
+// waited longest: bl.prio) go, the rest are held as the base's (unchanged: not sent, both sides keep the base's, his
+// client draws between the poses it has) and wait, their priority growing. A new one (not in the base) always goes, and
+// the first changed one whatever its size. A settled ragdoll costs nothing: its record is unchanged (its pose's time
+// too: ragdoll::serverPose). -> the records held.
+int holdRagdolls(const Snapshot* base)
+{
+    Building& bl = building;
+    const za::SizeT n = bl.cur.records.size();
+    bl.held.clear();
+    bl.held.resize(n, 0);
+    const int cap = static_cast<int>(vr_net_ragdoll_bytes.value);
+    if(cap <= 0 || !base)
+    {
+        return 0;
+    }
+    za::Vector<za::SizeT>& order = bl.ragOrder;
+    order.clear();
+    int used = 0;
+    for(za::SizeT i = 0; i < n; i++)
+    {
+        const Record& r = bl.cur.records[i];
+        if(keyClass(r.key) != 5)
+        {
+            continue;
+        }
+        const Record* b = findKey(*base, r.key);
+        if(!b)
+        {
+            used += r.len;
+            continue;
+        }
+        if(b->len == r.len && memcmp(bl.cur.data(r), base->data(*b), static_cast<size_t>(r.len)) == 0)
+        {
+            continue;
+        }
+        // (by priority, the highest first: an insertion, a few ragdolls)
+        za::SizeT at = order.size();
+        order.pushBack(i);
+        while(at > 0 && bl.prio[order[at - 1]] < bl.prio[i])
+        {
+            order[at] = order[at - 1];
+            at--;
+        }
+        order[at] = i;
+    }
+    int held = 0;
+    for(const za::SizeT i : order)
+    {
+        Record& r = bl.cur.records[i];
+        if(used == 0 || used + r.len <= cap)
+        {
+            used += r.len;
+            continue;
+        }
+        const Record* b = findKey(*base, r.key);
+        r.at = static_cast<za::I32>(bl.cur.bytes.size());
+        r.len = b->len;
+        if(b->len > 0)
+        {
+            bl.cur.bytes.emplaceBackRange(base->data(*b), static_cast<za::SizeT>(b->len));
+        }
+        bl.held[i] = 1;
+        held++;
+    }
+    return held;
+}
 
 // (B12c) A cosmetic fragment's entity: a small gib or an explosion's chunk (nothing touches them: vr_smallgibs.qc,
 // vr_explosiondebris.cpp), whose updates have a budget of their own (vr_net_cosmetic_bytes).
@@ -1319,10 +1391,10 @@ void serverEnd(sizebuf_t* msg)
     bl.unsent.clear();
     bl.unsent.resize(n, 0);
     const int ents = qcvm->max_edicts;
-    if(static_cast<int>(s->waits.size()) != 3 * ents)
+    if(static_cast<int>(s->waits.size()) != waitKinds * ents)
     {
         s->waits.clear();
-        s->waits.resize(static_cast<za::SizeT>(3 * ents), 0);
+        s->waits.resize(static_cast<za::SizeT>(waitKinds * ents), 0);
     }
     float eye[3]{}, fwd[3]{1.f, 0.f, 0.f};
     if(const edict_t* p = bl.client ? bl.client->edict : nullptr)
@@ -1345,6 +1417,7 @@ void serverEnd(sizebuf_t* msg)
         bl.prio[i] = keyClass(key) == 0 || keyClass(key) == 3 ? INFINITY
                                                               : weightOf(key, eye, fwd) * (1.f + (wi >= 0 ? s->waits[static_cast<za::SizeT>(wi)] : 0));
     }
+    s->counts.ragHeld += holdRagdolls(base);
     // (B12b: the base's own base, kept by both sides: the moving things' trend)
     Trend trend;
     const za::U32 older = base ? base->baseSeq : 0u;
@@ -1360,6 +1433,10 @@ void serverEnd(sizebuf_t* msg)
         za::min(budget, room), bl.cosmetic.data(), cosmeticBudget > 0 ? cosmeticBudget : -1,
         static_cast<int>(vr_net_cosmetic_fill.value));
     tallySent = false;
+    for(za::SizeT i = 0; i < n; i++)
+    {
+        bl.unsent[i] = bl.unsent[i] || bl.held[i] ? 1 : 0; // (a ragdoll held: it waited, holdRagdolls)
+    }
     int cosmeticWaited = 0;
     for(za::SizeT i = 0; i < n; i++)
     {
@@ -1633,6 +1710,7 @@ void interpNote(int e, za::U32 prevSeq, za::U32 seq, bool fresh)
 // into their histories when it is a new one (`prevSeq`: the one read before it; else 0 and seq 0).
 void apply(const Snapshot& s, za::U32 prevSeq, za::U32 seq)
 {
+    netrag::clientSnapshotBegin();
     ClientCounts& counts = clientState.counts;
     const sizebuf_t savedMsg = net_message;
     const int savedCount = msg_readcount;
@@ -1662,6 +1740,7 @@ void apply(const Snapshot& s, za::U32 prevSeq, za::U32 seq)
         }
         counts.bad += msg_badread || msg_readcount != r.len ? 1 : 0;
     }
+    netrag::clientSnapshotEnd(); // (the ragdolls not in it: gone, drawn animated again)
     net_message = savedMsg;
     msg_readcount = savedCount;
     msg_badread = savedBad;
@@ -1749,6 +1828,7 @@ void parse()
 
 void clientClear()
 {
+    netrag::clientClear();
     ClientState& c = clientState;
     c.last = 0;
     for(Snapshot& s : c.snaps)
@@ -1851,9 +1931,9 @@ void bytesReport()
         }
     }
     Con_Printf("mp_netbytes: messages=%lld reliable=%lld unreliable=%lld snap=%lld snap_cd=%lld snap_ent=%lld snap_av=%lld "
-               "snap_pred=%lld snap_pose=%lld snap_hdr=%lld pose=%lld avatar=%lld ent=%lld cd=%lld sound=%lld tent=%lld "
+               "snap_pred=%lld snap_pose=%lld snap_rag=%lld snap_hdr=%lld pose=%lld avatar=%lld ent=%lld cd=%lld sound=%lld tent=%lld "
                "voice=%lld rest=%lld top=%s%d:%lld,%s%d:%lld,%s%d:%lld ent_ops=%lld/%lld,%lld/%lld,%lld/%lld,%lld/%lld\n",
-        b.messages, b.reliable, b.unreliable, snap, b.snap[0], b.snap[1], b.snap[2], b.snap[3], b.snap[4],
+        b.messages, b.reliable, b.unreliable, snap, b.snap[0], b.snap[1], b.snap[2], b.snap[3], b.snap[4], b.snap[5],
         snap - snapEntries, pose, avatar, ent, cd, sound, tent, voice, rest, top[0] >= 256 ? "q" : "", top[0] & 255, topN[0],
         top[1] >= 256 ? "q" : "", top[1] & 255, topN[1], top[2] >= 256 ? "q" : "", top[2] & 255, topN[2], entOps[0][0], entOps[0][1],
         entOps[1][0], entOps[1][1], entOps[2][0], entOps[2][1], entOps[3][0], entOps[3][1]);
@@ -2389,6 +2469,7 @@ void classesReport()
 void init()
 {
     Cmd_AddCommand("vr_netsnap_selftest", selftest_f);
+    netrag::init();
     Cmd_AddCommand("vr_net_classes", [] {
         if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "reset"))
         {
