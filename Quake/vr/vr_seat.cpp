@@ -7,7 +7,11 @@
 #include "vr_flatmove.hpp"
 #include "vr_flatplay.hpp"
 #include "vr_flatsight.hpp"
+#include "vr_grip.hpp"
+#include "vr_hands.hpp"
+#include "vr_handsource.hpp"
 #include "vr_testkit.hpp"
+#include "vr_throw.hpp"
 #include "vr_visor.hpp"
 
 #include <cstring>
@@ -428,6 +432,51 @@ void testFlat()
     check(none3, "seat 3 has none of flat play's parts made (no code of it ran as seat 3)");
 }
 
+// Phase 4b: the hands. As seat 1 (a Scope) the play space's turn (the rig), a hand's source this frame, its measured
+// frame (the grip's) and a throw's motion sample land in seat 1's and leave seat 0's as they were; each seat its own
+// parts, made only where its code ran.
+void testHands()
+{
+    Seat& s0 = at(0);
+    Seat& s1 = at(1);
+    const auto slot = [](Seat& s, const Part p) { return s.parts[static_cast<int>(p)].get(); };
+    constexpr int hand = 1;
+    const float yaw0 = hands::playSpaceYaw();
+    const handsource::Source source0 = handsource::source(hand);
+    const float radius0 = grip::ownFrame(hand).channelRadius;
+    const double thrown0 = throwing::latestTime(hand);
+    {
+        const Scope in1(s1);
+        check(hands::playSpaceYaw() == 0.f && handsource::source(hand) == handsource::Source::Tracked &&
+                  grip::ownFrame(hand).channelRadius == 0.f && throwing::latestTime(hand) == 0.0,
+              "a fresh seat's hands: no turn, tracked, no measured frame, no throw's samples");
+        hands::setPlaySpaceYaw(10.f);
+        handsource::mark(hand, handsource::Source::Action, "seat test");
+        grip::HandFrame f = grip::ownFrame(hand);
+        f.channelRadius = radius0 + 7.f;
+        grip::setHandFrame(hand, f);
+        throwing::sample(hand, thrown0 + 12345.0, throwing::Motion{}, throwing::Motion{});
+        check(hands::playSpaceYaw() == 10.f && handsource::source(hand) == handsource::Source::Action &&
+                  grip::ownFrame(hand).channelRadius == radius0 + 7.f && throwing::latestTime(hand) == thrown0 + 12345.0,
+              "as seat 1: the play space's turn, the hand's source, its frame and a throw's sample are seat 1's");
+    }
+    check(hands::playSpaceYaw() == yaw0 && handsource::source(hand) == source0 &&
+              grip::ownFrame(hand).channelRadius == radius0 && throwing::latestTime(hand) == thrown0,
+          "seat 0's turn, hand source, frame and throw samples unchanged by seat 1's");
+    bool apart = true;
+    for(const Part p : {Part::Hands, Part::HandSource, Part::Grip, Part::Throw})
+    {
+        apart = apart && slot(s0, p) != nullptr && slot(s1, p) != nullptr && slot(s0, p) != slot(s1, p);
+    }
+    bool none3 = true;
+    for(int p = static_cast<int>(Part::Hands); p < static_cast<int>(Part::Count); ++p)
+    {
+        none3 = none3 && slot(at(3), static_cast<Part>(p)) == nullptr;
+    }
+    check(apart, "the rig, the hands' sources, frames and throws: each seat's own part");
+    check(none3, "seat 3 has none of the hands' parts made (no code of them ran as seat 3)");
+}
+
 // vr_seat_test [2]: phase 1's buttons, phase 2's bindings and devices; then (2, queued by the first) the queued binds'
 // seats and the verdict "seat_test: N passed, M failed". No map needed.
 void test_f()
@@ -443,6 +492,7 @@ void test_f()
     testDevices();
     testViewHud();
     testFlat();
+    testHands();
 }
 
 } // namespace
