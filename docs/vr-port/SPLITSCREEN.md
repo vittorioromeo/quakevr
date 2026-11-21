@@ -209,7 +209,8 @@ notes).
 
 **Branch** (his decision, 2026-11-20): the splitscreen work is one long-lived branch, `agent/split` (as `agent/mp`
 was): origin/next merged in often, each phase's commits and its full test runs kept, `agent/split` pushed to origin
-when a phase is done and tested; it merges into next only when he says so.
+when a phase is done and tested; it merges into next only when he says so: once the join screen works and he has
+tried it (2026-11-21).
 
 **Every phase** changes no behaviour with one seat, proven by the same set **before and after** (on the phase's base
 and on its result, same machine): `scenario_check`, the flat suites (flatplay, flatparry, flathands, flatmelee, the
@@ -226,16 +227,16 @@ ends with the effort left re-estimated (below).
 | 3 | View and HUD per seat, drawn into a rectangle (one rectangle, the window, until phase 7) | done (1) | - |
 | 4a | Flat play's state (`FlatState`, holsters, sights, third person, toolgun keys; the visor and the lean went in phase 3) | done (1) | - |
 | 4b | Hands, held, two-hand, grips, throw, the toolgun; the motion recorder marked the headset's (the drawn body and climbing's pins: phase 7) | done (1) | - |
-| 5 | `cl`, `cls`, prediction, snapshots, the move | 4-5 | - |
-| 6 | The loopback grown to 4, the seat loop (each seat's client frame in its `Scope`), own slots: two seats join a listen server and play (headless test: two seats move apart) | 2-3 | 5 (saving), 6 (drop-in/out: whether a seat may join a running game) |
-| 7 | Per-seat render: rectangles, per-view caches; the effects (each seat's client world); the drawn body (`vr_avatar*`) and climbing's client pins (4b's leftovers) | 5-6 | 2 (layouts: what the tiles are) |
+| 5 | `cl`, `cls`, the entity tables, prediction, snapshots, the move, the client's VR net state | done (1) | - |
+| 6 | The loopback grown to 4, the seat loop (each seat's client frame in its `Scope`), own slots: two seats join a listen server and play (headless test: two seats move apart) | 2-3 | ~~5, 6~~ answered: autosave only; drop-in/out (a seat joins or leaves a running game) |
+| 7 | Per-seat render: rectangles, per-view caches; the effects (each seat's client world); the drawn body (`vr_avatar*`) and climbing's client pins (4b's leftovers) | 5-6 | ~~2~~ answered: the tiles follow the chosen layout (phase 11) |
 | 8 | Sound: a listener per seat, nearest-listener spatialisation, duplicate starts dropped | 1-2 | - |
-| 9 | Menus and console per seat (`key_dest`, the stack) | 2 | 4 (menu and pause) |
-| 10 | UX: Multiplayer > Splitscreen and the join screen | 2-3 | 3, 4, 6 |
-| 11 | UX: layouts (2 side by side or stacked, 3, 4) | 1-2 | 2 |
-| 12 | UX: KB/M plus up to 4 controllers: the flat controller layout, per-seat profiles (the cvars a player owns) | 3-4 | 7 (the controller mapping, aim assist) |
-| 13 | UX: per-seat HUD scale and seat menus, pause | 1-2 | 4 |
-| 14 | Online (network guests with a splitscreen host; a splitscreen group joining a remote host), docs, checklist | 1-2 | 8 (a VR host with flat seats: later or never) |
+| 9 | Menus and console per seat (`key_dest`, the stack) | 2 | ~~4~~ answered: options; coop's default: the menu pauses, only seat 1's is the full menu |
+| 10 | UX: Multiplayer > Splitscreen and the join screen | 2-3 | ~~3, 4, 6~~ answered (drop-in/out: the join screen also joins a running game) |
+| 11 | UX: layouts (2 side by side or stacked, 3, 4): all switchable, the default from the monitor's aspect | 1-2 | ~~2~~ answered: customizable; ultrawide side by side; 3: one wide on top, two below |
+| 12 | UX: KB/M plus up to 4 controllers: the flat controller layout, per-seat profiles (the cvars a player owns) | 3-4 | ~~7~~ answered: a default controller layout; aim assist, off by default |
+| 13 | UX: per-seat HUD scale and seat menus, pause | 1-2 | ~~4~~ answered (pause and menu options) |
+| 14 | Online (network guests with a splitscreen host; a splitscreen group joining a remote host), docs, checklist | 1-2 | ~~8~~ answered: a VR host with flat seats, yes (the last part) |
 
 **Effort left after phase 1: 33-44 worker-days** (phase 0's (a1) was 25-35 with the swap registry; moving the state
 for real costs the difference, mostly in phases 4-5). **After phase 2: 31-41 worker-days** (phase 2 took one; phase
@@ -245,21 +246,30 @@ phase 7 starts from a seat's window area that `SCR_CalcRefdef` already lays out 
 worker-days** (4a took one of its three: the seat's parts made it mechanical; 4b is unchanged, its hands state being
 larger and shared with the headset's code paths). **After phase 4b: 22-31 worker-days** (4b took one of its four to
 five: the seat's parts again; the drawn body (`vr_avatar*`) and climbing's client pins, left, go with phase 7's per-seat
-render: about a day more there).
+render: about a day more there). **After phase 5: 18-27 worker-days** (5 took one of its four to five: one pointer
+for `cl`/`cls` made the 4,600 uses mechanical; the other players' copies (`vr_mpavatar`) and the drawn effects'
+memories, left shared, add half a day to phase 7; the demo stays seat 0's: phase 6 or later says whether a seat may
+record). His answers (section 7, 2026-11-21) add about two days: every layout and the pause and menu rules made
+options (phases 11, 13), aim assist (12), drop-in/out on the join screen (10): **20-29 worker-days left**, the VR host
+with flat seats (14) last and not yet costed.
 
 ## 7. Questions for him (the phase that needs each)
 
 1. ~~Seat processes or in-process seats?~~ In-process, true splitscreen (2026-11-20).
-2. **Layout defaults** (phases 7, 11): 2 players side by side or stacked? 3 players: one wide tile on top and two below,
-   three columns, or a 2x2 grid with the fourth tile showing the map or scores?
+2. ~~**Layout defaults** (phases 7, 11)~~: **customizable, every layout switchable**; the default picked from the
+   monitor's aspect ratio (an ultrawide: always side by side); 3 players: one wide tile on top and two below by default
+   (2026-11-21).
 3. ~~**Who is seat 1** (phases 2, 10)~~: the keyboard and mouse, always; controllers join as seats 2-4 (2026-11-21).
-4. **Menu and pause** (phases 9, 10, 13): does seat 1's menu pause everyone (single player's habit) or never
-   (multiplayer's)? Can the other seats open the full menu or only their seat menu?
-5. **Saving** (phase 6): multiplayer rules (level-start autosave only), or save at will when every player is local?
-6. **Drop-in/out** (phases 6, 10): may a controller join a running game (2 tiles become 3), and a seat leave?
-7. **The flat controller layout** (phase 12): the mapping (fire per hand on the triggers, ironsight/guard, lean,
-   crouch, grab, shove, holster menu, swap, reload, punch: more actions than buttons), aim assist or none?
-8. **A VR host with flat seats on the monitor** (phase 14): wanted later?
+4. ~~**Menu and pause** (phases 9, 10, 13)~~: **customizable, each an option**; by default in coop opening the menu
+   pauses the game, and only seat 1 opens the full menu (the other seats their seat menu) (2026-11-21).
+5. ~~**Saving** (phase 6)~~: multiplayer's rules, the level-start **autosave only** (2026-11-21).
+6. ~~**Drop-in/out** (phases 6, 10)~~: **yes**, a controller may join a running game and a seat may leave (2026-11-21).
+7. ~~**The flat controller layout** (phase 12)~~: **a default flat-play controller layout: yes; aim assist: yes, off
+   by default** (2026-11-21). The mapping itself is the phase's to propose.
+8. ~~**A VR host with flat seats on the monitor** (phase 14)~~: **yes, last** (2026-11-21).
+
+All eight answered. **Merging into next** (2026-11-21): once the join screen works (phase 10) and he has tried it;
+until then `agent/split` keeps merging origin/next in (each phase does).
 
 ## 8. Phase 1 (2026-11-21): the seat, the check, the command buttons
 
@@ -461,3 +471,42 @@ His answer to question 3 (2026-11-21): seat 1 is always the keyboard and mouse; 
   check counts 289 `seat-shared` marks now). Merging next brought 4 newcomers, all marked shared: the hit zones'
   debug readout, navfollow's server bots and their clock, the scenario runner's counts.
 - **Before and after**: ROUND25.md "split4b".
+
+## 13. Phase 5 (2026-11-21): the client, its connection and its world
+
+(Seats numbered from 0 as in the code.)
+
+- **The seat's client** (`clientseat_t`, client.h; a `Seat`'s `net`, made by `seat::netOf`): Ironwail's `cls`
+  (`client_static_t`: the connection, its message buffer, the demo fields), `cl` (`client_state_t`) and the client
+  world's tables, once globals of cl_main.c, cl_tent.c and cl_parse.c: the static and temporary entities, the light
+  styles, the dynamic lights, the beams, the visible entities, `cl_entities` and `cl_max_edicts`, the entity update
+  count, the Nehahra warning. **The access rule as planned: current.** `cl_seat` points at the current seat's;
+  `seat::Scope` and C's `CL_SeatSet` move it with the seat. `cls`, `cl` and the tables' old names are macros
+  (`#define cl (cl_seat->cstate)`...), so the ~4,600 uses read as before; **nothing else may be named `cl` or `cls`**
+  (a local, a parameter or a member so named fails to compile, never silently: 424 `cls` became `klass`, four `cl`
+  locals renamed). Seat 0's is the game's own (CL_Init's message buffer on the hunk, Host_Init's state: as before);
+  seats 1-3's are made on first use (~3 MB each, the entity tables), disconnected, out of the demo loop, their message
+  buffer their own (`CL_SeatNetReady`). **With one seat `cl_seat` is seat 0's, always.**
+- **The VR client's net state: the seat's parts** (phase 3's pattern; 14 new `seat::Part`s): the prediction
+  (`vr_predict`'s `ClientPredict` and its correction totals), the snapshots read (`vr_netsnap`'s client state, the
+  interpolation, the bytes read by command, the entries' tallies), the moves sent and acknowledged (`vr_netmove`), the
+  ragdolls from the server (`vr_netragdoll`), `vr_client`'s hands' buttons as the move reads them, the grabs and
+  throws' estimates, the client world's VR entity data and late brush models, the posing mode's held move, the
+  preferences sent (`vr_clientprefs`), what the voice chat told the server it hears (`vr_voicechat`). The net HUD
+  was phase 3's. Each file's state became a struct the seat owns, read through a one-line accessor.
+- **Marked shared**: the server's halves (each slot's prediction, moves, snapshots sent and their encode, lag
+  compensation, the voice relay), scratch and the self-tests', the reset hooks (they clear the current seat's), the
+  demo (`demo_head`, `demo_rewind`: one demo recorded or played, seat 0's), the temporary entities' sounds, the PC's one
+  microphone (`vr_voicechat`'s capture and push-to-talk), the voices played (phase 8's mixer), the voice menu (phase
+  9), the weapons' muzzle settings, the old particles' random stream, a test sprite, the MP tests' own (`vr_mptest`);
+  and, for phase 7 with the per-seat effects, the other players' copies (`vr_mpavatar`, the pump strokes, barrel
+  heats, slides and wounds by player), the thrown gun's rope memory and the wounds' paint queue.
+- **`vr_seat_test`** (verdict `seat_test: N passed, M failed`): phases 1-4b's 61 plus 9 (70 of 70): seat 0's client is current
+  outside a seat loop; a scope makes seat 1's current; a fresh seat's client is disconnected, out of the demo loop,
+  with its own message buffer, and its world empty; seat 1's time, visible entities, a light and a message byte leave
+  seat 0's as they were; `CL_SeatSet` moves the client with the seat both ways; the prediction's totals and the
+  interpolation are each seat's part.
+- **`seat_state` allowlist: 3,697 -> 3,591** (106 gone: the client's 14 globals into `clientseat_t`, 24 into the
+  seat's parts, 68 marked shared; 362 `seat-shared` marks now). Merging next brought 4 newcomers, all marked shared
+  (other players' copies, phase 7: the pump strokes, barrel heats, slides, wounds).
+- **Before and after**: ROUND25.md "split5".
