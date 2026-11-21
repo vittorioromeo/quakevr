@@ -150,14 +150,17 @@ if len(shots) == 13:
     w, h, _ = imgs[0]
     k = w / view[0] if view[0] == view[0] else 1.0
 
-    def green(img, cx, cy, r):
+    def green(img, cx, cy, r, soft=False):
+        # soft: the crosshair's faint arms too, not only its bright core (whether an arm's pixel clears the strong
+        # threshold depends on what is behind it: a pellet's mark, a muzzle flash's light)
+        dg, db = (15, 10) if soft else (40, 30)
         iw, ih, data = img
         n = sx = sy = 0
         for y in range(max(0, int(cy - r)), min(ih, int(cy + r) + 1)):
             for x in range(max(0, int(cx - r)), min(iw, int(cx + r) + 1)):
                 o = (y * iw + x) * 3
                 rr, gg, bb = data[o], data[o + 1], data[o + 2]
-                if gg > rr + 40 and gg > bb + 30:
+                if gg > rr + dg and gg > bb + db:
                     n, sx, sy = n + 1, sx + x, sy + y
         return n, (sx / n if n else -1), (sy / n if n else -1)
 
@@ -166,7 +169,7 @@ if len(shots) == 13:
 
     r = 16 * scale * k
     c = [v * k for v in centre]
-    n, gx, gy = green(imgs[0], c[0], c[1], r)
+    n, gx, gy = green(imgs[0], c[0], c[1], r, True)
     check(n > 4 and abs(gx - c[0]) <= 1.5 and abs(gy - c[1]) <= 1.5, f"pixels open: drawn on the centre ({n} px, centroid {gx:.1f} {gy:.1f} vs {c[0]:.1f} {c[1]:.1f})")
     d = at("wall", 0, "main")
     n, gx, gy = green(imgs[1], d[0], d[1], r)
