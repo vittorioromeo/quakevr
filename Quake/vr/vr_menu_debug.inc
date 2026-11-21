@@ -689,6 +689,9 @@ za::Vector<Item> pageDebugProfiling()
         row(opt::vr_alias_player_first),
         row(opt::vr_alias_prepass_own),
         row(opt::vr_alias_prepass_body),
+        row(opt::vr_debug_head_pose),
+        row(opt::vr_debug_head_pitch),
+        row(opt::vr_debug_hands_front),
         command("Lazy OIT Clear Stats", "vr_oit_stats")
             .help("vr_oit_stats: since the last time, the views with a translucent pass, how many drew something "
                   "translucent (water, slime, lava, a translucent model or particles) and how many skipped the clear."),

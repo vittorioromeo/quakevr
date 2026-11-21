@@ -7785,3 +7785,20 @@ softlock in kellbase1 at (-8, -959.8, 664.1).
   (`developer 1`: "quoth: kellbase1's corridor: shut in, the top doors opened again"). In the arena: nothing.
 - **Checklist scene:** `ad_mod_ladder` (ad_crucial's ladder; a scene named `mod_...` ran after one that left AD's
   folders: "no map").
+## Quest C5d: the body's worn cost found; a posed head for unworn GPU tests (questc5d, 2026-11-21; branch agent/quest)
+
+- **Why the body costs ~1 ms worn**: its fragment shading, in proportion to the pixels it covers, and nothing else (no
+  second pass, no world lights, not its vertices: in a level view with the body out of sight it costs nothing). Quest at
+  1.0: pitch 35 (forearms, hands, holsters) +1.9 ms span; pitch 70 (the torso in the lower half) +11.9 ms. The floor
+  it hides was cheap (the main pass 5.33 -> 5.16), so its pixels add up. The recorder's "world_brush" holds it (the
+  tiler's timers measure the whole binned pass). PC: 0.07 ms a pass, the eyes on/off within 0.02 ms.
+- **Inside its shader** (pitch 70, 0.7, `vr_gles_define` early-return probes): texture 0.6, look (skin tone, wounds,
+  dents) 0.15, **light ~4 ms** (per-pixel dynamic lights on models 1.85 with his `vr_dlight_models 1`: the rig's two
+  lights reach every body pixel; the own light's ambient and bumps 0.9), tail 0.85. Details: QUEST_PLAN.md 6zo.
+- **`vr_debug_head_pose`** (new, 0; Debug > Profiling and Memory > Pose the Head, with `vr_debug_head_pitch` 0 and
+  `vr_debug_hands_front` 0; OpenXR only): the rendered head set level at the pitch, 1.65 m high, the hands in front at
+  the waist; the layers keep the runtime's poses. An unworn headset draws a worn view (`scratch/c5d_ab.sh`).
+- **Worn A/B for him**: `qvr-kit/scratch/quest_worn_ab.py push`, `exec quest_worn_ab.cfg` in the game (3 min: base,
+  body off, dlmap, both, 3 rounds, each marked), then `quest_worn_ab.py report`.
+- **Open (C5e)**: the cut (a body-only light form), `vr_depth_float 0`, the resolution step. Unworn runs over ~11 ms
+  GPU are paced at 40-55 ms by the runtime: measure at 0.7.

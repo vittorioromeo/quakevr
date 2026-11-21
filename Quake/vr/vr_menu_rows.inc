@@ -6258,6 +6258,14 @@ QVR_TOGGLE(vr_alias_prepass_body, "Body Pre-pass",
     "vr_alias_prepass_body: your body drawn into the depth first, then shaded once a pixel (On, as before), or "
     "shaded as drawn (Off): its skinning run once a view instead of twice. The same images either way; Off is "
     "the Quest preset's when it measures faster there.")
+QVR_TOGGLE(vr_debug_head_pose, "Pose the Head (Unworn Tests)",
+    "vr_debug_head_pose: for GPU tests on a headset lying on a table (OpenXR): the view drawn level at the Head "
+    "Pitch below, its direction and place kept (the headset still shows it as tracked). Off: as tracked.")
+QVR_SLIDER(vr_debug_head_pitch, "Head Pitch", -90.f, 90.f, 5.f, "%.0f deg", noExt,
+    "vr_debug_head_pitch: the posed head's pitch, down positive (Pose the Head).")
+QVR_TOGGLE(vr_debug_hands_front, "Hands in Front (Unworn Tests)",
+    "vr_debug_hands_front: with Pose the Head, both hands held in front of the posed head at the waist, as a worn "
+    "view's forearms (the controllers' own poses ignored).")
 QVR_TOGGLE(vr_gl_world_lit_skip, "Skip Empty Lit Commands (Quest)",
     "vr_gl_world_lit_skip: with the world split by surface (Unlit World Shader By Surface, the Quest), only the "
     "textures with a surface a reaching light touches get their lit draw (On), or every texture (Off, as before). "

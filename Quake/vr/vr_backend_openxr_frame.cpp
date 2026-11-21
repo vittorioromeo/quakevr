@@ -15,6 +15,51 @@
 namespace qvr::oxr
 {
 
+namespace
+{
+
+// vr_debug_head_pose (C5d): the rendered head level at vr_debug_head_pitch and 1.65 m over the floor, its yaw and its
+// place on the floor kept, the eyes moved with it; vr_debug_hands_front: the hands in front of it at the waist. A
+// headset lying on a table draws a worn view's work this way (the layers keep the runtime's poses: views[]).
+void debugPose(TrackingState& tracking, FrameState& frame)
+{
+    if(vr_debug_head_pose.value == 0.f || !tracking.head.valid)
+    {
+        return;
+    }
+    const Pose head = tracking.head;
+    const glm::vec3 forward = head.orientation * glm::vec3{0.f, 0.f, -1.f};
+    const glm::quat yaw = glm::angleAxis(std::atan2(-forward.x, -forward.z), glm::vec3{0.f, 1.f, 0.f});
+    const glm::quat posed =
+        yaw * glm::angleAxis(-glm::radians(vr_debug_head_pitch.value), glm::vec3{1.f, 0.f, 0.f});
+    const glm::vec3 place{head.position.x, 1.65f, head.position.z};
+    const glm::quat turn = posed * glm::inverse(head.orientation);
+    for(auto& eye : frame.eyes)
+    {
+        eye.pose.position = place + turn * (eye.pose.position - head.position);
+        eye.pose.orientation = turn * eye.pose.orientation;
+    }
+    tracking.head.position = place;
+    tracking.head.orientation = posed;
+    tracking.head.velocityValid = false;
+    if(vr_debug_hands_front.value == 0.f)
+    {
+        return;
+    }
+    for(int h = 0; h < HAND_COUNT; h++)
+    {
+        const float side = h == HAND_MAIN ? 1.f : -1.f;
+        Pose& hand = tracking.hands[h];
+        hand.position = place + yaw * glm::vec3{0.2f * side, -0.55f, -0.35f};
+        hand.orientation = yaw * glm::angleAxis(glm::radians(-20.f), glm::vec3{1.f, 0.f, 0.f});
+        hand.valid = true;
+        hand.velocityValid = false;
+        hand.gripVelocityValid = false;
+    }
+}
+
+} // namespace
+
 bool OpenXrBackend::beginFrame(TrackingState& tracking, FrameState& frame)
 {
     frame.shouldRender = false;
@@ -189,6 +234,7 @@ bool OpenXrBackend::beginFrame(TrackingState& tracking, FrameState& frame)
     // The tracked body, as the hands (vr_bodytrack_xr.cpp: its tracker made at the first focus, restarted when asked).
     bodytrack::xr::frame(instance, systemId, session, sessionState == XR_SESSION_STATE_FOCUSED);
     bodytrack::xr::locate(worldSpace, time);
+    debugPose(tracking, frame); // (vr_debug_head_pose: unworn GPU tests)
 
     frame.shouldRender = viewsOk && frameState.shouldRender;
     // The runtime's menu has the focus (SteamVR's dashboard...): its last frame again, nothing rendered.

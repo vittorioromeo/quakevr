@@ -1982,6 +1982,36 @@ Method (`scratch/c5b_*`): `c5b_stretch.py` (his recording by stretch), `c5b_expo
   the lit room's unworn headset ran at 72 Hz. The load no longer waits on throttled frames (`loadThrottled`).
 - **The ledger**: `QUEST_OPTIMISATIONS.md`.
 
+## 6zo. C5d: the body's worn cost found (2026-11-21; adb, unworn, the head posed)
+
+Method (`scratch/c5d_*`): **`vr_debug_head_pose`** (new, Debug > Profiling and Memory, OpenXR only, with
+`vr_debug_head_pitch` and `vr_debug_hands_front`): the rendered head set level at a pitch, 1.65 m high, the hands in
+front at the waist, the layers still carrying the runtime's poses: an unworn headset draws a worn view.
+`c5d_ab.sh` (e1m1's spawn, the body and lights as shipped over his headset config, interleaved rounds), `c5d_shot.sh`
+(eyeshots of the posed views), `c5d_pc.sh` (PC mock, `vr_model_fragments` and the profiler, body on/off).
+- **Where it goes**: the body's cost is its **fragment shading**, in proportion to the pixels it covers; nothing else.
+  Not a second world pass, not its lights' world cost, not its vertices (the pitch 0 view, the body out of sight: on
+  and off the same, 9.7 / 10.1 ms span), not the pre-pass (off: -0.3 ms at pitch 70, +0.33 in C5c's fight). Quest,
+  4 rounds at 1.0: pitch 35 (the forearms, hands and holsters in view) span 11.24 -> 13.11 ms with the body (+1.9);
+  pitch 70 (the torso filling the lower half) **11.68 -> 23.61 ms (+11.9)**, each eye 6.8/4.9 -> 12.1/12.1. The world
+  hardly drops under it (main pass 5.33 -> 5.16): the floor the body hides was cheap; a body pixel costs ~3-4 ns, the
+  world's ~1-2. His 17:24 "world_brush" includes it: a tiler's timers inside the binned pass measure the whole pass.
+  PC (mock, looking down): the body 0.07 ms a pass, the eyes on/off within 0.02 ms: nothing to cut there.
+- **The shader's parts** (pitch 70, 0.7 fixed, 3 rounds; span with the body 11.8-12.0, without 6.2-6.7): ended after the
+  texture (`QVR_PROBE_AMIN`) 6.88, after the look (skin tone, wounds, dents: `ALOOKEND`) 7.03, after the light
+  (`ALIGHTEND`) 10.99. So the look costs ~0.15 ms, **the light ~4 ms**, the tail (sheen, rim, fog) ~0.85. Of the light:
+  the per-pixel dynamic lights on models (`vr_dlight_models 0`, his config 1; the rig's two lights reach every body
+  pixel) -1.85 ms; the own light's ambient and bumps (`QVR_PROBE_AAMB`) -0.9; `vr_gl_lights_lite 1` -0.3; the skin's
+  code out (`NOSKIN`) -0.3; no change: wounds, dents, dynamic AO, `vr_pbr`, `vr_shadow_self`, `vr_parallax_models`,
+  the plain forms, the models drawn after the world; worse: the vertex light probe (`vr_gl_alias_vlight 1`, 17.5).
+- **Not done this round** (the APK's full rebuild took 26 min, the budget went on finding the cause): the cut itself
+  (a body-only light form: the dynamic lights on the body summed per vertex or Quake's flat add, the own light's cube
+  per vertex; target the body under 0.3 ms at pitch 35), `vr_depth_float 0`, the resolution step.
+- **Unworn throttling**: with the GPU span over ~11 ms the unworn runtime paced frames at 40-55 ms (`c_xrWaitFrame`);
+  measure at 0.7 or below to stay under it.
+- **Worn A/B for him**: `qvr-kit/scratch/quest_worn_ab.py push`, then in the game `exec quest_worn_ab.cfg` (3 rounds
+  of base / body off / dlmap / both, 15 s each, 3 min, marked and echoed), then `quest_worn_ab.py report`.
+
 ## 7. Installs (done 2026-11-14 at his approval, by the coordinator)
 
 Installed under `F:\QuakeVRDev` (`env.sh` / `env.ps1` there set `JAVA_HOME`, `ANDROID_HOME`, `ANDROID_SDK_ROOT`,
@@ -2025,4 +2055,4 @@ Sizes are approximate download sizes [I]; versions are the current stable ones a
 
 Also: a Quest 3 (or 3S) in developer mode (Meta Horizon app, an organisation account), a USB-C cable.
 
-Next phase: C5d (after 6zn) -- his look call on `vr_gl_world_dlmap 1` (batched: 3 big lights 9.8 -> 4.0 ms GPU, +1.8 ms CPU) for the Quest preset; the body re-measured worn; `+vr_depth_float 0` A/B; then from C5c's line: — measure `vr_gl_world_dlmap 1` (APK of this branch) in the frozen fight and a live e1m1 play at the same spots, interleaved, with its CPU cost (`vr_gl_world_dlmap_info`, the recorder's lightmap events) and his look call on the 16-unit light; keep it in the Quest preset only if it gains. Then (2) `vr_depth_float 0` A/B (D24S8, no code); (3) the eye's compute splits; (4) the multiview/foveation probe; the body's ~1 ms (6zm) as its own item; then the resolution (floor ~0.8, scale toward 1.2). Also 6zk's C5a items. Still open: C2h, NORETRO. Waiting on his call: the armed humanoids' CPU cost (6d), his look call on `vr_rig_lights_world 0`. Decided 2026-11-21: dynamic lights stay shadowless under the Quest preset; the Android Gradle Plugin download approved.
+Next phase: C5e (after 6zo) -- the body's cut: a body-only light form (6zo: its light ~4 of its ~5 ms at pitch 70, the dynamic lights on it 1.85), re-measured with `vr_debug_head_pose` at pitch 35 and 70; then `+vr_depth_float 0` A/B and the resolution step; his worn A/B with `qvr-kit/scratch/quest_worn_ab.py`. Carried from C5d's line: his look call on `vr_gl_world_dlmap 1` (batched: 3 big lights 9.8 -> 4.0 ms GPU, +1.8 ms CPU) for the Quest preset; the body re-measured worn; `+vr_depth_float 0` A/B; then from C5c's line: — measure `vr_gl_world_dlmap 1` (APK of this branch) in the frozen fight and a live e1m1 play at the same spots, interleaved, with its CPU cost (`vr_gl_world_dlmap_info`, the recorder's lightmap events) and his look call on the 16-unit light; keep it in the Quest preset only if it gains. Then (2) `vr_depth_float 0` A/B (D24S8, no code); (3) the eye's compute splits; (4) the multiview/foveation probe; the body's ~1 ms (6zm) as its own item; then the resolution (floor ~0.8, scale toward 1.2). Also 6zk's C5a items. Still open: C2h, NORETRO. Waiting on his call: the armed humanoids' CPU cost (6d), his look call on `vr_rig_lights_world 0`. Decided 2026-11-21: dynamic lights stay shadowless under the Quest preset; the Android Gradle Plugin download approved.

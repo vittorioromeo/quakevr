@@ -699,6 +699,13 @@ QVR_CVAR(vr_alias_prepass_own, "1", CVAR_NONE)
 // the depth first, then shaded once a pixel, as before; 0 shaded as drawn: its skinning run once a view, not twice (the
 // Quest preset's choice when it measures faster: a tiler's own hidden surface removal does the pre-pass's work).
 QVR_CVAR(vr_alias_prepass_body, "1", CVAR_NONE)
+// Debug > Profiling and Memory > Pose the Head: (C5d, QUEST_PLAN.md 6zo) for GPU tests on an unworn headset, OpenXR only:
+// 1 the rendered head set level at vr_debug_head_pitch degrees (down positive) and 1.65 m high, its yaw kept, the eyes
+// with it (the layers still carry the runtime's poses); vr_debug_hands_front 1 also puts both hands in front of it at
+// the waist (a worn view's forearms). 0 as tracked.
+QVR_CVAR(vr_debug_head_pose, "0", CVAR_NONE)
+QVR_CVAR(vr_debug_head_pitch, "0", CVAR_NONE)
+QVR_CVAR(vr_debug_hands_front, "0", CVAR_NONE)
 // Debug > Profiling and Memory > Keep Light Casters: 1 each dynamic light's world shadow casters kept between frames
 // while it stays inside the sphere they were collected for (a moving light's collected 24 units wider; vr_lighting.cpp
 // collectWorldCached; vr_shadow_caster_stats); 0 collected again for each light each frame; 2 (a check) the wider set

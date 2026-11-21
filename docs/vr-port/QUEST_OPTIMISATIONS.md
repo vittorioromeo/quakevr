@@ -129,3 +129,10 @@ the PC default where the docs state it. **ES only?** says whether the code path 
 | Batched dynamic-lightmap uploads | the frame's lightmap changes uploaded per 16-row band from a CPU copy (141 -> 16 calls) | 3 big lights, dlmap on: GPU 5.47 -> 3.96 ms, CPU 6.61 -> 1.81 ms | `vr_gl_world_dlmap_batch` 1 | yes (dlmap is ES only) | No (the PC keeps the loop) |
 | Dynamic lights in the lightmap (C5b), measured | the world without the lights' loop | 3 big lights: GPU span 9.79 -> 3.96 ms (+1.8 ms CPU) | `vr_gl_world_dlmap` 0 (his look call) | yes | Maybe for weak PC GPUs; the look is Quake's 16-unit grid |
 | Loads past a throttling runtime | host frames run between throttled `xrWaitFrame`s while signing on | (a load, not a frame cost) | none | no | Yes: the same OpenXR backend |
+
+## This round (C5d, 2026-11-21)
+
+| Optimisation | What it does | Quest gain measured | Cvar / switch | ES only? | Would it help PC VR / flat? |
+|---|---|---|---|---|---|
+| (finding) the body's worn cost | its fragment shading, by the pixels it covers: pitch 35 +1.9 ms, pitch 70 +11.9 ms span at 1.0; its light ~4 of ~5 ms at 0.7 (dynamic lights on it 1.85, ambient/bumps 0.9), its look 0.15 | (a cause, no cut yet: C5e) | `vr_debug_head_pose` (test aid) | no | No: PC body 0.07 ms a pass, the eyes within 0.02 ms |
+| Model dynamic lights per pixel off | `vr_dlight_models 0`: Quake's flat add for every model | -1.85 ms with the torso in view (pitch 70, 0.7) | `vr_dlight_models` (his config 1; not in the Quest preset) | no | No (a look change) |
