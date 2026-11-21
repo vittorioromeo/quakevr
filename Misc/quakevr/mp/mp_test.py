@@ -1912,17 +1912,24 @@ def ragsync_phase(s, srv, a, b, eb, on, left):
     b.cmd("vr_net_bytes")
     _, moved = b.wait(r"mp_netbytes: ", 10, since_bb)
     moved_rag = int(fields(moved)["snap_rag"])
-    # Settled: two seconds more, B's ragdoll bytes then.
-    since_bb = b.mark()
-    b.cmd("vr_net_bytes reset; echo mp_ragsettle_begin")
-    b.wait(r"mp_ragsettle_begin", 10, since_bb)
-    mark = srv.mark()
-    srv.cmd("vr_mp_after 2 ragsettled%d" % on)  # (two seconds of the server's game time, counted)
-    srv.wait(r"mp_after: .* ragsettled%d" % on, 60, mark, "two settled seconds")
-    since_bb = b.mark()
-    b.cmd("vr_net_bytes")
-    _, settled = b.wait(r"mp_netbytes: ", 30, since_bb)
-    settled_rag = int(fields(settled)["snap_rag"])
+    # Settled: B's ragdoll bytes over two seconds once they have settled. (smallfix: a ragdoll still sliding or rolling
+    # after the play's last blast made the one window right after it fail; up to 5 windows of 2 s, the first quiet one
+    # counts, how many it took a note: ragdolls that never settle still fail.)
+    settled_rag, windows = 0, 0
+    for windows in range(1, 6):
+        since_bb = b.mark()
+        b.cmd("vr_net_bytes reset; echo mp_ragsettle_begin")
+        b.wait(r"mp_ragsettle_begin", 10, since_bb)
+        mark = srv.mark()
+        srv.cmd("vr_mp_after 2 ragsettled%d_%d" % (on, windows))  # (two seconds of the server's game time, counted)
+        srv.wait(r"mp_after: .* ragsettled%d_%d" % (on, windows), 60, mark, "two settled seconds")
+        since_bb = b.mark()
+        b.cmd("vr_net_bytes")
+        _, settled = b.wait(r"mp_netbytes: ", 30, since_bb)
+        settled_rag = int(fields(settled)["snap_rag"])
+        if settled_rag / 2.0 <= 0.02 * moved_rag / RAG_SECONDS + 1:
+            break
+    s.note("%s: settled after %d window(s) of 2 s" % (label, windows))
     ha, pa = rag_series(a.lines[since_a:], "sv")
     hb, pb = rag_series(b.lines[since_b:], "cl")
     out = {}
