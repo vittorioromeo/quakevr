@@ -7536,3 +7536,33 @@ it); an in-game indication of whether the chosen port is forwarded.
 - **Test:** `Misc/quakevr/reload/pouchbody_test.sh` 12/0: with `vr_body_mode` 0, 2 and 3 every gear ring at least 1
   (mode 0 was 0.86 and 0.47 before the fix: FAIL), a shell from the ammo pouch, a magazine from it seated in the nailgun,
   a grenade from the grenade pouch. Checklist scene `pouchbody` (Only Hands, the shotgun and the nailgun, ammo).
+
+## Quest C5c: the body's triangles, batched lightmap uploads, loads past a throttling runtime (questc5c, 2026-11-21; branch agent/quest)
+
+- **Why the body cost so much**: the bare forearms (`vr_body_bracers 0`, the shipped look) were lofted with 144 sides
+  from the shoulder to the wrist (`make_vrbody.py`: 144 to follow the jointed hand's wrist section), 9,800 of the
+  body's 10,874 triangles. Now 24 sides up to the last forearm ring and 144 only from there to the wrist and the lip
+  over the hand, joined by a stitched band (`loft(hi_sides, hi_from)`): **4,154 triangles, 2,372 vertices** (was
+  10,874 / 5,732); every build's bare mesh regenerated (the clothed meshes byte-identical; the skins not rewritten).
+  PC mock, e1m1's spawn looking down (`vr_mock_look 60 0`, `vr_model_fragments 32`): the body group 0.099 -> **0.072
+  ms** a pass, 27,446 -> 13,110 vertex runs, 98.6k -> 66.2k fragment runs (the thin triangles' quads cost fragments
+  too). Quest (unworn, frozen fight, 0.55): GPU span 3.71 -> 3.55 ms with the new mesh.
+- **`vr_alias_prepass_body`** (new, 1; Debug > Profiling and Memory > Body Pre-pass): the body's depth pre-pass off.
+  Slower on both: PC 0.091 ms a pass against 0.072, the Quest +0.33 ms span. Stays 1 (an A/B switch).
+- **`vr_gl_world_dlmap_batch`** (new, 1; Debug > Profiling and Memory): with `vr_gl_world_dlmap 1` the frame's lit and
+  restored texel blocks go into a CPU copy of the lightmap and up in one `glTexSubImage2D` per band of 16 rows, not
+  one per surface. Quest, frozen fight with 3 big test lights (`scratch/c5c_run2.sh`, 4 rounds interleaved): the loop
+  GPU span **9.79** ms (world 7.40); the lightmap path unbatched 5.47 ms GPU, 6.61 ms CPU, frames missed (period
+  14.71); **batched 3.96 ms GPU (world 2.19, the lights' own cost ~0.2), 1.81 ms CPU** (busy 6.24 -> 7.89); no test
+  lights 3.78. PC: 141 uploads -> 16, the picture the same (its difference under two frames' own noise).
+  `vr_gl_world_dlmap` stays 0 (the 16-unit lightmap look is his call); with the batch it is the big cut.
+- **Loads past a throttling runtime** (`vr_backend_openxr_frame.cpp`, `loadThrottled`): while the client is not signed
+  on and the last `xrWaitFrame` blocked 250 ms or more, host frames run unwaited (`paceUnwaited`), `xrWaitFrame` tried
+  again every 0.5 s; the log notes it (`OpenXR: xrWaitFrame blocked ... during a load`, `the load ended; N host frames
+  ...`). A normal headset's 14 ms waits never trigger it. PC OpenXR shares the backend.
+- **Unworn headset tests**: with `prox_close` held, the still headset's Guardian dialog relaunched every 10-30 s and
+  the app never started (`am start` said Starting, no process). **Without `prox_close`** the unworn, still headset in
+  a lit room gave full 72 Hz frames (period 14.0 ms) and e1m1 loaded in seconds: `scratch/c5c_ab.sh` holds the sensor
+  only with `PROX=1`.
+- **The ledger**: `docs/vr-port/QUEST_OPTIMISATIONS.md`, every Quest renderer optimisation so far with its measured
+  gain, cvar, ES-only flag and a judgement for the PC.

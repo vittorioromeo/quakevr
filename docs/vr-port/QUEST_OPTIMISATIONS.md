@@ -119,3 +119,13 @@ the PC default where the docs state it. **ES only?** says whether the code path 
 - **R11F_G11F_B10F float scene (`vr_tonemap 2`)**: -1.4 ms on the Quest at the same picture; scene bandwidth is also a PC VR cost at high render scales.
 - **Dynamic resolution with a low floor**: the Quest's biggest practical lever (e1m1 at the floor 86% of the time); a PC VR preset with dynres on and a tuned floor is a cheap experiment.
 - **Lite world compile-out of dead features** (bump, AO, caustics, retro light, detail): world 12.9 -> 8.2 ms on Adreno; on PC a weak GPU on the Low preset could try it, at the price of shader remakes per setting.
+
+## This round (C5c, 2026-11-21)
+
+| Optimisation | What it does | Quest gain measured | Cvar / switch | ES only? | Would it help PC VR / flat? |
+|---|---|---|---|---|---|
+| Bare forearms 144 sides only at the wrist | the body's bare arms 24-sided up to the last forearm ring, 144 at the wrist and lip (stitched): 10,874 -> 4,154 triangles | frozen fight span 3.71 -> 3.55 ms (unworn view) | none (the mesh) | no | Yes: PC body 0.099 -> 0.072 ms a pass, same look |
+| Body pre-pass switch | the body's depth pre-pass off: skinned once a view | +0.33 ms (worse): stays on | `vr_alias_prepass_body` 1 | no | No: PC 0.091 vs 0.072 ms |
+| Batched dynamic-lightmap uploads | the frame's lightmap changes uploaded per 16-row band from a CPU copy (141 -> 16 calls) | 3 big lights, dlmap on: GPU 5.47 -> 3.96 ms, CPU 6.61 -> 1.81 ms | `vr_gl_world_dlmap_batch` 1 | yes (dlmap is ES only) | No (the PC keeps the loop) |
+| Dynamic lights in the lightmap (C5b), measured | the world without the lights' loop | 3 big lights: GPU span 9.79 -> 3.96 ms (+1.8 ms CPU) | `vr_gl_world_dlmap` 0 (his look call) | yes | Maybe for weak PC GPUs; the look is Quake's 16-unit grid |
+| Loads past a throttling runtime | host frames run between throttled `xrWaitFrame`s while signing on | (a load, not a frame cost) | none | no | Yes: the same OpenXR backend |

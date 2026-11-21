@@ -1959,6 +1959,29 @@ Method (`scratch/c5b_*`): `c5b_stretch.py` (his recording by stretch), `c5b_expo
   `vr_depth_float 0` (clip control is on the Quest, so it runs D32F+S8 now; with D24 the near plane goes from 0.02 to
   1 unit; held items are never cut).
 
+## 6zn. C5c: the body's cost, the lights in the lightmap batched, the ledger (2026-11-21; adb, unworn, room lit)
+
+- **The body**: the bare forearms were 144-sided from the shoulder (`make_vrbody.py`), 90% of the body's triangles;
+  now 24 sides and 144 only at the wrist and lip (a stitched band): 10,874 -> 4,154 triangles. PC mock (looking down,
+  `vr_model_fragments`): 0.099 -> 0.072 ms a pass, vertex runs -52%, fragment runs -33%. Quest frozen fight
+  (`scratch/c5c_run.sh`; the unworn view, the body mostly out of it): span 3.71 -> 3.55 ms (old mesh pushed as the
+  brawny build, `c5c_push.sh MODE=ab`). How it is drawn: GPU skinning (bones in an SSBO, one upload a batch), a depth
+  pre-pass then the shading (`vr_alias_prepass_body` 0: PC 0.091 ms, Quest +0.33 ms: the pre-pass pays), each eye
+  separately (single-pass stereo leaves models near the eyes per eye), no shadow pass under the Quest preset, the
+  mirror only with a mirror; 5 models (body, plates, pauldrons). His ~1 ms (6zm) was a worn view with the arms in it:
+  the cut removes 60% of its vertices and a third of its fragments; re-measure worn.
+- **The lights**: the per-pixel loop's cost is its presence (registers, 6w-6z) on every lit wall pixel, the light
+  lists already clustered (32x16x32), the loop plain, the world split lit/unlit by surface. The Quake way (the lights in
+  the lightmap, `vr_gl_world_dlmap`, C5b) removes the loop: 3 big test lights' GPU span **9.79 -> 3.96 ms** (no lights
+  3.78) once its uploads are batched (`vr_gl_world_dlmap_batch`, new, 1: one upload per 16-row band; unbatched it was
+  5.47 ms GPU and 6.61 ms CPU, frames missed), CPU **1.81 ms** a frame. Off by default: the 16-unit lightmap look is his
+  call (QUEST_PLAN 6zm); recommended for the Quest preset. Not done: the additive light pass (the world unlit, the lit
+  surfaces drawn again by a tiny shader and blended on the tile; the decals and the clamp make it a look change).
+- **`vr_depth_float 0`**: not measured (a launch each: noise 2 ms between launches); left for C5d.
+- **Unworn tests**: `prox_close` on a still headset loops the Guardian's dialog and the app never starts; without it
+  the lit room's unworn headset ran at 72 Hz. The load no longer waits on throttled frames (`loadThrottled`).
+- **The ledger**: `QUEST_OPTIMISATIONS.md`.
+
 ## 7. Installs (done 2026-11-14 at his approval, by the coordinator)
 
 Installed under `F:\QuakeVRDev` (`env.sh` / `env.ps1` there set `JAVA_HOME`, `ANDROID_HOME`, `ANDROID_SDK_ROOT`,
@@ -2002,4 +2025,4 @@ Sizes are approximate download sizes [I]; versions are the current stable ones a
 
 Also: a Quest 3 (or 3S) in developer mode (Meta Horizon app, an organisation account), a USB-C cable.
 
-Next phase: C5c (after 6zm; adb with the headset in light) — measure `vr_gl_world_dlmap 1` (APK of this branch) in the frozen fight and a live e1m1 play at the same spots, interleaved, with its CPU cost (`vr_gl_world_dlmap_info`, the recorder's lightmap events) and his look call on the 16-unit light; keep it in the Quest preset only if it gains. Then (2) `vr_depth_float 0` A/B (D24S8, no code); (3) the eye's compute splits; (4) the multiview/foveation probe; the body's ~1 ms (6zm) as its own item; then the resolution (floor ~0.8, scale toward 1.2). Also 6zk's C5a items. Still open: C2h, NORETRO. Waiting on his call: the armed humanoids' CPU cost (6d), his look call on `vr_rig_lights_world 0`. Decided 2026-11-21: dynamic lights stay shadowless under the Quest preset; the Android Gradle Plugin download approved.
+Next phase: C5d (after 6zn) -- his look call on `vr_gl_world_dlmap 1` (batched: 3 big lights 9.8 -> 4.0 ms GPU, +1.8 ms CPU) for the Quest preset; the body re-measured worn; `+vr_depth_float 0` A/B; then from C5c's line: — measure `vr_gl_world_dlmap 1` (APK of this branch) in the frozen fight and a live e1m1 play at the same spots, interleaved, with its CPU cost (`vr_gl_world_dlmap_info`, the recorder's lightmap events) and his look call on the 16-unit light; keep it in the Quest preset only if it gains. Then (2) `vr_depth_float 0` A/B (D24S8, no code); (3) the eye's compute splits; (4) the multiview/foveation probe; the body's ~1 ms (6zm) as its own item; then the resolution (floor ~0.8, scale toward 1.2). Also 6zk's C5a items. Still open: C2h, NORETRO. Waiting on his call: the armed humanoids' CPU cost (6d), his look call on `vr_rig_lights_world 0`. Decided 2026-11-21: dynamic lights stay shadowless under the Quest preset; the Android Gradle Plugin download approved.
