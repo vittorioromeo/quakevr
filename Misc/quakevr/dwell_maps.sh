@@ -41,3 +41,11 @@ bash "$K/run.sh" "$NAME" -ExtraArgs "-nomapindex -noaddons" -Timeout 2100 -QuitO
     -Filter "dwell:|Ruleset:|No spawn function|classname|Host_Error|SV_Error|OBJECT ERROR|rror|VR music|vr_goto_exit|Warning: key|\.qc :|exit=|TIMEOUT|timed out" \
     > "$OUT/run.log" 2>&1
 python -I "$W/Misc/quakevr/dwell_maps.py" "$OUT/run.log" "$W/quakevr"
+st=$?
+# vr_ad_test 214 (his note 2026-11-21): Dwell's start, the spawn point's targets fired (Copper's), both runes placed,
+# each episode's corridor walkable to its teleporter and the teleporter taking the player.
+bash "$K/run.sh" "$NAME" -ExtraArgs "-nomapindex -noaddons" -Timeout 300 -QuitOn "dwgate: [0-9]+ passed" \
+    -Script "vr_campaign_native dwell;wait60;god;notarget;vr_ad_test 214" -Filter "dwgate|exit=" > "$OUT/gate.log" 2>&1
+grep -E "dwgate: (FAIL|[0-9]+ passed)" "$OUT/gate.log"
+grep -q "dwgate: [0-9]* passed, 0 failed" "$OUT/gate.log" && grep -q "exit=quit-on" "$OUT/gate.log" || st=1
+exit $st

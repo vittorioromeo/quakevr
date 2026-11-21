@@ -239,6 +239,7 @@ void(float request, entity p) AD_RulesTest =
     if(request == 200) { DW_BossTest(p); return; } // the map's Dwell boss fought through its phases: dwell/dw_test.qc
     if(request >= 201 && request <= 208) { DW_WeaponsTest(p, request); return; } // Dwell's weapons kept and fired, their models: dwell/dw_test.qc
     if(request == 210) { DW_RingHitTest(p); return; } // the Sculptor's ring hit, its hole not: dwell/dw_test.qc
+    if(request == 214) { DW_GateTest(p); return; } // Dwell's start: runes placed open walkable gates: dwell/dw_test.qc
     if(request == 213) { DW_PickupTest(p); return; } // Dwell's pickups taken, the toolgun's Dwell and bloody props: dwell/dw_test.qc
     if(request == 211) { VR_Quoth_Test(p); return; } // Quoth's targetname2 and spawners: vr_quoth_test.qc
     if(request == 212) { VR_Quoth_Play(p); return; } // a Quoth map's flow driven to its last stage: vr_quoth_test.qc

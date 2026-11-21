@@ -142,7 +142,8 @@ vr_ad_test       204      dwell/dw_test.qc                 an armed grunt arming
 vr_ad_test       209      vr_rules_test.qc                 the ruleset's numbers (vr_rules_numbers.qc) through our touches: armour rule and protection, key stacks, monsters' health, the laser, the megahealth rot (Copper's in a Dwell map, Quake's in e1m1)
 vr_ad_test       211      vr_quoth_test.qc                 Quoth's keys: an entity used by its targetname2 (the alias), the map's spawner (kellbase1's, else a made one) named from spawnfunction spawns `count` monsters
 vr_ad_test       212      vr_quoth_test.qc                 a Quoth map's flow driven round by round (triggers touched, monsters awake killed) to its last stage (quoth_play.sh)
-vr_ad_test       213      dwell/dw_test.qc                 Dwell's map pickups taken by the body (weapon_touch, no assertion), the toolgun's Dwell weapons and MG3 bloody shotguns laid as props with their variant or bit, a bloody prop taken by the hand (dwell_weapons_test.sh)
+vr_ad_test       214      dwell/dw_test.qc                 Dwell's start: the spawn point's targets fired (Copper's), both runes placed, each episode's corridor walkable to its teleporter and the teleporter taking the player (dwell_maps.sh)
+vr_ad_test       213      dwell/dw_test.qc                Dwell's map pickups taken by the body (weapon_touch, no assertion), the toolgun's Dwell weapons and MG3 bloody shotguns laid as props with their variant or bit, a bloody prop taken by the hand (dwell_weapons_test.sh)
 vr_ad_test       210      dwell/dw_test.qc                the Sculptor's ring (d2end): shots hit it past its old 96-unit box and fly through its hole (DW_D2_FightBox, precise hits)
 vr_ad_test       205-208  dwell/dw_test.qc               Dwell's weapons drawn as their own VR models (made from Dwell's view models) in the hands and a holster, AD's Widowmaker still its own; 206-208 one alone in the main hand (dwell_vrmodels_test.sh's screenshots)
 

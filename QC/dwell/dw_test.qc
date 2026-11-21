@@ -551,6 +551,95 @@ void(entity p) DW_PickupTest =
     VR_Test_Verdict();
 };
 
+// vr_ad_test 214 (Dwell's start, his note 2026-11-21: two runes placed, the gates looked open, walking through teleported
+// nowhere): the spawn point's targets fired (start1_targets unlocks the pedestals' relays: Copper's PutClientInServer),
+// both working pedestals touched by the player, then (once the relays' 2 s delay has passed: the walls toggled) each
+// episode's corridor walkable from the portal sheet to its teleporter (the player's hull traced), and its teleporter
+// taking the player to its tunnel. "dwgate: N passed, M failed"; gives up after 10 s.
+float dw_gt_until;
+entity(string xField, string xValue, string xClass) DW_GateTest_Find =
+{
+    entity e = world;
+    while((e = find(e, classname, xClass)))
+    {
+        if((xField == "target" ? e.target : e.targetname) == xValue) { return e; }
+    }
+    return world;
+};
+
+void() DW_GateTest_Think =
+{
+    entity p = self.owner;
+    entity w1 = DW_GateTest_Find("targetname", "ep1_fakewall", "func_wall");
+    entity w2 = DW_GateTest_Find("targetname", "ep2_fakewall", "func_wall");
+    // (gone: not solid, its model and its solid stand-in, Copper's "buddy", gone: cu_bmodel_vanish)
+    float open = w1 && w2 && w1.solid == SOLID_NOT && w2.solid == SOLID_NOT && !w1.modelindex && !w2.modelindex &&
+                 !w1.cu_buddy && !w2.cu_buddy;
+    if(!open && time < dw_gt_until)
+    {
+        self.nextthink = time + 0.1;
+        return;
+    }
+    VR_Test_Check(open, sprintf("the corridors' walls toggled away (solid %g, %g)", w1.solid, w2.solid));
+    float k;
+    for(k = 1; k <= 2; k++)
+    {
+        string dest = k == 1 ? "ep1_tunneltele" : "ep2_tunneltele";
+        entity t = DW_GateTest_Find("target", dest, "trigger_teleport");
+        entity sheet = DW_GateTest_Find("targetname", k == 1 ? "ep1_portal" : "ep2_portal", "func_fade");
+        entity d = find(world, targetname, dest);
+        if(!t || !sheet || !d)
+        {
+            VR_Test_Check(FALSE, sprintf("episode %g's teleporter, portal sheet and destination found", k));
+            continue;
+        }
+        vector mid = (t.absmin + t.absmax) * 0.5;
+        vector from = (sheet.absmin + sheet.absmax) * 0.5;
+        from_z = mid_z = t.absmin_z + 24 + 2; // (standing height: the hull's bottom on the floor)
+        tracebox(from, VEC_HULL_MIN, VEC_HULL_MAX, mid, FALSE, p);
+        VR_Test_Check(trace_fraction >= 1 || trace_ent == t, sprintf("episode %g: walkable from the portal to its "
+            "teleporter (%v to %v: blocked at %v by '%s', its owner '%s')", k, from, mid, trace_endpos,
+            trace_ent.classname, trace_ent.owner.classname));
+        VR_Test_Check(!(t.cu_customflags & cu_CFL_LOCKED), sprintf("episode %g's teleporter unlocked", k));
+        setorigin(p, mid);
+        p.velocity = '0 0 0';
+        entity os = self;
+        self = t; other = p;
+        t.touch();
+        self = os;
+        VR_Test_Check(vlen(p.origin - d.origin) < 64, sprintf("episode %g's teleporter took the player to %v (%v)", k,
+            d.origin, p.origin));
+    }
+    VR_Test_Verdict();
+    remove(self);
+};
+
+void(entity p) DW_GateTest =
+{
+    VR_Test_BeginFlags("dwgate", VR_TEST_LOUD);
+    entity r1 = DW_GateTest_Find("targetname", "rune1_set", "trigger_relay");
+    entity r2 = DW_GateTest_Find("targetname", "rune2_set", "trigger_relay");
+    VR_Test_Check(r1 && r2 && !(r1.cu_customflags & cu_CFL_LOCKED) && !(r2.cu_customflags & cu_CFL_LOCKED),
+        "the pedestals' relays unlocked by the spawn point's targets (start1_targets)");
+    float k;
+    for(k = 1; k <= 2; k++)
+    {
+        entity ped = DW_GateTest_Find("target", k == 1 ? "rune1_set" : "rune2_set", "trigger_once");
+        VR_Test_Check(ped != world, sprintf("rune %g's pedestal found", k));
+        if(!ped) { continue; }
+        entity os = self;
+        self = ped; other = p;
+        ped.touch();
+        self = os;
+    }
+    dw_gt_until = time + 10;
+    entity t = spawn();
+    t.classname = "dw_gatetest";
+    t.owner = p;
+    t.think = DW_GateTest_Think;
+    t.nextthink = time + 0.1;
+};
+
 void(entity p, float xRequest) DW_WeaponsTest =
 {
     if(xRequest >= 205 && xRequest <= 208)
