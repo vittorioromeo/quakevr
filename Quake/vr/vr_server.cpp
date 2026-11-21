@@ -1000,6 +1000,37 @@ void qvr::server::queueBroadcast(const byte* data, int len)
     b.queuedEnds[b.numQueued++] = used + len;
 }
 
+void qvr::server::commandBroadcastBegin()
+{
+    BroadcastRoom& b = broadcastRoom;
+    b.numMarks = 0;
+    b.qcEnd = -1;
+    b.dropAt = -1;
+    b.msgAt = 0;
+    SZ_Clear(&sv.datagram);
+}
+
+void qvr::server::commandBroadcastEnd()
+{
+    const BroadcastRoom& b = broadcastRoom;
+    const int used = b.numQueued > 0 ? b.queuedEnds[b.numQueued - 1] : 0;
+    if(sv.datagram.cursize + used <= static_cast<int>(sizeof(b.queued)))
+    {
+        queueBroadcast(sv.datagram.data, sv.datagram.cursize); // (all of it in one: its messages whole, one after another)
+        return;
+    }
+    int from = 0;
+    for(int i = 0; i <= b.numMarks && from < sv.datagram.cursize; i++)
+    {
+        const int end = i < b.numMarks ? q_min(b.marks[i], sv.datagram.cursize) : sv.datagram.cursize;
+        if(end > from)
+        {
+            queueBroadcast(sv.datagram.data + from, end - from);
+            from = end;
+        }
+    }
+}
+
 // PR_ExecuteProgram, a run of the server's QuakeC from the engine (not nested in a builtin): QuakeC is between messages.
 extern "C" void VR_BroadcastQCRun()
 {

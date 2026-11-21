@@ -108,6 +108,13 @@ void sendTracer(struct edict_s* shooter, int hand, const float from[3], const fl
 // cleared before it was sent). An explosion's temp entity launches its chunks (vr_explosiondebris.cpp) as QuakeC's does.
 void queueBroadcast(const unsigned char* data, int len);
 
+// An engine console command's run of the server's QuakeC whose broadcast must reach the clients (vr_hurt's T_Damage:
+// its wound, its sounds): begin empties sv.datagram (the last frame's broadcast, sent already; the frame's
+// SV_ClearDatagram would drop it anyway), so the run writes into the whole room; end queues what it wrote for the next
+// frame (queueBroadcast), whole messages at a time (unreliable: what has no room in the queue goes nowhere).
+void commandBroadcastBegin();
+void commandBroadcastEnd();
+
 // A message about entity `ent` (an armed humanoid's pose) for the datagrams of the clients that have it in sight this frame
 // (vr_net_cullposes; the loopback client gets them all): written into the buffer returned, then scopedEnd. nullptr: culling
 // is off, write to the broadcast instead.

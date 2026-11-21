@@ -9036,8 +9036,8 @@ def sync_cheat(impulse):
 def sync_hurt(s, srv, a, b, ea, eb):
     """syncfix5: B hurt by A twice (vr_hurt 8, A the attacker: a blow's wound, QVR_SVC_WOUND, which every client gets):
     his own body and hands painted (yours), and A's copy of him (the copy's capsules, the pool's masks)."""
-    # (syncfix5: so far no wound event reaches either client from this blow -- B's own body unpainted too, the row's
-    # "B has none": the server's "bled first" line comes, the wound is not sent; a harness gap, ROUND25 "syncfix5")
+    # (syncfix6: vr_hurt's broadcast -- the wound -- now reaches the clients: a console command's sv.datagram writes were
+    # dropped by the frame's SV_ClearDatagram, server::commandBroadcastBegin/End; the row needs B's own wound too)
     a.cmd("vr_wounds_debug 2")  # (their "wounds:" lines in the logs: what was received and painted where)
     b.cmd("vr_wounds_debug 2")
     for _ in range(2):
@@ -9047,16 +9047,16 @@ def sync_hurt(s, srv, a, b, ea, eb):
     b.cmd("vr_wounds_debug 0")
 
 
-def no_gap(prefix, drawn_only=False):
+def no_gap(prefix, drawn_only=False, need_own=False):
     """A synced row: nothing of `prefix` ("glow:", "faded:", "light:", ...) that B has of himself and A has not of him;
     and A has some (the probe did show it). `drawn_only`: only of the models A draws of him at all (a model he lacks is
-    another row's gap)."""
+    another row's gap). `need_own`: B must have some himself (else the probe showed nothing: a fail, not a pass)."""
     def check(gap, seen_added, seen, own):
         missing = sorted(k for k in gap if k.startswith(prefix) and
                          (not drawn_only or "model:" + k.split(":", 1)[1] in seen))
         got = sorted(k for k in seen_added if k.startswith(prefix))
         mine = any(k.startswith(prefix) for k in own)  # (B has none himself: a flat player's gadget, say)
-        return not missing and (bool(got) or not mine), "B only: %s; A has: %s%s" % (missing or "-", got or "-", "" if mine else " (B has none)")
+        return not missing and (bool(got) or not mine) and (mine or not need_own),"B only: %s; A has: %s%s" % (missing or "-", got or "-", "" if mine else " (B has none)")
     return check
 
 
@@ -9072,7 +9072,7 @@ SYNC_PROBES = (  # (name, B's action, its undo, the synced rows' checks); idle f
                                   ("the gadget screen's beam", no_gap("light:r30")))),
     # (syncfix5; before the shot: vr_hurt's blow has no hit record of its own, and a shotgun's left over makes it a pellet's,
     # whose wounds come by the pellets alone)
-    ("hurt", sync_hurt, None, (("blood on his copy", no_gap("wounded:", drawn_only=True)),)),
+    ("hurt", sync_hurt, None, (("blood on his copy", no_gap("wounded:", drawn_only=True, need_own=True)),)),
     # (they last the run: the probes after them compare against idle as before)
     ("quad", sync_cheat(190), None, (("Quad's glow on his copy", no_gap("glow:")), ("its hand lights", no_gap("light:r1")))),
     ("ring", sync_cheat(192), None, (("the ring's fade on his copy", no_gap("faded:", drawn_only=True)),)),
