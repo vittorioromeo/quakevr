@@ -1605,7 +1605,7 @@ struct Other
     Skeleton skeleton;
     bool bareArms{false};
 };
-Other others[MAX_SCOREBOARD + 1];
+Other others[otherKeys]; // (the players' then the doll slots': vr_avatar.hpp)
 
 void swapOther(Other& o)
 {
@@ -2217,7 +2217,7 @@ bool skeleton(Skeleton& out)
 glm::vec3 poseOther(int player, const Subject& who, const hands::State& s, qmodel_t* model, const entity_t* ent,
     const HandPose handPoses[2])
 {
-    if(player < 1 || player > MAX_SCOREBOARD || subject)
+    if(player < 1 || player >= otherKeys || subject)
     {
         return s.head;
     }
@@ -2236,9 +2236,17 @@ glm::vec3 poseOther(int player, const Subject& who, const hands::State& s, qmode
     return origin;
 }
 
+void forgetOther(int key)
+{
+    if(key >= 1 && key < otherKeys)
+    {
+        others[key] = Other{};
+    }
+}
+
 bool otherSkeleton(int player, Skeleton& out)
 {
-    if(player < 1 || player > MAX_SCOREBOARD || others[player].frame != host_framecount || !others[player].posed.ent)
+    if(player < 1 || player >= otherKeys || others[player].frame != host_framecount || !others[player].posed.ent)
     {
         return false;
     }
@@ -2249,7 +2257,7 @@ bool otherSkeleton(int player, Skeleton& out)
 bool otherPitch(int player, float& angle, float& lying, float& sliding)
 {
     // (this frame or the last: a report between two frames' poses)
-    if(player < 1 || player > MAX_SCOREBOARD || others[player].frame < host_framecount - 1 || !others[player].posed.ent)
+    if(player < 1 || player >= otherKeys || others[player].frame < host_framecount - 1 || !others[player].posed.ent)
     {
         return false;
     }
@@ -2273,7 +2281,7 @@ bool ownPitch(float& angle, float& lying, float& sliding)
 
 bool otherClimb(int player, float& weight)
 {
-    if(player < 1 || player > MAX_SCOREBOARD || others[player].frame < host_framecount - 1 || !others[player].posed.ent)
+    if(player < 1 || player >= otherKeys || others[player].frame < host_framecount - 1 || !others[player].posed.ent)
     {
         return false;
     }
@@ -2283,7 +2291,7 @@ bool otherClimb(int player, float& weight)
 
 bool otherShoulder(int player, int side, Shoulder& out)
 {
-    if(player < 1 || player > MAX_SCOREBOARD || side < 0 || side > 1 || others[player].frame != host_framecount ||
+    if(player < 1 || player >= otherKeys || side < 0 || side > 1 || others[player].frame != host_framecount ||
         !others[player].posed.ent)
     {
         return false;

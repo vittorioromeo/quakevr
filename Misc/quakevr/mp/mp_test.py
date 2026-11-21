@@ -1817,7 +1817,55 @@ def deathbody(s):
     s.note("builds: A %s, B %s (after %d reports)" % (models[ea], models[eb], n))
     deathbody_case(s, srv, a, b, ea, eb, a, ea, models, -0.5, "A")
     s.check("A respawned (his trigger)", respawn_if_dead(srv, a, ea))
-    deathbody_case(s, srv, a, b, ea, eb, b, eb, models, 0.6, "B")
+    seen_b = deathbody_case(s, srv, a, b, ea, eb, b, eb, models, 0.6, "B")
+    deathbody_respawned(s, srv, a, b, eb, models, seen_b, "B")
+
+
+def dolls_all(lines):
+    """"mp_doll:" lines -> [fields] (dolls_of's), every one: a player's bodies may be several (mpbugs4: his old ones)."""
+    out = []
+    for l in lines:
+        if l.startswith("mp_doll:"):
+            f = avatar_fields(l)
+            m = re.search(r"model=(\S+)", l)
+            f["model"] = m.group(1) if m else ""
+            out.append(f)
+    return out
+
+
+def deathbody_respawned(s, srv, a, b, ev, own_models, before, label):
+    """mpbugs4 (his words: "Killed bot/player ragdolls are still the Quake ranger model"): `label` (entity `ev`, the flat
+    client B) respawns; his old body still lies where he died. A (the host: its ragdoll) and B himself (a client: its
+    death frame) still draw that body (the doll each drew before) as his own body, his build's model, while his living
+    copy is drawn too (a doll slot past the players': vr_mpavatar.cpp assignDollSlots), not id's ranger."""
+    since = b.mark()
+    for _ in range(30):
+        if alive(srv, ev):
+            break
+        b.cmd("+attack")  # (a flat player's fire button: PlayerDeathThink)
+        got = wait_or_none(b, r"mp_event: .* respawned", 0.5, since)
+        b.cmd("-attack")
+        if got or wait_or_none(b, r"mp_event: .* respawned", 0.5, since):
+            break
+    s.check("%s respawned (his fire button)" % label, alive(srv, ev))
+    seen, n = {}, 0
+    for n in range(1, 41):
+        la, lb = reports(s, [a, b])
+        for who, lines in (("A", la), ("B", lb)):
+            old = int(before[who]["doll"][0]) if before.get(who) and "doll" in before[who] else -1
+            for d in dolls_all(lines):
+                if who not in seen and int(d["ent"][0]) == ev and int(d.get("doll", [0])[0]) == old:
+                    seen[who] = d
+        if len(seen) == 2:
+            break
+    for who in ("A", "B"):
+        d = seen.get(who)
+        viewer = "%s (his own)" % who if who == "B" else who
+        s.check("%s respawned: %s still draws %s's old body as %s's own body (his build's model %s), not the ranger" % (
+                label, viewer, label, label, own_models[ev]), d is not None and d["model"] == own_models[ev],
+                "%s in slot %d, after %d reports" % (d["model"], int(d.get("slot", [0])[0]), n) if d else
+                "no mp_doll line for his old body (doll %s) after %d reports" % (
+                    int(before[who]["doll"][0]) if before.get(who) and "doll" in before[who] else "?", n))
 
 
 RAG_BL = re.compile(r"mp_bl: side=(\w+) t=(\S+) n=(\d+) m=(\S+) o=(\S+) a=(\S+) rag=(\d)")
