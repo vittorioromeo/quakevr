@@ -1402,7 +1402,7 @@ NOISE_FUNCTIONS
 "	vec4	Stump; // QVR: a ragdoll's stumps (vr/vr_ragdoll.cpp stumpLook): x its cut bones (bits 0..23), y how far round their joints the cut's flesh reaches (units; StumpFlesh)\n"\
 "	vec4	Nails; // QVR: painted nails (vr/vr_view.cpp nailLook): the polish's rgb, w 1 + its gloss (0 none; NailTex its mask)\n"\
 "	vec4	Barrel; // QVR: a hot gun barrel's glow (vr/vr_hotblade.cpp barrelInstance): x 1 (no mask) or 2 + its mask's first word in BarrelMasks (0: not a barrel), yz its ramp along the rest pose's x (x * y + z), w 1: the mask shown flat (painted)\n"\
-"	vec4	Recolor[3]; // QVR: an armed humanoid's recolour by its weapon (vr/vr_humlook.cpp): [0] the range's hue, half width, feather (degrees), least saturation; [1] least and most lightness, the hue's turn, the saturation's factor; [2] the tint (mixed in), the lightness's factor ([0].y 0: none)\n"\
+"	vec4	Recolor[4]; // QVR: an armed humanoid's recolour by its weapon (vr/vr_humlook.cpp): [0] the clothes' colour, its strength; [1] the pack's; [2] their lightness factors and tint shares (clothes xy, pack zw); [3] x 1 + its mask's first word in HumMasks (0: none), yz the mask's size, w the mask shown\n"\
 "	ivec4	Motion; // QVR: temporal AA (vr/vr_temporal.cpp): x its vertices' slot this frame in MotionCur, y last frame's in MotionPrev (-1 none), z 1: one of the player's own, drawn at the flatscreen model FOV\n"\
 "};\n"\
 "\n"\

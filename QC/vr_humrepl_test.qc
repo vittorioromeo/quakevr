@@ -166,9 +166,9 @@ void(entity p) VR_HUM_Test =
 
 // vr_ad_test 221 (humrepl_shots.sh): a row of armed humanoids of row scratch1 before you, one per category: a shotgun (as
 // it is), a rocket launcher, the thunderbolt, AD's flamethrower and poison sprayer (AD's data mounted), the last row's
-// gone first. Prints "humlineup: row K: N made".
+// gone first. Prints "humlineup: row K: N made". The Texture Studio's Line Up (vr_humstudio.cpp) calls VR_HUM_LineupKind.
 .float vr_humt_row; // one of 221's row
-void(entity p) VR_HUM_Lineup =
+void(entity p, float kind) VR_HUM_LineupKind =
 {
     entity e = findflags(world, vr_humt_row, 1);
     while(e)
@@ -183,7 +183,6 @@ void(entity p) VR_HUM_Lineup =
         remove(e);
         e = next;
     }
-    float kind = rint(cvar_hget(cvarh_scratch1));
     float w[5];
     w[0] = WID_SHOTGUN;
     w[1] = WID_ROCKET_LAUNCHER;
@@ -210,6 +209,11 @@ void(entity p) VR_HUM_Lineup =
         bprint(sprintf("humlineup: %g at %v (you %v), armed %g, look %g\n", i, g.origin, p.origin, g.vr_ag, g.vr_hum_look));
     }
     bprint(sprintf("humlineup: row %g: %g made\n", kind, made));
+};
+
+void(entity p) VR_HUM_Lineup =
+{
+    VR_HUM_LineupKind(p, rint(cvar_hget(cvarh_scratch1)));
 };
 
 void() VR_HUM_CensusNow =

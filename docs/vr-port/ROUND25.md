@@ -7061,6 +7061,31 @@ that hull 1 lets Quake's box reach into, from AD's non-colliding detail) and the
   before the shove 0 (was 220); one shot 2 frames before the shove 106. `stagger_test.sh steady` (grunt, 3 each) PASS.
 - **Checklist scenes:** `noclip_fly`, `shove_no_blood` (`vr_scenario runall`: 2 run, 0 failed).
 
+## lancespear: the Crystal Lance a plain pole held like a spear (branch agent/lancespear, 2026-11-21)
+
+His words (flat PC): "a pure lance pole, without the handle and buttons ... held like a spear ... new cvars to properly
+set up the pose in flat mode".
+- **The model** (`vr_adweapons.cpp` recipe `progs/dw_lance.mdl#vr`): Dwell's `g_rail.mdl` pole and crystal head only
+  (nothing grafted: the lightning gun's grip, guard and trigger gone), laid as the axe's handle lies in the fist
+  (v_axe.mdl's (0.3419 0 0.9397), the pole's point 16 from the butt at the fist (1.72 0 0.63)), 1.5 times, packed past
+  the axe's corner (keepScale 0.34). Slot 55 (weapons.txt): the axe's hold values (pitch 15.5, x y z, hand_*, fgr_*,
+  scale 0.34), its anchors moved by the keepScale move (2.995 5.18 12.03), `muzzle_av` the head's tip, no button or
+  ammo screen (`wpnbtnmode`/`wpntxtmode` 0, hs2 off), `shot_pitch 92.5`: the pole's way from the hand's aim (70 up in
+  the model + 22.5 of pitch), so the beam goes along the pole. In VR the controller is tipped forward to level it, as
+  a stick held in a fist is.
+- **Pole weapons** (`twohand::poleWeapon`: a weapon's own Other Hand Anywhere 3, any mode of play; `poleGrip` is it
+  outside flat play). VR: the existing pole grip (the other hand anywhere on it, sliding).
+- **Flat play, the spear pose** (Debug > Tunables, "Spear ..."): the holding hand aimed as a gun's (its shot, so its
+  pole, at the crosshair) then moved by `vr_flat_pole_fwd` 2, `_up` -2, `_out` 3 and rolled about the pole by `_roll` 0
+  (`vr_flatplay.cpp` polePose); the other hand on the pole `vr_flat_pole_off_along` 16 ahead of the holding hand
+  (`vr_view_weapon.cpp` chooseGrip), its grip channel closed round the pole and rolled by `vr_flat_pole_off_roll` 0
+  (`vr_view_hands.cpp` steadyOther). No pitch/yaw of the main hand: flat aims the beam at the crosshair anyway.
+- **vr_status** prints, for a held weapon, "the shot N deg off the line from the hand to the muzzle".
+- **Tests**: `dwell_lance_test.sh` 9/0 (the main hand pitched -22 so the spear lies level; new check: the beam within
+  6 degrees of the hand-to-tip line, 3.4: the hand's side offset). Screenshots `scratch/ls_final_vr.png` (side, eyes,
+  both hands) and `scratch/ls_final_flat.png`; before: `scratch/ls_before_*.png`.
+- Left: his fit in VR (Weapon Offsets slot 56: Pitch, Hand, Shot Pitch); the Shot Pitch slider now reaches +-180 (it was +-45; the
+  lance's 92.5); the thrust and its damage unchanged (not re-measured).
 ## checklist2: ticked lines retired, a Test scene on every line, multiplayer scenes with bots (agent/checklist2, 2026-11-21)
 
 His words (2026-11-21): retire the ticked items, give every line at least a minimal Test scenario, and a way to test MP
@@ -7180,3 +7205,37 @@ softlock in kellbase1 at (-8, -959.8, 664.1).
 - **Player-facing? Probably, for fast swings:** at the old 0.16 s swing the drawn axe's blow line trailed the
   controller by about 55 degrees, so the handle reached the neck before the blade (f 0.11-0.46, "hilt or handle"); a
   real fast flat swing likely reads the same. Not measured with real takes; not fixed here.
+## humrepl2: the recolours dye only clothes and packs, keep the shading; the Texture Studio (branch agent/humrepl2, 2026-11-21)
+
+His verdict on phase 1: "The recolors look a bit unnatural and also affect the skin/faces of the enemies." The cause: a
+hue band can't separate brown uniforms from brown flesh, and a full hue turn with a saturation boost flattens the shading.
+
+- **The rows (each skin's 8-bit histogram, `scratch/humrepl2_skins.py`):** grunt (vrgrunt = id1 soldier, 256x256)
+  rows 1 30866, 10 15825, 7 9301, 6 5274, 4 1079; enforcer (576x384) 0 74933, 1 59349, 10 41345, 7 18996, 3 10256, 6 6325;
+  knight (256x256) 10 32138, 1 9560, 4 6237, 7 5602, 6 3647; death knight (512x196) 1 56793, 10 25496, 7 6425, 4 4326;
+  backpack.mdl (128x128) 1 14980, 7 859. Regions: uniforms and leather rows 1 and 10 (browns, tans), the enforcer's
+  trousers 3, flesh 7 (peach), blood 4, the knights' plates 10, the enforcer's shoulder pads 6. Separating: flesh (7)
+  from cloth (1, 10) everywhere; not separating: the grunt's arm and face highlights sit on row 10 like its uniform
+  (fixed by the flesh neighbourhood), the enforcer's baked pack shares its armour's rows (fixed by painted texels), the
+  knights' blood and red cloth share row 4 (left alone). AD's `mon_*.mdl` skins vary (mon_hknight row 8 23041, row 3
+  5781; mon_enforcer row 3 24049): they get their key's rows; candidates for the studio's own rows.
+- **Masks** (`vr_humlook.cpp`, `quakevr/humlook_masks.txt`): per skin and key, 2 bits a texel, made as it is first drawn
+  from the model file's indices; painted texels, else flesh (`flesh 7`, and `fleshnear 0.35 2`: a quarter-plus of the
+  5x5 neighbours flesh), else the row's class. SSBO 17 (`HumMasks`, 512 KB, rewritten when edited), bound beside the
+  barrel masks (r_alias.c `VR_HumlookBind`). The instance's `Recolor` grew to four rows (the ragdoll's copy too).
+- **Dye** (`HumDye`): the texel's luminance (times `light`) in the row's colour, clamped (a red stays red), or with `tint`
+  its own colour times the colour; by `strength`. Table: `r g b strength light tint` (the old 13-number rows are gone).
+- **Texture Studio** (Debug > Tools; `vr_humstudio.cpp`): see ARMED_MONSTERS.md "Recolours by weapon". Painting shares
+  one stroke path for VR and flat: only the ray differs (a hand's aim / the view's centre); flat's attack is eaten while
+  painting (cl_input.c `VR_HumStudioAttack`), VR's trigger, grip and B/Y (vr_input.cpp). The ray meets the posed model
+  (its frame's first pose, not interpolated) and its triangle's ST gives the texel.
+- **Tests:** `Misc/quakevr/humrepl2_test.sh` PASS (5 masks: vrgrunt 46691 clothes, vrenforcer 90875 clothes + 20075
+  pack, vrknight, vrhknight 56793, backpack 14980; 0 texels on the flesh or blood rows; a stroke 113 texels, undone);
+  `humrepl_test.sh` 46/0; `vr_multiview_check` 99/0; screenshots `humrepl_shots.sh` (before/after per type x category,
+  and `overlay`). Not tested: the studio's sliders and row toggles by hand in the menu (the cvars and commands are).
+- **Open:** AD's own skins unlooked at; the knights' red cloth (row 4, shared with blood) not dyed; flesh rule's share is
+  file-only (not on the page).
+
+## sceneorder
+
+- A scene whose `map` is not in the running campaign (an `ad_` map after a scene that left Quake's running) now makes the add-on campaign that has it (AD, Quoth, Dwell: rows 3+) the active one itself (`mapFoundOrCampaignSelected`, vr_scenario.cpp), so no scene depends on order. Fixed `humrepl_variants` "no map ad_crucial". scenario_check twice PASS (177 run, 0 failed); `humrepl_variants` and `ad_tears_window` alone OK.
