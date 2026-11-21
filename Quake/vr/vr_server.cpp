@@ -2052,6 +2052,10 @@ extern "C" void VR_CalcStats(client_t* client, int* statsi, float* statsf)
     stat(STAT_QVR_AMMOPLASMA, f.ammo_plasma);
     statsf[STAT_QVR_STEALTH] = fieldFloatOr(ent, f.stl_hud, -1.f);
     stat(STAT_QVR_ADHUD, f.vr_ad_hud); // AD support: AD's row on the wrist gadget (vr_gadget.cpp)
+    if(vr_ad_mounted.value != 0.f) // (and whether AD's data is in play here: a remote client's AD page, ad::clientDataInPlay)
+    {
+        statsf[STAT_QVR_ADHUD] = static_cast<float>(static_cast<int>(statsf[STAT_QVR_ADHUD]) | ADHUD_DATA);
+    }
     stat(STAT_QVR_ADKEYS, f.vr_ad_hudkeys);
     stat(STAT_QVR_ADTIME, f.vr_ad_hudtime);
     stat(STAT_QVR_ADTINT, f.vr_ad_tint); // AD support: AD's screen tint (vr_ad.cpp VR_AD_TintBlend)

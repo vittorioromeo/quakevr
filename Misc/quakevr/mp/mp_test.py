@@ -7333,6 +7333,19 @@ def wristscore(s):
                 s.note("screenshot (A's wrist scoreboard page): %s" % out)
                 break
 
+    # B's AD page follows the server's game (STAT_QVR_ADHUD's ADHUD_DATA bit; before, a client kept his last local map's
+    # vr_ad_mounted): the server in this base has AD's data exactly when A's single-player e1m1 offered the page. (Every
+    # agent base has AD's data, so only the "offered" case runs here; B's own cvar is printed for the record.)
+    since_b = b.mark()
+    b.cmd("vr_ad_mounted; vr_gadget_page 1; vr_gadget_page 1; vr_gadget_page 1")
+    b.wait(r"gadget page: ", 10, since_b, "B's pages")
+    while len([l for l in b.lines[since_b:] if "gadget page: " in l]) < 3:
+        b.wait(r"gadget page: ", 10, b.mark(), "B's three pages")
+    b_pages = [l.split("gadget page: ", 1)[1].split()[0] for l in b.lines[since_b:] if "gadget page: " in l]
+    b_own = [l.strip() for l in b.lines[since_b:] if '"vr_ad_mounted" is' in l]
+    s.check("B's AD page follows the server's game (offered: %s)" % ("1" in pages),
+            ("1" in b_pages) == ("1" in pages), "B's pages %s; A's single-player %s; B's own %s" % (b_pages, pages, b_own))
+
 
 # ---- B13: the server browser, the net HUD, the soak ----
 def browser_rows(inst, since):
