@@ -9,7 +9,8 @@ never carries game traffic.
 - One UDP port: **26100**. One Python 3 process, standard library only, no state on disk.
 - Protocol version 2 (the wire format: the top of `qvr_rendezvous.py`; the game's side: `Quake/net_dgrm.c`): a
   registration makes a room only with the cookie the service gave the address it comes from (one more round trip
-  before a host has his code); a game of version 1 is told the service's version and gets no code.
+  before a host has his code); a game of version 1 is told the service's version and gets no code. Version 3
+  (2026-11-21) adds the port check ("The port check" below); version 2 games are still served.
 - Privacy: it sees each player's public IP address and the room code, keeps them only while the room lives (2 minutes
   after the host's last registration, which his game sends every 20 s), and never logs an address.
 - Abuse limits: requests of exactly 64 bytes with the magic (anything else gets no answer), replies of 32 (no
@@ -78,4 +79,18 @@ carrier-grade NATs, some business routers) the joiner is told there is no direct
 (26000), or they use a virtual LAN. A relay would close that gap: the service (or a second process) forwards the
 datagrams of a pair that couldn't punch, like TURN. It would carry game traffic, about 25 KB/s down per player (16
 players: ~400 KB/s), add a hop of latency, and need its own limits (bytes per room, rooms relayed at once). Worth
-building only if the failures turn out common in practice.
+building only if the failures turn out common in practice (in docs/vr-port/BACKLOG.md, low priority, 2026-11-21).
+
+## The port check (version 3)
+
+A host asks (PROBECHECK, the one version 3 request) whether his game port is reachable from the internet: the service
+sends one PROBE from a second socket (another source port, `--probe-port`, default any free one) to his outside IP
+address at the game port he names. His router has only ever sent to the service's main port, so the probe gets in only
+through a forward (or a router that lets anything in); the game shows "reachable", "not reachable from the internet"
+(PROBING came back, no probe within 2 s) or "unknown". Limits: one probe per registration (REGISTER, its renewal or
+its move), only from the address that holds the room and only to that address's IP; the replies to a PROBECHECK are
+64 bytes in all, its own size. Version 2 requests (the 1.1 games' REGISTER and JOIN) are still served as version 2;
+a game of this version keeps REGISTER and JOIN at 2 and reads a version 2 service's BADVERSION to its PROBECHECK as
+"unknown" (`--newest 2` runs the service as an old one, for the game's tests). Outgoing UDP from any port must be
+allowed on the server (the usual default; no new inbound port). **Redeploy it with `update.sh`**: until then the
+running version 2 service still gives room codes, and the new games' port check reads unknown.

@@ -288,5 +288,15 @@ Each verified by an unchanged physics hash, melee eval and `vr_menu_path_check`.
   PERF_DECISIONS.md, "Open items moved from BACKLOG.md". Pickup thinks: PICKUP_THINKS.md (low priority).
 - **Stealth AI limits:** STEALTH.md, "Open items moved from BACKLOG.md".
 - **Dawn of the Machine's co-op and dm1** (MG3.md, decision 6): later.
+- **A relay for the joins hole punching can't make** (his decision 2026-11-21: low priority, not now): a TURN-like
+  fallback through the room service (or a second process beside it), used only when a room-code join's direct link
+  fails (a symmetric NAT on either side and no forwarded port): both games send to the relay, which forwards a pair's
+  datagrams by an allocation it hands out. Costs: a hop of latency (the server's distance from both players, ~20-80 ms
+  more in Europe from the one VPS), all the pair's game traffic through the VPS (~25 KB/s down a player; 16 players
+  ~400 KB/s), its own abuse limits (bytes and rooms relayed at once, an allocation per cookie-checked pair). How others
+  do it: Steam Datagram Relay (Valve's relay network always between peers, the addresses hidden; free only on Steam),
+  Epic Online Services' P2P (NAT punch first, Epic's relays when it fails), WebRTC's ICE (direct and server-reflexive
+  candidates first, a TURN server's relayed candidate last). The port check (2026-11-21, MULTIPLAYER.md) tells a host
+  first whether he needs one. Design note: Misc/rendezvous/README.md, "When the punch fails".
 - **Old QuakeC notes** (TECHDEBT_2026-10-09.md 10): Rogue's teamplay variants don't work in VR (item handling
   commented out). (`readytime`, one for every client, is each player's `.vr_readytime` since 2026-11-19.)

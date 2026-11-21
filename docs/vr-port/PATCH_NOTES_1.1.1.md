@@ -72,6 +72,11 @@ The guide: [MULTIPLAYER.md](MULTIPLAYER.md).
   router that doesn't allow it (a symmetric NAT) the joiner is told so, and the host forwards UDP port 26000 as before.
   The service sees the players' IP addresses only while the room lives and logs none; `vr_mp_room 0` hosts without a
   code, `vr_mp_rendezvous` names another service.
+- **Is your port reachable?** While you host with a room code, Host Game says whether your game's port can be reached
+  from the internet: "Port 26000: reachable" (anyone can join, whatever their router), "not reachable from the
+  internet" (forward UDP 26000 for the players behind strict routers; room codes still work for most), or "unknown"
+  (room service off). The net HUD shows it while you host, and the console says it once. The room service checks it
+  by sending one unasked-for packet to your port from another of its ports.
 - **One server socket**: the host talks to every player from his one port (26000), so a forwarded port works behind
   routers that change port numbers too (Quake gave each player a port of his own).
 - **You see each other as you are**: heads, hands, fingers, held weapons and bodies sized by each player's own
