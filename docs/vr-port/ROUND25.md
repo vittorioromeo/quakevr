@@ -6435,3 +6435,35 @@ His words (2026-11-21): an extra wrist gadget page for the multiplayer scoreboar
 - Seen in passing (not changed): `vr_ad_mounted` stays as a client's last local map set it when he joins a remote server
   (A's page read 1 on dm4 after his single-player e1m1 with AD in the base): AD's page may be offered on a server without
   AD's data (it draws "NONE" rows).
+
+## bots4: bots3's checks; Show Disarm Volumes and Show Hit Zones on bots and players (2026-11-21, `agent/bots3`)
+
+Finishes bots3 (items 2 and 3; item 1's missing checks). Merged origin/next (mp_test.py's suite list: botgrab beside
+wristscore). `QVR_NET_VERSION` stays 42: nothing new is sent (the client rebuilds what it shows).
+
+- **Show Disarm Volumes on players and bots.** Host: `vr_disarmviz.qc` VR_DV_Player sends, for each living client
+  (bots and humans) holding a weapon, new kinds 21-24 (`vr_disarmviz.cpp` PlayerGrab/Spot/ShotW/ShotH): another
+  player's grab (VR_PDG_Gap: VR_Parry_WeaponLine's butt..end and each hotspot, `vr_player_disarm_reach` round them, while
+  `vr_player_disarm_pvp` and `_grab`), a shot's (VR_PD_Meet: the line, VR_AGS_W_RADIUS + `vr_agrunt_vol_shot_weapon`;
+  the hand, VR_AGS_H_RADIUS + `_hand`, by `vr_agrunt_shotdisarm_parts`, while VR_PD_Can). Drawn as wire capsules (orange
+  the grab, faint orange a hotspot, magenta and cyan the shots). Client (no server here): `disarmviz::draw` rebuilds them
+  from each other player's weapon as drawn (`mpavatar::drawnWeapon`: drawnWeaponLine's butt..muzzle, the hand) with the
+  host's rules (QVR_RULE cvars are the host's on a client); no hotspots (not sent). The viewer's own are never drawn.
+- **Show Hit Zones on players and bots.** Host: VR_Decap_DebugFrame now sends the positional zones of living clients too
+  (not the decapitation ones); `zonesDraw` outlines a player's on his box (never on player.mdl's surface: his avatar is
+  what is drawn), not the viewer's own, his entity's model not required. Client: `zonesDraw` rebuilds each other drawn
+  player's zones (`playerZones`: client.qc's standing box -16 -16 -24 .. 16 16 26, PositionalHead's "player" head 4/0/23
+  r 7.2: keep in step) at his entity's drawn place and yaw. The host's monsters' zones stay host-only (they need its QC).
+- **Decisions (conservative):** a client draws a crouched player's zones standing (his box isn't sent) and a dead
+  player's while his avatar is drawn (the host's QC skips the dead); no protocol change for either.
+- **Test** `mp_test.py debugviz` (client) and `debugviz_listen` (A hosts), in the suite after botgrab: deathmatch on dm4,
+  B with a shotgun held out and then a bot held 64 units in front of A (vr_dm_test 16; `vr_dm_test 0` between the cases);
+  A's `vr_mp_avatars` prints a new `mp_debugviz:` line per player (volumes, the first grab capsule, zones, the head zone's
+  centre). Client 9/0: 3 volumes each, the grab line on the drawn weapon (0.0 units), 5 zones, head zone 6-9 units from the
+  drawn head. Host 8/0: 5 volumes each (two hotspots), the server's grab line 1.8-1.9 units off the drawn weapon (at most 4).
+- **Item 1's checks:** vr_pd_test 1 12/0, 2 8/0 (one timeout "case 0" in the first run, passed on the rerun); vr_agrunt_test
+  2 4/0, 33 6/0, 93 0/0, 94 15/0, 99 47/0, 203 81/0, 16 273/1 (the "disarmhull hunt" grip 2.76 units off: the same on an
+  origin/next build, 2.80; the first run's "dual nail pistols, the left one" passed on the rerun); the plain suite 62 of 64
+  (mp_wpnsync_flat's torch 10.6 units off once, 16/0 on the rerun; mp_coopbots vr_dm_test 11, BACKLOG's rare flake);
+  scenario_check PASS (148 scenes), vr_agrunt_test 97 (Show Disarm Volumes) 5/0 with Show Hit Zones on; Dev and
+  ThinLTO builds 0 warnings.

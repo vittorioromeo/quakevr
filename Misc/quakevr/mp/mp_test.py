@@ -6699,6 +6699,7 @@ def debugviz_case(s, srv, a, who, ent, label, host):
     if not got:
         return
     (la,), _ = got
+    srv.cmd("vr_dm_test 0")  # (the hold let go: the next case's vr_dm_test 16 picks its victim afresh)
     v = pick([la], "mp_debugviz: ent=%d " % ent)[-1]
     w = pick([la], "mp_drawnwpn: ent=%d side=1 " % ent)[-1]
     av = pick([la], "mp_avatar: ent=%d " % ent)[-1]
@@ -6717,7 +6718,7 @@ def debugviz_case(s, srv, a, who, ent, label, host):
                 v["zones"][0], v["head"], av["head"], head_off, DEBUGVIZ_HEAD_OFF))
 
 
-DEBUGVIZ_HOST_OFF = 12.0  # mp_debugviz: units the host's grab line (the server's) may be off the weapon A draws
+DEBUGVIZ_HOST_OFF = 4.0  # mp_debugviz: units the host's grab line (the server's) may be off the weapon A draws
 DEBUGVIZ_HEAD_OFF = 16.0  # ... units the head zone (his box's fixed head) may be off the head drawn
 
 
