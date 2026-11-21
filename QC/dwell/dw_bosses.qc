@@ -321,11 +321,65 @@ void() dw_d2_fly =
     dw_d2_nextcorner();
 };
 
+// A failsafe (his note 2026-11-21: stuck inside the Sculptor, moving with it): it flies noclip with a solid box 288 units
+// wide (DW_D2_FightBox, for the precise hits on its ring), so flying or teleporting onto a player left him inside the box,
+// where every move of his was blocked. A living player whose box is in its box is put just outside it: straight away
+// from its middle (or the nearest of eight headings, then above it, that the world leaves room for), still.
+float(entity p, vector xDir) dw_d2_pushout =
+{
+    vector c = self.origin, at = p.origin;
+    float hx = self.maxs_x - p.mins_x + 3, hy = self.maxs_y - p.mins_y + 3; // (the boxes' half sizes together, past the
+    // abs boxes' 1-unit margins: SV_LinkEdict's)
+    float t = 1000000;
+    if(xDir_x > 0.01) { t = min(t, (c_x + hx - at_x) / xDir_x); }
+    else if(xDir_x < -0.01) { t = min(t, (c_x - hx - at_x) / xDir_x); }
+    if(xDir_y > 0.01) { t = min(t, (c_y + hy - at_y) / xDir_y); }
+    else if(xDir_y < -0.01) { t = min(t, (c_y - hy - at_y) / xDir_y); }
+    if(xDir_z > 0.5) { t = (c_z + self.maxs_z - p.mins_z + 3 - at_z) / xDir_z; }
+    if(t >= 1000000 || t < 0) { return FALSE; }
+    vector to = at + xDir * t;
+    tracebox(to, p.mins, p.maxs, to, FALSE, self); // (room there: nothing but the Sculptor)
+    if(trace_startsolid || trace_allsolid) { return FALSE; }
+    tracebox(at, p.mins, p.maxs, to, TRUE, self); // (and the way there through the world: no wall crossed)
+    if(trace_fraction < 1) { return FALSE; }
+    setorigin(p, to);
+    p.velocity = '0 0 0';
+    p.flags = p.flags - (p.flags & FL_ONGROUND);
+    dprint(sprintf("dwboss: d2boss pushed %s out of its box to %v\n", p.netname, to));
+    return TRUE;
+};
+
+void() dw_d2_freeplayers =
+{
+    if(self.solid != SOLID_BBOX) { return; }
+    entity p = find(world, classname, "player");
+    while(p)
+    {
+        if(p.health > 0 && p.solid == SOLID_SLIDEBOX && p.absmin_x < self.absmax_x && p.absmax_x > self.absmin_x &&
+           p.absmin_y < self.absmax_y && p.absmax_y > self.absmin_y && p.absmin_z < self.absmax_z &&
+           p.absmax_z > self.absmin_z)
+        {
+            vector away = p.origin - self.origin;
+            away_z = 0;
+            float yaw = vlen(away) > 1 ? vectoyaw(away) : p.angles_y;
+            float k, done = FALSE;
+            for(k = 0; k < 9 && !done; k++)
+            {
+                // (straight away first, then the headings either side of it, 45 degrees apart; last, above it)
+                float a = yaw + 45 * ceil(k / 2) * ((k & 1) ? 1 : -1);
+                done = dw_d2_pushout(p, k < 8 ? DW_Yaw(a) : '0 0 1');
+            }
+        }
+        p = find(p, classname, "player");
+    }
+};
+
 // The controller (every 0.1 s; on time for each path corner): along its path, swarms while flying; after a phase, flat
 // again, shield, teleport, rest, fly.
 void() dw_d2_think =
 {
     self.nextthink = time + 0.1;
+    dw_d2_freeplayers();
     entity sh = self.dw_child;
     float e = time - self.dw_r0;
     if(self.state == DW_D2_FLYING)

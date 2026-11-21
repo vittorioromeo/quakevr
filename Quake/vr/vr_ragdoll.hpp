@@ -252,5 +252,6 @@ void info_f();
 // vr_ragdoll_rig_sweep: every seed table's model the game folders have, its rig derived: "N rigged, M failed, K absent"
 // (each failure's own line before it).
 void rigSweep_f();
+void rigSpans_f(); // vr_ragdoll_rig_spans <model> [max]: triangles across unjoined bones
 
 } // namespace qvr::ragdoll

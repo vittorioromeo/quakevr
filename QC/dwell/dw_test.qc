@@ -640,6 +640,111 @@ void(entity p) DW_GateTest =
     t.nextthink = time + 0.1;
 };
 
+// vr_ad_test 215 (his note 2026-11-21: the Kamikaze burst at once, without chasing him, and with no explosion drawn): one
+// made up to 500 units away down the clearest line, facing the player (not notarget); it must wake, run at him and burst
+// near him, its explosion drawn (DW_Boom). "dwkami: N passed, M failed"; gives up after 15 s.
+entity dw_kt_kami;
+float dw_kt_born, dw_kt_booms, dw_kt_last, dw_kt_far;
+void() DW_KamiTest_Think =
+{
+    entity p = self.owner;
+    entity k = dw_kt_kami;
+    // (alive until its death: dw_kami_die takes its damage away; freed, an entity keeps its classname)
+    if(k.classname == "monster_kamikaze" && k.takedamage != DAMAGE_NO && time < dw_kt_born + 15)
+    {
+        dw_kt_last = vlen(VR_AI_Origin(p) - k.origin);
+        self.nextthink = time + 0.05;
+        return;
+    }
+    if(!self.cnt) // (dead: its burst follows 0.05 s later, dw_kami_die; the verdict 0.3 s on)
+    {
+        self.cnt = 1;
+        self.ltime = time;
+        self.nextthink = time + 0.3;
+        return;
+    }
+    VR_Test_Check(self.ltime >= dw_kt_born + 0.5, sprintf("it chased first: burst %.2f s after it was made, %g units away",
+        self.ltime - dw_kt_born, dw_kt_far));
+    VR_Test_Check(self.ltime < dw_kt_born + 15, "it burst within 15 s");
+    VR_Test_Check(dw_kt_last < 100, sprintf("it burst near the player: %.0f units from him", dw_kt_last));
+    VR_Test_Check(dw_boom_count > dw_kt_booms, sprintf("its explosion drawn (%g explosions)", dw_boom_count - dw_kt_booms));
+    VR_Test_Verdict();
+    remove(self);
+};
+
+void(entity p) DW_KamiTest =
+{
+    VR_Test_BeginFlags("dwkami", VR_TEST_LOUD);
+    float yaw, best = 0, bestYaw = 0;
+    for(yaw = 0; yaw < 360; yaw += 45)
+    {
+        tracebox(p.origin, '-16 -16 -24', '16 16 24', p.origin + DW_Yaw(yaw) * 600, TRUE, p);
+        if(trace_fraction * 600 > best) { best = trace_fraction * 600; bestYaw = yaw; }
+    }
+    dw_kt_far = min(500, best - 32);
+    VR_Test_Check(dw_kt_far >= 250, sprintf("room for the chase: %g units clear at yaw %g", best, bestYaw));
+    entity os = self;
+    self = spawn();
+    setorigin(self, p.origin + DW_Yaw(bestYaw) * dw_kt_far);
+    self.angles = '0 1 0' * (bestYaw + 180);
+    dw_monster_kamikaze();
+    dw_kt_kami = self;
+    self = os;
+    dw_kt_born = time;
+    dw_kt_booms = dw_boom_count;
+    dw_kt_last = dw_kt_far;
+    entity t = spawn();
+    t.classname = "dw_kamitest";
+    t.owner = p;
+    t.think = DW_KamiTest_Think;
+    t.nextthink = time + 0.5; // (its start, walkmonster_start's, has given it its damage by then)
+};
+
+// vr_ad_test 216 (d2end; his note 2026-11-21: stuck inside the Sculptor, moving with it): the map's Sculptor with its
+// fighting box and controller, the player put inside its box (60 units from its middle); its failsafe must put him just
+// outside, where he is free (his box clear of everything). "dwstuck: N passed, M failed"; gives up after 3 s.
+float dw_st_until;
+vector dw_st_from;
+void() DW_StuckTest_Think =
+{
+    entity p = self.owner;
+    entity b = self.enemy;
+    float inside = p.absmin_x < b.absmax_x && p.absmax_x > b.absmin_x && p.absmin_y < b.absmax_y &&
+                   p.absmax_y > b.absmin_y && p.absmin_z < b.absmax_z && p.absmax_z > b.absmin_z;
+    if(inside && time < dw_st_until)
+    {
+        self.nextthink = time + 0.05;
+        return;
+    }
+    VR_Test_Check(!inside, sprintf("the player put out of its box: at %v, its box %v to %v", p.origin, b.absmin, b.absmax));
+    tracebox(p.origin, p.mins, p.maxs, p.origin, FALSE, p);
+    VR_Test_Check(!trace_startsolid, sprintf("he is free there (in %s)", trace_ent.classname));
+    VR_Test_Check(vlen(p.origin - dw_st_from) < 240, sprintf("moved %.0f units: just outside it", vlen(p.origin - dw_st_from)));
+    VR_Test_Verdict();
+    remove(self);
+};
+
+void(entity p) DW_StuckTest =
+{
+    VR_Test_BeginFlags("dwstuck", VR_TEST_LOUD);
+    entity b = find(world, classname, "monster_d2boss");
+    VR_Test_Check(b != world, "the map's Sculptor found");
+    if(!b) { VR_Test_Verdict(); return; }
+    DW_D2_FightBox(b);
+    b.think = dw_d2_think;
+    b.nextthink = time + 0.1;
+    dw_st_from = b.origin + '60 0 0';
+    setorigin(p, dw_st_from);
+    p.velocity = '0 0 0';
+    dw_st_until = time + 3;
+    entity t = spawn();
+    t.classname = "dw_stucktest";
+    t.owner = p;
+    t.enemy = b;
+    t.think = DW_StuckTest_Think;
+    t.nextthink = time + 0.05;
+};
+
 void(entity p, float xRequest) DW_WeaponsTest =
 {
     if(xRequest >= 205 && xRequest <= 208)

@@ -239,6 +239,8 @@ void(float request, entity p) AD_RulesTest =
     if(request == 200) { DW_BossTest(p); return; } // the map's Dwell boss fought through its phases: dwell/dw_test.qc
     if(request >= 201 && request <= 208) { DW_WeaponsTest(p, request); return; } // Dwell's weapons kept and fired, their models: dwell/dw_test.qc
     if(request == 210) { DW_RingHitTest(p); return; } // the Sculptor's ring hit, its hole not: dwell/dw_test.qc
+    if(request == 215) { DW_KamiTest(p); return; } // the Kamikaze chases, bursts near, its explosion drawn: dwell/dw_test.qc
+    if(request == 216) { DW_StuckTest(p); return; } // d2end: the Sculptor puts a player out of its box: dwell/dw_test.qc
     if(request == 214) { DW_GateTest(p); return; } // Dwell's start: runes placed open walkable gates: dwell/dw_test.qc
     if(request == 213) { DW_PickupTest(p); return; } // Dwell's pickups taken, the toolgun's Dwell and bloody props: dwell/dw_test.qc
     if(request == 211) { VR_Quoth_Test(p); return; } // Quoth's targetname2 and spawners: vr_quoth_test.qc
