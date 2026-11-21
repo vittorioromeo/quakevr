@@ -6340,3 +6340,34 @@ e1m1_2026-11-21_00-43-41 (riders "compressed by the lift").
   for non-players after each push, so the next frame the monster is pushed only once the lift has risen into it;
   and the drawn lag of a stepping monster (its move drawn to its next think, `vr_monster_lerp_continue`) while the lift
   moves it every frame (`VR_StepLerpInterval` could treat riding a moving pusher as it does the air). **Open**.
+
+## worldai2: riders on a moving lift don't sink into it (worldai2, 2026-11-21, `agent/worldai`)
+
+His note e1m1_2026-11-21_00-43-41 ("compressed by the lift"); worldai measured a grunt's box 9.9/15 units into e1m1's lift.
+
+- **That reading was a corpse.** The script's setpos left the player in noclip (never on the lift) and spawned the
+  grunt inside the plat as it rose: the plat crushed it (blocked, 1 damage a frame, bouncing) and its body rode as a
+  Box3D rigid body (`VR_PushSkips`). With the player off noclip and the grunt put on the plat at rest, no box sinks on
+  the server, the player's or a monster's, up or down (SV_PushMove's clearing of FL_ONGROUND is Quake's and harmless).
+  `vr_debug_lift` now takes the lift's real top under each rider (a point trace), counts live monsters only, measures
+  the drawn sinking only while the lift came in the last message (and the one before), and the eye against its height
+  over the feet standing still.
+- **Drawn monster**: on a moving lift its steps were drawn to its next think: 12.9 units into the plat riding up.
+  Drawn over a frame (VR_StepLerpInterval as for the air) it still trailed ~1.8 (the step lerp's finish counts from the
+  message's time, its start from the client's), so a stepping monster standing on a moving MOVETYPE_PUSH is now sent
+  without U_STEP (`VR_StepRidesLift`, sv_main.c): drawn between the last two messages exactly as the lift is: 0.03.
+  Its own steps on a moving lift are drawn over the frame too.
+- **Eye**: Quake's stair easing (80 units a second, at most 12 behind) took a rising lift for a step: flat 12.0 units,
+  headset 14.1 (vr_hands.cpp `easeStairs` has the same rule). A rise no faster than `vr_view_lift_follow` (400 units a
+  second; 0: Quake's) is followed at once in both (`VR_ViewLiftRise`, view.c and vr_hands.cpp): flat 0.03. The headset's
+  eye still trails the drawn lift by one frame of its travel (2.09 at 150 units a second): its state is computed once a
+  frame from the player's place before the frame's server message is read (`hands::current()`, first used by the move
+  sent): a general frame-order lag, not fixed here (**open**).
+- **Plat *22 not sent near its bottom**: for ~0.1 s at the start of the ride up and the end of the ride down, e1m1's
+  small plat *22 is in no message (not drawn) while the player stands on it (`liftdebug: ... not in the last message`
+  at vr_debug_lift 2): out of his PVS on the server? Not looked into (**open**).
+- **Test** `vr_stealth_test 131` (`vr_stealth_test6.qc`, `Misc/quakevr/lift_ride_test.sh`, Debug > Tests > Stealth AI >
+  Riders on a Lift): two plats, up and down, the player's box and drawn feet, eye, the grunt's: before (this branch's
+  measure, old drawing) the eye 12/14 and the monster 12.9 failed; after 24 passed, 0 failed (12 headset, 12 flat).
+  Debug > Logging > Lift Riders (vr_debug_lift); menu_paths.txt regenerated (Cries Heard, Lift Riders, both test rows).
+- Not run (out of budget): stealth_tests.sh all (noises_clue on origin/next), the nav suite, scenario_check, ThinLTO.

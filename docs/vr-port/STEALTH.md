@@ -398,6 +398,11 @@ Further scenes (`vr_stealth_test 100`-`108`, `vr_stealth_test2.qc`: their own gr
   facing it) Idle at its post, W (340 off behind a wall, a doorway near: in its PVS) Alert by V's cry, F (sealed room)
   Idle. V alerted by him: N Alert, A and F Idle. V killed by him in one blow: as hurt (A may turn to look at the body,
   never off its post). 15 checks, `stealthtest: alarm done, 0 failed`.
+- 131 riders on a moving lift (`Misc/quakevr/lift_ride_test.sh`, flat and the mock headset; `vr_stealth_test6.qc`;
+  Debug > Tests > Stealth AI > Riders on a Lift; not stealth, it lives here with `vr_debug_lift`): e1m1's plats *7 and
+  *22, the player and a grunt ride each up and down; each ride's worst sink (vr_debug_lift_player: box and drawn feet;
+  _monster: box and drawn body; _eye: the drawn eye under its height at rest) at most 0.5 units (the headset's eye: 0.5
+  plus a frame of the lift's travel). 12 checks a mode, `lifttest: 12 passed, 0 failed`.
 
 ## Open items moved from BACKLOG.md (2026-11-12)
 

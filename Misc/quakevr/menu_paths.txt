@@ -1385,6 +1385,7 @@ vr_ai_props|1|Stealth AI|Round Props|Advanced VR Options > Combat > Stealth AI >
 vr_ai_prop_push|1|Stealth AI|Push Props|Advanced VR Options > Combat > Stealth AI > Push Props
 vr_stealth_share_near|1|Stealth AI|Near Monsters Join|Advanced VR Options > Combat > Stealth AI > Near Monsters Join
 vr_stealth_share_view|1|Stealth AI|Monsters in Sight Join|Advanced VR Options > Combat > Stealth AI > Monsters in Sight Join
+vr_stealth_share_hear|1|Stealth AI|Cries Heard|Advanced VR Options > Combat > Stealth AI > Cries Heard
 vr_stealth_flashlight|1|Stealth AI|Flashlight Beams|Advanced VR Options > Combat > Stealth AI > Flashlight Beams
 vr_stealth_gem|1|Stealth AI|Visibility Gem|Advanced VR Options > Combat > Stealth AI > Visibility Gem
 vr_stealth_marks|1|Stealth AI|? and ! Marks|Advanced VR Options > Combat > Stealth AI > ? and ! Marks
@@ -5011,6 +5012,7 @@ vr_debug_chainsaw|2|Debug - Logging|Chainsaw|Advanced VR Options > Debug > Loggi
 vr_debug_flame_wobble|2|Debug - Logging|Flame Wobble|Advanced VR Options > Debug > Logging > Flame Wobble
 vr_debug_wallbuttons|2|Debug - Logging|Wall Buttons|Advanced VR Options > Debug > Logging > Wall Buttons
 vr_debug_pose_check|2|Debug - Logging|Monster Poses|Advanced VR Options > Debug > Logging > Monster Poses
+vr_debug_lift|2|Debug - Logging|Lift Riders|Advanced VR Options > Debug > Logging > Lift Riders
 vr_debug_shots|2|Debug - Logging|Shots and Damage|Advanced VR Options > Debug > Logging > Shots and Damage
 vr_debug_missiles|2|Debug - Logging|Missile Hits|Advanced VR Options > Debug > Logging > Missile Hits
 vr_debug_throw|2|Debug - Logging|Throws|Advanced VR Options > Debug > Logging > Throws
@@ -8548,6 +8550,8 @@ vr_flame_wobble_speed|1|Fire Particles|Stir Speed|Advanced VR Options > Combat >
 |2|Stealth AI Tests|Infighting|Advanced VR Options > Combat > Stealth AI > Tests > Infighting
 |2|Stealth AI Tests|Lava's Edge|Advanced VR Options > Combat > Stealth AI > Tests > Lava's Edge
 |2|Stealth AI Tests|Through Teleporters|Advanced VR Options > Combat > Stealth AI > Tests > Through Teleporters
+|2|Stealth AI Tests|The Alarm Spreading|Advanced VR Options > Combat > Stealth AI > Tests > The Alarm Spreading
+|2|Stealth AI Tests|Riders on a Lift|Advanced VR Options > Combat > Stealth AI > Tests > Riders on a Lift
 |2|Stealth AI Tests|A Horde (Profiler)|Advanced VR Options > Combat > Stealth AI > Tests > A Horde (Profiler)
 |2|Stealth AI Tests|Coop: Lights, Lamps, the Meter|Advanced VR Options > Combat > Stealth AI > Tests > Coop: Lights, Lamps, the Meter
 |2|Stealth AI Tests|Save Mid-Investigation|Advanced VR Options > Combat > Stealth AI > Tests > Save Mid-Investigation
