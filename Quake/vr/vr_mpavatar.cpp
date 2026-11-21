@@ -35,6 +35,7 @@
 #include "vr_slide.hpp"
 #include "vr_flatplay.hpp"
 #include "vr_ragdoll.hpp"
+#include "vr_emissive.hpp"
 #include "vr_view.hpp"
 #include "vr_mem.hpp"
 
@@ -82,6 +83,7 @@ struct Drawn
     view::GunParts gun[2];
     view::GunParts holsterGun[VrDrawnHolsters::count];
     view::ViewEntity lamp;
+    view::PowerupLook powerups; // his power-ups' look as drawn (syncfix)
     view::ViewEntity pauldron[2];
     view::ViewEntity pauldronArm[2];
     // His armour's plates and their joints' leather on his body (B6c: the server's word on him), their pieces, their bones
@@ -471,6 +473,7 @@ void add(view::ViewEntity& ve)
 }
 
 void setupBody(int e, const Avatar& a, const glm::vec3& origin, const avatar::DollPose* doll);
+void drawPowerups(int e, int powerups);
 
 // Avatar `e`'s hands and weapons placed on his entity as drawn now at `origin` (its lerp: they ride it between messages).
 // `doll`: his dead body's pose (addDolls), the hands at its wrists.
@@ -534,6 +537,67 @@ void setup(int e, const Avatar& a, const glm::vec3& origin, const avatar::DollPo
     }
     flashlight::drawOther(e, a.lamp, origin, d.lamp);
     setupBody(e, a, origin, doll);
+    drawPowerups(e, doll ? 0 : a.powerups);
+}
+
+// Each of his entities as drawn (his copy's whole: hands, weapons and their parts, holsters, torch, body, pauldrons, plates).
+template<typename F>
+void forEachDrawn(Drawn& d, F&& f)
+{
+    for(int side = 0; side < 2; side++)
+    {
+        f(d.hand[side]);
+        f(d.weapon[side]);
+        f(d.pauldron[side]);
+        f(d.pauldronArm[side]);
+        for(view::ViewEntity& ve : d.gun[side].part)
+        {
+            f(ve);
+        }
+    }
+    for(int i = 0; i < VrDrawnHolsters::count; i++)
+    {
+        f(d.holster[i]);
+        for(view::ViewEntity& ve : d.holsterGun[i].part)
+        {
+            f(ve);
+        }
+    }
+    f(d.lamp);
+    f(d.body);
+    for(view::ViewEntity& ve : d.plate)
+    {
+        f(ve);
+    }
+    f(d.plateBridge);
+}
+
+// His power-ups on his copy as yours on you (syncfix; view::powerupLookOf, vr_body_powerups): the glow on his hands and
+// body (powerupGlow, the shader's), its light from his hands, Quad's arcs on his forearms, the ring's fade over all of him.
+void drawPowerups(int e, int powerups)
+{
+    Drawn& d = drawn.of[e];
+    d.powerups = view::powerupLookOf(powerups);
+    const view::PowerupLook& look = d.powerups;
+    if(look.alpha < 1.f)
+    {
+        forEachDrawn(d, [&](view::ViewEntity& ve) { ve.ent.alpha = ENTALPHA_ENCODE(ENTALPHA_DECODE(ve.ent.alpha) * look.alpha); });
+    }
+    glm::vec3 wrist[2], along[2];
+    for(int side = 0; side < 2; side++)
+    {
+        const entity_t& h = d.hand[side].ent;
+        wrist[side] = d.bodyPosed ? d.handWrist[side] : glm::vec3{h.origin[0], h.origin[1], h.origin[2]};
+        glm::vec3 fwd, right, up;
+        hands::angleVectors(glm::vec3{-h.angles[0], h.angles[1], h.angles[2]}, fwd, right, up);
+        along[side] = fwd;
+        const bool lit = look.shown > 0 && d.hand[side].visible;
+        emissive::otherPowerupLight(e, side, wrist[side] + fwd * (0.1f * units::metresToUnits()), lit ? look.light * 0.8f : 0.f, 110.f, look.lightColor);
+    }
+    if(look.arcs && d.hand[0].visible && d.hand[1].visible)
+    {
+        view::otherQuadArcs(e, wrist, along);
+    }
 }
 
 [[nodiscard]] const Drawn* drawnOf(const entity_t* e, int& side, bool& hand)
@@ -1085,6 +1149,8 @@ void parse()
     const int gear = MSG_ReadByte();
     a.armour = gear & avatarGearArmour;
     a.sliding = (gear & avatarGearSliding) != 0;
+    a.powerups = ((gear & avatarGearQuad) ? IT_QUAD : 0) | ((gear & avatarGearPent) ? IT_INVULNERABILITY : 0) |
+                 ((gear & avatarGearRing) ? IT_INVISIBILITY : 0) | ((gear & avatarGearSuit) ? IT_SUIT : 0);
     // His guns as the server has them, his torch as he drew it (wpnsync).
     for(VrGunLook& l : a.look)
     {
@@ -1537,6 +1603,26 @@ void addEntities()
     render::precacheSkinMasks(shown, count);
 }
 
+float powerupGlow(const entity_t* e)
+{
+    const auto* first = reinterpret_cast<const unsigned char*>(&drawn.of[0]);
+    const auto* p = reinterpret_cast<const unsigned char*>(e);
+    if(p < first || p >= first + sizeof(drawn.of))
+    {
+        return 0.f;
+    }
+    const Drawn& d = drawn.of[(p - first) / sizeof(Drawn)];
+    if(d.frame < 0 || d.powerups.level <= 0.f)
+    {
+        return 0.f;
+    }
+    if(e == &d.body.ent)
+    {
+        return view::powerupGlowCode(d.powerups, true);
+    }
+    return e == &d.hand[0].ent || e == &d.hand[1].ent ? view::powerupGlowCode(d.powerups, false) : 0.f;
+}
+
 int lookOf(const entity_t* e, view::SkinLook& look)
 {
     const auto* first = reinterpret_cast<const unsigned char*>(&drawn.of[0]);
@@ -1656,7 +1742,9 @@ int gearByte(const edict_t* ent)
     const int items = static_cast<int>(ent->v.items);
     const int armour = ent->v.armorvalue <= 0.f ? 0 : (items & IT_ARMOR3) ? 3 : (items & IT_ARMOR2) ? 2 : (items & IT_ARMOR1) ? 1 : 0;
     const progs::ServerVm vm; // (slide's slot is by the server's edicts)
-    return armour | (slide::onServer(ent) ? avatarGearSliding : 0);
+    const int powerups = ((items & IT_QUAD) ? avatarGearQuad : 0) | ((items & IT_INVULNERABILITY) ? avatarGearPent : 0) |
+                         ((items & IT_INVISIBILITY) ? avatarGearRing : 0) | ((items & IT_SUIT) ? avatarGearSuit : 0);
+    return armour | powerups | (slide::onServer(ent) ? avatarGearSliding : 0);
 }
 
 void clear()

@@ -3390,6 +3390,11 @@ void quadArcs(const hands::State& s)
                                      : 0;
 }
 
+namespace
+{
+qvr::view::PowerupLook lookOf(int items); // (below)
+} // namespace
+
 void showPlayerState(view::ViewEntity& ve, const hands::State& s)
 {
     if(vr_body_state.value)
@@ -3421,11 +3426,12 @@ void showPlayerState(view::ViewEntity& ve, const hands::State& s)
         ve.lightMultiply = true;
         ve.lightMod = glm::vec3{0.8f, 1.25f, 0.8f};
     }
-    if(cl.items & IT_INVISIBILITY)
+    const qvr::view::PowerupLook look = lookOf(cl.items & (IT_INVISIBILITY | IT_QUAD)); // (the ring's fade, Quad's arcs)
+    if(look.alpha < 1.f)
     {
-        ve.ent.alpha = ENTALPHA_ENCODE(0.3f);
+        ve.ent.alpha = ENTALPHA_ENCODE(look.alpha);
     }
-    if((cl.items & IT_QUAD) && static_cast<int>(vr_quad_look.value) != 1) // 1: the blue glow only (powerupGlow)
+    if(look.arcs)
     {
         quadArcs(s);
     }
@@ -3455,15 +3461,6 @@ const PowerupGlowLook powerupGlowLooks[] = {
 constexpr int powerupGlowKinds = 3;
 constexpr double powerupGlowTurn = 1.6; // seconds each glow shows when more than one take turns
 
-struct PowerupGlowState
-{
-    float level = 0.f; // the glow's strength this frame (0 none), pulsing
-    float code = 0.f;  // its colour coded for the shader (r + 16g + 256b, 16 levels a channel)
-    int shown = 0;     // how many power-ups glow (taking turns)
-    int kind = -1;     // the one glowing now (or fading out), powerupGlowLooks
-};
-PowerupGlowState powerupGlowState;
-
 float powerupGlowStrength(int kind)
 {
     switch(kind)
@@ -3484,26 +3481,27 @@ float powerupGlowLight(int kind)
     }
 }
 
-void powerupGlow(const hands::State& s)
+// The look of power-ups `items` (view::powerupLookOf: yours and another player's copy alike).
+qvr::view::PowerupLook lookOf(int items)
 {
-    PowerupGlowState& g = powerupGlowState;
-    g = PowerupGlowState{};
-    const bool can = vr_body_powerups.value != 0.f && cl.stats[STAT_HEALTH] > 0 && !cl.intermission && s.valid && !deathview::immersive();
-    int shown[powerupGlowKinds];
-    for(int k = 0; can && k < powerupGlowKinds; k++)
+    qvr::view::PowerupLook g;
+    if(vr_body_powerups.value == 0.f)
     {
-        if((cl.items & powerupGlowLooks[k].item) && (powerupGlowStrength(k) > 0.f || powerupGlowLight(k) > 0.f))
+        return g;
+    }
+    g.alpha = (items & IT_INVISIBILITY) ? 0.3f : 1.f;
+    g.arcs = (items & IT_QUAD) && static_cast<int>(vr_quad_look.value) != 1; // 1: the blue glow only
+    int shown[powerupGlowKinds];
+    for(int k = 0; k < powerupGlowKinds; k++)
+    {
+        if((items & powerupGlowLooks[k].item) && (powerupGlowStrength(k) > 0.f || powerupGlowLight(k) > 0.f))
         {
             shown[g.shown++] = k;
         }
     }
     if(g.shown == 0)
     {
-        for(int hand = 0; hand < 2; hand++)
-        {
-            emissive::powerupLight(hand, s.pos[hand], 0.f, 0.f, glm::vec3{0.f});
-        }
-        return;
+        return g;
     }
     // Taking turns: each shows for powerupGlowTurn seconds, crossfading into the next over its last third.
     const double t = cl.time;
@@ -3520,16 +3518,27 @@ void powerupGlow(const hands::State& s)
         return glm::mix(geom::vec(ca), geom::vec(cb), w);
     };
     const glm::vec3 shade = mixed(powerupGlowLooks[a].shade, powerupGlowLooks[b].shade);
-    const glm::vec3 lightColor = mixed(powerupGlowLooks[a].light, powerupGlowLooks[b].light);
+    g.lightColor = mixed(powerupGlowLooks[a].light, powerupGlowLooks[b].light);
     const float strengthA = za::clamp(powerupGlowStrength(a), 0.f, 2.f) * powerupGlowLooks[a].gain;
     const float strengthB = za::clamp(powerupGlowStrength(b), 0.f, 2.f) * powerupGlowLooks[b].gain;
     g.level = glm::mix(strengthA, strengthB, w) * pulse;
     const auto level16 = [](float c) { return static_cast<float>(za::clamp(static_cast<int>(c * 15.f + 0.5f), 0, 15)); };
     g.code = level16(shade.r) + 16.f * level16(shade.g) + 256.f * level16(shade.b);
-    const float light = za::clamp(glm::mix(powerupGlowLight(a), powerupGlowLight(b), w), 0.f, 2.f) * pulse;
+    g.light = za::clamp(glm::mix(powerupGlowLight(a), powerupGlowLight(b), w), 0.f, 2.f) * pulse;
+    return g;
+}
+
+qvr::view::PowerupLook powerupGlowState; // yours, as drawn this frame
+
+void powerupGlow(const hands::State& s)
+{
+    const bool can = cl.stats[STAT_HEALTH] > 0 && !cl.intermission && s.valid && !deathview::immersive();
+    qvr::view::PowerupLook& g = powerupGlowState;
+    g = can ? lookOf(cl.items) : qvr::view::PowerupLook{};
     for(int hand = 0; hand < 2; hand++) // (the body's own: Quake's blue quad and red pentagram lights round you, cl_main.c)
     {
-        emissive::powerupLight(hand, s.pos[hand], light * 0.8f, 110.f, lightColor); // (inside the hand: lights the world, not it)
+        // (inside the hand: lights the world, not it)
+        emissive::powerupLight(hand, s.pos[hand], g.shown > 0 ? g.light * 0.8f : 0.f, 110.f, g.lightColor);
     }
 }
 } // namespace
@@ -3538,7 +3547,7 @@ void powerupGlow(const hands::State& s)
 // take turns), its strength on the hands and the body, and its lights.
 void powerupInfo_f()
 {
-    const PowerupGlowState& g = powerupGlowState;
+    const qvr::view::PowerupLook& g = powerupGlowState;
     Con_Printf("powerups: quad %d pent %d suit %d look %d arcsframe %d\n", (cl.items & IT_QUAD) ? 1 : 0,
         (cl.items & IT_INVULNERABILITY) ? 1 : 0, (cl.items & IT_SUIT) ? 1 : 0, static_cast<int>(vr_quad_look.value), oncePerFrame.quadArcs);
     const float hand = view::powerupGlow(&entities.hand[0].ent);
@@ -4015,8 +4024,16 @@ const entity_t* cloneSource(const entity_t* e)
 
 float powerupGlow(const entity_t* e)
 {
-    const PowerupGlowState& g = powerupGlowState;
-    if(g.level <= 0.f || !e)
+    const PowerupLook& g = view_detail::powerupGlowState;
+    if(!e)
+    {
+        return 0.f;
+    }
+    if(const float other = mpavatar::powerupGlow(e); other != 0.f)
+    {
+        return other; // (another player's copy: his own power-ups)
+    }
+    if(g.level <= 0.f)
     {
         return 0.f;
     }
@@ -4024,17 +4041,29 @@ float powerupGlow(const entity_t* e)
     {
         e = source;
     }
-    float strength = 0.f;
     bool weapon = false;
     if(e == &entities.body.ent)
     {
-        strength = za::min(g.level * 0.3f, 1.f); // less: seen from inside, its edges are all round the view
+        return powerupGlowCode(g, true);
     }
-    else if(handOf(e, weapon) >= 0 && (!weapon || isHandModel(e->model)))
-    {
-        strength = za::min(g.level * 0.6f, 1.f);
-    }
-    return strength > 0.f ? -2.f - 2.f * g.code - strength : 0.f; // (vr_glsl.h QVR_ALIAS_FS_GLOW decodes it)
+    return handOf(e, weapon) >= 0 && (!weapon || isHandModel(e->model)) ? powerupGlowCode(g, false) : 0.f;
+}
+
+float powerupGlowCode(const PowerupLook& look, bool body)
+{
+    // (the body less: seen from inside, its edges are all round the view)
+    const float strength = look.level > 0.f ? za::min(look.level * (body ? 0.3f : 0.6f), 1.f) : 0.f;
+    return strength > 0.f ? -2.f - 2.f * look.code - strength : 0.f; // (vr_glsl.h QVR_ALIAS_FS_GLOW decodes it)
+}
+
+PowerupLook powerupLookOf(int items)
+{
+    return view_detail::lookOf(items);
+}
+
+void otherQuadArcs(int player, const glm::vec3 wrist[2], const glm::vec3 along[2])
+{
+    shock::otherArmArcs(wrist, along, static_cast<unsigned>(host_framecount) * 2654435761u + static_cast<unsigned>(player) * 40503u, 5, 0.2f);
 }
 
 void bareLight(const entity_t* e, float lightcolor[3])

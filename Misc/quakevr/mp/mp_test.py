@@ -1400,7 +1400,7 @@ def cosmetics_b6c(s, srv, a, b, ea, eb):
 
 
 HOLSTER_UNITS = 1.0  # B's holstered weapon at A, and the server's holsterpos for B, within this of where B drew it
-HOLSTER_SLOT = 2     # the holster B is given a shotgun in (impulse 190 + it: the holsterweapon<slot> fields, body::Holster)
+HOLSTER_SLOT = 2     # the holster B is given a shotgun in (impulse 90 + it: the holsterweapon<slot> fields, body::Holster)
 
 
 def holsters_of(lines, prefix):
@@ -1573,7 +1573,7 @@ def cosmetics_b6b(s, srv, a, b, ea, eb):
     b.quiet(r"mp_(move|pos): ", 0.5, 20, "both at rest")
     since = srv.mark()
     srv.cmd("developer 1")
-    b.cmd("impulse %d" % (190 + HOLSTER_SLOT))
+    b.cmd("impulse %d" % (90 + HOLSTER_SLOT))
     srv.wait(r"holster give: .* holster %d a shotgun" % HOLSTER_SLOT, 10, since, "B's holster given a shotgun")
 
     def holstered(lines):
@@ -3873,7 +3873,7 @@ def disarm(s):
     holsters_synced(s, a, b, eb, "holsters at the start")
     for slot in range(6):
         since = srv.mark()
-        b.cmd("impulse %d" % (190 + slot))
+        b.cmd("impulse %d" % (90 + slot))
         wait_quietly(srv, r"holster give: .* holster %d a shotgun" % slot, 5, since, "B's holster %d given" % slot)
     holsters_synced(s, a, b, eb, "a shotgun given in each holster")
     since = srv.mark()
@@ -8243,21 +8243,34 @@ def sync_nothing(s, srv, a, b, ea, eb):
 
 
 def sync_cheat(impulse):
-    """Quake's own powerup cheats (impulse 255 quad, 254 ring: 30 s; coop allows them). Not the Debug menu's 190-193:
-    in coop those are the harness's holster gives (weapons.qc)."""
+    """The Debug menu's powerup cheats (impulse 190 quad, 191 pentagram, 192 ring, 193 biosuit: an hour; syncfix: in coop
+    they give the powerups again, the harness's holster gives moved to 90-95)."""
     def on(s, srv, a, b, ea, eb):
         b.cmd("impulse %d" % impulse)
         sync_wait(srv, 1.0)
     return on
 
 
-SYNC_PROBES = (  # (name, B's action, its undo); idle first: the baseline
-    ("idle", sync_nothing, None),
-    ("quad", sync_cheat(255), None),  # (it lasts the run: the probes after it compare against idle as before)
-    ("ring", sync_cheat(254), None),
-    ("punch", sync_punch, sync_punch_off),
-    ("shoot", sync_shoot, None),
-    ("walk", sync_walk, sync_walk_off),  # (last: B walks off his spot)
+def no_gap(prefix, drawn_only=False):
+    """A synced row: nothing of `prefix` ("glow:", "faded:", "light:", ...) that B has of himself and A has not of him;
+    and A has some (the probe did show it). `drawn_only`: only of the models A draws of him at all (a model he lacks is
+    another row's gap)."""
+    def check(gap, seen_added, seen):
+        missing = sorted(k for k in gap if k.startswith(prefix) and
+                         (not drawn_only or "model:" + k.split(":", 1)[1] in seen))
+        got = sorted(k for k in seen_added if k.startswith(prefix))
+        return not missing and bool(got), "B only: %s; A has: %s" % (missing or "-", got or "-")
+    return check
+
+
+SYNC_PROBES = (  # (name, B's action, its undo, the synced rows' checks); idle first: the baseline
+    ("idle", sync_nothing, None, ()),
+    # (they last the run: the probes after them compare against idle as before)
+    ("quad", sync_cheat(190), None, (("Quad's glow on his copy", no_gap("glow:")), ("its hand lights", no_gap("light:r1")))),
+    ("ring", sync_cheat(192), None, (("the ring's fade on his copy", no_gap("faded:", drawn_only=True)),)),
+    ("punch", sync_punch, sync_punch_off, ()),
+    ("shoot", sync_shoot, None, ()),
+    ("walk", sync_walk, sync_walk_off, ()),  # (last: B walks off his spot)
 )
 
 
@@ -8269,7 +8282,7 @@ def syncaudit(s, flat):
     sync_wait(srv, 1.0)
     base_b = base_a = None
     table = []
-    for name, act, undo in SYNC_PROBES:
+    for name, act, undo, rows in SYNC_PROBES:
         t0 = time.time()
         act(s, srv, a, b, ea, eb)
         seconds = time.time() - t0 + 0.3
@@ -8289,6 +8302,9 @@ def syncaudit(s, flat):
             name, gap or "-", "", extra or "-", "", both or "-"))
         s.check("%s: both reports came (B's own view of himself, A's of B)" % name, bool(own) and bool(seen),
                 "B %d kinds, A %d kinds" % (len(own), len(seen)))
+        for row, check in rows:  # (syncfix: the audit's gaps fixed, each row's own check)
+            ok, detail = check(gap, add_a if base_b is not own else seen, seen)
+            s.check("%s: %s synced" % (name, row), ok, detail)
         if undo:
             undo(s, srv, a, b, ea, eb)
     with open(os.path.join(s.out, "syncaudit_table.txt"), "w", encoding="ascii") as f:

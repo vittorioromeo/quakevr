@@ -52,6 +52,7 @@ struct Avatar
     VrDrawnHolsters holsters; // his holstered weapons as he drew them, from his entity's origin (B6b; no points)
     int armour{0};            // the armour he wears (gearByte: his pauldrons' colour)
     bool sliding{false};      // the server has him sliding (gearByte's avatarGearSliding: his body's slide pose)
+    int powerups{0};          // his power-ups (gearByte's avatarGearQuad...: as IT_QUAD, IT_INVULNERABILITY, IT_SUIT, IT_INVISIBILITY)
     // His guns as the server has them (MP_PLAN.md, "Held weapons' state"): each hand's look ([0] off, [1] main), each
     // holstered weapon's flags (low byte) and clip; his torch as he drew it (from his entity's origin).
     VrGunLook look[2];
@@ -62,8 +63,15 @@ struct Avatar
 // The gear byte's slide bit (mpslide, 2026-11-20): the server's slide (slide::onServer, a flat-screen player's or a
 // headset's), so the others pose his body slid as he sees his own (the armour is the byte's low two bits).
 inline constexpr int avatarGearArmour = 3;
+// syncfix (2026-11-21): his power-ups, drawn on his copy as yours on you (view::powerupLookOf: the glow, its hand lights,
+// Quad's arcs, the ring's fade).
+inline constexpr int avatarGearQuad = 4;
+inline constexpr int avatarGearPent = 8;
+inline constexpr int avatarGearRing = 16;
+inline constexpr int avatarGearSuit = 32;
 inline constexpr int avatarGearSliding = 128;
-// The server's gear byte for client entity `ent` (after the holsters): the armour he wears, 0 none .. 3 red; his slide.
+// The server's gear byte for client entity `ent` (after the holsters): the armour he wears, 0 none .. 3 red; his
+// power-ups; his slide.
 [[nodiscard]] int gearByte(const edict_t* ent);
 
 // vr_client.cpp's dispatch: QVR_SVC_AVATAR's body (after its sub-command byte).
@@ -96,6 +104,9 @@ void addEntities();
 // Player entity `ent`'s copy as drawn last (addEntities: his entity's drawn place and his hands' drawn places, B7's
 // interpolated ones), and the host frame it was set up in; false: not drawn yet. (vr_mp_trace: mp_loss.)
 [[nodiscard]] bool drawnPlaces(int ent, glm::vec3& body, glm::vec3 hands[2], int& frame);
+
+// The power-up glow's shader code on `e` if it is another player's copy's hand or body (view::powerupGlow), else 0.
+[[nodiscard]] float powerupGlow(const entity_t* e);
 
 // A new connection: no avatars.
 void clear();

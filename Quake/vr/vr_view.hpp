@@ -166,6 +166,27 @@ void printOwnLooks(int ent);
 // a channel) - its strength (0..1); else 0.
 [[nodiscard]] float powerupGlow(const entity_t* e);
 
+// A player's power-ups as drawn on him (syncfix: yours from cl.items, another player's copy from his avatar's gear byte,
+// one code for both): the glow taking turns (its shader code and strength), its light from the hands, the quad's arcs,
+// the ring's fade (vr_body_powerups: none at all when off).
+struct PowerupLook
+{
+    float level{0.f};   // the glow's strength this frame (0 none), pulsing
+    float code{0.f};    // its colour coded for the shader (r + 16g + 256b, 16 levels a channel)
+    int shown{0};       // how many power-ups glow (taking turns)
+    int kind{-1};       // the one glowing now (or fading out)
+    float light{0.f};   // the hands' light's strength (0 none) and colour
+    glm::vec3 lightColor{0.f};
+    bool arcs{false};   // Quad's arcs on the hands and forearms (vr_quad_look not 1)
+    float alpha{1.f};   // the ring's fade on his body, hands and worn gear (1 none)
+};
+// The look of power-ups `items` (IT_QUAD, IT_INVULNERABILITY, IT_SUIT, IT_INVISIBILITY bits) at cl.time.
+[[nodiscard]] PowerupLook powerupLookOf(int items);
+// The shader's glow code of `look` on a body (`body`) or a hand (as powerupGlow's).
+[[nodiscard]] float powerupGlowCode(const PowerupLook& look, bool body);
+// Quad's arcs on another player's hands: each wrist ([0] off, [1] main), the way his hands point; once a frame.
+void otherQuadArcs(int player, const glm::vec3 wrist[2], const glm::vec3 along[2]);
+
 // With bare forearms (vr_body_bracers 0) the jointed hands are drawn in your body's light, so that the skin is lit alike
 // on both sides of the wrist: bareLight (r_alias.c's light colour, R_SetupAliasLighting) and bareShade (the instance's
 // light direction and the light round it, vraliasinstance_t) keep the body's and give it to the hands.
