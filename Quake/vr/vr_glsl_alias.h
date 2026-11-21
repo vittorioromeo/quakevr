@@ -1278,6 +1278,41 @@ QVR_DENT_FUNCTIONS \
 "			result.rgb *= mix(vec3(1.0), st.rgb, st.w * smoothstep(sr.y, sr.z, in_texcoord.y));\n" \
 "	}\n"
 
+// an armed humanoid's recolour by the weapon it spawned with (vr/vr_humlook.cpp, quakevr/humlook.txt): HSL both ways
+#define QVR_ALIAS_FS_RECOLOR_FUNCTIONS \
+"vec3 RecolorToHsl(vec3 c) // hue in degrees, saturation, lightness\n" \
+"{\n" \
+"	float mx = max(c.r, max(c.g, c.b)), mn = min(c.r, min(c.g, c.b)), d = mx - mn, l = 0.5 * (mx + mn);\n" \
+"	if (d < 1e-5)\n" \
+"		return vec3(0.0, 0.0, l);\n" \
+"	float s = d / (1.0 - abs(2.0 * l - 1.0) + 1e-6);\n" \
+"	float h = mx == c.r ? mod((c.g - c.b) / d, 6.0) : mx == c.g ? (c.b - c.r) / d + 2.0 : (c.r - c.g) / d + 4.0;\n" \
+"	return vec3(60.0 * h, s, l);\n" \
+"}\n" \
+"vec3 RecolorFromHsl(vec3 hsl)\n" \
+"{\n" \
+"	vec3 k = mod(vec3(0.0, 8.0, 4.0) + hsl.x / 30.0, 12.0);\n" \
+"	float a = hsl.y * min(hsl.z, 1.0 - hsl.z);\n" \
+"	return hsl.z - a * max(min(min(k - 3.0, 9.0 - k), vec3(1.0)), vec3(-1.0));\n" \
+"}\n"
+
+// the skin's pixels in the row's colour range (soft-edged in hue, saturation and lightness) turned by its HSL change and
+// tint (Recolor: vr/vr_humlook.cpp instanceRows; [0].y 0: none)
+#define QVR_ALIAS_FS_RECOLOR \
+"	{\n" \
+"		vec4 ra = instances[in_instance].Recolor[0];\n" \
+"		if (ra.y > 0.0)\n" \
+"		{\n" \
+"			vec4 rb = instances[in_instance].Recolor[1], rc = instances[in_instance].Recolor[2];\n" \
+"			vec3 hsl = RecolorToHsl(result.rgb);\n" \
+"			float dh = abs(mod(hsl.x - ra.x + 540.0, 360.0) - 180.0);\n" \
+"			float w = (1.0 - smoothstep(ra.y, ra.y + ra.z, dh)) * smoothstep(ra.w - 0.04, ra.w + 0.04, hsl.y) *\n" \
+"				smoothstep(rb.x - 0.03, rb.x + 0.03, hsl.z) * (1.0 - smoothstep(rb.y - 0.03, rb.y + 0.03, hsl.z));\n" \
+"			if (w > 0.0)\n" \
+"				result.rgb = mix(result.rgb, RecolorFromHsl(vec3(mod(hsl.x + rb.z, 360.0), clamp(hsl.y * rb.w, 0.0, 1.0), clamp(hsl.z * rc.w, 0.0, 1.0))) * rc.rgb, w);\n" \
+"		}\n" \
+"	}\n"
+
 // parallax occlusion mapping on the skin's heights
 #define QVR_ALIAS_FS_PARALLAX \
 "	// QVR: parallax occlusion mapping (vr_parallax_models) on the skin's heights, in the triangle's own frame, with\n" \

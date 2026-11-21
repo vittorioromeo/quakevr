@@ -6951,6 +6951,85 @@ it); an in-game indication of whether the chosen port is forwarded.
   (mode 0 was 0.86 and 0.47 before the fix: FAIL), a shell from the ammo pouch, a magazine from it seated in the nailgun,
   a grenade from the grenade pouch. Checklist scene `pouchbody` (Only Hands, the shotgun and the nailgun, ammo).
 
+## brushholes: invisible blockers in the gaps Quake's box never fit (branch agent/brushholes, 2026-11-21)
+
+The author's note: grates, gates, pillars and lifts let the narrower boxes (yours at 16, narrow monsters') pass or fall
+through. At map load, `Quake/vr/vr_hull_holes.cpp` finds every gap narrower than 32 between two solids facing each
+other along x or y: within the world, within each solid func_* model, and between the world and a func_wall or a
+door's or lift's whole travel. It adds blocker brushes there, to the compiled trees only (not hull 0: shots, sight and
+the navmesh don't have them). Quake's box could never hold a point of such a gap, so nothing Quake allowed changes,
+and you still stop 8 units from walls, bars and pillars. How it works, what is kept out (gaps under 8; world blockers
+that hull 1 lets Quake's box reach into, from AD's non-colliding detail) and the census are in HULLS.md, "Holes".
+
+- Setting: `vr_hull_holes` 1 (Movement > Player Hitbox > Close Gaps Quake's Box Never Fit; it takes effect at the next
+  map load). `keyOf`'s buildVersion went from 2 to 3, so every map's trees are compiled once again; the blockers are kept
+  for a reload and are inside the disk-cached trees.
+- Aids (Debug > Tests > Player Hitbox): `vr_hull_holes_census`, `vr_hull_holes_near`, `vr_hull_holes_test`.
+- Test: `vr_hull_holes_test` on the new `maps/vrbrushholes` (`Misc/quakevr/make_vrbrushholes_map.py`: a grate over a
+  pit, a bar gate, a lift held up with 20-unit slots, pillars 24 apart). The player's box and a grunt's at
+  `vr_mhull_army 16`: 15/0 with the setting on (stopped, and 8 units from the bars, the pillars and a wall) and 15/0 as
+  `brushholes_off` with it off (they pass, so the scene really has holes). Checklist scenes: `brushholes_grate`,
+  `brushholes_gate`, `brushholes_lift`, `brushholes_pillars` (runall 4 OK).
+- Follow-up (the coordinator and the author): the drop test is now exact. Every centre of Quake's box that would
+  reach a blocker by 2 units goes down hull 1's tree at once, for the world's blockers and the models' own, erring
+  toward dropping. The search uses a 64-unit grid, and the checks and the brush models run on the pool. The debug view
+  is Debug > Show Gap Blockers (`vr_hull_holes_show`, `vr_hull_holes_show_range` 1024): world cyan, with brush models
+  yellow, models' own magenta, dropped red, the counts in front of you. Scene `brushholes_show`.
+- Census: id1 (38 maps) 8,018 world blockers, search at most 53 ms; Quoth (6) 3,533; AD (26) 103,707, at most 0.5 s
+  (ad_tears, was 1.6 s). Quake's box reaches none, on any of the 70 maps.
+- Checks: `vr_hull_holes_test` 15/0 on and 15/0 off; 5 scenes OK; `vr_nav_cliptest` and `vr_nav_toptest` pass on e1m1
+  and e4m7; a 60 s hull walk on e1m2 had 0 stuck; run_test_suite changelevel_signon, held_over_props, slider_step,
+  slopes and turned_box pass, teleporters_chase flaky (known).
+- Open: ad_tears' search time (slanted cells; coarser ones leave gaps open); func_trains' gaps with the world (only their own gaps are closed); a func_wall that is
+  killtargeted is left out of the world's pairs (its blockers would stay behind).
+## humrepl: AD's and Quoth's humanoid variants as armed humanoids; recolours by weapon (branch agent/humrepl, 2026-11-21)
+
+- **His ask (2026-11-21):** the expansions' hardcoded humanoid variants as the closest armed humanoid with the matching
+  weapon (the rocket grunt a grunt with the enemy rocket launcher, the pyro an enforcer or a grunt with the flamethrower),
+  and cheap run-time hue/tint recolours of the armed humanoids and their backpacks by weapon (rockets red, energy blue),
+  data-driven for a later Texture Studio. Phase 1 here; the table of every variant (replaced or not, and why), the
+  mapping, what is lost and gained: ARMED_MONSTERS.md, "AD's and Quoth's variants"; the recolours: "Recolours by weapon".
+- **Replacement:** `vr_agrunt_repl_variants` (1, a rule; with `vr_agrunt_repl` and `vr_agrunt_repl_ad`; the crossbow knight
+  with `vr_agknight`). AD's spawn functions of the soldiers (rocket, grenade, plasma), the defender, the eliminator, the
+  pyro, the fumigator and the crossbow knight call `VR_HUM_Replace` (QC `vr_humrepl.qc`) after AD's own spawn exceptions:
+  the row of its build (grunt, enforcer, knight) holding its gun (`WID_ADROCKET` ... `WID_ADCROSSBOW`; the eliminator the
+  centurion's plasma gun, its own being gone), its health (the map's or AD's: 45, 60, 75, 100, 120, 100, 100, 75), the
+  row's classname and spawn (the plain grunts' path in AD's maps: keys, targets, counts and waiting spawns theirs),
+  `.vr_agr` (trigger-spawn keys kept) and `.vr_hum_variant`. The pyro and fumigator are enforcers: AD's `mon_pyro` is
+  an enforcer's build (its rig the enforcer's, scaled 1.35, armoured), a close-range heavy; a grunt would read too slight.
+  Not replaced (death knights, death guards, sergeants, furies, point knights, zombie knights, bosses, the centurion,
+  the robots): the table says why; the death knights and death guards are the obvious next ones, his call (a third of
+  AD's knights: AD's balance moves most).
+- **Recolours:** every armed humanoid gets `.vr_hum_look` (its row x 16 + its weapon's category) as it is armed
+  (`VR_HUM_Look` in `VR_AM_Spawn` and `VR_AGR_Resolve`: the toolgun's, a wave's, a roll's alike), kept for life; its
+  worn pack takes the wearer's (the engine, by `.vr_wp_wearer`). The engine (`vr_humlook.cpp`): `QVR_SVC_HUMLOOK`
+  (54, reliable, on a change and with the spawn state), the table `quakevr/humlook.txt` (`<type> <category> <part>` and
+  13 numbers: the colour range's hue, half width, feather, least saturation, lightness range; the HSL turn, saturation
+  and lightness factors; a tint and its amount), three `Recolor` vec4s in the alias instance data, the shader's
+  `QVR_ALIAS_FS_RECOLOR` after the skin is read (any texture: Quake's, a replacement, retro; no mod file changed or
+  copied; instance data, so multiview and GLES alike). Shipped: explosives red, energy blue, flame orange, poison green
+  on the brown cloth and leather of all four rows (hue 40 +-18, lightness under 0.3: the flesh's lighter pinks kept)
+  and on the packs; shells, nails, melee and own guns no row. Tuned on the skins offline first
+  (`scratch/humrepl_preview.py`: the shader's maths in Python over the .mdl skins), then on the screens below.
+- **Settings and commands:** `vr_agrunt_repl_variants` 1, `vr_humlook` 1 (Combat > Armed Grunts > Armed Humanoid
+  Replacements: AD and Quoth Variants; Look: Recolour by Weapon), `vr_humlook_known` (read-only), `vr_humlook_reload`,
+  `vr_humlook_info [entity]`. Debug > Tests > Arcane Dimensions: the variants' test, the census, the recolour row.
+- **Tests:** `vr_ad_test 219` (`Misc/quakevr/humrepl_test.sh`): 46/0 (each variant its row, gun, health, look, counted
+  once; a death fires its target and counts; off: AD's; a rocket grunt and a nailgun enforcer by "weapon" get their
+  looks; the client knows every look); `vr_ad_test 198` 5/0 (its rocket soldier now armed: the check follows the
+  setting). Census (`Misc/quakevr/humrepl_census.sh`, `vr_ad_test 220`, the setting off then on): 33/0 on the 23
+  AD maps and 10 Quoth maps placing them: every map's monster count the same both ways (each variant counted once), 630
+  variants replaced, none left AD's (ad_s1m1's 15 are not spawned at skill 1 either way). `vr_multiview_check` 100/0;
+  Dev and ThinLTO builds 0 warnings. Screens: `Misc/quakevr/
+  humrepl_shots.sh` (`vr_ad_test 221`, vrtesthall: grunts, enforcers, knights, death knights, each with a shotgun, a
+  rocket launcher, the thunderbolt, AD's flamethrower and poison sprayer; then the grunts with `vr_humlook` 0):
+  `scratch/humrepl_rows.png`. Scenes `humrepl_looks`, `humrepl_variants`.
+- **Phase 2 (not started):** a per-skin mask of our own (a texture beside each armed model, its red channel the
+  clothes' weight and green the pack's, painted over the skin's UV layout; it replaces the colour range where it
+  exists: the enforcer's baked pack, the knights' metal apart from their leather); the Texture Studio (a Debug page:
+  type x category x part rows with live sliders for the 13 numbers over a lined-up row, written back to
+  `humlook.txt`; the shader already takes any row live); per-variant looks (a `variant` category so a rocket soldier
+  can differ from any rocket grunt).
 ## fixes1121: noclip flies where you look; a shove never bleeds (branch agent/fixes1121, 2026-11-21)
 
 - **Noclip (his note: "always go towards where the camera is pointing").** The server's `SV_NoclipMove` takes a

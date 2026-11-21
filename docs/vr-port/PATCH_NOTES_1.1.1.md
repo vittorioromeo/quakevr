@@ -172,7 +172,12 @@ aren't Map Library packages aren't sent to joining players.
 - **Noclip flies where you look.** Moving forward in noclip now goes the way the camera points, so looking up or down
   flies up or down; strafing stays level and jump and crouch still go straight up and down. Flat and in the headset
   (there, what steers your walking steers the flight: the head, or the moving hand with hand-relative movement).
-
+- **No more slipping through grates, bars, pillar rows or beside lifts.** Your narrower hitbox (and narrow monsters')
+  could pass or fall through gaps Quake's own box never fit: between a grate's bars, a gate's bars, a row of pillars,
+  a lift and its shaft's wall. Each map now gets invisible blockers in exactly those gaps when it loads (nothing in
+  the map files changes; shots and sight go through them), so you are stopped where Quake stopped you, and still get
+  as close to walls, bars and pillars as your width lets you. Settings > Movement > Player Hitbox > Close Gaps Quake's
+  Box Never Fit (`vr_hull_holes`, on; takes effect at the next map load).
 - **Riding a lift no longer sinks you or the monsters into it.** Going up, your eye trailed a rising lift by up to 12
   units (the stair-step easing took the lift's rise for a step) and a monster riding it was drawn as far as 13 units
   into it; now your eye rides with the lift (only a step's jump is eased: `vr_view_lift_follow`, 400 units a second;
@@ -248,6 +253,13 @@ aren't Map Library packages aren't sent to joining players.
   those near it or in sight of it turn on you, now for a kill in one shot too. Monsters placed in ambush keep Quake's
   meaning: they don't hear it, and armed ones no longer leave their post for a fallen comrade's weapon. Combat > Stealth
   AI > Cries Heard (0: off). The test map `vralert` shows each case.
+- **Arcane Dimensions' and Quoth's soldiers are armed humanoids.** The rocket, grenade and plasma soldiers fight as
+  grunts, the defenders, eliminators, pyros and fumigators as enforcers, the crossbow knights as knights, each holding
+  its own gun with its own health: disarm them, tug their guns away, shoot the guns out of their hands, take them.
+  Combat > Armed Grunts > Armed Humanoid Replacements: AD and Quoth Variants.
+- **Armed humanoids wear the colour of their weapon.** Rocket and grenade launchers red, lightning and plasma blue,
+  flamethrowers orange, poison green, on their clothes and backpacks, so you see what is coming; the rest look as
+  before. Same page: Recolour by Weapon.
 
 ## Performance
 
