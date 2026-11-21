@@ -6950,3 +6950,34 @@ it); an in-game indication of whether the chosen port is forwarded.
 - **Test:** `Misc/quakevr/reload/pouchbody_test.sh` 12/0: with `vr_body_mode` 0, 2 and 3 every gear ring at least 1
   (mode 0 was 0.86 and 0.47 before the fix: FAIL), a shell from the ammo pouch, a magazine from it seated in the nailgun,
   a grenade from the grenade pouch. Checklist scene `pouchbody` (Only Hands, the shotgun and the nailgun, ammo).
+
+## fixes1121: noclip flies where you look; a shove never bleeds (branch agent/fixes1121, 2026-11-21)
+
+- **Noclip (his note: "always go towards where the camera is pointing").** The server's `SV_NoclipMove` takes a
+  tracked-hands client's move (a headset's and the flatscreen mode's: `VR_NoclipAngles`) along the head's level yaw with
+  upmove doubled straight up, so flat noclip never rose or sank and VR's rise came only from the stick's upmove (about
+  55 degrees for a 45-degree look). Now `VR_AdjustMove` (vr_input.cpp `noclipFlies`, `flyMove`) puts the flight's pitch
+  in the move: a push along the steer (pitch, yaw) becomes its level part on forward/side and its rise on upmove at half
+  (the server doubles it). The keys' push follows the look (the head; the flatscreen view); the stick's follows what
+  steers its walking (`vr_movement_mode`: the moving hand, the head, or the torso's yaw at the head's pitch). Strafes stay
+  level; the up and down keys (jump, crouch) go straight up and down. Local games only (Quake's own
+  `noclip_anglehack`, set by `noclip` and `setpos`); a remote server's noclip flies level as before.
+- **Test:** `vr_noclip_fly_test` (Debug > Tests, Stick Locomotion: Noclip: Flies Where You Look): from 64 units over
+  where you stand, each case's climb (degrees, the server's player over 40 frames of the push) against the look's:
+  keys forward at 45 up 44.8, 45 down -44.8, level 0.0, a strafe at 45 up 0.0, the up key 90.0; with a headset the
+  stick, the head 45 up 45.0, a hand (mode 0, the mock's hand turned to 30 up) 29.7. VR 7/0, `-flatscreenmode` 5/0 (the
+  stick's cases skipped). `vr_stick_curve_test` 115/0 (its noclip cases set the movetype only: unchanged).
+- **The shove's blood: cause.** The shove itself is bloodless (`VR_Hit_Bloodless`, QVR_HITKIND_SHOVE) and a fresh
+  monster's active ragdoll never bled in any test (grunts and knights, one- and two-handed, VR `vr_knockdown_test 21`
+  and the flat `vr_flat_shove_now`, staggers that recover and falls, awake or not: 0 frames of limb trails). What bled
+  "from every limb" was `decals::limbTrail` on a live ragdoll whose `.vr_bloodied` was set: that flag never cleared, so
+  a monster that had ever drawn blood (one pellet, minutes before) trailed blood from each limb end whenever a later
+  shove flung it (measured: hurt 5, then shoved down: 220 frames bled).
+- **Fix:** QC `VR_Wound_Hit` stamps `.vr_bled_at` (time) on every blood-drawing hit; the engine's `limbsBleed(ent, since)`
+  (vr_box3d_ragdoll.cpp) lets a live ragdoll's limbs bleed only for blood drawn since its ragdoll was made
+  (`RagdollBodies::born`; a get-up's blend keeps it in `Recovery::since`) or within `bledGrace` (1 s) before it (shot and
+  shoved together). Corpses' limbs always bleed, as before; a progs without the field keeps the old `.vr_bloodied` rule.
+  Fall damage and the ragdoll's own impacts still draw no blood (world inflictor), as before.
+- **Test:** `Misc/quakevr/ragdoll/shove_blood_test.sh` 3/0: an unhurt grunt shoved down bled 0 frames; one shot 3 s
+  before the shove 0 (was 220); one shot 2 frames before the shove 106. `stagger_test.sh steady` (grunt, 3 each) PASS.
+- **Checklist scenes:** `noclip_fly`, `shove_no_blood` (`vr_scenario runall`: 2 run, 0 failed).

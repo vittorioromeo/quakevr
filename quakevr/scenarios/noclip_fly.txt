@@ -1,0 +1,8 @@
+# noclip_fly: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Noclip flies where you look
+# (ROUND25.md, "fixes1121"; his note 2026-11-21: noclip did not move up or down). Flat-screen or VR.
+title Noclip flies where you look
+map vrtesthall
+god
+notarget
+cmd noclip
+hint Noclip is on. Look up about 45 degrees and move forward: you rise along the look. Look down and move forward: you sink. Strafe: you stay level. Jump and crouch still go straight up and down. In VR with hand-relative movement the moving hand's pitch steers the flight instead of the head.
