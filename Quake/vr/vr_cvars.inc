@@ -299,7 +299,10 @@ QVR_CVAR(vr_net_movebuffer, "2", CVAR_NONE)        // hosting: a remote client's
 QVR_CVAR(vr_net_movebuffer_max, "10", CVAR_NONE)    // hosting (B20): the move buffer's depth follows each client's jitter, from vr_net_movebuffer up to this many moves (the spread of his moves' lateness over the last 2 s: a jittery link's moves still run one a tick); at or under vr_net_movebuffer: a fixed depth
 QVR_CVAR(vr_net_permove_skip, "0", CVAR_NONE)      // debug, hosting: these of a remote client's moves left to QuakeC once a frame, as before their phases (bit 1: the hands' climb out of the water, B8j part 3; 2: the grapple's rope, B8j part 4): to check a test sees them unpredicted
 QVR_CVAR(vr_bot_parry_chance, "-1", CVAR_NONE)     // a bot's chance (percent) to raise its melee weapon's guard against a blow it sees coming (MP bots phase 1: frikbot/bot_fight.qc bot_parry_frame); -1: by its skill (25, 50, 75, 90 for skills 0-3), its reaction's delay by its skill too (0.3, 0.2, 0.12, 0.06 s)
-QVR_CVAR(vr_bot_dual_wield, "1", CVAR_NONE)        // bots hold a second weapon that pairs with their main one (the players' and armed humanoids' rule, QC VR_AG_Pairs) in their off hand and fire both (MP bots phase 1); 0: their off hand only punches and grabs (MP B11 part 4)
+QVR_CVAR(vr_bot_aim_error, "1", CVAR_NONE)         // bots' aim error and tracking lag, times their skill's (his voice notes 2026-11-21: "super precise ... toned down"; frikbot/bot_fight.qc bot_aim_point: 6, 4, 2.5, 1.2 degrees and 0.12, 0.08, 0.05, 0.02 s behind a moving target for skills 0-3); 0: aimed dead on (as before)
+QVR_CVAR(vr_bot_reaction, "1", CVAR_NONE)          // bots' reaction time before they fire at an enemy just seen, times their skill's (bot_fire_ready: 0.8, 0.55, 0.35, 0.2 s for skills 0-3) and its pauses between bursts of fire (0.7, 0.5, 0.3, 0.15 s); 0: at once, no pauses (as before)
+QVR_CVAR(vr_bot_swing_windup, "0.3", CVAR_NONE)    // seconds a bot's melee swing is held raised before it comes down, beyond a player's swing, at skill 0 (his voice note 2026-11-21: "not very telegraphed"); skills 1-3 three quarters, half, a quarter of it (bot_windup); 0: a player's swing
+QVR_CVAR(vr_bot_dual_wield, "1", CVAR_NONE)       // bots hold a second weapon that pairs with their main one (the players' and armed humanoids' rule, QC VR_AG_Pairs) in their off hand and fire both (MP bots phase 1); 0: their off hand only punches and grabs (MP B11 part 4)
 QVR_CVAR(vr_pmove_bots, "1", CVAR_NONE)            // bots (FrikBot) walk through vr_pmove.cpp's moves as players do, their stick (QC .movevect) as a move each frame (MP_PLAN B11 part 3, part 3: one movement code); 0, the fallback: FrikBot's own copy of Quake's physics in QuakeC (bot_phys.qc)
 QVR_CVAR(vr_pmove_own, "1", CVAR_NONE)             // this game's own player (single player, a listen host's) walks through vr_pmove.cpp's moves as a remote client's do, one move a frame (MP_PLAN B11b: one movement module; on by default, his call 2026-11-16); 0, the fallback: sv_phys.c's SV_WalkMove and QuakeC's PlayerPreThink, as before
 QVR_CVAR(vr_pmove_trace, "0", CVAR_NONE)           // debug, tests: 1 each server frame prints the players' walk state after their physics ("pmtrace: ..."), to compare two runs frame by frame (B11b)
@@ -738,10 +741,16 @@ QVR_CVAR(vr_foveated, "3", CVAR_ARCHIVE)               // fixed foveated renderi
 QVR_CVAR(vr_foveated_debug, "0", CVAR_NONE)            // show the shading rates (yellow 2x2, red 4x4) and vr_upscale_radius (cyan) in the eyes and the mirror
 // Eye-tracked foveation (ROUND25.md, "Quest Pro"): the full-rate region follows the eyes' gaze, not the lens centre
 // (XR_EXT_eye_gaze_interaction: Quest Pro via Virtual Desktop with eye tracking forwarded, Varjo, Vive Pro Eye...).
-// The extension is asked for at VR start: a change takes effect at the next one. Off by default until tried.
-QVR_CVAR(vr_foveated_gaze, "0", CVAR_ARCHIVE)
+// 1 (the default since his ask, 2026-11-21: "if we detect that eye tracking is available, we use it; if we don't, we
+// just foveate in the centre"): the extension asked for at VR start when the runtime offers it; the gaze used while
+// tracked, the lens centre otherwise (no tracker, a blink), frame by frame, nothing to restart. 0: never asked for (no
+// tracker started, no permission asked); set back to 1, it is used from the next VR start (the menu line says so).
+QVR_CVAR(vr_foveated_gaze, "1", CVAR_ARCHIVE)
 // Mock backend: a gaze "right up" in degrees from the head's forward ("": no eye tracking), for vr_foveated_gaze.
 QVR_CVAR(vr_mock_gaze, "", CVAR_NONE)
+// Mock backend: 1 it has an eye tracker (EyeTracking::Ready, vr_mock_gaze its gaze); 0 the runtime offers none
+// (NotOffered, no gaze): the foveation's fallback to the lens centre, switched live (vr_foveated_gaze_test).
+QVR_CVAR(vr_mock_eye_tracking, "1", CVAR_NONE)
 
 QVR_CVAR(vr_enabled, "0", CVAR_NONE)
 // No main hand setting (ROUND21.md, "Handedness: separate options"): the hands are the physical ones, and each thing
@@ -784,12 +793,17 @@ QVR_CVAR(vr_move_autorun_threshold, "0.9", CVAR_ARCHIVE)
 // the held buttons let go); when this is set to 0. 0 (the default): held, as Quake's.
 // (A player's ask, 2026-11-19: click the stick to sprint rather than hold it.)
 QVR_CVAR(vr_sprint_toggle, "0", CVAR_ARCHIVE)
-// 1: run by double-tapping the moving stick (vr_input.cpp doubleTapStep; a tester's idea, 2026-11-18): a quick push
+// Seconds after a stick click lets go during which a new press is the switch bouncing, not a click (vr_input.cpp
+// debounceStickClicks): his Quest controllers' takes (NOTES.md vrfiringrange_2026-11-21_00-23-29) show a let go
+// followed 11-44 ms later by a press of 11-33 ms, read as a second click (the sprint toggle switched twice); his real
+// clicks are 100 ms long or more, 367 ms apart at the least. Both sticks, every use of the click. 0: off.
+QVR_CVAR(vr_stick_click_debounce, "0.08", CVAR_ARCHIVE)
+// 1: the other speed by double-tapping the moving stick (vr_input.cpp doubleTapStep; a tester's idea, 2026-11-18): a quick push
 // (half its travel or more past the deadzone, let go within vr_move_doubletap_window seconds), let go (under a quarter of
-// its travel), and a push the same way (within 45 degrees) within the window again: running until the stick is let go
-// (or as the sprint toggle ends: death, the intermission, a new map, a menu). It runs whatever the speed button says:
-// running is the speed button's choice (held, or vr_sprint_toggle's switch, against the Default Speed) or this. The VR
-// stick's only (not keys, not a gamepad). 0 (the default): off.
+// its travel), and a push the same way (within 45 degrees) within the window again: the Default Speed's other (cl_alwaysrun 0:
+// running; 1: walking; his ask, 2026-11-21) until the stick is let go (or as the sprint toggle ends: death, the
+// intermission, a new map, a menu), whatever the speed button says. The VR stick's only (not keys, not a gamepad).
+// 0 (the default): off.
 QVR_CVAR(vr_move_doubletap, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_move_doubletap_window, "0.3", CVAR_ARCHIVE) // seconds: the first push's most, and the gap's
 // The least speed (units a second) a push just past the deadzone asks on the ground (vr_input.cpp moveMinSpeed): -1
@@ -2679,6 +2693,12 @@ QVR_CVAR(vr_revolver_open_flick_speed, "400", CVAR_ARCHIVE) // the flick open's 
 QVR_CVAR(vr_revolver_open_flick_angle, "120", CVAR_ARCHIVE) // and its wrist flick: degrees it must roll that way in one go
 QVR_CVAR(vr_revolver_close_flick_speed, "350", CVAR_ARCHIVE) // the flick shut (always on: the wrist rolled the other way, the cylinder swung home): its force, degrees a second
 QVR_CVAR(vr_revolver_close_flick_angle, "75", CVAR_ARCHIVE) // and its wrist flick, degrees
+// A melee swing is no flick (his note 2026-11-21: "if I'm doing a melee attack, I often open the cylinder"): the flick
+// open is refused while the gun's hand moves this fast (m/s, against his body; vr_melee_speed's blow is 3.2) and for
+// vr_revolver_open_swing_hold seconds after it last did, or after a blow of his landed (QC VR_Revolver_SwingGuard).
+// A deliberate flick, the wrist rolled with the arm near still, still opens it. 0: no guard.
+QVR_CVAR(vr_revolver_open_swing_speed, "2", CVAR_ARCHIVE)
+QVR_CVAR(vr_revolver_open_swing_hold, "0.35", CVAR_ARCHIVE) // seconds
 QVR_CVAR(vr_revolver_open_flick_time, "0.25", CVAR_ARCHIVE) // the flick open's time window: its wrist flick must be rolled within this many seconds of the flick's start (0: no limit)
 QVR_CVAR(vr_revolver_open_button, "1", CVAR_ARCHIVE) // B/Y (its eject button) swings the cylinder out; out, B/Y pushes the ejector
 QVR_CVAR(vr_revolver_close_button, "0", CVAR_ARCHIVE) // out, B/Y swings it home instead (an accessibility option: the shells then leave by the hand's push or the ejector rod alone)
@@ -4411,10 +4431,11 @@ QVR_CVAR(vr_flat_lean, "1", CVAR_ARCHIVE)             // flatscreen play: Q / E 
 QVR_CVAR(vr_flat_lean_toggle, "0", CVAR_ARCHIVE)        // the lean keys: 0 lean while held; 1 a press leans, the next press of the same key (or the other's) stands straight
 QVR_CVAR(vr_flat_lean_mouse, "1", CVAR_ARCHIVE)         // flatscreen play: 1 the mouse (and the stick, the gyro) turn the view along the screen as it is rolled -- leant, strafing, hit -- straight up is up the tilted screen; 0 Quake's yaw and pitch, the roll ignored (vr_flatmove.cpp VR_FlatLookTurn)
 QVR_CVAR(vr_flat_slide, "1", CVAR_ARCHIVE)              // flatscreen play: crouching while running faster than vr_flat_slide_min slides (vr_flat_slide_*; vr_flatmove.cpp); 0 off
-QVR_CVAR(vr_slide, "0", CVAR_ARCHIVE)                   // experimental: a headset slides too, the turning stick pulled straight down while running faster than vr_flat_slide_min (the flat slide's own: vr_flat_slide_*; vr_slide.cpp); 0 off (the stick's down is +movedown as ever)
+QVR_CVAR(vr_slide, "1", CVAR_ARCHIVE)                   // a headset slides too (on by default since his ask, 2026-11-21), the turning stick pulled straight down while running faster than vr_flat_slide_min (the flat slide's own: vr_flat_slide_*; vr_slide.cpp); 0 off (the stick's down is +movedown as ever)
 QVR_CVAR(vr_slide_stick_threshold, "0.85", CVAR_ARCHIVE) // vr_slide: how far down the turning stick must be pulled (0.5..0.99 of its reach), from the middle
 QVR_CVAR(vr_slide_stick_angle, "20", CVAR_ARCHIVE)      // vr_slide: within this many degrees of straight down (5..45; a turn swept round to it never counts)
 QVR_CVAR(vr_slide_body, "1", CVAR_ARCHIVE)              // vr_slide: the drawn body takes the flat slide's pose (the trunk leant back, the legs out in front); 0 none
+QVR_CVAR(vr_slide_legs, "1", CVAR_ARCHIVE)              // vr_slide_body: the hips and legs point the slide's way, the chest turned back to the tracked body's, as the flat slide's (vr_flat_slide_legs and its tunables; slide::legsTurnStep; his ask, 2026-11-21); 0 the legs face the tracked body
 QVR_CVAR(vr_slide_camera, "1", CVAR_ARCHIVE)            // vr_slide: the view (the head, eyes, hands and body with it) eases down to the flat slide's eye height while sliding and back up after, on top of the tracked head (vr_slide.cpp viewDrop); 0 the view stays at the real head
 QVR_CVAR(vr_slide_camera_time, "0.15", CVAR_ARCHIVE)    // vr_slide_camera: seconds (0.05..0.5) the view takes down and back up (95% of the way; critically damped, no overshoot)
 QVR_CVAR(vr_flat_speed_fov, "1", CVAR_ARCHIVE)          // flatscreen play: faster than the run along the floor (a slide, a bunny hop chain) the view widens, eased (vr_flat_speed_fov_*; vr_flatspeedfov.cpp); 0 off

@@ -1,0 +1,10 @@
+# vr_slide_legs: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". A headset's slide with the hips
+# and legs pointing the slide's way (vr_slide_legs, the flat slide's turn), the chest turned back to the body.
+title Sliding in VR: the legs point the way you slide
+map vrtesthall
+start 0 -288 25 90
+god
+notarget
+cvar vr_slide 1
+cvar vr_slide_legs 1
+hint Run ahead, pull the turning stick straight down to slide, then look left or right while you slide (or look at your body in a mirror or with the toolgun's camera): your hips and legs keep pointing the way you slide, your chest turns back to your body. Slide Legs Follow Slide (VR Settings > Locomotion) off: the legs face your body.

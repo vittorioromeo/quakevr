@@ -77,6 +77,7 @@ struct Drawn
     avatar::Skeleton skeleton;
     glm::vec3 handWrist[2]{glm::vec3{0.f}, glm::vec3{0.f}};
     float eyeHeight{0.f};
+    float eyeUnits{0.f}; // ... in world units, its feet to its eyes (eyeHeight at its world scale: a bot's, the default player's)
     bool seated{false};
     double posedAt{0.0}; // the server's time of the avatar it was posed from (interpolated: the time drawn; the report's)
     // His holstered weapons (B6b: as he drew them, body::Holster's order) and pauldrons on his body (his look).
@@ -266,8 +267,8 @@ void printAvatar(int e, const Avatar& a, bool hands)
         (void)avatar::otherPitch(e, pitch, lying, sliding);
         float climbWeight = 0.f;
         (void)avatar::otherClimb(e, climbWeight);
-        Con_Printf(" eyeheight=%.3f yaw=%.1f moves=%d pitch=%.1f lying=%.2f sliding=%.2f slide=%d climb=%.2f seated=%d posedat=%.3f\n",
-            d.eyeHeight, a.body.yaw, a.moves, pitch, lying, sliding, a.sliding ? 1 : 0, climbWeight, d.seated ? 1 : 0, d.posedAt);
+        Con_Printf(" eyeheight=%.3f eyeunits=%.1f yaw=%.1f moves=%d pitch=%.1f lying=%.2f sliding=%.2f slide=%d climb=%.2f seated=%d posedat=%.3f\n",
+            d.eyeHeight, d.eyeUnits, a.body.yaw, a.moves, pitch, lying, sliding, a.sliding ? 1 : 0, climbWeight, d.seated ? 1 : 0, d.posedAt);
         view::printPauldrons("mp_pauldron", e, d.pauldron);
         if(const view::ViewEntity* plate = d.plateReport >= 0 ? &d.plate[d.plateReport] : nullptr;
             plate && plate->visible && plate->ent.model && !d.plateBones[d.plateReport].empty())
@@ -747,9 +748,14 @@ void setupBody(int e, const Avatar& a, const glm::vec3& origin, const avatar::Do
     }
     else if(a.body.standingHeight > 0.5f)
     {
-        // (no calibration: his standing eye height as his body pose has it -- a bot's, its eyes over its feet, the
-        // server's: B11 part 3, part 3)
+        // (no calibration: his standing eye height as his body pose has it -- a bot's, the default player's, the
+        // server's: units::botEyeUnits)
         who.eyeHeight = za::min(a.body.standingHeight, calFields[calHeight].hi / 1000.f); // (mpfix C3: a guest's 30 m drew a giant)
+        if((a.hands[0].flags | a.hands[1].flags) & VrDrawnHand::solveBit)
+        {
+            // (a bot, at the default player's world scale: his notes 2026-11-21, bots drawn at scale 1 looked small)
+            who.metresToUnits = units::perMetre * units::defaultWorldScale();
+        }
     }
     // His velocity from his entity's last two messages; on the ground unless rising or falling fast (the client is not
     // told; a walk down stairs stays on its feet).
@@ -852,6 +858,7 @@ void setupBody(int e, const Avatar& a, const glm::vec3& origin, const avatar::Do
     d.handWrist[0] = poses[HAND_OFF].wrist;
     d.handWrist[1] = poses[HAND_MAIN].wrist;
     d.eyeHeight = who.eyeHeight;
+    d.eyeUnits = who.eyeHeight * who.metresToUnits;
     d.seated = who.seated;
     for(int i = Drawn::plateCount - 1; i >= 0; i--)
     {

@@ -2408,10 +2408,9 @@ void writeAvatars()
         {
             body.valid = true;
             body.yaw = ent->v.v_angle[1];
-            // (its own eye height, metres: its standing eyes over its feet -- the model's default drew it smaller than a
-            // human of the same box; B11 part 3, part 3. Standing: a dead bot's lowered view is not its height)
-            body.headHeight = body.standingHeight =
-                (static_cast<float>(DEFAULT_VIEWHEIGHT) - ent->v.mins[2]) / units::metresToUnits();
+            // (its eye height, metres: the default player's, drawn at the default world scale (units::botEyeUnits; his
+            // notes 2026-11-21: "the same height as the player"); a dead bot's lowered view is not its height)
+            body.headHeight = body.standingHeight = units::modelEyeHeight;
             for(int h = 0; h < 2; h++)
             {
                 VrDrawnHand& d = drawn[h];
@@ -2435,7 +2434,10 @@ void writeAvatars()
         MSG_WriteShort(&tmp, i + 1);
         MSG_WriteByte(&tmp, mpavatar::movesByte(ent, m && (m->move.vrBits0 & protocol::moveFlatplayBit) != 0));
         // (rebaseHands moves the head and its base along together)
-        writeEighths(&tmp, m ? m->move.headPos - m->base : v3(ent->v.view_ofs));
+        // (a bot's head: its eyes raised to the default player's height, units::botEyeRaise)
+        writeEighths(&tmp, m ? m->move.headPos - m->base
+                             : v3(ent->v.view_ofs) + glm::vec3{0.f, 0.f,
+                                   units::botEyeRaise(static_cast<float>(DEFAULT_VIEWHEIGHT) - ent->v.mins[2])});
         writeAngles16(&tmp, m ? m->move.headAngles : v3(ent->v.v_angle));
         writeBodyPose(&tmp, m ? m->move.body : body); // (his body's yaw, crouch and lean, as his client poses it: B2d)
         const VrDrawnHand* const hands = m ? m->move.drawn : drawn;

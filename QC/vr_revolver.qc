@@ -68,6 +68,7 @@ float RV_SWING = -95;        // the crane's swing out, degrees about the bore (+
 .float rvh_fot;     // the seconds since each flick began (the time window)
 .float rvh_fct;
 .float rvh_toggled; // when it last swung out or home
+.float rvh_swing;   // when its hand last moved at a swing's speed (VR_Revolver_SwingGuard)
 .float rvh_rod;     // until when its ejector rod is drawn pushed
 .float rvh_spun;    // its last swipe
 .float rvh_held_at; // the last time the other hand held anything (a shell) or a shell went in: no spin a moment after
@@ -737,9 +738,31 @@ float(entity h, float xRate, float xDt) VR_Revolver_FlickRate =
     return 0;
 };
 
+// A melee swing is no flick open (his note 2026-11-21: swinging the revolver to hit, he often opened its cylinder): TRUE
+// while the hand moves `xSpeed` m/s at vr_revolver_open_swing_speed or faster, for vr_revolver_open_swing_hold seconds
+// after it last did (the swing's slowing, its recoil) and after his last blow landed `xBlowAgo` seconds ago. Each frame
+// (VR_Revolver_ReloadFrame), the flick's own state stepped as ever. A deliberate flick (the wrist rolled, the arm near
+// still) still opens it; the flick home is never refused.
+float(entity h, float xSpeed, float xBlowAgo) VR_Revolver_SwingGuard =
+{
+    float fast = cvar_hget(cvarh_vr_revolver_open_swing_speed);
+    if(fast <= 0)
+    {
+        return FALSE;
+    }
+    float hold = max(0, cvar_hget(cvarh_vr_revolver_open_swing_hold));
+    if(xSpeed >= fast)
+    {
+        h.rvh_swing = time;
+        return TRUE;
+    }
+    return (h.rvh_swing > 0 && time < h.rvh_swing + hold) || (xBlowAgo >= 0 && xBlowAgo < hold);
+};
+
 // The hand `xHand` of self's wrist roll about its aim now (degrees a second, towards the cylinder's side: its left in the
 // right hand, its right in the left: the gun mirrored) and the flick it makes (VR_Revolver_FlickRate).
 float vr_rv_rollrate;
+float vr_rv_swingrefused; // flicks open refused as a swing's (the tests)
 float vr_rv_rollmax; // (the fastest roll seen, signed: the tests reset it)
 float vr_rv_turnrate; // how fast the hand turns now, about any axis (degrees a second; VR_Revolver_Push)
 float(entity h, float xHand) VR_Revolver_Flick =
@@ -960,6 +983,17 @@ void(float xHand, entity h, entity r) VR_Revolver_ReloadFrame =
     if(VRGet2HAiming(self))
     {
         flick = 0; // (both hands on it: the wrist's roll is the aim's)
+    }
+    float blowAgo = self.vr_blow_time > 0 ? time - self.vr_blow_time : -1;
+    if(VR_Revolver_SwingGuard(h, vlen(VRGetEntHandVel(self, xHand)), blowAgo) && flick > 0 && !r.wi_rv_open)
+    {
+        if(cvar_hget(cvarh_vr_reload_debug))
+        {
+            dprint(sprintf("revolver: %s refused: a melee swing (the hand at %.1f m/s)\n", vr_rv_lasthow,
+                vlen(VRGetEntHandVel(self, xHand))));
+        }
+        vr_rv_swingrefused = vr_rv_swingrefused + 1;
+        flick = 0;
     }
     if(time < h.rvh_toggled + 0.3 || h.rvh_fire_at > 0)
     {

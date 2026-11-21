@@ -319,7 +319,8 @@ struct BotPoseIn
     int wid[2]{0, 0};        // and its weapon id
     double now{0.0};         // the server's time
     double swingAt{-1e9};    // when its main hand's overhead swing began (the server's time)
-    float parry{0.f};        // its main hand's share of the parry's guard (0..1, the AI eases it)
+    float windup{0.f};       // seconds its swing is held raised at the top beyond a player's (its telegraph, by skill)
+    float parry{0.f};       // its main hand's share of the parry's guard (0..1, the AI eases it)
     float eyeHeight{1.75f};  // its standing eye height (metres): its arms' length with it
 };
 struct BotPoseOut

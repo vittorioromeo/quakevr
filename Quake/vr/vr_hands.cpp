@@ -946,6 +946,11 @@ void update()
                                                      t.hands[HAND_OFF].valid && t.hands[HAND_MAIN].valid))
                     : flatplay::active() ? state.bodyYaw
                                          : yaw;
+    // A headset's slide: the drawn hips and legs to the slide's way (vr_slide_legs; the avatar reads it).
+    if(vrActive())
+    {
+        slide::headsetLegs(state.bodyYaw);
+    }
 
     state.crouchRatio = state.headHeight > 0.f
                             ? CLAMP(0.f, units::eyeHeight() / state.headHeight - 1.f, 1.f)

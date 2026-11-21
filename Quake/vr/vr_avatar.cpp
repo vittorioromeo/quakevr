@@ -12,6 +12,7 @@
 #include "vr_selfcollide.hpp"
 #include "vr_engine.hpp"
 #include "vr_flatplay.hpp"
+#include "vr_slide.hpp"
 #include "vr_flatmove.hpp"
 #include "vr_flatsight.hpp"
 #include "vr_flattp.hpp"
@@ -434,8 +435,11 @@ void solveTorso(const hands::State& s, Body& b, float scale = 0.f, bool crouchPo
     b.floorZ = s.head.z - s.headHeight * detail::metresToUnits();
     const float standLift = legFit(s, b);
 
+    // A headset's slide (vr_slide_legs; slide::headsetLegs, the flat slide's turn): the hips and legs to the slide's
+    // way, the chest turned back to the tracked body's below (the local body only: the flat one turns its s.bodyYaw).
+    const bool headsetSlideLegs = crouchPose && !subject && !flatplay::active();
     glm::vec3 right, up;
-    hands::angleVectors({0.f, s.bodyYaw, 0.f}, b.fwd, right, up);
+    hands::angleVectors({0.f, s.bodyYaw + (headsetSlideLegs ? slide::headsetLegsOff() : 0.f), 0.f}, b.fwd, right, up);
     b.left = -right;
 
     glm::vec3 hf, hr, hu;
@@ -611,6 +615,21 @@ void solveTorso(const hands::State& s, Body& b, float scale = 0.f, bool crouchPo
         c.pos = sp.pos + torsoTurn * chestFromSpine;
         c.rot = torsoTurn * c.rot;
     }
+    // Sliding with the hips and legs to the slide's way (flatscreen play's vr_flat_slide_legs, flatplay::trunkTwist; a
+    // headset's vr_slide_legs, slide::headsetLegsTwist): the chest turned back to the view about the trunk, half of it
+    // in the spine.
+    const auto twistChest = [&](float twist)
+    {
+        // (Turned about the upright trunk, then leant back with it by the body's pitch: the chest's facing seen from
+        // above turns further, by 1 / cos(pitch). Less here, so that it faces the view.)
+        twist = glm::degrees(za::atan2(za::sin(glm::radians(twist)) * za::cos(glm::radians(bodyPitch.angle)), za::cos(glm::radians(twist))));
+        const glm::vec3 axis = safeNormalize(c.pos - p.pos, UP);
+        const glm::mat3 half = glm::mat3_cast(glm::angleAxis(glm::radians(0.5f * twist), axis));
+        const glm::vec3 fromSpine = c.pos - sp.pos;
+        sp.rot = half * sp.rot;
+        c.pos = sp.pos + half * fromSpine;
+        c.rot = half * half * c.rot;
+    };
     // Flatscreen play: the chest takes a share of the look's pitch, half of it in the spine below (flatplay::chestPitch), and leans
     // into a gun sighted in both hands (flatsight::stanceLean: the head stays, the collapsed neck spans it).
     if(crouchPose && localFlat())
@@ -623,20 +642,14 @@ void solveTorso(const hands::State& s, Body& b, float scale = 0.f, bool crouchPo
         sp.rot = spineTurn * sp.rot;
         c.pos = sp.pos + spineTurn * chestFromSpine;
         c.rot = bodyTurn(b, lean, 0.f, 0.f) * c.rot;
-        // Sliding with the hips and legs to the slide's way (vr_flat_slide_legs; flatplay::trunkTwist): the chest turned back
-        // to the view about the trunk, half of it in the spine.
-        if(float twist = flatplay::trunkTwist(); twist != 0.f)
+        if(const float twist = flatplay::trunkTwist(); twist != 0.f)
         {
-            // (Turned about the upright trunk, then leant back with it by the body's pitch: the chest's facing seen from
-            // above turns further, by 1 / cos(pitch). Less here, so that it faces the view.)
-            twist = glm::degrees(za::atan2(za::sin(glm::radians(twist)) * za::cos(glm::radians(bodyPitch.angle)), za::cos(glm::radians(twist))));
-            const glm::vec3 axis = safeNormalize(c.pos - p.pos, UP);
-            const glm::mat3 half = glm::mat3_cast(glm::angleAxis(glm::radians(0.5f * twist), axis));
-            const glm::vec3 fromSpine = c.pos - sp.pos;
-            sp.rot = half * sp.rot;
-            c.pos = sp.pos + half * fromSpine;
-            c.rot = half * half * c.rot;
+            twistChest(twist);
         }
+    }
+    if(const float twist = headsetSlideLegs ? slide::headsetLegsTwist() : 0.f; twist != 0.f)
+    {
+        twistChest(twist);
     }
     // adspose: on the sights, seen from outside, the chest pitched by a share of the look (half of it in the spine): the
     // shoulders go up and down with the gun, not left under it (vr_flat_seen_chest). Not in a slide (its trunk is straight).
