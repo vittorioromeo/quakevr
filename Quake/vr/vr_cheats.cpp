@@ -301,7 +301,11 @@ void hurt_f()
     G_INT(OFS_PARM1) = EDICT_TO_PROG(attacker);
     G_INT(OFS_PARM2) = EDICT_TO_PROG(attacker);
     G_FLOAT(OFS_PARM3) = static_cast<float>(Q_atof(Cmd_Argv(1)));
+    // (its wound, sounds and gore are broadcast: a command runs before the server frame, whose SV_ClearDatagram would
+    // drop them written to sv.datagram now; they open the next frame's)
+    server::commandBroadcastBegin();
     PR_ExecuteProgram(fn);
+    server::commandBroadcastEnd();
     Con_Printf("vr_hurt: %s at %.0f health%s\n", PR_GetString(player->v.netname), player->v.health,
         player->v.health <= 0.f ? ", dead" : "");
 }

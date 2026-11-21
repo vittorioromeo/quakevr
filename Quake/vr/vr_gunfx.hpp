@@ -79,8 +79,11 @@ void looseFrame();
 // model `model`, null for a monster's own gun of weapon `wid`).
 void enemyFired(int ent, const qmodel_t* model, int wid, const Muzzle& m);
 // Another player's shot (syncfix2): its sparks and smoke at his copy's weapon `w` (of slot `slot`), as a monster's
-// (vr_gunfx_enemies), from its drawn muzzle as yours.
-void otherFired(int ent, const view::ViewEntity& w, int slot);
+// (vr_gunfx_enemies), from its drawn muzzle as yours; his barrel in `hand` heats as yours would (syncfix5: otherBarrelHeat).
+void otherFired(int ent, const view::ViewEntity& w, int slot, int hand);
+// (syncfix5) Player `ent`'s barrel in `hand` if it holds weapon settings `slot` (else all 0): heated by his shots as they
+// come (QVR_SVC_FIRED), cooling as yours; lit and glowing on his copy's gun by vr_hotblade.cpp as yours are.
+[[nodiscard]] BarrelHeat otherBarrelHeat(int ent, int hand, int slot);
 
 // A casing thrown out of a shotgun's port at `at` going `dir` (vr_shells.cpp): the port's quick puff (`hot`: a flick
 // reload's, more).

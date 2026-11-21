@@ -1493,6 +1493,7 @@ def slide(s, flat=True):
     out in front), as B's own does. Flat B (mp_slide: +flatcrouch from a run), or a VR mock B (mp_slide_vr: vr_slide,
     the turning stick pulled down while running; his own body, a client of another server, poses no slide of its own:
     slide::headsetPose is the host's only)."""
+    s.client_sound = True  # (syncfix5: A hears B's slide: the sounds A started round him, vr_mp_near)
     srv, a, b, ea, eb = join(s, flat="B" if flat else "")
     put_at(srv, b, eb, OPEN_SPOT, 90)
     b.quiet(r"mp_(move|pos): ", 0.5, 20, "B at rest")
@@ -1505,10 +1506,15 @@ def slide(s, flat=True):
         c = body_of(reports(s, [a])[0], "mp_body").get(eb)
         if c and c["pelvis"][1] - OPEN_SPOT[1] >= 40.0:
             break
+    t0 = time.time()
     b.cmd("+flatcrouch" if flat else "vr_mock_stick main 0 -1")
     copy, own, n = slide_peaks(s, a, b, ea, eb, flat)
+    heard = near_counts(near_lines(a, eb, time.time() - t0 + 0.5))  # (syncfix5: the sounds A started at B since the press)
     b.cmd("-flatcrouch; -forward" if flat else "vr_mock_stick main 0 0; vr_mock_stick off 0 0")
     what = "flat B" if flat else "VR B"
+    s.check("%s slides: A hears it from him (the scuff and the scrape, from his copy's slide: syncfix5)" % what,
+            heard.get("sound:vr/slide_start.wav", 0) >= 1 and heard.get("sound:vr/slide_loop.wav", 0) >= 1,
+            "A's sounds round him: %s" % (sorted(k for k in heard if k.startswith("sound:")) or "-"))
     s.metric("slide_copy", copy[0])
     s.metric("slide_own", own[0])
     if flat:
@@ -5243,6 +5249,7 @@ def climb_each(s, srv, mover, watcher, em, ew, label):
         mover.cmd("vr_mock_play; -graboff; -grabmain")
         start = put_at(srv, mover, em, CLIMB_SPOT, 0)
         since = srv.mark()
+        t0 = time.time()
         play(s, mover, "overtop", overtop_play())
         for _ in range(80):
             at = org_of(status(srv), "mp_client", "slot", em - 1)
@@ -5255,12 +5262,20 @@ def climb_each(s, srv, mover, watcher, em, ew, label):
     mantled = wait_quietly(srv, r"climb: .*mantle", 1, since, "the server's mantle")
     s.check("%s: %s mantles onto the ledge (the server's: from %s to %s)" % (label, mover.name, start, top),
             top is not None, "the server's mantle line: %s" % (mantled[1].strip() if mantled else None))
+    # (syncfix5) His mantle's grunt is a server sound (climb::grunt, CHAN_VOICE): the watcher hears it from him.
+    heard = near_counts(near_lines(watcher, em, time.time() - t0 + 0.5))
+    grunts = ("player/plyrjmp8.wav", "player/land2.wav", "vr/derived/plyrjmp8_low.wav", "vr/derived/land2_low.wav",
+              "player/pain2.wav")  # (vr_climb.cpp mantleGrunts)
+    s.check("%s: %s's mantle grunt heard by %s from him (a server sound)" % (label, mover.name, watcher.name),
+            any(heard.get("sound:" + g, 0) for g in grunts),
+            "the watcher's sounds round him: %s" % (sorted(k for k in heard if k.startswith("sound:")) or "-"))
     mover.cmd("vr_mock_play; -graboff; -grabmain")
 
 
 def climb(s):
     """Climbing between players (MP_PLAN.md, B5c), on vrclimb (one start: A moved off it before B joins): B hangs from
     the ledge while A watches, lets go, mantles onto it; then A, B watching."""
+    s.client_sound = True  # (syncfix5: the watcher hears the mantle's grunt)
     srv, a, b, ea, eb = join(s, level="vrclimb", first=lambda srv, a, ea: put_at(srv, a, ea, CLIMB_WATCH,
                                                                                          CLIMB_WATCH_YAW))
     a.cmd("name A")
@@ -8945,16 +8960,17 @@ def near_lines(inst, ent, seconds):
 
 def near_counts(lines):
     """vr_mp_near's lines -> {"model:<name>" | "faded:<name>" (drawn see-through) | "glow:<name>" (a powerup's glow on
-    it) | "light:r<radius/10*10>" | "sound:<name>": count}."""
+    it) | "wounded:<name>" (a painted wounds mask on it, syncfix5) | "light:r<radius/10*10>" | "sound:<name>": count}."""
     c = {}
     for line in lines:
         line = line.strip()
         keys = []
-        m = re.match(r"mp_near_ent: whose=\S+ model=(\S+) d=\S+ alpha=(\d+) .* glow=(\S+)", line)
+        m = re.match(r"mp_near_ent: whose=\S+ model=(\S+) d=\S+ alpha=(\d+) .* glow=(\S+)(?: wound=(\d))?", line)
         if m:
             keys.append("model:" + m.group(1))
             keys += ["faded:" + m.group(1)] if 0 < int(m.group(2)) < 255 else []
             keys += ["glow:" + m.group(1)] if float(m.group(3)) != 0.0 else []
+            keys += ["wounded:" + m.group(1)] if m.group(4) == "1" else []
         m = re.match(r"mp_near_light: key=-?\d+ radius=(\d+)", line)
         keys += ["light:r%d" % (int(m.group(1)) // 10 * 10)] if m else []
         m = re.match(r"mp_near_snd: name=(\S+)", line)
@@ -9017,16 +9033,30 @@ def sync_cheat(impulse):
     return on
 
 
-def no_gap(prefix, drawn_only=False):
+def sync_hurt(s, srv, a, b, ea, eb):
+    """syncfix5: B hurt by A twice (vr_hurt 8, A the attacker: a blow's wound, QVR_SVC_WOUND, which every client gets):
+    his own body and hands painted (yours), and A's copy of him (the copy's capsules, the pool's masks)."""
+    # (syncfix6: vr_hurt's broadcast -- the wound -- now reaches the clients: a console command's sv.datagram writes were
+    # dropped by the frame's SV_ClearDatagram, server::commandBroadcastBegin/End; the row needs B's own wound too)
+    a.cmd("vr_wounds_debug 2")  # (their "wounds:" lines in the logs: what was received and painted where)
+    b.cmd("vr_wounds_debug 2")
+    for _ in range(2):
+        srv.cmd("vr_hurt 8 %d %d" % (eb - 1, ea))
+        sync_wait(srv, 0.4)
+    a.cmd("vr_wounds_debug 0")
+    b.cmd("vr_wounds_debug 0")
+
+
+def no_gap(prefix, drawn_only=False, need_own=False):
     """A synced row: nothing of `prefix` ("glow:", "faded:", "light:", ...) that B has of himself and A has not of him;
     and A has some (the probe did show it). `drawn_only`: only of the models A draws of him at all (a model he lacks is
-    another row's gap)."""
+    another row's gap). `need_own`: B must have some himself (else the probe showed nothing: a fail, not a pass)."""
     def check(gap, seen_added, seen, own):
         missing = sorted(k for k in gap if k.startswith(prefix) and
                          (not drawn_only or "model:" + k.split(":", 1)[1] in seen))
         got = sorted(k for k in seen_added if k.startswith(prefix))
         mine = any(k.startswith(prefix) for k in own)  # (B has none himself: a flat player's gadget, say)
-        return not missing and (bool(got) or not mine), "B only: %s; A has: %s%s" % (missing or "-", got or "-", "" if mine else " (B has none)")
+        return not missing and (bool(got) or not mine) and (mine or not need_own),"B only: %s; A has: %s%s" % (missing or "-", got or "-", "" if mine else " (B has none)")
     return check
 
 
@@ -9040,11 +9070,18 @@ SYNC_PROBES = (  # (name, B's action, its undo, the synced rows' checks); idle f
                                   ("the rounds in the ammo pouch", no_gap("model:vr_shell_live")),
                                   ("the gadget screen's glow", no_gap("light:r10")),
                                   ("the gadget screen's beam", no_gap("light:r30")))),
+    # (syncfix5; before the shot: vr_hurt's blow has no hit record of its own, and a shotgun's left over makes it a pellet's,
+    # whose wounds come by the pellets alone)
+    ("hurt", sync_hurt, None, (("blood on his copy", no_gap("wounded:", drawn_only=True, need_own=True)),)),
     # (they last the run: the probes after them compare against idle as before)
     ("quad", sync_cheat(190), None, (("Quad's glow on his copy", no_gap("glow:")), ("its hand lights", no_gap("light:r1")))),
     ("ring", sync_cheat(192), None, (("the ring's fade on his copy", no_gap("faded:", drawn_only=True)),)),
     ("punch", sync_punch, sync_punch_off, ()),
-    ("shoot", sync_shoot, None, (("his spent casings", no_gap("model:vr_shell.mdl")),)),  # (syncfix2: batch 3)
+    ("shoot", sync_shoot, None, (("his spent casings", no_gap("model:vr_shell.mdl")),  # (syncfix2: batch 3)
+                                 # (syncfix5: the auto pump's clacks, his ammo screen's light, his barrel's heat light)
+                                 ("the auto pump's clacks", no_gap("sound:vr/autopump")),
+                                 ("his ammo screen's light", no_gap("light:r20")),
+                                 ("his barrel's heat light", no_gap("light:r30")))),
     ("walk", sync_walk, sync_walk_off, ()),  # (last: B walks off his spot)
 )
 

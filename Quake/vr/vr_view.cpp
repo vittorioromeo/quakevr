@@ -1838,7 +1838,7 @@ bool holsterLive[HolsterCount]{};
 // front button, `front` (setupFrontButton); the screen queued when `queueText` (once a frame). `clip`: its clip if known
 // (a holstered gun's), else -1.
 void idleAttachments(const entity_t& e, bool mirrored, int slot, view::ViewEntity& button, view::ViewEntity& front, int clip,
-    int clipSize, bool queueText, bool total = true, const char* seenCvar = nullptr)
+    int clipSize, bool queueText, bool total = true, const char* seenCvar = nullptr, int lightPlayer = 0, int lightSide = 0)
 {
     const bool on = vr_weapon_screen_idle.value != 0.f && slot >= 0 && e.model && !isHandModel(e.model) &&
                     slot != weapons::fistSlot();
@@ -1899,6 +1899,11 @@ void idleAttachments(const entity_t& e, bool mirrored, int slot, view::ViewEntit
         }
         glm::vec3 tint{};
         const bool warn = idleAmmoWarning(e.model, clip, clipSize, tint, seenCvar); // (low or empty: vr_ammo_color_warn)
+        if(lightPlayer > 0 && vr_weapon_screen.value != 0.f)
+        {
+            // Another player's held gun (syncfix5): its faint glow as your held gun's (vr_weapon_screen_light).
+            emissive::otherWeaponScreenLight(lightPlayer, lightSide, pos, idleAttachmentAngles(drawn, slot, mirrored, angles));
+        }
         text3d::queue(idleWeaponText(e.model, clip, clipSize, total), pos, idleAttachmentAngles(drawn, slot, mirrored, angles),
             text3d::Align::Centre, 0.1f * weapons::value(slot, Key::WpnTextScale), vr_weapon_screen.value != 0.f,
             warn ? &tint : nullptr, &screenstyle::forModel(e.model ? e.model->name : nullptr, mirrored),
@@ -3599,7 +3604,7 @@ VrGunLook ownGunLook(int hand)
     return l;
 }
 
-void drawGunParts(ViewEntity& gun, const VrGunLook& look, GunParts& g, bool held, bool screen)
+void drawGunParts(ViewEntity& gun, const VrGunLook& look, GunParts& g, bool held, bool screen, int player, int side)
 {
     ViewEntity* const p = g.part;
     const qmodel_t* const model = gun.visible && look.has(VrGunLook::gunBit) ? gun.ent.model : nullptr;
@@ -3636,7 +3641,7 @@ void drawGunParts(ViewEntity& gun, const VrGunLook& look, GunParts& g, bool held
     // Its button and ammo screen (its clip), as a gun not in your hands carries them (idleAttachments).
     const int slot = model && screen ? weapons::slotForModel(model) : -1;
     idleAttachments(gun.ent, gun.mirrored, slot, p[GunParts::Button], p[GunParts::Front], look.clip, look.clipSize, slot >= 0,
-        false);
+        false, nullptr, held ? player : 0, side);
     g.inParts = parts;
     if(parts)
     {

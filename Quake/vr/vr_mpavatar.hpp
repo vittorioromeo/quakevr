@@ -119,6 +119,15 @@ void addEntities();
 // (bots4) Player entity `ent`'s copy was drawn last frame or this one (a client's Show Hit Zones: vr_hitmodel.cpp).
 [[nodiscard]] bool drawnNow(int ent);
 
+// (syncfix5) The models player entity `ent`'s copy is drawn with that his wounds are painted on (vr_wounds.cpp): `out` his
+// body and his two jointed hands ([1] off, [2] main; each null when not drawn), drawn last frame or this one; `doll` whether
+// they draw his dead body. False: no copy of him drawn now (`out` still his copy's three entities, for their masks).
+bool woundTargets(int ent, entity_t* out[3], bool& doll);
+
+// (syncfix5) The player (1..MAX_SCOREBOARD) whose copy's held weapon `e` is, its hand in `side`, else 0 (his hot barrel's
+// glow: vr_hotblade.cpp).
+[[nodiscard]] int weaponOwner(const entity_t* e, int& side);
+
 // A new connection: no avatars.
 void clear();
 

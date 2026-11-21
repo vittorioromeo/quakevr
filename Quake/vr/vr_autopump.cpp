@@ -15,6 +15,9 @@
 #include "vr_main.hpp"
 #include "vr_audio.hpp"
 #include "vr_geom.hpp"
+#include "vr_modelmetadata.hpp"
+#include "vr_mpavatar.hpp"
+#include "vr_view.hpp"
 
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
@@ -46,6 +49,9 @@ struct Stroke
 };
 
 Stroke strokes[2];
+// The other players' shotguns' strokes (syncfix5): from each one's shot (QVR_SVC_FIRED), timed as yours, their clacks
+// heard at his copy's gun (its fore-end drawn still).
+Stroke otherStrokes[MAX_SCOREBOARD + 1][2];
 sfx_t* backSound = nullptr;
 sfx_t* homeSound = nullptr;
 
@@ -111,6 +117,91 @@ void sound(sfx_t* sfx, const float (&where)[3])
 
 } // namespace
 
+namespace
+{
+void begin(Stroke& s)
+{
+    s = Stroke{};
+    s.shot = cl.time;
+    s.time = strokeTime();
+    s.start = cl.time + strokeDelay(s.time);
+    s.travel = strokeTravel();
+}
+
+// Stroke `s` this frame (`own`: your hand `hand`'s, its ticks and logs; else another player's, its clacks alone), its clacks
+// at `where` when `sounded` (the shotgun there).
+void step(Stroke& s, int hand, bool own, bool sounded, const float (&where)[3])
+{
+    if(s.start < 0.0)
+    {
+        return;
+    }
+    if(cl.time < s.shot || cl.time > s.start + s.time + 1.0)
+    {
+        s = Stroke{}; // (a time going back: a new map, a demo)
+        return;
+    }
+    if(cl.time < s.start)
+    {
+        return; // (the delay after the shot: vr_autopump_delay)
+    }
+    const float u = progress(s);
+    if(!s.backSounded)
+    {
+        s.backSounded = true;
+        if(sounded)
+        {
+            sound(backSound, where);
+        }
+    }
+    if(!s.rearLogged && u >= backPart)
+    {
+        s.rearLogged = true;
+        if(own && sounded)
+        {
+            tick(hand, 0.35f);
+        }
+        if(own && vr_debug_weaponfx.value)
+        {
+            Con_Printf("autopump hand %d back t %.3f (real %.3f; due %.3f), %.2f units\n", hand, cl.time, realtime,
+                s.start + s.time * backPart, position(u) * s.travel);
+        }
+    }
+    if(!s.homeSounded && cl.time >= s.start + s.time - homeSoundLead)
+    {
+        s.homeSounded = true;
+        if(sounded)
+        {
+            sound(homeSound, where);
+        }
+    }
+    if(!s.endLogged && u >= 1.f)
+    {
+        s.endLogged = true;
+        if(own && sounded)
+        {
+            tick(hand, 0.5f);
+        }
+        if(own && vr_debug_weaponfx.value)
+        {
+            Con_Printf("autopump hand %d home t %.3f (real %.3f; due %.3f)\n", hand, cl.time, realtime, s.start + s.time);
+        }
+    }
+}
+} // namespace
+
+void otherFired(int ent, int hand)
+{
+    if(ent > 0 && ent <= MAX_SCOREBOARD && (hand == HAND_OFF || hand == HAND_MAIN))
+    {
+        begin(otherStrokes[ent][hand]);
+        if(vr_debug_weaponfx.value)
+        {
+            Con_Printf("autopump player %d hand %d start t %.3f\n", ent, hand, otherStrokes[ent][hand].start);
+        }
+    }
+}
+
 void fired(int hand)
 {
     if(hand != HAND_OFF && hand != HAND_MAIN)
@@ -118,11 +209,7 @@ void fired(int hand)
         return;
     }
     Stroke& s = strokes[hand];
-    s = Stroke{};
-    s.shot = cl.time;
-    s.time = strokeTime();
-    s.start = cl.time + strokeDelay(s.time);
-    s.travel = strokeTravel();
+    begin(s);
     animrec::event("pump", hand, va("auto: back from %.2f s to %.2f s after the shot", s.start - s.shot,
         s.start - s.shot + s.time)); // (recorded while the animation recorder runs)
     if(vr_debug_weaponfx.value)
@@ -166,62 +253,24 @@ void frame(const bool (&isShotgun)[2], const float (&where)[2][3])
 {
     for(int hand = 0; hand < 2; hand++)
     {
-        Stroke& s = strokes[hand];
-        if(s.start < 0.0)
+        step(strokes[hand], hand, true, isShotgun[hand], where[hand]);
+    }
+    // The other players' (syncfix5): at his copy's gun while it is drawn (still a shotgun: the shot's own model check).
+    for(int ent = 1; ent <= MAX_SCOREBOARD; ent++)
+    {
+        for(int hand = 0; hand < 2; hand++)
         {
-            continue;
-        }
-        if(cl.time < s.shot || cl.time > s.start + s.time + 1.0)
-        {
-            s = Stroke{}; // (a time going back: a new map, a demo)
-            continue;
-        }
-        if(cl.time < s.start)
-        {
-            continue; // (the delay after the shot: vr_autopump_delay)
-        }
-        const float u = progress(s);
-        if(!s.backSounded)
-        {
-            s.backSounded = true;
-            if(isShotgun[hand])
+            Stroke& s = otherStrokes[ent][hand];
+            if(s.start < 0.0)
             {
-                sound(backSound, where[hand]);
+                continue;
             }
-        }
-        if(!s.rearLogged && u >= backPart)
-        {
-            s.rearLogged = true;
-            if(isShotgun[hand])
-            {
-                tick(hand, 0.35f);
-            }
-            if(vr_debug_weaponfx.value)
-            {
-                Con_Printf("autopump hand %d back t %.3f (real %.3f; due %.3f), %.2f units\n", hand, cl.time, realtime,
-                    s.start + s.time * backPart, position(u) * s.travel);
-            }
-        }
-        if(!s.homeSounded && cl.time >= s.start + s.time - homeSoundLead)
-        {
-            s.homeSounded = true;
-            if(isShotgun[hand])
-            {
-                sound(homeSound, where[hand]);
-            }
-        }
-        if(!s.endLogged && u >= 1.f)
-        {
-            s.endLogged = true;
-            if(isShotgun[hand])
-            {
-                tick(hand, 0.5f);
-            }
-            if(vr_debug_weaponfx.value)
-            {
-                Con_Printf("autopump hand %d home t %.3f (real %.3f; due %.3f)\n", hand, cl.time, realtime,
-                    s.start + s.time);
-            }
+            const view::ViewEntity* w = mpavatar::drawnWeapon(ent, hand);
+            const bool shotgun = w && w->ent.model && w->ent.model->type == mod_alias &&
+                                 modelmeta::is(w->ent.model, modelmeta::Id::VShot);
+            const glm::vec3 p = shotgun ? view::modelPoint(*w, glm::vec3{24.f, 0.f, 3.f}) : glm::vec3{0.f}; // (its fore-end's middle)
+            const float at[3] = {p.x, p.y, p.z};
+            step(s, hand, false, shotgun, at);
         }
     }
 }
@@ -237,6 +286,13 @@ void clear()
     for(Stroke& s : strokes)
     {
         s = Stroke{};
+    }
+    for(auto& player : otherStrokes)
+    {
+        for(Stroke& s : player)
+        {
+            s = Stroke{};
+        }
     }
 }
 

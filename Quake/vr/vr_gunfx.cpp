@@ -178,6 +178,17 @@ struct HandState
 };
 HandState hands[2];
 
+// The other players' barrels (syncfix5): heated by their shots (QVR_SVC_FIRED), cooling as yours (otherBarrelHeat).
+struct OtherHeat
+{
+    int slot{-1};
+    Kind kind{Kind::None};
+    float heat{0.f};
+    double lastShot{-1.0};
+    double lastCool{-1.0}; // cl.time it was cooled to
+};
+OtherHeat otherHeats[MAX_SCOREBOARD + 1][2];
+
 za::FastNonCryptoRng rng{0x9E3779B97F4A7C15ull}; // (visual only)
 
 // A shot's muzzle sparks and frontal smoke as the player set them: Weapon Effects > Gunfire Particles' multipliers times
@@ -863,6 +874,16 @@ constexpr float kHeatWispsFrom = 0.3f;
     return time > 0.f ? za::max(0.f, heat - cooling / time) : 0.f;
 }
 
+// Another player's barrel cooled to now (syncfix5): the frames since it was last, as one (the cooling is linear).
+void coolOther(OtherHeat& o)
+{
+    if(o.lastCool >= 0.0 && cl.time > o.lastCool && o.heat > 0.f)
+    {
+        o.heat = heatCool(o.heat, o.kind, o.slot, static_cast<float>(cl.time - o.lastShot), static_cast<float>(cl.time - o.lastCool));
+    }
+    o.lastCool = cl.time;
+}
+
 // The glow's strength at `heat` (0 none; Glow Strength at full heat).
 [[nodiscard]] float heatGlow(float heat)
 {
@@ -1283,6 +1304,27 @@ void playerFired(int hand)
     }
 }
 
+BarrelHeat otherBarrelHeat(int ent, int hand, int slot)
+{
+    BarrelHeat b;
+    if(ent <= 0 || ent > MAX_SCOREBOARD || hand < 0 || hand >= 2 || slot < 0 || !on(vr_gunfx) || !on(vr_gunfx_heat) ||
+        !on(vr_gunfx_enemies))
+    {
+        return b;
+    }
+    OtherHeat& o = otherHeats[ent][hand];
+    coolOther(o);
+    if(o.slot != slot || o.heat <= 0.f)
+    {
+        return b;
+    }
+    b.heat = o.heat;
+    b.share = za::clamp((b.heat - kHeatGlowFrom) / (1.f - kHeatGlowFrom), 0.f, 1.f);
+    b.glow = heatGlow(b.heat);
+    b.color = glm::mix(glm::vec3{0.8f, 0.12f, 0.03f}, glm::vec3{1.f, 0.42f, 0.1f}, b.share); // (as yours: barrelHeat)
+    return b;
+}
+
 BarrelHeat barrelHeat(int hand, int slot)
 {
     BarrelHeat b;
@@ -1406,7 +1448,7 @@ void enemyFired(int ent, const qmodel_t* model, int wid, const Muzzle& m)
     shot(id, m, 2 + ent, false, false, slotOf(id, model));
 }
 
-void otherFired(int ent, const view::ViewEntity& w, int slot)
+void otherFired(int ent, const view::ViewEntity& w, int slot, int hand)
 {
     if(!on(vr_gunfx_enemies) || !w.visible || !w.ent.model)
     {
@@ -1417,6 +1459,19 @@ void otherFired(int ent, const view::ViewEntity& w, int slot)
     if(kindOf(wid) == Kind::None || !muzzleOf(w, slot, m))
     {
         return;
+    }
+    if(ent > 0 && ent <= MAX_SCOREBOARD && hand >= 0 && hand < 2)
+    {
+        OtherHeat& o = otherHeats[ent][hand];
+        coolOther(o);
+        if(o.slot != slot)
+        {
+            o = OtherHeat{};
+            o.slot = slot;
+        }
+        o.kind = kindOf(wid);
+        o.heat = za::min(o.heat + heatShot(o.kind, slot), 1.f);
+        o.lastShot = o.lastCool = cl.time;
     }
     m.gunLength = 1.1f * units::metresToUnits();
     const bool ports = wid == WID_SHOTGUN || wid == WID_SUPER_SHOTGUN; // (their casings' own puffs: vr_shells.cpp)
@@ -1463,6 +1518,13 @@ void clear()
     for(HandState& h : hands)
     {
         h = HandState{};
+    }
+    for(auto& player : otherHeats)
+    {
+        for(OtherHeat& o : player)
+        {
+            o = OtherHeat{};
+        }
     }
     for(LooseGun& l : looseGuns)
     {
