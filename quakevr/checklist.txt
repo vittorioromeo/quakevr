@@ -73,6 +73,7 @@ Two players: look at the other player standing still; his holster sheaths, wrist
 Add a coop bot (impulse 100) and look at it: its holster sheaths are drawn on its body, with the weapons it carries in them.
 Two players: look at the other player's ammo pouch while he holds the shotgun; its shells are drawn in it and go down as he reloads from it; his wrist gadget's screen lights his hand and forearm faintly.
 Two players: the other player fires the shotgun near you; you see the flash, sparks and smoke at his gun's muzzle and the spent shell thrown out of its port, falling and tinking on the floor.
+Coop, as a client: throw a crate while ragdolls are moving nearby; it flies smoothly, no steps or jumps
 
 [4. Flat screen]
 Flat-screen: walk forward into the tutorial's rung ladder (lesson 3): your hands take the rungs and you climb hand over hand at a steady pace, and climb over the top onto the platform. {test:flat_ladder}
