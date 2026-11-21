@@ -1,0 +1,155 @@
+# make_vrbrushholes_map.py -- writes quakevr/maps/vrbrushholes.map, a test hall for the hole blockers (vr_hull_holes,
+# Quake/vr/vr_hull_holes.cpp; HULLS.md "Holes"): gaps Quake's 32 box never fit but a 16-wide one does. With --compile
+# builds it (qbsp, vis, light) and copies the .bsp/.lit/.lux beside it. quakevr_dev.wad textures only.
+#
+#   python Misc/quakevr/make_vrbrushholes_map.py [--compile] [--tools DIR] [--work DIR]
+#
+# One hall (2048 x 1536, 320 high; floor z 0; north = +y). The player starts at (0, -600) facing north. The places
+# (vr_hull_holes_test's coordinates: keep them in step):
+#   - west: a pit (x -768..-568, y -64..136, 128 deep) under a grate (bars 8 wide every 32 both ways, z -8..0: holes 24);
+#   - north-west: a wall (y 256..272) with a doorway (x -352..-200, 128 high) closed by a bar gate (a func_door, up,
+#     targetname "gate" so it stays shut: four bars 8 wide at y 260..268, gaps 24, the first by the wall);
+#   - east: a raised block (z 128; x 256..640, y -320..96) with a lift shaft (x 448..588, y -96..44) and a func_plat
+#     (x 448..568, y -96..24, top z 128, targetname "lift" so it stays up): 20-unit slots east and north of it;
+#     stairs up the block's south side;
+#   - north-east: a row of pillars (16 wide, 24 apart, y 448..464, x 160..576, 192 high).
+import argparse
+import os
+import shutil
+import subprocess
+import sys
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.normpath(os.path.join(HERE, "..", ".."))
+DEFAULT_TOOLS = "C:/OHWorkspace/ericw-tools-2.0.0-alpha11-win64"
+NAME = "vrbrushholes"
+OUT = os.path.join(ROOT, "quakevr", "maps", NAME + ".map")
+
+
+def box(x0, y0, z0, x1, y1, z1, tex, top=None):
+    top = top or tex
+    return "\n".join([
+        "{",
+        f"( {x0} {y0} {z0} ) ( {x0} {y0+1} {z0} ) ( {x0} {y0} {z0+1} ) {tex} [ 0 -1 0 0 ] [ 0 0 -1 0 ] 0 1 1",
+        f"( {x0} {y0} {z0} ) ( {x0} {y0} {z0+1} ) ( {x0+1} {y0} {z0} ) {tex} [ 1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1",
+        f"( {x0} {y0} {z0} ) ( {x0+1} {y0} {z0} ) ( {x0} {y0+1} {z0} ) {tex} [ -1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1",
+        f"( {x1} {y1} {z1} ) ( {x1} {y1+1} {z1} ) ( {x1+1} {y1} {z1} ) {top} [ 1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1",
+        f"( {x1} {y1} {z1} ) ( {x1+1} {y1} {z1} ) ( {x1} {y1} {z1+1} ) {tex} [ -1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1",
+        f"( {x1} {y1} {z1} ) ( {x1} {y1} {z1+1} ) ( {x1} {y1+1} {z1} ) {tex} [ 0 1 0 0 ] [ 0 0 -1 0 ] 0 1 1",
+        "}"])
+
+
+def entity(keys, brushes=()):
+    return "{\n" + "".join(f'"{k}" "{v}"\n' for k, v in keys.items()) + "".join(b + "\n" for b in brushes) + "}"
+
+
+B = []
+E = []
+WALL, FLOOR, TRIM, PANEL = "qvr_wall", "qvr_floor", "qvr_trim", "qvr_panel"
+
+
+def board(text, x, y, z, angle, scale="0.35"):
+    E.append(entity({"classname": "func_worldtext_banner", "worldtext": text.replace("\n", "\\n"), "worldtext_halign": "1",
+                     "worldtext_scale": scale, "angle": str(angle), "origin": f"{x} {y} {z}"}))
+
+
+X0, X1, Y0, Y1, Z1, ZB = -1024, 1024, -768, 768, 320, -144
+B.append(box(X0 - 16, Y0 - 16, Z1, X1 + 16, Y1 + 16, Z1 + 16, "qvr_ceiling"))
+B.append(box(X0 - 16, Y0 - 16, ZB, X0, Y1 + 16, Z1, WALL))
+B.append(box(X1, Y0 - 16, ZB, X1 + 16, Y1 + 16, Z1, WALL))
+B.append(box(X0, Y0 - 16, ZB, X1, Y0, Z1, WALL))
+B.append(box(X0, Y1, ZB, X1, Y1 + 16, Z1, WALL))
+
+# ---- the floor, thick, with the grate's pit cut out (x -768..-568, y -64..136, floor z -128)
+PX0, PX1, PY0, PY1 = -768, -568, -64, 136
+B.append(box(X0, Y0, ZB, PX0, Y1, 0, WALL, FLOOR))
+B.append(box(PX1, Y0, ZB, X1, Y1, 0, WALL, FLOOR))
+B.append(box(PX0, Y0, ZB, PX1, PY0, 0, WALL, FLOOR))
+B.append(box(PX0, PY1, ZB, PX1, Y1, 0, WALL, FLOOR))
+B.append(box(PX0, PY0, ZB, PX1, PY1, -128, WALL, FLOOR))
+for k in range(7):  # bars 8 wide every 32 both ways: holes 24
+    B.append(box(PX0 + 32 * k, PY0, -8, PX0 + 32 * k + 8, PY1, 0, TRIM))
+    B.append(box(PX0, PY0 + 32 * k, -8, PX1, PY0 + 32 * k + 8, 0, TRIM))
+board("GRATE: 24-UNIT HOLES\nyou walk over it; nothing falls through", -668, -100, 64, 270)
+
+# ---- the bar gate: a wall at y 256..272 with a doorway x -352..-200 (128 high); the gate's bars at y 260..268
+GW0, GW1, GY0, GY1 = -352, -200, 256, 272
+B.append(box(X0, GY0, 0, GW0, GY1, Z1, WALL))
+B.append(box(GW1, GY0, 0, -64, GY1, Z1, WALL))
+B.append(box(GW0, GY0, 128, GW1, GY1, Z1, WALL))
+bars = [box(GW0 + 24 + 32 * k, 260, 0, GW0 + 32 + 32 * k, 268, 128, TRIM) for k in range(4)]
+E.append(entity({"classname": "func_door", "angle": "-1", "targetname": "gate", "speed": "100", "lip": "8"}, bars))
+board("BAR GATE: 24-UNIT GAPS\nnothing slips between the bars", -276, 240, 150, 270)
+
+# ---- the lift: a raised block (z 128) with a shaft; the plat leaves 20-unit slots east and north
+LX0, LX1, LY0, LY1 = 256, 640, -320, 96
+SX0, SX1, SY0, SY1 = 448, 588, -96, 44
+B.append(box(LX0, LY0, 0, SX0, LY1, 128, WALL, FLOOR))
+B.append(box(SX1, LY0, 0, LX1, LY1, 128, WALL, FLOOR))
+B.append(box(SX0, LY0, 0, SX1, SY0, 128, WALL, FLOOR))
+B.append(box(SX0, SY1, 0, SX1, LY1, 128, WALL, FLOOR))
+for k in range(1, 8):  # stairs up the block's south side (16-unit risers, 32 treads), x 256..384
+    B.append(box(LX0, LY0 - 32 * (8 - k), 0, LX0 + 128, LY0 - 32 * (7 - k), 16 * k, WALL, FLOOR))
+E.append(entity({"classname": "func_plat", "targetname": "lift", "height": "120", "speed": "150"},
+                [box(SX0, SY0, 120, 568, 24, 128, TRIM, PANEL)]))
+board("LIFT EDGE: 20-UNIT SLOTS\nyou cannot drop down beside the lift", 512, -330, 190, 270)
+
+# ---- the pillars: 16 wide, 24 apart
+for k in range(11):
+    B.append(box(160 + 40 * k, 448, 0, 176 + 40 * k, 464, 192, WALL))
+board("PILLARS: 24-UNIT GAPS\nnothing slips between them", 368, 440, 220, 270)
+
+# ---- player, lights
+E.append(entity({"classname": "info_player_start", "origin": "0 -600 24", "angle": "90"}))
+LAMPS = [(x, y) for x in range(-896, 897, 256) for y in range(-640, 641, 256)]
+for (x, y) in LAMPS:
+    B.append(box(x - 48, y - 8, Z1 - 4, x + 48, y + 8, Z1, "qvr_light"))
+    E.append(entity({"classname": "light", "origin": f"{x} {y} {Z1 - 40}", "light": "220", "wait": "0.6", "_color": "1 0.96 0.9"}))
+for (x, y, z) in ((-668, 36, -60), (520, -30, 60), (-276, 300, 64), (-276, 200, 64)):
+    E.append(entity({"classname": "light", "origin": f"{x} {y} {z}", "light": "150", "wait": "0.7"}))
+
+
+def write(path):
+    with open(path, "w", newline="\n") as f:
+        f.write('// Game: Quake VR\n// Format: Valve\n// Written by Misc/quakevr/make_vrbrushholes_map.py: edit that, not this.\n'
+                '// entity 0\n{\n"classname" "worldspawn"\n"mapversion" "220"\n'
+                '"wad" "quakevr/wads/quakevr_dev.wad"\n"_tb_mod" "hipnotic;rogue;quakevr"\n'
+                '"message" "Hole Blockers"\n"worldtype" "2"\n"light" "60"\n"_vr_debris" "0"\n"_qvr_prelit" "1"\n')
+        f.write("\n".join(B) + "\n}\n")
+        for i, e in enumerate(E):
+            f.write(f"// entity {i + 1}\n{e}\n")
+
+
+def compile_map(tools, work):
+    os.makedirs(work, exist_ok=True)
+    src = os.path.join(work, NAME + ".map")
+    bsp = os.path.join(work, NAME + ".bsp")
+    shutil.copyfile(OUT, src)
+    for cmd in ([os.path.join(tools, "qbsp.exe"), "-nolog", "-nopercent", "-wadpath", ROOT, src, bsp],
+                [os.path.join(tools, "vis.exe"), "-nolog", "-nopercent", bsp],
+                [os.path.join(tools, "light.exe"), "-nolog", "-nopercent", "-extra4", "-dirt", "-bounce", "-lit", "-lux",
+                 "-lightgrid", "-lightgrid_dist", "32", "32", "32", bsp]):
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        lines = (result.stdout + result.stderr).splitlines()
+        warnings = [l for l in lines if "WARNING" in l.upper() or "ERROR" in l.upper() or "LEAK" in l.upper()]
+        print(f"{os.path.basename(cmd[0])}: exit {result.returncode}" + "".join("\n  " + w for w in warnings[:12]))
+        if result.returncode:
+            sys.exit(1)
+    for ext in (".bsp", ".lit", ".lux"):
+        shutil.copyfile(os.path.join(work, NAME + ext), os.path.join(os.path.dirname(OUT), NAME + ext))
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--compile", action="store_true")
+    parser.add_argument("--tools", default=DEFAULT_TOOLS)
+    parser.add_argument("--work", default=os.path.join(ROOT, "scratch", NAME + "_build"))
+    args = parser.parse_args()
+    write(OUT)
+    print(f"wrote {OUT}: {len(B)} brushes, {len(E)} entities")
+    if args.compile:
+        compile_map(args.tools, args.work)
+
+
+if __name__ == "__main__":
+    main()

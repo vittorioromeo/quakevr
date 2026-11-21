@@ -6951,6 +6951,37 @@ it); an in-game indication of whether the chosen port is forwarded.
   (mode 0 was 0.86 and 0.47 before the fix: FAIL), a shell from the ammo pouch, a magazine from it seated in the nailgun,
   a grenade from the grenade pouch. Checklist scene `pouchbody` (Only Hands, the shotgun and the nailgun, ammo).
 
+## brushholes: invisible blockers in the gaps Quake's box never fit (branch agent/brushholes, 2026-11-21)
+
+The author's note: grates, gates, pillars and lifts let the narrower boxes (yours at 16, narrow monsters') pass or fall
+through. At map load, `Quake/vr/vr_hull_holes.cpp` finds every gap narrower than 32 between two solids facing each
+other along x or y: within the world, within each solid func_* model, and between the world and a func_wall or a
+door's or lift's whole travel. It adds blocker brushes there, to the compiled trees only (not hull 0: shots, sight and
+the navmesh don't have them). Quake's box could never hold a point of such a gap, so nothing Quake allowed changes,
+and you still stop 8 units from walls, bars and pillars. How it works, what is kept out (gaps under 8; world blockers
+that hull 1 lets Quake's box reach into, from AD's non-colliding detail) and the census are in HULLS.md, "Holes".
+
+- Setting: `vr_hull_holes` 1 (Movement > Player Hitbox > Close Gaps Quake's Box Never Fit; it takes effect at the next
+  map load). `keyOf`'s buildVersion went from 2 to 3, so every map's trees are compiled once again; the blockers are kept
+  for a reload and are inside the disk-cached trees.
+- Aids (Debug > Tests > Player Hitbox): `vr_hull_holes_census`, `vr_hull_holes_near`, `vr_hull_holes_test`.
+- Test: `vr_hull_holes_test` on the new `maps/vrbrushholes` (`Misc/quakevr/make_vrbrushholes_map.py`: a grate over a
+  pit, a bar gate, a lift held up with 20-unit slots, pillars 24 apart). The player's box and a grunt's at
+  `vr_mhull_army 16`: 15/0 with the setting on (stopped, and 8 units from the bars, the pillars and a wall) and 15/0 as
+  `brushholes_off` with it off (they pass, so the scene really has holes). Checklist scenes: `brushholes_grate`,
+  `brushholes_gate`, `brushholes_lift`, `brushholes_pillars` (runall 4 OK).
+- Follow-up (the coordinator and the author): the drop test is now exact. Every centre of Quake's box that would
+  reach a blocker by 2 units goes down hull 1's tree at once, for the world's blockers and the models' own, erring
+  toward dropping. The search uses a 64-unit grid, and the checks and the brush models run on the pool. The debug view
+  is Debug > Show Gap Blockers (`vr_hull_holes_show`, `vr_hull_holes_show_range` 1024): world cyan, with brush models
+  yellow, models' own magenta, dropped red, the counts in front of you. Scene `brushholes_show`.
+- Census: id1 (38 maps) 8,018 world blockers, search at most 53 ms; Quoth (6) 3,533; AD (26) 103,707, at most 0.5 s
+  (ad_tears, was 1.6 s). Quake's box reaches none, on any of the 70 maps.
+- Checks: `vr_hull_holes_test` 15/0 on and 15/0 off; 5 scenes OK; `vr_nav_cliptest` and `vr_nav_toptest` pass on e1m1
+  and e4m7; a 60 s hull walk on e1m2 had 0 stuck; run_test_suite changelevel_signon, held_over_props, slider_step,
+  slopes and turned_box pass, teleporters_chase flaky (known).
+- Open: ad_tears' search time (slanted cells; coarser ones leave gaps open); func_trains' gaps with the world (only their own gaps are closed); a func_wall that is
+  killtargeted is left out of the world's pairs (its blockers would stay behind).
 ## humrepl: AD's and Quoth's humanoid variants as armed humanoids; recolours by weapon (branch agent/humrepl, 2026-11-21)
 
 - **His ask (2026-11-21):** the expansions' hardcoded humanoid variants as the closest armed humanoid with the matching
