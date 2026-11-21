@@ -1859,6 +1859,59 @@ compositor's picture at each `C4Z CAP` marker), `c4z_play.sh` (C4n's play sessio
 - New APK built from this branch (the two fixes; `build-android/apk/QuakeVR.apk`): native 0 warnings, check_apk 20/0;
   not installed (his call / the coordinator's). PC: dev build 0 warnings.
 
+## 6zl. questopt: next merged, body tracking standalone, the world's GPU cost and the resolution (2026-11-21; adb, unworn)
+
+His worn session of 11-21 (`kit scratch/quest_perf_1121`): 61.3 FPS over 515 s, GPU over budget in 32% of frames,
+"world_brush" the top hitch cause; FBT's elbows untracked standalone (tracked on the PC through Virtual Desktop).
+Method (`scratch/qo_*`): `qo_world.sh` (e1m1's places, the scale fixed, monsters frozen, the body off, switches one at a
+time, with `ovrgpuprofiler -r` metrics alongside: `qo_gp.sh`, `qo_gpsplit.py`), `qo_trace.sh` (render-stage trace of
+a still view), `qo_fight.sh` (C4v's frozen fight on HIS config, the variants interleaved 3 times), `qo_rec.py` /
+`qo_rec2.py` (his recording by map, and by lit/unlit world and dynamic lights). Every run `-noconfigwrite`; his config
+exported first (`scratch/qo_backup/export/ironwail.cfg`, md5 8a6c9282); the APK installed with `install -r`.
+- **next merged** (170 commits: no conflicts). PC dev 0 warnings; scenario_check PASS, load_models_test 4/0,
+  gles_render_test 21/0. APK native 0 warnings, check_apk 20/0.
+- **Body tracking's cause**: the manifest declared no body tracking permission or feature, so the headset's runtime
+  made no tracker (`dumpsys package`: none requested). This OS knows `com.oculus.permission.BODY_TRACKING` (granted at
+  install) and `com.meta.permission.FOCUSED_BODY_TRACKING` (run time, "dangerous"). **Fix**: both declared plus the
+  `com.oculus.software.body_tracking` feature (optional; vr-only lines, check_apk counts 7), the grant asked for on its
+  own thread before the tracker is made (the older name first: no dialog where it is granted at install; else the
+  dialog). Headset: `tracker made (full body, 84 joints, high fidelity asked for)`, extensions fb/fullbody/fidelity/
+  calibration 1, system 1. Unworn: 0 joints valid, calibration reset -2 (the runtime gives a body only when worn).
+  **Worn check waiting on him** (also Settings > Movement tracking > Body tracking on).
+- **What "world_brush" is on the headset**: a tiler's timer queries inside a binned pass measure the pass, so the
+  recorder's world_brush holds what the eye's main pass draws (the world, the body drawn first inside its scope, the
+  models, the particles), not the world alone. The render-stage trace (hall, 0.55): each eye 7 surfaces at 924x968
+  (3 bins of 960x352), the main pass 1.39-1.46 ms, the eye ~2.3 ms, the frame ~5 ms; no surface drawn twice.
+- **The culling audit** (the code and the switches; GPU ms a frame, 0.55, monsters frozen, body off):
+
+  | finding | measured |
+  |---|---|
+  | PVS per eye (Mod_LeafPVS of each eye's leaf; the fat PVS only near water) | `r_novis 1`: world +0.6 to +2.0 ms (pool 2.93 -> 4.94), 15-20% more triangles: vis works |
+  | frustum (each eye's own 4 planes) and backface culling, per eye on the GPU (cull_mark compute) | in place; no eye draws the other's |
+  | visibility mask (the lenses' hidden area) | `vr_visibility_mask 0`: +0.3 to +1.0 ms at 3 of 4 places: it helps |
+  | the window mirror (`vr_mirror 1` in his config) | its passes are empty (0.01 ms, the 4128x2208 surface): no cost (C4h) |
+  | PBR (`vr_pbr 1`) on the world | within noise (bridge 2.35/2.31, hall 3.39/3.04, pool 2.93/3.31; fight 3.91/3.69): with vr_normalmaps 0 its companions are not sampled. No cut made |
+  | dynamic lights in a frozen 9-monster fight (his config: body, rig lights, torches 2) | span 5.6 ms; body 0, rig lights 0, torches 0, r_dynamic 0 each within 0.3 ms; all models off 3.6 ms |
+  | textures | mip levels used (1.5-2% non-base), GL_NEAREST_MIPMAP_LINEAR, anisotropy 1; MSAA off (a must: C4e) |
+  | engine foveation `vr_foveated 3` | does nothing on Adreno ("GL_NV_shading_rate_image not available"); runtime foveation `vr_xr_foveation 0` |
+
+- **The resolution**: the runtime's recommended eye is 1680x1760 (the panel 2064x2208); his `vr_render_scale 0.9` is
+  1512x1584, and dynamic resolution's floor 0.55 is 924x968. **In his session e1m1 sat at the floor in 86% of its
+  frames** (vrarena 43%, vrstart 78%): that is the low resolution he sees. At the floor e1m1's GPU was still 14 ms
+  (p50) and 28 ms (p95): the scale cannot go up. The frames split by the world's light (`qo_rec2.py`): with 5-6
+  dynamic lights reaching the walls (the lit world: 72% of e1m1's frames) the main pass 8.5 ms and the span 13.9-16.8
+  ms at 0.55; with none reaching (unlit) 3.9-5.1 ms and the span 7.3-9.2 ms at 0.60-0.65. The static places and the frozen fight cost
+  4.4-5.9 ms at 0.55 (72 Hz held, 13.9-14.2 ms periods): his live play costs 2.5-3x more than anything frozen.
+  **Native resolution at 72 Hz**: the hall's still view at 0.55 is ~2.3 ms an eye; scaled by pixels (x3.3 at 1.0, x2.7
+  at 0.9) ~15 ms at 1.0 and ~12.4 ms at 0.9 for both eyes: even a still view needs the per-pixel cost about halved for
+  1.0, and live play ~5x.
+- **Not cut here** (no measured win to take): PBR off on the world, the lights. The live play's extra cost was not
+  reproduced by any frozen scene (unworn: the scripted pose and frozen monsters miss it).
+- **Armed humanoids' CPU**: not measured here (the recorder has no per-subsystem scopes for pose solves, arm IK, disarm
+  hulls, strike sweeps or ragdolls; his session: SV_Physics 2.0 ms mean, p99 7.2; view_entities 0.9, p99 5.0).
+- The Android Gradle Plugin download: approved by him 2026-11-21 (build-time, under F:/QuakeVRDev or ~/.gradle); not
+  needed this round (`package_apk.sh` packages without it).
+
 ## 7. Installs (done 2026-11-14 at his approval, by the coordinator)
 
 Installed under `F:\QuakeVRDev` (`env.sh` / `env.ps1` there set `JAVA_HOME`, `ANDROID_HOME`, `ANDROID_SDK_ROOT`,
@@ -1902,4 +1955,4 @@ Sizes are approximate download sizes [I]; versions are the current stable ones a
 
 Also: a Quest 3 (or 3S) in developer mode (Meta Horizon app, an organisation account), a USB-C cable.
 
-Next phase: C5a (after 6zk) — the headset needed, no installs beyond our APK (the new one from this branch, his or the coordinator's install): check the two 6zk fixes there (vr_quest_check's lines before a +map's load; foveation's full-resolution area on the eye's centre at dynres below its ceiling, `vr_gl_foveation 3`, with plain textures); split the right eye's ~2 ms over the left in e1m2's fight (6zk: the split targets allocated at the dynres ceiling and drawn smaller, the sub-image rect per frame; A/B `vr_eye_targets_split 0`, `vr_dynres 0` at a fixed 0.7, `vr_eye_subimage 0`); a shared-context compile thread for the queued shader set (Adreno has no parallel compile: frames of up to 1.1 s while compiling); multiplayer over loopback on the headset (a listen server and a bot; no microphone); then C4z's leftovers: the frozen live fight (`c4y_frozen.sh`), the models' fragment shading (varyings, instance-buffer reads), the audio mix off the render thread (6zh). Still open from before: C2h, Adreno's wrong derivatives with the retro code out (NORETRO). Waiting on his call: the Android Gradle Plugin download (section 7), the armed humanoids' CPU cost (section 6d), shadowless dynamic lights on the Quest (6w), SpaceWarp (`XR_FB_space_warp`), his look call on `vr_rig_lights_world 0`.
+Next phase: C5b (after 6zl) — the headset worn by him, no installs: (1) body tracking's elbows with the new APK (Settings > Movement tracking > Body tracking on; `vr_bodytrack_status` and the Body Tracking page); (2) live play recorded with `vr_perf_record` while switching `vr_rig_lights_world 0`, `vr_torch_lights 0`, `vr_body_mode 0` (Debug menu), to find what makes live play 2.5-3x a frozen fight's GPU (the lit world: 8.5 vs 4.4 ms); then per-scope GPU times that a tiler can give (a scope per binned pass, or ovrgpuprofiler's draw-call trace in a worn session); runtime foveation (`vr_xr_foveation`) and SpaceWarp (`XR_FB_space_warp`) for the resolution. Then 6zk's C5a items. Still open from before: C2h, NORETRO. Waiting on his call: the armed humanoids' CPU cost (section 6d), SpaceWarp, his look call on `vr_rig_lights_world 0`. Decided 2026-11-21: dynamic lights stay shadowless under the Quest preset; the Android Gradle Plugin download approved.

@@ -7379,3 +7379,14 @@ Branch `agent/reliefs`. His choice of 2026-11-21: PBRify's CC0 models as ONNX, r
 - **Not done / differences.** JPG replacements are not decoded (no relief for them); comparison packs' authored maps
   (`--authored`) do not apply to these mods. The window itself was not run (no GUI here): the Options row and the
   step's progress want a look in Setup.
+
+## Quest standalone: body tracking's permission, the world's GPU cost (questopt, 2026-11-21; branch agent/quest)
+
+- Body tracking on the Quest itself: the APK declared no body tracking permission, so the runtime made no tracker
+  (the PC through Virtual Desktop needs none). The manifest now declares `com.oculus.permission.BODY_TRACKING`,
+  `com.meta.permission.FOCUSED_BODY_TRACKING` and the optional `com.oculus.software.body_tracking` feature;
+  `vr_bodytrack_xr.cpp` asks for the grant on its own thread (Android only) before making the tracker. The headset
+  (unworn) now makes the full-body tracker. PC unchanged.
+- The world's GPU cost and the culling audit: QUEST_PLAN.md 6zl (PVS, frustum, backface and the visibility mask work;
+  PBR costs nothing measurable; dynamic resolution sat at its floor in 86% of his e1m1 frames; the recorder's
+  world_brush is the eye's whole main pass on a tiler).
