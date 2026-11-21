@@ -170,6 +170,59 @@ void escape()
 
 InputState previous; // last frame's input
 
+// A stick click's switch bouncing (vr_stick_click_debounce): a press within that many seconds of the click's letting go
+// (or of a bounce's) is swallowed whole, its letting go too, so the game, the menu gestures and every tool see one click
+// (his takes: let go, then 11-44 ms later a press of 11-33 ms; the sprint toggle switched twice, 2026-11-21). A press
+// still held past the window is a press then. Before everything else reads the buttons (update), live or a take's.
+struct ClickDebounce
+{
+    bool held{false};        // the click as passed on
+    bool bouncing{false};    // a press being swallowed
+    double releasedAt{-1e9}; // realtime the click (or its last bounce) let go
+    int bounces{0};          // swallowed so far (vr_debug_buttons, the test)
+    int presses{0};          // passed on so far (the test: its key, bound to +speed or the like)
+};
+ClickDebounce clickDebounce[HAND_COUNT];
+
+void debounceStickClicks(InputState& in)
+{
+    const double window = CLAMP(0.0, static_cast<double>(vr_stick_click_debounce.value), 0.25);
+    for(int h = 0; h < HAND_COUNT; h++)
+    {
+        ClickDebounce& d = clickDebounce[h];
+        const bool raw = in.hands[h].stickClick;
+        if(raw && !d.held)
+        {
+            if(realtime - d.releasedAt < window)
+            {
+                if(!d.bouncing)
+                {
+                    d.bounces++;
+                    if(vr_debug_buttons.value)
+                    {
+                        Con_Printf("button: %s stick click bounced %.0f ms after letting go (vr_stick_click_debounce): ignored\n",
+                            h == HAND_MAIN ? "main" : "off", (realtime - d.releasedAt) * 1000.0);
+                    }
+                }
+                d.bouncing = true;
+            }
+            else
+            {
+                d.held = true;
+                d.bouncing = false;
+                d.presses++;
+            }
+        }
+        else if(!raw && (d.held || d.bouncing))
+        {
+            d.held = false;
+            d.bouncing = false;
+            d.releasedAt = realtime;
+        }
+        in.hands[h].stickClick = d.held;
+    }
+}
+
 void menuButton(int hand, bool now, bool before, const char* source)
 {
     if(!now || before)
@@ -787,8 +840,10 @@ void doubleTapTest_f()
     }
     if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "state"))
     {
-        Con_Printf("doubletap state %s: running %d phase %d speed %.0f\n", Cmd_Argc() > 2 ? Cmd_Argv(2) : "",
-            doubleTap.phase == DoubleTap::Running ? 1 : 0, static_cast<int>(doubleTap.phase), static_cast<double>(lastStickSpeed));
+        Con_Printf("doubletap state %s: running %d phase %d speed %.0f toggle %d presses %d bounces %d\n",
+            Cmd_Argc() > 2 ? Cmd_Argv(2) : "", doubleTap.phase == DoubleTap::Running ? 1 : 0,
+            static_cast<int>(doubleTap.phase), static_cast<double>(lastStickSpeed), sprintToggle.on ? 1 : 0, clickDebounce[HAND_OFF].presses,
+            clickDebounce[HAND_OFF].bounces + clickDebounce[HAND_MAIN].bounces);
         return;
     }
     const float window = vr_move_doubletap_window.value;
@@ -2189,7 +2244,8 @@ void update(const InputState& tracked)
 {
     // Without VR, everything is released (keys held when the session ends must come up).
     const bool active = vrActive();
-    const InputState& raw = active ? tracked : released;
+    InputState raw = active ? tracked : released;
+    debounceStickClicks(raw);
     // Doom on the wrist gadget with the focus takes the gadget hand's stick and buttons (its menu button stays Quake's):
     // Quake sees them let go meanwhile (vr_doom.hpp).
     InputState masked;

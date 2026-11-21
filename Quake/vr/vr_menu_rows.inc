@@ -2502,6 +2502,9 @@ QVR_CYCLE(vr_sprint_toggle, "Speed Button",
     "Speed: Run. Toggle: click it to switch, click again to switch back; it switches back by itself when you "
     "stop, die, change level or open the menu (vr_sprint_toggle).",
     {0.f, "Hold"}, {1.f, "Toggle"})
+QVR_SLIDER(vr_stick_click_debounce, "Stick Click Debounce", 0.f, 0.15f, 0.01f, "%.2f s", ext(0.f, 0.25f),
+    "A stick click pressed again this soon after letting go is the switch bouncing and is ignored, so one click "
+    "never counts twice (the speed toggle switching back at once). 0: off (vr_stick_click_debounce).")
 QVR_TOGGLE(vr_move_doubletap, "Double-Tap Stick to Run",
     "On: push the moving stick twice quickly the same way (push, let go, push again) to run until you let it go back "
     "to the middle. Works beside the speed button: either one makes you run (vr_move_doubletap).")

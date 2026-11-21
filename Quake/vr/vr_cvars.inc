@@ -784,6 +784,11 @@ QVR_CVAR(vr_move_autorun_threshold, "0.9", CVAR_ARCHIVE)
 // the held buttons let go); when this is set to 0. 0 (the default): held, as Quake's.
 // (A player's ask, 2026-11-19: click the stick to sprint rather than hold it.)
 QVR_CVAR(vr_sprint_toggle, "0", CVAR_ARCHIVE)
+// Seconds after a stick click lets go during which a new press is the switch bouncing, not a click (vr_input.cpp
+// debounceStickClicks): his Quest controllers' takes (NOTES.md vrfiringrange_2026-11-21_00-23-29) show a let go
+// followed 11-44 ms later by a press of 11-33 ms, read as a second click (the sprint toggle switched twice); his real
+// clicks are 100 ms long or more, 367 ms apart at the least. Both sticks, every use of the click. 0: off.
+QVR_CVAR(vr_stick_click_debounce, "0.08", CVAR_ARCHIVE)
 // 1: run by double-tapping the moving stick (vr_input.cpp doubleTapStep; a tester's idea, 2026-11-18): a quick push
 // (half its travel or more past the deadzone, let go within vr_move_doubletap_window seconds), let go (under a quarter of
 // its travel), and a push the same way (within 45 degrees) within the window again: running until the stick is let go

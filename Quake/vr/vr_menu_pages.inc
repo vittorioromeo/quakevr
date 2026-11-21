@@ -330,6 +330,7 @@ void resetFlatKeys()
         row(opt::cl_forwardspeed),
         row(opt::cl_alwaysrun),
         row(opt::vr_sprint_toggle),
+        row(opt::vr_stick_click_debounce),
         row(opt::vr_move_doubletap),
         row(opt::vr_move_doubletap_window),
         row(opt::cl_movespeedkey),
