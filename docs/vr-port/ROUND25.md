@@ -6761,3 +6761,24 @@ SelectSpawnPoint ... Host_Spawn_f".
   ranger after a respawn".
 - Checks: Dev and ThinLTO builds 0 warnings; mp_test suite --only mp_coop,mp_pickup,mp_rejoin,mp_dm: 12/0, 10/0,
   19/0, 27/0 (netsafe 14/0); dwell_maps.sh 28/0, dwgate 10/0. Not run: the whole mp suite, scenario_check (budget).
+
+## mpbugs4: mpbugs3 made shippable; a respawned player's old body drawn as him (mpbugs4, 2026-11-21, `agent/mpbugs3`)
+
+- **The checks mpbugs3 skipped** (VR_DeathDrops runs only in deathmatch and coop: PlayerDie's `(deathmatch || coop)`;
+  single player's deaths drop nothing, unchanged): scenario_check PASS (150 run, 0 failed); `vr_dm_test 21` now also
+  holsters a shotgun with 3 rounds (guns keep their magazine: the record moves with the drop), 20/0 in deathmatch and in
+  coop; `vr_agrunt_test 215` in coop 2/0; `vr_pickup_test 12` (every weapon through a save) 352/0; dwell_weapons_test
+  9/0 (vr_ad_test 204, 213); plasma_ball_test 6/0 (an AD upgrade's record). `vr_pickup_test 15` fails one check ("a
+  grunt in reach: it swings the dagger": 12/1, twice) with no death in it: the bots' telegraphed swing (`bots`,
+  bot_fight.qc, 2026-11-21) came after its 13/0, not this branch. mp_test plain suite: 64 tests passed, mp_teleport,
+  mp_melee and mp_loss each failed 1-2 checks under the suite's load and passed alone (10/0, 30/0, 16/0). Dev and
+  ThinLTO builds 0 warnings.
+- **Old bodies after a respawn** (fixed): 8 doll slots past the players' in vr_mpavatar.cpp (`firstDollSlot`,
+  `avatar::dollSlots`, `Drawn::owner`); `assignDollSlots` gives the bodies in sight, nearest first, their owner's own
+  slot while he is dead, else the doll slot they had, else a free one (its posed state forgotten:
+  `avatar::forgetOther`); the ninth and farther are the ranger. The posed body's state (`avatar::poseOther`'s
+  `others[]`, now `avatar::otherKeys` long) is keyed by the slot; calibration, look and armour by the owner; a doll has
+  no torch, its power-up lights none. `mp_doll` lines carry `slot=`. `mp_deathbody` 23/0: after B respawns, A (the
+  host: doll slot 17) and B (a client: his own slot) still draw B's old body as B's build. MP_PLAN.md, "Still the
+  ranger after a respawn".
+- **The avatar's own ragdoll rig**: left as the plan in MP_PLAN.md (not built).
