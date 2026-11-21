@@ -2044,9 +2044,10 @@ constexpr LadderCase ladderCases[] = {
 // the pillar's south face, its trigger_ladder brush 25..39 x, -659..-657 y, 641..895 z. AD's ad_test3: its ladder's
 // brush -495..-465 x, -103..-73 y, 225..327 z (facing east).
 constexpr LadderCase quothLadderCases[] = {
-    // (Its ladder stands free, non-solid, a player clip 22 units behind it: he hangs in it, so no push-off case. Lowered
-    // off its top: not yet, the catwalk's lip is 40 units past it.)
+    // (Its ladder stands free, non-solid, a player clip 22 units behind it: he hangs in it, so no push-off case. Its top
+    // is the catwalk's edge, 20 units past it.)
     {"Quoth's kellbase1 ladder, up and over the top", LadderKind::Up, 32.f, -664.f, 664.f, 90.f, -1e9f, 640.f, 896.f, -658.f, true},
+    {"Quoth's kellbase1 ladder, down from its top", LadderKind::Down, 17.f, -619.f, 920.f, 90.f, -1e9f, 640.f, 896.f, -658.f, true},
     {"Quoth's kellbase1 ladder, down looking down", LadderKind::LookDown, 32.f, -664.f, 664.f, 90.f, -1e9f, 640.f, 896.f, -658.f,
         true},
     // (Alone only, with vr_flat_ladder 0: Quoth's own climb, AD's jump ladder.)
@@ -2062,6 +2063,16 @@ constexpr LadderCase adLadderCases[] = {
         -496.f, true},
 };
 
+// AD's ad_e1m1: its wall ladder's trigger_ladder brush 2497..2559 x, -303..-297 y, 1..159 z (facing north).
+constexpr LadderCase adE1m1LadderCases[] = {
+    {"AD's ad_e1m1 ladder, up and over the top", LadderKind::Up, 2528.f, -318.f, 25.f, 90.f, -1e9f, 0.f, 160.f, -300.f, true},
+    {"AD's ad_e1m1 ladder, down from its top", LadderKind::Down, 2528.f, -264.f, 184.f, 90.f, -1e9f, 0.f, 160.f, -300.f, true},
+    {"AD's ad_e1m1 ladder, down looking down", LadderKind::LookDown, 2528.f, -318.f, 25.f, 90.f, -1e9f, 0.f, 160.f, -300.f, true},
+    // (Alone only, with vr_flat_ladder 0: AD's own climb.)
+    {"AD's ad_e1m1 ladder, vr_flat_ladder 0: jump climbs it", LadderKind::Fallback, 2528.f, -312.f, 25.f, 90.f, -1e9f, 0.f, 160.f,
+        -300.f, true},
+};
+
 struct LadderMap
 {
     const char* map;
@@ -2072,6 +2083,7 @@ constexpr LadderMap ladderMaps[] = {
     {"vrtutorial", ladderCases, static_cast<int>(sizeof(ladderCases) / sizeof(ladderCases[0]))},
     {"kellbase1", quothLadderCases, static_cast<int>(sizeof(quothLadderCases) / sizeof(quothLadderCases[0]))},
     {"ad_test3", adLadderCases, static_cast<int>(sizeof(adLadderCases) / sizeof(adLadderCases[0]))},
+    {"ad_e1m1", adE1m1LadderCases, static_cast<int>(sizeof(adE1m1LadderCases) / sizeof(adE1m1LadderCases[0]))},
 };
 
 [[nodiscard]] const LadderMap* ladderMapNow()
