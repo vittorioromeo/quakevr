@@ -1,0 +1,5 @@
+# hub_start: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title Quake's start map, nothing set: a place to start from (menus, set-up, campaigns, start-up)
+map start
+god
+notarget

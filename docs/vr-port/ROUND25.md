@@ -7029,3 +7029,40 @@ it); an in-game indication of whether the chosen port is forwarded.
 - **Test:** `Misc/quakevr/ragdoll/shove_blood_test.sh` 3/0: an unhurt grunt shoved down bled 0 frames; one shot 3 s
   before the shove 0 (was 220); one shot 2 frames before the shove 106. `stagger_test.sh steady` (grunt, 3 each) PASS.
 - **Checklist scenes:** `noclip_fly`, `shove_no_blood` (`vr_scenario runall`: 2 run, 0 failed).
+
+## checklist2: ticked lines retired, a Test scene on every line, multiplayer scenes with bots (agent/checklist2, 2026-11-21)
+
+His words (2026-11-21): retire the ticked items, give every line at least a minimal Test scenario, and a way to test MP
+lines from the checklist: a local MP session with a bot that stays still and isn't hostile (disarm in MP).
+
+- **Retired:** 18 lines ticked in his checklist_ticks.txt with no voice note since (the newest notes are 00:47 today,
+  before the last sort): the reorganized-checklist line, 6 Dwell (pack monsters, Rotary reload, Rifle screen, music
+  per campaign, runes and portals, props, Kamikaze, Brute ragdoll, Lance pole, Rotary gauntlet), Quoth's e1m1quoth,
+  the 3 flat ladder lines and flat hip-fire through a gate, Discord status, Search "recoil". Kept though ticked: the
+  Sliding line and the Dwell start/d1m1 line (his voice notes on them: legs during a slide; stuck in the Sculptor).
+  Scenes only they used moved to scratch (dwell_rifle, dwell_lance_pole, dwell_rotary_gauntlet, expbugs_props,
+  expbugs_kamikaze, expbugs_brute, flat_ladder, flat_gate_hipfire). The [New] section's 5 lines sorted (pouchbody to
+  Weapons, noclip_fly to VR movement, shove_no_blood and the two humrepl lines to Armed humanoids); 106 lines.
+- **Every line tagged** (78 newly; 106 lines, 44 scenes used). New minimal scenes, none
+  with a `hint` so each line's text floats: `hub_start` (start, nothing set: installer, start-up, menus, Quoth maps),
+  `shotgun_hall`, `agrunts_fight`, `ogre_hall`, `monsters_unaware`, `dwell_monsters`, `dwell_bosses`,
+  `dwell_sculptor`, `dwell_items`, `dwell_grunt_pickup`; existing ones reused (dwell_vrmodels, arena_run).
+  `checklist_tests_check.py` now FAILS an untagged line (also in `--lines`, so a ship's lines need a tag) and checks
+  the new directives.
+- **Multiplayer scenes** (Quake/vr/vr_scenario.cpp; TESTING.md, "Checklist scenarios"): `mp coop|dm` loads the map as
+  a local 4-slot game (`vr_scenario slots`, set while no server runs: maxplayers' slots without its `listen 1`, so no
+  socket is opened; the slots before come back with the next single-player scene or once no game runs; deathmatch and
+  coop put back with the scene's settings). `bot passive|active <fwd> <left> ["<weapon>" [main|off]]` adds a FrikBot
+  (QC ClientNextAvailable + BotConnect, as impulse 100) and puts it at its spot facing you, the toolgun weapon taken
+  into its hand (VR_ADMelee_Take). passive: vr_bot_freeze 1 and vr_bot_parry_chance 0 (stands, presses nothing, takes
+  hits; put back at its spot with its weapon when it respawns); active: a normal bot (coop teammate / dm hunter).
+  FrikBot's coop bot return (scratch1) is cleared at a scene's start: a returning bot took the slot of the scene's and
+  respawned it at the map's start. 12 scenes: mp_dm_passive, mp_dm_disarm, mp_dm_disarmviz, mp_dm_hitzones,
+  mp_dm_melee, mp_dm_hostile, mp_dm_navmesh, mp_dm_dagger, mp_coop_bot, mp_coop_passive, mp_coop_guns,
+  mp_coop_bodies; on the 41 multiplayer lines (two-player lines get the host's half; their second window stays
+  mp_local.ps1: an in-process scene has no second client).
+- **Tests:** `checklist_tests_check.py` 89 passed, 0 failed (106 of 106 lines tagged);
+  `--lines` with an untagged line: 1 problem, exit 1. The new scenes' runall (-loopbackonly): 24 run, 0 failed; every
+  passive bot moved 1 unit in 3 s with its weapon held (sword 13, shotgun 4), active ones 250-520. `scenario_check.sh`
+  (now -loopbackonly; SCNMP/SCNBOT) PASS: 169 run, 0 failed, 0 skipped. Dev and ThinLTO builds 0 warnings.
+- **Not covered by runall:** a passive bot's re-placing after a respawn (needs it killed: try it in VR in mp_dm_passive).

@@ -1,0 +1,9 @@
+# mp_dm_disarmviz: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title Deathmatch: two passive armed bots with Show Disarm Volumes on
+mp dm
+map dm3
+start 632 -648 88 0
+god
+cvar vr_debug_disarm 1
+bot passive 128 48 "Knight's Sword"
+bot passive 128 -48 "Shotgun"

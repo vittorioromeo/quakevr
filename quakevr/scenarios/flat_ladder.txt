@@ -1,8 +1,0 @@
-# flat_ladder: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Flat-screen (-flatscreenmode) ledge
-# ladders (vr_flat_ladder; Quake/vr/vr_climb.cpp flatLadder; docs/vr-port/FLATPLAY.md, "Ladders"): the tutorial's lesson 3 ladder.
-title Flat-screen ledge ladder: the tutorial's rung ladder
-map vrtutorial
-start 2900 704 25 0
-god
-notarget
-hint Play with -flatscreenmode. Walk forward into the ladder: your hands take its rungs and you climb hand over hand (third person shows them on the rungs), and over the top. Back off the top facing away from the drop: you are lowered onto it; back (or forward looking down) climbs down to the floor. Jump on it pushes you off. A plain wall or a single ledge never climbs.

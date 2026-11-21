@@ -1,0 +1,7 @@
+# ogre_hall: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title An ogre in the test hall, a sword in your hand
+map vrtesthall
+start 0 -288 25 90
+god
+give "Knight's Sword" main
+spawn "Ogre" 240 0
