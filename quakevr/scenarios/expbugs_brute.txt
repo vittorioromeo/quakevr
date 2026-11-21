@@ -1,0 +1,10 @@
+# expbugs_brute: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Dwell's Brute's ragdoll (his note
+# 2026-11-21: a triangle from his right hand to the cannon stretched across his arms; quakevr/rigs/mon_brute.rig.txt).
+# Needs Dwell installed.
+title Dwell's Brute: his ragdoll's arms
+map vrfiringrange
+god
+notarget
+spawn "Brute" 220 0
+give "Rocket Launcher" main
+hint Kill the Brute and look at his ragdoll as his arms part: the cannon stays whole on his left arm, and no thin triangle stretches from his right hand to it. Grab and pull his arms apart to check.
