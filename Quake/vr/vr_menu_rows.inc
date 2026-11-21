@@ -1150,7 +1150,8 @@ QVR_CYCLE(vr_nav_cache, "Navmeshes on Disk",
 QVR_CYCLE(vr_nav_debug, "Show Navmesh",
     "The monsters' navmesh drawn round you: its polygons by area (ground teal, water blue, slime green, lava orange, "
     "blocked by a door or lift red) and edges. Paths: also each chasing monster's path (yellow, its next corner a "
-    "white post) (vr_nav_debug).",
+    "white post). Either: the bots' navmesh walks (vr_bot_navmesh: magenta) and Follow the Next Player's path "
+    "(yellow), on a client too (vr_nav_debug).",
     {0.f, "Off"}, {1.f, "Navmesh"}, {2.f, "Navmesh and Paths"})
 QVR_SLIDER(vr_nav_debug_range, "Show Navmesh: Range", 256.f, 4096.f, 64.f, "%.0f", noExt,
     "Show Navmesh draws polygons this far from you (vr_nav_debug_range).")
