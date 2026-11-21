@@ -7171,6 +7171,40 @@ softlock in kellbase1 at (-8, -959.8, 664.1).
 - **Checklist scene:** `ad_mod_ladder` (ad_crucial's ladder; a scene named `mod_...` ran after one that left AD's
   folders: "no map").
 
+## testenv: why vrtrailer fails on v1.1.0 too -- the test's swing, written for old settings (2026-11-21, `agent/testenv`)
+
+- **Never a pass to reproduce since 11-10:** basefix1112 (11-12) already had it failing alone at 330f70409 ("passed in
+  the 11-07 lanes only"); release12's "both passed 3 of 3 on 2026-11-12" holds for weapon_catch, not vrtrailer. Not a
+  player-facing decap bug: the mock swing no longer matches the game's axe.
+- **What the test depends on that moved (all outside the test):** (1) `vrtrailer_swing.mock` (10-08) holds controller
+  poses worked out for vr_gunangle 39.5 / vr_gunyaw 4 / no hand calibration; the compiled defaults became 70 / 0 /
+  vr_handcal_* on 10-16 (37ecbacef), and vr_mock_play sets no settings, so the axe sat 30 degrees off. (2) The Super
+  Axe's blow line moved to its blade's edge on 11-10 (a1da23a80) and motion_synth's WEAPON_FAR for it was an estimate:
+  measured (developer 3 melee trace, controller level) the grip-to-far line is (0.237, -0.016, 0.140) m in the game
+  hand's frame, 23 degrees flatter than the estimate; the same vector at vr_gunangle 70 and 39.5 and at a 30-degree
+  controller pitch, so motion_synth's hand-offset model is right. (3) 11-10's head-zone path rule (VR_Decap_ZonePoint)
+  and the heavier head. Also: the agents' `ironwail.cfg.baseline` has vr_height_calibration 1.5474 (not the 1.646
+  default), and it carries every vr_wofs_* (8321 lines), so weapons.txt edits don't reach a test run unless the cfg
+  changes too.
+- **Changed:** `vrtrailer_swing.py` reads the hand settings' and world scale's compiled defaults from vr_cvars.inc,
+  works the poses out for them (ms.configure) and writes them as the mock's first line (`# settings: ...`; vr_mock_play
+  skips it); `vrtrailer_test.sh` sets that line before the map, so a config's own hand settings no longer turn the axe.
+  `--lead` (degrees the head's way is turned into the swing: in game the heavy head lags the hand 55 degrees at the old
+  0.16 s swing). motion_synth `WEAPON_FAR["superaxe"]` measured. Mock regenerated: reach 0.8, neck 0.3, 0.3 s, lead 45.
+- **Where it stands: 8 of 9.** The grunt dies (103.7, blades, melee) but "decap: no: along the blade, a stab (0.82) at
+  the head (0.63 along the blade)". Grid (reach:neck:duration:lead): 0.62-0.8 with the old 0.16 s strike with the
+  handle (f 0.11-0.46) as the lagging head trails; 0.5-0.75 slower ones miss (the head centre is about 1.0 m ahead
+  of the eye: 33 units at 31.5 units/m). A lateral path (`--lateral 1`: the hand nearly straight left at the reach,
+  the head ahead; a fully straight one held the axe into the grunt's box on the walk up and knocked it out of the
+  hand) does not behead either: reach 0.75-0.8 at neck 0.22-0.25 meets nothing, at neck 0.3 it strikes his body
+  (87.1, gibbed, no head judgement). The committed mock stays the closest (curved, reach 0.8, neck 0.3, 0.3 s, lead
+  45: killed, a stab at 0.63 along the blade). Stopped there (the coordinator: no widening); vrtrailer 3x, the
+  suites, scenario_check and the ThinLTO build not run (only the test's Python/shell and docs changed).
+  Scratch tools parked in `F:/QVR-Parked/2026-11-21/posebake_testenv/` (testenv_grid.sh, _probe.sh, _parse.py,
+  _measure.sh).
+- **Player-facing? Probably, for fast swings:** at the old 0.16 s swing the drawn axe's blow line trailed the
+  controller by about 55 degrees, so the handle reached the neck before the blade (f 0.11-0.46, "hilt or handle"); a
+  real fast flat swing likely reads the same. Not measured with real takes; not fixed here.
 ## humrepl2: the recolours dye only clothes and packs, keep the shading; the Texture Studio (branch agent/humrepl2, 2026-11-21)
 
 His verdict on phase 1: "The recolors look a bit unnatural and also affect the skin/faces of the enemies." The cause: a

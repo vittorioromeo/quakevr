@@ -395,9 +395,11 @@ WEAPON_FAR = {"axe": (0.155, -0.012, 0.209), "mjolnir": (0.159, -0.0025, 0.205),
               # The ogres' chainsaw, held by its rear handle: the bar's tip along the hand, 80.4 cm from it (vr_hotspot_fit;
               # its melee trace's far point turned into the hand's frame as the axe's is).
               "chainsaw": (0.769, -0.040, -0.032),
-              # Dawn of the Machine's Super Axe (held as the axe: its head's middle 15.4 model units further up the
-              # handle, 21.7 cm at Scale 0.34, along the axe's hand-to-head line; estimated, not measured).
-              "superaxe": (0.284, -0.022, 0.383)}
+              # Dawn of the Machine's Super Axe: its blow line's far end (the middle of its blade's edge since
+              # 2026-11-10, a1da23a80) from its grip, measured (developer 3's melee trace, the controller level, at
+              # vr_world_scale 1.2; the same at vr_gunangle 70 and 39.5, ROUND25.md "testenv"). It was an estimate
+              # on the handle's line at the head's middle, 23 degrees steeper (0.284, -0.022, 0.383).
+              "superaxe": (0.237, -0.016, 0.140)}
 
 
 def weapon_pose(hand, weapon, axis, right):
