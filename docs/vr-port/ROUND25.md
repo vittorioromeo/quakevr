@@ -6814,3 +6814,31 @@ Branch `agent/reliefs`. His choice of 2026-11-21: PBRify's CC0 models as ONNX, r
 - **Not done / differences.** JPG replacements are not decoded (no relief for them); comparison packs' authored maps
   (`--authored`) do not apply to these mods. The window itself was not run (no GUI here): the Options row and the
   step's progress want a look in Setup.
+
+## reliefs2: Setup finds an existing Quake VR folder and makes only its missing reliefs (reliefs2, 2026-11-21, `agent/reliefs2`)
+
+His words: detect an existing installation and only generate the reliefs not generated yet, so he can run it on his own
+(Steam Quake with `quakevr` linked to his checkout, `dwellv2p2\` and `quoth\` there, not installed by Setup).
+
+- **ReliefTarget** (`Installer/src/QuakeVR.Installer.Core/Reliefs/ReliefTarget.cs`, shared by the window and the CLI):
+  a folder's Dwell (`dwell`, else `dwellv2p2`) and Quoth (`quoth`), each a game folder (progs.dat, pak0.pak or maps/);
+  its `quakevr`; the palette's folders (the mods, the folder's `id1`, the install record's Quake `id1`, the caller's).
+  `Offered`: Setup's install (install.json) or a `quakevr` folder in it, and a mod. `Run` is ReliefMaker's step on it
+  (bundle and stock list from its `quakevr`); `Outcome` is "N made, M already existed". Only the missing ones are made:
+  ReliefMaker's existing rule (a companion in `<folder>\reliefs\textures\pbr` counts as kept), now checked on a folder
+  made by an earlier run of either the window or the CLI.
+- **The window**: a "Reliefs for Dwell and Quoth" card on the Welcome page with a **Make reliefs only** button when
+  `FindReliefTargets` (this Setup's install, the other installs found, then the quiet detection's Quake folders, base
+  and install dirs) finds one; the run skips the statement, package and options, logs on the Install page and ends on
+  Done ("Reliefs for Dwell and Quoth are ready", the count as its only note). On this PC the harness prints his Steam
+  Quake as offered (read only; nothing was written there).
+- **The CLI**: `qvr-setup reliefs --target <folder>` finds the mods and palette itself (`--quake <dir>` adds a Quake's
+  id1), says how many reliefs were there, and ends with `reliefs: N made, M already existed`; no mods: exit 1, said.
+- **Checks.** Self-test `reliefs-only: ...` (a made-up developer folder: 4 made, nothing outside reliefs changed, the
+  second run 0 made / 4 existing; Setup's install offered, dwell before dwellv2p2; plain Quake and a mod-less quakevr
+  folder not offered) and the two `reliefs:` tests: 3/3. The CLI on that folder twice: 4 made, then 0 made / 4
+  existed. Screenshot harness: exit 0, its new reliefs-only check (offered, Done with "0 made, 0 already existed",
+  nothing else written). Installer solution: 0 warnings.
+- **Not done.** His folder is under Program Files: if Windows refuses the write there, the window says "Reliefs not
+  made: ..." and the CLI fails; an elevated prompt then. The Done page's "Open the Quake VR folder" opens the install
+  folder, not a found Quake folder.

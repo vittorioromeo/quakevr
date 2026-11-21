@@ -580,25 +580,33 @@ try
         }
         case "reliefs":
         {
-            // "Make reliefs for Dwell and Quoth" from a console: --target <Quake VR folder> (the reliefs folder goes there;
-            // its quakevr's bundle and stock list are skipped), --mods "<dir>;<dir>" (default: the target's dwell and quoth),
-            // --palette-dirs "<dir>;..." (default: the mods, then the install record's Quake id1), --texture-roots (default:
+            // "Make reliefs for Dwell and Quoth" from a console, the window's "Make reliefs only": --target <folder> (Setup's
+            // install or a Quake folder with quakevr in it; the reliefs folder goes there, nothing else is written), --mods
+            // "<dir>;<dir>" (default: the target's dwell or dwellv2p2, and quoth: ReliefTarget), --palette-dirs "<dir>;..."
+            // (default: the mods, the target's id1, the install record's Quake id1, --quake's id1), --texture-roots (default:
             // the target's quakevr), --quakevr <dir> (whose bundle and stock list are skipped; default the target's), --cpu (no
-            // DirectML), --limit N (the first N to make).
+            // DirectML), --limit N (the first N to make). Only the missing reliefs are made.
             var target = Opt("target") ?? throw new ArgumentException("--target is required");
             List<string> List(string? value) => value is null ? [] : [.. value.Split(';', StringSplitOptions.RemoveEmptyEntries)];
-            var mods = Opt("mods") is { } m ? List(m) : [Path.Combine(target, Dwell.Folder), Path.Combine(target, Quoth.Folder)];
-            var quakeDir = InstallRecord.Load(target)?.QuakeDir;
-            var paletteDirs = Opt("palette-dirs") is { } pd ? List(pd) : [.. mods, .. quakeDir is null ? Array.Empty<string>() : [Path.Combine(quakeDir, "id1")]];
+            var found = QuakeVR.Installer.Core.Reliefs.ReliefTarget.For(target, Opt("quake"));
+            var mods = Opt("mods") is { } m ? List(m) : found.ModDirs;
+            if (mods.Count == 0)
+            {
+                Console.WriteLine($"reliefs: no Dwell ({Dwell.Folder}, {Dwell.AltFolder}) or Quoth ({Quoth.Folder}) in {found.Dir}: nothing to make");
+                return 1;
+            }
+            var paletteDirs = Opt("palette-dirs") is { } pd ? List(pd) : [.. mods.Where(d => !found.ModDirs.Contains(d)), .. found.PaletteDirs];
             var palette = QuakeVR.Installer.Core.Reliefs.ReliefMaker.FindPalette(paletteDirs) ?? throw new ArgumentException("no gfx/palette.lmp in " + string.Join(", ", paletteDirs));
-            var roots = Opt("texture-roots") is { } tr ? List(tr) : [Path.Combine(target, "quakevr")];
-            var summary = QuakeVR.Installer.Core.Reliefs.ReliefMaker.Run(target, mods, roots, palette, Flag("cpu"), log, CancellationToken.None,
+            var roots = Opt("texture-roots") is { } tr ? List(tr) : [Path.Combine(found.Dir, "quakevr")];
+            Console.WriteLine($"reliefs: {found.Dir}: {string.Join(", ", mods)}; {found.Existing} reliefs there already");
+            var summary = QuakeVR.Installer.Core.Reliefs.ReliefMaker.Run(found.Dir, mods, roots, palette, Flag("cpu"), log, CancellationToken.None,
                 Opt("limit") is { } lim ? int.Parse(lim, System.Globalization.CultureInfo.InvariantCulture) : null, Opt("quakevr"));
             foreach (var e in summary.Errors.Take(20))
             {
                 Console.WriteLine($"  error: {e}");
             }
             Console.WriteLine($"reliefs: {summary.Describe()}");
+            Console.WriteLine($"reliefs: {QuakeVR.Installer.Core.Reliefs.ReliefTarget.Outcome(summary)}");
             return summary.Failed == 0 ? 0 : 1;
         }
         case "verify":
