@@ -6313,3 +6313,65 @@ His voice notes of 2026-11-21 (vrfiringrange 00-23-29, e1m1 01-04-14 and others)
 
 - 11 ticked lines retired (eye-tracking foveation (Quest Pro note), relight speed, slide view dip, reload port shove, no attract demos, Speed Button Toggle, Mantle When, Grappling Gun, Dwell d2end boss, Discord status, double-tap run). Kept: the Sliding line and the Dwell start/d1m1 line (voice notes). No scene retired: the only scene tag among them (vr_slide) is still used by the kept Sliding line.
 - Reorganized by feature (84 lines, [New] emptied): Dwell 19, Quoth 7, Multiplayer and bots 14, Flat screen 4, VR movement and comfort 4, Weapons and holsters 2, Armed humanoids/ragdolls/physics 5, Survival Arena 11, Graphics 1, Menus 2, Installer/start-up/platforms 9, Recording and dev tools 6. Empty old sections dropped. One line reworded (removed "(agent/mp merged)", which failed checklist_tests_check; it was unticked). checklist_tests_check 43 passed, 0 failed.
+## worldai: the alarm spreads to monsters round walls and after a one-shot kill; lift riders measured (worldai, 2026-11-21, `agent/worldai`)
+
+His notes hip1m1_2026-11-21_00-20-16 ("the AI is not reacting to friendlies being shot or alerted nearby") and
+e1m1_2026-11-21_00-43-41 (riders "compressed by the lift").
+
+- **Why hip1m1's monsters didn't care**: 66 of its 73 monsters are placed in ambush (spawnflags 1), which keeps Quake's
+  meaning (no relay from other monsters, deaf: `vr_stealth_ambush_deaf`). Beyond that, two real gaps, both reproduced on
+  the new test map before the fix: a monster killed in one shot told nobody (T_Damage's "get mad", where the share hangs,
+  is skipped by a kill: the note's three grunts at 1472 -224 each died idle to one shot, the others 88 units off stayed
+  idle), and nothing reached a monster behind a wall (the share needs a clear line).
+- **Fix** (QC `vr_stealth.qc`, STEALTH.md "Hostile and Alert propagation"): `VR_Stealth_Killed` (Killed): a monster
+  killed by a player it wasn't after shares as if hurt (near or in sight: Hostile at him), those fighting it left out;
+  `VR_Stealth_Cry` (VR_Provoke and the kill): its cry, a noise of the new kind STL_N_VOICE, `vr_stealth_share_hear`
+  800 units (Combat > Stealth AI > Cries Heard), the noise rules' walls (round a corner 0.5, solid 0.15), ambushers deaf:
+  Alert at it. The deferred share now carries its place, eyes and foe on the event (a gibbed body may be gone).
+- **Ambushers keep their post**: an armed grunt in ambush walked 140 units off its post to the dead V's dropped gun
+  ("Pick Up a Second": `VR_AG_Idle`); now an ambusher never leaves its post for a weapon until a fight starts.
+- **Test map** `vralert` (`Misc/quakevr/make_vralert_map.py --compile`; boards say what each grunt should do) and
+  `vr_stealth_test 130` (`stealth_tests.sh alarm`, Debug > Tests > Stealth AI > The Alarm Spreading): before 4 failed
+  (W behind the wall never alerted; on the kill N and S only Alert by the body's knock, A off its post); after 15/0.
+  Test 107 (infighting) now kills the second grunt by the world: by the player, the third beside it rightly turned on him.
+- Checks: `stealth_tests.sh all` with the fix: everything passes but `noises_clue` ("0 navmesh steps": the walk reached
+  the shot within 58 units without a navmesh step; it touches none of this; not checked on the base: **open**).
+- **Lifts** (not fixed, out of budget): `vr_debug_lift 1` (Debug, a local game) measures riders on a moving MOVETYPE_PUSH:
+  each ride's worst sink of the player's box, drawn feet and drawn eye, and the monsters' box and drawn feet, printed as
+  the lift stops (`liftdebug: ride up|down ...`; 2: every frame). First reading on e1m1's lift *7 (-544 2656), a grunt
+  riding: its server box 9.9 units into the lift going up, 15 going down (a server-side sink, not only the drawing);
+  the player was not on the lift in that run (the script's setpos missed it). Suspects: SV_PushMove clearing FL_ONGROUND
+  for non-players after each push, so the next frame the monster is pushed only once the lift has risen into it;
+  and the drawn lag of a stepping monster (its move drawn to its next think, `vr_monster_lerp_continue`) while the lift
+  moves it every frame (`VR_StepLerpInterval` could treat riding a moving pusher as it does the air). **Open**.
+
+## worldai2: riders on a moving lift don't sink into it (worldai2, 2026-11-21, `agent/worldai`)
+
+His note e1m1_2026-11-21_00-43-41 ("compressed by the lift"); worldai measured a grunt's box 9.9/15 units into e1m1's lift.
+
+- **That reading was a corpse.** The script's setpos left the player in noclip (never on the lift) and spawned the
+  grunt inside the plat as it rose: the plat crushed it (blocked, 1 damage a frame, bouncing) and its body rode as a
+  Box3D rigid body (`VR_PushSkips`). With the player off noclip and the grunt put on the plat at rest, no box sinks on
+  the server, the player's or a monster's, up or down (SV_PushMove's clearing of FL_ONGROUND is Quake's and harmless).
+  `vr_debug_lift` now takes the lift's real top under each rider (a point trace), counts live monsters only, measures
+  the drawn sinking only while the lift came in the last message (and the one before), and the eye against its height
+  over the feet standing still.
+- **Drawn monster**: on a moving lift its steps were drawn to its next think: 12.9 units into the plat riding up.
+  Drawn over a frame (VR_StepLerpInterval as for the air) it still trailed ~1.8 (the step lerp's finish counts from the
+  message's time, its start from the client's), so a stepping monster standing on a moving MOVETYPE_PUSH is now sent
+  without U_STEP (`VR_StepRidesLift`, sv_main.c): drawn between the last two messages exactly as the lift is: 0.03.
+  Its own steps on a moving lift are drawn over the frame too.
+- **Eye**: Quake's stair easing (80 units a second, at most 12 behind) took a rising lift for a step: flat 12.0 units,
+  headset 14.1 (vr_hands.cpp `easeStairs` has the same rule). A rise no faster than `vr_view_lift_follow` (400 units a
+  second; 0: Quake's) is followed at once in both (`VR_ViewLiftRise`, view.c and vr_hands.cpp): flat 0.03. The headset's
+  eye still trails the drawn lift by one frame of its travel (2.09 at 150 units a second): its state is computed once a
+  frame from the player's place before the frame's server message is read (`hands::current()`, first used by the move
+  sent): a general frame-order lag, not fixed here (**open**).
+- **Plat *22 not sent near its bottom**: for ~0.1 s at the start of the ride up and the end of the ride down, e1m1's
+  small plat *22 is in no message (not drawn) while the player stands on it (`liftdebug: ... not in the last message`
+  at vr_debug_lift 2): out of his PVS on the server? Not looked into (**open**).
+- **Test** `vr_stealth_test 131` (`vr_stealth_test6.qc`, `Misc/quakevr/lift_ride_test.sh`, Debug > Tests > Stealth AI >
+  Riders on a Lift): two plats, up and down, the player's box and drawn feet, eye, the grunt's: before (this branch's
+  measure, old drawing) the eye 12/14 and the monster 12.9 failed; after 24 passed, 0 failed (12 headset, 12 flat).
+  Debug > Logging > Lift Riders (vr_debug_lift); menu_paths.txt regenerated (Cries Heard, Lift Riders, both test rows).
+- Not run (out of budget): stealth_tests.sh all (noises_clue on origin/next), the nav suite, scenario_check, ThinLTO.

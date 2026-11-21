@@ -51,6 +51,8 @@ Multiplayer: take your flashlight and switch it on; the other player sees the to
 Bots at skill 0-1 miss, hesitate and pause between bursts; same height as you; they draw the revolver with a revolver loadout (mp_local.ps1 -Mode dm -Bots 1)
 mp_local.ps1 dm with bots at skill 0-1: a bot's sword swing is held up before it comes down, it lands on you, and you can parry it
 Flat-screen: in mp_local.ps1, aim down the sights (shotgun, nailgun, rocket launcher) level, up and down, standing, crouched and sliding, while the other window watches from the side: the head sits behind the rear sight with the cheek on the stock, the arms hold the gun from below, nothing crosses the face
+Monsters hurt or killed unawares cry out; near or in-sight ones turn on you, ones behind walls come to look; ambushers stay put (map vralert, shoot V)
+Riding e1m1's big lift with a grunt: nobody sinks into it going up or down, and your view follows the lift without a stair dip {test:lift_riders}
 
 [4. Flat screen]
 Flat-screen: walk forward into the tutorial's rung ladder (lesson 3): your hands take the rungs and you climb hand over hand at a steady pace, and climb over the top onto the platform. {test:flat_ladder}

@@ -406,6 +406,7 @@ void(entity targ, entity attacker) Killed =
         self = oself;
         return;
     }
+    VR_Stealth_Killed(targ, attacker); // QVR: killed unawares: the others near it turn on him, its cry heard (vr_stealth.qc)
     targ.vr_ai_gate = 0; // (a dead monster's, its head's or its gibs': no gate route left for portal tosses)
     VR_Parry_Unsway(targ); // (killed staggered: it dies upright)
 
@@ -1909,6 +1910,7 @@ void(entity m, entity by) VR_Provoke =
     self.enemy = by;
     FoundTarget();
     self = was;
+    VR_Stealth_Cry(m, by); // QVR: hurt by a player unawares: its cry heard round walls (vr_stealth.qc)
 };
 
 float(entity targ, entity inflictor, entity attacker, float damage, float isVRMelee) T_DamageDeal =
