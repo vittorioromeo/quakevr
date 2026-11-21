@@ -99,6 +99,9 @@ The guide: [MULTIPLAYER.md](MULTIPLAYER.md).
   melee swings are held raised a little before they come down, so you can see them coming and parry. They're the
   size of a player now, and they draw and fire every gun they carry (the heavy revolver, the nail pistol and the
   mission packs' guns too), falling back to their melee weapon only when out of ammo.
+- **Opt-in: bots that find their way** (`vr_bot_navmesh 1`, off by default): bots still roam by their waypoints for
+  items, powerups and health, but chase a player they've seen through doors they never used, and reach goals their
+  waypoints have no way to, along the map's navmesh.
 - **Proximity voice chat** (Opus, with RNNoise noise suppression): push-to-talk or voice activation, heard at the
   talker's head; per-player mute and volume (VR Settings > HUD, Haptics and Sound > Sound > Voice Chat).
 - **Server Browser** (Multiplayer > Join Game): favourites, the servers you joined last and the LAN's, with their

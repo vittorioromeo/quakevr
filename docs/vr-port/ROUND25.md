@@ -6573,3 +6573,38 @@ wristscore). `QVR_NET_VERSION` stays 42: nothing new is sent (the client rebuild
   NetQuake path drew the newest), only during the gib blast; in the ragdolls-off play the same crate is 0.04 u p95.
   Open: suspect `h.model != ent.model` in interpEntity (a model swapped by the ragdoll pass?) or netrag's client frame.
   Tools: `scratch/smallfix_raglag.py <run dir>` (worst samples, best time shift), `smallfix_raggap.py <dir> <ent> <t0> <t1>`.
+## botnav: bots' waypoints and the navmesh together, vr_bot_navmesh (2026-11-21, `agent/botnav`)
+
+His voice note (2026-11-21): keep FrikBot's waypoints (they make the bots go for powerups, weapons, health on any map),
+add the navmesh where it is smarter: a player spotted nearby, goals by need. Design and rules: NAVMESH.md 23 (rewritten).
+
+- **`vr_bot_navmesh`** (cvar, archived, **0** by default: FrikBot exactly as before; the host's). 1: the navmesh walks a
+  bot (a) to a player it saw within `vr_bot_navmesh_memory` (5 s) and `vr_bot_navmesh_range` (1200 units) once he is out
+  of its sight (in sight: FrikBot's walk and fight), unless its goal is a powerup or, under 60 health, health/armour;
+  (b) to a goal with no waypoint route (`mark_path`'s failure, `bot_path`'s broken route, or no waypoint near:
+  `BotNav_Look`, the best goal within the range, a player only in sight); (c) when the route is over
+  `vr_bot_navmesh_detour` (1.5) times the mesh's path + 128. Waypoints again when the player is lost or far, the goal
+  reached, the mesh has no path, and always in water / on a train, rocket-jump or surfacing waypoint. The three tunables
+  are Debug > Tunables rows ("Bots: Navmesh ...").
+- **Engine:** builtin `navbot(bot, goal, what)` (vr_builtins_nav.inc -> `navfollow::botStep`, vr_navfollow.cpp): the
+  follower of NAVMESH.md 22 reused as is (`replan`, `steer`), one plan per bot by client slot, timed in server time (the
+  class's build lands on its fixed frame); what 0 plan + steer (the corner), 1 state/flags/path left, 2 drop, 3 probe.
+- **QC:** frikbot/bot_nav.qc (new; `BotNav_Note`, `BotNav_Step`, `BotNav_Take`, `BotNav_Look`), hooks in BotAI (one
+  branch before frik_movetogoal/bot_path; the begin_route failure; the death reset), bot_path's broken route, mark_path
+  ((b) and (c)). The corner becomes keys through `frik_KeysForDir` as a waypoint does; the follower's hop as `bot_jump`;
+  the goal's search time kept on while the path left shrinks; waypoint flags cleared while walking the mesh (AI_WAIT
+  held it still). Developer 1: `botnav: <bot> navmesh to <goal> (seen | no route | shorter)` / `... waypoints (why)`.
+- **Found on the way:** a tunable can't be the switch (a release build folds tunables to constants; QC's cvar_set on one
+  does nothing), so `vr_bot_navmesh` is a cvar; the player seen must be noted before BotAI's routing branch (a bot that
+  is computing a route skips the walk: it never noticed him otherwise).
+- **Tests** (`vr_dm_test 19-20`, QC/vr_botnav_test.qc; `maxplayers 4;deathmatch 1;developer 1;map e1m1;impulse 100;
+  vr_dm_test 19`): 19 the bot at e1m1's start notices the human 160 ahead, he is put past the first room's west door
+  (out of sight, no waypoint through it): navmesh 0 (contrast) FrikBot walks at the wall then roams (reached him by luck
+  in 754 frames once, never in 1800 another run); navmesh 1 reaches him in 258 frames by the chase, 6/0. 20 navmesh 1, the
+  human never seen, a rocket launcher at the end of a 4-waypoint chain: taken by the waypoints in 97 frames (target1 a
+  waypoint, the mesh never used), 3/0.
+- **Checked:** mp_test.py dm 27/0, coopbots 13/0, botgrab 9/0 with vr_bot_navmesh 0 (the verdicts as before) and the same
+  with 1 (--server-set "+vr_bot_navmesh 1"); scenario_check PASS (148); Dev and ThinLTO builds 0 warnings.
+- **Not ready to default on:** proven on e1m1's door and one waypoint chain only; deathmatch balance (a bot that always
+  finds you), locked or button doors (the follower walks through door polygons) and the follower's drop/teleporter links
+  with bots are untried.

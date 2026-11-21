@@ -135,6 +135,15 @@ void PF_navreach()
     G_FLOAT(OFS_RETURN) = qvr::nav::reach(G_EDICT(OFS_PARM0), G_EDICT(OFS_PARM1));
 }
 
+// vector navbot(entity bot, entity goal, float what): a FrikBot bot's walk on the navmesh (vr_bot_navmesh, QC
+// frikbot/bot_nav.qc): 0 plan and steer -> the corner to walk to; 1 that step (state, flags, path left); 2 drop its plan;
+// 3 probe (whole, length, corners) (vr_navfollow.cpp navfollow::botStep).
+void PF_navbot()
+{
+    const glm::vec3 v = qvr::navfollow::botStep(G_EDICT(OFS_PARM0), G_EDICT(OFS_PARM1), static_cast<int>(G_FLOAT(OFS_PARM2)));
+    VectorCopy(&v.x, G_VECTOR(OFS_RETURN));
+}
+
 // float navobstacles(float what): props as obstacles: 0 what is left to do (0: the mesh current), 1 props blocking, 2
 // rebuild batches, 3 tiles rebuilt or given back (vr_nav.cpp nav::obstacles).
 void PF_navobstacles()

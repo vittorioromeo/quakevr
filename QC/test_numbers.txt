@@ -35,6 +35,7 @@ dispatch vr_pd_test QC/vr_playerdisarm_test.qc VR_PlayerDisarmTest_Frame ask
 dispatch vr_dm_test QC/vr_dmrules_test.qc VR_DMRulesTest_Frame ask
 dispatch vr_dm_test QC/vr_bots_test.qc VR_BotsTest_Frame ask
 dispatch vr_dm_test QC/vr_botgrab_test.qc VR_BotGrabTest_Frame ask
+dispatch vr_dm_test QC/vr_botnav_test.qc VR_BotNavTest_Frame ask
 dispatch vr_projinherit_test QC/vr_projinherit_test.qc VR_ProjInheritTest_Frame ask
 dispatch vr_grenfuse_test QC/vr_grenfuse_test.qc VR_GrenFuseTest_Frame ask
 dispatch vr_flatmove_test QC/vr_flatmove_test.qc VR_FlatMoveTest_Frame ask
@@ -783,6 +784,8 @@ vr_dm_test       15       vr_bots_test.qc                  a bot's swing telegra
 vr_dm_test       16       vr_botgrab_test.qc               bots3 (mp_test.py botgrab): the grab's victim held (vr_dm_test_who 0 the first bot: 64 units in front of the human, armed, still; 1 the second human: armed), `dmtest: hold: ... ready`
 vr_dm_test       17       vr_botgrab_test.qc               bots3: the human's empty hand closes at vr_dm_test_x/y/z (where his client draws the victim's weapon) and pulls: the weapon taken
 vr_dm_test       18       vr_botgrab_test.qc               bots3: the same grab at a point off the drawn weapon: nothing taken hold of
+vr_dm_test       19       vr_botnav_test.qc                botnav (vr_bot_navmesh, deathmatch e1m1): a bot that saw the human walks to him through the first room's west door after he is put past it (navmesh 0 for contrast, then 1: within 96 units)
+vr_dm_test       20       vr_botnav_test.qc                botnav: the human never seen, a rocket launcher at the end of a waypoint chain: the bot takes it by its waypoints (target1 a waypoint, the navmesh never used), vr_bot_navmesh 1
 
 vr_projinherit_test 1     vr_projinherit_test.qc           projectiles keep your motion: strafing, nails and rockets on the aim, grenades their share; a hand swing in grenades only
 vr_grenfuse_test 1        vr_grenfuse_test.qc              one fuse for every grenade: hand, launcher and ogre grenades go off together after arming, each lit with its countdown (none with vr_grenade_countdown 0)
