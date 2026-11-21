@@ -6013,3 +6013,5 @@ detail: MP_PLAN.md, "Held weapons' state and player lights".
   (unshadowed; `flashlight::drawOther`). Not its visible cone in the air or its cord.
 - `QVR_NET_VERSION` 41: the room service is redeployed with it.
 - Tests: `mp_test.py wpnsync` and `wpnsync_flat` (in the suite) 16/0 each.
+- Left: the auto pump's stroke and clacks after another player's shot (his client's own animation; the QC reload
+  sounds are already everyone's), the torch's visible cone and cord, the Widowmaker's motor sound, the lava guns' glow.

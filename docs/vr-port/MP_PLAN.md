@@ -4004,6 +4004,20 @@ each other player and `mp_gun_own:`, `mp_lamp_own:` for yours.
 Single player is drawn by the same routines as before through wrappers (`magSlideStep(hand)`, `revolverStep(.., hand)`,
 `ssgStep(.., flags)` read the stats into the look): vr_magslide_test 1 63/0; vr_rv_test 1 45/1 (below).
 
+The rest: the plain `mp_test.py suite` (dev no-LTO, the author's game running: low impact) 58 of 59 clean, mp_fuzz 16/1
+("B joins again after the hostile command up clc 17": not in 60 s) then 17/0 alone; scenario_check 140/0;
+flatreload 54/0; flateject 16/1 (the revolver's open pose: the check wants -15 15 -30, moved 0 3 -1, the tunables'
+defaults are -35 0 -30, moved 0 -2 1 since "His values as defaults" a49166efa: the test's, not this change's).
+
+Weapon handling sounds (the coordinator's note from the sync audit, 2026-11-21): the sounds QC plays (the revolver's
+crane, its shells, magazines in and out, the super shotgun's break and load, the pouch's rounds: VR_RV_Sound,
+VR_Reload_* through `sound`) are the server's and heard by everyone from the player. The auto pump's two clacks are
+not: the stroke is his client's own animation after his own shot (`weaponfx::playerFired` -> `autopump::fired`,
+played with `audio::playAt` at his gun), so nobody else hears or sees it. Left for a next step: an avatar's shot event
+per hand (the server's fire message for another player) starting an autopump stroke per avatar hand, its fore-end
+drawn by `setupPumps`' parts in `view::GunParts` and its clacks at his gun; `mp_test.py syncaudit` (not on next yet at
+this writing) to show the row synced.
+
 Open:
 - `vr_rv_test 1`'s "a grunt's body: dead to 2 slugs" fails (twice): the server's damage roll on the grunt, which
   this change doesn't reach (client drawing and avatar fields only); to compare against origin/next.
