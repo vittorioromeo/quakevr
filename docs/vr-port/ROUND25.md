@@ -6375,3 +6375,35 @@ His note e1m1_2026-11-21_00-43-41 ("compressed by the lift"); worldai measured a
   measure, old drawing) the eye 12/14 and the monster 12.9 failed; after 24 passed, 0 failed (12 headset, 12 flat).
   Debug > Logging > Lift Riders (vr_debug_lift); menu_paths.txt regenerated (Cries Heard, Lift Riders, both test rows).
 - Not run (out of budget): stealth_tests.sh all (noises_clue on origin/next), the nav suite, scenario_check, ThinLTO.
+
+## wristscore: the multiplayer scoreboard on the wrist gadget (wristscore, 2026-11-21, `agent/wristscore`)
+
+His words (2026-11-21): an extra wrist gadget page for the multiplayer scoreboard, cycled through, or in place of AD's.
+
+- **The page** (`Quake/vr/vr_gadget_scores.inc`, included by vr_gadget.cpp): the screen's pages are now a turn of three
+  (`PageHud`, `PageAd`, `PageScores` in vr_gadget.cpp; `togglePage` goes to the next one that can be shown, the HUD after
+  the last; false with no other): the HUD, AD's page (its data loaded), the scoreboard (`cl.maxclients > 1`, connected).
+  The outer button (vr_ad_gearlights.inc) and `vr_gadget_page` turn them; `gadget::page()` 2 is the scoreboard. A page
+  that can't be shown now (AD's data gone, back to single player) shows the HUD.
+- **Its rows** are the game's scoreboard's: `Sbar_SortFrags` itself (sbar.c, declared in vr_engine.hpp with `fragsort`,
+  `scoreboardlines`, `Sbar_ColorForMap`): the flat screen's order, shared code. Each row: the shirt over trousers swatch
+  (`d_8to24table`, dimmed with the screen: `screenBrightness()`, now palette()'s too), frags, name (15 characters), you
+  on a lit strip, `((o))` while talking (`voicechat::talkingNow`: a heard player, or you sending). Coop adds the level's
+  kills and secrets line (the game's coop scoreboard). 8 px text up to 11 rows, 6 px when more (16 fit), then "+N MORE".
+  Drawn every frame with the screen: live.
+- **Not shown: ping** (a NetQuake client has no per-player ping; `status` on the host lists them). **Flat play**: no
+  wrist gadget (the visor's panels are separate images, not pages): TAB's scoreboard stays. Decisions (conservative, he
+  was asleep): an extra page in the turn, never replacing AD's; no new cvar.
+- **Commands**: `vr_gadget_scores` (registered with `vr_gadget_page` at start-up) prints `wristscore: page=.. available=..
+  shown=.. mode=dm|coop rows=N` and a `wristscore: row=..` line per row as the page draws them; `vr_gadget_page 1` turns
+  and prints the page shown. Debug > Reports: Wrist Gadget Next Page, Wrist Gadget Scoreboard (menu_paths.txt
+  regenerated: the two rows).
+- **Test** `mp_test.py wristscore` (in the suite after mp_coopbots): A alone on e1m1 (single player): pages 1, 0, 1 (AD's
+  data mounted in the base), never 2, `available=0 rows=0`; a dedicated deathmatch server on dm4: A, B and a FrikBot
+  (impulse 100); A kills the bot (vr_hurt): A's and B's pages list the three with their scoreboard's frags (mp_frags), in
+  order, each client marked as himself; A turned to the page: `shown=1`, the image dumped (`A_wristscore.png`). 10 passed,
+  0 failed. Also: vr_arena_test 39 (the wrist gadget's messages) 13/0; scenario_check PASS (148 scenes); Dev and ThinLTO
+  builds 0 warnings.
+- Seen in passing (not changed): `vr_ad_mounted` stays as a client's last local map set it when he joins a remote server
+  (A's page read 1 on dm4 after his single-player e1m1 with AD in the base): AD's page may be offered on a server without
+  AD's data (it draws "NONE" rows).

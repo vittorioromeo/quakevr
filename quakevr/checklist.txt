@@ -56,6 +56,7 @@ mp_local.ps1 dm with bots at skill 0-1: a bot's sword swing is held up before it
 Flat-screen: in mp_local.ps1, aim down the sights (shotgun, nailgun, rocket launcher) level, up and down, standing, crouched and sliding, while the other window watches from the side: the head sits behind the rear sight with the cheek on the stock, the arms hold the gun from below, nothing crosses the face
 Monsters hurt or killed unawares cry out; near or in-sight ones turn on you, ones behind walls come to look; ambushers stay put (map vralert, shoot V)
 Riding e1m1's big lift with a grunt: nobody sinks into it going up or down, and your view follows the lift without a stair dip {test:lift_riders}
+In a multiplayer game (add a bot with impulse 100), press the wrist gadget's outer button until the scoreboard page shows: every player with his colours, frags and name, most frags first, your row lit, ((o)) beside whoever talks; it should be readable at wrist distance and update when someone scores. In single player the button should never reach it.
 
 [4. Flat screen]
 Flat-screen: walk forward into the tutorial's rung ladder (lesson 3): your hands take the rungs and you climb hand over hand at a steady pace, and climb over the top onto the platform. {test:flat_ladder}
