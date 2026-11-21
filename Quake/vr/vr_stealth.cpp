@@ -515,6 +515,164 @@ void VR_DebugDrawnMove(const entity_t* e, const float* drawn)
     t->turnRestarts = 0;
 }
 
+// ---- Debug > Views > Lift Riders (vr_debug_lift): how far the player and monsters standing on a moving lift (a
+// MOVETYPE_PUSH brush they stand on, moving up or down) sink into it: their boxes on the server, their drawn models and
+// (the player) the drawn eye against the drawn lift. A local game only (it reads the server's edicts). Each ride's
+// worst printed as the lift stops ("liftdebug: ride ..."): his notes of 2026-11-21 (riders "compressed by the lift").
+namespace qvr::stealth
+{
+namespace
+{
+struct LiftWorst
+{
+    float box{-999.f};   // the box's sinking into the lift's top (units; under 0: above it)
+    float drawn{-999.f}; // the drawn model's (its drawn feet under the drawn lift's top)
+    float eye{-999.f};   // the player's drawn eye's height over the drawn lift short of his eye's over it on the server
+    int frames{0};
+};
+
+struct LiftLog
+{
+    double frameTime{-1.0}; // the frame last looked at (the first model drawn in a frame does it)
+    int lift{0};            // the lift under the player or a monster this ride, and its way (1 up, -1 down)
+    int way{0};
+    LiftWorst player;
+    LiftWorst monsters;
+};
+
+LiftLog liftLog;
+
+[[nodiscard]] edict_t* liftSvEdict(int num)
+{
+    if(num <= 0 || num >= sv.qcvm.num_edicts)
+    {
+        return nullptr;
+    }
+    edict_t* ed = reinterpret_cast<edict_t*>(reinterpret_cast<byte*>(sv.qcvm.edicts) + num * sv.qcvm.edict_size);
+    return ed->free ? nullptr : ed;
+}
+
+// The moving lift `ed` stands on (its edict number), 0 none.
+[[nodiscard]] int liftUnder(const edict_t* ed)
+{
+    if(!(static_cast<int>(ed->v.flags) & FL_ONGROUND) || ed->v.groundentity <= 0 ||
+        ed->v.groundentity % sv.qcvm.edict_size != 0)
+    {
+        return 0;
+    }
+    const int num = ed->v.groundentity / sv.qcvm.edict_size;
+    const edict_t* g = liftSvEdict(num);
+    if(!g || static_cast<int>(g->v.movetype) != MOVETYPE_PUSH || g->v.velocity[2] == 0.f || num >= cl.num_entities)
+    {
+        return 0;
+    }
+    return num;
+}
+
+// The drawn top of lift `num` (its client entity's place as drawn this frame plus its model's top).
+[[nodiscard]] float liftDrawnTop(int num)
+{
+    const entity_t& le = cl_entities[num];
+    return le.model ? le.origin[2] + le.model->maxs[2] : le.origin[2];
+}
+
+void liftNote(LiftWorst& w, float box, float drawn, float eye)
+{
+    w.box = glm::max(w.box, box);
+    w.drawn = glm::max(w.drawn, drawn);
+    w.eye = glm::max(w.eye, eye);
+    w.frames++;
+}
+
+void liftReport()
+{
+    if(liftLog.lift && (liftLog.player.frames || liftLog.monsters.frames))
+    {
+        Con_Printf("liftdebug: ride %s of lift %d: player %d frames, box %.2f drawn %.2f eye %.2f; monsters %d frames, box "
+                   "%.2f drawn %.2f (units sunk into it, the worst)\n", liftLog.way > 0 ? "up" : "down", liftLog.lift,
+            liftLog.player.frames, liftLog.player.box, liftLog.player.drawn, liftLog.player.eye, liftLog.monsters.frames,
+            liftLog.monsters.box, liftLog.monsters.drawn);
+    }
+    liftLog.player = {};
+    liftLog.monsters = {};
+    liftLog.lift = 0;
+    liftLog.way = 0;
+}
+
+// Once a frame: the ride's end (the lift stopped or turned), then the player on it.
+void liftFrame()
+{
+    if(liftLog.lift)
+    {
+        const edict_t* g = liftSvEdict(liftLog.lift);
+        const int way = !g ? 0 : g->v.velocity[2] > 0.f ? 1 : g->v.velocity[2] < 0.f ? -1 : 0;
+        if(way != liftLog.way)
+        {
+            liftReport();
+        }
+    }
+    const edict_t* p = liftSvEdict(cl.viewentity);
+    const int lift = p ? liftUnder(p) : 0;
+    if(!lift)
+    {
+        return;
+    }
+    const edict_t* g = liftSvEdict(lift);
+    liftLog.lift = lift;
+    liftLog.way = g->v.velocity[2] > 0.f ? 1 : -1;
+    const float top = g->v.origin[2] + g->v.maxs[2];
+    const float drawnTop = liftDrawnTop(lift);
+    const float drawnFeet = cl_entities[cl.viewentity].origin[2] + p->v.mins[2];
+    const float eyeOver = p->v.origin[2] + p->v.view_ofs[2] - top;
+    const float drawnEyeOver = r_refdef.vieworg[2] - drawnTop;
+    liftNote(liftLog.player, top - (p->v.origin[2] + p->v.mins[2]), drawnTop - drawnFeet, eyeOver - drawnEyeOver);
+}
+} // namespace
+} // namespace qvr::stealth
+
+int VR_DebugLiftOn()
+{
+    return qvr::vr_debug_lift.value != 0.f && sv.active && sv.qcvm.edicts && !cls.demoplayback;
+}
+
+void VR_DebugLiftDrawn(const entity_t* e, const float* drawn)
+{
+    using namespace qvr::stealth;
+    if(liftLog.frameTime != cl.time)
+    {
+        liftLog.frameTime = cl.time;
+        liftFrame();
+    }
+    const int num = static_cast<int>(e - cl_entities);
+    if(num <= 0 || num >= cl.num_entities || num == cl.viewentity)
+    {
+        return;
+    }
+    const edict_t* m = liftSvEdict(num);
+    if(!m || !(static_cast<int>(m->v.flags) & FL_MONSTER))
+    {
+        return;
+    }
+    const int lift = liftUnder(m);
+    if(!lift)
+    {
+        return;
+    }
+    const edict_t* g = liftSvEdict(lift);
+    if(!liftLog.lift)
+    {
+        liftLog.lift = lift;
+        liftLog.way = g->v.velocity[2] > 0.f ? 1 : -1;
+    }
+    const float top = g->v.origin[2] + g->v.maxs[2];
+    liftNote(liftLog.monsters, top - (m->v.origin[2] + m->v.mins[2]), liftDrawnTop(lift) - (drawn[2] + m->v.mins[2]), -999.f);
+    if(qvr::vr_debug_lift.value >= 2.f)
+    {
+        Con_Printf("liftdebug: %.3f ent %d on lift %d (top %.2f, drawn %.2f, vz %.0f): feet %.2f, drawn %.2f\n", cl.time, num,
+            lift, top, liftDrawnTop(lift), g->v.velocity[2], m->v.origin[2] + m->v.mins[2], drawn[2] + m->v.mins[2]);
+    }
+}
+
 namespace qvr::stealth
 {
 
