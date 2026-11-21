@@ -565,6 +565,7 @@ void poseMove(VrMove& move)
         move.body.leanHold = hs.leanHold;
         view::netHolsters(move.holsters); // (and his holsters: B6b)
         flashlight::netLamp(move.lamp);   // (and his torch: wpnsync)
+        view::netGear(move.gear);         // (and his worn gear: syncfix)
     }
 
     move.headVel = hs.headVel;
@@ -1157,6 +1158,7 @@ extern "C" int VR_ParseServerMessage(int cmd)
         case QVR_SVC_TIP_DELAY:
         case QVR_SVC_TIP_FLAGS: tips::clientParse(subcmd); break;
         case QVR_SVC_EJECT: shells::parseEject(); break;
+        case QVR_SVC_EJECTOTHER: shells::parseEjectOther(); break; // (another player's: syncfix2)
         case QVR_SVC_WOUND: wounds::parseEvent(); break;
         case QVR_SVC_WOUNDCLEAR: wounds::parseClear(); break;
         case QVR_SVC_BLADEWOUND: wounds::parseBladeWound(); break;

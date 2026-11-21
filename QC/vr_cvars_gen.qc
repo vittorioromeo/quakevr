@@ -473,6 +473,7 @@ float cvarh_vr_blood_tally;
 float cvarh_vr_blood_tally_drawn;
 float cvarh_vr_bot_aim_error;
 float cvarh_vr_bot_dual_wield;
+float cvarh_vr_bot_freeze;
 float cvarh_vr_bot_navmesh;
 float cvarh_vr_bot_navmesh_detour;
 float cvarh_vr_bot_navmesh_memory;
@@ -2612,6 +2613,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_blood_tally_drawn = VR_CVar_Make("vr_blood_tally_drawn");
     cvarh_vr_bot_aim_error = VR_CVar_Make("vr_bot_aim_error");
     cvarh_vr_bot_dual_wield = VR_CVar_Make("vr_bot_dual_wield");
+    cvarh_vr_bot_freeze = VR_CVar_Make("vr_bot_freeze");
     cvarh_vr_bot_navmesh = VR_CVar_Make("vr_bot_navmesh");
     cvarh_vr_bot_navmesh_detour = VR_CVar_Make("vr_bot_navmesh_detour");
     cvarh_vr_bot_navmesh_memory = VR_CVar_Make("vr_bot_navmesh_memory");

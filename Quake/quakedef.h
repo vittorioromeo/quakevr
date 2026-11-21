@@ -434,6 +434,7 @@ typedef struct download_s
 } download_t;
 
 qboolean			Download (const char *url, download_t *download);
+qboolean			Download_OffhostRefused (const char *url); // QVR: (syncfix2) -loopbackonly would refuse `url`
 /* QVR: `host` (a host name or an IPv4 / IPv6 address, without brackets) is a local address: "localhost" (or a name under
    it), 0/8, 127/8, 10/8, 172.16/12, 192.168/16, 169.254/16, ::, ::1, fc00::/7, fe80::/10, or an IPv4-mapped IPv6 one of
    those. A name is not resolved here (Download's refuse_local checks what it resolves to). */

@@ -4007,22 +4007,22 @@ design (right as it is), **N** no such feature. Evidence: [run] syncaudit, [test
 | Pauldrons, armour plates | S | calibration and the gear byte (B6c) | vrpauldron(_arm) x2 both [run] |
 | Held weapon: model, frame, skin, place | S | the drawn hand's weapon | v_shot, v_axe both [run] |
 | Held weapons' parts: the revolver's crane, cylinder and shells, magazines and their rounds, SSG open, the ammo screen's clip, the Widowmaker's and Rotary's spin, ammo type (its model), held and holstered | S | the avatar's VrGunLook and holsters' flags and clip, drawn by your own guns' routines (agent/wpnsync: "Held weapons' state and player lights") | mp_wpnsync, mp_wpnsync_flat [test] |
-| **The auto pump's stroke and its clacks** (`vr/autopump_back/home`) | G | his client's own animation after his shot: not seen or heard (the QC reload sounds are server sounds, heard) | B only [run] |
+| The auto pump's stroke and its clacks (`vr/autopump_back/home`) | S | his shot's QVR_SVC_FIRED (already broadcast) starts the stroke on each client, timed as yours; its clacks heard at his copy's gun (autopump::otherFired, syncfix5); his copy's fore-end is drawn still | syncaudit shoot [run] |
 | Flashlight, torso torch (belt, hand, gun, head; on/off, where it points) | S | VrDrawnLamp in the move and the avatar: his torch's model and its spot, spill and glow lights (agent/wpnsync); not its visible cone or cord | mp_wpnsync [test] |
 | Holstered weapons | S | VrDrawnHolsters (B6b) | mp_cosmetics [test]; holstered v_shot both [run] |
-| **Hip and leg holster sheaths** | G | not drawn on the copy (his holstered guns float at his thighs) | legholster x4 B only, VR and flat [run] |
-| **Wrist gadget and its straps** (VR) | G | not drawn on the copy; nor its screen's glow | vrgadget, vrgadget_strap x2, lights r10/r30 B only [run] |
-| **Ammo pouch and the rounds in it** | G | not drawn | vrpouch_ammo and 17 vr_shell_live B only [run] |
-| **Grenade pouch** (the back) | G | not drawn | vrpouch B only, VR and flat [run] |
-| **Ring of Shadows** | G | B sees his own body, hands and gear at alpha 0.3; A's copy of him is drawn fully opaque (the copy takes the place of Quake's eyes model). In deathmatch the ring does nothing | faded x23 B only, 0 on A [run] |
-| **Quad, Pentagram, Biosuit looks** | G | A gets only the entity light the server's effects give (one, r210); not the rim glow on hands and body, the two hand lights (r110) and their glow light (r220), nor the quad's arcs: vr_view.cpp reads `cl.items`, the own player's only | glow x3, lights B only [run]; vr_view.cpp:3365-3382 [code] |
-| **Muzzle flash of another player's shot** | G | its light (r20, r30 at the shot) not seen; the shot's sound, thump and tail layers are | B only [run] |
-| **Spent casings from another player's gun** | G | none (his own client throws them) | vr_shell B only [run] |
+| Hip and leg holster sheaths | S | VrDrawnGear (syncfix batch 2): his sheaths as he drew them; a bot's (and its holstered weapons, what it carries) placed by each client on its body as drawn (view::holsterOnOther) | syncaudit idle, bot [run] |
+| Wrist gadget and its straps (VR) | S | VrDrawnGear (syncfix batch 2); its screen's two glow lights (r10/r30) lit at his copy's gadget by your gadget's code (gadget::otherGlow, syncfix2); its screen's contents stay his own | syncaudit idle [run] |
+| Ammo pouch and the rounds in it | S | the pouch: VrDrawnGear (syncfix batch 2); the rounds: what it holds (the server's .vr_pouch_kind/.vr_pouch_count, +2 B in the avatar while drawn) posed in his copy's pouch by your pouch's code (view::posePouchItems, syncfix2) | syncaudit idle [run] |
+| Grenade pouch (the back) | S | VrDrawnGear (syncfix batch 2) | syncaudit idle [run] |
+| Ring of Shadows | S | the gear byte's ring bit (syncfix batch 1): his whole copy faded as he sees himself (view::powerupLookOf's alpha 0.3), deathmatch too | syncaudit ring [run] |
+| Quad, Pentagram, Biosuit looks | S | the gear byte's power-up bits (syncfix batch 1), drawn by the code that draws yours (view::powerupLookOf): the glow on his hands and body, its two hand lights, Quad's arcs | syncaudit quad [run] |
+| Muzzle flash of another player's shot, his ammo screen's light, his barrel's heat | S | the shot's QVR_SVC_FIRED (already broadcast) drawn at his copy's gun: your flash model (size, time, an AD gun's colour) and the shot's sparks and smoke (gunfx::otherFired, syncfix2; Quake's EF_MUZZLEFLASH light was always seen). His held gun's ammo screen casts your screen's light (r20, emissive::otherWeaponScreenLight); his barrel heats from his shots as yours and glows and lights (r30) on his copy's gun (gunfx::otherBarrelHeat, vr_hotblade.cpp; syncfix5) | syncaudit shoot [run] |
+| Spent casings from another player's gun | S | QVR_SVC_EJECTOTHER (the QC's eject, also sent to the others who see him: 8 B a shot each, reliable) thrown out of his copy's gun by your casings' code (vr_shells.cpp ejectFrom; his auto pump's timing, flicks and the revolver's crane are his own) | syncaudit shoot [run] |
 | Shot sounds, Quad's attack sound | S | server sounds; vr_gunsfx's layers made on each client | guncock, gun_thump, gun_tail, damage3 both [run] |
-| **Blood on hands, arms and gear; wounds on the player's body** | G | own only: vr_wounds.cpp paints the player's body and hands only for `cl.viewentity`; another player's copy stays clean | vr_wounds.cpp:1577-1643 [code] |
+| Wounds on another player's body and hands | S | the server's wound event on him (QVR_SVC_WOUND, already sent to every client) painted on his copy's body and jointed hands, placed by capsules round them as yours, in the pool's masks (no new data; up to 3 masks a player, the monsters' pool); kept on his dead body, forgotten when he lives again or leaves (syncfix5). His arms share their skin's texels: a wound on one arm shows on both (yours has a mask a side). Blood thrown onto his hands from what he hits (your spatter) is still yours only | syncaudit hurt (B's own body and hands painted and A's copy of him: wounded:vrbody_bare.mdl, hand_rig.mdl; syncfix6: vr_hurt's broadcast had been dropped) |
 | Footsteps | S | the old trigger's server sound in multiplayer (the legs' own steps are single player's: no one else sees the feet's phase) | foot4-7 both [run]; vr_playersteps.cpp:9-12 [code] |
-| **Mantle grunt** | G | `S_LocalSound`: only he hears it | vr_climb.cpp:1667 [code] |
-| **Slide sound** | G | started on `cl.viewentity` by his client: only he hears it (mpslide does the pose, not this) | vr_slidesound.cpp:86 [code] |
+| Mantle grunt | S | a server sound already (climb::grunt, CHAN_VOICE: the audit read the test command's `S_LocalSound`) | mp_climb [test] |
+| Slide sound | S | each client plays it on another player's entity from his copy's slide (the server's slide in his avatar: mpslide), the scrape following his speed (slidesound::othersFrame, syncfix5); no new data | mp_slide [test] |
 | Voice chat and the talking indicator | S | B10v | mp_voice [test] |
 | Chat, scoreboard, frags | S | Quake's | mp_dm [test] |
 | Name tags over heads | N | none in the game (the scoreboard names players) | [code] |
@@ -4041,7 +4041,7 @@ design (right as it is), **N** no such feature. Evidence: [run] syncaudit, [test
 | Toolgun, Setup, holster setup | L | single player only (section 1.3) | [code] |
 | HUD, the gadget's screen contents, haptics, menus, voice notes | L | his own | |
 
-Counts (43 rows): 22 synced, 11 gaps, 4 elsewhere, 4 local by design, 2 not features (the slide pose and the dead body synced by mpslide since the audit).
+Counts (43 rows): 34 synced, 0 gaps, 4 elsewhere, 4 local by design, 2 not features (the slide pose and the dead body synced by mpslide since the audit; batches 1-2 by syncfix, batch 2's rest and batch 3's flash and casings by syncfix2, the gun lights, the auto pump, wounds and the slide sound by syncfix5, wounds seen in a run by syncfix6; the mantle grunt was a server sound: ROUND25.md "syncfix", "syncfix2", "syncfix5", "syncfix6").
 
 **Side finding.** The Debug menu's Cheats rows (Quad, Pentagram, Ring, Biosuit: `impulse 190-193`) give a holstered
 shotgun in coop instead: the single-player test impulses (`VR_TestImpulse`) are skipped in coop, and weapons.qc's
@@ -4205,3 +4205,9 @@ loopback (the harness's), interpolation delay 0.12-0.25 s.
   play 443 (662 in the play without them), the dropped shotgun 0.04 units p95 (2.3 before), the crate and sword 0.04;
   the backpacks 0.04 over all samples, one flung backpack 3.2 units p95 while it flew (one 0.8 s burst as a grunt was
   gibbed, likely the gib storm's full datagram; not traced further); the small gibs' cosmetic budget as before.
+- **raginterp** (2026-11-21, the regression smallfix found): with the ragdolls sent the crate and sword at B were 6.5 /
+  2.9 units p95 in some runs, drawn in steps 1-2 ticks ahead. Not the ragdoll code: the entities' interpolation history
+  kept 8 messages (0.11 s) while the adaptive delay may reach 0.25 s (and the clock lag its target 0.25 s more, catching
+  up after a hitch); the ragdolls' bigger snapshots arrived less evenly, the delay grew past 7 ticks and the clock fell
+  before each entity's oldest message, which interpEntity holds ("before the oldest"): drawn at the oldest, stepping
+  ahead. Now 40 messages (vr_netsnap.cpp historyLen, a static_assert ties it to delayMost + snapAfter).

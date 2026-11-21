@@ -12,6 +12,7 @@
 #include "vr_emissive.hpp"
 #include "vr_gunfx.hpp"
 #include "vr_modelmetadata.hpp"
+#include "vr_mpavatar.hpp"
 #include "vr_particles.hpp"
 #include "vr_protocol.hpp"
 #include "vr_render.hpp"
@@ -291,6 +292,11 @@ void matrixOf(const entity_t& e, float m[16])
         render::anchorMatrix(*ve, glm::vec3{0.f}, m);
         return;
     }
+    if(const view::ViewEntity* ve = mpavatar::find(&e)) // (another player's copy's: syncfix5)
+    {
+        render::anchorMatrix(*ve, glm::vec3{0.f}, m);
+        return;
+    }
     render::entityMatrix(e, false, e.scale ? e.scale : ENTSCALE_DEFAULT, glm::vec3{0.f}, m);
 }
 
@@ -316,10 +322,8 @@ void matrixOf(const entity_t& e, float m[16])
 // The shader's Barrel for hand `hand`'s gun's part `e` (the gun itself or a part drawn in its place, in its space): 1 +
 // its mask's place in BarrelMasks (1: no mask), the ramp along its rest pose's x (its pose bytes: x * y + z, 1 at the
 // muzzle to 0 Barrel Glow Length back), 1 to show the mask flat (painting it). False: no barrel to glow.
-[[nodiscard]] bool barrelInstance(int hand, const entity_t& e, float out[4])
+[[nodiscard]] bool barrelInstance(qmodel_t* gun, int slot, bool paint, const entity_t& e, float out[4])
 {
-    qmodel_t* const gun = weapons::heldModel(hand);
-    const int slot = weapons::heldSlot(hand);
     const PoseBlade* p = slot >= 0 ? poseBlade(gun) : nullptr;
     if(!p || !e.model || e.model->type != mod_alias)
     {
@@ -328,7 +332,6 @@ void matrixOf(const entity_t& e, float m[16])
     const auto* gh = static_cast<const aliashdr_t*>(Mod_Extradata(gun));
     const auto* dh = static_cast<const aliashdr_t*>(Mod_Extradata(e.model));
     const float tip = p->tip.x * gh->scale[0] + gh->scale_origin[0], grip = p->grip.x * gh->scale[0] + gh->scale_origin[0];
-    const bool paint = barrelmask::painting(hand);
     const float length = za::clamp(weapons::value(slot, weapons::Key::GunfxBarrel), 0.f, 1.f) * (tip - grip);
     const float mask = barrelmask::gpuMask(e.model, gun, slot);
     if(length < 1e-3f && !paint)
@@ -346,6 +349,26 @@ void matrixOf(const entity_t& e, float m[16])
         out[3] = 0.f;
     }
     return true;
+}
+
+[[nodiscard]] bool barrelInstance(int hand, const entity_t& e, float out[4])
+{
+    return barrelInstance(weapons::heldModel(hand), weapons::heldSlot(hand), barrelmask::painting(hand), e, out);
+}
+
+// Another player's copy's held gun `e` (syncfix5): its hot barrel (gunfx::otherBarrelHeat: his shots), as barrelOf has
+// yours; `player` 0: not one, or cold.
+[[nodiscard]] gunfx::BarrelHeat otherBarrelOf(const entity_t* e, int& player, int& side)
+{
+    player = e && e->model && connected() ? mpavatar::weaponOwner(e, side) : 0;
+    const int slot = player > 0 ? weapons::slotForModel(e->model) : -1;
+    gunfx::BarrelHeat b = slot >= 0 ? gunfx::otherBarrelHeat(player, side, slot) : gunfx::BarrelHeat{};
+    if(b.share <= 0.f || za::clamp(weapons::value(slot, weapons::Key::GunfxBarrel), 0.f, 1.f) <= 0.f)
+    {
+        player = 0;
+        return {};
+    }
+    return b;
 }
 
 // How `e` glows, 0..1 (0: not a glowing blade).
@@ -710,6 +733,32 @@ void queue(const hands::State& s)
         w.radius = radius;
         w.e = src1.e;
     }
+    // The other players' copies' hot barrels (syncfix5): their light as yours (gunfx::otherBarrelHeat: their shots).
+    for(int p = 1; on && p <= cl.maxclients && p <= MAX_SCOREBOARD; p++)
+    {
+        for(int side = 0; side < 2 && p != cl.viewentity; side++)
+        {
+            const view::ViewEntity* w = mpavatar::drawnWeapon(p, side);
+            int owner = 0, hand = 0;
+            const gunfx::BarrelHeat h = w ? otherBarrelOf(&w->ent, owner, hand) : gunfx::BarrelHeat{};
+            float m[16];
+            Blade b;
+            if(owner != p)
+            {
+                continue;
+            }
+            matrixOf(w->ent, m);
+            if(!barrelBlade(w->ent, m, b))
+            {
+                continue;
+            }
+            const float flicker = 0.94f + 0.04f * static_cast<float>(za::sin(cl.time * 7.3 + p * 1.7 + side)) +
+                                  0.02f * static_cast<float>(za::sin(cl.time * 17.9 + p * 2.9 + side));
+            emissive::otherHotBarrelLight(p, side, glm::mix(b.root, b.tip, 0.75f), h.color,
+                za::clamp(vr_gunfx_heat_light.value, 0.f, 3.f) * h.share * flicker,
+                za::max(0.f, vr_gunfx_heat_light_radius.value) * (0.6f + 0.4f * h.share));
+        }
+    }
     lastPlayer = s.playerOrigin + s.lean;
     lastTurnYaw = s.turnYaw;
     lastPlayerAt = s.valid ? cl.time : -1.0;
@@ -747,7 +796,13 @@ float entityGlow(const entity_t* e)
             return coded(glm::vec3{0.2f, 0.9f, 1.f}, 1.3f);
         }
         const gunfx::BarrelHeat b = hand >= 0 ? barrelOf(hand, e) : gunfx::BarrelHeat{};
-        return hand >= 0 ? coded(b.color, b.glow) : 0.f;
+        if(hand < 0)
+        {
+            int player = 0, side = 0; // another player's copy's gun (syncfix5)
+            const gunfx::BarrelHeat o = otherBarrelOf(e, player, side);
+            return player > 0 ? coded(o.color, o.glow) : 0.f;
+        }
+        return coded(b.color, b.glow);
     }
     // A low glow raised (the build-up shows).
     const float flicker = 0.93f + 0.07f * static_cast<float>(za::sin(realtime * 7.3));
@@ -778,6 +833,21 @@ void bladePlane(const entity_t* e, const float matrix[16], float out[4], float b
         }
         s.pieces += e != s.e ? 1 : 0;
         s.masked += barrel[0] > 1.5f ? 1 : 0;
+        return;
+    }
+    int player = 0, side = 0;
+    if(e && e->model && glowOf(e) <= 0.f)
+    {
+        (void)otherBarrelOf(e, player, side);
+    }
+    if(player > 0)
+    {
+        // Another player's copy's hot barrel (syncfix5): its marked triangles and ramp as yours (the gun itself: his
+        // copy's parts drawn in its place glow not).
+        if(!barrelInstance(e->model, weapons::slotForModel(e->model), false, *e, barrel))
+        {
+            out[3] = -1.f;
+        }
         return;
     }
     if(!e || !e->model || glowOf(e) <= 0.f)

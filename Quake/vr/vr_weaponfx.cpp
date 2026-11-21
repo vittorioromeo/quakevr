@@ -7,6 +7,7 @@
 #include "vr_flatxhair.hpp"
 #include "vr_modelmetadata.hpp"
 #include "vr_weaponfx.hpp"
+#include "vr_mpavatar.hpp"
 #include "vr_adcrossbow.hpp"
 #include "vr_adweapons.hpp"
 #include "vr_adguns.hpp"
@@ -114,6 +115,7 @@ struct EnemyFlash
     int slot{-1};
     int variant{-1};
     bool told{false}; // (vr_debug_weaponfx: its place printed)
+    int hand{-1};     // another player's shot (syncfix2): his copy's weapon in this hand (mpavatar::drawnWeapon), as yours
 };
 EnemyFlash enemyFlashes[maxEnemyFlashes];
 
@@ -574,6 +576,41 @@ void monsterFired(int ent, bool rocket)
     }
 }
 
+// Another player's shot from his `hand` (QVR_SVC_FIRED, syncfix2): at his copy's weapon (mpavatar::drawnWeapon) its flash
+// as yours (its size, time, an AD gun's colour) and its sparks and smoke (gunfx); nothing without a drawn copy.
+void otherPlayerFired(int ent, int hand)
+{
+    const view::ViewEntity* w = mpavatar::drawnWeapon(ent, hand);
+    const int slot = w ? weapons::slotForModel(w->ent.model) : -1;
+    if(slot < 0 || slot == weapons::fistSlot())
+    {
+        return;
+    }
+    gunfx::otherFired(ent, *w, slot, hand);
+    if(slot == weapons::slotForName("progs/v_shot.mdl"))
+    {
+        autopump::otherFired(ent, hand); // (his shotgun's auto pump's clacks, as yours: syncfix5)
+    }
+    const int variant = adguns::variantOf(w->ent.model->name);
+    const adguns::FireFeel feel = variant >= 0 ? adguns::fireFeel(variant) : adguns::FireFeel{};
+    if(!vr_muzzle_flash.value || weapons::value(slot, Key::Flash) == 0.f || feel.flash <= 0.f)
+    {
+        return;
+    }
+    EnemyFlash* f = &enemyFlashes[0]; // (the oldest, as a monster's)
+    for(EnemyFlash& o : enemyFlashes)
+    {
+        f = o.at < f->at ? &o : f;
+    }
+    *f = EnemyFlash{};
+    f->ent = ent;
+    f->hand = hand;
+    f->at = cl.time;
+    f->roll = vrand::lcg01(seed) * 360.f;
+    f->slot = slot;
+    f->variant = variant;
+}
+
 // The tracers' speed (units a second) for the weapon in `slot` (-1: a monster's, the settings' own).
 [[nodiscard]] float tracerSpeed(int slot)
 {
@@ -655,6 +692,10 @@ void parseFired()
             {
                 streamed(hand - 2);
             }
+        }
+        else if(hand <= 1)
+        {
+            otherPlayerFired(ent, hand); // (another player's: syncfix2)
         }
         return;
     }
@@ -1020,6 +1061,35 @@ void frame(const view::ViewEntity (&weapons)[2], view::ViewEntity (&flashes)[2],
         const float age = static_cast<float>(cl.time - f.at);
         glm::vec3 muzzle, dir;
         float gunLength;
+        if(f.hand >= 0)
+        {
+            // Another player's (syncfix2): at his copy's weapon as your hand's flash is placed.
+            const view::ViewEntity* w = mpavatar::drawnWeapon(f.ent, f.hand);
+            const adguns::FireFeel feel = f.variant >= 0 ? adguns::fireFeel(f.variant) : adguns::FireFeel{};
+            if(!w || !vr_muzzle_flash.value || weapons::slotForModel(w->ent.model) != f.slot || age < 0.f ||
+                age >= za::max(weapons::value(f.slot, Key::FlashTime) * feel.flashTime, 0.01f))
+            {
+                f.at = -1.0;
+                continue;
+            }
+            muzzle = view::anchorPosition(*w, weapons::anchor(f.slot, Key::MuzzleAnchor),
+                weapons::vec(f.slot, Key::MuzzleOffsetX, Key::MuzzleOffsetY, Key::MuzzleOffsetZ));
+            const glm::vec3 o = view::modelPoint(*w, glm::vec3{0.f});
+            const glm::vec3 ax = view::modelPoint(*w, glm::vec3{1.f, 0.f, 0.f}) - o;
+            const glm::vec3 az = view::modelPoint(*w, glm::vec3{0.f, 0.f, 1.f}) - o;
+            const float perUnit = glm::length(ax);
+            const float weaponScale = weapons::value(f.slot, Key::Scale);
+            if(perUnit < 1e-5f || weaponScale <= 0.f)
+            {
+                continue;
+            }
+            qmodel_t* own = feel.flashModel ? view::viewModel(feel.flashModel) : nullptr;
+            model = own ? own : view::viewModel(flashModelName);
+            place(fve, muzzle, ax / perUnit, az, f.roll,
+                perUnit / weaponScale * za::max(weapons::value(f.slot, Key::FlashSize), 0.f) * feel.flash);
+            model = view::viewModel(flashModelName);
+            continue;
+        }
         if(f.slot >= 0)
         {
             // A held weapon's: its own flash (size, time, an AD gun's colour and feel) at its Muzzle anchor, as yours.

@@ -1838,7 +1838,7 @@ bool holsterLive[HolsterCount]{};
 // front button, `front` (setupFrontButton); the screen queued when `queueText` (once a frame). `clip`: its clip if known
 // (a holstered gun's), else -1.
 void idleAttachments(const entity_t& e, bool mirrored, int slot, view::ViewEntity& button, view::ViewEntity& front, int clip,
-    int clipSize, bool queueText, bool total = true, const char* seenCvar = nullptr)
+    int clipSize, bool queueText, bool total = true, const char* seenCvar = nullptr, int lightPlayer = 0, int lightSide = 0)
 {
     const bool on = vr_weapon_screen_idle.value != 0.f && slot >= 0 && e.model && !isHandModel(e.model) &&
                     slot != weapons::fistSlot();
@@ -1899,6 +1899,11 @@ void idleAttachments(const entity_t& e, bool mirrored, int slot, view::ViewEntit
         }
         glm::vec3 tint{};
         const bool warn = idleAmmoWarning(e.model, clip, clipSize, tint, seenCvar); // (low or empty: vr_ammo_color_warn)
+        if(lightPlayer > 0 && vr_weapon_screen.value != 0.f)
+        {
+            // Another player's held gun (syncfix5): its faint glow as your held gun's (vr_weapon_screen_light).
+            emissive::otherWeaponScreenLight(lightPlayer, lightSide, pos, idleAttachmentAngles(drawn, slot, mirrored, angles));
+        }
         text3d::queue(idleWeaponText(e.model, clip, clipSize, total), pos, idleAttachmentAngles(drawn, slot, mirrored, angles),
             text3d::Align::Centre, 0.1f * weapons::value(slot, Key::WpnTextScale), vr_weapon_screen.value != 0.f,
             warn ? &tint : nullptr, &screenstyle::forModel(e.model ? e.model->name : nullptr, mirrored),
@@ -2836,15 +2841,22 @@ void setupPumps()
 // pouch is (pouch reloading finds the magazines drawn: ammoPouchMags), drawn when it is.
 void setupAmmoPouchItems(const view::ViewEntity& pouch, bool placed)
 {
-    const int kind = cl.stats[protocol::STAT_QVR_POUCHKIND];
+    ammoPouchItems = posePouchItemsIn(pouch, placed, cl.stats[protocol::STAT_QVR_POUCHKIND],
+        cl.stats[protocol::STAT_QVR_POUCHCOUNT], entities.ammoPouchItem);
+}
+
+} // namespace
+
+// The rounds in an ammo pouch (yours: setupAmmoPouchItems; another player's on his copy, syncfix2: view::posePouchItems)
+// -> how many placed.
+int posePouchItemsIn(const view::ViewEntity& pouch, bool placed, int kind, int count,
+    view::ViewEntity (&out)[pouchitems::most])
+{
     pouchitems::Item items[pouchitems::most];
-    const int n = placed && pouch.ent.model
-                      ? pouchitems::posed(kind & 23, (kind & 8) != 0, cl.stats[protocol::STAT_QVR_POUCHCOUNT], items)
-                      : 0;
-    ammoPouchItems = n;
+    const int n = placed && pouch.ent.model ? pouchitems::posed(kind & 23, (kind & 8) != 0, count, items) : 0;
     for(int j = 0; j < pouchitems::most; j++)
     {
-        view::ViewEntity& ve = entities.ammoPouchItem[j];
+        view::ViewEntity& ve = out[j];
         if(j >= n)
         {
             ve.visible = false;
@@ -2863,7 +2875,11 @@ void setupAmmoPouchItems(const view::ViewEntity& pouch, bool placed)
         ve.lightMultiply = pouch.lightMultiply;
         ve.lightMod = pouch.lightMod;
     }
+    return n;
 }
+
+namespace
+{
 
 void setupAmmoPouch(const hands::State& s)
 {
@@ -3390,6 +3406,11 @@ void quadArcs(const hands::State& s)
                                      : 0;
 }
 
+namespace
+{
+qvr::view::PowerupLook lookOf(int items); // (below)
+} // namespace
+
 void showPlayerState(view::ViewEntity& ve, const hands::State& s)
 {
     if(vr_body_state.value)
@@ -3421,11 +3442,12 @@ void showPlayerState(view::ViewEntity& ve, const hands::State& s)
         ve.lightMultiply = true;
         ve.lightMod = glm::vec3{0.8f, 1.25f, 0.8f};
     }
-    if(cl.items & IT_INVISIBILITY)
+    const qvr::view::PowerupLook look = lookOf(cl.items & (IT_INVISIBILITY | IT_QUAD)); // (the ring's fade, Quad's arcs)
+    if(look.alpha < 1.f)
     {
-        ve.ent.alpha = ENTALPHA_ENCODE(0.3f);
+        ve.ent.alpha = ENTALPHA_ENCODE(look.alpha);
     }
-    if((cl.items & IT_QUAD) && static_cast<int>(vr_quad_look.value) != 1) // 1: the blue glow only (powerupGlow)
+    if(look.arcs)
     {
         quadArcs(s);
     }
@@ -3455,15 +3477,6 @@ const PowerupGlowLook powerupGlowLooks[] = {
 constexpr int powerupGlowKinds = 3;
 constexpr double powerupGlowTurn = 1.6; // seconds each glow shows when more than one take turns
 
-struct PowerupGlowState
-{
-    float level = 0.f; // the glow's strength this frame (0 none), pulsing
-    float code = 0.f;  // its colour coded for the shader (r + 16g + 256b, 16 levels a channel)
-    int shown = 0;     // how many power-ups glow (taking turns)
-    int kind = -1;     // the one glowing now (or fading out), powerupGlowLooks
-};
-PowerupGlowState powerupGlowState;
-
 float powerupGlowStrength(int kind)
 {
     switch(kind)
@@ -3484,26 +3497,27 @@ float powerupGlowLight(int kind)
     }
 }
 
-void powerupGlow(const hands::State& s)
+// The look of power-ups `items` (view::powerupLookOf: yours and another player's copy alike).
+qvr::view::PowerupLook lookOf(int items)
 {
-    PowerupGlowState& g = powerupGlowState;
-    g = PowerupGlowState{};
-    const bool can = vr_body_powerups.value != 0.f && cl.stats[STAT_HEALTH] > 0 && !cl.intermission && s.valid && !deathview::immersive();
-    int shown[powerupGlowKinds];
-    for(int k = 0; can && k < powerupGlowKinds; k++)
+    qvr::view::PowerupLook g;
+    if(vr_body_powerups.value == 0.f)
     {
-        if((cl.items & powerupGlowLooks[k].item) && (powerupGlowStrength(k) > 0.f || powerupGlowLight(k) > 0.f))
+        return g;
+    }
+    g.alpha = (items & IT_INVISIBILITY) ? 0.3f : 1.f;
+    g.arcs = (items & IT_QUAD) && static_cast<int>(vr_quad_look.value) != 1; // 1: the blue glow only
+    int shown[powerupGlowKinds];
+    for(int k = 0; k < powerupGlowKinds; k++)
+    {
+        if((items & powerupGlowLooks[k].item) && (powerupGlowStrength(k) > 0.f || powerupGlowLight(k) > 0.f))
         {
             shown[g.shown++] = k;
         }
     }
     if(g.shown == 0)
     {
-        for(int hand = 0; hand < 2; hand++)
-        {
-            emissive::powerupLight(hand, s.pos[hand], 0.f, 0.f, glm::vec3{0.f});
-        }
-        return;
+        return g;
     }
     // Taking turns: each shows for powerupGlowTurn seconds, crossfading into the next over its last third.
     const double t = cl.time;
@@ -3520,16 +3534,27 @@ void powerupGlow(const hands::State& s)
         return glm::mix(geom::vec(ca), geom::vec(cb), w);
     };
     const glm::vec3 shade = mixed(powerupGlowLooks[a].shade, powerupGlowLooks[b].shade);
-    const glm::vec3 lightColor = mixed(powerupGlowLooks[a].light, powerupGlowLooks[b].light);
+    g.lightColor = mixed(powerupGlowLooks[a].light, powerupGlowLooks[b].light);
     const float strengthA = za::clamp(powerupGlowStrength(a), 0.f, 2.f) * powerupGlowLooks[a].gain;
     const float strengthB = za::clamp(powerupGlowStrength(b), 0.f, 2.f) * powerupGlowLooks[b].gain;
     g.level = glm::mix(strengthA, strengthB, w) * pulse;
     const auto level16 = [](float c) { return static_cast<float>(za::clamp(static_cast<int>(c * 15.f + 0.5f), 0, 15)); };
     g.code = level16(shade.r) + 16.f * level16(shade.g) + 256.f * level16(shade.b);
-    const float light = za::clamp(glm::mix(powerupGlowLight(a), powerupGlowLight(b), w), 0.f, 2.f) * pulse;
+    g.light = za::clamp(glm::mix(powerupGlowLight(a), powerupGlowLight(b), w), 0.f, 2.f) * pulse;
+    return g;
+}
+
+qvr::view::PowerupLook powerupGlowState; // yours, as drawn this frame
+
+void powerupGlow(const hands::State& s)
+{
+    const bool can = cl.stats[STAT_HEALTH] > 0 && !cl.intermission && s.valid && !deathview::immersive();
+    qvr::view::PowerupLook& g = powerupGlowState;
+    g = can ? lookOf(cl.items) : qvr::view::PowerupLook{};
     for(int hand = 0; hand < 2; hand++) // (the body's own: Quake's blue quad and red pentagram lights round you, cl_main.c)
     {
-        emissive::powerupLight(hand, s.pos[hand], light * 0.8f, 110.f, lightColor); // (inside the hand: lights the world, not it)
+        // (inside the hand: lights the world, not it)
+        emissive::powerupLight(hand, s.pos[hand], g.shown > 0 ? g.light * 0.8f : 0.f, 110.f, g.lightColor);
     }
 }
 } // namespace
@@ -3538,7 +3563,7 @@ void powerupGlow(const hands::State& s)
 // take turns), its strength on the hands and the body, and its lights.
 void powerupInfo_f()
 {
-    const PowerupGlowState& g = powerupGlowState;
+    const qvr::view::PowerupLook& g = powerupGlowState;
     Con_Printf("powerups: quad %d pent %d suit %d look %d arcsframe %d\n", (cl.items & IT_QUAD) ? 1 : 0,
         (cl.items & IT_INVULNERABILITY) ? 1 : 0, (cl.items & IT_SUIT) ? 1 : 0, static_cast<int>(vr_quad_look.value), oncePerFrame.quadArcs);
     const float hand = view::powerupGlow(&entities.hand[0].ent);
@@ -3579,7 +3604,7 @@ VrGunLook ownGunLook(int hand)
     return l;
 }
 
-void drawGunParts(ViewEntity& gun, const VrGunLook& look, GunParts& g, bool held, bool screen)
+void drawGunParts(ViewEntity& gun, const VrGunLook& look, GunParts& g, bool held, bool screen, int player, int side)
 {
     ViewEntity* const p = g.part;
     const qmodel_t* const model = gun.visible && look.has(VrGunLook::gunBit) ? gun.ent.model : nullptr;
@@ -3616,7 +3641,7 @@ void drawGunParts(ViewEntity& gun, const VrGunLook& look, GunParts& g, bool held
     // Its button and ammo screen (its clip), as a gun not in your hands carries them (idleAttachments).
     const int slot = model && screen ? weapons::slotForModel(model) : -1;
     idleAttachments(gun.ent, gun.mirrored, slot, p[GunParts::Button], p[GunParts::Front], look.clip, look.clipSize, slot >= 0,
-        false);
+        false, nullptr, held ? player : 0, side);
     g.inParts = parts;
     if(parts)
     {
@@ -4015,8 +4040,16 @@ const entity_t* cloneSource(const entity_t* e)
 
 float powerupGlow(const entity_t* e)
 {
-    const PowerupGlowState& g = powerupGlowState;
-    if(g.level <= 0.f || !e)
+    const PowerupLook& g = view_detail::powerupGlowState;
+    if(!e)
+    {
+        return 0.f;
+    }
+    if(const float other = mpavatar::powerupGlow(e); other != 0.f)
+    {
+        return other; // (another player's copy: his own power-ups)
+    }
+    if(g.level <= 0.f)
     {
         return 0.f;
     }
@@ -4024,17 +4057,29 @@ float powerupGlow(const entity_t* e)
     {
         e = source;
     }
-    float strength = 0.f;
     bool weapon = false;
     if(e == &entities.body.ent)
     {
-        strength = za::min(g.level * 0.3f, 1.f); // less: seen from inside, its edges are all round the view
+        return powerupGlowCode(g, true);
     }
-    else if(handOf(e, weapon) >= 0 && (!weapon || isHandModel(e->model)))
-    {
-        strength = za::min(g.level * 0.6f, 1.f);
-    }
-    return strength > 0.f ? -2.f - 2.f * g.code - strength : 0.f; // (vr_glsl.h QVR_ALIAS_FS_GLOW decodes it)
+    return handOf(e, weapon) >= 0 && (!weapon || isHandModel(e->model)) ? powerupGlowCode(g, false) : 0.f;
+}
+
+float powerupGlowCode(const PowerupLook& look, bool body)
+{
+    // (the body less: seen from inside, its edges are all round the view)
+    const float strength = look.level > 0.f ? za::min(look.level * (body ? 0.3f : 0.6f), 1.f) : 0.f;
+    return strength > 0.f ? -2.f - 2.f * look.code - strength : 0.f; // (vr_glsl.h QVR_ALIAS_FS_GLOW decodes it)
+}
+
+PowerupLook powerupLookOf(int items)
+{
+    return view_detail::lookOf(items);
+}
+
+void otherQuadArcs(int player, const glm::vec3 wrist[2], const glm::vec3 along[2])
+{
+    shock::otherArmArcs(wrist, along, static_cast<unsigned>(host_framecount) * 2654435761u + static_cast<unsigned>(player) * 40503u, 5, 0.2f);
 }
 
 void bareLight(const entity_t* e, float lightcolor[3])
@@ -4604,6 +4649,82 @@ entity_t* holsteredWeapon(int stat)
         }
     }
     return nullptr;
+}
+
+namespace
+{
+// The worn gear's models (VrDrawnGear::model: 1 + the index here).
+const char* const gearModelNames[] = {"progs/legholster.mdl", "progs/vrgadget.mdl", "progs/vrgadget_strap.mdl", "progs/vrpouch.mdl",
+    "progs/vrpouch_ammo.mdl"};
+constexpr int gearModelCount = static_cast<int>(sizeof(gearModelNames) / sizeof(gearModelNames[0]));
+} // namespace
+
+qmodel_t* gearModel(int index)
+{
+    return index >= 1 && index <= gearModelCount ? viewModel(gearModelNames[index - 1]) : nullptr;
+}
+
+qmodel_t* holsterOnOther(int holster, const glm::vec3& pos, const glm::vec3& out, float yaw, GearDraw& sheath, GearDraw& gun)
+{
+    const bool shoulder = holster == body::LeftShoulder || holster == body::RightShoulder;
+    const bool mirrored = holster == body::LeftHip || holster == body::LeftUpper || holster == body::LeftShoulder;
+    qmodel_t* const slotModel = vr_leg_holster_model_enabled.value && !shoulder ? viewModel("progs/legholster.mdl") : nullptr;
+    body::HolsterPlate plate;
+    plate.out = out;
+    plate.up = glm::vec3{0.f, 0.f, 1.f};
+    const HolsterPose pose = shoulder ? holsterOnBack(pos, yaw, mirrored)
+                                      : holsterOnBody(pos, plate, mirrored, holster == body::LeftUpper || holster == body::RightUpper, slotModel);
+    sheath.model = slotModel;
+    sheath.origin = pose.slotPos;
+    sheath.angles = pose.slotAngles;
+    sheath.mirrored = mirrored;
+    gun.origin = pose.weaponPos;
+    gun.angles = pose.weaponAngles;
+    gun.mirrored = mirrored;
+    return slotModel;
+}
+
+int posePouchItems(const ViewEntity& pouch, bool placed, int kind, int count, ViewEntity (&out)[pouchitems::most])
+{
+    return view_detail::posePouchItemsIn(pouch, placed, kind, count, out);
+}
+
+void netGear(VrDrawnGear& out)
+{
+    out = VrDrawnGear{};
+    const auto piece = [&](int i, const ViewEntity& ve) {
+        if(!ve.visible || !ve.ent.model || ve.ent.model->type != mod_alias || ENTALPHA_DECODE(ve.ent.alpha) <= 0.f)
+        {
+            return;
+        }
+        int index = 0; // (the view's own models, never the server's: by gearModelNames)
+        for(int k = 0; k < gearModelCount && !index; k++)
+        {
+            index = !strcmp(ve.ent.model->name, gearModelNames[k]) ? k + 1 : 0;
+        }
+        if(index <= 0)
+        {
+            return;
+        }
+        out.shown = static_cast<za::U16>(out.shown | (1 << i));
+        out.mirrored = static_cast<za::U16>(out.mirrored | (ve.mirrored ? 1 << i : 0));
+        out.model[i] = static_cast<za::U16>(index);
+        out.frame[i] = static_cast<za::U8>(za::clamp(ve.ent.frame, 0, 255));
+        out.skin[i] = static_cast<za::U8>(za::clamp(ve.ent.skinnum, 0, 255));
+        out.scale[i] = static_cast<za::U8>(za::clamp(static_cast<int>(ve.scale.x * 32.f + 0.5f), 1, 255));
+        out.origin[i] = glm::vec3{ve.ent.origin[0], ve.ent.origin[1], ve.ent.origin[2]};
+        out.angles[i] = glm::vec3{ve.ent.angles[0], ve.ent.angles[1], ve.ent.angles[2]};
+    };
+    for(int h = 0; h < HolsterCount; h++)
+    {
+        piece(static_cast<int>(bodyHolster[h]), entities.holsterSlot[h]);
+    }
+    piece(VrDrawnGear::gadget, entities.gadget);
+    piece(VrDrawnGear::strap, entities.gadgetStrap[0]);
+    piece(VrDrawnGear::strap + 1, entities.gadgetStrap[1]);
+    piece(VrDrawnGear::pouch, entities.pouch);
+    piece(VrDrawnGear::ammoPouch, entities.ammoPouch);
+    out.wrist = static_cast<za::U8>(hands::gadgetHand() == HAND_MAIN ? 1 : 0); // (the move sends its pieces from it)
 }
 
 void netHolsters(VrDrawnHolsters& out)
