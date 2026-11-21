@@ -8017,6 +8017,143 @@ def roomnonce(s):
         fake.stop()
 
 
+# ---------------------------------------------------------------------------------------------------------------------
+# The sync audit (MP_PLAN.md, "Sync audit 2026-11-21"): what of B's player another player gets. B does a thing; B's own
+# game and A's each list what they draw, light and hear round B (vr_mp_near: the models, dynamic lights, sounds); what B
+# has of himself and A has not of him is a gap, measured. A report, not a regression: every probe "passes" when both
+# reports came; the gaps are in the notes, summary.json's metrics and syncaudit_table.txt.
+
+SYNC_RADIUS = 80.0   # units round B's origin
+SYNC_SPOT = OPEN_SPOT
+SYNC_GAP = 200.0     # B this far north of A (the way open ahead), facing him: A's own things out of the radius
+
+
+def near_lines(inst, ent, seconds):
+    since = inst.mark()
+    inst.cmd("vr_mp_near %d %g %g" % (ent, SYNC_RADIUS, seconds))
+    n, _ = inst.wait(r"mp_near: done", 10, since, "%s's vr_mp_near" % inst.name)
+    return inst.lines[since:n + 1]
+
+
+def near_counts(lines):
+    """vr_mp_near's lines -> {"model:<name>" | "faded:<name>" (drawn see-through) | "glow:<name>" (a powerup's glow on
+    it) | "light:r<radius/10*10>" | "sound:<name>": count}."""
+    c = {}
+    for line in lines:
+        line = line.strip()
+        keys = []
+        m = re.match(r"mp_near_ent: whose=\S+ model=(\S+) d=\S+ alpha=(\d+) .* glow=(\S+)", line)
+        if m:
+            keys.append("model:" + m.group(1))
+            keys += ["faded:" + m.group(1)] if 0 < int(m.group(2)) < 255 else []
+            keys += ["glow:" + m.group(1)] if float(m.group(3)) != 0.0 else []
+        m = re.match(r"mp_near_light: key=-?\d+ radius=(\d+)", line)
+        keys += ["light:r%d" % (int(m.group(1)) // 10 * 10)] if m else []
+        m = re.match(r"mp_near_snd: name=(\S+)", line)
+        keys += ["sound:" + m.group(1)] if m else []
+        for k in keys:
+            c[k] = c.get(k, 0) + 1
+    return c
+
+
+def minus(a, b):
+    """What `a` has more of than `b` -> {key: how many more}."""
+    return {k: n - b.get(k, 0) for k, n in a.items() if n > b.get(k, 0)}
+
+
+def sync_wait(srv, seconds):
+    server_time_past(srv, server_time(srv) + seconds)
+
+
+def sync_punch(s, srv, a, b, ea, eb):
+    b.cmd("vr_mock_hand main 0.00 1.15 -0.20 0 0 0; vr_mock_button main grip 1")
+    sync_wait(srv, 0.3)
+    play(s, b, "syncpunch", PUNCH_PLAY)
+    sync_wait(srv, 1.2)
+
+
+def sync_punch_off(s, srv, a, b, ea, eb):
+    b.cmd("vr_mock_play; vr_mock_button main grip 0")
+    sync_wait(srv, 0.5)
+
+
+def sync_shoot(s, srv, a, b, ea, eb):
+    arm_with(s, srv, b, eb, 4, "give s 20")
+    b.cmd("vr_mock_hand main 0.15 1.2 -0.40 70 0 0")
+    sync_wait(srv, 0.3)
+    b.cmd("+attack")
+    sync_wait(srv, 0.15)
+    b.cmd("-attack")
+    sync_wait(srv, 0.4)
+
+
+def sync_walk(s, srv, a, b, ea, eb):
+    b.cmd("+back" if b.flat else "vr_mock_stick off 0 -1")  # (backwards: away from A)
+    sync_wait(srv, 1.0)
+
+
+def sync_walk_off(s, srv, a, b, ea, eb):
+    b.cmd("-back" if b.flat else "vr_mock_stick off 0 0")
+
+
+def sync_nothing(s, srv, a, b, ea, eb):
+    sync_wait(srv, 1.0)
+
+
+def sync_cheat(impulse):
+    """Quake's own powerup cheats (impulse 255 quad, 254 ring: 30 s; coop allows them). Not the Debug menu's 190-193:
+    in coop those are the harness's holster gives (weapons.qc)."""
+    def on(s, srv, a, b, ea, eb):
+        b.cmd("impulse %d" % impulse)
+        sync_wait(srv, 1.0)
+    return on
+
+
+SYNC_PROBES = (  # (name, B's action, its undo); idle first: the baseline
+    ("idle", sync_nothing, None),
+    ("quad", sync_cheat(255), None),  # (it lasts the run: the probes after it compare against idle as before)
+    ("ring", sync_cheat(254), None),
+    ("punch", sync_punch, sync_punch_off),
+    ("shoot", sync_shoot, None),
+    ("walk", sync_walk, sync_walk_off),  # (last: B walks off his spot)
+)
+
+
+def syncaudit(s, flat):
+    s.client_sound = True
+    srv, a, b, ea, eb = join(s, flat=flat)
+    put_at(srv, b, eb, (SYNC_SPOT[0], SYNC_SPOT[1] + SYNC_GAP, SYNC_SPOT[2]), 270)
+    put_at(srv, a, ea, SYNC_SPOT, 90)
+    sync_wait(srv, 1.0)
+    base_b = base_a = None
+    table = []
+    for name, act, undo in SYNC_PROBES:
+        t0 = time.time()
+        act(s, srv, a, b, ea, eb)
+        seconds = time.time() - t0 + 0.3
+        own = near_counts(near_lines(b, 0, seconds))
+        seen = near_counts(near_lines(a, eb, seconds))
+        if base_b is None:
+            base_b, base_a = own, seen
+            gap, extra = minus(own, seen), minus(seen, own)
+            both = {k: n for k, n in own.items() if k in seen}
+        else:  # (what the action added on each side, against the idle baseline)
+            add_b, add_a = minus(own, base_b), minus(seen, base_a)
+            gap, extra = minus(add_b, add_a), minus(add_a, add_b)
+            both = {k: n for k, n in add_b.items() if k in add_a}
+        s.metric("sync_%s" % name, {"own": own, "seen": seen, "gap": gap, "extra": extra, "both": both})
+        s.note("%s: B has, A not: %s | A has, B not: %s | both: %s" % (name, gap or "-", extra or "-", both or "-"))
+        table.append("%-6s gap(B only): %s\n%-6s extra(A only): %s\n%-6s both: %s" % (
+            name, gap or "-", "", extra or "-", "", both or "-"))
+        s.check("%s: both reports came (B's own view of himself, A's of B)" % name, bool(own) and bool(seen),
+                "B %d kinds, A %d kinds" % (len(own), len(seen)))
+        if undo:
+            undo(s, srv, a, b, ea, eb)
+    with open(os.path.join(s.out, "syncaudit_table.txt"), "w", encoding="ascii") as f:
+        f.write("B %s, A VR mock, dedicated server; radius %g round B\n" % ("flat" if flat else "VR mock", SYNC_RADIUS))
+        f.write("\n".join(table) + "\n")
+
+
 def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
     s = Session(args.exe, args.base, args.out, test, port=args.port)
     s.server_extra = args.server_set.split() if args.server_set else []  # (B13c: e.g. "+vr_net_sendhz 36")
@@ -8146,6 +8283,8 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             deathmatch(s)
         elif test == "mp_coopbots":
             coopbots(s)
+        elif test == "mp_syncaudit":
+            syncaudit(s, args.flat or "")
         elif test in ("mp_voice", "mp_voice_lossy"):
             voice(s, args.listen, lag, jitter, loss)
         else:
@@ -8237,7 +8376,7 @@ SUITE = [
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "deathbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "navfollow", "navfollow_listen", "navfollow_vr"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "deathbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "navfollow", "navfollow_listen", "navfollow_vr", "syncaudit"])
     ap.add_argument("--base", required=True, help="the game folder (id1, quakevr...)")
     ap.add_argument("--exe", default=EXE)
     ap.add_argument("--out", default=os.path.join(REPO, "scratch", "mp"))
@@ -8299,7 +8438,7 @@ def main_run(args):
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
     elif args.test in ("bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground",
-                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "deathbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "navfollow", "navfollow_listen", "navfollow_vr"):
+                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "deathbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "navfollow", "navfollow_listen", "navfollow_vr", "syncaudit"):
         ok = run(args, "mp_" + args.test)
     elif args.test == "voice":
         ok = run(args, "mp_voice", args.lag, args.jitter, args.loss)

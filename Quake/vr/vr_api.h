@@ -70,6 +70,7 @@ void VR_StopDownloads (void);	// Host_Shutdown, before NET_Shutdown (curl_global
 void VR_BeginFrame (void);	// once per host frame, after input events and before console commands
 void VR_MpTestInit (void);	// Host_Init, after VR_Init: the multiplayer test aids (vr_mptest.cpp: -cmdinbox, vr_mp_*)
 void VR_MpTestFrame (void);	// once per host frame, before console commands: the inbox's new lines; vr_mp_watch
+void VR_MpHeardSound (int entnum, int entchannel, const char *name, const float *origin); // S_StartSoundPitch: a sound started, kept for vr_mp_near (vr_mptest.cpp)
 void VR_ServerStatusInit (void);	// Host_Init: vr_sv_status_now (vr_svstatus.cpp, B17)
 void VR_ServerStatusFrame (void);	// once per host frame: a dedicated server's status line (vr_sv_status)
 int VR_ClientPingMs (int slot);	// the server's mean ping of player `slot` in ms (ping_times): status, the status line
