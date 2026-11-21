@@ -129,6 +129,10 @@ Tests:
              every lookup failing (-netlookupfail): one "not found" line, the tries 2 s, 4 s, 8 s apart (net_lookups),
              none while a remote client is in, one again once he left; a favourite by name (localhost) in the
              server browser is asked once looked up.
+    navfollow  (2026-11-20, not in the suite) vr_nav_follow: B (a remote client, flat) follows A along the server's
+             navmesh by his own client's moves on e1m1, down the step and through the first room's door; A walks on, B
+             follows and arrives within reach; B's own move hands control back, the follow walks on after
+             vr_nav_follow_idle; vr_nav_follow 0 stops it. navfollow_listen: the same with the listen host A following B.
     roomnonce  (review 2026-11-18, finding 11) the room service's replies to a host checked (a stand-in service):
              REFUSED, BADVERSION and REGISTERED with another nonce change nothing; COOKIE (protocol version 2) with
              his nonce has him register again at once with it, then REGISTERED gives his code; a REFUSED with his
@@ -2741,6 +2745,88 @@ def saved_text(s, relname, t0, tries=50):
 def own_status(inst):
     """inst's own `mp_status:` fields (its map, intermission, health as its client sees them)."""
     return fields(next((l for l in status(inst) if l.startswith("mp_status:")), ""))
+
+
+NAVFOLLOW_TARGET = (96.0, 576.0, 25.0)  # e1m1: past the first room's west door (x 209-255), a step down from the start
+NAVFOLLOW_REACH = 112.0  # the follower ends this near the followed (vr_nav_follow_stop 64 along the path, a walk's slack)
+
+
+def navfollow_status(inst):
+    """`vr_nav_follow_status` on `inst` -> its fields (state, target, corners, next, driving, paused, arrived)."""
+    since = inst.mark()
+    inst.cmd("vr_nav_follow_status")
+    _, line = inst.wait(r"navfollow: state=", 10, since, "%s's follow status" % inst.name)
+    return {k: int(v) for k, v in re.findall(r"(\w+)=(-?\d+)\b", line.split(" at=")[0])}
+
+
+def navfollow(s, listen=False, flat="AB"):
+    """(navfollow) vr_nav_follow: a player walked after another along the server's navmesh by his own client's moves.
+    Both flat on coop e1m1 (god, notarget). The leader is put past the first room's west door; the follower, at a coop
+    start, follows him (dedicated: B, a remote client, follows A; --listen: the host A follows B): down the step, across
+    the room and through the door. The leader walks on a while; the follower ends within NAVFOLLOW_REACH of him with
+    arrived=1. The follower's own move hands control back (paused=1) and the follow walks on after vr_nav_follow_idle
+    without one (paused=0); vr_nav_follow 0 stops it."""
+    srv, a, b, ea, eb = join(s, listen=listen, flat=flat)
+    leader, follower, el, ef = (b, a, eb, ea) if listen else (a, b, ea, eb)
+    for inst in (a, b):
+        inst.cmd("god; notarget")
+    put_at(srv, leader, el, NAVFOLLOW_TARGET, yaw=180.0)
+    since = follower.mark()
+    follower.cmd("vr_nav_follow %d" % el)
+    _, line = follower.wait(r"vr_nav_follow: (following|no other)", 20, since, "the follow begun")
+    s.check("%s's vr_nav_follow %d follows %s" % (follower.name, el, leader.name), "following" in line, line.strip())
+    # The follower walks to him: within reach and arrived (a definite end: 300 reports).
+    start = org_of(status(srv), "mp_client", "slot", ef - 1)
+    got, st, near = None, {}, None
+    for _ in range(300):
+        lines = status(srv)
+        got = org_of(lines, "mp_client", "slot", ef - 1)
+        near = org_of(lines, "mp_client", "slot", el - 1)
+        st = navfollow_status(follower)
+        if got and near and dist(got[:2], near[:2]) <= NAVFOLLOW_REACH and st.get("arrived") == 1:
+            break
+    s.metric("navfollow_first_units", round(dist(got[:2], near[:2]), 1) if got and near else -1)
+    s.check("%s walks from %s through the door to %s: within %d units, arrived" % (follower.name, start, near,
+            NAVFOLLOW_REACH), got is not None and near is not None and dist(got[:2], near[:2]) <= NAVFOLLOW_REACH and
+            st.get("arrived") == 1 and got[0] < 209.0, "at %s, %s" % (got, st))
+    # The leader walks on (west, +forward) at least 80 units (a wall stops him past that); the follower follows on and arrives again.
+    leader.cmd("+forward")
+    for _ in range(200):
+        moved = org_of(status(srv), "mp_client", "slot", el - 1)
+        if moved and near and dist(moved[:2], near[:2]) >= 80.0:
+            break
+    leader.cmd("-forward")
+    for _ in range(300):
+        lines = status(srv)
+        got = org_of(lines, "mp_client", "slot", ef - 1)
+        near = org_of(lines, "mp_client", "slot", el - 1)
+        st = navfollow_status(follower)
+        if got and near and dist(got[:2], near[:2]) <= NAVFOLLOW_REACH and st.get("arrived") == 1:
+            break
+    s.metric("navfollow_after_walk_units", round(dist(got[:2], near[:2]), 1) if got and near else -1)
+    s.check("%s walked on; %s follows: within %d units, arrived" % (leader.name, follower.name, NAVFOLLOW_REACH),
+            got is not None and near is not None and dist(got[:2], near[:2]) <= NAVFOLLOW_REACH and st.get("arrived") == 1,
+            "%s at %s, %s at %s, %s" % (follower.name, got, leader.name, near, st))
+    # His own move hands it back at once; it walks on after vr_nav_follow_idle without one.
+    follower.cmd("+back")
+    st = {}
+    for _ in range(50):
+        st = navfollow_status(follower)
+        if st.get("paused") == 1:
+            break
+    follower.cmd("-back")
+    s.check("%s's own move hands control back (paused)" % follower.name, st.get("paused") == 1, str(st))
+    for _ in range(100):
+        st = navfollow_status(follower)
+        if st.get("paused") == 0 and st.get("driving") == 1:
+            break
+    s.check("... and the follow walks on after vr_nav_follow_idle without his input", st.get("paused") == 0 and
+            st.get("driving") == 1, str(st))
+    since = follower.mark()
+    follower.cmd("vr_nav_follow 0")
+    follower.wait(r"vr_nav_follow: off", 20, since, "the follow off")
+    st = navfollow_status(follower)
+    s.check("vr_nav_follow 0: off", st.get("state") == 0 and st.get("driving") == 0, str(st))
 
 
 def coopbots(s):
@@ -7958,6 +8044,12 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             cmdguard(s)
         elif test == "mp_grab":
             grab(s)
+        elif test == "mp_navfollow":
+            navfollow(s)
+        elif test == "mp_navfollow_listen":
+            navfollow(s, listen=True)
+        elif test == "mp_navfollow_vr":
+            navfollow(s, flat="A")
         elif test == "mp_teleport":
             teleport(s)
         elif test == "mp_held":
@@ -8145,7 +8237,7 @@ SUITE = [
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "deathbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "deathbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "navfollow", "navfollow_listen", "navfollow_vr"])
     ap.add_argument("--base", required=True, help="the game folder (id1, quakevr...)")
     ap.add_argument("--exe", default=EXE)
     ap.add_argument("--out", default=os.path.join(REPO, "scratch", "mp"))
@@ -8207,7 +8299,7 @@ def main_run(args):
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
     elif args.test in ("bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground",
-                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "deathbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots"):
+                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "deathbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "navfollow", "navfollow_listen", "navfollow_vr"):
         ok = run(args, "mp_" + args.test)
     elif args.test == "voice":
         ok = run(args, "mp_voice", args.lag, args.jitter, args.loss)

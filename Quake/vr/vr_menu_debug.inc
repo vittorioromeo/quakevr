@@ -1161,6 +1161,11 @@ za::Vector<Item> pageDebugReports()
         command("Network: Players Seen", "vr_mp_status")
             .help("vr_mp_status: the players this client sees (entity, name, where, whether the last message carried them) "
                   "and, hosting, the server's clients. The multiplayer harness (Misc/quakevr/mp) reads the same lines."),
+        command("Network: Follow the Next Player (Navmesh)", "vr_nav_follow next")
+            .help("vr_nav_follow next: you walk after the next other player along the navmesh (each press the next one; past "
+                  "the last, off), your view turned and forward pressed as your own keys would. Your own move, look or "
+                  "jump hands control back; it walks on after vr_nav_follow_idle s. vr_nav_follow <name | slot | 0> in "
+                  "the console; Show Navmesh draws its path."),
         command("Network: Lockstep Status", "vr_mp_lockstep_status")
             .help("vr_mp_lockstep_status: the multiplayer harness's reproducible runs (vr_mp_lockstep on a dedicated server, "
                   "vr_mp_lockstep_ahead on its clients): the world's step, whether it is held, each client's newest move "

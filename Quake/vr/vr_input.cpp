@@ -45,6 +45,7 @@
 #include "vr_arenacards.hpp"
 #include "vr_waveeditor.hpp"
 #include "vr_weaponstudio.hpp" // (its window pausing his own walking: VR_AdjustMove below)
+#include "vr_navfollow.hpp"   // (vr_nav_follow walks him: VR_AdjustMove below)
 #include "vr_flycam.hpp"       // (the flatscreen fly camera has his move keys too: VR_AdjustMove below)
 #include "vr_geom.hpp"
 #include "vr_slide.hpp"
@@ -2344,6 +2345,13 @@ extern "C" void VR_AdjustMove(float* forwardmove, float* sidemove, float* upmove
     }
 
     const float m = glm::length(moveAxes);
+    // vr_nav_follow (vr_navfollow.cpp): walked after another player along the navmesh, as his own keys would, till his
+    // own move, look or jump hands it back.
+    if(navfollow::clientMove(forwardmove, sidemove, upmove, m != 0.f))
+    {
+        lastStickSpeed = 0.f;
+        return;
+    }
     // The speed button's choice (held or vr_sprint_toggle's switch, against the Default Speed), or a double tap's run.
     const bool running = ((VR_SpeedButton(in_speed.state & 1) != 0) != (cl_alwaysrun.value != 0.f)) ||
                          doubleTap.phase == DoubleTap::Running;
