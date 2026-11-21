@@ -55,8 +55,8 @@ struct Follow
     Plan plan;
     bool dirty = false; // a state to send now (begun, ended)
 };
-Follow follows[maxSlots];
-double serverTimeSeen = -1.0; // (a new server's clock starts again: everything off)
+Follow follows[maxSlots];     // seat-shared: the server's, one per player slot
+double serverTimeSeen = -1.0; // seat-shared: the server's (a new server's clock starts again: everything off)
 
 // ---- Client: what the server sent, the steering, the hand-back ----------------------------------------------------------
 
@@ -446,7 +446,7 @@ bool clientMove(float* forwardmove, float* sidemove, float* upmove, bool stick)
     const bool looked = !headset && c.haveLook &&
                         (za::abs(za::remainder(cl.viewangles[YAW] - c.lookYaw, 360.f)) > 0.5f ||
                             za::abs(cl.viewangles[PITCH] - c.lookPitch) > 0.5f);
-    const bool own = *forwardmove != 0.f || *sidemove != 0.f || *upmove != 0.f || stick || (in_jump.state & 1) || looked;
+    const bool own = *forwardmove != 0.f || *sidemove != 0.f || *upmove != 0.f || stick || (CL_SeatInput()->jump.state & 1) || looked;
     c.lookYaw = cl.viewangles[YAW];
     c.lookPitch = cl.viewangles[PITCH];
     c.haveLook = true;

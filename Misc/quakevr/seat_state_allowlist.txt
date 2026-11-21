@@ -2803,6 +2803,7 @@ Quake/vr/vr_mpdownload.cpp|lastAddress
 Quake/vr/vr_mpdownload.cpp|pending
 Quake/vr/vr_mpdownload.cpp|rejoinedFor
 Quake/vr/vr_mptest.cpp|after
+Quake/vr/vr_mptest.cpp|heard
 Quake/vr/vr_mptest.cpp|inbox
 Quake/vr/vr_mptest.cpp|joined
 Quake/vr/vr_mptest.cpp|lockstep
@@ -2833,6 +2834,7 @@ Quake/vr/vr_nav.cpp|state
 Quake/vr/vr_nav.cpp|teleTest
 Quake/vr/vr_nav.cpp|teleTestNotes
 Quake/vr/vr_nav.cpp|tileSite
+Quake/vr/vr_navfollow.cpp|client
 Quake/vr/vr_nethud.cpp|state
 Quake/vr/vr_netlookup.cpp|lookups
 Quake/vr/vr_netmove.cpp|clientState
