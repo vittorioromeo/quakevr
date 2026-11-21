@@ -33,6 +33,7 @@ void SCR_UpdateScreen (void);
 void SCR_UpdateZoom (void);
 void SCR_CenterPrint (const char *str);
 void SCR_CenterPrintFor (const char *str, float seconds); // QVR: shown `seconds` at least (a view message without a headset)
+void SCR_ClearCenterString (void); // QVR: the current seat's centre print gone (vr_seat_test)
 void SCR_SeatRect (int seat, vrect_t *out); // QVR: splitscreen: seat's window area (the whole window: layouts undecided)
 qboolean SCR_CenterPrintShowing (void); // QVR: a centre print is up (the tips wait: vr_tips.cpp)
 

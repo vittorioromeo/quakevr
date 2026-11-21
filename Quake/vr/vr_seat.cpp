@@ -3,7 +3,11 @@
 #include "vr_seat.hpp"
 
 #include "vr_engine.hpp"
+#include "vr_flatmove.hpp"
 #include "vr_testkit.hpp"
+#include "vr_visor.hpp"
+
+#include <cstring>
 
 #include <SDL.h>
 
@@ -299,6 +303,78 @@ void testQueued()
     test.tally.verdict("seat_test");
 }
 
+// Phase 3: the view and the HUD. As seat 1 (a Scope): a centre print, +showscores, v_cshift, a hit on the visor and
+// the lean command land in seat 1's and leave seat 0's as they were, and the reverse for seat 0's; each seat's window
+// area is the whole window (no layout yet); a fresh seat's view starts as Quake's (the contents tint). Every seat's
+// state is put back after.
+void testViewHud()
+{
+    Seat& s0 = at(0);
+    Seat& s1 = at(1);
+    const seatview_t view0 = s0.view, view1 = s1.view;
+    const seathud_t hud0 = s0.hud, hud1 = s1.hud;
+
+    check(V_SeatView() == &s0.view && SCR_SeatHud() == &s0.hud && V_SeatViewOf(1) == &s1.view &&
+              SCR_SeatHudOf(1) == &s1.hud && &s0.view != &s1.view,
+          "the view and HUD accessors: seat 0's current, each seat its own");
+    check(at(3).view.contents.destcolor[0] == 130 && at(3).view.contents.destcolor[2] == 50 && at(3).view.contents.percent == 0,
+          "a fresh seat's contents tint is Quake's (130 80 50, 0)");
+    {
+        const Scope in1(s1);
+        SCR_CenterPrint("seat two\nsays hello");
+        check(std::strcmp(s1.hud.centerstring, "seat two\nsays hello") == 0 && s1.hud.center_lines == 2 &&
+                  std::strcmp(s0.hud.centerstring, hud0.centerstring) == 0 && s0.hud.center_lines == hud0.center_lines,
+              "a centre print in seat 1: seat 1's text and lines, seat 0's unchanged");
+        check(s1.hud.centertime_off > 0.f && s0.hud.centertime_off == hud0.centertime_off, "its time is seat 1's alone");
+        SCR_ClearCenterString();
+        check(s1.hud.centertime_off == 0.f, "the clear in seat 1 clears seat 1's");
+        run("+showscores");
+        check(s1.hud.showscores && !s0.hud.showscores, "+showscores in seat 1: seat 1's scores shown, seat 0's not");
+        run("-showscores");
+        run("v_cshift 10 20 30 40");
+        check(s1.view.contents.destcolor[1] == 20 && s1.view.contents.percent == 40 &&
+                  s0.view.contents.destcolor[1] == view0.contents.destcolor[1] && s0.view.contents.percent == view0.contents.percent,
+              "v_cshift in seat 1: seat 1's contents tint, seat 0's unchanged");
+        const int pending0 = [&] {
+            const Scope back0(s0);
+            return visor::damagePending();
+        }();
+        const int pending1 = visor::damagePending();
+        visor::onDamage(3, 4);
+        const int after0 = [&] {
+            const Scope back0(s0);
+            return visor::damagePending();
+        }();
+        check(visor::damagePending() == pending1 + 7 && after0 == pending0, "a hit on seat 1's visor: seat 0's has none");
+        run("+flatleanright");
+        check(flatmove::leanCommand() == 1, "+flatleanright in seat 1: seat 1 leans");
+    }
+    check(flatmove::leanCommand() == 0, "seat 0 does not lean with seat 1");
+    run("+flatleanleft");
+    check(flatmove::leanCommand() == -1 && [&] {
+        const Scope in1(s1);
+        return flatmove::leanCommand() == 1;
+    }(), "+flatleanleft in seat 0: seat 0's, seat 1's still right");
+    run("-flatleanleft");
+    {
+        const Scope in1(s1);
+        run("-flatleanright");
+        V_ResetEffects();
+        check(s1.view.contents.percent == 0 && s0.view.contents.percent == view0.contents.percent,
+              "V_ResetEffects in seat 1 resets seat 1's view only");
+    }
+    vrect_t r0{}, r1{};
+    SCR_SeatRect(0, &r0);
+    SCR_SeatRect(1, &r1);
+    check(r0.x == 0 && r0.y == 0 && r1.x == r0.x && r1.y == r0.y && r1.width == r0.width && r1.height == r0.height,
+          "every seat's window area is the whole window (layouts undecided)");
+    // (seat 1's visor keeps its 7 pending: its frame runs only for a seat in play)
+    s0.view = view0;
+    s1.view = view1;
+    s0.hud = hud0;
+    s1.hud = hud1;
+}
+
 // vr_seat_test [2]: phase 1's buttons, phase 2's bindings and devices; then (2, queued by the first) the queued binds'
 // seats and the verdict "seat_test: N passed, M failed". No map needed.
 void test_f()
@@ -312,6 +388,7 @@ void test_f()
     testButtons();
     testBindings();
     testDevices();
+    testViewHud();
 }
 
 } // namespace

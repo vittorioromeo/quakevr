@@ -1462,6 +1462,11 @@ void onDamage(int armor, int blood)
     state().hitDamage += za::max(0, armor) + za::max(0, blood);
 }
 
+int damagePending()
+{
+    return state().hitDamage;
+}
+
 bool active()
 {
     return flatplay::active() && vr_flat_visor.value != 0.f && cls.state == ca_connected && cls.signon == SIGNONS &&

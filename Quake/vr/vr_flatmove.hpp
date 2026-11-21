@@ -36,6 +36,8 @@ void frame(bool on);
 // The lean as the pose takes it this frame, world units: the eye's move (sideways and down) and the view's roll
 // (degrees, + right). Zero outside the mode and standing straight.
 [[nodiscard]] glm::vec3 leanShift();
+// vr_seat_test: the current seat's lean commands held (+flatleanright 1, +flatleanleft -1, both or none 0).
+[[nodiscard]] int leanCommand();
 [[nodiscard]] float leanRoll();
 // The lean's signed share now, -1 (full left) .. 1 (full right), the wall's clamp in it (the tests, the status).
 [[nodiscard]] float leanShare();

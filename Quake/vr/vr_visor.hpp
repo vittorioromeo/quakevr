@@ -38,6 +38,9 @@ void renderPanels();
 // hit does it, never health going down by itself (a megahealth's overheal ticking away).
 void onDamage(int armor, int blood);
 
+// vr_seat_test: the current seat's hits the visor has not taken yet (onDamage's armor and blood since its frame).
+[[nodiscard]] int damagePending();
+
 // vr_flat_visor_report, vr_flat_visor_fx.
 void init();
 

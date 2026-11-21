@@ -2472,6 +2472,11 @@ void frame(bool on)
     }
 }
 
+int leanCommand()
+{
+    return (seatView().lean.cmdR ? 1 : 0) - (seatView().lean.cmdL ? 1 : 0);
+}
+
 glm::vec3 leanShift()
 {
     return flatplay::active() ? seatView().lean.shift : glm::vec3{0.f};
