@@ -41,10 +41,16 @@ def shipped_settings():
     return out
 
 
-def build(eye, neck, duration, off_share, distance, reach, scale, lead):
+def build(eye, neck, duration, off_share, distance, reach, scale, lead, lateral):
     z = eye - neck
     path = ((0.05, -0.55, z), (reach, -0.05, z), (0.2, 0.4, z))           # the main hand (forward, left, up)
     axes = ((0.3, -0.95, 0.05), (1.0, 0.0, 0.02), (0.3, 0.95, 0.05))      # its head's way from the hand
+    if lateral:
+        # (a flatter arc: the hand nearly straight left across at `reach`, the head ahead at the neck, so the blade meets
+        # it moving across its line, its far part first; it starts out to the right, clear of the grunt's box (16 units
+        # each side) while the player walks up)
+        path = ((reach - 0.3, -0.65, z), (reach, -0.05, z), (reach - 0.2, 0.45, z))
+        axes = ((0.7, -0.7, 0.02), (1.0, 0.0, 0.02), (0.7, 0.7, 0.02))
     # (turned `lead` degrees on, to the left: a heavy head lags the hand in the game, ms.WEAPON_FAR's rigid line doesn't)
     c, s = math.cos(math.radians(lead)), math.sin(math.radians(lead))
     axes = tuple((a[0] * c - a[1] * s, a[0] * s + a[1] * c, a[2]) for a in axes)
@@ -85,12 +91,13 @@ def main():
     ap.add_argument("--reach", type=float, default=0.8, help="metres the hands reach forward half way through the swing")
     ap.add_argument("--distance", type=float, default=0.9, help="metres from the head to the grunt's middle (the take's note)")
     ap.add_argument("--lead", type=float, default=45.0, help="degrees the head's way is turned on into the swing")
+    ap.add_argument("--lateral", type=int, default=0, help="1: the hand straight across at --reach, the head ahead")
     args = ap.parse_args()
     settings = shipped_settings()
     ms.configure(settings)
     settings["vr_height_calibration"] = "%g" % args.eye_height
     take = build(args.eye_height, args.neck, args.duration, args.off, args.distance, args.reach,
-                 float(settings["vr_world_scale"]), args.lead)
+                 float(settings["vr_world_scale"]), args.lead, args.lateral)
     ms.write_mock(take, args.out)
     with open(args.out, encoding="utf-8") as f:
         rows = f.read()
