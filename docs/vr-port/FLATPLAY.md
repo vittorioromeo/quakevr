@@ -520,6 +520,30 @@ VR host gets `E`, `1` and `2` and the hip-holster reload. The punches need no ga
 in VR. The engine's `vr_flatplay` cvar is the local client's mode only (its
 hands, its flashlight, its keys).
 
+## Seen from outside: the head at the eye, the cheek on the stock
+
+His words (2026-11-21): "The ADS pose for some weapons looks silly". The flat pose is made for the eye: the gun is solved to
+the eye while the drawn body hangs apart (the crouch's shoulder drop, the chest's share, the collapsed neck), and another
+player's copy put its head at the head the flat player sends, which the neck's turn leaves up to 5.5 units off his view's
+eye. Seen from outside -- another flat-screen player's copy (`vr_mpavatar.cpp`), and the local body while the third-person
+camera stands away from the eyes or the orbit aid is on (`localSeenFromOutside`) -- `avatar::solveTorso` now:
+
+- puts the drawn eyes at the eye at every look: the head turns with the look about the eye (the copy's eye is the head he
+  sends turned about the neck, `flatplay::neckTurn`, with this game's `vr_flat_eye_*`), and the local body's own crouch
+  and look offsets (`crouchNeck`, `headLean`: the eye view's) are left out;
+- on the sights (`seenAds`: the gun's sight line within 14 degrees of the look, the eye within 3 units of the line, the
+  rear sight up to 22 ahead; eased out by 25 degrees, 7 units, 30 ahead, so the ironsight's travel takes it there and
+  back), stands the head behind the rear sight on the line, looking along it, tilted onto the stock by
+  **Seen: Cheek Tilt** (`vr_flat_seen_cheek_roll`, 14 degrees) with its middle **Seen: Head Off The Sights**
+  (`vr_flat_seen_cheek_side`, 1.2 units) away from the gun, and pitches the chest by **Seen: Chest With The Look**
+  (`vr_flat_seen_chest`, 0.4) of the look; **Seen: Cheek On The Stock** (`vr_flat_seen_ads`, 1) turns it off. Debug >
+  Tunables. A headset player's body is never posed so; the first-person view, the sights and the hands are untouched.
+
+Reports: `vr_mp_avatars`' `mp_body` lines carry `headeye=` (the drawn head's eyes), a flat client's `mp_adspose_own:`
+(the eye, the rear sight, the travel, the weapon) and `mp_adspose_head:` (the drawn head's top and lowest point against
+the eye). `mp_test.py adspose` measures every weapon with a sight line standing, crouched and looking up and down, with a
+screenshot from the other player's side.
+
 ## The ironsight, and the free hand's grip
 
 `vr_flatsight.cpp` works on the pose `poseHands` just made, and only while the mode runs. With one hand holding and the

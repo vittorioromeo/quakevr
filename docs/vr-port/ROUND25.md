@@ -6031,3 +6031,19 @@ navmesh", and "do bots use the navmesh? If not, should they?" (NAVMESH.md 22 and
   leader walks on and is followed; +back hands it back, it walks on; `vr_nav_follow 0` stops it. No teleporter (e1m1's
   is far from the start). `navfollow_vr` (B a mock headset: the play-space turn) 12/0. mp suite --only coop, cmdguard,
   predict, teleport: passed. scenario_check PASS.
+
+## adspose: a sighted flat player seen from outside (adspose, 2026-11-21, `agent/adspose`, unfinished)
+
+- His words: "The ADS pose for some weapons looks silly". Measured (`mp_test.py adspose`: flat B on his sights with every
+  weapon that has a sight line, standing, crouched, looking 40 up and down; flat A at his side): A's copy's drawn eyes were
+  0 off B's eye at a level look but 2.8 to 5.1 off at the looks (the copy's head is the head B sends; his view's eye is that
+  turned about his neck, `vr_flat_eye_pivot`), the head turning back with the look under a gun that stays on the eye's ray.
+  The local body seen from outside (orbit, third-person camera) kept the eye view's crouch shoulder drop and chest carry
+  (its head 3.4 under the eye crouched): from the side, the gun over the head and the arms up past it.
+- Now (FLATPLAY.md, "Seen from outside"): the drawn eyes at the eye at every look (`flatplay::neckTurn` on the copy), and on
+  the sights the head behind the rear sight along the line, tilted 14 degrees onto the stock, its middle 1.2 off the line,
+  the chest pitched 0.4 of the look (`vr_flat_seen_*`, Debug > Tunables). After: worst 3.8 (the shotguns 1.2 to 1.9: the
+  cheek offset). Shots: the worktree's `scratch/adspose_before/`, `scratch/adspose_after/`, `scratch/adspose_sp_seen*.png`.
+- Open: looking up the arms still cross in front of the face (the gun's hand stays where the eye view put it); in the orbit
+  view looking up 40 the local head joint read 5.7 under the eye (not explained); A's camera misses crouched B in the
+  shots; the flat suites, scenario_check, the other avatar scenarios and the ThinLTO build not run yet.
