@@ -6988,3 +6988,21 @@ it); an in-game indication of whether the chosen port is forwarded.
   (`vr_mock_hand_to off nearest thrown_weapon h`) are out of reach, no grab check runs, and nothing is printed. Left:
   why, since the Box3D update, the body no longer follows the walk to the gun (blocked by the prop, or by the walk's
   own head-to-body offset). Then a fix that keeps the update.
+
+## release12c: weapon_catch's handle checks, not a Box3D regression; 1.2.0-rc.1 (release12c, 2026-11-21, `agent/release12`)
+
+- **Cause: the test's set-up, not the physics.** Traced alone (run.sh, `edict 1` / `edict 207` along the way), the
+  pre-update parent a82c8e3cd and the current branch give the same numbers to the unit: the let-go shotgun lands at
+  481 -339, slides +y and drops off e1m1's start step (rests at 490 -300 48.6, 16 units under the player's floor); the
+  walk "arrives" at 484 -329 88 (29.6 units: within 30), but the player is doing ~222 u/s and runs off the step too,
+  coming to rest at 502.5 -226 72, ~75 units past the gun (the earlier note's "stays at 502.5 -226.3" was this
+  overshoot, read after it). Out of reach both ways, so no grab check, nothing printed: alone, the old build fails the
+  handle checks too. It passed only in the batch: the 5 identical tries ran in different game copies after other
+  cases, and Box3D's run-to-run variation now and then left the gun on the top (old build: the third try, 6.77 cm).
+  After the update none of the 5 did. A second walk to the gun doesn't fix it (it overshoots back up the step and
+  kicks the gun off again).
+- **Real play:** not affected by this. The dropped gun's fall, slide and rest and the player's movement are identical
+  before and after the update; the walk overshoot is Quake's own momentum off a step after the mock lets the stick go.
+- **Fix** (`Misc/quakevr/weapon_catch_test.sh`, handle()): the shotgun let go of on vrfiringrange's flat floor (setpos
+  250 -656.7 41, where section 3 already runs), no step to fall from: the walk stops at 270 -661 (29.4 units from the
+  gun), the fist meets the handle (6.43 cm, allowed 10). weapon_catch 3/3 PASS (every check, the same numbers).
