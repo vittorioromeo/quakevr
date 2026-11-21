@@ -7260,3 +7260,35 @@ hue band can't separate brown uniforms from brown flesh, and a full hue turn wit
   0; ad_tears' search 1.02 s against 0.68 s without the new searches (low-impact run).
 - **Open:** Quoth not in the kit's base (not censused); `vr_hull_holes_rebuild` not run headless (it saves a game); bars
   at two heights over an open pit get no blocker where Quake's box hanging below them could reach it.
+## axelag: the Super Axe's beheading (agent/axelag, 2026-11-21)
+
+- **His tweaks were already the defaults** (proposed_defaults 11-12 and 11-16: pitch 12, x -1.21, y 2, the tip +5.95 up,
+  Line Start 2 back, Blade Shape spine 1 bowed to 0.38 of the line, width 0.55, Near 0.495, Blade From 0.05).
+- **No 55-degree lag.** The drawn axe lags the controller 6.4 degrees at most in the trailer's two-handed swing
+  (vr_debug_weight 2). testenv's "55 degrees" was the blow line's angle off the handle under the **kit's base cfg**, which
+  pins the pre-11-12 Super Axe (tip -0.07/0.21/-0.82, pitch 0, x -0.317, y 1.625; the axe's pitch/x/y too): there the line
+  ran 53 degrees off the handle and an edge-first chop read "a stab (0.82)". With the shipped values it is 24 degrees off
+  and a chop is across it. Heavy-weapon lag left alone.
+- **The bug (real play):** VR_Decap_Slash (and the limb cut, VR_Skewer_CutBlade's struck point, and the AD tanks' hose cut)
+  took the blade proper from the kind's constant (an axe's from 0.6 of its line), ignoring the weapon's own Blade From. The
+  Super Axe's crescent edge runs from 0.18 of its line (deepest at 0.37-0.68): hits there read "the hilt or handle". Now
+  `VR_Decap_BladeFrom(thing, ownFrom)`: the weapon's Blade From when it has one (only the Super Axe and his dagger do).
+  The Super Axe's Blade From 0.05 -> 0.15 (his 0.05 sat at the hand; the edge's first vertices at 0.18).
+- **Measured:** `vr_blade_dump fit [slot]` (new, vr_blade.cpp): the line and curve against the model laid in the hand as
+  drawn: per tenth of the line the curve's offset, the vertices' extent across it, the nearest vertex, the handle's angle
+  off the line, and a text plot of the blade's plane. His spine traces the crescent's outline within about 1 unit
+  (keep it); the axe's line has no curve and lies along its handle.
+- **vrtrailer passes (9/9)**: vrtrailer_test.sh resets the Super Axe's offsets to weapons.txt's before the scene;
+  motion_synth WEAPON_FAR["superaxe"] re-measured with them, (0.092, -0.010, 0.353); vrtrailer_swing.py's --lead default
+  0 (no lag to make up); the mock regenerated; the trailer's grunt bare-headed (VR_AgArmor_Give 0 at setup and reset: the
+  skill's armour roll gave him a helmet, which then stopped the cut: "agarmor: the helmet stops the head pop").
+- **New check** `Misc/quakevr/superaxe_decap_test.sh <agent>`: the scene with a 0.16 s and a 0.5 s swing
+  (vrtrailer_swing_fast/_slow.mock): both behead (20.4 and 6.6 m/s): 2 passed. Scene `superaxe_behead`.
+- **Other blades with their own Blade From** (weapons.txt: only these; slot 25, the glowing Super Axe, inherits 24's):
+  the Super Axe 0.6 -> 0.15; his dagger (slot 51, bl_from 0.05) stays at 0.4: its guard spans 0 .. 0.2 of its line
+  (vr_blade_dump fit 52), so a sword's own start never goes nearer the hand than its kind's (VR_Decap_BladeFrom: max;
+  only axes, whose heads differ in size, take theirs as it is). The dagger's striking points keep his 0.05.
+- **Suites:** decap_test.sh, limbs_test.sh, melee_arc_test.sh exit 0 (decap: the axe's and sword's slashes behead,
+  stab, pommel and slow slash refused); vrtrailer 9/9; scenario_check PASS (178 run, 0 failed); Dev and ThinLTO built,
+  0 warnings. superaxe_decap_test.sh: slow 5 of 5, fast 4 of 5 (one run killed him without a beheading, its reason lost:
+  the test now keeps each swing's game log, `scratch/superaxe_decap_<kind>_game.log`, and names the refusal).

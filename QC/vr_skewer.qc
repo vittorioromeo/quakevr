@@ -972,7 +972,7 @@ float(entity g, entity c, entity by, float xHow, vector xCut) VR_Skewer_CutOn =
             continue;
         }
         vector line = vr_mline_far - vr_mline_grip;
-        float from = th == VR_MTHING_AXE ? VR_DECAP_BLADE_AXE : VR_DECAP_BLADE_SWORD;
+        float from = VR_Decap_BladeFrom(th, vr_mline_free ? -1 : vr_mline_from_x);
         float s = vlen(line) > 0.01 ? ((xCut - vr_mline_grip) * line) / (line * line) : 0;
         vector at = vr_mline_grip + line * min(1, max(from, s));
         float d = vlen(xCut - at);

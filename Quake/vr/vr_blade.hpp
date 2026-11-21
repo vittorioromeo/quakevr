@@ -63,4 +63,7 @@ void dump(int slot);
 // vr_blade_dump fist: the empty hand's blow line (vr_melee_fist_*: QC VR_Melee_Line's fist) as vr_cvars.inc lines.
 void dumpFist();
 
+// vr_blade_dump fit [slot 1..]: how the slot's blow line and its curve sit on its model, laid in the hand as drawn.
+void dumpFit(int slot);
+
 } // namespace qvr::blade

@@ -19,7 +19,12 @@ O0=$(grep -m1 " off " $MOCK | cut -d' ' -f3-)
 # the settings the mock's poses were worked out for (its "# settings:" line, vrtrailer_swing.py: the shipped hand
 # settings, world scale and eye height), so a config's own never turn the axe off the swing's line
 SET=$(sed -n 's/^# settings: //p' $MOCK | head -1)
-S="developer 1;$SET;vr_ai_enhanced 1;map vrtrailer;wait60;$EXTRA;vr_trailer_log 1"
+# the Super Axe as shipped (weapons.txt): a config's own pose, tip and blade start for it (the kit's base pins the
+# pre-11-12 ones: its line 53 degrees off its handle) would turn its edge off the swing's line (ROUND25.md "axelag")
+AXE="reset vr_wofs_x_25;reset vr_wofs_y_25;reset vr_wofs_z_25;reset vr_wofs_pitch_25;reset vr_wofs_yaw_25;reset vr_wofs_roll_25"
+AXE="$AXE;reset vr_wofs_muzzle_x_25;reset vr_wofs_muzzle_y_25;reset vr_wofs_muzzle_z_25;reset vr_wofs_muzzle_av_25"
+AXE="$AXE;reset vr_wofs_hand_av_25;reset vr_wofs_bl_from_25;reset vr_wofs_bl_near_25"
+S="developer 1;$SET;vr_ai_enhanced 1;map vrtrailer;wait60;$AXE;$EXTRA;vr_trailer_log 1"
 S="$S;vr_mock_stick off 0 1;wait70;vr_mock_stick off 0 0;wait30;setpos 0 -34 64 0 90 0;wait10"
 # (the fist onto the axe, 3 cm down: the catch needs the fist touching it, vr_weapon_grab_slack 0 since 2026-10-08; 2 cm over
 # it was 3 cm off)
