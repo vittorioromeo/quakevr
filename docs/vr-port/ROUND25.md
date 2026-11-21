@@ -6950,3 +6950,27 @@ it); an in-game indication of whether the chosen port is forwarded.
 - **Test:** `Misc/quakevr/reload/pouchbody_test.sh` 12/0: with `vr_body_mode` 0, 2 and 3 every gear ring at least 1
   (mode 0 was 0.86 and 0.47 before the fix: FAIL), a shell from the ammo pouch, a magazine from it seated in the nailgun,
   a grenade from the grenade pouch. Checklist scene `pouchbody` (Only Hands, the shotgun and the nailgun, ammo).
+
+## brushholes: invisible blockers in the gaps Quake's box never fit (branch agent/brushholes, 2026-11-21)
+
+The author's note: grates, gates, pillars and lifts let the narrower boxes (yours at 16, narrow monsters') pass or fall
+through. At map load, `Quake/vr/vr_hull_holes.cpp` finds every gap narrower than 32 between two solids facing each
+other along x or y: within the world, within each solid func_* model, and between the world and a func_wall or a
+door's or lift's whole travel. It adds blocker brushes there, to the compiled trees only (not hull 0: shots, sight and
+the navmesh don't have them). Quake's box could never hold a point of such a gap, so nothing Quake allowed changes,
+and you still stop 8 units from walls, bars and pillars. How it works, what is kept out (gaps under 8; world blockers
+that hull 1 lets Quake's box reach into, from AD's non-colliding detail) and the census are in HULLS.md, "Holes".
+
+- Setting: `vr_hull_holes` 1 (Movement > Player Hitbox > Close Gaps Quake's Box Never Fit; it takes effect at the next
+  map load). `keyOf`'s buildVersion went from 2 to 3, so every map's trees are compiled once again; the blockers are kept
+  for a reload and are inside the disk-cached trees.
+- Aids (Debug > Tests > Player Hitbox): `vr_hull_holes_census`, `vr_hull_holes_near`, `vr_hull_holes_test`.
+- Test: `vr_hull_holes_test` on the new `maps/vrbrushholes` (`Misc/quakevr/make_vrbrushholes_map.py`: a grate over a
+  pit, a bar gate, a lift held up with 20-unit slots, pillars 24 apart). The player's box and a grunt's at
+  `vr_mhull_army 16`: 15/0 with the setting on (stopped, and 8 units from the bars, the pillars and a wall) and 15/0 as
+  `brushholes_off` with it off (they pass, so the scene really has holes). Checklist scenes: `brushholes_grate`,
+  `brushholes_gate`, `brushholes_lift`, `brushholes_pillars` (runall 4 OK).
+- Census: id1 (38 maps) 9,812 world blockers, search at most 15 ms; Quoth (6) 4,206; AD (26) 138,495, search up to
+  1.4 s on ad_tears. Quake's box still reaches 1 on id1 and 39 on AD (36 on ad_azad), grazing hull 1's rounding.
+- Open: ad_tears' search time; func_trains' gaps with the world (only their own gaps are closed); a func_wall that is
+  killtargeted is left out of the world's pairs (its blockers would stay behind).

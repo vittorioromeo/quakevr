@@ -632,6 +632,55 @@ player's does (Quake's own `SV_RecursiveHullCheck`). With the setting off: nothi
 3. **Height.** Kept at Quake's (56, 88): a dog's box is 40 tall but it still can't go under 56. Following the box's
    height is one more setting away, but maps were made for 56 and 88.
 
+## Holes: gaps Quake's box never fit, closed at load (`vr_hull_holes`, 2026-11-21)
+
+Your note (2026-11-21): grates, gates, pillars and lifts let the player and monsters pass or fall through since the
+boxes got narrower. The compiled hulls are exact for the narrower box, so a 16-wide box really does fit between bars
+24 apart, where Quake's 32 box never did. `Quake/vr/vr_hull_holes.cpp` (`addHoles`, run at the end of `build`) adds
+invisible blocker brushes there. They go into the compiled trees only: hull 0, shots, sight, drawing and the navmesh
+input don't have them.
+
+- **Where.** Two solids face each other along x or y with less than 32 units between them on the same line. No 32-wide
+  box, whatever its height, can hold a point of that line between them, so Quake's box was never there, and a blocker
+  there changes nothing that Quake allowed. The blocker is the space between the two faces. For convex brushes the gap
+  is a convex function of where the line is, so a cell whose four corner lines all have a gap under 32 has one
+  everywhere inside it. Slanted faces are cut into cells (at most 64 tests a pair, 2 units at the least). Gaps under 8
+  (`minWidth`, the narrowest compiled box) are left open, since no box gets into them.
+- **Which pairs.** The world's own brushes; each solid `func_*` model's own (a gate's bars, a func_wall grate: the
+  blockers move with it); and the world against brush models that stay or travel a line. A func_wall without a
+  targetname is used as itself. A func_door's or func_plat's whole travel (from the entity string: QC's lip, height
+  and movedir rules) is used as one box. func_trains get their own gaps only. A model with an origin key is skipped.
+- **Kept out.** A blocker wholly inside solid. A world blocker that Quake's hull 1 (clip brushes and all) lets the
+  32 box reach into by 2 units on a 3x3x3 lattice of its centres: hull 0 has solids that hull 1 doesn't (detail brushes
+  compiled without collision, as in Arcane Dimensions). Duplicates and boxes inside others are dropped, and boxes side
+  by side with the same cross-section are merged.
+- **Cost and caching.** The search runs on the pool (`hull holes` site). The blockers are part of the map's brushes, so
+  they are kept for a reload (`vr_hull_keep`) and are inside the disk-cached trees. `keyOf` mixes in `holesKey` (the
+  setting and the entity string), with `buildVersion` 3.
+- **Setting.** Movement > Player Hitbox > Close Gaps Quake's Box Never Fit (`vr_hull_holes`, 1). It takes effect at the
+  next map load.
+- **Aids.** On Debug > Tests > Player Hitbox:
+  - `vr_hull_holes_census`: counts, time, and whether Quake's box reaches into any of the world's own blockers on a
+    17-point-a-side lattice. Its `HOLECENSUS|...` line has the same numbers.
+  - `vr_hull_holes_near [radius]`: lists the blockers near you.
+  - `vr_hull_holes_test`: the test map, below.
+- **Test map.** `maps/vrbrushholes` (`Misc/quakevr/make_vrbrushholes_map.py`) has a grate over a pit, a bar gate (a
+  shut func_door), a lift held up with 20-unit slots, and a row of pillars. Its checklist scenes are
+  `brushholes_grate`, `_gate`, `_lift` and `_pillars`.
+
+Census (`vr_hull_cache 0`, a low-impact run, so the times are rough):
+
+| Maps | World blockers (own / with models) | In models | Search (most) | Quake's box reaches |
+|---|---|---|---|---|
+| id1, 38 | 9,812 / 672 | 328 | 14.6 ms | 1 (e4m1) |
+| Quoth, 6 | 4,206 / 328 | 104 | 44 ms | 0 |
+| AD, 26 | 138,495 / 6,774 | 12,205 | 1,370 ms (ad_tears) | 39 (ad_azad 36) |
+
+The world's compiled tree grows by 10-30% in nodes. On ad_tears it took 1,310 ms against 1,131 ms without blockers,
+and after the first load it is read from the disk cache. The few that Quake's box still reaches are ones the load's
+coarser lattice missed, grazing hull 1's rounding next to non-colliding detail. Open: ad_tears' search (512k pairs)
+is the slowest part of its load.
+
 ## Brush models' hulls prepared at load (2026-10-05)
 
 Loaded brush models (doors, platforms, other inline models and precached external `.bsp` models) get their
