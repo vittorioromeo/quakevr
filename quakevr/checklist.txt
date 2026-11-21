@@ -62,6 +62,10 @@ Multiplayer menu: Join Game and Host Game open their page directly (no IPX / TCP
 -window opens a normal window you can drag, even with Borderless Window on; without -window it stays borderless
 Misc/quakevr/mp/mp_local.ps1 -Mode dm -Melee: host and a second window join, a bot duels you with melee
 mp_local.ps1: the host and the joining game open side by side, centred on the screen
+Flat-screen or VR: in mp_local.ps1, type vr_nav_follow next in the client's console (or Debug > Network: Follow the Next Player): it walks after the host along the navmesh through doors, stops a few steps short and follows on as he moves; your own key or mouse takes over at once, it walks on a second later; vr_nav_follow 0 stops it; Show Navmesh draws its path
+Flat-screen or VR: in mp_local.ps1, slide (run then crouch) as one player and watch from the other game: his body should lean back with the legs out in front, not just crouch
+Flat-screen or VR: in mp_local.ps1, change one player's body build and skin tone, then get him killed whole (not gibbed): his body on the floor should be his own body with his tone, gloves and hands in both games (and as he sees it himself), not Quake's ranger
+Debug > Reports > Network: Drawn Near Me (vr_mp_near) in mp_local.ps1's client lists the other player's drawn models, lights and recent sounds
 
 [1. Flat-screen: weapons and hands]
 

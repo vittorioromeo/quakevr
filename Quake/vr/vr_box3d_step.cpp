@@ -12,6 +12,7 @@
 #include "vr_material_shared.h"
 #include "vr_move.hpp"
 #include "vr_nav.hpp"
+#include "vr_navfollow.hpp"
 #include "vr_ragtool.hpp"
 #include "vr_timescale.hpp"
 #include "vr_cvars.hpp"
@@ -1495,6 +1496,7 @@ extern "C" void VR_PhysicsFrameEnd(void)
     if(host_frametime > 0.0)
     {
         nav::countFrame(); // (the navmesh's pool jobs land on a fixed server frame: counted here, rigid bodies or not)
+        navfollow::serverFrame(); // (vr_nav_follow: each following player's path, sent him when it changes)
     }
     if(!wanted())
     {

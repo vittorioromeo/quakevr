@@ -6015,3 +6015,53 @@ detail: MP_PLAN.md, "Held weapons' state and player lights".
 - Tests: `mp_test.py wpnsync` and `wpnsync_flat` (in the suite) 16/0 each.
 - Left: the auto pump's stroke and clacks after another player's shot (his client's own animation; the QC reload
   sounds are already everyone's), the torch's visible cone and cord, the Widowmaker's motor sound, the lava guns' glow.
+## Multiplayer sync audit: every player feature, seen by another player or not (mpaudit, 2026-11-21, `agent/mpaudit`)
+
+- His ask: everything of a player that others should see or hear but don't. The table and the fix batches are MP_PLAN.md,
+  "Sync audit 2026-11-21" (43 rows: 22 synced, 11 gaps, 4 being done elsewhere, 4 local by design, 2 not features; the slide pose and dead body synced by mpslide).
+- The measure: `vr_mp_near <ent> [radius] [seconds]` (Debug > Reports > Network: Drawn Near Me; vr_mptest.cpp) lists
+  the models a game draws round a player (whose, alpha, effects, the powerup glow), its dynamic lights there and the
+  sounds it started lately by or near him (`VR_MpHeardSound`, a ring of 96 filled at `S_StartSoundPitch`).
+  `mp_test.py syncaudit [--flat B]` compares B's report of himself with A's of B after each of B's actions (idle, quad,
+  ring, a punch, a shot, a walk); the harness's clients can now run with sound on (`Session.client_sound`: SDL's
+  dummy audio driver, nothing reaches a speaker). A report, not a regression: not in the suite.
+- The biggest gaps: the Ring of Shadows (others draw the ringed player fully opaque: in deathmatch it does nothing),
+  the powerups' glows and hand lights, another player's muzzle flash and casings, the worn gear (wrist gadget, holster
+  sheaths, grenade and ammo pouches), blood and wounds on other players, the mantle grunt and slide sound.
+- Side finding: in coop the Debug menu's powerup cheats (impulse 190-193) give a holstered shotgun (the harness's
+  holster give); 255 and 254 still work.
+## mpslide: the slide pose and the dead body in multiplayer (mpslide, 2026-11-20, `agent/mpslide`)
+
+- **Another player's slide** is posed as your own: the server's slide is a bit in his avatar's gear byte
+  (`avatarGearSliding`, no protocol change); before, his copy only crouched. `mp_slide`, `mp_slide_vr`.
+- **A dead player's body** (his ragdoll, or its death animation on a client of another server) is drawn as his own
+  body: his build's model, skin tone, gloves, jointed hands, posed from the doll's rig (`mpavatar::addDolls`,
+  `avatar::DollPose`, `solveDoll`), for every viewer including himself and in single player; before, id's ranger.
+  `mp_deathbody` 20/0. Details: MP_PLAN.md, "The slide pose and the dead body as others see them".
+- Reports: `vr_mp_avatars` prints `mp_doll:` lines and the bodies' `sliding=`.
+## navfollow: a debug autopilot after another player by the navmesh (navfollow, 2026-11-20, `agent/navfollow`)
+
+His words: "a debug command I can enable in one of the players' windows so that it follows the other player using the
+navmesh", and "do bots use the navmesh? If not, should they?" (NAVMESH.md 22 and 23).
+
+- **`vr_nav_follow <name | slot | next | 0>`** (Debug > Network: Follow the Next Player): the server plans the player's
+  path to the other on its navmesh (`nav::followPath`: a player's 16 x 56 class; doors and lifts walked, the monsters'
+  drop, lift and teleporter links) every `vr_nav_follow_repath` (0.25) s and sends him its corners when they change
+  (`QVR_SVC_NAVFOLLOW`, reliable); his client turns the view to the next corner and presses forward in `VR_AdjustMove`,
+  hops through `VR_MoveJump` when stuck, stops `vr_nav_follow_stop` (64) units short along the path. A listen host and
+  a remote client alike; the moves are a human's (prediction, the server's moves, lag compensation unchanged).
+- **Hand-back:** his own move, look (flat) or jump takes over at once; the command stays on and walks on after
+  `vr_nav_follow_idle` (1) s without input. Refused in deathmatch (`sv_user.c` allows `vr_nav_follow_ask` otherwise).
+- **Server's corners, not a client navmesh:** the mesh needs the server's QC state (movers, rides, teleporters, props);
+  a client's build would differ and cost each client a build; the corners are a small message.
+- **The follower** (`vr_navfollow.hpp`): `Plan`/`replan` (where the mesh is) and `Steer`/`steer` (where the moves are
+  made: corners in, yaw/forward/jump out), shared by the client's autopilot and, later, the bots. Flat and VR share it:
+  only the turn differs (the view's yaw, or a headset's play space by `hands::addTurn`).
+- **Bots:** they don't use the navmesh (FrikBot's learnt waypoints and roaming); NAVMESH.md 23 plans its long-range
+  navigation through the follower (FrikBot keeps combat, strafing, item choice), 3-4 days, not done (his call).
+- **Shown:** `vr_nav_debug` on draws the follower's path on its own client (a remote one too). `vr_nav_follow_status`.
+- **Tests:** `mp_test.py navfollow` (B remote follows A) 12/0 and `navfollow_listen` (host A follows B) 11/0, flat, coop
+  e1m1: from a coop start down the step and through the first room's west door to within 112 units, arrived; the
+  leader walks on and is followed; +back hands it back, it walks on; `vr_nav_follow 0` stops it. No teleporter (e1m1's
+  is far from the start). `navfollow_vr` (B a mock headset: the play-space turn) 12/0. mp suite --only coop, cmdguard,
+  predict, teleport: passed. scenario_check PASS.

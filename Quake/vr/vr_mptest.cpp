@@ -12,6 +12,8 @@
 //   clients): who is in, where, whether this frame's message carried them.
 // - `vr_mp_avatars` (Debug > Reports > Network: Player Avatars; vr_mpavatar.cpp): the other players' heads and hands this
 //   client has (QVR_SVC_AVATAR: "mp_avatar:") and, hosting, the server's (from their moves: "mp_avatar_sv:").
+// - `vr_mp_near <ent>` (Debug > Reports > Network: Drawn Near Me; the sync audit, MP_PLAN.md): the models, lights and
+//   sounds this client has round a player (near_f).
 // - The lockstep (B14b: runs that repeat bit for bit): a dedicated server with `vr_mp_lockstep N` steps its world only
 //   once N clients are in and each one's next move (by number) is read, one move of each a step (vr_fixed_frames 1: a
 //   step 1/72 s; sv_random_seed); `vr_mp_lockstep_until S` holds it after step S ("mp_lockstep: held step=S"), for the
@@ -35,6 +37,7 @@
 #include "vr_server.hpp"
 #include "vr_teleport.hpp"
 #include "vr_trace.hpp"
+#include "vr_view.hpp"
 #include "vr_lagcomp.hpp"
 
 #include "Zancle/Chrono/Time.hpp"
@@ -112,6 +115,23 @@ struct Trace
     int lastFrame{-1};
 };
 Trace trace;
+
+// vr_mp_near's sounds: the last ones started on this game (S_StartSoundPitch, sound on), whoever started them.
+struct HeardSound
+{
+    double at{0.0}; // realtime
+    int ent{0};
+    int chan{0};
+    char name[48]{};
+    glm::vec3 org{0.f};
+};
+constexpr int heardMost = 96;
+struct Heard
+{
+    HeardSound ring[heardMost];
+    int next{0};
+};
+Heard heard;
 
 constexpr double restTime = 0.25;  // s still before a move counts as one from rest
 constexpr float stillEps = 0.25f;  // units a frame that still counts as still
@@ -608,6 +628,91 @@ void edicts_f()
     qvr::box3d::printMemory("mp_box3dmem"); // (B21: the soak's Box3D memory)
 }
 
+// vr_mp_near <ent> [radius] [seconds] (Debug > Reports > Network: Drawn Near a Player; MP_PLAN.md, "Sync audit
+// 2026-11-21"): what this client draws, lights and hears round player entity `ent` (0: its own), for a scenario to
+// compare a player's own view of himself with another client's view of him. Each model drawn within `radius` (96) of
+// his entity's origin ("mp_near_ent:": whose -- this client's own view entity, another player's copy, an entity -- the
+// model, distance, alpha, effects, skin, frame), each dynamic light ("mp_near_light:") and each sound started in the
+// last `seconds` (2) by him or within the radius ("mp_near_snd:"; sound on: not with -nosound), then "mp_near: done".
+void near_f()
+{
+    if(cls.state != ca_connected || cl.viewentity <= 0)
+    {
+        Con_Printf("mp_near: not connected\nmp_near: done\n");
+        return;
+    }
+    int ent = Cmd_Argc() > 1 ? Q_atoi(Cmd_Argv(1)) : 0;
+    ent = ent > 0 ? ent : cl.viewentity;
+    const float radius = Cmd_Argc() > 2 ? Q_atof(Cmd_Argv(2)) : 96.f;
+    const double seconds = Cmd_Argc() > 3 ? Q_atof(Cmd_Argv(3)) : 2.0;
+    if(ent >= cl_max_edicts)
+    {
+        Con_Printf("mp_near: no entity %d\nmp_near: done\n", ent);
+        return;
+    }
+    const glm::vec3 at = vec(cl_entities[ent].origin);
+    Con_Printf("mp_near: ent=%d self=%d at=%.1f %.1f %.1f radius=%.0f\n", ent, ent == cl.viewentity ? 1 : 0, at.x, at.y,
+        at.z, radius);
+    for(int i = 0; i < cl_numvisedicts; i++)
+    {
+        const entity_t* e = cl_visedicts[i];
+        if(!e || !e->model || e->model->type == mod_brush || e == &cl_entities[0])
+        {
+            continue;
+        }
+        const float d = glm::distance(vec(e->origin), at);
+        if(d > radius)
+        {
+            continue;
+        }
+        char whose[24];
+        if(qvr::view::find(e))
+        {
+            q_strlcpy(whose, "own", sizeof(whose));
+        }
+        else if(qvr::mpavatar::find(e))
+        {
+            q_strlcpy(whose, "copy", sizeof(whose));
+        }
+        else if(e >= cl_entities && e < cl_entities + cl_max_edicts)
+        {
+            q_snprintf(whose, sizeof(whose), "ent%d", static_cast<int>(e - cl_entities));
+        }
+        else
+        {
+            q_strlcpy(whose, "other", sizeof(whose));
+        }
+        Con_Printf("mp_near_ent: whose=%s model=%s d=%.1f alpha=%d fx=%d skin=%d frame=%d glow=%.2f\n", whose,
+            COM_SkipPath(e->model->name), d, e->alpha, e->effects, e->skinnum, e->frame, qvr::view::powerupGlow(e));
+    }
+    for(const dlight_t& l : cl_dlights)
+    {
+        if(l.radius <= 0.f || l.die < cl.time)
+        {
+            continue;
+        }
+        const float d = glm::distance(vec(l.origin), at);
+        if(d <= radius)
+        {
+            Con_Printf("mp_near_light: key=%d radius=%.0f d=%.1f color=%.2f %.2f %.2f\n", l.key, l.radius, d, l.color[0],
+                l.color[1], l.color[2]);
+        }
+    }
+    for(const HeardSound& h : heard.ring)
+    {
+        if(!h.name[0] || realtime - h.at > seconds)
+        {
+            continue;
+        }
+        const float d = glm::distance(h.org, at);
+        if(h.ent == ent || d <= radius)
+        {
+            Con_Printf("mp_near_snd: name=%s ent=%d chan=%d ago=%.2f d=%.1f\n", h.name, h.ent, h.chan, realtime - h.at, d);
+        }
+    }
+    Con_Printf("mp_near: done\n");
+}
+
 // The lockstep's players: the clients in the game that send moves (a bot has no connection; a listen host's own client
 // sends none: the lockstep is a dedicated server's).
 [[nodiscard]] bool lockstepPlayer(const client_t& c)
@@ -763,6 +868,7 @@ extern "C" void VR_MpTestInit(void)
     Cmd_AddCommand("vr_mp_world", world_f); // (B15)
     Cmd_AddCommand("vr_mp_trace", trace_f);
     Cmd_AddCommand("vr_mp_lockstep_status", lockstepStatus_f);
+    Cmd_AddCommand("vr_mp_near", near_f); // (the sync audit, 2026-11-21)
     qvr::netmove::init(); // vr_netmove_selftest
     qvr::predict::init(); // vr_mp_predict_report, vr_mp_predict_probe
     qvr::netsnap::init(); // vr_netsnap_selftest
@@ -773,6 +879,21 @@ extern "C" void VR_MpTestInit(void)
     qvr::moveguard::init();   // vr_moveguard_selftest
     qvr::browser::init();     // (B13) vr_mp_browse, vr_mp_favourite
     qvr::nethud::init();      // (B13) vr_net_hud_report
+}
+
+extern "C" void VR_MpHeardSound(int entnum, int entchannel, const char* name, const float* origin)
+{
+    HeardSound& h = heard.ring[heard.next];
+    heard.next = (heard.next + 1) % heardMost;
+    h.at = realtime;
+    h.ent = entnum;
+    h.chan = entchannel;
+    q_strlcpy(h.name, name ? name : "?", sizeof(h.name));
+    h.org = origin ? glm::vec3{origin[0], origin[1], origin[2]} : glm::vec3{0.f};
+    if(cl_entities && entnum > 0 && entnum < cl_max_edicts && (!origin || (origin[0] == 0.f && origin[1] == 0.f && origin[2] == 0.f)))
+    {
+        h.org = vec(cl_entities[entnum].origin); // (a local sound has no place of its own: its entity's)
+    }
 }
 
 extern "C" void VR_MpTestFrame(void)

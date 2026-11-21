@@ -694,6 +694,8 @@ void S_StartSoundPitch (int entnum, int entchannel, sfx_t *sfx, vec3_t origin, f
 	if (nosound.value)
 		return;
 
+	VR_MpHeardSound (entnum, entchannel, sfx->name, origin); // QVR: the sounds heard, for vr_mp_near (MP_PLAN.md, sync audit)
+
 	if (!VR_SndShot (entnum, entchannel, sfx, origin, &fvol, attenuation, &pitch)) // QVR: a shot varied, its layers started; an empty gun's click (vr/vr_gunsfx.cpp)
 		return;
 

@@ -638,3 +638,79 @@ build / its props' batch not done by its frame: waited N ms`).
   his last spot by the lift; its time is noisy either way (A/B: trail 1: 22, 22, 10, 27 s; trail 0: 5, 5, 6, 23 s;
   origin/next 13 s), all pass. Searchers kept off the lift (a raised plat stepped on went down under a rider).
 - **Test:** `vr_stealth_test 125` (`stealth_tests.sh trailnav`, STEALTH.md "Tests").
+
+## 22. The follower; vr_nav_follow (2026-11-20)
+
+His ask: a debug command in one player's window that walks him after the other player by the navmesh (testing two games
+on one PC, `mp_local.ps1`).
+
+- **The follower** (`vr_navfollow.hpp`, one module meant for the bots too): a **plan** (`navfollow::Plan`, `replan`:
+  `nav::followPath`'s straight corners from the follower's feet to the goal's, found again every `vr_nav_follow_repath`
+  (0.25) s, "changed" when its state or any corner past the first moved over 4 units) and the **steering**
+  (`navfollow::steer`: the next corner, reached within 12 units or passed along the next leg; the yaw to it; forward
+  unless within `vr_nav_follow_stop` (64) of the end along the path, or standing on a lift's middle; a hop when stuck
+  half a second while walking). `nav::followPath` is the chase's query for a player's size (vr_hull's `moveSize`: 16 x
+  56, a class built on demand like any), with two differences: the polygons under doors and lifts are walked (a player
+  opens a door by walking at it), and a teleporter's or a lift's start is followed by a corner of the same kind where the
+  walk goes on (the trigger's middle, walked into; the lift's middle on its top, stood on till a plan from where it
+  carried him). Drops are walked off as a player would; the monsters' links are used as they are (lift links only with
+  `vr_nav_lifts` 1, off by default).
+- **`vr_nav_follow <name | slot | next | 0>`** in a player's own console (Debug > Network: Follow the Next Player runs
+  `next`: each press the next other player, past the last off; slots as `status` numbers them). The client sends
+  `vr_nav_follow_ask` (sv_user.c's allowed client commands; refused in deathmatch); the server plans each following
+  player's path on its frame (`VR_PhysicsFrameEnd`) and sends him the corners when they change (`QVR_SVC_NAVFOLLOW`,
+  reliable: state, partial, the followed entity, up to 32 corners with their link kinds); his client steers in
+  `VR_AdjustMove`: the view's yaw turned toward the next corner (540 degrees a second; a headset's play space by
+  `hands::addTurn`), the move replaced by forward at his walking pace in that frame, the jump bit through `VR_MoveJump`.
+  So the walk is a human's: his prediction, the server's moves, lag compensation and the walk's guards unchanged, a
+  listen host and a remote client alike.
+- **Why the server's corners, not a client's own navmesh:** the mesh is built from the server's state, not only the
+  map: still brush entities as they stand, the movers and the rides gathered from QC fields (plats, trains), the
+  teleporters' triggers and destinations, the classes present, props as obstacles. A remote client has the BSP but no
+  QC entities, so its build would differ (no doors, lifts or teleporters), and it would cost every client a build (a big
+  map's is seconds on the pool). The corners are small (a reliable message of 6 + 13 bytes a corner when they change,
+  0.25 s apart at most), and the steering, which must run where the moves are made, needs only them.
+- **His own input** (a move key or stick, a jump, a look in flat play) **hands control back at once**; the command stays
+  on and walks on after `vr_nav_follow_idle` (1) s without any ("vr_nav_follow: yours ..." / "walking on" in his
+  console). A headset's head turns are not counted (they never stop); its sticks are.
+- **Shown:** with `vr_nav_debug` on, the client draws its path (yellow; a teleporter's jump cyan) and the next corner (a
+  white post), on a remote client too (its corners, not the server's mesh). `vr_nav_follow_status`: one `navfollow:`
+  line (state, target, corners, next, driving, paused, arrived, where).
+- **Tests:** `mp_test.py navfollow` (dedicated: B, a remote flat client, follows A) and `navfollow_listen` (the listen
+  host A follows B), both flat, coop e1m1, god and notarget: the leader put past the first room's west door, the
+  follower walks from a coop start down the step, across the room and through the door to within 112 units, arrived;
+  the leader walks on, the follower follows and arrives again; his own +back hands it back (paused), it walks on after
+  the idle; `vr_nav_follow 0` stops it. 12/0 and 11/0. No teleporter in the test: e1m1's only one (its trigger at 1312 1088
+  -368) is far from the start.
+
+## 23. The bots on the navmesh: a plan (2026-11-20, not done)
+
+His question: do bots use the navmesh? No. FrikBot (QC/frikbot) finds its way by **waypoints**: compiled-in waypoint files
+(FrikBot's `waypoints/map_*.qc`, none of which we ship), else waypoints dropped where players walked (`DynamicWaypoint`, bot_way.qc) and by roaming
+(`frik_bot_roam`: random traces that spawn temporary waypoints); routes are searched over the waypoint links
+(`begin_route`, `FindRoute`, `bot_get_path`), the next waypoint is `.target1`, and `frik_movetogoal` (bot_move.qc)
+presses the keys toward it (`frik_KeysForDir`), dodges obstructions, recognises plats. Its walk already goes through
+the players' moves (`predict::botThink`: its keys as a move). So on every map here the bots wander until players have
+walked the ways; on a custom map they never know the far side of a door they haven't seen used.
+
+**Should they? Yes, for long-range navigation**, through the follower:
+
+- **The navmesh replaces** the waypoints and the roaming: a goal chosen as now (an item, a player, an enemy), its plan
+  on the mesh (`navfollow::replan` for the bot's edict: the same 16 x 56 class as the players), and each frame
+  `navfollow::steer`'s corner taken as `.target1`'s place (a builtin returning the next corner and its link kind, or
+  the yaw and keys outright). Every map has a mesh at load, no waypoint files or learning; doors, drops, lifts and
+  teleporters as the monsters and vr_nav_follow use them.
+- **FrikBot keeps** combat (aiming, strafing, dodging, `bot_fight.qc`), item and enemy choice (`bot_ai.qc`'s goals and
+  priorities), obstruction dodging near the bot, plat recognition, rocket jumps and everything a waypoint flag says that
+  the mesh can't (precision jumps, rocket-jump ways): the learnt waypoints kept as the fallback where the mesh has no path.
+- **Effort:** about 3-4 days: a builtin (`navnext(bot, goal)`: the next corner and kind; the plan per bot kept by edict
+  like the monsters' agents) half a day; QC: bot_ai's route choice and bot_move's goal walking switched to it behind a
+  cvar (`vr_bot_navmesh`, off first), with waypoints as the fallback when there is no mesh or no path, 1-2 days; tests
+  (the coop and deathmatch bot scenarios, a "bot reaches the far side of a closed door" check on e1m1, the lockstep
+  runs: plans land on fixed server frames, as the monsters' do) 1 day.
+- **Risks:** locked doors and doors opened by buttons (the follower walks through blocked door polygons: a bot could
+  press at a locked door; it needs the door's state: blocked unless it opens on touch); the bots' gravity and air
+  control are FrikBot's own (`frik_obstructed`), so a drop or a teleporter's walk-in may need the link handling the
+  monsters have; water and ladders are not in the mesh (swimming bots keep FrikBot's way); one more class per map (a
+  player's size, built at load or on first use: on a big AD map seconds on the pool, cached on disk); deathmatch
+  balance (bots that always know the way are stronger: their skill could add a reaction delay or a detour).
