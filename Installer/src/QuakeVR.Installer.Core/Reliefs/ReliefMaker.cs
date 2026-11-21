@@ -96,7 +96,7 @@ public static class ReliefMaker
     /// Never throws for a texture: its failure is counted and the rest go on.
     /// </summary>
     public static ReliefSummary Run(string installDir, IReadOnlyList<string> modDirs, IReadOnlyList<string> textureRoots, byte[] palette,
-        bool forceCpu, IProgress<InstallProgress>? progress, CancellationToken ct, int? limit = null)
+        bool forceCpu, IProgress<InstallProgress>? progress, CancellationToken ct, int? limit = null, string? quakevrDir = null)
     {
         var clock = Stopwatch.StartNew();
         void Report(double f, string status, string? log = null, LogLevel level = LogLevel.Info) =>
@@ -105,7 +105,7 @@ public static class ReliefMaker
         Report(0, "Reliefs: reading the maps' textures");
         var sources = Scan(modDirs, textureRoots, palette, errors);
         var anchors = Anchors(sources);
-        var bundle = Path.Combine(installDir, "quakevr", "textures", "pbr");
+        var bundle = Path.Combine(quakevrDir ?? Path.Combine(installDir, "quakevr"), "textures", "pbr");
         var stock = ReadStock(Path.Combine(bundle, "stock.txt"));
         var outDir = TextureDir(installDir);
         var work = new List<string>();

@@ -583,7 +583,8 @@ try
             // "Make reliefs for Dwell and Quoth" from a console: --target <Quake VR folder> (the reliefs folder goes there;
             // its quakevr's bundle and stock list are skipped), --mods "<dir>;<dir>" (default: the target's dwell and quoth),
             // --palette-dirs "<dir>;..." (default: the mods, then the install record's Quake id1), --texture-roots (default:
-            // the target's quakevr), --cpu (no DirectML), --limit N (the first N to make).
+            // the target's quakevr), --quakevr <dir> (whose bundle and stock list are skipped; default the target's), --cpu (no
+            // DirectML), --limit N (the first N to make).
             var target = Opt("target") ?? throw new ArgumentException("--target is required");
             List<string> List(string? value) => value is null ? [] : [.. value.Split(';', StringSplitOptions.RemoveEmptyEntries)];
             var mods = Opt("mods") is { } m ? List(m) : [Path.Combine(target, Dwell.Folder), Path.Combine(target, Quoth.Folder)];
@@ -592,7 +593,7 @@ try
             var palette = QuakeVR.Installer.Core.Reliefs.ReliefMaker.FindPalette(paletteDirs) ?? throw new ArgumentException("no gfx/palette.lmp in " + string.Join(", ", paletteDirs));
             var roots = Opt("texture-roots") is { } tr ? List(tr) : [Path.Combine(target, "quakevr")];
             var summary = QuakeVR.Installer.Core.Reliefs.ReliefMaker.Run(target, mods, roots, palette, Flag("cpu"), log, CancellationToken.None,
-                Opt("limit") is { } lim ? int.Parse(lim, System.Globalization.CultureInfo.InvariantCulture) : null);
+                Opt("limit") is { } lim ? int.Parse(lim, System.Globalization.CultureInfo.InvariantCulture) : null, Opt("quakevr"));
             foreach (var e in summary.Errors.Take(20))
             {
                 Console.WriteLine($"  error: {e}");

@@ -124,6 +124,16 @@
                             </StackPanel>
                         </CheckBox>
                     </DockPanel>
+                    <!-- Reliefs for Dwell and Quoth: made on this PC after them (ReliefMaker); on wherever either is there (ReliefsPossible). -->
+                    <DockPanel Margin="0,0,0,14">
+                        <TextBlock DockPanel.Dock="Right" Text="a few minutes" Style="{StaticResource Size}" />
+                        <CheckBox IsChecked="{Binding MakeReliefs}" IsEnabled="{Binding ReliefsPossible}">
+                            <StackPanel>
+                                <TextBlock Text="Make reliefs for Dwell and Quoth" Style="{StaticResource Body}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                <TextBlock Text="{Binding ReliefsText}" Style="{StaticResource Small}" Margin="0,2,0,0" TextWrapping="Wrap" />
+                            </StackPanel>
+                        </CheckBox>
+                    </DockPanel>
                     <DockPanel Margin="0,0,0,14">
                         <TextBlock DockPanel.Dock="Right" Text="about a minute" Style="{StaticResource Size}" />
                         <CheckBox IsChecked="{Binding Relight}">
