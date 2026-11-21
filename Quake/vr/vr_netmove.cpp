@@ -152,6 +152,11 @@ constexpr void visitMove(WireMove& m, V& v)
         v.rel(hs.origin[i], o, drawnScale);
         v.abs(hs.angles[i], angScale);
     }
+    VrDrawnLamp& lamp = r.lamp; // (his torch as drawn: the others draw and light it, wpnsync)
+    v.integer(lamp.flags);
+    v.rel(lamp.origin, o, drawnScale);
+    v.thumb(lamp.rot, 32767.f);
+    v.real(lamp.range, 1.f);
 }
 
 struct Counter
@@ -165,7 +170,7 @@ struct Counter
     {
         n++;
     }
-    constexpr void thumb(glm::quat&) { n += 3; }
+    constexpr void thumb(glm::quat&, float = 127.f) { n += 3; }
 };
 
 [[nodiscard]] constexpr int countValues()
@@ -204,13 +209,14 @@ struct Quantizer
     {
         q.v[i++] = static_cast<za::I32>(x);
     }
-    void thumb(glm::quat& t)
+    void thumb(glm::quat& t, float scale = 127.f)
     {
-        // x, y, z with w >= 0 (w from them), in 127ths: as writeDrawnHand
+        // x, y, z with w >= 0 (w from them), in 127ths (`scale`ths): as writeDrawnHand
         const glm::quat u = t.w < 0.f ? -t : t;
+        const int most = static_cast<int>(scale);
         for(int k = 0; k < 3; k++)
         {
-            q.v[i++] = za::clamp(toQuant(u[k], 127.f), -127, 127);
+            q.v[i++] = za::clamp(toQuant(u[k], scale), -most, most);
         }
     }
 };
@@ -239,12 +245,12 @@ struct Dequantizer
     {
         x = static_cast<T>(q.v[i++]);
     }
-    void thumb(glm::quat& t)
+    void thumb(glm::quat& t, float scale = 127.f)
     {
         glm::vec3 v;
         for(int k = 0; k < 3; k++)
         {
-            v[k] = static_cast<float>(q.v[i++]) / 127.f;
+            v[k] = static_cast<float>(q.v[i++]) / scale;
         }
         const float w2 = 1.f - glm::dot(v, v);
         t = glm::normalize(glm::quat{w2 > 0.f ? za::sqrt(w2) : 0.f, v.x, v.y, v.z});
