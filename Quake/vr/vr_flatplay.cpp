@@ -409,12 +409,7 @@ constexpr float eyeOffMax = 8.f; // vr_flat_eye_fwd / vr_flat_eye_up: the eye of
     {
         return glm::vec3{0.f, 0.f, 0.f};
     }
-    const float forward = za::clamp(vr_flat_eye_fwd.value, 0.f, eyeOffMax);
-    const float upward = za::clamp(vr_flat_eye_up.value, 0.f, eyeOffMax);
-    glm::vec3 pitchedFwd{}, levelFwd{}, right{}, pitchedUp{}, levelUp{};
-    hands::angleVectors({viewAngles.x, viewAngles.y, 0.f}, pitchedFwd, right, pitchedUp);
-    hands::angleVectors({0.f, viewAngles.y, 0.f}, levelFwd, right, levelUp);
-    return (pitchedFwd - levelFwd) * forward + (pitchedUp - levelUp) * upward + chestCarry(viewAngles);
+    return neckTurn(viewAngles) + chestCarry(viewAngles);
 }
 
 // The eye's whole move in the world: the neck's turn, and the nudge along the axes of the view it is drawn with (the drawn view's
@@ -536,9 +531,10 @@ struct SwingTimes
     float wind, top, strike, dwell, back;
 };
 
-[[nodiscard]] SwingTimes swingTimes()
+// (A bot's held at its top longer, by its BotPoseIn::windup: its blow telegraphed, his voice note 2026-11-21.)
+[[nodiscard]] SwingTimes swingTimes(float extraTop = 0.f)
 {
-    return {za::clamp(vr_flat_swing_wind.value, 0.05f, 1.f), za::clamp(vr_flat_swing_top.value, 0.f, 0.5f),
+    return {za::clamp(vr_flat_swing_wind.value, 0.05f, 1.f), za::clamp(vr_flat_swing_top.value, 0.f, 0.5f) + extraTop,
         za::clamp(vr_flat_swing_strike.value, 0.05f, 0.5f), za::clamp(vr_flat_swing_dwell.value, 0.f, 0.5f),
         za::clamp(vr_flat_swing_back.value, 0.05f, 1.f)};
 }
@@ -887,7 +883,7 @@ constexpr float dualProneTurnMost = 45.f;
     // (A bot's: its main hand's swing on the server's clock, poseBot. The same swing.)
     const bool botSwing = bot != nullptr && h == HAND_MAIN;
     const double t = botSwing ? bot->now - bot->swingAt : vr_gametime - fs.punchAt[h];
-    const SwingTimes w = swingTimes();
+    const SwingTimes w = swingTimes(botSwing ? bot->windup : 0.f);
     const float len = botSwing ? w.wind + w.top + w.strike + w.dwell + w.back : punchLen(h);
     if((!botSwing && (bot != nullptr || !fs.punchOverhead[h])) || t < 0.0 || t > len)
     {
@@ -3842,6 +3838,34 @@ glm::vec3 headLean(const glm::vec3& aim)
     return active() && vr_flat_eye_pivot.value != 0.f ? chestCarry(aim) : glm::vec3{0.f};
 }
 
+glm::vec3 neckTurn(const glm::vec3& aim)
+{
+    if(vr_flat_eye_pivot.value == 0.f)
+    {
+        return glm::vec3{0.f};
+    }
+    const float forward = za::clamp(vr_flat_eye_fwd.value, 0.f, eyeOffMax);
+    const float upward = za::clamp(vr_flat_eye_up.value, 0.f, eyeOffMax);
+    glm::vec3 pitchedFwd{}, levelFwd{}, right{}, pitchedUp{}, levelUp{};
+    hands::angleVectors({aim.x, aim.y, 0.f}, pitchedFwd, right, pitchedUp);
+    hands::angleVectors({0.f, aim.y, 0.f}, levelFwd, right, levelUp);
+    return (pitchedFwd - levelFwd) * forward + (pitchedUp - levelUp) * upward;
+}
+
+glm::vec3 seenEyeShift(const glm::vec3& aim)
+{
+    if(vr_flat_eye_pivot.value == 0.f)
+    {
+        return glm::vec3{0.f};
+    }
+    // (the chest's share of the look as chestPitch has it, less the melee's lean, which another player's copy doesn't know)
+    const float lean = glm::radians(aim.x * za::clamp(aim.x > 0.f ? vr_flat_chest_down.value : vr_flat_chest_up.value, 0.f, 1.f));
+    glm::vec3 levelFwd{}, right{}, levelUp{};
+    hands::angleVectors({0.f, aim.y, 0.f}, levelFwd, right, levelUp);
+    const float lever = za::clamp(vr_flat_eye_lean.value, 0.f, eyeLeanMax);
+    return neckTurn(aim) + (levelFwd * za::sin(lean) + levelUp * (za::cos(lean) - 1.f)) * lever;
+}
+
 glm::vec3 eyeNudge(const glm::vec3& aim)
 {
     return camShiftWorld(aim);
@@ -4259,7 +4283,7 @@ void poseBot(const BotPoseIn& in, BotPoseOut& out)
         out.pos[h] = s.pos[h];
         out.rot[h] = s.rot[h];
     }
-    const SwingTimes w = swingTimes();
+    const SwingTimes w = swingTimes(in.windup);
     const double t = in.now - in.swingAt;
     out.swingPhase = t < 0.0 || t > w.wind + w.top + w.strike + w.dwell + w.back ? 0 : t < w.wind ? 1 : 2;
     bot = nullptr;

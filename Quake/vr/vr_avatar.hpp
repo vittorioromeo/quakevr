@@ -248,6 +248,7 @@ struct Skeleton
     unsigned steps[2]{0u, 0u}; // each foot's touchdowns so far: the walk's swings ending, the standing steps (counting up)
     glm::vec3 head{0.f};       // the head it was posed under (hands::State::head)
     glm::vec3 headJoint{0.f};  // the head bone as posed (the skull's base)
+    glm::vec3 headEye{0.f};    // the drawn head's eyes, seen from outside (the head bone turned: vr_body_eye_forward / _up)
     glm::vec3 pelvis{0.f};     // the pelvis as posed
 };
 [[nodiscard]] bool skeleton(Skeleton& out);
@@ -287,6 +288,13 @@ struct Subject
     int player{0};                          // his entity (a listen host's foothold traces pass his own box by)
     bool seated{false};                     // he plays seated (posed as his own seated body: no leg fit; B6b)
     const DollPose* doll{nullptr};          // his dead body: the trunk, head and legs the doll's, the arms to the hands
+    // adspose: a flat-screen player's gun with a sight line as drawn here (world): its rear and front sights and the hand
+    // holding it (HAND_OFF: the left). solveTorso puts his drawn eyes behind the rear sight while he is on it, the cheek on
+    // the stock (vr_flat_seen_ads). `sight` false: none (a headset player's body is never posed so).
+    bool flat{false}; // a flat-screen player: his drawn eyes off the head he sends as his view's (flatplay::neckTurn)
+    bool sight{false};
+    glm::vec3 sightRear{0.f}, sightFront{0.f};
+    int sightHand{1}; // (HAND_MAIN: the right)
 };
 // `player`: 1 .. MAX_SCOREBOARD. Returns the entity origin (the pelvis), as pose(). His swimming, lying down and climbing
 // as the server has him (Subject::lying, waterlevel, onGround: the body's pitch; Subject::holds: the trunk hanging under

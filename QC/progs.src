@@ -602,6 +602,7 @@ vr_playerdisarm.qc // the player disarmed: monsters' shots and blows on your wea
 vr_playerdisarm_grab.qc // another player's weapon taken by a grab and a pull (MP B10)
 vr_playerdisarm_test.qc // vr_pd_test 1: the player disarmed
 vr_dmrules_test.qc // vr_dm_test 1: deathmatch's item rules, disarms between players and bots (MP B11 part 2)
+vr_bots_test.qc // vr_dm_test 13-15: FrikBot bots from his 2026-11-21 notes (skill, weapons, the swing's windup)
 vr_meleerules.qc // enemy melee's rules: each blow's rule for Show Melee Arcs, an armed humanoid's blow (after the monsters)
 vr_disarmviz.qc // Debug > Show Disarm Volumes: the armed humanoids' disarm volumes (the engine draws them: vr_disarmviz.cpp)
 vr_armedrepl.qc

@@ -80,6 +80,9 @@ With Default Speed: Run, double-tap the stick: you walk until you let go {test:s
 Sliding is on by default in VR: slide and look left or right: your hips and legs keep pointing the way you slide, the chest turned back to your body {test:vr_slide_legs}
 With eye tracking (Quest Pro) the clear middle of foveation follows your eyes with no setting or restart; without it, it stays centred, and the menu line says which {test:foveation_auto}
 Pistol-whip with the heavy revolver: the cylinder stays shut; a deliberate wrist flick still opens it {test:revolver_swing}
+Bots at skill 0-1 miss, hesitate and pause between bursts; same height as you; they draw the revolver with a revolver loadout (mp_local.ps1 -Mode dm -Bots 1)
+mp_local.ps1 dm with bots at skill 0-1: a bot's sword swing is held up before it comes down, it lands on you, and you can parry it
+Flat-screen: in mp_local.ps1, aim down the sights (shotgun, nailgun, rocket launcher) level, up and down, standing, crouched and sliding, while the other window watches from the side: the head sits behind the rear sight with the cheek on the stock, the arms hold the gun from below, nothing crosses the face
 
 [1. Flat-screen: weapons and hands]
 
