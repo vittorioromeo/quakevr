@@ -1464,7 +1464,7 @@
   "by": "make_vrbody.py"
  },
  "quakevr/progs/vrbody_bare.md5mesh": {
-  "sha256": "2e25e4b0c65945d8e8e094400d4a0ce4ec62f838a43bc0db12f8506c0e97f63f",
+  "sha256": "777365b4e14af40483e6afeb78f2fddf06c7d0955b2bdfa3233d4651857ea877",
   "by": "make_vrbody.py"
  },
  "quakevr/progs/vrbody_bare.mdl": {
@@ -1488,7 +1488,7 @@
   "by": "make_vrbody.py"
  },
  "quakevr/progs/vrbody_brawny_bare.md5mesh": {
-  "sha256": "f1ac2207a2a1ab65183e216e0d192a86793625f3ac969dbc3a670a0fd0dddea5",
+  "sha256": "b24995e6179b4f94987d83e5c4e85980d76714be10afbda4f882830d7a386700",
   "by": "make_vrbody.py"
  },
  "quakevr/progs/vrbody_brawny_bare.mdl": {
@@ -1512,7 +1512,7 @@
   "by": "make_vrbody.py"
  },
  "quakevr/progs/vrbody_fem_bare.md5mesh": {
-  "sha256": "e6e64aa1639f0333134d43d544cf1a181b31a708b2e185ddcdead39790bab812",
+  "sha256": "33c0d2f8fe1356b08f75e922325868512129483982ce0fd86b480fb5c63064e9",
   "by": "make_vrbody.py"
  },
  "quakevr/progs/vrbody_fem_bare.mdl": {
@@ -1536,7 +1536,7 @@
   "by": "make_vrbody.py"
  },
  "quakevr/progs/vrbody_lean_bare.md5mesh": {
-  "sha256": "9ce9046ee452090c79105faf53026790a7d3721e5819c7193ea9851280832b4c",
+  "sha256": "f2d25ea33aaff197d63b3170fbcbf75ae360b0f8e9ef86b9321124630596b4c9",
   "by": "make_vrbody.py"
  },
  "quakevr/progs/vrbody_lean_bare.mdl": {

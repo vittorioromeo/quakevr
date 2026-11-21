@@ -483,6 +483,17 @@ private:
     void paceUnwaited();
     double unwaitedLast{0.0}; // when the last such frame went on (Sys_DoubleTime)
 
+    // A load must not wait on the frames a throttling runtime gives (C5c: an unworn or still headset gave 3 frames in
+    // 36 s and e1m1's signon waited at 3/4: each signon step takes a host frame). While the client is not yet signed on
+    // and the last xrWaitFrame blocked for throttleWaitMs or more, the host runs unwaited frames (paceUnwaited) between
+    // waits, xrWaitFrame called again only throttleRetry seconds after the last one ended.
+    [[nodiscard]] bool loadThrottled() const;
+    static constexpr double throttleWaitMs = 250.0;
+    static constexpr double throttleRetry = 0.5;
+    double lastWaitEnd{0.0}; // when the last xrWaitFrame returned (Sys_DoubleTime)
+    double lastWaitMs{0.0};  // how long it blocked
+    int throttledFrames{0};  // unwaited host frames run so for a load (the log's count)
+
     // The local time, for the log (hh:mm:ss.mmm).
     [[nodiscard]] static const char* wallClock();
 

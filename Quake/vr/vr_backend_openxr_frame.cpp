@@ -75,6 +75,21 @@ bool OpenXrBackend::beginFrame(TrackingState& tracking, FrameState& frame)
         quest.apply(session, freshHandles);
     }
 
+    if(loadThrottled())
+    {
+        if(throttledFrames++ == 0)
+        {
+            xrruntime::note("OpenXR: xrWaitFrame blocked %.0f ms during a load: the load goes on between waits\n", lastWaitMs);
+        }
+        paceUnwaited();
+        return true;
+    }
+    if(throttledFrames > 0 && cls.signon >= SIGNONS)
+    {
+        xrruntime::note("OpenXR: the load ended; %d host frames ran between throttled waits\n", throttledFrames);
+        throttledFrames = 0;
+    }
+
     XrFrameWaitInfo waitInfo{XR_TYPE_FRAME_WAIT_INFO};
     frameState = XrFrameState{XR_TYPE_FRAME_STATE};
     traceFrame("xrWaitFrame");
@@ -82,6 +97,8 @@ bool OpenXrBackend::beginFrame(TrackingState& tracking, FrameState& frame)
     t0 = Sys_DoubleTime();
     const XrResult waited = xrWaitFrame(session, &waitInfo, &frameState);
     frameWaitMs = timeCall(CallWait, t0);
+    lastWaitMs = frameWaitMs;
+    lastWaitEnd = Sys_DoubleTime();
     profile::end();
     if(!checkFrameCall(waited, "xrWaitFrame"))
     {
@@ -389,6 +406,15 @@ bool OpenXrBackend::lostBy(XrResult result, const char* call)
             code, instanceLost ? "runtime" : "session", stateTrailText));
     }
     return true;
+}
+
+bool OpenXrBackend::loadThrottled() const
+{
+    if(cls.state != ca_connected || cls.signon >= SIGNONS || lastWaitMs < throttleWaitMs)
+    {
+        return false;
+    }
+    return Sys_DoubleTime() - lastWaitEnd < throttleRetry;
 }
 
 void OpenXrBackend::paceUnwaited()

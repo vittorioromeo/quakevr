@@ -185,7 +185,8 @@ def add_vert(pos, weights, st):
     return len(verts) - 1
 
 
-def loft(rings, block, cap_start=True, cap_end=True, sides=SIDES, per=1, power=2.0, vrange=(0.0, 1.0), vpos=None):
+def loft(rings, block, cap_start=True, cap_end=True, sides=SIDES, per=1, power=2.0, vrange=(0.0, 1.0), vpos=None,
+         hi_sides=None, hi_from=None):
     """rings: list of (centre, u axis, v axis, radius along u, radius along v, weights). `per`: the loft is drawn
     with that many spans between each two rings given (a number, or one per gap), the rings in between on a smooth
     curve through them (refine()); the texture runs along the rings given as it would without them. `power`: the
@@ -193,8 +194,16 @@ def loft(rings, block, cap_start=True, cap_end=True, sides=SIDES, per=1, power=2
     part of the block's height the texture runs along (a band painted from one row of the torso's). `vpos`: the
     rings' places along the texture (0 .. 1, one per ring given; evenly spaced if not given). A ring may have a seventh
     element, its shape: a function of the angle round it giving the point (along u, along v), in place of the
-    ellipse (the bare forearm's end, fitted to the hand: hand_slice())."""
+    ellipse (the bare forearm's end, fitted to the hand: hand_slice()). `hi_sides`, `hi_from`: the rings from the gap
+    before the ring given at index `hi_from` on (its rings in between and it) have hi_sides sides, the rest `sides`,
+    the two joined by a band of triangles stitching the coarse ring to the fine one (C5c: the bare forearm 144 sides
+    only where it is fitted round the hand, the arm up to it 24; 10874 -> 4900 triangles, the same look)."""
+    gaps = len(rings) - 1
+    counts = per if isinstance(per, (list, tuple)) else [per] * gaps
     rings, vs = refine(rings, per, vpos, power)
+    # The last coarse ring (the given ring before hi_from), in the refined rings; past it all fine
+    last_lo = sum(counts[:hi_from - 1]) if hi_sides else len(rings) - 1
+    ring_sides = [sides if r <= last_lo else hi_sides for r in range(len(rings))]
     u0, v0, u1, v1 = BLOCKS[block]
     # Keep away from the block edges so filtering does not bleed into the next block.
     u0, v0, u1, v1 = u0 + PAD, v0 + PAD, u1 - PAD, v1 - PAD
@@ -208,10 +217,12 @@ def loft(rings, block, cap_start=True, cap_end=True, sides=SIDES, per=1, power=2
     # Each ring has one vertex more than it has sides: the last is the first again, at u = 1, so that
     # the texture wraps round once (the engine's normals weld vertices by position).
     first = len(verts)
-    n = sides + 1
+    starts = []  # each ring's first vertex
     for r, ring in enumerate(rings):
         centre, ua, va, ru, rv, weights = ring[:6]
-        for k in range(n):
+        sides = ring_sides[r]
+        starts.append(len(verts))
+        for k in range(sides + 1):
             a = 2 * math.pi * (k % sides) / sides
             if len(ring) > 6:
                 x, y = ring[6](a)
@@ -225,23 +236,38 @@ def loft(rings, block, cap_start=True, cap_end=True, sides=SIDES, per=1, power=2
             st = (u0 + (u1 - u0) * k / sides, v0 + (v1 - v0) * (vrange[0] + (vrange[1] - vrange[0]) * vs[r]))
             add_vert(p, weights, st)
     for r in range(len(rings) - 1):
-        for k in range(sides):
-            a = first + r * n + k
-            b = first + r * n + k + 1
-            c = first + (r + 1) * n + k
-            d = first + (r + 1) * n + k + 1
-            tris.append((a, c, b))
-            tris.append((b, c, d))
+        lo, hi = ring_sides[r], ring_sides[r + 1]
+        if lo == hi:
+            for k in range(lo):
+                a = starts[r] + k
+                b = starts[r] + k + 1
+                c = starts[r + 1] + k
+                d = starts[r + 1] + k + 1
+                tris.append((a, c, b))
+                tris.append((b, c, d))
+            continue
+        # The stitch: round both rings by the texture's u, the next vertex taken from whichever comes first, each
+        # triangle wound as the quads' two are (an advance on this ring as (a, c, b), on the next as (b, c, d))
+        i = j = 0
+        while i < lo or j < hi:
+            if j >= hi or (i < lo and (i + 1) * hi <= (j + 1) * lo):
+                tris.append((starts[r] + i, starts[r + 1] + j, starts[r] + i + 1))
+                i += 1
+            else:
+                tris.append((starts[r] + i, starts[r + 1] + j, starts[r + 1] + j + 1))
+                j += 1
     mid = ((u0 + u1) / 2, (v0 + v1) / 2)
     if cap_start:
         centre, _, _, _, _, weights = rings[0][:6]
         c = add_vert(centre, weights, mid)
+        sides = ring_sides[0]
         for k in range(sides):
             tris.append((c, first + k, first + (k + 1) % sides))
     if cap_end:
         centre, _, _, _, _, weights = rings[-1][:6]
         c = add_vert(centre, weights, mid)
-        base = first + (len(rings) - 1) * n
+        base = starts[-1]
+        sides = ring_sides[-1]
         for k in range(sides):
             tris.append((c, base + (k + 1) % sides, base + k))
 
@@ -648,7 +674,9 @@ def build_mesh(m, bare=False, shape=None):
             arm.append((add(wrist, mul(fd, lip_m)), fa, fv, ref[0], ref[1], w((ha_, 1.0)), hand_ring(side, HAND_LIP, *ref, sides=144)))
             per += [1, 1, 2, 1]
             vpos += [(7 + 2 * (d - 0.12) / 0.14) / 9 for d, _ in rings_b] + [1.0 - 2 * lip_m / 0.14 / 9, 1.0]
-        loft(arm, "skin", sides=144 if bare else 12, per=per, vpos=vpos, cap_end=not bare)
+        # (bare: 144 sides only from the last forearm ring on, where the arm is fitted round the hand; 24 up to it)
+        loft(arm, "skin", sides=24 if bare else 12, per=per, vpos=vpos, cap_end=not bare,
+             hi_sides=144 if bare else None, hi_from=len(arm) - 2 if bare else None)
         # A leather bracer over the forearm's lower half (its straps show how the forearm turns),
         # ending at the wrist in a flared lip over the base of the hand. The arm meets make_hand_rig.py's
         # hand at its wrist: the wrist's ring holds the hand's wrist with a few millimetres to spare,

@@ -63,7 +63,11 @@ struct Written
 {
     za::Vector<Block> blocks;      // the blocks with light added, as uploaded
     za::Vector<int> surfStamp;     // per surface: the frame it was last lit (index: the surface's)
-    auto members() { return mem::list(blocks, surfStamp); }
+    // C5c (vr_gl_world_dlmap_batch): the texture's texels as the frame leaves them (the map's own and the light added),
+    // the frame's writes gathered here and sent in one upload per band of bandRows rows, not one per surface: a tiler's
+    // driver copies or waits for a texture a frame in flight still reads at every upload.
+    za::Vector<unsigned> atlas;
+    auto members() { return mem::list(blocks, surfStamp, atlas); }
 };
 mem::Cache<Written> written{"dlightmap blocks", mem::MapChange};
 
@@ -92,12 +96,112 @@ double lastMs = 0.0;      // the last build's CPU time (vr_gl_world_dlmap_info)
            lightmap_texture && lightmap_data && !r_fullbright_cheatsafe;
 }
 
-void upload(int x, int y, int w, int h, const unsigned* texels)
+// The batched uploads' bands (vr_gl_world_dlmap_batch): each band's dirty rectangle this frame (x1 <= x0: clean).
+constexpr int bandRows = 16;
+constexpr int maxBands = 256; // 4096 rows
+struct Band
+{
+    int x0 = 0, y0 = 0, x1 = 0, y1 = 0;
+};
+Band bands[maxBands];
+bool batching = false;  // this frame's uploads gathered into Written::atlas (set by beginUploads)
+bool atlasValid = false; // Written::atlas mirrors the texture (false after an unbatched frame or a new map)
+int uploadsLast = 0;    // the last frame's glTexSubImage2D calls (vr_gl_world_dlmap_info)
+int uploadedTexels = 0; // ... and their texels
+
+void bindLightmap()
 {
     // (GL_Bind skips a texture already bound there, unit and all: the null texture first makes it select unit 0)
     GL_Bind(GL_TEXTURE0, nullptr);
     GL_Bind(GL_TEXTURE0, lightmap_texture);
+}
+
+void upload(int x, int y, int w, int h, const unsigned* texels)
+{
+    if(batching)
+    {
+        unsigned* atlas = written.atlas.data();
+        for(int r = 0; r < h; r++)
+        {
+            memcpy(atlas + static_cast<size_t>(y + r) * lightmap_width + x, texels + static_cast<size_t>(r) * w,
+                static_cast<size_t>(w) * sizeof(unsigned));
+        }
+        for(int b = y / bandRows; b <= (y + h - 1) / bandRows && b < maxBands; b++)
+        {
+            Band& d = bands[b];
+            const int top = za::max(y, b * bandRows), bottom = za::min(y + h, (b + 1) * bandRows);
+            if(d.x1 <= d.x0)
+            {
+                d = {x, top, x + w, bottom};
+            }
+            else
+            {
+                d = {za::min(d.x0, x), za::min(d.y0, top), za::max(d.x1, x + w), za::max(d.y1, bottom)};
+            }
+        }
+        return;
+    }
+    bindLightmap();
     glTexSubImage2D(GL_TEXTURE_2D, 0, x, y, w, h, GL_RGBA, GL_UNSIGNED_BYTE, texels);
+    uploadsLast++;
+    uploadedTexels += w * h;
+}
+
+// A frame's uploads begin: batched (vr_gl_world_dlmap_batch, the atlas fits the bands) into the atlas, its copy of the
+// map's texels made when it is not the texture's (a new map, or after unbatched frames).
+void beginUploads()
+{
+    uploadsLast = uploadedTexels = 0;
+    const size_t size = static_cast<size_t>(lightmap_width) * static_cast<size_t>(lightmap_height);
+    batching = vr_gl_world_dlmap_batch.value != 0.f && lightmap_height <= bandRows * maxBands;
+    if(!batching)
+    {
+        atlasValid = false;
+        return;
+    }
+    if(!atlasValid || written.atlas.size() != size)
+    {
+        // (the texture holds the map's texels and last frame's blocks; those are put back or written again this frame)
+        written.atlas.resize(size);
+        memcpy(written.atlas.data(), lightmap_data, size * sizeof(unsigned));
+        atlasValid = true;
+    }
+    for(Band& b : bands)
+    {
+        b = Band{};
+    }
+}
+
+// The frame's bands uploaded, each its dirty rectangle in one call.
+void endUploads()
+{
+    if(!batching)
+    {
+        return;
+    }
+    batching = false;
+    bool bound = false;
+    for(const Band& b : bands)
+    {
+        if(b.x1 <= b.x0)
+        {
+            continue;
+        }
+        if(!bound)
+        {
+            bindLightmap();
+            glPixelStorei(GL_UNPACK_ROW_LENGTH, lightmap_width);
+            bound = true;
+        }
+        glTexSubImage2D(GL_TEXTURE_2D, 0, b.x0, b.y0, b.x1 - b.x0, b.y1 - b.y0, GL_RGBA, GL_UNSIGNED_BYTE,
+            written.atlas.data() + static_cast<size_t>(b.y0) * lightmap_width + b.x0);
+        uploadsLast++;
+        uploadedTexels += (b.x1 - b.x0) * (b.y1 - b.y0);
+    }
+    if(bound)
+    {
+        glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+    }
 }
 
 // The map's own texels of the block back in the lightmap.
@@ -117,10 +221,12 @@ void restoreAll()
 {
     if(madeFor == lightmap_texture && lightmap_data)
     {
+        beginUploads();
         for(const Block& b : written.blocks)
         {
             restore(b);
         }
+        endUploads();
     }
     written.blocks.clear();
 }
@@ -322,8 +428,10 @@ void build()
     if(madeFor != lightmap_texture)
     {
         written.blocks.clear(); // a new map's lightmap: nothing of ours in it
+        atlasValid = false;
         madeFor = lightmap_texture;
     }
+    beginUploads();
     za::Vector<int>& stamps = written.surfStamp;
     if(stamps.size() != static_cast<size_t>(cl.worldmodel->numsurfaces))
     {
@@ -433,6 +541,7 @@ void build()
     {
         written.blocks.pushBack(b);
     }
+    endUploads();
 }
 
 } // namespace
@@ -473,6 +582,8 @@ void info_f()
         vr_gl_world_dlmap.value, frameActive ? "active" : "off",
         static_cast<int>(scratch.lights.size()), static_cast<int>(written.blocks.size()), lastMs,
         glprogs.world_unlit[0][0] ? "" : " (no unlit world form: the ES profile only)");
+    Con_Printf("vr_gl_world_dlmap: %d uploads, %d texels (vr_gl_world_dlmap_batch %g)\n", uploadsLast, uploadedTexels,
+        vr_gl_world_dlmap_batch.value);
 }
 } // namespace
 

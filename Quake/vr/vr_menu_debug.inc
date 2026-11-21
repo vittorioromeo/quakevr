@@ -525,6 +525,7 @@ za::Vector<Item> pageDebugProfiling()
             .help("vr_rig_lights_world 1 (the default): the rig's small lights light the walls too."),
         row(opt::vr_gl_world_lit_skip),
         row(opt::vr_gl_world_dlmap),
+        row(opt::vr_gl_world_dlmap_batch),
         command("Print Dynamic Lightmap Info (Quest)", "vr_gl_world_dlmap_info")
             .help("vr_gl_world_dlmap_info: whether the dynamic lights are in the lightmap this frame, how many lights and "
                   "texel blocks, and the CPU time of the last build."),
@@ -685,6 +686,7 @@ za::Vector<Item> pageDebugProfiling()
         row(opt::vr_alias_cull_posed),
         row(opt::vr_alias_player_first),
         row(opt::vr_alias_prepass_own),
+        row(opt::vr_alias_prepass_body),
         command("Lazy OIT Clear Stats", "vr_oit_stats")
             .help("vr_oit_stats: since the last time, the views with a translucent pass, how many drew something "
                   "translucent (water, slime, lava, a translucent model or particles) and how many skipped the clear."),

@@ -279,7 +279,7 @@ extern "C" int VR_AliasDepthPrepass(const entity_t* e)
     const int group = VR_ViewEntityGroup(e);
     if(group == VR_DRAW_BODY || group == VR_DRAW_MIRROR)
     {
-        return 1;
+        return vr_alias_prepass_body.value != 0.f ? 1 : 0;
     }
     // Your hands and what they hold (vr_alias_prepass_own): the glove's shell over the hand and the fingers over the
     // palm shaded the hands' pixels about twice, a gun's own parts about 1.4 times (vr_model_fragments). Not while a

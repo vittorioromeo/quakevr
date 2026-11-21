@@ -692,6 +692,10 @@ QVR_CVAR(vr_alias_player_first, "1", CVAR_NONE)
 // Debug > Profiling and Memory > Own Models Pre-pass: 1 your hands and what they hold drawn into the depth first (as your
 // body and the world's models are), then shaded once a pixel (not while a gun morphs); 0 shaded as drawn (the A/B).
 QVR_CVAR(vr_alias_prepass_own, "1", CVAR_NONE)
+// Debug > Profiling and Memory > Body Pre-pass: (C5c, QUEST_PLAN.md 6zn) 1 your body (and its mirror image) drawn into
+// the depth first, then shaded once a pixel, as before; 0 shaded as drawn: its skinning run once a view, not twice (the
+// Quest preset's choice when it measures faster: a tiler's own hidden surface removal does the pre-pass's work).
+QVR_CVAR(vr_alias_prepass_body, "1", CVAR_NONE)
 // Debug > Profiling and Memory > Keep Light Casters: 1 each dynamic light's world shadow casters kept between frames
 // while it stays inside the sphere they were collected for (a moving light's collected 24 units wider; vr_lighting.cpp
 // collectWorldCached; vr_shadow_caster_stats); 0 collected again for each light each frame; 2 (a check) the wider set
@@ -2208,6 +2212,10 @@ QVR_CVAR(vr_gl_world_lit_skip, "1", CVAR_NONE)
 // lightmap's 16-unit grid) and the world is drawn without the lights' loop; 0 (default): the loop, per pixel. The
 // models and particles take the lights per pixel either way. No effect on the PC's shaders (no unlit world form).
 QVR_CVAR(vr_gl_world_dlmap, "0", CVAR_NONE)
+// Debug > Profiling and Memory > Batch Lightmap Uploads (Quest): (C5c) with vr_gl_world_dlmap, 1 the frame's lit and
+// restored texel blocks gathered into a copy of the lightmap and uploaded once per band of 16 rows; 0 one upload per
+// surface, as C5b (the A/B). The same picture.
+QVR_CVAR(vr_gl_world_dlmap_batch, "1", CVAR_NONE)
 QVR_CVAR(vr_explosion_debris_light_radius, "48", CVAR_ARCHIVE) // units at world scale 1
 
 QVR_CVAR(vr_particle_mult, "1", CVAR_ARCHIVE)         // how many of them

@@ -6235,6 +6235,10 @@ QVR_TOGGLE(vr_alias_prepass_own, "Own Models Pre-pass",
     "vr_alias_prepass_own: your hands and what they hold drawn into the depth first, then shaded once a "
     "pixel (On; not while a gun morphs), or shaded as drawn (Off, as before): the glove over the hand, the "
     "fingers over the palm and a gun's own parts shaded once. The same images either way.")
+QVR_TOGGLE(vr_alias_prepass_body, "Body Pre-pass",
+    "vr_alias_prepass_body: your body drawn into the depth first, then shaded once a pixel (On, as before), or "
+    "shaded as drawn (Off): its skinning run once a view instead of twice. The same images either way; Off is "
+    "the Quest preset's when it measures faster there.")
 QVR_TOGGLE(vr_gl_world_lit_skip, "Skip Empty Lit Commands (Quest)",
     "vr_gl_world_lit_skip: with the world split by surface (Unlit World Shader By Surface, the Quest), only the "
     "textures with a surface a reaching light touches get their lit draw (On), or every texture (Off, as before). "
@@ -6243,6 +6247,9 @@ QVR_TOGGLE(vr_gl_world_dlmap, "Dynamic Lights in the Lightmap (Quest)",
     "vr_gl_world_dlmap: under the ES profile (the Quest), the dynamic lights added into the lightmap once a frame "
     "(Quake's own way, its 16-unit grid) and the world drawn without the lights' loop (On), or lit per pixel "
     "(Off, the default). Models and particles are lit per pixel either way.")
+QVR_TOGGLE(vr_gl_world_dlmap_batch, "Batch Lightmap Uploads (Quest)",
+    "vr_gl_world_dlmap_batch: with Dynamic Lights in the Lightmap, the frame's changed lightmap texels sent in "
+    "one upload per band of 16 rows (On), or one upload per surface (Off, as before). The same picture.")
 QVR_CYCLE(vr_shadow_setup_share, "Shadow Caster Set-up Shared",
     "vr_shadow_setup_share: each animated shadow caster set up once for all the frame's shadow lights (its "
     "whole instance copied into each light's draw, drawn without textures) and the first eye taking the "
