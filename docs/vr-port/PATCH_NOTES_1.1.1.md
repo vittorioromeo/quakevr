@@ -169,6 +169,10 @@ aren't Map Library packages aren't sent to joining players.
 
 ## Movement
 
+- **Noclip flies where you look.** Moving forward in noclip now goes the way the camera points, so looking up or down
+  flies up or down; strafing stays level and jump and crouch still go straight up and down. Flat and in the headset
+  (there, what steers your walking steers the flight: the head, or the moving hand with hand-relative movement).
+
 - **Riding a lift no longer sinks you or the monsters into it.** Going up, your eye trailed a rising lift by up to 12
   units (the stair-step easing took the lift's rise for a step) and a monster riding it was drawn as far as 13 units
   into it; now your eye rides with the lift (only a step's jump is eased: `vr_view_lift_follow`, 400 units a second;
@@ -230,6 +234,10 @@ aren't Map Library packages aren't sent to joining players.
 
 
 ## Monsters
+
+- **A shove never makes an enemy bleed.** An enemy you had hurt earlier, even a single pellet long before, bled from
+  every limb as a later shove sent it sprawling. Now a knocked-down or staggering enemy's limbs bleed only for blood
+  drawn as it went down or while it is down (shot as you shove it, cut while it lies there); a corpse's still do.
 
 - **The alarm spreads further.** A monster you hurt or kill before it noticed you cries out: the others within earshot
   (800 units in the open, less round a corner or through a doorway, much less through solid walls) come to look, and

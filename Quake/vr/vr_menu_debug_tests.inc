@@ -361,6 +361,10 @@ za::Vector<Item> pageDebugTests()
                   "needed): the stick fully forward, a thumb slipping 0.82..1.0, his thumb as recorded 0.61..0.91; each "
                   "must keep its full speed within 2%, and the steps drawn be even; then pushes at 16 angles, the heading "
                   "within 0.5 degrees. Results on the console."),
+        command("Noclip: Flies Where You Look", "vr_noclip_fly_test")
+            .help("vr_noclip_fly_test: from where you stand (64 up), noclip and the move pushed at 45 up, 45 down and "
+                  "level: the flight climbs as the look does; a strafe stays level, the up key goes straight up; with a "
+                  "headset the stick too, the head and a hand steering. Puts you back on foot. Results on the console."),
         command("Teleport: Smooth + Teleport", "vr_teleport_both_test here")
             .help("vr_teleport_both_test here (the mock headset; headless from vrtesthall without \"here\"): Smooth + "
                   "Teleport from where you stand, open floor ahead needed. The moving stick walks and never teleports; "
