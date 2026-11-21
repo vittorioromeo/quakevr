@@ -6450,3 +6450,23 @@ His words (2026-11-21): an extra wrist gadget page for the multiplayer scoreboar
 - Seen in passing (not changed): `vr_ad_mounted` stays as a client's last local map set it when he joins a remote server
   (A's page read 1 on dm4 after his single-player e1m1 with AD in the base): AD's page may be offered on a server without
   AD's data (it draws "NONE" rows).
+
+## The Crystal Lance as a two-handed lance; a general pole grip (branch agent/dwellwpn2, 2026-11-21)
+
+His notes of 2026-11-21 (DWELL.md 9.9 has the detail). Built: item 1. Not built: item 2 (the Rotary's gauntlet grip and
+a findable reload: the plan is in DWELL.md 9.9) and item 3 (reliefs for Dwell and Quoth: shipping AD's way is not
+allowed for them; the plan for generating them on the user's machine is in DWELL.md 9.9). Item 4: no work, as asked.
+- `vr_dw_lance_pole` (1): the Lance's model `progs/dw_lance.mdl#vr` from Dwell's world model `g_rail.mdl` (recipe,
+  read in place), the lightning gun's grip under its pole; weapons.txt slot 55 (numSlots 56). New recipe options
+  `keepOpen`, `keepScale`. 0: the pistol (slot 53), as before.
+- `FREE_POLE` (`vr_twohand.cpp`; weapon key `anygrip_mode 3`): the other hand anywhere on the weapon slides along its
+  long axis between butt (Blade Near) and tip, aiming it through the hand; in VR its hotspots never take the other hand
+  (`twohand::poleGrip`); flat keeps its fixed hold. `vr_debug_2h_grip 2` prints the place along the pole; `vr_status`
+  says "on its pole".
+- QC `DW_LanceMelee`: its swing a blade's (the axe's damage) instead of the gun's club.
+- Tests: `dwell_lance_test.sh` 8/0 (vr_ad_test 217 5/0; the pole taken at 21.1 from the handle, slid 20.8 -> 26.2 ->
+  8.9 along it, never let go), `dwell_vrmodels_test.sh` 13/0 (7 models made; screenshots `scratch/dwell_vrmodels_*.png`).
+  Dwell v2.2 was unpacked into the kit's `bases/mp/qbase/dwellv2p2` for these (the kit's pinned zip).
+- Left: the main hand does not slide; no ammo screen housing on the lance; flat's hold point and sights unmeasured; the
+  blow's damage on a monster untested; not run: dwell_weapons_test.sh, dwell_maps.sh, the melee/two-hand and flat suites,
+  scenario_check, a ThinLTO build.
