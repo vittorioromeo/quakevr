@@ -1787,6 +1787,199 @@ def deathbody(s):
     deathbody_case(s, srv, a, b, ea, eb, b, eb, models, 0.6, "B")
 
 
+RAG_BL = re.compile(r"mp_bl: side=(\w+) t=(\S+) n=(\d+) m=(\S+) o=(\S+) a=(\S+) rag=(\d)")
+RAG_BP = re.compile(r"mp_bp: side=(\w+) t=(\S+) n=(\d+) b=(\d+) p=(\S+) q=(\S+) src=(\w+)")
+RAG_FRAMES = 1300  # each side's vr_mp_bodylog frames (18 s of 72 Hz game time: the play below and its settling)
+
+
+def rag_vec(text):
+    return [float(x) for x in text.split(",")]
+
+
+def rag_quat(a):
+    """Quake angles (pitch, yaw, roll; degrees) -> a quaternion (w, x, y, z): one fixed convention for both sides."""
+    p, y, r = [math.radians(v) / 2.0 for v in a]
+    cy, sy, cp, sp, cr, sr = math.cos(y), math.sin(y), math.cos(p), math.sin(p), math.cos(r), math.sin(r)
+    return (cy * cp * cr + sy * sp * sr, cy * cp * sr - sy * sp * cr, cy * sp * cr + sy * cp * sr, sy * cp * cr - cy * sp * sr)
+
+
+def rag_qang(q1, q2):
+    d = abs(sum(x * y for x, y in zip(q1, q2))) / max(1e-9, math.sqrt(sum(x * x for x in q1) * sum(y * y for y in q2)))
+    return math.degrees(2.0 * math.acos(min(1.0, d)))
+
+
+def rag_kind(model, rag):
+    m = model.lower()
+    if rag:
+        return "ragdoll"
+    for key, kind in (("h_", "head"), ("gib", "gib"), ("crate", "crate"), ("barrel", "barrel"), ("sword", "weapon"),
+                      ("w_", "weapon"), ("g_", "weapon"), ("debris", "chunk"), ("soldier", "monster"), ("grunt", "monster")):
+        if key in m.split("/")[-1]:
+            return kind
+    return m.split("/")[-1]
+
+
+def rag_series(lines, side):
+    """vr_mp_bodylog lines of `side` -> ({ent: [(t, origin, quat, model, rag)]}, {(ent, part): [(t, pos, quat, src)]})."""
+    ents, parts = {}, {}
+    for l in lines:
+        m = RAG_BL.match(l)
+        if m and m.group(1) == side:
+            ents.setdefault(int(m.group(3)), []).append((float(m.group(2)), rag_vec(m.group(5)), rag_quat(rag_vec(m.group(6))),
+                                                          m.group(4), m.group(7) == "1"))
+            continue
+        m = RAG_BP.match(l)
+        if m and m.group(1) == side:
+            parts.setdefault((int(m.group(3)), int(m.group(4))), []).append(
+                (float(m.group(2)), rag_vec(m.group(5)), tuple(rag_vec(m.group(6))), m.group(7)))
+    return ents, parts
+
+
+def rag_errors(host, client):
+    """Each client sample against the host's (the server's, every tick) at its time, interpolated -> [(pos error, turn
+    error, moving, client sample)]; moving: the host's moved more than 0.05 units or 0.1 degrees over that tick."""
+    out = []
+    for key, cs in client.items():
+        hs = host.get(key)
+        if not hs or len(hs) < 2:
+            continue
+        times = [h[0] for h in hs]
+        j = 0
+        for c in cs:
+            t = c[0]
+            while j + 1 < len(hs) and times[j + 1] < t:
+                j += 1
+            if j + 1 >= len(hs) or not (times[j] <= t <= times[j + 1]) or times[j + 1] - times[j] > 0.05:
+                continue
+            h0, h1 = hs[j], hs[j + 1]
+            f = (t - h0[0]) / max(1e-9, h1[0] - h0[0])
+            p = [x + (y - x) * f for x, y in zip(h0[1], h1[1])]
+            q0, q1 = h0[2], h1[2]
+            sgn = 1.0 if sum(x * y for x, y in zip(q0, q1)) >= 0 else -1.0
+            q = tuple(x + (sgn * y - x) * f for x, y in zip(q0, q1))
+            moving = dist(h0[1], h1[1]) > 0.05 or rag_qang(q0, q1) > 0.1
+            out.append((dist(p, c[1]), rag_qang(q, c[2]), moving, c))
+    return out
+
+
+def rag_stats(errs):
+    if not errs:
+        return None
+    pe = sorted(e[0] for e in errs)
+    re_ = sorted(e[1] for e in errs)
+    n = len(pe)
+    return {"n": n, "pos_mean": sum(pe) / n, "pos_p95": pe[min(n - 1, int(0.95 * n))], "pos_max": pe[-1],
+            "rot_mean": sum(re_) / n, "rot_p95": re_[min(n - 1, int(0.95 * n))], "rot_max": re_[-1]}
+
+
+def ragsync_phase(s, srv, a, b, on, left):
+    """One play with vr_net_ragdolls `on`: a grunt knocked down (an active ragdoll) and killed (a dead one), a crate and
+    a sword thrown tumbling, another grunt knocked down and gibbed; both sides log what they have each tick (vr_mp_bodylog:
+    A the server's, B what he draws) -> {kind: stats} of B against A, and B's ragdoll bytes a second while it moved and
+    once settled."""
+    label = "ragdolls%d" % on
+    since = srv.mark()
+    srv.cmd("vr_net_ragdolls %d; vr_physics_spawn monster_army 200 %d" % (on, left))
+    srv.wait(r"vr_physics_spawn: \d+ monster_army at", 20, since, "a grunt ahead (%s)" % label)
+    since_a, since_b = a.mark(), b.mark()
+    b.cmd("vr_net_bytes reset; vr_mp_bodylog %d 700" % RAG_FRAMES)
+    b.wait(r"mp_bodylog: frames=", 10, since_b)
+    # (the play, in counted frames of the logic: the knockdown's fall, the corpse's, the throws' flights and landings)
+    steps = ((0.0, "vr_mp_bodylog %d 700" % RAG_FRAMES), (0.5, "vr_knockdown_test 0"), (2.0, "vr_knockdown_test 3"),
+             (3.0, "vr_physics_spawn vr_crate 120 %d; vr_physics_spawn weapon_knight_sword 110 %d" % (left - 40, left + 40)),
+             (0.15, "vr_physics_fling vr_crate 260 90 260; vr_physics_fling weapon_knight_sword 300 90 300"),
+             (0.5, "vr_physics_spawn monster_army 170 %d" % left), (0.5, "vr_knockdown_test 0"), (0.5, "vr_knockdown_test 4"))
+    for i, (after, cmd) in enumerate(steps):
+        if after > 0:
+            # (the server's game time, counted: vr_mp_after)
+            mark = srv.mark()
+            srv.cmd("vr_mp_after %.2f rag%d_%d" % (after, on, i))
+            srv.wait(r"mp_after: .* rag%d_%d" % (on, i), 60, mark, "%s step %d" % (label, i))
+        srv.cmd(cmd)
+    a.wait(r"mp_bodylog: done", 120, since_a, "A's log (%s)" % label)
+    b.wait(r"mp_bodylog: done", 120, since_b, "B's log (%s)" % label)
+    since_bb = b.mark()
+    b.cmd("vr_net_bytes")
+    _, moved = b.wait(r"mp_netbytes: ", 10, since_bb)
+    moved_rag = int(fields(moved)["snap_rag"])
+    # Settled: two seconds more, B's ragdoll bytes then.
+    since_bb = b.mark()
+    b.cmd("vr_net_bytes reset; wait144; echo mp_ragsettled; vr_net_bytes")
+    at, _ = b.wait(r"mp_ragsettled", 30, since_bb)
+    _, settled = b.wait(r"mp_netbytes: ", 30, at)
+    settled_rag = int(fields(settled)["snap_rag"])
+    ha, pa = rag_series(a.lines[since_a:], "sv")
+    hb, pb = rag_series(b.lines[since_b:], "cl")
+    out = {}
+    for err in rag_errors(ha, hb):
+        n = None
+        c = err[3]
+        model, rag = c[3], c[4]
+        out.setdefault(("entity", rag_kind(model, rag)), []).append(err)
+    for err in rag_errors(pa, pb):
+        out.setdefault(("parts", err[3][3]), []).append(err)
+    table = {}
+    for key, errs in sorted(out.items()):
+        mv = [e for e in errs if e[2]]
+        st, sm = rag_stats(errs), rag_stats(mv)
+        table[key] = (st, sm)
+        s.note("%s %s %s: all n=%d pos mean %.2f p95 %.2f max %.2f u, turn mean %.2f p95 %.2f max %.2f deg; moving %s" % (
+            label, key[0], key[1], st["n"], st["pos_mean"], st["pos_p95"], st["pos_max"], st["rot_mean"], st["rot_p95"],
+            st["rot_max"], ("n=%d pos mean %.2f p95 %.2f max %.2f u, turn mean %.2f p95 %.2f max %.2f deg" % (
+                sm["n"], sm["pos_mean"], sm["pos_p95"], sm["pos_max"], sm["rot_mean"], sm["rot_p95"], sm["rot_max"]))
+            if sm else "none"))
+    secs = RAG_FRAMES / 72.0
+    s.note("%s: B's ragdoll bytes %d over the play (%.0f B/s), %d over 2 s settled" % (label, moved_rag, moved_rag / secs,
+                                                                                    settled_rag))
+    s.metric("%s_rag_Bps" % label, round(moved_rag / secs))
+    s.metric("%s_rag_settled_B" % label, settled_rag)
+    return table, moved_rag, settled_rag
+
+
+def ragsync(s):
+    """ragsync (2026-11-21): his words, "Ragdolls don't seem to be synchronized. Especially in coop, they should be,
+    for active ragdolls" and "Can you check if props and other physics entities are synchronized?". A VR listen host A and
+    a flat client B side by side in vrtesthall; the same play twice (ragsync_phase), the ragdolls' parts out of B's
+    snapshot (vr_net_ragdolls 0, as before) and in it: B's drawn things against the server's at the same server time.
+    With them: B draws the ragdolls by their parts (not the animation), within RAG_PART_POS units and RAG_PART_TURN
+    degrees of the server's while they move (p95); the props, gibs and the thrown sword within RAG_ENT_POS / RAG_ENT_TURN;
+    settled ragdolls cost B nothing."""
+    srv, a, b, ea, eb = join(s, listen=True, flat="B", level="vrtesthall", srv_first="developer 1",
+                             first=lambda srv, a, ea: put_at(srv, a, ea, (-260.0, HALL_START_Y - 60.0, HALL_Z), 90))
+    a.cmd("god; notarget")
+    b.cmd("god; notarget")
+    put_at(srv, b, eb, ARMED_B, 90)
+    before, _, _ = ragsync_phase(s, srv, a, b, 0, -70)
+    after, moved, settled = ragsync_phase(s, srv, a, b, 1, 70)
+    parts = after.get(("parts", "rag"))
+    s.check("with vr_net_ragdolls 1 B draws the ragdolls by their parts", parts is not None and parts[0]["n"] > 500,
+            "%d part samples drawn by parts; %s by the animation" % (
+                parts[0]["n"] if parts else 0, after.get(("parts", "anim"), (None,))[0]["n"] if after.get(("parts", "anim")) else 0))
+    if parts and parts[1]:
+        sm = parts[1]
+        s.check("moving ragdoll parts at B within %.1f units and %.1f degrees of the server's (p95)" % (RAG_PART_POS, RAG_PART_TURN),
+                sm["pos_p95"] <= RAG_PART_POS and sm["rot_p95"] <= RAG_PART_TURN,
+                "p95 %.2f units, %.2f degrees (max %.2f, %.2f)" % (sm["pos_p95"], sm["rot_p95"], sm["pos_max"], sm["rot_max"]))
+    anim = before.get(("parts", "anim"))
+    if anim and anim[1] and parts and parts[1]:
+        s.note("ragdoll parts while moving, p95: before %.1f units %.1f degrees (the animation), after %.2f units %.2f degrees" % (
+            anim[1]["pos_p95"], anim[1]["rot_p95"], parts[1]["pos_p95"], parts[1]["rot_p95"]))
+    for key, (st, sm) in sorted(after.items()):
+        if key[0] != "entity" or not sm or key[1] in ("ragdoll", "monster"):
+            continue
+        s.check("%s at B within %.1f units and %.1f degrees of the server's while it moves (p95)" % (key[1], RAG_ENT_POS, RAG_ENT_TURN),
+                sm["pos_p95"] <= RAG_ENT_POS and sm["rot_p95"] <= RAG_ENT_TURN,
+                "p95 %.2f units, %.2f degrees over %d samples" % (sm["pos_p95"], sm["rot_p95"], sm["n"]))
+    s.check("B's ragdoll bytes while they moved", moved > 0, "%d B" % moved)
+    s.check("settled ragdolls cost B (almost) nothing (under 2%% of the moving play's bytes a second)",
+            settled / 2.0 <= 0.02 * moved / (RAG_FRAMES / 72.0) + 1, "%d B in 2 s settled; %d B in %.0f s of play" % (
+                settled, moved, RAG_FRAMES / 72.0))
+
+
+RAG_PART_POS, RAG_PART_TURN = 2.0, 3.0  # a moving ragdoll part at B against the server's, p95 (units, degrees)
+RAG_ENT_POS, RAG_ENT_TURN = 2.0, 3.0    # a moving prop, gib or weapon
+
+
 def cosmetics_b6b(s, srv, a, b, ea, eb):
     """MP_PLAN B6b: B's holstered shotgun drawn at A where B drew it, and the server's holsterpos for B where B's
     holster is; B's pauldrons (steel, bigger) on A's copy of his body as on his own; B seated: A's copy posed as his own
@@ -8599,6 +8792,8 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             adspose(s)
         elif test == "mp_deathbody":
             deathbody(s)
+        elif test == "mp_ragsync":
+            ragsync(s)
         elif test == "mp_loss":
             lossy(s)
         elif test == "mp_predict":
@@ -8749,7 +8944,7 @@ SUITE = [
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "wpnsync", "wpnsync_flat", "navfollow", "navfollow_listen", "navfollow_vr", "syncaudit"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "wpnsync", "wpnsync_flat", "navfollow", "navfollow_listen", "navfollow_vr", "syncaudit", "ragsync"])
     ap.add_argument("--base", required=True, help="the game folder (id1, quakevr...)")
     ap.add_argument("--exe", default=EXE)
     ap.add_argument("--out", default=os.path.join(REPO, "scratch", "mp"))
