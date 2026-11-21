@@ -49,6 +49,74 @@ struct ViewEntity
                            // offset (a map's spinning weapon pickup is moved by its model_offset: vr_render.cpp)
 };
 
+// The steps of a gun drawn in its parts (vr_view.cpp; your own hands' and holsters' guns, and another player's: his
+// avatar's GunParts): a magazine sliding home or out, the super shotgun's barrels dropping open, the heavy revolver's
+// crane and cylinder.
+struct MagSlide
+{
+    enum class Mode
+    {
+        None,
+        Seat,
+        Out
+    };
+    Mode mode{Mode::None};
+    double start{0.0};            // vr_gametime it began
+    double time{-1.0};            // vr_gametime of the last step
+    float dt{0.f};                // its game time
+    int frame{-1};                // host_framecount of the last step
+    int uid{0};                   // the gun's id, last step
+    const qmodel_t* gun{nullptr}; // its model
+    bool noMag{false};            // its magazine out, last step
+    int rounds{2};                // what its magazine held as it last sat in the gun (drawn sliding out: its top nails)
+};
+struct SsgDrawn
+{
+    float angle{0.f};             // degrees the barrels are drawn turned down
+    double time{-1.0};            // vr_gametime of its last step
+    const qmodel_t* gun{nullptr}; // the model it was for (another gun: no animation)
+    bool parts{false};            // drawn in its parts this frame (the gun itself not drawn)
+};
+struct RevolverDrawn
+{
+    float swing{0.f};
+    float cyl{0.f};
+    double time{-1.0};            // vr_gametime of its last step
+    const qmodel_t* gun{nullptr}; // the model it was for (another gun: no animation)
+    bool parts{false};            // drawn in its parts this frame (the gun itself not drawn)
+};
+// Another player's gun drawn in its parts as yours are (MP_PLAN.md, "Held weapons' state"; vr_mpavatar.cpp keeps one
+// for each of his hands and holsters): the entities and their steps.
+struct GunParts
+{
+    enum Part
+    {
+        SsgFrame,
+        SsgBarrels,
+        RvFrame,
+        RvCrane,
+        RvCyl,
+        RvShell, // (6)
+        MagIn = RvShell + 6,
+        MagOut,
+        Well,
+        Button,
+        Front,
+        Count
+    };
+    ViewEntity part[Count];
+    SsgDrawn ssg;
+    RevolverDrawn rv;
+    MagSlide mag;
+    bool inParts{false}; // drawn in its parts this frame: the gun itself hidden
+};
+// Your own gun's look in `hand` (HAND_OFF, HAND_MAIN) from the stats: what the server sends another player's as.
+[[nodiscard]] VrGunLook ownGunLook(int hand);
+// The gun `gun` (placed, its model and frame) as `look` has it, in its parts `g` (the same routines as yours):
+// `held` in a hand (the revolver in its parts, a magazine sliding; else a holster's: broken open, its magazine);
+// `screen`: its button and ammo screen too (its clip). The gun is hidden while drawn in its parts.
+void drawGunParts(ViewEntity& gun, const VrGunLook& look, GunParts& g, bool held, bool screen);
+
 // Null if `e` is not a VR view entity.
 [[nodiscard]] const ViewEntity* find(const entity_t* e);
 

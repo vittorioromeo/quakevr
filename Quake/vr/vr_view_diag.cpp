@@ -261,7 +261,10 @@ void netHands(VrDrawnHand out[2])
             {
                 h.flags |= VrDrawnHand::weaponBit | (we.mirrored ? VrDrawnHand::weaponMirrorBit : 0);
                 h.weaponModel = static_cast<za::U16>(index);
-                h.weaponFrame = static_cast<za::U8>(za::clamp(we.ent.frame, 0, 255));
+                // (a pose drawn over its frame -- the Widowmaker's and Rotary Shotgun's barrels turning, the AD crossbow's
+                // string: vr_adweapons.cpp spinFrame, VR_AliasPoseOverride -- the nearer of its two: wpnsync)
+                const int frame = we.poseFrame[0] < 0 ? we.ent.frame : we.poseBlend < 0.5f || we.poseFrame[1] < 0 ? we.poseFrame[0] : we.poseFrame[1];
+                h.weaponFrame = static_cast<za::U8>(za::clamp(frame, 0, 255));
                 h.weaponSkin = static_cast<za::U8>(za::clamp(we.ent.skinnum, 0, 255));
                 h.weaponOrigin = vec3Of(we.ent.origin);
                 h.weaponAngles = vec3Of(we.ent.angles);

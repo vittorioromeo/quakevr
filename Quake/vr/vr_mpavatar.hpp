@@ -52,6 +52,12 @@ struct Avatar
     VrDrawnHolsters holsters; // his holstered weapons as he drew them, from his entity's origin (B6b; no points)
     int armour{0};            // the armour he wears (gearByte: his pauldrons' colour)
     bool sliding{false};      // the server has him sliding (gearByte's avatarGearSliding: his body's slide pose)
+    // His guns as the server has them (MP_PLAN.md, "Held weapons' state"): each hand's look ([0] off, [1] main), each
+    // holstered weapon's flags (low byte) and clip; his torch as he drew it (from his entity's origin).
+    VrGunLook look[2];
+    za::U8 holsterFlags[VrDrawnHolsters::count]{};
+    za::U8 holsterClip[VrDrawnHolsters::count]{};
+    VrDrawnLamp lamp;
 };
 // The gear byte's slide bit (mpslide, 2026-11-20): the server's slide (slide::onServer, a flat-screen player's or a
 // headset's), so the others pose his body slid as he sees his own (the armour is the byte's low two bits).
