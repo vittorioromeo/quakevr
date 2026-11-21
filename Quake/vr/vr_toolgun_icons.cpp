@@ -56,6 +56,7 @@ struct IconSet
     double seconds{0.0}; // making them, all told
     int made{0};
 };
+// seat-shared: the icons' textures (one set)
 IconSet iconSet;
 
 // A triangle in model space, its texture coordinates in texels of texture `texture`.
@@ -88,6 +89,7 @@ struct IconScratch
     za::Vector<uint32_t> out; // iconSize^2
     auto members() { return mem::list(triangles, textures, color, depth, out); }
 };
+// seat-shared: scratch, used within one call
 mem::Scratch<IconScratch> scratch{"toolgun icons"};
 
 // A file's bytes read at an offset, bounds-checked (false: past its end).

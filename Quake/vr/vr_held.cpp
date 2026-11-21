@@ -27,6 +27,7 @@
 #include "vr_netmove.hpp"
 #include "vr_netsnap.hpp"
 #include "vr_protocol.hpp"
+#include "vr_seat.hpp"
 #include "vr_throw.hpp"
 #include "vr_trace.hpp"
 #include "vr_units.hpp"
@@ -128,6 +129,7 @@ struct ModelBoxCache
     ankerl::unordered_dense::map<const qmodel_t*, ModelBoxMemo> models;
     auto members() { return mem::list(models); }
 };
+// seat-shared: a cache of the shared models
 mem::Cache<ModelBoxCache> modelBoxes{"held model boxes", mem::MapChange | mem::GameDirChange | mem::ModelReload};
 
 [[nodiscard]] bool sameTransform(const DrawnTransform& a, const DrawnTransform& b)
@@ -223,6 +225,7 @@ struct DrawnMeshCache
     ankerl::unordered_dense::map<za::U64, DrawnMesh> meshes; // by the model, pose and transform's hash
     auto members() { return mem::list(meshes); }
 };
+// seat-shared: a cache of the shared models
 mem::Cache<DrawnMeshCache> drawnMeshes{"held drawn meshes", mem::MapChange | mem::GameDirChange | mem::ModelReload};
 
 constexpr int meshLeaf = 4; // triangles a leaf holds at most
@@ -480,6 +483,7 @@ struct HeldScratch
         return qvr::mem::list(centreVertices, gapLocal, fistLocal, nearest, nearestAt, inside, grabSpheres, fitTris, fitCells);
     }
 };
+// seat-shared: scratch, used within one call
 mem::Scratch<HeldScratch> scratch{"held"};
 
 } // namespace
@@ -766,6 +770,7 @@ struct CentreEntry
     glm::vec3 centre{0.f};
     bool ok{false};
 };
+// seat-shared: a cache of the shared models
 ankerl::unordered_dense::map<za::U64, CentreEntry> drawnCentres; // by CentreKey's hash
 
 } // namespace
@@ -883,11 +888,178 @@ bool nearDrawnBox(edict_t* ent, const glm::vec3& p, float margin)
     return glm::all(glm::lessThanEqual(glm::abs(local - (lo + hi) * 0.5f), (hi - lo) * 0.5f + glm::vec3{margin}));
 }
 
-// The fists in their hands' frames (setFist).
-za::Vector<glm::vec4> fists[2];
+struct Held
+{
+    int ent{0};
+    const qmodel_t* model{nullptr};
+    double since{0.0};
+    bool placed{false};
+    glm::vec3 pos{0.f};   // in the hand's frame
+    glm::mat3 rot{1.f};
+    bool drawn{false};    // drawn in the hand last frame, at:
+    glm::vec3 lastPos{0.f};
+    glm::mat3 lastRot{1.f};
+    unsigned generation{0}; // props::settingsGeneration() its place is for
+    // Held in both hands until now (leaveBoth): drawn eased from where both had it (fromPos, fromRot: world) onto its
+    // place in this hand, as the hand eases off its grip onto the controller (handEaseTime, fromTime). Or just taken
+    // (holdFrame): from where it was drawn in the world onto its grip's place (vr_carry_grab_ease: a Fixed or In the
+    // Palm grip turned it there at once, his note 2026-11-05).
+    double fromSince{-1.0};
+    double fromTime{0.0};
+    bool fromStarted{false};
+    glm::vec3 fromPos{0.f};
+    glm::quat fromRot{1.f, 0.f, 0.f, 0.f};
+    glm::vec3 fromOffset{0.f};
+    glm::quat fromTurn{1.f, 0.f, 0.f, 0.f};
+    // Flatscreen play (followDrawnHands): the hand it was placed on this frame (the game's, shaken: holdFrame) and where
+    // the frame's placing left it (after the meet and the wall), what the view moves onto the hand as drawn.
+    glm::vec3 baseHandPos{0.f};
+    glm::mat3 baseHandAxes{1.f};
+    glm::vec3 basePos{0.f};
+    glm::mat3 baseRot{1.f};
+    bool baseSet{false};
+};
+
+struct Easing
+{
+    int ent{0};
+    const qmodel_t* model{nullptr};
+    double since{0.0};
+    bool started{false};
+    glm::vec3 lastPos{0.f};
+    glm::mat3 lastRot{1.f};
+    glm::vec3 offset{0.f};
+    glm::quat turn{1.f, 0.f, 0.f, 0.f};
+};
+
+// Held in both hands (vr_carry2h.hpp): the hold kept when the second hand took it, and this frame's solve.
+struct Both
+{
+    int ent{0};
+    const qmodel_t* model{nullptr};
+    carry2h::Hold hold;
+    carry2h::Frame object;   // drawn this frame
+    carry2h::Frame hands[2]; // the controllers this frame
+    carry2h::Frame drawn[2]; // each hand drawn on its grip this frame
+};
+
+// Let go of by one hand, or both: a hand drawn off its controller (on its grip) eases back onto it.
+constexpr double handEaseTime = 0.15;
+struct HandEase
+{
+    double since{-1.0};
+    glm::vec3 offset{0.f};
+    glm::quat turn{1.f, 0.f, 0.f, 0.f};
+};
+
+// When a hand let go of what it held in both (tracking clock), for the other's two-handed throw.
+struct BothRelease
+{
+    int ent{0};
+    double at{-1.0};
+};
+
+// Props held one in each hand meet (ROUND21.md, "Held props meet"): their drawn boxes are kept apart, each hand and what
+// it holds drawn moved back along the way they meet by half how deep they would be, at most vr_held_collide_max (the
+// looks only: the server has them in the hands, the throw is the hands'). Eased in and out, a buzz as they meet. So do a
+// prop in one hand and the weapon in the other (the weapon's drawn box; its hand drawn moved back by the view:
+// modelcollide::beginView, drawnPush), and a prop and the walls (wallFrame; ROUND21.md, "Held props against weapons,
+// monsters and walls").
+struct Meet
+{
+    glm::vec3 offset[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // each hand's, drawn now (units)
+    double last{-1.0};                                  // cl.time of the last frame
+    bool touching{false};
+    bool weapon{false};                                 // a prop against the other hand's weapon (not two props)
+    bool magazine{false};                               // against its seated magazine (deeper in it than in the gun)
+    glm::vec3 wall[2]{glm::vec3{0.f}, glm::vec3{0.f}};  // each hand's prop held out of the walls, drawn now (units)
+    bool wallTouching[2]{false, false};
+    glm::vec3 viewPush[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // and out of the monsters (the view's: viewPush)
+};
+
+// A held weapon's box: its model's first pose (as its body in Box3D: held::modelVertices), by model and mirrored (the
+// off hand's), in its entity's axes; each hand's last.
+struct WeaponBox
+{
+    const qmodel_t* model{nullptr};
+    bool mirrored{false};
+    za::String name;
+    bool valid{false};
+    glm::vec3 lo{0.f}, hi{0.f};
+};
+
+// A remote server's places of what the local player's hands hold, in its hands (QVR_SVC_HELDPLACE, MP B27: a snapshot
+// record, as its last frame left them). Taken from where it had the thing and this frame's controller instead (the
+// hand's place the server used was the network's delay older), a round taken up on the move was drawn up to 3 units
+// off where the server had it, the whole time it was held: a magazine drawn at the well missed it (mp_disarm).
+struct NetPlace
+{
+    int ent{0}; // 0: none
+    glm::vec3 pos{0.f};
+    glm::mat3 rot{1.f};
+};
+
+// Gibs, heads and limbs on a blade in the local player's hand (QC vr_skewer.qc; his note 2026-11-08 17:0x, item 5): the
+// server places each on the blade from its hand every frame, and drawn where its last message left it one lagged the
+// drawn hand and blade (drawn from this frame's controllers, the body's stick turn and move since carried) by that turn
+// and move. Drawn as a held prop is: its place in the server's hand (as the server's last frame left both: exact) put on
+// the hand drawn this frame, shaken and knocked as it is. With vr_carry_local, as the held props. A gib on a thrown or
+// dropped blade, or another player's, is drawn where the server has it.
+struct SkewerDrawn
+{
+    int ent{0};
+    int hand{0};
+    glm::vec3 pos{0.f}; // its origin in the server's hand's frame
+    glm::mat3 rot{1.f}; // its axes there
+};
+
+constexpr int skewerDrawnMost = 16;
+
+// A seat's held things: what each hand holds, the eases, the hold in both hands, the meets, the skewered gibs (phase
+// 4b)
+struct HeldSeat
+{
+    // The fists in their hands' frames (setFist).
+    za::Vector<glm::vec4> fists[2];
+    // Frames in a row the local player has been placed in the world (signed on, its entity linked). The hands are
+    // computed before the entities are relinked (the move is sent first), so on the player's first frame they are
+    // still round the world's origin: nothing is taken from them (a place in the hand, a two-handed hold) until the
+    // second. (A loaded game's box was held 20 metres off the hand, drawn out of sight, until let go.)
+    int playerFrames = 0;
+    Held holding[2];  // [0] off hand, [1] main hand (as hands::State)
+    Easing easing[2];
+    Both both;
+    // For the throw (bothHandsThrow): what each hand holds (the carry stats, drawn in the hand or not), and the object's
+    // centre from the middle of the hands (metres, world axes), the last frame held in both.
+    int carried[2]{0, 0};
+    glm::vec3 bothCentre{0.f};
+    HandEase handEase[2];
+    BothRelease bothRelease[2];
+    Meet meet;
+    WeaponBox weaponBoxes[2];
+    double wallLast[2]{0.0, 0.0}; // cl.time of each hand's last wallFrame
+
+    // The hands this frame's held things were drawn from (vr_carry_check: the hands move on before the next frame's check).
+    hands::State drawnFrom;
+    NetPlace netPlaces[2];
+    SkewerDrawn skewerDrawn[skewerDrawnMost];
+    int skewerDrawnCount = 0;
+    // (vr_embed_probe_skewj: last frame's, to see how much a gib's place in the hand moves frame to frame: a jitter)
+    SkewerDrawn skewerDrawnBefore[skewerDrawnMost];
+    int skewerDrawnBeforeCount = 0;
+};
+
+// splitscreen (SPLITSCREEN.md, phase 4b): the current seat's (seat::Part::Held)
+[[nodiscard]] HeldSeat& hs()
+{
+    return seat::part<HeldSeat>(seat::current(), seat::Part::Held);
+}
+
 const za::Vector<glm::vec4> noFist; // (fist: a hand that is neither)
 // The server's: each client slot's fists as his client sent them (setPlayerFist), and the grabs they judged.
+// seat-shared: the server's, each player slot's
 za::Vector<glm::vec4> playerFists[MAX_SCOREBOARD][2];
+// seat-shared: the server's, each player slot's
 int playerFistGrabCount[MAX_SCOREBOARD]{};
 
 // A sphere round all of `spheres`: its middle, and its radius.
@@ -1254,7 +1426,7 @@ void setFist(int hand, const za::Vector<glm::vec4>& spheres)
 {
     if(hand >= 0 && hand < 2)
     {
-        fists[hand] = spheres;
+        hs().fists[hand] = spheres;
         if(const int own = clientprefs::ownSlot(); own >= 0)
         {
             setPlayerFist(own, hand, spheres); // (hosting: into its own player's slot, as a remote player's message does)
@@ -1264,7 +1436,7 @@ void setFist(int hand, const za::Vector<glm::vec4>& spheres)
 
 const za::Vector<glm::vec4>& fist(int hand)
 {
-    return hand == 0 || hand == 1 ? fists[hand] : noFist;
+    return hand == 0 || hand == 1 ? hs().fists[hand] : noFist;
 }
 
 const za::Vector<glm::vec4>& fistOf(const edict_t* player, int hand)
@@ -1314,7 +1486,7 @@ void fistInWorld(int hand, const glm::vec3& pos, const glm::vec3& angles, za::Ve
         return;
     }
     const glm::mat3 axes = axesFromAngles(&angles[0], true);
-    for(const glm::vec4& s : fists[hand])
+    for(const glm::vec4& s : hs().fists[hand])
     {
         out.pushBack(glm::vec4{pos + axes * glm::vec3{s}, s.w});
     }
@@ -1465,7 +1637,7 @@ bool grabTouch(edict_t* ent, edict_t* player, int hand, float slack)
     FistContact c;
     const bool found = fistContact(ent, spheres, za::fmax(allowed, 0.f) + 1.f, c);
     const bool touches = found && c.gap <= allowed;
-    if(touches && &fist != &fists[hand])
+    if(touches && &fist != &hs().fists[hand])
     {
         const int slot = static_cast<int>(((const byte*)player - (const byte*)sv.qcvm.edicts) / sv.qcvm.edict_size) - 1;
         if(slot >= 0 && slot < MAX_SCOREBOARD)
@@ -1503,6 +1675,7 @@ struct CarryProbe
     za::Vector<glm::vec4> fist; // the fist tested (world), if it was
     int touching{-1};            // its sphere that touches
 };
+// seat-shared: a debug readout (one at a time) (vr_debug_carry's probe and its trace file)
 CarryProbe carryProbes[2];
 
 } // namespace
@@ -1724,140 +1897,40 @@ glm::vec3 surfaceFit(edict_t* ent, const glm::vec3& hand, const glm::vec3& palm)
 namespace
 {
 
+// The held things' types and the seat's part (qvr::held's, where the fists also are: phase 4b).
+using qvr::held::Both;
+using qvr::held::BothRelease;
+using qvr::held::Easing;
+using qvr::held::HandEase;
+using qvr::held::handEaseTime;
+using qvr::held::Held;
+using qvr::held::hs;
+using qvr::held::Meet;
+using qvr::held::NetPlace;
+using qvr::held::SkewerDrawn;
+using qvr::held::skewerDrawnMost;
+using qvr::held::WeaponBox;
+
 // For this long after its place in the hand is first taken, it is still taken from where the server has it (a
 // caught object's jump to the hand may come a packet late); then it is kept. Timed from the first place taken, not
 // from when the server said it: a loaded game's carry stats come in the signon, before the client's clock jumps
 // to the saved time, and the window would be over at its first frame.
 constexpr double placeTime = 0.1;
 
-// Frames in a row the local player has been placed in the world (signed on, its entity linked). The hands are
-// computed before the entities are relinked (the move is sent first), so on the player's first frame they are
-// still round the world's origin: nothing is taken from them (a place in the hand, a two-handed hold) until the
-// second. (A loaded game's box was held 20 metres off the hand, drawn out of sight, until let go.)
-int playerFrames = 0;
 constexpr int handsInWorld = 2;
 
 // Let go, it eases back to where the server has it over this long.
 constexpr double easeTime = 0.2;
 
-struct Held
-{
-    int ent{0};
-    const qmodel_t* model{nullptr};
-    double since{0.0};
-    bool placed{false};
-    glm::vec3 pos{0.f};   // in the hand's frame
-    glm::mat3 rot{1.f};
-    bool drawn{false};    // drawn in the hand last frame, at:
-    glm::vec3 lastPos{0.f};
-    glm::mat3 lastRot{1.f};
-    unsigned generation{0}; // props::settingsGeneration() its place is for
-    // Held in both hands until now (leaveBoth): drawn eased from where both had it (fromPos, fromRot: world) onto its
-    // place in this hand, as the hand eases off its grip onto the controller (handEaseTime, fromTime). Or just taken
-    // (holdFrame): from where it was drawn in the world onto its grip's place (vr_carry_grab_ease: a Fixed or In the
-    // Palm grip turned it there at once, his note 2026-11-05).
-    double fromSince{-1.0};
-    double fromTime{0.0};
-    bool fromStarted{false};
-    glm::vec3 fromPos{0.f};
-    glm::quat fromRot{1.f, 0.f, 0.f, 0.f};
-    glm::vec3 fromOffset{0.f};
-    glm::quat fromTurn{1.f, 0.f, 0.f, 0.f};
-    // Flatscreen play (followDrawnHands): the hand it was placed on this frame (the game's, shaken: holdFrame) and where
-    // the frame's placing left it (after the meet and the wall), what the view moves onto the hand as drawn.
-    glm::vec3 baseHandPos{0.f};
-    glm::mat3 baseHandAxes{1.f};
-    glm::vec3 basePos{0.f};
-    glm::mat3 baseRot{1.f};
-    bool baseSet{false};
-};
 
-struct Easing
-{
-    int ent{0};
-    const qmodel_t* model{nullptr};
-    double since{0.0};
-    bool started{false};
-    glm::vec3 lastPos{0.f};
-    glm::mat3 lastRot{1.f};
-    glm::vec3 offset{0.f};
-    glm::quat turn{1.f, 0.f, 0.f, 0.f};
-};
 
-Held holding[2];  // [0] off hand, [1] main hand (as hands::State)
-Easing easing[2];
 
-// Held in both hands (vr_carry2h.hpp): the hold kept when the second hand took it, and this frame's solve.
-struct Both
-{
-    int ent{0};
-    const qmodel_t* model{nullptr};
-    carry2h::Hold hold;
-    carry2h::Frame object;   // drawn this frame
-    carry2h::Frame hands[2]; // the controllers this frame
-    carry2h::Frame drawn[2]; // each hand drawn on its grip this frame
-};
-Both both;
-// For the throw (bothHandsThrow): what each hand holds (the carry stats, drawn in the hand or not), and the object's
-// centre from the middle of the hands (metres, world axes), the last frame held in both.
-int carried[2]{0, 0};
-glm::vec3 bothCentre{0.f};
 
-// Let go of by one hand, or both: a hand drawn off its controller (on its grip) eases back onto it.
-constexpr double handEaseTime = 0.15;
-struct HandEase
-{
-    double since{-1.0};
-    glm::vec3 offset{0.f};
-    glm::quat turn{1.f, 0.f, 0.f, 0.f};
-};
-HandEase handEase[2];
-
-// When a hand let go of what it held in both (tracking clock), for the other's two-handed throw.
-struct BothRelease
-{
-    int ent{0};
-    double at{-1.0};
-};
-BothRelease bothRelease[2];
 
 // The most a drawn hand turns off its controller to stay on its grip (a hand's own twist the other doesn't share).
 constexpr float mostHandTurn = glm::radians(40.f);
 
-// Props held one in each hand meet (ROUND21.md, "Held props meet"): their drawn boxes are kept apart, each hand and what
-// it holds drawn moved back along the way they meet by half how deep they would be, at most vr_held_collide_max (the
-// looks only: the server has them in the hands, the throw is the hands'). Eased in and out, a buzz as they meet. So do a
-// prop in one hand and the weapon in the other (the weapon's drawn box; its hand drawn moved back by the view:
-// modelcollide::beginView, drawnPush), and a prop and the walls (wallFrame; ROUND21.md, "Held props against weapons,
-// monsters and walls").
-struct Meet
-{
-    glm::vec3 offset[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // each hand's, drawn now (units)
-    double last{-1.0};                                  // cl.time of the last frame
-    bool touching{false};
-    bool weapon{false};                                 // a prop against the other hand's weapon (not two props)
-    bool magazine{false};                               // against its seated magazine (deeper in it than in the gun)
-    glm::vec3 wall[2]{glm::vec3{0.f}, glm::vec3{0.f}};  // each hand's prop held out of the walls, drawn now (units)
-    bool wallTouching[2]{false, false};
-    glm::vec3 viewPush[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // and out of the monsters (the view's: viewPush)
-};
-Meet meet;
 
-// A held weapon's box: its model's first pose (as its body in Box3D: held::modelVertices), by model and mirrored (the
-// off hand's), in its entity's axes; each hand's last.
-struct WeaponBox
-{
-    const qmodel_t* model{nullptr};
-    bool mirrored{false};
-    za::String name;
-    bool valid{false};
-    glm::vec3 lo{0.f}, hi{0.f};
-};
-WeaponBox weaponBoxes[2];
-double wallLast[2]{0.0, 0.0}; // cl.time of each hand's last wallFrame
-
-// The hands this frame's held things were drawn from (vr_carry_check: the hands move on before the next frame's check).
-hands::State drawnFrom;
 constexpr double meetEaseTime = 0.04; // s: the offsets follow the push this fast (and back when apart)
 
 struct Box
@@ -1979,21 +2052,10 @@ struct Box
     return true;
 }
 
-// A remote server's places of what the local player's hands hold, in its hands (QVR_SVC_HELDPLACE, MP B27: a snapshot
-// record, as its last frame left them). Taken from where it had the thing and this frame's controller instead (the
-// hand's place the server used was the network's delay older), a round taken up on the move was drawn up to 3 units
-// off where the server had it, the whole time it was held: a magazine drawn at the well missed it (mp_disarm).
-struct NetPlace
-{
-    int ent{0}; // 0: none
-    glm::vec3 pos{0.f};
-    glm::mat3 rot{1.f};
-};
-NetPlace netPlaces[2];
 
 [[nodiscard]] bool netPlace(int ent, int h, glm::vec3& pos, glm::mat3& rot)
 {
-    const NetPlace& p = netPlaces[h];
+    const NetPlace& p = hs().netPlaces[h];
     if(!ent || p.ent != ent || cls.state != ca_connected || sv.active)
     {
         return false;
@@ -2007,14 +2069,14 @@ void reset()
 {
     for(int h = 0; h < 2; h++)
     {
-        holding[h] = Held{};
-        easing[h] = Easing{};
-        handEase[h] = HandEase{};
-        bothRelease[h] = BothRelease{};
-        netPlaces[h] = NetPlace{};
+        hs().holding[h] = Held{};
+        hs().easing[h] = Easing{};
+        hs().handEase[h] = HandEase{};
+        hs().bothRelease[h] = BothRelease{};
+        hs().netPlaces[h] = NetPlace{};
     }
-    both = Both{};
-    meet = Meet{};
+    hs().both = Both{};
+    hs().meet = Meet{};
 }
 
 // The weapon drawn in hand `h` as a box in the world: where it is in the hand as drawn last frame (view::drawnWeapon),
@@ -2026,7 +2088,7 @@ void reset()
     {
         return false;
     }
-    WeaponBox& wb = weaponBoxes[h];
+    WeaponBox& wb = hs().weaponBoxes[h];
     if(wb.model != d.model || wb.mirrored != d.mirrored || wb.name != d.model->name)
     {
         wb.model = d.model;
@@ -2136,21 +2198,21 @@ void place(entity_t& e, const glm::vec3& desired, const glm::mat3& rot, bool bod
 
 void holdFrame(int h, const hands::State& s, int bothEnt)
 {
-    Held& hd = holding[h];
+    Held& hd = hs().holding[h];
     const int want = cl.stats[h == 1 ? protocol::STAT_QVR_CARRYMAIN : protocol::STAT_QVR_CARRYOFF];
     if(want != hd.ent)
     {
         // (Let go of by both hands at once: eased once.)
-        if(hd.ent && hd.drawn && easing[0].ent != hd.ent && easing[1].ent != hd.ent)
+        if(hd.ent && hd.drawn && hs().easing[0].ent != hd.ent && hs().easing[1].ent != hd.ent)
         {
-            easing[h] = Easing{hd.ent, hd.model, cl.time, false, hd.lastPos, hd.lastRot};
+            hs().easing[h] = Easing{hd.ent, hd.model, cl.time, false, hd.lastPos, hd.lastRot};
         }
         hd = Held{};
         hd.ent = want;
     }
 
     hd.drawn = false;
-    if(!hd.ent || !s.valid || playerFrames < handsInWorld || !valid(hd.ent, hd.placed ? hd.model : nullptr))
+    if(!hd.ent || !s.valid || hs().playerFrames < handsInWorld || !valid(hd.ent, hd.placed ? hd.model : nullptr))
     {
         return;
     }
@@ -2269,25 +2331,6 @@ void holdFrame(int h, const hands::State& s, int bothEnt)
     hd.drawn = true;
 }
 
-// Gibs, heads and limbs on a blade in the local player's hand (QC vr_skewer.qc; his note 2026-11-08 17:0x, item 5): the
-// server places each on the blade from its hand every frame, and drawn where its last message left it one lagged the
-// drawn hand and blade (drawn from this frame's controllers, the body's stick turn and move since carried) by that turn
-// and move. Drawn as a held prop is: its place in the server's hand (as the server's last frame left both: exact) put on
-// the hand drawn this frame, shaken and knocked as it is. With vr_carry_local, as the held props. A gib on a thrown or
-// dropped blade, or another player's, is drawn where the server has it.
-struct SkewerDrawn
-{
-    int ent{0};
-    int hand{0};
-    glm::vec3 pos{0.f}; // its origin in the server's hand's frame
-    glm::mat3 rot{1.f}; // its axes there
-};
-constexpr int skewerDrawnMost = 16;
-SkewerDrawn skewerDrawn[skewerDrawnMost];
-int skewerDrawnCount = 0;
-// (vr_embed_probe_skewj: last frame's, to see how much a gib's place in the hand moves frame to frame: a jitter)
-SkewerDrawn skewerDrawnBefore[skewerDrawnMost];
-int skewerDrawnBeforeCount = 0;
 
 // vr_embed_probe_skewj: the most the gib's place in the server's hand moved since the frame before (it rides the blade
 // rigidly, so 0 but for a slide along it: anything else is the server placing it from a hand other than the one it reports).
@@ -2297,9 +2340,9 @@ void skewerJitterProbe(const SkewerDrawn& d)
     {
         return;
     }
-    for(int k = 0; k < skewerDrawnBeforeCount; k++)
+    for(int k = 0; k < hs().skewerDrawnBeforeCount; k++)
     {
-        const SkewerDrawn& b = skewerDrawnBefore[k];
+        const SkewerDrawn& b = hs().skewerDrawnBefore[k];
         if(b.ent == d.ent && b.hand == d.hand)
         {
             const float moved = glm::distance(b.pos, d.pos) / units::metresToUnits() * 100.f;
@@ -2311,15 +2354,15 @@ void skewerJitterProbe(const SkewerDrawn& d)
 
 void skewerFrame(const hands::State& s)
 {
-    skewerDrawnBeforeCount = skewerDrawnCount;
-    for(int k = 0; k < skewerDrawnCount; k++)
+    hs().skewerDrawnBeforeCount = hs().skewerDrawnCount;
+    for(int k = 0; k < hs().skewerDrawnCount; k++)
     {
-        skewerDrawnBefore[k] = skewerDrawn[k];
+        hs().skewerDrawnBefore[k] = hs().skewerDrawn[k];
     }
-    skewerDrawnCount = 0;
+    hs().skewerDrawnCount = 0;
     using namespace progs;
     const FieldOffsets& f = fields();
-    if(!sv.active || !s.valid || playerFrames < handsInWorld || f.vr_skewer_p < 0 || f.vr_skewer_w < 0 ||
+    if(!sv.active || !s.valid || hs().playerFrames < handsInWorld || f.vr_skewer_p < 0 || f.vr_skewer_w < 0 ||
         f.vr_skewer_hand < 0 || f.handpos < 0 || f.handrot < 0 || f.offhandpos < 0 || f.offhandrot < 0)
     {
         return;
@@ -2356,7 +2399,7 @@ void skewerFrame(const hands::State& s)
         drawnPos[h] = s.pos[h] + shakePos + painPos;
     }
     const int last = za::min(sv.qcvm.num_edicts, cl.num_entities);
-    for(int i = svs.maxclients + 1; i < last && skewerDrawnCount < skewerDrawnMost; i++)
+    for(int i = svs.maxclients + 1; i < last && hs().skewerDrawnCount < skewerDrawnMost; i++)
     {
         edict_t* const ed = EDICT_NUM(i);
         if(ed->free || fieldInt(ed, f.vr_skewer_p) != mine || fieldInt(ed, f.vr_skewer_w) != 0)
@@ -2370,7 +2413,7 @@ void skewerFrame(const hands::State& s)
         {
             continue;
         }
-        SkewerDrawn& d = skewerDrawn[skewerDrawnCount++];
+        SkewerDrawn& d = hs().skewerDrawn[hs().skewerDrawnCount++];
         d.ent = i;
         d.hand = h;
         d.pos = glm::transpose(serverHand[h]) * (geom::vec(ed->v.origin) - serverPos[h]);
@@ -2386,22 +2429,22 @@ void skewerFrame(const hands::State& s)
 // After both hands' holdFrame: props held one in each hand kept apart, or a prop and the other hand's weapon (Meet).
 void meetFrame(const hands::State& s)
 {
-    const double dt = meet.last < 0.0 ? 0.0 : za::clamp(cl.time - meet.last, 0.0, 0.1);
-    meet.last = cl.time;
+    const double dt = hs().meet.last < 0.0 ? 0.0 : za::clamp(cl.time - hs().meet.last, 0.0, 0.1);
+    hs().meet.last = cl.time;
     glm::vec3 want[2]{glm::vec3{0.f}, glm::vec3{0.f}};
     float depth = 0.f;
-    Held& a = holding[0];
-    Held& b = holding[1];
+    Held& a = hs().holding[0];
+    Held& b = hs().holding[1];
     // A prop held in one hand (not in both), against the other hand's prop or its weapon.
-    const bool propA = a.drawn && a.ent != both.ent;
-    const bool propB = b.drawn && b.ent != both.ent;
+    const bool propA = a.drawn && a.ent != hs().both.ent;
+    const bool propB = b.drawn && b.ent != hs().both.ent;
     Box boxA{}, boxB{};
     bool haveA = false, haveB = false;
     // The weapon's seated magazine (vr_reload_mag_collide), solid with it: the prop kept off whichever it is deeper in.
     Box magA{}, magB{};
     bool haveMagA = false, haveMagB = false;
-    meet.weapon = !propA || !propB;
-    meet.magazine = false;
+    hs().meet.weapon = !propA || !propB;
+    hs().meet.magazine = false;
     if(vr_held_collide.value && (propA || propB) && a.ent != b.ent)
     {
         haveA = propA ? propBox(a, boxA) : !a.ent && weaponBox(s, 0, boxA);
@@ -2422,7 +2465,7 @@ void meetFrame(const hands::State& s)
             const qmodel_t* m = hd.drawn && hd.ent > 0 ? cl_entities[hd.ent].model : nullptr;
             return m && modelmeta::isRound(m);
         };
-        if(meet.weapon && (isRound(a) || isRound(b)))
+        if(hs().meet.weapon && (isRound(a) || isRound(b)))
         {
             depth = za::max(0.f, depth - za::max(vr_reload_collide_leniency.value, 0.f) * units::metresToUnits() / 100.f);
             // And none at all as the round comes to the port (MP B27): pushed apart there, the round was drawn off its
@@ -2436,8 +2479,8 @@ void meetFrame(const hands::State& s)
         {
             glm::vec3 magN{0.f};
             const float magDepth = haveMagA ? overlap(magA, boxB, magN) : overlap(boxA, magB, magN);
-            meet.magazine = magDepth > depth;
-            if(meet.magazine)
+            hs().meet.magazine = magDepth > depth;
+            if(hs().meet.magazine)
             {
                 depth = magDepth;
                 n = magN;
@@ -2454,41 +2497,41 @@ void meetFrame(const hands::State& s)
 
     // A buzz in both hands as they meet.
     const bool touching = depth > 0.f;
-    if(touching && !meet.touching)
+    if(touching && !hs().meet.touching)
     {
         haptics::meet();
     }
-    if(touching != meet.touching && vr_debug_carry.value)
+    if(touching != hs().meet.touching && vr_debug_carry.value)
     {
         Con_Printf("held: %d and %d %s%s (boxes' half sizes %.1f %.1f %.1f and %.1f %.1f %.1f units; the hands %.1f units apart)\n",
-            a.ent, b.ent, touching ? "meet" : "apart", meet.weapon ? " (a weapon)" : "", boxA.half.x, boxA.half.y,
+            a.ent, b.ent, touching ? "meet" : "apart", hs().meet.weapon ? " (a weapon)" : "", boxA.half.x, boxA.half.y,
             boxA.half.z, boxB.half.x, boxB.half.y, boxB.half.z, glm::distance(s.pos[0], s.pos[1]));
     }
-    meet.touching = touching;
+    hs().meet.touching = touching;
 
     const float w = dt > 0.0 ? static_cast<float>(za::min(1.0, dt / meetEaseTime)) : 1.f;
     for(int h = 0; h < 2; h++)
     {
-        Held& hd = holding[h];
-        meet.offset[h] += (want[h] - meet.offset[h]) * w;
-        if(glm::length(meet.offset[h]) < 0.01f)
+        Held& hd = hs().holding[h];
+        hs().meet.offset[h] += (want[h] - hs().meet.offset[h]) * w;
+        if(glm::length(hs().meet.offset[h]) < 0.01f)
         {
-            meet.offset[h] = glm::vec3{0.f};
+            hs().meet.offset[h] = glm::vec3{0.f};
             continue;
         }
         if(!hd.drawn)
         {
             continue; // a weapon: its hand drawn moved by the view (drawnPush)
         }
-        hd.lastPos += meet.offset[h];
+        hd.lastPos += hs().meet.offset[h];
         place(cl_entities[hd.ent], hd.lastPos, hd.lastRot);
     }
     if(vr_debug_carry.value && touching)
     {
         Con_Printf("held: %d and %d%s meet %.1f cm deep (%.1f cm apart); drawn moved apart by %.1f and %.1f cm\n", a.ent,
-            b.ent, meet.magazine ? " (a weapon's magazine)" : meet.weapon ? " (a weapon)" : "", depth / units::metresToUnits() * 100.f,
-            glm::distance(boxA.centre, boxB.centre) / units::metresToUnits() * 100.f, glm::length(meet.offset[0]) / units::metresToUnits() * 100.f,
-            glm::length(meet.offset[1]) / units::metresToUnits() * 100.f);
+            b.ent, hs().meet.magazine ? " (a weapon's magazine)" : hs().meet.weapon ? " (a weapon)" : "", depth / units::metresToUnits() * 100.f,
+            glm::distance(boxA.centre, boxB.centre) / units::metresToUnits() * 100.f, glm::length(hs().meet.offset[0]) / units::metresToUnits() * 100.f,
+            glm::length(hs().meet.offset[1]) / units::metresToUnits() * 100.f);
     }
 }
 
@@ -2505,12 +2548,12 @@ void wallFrame(const hands::State& s)
     constexpr float margin = 0.25f; // units off the wall
     for(int h = 0; h < 2; h++)
     {
-        Held& hd = holding[h];
+        Held& hd = hs().holding[h];
         glm::vec3 want{0.f};
         float deepest = 0.f;
         int deepestEnt = 0; // the client entity met deepest (0: the world)
         Box box;
-        if(vr_held_collide_walls.value && most > 0.f && hd.drawn && hd.ent != both.ent && s.valid && propBox(hd, box))
+        if(vr_held_collide_walls.value && most > 0.f && hd.drawn && hd.ent != hs().both.ent && s.valid && propBox(hd, box))
         {
             glm::vec3 points[14];
             int n = 0;
@@ -2524,7 +2567,7 @@ void wallFrame(const hands::State& s)
                 points[n++] = box.centre + box.axes[i] * box.half[i];
                 points[n++] = box.centre - box.axes[i] * box.half[i];
             }
-            const glm::vec3 grip = s.pos[h] + meet.offset[h];
+            const glm::vec3 grip = s.pos[h] + hs().meet.offset[h];
             struct Plane
             {
                 glm::vec3 n;
@@ -2540,7 +2583,7 @@ void wallFrame(const hands::State& s)
                 {
                     const glm::vec3 end = point + p;
                     int hitEnt = 0;
-                    const trace_t tr = worldtrace::world(grip + p, end, true, true, holding[0].ent, holding[1].ent, &hitEnt);
+                    const trace_t tr = worldtrace::world(grip + p, end, true, true, hs().holding[0].ent, hs().holding[1].ent, &hitEnt);
                     if(tr.startsolid || tr.allsolid || tr.fraction >= 1.f)
                     {
                         continue;
@@ -2589,31 +2632,31 @@ void wallFrame(const hands::State& s)
         }
 
         // Out at once, back over meetEaseTime.
-        glm::vec3& wall = meet.wall[h];
+        glm::vec3& wall = hs().meet.wall[h];
         if(glm::dot(want - wall, want) > 0.f)
         {
             wall = want;
         }
         else
         {
-            const float w = static_cast<float>(za::min(1.0, za::max(cl.time - wallLast[h], 0.0) / meetEaseTime));
+            const float w = static_cast<float>(za::min(1.0, za::max(cl.time - hs().wallLast[h], 0.0) / meetEaseTime));
             wall += (want - wall) * w;
         }
-        wallLast[h] = cl.time;
+        hs().wallLast[h] = cl.time;
         if(glm::length(wall) < 0.01f || !hd.drawn)
         {
             wall = glm::vec3{0.f};
         }
 
         const bool touching = want != glm::vec3{0.f};
-        if(touching && !meet.wallTouching[h] && !vr_disablehaptics.value)
+        if(touching && !hs().meet.wallTouching[h] && !vr_disablehaptics.value)
         {
             if(Backend* be = backend())
             {
                 be->haptic(h, 0.03f, 90.f, 0.3f);
             }
         }
-        if(vr_debug_carry.value && (touching || meet.wallTouching[h]))
+        if(vr_debug_carry.value && (touching || hs().meet.wallTouching[h]))
         {
             // Its drawn box's lowest corner over the surface under it (below: into it; a floor, a table top).
             float lowest = 1e9f;
@@ -2624,7 +2667,7 @@ void wallFrame(const hands::State& s)
                     const glm::vec3 c{(i & 1) ? 1.f : -1.f, (i & 2) ? 1.f : -1.f, (i & 4) ? 1.f : -1.f};
                     const glm::vec3 at = drawnBox.centre + drawnBox.axes * (c * drawnBox.half) + wall;
                     const trace_t tr = worldtrace::world(
-                        at + glm::vec3{0.f, 0.f, 32.f}, at - glm::vec3{0.f, 0.f, 64.f}, true, true, holding[0].ent, holding[1].ent);
+                        at + glm::vec3{0.f, 0.f, 32.f}, at - glm::vec3{0.f, 0.f, 64.f}, true, true, hs().holding[0].ent, hs().holding[1].ent);
                     if(!tr.allsolid && tr.fraction < 1.f)
                     {
                         lowest = za::min(lowest, at.z - tr.endpos[2]);
@@ -2649,7 +2692,7 @@ void wallFrame(const hands::State& s)
                     lo.z, hi.x, hi.y, hi.z);
             }
         }
-        meet.wallTouching[h] = touching;
+        hs().meet.wallTouching[h] = touching;
         if(wall != glm::vec3{0.f})
         {
             hd.lastPos += wall;
@@ -2667,41 +2710,41 @@ void leaveBoth()
 {
     for(int h = 0; h < 2; h++)
     {
-        handEase[h] = {cl.time, both.drawn[h].pos - both.hands[h].pos,
-            glm::normalize(both.drawn[h].rot * glm::inverse(both.hands[h].rot))};
-        Held& hd = holding[h];
-        if(hd.ent == both.ent && valid(hd.ent, both.model))
+        hs().handEase[h] = {cl.time, hs().both.drawn[h].pos - hs().both.hands[h].pos,
+            glm::normalize(hs().both.drawn[h].rot * glm::inverse(hs().both.hands[h].rot))};
+        Held& hd = hs().holding[h];
+        if(hd.ent == hs().both.ent && valid(hd.ent, hs().both.model))
         {
             // (Until the server's place is taken: on its grip in this hand, as carry2h::keep puts it.)
-            const glm::mat3 hand = glm::mat3_cast(both.hands[h].rot);
-            hd.pos = glm::transpose(hand) * -(both.object.rot * both.hold.grip[h]);
-            hd.rot = glm::transpose(hand) * glm::mat3_cast(both.object.rot);
-            hd.model = both.model;
+            const glm::mat3 hand = glm::mat3_cast(hs().both.hands[h].rot);
+            hd.pos = glm::transpose(hand) * -(hs().both.object.rot * hs().both.hold.grip[h]);
+            hd.rot = glm::transpose(hand) * glm::mat3_cast(hs().both.object.rot);
+            hd.model = hs().both.model;
             hd.placed = true;
             hd.since = cl.time;
             hd.fromSince = cl.time;
             hd.fromTime = handEaseTime;
             hd.fromStarted = false;
-            hd.fromPos = both.object.pos;
-            hd.fromRot = both.object.rot;
+            hd.fromPos = hs().both.object.pos;
+            hd.fromRot = hs().both.object.rot;
         }
     }
     if(vr_debug_carry.value)
     {
-        Con_Printf("carry2h: %d held in both hands no more\n", both.ent);
+        Con_Printf("carry2h: %d held in both hands no more\n", hs().both.ent);
     }
-    both = Both{};
+    hs().both = Both{};
 }
 
 // Held in both hands (`ent`, both carry stats): placed by both hands' controllers this frame (vr_carry2h.hpp), and
 // each hand drawn on its grip.
 void bothFrame(const hands::State& s, int ent)
 {
-    if(!ent || !s.valid || playerFrames < handsInWorld || !valid(ent, both.ent == ent ? both.model : nullptr))
+    if(!ent || !s.valid || hs().playerFrames < handsInWorld || !valid(ent, hs().both.ent == ent ? hs().both.model : nullptr))
     {
         if(ent && !valid(ent, nullptr))
         {
-            both = Both{};
+            hs().both = Both{};
         }
         return;
     }
@@ -2709,8 +2752,8 @@ void bothFrame(const hands::State& s, int ent)
     entity_t& e = cl_entities[ent];
     const bool brush = e.model->type == mod_brush;
     const carry2h::Frame hands[2] = {controller(s, 0), controller(s, 1)};
-    carry2h::Frame last = both.object; // (where it was drawn last: kept out of walls from there, carry2h::clear)
-    if(both.ent != ent)
+    carry2h::Frame last = hs().both.object; // (where it was drawn last: kept out of walls from there, carry2h::clear)
+    if(hs().both.ent != ent)
     {
         // The second hand took it: from where it is drawn now, in the hand that held it (its place this frame), or
         // where the server has it.
@@ -2718,7 +2761,7 @@ void bothFrame(const hands::State& s, int ent)
             carry2h::fromAngles(e.msg_angles[0], brush)};
         for(int h = 0; h < 2; h++)
         {
-            const Held& hd = holding[h];
+            const Held& hd = hs().holding[h];
             if(hd.ent == ent && hd.placed && hd.model == e.model)
             {
                 const glm::mat3 hand = glm::mat3_cast(hands[h].rot);
@@ -2726,39 +2769,39 @@ void bothFrame(const hands::State& s, int ent)
                 break;
             }
         }
-        both = Both{};
-        both.ent = ent;
-        both.model = e.model;
+        hs().both = Both{};
+        hs().both.ent = ent;
+        hs().both.model = e.model;
         // A listen server: the server's own hold (its grips and turns in the hands as it took them when the second
         // hand gripped), so that both place it alike. Recorded here, a frame or more later from hands that moved since,
         // the grips differed from the server's by as much. A remote server: from where it is drawn now.
-        if(!progs::edictAt(ent) || !carry2h::serverHold(ent, both.hold))
+        if(!progs::edictAt(ent) || !carry2h::serverHold(ent, hs().both.hold))
         {
-            both.hold = carry2h::record(object, hands);
+            hs().both.hold = carry2h::record(object, hands);
         }
-        handEase[0] = handEase[1] = HandEase{};
+        hs().handEase[0] = hs().handEase[1] = HandEase{};
         last = object;
         if(vr_debug_carry.value)
         {
-            Con_Printf("carry2h: %d in both hands, grips %.1f units apart\n", ent, both.hold.span);
+            Con_Printf("carry2h: %d in both hands, grips %.1f units apart\n", ent, hs().both.hold.span);
         }
     }
 
-    both.hands[0] = hands[0];
-    both.hands[1] = hands[1];
-    both.object = carry2h::solve(both.hold, hands);
+    hs().both.hands[0] = hands[0];
+    hs().both.hands[1] = hands[1];
+    hs().both.object = carry2h::solve(hs().both.hold, hands);
     if(progs::edictAt(ent))
     {
-        carry2h::clear(ent, last, both.object); // (a listen server: its level; as the server holds it)
+        carry2h::clear(ent, last, hs().both.object); // (a listen server: its level; as the server holds it)
     }
-    localBodyFrame(ent, both.object);
-    const glm::mat3 rot = glm::mat3_cast(both.object.rot);
-    place(e, both.object.pos, rot, true);
-    for(Held& hd : holding)
+    localBodyFrame(ent, hs().both.object);
+    const glm::mat3 rot = glm::mat3_cast(hs().both.object.rot);
+    place(e, hs().both.object.pos, rot, true);
+    for(Held& hd : hs().holding)
     {
         hd.drawn = true;
         hd.model = e.model;
-        hd.lastPos = both.object.pos;
+        hd.lastPos = hs().both.object.pos;
         hd.lastRot = rot;
     }
 
@@ -2768,8 +2811,8 @@ void bothFrame(const hands::State& s, int ent)
     const float drift = za::fmax(vr_carry_two_hands_drift.value, 0.f) * 0.01f * m2u;
     for(int h = 0; h < 2; h++)
     {
-        const carry2h::Frame grip = carry2h::onGrip(both.hold, both.object, h);
-        const glm::vec3 from = carry2h::reached(both.hold, hands[h], h).pos; // (a hand held out of it: from its reach)
+        const carry2h::Frame grip = carry2h::onGrip(hs().both.hold, hs().both.object, h);
+        const glm::vec3 from = carry2h::reached(hs().both.hold, hands[h], h).pos; // (a hand held out of it: from its reach)
         glm::vec3 off = grip.pos - from;
         const float length = glm::length(off);
         if(length > drift)
@@ -2783,7 +2826,7 @@ void bothFrame(const hands::State& s, int ent)
         }
         const float angle = glm::angle(turn);
         const float share = drift <= 0.f ? 0.f : angle > mostHandTurn ? mostHandTurn / angle : 1.f;
-        both.drawn[h] = {from + off,
+        hs().both.drawn[h] = {from + off,
             glm::normalize(glm::slerp(glm::quat{1.f, 0.f, 0.f, 0.f}, turn, share) * hands[h].rot)};
     }
 }
@@ -2791,7 +2834,7 @@ void bothFrame(const hands::State& s, int ent)
 void easeFrame(Easing& ea)
 {
     const double t = cl.time - ea.since;
-    if(!ea.ent || holding[0].ent == ea.ent || holding[1].ent == ea.ent || t >= easeTime || t < 0.0 || !valid(ea.ent, ea.model))
+    if(!ea.ent || hs().holding[0].ent == ea.ent || hs().holding[1].ent == ea.ent || t >= easeTime || t < 0.0 || !valid(ea.ent, ea.model))
     {
         ea = Easing{};
         return;
@@ -2822,6 +2865,7 @@ void easeFrame(Easing& ea)
 // vr_debug_carry 2: one line a frame into carry_trace.txt (the game directory): the time; what is held (2 both hands,
 // 1 the main hand, 0 the off hand, -1 nothing or easing back) and its entity; its drawn place and turn (x y z, then
 // the quaternion w x y z of its axes); each hand's controller and drawn place and turn (main, then off).
+// seat-shared: a debug readout (one at a time) (vr_debug_carry's probe and its trace file)
 FILE* carryTrace = nullptr; // carry_trace.txt, open while vr_debug_carry is 2 (trace)
 
 void trace(const hands::State& s)
@@ -2840,9 +2884,9 @@ void trace(const hands::State& s)
     {
         return;
     }
-    const int mode = both.ent ? 2 : holding[1].drawn ? 1 : holding[0].drawn ? 0 : -1;
-    int ent = both.ent ? both.ent : holding[1].drawn ? holding[1].ent : holding[0].drawn ? holding[0].ent : 0;
-    for(const Easing& ea : easing)
+    const int mode = hs().both.ent ? 2 : hs().holding[1].drawn ? 1 : hs().holding[0].drawn ? 0 : -1;
+    int ent = hs().both.ent ? hs().both.ent : hs().holding[1].drawn ? hs().holding[1].ent : hs().holding[0].drawn ? hs().holding[0].ent : 0;
+    for(const Easing& ea : hs().easing)
     {
         ent = ent ? ent : ea.ent;
     }
@@ -2887,18 +2931,18 @@ int placeInHand(int hand, glm::vec3& origin, glm::mat3& axes, bool& bothHands, g
     {
         return 0;
     }
-    const Held& hd = holding[hand];
+    const Held& hd = hs().holding[hand];
     if(!hd.ent || !valid(hd.ent, nullptr))
     {
         return 0;
     }
-    bothHands = both.ent && hd.ent == both.ent && both.model;
+    bothHands = hs().both.ent && hd.ent == hs().both.ent && hs().both.model;
     if(bothHands)
     {
-        const glm::mat3 r = glm::mat3_cast(both.hands[hand].rot);
-        origin = glm::transpose(r) * (both.object.pos - both.hands[hand].pos);
-        axes = glm::transpose(r) * glm::mat3_cast(both.object.rot);
-        otherHand = glm::transpose(r) * (both.hands[1 - hand].pos - both.hands[hand].pos);
+        const glm::mat3 r = glm::mat3_cast(hs().both.hands[hand].rot);
+        origin = glm::transpose(r) * (hs().both.object.pos - hs().both.hands[hand].pos);
+        axes = glm::transpose(r) * glm::mat3_cast(hs().both.object.rot);
+        otherHand = glm::transpose(r) * (hs().both.hands[1 - hand].pos - hs().both.hands[hand].pos);
         return hd.ent;
     }
     if(!hd.placed || !hd.drawn)
@@ -2917,9 +2961,9 @@ float skewerDrawnOff(int hand, const glm::mat4& weapon, const glm::mat4& handPos
     const glm::mat4 weaponFromHand = glm::inverse(glm::inverse(handPose) * weapon);
     const glm::mat4 weaponFromWorld = glm::inverse(weapon);
     float most = -1.f;
-    for(int k = 0; k < skewerDrawnCount; k++)
+    for(int k = 0; k < hs().skewerDrawnCount; k++)
     {
-        const SkewerDrawn& d = skewerDrawn[k];
+        const SkewerDrawn& d = hs().skewerDrawn[k];
         if(d.hand != hand || d.ent <= 0 || d.ent >= cl.num_entities)
         {
             continue;
@@ -2936,12 +2980,12 @@ bool drawnInHands(int num)
 {
     if(num <= 0) { return false; }
     return heldEntity(0) == num || heldEntity(1) == num ||
-        (both.ent == num && cl.stats[protocol::STAT_QVR_CARRYMAIN] == num && cl.stats[protocol::STAT_QVR_CARRYOFF] == num);
+        (hs().both.ent == num && cl.stats[protocol::STAT_QVR_CARRYMAIN] == num && cl.stats[protocol::STAT_QVR_CARRYOFF] == num);
 }
 
 int heldEntity(int hand)
 {
-    const Held& hd = holding[hand];
+    const Held& hd = hs().holding[hand];
     return hd.drawn && valid(hd.ent, hd.model) ? hd.ent : 0;
 }
 
@@ -2960,19 +3004,19 @@ bool drawnHand(int hand, glm::vec3& pos, glm::vec3& angles)
     {
         return false;
     }
-    if(both.ent && holding[hand].ent == both.ent && holding[hand].drawn)
+    if(hs().both.ent && hs().holding[hand].ent == hs().both.ent && hs().holding[hand].drawn)
     {
-        pos = both.drawn[hand].pos;
-        carry2h::toAngles(both.drawn[hand].rot, &angles[0], true);
+        pos = hs().both.drawn[hand].pos;
+        carry2h::toAngles(hs().both.drawn[hand].rot, &angles[0], true);
         return true;
     }
     // Moved back with what it holds, pressed against what the other holds (meetFrame) or a wall (wallFrame).
-    if(holding[hand].drawn && (meet.offset[hand] != glm::vec3{0.f} || meet.wall[hand] != glm::vec3{0.f}))
+    if(hs().holding[hand].drawn && (hs().meet.offset[hand] != glm::vec3{0.f} || hs().meet.wall[hand] != glm::vec3{0.f}))
     {
-        pos += meet.offset[hand] + meet.wall[hand];
+        pos += hs().meet.offset[hand] + hs().meet.wall[hand];
         return true;
     }
-    const HandEase& he = handEase[hand];
+    const HandEase& he = hs().handEase[hand];
     const double t = cl.time - he.since;
     if(he.since < 0.0 || t < 0.0 || t >= handEaseTime)
     {
@@ -2991,21 +3035,21 @@ int heldAlone(int hand, glm::vec3* drawnOffset)
     {
         return 0;
     }
-    const Held& hd = holding[hand];
-    if(!hd.drawn || hd.ent == both.ent || !valid(hd.ent, hd.model))
+    const Held& hd = hs().holding[hand];
+    if(!hd.drawn || hd.ent == hs().both.ent || !valid(hd.ent, hd.model))
     {
         return 0;
     }
     if(drawnOffset)
     {
-        *drawnOffset = meet.offset[hand] + meet.wall[hand];
+        *drawnOffset = hs().meet.offset[hand] + hs().meet.wall[hand];
     }
     return hd.ent;
 }
 
 glm::vec3 drawnPush(int hand)
 {
-    return (hand == 0 || hand == 1) && !holding[hand].drawn ? meet.offset[hand] : glm::vec3{0.f};
+    return (hand == 0 || hand == 1) && !hs().holding[hand].drawn ? hs().meet.offset[hand] : glm::vec3{0.f};
 }
 
 void viewPush(int hand, const glm::vec3& push)
@@ -3014,13 +3058,13 @@ void viewPush(int hand, const glm::vec3& push)
     {
         return;
     }
-    Held& hd = holding[hand];
-    if(!hd.drawn || hd.ent == both.ent || !valid(hd.ent, hd.model))
+    Held& hd = hs().holding[hand];
+    if(!hd.drawn || hd.ent == hs().both.ent || !valid(hd.ent, hd.model))
     {
-        meet.viewPush[hand] = glm::vec3{0.f};
+        hs().meet.viewPush[hand] = glm::vec3{0.f};
         return;
     }
-    meet.viewPush[hand] = push;
+    hs().meet.viewPush[hand] = push;
     place(cl_entities[hd.ent], hd.lastPos + push, hd.lastRot); // (again in a frame drawn twice: the same)
 }
 
@@ -3032,8 +3076,8 @@ void followDrawnHands(const hands::State& drawn)
     }
     for(int h = 0; h < 2; h++)
     {
-        Held& hd = holding[h];
-        if(!hd.baseSet || !hd.drawn || hd.ent == both.ent || !valid(hd.ent, hd.model))
+        Held& hd = hs().holding[h];
+        if(!hd.baseSet || !hd.drawn || hd.ent == hs().both.ent || !valid(hd.ent, hd.model))
         {
             continue;
         }
@@ -3050,9 +3094,9 @@ void followDrawnHands(const hands::State& drawn)
     {
         return;
     }
-    for(int k = 0; k < skewerDrawnCount; k++)
+    for(int k = 0; k < hs().skewerDrawnCount; k++)
     {
-        const SkewerDrawn& d = skewerDrawn[k];
+        const SkewerDrawn& d = hs().skewerDrawn[k];
         if(d.ent <= 0 || d.ent >= cl.num_entities || !cl_entities[d.ent].model)
         {
             continue;
@@ -3068,19 +3112,19 @@ bool bothHandsThrow(int hand, double at, bool release, throwing::Estimate& out)
     {
         return false;
     }
-    const int ent = carried[hand];
-    const bool inBoth = ent && carried[1 - hand] == ent;
-    const BothRelease& other = bothRelease[1 - hand];
+    const int ent = hs().carried[hand];
+    const bool inBoth = ent && hs().carried[1 - hand] == ent;
+    const BothRelease& other = hs().bothRelease[1 - hand];
     const double window = za::fmax(vr_throw_2h_window.value, 0.f);
     const bool afterOther = release && ent && other.ent == ent && at - other.at >= -0.02 && at - other.at <= window;
     if(!inBoth && !afterOther)
     {
         return false;
     }
-    out = throwing::release(3, at, bothCentre);
+    out = throwing::release(3, at, hs().bothCentre);
     if(release)
     {
-        bothRelease[hand] = {ent, at};
+        hs().bothRelease[hand] = {ent, at};
         if(vr_debug_throw.value)
         {
             Con_Printf("throw both hands (%s let go%s): %.2f m/s (%.2f %.2f %.2f), spin %.1f rad/s (%.2f %.2f %.2f)\n",
@@ -3095,15 +3139,16 @@ bool bothHandsThrow(int hand, double at, bool release, throwing::Estimate& out)
 void resetClientState()
 {
     reset();
-    carried[0] = carried[1] = 0;
-    bothCentre = glm::vec3{0.f};
-    playerFrames = 0;
+    hs().carried[0] = hs().carried[1] = 0;
+    hs().bothCentre = glm::vec3{0.f};
+    hs().playerFrames = 0;
 }
 
 namespace
 {
 // Forgotten when the client's state is cleared (vr_mem.hpp's resets): what the hands held (taken from the new map's
 // state).
+// seat-shared: the reset hook (it resets the current seat's)
 mem::Reset clientStateReset{"held", mem::ResetEvent::ClientState, mem::ResetPhase::State, &resetClientState};
 } // namespace
 
@@ -3140,7 +3185,7 @@ void carryCheck()
 {
     using namespace progs;
     const FieldOffsets& f = fields();
-    const hands::State& s = drawnFrom;
+    const hands::State& s = hs().drawnFrom;
     const float m2u = units::metresToUnits();
     const auto turnBetween = [](const glm::mat3& a, const glm::mat3& b) {
         const float c = (glm::dot(a[0], b[0]) + glm::dot(a[1], b[1]) + glm::dot(a[2], b[2]) - 1.f) * 0.5f;
@@ -3188,7 +3233,7 @@ void carryCheck()
         {
             const glm::vec3 o = fieldVec(ed, f.carry_offset);
             const glm::vec3 want = svHandPos + svHand * glm::vec3{o.x, -o.y, o.z};
-            const Held& hd = holding[h];
+            const Held& hd = hs().holding[h];
             glm::vec3 p{0.f};
             glm::mat3 r{1.f};
             const bool listen = serverInHand(ent, h, e.model, p, r);
@@ -3219,7 +3264,7 @@ void carryCheck()
         const float gap = haveDrawn ? drawnGap.gap / m2u * 100.f : 999.f;
         Con_Printf("carry check: %s hand holds %d (%s%s): in the hand, drawn %.2f cm %.1f deg off the physical; fist gap drawn "
                    "%.2f cm, physical %.2f cm; in the world %.2f cm apart (the controller %.2f cm off the server's hand)\n",
-            h == 1 ? "main" : "off", ent, e.model->name, both.ent == ent ? ", both hands" : "", apart, turn, gap,
+            h == 1 ? "main" : "off", ent, e.model->name, hs().both.ent == ent ? ", both hands" : "", apart, turn, gap,
             havePhys ? physGap.gap / m2u * 100.f : 999.f, world, glm::distance(s.pos[h], svHandPos) / m2u * 100.f);
         worstApart = za::fmax(worstApart, apart);
         worstTurn = za::fmax(worstTurn, turn);
@@ -3240,8 +3285,8 @@ extern "C" void VR_RelinkHeld(void)
     if(!(cl.protocolflags & PRFL_QUAKEVR) || cls.state != ca_connected || cls.demoplayback)
     {
         reset();
-        carried[0] = carried[1] = 0;
-        skewerDrawnCount = 0;
+        hs().carried[0] = hs().carried[1] = 0;
+        hs().skewerDrawnCount = 0;
         return;
     }
 
@@ -3249,17 +3294,17 @@ extern "C" void VR_RelinkHeld(void)
     const hands::State& s = hands::current();
     const bool playerPlaced = cls.signon == SIGNONS && cl.viewentity > 0 && cl.viewentity < cl.num_entities &&
                               cl_entities[cl.viewentity].msgtime > 0.0;
-    playerFrames = playerPlaced ? za::min(playerFrames + 1, handsInWorld) : 0;
-    carried[0] = cl.stats[protocol::STAT_QVR_CARRYOFF];
-    carried[1] = cl.stats[protocol::STAT_QVR_CARRYMAIN];
-    const int bothEnt = carried[1] && carried[1] == carried[0] ? carried[1] : 0;
+    hs().playerFrames = playerPlaced ? za::min(hs().playerFrames + 1, handsInWorld) : 0;
+    hs().carried[0] = cl.stats[protocol::STAT_QVR_CARRYOFF];
+    hs().carried[1] = cl.stats[protocol::STAT_QVR_CARRYMAIN];
+    const int bothEnt = hs().carried[1] && hs().carried[1] == hs().carried[0] ? hs().carried[1] : 0;
     if(!vr_carry_local.value)
     {
         reset();
     }
     else
     {
-        if(both.ent && both.ent != bothEnt)
+        if(hs().both.ent && hs().both.ent != bothEnt)
         {
             leaveBoth();
         }
@@ -3270,18 +3315,18 @@ extern "C" void VR_RelinkHeld(void)
         meetFrame(s);
         wallFrame(s);
         bothFrame(s, bothEnt);
-        for(Easing& ea : easing)
+        for(Easing& ea : hs().easing)
         {
             easeFrame(ea);
         }
-        for(Held& hd : holding)
+        for(Held& hd : hs().holding)
         {
-            hd.baseSet = hd.drawn && hd.ent != both.ent;
+            hd.baseSet = hd.drawn && hd.ent != hs().both.ent;
             hd.basePos = hd.lastPos;
             hd.baseRot = hd.lastRot;
         }
         trace(s);
-        drawnFrom = s;
+        hs().drawnFrom = s;
     }
     skewerFrame(s); // (with vr_carry_local 0 only noted, for vr_embed_probe_skew)
 
@@ -3289,7 +3334,7 @@ extern "C" void VR_RelinkHeld(void)
     // of the hands, for a two-handed throw.
     if(bothEnt && s.valid && valid(bothEnt, nullptr))
     {
-        bothCentre = (held::drawnCentre(bothEnt) - (s.pos[0] + s.pos[1]) * 0.5f) / units::metresToUnits();
+        hs().bothCentre = (held::drawnCentre(bothEnt) - (s.pos[0] + s.pos[1]) * 0.5f) / units::metresToUnits();
     }
 }
 
@@ -3363,7 +3408,7 @@ void parsePlaces()
     const int mask = MSG_ReadByte();
     for(int h = 0; h < 2; h++)
     {
-        NetPlace& p = netPlaces[h];
+        NetPlace& p = hs().netPlaces[h];
         if(mask < 0 || !(mask & (1 << h)))
         {
             p = NetPlace{};

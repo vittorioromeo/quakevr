@@ -80,7 +80,9 @@ struct Expectation
     bool skip{false};                   // "-": reported only
 };
 
+// seat-shared: the motion recorder's evaluation (one run at a time)
 ankerl::unordered_dense::map<za::String, Expectation> expectations;
+// seat-shared: the motion recorder's evaluation (one run at a time)
 za::String expectPath;
 
 [[nodiscard]] za::String underscores(za::String s)
@@ -212,6 +214,7 @@ struct Result
     double err{0.0};
 };
 
+// seat-shared: the motion recorder's evaluation (one run at a time)
 za::Vector<Result> results;
 
 [[nodiscard]] za::String expectationText(const Expectation& e)
@@ -383,16 +386,27 @@ enum class Eval
     Playing,
 };
 
+// seat-shared: the motion recorder's evaluation (one run at a time)
 Eval evalState = Eval::Idle;
+// seat-shared: the motion recorder's evaluation (one run at a time)
 za::Vector<za::String> evalFiles;
+// seat-shared: the motion recorder's evaluation (one run at a time)
 za::Vector<za::String> evalFileOpts; // a list line's test options after its take ("<take> | at <x y z yaw> weapon <id>")
+// seat-shared: the motion recorder's evaluation (one run at a time)
 size_t evalIndex = 0;
+// seat-shared: the motion recorder's evaluation (one run at a time)
 za::String evalMap = "vrmelee-recording";
+// seat-shared: the motion recorder's evaluation (one run at a time)
 za::String evalOut;
+// seat-shared: the motion recorder's evaluation (one run at a time)
 Options evalOpts;
+// seat-shared: the motion recorder's evaluation (one run at a time)
 int evalWait = 0;
+// seat-shared: the motion recorder's evaluation (one run at a time)
 bool evalQuit = false; // quit the game when done (scripts)
+// seat-shared: the motion recorder's evaluation (one run at a time)
 double evalStart = 0.0;
+// seat-shared: the motion recorder's evaluation (one run at a time)
 za::String evalProgress; // a file told how far it is (the review's re-evaluation, vr_motion_review.cpp)
 
 void writeProgress(const za::String& text)
@@ -410,7 +424,9 @@ void writeProgress(const za::String& text)
 }
 
 // developer 0 while a map loads (the user's value kept, and put back).
+// seat-shared: the motion recorder's evaluation (one run at a time)
 bool quiet = false;
+// seat-shared: the motion recorder's evaluation (one run at a time)
 za::String userDeveloper;
 void quietLoad(bool on)
 {
@@ -433,6 +449,7 @@ void quietLoad(bool on)
 
 // host_maxfps raised while evaluating: the frames' game time is the takes' own (hostFrameTime), so only the
 // wall clock between them changes (the server stays at 72 Hz: host_maxfps is above 72 either way).
+// seat-shared: the motion recorder's evaluation (one run at a time)
 za::String userMaxfps;
 void fastFrames(bool on)
 {

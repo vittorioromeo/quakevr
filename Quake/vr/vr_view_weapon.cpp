@@ -3,6 +3,7 @@
 // Split from vr_view.cpp (a pure move); what they share is in vr_view_internal.hpp.
 
 #include "vr_view_internal.hpp"
+#include "vr_seat.hpp"
 #include "vr_flatplay.hpp"
 #include "vr_flatsight.hpp"
 #include "vr_flycam.hpp"
@@ -207,9 +208,11 @@ namespace
 
 namespace
 {
+// seat-shared: a debug readout (one at a time) (vr_debug_2h_grip 2's print timer, the ammo warning printed once)
 double carriedPrintAt[2]{-1.0, -1.0}; // vr_debug_2h_grip 2, per hand: the next print of its weapon's drawn pose
 
 // vr_ammo_color_debug, per hand: the warning last printed ("state loaded capacity"; reprinted when it changes).
+// seat-shared: a debug readout (one at a time) (vr_debug_2h_grip 2's print timer, the ammo warning printed once)
 za::Array<za::String, 2> ammoWarnPrinted;
 
 // A warning colour setting: a hue in degrees (the menu's slider), or "r g b" (0..1).
@@ -631,6 +634,7 @@ struct ReverseGeometry
     bool palm{false};      // the pivot is the drawn hand's (the jointed hand was there to learn it from)
     bool rig{false};       // learnt with the jointed hand there (vr_revgrip_pivot 1)
 };
+// seat-shared: learnt per weapon model (a cache)
 ReverseGeometry reverseGeometry[weapons::numSlots];
 
 [[nodiscard]] const ReverseGeometry* reverseGeometryOf(int slot)
@@ -839,11 +843,22 @@ struct GripFlip
     double last{-1.0};
     float flip{0.f};                // 0 normal .. 1 reversed (eased as drawn: reverseTurn)
 };
-GripFlip gripFlips[2];
+
+// A seat's drawn weapons' reverse grips (phase 4b)
+struct ViewWeaponSeat
+{
+    GripFlip gripFlips[2];
+};
+
+// splitscreen (SPLITSCREEN.md, phase 4b): the current seat's (seat::Part::ViewWeapon)
+[[nodiscard]] ViewWeaponSeat& vw()
+{
+    return seat::part<ViewWeaponSeat>(seat::current(), seat::Part::ViewWeapon);
+}
 
 void gripFlipStep(int hand, const qmodel_t* model, int slot)
 {
-    GripFlip& g = gripFlips[hand];
+    GripFlip& g = vw().gripFlips[hand];
     const float dt = g.last >= 0.0 ? static_cast<float>(za::clamp(vr_gametime - g.last, 0.0, 0.1)) : 0.f;
     g.last = vr_gametime;
     const int flags = cl.stats[hand == HAND_MAIN ? protocol::STAT_QVR_WEAPONFLAGS : protocol::STAT_QVR_WEAPONFLAGS2];
@@ -869,7 +884,7 @@ void gripFlipStep(int hand, const qmodel_t* model, int slot)
 
 [[nodiscard]] float gripFlip(int hand)
 {
-    return hand >= 0 && hand <= 1 && !otherSubject && gripFlips[hand].model ? gripFlips[hand].flip : 0.f;
+    return hand >= 0 && hand <= 1 && !otherSubject && vw().gripFlips[hand].model ? vw().gripFlips[hand].flip : 0.f;
 }
 
 [[nodiscard]] float drawnFlip(int hand)

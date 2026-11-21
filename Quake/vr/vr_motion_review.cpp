@@ -303,6 +303,7 @@ struct Mark
     za::String date;
 };
 
+// seat-shared: the motion review's (a menu tool of the headset's recordings)
 std::map<za::String, Mark> marks; // by the take's file name (ZANCLE-TODO: no ordered map: written in order, pointers kept)
 
 void readMarks()
@@ -342,6 +343,7 @@ struct Change
     za::String date, action, a, b, c, d, e;
 };
 
+// seat-shared: the motion review's (a menu tool of the headset's recordings)
 za::Vector<Change> journal;
 
 void readJournal()
@@ -384,19 +386,32 @@ struct Take
     const Mark* mark{nullptr};     // reviewed
 };
 
+// seat-shared: the motion review's (a menu tool of the headset's recordings)
 std::map<za::String, Status> statuses; // ZANCLE-TODO: no ordered map (the takes keep pointers into it)
+// seat-shared: the motion review's (a menu tool of the headset's recordings)
 za::Vector<Suspect> suspectList;
+// seat-shared: the motion review's (a menu tool of the headset's recordings)
 za::Vector<Take> takes;
+// seat-shared: the motion review's (a menu tool of the headset's recordings)
 za::String lastEvaluated; // the newest verdict's date
+// seat-shared: the motion review's (a menu tool of the headset's recordings)
 bool dirty = true;
+// seat-shared: the motion review's (a menu tool of the headset's recordings)
 int gen = 0;
+// seat-shared: the motion review's (a menu tool of the headset's recordings)
 int shownFilter = -99, shownCategory = -99;
+// seat-shared: the motion review's (a menu tool of the headset's recordings)
 za::Vector<int> shown; // indices into takes
+// seat-shared: the motion review's (a menu tool of the headset's recordings)
 za::Vector<za::String> rowTexts, rowHelps;
+// seat-shared: the motion review's (a menu tool of the headset's recordings)
 bool multiDay = false;
 
+// seat-shared: the motion review's (a menu tool of the headset's recordings)
 za::String pickedName;       // the take the Take page shows
+// seat-shared: the motion review's (a menu tool of the headset's recordings)
 bool pickedDiscarded = false; // in discarded/
+// seat-shared: the motion review's (a menu tool of the headset's recordings)
 za::String actionText;       // the last change's outcome
 
 enum Show : int
@@ -687,10 +702,15 @@ void saveReview()
 // Re-evaluate: a second copy of the game, in the mock headset
 // ----------------------------------------------------------------------------
 
+// seat-shared: the motion review's (a menu tool of the headset's recordings)
 bool jobRunning = false;
+// seat-shared: the motion review's (a menu tool of the headset's recordings)
 int jobCount = 0;
+// seat-shared: the motion review's (a menu tool of the headset's recordings)
 double jobStart = 0.0;
+// seat-shared: the motion review's (a menu tool of the headset's recordings)
 double jobNextPoll = 0.0;
+// seat-shared: the motion review's (a menu tool of the headset's recordings)
 za::String jobProgress;
 
 [[nodiscard]] za::String jobFile(const char* name)
@@ -882,6 +902,7 @@ struct Ghost
     float dyaw{0.f};
 };
 
+// seat-shared: the motion review's (a menu tool of the headset's recordings)
 Ghost ghost;
 
 [[nodiscard]] za::String eventText(const za::Vector<za::String>& f)
@@ -1291,7 +1312,9 @@ void drawGhost()
 // The details
 // ----------------------------------------------------------------------------
 
+// seat-shared: the motion review's (a menu tool of the headset's recordings)
 za::Vector<za::String> details;
+// seat-shared: the motion review's (a menu tool of the headset's recordings)
 int detailsGen = -1;
 
 void wrapInto(za::Vector<za::String>& out, const za::String& text)
@@ -1613,6 +1636,7 @@ struct ReviewReadouts
     za::String summary, reviewed, eval, listTitle;
     auto members() { return qvr::mem::list(summary, reviewed, eval, listTitle); }
 };
+// seat-shared: the motion review's (a menu tool of the headset's recordings)
 mem::Scratch<ReviewReadouts> readouts{"review readouts"};
 
 } // namespace

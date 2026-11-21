@@ -51,6 +51,7 @@ constexpr const char* keyNames[numKeys] = {
 // (vr_weaponvalues.inc) by their old cvar names. Their storage is qvr::weaponStandIns (vr_cvars.hpp: those names are
 // references into it).
 static_assert(numSlots == weaponSlotCount && numKeys == weaponKeyCount);
+// seat-shared: the weapons' settings (preferences) and their caches of the shared models
 DataTable<Key, numSlots, numKeys> slots{weaponStandIns};
 
 // The named values (vr_weaponvalues.inc): slot, key and old cvar name.
@@ -91,8 +92,11 @@ constexpr OldRecoilDefault oldRecoilDefaults[] = {{1, {1, 1, 3.85f, 1.4f, 0.35f,
     {34, {1, 1.405f, 1, 1, 0.15f, 1}}, {35, {1, 0.6f, 1, 1, 0.12f, 1}}, {36, {1, 0.6f, 1, 1, 0.1f, 1}},
     {37, {1, 1, 1, 1, 0.15f, 1}}, {38, {1, 1.6f, 1, 1, 0.16f, 1}}};
 
+// seat-shared: the weapons' settings (preferences) and their caches of the shared models
 za::Array<OldRecoil, numSlots> oldRecoil{}; // this start's (oldRecoilDefaults, then the config's lines)
+// seat-shared: the weapons' settings (preferences) and their caches of the shared models
 OldRecoilGlobals oldRecoilGlobals;
+// seat-shared: the weapons' settings (preferences) and their caches of the shared models
 bool recoilConverted = false; // this start converted them (a config from before 74)
 
 // The retired per-slot names (vr_wofs_<name>_NN) and the value each held.
@@ -117,6 +121,7 @@ void takeOldRecoil(int slot, float OldRecoil::*field, float before)
 // An inheriting slot's defaults its own (vr_weapons.inc QVR_WEAPON_OWN): at its default such a key is still the slot's,
 // never its parent's. Every other default of an inheriting slot is a placeholder that gives way to the parent's (an own
 // value is one that differs from the default: ROUND21's design).
+// seat-shared: the weapons' settings (preferences) and their caches of the shared models
 za::Array<bool, numSlots * numKeys> ownDefaults{};
 
 // Whether `slot`'s value of `key` gives way to its parent's (the slot inherits it, the value is the default, and the
@@ -133,12 +138,16 @@ za::Array<bool, numSlots * numKeys> ownDefaults{};
 
 // Model -> slot, and the fist's slot (-2: not looked up yet), found again whenever a
 // vr_wofs_id_NN cvar changes.
+// seat-shared: the weapons' settings (preferences) and their caches of the shared models
 ankerl::unordered_dense::map<const qmodel_t*, int> slotCache;
 // A part drawn on its gun (slotForPart) with no slot of its own -> its gun's slot, likewise.
+// seat-shared: the weapons' settings (preferences) and their caches of the shared models
 ankerl::unordered_dense::map<const qmodel_t*, int> partSlotCache;
+// seat-shared: the weapons' settings (preferences) and their caches of the shared models
 int fistCache = -2;
 
 // Counts the changes to the settings (settingsGeneration).
+// seat-shared: the weapons' settings (preferences) and their caches of the shared models
 unsigned generation = 1;
 
 // Model -> its drawn transform (modelTransform), with what it was made from besides the model.
@@ -148,6 +157,7 @@ struct TransformMemo
     float inputs[7]{};
     ModelTransform t;
 };
+// seat-shared: the weapons' settings (preferences) and their caches of the shared models
 ankerl::unordered_dense::map<const qmodel_t*, TransformMemo> transformCache;
 
 void onIdChanged(cvar_t* /* var */)
@@ -264,6 +274,7 @@ constexpr int numUninherited = sizeof(uninherited) / sizeof(uninherited[0]);
 
 // Their defaults before 48 (weapons.txt's, but vr_weapons_before48.inc's where they changed in 48): a config's value
 // that is still one of these was a placeholder that gave way to the parent's.
+// seat-shared: the weapons' settings (preferences) and their caches of the shared models
 za::Array<const char*, numUninherited * numKeys> oldDefaults{};
 
 [[nodiscard]] constexpr int uninheritedIndex(int slot)
@@ -597,6 +608,7 @@ void takeAdTuning53()
 }
 
 // The vr_wofs_version the config had before migrate() ran (a step that undoes an older one's mistake asks it).
+// seat-shared: the weapons' settings (preferences) and their caches of the shared models
 float migratedFrom = 0.f;
 
 // 54: the tracer in its own colour on the Widowmaker (his config of 2026-10-19; vr_wofs_fx_tr_owncol_35, index 34): taken

@@ -12,20 +12,20 @@ void dragStart(int num)
         return;
     }
     edict_t* e = EDICT_NUM(num);
-    Drag& d = tg.drag;
+    Drag& d = tg().drag;
     d = {};
     d.num = num;
     d.prop = isRigidProp(e);
-    d.distance = tg.aim.targetDistance;
-    const glm::vec3 grab = tg.aim.from + tg.aim.dir * d.distance;
+    d.distance = tg().aim.targetDistance;
+    const glm::vec3 grab = tg().aim.from + tg().aim.dir * d.distance;
     d.offset = geom::vec(e->v.origin) - grab;
     d.angles = geom::vec(e->v.angles);
     d.last = geom::vec(e->v.origin);
     throwing::pointReset();
     const int mi = static_cast<int>(e->v.modelindex);
     d.brush = mi > 0 && mi < MAX_MODELS && sv.models[mi] && sv.models[mi]->type == mod_brush;
-    d.hand0 = held::axesFromAngles(&tg.handRot[0], true);
-    d.handYaw = tg.handRot.y;
+    d.hand0 = held::axesFromAngles(&tg().handRot[0], true);
+    d.handYaw = tg().handRot.y;
     d.handTurn = 0.f;
     d.axes0 = held::axesFromAngles(e->v.angles, d.brush);
     d.since = qcvm->time;
@@ -37,11 +37,11 @@ void dragStart(int num)
     {
         d.part = box3d::ragdollBone(num, grab); // (the old way's: the part nearest, for vr_toolgun_status)
         float along = 0.f;
-        if(box3d::physgunRagdollGrab(num, tg.aim.from, tg.aim.dir, tg.aim.worldDistance, grab, d.part, along))
+        if(box3d::physgunRagdollGrab(num, tg().aim.from, tg().aim.dir, tg().aim.worldDistance, grab, d.part, along))
         {
             d.ragdoll = true;
             d.distance = za::max(along, 16.f);
-            d.last = tg.aim.from + tg.aim.dir * d.distance;
+            d.last = tg().aim.from + tg().aim.dir * d.distance;
         }
         Con_Printf("toolgun: physgun holds %d %s's ragdoll by part %d %s at %.0f units\n", num, PR_GetString(e->v.classname),
             d.part, d.ragdoll ? "on a spring" : "by its origin", d.distance);
@@ -52,7 +52,7 @@ void dragStart(int num)
 
 void dragEnd(bool freeze)
 {
-    Drag& d = tg.drag;
+    Drag& d = tg().drag;
     if(!d.num || d.num >= qcvm->num_edicts || EDICT_NUM(d.num)->free)
     {
         d = {};
@@ -93,22 +93,22 @@ void dragEnd(bool freeze)
 
 void dragFrame(float dt)
 {
-    Drag& d = tg.drag;
+    Drag& d = tg().drag;
     if(!d.num)
     {
         return;
     }
-    if(d.num >= qcvm->num_edicts || EDICT_NUM(d.num)->free || !tg.aim.valid)
+    if(d.num >= qcvm->num_edicts || EDICT_NUM(d.num)->free || !tg().aim.valid)
     {
         d = {};
         return;
     }
     edict_t* e = EDICT_NUM(d.num);
     glm::vec3 fwd, right;
-    levelAxes(tg.aim.dir, fwd, right);
-    const glm::vec3 grab = tg.aim.from + tg.aim.dir * za::max(d.distance, 16.f);
+    levelAxes(tg().aim.dir, fwd, right);
+    const glm::vec3 grab = tg().aim.from + tg().aim.dir * za::max(d.distance, 16.f);
     const auto follow = [dt](const glm::vec3& to) {
-        Drag& d = tg.drag;
+        Drag& d = tg().drag;
         if(dt > 0.f)
         {
             // Its swing, sampled as a hand's: the throw on letting go is smoothed as a hand's (throwing::pointEstimate).
@@ -131,7 +131,7 @@ void dragFrame(float dt)
         return;
     }
     // X/A held: its angles snap to whole steps of vr_toolgun_snap degrees; let go, the snap is kept (baked into the turn).
-    const float step = tg.adjust ? vr_toolgun_snap.value : 0.f;
+    const float step = tg().adjust ? vr_toolgun_snap.value : 0.f;
     if(step <= 0.f && d.snapped)
     {
         d.stickTurn = d.snapFix * d.stickTurn;
@@ -146,15 +146,15 @@ void dragFrame(float dt)
             a = za::round(a / step) * step;
         }
     };
-    d.handTurn += za::remainder(tg.handRot.y - d.handYaw, 360.f) * handTurnWeight(tg.handRot.x);
-    d.handYaw = tg.handRot.y;
+    d.handTurn += za::remainder(tg().handRot.y - d.handYaw, 360.f) * handTurnWeight(tg().handRot.x);
+    d.handYaw = tg().handRot.y;
     glm::vec3 to;
     float angles[3];
     if(vr_toolgun_physgun_wrist.value != 0.f)
     {
         // Turned as the hand turns since it was taken (its offset from the beam's point too: as if on a skewer), the
         // sticks' turn on top; the body's turn turns the hand, so it turns with you.
-        const glm::mat3 hand = held::axesFromAngles(&tg.handRot[0], true);
+        const glm::mat3 hand = held::axesFromAngles(&tg().handRot[0], true);
         glm::mat3 turn = d.stickTurn * hand * glm::transpose(d.hand0);
         held::anglesFromAxes(turn * d.axes0, angles, d.brush);
         if(!d.prop)
@@ -263,12 +263,12 @@ void dragFrame(float dt)
     for(int h = 0; h < 14; h++)
     {
         const glm::vec3 p = handlePoint(g, h);
-        const float along = glm::dot(p - tg.aim.from, tg.aim.dir);
+        const float along = glm::dot(p - tg().aim.from, tg().aim.dir);
         if(along <= 0.f)
         {
             continue;
         }
-        const float off = glm::length(p - (tg.aim.from + tg.aim.dir * along));
+        const float off = glm::length(p - (tg().aim.from + tg().aim.dir * along));
         if(off < 2.5f + along * 0.03f && off < bestOff)
         {
             bestOff = off;
@@ -317,8 +317,8 @@ void setScale(int num, const glm::vec3& k)
 
 void scaleFrame()
 {
-    Gizmo& g = tg.gizmo;
-    const int num = g.held >= 0 ? g.num : tg.aim.target;
+    Gizmo& g = tg().gizmo;
+    const int num = g.held >= 0 ? g.num : tg().aim.target;
     if(num <= 0 || num >= qcvm->num_edicts || EDICT_NUM(num)->free)
     {
         g = {};
@@ -334,7 +334,7 @@ void scaleFrame()
     g = now;
     if(g.held >= 0)
     {
-        const float along = glm::dot(tg.aim.from + tg.aim.dir * g.reach0 - g.centre0, g.way0);
+        const float along = glm::dot(tg().aim.from + tg().aim.dir * g.reach0 - g.centre0, g.way0);
         if(za::fabs(g.along0) > 0.5f)
         {
             const float r = za::clamp(along / g.along0, 0.05f, 20.f);
@@ -351,7 +351,7 @@ void scaleFrame()
 
 void scaleGrab()
 {
-    Gizmo& g = tg.gizmo;
+    Gizmo& g = tg().gizmo;
     if(g.num <= 0 || g.hover < 0)
     {
         return;
@@ -362,7 +362,7 @@ void scaleGrab()
     g.centre0 = g.centre;
     g.way0 = glm::length(handle - g.centre) > 1e-3f ? glm::normalize(handle - g.centre) : glm::vec3{0.f, 0.f, 1.f};
     g.along0 = glm::dot(handle - g.centre, g.way0);
-    g.reach0 = glm::length(handle - tg.aim.from);
+    g.reach0 = glm::length(handle - tg().aim.from);
 }
 
 void drawGizmo(const Gizmo& g)
@@ -413,23 +413,23 @@ void jointShot(int num, const glm::vec3& at, const glm::vec3& normal)
     if(jointKind() == unjoin)
     {
         Con_Printf("toolgun: removed %d joints of %d\n", box3d::removeToolJoints(num), num);
-        tg.jointFirst = 0;
+        tg().jointFirst = 0;
         return;
     }
-    if(!tg.jointFirst || tg.jointFirst == num || tg.jointFirst >= qcvm->num_edicts || EDICT_NUM(tg.jointFirst)->free)
+    if(!tg().jointFirst || tg().jointFirst == num || tg().jointFirst >= qcvm->num_edicts || EDICT_NUM(tg().jointFirst)->free)
     {
-        tg.jointFirst = num;
-        tg.jointLocal = glm::transpose(held::axesFromAngles(e->v.angles, false)) * (at - origin);
+        tg().jointFirst = num;
+        tg().jointLocal = glm::transpose(held::axesFromAngles(e->v.angles, false)) * (at - origin);
         Con_Printf("toolgun: joint from %d %s\n", num, PR_GetString(e->v.classname));
         return;
     }
-    edict_t* first = EDICT_NUM(tg.jointFirst);
+    edict_t* first = EDICT_NUM(tg().jointFirst);
     const glm::vec3 atA = geom::vec(first->v.origin) +
-                          held::axesFromAngles(first->v.angles, false) * tg.jointLocal;
+                          held::axesFromAngles(first->v.angles, false) * tg().jointLocal;
     const auto kind = static_cast<box3d::ToolJoint>(jointKind());
-    const bool made = box3d::addToolJoint(tg.jointFirst, num, kind, atA, at, normal);
-    Con_Printf("toolgun: %s %d to %d: %s\n", jointNames[jointKind()], tg.jointFirst, num, made ? "joined" : "not joined (no body)");
-    tg.jointFirst = 0;
+    const bool made = box3d::addToolJoint(tg().jointFirst, num, kind, atA, at, normal);
+    Con_Printf("toolgun: %s %d to %d: %s\n", jointNames[jointKind()], tg().jointFirst, num, made ? "joined" : "not joined (no body)");
+    tg().jointFirst = 0;
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -445,24 +445,24 @@ void jointShot(int num, const glm::vec3& at, const glm::vec3& normal)
 // The physgun holds something: both sticks are its (no X/A needed), and stick presses do nothing.
 [[nodiscard]] bool physgunHolds()
 {
-    return tg.drag.num != 0 && currentTool() == Tool::Physgun;
+    return tg().drag.num != 0 && currentTool() == Tool::Physgun;
 }
 
 // A/X held on the gun's hand gives it the sticks, except with the spawn tool (its ghost takes none: ghostHoldFrame).
 [[nodiscard]] bool adjustTakesSticks()
 {
-    return tg.adjust && currentTool() != Tool::Spawn;
+    return tg().adjust && currentTool() != Tool::Spawn;
 }
 
 void sticksFrame(float dt)
 {
     // (Flatscreen play's mouse with the adjust key held, gathered since the last frame: flatNudge.)
-    const float flatPush = za::exchange(tg.flatPush, 0.f), flatTurn = za::exchange(tg.flatTurn, 0.f);
-    if(!(adjustTakesSticks() || physgunHolds()) || tg.hand < 0 || key_dest != key_game)
+    const float flatPush = za::exchange(tg().flatPush, 0.f), flatTurn = za::exchange(tg().flatTurn, 0.f);
+    if(!(adjustTakesSticks() || physgunHolds()) || tg().hand < 0 || key_dest != key_game)
     {
         return;
     }
-    const glm::vec2 gun = tg.stick[tg.hand], other = tg.stick[1 - tg.hand];
+    const glm::vec2 gun = tg().stick[tg().hand], other = tg().stick[1 - tg().hand];
     const float move = vr_toolgun_move_speed.value * dt, spin = vr_toolgun_turn_speed.value * dt;
     const int axis = za::clamp(static_cast<int>(vr_toolgun_turn_axis.value), 0, 2);
     const float push = deadzone(gun.y) * move + flatPush, turn = -deadzone(gun.x) * spin + flatTurn;
@@ -472,25 +472,25 @@ void sticksFrame(float dt)
     switch(currentTool())
     {
     case Tool::Physgun:
-        if(tg.drag.num)
+        if(tg().drag.num)
         {
-            tg.drag.distance = za::max(tg.drag.distance + push, 16.f);
-            tg.drag.slide += glm::vec3{side, lift, 0.f};
-            tg.drag.turn[axis] += turn;
+            tg().drag.distance = za::max(tg().drag.distance + push, 16.f);
+            tg().drag.slide += glm::vec3{side, lift, 0.f};
+            tg().drag.turn[axis] += turn;
             if(turn != 0.f)
             {
                 // (the wrist's way: about the world's up, or the gun's level right or forward)
                 glm::vec3 fwd, right;
-                levelAxes(tg.aim.dir, fwd, right);
+                levelAxes(tg().aim.dir, fwd, right);
                 const glm::vec3 about = axis == 1 ? glm::vec3{0.f, 0.f, 1.f} : axis == 0 ? right : fwd;
-                tg.drag.stickTurn = glm::mat3_cast(glm::angleAxis(glm::radians(turn), about)) * tg.drag.stickTurn;
+                tg().drag.stickTurn = glm::mat3_cast(glm::angleAxis(glm::radians(turn), about)) * tg().drag.stickTurn;
             }
         }
         break;
     case Tool::Scale:
     {
-        const int num = tg.gizmo.num;
-        if(num > 0 && scaleBy != 0.f && tg.gizmo.held < 0)
+        const int num = tg().gizmo.num;
+        if(num > 0 && scaleBy != 0.f && tg().gizmo.held < 0)
         {
             setScale(num, scaleOf(EDICT_NUM(num)) * (1.f + scaleBy));
         }
@@ -512,41 +512,41 @@ void sticksFrame(float dt)
 // ghost that shows up under a held A/X starts turning from the hand's way then.
 void ghostHoldFrame(const hands::State& s, float dt)
 {
-    const bool turning = tg.adjust && tg.hand >= 0 && key_dest == key_game && ghostShowing();
-    const bool wasTurning = turning && ghostHold.turn == tg.hand;
-    const float before = ghostHold.yaw;
-    ghostHold.turn = turning ? tg.hand : -1;
+    const bool turning = tg().adjust && tg().hand >= 0 && key_dest == key_game && ghostShowing();
+    const bool wasTurning = turning && arm().ghostHold.turn == tg().hand;
+    const float before = arm().ghostHold.yaw;
+    arm().ghostHold.turn = turning ? tg().hand : -1;
     // Turning fixes the ghost where it stands at the press (updateGhost); let go, it follows the aim again.
     if(!turning)
     {
-        ghostHold.fixed = false;
+        arm().ghostHold.fixed = false;
     }
-    else if(!ghostHold.fixed)
+    else if(!arm().ghostHold.fixed)
     {
-        ghostHold.fixed = true;
-        ghostHold.point = ghostPoint(tg.aim);
-        ghostHold.dir = tg.aim.dir;
+        arm().ghostHold.fixed = true;
+        arm().ghostHold.point = ghostPoint(tg().aim);
+        arm().ghostHold.dir = tg().aim.dir;
     }
     // The hand's yaw in the play space: the player's own turn (the stick's, still the player's) turns the ghost nothing.
     // (Kept current while not turning, so the turn does not jump when it starts.)
-    ghostHold.yaw = tg.handRot.y - s.turnYaw;
+    arm().ghostHold.yaw = tg().handRot.y - s.turnYaw;
     if(dt <= 0.f || key_dest != key_game || !ghostShowing())
     {
         return;
     }
-    if(ghostHold.move >= 0 && s.valid)
+    if(arm().ghostHold.move >= 0 && s.valid)
     {
         glm::vec3 fwd, right;
         levelAxes(ghostDir(), fwd, right);
-        const glm::vec3 gone = s.vel[ghostHold.move] * dt * units::metresToUnits(); // metres a second in Quake axes,
+        const glm::vec3 gone = s.vel[arm().ghostHold.move] * dt * units::metresToUnits(); // metres a second in Quake axes,
         // without the player's own (hands::State::vel is metres: the offsets are units)
         // The offsets are components along the gun's level way, not a world vector: add the components.
-        tg.offset += glm::vec3{glm::dot(gone, fwd), glm::dot(gone, right), gone.z};
-        ghostHold.seen += gone;
+        tg().offset += glm::vec3{glm::dot(gone, fwd), glm::dot(gone, right), gone.z};
+        arm().ghostHold.seen += gone;
     }
     if(wasTurning)
     {
-        const float turned = za::remainder(ghostHold.yaw - before, 360.f) * handTurnWeight(tg.handRot.x) * ghostTurnRate;
-        tg.turn.y += turned;
+        const float turned = za::remainder(arm().ghostHold.yaw - before, 360.f) * handTurnWeight(tg().handRot.x) * ghostTurnRate;
+        tg().turn.y += turned;
     }
 }

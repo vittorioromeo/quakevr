@@ -77,6 +77,7 @@ namespace detail
 // The evaluation's map loads run on fixed frames too (a server frame with each, at 72 Hz), from the "map"
 // command to the take: every take starts at the same server time, in the same state, whatever the machine
 // (the QC's 32-bit floats and its entities' think times depend on the absolute time).
+// seat-shared: the motion recorder's playback (drives the one mock headset)
 bool fixedLoading = false;
 
 } // namespace detail
@@ -455,7 +456,9 @@ void collectSettings(const za::String& value, bool pairs, za::Vector<za::Pair<za
 namespace
 {
 
+// seat-shared: the motion recorder's playback (drives the one mock headset)
 cvars::Snapshot savedSettings; // the values before a playback
+// seat-shared: the motion recorder's playback (drives the one mock headset)
 za::String setupFoegrab; // vr_foegrab's value, held off during the setup (startPlayback); "" when not
 
 // The training dummies as the take's enemy now (QC VR_Dummy_RetypeAll: vr_dummy_type, just applied), before the take
@@ -611,6 +614,7 @@ void restoreSettings()
 // ----------------------------------------------------------------------------
 
 constexpr double setupDt = 1.0 / 72.0; // a server frame with every host frame: the same start every time
+// seat-shared: the motion recorder's playback (drives the one mock headset)
 za::U64 fixedFrameCount = 0;           // vr_fixed_frames' frames so far (vr_fixed_frames_jitter's)
 
 // vr_fixed_frames' host frame (vr_fixed_frames_rate: 72, a server frame with each; 90, a headset's frames over the
@@ -775,31 +779,52 @@ void resample(Take& take, float hz, float jitter, int stutter)
 namespace detail
 {
 
+// seat-shared: the motion recorder's playback (drives the one mock headset)
 State state = State::Idle;
+// seat-shared: the motion recorder's playback (drives the one mock headset)
 Take take;
 
 } // namespace detail
 
 namespace
 {
+// seat-shared: the motion recorder's playback (drives the one mock headset)
 Options opts;
+// seat-shared: the motion recorder's playback (drives the one mock headset)
 Report report;
+// seat-shared: the motion recorder's playback (drives the one mock headset)
 double setupTime = 0.0;
+// seat-shared: the motion recorder's playback (drives the one mock headset)
 double postElapsed = 0.0;
+// seat-shared: the motion recorder's playback (drives the one mock headset)
 size_t nextFrame = 0;
+// seat-shared: the motion recorder's playback (drives the one mock headset)
 size_t cur = 0;        // the frame this host frame plays
+// seat-shared: the motion recorder's playback (drives the one mock headset)
 int targetEnt = 0;     // the target's entity number (0: none)
+// seat-shared: the motion recorder's playback (drives the one mock headset)
 bool placed = false;   // the placement is worked out
+// seat-shared: the motion recorder's playback (drives the one mock headset)
 float delta = 0.f;     // the take's turn in this world (degrees): world yaw = recorded + delta
+// seat-shared: the motion recorder's playback (drives the one mock headset)
 glm::vec3 placeOrigin{0.f};
+// seat-shared: the motion recorder's playback (drives the one mock headset)
 glm::vec3 placeLean{0.f};
+// seat-shared: the motion recorder's playback (drives the one mock headset)
 glm::vec3 placeVelocity{0.f}; // the player's as the take starts (moving: a push, a step, the stick)
+// seat-shared: the motion recorder's playback (drives the one mock headset)
 bool placeRequest = false;
+// seat-shared: the motion recorder's playback (drives the one mock headset)
 bool launchRequest = false;
+// seat-shared: the motion recorder's playback (drives the one mock headset)
 bool equipRequest = false;
+// seat-shared: the motion recorder's playback (drives the one mock headset)
 double wallStart = 0.0;
+// seat-shared: the motion recorder's playback (drives the one mock headset)
 double playClock = 0.0; // the take's time played so far
+// seat-shared: the motion recorder's playback (drives the one mock headset)
 double xrOffset = 0.0;  // a take with xr_time: realtime less its first played frame's (the poses' times on our clock)
+// seat-shared: the motion recorder's playback (drives the one mock headset)
 za::Vector<Row> replayRows;
 } // namespace
 
@@ -997,7 +1022,9 @@ void equip(edict_t* player)
 // "strike" events (a wind-up, a blow and its damage, a miss; QC VR_Dummy_Replay) in the server frame that plays the
 // event's frame, after the player's, as when it was recorded. The dummy's own attacks (vr_dummy_attacks) are off
 // meanwhile (startPlayback): the same blows at the same moments, whatever its timer would do.
+// seat-shared: the motion recorder's playback (drives the one mock headset)
 size_t strikeNext = 0; // the next frame whose strikes are to be done
+// seat-shared: the motion recorder's playback (drives the one mock headset)
 int strikesDone = 0;
 
 void doStrikes(size_t upTo)

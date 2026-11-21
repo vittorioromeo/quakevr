@@ -1,6 +1,7 @@
 // vr_heldpose.cpp -- see vr_heldpose.hpp.
 
 #include "vr_heldpose.hpp"
+#include "vr_seat.hpp"
 #include "vr_moveguard.hpp"
 
 #include "vr_client.hpp"
@@ -156,16 +157,26 @@ struct Spot
     int index{-1};
 };
 
-struct State
+// A seat's client: what went up last, each hand's (phase 4b).
+struct Sent
 {
-    // Client: what went up last, each hand's.
     float sent[2][valueCount]{};
     bool wasSent[2]{};
     double nextSend[2]{};
     Spot spotSent[2];   // (B3f)
     double spotSeen[2]{}; // when each hand last had a spot (realtime)
     int magPending{0};  // the holster presses taken from magholster::poll, not sent yet
-    // Server: each slot's.
+};
+
+// splitscreen (SPLITSCREEN.md, phase 4b): the current seat's (seat::Part::HeldPose)
+[[nodiscard]] Sent& up()
+{
+    return seat::part<Sent>(seat::current(), seat::Part::HeldPose);
+}
+
+// The server's: each slot's.
+struct Slots
+{
     Hand slot[MAX_SCOREBOARD][2];
     bool slotHas[MAX_SCOREBOARD][2]{};
     Spot slotSpot[MAX_SCOREBOARD][2];
@@ -173,7 +184,7 @@ struct State
     Holsters slotHolsters[MAX_SCOREBOARD]; // (this game's own: publishOwn's)
     bool slotBot[MAX_SCOREBOARD]{};        // (bots3) the slot's hands placed by placeBots (a bot's)
 };
-State state;
+Slots slots; // seat-shared: the server's, each player slot's
 
 [[nodiscard]] int numOf(const edict_t* e)
 {
@@ -359,8 +370,8 @@ void heldPose_f()
             return;
         }
     }
-    state.slot[slot][hand] = decode(v);
-    state.slotHas[slot][hand] = true;
+    slots.slot[slot][hand] = decode(v);
+    slots.slotHas[slot][hand] = true;
 }
 
 // The client command's sender's slot, or -1 (not a client's, no server).
@@ -387,7 +398,7 @@ void grabSpot_f()
     {
         return;
     }
-    state.slotSpot[slot][hand] = Spot{entity, entity > 0 ? index : -1};
+    slots.slotSpot[slot][hand] = Spot{entity, entity > 0 ? index : -1};
 }
 
 // "vr_magpoll <bits>": a client's magnetic holster presses (magholster::poll's), kept until his QC asks.
@@ -396,7 +407,7 @@ void magPoll_f()
     const int slot = senderSlot();
     if(slot >= 0 && Cmd_Argc() == 2)
     {
-        state.slotMag[slot] |= Q_atoi(Cmd_Argv(1)) & 7;
+        slots.slotMag[slot] |= Q_atoi(Cmd_Argv(1)) & 7;
     }
 }
 
@@ -476,7 +487,7 @@ void mpDrawn_f()
             float cosine = 1.f;
             const int choice = nearest > 0 ? reverseGrip(player, hand, edictOf(nearest), cosine) : -1;
             const progs::HandFields& f = progs::handFields(hand);
-            printGround(state.slotSpot[slot][hand], nearest, choice, cosine, at,
+            printGround(slots.slotSpot[slot][hand], nearest, choice, cosine, at,
                 f.rot >= 0 ? progs::fieldVec(player, f.rot) : glm::vec3{0.f});
             // (the nearest weapon's speed: the harness waits for one let go to come to rest before reaching for it)
             const edict_t* n = nearest > 0 ? edictOf(nearest) : nullptr;
@@ -504,7 +515,7 @@ int grabSpot(edict_t* player, int hand, const edict_t* weapon)
     {
         return 0;
     }
-    const Spot& s = state.slotSpot[slot][hand];
+    const Spot& s = slots.slotSpot[slot][hand];
     if(vr_debug_carry.value >= 2.f)
     {
         Con_Printf("grabspot: player %d's %s hand, weapon %d: his client's spot %d %d\n", slot + 1, hand == 0 ? "off" : "main",
@@ -538,10 +549,10 @@ int reverseGrip(edict_t* player, int hand, const edict_t* weapon, float& cosine)
         return -1;
     }
     const entity_t ent = weaponEntity(weapon);
-    if(state.slotHas[slot][hand] && state.slot[slot][hand].placed)
+    if(slots.slotHas[slot][hand] && slots.slot[slot][hand].placed)
     {
         // The hand's own turn and vr_revgrip as the view measuring it had them this frame (this game's own player).
-        const Hand& h = state.slot[slot][hand];
+        const Hand& h = slots.slot[slot][hand];
         return view::reverseGripChoiceAt(ent, hand, h.gripRot, h.gripMayReverse, cosine);
     }
     if(!player)
@@ -564,8 +575,8 @@ int magPoll(const edict_t* player)
     {
         return 0;
     }
-    const int bits = state.slotMag[slot];
-    state.slotMag[slot] = 0;
+    const int bits = slots.slotMag[slot];
+    slots.slotMag[slot] = 0;
     if(bits && developer.value)
     {
         Con_Printf("magholster: player %d asked %d\n", slot + 1, bits);
@@ -576,7 +587,7 @@ int magPoll(const edict_t* player)
 const Hand* slotHand(const edict_t* player, int hand)
 {
     const int slot = playerSlot(player);
-    return slot >= 0 && (hand == 0 || hand == 1) && state.slotHas[slot][hand] ? &state.slot[slot][hand] : nullptr;
+    return slot >= 0 && (hand == 0 || hand == 1) && slots.slotHas[slot][hand] ? &slots.slot[slot][hand] : nullptr;
 }
 
 void publishOwn()
@@ -588,11 +599,11 @@ void publishOwn()
     }
     for(int hand = 0; hand < 2; hand++)
     {
-        state.slotHas[own][hand] = cls.state == ca_connected;
-        state.slotSpot[own][hand] = Spot{};
-        if(!state.slotHas[own][hand])
+        slots.slotHas[own][hand] = cls.state == ca_connected;
+        slots.slotSpot[own][hand] = Spot{};
+        if(!slots.slotHas[own][hand])
         {
-            state.slot[own][hand] = Hand{};
+            slots.slot[own][hand] = Hand{};
             continue;
         }
         Hand h = measure(hand);
@@ -620,18 +631,18 @@ void publishOwn()
         {
             hands::angleVectors(rot, h.handForward, right, h.handUp);
         }
-        state.slot[own][hand] = h;
+        slots.slot[own][hand] = h;
         if(vr_weapon_grab_hotspots.value || vr_weapon_grab_anywhere.value)
         {
-            twohand::groundSpotNow(hand, state.slotSpot[own][hand].entity, state.slotSpot[own][hand].index);
+            twohand::groundSpotNow(hand, slots.slotSpot[own][hand].entity, slots.slotSpot[own][hand].index);
         }
     }
     if(cls.state == ca_connected)
     {
-        state.slotMag[own] |= magholster::poll();
+        slots.slotMag[own] |= magholster::poll();
     }
     // Its holsters where its body has them now (QC holsterpos).
-    Holsters& hs = state.slotHolsters[own];
+    Holsters& hs = slots.slotHolsters[own];
     hs = Holsters{};
     hs.placed = cls.state == ca_connected;
     hs.valid = hs.placed && hands::current().valid;
@@ -653,16 +664,16 @@ void placeBots()
         edict_t* const bot = server::isBot(slot) ? edictOf(slot + 1) : nullptr;
         if(!bot)
         {
-            if(state.slotBot[slot])
+            if(slots.slotBot[slot])
             {
                 // (the bot gone: its slot's hands forgotten, a client coming into it sends his own)
-                state.slotBot[slot] = false;
-                state.slotHas[slot][0] = state.slotHas[slot][1] = false;
-                state.slot[slot][0] = state.slot[slot][1] = Hand{};
+                slots.slotBot[slot] = false;
+                slots.slotHas[slot][0] = slots.slotHas[slot][1] = false;
+                slots.slot[slot][0] = slots.slot[slot][1] = Hand{};
             }
             continue;
         }
-        state.slotBot[slot] = true;
+        slots.slotBot[slot] = true;
         for(int hand = 0; hand < 2; hand++)
         {
             // Its weapon as every client draws it (server::botHeld: view::placeHeld at its controller), in the hand's frame
@@ -697,8 +708,8 @@ void placeBots()
                     h.spotShare[i] = p.spotShare[i];
                 }
             }
-            state.slot[slot][hand] = h;
-            state.slotHas[slot][hand] = true;
+            slots.slot[slot][hand] = h;
+            slots.slotHas[slot][hand] = true;
         }
     }
 }
@@ -706,9 +717,9 @@ void placeBots()
 bool holsterPoint(edict_t* player, int slot, glm::vec3& out)
 {
     const int s = playerSlot(player);
-    if(s >= 0 && s < MAX_SCOREBOARD && state.slotHolsters[s].placed)
+    if(s >= 0 && s < MAX_SCOREBOARD && slots.slotHolsters[s].placed)
     {
-        const Holsters& hs = state.slotHolsters[s];
+        const Holsters& hs = slots.slotHolsters[s];
         if(!hs.valid || slot < 0 || slot >= body::HolsterCount)
         {
             return false;
@@ -744,16 +755,16 @@ void send()
     const double now = realtime;
     for(int hand = 0; hand < 2; hand++)
     {
-        if(now < state.nextSend[hand])
+        if(now < up().nextSend[hand])
         {
             continue;
         }
         float v[valueCount];
         encode(measure(hand), v);
-        bool moved = !state.wasSent[hand];
+        bool moved = !up().wasSent[hand];
         for(int i = 0; i < valueCount && !moved; i++)
         {
-            moved = za::abs(v[i] - state.sent[hand][i]) > (i < 3 || i == 16 || i == 22 || i == 28 || i == 34 || i == 58 || i == 62 || i == 65 ? 0.f : step);
+            moved = za::abs(v[i] - up().sent[hand][i]) > (i < 3 || i == 16 || i == 22 || i == 28 || i == 34 || i == 58 || i == 62 || i == 65 ? 0.f : step);
         }
         if(!moved)
         {
@@ -771,9 +782,9 @@ void send()
         }
         MSG_WriteByte(&cls.message, clc_stringcmd);
         MSG_WriteString(&cls.message, text);
-        memcpy(state.sent[hand], v, sizeof(v));
-        state.wasSent[hand] = true;
-        state.nextSend[hand] = now + static_cast<double>(za::max(vr_net_avatarcal_interval.value, 0.f));
+        memcpy(up().sent[hand], v, sizeof(v));
+        up().wasSent[hand] = true;
+        up().nextSend[hand] = now + static_cast<double>(za::max(vr_net_avatarcal_interval.value, 0.f));
     }
     // B3f: the ground spot of each empty hand when it changed, the holster presses when there are some (only with room in
     // the reliable buffer: else the next frame).
@@ -783,13 +794,13 @@ void send()
         twohand::groundSpotNow(hand, now.entity, now.index);
         if(now.entity > 0)
         {
-            state.spotSeen[hand] = realtime;
+            up().spotSeen[hand] = realtime;
         }
         // A spot lost is sent a moment late (spotHold): the hand closing on the weapon leaves the spot as its move goes up,
         // and the server's touch in that move must still find it (this game's own server reads the view's spot of the
         // frame before: twohand::groundSpot).
-        if((now.entity == state.spotSent[hand].entity && now.index == state.spotSent[hand].index) ||
-            (now.entity == 0 && realtime - state.spotSeen[hand] < spotHold))
+        if((now.entity == up().spotSent[hand].entity && now.index == up().spotSent[hand].index) ||
+            (now.entity == 0 && realtime - up().spotSeen[hand] < spotHold))
         {
             continue;
         }
@@ -801,39 +812,39 @@ void send()
         }
         MSG_WriteByte(&cls.message, clc_stringcmd);
         MSG_WriteString(&cls.message, text);
-        state.spotSent[hand] = now;
+        up().spotSent[hand] = now;
     }
-    state.magPending |= magholster::poll();
-    if(state.magPending)
+    up().magPending |= magholster::poll();
+    if(up().magPending)
     {
         char text[32];
-        const int n = q_snprintf(text, sizeof(text), "vr_magpoll %d", state.magPending);
+        const int n = q_snprintf(text, sizeof(text), "vr_magpoll %d", up().magPending);
         if(n > 0 && qvr::client::roomForCommand(n))
         {
             MSG_WriteByte(&cls.message, clc_stringcmd);
             MSG_WriteString(&cls.message, text);
-            state.magPending = 0;
+            up().magPending = 0;
         }
     }
 }
 
 void clientClear()
 {
-    state.wasSent[0] = state.wasSent[1] = false;
-    state.nextSend[0] = state.nextSend[1] = 0.0;
-    state.spotSent[0] = state.spotSent[1] = Spot{};
-    state.magPending = 0;
+    up().wasSent[0] = up().wasSent[1] = false;
+    up().nextSend[0] = up().nextSend[1] = 0.0;
+    up().spotSent[0] = up().spotSent[1] = Spot{};
+    up().magPending = 0;
 }
 
 void serverReset(int slot)
 {
     if(slot >= 0 && slot < MAX_SCOREBOARD)
     {
-        state.slotHas[slot][0] = state.slotHas[slot][1] = false;
-        state.slot[slot][0] = state.slot[slot][1] = Hand{};
-        state.slotSpot[slot][0] = state.slotSpot[slot][1] = Spot{};
-        state.slotMag[slot] = 0;
-        state.slotHolsters[slot] = Holsters{};
+        slots.slotHas[slot][0] = slots.slotHas[slot][1] = false;
+        slots.slot[slot][0] = slots.slot[slot][1] = Hand{};
+        slots.slotSpot[slot][0] = slots.slotSpot[slot][1] = Spot{};
+        slots.slotMag[slot] = 0;
+        slots.slotHolsters[slot] = Holsters{};
         if(slot == clientprefs::ownSlot())
         {
             publishOwn(); // (this game's own: at once, as clientprefs::publishOwn)

@@ -18,6 +18,7 @@
 // name), vr_toolgun_panel_dump (the widgets, where the laser is).
 
 #include "vr_toolgun.hpp"
+#include "vr_seat.hpp"
 
 #include "vr_agpose_shared.h"
 #include "vr_backend.hpp"
@@ -141,7 +142,11 @@ struct PanelState
     gfx::RenderTarget target;
     za::InPlaceVector<Spot, 96> spots;
 };
-PanelState ps;
+// splitscreen (SPLITSCREEN.md, phase 4b): the current seat's (seat::Part::ToolgunPanel)
+[[nodiscard]] PanelState& ps()
+{
+    return seat::part<PanelState>(seat::current(), seat::Part::ToolgunPanel);
+}
 
 enum class Mode
 {
@@ -199,7 +204,7 @@ struct Ui
     if(hand >= 0 && flatplay::active())
     {
         // Flatscreen play: the panel is a screen overlay (drawFlat), the desktop mouse's cursor its pointer (flatMouse).
-        cursor = ps.mock ? ps.mockSpot : ps.flatCursor;
+        cursor = ps().mock ? ps().mockSpot : ps().flatCursor;
         point = glm::vec3{0.f};
         return true;
     }
@@ -207,9 +212,9 @@ struct Ui
     {
         return false;
     }
-    if(ps.mock)
+    if(ps().mock)
     {
-        cursor = ps.mockSpot;
+        cursor = ps().mockSpot;
         point = corner + xAxis * (cursor.x / panelWidth) + yAxis * (1.f - cursor.y / panelHeight);
         return true;
     }
@@ -422,14 +427,14 @@ void tile(const Rect& r, bool chosen, bool hover)
 
 [[nodiscard]] bool hovering(const Rect& r)
 {
-    return ps.hit && r.contains(ps.cursor) && (!ps.drop.name[0] || ps.overlayNow); // (under an open list: nothing)
+    return ps().hit && r.contains(ps().cursor) && (!ps().drop.name[0] || ps().overlayNow); // (under an open list: nothing)
 }
 
 // The widget's interaction: lit under the laser; in the input pass, true when a press landed on it (taken).
 bool interact(Ui& ui, const Rect& r, const char* name, int& id, bool enabled = true) // AD support
 {
     id = ui.counter++;
-    enabled = enabled && (!ui.modal || ps.overlayNow); // (a dropdown's list open: only its own)
+    enabled = enabled && (!ui.modal || ps().overlayNow); // (a dropdown's list open: only its own)
     const bool over = enabled && hovering(r); // AD support
     if(ui.mode != Mode::Input)
     {
@@ -439,16 +444,16 @@ bool interact(Ui& ui, const Rect& r, const char* name, int& id, bool enabled = t
     {
         ui.hovered = id;
     }
-    if(ps.spots.size() < ps.spots.capacity())
+    if(ps().spots.size() < ps().spots.capacity())
     {
-        Spot& spot = ps.spots.emplaceBack();
+        Spot& spot = ps().spots.emplaceBack();
         q_strlcpy(spot.name, name, sizeof(spot.name));
         spot.r = r;
     }
-    if(over && ps.pressed)
+    if(over && ps().pressed)
     {
-        ps.pressed = false;
-        ps.dragging = id;
+        ps().pressed = false;
+        ps().dragging = id;
         qvr::menuui::uiSound(qvr::menuui::UiSound::Adjust);
         haptics::pulse(laserHand(), 0.015f, 0.3f, 200.f);
         return true;
@@ -520,9 +525,9 @@ void sliderRow(Ui& ui, const Rect& r, const char* label, cvar_t& cvar, float min
     const float x = r.x0 + 92.f; // the slider's 10 cells from here (its thumb x + 4 .. x + 76)
     int id = 0;
     (void)interact(ui, Rect{x - 4.f, r.y0, x + 84.f, r.y1}, label, id);
-    if(ui.mode == Mode::Input && ps.held && ps.dragging == id && ps.hit)
+    if(ui.mode == Mode::Input && ps().held && ps().dragging == id && ps().hit)
     {
-        const float t = za::clamp((ps.cursor.x - (x + 4.f)) / 72.f, 0.f, 1.f);
+        const float t = za::clamp((ps().cursor.x - (x + 4.f)) / 72.f, 0.f, 1.f);
         const float v = za::clamp(min + za::round((max - min) * t / step) * step, min, max);
         if(v != cvar.value)
         {
@@ -549,8 +554,8 @@ constexpr float listPitch = 13.f; // a row's height and the gap under it
 
 void closeList()
 {
-    ps.drop.name[0] = '\0';
-    ps.drop.seen = false;
+    ps().drop.name[0] = '\0';
+    ps().drop.seen = false;
 }
 
 // A dropdown (a list picker; any page may use one): its label on the left, the choice's name in a box with a chevron;
@@ -560,7 +565,7 @@ void closeList()
 // `enabled` false: shown dimmed, not opened.
 int dropdown(Ui& ui, const Rect& r, const char* label, const char* const* labels, int n, int chosen, bool enabled = true)
 {
-    DropList& d = ps.drop;
+    DropList& d = ps().drop;
     int picked = -1;
     if(d.picked >= 0 && !strcmp(d.pickedFor, label))
     {
@@ -612,7 +617,7 @@ int dropdown(Ui& ui, const Rect& r, const char* label, const char* const* labels
 // label and Close, its rows (the chosen one lit), its pages. A click off it closes it.
 void listOverlay(Ui& ui)
 {
-    DropList& d = ps.drop;
+    DropList& d = ps().drop;
     if(!d.name[0])
     {
         return;
@@ -625,7 +630,7 @@ void listOverlay(Ui& ui)
         }
         return;
     }
-    ps.overlayNow = true;
+    ps().overlayNow = true;
     const Rect area{pad, 44.f, panelWidth - pad, panelHeight - pad};
     if(ui.mode == Mode::Draw)
     {
@@ -657,8 +662,8 @@ void listOverlay(Ui& ui)
         const Rect rr{area.x0 + 4.f + col * (cw + 4.f), y, area.x0 + 4.f + col * (cw + 4.f) + cw, y + listPitch - 1.f};
         if(button(ui, rr, labels[i], i == chosen, 6.f))
         {
-            ps.drop.picked = i;
-            q_strlcpy(ps.drop.pickedFor, name, sizeof(ps.drop.pickedFor));
+            ps().drop.picked = i;
+            q_strlcpy(ps().drop.pickedFor, name, sizeof(ps().drop.pickedFor));
             done = true;
         }
     }
@@ -680,16 +685,16 @@ void listOverlay(Ui& ui)
             textFit(area.x0 + 38.f, (y0 + y1) * 0.5f - 3.f, 28.f, 6.f, t, false);
         }
     }
-    if(ui.mode == Mode::Input && ps.pressed)
+    if(ui.mode == Mode::Input && ps().pressed)
     {
-        ps.pressed = false; // (a click off its rows: it closes, nothing under it clicked)
+        ps().pressed = false; // (a click off its rows: it closes, nothing under it clicked)
         done = true;
     }
     if(done && ui.mode == Mode::Input)
     {
         closeList();
     }
-    ps.overlayNow = false;
+    ps().overlayNow = false;
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -705,17 +710,17 @@ void toolRow(Ui& ui)
         const Rect r{pad + t * (w + gap), pad, pad + t * (w + gap) + w, pad + 30.f};
         const bool more = t == static_cast<int>(Tool::Count);
         const char* name = more ? "More" : toolgun::toolName(t);
-        const bool chosen = more ? ps.more : !ps.more && static_cast<int>(currentTool()) == t;
+        const bool chosen = more ? ps().more : !ps().more && static_cast<int>(currentTool()) == t;
         int id = 0;
         if(interact(ui, r, name, id))
         {
             if(more)
             {
-                ps.more = !ps.more;
+                ps().more = !ps().more;
             }
             else
             {
-                ps.more = false;
+                ps().more = false;
                 toolgun::setTool(t);
             }
         }
@@ -737,7 +742,7 @@ void infoLine(Ui& ui)
         return;
     }
     char line[96];
-    q_strlcpy(line, ps.more ? "Cheats and the panel" : toolgun::stateLine(), sizeof(line));
+    q_strlcpy(line, ps().more ? "Cheats and the panel" : toolgun::stateLine(), sizeof(line));
     if(char* nl = strchr(line, '\n'))
     {
         *nl = '\0';
@@ -754,9 +759,9 @@ bool thumbTile(Ui& ui, const Rect& r, int entry)
     int id = 0;
     const bool available = toolgun::spawnableAvailable(entry); // AD support
     const bool clicked = interact(ui, r, name, id, available); // AD support
-    if(!available && ui.mode == Mode::Input && ps.pressed && (!ui.modal || ps.overlayNow) && hovering(r))
+    if(!available && ui.mode == Mode::Input && ps().pressed && (!ui.modal || ps().overlayNow) && hovering(r))
     {
-        ps.pressed = false; // (a greyed tile pressed: why, in the console and its log)
+        ps().pressed = false; // (a greyed tile pressed: why, in the console and its log)
         Con_Printf("toolgun: %s unavailable: %s\n", toolgun::spawnableName(entry), toolgun::spawnableUnavailableWhy(entry));
     }
     if(ui.mode == Mode::Draw)
@@ -826,23 +831,24 @@ struct SpawnGrid
     za::InPlaceVector<int, maxEntries> entries; // spawnable index, -1: an empty cell
     za::InPlaceVector<int, maxPacks> groupPages; // each group's first page (">>": the next group's)
 };
+// seat-shared: built from the catalogue where drawn (a cache)
 SpawnGrid spawnGridMade;
 
 const SpawnGrid& spawnGrid(int perPage)
 {
     SpawnGrid& g = spawnGridMade;
-    if(g.section == ps.section && g.count == toolgun::spawnableCount() && g.perPage == perPage &&
+    if(g.section == ps().section && g.count == toolgun::spawnableCount() && g.perPage == perPage &&
         g.tiles == vr_toolgun_armed_tiles.value)
     {
         return g;
     }
-    g.section = ps.section;
+    g.section = ps().section;
     g.count = toolgun::spawnableCount();
     g.tiles = vr_toolgun_armed_tiles.value;
     g.perPage = perPage;
     g.entries.clear();
     g.groupPages.clear();
-    const auto inSection = [](int i) { return !strcmp(toolgun::spawnableSection(i), sections[ps.section]) && !armedPackHidden(i); };
+    const auto inSection = [](int i) { return !strcmp(toolgun::spawnableSection(i), sections[ps().section]) && !armedPackHidden(i); };
     za::InPlaceVector<const char*, maxPacks> packs;
     packs.pushBack("");
     for(int i = 0; i < toolgun::spawnableCount(); i++)
@@ -883,7 +889,7 @@ const SpawnGrid& spawnGrid(int perPage)
                 entries.pushBack(i);
             }
         }
-        if(k == 0 && ps.section == 0 && entries.size() < entries.capacity())
+        if(k == 0 && ps().section == 0 && entries.size() < entries.capacity())
         {
             entries.pushBack(armedEntry); // (Monsters: after id's and Quake VR's own, the Armed Humanoid page's tile)
         }
@@ -963,6 +969,7 @@ struct ArmedLists
     za::InPlaceVector<int, armedListMax> leftCode;
     za::InPlaceVector<const char*, 16> infected; // None, what it may rise as
 };
+// seat-shared: built from the catalogue where drawn (a cache)
 ArmedLists armedLists;
 
 const ArmedLists& armedListsFor(int kind, int code)
@@ -1086,7 +1093,7 @@ void armedPage(Ui& ui)
         {
             Cvar_SetValueQuick(&vr_toolgun_armed_infected, static_cast<float>(inf));
         }
-        if(ui.mode == Mode::Draw && !ps.drop.name[0]) // (none under an open list: the pictures are drawn after it)
+        if(ui.mode == Mode::Draw && !ps().drop.name[0]) // (none under an open list: the pictures are drawn after it)
         {
             // The pictures: the kind, its right hand's, its left hand's; a word on what it will do.
             const float y0 = 134.f, y1 = 172.f, w = 50.f;
@@ -1132,7 +1139,7 @@ void armedPage(Ui& ui)
     const Rect bar{pad, 175.f, panelWidth - pad, 189.f};
     if(button(ui, Rect{bar.x0, bar.y0, bar.x0 + 36.f, bar.y1}, "Back", false, 6.f))
     {
-        ps.armed = false;
+        ps().armed = false;
     }
     if(button(ui, Rect{bar.x0 + 40.f, bar.y0, bar.x0 + 80.f, bar.y1}, "Choose", toolgun::armed::chosen(), 6.f))
     {
@@ -1149,13 +1156,13 @@ void spawnPage(Ui& ui)
     for(int i = 0; i < sectionCount; i++)
     {
         const Rect r{pad + i * (tw + gap), 47.f, pad + i * (tw + gap) + tw, 60.f};
-        if(button(ui, r, sections[i], ps.section == i, 6.f))
+        if(button(ui, r, sections[i], ps().section == i, 6.f))
         {
-            ps.section = i;
-            ps.armed = false;
+            ps().section = i;
+            ps().armed = false;
         }
     }
-    if(ps.armed && ps.section == 0)
+    if(ps().armed && ps().section == 0)
     {
         armedPage(ui);
         return;
@@ -1168,7 +1175,7 @@ void spawnPage(Ui& ui)
     const za::InPlaceVector<int, maxEntries>& entries = grid.entries;
     const za::InPlaceVector<int, maxPacks>& groupPages = grid.groupPages;
     const int pages = za::max(1, (static_cast<int>(entries.size()) + perPage - 1) / perPage);
-    int& page = ps.gridPage[ps.section];
+    int& page = ps().gridPage[ps().section];
     page = za::clamp(page, 0, pages - 1);
     const float cw = (panelWidth - pad * 2.f - gap * (gridColumns - 1)) / gridColumns;
     const float ch = 52.f;
@@ -1189,7 +1196,7 @@ void spawnPage(Ui& ui)
         {
             if(armedTile(ui, r))
             {
-                ps.armed = true;
+                ps().armed = true;
                 toolgun::armed::choose(); // (its choice the spawn tool's at once: the ghost shows it)
             }
             continue;
@@ -1382,7 +1389,7 @@ void brushPage(Ui& ui)
     constexpr int columns = 6, rows = 2, perPage = columns * rows;
     const int count = brushes::textureCount();
     const int pages = za::max(1, (count + perPage - 1) / perPage);
-    int& page = ps.texturePage;
+    int& page = ps().texturePage;
     page = za::clamp(page, 0, pages - 1);
     const float tw = (panelWidth - pad * 2.f - gap * (columns - 1)) / columns, th = 39.f;
     const char* chosen = brushes::currentTexture();
@@ -1491,11 +1498,11 @@ void layout(Ui& ui)
         fill(Rect{0.f, 0.f, panelWidth, panelHeight}, colors::boxBorder);
         fill(Rect{1.f, 1.f, panelWidth - 1.f, panelHeight - 1.f}, glm::vec4{0.07f, 0.055f, 0.04f, 1.f});
     }
-    ui.modal = ps.drop.name[0] != '\0';
-    ps.drop.seen = false;
+    ui.modal = ps().drop.name[0] != '\0';
+    ps().drop.seen = false;
     toolRow(ui);
     infoLine(ui);
-    if(ps.more)
+    if(ps().more)
     {
         morePage(ui);
     }
@@ -1516,7 +1523,7 @@ void layout(Ui& ui)
     if(ui.mode == Mode::Draw && flatplay::active())
     {
         // Flatscreen play's mouse cursor (the headset has the laser): an arrow's outline, dark edged, its tip the spot.
-        const glm::vec2 c = ps.mock ? ps.mockSpot : ps.flatCursor;
+        const glm::vec2 c = ps().mock ? ps().mockSpot : ps().flatCursor;
         const glm::vec4 dark{0.f, 0.f, 0.f, 1.f}, light{1.f, 0.95f, 0.8f, 1.f};
         for(int pass = 0; pass < 2; pass++)
         {
@@ -1542,24 +1549,24 @@ void mockLaser_f()
 {
     if(Cmd_Argc() == 2 && !q_strcasecmp(Cmd_Argv(1), "off"))
     {
-        ps.mock = false;
+        ps().mock = false;
         return;
     }
     if(Cmd_Argc() == 3 && (Cmd_Argv(1)[0] == '-' || (Cmd_Argv(1)[0] >= '0' && Cmd_Argv(1)[0] <= '9')))
     {
-        ps.mock = true;
-        ps.mockSpot = glm::vec2{Q_atof(Cmd_Argv(1)), Q_atof(Cmd_Argv(2))};
+        ps().mock = true;
+        ps().mockSpot = glm::vec2{Q_atof(Cmd_Argv(1)), Q_atof(Cmd_Argv(2))};
         return;
     }
     if(Cmd_Argc() >= 2)
     {
         const char* name = Cmd_Args();
-        for(const Spot& spot : ps.spots)
+        for(const Spot& spot : ps().spots)
         {
             if(!q_strcasecmp(spot.name, name))
             {
-                ps.mock = true;
-                ps.mockSpot = glm::vec2{spot.r.cx(), spot.r.cy()};
+                ps().mock = true;
+                ps().mockSpot = glm::vec2{spot.r.cx(), spot.r.cy()};
                 return;
             }
         }
@@ -1572,12 +1579,12 @@ void mockLaser_f()
 // vr_toolgun_panel_dump: the panel's state and its widgets as the last input pass laid them out.
 void dump_f()
 {
-    Con_Printf("toolgun panel: %s, %s, laser %s at %.0f %.0f (widget %d), held %d\n", ps.open ? "open" : "closed",
-        toolgun::panel::shown() ? "shown" : "hidden", ps.hit ? "on it" : "off it", ps.cursor.x, ps.cursor.y, ps.hovered,
-        ps.held ? 1 : 0);
-    for(int i = 0; i < static_cast<int>(ps.spots.size()); i++)
+    Con_Printf("toolgun panel: %s, %s, laser %s at %.0f %.0f (widget %d), held %d\n", ps().open ? "open" : "closed",
+        toolgun::panel::shown() ? "shown" : "hidden", ps().hit ? "on it" : "off it", ps().cursor.x, ps().cursor.y, ps().hovered,
+        ps().held ? 1 : 0);
+    for(int i = 0; i < static_cast<int>(ps().spots.size()); i++)
     {
-        const Spot& s = ps.spots[i];
+        const Spot& s = ps().spots[i];
         Con_Printf("  %d \"%s\" %.0f %.0f %.0f %.0f\n", i, s.name, s.r.x0, s.r.y0, s.r.x1, s.r.y1);
     }
 }
@@ -1598,7 +1605,7 @@ void flatMouseMove_f()
             return;
         }
         const Spot* found = nullptr;
-        for(const Spot& spot : ps.spots)
+        for(const Spot& spot : ps().spots)
         {
             if(!q_strcasecmp(spot.name, name))
             {
@@ -1610,9 +1617,9 @@ void flatMouseMove_f()
             Con_Printf("vr_flat_mouse_move: no \"%s\" on the panel\n", name);
             return;
         }
-        const float k = za::max(ps.flatScale, 0.1f) / za::max(vr_flat_toolgun_cursor_speed.value, 0.01f);
-        dx = static_cast<int>(za::round((found->r.cx() - ps.flatCursor.x) * k));
-        dy = static_cast<int>(za::round((found->r.cy() - ps.flatCursor.y) * k));
+        const float k = za::max(ps().flatScale, 0.1f) / za::max(vr_flat_toolgun_cursor_speed.value, 0.01f);
+        dx = static_cast<int>(za::round((found->r.cx() - ps().flatCursor.x) * k));
+        dy = static_cast<int>(za::round((found->r.cy() - ps().flatCursor.y) * k));
     }
     else if(Cmd_Argc() == 3)
     {
@@ -1625,8 +1632,8 @@ void flatMouseMove_f()
         return;
     }
     const int taken = VR_FlatToolgunMouse(dx, dy);
-    Con_Printf("vr_flat_mouse_move: %d %d, %s, cursor %.0f %.0f\n", dx, dy, taken ? "taken" : "the view's", ps.flatCursor.x,
-        ps.flatCursor.y);
+    Con_Printf("vr_flat_mouse_move: %d %d, %s, cursor %.0f %.0f\n", dx, dy, taken ? "taken" : "the view's", ps().flatCursor.x,
+        ps().flatCursor.y);
 }
 
 void icons_f()
@@ -1641,12 +1648,12 @@ namespace qvr::toolgun::panel
 
 bool shown()
 {
-    return ps.open && heldHand() >= 0 && key_dest == key_game && !cl.intermission;
+    return ps().open && heldHand() >= 0 && key_dest == key_game && !cl.intermission;
 }
 
 void toggle()
 {
-    if(ps.open)
+    if(ps().open)
     {
         close();
         return;
@@ -1655,38 +1662,38 @@ void toggle()
     {
         return;
     }
-    ps.open = true;
+    ps().open = true;
     Con_Printf("toolgun: panel open\n");
 }
 
 void close()
 {
-    if(ps.open)
+    if(ps().open)
     {
         Con_Printf("toolgun: panel closed\n");
     }
-    ps.open = false;
+    ps().open = false;
     closeList();
-    ps.held = ps.pressed = false;
-    ps.dragging = -1;
-    ps.hit = false;
+    ps().held = ps().pressed = false;
+    ps().dragging = -1;
+    ps().hit = false;
 }
 
 bool trigger(int hand, bool down)
 {
     if(!down)
     {
-        const bool was = ps.held;
-        ps.held = false;
-        ps.dragging = -1;
+        const bool was = ps().held;
+        ps().held = false;
+        ps().dragging = -1;
         return was;
     }
-    if(!shown() || hand != laserHand() || !ps.hit)
+    if(!shown() || hand != laserHand() || !ps().hit)
     {
         return false;
     }
-    ps.held = true;
-    ps.pressed = true;
+    ps().held = true;
+    ps().pressed = true;
     return true;
 }
 
@@ -1698,31 +1705,31 @@ void frame(const hands::State& s)
         return;
     }
     const int tool = static_cast<int>(currentTool());
-    if(tool != ps.shownTool)
+    if(tool != ps().shownTool)
     {
-        if(ps.shownTool >= 0)
+        if(ps().shownTool >= 0)
         {
-            ps.more = false;
+            ps().more = false;
         }
-        ps.shownTool = tool;
+        ps().shownTool = tool;
     }
     if(!shown())
     {
-        ps.hit = false;
+        ps().hit = false;
         return;
     }
     toolgun::armed::refresh(); // (the Armed Humanoid page's lists: asked of QC once a map)
     glm::vec3 point;
-    ps.hit = laserHit(s, point, ps.cursor);
+    ps().hit = laserHit(s, point, ps().cursor);
     Ui ui{Mode::Input};
-    ps.spots.clear();
+    ps().spots.clear();
     layout(ui);
-    ps.pressed = false; // (a press off every widget: nothing)
-    if(ui.hovered != ps.hovered && ui.hovered >= 0)
+    ps().pressed = false; // (a press off every widget: nothing)
+    if(ui.hovered != ps().hovered && ui.hovered >= 0)
     {
         haptics::pulse(laserHand(), 0.01f, 0.12f, 200.f); // a tick on each widget the laser comes onto
     }
-    ps.hovered = ui.hovered;
+    ps().hovered = ui.hovered;
 }
 
 void render()
@@ -1732,13 +1739,13 @@ void render()
         return;
     }
     toolgun::icons::makePending(2);
-    if(!ps.target.ensure(static_cast<int>(panelWidth) * texelsPerPixel, static_cast<int>(panelHeight) * texelsPerPixel,
+    if(!ps().target.ensure(static_cast<int>(panelWidth) * texelsPerPixel, static_cast<int>(panelHeight) * texelsPerPixel,
            gfx::RenderTargetFormat{.mipmaps = true, .fboName = "vr canvas"}, "toolgun panel"))
     {
         Con_Warning("VR: the toolgun panel's framebuffer is incomplete\n");
         return;
     }
-    gfx::begin2D(ps.target, static_cast<int>(panelWidth), static_cast<int>(panelHeight));
+    gfx::begin2D(ps().target, static_cast<int>(panelWidth), static_cast<int>(panelHeight));
     Ui ui{Mode::Draw};
     layout(ui);
     gfx::end2D();
@@ -1747,7 +1754,7 @@ void render()
 void drawInEye(const hands::State& s)
 {
     glm::vec3 corner, xAxis, yAxis;
-    if(!shown() || qvr::renderdoc::hidingPanel() || !ps.target.tex || !s.valid || !quadOf(s, corner, xAxis, yAxis))
+    if(!shown() || qvr::renderdoc::hidingPanel() || !ps().target.tex || !s.valid || !quadOf(s, corner, xAxis, yAxis))
     {
         return;
     }
@@ -1756,7 +1763,7 @@ void drawInEye(const hands::State& s)
         {corner + xAxis + yAxis, {1.f, 1.f}, white}, {corner + yAxis, {0.f, 1.f}, white}};
     const gfx::Vertex quad[6] = {c[0], c[1], c[2], c[0], c[2], c[3]};
     gfx::draw(quad, gfx::sceneViewProjection(),
-        {.shade = gfx::Shade::Texture, .blend = gfx::Blend::Opaque, .depthTest = false, .depthWrite = false}, ps.target.tex);
+        {.shade = gfx::Shade::Texture, .blend = gfx::Blend::Opaque, .depthTest = false, .depthWrite = false}, ps().target.tex);
 
     // The laser, thin: from the other hand to where it meets the panel (a short stub when it doesn't).
     glm::vec3 origin, fwd, r, u, point;
@@ -1767,7 +1774,7 @@ void drawInEye(const hands::State& s)
         return;
     }
     const bool on = laserHit(s, point, cursor);
-    menuui::drawLaser(origin, on ? point : origin + fwd * 8.f, on, ps.held, za::clamp(vr_toolgun_laser_size.value, 0.05f, 2.f));
+    menuui::drawLaser(origin, on ? point : origin + fwd * 8.f, on, ps().held, za::clamp(vr_toolgun_laser_size.value, 0.05f, 2.f));
 }
 
 bool flatShown()
@@ -1782,9 +1789,9 @@ bool flatMouse(int dx, int dy)
         return false;
     }
     // vr_flat_toolgun_cursor_speed 1: the cursor keeps up with the desktop's pointer (a count a window pixel).
-    const float k = za::max(vr_flat_toolgun_cursor_speed.value, 0.f) / za::max(ps.flatScale, 0.1f);
-    ps.flatCursor.x = za::clamp(ps.flatCursor.x + static_cast<float>(dx) * k, 0.f, panelWidth - 1.f);
-    ps.flatCursor.y = za::clamp(ps.flatCursor.y + static_cast<float>(dy) * k, 0.f, panelHeight - 1.f);
+    const float k = za::max(vr_flat_toolgun_cursor_speed.value, 0.f) / za::max(ps().flatScale, 0.1f);
+    ps().flatCursor.x = za::clamp(ps().flatCursor.x + static_cast<float>(dx) * k, 0.f, panelWidth - 1.f);
+    ps().flatCursor.y = za::clamp(ps().flatCursor.y + static_cast<float>(dy) * k, 0.f, panelHeight - 1.f);
     return true;
 }
 
@@ -1800,7 +1807,7 @@ void drawFlat()
         return;
     }
     render();
-    if(!ps.target.tex || vid.width <= 0 || vid.height <= 0)
+    if(!ps().target.tex || vid.width <= 0 || vid.height <= 0)
     {
         return;
     }
@@ -1814,7 +1821,7 @@ void drawFlat()
         w = W * 0.98f;
         h = w * panelHeight / panelWidth;
     }
-    ps.flatScale = h / panelHeight;
+    ps().flatScale = h / panelHeight;
     const float cx = za::clamp(vr_flat_toolgun_panel_x.value, 0.f, 1.f) * W, cy = za::clamp(vr_flat_toolgun_panel_y.value, 0.f, 1.f) * H;
     const float x0 = za::clamp(cx - w * 0.5f, 0.f, W - w), y0 = za::clamp(cy - h * 0.5f, 0.f, H - h); // (its top left, pixels down)
     const auto ndc = [W, H](float x, float y) { return glm::vec3{x / W * 2.f - 1.f, 1.f - y / H * 2.f, 0.f}; };
@@ -1823,7 +1830,7 @@ void drawFlat()
         {ndc(x0 + w, y0), {1.f, 1.f}, white}, {ndc(x0, y0), {0.f, 1.f}, white}};
     const gfx::Vertex quad[6] = {c[0], c[1], c[2], c[0], c[2], c[3]};
     gfx::draw(quad, glm::mat4{1.f}, {.shade = gfx::Shade::Texture, .blend = gfx::Blend::Opaque, .depthTest = false, .depthWrite = false},
-        ps.target.tex);
+        ps().target.tex);
 }
 
 void registerCommands()

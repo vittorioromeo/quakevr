@@ -4,6 +4,7 @@
 // in the tool's colour, see-through faces, the size written over it), the brush's model is made once.
 
 #include "vr_toolgun_brush.hpp"
+#include "vr_seat.hpp"
 
 #include "vr_backend.hpp"
 #include "vr_brushes.hpp"
@@ -69,7 +70,11 @@ struct BrushToolState
     int glowNum{0};
     float glow{0.f};
 };
-BrushToolState bt;
+// splitscreen (SPLITSCREEN.md, phase 4b): the current seat's (seat::Part::ToolgunBrush)
+[[nodiscard]] BrushToolState& bt()
+{
+    return seat::part<BrushToolState>(seat::current(), seat::Part::ToolgunBrush);
+}
 
 // Texts handed out by pointer: valid until the same function's next call.
 struct BrushToolReadouts
@@ -77,6 +82,7 @@ struct BrushToolReadouts
     char screen[48];
     char state[160];
 };
+// seat-shared: a debug readout (one at a time)
 BrushToolReadouts readouts;
 
 [[nodiscard]] Mode currentMode()
@@ -201,11 +207,11 @@ void drawBox(const glm::vec3& lo, const glm::vec3& hi, const glm::vec4& c, const
 
 void showGhost(const glm::vec3& lo, const glm::vec3& hi, const glm::vec3& head)
 {
-    bt.ghost = true;
-    bt.ghostLo = lo;
-    bt.ghostHi = hi;
-    bt.ghostOk = holds(lo, hi) == 0;
-    drawBox(lo, hi, bt.ghostOk ? ghostColour : refusedColour, head, true);
+    bt().ghost = true;
+    bt().ghostLo = lo;
+    bt().ghostHi = hi;
+    bt().ghostOk = holds(lo, hi) == 0;
+    drawBox(lo, hi, bt().ghostOk ? ghostColour : refusedColour, head, true);
 }
 
 // A brush's ghost (any shape): its faces' edges and see-through faces, its bounds' size over it.
@@ -222,11 +228,11 @@ void showGhost(const brushes::Brush& b, const glm::vec3& head)
         showGhost(lo, hi, head);
         return;
     }
-    bt.ghost = true;
-    bt.ghostLo = lo;
-    bt.ghostHi = hi;
-    bt.ghostOk = holds(lo, hi) == 0;
-    const glm::vec4 c = bt.ghostOk ? ghostColour : refusedColour;
+    bt().ghost = true;
+    bt().ghostLo = lo;
+    bt().ghostHi = hi;
+    bt().ghostOk = holds(lo, hi) == 0;
+    const glm::vec4 c = bt().ghostOk ? ghostColour : refusedColour;
     const glm::vec4 fill{c.r, c.g, c.b, 0.22f};
     brushes::forEachPolygon(b, [&](int, const glm::dvec3* p, int n) {
         for(int i = 0; i < n; i++)
@@ -297,15 +303,15 @@ void showGhost(const brushes::Brush& b, const glm::vec3& head)
 
 void createBox(glm::vec3& lo, glm::vec3& hi)
 {
-    lo = glm::min(bt.a, bt.b);
-    hi = glm::max(bt.a, bt.b);
-    lo[bt.axis] = bt.sign > 0.f ? bt.plane : bt.plane - bt.height;
-    hi[bt.axis] = bt.sign > 0.f ? bt.plane + bt.height : bt.plane;
+    lo = glm::min(bt().a, bt().b);
+    hi = glm::max(bt().a, bt().b);
+    lo[bt().axis] = bt().sign > 0.f ? bt().plane : bt().plane - bt().height;
+    hi[bt().axis] = bt().sign > 0.f ? bt().plane + bt().height : bt().plane;
 }
 
 void createFrame(const Input& in, int hand)
 {
-    if(bt.phase == 0)
+    if(bt().phase == 0)
     {
         if(in.normal == glm::vec3{0.f})
         {
@@ -319,49 +325,49 @@ void createFrame(const Input& in, int hand)
         lines::glowPoint(p, 1.2f, ghostColour);
         if(in.fire)
         {
-            bt.phase = 1;
-            bt.axis = axis;
-            bt.sign = in.normal[axis] >= 0.f ? 1.f : -1.f;
-            bt.plane = plane;
-            bt.a = bt.b = p;
-            bt.height = grid();
+            bt().phase = 1;
+            bt().axis = axis;
+            bt().sign = in.normal[axis] >= 0.f ? 1.f : -1.f;
+            bt().plane = plane;
+            bt().a = bt().b = p;
+            bt().height = grid();
             tick(hand, 0.3f);
         }
         return;
     }
-    if(bt.phase == 1)
+    if(bt().phase == 1)
     {
         glm::vec3 p;
-        if(onPlane(in, bt.axis, bt.plane, p))
+        if(onPlane(in, bt().axis, bt().plane, p))
         {
-            const glm::vec3 b = onGrid(p, bt.axis, bt.plane);
-            const glm::vec3 clamped = glm::clamp(b, bt.a - glm::vec3{1024.f}, bt.a + glm::vec3{1024.f});
-            if(clamped != bt.b)
+            const glm::vec3 b = onGrid(p, bt().axis, bt().plane);
+            const glm::vec3 clamped = glm::clamp(b, bt().a - glm::vec3{1024.f}, bt().a + glm::vec3{1024.f});
+            if(clamped != bt().b)
             {
                 tick(hand, 0.1f);
             }
-            bt.b = clamped;
+            bt().b = clamped;
         }
         if(!in.trigger)
         {
             // A base with no width on an axis: one grid step that way.
             for(int k = 0; k < 3; k++)
             {
-                if(k != bt.axis && bt.a[k] == bt.b[k])
+                if(k != bt().axis && bt().a[k] == bt().b[k])
                 {
-                    bt.b[k] = bt.a[k] + grid();
+                    bt().b[k] = bt().a[k] + grid();
                 }
             }
-            bt.phase = 2;
+            bt().phase = 2;
         }
-        glm::vec3 lo = glm::min(bt.a, bt.b), hi = glm::max(bt.a, bt.b);
+        glm::vec3 lo = glm::min(bt().a, bt().b), hi = glm::max(bt().a, bt().b);
         showGhost(lo, hi, in.head);
         return;
     }
     // The height: where the aim passes nearest the base's middle's line along the normal.
-    const glm::vec3 c = (bt.a + bt.b) * 0.5f;
+    const glm::vec3 c = (bt().a + bt().b) * 0.5f;
     glm::vec3 n{0.f};
-    n[bt.axis] = bt.sign;
+    n[bt().axis] = bt().sign;
     const glm::vec3 w0 = in.from - c;
     const float b = glm::dot(in.dir, n), d = glm::dot(in.dir, w0), e = glm::dot(n, w0);
     const float denom = 1.f - b * b;
@@ -369,15 +375,15 @@ void createFrame(const Input& in, int hand)
     {
         const float s = (e - b * d) / denom;
         const float h = za::clamp(snap(s), grid(), 2048.f);
-        if(h != bt.height)
+        if(h != bt().height)
         {
             tick(hand, 0.1f);
         }
-        bt.height = h;
+        bt().height = h;
     }
     glm::vec3 lo, hi;
     createBox(lo, hi);
-    const brushes::Brush made = createShape(lo, hi, bt.axis, bt.sign, in.dir);
+    const brushes::Brush made = createShape(lo, hi, bt().axis, bt().sign, in.dir);
     showGhost(made, in.head);
     if(in.fire)
     {
@@ -391,7 +397,7 @@ void createFrame(const Input& in, int hand)
                 tick(hand, 0.6f);
             }
         }
-        bt.phase = 0;
+        bt().phase = 0;
     }
 }
 
@@ -400,55 +406,55 @@ void createFrame(const Input& in, int hand)
 
 void moveFrame(const Input& in, int hand)
 {
-    if(!bt.held)
+    if(!bt().held)
     {
         const int id = brushOf(in.target);
-        bt.glowNum = id ? in.target : 0;
-        bt.glow = 0.6f;
-        if(in.fire && id && boundsOf(id, bt.lo0, bt.hi0))
+        bt().glowNum = id ? in.target : 0;
+        bt().glow = 0.6f;
+        if(in.fire && id && boundsOf(id, bt().lo0, bt().hi0))
         {
-            bt.held = id;
-            bt.distance = in.targetDistance;
-            bt.grab0 = in.from + in.dir * bt.distance;
-            bt.delta = glm::vec3{0.f};
+            bt().held = id;
+            bt().distance = in.targetDistance;
+            bt().grab0 = in.from + in.dir * bt().distance;
+            bt().delta = glm::vec3{0.f};
             tick(hand, 0.3f);
         }
         return;
     }
-    if(!brushes::find(bt.held))
+    if(!brushes::find(bt().held))
     {
-        bt.held = 0;
+        bt().held = 0;
         return;
     }
-    bt.glowNum = brushes::entityOf(bt.held);
-    bt.glow = 0.6f;
-    const glm::vec3 grab = in.from + in.dir * bt.distance;
+    bt().glowNum = brushes::entityOf(bt().held);
+    bt().glow = 0.6f;
+    const glm::vec3 grab = in.from + in.dir * bt().distance;
     glm::vec3 delta;
     for(int k = 0; k < 3; k++)
     {
-        delta[k] = snap(grab[k] - bt.grab0[k]) + 0.f; // (no -0)
+        delta[k] = snap(grab[k] - bt().grab0[k]) + 0.f; // (no -0)
     }
-    if(delta != bt.delta)
+    if(delta != bt().delta)
     {
         tick(hand, 0.1f);
-        bt.delta = delta;
+        bt().delta = delta;
     }
-    brushes::Brush moved = *brushes::find(bt.held);
+    brushes::Brush moved = *brushes::find(bt().held);
     brushes::translate(moved, glm::dvec3{delta});
     showGhost(moved, in.head);
     if(!in.trigger)
     {
-        if(delta != glm::vec3{0.f} && !refuse(bt.lo0 + delta, bt.hi0 + delta))
+        if(delta != glm::vec3{0.f} && !refuse(bt().lo0 + delta, bt().hi0 + delta))
         {
-            brushes::Brush b = *brushes::find(bt.held);
+            brushes::Brush b = *brushes::find(bt().held);
             brushes::translate(b, glm::dvec3{delta});
-            if(brushes::change(bt.held, b))
+            if(brushes::change(bt().held, b))
             {
-                Con_Printf("toolgun: box %d moved %.0f %.0f %.0f\n", bt.held, delta.x, delta.y, delta.z);
+                Con_Printf("toolgun: box %d moved %.0f %.0f %.0f\n", bt().held, delta.x, delta.y, delta.z);
                 tick(hand, 0.5f);
             }
         }
-        bt.held = 0;
+        bt().held = 0;
     }
 }
 
@@ -485,23 +491,23 @@ void moveFrame(const Input& in, int hand)
 void resizeFrame(const Input& in, int hand)
 {
     glm::vec3 lo, hi;
-    if(!bt.held)
+    if(!bt().held)
     {
         const int id = brushOf(in.target);
-        bt.hoverId = id;
+        bt().hoverId = id;
         if(!id || !boundsOf(id, lo, hi))
         {
-            bt.face = -1;
+            bt().face = -1;
             return;
         }
-        bt.glowNum = in.target;
-        bt.glow = 0.5f;
-        bt.face = aimedHandle(in, lo, hi);
+        bt().glowNum = in.target;
+        bt().glow = 0.5f;
+        bt().face = aimedHandle(in, lo, hi);
         drawBox(lo, hi, ghostColour, in.head, false);
         for(int h = 0; h < 6; h++)
         {
             const glm::vec3 p = handlePoint(lo, hi, h);
-            if(h == bt.face)
+            if(h == bt().face)
             {
                 lines::point(p, 3.f, glm::vec4{1.f, 0.4f, 0.1f, 1.f});
                 lines::glowPoint(p, 5.f, glm::vec4{1.f, 0.5f, 0.1f, 0.8f});
@@ -511,56 +517,56 @@ void resizeFrame(const Input& in, int hand)
                 lines::point(p, 1.8f, glm::vec4{0.3f, 0.9f, 1.f, 1.f});
             }
         }
-        if(in.fire && bt.face >= 0)
+        if(in.fire && bt().face >= 0)
         {
-            bt.held = id;
-            bt.lo0 = lo;
-            bt.hi0 = hi;
-            const glm::vec3 p = handlePoint(lo, hi, bt.face);
-            bt.distance = glm::length(p - in.from);
-            bt.grab0 = in.from + in.dir * bt.distance;
-            bt.faceTo = p[bt.face / 2];
+            bt().held = id;
+            bt().lo0 = lo;
+            bt().hi0 = hi;
+            const glm::vec3 p = handlePoint(lo, hi, bt().face);
+            bt().distance = glm::length(p - in.from);
+            bt().grab0 = in.from + in.dir * bt().distance;
+            bt().faceTo = p[bt().face / 2];
             tick(hand, 0.3f);
         }
         return;
     }
-    if(!brushes::find(bt.held))
+    if(!brushes::find(bt().held))
     {
-        bt.held = 0;
+        bt().held = 0;
         return;
     }
-    bt.glowNum = brushes::entityOf(bt.held);
-    bt.glow = 0.5f;
-    const int axis = bt.face / 2;
-    const bool positive = (bt.face & 1) != 0;
-    const glm::vec3 grab = in.from + in.dir * bt.distance;
-    float to = snap(handlePoint(bt.lo0, bt.hi0, bt.face)[axis] + (grab[axis] - bt.grab0[axis]));
-    to = positive ? za::max(to, bt.lo0[axis] + grid()) : za::min(to, bt.hi0[axis] - grid());
-    if(to != bt.faceTo)
+    bt().glowNum = brushes::entityOf(bt().held);
+    bt().glow = 0.5f;
+    const int axis = bt().face / 2;
+    const bool positive = (bt().face & 1) != 0;
+    const glm::vec3 grab = in.from + in.dir * bt().distance;
+    float to = snap(handlePoint(bt().lo0, bt().hi0, bt().face)[axis] + (grab[axis] - bt().grab0[axis]));
+    to = positive ? za::max(to, bt().lo0[axis] + grid()) : za::min(to, bt().hi0[axis] - grid());
+    if(to != bt().faceTo)
     {
         tick(hand, 0.1f);
-        bt.faceTo = to;
+        bt().faceTo = to;
     }
-    lo = bt.lo0;
-    hi = bt.hi0;
+    lo = bt().lo0;
+    hi = bt().hi0;
     (positive ? hi : lo)[axis] = to;
     // Stretched by its bounds (a box: the face whose normal is that axis's way moves, the others stay).
-    brushes::Brush b = *brushes::find(bt.held);
-    brushes::scaleTo(b, glm::dvec3{bt.lo0}, glm::dvec3{bt.hi0}, glm::dvec3{lo}, glm::dvec3{hi});
+    brushes::Brush b = *brushes::find(bt().held);
+    brushes::scaleTo(b, glm::dvec3{bt().lo0}, glm::dvec3{bt().hi0}, glm::dvec3{lo}, glm::dvec3{hi});
     showGhost(b, in.head);
-    lines::point(handlePoint(lo, hi, bt.face), 3.f, glm::vec4{1.f, 0.4f, 0.1f, 1.f});
+    lines::point(handlePoint(lo, hi, bt().face), 3.f, glm::vec4{1.f, 0.4f, 0.1f, 1.f});
     if(!in.trigger)
     {
-        const float was = positive ? bt.hi0[axis] : bt.lo0[axis];
+        const float was = positive ? bt().hi0[axis] : bt().lo0[axis];
         if(to != was && !refuse(lo, hi))
         {
-            if(brushes::change(bt.held, b))
+            if(brushes::change(bt().held, b))
             {
-                Con_Printf("toolgun: box %d resized to %.0f %.0f %.0f .. %.0f %.0f %.0f\n", bt.held, lo.x, lo.y, lo.z, hi.x, hi.y, hi.z);
+                Con_Printf("toolgun: box %d resized to %.0f %.0f %.0f .. %.0f %.0f %.0f\n", bt().held, lo.x, lo.y, lo.z, hi.x, hi.y, hi.z);
                 tick(hand, 0.5f);
             }
         }
-        bt.held = 0;
+        bt().held = 0;
     }
 }
 
@@ -604,8 +610,8 @@ void resizeFrame(const Input& in, int hand)
 void paintFrame(const Input& in, int hand)
 {
     const int id = brushOf(in.hitEntity);
-    bt.glowNum = id ? in.hitEntity : 0;
-    bt.glow = 0.3f;
+    bt().glowNum = id ? in.hitEntity : 0;
+    bt().glow = 0.3f;
     if(!in.fire || !id)
     {
         return;
@@ -637,15 +643,15 @@ void paintFrame(const Input& in, int hand)
 
 void copyFrame(const Input& in, int hand)
 {
-    if(!bt.haveCopy)
+    if(!bt().haveCopy)
     {
         const int id = brushOf(in.target);
-        bt.glowNum = id ? in.target : 0;
-        bt.glow = 0.7f;
-        if(in.fire && id && boundsOf(id, bt.copyLo, bt.copyHi))
+        bt().glowNum = id ? in.target : 0;
+        bt().glow = 0.7f;
+        if(in.fire && id && boundsOf(id, bt().copyLo, bt().copyHi))
         {
-            bt.copy = *brushes::find(id);
-            bt.haveCopy = true;
+            bt().copy = *brushes::find(id);
+            bt().haveCopy = true;
             Con_Printf("toolgun: box %d copied\n", id);
             tick(hand, 0.3f);
         }
@@ -659,14 +665,14 @@ void copyFrame(const Input& in, int hand)
     const glm::vec3 hit = in.from + in.dir * in.worldDistance;
     const int axis = axisOf(in.normal);
     const float plane = za::round((hit[axis] - in.normal[axis] * 0.03125f) * 8.f) / 8.f;
-    const glm::vec3 size = bt.copyHi - bt.copyLo;
+    const glm::vec3 size = bt().copyHi - bt().copyLo;
     glm::vec3 lo;
     for(int k = 0; k < 3; k++)
     {
         lo[k] = k == axis ? (in.normal[axis] >= 0.f ? plane : plane - size[k]) : snap(hit[k] - size[k] * 0.5f);
     }
-    brushes::Brush b = bt.copy;
-    brushes::translate(b, glm::dvec3{lo - bt.copyLo});
+    brushes::Brush b = bt().copy;
+    brushes::translate(b, glm::dvec3{lo - bt().copyLo});
     showGhost(b, in.head);
     if(in.fire && !refuse(lo, lo + size))
     {
@@ -688,28 +694,28 @@ void copyFrame(const Input& in, int hand)
 
 void rotateFrame(const Input& in, int hand)
 {
-    if(!bt.held)
+    if(!bt().held)
     {
         const int id = brushOf(in.target);
-        bt.glowNum = id ? in.target : 0;
-        bt.glow = 0.15f;
-        if(in.fire && id && boundsOf(id, bt.lo0, bt.hi0))
+        bt().glowNum = id ? in.target : 0;
+        bt().glow = 0.15f;
+        if(in.fire && id && boundsOf(id, bt().lo0, bt().hi0))
         {
-            bt.held = id;
-            bt.hand0 = in.handRot;
-            bt.turn = glm::vec3{0.f};
+            bt().held = id;
+            bt().hand0 = in.handRot;
+            bt().turn = glm::vec3{0.f};
             tick(hand, 0.3f);
         }
         return;
     }
-    if(!brushes::find(bt.held))
+    if(!brushes::find(bt().held))
     {
-        bt.held = 0;
+        bt().held = 0;
         return;
     }
-    bt.glowNum = brushes::entityOf(bt.held);
-    bt.glow = 0.15f;
-    const glm::mat3 turn = held::axesFromAngles(&in.handRot[0], true) * glm::transpose(held::axesFromAngles(&bt.hand0[0], true));
+    bt().glowNum = brushes::entityOf(bt().held);
+    bt().glow = 0.15f;
+    const glm::mat3 turn = held::axesFromAngles(&in.handRot[0], true) * glm::transpose(held::axesFromAngles(&bt().hand0[0], true));
     float angles[3];
     held::anglesFromAxes(turn, angles, true);
     const float step = rotateStep();
@@ -718,36 +724,36 @@ void rotateFrame(const Input& in, int hand)
     {
         snapped[k] = za::round(angles[k] / step) * step + 0.f;
     }
-    if(snapped != bt.turn)
+    if(snapped != bt().turn)
     {
         tick(hand, 0.1f);
-        bt.turn = snapped;
+        bt().turn = snapped;
     }
-    brushes::Brush b = *brushes::find(bt.held);
-    const glm::dvec3 pivot = glm::floor(glm::dvec3{bt.lo0 + bt.hi0} * 0.5 + 0.5);
+    brushes::Brush b = *brushes::find(bt().held);
+    const glm::dvec3 pivot = glm::floor(glm::dvec3{bt().lo0 + bt().hi0} * 0.5 + 0.5);
     brushes::rotate(b, brushes::turnFromAngles(glm::dvec3{snapped}), pivot, vr_toolgun_brush_texlock.value != 0.f);
     showGhost(b, in.head);
     if(!in.trigger)
     {
-        if(snapped != glm::vec3{0.f} && !refuse(bt.ghostLo, bt.ghostHi) && brushes::change(bt.held, b))
+        if(snapped != glm::vec3{0.f} && !refuse(bt().ghostLo, bt().ghostHi) && brushes::change(bt().held, b))
         {
-            Con_Printf("toolgun: brush %d turned %.0f %.0f %.0f\n", bt.held, snapped.x, snapped.y, snapped.z);
+            Con_Printf("toolgun: brush %d turned %.0f %.0f %.0f\n", bt().held, snapped.x, snapped.y, snapped.z);
             tick(hand, 0.5f);
         }
-        bt.held = 0;
+        bt().held = 0;
     }
 }
 
 void deleteFrame(const Input& in, int hand)
 {
     const int id = brushOf(in.target);
-    bt.glowNum = id ? in.target : 0;
-    bt.glow = 2.9f; // (red)
+    bt().glowNum = id ? in.target : 0;
+    bt().glow = 2.9f; // (red)
     if(in.fire && id && brushes::remove(id))
     {
         Con_Printf("toolgun: box %d removed\n", id);
         tick(hand, 0.5f);
-        bt.glowNum = 0;
+        bt().glowNum = 0;
     }
 }
 
@@ -763,7 +769,7 @@ void pickFrame(const Input& in, int hand)
         brushes::setCurrentTexture(tex);
     }
     Con_Printf("toolgun: texture %s%s\n", brushes::currentTexture(), tex && !strcmp(brushes::currentTexture(), tex) ? " (picked)" : " (that one can't be picked)");
-    bt.picking = false;
+    bt().picking = false;
     tick(hand, 0.4f);
 }
 
@@ -771,12 +777,12 @@ void pickFrame(const Input& in, int hand)
 void status_f()
 {
     Con_Printf("toolgun brush: mode %s, grid %.0f, texture %s, create phase %d, held %d, face %d, copy %s, picking %d\n",
-        modeNames[static_cast<int>(currentMode())], grid(), brushes::currentTexture(), bt.phase, bt.held, bt.face,
-        bt.haveCopy ? "yes" : "no", bt.picking ? 1 : 0);
-    if(bt.ghost)
+        modeNames[static_cast<int>(currentMode())], grid(), brushes::currentTexture(), bt().phase, bt().held, bt().face,
+        bt().haveCopy ? "yes" : "no", bt().picking ? 1 : 0);
+    if(bt().ghost)
     {
-        Con_Printf("toolgun brush: ghost %.0f %.0f %.0f .. %.0f %.0f %.0f%s\n", bt.ghostLo.x, bt.ghostLo.y, bt.ghostLo.z, bt.ghostHi.x,
-            bt.ghostHi.y, bt.ghostHi.z, bt.ghostOk ? "" : " (refused: someone inside)");
+        Con_Printf("toolgun brush: ghost %.0f %.0f %.0f .. %.0f %.0f %.0f%s\n", bt().ghostLo.x, bt().ghostLo.y, bt().ghostLo.z, bt().ghostHi.x,
+            bt().ghostHi.y, bt().ghostHi.z, bt().ghostOk ? "" : " (refused: someone inside)");
     }
 }
 
@@ -808,14 +814,14 @@ namespace qvr::toolgun::brushtool
 
 void frame(const Input& in)
 {
-    bt.ghost = false;
-    bt.glowNum = 0;
+    bt().ghost = false;
+    bt().glowNum = 0;
     if(!in.valid)
     {
         return;
     }
     const int hand = toolgun::heldHand();
-    if(bt.picking)
+    if(bt().picking)
     {
         pickFrame(in, hand);
         return;
@@ -840,28 +846,28 @@ int modeAt(int slot)
 
 void push(float units)
 {
-    if(bt.held && currentMode() == Mode::Move)
+    if(bt().held && currentMode() == Mode::Move)
     {
-        bt.distance = za::max(bt.distance + units, 16.f);
+        bt().distance = za::max(bt().distance + units, 16.f);
     }
 }
 
 void reset()
 {
-    bt.phase = 0;
-    bt.held = 0;
-    bt.face = -1;
-    bt.haveCopy = false;
-    bt.copy = brushes::Brush{};
-    bt.picking = false;
-    bt.ghost = false;
-    bt.glowNum = 0;
+    bt().phase = 0;
+    bt().held = 0;
+    bt().face = -1;
+    bt().haveCopy = false;
+    bt().copy = brushes::Brush{};
+    bt().picking = false;
+    bt().ghost = false;
+    bt().glowNum = 0;
 }
 
 int glowEntity(float& glow)
 {
-    glow = bt.glow;
-    return bt.glowNum;
+    glow = bt().glow;
+    return bt().glowNum;
 }
 
 int modeCount()
@@ -876,18 +882,18 @@ const char* modeName(int mode)
 
 void pickTexture()
 {
-    bt.picking = !bt.picking;
-    Con_Printf("toolgun: %s\n", bt.picking ? "the next shot picks the texture it hits" : "picking off");
+    bt().picking = !bt().picking;
+    Con_Printf("toolgun: %s\n", bt().picking ? "the next shot picks the texture it hits" : "picking off");
 }
 
 bool picking()
 {
-    return bt.picking;
+    return bt().picking;
 }
 
 const char* screenText()
 {
-    q_snprintf(readouts.screen, sizeof(readouts.screen), "%s", bt.picking ? "PICK TEXTURE" : va("BRUSH %s", modeNames[static_cast<int>(currentMode())]));
+    q_snprintf(readouts.screen, sizeof(readouts.screen), "%s", bt().picking ? "PICK TEXTURE" : va("BRUSH %s", modeNames[static_cast<int>(currentMode())]));
     for(char* c = readouts.screen; *c; c++)
     {
         *c = (*c >= 'a' && *c <= 'z') ? static_cast<char>(*c - 32) : *c;
@@ -902,21 +908,21 @@ const char* stateLine()
     switch(m)
     {
     case Mode::Create:
-        what = bt.phase == 1 ? "drag the base" : bt.phase == 2 ? "raise it, trigger to make it" : "trigger on a surface: a box's base";
+        what = bt().phase == 1 ? "drag the base" : bt().phase == 2 ? "raise it, trigger to make it" : "trigger on a surface: a box's base";
         break;
-    case Mode::Move: what = bt.held ? "let go to put it there" : "hold the trigger on a box"; break;
-    case Mode::Resize: what = bt.held ? "let go to size it" : "hold the trigger on a face's handle"; break;
+    case Mode::Move: what = bt().held ? "let go to put it there" : "hold the trigger on a box"; break;
+    case Mode::Resize: what = bt().held ? "let go to size it" : "hold the trigger on a face's handle"; break;
     case Mode::Paint: what = "trigger on a box"; break;
-    case Mode::Copy: what = bt.haveCopy ? "trigger to put a copy" : "trigger on a box to copy it"; break;
+    case Mode::Copy: what = bt().haveCopy ? "trigger to put a copy" : "trigger on a box to copy it"; break;
     case Mode::Delete: what = "trigger on a box removes it"; break;
     case Mode::Rotate:
-        what = bt.held ? va("turn your hand: %.0f %.0f %.0f, let go to set it", bt.turn.x, bt.turn.y, bt.turn.z)
+        what = bt().held ? va("turn your hand: %.0f %.0f %.0f, let go to set it", bt().turn.x, bt().turn.y, bt().turn.z)
                        : "hold the trigger on a brush and turn your hand";
         break;
     default: break;
     }
     q_snprintf(readouts.state, sizeof(readouts.state), "Brush %s: %s (grid %.0f, %s)", modeNames[static_cast<int>(m)],
-        bt.picking ? "shoot a surface to pick its texture" : what, grid(), brushes::currentTexture());
+        bt().picking ? "shoot a surface to pick its texture" : what, grid(), brushes::currentTexture());
     return readouts.state;
 }
 

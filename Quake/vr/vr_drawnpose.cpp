@@ -86,8 +86,10 @@ struct ArmedMeshes
     za::Vector<MeshMemo> memos; // (one an entity: its last)
     auto members() { return mem::list(memos); }
 };
+// seat-shared: a cache of the shared models (and its counter, its scratch)
 mem::Cache<ArmedMeshes> armedMeshes{"drawn pose armed meshes", mem::MapChange | mem::ModelReload};
 constexpr za::SizeT maxMeshMemos = 256; // (past it: all begun again)
+// seat-shared: a cache of the shared models (and its counter, its scratch)
 za::U32 lastBuild = 0;                  // the memos' makings counted (never 0 again: a wrap skips it)
 // A body made with no key (rig2::liveKey: none): made here, the caller copies it or reads it until the next call.
 struct UnkeyedMesh
@@ -95,6 +97,7 @@ struct UnkeyedMesh
     za::Vector<glm::vec3> pos, nor;
     auto members() { return mem::list(pos, nor); }
 };
+// seat-shared: a cache of the shared models (and its counter, its scratch)
 mem::Scratch<UnkeyedMesh> unkeyedMesh{"drawn pose unkeyed mesh"};
 
 // Entity num's body as armedMesh makes it: the memo's (made into it if not yet), else unkeyedMesh's. False: none.

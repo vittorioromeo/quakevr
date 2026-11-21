@@ -22,6 +22,7 @@
 #include "vr_profile.hpp"
 #include "vr_progs.hpp"
 #include "vr_seated.hpp"
+#include "vr_seat.hpp"
 #include "vr_slide.hpp"
 #include "vr_trace.hpp"
 #include "vr_twohand.hpp"
@@ -47,10 +48,6 @@ namespace qvr::hands
 {
 namespace
 {
-
-State state;
-TrackingState seatedTracking; // seated (vr_seated.hpp): this frame's tracking raised
-int stateFrame = -1;
 
 // OpenXR tracking space (+x right, +y up, -z forward) to Quake (+x forward, +y left, +z up).
 using geom::quakeFromTracking;
@@ -114,16 +111,6 @@ void calibrate(const Calibration& c, const glm::vec3& gripPos, const glm::quat& 
     }
 }
 
-// Each hand's calibrated point off its tracked one (tracking space, metres): its velocity is the tracked one's plus the
-// turn's (update, updateVelocities). Not the throws': they go with the controller's grip (updateVelocities).
-glm::vec3 calibratedOffset[2]{glm::vec3{0.f}, glm::vec3{0.f}};
-
-// Rotation of the play space around the vertical axis: accumulated snap/smooth turning, and
-// re-based whenever the server sets the view angle (spawning, teleporters).
-float turnYaw = 0.f;
-bool pendingYawValid = false;
-float pendingYaw = 0.f;
-
 // Body-relative positions of the previous update, for velocities when the runtime reports none.
 struct Previous
 {
@@ -144,41 +131,6 @@ struct Previous
     glm::vec3 ownSpin[2]{glm::vec3{0.f}, glm::vec3{0.f}};
     float ownSpinLag[2]{0.f, 0.f};
 };
-
-Previous previous;
-
-// The stair smoothing (update): the eased height, and the client time it was eased at (cl.time: it starts over
-// with each map, so this is reset with it).
-float stairSmoothZ = 0.f;
-double stairLastTime = -1.0;
-
-// Room-scale movement: the head's horizontal tracking position last frame, and the world-space
-// walk accumulated since the last move was sent.
-//
-// Leaning (vr_lean_radius): the head moves off the middle of the player's box by up to the radius
-// before the body walks after it, so that a face gets near a wall and over a railing where the box
-// (32 units wide, 16 from its middle to a side) stops. The head never leaves the box's footprint,
-// which is always in open space. Only the head's motion beyond the radius is walked; at rest the
-// body slides back under the head (vr_lean_recenter) where its box can go and there is floor under
-// it (not over a ledge) -- unless the head is leaning (vr_lean_detect, below).
-bool lastHeadValid = false;
-glm::vec3 lastHead{0.f};
-glm::vec3 roomscaleMove{0.f};
-glm::vec3 lean{0.f};
-glm::vec3 lastBody{0.f};
-bool lastBodyValid = false;
-// Reset Position (vr_recenter): the body put under the head at the next frame, where its box fits.
-bool recenterPending = false;
-
-// A walk through a teleporter (portalCrossing, vr_portals.cpp): the body's coming jump is not a teleport's: the play space
-// turns by the gate's yaw (not to the server's view angle), the lean turns with it (not dropped) and the stairs' easing
-// keeps its height under the head.
-bool portalJumpPending = false;
-float portalJumpYaw = 0.f;
-bool portalAngleTaken = false;
-double portalJumpTime = -1.0;
-glm::vec3 lastRawOrigin{0.f};
-bool lastRawOriginValid = false;
 
 // Leaning or walking (vr_lean_detect). The head moving off the box's middle is either a lean -- the feet stay, the
 // back tilts at the hips or bends sideways, so the head goes down a little as it goes out (more the further out: an
@@ -205,13 +157,66 @@ struct LeanSense
     glm::vec4 cues{0.f};        // drop, tilt, hands (0..1 each), standing height: for vr_debug_lean
 };
 
-LeanSense leanSense;
+// A seat's hands rig: its tracking this frame, the play space's turn, the body's walk and lean (phase 4b)
+struct Rig
+{
+    State state;
+    TrackingState seatedTracking; // seated (vr_seated.hpp): this frame's tracking raised
+    int stateFrame = -1;
+    // Each hand's calibrated point off its tracked one (tracking space, metres): its velocity is the tracked one's plus the
+    // turn's (update, updateVelocities). Not the throws': they go with the controller's grip (updateVelocities).
+    glm::vec3 calibratedOffset[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+    // Rotation of the play space around the vertical axis: accumulated snap/smooth turning, and
+    // re-based whenever the server sets the view angle (spawning, teleporters).
+    float turnYaw = 0.f;
+    bool pendingYawValid = false;
+    float pendingYaw = 0.f;
+    Previous previous;
+    // The stair smoothing (update): the eased height, and the client time it was eased at (cl.time: it starts over
+    // with each map, so this is reset with it).
+    float stairSmoothZ = 0.f;
+    double stairLastTime = -1.0;
+    // Room-scale movement: the head's horizontal tracking position last frame, and the world-space
+    // walk accumulated since the last move was sent.
+    //
+    // Leaning (vr_lean_radius): the head moves off the middle of the player's box by up to the radius
+    // before the body walks after it, so that a face gets near a wall and over a railing where the box
+    // (32 units wide, 16 from its middle to a side) stops. The head never leaves the box's footprint,
+    // which is always in open space. Only the head's motion beyond the radius is walked; at rest the
+    // body slides back under the head (vr_lean_recenter) where its box can go and there is floor under
+    // it (not over a ledge) -- unless the head is leaning (vr_lean_detect, below).
+    bool lastHeadValid = false;
+    glm::vec3 lastHead{0.f};
+    glm::vec3 roomscaleMove{0.f};
+    glm::vec3 lean{0.f};
+    glm::vec3 lastBody{0.f};
+    bool lastBodyValid = false;
+    // Reset Position (vr_recenter): the body put under the head at the next frame, where its box fits.
+    bool recenterPending = false;
+
+    // A walk through a teleporter (portalCrossing, vr_portals.cpp): the body's coming jump is not a teleport's: the play space
+    // turns by the gate's yaw (not to the server's view angle), the lean turns with it (not dropped) and the stairs' easing
+    // keeps its height under the head.
+    bool portalJumpPending = false;
+    float portalJumpYaw = 0.f;
+    bool portalAngleTaken = false;
+    double portalJumpTime = -1.0;
+    glm::vec3 lastRawOrigin{0.f};
+    bool lastRawOriginValid = false;
+    LeanSense leanSense;
+};
+
+// splitscreen (SPLITSCREEN.md, phase 4b): the current seat's (seat::Part::Hands)
+[[nodiscard]] Rig& rig()
+{
+    return seat::part<Rig>(seat::current(), seat::Part::Hands);
+}
 
 void resetLean()
 {
-    lean = glm::vec3{0.f};
-    lastBodyValid = false;
-    leanSense = LeanSense{};
+    rig().lean = glm::vec3{0.f};
+    rig().lastBodyValid = false;
+    rig().leanSense = LeanSense{};
 }
 
 [[nodiscard]] float smoothstep01(float e0, float e1, float x)
@@ -224,12 +229,12 @@ void resetLean()
 // LeanSense); `step` is the head's horizontal motion this frame (world units, turned and scaled as the lean).
 void senseLean(const TrackingState& t, float m2u, const glm::vec3& step, float dt)
 {
-    LeanSense& ls = leanSense;
+    LeanSense& ls = rig().leanSense;
     const float calibrated = units::eyeHeight();
     const float height = t.head.position.y;
     // In the room's metres (vr_roomscale_move_mult scales the head's motion in the game, not the body's shape).
     const float toMetres = 1.f / (m2u * za::max(0.1f, vr_roomscale_move_mult.value));
-    const glm::vec2 off = glm::vec2{lean.x, lean.y} * toMetres;
+    const glm::vec2 off = glm::vec2{rig().lean.x, rig().lean.y} * toMetres;
     const float offLen = glm::length(off);
     const glm::vec2 dir = offLen > 1e-4f ? off / offLen : glm::vec2{0.f};
     constexpr float CENTRED = 0.05f; // metres: the head over the box's middle
@@ -300,7 +305,7 @@ void senseLean(const TrackingState& t, float m2u, const glm::vec3& step, float d
     // The head tilted the way it is off: rolled towards it (sideways), or pitched towards it (forward only half: the
     // eyes look down walking too).
     const auto horizontal = [&](const glm::vec3& v) {
-        const glm::vec3 w = rotateYaw(quakeFromTracking(t.head.orientation * v), turnYaw);
+        const glm::vec3 w = rotateYaw(quakeFromTracking(t.head.orientation * v), rig().turnYaw);
         return glm::vec2{w.x, w.y};
     };
     const glm::vec2 up = horizontal({0.f, 1.f, 0.f});
@@ -318,7 +323,7 @@ void senseLean(const TrackingState& t, float m2u, const glm::vec3& step, float d
     if(t.hands[0].valid && t.hands[1].valid)
     {
         const glm::vec3 mid = (t.hands[0].position + t.hands[1].position) * 0.5f;
-        const glm::vec3 rel = rotateYaw(quakeFromTracking(mid - t.head.position), turnYaw);
+        const glm::vec3 rel = rotateYaw(quakeFromTracking(mid - t.head.position), rig().turnYaw);
         const glm::vec2 hands = off + glm::vec2{rel.x, rel.y}; // metres off the box's middle
         if(offLen < CENTRED)
         {
@@ -353,54 +358,54 @@ void senseLean(const TrackingState& t, float m2u, const glm::vec3& step, float d
 void updateRoomscale(const TrackingState& t, float m2u, const glm::vec3& body)
 {
     // A teleport, a respawn, a new map: the body is put under the head.
-    if(lastBodyValid && glm::length(glm::vec2{body.x - lastBody.x, body.y - lastBody.y}) > 64.f)
+    if(rig().lastBodyValid && glm::length(glm::vec2{body.x - rig().lastBody.x, body.y - rig().lastBody.y}) > 64.f)
     {
-        if(portalJumpPending) // through a teleporter: the head where it was over the body, turned with the gate
+        if(rig().portalJumpPending) // through a teleporter: the head where it was over the body, turned with the gate
         {
-            lean = rotateYaw(lean, portalJumpYaw);
-            portalJumpPending = false;
+            rig().lean = rotateYaw(rig().lean, rig().portalJumpYaw);
+            rig().portalJumpPending = false;
         }
         else
         {
-            lean = glm::vec3{0.f};
+            rig().lean = glm::vec3{0.f};
         }
-        leanSense.handsRefValid = false;
+        rig().leanSense.handsRefValid = false;
     }
-    lastBody = body;
-    lastBodyValid = true;
+    rig().lastBody = body;
+    rig().lastBodyValid = true;
 
     const glm::vec3 head{t.head.position.x, 0.f, t.head.position.z};
     if(!t.head.valid)
     {
-        lastHeadValid = false;
+        rig().lastHeadValid = false;
         return;
     }
 
     glm::vec3 step{0.f};
-    if(lastHeadValid)
+    if(rig().lastHeadValid)
     {
         const glm::vec3 delta =
-            rotateYaw(quakeFromTracking(head - lastHead) * m2u, turnYaw) * vr_roomscale_move_mult.value;
+            rotateYaw(quakeFromTracking(head - rig().lastHead) * m2u, rig().turnYaw) * vr_roomscale_move_mult.value;
 
         // A jump (recentred play space, tracking lost and found) is not a step.
         if(glm::length(delta) < 50.f)
         {
             step = glm::vec3{delta.x, delta.y, 0.f};
-            lean += step;
+            rig().lean += step;
         }
     }
 
-    lastHead = head;
-    lastHeadValid = true;
+    rig().lastHead = head;
+    rig().lastHeadValid = true;
 
-    if(recenterPending)
+    if(rig().recenterPending)
     {
-        recenterPending = false;
-        const glm::vec3 to = body + glm::vec3{lean.x, lean.y, 0.f};
-        if(glm::length(lean) > 0.01f && worldtrace::playerBoxFits(body, to))
+        rig().recenterPending = false;
+        const glm::vec3 to = body + glm::vec3{rig().lean.x, rig().lean.y, 0.f};
+        if(glm::length(rig().lean) > 0.01f && worldtrace::playerBoxFits(body, to))
         {
-            roomscaleMove += to - body;
-            lean = glm::vec3{0.f};
+            rig().roomscaleMove += to - body;
+            rig().lean = glm::vec3{0.f};
         }
         torso::reset(); // and the torso faces where the head does
     }
@@ -410,13 +415,13 @@ void updateRoomscale(const TrackingState& t, float m2u, const glm::vec3& body)
     senseLean(t, m2u, step, dt); // also the standing height, for the drawn body's lean
 
     const float radius = CLAMP(0.f, vr_lean_radius.value, 14.f);
-    const float length = glm::length(lean);
+    const float length = glm::length(rig().lean);
     if(length > radius)
     {
         // Past the radius the body walks after the head (if its box can: else the head stops).
-        const glm::vec3 excess = lean * ((length - radius) / length);
-        roomscaleMove += excess;
-        lean -= excess;
+        const glm::vec3 excess = rig().lean * ((length - radius) / length);
+        rig().roomscaleMove += excess;
+        rig().lean -= excess;
         return;
     }
 
@@ -427,7 +432,7 @@ void updateRoomscale(const TrackingState& t, float m2u, const glm::vec3& body)
     float speed = vr_lean_recenter.value * m2u;
     if(detect && speed > 0.f)
     {
-        const LeanSense& ls = leanSense;
+        const LeanSense& ls = rig().leanSense;
         const float going =
             ls.moving > 0.f ? smoothstep01(0.12f, 0.35f, ls.moving) * smoothstep01(0.15f, 0.35f, ls.speed) : 1.f;
         speed = za::max(speed, length / 0.25f) * (1.f - ls.hold) * going;
@@ -435,11 +440,11 @@ void updateRoomscale(const TrackingState& t, float m2u, const glm::vec3& body)
     if(length > 0.01f && speed > 0.f && !noclip_anglehack)
     {
         const float step = za::min(length, speed * dt);
-        const glm::vec3 to = body + lean * (step / length);
+        const glm::vec3 to = body + rig().lean * (step / length);
         if(worldtrace::playerBoxFits(body, to) && worldtrace::line(to, to - glm::vec3{0.f, 0.f, 48.f}) < 1.f)
         {
-            roomscaleMove += to - body;
-            lean -= to - body;
+            rig().roomscaleMove += to - body;
+            rig().lean -= to - body;
         }
     }
 }
@@ -462,13 +467,13 @@ BodyDrift bodyDrift;
 [[nodiscard]] glm::vec2 bodyInRoom(const TrackingState& t, float m2u)
 {
     const glm::vec3 head = quakeFromTracking(glm::vec3{t.head.position.x, 0.f, t.head.position.z});
-    const glm::vec3 leanRoom = rotateYaw(lean, -turnYaw) / (m2u * za::max(0.1f, vr_roomscale_move_mult.value));
+    const glm::vec3 leanRoom = rotateYaw(rig().lean, -rig().turnYaw) / (m2u * za::max(0.1f, vr_roomscale_move_mult.value));
     return glm::vec2{head.x - leanRoom.x, head.y - leanRoom.y};
 }
 
 [[nodiscard]] float bodyYawInRoom()
 {
-    return za::remainder(state.bodyYaw - turnYaw, 360.f);
+    return za::remainder(rig().state.bodyYaw - rig().turnYaw, 360.f);
 }
 
 void markBodyDrift()
@@ -480,7 +485,7 @@ void markBodyDrift()
 
 void printBodyDrift(const char* label)
 {
-    if(!vrActive() || !state.valid)
+    if(!vrActive() || !rig().state.valid)
     {
         Con_Printf("body error: no headset\n");
         return;
@@ -493,9 +498,9 @@ void printBodyDrift(const char* label)
     const glm::vec2 off = (bodyInRoom(tracking(), m2u) - bodyDrift.pos) * 100.f;
     const float yawOff = za::remainder(bodyYawInRoom() - bodyDrift.yaw, 360.f);
     // The lean in the body's frame (cm forward, left of the torso).
-    const glm::vec3 leanBody = rotateYaw(lean, -state.bodyYaw) * (100.f / m2u);
+    const glm::vec3 leanBody = rotateYaw(rig().lean, -rig().state.bodyYaw) * (100.f / m2u);
     Con_Printf("body error%s%s (t %.2f): pos %.1f cm (fwd %.1f left %.1f) yaw %.1f; lean fwd %.1f left %.1f cm, hold %.2f\n",
-        *label ? " " : "", label, vr_gametime, glm::length(off), off.x, off.y, yawOff, leanBody.x, leanBody.y, state.leanHold);
+        *label ? " " : "", label, vr_gametime, glm::length(off), off.x, off.y, yawOff, leanBody.x, leanBody.y, rig().state.leanHold);
 }
 
 // A controller's spin (tracking space, rad/s) from its turn since its previous sample (vr_throw_spin_from_pose): what
@@ -506,19 +511,19 @@ void printBodyDrift(const char* label)
 // throw's estimate takes it there, vr_throw.cpp).
 [[nodiscard]] glm::vec3 poseSpin(int h, const glm::quat& rot, double time, float& lag, bool own = false)
 {
-    glm::quat& lastRot = own ? previous.ownRot[h] : previous.handRot[h];
-    double& lastTime = own ? previous.ownRotTime[h] : previous.handRotTime[h];
-    glm::vec3& lastSpin = own ? previous.ownSpin[h] : previous.handSpin[h];
-    float& lastLag = own ? previous.ownSpinLag[h] : previous.handSpinLag[h];
+    glm::quat& lastRot = own ? rig().previous.ownRot[h] : rig().previous.handRot[h];
+    double& lastTime = own ? rig().previous.ownRotTime[h] : rig().previous.handRotTime[h];
+    glm::vec3& lastSpin = own ? rig().previous.ownSpin[h] : rig().previous.handSpin[h];
+    float& lastLag = own ? rig().previous.ownSpinLag[h] : rig().previous.handSpinLag[h];
     const double dt = time - lastTime;
-    if(previous.valid && lastTime >= 0.0 && dt == 0.0)
+    if(rig().previous.valid && lastTime >= 0.0 && dt == 0.0)
     {
         lag = lastLag;
         return lastSpin;
     }
     glm::vec3 spin{0.f};
     lag = 0.f;
-    if(previous.valid && lastTime >= 0.0 && dt > 0.0 && dt < 0.1)
+    if(rig().previous.valid && lastTime >= 0.0 && dt > 0.0 && dt < 0.1)
     {
         lag = static_cast<float>(dt * 0.5);
         glm::quat d = rot * glm::inverse(lastRot);
@@ -544,63 +549,63 @@ void printBodyDrift(const char* label)
 void updateVelocities(const TrackingState* t)
 {
     const float u2m = 1.f / units::metresToUnits();
-    const double dt = previous.valid ? vr_gametime - previous.time : 0.0;
+    const double dt = rig().previous.valid ? vr_gametime - rig().previous.time : 0.0;
     // Recomputed within the same frame (a turn, a server yaw): keep the frame's velocities.
     const auto differenced = [&](const glm::vec3& now, const glm::vec3& before, const glm::vec3& same) {
-        if(!previous.valid)
+        if(!rig().previous.valid)
         {
             return glm::vec3{0.f};
         }
         return dt > 0.0 ? (now - before) * u2m / static_cast<float>(dt) : same;
     };
-    const auto fromTracking = [&](const glm::vec3& v) { return rotateYaw(quakeFromTracking(v), turnYaw); };
+    const auto fromTracking = [&](const glm::vec3& v) { return rotateYaw(quakeFromTracking(v), rig().turnYaw); };
 
     // Relative to the floor below the head (the box's middle and the lean): the body sliding back
     // under the head is not the hands' own motion.
-    const glm::vec3 base = state.playerOrigin + state.lean;
-    const glm::vec3 head = state.head - base;
-    state.headVel = t && t->head.velocityValid ? fromTracking(t->head.linearVelocity)
-                                               : differenced(head, previous.head, state.headVel);
+    const glm::vec3 base = rig().state.playerOrigin + rig().state.lean;
+    const glm::vec3 head = rig().state.head - base;
+    rig().state.headVel = t && t->head.velocityValid ? fromTracking(t->head.linearVelocity)
+                                               : differenced(head, rig().previous.head, rig().state.headVel);
 
     for(int h = 0; h < HAND_COUNT; h++)
     {
-        const glm::vec3 local = state.pos[h] - base;
+        const glm::vec3 local = rig().state.pos[h] - base;
         if(t && t->hands[h].velocityValid)
         {
             // A calibrated hand's point off the tracked one goes round with the controller's turn.
-            const glm::vec3& off = calibratedOffset[h];
-            state.vel[h] = fromTracking(off == glm::vec3{0.f} ? t->hands[h].linearVelocity
+            const glm::vec3& off = rig().calibratedOffset[h];
+            rig().state.vel[h] = fromTracking(off == glm::vec3{0.f} ? t->hands[h].linearVelocity
                                                                : t->hands[h].linearVelocity + glm::cross(t->hands[h].angularVelocity, off));
-            state.angVel[h] = fromTracking(t->hands[h].angularVelocity);
+            rig().state.angVel[h] = fromTracking(t->hands[h].angularVelocity);
         }
         else
         {
-            state.vel[h] = differenced(local, previous.hands[h], state.vel[h]);
-            state.angVel[h] = glm::vec3{0.f};
+            rig().state.vel[h] = differenced(local, rig().previous.hands[h], rig().state.vel[h]);
+            rig().state.angVel[h] = glm::vec3{0.f};
         }
 
-        previous.hands[h] = local;
+        rig().previous.hands[h] = local;
         // On the runtime's clock when it has one: the release is timed on it too. Throws go with
         // the palm, where the object is held, not the controller point further out; and with the
         // controller alone, whatever the hand calibration (see throwFrame).
         const double time = t && t->time >= 0.0 ? t->time : vr_gametime;
-        throwing::Motion drawn{state.pos[h], state.vel[h], state.angVel[h], forward(state.rot[h])};
+        throwing::Motion drawn{rig().state.pos[h], rig().state.vel[h], rig().state.angVel[h], forward(rig().state.rot[h])};
         // The controller's own motion where the slowed hand lags it (slow motion: timescale::controllerPose), the same
         // otherwise: the way a throw goes (vr_throw.cpp strokeEstimate).
         throwing::Motion own = drawn;
         const Pose* ctrl = t ? timescale::controllerPose(h) : nullptr;
-        state.ownVel[h] = state.vel[h];
+        rig().state.ownVel[h] = rig().state.vel[h];
         if(ctrl && ctrl->velocityValid)
         {
-            const glm::vec3& off = calibratedOffset[h];
-            state.ownVel[h] = fromTracking(off == glm::vec3{0.f} ? ctrl->linearVelocity
+            const glm::vec3& off = rig().calibratedOffset[h];
+            rig().state.ownVel[h] = fromTracking(off == glm::vec3{0.f} ? ctrl->linearVelocity
                                                                  : ctrl->linearVelocity + glm::cross(ctrl->angularVelocity, off));
         }
         if(t && t->hands[h].velocityValid)
         {
             const Pose& p = t->hands[h];
             drawn.vel = fromTracking(p.gripVelocityValid ? p.gripVelocity : p.linearVelocity);
-            drawn.forward = forward(anglesFromTracking(throwFrame(p.orientation, h), turnYaw));
+            drawn.forward = forward(anglesFromTracking(throwFrame(p.orientation, h), rig().turnYaw));
             float spinLag = 0.f, ownSpinLag = 0.f;
             const glm::vec3 spin = poseSpin(h, p.orientation, time, spinLag);
             const glm::vec3 ownSpin = poseSpin(h, ctrl ? ctrl->orientation : p.orientation, time, ownSpinLag, true);
@@ -616,9 +621,9 @@ void updateVelocities(const TrackingState* t)
             own = drawn;
             if(ctrl && ctrl->velocityValid)
             {
-                own.pos = state.pos[h] + fromTracking(ctrl->position - p.position) * units::metresToUnits();
+                own.pos = rig().state.pos[h] + fromTracking(ctrl->position - p.position) * units::metresToUnits();
                 own.vel = fromTracking(ctrl->gripVelocityValid ? ctrl->gripVelocity : ctrl->linearVelocity);
-                own.forward = forward(anglesFromTracking(throwFrame(ctrl->orientation, h), turnYaw));
+                own.forward = forward(anglesFromTracking(throwFrame(ctrl->orientation, h), rig().turnYaw));
                 own.angVel = vr_throw_spin_from_pose.value ? fromTracking(ownSpin) : fromTracking(ctrl->angularVelocity);
                 own.spinLag = ownSpinLag;
             }
@@ -626,23 +631,23 @@ void updateVelocities(const TrackingState* t)
         throwing::sample(h, time, drawn, own);
     }
 
-    previous.head = head;
-    previous.time = vr_gametime;
-    previous.valid = true;
+    rig().previous.head = head;
+    rig().previous.time = vr_gametime;
+    rig().previous.valid = true;
 }
 
 // Yaw the head faces, also when looking steeply down or up (then the head's up vector tells
 // which way the face points). From the old engine's VR_GetHeadFwdAngleBlended.
 [[nodiscard]] float headYawBlended()
 {
-    const float pitch = state.headAngles.x;
+    const float pitch = rig().state.headAngles.x;
     if(za::fabs(pitch) <= 50.f)
     {
-        return state.headAngles.y;
+        return rig().state.headAngles.y;
     }
 
     glm::vec3 fwd, right, up;
-    angleVectors(state.headAngles, fwd, right, up);
+    angleVectors(rig().state.headAngles, fwd, right, up);
     const glm::vec3 dir = glm::mix(fwd, pitch > 0.f ? up : -up, za::fabs(pitch) / 90.f);
     return glm::degrees(za::atan2(dir.y, dir.x));
 }
@@ -654,35 +659,35 @@ void updateVelocities(const TrackingState* t)
 void applyWholeOffset(int h)
 {
     glm::mat3 turn{1.f};
-    if(wholeOffset(weapons::heldSlot(h), h, state.pos[h], state.rot[h], turn))
+    if(wholeOffset(weapons::heldSlot(h), h, rig().state.pos[h], rig().state.rot[h], turn))
     {
-        state.wholeTurn[h] = turn;
+        rig().state.wholeTurn[h] = turn;
     }
 }
 
 // update's phases: the stair steps' easing of the body.
 void easeStairs(const entity_t& player)
 {
-    float& smoothZ = stairSmoothZ;
-    double& lastTime = stairLastTime;
-    const float z = state.playerOrigin.z;
-    if(portalJumpPending && cl.time - portalJumpTime > 0.5)
+    float& smoothZ = rig().stairSmoothZ;
+    double& lastTime = rig().stairLastTime;
+    const float z = rig().state.playerOrigin.z;
+    if(rig().portalJumpPending && cl.time - rig().portalJumpTime > 0.5)
     {
-        portalJumpPending = false; // (no jump came: a gate leading close by)
+        rig().portalJumpPending = false; // (no jump came: a gate leading close by)
     }
-    if(portalJumpPending && lastRawOriginValid &&
-        glm::length(glm::vec2{state.playerOrigin.x - lastRawOrigin.x, state.playerOrigin.y - lastRawOrigin.y}) > 64.f)
+    if(rig().portalJumpPending && rig().lastRawOriginValid &&
+        glm::length(glm::vec2{rig().state.playerOrigin.x - rig().lastRawOrigin.x, rig().state.playerOrigin.y - rig().lastRawOrigin.y}) > 64.f)
     {
-        smoothZ += z - lastRawOrigin.z; // through a teleporter: still that far under the origin
+        smoothZ += z - rig().lastRawOrigin.z; // through a teleporter: still that far under the origin
     }
-    else if(lastRawOriginValid && cl.onground && z > lastRawOrigin.z && lastTime >= 0.0)
+    else if(rig().lastRawOriginValid && cl.onground && z > rig().lastRawOrigin.z && lastTime >= 0.0)
     {
         // carried up by a lift the body rides with it: only a step's jump is eased (V_CalcRefdef's rule: the eye
         // 12 units behind a rising plat, "compressed by the lift", his note of 2026-11-21; vr_view_lift_follow)
-        smoothZ += VR_ViewLiftRise(z - lastRawOrigin.z, static_cast<float>(cl.time - lastTime));
+        smoothZ += VR_ViewLiftRise(z - rig().lastRawOrigin.z, static_cast<float>(cl.time - lastTime));
     }
-    lastRawOrigin = state.playerOrigin;
-    lastRawOriginValid = true;
+    rig().lastRawOrigin = rig().state.playerOrigin;
+    rig().lastRawOriginValid = true;
     if(!noclip_anglehack && cl.onground && z - smoothZ > 0.f && lastTime >= 0.0)
     {
         if(cl.time != lastTime)
@@ -699,22 +704,22 @@ void easeStairs(const entity_t& player)
     // loaded game or a new map): the body rose 12 units over its first frames, and a two-handed hold taken
     // then kept the gap (vr_held.cpp).
     lastTime = player.msgtime > 0.0 ? cl.time : -1.0;
-    state.playerOrigin.z = smoothZ;
+    rig().state.playerOrigin.z = smoothZ;
 }
 
 // The tracked head, eyes and hands placed in the world (vrActive).
 void placeTracked(const TrackingState& t, float m2u, float seatedLift)
 {
-    updateRoomscale(t, m2u, state.playerOrigin);
-    state.lean = lean;
-    state.leanHold = vr_lean_detect.value > 0.f ? leanSense.hold : 0.f;
-    state.leanCues = leanSense.cues;
-    state.standingHeight = leanSense.valid ? leanSense.standing : units::eyeHeight();
+    updateRoomscale(t, m2u, rig().state.playerOrigin);
+    rig().state.lean = rig().lean;
+    rig().state.leanHold = vr_lean_detect.value > 0.f ? rig().leanSense.hold : 0.f;
+    rig().state.leanCues = rig().leanSense.cues;
+    rig().state.standingHeight = rig().leanSense.valid ? rig().leanSense.standing : units::eyeHeight();
 
     // Positions are relative to the play-space floor below the head: the box's middle and the
     // lean.
     const glm::vec3 floorBelowHead{t.head.position.x, 0.f, t.head.position.z};
-    glm::vec3 base = state.playerOrigin + lean + glm::vec3{0.f, 0.f, vr_floor_offset.value};
+    glm::vec3 base = rig().state.playerOrigin + rig().lean + glm::vec3{0.f, 0.f, vr_floor_offset.value};
     // Sliding (vr_slide, vr_slide_camera; vr_slide.cpp viewDrop): the whole tracked frame let down, eased, until the eyes
     // are the flat slide's -- the view, the hands and the body hung from the head all with it, as the flat slide's crouch
     // lowers its head (placeFlat); the head's own moves stay one to one on top. Its height (headHeight) with it, so the
@@ -723,26 +728,26 @@ void placeTracked(const TrackingState& t, float m2u, float seatedLift)
     const glm::vec3 eyesTracked =
         0.5f * (frame.eyes[0].pose.position + frame.eyes[1].pose.position) + glm::vec3{0.f, seatedLift, 0.f};
     const float slideDrop =
-        slide::viewDrop(base.z + (quakeFromTracking(eyesTracked - floorBelowHead) * m2u).z - state.playerOrigin.z);
+        slide::viewDrop(base.z + (quakeFromTracking(eyesTracked - floorBelowHead) * m2u).z - rig().state.playerOrigin.z);
     base.z -= slideDrop;
     const auto toWorld = [&](const glm::vec3& trackingPos) {
-        return base + rotateYaw(quakeFromTracking(trackingPos - floorBelowHead) * m2u, turnYaw);
+        return base + rotateYaw(quakeFromTracking(trackingPos - floorBelowHead) * m2u, rig().turnYaw);
     };
 
-    if(pendingYawValid)
+    if(rig().pendingYawValid)
     {
         // Turn the play space so that the head faces the yaw the server asked for.
-        pendingYawValid = false;
-        turnYaw = pendingYaw - anglesFromTracking(t.head.orientation, 0.f).y;
+        rig().pendingYawValid = false;
+        rig().turnYaw = rig().pendingYaw - anglesFromTracking(t.head.orientation, 0.f).y;
     }
-    state.turnYaw = turnYaw;
-    state.spaceOrigin = toWorld(glm::vec3{0.f});
+    rig().state.turnYaw = rig().turnYaw;
+    rig().state.spaceOrigin = toWorld(glm::vec3{0.f});
     // The tracked body, as the head and hands (seated: raised as they are, the floor under it lowered).
-    bodytrack::place(base, floorBelowHead - glm::vec3{0.f, seatedLift, 0.f}, t.head.position, turnYaw, m2u);
+    bodytrack::place(base, floorBelowHead - glm::vec3{0.f, seatedLift, 0.f}, t.head.position, rig().turnYaw, m2u);
 
-    state.head = toWorld(t.head.position);
-    state.headAngles = anglesFromTracking(t.head.orientation, turnYaw);
-    state.headHeight = t.head.position.y - slideDrop / m2u;
+    rig().state.head = toWorld(t.head.position);
+    rig().state.headAngles = anglesFromTracking(t.head.orientation, rig().turnYaw);
+    rig().state.headHeight = t.head.position.y - slideDrop / m2u;
     // Sliding: the body's floor (the head less headHeight: vr_avatar.cpp solveTorso) where the flat slide's is, off the
     // box's floor the slide pose's hips are measured from (vr_avatar_pitch.cpp): Quake's standing eyes (46 over it) less
     // the flat body's eye height (vr_flat_body_height; placeFlat's head less its headHeight). Not vr_floor_offset's
@@ -752,15 +757,15 @@ void placeTracked(const TrackingState& t, float m2u, float seatedLift)
     {
         const edict_t* pl = progs::localPlayer();
         const float flatFloor =
-            state.playerOrigin.z + (pl != nullptr ? pl->v.mins[2] : -24.f) + 46.f - units::flatBodyEyeHeight() * m2u;
-        const float bodyFloor = state.head.z - state.headHeight * m2u;
-        state.headHeight += share * (bodyFloor - flatFloor) / m2u;
+            rig().state.playerOrigin.z + (pl != nullptr ? pl->v.mins[2] : -24.f) + 46.f - units::flatBodyEyeHeight() * m2u;
+        const float bodyFloor = rig().state.head.z - rig().state.headHeight * m2u;
+        rig().state.headHeight += share * (bodyFloor - flatFloor) / m2u;
     }
 
     for(int eye = 0; eye < 2; eye++)
     {
-        state.eyeOrigin[eye] = toWorld(frame.eyes[eye].pose.position + glm::vec3{0.f, seatedLift, 0.f});
-        state.eyeAngles[eye] = anglesFromTracking(frame.eyes[eye].pose.orientation, turnYaw);
+        rig().state.eyeOrigin[eye] = toWorld(frame.eyes[eye].pose.position + glm::vec3{0.f, seatedLift, 0.f});
+        rig().state.eyeAngles[eye] = anglesFromTracking(frame.eyes[eye].pose.orientation, rig().turnYaw);
     }
 
     for(int h = 0; h < HAND_COUNT; h++)
@@ -774,32 +779,32 @@ void placeTracked(const TrackingState& t, float m2u, float seatedLift)
         glm::quat handOri = withHandOffsets(t.hands[h].orientation, h);
         const glm::quat unrolled = handOri;
         calibrate(cal, gripPos, gripOri, handPos, handOri);
-        calibratedOffset[h] = handPos - t.hands[h].position;
-        state.pos[h] = toWorld(handPos);
-        state.rot[h] = anglesFromTracking(handOri, turnYaw);
-        state.calibratedPos[h] = state.pos[h];
-        state.calibratedRot[h] = state.rot[h];
-        state.calTurn[h] = cal.turn.z != 0.f ? basisOf(state.rot[h]) * glm::transpose(basisOf(anglesFromTracking(unrolled, turnYaw)))
+        rig().calibratedOffset[h] = handPos - t.hands[h].position;
+        rig().state.pos[h] = toWorld(handPos);
+        rig().state.rot[h] = anglesFromTracking(handOri, rig().turnYaw);
+        rig().state.calibratedPos[h] = rig().state.pos[h];
+        rig().state.calibratedRot[h] = rig().state.rot[h];
+        rig().state.calTurn[h] = cal.turn.z != 0.f ? basisOf(rig().state.rot[h]) * glm::transpose(basisOf(anglesFromTracking(unrolled, rig().turnYaw)))
                                              : glm::mat3{1.f};
-        state.controllerPos[h] = toWorld(t.hands[h].position);
-        state.controllerRot[h] = anglesFromTracking(t.hands[h].orientation, turnYaw);
-        state.gripPos[h] = toWorld(gripPos);
-        state.gripRot[h] = anglesFromTracking(gripOri, turnYaw);
-        state.aimRot[h] = state.rot[h];
-        state.wholeTurn[h] = glm::mat3{1.f};
+        rig().state.controllerPos[h] = toWorld(t.hands[h].position);
+        rig().state.controllerRot[h] = anglesFromTracking(t.hands[h].orientation, rig().turnYaw);
+        rig().state.gripPos[h] = toWorld(gripPos);
+        rig().state.gripRot[h] = anglesFromTracking(gripOri, rig().turnYaw);
+        rig().state.aimRot[h] = rig().state.rot[h];
+        rig().state.wholeTurn[h] = glm::mat3{1.f};
         applyWholeOffset(h);
-        state.unresolvedPos[h] = state.pos[h];
-        state.unresolvedRot[h] = state.rot[h];
+        rig().state.unresolvedPos[h] = rig().state.pos[h];
+        rig().state.unresolvedRot[h] = rig().state.rot[h];
     }
 
-    handpose::resolvePositions(state, turnYaw);
-    twohand::apply(state);
-    handpose::weightDirections(state, turnYaw);
+    handpose::resolvePositions(rig().state, rig().turnYaw);
+    twohand::apply(rig().state);
+    handpose::weightDirections(rig().state, rig().turnYaw);
 
     // The server takes the aim from the move's view angles (.v_angle): the main hand.
     for(int i = 0; i < 3; i++)
     {
-        cl.viewangles[i] = state.rot[HAND_MAIN][i];
+        cl.viewangles[i] = rig().state.rot[HAND_MAIN][i];
     }
 }
 
@@ -811,14 +816,14 @@ void placeFlat(const glm::vec3& aim, float yaw)
     glm::vec3 fwd, right, up;
     angleVectors(aim, fwd, right, up);
 
-    state.lean = glm::vec3{0.f};
-    state.turnYaw = yaw;
-    state.spaceOrigin = state.playerOrigin;
-    state.leanHold = 0.f;
-    state.standingHeight = units::eyeHeight();
-    state.head = state.playerOrigin + glm::vec3{0.f, 0.f, cl.viewheight};
-    state.headAngles = aim;
-    state.headHeight = units::eyeHeight(); // (vr_flat_body_height: the mode's fixed height)
+    rig().state.lean = glm::vec3{0.f};
+    rig().state.turnYaw = yaw;
+    rig().state.spaceOrigin = rig().state.playerOrigin;
+    rig().state.leanHold = 0.f;
+    rig().state.standingHeight = units::eyeHeight();
+    rig().state.head = rig().state.playerOrigin + glm::vec3{0.f, 0.f, cl.viewheight};
+    rig().state.headAngles = aim;
+    rig().state.headHeight = units::eyeHeight(); // (vr_flat_body_height: the mode's fixed height)
 
     // -flatscreenmode holding his crouch (Left Ctrl, +flatcrouch: vr_flatplay.cpp) puts his head down by the eased
     // vr_flat_crouch_drop, and his height with it: crouchRatio (below, the same way a tracked crouch reads), the body's
@@ -828,8 +833,8 @@ void placeFlat(const glm::vec3& aim, float yaw)
     const float crouchDown = flatplay::crouchDrop();
     if(crouchDown > 0.f)
     {
-        state.head[2] -= crouchDown;
-        state.headHeight = units::eyeHeight() - crouchDown / units::metresToUnits();
+        rig().state.head[2] -= crouchDown;
+        rig().state.headHeight = units::eyeHeight() - crouchDown / units::metresToUnits();
     }
     // Leaning (Q / E, vr_flatmove.cpp): his head moved sideways and a little down as it swings, and the body's lean
     // toward it (the trunk tilts from the hips: vr_avatar.cpp solveTorso, as a headset player's lean). The hands, the
@@ -837,38 +842,38 @@ void placeFlat(const glm::vec3& aim, float yaw)
     const glm::vec3 leanShift = flatmove::leanShift();
     if(leanShift != glm::vec3{0.f})
     {
-        state.head += leanShift;
-        state.headHeight += leanShift.z / units::metresToUnits();
-        state.lean = glm::vec3{leanShift.x, leanShift.y, 0.f};
-        state.leanHold = 1.f;
+        rig().state.head += leanShift;
+        rig().state.headHeight += leanShift.z / units::metresToUnits();
+        rig().state.lean = glm::vec3{leanShift.x, leanShift.y, 0.f};
+        rig().state.leanHold = 1.f;
     }
 
 
-    const glm::vec3 centre = state.playerOrigin + fwd * 16.5f + up * 15.5f;
+    const glm::vec3 centre = rig().state.playerOrigin + fwd * 16.5f + up * 15.5f;
     if(flatplay::active())
     {
         // -flatscreenmode: the hands posed from the view, the weapon in each hand and the player's own motion
         // (vr_flatplay.cpp); the pose below is the old one, for a flat game started without the flag.
-        QVR_TRACY_CALL("hands: flat pose", flatplay::poseHands(state, aim));
-        QVR_TRACY_CALL("hands: anim preview", animrec::applyPreview(state)); // the animation recorder's preview (vr_ar_play), blended over the pose
+        QVR_TRACY_CALL("hands: flat pose", flatplay::poseHands(rig().state, aim));
+        QVR_TRACY_CALL("hands: anim preview", animrec::applyPreview(rig().state)); // the animation recorder's preview (vr_ar_play), blended over the pose
     }
     else
     {
-        state.pos[HAND_OFF] = centre - right * 5.5f;
-        state.pos[HAND_MAIN] = centre + right * 5.5f;
-        for(glm::vec3& rot : state.rot)
+        rig().state.pos[HAND_OFF] = centre - right * 5.5f;
+        rig().state.pos[HAND_MAIN] = centre + right * 5.5f;
+        for(glm::vec3& rot : rig().state.rot)
         {
             rot = aim + glm::vec3{0.f, 0.f, vr_fakevr_handroll.value};
         }
     }
     for(int h = 0; h < HAND_COUNT; h++)
     {
-        state.calTurn[h] = glm::mat3{1.f};
-        state.controllerPos[h] = state.calibratedPos[h] = state.pos[h];
-        state.controllerRot[h] = state.calibratedRot[h] = state.aimRot[h] = state.rot[h];
-        state.gripPos[h] = state.pos[h];
-        state.gripRot[h] = state.rot[h];
-        state.wholeTurn[h] = glm::mat3{1.f};
+        rig().state.calTurn[h] = glm::mat3{1.f};
+        rig().state.controllerPos[h] = rig().state.calibratedPos[h] = rig().state.pos[h];
+        rig().state.controllerRot[h] = rig().state.calibratedRot[h] = rig().state.aimRot[h] = rig().state.rot[h];
+        rig().state.gripPos[h] = rig().state.pos[h];
+        rig().state.gripRot[h] = rig().state.rot[h];
+        rig().state.wholeTurn[h] = glm::mat3{1.f};
         // (Not -flatscreenmode's: Hand and Weapon Together corrects a controller's hold. His hands are posed in the view's
         // frame, the shots solved from the crosshair (vr_flatsight.cpp): moved and turned after that, a gun's shot was off.)
         if(!flatplay::active())
@@ -904,27 +909,27 @@ void logBodyDrift()
 void update()
 {
     QVR_PROFILE("hands");
-    state.valid = false;
+    rig().state.valid = false;
     if(!(cl.protocolflags & PRFL_QUAKEVR) || cls.state != ca_connected || !cl.viewentity)
     {
-        previous.valid = false;
-        lastHeadValid = false;
+        rig().previous.valid = false;
+        rig().lastHeadValid = false;
         torso::reset();
-        roomscaleMove = glm::vec3{0.f};
+        rig().roomscaleMove = glm::vec3{0.f};
         resetLean();
         return;
     }
 
     // Seated (vr_seated.hpp): the head and the hands raised, a standing player's; the eyes and the tracked body below too.
-    const bool raised = vrActive() && seated::raise(tracking(), seatedTracking);
-    const TrackingState& t = raised ? seatedTracking : tracking();
+    const bool raised = vrActive() && seated::raise(tracking(), rig().seatedTracking);
+    const TrackingState& t = raised ? rig().seatedTracking : tracking();
     const float seatedLift = raised ? seated::lift() : 0.f;
     const entity_t& player = cl_entities[cl.viewentity];
     const glm::vec3 aim{cl.viewangles[0], cl.viewangles[1], cl.viewangles[2]};
     const float yaw = cl.viewangles[YAW];
     const float m2u = units::metresToUnits();
 
-    state.playerOrigin = {player.origin[0], player.origin[1], player.origin[2]};
+    rig().state.playerOrigin = {player.origin[0], player.origin[1], player.origin[2]};
 
     // Stair steps: the origin rises at once, so ease the body (head, eyes, hands) up after it,
     // as V_CalcRefdef does for the flat view (80 units/s, at most 12 behind).
@@ -943,34 +948,34 @@ void update()
     }
 
     QVR_TRACY_CALL("hands: velocities", updateVelocities(vrActive() ? &t : nullptr));
-    QVR_TRACY_CALL("hands: flick", flick::update(state));
+    QVR_TRACY_CALL("hands: flick", flick::update(rig().state));
 
     // The torso's direction (vr_torso.cpp): the head's, pulled a little by the hands in front of it; with body tracking,
     // the tracked hips' (vr_bodytrack.cpp). Flatscreen play: the view's, turned by a long gun's stance (flatplay::poseHands set it,
     // and the hands stand on the shoulders of that turned body: reset to the view's here, the body was drawn unturned under them).
-    state.bodyYaw = vrActive() ? bodytrack::bodyYaw(torso::estimate(state, headYawBlended(), turnYaw,
+    rig().state.bodyYaw = vrActive() ? bodytrack::bodyYaw(torso::estimate(rig().state, headYawBlended(), rig().turnYaw,
                                                      t.hands[HAND_OFF].valid && t.hands[HAND_MAIN].valid))
-                    : flatplay::active() ? state.bodyYaw
+                    : flatplay::active() ? rig().state.bodyYaw
                                          : yaw;
     // A headset's slide: the drawn hips and legs to the slide's way (vr_slide_legs; the avatar reads it).
     if(vrActive())
     {
-        slide::headsetLegs(state.bodyYaw);
+        slide::headsetLegs(rig().state.bodyYaw);
     }
 
-    state.crouchRatio = state.headHeight > 0.f
-                            ? CLAMP(0.f, units::eyeHeight() / state.headHeight - 1.f, 1.f)
+    rig().state.crouchRatio = rig().state.headHeight > 0.f
+                            ? CLAMP(0.f, units::eyeHeight() / rig().state.headHeight - 1.f, 1.f)
                             : 0.f;
 
-    QVR_TRACY_CALL("hands: body hotspots", body::updateHotspots(state));
-    QVR_TRACY_CALL("hands: twohand hotspots", twohand::updateHotspots(state)); // a carried gun's handle
+    QVR_TRACY_CALL("hands: body hotspots", body::updateHotspots(rig().state));
+    QVR_TRACY_CALL("hands: twohand hotspots", twohand::updateHotspots(rig().state)); // a carried gun's handle
 
     // The poses' own clock (vr_move.hpp: the melee and the legs' sweep measure a blow over these times when the client
     // sends them). A headset's poses carry the tracking's sample time; the flat game's are made from the view at the
     // client's clock, so they carry that instead of nothing - and a pose that carries nothing reads as no news, which is
     // what a flatscreen fist's blows were up against (QC vr_melee.qc VR_Melee_Track, vr_legsweep.cpp).
-    state.poseTime = vrActive() ? t.time : vr_gametime;
-    state.valid = true;
+    rig().state.poseTime = vrActive() ? t.time : vr_gametime;
+    rig().state.valid = true;
 
     // Body drift's log (vr_debug_body_error): marked where the body is when turned on.
     logBodyDrift();
@@ -1017,21 +1022,21 @@ glm::quat aimedController(const glm::quat& controller, int hand)
 
 void portalCrossing(float yawDegrees)
 {
-    portalJumpPending = true;
-    portalJumpYaw = yawDegrees;
-    portalAngleTaken = false;
-    portalJumpTime = cl.time;
+    rig().portalJumpPending = true;
+    rig().portalJumpYaw = yawDegrees;
+    rig().portalAngleTaken = false;
+    rig().portalJumpTime = cl.time;
 }
 
 bool portalAnglePending(float& yawDegrees)
 {
-    yawDegrees = portalJumpYaw;
-    return portalJumpPending && !portalAngleTaken;
+    yawDegrees = rig().portalJumpYaw;
+    return rig().portalJumpPending && !rig().portalAngleTaken;
 }
 
 void setServerYaw(float yaw)
 {
-    if(portalJumpPending && !portalAngleTaken)
+    if(rig().portalJumpPending && !rig().portalAngleTaken)
     {
         // The server's angle for a walk through a teleporter: the play space turned by the gate's yaw itself (the
         // server's head angle is a frame old: its turn would be off by the head's own turn since).
@@ -1040,19 +1045,19 @@ void setServerYaw(float yaw)
         // the body, the crossing's frame drew it a frame early and the next frame the same again: a hitch at every
         // teleporter (ROUND21.md, "A frame seen through after a teleporter"). The next frame's hands take the turn, the
         // carried body and the lean together.
-        portalAngleTaken = true;
-        turnYaw = za::remainder(turnYaw + portalJumpYaw, 360.f);
+        rig().portalAngleTaken = true;
+        rig().turnYaw = za::remainder(rig().turnYaw + rig().portalJumpYaw, 360.f);
         return;
     }
-    pendingYawValid = true;
-    pendingYaw = yaw;
-    stateFrame = -1; // recompute the hands with the new yaw
+    rig().pendingYawValid = true;
+    rig().pendingYaw = yaw;
+    rig().stateFrame = -1; // recompute the hands with the new yaw
 }
 
 void addTurn(float degrees)
 {
-    turnYaw = za::remainder(turnYaw + degrees, 360.f);
-    stateFrame = -1;
+    rig().turnYaw = za::remainder(rig().turnYaw + degrees, 360.f);
+    rig().stateFrame = -1;
 }
 
 // A stick turn (vr_lean_turn). The play space turns about the head (the view stays where it is), so the real body, a
@@ -1067,24 +1072,24 @@ void stickTurn(float degrees, bool snap)
     const int mode = static_cast<int>(vr_lean_turn.value);
     if(vrActive())
     {
-        const glm::vec3 turned = rotateYaw(lean, degrees);
-        const glm::vec3 swing = lean - turned; // the box's move to keep the head where it is
-        if(mode >= 2 && !snap && lastBodyValid && glm::length(swing) > 1e-3f && !noclip_anglehack)
+        const glm::vec3 turned = rotateYaw(rig().lean, degrees);
+        const glm::vec3 swing = rig().lean - turned; // the box's move to keep the head where it is
+        if(mode >= 2 && !snap && rig().lastBodyValid && glm::length(swing) > 1e-3f && !noclip_anglehack)
         {
             // As the body sliding back under the head: not into a wall, nor off a ledge (leant out over a drop and
             // turning, the body would swing out over it).
-            const glm::vec3 from = lastBody + roomscaleMove;
+            const glm::vec3 from = rig().lastBody + rig().roomscaleMove;
             const glm::vec3 to = from + swing;
             if(worldtrace::playerBoxFits(from, to) && worldtrace::line(to, to - glm::vec3{0.f, 0.f, 48.f}) < 1.f)
             {
-                roomscaleMove += swing;
+                rig().roomscaleMove += swing;
             }
         }
-        lean = turned;
-        if(leanSense.handsRefValid)
+        rig().lean = turned;
+        if(rig().leanSense.handsRefValid)
         {
-            const glm::vec3 ref = rotateYaw(glm::vec3{leanSense.handsRef, 0.f}, degrees);
-            leanSense.handsRef = glm::vec2{ref.x, ref.y};
+            const glm::vec3 ref = rotateYaw(glm::vec3{rig().leanSense.handsRef, 0.f}, degrees);
+            rig().leanSense.handsRef = glm::vec2{ref.x, ref.y};
         }
     }
     addTurn(degrees);
@@ -1092,14 +1097,14 @@ void stickTurn(float degrees, bool snap)
 
 float playSpaceYaw()
 {
-    return turnYaw;
+    return rig().turnYaw;
 }
 
 void bodyError_f()
 {
     if(Cmd_Argc() >= 2 && !q_strcasecmp(Cmd_Argv(1), "mark"))
     {
-        if(vrActive() && state.valid)
+        if(vrActive() && rig().state.valid)
         {
             markBodyDrift();
         }
@@ -1111,75 +1116,76 @@ void bodyError_f()
 
 void recenter_f()
 {
-    recenterPending = true;
-    Con_Printf("vr_recenter: lean %.1f units\n", glm::length(lean));
+    rig().recenterPending = true;
+    Con_Printf("vr_recenter: lean %.1f units\n", glm::length(rig().lean));
 }
 
 void resetClientState()
 {
-    stairSmoothZ = 0.f;
-    stairLastTime = -1.0;
-    previous.valid = false;
-    stateFrame = -1;
+    rig().stairSmoothZ = 0.f;
+    rig().stairLastTime = -1.0;
+    rig().previous.valid = false;
+    rig().stateFrame = -1;
 }
 
 namespace
 {
 // Forgotten when the client's state is cleared (vr_mem.hpp's resets): what follows the client's time.
+// seat-shared: the reset hook (it resets the current seat's)
 mem::Reset clientStateReset{"hands", mem::ResetEvent::ClientState, mem::ResetPhase::State, &resetClientState};
 } // namespace
 
 void resetForPlayback()
 {
     resetClientState();
-    lastHeadValid = false; // (the last take's head: not a step into this one)
+    rig().lastHeadValid = false; // (the last take's head: not a step into this one)
     torso::reset();
-    roomscaleMove = glm::vec3{0.f};
+    rig().roomscaleMove = glm::vec3{0.f};
     resetLean();
 }
 
 void setPlaySpaceYaw(float yaw)
 {
-    turnYaw = za::remainder(yaw, 360.f);
-    pendingYawValid = false;
-    stateFrame = -1;
+    rig().turnYaw = za::remainder(yaw, 360.f);
+    rig().pendingYawValid = false;
+    rig().stateFrame = -1;
 }
 
 void relatch()
 {
-    const Previous keep = previous;
-    stateFrame = -1;
+    const Previous keep = rig().previous;
+    rig().stateFrame = -1;
     (void)current();
-    previous = keep;
+    rig().previous = keep;
 }
 
 void refresh()
 {
-    stateFrame = -1; // the velocities are kept (the same vr_gametime: updateVelocities)
+    rig().stateFrame = -1; // the velocities are kept (the same vr_gametime: updateVelocities)
 }
 
 void setLean(const glm::vec3& worldLean)
 {
-    lean = glm::vec3{worldLean.x, worldLean.y, 0.f};
-    stateFrame = -1;
+    rig().lean = glm::vec3{worldLean.x, worldLean.y, 0.f};
+    rig().stateFrame = -1;
 }
 
 glm::vec3 takeRoomscaleMove()
 {
-    const glm::vec3 move = roomscaleMove;
-    roomscaleMove = glm::vec3{0.f};
+    const glm::vec3 move = rig().roomscaleMove;
+    rig().roomscaleMove = glm::vec3{0.f};
     return move;
 }
 
 State& current()
 {
-    if(stateFrame != host_framecount)
+    if(rig().stateFrame != host_framecount)
     {
-        stateFrame = host_framecount;
+        rig().stateFrame = host_framecount;
         update();
     }
 
-    return state;
+    return rig().state;
 }
 
 glm::vec3 bodyAnchor(const State& s, const glm::vec3& offsets)
@@ -1235,7 +1241,7 @@ glm::vec3 rotateYaw(const glm::vec3& v, float degrees)
 
 glm::vec3 calibrationOffset(int hand)
 {
-    return hand >= 0 && hand < 2 ? calibratedOffset[hand] : glm::vec3{0.f};
+    return hand >= 0 && hand < 2 ? rig().calibratedOffset[hand] : glm::vec3{0.f};
 }
 
 glm::vec3 carriedSincePlaced(const State& s, int h, const glm::vec3& placed)

@@ -53,6 +53,21 @@ enum class Part
     FlatGrab,    // vr_flatfgrab.cpp: what the hands carry (E's grab)
     FlatGrenade, // vr_flatgrenade.cpp: the grenade's throw
     FlatSwap,    // vr_flatswap.cpp: the hands' swap
+    // Phase 4b: the hands (flat play's and the headset's).
+    Hands,        // vr_hands.cpp: the rig (hands::current()'s state), the play space's turn, the body's walk and lean
+    Held,         // vr_held.cpp: what each hand holds, the eases, the hold in both hands, the meets, the skewered gibs
+    TwoHand,      // vr_twohand.cpp: the two-handed holds, grips, help and carry records, free grips
+    ViewHands,    // vr_view_hands.cpp: the drawn hands on an embedded blade, a skewered gib, a long gun's hotspot
+    ViewWeapon,   // vr_view_weapon.cpp: the drawn weapons' reverse grips
+    Throw,        // vr_throw.cpp: the hands' motion histories, the physgun's point, the grips' clicks
+    Grip,         // vr_grip.cpp: the hands' frames as the client measured them
+    GripFit,      // vr_gripfit.cpp: the hands' rig frames
+    HandSource,   // vr_handsource.cpp: each hand's source this frame (tracked, flat, ...)
+    HeldPose,     // vr_heldpose.cpp: what went up to the server last, each hand's
+    Toolgun,      // vr_toolgun.cpp: the toolgun's state
+    ToolgunArm,   // vr_toolgun.cpp: the toolgun's ghosts and armed entry
+    ToolgunBrush, // vr_toolgun_brush.cpp: the Brush tool's state
+    ToolgunPanel, // vr_toolgun_panel.cpp: the toolgun's panel
     Count
 };
 

@@ -1024,11 +1024,17 @@ namespace
 // The server's samples and the QC's events
 // ----------------------------------------------------------------------------
 
+// seat-shared: the motion recorder's, a tool of the headset (one headset, one recording at a time)
 za::Optional<ServerSample> latest; // the last server frame's sample (each row made takes a copy)
+// seat-shared: the motion recorder's, a tool of the headset (one headset, one recording at a time)
 za::U32 latestFrame = 0;          // its number (Row::svFrame)
+// seat-shared: the motion recorder's, a tool of the headset (one headset, one recording at a time)
 ServerSample* sampling = nullptr; // the sample VR_Motion_Sample is filling
+// seat-shared: the motion recorder's, a tool of the headset (one headset, one recording at a time)
 bool tickThisFrame = false;
+// seat-shared: the motion recorder's, a tool of the headset (one headset, one recording at a time)
 double tickDt = 0.0;
+// seat-shared: the motion recorder's, a tool of the headset (one headset, one recording at a time)
 za::Vector<Event> frameEvents;
 
 bool armedOrRecording();
@@ -1061,26 +1067,43 @@ enum class Rec
     Tail,      // after it, for vr_motion_tail seconds
 };
 
+// seat-shared: the motion recorder's, a tool of the headset (one headset, one recording at a time)
 Rec rec = Rec::Off;
 void finishTake();
+// seat-shared: the motion recorder's, a tool of the headset (one headset, one recording at a time)
 za::Vector<za::Pair<TakeInfo, za::Vector<Row>>> unsaved; // takes that could not be written
 // The buttons the recorder can take (vr_motion_button's): vr_recbutton.hpp's, shared with the animation recorder.
 constexpr auto& recButtons = recbutton::buttons;
 constexpr int recButtonCount = recbutton::buttonCount;
+// seat-shared: the motion recorder's, a tool of the headset (one headset, one recording at a time)
 bool taken[HAND_COUNT][recButtonCount]{}; // the recorder took this button's press (its release too)
+// seat-shared: the motion recorder's, a tool of the headset (one headset, one recording at a time)
 za::Vector<Row> rows;
+// seat-shared: the motion recorder's, a tool of the headset (one headset, one recording at a time)
 za::Vector<Row> preroll; // (first in, first out)
+// seat-shared: the motion recorder's, a tool of the headset (one headset, one recording at a time)
 TrackingState rawTracking;
+// seat-shared: the motion recorder's, a tool of the headset (one headset, one recording at a time)
 double stopTime = 0.0;
+// seat-shared: the motion recorder's, a tool of the headset (one headset, one recording at a time)
 za::String takeLabel;
+// seat-shared: the motion recorder's, a tool of the headset (one headset, one recording at a time)
 za::String takeStamp;
+// seat-shared: the motion recorder's, a tool of the headset (one headset, one recording at a time)
 za::String takeDate;
+// seat-shared: the motion recorder's, a tool of the headset (one headset, one recording at a time)
 int takeNumber = 0;
+// seat-shared: the motion recorder's, a tool of the headset (one headset, one recording at a time)
 za::String lastSavedName;
+// seat-shared: the motion recorder's, a tool of the headset (one headset, one recording at a time)
 za::Vector<za::String> savedThisSession; // for Delete Last Take
+// seat-shared: the motion recorder's, a tool of the headset (one headset, one recording at a time)
 double feedbackUntil = 0.0; // "SAVED" / "DROPPED" shown until then
+// seat-shared: the motion recorder's, a tool of the headset (one headset, one recording at a time)
 za::String feedbackText;
+// seat-shared: the motion recorder's, a tool of the headset (one headset, one recording at a time)
 ankerl::unordered_dense::map<za::String, int> takeCounts;
+// seat-shared: the motion recorder's, a tool of the headset (one headset, one recording at a time)
 bool countsValid = false;
 
 // vr_motion_button's choices (VR Settings > Advanced > Motion Recorder, "Record Button"): vr_recbutton.hpp's (the
@@ -1215,6 +1238,7 @@ struct PendingSave
     TakeInfo info;
     double held{0.0};
 };
+// seat-shared: the motion recorder's, a tool of the headset (one headset, one recording at a time)
 za::Vector<PendingSave> pendingSaves;
 
 // Where a take goes: <dir>/<label>_<date>_<time>.csv, never over another (nor one being written).
@@ -1508,16 +1532,26 @@ struct EntitySnap
     float extra{0.f};   // an armed grunt's weapon id (vr_ag_wid; -1 its fists), the player's ammo (currentammo)
 };
 
+// seat-shared: the motion recorder's, a tool of the headset (one headset, one recording at a time)
 TimeRing<Row> replayRows;
+// seat-shared: the motion recorder's, a tool of the headset (one headset, one recording at a time)
 TimeRing<EntitySnap> replayEnts;
+// seat-shared: the motion recorder's, a tool of the headset (one headset, one recording at a time)
 double replayEntsNext = 0.0;
+// seat-shared: the motion recorder's, a tool of the headset (one headset, one recording at a time)
 za::String replayMap; // the map the rings are of
 // Their cost on the main thread (vr_note_replay_stats): the host frames' rows and the entity snapshots, seconds and counts.
+// seat-shared: the motion recorder's, a tool of the headset (one headset, one recording at a time)
 double replayRowCost = 0.0;
+// seat-shared: the motion recorder's, a tool of the headset (one headset, one recording at a time)
 int replayRowCount = 0;
+// seat-shared: the motion recorder's, a tool of the headset (one headset, one recording at a time)
 double replayEntCost = 0.0;
+// seat-shared: the motion recorder's, a tool of the headset (one headset, one recording at a time)
 int replayEntCount = 0;
+// seat-shared: the motion recorder's, a tool of the headset (one headset, one recording at a time)
 int replayAgFieldWid = -2; // vr_ag_wid's offset (-1: none; -2: not looked up since the progs loaded)
+// seat-shared: the motion recorder's, a tool of the headset (one headset, one recording at a time)
 const void* replayAgProgs = nullptr;
 
 [[nodiscard]] bool replayWanted()
@@ -1681,6 +1715,7 @@ struct PendingReplay
     jobs::Future<bool> done;
     za::String path;
 };
+// seat-shared: the motion recorder's, a tool of the headset (one headset, one recording at a time)
 za::Vector<PendingReplay> pendingReplays;
 
 void pollReplays(bool wait)
@@ -2270,6 +2305,7 @@ struct MotionReadouts
     za::String labelStatus;
     auto members() { return qvr::mem::list(labelStatus); }
 };
+// seat-shared: the motion recorder's, a tool of the headset (one headset, one recording at a time)
 mem::Scratch<MotionReadouts> readouts{"motion readouts"};
 
 } // namespace

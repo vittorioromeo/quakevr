@@ -7,7 +7,7 @@
 void pick(int num)
 {
     edict_t* e = EDICT_NUM(num);
-    Selection& sel = tg.sel;
+    Selection& sel = tg().sel;
     sel = {};
     const char* cls = PR_GetString(e->v.classname);
     const int wid = static_cast<int>(e->v.weapon);
@@ -65,7 +65,7 @@ void pick(int num)
 // hold (ghostHold) is only for this: A/X elsewhere is the sticks' as ever.
 [[nodiscard]] bool ghostShowing()
 {
-    return tg.hand >= 0 && tg.aim.valid && tg.sel.valid && !tg.picking && currentTool() == Tool::Spawn;
+    return tg().hand >= 0 && tg().aim.valid && tg().sel.valid && !tg().picking && currentTool() == Tool::Spawn;
 }
 
 // A wall torch's origin (its cup) off its wall: id's maps hang theirs 6-12 units off it (e1m2's), most about 10.
@@ -76,7 +76,7 @@ constexpr float wallStandoff = 10.f;
 [[nodiscard]] bool wallAim(const Aim& a)
 {
     const bool thingFirst = a.target && a.target != a.hitEntity && a.targetDistance < a.worldDistance;
-    return tg.sel.wall && !thingFirst && a.normal != glm::vec3{0.f} && za::fabs(a.normal.z) < 0.7f;
+    return tg().sel.wall && !thingFirst && a.normal != glm::vec3{0.f} && za::fabs(a.normal.z) < 0.7f;
 }
 
 // The point the ghost stands on before its offsets: what the gun points at (lifted onto a floor; out from a wall or a
@@ -92,7 +92,7 @@ constexpr float wallStandoff = 10.f;
     const glm::vec3 normal = a.target && a.targetDistance < a.worldDistance ? -a.dir : a.normal;
     if(normal.z > 0.7f)
     {
-        point.z += tg.sel.lift + 1.f;
+        point.z += tg().sel.lift + 1.f;
     }
     else if(normal != glm::vec3{0.f})
     {
@@ -104,7 +104,7 @@ constexpr float wallStandoff = 10.f;
 // The aim's way the ghost goes by: the aim's, or the one it had when the turn's hold fixed the ghost.
 [[nodiscard]] const glm::vec3& ghostDir()
 {
-    return ghostHold.fixed ? ghostHold.dir : tg.aim.dir;
+    return arm().ghostHold.fixed ? arm().ghostHold.dir : tg().aim.dir;
 }
 
 void probeLook();
@@ -115,24 +115,24 @@ void traceFrame(); // (vr_toolgun_spawn_trace)
 // you, turned by the turn.
 void updateGhost()
 {
-    tg.ghost = false;
+    tg().ghost = false;
     if(!ghostShowing())
     {
         return;
     }
-    const glm::vec3 point = ghostHold.fixed ? ghostHold.point : ghostPoint(tg.aim);
+    const glm::vec3 point = arm().ghostHold.fixed ? arm().ghostHold.point : ghostPoint(tg().aim);
     const glm::vec3& dir = ghostDir();
     glm::vec3 fwd, right;
     levelAxes(dir, fwd, right);
-    tg.ghostOrigin = point + fwd * tg.offset.x + right * tg.offset.y + glm::vec3{0.f, 0.f, tg.offset.z};
-    tg.ghostAngles = glm::vec3{tg.turn.x, yawOf(dir) + 180.f + tg.turn.y, tg.turn.z};
-    if(!ghostHold.fixed && wallAim(tg.aim))
+    tg().ghostOrigin = point + fwd * tg().offset.x + right * tg().offset.y + glm::vec3{0.f, 0.f, tg().offset.z};
+    tg().ghostAngles = glm::vec3{tg().turn.x, yawOf(dir) + 180.f + tg().turn.y, tg().turn.z};
+    if(!arm().ghostHold.fixed && wallAim(tg().aim))
     {
-        tg.ghostAngles.y = yawOf(tg.aim.normal) + tg.turn.y; // a wall torch faces out of its wall
+        tg().ghostAngles.y = yawOf(tg().aim.normal) + tg().turn.y; // a wall torch faces out of its wall
     }
-    tg.ghost = true;
+    tg().ghost = true;
     probeLook();
-    if(tg.sel.armed)
+    if(tg().sel.armed)
     {
         armedRefresh();
         armedGhostRefresh();
@@ -149,8 +149,8 @@ void updateGhost()
 // directly (not held, no offsets: its drop is then the placed one's), read and removed at once.
 void probeLook()
 {
-    const Selection& sel = tg.sel;
-    GhostLook& look = ghostLook;
+    const Selection& sel = tg().sel;
+    GhostLook& look = arm().ghostLook;
     if(!probedChoice(sel) || !sv.active)
     {
         return;
@@ -161,15 +161,15 @@ void probeLook()
         look.entry = sel.entry;
         copyText(look.classname, sizeof(look.classname), sel.classname);
     }
-    const bool onFloor = !ghostHold.fixed && tg.offset == glm::vec3{0.f} && tg.aim.normal.z > 0.7f &&
-                         !(tg.aim.target && tg.aim.targetDistance < tg.aim.worldDistance);
+    const bool onFloor = !arm().ghostHold.fixed && tg().offset == glm::vec3{0.f} && tg().aim.normal.z > 0.7f &&
+                         !(tg().aim.target && tg().aim.targetDistance < tg().aim.worldDistance);
     if(look.valid || look.tries >= 3 || !onFloor || (sel.entry >= 0 && !toolgun::spawnableAvailable(sel.entry)))
     {
         return;
     }
     look.tries++;
     const progs::ToolSpawn plain; // (the ghost the plain monster, as spawnChoice makes it)
-    edict_t* e = box3d::spawnClass(sel.classname, tg.ghostOrigin, tg.ghostAngles, sel.setModel ? sel.model : nullptr,
+    edict_t* e = box3d::spawnClass(sel.classname, tg().ghostOrigin, tg().ghostAngles, sel.setModel ? sel.model : nullptr,
         sel.key[0] ? sel.key : nullptr, sel.value, true, sel.weaponFlags);
     if(!e)
     {
@@ -183,8 +183,8 @@ void probeLook()
         copyText(look.model, sizeof(look.model), model);
         look.skin = static_cast<int>(e->v.skin);
         look.frame = static_cast<int>(e->v.frame);
-        look.delta = geom::vec(e->v.origin) - tg.ghostOrigin;
-        look.turn = geom::vec(e->v.angles) - tg.ghostAngles;
+        look.delta = geom::vec(e->v.origin) - tg().ghostOrigin;
+        look.turn = geom::vec(e->v.angles) - tg().ghostAngles;
         look.vr.scale = fieldVec(e, fields().model_scale);
         look.vr.scaleOrigin = fieldVec(e, fields().model_scale_origin);
         look.vr.offset = fieldVec(e, fields().model_offset);
@@ -237,14 +237,14 @@ void armedArmour(edict_t* e)
 
 void spawnHere()
 {
-    if(!tg.ghost)
+    if(!tg().ghost)
     {
         Con_Printf("toolgun: nothing to spawn (choose it on the panel, or pick it)\n");
         return;
     }
-    const Selection& sel = tg.sel;
+    const Selection& sel = tg().sel;
     if(sel.entry >= 0 && !toolgun::spawnableAvailable(sel.entry)) { return; } // AD support
-    edict_t* e = spawnChoice(sel, tg.ghostOrigin, tg.ghostAngles);
+    edict_t* e = spawnChoice(sel, tg().ghostOrigin, tg().ghostAngles);
     if(e)
     {
         const glm::vec3 off = fieldVec(e, fields().model_offset);

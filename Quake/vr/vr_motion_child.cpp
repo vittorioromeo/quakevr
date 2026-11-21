@@ -26,6 +26,7 @@ namespace qvr::motion::child
 namespace
 {
 #ifdef _WIN32
+// seat-shared: the review's background game process (one at a time)
 HANDLE process = nullptr;
 
 // Wide text for the system's calls (UTF-16, no terminator unless added; Zancle has no wide string).
@@ -84,9 +85,12 @@ void appendQuoted(Wide& line, const Wide& arg)
     line.pushBack(L'"');
 }
 #else
+// seat-shared: the review's background game process (one at a time)
 pid_t pid = 0;
+// seat-shared: the review's background game process (one at a time)
 int status = 0;
 #endif
+// seat-shared: the review's background game process (one at a time)
 int exitCode = 0;
 } // namespace
 

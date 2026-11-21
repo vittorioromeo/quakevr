@@ -1,6 +1,7 @@
 // vr_gripfit.cpp -- the grip fit: the prop moved out of the drawn hand once per grab (vr_gripfit.hpp).
 
 #include "vr_gripfit.hpp"
+#include "vr_seat.hpp"
 #include "vr_box3d.hpp"
 #include "vr_clientprefs.hpp"
 #include "vr_cvars.hpp"
@@ -19,7 +20,6 @@
 #include "Zancle/Math/Fmin.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Container/Vector.hpp"
-
 
 namespace qvr::gripfit
 {
@@ -50,6 +50,8 @@ struct RigPoints
     za::Vector<int> finger[fingers];
     float length{0.f}; // the hand's length (rig units, along +x)
 };
+
+// seat-shared: chosen once per rig model (a cache)
 RigPoints rigPoints;
 
 // The hand's rig frame, kept every frame (setHandRig).
@@ -59,7 +61,20 @@ struct HandRig
     glm::mat4 rigToHand{1.f};
     handrig::Pose pose;
 };
-HandRig handRigs[2];
+
+// A seat's hands' rig frames, kept every frame (phase 4b)
+struct GripFitSeat
+{
+    HandRig handRigs[2];
+};
+
+// splitscreen (SPLITSCREEN.md, phase 4b): the current seat's (seat::Part::GripFit)
+[[nodiscard]] GripFitSeat& gf()
+{
+    return seat::part<GripFitSeat>(seat::current(), seat::Part::GripFit);
+}
+
+// seat-shared: the server's, each player slot's
 PlayerRig playerRigs[MAX_SCOREBOARD][2]; // server: each other player's, as his client sent them (B3f)
 
 // What a fit works on (filled at each grab; kept for vr_grip_fit_last's bench): the hand's points in the prop's frame,
@@ -79,7 +94,9 @@ struct Inputs
     [[nodiscard]] const handfit::Group& body() const { return groups[0]; }
 };
 
+// seat-shared: the last fit run, by any player (vr_grip_fit_last's bench)
 Inputs inputs;
+// seat-shared: the last fit run, by any player (vr_grip_fit_last's bench)
 Result lastResult;
 
 // vr_grip_fit_drawn's: the drawn hand's points and parts, the prop's drawn vertices, its shape (no allocation after the
@@ -92,6 +109,7 @@ struct Scratch
     za::Vector<glm::vec3> fitProp;
     Inputs shape;
 };
+// seat-shared: scratch, used within one call
 Scratch scratch;
 
 // The `most` of `from` (vertex indices) spread over them: each the furthest from those chosen before, from the one
@@ -448,7 +466,7 @@ void setHandRig(int hand, const glm::mat4* rigToHand, const handrig::Pose& pose)
     {
         return;
     }
-    HandRig& h = handRigs[hand];
+    HandRig& h = gf().handRigs[hand];
     h.valid = rigToHand != nullptr;
     if(h.valid)
     {
@@ -467,13 +485,13 @@ static_assert(rigFingers == handrig::FingerCount);
 PlayerRig ownRig(int hand)
 {
     PlayerRig out;
-    if((hand == 0 || hand == 1) && handRigs[hand].valid)
+    if((hand == 0 || hand == 1) && gf().handRigs[hand].valid)
     {
         out.valid = true;
-        out.rigToHand = handRigs[hand].rigToHand;
+        out.rigToHand = gf().handRigs[hand].rigToHand;
         for(int f = 0; f < rigFingers; f++)
         {
-            out.shift[f] = handRigs[hand].pose.shift[f];
+            out.shift[f] = gf().handRigs[hand].pose.shift[f];
         }
     }
     return out;

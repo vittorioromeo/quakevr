@@ -17,6 +17,7 @@
 // than the runtime's grip button.
 
 #include "vr_throw.hpp"
+#include "vr_seat.hpp"
 #include "vr_cvars.hpp"
 #include "vr_mem.hpp"
 #include "vr_tunables.hpp"
@@ -74,12 +75,9 @@ struct History
     }
 };
 
-History histories[2];
-// The controllers' own (timescale::controllerPose), in step with `histories` (the same samples unless the slowed hand
-// lags its controller in slow motion): a throw's direction, speed and spin (strokeEstimate).
-History ownHistories[2];
-History pointHistory;   // the physgun's held point (pointSample)
+// seat-shared: scratch, used within one call
 History bothHistory;    // estimateBothAt's samples (scratch: off the stack)
+// seat-shared: scratch, used within one call
 History ownBothHistory; // the same of ownHistories
 
 // The estimate takes the samples as a signal in time, not as so many samples: linear between them (a velocity or spin
@@ -301,7 +299,7 @@ struct Bracket
 // The speeds the peak is looked for at (releasePeak: one a millisecond of the window).
 constexpr double peakGrid = 0.001;
 constexpr int peakGridMax = 1024;
-za::Array<double, peakGridMax + 1> peakSpeeds;
+za::Array<double, peakGridMax + 1> peakSpeeds; // seat-shared: scratch, used within one call
 // The peak: the middle of where the smoothed speed is within this share of its top (weighed by how far within), not
 // its very top, which a flat-topped or noisy peak moves by tens of milliseconds for a hundredth of its speed.
 constexpr double peakTopShare = 0.02;
@@ -673,15 +671,31 @@ struct Grip
     double lastTime{-1.0};
 };
 
-Grip grips[2];
+// A seat's throws: each hand's motion history (the tracked and the controllers' own), the physgun's point, the grips'
+// clicks (phase 4b)
+struct ThrowSeat
+{
+    History histories[2];
+    // The controllers' own (timescale::controllerPose), in step with `histories` (the same samples unless the slowed hand
+    // lags its controller in slow motion): a throw's direction, speed and spin (strokeEstimate).
+    History ownHistories[2];
+    History pointHistory;   // the physgun's held point (pointSample)
+    Grip grips[2];
+};
+
+// splitscreen (SPLITSCREEN.md, phase 4b): the current seat's (seat::Part::Throw)
+[[nodiscard]] ThrowSeat& ts()
+{
+    return seat::part<ThrowSeat>(seat::current(), seat::Part::Throw);
+}
 
 } // namespace
 
 void sample(int hand, double time, const Motion& handMotion, const Motion& controller)
 {
-    push(histories[hand], {time, handMotion.pos, handMotion.vel, handMotion.angVel, handMotion.forward,
+    push(ts().histories[hand], {time, handMotion.pos, handMotion.vel, handMotion.angVel, handMotion.forward,
                               time - static_cast<double>(handMotion.spinLag)});
-    push(ownHistories[hand], {time, controller.pos, controller.vel, controller.angVel, controller.forward,
+    push(ts().ownHistories[hand], {time, controller.pos, controller.vel, controller.angVel, controller.forward,
                                  time - static_cast<double>(controller.spinLag)});
 }
 
@@ -692,23 +706,23 @@ Estimate estimate(int hand)
 
 Estimate estimateAt(int hand, double releaseTime)
 {
-    const History& h = histories[hand];
+    const History& h = ts().histories[hand];
     if(h.count == 0)
     {
         return {};
     }
 
-    return strokeEstimate(h, ownHistories[hand], releaseTime, vr_throw_lever_arm.value, true, clockRate());
+    return strokeEstimate(h, ts().ownHistories[hand], releaseTime, vr_throw_lever_arm.value, true, clockRate());
 }
 
 Estimate estimateBothAt(double releaseTime, const glm::vec3& centre)
 {
-    bothSamples(histories[0], histories[1], centre, bothHistory);
+    bothSamples(ts().histories[0], ts().histories[1], centre, bothHistory);
     if(bothHistory.count == 0)
     {
         return {};
     }
-    bothSamples(ownHistories[0], ownHistories[1], centre, ownBothHistory);
+    bothSamples(ts().ownHistories[0], ts().ownHistories[1], centre, ownBothHistory);
     return strokeEstimate(bothHistory, ownBothHistory, releaseTime, 0.f, false, clockRate());
 }
 
@@ -752,22 +766,22 @@ glm::vec3 kindCap(Kind kind, const glm::vec3& vel)
 
 void pointReset()
 {
-    pointHistory.clear();
+    ts().pointHistory.clear();
 }
 
 void pointSample(double time, const glm::vec3& pos, const glm::vec3& vel)
 {
-    push(pointHistory, {time, pos, vel, glm::vec3{0.f}, glm::vec3{1.f, 0.f, 0.f}, time});
+    push(ts().pointHistory, {time, pos, vel, glm::vec3{0.f}, glm::vec3{1.f, 0.f, 0.f}, time});
 }
 
 Estimate pointEstimate(double releaseTime)
 {
-    return releasePeak(pointHistory, releaseTime, 0.f, false, 1.0, false);
+    return releasePeak(ts().pointHistory, releaseTime, 0.f, false, 1.0, false);
 }
 
 double latestTime(int hand)
 {
-    const History& h = histories[hand];
+    const History& h = ts().histories[hand];
     return h.count > 0 ? h.at(0).time : 0.0;
 }
 
@@ -776,7 +790,7 @@ void filterGrips(TrackingState& t)
     for(int hand = 0; hand < HAND_COUNT; hand++)
     {
         HandInput& in = t.input.hands[hand];
-        Grip& g = grips[hand];
+        Grip& g = ts().grips[hand];
         const double now = t.time >= 0.0 ? t.time : realtime;
         const bool wasHeld = g.held;
         double released = now; // (a button's: the frame it reads let go)
@@ -828,21 +842,21 @@ void filterGrips(TrackingState& t)
 
 double releaseTime(int hand)
 {
-    return grips[hand].released;
+    return ts().grips[hand].released;
 }
 
 void reset()
 {
-    for(History& h : histories)
+    for(History& h : ts().histories)
     {
         h.clear();
     }
-    for(History& h : ownHistories)
+    for(History& h : ts().ownHistories)
     {
         h.clear();
     }
-    pointHistory.clear();
-    for(Grip& g : grips)
+    ts().pointHistory.clear();
+    for(Grip& g : ts().grips)
     {
         g = Grip{};
     }
@@ -851,6 +865,7 @@ void reset()
 namespace
 {
 // Forgotten when the client's state is cleared (vr_mem.hpp's resets): the hands' throw histories and grips.
+// seat-shared: the reset hook (it resets the current seat's)
 mem::Reset clientStateReset{"throwing", mem::ResetEvent::ClientState, mem::ResetPhase::State, &reset};
 } // namespace
 

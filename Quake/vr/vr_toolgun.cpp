@@ -24,6 +24,7 @@
 // listen server's edicts, changed between its frames (as a console command does).
 
 #include "vr_agpose_shared.h"
+#include "vr_seat.hpp"
 #include "vr_mem.hpp"
 #include "vr_testkit.hpp"
 #include "vr_toolgun.hpp"
@@ -354,7 +355,6 @@ struct GhostHold
     glm::vec3 dir{1.f, 0.f, 0.f};  // and the aim's way then
     glm::vec3 seen{0.f}; // (tests) what the follow integrated, units
 };
-GhostHold ghostHold;
 
 // The ghost's turn for a degree of the gun hand's way (ghostHoldFrame).
 constexpr float ghostTurnRate = 2.f;
@@ -393,7 +393,11 @@ struct ToolgunState
     bool ghostLooked{false};           // and it is drawn as its probe saw it (ghostVr: its scale and offsets)
     Tool lastTool{Tool::Spawn};        // last frame's (the Brush tool's holds let go when it changes)
 };
-ToolgunState tg;
+// splitscreen (SPLITSCREEN.md, phase 4b): the current seat's (seat::Part::Toolgun)
+[[nodiscard]] ToolgunState& tg()
+{
+    return seat::part<ToolgunState>(seat::current(), seat::Part::Toolgun);
+}
 
 // The ghost of an item as it will be once made (QC VR_SpawnLive_Finish: placed at once, a box shrunk to an object, a
 // pickup scaled and floated; its model, its scale and offsets, where its origin ends up), from a probe: the choice made
@@ -412,7 +416,6 @@ struct GhostLook
     glm::vec3 turn{0.f};    // its angles' change
     client::EntityVr vr;    // its networked scale and offsets, as its client entity has them (render::networkData)
 };
-GhostLook ghostLook;
 
 // vr_toolgun_spawn_trace [entry] [frames]: an entry (the panel's choice) made ahead of the player, its state printed the
 // frame it is made and the next frames (the server's model, scale, box, origin, offset; the client's model and scale),
@@ -424,6 +427,7 @@ struct SpawnTrace
     int frame{0};
     int frames{0};
 };
+// seat-shared: a debug readout (one at a time)
 SpawnTrace spawnTrace;
 
 // Texts handed out by pointer (stateLine, the gun's screen): valid until the same function's next call.
@@ -433,6 +437,7 @@ struct Readouts
     char screen[96];
     char label[64];
 };
+// seat-shared: a debug readout (one at a time)
 Readouts readouts;
 
 [[nodiscard]] Tool currentTool()
@@ -459,17 +464,17 @@ void select(int i)
 {
     if(i < 0 || i >= spawnableTotal)
     {
-        tg.sel = {};
+        tg().sel = {};
         return;
     }
     const Spawnable& s = spawnables[i];
     if(!entryAvailable(s))
     {
         Con_Printf("toolgun: %s unavailable: %s\n", s.label, unavailableWhy(s));
-        tg.sel = {};
+        tg().sel = {};
         return;
     }
-    Selection& sel = tg.sel;
+    Selection& sel = tg().sel;
     sel = {};
     sel.valid = true;
     sel.entry = i;
@@ -484,7 +489,7 @@ void select(int i)
     sel.setModel = s.setModel;
     sel.wall = s.wall;
     sel.weaponFlags = s.weaponFlags;
-    tg.picking = false;
+    tg().picking = false;
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -529,7 +534,6 @@ struct ArmedCatalogue
     int infectCount{0};
     char infect[armedMaxInfect][24]{}; // QC's VR_INFECT_ROWS' names
 };
-ArmedCatalogue armedCat;
 
 // The ghost's held weapons for a choice (QC VR_AM_UiGhost), the monster at the origin facing +x.
 struct ArmedGhost
@@ -542,12 +546,27 @@ struct ArmedGhost
     glm::vec3 origin[2]{glm::vec3{0.f}, glm::vec3{0.f}};
     glm::vec3 angles[2]{glm::vec3{0.f}, glm::vec3{0.f}};
 };
-ArmedGhost armedGhost;
+
+// A seat's toolgun ghosts and armed entry: the held ghost, the look-at ghost, the armed catalogue and its ghost (phase
+// 4b)
+struct ToolgunArm
+{
+    GhostHold ghostHold;
+    GhostLook ghostLook;
+    ArmedCatalogue armedCat;
+    ArmedGhost armedGhost;
+};
+
+// splitscreen (SPLITSCREEN.md, phase 4b): the current seat's (seat::Part::ToolgunArm)
+[[nodiscard]] ToolgunArm& arm()
+{
+    return seat::part<ToolgunArm>(seat::current(), seat::Part::ToolgunArm);
+}
 
 // The catalogue made again when the map, the progs or AD's data changed (the host frame, a game running).
 void armedRefresh()
 {
-    ArmedCatalogue& c = armedCat;
+    ArmedCatalogue& c = arm().armedCat;
     if(!sv.active)
     {
         c.valid = false;
@@ -626,7 +645,7 @@ void armedRefresh()
 
 [[nodiscard]] const ArmedWeapon* armedWeaponOf(int code)
 {
-    for(const ArmedWeapon& w : armedCat.weapons)
+    for(const ArmedWeapon& w : arm().armedCat.weapons)
     {
         if(w.code == code)
         {
@@ -674,18 +693,18 @@ void armedRefresh()
 // The ghost's held weapons made again for the choice (the host frame).
 void armedGhostRefresh()
 {
-    const Selection& sel = tg.sel;
-    ArmedGhost& g = armedGhost;
-    if(!sel.armed || !armedCat.valid || !sv.active)
+    const Selection& sel = tg().sel;
+    ArmedGhost& g = arm().armedGhost;
+    if(!sel.armed || !arm().armedCat.valid || !sv.active)
     {
         return;
     }
-    if(g.generation == armedCat.generation && g.kind == sel.kind && g.code == sel.value && g.code2 == sel.value2)
+    if(g.generation == arm().armedCat.generation && g.kind == sel.kind && g.code == sel.value && g.code2 == sel.value2)
     {
         return;
     }
     g = {};
-    g.generation = armedCat.generation;
+    g.generation = arm().armedCat.generation;
     g.kind = sel.kind;
     g.code = sel.value;
     g.code2 = sel.value2;
@@ -708,7 +727,7 @@ void armedGhostRefresh()
 void armedChoose()
 {
     armedRefresh();
-    const ArmedCatalogue& c = armedCat;
+    const ArmedCatalogue& c = arm().armedCat;
     if(!c.valid || c.kindCount <= 0)
     {
         Con_Printf("toolgun: no armed monsters here (no game running)\n");
@@ -729,7 +748,7 @@ void armedChoose()
     keep(vr_toolgun_armed_weapon, static_cast<float>(code));
     keep(vr_toolgun_armed_weapon2, static_cast<float>(code2));
     const ArmedKind& r = c.kinds[kind];
-    Selection& sel = tg.sel;
+    Selection& sel = tg().sel;
     sel = {};
     sel.valid = true;
     sel.entry = -1;
@@ -751,7 +770,7 @@ void armedChoose()
     sel.value2 = static_cast<float>(code2);
     sel.lift = armedLift;
     sel.frame = r.frame;
-    tg.picking = false;
+    tg().picking = false;
 }
 
 // The edicts a player's hands hold (carried props: not targets).
@@ -891,16 +910,16 @@ using geom::yawOf;
 // The aim this frame: from the gun's muzzle along the drawn hand's aim (the barrel's way).
 void updateAim(const hands::State& s)
 {
-    Aim& a = tg.aim;
+    Aim& a = tg().aim;
     a = {};
-    if(tg.hand < 0 || !s.valid)
+    if(tg().hand < 0 || !s.valid)
     {
         return;
     }
     glm::vec3 fwd, right, up;
-    hands::angleVectors(s.rot[tg.hand], fwd, right, up);
+    hands::angleVectors(s.rot[tg().hand], fwd, right, up);
     a.valid = true;
-    a.from = s.muzzleValid[tg.hand] ? s.muzzle[tg.hand] : s.pos[tg.hand];
+    a.from = s.muzzleValid[tg().hand] ? s.muzzle[tg().hand] : s.pos[tg().hand];
     a.dir = fwd;
     const float range = za::max(vr_toolgun_range.value, 64.f);
     vec3_t start, end;
@@ -931,11 +950,11 @@ void updateAim(const hands::State& s)
     char(&text)[96] = readouts.screen;
     switch(currentTool())
     {
-    case Tool::Spawn: q_snprintf(text, sizeof(text), "%s", tg.picking ? "PICK" : tg.sel.valid ? tg.sel.label : "SPAWN"); break;
+    case Tool::Spawn: q_snprintf(text, sizeof(text), "%s", tg().picking ? "PICK" : tg().sel.valid ? tg().sel.label : "SPAWN"); break;
     case Tool::Remove: q_snprintf(text, sizeof(text), "REMOVE"); break;
     case Tool::Physgun: q_snprintf(text, sizeof(text), "PHYSGUN"); break;
     case Tool::Scale: q_snprintf(text, sizeof(text), "SCALE"); break;
-    case Tool::Joint: q_snprintf(text, sizeof(text), "%s%s", jointNames[jointKind()], tg.jointFirst ? " 1/2" : ""); break;
+    case Tool::Joint: q_snprintf(text, sizeof(text), "%s%s", jointNames[jointKind()], tg().jointFirst ? " 1/2" : ""); break;
     case Tool::Brush: q_snprintf(text, sizeof(text), "%s", toolgun::brushtool::screenText()); break;
     default: text[0] = '\0'; break;
     }
@@ -949,30 +968,30 @@ void updateAim(const hands::State& s)
 
 void drawLook(const hands::State& s)
 {
-    const Aim& a = tg.aim;
+    const Aim& a = tg().aim;
     if(!a.valid)
     {
         return;
     }
     const glm::vec4 c = toolColor();
-    const float distance = tg.drag.num ? tg.drag.distance : a.target ? a.targetDistance : a.worldDistance;
+    const float distance = tg().drag.num ? tg().drag.distance : a.target ? a.targetDistance : a.worldDistance;
     const glm::vec4 faint{c.r, c.g, c.b, 0.12f};
-    lines::glow(a.from, a.from + a.dir * distance, tg.drag.num ? 0.35f : 0.12f, glm::vec4{c.r, c.g, c.b, 0.5f}, faint);
+    lines::glow(a.from, a.from + a.dir * distance, tg().drag.num ? 0.35f : 0.12f, glm::vec4{c.r, c.g, c.b, 0.5f}, faint);
     lines::glowPoint(a.from + a.dir * distance, 0.8f, c);
-    if(tg.ghost)
+    if(tg().ghost)
     {
-        lines::glowPoint(tg.ghostOrigin, 1.f, c);
+        lines::glowPoint(tg().ghostOrigin, 1.f, c);
     }
-    if(tg.jointFirst > 0 && tg.jointFirst < qcvm->num_edicts && !EDICT_NUM(tg.jointFirst)->free)
+    if(tg().jointFirst > 0 && tg().jointFirst < qcvm->num_edicts && !EDICT_NUM(tg().jointFirst)->free)
     {
-        edict_t* first = EDICT_NUM(tg.jointFirst);
+        edict_t* first = EDICT_NUM(tg().jointFirst);
         const glm::vec3 atA = geom::vec(first->v.origin) +
-                              held::axesFromAngles(first->v.angles, false) * tg.jointLocal;
+                              held::axesFromAngles(first->v.angles, false) * tg().jointLocal;
         lines::line(atA, a.from + a.dir * distance, 0.15f, c, c);
     }
     if(currentTool() == Tool::Scale)
     {
-        drawGizmo(tg.gizmo);
+        drawGizmo(tg().gizmo);
     }
 
     // The gun's screen: the tool (and the spawn tool's choice, the joint tool's joint) over the back of the gun, a small
@@ -980,8 +999,8 @@ void drawLook(const hands::State& s)
     if(vr_toolgun_screen_scale.value > 0.f)
     {
         glm::vec3 fwd, right, up;
-        hands::angleVectors(s.rot[tg.hand], fwd, right, up);
-        const glm::vec3 at = s.pos[tg.hand] + up * vr_toolgun_screen_up.value - fwd * 1.f;
+        hands::angleVectors(s.rot[tg().hand], fwd, right, up);
+        const glm::vec3 at = s.pos[tg().hand] + up * vr_toolgun_screen_up.value - fwd * 1.f;
         text3d::queue(screenLine(), at, hands::anglesFromVectors(fwd, up), text3d::Align::Centre, vr_toolgun_screen_scale.value, true);
     }
 }
@@ -993,14 +1012,14 @@ namespace qvr::toolgun
 
 void reset()
 {
-    tg.drag = {};
-    tg.gizmo = {};
-    tg.jointFirst = 0;
-    tg.glowNum = tg.glow2 = 0;
-    tg.ghost = false;
-    tg.aim = {};
-    ghostHold = {};
-    ghostLook = {};
+    tg().drag = {};
+    tg().gizmo = {};
+    tg().jointFirst = 0;
+    tg().glowNum = tg().glow2 = 0;
+    tg().ghost = false;
+    tg().aim = {};
+    arm().ghostHold = {};
+    arm().ghostLook = {};
     spawnTrace = {};
     toolgun::brushtool::reset();
 }
@@ -1008,22 +1027,23 @@ void reset()
 namespace
 {
 // Forgotten with the server's world (vr_mem.hpp's resets): what the tools hold, by entity number.
+// seat-shared: the server's reset hook
 mem::Reset serverWorldReset{"toolgun", mem::ResetEvent::ServerWorld, mem::ResetPhase::State, &reset};
 } // namespace
 
 void forget(int num)
 {
-    if(tg.drag.num == num)
+    if(tg().drag.num == num)
     {
-        tg.drag = {};
+        tg().drag = {};
     }
-    if(tg.gizmo.num == num)
+    if(tg().gizmo.num == num)
     {
-        tg.gizmo = {};
+        tg().gizmo = {};
     }
-    if(tg.jointFirst == num)
+    if(tg().jointFirst == num)
     {
-        tg.jointFirst = 0;
+        tg().jointFirst = 0;
     }
 }
 
@@ -1051,7 +1071,7 @@ bool button(int hand, posing::Button b, bool down)
     {
         return false;
     }
-    bool& taken = tg.taken[hand][bi];
+    bool& taken = tg().taken[hand][bi];
     if(!down)
     {
         if(!taken)
@@ -1061,19 +1081,19 @@ bool button(int hand, posing::Button b, bool down)
         taken = false;
         if(b == posing::Button::Primary)
         {
-            tg.adjust = false;
-            if(ghostHold.turn == hand)
+            tg().adjust = false;
+            if(arm().ghostHold.turn == hand)
             {
-                ghostHold.turn = -1;
+                arm().ghostHold.turn = -1;
             }
-            if(ghostHold.move == hand)
+            if(arm().ghostHold.move == hand)
             {
-                ghostHold.move = -1;
+                arm().ghostHold.move = -1;
             }
         }
-        else if(b == posing::Button::Trigger && hand == tg.hand)
+        else if(b == posing::Button::Trigger && hand == tg().hand)
         {
-            tg.trigger = false;
+            tg().trigger = false;
         }
         else if(b == posing::Button::Trigger)
         {
@@ -1086,7 +1106,7 @@ bool button(int hand, posing::Button b, bool down)
     {
         return false;
     }
-    tg.hand = gun;
+    tg().hand = gun;
     if(hand == gun)
     {
         switch(b)
@@ -1101,14 +1121,14 @@ bool button(int hand, posing::Button b, bool down)
         case posing::Button::Primary:
             // Held: the sticks' (the physgun's snap, the scale tool's); with the spawn tool's ghost showing it turns
             // the ghost instead (its yaw, ghostHoldFrame) and the sticks stay the player's.
-            tg.adjust = key_dest == key_game;
+            tg().adjust = key_dest == key_game;
             taken = true;
             return true;
         case posing::Button::Trigger:
             if(key_dest == key_game)
             {
-                tg.trigger = true;
-                tg.firePressed = true;
+                tg().trigger = true;
+                tg().firePressed = true;
             }
             taken = true;
             return true;
@@ -1126,12 +1146,12 @@ bool button(int hand, posing::Button b, bool down)
             }
             // While the trigger holds something (the physgun's prop, Scale's gizmo, a box being made or moved), a press
             // is the stick pushed hard while adjusting: swallowed, else the tool change would drop the hold.
-            if(tg.trigger)
+            if(tg().trigger)
             {
                 taken = true;
                 return true;
             }
-            setTool((static_cast<int>(currentTool()) + (tg.adjust ? -1 : 1) + static_cast<int>(Tool::Count)) %
+            setTool((static_cast<int>(currentTool()) + (tg().adjust ? -1 : 1) + static_cast<int>(Tool::Count)) %
                     static_cast<int>(Tool::Count));
             taken = true;
             return true;
@@ -1142,8 +1162,8 @@ bool button(int hand, posing::Button b, bool down)
     // release are the tool's, so no key reaches the game: neither its jump nor the hook's unreel while it is held.
     if(b == posing::Button::Primary && key_dest == key_game && ghostShowing())
     {
-        ghostHold.move = hand;
-        ghostHold.seen = glm::vec3{0.f};
+        arm().ghostHold.move = hand;
+        arm().ghostHold.seen = glm::vec3{0.f};
         taken = true;
         return true;
     }
@@ -1153,9 +1173,9 @@ bool button(int hand, posing::Button b, bool down)
         taken = true;
         return true;
     }
-    if(b == posing::Button::Trigger && key_dest == key_game && tg.drag.num)
+    if(b == posing::Button::Trigger && key_dest == key_game && tg().drag.num)
     {
-        tg.freezePressed = true;
+        tg().freezePressed = true;
         taken = true;
         return true;
     }
@@ -1176,8 +1196,8 @@ bool sticksTaken()
 
 void sticks(const glm::vec2& off, const glm::vec2& main)
 {
-    tg.stick[HAND_OFF] = off;
-    tg.stick[HAND_MAIN] = main;
+    tg().stick[HAND_OFF] = off;
+    tg().stick[HAND_MAIN] = main;
 }
 
 bool flatNudge(float push, float turn)
@@ -1186,23 +1206,23 @@ bool flatNudge(float push, float turn)
     {
         return false;
     }
-    tg.flatPush += push;
-    tg.flatTurn += turn;
+    tg().flatPush += push;
+    tg().flatTurn += turn;
     return true;
 }
 
 void frame(const hands::State& s)
 {
     traceFrame();
-    tg.hand = heldHand();
+    tg().hand = heldHand();
     panel::frame(s);
-    if(tg.hand >= 0)
+    if(tg().hand >= 0)
     {
-        tg.handRot = s.rot[tg.hand];
+        tg().handRot = s.rot[tg().hand];
     }
     // The joints: a rope and a spring drawn always (a rope's brown, a spring's steel), the others' points while the joint
     // tool is in hand.
-    const bool jointTool = tg.hand >= 0 && currentTool() == Tool::Joint && key_dest == key_game;
+    const bool jointTool = tg().hand >= 0 && currentTool() == Tool::Joint && key_dest == key_game;
     if(sv.active)
     {
         const progs::ServerVm jointVm;
@@ -1219,22 +1239,22 @@ void frame(const hands::State& s)
             }
         });
     }
-    tg.glowNum = 0;
-    tg.glow2 = 0;
-    tg.ghost = false;
-    if(tg.hand < 0)
+    tg().glowNum = 0;
+    tg().glow2 = 0;
+    tg().ghost = false;
+    if(tg().hand < 0)
     {
         // Put down (or dead, or no game): what the physgun held falls, the tool's holds end.
-        if(tg.drag.num && sv.active)
+        if(tg().drag.num && sv.active)
         {
             const progs::ServerVm vm;
             dragEnd(false);
         }
-        tg.drag = {};
-        tg.gizmo = {};
-        tg.adjust = tg.trigger = tg.firePressed = tg.freezePressed = false;
-        tg.aim = {};
-        ghostHold = {};
+        tg().drag = {};
+        tg().gizmo = {};
+        tg().adjust = tg().trigger = tg().firePressed = tg().freezePressed = false;
+        tg().aim = {};
+        arm().ghostHold = {};
         toolgun::brushtool::reset();
         return;
     }
@@ -1243,43 +1263,43 @@ void frame(const hands::State& s)
     updateAim(s);
     ghostHoldFrame(s, dt);
     sticksFrame(dt);
-    const bool fire = tg.firePressed;
-    const bool freeze = tg.freezePressed;
-    tg.firePressed = tg.freezePressed = false;
-    const Aim& a = tg.aim;
+    const bool fire = tg().firePressed;
+    const bool freeze = tg().freezePressed;
+    tg().firePressed = tg().freezePressed = false;
+    const Aim& a = tg().aim;
     const Tool tool = currentTool();
     if(tool != Tool::Spawn)
     {
-        ghostHold = {}; // (another tool: its A/X is the sticks' again)
+        arm().ghostHold = {}; // (another tool: its A/X is the sticks' again)
     }
-    if(tool != Tool::Physgun && tg.drag.num)
+    if(tool != Tool::Physgun && tg().drag.num)
     {
         dragEnd(false);
     }
     if(tool != Tool::Scale)
     {
-        tg.gizmo = {};
+        tg().gizmo = {};
     }
     if(tool != Tool::Joint)
     {
-        tg.jointFirst = 0;
+        tg().jointFirst = 0;
     }
-    if(tool != Tool::Brush && tg.lastTool == Tool::Brush)
+    if(tool != Tool::Brush && tg().lastTool == Tool::Brush)
     {
         toolgun::brushtool::reset();
     }
-    tg.lastTool = tool;
+    tg().lastTool = tool;
     switch(tool)
     {
     case Tool::Spawn:
-        if(tg.picking)
+        if(tg().picking)
         {
-            tg.glowNum = a.target;
-            tg.glow = 0.8f;
+            tg().glowNum = a.target;
+            tg().glow = 0.8f;
             if(fire && a.target)
             {
                 pick(a.target);
-                tg.picking = false;
+                tg().picking = false;
             }
             break;
         }
@@ -1290,8 +1310,8 @@ void frame(const hands::State& s)
         }
         break;
     case Tool::Remove:
-        tg.glowNum = a.target;
-        tg.glow = 2.9f; // (red)
+        tg().glowNum = a.target;
+        tg().glow = 2.9f; // (red)
         if(fire && a.target)
         {
             removeTarget(a.target);
@@ -1299,13 +1319,13 @@ void frame(const hands::State& s)
         }
         break;
     case Tool::Physgun:
-        if(fire && !tg.drag.num && a.target)
+        if(fire && !tg().drag.num && a.target)
         {
             dragStart(a.target);
         }
-        if(tg.drag.num && freeze)
+        if(tg().drag.num && freeze)
         {
-            if(tg.drag.prop)
+            if(tg().drag.prop)
             {
                 dragEnd(true);
             }
@@ -1314,31 +1334,31 @@ void frame(const hands::State& s)
                 Con_Printf("toolgun: only physics props freeze\n");
             }
         }
-        else if(tg.drag.num && !tg.trigger)
+        else if(tg().drag.num && !tg().trigger)
         {
             dragEnd(false);
         }
         dragFrame(dt);
-        tg.glowNum = tg.drag.num ? tg.drag.num : a.target;
-        tg.glow = 0.9f;
+        tg().glowNum = tg().drag.num ? tg().drag.num : a.target;
+        tg().glow = 0.9f;
         break;
     case Tool::Scale:
-        if(!tg.trigger)
+        if(!tg().trigger)
         {
-            tg.gizmo.held = -1;
+            tg().gizmo.held = -1;
         }
         scaleFrame();
         if(fire)
         {
             scaleGrab();
         }
-        tg.glowNum = tg.gizmo.num;
-        tg.glow = 0.5f;
+        tg().glowNum = tg().gizmo.num;
+        tg().glow = 0.5f;
         break;
     case Tool::Joint:
-        tg.glowNum = a.target;
-        tg.glow = 0.8f;
-        tg.glow2 = tg.jointFirst;
+        tg().glowNum = a.target;
+        tg().glow = 0.8f;
+        tg().glow2 = tg().jointFirst;
         if(fire && a.target)
         {
             glm::vec3 normal{0.f, 0.f, 1.f};
@@ -1360,17 +1380,17 @@ void frame(const hands::State& s)
         in.hitEntity = a.hitEntity;
         in.target = a.target;
         in.targetDistance = a.targetDistance;
-        in.trigger = tg.trigger;
+        in.trigger = tg().trigger;
         in.fire = fire;
         in.head = s.head;
-        in.handRot = tg.handRot;
+        in.handRot = tg().handRot;
         toolgun::brushtool::frame(in);
-        tg.glowNum = toolgun::brushtool::glowEntity(tg.glow);
+        tg().glowNum = toolgun::brushtool::glowEntity(tg().glow);
         break;
     }
     default: break;
     }
-    if(tg.hand >= 0 && key_dest == key_game)
+    if(tg().hand >= 0 && key_dest == key_game)
     {
         drawLook(s);
     }
@@ -1378,9 +1398,9 @@ void frame(const hands::State& s)
 
 void tempEntities()
 {
-    tg.ghostEnt = nullptr;
-    tg.ghostParts[0] = tg.ghostParts[1] = nullptr;
-    if(!tg.ghost || !tg.sel.valid || !tg.sel.model[0])
+    tg().ghostEnt = nullptr;
+    tg().ghostParts[0] = tg().ghostParts[1] = nullptr;
+    if(!tg().ghost || !tg().sel.valid || !tg().sel.model[0])
     {
         return;
     }
@@ -1406,19 +1426,19 @@ void tempEntities()
         }
         return model && !client::lateBrushModel(model) ? model : nullptr;
     };
-    const GhostLook& look = ghostLook;
-    const bool looked = look.valid && probedChoice(tg.sel) && look.entry == tg.sel.entry && !strcmp(look.classname, tg.sel.classname);
-    qmodel_t* model = modelNamed(looked ? look.model : tg.sel.model);
+    const GhostLook& look = arm().ghostLook;
+    const bool looked = look.valid && probedChoice(tg().sel) && look.entry == tg().sel.entry && !strcmp(look.classname, tg().sel.classname);
+    qmodel_t* model = modelNamed(looked ? look.model : tg().sel.model);
     if(!model)
     {
         return;
     }
     // An armed monster's held weapons (ArmedGhost: where the layer's pose holds them on the body standing, turned with
     // the ghost).
-    const ArmedGhost& ag = armedGhost;
-    if(tg.sel.armed && ag.kind == tg.sel.kind && ag.code == tg.sel.value && ag.code2 == tg.sel.value2)
+    const ArmedGhost& ag = arm().armedGhost;
+    if(tg().sel.armed && ag.kind == tg().sel.kind && ag.code == tg().sel.value && ag.code2 == tg().sel.value2)
     {
-        const glm::mat3 body = held::axesFromAngles(&tg.ghostAngles[0], false);
+        const glm::mat3 body = held::axesFromAngles(&tg().ghostAngles[0], false);
         for(int h = 0; h < ag.count; h++)
         {
             qmodel_t* wm = ag.model[h][0] ? modelNamed(ag.model[h]) : nullptr;
@@ -1427,7 +1447,7 @@ void tempEntities()
             {
                 continue;
             }
-            const glm::vec3 at = tg.ghostOrigin + body * ag.origin[h];
+            const glm::vec3 at = tg().ghostOrigin + body * ag.origin[h];
             const glm::mat3 turn = body * held::axesFromAngles(&ag.angles[h][0], false);
             held::anglesFromAxes(turn, we->angles, false);
             for(int k = 0; k < 3; k++)
@@ -1436,7 +1456,7 @@ void tempEntities()
             }
             we->model = wm;
             we->alpha = static_cast<byte>(ENTALPHA_ENCODE(0.45f));
-            tg.ghostParts[h] = we;
+            tg().ghostParts[h] = we;
         }
     }
     entity_t* ent = CL_NewTempEntity();
@@ -1444,42 +1464,42 @@ void tempEntities()
     {
         return;
     }
-    const glm::vec3 origin = tg.ghostOrigin + (looked ? look.delta : glm::vec3{0.f});
-    const glm::vec3 angles = tg.ghostAngles + (looked ? look.turn : glm::vec3{0.f});
+    const glm::vec3 origin = tg().ghostOrigin + (looked ? look.delta : glm::vec3{0.f});
+    const glm::vec3 angles = tg().ghostAngles + (looked ? look.turn : glm::vec3{0.f});
     for(int k = 0; k < 3; k++)
     {
         ent->origin[k] = origin[k];
         ent->angles[k] = angles[k];
     }
     ent->model = model;
-    ent->skinnum = looked ? look.skin : tg.sel.skin;
-    ent->frame = model->numframes > 0 ? za::clamp(looked ? look.frame : tg.sel.frame, 0, model->numframes - 1) : 0;
+    ent->skinnum = looked ? look.skin : tg().sel.skin;
+    ent->frame = model->numframes > 0 ? za::clamp(looked ? look.frame : tg().sel.frame, 0, model->numframes - 1) : 0;
     ent->alpha = static_cast<byte>(ENTALPHA_ENCODE(0.45f));
-    tg.ghostEnt = ent;
-    tg.ghostLooked = looked;
+    tg().ghostEnt = ent;
+    tg().ghostLooked = looked;
 }
 
 const client::EntityVr* ghostVr(const entity_t* e)
 {
-    return e && e == tg.ghostEnt && tg.ghostLooked ? &ghostLook.vr : nullptr;
+    return e && e == tg().ghostEnt && tg().ghostLooked ? &arm().ghostLook.vr : nullptr;
 }
 
 float entityGlow(const entity_t* e)
 {
-    if(e && (e == tg.ghostEnt || e == tg.ghostParts[0] || e == tg.ghostParts[1]))
+    if(e && (e == tg().ghostEnt || e == tg().ghostParts[0] || e == tg().ghostParts[1]))
     {
         return 0.7f; // (the ghost: a hologram in the tool's hue)
     }
-    if(!e || (!tg.glowNum && !tg.glow2) || e < cl_entities || e >= cl_entities + cl.num_entities)
+    if(!e || (!tg().glowNum && !tg().glow2) || e < cl_entities || e >= cl_entities + cl.num_entities)
     {
         return 0.f;
     }
     const int num = static_cast<int>(e - cl_entities);
-    if(num == tg.glowNum)
+    if(num == tg().glowNum)
     {
-        return tg.glow;
+        return tg().glow;
     }
-    return num == tg.glow2 ? 0.6f : 0.f;
+    return num == tg().glow2 ? 0.6f : 0.f;
 }
 
 int spawnableCount()
@@ -1494,7 +1514,7 @@ const char* spawnableLabel(int i)
         return "";
     }
     char(&text)[64] = readouts.label;
-    q_snprintf(text, sizeof(text), "%s%s", tg.sel.valid && tg.sel.entry == i ? "> " : "", spawnables[i].label);
+    q_snprintf(text, sizeof(text), "%s%s", tg().sel.valid && tg().sel.entry == i ? "> " : "", spawnables[i].label);
     return text;
 }
 
@@ -1535,7 +1555,7 @@ const char* spawnableClass(int i) { return i >= 0 && i < spawnableTotal ? spawna
 
 int selectedSpawnable()
 {
-    return tg.sel.valid ? tg.sel.entry : -1;
+    return tg().sel.valid ? tg().sel.entry : -1;
 }
 
 void selectSpawnable(int i, bool say)
@@ -1543,38 +1563,38 @@ void selectSpawnable(int i, bool say)
     select(i);
     if(say)
     {
-        Con_Printf("toolgun: spawn %s\n", tg.sel.valid ? tg.sel.label : "nothing");
+        Con_Printf("toolgun: spawn %s\n", tg().sel.valid ? tg().sel.label : "nothing");
     }
 }
 
 namespace armed
 {
 void refresh() { armedRefresh(); }
-int generation() { return armedCat.valid ? armedCat.generation : 0; }
-int kindCount() { return armedCat.valid ? armedCat.kindCount : 0; }
-const char* kindName(int k) { return k >= 0 && k < kindCount() ? armedCat.kinds[k].name : ""; }
-const char* kindModel(int k) { return k >= 0 && k < kindCount() ? armedCat.kinds[k].model : ""; }
-const char* kindSpawn(int k) { return k >= 0 && k < kindCount() ? armedCat.kinds[k].spawn : ""; }
-int weaponCount() { return armedCat.valid ? static_cast<int>(armedCat.weapons.size()) : 0; }
-int weaponCode(int i) { return i >= 0 && i < weaponCount() ? armedCat.weapons[i].code : 0; }
+int generation() { return arm().armedCat.valid ? arm().armedCat.generation : 0; }
+int kindCount() { return arm().armedCat.valid ? arm().armedCat.kindCount : 0; }
+const char* kindName(int k) { return k >= 0 && k < kindCount() ? arm().armedCat.kinds[k].name : ""; }
+const char* kindModel(int k) { return k >= 0 && k < kindCount() ? arm().armedCat.kinds[k].model : ""; }
+const char* kindSpawn(int k) { return k >= 0 && k < kindCount() ? arm().armedCat.kinds[k].spawn : ""; }
+int weaponCount() { return arm().armedCat.valid ? static_cast<int>(arm().armedCat.weapons.size()) : 0; }
+int weaponCode(int i) { return i >= 0 && i < weaponCount() ? arm().armedCat.weapons[i].code : 0; }
 const char* codeName(int code) { return armedCodeName(code); }
 int fits(int kind, int code) { return armedFits(kind, code); }
 bool oneHanded(int kind, int code) { return armedOneHanded(kind, code); }
 bool pairs(int kind, int code, int code2) { return armedPairs(kind, code, code2); }
-int infectCount() { return armedCat.valid ? armedCat.infectCount : 0; }
-const char* infectName(int row) { return row >= 0 && row < infectCount() ? armedCat.infect[row] : ""; }
-bool chosen() { return tg.sel.valid && tg.sel.armed; }
+int infectCount() { return arm().armedCat.valid ? arm().armedCat.infectCount : 0; }
+const char* infectName(int row) { return row >= 0 && row < infectCount() ? arm().armedCat.infect[row] : ""; }
+bool chosen() { return tg().sel.valid && tg().sel.armed; }
 
 void choose()
 {
     armedChoose();
-    Con_Printf("toolgun: spawn %s\n", tg.sel.valid ? tg.sel.label : "nothing");
+    Con_Printf("toolgun: spawn %s\n", tg().sel.valid ? tg().sel.label : "nothing");
 }
 
 const char* ghostModel(int hand)
 {
-    const ArmedGhost& g = armedGhost;
-    return hand >= 0 && hand < g.count && chosen() && g.kind == tg.sel.kind && g.code == tg.sel.value && g.code2 == tg.sel.value2
+    const ArmedGhost& g = arm().armedGhost;
+    return hand >= 0 && hand < g.count && chosen() && g.kind == tg().sel.kind && g.code == tg().sel.value && g.code2 == tg().sel.value2
                ? g.model[hand]
                : "";
 }
@@ -1614,25 +1634,25 @@ const char* stateLine()
     switch(currentTool())
     {
     case Tool::Spawn:
-        if(tg.picking)
+        if(tg().picking)
         {
             q_snprintf(text, sizeof(text), "Spawn: shoot what to pick");
         }
         else
         {
-            q_snprintf(text, sizeof(text), "Spawn: %s\noffset %.0f %.0f %.0f, turn %.0f %.0f %.0f", tg.sel.valid ? tg.sel.label : "nothing chosen",
-                tg.offset.x, tg.offset.y, tg.offset.z, tg.turn.x, tg.turn.y, tg.turn.z);
+            q_snprintf(text, sizeof(text), "Spawn: %s\noffset %.0f %.0f %.0f, turn %.0f %.0f %.0f", tg().sel.valid ? tg().sel.label : "nothing chosen",
+                tg().offset.x, tg().offset.y, tg().offset.z, tg().turn.x, tg().turn.y, tg().turn.z);
         }
         break;
     case Tool::Remove: q_snprintf(text, sizeof(text), "Remove"); break;
     case Tool::Physgun:
-        q_snprintf(text, sizeof(text), "Physgun%s", tg.drag.num ? (tg.drag.prop ? ": holding (other trigger freezes)" : ": holding") : "");
+        q_snprintf(text, sizeof(text), "Physgun%s", tg().drag.num ? (tg().drag.prop ? ": holding (other trigger freezes)" : ": holding") : "");
         break;
     case Tool::Scale:
         q_snprintf(text, sizeof(text), "Scale: %s", vr_toolgun_scale_uniform.value != 0.f ? "proportional" : "per axis");
         break;
     case Tool::Joint:
-        q_snprintf(text, sizeof(text), "Joint: %s%s", jointNames[jointKind()], tg.jointFirst ? " (shoot the second)" : "");
+        q_snprintf(text, sizeof(text), "Joint: %s%s", jointNames[jointKind()], tg().jointFirst ? " (shoot the second)" : "");
         break;
     case Tool::Brush: q_snprintf(text, sizeof(text), "%s", toolgun::brushtool::stateLine()); break;
     default: text[0] = '\0'; break;
@@ -1659,6 +1679,7 @@ struct SpawnTest
 {
     za::InPlaceVector<SpawnTestMade, 512> made;
 };
+// seat-shared: a test's own (one at a time)
 SpawnTest spawnTest;
 
 // How the client draws edict `num` (the server's VM pushed): "drawn", "modelless" (the server gave it none: a spawner,
@@ -1784,12 +1805,12 @@ void traceFrame()
 // spawn tool makes it), its state printed then and for `frames` frames after (default 4), then removed.
 void spawnTrace_f()
 {
-    if(!sv.active || svs.maxclients < 1 || (Cmd_Argc() < 2 && tg.sel.entry < 0))
+    if(!sv.active || svs.maxclients < 1 || (Cmd_Argc() < 2 && tg().sel.entry < 0))
     {
         Con_Printf("usage: vr_toolgun_spawn_trace [entry (default: the spawn panel's choice)] [frames] (in a game)\n");
         return;
     }
-    const int i = za::clamp(Cmd_Argc() > 1 ? Q_atoi(Cmd_Argv(1)) : tg.sel.entry, 0, spawnableTotal - 1);
+    const int i = za::clamp(Cmd_Argc() > 1 ? Q_atoi(Cmd_Argv(1)) : tg().sel.entry, 0, spawnableTotal - 1);
     const Spawnable& s = spawnables[i];
     if(!entryAvailable(s))
     {
@@ -1977,7 +1998,7 @@ void selectArmed_f()
 void armedList_f()
 {
     armedRefresh();
-    const ArmedCatalogue& c = armedCat;
+    const ArmedCatalogue& c = arm().armedCat;
     if(!c.valid)
     {
         Con_Printf("armedlist: no game running\n");
@@ -2002,14 +2023,14 @@ void armedList_f()
 
 void pick_f()
 {
-    tg.picking = !tg.picking;
+    tg().picking = !tg().picking;
     Cvar_SetValueQuick(&vr_toolgun_tool, static_cast<float>(Tool::Spawn));
-    Con_Printf("toolgun: %s\n", tg.picking ? "the next shot picks what to spawn" : "picking off");
+    Con_Printf("toolgun: %s\n", tg().picking ? "the next shot picks what to spawn" : "picking off");
 }
 
 void reset_f()
 {
-    tg.offset = tg.turn = glm::vec3{0.f};
+    tg().offset = tg().turn = glm::vec3{0.f};
     Con_Printf("toolgun: offsets and turn reset\n");
 }
 
@@ -2031,9 +2052,9 @@ void armedDefaults()
 void armedReset_f()
 {
     armedDefaults();
-    tg.offset = tg.turn = glm::vec3{0.f};
+    tg().offset = tg().turn = glm::vec3{0.f};
     armedRefresh();
-    if(armedCat.valid && armedCat.kindCount > 0)
+    if(arm().armedCat.valid && arm().armedCat.kindCount > 0)
     {
         toolgun::armed::choose();
     }
@@ -2058,7 +2079,7 @@ void armedInfectedTest_f()
     int passed = 0, failed = 0;
     armedRefresh();
     const func_t one = sv.active ? [] { const progs::ServerVm vm; return findFunction("VR_Infect_TestOne"); }() : 0;
-    if(!sv.active || !armedCat.valid || armedCat.kindCount < 2 || armedCat.infectCount < 3 || !one)
+    if(!sv.active || !arm().armedCat.valid || arm().armedCat.kindCount < 2 || arm().armedCat.infectCount < 3 || !one)
     {
         Con_Printf("toolgun infected test: FAIL: a game with the armed monsters' table, the outcomes and the tests' QC\n");
         qvr::testkit::verdict("toolgun infected test", passed, 1);
@@ -2072,16 +2093,16 @@ void armedInfectedTest_f()
         at = glm::vec3{player->v.origin[0] + za::cos(yaw) * 200.f, player->v.origin[1] + za::sin(yaw) * 200.f, player->v.origin[2] + 8.f};
         angles = glm::vec3{0.f, player->v.angles[1] + 180.f, 0.f};
     }
-    for(int kind = 0; kind < armedCat.kindCount; kind++)
+    for(int kind = 0; kind < arm().armedCat.kindCount; kind++)
     {
         Cvar_SetValueQuick(&vr_toolgun_armed_kind, static_cast<float>(kind));
         Cvar_SetValueQuick(&vr_toolgun_armed_weapon, -1.f); // (its fists: the quickest spawn)
         Cvar_SetValueQuick(&vr_toolgun_armed_weapon2, 0.f);
         toolgun::armed::choose();
-        for(int row = 1; row < armedCat.infectCount; row++)
+        for(int row = 1; row < arm().armedCat.infectCount; row++)
         {
             Cvar_SetValueQuick(&vr_toolgun_armed_infected, static_cast<float>(row));
-            edict_t* e = spawnChoice(tg.sel, at, angles);
+            edict_t* e = spawnChoice(tg().sel, at, angles);
             const progs::ServerVm vm;
             bool ok = false;
             if(e)
@@ -2095,7 +2116,7 @@ void armedInfectedTest_f()
             }
             if(!ok)
             {
-                Con_Printf("toolgun infected test: FAIL: %s infected with %s\n", armedCat.kinds[kind].name, armedCat.infect[row]);
+                Con_Printf("toolgun infected test: FAIL: %s infected with %s\n", arm().armedCat.kinds[kind].name, arm().armedCat.infect[row]);
             }
             (ok ? passed : failed)++;
         }
@@ -2118,7 +2139,7 @@ void armedArmourTest_f()
     };
     armedRefresh();
     const progs::FieldOffsets& f = fields();
-    if(!sv.active || svs.maxclients < 1 || !armedCat.valid || armedCat.kindCount < 2 || f.vr_ar_type < 0 || f.vr_ar_mask < 0)
+    if(!sv.active || svs.maxclients < 1 || !arm().armedCat.valid || arm().armedCat.kindCount < 2 || f.vr_ar_type < 0 || f.vr_ar_mask < 0)
     {
         verdict(false, "a game with the armed monsters' table (grunt, enforcer) and the armour's fields");
         qvr::testkit::verdict("toolgun armour test", passed, failed);
@@ -2147,7 +2168,7 @@ void armedArmourTest_f()
             {
                 Cvar_SetValueQuick(&vr_toolgun_armed_armor, static_cast<float>(armour));
                 Cvar_SetValueQuick(&vr_toolgun_armed_pieces, static_cast<float>(pieces));
-                edict_t* e = spawnChoice(tg.sel, at, angles);
+                edict_t* e = spawnChoice(tg().sel, at, angles);
                 const progs::ServerVm vm;
                 const int type = e ? static_cast<int>(progs::fieldFloat(e, f.vr_ar_type)) : -1;
                 const int mask = e ? static_cast<int>(progs::fieldFloat(e, f.vr_ar_mask)) : -1;
@@ -2188,7 +2209,7 @@ void armedPairTest_f()
     };
     armedRefresh();
     const progs::FieldOffsets& f = fields();
-    if(!sv.active || svs.maxclients < 1 || !armedCat.valid || armedCat.kindCount < 1 || f.vr_ag_wid < 0 || f.vr_ag_wid2 < 0 ||
+    if(!sv.active || svs.maxclients < 1 || !arm().armedCat.valid || arm().armedCat.kindCount < 1 || f.vr_ag_wid < 0 || f.vr_ag_wid2 < 0 ||
         f.vr_ag_gunaxe < 0)
     {
         verdict(false, "a game with the armed monsters' table and the armed grunts' fields");
@@ -2233,7 +2254,7 @@ void armedPairTest_f()
         Cvar_SetValueQuick(&vr_toolgun_armed_weapon, static_cast<float>(c.code));
         Cvar_SetValueQuick(&vr_toolgun_armed_weapon2, static_cast<float>(c.code2));
         toolgun::armed::choose();
-        edict_t* e = spawnChoice(tg.sel, at, angles);
+        edict_t* e = spawnChoice(tg().sel, at, angles);
         const progs::ServerVm vm;
         const int wid = e ? static_cast<int>(progs::fieldFloat(e, f.vr_ag_wid)) : -9;
         const int wid2 = e ? static_cast<int>(progs::fieldFloat(e, f.vr_ag_wid2)) : -9;
@@ -2241,7 +2262,7 @@ void armedPairTest_f()
         const size_t n = strlen(what);
         q_snprintf(what + n, sizeof(what) - n, ", spawned %s holding %d and %d, gun and axe %d", e ? "one" : "none", wid, wid2,
             gunAxe);
-        verdict(e && wid > 0 && wid2 > 0 && wid != wid2 && gunAxe == c.gunAxe && tg.sel.value2 == static_cast<float>(c.code2), what);
+        verdict(e && wid > 0 && wid2 > 0 && wid != wid2 && gunAxe == c.gunAxe && tg().sel.value2 == static_cast<float>(c.code2), what);
         if(e)
         {
             removeTarget(NUM_FOR_EDICT(e), true);
@@ -2268,7 +2289,7 @@ void next_f()
 void unfreezeAll_f()
 {
     Con_Printf("toolgun: unfroze %d props\n", box3d::unpinAll());
-    tg.drag = {};
+    tg().drag = {};
 }
 
 void unjoinAll_f()
@@ -2284,7 +2305,7 @@ void scaleReset_f()
         return;
     }
     const progs::ServerVm vm;
-    const int num = tg.gizmo.num ? tg.gizmo.num : tg.aim.target;
+    const int num = tg().gizmo.num ? tg().gizmo.num : tg().aim.target;
     if(num <= 0 || num >= qcvm->num_edicts || EDICT_NUM(num)->free)
     {
         Con_Printf("toolgun: no prop to reset\n");
@@ -2298,14 +2319,14 @@ void scaleReset_f()
 void status_f()
 {
     const progs::ServerVm vm;
-    const Aim& a = tg.aim;
+    const Aim& a = tg().aim;
     Con_Printf("toolgun: hand %d, tool %s, panel %s, adjust %d, screen \"%s\"\n", toolgun::heldHand(),
-        toolNames[static_cast<int>(currentTool())], toolgun::panel::shown() ? "open" : "closed", tg.adjust ? 1 : 0,
+        toolNames[static_cast<int>(currentTool())], toolgun::panel::shown() ? "open" : "closed", tg().adjust ? 1 : 0,
         toolgun::screenText());
-    if(tg.drag.num)
+    if(tg().drag.num)
     {
-        Con_Printf("toolgun: physgun holds %d, distance %.1f, turn %.1f %.1f %.1f\n", tg.drag.num, tg.drag.distance,
-            tg.drag.turn[0], tg.drag.turn[1], tg.drag.turn[2]);
+        Con_Printf("toolgun: physgun holds %d, distance %.1f, turn %.1f %.1f %.1f\n", tg().drag.num, tg().drag.distance,
+            tg().drag.turn[0], tg().drag.turn[1], tg().drag.turn[2]);
     }
     if(a.valid)
     {
@@ -2319,71 +2340,71 @@ void status_f()
         Con_Printf("toolgun: target %d at %.1f %.1f %.1f, %s, %d joints\n", a.target, e->v.origin[0], e->v.origin[1], e->v.origin[2],
             box3d::isPinned(a.target) ? "pinned" : "loose", box3d::toolJointCount(a.target));
     }
-    Con_Printf("toolgun: selection %s, ghost %s at %.0f %.0f %.0f yaw %.0f\n", tg.sel.valid ? tg.sel.label : "none",
-        tg.ghost ? "shown" : "none", tg.ghostOrigin.x, tg.ghostOrigin.y, tg.ghostOrigin.z, tg.ghostAngles.y);
+    Con_Printf("toolgun: selection %s, ghost %s at %.0f %.0f %.0f yaw %.0f\n", tg().sel.valid ? tg().sel.label : "none",
+        tg().ghost ? "shown" : "none", tg().ghostOrigin.x, tg().ghostOrigin.y, tg().ghostOrigin.z, tg().ghostAngles.y);
     if(currentTool() == Tool::Spawn)
     {
-        Con_Printf("toolgun: ghost offsets %.1f %.1f %.1f, turn %.1f %.1f %.1f, held %s %s, %s\n", tg.offset.x, tg.offset.y,
-            tg.offset.z, tg.turn.x, tg.turn.y, tg.turn.z,
-            ghostHold.move >= 0 ? (ghostHold.move == HAND_MAIN ? "move:main" : "move:off") : "move:none",
-            ghostHold.turn >= 0 ? (ghostHold.turn == HAND_MAIN ? "turn:main" : "turn:off") : "turn:none",
-            ghostHold.fixed ? "fixed" : "following");
-        if(tg.ghostEnt && tg.ghostLooked)
+        Con_Printf("toolgun: ghost offsets %.1f %.1f %.1f, turn %.1f %.1f %.1f, held %s %s, %s\n", tg().offset.x, tg().offset.y,
+            tg().offset.z, tg().turn.x, tg().turn.y, tg().turn.z,
+            arm().ghostHold.move >= 0 ? (arm().ghostHold.move == HAND_MAIN ? "move:main" : "move:off") : "move:none",
+            arm().ghostHold.turn >= 0 ? (arm().ghostHold.turn == HAND_MAIN ? "turn:main" : "turn:off") : "turn:none",
+            arm().ghostHold.fixed ? "fixed" : "following");
+        if(tg().ghostEnt && tg().ghostLooked)
         {
             // (as the item will be once placed: its probe's, GhostLook)
-            const GhostLook& l = ghostLook;
+            const GhostLook& l = arm().ghostLook;
             Con_Printf("toolgun: ghost drawn %s at %.1f %.1f %.1f, scale %.3f, offset %.1f %.1f %.1f (probed)\n", l.model,
-                tg.ghostEnt->origin[0], tg.ghostEnt->origin[1], tg.ghostEnt->origin[2], 1.f + l.vr.scale.x, l.vr.offset.x,
+                tg().ghostEnt->origin[0], tg().ghostEnt->origin[1], tg().ghostEnt->origin[2], 1.f + l.vr.scale.x, l.vr.offset.x,
                 l.vr.offset.y, l.vr.offset.z);
         }
-        else if(tg.ghostEnt)
+        else if(tg().ghostEnt)
         {
-            Con_Printf("toolgun: ghost drawn %s at %.1f %.1f %.1f\n", tg.ghostEnt->model ? tg.ghostEnt->model->name : "?",
-                tg.ghostEnt->origin[0], tg.ghostEnt->origin[1], tg.ghostEnt->origin[2]);
+            Con_Printf("toolgun: ghost drawn %s at %.1f %.1f %.1f\n", tg().ghostEnt->model ? tg().ghostEnt->model->name : "?",
+                tg().ghostEnt->origin[0], tg().ghostEnt->origin[1], tg().ghostEnt->origin[2]);
         }
         for(int h = 0; h < 2; h++)
         {
-            if(const entity_t* w = tg.ghostParts[h]; w && tg.ghostEnt)
+            if(const entity_t* w = tg().ghostParts[h]; w && tg().ghostEnt)
             {
                 // (an armed monster's held weapon: its place from the body's)
                 Con_Printf("toolgun: ghost holds %s in its %s hand at %.1f %.1f %.1f from it, angles %.0f %.0f %.0f\n",
-                    w->model ? w->model->name : "?", h ? "left" : "right", w->origin[0] - tg.ghostEnt->origin[0],
-                    w->origin[1] - tg.ghostEnt->origin[1], w->origin[2] - tg.ghostEnt->origin[2], w->angles[0], w->angles[1],
+                    w->model ? w->model->name : "?", h ? "left" : "right", w->origin[0] - tg().ghostEnt->origin[0],
+                    w->origin[1] - tg().ghostEnt->origin[1], w->origin[2] - tg().ghostEnt->origin[2], w->angles[0], w->angles[1],
                     w->angles[2]);
             }
         }
-        if(ghostHold.move >= 0)
+        if(arm().ghostHold.move >= 0)
         {
-            const glm::vec3& p = hands::current().pos[ghostHold.move];
-            const glm::vec3& v = hands::current().vel[ghostHold.move];
+            const glm::vec3& p = hands::current().pos[arm().ghostHold.move];
+            const glm::vec3& v = hands::current().vel[arm().ghostHold.move];
             Con_Printf("toolgun: the holding hand at %.1f %.1f %.1f, moving %.1f %.1f %.1f, followed %.1f %.1f %.1f\n", p.x, p.y,
-                p.z, v.x, v.y, v.z, ghostHold.seen.x, ghostHold.seen.y, ghostHold.seen.z);
+                p.z, v.x, v.y, v.z, arm().ghostHold.seen.x, arm().ghostHold.seen.y, arm().ghostHold.seen.z);
         }
     }
-    if(tg.drag.num)
+    if(tg().drag.num)
     {
-        edict_t* e = EDICT_NUM(tg.drag.num);
-        Con_Printf("toolgun: physgun holds %d at %.0f %.0f %.0f (distance %.0f), angles %.1f %.1f %.1f\n", tg.drag.num,
-            e->v.origin[0], e->v.origin[1], e->v.origin[2], tg.drag.distance, e->v.angles[0], e->v.angles[1], e->v.angles[2]);
-        if(tg.drag.part >= 0)
+        edict_t* e = EDICT_NUM(tg().drag.num);
+        Con_Printf("toolgun: physgun holds %d at %.0f %.0f %.0f (distance %.0f), angles %.1f %.1f %.1f\n", tg().drag.num,
+            e->v.origin[0], e->v.origin[1], e->v.origin[2], tg().drag.distance, e->v.angles[0], e->v.angles[1], e->v.angles[2]);
+        if(tg().drag.part >= 0)
         {
             // (A ragdoll's held part's and root part's places, either way it is held: the physgun ragdoll test's jitter.)
-            const glm::vec3 p = box3d::ragdollPoint(tg.drag.num, tg.drag.part, glm::vec3{0.f}, true);
-            const glm::vec3 root = box3d::ragdollPoint(tg.drag.num, 0, glm::vec3{0.f}, true);
-            const glm::vec3& to = tg.drag.last;
+            const glm::vec3 p = box3d::ragdollPoint(tg().drag.num, tg().drag.part, glm::vec3{0.f}, true);
+            const glm::vec3 root = box3d::ragdollPoint(tg().drag.num, 0, glm::vec3{0.f}, true);
+            const glm::vec3& to = tg().drag.last;
             glm::vec3 grip{0.f}, r0{0.f};
-            const float lag = tg.drag.ragdoll && box3d::physgunRagdollPoints(grip, r0) ? glm::distance(grip, to) : -1.f;
+            const float lag = tg().drag.ragdoll && box3d::physgunRagdollPoints(grip, r0) ? glm::distance(grip, to) : -1.f;
             Con_Printf("toolgun: rag %s %.3f %d %.2f %.2f %.2f r %.2f %.2f %.2f g %.2f %.2f %.2f e %.1f\n",
-                tg.drag.ragdoll ? "spring" : "origin", qcvm->time - tg.drag.since, tg.drag.part, p.x, p.y, p.z, root.x, root.y,
+                tg().drag.ragdoll ? "spring" : "origin", qcvm->time - tg().drag.since, tg().drag.part, p.x, p.y, p.z, root.x, root.y,
                 root.z, to.x, to.y, to.z, lag);
         }
     }
-    if(tg.gizmo.num)
+    if(tg().gizmo.num)
     {
-        const glm::vec3 k = scaleOf(EDICT_NUM(tg.gizmo.num));
+        const glm::vec3 k = scaleOf(EDICT_NUM(tg().gizmo.num));
         Con_Printf("toolgun: gizmo on %d, scale %.2f %.2f %.2f, handle %d (held %d), centre %.1f %.1f %.1f, half %.1f %.1f %.1f\n",
-            tg.gizmo.num, k.x, k.y, k.z, tg.gizmo.hover, tg.gizmo.held, tg.gizmo.centre.x, tg.gizmo.centre.y, tg.gizmo.centre.z,
-            tg.gizmo.half.x, tg.gizmo.half.y, tg.gizmo.half.z);
+            tg().gizmo.num, k.x, k.y, k.z, tg().gizmo.hover, tg().gizmo.held, tg().gizmo.centre.x, tg().gizmo.centre.y, tg().gizmo.centre.z,
+            tg().gizmo.half.x, tg().gizmo.half.y, tg().gizmo.half.z);
     }
     Con_Printf("toolgun: joints %d\n", box3d::toolJointCount(0));
 }

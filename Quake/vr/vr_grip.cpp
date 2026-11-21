@@ -1,6 +1,7 @@
 // vr_grip.cpp -- see vr_grip.hpp.
 
 #include "vr_grip.hpp"
+#include "vr_seat.hpp"
 #include "vr_clientprefs.hpp"
 #include "vr_cvars.hpp"
 #include "vr_tunables.hpp"
@@ -20,7 +21,6 @@
 #include "Zancle/Math/Lround.hpp"
 #include "Zancle/Math/MinMax.hpp"
 
-
 using namespace qvr;
 
 namespace qvr::grip
@@ -28,7 +28,19 @@ namespace qvr::grip
 namespace
 {
 
-HandFrame frames[2];
+// A seat's hands' frames as its client measured them (phase 4b)
+struct GripSeat
+{
+    HandFrame frames[2];
+};
+
+// splitscreen (SPLITSCREEN.md, phase 4b): the current seat's (seat::Part::Grip)
+[[nodiscard]] GripSeat& gs()
+{
+    return seat::part<GripSeat>(seat::current(), seat::Part::Grip);
+}
+
+// seat-shared: the server's, each player slot's
 HandFrame playerFrames[MAX_SCOREBOARD][2]; // server: each client slot's, as his client measured them (setPlayerFrame)
 
 // The default hand's frame (the right hand; the left mirrored), for a hand not measured: the jointed hand at the shipped
@@ -204,7 +216,7 @@ void setHandFrame(int hand, const HandFrame& f)
 {
     if(hand == 0 || hand == 1)
     {
-        frames[hand] = f;
+        gs().frames[hand] = f;
         if(const int own = clientprefs::ownSlot(); own >= 0)
         {
             setPlayerFrame(own, hand, f); // (hosting: into its own player's slot, as a remote player's message does)
@@ -214,14 +226,14 @@ void setHandFrame(int hand, const HandFrame& f)
 
 HandFrame ownFrame(int hand)
 {
-    return hand == 0 || hand == 1 ? frames[hand] : HandFrame{};
+    return hand == 0 || hand == 1 ? gs().frames[hand] : HandFrame{};
 }
 
 HandFrame handFrame(int hand, bool left, bool local)
 {
-    if(local && (hand == 0 || hand == 1) && frames[hand].measured)
+    if(local && (hand == 0 || hand == 1) && gs().frames[hand].measured)
     {
-        return frames[hand];
+        return gs().frames[hand];
     }
     return defaultFrame(left);
 }
@@ -357,6 +369,7 @@ struct Held
     return mode == static_cast<int>(Mode::WhereTaken) || mode == static_cast<int>(Mode::Palm);
 }
 
+// seat-shared: the server's held props, by entity
 ankerl::unordered_dense::map<int, Held> heldProps;
 
 // The grenade pouch's turn in the hand (vr_grenade_pouch_hold_*: pitch up, yaw left, roll right, degrees), mirrored for

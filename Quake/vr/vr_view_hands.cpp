@@ -3,6 +3,7 @@
 // Split from vr_view.cpp (a pure move); what they share is in vr_view_internal.hpp.
 
 #include "vr_view_internal.hpp"
+#include "vr_seat.hpp"
 #include "vr_edictindex.hpp"
 #include "vr_flatsight.hpp"
 #include "vr_progs.hpp"
@@ -204,7 +205,9 @@ namespace
 
 namespace
 {
+// seat-shared: a debug readout (one at a time) (vr_debug_grasp_trace's counts and file)
 int graspSolves[2]{}; // solves, per hand (vr_debug_grasp_trace)
+// seat-shared: a debug readout (one at a time) (vr_debug_grasp_trace's counts and file)
 int brushSolves[2]{}; // brushing the other hand's weapon: solves, per hand
 
 void printGrasp(int hand, const Grasp& g, float rigUnit)
@@ -927,6 +930,7 @@ struct PosedSpheresCache
     za::Array<PosedSpheresMemo, 4> memos; // [hand * 2 + fist] (released whole: not valid)
     auto members() { return mem::list(memos); }
 };
+// seat-shared: a cache of the shared models
 mem::Cache<PosedSpheresCache> posedSpheresMemo{"view posed spheres", mem::GameDirChange | mem::ModelReload};
 
 // drawHands' pose (another player's hand: no state kept between hands, only the scratch).
@@ -935,6 +939,7 @@ struct RemoteRig
     handrig::Pose pose;
     handrig::Posed posed;
 };
+// seat-shared: each player's, by player (not a seat's)
 RemoteRig remoteRig;
 } // namespace
 } // namespace view_detail
@@ -1083,6 +1088,7 @@ void updateFist(const hands::State& s, int hand)
 
 namespace
 {
+// seat-shared: the console commands, registered once
 bool gripFrameCommandRegistered = false; // (vr_grip_frame, vr_gear_status, vr_body_wrist_info: registered on the first call)
 void gearStatus_f();
 
@@ -1094,7 +1100,9 @@ struct GhostRecoil
     float maxAlpha{0.f};
     float maxApart{0.f};
 };
+// seat-shared: a test's own (one at a time)
 GhostRecoil ghostRecoil;
+// seat-shared: a test's own (one at a time)
 GhostRecoil ghostRecoilIgnored; // (the "ignored" phase's, kept for the verdict)
 
 // vr_ghost_recoil_test start | ignored | end: a shot's recoil brings no ghost hand out with vr_ghost_hands_ignore_recoil
@@ -1135,13 +1143,21 @@ struct GhostBody
     float maxAlpha{0.f};
     float maxDrawn{0.f};
 };
+// seat-shared: a test's own (one at a time)
 GhostBody ghostBody;
+// seat-shared: a test's own (one at a time)
 GhostBody ghostBodyHidden; // (the "hidden" phase's, kept for the verdict)
+// seat-shared: a test's own (one at a time)
 GhostBody ghostClimb;       // (the same for climbing: vr_ghost_climb_test)
+// seat-shared: a test's own (one at a time)
 GhostBody ghostClimbHidden;
+// seat-shared: a test's own (one at a time)
 GhostBody ghostRec;       // (the same while OBS records: vr_obsrec_test)
+// seat-shared: a test's own (one at a time)
 GhostBody ghostRecHidden;
+// seat-shared: a test's own (one at a time)
 bool obsRecDefaults{false}; // (vr_obsrec_test's "hidden" step: the options at their defaults)
+// seat-shared: a test's own (one at a time)
 bool obsRecClean{false};    // (... and Recording Mode on, debug markers hidden, while recording)
 
 // vr_ghost_body_test start | hidden | end: a hand holding an enemy brings no ghost out with vr_ghost_hands_ignore_bodies
@@ -1462,6 +1478,7 @@ void gripFrame_f()
     }
 }
 
+// seat-shared: a debug readout (one at a time) (vr_debug_grasp_trace's counts and file)
 FILE* graspTrace = nullptr; // vr_debug_grasp_trace's file (setupRigHand)
 
 void noteIndexTip(int hand, const RigHand& rh)
@@ -2075,6 +2092,7 @@ namespace
     return true;
 }
 
+// seat-shared: a debug readout (one at a time) (vr_debug_2h_grip 2's print timer)
 double groundPrintAt = -1.0; // vr_debug_2h_grip 2: the next print of where an empty hand is on a weapon lying about
 
 // Weapons held anywhere (vr_weapon_grab_anywhere): a hand whose closed fist (held::fist: the palm and the curled fingers,
@@ -2300,6 +2318,7 @@ namespace
     return glm::distance(p, len2 > 0.f ? a + (b - a) * za::clamp(glm::dot(p - a, b - a) / len2, 0.f, 1.f) : a);
 }
 
+// seat-shared: a debug readout (one at a time) (vr_debug_2h_grip 2's print timer)
 double freeSpotPrintAt = -1.0; // vr_debug_2h_grip 2: the next print of where an empty hand is on the other's weapon
 } // namespace
 
@@ -2370,6 +2389,7 @@ void updateFreeSpots(const hands::State& s)
 
 namespace
 {
+// seat-shared: this frame's, set and drawn in the same hands pass
 entity_t placedTorch[2]; // (setupHand: the torch as it is placed this frame, per hand)
 } // namespace
 
@@ -2501,7 +2521,39 @@ struct EmbedPin
     glm::mat3 weaponPreTurn{1.f}, weaponDrawnTurn{1.f};
     bool weaponPreSet{false};
 };
-EmbedPin embedPins[2];
+
+// A hand holding a gib skewered on a blade (QC vr_skewer.qc VR_Skewer_Grip: .vr_skewer_grip): drawn on the gib where it took hold of it,
+// as a hand holding a prop stays on the prop's model (his note 2026-11-05), the gib going along the blade with it.
+struct SkewerPin
+{
+    int ent{0};
+    float weight{0.f};
+    double last{-1.0};
+    glm::vec3 local{0.f};
+    glm::mat3 localTurn{1.f};
+};
+
+// A flatscreen hand's last place on a long gun's hotspot, in the other hand's frame (its way back: setupHand).
+struct LookLast
+{
+    glm::vec3 pos{0.f};
+    glm::quat turn{1.f, 0.f, 0.f, 0.f};
+};
+
+// A seat's drawn hands' holds: each hand on a weapon's blade in a wall or monster, on a skewered gib, on a long gun's
+// hotspot (phase 4b)
+struct ViewHands
+{
+    EmbedPin embedPins[2];
+    SkewerPin skewerPins[2];
+    LookLast lookLast[2];
+};
+
+// splitscreen (SPLITSCREEN.md, phase 4b): the current seat's (seat::Part::ViewHands)
+[[nodiscard]] ViewHands& vh()
+{
+    return seat::part<ViewHands>(seat::current(), seat::Part::ViewHands);
+}
 
 // vr_embed_test 24's numbers (vr_embed_probe "reset" starts them; written there as "step S spot P ghost G gib B on N").
 struct EmbedProbe
@@ -2523,6 +2575,7 @@ struct EmbedProbe
     float handleTurn{-1.f}; // ... and degrees the most it is turned from it
     float handleCtl{-1.f};  // degrees the most a hand wholly on a blade's handle is drawn turned from its controller (the flip grip)
 };
+// seat-shared: a test's own (one at a time)
 EmbedProbe embedProbe;
 
 void embedProbeWrite()
@@ -2635,7 +2688,7 @@ void embedHandleRoll(EmbedPin& pin, const entity_t& e, const glm::vec3& ctlRot, 
 // the blade as drawn each frame; with none, where it took hold.
 void embedDrawnHand(const hands::State& s, int hand, bool mirrored, glm::vec3& pos, glm::vec3& rot)
 {
-    EmbedPin& pin = embedPins[hand];
+    EmbedPin& pin = vh().embedPins[hand];
     if(!pin.on)
     {
         return; // (off it, easing: setupWeapon and setupHand move both, embedEase)
@@ -2700,7 +2753,7 @@ void embedDrawnHand(const hands::State& s, int hand, bool mirrored, glm::vec3& p
 // its controller (vr_embed_free_ease) that the drawn hand and the weapon in it share (embedEase).
 void embedPinStep(const hands::State& s, int hand)
 {
-    EmbedPin& pin = embedPins[hand];
+    EmbedPin& pin = vh().embedPins[hand];
     const float dt = pin.last >= 0.0 ? static_cast<float>(CLAMP(0.0, vr_gametime - pin.last, 0.1)) : 0.f;
     pin.last = vr_gametime;
     pin.weaponPreSet = false;
@@ -2756,7 +2809,7 @@ void embedPinStep(const hands::State& s, int hand)
 
 bool embedEase(int hand, glm::vec3& offset, glm::quat& turn)
 {
-    const EmbedPin& pin = embedPins[hand];
+    const EmbedPin& pin = vh().embedPins[hand];
     if(!pin.easing)
     {
         return false;
@@ -2768,7 +2821,7 @@ bool embedEase(int hand, glm::vec3& offset, glm::quat& turn)
 
 void embedEaseWeapon(int hand, const glm::vec3& pre, const glm::mat3& preTurn, const glm::vec3& drawn, const glm::mat3& drawnTurn)
 {
-    EmbedPin& pin = embedPins[hand];
+    EmbedPin& pin = vh().embedPins[hand];
     pin.weaponPre = pre;
     pin.weaponPreTurn = preTurn;
     pin.weaponDrawn = drawn;
@@ -2782,7 +2835,7 @@ namespace
 // where it holds the weapon as drawn (the hand's place on it before the ease, carried by the weapon's own move); the weapon's step.
 void embedEaseProbe(const hands::State& s, int hand, const glm::vec3& pre, const glm::vec3& pos)
 {
-    EmbedPin& pin = embedPins[hand];
+    EmbedPin& pin = vh().embedPins[hand];
     if(!vr_embed_probe.string[0] || !pin.weaponPreSet)
     {
         return;
@@ -2801,17 +2854,6 @@ void embedEaseProbe(const hands::State& s, int hand, const glm::vec3& pre, const
     embedProbeWrite();
 }
 
-// A hand holding a gib skewered on a blade (QC vr_skewer.qc VR_Skewer_Grip: .vr_skewer_grip): drawn on the gib where it took hold of it,
-// as a hand holding a prop stays on the prop's model (his note 2026-11-05), the gib going along the blade with it.
-struct SkewerPin
-{
-    int ent{0};
-    float weight{0.f};
-    double last{-1.0};
-    glm::vec3 local{0.f};
-    glm::mat3 localTurn{1.f};
-};
-SkewerPin skewerPins[2];
 
 [[nodiscard]] int skewerGripped(int hand)
 {
@@ -2838,7 +2880,7 @@ SkewerPin skewerPins[2];
 
 void skewerDrawnHand(const hands::State& s, int hand, glm::vec3& pos, glm::vec3& rot)
 {
-    SkewerPin& pin = skewerPins[hand];
+    SkewerPin& pin = vh().skewerPins[hand];
     const float dt = pin.last >= 0.0 ? static_cast<float>(CLAMP(0.0, vr_gametime - pin.last, 0.1)) : 0.f;
     pin.last = vr_gametime;
     const int num = skewerGripped(hand);
@@ -2892,7 +2934,7 @@ void skewerDrawnHand(const hands::State& s, int hand, glm::vec3& pos, glm::vec3&
 // The weapon's slot `hand` is drawn holding by its handle, on a blade in a body (-1: not so). Its blade's entity in `out`.
 [[nodiscard]] int embedHandleSlot(int hand)
 {
-    const EmbedPin& pin = embedPins[hand];
+    const EmbedPin& pin = vh().embedPins[hand];
     return pin.weight > 0.f && pin.byHandle && embedPinUsable(pin) ? weapons::slotForModel(cl_entities[pin.ent].model) : -1;
 }
 
@@ -2905,7 +2947,7 @@ void embedGripProbe(int hand, bool armed, int slot, const glm::vec3& pos, const 
     {
         return;
     }
-    const EmbedPin& pin = embedPins[hand];
+    const EmbedPin& pin = vh().embedPins[hand];
     if(!armed && (!pin.on || !pin.byHandle || pin.weight < 1.f))
     {
         return;
@@ -3077,13 +3119,6 @@ void limbDrawnHand(int hand, glm::vec3& pos, glm::vec3& angles)
     return freeHelp;
 }
 
-// A flatscreen hand's last place on a long gun's hotspot, in the other hand's frame (its way back: setupHand).
-struct LookLast
-{
-    glm::vec3 pos{0.f};
-    glm::quat turn{1.f, 0.f, 0.f, 0.f};
-};
-LookLast lookLast[2];
 
 // setupHand's phases. What the steadying hand's pose and what its fingers wrap read.
 struct HandPose
@@ -3278,10 +3313,10 @@ void steadyOther(const HandPose& hp, glm::vec3& pos, glm::vec3& handRot, bool& h
     {
         // (another's empty hand holds nothing: props, limbs and the torch are the local player's)
     }
-    else if(embedPins[hand].weight > 0.f && embedPinUsable(embedPins[hand]))
+    else if(vh().embedPins[hand].weight > 0.f && embedPinUsable(vh().embedPins[hand]))
     {
         // A blade in a body (QC/vr_embedhold.qc): by its handle, as a weapon in the hand; else wrapped where the hand is on it.
-        const EmbedPin& pin = embedPins[hand];
+        const EmbedPin& pin = vh().embedPins[hand];
         held = {&cl_entities[pin.ent], false, -1, true};
         if(const int embedSlot = embedHandleSlot(hand); embedSlot >= 0 && embedSlot != fist)
         {
@@ -3479,20 +3514,20 @@ void setupHand(const hands::State& s, int hand)
     {
         // Kept against the other hand: the gun gone (no hotspot to go by), it eases back off the last place it had.
         const glm::mat3 toOther = glm::transpose(anglesBasis(s.rot[other]));
-        lookLast[hand] = {toOther * (pos - s.pos[other]), glm::quat_cast(toOther * anglesBasis(handRot))};
+        vh().lookLast[hand] = {toOther * (pos - s.pos[other]), glm::quat_cast(toOther * anglesBasis(handRot))};
     }
     else if(lookBlend > 0.f)
     {
         const glm::mat3 fromOther = anglesBasis(s.rot[other]);
-        pos = glm::mix(pos, s.pos[other] + fromOther * lookLast[hand].pos, lookBlend);
-        handRot = basisAngles(glm::mat3_cast(glm::slerp(glm::quat_cast(anglesBasis(handRot)), glm::quat_cast(fromOther) * lookLast[hand].turn, lookBlend)));
+        pos = glm::mix(pos, s.pos[other] + fromOther * vh().lookLast[hand].pos, lookBlend);
+        handRot = basisAngles(glm::mat3_cast(glm::slerp(glm::quat_cast(anglesBasis(handRot)), glm::quat_cast(fromOther) * vh().lookLast[hand].turn, lookBlend)));
     }
 
     // A free hand pushed into the other hand's weapon stops at its surface (drawn only), held back a few centimetres at
     // most: past that it passes into it until it is out again (vr_hand_collide).
     pushOut(hand,
         own && gripBlend <= 0.f && !freeHelp && (slot < 0 || slot == fist) && !held::heldEntity(hand) && !flashlight::holds(hand) &&
-            limbEase[hand].blend <= 0.f && embedPins[hand].weight <= 0.f,
+            limbEase[hand].blend <= 0.f && vh().embedPins[hand].weight <= 0.f,
         pos, handRot, mirrored);
 
     // The hand-off (vr_twohand.cpp): a helping hand's drawn pose is what it carries a gun by, and a
@@ -3602,7 +3637,7 @@ void setupGhostHands(const hands::State& s)
             ghostClimb.maxDrawn = za::max(ghostClimb.maxDrawn, climbHidden ? 0.f : alpha);
         }
         // On a blade stuck in a body: none either unless asked (vr_ghost_hands_ignore_embed; his note 2026-11-05).
-        const bool onBlade = embedPins[hand].weight > 0.f || embedPins[hand].release > 0.f;
+        const bool onBlade = vh().embedPins[hand].weight > 0.f || vh().embedPins[hand].release > 0.f;
         const bool bladeHidden = onBlade && vr_ghost_hands_ignore_embed.value != 0.f;
         if(onBlade && !bladeHidden && alpha >= 0.02f)
         {
@@ -3743,6 +3778,7 @@ struct SubjectHands
     GhostDrawn ghost[2]{};
     glm::mat3 wholeTurn[2]{glm::mat3{1.f}, glm::mat3{1.f}};
 };
+// seat-shared: each player's, by player (not a seat's)
 SubjectHands subjectHands[MAX_SCOREBOARD + 1];
 
 // The local player's state and `o`'s exchanged (the same call puts them back).
