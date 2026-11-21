@@ -16,7 +16,7 @@ while [ $# -gt 0 ]; do
         --modes) MODES=$2 ;;
         --cases) CASES=$2 ;;
     esac
-    shift 2
+    shift 2 || break  # (syncfix4: with the agent alone the loop never ended)
 done
 KIT=C:/OHWorkspace/qvr-kit
 HERE=$(dirname "$0")
