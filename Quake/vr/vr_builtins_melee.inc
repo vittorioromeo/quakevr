@@ -709,9 +709,10 @@ void PF_botflatpose()
     const FieldOffsets& f = fields();
     flatplay::BotPoseIn in;
     in.origin = geom::vec(e->v.origin);
-    // (its eyes as its body is drawn: the default player's height, units::botEyeRaise; vr_server.cpp's avatar of a bot)
-    in.eye = in.origin + geom::vec(e->v.view_ofs) +
-             glm::vec3{0.f, 0.f, units::botEyeRaise(static_cast<float>(DEFAULT_VIEWHEIGHT) - e->v.mins[2])};
+    // (its eyes at its box's view height, as a flat-screen player's are, its arms the default player's: below. Raised
+    // to its drawn head, units::botEyeRaise, the swing's top went 6 units higher and its blow missed or struck a wall
+    // first -- vr_dm_test 2, 3, 9 and 15's blows lost, bots2 2026-11-21.)
+    in.eye = in.origin + geom::vec(e->v.view_ofs);
     in.aim = geom::vec(e->v.v_angle);
     in.target = geom::vec(G_VECTOR(OFS_PARM1));
     in.hasTarget = in.target != glm::vec3{0.f};
