@@ -6541,3 +6541,8 @@ add the navmesh where it is smarter: a player spotted nearby, goals by need. Des
   in 754 frames once, never in 1800 another run); navmesh 1 reaches him in 258 frames by the chase, 6/0. 20 navmesh 1, the
   human never seen, a rocket launcher at the end of a 4-waypoint chain: taken by the waypoints in 97 frames (target1 a
   waypoint, the mesh never used), 3/0.
+- **Checked:** mp_test.py dm 27/0, coopbots 13/0, botgrab 9/0 with vr_bot_navmesh 0 (the verdicts as before) and the same
+  with 1 (--server-set "+vr_bot_navmesh 1"); scenario_check PASS (148); Dev and ThinLTO builds 0 warnings.
+- **Not ready to default on:** proven on e1m1's door and one waypoint chain only; deathmatch balance (a bot that always
+  finds you), locked or button doors (the follower walks through door polygons) and the follower's drop/teleporter links
+  with bots are untried.
