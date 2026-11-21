@@ -6309,6 +6309,10 @@ His voice notes of 2026-11-21 (vrfiringrange 00-23-29, e1m1 01-04-14 and others)
 - Menus: `menu_paths.txt` regenerated; `vr_menu_path_check maps/vrcalibration.map` 0 missing. Scenes:
   `speed_toggle_click`, `vr_slide_legs`, `foveation_auto`, `revolver_swing` (and `vr_slide`'s title).
 
+## checklist
+
+- 11 ticked lines retired (eye-tracking foveation (Quest Pro note), relight speed, slide view dip, reload port shove, no attract demos, Speed Button Toggle, Mantle When, Grappling Gun, Dwell d2end boss, Discord status, double-tap run). Kept: the Sliding line and the Dwell start/d1m1 line (voice notes). No scene retired: the only scene tag among them (vr_slide) is still used by the kept Sliding line.
+- Reorganized by feature (84 lines, [New] emptied): Dwell 19, Quoth 7, Multiplayer and bots 14, Flat screen 4, VR movement and comfort 4, Weapons and holsters 2, Armed humanoids/ragdolls/physics 5, Survival Arena 11, Graphics 1, Menus 2, Installer/start-up/platforms 9, Recording and dev tools 6. Empty old sections dropped. One line reworded (removed "(agent/mp merged)", which failed checklist_tests_check; it was unticked). checklist_tests_check 43 passed, 0 failed.
 ## worldai: the alarm spreads to monsters round walls and after a one-shot kill; lift riders measured (worldai, 2026-11-21, `agent/worldai`)
 
 His notes hip1m1_2026-11-21_00-20-16 ("the AI is not reacting to friendlies being shot or alerted nearby") and
