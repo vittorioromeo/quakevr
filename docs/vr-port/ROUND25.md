@@ -7005,15 +7005,28 @@ softlock in kellbase1 at (-8, -959.8, 664.1).
   `vr_flatladder_test` takes a map table (vrtutorial, kellbase1, ad_test3) and sets each case on its floor (and
   `oldorigin`). flatladder_test.sh 2/0 (vrtutorial unchanged). ad_world_test.sh's flat-ladder holds now expect the
   nearest rung (not run here).
-- **Not done:** lowered onto kellbase1's ladder off its top (the catwalk's lip is 40 units past it: flatLadderMount's
-  column misses); ad_test3's ladder (real stepped rungs) does not take from its floor in flat play (2 ledges found, not
-  a pair in reach): pre-existing, not the volume's rungs.
+- **Down from the top** (follow-up): a volume rung faces the eye (`ladderHold`'s `eye`: the mount looks from over the
+  drop) and carries `Ledge::volume`; `flatLadderMount` takes volume rungs up to `ladderVolumeGap` (24) past the floor's
+  edge (kellbase1's catwalk edge is 20 past its ladder), its top rung one under the edge, and hangs with the box
+  `ladderInBox` into the rungs (the clip behind). VR: from the catwalk a hand reaching down holds the top rung (881).
+- **Tests now:** modladder_test.sh 9/0 (kellbase1 flat up / down from the top / looking down, its jump climb; AD's
+  ad_e1m1 wall ladder the same four; VR holds incl. from the top; the corridor fail-safe and its negative).
+  flatladder_test.sh 2/0, ad_world_test.sh PASS, scenario_check 154/0. Not run: the other climb suites (only volume
+  ladders' paths changed).
+- **Not done:** ad_test3's ladder (real stepped rungs) does not take from its floor in flat play (2 ledges found, not a
+  pair in reach): pre-existing, real-rung geometry.
 - **kellbase1's corridor:** the corridor between the top doors (y -1176, `topdoors`: TOGGLE doors) and the south exit
   doors (y -720, `exitlock`, "locked"). `topdoors` is toggled by three things: `topcount` (3 sentinels killed below,
   "the top doors are open"), the corridor's `trigger_once` at y -740 (closes them 1 s after you reach the exit doors) and
   `exitcount` (16 arena kills: wires 4 defenders, then the platform buttons' enforcers, pyros, eliminators; it also opens
-  every `exitlock` door). Entering the corridor from the south before the arena's 16 kills shuts you in by the map's
-  design; the arena is reached only after its waves in a normal route, so this is consistent with his noclip (arena
-  skipped: exitcount short). Ours don't break it: `vr_ad_test 212` (flat) drives kellbase1's flow, "its last stage
-  (exitlock) reached in round 4" (all 16 counted with armed replacements on). Not proven by a full walk of the route.
-- **Checklist scene:** `mod_ladder_ad` (ad_test3; not run through scenario_check here).
+  every `exitlock` door). A normal route gets there first: the lower chain is all below the arena, from the start
+  (z 48): 4 pyros (2 placed at z -48, 2 by `hotstuff`) feed `pyrocount`, which opens the `hatch` and spawns 3 sentinels
+  (z 112, -640) feeding `topcount`; the 900-unit ladders *25, *26 (z -255..639) climb from there to the top doors' south
+  side. Entering the corridor then, before the arena's 16 kills, shuts you in: the map's own logic (ours don't change
+  it: `vr_ad_test 212` drives the flow to "its last stage (exitlock) reached in round 4", armed replacements on). Shown
+  from the entity chain, not walked.
+- **Fail-safe** (QC `vr_quoth.qc` `VR_Quoth_KellThink`, kellbase1 only, once a map): a living player in the corridor
+  10 s with the top doors and the south exit doors shut and no living monster in it gets the top doors toggled open
+  (`developer 1`: "quoth: kellbase1's corridor: shut in, the top doors opened again"). In the arena: nothing.
+- **Checklist scene:** `ad_mod_ladder` (ad_crucial's ladder; a scene named `mod_...` ran after one that left AD's
+  folders: "no map").
