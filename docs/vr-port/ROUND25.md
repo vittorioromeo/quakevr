@@ -6759,4 +6759,5 @@ SelectSpawnPoint ... Host_Spawn_f".
   per player: `addDolls` skips a body whose owner's living copy is drawn). Measured on a VR and a flat listen host with
   a bot. The fix (doll slots) and the avatar's own ragdoll rig (vrbody.rig2) are planned in MP_PLAN.md, "Still the
   ranger after a respawn".
-- Checks: Dev build 0 warnings; mp_test coop, pickup, rejoin, dm: see the report.
+- Checks: Dev and ThinLTO builds 0 warnings; mp_test suite --only mp_coop,mp_pickup,mp_rejoin,mp_dm: 12/0, 10/0,
+  19/0, 27/0 (netsafe 14/0); dwell_maps.sh 28/0, dwgate 10/0. Not run: the whole mp suite, scenario_check (budget).
