@@ -158,6 +158,14 @@ aren't Map Library packages aren't sent to joining players.
   desktop pixels) instead of centring it.
 
 
+## Monsters
+
+- **The alarm spreads further.** A monster you hurt or kill before it noticed you cries out: the others within earshot
+  (800 units in the open, less round a corner or through a doorway, much less through solid walls) come to look, and
+  those near it or in sight of it turn on you, now for a kill in one shot too. Monsters placed in ambush keep Quake's
+  meaning: they don't hear it, and armed ones no longer leave their post for a fallen comrade's weapon. Combat > Stealth
+  AI > Cries Heard (0: off). The test map `vralert` shows each case.
+
 ## Performance
 
 - **Crowded maps run lighter.** Armed grunts you can't see (behind walls, or far off and out of view) and that

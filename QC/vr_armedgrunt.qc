@@ -2938,11 +2938,12 @@ void(float d) VR_AG_Run =
 };
 
 // ai_stand, ai_walk (vr_agrunt_rearm_idle): unarmed and out of a fight, off to a weapon lying near (its run frames:
-// VR_AG_Run walks it there and takes it up; then back to standing).
+// VR_AG_Run walks it there and takes it up; then back to standing). One placed in ambush (spawnflags 1) keeps its post:
+// it never leaves it for a weapon (a fallen comrade's beside it) until a fight starts.
 float() VR_AG_Idle =
 {
     if((self.vr_ag_prop && !VR_AG_WantsSecond(self)) || self.health <= 0 || !cvar_hget(cvarh_vr_agrunt_rearm_idle) ||
-       !VR_AG_Seeking())
+       (self.spawnflags & 1) || !VR_AG_Seeking())
     {
         return FALSE;
     }

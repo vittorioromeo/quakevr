@@ -5185,6 +5185,9 @@ QVR_SLIDER(vr_stealth_share_near, "Near Monsters Join", 0.f, 1000.f, 16.f, "%.0f
     "A monster this near another that turns Alert or attacks (in line, not through a wall) does too. 0: off.")
 QVR_SLIDER(vr_stealth_share_view, "Monsters in Sight Join", 0.f, 3000.f, 50.f, "%.0f units", noExt,
     "One that sees another attack within this does too (turning Alert: within half). 0: off.")
+QVR_SLIDER(vr_stealth_share_hear, "Cries Heard", 0.f, 2000.f, 50.f, "%.0f units", noExt,
+    "A monster you hurt or kill before it noticed you cries out: the others within this (less round walls and "
+    "doors, much less through solid walls) come to look. Those in ambush don't hear it. 0: off.")
 QVR_TOGGLE(vr_stealth_flashlight, "Flashlight Beams",
     "Your flashlight on a monster: it comes towards the light (and its glare shows you). Its beam seen "
     "landing nearby: it looks about for where it came from.")

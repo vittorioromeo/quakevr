@@ -1,5 +1,5 @@
 #!/bin/bash
-# stealth_tests.sh <agent> [gun|blast|kinds|infight|saveload|liquid|gates|seethrough|hunt|trailnav|corner|noises|dogs|props|horde|all] -- the stealth AI's further scenes
+# stealth_tests.sh <agent> [gun|blast|kinds|infight|saveload|liquid|gates|seethrough|hunt|trailnav|corner|noises|alarm|dogs|props|horde|all] -- the stealth AI's further scenes
 # (QC vr_stealth_test2.qc; docs/vr-port/STEALTH.md, "Tests"), headless on e1m1 (kinds: id1's, hipnotic's and rogue's
 # monsters: the kit's games mount both). Prints the `stealthtest:` lines; exits 1 on a FAIL. Coop: Misc/quakevr/multiplayer/stealth_mp_test.sh.
 #   gun      each weapon's real shot (the trigger pulled): heard at 0.8 of its reach, not at 1.2, not behind a wall
@@ -88,6 +88,10 @@ if [ "$WHICH" = corner ] || [ "$WHICH" = all ]; then
     run corner "$PRE;vr_stealth_test 126;wait9000;toggleconsole;quit" -QuitOn "stealthtest: corner done"
     grep -q "corner done" "$W/scratch/stealth_corner.log" || { echo "stealthtest: corner FAIL (never finished)"; fail=1; }
     run corner_off "tune vr_nav_trail_carry 0;$PRE;vr_stealth_test 126;wait9000;tune vr_nav_trail_carry 3;toggleconsole;quit" -QuitOn "stealthtest: corner done"
+fi
+if [ "$WHICH" = alarm ] || [ "$WHICH" = all ]; then
+    run alarm "vr_fixed_frames 1;vr_fixed_frames_rate 90;sv_random_seed ${SEED:-1};map vralert;wait60;god;vr_stealth_test 130;wait3000;toggleconsole;quit" -QuitOn "stealthtest: alarm done"
+    grep -q "alarm done" "$W/scratch/stealth_alarm.log" || { echo "stealthtest: alarm FAIL (never finished)"; fail=1; }
 fi
 if [ "$WHICH" = noises ] || [ "$WHICH" = all ]; then
     run noises "tune vr_stealth_hunt_clue 4000;$PRE;vr_stealth_test 127;wait30000;tune vr_stealth_hunt_clue 256;toggleconsole;quit" -QuitOn "stealthtest: noises done"

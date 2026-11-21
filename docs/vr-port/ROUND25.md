@@ -6154,3 +6154,35 @@ His voice notes of 2026-11-21 (vrfiringrange 00-23-29, e1m1 01-04-14 and others)
   as I can see (only the step's timing changed): **open**.
 - Menus: `menu_paths.txt` regenerated; `vr_menu_path_check maps/vrcalibration.map` 0 missing. Scenes:
   `speed_toggle_click`, `vr_slide_legs`, `foveation_auto`, `revolver_swing` (and `vr_slide`'s title).
+
+## worldai: the alarm spreads to monsters round walls and after a one-shot kill; lift riders measured (worldai, 2026-11-21, `agent/worldai`)
+
+His notes hip1m1_2026-11-21_00-20-16 ("the AI is not reacting to friendlies being shot or alerted nearby") and
+e1m1_2026-11-21_00-43-41 (riders "compressed by the lift").
+
+- **Why hip1m1's monsters didn't care**: 66 of its 73 monsters are placed in ambush (spawnflags 1), which keeps Quake's
+  meaning (no relay from other monsters, deaf: `vr_stealth_ambush_deaf`). Beyond that, two real gaps, both reproduced on
+  the new test map before the fix: a monster killed in one shot told nobody (T_Damage's "get mad", where the share hangs,
+  is skipped by a kill: the note's three grunts at 1472 -224 each died idle to one shot, the others 88 units off stayed
+  idle), and nothing reached a monster behind a wall (the share needs a clear line).
+- **Fix** (QC `vr_stealth.qc`, STEALTH.md "Hostile and Alert propagation"): `VR_Stealth_Killed` (Killed): a monster
+  killed by a player it wasn't after shares as if hurt (near or in sight: Hostile at him), those fighting it left out;
+  `VR_Stealth_Cry` (VR_Provoke and the kill): its cry, a noise of the new kind STL_N_VOICE, `vr_stealth_share_hear`
+  800 units (Combat > Stealth AI > Cries Heard), the noise rules' walls (round a corner 0.5, solid 0.15), ambushers deaf:
+  Alert at it. The deferred share now carries its place, eyes and foe on the event (a gibbed body may be gone).
+- **Ambushers keep their post**: an armed grunt in ambush walked 140 units off its post to the dead V's dropped gun
+  ("Pick Up a Second": `VR_AG_Idle`); now an ambusher never leaves its post for a weapon until a fight starts.
+- **Test map** `vralert` (`Misc/quakevr/make_vralert_map.py --compile`; boards say what each grunt should do) and
+  `vr_stealth_test 130` (`stealth_tests.sh alarm`, Debug > Tests > Stealth AI > The Alarm Spreading): before 4 failed
+  (W behind the wall never alerted; on the kill N and S only Alert by the body's knock, A off its post); after 15/0.
+  Test 107 (infighting) now kills the second grunt by the world: by the player, the third beside it rightly turned on him.
+- Checks: `stealth_tests.sh all` with the fix: everything passes but `noises_clue` ("0 navmesh steps": the walk reached
+  the shot within 58 units without a navmesh step; it touches none of this; not checked on the base: **open**).
+- **Lifts** (not fixed, out of budget): `vr_debug_lift 1` (Debug, a local game) measures riders on a moving MOVETYPE_PUSH:
+  each ride's worst sink of the player's box, drawn feet and drawn eye, and the monsters' box and drawn feet, printed as
+  the lift stops (`liftdebug: ride up|down ...`; 2: every frame). First reading on e1m1's lift *7 (-544 2656), a grunt
+  riding: its server box 9.9 units into the lift going up, 15 going down (a server-side sink, not only the drawing);
+  the player was not on the lift in that run (the script's setpos missed it). Suspects: SV_PushMove clearing FL_ONGROUND
+  for non-players after each push, so the next frame the monster is pushed only once the lift has risen into it;
+  and the drawn lag of a stepping monster (its move drawn to its next think, `vr_monster_lerp_continue`) while the lift
+  moves it every frame (`VR_StepLerpInterval` could treat riding a moving pusher as it does the air). **Open**.

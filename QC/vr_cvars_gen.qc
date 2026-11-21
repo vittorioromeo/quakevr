@@ -1949,6 +1949,7 @@ float cvarh_vr_stealth_seethrough;
 float cvarh_vr_stealth_senses;
 float cvarh_vr_stealth_sensitive;
 float cvarh_vr_stealth_sensitive_time;
+float cvarh_vr_stealth_share_hear;
 float cvarh_vr_stealth_share_near;
 float cvarh_vr_stealth_share_view;
 float cvarh_vr_stealth_sight_range;
@@ -4070,6 +4071,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_stealth_senses = VR_CVar_Make("vr_stealth_senses");
     cvarh_vr_stealth_sensitive = VR_CVar_Make("vr_stealth_sensitive");
     cvarh_vr_stealth_sensitive_time = VR_CVar_Make("vr_stealth_sensitive_time");
+    cvarh_vr_stealth_share_hear = VR_CVar_Make("vr_stealth_share_hear");
     cvarh_vr_stealth_share_near = VR_CVar_Make("vr_stealth_share_near");
     cvarh_vr_stealth_share_view = VR_CVar_Make("vr_stealth_share_view");
     cvarh_vr_stealth_sight_range = VR_CVar_Make("vr_stealth_sight_range");

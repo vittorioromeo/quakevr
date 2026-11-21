@@ -102,6 +102,16 @@ float(entity m) VR_Stealth_Applies =
     return m.stl_class > 0;
 };
 
+// The rules applied to m as it was before the blow that is killing it (its health already at or under 0).
+float(entity m) VR_Stealth_AppliesAlive =
+{
+    float h = m.health;
+    m.health = max(1, h);
+    float applies = VR_Stealth_Applies(m);
+    m.health = h;
+    return applies;
+};
+
 // AD support: one of AD's monsters under the rules: AD's thinks, path and FoundTarget (vr_ad_stealth.qc).
 float(entity m) VR_Stealth_AD =
 {
@@ -514,7 +524,9 @@ void(entity m) VR_Stealth_Voice =
 // loop's chain would be overwritten: T_RadiusDamage's, a noise's).
 void() VR_Stealth_ShareThink;
 
-void(entity m, float xHostile) VR_Stealth_ShareLater =
+// `foe`: whom the Hostile ones turn on (m's enemy; for a monster killed, its killer). Where m was, its eyes and whether it
+// died are kept on the event (a body gibbed this frame may be gone by the next).
+void(entity m, float xHostile, entity foe) VR_Stealth_ShareLater =
 {
     if(cvar_hget(cvarh_vr_stealth_share_near) <= 0 && cvar_hget(cvarh_vr_stealth_share_view) <= 0)
     {
@@ -524,15 +536,25 @@ void(entity m, float xHostile) VR_Stealth_ShareLater =
     ev.classname = "stl_share";
     ev.owner = m;
     ev.cnt = xHostile;
+    ev.enemy = foe;
+    ev.oldenemy = m.enemy; // (a monster killed while it fought another: that one was its foe, no comrade to tell)
+    ev.lefty = (m.health <= 0);
+    ev.ltime = time; // (when: VR_Stealth_Killed marks the ones that fought it then, stl_foe_died)
+    setorigin(ev, m.origin);
+    ev.angles = m.angles;
+    ev.view_ofs = m.view_ofs;
     ev.think = VR_Stealth_ShareThink;
     ev.nextthink = time;
 };
 
-// m went Alert or Hostile: the idle (and, for Hostile, Alert) monsters near it (in line, not through walls) or seeing it
-// within the view range (half for Alert) do too: Hostile at its enemy (as monster_use: their FoundTarget next think),
-// Alert at its point (one hop: theirs isn't shared on).
-void(entity m, float xHostile) VR_Stealth_Share =
+// m (the event `ev`'s) went Alert or Hostile, or was killed by a player unawares: the idle (and, for Hostile, Alert)
+// monsters near it (in line, not through walls) or seeing it within the view range (half for Alert) do too: Hostile at
+// its enemy (as monster_use: their FoundTarget next think), Alert at its point (one hop: theirs isn't shared on).
+void(entity ev) VR_Stealth_Share =
 {
+    entity m = ev.owner;
+    float xHostile = ev.cnt;
+    float dead = ev.lefty;
     float near = cvar_hget(cvarh_vr_stealth_share_near);
     float view = cvar_hget(cvarh_vr_stealth_share_view);
     if(!xHostile)
@@ -540,23 +562,26 @@ void(entity m, float xHostile) VR_Stealth_Share =
         view = view * 0.5;
     }
     float reach = max(near, view);
-    if(reach <= 0 || m.health <= 0 || !VR_Stealth_On())
+    if(reach <= 0 || (!dead && m.health <= 0) || !VR_Stealth_On())
     {
         return;
     }
-    if(xHostile && m.enemy.classname != "player")
+    if(xHostile && ev.enemy.classname != "player")
     {
         return;
     }
-    if(!xHostile && m.stl_state != STL_ALERT)
+    if(!xHostile && (dead || m.stl_state != STL_ALERT))
     {
         return;
     }
     entity os = self;
-    vector eye = m.origin + m.view_ofs;
-    for(entity e = findradius(m.origin, reach); e; e = e.chain)
+    vector org = dead ? ev.origin : m.origin;
+    vector eye = org + ev.view_ofs;
+    for(entity e = findradius(org, reach); e; e = e.chain)
     {
-        if(e == m || !(e.flags & FL_MONSTER) || e.health <= 0 || e.enemy != world || !VR_Stealth_Applies(e) ||
+        if(e == m || (dead && (e == ev.oldenemy || e.stl_foe_died == ev.ltime)) || !(e.flags & FL_MONSTER) ||
+           e.health <= 0 || e.enemy != world ||
+           !VR_Stealth_Applies(e) ||
            VR_Stealth_Ambusher(e) || (!xHostile && e.stl_state == STL_ALERT))
         {
             continue;
@@ -566,11 +591,11 @@ void(entity m, float xHostile) VR_Stealth_Share =
         {
             continue;
         }
-        float d = vlen(e.origin - m.origin);
+        float d = vlen(e.origin - org);
         if(d > near)
         {
             self = e;
-            float sees = d <= view && infront(m);
+            float sees = d <= view && infront(dead ? ev : m);
             self = os;
             if(!sees)
             {
@@ -579,7 +604,7 @@ void(entity m, float xHostile) VR_Stealth_Share =
         }
         if(xHostile)
         {
-            e.enemy = m.enemy;
+            e.enemy = ev.enemy;
             e.think = VR_Stealth_Found;
             e.nextthink = time + 0.1 + random() * 0.2;
             VR_Stealth_Log(e, "hostile (shared)");
@@ -594,7 +619,7 @@ void(entity m, float xHostile) VR_Stealth_Share =
 void() VR_Stealth_ShareThinkNow =
 {
     entity ev = self;
-    VR_Stealth_Share(ev.owner, ev.cnt);
+    VR_Stealth_Share(ev);
     remove(ev);
 };
 
@@ -664,7 +689,7 @@ void(entity m, vector at, float xVia, float xKind, float xPower, float xShare) V
     }
     if(first && xShare)
     {
-        VR_Stealth_ShareLater(m, FALSE);
+        VR_Stealth_ShareLater(m, FALSE, world);
     }
 };
 
@@ -719,7 +744,7 @@ void() VR_Stealth_Hostile =
         floattext(self.origin + '0 0 40', "!", '1 0.2 0.1', 1);
     }
     VR_Stealth_Log(self, "hostile");
-    VR_Stealth_ShareLater(self, TRUE);
+    VR_Stealth_ShareLater(self, TRUE, self.enemy);
 };
 
 // ----------------------------------------------------------------------------
@@ -2134,6 +2159,43 @@ void(entity m) VR_Stealth_Died =
         remove(m.stl_marker);
     }
     m.stl_marker = world;
+};
+
+// m hurt (VR_Provoke) or killed by `by` while not after him: its cry, heard as a noise (vr_stealth_share_hear's reach,
+// walls taking their share: VR_Stealth_NoiseThinkNow) by the monsters about it that don't see it: Alert at it. Only a
+// player's doing (infighting stays between the two).
+void(entity m, entity by) VR_Stealth_Cry =
+{
+    float r = cvar_hget(cvarh_vr_stealth_share_hear);
+    if(r <= 0 || !(m.flags & FL_MONSTER) || by.classname != "player" || m.stl_cry_time == time ||
+       !VR_Stealth_AppliesAlive(m))
+    {
+        return;
+    }
+    m.stl_cry_time = time;
+    VR_Stealth_Noise(m.origin + m.view_ofs, r, m, STL_N_VOICE);
+};
+
+// In Killed (before Quake's own `enemy = attacker`): m killed by `by`, a player it wasn't after (a one-shot kill skips
+// T_Damage's "get mad", so nothing else would tell the others): those near it or seeing it turn on him as if it had been
+// hurt (the share), those within earshot round walls hear its cry.
+void(entity m, entity by) VR_Stealth_Killed =
+{
+    if(!(m.flags & FL_MONSTER) || by.classname != "player" || m.enemy == by || !VR_Stealth_AppliesAlive(m))
+    {
+        return;
+    }
+    // (those fighting it (infighting) were its foes: they don't turn on him for it; marked now, as their enemy may be
+    // dropped before the share runs next frame)
+    for(entity e = findflags(world, flags, FL_MONSTER); e; e = findflags(e, flags, FL_MONSTER))
+    {
+        if(e.enemy == m)
+        {
+            e.stl_foe_died = time;
+        }
+    }
+    VR_Stealth_ShareLater(m, TRUE, by);
+    VR_Stealth_Cry(m, by);
 };
 
 // ----------------------------------------------------------------------------

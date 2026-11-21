@@ -11,7 +11,8 @@
 //   107 infighting: a monster hit by another fights it, then is Idle again (the meter, not Quake's instant sight);
 //   108 lava or slime ahead of an investigating monster's walk: it stops short;
 //   110-113 through seamless teleporters (vr_stealth_test3.qc);
-//   120-129 the notes of 2026-10-08: see-through walls, the hunt, props in the way (vr_stealth_test4.qc).
+//   120-129 the notes of 2026-10-08: see-through walls, the hunt, props in the way (vr_stealth_test4.qc);
+//   130 the spread of an alarm on vralert: hurt, alerted, killed (vr_stealth_test5.qc).
 
 float stt2_step;
 float stt2_stage;
@@ -268,6 +269,7 @@ void(float xAsk) VR_STT2_Start =
 
 void() VR_STT3_Frame; // (vr_stealth_test3.qc: 110-113, through teleporters)
 void() VR_STT4_Frame; // (vr_stealth_test4.qc: 120-129, the notes of 2026-10-08)
+void() VR_STT5_Frame; // (vr_stealth_test5.qc: 130, the spread of an alarm on vralert)
 
 void() VR_STT2_Frame =
 {
@@ -279,6 +281,11 @@ void() VR_STT2_Frame =
     if(stt2_step >= 120 && stt2_step < 130)
     {
         VR_STT4_Frame();
+        return;
+    }
+    if(stt2_step == 130)
+    {
+        VR_STT5_Frame();
         return;
     }
     entity p = stt2_p;
@@ -903,7 +910,9 @@ void() VR_STT2_Frame =
         {
             stt2_v = stt2_m1.enemy == stt2_m2;
             stt2_w = stt2_m3.enemy == world;
-            T_Damage(stt2_m2, p, p, 1000);
+            // (killed by the world, not him: killed by him unawares, the third beside it would turn on him since
+            // 2026-11-21, VR_Stealth_Killed, and draw the first in: test 130 has that)
+            T_Damage(stt2_m2, world, world, 1000);
             VR_STT2_Stage(3);
             return;
         }

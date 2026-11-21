@@ -156,6 +156,19 @@ When a monster goes **Hostile** by its own senses or damage: every other idle/al
 (FoundTarget). Ambushers excepted. When one goes **Alert**: those within `vr_stealth_share_near`, or seeing it within
 `vr_stealth_share_view` / 2, go Alert at the same point (no further hand-on from those: one hop).
 
+**Killed unawares** (2026-11-21, `VR_Stealth_Killed` in Killed): a one-shot kill skips T_Damage's "get mad", so it
+told no one before. A monster killed by a player it wasn't after shares as if hurt (the same near / in-sight rule,
+Hostile at him), from where it died; those that were fighting it (infighting) are left out.
+
+**Its cry** (`VR_Stealth_Cry`, `vr_stealth_share_hear` 800): a monster hurt (VR_Provoke) or killed by a player while
+not after him cries out: a noise of kind STL_N_VOICE at its eyes, heard by the noise rules (walls: `vr_stealth_noise_wall`
+round a corner in the hearer's PVS, `vr_stealth_noise_solid` through solid walls; ambushers deaf): Alert at it (it walks
+there, scouts). So one behind a wall within earshot comes to look, which the in-line share never reached.
+
+Why the notes of 2026-11-21 saw nobody care on hip1m1: 66 of its 73 monsters are placed in ambush (spawnflags 1),
+which keeps Quake's meaning (`vr_stealth_ambush_deaf 0` makes them hear and join); the three grunts at 1472 -224 each
+died to one shot (nothing shared a kill then).
+
 ## Grazing shots
 
 A player's shot (FireBullets' trace, the lightning beam, a launched nail / rocket / grenade's straight line to the
@@ -308,6 +321,7 @@ swimmers, and `vr_ai_enhanced 0`: Quake's movetogoal.
 `vr_stealth_noise_guns 1`, `vr_stealth_noise_melee 1`, `vr_stealth_noise_blasts 1`, `vr_stealth_noise_wall 0.5`, `vr_stealth_noise_solid 0.15`,
 `vr_stealth_noise_absorb 0.6`, `vr_stealth_gates 1`, `vr_stealth_seethrough 1`, `vr_stealth_investigate 1`, `vr_stealth_turn 0.6`, `vr_stealth_search_time 5`,
 `vr_stealth_sensitive 1.5`, `vr_stealth_sensitive_time 30`, `vr_stealth_share_near 256`, `vr_stealth_share_view 1000`,
+`vr_stealth_share_hear 800`,
 `vr_stealth_graze 64`, `vr_stealth_flashlight 1`, `vr_stealth_torch 400`, `vr_stealth_corpses 600`,
 `vr_stealth_sneak 1.25`, `vr_stealth_ambush_deaf 1`, `vr_stealth_senses 1`, `vr_stealth_lose 1`,
 `vr_stealth_lose_time 20`, `vr_stealth_lose_far 1500`, `vr_stealth_chase_trail 1`, `vr_stealth_chase_predict 1.5`,
@@ -377,6 +391,13 @@ Further scenes (`vr_stealth_test 100`-`108`, `vr_stealth_test2.qc`: their own gr
   (the farthest such place within 1.6 times the reach) stays Idle. Then the grunt Hostile at him loses him at the
   corner; a shot round it near him (`tune vr_stealth_hunt_clue 4000` set ahead: he is under the floor): its trail goes to
   the shot (its last spot there exactly), it walks there, its goal never him.
+
+- 130 the alarm spreading (`stealth_tests.sh alarm`, `vr_stealth_test5.qc`, the map `vralert` from
+  `Misc/quakevr/make_vralert_map.py`; Debug > Tests > Stealth AI > The Alarm Spreading): six grunts round V, the player
+  in a sealed booth, dark. V hurt by him: N (176 off, in the open) and S (640 off, facing it) Hostile, A (in ambush,
+  facing it) Idle at its post, W (340 off behind a wall, a doorway near: in its PVS) Alert by V's cry, F (sealed room)
+  Idle. V alerted by him: N Alert, A and F Idle. V killed by him in one blow: as hurt (A may turn to look at the body,
+  never off its post). 15 checks, `stealthtest: alarm done, 0 failed`.
 
 ## Open items moved from BACKLOG.md (2026-11-12)
 

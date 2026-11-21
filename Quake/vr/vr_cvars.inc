@@ -4271,6 +4271,7 @@ QVR_CVAR(vr_stealth_seethrough, "1", CVAR_ARCHIVE | QVR_RULE)  // fences, grates
 QVR_CVAR(vr_stealth_investigate, "1", CVAR_ARCHIVE | QVR_RULE)  // an Alert monster walks to what it heard or saw (0: it only turns and looks)
 QVR_CVAR(vr_stealth_share_near, "256", CVAR_ARCHIVE | QVR_RULE) // units: a monster this near another that turns Alert or Hostile does too (0: none)
 QVR_CVAR(vr_stealth_share_view, "1000", CVAR_ARCHIVE | QVR_RULE) // units: one that sees it turn Hostile within this does too (Alert: half)
+QVR_CVAR(vr_stealth_share_hear, "800", CVAR_ARCHIVE | QVR_RULE) // units: a monster hurt or killed by you unawares cries out, heard this far (round walls less): Alert at it (0: none)
 QVR_CVAR(vr_stealth_flashlight, "1", CVAR_ARCHIVE | QVR_RULE)   // the flashlight's beam alerts monsters it lights or that see it
 QVR_CVAR(vr_stealth_sneak, "1.25", CVAR_ARCHIVE | QVR_RULE)     // damage times this to a monster that hasn't noticed anything (1: none)
 QVR_CVAR(vr_stealth_ambush_deaf, "1", CVAR_ARCHIVE | QVR_RULE)  // monsters placed in ambush (spawnflag 1) don't hear noises or other monsters (Quake's meaning)
@@ -4291,6 +4292,7 @@ QVR_CVAR(vr_anim_smooth_rig, "1", CVAR_ARCHIVE)      // ... and a rigged monster
 QVR_CVAR(vr_anim_smooth_rebuild, "1", CVAR_ARCHIVE)  // a rigged monster drawn from its fitted skeleton every frame (vr_animsmooth.cpp): each vertex its rest place on its bone moved with it, the frames' rounding gone (any Model Animation); a vertex its bone fits worse keeps the frames' place
 QVR_CVAR(vr_monster_lerp_continue, "1", CVAR_ARCHIVE | QVR_RULE) // a monster's next step drawn on from where it is drawn, not from its last step's end (no snap: the dogs' turns)
 QVR_CVAR(vr_debug_drawn_moves, "", CVAR_NONE)       // a part of model names (progs/dog): those monsters drawn jumping between frames logged ("drawnmove:")
+QVR_CVAR(vr_debug_lift, "0", CVAR_NONE)              // 1: the player and monsters riding a moving lift: how far their boxes, drawn models and the drawn eye sink into it, each ride's worst logged as it stops ("liftdebug:"; a local game)
 QVR_CVAR(vr_debug_pose_check, "0", CVAR_NONE)        // 1: monsters drawn collapsed logged ("posecheck:": held squashed between two poses over 0.2 s, a pose out of range, a blend not in 0..1, an uneven scale; vr_posecheck.cpp); 2: every frame of theirs; 3: as 1, and a screenshot at each long squash
 QVR_CVAR(vr_debug_pose_check_model, "", CVAR_NONE)  // ... only models whose names contain this (progs/knight)
 QVR_CVAR(vr_stealth_debug_meters, "0", CVAR_NONE)    // each monster's state and suspicion meter drawn over it (Debug > Tests > Stealth AI)
