@@ -1,0 +1,11 @@
+# mp_dm_melee: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one" (as mp_local.ps1 -Melee: guns
+# refused, the bot takes its own melee weapon)
+title A melee duel: Melee Only, a bot that parries every blow it sees; a sword in your hand
+mp dm
+map dm3
+start 632 -648 88 0
+god
+cvar vr_run_meleeonly 1
+cvar vr_bot_parry_chance 100
+give "Knight's Sword" main
+bot active 256 0

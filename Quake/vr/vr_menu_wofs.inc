@@ -404,7 +404,7 @@ za::Vector<Item> pageWeaponOffsets()
             cycle("Tuning Offsets on Confirm", vr_pose_reset_offsets, {{0.f, "Keep"}, {1.f, "Set to 0"}})
                 .help("Keep: the pose is kept with Hand and Weapon Together, Hand Only and Held Hand as they are. "
                       "Set to 0: confirming sets them to 0 (the pose alone places the hand)."),
-            s("Shot Pitch (up)", Key::ShotPitch, -10.f, 10.f, 0.1f, "%+.1f").extend(-45.f, 45.f).help(shotHelp),
+            s("Shot Pitch (up)", Key::ShotPitch, -10.f, 10.f, 0.1f, "%+.1f").extend(-180.f, 180.f).help(shotHelp),
             s("Shot Yaw (left)", Key::ShotYaw, -10.f, 10.f, 0.1f, "%+.1f").extend(-45.f, 45.f).help(shotHelp)
         );
     }
@@ -693,7 +693,7 @@ za::Vector<Item> pageWofsSights()
         s("Muzzle X", Key::MuzzleOffsetX, -30.f, 30.f, 0.1f, "%.2f").extend(-150.f, 150.f).help("Where shots and the muzzle flash start, from the muzzle vertex."),
         s("Muzzle Y", Key::MuzzleOffsetY, -30.f, 30.f, 0.1f, "%.2f").extend(-150.f, 150.f),
         s("Muzzle Z", Key::MuzzleOffsetZ, -30.f, 30.f, 0.1f, "%.2f").extend(-150.f, 150.f),
-        s("Shot Pitch (up)", Key::ShotPitch, -10.f, 10.f, 0.1f, "%+.1f").extend(-45.f, 45.f).help(shotHelp),
+        s("Shot Pitch (up)", Key::ShotPitch, -10.f, 10.f, 0.1f, "%+.1f").extend(-180.f, 180.f).help(shotHelp),
         s("Shot Yaw (left)", Key::ShotYaw, -10.f, 10.f, 0.1f, "%+.1f").extend(-45.f, 45.f).help(shotHelp)
     );
     return list;

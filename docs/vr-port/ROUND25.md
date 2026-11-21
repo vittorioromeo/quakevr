@@ -7061,6 +7061,67 @@ that hull 1 lets Quake's box reach into, from AD's non-colliding detail) and the
   before the shove 0 (was 220); one shot 2 frames before the shove 106. `stagger_test.sh steady` (grunt, 3 each) PASS.
 - **Checklist scenes:** `noclip_fly`, `shove_no_blood` (`vr_scenario runall`: 2 run, 0 failed).
 
+## lancespear: the Crystal Lance a plain pole held like a spear (branch agent/lancespear, 2026-11-21)
+
+His words (flat PC): "a pure lance pole, without the handle and buttons ... held like a spear ... new cvars to properly
+set up the pose in flat mode".
+- **The model** (`vr_adweapons.cpp` recipe `progs/dw_lance.mdl#vr`): Dwell's `g_rail.mdl` pole and crystal head only
+  (nothing grafted: the lightning gun's grip, guard and trigger gone), laid as the axe's handle lies in the fist
+  (v_axe.mdl's (0.3419 0 0.9397), the pole's point 16 from the butt at the fist (1.72 0 0.63)), 1.5 times, packed past
+  the axe's corner (keepScale 0.34). Slot 55 (weapons.txt): the axe's hold values (pitch 15.5, x y z, hand_*, fgr_*,
+  scale 0.34), its anchors moved by the keepScale move (2.995 5.18 12.03), `muzzle_av` the head's tip, no button or
+  ammo screen (`wpnbtnmode`/`wpntxtmode` 0, hs2 off), `shot_pitch 92.5`: the pole's way from the hand's aim (70 up in
+  the model + 22.5 of pitch), so the beam goes along the pole. In VR the controller is tipped forward to level it, as
+  a stick held in a fist is.
+- **Pole weapons** (`twohand::poleWeapon`: a weapon's own Other Hand Anywhere 3, any mode of play; `poleGrip` is it
+  outside flat play). VR: the existing pole grip (the other hand anywhere on it, sliding).
+- **Flat play, the spear pose** (Debug > Tunables, "Spear ..."): the holding hand aimed as a gun's (its shot, so its
+  pole, at the crosshair) then moved by `vr_flat_pole_fwd` 2, `_up` -2, `_out` 3 and rolled about the pole by `_roll` 0
+  (`vr_flatplay.cpp` polePose); the other hand on the pole `vr_flat_pole_off_along` 16 ahead of the holding hand
+  (`vr_view_weapon.cpp` chooseGrip), its grip channel closed round the pole and rolled by `vr_flat_pole_off_roll` 0
+  (`vr_view_hands.cpp` steadyOther). No pitch/yaw of the main hand: flat aims the beam at the crosshair anyway.
+- **vr_status** prints, for a held weapon, "the shot N deg off the line from the hand to the muzzle".
+- **Tests**: `dwell_lance_test.sh` 9/0 (the main hand pitched -22 so the spear lies level; new check: the beam within
+  6 degrees of the hand-to-tip line, 3.4: the hand's side offset). Screenshots `scratch/ls_final_vr.png` (side, eyes,
+  both hands) and `scratch/ls_final_flat.png`; before: `scratch/ls_before_*.png`.
+- Left: his fit in VR (Weapon Offsets slot 56: Pitch, Hand, Shot Pitch); the Shot Pitch slider now reaches +-180 (it was +-45; the
+  lance's 92.5); the thrust and its damage unchanged (not re-measured).
+## checklist2: ticked lines retired, a Test scene on every line, multiplayer scenes with bots (agent/checklist2, 2026-11-21)
+
+His words (2026-11-21): retire the ticked items, give every line at least a minimal Test scenario, and a way to test MP
+lines from the checklist: a local MP session with a bot that stays still and isn't hostile (disarm in MP).
+
+- **Retired:** 18 lines ticked in his checklist_ticks.txt with no voice note since (the newest notes are 00:47 today,
+  before the last sort): the reorganized-checklist line, 6 Dwell (pack monsters, Rotary reload, Rifle screen, music
+  per campaign, runes and portals, props, Kamikaze, Brute ragdoll, Lance pole, Rotary gauntlet), Quoth's e1m1quoth,
+  the 3 flat ladder lines and flat hip-fire through a gate, Discord status, Search "recoil". Kept though ticked: the
+  Sliding line and the Dwell start/d1m1 line (his voice notes on them: legs during a slide; stuck in the Sculptor).
+  Scenes only they used moved to scratch (dwell_rifle, dwell_lance_pole, dwell_rotary_gauntlet, expbugs_props,
+  expbugs_kamikaze, expbugs_brute, flat_ladder, flat_gate_hipfire). The [New] section's 5 lines sorted (pouchbody to
+  Weapons, noclip_fly to VR movement, shove_no_blood and the two humrepl lines to Armed humanoids); 106 lines.
+- **Every line tagged** (78 newly; 106 lines, 44 scenes used). New minimal scenes, none
+  with a `hint` so each line's text floats: `hub_start` (start, nothing set: installer, start-up, menus, Quoth maps),
+  `shotgun_hall`, `agrunts_fight`, `ogre_hall`, `monsters_unaware`, `dwell_monsters`, `dwell_bosses`,
+  `dwell_sculptor`, `dwell_items`, `dwell_grunt_pickup`; existing ones reused (dwell_vrmodels, arena_run).
+  `checklist_tests_check.py` now FAILS an untagged line (also in `--lines`, so a ship's lines need a tag) and checks
+  the new directives.
+- **Multiplayer scenes** (Quake/vr/vr_scenario.cpp; TESTING.md, "Checklist scenarios"): `mp coop|dm` loads the map as
+  a local 4-slot game (`vr_scenario slots`, set while no server runs: maxplayers' slots without its `listen 1`, so no
+  socket is opened; the slots before come back with the next single-player scene or once no game runs; deathmatch and
+  coop put back with the scene's settings). `bot passive|active <fwd> <left> ["<weapon>" [main|off]]` adds a FrikBot
+  (QC ClientNextAvailable + BotConnect, as impulse 100) and puts it at its spot facing you, the toolgun weapon taken
+  into its hand (VR_ADMelee_Take). passive: vr_bot_freeze 1 and vr_bot_parry_chance 0 (stands, presses nothing, takes
+  hits; put back at its spot with its weapon when it respawns); active: a normal bot (coop teammate / dm hunter).
+  FrikBot's coop bot return (scratch1) is cleared at a scene's start: a returning bot took the slot of the scene's and
+  respawned it at the map's start. 12 scenes: mp_dm_passive, mp_dm_disarm, mp_dm_disarmviz, mp_dm_hitzones,
+  mp_dm_melee, mp_dm_hostile, mp_dm_navmesh, mp_dm_dagger, mp_coop_bot, mp_coop_passive, mp_coop_guns,
+  mp_coop_bodies; on the 41 multiplayer lines (two-player lines get the host's half; their second window stays
+  mp_local.ps1: an in-process scene has no second client).
+- **Tests:** `checklist_tests_check.py` 89 passed, 0 failed (106 of 106 lines tagged);
+  `--lines` with an untagged line: 1 problem, exit 1. The new scenes' runall (-loopbackonly): 24 run, 0 failed; every
+  passive bot moved 1 unit in 3 s with its weapon held (sword 13, shotgun 4), active ones 250-520. `scenario_check.sh`
+  (now -loopbackonly; SCNMP/SCNBOT) PASS: 169 run, 0 failed, 0 skipped. Dev and ThinLTO builds 0 warnings.
+- **Not covered by runall:** a passive bot's re-placing after a respawn (needs it killed: try it in VR in mp_dm_passive).
 
 ## modladders: Quoth's and AD's ladders on our climbing; kellbase1's corridor (branch agent/modladders, 2026-11-21)
 

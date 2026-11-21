@@ -1651,7 +1651,12 @@ void armFlatGrip(int helping, bool armed)
 
 bool poleGrip(int slot)
 {
-    return slot >= 0 && !flatplay::active() && freeModeFor(slot) == FREE_POLE;
+    return !flatplay::active() && poleWeapon(slot);
+}
+
+bool poleWeapon(int slot)
+{
+    return slot >= 0 && freeModeFor(slot) == FREE_POLE;
 }
 
 bool freeHelping(int hand)

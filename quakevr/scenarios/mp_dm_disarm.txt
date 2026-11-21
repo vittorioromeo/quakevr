@@ -1,0 +1,8 @@
+# mp_dm_disarm: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title Deathmatch: two passive bots, one with a sword and one with a shotgun, to disarm
+mp dm
+map dm3
+start 632 -648 88 0
+god
+bot passive 128 48 "Knight's Sword"
+bot passive 128 -48 "Shotgun"
