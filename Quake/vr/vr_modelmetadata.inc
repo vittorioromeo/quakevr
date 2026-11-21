@@ -75,6 +75,12 @@ QVR_MODEL_ID(Shalrath, "progs/shalrath.mdl")
 QVR_MODEL_ID(Scor, "progs/scor.mdl")
 // The player's own (his ragdoll's rig: vr_ragdoll.cpp; vr_deathview.cpp).
 QVR_MODEL_ID(Player, "progs/player.mdl")
+// A dead player's body as his avatar's own (QC vr_deathdoll.qc; Misc/quakevr/make_vrdoll.py): each build's body as a .mdl, its
+// authored rig quakevr/rigs/vrdoll*.rig2.txt (vr_ragdoll.cpp seedTables; vr_mpavatar.cpp addDolls draws his avatar on it).
+QVR_MODEL_ID(VrDollLean, "progs/vrdoll_lean.mdl")
+QVR_MODEL_ID(VrDoll, "progs/vrdoll.mdl")
+QVR_MODEL_ID(VrDollBrawny, "progs/vrdoll_brawny.mdl")
+QVR_MODEL_ID(VrDollFem, "progs/vrdoll_fem.mdl")
 // Dawn of the Machine's super shambler, read from the owned MG3 pack in place (its ragdoll rig: vr_ragdoll.cpp).
 QVR_MODEL_ID(Mg3ShamblerBlood, "owned/mg3/progs/shambler_blood.mdl")
 // Dwell's Brute (QC dwell/dw_monsters.qc; DWELL.md P2b), read from Dwell's folder (its ragdoll rig: vr_ragdoll.cpp).

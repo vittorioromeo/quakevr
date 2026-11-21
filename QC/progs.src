@@ -397,6 +397,8 @@ frikbot/bot_move.qc
 frikbot/bot_nav.qc // QVR: the navmesh beside the waypoints (vr_bot_navmesh, NAVMESH.md 23)
 frikbot/bot_ed.qc
 vr_meleeonly_bot_test.qc // bots under Melee Only (vr_pickup_test 15; after FrikBot)
+vr_deathdrop_test.qc // a dying player's and bot's weapons dropped as they were (vr_dm_test 21; after FrikBot)
+vr_spawnloop_test.qc // a multiplayer game's spawns on a map with no deathmatch start (vr_dm_test 22; after FrikBot)
 
 waypoints/map_dm1.qc
 waypoints/map_dm2.qc
@@ -611,6 +613,7 @@ vr_meleerules.qc // enemy melee's rules: each blow's rule for Show Melee Arcs, a
 vr_disarmviz.qc // Debug > Show Disarm Volumes: the armed humanoids' disarm volumes (the engine draws them: vr_disarmviz.cpp)
 vr_armedrepl.qc
 vr_wornpack.qc // worn backpacks (armed ones with a ranged weapon)
+vr_humrepl.qc // AD's and Quoth's humanoid variants armed; the recolours by weapon
 // Survival Arena: the wave director (the waves, their ladder, their boss, their drops).
 vr_arena.qc
 vr_arena_director.qc // Survival Arena: the budget director's waves (vr_arena_director 1; the planner: vr_arenadirector.cpp)
@@ -757,4 +760,5 @@ dwell/dw_test.qc
 // Quoth's maps under AD's rules: the classnames and keys AD lacks (QUOTH.md).
 vr_quoth.qc
 vr_quoth_test.qc
+vr_humrepl_test.qc
 vr_rules_test.qc

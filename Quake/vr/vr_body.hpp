@@ -60,15 +60,15 @@ using HolsterPlates = za::Array<HolsterPlate, HolsterCount>;
 
 // The grenade pouch (vr_handgrenade, vr_grenade_pouch_*; ROUND21.md, "Hand grenades from the back pouch"): on the belt
 // at the small of the back, where a hand reaches for it, and (`plate`) the body's surface there (its `out` behind the
-// back; zero `out` without the body: the pouch then faces straight back). Placed as the hip holsters are: carried by
-// the pelvis with vr_body_anchors, round the hips' ring (never in the body), else the old placement's.
+// back). Carried by the pelvis with vr_body_anchors, round the hips' ring (never in the body) whether the body is drawn
+// or not (vr_body_mode 0: the player's own body is there), else the old placement's.
 [[nodiscard]] bool pouchEnabled();
 [[nodiscard]] glm::vec3 pouchPosition(const hands::State& s, HolsterPlate* plate = nullptr);
 [[nodiscard]] float pouchReach(); // world units (vr_grenade_pouch_thresh)
 
 // The ammo pouch (immersive reloading, vr_reload_mode 3 with Weapon Mode Immersive; vr_ammo_pouch_*;
 // docs/vr-port/RELOAD.md): on the front of the belt between the hip holsters, placed as they are (carried by the
-// pelvis, on the belly's ring with the body drawn), where a hand reaches for it, and (`plate`) the body's surface there.
+// pelvis, on the belly's ring, the body drawn or not), where a hand reaches for it, and (`plate`) the body's surface there.
 [[nodiscard]] bool ammoPouchEnabled();
 [[nodiscard]] glm::vec3 ammoPouchPosition(const hands::State& s, HolsterPlate* plate = nullptr);
 [[nodiscard]] float ammoPouchReach(); // world units (vr_ammo_pouch_thresh)
@@ -98,7 +98,9 @@ void updateHotspots(hands::State& s);
 void queueDebug(const hands::State& s);
 
 // vr_body_crouch_report: the crouched pose's share (vr_body_crouch_*), the torso, the arms as last posed, the holsters
-// and the ammo pouch, units from the eyes in the body's facing (forward, right, up).
+// and the ammo pouch, units from the eyes in the body's facing (forward, right, up); `gear ring:` how far out of the
+// player's torso the hip and upper holsters and both pouches are (1 its surface, under 1 inside: out of a real hand's
+// reach), drawn body or not (Misc/quakevr/reload/pouchbody_test.sh).
 void crouchReport_f();
 
 } // namespace qvr::body

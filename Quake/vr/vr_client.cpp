@@ -13,6 +13,7 @@
 #include "vr_clientprefs.hpp"
 #include "vr_moveguard.hpp"
 #include "vr_arenaxray.hpp"
+#include "vr_humlook.hpp"
 #include "vr_modelmetadata.hpp"
 #include "vr_client.hpp"
 #include "vr_handsource.hpp"
@@ -900,6 +901,7 @@ void init()
     brainjiggle::registerCommands();
     Cmd_AddCommand("vr_walltorch_tilt_test", walltorch::tiltTest);
     shock::registerCommands();
+    humlook::registerCommands();
     smoulder::registerCommands();
     comfortfade::registerCommands();
     lowceil::registerCommands();
@@ -1175,6 +1177,7 @@ extern "C" int VR_ParseServerMessage(int cmd)
         case QVR_SVC_MOVEACK: netmove::parseAck(); break; // the newest of our moves the server read (vr_netmove.cpp)
         case QVR_SVC_PREDICT: predict::parseState(); break; // our state after the newest of our moves the server ran (vr_predict.cpp)
         case QVR_SVC_NAVFOLLOW: navfollow::parse(); break; // our vr_nav_follow path (vr_navfollow.cpp)
+        case QVR_SVC_BOTPATH: navfollow::parseBotPath(); break; // a bot's navmesh path, for vr_nav_debug (vr_navfollow.cpp)
         case QVR_SVC_HELDPLACE: held::parsePlaces(); break; // where the server has what our hands hold (vr_held.cpp, B27)
         case QVR_SVC_SNAPSHOT: netsnap::parse(); break; // our state, the entities and avatars, delta-coded (vr_netsnap.cpp)
         case QVR_SVC_PACKAGE: mpdownload::parsePackage(); break; // the server's map package (vr_mpdownload.cpp)
@@ -1206,6 +1209,7 @@ extern "C" int VR_ParseServerMessage(int cmd)
         case QVR_SVC_RAGPOSE: netrag::clientParse(); break;
         case QVR_SVC_ARMOR: agarmor::parseEvent(); break;
         case QVR_SVC_XRAY: arenaxray::parseEvent(); break;
+        case QVR_SVC_HUMLOOK: humlook::parseEvent(); break;
         case QVR_SVC_GORESOUND: goresound::parseEvent(); break;
         case QVR_SVC_WEAPONGONE: wounds::parseWeaponGone(); break;
         case QVR_SVC_CATCHBLEND: drawblend::parseCatch(); break;

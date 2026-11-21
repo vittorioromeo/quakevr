@@ -1,0 +1,51 @@
+# humlook.txt: the armed humanoids' recolours by the weapon they spawned with (docs/vr-port/ARMED_MONSTERS.md,
+# "Recolours by weapon"; the engine's vr_humlook.cpp, the shader's QVR_ALIAS_FS_RECOLOR). Read at load; vr_humlook_reload
+# reads it again, vr_humlook_info prints what the nearest armed humanoid wears. Phase 2's Texture Studio writes it.
+#
+# A row: <type> <category> <part>, then 13 numbers.
+#   type      grunt, enforcer, knight, dknight (the armed monsters' rows, QC VR_AM_*)
+#   category  explosive (rockets, grenades), energy (lightning, plasma, lasers), flame, poison; the others (shells, nails,
+#             melee, the monster's own gun) have no row: as today
+#   part      clothes (its body's skin), pack (its worn backpack)
+# The pixels it changes (a range of the skin's colours, soft at its edges):
+#   hue        the range's middle hue (degrees)
+#   width      half its width (degrees; 180: every hue)
+#   feather    the soft edge past it (degrees)
+#   satmin     the least saturation counted (0..1: greys below it are left)
+#   lightmin   the least and the most lightness counted (0..1)
+#   lightmax
+# What it does to them (HSL), then a tint (the colour multiplied in, by `amount`: for near-white skins):
+#   shift      the hue turned by this (degrees)
+#   satmul     the saturation times this
+#   lightmul   the lightness times this
+#   tint r g b amount
+#
+# type     category  part     hue width feather satmin lightmin lightmax  shift satmul lightmul  tint_r tint_g tint_b amount
+grunt      explosive clothes   40   18     8      0.15   0.03     0.30     -36   2.0    0.90      1 1 1 0
+grunt      energy    clothes   40   18     8      0.15   0.03     0.30     180   1.7    1.15      1 1 1 0
+grunt      flame     clothes   40   18     8      0.15   0.03     0.30     -18   2.4    1.45      1 1 1 0
+grunt      poison    clothes   40   18     8      0.15   0.03     0.30      65   1.6    1.10      1 1 1 0
+grunt      explosive pack      30   30    10      0.10   0.02     0.60     -30   1.9    1.05      1 1 1 0
+grunt      energy    pack      30   30    10      0.10   0.02     0.60     190   1.7    1.15      1 1 1 0
+grunt      flame     pack      30   30    10      0.10   0.02     0.60      -4   2.2    1.35      1 1 1 0
+grunt      poison    pack      30   30    10      0.10   0.02     0.60      70   1.6    1.10      1 1 1 0
+enforcer   explosive clothes   40   18     8      0.15   0.03     0.30     -36   2.0    0.90      1 1 1 0
+enforcer   energy    clothes   40   18     8      0.15   0.03     0.30     180   1.7    1.15      1 1 1 0
+enforcer   flame     clothes   40   18     8      0.15   0.03     0.30     -18   2.4    1.45      1 1 1 0
+enforcer   poison    clothes   40   18     8      0.15   0.03     0.30      65   1.6    1.10      1 1 1 0
+knight     explosive clothes   40   18     8      0.15   0.03     0.30     -36   2.0    0.90      1 1 1 0
+knight     energy    clothes   40   18     8      0.15   0.03     0.30     180   1.7    1.15      1 1 1 0
+knight     flame     clothes   40   18     8      0.15   0.03     0.30     -18   2.4    1.45      1 1 1 0
+knight     poison    clothes   40   18     8      0.15   0.03     0.30      65   1.6    1.10      1 1 1 0
+knight     explosive pack      30   30    10      0.10   0.02     0.60     -30   1.9    1.05      1 1 1 0
+knight     energy    pack      30   30    10      0.10   0.02     0.60     190   1.7    1.15      1 1 1 0
+knight     flame     pack      30   30    10      0.10   0.02     0.60      -4   2.2    1.35      1 1 1 0
+knight     poison    pack      30   30    10      0.10   0.02     0.60      70   1.6    1.10      1 1 1 0
+dknight    explosive clothes   40   18     8      0.15   0.03     0.30     -36   2.0    0.90      1 1 1 0
+dknight    energy    clothes   40   18     8      0.15   0.03     0.30     180   1.7    1.15      1 1 1 0
+dknight    flame     clothes   40   18     8      0.15   0.03     0.30     -18   2.4    1.45      1 1 1 0
+dknight    poison    clothes   40   18     8      0.15   0.03     0.30      65   1.6    1.10      1 1 1 0
+dknight    explosive pack      30   30    10      0.10   0.02     0.60     -30   1.9    1.05      1 1 1 0
+dknight    energy    pack      30   30    10      0.10   0.02     0.60     190   1.7    1.15      1 1 1 0
+dknight    flame     pack      30   30    10      0.10   0.02     0.60      -4   2.2    1.35      1 1 1 0
+dknight    poison    pack      30   30    10      0.10   0.02     0.60      70   1.6    1.10      1 1 1 0

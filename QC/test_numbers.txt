@@ -36,6 +36,8 @@ dispatch vr_dm_test QC/vr_dmrules_test.qc VR_DMRulesTest_Frame ask
 dispatch vr_dm_test QC/vr_bots_test.qc VR_BotsTest_Frame ask
 dispatch vr_dm_test QC/vr_botgrab_test.qc VR_BotGrabTest_Frame ask
 dispatch vr_dm_test QC/vr_botnav_test.qc VR_BotNavTest_Frame ask
+dispatch vr_dm_test QC/vr_deathdrop_test.qc VR_DeathDropTest_Frame ask
+dispatch vr_dm_test QC/vr_spawnloop_test.qc VR_SpawnLoopTest_Frame ask
 dispatch vr_projinherit_test QC/vr_projinherit_test.qc VR_ProjInheritTest_Frame ask
 dispatch vr_grenfuse_test QC/vr_grenfuse_test.qc VR_GrenFuseTest_Frame ask
 dispatch vr_flatmove_test QC/vr_flatmove_test.qc VR_FlatMoveTest_Frame ask
@@ -145,6 +147,9 @@ vr_ad_test       204      dwell/dw_test.qc                 an armed grunt arming
 vr_ad_test       209      vr_rules_test.qc                 the ruleset's numbers (vr_rules_numbers.qc) through our touches: armour rule and protection, key stacks, monsters' health, the laser, the megahealth rot (Copper's in a Dwell map, Quake's in e1m1)
 vr_ad_test       211      vr_quoth_test.qc                 Quoth's keys: an entity used by its targetname2 (the alias), the map's spawner (kellbase1's, else a made one) named from spawnfunction spawns `count` monsters
 vr_ad_test       212      vr_quoth_test.qc                 a Quoth map's flow driven round by round (triggers touched, monsters awake killed) to its last stage (quoth_play.sh)
+vr_ad_test       219      vr_humrepl_test.qc               AD's and Quoth's humanoid variants: each its armed row with its gun, health, look, counted once; a death fires its target; off: AD's; looks by weapon; the client's looks (humrepl_test.sh)
+vr_ad_test       220      vr_humrepl_test.qc               the map's variants census, one line: monsters, armed, variants replaced, left AD's (humrepl_census.sh)
+vr_ad_test       221      vr_humrepl_test.qc               a row of armed humanoids of row scratch1, one per recolour category, for the screenshots (humrepl_shots.sh)
 vr_ad_test       215      dwell/dw_test.qc                 Dwell's Kamikaze made 250-500 units away: it chases the player and bursts near him, its explosion drawn (dwell_monster_fixes_test.sh)
 vr_ad_test       216      dwell/dw_test.qc                 d2end: the player put inside the Sculptor's fighting box is put just outside it, free (dwell_monster_fixes_test.sh)
 vr_ad_test       214      dwell/dw_test.qc                Dwell's start: the spawn point's targets fired (Copper's), both runes placed, each episode's corridor walkable to its teleporter and the teleporter taking the player (dwell_maps.sh)
@@ -786,6 +791,8 @@ vr_dm_test       17       vr_botgrab_test.qc               bots3: the human's em
 vr_dm_test       18       vr_botgrab_test.qc               bots3: the same grab at a point off the drawn weapon: nothing taken hold of
 vr_dm_test       19       vr_botnav_test.qc                botnav (vr_bot_navmesh, deathmatch e1m1): a bot that saw the human walks to him through the first room's west door after he is put past it (navmesh 0 for contrast, then 1: within 96 units)
 vr_dm_test       20       vr_botnav_test.qc                botnav: the human never seen, a rocket launcher at the end of a waypoint chain: the bot takes it by its waypoints (target1 a waypoint, the navmesh never used), vr_bot_navmesh 1
+vr_dm_test       21       vr_deathdrop_test.qc             mpbugs3: a dying bot's and player's weapons (daggers in both hands and five holsters, a knight's sword in the last) dropped as themselves: kind, reverse grip, their own records (maxplayers 2, deathmatch 1)
+vr_dm_test       22       vr_spawnloop_test.qc             mpbugs3: Dwell's start (no deathmatch start) from vr_campaign_native in a multiplayer game: two players in and alive (a bot connected if alone), SelectSpawnPoint returns: coop's starts under deathmatch, no telefrag (it looped for ever: runaway loop error)
 
 vr_projinherit_test 1     vr_projinherit_test.qc           projectiles keep your motion: strafing, nails and rockets on the aim, grenades their share; a hand swing in grenades only
 vr_grenfuse_test 1        vr_grenfuse_test.qc              one fuse for every grenade: hand, launcher and ogre grenades go off together after arming, each lit with its countdown (none with vr_grenade_countdown 0)

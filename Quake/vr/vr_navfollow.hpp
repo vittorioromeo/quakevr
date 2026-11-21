@@ -94,7 +94,11 @@ void parse();
 bool clientMove(float* forwardmove, float* sidemove, float* upmove, bool stick);
 // Client: the move's jump bit asked by the follower this frame (VR_MoveJump).
 [[nodiscard]] bool jumpNow();
-// The view's debug draws (vr_nav_debug on): the follower's path (yellow, a teleporter's cyan) and its next corner.
+// Client: QVR_SVC_BOTPATH's body (a bot's navmesh path, for the debug draw).
+void parseBotPath();
+// The view's debug draws (vr_nav_debug on): the follower's path (yellow, a teleporter's cyan) and its next corner; each
+// bot's navmesh path (vr_bot_navmesh: magenta, its next corner a white post), on the host and on a remote client alike
+// (asked of the server while vr_nav_debug is on: "vr_nav_botpaths 1"; vr_nav_follow_status's navbots line counts them).
 void debugDraw();
 
 } // namespace qvr::navfollow

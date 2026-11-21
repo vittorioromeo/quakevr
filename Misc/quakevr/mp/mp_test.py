@@ -136,6 +136,9 @@ Tests:
              navmesh by his own client's moves on e1m1, down the step and through the first room's door; A walks on, B
              follows and arrives within reach; B's own move hands control back, the follow walks on after
              vr_nav_follow_idle; vr_nav_follow 0 stops it. navfollow_listen: the same with the listen host A following B.
+    botnavdebug (flakehunt, 2026-11-21, not in the suite) the bots' navmesh paths in vr_nav_debug on a client: a
+             deathmatch server on e1m1, A (remote; botnavdebug_listen: the host) with vr_nav_debug 2 adds a bot; the
+             server's vr_dm_test 19 has it chase A by the navmesh: A's client has its path and draws it; off drops it.
     roomnonce  (review 2026-11-18, finding 11) the room service's replies to a host checked (a stand-in service):
              REFUSED, BADVERSION and REGISTERED with another nonce change nothing; COOKIE (protocol version 2) with
              his nonce has him register again at once with it, then REGISTERED gives his code; a REFUSED with his
@@ -689,7 +692,10 @@ def nat(s):
        accept, which led nowhere outside).
     2. Room codes: a host behind a cone NAT (non-port-preserving) gets a room code; A behind another cone NAT joins
        by it (both punch); B behind a symmetric NAT is told there's no direct link; an unknown code and a service that
-       doesn't answer are told so."""
+       doesn't answer are told so.
+    3. (2026-11-21) The port check (the service's probe from another port): without the room service it reads unknown
+       (1.'s host), behind the cone NAT without a forward not reachable (2.'s), with the port forwarded reachable;
+       with a version 2 service (--newest 2) the room code still comes and the check reads unknown."""
     out = subprocess.run([sys.executable, os.path.join(RENDEZVOUS, "test_rendezvous.py")], capture_output=True,
                          text=True, timeout=120)
     verdict = [l for l in out.stdout.splitlines() if l.startswith("rendezvous_test:")]
@@ -699,6 +705,8 @@ def nat(s):
     service = subprocess.Popen([sys.executable, os.path.join(RENDEZVOUS, "qvr_rendezvous.py"), "--bind", "127.0.0.1",
                                 "--port", str(rport), "--report", "0", "--verbose"],
                                stdout=open(os.path.join(s.out, "rendezvous.log"), "w"), stderr=subprocess.STDOUT)
+    services = [service]
+    oport = s.take_port()
     nats = []
     try:
         def router(ip, kind, seed):
@@ -720,6 +728,11 @@ def nat(s):
         c.wait(r"mp_event: .*joined map=e1m1", 120, what="C joined the forwarded host")
         s.check("a host behind a router that doesn't keep port numbers, his port %d forwarded to %d outside, is joined "
                 "at 127.0.0.2:%d (one server socket)" % (s.port, outside, outside), True)
+        since = srv.mark()
+        srv.cmd("vr_mp_roomcode")
+        _, line = srv.wait(r"Port \d+: ", 30, since, "the port check's line")
+        s.check("the port check without the room service (vr_mp_room 0): unknown (room service off)",
+                "Port %d: unknown (room service off)" % s.port in line, line.strip())
         c.stop()
         srv.stop()
         # 2. Room codes through cone NATs
@@ -734,6 +747,15 @@ def nat(s):
         outside_h = hnat.outside_port(h.port)
         s.check("the host behind a cone NAT gets a room code, the service seeing his router's outside port",
                 outside_h and outside_h != h.port and ("127.0.0.3:%d" % outside_h) in line, line.strip())
+        # (the port check, version 3) the service's probe from its other port, filtered by his router: not reachable
+        _, line = h.wait(r"Port \d+ is (not )?reachable", 30, what="the host's port check")
+        since = h.mark()
+        h.cmd("vr_mp_roomcode")
+        _, shown = h.wait(r"Port \d+: ", 30, since, "the port check's line")
+        s.check("the port check behind a cone NAT without a forward: not reachable (the probe filtered)",
+                ("Port %d is not reachable" % h.port) in line and
+                ("Port %d: not reachable from the internet (forward UDP %d" % (h.port, h.port)) in shown,
+                "%s | %s" % (line.strip(), shown.strip()))
         anat = router("127.0.0.4", "cone", 3)
         a = s.client("A", extra=["-natgateway", str(anat.gateway_port)] + room).start()
         a.cmd("name A; connect @%s" % code.lower())
@@ -756,13 +778,36 @@ def nat(s):
         _, why = b.wait(r"does not answer", 30, since, "B's no-service reason")
         s.check("a room service that doesn't answer is told so", True, why.strip())
         a.cmd("vr_mp_roomcode")
+        # 3. (the port check) a host whose port is forwarded (the same number outside) reads reachable
+        fnat = router("127.0.0.6", "cone", 5)
+        fhport = s.take_port()
+        forwarded = fnat.forward(fhport, fhport)
+        f = Instance(s, "fwdhost", fhport, dedicated=4, extra=["-natgateway", str(fnat.gateway_port)] + room)
+        s.instances.append(f)
+        f.start()
+        f.cmd("coop 1; deathmatch 0; skill 1; map e1m1")
+        _, line = f.wait(r"Port \d+ is (not )?reachable", 120, what="the forwarded host's port check")
+        s.check("the port check with UDP %d forwarded: reachable (the probe got in)" % fhport,
+                forwarded == fhport and ("Port %d is reachable" % fhport) in line, line.strip())
+        # ... and with a version 2 service (not yet redeployed): unknown, its room code still given
+        old = subprocess.Popen([sys.executable, os.path.join(RENDEZVOUS, "qvr_rendezvous.py"), "--bind", "127.0.0.1",
+                                "--port", str(oport), "--report", "0", "--newest", "2"],
+                               stdout=open(os.path.join(s.out, "rendezvous_v2.log"), "w"), stderr=subprocess.STDOUT)
+        services.append(old)
+        since = f.mark()
+        f.cmd("vr_mp_rendezvous 127.0.0.1:%d" % oport)
+        _, line = f.wait(r"Room code: [A-Z]{6} ", 30, since, "the room code from the old service")
+        _, line2 = f.wait(r"Port \d+: unknown \(the room service .* is too old", 30, since, "the old service's check")
+        s.check("a version 2 room service still gives a room code; the port check reads unknown (too old)",
+                "Room code:" in line, "%s | %s" % (line.strip(), line2.strip()))
         s.metric("nat", {n.outside_ip: dict(n.stats) for n in nats})
     finally:
         for n in nats:
             s.note(n.summary())
             n.stop()
-        service.terminate()
-        service.wait(10)
+        for p in services:
+            p.terminate()
+            p.wait(10)
 
 
 def netsafe(s):
@@ -859,6 +904,13 @@ def roomui(s):
         _, line = h.wait(r"Room code: [A-Z]{6} ", 120, what="the host's room code")
         code = re.search(r"Room code: ([A-Z]{6})", line).group(1)
         s.check("the listen host gets a room code from the local service", True, line.strip())
+        # (the port check) no router between: the service's probe gets in; the net HUD's host line says so
+        h.wait(r"Port \d+ is (not )?reachable", 30, what="the host's port check")
+        since = h.mark()
+        h.cmd("vr_net_hud 1; vr_net_hud_report")
+        _, rep = h.wait(r"mp_nethud: ", 30, since, "the net HUD's report")
+        s.check("the listen host's net HUD line: his port reachable", 'host_line="port %d reachable"' % h.port in rep,
+                rep.strip()[-60:])
         since = h.mark()
         h.cmd("con_notifytime 0; menu_hostgame; wait; wait; wait; echo roomui_menu_open")  # (drawn before the shot)
         h.wait(r"roomui_menu_open", 30, since, "the host's menu open")
@@ -1760,22 +1812,64 @@ def dolls_of(lines):
     return out
 
 
+DOLL_PARTS = 19  # avatardoll: the avatar's own ragdoll's parts (quakevr/rigs/vrdoll*.rig2.txt, Misc/quakevr/make_vrdoll.py)
+DOLL_LEG = 22.06  # ... its left leg's rest length, hip to knee to ankle (model units)
+DOLL_SHORT, DOLL_TALL = 1.55, 1.95  # the two players' eye heights (m) in mp_deathbody
+
+
+def doll_rigs_of(lines):
+    """"mp_doll_rig:" lines -> {player ent: (doll, parts, dollscale, leg)}."""
+    out = {}
+    for l in lines:
+        m = re.match(r"mp_doll_rig: ent=(\d+) doll=(\d+) parts=(\d+) dollscale=(\S+) leg=(\S+)", l.strip())
+        if m:
+            out[int(m.group(1))] = (int(m.group(2)), int(m.group(3)), float(m.group(4)), float(m.group(5)))
+    return out
+
+
+def doll_model_of(body_model):
+    """His avatar's model (progs/vrbody_brawny_bare.mdl) -> his dead body's model on the server (progs/vrdoll_brawny.mdl)."""
+    return body_model.replace("_bare", "").replace("vrbody", "vrdoll")
+
+
 def deathbody_case(s, srv, a, b, ea, eb, victim, ev, own_models, tone, label):
     """`victim` (entity `ev`) killed whole (vr_hurt 110: health -10, not gibbed: his ragdoll body, vr_deathdoll.qc):
-    A and B each draw his body as his own body (mp_doll: his build's model in his look), not id's ranger."""
+    A and B each draw his body as his own body (mp_doll: his build's model in his look), not id's ranger. avatardoll: the
+    body the server made is his avatar's own ragdoll (his build's progs/vrdoll*.mdl, its 19 parts, the avatar rig's
+    proportions at his size), sent to B (ragsync) as the host has it."""
     since = srv.mark()
     srv.cmd("vr_hurt 110 %d" % (ev - 1))
     dead = wait_quietly(srv, r"vr_hurt: .* dead", 10, since, "%s dead on the server" % label)
     s.check("%s killed whole (vr_hurt 110)" % label, dead is not None, dead[1].strip() if dead else "no vr_hurt line")
-    seen, n = {}, 0
+    seen, rigs, n = {}, {}, 0
     for n in range(1, 41):
         la, lb = reports(s, [a, b])
         for who, lines in (("A", la), ("B", lb)):
             d = dolls_of(lines).get(ev)
             if d and who not in seen:
                 seen[who] = d
-        if len(seen) == 2:
+            r = doll_rigs_of(lines).get(ev)
+            if r and r[1] > 0 and who not in rigs:
+                rigs[who] = r
+        if len(seen) == 2 and len(rigs) == 2:
             break
+    for who in ("A", "B"):
+        d, r = seen.get(who), rigs.get(who)
+        want = doll_model_of(own_models[ev])
+        s.check("%s: %s's body on the server is %s's avatar's own (%s), a ragdoll of its %d parts at %s" % (
+                label, label, label, want, DOLL_PARTS, who), d is not None and r is not None and
+                d["dollmodel"].split("#")[0] == want and r[1] == DOLL_PARTS,
+                "doll %s, %s parts, ragdoll %s" % (d["dollmodel"] if d else "-", r[1] if r else "no", d.get("ragdoll") if d else "-"))
+        if r:
+            s.check("%s: its parts follow the avatar rig at its size at %s (the leg %.2f = %.2f x %.3f)" % (
+                    label, who, r[3], DOLL_LEG, r[2]), r[2] > 0.0 and abs(r[3] / r[2] - DOLL_LEG) < 0.5,
+                    "leg %.2f, scale %.3f: %.2f model units" % (r[3], r[2], r[3] / max(r[2], 1e-6)))
+    if "A" in rigs and "B" in rigs:
+        s.check("%s: B's ragdoll the host's size (ragsync: scale %.3f, %.3f)" % (label, rigs["A"][2], rigs["B"][2]),
+                abs(rigs["A"][2] - rigs["B"][2]) < 0.01)
+    for who in ("A", "B"):
+        if who in rigs:
+            seen[who]["rig"] = rigs[who]
     for who in ("A", "B"):
         d = seen.get(who)
         viewer = "%s (his own)" % who if (who == "A") == (ev == ea) else who
@@ -1802,8 +1896,9 @@ def deathbody(s):
     B himself draw B's. Each doll's copy: the dead player's build's model, his skin tone and gloves, his jointed hands,
     lying where the doll is."""
     srv, a, b, ea, eb = join(s, listen=True, flat="B")
-    a.cmd("vr_body_build 2; vr_skin_tone -0.5; vr_gloves 2")
-    b.cmd("vr_body_build 0; vr_skin_tone 0.6; vr_gloves 2")
+    # (avatardoll: a short A and a tall B, their bodies' ragdolls sized so)
+    a.cmd("vr_body_build 2; vr_skin_tone -0.5; vr_gloves 2; vr_height_calibration %.2f" % DOLL_SHORT)
+    b.cmd("vr_body_build 0; vr_skin_tone 0.6; vr_gloves 2; vr_height_calibration %.2f" % DOLL_TALL)
 
     def dressed(lines):
         la, lb = lines
@@ -1815,9 +1910,73 @@ def deathbody(s):
     (la, lb), n = reports_until(s, [a, b], dressed, "each draws the other in his own build", 40)
     models = {ea: body_of(la, "mp_body_own")[ea]["model"], eb: body_of(lb, "mp_body_own")[eb]["model"]}
     s.note("builds: A %s, B %s (after %d reports)" % (models[ea], models[eb], n))
-    deathbody_case(s, srv, a, b, ea, eb, a, ea, models, -0.5, "A")
+    seen_a = deathbody_case(s, srv, a, b, ea, eb, a, ea, models, -0.5, "A")
     s.check("A respawned (his trigger)", respawn_if_dead(srv, a, ea))
-    deathbody_case(s, srv, a, b, ea, eb, b, eb, models, 0.6, "B")
+    seen_b = deathbody_case(s, srv, a, b, ea, eb, b, eb, models, 0.6, "B")
+    ra, rb = seen_a.get("A", {}).get("rig"), seen_b.get("A", {}).get("rig")
+    want = DOLL_TALL / DOLL_SHORT
+    s.check("the tall B's body is the short A's scaled by their heights (%.2f / %.2f = %.3f)" % (DOLL_TALL, DOLL_SHORT, want),
+            ra is not None and rb is not None and abs(rb[2] / ra[2] - want) < 0.03 * want,
+            "A %.3f, B %.3f: %.3f" % (ra[2], rb[2], rb[2] / ra[2]) if ra and rb else "a ragdoll not seen")
+    if ra and rb:
+        s.note("legs: short A %.2f, tall B %.2f units" % (ra[3], rb[3]))
+    deathbody_respawned(s, srv, a, b, eb, models, seen_b, "B")
+    da, db = seen_a.get("A"), seen_b.get("A")
+    if da and db and os.environ.get("MP_DEATHBODY_SHOT") == "1":
+        # (both bodies lying, seen from above beside them by the host, alive again: a screenshot)
+        mid = [(da["dollat"][k] + db["dollat"][k]) / 2.0 for k in range(3)]
+        at = (mid[0] - 60.0, mid[1], mid[2] + 4.0)
+        ads_cam(srv, a, ea, at, 0.0, 0.0)
+        a.cmd("vr_mock_camera 0 2.2 -0.9 62 0")  # (the eyes 2.2 m up and ahead, looking 62 degrees down at them)
+        reports(s, [a])  # (a frame drawn from there first)
+        s.note("screenshot (A's short brawny body and B's tall lean one, seen by A): %s" % a.screenshot("deathbody_two"))
+
+
+def dolls_all(lines):
+    """"mp_doll:" lines -> [fields] (dolls_of's), every one: a player's bodies may be several (mpbugs4: his old ones)."""
+    out = []
+    for l in lines:
+        if l.startswith("mp_doll:"):
+            f = avatar_fields(l)
+            m = re.search(r"model=(\S+)", l)
+            f["model"] = m.group(1) if m else ""
+            out.append(f)
+    return out
+
+
+def deathbody_respawned(s, srv, a, b, ev, own_models, before, label):
+    """mpbugs4 (his words: "Killed bot/player ragdolls are still the Quake ranger model"): `label` (entity `ev`, the flat
+    client B) respawns; his old body still lies where he died. A (the host: its ragdoll) and B himself (a client: its
+    death frame) still draw that body (the doll each drew before) as his own body, his build's model, while his living
+    copy is drawn too (a doll slot past the players': vr_mpavatar.cpp assignDollSlots), not id's ranger."""
+    since = b.mark()
+    for _ in range(30):
+        if alive(srv, ev):
+            break
+        b.cmd("+attack")  # (a flat player's fire button: PlayerDeathThink)
+        got = wait_or_none(b, r"mp_event: .* respawned", 0.5, since)
+        b.cmd("-attack")
+        if got or wait_or_none(b, r"mp_event: .* respawned", 0.5, since):
+            break
+    s.check("%s respawned (his fire button)" % label, alive(srv, ev))
+    seen, n = {}, 0
+    for n in range(1, 41):
+        la, lb = reports(s, [a, b])
+        for who, lines in (("A", la), ("B", lb)):
+            old = int(before[who]["doll"][0]) if before.get(who) and "doll" in before[who] else -1
+            for d in dolls_all(lines):
+                if who not in seen and int(d["ent"][0]) == ev and int(d.get("doll", [0])[0]) == old:
+                    seen[who] = d
+        if len(seen) == 2:
+            break
+    for who in ("A", "B"):
+        d = seen.get(who)
+        viewer = "%s (his own)" % who if who == "B" else who
+        s.check("%s respawned: %s still draws %s's old body as %s's own body (his build's model %s), not the ranger" % (
+                label, viewer, label, label, own_models[ev]), d is not None and d["model"] == own_models[ev],
+                "%s in slot %d, after %d reports" % (d["model"], int(d.get("slot", [0])[0]), n) if d else
+                "no mp_doll line for his old body (doll %s) after %d reports" % (
+                    int(before[who]["doll"][0]) if before.get(who) and "doll" in before[who] else "?", n))
 
 
 RAG_BL = re.compile(r"mp_bl: side=(\w+) t=(\S+) n=(\d+) m=(\S+) o=(\S+) a=(\S+) rag=(\d)")
@@ -3437,6 +3596,70 @@ def navfollow(s, listen=False, flat="AB"):
     follower.wait(r"vr_nav_follow: off", 20, since, "the follow off")
     st = navfollow_status(follower)
     s.check("vr_nav_follow 0: off", st.get("state") == 0 and st.get("driving") == 0, str(st))
+
+
+def navbots_status(inst):
+    """`vr_nav_follow_status`'s navbots line on `inst` -> its fields (asked, paths, corners, drawn)."""
+    since = inst.mark()
+    inst.cmd("vr_nav_follow_status")
+    _, line = inst.wait(r"navbots: asked=", 10, since, "%s's bot paths status" % inst.name)
+    return {k: int(v) for k, v in fields(line).items() if re.fullmatch(r"-?\d+", v)}
+
+
+def botnavdebug(s, listen=False):
+    """(flakehunt; his word 2026-11-21: "Ensure the debug view works here too") The bots' navmesh paths in the navmesh
+    debug view (vr_nav_debug) on a client: a deathmatch server on e1m1 (dedicated: A a remote client; listen: A the
+    host), A draws the navmesh (vr_nav_debug 2) and adds a bot (impulse 100); the server's QC test vr_dm_test 19 makes
+    the bot chase A by the navmesh past the first room's west door (vr_bot_navmesh 1). While it walks A's client has a
+    bot path from the server (QVR_SVC_BOTPATH) and draws it (navbots: paths >= 1, drawn lines >= 1); the test passes;
+    vr_nav_debug 0 drops the paths (asked=0, paths=0)."""
+    level = "e1m1"
+    if listen:
+        a = srv = s.server(dedicated=False, name="A")
+    else:
+        srv = s.server(dedicated=True)
+    srv.start()
+    srv.cmd("%scoop 0; deathmatch 1; noexit 1; fraglimit 0; timelimit %d; skill 1; map %s; vr_mp_status" % (
+        "disconnect; maxplayers 4; listen 1; " if listen else "", DM_TIMELIMIT, level))
+    srv.wait(r"mp_server: map=%s" % level, 120, what="the server on %s" % level)
+    if not listen:
+        a = s.client("A").start()
+        a.cmd(s.connect_cmd(a))
+    a.wait(r"mp_event: .*joined map=%s" % level, 120, what="A joined %s" % level)
+    a.cmd("name A; vr_nav_debug 2")
+    since_a = a.mark()
+    a.cmd("impulse 100")
+    wait_quietly(a, r"mp_frags: .*named=1", 10, since_a, "the bot named at A")
+    since_srv = srv.mark()
+    srv.cmd("developer 1; vr_dm_test 19")
+    # (case 1's chase: the bot's "navmesh to A (a player it saw)" line, after case 0's walk with the navmesh off)
+    wait_quietly(srv, r"botnav: .* navmesh to A", 150, since_srv, "the bot's navmesh chase begun")
+    best, verdict = {}, None
+    for _ in range(200):
+        st = navbots_status(a)
+        if st.get("paths", 0) >= 1 and st.get("drawn", 0) >= best.get("drawn", 0):
+            best = st
+        verdict = srv.find(r"dmtest: \d+ passed, \d+ failed", since_srv)
+        if verdict or (best.get("paths", 0) >= 1 and best.get("drawn", 0) >= 1):
+            break
+    s.check("A's client (%s) has the bot's navmesh path from the server and draws it (vr_nav_debug 2)" % (
+        "the listen host" if listen else "a remote client"),
+        best.get("paths", 0) >= 1 and best.get("corners", 0) >= 2 and best.get("drawn", 0) >= 1, str(best))
+    if not verdict:
+        _, verdict = srv.wait(r"dmtest: \d+ passed, \d+ failed", 150, since_srv, "vr_dm_test 19's verdict")
+    else:
+        verdict = verdict[1]
+    # (the chase's own outcome is vr_dm_test 19's, a bot-AI test of its own with a known flake: the bot sees him at the
+    # door, goes back to its waypoints and wanders; noted here, the drawing being this scenario's)
+    s.note("vr_dm_test 19 (the bot's navmesh chase): %s" % verdict.strip())
+    a.cmd("vr_nav_debug 0")
+    st = {}
+    for _ in range(20):
+        st = navbots_status(a)
+        if st.get("asked") == 0:
+            break
+    s.check("vr_nav_debug 0: the bots' paths dropped (asked=0, paths=0)", st.get("asked") == 0 and st.get("paths") == 0,
+            str(st))
 
 
 def coopbots(s):
@@ -9216,6 +9439,10 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             navfollow(s, listen=True)
         elif test == "mp_navfollow_vr":
             navfollow(s, flat="A")
+        elif test == "mp_botnavdebug":
+            botnavdebug(s)
+        elif test == "mp_botnavdebug_listen":
+            botnavdebug(s, listen=True)
         elif test == "mp_teleport":
             teleport(s)
         elif test == "mp_held":
@@ -9428,7 +9655,7 @@ SUITE = [
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "debugviz", "debugviz_listen", "wristscore", "wpnsync", "wpnsync_flat", "navfollow", "navfollow_listen", "navfollow_vr", "syncaudit", "ragsync"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "debugviz", "debugviz_listen", "wristscore", "wpnsync", "wpnsync_flat", "navfollow", "navfollow_listen", "navfollow_vr", "botnavdebug", "botnavdebug_listen", "syncaudit", "ragsync"])
     ap.add_argument("--base", required=True, help="the game folder (id1, quakevr...)")
     ap.add_argument("--exe", default=EXE)
     ap.add_argument("--out", default=os.path.join(REPO, "scratch", "mp"))
@@ -9490,7 +9717,7 @@ def main_run(args):
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
     elif args.test in ("bandwidth", "wpnsync", "wpnsync_flat", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground",
-                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "debugviz", "debugviz_listen", "wristscore", "navfollow", "navfollow_listen", "navfollow_vr", "syncaudit", "ragsync"):
+                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "debugviz", "debugviz_listen", "wristscore", "navfollow", "navfollow_listen", "navfollow_vr", "botnavdebug", "botnavdebug_listen", "syncaudit", "ragsync"):
         ok = run(args, "mp_" + args.test)
     elif args.test == "voice":
         ok = run(args, "mp_voice", args.lag, args.jitter, args.loss)

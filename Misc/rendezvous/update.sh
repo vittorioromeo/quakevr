@@ -14,10 +14,11 @@
 #   bash Misc/rendezvous/update.sh vittorioromeo.com --dry-run          steps 1 and what would be deployed; no ssh
 #
 # Version 2 refuses version-1 games (no room code; joins by address still work): deploy it with the game's release.
+# Version 3 (the port check) still serves version 2 games: deploy it any time before the release that checks ports.
 set -euo pipefail
 
 usage() {
-	sed -n '2,16p' "$0"
+	sed -n '2,17p' "$0"
 	exit 2
 }
 

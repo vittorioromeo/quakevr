@@ -820,6 +820,11 @@ frame sequences; reading aids only, nothing pasted). Files `QC/dwell/` (GPL-2, h
   `start1_targets` (a target_lock unlocking the pedestals' relays) never ran: runes placed opened nothing and the walls
   before the episodes' teleporters stayed. `CU_PlayerSpawnedAt` fires them, after the START_LOCKED locks' 0.25 s (a
   player spawned sooner had them locked again). Test `vr_ad_test 214` in `dwell_maps.sh`.
+- **Started in a deathmatch game** (Select Campaign while hosting, mpbugs3): start has coop starts but no
+  `info_player_deathmatch`, and SelectSpawnPoint's deathmatch scan never ended ("runaway loop error", Host_Error in
+  Host_Spawn_f). The scan now ends after two passes; with no deathmatch start it takes coop's starts
+  (`VR_CoopSpawnPoint`: the next clear one, else beside one), so two players don't telefrag on the player start. Test
+  `vr_dm_test 22` (set before `vr_campaign_native dwell`; deathmatch and coop, a bot as the second player).
 - **Kamikaze**: `EntitiesTouching` compares mins/maxs (a brush's absolute box): two monsters' relative boxes always
   overlap, so it burst the moment it had an enemy. Now its box within 8 units or 64 units apart; its burst (and the
   Construct's death) sends `TE_EXPLOSION` (`DW_Boom`). **Brute**: the 14-vertex piece across his front was split
@@ -895,6 +900,16 @@ frame sequences; reading aids only, nothing pasted). Files `QC/dwell/` (GPL-2, h
 
   Recommendation (conservative): D first (cheap, nothing to install, every player gets it); A when he wants AD's look on
   Dwell and Quoth (one Setup step, no install for players). B only if a Setup step is unwanted; C as a stopgap.
+- **Reliefs for Dwell and Quoth: option A built (his choice, 2026-11-21; branch `agent/reliefs`, ROUND25.md "reliefs").**
+  `Misc/quakevr/pbr_export_onnx.py` exported PBRify 1.7.2's two CC0 models once to ONNX (1.6 MB each, in
+  `Installer/src/QuakeVR.Installer.Core/Reliefs/Models/`; parity of the whole generator on 40 AD textures: mean texel
+  difference 0.0001, worst 1). Setup's "Make reliefs for Dwell and Quoth" (Installer/README.md, "Reliefs for Dwell and
+  Quoth"; on wherever either is there) runs them by onnxruntime (DirectML, CPU fallback) over the Dwell and Quoth folders
+  the game plays, writing AD's format into `<Quake VR folder>\reliefs\textures\pbr` (the hash names and a
+  `provenance.txt`); only the missing ones, again at every Setup run; the uninstaller removes it. The engine appends
+  `<last basedir>/reliefs` at the bottom of the base search path (`VR_AddReliefsPath`, vr_pbr.cpp) and reads its
+  provenance too: the lookup itself unchanged, as planned. Measured: 1768 reliefs for 2323 textures in 115 s (DirectML),
+  82 MB; d1m1 draws 168 of them, kellbase1 60, at AD's generated strength. Setup grows by 9.7 MB (61.5 to 71.3 MB).
 
 ## 10. Open questions for Vittorio (real decisions only)
 

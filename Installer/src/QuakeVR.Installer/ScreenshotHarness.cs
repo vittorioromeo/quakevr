@@ -76,6 +76,7 @@ static class ScreenshotHarness
             await SkinLoader.LoadFromQuakeAsync(q.Install, sounds: false);
         }
         report.AppendLine($"skin: {SkinResources.Current.Description}");
+        Console.WriteLine($"reliefs only on this PC: {(vm.ShowReliefsOnly ? vm.ReliefsOnlyText : "not offered")}");
         await vm.CheckFeedAsync();
         report.AppendLine($"package: {vm.PackageSourceTitle}");
 
@@ -198,6 +199,14 @@ static class ScreenshotHarness
         empty.GoTo(Page.Detect);
         await empty.DetectAsync();
         await Save(emptyView, Path.Combine(dir, "2b-detect-nothing-found.png"));
+
+        if (await ReliefsOnlyCheck(dir, report) is { } reliefsFailed)
+        {
+            report.AppendLine($"reliefs-only check FAILED: {reliefsFailed}");
+            await File.WriteAllTextAsync(Path.Combine(dir, "report.txt"), report.ToString());
+            Console.Error.WriteLine($"reliefs-only check FAILED: {reliefsFailed}");
+            return 1;
+        }
 
         // No package beside the installer and no release online: the friendly way out, then the install's own error.
         if (options.Package is null)
@@ -632,6 +641,47 @@ static class ScreenshotHarness
     /// recorded instead of run: each mutes the installer (the speaker button's flag), the fire's loop fading out over
     /// <see cref="UiSounds.GameStartFadeSeconds"/> on an offline engine (no device: nothing heard), then silence. Null
     /// when it holds (or when no Quake is found: Play does nothing then).</summary>
+    /// <summary>"Make reliefs only" on a made-up Quake folder like a developer's (quakevr, dwellv2p2 and quoth in it, no
+    /// install.json): offered on the Welcome page, run, the Done page says how many were made and how many existed, and
+    /// nothing outside the folder's reliefs is written. Its textures are none (the making itself: the self-tests'
+    /// "reliefs-only"), so no model runs here.</summary>
+    static async Task<string?> ReliefsOnlyCheck(string dir, StringBuilder report)
+    {
+        var quake = Path.Combine(dir, "reliefs-only-quake");
+        Directory.CreateDirectory(Path.Combine(quake, "id1", "gfx"));
+        Directory.CreateDirectory(Path.Combine(quake, "quakevr"));
+        Directory.CreateDirectory(Path.Combine(quake, "dwellv2p2", "maps"));
+        Directory.CreateDirectory(Path.Combine(quake, "quoth", "maps"));
+        File.WriteAllBytes(Path.Combine(quake, "id1", "gfx", "palette.lmp"), [.. Enumerable.Range(0, 768).Select(i => (byte)(i / 3))]);
+        var made = Directory.CreateDirectory(Core.Reliefs.ReliefMaker.TextureDir(quake)).FullName;
+        File.WriteAllBytes(Path.Combine(made, "0123456789abcdef0123456789abcdef_norm.png"), [0]);
+        string[] Outside() => [.. Directory.EnumerateFileSystemEntries(quake, "*", SearchOption.AllDirectories)
+            .Where(p => !p.StartsWith(Core.Reliefs.ReliefMaker.Folder(quake), StringComparison.OrdinalIgnoreCase)).Order()];
+        var before = Outside();
+        var vm = new MainViewModel(new MemorySystemProbe(), new StartupOptions { Offline = true, Target = quake, Silent = true, Screenshots = dir }); // (Screenshots: no registry read)
+        var view = new ShellView { DataContext = vm };
+        await Save(view, Path.Combine(dir, "1g-welcome-reliefs-only.png"));
+        report.AppendLine($"reliefs only: offered {vm.ShowReliefsOnly}: {vm.ReliefsOnlyText}");
+        if (!vm.ShowReliefsOnly || !vm.ReliefsOnlyText.Contains("Dwell and Quoth") || !vm.ReliefsOnlyText.Contains("1 relief made before"))
+        {
+            return "a Quake folder with quakevr, dwellv2p2 and quoth is not offered Make reliefs only";
+        }
+        await vm.ReliefsOnlyAsync();
+        await Save(view, Path.Combine(dir, "5c-done-reliefs-only.png"));
+        var note = vm.DoneNotes.FirstOrDefault()?.Detail ?? vm.InstallError ?? "";
+        report.AppendLine($"reliefs only: page {vm.Page}, {vm.DoneTitle}: {note}");
+        Console.WriteLine($"reliefs-only check: offered, then page {vm.Page}: {note}");
+        if (vm.Page != Page.Done || vm.DoneNotes.Count != 1 || !note.StartsWith("0 made, 0 already existed", StringComparison.Ordinal))
+        {
+            return $"the run did not end on Done with its count ({vm.Page}: {note})";
+        }
+        if (!before.SequenceEqual(Outside()))
+        {
+            return "files outside the reliefs folder changed";
+        }
+        return null;
+    }
+
     static async Task<string?> PlayMuteCheck(MainViewModel vm, ShellView view, StringBuilder report)
     {
         if (vm.SelectedQuake is null)

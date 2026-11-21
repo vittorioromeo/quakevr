@@ -291,6 +291,8 @@ za::Vector<Item> pageDebugViews()
         row(opt::vr_debug_ledges),
         row(opt::vr_nav_debug),
         row(opt::vr_nav_debug_range),
+        row(opt::vr_hull_holes_show),
+        row(opt::vr_hull_holes_show_range),
         row(opt::vr_nav_debug_class),
         command("Print Navmesh Info", "vr_nav_info")
             .help("vr_nav_info: the map's navmesh input (brushes, clip brushes, triangles) and each monster size class's "

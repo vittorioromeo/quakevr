@@ -1,0 +1,1273 @@
+qvrrig2 1
+model progs/vrdoll_fem.mdl
+# Made by Misc/quakevr/make_vrdoll.py (its header: the method) from quakevr/progs/vrbody_fem.md5mesh; the limits
+# the armed grunt's (vrgrunt.rig2.txt). Model units, x forward, y left, z up; degrees.
+bone pelvis - root pivot 0.000 0.000 0.934 end -0.262 0.000 4.871
+bone spine pelvis ball pivot -0.262 0.000 4.871 end -0.262 0.000 9.596 neutral 0.000 0.000 1.000 fwd 1.000 0.000 0.000 side 0.000 1.000 0.000 swingx -35 45 swingy -25 25 twist -35 36
+bone chest spine ball pivot -0.262 0.000 9.596 end -0.262 0.000 14.583 neutral 0.000 0.000 1.000 fwd 1.000 -0.011 0.000 side 0.011 1.000 0.000 swingx -20 36 swingy -20 20 twist -40 40
+bone neck chest ball pivot -0.262 0.000 14.583 end 0.000 0.000 17.207 neutral 0.100 0.000 0.995 fwd 0.994 -0.035 -0.099 side 0.035 0.999 -0.003 swingx -25 35 swingy -25 25 twist -35 35
+bone head neck ball pivot 0.000 0.000 17.207 end 0.000 0.000 21.932 neutral 0.000 0.000 1.000 fwd 1.000 -0.004 0.000 side 0.004 1.000 0.000 swingx -25 15 swingy -20 20 twist -20 20
+bone clavicle_l chest ball pivot 0.000 0.787 13.533 end -0.262 4.987 13.270 neutral -0.062 0.996 -0.062 fwd 0.998 0.062 -0.009 side 0.006 0.063 0.998 swingx -15 20 swingy -10 20 twist -35 35
+bone upperarm_l clavicle_l ball pivot -0.262 4.987 13.270 end -0.262 8.793 6.679 neutral 0.000 0.168 -0.986 fwd 1.000 0.000 0.000 side 0.000 0.986 0.168 swingx -35 46 swingy -15 50 twist -40 20
+bone forearm_l upperarm_l hinge pivot -0.262 8.793 6.679 end -0.262 12.205 0.769 axis 0.000 -0.866 -0.500 range 0 125
+bone hand_l forearm_l ball pivot -0.262 12.205 0.769 end -0.262 13.955 -2.262 neutral 0.000 0.500 -0.866 fwd 0.233 0.842 0.486 side 0.973 -0.202 -0.116 swingx -30 30 swingy -30 30 twist -30 30
+bone clavicle_r chest ball pivot 0.000 -0.787 13.533 end -0.262 -4.987 13.270 neutral -0.062 -0.996 -0.062 fwd 0.998 -0.063 0.006 side -0.010 -0.062 0.998 swingx -15 20 swingy -10 20 twist -35 35
+bone upperarm_r clavicle_r ball pivot -0.262 -4.987 13.270 end -0.262 -8.793 6.679 neutral 0.000 -0.168 -0.986 fwd 1.000 0.000 0.000 side 0.000 -0.986 0.168 swingx -35 46 swingy -15 50 twist -20 40
+bone forearm_r upperarm_r hinge pivot -0.262 -8.793 6.679 end -0.262 -12.205 0.769 axis 0.000 -0.866 0.500 range 0 125
+bone hand_r forearm_r ball pivot -0.262 -12.205 0.769 end -0.262 -13.955 -2.262 neutral 0.000 -0.500 -0.866 fwd 0.168 -0.854 0.493 side -0.986 -0.146 0.084 swingx -30 30 swingy -30 30 twist -30 30
+bone thigh_l pelvis ball pivot 0.000 2.362 0.147 end 0.000 2.362 -10.877 neutral 0.000 0.080 -0.997 fwd 1.000 0.000 0.000 side 0.000 0.997 0.080 swingx -30 65 swingy -20 45 twist -30 30
+bone shin_l thigh_l hinge pivot 0.000 2.362 -10.877 end -0.525 2.362 -21.900 axis 0.000 1.000 0.000 range 0 130
+bone foot_l shin_l ball pivot -0.525 2.362 -21.900 end 4.546 2.362 -22.900 neutral 0.981 0.000 -0.193 fwd 0.193 0.054 0.980 side -0.010 0.999 -0.053 swingx -25 30 swingy -10 10 twist -12 12
+bone thigh_r pelvis ball pivot 0.000 -2.362 0.147 end 0.000 -2.362 -10.877 neutral 0.000 -0.080 -0.997 fwd 1.000 0.000 0.000 side 0.000 -0.997 0.080 swingx -30 65 swingy -20 45 twist -30 30
+bone shin_r thigh_r hinge pivot 0.000 -2.362 -10.877 end -0.525 -2.362 -21.900 axis 0.000 1.000 0.000 range 0 130
+bone foot_r shin_r ball pivot -0.525 -2.362 -21.900 end 4.546 -2.362 -22.900 neutral 0.981 0.000 -0.193 fwd 0.193 -0.037 0.980 side -0.007 -0.999 -0.036 swingx -25 30 swingy -10 10 twist -12 12
+w 0 pelvis 1
+w 1 pelvis 1
+w 2 pelvis 1
+w 3 pelvis 1
+w 4 pelvis 1
+w 5 pelvis 1
+w 6 pelvis 1
+w 7 pelvis 1
+w 8 pelvis 1
+w 9 pelvis 1
+w 10 pelvis 1
+w 11 pelvis 1
+w 12 pelvis 1
+w 13 pelvis 1
+w 14 pelvis 1
+w 15 pelvis 1
+w 16 pelvis 1
+w 17 pelvis 1
+w 18 pelvis 1
+w 19 pelvis 1
+w 20 pelvis 1
+w 21 pelvis 1
+w 22 pelvis 1
+w 23 pelvis 1
+w 24 pelvis 1
+w 25 pelvis 1
+w 26 pelvis 1
+w 27 pelvis 1
+w 28 pelvis 1
+w 29 pelvis 1
+w 30 pelvis 1
+w 31 pelvis 1
+w 32 pelvis 1
+w 33 pelvis 1
+w 34 pelvis 0.5 spine 0.5
+w 35 pelvis 0.5 spine 0.5
+w 36 pelvis 0.5 spine 0.5
+w 37 pelvis 0.5 spine 0.5
+w 38 pelvis 0.5 spine 0.5
+w 39 pelvis 0.5 spine 0.5
+w 40 pelvis 0.5 spine 0.5
+w 41 pelvis 0.5 spine 0.5
+w 42 pelvis 0.5 spine 0.5
+w 43 pelvis 0.5 spine 0.5
+w 44 pelvis 0.5 spine 0.5
+w 45 pelvis 0.5 spine 0.5
+w 46 pelvis 0.5 spine 0.5
+w 47 pelvis 0.5 spine 0.5
+w 48 pelvis 0.5 spine 0.5
+w 49 pelvis 0.5 spine 0.5
+w 50 pelvis 0.5 spine 0.5
+w 51 spine 0.75 pelvis 0.25
+w 52 spine 0.75 pelvis 0.25
+w 53 spine 0.75 pelvis 0.25
+w 54 spine 0.75 pelvis 0.25
+w 55 spine 0.75 pelvis 0.25
+w 56 spine 0.75 pelvis 0.25
+w 57 spine 0.75 pelvis 0.25
+w 58 spine 0.75 pelvis 0.25
+w 59 spine 0.75 pelvis 0.25
+w 60 spine 0.75 pelvis 0.25
+w 61 spine 0.75 pelvis 0.25
+w 62 spine 0.75 pelvis 0.25
+w 63 spine 0.75 pelvis 0.25
+w 64 spine 0.75 pelvis 0.25
+w 65 spine 0.75 pelvis 0.25
+w 66 spine 0.75 pelvis 0.25
+w 67 spine 0.75 pelvis 0.25
+w 68 spine 1
+w 69 spine 1
+w 70 spine 1
+w 71 spine 1
+w 72 spine 1
+w 73 spine 1
+w 74 spine 1
+w 75 spine 1
+w 76 spine 1
+w 77 spine 1
+w 78 spine 1
+w 79 spine 1
+w 80 spine 1
+w 81 spine 1
+w 82 spine 1
+w 83 spine 1
+w 84 spine 1
+w 85 spine 0.7 chest 0.3
+w 86 spine 0.7 chest 0.3
+w 87 spine 0.7 chest 0.3
+w 88 spine 0.7 chest 0.3
+w 89 spine 0.7 chest 0.3
+w 90 spine 0.7 chest 0.3
+w 91 spine 0.7 chest 0.3
+w 92 spine 0.7 chest 0.3
+w 93 spine 0.7 chest 0.3
+w 94 spine 0.7 chest 0.3
+w 95 spine 0.7 chest 0.3
+w 96 spine 0.7 chest 0.3
+w 97 spine 0.7 chest 0.3
+w 98 spine 0.7 chest 0.3
+w 99 spine 0.7 chest 0.3
+w 100 spine 0.7 chest 0.3
+w 101 spine 0.7 chest 0.3
+w 102 chest 0.6 spine 0.4
+w 103 chest 0.6 spine 0.4
+w 104 chest 0.6 spine 0.4
+w 105 chest 0.6 spine 0.4
+w 106 chest 0.6 spine 0.4
+w 107 chest 0.6 spine 0.4
+w 108 chest 0.6 spine 0.4
+w 109 chest 0.6 spine 0.4
+w 110 chest 0.6 spine 0.4
+w 111 chest 0.6 spine 0.4
+w 112 chest 0.6 spine 0.4
+w 113 chest 0.6 spine 0.4
+w 114 chest 0.6 spine 0.4
+w 115 chest 0.6 spine 0.4
+w 116 chest 0.6 spine 0.4
+w 117 chest 0.6 spine 0.4
+w 118 chest 0.6 spine 0.4
+w 119 chest 0.8 spine 0.2
+w 120 chest 0.8 spine 0.2
+w 121 chest 0.8 spine 0.2
+w 122 chest 0.8 spine 0.2
+w 123 chest 0.8 spine 0.2
+w 124 chest 0.8 spine 0.2
+w 125 chest 0.8 spine 0.2
+w 126 chest 0.8 spine 0.2
+w 127 chest 0.8 spine 0.2
+w 128 chest 0.8 spine 0.2
+w 129 chest 0.8 spine 0.2
+w 130 chest 0.8 spine 0.2
+w 131 chest 0.8 spine 0.2
+w 132 chest 0.8 spine 0.2
+w 133 chest 0.8 spine 0.2
+w 134 chest 0.8 spine 0.2
+w 135 chest 0.8 spine 0.2
+w 136 chest 1
+w 137 chest 1
+w 138 chest 1
+w 139 chest 1
+w 140 chest 1
+w 141 chest 1
+w 142 chest 1
+w 143 chest 1
+w 144 chest 1
+w 145 chest 1
+w 146 chest 1
+w 147 chest 1
+w 148 chest 1
+w 149 chest 1
+w 150 chest 1
+w 151 chest 1
+w 152 chest 1
+w 153 chest 1
+w 154 chest 1
+w 155 chest 1
+w 156 chest 1
+w 157 chest 1
+w 158 chest 1
+w 159 chest 1
+w 160 chest 1
+w 161 chest 1
+w 162 chest 1
+w 163 chest 1
+w 164 chest 1
+w 165 chest 1
+w 166 chest 1
+w 167 chest 1
+w 168 chest 1
+w 169 chest 1
+w 170 chest 1
+w 171 chest 1
+w 172 chest 1
+w 173 chest 1
+w 174 chest 1
+w 175 chest 1
+w 176 chest 1
+w 177 chest 1
+w 178 chest 1
+w 179 chest 1
+w 180 chest 1
+w 181 chest 1
+w 182 chest 1
+w 183 chest 1
+w 184 chest 1
+w 185 chest 1
+w 186 chest 1
+w 187 chest 0.5 neck 0.5
+w 188 chest 0.5 neck 0.5
+w 189 chest 0.5 neck 0.5
+w 190 chest 0.5 neck 0.5
+w 191 chest 0.5 neck 0.5
+w 192 chest 0.5 neck 0.5
+w 193 chest 0.5 neck 0.5
+w 194 chest 0.5 neck 0.5
+w 195 chest 0.5 neck 0.5
+w 196 chest 0.5 neck 0.5
+w 197 chest 0.5 neck 0.5
+w 198 chest 0.5 neck 0.5
+w 199 chest 0.5 neck 0.5
+w 200 chest 0.5 neck 0.5
+w 201 chest 0.5 neck 0.5
+w 202 chest 0.5 neck 0.5
+w 203 chest 0.5 neck 0.5
+w 204 pelvis 1
+w 205 chest 0.5 neck 0.5
+w 206 pelvis 1
+w 207 pelvis 1
+w 208 pelvis 1
+w 209 pelvis 1
+w 210 pelvis 1
+w 211 pelvis 1
+w 212 pelvis 1
+w 213 pelvis 1
+w 214 pelvis 1
+w 215 pelvis 1
+w 216 pelvis 1
+w 217 pelvis 1
+w 218 pelvis 1
+w 219 pelvis 1
+w 220 pelvis 1
+w 221 pelvis 1
+w 222 pelvis 1
+w 223 pelvis 1
+w 224 pelvis 1
+w 225 pelvis 1
+w 226 pelvis 1
+w 227 pelvis 1
+w 228 pelvis 1
+w 229 pelvis 1
+w 230 pelvis 1
+w 231 pelvis 1
+w 232 pelvis 1
+w 233 pelvis 1
+w 234 pelvis 1
+w 235 pelvis 1
+w 236 pelvis 1
+w 237 pelvis 1
+w 238 pelvis 1
+w 239 pelvis 1
+w 240 pelvis 0.83 spine 0.17
+w 241 pelvis 0.83 spine 0.17
+w 242 pelvis 0.83 spine 0.17
+w 243 pelvis 0.83 spine 0.17
+w 244 pelvis 0.83 spine 0.17
+w 245 pelvis 0.83 spine 0.17
+w 246 pelvis 0.83 spine 0.17
+w 247 pelvis 0.83 spine 0.17
+w 248 pelvis 0.83 spine 0.17
+w 249 pelvis 0.83 spine 0.17
+w 250 pelvis 0.83 spine 0.17
+w 251 pelvis 0.83 spine 0.17
+w 252 pelvis 0.83 spine 0.17
+w 253 pelvis 0.83 spine 0.17
+w 254 pelvis 0.83 spine 0.17
+w 255 pelvis 0.83 spine 0.17
+w 256 pelvis 0.83 spine 0.17
+w 257 pelvis 0.8 spine 0.2
+w 258 pelvis 0.8 spine 0.2
+w 259 pelvis 0.8 spine 0.2
+w 260 pelvis 0.8 spine 0.2
+w 261 pelvis 0.8 spine 0.2
+w 262 pelvis 0.8 spine 0.2
+w 263 pelvis 0.8 spine 0.2
+w 264 pelvis 0.8 spine 0.2
+w 265 pelvis 0.8 spine 0.2
+w 266 pelvis 0.8 spine 0.2
+w 267 pelvis 0.8 spine 0.2
+w 268 pelvis 0.8 spine 0.2
+w 269 pelvis 0.8 spine 0.2
+w 270 pelvis 0.8 spine 0.2
+w 271 pelvis 0.8 spine 0.2
+w 272 pelvis 0.8 spine 0.2
+w 273 pelvis 0.8 spine 0.2
+w 274 neck 1
+w 275 neck 1
+w 276 neck 1
+w 277 neck 1
+w 278 neck 1
+w 279 neck 1
+w 280 neck 1
+w 281 neck 1
+w 282 neck 1
+w 283 neck 1
+w 284 neck 1
+w 285 neck 0.75 head 0.25
+w 286 neck 0.75 head 0.25
+w 287 neck 0.75 head 0.25
+w 288 neck 0.75 head 0.25
+w 289 neck 0.75 head 0.25
+w 290 neck 0.75 head 0.25
+w 291 neck 0.75 head 0.25
+w 292 neck 0.75 head 0.25
+w 293 neck 0.75 head 0.25
+w 294 neck 0.75 head 0.25
+w 295 neck 0.75 head 0.25
+w 296 neck 0.5 head 0.5
+w 297 neck 0.5 head 0.5
+w 298 neck 0.5 head 0.5
+w 299 neck 0.5 head 0.5
+w 300 neck 0.5 head 0.5
+w 301 neck 0.5 head 0.5
+w 302 neck 0.5 head 0.5
+w 303 neck 0.5 head 0.5
+w 304 neck 0.5 head 0.5
+w 305 neck 0.5 head 0.5
+w 306 neck 0.5 head 0.5
+w 307 head 0.75 neck 0.25
+w 308 head 0.75 neck 0.25
+w 309 head 0.75 neck 0.25
+w 310 head 0.75 neck 0.25
+w 311 head 0.75 neck 0.25
+w 312 head 0.75 neck 0.25
+w 313 head 0.75 neck 0.25
+w 314 head 0.75 neck 0.25
+w 315 head 0.75 neck 0.25
+w 316 head 0.75 neck 0.25
+w 317 head 0.75 neck 0.25
+w 318 head 1
+w 319 head 1
+w 320 head 1
+w 321 head 1
+w 322 head 1
+w 323 head 1
+w 324 head 1
+w 325 head 1
+w 326 head 1
+w 327 head 1
+w 328 head 1
+w 329 head 1
+w 330 head 1
+w 331 head 1
+w 332 head 1
+w 333 head 1
+w 334 head 1
+w 335 head 1
+w 336 head 1
+w 337 head 1
+w 338 head 1
+w 339 head 1
+w 340 head 1
+w 341 head 1
+w 342 head 1
+w 343 head 1
+w 344 head 1
+w 345 head 1
+w 346 head 1
+w 347 head 1
+w 348 head 1
+w 349 head 1
+w 350 head 1
+w 351 head 1
+w 352 head 1
+w 353 head 1
+w 354 head 1
+w 355 head 1
+w 356 head 1
+w 357 head 1
+w 358 head 1
+w 359 head 1
+w 360 head 1
+w 361 head 1
+w 362 head 1
+w 363 head 1
+w 364 head 1
+w 365 head 1
+w 366 head 1
+w 367 head 1
+w 368 head 1
+w 369 head 1
+w 370 head 1
+w 371 head 1
+w 372 head 1
+w 373 head 1
+w 374 clavicle_l 0.6 upperarm_l 0.4
+w 375 clavicle_l 0.6 upperarm_l 0.4
+w 376 clavicle_l 0.6 upperarm_l 0.4
+w 377 clavicle_l 0.6 upperarm_l 0.4
+w 378 clavicle_l 0.6 upperarm_l 0.4
+w 379 clavicle_l 0.6 upperarm_l 0.4
+w 380 clavicle_l 0.6 upperarm_l 0.4
+w 381 clavicle_l 0.6 upperarm_l 0.4
+w 382 clavicle_l 0.6 upperarm_l 0.4
+w 383 clavicle_l 0.6 upperarm_l 0.4
+w 384 clavicle_l 0.6 upperarm_l 0.4
+w 385 clavicle_l 0.6 upperarm_l 0.4
+w 386 clavicle_l 0.6 upperarm_l 0.4
+w 387 upperarm_l 0.575 clavicle_l 0.425
+w 388 upperarm_l 0.575 clavicle_l 0.425
+w 389 upperarm_l 0.575 clavicle_l 0.425
+w 390 upperarm_l 0.575 clavicle_l 0.425
+w 391 upperarm_l 0.575 clavicle_l 0.425
+w 392 upperarm_l 0.575 clavicle_l 0.425
+w 393 upperarm_l 0.575 clavicle_l 0.425
+w 394 upperarm_l 0.575 clavicle_l 0.425
+w 395 upperarm_l 0.575 clavicle_l 0.425
+w 396 upperarm_l 0.575 clavicle_l 0.425
+w 397 upperarm_l 0.575 clavicle_l 0.425
+w 398 upperarm_l 0.575 clavicle_l 0.425
+w 399 upperarm_l 0.575 clavicle_l 0.425
+w 400 upperarm_l 0.75 clavicle_l 0.25
+w 401 upperarm_l 0.75 clavicle_l 0.25
+w 402 upperarm_l 0.75 clavicle_l 0.25
+w 403 upperarm_l 0.75 clavicle_l 0.25
+w 404 upperarm_l 0.75 clavicle_l 0.25
+w 405 upperarm_l 0.75 clavicle_l 0.25
+w 406 upperarm_l 0.75 clavicle_l 0.25
+w 407 upperarm_l 0.75 clavicle_l 0.25
+w 408 upperarm_l 0.75 clavicle_l 0.25
+w 409 upperarm_l 0.75 clavicle_l 0.25
+w 410 upperarm_l 0.75 clavicle_l 0.25
+w 411 upperarm_l 0.75 clavicle_l 0.25
+w 412 upperarm_l 0.75 clavicle_l 0.25
+w 413 upperarm_l 1
+w 414 upperarm_l 1
+w 415 upperarm_l 1
+w 416 upperarm_l 1
+w 417 upperarm_l 1
+w 418 upperarm_l 1
+w 419 upperarm_l 1
+w 420 upperarm_l 1
+w 421 upperarm_l 1
+w 422 upperarm_l 1
+w 423 upperarm_l 1
+w 424 upperarm_l 1
+w 425 upperarm_l 1
+w 426 upperarm_l 1
+w 427 upperarm_l 1
+w 428 upperarm_l 1
+w 429 upperarm_l 1
+w 430 upperarm_l 1
+w 431 upperarm_l 1
+w 432 upperarm_l 1
+w 433 upperarm_l 1
+w 434 upperarm_l 1
+w 435 upperarm_l 1
+w 436 upperarm_l 1
+w 437 upperarm_l 1
+w 438 upperarm_l 1
+w 439 upperarm_l 1
+w 440 upperarm_l 1
+w 441 upperarm_l 1
+w 442 upperarm_l 1
+w 443 upperarm_l 1
+w 444 upperarm_l 1
+w 445 upperarm_l 1
+w 446 upperarm_l 1
+w 447 upperarm_l 1
+w 448 upperarm_l 1
+w 449 upperarm_l 1
+w 450 upperarm_l 1
+w 451 upperarm_l 1
+w 452 upperarm_l 0.75 forearm_l 0.25
+w 453 upperarm_l 0.75 forearm_l 0.25
+w 454 upperarm_l 0.75 forearm_l 0.25
+w 455 upperarm_l 0.75 forearm_l 0.25
+w 456 upperarm_l 0.75 forearm_l 0.25
+w 457 upperarm_l 0.75 forearm_l 0.25
+w 458 upperarm_l 0.75 forearm_l 0.25
+w 459 upperarm_l 0.75 forearm_l 0.25
+w 460 upperarm_l 0.75 forearm_l 0.25
+w 461 upperarm_l 0.75 forearm_l 0.25
+w 462 upperarm_l 0.75 forearm_l 0.25
+w 463 upperarm_l 0.75 forearm_l 0.25
+w 464 upperarm_l 0.75 forearm_l 0.25
+w 465 upperarm_l 0.5 forearm_l 0.5
+w 466 upperarm_l 0.5 forearm_l 0.5
+w 467 upperarm_l 0.5 forearm_l 0.5
+w 468 upperarm_l 0.5 forearm_l 0.5
+w 469 upperarm_l 0.5 forearm_l 0.5
+w 470 upperarm_l 0.5 forearm_l 0.5
+w 471 upperarm_l 0.5 forearm_l 0.5
+w 472 upperarm_l 0.5 forearm_l 0.5
+w 473 upperarm_l 0.5 forearm_l 0.5
+w 474 upperarm_l 0.5 forearm_l 0.5
+w 475 upperarm_l 0.5 forearm_l 0.5
+w 476 upperarm_l 0.5 forearm_l 0.5
+w 477 upperarm_l 0.5 forearm_l 0.5
+w 478 forearm_l 0.75 upperarm_l 0.25
+w 479 forearm_l 0.75 upperarm_l 0.25
+w 480 forearm_l 0.75 upperarm_l 0.25
+w 481 forearm_l 0.75 upperarm_l 0.25
+w 482 forearm_l 0.75 upperarm_l 0.25
+w 483 forearm_l 0.75 upperarm_l 0.25
+w 484 forearm_l 0.75 upperarm_l 0.25
+w 485 forearm_l 0.75 upperarm_l 0.25
+w 486 forearm_l 0.75 upperarm_l 0.25
+w 487 forearm_l 0.75 upperarm_l 0.25
+w 488 forearm_l 0.75 upperarm_l 0.25
+w 489 forearm_l 0.75 upperarm_l 0.25
+w 490 forearm_l 0.75 upperarm_l 0.25
+w 491 forearm_l 1
+w 492 forearm_l 1
+w 493 forearm_l 1
+w 494 forearm_l 1
+w 495 forearm_l 1
+w 496 forearm_l 1
+w 497 forearm_l 1
+w 498 forearm_l 1
+w 499 forearm_l 1
+w 500 forearm_l 1
+w 501 forearm_l 1
+w 502 forearm_l 1
+w 503 forearm_l 1
+w 504 forearm_l 1
+w 505 forearm_l 1
+w 506 forearm_l 1
+w 507 forearm_l 1
+w 508 forearm_l 1
+w 509 forearm_l 1
+w 510 forearm_l 1
+w 511 forearm_l 1
+w 512 forearm_l 1
+w 513 forearm_l 1
+w 514 forearm_l 1
+w 515 forearm_l 1
+w 516 forearm_l 1
+w 517 forearm_l 1
+w 518 forearm_l 1
+w 519 forearm_l 1
+w 520 forearm_l 1
+w 521 forearm_l 1
+w 522 forearm_l 1
+w 523 forearm_l 1
+w 524 forearm_l 1
+w 525 forearm_l 1
+w 526 forearm_l 1
+w 527 forearm_l 1
+w 528 forearm_l 1
+w 529 forearm_l 1
+w 530 clavicle_l 0.6 upperarm_l 0.4
+w 531 forearm_l 1
+w 532 forearm_l 1
+w 533 forearm_l 1
+w 534 forearm_l 1
+w 535 forearm_l 1
+w 536 forearm_l 1
+w 537 forearm_l 1
+w 538 forearm_l 1
+w 539 forearm_l 1
+w 540 forearm_l 1
+w 541 forearm_l 1
+w 542 forearm_l 1
+w 543 forearm_l 1
+w 544 forearm_l 1
+w 545 forearm_l 1
+w 546 forearm_l 1
+w 547 forearm_l 1
+w 548 forearm_l 1
+w 549 forearm_l 1
+w 550 forearm_l 1
+w 551 forearm_l 1
+w 552 forearm_l 1
+w 553 forearm_l 1
+w 554 forearm_l 1
+w 555 forearm_l 1
+w 556 forearm_l 1
+w 557 forearm_l 1
+w 558 forearm_l 1
+w 559 forearm_l 1
+w 560 forearm_l 1
+w 561 forearm_l 1
+w 562 forearm_l 1
+w 563 forearm_l 1
+w 564 forearm_l 1
+w 565 forearm_l 1
+w 566 forearm_l 1
+w 567 forearm_l 1
+w 568 forearm_l 1
+w 569 forearm_l 1
+w 570 forearm_l 1
+w 571 hand_l 1
+w 572 hand_l 1
+w 573 hand_l 1
+w 574 hand_l 1
+w 575 hand_l 1
+w 576 hand_l 1
+w 577 hand_l 1
+w 578 hand_l 1
+w 579 hand_l 1
+w 580 hand_l 1
+w 581 hand_l 1
+w 582 hand_l 1
+w 583 hand_l 1
+w 584 hand_l 1
+w 585 hand_l 1
+w 586 hand_l 1
+w 587 hand_l 1
+w 588 hand_l 1
+w 589 hand_l 1
+w 590 hand_l 1
+w 591 hand_l 1
+w 592 hand_l 1
+w 593 hand_l 1
+w 594 hand_l 1
+w 595 hand_l 1
+w 596 hand_l 1
+w 597 forearm_l 1
+w 598 hand_l 1
+w 599 thigh_l 1
+w 600 thigh_l 1
+w 601 thigh_l 1
+w 602 thigh_l 1
+w 603 thigh_l 1
+w 604 thigh_l 1
+w 605 thigh_l 1
+w 606 thigh_l 1
+w 607 thigh_l 1
+w 608 thigh_l 1
+w 609 thigh_l 1
+w 610 thigh_l 1
+w 611 thigh_l 1
+w 612 thigh_l 1
+w 613 thigh_l 1
+w 614 thigh_l 1
+w 615 thigh_l 1
+w 616 thigh_l 1
+w 617 thigh_l 1
+w 618 thigh_l 1
+w 619 thigh_l 1
+w 620 thigh_l 1
+w 621 thigh_l 1
+w 622 thigh_l 1
+w 623 thigh_l 1
+w 624 thigh_l 1
+w 625 thigh_l 0.75 shin_l 0.25
+w 626 thigh_l 0.75 shin_l 0.25
+w 627 thigh_l 0.75 shin_l 0.25
+w 628 thigh_l 0.75 shin_l 0.25
+w 629 thigh_l 0.75 shin_l 0.25
+w 630 thigh_l 0.75 shin_l 0.25
+w 631 thigh_l 0.75 shin_l 0.25
+w 632 thigh_l 0.75 shin_l 0.25
+w 633 thigh_l 0.75 shin_l 0.25
+w 634 thigh_l 0.75 shin_l 0.25
+w 635 thigh_l 0.75 shin_l 0.25
+w 636 thigh_l 0.75 shin_l 0.25
+w 637 thigh_l 0.75 shin_l 0.25
+w 638 thigh_l 0.5 shin_l 0.5
+w 639 thigh_l 0.5 shin_l 0.5
+w 640 thigh_l 0.5 shin_l 0.5
+w 641 thigh_l 0.5 shin_l 0.5
+w 642 thigh_l 0.5 shin_l 0.5
+w 643 thigh_l 0.5 shin_l 0.5
+w 644 thigh_l 0.5 shin_l 0.5
+w 645 thigh_l 0.5 shin_l 0.5
+w 646 thigh_l 0.5 shin_l 0.5
+w 647 thigh_l 0.5 shin_l 0.5
+w 648 thigh_l 0.5 shin_l 0.5
+w 649 thigh_l 0.5 shin_l 0.5
+w 650 thigh_l 0.5 shin_l 0.5
+w 651 shin_l 0.75 thigh_l 0.25
+w 652 shin_l 0.75 thigh_l 0.25
+w 653 shin_l 0.75 thigh_l 0.25
+w 654 shin_l 0.75 thigh_l 0.25
+w 655 shin_l 0.75 thigh_l 0.25
+w 656 shin_l 0.75 thigh_l 0.25
+w 657 shin_l 0.75 thigh_l 0.25
+w 658 shin_l 0.75 thigh_l 0.25
+w 659 shin_l 0.75 thigh_l 0.25
+w 660 shin_l 0.75 thigh_l 0.25
+w 661 shin_l 0.75 thigh_l 0.25
+w 662 shin_l 0.75 thigh_l 0.25
+w 663 shin_l 0.75 thigh_l 0.25
+w 664 shin_l 1
+w 665 shin_l 1
+w 666 shin_l 1
+w 667 shin_l 1
+w 668 shin_l 1
+w 669 shin_l 1
+w 670 shin_l 1
+w 671 shin_l 1
+w 672 shin_l 1
+w 673 shin_l 1
+w 674 shin_l 1
+w 675 shin_l 1
+w 676 shin_l 1
+w 677 shin_l 0.5 foot_l 0.5
+w 678 shin_l 0.5 foot_l 0.5
+w 679 shin_l 0.5 foot_l 0.5
+w 680 shin_l 0.5 foot_l 0.5
+w 681 shin_l 0.5 foot_l 0.5
+w 682 shin_l 0.5 foot_l 0.5
+w 683 shin_l 0.5 foot_l 0.5
+w 684 shin_l 0.5 foot_l 0.5
+w 685 shin_l 0.5 foot_l 0.5
+w 686 shin_l 0.5 foot_l 0.5
+w 687 shin_l 0.5 foot_l 0.5
+w 688 shin_l 0.5 foot_l 0.5
+w 689 shin_l 0.5 foot_l 0.5
+w 690 thigh_l 1
+w 691 shin_l 0.5 foot_l 0.5
+w 692 foot_l 0.6 shin_l 0.4
+w 693 foot_l 0.6 shin_l 0.4
+w 694 foot_l 0.6 shin_l 0.4
+w 695 foot_l 0.6 shin_l 0.4
+w 696 foot_l 0.6 shin_l 0.4
+w 697 foot_l 0.6 shin_l 0.4
+w 698 foot_l 0.6 shin_l 0.4
+w 699 foot_l 0.6 shin_l 0.4
+w 700 foot_l 0.6 shin_l 0.4
+w 701 foot_l 0.6 shin_l 0.4
+w 702 foot_l 0.6 shin_l 0.4
+w 703 foot_l 0.6 shin_l 0.4
+w 704 foot_l 0.6 shin_l 0.4
+w 705 shin_l 1
+w 706 shin_l 1
+w 707 shin_l 1
+w 708 shin_l 1
+w 709 shin_l 1
+w 710 shin_l 1
+w 711 shin_l 1
+w 712 shin_l 1
+w 713 shin_l 1
+w 714 shin_l 1
+w 715 shin_l 1
+w 716 shin_l 1
+w 717 shin_l 1
+w 718 shin_l 1
+w 719 shin_l 1
+w 720 shin_l 1
+w 721 shin_l 1
+w 722 shin_l 1
+w 723 shin_l 1
+w 724 shin_l 1
+w 725 shin_l 1
+w 726 shin_l 1
+w 727 shin_l 1
+w 728 shin_l 1
+w 729 shin_l 1
+w 730 shin_l 1
+w 731 shin_l 1
+w 732 shin_l 1
+w 733 shin_l 1
+w 734 shin_l 1
+w 735 shin_l 1
+w 736 shin_l 1
+w 737 shin_l 1
+w 738 shin_l 1
+w 739 shin_l 1
+w 740 shin_l 1
+w 741 shin_l 1
+w 742 shin_l 1
+w 743 shin_l 1
+w 744 foot_l 1
+w 745 foot_l 1
+w 746 foot_l 1
+w 747 foot_l 1
+w 748 foot_l 1
+w 749 foot_l 1
+w 750 foot_l 1
+w 751 foot_l 1
+w 752 foot_l 1
+w 753 foot_l 1
+w 754 foot_l 1
+w 755 foot_l 1
+w 756 foot_l 1
+w 757 foot_l 1
+w 758 foot_l 1
+w 759 foot_l 1
+w 760 foot_l 1
+w 761 foot_l 1
+w 762 foot_l 1
+w 763 foot_l 1
+w 764 foot_l 1
+w 765 foot_l 1
+w 766 foot_l 1
+w 767 foot_l 1
+w 768 foot_l 1
+w 769 foot_l 1
+w 770 foot_l 1
+w 771 foot_l 1
+w 772 foot_l 1
+w 773 foot_l 1
+w 774 foot_l 1
+w 775 foot_l 1
+w 776 foot_l 1
+w 777 foot_l 1
+w 778 foot_l 1
+w 779 foot_l 1
+w 780 foot_l 1
+w 781 foot_l 1
+w 782 foot_l 1
+w 783 foot_l 1
+w 784 foot_l 1
+w 785 foot_l 1
+w 786 foot_l 1
+w 787 foot_l 1
+w 788 foot_l 1
+w 789 foot_l 1
+w 790 foot_l 1
+w 791 foot_l 1
+w 792 foot_l 1
+w 793 foot_l 1
+w 794 foot_l 1
+w 795 foot_l 1
+w 796 foot_l 1
+w 797 foot_l 1
+w 798 foot_l 1
+w 799 foot_l 1
+w 800 foot_l 1
+w 801 foot_l 1
+w 802 foot_l 1
+w 803 foot_l 1
+w 804 foot_l 1
+w 805 foot_l 1
+w 806 foot_l 1
+w 807 foot_l 1
+w 808 foot_l 1
+w 809 foot_l 1
+w 810 foot_l 1
+w 811 foot_l 1
+w 812 clavicle_r 0.6 upperarm_r 0.4
+w 813 clavicle_r 0.6 upperarm_r 0.4
+w 814 clavicle_r 0.6 upperarm_r 0.4
+w 815 clavicle_r 0.6 upperarm_r 0.4
+w 816 clavicle_r 0.6 upperarm_r 0.4
+w 817 clavicle_r 0.6 upperarm_r 0.4
+w 818 clavicle_r 0.6 upperarm_r 0.4
+w 819 clavicle_r 0.6 upperarm_r 0.4
+w 820 clavicle_r 0.6 upperarm_r 0.4
+w 821 clavicle_r 0.6 upperarm_r 0.4
+w 822 clavicle_r 0.6 upperarm_r 0.4
+w 823 clavicle_r 0.6 upperarm_r 0.4
+w 824 clavicle_r 0.6 upperarm_r 0.4
+w 825 upperarm_r 0.575 clavicle_r 0.425
+w 826 upperarm_r 0.575 clavicle_r 0.425
+w 827 upperarm_r 0.575 clavicle_r 0.425
+w 828 upperarm_r 0.575 clavicle_r 0.425
+w 829 upperarm_r 0.575 clavicle_r 0.425
+w 830 upperarm_r 0.575 clavicle_r 0.425
+w 831 upperarm_r 0.575 clavicle_r 0.425
+w 832 upperarm_r 0.575 clavicle_r 0.425
+w 833 upperarm_r 0.575 clavicle_r 0.425
+w 834 upperarm_r 0.575 clavicle_r 0.425
+w 835 upperarm_r 0.575 clavicle_r 0.425
+w 836 upperarm_r 0.575 clavicle_r 0.425
+w 837 upperarm_r 0.575 clavicle_r 0.425
+w 838 upperarm_r 0.75 clavicle_r 0.25
+w 839 upperarm_r 0.75 clavicle_r 0.25
+w 840 upperarm_r 0.75 clavicle_r 0.25
+w 841 upperarm_r 0.75 clavicle_r 0.25
+w 842 upperarm_r 0.75 clavicle_r 0.25
+w 843 upperarm_r 0.75 clavicle_r 0.25
+w 844 upperarm_r 0.75 clavicle_r 0.25
+w 845 upperarm_r 0.75 clavicle_r 0.25
+w 846 upperarm_r 0.75 clavicle_r 0.25
+w 847 upperarm_r 0.75 clavicle_r 0.25
+w 848 upperarm_r 0.75 clavicle_r 0.25
+w 849 upperarm_r 0.75 clavicle_r 0.25
+w 850 upperarm_r 0.75 clavicle_r 0.25
+w 851 upperarm_r 1
+w 852 upperarm_r 1
+w 853 upperarm_r 1
+w 854 upperarm_r 1
+w 855 upperarm_r 1
+w 856 upperarm_r 1
+w 857 upperarm_r 1
+w 858 upperarm_r 1
+w 859 upperarm_r 1
+w 860 upperarm_r 1
+w 861 upperarm_r 1
+w 862 upperarm_r 1
+w 863 upperarm_r 1
+w 864 upperarm_r 1
+w 865 upperarm_r 1
+w 866 upperarm_r 1
+w 867 upperarm_r 1
+w 868 upperarm_r 1
+w 869 upperarm_r 1
+w 870 upperarm_r 1
+w 871 upperarm_r 1
+w 872 upperarm_r 1
+w 873 upperarm_r 1
+w 874 upperarm_r 1
+w 875 upperarm_r 1
+w 876 upperarm_r 1
+w 877 upperarm_r 1
+w 878 upperarm_r 1
+w 879 upperarm_r 1
+w 880 upperarm_r 1
+w 881 upperarm_r 1
+w 882 upperarm_r 1
+w 883 upperarm_r 1
+w 884 upperarm_r 1
+w 885 upperarm_r 1
+w 886 upperarm_r 1
+w 887 upperarm_r 1
+w 888 upperarm_r 1
+w 889 upperarm_r 1
+w 890 upperarm_r 0.75 forearm_r 0.25
+w 891 upperarm_r 0.75 forearm_r 0.25
+w 892 upperarm_r 0.75 forearm_r 0.25
+w 893 upperarm_r 0.75 forearm_r 0.25
+w 894 upperarm_r 0.75 forearm_r 0.25
+w 895 upperarm_r 0.75 forearm_r 0.25
+w 896 upperarm_r 0.75 forearm_r 0.25
+w 897 upperarm_r 0.75 forearm_r 0.25
+w 898 upperarm_r 0.75 forearm_r 0.25
+w 899 upperarm_r 0.75 forearm_r 0.25
+w 900 upperarm_r 0.75 forearm_r 0.25
+w 901 upperarm_r 0.75 forearm_r 0.25
+w 902 upperarm_r 0.75 forearm_r 0.25
+w 903 upperarm_r 0.5 forearm_r 0.5
+w 904 upperarm_r 0.5 forearm_r 0.5
+w 905 upperarm_r 0.5 forearm_r 0.5
+w 906 upperarm_r 0.5 forearm_r 0.5
+w 907 upperarm_r 0.5 forearm_r 0.5
+w 908 upperarm_r 0.5 forearm_r 0.5
+w 909 upperarm_r 0.5 forearm_r 0.5
+w 910 upperarm_r 0.5 forearm_r 0.5
+w 911 upperarm_r 0.5 forearm_r 0.5
+w 912 upperarm_r 0.5 forearm_r 0.5
+w 913 upperarm_r 0.5 forearm_r 0.5
+w 914 upperarm_r 0.5 forearm_r 0.5
+w 915 upperarm_r 0.5 forearm_r 0.5
+w 916 forearm_r 0.75 upperarm_r 0.25
+w 917 forearm_r 0.75 upperarm_r 0.25
+w 918 forearm_r 0.75 upperarm_r 0.25
+w 919 forearm_r 0.75 upperarm_r 0.25
+w 920 forearm_r 0.75 upperarm_r 0.25
+w 921 forearm_r 0.75 upperarm_r 0.25
+w 922 forearm_r 0.75 upperarm_r 0.25
+w 923 forearm_r 0.75 upperarm_r 0.25
+w 924 forearm_r 0.75 upperarm_r 0.25
+w 925 forearm_r 0.75 upperarm_r 0.25
+w 926 forearm_r 0.75 upperarm_r 0.25
+w 927 forearm_r 0.75 upperarm_r 0.25
+w 928 forearm_r 0.75 upperarm_r 0.25
+w 929 forearm_r 1
+w 930 forearm_r 1
+w 931 forearm_r 1
+w 932 forearm_r 1
+w 933 forearm_r 1
+w 934 forearm_r 1
+w 935 forearm_r 1
+w 936 forearm_r 1
+w 937 forearm_r 1
+w 938 forearm_r 1
+w 939 forearm_r 1
+w 940 forearm_r 1
+w 941 forearm_r 1
+w 942 forearm_r 1
+w 943 forearm_r 1
+w 944 forearm_r 1
+w 945 forearm_r 1
+w 946 forearm_r 1
+w 947 forearm_r 1
+w 948 forearm_r 1
+w 949 forearm_r 1
+w 950 forearm_r 1
+w 951 forearm_r 1
+w 952 forearm_r 1
+w 953 forearm_r 1
+w 954 forearm_r 1
+w 955 forearm_r 1
+w 956 forearm_r 1
+w 957 forearm_r 1
+w 958 forearm_r 1
+w 959 forearm_r 1
+w 960 forearm_r 1
+w 961 forearm_r 1
+w 962 forearm_r 1
+w 963 forearm_r 1
+w 964 forearm_r 1
+w 965 forearm_r 1
+w 966 forearm_r 1
+w 967 forearm_r 1
+w 968 clavicle_r 0.6 upperarm_r 0.4
+w 969 forearm_r 1
+w 970 forearm_r 1
+w 971 forearm_r 1
+w 972 forearm_r 1
+w 973 forearm_r 1
+w 974 forearm_r 1
+w 975 forearm_r 1
+w 976 forearm_r 1
+w 977 forearm_r 1
+w 978 forearm_r 1
+w 979 forearm_r 1
+w 980 forearm_r 1
+w 981 forearm_r 1
+w 982 forearm_r 1
+w 983 forearm_r 1
+w 984 forearm_r 1
+w 985 forearm_r 1
+w 986 forearm_r 1
+w 987 forearm_r 1
+w 988 forearm_r 1
+w 989 forearm_r 1
+w 990 forearm_r 1
+w 991 forearm_r 1
+w 992 forearm_r 1
+w 993 forearm_r 1
+w 994 forearm_r 1
+w 995 forearm_r 1
+w 996 forearm_r 1
+w 997 forearm_r 1
+w 998 forearm_r 1
+w 999 forearm_r 1
+w 1000 forearm_r 1
+w 1001 forearm_r 1
+w 1002 forearm_r 1
+w 1003 forearm_r 1
+w 1004 forearm_r 1
+w 1005 forearm_r 1
+w 1006 forearm_r 1
+w 1007 forearm_r 1
+w 1008 forearm_r 1
+w 1009 hand_r 1
+w 1010 hand_r 1
+w 1011 hand_r 1
+w 1012 hand_r 1
+w 1013 hand_r 1
+w 1014 hand_r 1
+w 1015 hand_r 1
+w 1016 hand_r 1
+w 1017 hand_r 1
+w 1018 hand_r 1
+w 1019 hand_r 1
+w 1020 hand_r 1
+w 1021 hand_r 1
+w 1022 hand_r 1
+w 1023 hand_r 1
+w 1024 hand_r 1
+w 1025 hand_r 1
+w 1026 hand_r 1
+w 1027 hand_r 1
+w 1028 hand_r 1
+w 1029 hand_r 1
+w 1030 hand_r 1
+w 1031 hand_r 1
+w 1032 hand_r 1
+w 1033 hand_r 1
+w 1034 hand_r 1
+w 1035 forearm_r 1
+w 1036 hand_r 1
+w 1037 thigh_r 1
+w 1038 thigh_r 1
+w 1039 thigh_r 1
+w 1040 thigh_r 1
+w 1041 thigh_r 1
+w 1042 thigh_r 1
+w 1043 thigh_r 1
+w 1044 thigh_r 1
+w 1045 thigh_r 1
+w 1046 thigh_r 1
+w 1047 thigh_r 1
+w 1048 thigh_r 1
+w 1049 thigh_r 1
+w 1050 thigh_r 1
+w 1051 thigh_r 1
+w 1052 thigh_r 1
+w 1053 thigh_r 1
+w 1054 thigh_r 1
+w 1055 thigh_r 1
+w 1056 thigh_r 1
+w 1057 thigh_r 1
+w 1058 thigh_r 1
+w 1059 thigh_r 1
+w 1060 thigh_r 1
+w 1061 thigh_r 1
+w 1062 thigh_r 1
+w 1063 thigh_r 0.75 shin_r 0.25
+w 1064 thigh_r 0.75 shin_r 0.25
+w 1065 thigh_r 0.75 shin_r 0.25
+w 1066 thigh_r 0.75 shin_r 0.25
+w 1067 thigh_r 0.75 shin_r 0.25
+w 1068 thigh_r 0.75 shin_r 0.25
+w 1069 thigh_r 0.75 shin_r 0.25
+w 1070 thigh_r 0.75 shin_r 0.25
+w 1071 thigh_r 0.75 shin_r 0.25
+w 1072 thigh_r 0.75 shin_r 0.25
+w 1073 thigh_r 0.75 shin_r 0.25
+w 1074 thigh_r 0.75 shin_r 0.25
+w 1075 thigh_r 0.75 shin_r 0.25
+w 1076 thigh_r 0.5 shin_r 0.5
+w 1077 thigh_r 0.5 shin_r 0.5
+w 1078 thigh_r 0.5 shin_r 0.5
+w 1079 thigh_r 0.5 shin_r 0.5
+w 1080 thigh_r 0.5 shin_r 0.5
+w 1081 thigh_r 0.5 shin_r 0.5
+w 1082 thigh_r 0.5 shin_r 0.5
+w 1083 thigh_r 0.5 shin_r 0.5
+w 1084 thigh_r 0.5 shin_r 0.5
+w 1085 thigh_r 0.5 shin_r 0.5
+w 1086 thigh_r 0.5 shin_r 0.5
+w 1087 thigh_r 0.5 shin_r 0.5
+w 1088 thigh_r 0.5 shin_r 0.5
+w 1089 shin_r 0.75 thigh_r 0.25
+w 1090 shin_r 0.75 thigh_r 0.25
+w 1091 shin_r 0.75 thigh_r 0.25
+w 1092 shin_r 0.75 thigh_r 0.25
+w 1093 shin_r 0.75 thigh_r 0.25
+w 1094 shin_r 0.75 thigh_r 0.25
+w 1095 shin_r 0.75 thigh_r 0.25
+w 1096 shin_r 0.75 thigh_r 0.25
+w 1097 shin_r 0.75 thigh_r 0.25
+w 1098 shin_r 0.75 thigh_r 0.25
+w 1099 shin_r 0.75 thigh_r 0.25
+w 1100 shin_r 0.75 thigh_r 0.25
+w 1101 shin_r 0.75 thigh_r 0.25
+w 1102 shin_r 1
+w 1103 shin_r 1
+w 1104 shin_r 1
+w 1105 shin_r 1
+w 1106 shin_r 1
+w 1107 shin_r 1
+w 1108 shin_r 1
+w 1109 shin_r 1
+w 1110 shin_r 1
+w 1111 shin_r 1
+w 1112 shin_r 1
+w 1113 shin_r 1
+w 1114 shin_r 1
+w 1115 shin_r 0.5 foot_r 0.5
+w 1116 shin_r 0.5 foot_r 0.5
+w 1117 shin_r 0.5 foot_r 0.5
+w 1118 shin_r 0.5 foot_r 0.5
+w 1119 shin_r 0.5 foot_r 0.5
+w 1120 shin_r 0.5 foot_r 0.5
+w 1121 shin_r 0.5 foot_r 0.5
+w 1122 shin_r 0.5 foot_r 0.5
+w 1123 shin_r 0.5 foot_r 0.5
+w 1124 shin_r 0.5 foot_r 0.5
+w 1125 shin_r 0.5 foot_r 0.5
+w 1126 shin_r 0.5 foot_r 0.5
+w 1127 shin_r 0.5 foot_r 0.5
+w 1128 thigh_r 1
+w 1129 shin_r 0.5 foot_r 0.5
+w 1130 foot_r 0.6 shin_r 0.4
+w 1131 foot_r 0.6 shin_r 0.4
+w 1132 foot_r 0.6 shin_r 0.4
+w 1133 foot_r 0.6 shin_r 0.4
+w 1134 foot_r 0.6 shin_r 0.4
+w 1135 foot_r 0.6 shin_r 0.4
+w 1136 foot_r 0.6 shin_r 0.4
+w 1137 foot_r 0.6 shin_r 0.4
+w 1138 foot_r 0.6 shin_r 0.4
+w 1139 foot_r 0.6 shin_r 0.4
+w 1140 foot_r 0.6 shin_r 0.4
+w 1141 foot_r 0.6 shin_r 0.4
+w 1142 foot_r 0.6 shin_r 0.4
+w 1143 shin_r 1
+w 1144 shin_r 1
+w 1145 shin_r 1
+w 1146 shin_r 1
+w 1147 shin_r 1
+w 1148 shin_r 1
+w 1149 shin_r 1
+w 1150 shin_r 1
+w 1151 shin_r 1
+w 1152 shin_r 1
+w 1153 shin_r 1
+w 1154 shin_r 1
+w 1155 shin_r 1
+w 1156 shin_r 1
+w 1157 shin_r 1
+w 1158 shin_r 1
+w 1159 shin_r 1
+w 1160 shin_r 1
+w 1161 shin_r 1
+w 1162 shin_r 1
+w 1163 shin_r 1
+w 1164 shin_r 1
+w 1165 shin_r 1
+w 1166 shin_r 1
+w 1167 shin_r 1
+w 1168 shin_r 1
+w 1169 shin_r 1
+w 1170 shin_r 1
+w 1171 shin_r 1
+w 1172 shin_r 1
+w 1173 shin_r 1
+w 1174 shin_r 1
+w 1175 shin_r 1
+w 1176 shin_r 1
+w 1177 shin_r 1
+w 1178 shin_r 1
+w 1179 shin_r 1
+w 1180 shin_r 1
+w 1181 shin_r 1
+w 1182 foot_r 1
+w 1183 foot_r 1
+w 1184 foot_r 1
+w 1185 foot_r 1
+w 1186 foot_r 1
+w 1187 foot_r 1
+w 1188 foot_r 1
+w 1189 foot_r 1
+w 1190 foot_r 1
+w 1191 foot_r 1
+w 1192 foot_r 1
+w 1193 foot_r 1
+w 1194 foot_r 1
+w 1195 foot_r 1
+w 1196 foot_r 1
+w 1197 foot_r 1
+w 1198 foot_r 1
+w 1199 foot_r 1
+w 1200 foot_r 1
+w 1201 foot_r 1
+w 1202 foot_r 1
+w 1203 foot_r 1
+w 1204 foot_r 1
+w 1205 foot_r 1
+w 1206 foot_r 1
+w 1207 foot_r 1
+w 1208 foot_r 1
+w 1209 foot_r 1
+w 1210 foot_r 1
+w 1211 foot_r 1
+w 1212 foot_r 1
+w 1213 foot_r 1
+w 1214 foot_r 1
+w 1215 foot_r 1
+w 1216 foot_r 1
+w 1217 foot_r 1
+w 1218 foot_r 1
+w 1219 foot_r 1
+w 1220 foot_r 1
+w 1221 foot_r 1
+w 1222 foot_r 1
+w 1223 foot_r 1
+w 1224 foot_r 1
+w 1225 foot_r 1
+w 1226 foot_r 1
+w 1227 foot_r 1
+w 1228 foot_r 1
+w 1229 foot_r 1
+w 1230 foot_r 1
+w 1231 foot_r 1
+w 1232 foot_r 1
+w 1233 foot_r 1
+w 1234 foot_r 1
+w 1235 foot_r 1
+w 1236 foot_r 1
+w 1237 foot_r 1
+w 1238 foot_r 1
+w 1239 foot_r 1
+w 1240 foot_r 1
+w 1241 foot_r 1
+w 1242 foot_r 1
+w 1243 foot_r 1
+w 1244 foot_r 1
+w 1245 foot_r 1
+w 1246 foot_r 1
+w 1247 foot_r 1
+w 1248 foot_r 1
+w 1249 foot_r 1

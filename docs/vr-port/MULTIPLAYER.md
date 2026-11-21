@@ -37,6 +37,14 @@ How it is built (what runs on the server and on each client) is in [MP_DESIGN.md
      Then forward **UDP port 26000** on your router to your PC (your router's "port forwarding" page; the port is
      `-port` / `net_hostport` if you changed it) and give them your public address (search "what is my IP" in a
      browser) or a dynamic-DNS name; or use a virtual LAN between you.
+   - **Is my port reachable?** While you host with the room service on, Host Game shows **Port 26000: reachable**
+     (anyone can join, whatever their router), **not reachable from the internet** (forward UDP 26000 for the players
+     behind strict routers; room codes still work for most), or **unknown** (the room service is off, too old, or not
+     answering). The net HUD (`vr_net_hud 1`) shows it while you host (`port 26000 reachable`) and the console says it
+     once (`vr_mp_roomcode` prints it again). How: the room service sends one unasked-for datagram to your public
+     address at your game port from another of its ports; your router lets it in only through a forward (or if it
+     lets anything in). A router that filters by address only (not by port) can read reachable for the service while
+     still filtering strangers: rare.
    - Privacy: while you host, the room service sees your public IP address and your room code, and the joining
      player's; it keeps them only while your game runs (two minutes after it ends they are gone) and logs no
      addresses. `vr_mp_room 0` hosts without a room code (nothing is sent to the service); `vr_mp_rendezvous` names
@@ -107,7 +115,11 @@ for the others. Any PC with Quake VR installed can run one (the same port rule a
 ## Deathmatch and bots
 
 - Deathmatch's item rules (weapons and items come back after their wait; dropped weapons go after 10 s) and its maps
-  (dm1-dm6, or any deathmatch map).
+  (dm1-dm6, or any deathmatch map). A map with no deathmatch starts (a campaign's, Dwell's start from Select Campaign)
+  spawns players at coop's starts, the next clear one (it used to stop the game with "runaway loop error").
+- **A dead player or bot drops every weapon he had** (deathmatch and coop: both hands and every holster), each as it
+  was: a dagger lies as a dagger (not a knight's sword), a gun keeps its magazine, a Dwell or Arcane Dimensions variant
+  its kind, a blade its blood.
 - **Players can knock each other's weapons out of their hands** (shots, blows, grabs: Armed Grunts > "Players Can
   Disarm Each Other", on by default) and parry each other's swings.
 - **Bots** (FrikBot): the host adds one with `impulse 100` in the console (each time one more), or **VR Settings > Play >

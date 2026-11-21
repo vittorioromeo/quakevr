@@ -686,6 +686,7 @@ void build(Brushes& b, qmodel_t* world, za::U64 key)
     recoverClips(b, world);
     const auto t2 = za::Clock::nowNanoseconds();
     b.clipMs = (static_cast<double>(t2 - t1) / 1e6);
+    addHoles(b, world); // (after the clip brushes: the holes' brushes follow every model's own; b.holeMs)
     b.ms = (static_cast<double>(t2 - t0) / 1e6);
     b.key = key;
     b.worldSubs = b.subs.size();
@@ -702,8 +703,9 @@ namespace
 // What the map's brushes and compiled hulls are made from, hashed (they are kept for a load of a map with the same:
 // keepForReload): hull 0's nodes (the brushes' walk), hull 1's (the clip brushes'), the planes, the models' heads and
 // bounds, and the build's version (to be bumped when a change to the build changes its results). 2: the recovered clip
-// brushes' bounds grown for the lowest box, lowestBoxHeight (2026-11-08, the lying-down box).
-constexpr za::U64 buildVersion = 2;
+// brushes' bounds grown for the lowest box, lowestBoxHeight (2026-11-08, the lying-down box). 3: the hole blockers
+// (vr_hull_holes.cpp, 2026-11-21; their setting and the map's entities: holesKey).
+constexpr za::U64 buildVersion = 3;
 // The lowest box the player ever has (the lying-down box's least, vr_prone_height): the recovered clip brushes' faces
 // that move with a box's height (recoverClips) have their bounds grown for it. Quake's box is 56 tall (half 28).
 constexpr float lowestBoxHeight = 12.f;
@@ -738,6 +740,7 @@ za::U64 keyOf(const qmodel_t* world)
         add(m.mins, sizeof(m.mins));
         add(m.maxs, sizeof(m.maxs));
     }
+    h = wy::mix(h, holesKey(world));
     return h ? h : 1; // (0: none)
 }
 } // namespace detail
@@ -2917,11 +2920,7 @@ int buildTree(Tree& t, const Brushes& b, za::SizeT sub, const glm::dvec3* watch,
     tb.debugBrushes = &b;
     const glm::dvec3 ext{t.ext};
     za::Vector<const Brush*> list;
-    const SubModel& sm = b.subs[sub];
-    for(za::U32 i = 0; i < sm.numBrushes; ++i)
-    {
-        list.pushBack(&b.brushes[sm.firstBrush + i]);
-    }
+    eachTreeBrush(b, sub, [&list](const Brush& br) { list.pushBack(&br); });
     if(sub == 0)
     {
         for(const int c : b.clips)
@@ -3069,16 +3068,15 @@ void buildModelsAtOnce(const za::Vector<Tree*>& sizes, const Brushes& b, const z
                         continue;
                     }
                     givenAt[k] = given[i].size();
-                    const SubModel& sm = b.subs[work[k].sub];
-                    for(za::U32 n = 0; n < sm.numBrushes; ++n)
-                    {
-                        const Brush& br = b.brushes[sm.firstBrush + n];
-                        for(za::U32 q = 0; q < br.count; ++q)
+                    eachTreeBrush(b, work[k].sub,
+                        [&](const Brush& br)
                         {
-                            const Plane& pl = b.planes[br.first + q];
-                            given[i].pushBack(pb.planeAt(pb.plane(glm::dvec3{pl.normal}, pl.dist + support(pl, ext))));
-                        }
-                    }
+                            for(za::U32 q = 0; q < br.count; ++q)
+                            {
+                                const Plane& pl = b.planes[br.first + q];
+                                given[i].pushBack(pb.planeAt(pb.plane(glm::dvec3{pl.normal}, pl.dist + support(pl, ext))));
+                            }
+                        });
                 }
             }
         });
@@ -3095,19 +3093,18 @@ void buildModelsAtOnce(const za::Vector<Tree*>& sizes, const Brushes& b, const z
                 u.baseCount = bases[j.size]->count();
                 TreeBuilder ub{*bases[j.size], u.planes, u.nodes, u.solid, u.empty, u.log};
                 const glm::dvec3 ext{t.ext};
-                const SubModel& sm = b.subs[j.sub];
                 Frags frags;
                 const mplane_t* g = given[j.size].data() + givenAt[k];
-                for(za::U32 i = 0; i < sm.numBrushes; ++i)
-                {
-                    const Brush& br = b.brushes[sm.firstBrush + i];
-                    Frag f;
-                    if(ub.grow(b, br, ext, f, g))
+                eachTreeBrush(b, j.sub,
+                    [&](const Brush& br)
                     {
-                        frags.pushBack(ZA_MOVE(f));
-                    }
-                    g += br.count;
-                }
+                        Frag f;
+                        if(ub.grow(b, br, ext, f, g))
+                        {
+                            frags.pushBack(ZA_MOVE(f));
+                        }
+                        g += br.count;
+                    });
                 u.kind = 2;
                 u.root = ub.build(frags);
                 u.rebounded = ub.rebounded;
@@ -4523,6 +4520,7 @@ void init()
 {
     Cvar_RegisterVariable(&vr_hull_audit);
     Cmd_AddCommand("vr_hull_warmcache", warmCache_f);
+    registerHoleCommands(); // vr_hull_holes_census, _test, _near (vr_hull_holes.cpp)
     registerDiagCommands(); // vr_hull_cachetest, _preloadtest, _stats, _keeptest, _bench, _walktest, _probe, _leafdebug, _approach, _hittest, vr_mhull_walktest (vr_hull_diag.cpp)
     Cmd_AddCommand("vr_mhull_reset", reset_f);
     Cvar_SetCallback(&vr_hull_width, onWidthChanged);

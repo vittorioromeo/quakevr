@@ -69,8 +69,13 @@ check("rv: straight back out of their chambers (>= 0.5 m/s back, <= 35 deg off t
 d = [tuple(float(x) for x in m.groups()) for m in RVDONE.finditer(t)]
 check("rv: then off away from the frame (>= 0.8 m/s out), not across the gun", len(d) == 6 and all(o >= 0.8 for o, u in d), str(d))
 m = re.search(r"flatreload: main hand: open 1 kind 2 share 1\.00, turned (\S+) (\S+) (\S+), moved (\S+) (\S+) (\S+)", t)
-check("rv: the main hand in the revolver's open pose (-15 15 -30, moved 0 3 -1)",
-      bool(m) and [float(x) for x in m.groups()] == [-15.0, 15.0, -30.0, 0.0, 3.0, -1.0], m.group(0) if m else "no line")
+# (the pose's defaults read from the tunables: his 11-11 values replaced the old -15 15 -30, 0 3 -1, and may move again)
+TUN = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "Quake", "vr", "vr_tunables.inc"),
+           encoding="utf-8").read()
+RVPOSE = [float(re.search(r'QVR_TUNABLE\(vr_flat_rv_open_%s, "(-?[\d.]+)"\)' % k, TUN).group(1))
+          for k in ("pitch", "yaw", "roll", "fwd", "up", "out")]
+check("rv: the main hand in the revolver's open pose (the defaults: turned %g %g %g, moved %g %g %g)" % tuple(RVPOSE),
+      bool(m) and [float(x) for x in m.groups()] == RVPOSE, m.group(0) if m else "no line")
 t = log("rvold")
 ended("rvold", t)
 v = vels(t)

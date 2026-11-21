@@ -1,0 +1,15 @@
+# pouchbody: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". The pouches with the body hidden
+# (ROUND25.md, "pouchbody"; his note 2026-11-21: with vr_body_mode 0 the ammo pouch couldn't be used): Body Type Only
+# Hands for the test, the shotgun in the main hand and the nailgun in the off hand, shells, nails and rockets in the
+# reserve (the grenade pouch at the small of the back gives grenades while there are rockets).
+title Pouches and holsters with Body Type: Only Hands
+map vrtesthall
+god
+notarget
+cvar vr_body_mode 0
+give "Shotgun" main
+give "Nailgun" off
+cmd give s 20
+cmd give n 50
+cmd give r 10
+hint Body Type is Only Hands for this test. Take a shell from the ammo pouch on the front of your belt and load the shotgun; drop the nailgun's magazine (B/Y) and seat one from the pouch; take a grenade from the pouch at the small of your back; put a gun in each hip and chest holster: all where they are with the body drawn.

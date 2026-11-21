@@ -178,14 +178,23 @@ static void QueueClear (dgrmqueue_t *q)
 // (ROOM_COOKIE: an HMAC of it, so spoofed registrations from addresses that can't read the reply make no room), and
 // every reply the host acts on has the nonce of his last request (a REFUSED or BADVERSION forged from the service's
 // address stopped registering for 600 s).
+// (2026-11-21, the port check; version 3) Once registered, the host asks the service (ROOM_PROBECHECK, the one
+// request of version 3: REGISTER and JOIN stay version 2, so a version 2 service still gives room codes) to send a
+// ROOM_PROBE from another of its ports to his outside IP address at his game port (net_hostport). His router has
+// never sent to that port, so the probe gets in only through a forward (or a router that lets anything in): it arrives
+// -> reachable (anyone can join, a player behind a symmetric NAT too); ROOM_PROBING (the probe sent) and no probe
+// within ROOM_PROBE_WAIT -> not reachable (room codes still work for most players: hole punching); a version 2 service
+// (BADVERSION) or none -> unknown. NET_PortCheck* (net.h): the Host Game page, the net HUD, vr_mp_roomcode.
 #define ROOM_MAGIC	"QVRR"
 #define ROOM_VERSION	2
+#define ROOM_VERSION_PROBE	3	// (the port check's request only)
 #define ROOM_COOKIE_LEN	8
 #define ROOM_REQUEST	64
 #define ROOM_REPLY	32
 #define ROOM_CODE_LEN	6
 #define ROOM_REGISTER	0x01	// host -> service: code wanted (6 bytes or zeros) at 8, nonce at 14, cookie at 18 (or zeros)
 #define ROOM_JOIN	0x02	// joiner -> service: code at 8, nonce at 14
+#define ROOM_PROBECHECK	0x03	// host -> service (version 3): code at 8, nonce at 14, his game port at 22
 #define ROOM_REGISTERED	0x81	// -> host: code at 8, nonce at 14, his outside IPv4 at 18, port at 22
 #define ROOM_PEER	0x82	// -> joiner: code, nonce, the host's outside address
 #define ROOM_INCOMING	0x83	// -> host: code, 0, the joiner's outside address (punch it)
@@ -193,6 +202,8 @@ static void QueueClear (dgrmqueue_t *q)
 #define ROOM_REFUSED	0x85	// -> host: code, nonce, why at 18 (1: the service is full)
 #define ROOM_BADVERSION	0x86	// -> either: code, nonce, the service's version at 18
 #define ROOM_COOKIE	0x87	// -> host: code, nonce, his address's cookie at 24 (to be echoed in a REGISTER)
+#define ROOM_PROBING	0x88	// -> host: code, nonce, the probes sent at 18 (0: this registration's was used)
+#define ROOM_PROBE	0x89	// -> host's game port, from the service's other port: code, nonce, where it was sent
 #define ROOM_PUNCH	0x90	// host -> joiner: opens the host's router to him (the joiner ignores it)
 #define ROOM_DEFAULT_PORT	26100
 #define ROOM_REGISTER_EVERY	20.0	// s (the service forgets a room 120 s after its last registration)
@@ -205,6 +216,8 @@ static void QueueClear (dgrmqueue_t *q)
 #define ROOM_CONNECT_TRIES	32	// a room's connect requests (punches), ROOM_CONNECT_EVERY apart
 #define ROOM_CONNECT_EVERY	0.25	// s
 #define ROOM_PEERS	8
+#define ROOM_PROBE_WAIT		2.0	// s after ROOM_PROBING without the probe: not reachable
+#define ROOM_PROBE_GIVEUP	6.0	// s without ROOM_PROBING: unknown (asked again at the next registration)
 
 typedef struct
 {
@@ -227,6 +240,16 @@ static struct
 	double	firstSent;		// the first unanswered registration's time (0: answered)
 	qboolean	toldUnanswered;
 	roompeer_t	peers[ROOM_PEERS];
+	// (the port check) its state (NET_PORTCHECK_*), its request's nonce, when it was sent (0: none waiting) and
+	// answered (PROBING; 0: not yet), the port checked, the outside address it was checked at
+	int		probeState;
+	unsigned int	probeNonce;
+	double	probeSent;
+	double	probeAnswered;
+	int		probePort;
+	struct qsockaddr	probeOutside;
+	qboolean	probeAsk;		// a REGISTERED wants a check sent (by RoomHostTick: the socket's)
+	qboolean	listening;		// Datagram_Listen's last (a new hosting checks again)
 } room;
 
 static const char roomLetters[] = "ABCDEFGHJKLMNPQRSTUVWXYZ"; // (no I or O: read as 1 and 0)
@@ -296,8 +319,13 @@ static void RoomWrite (sys_socket_t s, int type, const char *code, unsigned int 
 
 	memset (pkt, 0, sizeof (pkt));
 	memcpy (pkt, ROOM_MAGIC, 4);
-	pkt[4] = ROOM_VERSION;
+	pkt[4] = type == ROOM_PROBECHECK ? ROOM_VERSION_PROBE : ROOM_VERSION;
 	pkt[5] = (byte) type;
+	if (type == ROOM_PROBECHECK) // (the port checked: this game's)
+	{
+		pkt[22] = (byte) (net_hostport >> 8);
+		pkt[23] = (byte) net_hostport;
+	}
 	if (code)
 		memcpy (pkt + 8, code, q_min ((int) strlen (code), ROOM_CODE_LEN));
 	pkt[14] = (byte) (nonce >> 24);
@@ -350,6 +378,93 @@ const char *NET_RoomCode (void)
 	return room.code;
 }
 
+// QVR: (the port check) this host's game port's reachability (NET_PORTCHECK_*; net.h)
+int NET_PortCheck (void)
+{
+	if (!Cvar_VariableValue ("vr_mp_room") || !RoomServiceName ()[0])
+		return NET_PORTCHECK_OFF;
+	return room.probeState == NET_PORTCHECK_OFF ? NET_PORTCHECK_WAITING : room.probeState;
+}
+
+// seat-shared: NET_PortCheckText's scratch
+static char portCheckText[160]; // (NET_PortCheckText's)
+static const char *const portCheckBriefs[] = {"unknown", "checking", "reachable", "NOT REACHABLE", "unknown", "unknown"};
+
+// QVR: (the port check) as text: `brief` the net HUD's ("port 26000 reachable"), else the Host Game page's and
+// vr_mp_roomcode's ("Port 26000: reachable")
+const char *NET_PortCheckText (qboolean brief)
+{
+	const char *const *briefs = portCheckBriefs;
+	const int state = NET_PortCheck ();
+	if (brief)
+		q_snprintf (portCheckText, sizeof (portCheckText), "port %d %s", net_hostport, briefs[state]);
+	else if (state == NET_PORTCHECK_CLOSED)
+		q_snprintf (portCheckText, sizeof (portCheckText), "Port %d: not reachable from the internet (forward UDP %d "
+			"for players behind strict routers)", net_hostport, net_hostport);
+	else
+		q_snprintf (portCheckText, sizeof (portCheckText), "Port %d: %s", net_hostport,
+			state == NET_PORTCHECK_OFF ? "unknown (room service off)"
+			: state == NET_PORTCHECK_WAITING ? "checking..."
+			: state == NET_PORTCHECK_REACHABLE ? "reachable"
+			: state == NET_PORTCHECK_OLDSERVICE ? "unknown (the room service is too old to check)"
+			: "unknown (the room service does not answer)");
+	return portCheckText;
+}
+
+// (the port check) The result found: told once in the console
+static void RoomProbeDecide (int state)
+{
+	if (state == room.probeState)
+		return;
+	room.probeState = state;
+	if (state == NET_PORTCHECK_REACHABLE)
+		Con_Printf ("Port %d is reachable from the internet (the room service's probe got in)\n", room.probePort);
+	else if (state == NET_PORTCHECK_CLOSED)
+		Con_Printf ("Port %d is not reachable from the internet: players behind strict routers can't join (forward UDP "
+			"%d to this computer in your router; room codes still work for most players)\n", room.probePort,
+			room.probePort);
+	else if (state == NET_PORTCHECK_OLDSERVICE)
+		Con_Printf ("Port %d: unknown (the room service %s is too old to check it)\n", room.probePort, room.service);
+}
+
+// (the port check) The room service's answers to it -> qtrue: taken. Its PROBE comes from another of the service's
+// ports (the same IP address), so it is read before the service's own replies' source check.
+static qboolean RoomProbeRead (const byte *pkt, int length, struct qsockaddr *from)
+{
+	if (!room.resolved || length < ROOM_REPLY || room.probeNonce == 0 || RoomNonce (pkt) != room.probeNonce
+		|| memcmp (room.code, pkt + 8, ROOM_CODE_LEN) != 0 || dfunc.AddrCompare (from, &room.serviceAddr) < 0)
+		return false;
+	if (pkt[5] == ROOM_PROBE)
+	{
+		room.probeSent = 0;
+		RoomProbeDecide (NET_PORTCHECK_REACHABLE);
+		return true;
+	}
+	if (dfunc.AddrCompare (from, &room.serviceAddr) != 0)
+		return false;
+	switch (pkt[5])
+	{
+	case ROOM_PROBING:
+		if (room.probeSent == 0)
+			break;
+		if (pkt[18] == 0)
+			room.probeSent = 0; // (this registration's probe used: asked again at the next)
+		else if (room.probeAnswered == 0)
+			room.probeAnswered = net_time;
+		break;
+	case ROOM_BADVERSION: // (a version 2 service: no check; its room codes still work)
+		room.probeSent = 0;
+		RoomProbeDecide (NET_PORTCHECK_OLDSERVICE);
+		break;
+	case ROOM_NOROOM: // (the room not yet his from this address: asked again at the next registration)
+		room.probeSent = 0;
+		break;
+	default:
+		return false;
+	}
+	return true;
+}
+
 // A host's datagram from the room service (on his listening socket) -> qtrue: taken (any datagram of the room format
 // is: a stray one is dropped)
 static qboolean RoomHostRead (const byte *pkt, int length, struct qsockaddr *from)
@@ -359,6 +474,8 @@ static qboolean RoomHostRead (const byte *pkt, int length, struct qsockaddr *fro
 
 	if (!IsRoomPacket (pkt, length))
 		return false;
+	if (RoomProbeRead (pkt, length, from))
+		return true;
 	if (!room.resolved || length < ROOM_REPLY || dfunc.AddrCompare (from, &room.serviceAddr) != 0)
 		return true;
 	// (finding 11) every reply acted on answers this host's last request (a UDP source is anyone's to write)
@@ -374,6 +491,17 @@ static qboolean RoomHostRead (const byte *pkt, int length, struct qsockaddr *fro
 	case ROOM_REGISTERED:
 		room.firstSent = 0;
 		room.toldUnanswered = false;
+		// (the port check) asked for while undecided, and again when his outside address or game port changed
+		RoomAddr (pkt, &peer);
+		if (room.probeSent == 0 && (room.probeState == NET_PORTCHECK_WAITING || room.probeState == NET_PORTCHECK_NOANSWER
+			|| room.probePort != net_hostport || dfunc.AddrCompare (&peer, &room.probeOutside) != 0))
+		{
+			if (room.probePort != net_hostport || dfunc.AddrCompare (&peer, &room.probeOutside) != 0)
+				room.probeState = NET_PORTCHECK_WAITING;
+			room.probeOutside = peer;
+			room.probePort = net_hostport;
+			room.probeAsk = true;
+		}
 		if (memcmp (room.code, pkt + 8, ROOM_CODE_LEN) != 0)
 		{
 			memcpy (room.code, pkt + 8, ROOM_CODE_LEN);
@@ -428,10 +556,15 @@ static void RoomHostTick (sys_socket_t acceptsock)
 		room.code[0] = 0;
 		room.service[0] = 0;
 		room.resolved = false;
+		room.probeState = NET_PORTCHECK_OFF;
 		return;
 	}
 	if (Q_strcmp (name, room.service) != 0)
 	{
+		room.probeState = NET_PORTCHECK_WAITING;
+		room.probeSent = 0;
+		room.probeAsk = false;
+		memset (&room.probeOutside, 0, sizeof (room.probeOutside));
 		q_strlcpy (room.service, name, sizeof (room.service));
 		room.resolved = false;
 		room.resolveAt = 0;
@@ -456,6 +589,8 @@ static void RoomHostTick (sys_socket_t acceptsock)
 				Con_Printf ("The room service %s was not found: no room code (players can still join by your IP "
 					"address)\n", room.service);
 			room.toldNotFound |= found == -1;
+			if (found == -1 && room.probeState == NET_PORTCHECK_WAITING)
+				room.probeState = NET_PORTCHECK_NOANSWER;
 			room.resolveAt = net_time + (found == -1 ? 1.0 : 0.1);
 			return;
 		}
@@ -473,9 +608,32 @@ static void RoomHostTick (sys_socket_t acceptsock)
 			Con_Printf ("The room service %s does not answer: no room code yet (players can still join by your IP "
 				"address)\n", room.service);
 			room.toldUnanswered = true;
+			if (room.probeState == NET_PORTCHECK_WAITING)
+				room.probeState = NET_PORTCHECK_NOANSWER;
 		}
 		if (net_time - room.firstSent > 60.0)
 			room.nextRegister = net_time + ROOM_REGISTER_EVERY; // (gone a minute: asked less often)
+	}
+	// (the port check) asked for by a REGISTERED; decided by the probe (RoomProbeRead) or its absence
+	if (room.probeAsk)
+	{
+		room.probeAsk = false;
+		do
+			room.probeNonce = DgrmRandom ();
+		while (room.probeNonce == 0);
+		room.probeSent = net_time;
+		room.probeAnswered = 0;
+		RoomWrite (acceptsock, ROOM_PROBECHECK, room.code, room.probeNonce, NULL, ROOM_REQUEST, &room.serviceAddr);
+	}
+	if (room.probeSent != 0 && room.probeAnswered != 0 && net_time - room.probeAnswered > ROOM_PROBE_WAIT)
+	{
+		room.probeSent = 0;
+		RoomProbeDecide (NET_PORTCHECK_CLOSED);
+	}
+	else if (room.probeSent != 0 && room.probeAnswered == 0 && net_time - room.probeSent > ROOM_PROBE_GIVEUP)
+	{
+		room.probeSent = 0;
+		RoomProbeDecide (NET_PORTCHECK_NOANSWER);
 	}
 	for (i = 0; i < ROOM_PEERS; i++)
 	{
@@ -626,6 +784,8 @@ static qboolean RoomJoin (sys_socket_t sock, const char *typed, struct qsockaddr
 
 static void NET_RoomCode_f (void)
 {
+	if (sv.active && svs.maxclients > 1) // (the port check: also without a code)
+		Con_Printf ("%s\n", NET_PortCheckText (false));
 	if (!room.code[0] || !sv.active)
 	{
 		Con_Printf ("No room code: %s\n", !sv.active || svs.maxclients < 2 ? "not hosting a multiplayer game"
@@ -1677,6 +1837,16 @@ void Datagram_Close (qsocket_t *sock)
 void Datagram_Listen (qboolean state)
 {
 	int i;
+
+	// QVR: (the port check) a new hosting checked again (his router's forwards may have changed since)
+	if (state && !room.listening)
+	{
+		room.probePort = 0;
+		room.probeSent = 0;
+		if (room.probeState != NET_PORTCHECK_OFF)
+			room.probeState = NET_PORTCHECK_WAITING;
+	}
+	room.listening = state;
 
 	for (i = 0; i < net_numlandrivers; i++)
 	{

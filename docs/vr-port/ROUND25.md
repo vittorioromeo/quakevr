@@ -6928,3 +6928,329 @@ SPLITSCREEN.md section 13 has the details; in short (seats numbered from 0 as in
   scratch/split5_after, scratch/split5_rerun.
 - In VR (the author): nothing changes with one seat: single player, coop and deathmatch play, prediction, the other
   players' movement and bodies, voice chat, demos, as before.
+
+## mpbugs3: his flat-screen multiplayer notes -- death drops, Dwell in deathmatch, corpses (mpbugs3, 2026-11-21, `agent/mpbugs3`)
+
+His words: "Bots/players in MP who had a dagger in their holster actually drop a sword as a prop"; "Killed bot/player
+ragdolls are still the Quake ranger model..."; Select Campaign > Dwell while hosting: "runaway loop error ...
+SelectSpawnPoint ... Host_Spawn_f".
+
+- **Death drops** (fixed): PlayerDie dropped each hand's and holster's weapon with `CreateWeaponDrop` (flags 0, a new
+  record), so a dagger (WID_SWORD with VR_SWORDKIND_DAGGER in its flags) lay as a knight's sword, and every drop lost
+  its magazine, blood, Dwell variant and AD upgrade. `VR_DeathDrops` (vr_wpnholster.qc) drops each as it was: its flags
+  (the hand's state off: foregrip carry, saw state; the reverse grip kept) and its record, moved (the dead one's
+  references cleared; a respawn makes new ones). Test `vr_dm_test 21` (vr_deathdrop_test.qc; `maxplayers 2; deathmatch
+  1`): a bot, then the player, daggers in both hands and five holsters, a knight's sword in the sixth: 20/0.
+- **Dwell from Select Campaign in deathmatch** (fixed): Dwell's start has coop starts but no `info_player_deathmatch`;
+  SelectSpawnPoint's deathmatch `while(1)` only ended on meeting its start spot again, so with none (or every start
+  blocked and no last spawn yet) it looped for ever. Coop and single player were fine. The scan ends after two passes;
+  no deathmatch start: `VR_CoopSpawnPoint` (the next clear coop start, else beside one: the first fix, the player start
+  for all, had the bot telefrag the host). Test `vr_dm_test 22` (vr_spawnloop_test.qc, set before `vr_campaign_native
+  dwell`): deathmatch 3/0 and coop 3/0 (two players spawned and alive, SelectSpawnPoint returns), single player loads.
+  `dwell_maps.sh`: 28/0, dwgate 10/0.
+- **Corpses still the ranger** (found, not fixed: out of budget): every dead body is drawn as its owner's avatar
+  (mpslide) only while he is dead; once he respawns, his body still lying is drawn as `player.mdl#rag` (one drawn copy
+  per player: `addDolls` skips a body whose owner's living copy is drawn). Measured on a VR and a flat listen host with
+  a bot. The fix (doll slots) and the avatar's own ragdoll rig (vrbody.rig2) are planned in MP_PLAN.md, "Still the
+  ranger after a respawn".
+- Checks: Dev and ThinLTO builds 0 warnings; mp_test suite --only mp_coop,mp_pickup,mp_rejoin,mp_dm: 12/0, 10/0,
+  19/0, 27/0 (netsafe 14/0); dwell_maps.sh 28/0, dwgate 10/0. Not run: the whole mp suite, scenario_check (budget).
+
+## mpbugs4: mpbugs3 made shippable; a respawned player's old body drawn as him (mpbugs4, 2026-11-21, `agent/mpbugs3`)
+
+- **The checks mpbugs3 skipped** (VR_DeathDrops runs only in deathmatch and coop: PlayerDie's `(deathmatch || coop)`;
+  single player's deaths drop nothing, unchanged): scenario_check PASS (150 run, 0 failed); `vr_dm_test 21` now also
+  holsters a shotgun with 3 rounds (guns keep their magazine: the record moves with the drop), 20/0 in deathmatch and in
+  coop; `vr_agrunt_test 215` in coop 2/0; `vr_pickup_test 12` (every weapon through a save) 352/0; dwell_weapons_test
+  9/0 (vr_ad_test 204, 213); plasma_ball_test 6/0 (an AD upgrade's record). `vr_pickup_test 15` fails one check ("a
+  grunt in reach: it swings the dagger": 12/1, twice) with no death in it: the bots' telegraphed swing (`bots`,
+  bot_fight.qc, 2026-11-21) came after its 13/0, not this branch. mp_test plain suite: 64 tests passed, mp_teleport,
+  mp_melee and mp_loss each failed 1-2 checks under the suite's load and passed alone (10/0, 30/0, 16/0). Dev and
+  ThinLTO builds 0 warnings.
+- **Old bodies after a respawn** (fixed): 8 doll slots past the players' in vr_mpavatar.cpp (`firstDollSlot`,
+  `avatar::dollSlots`, `Drawn::owner`); `assignDollSlots` gives the bodies in sight, nearest first, their owner's own
+  slot while he is dead, else the doll slot they had, else a free one (its posed state forgotten:
+  `avatar::forgetOther`); the ninth and farther are the ranger. The posed body's state (`avatar::poseOther`'s
+  `others[]`, now `avatar::otherKeys` long) is keyed by the slot; calibration, look and armour by the owner; a doll has
+  no torch, its power-up lights none. `mp_doll` lines carry `slot=`. `mp_deathbody` 23/0: after B respawns, A (the
+  host: doll slot 17) and B (a client: his own slot) still draw B's old body as B's build. MP_PLAN.md, "Still the
+  ranger after a respawn".
+- **The avatar's own ragdoll rig**: left as the plan in MP_PLAN.md (not built).
+## reliefs: Dwell's and Quoth's reliefs made on the player's PC by Setup (DWELL.md 9.9, option A)
+
+Branch `agent/reliefs`. His choice of 2026-11-21: PBRify's CC0 models as ONNX, run by onnxruntime in a Setup step.
+
+- **The models.** `Misc/quakevr/pbr_export_onnx.py export` loads PBRify 1.7.2's two pinned checkpoints (spandrel) and
+  writes `pbrify_normal.onnx`/`pbrify_height.onnx` (opset 17, any 1x3xHxW; 1.6 MB each, the .pth's 9 MB is training
+  state) into `Installer/src/QuakeVR.Installer.Core/Reliefs/Models/` (embedded in Setup; `*.onnx binary` in
+  .gitattributes). `parity` runs `pbr_generate.py generate --limit 40` over AD with the .pth and with the .onnx: 39
+  companions, mean texel difference 0.0001, worst 1. The build-time environment (Python 3.13, torch 2.8 CPU, spandrel,
+  onnx, onnxruntime) and the archive are in `qvr-kit/downloads/reliefs/` (never the player's).
+- **Setup's step** (`Core/Reliefs/ReliefMaker.cs`, `ReliefImages.cs`; Installer/README.md, "Reliefs for Dwell and
+  Quoth"): pbr_generate.py's scan and packing in C# (PAK/loose files reused from `Assets/QuakeAssets.cs`; PNG and TGA
+  decoded and PNG written without a toolkit; tiles, fill, calibrated height, green orientation, holes, animation
+  anchors). onnxruntime 1.22.0 with DirectML, the CPU if DirectML is missing or a run fails. Skips stock textures
+  (stock.txt), quakevr's bundle and companions already made; writes `provenance.txt` (flags 3) beside them. The
+  Options row (`MakeReliefs`, ticked wherever Dwell or Quoth will be there) and the step after Quoth's in both the
+  install and the update flows; a note on the Done page; Cancel skips the rest. `qvr-setup reliefs` for the console.
+  The uninstaller removes `<install>\reliefs`. The publish drops onnxruntime.lib (`Directory.Build.props`), which would
+  otherwise sit beside QuakeVR-Setup.exe.
+- **The engine** (`vr_pbr.cpp` `VR_AddReliefsPath`, `files::reliefsDir`): `<last basedir>/reliefs` (the Quake VR folder
+  the shortcuts pass last; the cache's convention) is appended at the bottom of the base search path when it exists
+  (kept across game folder changes; "Reliefs: <dir>" printed), and `loadProvenance` also parses its provenance.txt
+  (COM's search finds quakevr's first). No lookup change: the hash names match.
+- **Checks.** C# against the generator: 60 AD textures, 2419 sources and 69 not drawn as the generator counts, the 39
+  in common mean 0.0001 / worst 1, every provenance digest right. Full Dwell + Quoth (DirectML): 2323 textures, 1768
+  made in 115.5 s, 555 not needed, 82 MB; a single-file published qvr-setup also loads DirectML. Engine, the
+  shortcuts' two basedirs: d1m1 draws 168 companions from reliefs/ (36 from quakevr's bundle; 0 before), kellbase1 60
+  (27; 0 before), all at the generated strength 2.50 (provenance verified); screenshots before/after show the relief.
+  Self-tests `reliefs: ...` 2/2. scenario_check 150 run / 0 failed. QuakeVR-Setup.exe 61.5 MB to 71.3 MB (+9.7).
+- **Not done / differences.** JPG replacements are not decoded (no relief for them); comparison packs' authored maps
+  (`--authored`) do not apply to these mods. The window itself was not run (no GUI here): the Options row and the
+  step's progress want a look in Setup.
+
+## avatardoll: a dead player's ragdoll is his avatar's own body (avatardoll, 2026-11-21, `agent/avatardoll`)
+
+His words: "Yes [build it]. The ragdoll should match the player's customisation, size, etc." (MP_PLAN.md, "Still the
+ranger after a respawn": the plan, and "Built (avatardoll)": the design as built.)
+
+- **What it is.** The body QC vr_deathdoll.qc makes is no longer `progs/player.mdl`: `VR_DeathDoll_Avatar` asks the
+  new builtin `avatarbody(p)` (`mpavatar::serverBody`) for his build and size and makes it his build's
+  `progs/vrdoll_lean|vrdoll|vrdoll_brawny|vrdoll_fem.mdl`, `model_scale` his size (world scale x eye height / 1.646 m,
+  the drawing's own formula; the feet kept on the floor), no death animation. Box3D rigs it from its authored rig
+  (`quakevr/rigs/vrdoll*.rig2.txt`, 19 parts) at that scale; ragsync sends it; every client draws his avatar on it
+  (mpbugs4's doll slots, `addDolls` takes `progs/vrdoll*`), the bones one to one by name. Single player: your own
+  settings (the death camera and the Immersive view in its head bone work as before); bots: the default build at the
+  default world scale. id's ranger stays the fallback: vr_mp_body 0, body mode none, a mod's worldspawn that does not
+  call `VR_DeathDoll_Precache` (world.qc does), data without the models.
+- **The models and rigs** (`Misc/quakevr/make_vrdoll.py`, genguard-owned): each build's md5mesh bind pose as a .mdl
+  (1250 vertices, the feet at -24, a 128x512 palette skin from vrbody_00_00.tga: seen only where no avatar can be drawn
+  on it), its rig: the md5 skeleton's 19 bones (calves the shins, the forearm twist helpers the forearm, the wrist the
+  hand), the md5's own weights, the armed grunt's joint limits, the elbows' and knees' hinge axes from the straight bind
+  pose. Their seed tables carry no seeds: authored only, never derived (`warmRigs`, `derivedRigFor`, `vr_ragdoll_rig_sweep`
+  skip them).
+- **Tests.** `mp_test.py deathbody` 34/0 (grown: a short brawny A at 1.55 m and a tall lean B at 1.95 m; each body his
+  build's vrdoll at host and client, 19 parts, the leg 21.8-21.95 model units at its scale (rest 22.06), the client's
+  scale the host's, B's over A's 1.258 = 1.95 / 1.55; legs 24.7 and 31.2 units). `vr_mp_avatars` prints
+  `mp_doll_rig: ent doll parts dollscale leg`. Single player e1m1 `vr_hurt 110 0`: `vrdoll.mdl#rig2`, 19 parts, scale
+  1.128, drawn as vrbody_bare. `mp_test.py ragsync` 11/0; climb_test 6/6; active_test no FAIL; stagger_test 1 FAIL (the
+  grunt's beaten backpedal falls: BACKLOG's known one, no monster code touched); scenario_check 150 run / 0 failed;
+  Dev and ThinLTO builds 0 warnings. Screenshot of both bodies (dark at e1m1's start; `MP_DEATHBODY_SHOT=1`):
+  `scratch/mp/mp_deathbody_*/A_deathbody_two.png`.
+- **Not done.** The physics rig is scaled uniformly (his arm length and shoulders are the drawn body's only); a flat
+  player's body is his VR height, not his flat-screen height (the server cannot tell him flat there); a client with
+  `vr_net_ragdolls 0` draws the doll's single frame (standing); no Rig Studio range-of-motion pass on the new rigs yet.
+## flakehunt: the bots' paths in Show Navmesh; known failing tests (flakehunt, 2026-11-21, `agent/flakehunt`)
+
+His words: "15. Yes" (hunt the flakes); "8. I still need to try [vr_bot_navmesh]. Ensure the debug view works here too."
+
+- **The bots' navmesh paths in Show Navmesh** (`vr_nav_debug` any value, on the host and on a remote client): each
+  bot walking the navmesh (vr_bot_navmesh 1) has its path drawn magenta (a teleporter's jump cyan), its next corner a
+  white post, beside vr_nav_follow's yellow path. The plans are the server's (vr_navfollow.cpp `bots[]`), so a client
+  asks for them while its vr_nav_debug is on ("vr_nav_botpaths 1|0", a client command on sv_user.c's list; sent from
+  `navfollow::debugDraw`, again on a new connection, never in a demo); the server sends a bot's path when it or its
+  next corner changes, every path at once to a client that just asked (QVR_SVC_BOTPATH 53, reliable; bots found by
+  `server::isBot`: they hold no svs.clients slot). The listen host draws them through its own loopback client: one
+  path for both. `vr_nav_follow_status` prints a second line, `navbots: asked paths corners drawn`. Net version not
+  bumped: peers already match exactly, and an older server ignores the unknown command. Deathmatch allowed (bots only).
+- **Check:** `mp_test.py botnavdebug` (dedicated, A remote) and `botnavdebug_listen` (A the host), not in the suite:
+  deathmatch e1m1, A with vr_nav_debug 2 adds a bot, the server's `vr_dm_test 19` has it chase A by the navmesh; A
+  has the path and draws it (remote: paths 1, corners 5, drawn 4; host: 1, 4, 3); vr_nav_debug 0 drops it. 6/0, 4/0.
+  vr_dm_test 19's own verdict is noted, not checked: it failed 2 of 4 runs here (single process too; the bot sees him
+  at the door, goes back to its waypoints and wanders off), a bot-AI flake of its own (BACKLOG).
+- **flateject `rv`** fixed (the test): it wanted the revolver's open pose from before his 11-11 defaults; the check now
+  reads the pose's defaults from vr_tunables.inc. The game is right (his values: turned -35 0 -30, moved 0 -2 1).
+  Run: 15/2, the other two run to run (`ssg` second casing up 0.29 vs > 0.3; `vr` one stroke line), not chased.
+- **vr_pickup_test 15** fixed (the test): its one `bot_fight_style()` call against a fresh enemy now meets
+  `bot_fire_ready`'s reaction delay (the bots' toning down, 2026-11-21: by design), so no swing yet; the test marks the
+  reaction as over (its subject is the weapon swung). 13/0.
+- **hotblade `blade_parts`**: the crowbar's and chainsaw's vertex totals were stale since mdltopo's topology fixes
+  (464 -> 446, 285 -> 279; glowing 271 and 18), updated. Left: the hammer (blade_parts, superaxe) measures 2.8/7.0
+  with 172 of 795 verts glowing against 2.3/5.9 and 295, with no v_hammer.mdl change: the same 40% of a longer length,
+  but fewer verts lit: wants his look at a hot hammer before the numbers move. `holster`: the holstered axe is found
+  lying (holsters' glow all 0): the test's holster move, not the glow. 27 of 30 as before, the three for these reasons.
+- **Not reached (budget)**: flatfg2h key 3, twohand_regrip picks 4/10, stealth noises_clue, nav_lift_down, gadget_lock
+  13/4, the mp_test.py suite's order effect and port clashes, mp_loss's margin. Listed in BACKLOG section 1.
+## reliefs2: Setup finds an existing Quake VR folder and makes only its missing reliefs (reliefs2, 2026-11-21, `agent/reliefs2`)
+
+His words: detect an existing installation and only generate the reliefs not generated yet, so he can run it on his own
+(Steam Quake with `quakevr` linked to his checkout, `dwellv2p2\` and `quoth\` there, not installed by Setup).
+
+- **ReliefTarget** (`Installer/src/QuakeVR.Installer.Core/Reliefs/ReliefTarget.cs`, shared by the window and the CLI):
+  a folder's Dwell (`dwell`, else `dwellv2p2`) and Quoth (`quoth`), each a game folder (progs.dat, pak0.pak or maps/);
+  its `quakevr`; the palette's folders (the mods, the folder's `id1`, the install record's Quake `id1`, the caller's).
+  `Offered`: Setup's install (install.json) or a `quakevr` folder in it, and a mod. `Run` is ReliefMaker's step on it
+  (bundle and stock list from its `quakevr`); `Outcome` is "N made, M already existed". Only the missing ones are made:
+  ReliefMaker's existing rule (a companion in `<folder>\reliefs\textures\pbr` counts as kept), now checked on a folder
+  made by an earlier run of either the window or the CLI.
+- **The window**: a "Reliefs for Dwell and Quoth" card on the Welcome page with a **Make reliefs only** button when
+  `FindReliefTargets` (this Setup's install, the other installs found, then the quiet detection's Quake folders, base
+  and install dirs) finds one; the run skips the statement, package and options, logs on the Install page and ends on
+  Done ("Reliefs for Dwell and Quoth are ready", the count as its only note). On this PC the harness prints his Steam
+  Quake as offered (read only; nothing was written there).
+- **The CLI**: `qvr-setup reliefs --target <folder>` finds the mods and palette itself (`--quake <dir>` adds a Quake's
+  id1), says how many reliefs were there, and ends with `reliefs: N made, M already existed`; no mods: exit 1, said.
+- **Checks.** Self-test `reliefs-only: ...` (a made-up developer folder: 4 made, nothing outside reliefs changed, the
+  second run 0 made / 4 existing; Setup's install offered, dwell before dwellv2p2; plain Quake and a mod-less quakevr
+  folder not offered) and the two `reliefs:` tests: 3/3. The CLI on that folder twice: 4 made, then 0 made / 4
+  existed. Screenshot harness: exit 0, its new reliefs-only check (offered, Done with "0 made, 0 already existed",
+  nothing else written). Installer solution: 0 warnings.
+- **Not done.** His folder is under Program Files: if Windows refuses the write there, the window says "Reliefs not
+  made: ..." and the CLI fails; an elevated prompt then. The Done page's "Open the Quake VR folder" opens the install
+  folder, not a found Quake folder.
+
+## portcheck: is the host's port reachable? Rendezvous protocol version 3; the relay to the backlog (portcheck, 2026-11-21, `agent/portcheck`)
+
+His words (11-21): no relay for now (BACKLOG.md, section 11, low priority: the design and how SDR / EOS / TURN do
+it); an in-game indication of whether the chosen port is forwarded.
+
+- **How it works.** Once registered, the host sends PROBECHECK (the only version 3 request; REGISTER and JOIN stay
+  version 2 so a not-yet-redeployed service still gives codes) with `net_hostport`. The service (qvr_rendezvous.py
+  `probecheck`) sends one PROBE from a second socket (`--probe-port`, any free one) to his outside IP at that port,
+  then PROBING (1). The probe gets in only through a forward (or a router letting anything in): `Port N is reachable
+  from the internet`; PROBING and no probe within 2 s: not reachable (with the forward advice); BADVERSION from a
+  version 2 service: unknown (too old); no PROBING within 6 s: unknown (does not answer), asked again at the next
+  registration. Checked again when a hosting starts (Datagram_Listen), his outside address or port changes.
+- **Limits.** One probe per registration (REGISTER, renewal, move: the room's credit), only from the address holding
+  the room (cookie-checked) and to its IP; replies to a PROBECHECK total 64 bytes (no amplification). A version 2
+  request is served as version 2 (replies carry the request's version); a PROBECHECK in one is dropped.
+- **Shown.** Host Game page (word-wrapped above the room code, white when reachable); the net HUD while hosting
+  (`vr_net_hud` 1: `port 26000 reachable` / `NOT REACHABLE` / `unknown` / `checking`; shared with VR, the same 2D
+  path); the console once; `vr_mp_roomcode` prints `Port N: ...`; `vr_net_hud_report` has `host_line`.
+- **Known limit.** One service IP: a router filtering by address only (not port) reads reachable though strangers
+  are filtered (rare; STUN's change-IP test would need a second IP). A forward of another outside port to 26000
+  reads not reachable.
+- **Checks.** test_rendezvous.py 44/0 (13 new: the probe, its limits, version 2 served, `--newest 2`); `mp_test.py nat`
+  18/0 (room service off: unknown; cone NAT without a forward: not reachable; forwarded port: reachable; a version 2
+  service: code still given, unknown); roomui 6/0 (the HUD line; the page's shot looked at); netsafe 14/0. Dev build
+  0 warnings, ThinLTO 0 warnings.
+- **He must redeploy the service** (`bash Misc/rendezvous/update.sh vittorioromeo.com`) for real games to read
+  reachable/not reachable; until then they read unknown and room codes work as before.
+
+## pouchbody: the pouches with the body hidden
+
+- **His note (2026-11-21, Quest):** "with vr_body_mode 0 I was not able to interact with the ammo pouch". Why: with the
+  body hidden, `body::ammoPouchPosition` and `body::pouchPosition` (vr_body.cpp) returned the old placement carried by
+  the pelvis, skipping the step that puts it on the torso's ring (`ammoPouchOnTheBody`, `pouchOnTheBody`). That point is
+  inside the player's own body (the torso's ring there, clearance included: ammo pouch 0.86, grenade pouch 0.47; 1 is
+  the surface), and the ammo pouch's zone is thin (depth 0.2 times its reach: 1 unit each way), so its box ran from the
+  belly's surface to 5 cm in front of it: a real controller could hardly get in. The grab test was never gated on the
+  body; the mock hands reach any point, so the old tests passed in every mode.
+- **Fix:** both pouches are put on the ring whether the body is drawn or not (mode 0 now has mode 2's places; the
+  armour plates' forward step and the legs' follow stay with the drawn body, which they need). The holsters were
+  already outside the torso in mode 0 (hips 1.78, chest 1.00) and are unchanged; modes 1-3 are unchanged.
+- **Diagnostic:** `vr_body_crouch_report` also prints `gear ring: body <mode> lhip .. rhip .. lupper .. rupper .. ammo ..
+  grenade ..` (under 1: inside the player, out of a real hand's reach).
+- **Test:** `Misc/quakevr/reload/pouchbody_test.sh` 12/0: with `vr_body_mode` 0, 2 and 3 every gear ring at least 1
+  (mode 0 was 0.86 and 0.47 before the fix: FAIL), a shell from the ammo pouch, a magazine from it seated in the nailgun,
+  a grenade from the grenade pouch. Checklist scene `pouchbody` (Only Hands, the shotgun and the nailgun, ammo).
+
+## brushholes: invisible blockers in the gaps Quake's box never fit (branch agent/brushholes, 2026-11-21)
+
+The author's note: grates, gates, pillars and lifts let the narrower boxes (yours at 16, narrow monsters') pass or fall
+through. At map load, `Quake/vr/vr_hull_holes.cpp` finds every gap narrower than 32 between two solids facing each
+other along x or y: within the world, within each solid func_* model, and between the world and a func_wall or a
+door's or lift's whole travel. It adds blocker brushes there, to the compiled trees only (not hull 0: shots, sight and
+the navmesh don't have them). Quake's box could never hold a point of such a gap, so nothing Quake allowed changes,
+and you still stop 8 units from walls, bars and pillars. How it works, what is kept out (gaps under 8; world blockers
+that hull 1 lets Quake's box reach into, from AD's non-colliding detail) and the census are in HULLS.md, "Holes".
+
+- Setting: `vr_hull_holes` 1 (Movement > Player Hitbox > Close Gaps Quake's Box Never Fit; it takes effect at the next
+  map load). `keyOf`'s buildVersion went from 2 to 3, so every map's trees are compiled once again; the blockers are kept
+  for a reload and are inside the disk-cached trees.
+- Aids (Debug > Tests > Player Hitbox): `vr_hull_holes_census`, `vr_hull_holes_near`, `vr_hull_holes_test`.
+- Test: `vr_hull_holes_test` on the new `maps/vrbrushholes` (`Misc/quakevr/make_vrbrushholes_map.py`: a grate over a
+  pit, a bar gate, a lift held up with 20-unit slots, pillars 24 apart). The player's box and a grunt's at
+  `vr_mhull_army 16`: 15/0 with the setting on (stopped, and 8 units from the bars, the pillars and a wall) and 15/0 as
+  `brushholes_off` with it off (they pass, so the scene really has holes). Checklist scenes: `brushholes_grate`,
+  `brushholes_gate`, `brushholes_lift`, `brushholes_pillars` (runall 4 OK).
+- Follow-up (the coordinator and the author): the drop test is now exact. Every centre of Quake's box that would
+  reach a blocker by 2 units goes down hull 1's tree at once, for the world's blockers and the models' own, erring
+  toward dropping. The search uses a 64-unit grid, and the checks and the brush models run on the pool. The debug view
+  is Debug > Show Gap Blockers (`vr_hull_holes_show`, `vr_hull_holes_show_range` 1024): world cyan, with brush models
+  yellow, models' own magenta, dropped red, the counts in front of you. Scene `brushholes_show`.
+- Census: id1 (38 maps) 8,018 world blockers, search at most 53 ms; Quoth (6) 3,533; AD (26) 103,707, at most 0.5 s
+  (ad_tears, was 1.6 s). Quake's box reaches none, on any of the 70 maps.
+- Checks: `vr_hull_holes_test` 15/0 on and 15/0 off; 5 scenes OK; `vr_nav_cliptest` and `vr_nav_toptest` pass on e1m1
+  and e4m7; a 60 s hull walk on e1m2 had 0 stuck; run_test_suite changelevel_signon, held_over_props, slider_step,
+  slopes and turned_box pass, teleporters_chase flaky (known).
+- Open: ad_tears' search time (slanted cells; coarser ones leave gaps open); func_trains' gaps with the world (only their own gaps are closed); a func_wall that is
+  killtargeted is left out of the world's pairs (its blockers would stay behind).
+## humrepl: AD's and Quoth's humanoid variants as armed humanoids; recolours by weapon (branch agent/humrepl, 2026-11-21)
+
+- **His ask (2026-11-21):** the expansions' hardcoded humanoid variants as the closest armed humanoid with the matching
+  weapon (the rocket grunt a grunt with the enemy rocket launcher, the pyro an enforcer or a grunt with the flamethrower),
+  and cheap run-time hue/tint recolours of the armed humanoids and their backpacks by weapon (rockets red, energy blue),
+  data-driven for a later Texture Studio. Phase 1 here; the table of every variant (replaced or not, and why), the
+  mapping, what is lost and gained: ARMED_MONSTERS.md, "AD's and Quoth's variants"; the recolours: "Recolours by weapon".
+- **Replacement:** `vr_agrunt_repl_variants` (1, a rule; with `vr_agrunt_repl` and `vr_agrunt_repl_ad`; the crossbow knight
+  with `vr_agknight`). AD's spawn functions of the soldiers (rocket, grenade, plasma), the defender, the eliminator, the
+  pyro, the fumigator and the crossbow knight call `VR_HUM_Replace` (QC `vr_humrepl.qc`) after AD's own spawn exceptions:
+  the row of its build (grunt, enforcer, knight) holding its gun (`WID_ADROCKET` ... `WID_ADCROSSBOW`; the eliminator the
+  centurion's plasma gun, its own being gone), its health (the map's or AD's: 45, 60, 75, 100, 120, 100, 100, 75), the
+  row's classname and spawn (the plain grunts' path in AD's maps: keys, targets, counts and waiting spawns theirs),
+  `.vr_agr` (trigger-spawn keys kept) and `.vr_hum_variant`. The pyro and fumigator are enforcers: AD's `mon_pyro` is
+  an enforcer's build (its rig the enforcer's, scaled 1.35, armoured), a close-range heavy; a grunt would read too slight.
+  Not replaced (death knights, death guards, sergeants, furies, point knights, zombie knights, bosses, the centurion,
+  the robots): the table says why; the death knights and death guards are the obvious next ones, his call (a third of
+  AD's knights: AD's balance moves most).
+- **Recolours:** every armed humanoid gets `.vr_hum_look` (its row x 16 + its weapon's category) as it is armed
+  (`VR_HUM_Look` in `VR_AM_Spawn` and `VR_AGR_Resolve`: the toolgun's, a wave's, a roll's alike), kept for life; its
+  worn pack takes the wearer's (the engine, by `.vr_wp_wearer`). The engine (`vr_humlook.cpp`): `QVR_SVC_HUMLOOK`
+  (54, reliable, on a change and with the spawn state), the table `quakevr/humlook.txt` (`<type> <category> <part>` and
+  13 numbers: the colour range's hue, half width, feather, least saturation, lightness range; the HSL turn, saturation
+  and lightness factors; a tint and its amount), three `Recolor` vec4s in the alias instance data, the shader's
+  `QVR_ALIAS_FS_RECOLOR` after the skin is read (any texture: Quake's, a replacement, retro; no mod file changed or
+  copied; instance data, so multiview and GLES alike). Shipped: explosives red, energy blue, flame orange, poison green
+  on the brown cloth and leather of all four rows (hue 40 +-18, lightness under 0.3: the flesh's lighter pinks kept)
+  and on the packs; shells, nails, melee and own guns no row. Tuned on the skins offline first
+  (`scratch/humrepl_preview.py`: the shader's maths in Python over the .mdl skins), then on the screens below.
+- **Settings and commands:** `vr_agrunt_repl_variants` 1, `vr_humlook` 1 (Combat > Armed Grunts > Armed Humanoid
+  Replacements: AD and Quoth Variants; Look: Recolour by Weapon), `vr_humlook_known` (read-only), `vr_humlook_reload`,
+  `vr_humlook_info [entity]`. Debug > Tests > Arcane Dimensions: the variants' test, the census, the recolour row.
+- **Tests:** `vr_ad_test 219` (`Misc/quakevr/humrepl_test.sh`): 46/0 (each variant its row, gun, health, look, counted
+  once; a death fires its target and counts; off: AD's; a rocket grunt and a nailgun enforcer by "weapon" get their
+  looks; the client knows every look); `vr_ad_test 198` 5/0 (its rocket soldier now armed: the check follows the
+  setting). Census (`Misc/quakevr/humrepl_census.sh`, `vr_ad_test 220`, the setting off then on): 33/0 on the 23
+  AD maps and 10 Quoth maps placing them: every map's monster count the same both ways (each variant counted once), 630
+  variants replaced, none left AD's (ad_s1m1's 15 are not spawned at skill 1 either way). `vr_multiview_check` 100/0;
+  Dev and ThinLTO builds 0 warnings. Screens: `Misc/quakevr/
+  humrepl_shots.sh` (`vr_ad_test 221`, vrtesthall: grunts, enforcers, knights, death knights, each with a shotgun, a
+  rocket launcher, the thunderbolt, AD's flamethrower and poison sprayer; then the grunts with `vr_humlook` 0):
+  `scratch/humrepl_rows.png`. Scenes `humrepl_looks`, `humrepl_variants`.
+- **Phase 2 (not started):** a per-skin mask of our own (a texture beside each armed model, its red channel the
+  clothes' weight and green the pack's, painted over the skin's UV layout; it replaces the colour range where it
+  exists: the enforcer's baked pack, the knights' metal apart from their leather); the Texture Studio (a Debug page:
+  type x category x part rows with live sliders for the 13 numbers over a lined-up row, written back to
+  `humlook.txt`; the shader already takes any row live); per-variant looks (a `variant` category so a rocket soldier
+  can differ from any rocket grunt).
+## fixes1121: noclip flies where you look; a shove never bleeds (branch agent/fixes1121, 2026-11-21)
+
+- **Noclip (his note: "always go towards where the camera is pointing").** The server's `SV_NoclipMove` takes a
+  tracked-hands client's move (a headset's and the flatscreen mode's: `VR_NoclipAngles`) along the head's level yaw with
+  upmove doubled straight up, so flat noclip never rose or sank and VR's rise came only from the stick's upmove (about
+  55 degrees for a 45-degree look). Now `VR_AdjustMove` (vr_input.cpp `noclipFlies`, `flyMove`) puts the flight's pitch
+  in the move: a push along the steer (pitch, yaw) becomes its level part on forward/side and its rise on upmove at half
+  (the server doubles it). The keys' push follows the look (the head; the flatscreen view); the stick's follows what
+  steers its walking (`vr_movement_mode`: the moving hand, the head, or the torso's yaw at the head's pitch). Strafes stay
+  level; the up and down keys (jump, crouch) go straight up and down. Local games only (Quake's own
+  `noclip_anglehack`, set by `noclip` and `setpos`); a remote server's noclip flies level as before.
+- **Test:** `vr_noclip_fly_test` (Debug > Tests, Stick Locomotion: Noclip: Flies Where You Look): from 64 units over
+  where you stand, each case's climb (degrees, the server's player over 40 frames of the push) against the look's:
+  keys forward at 45 up 44.8, 45 down -44.8, level 0.0, a strafe at 45 up 0.0, the up key 90.0; with a headset the
+  stick, the head 45 up 45.0, a hand (mode 0, the mock's hand turned to 30 up) 29.7. VR 7/0, `-flatscreenmode` 5/0 (the
+  stick's cases skipped). `vr_stick_curve_test` 115/0 (its noclip cases set the movetype only: unchanged).
+- **The shove's blood: cause.** The shove itself is bloodless (`VR_Hit_Bloodless`, QVR_HITKIND_SHOVE) and a fresh
+  monster's active ragdoll never bled in any test (grunts and knights, one- and two-handed, VR `vr_knockdown_test 21`
+  and the flat `vr_flat_shove_now`, staggers that recover and falls, awake or not: 0 frames of limb trails). What bled
+  "from every limb" was `decals::limbTrail` on a live ragdoll whose `.vr_bloodied` was set: that flag never cleared, so
+  a monster that had ever drawn blood (one pellet, minutes before) trailed blood from each limb end whenever a later
+  shove flung it (measured: hurt 5, then shoved down: 220 frames bled).
+- **Fix:** QC `VR_Wound_Hit` stamps `.vr_bled_at` (time) on every blood-drawing hit; the engine's `limbsBleed(ent, since)`
+  (vr_box3d_ragdoll.cpp) lets a live ragdoll's limbs bleed only for blood drawn since its ragdoll was made
+  (`RagdollBodies::born`; a get-up's blend keeps it in `Recovery::since`) or within `bledGrace` (1 s) before it (shot and
+  shoved together). Corpses' limbs always bleed, as before; a progs without the field keeps the old `.vr_bloodied` rule.
+  Fall damage and the ragdoll's own impacts still draw no blood (world inflictor), as before.
+- **Test:** `Misc/quakevr/ragdoll/shove_blood_test.sh` 3/0: an unhurt grunt shoved down bled 0 frames; one shot 3 s
+  before the shove 0 (was 220); one shot 2 frames before the shove 106. `stagger_test.sh steady` (grunt, 3 each) PASS.
+- **Checklist scenes:** `noclip_fly`, `shove_no_blood` (`vr_scenario runall`: 2 run, 0 failed).

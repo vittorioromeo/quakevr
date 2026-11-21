@@ -2592,13 +2592,22 @@ void shockRagdoll(edict_t* ent, Slot& s, float dt)
     }
 }
 
-bool limbsBleed(edict_t* ent)
+bool limbsBleed(edict_t* ent, double since)
 {
     // Alive: knocked down (vr_knockdown 1, 2 getting up; Killed clears it), or a monster with health left (its get-up's
     // last blend, after QC has stood it up). A corpse's limbs always bleed, as before.
     const bool alive = fieldFloatOr(ent, fields().vr_knockdown, 0.f) != 0.f ||
                        (ent->v.health > 0.f && (static_cast<int>(ent->v.flags) & FL_MONSTER) != 0);
-    return !alive || fieldFloatOr(ent, fields().vr_bloodied, 1.f) != 0.f;
+    if(!alive)
+    {
+        return true;
+    }
+    if(fields().vr_bled_at < 0)
+    {
+        return fieldFloatOr(ent, fields().vr_bloodied, 1.f) != 0.f; // (a progs without it: once it ever bled)
+    }
+    const float bledAt = fieldFloat(ent, fields().vr_bled_at);
+    return bledAt > 0.f && static_cast<double>(bledAt) >= since - bledGrace;
 }
 
 // After the step: the entity where its frame would have its pelvis where the ragdoll has it (a saved game's ragdoll is
@@ -2626,7 +2635,7 @@ void writeRagdoll(edict_t* ent, Slot& s)
         r.count == r.written.count && r.cut == r.written.cut && ent->v.frame == r.written.frame &&
         vec(ent->v.origin) == r.written.origin && vec(ent->v.mins) == r.written.mins && vec(ent->v.maxs) == r.written.maxs &&
         ent->v.velocity[0] == 0.f && ent->v.velocity[1] == 0.f && ent->v.velocity[2] == 0.f &&
-        (static_cast<int>(ent->v.flags) & FL_ONGROUND) && limbsBleed(ent) == r.written.bleeds)
+        (static_cast<int>(ent->v.flags) & FL_ONGROUND) && limbsBleed(ent, r.born) == r.written.bleeds)
     {
         bool still = true;
         for(int b = 0; b < r.count && still; b++)
@@ -2747,7 +2756,7 @@ void writeRagdoll(edict_t* ent, Slot& s)
     s.origin = origin;
     s.asleep = !awake;
     // (The time of the message after this step: qcvm->time is advanced after the physics, SV_Physics.)
-    const bool bleeds = limbsBleed(ent);
+    const bool bleeds = limbsBleed(ent, r.born);
     ragdoll::publish(r.num, r.rig, r.count, rot.data(), pos.data(), r.scale, qcvm->time + host_frametime, heldBy, r.cut,
         bleeds);
     RagdollBodies::Written& w = r.written;

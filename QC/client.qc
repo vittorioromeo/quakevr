@@ -1249,6 +1249,10 @@ entity() SelectSpawnPoint =
             }
         }
 
+        // VR (mpbugs3): the scan ends after two passes past the last start: a map with no deathmatch start (Dwell's start,
+        // any single player map) looped here for ever ("runaway loop error" from Select Campaign in a multiplayer game,
+        // his note 2026-11-21), and so did every start blocked with no last spawn yet (startspot world: never met again).
+        float wraps = 0;
         while(1)
         {
             if(t == TEAM1)
@@ -1300,6 +1304,29 @@ entity() SelectSpawnPoint =
             }
             else
             {
+                if(t == 0)
+                {
+                    wraps = wraps + 1;
+                }
+                if(wraps >= 2)
+                {
+                    spot = find(world, classname, "info_player_deathmatch");
+                    if(!spot)
+                    {
+                        // The coop starts and the player start, as coop picks them (the next clear one, else beside
+                        // one): not the player start for all, each spawn telefragging the one on it.
+                        dprint("SelectSpawnPoint: deathmatch, no info_player_deathmatch: coop's starts\n");
+                        spot = VR_CoopSpawnPoint();
+                        if(spot)
+                            return spot;
+                        break; // (the player start below, as single player)
+                    }
+                    entity besideAll = VR_DMBesideSpot(spot); // every start taken: a place beside one, else the first
+                    if(besideAll)
+                        return besideAll;
+                    lastspawn = spot;
+                    return spot;
+                }
                 // pgm fix for ctf in levels w/o ctf support
                 t = 0;
             }

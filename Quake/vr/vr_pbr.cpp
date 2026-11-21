@@ -4,6 +4,7 @@
 #include "vr_cvars.hpp"
 #include "vr_tunables.hpp"
 #include "vr_extmaps.hpp"
+#include "vr_files.hpp"
 #include "vr_sha256.hpp"
 #include "vr_mem.hpp"
 #include "vr_modelmetadata.h"
@@ -165,6 +166,15 @@ void loadProvenance()
     if(session.provenanceLoaded) return;
     session.provenanceLoaded = true;
     loadIndex("textures/pbr/provenance.txt", parseProvenance, session.provenance);
+    // The reliefs folder's own index (Setup's, made on this machine: files::reliefsDir): its companions are searched
+    // below every game folder (VR_AddReliefsPath), so the search above finds quakevr's index, never this one.
+    const za::String reliefs = files::reliefsDir() + "/textures/pbr/provenance.txt";
+    if(char* data = reinterpret_cast<char*>(COM_LoadMallocFile_TextMode_OSPath(reliefs.cStr(), nullptr)))
+    {
+        if(parseProvenance(data, session.provenance) == 0)
+            Con_Warning("%s: no records read (malformed?)\n", reliefs.cStr());
+        free(data);
+    }
 }
 
 Companion* companion(const char* hash)
@@ -693,6 +703,24 @@ extern "C" void VR_PBRExternal(gltexture_t* base, const char* normal, char* path
         q_strlcpy(path, r.path, size);
         return;
     }
+}
+
+// COM_InitFilesystem, before the base search path is fixed: the reliefs folder Setup made on this machine (Dwell's and
+// Quoth's companions, files::reliefsDir), when there is one, at the bottom of the search path (below id1, kept across
+// game folder changes): only its textures/pbr names are ever asked for there, and quakevr's bundle stays above it.
+extern "C" void VR_AddReliefsPath()
+{
+    const za::String dir = qvr::files::reliefsDir();
+    if(Sys_FileType(dir.cStr()) != FS_ENT_DIRECTORY)
+        return;
+    searchpath_t* search = static_cast<searchpath_t*>(Z_Malloc(sizeof(searchpath_t)));
+    search->path_id = 1u;
+    q_strlcpy(search->filename, dir.cStr(), sizeof(search->filename));
+    searchpath_t** tail = &com_searchpaths;
+    while(*tail) tail = &(*tail)->next;
+    *tail = search;
+    VR_FileCacheSearchChanged();
+    Con_Printf("Reliefs: %s\n", dir.cStr());
 }
 
 extern "C" byte* VR_PBRImage(const char* name, int* w, int* h, enum srcformat* fmt)

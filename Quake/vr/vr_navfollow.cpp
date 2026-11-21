@@ -9,6 +9,7 @@
 #include "vr_main.hpp"
 #include "vr_progs.hpp"
 #include "vr_protocol.hpp"
+#include "vr_server.hpp"
 #include "vr_tunables.hpp"
 
 #include "Zancle/Base/IntTypes.hpp"
@@ -74,6 +75,63 @@ struct Bot
 // seat-shared: the server's bots (one per player slot)
 Bot bots[maxSlots];
 double botTimeSeen = -1.0; // (seat-shared: the server's; a new server's clock starts again: every plan dropped)
+
+// ---- Server: the bots' paths to the clients drawing them (vr_nav_debug on: "vr_nav_botpaths 1") ------------------------
+
+struct BotPath
+{
+    int next = 0;
+    int count = 0; // (0: no path)
+    nav::PathCorner corners[maxCorners];
+};
+// seat-shared: the server's, by client slot
+BotPath botSent[maxSlots];      // each bot's path as last sent (by its client slot)
+// seat-shared: the server's, by client slot
+bool botPathsWanted[maxSlots];  // the client slots whose player draws them
+// seat-shared: the server's, by client slot
+bool botPathsFresh[maxSlots];   // ... and has just asked: every path sent him now
+
+bool samePath(const BotPath& a, const BotPath& b)
+{
+    if(a.count != b.count || a.next != b.next)
+    {
+        return false;
+    }
+    for(int i = 0; i < a.count; ++i)
+    {
+        if(a.corners[i].link != b.corners[i].link || a.corners[i].at != b.corners[i].at)
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+void writeBotPath(sizebuf_t* msg, int slot, const BotPath& p)
+{
+    MSG_WriteByte(msg, protocol::svc_quakevr);
+    MSG_WriteByte(msg, protocol::QVR_SVC_BOTPATH);
+    MSG_WriteByte(msg, slot);
+    MSG_WriteByte(msg, p.next);
+    MSG_WriteByte(msg, p.count);
+    for(int i = 0; i < p.count; ++i)
+    {
+        MSG_WriteByte(msg, static_cast<int>(p.corners[i].link));
+        for(int k = 0; k < 3; ++k)
+        {
+            MSG_WriteCoord(msg, p.corners[i].at[k], sv.protocolflags);
+        }
+    }
+}
+
+// ---- Client: the bots' paths as the server sent them ----------------------------------------------------------------------
+
+// seat-shared: a debug view's: the paths drawn (phase 7's per-seat render)
+BotPath botPaths[maxSlots];
+// seat-shared: with botPaths (debug)
+bool botPathsAsked = false; // "vr_nav_botpaths 1" sent this connection
+// seat-shared: the debug draw's count
+int botLinesDrawn = 0;      // the bots' path lines the last debug draw drew
 
 // The path's length from `feet` on from corner `next`.
 float pathLeft(const nav::PathCorner* corners, int count, int next, const glm::vec3& feet)
@@ -217,6 +275,89 @@ void ask_f()
     }
 }
 
+// "vr_nav_botpaths <0 | 1>": a client draws the bots' navmesh paths (his vr_nav_debug), on the server.
+void botPaths_f()
+{
+    if(cmd_source != src_client || !sv.active || !host_client || Cmd_Argc() != 2)
+    {
+        return;
+    }
+    const int self = static_cast<int>(host_client - svs.clients);
+    if(self < 0 || self >= maxSlots)
+    {
+        return;
+    }
+    botPathsWanted[self] = botPathsFresh[self] = atoi(Cmd_Argv(1)) != 0;
+}
+
+// Server: each bot's path sent, when it changed, to the clients drawing them; every one to a client that just asked.
+void serverBotPaths()
+{
+    bool anyone = false;
+    for(int v = 0; v < svs.maxclients && v < maxSlots; ++v)
+    {
+        if(botPathsWanted[v] && !playing(v))
+        {
+            botPathsWanted[v] = botPathsFresh[v] = false;
+        }
+        anyone = anyone || botPathsWanted[v];
+    }
+    if(!anyone)
+    {
+        return;
+    }
+    for(int s = 0; s < svs.maxclients && s < maxSlots; ++s)
+    {
+        const Bot& b = bots[s];
+        BotPath now;
+        if(server::isBot(s) && b.goal && b.plan.state == stateOn && b.plan.count >= 2)
+        {
+            now.count = b.plan.count;
+            now.next = za::clamp(b.steer.next, 0, b.plan.count - 1);
+            for(int i = 0; i < now.count; ++i)
+            {
+                now.corners[i] = b.plan.corners[i];
+            }
+        }
+        const bool changed = !samePath(now, botSent[s]);
+        botSent[s] = now;
+        for(int v = 0; v < svs.maxclients && v < maxSlots; ++v)
+        {
+            if(botPathsWanted[v] && (changed || (botPathsFresh[v] && now.count)))
+            {
+                writeBotPath(&svs.clients[v].message, s, now);
+            }
+        }
+    }
+    for(bool& f : botPathsFresh)
+    {
+        f = false;
+    }
+}
+
+// Client: the bots' paths asked of the server while vr_nav_debug is on (and forgotten when off or on a new connection).
+void askBotPaths()
+{
+    const bool connected = cls.state == ca_connected && cls.signon == SIGNONS && !cls.demoplayback;
+    const bool want = connected && vr_nav_debug.value != 0.f;
+    if(want != botPathsAsked)
+    {
+        if(connected)
+        {
+            MSG_WriteByte(&cls.message, clc_stringcmd);
+            MSG_WriteString(&cls.message, va("vr_nav_botpaths %d", want ? 1 : 0));
+        }
+        botPathsAsked = want;
+    }
+    if(!want)
+    {
+        for(BotPath& p : botPaths)
+        {
+            p.count = 0;
+        }
+    }
+}
+
 // ---- Client side --------------------------------------------------------------------------------------------------------
 
 void forward_f()
@@ -243,6 +384,13 @@ void status_f()
     Con_Printf("navfollow: state=%d target=%d partial=%d corners=%d next=%d driving=%d paused=%d arrived=%d at=%.0f %.0f %.0f\n",
         c.state, c.target, c.partial ? 1 : 0, c.count, c.steer.next, c.driving ? 1 : 0, c.paused ? 1 : 0,
         c.last.arrived ? 1 : 0, f.x, f.y, f.z);
+    int paths = 0, corners = 0;
+    for(const BotPath& p : botPaths)
+    {
+        paths += p.count >= 2 ? 1 : 0;
+        corners += p.count >= 2 ? p.count : 0;
+    }
+    Con_Printf("navbots: asked=%d paths=%d corners=%d drawn=%d\n", botPathsAsked ? 1 : 0, paths, corners, botLinesDrawn);
 }
 
 const char* stateName(int s)
@@ -434,6 +582,7 @@ void init()
     Cmd_AddCommand("vr_nav_follow", forward_f);
     Cmd_AddCommand_ClientCommand("vr_nav_follow_ask", ask_f);
     Cmd_AddCommand("vr_nav_follow_status", status_f);
+    Cmd_AddCommand_ClientCommand("vr_nav_botpaths", botPaths_f);
 }
 
 void serverFrame()
@@ -448,6 +597,10 @@ void serverFrame()
         for(Follow& f : follows)
         {
             f = {};
+        }
+        for(BotPath& p : botSent)
+        {
+            p = {};
         }
     }
     serverTimeSeen = now;
@@ -484,6 +637,34 @@ void serverFrame()
             f.dirty = false;
         }
     }
+    serverBotPaths();
+}
+
+void parseBotPath()
+{
+    const int slot = MSG_ReadByte();
+    const int next = MSG_ReadByte();
+    const int n = MSG_ReadByte();
+    BotPath p;
+    for(int i = 0; i < n; ++i)
+    {
+        const int link = MSG_ReadByte();
+        glm::vec3 at;
+        for(int k = 0; k < 3; ++k)
+        {
+            at[k] = MSG_ReadCoord(cl.protocolflags);
+        }
+        if(p.count < maxCorners && link >= 0 && link <= static_cast<int>(nav::LinkKind::tele))
+        {
+            p.corners[p.count++] = {at, static_cast<nav::LinkKind>(link)};
+        }
+    }
+    if(msg_badread || slot < 0 || slot >= maxSlots)
+    {
+        return;
+    }
+    p.next = za::clamp(next, 0, za::max(p.count - 1, 0));
+    botPaths[slot] = p;
 }
 
 void parse()
@@ -618,13 +799,37 @@ bool jumpNow()
 
 void debugDraw()
 {
-    const Client& c = client;
-    if(vr_nav_debug.value == 0.f || c.state != stateOn || c.count < 2)
+    askBotPaths();
+    botLinesDrawn = 0;
+    if(vr_nav_debug.value == 0.f)
     {
         return;
     }
     const glm::vec3 up{0.f, 0.f, 6.f};
     const glm::vec4 yellow{1.f, 0.9f, 0.1f, 1.f}, cyan{0.1f, 0.9f, 0.95f, 1.f}, white{1.f, 1.f, 1.f, 1.f};
+    const glm::vec4 magenta{1.f, 0.2f, 0.9f, 1.f};
+    // Each bot's navmesh path (vr_bot_navmesh), as the server sent it: magenta, a teleporter's jump cyan, its next corner a
+    // white post.
+    for(const BotPath& p : botPaths)
+    {
+        if(p.count < 2)
+        {
+            continue;
+        }
+        for(int i = 0; i + 1 < p.count; ++i)
+        {
+            const bool jump = p.corners[i].link == nav::LinkKind::tele && i > 0 && p.corners[i - 1].link == nav::LinkKind::tele;
+            lines::sceneLine(p.corners[i].at + up, p.corners[i + 1].at + up, 2.f, jump ? cyan : magenta, jump ? cyan : magenta);
+            ++botLinesDrawn;
+        }
+        const glm::vec3 n = p.corners[p.next].at + up;
+        lines::sceneLine(n, n + glm::vec3{0.f, 0.f, 24.f}, 3.f, white, white);
+    }
+    const Client& c = client;
+    if(c.state != stateOn || c.count < 2)
+    {
+        return;
+    }
     for(int i = 0; i + 1 < c.count; ++i)
     {
         // (a teleporter's trigger middle to its destination: the jump, cyan)

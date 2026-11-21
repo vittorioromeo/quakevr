@@ -215,6 +215,20 @@ float vr_agr_pl_dmg;       // ... their damage
 float vr_agr_pl_raw;       // ... their damage before vr_agrunt_damage_scale (vr_armedgrunt_ammo_test.qc)
 float(float kind) VR_AGR_Replace;                                          // monster_army, monster_enforcer: TRUE: done
 float() VR_AKN_Replace;                                                    // monster_knight: its armed version (vr_agknight): TRUE: done
+// AD's and Quoth's own humanoid variants as armed humanoids, and the recolours by weapon (vr_humrepl.qc).
+.float vr_hum_look;        // its recolour (the engine's vr_humlook.cpp): its row * 16 + its weapon's category (VR_HUM_CAT_*), + 4096 on its worn pack; 0 none
+.float vr_hum_variant;     // the variant it replaced (VR_HUM_V_*; 0: none)
+float VR_HUM_V_ROCKET = 1;     // AD's (and Quoth's) rocket soldier, monster_army_rocket
+float VR_HUM_V_GRENADE = 2;    // the grenade soldier, monster_army_grenade
+float VR_HUM_V_PLASMA = 3;     // the plasma soldier, monster_army_plasma
+float VR_HUM_V_DEFENDER = 4;   // the defender, monster_defender
+float VR_HUM_V_ELIMINATOR = 5; // the eliminator, monster_eliminator
+float VR_HUM_V_PYRO = 6;       // the pyro, monster_pyro
+float VR_HUM_V_FUMIGATOR = 7;  // the fumigator, monster_fumigator
+float VR_HUM_V_CROSSBOW = 8;   // the crossbow knight, monster_dcrossbow
+float VR_HUM_V_COUNT = 9;
+float(float variant) VR_HUM_Replace;                                       // AD's variant spawns (ad_monster_army_rocket, ...): TRUE: done
+void(entity e) VR_HUM_Look;                                                // VR_AM_Spawn, VR_AGR_Resolve: its look by what it holds
 void() VR_AGR_Precache;                                                    // worldspawn: the replacements' models
 void() VR_AGR_Frame;                                                       // StartFrame: loadouts rolled once a player is in
 void(entity p) VR_AGR_NativeShot;                                          // VR_AG_ShootProp: a native gun's shot

@@ -27,6 +27,8 @@ namespace qvr::hull
 // VR_Init: the vr_hull_stats and vr_hull_bench commands, the setting's callback.
 void init();
 void registerDiagCommands(); // the hull tests and benches (vr_hull_diag.cpp)
+// vr_hull_holes_show: the gap blockers drawn round the view, and their counts in front of it (vr_hull_holes.cpp).
+void holesDebugDraw(const glm::vec3& view, float yaw);
 
 // The map load's builds on the game's thread pool, made while the server spawns the map: VR_OnSpawnServerBeforeLoad
 // starts the map as brushes and the player's compiled hull, VR_OnEntitySpawned each monster width's hull as the first

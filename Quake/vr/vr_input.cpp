@@ -1772,6 +1772,187 @@ void stickDebug(glm::vec2 raw)
                moveTopSpeed(false), moveTopSpeed(true), speed, heading);
 }
 
+// ---- vr_noclip_fly_test: noclip flies where the camera looks (his ask, 2026-11-21; VR_AdjustMove's noclipFlies). In a
+// map (a listen server; flat or VR, the same cases), each case: noclip, the look set and held, then the move pushed for
+// noclipFlyDrive frames; the flight's climb (degrees above level, from the server's player between the push's 8th frame
+// and its last) against the case's. Keys forward at 45 up, 45 down and level climb as the look; a strafe at 45 up and the
+// up key stay level and straight up. With a headset also the stick: the head steering at 45 up, and a hand steering
+// (vr_movement_mode 0, the moving hand turned up 30, the head level) climbs as the hand points. Ends "noclip fly test: N
+// passed, M failed"; puts the player back on foot.
+struct NoclipFlyCase
+{
+    float pitch; // the look's (down positive)
+    int input;   // 0 keys forward, 1 keys strafing right, 2 the up key, 3 the stick forward (the head), 4 the stick (a hand)
+    const char* what;
+};
+constexpr NoclipFlyCase noclipFlyCases[] = {
+    {-45.f, 0, "keys forward, look 45 up"}, {45.f, 0, "keys forward, look 45 down"}, {0.f, 0, "keys forward, level"},
+    {-45.f, 1, "keys strafing, look 45 up"}, {-45.f, 2, "the up key, look 45 up"},   {-45.f, 3, "stick, the head 45 up"},
+    {0.f, 4, "stick, the hand 30 up"},
+};
+constexpr int noclipFlyCaseCount = static_cast<int>(sizeof(noclipFlyCases) / sizeof(noclipFlyCases[0]));
+constexpr int noclipFlyLook = 10;   // frames the look settles over before the push
+constexpr int noclipFlySkip = 8;    // the push's first frames, unmeasured (the move reaching the server)
+constexpr int noclipFlyDrive = 48;  // frames pushed
+constexpr float noclipFlyHandUp = 100.f; // (the mock's moving hand rests 70 down: turned 100 up, it points 30 up)
+constexpr float noclipFlyTolerance = 3.f; // degrees
+
+struct NoclipFlyTest
+{
+    bool active{false};
+    int index{0};
+    int frames{0};
+    glm::vec3 start{0.f};
+    glm::vec3 from{0.f};
+    float expected{0.f};
+    float yaw{0.f};
+    float mode{1.f};
+    testkit::Tally tally;
+};
+// seat-shared: the test's own
+NoclipFlyTest noclipFlyTest;
+
+[[nodiscard]] bool noclipFlySkipped(const NoclipFlyCase& c)
+{
+    return c.input >= 3 && !vrActive(); // (the flatscreen mode's stick is a gamepad's, not tracked)
+}
+
+void noclipFlyFinish()
+{
+    NoclipFlyTest& t = noclipFlyTest;
+    t.active = false;
+    Cvar_SetValueQuick(&vr_movement_mode, t.mode);
+    if(edict_t* p = stickPlayer())
+    {
+        p->v.movetype = static_cast<float>(MOVETYPE_WALK);
+    }
+    noclip_anglehack = false;
+    t.tally.verdict("noclip fly test");
+}
+
+void noclipFlyLookAt(float pitch)
+{
+    if(vrActive())
+    {
+        Cbuf_AddText(va("vr_mock_look %g %g\n", pitch, noclipFlyTest.yaw));
+    }
+    else
+    {
+        cl.viewangles[PITCH] = pitch;
+        cl.viewangles[YAW] = noclipFlyTest.yaw;
+        cl.viewangles[ROLL] = 0.f;
+    }
+}
+
+void noclipFly_f()
+{
+    edict_t* p = stickPlayer();
+    if(!p || !sv.active)
+    {
+        Con_Printf("vr_noclip_fly_test: needs a map (a listen server)\n");
+        return;
+    }
+    NoclipFlyTest& t = noclipFlyTest;
+    t = {};
+    t.active = true;
+    t.start = {p->v.origin[0], p->v.origin[1], p->v.origin[2] + 64.f};
+    t.yaw = hands::current().valid ? hands::current().headAngles.y : cl.viewangles[YAW];
+    t.mode = vr_movement_mode.value;
+    Con_Printf("noclip fly test: %d cases from %.0f %.0f %.0f%s\n", noclipFlyCaseCount, t.start.x, t.start.y, t.start.z,
+               vrActive() ? "" : " (flatscreen: the stick's cases skipped)");
+}
+
+// From VR_AdjustMove each client frame, before the move is made: the case's push as keys or the stick would give it.
+void noclipFlyTick(float* forwardmove, float* sidemove, float* upmove)
+{
+    NoclipFlyTest& t = noclipFlyTest;
+    if(!t.active)
+    {
+        return;
+    }
+    edict_t* p = stickPlayer();
+    if(!p)
+    {
+        t.tally.check(false, "noclip fly test", "the player is gone");
+        noclipFlyFinish();
+        return;
+    }
+    while(t.index < noclipFlyCaseCount && noclipFlySkipped(noclipFlyCases[t.index]))
+    {
+        ++t.index;
+    }
+    if(t.index >= noclipFlyCaseCount)
+    {
+        noclipFlyFinish();
+        return;
+    }
+    const NoclipFlyCase& c = noclipFlyCases[t.index];
+    const int f = t.frames++;
+    if(f == 0)
+    {
+        p->v.movetype = static_cast<float>(MOVETYPE_NOCLIP);
+        noclip_anglehack = true;
+        Cvar_SetValueQuick(&vr_movement_mode, c.input == 4 ? 0.f : 1.f);
+        noclipFlyLookAt(c.pitch);
+        if(c.input == 4)
+        {
+            Cbuf_AddText(va("vr_mock_hand_turn off %g 0 0\n", noclipFlyHandUp));
+        }
+    }
+    if(f < noclipFlyLook)
+    {
+        VectorCopy(&t.start[0], p->v.origin);
+        p->v.velocity[0] = p->v.velocity[1] = p->v.velocity[2] = 0.f;
+        progs::ServerVm serverVm; // (the client's move: the client's VM, or none, is in)
+        SV_LinkEdict(p, false);
+        moveAxes = glm::vec2{0.f};
+        return;
+    }
+    // The push.
+    switch(c.input)
+    {
+        case 0: *forwardmove += stickTestWalk; break;
+        case 1: *sidemove += stickTestWalk; break;
+        case 2: *upmove += stickTestWalk; break;
+        default: break;
+    }
+    moveAxes = c.input >= 3 ? glm::vec2{0.f, 1.f} : glm::vec2{0.f};
+    const int pushed = f - noclipFlyLook;
+    if(pushed == noclipFlySkip)
+    {
+        t.from = {p->v.origin[0], p->v.origin[1], p->v.origin[2]};
+        // What it should climb at: the look's (keys, the head), level (a strafe), straight up (the up key), the hand's.
+        const hands::State& s = hands::current();
+        const glm::vec3 handFwd = hands::forward(s.rot[hands::moveHand()]);
+        t.expected = c.input == 1   ? 0.f
+                     : c.input == 2 ? 90.f
+                     : c.input == 4 ? glm::degrees(glm::asin(glm::clamp(handFwd.z, -1.f, 1.f)))
+                                    : -c.pitch;
+    }
+    if(pushed < noclipFlyDrive)
+    {
+        return;
+    }
+    const glm::vec3 to{p->v.origin[0], p->v.origin[1], p->v.origin[2]};
+    const glm::vec3 d = to - t.from;
+    const float level = za::sqrt(d.x * d.x + d.y * d.y);
+    const float moved = glm::length(d);
+    const float climb = moved > 0.f ? glm::degrees(za::atan2(d.z, level)) : 0.f;
+    const float least = 0.25f * stickTestWalk * static_cast<float>(noclipFlyDrive - noclipFlySkip) / 72.f;
+    const bool ok = moved > least && za::fabs(climb - t.expected) <= noclipFlyTolerance;
+    Con_Printf("noclip fly: %s: moved %.0f (at least %.0f), climb %.1f deg, expected %.1f%s\n", c.what, moved, least, climb,
+               t.expected, ok ? "" : "  FAIL");
+    t.tally.check(ok, "noclip fly test", c.what);
+    if(c.input == 4)
+    {
+        Cbuf_AddText(va("vr_mock_hand_turn off %g 0 0\n", -noclipFlyHandUp));
+    }
+    moveAxes = glm::vec2{0.f};
+    noclipFlyLookAt(0.f);
+    ++t.index;
+    t.frames = 0;
+}
+
 } // namespace
 
 namespace qvr::input
@@ -1790,6 +1971,7 @@ void init()
     Cmd_AddCommand("vr_stick_curve_test", stickTest_f);
     Cmd_AddCommand("vr_stick_run_test", stickRun_f);
     Cmd_AddCommand("vr_stick_line_test", stickLine_f);
+    Cmd_AddCommand("vr_noclip_fly_test", noclipFly_f);
     Cmd_AddCommand("vr_move_report", moveReport_f);
     Cmd_AddCommand("vr_doubletap_test", doubleTapTest_f);
 }
@@ -2361,6 +2543,33 @@ extern "C" int VR_SpeedButton(int held)
     return vr_sprint_toggle.value != 0.f ? sprintToggle.on : held != 0;
 }
 
+namespace
+{
+// Noclip flies where what steers points (his ask, 2026-11-21: "always go towards where the camera is pointing"). The
+// server's SV_NoclipMove takes a tracked-hands client's move (a headset's, and the flatscreen mode's: QVR_BUTTON_HANDSTRACKED)
+// along the head's level yaw and its upmove doubled straight up (VR_NoclipAngles), so the flight's pitch is put here: a
+// push along `steer` (pitch, yaw) becomes its level part on forward and side and its rise on upmove, at half (the server
+// doubles it). The up and down keys (jump, crouch) keep going straight up and down. Local games only: Quake's own
+// noclip_anglehack, set by the noclip and setpos commands (a remote server's noclip flies level, up by the old upmove).
+bool noclipFlies()
+{
+    return noclip_anglehack && sv.active && (qvr::vrActive() || qvr::flatplay::active());
+}
+
+// The push `fwd`, `side` (any length: the speed is in them) along `steer`'s yaw and pitch, into the head's level frame.
+void flyMove(const glm::vec3& steer, float headYaw, float fwd, float side, float* forwardmove, float* sidemove, float* upmove)
+{
+    glm::vec3 f, r, u, vfwd, vright, vup;
+    qvr::hands::angleVectors({steer.x, steer.y, 0.f}, f, r, u);
+    qvr::hands::angleVectors({0.f, steer.y, 0.f}, vfwd, r, vup); // (r: the steer's level right)
+    const glm::vec3 move = fwd * f + side * r;
+    qvr::hands::angleVectors({0.f, headYaw, 0.f}, vfwd, vright, vup);
+    *forwardmove += glm::dot(move, vfwd);
+    *sidemove += glm::dot(move, vright);
+    *upmove += move.z * 0.5f;
+}
+} // namespace
+
 // Thumbstick locomotion. Running or walking as with the keyboard (walking: cl_alwaysrun 0, the
 // default; the speed button switches): running is cl_movespeedkey times the speed, and the stick, being
 // analog, moves at cl_forwardspeed in every direction (as the old engine did), on the response curve and never past
@@ -2399,6 +2608,7 @@ extern "C" void VR_AdjustMove(float* forwardmove, float* sidemove, float* upmove
         return;
     }
 
+    noclipFlyTick(forwardmove, sidemove, upmove); // (vr_noclip_fly_test's push)
     const float m = glm::length(moveAxes);
     // vr_nav_follow (vr_navfollow.cpp): walked after another player along the navmesh, as his own keys would, till his
     // own move, look or jump hands it back.
@@ -2406,6 +2616,18 @@ extern "C" void VR_AdjustMove(float* forwardmove, float* sidemove, float* upmove
     {
         lastStickSpeed = 0.f;
         return;
+    }
+    // Noclip: the keys' push flies where the camera looks (the head; the flatscreen mode's view).
+    const bool flies = noclipFlies();
+    const glm::vec3 lookAngles = hands::current().valid ? hands::current().headAngles
+                                                        : glm::vec3{cl.viewangles[0], cl.viewangles[1], cl.viewangles[2]};
+    if(flies && (*forwardmove != 0.f || *sidemove != 0.f))
+    {
+        const float keyFwd = *forwardmove;
+        const float keySide = *sidemove;
+        *forwardmove = 0.f;
+        *sidemove = 0.f;
+        flyMove(lookAngles, lookAngles.y, keyFwd, keySide, forwardmove, sidemove, upmove);
     }
     // The speed button's choice (held or vr_sprint_toggle's switch, against the Default Speed); a double tap's, the
     // Default Speed's other whatever the button says (his ask, 2026-11-21: with Default Speed: Run it walks).
@@ -2438,6 +2660,18 @@ extern "C" void VR_AdjustMove(float* forwardmove, float* sidemove, float* upmove
     // 2 the left hand, 3 the right hand; 0 the moving stick's (1: the head steers; 4: the torso).
     const bool handSteers = mode != 1 && mode != 4;
     const int hand = mode == 2 ? HAND_OFF : mode == 3 ? HAND_MAIN : hands::moveHand();
+    if(flies)
+    {
+        // Noclip: the stick flies where what steers points: the steering hand, the head, or the torso's yaw at the
+        // head's pitch.
+        const glm::vec3 steer = !s.valid   ? lookAngles
+                                : mode == 4 ? glm::vec3{s.headAngles.x, s.bodyYaw, 0.f}
+                                : handSteers ? s.rot[hand]
+                                             : s.headAngles;
+        flyMove(steer, s.valid ? s.headAngles.y : lookAngles.y, fwd * speed, side * speed, forwardmove, sidemove, upmove);
+        lastStickSpeed = speed;
+        return;
+    }
     if(s.valid && mode == 4)
     {
         glm::vec3 tfwd, tright, tup, vfwd, vright, vup;
