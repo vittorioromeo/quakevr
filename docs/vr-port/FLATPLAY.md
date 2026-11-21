@@ -557,10 +557,15 @@ Not shared with the armed humanoids' arms (`vr_agarms.cpp`): theirs is a sampled
 body's skeleton; what carries over is the rule (the elbows down, out and a little back: `elbowPref`), not the code.
 
 Reports: `vr_mp_avatars`' `mp_body` lines carry `headeye=` (the drawn head's eyes) and `elbow0=` / `elbow1=`, a flat
-client's `mp_adspose_own:` (the eye, the rear sight, the travel, the weapon) and `mp_adspose_head:` (the drawn head's
-top and lowest point against the eye). `mp_test.py adspose` measures every weapon with a sight line standing, crouched
-and sliding (a slow slide: the rules it sets), each looking level, 40 up and 40 down, with a screenshot from the other
-player's side and from in front, aimed at the head; `MP_ADSPOSE_SEEN=0` takes the before shots.
+client's `mp_adspose_own:` (the eye, the rear sight, the travel, the weapon, `stime=` the server's time of his last
+message) and `mp_adspose_head:` (the drawn head's top and lowest point against the eye); `mp_body`'s `posedat=` is the
+server's time of the avatar the copy was posed from (the interpolation's, behind the last message). `mp_test.py adspose`
+measures every weapon with a sight line standing, crouched and sliding (a slow slide from the spot north: the rules it
+sets), each looking level, 40 up and 40 down, with a screenshot from the other player's side and from in front, aimed at
+the head. Each pose is taken once B is still and the copy is posed from an avatar he sent after that (`posedat` past his
+`stime`): a copy merely unchanged over a few reports could still show the pose before, the interpolation's delay longer
+than the reports. Sliding, the copy runs that delay behind along the way (8.5 units at the test's slow slide): its
+eyes' height is judged. `MP_ADSPOSE_SEEN=0` takes the before shots, `MP_ADSPOSE_SLIDE=0` leaves the slides out.
 
 ## The ironsight, and the free hand's grip
 

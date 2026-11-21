@@ -1504,7 +1504,8 @@ ADS_FACE_AHEAD = (-0.12, 0.45)  # ... its depth along the sights off the drawn e
 ADS_POSED_AFTER = 0.1  # s of the server's time: B's moves after his still message reach the server and come back to A
 ADS_SLIDE_START = 0.0  # a slide starts this far south of the spot, slowly (the rules below), A's camera following (adspose3: 0 -- 40 south was in the wall behind the coop starts, the server put him 40 north of the spot, stuck)
 ADS_SLIDE_RULES = "vr_flat_slide_min 20; vr_flat_slide_boost 0; vr_flat_slide_friction 0; vr_flat_slide_end 5; vr_flat_slide_stamina 0; vr_flat_slide_cooldown 0"
-ADS_SLIDE_WALK = "cl_alwaysrun 0; cl_forwardspeed 60"  # B's walk into the slide: 60 units/s, kept (no friction)
+ADS_SLIDE_WALK = "cl_alwaysrun 0; cl_forwardspeed 60"  # B's walk into the slide, kept (no friction): on his sights about half
+# that (adspose3: 30 slid not at all, under vr_flat_slide_min 20); he has 38 units north of the spot before he is stopped
 
 
 def seg_points(a, b, n=12):
@@ -1598,11 +1599,11 @@ def adspose(s):
 
     def slide_at(pitch):
         """B walks north into a slow slide (the rules above) on his sights at the look -> (adsl, own, copy) while A's copy
-        of him slides and he is on them, or None (a definite end: 40 + 60 reports)."""
+        of him slides and he is on them, or None (a definite end: 60 + 80 + 150 reports)."""
         start = (OPEN_SPOT[0], OPEN_SPOT[1] - ADS_SLIDE_START, OPEN_SPOT[2])
-        # (adspose3: B at the start as the server has him first, then walking 12 units north of it as the server has him --
+        # (adspose3: B at the start as the server has him first, then walking 4 units north of it as the server has him --
         # the copy's place was read before, still at the spot 40 north of the start, and the crouch went at once with B at
-        # rest on the server: "slide: none on the press: speed 0")
+        # rest on the server: "slide: none on the press: speed 0"; 4 units: his walk's speed reached)
         b.cmd("-forward; -flatcrouch")
         b.cmd("setpos %.1f %.1f %.1f %.1f 90 0; noclip" % (start[0], start[1], start[2], pitch))
         got = None
@@ -1613,12 +1614,12 @@ def adspose(s):
         b.cmd("+forward")
         for _ in range(80):
             got = org_of(status(srv), "mp_client", "slot", eb - 1)
-            if got and got[1] - start[1] >= 12.0:
+            if got and got[1] - start[1] >= 4.0:
                 break
         b.cmd("+flatcrouch")
         seen_most = [0.0, 0.0, 0.0, 0.0]  # (a miss's note: the most of A's copy's slide, B's own, his travel; how far he went)
         prev_up, low_since = None, None
-        for _ in range(90):
+        for _ in range(150):
             la, lb = reports(s, [a, b])
             adsl = by_ent(lb, "mp_adspose_own").get(eb)
             own, copy = body_of(lb, "mp_body_own").get(eb), body_of(la, "mp_body").get(eb)
