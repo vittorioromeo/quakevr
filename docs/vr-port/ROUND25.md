@@ -6546,3 +6546,32 @@ His words (2026-11-21): an extra wrist gadget page for the multiplayer scoreboar
 - Seen in passing (not changed): `vr_ad_mounted` stays as a client's last local map set it when he joins a remote server
   (A's page read 1 on dm4 after his single-player e1m1 with AD in the base): AD's page may be offered on a server without
   AD's data (it draws "NONE" rows).
+
+## split4a: splitscreen phase 4a, flat play's state per seat (split4a, 2026-11-21, `agent/split`)
+
+SPLITSCREEN.md section 11 has the details; in short (seats numbered from 0 as in the code):
+
+- Flat play's per-player state is the seat's parts (`seat::part<T>`, phase 3's pattern; read through each file's
+  accessors, the current seat's): vr_flatplay's `SeatFlat` (`FlatState`: the hands' pose, punches, shove, parry guard,
+  two-handed stance; `Feel`: the drawn hands' lag, sway, bob; `FlatKeys`: the mode's keys, the crouch and prone eases;
+  the CTRL bind taken; the slide's turn; the toolgun's keys), the holster menu, the ironsight (and the crosshair's
+  memo), third person, reload, E's carry, the grenade, the hands' swap. Eight `seat::Part`s.
+- Shared: `FlatSession` (the `-flatscreenmode` flag, its console lines once) split out of `FlatState`; the tests',
+  probes', tools' and GL state and vr_slide's server and headset state marked `seat-shared`. Left for their phases: the
+  slide's scrape sound (8), the toolgun itself (4b), the server's crouch slots (vr_hull, already per player slot).
+- `vr_seat_test` 56 of 56 (48 + 8: a fresh seat's flat play is the defaults; as seat 1 `+flatcrouch`, `+flatholsters`
+  and the ironsight's base FOV stay seat 1's; seat 1's let-go leaves seat 0's crouch held; each seat its own parts,
+  none made for a seat no code ran for). Read-outs: `flatplay::crouchCommand()`, `flatholster::holdCommand()`.
+- `seat_state` allowlist 4,025 -> 3,975 (15 moved, 35 marked). Merging next: view.c's new lift-rise height is the seat
+  view's (`seatview_t.liftz`); the gadget page, the server's ragdoll scratch, the body and lift logs marked shared; the
+  client's net ragdolls accepted (phase 5's).
+- **Before and after** (the merged base `bc42a8982` and phase 4a `28ad7607a`, same machine, quick builds; QC 0
+  warnings, Dev and ThinLTO 0 warnings): scenario_check 148 run 0 failed / same; load_models 4/0 same; of the 52 `flat*_test.sh`
+  suites 50 give identical verdicts, the same failing checks by name on both (flatads 6/1, flateject 15/2, flatfg2h
+  10/1, flatfix 15/4, flatfx 8/2, flatmenu_esc 5/2, flatswap 1 run failed, flatsweep 5 failed, flatvisuals 4/4, flatwall
+  16/1: already failing on the base); two differ, both base-only flakes gone after: flatpose 21/1 -> 22/0 (the near
+  plane's cut) and flatxhair 30/1 -> 31/0 (the centre pixels' centroid, the spread phases 2 and 3 saw). The flat
+  reload, holster, melee and parry tests: flatreload 54/0, flatholster 54/0, flatmelee 12/0, flatmelee2h
+  16/0, flatparry 43/0, same on both. The MP suite was not part of this phase's set (no network code touched).
+- In VR (the author): nothing changes with one seat. Flat: the hands, punches, shove, parry, crouch and prone, holster
+  menu, ironsight, third person, reload, E's carry, grenades, the hands' swap and the toolgun's keys behave as before.

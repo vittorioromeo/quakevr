@@ -177,7 +177,7 @@ connection, **without** (a1)'s swap registry: a player's state really moves out 
 | 1 | Command buttons, impulse (`cl_input.c`) | `seatinput_t input` (C) | current (`CL_SeatInput()`, `seat::current().input`) | `+forward`... run from `Cmd_ExecuteString` (no context to pass) and the move is built deep in the host frame |
 | 2 | Keys, bindings, devices (`keys.c`, `in_sdl.c`, `vr_input.cpp`'s flat keys) | `SeatKeys` (`keydown[]`, bindings, the seat's devices, mouse/stick accumulators) | **passed** from the SDL event (the device names its seat), then current while its binds run | the event is the shallow end; the binds are commands (as phase 1) |
 | 3 | View and HUD (`view.c`, `sbar.c`, `gl_screen.c`'s centre print and crosshair, the visor, hit marks, speed FOV, melee HUD) | `seatview_t view`, `seathud_t hud` (C); the VR files' parts (`seat::part<T>`) | **passed** inside the draws, read once at their entries (`V_SetupView`, `V_RenderView`, `SCR_UpdateScreen`), which take the seat with phase 7's loop; messages and commands: current (section 10) | a draw call per seat: shallow; the rectangle is a parameter anyway |
-| 4a | Flat play (`vr_flatplay`'s `FlatState`, `vr_flatholster`, `vr_flatsight`, `vr_flattp`, `vr_visor`, the toolgun's keys) | `SeatFlat` | current | ~200 call sites deep in the VR frame |
+| 4a | Flat play (`vr_flatplay`'s `FlatState`, `vr_flatholster`, `vr_flatsight`, `vr_flattp`, `vr_visor`, the toolgun's keys) | `SeatFlat` and the files' parts (`seat::part<T>`, section 11) | current | ~1,300 uses deep in the VR frame |
 | 4b | Hands (`vr_hands`, `vr_held`, `vr_twohand`, `vr_view_hands`, `vr_motion*`, `vr_throw`, `vr_climb`, `vr_grip*`, `vr_avatar*`) | `SeatHands` (`hands::current()` becomes the seat's rig) | current | the same depth; `hands::current()` already is the one door |
 | 5 | Client state and netcode (`cl`, `cls`, `vr_predict`, `vr_netsnap`, `vr_netmove`, `vr_client`) | `client_state_t`, `client_static_t`, `SeatNet` | current (`cl`/`cls` become the current seat's: one pointer the seat loop sets, the 4,600 uses unchanged in form) | 3,900 `cl.` uses in 288 files: passing is not an option |
 | 6 | Loopback grown to 4, the seat loop, own slots (`net_loop.c`, `progs::hostSlot`, `clientprefs::ownSlot`) | the seat's loopback pair and slot | **passed** (seat index) | a handful of call sites |
@@ -224,7 +224,7 @@ ends with the effort left re-estimated (below).
 | 1 | The seat type, the `seat_state` check, the command buttons and impulse | done (1) | - |
 | 2 | Keys, bindings and devices per seat; up to 4 controllers opened, each a seat's; the mouse and stick accumulators | done (1) | ~~3~~ answered: seat 1 is always the keyboard and mouse |
 | 3 | View and HUD per seat, drawn into a rectangle (one rectangle, the window, until phase 7) | done (1) | - |
-| 4a | Flat play's state (`FlatState`, holsters, sights, third person, toolgun keys; the visor and the lean went in phase 3) | 3 | - |
+| 4a | Flat play's state (`FlatState`, holsters, sights, third person, toolgun keys; the visor and the lean went in phase 3) | done (1) | - |
 | 4b | Hands, held, two-hand, grips, motion, throw, climb, avatar | 4-5 | - |
 | 5 | `cl`, `cls`, prediction, snapshots, the move | 4-5 | - |
 | 6 | The loopback grown to 4, the seat loop (each seat's client frame in its `Scope`), own slots: two seats join a listen server and play (headless test: two seats move apart) | 2-3 | 5 (saving), 6 (drop-in/out: whether a seat may join a running game) |
@@ -241,7 +241,9 @@ ends with the effort left re-estimated (below).
 for real costs the difference, mostly in phases 4-5). **After phase 2: 31-41 worker-days** (phase 2 took one; phase
 10's join screen is a little cheaper: the pads, their seats and the per-seat command buffer exist). **After phase 3:
 28-38 worker-days** (phase 3 took one; 4a lost the visor and the lean to it, and has the seat's parts to follow;
-phase 7 starts from a seat's window area that `SCR_CalcRefdef` already lays out in).
+phase 7 starts from a seat's window area that `SCR_CalcRefdef` already lays out in). **After phase 4a: 26-35
+worker-days** (4a took one of its three: the seat's parts made it mechanical; 4b is unchanged, its hands state being
+larger and shared with the headset's code paths).
 
 ## 7. Questions for him (the phase that needs each)
 
@@ -377,3 +379,42 @@ His answer to question 3 (2026-11-21): seat 1 is always the keyboard and mouse; 
   check counts 63 `seat-shared` marks now). Merging next brought 2 newcomers: `vr_input`'s `clickDebounce` and `vr_slide`'s
   `headsetLegsState`, both marked shared (the headset's controllers and wearer: one headset, one VR player).
 - **Before and after**: ROUND25.md "split3".
+
+## 11. Phase 4a (2026-11-21): flat play's state
+
+(Seats numbered from 0 as in the code.)
+
+- **Flat play's per-player state: the seat's parts** (phase 3's pattern, `seat::part<T>`; the access rule: current, the
+  code deep in the VR frame reading the current seat's through each file's one-line accessors):
+  - `vr_flatplay` (`Part::FlatPlay`, one `SeatFlat`): `FlatState` (the hands' pose, punches, the shove and its
+    smoothing, the parry guard, the two-handed stance, wall backs, shoulders, the arm probe), `Feel` (the drawn hands'
+    lag, sway, bob, gun turn, wall tilt), `FlatKeys` (the mode's keys' edges, the crouch and prone eases and their
+    requests, the counts), `CtrlBind` (the CTRL bind the mode takes: a seat's binding since phase 2), the slide's turn
+    of the body (`slide::LegsTurn`) and the toolgun's keys.
+  - `vr_flatholster` (`FlatHolster`: the holster menu), `vr_flatsight` (`FlatSight`: the ironsight, grips, stance,
+    the weapon at walls, and the crosshair's memo), `vr_flattp` (`FlatTp`: the third-person camera and its memo),
+    `vr_flatreload` (`FlatReload`), `vr_flatfgrab` (`FlatGrab`: E's carry), `vr_flatgrenade` (`FlatGrenade`),
+    `vr_flatswap` (`FlatSwap`: the hands' swap).
+  - Phase 3 had already moved the lean, the slide's view and the visor (vr_flatmove's `FlatView`).
+- **The process's own, kept shared**: `FlatSession` (vr_flatplay: the `-flatscreenmode` flag, its console lines printed
+  once, the headset's taking the game back), split out of `FlatState`.
+- **Marked shared**: the tests' and probes' own (crouch trace, the slide ramp's trace points, flick test, melee probe,
+  route probe, recoil probe, the swap's watch, the sweep and walk probes, the aim sensitivity, holster and third-person
+  tests, the lean hit test), the orbit tool's camera, the server's bot being posed (for that call only), the model FOV
+  counters (phase 7's), the look pass's GL objects (phase 7's per-view caches); vr_slide's server slots and reset hook,
+  its headset's view drop and turning-stick gesture (one headset, one VR player) and its tests.
+- **Left for their phases**: the slide's scrape sound (vr_slidesound: phase 8's listeners), the toolgun itself
+  (vr_toolgun's state, shared with the headset's: 4b with the hands), the server's crouch and prone slots (vr_hull:
+  per player slot already, server-side).
+- **Resets**: the files' own resets (the mode turning off, a weapon changing) act on the current seat's, as phase 3's
+  do; with the seat loop (phase 6) each seat's frame runs in its `Scope`.
+- **`vr_seat_test`** (verdict `seat_test: N passed, M failed`, 56 checks): phases 1-3's 48 plus 8: a fresh seat's flat
+  play is the defaults (no crouch or holster command, the sight's base FOV 90, standing); as seat 1 `+flatcrouch`,
+  `+flatholsters` and the ironsight's base field of view are seat 1's and seat 0's are unchanged; seat 1 letting go
+  leaves seat 0's crouch held; flat play's, the holsters' and the sight's parts are each seat's own, and a seat no code
+  ran for has none made. Read-outs for it: `flatplay::crouchCommand()`, `flatholster::holdCommand()`.
+- **`seat_state` allowlist: 4,025 -> 3,975** (50 gone: 15 moved into the seat's parts, 35 marked shared; the check
+  counts 103 `seat-shared` marks now). Merging next brought 6 newcomers: the gadget's page (the headset's), the server's
+  ragdoll scratch, the body and lift logs marked shared; the client's net ragdolls (`clientRags`, `netDraw`) accepted
+  (phase 5's). The merge's view.c conflict: next's lift-rise height is the seat view's (`seatview_t.liftz`).
+- **Before and after**: ROUND25.md "split4a".
