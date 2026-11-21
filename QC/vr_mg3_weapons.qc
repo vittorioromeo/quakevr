@@ -445,6 +445,44 @@ void(float xWid, float xBit, string xName) MG3_Bloody_Spawn =
     }
 };
 
+// The toolgun's bloody shotguns: the weapon laid as a prop (func_weapon_grabbable, like every other weapon there), not
+// the floating pickup (his note 2026-11-21); the prop's taking gives what the pickup's does (MG3_Bloody_PropTaken).
+void(float xWid, float xBit, string xName) MG3_Bloody_Prop =
+{
+    if(!VR_Pack_WeaponAvailable(xWid)) { remove(self); return; }
+    self.classname = "func_weapon_grabbable";
+    self.weapon = xWid;
+    vr_grab_made = world;
+    func_weapon_grabbable();
+    if(vr_grab_made)
+    {
+        vr_grab_made.vr_bloody_bit = xBit;
+        vr_grab_made.netname = xName;
+    }
+};
+void() toolgun_bloody_sg = { MG3_Bloody_Prop(WID_SHOTGUN, MG3_BLOODY_SG, "Bloody Shotgun"); };
+void() toolgun_bloody_ssg = { MG3_Bloody_Prop(WID_SUPER_SHOTGUN, MG3_BLOODY_SSG, "Bloody Super Shotgun"); };
+
+// A bloody shotgun's prop taken into a player's hand: the pickup's bit and shells (MG3_Bloody_Touch); once (the prop
+// goes into the hand).
+void(entity xProp, entity xTaker) MG3_Bloody_PropTaken =
+{
+    if(!xProp.vr_bloody_bit || xTaker.classname != "player")
+    {
+        return;
+    }
+    MG3_SetBloodyBits(MG3_BloodyBits() | xProp.vr_bloody_bit);
+    xTaker.ammo_shells = xTaker.ammo_shells + 30;
+    entity oldother = other;
+    other = xTaker;
+    bound_other_ammo();
+    other = oldother;
+    sprint(xTaker, "$mg3_map2_secret_weapon");
+    sprint(xTaker, "\n");
+    dprint(sprintf("bloody: %s prop taken, bloody bits %g, shells %g\n", xProp.netname, MG3_BloodyBits(), xTaker.ammo_shells));
+    xProp.vr_bloody_bit = 0;
+};
+
 /*QUAKED weapon_bloody_sg (0 .5 .8) (-16 -16 0) (16 16 32)
 Dawn of the Machine's bloody shotgun: in Dawn of the Machine only in a Bloody Nightmare new game (else gone at once).
 Taken: the shotgun and 30 shells, and every shotgun refires in 0.28 s for the rest of the game. "target": fired when taken.

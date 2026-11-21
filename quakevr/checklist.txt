@@ -69,6 +69,12 @@ Debug > Reports > Network: Drawn Near Me (vr_mp_near) in mp_local.ps1's client l
 Multiplayer: in one game take the heavy revolver and swing its cylinder out with B/Y; the other game shows it swung out with its shells, and they vanish there when you push them out
 Multiplayer: break a super shotgun open and drop a nailgun's magazine with B/Y; the other player sees the barrels drop open and the magazine gone, and your gun's ammo screen shows your clip
 Multiplayer: take your flashlight and switch it on; the other player sees the torch in your hand and its light on the walls where you point it, and it goes dark when you switch it off
+Flat-screen or VR: with Dwell installed, play Quake's start and Scourge of Armagon's hip1m1: each plays its own soundtrack, not Dwell's music; Select Campaign > Dwell: its start map plays Dwell's own music
+Select Campaign > Dwell, start map: place both runes on the pedestals, walk through each opened portal and down its corridor: the teleporter at its end takes you to the episode's tunnel
+The toolgun's Dwell weapons and MG3 bloody shotguns lie on the floor as props, not floating; each taken into your hand works (no error, nothing vanishes), a bloody one gives its bonus {test:expbugs_props}
+Dwell's Kamikaze sees you, chases you screaming and bursts only when it reaches you, with an explosion drawn {test:expbugs_kamikaze}
+Dwell's Brute's ragdoll: the cannon stays on his left arm, no triangle stretches from his right hand across his arms {test:expbugs_brute}
+Dwell d2end: fight the Sculptor; when it flies or teleports onto you, you are put just outside it, never stuck inside moving with it
 
 [1. Flat-screen: weapons and hands]
 

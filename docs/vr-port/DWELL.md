@@ -805,6 +805,29 @@ frame sequences; reading aids only, nothing pasted). Files `QC/dwell/` (GPL-2, h
 - **Left**: Copper's ogre rocket drop, nightmare refire, infight give-up and the other monster rules of 2.4 (behaviour,
   not numbers); item respawn by `wait`/`count` on our items in Copper maps.
 
+### 9.8 Fixed: his first playtest's bugs (2026-11-21, branch `agent/expbugs`; ROUND25.md "expbugs")
+
+- **Music**: Dwell's folder is mounted in every campaign for its models and sounds (`skipOutside`), but the track search
+  read every search path, so its `music/track02..05` played over Quake's and the mission packs' (Quoth ships no music).
+  `vr_music.cpp` now skips what `VR_SkipSearchPath` skips; and a track above 127 that the search path has as a plain file
+  (Dwell's own numbering, section 4: start's 254) plays from it before the campaign-track encoding (it played nothing).
+  `vr_music_which [track]` (Debug > Tools: Music File). Test `music_test.sh`.
+- **Pickups**: `weapon_touch` found the weapon by its classname; Dwell's keep theirs (`weapon_rifle`..), so it asserted
+  and removed them. It takes `self.weapon` (impl_weapon_item's). The toolgun lays Dwell's three and MG3's two bloody
+  shotguns as props (`toolgun_dw_*`, `toolgun_bloody_*`: func_weapon_grabbable with `vr_grab_dwvar` / the prop's
+  `vr_bloody_bit`, given on taking: `MG3_Bloody_PropTaken`). Test `vr_ad_test 213` in `dwell_weapons_test.sh`.
+- **Start's rune gates**: Copper's spawn points fire their targets (its PutClientInServer); ours never did, so start's
+  `start1_targets` (a target_lock unlocking the pedestals' relays) never ran: runes placed opened nothing and the walls
+  before the episodes' teleporters stayed. `CU_PlayerSpawnedAt` fires them, after the START_LOCKED locks' 0.25 s (a
+  player spawned sooner had them locked again). Test `vr_ad_test 214` in `dwell_maps.sh`.
+- **Kamikaze**: `EntitiesTouching` compares mins/maxs (a brush's absolute box): two monsters' relative boxes always
+  overlap, so it burst the moment it had an enemy. Now its box within 8 units or 64 units apart; its burst (and the
+  Construct's death) sends `TE_EXPLOSION` (`DW_Boom`). **Brute**: the 14-vertex piece across his front was split
+  between his hands; `quakevr/rigs/mon_brute.rig.txt` puts its 7 right-side vertices on hand_l
+  (`vr_ragdoll_rig_spans <model>`: 6 spanning triangles, now 0). **Sculptor**: its 288-unit solid box flew noclip onto
+  players; each think puts a player inside it just outside (`dw_d2_freeplayers`). Test
+  `dwell_monster_fixes_test.sh` (`vr_ad_test 215`, `216`).
+
 ---
 
 ## 10. Open questions for Vittorio (real decisions only)

@@ -347,6 +347,7 @@ void(float xHand, entity ent, entity entPlayer,
         dprint(sprintf("weapon: %s hand takes %s\n", xHand == cVR_MainHand ? "main" : "off", VRWeaponInstDesc(entPlayer, xHand)));
     }
     VR_FlailHead_Taken(ent, entPlayer, xHand); // AD support: a flail's head lying about becomes the hand's (vr_ad_melee.qc)
+    MG3_Bloody_PropTaken(ent, entPlayer); // the toolgun's bloody shotguns: what their pickup gives (vr_mg3_weapons.qc)
     remove(ent);
 
     self = entPlayer;
