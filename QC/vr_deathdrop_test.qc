@@ -1,8 +1,9 @@
 #ifdef QVR_TESTS
 // vr_dm_test 21 (vr_deathdrop_test.qc): a dying player's and bot's weapons dropped as they were (VR_DeathDrops,
 // vr_wpnholster.qc; his note 2026-11-21: "Bots/players in MP who had a dagger in their holster actually drop a sword as
-// a prop"). A bot, then the player, each with the dagger in both hands and five holsters (the off hand's turned blade
-// down) and a knight's sword in the last holster, killed (PlayerDie): each weapon lies as a prop of its own kind (the
+// a prop"). A bot, then the player, each with the dagger in both hands and four holsters (the off hand's turned blade
+// down), a shotgun with 3 rounds in its magazine in the fifth (mpbugs4: guns keep it) and a knight's sword in the last
+// holster, killed (PlayerDie): each weapon lies as a prop of its own kind (the
 // daggers daggers, the sword a sword), with its own record (its id), the hand's state (the reverse grip) kept as the
 // weapon's; the dead one's references cleared. Needs a free client slot and deathmatch or coop: run with
 // `maxplayers 2; deathmatch 1` before the map. Verdict "deathdrops: N passed, M failed".
@@ -20,10 +21,16 @@ float(float s) VR_DDT_Holster =
     return QVR_HS_RIGHT_UPPER_HOLSTER;
 };
 
-// The flags slot `s` is given: the dagger (the off hand's reversed), the last holster a knight's sword (0).
+// The weapon slot `s` is given: a shotgun in holster slot 6 (its magazine part spent: mpbugs4), else a sword.
+float(float s) VR_DDT_Weapon =
+{
+    return s == 6 ? WID_SHOTGUN : WID_SWORD;
+};
+
+// The flags slot `s` is given: the dagger (the off hand's reversed), the last holster a knight's sword (0), the shotgun 0.
 float(float s) VR_DDT_Flags =
 {
-    if(s == 7) { return 0; }
+    if(s >= 6) { return 0; }
     if(s == 1) { return VR_ADMelee_Flags(VR_SWORDKIND_DAGGER) | QVR_WPNFLAG_REVGRIP; }
     return VR_ADMelee_Flags(VR_SWORDKIND_DAGGER);
 };
@@ -41,10 +48,11 @@ void(entity p) VR_DDT_Arm =
     while(s < 8)
     {
         float hs = VR_DDT_Holster(s);
-        entity r = WeaponInst_New(0);
-        setHolsterWeapon(hs, WID_SWORD);
+        float wid = VR_DDT_Weapon(s);
+        entity r = WeaponInst_New(wid == WID_SHOTGUN ? 3 : 0); // (the shotgun's magazine: 3 rounds, not a full one)
+        setHolsterWeapon(hs, wid);
         setHolsterWeaponFlags(hs, VR_DDT_Flags(s));
-        setHolsterWeaponModel(hs, WeaponIdToModel(WID_SWORD, VR_DDT_Flags(s)));
+        setHolsterWeaponModel(hs, WeaponIdToModel(wid, VR_DDT_Flags(s)));
         VRSetEntHolsterWeaponInst(p, hs, r);
         vr_ddt_uid[s] = r.wi_uid;
         s = s + 1;
@@ -75,10 +83,17 @@ void(entity p, string who) VR_DDT_KillAndCheck =
             }
             w = find(w, classname, "thrown_weapon");
         }
+        string from = s == 0 ? "the main hand" : (s == 1 ? "the off hand" : sprintf("holster %g", VR_DDT_Holster(s)));
+        if(VR_DDT_Weapon(s) == WID_SHOTGUN)
+        {
+            VR_Test_Check(hit != world && hit.weapon == WID_SHOTGUN && hit.weaponinst.wi_clip == 3,
+                sprintf("%s: the shotgun from %s dropped with its magazine (3 rounds, record #%g)", who, from, vr_ddt_uid[s]));
+            s = s + 1;
+            continue;
+        }
         float want = VR_ADMelee_Kind(VR_DDT_Flags(s));
         float rev = (VR_DDT_Flags(s) & QVR_WPNFLAG_REVGRIP) != 0;
         string what = want == VR_SWORDKIND_DAGGER ? "the dagger" : "the knight's sword";
-        string from = s == 0 ? "the main hand" : (s == 1 ? "the off hand" : sprintf("holster %g", VR_DDT_Holster(s)));
         VR_Test_Check(hit != world && hit.weapon == WID_SWORD && VR_ADMelee_Kind(hit.weaponflags) == want &&
             ((hit.weaponflags & QVR_WPNFLAG_REVGRIP) != 0) == rev,
             sprintf("%s: %s from %s dropped as itself, its own record (#%g)", who, what, from, vr_ddt_uid[s]));
