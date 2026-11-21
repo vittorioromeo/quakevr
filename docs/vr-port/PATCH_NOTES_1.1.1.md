@@ -156,6 +156,9 @@ The guide: [MULTIPLAYER.md](MULTIPLAYER.md).
   Campaign) in a deathmatch game stopped the game ("runaway loop error"): players now spawn at its coop starts; a
   player's or bot's old body turned back into Quake's ranger once he respawned: every body still lying looks like him
   (his build, skin and gloves).
+- **New**: a dead player's ragdoll is his own body, not Quake's ranger's rigged under it: his build's shape at his height,
+  its limbs his body's own lengths, falling, grabbed and struck as any ragdoll and seen the same by every player; single
+  player your own corpse too (the death camera and third person), and the bots' in their build.
 
 **Single player only**: time scale and bullet time, saving at will (the host's level-start coop autosave instead),
 the crates Quake VR places about maps, Dimension of the Past and Dimension of the Machine.

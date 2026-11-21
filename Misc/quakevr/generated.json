@@ -1543,6 +1543,22 @@
   "sha256": "d8938abe0fdf324d7dd03e04ba16c29b3e7150bb9f14606bcd653ca36f5aacc6",
   "by": "make_vrbody.py"
  },
+ "quakevr/progs/vrdoll.mdl": {
+  "sha256": "026184d543f6b76250048adb92bf90c13a116bed6e46183c11010a0a6464da07",
+  "by": "make_vrdoll.py"
+ },
+ "quakevr/progs/vrdoll_brawny.mdl": {
+  "sha256": "295730f3f25ddbbb340a9a4f247a8643e9ac02085fb2d885d7abe51c7c5dbf2a",
+  "by": "make_vrdoll.py"
+ },
+ "quakevr/progs/vrdoll_fem.mdl": {
+  "sha256": "784150fd66a33d7886b8759e4e7c800bf15c2e81ae920a91077f78ab2efcd263",
+  "by": "make_vrdoll.py"
+ },
+ "quakevr/progs/vrdoll_lean.mdl": {
+  "sha256": "e620d81c5044695ceb2dea827602ef5d70228b638f3b08aee2b0af9d9032f6ea",
+  "by": "make_vrdoll.py"
+ },
  "quakevr/progs/vrenforcer.mdl": {
   "by": "enforcer.blend",
   "source": "Misc/quakevr/src_models/blend/enforcer/enforcer.blend"
@@ -1650,6 +1666,22 @@
  "quakevr/progs/zombie.mdl": {
   "by": "zombie.blend",
   "source": "Misc/quakevr/src_models/blend/zombie/zombie.blend"
+ },
+ "quakevr/rigs/vrdoll.rig2.txt": {
+  "sha256": "91c019fed7f2527d19bfabcca14193162c1e2a39e8520f96727711c0f37d4d97",
+  "by": "make_vrdoll.py"
+ },
+ "quakevr/rigs/vrdoll_brawny.rig2.txt": {
+  "sha256": "61c47ce471087b5742ae3e53af6218880012f1a85ad7cd58701e6809db503861",
+  "by": "make_vrdoll.py"
+ },
+ "quakevr/rigs/vrdoll_fem.rig2.txt": {
+  "sha256": "a6c7604e1d816d64e35b52d8e1cf0de6503c523db11c8d8abcd67b6050b3824c",
+  "by": "make_vrdoll.py"
+ },
+ "quakevr/rigs/vrdoll_lean.rig2.txt": {
+  "sha256": "c9986ed3cc2d4177a2d8a3b98fb85fbc3e7da03e2ccaa29c04e8722a10890ca6",
+  "by": "make_vrdoll.py"
  },
  "quakevr/sound/vr/flashlight_attach.wav": {
   "sha256": "ff0394963076f0d854dea8fff555eeae421f93017b1588ac528fb51064037b24",

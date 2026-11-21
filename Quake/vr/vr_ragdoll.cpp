@@ -614,6 +614,12 @@ constexpr SeedTable seedTables[] = {
     {modelmeta::Id::Mg3ShamblerBlood, 1076, shamblerBloodSeeds, static_cast<int>(sizeof(shamblerBloodSeeds) / sizeof(shamblerBloodSeeds[0])), 1, {83, 0}, {93, 0}, 24},
     {modelmeta::Id::DwBrute, 876, dwBruteSeeds, static_cast<int>(sizeof(dwBruteSeeds) / sizeof(dwBruteSeeds[0])), 2, {199, 221}, {211, 233}, 22},
     {modelmeta::Id::Player, 733, playerSeeds, static_cast<int>(sizeof(playerSeeds) / sizeof(playerSeeds[0])), 2, {50, 61}, {60, 69}, 18, false, true},
+    // A dead player's body as his avatar's own (avatardoll; QC vr_deathdoll.qc, Misc/quakevr/make_vrdoll.py): each build's body,
+    // rigged by its authored rig only (quakevr/rigs/vrdoll*.rig2.txt; one frame, no death frames: no seeds, never derived).
+    {modelmeta::Id::VrDollLean, 1250, nullptr, 0, 0, {0, 0}, {0, 0}},
+    {modelmeta::Id::VrDoll, 1250, nullptr, 0, 0, {0, 0}, {0, 0}},
+    {modelmeta::Id::VrDollBrawny, 1250, nullptr, 0, 0, {0, 0}, {0, 0}},
+    {modelmeta::Id::VrDollFem, 1250, nullptr, 0, 0, {0, 0}, {0, 0}},
 };
 
 [[nodiscard]] const SeedTable* tableOf(const qmodel_t* model)
@@ -2507,9 +2513,9 @@ const Rig* rigFor(qmodel_t* model)
 const Rig* derivedRigFor(qmodel_t* model)
 {
     const SeedTable* table = tableOf(model);
-    if(!table)
+    if(!table || !table->seeds)
     {
-        return nullptr;
+        return nullptr; // (none, or rigged by its authored rig only: the avatar's doll)
     }
     if(Rig* r = findRig(model))
     {
@@ -2558,9 +2564,10 @@ void warmRigs(qmodel_t* const* models, int count)
     {
         qmodel_t* model = models[i];
         const SeedTable* table = model ? tableOf(model) : nullptr;
-        if(!table || findRig(model) || za::find(rigCache.failed.begin(), rigCache.failed.end(), model) != rigCache.failed.end())
+        if(!table || !table->seeds || findRig(model) ||
+            za::find(rigCache.failed.begin(), rigCache.failed.end(), model) != rigCache.failed.end())
         {
-            continue;
+            continue; // (an authored-only table, the avatar's doll: its rig made below)
         }
         bool twice = false;
         for(const Job& j : work)
@@ -2631,6 +2638,10 @@ void rigSweep_f()
     int absent = 0;
     for(const SeedTable& t : seedTables)
     {
+        if(!t.seeds)
+        {
+            continue; // (authored only: nothing to derive)
+        }
         const char* path = modelmeta::path(t.model);
         qmodel_t* model = path && COM_FileExists(path, nullptr) ? Mod_ForName(path, false) : nullptr;
         if(!model || model->type != mod_alias)

@@ -817,6 +817,10 @@ string(float material, float kind, float slot) impactsound = #0;
 // VR_REGION_* (one vocabulary both sides read).
 #include "../Quake/vr/vr_region_shared.h"
 float(string path) fileexists = #0; // whether a file is in the search path (data that may not be installed)
+// QVR: player p's avatar body as his dead body takes it (vr_deathdoll.qc; the engine's mpavatar::serverBody): x his build (0..3:
+// progs/vrdoll_lean, vrdoll, vrdoll_brawny, vrdoll_fem), y its size (the model's units -> world units), z 1; '-1 0 0': none
+// (vr_mp_body 0, his body mode none: id's ranger)
+vector(entity p) avatarbody = #0;
 float(string folder, float track) campaignmusic = #0; // a campaign's own CD track's number (target_vr_music), 0 if not there
 
 // Water splashes (vr_physics.cpp): where a segment first goes into water, slime or lava from the
