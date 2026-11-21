@@ -176,7 +176,7 @@ connection, **without** (a1)'s swap registry: a player's state really moves out 
 |---|---|---|---|---|
 | 1 | Command buttons, impulse (`cl_input.c`) | `seatinput_t input` (C) | current (`CL_SeatInput()`, `seat::current().input`) | `+forward`... run from `Cmd_ExecuteString` (no context to pass) and the move is built deep in the host frame |
 | 2 | Keys, bindings, devices (`keys.c`, `in_sdl.c`, `vr_input.cpp`'s flat keys) | `SeatKeys` (`keydown[]`, bindings, the seat's devices, mouse/stick accumulators) | **passed** from the SDL event (the device names its seat), then current while its binds run | the event is the shallow end; the binds are commands (as phase 1) |
-| 3 | View and HUD (`view.c`, `sbar.c`, `gl_screen.c`'s centre print and crosshair, the visor, hit marks, speed FOV, melee HUD) | `SeatView`, `SeatHud` | **passed** (`Seat&` into `V_RenderView`, `Sbar_Draw`, `SCR_Draw*`: one call per seat and rectangle) | a draw call per seat: shallow; the rectangle is a parameter anyway |
+| 3 | View and HUD (`view.c`, `sbar.c`, `gl_screen.c`'s centre print and crosshair, the visor, hit marks, speed FOV, melee HUD) | `seatview_t view`, `seathud_t hud` (C); the VR files' parts (`seat::part<T>`) | **passed** inside the draws, read once at their entries (`V_SetupView`, `V_RenderView`, `SCR_UpdateScreen`), which take the seat with phase 7's loop; messages and commands: current (section 10) | a draw call per seat: shallow; the rectangle is a parameter anyway |
 | 4a | Flat play (`vr_flatplay`'s `FlatState`, `vr_flatholster`, `vr_flatsight`, `vr_flattp`, `vr_visor`, the toolgun's keys) | `SeatFlat` | current | ~200 call sites deep in the VR frame |
 | 4b | Hands (`vr_hands`, `vr_held`, `vr_twohand`, `vr_view_hands`, `vr_motion*`, `vr_throw`, `vr_climb`, `vr_grip*`, `vr_avatar*`) | `SeatHands` (`hands::current()` becomes the seat's rig) | current | the same depth; `hands::current()` already is the one door |
 | 5 | Client state and netcode (`cl`, `cls`, `vr_predict`, `vr_netsnap`, `vr_netmove`, `vr_client`) | `client_state_t`, `client_static_t`, `SeatNet` | current (`cl`/`cls` become the current seat's: one pointer the seat loop sets, the 4,600 uses unchanged in form) | 3,900 `cl.` uses in 288 files: passing is not an option |
@@ -223,8 +223,8 @@ ends with the effort left re-estimated (below).
 |---|---|---|---|
 | 1 | The seat type, the `seat_state` check, the command buttons and impulse | done (1) | - |
 | 2 | Keys, bindings and devices per seat; up to 4 controllers opened, each a seat's; the mouse and stick accumulators | done (1) | ~~3~~ answered: seat 1 is always the keyboard and mouse |
-| 3 | View and HUD per seat, drawn into a rectangle (one rectangle, the window, until phase 7) | 3-4 | - |
-| 4a | Flat play's state (`FlatState`, holsters, sights, third person, visor, toolgun keys) | 3-4 | - |
+| 3 | View and HUD per seat, drawn into a rectangle (one rectangle, the window, until phase 7) | done (1) | - |
+| 4a | Flat play's state (`FlatState`, holsters, sights, third person, toolgun keys; the visor and the lean went in phase 3) | 3 | - |
 | 4b | Hands, held, two-hand, grips, motion, throw, climb, avatar | 4-5 | - |
 | 5 | `cl`, `cls`, prediction, snapshots, the move | 4-5 | - |
 | 6 | The loopback grown to 4, the seat loop (each seat's client frame in its `Scope`), own slots: two seats join a listen server and play (headless test: two seats move apart) | 2-3 | 5 (saving), 6 (drop-in/out: whether a seat may join a running game) |
@@ -239,7 +239,9 @@ ends with the effort left re-estimated (below).
 
 **Effort left after phase 1: 33-44 worker-days** (phase 0's (a1) was 25-35 with the swap registry; moving the state
 for real costs the difference, mostly in phases 4-5). **After phase 2: 31-41 worker-days** (phase 2 took one; phase
-10's join screen is a little cheaper: the pads, their seats and the per-seat command buffer exist).
+10's join screen is a little cheaper: the pads, their seats and the per-seat command buffer exist). **After phase 3:
+28-38 worker-days** (phase 3 took one; 4a lost the visor and the lean to it, and has the seat's parts to follow;
+phase 7 starts from a seat's window area that `SCR_CalcRefdef` already lays out in).
 
 ## 7. Questions for him (the phase that needs each)
 
@@ -329,3 +331,49 @@ His answer to question 3 (2026-11-21): seat 1 is always the keyboard and mouse; 
   accepted (phases 4a/5 judge them).
 - **Before and after**: see ROUND25.md "split2" (the same set as phase 1, on the merged base `12c955bd4` and on phase 2).
 - **Effort left: 31-41 worker-days** (section 6).
+
+## 10. Phase 3 (2026-11-21): the view and the HUD
+
+(Seats numbered from 0 as in the code.)
+
+- **The seat's view** (`seatview_t`, client.h; a `Seat`'s `view`; C: `V_SeatView()`, `V_SeatViewOf(i)`): view.c's
+  `v_punchangles`, the hit's kick (`v_dmg_time/roll/pitch`), `v_blend`, the `v_cshift` contents tint (`cshift_empty`:
+  a fresh seat's is Quake's 130 80 50, 0; the demo rewind keeps the current seat's), and the two function statics of
+  the view's smoothing (`CalcGunAngle`'s old yaw and pitch, `V_CalcRefdef`'s stair step `oldz`); the seat's **window
+  area** (`rect`) and its 3D view's part of it (`viewrect`, Ironwail's `scr_vrect`). Readers moved: cl_main.c,
+  cl_parse.c, cl_demo.c, gl_rmain.c, gl_texmgr.c, gl_draw.c, vr_ad, vr_comfortfade. `cshift_water/slime/lava` are
+  `const` now (they never changed).
+- **The seat's HUD** (`seathud_t`; a `Seat`'s `hud`; C: `SCR_SeatHud()`, `SCR_SeatHudOf(i)`): the centre print (text,
+  start, time left, lines, columns, erase counts) and `+showscores` (`sb_showscores`). A level's start and the loading
+  plaque clear every seat's centre print.
+- **The access rule, as built**: the draws take the seat's state as a parameter inside the files (`V_CalcRefdef`,
+  `V_CalcViewRoll`, `CalcGunAngle`, `V_PolyBlend`, the centre print's draw chain from `SCR_UpdateScreen`), read once at
+  the entry (`V_SetupView`, `V_RenderView`, `SCR_UpdateScreen`) from the current seat. The entries themselves are not
+  given a seat yet: the VR render calls `V_RenderView` from deep in its eye loop and the stereo set-up, so phase 7's
+  per-seat render (which owns the rectangles' loop) passes the seat there or makes it current around each view.
+  Messages and commands (a hit's kick, `v_cshift`, a centre print, `+showscores`) change the current seat's.
+- **Layouts: not decided, nothing committed** (question 2). `SCR_SeatRect(seat, &rect)` is the one place a seat's area
+  comes from: today every seat's is the whole window. `SCR_CalcRefdef` lays the 3D view and the status bar's room out
+  inside the current seat's area (`rect` in place of `glwidth`/`glheight`; with the whole window, the same numbers).
+  The FOV's aspect (`vid.width/height`) and `sb_lines` stay the window's: phase 7's, with the rectangles.
+- **The VR files' view and HUD state: the seat's parts.** A file-private state struct stays private to its file; the
+  seat owns its instance (`seat::part<T>(seat, Part::X)`: made on first use, one slot a subsystem in `seat::Part`), the
+  file reading the current seat's through a one-line accessor: the flat visor (`vr_visor`'s sway, effects, centre-print
+  popup, panels), the flat crosshair's shot line and marks (`vr_flatxhair`), the hit marks (`vr_flathit`), the speed
+  FOV (`vr_flatspeedfov`), the melee HUD's parry glow and embers (`vr_meleehud`), the death view (`vr_deathview`), the
+  flat camera's lean, slide view and last seen view (`vr_flatmove`; its frame-driven tests stay shared), the net HUD
+  (`vr_nethud`) and the flat crosshair's queued frame (`vr_crosshair`). A new subsystem's per-seat state follows the
+  same pattern (phases 4a, 4b).
+- **Marked shared**: the window's (`glheight`, the loading plaque and dialog, the turtle and net pictures, the HUD style
+  cvar's), the status bar's pictures, redraw count and sort scratch, the crosshair character (a cvar's), the visor's GL
+  passes and glass grid (phase 7's per-view caches), the tests' own state machines. Left for their phases: the console
+  (`scr_con_current`, notify: phase 9), `sb_lines` (phase 7), `r_refdef` (phase 7), `cl.punchangle`, `cl.cshifts`,
+  the pitch drift (`cl`: phase 5); the flat hands, holsters, sights, third person (4a, 4b).
+- **`vr_seat_test`** (no map; verdict `seat_test: N passed, M failed`, 48 checks): phases 1 and 2's 35, plus 13: the
+  accessors (each seat its own, seat 0's current); a fresh seat's contents tint; as seat 1 a centre print (text, lines,
+  time), its clear, `+showscores`, `v_cshift`, a hit on the visor, `+flatleanright` land in seat 1's alone, and seat 0's
+  `+flatleanleft` in seat 0's alone; `V_ResetEffects` per seat; every seat's area is the whole window.
+- **`seat_state` allowlist: 4,099 -> 4,024** (75 gone: view.c 8, gl_screen.c 19, sbar.c 27, the VR files 21; the
+  check counts 63 `seat-shared` marks now). Merging next brought 2 newcomers: `vr_input`'s `clickDebounce` and `vr_slide`'s
+  `headsetLegsState`, both marked shared (the headset's controllers and wearer: one headset, one VR player).
+- **Before and after**: ROUND25.md "split3".

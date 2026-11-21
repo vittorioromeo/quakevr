@@ -6371,3 +6371,36 @@ His voice notes of 2026-11-21 (vrfiringrange 00-23-29, e1m1 01-04-14 and others)
   as I can see (only the step's timing changed): **open**.
 - Menus: `menu_paths.txt` regenerated; `vr_menu_path_check maps/vrcalibration.map` 0 missing. Scenes:
   `speed_toggle_click`, `vr_slide_legs`, `foveation_auto`, `revolver_swing` (and `vr_slide`'s title).
+## split3: splitscreen phase 3, the view and the HUD per seat (split3, 2026-11-21, `agent/split`)
+
+SPLITSCREEN.md section 10 has the design; in short (seats numbered from 0 as in the code):
+
+- `seatview_t` (client.h), a seat's `view`: view.c's punch, the hit's kick, `v_blend`, the `v_cshift` contents tint
+  (`cshift_empty`), the gun's and the stair step's smoothing statics, the seat's window area (`rect`) and its 3D view's
+  part (`viewrect`, was `scr_vrect`). `seathud_t`, a seat's `hud`: the centre print and `+showscores`. C:
+  `V_SeatView()` / `V_SeatViewOf(i)`, `SCR_SeatHud()` / `SCR_SeatHudOf(i)`. The draws get the seat's state as a
+  parameter inside view.c and gl_screen.c, read once at `V_SetupView`, `V_RenderView`, `SCR_UpdateScreen` (their seat
+  comes with phase 7's loop); messages and commands change the current seat's.
+- **Layouts not committed**: `SCR_SeatRect(seat, &rect)` gives every seat the whole window; `SCR_CalcRefdef` lays the
+  view and the status bar's room out inside the seat's area (the same numbers with the whole window).
+- The VR files' view and HUD state are **seat parts** (`seat::part<T>(seat, seat::Part::X)`, vr_seat.hpp: the type
+  stays private to its file, the seat owns the instance, made on first use): the visor, the flat crosshair, hit marks,
+  speed FOV, the melee HUD's glow and embers, the death view, the flat camera's lean, slide view and seen view
+  (vr_flatmove), the net HUD, the crosshair's queued frame. Tests, GL passes, pictures and the window's state marked
+  `seat-shared`.
+- `vr_seat_test` 48 of 48 (35 + 13: the accessors; a fresh seat's contents tint; as seat 1 a centre print, its clear,
+  `+showscores`, `v_cshift`, a visor hit, `+flatleanright` stay seat 1's; seat 0's lean stays seat 0's;
+  `V_ResetEffects` per seat; every seat's area the whole window). Two read-outs for it: `visor::damagePending()`,
+  `flatmove::leanCommand()`.
+- `seat_state` allowlist 4,099 -> 4,024 (view.c 8, gl_screen.c 19, sbar.c 27, VR files 21). Merging next: vr_input's
+  speed button read from the seat; `clickDebounce` (vr_input) and `headsetLegsState` (vr_slide) marked shared (the
+  headset's).
+- **Before and after** (the merged base `74cf67377` and phase 3, same machine, quick builds; QC 0 warnings, Dev and ThinLTO 0 warnings):
+  scenario_check 147 run 0 failed / same; flatplay 31/0; flatparry 43/0; flathands 76/0; flatmelee 12/0; visor 37/0;
+  flathud 11/0; flathit 11/0; flatspeedfov 1/0 (7/0 inside); flatslide (lean, slide, prone dual, mantle) 26/0;
+  flatleanhit 2/0; flatinput 19/0; flatkeys 37/0; flatmove 10/0; flatkeybind 8/0; flatflycam 3/0; load_models 4/0:
+  all identical. flatxhair 31/0 before; 30/1 in the after batch ("pixels open: drawn on the centre", a 4-pixel centroid
+  half a pixel off: the pixel spread phase 2 saw on its base), 31/0 run again alone. The MP suite was not part of this
+  phase's set (no network code touched).
+- In VR (the author): nothing changes with one seat. Flat: the centre print, the scores (Tab), the screen tints, the
+  visor HUD, the crosshair's marks, hit marks, the speed FOV, the lean and the death view behave as before.
