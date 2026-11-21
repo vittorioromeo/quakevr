@@ -6479,6 +6479,49 @@ His words (2026-11-21): an extra wrist gadget page for the multiplayer scoreboar
   (A's page read 1 on dm4 after his single-player e1m1 with AD in the base): AD's page may be offered on a server without
   AD's data (it draws "NONE" rows).
 
+## The Crystal Lance as a two-handed lance; a general pole grip (branch agent/dwellwpn2, 2026-11-21)
+
+His notes of 2026-11-21 (DWELL.md 9.9 has the detail). Built: item 1. Not built: item 2 (the Rotary's gauntlet grip and
+a findable reload: the plan is in DWELL.md 9.9) and item 3 (reliefs for Dwell and Quoth: shipping AD's way is not
+allowed for them; the plan for generating them on the user's machine is in DWELL.md 9.9). Item 4: no work, as asked.
+- `vr_dw_lance_pole` (1): the Lance's model `progs/dw_lance.mdl#vr` from Dwell's world model `g_rail.mdl` (recipe,
+  read in place), the lightning gun's grip under its pole; weapons.txt slot 55 (numSlots 56). New recipe options
+  `keepOpen`, `keepScale`. 0: the pistol (slot 53), as before.
+- `FREE_POLE` (`vr_twohand.cpp`; weapon key `anygrip_mode 3`): the other hand anywhere on the weapon slides along its
+  long axis between butt (Blade Near) and tip, aiming it through the hand; in VR its hotspots never take the other hand
+  (`twohand::poleGrip`); flat keeps its fixed hold. `vr_debug_2h_grip 2` prints the place along the pole; `vr_status`
+  says "on its pole".
+- QC `DW_LanceMelee`: its swing a blade's (the axe's damage) instead of the gun's club.
+- Tests: `dwell_lance_test.sh` 8/0 (vr_ad_test 217 5/0; the pole taken at 21.1 from the handle, slid 20.8 -> 26.2 ->
+  8.9 along it, never let go), `dwell_vrmodels_test.sh` 13/0 (7 models made; screenshots `scratch/dwell_vrmodels_*.png`).
+  Dwell v2.2 was unpacked into the kit's `bases/mp/qbase/dwellv2p2` for these (the kit's pinned zip).
+- Left: the main hand does not slide; no ammo screen housing on the lance; flat's hold point and sights unmeasured; the
+  blow's damage on a monster untested; not run: dwell_weapons_test.sh, dwell_maps.sh, the melee/two-hand and flat suites,
+  scenario_check, a ThinLTO build.
+
+## dwellwpn3: the Lance's checks; the Rotary Shotgun as a gauntlet; the reliefs' options (branch agent/dwellwpn2, 2026-11-21)
+
+His notes of 2026-11-21 (DWELL.md 9.9 has the detail).
+- The Lance's checks (headless, Dev build): dwell_lance 8/0, dwell_weapons 9/0, dwell_maps 28/0 (dwgate 10/0), flatmelee
+  12/0, flatparry 43/0, flattwohand 9/0, flatmelee2h 16/0, flatplay 31/0, flathands 76/0, grip_state PASS, empty_melee
+  2/0, vr_agrunt_test 212 6/0, 213 1/0, 77 12/0, 92 22/0, 18 24/0, scenario_check PASS (148 scenes); ThinLTO and Dev 0
+  warnings. Not clean, and not the pole grip's (its code runs only for a weapon whose own Other Hand Anywhere is 3, the
+  Lance alone, and never in flat play): flatfg2h 10/1 twice (key 3: the axe's drawn off hand leaving the grip, 5.95 a
+  frame against the launcher's 2.90); twohand_regrip's grunt head (pick 4) and hand grenade (pick 10) never held in both
+  (props, no weapon slot). Baselines on next not run.
+- The Rotary as a gauntlet (`vr_dw_rotary_gauntlet` 1): `progs/dw_rotary.mdl#vr` (vr_adweapons.cpp: a recipe over Dwell's
+  view model laid round the super nailgun's hand; `rotaryGauntletParts`: the back's window, the shell port block on the
+  inner side), weapons.txt slot 56 (numSlots 57; the super nailgun's hold values), the `DwVrRotary` load point (5 7.25 0;
+  the Widowmaker's port settings). Why it could not be reloaded: its model had no load point, so only the gun brought to
+  the pouch loaded it. Test `Misc/quakevr/dwell_rotary_test.sh` (vr_ad_test 218) 3/0 (dwrotary 8/0: drawn as a gauntlet,
+  the port found the first frame, handfuls of 2 there fill its 16 tube, the old grip with the setting 0; 8 models made);
+  dwell_vrmodels 13/0. Screenshots `scratch/dww3_rotary.png` (top: before, bottom: after; outer and inner sides).
+- Scenes: `dwell_rotary_gauntlet`, `dwell_lance_pole` (new); `dwell_rotary` and `dwell_lance` now set the old holds (their
+  lines describe them).
+- The reliefs: the options and costs in DWELL.md 9.9 (A ONNX in Setup, B in the engine, C a script, D no model);
+  recommended D first, then A. Nothing built.
+- Left: the port's radius is the Widowmaker's (1.25); his hand's fit inside the housing and the port's place to tune in
+  VR (slot 57 in Weapon Offsets); the port block is dim in dark rooms.
 ## bots4: bots3's checks; Show Disarm Volumes and Show Hit Zones on bots and players (2026-11-21, `agent/bots3`)
 
 Finishes bots3 (items 2 and 3; item 1's missing checks). Merged origin/next (mp_test.py's suite list: botgrab beside

@@ -830,6 +830,72 @@ frame sequences; reading aids only, nothing pasted). Files `QC/dwell/` (GPL-2, h
 
 ---
 
+### 9.9 Built in part: his weapon notes of 2026-11-21 (branch `agent/dwellwpn2`; ROUND25.md "dwellwpn2")
+
+- **The Crystal Lance as a lance** (`vr_dw_lance_pole`, 1 by default; 0 the pistol of 9.6): `progs/dw_lance.mdl#vr`, a
+  recipe over Dwell's **world model** `g_rail.mdl` (pinned 672/464; a staff 67.5 long standing 22.6 degrees off upright,
+  its pole 2.2 thick, its crystal head from 43 along it), laid along x at 1.5 (1.35 m drawn), the lightning gun's grip,
+  guard and trigger under its pole 16 from the butt. New recipe options: `keepOpen` (Dwell's single faces kept open, as
+  Dwell draws them) and `keepScale` (a model past the base model's corner moved by (corner - lo)(1 - Scale), so the base
+  slot's values keep the hand on the grip). Slot 55 (numSlots 56): slot 53's values, its anchors moved with the model,
+  `muzzle_av` the crystal head's tip, `anygrip_mode 3`, `bl_near 0.32` (the blow line from the butt to the tip).
+- **The pole grip, general** (`vr_twohand.cpp` `FREE_POLE`, a weapon's own Other Hand Anywhere 3; any long weapon may use
+  it): the other hand taking the weapon anywhere becomes a foregrip that slides along its long axis (its blade line
+  through where it took hold, from Blade Near behind the hand to the tip): each frame the place along the pole as far
+  from the holding hand as the hand is, the least turn putting it on the line through the hand (in front of the holding
+  hand or behind it); within 4 units of the holding hand the last turn is kept; it lets go past the butt or tip by the
+  hotspots' keep. In VR the weapon's hotspots never take the other hand (`twohand::poleGrip`, the view's free candidate
+  ignores them); flat play keeps them (its fixed two-handed hold: hs1, slot 53's). The drawn hand slides with it.
+- **Its blow**: `DW_LanceMelee` (QC, chosen in `VR_Melee_Deal` by `DW_LanceHeld`): the axe's damage (`vr_dmg_axe`, before
+  speed and weight), a blade's sounds and wall chop, where every other gun clubs (`W_GunMelee`, `vr_dmg_gun_bash`). The
+  beam is Dwell's as before, from the muzzle: the head's tip.
+- **Test**: `Misc/quakevr/dwell_lance_test.sh` (vr_ad_test 217): the lance model and blow, the pistol and club with the
+  setting off (5/0), seven models made; mock VR, the off hand takes the pole 0.75 of the way to the tip (21.1 from the
+  handle), slides out (20.8 -> 26.2 along it) and in (8.9) without letting go, `vr_status` "on its pole": 8/0.
+  `dwell_vrmodels_test.sh` 13/0 (its screenshots show the lance in hand, VR and flat).
+- **Left (item 1)**: the main hand holds the grip only (it does not slide: a held weapon's origin is its hand's; the
+  hand-off already lets the other hand carry it anywhere); no ammo screen housing (its `wpntxt_av` is slot 53's moved,
+  inside the pole); flat's two-handed hold point (hs1) and the sights are slot 53's, unmeasured on the lance; the blow's
+  damage on a monster is not measured by a test (only its choice); the lance's length in his hands to tune (k 1.5).
+- **The Rotary Shotgun as a gauntlet (item 2; dwellwpn3, ROUND25.md "dwellwpn3")** (`vr_dw_rotary_gauntlet`, 1 by
+  default; 0 the super shotgun's grip of 9.6). Why it could not be reloaded: ours loads as the Widowmaker (9.5: its tube,
+  `vr_ad_widowmaker_tube` 16, filled a handful at a time, `vr_ad_widowmaker_handful` 2; never broken open; Dwell's own
+  Rotary has no reload, Copper's guns feed from the pool), but its model had no load point (`vr_view_internal.hpp`
+  loadPorts: none for `dw_shot3`), so a handful held anywhere never went in; only the gun brought to the pouch loaded it.
+  Now `progs/dw_rotary.mdl#vr`: Dwell's view model laid round the super nailgun's hand (k 1, 40 long; its housing's back
+  bottom on the super nailgun's back, -2.6 0 -5.5; the barrels' axis on z 0; nothing grafted: the hand holds inside the
+  housing), packed from the super nailgun's corner, weapons.txt slot 56 (numSlots 57) the super nailgun's hold values
+  (slot 4) with its own muzzle, screen and the Rotary's weight and kick. On the housing's inner side (+y) a block with a
+  dark opening in a raised rim, the Widowmaker's way (`rotaryGauntletParts`): its load point (`DwVrRotary`, 5 7.25 0;
+  the Widowmaker's Load Point offsets and `vr_reload_port_widow_radius`, as the QC loads it as the Widowmaker). Its back
+  keeps the same ammo screen (`rotaryGauntletHousingSpec`, a screen style alias of `dw_shot3`). Dwell's shot kept.
+- **Reliefs for Dwell and Quoth (item 3): the plan, nothing built.** AD's are made on the developer's machine by
+  `Misc/quakevr/pbr_generate.py` (PBRify's two CC0 models through PyTorch; docs/vr-port/PBR_PIPELINE.md) from AD's
+  installed PAKs and committed as `quakevr/textures/pbr/<hash>_norm.png` (looked up by the texture's pixels' hash in
+  `vr_pbr.cpp`, before `_norm`/`_bump` files and the normal map made at load). Doing that for Dwell or Quoth would ship
+  files made from their textures: not allowed (section 1, QUOTH.md). Allowed: generating on the user's machine from his
+  own copy into a user folder the engine searches (the lookup needs no change). What that takes: a Setup step (or a
+  console command) running the generator over `<base>/dwell` and `<base>/quoth`, writing outside the release's
+  `quakevr/`; its dependencies are the blocker (Python, PyTorch about 2 GB, the 116 MB PBRify archive); the light route
+  is the two models exported once to ONNX (CC0: shippable) and run by onnxruntime (DirectML) inside Setup or the
+  engine. Meanwhile every Dwell and Quoth texture already gets the normal map made at load from its own shading
+  (`vr_normalmaps.cpp` TexMgr_ShadingToNormals; height relief only with `vr_texture_smooth 2`).
+- **Reliefs for Dwell and Quoth, the options (dwellwpn3; still a plan, nothing built: his call).** Shipping reliefs made
+  from Dwell's or Quoth's textures is not allowed; whatever is made must be made on his players' machines from their own
+  copies, into a folder the engine searches outside the release's `quakevr/` (`vr_pbr.cpp` looks a texture up by its
+  pixels' hash: the same `<hash>_norm.png` names AD's pack uses, so a user folder on the search path needs no lookup
+  change; to confirm when built). Agent-days are qvr-agent work, his playtest extra.
+
+  | Option | What runs where | His players need | Quality | Cost |
+  |---|---|---|---|---|
+  | A. ONNX in Setup | PBRify's two CC0 models exported to ONNX once on the developer's machine (shippable: CC0), run by onnxruntime (DirectML, CPU fallback) in a Setup step "Make reliefs for Dwell and Quoth" over `<base>/dwell` and `<base>/quoth`; a few minutes on a GPU | nothing more: the runtime and the two models in the release (onnxruntime with DirectML about 20 MB, the models about 60-120 MB) | AD's (the same models) | 2-3 days: the export and a parity check against `pbr_generate.py`, the Setup step and its progress, the folder, a test on a small texture set |
+  | B. ONNX in the engine | the same models run by the engine itself on a mod's first load (a background job, the reliefs written as they finish) | the same runtime and models | AD's | 3-4 days, and a new runtime dependency in the engine (start-up, threads, its failure paths) |
+  | C. A script | `pbr_generate.py` documented for players with Python and PyTorch (about 2 GB) and the 116 MB PBRify archive | Python, PyTorch, the archive | AD's | half a day (docs, the user folder), for the few who will do it |
+  | D. No model | the normal maps made at load from the textures' shading (`TexMgr_ShadingToNormals`) given height relief for these packs by default (`vr_texture_smooth 2`'s path, per pack) | nothing | below AD's (no learned depth: flat panels stay flat) | half a day to a day, no dependency |
+
+  Recommendation (conservative): D first (cheap, nothing to install, every player gets it); A when he wants AD's look on
+  Dwell and Quoth (one Setup step, no install for players). B only if a Setup step is unwanted; C as a stopgap.
+
 ## 10. Open questions for Vittorio (real decisions only)
 
 1. **Copper rules in Copper maps: whose weapons and monsters?** Proposal, as for AD: **our weapons and our vanilla

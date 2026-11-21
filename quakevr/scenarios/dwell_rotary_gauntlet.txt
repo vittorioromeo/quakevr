@@ -1,0 +1,11 @@
+# dwell_rotary_gauntlet: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Dwell's Rotary Shotgun
+# held as a gauntlet (vr_dw_rotary_gauntlet 1; DWELL.md 9.9) in the right hand (vr_ad_test 206), our super nailgun in
+# the left to compare its hold. Needs Dwell installed.
+title Dwell's Rotary Shotgun as a gauntlet, and its shell port
+map vrtesthall
+god
+notarget
+cvar vr_dw_rotary_gauntlet 1
+give "Super Nailgun" off
+cmd vr_ad_test 206
+hint Right hand: the Rotary Shotgun, your hand inside its housing as in the super nailgun (left hand, to compare). On the housing's inner side, a block with a dark opening in a rim: its shell port. Fire it empty, take a handful of shells from the pouch and hold them at the port: they go into its tube. Tune it in Weapon Offsets (slot 57): your values become the defaults.

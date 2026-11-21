@@ -130,7 +130,17 @@ enum FreeMode : int
     FREE_FOREGRIP = 0, // the aim from the holding hand through where the other hand holds it
     FREE_SUPPORT = 1,  // the aim stays the holding hand's
     FREE_RIGID = 2,    // both hands hold it rigidly (the weapon turns as a prop held in both)
+    // A pole grip (a weapon's own Other Hand Anywhere only, dwellwpn2: Dwell's Crystal Lance; any long weapon may use it):
+    // a foregrip that slides along the weapon's long axis (its Two-Handed Pitch/Yaw line through where it took hold,
+    // between its butt, Blade Near behind the hand, and its tip), the aim from the holding hand through it wherever the
+    // hand is along it, in front of the holding hand or behind it. In VR its hotspots never take the other hand (any
+    // place on it is a pole grip); flat play keeps them (its fixed two-handed hold).
+    FREE_POLE = 3,
 };
+
+// The weapon of `slot` held by a pole grip in this mode of play (FREE_POLE, not flat play): its hotspots never take the
+// other hand (the view's free candidate ignores them, as applyHand does).
+[[nodiscard]] bool poleGrip(int slot);
 
 // The view, each frame: whether the empty `hand`'s palm is on the other hand's weapon (held or carried), far enough from
 // its handle and (held by its handle) from its grip and blade hotspots (vr_weapon_grab_anywhere_min).
