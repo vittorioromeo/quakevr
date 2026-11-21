@@ -1151,6 +1151,8 @@ za::Vector<Item> pageDebugReports()
         command("Sight Lines", "vr_sight_lines").help("vr_sight_lines: every weapon's sight line (Align Sights)."),
         command("Sight Check", "vr_sight_check").help("vr_sight_check: the held weapon's sights against its aim."),
         command("Wrist Gadget", "vr_gadget_info").help("vr_gadget_info: the gadget's pose (once it has been drawn) and the hologram's messages up now."),
+        command("Wrist Gadget Next Page", "vr_gadget_page 1").help("vr_gadget_page 1: the wrist gadget's next page, as its outer button (the HUD, Arcane Dimensions' page with its data loaded, the scoreboard in multiplayer), and prints the one shown."),
+        command("Wrist Gadget Scoreboard", "vr_gadget_scores").help("vr_gadget_scores: the wrist gadget's scoreboard page's rows as it draws them (multiplayer: each player's frags, in the scoreboard's order, you, talking)."),
         command("View Text Follow", "vr_view_text_status").help("vr_view_text_status: the messages in front of you: the yaw they follow now (vr_view_text_smooth) and the head's."),
         header("Other"),
         command("Limits", "vr_limits")

@@ -36,6 +36,7 @@
 #include "vr_text3d.hpp"
 #include "vr_takes.hpp"
 #include "vr_visor.hpp"
+#include "vr_voicechat.hpp"
 #include "vr_weapon_ids.h"
 #include "vr_worldtext.hpp"
 #include "vr_hands.hpp"
@@ -331,9 +332,16 @@ struct Palette
     return p;
 }
 
+// The screen's brightness (dimmed: the gear lights): its palette's, and the colours it draws of its own (the players'
+// shirts and trousers on the scoreboard page).
+[[nodiscard]] float screenBrightness()
+{
+    return CLAMP(0.f, vr_gadget_screen_brightness.value, 2.f) * gearlights::screen();
+}
+
 [[nodiscard]] Palette palette()
 {
-    return paletteAt(CLAMP(0.f, vr_gadget_screen_brightness.value, 2.f) * gearlights::screen()); // (dimmed: the gear lights)
+    return paletteAt(screenBrightness());
 }
 
 using gfx::draw2D::fill;
@@ -937,7 +945,24 @@ void infoRows(const Readout& r, const Palette& pal)
     drawText(margin, infoY[1], 8.f, line, pal.label, pal);
 }
 
-#include "vr_ad_gadget.inc" // AD support: the Arcane Dimensions page (adPage, adPageShown, adTogglePage)
+// The screen's pages, in turn (the outer button: vr_ad_gearlights.inc; vr_gadget_page; togglePage): the HUD, Arcane
+// Dimensions' page (AD support: its data loaded) and the scoreboard (multiplayer). The one chosen; one that can't be
+// shown now (AD's data gone, back to single player) shows the HUD.
+enum : int
+{
+    PageHud = 0,
+    PageAd = 1,
+    PageScores = 2,
+    PageCount = 3,
+};
+struct PageState
+{
+    int page{PageHud};
+};
+PageState pageState;
+
+#include "vr_ad_gadget.inc"      // AD support: the Arcane Dimensions page (adPage, adPageShown)
+#include "vr_gadget_scores.inc" // the multiplayer scoreboard's page (scoresPage, scoresPageShown, scoresAvailable)
 
 void layout()
 {
@@ -959,6 +984,7 @@ void layout()
     fill(width - 2.f, 0.f, 2.f, height, frame);
     if(takes::gadgetPage()) { takes::drawGadgetPage(width, height); return; } // a take session's buttons (vr_takes_gadget)
     if(adPageShown()) { adPage(r, pal); return; } // AD support: the Arcane Dimensions page in its place (togglePage)
+    if(scoresPageShown()) { scoresPage(r, pal); return; } // the multiplayer scoreboard in its place (togglePage)
 
     // Health (the face its icon; red under 25) and armour.
     const int face = r.health >= 100 ? 4 : CLAMP(0, r.health / 20, 4);
@@ -1497,14 +1523,39 @@ VisorSides visorSides()
     return visor.sides;
 }
 
+namespace
+{
+[[nodiscard]] bool pageAvailable(int p)
+{
+    return p == PageHud || (p == PageAd && vr_ad_mounted.value != 0.f) || (p == PageScores && scoresAvailable());
+}
+} // namespace
+
 bool togglePage()
 {
-    return adTogglePage(); // AD support (vr_ad_gadget.inc)
+    // From the page shown to the next that can be shown, the HUD after the last; false (the HUD kept) with no other.
+    const int from = page();
+    for(int step = 1; step < PageCount; step++)
+    {
+        const int to = (from + step) % PageCount;
+        if(pageAvailable(to))
+        {
+            pageState.page = to;
+            return true;
+        }
+    }
+    pageState.page = PageHud;
+    return false;
 }
 
 int page()
 {
-    return adPageShown() ? 1 : 0; // AD support (vr_ad_gadget.inc)
+    return adPageShown() ? PageAd : scoresPageShown() ? PageScores : PageHud;
+}
+
+void scoresReport()
+{
+    scoresReport_f(); // (vr_gadget_scores.inc)
 }
 
 void drawScreen()
