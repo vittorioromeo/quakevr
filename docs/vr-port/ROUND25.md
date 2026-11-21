@@ -6673,3 +6673,31 @@ add the navmesh where it is smarter: a player spotted nearby, goals by need. Des
 - **Not ready to default on:** proven on e1m1's door and one waypoint chain only; deathmatch balance (a bot that always
   finds you), locked or button doors (the follower walks through door polygons) and the follower's drop/teleporter links
   with bots are untried.
+
+## syncfix5: the sync audit's last gaps -- wounds, sounds, the other player's gun lights (syncfix5, 2026-11-21, `agent/syncfix5`)
+
+- No new data either way (no protocol change): each comes from what every client already gets.
+- Wounds: the server's wound event on another player (QVR_SVC_WOUND, sent to all) is painted on his copy's body and
+  jointed hands (`mpavatar::woundTargets`), placed by capsules round them as yours are (`copyCapsules`: the torso and legs
+  round the pelvis, each forearm back from the drawn hand), in the monsters' pool of masks (up to 3 a player, evicted as
+  theirs are: bounded by the pool, no new GPU memory). Kept on his dead body (drawn through the same entities), forgotten
+  when his copy is drawn living after it or his scoreboard place empties (`copyLives`). Limits: his arms share their skin's
+  texels (a wound on one arm shows on both: yours have a mask a side, the one twin layer); blood thrown onto his hands
+  from what he hits stays yours only. **Not seen in a run yet:** syncaudit's new `hurt` probe (`vr_hurt 8 <B> <A>`) gets
+  the server's "bled first" line but no wound event reaches either client (B's own body unpainted too: "B has none"), so
+  the row passes empty; the cause (a stale hit record on the console's blow, or the send) is open.
+- Sounds: the mantle grunt was a server sound already (`climb::grunt`, CHAN_VOICE; the audit read the test command's
+  `S_LocalSound`): mp_climb now checks the watcher hears it. The slide: each client plays the scuff and the scrape on
+  another player's entity from his copy's slide (the server's word in his avatar), the scrape following his speed
+  (`slidesound::othersFrame`, one `drive` for yours and theirs); mp_slide checks A hears both. The auto pump: his shot's
+  QVR_SVC_FIRED starts a stroke per player and hand, timed as yours, its two clacks at his copy's fore-end
+  (`autopump::otherFired`; his copy's fore-end is still drawn still).
+- Gun lights: his held gun's ammo screen casts your screen's light (r20; `emissive::otherWeaponScreenLight` from
+  `view::drawGunParts`' screen, keys -0x5C60..-0x5C7F); his barrel heats from his shots as yours (`gunfx::otherBarrelHeat`)
+  and lights (r30, keys -0x5A20..-0x5A3F) and glows on his copy's gun (vr_hotblade.cpp's barrel mask and ramp, the gun
+  itself: his parts drawn in its place glow not).
+- `vr_mp_near`'s model lines carry `wound=` (a painted mask on it): syncaudit's `wounded:` keys.
+- Checks: syncaudit 30/0 with B in VR and `--flat B` (shoot: the clacks, r20 and r30 now "both"); mp_slide 9/0 (A hears
+  the slide); mp_loss 16/0, B's link up walking at 10% loss 9525 B/s (bound 12288; mean 123 B a move). Dev build 0 warnings.
+- Not done (budget): mp_slide_vr, mp_climb (the grunt check), the plain suite, scenario_check, the single-player slide,
+  auto pump and wound tests, the ThinLTO build; the hurt probe's missing wound event.
