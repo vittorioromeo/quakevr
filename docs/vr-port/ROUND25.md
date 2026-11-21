@@ -5999,7 +5999,7 @@ modified or bundled: nothing of it is run, copied or shipped; its maps play by A
 ## Multiplayer sync audit: every player feature, seen by another player or not (mpaudit, 2026-11-21, `agent/mpaudit`)
 
 - His ask: everything of a player that others should see or hear but don't. The table and the fix batches are MP_PLAN.md,
-  "Sync audit 2026-11-21" (43 rows: 20 synced, 11 gaps, 6 being done elsewhere, 4 local by design, 2 not features).
+  "Sync audit 2026-11-21" (43 rows: 22 synced, 11 gaps, 4 being done elsewhere, 4 local by design, 2 not features; the slide pose and dead body synced by mpslide).
 - The measure: `vr_mp_near <ent> [radius] [seconds]` (Debug > Reports > Network: Drawn Near Me; vr_mptest.cpp) lists
   the models a game draws round a player (whose, alpha, effects, the powerup glow), its dynamic lights there and the
   sounds it started lately by or near him (`VR_MpHeardSound`, a ring of 96 filled at `S_StartSoundPitch`).
@@ -6011,6 +6011,15 @@ modified or bundled: nothing of it is run, copied or shipped; its maps play by A
   sheaths, grenade and ammo pouches), blood and wounds on other players, the mantle grunt and slide sound.
 - Side finding: in coop the Debug menu's powerup cheats (impulse 190-193) give a holstered shotgun (the harness's
   holster give); 255 and 254 still work.
+## mpslide: the slide pose and the dead body in multiplayer (mpslide, 2026-11-20, `agent/mpslide`)
+
+- **Another player's slide** is posed as your own: the server's slide is a bit in his avatar's gear byte
+  (`avatarGearSliding`, no protocol change); before, his copy only crouched. `mp_slide`, `mp_slide_vr`.
+- **A dead player's body** (his ragdoll, or its death animation on a client of another server) is drawn as his own
+  body: his build's model, skin tone, gloves, jointed hands, posed from the doll's rig (`mpavatar::addDolls`,
+  `avatar::DollPose`, `solveDoll`), for every viewer including himself and in single player; before, id's ranger.
+  `mp_deathbody` 20/0. Details: MP_PLAN.md, "The slide pose and the dead body as others see them".
+- Reports: `vr_mp_avatars` prints `mp_doll:` lines and the bodies' `sliding=`.
 ## navfollow: a debug autopilot after another player by the navmesh (navfollow, 2026-11-20, `agent/navfollow`)
 
 His words: "a debug command I can enable in one of the players' windows so that it follows the other player using the

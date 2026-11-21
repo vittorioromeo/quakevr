@@ -3946,6 +3946,39 @@ A1 B1 `--load 16`, A2 B2 plain, A2 B2 `--load 16`, about 30 minutes each, with t
   sliding states), mp_melee (the two upright-crowbar dirparry checks), mp_flow (Load Autosave's coop listing). Base
   only, so not chased.
 
+## The slide pose and the dead body as others see them (mpslide, 2026-11-20)
+
+His words: "the sliding player is just crouched" from another client; "their ragdoll is the default Quake ranger model,
+not their own customized player model".
+
+- **The slide.** What was wrong: vr_avatar_pitch.cpp's slide source read only the local player's slide
+  (`flatmove::slidePose`, `slide::headsetPose`) and skipped another player's body outright, and nothing about a slide
+  was sent: his copy got the crouched box's crouch only. The fix: the server's slide (`slide::onServer`, flat or
+  headset) is bit 128 of the avatar's gear byte (`avatarGearSliding`; the armour stays its low two bits; no new message,
+  no protocol version change: an older client would only misread a slider's armour colour), `Avatar::sliding` ->
+  `Subject::sliding`, and the same pose code takes it (`BodyPitch::sliding`, the neck back:
+  `flatmove::slideNeckBack(other)`). Tests: `mp_slide` (flat B: his own body sliding 0.92, A's copy 0.57, leant
+  back), `mp_slide_vr` (a headset B's vr_slide: A's copy 0.51). Open: a remote flat client's own slide pose is his
+  client's guess (crouch held, on the ground, fast: `flatmove::sliding`), longer than the server's slide, so his copy's
+  ease peaks lower; a headset client of another server poses no slide of his own (`slide::headsetPose` is the host's).
+- **The dead body.** What was wrong: the body a player leaves (QC vr_deathdoll.qc's player_body, or Quake's body
+  queue) is `progs/player.mdl` in his colours, drawn as that model (its ragdoll on a listen host and in single player,
+  its death animation on a client of another server); his avatar body (build, look) is only drawn on his living
+  entity, which the others are not sent while he is dead. The fix (`mpavatar::addDolls`, every frame, single player
+  too): an entity drawn with `progs/player.mdl` (or its ragdoll's skinned copy) whose colormap is a player's and which
+  is not his own entity is his dead body; it is drawn as his body by the routines that draw a living player's copy
+  (`setup`, `setupBody`, `view::drawBody`, `avatar::poseOther`), with `Subject::doll` (`avatar::DollPose`): the
+  trunk, head and legs from the doll's rig bones (`ragdoll::drawnPart`, or `ragdoll::bonePose` of its frame on the
+  entity), each body bone's bind turned onto its rig bone's rest direction then with it (`solveDoll`), the legs
+  reaching its ankles scaled to his legs, bending to its knees; the arms by `solveArm` to his jointed hands drawn open
+  at its wrists. His calibration (build, bracers, height, scale) and look (tone, gloves, nails) as sent; your own
+  dead body your own settings (`calOf`: `CalState::own`). Headless while the Immersive death view is in its head
+  (`ragdoll::headHidden`). The ragdoll's physics, grabs and hits are unchanged (only the drawing). Off with
+  `vr_mp_body 0`. Test: `mp_deathbody` (20/0): a VR listen host and a flat client, each dying: host-own (ragdoll),
+  client-other (animation), host-other (ragdoll), client-own (animation): the dead player's build's model, his tone and
+  gloves, both hands, its pelvis 7.7-7.9 units from the doll's origin. Single player: `vr_hurt 110 0` drew
+  `mp_doll` with the brawny build and tone -0.50 (a screenshot from `vr_mock_camera`).
+
 ## Sync audit 2026-11-21: every player feature, seen by another player or not
 
 His words: "Player flashlights are not synced, they should. Can you do an audit of all player features/interactions
@@ -3966,7 +3999,7 @@ design (right as it is), **N** no such feature. Evidence: [run] syncaudit, [test
 | Head, hands (place, turn), finger curls, thumb | S | QVR_SVC_AVATAR's drawn hands, at the snapshot rate | mp_avatar [test]; hand_rig x2 both [run] |
 | Body: IK, torso yaw, lean, crouch height, legs | S | the avatar's VrBodyPose and his calibration; vr_avatar.cpp's own IK per copy | mp_body [test]; vrbody both [run] |
 | Crouch, prone and crawl, swim, in the air | S | the avatar's moves byte | mp_moves [test] |
-| Slide pose | E | agent/mpslide | |
+| Slide pose | S | the avatar's slide state (agent/mpslide, merged: section above) | mp_slide, mp_slide_vr [test] |
 | Climb, hang, mantle (the holds) | S | the moves byte's hold bits and places | mp_moves, mp_climb [test] |
 | Two-handed holds, hand-off, reverse grip, parry guard | S | both drawn hands and the drawn weapon's place and turn | mp_held, mp_melee [test] |
 | Punches, swings, shoves, bashes, parries between players | S | judged by the server per player; their whooshes are server sounds | mp_melee [test]; knight/sword1-2 both [run] |
@@ -3997,7 +4030,7 @@ design (right as it is), **N** no such feature. Evidence: [run] syncaudit, [test
 | Drops, pickups, hand-overs, force grabs, disarms, thrown weapons | S | server entities, judged per player | mp_pickup, mp_forcegrab, mp_disarm [test] |
 | Grapple rope | S | QVR_SVC ropes | [code] |
 | Carried props, ragdolls, all physics bodies | E | queued ragsync | |
-| Dead player's ragdoll model | E | agent/mpslide | |
+| Dead player's ragdoll model | S | drawn through his avatar: his build, tone, gloves (agent/mpslide, merged: section above) | mp_deathbody [test] |
 | Death, respawn, gibbing | S | server entities | mp_flow (B4b) [test] |
 | The flat player's aiming pose (ADS) | E | queued adspose | |
 | Navmesh follow (`vr_nav_follow`) | S | shipped, handled | |
@@ -4007,7 +4040,7 @@ design (right as it is), **N** no such feature. Evidence: [run] syncaudit, [test
 | Toolgun, Setup, holster setup | L | single player only (section 1.3) | [code] |
 | HUD, the gadget's screen contents, haptics, menus, voice notes | L | his own | |
 
-Counts (43 rows): 20 synced, 11 gaps, 6 elsewhere, 4 local by design, 2 not features.
+Counts (43 rows): 22 synced, 11 gaps, 4 elsewhere, 4 local by design, 2 not features (the slide pose and the dead body synced by mpslide since the audit).
 
 **Side finding.** The Debug menu's Cheats rows (Quad, Pentagram, Ring, Biosuit: `impulse 190-193`) give a holstered
 shotgun in coop instead: the single-player test impulses (`VR_TestImpulse`) are skipped in coop, and weapons.qc's

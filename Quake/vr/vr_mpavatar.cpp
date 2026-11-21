@@ -31,6 +31,9 @@
 #include "vr_render.hpp"
 #include "vr_seated.hpp"
 #include "vr_server.hpp"
+#include "vr_slide.hpp"
+#include "vr_flatplay.hpp"
+#include "vr_ragdoll.hpp"
 #include "vr_view.hpp"
 #include "vr_mem.hpp"
 
@@ -62,6 +65,7 @@ struct Drawn
     view::ViewEntity weapon[2];
     float skin[2][handrig::data::numJoints * 12]{};
     int frame{-1}; // host_framecount it was last set up
+    int doll{0};   // ... as his dead body: its entity (addDolls; 0 his living body)
     glm::vec3 placedAt{0.f}; // his entity's drawn place then (the trace's: vr_mp_trace)
     // His body (vr_mp_body), as last posed (the report's: the skeleton, the wrists its arms reached for).
     view::ViewEntity body;
@@ -201,11 +205,12 @@ void printAvatar(int e, const Avatar& a, bool hands)
         printVec("handwrist1", d.handWrist[1]);
         float pitch = 0.f;
         float lying = 0.f;
-        (void)avatar::otherPitch(e, pitch, lying);
+        float sliding = 0.f;
+        (void)avatar::otherPitch(e, pitch, lying, sliding);
         float climbWeight = 0.f;
         (void)avatar::otherClimb(e, climbWeight);
-        Con_Printf(" eyeheight=%.3f yaw=%.1f moves=%d pitch=%.1f lying=%.2f climb=%.2f seated=%d\n", d.eyeHeight, a.body.yaw,
-            a.moves, pitch, lying, climbWeight, d.seated ? 1 : 0);
+        Con_Printf(" eyeheight=%.3f yaw=%.1f moves=%d pitch=%.1f lying=%.2f sliding=%.2f slide=%d climb=%.2f seated=%d\n",
+            d.eyeHeight, a.body.yaw, a.moves, pitch, lying, sliding, a.sliding ? 1 : 0, climbWeight, d.seated ? 1 : 0);
         view::printPauldrons("mp_pauldron", e, d.pauldron);
         if(const view::ViewEntity* plate = d.plateReport >= 0 ? &d.plate[d.plateReport] : nullptr;
             plate && plate->visible && plate->ent.model && !d.plateBones[d.plateReport].empty())
@@ -296,7 +301,24 @@ void avatars_f()
         if(avatar::Skeleton k; avatar::skeleton(k) && avatar::posedEntity() && avatar::posedEntity()->model)
         {
             printSkeleton("mp_body_own", cl.viewentity, avatar::posedEntity()->model->name, k);
-            Con_Printf("\n");
+            float pitch = 0.f, lying = 0.f, sliding = 0.f;
+            (void)avatar::ownPitch(pitch, lying, sliding);
+            Con_Printf(" pitch=%.1f lying=%.2f sliding=%.2f\n", pitch, lying, sliding);
+        }
+        // The dead players' bodies drawn as theirs (addDolls): whose, the model, the joints, the doll's entity, the look.
+        for(int e = 1; e <= MAX_SCOREBOARD; e++)
+        {
+            const Drawn& d = drawn.of[e];
+            if(d.doll > 0 && d.bodyPosed && d.body.ent.model && (d.frame == host_framecount - 1 || d.frame == host_framecount))
+            {
+                printSkeleton("mp_doll", e, d.body.ent.model->name, d.skeleton);
+                view::SkinLook look;
+                const int kind = mpavatar::lookOf(&d.body.ent, look);
+                const entity_t& de = cl_entities[d.doll];
+                Con_Printf(" doll=%d dollmodel=%s ragdoll=%d dollat=%.1f %.1f %.1f look=%d tone=%.2f gloves=%d hands=%d %d\n",
+                    d.doll, de.model ? de.model->name : "-", ragdoll::published(d.doll) ? 1 : 0, de.origin[0], de.origin[1],
+                    de.origin[2], kind, look.tone, look.gloves, d.hand[0].visible ? 1 : 0, d.hand[1].visible ? 1 : 0);
+            }
         }
         view::printOwnLooks(cl.viewentity);
         view::printOwnPauldrons(cl.viewentity);
@@ -381,15 +403,14 @@ void add(view::ViewEntity& ve)
     }
 }
 
-void setupBody(int e, const Avatar& a, const glm::vec3& origin);
+void setupBody(int e, const Avatar& a, const glm::vec3& origin, const avatar::DollPose* doll);
 
-// Avatar `e`'s hands and weapons placed on his entity as drawn now (its lerp: they ride it between messages).
-void setup(int e, const Avatar& a)
+// Avatar `e`'s hands and weapons placed on his entity as drawn now at `origin` (its lerp: they ride it between messages).
+// `doll`: his dead body's pose (addDolls), the hands at its wrists.
+void setup(int e, const Avatar& a, const glm::vec3& origin, const avatar::DollPose* doll = nullptr)
 {
     Drawn& d = drawn.of[e];
     d.frame = host_framecount;
-    glm::vec3 origin, angles;
-    render::drawnPlace(cl_entities[e], origin, angles);
     d.placedAt = origin;
     // His hands, held and holstered weapons as his client drew them, by the routines that draw yours (view::drawHands).
     view::HandsDraw in;
@@ -425,7 +446,7 @@ void setup(int e, const Avatar& a)
     out.bones[0] = d.skin[0];
     out.bones[1] = d.skin[1];
     view::drawHands(in, out);
-    setupBody(e, a, origin);
+    setupBody(e, a, origin, doll);
 }
 
 [[nodiscard]] const Drawn* drawnOf(const entity_t* e, int& side, bool& hand)
@@ -532,8 +553,19 @@ struct CalState
     double nextSend{0.0};
     Calibration slot[MAX_SCOREBOARD]; // the server's: by client slot
     bool slotHas[MAX_SCOREBOARD]{};
+    Calibration own; // this client's own, as its settings are now (addEntities: your dead body drawn as yours)
 };
 CalState cal;
+
+// Player entity `e`'s calibration as this client has it: yours your own settings', another's as he sent it (null: none).
+[[nodiscard]] const Calibration* calOf(int e)
+{
+    if(e > 0 && e == cl.viewentity)
+    {
+        return &cal.own;
+    }
+    return e > 0 && e <= MAX_SCOREBOARD && cal.has[e] ? &cal.of[e] : nullptr;
+}
 
 // calFields' places (setupBody).
 constexpr int calGloves = 6, calGloveHue = 7, calGloveSat = 8, calGloveLight = 9, calNails = 10, calTone = 11, calNailHue = 25,
@@ -546,15 +578,16 @@ constexpr int calHeight = 0, calArm = 2, calScale = 3, calBody = 12, calBuild = 
 // head, his drawn hands (their wrists, as your own body's arms take yours) and how his client poses his body (a.body),
 // at his height, arm length and world scale, his build's model and its bracers or bare forearms (his calibration's; the
 // defaults until it comes). His body mode 0 (none): his player model, as before. Both his jointed hands must be drawn.
-void setupBody(int e, const Avatar& a, const glm::vec3& origin)
+void setupBody(int e, const Avatar& a, const glm::vec3& origin, const avatar::DollPose* doll)
 {
     Drawn& d = drawn.of[e];
     d.bodyPosed = false;
-    const Calibration* c = cal.has[e] ? &cal.of[e] : nullptr;
+    const Calibration* c = calOf(e);
     view::BodyDraw b;
     b.shown = vr_mp_body.value != 0.f && a.body.valid && !(c && c->v[calBody] == 0) && d.hand[0].visible && d.hand[1].visible;
     b.player = e;
     avatar::Subject who;
+    who.doll = doll;
     b.who = &who;
     if(c)
     {
@@ -592,10 +625,11 @@ void setupBody(int e, const Avatar& a, const glm::vec3& origin)
     const double dt = cl.mtime[0] - cl.mtime[1];
     const glm::vec3 moved{ent.msg_origins[0][0] - ent.msg_origins[1][0], ent.msg_origins[0][1] - ent.msg_origins[1][1],
         ent.msg_origins[0][2] - ent.msg_origins[1][2]};
-    who.velocity = dt > 1e-4 && dt < 0.5 && glm::length(moved) < 64.f ? moved / static_cast<float>(dt) : glm::vec3{0.f};
+    who.velocity = !doll && dt > 1e-4 && dt < 0.5 && glm::length(moved) < 64.f ? moved / static_cast<float>(dt) : glm::vec3{0.f};
     // (B5b: on the ground, lying down and in the water as the server has him -- his body lying, swimming as he does)
     who.onGround = (a.moves & avatarOnGround) != 0;
     who.lying = (a.moves & avatarLying) != 0;
+    who.sliding = a.sliding; // (mpslide: his slide pose, the server's word, as his own client poses it)
     who.waterlevel = (a.moves >> avatarWaterShift) & 3;
     // (B5c: his holds, the server's -- his climbing trunk and feet)
     for(int h = 0; h < 2; h++)
@@ -961,7 +995,9 @@ void parse()
         }
     }
     a.holsters = readDrawnHolsters(glm::vec3{0.f}, false); // (offsets from his entity's origin)
-    a.armour = MSG_ReadByte();
+    const int gear = MSG_ReadByte();
+    a.armour = gear & avatarGearArmour;
+    a.sliding = (gear & avatarGearSliding) != 0;
     a.msgTime = cl.mtime[0];
     if(ent > 0 && ent <= MAX_SCOREBOARD && ent != cl.viewentity)
     {
@@ -1138,6 +1174,194 @@ const Avatar* of(int ent)
     return ent > 0 && ent <= MAX_SCOREBOARD && avatars[ent].valid ? &avatars[ent] : nullptr;
 }
 
+// Player `e`'s copy as set up this frame (setup) into the drawn entities: his hands, weapons, holsters, pauldrons, plates
+// and body, the body in `replace`'s place in the list (his player model, or his dead body's: it would stand round it).
+void addDrawn(int e, const entity_t* replace)
+{
+    Drawn& d = drawn.of[e];
+    for(int side = 0; side < 2; side++)
+    {
+        add(d.weapon[side]);
+        add(d.hand[side]);
+        add(d.pauldron[side]);
+        add(d.pauldronArm[side]);
+    }
+    for(view::ViewEntity& ve : d.holster)
+    {
+        add(ve);
+    }
+    for(view::ViewEntity& ve : d.plate)
+    {
+        add(ve);
+    }
+    add(d.plateBridge);
+    if(d.body.visible && d.body.ent.model)
+    {
+        bool replaced = false;
+        for(int i = 0; i < cl_numvisedicts && !replaced; i++)
+        {
+            replaced = cl_visedicts[i] == replace;
+            cl_visedicts[i] = replaced ? &d.body.ent : cl_visedicts[i];
+        }
+        if(!replaced)
+        {
+            add(d.body);
+        }
+    }
+}
+
+// Rig bone `b` of the doll `e` (edict `num`) as drawn now: its ragdoll's part (a listen server's, single player's), else
+// its frame's pose on the entity (Quake's alias turn: yaw, the pitch negated, roll). p_world = rot * p_rest + pos.
+[[nodiscard]] bool dollBone(const entity_t* e, int num, qmodel_t* model, const ragdoll::Rig& rig, int b, glm::quat& rot,
+    glm::vec3& pos, float& scale)
+{
+    if(ragdoll::drawnPart(num, b, rot, pos, scale))
+    {
+        return true;
+    }
+    glm::quat r;
+    glm::vec3 t;
+    ragdoll::bonePose(rig, ragdoll::poseOfFrame(model, e->frame), b, r, t);
+    const glm::quat turn = glm::angleAxis(glm::radians(e->angles[1]), glm::vec3{0.f, 0.f, 1.f}) *
+                           glm::angleAxis(glm::radians(-e->angles[0]), glm::vec3{0.f, 1.f, 0.f}) *
+                           glm::angleAxis(glm::radians(e->angles[2]), glm::vec3{1.f, 0.f, 0.f});
+    rot = turn * r;
+    pos = glm::vec3{e->origin[0], e->origin[1], e->origin[2]} + turn * t;
+    scale = 1.f;
+    return true;
+}
+
+// The pose of the doll `e` (edict `num`, progs/player.mdl: its rig's bones by their names, player_bones.json) and the
+// hands it is drawn with (at its wrists, open, along its forearms); false: no rig, or not the player's.
+[[nodiscard]] bool dollPose(const entity_t* e, int num, qmodel_t* model, avatar::DollPose& out, VrDrawnHand hands[2])
+{
+    const ragdoll::Rig* rig = ragdoll::rigFor(model);
+    if(!rig)
+    {
+        return false;
+    }
+    const char* const names[] = {"pelvis", "chest", "head", "upperarm_l", "forearm_l", "upperarm_r", "forearm_r", "thigh_l",
+        "shin_l", "thigh_r", "shin_r"};
+    constexpr int boneCount = static_cast<int>(sizeof(names) / sizeof(names[0]));
+    glm::quat rot[boneCount];
+    glm::vec3 pivot[boneCount], end[boneCount], rest[boneCount], restPivot[boneCount];
+    for(int i = 0; i < boneCount; i++)
+    {
+        int b = 0;
+        while(b < rig->numBones && strcmp(rig->bones[b].name, names[i]) != 0)
+        {
+            b++;
+        }
+        glm::vec3 pos;
+        float scale = 1.f;
+        if(b >= rig->numBones || !dollBone(e, num, model, *rig, b, rot[i], pos, scale))
+        {
+            return false;
+        }
+        const ragdoll::Bone& bone = rig->bones[b];
+        pivot[i] = rot[i] * (scale * bone.pivot) + pos;
+        end[i] = rot[i] * (scale * bone.end) + pos;
+        rest[i] = bone.end - bone.pivot;
+        restPivot[i] = bone.pivot;
+    }
+    out.pelvis = pivot[0];
+    out.pelvisRot = rot[0];
+    out.pelvisRest = restPivot[1] - restPivot[0]; // (from it to the chest's joint, as the body's pelvis points to its spine)
+    out.waist = pivot[1];
+    out.neck = pivot[2];
+    out.head = 0.5f * (pivot[2] + end[2]);
+    out.chestRot = rot[1];
+    out.headRot = rot[2];
+    out.chestRest = rest[1];
+    out.headRest = rest[2];
+    for(int side = 0; side < 2; side++)
+    {
+        const int upper = 3 + 2 * side, fore = upper + 1, thigh = 7 + 2 * side, shin = thigh + 1;
+        out.hip[side] = pivot[thigh];
+        out.knee[side] = pivot[shin];
+        out.ankle[side] = end[shin];
+        out.shinRot[side] = rot[shin];
+        out.shinRest[side] = rest[shin];
+        // The hand (HAND_OFF the left) at the wrist, along the forearm, its back the forearm's turned rest up.
+        VrDrawnHand& h = hands[side == 0 ? HAND_OFF : HAND_MAIN];
+        h = VrDrawnHand{};
+        h.flags = VrDrawnHand::handBit;
+        h.handOrigin = end[fore];
+        const glm::vec3 along = glm::normalize(end[fore] - pivot[upper] + 2.f * (end[fore] - pivot[fore]));
+        glm::vec3 up = rot[fore] * glm::vec3{0.f, 0.f, 1.f};
+        up = up - along * glm::dot(up, along);
+        up = glm::length(up) > 1e-3f ? glm::normalize(up) : glm::vec3{0.f, 0.f, 1.f};
+        h.handAngles = hands::anglesFromVectors(along, up);
+    }
+    return true;
+}
+// The dead players' bodies (QC vr_deathdoll.qc's player_body; Quake's body queue): progs/player.mdl in a player's
+// colours (its colormap his; not his own entity). Each drawn as his own body (mpslide, 2026-11-20: they were id's ranger,
+// not the body he is seen in): his build's model in his look, posed from the doll (Subject::doll), his jointed hands at
+// its wrists; one a player (the first listed). For every viewer: a listen host and single player (its ragdoll), a client
+// of another server (its death animation's frame), the dead player himself (his own settings; headless while the
+// Immersive death view is in its head).
+void addDolls()
+{
+    if(vr_mp_body.value == 0.f)
+    {
+        return;
+    }
+    const int listed = cl_numvisedicts; // (the copies' own entities are added after them)
+    for(int i = 0; i < listed; i++)
+    {
+        entity_t* e = cl_visedicts[i];
+        if(e < cl_entities || e >= cl_entities + cl.num_entities || !e->model)
+        {
+            continue;
+        }
+        const int num = static_cast<int>(e - cl_entities);
+        const qmodel_t* source = ragdoll::sourceModel(e); // (a ragdoll drawn with its skinned copy: its .mdl)
+        qmodel_t* model = const_cast<qmodel_t*>(source ? source : e->model);
+        if(strcmp(model->name, "progs/player.mdl") != 0)
+        {
+            continue;
+        }
+        int p = 0;
+        for(int k = 0; k < cl.maxclients && k < MAX_SCOREBOARD && !p; k++)
+        {
+            p = e->colormap == cl.scores[k].translations ? k + 1 : 0;
+        }
+        if(p <= 0 || p == num || drawn.of[p].frame == host_framecount)
+        {
+            continue; // (not a player's colours, his own entity, or his copy drawn already)
+        }
+        avatar::DollPose pose;
+        Avatar a;
+        if(!dollPose(e, num, model, pose, a.hands))
+        {
+            continue;
+        }
+        pose.hideHead = ragdoll::headHidden(num);
+        // His copy's avatar: the hands (from the doll's pelvis, as an avatar's from his entity), the chest's yaw.
+        const Avatar& known = avatars[p];
+        a.valid = true;
+        a.flat = known.valid ? known.flat : p == cl.viewentity && flatplay::active();
+        a.body.valid = true;
+        const glm::vec3 fwd = glm::mat3_cast(pose.chestRot) * glm::vec3{1.f, 0.f, 0.f};
+        a.body.yaw = glm::degrees(za::atan2(fwd.y, fwd.x));
+        const glm::vec3 origin = pose.pelvis;
+        a.head = pose.head - origin;
+        for(VrDrawnHand& h : a.hands)
+        {
+            h.handOrigin -= origin;
+        }
+        Drawn& d = drawn.of[p];
+        if(d.frame < 0 || host_framecount - d.frame > freshAfterFrames)
+        {
+            d.morph.resync = true;
+        }
+        setup(p, a, origin, &pose);
+        d.doll = num;
+        addDrawn(p, e);
+    }
+}
+
 void addEntities()
 {
     if(drawn.addedFrame == host_framecount)
@@ -1145,11 +1369,12 @@ void addEntities()
         return; // (the screen drawn again in a frame: added once)
     }
     drawn.addedFrame = host_framecount;
-    if(cls.state != ca_connected || cl.maxclients <= 1 || cl.intermission || vr_mp_avatar_draw.value == 0.f)
+    if(cls.state != ca_connected || cl.intermission || vr_mp_avatar_draw.value == 0.f)
     {
         return;
     }
-    for(int e = 1; e <= MAX_SCOREBOARD && e < cl.num_entities; e++)
+    cal.own = ownCalibration(); // (your dead body's: addDolls)
+    for(int e = 1; cl.maxclients > 1 && e <= MAX_SCOREBOARD && e < cl.num_entities; e++)
     {
         const Avatar& a = avatars[e];
         // (his entity in the last message: in sight, alive or not; a stale avatar is not drawn)
@@ -1163,38 +1388,13 @@ void addEntities()
         {
             d.morph.resync = true; // (his copy first drawn, or again: his plates as they are, no morph)
         }
-        setup(e, blendedOf(e));
-        for(int side = 0; side < 2; side++)
-        {
-            add(d.weapon[side]);
-            add(d.hand[side]);
-            add(d.pauldron[side]);
-            add(d.pauldronArm[side]);
-        }
-        for(view::ViewEntity& ve : d.holster)
-        {
-            add(ve);
-        }
-        for(view::ViewEntity& ve : d.plate)
-        {
-            add(ve);
-        }
-        add(d.plateBridge);
-        if(d.body.visible && d.body.ent.model)
-        {
-            // In his player model's place (it would stand round the body), or added.
-            bool replaced = false;
-            for(int i = 0; i < cl_numvisedicts && !replaced; i++)
-            {
-                replaced = cl_visedicts[i] == &cl_entities[e];
-                cl_visedicts[i] = replaced ? &d.body.ent : cl_visedicts[i];
-            }
-            if(!replaced)
-            {
-                add(d.body);
-            }
-        }
+        glm::vec3 origin, angles;
+        render::drawnPlace(cl_entities[e], origin, angles);
+        setup(e, blendedOf(e), origin);
+        d.doll = 0;
+        addDrawn(e, &cl_entities[e]); // (in his player model's place: it would stand round the body)
     }
+    addDolls();
     // Their skin masks (a skin tone, gloves, nails: their own look, view::lookOf) found now, outside the draw loops.
     entity_t* shown[(MAX_SCOREBOARD + 1) * 3];
     int count = 0;
@@ -1226,11 +1426,12 @@ int lookOf(const entity_t* e, view::SkinLook& look)
     const int owner = static_cast<int>((p - first) / sizeof(Drawn));
     const Drawn& d = drawn.of[owner];
     const int kind = e == &d.hand[0].ent || e == &d.hand[1].ent ? 1 : e == &d.body.ent ? 2 : 0;
-    if(!kind || !cal.has[owner])
+    const Calibration* c = calOf(owner);
+    if(!kind || !c)
     {
         return 0; // (a weapon; no calibration yet: drawn bare)
     }
-    const int* v = cal.of[owner].v;
+    const int* v = c->v;
     look.tone = static_cast<float>(v[calTone]) / 100.f;
     look.gloves = v[calGloves];
     look.glove = glm::vec3{static_cast<float>(v[calGloveHue]), static_cast<float>(v[calGloveSat]) / 255.f,
@@ -1322,7 +1523,9 @@ const view::ViewEntity* find(const entity_t* e)
 int gearByte(const edict_t* ent)
 {
     const int items = static_cast<int>(ent->v.items);
-    return ent->v.armorvalue <= 0.f ? 0 : (items & IT_ARMOR3) ? 3 : (items & IT_ARMOR2) ? 2 : (items & IT_ARMOR1) ? 1 : 0;
+    const int armour = ent->v.armorvalue <= 0.f ? 0 : (items & IT_ARMOR3) ? 3 : (items & IT_ARMOR2) ? 2 : (items & IT_ARMOR1) ? 1 : 0;
+    const progs::ServerVm vm; // (slide's slot is by the server's edicts)
+    return armour | (slide::onServer(ent) ? avatarGearSliding : 0);
 }
 
 void clear()

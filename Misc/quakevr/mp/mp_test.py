@@ -1438,6 +1438,133 @@ def flatbody(s):
     s.check("flat B: A's copy of his body posed at his flat body height (1.5 m, his Height 1.8)", True, "after %d reports" % n)
 
 
+SLIDE_SHARE = 0.5  # mp_slide: the slide pose's share (BodyPitch::sliding) a body has at least, mid-slide
+
+
+def slide_peaks(s, a, b, ea, eb, own_check, tries=60):
+    """Reports on A and B until A's copy of B's body and (`own_check`) B's own reach the slide pose (each its own peak:
+    the reports are frames apart) -> (A's copy's peak sliding, its most leant-back pitch, B's own two, reports)."""
+    copy, own = (0.0, 0.0), (0.0, 0.0)
+    n = 0
+    for n in range(1, tries + 1):
+        la, lb = reports(s, [a, b])
+        c = body_of(la, "mp_body").get(eb)
+        o = body_of(lb, "mp_body_own").get(eb)
+        if c and "sliding" in c:
+            copy = (max(copy[0], c["sliding"][0]), min(copy[1], c["pitch"][0]))
+        if o and "sliding" in o:
+            own = (max(own[0], o["sliding"][0]), min(own[1], o["pitch"][0]))
+        if copy[0] >= SLIDE_SHARE and (own[0] >= SLIDE_SHARE or not own_check):
+            break
+    return copy, own, n
+
+
+def slide(s, flat=True):
+    """mpslide (2026-11-20): his words, "from another client's perspective it looks like the sliding player is just
+    crouched". The server's slide (slide::onServer) goes in B's avatar's gear byte (avatarGearSliding: no new message,
+    no protocol change); A's copy of B's body takes the slide pose (BodyPitch::sliding, the trunk leant back, the legs
+    out in front), as B's own does. Flat B (mp_slide: +flatcrouch from a run), or a VR mock B (mp_slide_vr: vr_slide,
+    the turning stick pulled down while running; his own body, a client of another server, poses no slide of its own:
+    slide::headsetPose is the host's only)."""
+    srv, a, b, ea, eb = join(s, flat="B" if flat else "")
+    put_at(srv, b, eb, OPEN_SPOT, 90)
+    b.quiet(r"mp_(move|pos): ", 0.5, 20, "B at rest")
+    since = b.mark()
+    b.cmd("cl_alwaysrun 1; +forward" if flat else "vr_slide 1; vr_mock_stick off 0 1")
+    b.wait(r"mp_move: .*self=1", 20, since, "B running north")
+    # Up to his run's speed before the slide (a slide starts from a run): 40 units north of his spot in A's copy (at
+    # most 40 reports: a definite end; on a busy machine the press once found him still walking, no slide).
+    for _ in range(40):
+        c = body_of(reports(s, [a])[0], "mp_body").get(eb)
+        if c and c["pelvis"][1] - OPEN_SPOT[1] >= 40.0:
+            break
+    b.cmd("+flatcrouch" if flat else "vr_mock_stick main 0 -1")
+    copy, own, n = slide_peaks(s, a, b, ea, eb, flat)
+    b.cmd("-flatcrouch; -forward" if flat else "vr_mock_stick main 0 0; vr_mock_stick off 0 0")
+    what = "flat B" if flat else "VR B"
+    s.metric("slide_copy", copy[0])
+    s.metric("slide_own", own[0])
+    if flat:
+        s.check("%s slides: his own body in the slide pose (sliding %g at least)" % (what, SLIDE_SHARE),
+                own[0] >= SLIDE_SHARE, "sliding %.2f, pitch %.1f" % own)
+    s.check("%s slides: A's copy of his body in the slide pose too, leant back (the server's word)" % what,
+            copy[0] >= SLIDE_SHARE and copy[1] < -1.0, "sliding %.2f, pitch %.1f; after %d reports" % (copy + (n,)))
+
+
+def dolls_of(lines):
+    """"mp_doll:" lines -> {player ent: fields (avatar_fields) with "model" and "dollmodel"}."""
+    out = {}
+    for l in lines:
+        if l.startswith("mp_doll:"):
+            f = avatar_fields(l)
+            m = re.search(r"model=(\S+)", l)
+            f["model"] = m.group(1) if m else ""
+            m = re.search(r"dollmodel=(\S+)", l)
+            f["dollmodel"] = m.group(1) if m else ""
+            out[int(f["ent"][0])] = f
+    return out
+
+
+def deathbody_case(s, srv, a, b, ea, eb, victim, ev, own_models, tone, label):
+    """`victim` (entity `ev`) killed whole (vr_hurt 110: health -10, not gibbed: his ragdoll body, vr_deathdoll.qc):
+    A and B each draw his body as his own body (mp_doll: his build's model in his look), not id's ranger."""
+    since = srv.mark()
+    srv.cmd("vr_hurt 110 %d" % (ev - 1))
+    dead = wait_quietly(srv, r"vr_hurt: .* dead", 10, since, "%s dead on the server" % label)
+    s.check("%s killed whole (vr_hurt 110)" % label, dead is not None, dead[1].strip() if dead else "no vr_hurt line")
+    seen, n = {}, 0
+    for n in range(1, 41):
+        la, lb = reports(s, [a, b])
+        for who, lines in (("A", la), ("B", lb)):
+            d = dolls_of(lines).get(ev)
+            if d and who not in seen:
+                seen[who] = d
+        if len(seen) == 2:
+            break
+    for who in ("A", "B"):
+        d = seen.get(who)
+        viewer = "%s (his own)" % who if (who == "A") == (ev == ea) else who
+        s.check("%s: %s draws %s's dead body as %s's own body (his build's model %s)" % (label, viewer, label, label,
+                own_models[ev]), d is not None and d["model"] == own_models[ev],
+                "%s; the doll %s, ragdoll %s, look %s tone %s gloves %s hands %s, after %d reports" % (
+                    d["model"], d["dollmodel"], d.get("ragdoll"), d.get("look"), d.get("tone"), d.get("gloves"),
+                    d.get("hands"), n) if d else "no mp_doll line after %d reports" % n)
+        if d:
+            s.check("%s: %s's copy wears %s's skin tone (%.2f) and gloves" % (label, viewer, label, tone),
+                    abs(d["tone"][0] - tone) < 0.02 and d["gloves"][0] == 2 and d["hands"] == [1.0, 1.0],
+                    "tone %.2f gloves %d hands %s" % (d["tone"][0], d["gloves"][0], d["hands"]))
+            gap = dist(d["pelvis"], d["dollat"])
+            s.check("%s: %s's copy lies at the doll (its pelvis within 40 units of the doll's origin)" % (label, viewer),
+                    gap <= 40.0, "%.1f units" % gap)
+    return seen
+
+
+def deathbody(s):
+    """mpslide (2026-11-20): his words, "When a player is killed, their ragdoll is the default Quake ranger model, not
+    their own customized player model". A listen host (VR mock, the brawny build, a dark skin tone, full gloves) and a
+    flat client B (the slim build, a pale tone, full gloves). A dies: B (a client of another server: the doll's death
+    animation) and A himself (the host: its ragdoll) draw A's dead body as A's own body; A respawns, then B dies: A and
+    B himself draw B's. Each doll's copy: the dead player's build's model, his skin tone and gloves, his jointed hands,
+    lying where the doll is."""
+    srv, a, b, ea, eb = join(s, listen=True, flat="B")
+    a.cmd("vr_body_build 2; vr_skin_tone -0.5; vr_gloves 2")
+    b.cmd("vr_body_build 0; vr_skin_tone 0.6; vr_gloves 2")
+
+    def dressed(lines):
+        la, lb = lines
+        oa, ob = body_of(la, "mp_body_own").get(ea), body_of(lb, "mp_body_own").get(eb)
+        ca, cb = body_of(lb, "mp_body").get(ea), body_of(la, "mp_body").get(eb)
+        return oa and ob and ca and cb and ca["model"] == oa["model"] and cb["model"] == ob["model"] and \
+            oa["model"] != ob["model"]
+
+    (la, lb), n = reports_until(s, [a, b], dressed, "each draws the other in his own build", 40)
+    models = {ea: body_of(la, "mp_body_own")[ea]["model"], eb: body_of(lb, "mp_body_own")[eb]["model"]}
+    s.note("builds: A %s, B %s (after %d reports)" % (models[ea], models[eb], n))
+    deathbody_case(s, srv, a, b, ea, eb, a, ea, models, -0.5, "A")
+    s.check("A respawned (his trigger)", respawn_if_dead(srv, a, ea))
+    deathbody_case(s, srv, a, b, ea, eb, b, eb, models, 0.6, "B")
+
+
 def cosmetics_b6b(s, srv, a, b, ea, eb):
     """MP_PLAN B6b: B's holstered shotgun drawn at A where B drew it, and the server's holsterpos for B where B's
     holster is; B's pauldrons (steel, bigger) on A's copy of his body as on his own; B seated: A's copy posed as his own
@@ -8096,6 +8223,12 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             cosmetics(s)
         elif test == "mp_flatbody":
             flatbody(s)
+        elif test == "mp_slide":
+            slide(s)
+        elif test == "mp_slide_vr":
+            slide(s, flat=False)
+        elif test == "mp_deathbody":
+            deathbody(s)
         elif test == "mp_loss":
             lossy(s)
         elif test == "mp_predict":
@@ -8209,6 +8342,9 @@ SUITE = [
     ("mp_rules", ()),
     ("mp_cosmetics", ()),
     ("mp_flatbody", ()),
+    ("mp_slide", ()),
+    ("mp_slide_vr", ()),
+    ("mp_deathbody", ()),
     ("mp_loss", ()),
     ("mp_predict", ()),
     ("mp_predictclimb", ()),
@@ -8240,7 +8376,7 @@ SUITE = [
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "navfollow", "navfollow_listen", "navfollow_vr", "syncaudit"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "deathbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "navfollow", "navfollow_listen", "navfollow_vr", "syncaudit"])
     ap.add_argument("--base", required=True, help="the game folder (id1, quakevr...)")
     ap.add_argument("--exe", default=EXE)
     ap.add_argument("--out", default=os.path.join(REPO, "scratch", "mp"))
@@ -8302,7 +8438,7 @@ def main_run(args):
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
     elif args.test in ("bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground",
-                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "navfollow", "navfollow_listen", "navfollow_vr", "syncaudit"):
+                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "deathbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "navfollow", "navfollow_listen", "navfollow_vr", "syncaudit"):
         ok = run(args, "mp_" + args.test)
     elif args.test == "voice":
         ok = run(args, "mp_voice", args.lag, args.jitter, args.loss)

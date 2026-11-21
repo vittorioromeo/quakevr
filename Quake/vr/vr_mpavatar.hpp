@@ -51,8 +51,13 @@ struct Avatar
     glm::vec3 holdOut[2]{}; // ... and the way out from the face (horizontal, unit)
     VrDrawnHolsters holsters; // his holstered weapons as he drew them, from his entity's origin (B6b; no points)
     int armour{0};            // the armour he wears (gearByte: his pauldrons' colour)
+    bool sliding{false};      // the server has him sliding (gearByte's avatarGearSliding: his body's slide pose)
 };
-// The server's gear byte for client entity `ent` (after the holsters): the armour he wears, 0 none .. 3 red.
+// The gear byte's slide bit (mpslide, 2026-11-20): the server's slide (slide::onServer, a flat-screen player's or a
+// headset's), so the others pose his body slid as he sees his own (the armour is the byte's low two bits).
+inline constexpr int avatarGearArmour = 3;
+inline constexpr int avatarGearSliding = 128;
+// The server's gear byte for client entity `ent` (after the holsters): the armour he wears, 0 none .. 3 red; his slide.
 [[nodiscard]] int gearByte(const edict_t* ent);
 
 // vr_client.cpp's dispatch: QVR_SVC_AVATAR's body (after its sub-command byte).
