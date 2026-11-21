@@ -17,7 +17,7 @@ log=$(bash $KIT/run.sh $AGENT -Script "map e1m1;wait10;god;notarget;vr_adweapon_
     -QuitOn "dwmodels-test: done" -Timeout 300 -Filter "dwmodels|vr_adweapon_models:|holster 0 \(|right hand:|rror|exit=" 2>&1 | tr -d '\r')
 echo "$log" | grep -E "FAIL|vr_adweapon_models:|holster 0 \(|right hand:" | head -8
 expect_verdict "$log" dwmodels "Dwell's weapons drawn with their own models"
-check $(grep -q "vr_adweapon_models: 7 made, 0 not made" <<<"$log" && echo 1 || echo 0) "the seven models made (AD's three, Dwell's four)"
+check $(grep -q "vr_adweapon_models: 8 made, 0 not made" <<<"$log" && echo 1 || echo 0) "the eight models made (AD's three, Dwell's five)"
 check $(grep -q "holster 0 (.*): Rifle" <<<"$log" && echo 1 || echo 0) "the holster menu names the holstered Rifle"
 check $(grep -qE "left hand: Crystal Lance.*right hand: Rotary Shotgun" <<<"$log" && echo 1 || echo 0) "the holster menu names the Lance and the Rotary in the hands"
 check $(grep -q "exit=quit-on" <<<"$log" && echo 1 || echo 0) "models: the run ended on its last line"

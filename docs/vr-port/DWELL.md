@@ -857,12 +857,18 @@ frame sequences; reading aids only, nothing pasted). Files `QC/dwell/` (GPL-2, h
   hand-off already lets the other hand carry it anywhere); no ammo screen housing (its `wpntxt_av` is slot 53's moved,
   inside the pole); flat's two-handed hold point (hs1) and the sights are slot 53's, unmeasured on the lance; the blow's
   damage on a monster is not measured by a test (only its choice); the lance's length in his hands to tune (k 1.5).
-- **The Rotary Shotgun's grip and reload (item 2): not done** (out of budget). What is known: ours reloads as the
-  Widowmaker (9.5: its tube filled at the hip from the pouch a handful at a time, `vr_ad_widowmaker_tube` 16,
-  `vr_ad_widowmaker_handful` 2; never broken open); Dwell's own Rotary has no reload (Copper's guns feed from the ammo
-  pool). The plan: slot 52 takes the super nailgun's gauntlet hold (its slot's hand pose, grip and `hs1_still`; the hand
-  inside the housing), and its tube's load port made visible on the housing (a reload port setting, as the super
-  nailgun's), keeping Dwell's shot.
+- **The Rotary Shotgun as a gauntlet (item 2; dwellwpn3, ROUND25.md "dwellwpn3")** (`vr_dw_rotary_gauntlet`, 1 by
+  default; 0 the super shotgun's grip of 9.6). Why it could not be reloaded: ours loads as the Widowmaker (9.5: its tube,
+  `vr_ad_widowmaker_tube` 16, filled a handful at a time, `vr_ad_widowmaker_handful` 2; never broken open; Dwell's own
+  Rotary has no reload, Copper's guns feed from the pool), but its model had no load point (`vr_view_internal.hpp`
+  loadPorts: none for `dw_shot3`), so a handful held anywhere never went in; only the gun brought to the pouch loaded it.
+  Now `progs/dw_rotary.mdl#vr`: Dwell's view model laid round the super nailgun's hand (k 1, 40 long; its housing's back
+  bottom on the super nailgun's back, -2.6 0 -5.5; the barrels' axis on z 0; nothing grafted: the hand holds inside the
+  housing), packed from the super nailgun's corner, weapons.txt slot 56 (numSlots 57) the super nailgun's hold values
+  (slot 4) with its own muzzle, screen and the Rotary's weight and kick. On the housing's inner side (+y) a block with a
+  dark opening in a raised rim, the Widowmaker's way (`rotaryGauntletParts`): its load point (`DwVrRotary`, 5 7.25 0;
+  the Widowmaker's Load Point offsets and `vr_reload_port_widow_radius`, as the QC loads it as the Widowmaker). Its back
+  keeps the same ammo screen (`rotaryGauntletHousingSpec`, a screen style alias of `dw_shot3`). Dwell's shot kept.
 - **Reliefs for Dwell and Quoth (item 3): the plan, nothing built.** AD's are made on the developer's machine by
   `Misc/quakevr/pbr_generate.py` (PBRify's two CC0 models through PyTorch; docs/vr-port/PBR_PIPELINE.md) from AD's
   installed PAKs and committed as `quakevr/textures/pbr/<hash>_norm.png` (looked up by the texture's pixels' hash in
@@ -874,6 +880,21 @@ frame sequences; reading aids only, nothing pasted). Files `QC/dwell/` (GPL-2, h
   is the two models exported once to ONNX (CC0: shippable) and run by onnxruntime (DirectML) inside Setup or the
   engine. Meanwhile every Dwell and Quoth texture already gets the normal map made at load from its own shading
   (`vr_normalmaps.cpp` TexMgr_ShadingToNormals; height relief only with `vr_texture_smooth 2`).
+- **Reliefs for Dwell and Quoth, the options (dwellwpn3; still a plan, nothing built: his call).** Shipping reliefs made
+  from Dwell's or Quoth's textures is not allowed; whatever is made must be made on his players' machines from their own
+  copies, into a folder the engine searches outside the release's `quakevr/` (`vr_pbr.cpp` looks a texture up by its
+  pixels' hash: the same `<hash>_norm.png` names AD's pack uses, so a user folder on the search path needs no lookup
+  change; to confirm when built). Agent-days are qvr-agent work, his playtest extra.
+
+  | Option | What runs where | His players need | Quality | Cost |
+  |---|---|---|---|---|
+  | A. ONNX in Setup | PBRify's two CC0 models exported to ONNX once on the developer's machine (shippable: CC0), run by onnxruntime (DirectML, CPU fallback) in a Setup step "Make reliefs for Dwell and Quoth" over `<base>/dwell` and `<base>/quoth`; a few minutes on a GPU | nothing more: the runtime and the two models in the release (onnxruntime with DirectML about 20 MB, the models about 60-120 MB) | AD's (the same models) | 2-3 days: the export and a parity check against `pbr_generate.py`, the Setup step and its progress, the folder, a test on a small texture set |
+  | B. ONNX in the engine | the same models run by the engine itself on a mod's first load (a background job, the reliefs written as they finish) | the same runtime and models | AD's | 3-4 days, and a new runtime dependency in the engine (start-up, threads, its failure paths) |
+  | C. A script | `pbr_generate.py` documented for players with Python and PyTorch (about 2 GB) and the 116 MB PBRify archive | Python, PyTorch, the archive | AD's | half a day (docs, the user folder), for the few who will do it |
+  | D. No model | the normal maps made at load from the textures' shading (`TexMgr_ShadingToNormals`) given height relief for these packs by default (`vr_texture_smooth 2`'s path, per pack) | nothing | below AD's (no learned depth: flat panels stay flat) | half a day to a day, no dependency |
+
+  Recommendation (conservative): D first (cheap, nothing to install, every player gets it); A when he wants AD's look on
+  Dwell and Quoth (one Setup step, no install for players). B only if a Setup step is unwanted; C as a stopgap.
 
 ## 10. Open questions for Vittorio (real decisions only)
 

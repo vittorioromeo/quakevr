@@ -5,6 +5,7 @@ title Dwell's Rotary Shotgun: its ammo screen housing, grip and muzzle
 map vrtesthall
 god
 notarget
+cvar vr_dw_rotary_gauntlet 0
 give "Super Shotgun" off
 cmd vr_ad_test 206
 hint Right hand: the Rotary Shotgun. On its housing's flat back, in the middle, the ammo screen sits in a brown bezel with a bolt each side, its digits as big as before and nothing covering them. Hold the grip: your hand on the handle, the trigger under your finger. Fire and reload: the shots leave the barrels' front, the screen counts. Left hand: our super shotgun to compare. Tune it in Weapon Offsets (slot 53): your values become the defaults.

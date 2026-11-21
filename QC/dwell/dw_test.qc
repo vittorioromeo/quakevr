@@ -417,7 +417,8 @@ void() DW_ModelsTest_Think =
     float data = DW_Data();
     VR_Test_BeginFlags("dwmodels", VR_TEST_LOUD);
     VR_Test_Check(data, "Dwell's data found (its folder)");
-    VR_Test_Check(p.weaponmodel == (data ? "progs/dw_shot3.mdl#vr" : WeaponIdToModel(WID_SUPER_SHOTGUN, 0)),
+    string rotary = DW_RotaryGauntlet() ? "progs/dw_rotary.mdl#vr" : "progs/dw_shot3.mdl#vr"; // (vr_dw_rotary_gauntlet)
+    VR_Test_Check(p.weaponmodel == (data ? rotary : WeaponIdToModel(WID_SUPER_SHOTGUN, 0)),
         sprintf("the Rotary Shotgun drawn as itself (%s)", p.weaponmodel));
     string lance = DW_LancePole() ? "progs/dw_lance.mdl#vr" : "progs/dw_rail.mdl#vr"; // (vr_dw_lance_pole)
     VR_Test_Check(p.weaponmodel2 == (data ? lance : WeaponIdToModel(WID_LIGHTNING, 0)),
@@ -791,6 +792,100 @@ void(entity p) DW_LanceTest =
     t.classname = "dw_lancetest";
     t.owner = p;
     t.think = DW_LanceTest_Think;
+    t.nextthink = time;
+};
+
+// vr_ad_test 218 (dwellwpn3): the Rotary Shotgun as a gauntlet (vr_dw_rotary_gauntlet), its reload found. In the off
+// hand, its tube empty, the main hand free: drawn with its gauntlet model (slot 56, the super nailgun's hold); its shell
+// port found (the engine's load point for it: vr_view_internal.hpp loadPorts, DwVrRotary; waited for a frame at a time,
+// up to a second); it loads by hand, never broken open; the pouch's handfuls held at the port fill its tube (as the
+// Widowmaker's, test 149); then with the setting 0 the super shotgun's grip again (dw_shot3). "dwrotary: N passed, M
+// failed".
+float dw_rt_frames;
+float dw_rt_was; // the setting's old value; -1 - it once the gauntlet's checks are done
+void() DW_RotaryTest_Think =
+{
+    entity p = self.owner;
+    entity os = self;
+    float h = cVR_OffHand;
+    dw_rt_frames = dw_rt_frames + 1;
+    if(dw_rt_frames < 72 && p.offloadportpos == '0 0 0' && dw_rt_was >= 0)
+    {
+        self.nextthink = time; // (the engine's load point comes with a move: a frame or two)
+        return;
+    }
+    if(dw_rt_was >= 0)
+    {
+        VR_Test_BeginFlags("dwrotary", VR_TEST_LOUD);
+        VR_Test_Check(DW_Data(), "Dwell's data found (its folder)");
+        VR_Test_Check(p.weaponmodel2 == "progs/dw_rotary.mdl#vr", sprintf("the Rotary drawn as a gauntlet (%s)", p.weaponmodel2));
+        VR_Test_Check(p.offloadportpos != '0 0 0', sprintf("its shell port found (load point %v after %g frames)",
+            p.offloadportpos, dw_rt_frames));
+        self = p;
+        VR_Test_Check(VR_Reload_ManualInHand(p, h) && !VR_Reload_SsgBreaks(p, h), "it loads by hand (never broken open)");
+        float tube = VR_ClipSizeIn(p, h);
+        VR_Test_Check(tube == rint(cvar_hget(cvarh_vr_ad_widowmaker_tube)), sprintf("its tube the Widowmaker's (%g)", tube));
+        float handful = rint(cvar_hget(cvarh_vr_ad_widowmaker_handful));
+        float loads = 0, most = 0;
+        for(float i = 0; i < 12 && VRGetEntWeaponClip(p, h) < tube; i++)
+        {
+            VR_Reload_PlayerFrame();
+            VR_Reload_Take(cVR_MainHand);
+            entity r = VR_Carry_Held(p, cVR_MainHand);
+            if(r == world) { break; }
+            setorigin(r, r.origin + p.offloadportpos - VR_Reload_RoundRef(r));
+            r.vr_ammo_fresh = FALSE;
+            float was = VRGetEntWeaponClip(p, h);
+            VR_Reload_HeldFrame(cVR_MainHand, r);
+            if(VRGetEntWeaponClip(p, h) > was)
+            {
+                loads = loads + 1;
+                most = max(most, VRGetEntWeaponClip(p, h) - was);
+            }
+        }
+        VR_Test_Check(most == handful, sprintf("a pouch handful at its port goes in at once (%g, a handful %g)", most, handful));
+        VR_Test_Check(VRGetEntWeaponClip(p, h) == tube && loads == ceil(tube / handful),
+            sprintf("its tube fills at the port (%g of %g after %g inserts)", VRGetEntWeaponClip(p, h), tube, loads));
+        self = os;
+        cvar_set("vr_dw_rotary_gauntlet", "0");
+        p.weaponmodel2 = WeaponIdToModel(WID_SUPER_SHOTGUN, 0); // (as a hand's draw sets it: swapped by AD_SyncWeaponModels)
+        dw_rt_was = -1 - dw_rt_was;
+        dw_rt_frames = 0;
+        self.nextthink = time;
+        return;
+    }
+    if(dw_rt_frames < 3)
+    {
+        self.nextthink = time;
+        return;
+    }
+    VR_Test_Check(p.weaponmodel2 == "progs/dw_shot3.mdl#vr", sprintf("vr_dw_rotary_gauntlet 0: the super shotgun's grip (%s)",
+        p.weaponmodel2));
+    cvar_set("vr_dw_rotary_gauntlet", ftos(-1 - dw_rt_was));
+    VR_Test_Verdict();
+    remove(self);
+};
+
+void(entity p) DW_RotaryTest =
+{
+    dw_rt_was = cvar("vr_dw_rotary_gauntlet");
+    cvar_set("vr_dw_rotary_gauntlet", "1");
+    entity os = self;
+    self = p;
+    VR_WeaponUtil_EntAddWeapon(p, WID_SUPER_SHOTGUN);
+    VRGiveEntWeapon(p, cVR_OffHand, WID_SUPER_SHOTGUN, 0, 0);
+    p.weaponinst2.wi_dwvar = DW_VAR_ROTARY;
+    p.weaponmodel2 = WeaponIdToModel(WID_SUPER_SHOTGUN, 0); // (as a hand's draw sets it: swapped by AD_SyncWeaponModels)
+    VRGiveEntWeapon(p, cVR_MainHand, WID_FIST, 0, 0);
+    p.ammo_shells = 100;
+    VR_Scene_HoldGiven(p, cVR_OffHand); // (held, the mock's grip unpressed)
+    self = os;
+    bprint("dwrotary: the Rotary in the off hand, its tube empty\n");
+    dw_rt_frames = 0;
+    entity t = spawn();
+    t.classname = "dw_rotarytest";
+    t.owner = p;
+    t.think = DW_RotaryTest_Think;
     t.nextthink = time;
 };
 

@@ -6470,3 +6470,27 @@ allowed for them; the plan for generating them on the user's machine is in DWELL
 - Left: the main hand does not slide; no ammo screen housing on the lance; flat's hold point and sights unmeasured; the
   blow's damage on a monster untested; not run: dwell_weapons_test.sh, dwell_maps.sh, the melee/two-hand and flat suites,
   scenario_check, a ThinLTO build.
+
+## dwellwpn3: the Lance's checks; the Rotary Shotgun as a gauntlet; the reliefs' options (branch agent/dwellwpn2, 2026-11-21)
+
+His notes of 2026-11-21 (DWELL.md 9.9 has the detail).
+- The Lance's checks (headless, Dev build): dwell_lance 8/0, dwell_weapons 9/0, dwell_maps 28/0 (dwgate 10/0), flatmelee
+  12/0, flatparry 43/0, flattwohand 9/0, flatmelee2h 16/0, flatplay 31/0, flathands 76/0, grip_state PASS, empty_melee
+  2/0, vr_agrunt_test 212 6/0, 213 1/0, 77 12/0, 92 22/0, 18 24/0, scenario_check PASS (148 scenes); ThinLTO and Dev 0
+  warnings. Not clean, and not the pole grip's (its code runs only for a weapon whose own Other Hand Anywhere is 3, the
+  Lance alone, and never in flat play): flatfg2h 10/1 twice (key 3: the axe's drawn off hand leaving the grip, 5.95 a
+  frame against the launcher's 2.90); twohand_regrip's grunt head (pick 4) and hand grenade (pick 10) never held in both
+  (props, no weapon slot). Baselines on next not run.
+- The Rotary as a gauntlet (`vr_dw_rotary_gauntlet` 1): `progs/dw_rotary.mdl#vr` (vr_adweapons.cpp: a recipe over Dwell's
+  view model laid round the super nailgun's hand; `rotaryGauntletParts`: the back's window, the shell port block on the
+  inner side), weapons.txt slot 56 (numSlots 57; the super nailgun's hold values), the `DwVrRotary` load point (5 7.25 0;
+  the Widowmaker's port settings). Why it could not be reloaded: its model had no load point, so only the gun brought to
+  the pouch loaded it. Test `Misc/quakevr/dwell_rotary_test.sh` (vr_ad_test 218) 3/0 (dwrotary 8/0: drawn as a gauntlet,
+  the port found the first frame, handfuls of 2 there fill its 16 tube, the old grip with the setting 0; 8 models made);
+  dwell_vrmodels 13/0. Screenshots `scratch/dww3_rotary.png` (top: before, bottom: after; outer and inner sides).
+- Scenes: `dwell_rotary_gauntlet`, `dwell_lance_pole` (new); `dwell_rotary` and `dwell_lance` now set the old holds (their
+  lines describe them).
+- The reliefs: the options and costs in DWELL.md 9.9 (A ONNX in Setup, B in the engine, C a script, D no model);
+  recommended D first, then A. Nothing built.
+- Left: the port's radius is the Widowmaker's (1.25); his hand's fit inside the housing and the port's place to tune in
+  VR (slot 57 in Weapon Offsets); the port block is dim in dark rooms.

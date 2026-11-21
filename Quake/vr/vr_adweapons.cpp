@@ -67,6 +67,7 @@ struct Parts;
 void widowmakerParts(Parts& p);
 void plasmaParts(Parts& p);
 void rotaryParts(Parts& p);
+void rotaryGauntletParts(Parts& p);
 void lanceParts(Parts& p);
 void rifleParts(Parts& p);
 
@@ -182,6 +183,18 @@ const Recipe recipes[] = {
         {-1, -1, -1}, false, {0.f, 0.f, 0.f}, 0.f, {"progs/v_light.mdl", 0, 0, 0, 0}, {234, 403, 493},
         {-5.6211f, -9.3429f, -6.0018f}, false, {0.f, 0.f, 0.f}, {0.f, 0.f, 0.f}, "progs/v_light.mdl", true, noRect, nullptr,
         403, {0.f, 0.f, 1.75f}, 0, 0.f, {0.f, 0.f, 0.f}, 493, true, 0.35f},
+    // - The Rotary Shotgun as a gauntlet (dwellwpn3; his notes 2026-11-21: "the same sort of grip as the super nailgun,
+    //   so you put your hand inside it"): Dwell's view model as above, laid round the super nailgun's hand: as it is (1:
+    //   40 long, the super nailgun 42.7; its housing 19 long, 13 wide and 11 tall, the super nailgun's 18 x 12 x 15), its
+    //   housing's back bottom on the super nailgun's back (-2.6 0 -5.5: the barrels' axis on z 0, the hand's place 6.8
+    //   -0.05 -1 inside the housing), nothing grafted (the hand holds inside it), packed from the super nailgun's corner so
+    //   slot 56's hand values, the super nailgun's, hold it. Its window on the back and its shell port on the inner side
+    //   (rotaryGauntletParts).
+    {"progs/dw_rotary.mdl#vr", {"progs/v_shot3.mdl", 260, 286, 256, 256, "dwell"}, "frame1", {1.f, 0.f, 0.f},
+        {0.f, 0.f, 1.f}, {1.f, 0.f, 0.f}, {0.f, 0.f, 1.f}, 1.f, {-2.88f, -0.11f, -20.71f}, {-2.6f, 0.f, -5.5f}, {4, -1, -1},
+        false, {0.f, 0.f, 0.f}, 0.f, {"progs/v_nail2.mdl", 0, 0, 0, 0}, {-1, -1, -1}, {-5.1024f, -7.6303f, -8.4464f},
+        false, {0.f, 0.f, 0.f}, {0.f, 0.f, 0.f}, "progs/v_nail2.mdl", true, noRect, rotaryGauntletParts, -1,
+        {0.f, 0.f, 0.f}, 4, 16.5f, {0.f, -0.11f, -15.28f}},
 };
 
 // The Plasma Gun's cell (the lightning gun's magazine and well, made by make_mags.py in v_light.mdl's space: the cell
@@ -1466,6 +1479,37 @@ void rotaryParts(Parts& p)
     housing(p, rotaryHousingSpec);
 }
 
+// The Rotary Shotgun as a gauntlet (dwellwpn3): the same window on its back (x -2.6 at k 1, y -5.55..7.36, z -5.5..5.46;
+// the barrels' axis at y 0, z 0), the steps of the super nailgun's corner (Y 0.059, Z 0.055: 2x9 by 19 for the same
+// 1.06 x 1.04), so vr_screenstyle.cpp takes its entry whole (an alias).
+constexpr Housing rotaryGauntletHousingSpec{{0.f, 0.f}, -1, -2.71f, 9, 19, 4, 2, 1, 2, 11.f, 1.5f, 0.75f, 0.04f,
+    {192.f, 150.f}, 8.f, {8.f, 188.f}, -1.f, 0.f, 0.f, 0.f};
+
+// Its shell port (his notes 2026-11-21: "I cannot find a way to reload the rotary shotgun"): a block on the housing's
+// inner side (+y: towards the body held in the right hand, mirrored in the left; the side slopes out from y 6.3 at x 8.2
+// to 7.4 at x -1.8), its outer face flat at y 7.2, a dark opening in a raised rim there, the Widowmaker's way
+// (widowmakerParts). vr_view_internal.hpp loadPorts (DwVrRotary): the opening's middle (5 7.25 0).
+void rotaryGauntletParts(Parts& p)
+{
+    housing(p, rotaryGauntletHousingSpec);
+    Out& o = p.o;
+    const float cs = static_cast<float>(p.capS), ct = static_cast<float>(p.capT);
+    const Rect dark{cs, ct, cs, ct, false};
+    const Rect plate{184.f, 142.f, 200.f, 158.f, false}; // (Dwell's brown housing plate, as the bezel's)
+    const Rect plateAlong{184.f, 142.f, 200.f, 158.f, true};
+    const Rect blockFaces[4] = {plate, plateAlong, plate, plate};
+    box(o, {2.5f, 5.9f, -1.f}, {7.5f, 7.1f, 1.f}, blockFaces, plate, plate);
+    const Rect rimFaces[4] = {plateAlong, plateAlong, plateAlong, plateAlong};
+    const Rect rimTop[4] = {dark, plateAlong, plateAlong, plateAlong};   // (its underside faces the opening)
+    const Rect rimBottom[4] = {plateAlong, plateAlong, dark, plateAlong}; // (its top faces it)
+    constexpr float px0 = 3.2f, px1 = 6.8f, pz0 = -0.55f, pz1 = 0.55f, rim = 0.25f, side = 7.2f, proud = 0.25f;
+    box(o, {px0, side - 0.3f, pz0}, {px1, side + 0.05f, pz1}, {dark, dark, dark, dark}, dark, dark);
+    box(o, {px0 - rim, side - 0.1f, pz1}, {px1 + rim, side + proud, pz1 + rim}, rimTop, plateAlong, plateAlong);
+    box(o, {px0 - rim, side - 0.1f, pz0 - rim}, {px1 + rim, side + proud, pz0}, rimBottom, plateAlong, plateAlong);
+    box(o, {px0 - rim, side - 0.1f, pz0}, {px0, side + proud, pz1}, rimFaces, plateAlong, dark);
+    box(o, {px1, side - 0.1f, pz0}, {px1 + rim, side + proud, pz1}, rimFaces, dark, plateAlong);
+}
+
 void lanceParts(Parts& p)
 {
     housing(p, lanceHousingSpec);
@@ -2046,12 +2090,14 @@ constexpr const char* widowmakerArtName = "progs/v_widowmaker.mdl"; // the hand-
 // Dwell support: the Rotary Shotgun (its four barrels turned as the Widowmaker's three, the same code in flat and VR
 // play: spinFrame), a shot each 0.2 s (QC dw_items.qc DW_FireVariant).
 constexpr const char* rotaryName = "progs/dw_shot3.mdl#vr";
+constexpr const char* rotaryGauntletName = "progs/dw_rotary.mdl#vr"; // (dwellwpn3: held as a gauntlet)
 constexpr float dwRotaryRefire = 0.2f;
 
 // (Each hand's weapon is asked about just before its spin is advanced: spinFrame; the last asked is the one cached.)
 [[nodiscard]] bool spinsBarrels(const qmodel_t* m)
 {
-    if(!m || m->type != mod_alias || (q_strcasecmp(m->name, widowmakerName) && q_strcasecmp(m->name, rotaryName)))
+    if(!m || m->type != mod_alias
+        || (q_strcasecmp(m->name, widowmakerName) && q_strcasecmp(m->name, rotaryName) && q_strcasecmp(m->name, rotaryGauntletName)))
     {
         return false;
     }
@@ -2066,7 +2112,7 @@ constexpr float dwRotaryRefire = 0.2f;
         const bool four = framesOk && !strcmp(hdr->frames[frameCount].name, "quad0");
         spinModel.spins = three || two || four;
         spinModel.barrels = four ? 4 : two ? 2 : 3;
-        spinModel.dwell = !q_strcasecmp(m->name, rotaryName);
+        spinModel.dwell = !q_strcasecmp(m->name, rotaryName) || !q_strcasecmp(m->name, rotaryGauntletName);
     }
     return spinModel.spins;
 }
