@@ -6842,3 +6842,31 @@ His words: detect an existing installation and only generate the reliefs not gen
 - **Not done.** His folder is under Program Files: if Windows refuses the write there, the window says "Reliefs not
   made: ..." and the CLI fails; an elevated prompt then. The Done page's "Open the Quake VR folder" opens the install
   folder, not a found Quake folder.
+
+## portcheck: is the host's port reachable? Rendezvous protocol version 3; the relay to the backlog (portcheck, 2026-11-21, `agent/portcheck`)
+
+His words (11-21): no relay for now (BACKLOG.md, section 11, low priority: the design and how SDR / EOS / TURN do
+it); an in-game indication of whether the chosen port is forwarded.
+
+- **How it works.** Once registered, the host sends PROBECHECK (the only version 3 request; REGISTER and JOIN stay
+  version 2 so a not-yet-redeployed service still gives codes) with `net_hostport`. The service (qvr_rendezvous.py
+  `probecheck`) sends one PROBE from a second socket (`--probe-port`, any free one) to his outside IP at that port,
+  then PROBING (1). The probe gets in only through a forward (or a router letting anything in): `Port N is reachable
+  from the internet`; PROBING and no probe within 2 s: not reachable (with the forward advice); BADVERSION from a
+  version 2 service: unknown (too old); no PROBING within 6 s: unknown (does not answer), asked again at the next
+  registration. Checked again when a hosting starts (Datagram_Listen), his outside address or port changes.
+- **Limits.** One probe per registration (REGISTER, renewal, move: the room's credit), only from the address holding
+  the room (cookie-checked) and to its IP; replies to a PROBECHECK total 64 bytes (no amplification). A version 2
+  request is served as version 2 (replies carry the request's version); a PROBECHECK in one is dropped.
+- **Shown.** Host Game page (word-wrapped above the room code, white when reachable); the net HUD while hosting
+  (`vr_net_hud` 1: `port 26000 reachable` / `NOT REACHABLE` / `unknown` / `checking`; shared with VR, the same 2D
+  path); the console once; `vr_mp_roomcode` prints `Port N: ...`; `vr_net_hud_report` has `host_line`.
+- **Known limit.** One service IP: a router filtering by address only (not port) reads reachable though strangers
+  are filtered (rare; STUN's change-IP test would need a second IP). A forward of another outside port to 26000
+  reads not reachable.
+- **Checks.** test_rendezvous.py 44/0 (13 new: the probe, its limits, version 2 served, `--newest 2`); `mp_test.py nat`
+  18/0 (room service off: unknown; cone NAT without a forward: not reachable; forwarded port: reachable; a version 2
+  service: code still given, unknown); roomui 6/0 (the HUD line; the page's shot looked at); netsafe 14/0. Dev build
+  0 warnings, ThinLTO 0 warnings.
+- **He must redeploy the service** (`bash Misc/rendezvous/update.sh vittorioromeo.com`) for real games to read
+  reachable/not reachable; until then they read unknown and room codes work as before.

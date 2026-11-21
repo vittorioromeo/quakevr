@@ -37,6 +37,14 @@ How it is built (what runs on the server and on each client) is in [MP_DESIGN.md
      Then forward **UDP port 26000** on your router to your PC (your router's "port forwarding" page; the port is
      `-port` / `net_hostport` if you changed it) and give them your public address (search "what is my IP" in a
      browser) or a dynamic-DNS name; or use a virtual LAN between you.
+   - **Is my port reachable?** While you host with the room service on, Host Game shows **Port 26000: reachable**
+     (anyone can join, whatever their router), **not reachable from the internet** (forward UDP 26000 for the players
+     behind strict routers; room codes still work for most), or **unknown** (the room service is off, too old, or not
+     answering). The net HUD (`vr_net_hud 1`) shows it while you host (`port 26000 reachable`) and the console says it
+     once (`vr_mp_roomcode` prints it again). How: the room service sends one unasked-for datagram to your public
+     address at your game port from another of its ports; your router lets it in only through a forward (or if it
+     lets anything in). A router that filters by address only (not by port) can read reachable for the service while
+     still filtering strangers: rare.
    - Privacy: while you host, the room service sees your public IP address and your room code, and the joining
      player's; it keeps them only while your game runs (two minutes after it ends they are gone) and logs no
      addresses. `vr_mp_room 0` hosts without a room code (nothing is sent to the service); `vr_mp_rendezvous` names

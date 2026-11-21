@@ -55,6 +55,12 @@ void	NET_Init (void);
 void	NET_Shutdown (void);
 
 const char	*NET_RoomCode (void); // QVR: (B23) this host's room code ("": none; net_dgrm.c)
+// QVR: (2026-11-21) the port check: whether this host's game port is reachable from the internet (the room service's
+// probe; net_dgrm.c). OFF: no room service (vr_mp_room 0 or no vr_mp_rendezvous); OLDSERVICE: a version 2 service.
+enum { NET_PORTCHECK_OFF, NET_PORTCHECK_WAITING, NET_PORTCHECK_REACHABLE, NET_PORTCHECK_CLOSED, NET_PORTCHECK_OLDSERVICE,
+	NET_PORTCHECK_NOANSWER };
+int		NET_PortCheck (void);
+const char	*NET_PortCheckText (qboolean brief); // "Port 26000: reachable"; brief: "port 26000 reachable" (the net HUD's)
 
 struct qsocket_s	*NET_CheckNewConnections (void);
 // returns a new connection number if there is one pending, else -1

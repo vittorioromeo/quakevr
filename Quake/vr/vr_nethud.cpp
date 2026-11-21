@@ -1,6 +1,8 @@
 // vr_nethud.cpp -- the net HUD (MP_PLAN.md, B13): while joined to a remote server, `vr_net_hud` 1 shows at the top
 // right (under the clock and the frame rate) the ping, the loss and the prediction's corrections; 2 a second line with
-// the bytes each way and the reliable resends (Debug > Reports > Network: Net HUD).
+// the bytes each way and the reliable resends (Debug > Reports > Network: Net HUD). While hosting a multiplayer game, one
+// line: whether his game port is reachable from the internet (the room service's probe, net_dgrm.c: "port 26000
+// reachable").
 //
 // - Ping: the round trip of his moves' acknowledgements (vr_netmove.cpp: the way there, the server's frame that ran the
 //   move, the datagram back), smoothed; to a server without Quake VR's moves, the reliable chunks' (net_dgrm.c).
@@ -63,6 +65,12 @@ void printReport();
 [[nodiscard]] bool remote()
 {
     return cls.state == ca_connected && cls.netcon && !sv.active && !cls.demoplayback;
+}
+
+// (the port check) hosting a multiplayer game here: the HUD's line is his game port's reachability (net_dgrm.c)
+[[nodiscard]] bool hosting()
+{
+    return sv.active && svs.maxclients > 1 && cls.state != ca_dedicated;
 }
 
 void take(Sample& s)
@@ -149,10 +157,11 @@ void printReport()
 {
     Con_Printf("mp_nethud: on=%d remote=%d window=%d ping=%d ping_last=%d predicts=%d loss=%.2f fix_rate=%.2f "
                "fix_mean=%.3f in=%.2f out=%.2f resent=%.2f silence=%.1f notice=%d line0=\"%s\" line1=\"%s\" "
-               "notice_line=\"%s\"\n",
+               "notice_line=\"%s\" host_line=\"%s\"\n",
         static_cast<int>(vr_net_hud.value), remote() ? 1 : 0, state.haveWindow ? 1 : 0, state.pingMs, state.pingLastMs,
         state.predicts ? 1 : 0, state.lossPct, state.fixRate, state.fixMean, state.inKBs, state.outKBs, state.resentRate,
-        state.silence, state.notice ? 1 : 0, state.lines[0], state.lines[1], state.notice ? state.noticeLine : "");
+        state.silence, state.notice ? 1 : 0, state.lines[0], state.lines[1], state.notice ? state.noticeLine : "",
+        hosting() ? NET_PortCheckText(true) : "");
 }
 
 // (B16) The server's silence after this frame's reads: the lesser of the game time (realtime: in a fast-mode test a
@@ -215,6 +224,11 @@ extern "C" const char* VR_NetHudLine(int line)
     if(line == 0)
     {
         nethud::update();
+    }
+    // (the port check) a host's one line: whether players behind any router can reach his game port
+    if(nethud::hosting())
+    {
+        return line == 0 && vr_net_hud.value > 0.f ? NET_PortCheckText(true) : nullptr;
     }
     // (B16) the server's silence first, whether or not the HUD is on
     const int notice = nethud::state.notice && nethud::state.sock ? 1 : 0;

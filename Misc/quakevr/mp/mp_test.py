@@ -689,7 +689,10 @@ def nat(s):
        accept, which led nowhere outside).
     2. Room codes: a host behind a cone NAT (non-port-preserving) gets a room code; A behind another cone NAT joins
        by it (both punch); B behind a symmetric NAT is told there's no direct link; an unknown code and a service that
-       doesn't answer are told so."""
+       doesn't answer are told so.
+    3. (2026-11-21) The port check (the service's probe from another port): without the room service it reads unknown
+       (1.'s host), behind the cone NAT without a forward not reachable (2.'s), with the port forwarded reachable;
+       with a version 2 service (--newest 2) the room code still comes and the check reads unknown."""
     out = subprocess.run([sys.executable, os.path.join(RENDEZVOUS, "test_rendezvous.py")], capture_output=True,
                          text=True, timeout=120)
     verdict = [l for l in out.stdout.splitlines() if l.startswith("rendezvous_test:")]
@@ -699,6 +702,8 @@ def nat(s):
     service = subprocess.Popen([sys.executable, os.path.join(RENDEZVOUS, "qvr_rendezvous.py"), "--bind", "127.0.0.1",
                                 "--port", str(rport), "--report", "0", "--verbose"],
                                stdout=open(os.path.join(s.out, "rendezvous.log"), "w"), stderr=subprocess.STDOUT)
+    services = [service]
+    oport = s.take_port()
     nats = []
     try:
         def router(ip, kind, seed):
@@ -720,6 +725,11 @@ def nat(s):
         c.wait(r"mp_event: .*joined map=e1m1", 120, what="C joined the forwarded host")
         s.check("a host behind a router that doesn't keep port numbers, his port %d forwarded to %d outside, is joined "
                 "at 127.0.0.2:%d (one server socket)" % (s.port, outside, outside), True)
+        since = srv.mark()
+        srv.cmd("vr_mp_roomcode")
+        _, line = srv.wait(r"Port \d+: ", 30, since, "the port check's line")
+        s.check("the port check without the room service (vr_mp_room 0): unknown (room service off)",
+                "Port %d: unknown (room service off)" % s.port in line, line.strip())
         c.stop()
         srv.stop()
         # 2. Room codes through cone NATs
@@ -734,6 +744,15 @@ def nat(s):
         outside_h = hnat.outside_port(h.port)
         s.check("the host behind a cone NAT gets a room code, the service seeing his router's outside port",
                 outside_h and outside_h != h.port and ("127.0.0.3:%d" % outside_h) in line, line.strip())
+        # (the port check, version 3) the service's probe from its other port, filtered by his router: not reachable
+        _, line = h.wait(r"Port \d+ is (not )?reachable", 30, what="the host's port check")
+        since = h.mark()
+        h.cmd("vr_mp_roomcode")
+        _, shown = h.wait(r"Port \d+: ", 30, since, "the port check's line")
+        s.check("the port check behind a cone NAT without a forward: not reachable (the probe filtered)",
+                ("Port %d is not reachable" % h.port) in line and
+                ("Port %d: not reachable from the internet (forward UDP %d" % (h.port, h.port)) in shown,
+                "%s | %s" % (line.strip(), shown.strip()))
         anat = router("127.0.0.4", "cone", 3)
         a = s.client("A", extra=["-natgateway", str(anat.gateway_port)] + room).start()
         a.cmd("name A; connect @%s" % code.lower())
@@ -756,13 +775,36 @@ def nat(s):
         _, why = b.wait(r"does not answer", 30, since, "B's no-service reason")
         s.check("a room service that doesn't answer is told so", True, why.strip())
         a.cmd("vr_mp_roomcode")
+        # 3. (the port check) a host whose port is forwarded (the same number outside) reads reachable
+        fnat = router("127.0.0.6", "cone", 5)
+        fhport = s.take_port()
+        forwarded = fnat.forward(fhport, fhport)
+        f = Instance(s, "fwdhost", fhport, dedicated=4, extra=["-natgateway", str(fnat.gateway_port)] + room)
+        s.instances.append(f)
+        f.start()
+        f.cmd("coop 1; deathmatch 0; skill 1; map e1m1")
+        _, line = f.wait(r"Port \d+ is (not )?reachable", 120, what="the forwarded host's port check")
+        s.check("the port check with UDP %d forwarded: reachable (the probe got in)" % fhport,
+                forwarded == fhport and ("Port %d is reachable" % fhport) in line, line.strip())
+        # ... and with a version 2 service (not yet redeployed): unknown, its room code still given
+        old = subprocess.Popen([sys.executable, os.path.join(RENDEZVOUS, "qvr_rendezvous.py"), "--bind", "127.0.0.1",
+                                "--port", str(oport), "--report", "0", "--newest", "2"],
+                               stdout=open(os.path.join(s.out, "rendezvous_v2.log"), "w"), stderr=subprocess.STDOUT)
+        services.append(old)
+        since = f.mark()
+        f.cmd("vr_mp_rendezvous 127.0.0.1:%d" % oport)
+        _, line = f.wait(r"Room code: [A-Z]{6} ", 30, since, "the room code from the old service")
+        _, line2 = f.wait(r"Port \d+: unknown \(the room service .* is too old", 30, since, "the old service's check")
+        s.check("a version 2 room service still gives a room code; the port check reads unknown (too old)",
+                "Room code:" in line, "%s | %s" % (line.strip(), line2.strip()))
         s.metric("nat", {n.outside_ip: dict(n.stats) for n in nats})
     finally:
         for n in nats:
             s.note(n.summary())
             n.stop()
-        service.terminate()
-        service.wait(10)
+        for p in services:
+            p.terminate()
+            p.wait(10)
 
 
 def netsafe(s):
@@ -859,6 +901,13 @@ def roomui(s):
         _, line = h.wait(r"Room code: [A-Z]{6} ", 120, what="the host's room code")
         code = re.search(r"Room code: ([A-Z]{6})", line).group(1)
         s.check("the listen host gets a room code from the local service", True, line.strip())
+        # (the port check) no router between: the service's probe gets in; the net HUD's host line says so
+        h.wait(r"Port \d+ is (not )?reachable", 30, what="the host's port check")
+        since = h.mark()
+        h.cmd("vr_net_hud 1; vr_net_hud_report")
+        _, rep = h.wait(r"mp_nethud: ", 30, since, "the net HUD's report")
+        s.check("the listen host's net HUD line: his port reachable", 'host_line="port %d reachable"' % h.port in rep,
+                rep.strip()[-60:])
         since = h.mark()
         h.cmd("con_notifytime 0; menu_hostgame; wait; wait; wait; echo roomui_menu_open")  # (drawn before the shot)
         h.wait(r"roomui_menu_open", 30, since, "the host's menu open")
