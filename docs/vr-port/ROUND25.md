@@ -6950,3 +6950,21 @@ it); an in-game indication of whether the chosen port is forwarded.
 - **Test:** `Misc/quakevr/reload/pouchbody_test.sh` 12/0: with `vr_body_mode` 0, 2 and 3 every gear ring at least 1
   (mode 0 was 0.86 and 0.47 before the fix: FAIL), a shell from the ammo pouch, a magazine from it seated in the nailgun,
   a grenade from the grenade pouch. Checklist scene `pouchbody` (Only Hands, the shotgun and the nailgun, ammo).
+
+## release12: the 1.2.0-rc.1 pre-release stopped at the release tests (release12, 2026-11-21, `agent/release12`)
+
+- **Notes:** `docs/vr-port/RELEASE_NOTES_1.2.md` (user-facing, grouped; Known issues: no splitscreen, Quest standalone
+  not in it, the multiplayer beta's limits; the Dwell Rifle unmentioned). PATCH_NOTES_1.1.1.md not renamed.
+- **Checks passed:** dev and ThinLTO builds 0 warnings, QC 0 warnings, scenario_check PASS (151 run, 0 failed).
+- **Stopped:** `make_release.ps1 -Version 1.2.0-rc.1 -BumpVersion -Publish -NoDraft -NoBranchPush -RunTests -AllowFlaky
+  -SkipOnlineInstall -Notes docs\vr-port\RELEASE_NOTES_1.2.md`: run_test_suite 38 passed, 6 failed, 2 flaky (warned);
+  nothing bumped, built, tagged or published. Rerun alone: weapon_catch, vrtrailer, mapgun_pickup and mapgun_transfer
+  fail again; turned_box and shot_shape pass (flakes).
+- **mapgun_pickup / mapgun_transfer are the tests' own false positive:** their PowerShell `-match
+  'ENGINE|ERROR|Unknown|...'` is case-insensitive, and the start-up trace's summary line ("the engine's shaders") now
+  matches it (`loadedmapguns/pickup_test.ps1:59`, `transfer_test.ps1:8`; `-cmatch` fixes it).
+- **weapon_catch** ("lying shotgun at its handle: taken, the allowed gap the slack and the handle leniency (10 cm; seen
+  2.6-7.7 cm off)"; "leniency 0: the slack's 5 cm alone at the handle, not taken from 10 cm over it") and **vrtrailer**
+  ("the swing beheaded him", "he is dead (health 30)") want a look; both passed 3 of 3 on 2026-11-12.
+- **To publish once fixed:** the same command. `-NoBranchPush` matters: without it the script pushes agent/release12 to
+  its upstream, origin/next; with it the tag alone carries the version commit.
