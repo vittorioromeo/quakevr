@@ -21,9 +21,11 @@
 #include "vr_climb.hpp"
 
 #include "vr_cvars.hpp"
+#include "vr_disarmviz.hpp"
 #include "vr_flashlight.hpp"
 #include "vr_handrig.hpp"
 #include "vr_hands.hpp"
+#include "vr_hitmodel.hpp"
 #include "vr_hull.hpp"
 #include "vr_move.hpp"
 #include "vr_netsnap.hpp"
@@ -291,6 +293,22 @@ void printAvatar(int e, const Avatar& a, bool hands)
             Con_Printf("mp_drawnwpn: ent=%d side=%d mdl=%s", e, side, d.weapon[side].ent.model->name);
             printVec("butt", butt);
             printVec("muzzle", muzzle);
+            Con_Printf("\n");
+        }
+    }
+    {
+        // (bots4) His Show Disarm Volumes and Show Hit Zones as drawn here (a host's from its QC, a client's rebuilt): how
+        // many, the first grab capsule's ends, the head zone's centre (mp_test.py debugviz).
+        int volumes = 0, zoneCount = 0;
+        glm::vec3 grabA{0.f}, grabB{0.f}, head{0.f};
+        const bool shownV = disarmviz::playerShown(e, volumes, grabA, grabB);
+        const bool shownZ = hitmodel::playerZonesDrawn(e, zoneCount, head);
+        if(shownV || shownZ)
+        {
+            Con_Printf("mp_debugviz: ent=%d volumes=%d zones=%d", e, shownV ? volumes : 0, shownZ ? zoneCount : 0);
+            printVec("grab0", grabA);
+            printVec("grab1", grabB);
+            printVec("head", head);
             Con_Printf("\n");
         }
     }
@@ -1386,6 +1404,23 @@ bool drawnPlaces(int ent, glm::vec3& body, glm::vec3 handsAt[2], int& frame)
         handsAt[side] = glm::vec3{ve.ent.origin[0], ve.ent.origin[1], ve.ent.origin[2]};
     }
     frame = d.frame;
+    return true;
+}
+
+bool drawnNow(int ent)
+{
+    return ent > 0 && ent <= MAX_SCOREBOARD && drawn.of[ent].frame >= 0 && drawn.of[ent].frame >= host_framecount - 1;
+}
+
+bool drawnWeapon(int ent, int side, glm::vec3& butt, glm::vec3& muzzle, glm::vec3& hand)
+{
+    if(!drawnNow(ent) || side < 0 || side > 1 || !drawnWeaponLine(drawn.of[ent].weapon[side], butt, muzzle))
+    {
+        return false;
+    }
+    const Drawn& d = drawn.of[ent];
+    const view::ViewEntity& ve = d.hand[side].visible ? d.hand[side] : d.weapon[side];
+    hand = glm::vec3{ve.ent.origin[0], ve.ent.origin[1], ve.ent.origin[2]};
     return true;
 }
 

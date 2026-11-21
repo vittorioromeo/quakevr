@@ -6678,6 +6678,93 @@ def botgrab(s):
         botgrab_case(s, srv, a, 0, bots[0] + 1, "the bot")
 
 
+def debugviz_case(s, srv, a, who, ent, label, host):
+    """(bots4) vr_dm_test 16 holds the victim (`who` 0 the bot, 1 B) in front of A; A's mp_debugviz line for entity `ent`:
+    his disarm volumes (the host's from its QC, a client's rebuilt from the weapon it draws) along his drawn weapon, and
+    his five hit zones with the head zone at his drawn head."""
+    since_a = a.mark()
+    srv.cmd("vr_dm_test_who %d; vr_dm_test 16" % who)
+    _, ready = a.wait(r"dmtest: hold: .*(ready|FAIL)", 30, since_a, "%s: the victim held" % label)
+    if "FAIL" in ready:
+        s.check("%s: the victim held (vr_dm_test 16)" % label, False, ready.strip())
+        return
+
+    def pick(lines, prefix):
+        return [avatar_fields(l) for l in lines[0] if l.startswith(prefix)]
+
+    def done(lines):
+        return pick(lines, "mp_debugviz: ent=%d " % ent) and pick(lines, "mp_drawnwpn: ent=%d side=1 " % ent) and \
+            pick(lines, "mp_avatar: ent=%d " % ent)
+    got = reports_until(s, [a], done, "%s: A reports his debug views" % label)
+    if not got:
+        return
+    (la,), _ = got
+    v = pick([la], "mp_debugviz: ent=%d " % ent)[-1]
+    w = pick([la], "mp_drawnwpn: ent=%d side=1 " % ent)[-1]
+    av = pick([la], "mp_avatar: ent=%d " % ent)[-1]
+    # (the grab capsule's line against the drawn weapon's butt and muzzle: a client's is the drawn line itself; a host's
+    # the server's (VR_Parry_WeaponLine: the butt and the melee's far end), within a few units of it)
+    off = max(math.dist(v["grab0"], w["butt"]), math.dist(v["grab1"], w["muzzle"]))
+    most = 0.5 if not host else DEBUGVIZ_HOST_OFF
+    s.check("%s: A draws his disarm volumes along the weapon he draws (%s)" % (label, "the host's" if host else
+            "a client's rebuild"), v["volumes"][0] >= 2 and off <= most,
+            "volumes %d, grab line %s..%s, drawn %s..%s, %.1f units off (at most %g)" % (
+                v["volumes"][0], v["grab0"], v["grab1"], w["butt"], w["muzzle"], off, most))
+    head_off = math.dist(v["head"], av["head"])
+    s.check("%s: A draws his five hit zones, the head's at his drawn head" % label,
+            v["zones"][0] == 5 and head_off <= DEBUGVIZ_HEAD_OFF,
+            "zones %d, head zone %s, drawn head %s, %.1f units apart (at most %g)" % (
+                v["zones"][0], v["head"], av["head"], head_off, DEBUGVIZ_HEAD_OFF))
+
+
+DEBUGVIZ_HOST_OFF = 12.0  # mp_debugviz: units the host's grab line (the server's) may be off the weapon A draws
+DEBUGVIZ_HEAD_OFF = 16.0  # ... units the head zone (his box's fixed head) may be off the head drawn
+
+
+def debugviz(s, listen):
+    """(bots4; his note: "The show disarm volumes debug view doesn't seem to work on bots", "being able to see their
+    hitboxes would be great ... make sure it also works with bots and players") Show Disarm Volumes and Show Hit Zones on
+    a deathmatch with B and a bot, each held in front of A (vr_dm_test 16): on a dedicated server A is a client and
+    rebuilds them (debugviz); A hosting (debugviz_listen) draws the server's own. A's vr_mp_avatars' mp_debugviz lines."""
+    rules = "vr_player_disarm_pvp 1; vr_player_disarm_grab 1; vr_player_disarm 1"
+    level = "coop 0; deathmatch 1; noexit 1; fraglimit 0; timelimit %d; skill 1; %s; map %s; vr_mp_status" % (
+        DM_TIMELIMIT, rules, DM_MAP)
+    if listen:
+        a = srv = s.server(dedicated=False, name="A")
+        srv.start()
+        srv.cmd("disconnect; maxplayers 4; listen 1; " + level)
+    else:
+        srv = s.server(dedicated=True)
+        srv.start()
+        srv.cmd(level)
+    srv.wait(r"mp_server: map=%s" % DM_MAP, 120, what="the server on %s" % DM_MAP)
+    if not listen:
+        a = s.client("A").start()
+    b = s.client("B").start()
+    if not listen:
+        a.cmd(s.connect_cmd(a))
+    _, ja = a.wait(r"mp_event: .*joined map=%s" % DM_MAP, 120, what="A joined %s" % DM_MAP)
+    b.cmd(s.connect_cmd(b))
+    _, jb = b.wait(r"mp_event: .*joined map=%s" % DM_MAP, 120, what="B joined %s" % DM_MAP)
+    ea, eb = int(fields(ja)["self"]), int(fields(jb)["self"])
+    a.cmd("name A; %s; vr_debug_disarm 1; vr_debug_hitzones 1" % EMPTY_HAND)
+    b.cmd("name B; %s; vr_mock_button main grip 1; vr_mock_button off grip 0" % HOLD_OUT)
+    debugviz_case(s, srv, a, 1, eb, "player B", listen)
+    since_a = a.mark()
+    a.cmd("impulse 100")
+    a.wait(r"mp_frags: .*named=1", 10, since_a, "the bot named at A")
+    bots = []
+    for _ in range(10):
+        bots = sorted(slot for slot in frag_table(a) if slot not in (ea - 1, eb - 1))
+        if bots:
+            break
+        since_c = a.mark()
+        wait_quietly(a, r"mp_frags: ", 5, since_c, "the bot listed at A")
+    s.check("A lists the bot", len(bots) == 1, "%s" % frag_table(a))
+    if bots:
+        debugviz_case(s, srv, a, 0, bots[0] + 1, "the bot", listen)
+
+
 def deathmatch(s):
     """(B11) A dedicated deathmatch server (deathmatch 1, fraglimit 3) on dm4: A and B (B through the proxy) join at
     deathmatch starts; A adds two FrikBot bots (impulse 100): both clients list four players, the bots move;
@@ -8859,6 +8946,10 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             deathmatch(s)
         elif test == "mp_botgrab":
             botgrab(s)
+        elif test == "mp_debugviz":
+            debugviz(s, False)
+        elif test == "mp_debugviz_listen":
+            debugviz(s, True)
         elif test == "mp_coopbots":
             coopbots(s)
         elif test == "mp_wristscore":
@@ -8940,6 +9031,8 @@ SUITE = [
     ("mp_dm", ()),
     ("mp_coopbots", ()),
     ("mp_botgrab", ()),
+    ("mp_debugviz", ()),
+    ("mp_debugviz_listen", ()),
     ("mp_wristscore", ()),
     ("mp_lockstep", ()),
     ("mp_lockstep_dm", ()),
@@ -8961,7 +9054,7 @@ SUITE = [
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "wristscore", "wpnsync", "wpnsync_flat", "navfollow", "navfollow_listen", "navfollow_vr", "syncaudit"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "debugviz", "debugviz_listen", "wristscore", "wpnsync", "wpnsync_flat", "navfollow", "navfollow_listen", "navfollow_vr", "syncaudit"])
     ap.add_argument("--base", required=True, help="the game folder (id1, quakevr...)")
     ap.add_argument("--exe", default=EXE)
     ap.add_argument("--out", default=os.path.join(REPO, "scratch", "mp"))
@@ -9023,7 +9116,7 @@ def main_run(args):
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
     elif args.test in ("bandwidth", "wpnsync", "wpnsync_flat", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground",
-                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "wristscore", "navfollow", "navfollow_listen", "navfollow_vr", "syncaudit"):
+                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "debugviz", "debugviz_listen", "wristscore", "navfollow", "navfollow_listen", "navfollow_vr", "syncaudit"):
         ok = run(args, "mp_" + args.test)
     elif args.test == "voice":
         ok = run(args, "mp_voice", args.lag, args.jitter, args.loss)

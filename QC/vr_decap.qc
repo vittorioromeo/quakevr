@@ -1421,7 +1421,10 @@ void() VR_Decap_DebugFrame =
     }
     for(entity e = nextent(world); e; e = nextent(e))
     {
-        if(!(e.flags & FL_MONSTER) || e.vr_gib)
+        // (bots4: the players too, bots and humans alive, their positional zones on their boxes; the engine draws them as
+        // outlines, not on player.mdl; a client rebuilds them from the entity as drawn: vr_hitmodel.cpp playerZones)
+        float client = (e.flags & FL_CLIENT) && e.health > 0 && e.deadflag == DEAD_NO;
+        if(!((e.flags & FL_MONSTER) || client) || e.vr_gib)
         {
             continue;
         }
@@ -1446,7 +1449,7 @@ void() VR_Decap_DebugFrame =
             vector c = '1 0 0' * xHeadForward + '0 1 0' * xHeadLeft + '0 0 1' * xHeadUp;
             debughitzone(e, 1, c, c, xHeadRadius + (precise ? VR_HEAD_MARGIN : 0));
         }
-        if(mode >= 2 && e.health > 0 && VR_Decap_Judged(e) && VR_Decap_HeadZone(e))
+        if(mode >= 2 && !client && e.health > 0 && VR_Decap_Judged(e) && VR_Decap_HeadZone(e))
         {
             vector top = '1 0 0' * xHeadForward + '0 1 0' * xHeadLeft + '0 0 1' * xHeadUp;
             if(mode == 2)
