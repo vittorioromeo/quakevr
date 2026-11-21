@@ -96,6 +96,10 @@ void(entity p) VR_HUM_Test =
         VR_Test_Verdict();
         return;
     }
+    // (the settings it needs on for its spawns, put back as they were after them: a checklist scene runs it in his game)
+    string keep = strzone(sprintf("vr_agrunt_repl %g;vr_agrunt_repl_ad %g;vr_agrunt_repl_variants %g;vr_agknight %g\n",
+        cvar_hget(cvarh_vr_agrunt_repl), cvar_hget(cvarh_vr_agrunt_repl_ad), cvar_hget(cvarh_vr_agrunt_repl_variants),
+        cvar_hget(cvarh_vr_agknight)));
     cvar_set("vr_agrunt_repl", "1");
     cvar_set("vr_agrunt_repl_ad", "1");
     cvar_set("vr_agrunt_repl_variants", "1");
@@ -146,6 +150,7 @@ void(entity p) VR_HUM_Test =
     VR_Test_Check(g1.vr_hum_look == VR_AM_GRUNT * 16 + VR_HUM_CAT_EXPLOSIVE, sprintf("a grunt with a rocket launcher: look %g", g1.vr_hum_look));
     VR_Test_Check(g2.vr_hum_look == VR_AM_ENFORCER * 16 + VR_HUM_CAT_NAILS, sprintf("an enforcer with a nailgun: look %g", g2.vr_hum_look));
     VR_Test_Check(g1.vr_wp_pack != world, "the rocket grunt wears a pack (its look the engine's from its wearer)");
+    localcmd(keep); // (the settings as they were)
     // The client's word.
     entity w = spawn();
     w.classname = "vr_humt_wait";
@@ -157,7 +162,52 @@ void(entity p) VR_HUM_Test =
     w.nextthink = time;
 };
 
-void() VR_HUM_Census =
+// vr_ad_test 221 (humrepl_shots.sh): a row of armed humanoids of row scratch1 before you, one per category: a shotgun (as
+// it is), a rocket launcher, the thunderbolt, AD's flamethrower and poison sprayer (AD's data mounted), the last row's
+// gone first. Prints "humlineup: row K: N made".
+.float vr_humt_row; // one of 221's row
+void(entity p) VR_HUM_Lineup =
+{
+    entity e = findflags(world, vr_humt_row, 1);
+    while(e)
+    {
+        entity next = findflags(e, vr_humt_row, 1);
+        VR_AGR_Unmake(e.vr_ag_prop);
+        VR_AGR_Unmake(e.vr_ag_prop2);
+        if(e.vr_wp_pack)
+        {
+            remove(e.vr_wp_pack);
+        }
+        remove(e);
+        e = next;
+    }
+    float kind = rint(cvar_hget(cvarh_scratch1));
+    float w[5];
+    w[0] = WID_SHOTGUN;
+    w[1] = WID_ROCKET_LAUNCHER;
+    w[2] = WID_LIGHTNING;
+    w[3] = VR_ADGun_Available() ? WID_ADPYRO : WID_FLAREGUN; // (without AD's data: the flare gun, flame too)
+    w[4] = VR_ADGun_Available() ? WID_ADFUMIGATOR : WID_SUPER_NAILGUN; // (... nails: as it is)
+    makevectors([0, p.angles_y, 0]); // (its body's yaw: the view's in the tests' mock headset)
+    entity os = self;
+    float made = 0;
+    float i;
+    for(i = 0; i < 5; i++)
+    {
+        entity g = spawn();
+        setorigin(g, p.origin + v_forward * 150 + v_right * (i - 2) * 44);
+        g.angles_y = vectoyaw(p.origin - g.origin);
+        g.weapon = w[i];
+        self = g;
+        VR_AM_Spawn(kind);
+        self = os;
+        g.vr_humt_row = 1;
+        made = made + (g.vr_ag ? 1 : 0);
+    }
+    bprint(sprintf("humlineup: row %g: %g made\n", kind, made));
+};
+
+void() VR_HUM_CensusNow =
 {
     float armed = 0;
     float left = 0;
@@ -174,5 +224,33 @@ void() VR_HUM_Census =
     }
     bprint(sprintf("humcensus: %s monsters %g armed %g variants %g left %g\n", mapname, total_monsters, armed, vr_hum_made, left));
     bprint("humcensus: done\n");
+};
+
+// The census once a player is in the game (a script sets vr_ad_test 220 as it loads the map: its first frame comes
+// before the client, whose console would miss the lines); a 10 s give-up prints it anyway.
+void() VR_HUM_CensusThink =
+{
+    if(!VR_Player() && time < self.ltime)
+    {
+        self.nextthink = time;
+        return;
+    }
+    if(self.cnt < 3) // (three frames more: its client's sign-on done, the lines reach its console)
+    {
+        self.cnt = self.cnt + 1;
+        self.nextthink = time;
+        return;
+    }
+    VR_HUM_CensusNow();
+    remove(self);
+};
+
+void() VR_HUM_Census =
+{
+    entity w = spawn();
+    w.classname = "vr_humt_census";
+    w.ltime = time + 10;
+    w.think = VR_HUM_CensusThink;
+    w.nextthink = time;
 };
 #endif

@@ -551,6 +551,9 @@ void armedGripsDragMode()
         row(opt::vr_agrunt_repl_id),
         row(opt::vr_agrunt_repl_mp),
         row(opt::vr_agrunt_repl_ad),
+        row(opt::vr_agrunt_repl_variants),
+        header("Look"),
+        row(opt::vr_humlook),
     };
 }
 

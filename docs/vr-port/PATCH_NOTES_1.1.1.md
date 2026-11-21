@@ -236,6 +236,13 @@ aren't Map Library packages aren't sent to joining players.
   those near it or in sight of it turn on you, now for a kill in one shot too. Monsters placed in ambush keep Quake's
   meaning: they don't hear it, and armed ones no longer leave their post for a fallen comrade's weapon. Combat > Stealth
   AI > Cries Heard (0: off). The test map `vralert` shows each case.
+- **Arcane Dimensions' and Quoth's soldiers are armed humanoids.** The rocket, grenade and plasma soldiers fight as
+  grunts, the defenders, eliminators, pyros and fumigators as enforcers, the crossbow knights as knights, each holding
+  its own gun with its own health: disarm them, tug their guns away, shoot the guns out of their hands, take them.
+  Combat > Armed Grunts > Armed Humanoid Replacements: AD and Quoth Variants.
+- **Armed humanoids wear the colour of their weapon.** Rocket and grenade launchers red, lightning and plasma blue,
+  flamethrowers orange, poison green, on their clothes and backpacks, so you see what is coming; the rest look as
+  before. Same page: Recolour by Weapon.
 
 ## Performance
 
