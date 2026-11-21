@@ -1630,10 +1630,14 @@ ByteCounts byteCounts;
 
 // ---- The interpolation buffer ----------------------------------------------------------------------------------------
 
-constexpr int historyLen = 8;           // messages kept per entity
+constexpr int historyLen = 40;          // messages kept per entity (raginterp: past the clock's furthest lag, below)
 constexpr double tick = 1.0 / 72.0;     // the server's frame
 constexpr double delayMin = 1.5 * tick; // the delay's least ...
 constexpr double delayMost = 0.25;      // ... and most
+// (raginterp) The history reaches back past the clock at its furthest: the longest delay and the most it may lag its
+// target before it snaps (catching up after a hitch), a rest sample and the cushion included. With 8 (0.11 s) a delay
+// over 7 ticks (the ragdolls' bigger snapshots' arrivals) put the clock before an entity's oldest message, drawn there:
+// a thrown crate stepped 1-2 ticks ahead, not interpolated. (The check: after restGap.)
 constexpr double delayMargin = 0.5 * tick;
 constexpr double peakDecay = 0.01;      // s a second: the longest gap's hold on the delay fades this fast
 constexpr double clockGain = 4.0;       // the delay's clock: this much faster a second behind (slower ahead) ...
@@ -1641,6 +1645,7 @@ constexpr double rateLeast = 0.85, rateMost = 1.15; // ... within these
 constexpr double snapAfter = 0.25;      // s off its target: set there (a new map, a long stall)
 constexpr double cushion = 0.5 * tick;  // the draw time this near the newest message: its clock slows, to a stop at it
 constexpr double restGap = 4.0 * tick;  // (B12c) a thing unchanged longer than this rested: it sets off from its place
+static_assert(historyLen * tick >= delayMost + snapAfter + 3.0 * tick, "the entity history must outlast the clock's lag");
 
 struct Sample
 {

@@ -6597,6 +6597,21 @@ wristscore). `QVR_NET_VERSION` stays 42: nothing new is sent (the client rebuild
   scenario_check PASS (148 scenes), vr_agrunt_test 97 (Show Disarm Volumes) 5/0 with Show Hit Zones on; Dev and
   ThinLTO builds 0 warnings.
 
+## raginterp: thrown props interpolated at a client while ragdolls are sent (2026-11-21, `agent/raginterp`)
+
+- **The regression** (smallfix's item 4): with `vr_net_ragdolls 1` the crate and sword at B were drawn in steps 1-2 ticks
+  ahead of the interpolation clock in some runs (baseline here: 1 run of 3, crate 6.53 / sword 2.92 units p95; 0.04 in
+  the others). Neither suspect: no history reset (`h.model`) and netrag touches no entity clock. A trace of interpEntity
+  showed B's clock *before each entity's oldest message* with all 8 kept: the history (8 messages, 0.11 s) was shorter
+  than the adaptive delay may be (0.25 s, plus up to 0.25 s more while the clock catches up after a hitch). The
+  ragdolls' bigger snapshots arrive less evenly, the delay passed 7 ticks, and interpEntity's "before the oldest" hold
+  drew each moving thing at its oldest message: stepping, ahead. Latent since B7b; the ragdolls exposed it.
+- **Fix** (vr_netsnap.cpp): `historyLen` 8 -> 40 messages, a static_assert tying it to delayMost + snapAfter + 3 ticks.
+  (netrag's 24-pose ring per ragdoll covers the longest delay but not a hitch's catch-up; its parts pass, left as is.)
+- **Measured**: mp_ragsync 5 runs in a row, all 11/0: crate p95 0.04 units every run, sword 0.04-0.05; ragdoll parts
+  0.12-0.16 units p95 (limit 2). One baseline run's "settled ragdolls cost nothing" failed (4096 B in 2 s), not seen since.
+- Checks: the plain suite 66 of 67 (mp_predict's "B swam" 148 of 150 states; 31/0 on its --only rerun);
+  `vr_netsnap_selftest` 15/0; scenario_check PASS (150 scenes); Dev and ThinLTO builds 0 warnings.
 ## syncfix4: agent/syncfix's checks before it ships (syncfix4, 2026-11-21, `agent/syncfix`)
 
 - Merged origin/next: `QVR_SVC_EJECTOTHER` is 52 now (next took 51 for QVR_SVC_RAGPOSE); both sides' notes on
