@@ -6981,3 +6981,39 @@ it); an in-game indication of whether the chosen port is forwarded.
 - **Test:** `Misc/quakevr/ragdoll/shove_blood_test.sh` 3/0: an unhurt grunt shoved down bled 0 frames; one shot 3 s
   before the shove 0 (was 220); one shot 2 frames before the shove 106. `stagger_test.sh steady` (grunt, 3 each) PASS.
 - **Checklist scenes:** `noclip_fly`, `shove_no_blood` (`vr_scenario runall`: 2 run, 0 failed).
+
+
+## modladders: Quoth's and AD's ladders on our climbing; kellbase1's corridor (branch agent/modladders, 2026-11-21)
+
+His words: Quoth/AD ladders (kellbase1) climbable like VR brush ladders, the flat IK ladder there too; a possible
+softlock in kellbase1 at (-8, -959.8, 664.1).
+
+- **What was wrong:** Quoth's `trigger_ladder` plays as AD's (QUOTH.md). kellbase1's six are thin brushes (2-14 units)
+  over drawn ladders (a non-solid ladder on a pillar, a player clip 22 units behind *48). A hand was held anywhere in the
+  volume (no rungs: `ladderHold`'s fallback took the hand's own height), and only within the touch distance (1.6 units)
+  of a 2-unit slab; the flat ladder's probes (20 units ahead) never landed in it: "0 ledges ahead". In flat play the QC
+  also bypassed AD's jump climb (`VR_AD_LadderManual`) by the hands-tracked bit alone, so with Ladders off nothing climbed.
+- **Fix (vr_climb.cpp):** `ladderHold` gives a ladder with no real rung in reach its own rungs, `ladderRungStep` (16)
+  apart down from the volume's top (`origin + maxs`, not the link's padded box), the hold clamped into the volume; a hand
+  in the wall behind a volume holds it within `ladderInWall` (12); findHold's lenient stage tries the ladder with the
+  leniency radius across (the flat ladder's radius 16 finds the slab). Real rungs still come first (`rungNear`).
+  `flatLadderFrame` stops drawing the body in past `ladderInBox` (8) beyond its holds (a free-standing ladder has no wall).
+  QC `VR_AD_LadderManual`: flat play is manual only with `vr_flat_ladder` on (else AD's/Quoth's own jump climb).
+- **Test:** `Misc/quakevr/modladder_test.sh` 5/0: kellbase1 flat up and over the top (mantled, feet 896, 11 hand
+  changes), down looking down; `vr_flat_ladder 0` Quoth's jump climb (feet 640..882) and AD's on ad_test3; VR hands
+  (`vr_climb_try`) exact holds at 705/721/769/785/881 (rungs 16 apart), none over the top or with Hand-Climbed Ladders off.
+  `vr_flatladder_test` takes a map table (vrtutorial, kellbase1, ad_test3) and sets each case on its floor (and
+  `oldorigin`). flatladder_test.sh 2/0 (vrtutorial unchanged). ad_world_test.sh's flat-ladder holds now expect the
+  nearest rung (not run here).
+- **Not done:** lowered onto kellbase1's ladder off its top (the catwalk's lip is 40 units past it: flatLadderMount's
+  column misses); ad_test3's ladder (real stepped rungs) does not take from its floor in flat play (2 ledges found, not
+  a pair in reach): pre-existing, not the volume's rungs.
+- **kellbase1's corridor:** the corridor between the top doors (y -1176, `topdoors`: TOGGLE doors) and the south exit
+  doors (y -720, `exitlock`, "locked"). `topdoors` is toggled by three things: `topcount` (3 sentinels killed below,
+  "the top doors are open"), the corridor's `trigger_once` at y -740 (closes them 1 s after you reach the exit doors) and
+  `exitcount` (16 arena kills: wires 4 defenders, then the platform buttons' enforcers, pyros, eliminators; it also opens
+  every `exitlock` door). Entering the corridor from the south before the arena's 16 kills shuts you in by the map's
+  design; the arena is reached only after its waves in a normal route, so this is consistent with his noclip (arena
+  skipped: exitcount short). Ours don't break it: `vr_ad_test 212` (flat) drives kellbase1's flow, "its last stage
+  (exitlock) reached in round 4" (all 16 counted with armed replacements on). Not proven by a full walk of the route.
+- **Checklist scene:** `mod_ladder_ad` (ad_test3; not run through scenario_check here).
