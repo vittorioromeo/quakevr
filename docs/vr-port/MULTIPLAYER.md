@@ -127,6 +127,20 @@ for the others. Any PC with Quake VR installed can run one (the same port rule a
 - **Co-op bots**: in a co-op game a bot fights the monsters beside you, never the players, follows the players loosely,
   and comes along to the next level with what it had (as a player who left and came back does).
 
+## The scoreboard on the wrist
+
+- In a multiplayer game (coop or deathmatch, bots included) the wrist gadget has an extra page: the **scoreboard**.
+  Press the gadget's **outer button** (the one that turns to Arcane Dimensions' page) to go through the pages: the HUD,
+  AD's page (with AD's data loaded), the scoreboard, and back to the HUD. Single player has no scoreboard page.
+- It shows the game's own scoreboard's rows in its order (the most frags first): each player's colours, frags and name,
+  your row on a lit strip, and `((o))` beside whoever is talking on voice chat (you too while you send). In coop the
+  level's kills and secrets are above the players (the game's coop scoreboard). It updates live; up to 11 players at the
+  gadget's text size, all 16 in smaller text.
+- Ping isn't shown: a NetQuake client doesn't know the other players' pings (the host's `status` lists them).
+- Flat-screen play has no wrist gadget: its scoreboard is the game's own (**TAB**, and at death).
+- Debug > Reports: **Wrist Gadget Next Page** (`vr_gadget_page 1`) and **Wrist Gadget Scoreboard** (`vr_gadget_scores`,
+  the page's rows in the console). Test: `mp_test.py wristscore`.
+
 ## Voice chat
 
 - **On by default**, heard at the talking player's head and fading with distance (or everywhere: Radio).

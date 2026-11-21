@@ -100,6 +100,9 @@ Tests:
     coopbots (MP bots phase 1) a dedicated coop server on e1m1: A adds a bot (impulse 100); the server's QC test brings a
              grunt in front of it: it kills it, never taking a player for its enemy; A through e1m1's exit: on e1m2 the
              bot is back with what it had (its super nailgun).
+    wristscore  (2026-11-21) the wrist gadget's multiplayer scoreboard page: A alone on e1m1 has none; on a deathmatch
+             server A and B join, A adds a bot and kills it: both pages list the three with their scoreboard's frags,
+             in its order, each marked as himself; A's page shown, its image dumped (A_wristscore.png).
     lockstep (B14b) two runs of the same play on a lockstep server (vr_mp_lockstep: one move of each client a world
              step, by number; vr_fixed_frames 1, sv_random_seed 1; its clients vr_mp_lockstep_ahead 4): A and B join
              e1m1, the world held at steps 36, 360 and 720 (vr_mp_lockstep_until) for the inputs (B walks north, A's
@@ -163,7 +166,7 @@ import traceback
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
-from mp_harness import LINKS, Instance, Session, StepFailed, fields, format_kinds, kind_rates  # noqa: E402
+from mp_harness import GAMES, LINKS, Instance, Session, StepFailed, fields, format_kinds, kind_rates  # noqa: E402
 from mp_nat import Nat  # noqa: E402
 from mp_load import Load  # noqa: E402
 import subprocess  # noqa: E402
@@ -6909,6 +6912,134 @@ def deathmatch(s):
             "%s" % [" ".join(x.strip() for x in a.lines[i:i + 3]) for i in asserts[:2]])
 
 
+def wrist_rows(inst, what):
+    """vr_gadget_scores at `inst`: the wrist gadget's scoreboard page's rows as it draws them -> (its head line's fields,
+    [(slot, name, frags, you)] in the page's order). A definite end: the head line, then its last row's line."""
+    since = inst.mark()
+    inst.cmd("vr_gadget_scores")
+    _, head = inst.wait(r"wristscore: page=", 20, since, what)
+    hf = fields(head)
+    n = int(hf["rows"])
+    if n:
+        inst.wait(r"wristscore: row=%d " % (n - 1), 10, since, what)
+    inst.mark()
+    rows = []
+    for l in inst.lines[since:]:
+        if "wristscore: row=" in l:
+            l = l[l.index("wristscore: row="):]
+            f = fields(l)
+            rows.append((int(f["slot"]), l.split('name="', 1)[1].split('"', 1)[0], int(f["frags"]), f["you"] == "1"))
+    return hf, rows
+
+
+def wrist_rows_agree(inst, own_slot, what, tries=6):
+    """The page's rows at `inst` against its own scoreboard (mp_frags): the same players and frags, in the scoreboard's
+    order (the most frags first), `own_slot` marked as him -> (ok, detail). Again (up to `tries`) when a frag between the
+    two (a bot's own death in dm4's lava) made them differ."""
+    detail = ""
+    for _ in range(tries):
+        hf, rows = wrist_rows(inst, what)
+        table = frag_table(inst)
+        same = sorted((slot, name, frags) for slot, name, frags, _ in rows) == sorted(
+            (slot, name, frags) for slot, (name, frags) in table.items())
+        ordered = all(rows[i][2] >= rows[i + 1][2] for i in range(len(rows) - 1))
+        you = [slot for slot, _, _, y in rows if y] == [own_slot]
+        detail = "page %s; rows %s; scoreboard %s" % (hf, rows, table)
+        if same and ordered and you:
+            return True, detail
+    return False, detail
+
+
+def wristscore(s):
+    """(wristscore) The wrist gadget's multiplayer scoreboard page (vr_gadget_scores.inc; MULTIPLAYER.md, "The scoreboard
+    on the wrist"). A alone on e1m1 first (single player): his gadget's pages never reach the scoreboard (vr_gadget_page
+    three times) and vr_gadget_scores lists nobody. Then a dedicated deathmatch server on dm4 (no frag limit): A and B
+    join, A adds a FrikBot bot (impulse 100) and kills it (the server's vr_hurt, A the attacker): at A and at B the page's
+    rows (vr_gadget_scores: the rows it draws) are the three players with the frags of the client's own scoreboard
+    (mp_frags), A's kill counted, in the scoreboard's order, each client marked as himself; A's gadget turned to the page
+    (vr_gadget_page) shows it, its image dumped (vr_gadget_screen_dump: <out>/A_wristscore.png)."""
+    a = s.client("A").start()
+    since = a.mark()
+    a.cmd("disconnect; maxplayers 1; coop 0; deathmatch 0; map e1m1")
+    a.wait(r"mp_event: .*joined map=e1m1 .*maxclients=1", 120, since, "A alone on e1m1")
+    since = a.mark()
+    a.cmd("vr_gadget_page 1; vr_gadget_page 1; vr_gadget_page 1")
+    a.wait(r"gadget page: ", 10, since, "A's pages")
+    while len([l for l in a.lines[since:] if "gadget page: " in l]) < 3:
+        a.wait(r"gadget page: ", 10, a.mark(), "A's three pages")
+    pages = [l.split("gadget page: ", 1)[1].split()[0] for l in a.lines[since:] if "gadget page: " in l]
+    hf, rows = wrist_rows(a, "A's page in single player")
+    s.check("single player: no scoreboard page (the pages never reach it, it lists nobody)",
+            "2" not in pages and hf["available"] == "0" and not rows, "pages %s; %s" % (pages, hf))
+
+    srv = s.server(dedicated=True)
+    srv.start()
+    srv.cmd("coop 0; deathmatch 1; noexit 1; fraglimit 0; timelimit %d; skill 1; map %s; vr_mp_status" % (
+        DM_TIMELIMIT, DM_MAP))
+    srv.wait(r"mp_server: map=%s" % DM_MAP, 120, what="the server on %s" % DM_MAP)
+    b = s.client("B", proxy=True).start()
+    since_a = a.mark()
+    a.cmd(s.connect_cmd(a))
+    _, ja = a.wait(r"mp_event: .*joined map=%s" % DM_MAP, 120, since_a, "A joined %s" % DM_MAP)
+    b.cmd(s.connect_cmd(b))
+    _, jb = b.wait(r"mp_event: .*joined map=%s" % DM_MAP, 120, what="B joined %s" % DM_MAP)
+    ea, eb = int(fields(ja)["self"]), int(fields(jb)["self"])
+    since_a, since_b = a.mark(), b.mark()
+    a.cmd("impulse 100")
+    a.wait(r"mp_frags: .*named=1", 10, since_a, "the bot named at A")
+    b.wait(r"mp_frags: .*named=1", 10, since_b, "the bot named at B")
+    for c in (a, b):  # (the bot's own name, not FrikBot's placeholder: as deathmatch's)
+        for _ in range(10):
+            if len(frag_table(c)) >= 3 and all(n != "FrikBot" for n, _ in frag_table(c).values()):
+                break
+            if not wait_quietly(c, r"mp_frags: .*named=1", 5, c.mark(), "another name at %s" % c.name):
+                break
+    ta, tb = frag_table(a), frag_table(b)
+    bots = sorted(slot for slot in ta if slot not in (ea - 1, eb - 1))
+    s.check("both clients list three players (A, B, a bot)", len(ta) == 3 and len(tb) == 3 and len(bots) == 1,
+            "A: %s; B: %s" % (ta, tb))
+    if len(bots) != 1:
+        return
+
+    # A kills the bot (vr_hurt: the bot's slot, A the attacker): his frag at both clients
+    mine = ta.get(ea - 1, ("", 0))[1]
+    since_a, since_b = a.mark(), b.mark()
+    srv.cmd("vr_hurt 1000 %d %d" % (bots[0], ea))
+    got_a = wait_or_none(a, r"mp_frags: .*slot=%d named=1 .*frags=%d" % (ea - 1, mine + 1), 10, since_a)
+    got_b = wait_or_none(b, r"mp_frags: .*slot=%d named=1 .*frags=%d" % (ea - 1, mine + 1), 10, since_b)
+    s.check("A kills the bot: his frag (%d) at A and B" % (mine + 1), got_a is not None and got_b is not None,
+            "A: %s; B: %s" % (got_a, got_b))
+    for c, own in ((a, ea - 1), (b, eb - 1)):
+        ok, detail = wrist_rows_agree(c, own, "%s's page" % c.name)
+        s.check("%s's wrist page lists the three with the scoreboard's frags, in its order, him marked" % c.name, ok,
+                detail)
+
+    # A's gadget turned to the page (the outer button's turn: past AD's page if its data is loaded)
+    turned = None
+    for _ in range(3):
+        since_a = a.mark()
+        a.cmd("vr_gadget_page 1")
+        _, line = a.wait(r"gadget page: ", 10, since_a, "A's next page")
+        if line.split("gadget page: ", 1)[1].startswith("2"):
+            turned = line
+            break
+    hf, rows = wrist_rows(a, "A's page shown")  # (a later frame: the page drawn before the dump)
+    s.check("A's gadget turned to the scoreboard page shows it", turned is not None and hf["shown"] == "1",
+            "%s; %s" % (turned, hf))
+    since_a = a.mark()
+    a.cmd("vr_gadget_screen_dump mp_A_wristscore")
+    _, line = a.wait(r"vr_gadget_screen_dump: |no screen yet", 20, since_a, "A's gadget screen dumped")
+    if "no screen yet" not in line:
+        rel = line.split("vr_gadget_screen_dump: ", 1)[1].split(" (", 1)[0].strip()
+        for game in [g for g in GAMES if g != "-game"][::-1] + ["id1"]:
+            p = os.path.join(s.base, game, rel)
+            if os.path.exists(p):
+                out = os.path.join(s.out, "A_wristscore.png")
+                os.replace(p, out)  # (moved out of the shared base)
+                s.note("screenshot (A's wrist scoreboard page): %s" % out)
+                break
+
+
 # ---- B13: the server browser, the net HUD, the soak ----
 def browser_rows(inst, since):
     """vr_mp_browse's rows printed from `since` on (up to its mp_browser_done line) -> [dict] (name: the rest of the line)."""
@@ -8730,6 +8861,8 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             botgrab(s)
         elif test == "mp_coopbots":
             coopbots(s)
+        elif test == "mp_wristscore":
+            wristscore(s)
         elif test == "mp_syncaudit":
             syncaudit(s, args.flat or "")
         elif test in ("mp_voice", "mp_voice_lossy"):
@@ -8807,6 +8940,7 @@ SUITE = [
     ("mp_dm", ()),
     ("mp_coopbots", ()),
     ("mp_botgrab", ()),
+    ("mp_wristscore", ()),
     ("mp_lockstep", ()),
     ("mp_lockstep_dm", ()),
     ("mp_lockstep_throw", ()),
@@ -8827,7 +8961,7 @@ SUITE = [
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "wpnsync", "wpnsync_flat", "navfollow", "navfollow_listen", "navfollow_vr", "syncaudit"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "wristscore", "wpnsync", "wpnsync_flat", "navfollow", "navfollow_listen", "navfollow_vr", "syncaudit"])
     ap.add_argument("--base", required=True, help="the game folder (id1, quakevr...)")
     ap.add_argument("--exe", default=EXE)
     ap.add_argument("--out", default=os.path.join(REPO, "scratch", "mp"))
@@ -8889,7 +9023,7 @@ def main_run(args):
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
     elif args.test in ("bandwidth", "wpnsync", "wpnsync_flat", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground",
-                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "navfollow", "navfollow_listen", "navfollow_vr", "syncaudit"):
+                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "wristscore", "navfollow", "navfollow_listen", "navfollow_vr", "syncaudit"):
         ok = run(args, "mp_" + args.test)
     elif args.test == "voice":
         ok = run(args, "mp_voice", args.lag, args.jitter, args.loss)
