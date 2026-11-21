@@ -6976,4 +6976,6 @@ it); an in-game indication of whether the chosen port is forwarded.
   (`-RealTime` fails too). The 1.1.0 release ran without `-RunTests` (takeslight's out/release/1.1.0 has no tests), so
   "passed at 1.1" was never measured. Left: the kit's base folder and testbatch since 11-12, or the swing mock against
   the Super Axe's held pose. weapon_catch's two handle checks print nothing (no fist line: the off hand never nears
-  the let-go shotgun); not bisected (budget).
+  the let-go shotgun); not bisected (budget). **weapon_catch on a v1.1.0 build in this worktree: 5/5 PASS** (handle
+  taken 6.76 of 10 cm; leniency 0 allowed 5.00, not taken): a real regression between v1.1.0 and origin/next, so the
+  pre-release was not published. Next: bisect v1.1.0..origin/next (first parent) on weapon_catch's handle checks.
