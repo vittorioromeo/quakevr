@@ -4719,6 +4719,7 @@ void netGear(VrDrawnGear& out)
     piece(VrDrawnGear::strap + 1, entities.gadgetStrap[1]);
     piece(VrDrawnGear::pouch, entities.pouch);
     piece(VrDrawnGear::ammoPouch, entities.ammoPouch);
+    out.wrist = static_cast<za::U8>(hands::gadgetHand() == HAND_MAIN ? 1 : 0); // (the move sends its pieces from it)
 }
 
 void netHolsters(VrDrawnHolsters& out)

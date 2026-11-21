@@ -160,11 +160,17 @@ struct VrDrawnGear
     // your STAT_QVR_POUCHKIND and _POUCHCOUNT carry), its rounds drawn in his pouch by your pouch's code.
     za::U8 pouchKind{0};
     za::U8 pouchCount{0};
+    // The hand whose wrist wears the gadget (0 off, 1 main: VrMove::drawn's): the move sends the gadget and its straps
+    // from that hand, the rest from the body (syncfix3: still while he walks or turns; the wire only).
+    za::U8 wrist{0};
 };
 // Written as the shown and mirrored shorts, then each piece drawn: its model, frame, skin, scale, place (eighths from
-// `origin`), turn (16-bit): 17 B a piece; the ammo pouch's kind and count after it when it is drawn (2 B).
-void writeDrawnGear(sizebuf_t* buf, const VrDrawnGear& g, const glm::vec3& origin);
-[[nodiscard]] VrDrawnGear readDrawnGear(const glm::vec3& origin);
+// `origin`), turn (16-bit): 17 B a piece; the ammo pouch's kind and count after it when it is drawn (2 B). syncfix3: the
+// wrist byte after the shorts, and each piece's place and turn from what wears it: the gadget and its straps from
+// `hands[wrist]` (its place, then turned by its yaw; its angles taken off), the rest from `origin` turned by `bodyYaw`
+// (writer and reader the same values: the avatar's hands and body as they are written and read).
+void writeDrawnGear(sizebuf_t* buf, const VrDrawnGear& g, const glm::vec3& origin, float bodyYaw, const VrDrawnHand* hands);
+[[nodiscard]] VrDrawnGear readDrawnGear(const glm::vec3& origin, float bodyYaw, const VrDrawnHand* hands);
 
 struct VrMove
 {

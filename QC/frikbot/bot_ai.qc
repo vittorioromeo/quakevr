@@ -1051,6 +1051,15 @@ void() BotAI =
         return;
     }
 
+    // Quake VR: vr_bot_freeze (Debug > Logging > Freeze Bots; mp_test.py syncaudit's holster pictures): it stands
+    // still, nothing pressed or fired; its aim and route kept for when it plays again.
+    if(cvar_hget(cvarh_vr_bot_freeze))
+    {
+        self.button0 = self.button2 = 0;
+        self.keys = 0;
+        return;
+    }
+
     // stagger the bot's AI out so they all don't think at the same time, causing game
     // 'spikes'
     if(self.b_skill < 2)

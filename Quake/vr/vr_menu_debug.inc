@@ -475,6 +475,7 @@ za::Vector<Item> pageDebugLogging()
         row(opt::vr_debug_arm),
         row(opt::vr_debug_2h_grip),
         row(opt::vr_verbosebots),
+        row(opt::vr_bot_freeze),
         row(opt::vr_debug_glstate),
         header("Trace Files (game folder)"),
         row(opt::vr_debug_grasp_trace),

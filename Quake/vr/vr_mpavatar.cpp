@@ -1263,7 +1263,7 @@ void parse()
         }
     }
     a.lamp = readDrawnLamp(glm::vec3{0.f}); // (from his entity's origin)
-    a.gear = readDrawnGear(glm::vec3{0.f});  // (from his entity's origin: syncfix)
+    a.gear = readDrawnGear(glm::vec3{0.f}, a.body.valid ? a.body.yaw : 0.f, a.hands); // (from his entity's origin: syncfix)
     a.msgTime = cl.mtime[0];
     if(ent > 0 && ent <= MAX_SCOREBOARD && ent != cl.viewentity)
     {

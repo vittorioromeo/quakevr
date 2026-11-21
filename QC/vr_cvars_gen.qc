@@ -472,6 +472,7 @@ float cvarh_vr_bash_speed;
 float cvarh_vr_blood_tally;
 float cvarh_vr_blood_tally_drawn;
 float cvarh_vr_bot_dual_wield;
+float cvarh_vr_bot_freeze;
 float cvarh_vr_bot_parry_chance;
 float cvarh_vr_box3d_hand_mass;
 float cvarh_vr_box3d_hand_props;
@@ -2591,6 +2592,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_blood_tally = VR_CVar_Make("vr_blood_tally");
     cvarh_vr_blood_tally_drawn = VR_CVar_Make("vr_blood_tally_drawn");
     cvarh_vr_bot_dual_wield = VR_CVar_Make("vr_bot_dual_wield");
+    cvarh_vr_bot_freeze = VR_CVar_Make("vr_bot_freeze");
     cvarh_vr_bot_parry_chance = VR_CVar_Make("vr_bot_parry_chance");
     cvarh_vr_box3d_hand_mass = VR_CVar_Make("vr_box3d_hand_mass");
     cvarh_vr_box3d_hand_props = VR_CVar_Make("vr_box3d_hand_props");

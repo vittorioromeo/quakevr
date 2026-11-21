@@ -2484,7 +2484,8 @@ void writeAvatars()
             gear.pouchKind = static_cast<za::U8>(za::clamp(static_cast<int>(fieldFloatOr(ent, f.vr_pouch_kind, 0.f)), 0, 255));
             gear.pouchCount = static_cast<za::U8>(za::clamp(static_cast<int>(fieldFloatOr(ent, f.vr_pouch_count, 0.f)), 0, 255));
         }
-        writeDrawnGear(&tmp, gear, origin);
+        const VrBodyPose& wroteBody = m ? m->move.body : body; // (the yaw as the client reads it back: writeBodyPose)
+        writeDrawnGear(&tmp, gear, origin, wroteBody.valid ? wroteBody.yaw : 0.f, hands);
 
         if(static_cast<int>(avatarsSent.size()) < svs.maxclients)
         {

@@ -6059,6 +6059,9 @@ QVR_CYCLE(vr_debug_2h_grip, "Two-Handed Grip",
     "lying about (its surface, handle and nearest hotspot: Weapons Anywhere).",
     {0.f, "Off"}, {1.f, "Taken and Let Go"}, {2.f, "And Where"})
 QVR_TOGGLE(vr_verbosebots, "Bot Chatter", "The bots' thoughts, with bots in the game.")
+QVR_TOGGLE(vr_bot_freeze, "Freeze Bots",
+    "The bots stand still where they are: no moving, turning or firing (to look at one, its body and gear, from "
+    "every side). Off: they play again.")
 QVR_TOGGLE(vr_debug_glstate, "Graphics State",
     "Each texture bind the engine skipped, believing the texture already bound, while the graphics card had "
     "another there (\"texcache: stale bind\"): a texture deleted without telling the engine's cache, its "

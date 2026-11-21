@@ -8,7 +8,9 @@
 #include "Zancle/Base/IsFinite.hpp"
 #include "Zancle/Base/Macros.hpp"
 #include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/Round.hpp"
+#include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Sqrt.hpp"
 #include "Zancle/Vocabulary/Optional.hpp"
 
@@ -201,20 +203,57 @@ void writeDrawnLamp(sizebuf_t* buf, const VrDrawnLamp& l, const glm::vec3& origi
     }
 }
 
-void writeDrawnGear(sizebuf_t* buf, const VrDrawnGear& g, const glm::vec3& origin)
+namespace
+{
+// (syncfix3) What a gear piece is placed from: the gadget and its straps from the hand that wears them (its place and
+// turn), the rest from his body (`origin`, its yaw). Unchanged while he walks, turns or swings his arms: the avatar's
+// bytes stay the same, so its snapshot record's delta stays small (the move's own: vr_netmove.cpp's visitMove).
+struct GearFrame
+{
+    glm::vec3 from;
+    glm::vec3 turn;
+};
+
+[[nodiscard]] GearFrame gearFrame(int piece, int wrist, const glm::vec3& origin, float bodyYaw, const VrDrawnHand* hands)
+{
+    if(piece >= VrDrawnGear::gadget && piece < VrDrawnGear::pouch)
+    {
+        const VrDrawnHand& h = hands[wrist ? 1 : 0];
+        return GearFrame{h.handOrigin, h.handAngles};
+    }
+    return GearFrame{origin, glm::vec3{0.f, bodyYaw, 0.f}};
+}
+
+[[nodiscard]] glm::vec3 gearLocal(const glm::vec3& x, const GearFrame& f)
+{
+    const glm::vec3 d = x - f.from;
+    const float c = za::cos(glm::radians(f.turn[1])), s = za::sin(glm::radians(f.turn[1]));
+    return glm::vec3{d.x * c + d.y * s, d.y * c - d.x * s, d.z};
+}
+
+[[nodiscard]] glm::vec3 gearWorld(const glm::vec3& l, const GearFrame& f)
+{
+    const float c = za::cos(glm::radians(f.turn[1])), s = za::sin(glm::radians(f.turn[1]));
+    return f.from + glm::vec3{l.x * c - l.y * s, l.x * s + l.y * c, l.z};
+}
+} // namespace
+
+void writeDrawnGear(sizebuf_t* buf, const VrDrawnGear& g, const glm::vec3& origin, float bodyYaw, const VrDrawnHand* hands)
 {
     MSG_WriteShort(buf, g.shown);
     MSG_WriteShort(buf, g.mirrored);
+    MSG_WriteByte(buf, g.wrist);
     for(int i = 0; i < VrDrawnGear::count; i++)
     {
         if(g.shown & (1 << i))
         {
+            const GearFrame f = gearFrame(i, g.wrist, origin, bodyYaw, hands);
             MSG_WriteShort(buf, g.model[i]);
             MSG_WriteByte(buf, g.frame[i]);
             MSG_WriteByte(buf, g.skin[i]);
             MSG_WriteByte(buf, g.scale[i]);
-            writeEighths(buf, g.origin[i], origin);
-            writeAngles16(buf, g.angles[i]);
+            writeEighths(buf, gearLocal(g.origin[i], f), glm::vec3{0.f});
+            writeAngles16(buf, g.angles[i] - f.turn);
         }
     }
     if(g.shown & (1 << VrDrawnGear::ammoPouch))
@@ -224,21 +263,24 @@ void writeDrawnGear(sizebuf_t* buf, const VrDrawnGear& g, const glm::vec3& origi
     }
 }
 
-VrDrawnGear readDrawnGear(const glm::vec3& origin)
+VrDrawnGear readDrawnGear(const glm::vec3& origin, float bodyYaw, const VrDrawnHand* hands)
 {
     VrDrawnGear g;
     g.shown = static_cast<za::U16>(MSG_ReadShort());
     g.mirrored = static_cast<za::U16>(MSG_ReadShort());
+    g.wrist = static_cast<za::U8>(MSG_ReadByte() ? 1 : 0);
     for(int i = 0; i < VrDrawnGear::count; i++)
     {
         if(g.shown & (1 << i))
         {
+            const GearFrame f = gearFrame(i, g.wrist, origin, bodyYaw, hands);
             g.model[i] = static_cast<za::U16>(MSG_ReadShort());
             g.frame[i] = static_cast<za::U8>(MSG_ReadByte());
             g.skin[i] = static_cast<za::U8>(MSG_ReadByte());
             g.scale[i] = static_cast<za::U8>(MSG_ReadByte());
-            g.origin[i] = readEighths(origin);
-            g.angles[i] = readAngles16();
+            g.origin[i] = gearWorld(readEighths(glm::vec3{0.f}), f);
+            const glm::vec3 a = readAngles16() + f.turn; // (in -180..180, as a whole turn read back is)
+            g.angles[i] = a - 360.f * glm::floor((a + 180.f) / 360.f);
         }
     }
     if(g.shown & (1 << VrDrawnGear::ammoPouch))

@@ -3743,6 +3743,7 @@ QVR_CVAR(vr_handgrenade_arm, "0", CVAR_ARCHIVE | QVR_PREF)         // 0: the tri
 QVR_CVAR(vr_ogre_aim_height, "1", CVAR_ARCHIVE | QVR_RULE)          // ogres (and zombies) lob at your height: a ballistic arc at their throw's speed (0: Quake's flat lob)
 QVR_CVAR(vr_activestartpaknameidx, "0", CVAR_ARCHIVE)  // the hub's campaign lecterns: what its teleporter starts (0 Quake, 1 Scourge of Armagon, 2 Dissolution of Eternity: "start"; 3 Dimension of the Past, 4 Dimension of the Machine, 5 Dawn of the Machine: the selector, VR_CanChangeCampaignMap)
 QVR_CVAR(vr_verbosebots, "0", CVAR_NONE)
+QVR_CVAR(vr_bot_freeze, "0", CVAR_NONE)  // Debug: the bots stand still (FrikBot's BotAI: no keys, buttons or turning)
 QVR_CVAR(vr_finger_grip_bias, "0.0", CVAR_ARCHIVE)
 QVR_CVAR(vr_forcegrabbable_box_scale, "0.2", CVAR_ARCHIVE | QVR_RULE) // size of those ammo and health boxes
 QVR_CVAR(vr_finger_auto_close_thumb, "1", CVAR_ARCHIVE)

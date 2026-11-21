@@ -822,6 +822,9 @@ def netsafe(s):
     _, line = c.wait(r"map index: started \(", 120, what="the start-up map index pass")
     s.check("a client's start-up map index reads its cache only (no HTTP fetch)", "its cache only:" in line,
             line.strip())
+    # (syncfix3: its end first -- a maps_fetch while it reads is "a fetch is already under way", no refusal: the
+    # rerun-alone flake, the game started faster than in the suite)
+    c.wait(r"map index: (\d+ packages, from the cache|none \()", 60, what="the start-up map index pass's end")
     since = c.mark()
     c.cmd("maps_fetch")
     _, line = c.wait(r"NET SAFETY: refused the map index fetch from https://", 30, since, "the map index fetch refused")
@@ -8338,7 +8341,9 @@ def syncaudit(s, flat):
         if undo:
             undo(s, srv, a, b, ea, eb)
     # A bot's holsters and what it carries (syncfix batch 2; his voice note 2026-11-21): A adds a coop bot; what A draws
-    # round it: its holster sheaths placed on its body by A's own client (no client of its own drew them).
+    # round it: its holster sheaths placed on its body by A's own client (no client of its own drew them). It stands
+    # still where it spawned (vr_bot_freeze, syncfix3: the pictures below).
+    srv.cmd("vr_bot_freeze 1")
     a.cmd("impulse 100")
     table = {}
     for _ in range(10):
@@ -8362,25 +8367,37 @@ def syncaudit(s, flat):
     s.note("bot: A draws round it: %s" % (seen_bot or "-"))
     s.check("bot: its holster sheaths on its copy at A (4: the hips', the uppers')", own_sheaths >= 4,
             "%d within 30 units; %s" % (own_sheaths, seen_bot or "no bot"))
-    # (syncfix2) A looks at the bot from the four sides (its front, sides and back whichever way it faces): the sheaths
-    # and what they hold on its body, for a person to judge (bot_holsters_from_*.png).
+    # (syncfix2, syncfix3) A looks at the bot from its front, its two sides and its back, the bot standing still
+    # (vr_bot_freeze, from where it spawned: the start's lit room) and A facing its middle: the sheaths and what they
+    # hold on its body, for a person to judge (bot_holsters_<side>.png).
     shots = []
-    for side, yaw in (("north", 270), ("east", 180), ("south", 90), ("west", 0)) if bots else ():
-        since = srv.mark()  # (a bot has no mp_client line: its edict's origin)
+    at = byaw = None
+    if bots:
+        since = srv.mark()  # (a bot has no mp_client line: its edict's origin and angles)
         srv.cmd("edict %d; echo mp_edict_done" % (bots[0] + 1))
         n, _ = srv.wait(r"mp_edict_done", 10, since, "the bot's edict")
-        m = next((re.search(r"origin\s+'\s*([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)", l) for l in srv.lines[since:n]
-                  if re.search(r"^\s*origin\s", l)), None)
-        if not m:
-            break
-        at = [float(m.group(i)) for i in (1, 2, 3)]
-        r = math.radians(yaw + 180)
-        try:  # (a side against a wall: none from there; an aid, not a check)
-            put_at(srv, a, ea, (at[0] + 56 * math.cos(r), at[1] + 56 * math.sin(r), at[2]), yaw, tries=15)
-        except StepFailed:
-            continue
-        sync_wait(srv, 0.5)
-        shots.append(a.screenshot("bot_holsters_from_" + side))
+        for l in srv.lines[since:n]:
+            m = re.search(r"^\s*(origin|angles)\s+'\s*([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)", l)
+            if m and m.group(1) == "origin":
+                at = [float(m.group(i)) for i in (2, 3, 4)]
+            elif m:
+                byaw = float(m.group(3))
+    if at is not None:
+        byaw = byaw or 0.0
+        s.note("bot at %s facing %.0f (frozen)" % (at, byaw))
+        a.cmd("vr_flashlight_clip_head right; vr_flashlight 1")  # (A's head torch on it: lit from where A looks)
+        for side, off in (("front", 0), ("left", 90), ("back", 180), ("right", 270)):
+            r = math.radians(byaw + off)  # (A stands that way from it and looks back at it)
+            try:  # (a side against a wall: none from there; an aid, not a check)
+                put_at(srv, a, ea, (at[0] + 60 * math.cos(r), at[1] + 60 * math.sin(r), at[2]),
+                       (byaw + off + 180) % 360, tries=15)
+            except StepFailed:
+                s.note("bot: no picture from its %s (no room there)" % side)
+                continue
+            sync_wait(srv, 0.5)
+            shots.append(a.screenshot("bot_holsters_" + side))
+        a.cmd("vr_flashlight 0")
+    srv.cmd("vr_bot_freeze 0")
     s.note("bot holster screenshots: %s" % (", ".join(str(p) for p in shots) or "-"))
     with open(os.path.join(s.out, "syncaudit_table.txt"), "w", encoding="ascii") as f:
         f.write("B %s, A VR mock, dedicated server; radius %g round B\n" % ("flat" if flat else "VR mock", SYNC_RADIUS))
