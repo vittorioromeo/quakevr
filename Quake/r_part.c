@@ -77,6 +77,8 @@ R_AllocParticle
 */
 particle_t *R_AllocParticle (void)
 {
+	if (CL_SeatHeadless ()) // QVR: splitscreen: a headless seat's effects are not drawn (phase 7: each seat's world)
+		return NULL;
 	if (r_numactiveparticles < r_numparticles)
 	{
 		particle_t *p = &particles[r_numactiveparticles++];

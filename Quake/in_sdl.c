@@ -181,19 +181,29 @@ static void IN_ResetFlickState (joypad_t *pad)
 ================
 IN_PadSeat -- QVR (splitscreen)
 
-The seat pad k drives, -1 none. Seat 0 is the keyboard and mouse; with n seats in play pads 0..n-2 drive seats
-1..n-1 and pad n-1 drives seat 0 (the keyboard player's own pad: with one seat, pad 0, as before); the rest none.
+The seat pad k drives, -1 none. Seat 0 is the keyboard and mouse; a pad that joined seat 1-3 drives it, and the
+lowest pad slot no seat has drives seat 0 (the keyboard player's own pad: with one seat, pad 0, as before).
 ================
 */
 int IN_PadSeat (int k)
 {
-	const int n = CL_SeatsInPlay ();
+	int s, j;
 
 	if (k < 0 || k >= MAX_JOYPADS || (!joy_pads[k].controller && !joy_pads[k].mock))
 		return -1;
-	if (k + 1 < n)
-		return k + 1;
-	return k == n - 1 ? 0 : -1;
+	// QVR: splitscreen (phase 6): a pad that joined seat 1-3 drives it (seat_join); the lowest pad slot no seat has
+	// drives seat 0 with the keyboard and mouse (one seat: pad 0, as before)
+	for (s = 1; s < CL_SeatCount (); s++)
+		if (CL_SeatPlays (s) && CL_SeatPad (s) == k)
+			return s;
+	for (j = 0; j < MAX_JOYPADS; j++)
+	{
+		for (s = 1; s < CL_SeatCount () && !(CL_SeatPlays (s) && CL_SeatPad (s) == j); s++)
+			;
+		if (s == CL_SeatCount ())
+			break;
+	}
+	return k == j ? 0 : -1;
 }
 
 // the pad driving a seat (NULL: none)

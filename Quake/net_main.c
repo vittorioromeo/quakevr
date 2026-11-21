@@ -26,6 +26,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "arch_def.h"
 #include "net_sys.h"
 #include "net_defs.h"
+#include "net_loop.h" // QVR: Loop_SocketSeat
 
 #ifndef WITHOUT_CURL
 #include <curl/curl.h>
@@ -273,7 +274,12 @@ const char *NET_QSocketGetAddressString (const qsocket_t *s)
 // (its client side is "localhost"). SV_IsLocalClient for a client; this where only the socket is at hand.
 qboolean NET_QSocketIsLocal (const qsocket_t *s)
 {
-	return s && Q_strcmp (s->address, "LOCAL") == 0;
+	return s && Q_strncmp (s->address, "LOCAL", 5) == 0; // QVR: (splitscreen: any seat's, "LOCAL <n>": a loopback)
+}
+
+int NET_QSocketLocalSeat (const qsocket_t *s)
+{
+	return NET_QSocketIsLocal (s) ? Loop_SocketSeat (s) : -1;
 }
 
 

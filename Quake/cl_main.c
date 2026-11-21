@@ -250,6 +250,58 @@ void CL_EstablishConnection (const char *host)
 
 /*
 =====================
+CL_SeatName, CL_SeatConnectLocal, CL_SeatDisconnect
+
+QVR: splitscreen (docs/vr-port/SPLITSCREEN.md, phase 6). A seat 1-3 joins the local game over its own loopback pair
+(net_loop.c) and takes a free server slot as a network player does, under its own name (coop's "back by name" rules
+apply to it); it leaves without touching the game (CL_Disconnect would end the server and every other seat's game).
+=====================
+*/
+void CL_SeatName (int seat, char *out, size_t size)
+{
+	if (seat <= 0)
+		q_strlcpy (out, cl_name.string, size);
+	else
+		q_snprintf (out, size, "%s %d", cl_name.string, seat + 1);
+}
+
+void CL_SeatConnectLocal (void)
+{
+	if (CL_SeatIndex () == 0 || cls.state == ca_connected)
+		return;
+	cls.netcon = NET_Connect ("local");
+	if (!cls.netcon)
+	{
+		Con_Printf ("seat %d: no connection to the local game\n", CL_SeatIndex () + 1);
+		return;
+	}
+	cls.demonum = -1;
+	cls.state = ca_connected;
+	CL_ClearSignons ();
+	MSG_WriteByte (&cls.message, clc_nop);
+}
+
+void CL_SeatDisconnect (void)
+{
+	if (CL_SeatIndex () == 0)
+		return;
+	if (cls.state == ca_connected)
+	{
+		SZ_Clear (&cls.message);
+		MSG_WriteByte (&cls.message, clc_disconnect);
+		NET_SendUnreliableMessage (cls.netcon, &cls.message);
+		SZ_Clear (&cls.message);
+		NET_Close (cls.netcon);
+		cls.netcon = NULL;
+		cls.state = ca_disconnected;
+	}
+	cl.intermission = 0;
+	cl.sendprespawn = false;
+	CL_ClearSignons ();
+}
+
+/*
+=====================
 CL_SignonReply
 
 An svc_signonnum has been received, perform a client side setup
@@ -269,7 +321,8 @@ void CL_SignonReply (void)
 
 	case 2:
 		MSG_WriteByte (&cls.message, clc_stringcmd);
-		MSG_WriteString (&cls.message, va("name \"%s\"\n", cl_name.string));
+		CL_SeatName (CL_SeatIndex (), str, sizeof (str)); // QVR: (splitscreen: seat n's own)
+		MSG_WriteString (&cls.message, va("name \"%s\"\n", str));
 
 		MSG_WriteByte (&cls.message, clc_stringcmd);
 		MSG_WriteString (&cls.message, va("color %i %i\n", ((int)cl_color.value)>>4, ((int)cl_color.value)&15));
@@ -283,13 +336,15 @@ void CL_SignonReply (void)
 		MSG_WriteByte (&cls.message, clc_stringcmd);
 		MSG_WriteString (&cls.message, "begin");
 		Cache_Report ();		// print remaining memory
-		VR_SignonPrewarm ();	// QVR: the first frame's first-use work, still behind the loading screen
+		if (!CL_SeatHeadless ()) // QVR: (a headless seat draws nothing: phase 7)
+			VR_SignonPrewarm ();	// QVR: the first frame's first-use work, still behind the loading screen
 		break;
 
 	case 4:
 		cl.spawntime = cl.mtime[0];
 		Con_DPrintf ("Client signed on: %s\n", cl.mapname); // QVR: (changelevel_signon_test.sh waits on it)
-		SCR_EndLoadingPlaque ();		// allow normal screen updates
+		if (!CL_SeatHeadless ()) // QVR: (seat 0's screen: phase 7 gives the others theirs)
+			SCR_EndLoadingPlaque ();		// allow normal screen updates
 		break;
 	}
 }
@@ -899,7 +954,8 @@ int CL_ReadFromServer (void)
 	dlight_t	*l; //johnfitz
 	int			i; //johnfitz
 
-	VR_RagdollRestore (); // QVR: the ragdolls' own models back (vr/vr_ragdoll.cpp)
+	if (!CL_SeatHeadless ()) // QVR: (the drawn ragdolls are seat 0's until phase 7)
+		VR_RagdollRestore (); // QVR: the ragdolls' own models back (vr/vr_ragdoll.cpp)
 	CL_AdvanceTime ();
 
 	if (!VR_LockstepReadHeld ()) // QVR: a lockstep client's moving frame reads nothing (its waiting frames: CL_ReadLockstep)
@@ -921,6 +977,8 @@ int CL_ReadFromServer (void)
 	if (cl_shownet.value)
 		Con_Printf ("\n");
 	CL_CheckServerSilence (); // QVR: (B16)
+	if (CL_SeatHeadless ()) // QVR: splitscreen: a headless seat keeps its client world as read; phase 7 relinks and draws it
+		return 0;
 
 	VR_ProfileBegin ("relink"); // QVR: profile
 	CL_RelinkEntities ();

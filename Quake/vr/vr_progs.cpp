@@ -357,11 +357,13 @@ int hostSlot()
         return -1;
     }
     // (the loopback's server side is "LOCAL": net_loop.c; its slot keeps the connection from SV_ConnectClient on, before
-    // `active` is set, so a reset of the slot then still finds it its own: clientprefs::serverReset)
+    // `active` is set, so a reset of the slot then still finds it its own: clientprefs::serverReset). Splitscreen: the
+    // current seat's loopback ("LOCAL <n>"), so each seat's client finds its own player.
+    const int seat = CL_SeatIndex();
     for(int i = 0; i < svs.maxclients; i++)
     {
         const qsocket_s* sock = svs.clients[i].netconnection;
-        if(NET_QSocketIsLocal(sock))
+        if(NET_QSocketLocalSeat(sock) == seat)
         {
             return i;
         }

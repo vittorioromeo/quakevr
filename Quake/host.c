@@ -356,6 +356,7 @@ void Host_EndGame (const char *message, ...)
 
 	PR_SwitchQCVM(NULL);
 	VR_OnHostError (); // QVR: what the longjmp would leave open put back (vr/vr_hosterror.cpp)
+	CL_SeatSet (0); // QVR: splitscreen: the game's end is seat 0's (the other seats let go: CL_SeatFrame)
 
 	if (sv.active)
 		Host_ShutdownServer (false);
@@ -392,6 +393,7 @@ void Host_ReportError (const char *error, ...)
 
 	PR_SwitchQCVM(NULL);
 	VR_OnHostError (); // QVR: what the longjmp would leave open put back (vr/vr_hosterror.cpp)
+	CL_SeatSet (0); // QVR: splitscreen: the error ends seat 0's game (the other seats let go: CL_SeatFrame)
 
 	SCR_EndLoadingPlaque ();		// reenable screen updates
 
@@ -1780,6 +1782,24 @@ static void Host_SendPrespawn (void)
 
 /*
 ==================
+Host_NextSeat
+
+QVR: splitscreen (docs/vr-port/SPLITSCREEN.md, phase 6): the seat loop. The host frame runs each playing seat's part of
+the client frame (the prespawn, the look and move gathered, the move sent, the server's messages read) with that seat
+current, seat 0 first, then seat 0 current again; with one seat, seat 0's alone, as before. The next playing seat after
+s (-1: none).
+==================
+*/
+static int Host_NextSeat (int s)
+{
+	for (s++; s < CL_SeatCount (); s++)
+		if (CL_SeatPlays (s))
+			return s;
+	return -1;
+}
+
+/*
+==================
 Host_Frame
 
 Runs all active servers
@@ -1790,6 +1810,8 @@ void _Host_Frame (double time)
 	static double	accumtime = 0;
 	double time1, time2, time3;
 	qboolean ranserver = false;
+	int seat; // QVR: the seat loop's (Host_NextSeat)
+	usercmd_t pendingcmds[MAX_SPLITSEATS]; // QVR: each seat's look and move gathered this frame
 
 	time1 = Sys_DoubleTime ();
 	VR_TRACY_DETAIL (1, "frame: profile begin", VR_ProfileFrame ()); // QVR: ends the last frame's profile, begins this one's
@@ -1797,6 +1819,7 @@ void _Host_Frame (double time)
 	if (setjmp (host_abortserver) )
 	{
 		VR_TracyAbort();
+		CL_SeatSet (0); // QVR: (an error may have left a seat's client frame: seat 0 current again)
 		return;			// something bad happened, or the server disconnected
 	}
 
@@ -1851,16 +1874,21 @@ void _Host_Frame (double time)
 
 	NET_Poll();
 
-	Host_SendPrespawn ();
-
-	CL_AccumulateCmd ();
+	CL_SeatFrame (); // QVR: splitscreen: seats joining the local game connect, seats out of it let go (vr/vr_seatplay.cpp)
+	for (seat = 0; seat >= 0; seat = Host_NextSeat (seat)) // QVR: the seat loop (Host_NextSeat)
+	{
+		CL_SeatSet (seat);
+		Host_SendPrespawn ();
+		CL_AccumulateCmd ();
+		pendingcmds[seat] = cl.pendingcmd;
+	}
+	CL_SeatSet (0);
 
 	//Run the server+networking (client->server->client), at a different rate from everyt
 	double vrframetime; // QVR: a motion take playing back runs its recorded server frames
 	int vrserver = VR_ServerFrameOverride (&vrframetime);
 	int ticks = 0, tick; // QVR: the server's ticks this frame (host_fixedtick: as many as the time built up holds)
 	double ticklen = 0.0;
-	usercmd_t pendingcmd = cl.pendingcmd;
 	if (vrserver >= 0) // QVR: a motion take's recorded server frames (VR_ServerFrameOverride)
 	{
 		ticks = vrserver;
@@ -1897,10 +1925,15 @@ void _Host_Frame (double time)
 		}
 		if ((vrserver >= 0 || host_netinterval) && VR_TimeScale () != 1.0)
 			host_frametime *= VR_TimeScale (); // QVR: slow motion: the server's frames (as many, each shorter)
-		if (tick > 0)
-			cl.pendingcmd = pendingcmd; // QVR: a frame's later ticks move as its first (the sticks' and mice's moves)
 		VR_ProfileBegin ("client send"); // QVR: profile
-		CL_SendCmd ();
+		for (seat = 0; seat >= 0; seat = Host_NextSeat (seat)) // QVR: the seat loop
+		{
+			CL_SeatSet (seat);
+			if (tick > 0)
+				cl.pendingcmd = pendingcmds[seat]; // QVR: a frame's later ticks move as its first (the sticks' and mice's moves)
+			CL_SendCmd ();
+		}
+		CL_SeatSet (0);
 		VR_ProfileEnd (); // QVR
 		if (sv.active)
 		{
@@ -1917,8 +1950,13 @@ void _Host_Frame (double time)
 
 // fetch results from server
 	VR_ProfileBegin ("client read"); // QVR: profile
-	if (cls.state == ca_connected)
-		CL_ReadFromServer ();
+	for (seat = 0; seat >= 0; seat = Host_NextSeat (seat)) // QVR: the seat loop
+	{
+		CL_SeatSet (seat);
+		if (cls.state == ca_connected)
+			CL_ReadFromServer ();
+	}
+	CL_SeatSet (0);
 	VR_ProfileEnd (); // QVR
 
 // update video

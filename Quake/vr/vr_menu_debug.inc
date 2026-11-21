@@ -1178,6 +1178,15 @@ za::Vector<Item> pageDebugReports()
         command("Network: Players Seen", "vr_mp_status")
             .help("vr_mp_status: the players this client sees (entity, name, where, whether the last message carried them) "
                   "and, hosting, the server's clients. The multiplayer harness (Misc/quakevr/mp) reads the same lines."),
+        command("Splitscreen: Join a Seat (Pad 1)", "seat_join 0")
+            .help("seat_join <pad>: that controller's player joins this local coop or deathmatch game (maxplayers 2 or "
+                  "more) as the next free seat, in a server slot of its own. Seats 2-4 play headless until the per-seat "
+                  "views (SPLITSCREEN.md, phase 7): seen by the others, not drawn yet."),
+        command("Splitscreen: Leave the Last Seat", "seat_leave")
+            .help("seat_leave [n]: seat n (or the last one that plays) leaves the game, the game running on; in coop his "
+                  "things are kept for his return by name."),
+        command("Splitscreen: Seats Status", "seat_status")
+            .help("seat_status: each seat, its pad, its connection, signon and server slot."),
         command("Network: Drawn Near Me", "vr_mp_near 0")
             .help("vr_mp_near <ent> [radius] [seconds]: the models this client draws, the lights and the sounds of the last "
                   "seconds round a player (0: you). Run it here and on another player's game with your entity number to "

@@ -26,9 +26,25 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "net_defs.h"
 #include "net_loop.h"
 
-static qboolean	localconnectpending = false;
-static qsocket_t	*loop_client = NULL;
-static qsocket_t	*loop_server = NULL;
+// QVR: splitscreen (docs/vr-port/SPLITSCREEN.md, phase 6): a loopback pair a seat (clientseat_t's loopclient,
+// loopserver, loopconnect), so up to four local players each have a connection of their own into the server, as
+// network players do. Loop_Connect makes the current seat's; the server's side takes them in seat order. Seat 0's
+// server side is "LOCAL" as before, seat n's "LOCAL <n+1>" (NET_QSocketIsLocal: any of them; NET_QSocketLocalSeat).
+
+// the seat a loop socket (either side) belongs to (-1: none)
+static int Loop_SeatOf (const qsocket_t *sock)
+{
+	int s;
+	clientseat_t *net;
+
+	for (s = 0; s < CL_SeatCount (); s++)
+	{
+		net = CL_SeatNetIfMade (s);
+		if (net && sock && (net->loopclient == sock || net->loopserver == sock))
+			return s;
+	}
+	return -1;
+}
 
 int Loop_Init (void)
 {
@@ -68,57 +84,81 @@ void Loop_SearchForHosts (qboolean xmit)
 
 qsocket_t *Loop_Connect (const char *host)
 {
+	clientseat_t *net = cl_seat; // QVR: the current seat's pair
+	const int seat = CL_SeatIndex ();
+
 	if (Q_strcmp(host,"local") != 0)
 		return NULL;
 
-	localconnectpending = true;
+	net->loopconnect = true;
 
-	if (!loop_client)
+	if (!net->loopclient)
 	{
-		if ((loop_client = NET_NewQSocket ()) == NULL)
+		if ((net->loopclient = NET_NewQSocket ()) == NULL)
 		{
 			Con_Printf("Loop_Connect: no qsocket available\n");
 			return NULL;
 		}
-		Q_strcpy (loop_client->address, "localhost");
+		Q_strcpy (net->loopclient->address, "localhost");
 	}
-	loop_client->receiveMessageLength = 0;
-	loop_client->sendMessageLength = 0;
-	loop_client->canSend = true;
+	net->loopclient->receiveMessageLength = 0;
+	net->loopclient->sendMessageLength = 0;
+	net->loopclient->canSend = true;
 
-	if (!loop_server)
+	if (!net->loopserver)
 	{
-		if ((loop_server = NET_NewQSocket ()) == NULL)
+		if ((net->loopserver = NET_NewQSocket ()) == NULL)
 		{
 			Con_Printf("Loop_Connect: no qsocket available\n");
 			return NULL;
 		}
-		Q_strcpy (loop_server->address, "LOCAL");
+		if (seat == 0)
+			Q_strcpy (net->loopserver->address, "LOCAL");
+		else
+			q_snprintf (net->loopserver->address, sizeof (net->loopserver->address), "LOCAL %d", seat + 1);
 	}
-	loop_server->receiveMessageLength = 0;
-	loop_server->sendMessageLength = 0;
-	loop_server->canSend = true;
+	net->loopserver->receiveMessageLength = 0;
+	net->loopserver->sendMessageLength = 0;
+	net->loopserver->canSend = true;
+	if (seat > 0) // QVR: the seat's player's name, as a network player's connect request carries it (VR_CoopPickSlot)
+		CL_SeatName (seat, net->loopserver->qvrName, sizeof (net->loopserver->qvrName));
 
-	loop_client->driverdata = (void *)loop_server;
-	loop_server->driverdata = (void *)loop_client;
+	net->loopclient->driverdata = (void *)net->loopserver;
+	net->loopserver->driverdata = (void *)net->loopclient;
 
-	return loop_client;
+	return net->loopclient;
 }
 
 
 qsocket_t *Loop_CheckNewConnections (void)
 {
-	if (!localconnectpending)
-		return NULL;
+	int s;
+	clientseat_t *net;
 
-	localconnectpending = false;
-	loop_server->sendMessageLength = 0;
-	loop_server->receiveMessageLength = 0;
-	loop_server->canSend = true;
-	loop_client->sendMessageLength = 0;
-	loop_client->receiveMessageLength = 0;
-	loop_client->canSend = true;
-	return loop_server;
+	for (s = 0; s < CL_SeatCount (); s++) // QVR: each seat's connect waiting, in seat order
+	{
+		net = CL_SeatNetIfMade (s);
+		if (!net || !net->loopconnect || !net->loopserver || !net->loopclient)
+			continue;
+		net->loopconnect = false;
+		net->loopserver->sendMessageLength = 0;
+		net->loopserver->receiveMessageLength = 0;
+		net->loopserver->canSend = true;
+		net->loopclient->sendMessageLength = 0;
+		net->loopclient->receiveMessageLength = 0;
+		net->loopclient->canSend = true;
+		return net->loopserver;
+	}
+	return NULL;
+}
+
+// QVR: the seat a loop socket's server side is (0: the host's own, "LOCAL"; 1-3: a splitscreen seat's; -1: not one)
+int Loop_SocketSeat (const qsocket_t *sock)
+{
+	const int s = Loop_SeatOf (sock);
+	clientseat_t *net = s >= 0 ? CL_SeatNetIfMade (s) : NULL;
+
+	return net && net->loopserver == sock ? s : -1;
 }
 
 
@@ -237,14 +277,19 @@ qboolean Loop_CanSendUnreliableMessage (qsocket_t *sock)
 
 void Loop_Close (qsocket_t *sock)
 {
+	const int s = Loop_SeatOf (sock);
+	clientseat_t *net = s >= 0 ? CL_SeatNetIfMade (s) : NULL;
+
 	if (sock->driverdata)
 		((qsocket_t *)sock->driverdata)->driverdata = NULL;
 	sock->receiveMessageLength = 0;
 	sock->sendMessageLength = 0;
 	sock->canSend = true;
-	if (sock == loop_client)
-		loop_client = NULL;
+	if (!net)
+		return;
+	if (sock == net->loopclient)
+		net->loopclient = NULL;
 	else
-		loop_server = NULL;
+		net->loopserver = NULL;
 }
 

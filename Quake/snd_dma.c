@@ -685,6 +685,9 @@ void S_StartSoundPitch (int entnum, int entchannel, sfx_t *sfx, vec3_t origin, f
 	int			ch_idx;
 	int			skip;
 
+	if (CL_SeatHeadless ()) // QVR: splitscreen: a headless seat starts no sound (phase 8: a listener each)
+		return;
+
 	if (!sound_started)
 		return;
 
@@ -865,6 +868,9 @@ void S_StaticSound (sfx_t *sfx, vec3_t origin, float vol, float attenuation)
 	S_MixJoin (); // QVR: the pool's mix (S_MixKick) done first
 	channel_t	*ss;
 	sfxcache_t		*sc;
+
+	if (CL_SeatHeadless ()) // QVR: splitscreen: a headless seat starts no sound (phase 8: a listener each)
+		return;
 
 	if (!sfx)
 		return;
@@ -1510,6 +1516,9 @@ void S_LocalSound (const char *name)
 {
 	S_MixJoin (); // QVR: the pool's mix (S_MixKick) done first
 	sfx_t	*sfx;
+
+	if (CL_SeatHeadless ()) // QVR: splitscreen: a headless seat starts no sound (phase 8: a listener each)
+		return;
 
 	if (nosound.value)
 		return;

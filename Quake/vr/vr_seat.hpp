@@ -18,6 +18,10 @@
 // the slide's view, the net HUD) as the seat's parts (below).
 // Phase 4a: flat play's state (the hands' pose and melee, the keys, crouch and prone, holsters, the ironsight, third
 // person, reload, carry, grenade, swap) as the seat's parts; the tests' and tools' own marked shared.
+// Phase 4b: the hands. Phase 5: cl, cls and the entity tables (clientseat_t, cl_seat), the VR client's net state.
+// Phase 6: the seats in play (a bit each; seats 1-3 joined by a pad), each with its own loopback connection and server
+// slot; the host frame runs each playing seat's client frame with it current (host.c). Seats 1-3 run headless until
+// phase 7 (CL_SeatHeadless: no view, no sound, none of the shared effects).
 #pragma once
 
 #include "vr_engine.hpp"
@@ -28,6 +32,7 @@ namespace qvr::seat
 {
 
 inline constexpr int maxSeats = 4;
+static_assert(maxSeats == MAX_SPLITSEATS, "client.h's MAX_SPLITSEATS");
 
 // A subsystem's per-seat state whose type only its own file knows (its struct stays private there): the seat owns it,
 // made value-initialised on first use, destroyed with the seat. The file reaches it through part<T>(seat, Part::X),
@@ -129,8 +134,13 @@ Seat& current();   // the seat the running code is for (seat 0 outside a seat lo
 Seat& at(int i);   // seat i, 0..maxSeats-1 (clamped)
 clientseat_t& netOf(Seat& s); // the seat's client (cls, cl, the entity tables): seat 0's the game's, the others made ready
                               // on first use (client.h; phase 5)
-int inPlay();      // seats in play: 1 until the seat loop (phase 6)
-void setInPlay(int n); // 1..maxSeats: the seat loop's (phase 6); today vr_seat_test's, which sets it back
+int inPlay();      // seats in play (seat 0 always; the others join and leave: vr_seatplay.cpp)
+void setInPlay(int n); // the first n seats in play, seat i driven by pad i-1 (vr_seat_test's, which sets it back)
+[[nodiscard]] bool plays(int i); // seat i in play
+[[nodiscard]] int padOf(int i);  // the pad that joined seat i (1-3; -1: none). Seat 0: the keyboard and mouse, and the
+                                 // first pad no seat has (in_sdl.c's IN_PadSeat)
+void setPlays(int i, bool on, int pad); // seat i (1-3) in or out of play, joined by that pad (vr_seatplay.cpp)
+[[nodiscard]] clientseat_t* netIfMade(int i); // seat i's client if it was ever made (nullptr: never used)
 
 // Makes a seat current for its lifetime, the previous one again after it (the seat loop, the tests).
 class Scope
@@ -146,5 +156,9 @@ private:
 };
 
 void registerCommands(); // vr_seat_test
+
+// Phase 6 (vr_seatplay.cpp): the seats joining and leaving the local game (seat_join, seat_leave), the seat loop's
+// per-frame step (CL_SeatFrame), vr_seat_play_test.
+void registerPlayCommands();
 
 } // namespace qvr::seat

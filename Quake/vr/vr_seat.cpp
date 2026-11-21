@@ -31,7 +31,8 @@ struct Seats
 {
     Seat all[maxSeats] = {{0}, {1}, {2}, {3}};
     Seat* cur = &all[0];
-    int inPlay = 1;
+    unsigned playing = 1u;                      // the seats in play, a bit each (seat 0's always)
+    int pad[maxSeats] = {-1, -1, -1, -1};       // the pad driving each seat 1-3 (-1: none; phase 6's joins)
     clientseat_t net0{};                        // seat 0's client: the game's (CL_Init's, Host_Init's), as before
     za::UniquePtr<clientseat_t> nets[maxSeats]; // seats 1-3's, made on first use (~3 MB each: the entity tables)
 } seats; // seat-shared: the seats' owner
@@ -580,12 +581,47 @@ Seat& at(const int i)
 
 int inPlay()
 {
-    return seats.inPlay;
+    int n = 0;
+    for(int i = 0; i < maxSeats; i++)
+    {
+        n += plays(i) ? 1 : 0;
+    }
+    return n;
 }
 
 void setInPlay(const int n)
 {
-    seats.inPlay = n < 1 ? 1 : n > maxSeats ? maxSeats : n;
+    const int k = n < 1 ? 1 : n > maxSeats ? maxSeats : n;
+    seats.playing = (1u << k) - 1u;
+    for(int i = 0; i < maxSeats; i++)
+    {
+        seats.pad[i] = i > 0 && i < k ? i - 1 : -1;
+    }
+}
+
+bool plays(const int i)
+{
+    return i >= 0 && i < maxSeats && (seats.playing & (1u << i)) != 0;
+}
+
+int padOf(const int i)
+{
+    return i > 0 && i < maxSeats ? seats.pad[i] : -1;
+}
+
+void setPlays(const int i, const bool on, const int pad)
+{
+    if(i <= 0 || i >= maxSeats)
+    {
+        return; // (seat 0, the keyboard and mouse, always plays)
+    }
+    seats.playing = on ? seats.playing | (1u << i) : seats.playing & ~(1u << i);
+    seats.pad[i] = on ? pad : -1;
+}
+
+clientseat_t* netIfMade(const int i)
+{
+    return i == 0 ? &seats.net0 : i > 0 && i < maxSeats ? seats.all[i].net : nullptr;
 }
 
 clientseat_t& netOf(Seat& s)
@@ -685,6 +721,26 @@ extern "C" int CL_SeatCount()
 extern "C" int CL_SeatsInPlay()
 {
     return qvr::seat::inPlay();
+}
+
+extern "C" int CL_SeatPlays(const int seat)
+{
+    return qvr::seat::plays(seat) ? 1 : 0;
+}
+
+extern "C" int CL_SeatPad(const int seat)
+{
+    return qvr::seat::padOf(seat);
+}
+
+extern "C" qboolean CL_SeatHeadless()
+{
+    return qvr::seat::current().index != 0;
+}
+
+extern "C" clientseat_t* CL_SeatNetIfMade(const int seat)
+{
+    return qvr::seat::netIfMade(seat);
 }
 
 extern "C" seatkeys_t* Key_Seat()

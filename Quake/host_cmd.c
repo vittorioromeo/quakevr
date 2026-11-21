@@ -2434,7 +2434,8 @@ static void Host_Reconnect_f (void)
 	if (cls.demoplayback)	// cross-map demo playback fix from Baker
 		return;
 
-	SCR_BeginLoadingPlaque ();
+	if (!CL_SeatHeadless ()) // QVR: (the loading plaque is seat 0's screen)
+		SCR_BeginLoadingPlaque ();
 	CL_ClearSignons ();		// need new connection messages
 }
 
@@ -2654,6 +2655,19 @@ static void Host_Savegame_f (void) // QVR: the perf recorder's saves (the rest b
 	VR_PerfEvent (VR_PERF_SAVE, (Sys_DoubleTime () - t0) * 1000.0, Cmd_Argc () > 1 ? Cmd_Argv (1) : "save");
 }
 
+/*
+===============
+Host_SeatsMaySave
+
+QVR: splitscreen (docs/vr-port/SPLITSCREEN.md, phase 6; his answer, 2026-11-21): while more than one seat plays, a game
+is saved as a network coop game is, by the level-start autosave alone (Host_CheckCoopAutosave's "autosave/coop~...").
+===============
+*/
+qboolean Host_SeatsMaySave (const char *name)
+{
+	return CL_SeatsInPlay () <= 1 || !q_strncasecmp (name, "autosave/coop~", 14);
+}
+
 static void Host_SavegameRun (void)
 {
 	VR_TRACY_SCOPE("Save game");
@@ -2697,6 +2711,12 @@ static void Host_SavegameRun (void)
 	if (Cmd_Argc() < 2)
 	{
 		Con_Printf ("save <savename> : save a game\n");
+		return;
+	}
+
+	if (!Host_SeatsMaySave (Cmd_Argv (1))) // QVR: splitscreen: the level-start autosave only (as network coop plays)
+	{
+		Con_Printf ("Can't save in splitscreen: the level-start autosave keeps the game.\n");
 		return;
 	}
 

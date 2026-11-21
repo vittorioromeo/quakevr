@@ -329,6 +329,11 @@ typedef struct clientseat_s
 	qboolean		warn_nehahra;	// cl_parse.c's warning, once a connection
 	qboolean		ready;			// seats 1-3: made ready on first use (CL_SeatNetReady)
 	byte			messagebuf[4096];	// seats 1-3's cls.message (seat 0's is CL_Init's, on the hunk as before)
+	// the seat's loopback pair (net_loop.c; phase 6): its client side (cls.netcon once connected), the server's side,
+	// and a connect waiting for the server to take it
+	struct qsocket_s	*loopclient;
+	struct qsocket_s	*loopserver;
+	qboolean		loopconnect;
 } clientseat_t;
 
 extern	clientseat_t	*cl_seat;	// the current seat's (vr_seat.cpp)
@@ -424,8 +429,22 @@ seathud_t *SCR_SeatHudOf (int seat);
 
 int CL_SeatIndex (void);					// the current seat (0 outside a seat loop)
 int CL_SeatSet (int seat);					// makes a seat current, returns the one that was (C's seat::Scope: set it back)
+#define MAX_SPLITSEATS 4					// QVR: the seats there are (seat::maxSeats)
 int CL_SeatCount (void);					// the seats there are (seat::maxSeats)
-int CL_SeatsInPlay (void);					// the seats playing (seat::inPlay; 1 until the seat loop)
+int CL_SeatsInPlay (void);					// the seats playing (seat::inPlay; seat 0 always)
+// Phase 6 (docs/vr-port/SPLITSCREEN.md): seats 1-3 join the local game and leave it (vr/vr_seatplay.cpp), each over its
+// own loopback connection (net_loop.c) into a server slot of its own; the host frame runs each playing seat's client
+// frame with that seat current (host.c). Until phase 7's per-seat render they run headless: no view, sound, music,
+// particles or links into the shared world (CL_SeatHeadless).
+int CL_SeatPlays (int seat);				// seat 0..3 in play
+int CL_SeatPad (int seat);					// the pad that joined seat 1..3 (-1: none)
+qboolean CL_SeatHeadless (void);			// the current seat runs headless (seats 1-3 until phase 7)
+clientseat_t *CL_SeatNetIfMade (int seat);	// seat 0..3's client if ever made (NULL: never used)
+void CL_SeatName (int seat, char *out, size_t size);	// the player's name for seat n: cl_name, then "<cl_name> <n+1>"
+void CL_SeatFrame (void);					// once a host frame: seats joining (connecting) or gone (vr_seatplay.cpp)
+void CL_SeatConnectLocal (void);			// the current seat (1-3) connects to the local server (cl_main.c)
+void CL_SeatDisconnect (void);				// the current seat (1-3) leaves its server, the game running on (cl_main.c)
+qboolean Host_SeatsMaySave (const char *name);	// more than one seat: the level-start coop autosave only (host_cmd.c)
 float CL_KeyState (kbutton_t *key);			// a button's share of the frame held (clears its edges)
 
 void CL_InitInput (void);

@@ -522,9 +522,6 @@ Quake/net_dgrm.c|testInProgress
 Quake/net_dgrm.c|testPollCount
 Quake/net_dgrm.c|testPollProcedure
 Quake/net_dgrm.c|testSocket
-Quake/net_loop.c|localconnectpending
-Quake/net_loop.c|loop_client
-Quake/net_loop.c|loop_server
 Quake/net_main.c|DEFAULTnet_hostport
 Quake/net_main.c|hostCacheCount
 Quake/net_main.c|hostcache

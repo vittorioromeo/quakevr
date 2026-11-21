@@ -34,6 +34,7 @@ int		Loop_SendUnreliableMessage (qsocket_t *sock, sizebuf_t *data);
 qboolean	Loop_CanSendMessage (qsocket_t *sock);
 qboolean	Loop_CanSendUnreliableMessage (qsocket_t *sock);
 void		Loop_Close (qsocket_t *sock);
+int		Loop_SocketSeat (const qsocket_t *sock); // QVR: the seat a loop server side is (-1: none)
 void		Loop_Shutdown (void);
 
 #endif	/* __NET_LOOP_H */

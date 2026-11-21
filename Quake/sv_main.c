@@ -602,8 +602,8 @@ void SV_ConnectClient (int clientnum)
 			client->spawn_parms[i] = (&pr_global_struct->parm1)[i];
 		VR_StoreSpawnParms (clientnum); // QVR
 		// QVR: (B15) a player back in a coop game he left, by his name: his level-start parms (vr/vr_coopsave.cpp)
-		VR_CoopRejoinParms (clientnum, NET_QSocketIsLocal (netconnection) ? cl_name.string
-			: NET_QSocketGetQvrName (netconnection), NET_QSocketGetQvrKey (netconnection));
+		VR_CoopRejoinParms (clientnum, NET_QSocketLocalSeat (netconnection) == 0 ? cl_name.string
+			: NET_QSocketGetQvrName (netconnection), NET_QSocketGetQvrKey (netconnection)); // (a seat 1-3: its name)
 	}
 
 	SV_SendServerinfo (client);
@@ -636,7 +636,7 @@ void SV_CheckForNewClients (void)
 	//
 		// QVR: in a loaded coop game, the saved player's slot of his name (vr/vr_coopsave.cpp): a remote player's from
 		// his connect request, the host's own client's from his settings; the host's own client always slot 0
-		islocal = NET_QSocketIsLocal (ret);
+		islocal = NET_QSocketLocalSeat (ret) == 0; // (splitscreen seats 1-3 take free slots, as network players)
 		i = VR_CoopPickSlot (islocal ? cl_name.string : NET_QSocketGetQvrName (ret), NET_QSocketGetQvrKey (ret), islocal);
 		if (i < 0)
 			for (i=0 ; i<svs.maxclients ; i++)

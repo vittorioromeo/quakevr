@@ -90,8 +90,11 @@ CL_ClearSignons
 */
 void CL_ClearSignons (void)
 {
-	VEC_CLEAR (demo_head);
-	VEC_CLEAR (demo_head_sizes);
+	if (CL_SeatIndex () == 0) // QVR: splitscreen: the demo is seat 0's (a seat 1-3's signons leave its head alone)
+	{
+		VEC_CLEAR (demo_head);
+		VEC_CLEAR (demo_head_sizes);
+	}
 	cls.signon = 0;
 }
 

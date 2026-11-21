@@ -457,7 +457,8 @@ static void CL_ParseServerInfoRun (void)
 	cl_entities[0].model = cl.worldmodel = cl.model_precache[1];
 
 	VR_StepBegin ("client: R_NewMap"); // QVR
-	R_NewMap ();
+	if (!CL_SeatHeadless ()) // QVR: splitscreen: the shared renderer's map is seat 0's to set up (phase 7: each seat's view)
+		R_NewMap ();
 	VR_TimeMark ("client: R_NewMap"); // QVR
 
 	//johnfitz -- clear out string; we don't consider identical
@@ -1006,7 +1007,8 @@ void CL_ParseStatic (int version) //johnfitz -- added a parameter
 	ent->scale = ent->baseline.scale;
 	VectorCopy (ent->baseline.origin, ent->origin);
 	VectorCopy (ent->baseline.angles, ent->angles);
-	R_AddEfrags (ent);
+	if (!CL_SeatHeadless ()) // QVR: (the world's leaves are shared: a headless seat links nothing into them)
+		R_AddEfrags (ent);
 }
 
 /*
@@ -1209,6 +1211,11 @@ void CL_ParseServerMessage (void)
 			break;
 
 		case svc_disconnect:
+			if (CL_SeatIndex () > 0) // QVR: splitscreen: a seat 1-3 is out of the game (it joins the next local one)
+			{
+				CL_SeatDisconnect ();
+				return;
+			}
 			Host_EndGame ("Server disconnected\n");
 
 		case svc_print:
@@ -1318,6 +1325,8 @@ void CL_ParseServerMessage (void)
 
 		case svc_setpause:
 			cl.paused = MSG_ReadByte ();
+			if (CL_SeatHeadless ()) // QVR: (the music is seat 0's)
+				break;
 			if (cl.paused)
 			{
 				CDAudio_Pause ();
@@ -1340,7 +1349,8 @@ void CL_ParseServerMessage (void)
 			{
 				if (cl.num_statics > 128)
 					Con_DWarning ("%i static entities exceeds standard limit of 128 (max = %d).\n", cl.num_statics, MAX_STATIC_ENTITIES);
-				R_CheckEfrags ();
+				if (!CL_SeatHeadless ()) // QVR
+					R_CheckEfrags ();
 			}
 			//johnfitz
 			CL_SignonReply ();
@@ -1378,6 +1388,8 @@ void CL_ParseServerMessage (void)
 			cl.cdtrack = MSG_ReadByte ();
 			cl.looptrack = MSG_ReadByte ();
 			Con_DPrintf ("svc_cdtrack: track %d (at %.1f)\n", cl.cdtrack, cl.time); // QVR (the tests)
+			if (CL_SeatHeadless ()) // QVR: (the music is seat 0's)
+				break;
 			if ( (cls.demoplayback || cls.demorecording) && (cls.forcetrack != -1) )
 				BGM_PlayCDtrack ((byte)cls.forcetrack, true);
 			else
@@ -1421,7 +1433,9 @@ void CL_ParseServerMessage (void)
 
 		//johnfitz -- new svc types
 		case svc_skybox:
-			Sky_LoadSkyBox (MSG_ReadString());
+			str = MSG_ReadString (); // QVR: (a headless seat reads it, loads nothing: the sky is seat 0's)
+			if (!CL_SeatHeadless ())
+				Sky_LoadSkyBox (str);
 			break;
 
 		case svc_bf:
