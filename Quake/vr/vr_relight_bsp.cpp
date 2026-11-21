@@ -285,9 +285,9 @@ namespace detail
         }
         const za::Vector<Key> keys = keysOf(text.substrByPosLen(start, end - start));
         start = end + 1;
-        const za::String* cls = keyValue(keys, "classname");
+        const za::String* klass = keyValue(keys, "classname");
         const za::String* origin = keyValue(keys, "origin");
-        if(!cls || !startsWith(*cls, "light") || !origin)
+        if(!klass || !startsWith(*klass, "light") || !origin)
         {
             continue;
         }
@@ -329,11 +329,11 @@ namespace detail
         last = s.end;
         const za::StringView block = text.substrByPosLen(s.start, s.end - s.start);
         const za::Vector<Key> keys = keysOf(block);
-        const za::String* cls = keyValue(keys, "classname");
+        const za::String* klass = keyValue(keys, "classname");
         const za::String* light = keyValue(keys, "light");
         double v = 300.0;
         bool zero = false;
-        if(cls && startsWith(*cls, "light"))
+        if(klass && startsWith(*klass, "light"))
         {
             const za::Vector<za::StringView> w = wordsOf(light ? za::StringView{*light} : za::StringView{"300"});
             zero = !w.empty() && parseFloat(w.back(), v) && v == 0.0;
@@ -447,9 +447,9 @@ void appendNumber(za::String& out, double v)
         last = s.end;
         const za::StringView block = text.substrByPosLen(s.start, s.end - s.start);
         const za::Vector<Key> keys = keysOf(block);
-        const za::String* cls = keyValue(keys, "classname");
+        const za::String* klass = keyValue(keys, "classname");
         za::Vector<Key> set;
-        if(cls && startsWith(*cls, "light") && mapScale != 1.0)
+        if(klass && startsWith(*klass, "light") && mapScale != 1.0)
         {
             const za::String* light = keyValue(keys, "light");
             const za::Vector<za::StringView> w = wordsOf(light ? za::StringView{*light} : za::StringView{"300"});
@@ -480,7 +480,7 @@ void appendNumber(za::String& out, double v)
                 }
             }
         }
-        if(cls && *cls == za::StringView{"worldspawn"} && sunScale != 1.0)
+        if(klass && *klass == za::StringView{"worldspawn"} && sunScale != 1.0)
         {
             for(const char* name : {"_sunlight", "_sun_light", "_sunlight2", "_sunlight3", "_sun2"})
             {
@@ -494,7 +494,7 @@ void appendNumber(za::String& out, double v)
                 }
             }
         }
-        if(cls && *cls == za::StringView{"worldspawn"} && minLight > 0.0)
+        if(klass && *klass == za::StringView{"worldspawn"} && minLight > 0.0)
         {
             double own = 0.0;
             for(const char* name : {"light", "_minlight"})

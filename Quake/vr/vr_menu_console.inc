@@ -38,9 +38,9 @@ void consoleEdges(float& left, float& right)
 {
     drawtransform_t t;
     Draw_GetCanvasTransform(CANVAS_MENU, &t);
-    float cl, ct, cr, cb;
-    Draw_GetTransformBounds(&t, &cl, &ct, &cr, &cb);
-    left = cl + 4.f;
+    float cLeft, ct, cr, cb;
+    Draw_GetTransformBounds(&t, &cLeft, &ct, &cr, &cb);
+    left = cLeft + 4.f;
     if(!menuui::toolbarRow())
     {
         left = za::fmax(left, menuui::toolbarRight() + 4.f); // (right of the corner's buttons: the text from the top)
@@ -53,8 +53,8 @@ void consoleEdges(float& left, float& right)
     const Layout l = layout();
     drawtransform_t t;
     Draw_GetCanvasTransform(CANVAS_MENU, &t);
-    float cl, ct, cr, cb;
-    Draw_GetTransformBounds(&t, &cl, &ct, &cr, &cb);
+    float cLeft, ct, cr, cb;
+    Draw_GetTransformBounds(&t, &cLeft, &ct, &cr, &cb);
     ConsoleLayout c;
     c.k = za::fmax(1.f, -t.scale[1] * vid.guiheight / (t.scale[0] * vid.guiwidth));
     c.half = 8.5f; // (a little taller than the 7 they were: easier to hit with the laser)

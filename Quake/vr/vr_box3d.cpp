@@ -808,9 +808,9 @@ void syncPropRopes()
         {
             continue;
         }
-        const char* cls = PR_GetString(t->v.classname);
-        const bool tank = !strcmp(cls, "vr_fueltank");
-        if(!tank && strcmp(cls, "vr_flailhead"))
+        const char* klass = PR_GetString(t->v.classname);
+        const bool tank = !strcmp(klass, "vr_fueltank");
+        if(!tank && strcmp(klass, "vr_flailhead"))
         {
             continue;
         }

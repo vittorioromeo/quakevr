@@ -555,13 +555,13 @@ void list_f()
     for(int i = 1; i < qcvm->num_edicts; i++)
     {
         edict_t* e = EDICT_NUM(i);
-        const char* cls = e->free ? "" : PR_GetString(e->v.classname);
-        if(!strcmp(cls, "vr_crate_piece"))
+        const char* klass = e->free ? "" : PR_GetString(e->v.classname);
+        if(!strcmp(klass, "vr_crate_piece"))
         {
             pieces++;
             continue;
         }
-        if(strcmp(cls, "vr_crate") != 0)
+        if(strcmp(klass, "vr_crate") != 0)
         {
             continue;
         }

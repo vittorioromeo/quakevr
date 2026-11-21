@@ -1064,7 +1064,7 @@ za::Vector<Item> pageMonsterHitbox()
         return c;
     };
     const za::Vector<Choice> small = widths(32.f), big = widths(64.f);
-    auto cls = [&](const char* label, cvar_t& cvar, bool hull2)
+    auto klass = [&](const char* label, cvar_t& cvar, bool hull2)
     {
         return cycle(label, &cvar, hull2 ? big : small)
             .help(hull2 ? "This class's width against walls (Its Box: its own box's, in brackets). Quake moves it with a "
@@ -1079,19 +1079,19 @@ za::Vector<Item> pageMonsterHitbox()
         row(opt::vr_mhull_ledges),
         command("All Match Their Boxes", "vr_mhull_reset").help("Every class back to its own box's width (the defaults)."),
         header("By Class (Its Box)"),
-        cls("Grunt (24)", vr_mhull_army, false),
-        cls("Enforcer (28)", vr_mhull_enforcer, false),
-        cls("Knight (24)", vr_mhull_knight, false),
-        cls("Death Knight (24)", vr_mhull_hknight, false),
-        cls("Rottweiler (24)", vr_mhull_dog, false),
-        cls("Scrag (24)", vr_mhull_wizard, false),
-        cls("Spawn (24)", vr_mhull_tarbaby, false),
-        cls("Zombie (32)", vr_mhull_zombie, false),
-        cls("Fiend (32)", vr_mhull_demon, false),
-        cls("Rotfish (32)", vr_mhull_fish, false),
-        cls("Ogre (40)", vr_mhull_ogre, true),
-        cls("Vore (64)", vr_mhull_shalrath, true),
-        cls("Shambler (64)", vr_mhull_shambler, true),
+        klass("Grunt (24)", vr_mhull_army, false),
+        klass("Enforcer (28)", vr_mhull_enforcer, false),
+        klass("Knight (24)", vr_mhull_knight, false),
+        klass("Death Knight (24)", vr_mhull_hknight, false),
+        klass("Rottweiler (24)", vr_mhull_dog, false),
+        klass("Scrag (24)", vr_mhull_wizard, false),
+        klass("Spawn (24)", vr_mhull_tarbaby, false),
+        klass("Zombie (32)", vr_mhull_zombie, false),
+        klass("Fiend (32)", vr_mhull_demon, false),
+        klass("Rotfish (32)", vr_mhull_fish, false),
+        klass("Ogre (40)", vr_mhull_ogre, true),
+        klass("Vore (64)", vr_mhull_shalrath, true),
+        klass("Shambler (64)", vr_mhull_shambler, true),
         header("Tests"),
         command("Hitbox Stats", "vr_hull_stats").help("Prints the compiled hulls, the monsters' too: sizes, memory, build times."),
         command("Monster Walk (60 s)", "god; notarget; vr_mhull_walktest 60")
@@ -2559,9 +2559,9 @@ constexpr int helpMaxWrapped = 64;  // lines wrapped at most (the longest help i
 {
     drawtransform_t t;
     Draw_GetCanvasTransform(CANVAS_MENU, &t);
-    float cl, ct, cr, cb;
-    Draw_GetTransformBounds(&t, &cl, &ct, &cr, &cb);
-    return CLAMP(38, static_cast<int>((cr - cl - 16.f) / 8.f), 50);
+    float cLeft, ct, cr, cb;
+    Draw_GetTransformBounds(&t, &cLeft, &ct, &cr, &cb);
+    return CLAMP(38, static_cast<int>((cr - cLeft - 16.f) / 8.f), 50);
 }
 
 // `text` word-wrapped to `columns`: the lines' count, and each line's start and length in `starts` and `lengths`

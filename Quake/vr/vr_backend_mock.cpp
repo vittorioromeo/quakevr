@@ -1551,7 +1551,7 @@ struct MockWalk
 {
     bool on{false};
     bool monster{false}; // "monster": towards the nearest live monster
-    char cls[64]{};      // "nearest <classname>": towards the nearest entity of that classname
+    char klass[64]{};      // "nearest <classname>": towards the nearest entity of that classname
     glm::vec2 target{0.f};
     float radius{16.f};
     float best{1e30f};
@@ -1574,10 +1574,10 @@ void mockWalkTo_f()
     }
     mockWalk.on = true;
     mockWalk.monster = !q_strcasecmp(Cmd_Argv(1), "monster");
-    mockWalk.cls[0] = 0;
+    mockWalk.klass[0] = 0;
     if(Cmd_Argc() == 4 && !q_strcasecmp(Cmd_Argv(1), "nearest"))
     {
-        q_strlcpy(mockWalk.cls, Cmd_Argv(2), sizeof(mockWalk.cls));
+        q_strlcpy(mockWalk.klass, Cmd_Argv(2), sizeof(mockWalk.klass));
         mockWalk.target = {0.f, 0.f};
         mockWalk.radius = static_cast<float>(Q_atof(Cmd_Argv(3)));
         mockWalk.best = 1e30f;
@@ -1692,13 +1692,13 @@ void walkFrame()
         }
         mockWalk.target = {m.x, m.y};
     }
-    if(mockWalk.cls[0])
+    if(mockWalk.klass[0])
     {
         // the nearest entity of that classname (its box's middle)
         float best = 1e30f;
         PR_PushQCVM(&sv.qcvm, &oldVm);
         progs::forEachEdict(svs.maxclients + 1, [&](const edict_t* e) {
-            if(strcmp(PR_GetString(e->v.classname), mockWalk.cls) != 0)
+            if(strcmp(PR_GetString(e->v.classname), mockWalk.klass) != 0)
             {
                 return;
             }
@@ -1714,7 +1714,7 @@ void walkFrame()
         {
             mockWalk.on = false;
             mockInput.hands[HAND_OFF].stick = {0.f, 0.f};
-            Con_Printf("vr_mock_walk_to: no %s\n", mockWalk.cls);
+            Con_Printf("vr_mock_walk_to: no %s\n", mockWalk.klass);
             return;
         }
     }

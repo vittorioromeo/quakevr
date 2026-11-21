@@ -281,7 +281,7 @@ struct Studio
         bool on{false};      // the subject held in the strike (pose, its kind and class) by Swing
         bool want{false};    // a play asked, counted at the next hold query (QC plays a change of the count it saw held)
         bool seen{false};    // the last hold query answered with a strike (QC holds it)
-        int pose{0}, kind{0}, cls{0};
+        int pose{0}, kind{0}, klass{0};
         int count{0};        // Play's count (z of the hold query)
         float speed{0.25f};  // its playback speed (strikeSpeedMin..strikeSpeedMax)
         // The strike timeline (agent/rigtools; vr_rigstudio_strike.cpp): while the subject is held in an act (a strike,
@@ -366,7 +366,7 @@ void drawGhosts(ImDrawList* dl);         // the onion skin and the IK ghost (tra
 void flyCamera(const glm::vec3& move, bool fast, float dt);
 void strikeTestTick();                   // vr_rigstudio_test_strike's steps (each studio frame)
 void strikeInit();                       // its commands
-void pushStretchUndo(int kind, int cls);           // ... a kind and class's IK stretch
+void pushStretchUndo(int kind, int klass);           // ... a kind and class's IK stretch
 void pushPosesUndo(const char* what);              // ... every pose key (vr_agrunt_poses as it is)
 void pushGripUndo(int kind, int slot, int hand);   // a grip about to change
 void pushAimUndo();                                // the aim target about to move

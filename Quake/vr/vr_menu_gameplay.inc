@@ -569,14 +569,14 @@ char ikStretchText[agpose::numKinds * agpose::numClassOrder][64]{}; // (each row
 
 [[nodiscard]] const char* ikStretchRow(int arg)
 {
-    const int kind = arg / 100, cls = arg % 100;
+    const int kind = arg / 100, klass = arg % 100;
     int slot = 0;
     for(int i = 0; i < agpose::numClassOrder; i++)
     {
-        slot = agpose::classOrder[i] == cls ? kind * agpose::numClassOrder + i : slot;
+        slot = agpose::classOrder[i] == klass ? kind * agpose::numClassOrder + i : slot;
     }
-    const float by = agpose::stretch(kind, cls);
-    q_snprintf(ikStretchText[slot], sizeof(ikStretchText[slot]), "%s: %s", agpose::classTitle(cls),
+    const float by = agpose::stretch(kind, klass);
+    q_snprintf(ikStretchText[slot], sizeof(ikStretchText[slot]), "%s: %s", agpose::classTitle(klass),
         by > 1.0001f ? va("%.2fx", static_cast<double>(by)) : "1 (none)");
     return ikStretchText[slot];
 }
@@ -591,9 +591,9 @@ char ikStretchText[agpose::numKinds * agpose::numClassOrder][64]{}; // (each row
 
 void ikStretchPick(int arg)
 {
-    const int kind = arg / 100, cls = arg % 100;
-    const float by = agpose::stretch(kind, cls) + ikStretchStep;
-    agpose::setStretch(kind, cls, by > agpose::stretchMost + 0.001f ? 1.f : by);
+    const int kind = arg / 100, klass = arg % 100;
+    const float by = agpose::stretch(kind, klass) + ikStretchStep;
+    agpose::setStretch(kind, klass, by > agpose::stretchMost + 0.001f ? 1.f : by);
 }
 
 void ikStretchReset()

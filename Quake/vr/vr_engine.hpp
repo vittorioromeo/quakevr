@@ -44,7 +44,7 @@ int Draw_CachedPicsMax (void);						// gl_draw.c
 extern int menu_numcachepics;						// gl_draw.c
 int Cmd_AliasCount (void);							// cmd.c
 int Cmd_CommandCount (void);						// cmd.c
-extern int num_temp_entities;						// cl_tent.c
+// num_temp_entities: client.h's (the current seat's)						// cl_tent.c
 extern qboolean scr_drawloading;					// gl_screen.c
 extern qboolean scr_drawdialog;						// gl_screen.c
 extern cvar_t crosshair;							// gl_screen.c

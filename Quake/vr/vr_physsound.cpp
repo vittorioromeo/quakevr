@@ -505,9 +505,9 @@ Material materialOf(edict_t* ent, const qmodel_t* model)
     {
         return Material::Flesh;
     }
-    const char* cls = ent ? PR_GetString(ent->v.classname) : "";
+    const char* klass = ent ? PR_GetString(ent->v.classname) : "";
     const bool gib = ent && (static_cast<int>(ent->v.flags) & physics::FL_FORCEGRABBABLE) && !(static_cast<int>(ent->v.flags) & FL_ITEM);
-    const bool weapon = !strcmp(cls, "thrown_weapon") || !strncmp(cls, "weapon_", 7) || !strncmp(cls, "item_key", 8) ||
+    const bool weapon = !strcmp(klass, "thrown_weapon") || !strncmp(klass, "weapon_", 7) || !strncmp(klass, "item_key", 8) ||
                         info.has(modelmeta::Trait::WorldWeapon) || info.has(modelmeta::Trait::WeaponItem) || info.has(modelmeta::Trait::ViewWeapon);
     if(weapon || !gib)
     {

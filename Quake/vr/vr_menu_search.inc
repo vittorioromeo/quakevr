@@ -754,11 +754,11 @@ char searchKeyLetters[4][10][2]; // the keyboard's key labels, two chars each, f
     const Layout l = layout();
     drawtransform_t t;
     Draw_GetCanvasTransform(CANVAS_MENU, &t);
-    float cl, ct, cr, cb;
-    Draw_GetTransformBounds(&t, &cl, &ct, &cr, &cb);
+    float cLeft, ct, cr, cb;
+    Draw_GetTransformBounds(&t, &cLeft, &ct, &cr, &cb);
     SearchLayout s;
     s.k = za::fmax(1.f, -t.scale[1] * vid.guiheight / (t.scale[0] * vid.guiwidth));
-    s.left = za::fmax(cl + 4.f, 12.f); // (right of the corner's buttons)
+    s.left = za::fmax(cLeft + 4.f, 12.f); // (right of the corner's buttons)
     s.right = za::fmin(cr - 4.f, s.left + maxWidth);
     s.split = s.left + (s.right - s.left) * splitFraction;
     s.half = keyHalf;

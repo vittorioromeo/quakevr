@@ -724,13 +724,13 @@ extern "C" void VR_SoundLog(int ent, int channel, const char* sample, int volume
         return;
     }
     edict_t* const e = EDICT_NUM(ent);
-    const char* const cls = e->free ? "" : PR_GetString(e->v.classname);
+    const char* const klass = e->free ? "" : PR_GetString(e->v.classname);
     if(qvr::vr_debug_sound_log.value >= 2.f && (static_cast<int>(e->v.flags) & FL_CLIENT))
     {
         return;
     }
     static constexpr const char* whyDropped[4] = {"", " DROPPED: not precached", " DROPPED: datagram full", " DROPPED: muted"};
-    Con_Printf("sndlog: t %.3f ent %d %s chan %d %s vol %.2f%s\n", qcvm->time, ent, cls, channel, sample,
+    Con_Printf("sndlog: t %.3f ent %d %s chan %d %s vol %.2f%s\n", qcvm->time, ent, klass, channel, sample,
         volume / 255.0, whyDropped[dropped < 0 || dropped > 3 ? 0 : dropped]);
 }
 

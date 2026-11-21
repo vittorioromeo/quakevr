@@ -194,16 +194,16 @@ void refreshCatalogue()
     c.codeCount = 0;
     for(int code = 1; code < codeTop; code++)
     {
-        int cls = -1;
+        int klass = -1;
         for(int row = 0; row < armedRows; row++)
         {
             c.fits[row][code] = static_cast<int>(progs::qcFloat(weapon, static_cast<float>(row), static_cast<float>(code)));
-            if(c.fits[row][code] && cls < 0)
+            if(c.fits[row][code] && klass < 0)
             {
-                cls = c.fits[row][code] / 4;
+                klass = c.fits[row][code] / 4;
             }
         }
-        if(cls < 0)
+        if(klass < 0)
         {
             continue;
         }
@@ -219,7 +219,7 @@ void refreshCatalogue()
             return 0;
         };
         int at = c.codeCount++;
-        while(at > 0 && classOf(c.codes[at - 1]) > cls)
+        while(at > 0 && classOf(c.codes[at - 1]) > klass)
         {
             c.codes[at] = c.codes[at - 1];
             at--;

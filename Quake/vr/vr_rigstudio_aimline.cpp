@@ -288,8 +288,8 @@ void sharedWith(int code, char* out, int size)
         return;
     }
     const int kind = agpose::kindOf(code);
-    const int cls = agpose::classOf(code);
-    if(cls == agpose::TwoGuns)
+    const int klass = agpose::classOf(code);
+    if(klass == agpose::TwoGuns)
     {
         q_strlcpy(out, "this key aims every pair of guns", static_cast<size_t>(size));
         return;
@@ -299,7 +299,7 @@ void sharedWith(int code, char* out, int size)
     for(int r = 0; r < agholds::count() && n < size - 40; r++)
     {
         const int c = agholds::code(r);
-        if(!agholds::isGun(r) || c == st.made.weapon || agholds::poseClass(kind, c, nullptr) != cls)
+        if(!agholds::isGun(r) || c == st.made.weapon || agholds::poseClass(kind, c, nullptr) != klass)
         {
             continue;
         }

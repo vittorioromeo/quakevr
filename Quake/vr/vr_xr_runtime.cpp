@@ -1323,11 +1323,11 @@ void describe()
 
     note("vr_xr_runtime %d (%s)%s\n", static_cast<int>(vr_xr_runtime.value), modeName(static_cast<int>(vr_xr_runtime.value)),
         env.test ? "; test environment (vr_xr_test 1)" : "");
-    if(const char* cl = commandLineChoice())
+    if(const char* pick = commandLineChoice())
     {
         note(fromCommandLine() ? "  set on the command line (+vr_xr_runtime %s): set again at every start, over the menu's choice\n"
                               : "  the command line's +vr_xr_runtime %s is set again at the next start, over the menu's choice\n",
-            cl);
+            pick);
     }
     checkOutside();
     note("  XR_RUNTIME_JSON when the game started: %s\n", state.outside.empty() ? "not set" : state.outside.cStr());

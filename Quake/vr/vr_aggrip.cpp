@@ -734,8 +734,8 @@ void holdsInfo_f()
             Con_Printf("  %s %s (%s)", agpose::kindName(k), handsName(h), set ? "set" : "auto");
             if(w.autoClass >= 0)
             {
-                const int cls = agholds::poseClass(k, w.code, &set);
-                Con_Printf(" poses %s (%s)", agpose::classTitle(cls), set ? "set" : "auto");
+                const int klass = agholds::poseClass(k, w.code, &set);
+                Con_Printf(" poses %s (%s)", agpose::classTitle(klass), set ? "set" : "auto");
             }
         }
         Con_Printf("\n");
@@ -837,12 +837,12 @@ int poseClass(int kind, int code, int* settingOut)
         if(w.code == code && w.autoClass >= 0 && kind >= 0 && kind < numKinds)
         {
             const int s = static_cast<int>(w.category[kind]->value);
-            const int cls = categoryClass(s, w.autoClass);
+            const int klass = categoryClass(s, w.autoClass);
             if(settingOut)
             {
                 *settingOut = s >= 1 && s <= agpose::numGunCategories ? s : 0;
             }
-            return cls;
+            return klass;
         }
     }
     return agpose::Gun;

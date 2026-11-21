@@ -28,7 +28,7 @@ void beforeLoad();
 // QC's hold query (weapondrawnpose 19) for entity `ent` (its kind and weapon class as QC tells them): the studio's
 // hold on its subject (x the pose, y its phase, z Play's count, as posestudio::qcHold) into `out`. False: not the
 // subject (the Pose Studio's answer stands).
-[[nodiscard]] bool qcHold(int ent, int kind, int cls, glm::vec3& out);
+[[nodiscard]] bool qcHold(int ent, int kind, int klass, glm::vec3& out);
 // QC's weapondrawnpose(e, -1, 19) (VR_AGK_Hold): for entity `ent`, x the speed of a strike played by count (1), y the
 // strike timeline's time into the held act (s, at 1x), z 1 while that timeline drives it (the studio's subject held in a
 // strike or the Cast; 0 for anything else: QC's own play by count, as before).

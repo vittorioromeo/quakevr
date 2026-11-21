@@ -1149,9 +1149,9 @@ bool innerRange(const char* tag, const char*& s, const char*& e)
     return false;
 }
 
-// The next start tag at or after `from`, before `limit`, whose class attribute holds `cls` as a word ("" : any
+// The next start tag at or after `from`, before `limit`, whose class attribute holds `klass` as a word ("" : any
 // class) and whose name is `tagName` ("" : any). Null: none.
-[[nodiscard]] const char* findTag(const char* from, const char* limit, const char* tagName, const char* cls)
+[[nodiscard]] const char* findTag(const char* from, const char* limit, const char* tagName, const char* klass)
 {
     const za::SizeT tn = strlen(tagName);
     for(const char* p = from; p && *p && (!limit || p < limit); p++)
@@ -1164,13 +1164,13 @@ bool innerRange(const char* tag, const char*& s, const char*& e)
         {
             continue;
         }
-        if(!*cls)
+        if(!*klass)
         {
             return p;
         }
         const za::String c = attribute(p, "class");
-        const za::SizeT cn = strlen(cls);
-        for(const char* w = c.cStr(); (w = strstr(w, cls)) != nullptr; w += cn)
+        const za::SizeT cn = strlen(klass);
+        for(const char* w = c.cStr(); (w = strstr(w, klass)) != nullptr; w += cn)
         {
             const bool startOk = w == c.cStr() || w[-1] == ' ';
             const bool endOk = !w[cn] || w[cn] == ' ';

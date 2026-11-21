@@ -889,14 +889,14 @@ void noteFallSpeeds(float dt)
             r.warnedUnstable = true;
             const char* say = "ragdoll: %d %s's %s at %.0f u/s (spin %.0f rad/s, %.2f kg): unstable?\n";
             const float spin = b3Length(b3Body_GetAngularVelocity(body));
-            const char* cls = PR_GetString(EDICT_NUM(r.num)->v.classname);
+            const char* klass = PR_GetString(EDICT_NUM(r.num)->v.classname);
             if(vr_knockdown_debug.value || vr_debug_ragdoll.value)
             {
-                Con_Printf(say, r.num, cls, r.rig->bones[b].name, speed, spin, b3Body_GetMass(body));
+                Con_Printf(say, r.num, klass, r.rig->bones[b].name, speed, spin, b3Body_GetMass(body));
             }
             else
             {
-                Con_DPrintf(say, r.num, cls, r.rig->bones[b].name, speed, spin, b3Body_GetMass(body));
+                Con_DPrintf(say, r.num, klass, r.rig->bones[b].name, speed, spin, b3Body_GetMass(body));
             }
         }
         r.fallDown = mass > 0.f ? za::max(down / mass + gravity, 0.f) : 0.f;

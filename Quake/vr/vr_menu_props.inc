@@ -164,11 +164,11 @@ void weaponWeightsPrint()
     za::String& text = readouts.weaponWeightsHeavy;
     const int slot = weaponWeightsSlot;
     const float heft = weight::heft(slot);
-    const char* cls = heft <= 0.f ? "light" : heft < 0.25f ? "fine in one hand" : heft < 0.5f ? "better in two hands"
+    const char* klass = heft <= 0.f ? "light" : heft < 0.25f ? "fine in one hand" : heft < 0.5f ? "better in two hands"
                       : heft < 0.8f ? "cumbersome in one hand" : "very hard in one hand";
     text = !vr_heavy.value ? "This weapon: as light (Heavy Handling off)"
            : heft <= 0.f   ? "This weapon: light (no struggle, droop or kick)"
-                           : va("This weapon: heft %.2f, %s; one hand: droops %.1f deg, kicks %.0f deg/s", heft, cls,
+                           : va("This weapon: heft %.2f, %s; one hand: droops %.1f deg, kicks %.0f deg/s", heft, klass,
                                weight::droop(slot, 0.f), weight::kickSpeed(slot, 0.f));
     return text.cStr();
 }

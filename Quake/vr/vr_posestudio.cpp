@@ -224,7 +224,7 @@ struct ClassNote
 {
     int ent{0};
     int kind{0};
-    int cls{-1};
+    int klass{-1};
 };
 constexpr int CLASS_NOTES = 32;
 
@@ -471,9 +471,9 @@ Desk desk;
 {
     for(const ClassNote& c : ses.classes)
     {
-        if(c.ent == ent && c.cls >= 0)
+        if(c.ent == ent && c.klass >= 0)
         {
-            return c.cls;
+            return c.klass;
         }
     }
     return -1;
@@ -482,13 +482,13 @@ Desk desk;
 // The poses the subject steps through; `ses.pose` one of them (else the first).
 int subjectPoses(const Note* n, int* out)
 {
-    const int cls = n ? classOf(n->ent) : -1;
-    if(cls < 0)
+    const int klass = n ? classOf(n->ent) : -1;
+    if(klass < 0)
     {
         out[0] = agpose::Carry;
         return 1;
     }
-    return agpose::posesOf(cls, out, agpose::NumPoses);
+    return agpose::posesOf(klass, out, agpose::NumPoses);
 }
 
 [[nodiscard]] int poseIndex(const Note* n, int* count)
@@ -508,8 +508,8 @@ int subjectPoses(const Note* n, int* out)
 
 [[nodiscard]] int keyCode(const Note& n)
 {
-    const int cls = classOf(n.ent);
-    return cls < 0 ? -1 : agpose::code(n.kind, cls, ses.pose, agpose::isStrike(ses.pose) ? ses.phase : 0);
+    const int klass = classOf(n.ent);
+    return klass < 0 ? -1 : agpose::code(n.kind, klass, ses.pose, agpose::isStrike(ses.pose) ? ses.phase : 0);
 }
 
 // The torso's turn (yaw, pitch, roll; degrees) as a rotation (hitreact's bodyTurn) and back.
@@ -1212,8 +1212,8 @@ void release()
         const glm::vec3 d = g.keyNow.v[agpose::RPos] - g.key0.v[agpose::RPos] + g.keyNow.v[agpose::LPos] - g.key0.v[agpose::LPos];
         const float turn = glm::length(g.keyNow.v[agpose::RTurn] - g.key0.v[agpose::RTurn]) +
                            glm::length(g.keyNow.v[agpose::LTurn] - g.key0.v[agpose::LTurn]);
-        const int cls = agpose::classOf(g.code), pose = agpose::poseOf(g.code);
-        const char* what = va("%s, %s%s%s", agpose::poseName(cls, pose), agpose::isStrike(pose) ? agpose::phaseName(pose, g.code % 10) : "",
+        const int klass = agpose::classOf(g.code), pose = agpose::poseOf(g.code);
+        const char* what = va("%s, %s%s%s", agpose::poseName(klass, pose), agpose::isStrike(pose) ? agpose::phaseName(pose, g.code % 10) : "",
             agpose::isStrike(pose) ? ", " : "", agpose::kindsName(g.kind));
         za::String text{what};
         if(isLeg(g.part))
@@ -1287,21 +1287,21 @@ void undo()
 void resetPose()
 {
     const Note* n = current();
-    const int cls = n ? classOf(n->ent) : -1;
-    if(!n || cls < 0)
+    const int klass = n ? classOf(n->ent) : -1;
+    if(!n || klass < 0)
     {
         say("no armed humanoid near: walk up to one");
         return;
     }
     pushUndo();
-    agpose::resetPose(n->kind, cls, ses.pose);
+    agpose::resetPose(n->kind, klass, ses.pose);
     if(ses.pose == agpose::Pickup)
     {
         agpose::resetLegs(n->kind); // (its legs' key too)
     }
     dropUnchangedUndo();
-    say(va("%s: %s back to the shipped pose (%s)", agpose::kindsName(n->kind), agpose::poseName(cls, ses.pose),
-        agpose::className(cls)));
+    say(va("%s: %s back to the shipped pose (%s)", agpose::kindsName(n->kind), agpose::poseName(klass, ses.pose),
+        agpose::className(klass)));
 }
 
 // The Pickup's Make Override / Remove Override: the subject's class's own Pickup (starting as the shared key), or back
@@ -1309,27 +1309,27 @@ void resetPose()
 void togglePickupOverride()
 {
     const Note* n = current();
-    const int cls = n ? classOf(n->ent) : -1;
-    if(!n || cls < 0)
+    const int klass = n ? classOf(n->ent) : -1;
+    if(!n || klass < 0)
     {
         say("no armed humanoid near: walk up to one");
         return;
     }
     pushUndo();
-    const bool had = agpose::hasOverride(n->kind, cls, ses.pose);
+    const bool had = agpose::hasOverride(n->kind, klass, ses.pose);
     if(had)
     {
-        agpose::removeOverride(n->kind, cls, ses.pose);
+        agpose::removeOverride(n->kind, klass, ses.pose);
     }
     else
     {
-        agpose::makeOverride(n->kind, cls, ses.pose);
+        agpose::makeOverride(n->kind, klass, ses.pose);
     }
     dropUnchangedUndo();
-    const char* pn = agpose::poseName(cls, ses.pose);
-    say(had ? va("%s with %s: the shared %s again", agpose::kindsName(n->kind), agpose::className(cls), pn)
+    const char* pn = agpose::poseName(klass, ses.pose);
+    say(had ? va("%s with %s: the shared %s again", agpose::kindsName(n->kind), agpose::className(klass), pn)
             : va("%s with %s: a %s of its own (an override; edits stay on this class)", agpose::kindsName(n->kind),
-                  agpose::className(cls), pn));
+                  agpose::className(klass), pn));
 }
 
 // The subject's kind's pose keys and grips laid on the other kind (scaled by their fits).
@@ -1566,8 +1566,8 @@ void press(int b)
         case BtnRecentre: return "Recentre";
         case BtnPickupOverride:
         {
-            const int cls = n ? classOf(n->ent) : -1;
-            return n && cls >= 0 && agpose::hasOverride(n->kind, cls, ses.pose) ? "Remove Override" : "Make Override";
+            const int klass = n ? classOf(n->ent) : -1;
+            return n && klass >= 0 && agpose::hasOverride(n->kind, klass, ses.pose) ? "Remove Override" : "Make Override";
         }
         default: return va("Copy > %s", agpose::kindTitle(n ? (n->kind + 1) % agpose::numKinds : 1));
     }
@@ -1752,7 +1752,7 @@ void drawPanel()
     const Note* n = current();
     if(n)
     {
-        const int cls = classOf(n->ent);
+        const int klass = classOf(n->ent);
         int count = 0;
         const int i = poseIndex(n, &count);
         text += va("\n%s with %s%s%s", agpose::kindTitle(n->kind), n->slot >= 0 ? slotLabel(n->slot) : "its fists",
@@ -1763,7 +1763,7 @@ void drawPanel()
         }
         else
         {
-            text += va("\n\x10%s\x11 pose %d of %d", agpose::poseTitle(n->kind, cls < 0 ? 0 : cls, ses.pose), i + 1, count);
+            text += va("\n\x10%s\x11 pose %d of %d", agpose::poseTitle(n->kind, klass < 0 ? 0 : klass, ses.pose), i + 1, count);
         }
         if(!poselive::on() && agpose::isStrike(ses.pose))
         {
@@ -2099,11 +2099,11 @@ void report_f()
         n->placed.held2 ? 1 : 0);
     {
         // (the pose held, its key, the torso and poles as sent, the elbows and the chest as solved)
-        const int cls = classOf(n->ent);
+        const int klass = classOf(n->ent);
         const int code = keyCode(*n);
         const agpose::Key k = agpose::value(code);
         Con_Printf("posestudio pose %d \"%s\" phase %d class %d code %d torso %.1f %.1f %.1f\n", ses.pose,
-            agpose::poseName(cls < 0 ? 0 : cls, ses.pose), ses.phase, cls, code, static_cast<double>(n->torso.x),
+            agpose::poseName(klass < 0 ? 0 : klass, ses.pose), ses.phase, klass, code, static_cast<double>(n->torso.x),
             static_cast<double>(n->torso.y), static_cast<double>(n->torso.z));
         for(int i = 0; i < agpose::NumParts; i++)
         {
@@ -2273,7 +2273,7 @@ void init()
     poselive::init();
 }
 
-glm::vec3 qcHold(int ent, int kind, int cls)
+glm::vec3 qcHold(int ent, int kind, int klass)
 {
     // (its class noted: the subject's poses listed from it)
     ClassNote* slot = nullptr;
@@ -2286,7 +2286,7 @@ glm::vec3 qcHold(int ent, int kind, int cls)
         slot = &ses.classes[ses.nextClass];
         ses.nextClass = (ses.nextClass + 1) % CLASS_NOTES;
     }
-    *slot = ClassNote{ent, kind, cls};
+    *slot = ClassNote{ent, kind, klass};
     if(!active())
     {
         return glm::vec3{-1.f, 0.f, 0.f};
@@ -2302,7 +2302,7 @@ glm::vec3 qcHold(int ent, int kind, int cls)
         return glm::vec3{-1.f, 0.f, 0.f};
     }
     int poses[agpose::NumPoses];
-    const int count = agpose::posesOf(cls, poses, agpose::NumPoses);
+    const int count = agpose::posesOf(klass, poses, agpose::NumPoses);
     bool ok = false;
     for(int i = 0; i < count; i++)
     {

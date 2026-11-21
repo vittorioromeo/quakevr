@@ -43,19 +43,19 @@ enum Class : int
     Widowmaker = VR_AGK_WIDOWMAKER,  // the Widowmaker (its own)
     NumClasses = VR_AGK_NUM_CLASSES   // (the numbers' bound: isClass says which are classes)
 };
-[[nodiscard]] constexpr bool isClass(int cls)
+[[nodiscard]] constexpr bool isClass(int klass)
 {
-    return (cls >= Fists && cls <= TwoGuns) || (cls >= Pistol && cls <= Widowmaker);
+    return (klass >= Fists && klass <= TwoGuns) || (klass >= Pistol && klass <= Widowmaker);
 }
 // A single gun's class (the categories, Gun first).
-[[nodiscard]] constexpr bool isGunCategory(int cls)
+[[nodiscard]] constexpr bool isGunCategory(int klass)
 {
-    return cls == Gun || (cls >= Pistol && cls <= Widowmaker);
+    return klass == Gun || (klass >= Pistol && klass <= Widowmaker);
 }
 // One gun or two (aimed: the Aim stance).
-[[nodiscard]] constexpr bool isGunClass(int cls)
+[[nodiscard]] constexpr bool isGunClass(int klass)
 {
-    return isGunCategory(cls) || cls == TwoGuns;
+    return isGunCategory(klass) || klass == TwoGuns;
 }
 // The pose categories as the Weapon Holds' Pose Category setting numbers them (1.., 0 Auto).
 inline constexpr int gunCategories[] = {Gun, Pistol, Launcher, Sprayer, LaserCannon, Widowmaker};
@@ -140,9 +140,9 @@ struct Key
 // A key's code: kind * 100000 + class * 1000 + pose * 10 + phase (the class two digits; before 2026-10-27 kind * 10000,
 // one digit: the grunt's codes the same, an enforcer's 1xxxx now 10xxxx: codeFromOld).
 inline constexpr int kindStride = VR_AGK_KIND;
-[[nodiscard]] constexpr int code(int kind, int cls, int pose, int phase)
+[[nodiscard]] constexpr int code(int kind, int klass, int pose, int phase)
 {
-    return kind * kindStride + cls * VR_AGK_CLASS + pose * VR_AGK_POSE + phase;
+    return kind * kindStride + klass * VR_AGK_CLASS + pose * VR_AGK_POSE + phase;
 }
 [[nodiscard]] constexpr int kindOf(int c)
 {
@@ -208,24 +208,24 @@ struct ActKey
     float progress{0.f};
     bool timed{false}; // (its Time set)
 };
-// Strike `pose`'s keys of `kind` and `cls`, in their act's order (times `a`); returns how many (at most maxStrikeKeys).
-int actKeys(int kind, int cls, int pose, const ActTimes& a, ActKey* out);
+// Strike `pose`'s keys of `kind` and `klass`, in their act's order (times `a`); returns how many (at most maxStrikeKeys).
+int actKeys(int kind, int klass, int pose, const ActTimes& a, ActKey* out);
 // The two keys either side of time `s` (their phases; -1 the stance) and the second's share.
 struct ActBlend
 {
     int a{-1}, b{-1};
     float f{0.f};
 };
-[[nodiscard]] ActBlend actBlend(int kind, int cls, int pose, const ActTimes& a, float s);
+[[nodiscard]] ActBlend actBlend(int kind, int klass, int pose, const ActTimes& a, float s);
 // The keys as the game blends them at time `s` (an in-between key's start: its Time left zero).
-[[nodiscard]] Key keyAt(int kind, int cls, int pose, const ActTimes& a, float s);
+[[nodiscard]] Key keyAt(int kind, int klass, int pose, const ActTimes& a, float s);
 // Key `code`'s place (its Time, else its phase's own) and its time; the Cast's key: past its raise.
 [[nodiscard]] float keyPlace(int code);
 [[nodiscard]] float keyTime(int code, const ActTimes& a);
 // Whether strike key `code` is there (a named key always; an in-between key while its Time is set).
 [[nodiscard]] bool hasKey(int code);
 // An in-between key added at time `s` (as the keys blend there); its phase, or -1 (all seven in use, or a key there).
-int addKey(int kind, int cls, int pose, const ActTimes& a, float s);
+int addKey(int kind, int klass, int pose, const ActTimes& a, float s);
 // In-between key `code` removed (a named key never: false).
 bool removeKey(int code);
 // Key `code` moved to `place` (kept between its neighbours, placeGap apart); returns the place it took. clearKeyTime: a
@@ -271,9 +271,9 @@ inline constexpr int sharedPoses[] = {Pickup, Cast};
 {
     return code(kind, sharedClass, pose, 0);
 }
-[[nodiscard]] constexpr int noOverrideCode(int kind, int cls, int pose)
+[[nodiscard]] constexpr int noOverrideCode(int kind, int klass, int pose)
 {
-    return code(kind, cls, pose, 2);
+    return code(kind, klass, pose, 2);
 }
 [[nodiscard]] constexpr bool isSharedKey(int c)
 {
@@ -284,15 +284,15 @@ inline constexpr int sharedPoses[] = {Pickup, Cast};
 {
     return c >= 0 && isClass(classOf(c)) && isSharedPose(poseOf(c)) && phaseOf(c) == 0;
 }
-[[nodiscard]] bool hasOverride(int kind, int cls, int pose);
+[[nodiscard]] bool hasOverride(int kind, int klass, int pose);
 // The code an edit of code `c` keeps: a class's shared pose with no override the shared key's; any other `c` itself.
 [[nodiscard]] int editTarget(int c);
-// Class `cls`'s key of shared pose `pose` made its own (starting as the shared key is now), or back on the shared key.
-void makeOverride(int kind, int cls, int pose);
-void removeOverride(int kind, int cls, int pose);
-// The Pose Studio's name of pose `pose` for kind `kind` and class `cls`: poseName, a shared pose's "Pickup (shared)",
+// Class `klass`'s key of shared pose `pose` made its own (starting as the shared key is now), or back on the shared key.
+void makeOverride(int kind, int klass, int pose);
+void removeOverride(int kind, int klass, int pose);
+// The Pose Studio's name of pose `pose` for kind `kind` and class `klass`: poseName, a shared pose's "Pickup (shared)",
 // "Cast (override)"...
-[[nodiscard]] const char* poseTitle(int kind, int cls, int pose);
+[[nodiscard]] const char* poseTitle(int kind, int klass, int pose);
 
 // The kind whose shipped keys `kind` ships, fitted (itself when it has its own; the knights: the grunt's). The grip
 // offsets' Every Weapon rows follow it (vr_aggrip.cpp: a kind with no Main or Off row of its own ships that kind's, fitted).
@@ -307,8 +307,8 @@ bool get(int code, Key& out);
 void setPreview(int code, const Key& k);
 void clearPreview();
 void set(int code, const Key& k);
-// Every phase of (kind, cls, pose) back to the shipped keys.
-void resetPose(int kind, int cls, int pose);
+// Every phase of (kind, klass, pose) back to the shipped keys.
+void resetPose(int kind, int klass, int pose);
 // The Pickup's legs (legCode) of `kind` back to the shipped key.
 void resetLegs(int kind);
 // Every change of kind `from` laid on kind `to` (its own dropped): the places scaled by their fits (QC VR_AM_Fit's
@@ -332,17 +332,17 @@ int migrateCategories(int* widened);
 // solve (vr_agarms.cpp) lengthens the upper arm and the forearm alike only as far as the goal needs, eased; the skin and
 // the authored rig's arm bones stretch along with them. Copy to the other kind takes it as it is.
 inline constexpr float stretchMost = 1.5f;
-[[nodiscard]] float stretch(int kind, int cls);
-[[nodiscard]] float shippedStretch(int kind, int cls);
-void setStretch(int kind, int cls, float by); // (rounded to 0.01; the shipped value's equal dropped)
+[[nodiscard]] float stretch(int kind, int klass);
+[[nodiscard]] float shippedStretch(int kind, int klass);
+void setStretch(int kind, int klass, float by); // (rounded to 0.01; the shipped value's equal dropped)
 
-[[nodiscard]] const char* className(int cls);  // the dumps' ("a rifle")
-[[nodiscard]] const char* classTitle(int cls); // the windows' ("Rifle")
-[[nodiscard]] const char* poseName(int cls, int pose);
+[[nodiscard]] const char* className(int klass);  // the dumps' ("a rifle")
+[[nodiscard]] const char* classTitle(int klass); // the windows' ("Rifle")
+[[nodiscard]] const char* poseName(int klass, int pose);
 [[nodiscard]] const char* phaseName(int phase);
 [[nodiscard]] const char* phaseName(int pose, int phase); // (the Shove's: "wind-up", "push", "recover"; 3..9 "in-between")
-// The poses class `cls` steps through (the Pose Studio's < Pose >), in order; returns how many (at most `max`).
-int posesOf(int cls, int* out, int max);
+// The poses class `klass` steps through (the Pose Studio's < Pose >), in order; returns how many (at most `max`).
+int posesOf(int klass, int* out, int max);
 
 void registerCommands(); // vr_agrunt_pose_dump
 

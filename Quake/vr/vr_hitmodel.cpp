@@ -851,7 +851,7 @@ struct Event
 {
     double when{0.};
     bool hit{false};
-    Class cls{Class::Guns};
+    Class klass{Class::Guns};
     int num{0};
     glm::vec3 a{0.f}, b{0.f}; // the segment (to its hit)
     glm::vec3 point{0.f}, surface{0.f}, normal{0.f};
@@ -916,7 +916,7 @@ void record(edict_t* ent, const Drawn& d, const glm::vec3& a, const glm::vec3& b
     Event e;
     e.when = vr_gametime;
     e.hit = hit != nullptr;
-    e.cls = c;
+    e.klass = c;
     e.num = NUM_FOR_EDICT(ent);
     e.a = a;
     e.b = hit ? hit->point : b;
@@ -2229,12 +2229,12 @@ extern "C" int VR_HitModelMoveFlags(edict_t* ent)
         return 0;
     }
     const int corpseFlags = marked ? MOVE_HITGIBS : 0;
-    const int cls = static_cast<int>(qvr::progs::fieldFloatOr(ent, qvr::progs::fields().vr_hitclass, 0.f));
-    if(cls < 0)
+    const int klass = static_cast<int>(qvr::progs::fieldFloatOr(ent, qvr::progs::fields().vr_hitclass, 0.f));
+    if(klass < 0)
     {
         return corpseFlags; // its box, as before
     }
-    return corpseFlags | MOVE_HITMODEL | ((cls & 3) << MOVE_HITMODEL_CLASS_SHIFT);
+    return corpseFlags | MOVE_HITMODEL | ((klass & 3) << MOVE_HITMODEL_CLASS_SHIFT);
 }
 
 // ----------------------------------------------------------------------------

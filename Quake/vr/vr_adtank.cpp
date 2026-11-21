@@ -537,9 +537,9 @@ void serverCounts(int& tanks, int& guns, int& paired, int& orphans, int& bare)
     }
     progs::ServerVm serverVm;
     progs::forEachEdict(svs.maxclients + 1, [&](edict_t* e) {
-        const char* cls = PR_GetString(e->v.classname);
-        const bool tank = !strcmp(cls, "vr_fueltank");
-        const bool gun = !strcmp(cls, "thrown_weapon") && e->v.model && adguns::variantOf(PR_GetString(e->v.model)) >= 0 &&
+        const char* klass = PR_GetString(e->v.classname);
+        const bool tank = !strcmp(klass, "vr_fueltank");
+        const bool gun = !strcmp(klass, "thrown_weapon") && e->v.model && adguns::variantOf(PR_GetString(e->v.model)) >= 0 &&
                          fuelled(adguns::variantOf(PR_GetString(e->v.model)));
         if(!tank && !gun)
         {

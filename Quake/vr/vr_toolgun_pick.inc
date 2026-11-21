@@ -9,9 +9,9 @@ void pick(int num)
     edict_t* e = EDICT_NUM(num);
     Selection& sel = tg().sel;
     sel = {};
-    const char* cls = PR_GetString(e->v.classname);
+    const char* klass = PR_GetString(e->v.classname);
     const int wid = static_cast<int>(e->v.weapon);
-    if(!strcmp(cls, "thrown_weapon") || !strcmp(cls, "func_weapon_grabbable"))
+    if(!strcmp(klass, "thrown_weapon") || !strcmp(klass, "func_weapon_grabbable"))
     {
         // A weapon lying about: made again as a map's grabbable weapon of its id.
         copyText(sel.classname, sizeof(sel.classname), "func_weapon_grabbable");
@@ -28,19 +28,19 @@ void pick(int num)
             sel.weaponFlags = static_cast<float>(static_cast<int>(fieldFloat(e, flagsOfs)) & keep);
         }
     }
-    else if(!qvr::progs::findFunction(cls))
+    else if(!qvr::progs::findFunction(klass))
     {
-        Con_Printf("toolgun: %s can't be made again (no spawn function)\n", cls);
+        Con_Printf("toolgun: %s can't be made again (no spawn function)\n", klass);
         return;
     }
     else
     {
-        copyText(sel.classname, sizeof(sel.classname), cls);
+        copyText(sel.classname, sizeof(sel.classname), klass);
         sel.lift = za::max(-e->v.mins[2], 0.f);
         // A rock's or a brick's model is its kind; a crate's large one is its spawnflag.
-        sel.setModel = !strcmp(cls, "vr_debris_piece");
+        sel.setModel = !strcmp(klass, "vr_debris_piece");
         // A wall torch (on its wall or taken): hung on a wall again.
-        sel.wall = !strcmp(cls, "light_torch_small_walltorch") || !strcmp(cls, "light_torch_long_walltorch");
+        sel.wall = !strcmp(klass, "light_torch_small_walltorch") || !strcmp(klass, "light_torch_long_walltorch");
         if(e->v.spawnflags != 0.f)
         {
             copyText(sel.key, sizeof(sel.key), "spawnflags");
@@ -51,7 +51,7 @@ void pick(int num)
     copyText(sel.model, sizeof(sel.model), PR_GetString(e->v.model));
     sel.skin = static_cast<int>(e->v.skin);
     sel.frame = static_cast<int>(e->v.frame);
-    if(!strcmp(cls, "light_torch_small_walltorch"))
+    if(!strcmp(klass, "light_torch_small_walltorch"))
     {
         copyText(sel.model, sizeof(sel.model), "progs/flame.mdl"); // (its ghost id's torch, upright: not our stick)
         sel.skin = 0;

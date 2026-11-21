@@ -460,11 +460,11 @@ void bench_f()
                     key = num * 2 + side;
                     num = nd.children[side];
                 }
-                const int cls = key >= 0 && key < static_cast<int>(b->hull1Clip.size()) ? b->hull1Clip[key] : -3;
+                const int klass = key >= 0 && key < static_cast<int>(b->hull1Clip.size()) ? b->hull1Clip[key] : -3;
                 Con_Printf("  hull1 stops %.0f units sooner at %.0f %.0f %.0f: hull 0 solid points in the box %d, hull 1 "
                            "leaf %d: %d; brushes say solid %d\n",
                     gap, stock[i].endpos[0], stock[i].endpos[1], stock[i].endpos[2], hull0PointsInBox(hull0, past), key,
-                    cls, boxInSolid(*b, hull0, 0, glm::dvec3{past} + glm::dvec3{0.0, 0.0, 4.0}, glm::dvec3{16.0, 16.0, 28.0}, false) ? 1 : 0);
+                    klass, boxInSolid(*b, hull0, 0, glm::dvec3{past} + glm::dvec3{0.0, 0.0, 4.0}, glm::dvec3{16.0, 16.0, 28.0}, false) ? 1 : 0);
             }
             worstStock = za::max(worstStock, gap);
         }
@@ -653,7 +653,7 @@ struct MonsterWalk
 {
     struct Mon
     {
-        int num = 0, cls = 0;
+        int num = 0, klass = 0;
         glm::vec3 last{0.f}, windowStart{0.f}, goal{0.f};
         double windowUntil = 0.0, goalUntil = 0.0;
         int oldThink = 0, lastGoal = 0;
@@ -733,7 +733,7 @@ void monsterWalkEnd(MonsterWalk& w)
         float width = 0.f, box = 0.f;
         for(const MonsterWalk::Mon& m : w.mons)
         {
-            if(m.cls == k)
+            if(m.klass == k)
             {
                 const edict_t* e = EDICT_NUM(m.num);
                 float quake = 0.f, height = 0.f;
@@ -797,7 +797,7 @@ void monsterWalkStep(MonsterWalk& w)
         {
             continue;
         }
-        MonsterWalk::Counts& c = w.counts[m.cls];
+        MonsterWalk::Counts& c = w.counts[m.klass];
         const glm::vec3 o{e->v.origin[0], e->v.origin[1], e->v.origin[2]};
         ++c.steps;
         c.moved += glm::distance(o, m.last);
@@ -807,7 +807,7 @@ void monsterWalkStep(MonsterWalk& w)
             ++c.drops;
             if(c.drops <= 2)
             {
-                Con_DPrintf("mhullwalk: %s %d dropped %.0f at %.0f %.0f %.0f\n", monsterClasses[m.cls].name, m.num,
+                Con_DPrintf("mhullwalk: %s %d dropped %.0f at %.0f %.0f %.0f\n", monsterClasses[m.klass].name, m.num,
                     m.last.z - o.z, o.x, o.y, o.z);
             }
         }
@@ -816,7 +816,7 @@ void monsterWalkStep(MonsterWalk& w)
         {
             if(++c.inSolid <= 2)
             {
-                Con_Printf("mhullwalk: %s %d in %s at %.0f %.0f %.0f\n", monsterClasses[m.cls].name, m.num,
+                Con_Printf("mhullwalk: %s %d in %s at %.0f %.0f %.0f\n", monsterClasses[m.klass].name, m.num,
                     PR_GetString(in->v.classname), o.x, o.y, o.z);
             }
         }
@@ -920,20 +920,20 @@ void monsterWalk_f()
     for(int i = svs.maxclients + 1; i < qcvm->num_edicts; ++i)
     {
         edict_t* e = EDICT_NUM(i);
-        const int cls = e->free ? -1 : monsterClassOf(e);
-        if(cls < 0 || e->v.health <= 0.f || static_cast<int>(e->v.solid) != SOLID_SLIDEBOX)
+        const int klass = e->free ? -1 : monsterClassOf(e);
+        if(klass < 0 || e->v.health <= 0.f || static_cast<int>(e->v.solid) != SOLID_SLIDEBOX)
         {
             continue;
         }
         MonsterWalk::Mon m;
         m.num = i;
-        m.cls = cls;
+        m.klass = klass;
         m.last = m.windowStart = geom::vec(e->v.origin);
         m.windowUntil = sv.qcvm.time + 2.0;
         m.lastGoal = e->v.goalentity;
         m.patrols = e->v.goalentity && !strcmp(PR_GetString(PROG_TO_EDICT(e->v.goalentity)->v.classname), "path_corner");
-        ++w.counts[cls].monsters;
-        w.counts[cls].patrollers += m.patrols;
+        ++w.counts[klass].monsters;
+        w.counts[klass].patrollers += m.patrols;
         if(w.mode == 0)
         {
             m.oldThink = e->v.think;

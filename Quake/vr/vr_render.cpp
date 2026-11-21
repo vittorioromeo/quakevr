@@ -651,34 +651,34 @@ extern "C" void VR_AliasFlameRefs(const void* aliashdr, unsigned short* refs)
         const int a = indexes[t], b = indexes[t + 1], c = indexes[t + 2];
         if(a < n && b < n && c < n && key(a) == key(b) && key(a) == key(c))
         {
-            za::Vector<int>& cl = clusters[key(a)];
-            cl.pushBackMultiple(a, b, c);
+            za::Vector<int>& cluster = clusters[key(a)];
+            cluster.pushBackMultiple(a, b, c);
         }
     }
 
     za::Vector<bool> flash(static_cast<size_t>(n), false);
     za::Vector<int> points; // a vertex of each flash
-    for(auto& [k, cl] : clusters)
+    for(auto& [k, cluster] : clusters)
     {
-        za::quickSort(cl.begin(), cl.end());
-        cl.erase(za::unique(cl.begin(), cl.end()), cl.end());
+        za::quickSort(cluster.begin(), cluster.end());
+        cluster.erase(za::unique(cluster.begin(), cluster.end()), cluster.end());
         float spread = 0.f;
         for(int p = 0; p < hdr->numposes && spread < 2.f; p++)
         {
             const trivertx_t* pose = verts + hdr->numverts * p;
-            const glm::vec3 o = at(pose, cl[0]);
-            for(int v : cl)
+            const glm::vec3 o = at(pose, cluster[0]);
+            for(int v : cluster)
             {
                 spread = za::max(spread, glm::distance(at(pose, v), o));
             }
         }
-        if(cl.size() >= 3 && spread >= 2.f)
+        if(cluster.size() >= 3 && spread >= 2.f)
         {
-            for(int v : cl)
+            for(int v : cluster)
             {
                 flash[static_cast<size_t>(v)] = true;
             }
-            points.pushBack(cl[0]);
+            points.pushBack(cluster[0]);
         }
     }
 

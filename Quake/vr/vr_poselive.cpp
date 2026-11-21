@@ -238,8 +238,8 @@ void findMoments()
 
 [[nodiscard]] const char* keyName(int code)
 {
-    const int cls = agpose::classOf(code), pose = agpose::poseOf(code), phase = agpose::phaseOf(code);
-    return va("%s%s%s", agpose::poseName(cls, pose), agpose::isStrike(pose) ? ", " : "",
+    const int klass = agpose::classOf(code), pose = agpose::poseOf(code), phase = agpose::phaseOf(code);
+    return va("%s%s%s", agpose::poseName(klass, pose), agpose::isStrike(pose) ? ", " : "",
         agpose::isStrike(pose) ? agpose::phaseName(pose, phase) : "");
 }
 

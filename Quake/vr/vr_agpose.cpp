@@ -927,8 +927,8 @@ void write()
 // Pickup (a class with no Pickup of its own takes the shared key: agpose::editTarget).
 [[nodiscard]] int rifleOf(int code)
 {
-    const int cls = agpose::classOf(code);
-    return cls != agpose::Gun && agpose::isGunCategory(cls) && !agpose::isSharedPose(agpose::poseOf(code))
+    const int klass = agpose::classOf(code);
+    return klass != agpose::Gun && agpose::isGunCategory(klass) && !agpose::isSharedPose(agpose::poseOf(code))
                ? agpose::code(agpose::kindOf(code), agpose::Gun, agpose::poseOf(code), agpose::phaseOf(code))
                : -1;
 }
@@ -1020,13 +1020,13 @@ void dropCode(int code)
     state.over = static_cast<za::Vector<Entry>&&>(kept);
 }
 
-// Whether class `cls` of `kind` ships a Pickup override (its row, else the followed kind's, fitted; none where the kind's
+// Whether class `klass` of `kind` ships a Pickup override (its row, else the followed kind's, fitted; none where the kind's
 // own "no override" row says so), and its key.
-[[nodiscard]] bool shippedOverride(int kind, int cls, int pose, agpose::Key& out)
+[[nodiscard]] bool shippedOverride(int kind, int klass, int pose, agpose::Key& out)
 {
     out = agpose::Key{};
     agpose::Key mark;
-    return !shippedRow(agpose::noOverrideCode(kind, cls, pose), mark) && shippedOf(agpose::code(kind, cls, pose, 0), out);
+    return !shippedRow(agpose::noOverrideCode(kind, klass, pose), mark) && shippedOf(agpose::code(kind, klass, pose, 0), out);
 }
 
 // A class's "no override" mark (its Pickup's phase 2: agpose::noOverrideCode).
@@ -1053,7 +1053,7 @@ void dropCode(int code)
 // build a global vector from shared #defines, ROUND23 "One hit record, part 5").
 struct QcConstant
 {
-    int cls, pose, part;
+    int klass, pose, part;
     const char* name;
     const char* fwName; // ("" none)
 };
@@ -1080,7 +1080,7 @@ constexpr QcConstant qcConstants[] = {
 // here: {kind, class, factor}; a kind and class with no row 1, no stretch), then vr_agrunt_ik_stretch's changes.
 struct StretchRow
 {
-    int kind, cls;
+    int kind, klass;
     float by;
 };
 constexpr StretchRow shippedStretch[] = {
@@ -1134,7 +1134,7 @@ struct StretchState
 };
 StretchState stretchState;
 
-[[nodiscard]] float shippedStretchOf(int kind, int cls)
+[[nodiscard]] float shippedStretchOf(int kind, int klass)
 {
     // (its own row, else the kind it ships the keys of: the knight's, the grunt's)
     const int from = kind >= 0 && kind < agpose::numKinds ? shippedFrom[kind] : kind;
@@ -1142,7 +1142,7 @@ StretchState stretchState;
     {
         for(const StretchRow& r : shippedStretch)
         {
-            if(r.kind == k && r.cls == cls && r.kind >= 0)
+            if(r.kind == k && r.klass == klass && r.kind >= 0)
             {
                 return r.by;
             }
@@ -1182,16 +1182,16 @@ void parseStretch()
         bool ok = end != p;
         p = end;
         sep();
-        const int cls = ok ? static_cast<int>(strtol(p, &end, 10)) : -1;
+        const int klass = ok ? static_cast<int>(strtol(p, &end, 10)) : -1;
         ok = ok && end != p;
         p = ok ? end : p;
         sep();
         const float by = ok ? strtof(p, &end) : 0.f;
         ok = ok && end != p;
         p = ok ? end : p;
-        if(ok && kind >= 0 && kind < agpose::numKinds && agpose::isClass(cls) && by > 0.f)
+        if(ok && kind >= 0 && kind < agpose::numKinds && agpose::isClass(klass) && by > 0.f)
         {
-            stretchState.by[kind][cls] = za::clamp(by, 1.f, agpose::stretchMost);
+            stretchState.by[kind][klass] = za::clamp(by, 1.f, agpose::stretchMost);
         }
         const char* semi = strchr(p, ';');
         if(!semi)
@@ -1289,9 +1289,9 @@ void dumpAll()
             Con_Printf("%s\n", line.cStr());
             n++;
         }
-        for(int cls = 0; cls < agpose::NumClasses; cls++)
+        for(int klass = 0; klass < agpose::NumClasses; klass++)
         {
-            if(!agpose::isClass(cls))
+            if(!agpose::isClass(klass))
             {
                 continue;
             }
@@ -1299,7 +1299,7 @@ void dumpAll()
             {
                 for(int ph = 0; ph < (agpose::isStrike(pose) ? agpose::maxStrikeKeys : agpose::numPhases); ph++)
                 {
-                    const int c = agpose::code(k, cls, pose, ph);
+                    const int c = agpose::code(k, klass, pose, ph);
                     agpose::Key key;
                     if(!agpose::get(c, key) || same(c, key, agpose::Key{}))
                     {
@@ -1315,9 +1315,9 @@ void dumpAll()
                 }
             }
         }
-        for(const int cls : agpose::classOrder)
+        for(const int klass : agpose::classOrder)
         {
-            Con_Printf("posestretch %d %d %g\n", k, cls, static_cast<double>(agpose::stretch(k, cls)));
+            Con_Printf("posestretch %d %d %g\n", k, klass, static_cast<double>(agpose::stretch(k, klass)));
         }
     }
     Con_Printf("vr_agrunt_pose_dump all: %d keys\n", n);
@@ -1332,25 +1332,25 @@ void override_f()
         Con_Printf("vr_agrunt_pose_override <kind> <class> [1 | 0]\n");
         return;
     }
-    const int kind = Q_atoi(Cmd_Argv(1)), cls = Q_atoi(Cmd_Argv(2));
-    if(kind < 0 || kind >= agpose::numKinds || !agpose::isClass(cls))
+    const int kind = Q_atoi(Cmd_Argv(1)), klass = Q_atoi(Cmd_Argv(2));
+    if(kind < 0 || kind >= agpose::numKinds || !agpose::isClass(klass))
     {
-        Con_Printf("vr_agrunt_pose_override: no kind %d or class %d\n", kind, cls);
+        Con_Printf("vr_agrunt_pose_override: no kind %d or class %d\n", kind, klass);
         return;
     }
     if(Cmd_Argc() >= 4)
     {
         if(Q_atoi(Cmd_Argv(3)) != 0)
         {
-            agpose::makeOverride(kind, cls, agpose::Pickup);
+            agpose::makeOverride(kind, klass, agpose::Pickup);
         }
         else
         {
-            agpose::removeOverride(kind, cls, agpose::Pickup);
+            agpose::removeOverride(kind, klass, agpose::Pickup);
         }
     }
-    Con_Printf("agpose pickup %s, %s: %s\n", agpose::kindName(kind), agpose::className(cls),
-        agpose::hasOverride(kind, cls, agpose::Pickup) ? "its own (override)" : "the shared key");
+    Con_Printf("agpose pickup %s, %s: %s\n", agpose::kindName(kind), agpose::className(klass),
+        agpose::hasOverride(kind, klass, agpose::Pickup) ? "its own (override)" : "the shared key");
 }
 
 // vr_agrunt_pose_dump pickup: each kind's Pickup per class as in effect, and whose (the class's override or the shared
@@ -1360,12 +1360,12 @@ void dumpPickup()
     for(int k = 0; k < agpose::numKinds; k++)
     {
         int overrides = 0;
-        for(const int cls : agpose::classOrder)
+        for(const int klass : agpose::classOrder)
         {
-            const bool own = agpose::hasOverride(k, cls, agpose::Pickup);
+            const bool own = agpose::hasOverride(k, klass, agpose::Pickup);
             overrides += own ? 1 : 0;
-            const agpose::Key key = agpose::value(agpose::code(k, cls, agpose::Pickup, 0));
-            za::String line{va("pickupkey %d %d %s", k, cls, own ? "override" : "shared")};
+            const agpose::Key key = agpose::value(agpose::code(k, klass, agpose::Pickup, 0));
+            za::String line{va("pickupkey %d %d %s", k, klass, own ? "override" : "shared")};
             for(int i = 0; i < agpose::NumParts * 3; i++)
             {
                 line += va(" %g", static_cast<double>(key.v[i / 3][i % 3]));
@@ -1398,23 +1398,23 @@ void dump_f()
 namespace qvr::agpose
 {
 
-bool hasOverride(int kind, int cls, int pose)
+bool hasOverride(int kind, int klass, int pose)
 {
-    if(kind < 0 || kind >= numKinds || !isClass(cls) || !isSharedPose(pose))
+    if(kind < 0 || kind >= numKinds || !isClass(klass) || !isSharedPose(pose))
     {
         return false;
     }
     parse();
-    if(archived(code(kind, cls, pose, 0)))
+    if(archived(code(kind, klass, pose, 0)))
     {
         return true;
     }
-    if(archived(noOverrideCode(kind, cls, pose)))
+    if(archived(noOverrideCode(kind, klass, pose)))
     {
         return false;
     }
     Key k;
-    return shippedOverride(kind, cls, pose, k);
+    return shippedOverride(kind, klass, pose, k);
 }
 
 int editTarget(int c)
@@ -1422,47 +1422,47 @@ int editTarget(int c)
     return isClassShared(c) && !hasOverride(kindOf(c), classOf(c), poseOf(c)) ? sharedCode(kindOf(c), poseOf(c)) : c;
 }
 
-void makeOverride(int kind, int cls, int pose)
+void makeOverride(int kind, int klass, int pose)
 {
-    if(hasOverride(kind, cls, pose) || kind < 0 || kind >= numKinds || !isClass(cls) || !isSharedPose(pose))
+    if(hasOverride(kind, klass, pose) || kind < 0 || kind >= numKinds || !isClass(klass) || !isSharedPose(pose))
     {
         return;
     }
     const Key shared = value(sharedCode(kind, pose)); // (as it is now: its preview too)
     parse();
-    dropCode(noOverrideCode(kind, cls, pose));
-    dropCode(code(kind, cls, pose, 0));
+    dropCode(noOverrideCode(kind, klass, pose));
+    dropCode(code(kind, klass, pose, 0));
     if(static_cast<int>(state.over.size()) < maxEntries)
     {
-        state.over.pushBack(Entry{code(kind, cls, pose, 0), shared});
+        state.over.pushBack(Entry{code(kind, klass, pose, 0), shared});
     }
     write();
 }
 
-void removeOverride(int kind, int cls, int pose)
+void removeOverride(int kind, int klass, int pose)
 {
-    if(kind < 0 || kind >= numKinds || !isClass(cls) || !isSharedPose(pose))
+    if(kind < 0 || kind >= numKinds || !isClass(klass) || !isSharedPose(pose))
     {
         return;
     }
     parse();
-    dropCode(code(kind, cls, pose, 0));
-    dropCode(noOverrideCode(kind, cls, pose));
+    dropCode(code(kind, klass, pose, 0));
+    dropCode(noOverrideCode(kind, klass, pose));
     Key k;
-    if(shippedOverride(kind, cls, pose, k) && static_cast<int>(state.over.size()) < maxEntries)
+    if(shippedOverride(kind, klass, pose, k) && static_cast<int>(state.over.size()) < maxEntries)
     {
-        state.over.pushBack(Entry{noOverrideCode(kind, cls, pose), Key{}}); // (its shipped override set aside)
+        state.over.pushBack(Entry{noOverrideCode(kind, klass, pose), Key{}}); // (its shipped override set aside)
     }
     write();
 }
 
-const char* poseTitle(int kind, int cls, int pose)
+const char* poseTitle(int kind, int klass, int pose)
 {
     if(!isSharedPose(pose))
     {
-        return poseName(cls, pose);
+        return poseName(klass, pose);
     }
-    const bool shared = cls == sharedClass || !hasOverride(kind, cls, pose);
+    const bool shared = klass == sharedClass || !hasOverride(kind, klass, pose);
     if(pose == Cast)
     {
         return shared ? "Cast (shared)" : "Cast (override)";
@@ -1537,12 +1537,12 @@ void set(int c, const Key& k)
     write();
 }
 
-void resetPose(int kind, int cls, int pose)
+void resetPose(int kind, int klass, int pose)
 {
     if(isSharedPose(pose))
     {
         // (the key its edits keep: the class's override back to the shipped one, or none; else the shared key)
-        const int t = editTarget(code(kind, cls, pose, 0));
+        const int t = editTarget(code(kind, klass, pose, 0));
         parse();
         dropCode(t);
         write();
@@ -1551,7 +1551,7 @@ void resetPose(int kind, int cls, int pose)
     parse();
     for(int ph = 0; ph < (isStrike(pose) ? maxStrikeKeys : numPhases); ph++)
     {
-        dropCode(code(kind, cls, pose, ph)); // (a strike's in-between keys too: back to the shipped ones)
+        dropCode(code(kind, klass, pose, ph)); // (a strike's in-between keys too: back to the shipped ones)
     }
     write();
 }
@@ -1563,31 +1563,31 @@ void resetLegs(int kind)
     write();
 }
 
-float stretch(int kind, int cls)
+float stretch(int kind, int klass)
 {
-    if(kind < 0 || kind >= numKinds || !isClass(cls))
+    if(kind < 0 || kind >= numKinds || !isClass(klass))
     {
         return 1.f;
     }
     parseStretch();
-    const float by = stretchState.by[kind][cls];
-    return za::clamp(by > 0.f ? by : shippedStretchOf(kind, cls), 1.f, stretchMost);
+    const float by = stretchState.by[kind][klass];
+    return za::clamp(by > 0.f ? by : shippedStretchOf(kind, klass), 1.f, stretchMost);
 }
 
-float shippedStretch(int kind, int cls)
+float shippedStretch(int kind, int klass)
 {
-    return za::clamp(shippedStretchOf(kind, cls), 1.f, stretchMost);
+    return za::clamp(shippedStretchOf(kind, klass), 1.f, stretchMost);
 }
 
-void setStretch(int kind, int cls, float by)
+void setStretch(int kind, int klass, float by)
 {
-    if(kind < 0 || kind >= numKinds || !isClass(cls))
+    if(kind < 0 || kind >= numKinds || !isClass(klass))
     {
         return;
     }
     parseStretch();
     const float r = rounded(za::clamp(by, 1.f, stretchMost), 100.f);
-    stretchState.by[kind][cls] = za::abs(r - shippedStretch(kind, cls)) < 0.005f ? 0.f : r;
+    stretchState.by[kind][klass] = za::abs(r - shippedStretch(kind, klass)) < 0.005f ? 0.f : r;
     writeStretch();
 }
 
@@ -1670,14 +1670,14 @@ int copyKind(int from, int to)
     // The Pickup overrides: `from`'s each `to`'s (fitted), and where `from` has none `to` none either (the shared key)
     for(const int sp : sharedPoses)
     {
-        for(const int cls : classOrder)
+        for(const int klass : classOrder)
         {
-            const int oc = code(to, cls, sp, 0);
+            const int oc = code(to, klass, sp, 0);
             Key ship;
-            const bool toShips = shippedOverride(to, cls, sp, ship);
-            if(hasOverride(from, cls, sp))
+            const bool toShips = shippedOverride(to, klass, sp, ship);
+            if(hasOverride(from, klass, sp))
             {
-                Entry c{oc, value(code(from, cls, sp, 0))};
+                Entry c{oc, value(code(from, klass, sp, 0))};
                 fitKey(c.k, oc, from, to);
                 if((!toShips || !same(oc, c.k, ship)) && static_cast<int>(kept.size()) < maxEntries)
                 {
@@ -1687,7 +1687,7 @@ int copyKind(int from, int to)
             }
             else if(toShips && static_cast<int>(kept.size()) < maxEntries)
             {
-                kept.pushBack(Entry{noOverrideCode(to, cls, sp), Key{}});
+                kept.pushBack(Entry{noOverrideCode(to, klass, sp), Key{}});
             }
         }
     }
@@ -1834,7 +1834,7 @@ void dumpText(za::String& out)
     out += "//  when any is set]}} (a strike's phases 3..9: its in-between keys)\n";
     for(const Entry& e : state.over)
     {
-        const int kind = kindOf(e.code), cls = classOf(e.code), pose = poseOf(e.code), phase = phaseOf(e.code);
+        const int kind = kindOf(e.code), klass = classOf(e.code), pose = poseOf(e.code), phase = phaseOf(e.code);
         out += va("    {%d, {", e.code);
         for(int i = 0; i < partsOf(e.k) * 3; i++)
         {
@@ -1849,20 +1849,20 @@ void dumpText(za::String& out)
         if(isNoOverrideCode(e.code))
         {
             out += va("}}, // %s, %s, %s: no override (the shared key; drop its shipped override row)\n", kindName(kind),
-                className(cls), poseName(cls, pose));
+                className(klass), poseName(klass, pose));
             continue;
         }
         if(isClassShared(e.code))
         {
-            out += va("}}, // %s, %s, %s (its override of the shared key)\n", kindName(kind), className(cls), poseName(cls, pose));
+            out += va("}}, // %s, %s, %s (its override of the shared key)\n", kindName(kind), className(klass), poseName(klass, pose));
             continue;
         }
-        out += va("}}, // %s, %s, %s%s%s\n", kindName(kind), className(cls), poseName(cls, pose),
+        out += va("}}, // %s, %s, %s%s%s\n", kindName(kind), className(klass), poseName(klass, pose),
             isStrike(pose) ? ", " : "", isStrike(pose) ? phaseName(pose, phase) : "");
         // (a stance whose place is one QC constant: that constant moved, instead of the row; the grunt's units)
         for(const QcConstant& q : qcConstants)
         {
-            if(q.cls != cls || q.pose != pose || phase != 0)
+            if(q.klass != klass || q.pose != pose || phase != 0)
             {
                 continue;
             }
@@ -1934,9 +1934,9 @@ const char* offModeName(int mode)
     return mode == OffGun ? "On the Gun" : mode == OffFree ? "Free" : "Auto (the Weapon Holds)";
 }
 
-const char* className(int cls)
+const char* className(int klass)
 {
-    switch(cls)
+    switch(klass)
     {
         case Fists: return "fists";
         case Gun: return "a rifle";
@@ -1955,9 +1955,9 @@ const char* className(int cls)
     }
 }
 
-const char* classTitle(int cls)
+const char* classTitle(int klass)
 {
-    switch(cls)
+    switch(klass)
     {
         case Fists: return "Fists";
         case Gun: return "Rifle";
@@ -1976,12 +1976,12 @@ const char* classTitle(int cls)
     }
 }
 
-const char* poseName(int cls, int pose)
+const char* poseName(int klass, int pose)
 {
     switch(pose)
     {
-        case Carry: return cls == Fists ? "Idle" : cls == Melee2 ? "Port Arms" : "Idle / Carry";
-        case Aim: return cls == Fists ? "Guard" : isGunClass(cls) ? "Aim" : "Ready";
+        case Carry: return klass == Fists ? "Idle" : klass == Melee2 ? "Port Arms" : "Idle / Carry";
+        case Aim: return klass == Fists ? "Guard" : isGunClass(klass) ? "Aim" : "Ready";
         case Run: return "Run";
         case Pickup: return "Pickup";
         case Cast: return "Cast";
@@ -2014,7 +2014,7 @@ const char* phaseName(int pose, int phase)
     return phaseName(phase);
 }
 
-int posesOf(int cls, int* out, int max)
+int posesOf(int klass, int* out, int max)
 {
     int n = 0;
     const auto add = [&](int p) {
@@ -2028,25 +2028,25 @@ int posesOf(int cls, int* out, int max)
     add(Run);
     add(Pickup); // (every class, the fists too: the shared key, or the class's override)
     add(Cast);   // (the same: the death knight's volley, his off hand's palm at you)
-    if(cls == Fists)
+    if(klass == Fists)
     {
         add(Jab);
         add(Cross);
         add(Hook);
         add(Uppercut);
     }
-    if(cls == Melee || cls == Melee2 || cls == TwoMelee)
+    if(klass == Melee || klass == Melee2 || klass == TwoMelee)
     {
         add(Overhead);
         add(Diagonal);
         add(Horizontal);
         add(Backhand);
     }
-    if(cls == Saw)
+    if(klass == Saw)
     {
         add(SawThrust);
     }
-    if(cls == TwoMelee)
+    if(klass == TwoMelee)
     {
         add(Dual);
     }
@@ -2181,12 +2181,12 @@ float keyTime(int c, const ActTimes& a)
     return placeTime(a, keyPlace(c));
 }
 
-int actKeys(int kind, int cls, int pose, const ActTimes& a, ActKey* out)
+int actKeys(int kind, int klass, int pose, const ActTimes& a, ActKey* out)
 {
     int n = 0;
     for(int ph = 0; ph < maxStrikeKeys && isStrike(pose); ph++)
     {
-        const int c = code(kind, cls, pose, ph);
+        const int c = code(kind, klass, pose, ph);
         Key k;
         const bool has = get(c, k);
         const bool timed = has && k.v[Time].y != 0.f;
@@ -2210,10 +2210,10 @@ int actKeys(int kind, int cls, int pose, const ActTimes& a, ActKey* out)
     return n;
 }
 
-ActBlend actBlend(int kind, int cls, int pose, const ActTimes& a, float s)
+ActBlend actBlend(int kind, int klass, int pose, const ActTimes& a, float s)
 {
     ActKey keys[maxStrikeKeys];
-    const int n = actKeys(kind, cls, pose, a, keys);
+    const int n = actKeys(kind, klass, pose, a, keys);
     // (the stance before the first key, at the act's start, and after the last, at its end)
     int pa = -1;
     float ka = -1.f, ta = 0.f;
@@ -2250,12 +2250,12 @@ ActBlend actBlend(int kind, int cls, int pose, const ActTimes& a, float s)
     return b;
 }
 
-Key keyAt(int kind, int cls, int pose, const ActTimes& a, float s)
+Key keyAt(int kind, int klass, int pose, const ActTimes& a, float s)
 {
-    const ActBlend b = actBlend(kind, cls, pose, a, s);
+    const ActBlend b = actBlend(kind, klass, pose, a, s);
     Key out;
-    const Key ka = b.a >= 0 ? value(code(kind, cls, pose, b.a)) : Key{};
-    const Key kb = b.b >= 0 ? value(code(kind, cls, pose, b.b)) : Key{};
+    const Key ka = b.a >= 0 ? value(code(kind, klass, pose, b.a)) : Key{};
+    const Key kb = b.b >= 0 ? value(code(kind, klass, pose, b.b)) : Key{};
     for(int p = 0; p < Time; p++)
     {
         out.v[p] = ka.v[p] * (1.f - b.f) + kb.v[p] * b.f;
@@ -2265,7 +2265,7 @@ Key keyAt(int kind, int cls, int pose, const ActTimes& a, float s)
     return out;
 }
 
-int addKey(int kind, int cls, int pose, const ActTimes& a, float s)
+int addKey(int kind, int klass, int pose, const ActTimes& a, float s)
 {
     if(!isStrike(pose))
     {
@@ -2273,7 +2273,7 @@ int addKey(int kind, int cls, int pose, const ActTimes& a, float s)
     }
     const float place = rounded(za::clamp(actPlace(a, s), placeGap, 4.f - placeGap), 1000.f);
     ActKey keys[maxStrikeKeys];
-    const int n = actKeys(kind, cls, pose, a, keys);
+    const int n = actKeys(kind, klass, pose, a, keys);
     bool used[maxStrikeKeys]{};
     for(int i = 0; i < n; i++)
     {
@@ -2287,9 +2287,9 @@ int addKey(int kind, int cls, int pose, const ActTimes& a, float s)
     {
         if(!used[ph])
         {
-            Key k = keyAt(kind, cls, pose, a, placeTime(a, place));
+            Key k = keyAt(kind, klass, pose, a, placeTime(a, place));
             k.v[Time] = glm::vec3{place, 1.f, 0.f};
-            set(code(kind, cls, pose, ph), k);
+            set(code(kind, klass, pose, ph), k);
             return ph;
         }
     }
@@ -2313,9 +2313,9 @@ float setKeyPlace(int c, float place)
         return keyPlace(c);
     }
     // (between its neighbours: the act's order kept)
-    const int kind = kindOf(c), cls = classOf(c), pose = poseOf(c);
+    const int kind = kindOf(c), klass = classOf(c), pose = poseOf(c);
     ActKey keys[maxStrikeKeys];
-    const int n = actKeys(kind, cls, pose, ActTimes{}, keys);
+    const int n = actKeys(kind, klass, pose, ActTimes{}, keys);
     float lo = placeGap, hi = 4.f - placeGap;
     for(int i = 0; i < n; i++)
     {

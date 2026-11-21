@@ -522,7 +522,7 @@ void obstaclesOf(za::Vector<Obstacle>& out, float extra)
         out.pushBack({t.lo - glm::vec3{margin}, t.hi + glm::vec3{margin}, t.classname.cStr()});
     }
     progs::forEachEdict(svs.maxclients + 1, [&](edict_t* e) {
-        const char* cls = PR_GetString(e->v.classname);
+        const char* klass = PR_GetString(e->v.classname);
         glm::vec3 lo = vec(e->v.absmin), hi = vec(e->v.absmax);
         if(glm::any(glm::greaterThan(lo, hi)) || (lo == glm::vec3{0.f} && hi == glm::vec3{0.f}))
         {
@@ -530,12 +530,12 @@ void obstaclesOf(za::Vector<Obstacle>& out, float extra)
         }
         const glm::vec3 size = hi - lo;
         float margin = 0.f;
-        const char* why = cls;
+        const char* why = klass;
         glm::vec3 reach{0.f};
-        if(qvr::strings::startsWith(cls, "func_"))
+        if(qvr::strings::startsWith(klass, "func_"))
         {
-            if(!strcmp(cls, "func_wall") || !strcmp(cls, "func_illusionary") || !strcmp(cls, "func_episodegate") ||
-                !strcmp(cls, "func_bossgate") || qvr::strings::startsWith(cls, "func_detail") || !strcmp(cls, "func_group"))
+            if(!strcmp(klass, "func_wall") || !strcmp(klass, "func_illusionary") || !strcmp(klass, "func_episodegate") ||
+                !strcmp(klass, "func_bossgate") || qvr::strings::startsWith(klass, "func_detail") || !strcmp(klass, "func_group"))
             {
                 margin = 8.f; // still brushes: not under or in them
             }
@@ -545,24 +545,24 @@ void obstaclesOf(za::Vector<Obstacle>& out, float extra)
                 // (a door slides about its width, a lift goes down its height).
                 margin = 48.f;
                 reach = glm::min(size, glm::vec3{128.f});
-                if(qvr::strings::startsWith(cls, "func_plat") || qvr::strings::startsWith(cls, "func_new_plat") || qvr::strings::startsWith(cls, "func_elvtr"))
+                if(qvr::strings::startsWith(klass, "func_plat") || qvr::strings::startsWith(klass, "func_new_plat") || qvr::strings::startsWith(klass, "func_elvtr"))
                 {
                     reach.z = za::max(reach.z, 256.f);
                 }
             }
         }
-        else if(!strcmp(cls, "trigger_teleport") || !strcmp(cls, "info_teleport_destination") ||
-                qvr::strings::startsWith(cls, "info_player") || qvr::strings::startsWith(cls, "trigger_changelevel"))
+        else if(!strcmp(klass, "trigger_teleport") || !strcmp(klass, "info_teleport_destination") ||
+                qvr::strings::startsWith(klass, "info_player") || qvr::strings::startsWith(klass, "trigger_changelevel"))
         {
             margin = 64.f;
         }
-        else if(qvr::strings::startsWith(cls, "trigger_"))
+        else if(qvr::strings::startsWith(klass, "trigger_"))
         {
             margin = 24.f;
         }
-        else if(qvr::strings::startsWith(cls, "item_") || qvr::strings::startsWith(cls, "weapon_") || qvr::strings::startsWith(cls, "ammo_") ||
-                qvr::strings::startsWith(cls, "misc_explobox") || qvr::strings::startsWith(cls, "monster_") || qvr::strings::startsWith(cls, "path_corner") ||
-                qvr::strings::startsWith(cls, "light_torch") || qvr::strings::startsWith(cls, "light_flame") || qvr::strings::startsWith(cls, "func_weapon"))
+        else if(qvr::strings::startsWith(klass, "item_") || qvr::strings::startsWith(klass, "weapon_") || qvr::strings::startsWith(klass, "ammo_") ||
+                qvr::strings::startsWith(klass, "misc_explobox") || qvr::strings::startsWith(klass, "monster_") || qvr::strings::startsWith(klass, "path_corner") ||
+                qvr::strings::startsWith(klass, "light_torch") || qvr::strings::startsWith(klass, "light_flame") || qvr::strings::startsWith(klass, "func_weapon"))
         {
             margin = 40.f;
         }
@@ -854,15 +854,15 @@ void list_f()
     for(int i = 1; i < qcvm->num_edicts; i++)
     {
         edict_t* e = EDICT_NUM(i);
-        const char* cls = e->free ? "" : PR_GetString(e->v.classname);
-        if(strcmp(cls, "vr_rock") != 0 && strcmp(cls, "vr_brick") != 0)
+        const char* klass = e->free ? "" : PR_GetString(e->v.classname);
+        if(strcmp(klass, "vr_rock") != 0 && strcmp(klass, "vr_brick") != 0)
         {
             continue;
         }
         vec3_t at{e->v.origin[0], e->v.origin[1], e->v.origin[2] + 4.f};
         const int light = cl.worldmodel == sv.worldmodel ? R_LightPoint(at, 0.f, &cache) : -1;
         rows.pushBack({i, light,
-            va("%d %s %s skin %d at (%.1f %.1f %.1f) angles (%.0f %.0f %.0f)%s light %d", i, cls,
+            va("%d %s %s skin %d at (%.1f %.1f %.1f) angles (%.0f %.0f %.0f)%s light %d", i, klass,
                 PR_GetString(e->v.model) + 6, static_cast<int>(e->v.skin), e->v.origin[0], e->v.origin[1], e->v.origin[2],
                 e->v.angles[0], e->v.angles[1], e->v.angles[2], (static_cast<int>(e->v.flags) & FL_ONGROUND) ? ", resting" : "",
                 light)});

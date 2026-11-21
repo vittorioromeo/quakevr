@@ -2826,12 +2826,12 @@ void pushPosesUndo(const char* what)
     st.redo.clear();
 }
 
-void pushStretchUndo(int kind, int cls)
+void pushStretchUndo(int kind, int klass)
 {
     Snapshot s;
     s.stretchKind = kind;
-    s.stretchClass = cls;
-    s.stretchBy = agpose::stretch(kind, cls);
+    s.stretchClass = klass;
+    s.stretchBy = agpose::stretch(kind, klass);
     s.what = "IK stretch";
     st.undo.pushBack(ZA_MOVE(s));
     st.redo.clear();
@@ -3801,7 +3801,7 @@ void swingPlay()
     sw.want = sw.on;
     sw.pose = st.pdPose;
     sw.kind = st.pdKind;
-    sw.cls = st.pdClass;
+    sw.klass = st.pdClass;
     sw.t = 0.f;
     sw.playing = sw.on;
     sw.parked = !sw.on;
@@ -3884,22 +3884,22 @@ void beforeLoad()
     st.aim.placed = false; // (ahead of the new stage)
 }
 
-bool qcHold(int ent, int kind, int cls, glm::vec3& out)
+bool qcHold(int ent, int kind, int klass, glm::vec3& out)
 {
     if(!st.open || ent != st.subject || st.subject <= 0)
     {
         return false;
     }
     st.subjKind = kind;
-    st.subjClass = cls;
+    st.subjClass = klass;
     Studio::Swing& sw = st.swing;
-    const bool swinging = sw.on && sw.kind == kind && sw.cls == cls;
-    if(swinging || (st.tool == Tool::PoseKeys && st.pdKind == kind && st.pdClass == cls))
+    const bool swinging = sw.on && sw.kind == kind && sw.klass == klass;
+    if(swinging || (st.tool == Tool::PoseKeys && st.pdKind == kind && st.pdClass == klass))
     {
         // (the Pose Keys tool: held in the window's pose, a strike at its phase; Aim at the aim target. Swing: its
         // strike, played once from its start when its count changes, then held at the phase picked)
         // (played: the window's act when another of its kind and class is picked, so the timeline is the picked one's)
-        const bool picked = timedPose(st.pdPose) && st.pdKind == kind && st.pdClass == cls;
+        const bool picked = timedPose(st.pdPose) && st.pdKind == kind && st.pdClass == klass;
         const int pose = swinging && !picked ? sw.pose : st.pdPose;
         if(sw.want && sw.seen)
         {

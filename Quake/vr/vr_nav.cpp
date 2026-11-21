@@ -225,7 +225,7 @@ struct NavClass
 // A monster's path (by edict number).
 struct Agent
 {
-    int cls = -1;
+    int klass = -1;
     int goal = 0;
     double repathAt = 0.0;
     glm::vec3 goalAt{0.f};    // the goal's feet when the path was found
@@ -350,13 +350,13 @@ jobs::Site tileSite{"nav tiles"};
 // ---------------------------------------------------------------------------------------------------------------------
 // The geometry.
 
-bool isMover(const char* cls)
+bool isMover(const char* klass)
 {
     static constexpr const char* prefixes[] = {"func_door", "func_plat", "func_train", "func_button", "func_rotat",
         "func_bob", "func_elvtr", "func_movewall", "func_new_plat", "rotate_object", "door", "plat", "train"};
     for(const char* p : prefixes)
     {
-        if(!strncmp(cls, p, strlen(p)))
+        if(!strncmp(klass, p, strlen(p)))
         {
             return true;
         }
@@ -390,8 +390,8 @@ void gatherSolids(BrushSet& set, za::Vector<int>& movers, Geometry& g)
         {
             return;
         }
-        const char* cls = e->v.classname ? PR_GetString(e->v.classname) : "";
-        if(isMover(cls))
+        const char* klass = e->v.classname ? PR_GetString(e->v.classname) : "";
+        if(isMover(klass))
         {
             movers.pushBack(NUM_FOR_EDICT(e));
             return;
@@ -439,10 +439,10 @@ void gatherRides(const za::Vector<int>& movers, Geometry& g)
         {
             continue;
         }
-        const char* cls = e->v.classname ? PR_GetString(e->v.classname) : "";
+        const char* klass = e->v.classname ? PR_GetString(e->v.classname) : "";
         const glm::vec3 mins = geom::vec(e->v.mins), maxs = geom::vec(e->v.maxs);
         // (Quake's spawn functions rename them "plat" and "train".)
-        if((!strcmp(cls, "plat") || !strcmp(cls, "func_plat")) && pos1 >= 0 && pos2 >= 0)
+        if((!strcmp(klass, "plat") || !strcmp(klass, "func_plat")) && pos1 >= 0 && pos2 >= 0)
         {
             const glm::vec3 top = progs::fieldVec(e, pos1), bottom = progs::fieldVec(e, pos2);
             if(top.z - bottom.z > 1.f)
@@ -450,7 +450,7 @@ void gatherRides(const za::Vector<int>& movers, Geometry& g)
                 g.rides.pushBack(Ride{num, bottom, top, mins, maxs, true});
             }
         }
-        else if((!strcmp(cls, "train") || !strcmp(cls, "func_train")) && e->v.target && wait >= 0)
+        else if((!strcmp(klass, "train") || !strcmp(klass, "func_train")) && e->v.target && wait >= 0)
         {
             za::Vector<glm::vec3> stops;
             const char* name = PR_GetString(e->v.target);
@@ -484,8 +484,8 @@ void gatherGates(Geometry& g)
 {
     g.gates.clear();
     progs::forEachEdict(1, [&](edict_t* e) {
-        const char* cls = e->v.classname ? PR_GetString(e->v.classname) : "";
-        if(strncmp(cls, "trigger_teleport", 16) != 0 || static_cast<int>(e->v.solid) != SOLID_TRIGGER || !e->v.target ||
+        const char* klass = e->v.classname ? PR_GetString(e->v.classname) : "";
+        if(strncmp(klass, "trigger_teleport", 16) != 0 || static_cast<int>(e->v.solid) != SOLID_TRIGGER || !e->v.target ||
             (static_cast<int>(e->v.spawnflags) & 1)) // (PLAYER_ONLY)
         {
             return;
@@ -1123,17 +1123,17 @@ void findDrops(const Geometry& g, const Settings& s, const NavClass& c, const Br
                 {
                     const dtMeshTile* lt = nullptr;
                     const dtPoly* lp = nullptr;
-                    float cl[3];
+                    float closestPt[3];
                     bool over = false;
                     if(dtStatusFailed(mesh.getTileAndPolyByRef(found[i], &lt, &lp)) || lp->getArea() == areaLava ||
-                        lp->getArea() == areaSlime || dtStatusFailed(query.closestPointOnPoly(found[i], probe, cl, &over)) || !over)
+                        lp->getArea() == areaSlime || dtStatusFailed(query.closestPointOnPoly(found[i], probe, closestPt, &over)) || !over)
                     {
                         continue;
                     }
-                    const float drop = top - cl[1];
-                    if(drop > s.climb + 2.f && drop <= maxDrop && cl[1] > best)
+                    const float drop = top - closestPt[1];
+                    if(drop > s.climb + 2.f && drop <= maxDrop && closestPt[1] > best)
                     {
-                        best = cl[1];
+                        best = closestPt[1];
                     }
                 }
                 if(best < -1e29f || !sweepClear(bg, beyond, beyond, best, s.climb * 0.5f, r, top - best + h))
@@ -2234,7 +2234,7 @@ void afterTilesChanged(const NavClass& c, int ci)
 {
     for(Agent& a : state.agents)
     {
-        if(a.cls != ci)
+        if(a.klass != ci)
         {
             continue;
         }
@@ -2576,7 +2576,7 @@ void hash_f()
     for(za::SizeT n = 0; n < state.agents.size(); n++)
     {
         const Agent& a = state.agents[n];
-        if(a.cls < 0)
+        if(a.klass < 0)
         {
             continue;
         }
@@ -3425,17 +3425,17 @@ void dumpPolys()
 {
     za::Vector<int> seen;
     progs::forEachEdict(1, [&](edict_t* e) {
-        const int cls = walker(e) ? classFor(e, false) : -1;
-        NavClass* c = readyClass(cls);
+        const int klass = walker(e) ? classFor(e, false) : -1;
+        NavClass* c = readyClass(klass);
         for(const int k : seen)
         {
-            c = k == cls ? nullptr : c;
+            c = k == klass ? nullptr : c;
         }
         if(!c)
         {
             return;
         }
-        seen.pushBack(cls);
+        seen.pushBack(klass);
         for(int i = 0; i < c->mesh->getMaxTiles(); ++i)
         {
             const dtMeshTile* tile = static_cast<const dtNavMesh*>(c->mesh)->getTile(i);
@@ -3447,7 +3447,7 @@ void dumpPolys()
                     continue;
                 }
                 char line[512];
-                int len = q_snprintf(line, sizeof(line), "navpoly|%d|%.0f", cls, static_cast<double>(c->radius));
+                int len = q_snprintf(line, sizeof(line), "navpoly|%d|%.0f", klass, static_cast<double>(c->radius));
                 for(int v = 0; v < poly.vertCount && len < 440; ++v)
                 {
                     const glm::vec3 q = fromRc(&tile->verts[poly.verts[v] * 3]);
@@ -4211,7 +4211,7 @@ float steer(edict_t* ent, edict_t* goal)
         state.agents.resize(static_cast<za::SizeT>(num) + 1);
     }
     Agent& a = state.agents[static_cast<za::SizeT>(num)];
-    const int cls = static_cast<int>(c - state.classes.data());
+    const int klass = static_cast<int>(c - state.classes.data());
     const glm::vec3 pos = feet(ent), goalPos = feet(goal);
     const double now = sv.qcvm.time;
     a.action = 0;
@@ -4221,7 +4221,7 @@ float steer(edict_t* ent, edict_t* goal)
     stuckLog(ent, a, pos, now);
     if(a.link)
     {
-        if(a.cls == cls)
+        if(a.klass == klass)
         {
             a.why = whyLink;
             a.drawUntil = now + 1.0; // (its plan still drawn while it follows the link)
@@ -4244,7 +4244,7 @@ float steer(edict_t* ent, edict_t* goal)
         ++state.fallbacks;
         return -1.f;
     }
-    bool repath = a.cls != cls || a.goal != goalNum || a.path.empty() || now >= a.repathAt || a.slot != slotBefore ||
+    bool repath = a.klass != klass || a.goal != goalNum || a.path.empty() || now >= a.repathAt || a.slot != slotBefore ||
                   glm::length(goalPos - a.goalAt) > vr_nav_repath_move.value;
     int from = 0;
     if(!repath)
@@ -4284,7 +4284,7 @@ float steer(edict_t* ent, edict_t* goal)
             (void)c->query->closestPointOnPoly(buf[n - 1], endPt, endPt, nullptr); // (partial: as near as it gets)
         }
         memcpy(a.endRc, endPt, sizeof(a.endRc));
-        a.cls = cls;
+        a.klass = klass;
         a.goal = goalNum;
         a.goalAt = goalPos;
         // Staggered: each monster's interval a little longer or shorter by its number.
@@ -4336,7 +4336,7 @@ float steer(edict_t* ent, edict_t* goal)
         const dtPoly* poly = nullptr;
         if(dtStatusSucceed(c->mesh->getTileAndPolyByRef(refs[next], &tile, &poly)) && poly->getArea() == areaTele)
         {
-            a.cls = cls;
+            a.klass = klass;
             a.why = whyLink;
             return beginLink(ent, a, *c, pos, now, refs[next], next);
         }
@@ -4346,7 +4346,7 @@ float steer(edict_t* ent, edict_t* goal)
     {
         if((flags[i] & DT_STRAIGHTPATH_OFFMESH_CONNECTION) && i + 1 < nc)
         {
-            a.cls = cls;
+            a.klass = klass;
             a.why = whyLink;
             return beginLink(ent, a, *c, pos, now, refs[i], i);
         }
@@ -4659,7 +4659,7 @@ bool teleTrialStart()
     edict_t* e = EDICT_NUM(t.walkers[static_cast<za::SizeT>(t.trial / perWalker)]);
     const Gate& gate = state.geo.gates[static_cast<za::SizeT>(t.gates[static_cast<za::SizeT>((t.trial / t.angles) % static_cast<int>(t.gates.size()))])];
     const int k = t.trial % t.angles;
-    const char* cls = PR_GetString(e->v.classname);
+    const char* klass = PR_GetString(e->v.classname);
     NavClass* c = readyClass(classFor(e, true));
     if(!c)
     {
@@ -4677,7 +4677,7 @@ bool teleTrialStart()
     const int why = c ? teleEnds(settingsNow(), *c, *c->query, gate, in, out) : 9;
     if(why != 0 || e->v.health <= 0.f)
     {
-        Con_Printf("navtt|%s|gate %d|skipped (%s %d)\n", cls, static_cast<int>(&gate - state.geo.gates.data()) + 1,
+        Con_Printf("navtt|%s|gate %d|skipped (%s %d)\n", klass, static_cast<int>(&gate - state.geo.gates.data()) + 1,
             why == 9 ? "no mesh" : why != 0 ? "no link for it: vr_nav_links reason" : "dead", why);
         ++t.skipped;
         return false;
@@ -4723,7 +4723,7 @@ bool teleTrialStart()
     }
     if(!placed)
     {
-        Con_Printf("navtt|%s|gate %d|angle %.0f|skipped (no floor in sight of the entry)\n", cls,
+        Con_Printf("navtt|%s|gate %d|angle %.0f|skipped (no floor in sight of the entry)\n", klass,
             static_cast<int>(&gate - state.geo.gates.data()) + 1, t.angle);
         ++t.skipped;
         return false;
@@ -4932,11 +4932,11 @@ void debugDraw(const glm::vec3& view)
     }
     const progs::ServerVm vm; // (the view's draws run with the client's VM current)
     // Which class: the setting's, else the nearest walker's.
-    int cls = static_cast<int>(vr_nav_debug_class.value);
-    if(cls < 0)
+    int klass = static_cast<int>(vr_nav_debug_class.value);
+    if(klass < 0)
     {
         float best = 1e30f;
-        cls = 0;
+        klass = 0;
         progs::forEachEdict(1, [&](edict_t* e) {
             if(walker(e))
             {
@@ -4945,12 +4945,12 @@ void debugDraw(const glm::vec3& view)
                 if(k >= 0 && d < best)
                 {
                     best = d;
-                    cls = k;
+                    klass = k;
                 }
             }
         });
     }
-    NavClass* c = readyClass(cls);
+    NavClass* c = readyClass(klass);
     if(!c)
     {
         return;

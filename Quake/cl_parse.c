@@ -28,7 +28,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "steam.h"
 #include "vr/vr_api.h"
 
-const char *svc_strings[] =
+const char *svc_strings[] = // seat-shared: the messages' names
 {
 	"svc_bad",
 	"svc_nop",
@@ -101,7 +101,7 @@ const char *svc_strings[] =
 };
 #define NUM_SVC_STRINGS Q_COUNTOF(svc_strings)
 
-qboolean warn_about_nehahra_protocol; //johnfitz
+#define warn_about_nehahra_protocol (cl_seat->warn_nehahra) // QVR: the current seat's connection's (client.h)
 
 
 //=============================================================================
@@ -231,7 +231,7 @@ When the client is taking a long time to load stuff, send keepalive messages
 so the server doesn't disconnect.
 ==================
 */
-static byte	net_olddata[NET_MAXMESSAGE];
+static byte	net_olddata[NET_MAXMESSAGE]; // seat-shared: scratch, within one call
 void CL_KeepaliveMessage (void)
 {
 	float	time;
@@ -486,7 +486,6 @@ If an entities model or origin changes from frame to frame, it must be
 relinked.  Other attributes can change without relinking.
 ==================
 */
-unsigned int cl_entityupdates; // QVR (client.h)
 
 void CL_ParseUpdate (int bits)
 {

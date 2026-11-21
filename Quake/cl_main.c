@@ -55,18 +55,27 @@ cvar_t	cl_mwheelpitch = {"cl_mwheelpitch", "5", CVAR_ARCHIVE};
 cvar_t	cl_startdemos = {"cl_startdemos", "1", CVAR_ARCHIVE};
 cvar_t	cl_confirmquit = {"cl_confirmquit", "2", CVAR_ARCHIVE}; // 0=off; 1=simple; 2=classic
 
-client_static_t	cls;
-client_state_t	cl;
-// FIXME: put these on hunk?
-entity_t		cl_static_entities[MAX_STATIC_ENTITIES];
-lightstyle_t	cl_lightstyle[MAX_LIGHTSTYLES];
-dlight_t		cl_dlights[MAX_DLIGHTS];
+// QVR: cls, cl, the entity tables: the current seat's (client.h's clientseat_t, splitscreen phase 5)
 
-entity_t		*cl_entities; //johnfitz -- was a static array, now on hunk
-int				cl_max_edicts; //johnfitz -- only changes when new map loads
+/*
+=====================
+CL_SeatNetReady
 
-int				cl_numvisedicts;
-entity_t		*cl_visedicts[MAX_VISEDICTS];
+QVR: a seat's client made ready on its first use (seats 1-3; seat 0's is the game's own, CL_Init's and
+Host_Init's): disconnected, out of the demo loop, its message buffer its own.
+=====================
+*/
+void CL_SeatNetReady (clientseat_t *net)
+{
+	if (net->ready)
+		return;
+	net->ready = true;
+	net->cstatic.state = ca_disconnected;
+	net->cstatic.demonum = -1;
+	net->cstatic.message.data = net->messagebuf;
+	net->cstatic.message.maxsize = (int) sizeof (net->messagebuf);
+	net->cstatic.message.cursize = 0;
+}
 
 extern cvar_t	r_lerpmodels, r_lerpmove; //johnfitz
 
@@ -884,7 +893,6 @@ Read all incoming data from the server
 int CL_ReadFromServer (void)
 {
 	int			ret;
-	extern int	num_temp_entities; //johnfitz
 	int			num_beams = 0; //johnfitz
 	int			num_dlights = 0; //johnfitz
 	beam_t		*b; //johnfitz

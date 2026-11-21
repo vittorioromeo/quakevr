@@ -78,7 +78,7 @@ struct GhostPose
 struct Ghosts
 {
     GhostPose bins[maxBins];
-    int pose{-1}, kind{-1}, cls{-1};
+    int pose{-1}, kind{-1}, klass{-1};
     uint32_t hash{0};
     double hashAt{0.0};        // realtime: when the data last changed
     uint32_t refreshedHash{0}; // the data Auto Refresh last played (not again for it)
@@ -891,12 +891,12 @@ void strikeServerFrame()
     }
     // The onion's ghosts: dropped when their act or its data change; played again once the data settle (Auto Refresh)
     const uint32_t h = dataHash();
-    if(s.heldPose != gh.pose || st.subjKind != gh.kind || st.subjClass != gh.cls)
+    if(s.heldPose != gh.pose || st.subjKind != gh.kind || st.subjClass != gh.klass)
     {
         clearGhosts();
         gh.pose = s.heldPose;
         gh.kind = st.subjKind;
-        gh.cls = st.subjClass;
+        gh.klass = st.subjClass;
         gh.refreshedHash = 0;
     }
     if(h != gh.hash)

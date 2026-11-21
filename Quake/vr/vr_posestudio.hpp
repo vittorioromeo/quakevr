@@ -81,7 +81,7 @@ void note(const Note& n);
 // QC (weapondrawnpose(e, kind * 100 + class, 19), every armed humanoid each server frame): its kind and weapon class
 // noted; the pose the studio holds it in: x the pose (agpose::Pose; -1 none: not the subject, not running), y the
 // phase, z Play's count (a change: play the strike once from its start).
-[[nodiscard]] glm::vec3 qcHold(int ent, int kind, int cls);
+[[nodiscard]] glm::vec3 qcHold(int ent, int kind, int klass);
 [[nodiscard]] bool buttonPoint(int index, glm::vec3& out);
 // (buttons 15 Live: On/Off, 16 Loop, 17 Speed; in Live, rows 1-2: 18 < 0.5 s, 19 Pause/Play, 20 0.5 s >, 21 < Frame,
 // 22 Next Glitch, 23 Frame >: vr_poselive.hpp)

@@ -147,7 +147,7 @@ typedef struct
 
 } client_static_t;
 
-extern client_static_t	cls;
+// cls: the current seat's (#define below, with cl's)
 
 //
 // the client_state_t structure is wiped completely at every
@@ -306,20 +306,48 @@ extern	cvar_t	cl_confirmquit;
 #define	MAX_STATIC_ENTITIES	4096	//ericw -- was 512	//johnfitz -- was 128
 #define	MAX_VISEDICTS		16384	// larger, now we support BSP2
 
-extern	client_state_t	cl;
+// QVR (splitscreen phase 5, docs/vr-port/SPLITSCREEN.md): a seat's client, its connection and its client world: Ironwail's
+// cls, cl and the entity tables (once cl_main.c's, cl_tent.c's and cl_parse.c's globals), one a seat (vr_seat.hpp's
+// Seat::net). The names below are the current seat's (cl_seat: seat::Scope and CL_SeatSet move it), so the code's
+// thousands of `cl.` and `cls.` read as before. With one seat cl_seat is seat 0's, always. Because `cl` and `cls` are
+// macros, nothing else may be named so (a local or a member named so fails to compile: rename it).
+typedef struct clientseat_s
+{
+	client_static_t	cstatic;	// cls
+	client_state_t	cstate;		// cl
+	entity_t		static_entities[MAX_STATIC_ENTITIES];
+	lightstyle_t	lightstyle[MAX_LIGHTSTYLES];
+	dlight_t		dlights[MAX_DLIGHTS];
+	entity_t		temp_entities[MAX_TEMP_ENTITIES];
+	int				num_temp_entities;
+	beam_t			beams[MAX_BEAMS];
+	entity_t		*visedicts[MAX_VISEDICTS];
+	int				numvisedicts;
+	unsigned int	entityupdates;	// CL_ParseUpdate calls so far (worldtrace::world's brush entity list)
+	entity_t		*entities;		//johnfitz -- was a static array, now on hunk
+	int				max_edicts;		//johnfitz -- only changes when new map loads
+	qboolean		warn_nehahra;	// cl_parse.c's warning, once a connection
+	qboolean		ready;			// seats 1-3: made ready on first use (CL_SeatNetReady)
+	byte			messagebuf[4096];	// seats 1-3's cls.message (seat 0's is CL_Init's, on the hunk as before)
+} clientseat_t;
 
-// FIXME, allocate dynamically
-extern	entity_t		cl_static_entities[MAX_STATIC_ENTITIES];
-extern	lightstyle_t	cl_lightstyle[MAX_LIGHTSTYLES];
-extern	dlight_t		cl_dlights[MAX_DLIGHTS];
-extern	entity_t		cl_temp_entities[MAX_TEMP_ENTITIES];
-extern	beam_t			cl_beams[MAX_BEAMS];
-extern	entity_t		*cl_visedicts[MAX_VISEDICTS];
-extern	int				cl_numvisedicts;
-extern	unsigned int	cl_entityupdates; // QVR: CL_ParseUpdate calls so far (worldtrace::world's brush entity list)
+extern	clientseat_t	*cl_seat;	// the current seat's (vr_seat.cpp)
+clientseat_t *CL_SeatNetOf (int seat);	// seat 0..3's, made ready (vr_seat.cpp)
+void CL_SeatNetReady (clientseat_t *net);	// a fresh seat's: disconnected, its message buffer (cl_main.c)
 
-extern	entity_t		*cl_entities; //johnfitz -- was a static array, now on hunk
-extern	int				cl_max_edicts; //johnfitz -- only changes when new map loads
+#define	cls					(cl_seat->cstatic)
+#define	cl					(cl_seat->cstate)
+#define	cl_static_entities	(cl_seat->static_entities)
+#define	cl_lightstyle		(cl_seat->lightstyle)
+#define	cl_dlights			(cl_seat->dlights)
+#define	cl_temp_entities	(cl_seat->temp_entities)
+#define	num_temp_entities	(cl_seat->num_temp_entities)
+#define	cl_beams			(cl_seat->beams)
+#define	cl_visedicts		(cl_seat->visedicts)
+#define	cl_numvisedicts		(cl_seat->numvisedicts)
+#define	cl_entityupdates	(cl_seat->entityupdates)
+#define	cl_entities			(cl_seat->entities)
+#define	cl_max_edicts		(cl_seat->max_edicts)
 
 //=============================================================================
 

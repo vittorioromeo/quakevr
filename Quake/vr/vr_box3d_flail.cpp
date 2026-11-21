@@ -693,9 +693,9 @@ void flailInfo_f()
     progs::ServerVm vm;
     int handles = 0, heads = 0, paired = 0, orphans = 0, bare = 0;
     progs::forEachEdict(svs.maxclients + 1, [&](edict_t* e) {
-        const char* cls = PR_GetString(e->v.classname);
-        const bool head = !strcmp(cls, "vr_flailhead");
-        const bool handle = !strcmp(cls, "thrown_weapon") && !strcmp(PR_GetString(e->v.model), qvr::admelee::flailModel);
+        const char* klass = PR_GetString(e->v.classname);
+        const bool head = !strcmp(klass, "vr_flailhead");
+        const bool handle = !strcmp(klass, "thrown_weapon") && !strcmp(PR_GetString(e->v.model), qvr::admelee::flailModel);
         if(!head && !handle)
         {
             return;

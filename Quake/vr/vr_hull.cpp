@@ -3534,9 +3534,9 @@ namespace
 } // namespace
 namespace detail
 {
-float classWidth(int cls, float size, float quake)
+float classWidth(int klass, float size, float quake)
 {
-    const float v = monsterClasses[cls].width->value;
+    const float v = monsterClasses[klass].width->value;
     const float w = v < 0.f ? size : v; // -1: its own box's
     if(w <= 0.f)
     {
@@ -3564,14 +3564,14 @@ bool monsterWidth(const edict_t* ent, float& width, float& height, bool loading 
     {
         return false;
     }
-    const int cls = monsterClassOf(ent);
-    if(cls < 0)
+    const int klass = monsterClassOf(ent);
+    if(klass < 0)
     {
         return false;
     }
     float quake = 0.f;
     quakeHull(size, quake, height);
-    width = classWidth(cls, size, quake);
+    width = classWidth(klass, size, quake);
     return width > 0.f;
 }
 

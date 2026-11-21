@@ -24,16 +24,21 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.h"
 #include "vr/vr_api.h"
 
-int			num_temp_entities;
-entity_t	cl_temp_entities[MAX_TEMP_ENTITIES];
-beam_t		cl_beams[MAX_BEAMS];
+// QVR: num_temp_entities, cl_temp_entities, cl_beams: the current seat's (client.h, splitscreen phase 5)
 
+// seat-shared: the sounds' buffers
 sfx_t			*cl_sfx_wizhit;
+// seat-shared: the sounds' buffers
 sfx_t			*cl_sfx_knighthit;
+// seat-shared: the sounds' buffers
 sfx_t			*cl_sfx_tink1;
+// seat-shared: the sounds' buffers
 sfx_t			*cl_sfx_ric1;
+// seat-shared: the sounds' buffers
 sfx_t			*cl_sfx_ric2;
+// seat-shared: the sounds' buffers
 sfx_t			*cl_sfx_ric3;
+// seat-shared: the sounds' buffers
 sfx_t			*cl_sfx_r_exp3;
 
 /*

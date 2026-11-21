@@ -84,39 +84,39 @@ void dump_f()
 {
     if(Cmd_Argc() < 2)
     {
-        for(const char* cls : classnames)
+        for(const char* klass : classnames)
         {
             int n = 0;
             int own = 0;
             for(int i = 0; i < monsterValueCount; i++)
             {
-                if(!strcmp(entries[i].classname, cls))
+                if(!strcmp(entries[i].classname, klass))
                 {
                     n++;
                     own += changed(i);
                 }
             }
-            Con_Printf("%-22s %2d values, %d changed\n", cls, n, own);
+            Con_Printf("%-22s %2d values, %d changed\n", klass, n, own);
         }
         Con_Printf("vr_monster_dump <classname> ... | all: every value (%s)\n", dataPath);
         return;
     }
     const bool all = !q_strcasecmp(Cmd_Argv(1), "all");
-    for(const char* cls : classnames)
+    for(const char* klass : classnames)
     {
         bool wanted = all;
         for(int a = 1; a < Cmd_Argc() && !wanted; a++)
         {
-            wanted = !strcmp(Cmd_Argv(a), cls);
+            wanted = !strcmp(Cmd_Argv(a), klass);
         }
         if(!wanted)
         {
             continue;
         }
-        Con_Printf("monster %s\n", cls);
+        Con_Printf("monster %s\n", klass);
         for(int i = 0; i < monsterValueCount; i++)
         {
-            if(!strcmp(entries[i].classname, cls))
+            if(!strcmp(entries[i].classname, klass))
             {
                 const cvar_t& v = monsterValues[i];
                 Con_Printf("    %s \"%s\" // %s, default \"%s\"%s\n", entries[i].key, v.string, v.name, v.default_string,

@@ -715,11 +715,11 @@ void slideHitTestFrame()
             cl.viewangles[YAW] = 0.f;
             if(++t.frames == 36)
             {
-                const char* cls = t.which == 0 ? "vr_crate" : "monster_army";
+                const char* klass = t.which == 0 ? "vr_crate" : "monster_army";
                 float best = 96.f;
                 progs::forEachEdict(1, [&](edict_t* e) {
                     const float d = glm::length(glm::vec2{e->v.origin[0] - aheadX, e->v.origin[1] - laneY});
-                    if(!strcmp(PR_GetString(e->v.classname), cls) && d < best)
+                    if(!strcmp(PR_GetString(e->v.classname), klass) && d < best)
                     {
                         best = d;
                         t.target = NUM_FOR_EDICT(e);
@@ -727,7 +727,7 @@ void slideHitTestFrame()
                 });
                 if(!t.target)
                 {
-                    q_snprintf(line, sizeof(line), "no %s 200 units ahead", cls);
+                    q_snprintf(line, sizeof(line), "no %s 200 units ahead", klass);
                     testCheck(t.tally, tag, false, line);
                     next(99);
                     break;

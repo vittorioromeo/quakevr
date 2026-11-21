@@ -278,7 +278,7 @@ za::U64 keyOf(const qmodel_t* world);
 za::SizeT keepLimit();
 float hitWidthSetting();
 void collidingSubs(za::Vector<za::SizeT>& subs);
-float classWidth(int cls, float size, float quake);
+float classWidth(int klass, float size, float quake);
 int buildTree(Tree& t, const Brushes& b, za::SizeT sub, const glm::dvec3* watch = nullptr, bool report = true);
 bool boxInSolid(const Brushes& b, const hull_t& hull, int head, const glm::dvec3& p, const glm::dvec3& ext,
     bool clips = true, za::SizeT base = 0);
