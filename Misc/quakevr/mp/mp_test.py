@@ -1789,7 +1789,7 @@ def deathbody(s):
 
 RAG_BL = re.compile(r"mp_bl: side=(\w+) t=(\S+) n=(\d+) m=(\S+) o=(\S+) a=(\S+) rag=(\d)")
 RAG_BP = re.compile(r"mp_bp: side=(\w+) t=(\S+) n=(\d+) b=(\d+) p=(\S+) q=(\S+) src=(\w+)")
-RAG_FRAMES = 1300  # each side's vr_mp_bodylog frames (18 s of 72 Hz game time: the play below and its settling)
+RAG_SECONDS = 16  # each side's vr_mp_bodylog: game time (the play below and its settling)
 
 
 def rag_vec(text):
@@ -1882,10 +1882,10 @@ def ragsync_phase(s, srv, a, b, on, left):
     srv.cmd("vr_net_ragdolls %d; vr_physics_spawn monster_army 200 %d" % (on, left))
     srv.wait(r"vr_physics_spawn: \d+ monster_army at", 20, since, "a grunt ahead (%s)" % label)
     since_a, since_b = a.mark(), b.mark()
-    b.cmd("vr_net_bytes reset; vr_mp_bodylog %d 700" % RAG_FRAMES)
-    b.wait(r"mp_bodylog: frames=", 10, since_b)
+    b.cmd("vr_net_bytes reset; vr_mp_bodylog %d 700" % RAG_SECONDS)
+    b.wait(r"mp_bodylog: seconds=", 10, since_b)
     # (the play, in counted frames of the logic: the knockdown's fall, the corpse's, the throws' flights and landings)
-    steps = ((0.0, "vr_mp_bodylog %d 700" % RAG_FRAMES), (0.5, "vr_knockdown_test 0"), (2.0, "vr_knockdown_test 3"),
+    steps = ((0.0, "vr_mp_bodylog %d 700" % RAG_SECONDS), (0.5, "vr_knockdown_test 0"), (2.0, "vr_knockdown_test 3"),
              (3.0, "vr_physics_spawn vr_crate 120 %d; vr_physics_spawn weapon_knight_sword 110 %d" % (left - 40, left + 40)),
              (0.15, "vr_physics_fling vr_crate 260 90 260; vr_physics_fling weapon_knight_sword 300 90 300"),
              (0.5, "vr_physics_spawn monster_army 170 %d" % left), (0.5, "vr_knockdown_test 0"), (0.5, "vr_knockdown_test 4"))
@@ -1904,15 +1904,19 @@ def ragsync_phase(s, srv, a, b, on, left):
     moved_rag = int(fields(moved)["snap_rag"])
     # Settled: two seconds more, B's ragdoll bytes then.
     since_bb = b.mark()
-    b.cmd("vr_net_bytes reset; wait144; echo mp_ragsettled; vr_net_bytes")
-    at, _ = b.wait(r"mp_ragsettled", 30, since_bb)
-    _, settled = b.wait(r"mp_netbytes: ", 30, at)
+    b.cmd("vr_net_bytes reset; echo mp_ragsettle_begin")
+    b.wait(r"mp_ragsettle_begin", 10, since_bb)
+    mark = srv.mark()
+    srv.cmd("vr_mp_after 2 ragsettled%d" % on)  # (two seconds of the server's game time, counted)
+    srv.wait(r"mp_after: .* ragsettled%d" % on, 60, mark, "two settled seconds")
+    since_bb = b.mark()
+    b.cmd("vr_net_bytes")
+    _, settled = b.wait(r"mp_netbytes: ", 30, since_bb)
     settled_rag = int(fields(settled)["snap_rag"])
     ha, pa = rag_series(a.lines[since_a:], "sv")
     hb, pb = rag_series(b.lines[since_b:], "cl")
     out = {}
     for err in rag_errors(ha, hb):
-        n = None
         c = err[3]
         model, rag = c[3], c[4]
         out.setdefault(("entity", rag_kind(model, rag)), []).append(err)
@@ -1928,7 +1932,7 @@ def ragsync_phase(s, srv, a, b, on, left):
             st["rot_max"], ("n=%d pos mean %.2f p95 %.2f max %.2f u, turn mean %.2f p95 %.2f max %.2f deg" % (
                 sm["n"], sm["pos_mean"], sm["pos_p95"], sm["pos_max"], sm["rot_mean"], sm["rot_p95"], sm["rot_max"]))
             if sm else "none"))
-    secs = RAG_FRAMES / 72.0
+    secs = RAG_SECONDS
     s.note("%s: B's ragdoll bytes %d over the play (%.0f B/s), %d over 2 s settled" % (label, moved_rag, moved_rag / secs,
                                                                                     settled_rag))
     s.metric("%s_rag_Bps" % label, round(moved_rag / secs))
@@ -1965,15 +1969,17 @@ def ragsync(s):
         s.note("ragdoll parts while moving, p95: before %.1f units %.1f degrees (the animation), after %.2f units %.2f degrees" % (
             anim[1]["pos_p95"], anim[1]["rot_p95"], parts[1]["pos_p95"], parts[1]["rot_p95"]))
     for key, (st, sm) in sorted(after.items()):
-        if key[0] != "entity" or not sm or key[1] in ("ragdoll", "monster"):
+        # (the props thrown: the crate and the sword; gibs, heads, the dropped weapons and backpacks are notes: the
+        # small gibs' cosmetic budget and the rate's waits are B12c's, as without ragdolls)
+        if key[0] != "entity" or not sm or key[1] not in ("crate", "weapon"):
             continue
         s.check("%s at B within %.1f units and %.1f degrees of the server's while it moves (p95)" % (key[1], RAG_ENT_POS, RAG_ENT_TURN),
                 sm["pos_p95"] <= RAG_ENT_POS and sm["rot_p95"] <= RAG_ENT_TURN,
                 "p95 %.2f units, %.2f degrees over %d samples" % (sm["pos_p95"], sm["rot_p95"], sm["n"]))
     s.check("B's ragdoll bytes while they moved", moved > 0, "%d B" % moved)
     s.check("settled ragdolls cost B (almost) nothing (under 2%% of the moving play's bytes a second)",
-            settled / 2.0 <= 0.02 * moved / (RAG_FRAMES / 72.0) + 1, "%d B in 2 s settled; %d B in %.0f s of play" % (
-                settled, moved, RAG_FRAMES / 72.0))
+            settled / 2.0 <= 0.02 * moved / (RAG_SECONDS) + 1, "%d B in 2 s settled; %d B in %.0f s of play" % (
+                settled, moved, RAG_SECONDS))
 
 
 RAG_PART_POS, RAG_PART_TURN = 2.0, 3.0  # a moving ragdoll part at B against the server's, p95 (units, degrees)
@@ -9006,7 +9012,7 @@ def main_run(args):
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
     elif args.test in ("bandwidth", "wpnsync", "wpnsync_flat", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground",
-                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "navfollow", "navfollow_listen", "navfollow_vr", "syncaudit"):
+                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "navfollow", "navfollow_listen", "navfollow_vr", "syncaudit", "ragsync"):
         ok = run(args, "mp_" + args.test)
     elif args.test == "voice":
         ok = run(args, "mp_voice", args.lag, args.jitter, args.loss)

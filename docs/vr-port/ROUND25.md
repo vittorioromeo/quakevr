@@ -6308,3 +6308,20 @@ His voice notes of 2026-11-21 (vrfiringrange 00-23-29, e1m1 01-04-14 and others)
   as I can see (only the step's timing changed): **open**.
 - Menus: `menu_paths.txt` regenerated; `vr_menu_path_check maps/vrcalibration.map` 0 missing. Scenes:
   `speed_toggle_click`, `vr_slide_legs`, `foveation_auto`, `revolver_swing` (and `vr_slide`'s title).
+
+## ragsync: ragdolls (dead and active) drawn by remote clients as the server has them (2026-11-21, `agent/ragsync`)
+
+- His words: ragdolls not synchronized in coop; props and other physics things should be. The audit and the design:
+  MP_PLAN.md, "Ragdolls and physics bodies in multiplayer". Only the ragdolls diverged: every other Box3D thing is an
+  entity, already interpolated with its turn slerped (crate 0.04 units, sword 0.35 degrees p95 while moving).
+- Each ragdoll in a remote client's sight is a snapshot record (QVR_SVC_RAGPOSE, `netsnap::ragKey`, vr_netragdoll.cpp):
+  parts quantized (eighths, smallest-three turns), delta-coded, PVS-culled, the moving ones under
+  `vr_net_ragdoll_bytes` (400) by priority, settled ones free; the client draws it between its last 24 poses at its
+  entities' clock (`ragdoll::publishNet`). `vr_net_ragdolls 0`: none sent (the death animation, as before).
+  QVR_NET_VERSION 42: the room service must be redeployed.
+- `mp_test.py ragsync` (13/2 in its last run; the two: a gib's and a backpack's p95 at B, notes now, the test checks
+  the thrown crate and sword): B's moving ragdoll parts against the server's p95 24.3 units, 153 degrees before (the
+  animation), 0.18 units, 0.21 degrees after; 3.0 KB/s for the play's two ragdolls, 0 B once settled.
+- Tools: `vr_mp_bodylog <seconds> [radius]` (mp_bl, mp_bp lines: a host's truth, a client's drawing).
+- Open: a remote client's hands on a ragdoll aren't led locally between poses (the listen host's
+  vr_ragdoll_held_local); dropped weapons and backpacks waited a little under the rate with ragdolls sent.

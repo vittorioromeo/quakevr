@@ -27,7 +27,8 @@ namespace
 constexpr float posScale = 8.f;              // the parts' places: eighths of a unit
 constexpr float quatMost = 0.70710678f;      // the smallest three's range (the largest left out)
 constexpr float quatSteps = 16383.f;         // ... in 15 bits each
-constexpr int ringLen = 6;                   // poses kept per ragdoll on the client
+constexpr int ringLen = 24;                  // poses kept per ragdoll on the client: a third of a second at 72 Hz, past
+                                             // the interpolation buffer's longest delay (0.25 s: a jittery link's)
 constexpr int recordMost = 18 + 18 + 12 * ragdoll::maxBones; // QVR_SVC_RAGPOSE's bytes at most
 
 // ---- The message ---------------------------------------------------------------------------------------------------
@@ -174,7 +175,8 @@ void dropRing(Ring& r)
 
 struct BodyLog
 {
-    int frames{0};
+    double seconds{0.0}; // (0: off) the log's length in its side's game time ...
+    double start{-1.0};  // ... from its first frame's
     float radius{400.f};
     double lastClock{-1.0};
 };
@@ -200,13 +202,15 @@ void bodylog_f()
 {
     if(Cmd_Argc() < 2)
     {
-        Con_Printf("usage: vr_mp_bodylog <frames> [radius]: the physics things near you each frame (mp_bl, mp_bp lines)\n");
+        Con_Printf("usage: vr_mp_bodylog <seconds> [radius]: the physics things near you each tick of game time (mp_bl, "
+                   "mp_bp lines; a server's as it has them, a remote client's as it draws them)\n");
         return;
     }
-    bodyLog.frames = Q_atoi(Cmd_Argv(1));
+    bodyLog.seconds = Q_atof(Cmd_Argv(1));
+    bodyLog.start = -1.0;
     bodyLog.radius = Cmd_Argc() > 2 ? static_cast<float>(Q_atof(Cmd_Argv(2))) : 400.f;
     bodyLog.lastClock = -1.0;
-    Con_Printf("mp_bodylog: frames=%d radius=%.0f side=%s\n", bodyLog.frames, bodyLog.radius, sv.active ? "sv" : "cl");
+    Con_Printf("mp_bodylog: seconds=%.1f radius=%.0f side=%s\n", bodyLog.seconds, bodyLog.radius, sv.active ? "sv" : "cl");
 }
 
 [[nodiscard]] bool near(const float* a, const float* b, float r)
@@ -219,10 +223,11 @@ void logServer()
 {
     const double t = qcvm->time;
     const edict_t* me = progs::playerEdict();
-    if(!me)
+    if(!me || t <= bodyLog.lastClock)
     {
-        return;
+        return; // (once a server frame)
     }
+    bodyLog.lastClock = t;
     for(int num = svs.maxclients + 1; num < qcvm->num_edicts; num++)
     {
         const edict_t* e = EDICT_NUM(num);
@@ -238,7 +243,8 @@ void logServer()
             e->v.origin[0], e->v.origin[1], e->v.origin[2], e->v.angles[0], e->v.angles[1], e->v.angles[2], rag ? 1 : 0);
         if(rag)
         {
-            printPose("sv", t, num, *p.rig, p.bodies, p.rot, p.pos, p.scale);
+            printPose("sv", p.time, num, *p.rig, p.bodies, p.rot, p.pos, p.scale); // (its step's time: the record's)
+            Con_Printf("mp_blpose: n=%d t=%.4f pose=%.4f\n", num, t, p.time);
         }
     }
 }
@@ -251,6 +257,14 @@ void logClient()
         return;
     }
     bodyLog.lastClock = t;
+    for(const Ring& r : clientRags.rings)
+    {
+        if(r.num != 0 && r.n > 0)
+        {
+            Con_Printf("mp_blring: n=%d t=%.4f oldest=%.4f newest=%.4f samples=%d interp=%d\n", r.num, t, r.at(0).time,
+                r.at(r.n - 1).time, r.n, netsnap::interpActive() ? 1 : 0);
+        }
+    }
     const float* me = cl_entities[cl.viewentity].origin;
     for(int num = cl.maxclients + 1; num < cl.num_entities; num++)
     {
@@ -545,23 +559,39 @@ int clientCount()
 
 void logFrame()
 {
-    if(bodyLog.frames <= 0)
+    if(bodyLog.seconds <= 0.0)
     {
+        return;
+    }
+    double t = -1.0;
+    if(sv.active)
+    {
+        const progs::ServerVm vm;
+        t = qcvm->time;
+    }
+    else if(cls.state == ca_connected && cl.viewentity > 0)
+    {
+        t = netsnap::interpActive() ? netsnap::interpTime() : cl.time;
+    }
+    if(t < 0.0)
+    {
+        return;
+    }
+    bodyLog.start = bodyLog.start < 0.0 ? t : bodyLog.start;
+    if(t - bodyLog.start > bodyLog.seconds)
+    {
+        bodyLog.seconds = 0.0;
+        Con_Printf("mp_bodylog: done\n");
         return;
     }
     if(sv.active)
     {
-        bodyLog.frames--;
+        const progs::ServerVm vm;
         logServer();
     }
-    else if(cls.state == ca_connected && cl.viewentity > 0)
+    else
     {
-        bodyLog.frames--;
         logClient();
-    }
-    if(bodyLog.frames == 0)
-    {
-        Con_Printf("mp_bodylog: done\n");
     }
 }
 
