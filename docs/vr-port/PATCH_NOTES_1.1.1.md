@@ -12,7 +12,11 @@ that ships in 1.1.1.
   weapons and powerups work as variants of ours. Dwell's Rotary Shotgun, Crystal Lance and Rifle look like themselves
   in your hands, holsters and on armed grunts (made from Dwell's own models, with a grip to hold), the Rotary's four
   barrels turning as you fire; each shows its ammo screen in a riveted bezel on its back, as our guns do; the holster menu (flat and on the wrist) names them, and AD's Widowmaker, Shadow Axe
-  and Plasma Gun too. Dwell's weapons
+  and Plasma Gun too. The Crystal Lance is now a two-handed lance, made from Dwell's own pickup model: hold its grip
+  and put your other hand anywhere on its pole (it slides along it) to aim it, swing its crystal head as a blade, and
+  fire its beam from the tip (Settings: `vr_dw_lance_pole 0` brings back the pistol). The Rotary Shotgun is held as a
+  gauntlet, your hand inside its housing as in the super nailgun, and its shell port is a block on the housing's inner
+  side: hold a handful of shells from the pouch there to fill its tube (`vr_dw_rotary_gauntlet 0`: the old grip). Dwell's weapons
   now stay what they are in your holsters, through saves, level changes and coop rejoins; the Rotary Shotgun reloads
   and spins up as the Widowmaker; Haste, Berserk and the Wetsuit show their seconds left on the wrist (and the flat
   visor), and Haste and Berserk tint the screen in Dwell's colours. An armed grunt that picks up one of Dwell's

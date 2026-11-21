@@ -3055,6 +3055,8 @@ float(float xHand, float xWpnId, string xSound, void(float xHand) xWpnFn) DoXHan
     return FALSE;
 }
 
+float(float xHand) DW_LanceHeld; // (dwell/dw_items.qc)
+void(float xHand) DW_LanceMelee;
 float(float xHand, entity b, entity g, vector xAt, vector xDir, float xSpeed, float xKind) VR_Skewer_Blow; // (vr_skewer.qc)
 void(float xHand, entity b) VR_Skewer_SwingHit;
 float(float xHand, entity b) VR_Skewer_GoesBy;
@@ -3110,6 +3112,9 @@ void(float xHand) VR_Melee_Deal =
                 if(!DoXHandMelee(xHand, WID_CHAINSAW, "", W_ChainsawMelee))
                 if(!DoXHandMelee(xHand, WID_CROWBAR, "", W_CrowbarMelee))
                 if(!DoXHandMelee(xHand, WID_SUPERAXE, "", W_SuperAxeMelee)) // vr_mg3_weapons.qc
+                if(DW_LanceHeld(xHand)) // Dwell support: the Crystal Lance as a lance, its crystal head (dw_items.qc)
+                    DoXHandMeleeImpl(xHand, "", DW_LanceMelee);
+                else
                     DoXHandMeleeImpl(xHand, "", W_GunMelee);
         vr_melee_blowhand = 0;
         vr_melee_blunt = FALSE;
