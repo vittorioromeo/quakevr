@@ -6148,3 +6148,30 @@ Details in DWELL.md 9.8. Each note's cause and fix:
   heading of eight, else above, where the world has room and no wall is crossed.
 - **Tests:** `dwell_weapons_test.sh` 9/0 (213: pickups taken, props laid, a bloody prop taken: 10/0); `music_test.sh`
   7/0; `dwell_maps.sh` 28/0 and 214 10/0; `dwell_monster_fixes_test.sh` (215, rig spans, 216).
+
+## bots2: the bots' items 1-4 verified, the wind-up's lost blows fixed (2026-11-21, `agent/bots`)
+
+Items 5 (disarm at the drawn weapon) and 6 (hitboxes on bots and players) not started (out of budget); findings below.
+
+- **Lost blows were the size, not the wind-up.** The Bots section posed a bot's hands from its drawn head
+  (`botEyeRaise`, 6 units over its box's eyes) with the default player's arms. Its overhead swing's top then went that
+  much higher and the blow struck a wall first (the pommel on the way down) or missed: vr_dm_test 15's windup-0 case
+  never landed and its parry case failed by turns; mp_dm's vr_dm_test 2, 3 (a bot's blow on the human, read and parried)
+  and 9 (bot parries bot) failed. Shown with an env switch: the old pose 3/0, the raised one 2/1. Now
+  `PF_botflatpose` poses from the box's eyes (`view_ofs`, as a flat-screen player's camera) with the default player's
+  eye height for its arms (`units::botEyeUnits`): a default-size flat player's hands. The body and head are still drawn
+  at the default player's size (mp_body `eyeunits=51.8` for both bots in mp_dm, the head 51 units over the feet).
+- **vr_dm_test 15** now checks the windup-0 case (the old swing: lands in its strike, 0.32-0.55 s; 0.403 s) and holds
+  `vr_bot_aim_error` 0 meanwhile (the aim's random error moved the blade's way case to case; test 13 measures it).
+  Three runs: 4/0 each (windup 0.3 at skill 1: lands 0.597 s; windup 0: 0.403 s; the skill-0 parry).
+- **Checks:** mp_test dm 27/0 (was 24/3), coopbots 13/0; the plain suite: 62 scenarios, one failure (mp_predict's
+  "corrections on flat ground", max 0.000 over 47 states, under the suite's load; alone 31/0); scenario_check PASS
+  (143 run, 0 failed); Dev and ThinLTO builds 0 warnings. No screenshot of a bot beside a player (the numbers above).
+- **Item 5 findings:** VR_PDG_Gap reads VR_Parry_WeaponLine (the hand, `.muzzlepos`, the blade shape) and
+  `weaponhotspot` (heldpose's slot). A human's muzzle and hotspots come from his client's drawing; a bot has no heldpose
+  slot (no hotspots) and its muzzle is `handpos + 24 forward` (bot_setvrfields), while each client places its weapon by
+  `view::solveHands` -> setupWeapon (the weapon and hand offsets). The fix: one placement of a bot's weapon in its hand
+  (inHand, muzzle, hotspots) made on the server (the dedicated one has no view: the offsets' math must run there) into
+  its heldpose slot and `.muzzlepos`, sent with its avatar and drawn as is (no solveBit re-solve).
+- **Item 6 findings:** Show Hit Zones (`vr_debug_hitzones`, vr_hitmodel.cpp zonesDraw) draws only zones the QC sends
+  (zoneAdd) and only with `sv.active` (the host); players and bots are drawn as vrbody avatars, not their entity's model.

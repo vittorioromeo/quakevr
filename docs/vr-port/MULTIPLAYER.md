@@ -122,7 +122,8 @@ for the others. Any PC with Quake VR installed can run one (the same port rule a
   and pause between bursts (`vr_bot_reaction`), the slower they turn and the less far they notice players; their melee
   swing is held raised before it comes down (`vr_bot_swing_windup`, 0.3 s at skill 0, less the higher). They draw any
   gun they carry that has ammo (the revolver, the nail pistol, the mission packs' guns), else their melee weapon. They
-  are drawn at a default player's size (1.646 m eyes at world scale 1.2).
+  are drawn at a default player's size (1.646 m eyes at world scale 1.2); their hands are posed as a default-size
+  flat-screen player's (from their box's eyes, a default player's arms), so their blows reach what a player's do.
 - **Co-op bots**: in a co-op game a bot fights the monsters beside you, never the players, follows the players loosely,
   and comes along to the next level with what it had (as a player who left and came back does).
 
