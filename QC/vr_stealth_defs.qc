@@ -60,6 +60,8 @@
 .float stl_heard;       // the last noise it heard (time; its kind, what made it): tests, the debug log
 .float stl_heard_kind;
 .entity stl_heard_src;
+.float stl_cry_time;    // when it last cried out, hurt or killed by a player unawares (VR_Stealth_Cry: once a frame)
+.float stl_foe_died;    // when the monster it fought was killed by a player (VR_Stealth_Killed: no share of that death to it)
 // On a body or a gib: what may be noticed (STL_NOTICE_BODY), and when a monster first noticed it.
 .float stl_notice;
 .float stl_found;
@@ -90,6 +92,7 @@ float STL_N_PROP = 2;   // a prop's knock
 float STL_N_MELEE = 3;  // a blow landing
 float STL_N_GUN = 4;    // a shot
 float STL_N_BLAST = 5;  // an explosion
+float STL_N_VOICE = 6;  // a monster's cry, hurt or killed by a player unawares (VR_Stealth_Cry)
 // Other disturbances (VR_Stealth_Alert's kind)
 float STL_A_GLIMPSE = 10; // the meter past vr_stealth_glimpse
 float STL_A_GRAZE = 11;
@@ -116,6 +119,8 @@ float(entity t, entity who) VR_TeleportTakes; // (triggers.qc: teleport_touch's 
 void() VR_Stealth_TestFrame;
 #endif
 void(entity m) VR_Stealth_Died;
+void(entity m, entity by) VR_Stealth_Killed;
+void(entity m, entity by) VR_Stealth_Cry;
 void(entity mis) VR_Stealth_GrazeMissile;
 void() VR_Stealth_PlayerFrame;
 void() VR_Stealth_Frame;

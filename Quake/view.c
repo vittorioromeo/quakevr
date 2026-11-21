@@ -768,6 +768,8 @@ void V_CalcIntermissionRefdef (void)
 V_CalcRefdef
 ==================
 */
+static float v_liftlastz; // QVR: the view entity's height last frame (a lift's rise followed: VR_ViewLiftRise)
+
 void V_CalcRefdef (void)
 {
 	entity_t	*ent, *view;
@@ -874,6 +876,15 @@ void V_CalcRefdef (void)
 		r_refdef.viewangles[2] += v_punchangles[1][2] + (v_punchangles[0][2] - v_punchangles[1][2]) * punchblend;
 	}
 //johnfitz
+
+	// QVR: carried up by a lift (a rise no faster than vr_view_lift_follow units a second) the view rides with it; only a
+	// step's jump is smoothed (at Quake's 80 units a second the eye fell up to 12 units behind a rising plat)
+	{
+		float rise = ent->origin[2] - v_liftlastz;
+		v_liftlastz = ent->origin[2];
+		if (cl.onground && rise > 0)
+			oldz += VR_ViewLiftRise (rise, (float)(cl.time - cl.oldtime));
+	}
 
 // smooth out stair step ups
 	if (!noclip_anglehack && cl.onground && ent->origin[2] - oldz > 0) //johnfitz -- added exception for noclip

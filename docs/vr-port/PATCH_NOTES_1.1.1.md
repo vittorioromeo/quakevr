@@ -115,6 +115,12 @@ aren't Map Library packages aren't sent to joining players.
 
 ## Movement
 
+- **Riding a lift no longer sinks you or the monsters into it.** Going up, your eye trailed a rising lift by up to 12
+  units (the stair-step easing took the lift's rise for a step) and a monster riding it was drawn as far as 13 units
+  into it; now your eye rides with the lift (only a step's jump is eased: `vr_view_lift_follow`, 400 units a second;
+  0: as before) and a monster on a moving lift is drawn moving with it, both ways, flat and in the headset. How lifts
+  push, crush and turn back is unchanged. Debug > Logging > Lift Riders measures it.
+
 - **The heavy revolver's cylinder stays shut in a melee swing.** The wrist flick that swings it out is ignored while
   the gun's hand moves at a swing's speed and for a moment after it or after a blow lands; a deliberate flick still
   opens it (`vr_revolver_open_swing_speed`, 2 m/s; `vr_revolver_open_swing_hold`, 0.35 s).
@@ -165,6 +171,14 @@ aren't Map Library packages aren't sent to joining players.
   setting is kept for the next launch without it). **`-windowpos <x> <y>`** places it (its inside's top-left, in
   desktop pixels) instead of centring it.
 
+
+## Monsters
+
+- **The alarm spreads further.** A monster you hurt or kill before it noticed you cries out: the others within earshot
+  (800 units in the open, less round a corner or through a doorway, much less through solid walls) come to look, and
+  those near it or in sight of it turn on you, now for a kill in one shot too. Monsters placed in ambush keep Quake's
+  meaning: they don't hear it, and armed ones no longer leave their post for a fallen comrade's weapon. Combat > Stealth
+  AI > Cries Heard (0: off). The test map `vralert` shows each case.
 
 ## Performance
 
