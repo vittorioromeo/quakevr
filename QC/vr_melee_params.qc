@@ -1274,6 +1274,36 @@ void(float xFrom) VR_Melee_LayoutFrom =
             vr_mpt_f[i] = f >= f0 ? xFrom + (f - f0) * (1 - xFrom) / (1 - f0) : f * xFrom / f0;
         }
     }
+    // A kind with few striking points (an axe's head: two) can't follow an edge drawn from far down its line: two points
+    // at the Super Axe's Blade From 0.05 and its tip swept the straight chord, not the crescent bowed 0.38 of the line off
+    // it (its slow chop met the grunt with its tip, under the head: bladeone). Its striking part (the layout's last points)
+    // sampled evenly from the start to the tip, as many points as the layout holds, on the curve (VR_Melee_At).
+    float i0 = -1;
+    for(i = 0; i < vr_mpt_n && i0 < 0; ++i)
+    {
+        if(VR_Melee_Strikes(vr_mpt_kind[i]) && vr_mpt_f[i] > 0)
+        {
+            i0 = i;
+        }
+    }
+    float m = 9 - i0; // (vr_mpt_f[9])
+    if(i0 < 0 || m <= vr_mpt_n - i0)
+    {
+        return;
+    }
+    float kind = vr_mpt_kind[i0];
+    string nm = vr_mpt_name[i0];
+    string tipNm = vr_mpt_name[vr_mpt_n - 1];
+    for(i = 0; i < m; ++i)
+    {
+        float k = i0 + i;
+        float s = i / (m - 1);
+        vr_mpt_f[k] = xFrom + (1 - xFrom) * s;
+        vr_mpt_fh[k] = f0 + (1 - f0) * s; // (its part's name and bluntness as the kind's own points there)
+        vr_mpt_kind[k] = kind;
+        vr_mpt_name[k] = i == m - 1 ? tipNm : nm;
+    }
+    vr_mpt_n = 9;
 };
 
 // The points of what `b`'s hand holds (as it was last tracked).

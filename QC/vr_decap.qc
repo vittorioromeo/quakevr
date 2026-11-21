@@ -465,7 +465,13 @@ float(entity targ, entity attacker, float xDamage) VR_Decap_HeadBlow =
     {
         return FALSE;
     }
-    if(VR_Decap_OnMeleeHead(targ, b.mh_c_pos, b.mh_c_dir))
+    float onHead = VR_Decap_OnMeleeHead(targ, b.mh_c_pos, b.mh_c_dir);
+    if(!onHead)
+    {
+        dprint(sprintf("decap: no: the blade's contact off %s's head zone (%.1f units below its origin's top, %.2f along the blade)\n",
+            targ.classname, targ.origin_z + targ.maxs_z - b.mh_c_pos_z, b.mh_c_f));
+    }
+    if(onHead)
     {
         float how = VR_Decap_Slash(hit_hand, b.mh_c_pos, TRUE);
         if(how && VR_Decap_Arm(targ, attacker, b.mh_c_pos, vr_decap_slashvel, how))
