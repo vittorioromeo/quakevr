@@ -6238,6 +6238,10 @@ QVR_TOGGLE(vr_gl_world_lit_skip, "Skip Empty Lit Commands (Quest)",
     "vr_gl_world_lit_skip: with the world split by surface (Unlit World Shader By Surface, the Quest), only the "
     "textures with a surface a reaching light touches get their lit draw (On), or every texture (Off, as before). "
     "The same picture, fewer draws.")
+QVR_TOGGLE(vr_gl_world_dlmap, "Dynamic Lights in the Lightmap (Quest)",
+    "vr_gl_world_dlmap: under the ES profile (the Quest), the dynamic lights added into the lightmap once a frame "
+    "(Quake's own way, its 16-unit grid) and the world drawn without the lights' loop (On), or lit per pixel "
+    "(Off, the default). Models and particles are lit per pixel either way.")
 QVR_CYCLE(vr_shadow_setup_share, "Shadow Caster Set-up Shared",
     "vr_shadow_setup_share: each animated shadow caster set up once for all the frame's shadow lights (its "
     "whole instance copied into each light's draw, drawn without textures) and the first eye taking the "

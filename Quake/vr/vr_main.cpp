@@ -66,6 +66,7 @@
 #include "vr_client.hpp"
 #include "vr_body.hpp"
 #include "vr_bodytrack.hpp"
+#include "vr_dlightmap.hpp"
 #include "vr_hands.hpp"
 #include "vr_handpose.hpp"
 #include "vr_held.hpp"
@@ -2352,6 +2353,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_ragdoll_info", ragdoll::info_f);
     Cmd_AddCommand("vr_torso_report", torso::report_f);
     bodytrack::registerCommands(); // vr_bodytrack_status, vr_bodytrack_stats
+    dlightmap::registerCommands(); // vr_gl_world_dlmap_info
     seated::registerCommands();    // vr_seated_status, vr_crouch_toggle, vr_seated_height_now
     Cmd_AddCommand("vr_body_crouch_report", body::crouchReport_f);
     Cmd_AddCommand("vr_holster_zones_report", zones::report_f);

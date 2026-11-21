@@ -7390,3 +7390,14 @@ Branch `agent/reliefs`. His choice of 2026-11-21: PBRify's CC0 models as ONNX, r
 - The world's GPU cost and the culling audit: QUEST_PLAN.md 6zl (PVS, frustum, backface and the visibility mask work;
   PBR costs nothing measurable; dynamic resolution sat at its floor in 86% of his e1m1 frames; the recorder's
   world_brush is the eye's whole main pass on a tiler).
+
+## Quest C5b: his worn session's switches ranked; dynamic lights in the lightmap (questc5b, 2026-11-21; branch agent/quest)
+
+- His 17:24 session by stretch (his console log dates the switches, cumulative): body off is the clearest gain (the
+  spawn view's main pass -1.0 ms; GPU over budget 15% -> 6% over the stretch); the lights on the walls cost ~1.5-2 ms
+  where they reach; the rig's lights alone nothing. Body tracking: the tracker was made while worn; the log can't tell
+  whether the elbows were tracked. QUEST_PLAN.md 6zm.
+- `vr_gl_world_dlmap` (default 0; Debug > Profiling and Memory, `vr_gl_world_dlmap_info`): the ES profile's dynamic
+  lights added into the lightmap on the CPU once a frame and the world drawn without the lights' loop
+  (`vr/vr_dlightmap.cpp`, hooked in `VR_WorldLightsCheck`). PC unchanged. Not yet measured on the headset (it was in the
+  dark), not in the Quest preset.

@@ -524,6 +524,10 @@ za::Vector<Item> pageDebugProfiling()
         command("Rig Lights on the Walls", "vr_rig_lights_world 1")
             .help("vr_rig_lights_world 1 (the default): the rig's small lights light the walls too."),
         row(opt::vr_gl_world_lit_skip),
+        row(opt::vr_gl_world_dlmap),
+        command("Print Dynamic Lightmap Info (Quest)", "vr_gl_world_dlmap_info")
+            .help("vr_gl_world_dlmap_info: whether the dynamic lights are in the lightmap this frame, how many lights and "
+                  "texel blocks, and the CPU time of the last build."),
         command("Capture Frame (RenderDoc)", "vr_renderdoc_capture")
             .help("vr_renderdoc_capture: a RenderDoc capture of the next frame (both eyes: the desktop window's present ends "
                   "the frame), after the delay below; the console and a message show the file's path. Only when the game "

@@ -2203,6 +2203,11 @@ QVR_CVAR(vr_rig_lights_world, "1", CVAR_ARCHIVE) // (C4v, QUEST_PLAN.md 6zb; a c
 // (vr_gl_world_unlit 2) draws only the lit commands of textures with a surface a reaching light's sphere touches in the
 // view's PVS (r_world.c R_WorldLitTextures: a CPU walk of the leaves); 0 every texture's lit command, as C4v (the A/B).
 QVR_CVAR(vr_gl_world_lit_skip, "1", CVAR_NONE)
+// Debug > Profiling and Memory > Dynamic Lights in the Lightmap (Quest): (C5b, QUEST_PLAN.md 6zm) 1: under the ES
+// profile the dynamic lights are added into the lightmap's texels on the CPU once a frame (Quake's own way, the
+// lightmap's 16-unit grid) and the world is drawn without the lights' loop; 0 (default): the loop, per pixel. The
+// models and particles take the lights per pixel either way. No effect on the PC's shaders (no unlit world form).
+QVR_CVAR(vr_gl_world_dlmap, "0", CVAR_NONE)
 QVR_CVAR(vr_explosion_debris_light_radius, "48", CVAR_ARCHIVE) // units at world scale 1
 
 QVR_CVAR(vr_particle_mult, "1", CVAR_ARCHIVE)         // how many of them

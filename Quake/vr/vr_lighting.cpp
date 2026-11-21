@@ -3,6 +3,7 @@
 #include "vr_modelmetadata.hpp"
 #include "vr_geom.hpp"
 #include "vr_lighting.hpp"
+#include "vr_dlightmap.hpp"
 #include "vr_tracy.h"
 #include "vr_brushes.hpp"
 #include "vr_portals.hpp"
@@ -2774,6 +2775,21 @@ extern "C" void VR_WorldLightsCheck(void)
     worldUnlitDraw = false;
     worldLitCount = -1;
     worldLitBModels = false;
+    // C5b: the dynamic lights in the lightmap (vr_gl_world_dlmap): the world without the loop, unless a map light or one
+    // through a portal is in the view (none under the Quest preset; the walls then take the dynamic lights twice)
+    if(qvr::dlightmap::frame())
+    {
+        for(int i = 0; i < r_framedata.numlights; i++)
+        {
+            const gpulight_t& l = r_lightbuffer.lights[i];
+            if(l.shadow[3] != 0.f || l.gateplane[0] != 0.f || l.gateplane[1] != 0.f || l.gateplane[2] != 0.f || l.gateplane[3] != 0.f)
+            {
+                return;
+            }
+        }
+        worldUnlit = true;
+        return;
+    }
     if(vr_gl_world_unlit.value == 0.f || !glprogs.world_unlit[0][0] || !cl.worldmodel || !cl.worldmodel->nodes)
     {
         return;
