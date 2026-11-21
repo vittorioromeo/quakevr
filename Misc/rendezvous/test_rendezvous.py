@@ -175,6 +175,54 @@ def moves():
           r and r[0][0][5] == rv.REGISTERED and r[0][0][8:14] != code and svc.rooms[code].host == new)
 
 
+def probes():
+    """(version 3) The port check: a PROBECHECK from the room's address gets one PROBE to his IP address at his game
+    port; its abuse limits; a version 2 game served as version 2."""
+    svc = rv.Service(rv.Limits(burst=1000, rate=1000), random.Random(9), secret=b"p" * 32)
+    t = 5000.0
+    host, other = ("203.0.113.7", 40001), ("198.51.100.8", 40001)
+    code = register(svc, host, t)[0][0][8:14]
+
+    def probecheck(src, game_port, at, c=None, version=rv.VERSION):
+        pkt = bytearray(req(rv.PROBECHECK, code if c is None else c, b"\5\6\7\x08", version=version))
+        pkt[22:24] = game_port.to_bytes(2, "big")
+        return svc.handle(bytes(pkt), src, at)
+
+    r = probecheck(host, 26000, t + 1)
+    probe = [(p, d) for p, d in r if p[5] == rv.PROBE]
+    probing = [(p, d) for p, d in r if p[5] == rv.PROBING]
+    check("PROBECHECK: one PROBE to his IP address at his game port (his code, his nonce, where it went), PROBING (1) "
+          "back to him", len(r) == 2 and len(probe) == 1 and probe[0][1] == (host[0], 26000) and
+          probe[0][0][8:14] == code and probe[0][0][14:18] == b"\5\6\7\x08" and addr_of(probe[0][0]) == (host[0], 26000)
+          and len(probing) == 1 and probing[0][1] == host and probing[0][0][18] == 1, r)
+    check("no amplification: the replies to a PROBECHECK are %d bytes in all, the request %d" % (
+        sum(len(p) for p, _ in r), rv.REQUEST), sum(len(p) for p, _ in r) <= rv.REQUEST)
+    r = probecheck(host, 26000, t + 2)
+    check("one probe per registration: a second PROBECHECK gets PROBING (0) and no PROBE",
+          len(r) == 1 and r[0][0][5] == rv.PROBING and r[0][0][18] == 0, r)
+    register(svc, host, t + 20)
+    r = probecheck(host, 0, t + 21)
+    check("his renewal gives him another; game port 0: to the port he sends from",
+          [d for p, d in r if p[5] == rv.PROBE] == [host], r)
+    r = probecheck(other, 26000, t + 22)
+    check("a PROBECHECK from an address holding no room: NOROOM, no PROBE (a probe goes only to a registered address)",
+          len(r) == 1 and r[0][0][5] == rv.NOROOM and r[0][1] == other, r)
+    r = probecheck(other, 26000, t + 22, c=code)
+    check("... naming another host's code changes nothing", len(r) == 1 and r[0][0][5] == rv.NOROOM, r)
+    r = probecheck((host[0], 40002), 26000, t + 22)
+    check("... nor from his IP address at another port", len(r) == 1 and r[0][0][5] == rv.NOROOM, r)
+    register(svc, host, t + 40)
+    r = probecheck(host, 26000, t + 41, version=2)
+    check("a PROBECHECK in a version 2 request is dropped", r == [], r)
+    r = svc.handle(req(rv.JOIN, code, version=2), other, t + 42)
+    check("a version 2 game is served as version 2 (a 1.1 game joins by code)",
+          r and all(p[4] == 2 for p, _ in r) and r[0][0][5] == rv.PEER, r)
+    old = rv.Service(rv.Limits(), random.Random(3), secret=b"o" * 32, newest=2)
+    r = old.handle(req(rv.PROBECHECK, code), host, t)
+    check("a service run as version 2 (--newest 2) answers a version 3 request BADVERSION (2), the nonce echoed",
+          len(r) == 1 and r[0][0][5] == rv.BADVERSION and r[0][0][18] == 2 and r[0][0][14:18] == b"\1\2\3\4", r)
+
+
 def udp():
     """The service as a program, on 127.0.0.1: a host and a joiner over real sockets."""
     probe = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -207,6 +255,14 @@ def udp():
         check("over UDP: the joiner gets the host's address, the host the joiner's",
               peer[5] == rv.PEER and addr_of(peer) == h.getsockname() and incoming[5] == rv.INCOMING and
               addr_of(incoming) == j.getsockname())
+        pc = bytearray(req(rv.PROBECHECK, code))
+        pc[22:24] = j.getsockname()[1].to_bytes(2, "big")  # (the "game port": j's, to see the probe arrive)
+        h.sendto(bytes(pc), ("127.0.0.1", port))
+        probing, _ = h.recvfrom(100)
+        probe, frm = j.recvfrom(100)
+        check("over UDP: a PROBECHECK's PROBE arrives at the game port from another port of the service; PROBING back",
+              probing[5] == rv.PROBING and probing[18] == 1 and probe[5] == rv.PROBE and frm[0] == "127.0.0.1" and
+              frm[1] != port, "probe from %s:%d" % frm)
         h.close()
         j.close()
     except (socket.timeout, OSError) as e:
@@ -218,6 +274,7 @@ def udp():
 
 if __name__ == "__main__":
     unit()
+    probes()
     udp()
     passed = sum(RESULTS)
     print("rendezvous_test: %d passed, %d failed" % (passed, len(RESULTS) - passed), flush=True)

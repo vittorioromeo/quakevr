@@ -127,6 +127,20 @@
                 </StackPanel>
             </Border>
 
+            <!-- Make reliefs only: a folder that already plays Quake VR with Dwell or Quoth (Setup's install, or a Quake
+                 folder with quakevr in it): only the missing reliefs, nothing else installed or changed (ReliefTarget). -->
+            <Border Style="{StaticResource CardBorder}" Margin="0,16,0,0"
+                    Visibility="{Binding ShowReliefsOnly, Converter={StaticResource BoolToVis}}">
+                <DockPanel>
+                    <Button DockPanel.Dock="Right" Content="Make reliefs only" Style="{StaticResource GhostButton}" Command="{Binding ReliefsOnlyCommand}"
+                            VerticalAlignment="Top" Margin="12,0,0,0" />
+                    <StackPanel>
+                        <TextBlock Text="Reliefs for Dwell and Quoth" Style="{StaticResource Body}" FontWeight="SemiBold" />
+                        <TextBlock Text="{Binding ReliefsOnlyText}" Style="{StaticResource Small}" Margin="0,4,0,0" TextWrapping="Wrap" />
+                    </StackPanel>
+                </DockPanel>
+            </Border>
+
             <StackPanel Margin="0,24,0,0">
                 <DockPanel Margin="0,0,0,16">
                     <Border Style="{StaticResource FeatureIcon}">

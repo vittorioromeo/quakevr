@@ -80,6 +80,7 @@ A hit player's copy shows the wound (both arms share one); it clears when he res
 Flat-screen or VR: Kill a bot or player holding a dagger (hand or holster): the dropped prop is a dagger, guns keep their magazine.
 Flat-screen or VR: Host deathmatch, Select Campaign > Dwell: no error, players spawn at start's coop spots.
 Flat-screen or VR: A respawned player's old body still looks like him (his build, skin and gloves), not Quake's ranger.
+Host a game with a room code: Host Game says whether your port 26000 is reachable (and the net HUD while hosting); forward UDP 26000 on your router and host again: it should read reachable (after redeploying the room service)
 
 [4. Flat screen]
 Flat-screen: walk forward into the tutorial's rung ladder (lesson 3): your hands take the rungs and you climb hand over hand at a steady pace, and climb over the top onto the platform. {test:flat_ladder}
@@ -138,6 +139,7 @@ Run Setup with Dwell or Quoth installed: the Options page has "Make reliefs for 
 Run Setup again (Update): the reliefs step says they were all kept and makes nothing; uninstall removes the reliefs folder from the Quake VR folder.
 Play Dwell's d1m1 and look at the brick walls and door frames up close: they have AD-like depth now (made by Setup on your PC); compare with Generated Companion Maps (VR Settings, Graphics) off, from the next map, if in doubt.
 Play Quoth's kellbase1: the pillar panels and the ceiling have AD-like depth now (Setup's reliefs), with no shimmering or wrong-way lighting on them.
+Run Setup on your existing Quake VR folder: it offers Make reliefs only; the second run makes none
 
 [12. Recording and dev tools]
 Takes: with OBS running, press TAKE on the wrist gadget, act, press STOP: a small blinking red light in the headset only, then the rating prompt; KEEP renames OBS's file to <date>_<scene>_t01_keep, REJECT moves it to rejected/. Left grip + X then Y marks in and out (vr_take_list shows them, X / Y do nothing in game); SET UP, knock props about, RETAKE: the scene comes back and a new take starts. {test:takes}

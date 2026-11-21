@@ -6846,3 +6846,58 @@ His words: "15. Yes" (hunt the flakes); "8. I still need to try [vr_bot_navmesh]
   lying (holsters' glow all 0): the test's holster move, not the glow. 27 of 30 as before, the three for these reasons.
 - **Not reached (budget)**: flatfg2h key 3, twohand_regrip picks 4/10, stealth noises_clue, nav_lift_down, gadget_lock
   13/4, the mp_test.py suite's order effect and port clashes, mp_loss's margin. Listed in BACKLOG section 1.
+## reliefs2: Setup finds an existing Quake VR folder and makes only its missing reliefs (reliefs2, 2026-11-21, `agent/reliefs2`)
+
+His words: detect an existing installation and only generate the reliefs not generated yet, so he can run it on his own
+(Steam Quake with `quakevr` linked to his checkout, `dwellv2p2\` and `quoth\` there, not installed by Setup).
+
+- **ReliefTarget** (`Installer/src/QuakeVR.Installer.Core/Reliefs/ReliefTarget.cs`, shared by the window and the CLI):
+  a folder's Dwell (`dwell`, else `dwellv2p2`) and Quoth (`quoth`), each a game folder (progs.dat, pak0.pak or maps/);
+  its `quakevr`; the palette's folders (the mods, the folder's `id1`, the install record's Quake `id1`, the caller's).
+  `Offered`: Setup's install (install.json) or a `quakevr` folder in it, and a mod. `Run` is ReliefMaker's step on it
+  (bundle and stock list from its `quakevr`); `Outcome` is "N made, M already existed". Only the missing ones are made:
+  ReliefMaker's existing rule (a companion in `<folder>\reliefs\textures\pbr` counts as kept), now checked on a folder
+  made by an earlier run of either the window or the CLI.
+- **The window**: a "Reliefs for Dwell and Quoth" card on the Welcome page with a **Make reliefs only** button when
+  `FindReliefTargets` (this Setup's install, the other installs found, then the quiet detection's Quake folders, base
+  and install dirs) finds one; the run skips the statement, package and options, logs on the Install page and ends on
+  Done ("Reliefs for Dwell and Quoth are ready", the count as its only note). On this PC the harness prints his Steam
+  Quake as offered (read only; nothing was written there).
+- **The CLI**: `qvr-setup reliefs --target <folder>` finds the mods and palette itself (`--quake <dir>` adds a Quake's
+  id1), says how many reliefs were there, and ends with `reliefs: N made, M already existed`; no mods: exit 1, said.
+- **Checks.** Self-test `reliefs-only: ...` (a made-up developer folder: 4 made, nothing outside reliefs changed, the
+  second run 0 made / 4 existing; Setup's install offered, dwell before dwellv2p2; plain Quake and a mod-less quakevr
+  folder not offered) and the two `reliefs:` tests: 3/3. The CLI on that folder twice: 4 made, then 0 made / 4
+  existed. Screenshot harness: exit 0, its new reliefs-only check (offered, Done with "0 made, 0 already existed",
+  nothing else written). Installer solution: 0 warnings.
+- **Not done.** His folder is under Program Files: if Windows refuses the write there, the window says "Reliefs not
+  made: ..." and the CLI fails; an elevated prompt then. The Done page's "Open the Quake VR folder" opens the install
+  folder, not a found Quake folder.
+
+## portcheck: is the host's port reachable? Rendezvous protocol version 3; the relay to the backlog (portcheck, 2026-11-21, `agent/portcheck`)
+
+His words (11-21): no relay for now (BACKLOG.md, section 11, low priority: the design and how SDR / EOS / TURN do
+it); an in-game indication of whether the chosen port is forwarded.
+
+- **How it works.** Once registered, the host sends PROBECHECK (the only version 3 request; REGISTER and JOIN stay
+  version 2 so a not-yet-redeployed service still gives codes) with `net_hostport`. The service (qvr_rendezvous.py
+  `probecheck`) sends one PROBE from a second socket (`--probe-port`, any free one) to his outside IP at that port,
+  then PROBING (1). The probe gets in only through a forward (or a router letting anything in): `Port N is reachable
+  from the internet`; PROBING and no probe within 2 s: not reachable (with the forward advice); BADVERSION from a
+  version 2 service: unknown (too old); no PROBING within 6 s: unknown (does not answer), asked again at the next
+  registration. Checked again when a hosting starts (Datagram_Listen), his outside address or port changes.
+- **Limits.** One probe per registration (REGISTER, renewal, move: the room's credit), only from the address holding
+  the room (cookie-checked) and to its IP; replies to a PROBECHECK total 64 bytes (no amplification). A version 2
+  request is served as version 2 (replies carry the request's version); a PROBECHECK in one is dropped.
+- **Shown.** Host Game page (word-wrapped above the room code, white when reachable); the net HUD while hosting
+  (`vr_net_hud` 1: `port 26000 reachable` / `NOT REACHABLE` / `unknown` / `checking`; shared with VR, the same 2D
+  path); the console once; `vr_mp_roomcode` prints `Port N: ...`; `vr_net_hud_report` has `host_line`.
+- **Known limit.** One service IP: a router filtering by address only (not port) reads reachable though strangers
+  are filtered (rare; STUN's change-IP test would need a second IP). A forward of another outside port to 26000
+  reads not reachable.
+- **Checks.** test_rendezvous.py 44/0 (13 new: the probe, its limits, version 2 served, `--newest 2`); `mp_test.py nat`
+  18/0 (room service off: unknown; cone NAT without a forward: not reachable; forwarded port: reachable; a version 2
+  service: code still given, unknown); roomui 6/0 (the HUD line; the page's shot looked at); netsafe 14/0. Dev build
+  0 warnings, ThinLTO 0 warnings.
+- **He must redeploy the service** (`bash Misc/rendezvous/update.sh vittorioromeo.com`) for real games to read
+  reachable/not reachable; until then they read unknown and room codes work as before.

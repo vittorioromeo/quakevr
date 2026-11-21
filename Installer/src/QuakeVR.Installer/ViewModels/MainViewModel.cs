@@ -177,6 +177,8 @@ public sealed class MainViewModel : ObservableObject
     bool _reliefs = true; // (on wherever Dwell or Quoth will be there: ReliefsPossible)
     string? _reliefsNote;
     CheckStatus _reliefsStatus;
+    List<ReliefTarget> _reliefTargets = [];
+    bool _reliefsOnlyRun;
     bool _relight = true;
     bool _desktopShortcut = true;
     bool _desktopFlatShortcut = true;
@@ -252,6 +254,7 @@ public sealed class MainViewModel : ObservableObject
             GoTo(Page.Statement);
         }, () => _existing is not null && !Installing);
         BrowseExistingCommand = new RelayCommand(BrowseExisting, () => !Installing);
+        ReliefsOnlyCommand = new RelayCommand(() => _ = ReliefsOnlyAsync(), () => ReliefsOnlyTarget is not null && !Installing);
         OpenUrlCommand = new RelayCommand(p => OpenUrl(p as string ?? ""));
         OpenAdHomeCommand = new RelayCommand(() => OpenUrl(_adFound is { Usable: true } f && File.Exists(Path.Combine(f.Folder, ArcaneDimensions.ReadmeFile))
             ? Path.Combine(f.Folder, ArcaneDimensions.ReadmeFile) : ArcaneDimensions.HomeUrl));
@@ -373,12 +376,18 @@ public sealed class MainViewModel : ObservableObject
     public ICommand ToggleReinstallCommand { get; }
     public ICommand ReinstallCommand { get; }
     public ICommand BrowseExistingCommand { get; }
+    public ICommand ReliefsOnlyCommand { get; }
 
     public void GoTo(Page page)
     {
         if (page == Page.Welcome)
         {
             Reinstall = false; // back on the Update screen: its own button updates
+            if (_reliefsOnlyRun)
+            {
+                _reliefsOnlyRun = false; // (a failed "Make reliefs only": the next run is whatever is pressed now)
+                Raise(nameof(InstallTitle), nameof(DoneTitle), nameof(DoneSubtitle));
+            }
         }
         Page = page;
         for (var i = 0; i < Steps.Count; ++i)
@@ -506,7 +515,7 @@ public sealed class MainViewModel : ObservableObject
         if (Page > Page.Welcome)
         {
             // (An update from the Update screen goes back there.)
-            GoTo(Page == Page.Install ? (_runMode == InstallMode.Install ? Page.Options : Page.Welcome) : Page == Page.Support ? Page.Done : Page - 1);
+            GoTo(Page == Page.Install ? (_runMode == InstallMode.Install && !_reliefsOnlyRun ? Page.Options : Page.Welcome) : Page == Page.Support ? Page.Done : Page - 1);
         }
     }
 
@@ -664,6 +673,7 @@ public sealed class MainViewModel : ObservableObject
         Raise(nameof(HasExisting), nameof(ShowAddAd), nameof(ExistingTitle), nameof(ExistingText), nameof(ExistingDetail), nameof(OfferedMode), nameof(QuickUpdate),
             nameof(ExistingNeedsPackage), nameof(OtherInstallsText), nameof(HasOtherInstalls), nameof(ReinstallSettingsText), nameof(ReinstallSavesText),
             nameof(ReinstallPersonalText), nameof(ReinstallChosen), nameof(BackupText), nameof(NextText), nameof(FooterHint), nameof(InstallTitle));
+        FindReliefTargets();
         RaiseQuoth();
         CommandManager.InvalidateRequerySuggested();
     }
@@ -686,7 +696,7 @@ public sealed class MainViewModel : ObservableObject
     }
 
     /// <summary>The Install page's title: what the run does.</summary>
-    public string InstallTitle => _runMode switch
+    public string InstallTitle => _reliefsOnlyRun ? "Making the missing reliefs" : _runMode switch
     {
         InstallMode.Update => $"Updating {ProductName}",
         InstallMode.Repair => $"Repairing {ProductName}",
@@ -954,6 +964,7 @@ public sealed class MainViewModel : ObservableObject
         {
             _detected = true;
             Detecting = false;
+            FindReliefTargets();
             Raise(nameof(NoQuake));
             CommandManager.InvalidateRequerySuggested();
         }
@@ -1968,6 +1979,99 @@ public sealed class MainViewModel : ObservableObject
             AddLog(LogLevel.Warning, $"{ReliefMaker.Title}: {_reliefsNote}");
         }
     }
+
+    // ---- Make reliefs only: the reliefs step alone on a folder that already plays Quake VR (Core/Reliefs/ReliefTarget.cs) ----
+
+    /// <summary>The folders offered: this Setup's install, the other installs found, then the Quake folders the quiet
+    /// detection found with a quakevr folder in them (a hand or developer install); each with Dwell or Quoth.</summary>
+    void FindReliefTargets()
+    {
+        var folders = new List<(string?, string?)> { (InstallDir, _existing?.QuakeDir) };
+        folders.AddRange(_found.Found.Select(f => ((string?)f.Dir, (string?)f.Record.QuakeDir)));
+        folders.AddRange((_report?.Quakes ?? []).SelectMany(q => new (string?, string?)[] { (q.BaseDir, q.BaseDir), (q.InstallDir, q.BaseDir) }));
+        try
+        {
+            _reliefTargets = ReliefTarget.Find(folders);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            _reliefTargets = [];
+        }
+        Raise(nameof(ReliefsOnlyTarget), nameof(ShowReliefsOnly), nameof(ReliefsOnlyText));
+        CommandManager.InvalidateRequerySuggested();
+    }
+
+    public ReliefTarget? ReliefsOnlyTarget => _reliefTargets.FirstOrDefault();
+    public bool ShowReliefsOnly => ReliefsOnlyTarget is not null;
+
+    public string ReliefsOnlyText => ReliefsOnlyTarget is { } t
+        ? $"Quake VR in {t.Dir} has {t.ModsText}{(t.Existing switch { 0 => "", 1 => " and 1 relief made before", var n => $" and {n} reliefs made before" })}. Make reliefs only makes the missing ones there " +
+          $"(into {ReliefMaker.Folder(t.Dir)}); nothing else is installed or changed.{(_reliefTargets.Count > 1 ? $" Also found: {string.Join(", ", _reliefTargets.Skip(1).Select(o => o.Dir))}." : "")}"
+        : "";
+
+    /// <summary>The Done page's title and subtitle: a reliefs-only run says what it did.</summary>
+    public string DoneTitle => _reliefsOnlyRun ? "Reliefs for Dwell and Quoth are ready" : $"{ProductName} is ready";
+    public string DoneSubtitle => _reliefsOnlyRun
+        ? "Only the reliefs folder was written. The game uses them at its next start."
+        : "Start your VR software, put on your headset, and press Play.";
+
+    /// <summary>"Make reliefs only": the reliefs step on <see cref="ReliefsOnlyTarget"/>, nothing else (no statement, no
+    /// package, no Quake detection needed); only the missing reliefs are made; the Done page says how many were made and
+    /// how many already existed. Cancel keeps what was made (the next run makes the rest).</summary>
+    public async Task ReliefsOnlyAsync()
+    {
+        if (ReliefsOnlyTarget is not { } target || Installing)
+        {
+            return;
+        }
+        _reliefsOnlyRun = true;
+        Raise(nameof(InstallTitle), nameof(DoneTitle), nameof(DoneSubtitle));
+        GoTo(Page.Install);
+        Log.Clear();
+        InstallError = null;
+        Progress = 0;
+        Installing = true;
+        _cts = new CancellationTokenSource();
+        var ct = _cts.Token;
+        var progress = new Progress<InstallProgress>(p =>
+        {
+            StatusText = p.Status;
+            Progress = 100.0 * p.Fraction;
+            if (p.Log is not null)
+            {
+                AddLog(p.Level, p.Log);
+            }
+        });
+        try
+        {
+            AddLog(LogLevel.Info, $"Make reliefs only: {target.Dir} ({string.Join(", ", target.ModDirs)}); {target.Existing} reliefs there already. Nothing else is installed or changed.");
+            var summary = await Task.Run(() => target.Run(forceCpu: false, progress, ct), CancellationToken.None);
+            (_reliefsStatus, _reliefsNote) = (summary.Failed > 0 ? CheckStatus.Warning : CheckStatus.Ok,
+                $"{ReliefTarget.Outcome(summary)}, in {ReliefMaker.Folder(target.Dir)}. {summary.Describe()}.");
+            AddLog(summary.Failed > 0 ? LogLevel.Warning : LogLevel.Success, $"{ReliefMaker.Title}: {_reliefsNote}");
+            LastReliefs = summary;
+            DoneNotes.Clear();
+            DoneNotes.Add(new CheckItem(_reliefsStatus, "Reliefs for Dwell and Quoth", _reliefsNote));
+            FindReliefTargets();
+            GoTo(Page.Done);
+            UiSounds.Play(Sfx.InstallDone);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or InvalidDataException or Microsoft.ML.OnnxRuntime.OnnxRuntimeException)
+        {
+            InstallError = $"Reliefs not made: {e.Message.TrimEnd('.')}. Nothing else was changed.";
+            AddLog(LogLevel.Error, InstallError);
+            UiSounds.Play(Sfx.Error);
+        }
+        finally
+        {
+            Installing = false;
+            Raise(nameof(ShowNext));
+            CommandManager.InvalidateRequerySuggested();
+        }
+    }
+
+    /// <summary>The last reliefs-only run's summary (the screenshot harness's check).</summary>
+    public ReliefSummary? LastReliefs { get; private set; }
 
     /// <summary>One third-party mod component's step (Arcane Dimensions, Dwell: <see cref="ModComponent"/>): null when
     /// there is nothing to do.</summary>

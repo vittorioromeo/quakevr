@@ -3473,6 +3473,16 @@ his: B10v's VR checks, internet play with two machines, the rendezvous service d
   raced: the wait now includes them, 2/2), runs 2 and 3: both clean (46 scenarios, mp_nat 12/0). SP: scenario_check 136/0, load_models 4/0 (vr_run_check not run: no canonical script; nothing SP-side changed but the Join Game page). ThinLTO 0 warnings.
 - **Open**: real routers (his two machines; a symmetric NAT gives the message, no relay); IPv6; a public room list
   (`vr_mp_public`) not built; the menus not seen in a headset.
+- **Later (2026-11-21, "portcheck"): the port check, rendezvous protocol version 3.** A registered host sends
+  PROBECHECK (version 3; REGISTER and JOIN stay version 2) with his game port (`net_hostport`); the service sends one
+  PROBE from a second socket (another source port) to his outside IP at that port, then PROBING. The probe got in:
+  reachable; PROBING and no probe in 2 s: not reachable; a version 2 service's BADVERSION, none, or no answer: unknown.
+  Limits: one probe per registration, only from the room's address and to its IP, 64 bytes of replies to a 64-byte
+  request. Shown on Host Game (above the room code), the net HUD while hosting (`port 26000 reachable`), the console
+  once and `vr_mp_roomcode` (net.h `NET_PortCheck`/`NET_PortCheckText`). Tests: `test_rendezvous.py` 44/0 (the probe,
+  its limits, version 2 served as 2, `--newest 2`), `mp_test.py nat` 18/0 (off: unknown; cone NAT without a forward:
+  not reachable; forwarded: reachable; a version 2 service: code still given, unknown), roomui (the HUD line).
+  The relay: BACKLOG.md, low priority (his decision).
 
 Next phase: B24 -- his: deploy the room service and try a room code between two real routers; ours: the lift's
 DIST_EPSILON misses (B21 item 3) and a 60-minute soak with the change twice; a relay only if real punches fail often.
