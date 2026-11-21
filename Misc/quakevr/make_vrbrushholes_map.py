@@ -12,7 +12,11 @@
 #   - east: a raised block (z 128; x 256..640, y -320..96) with a lift shaft (x 448..588, y -96..44) and a func_plat
 #     (x 448..568, y -96..24, top z 128, targetname "lift" so it stays up): 20-unit slots east and north of it;
 #     stairs up the block's south side;
-#   - north-east: a row of pillars (16 wide, 24 apart, y 448..464, x 160..576, 192 high).
+#   - north-east: a row of pillars (16 wide, 24 apart, y 448..464, x 160..576, 192 high);
+#   - south-west: a pit (x -768..-568, y -560..-360) under a diagonal grate (bars 8 thick turned 45 degrees, 30 apart
+#     across them), and one (y -300..-100) under a louvred grate (bars at z -8..0 with 48-unit gaps, under each gap one
+#     at z -16..-8: 20-unit gaps seen from above);
+#   - south-east: two func_walls 24 apart (x 700..764 and 788..852, y -500..-436, 128 high).
 import argparse
 import os
 import shutil
@@ -37,6 +41,22 @@ def box(x0, y0, z0, x1, y1, z1, tex, top=None):
         f"( {x1} {y1} {z1} ) ( {x1+1} {y1} {z1} ) ( {x1} {y1} {z1+1} ) {tex} [ -1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1",
         f"( {x1} {y1} {z1} ) ( {x1} {y1} {z1+1} ) ( {x1} {y1+1} {z1} ) {tex} [ 0 1 0 0 ] [ 0 0 -1 0 ] 0 1 1",
         "}"])
+
+
+def prism(pts, z0, z1, tex):
+    """A brush standing on the convex polygon pts (counter-clockwise seen from above), z0..z1: its sides square to the
+    floor, any way turned."""
+    f = lambda v: f"{v:.3f}".rstrip("0").rstrip(".")
+    faces = []
+    for i in range(len(pts)):
+        (ax, ay), (bx, by) = pts[i], pts[(i + 1) % len(pts)]
+        n = ((bx - ax) ** 2 + (by - ay) ** 2) ** 0.5
+        ux, uy = (bx - ax) / n, (by - ay) / n
+        faces.append(f"( {f(bx)} {f(by)} {z0} ) ( {f(ax)} {f(ay)} {z0} ) ( {f(ax)} {f(ay)} {z0 + 64} ) {tex} "
+                     f"[ {f(ux)} {f(uy)} 0 0 ] [ 0 0 -1 0 ] 0 1 1")
+    faces.append(f"( 0 0 {z1} ) ( 0 1 {z1} ) ( 1 0 {z1} ) {tex} [ 1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1")
+    faces.append(f"( 0 0 {z0} ) ( 1 0 {z0} ) ( 0 1 {z0} ) {tex} [ -1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1")
+    return "\n".join(["{"] + faces + ["}"])
 
 
 def entity(keys, brushes=()):
@@ -64,13 +84,39 @@ B.append(box(X0, Y1, ZB, X1, Y1 + 16, Z1, WALL))
 PX0, PX1, PY0, PY1 = -768, -568, -64, 136
 B.append(box(X0, Y0, ZB, PX0, Y1, 0, WALL, FLOOR))
 B.append(box(PX1, Y0, ZB, X1, Y1, 0, WALL, FLOOR))
-B.append(box(PX0, Y0, ZB, PX1, PY0, 0, WALL, FLOOR))
+# (south of it, two more pits: the diagonal grate's, y -560..-360, and the louvred grate's, y -300..-100)
+DY0, DY1, LVY0, LVY1 = -560, -360, -300, -100
+B.append(box(PX0, Y0, ZB, PX1, DY0, 0, WALL, FLOOR))
+B.append(box(PX0, DY0, ZB, PX1, DY1, -128, WALL, FLOOR))
+B.append(box(PX0, DY1, ZB, PX1, LVY0, 0, WALL, FLOOR))
+B.append(box(PX0, LVY0, ZB, PX1, LVY1, -128, WALL, FLOOR))
+B.append(box(PX0, LVY1, ZB, PX1, PY0, 0, WALL, FLOOR))
 B.append(box(PX0, PY1, ZB, PX1, Y1, 0, WALL, FLOOR))
 B.append(box(PX0, PY0, ZB, PX1, PY1, -128, WALL, FLOOR))
 for k in range(7):  # bars 8 wide every 32 both ways: holes 24
     B.append(box(PX0 + 32 * k, PY0, -8, PX0 + 32 * k + 8, PY1, 0, TRIM))
     B.append(box(PX0, PY0 + 32 * k, -8, PX1, PY0 + 32 * k + 8, 0, TRIM))
 board("GRATE: 24-UNIT HOLES\nyou walk over it; nothing falls through", -668, -100, 64, 270)
+
+# ---- the diagonal grate: bars 8 thick turned 45 degrees, 30 apart across them (42 along x and y, where the line test
+# looks; Quake's box needs 45.25 across), over the pit x -768..-568, y -560..-360 (vr_hull_holes_diag)
+DC = (-668.0, -460.0)
+R2 = 0.5 ** 0.5
+for o in (-133, -95, -57, -19, 19, 57, 95, 133):
+    hl = 100.0 / R2 - abs(o) + 16.0  # (the pit's chord along the bar, and 16 more onto its rim each end)
+    cx, cy = DC[0] + o * R2, DC[1] + o * R2  # d1 = (1, 1) across the bars, d2 = (1, -1) along them
+    pts = [(cx + s * hl * R2 + t * 4 * R2, cy - s * hl * R2 + t * 4 * R2) for (s, t) in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
+    B.append(prism(pts, -8, 0, TRIM))
+board("DIAGONAL GRATE: 30 ACROSS\nnothing falls between the slanted bars", -668, -570, 64, 270)
+
+# ---- the louvred grate: bars along x at z -8..0 with 48-unit gaps, under each gap a bar at z -16..-8 (20-unit gaps seen
+# from above, none along a line), over the pit x -768..-568, y -300..-100 (vr_hull_holes_vert)
+for k in range(4):
+    y0 = LVY0 + 56 * k
+    B.append(box(PX0, y0, -8, PX1, y0 + 8, 0, TRIM))
+    if k < 3:
+        B.append(box(PX0, y0 + 28, -16, PX1, y0 + 36, -8, TRIM))
+board("LOUVRED GRATE: 20 FROM ABOVE\nnothing falls past the lower bars", -668, -310, 64, 270)
 
 # ---- the bar gate: a wall at y 256..272 with a doorway x -352..-200 (128 high); the gate's bars at y 260..268
 GW0, GW1, GY0, GY1 = -352, -200, 256, 272
@@ -99,13 +145,20 @@ for k in range(11):
     B.append(box(160 + 40 * k, 448, 0, 176 + 40 * k, 464, 192, WALL))
 board("PILLARS: 24-UNIT GAPS\nnothing slips between them", 368, 440, 220, 270)
 
+# ---- two func_walls 24 apart (x 700..764 and 788..852, y -500..-436, 128 high): the gap between two brush models
+# (vr_hull_holes_models)
+for (x0, x1) in ((700, 764), (788, 852)):
+    E.append(entity({"classname": "func_wall"}, [box(x0, -500, 0, x1, -436, 128, PANEL)]))
+board("TWO FUNC_WALLS: 24-UNIT GAP\nnothing slips between them", 776, -510, 170, 270)
+
 # ---- player, lights
 E.append(entity({"classname": "info_player_start", "origin": "0 -600 24", "angle": "90"}))
 LAMPS = [(x, y) for x in range(-896, 897, 256) for y in range(-640, 641, 256)]
 for (x, y) in LAMPS:
     B.append(box(x - 48, y - 8, Z1 - 4, x + 48, y + 8, Z1, "qvr_light"))
     E.append(entity({"classname": "light", "origin": f"{x} {y} {Z1 - 40}", "light": "220", "wait": "0.6", "_color": "1 0.96 0.9"}))
-for (x, y, z) in ((-668, 36, -60), (520, -30, 60), (-276, 300, 64), (-276, 200, 64)):
+for (x, y, z) in ((-668, 36, -60), (520, -30, 60), (-276, 300, 64), (-276, 200, 64), (-668, -460, -60),
+                  (-668, -200, -60), (776, -560, 64)):
     E.append(entity({"classname": "light", "origin": f"{x} {y} {z}", "light": "150", "wait": "0.7"}))
 
 

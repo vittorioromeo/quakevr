@@ -704,8 +704,9 @@ namespace
 // keepForReload): hull 0's nodes (the brushes' walk), hull 1's (the clip brushes'), the planes, the models' heads and
 // bounds, and the build's version (to be bumped when a change to the build changes its results). 2: the recovered clip
 // brushes' bounds grown for the lowest box, lowestBoxHeight (2026-11-08, the lying-down box). 3: the hole blockers
-// (vr_hull_holes.cpp, 2026-11-21; their setting and the map's entities: holesKey).
-constexpr za::U64 buildVersion = 3;
+// (vr_hull_holes.cpp, 2026-11-21; their setting and the map's entities: holesKey). 4: the diagonal, from-above, wide
+// and brush-model-pair blockers (2026-11-22, their settings in holesKey).
+constexpr za::U64 buildVersion = 4;
 // The lowest box the player ever has (the lying-down box's least, vr_prone_height): the recovered clip brushes' faces
 // that move with a box's height (recoverClips) have their bounds grown for it. Quake's box is 56 tall (half 28).
 constexpr float lowestBoxHeight = 12.f;

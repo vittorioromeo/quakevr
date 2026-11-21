@@ -84,8 +84,9 @@ struct SubModel
     za::U32 firstBrush, numBrushes;
     // Its hole blockers (vr_hull_holes.cpp: gaps Quake's 32 box never fit, closed for a narrower box): brushes
     // [firstHole, firstHole + numHoles), compiled into its trees after its own; the last crossHoles of the world's are
-    // gaps between the world and a brush model (a lift's travel, a func_wall).
-    za::U32 firstHole = 0, numHoles = 0, crossHoles = 0;
+    // gaps between the world and a brush model (a lift's travel, a func_wall) or two brush models; the standHoles before
+    // them are the world's over a fall (seen from above, the wide band: Quake's box standing can't reach them).
+    za::U32 firstHole = 0, numHoles = 0, crossHoles = 0, standHoles = 0;
 };
 
 // The server map's solid space as brushes: pointers into the hunk (the world's hull 0), released at every map change.
