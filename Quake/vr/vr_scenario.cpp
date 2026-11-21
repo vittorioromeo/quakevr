@@ -176,6 +176,26 @@ int slotsBefore = 0;        // an `mp` scene changed the client slots: how many 
     return za::String{com_gamedir} + "/scenarios";
 }
 
+// A scene's map: found in the running campaign, or else in the add-on campaign (Arcane Dimensions, Quoth, Dwell: rows
+// 3 and up) that has it, which is made the active one first (no map started: the scene's own `map` follows). So a scene
+// needing an add-on's map never depends on the campaign the scene before it left running.
+bool mapFoundOrCampaignSelected(const char* map)
+{
+    const za::String file = za::String{"maps/"} + map + ".bsp"; // (a copy: va()'s buffer is reused by the switch)
+    if(COM_FileExists(file.cStr(), nullptr))
+    {
+        return true;
+    }
+    for(int i = 3; i < VR_CampaignCount(); ++i)
+    {
+        if(VR_CampaignInstalled(i) && VR_SelectCampaignNoMap(i) && COM_FileExists(file.cStr(), nullptr))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 [[nodiscard]] za::String filePath(const char* id)
 {
     return dirPath() + "/" + id + ".txt";
@@ -361,7 +381,7 @@ bool read(const char* id, Scenario& out)
                 return;
             }
             out.map = w[1];
-            if(!COM_FileExists(va("maps/%s.bsp", w[1].cStr()), nullptr))
+            if(!mapFoundOrCampaignSelected(w[1].cStr()))
             {
                 // (an AD map is found only while Arcane Dimensions is the running campaign: Play > Official Campaigns)
                 error(lineNo, va("no map maps/%s.bsp%s", w[1].cStr(),

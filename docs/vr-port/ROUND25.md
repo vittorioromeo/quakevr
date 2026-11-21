@@ -7201,3 +7201,7 @@ hue band can't separate brown uniforms from brown flesh, and a full hue turn wit
   and `overlay`). Not tested: the studio's sliders and row toggles by hand in the menu (the cvars and commands are).
 - **Open:** AD's own skins unlooked at; the knights' red cloth (row 4, shared with blood) not dyed; flesh rule's share is
   file-only (not on the page).
+
+## sceneorder
+
+- A scene whose `map` is not in the running campaign (an `ad_` map after a scene that left Quake's running) now makes the add-on campaign that has it (AD, Quoth, Dwell: rows 3+) the active one itself (`mapFoundOrCampaignSelected`, vr_scenario.cpp), so no scene depends on order. Fixed `humrepl_variants` "no map ad_crucial". scenario_check twice PASS (177 run, 0 failed); `humrepl_variants` and `ad_tears_window` alone OK.
