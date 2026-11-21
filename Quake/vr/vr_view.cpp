@@ -4635,6 +4635,76 @@ entity_t* holsteredWeapon(int stat)
     return nullptr;
 }
 
+namespace
+{
+// The worn gear's models (VrDrawnGear::model: 1 + the index here).
+const char* const gearModelNames[] = {"progs/legholster.mdl", "progs/vrgadget.mdl", "progs/vrgadget_strap.mdl", "progs/vrpouch.mdl",
+    "progs/vrpouch_ammo.mdl"};
+constexpr int gearModelCount = static_cast<int>(sizeof(gearModelNames) / sizeof(gearModelNames[0]));
+} // namespace
+
+qmodel_t* gearModel(int index)
+{
+    return index >= 1 && index <= gearModelCount ? viewModel(gearModelNames[index - 1]) : nullptr;
+}
+
+qmodel_t* holsterOnOther(int holster, const glm::vec3& pos, const glm::vec3& out, float yaw, GearDraw& sheath, GearDraw& gun)
+{
+    const bool shoulder = holster == body::LeftShoulder || holster == body::RightShoulder;
+    const bool mirrored = holster == body::LeftHip || holster == body::LeftUpper || holster == body::LeftShoulder;
+    qmodel_t* const slotModel = vr_leg_holster_model_enabled.value && !shoulder ? viewModel("progs/legholster.mdl") : nullptr;
+    body::HolsterPlate plate;
+    plate.out = out;
+    plate.up = glm::vec3{0.f, 0.f, 1.f};
+    const HolsterPose pose = shoulder ? holsterOnBack(pos, yaw, mirrored)
+                                      : holsterOnBody(pos, plate, mirrored, holster == body::LeftUpper || holster == body::RightUpper, slotModel);
+    sheath.model = slotModel;
+    sheath.origin = pose.slotPos;
+    sheath.angles = pose.slotAngles;
+    sheath.mirrored = mirrored;
+    gun.origin = pose.weaponPos;
+    gun.angles = pose.weaponAngles;
+    gun.mirrored = mirrored;
+    return slotModel;
+}
+
+void netGear(VrDrawnGear& out)
+{
+    out = VrDrawnGear{};
+    const auto piece = [&](int i, const ViewEntity& ve) {
+        if(!ve.visible || !ve.ent.model || ve.ent.model->type != mod_alias || ENTALPHA_DECODE(ve.ent.alpha) <= 0.f)
+        {
+            return;
+        }
+        int index = 0; // (the view's own models, never the server's: by gearModelNames)
+        for(int k = 0; k < gearModelCount && !index; k++)
+        {
+            index = !strcmp(ve.ent.model->name, gearModelNames[k]) ? k + 1 : 0;
+        }
+        if(index <= 0)
+        {
+            return;
+        }
+        out.shown = static_cast<za::U16>(out.shown | (1 << i));
+        out.mirrored = static_cast<za::U16>(out.mirrored | (ve.mirrored ? 1 << i : 0));
+        out.model[i] = static_cast<za::U16>(index);
+        out.frame[i] = static_cast<za::U8>(za::clamp(ve.ent.frame, 0, 255));
+        out.skin[i] = static_cast<za::U8>(za::clamp(ve.ent.skinnum, 0, 255));
+        out.scale[i] = static_cast<za::U8>(za::clamp(static_cast<int>(ve.scale.x * 32.f + 0.5f), 1, 255));
+        out.origin[i] = glm::vec3{ve.ent.origin[0], ve.ent.origin[1], ve.ent.origin[2]};
+        out.angles[i] = glm::vec3{ve.ent.angles[0], ve.ent.angles[1], ve.ent.angles[2]};
+    };
+    for(int h = 0; h < HolsterCount; h++)
+    {
+        piece(static_cast<int>(bodyHolster[h]), entities.holsterSlot[h]);
+    }
+    piece(VrDrawnGear::gadget, entities.gadget);
+    piece(VrDrawnGear::strap, entities.gadgetStrap[0]);
+    piece(VrDrawnGear::strap + 1, entities.gadgetStrap[1]);
+    piece(VrDrawnGear::pouch, entities.pouch);
+    piece(VrDrawnGear::ammoPouch, entities.ammoPouch);
+}
+
 void netHolsters(VrDrawnHolsters& out)
 {
     out = VrDrawnHolsters{};

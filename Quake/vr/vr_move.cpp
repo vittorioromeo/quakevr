@@ -201,6 +201,44 @@ void writeDrawnLamp(sizebuf_t* buf, const VrDrawnLamp& l, const glm::vec3& origi
     }
 }
 
+void writeDrawnGear(sizebuf_t* buf, const VrDrawnGear& g, const glm::vec3& origin)
+{
+    MSG_WriteShort(buf, g.shown);
+    MSG_WriteShort(buf, g.mirrored);
+    for(int i = 0; i < VrDrawnGear::count; i++)
+    {
+        if(g.shown & (1 << i))
+        {
+            MSG_WriteShort(buf, g.model[i]);
+            MSG_WriteByte(buf, g.frame[i]);
+            MSG_WriteByte(buf, g.skin[i]);
+            MSG_WriteByte(buf, g.scale[i]);
+            writeEighths(buf, g.origin[i], origin);
+            writeAngles16(buf, g.angles[i]);
+        }
+    }
+}
+
+VrDrawnGear readDrawnGear(const glm::vec3& origin)
+{
+    VrDrawnGear g;
+    g.shown = static_cast<za::U16>(MSG_ReadShort());
+    g.mirrored = static_cast<za::U16>(MSG_ReadShort());
+    for(int i = 0; i < VrDrawnGear::count; i++)
+    {
+        if(g.shown & (1 << i))
+        {
+            g.model[i] = static_cast<za::U16>(MSG_ReadShort());
+            g.frame[i] = static_cast<za::U8>(MSG_ReadByte());
+            g.skin[i] = static_cast<za::U8>(MSG_ReadByte());
+            g.scale[i] = static_cast<za::U8>(MSG_ReadByte());
+            g.origin[i] = readEighths(origin);
+            g.angles[i] = readAngles16();
+        }
+    }
+    return g;
+}
+
 VrDrawnLamp readDrawnLamp(const glm::vec3& origin)
 {
     VrDrawnLamp l;

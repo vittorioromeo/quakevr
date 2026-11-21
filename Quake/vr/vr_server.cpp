@@ -118,7 +118,7 @@ struct CommandBudget
 za::Vector<CommandBudget> commandBudgets;
 
 // Per client slot: its avatar as last sent (writeAvatars: an unchanged one waits for its keyframe); and the counts.
-constexpr int avatarMaxBytes = 260; // (2 + 2 + 1 + 12 + 8 + 2 * 47 + 8 + 2 * 7 holds + 3 + 6 * 16 holsters + 1 = 241 at most)
+constexpr int avatarMaxBytes = 520; // (2 + 2 + 1 + 12 + 8 + 2 * 47 + 8 + 2 * 7 holds + 3 + 6 * 16 holsters + 1 = 241; the guns' looks and the torch 2 * 12 + 12 + 19: 296; the worn gear 4 + 11 * 17: 487 at most)
 struct AvatarSent
 {
     byte bytes[avatarMaxBytes]{};
@@ -2375,6 +2375,27 @@ void writeGunLooks(sizebuf_t* msg, edict_t* ent, const VrDrawnHolsters& holsters
     }
 }
 
+// A bot's holstered weapons (syncfix; the voice note 2026-11-21: "so that I can see what they're actually carrying"): its
+// QC holsters' models, frames 0, places left to each client (VrDrawnGear::solveBit: on its body as drawn).
+[[nodiscard]] VrDrawnHolsters botHolstered(edict_t* ent)
+{
+    const FieldOffsets& f = fields();
+    const int holsterModel[numHolsters] = {f.holsterweaponmodel0, f.holsterweaponmodel1, f.holsterweaponmodel2,
+        f.holsterweaponmodel3, f.holsterweaponmodel4, f.holsterweaponmodel5};
+    VrDrawnHolsters h;
+    h.valid = true;
+    for(int i = 0; i < VrDrawnHolsters::count && i < numHolsters; i++)
+    {
+        const int model = holsterModel[i] >= 0 ? modelIndexOfField(ent, holsterModel[i]) : 0;
+        if(model > 0)
+        {
+            h.weapons = static_cast<za::U8>(h.weapons | (1 << i));
+            h.model[i] = static_cast<za::U16>(model);
+        }
+    }
+    return h;
+}
+
 // Each VR player's avatar this frame (QVR_SVC_AVATAR: his head and hands as his last move placed them, his weapons) to
 // the other clients that see him (server::scopedBegin; his own client does not: his entity is not noted for himself).
 // Multiplayer only: a single player's own hands are his client's (MP_PLAN.md, B2; vr_avatar.cpp draws nothing yet).
@@ -2446,11 +2467,17 @@ void writeAvatars()
         MSG_WriteLong(&tmp, static_cast<int>(ent->v.weapon));
         MSG_WriteLong(&tmp, static_cast<int>(fieldFloatOr(ent, f.weapon2, 0.f)));
         mpavatar::writeHolds(&tmp, ent, origin); // (his climbing holds, as the moves byte says: B5c)
-        writeDrawnHolsters(&tmp, m ? m->move.holsters : noHolsters, origin, false); // (his holstered weapons as he drew them: B6b)
+        // (his holstered weapons as he drew them: B6b; a bot's, what it carries, placed by each client: syncfix)
+        const VrDrawnHolsters botHolsters = bot ? botHolstered(ent) : noHolsters;
+        writeDrawnHolsters(&tmp, m ? m->move.holsters : botHolsters, origin, false);
         MSG_WriteByte(&tmp, mpavatar::gearByte(ent));        // (the armour he wears: his pauldrons' colour)
         // (his guns as the server has them, and his torch as he drew it: wpnsync)
-        writeGunLooks(&tmp, ent, m ? m->move.holsters : noHolsters);
+        writeGunLooks(&tmp, ent, m ? m->move.holsters : botHolsters);
         writeDrawnLamp(&tmp, m ? m->move.lamp : VrDrawnLamp{}, origin);
+        // (his worn gear as he drew it; a bot's placed by each client on its body: syncfix)
+        VrDrawnGear botGear;
+        botGear.shown = VrDrawnGear::solveBit;
+        writeDrawnGear(&tmp, m ? m->move.gear : botGear, origin);
 
         if(static_cast<int>(avatarsSent.size()) < svs.maxclients)
         {

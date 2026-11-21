@@ -59,6 +59,7 @@ struct Avatar
     za::U8 holsterFlags[VrDrawnHolsters::count]{};
     za::U8 holsterClip[VrDrawnHolsters::count]{};
     VrDrawnLamp lamp;
+    VrDrawnGear gear; // his worn gear as he drew it (syncfix), from his entity's origin; a bot's: placed here
 };
 // The gear byte's slide bit (mpslide, 2026-11-20): the server's slide (slide::onServer, a flat-screen player's or a
 // headset's), so the others pose his body slid as he sees his own (the armour is the byte's low two bits).

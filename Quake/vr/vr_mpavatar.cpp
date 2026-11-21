@@ -36,6 +36,7 @@
 #include "vr_flatplay.hpp"
 #include "vr_ragdoll.hpp"
 #include "vr_emissive.hpp"
+#include "vr_body.hpp"
 #include "vr_view.hpp"
 #include "vr_mem.hpp"
 
@@ -84,6 +85,7 @@ struct Drawn
     view::GunParts holsterGun[VrDrawnHolsters::count];
     view::ViewEntity lamp;
     view::PowerupLook powerups; // his power-ups' look as drawn (syncfix)
+    view::ViewEntity gear[VrDrawnGear::count]; // his worn gear (syncfix: VrDrawnGear's order)
     view::ViewEntity pauldron[2];
     view::ViewEntity pauldronArm[2];
     // His armour's plates and their joints' leather on his body (B6c: the server's word on him), their pieces, their bones
@@ -475,6 +477,50 @@ void add(view::ViewEntity& ve)
 void setupBody(int e, const Avatar& a, const glm::vec3& origin, const avatar::DollPose* doll);
 void drawPowerups(int e, int powerups);
 
+// A bot's holstered weapons and their sheaths (syncfix; his voice note 2026-11-21: "it should be possible to see the
+// holsters of other players and bots ... so that I can see what they're actually carrying"): no client drew them, so they
+// go on its body as last drawn (its skeleton), posed as yours are (view::holsterOnOther): the hips' outside the hip
+// joints, the uppers' on the chest, the shoulders' behind them. None until its body is first posed.
+void solveBotGear(const Drawn& d, float yaw, VrDrawnHolsters& hs, view::GearDraw gear[VrDrawnGear::count])
+{
+    if(!d.bodyPosed)
+    {
+        hs.weapons = 0;
+        return;
+    }
+    const avatar::Skeleton& k = d.skeleton;
+    glm::vec3 fwd, right, up;
+    hands::angleVectors(glm::vec3{0.f, yaw, 0.f}, fwd, right, up);
+    const float m = k.m2w;
+    const glm::vec3 chest = glm::mix(k.pelvis, 0.5f * (k.shoulder[0] + k.shoulder[1]), 0.55f);
+    for(int h = 0; h < VrDrawnHolsters::count; h++)
+    {
+        const int side = h == body::LeftShoulder || h == body::LeftHip || h == body::LeftUpper ? 0 : 1;
+        const float s = side ? 1.f : -1.f;
+        glm::vec3 pos, out;
+        if(h == body::LeftShoulder || h == body::RightShoulder)
+        {
+            pos = k.shoulder[side] - fwd * (0.08f * m) - up * (0.1f * m);
+            out = -fwd;
+        }
+        else if(h == body::LeftHip || h == body::RightHip)
+        {
+            pos = (k.legs ? k.hip[side] : k.pelvis + right * (s * 0.1f * m)) + right * (s * 0.09f * m) - up * (0.04f * m);
+            out = right * s;
+        }
+        else
+        {
+            pos = chest + fwd * (0.12f * m) + right * (s * 0.1f * m);
+            out = fwd;
+        }
+        view::GearDraw gun;
+        view::holsterOnOther(h, pos, out, yaw, gear[h], gun);
+        hs.origin[h] = gun.origin - glm::vec3{d.placedAt}; // (offsets from his entity's origin, as received)
+        hs.angles[h] = gun.angles;
+        hs.mirrored = static_cast<za::U8>((hs.mirrored & ~(1 << h)) | (gun.mirrored ? 1 << h : 0));
+    }
+}
+
 // Avatar `e`'s hands and weapons placed on his entity as drawn now at `origin` (its lerp: they ride it between messages).
 // `doll`: his dead body's pose (addDolls), the hands at its wrists.
 void setup(int e, const Avatar& a, const glm::vec3& origin, const avatar::DollPose* doll = nullptr)
@@ -509,6 +555,36 @@ void setup(int e, const Avatar& a, const glm::vec3& origin, const avatar::DollPo
         in.hands = solved;
     }
     in.holsters = &a.holsters;
+    // His worn gear as he drew it; a bot's holstered weapons and sheaths placed on its body as drawn (syncfix).
+    VrDrawnHolsters botHolsters;
+    view::GearDraw gear[VrDrawnGear::count];
+    if(a.gear.shown & VrDrawnGear::solveBit)
+    {
+        botHolsters = a.holsters;
+        solveBotGear(d, a.body.yaw, botHolsters, gear);
+        in.holsters = &botHolsters;
+    }
+    else
+    {
+        for(int i = 0; i < VrDrawnGear::count; i++)
+        {
+            if(a.gear.shown & (1 << i))
+            {
+                gear[i].model = view::gearModel(a.gear.model[i]);
+                gear[i].origin = origin + a.gear.origin[i];
+                gear[i].angles = a.gear.angles[i];
+                gear[i].frame = a.gear.frame[i];
+                gear[i].skin = a.gear.skin[i];
+                gear[i].mirrored = (a.gear.mirrored & (1 << i)) != 0;
+            }
+        }
+    }
+    for(int i = 0; i < VrDrawnGear::count; i++)
+    {
+        view::drawGear(gear[i], d.gear[i]);
+        const bool scaled = !(a.gear.shown & VrDrawnGear::solveBit) && a.gear.scale[i] > 0;
+        d.gear[i].scale = glm::vec3{scaled ? static_cast<float>(a.gear.scale[i]) / 32.f : 1.f};
+    }
     view::HandsEntities out;
     out.hand = d.hand;
     out.weapon = d.weapon;
@@ -564,6 +640,10 @@ void forEachDrawn(Drawn& d, F&& f)
         }
     }
     f(d.lamp);
+    for(view::ViewEntity& ve : d.gear)
+    {
+        f(ve);
+    }
     f(d.body);
     for(view::ViewEntity& ve : d.plate)
     {
@@ -1165,6 +1245,7 @@ void parse()
         }
     }
     a.lamp = readDrawnLamp(glm::vec3{0.f}); // (from his entity's origin)
+    a.gear = readDrawnGear(glm::vec3{0.f});  // (from his entity's origin: syncfix)
     a.msgTime = cl.mtime[0];
     if(ent > 0 && ent <= MAX_SCOREBOARD && ent != cl.viewentity)
     {
@@ -1378,6 +1459,10 @@ void addDrawn(int e, const entity_t* replace)
         }
     }
     add(d.lamp);
+    for(view::ViewEntity& ve : d.gear)
+    {
+        add(ve);
+    }
     for(view::ViewEntity& ve : d.plate)
     {
         add(ve);

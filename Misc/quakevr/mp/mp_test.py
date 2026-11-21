@@ -8255,16 +8255,21 @@ def no_gap(prefix, drawn_only=False):
     """A synced row: nothing of `prefix` ("glow:", "faded:", "light:", ...) that B has of himself and A has not of him;
     and A has some (the probe did show it). `drawn_only`: only of the models A draws of him at all (a model he lacks is
     another row's gap)."""
-    def check(gap, seen_added, seen):
+    def check(gap, seen_added, seen, own):
         missing = sorted(k for k in gap if k.startswith(prefix) and
                          (not drawn_only or "model:" + k.split(":", 1)[1] in seen))
         got = sorted(k for k in seen_added if k.startswith(prefix))
-        return not missing and bool(got), "B only: %s; A has: %s" % (missing or "-", got or "-")
+        mine = any(k.startswith(prefix) for k in own)  # (B has none himself: a flat player's gadget, say)
+        return not missing and (bool(got) or not mine), "B only: %s; A has: %s%s" % (missing or "-", got or "-", "" if mine else " (B has none)")
     return check
 
 
 SYNC_PROBES = (  # (name, B's action, its undo, the synced rows' checks); idle first: the baseline
-    ("idle", sync_nothing, None, ()),
+    ("idle", sync_nothing, None, (("the holster sheaths", no_gap("model:legholster.mdl")),  # (syncfix batch 2: worn gear)
+                                  ("the wrist gadget", no_gap("model:vrgadget.mdl")),
+                                  ("its straps", no_gap("model:vrgadget_strap.mdl")),
+                                  ("the grenade pouch", no_gap("model:vrpouch.mdl")),
+                                  ("the ammo pouch", no_gap("model:vrpouch_ammo.mdl")))),
     # (they last the run: the probes after them compare against idle as before)
     ("quad", sync_cheat(190), None, (("Quad's glow on his copy", no_gap("glow:")), ("its hand lights", no_gap("light:r1")))),
     ("ring", sync_cheat(192), None, (("the ring's fade on his copy", no_gap("faded:", drawn_only=True)),)),
@@ -8281,7 +8286,7 @@ def syncaudit(s, flat):
     put_at(srv, a, ea, SYNC_SPOT, 90)
     sync_wait(srv, 1.0)
     base_b = base_a = None
-    table = []
+    rows_out = []
     for name, act, undo, rows in SYNC_PROBES:
         t0 = time.time()
         act(s, srv, a, b, ea, eb)
@@ -8298,18 +8303,43 @@ def syncaudit(s, flat):
             both = {k: n for k, n in add_b.items() if k in add_a}
         s.metric("sync_%s" % name, {"own": own, "seen": seen, "gap": gap, "extra": extra, "both": both})
         s.note("%s: B has, A not: %s | A has, B not: %s | both: %s" % (name, gap or "-", extra or "-", both or "-"))
-        table.append("%-6s gap(B only): %s\n%-6s extra(A only): %s\n%-6s both: %s" % (
+        rows_out.append("%-6s gap(B only): %s\n%-6s extra(A only): %s\n%-6s both: %s" % (
             name, gap or "-", "", extra or "-", "", both or "-"))
         s.check("%s: both reports came (B's own view of himself, A's of B)" % name, bool(own) and bool(seen),
                 "B %d kinds, A %d kinds" % (len(own), len(seen)))
         for row, check in rows:  # (syncfix: the audit's gaps fixed, each row's own check)
-            ok, detail = check(gap, add_a if base_b is not own else seen, seen)
+            ok, detail = check(gap, add_a if base_b is not own else seen, seen, own)
             s.check("%s: %s synced" % (name, row), ok, detail)
         if undo:
             undo(s, srv, a, b, ea, eb)
+    # A bot's holsters and what it carries (syncfix batch 2; his voice note 2026-11-21): A adds a coop bot; what A draws
+    # round it: its holster sheaths placed on its body by A's own client (no client of its own drew them).
+    a.cmd("impulse 100")
+    table = {}
+    for _ in range(10):
+        since_a = a.mark()
+        table = frag_table(a)
+        if len(table) >= 3:
+            break
+        wait_quietly(a, r"mp_frags: ", 3, since_a, "A's scoreboard")
+    bots = sorted(slot for slot in table if slot not in (ea - 1, eb - 1))
+    seen_bot, own_sheaths = {}, 0
+    for _ in range(10):  # (until A's copy of it is posed: its sheaths go on its body as drawn)
+        sync_wait(srv, 0.5)
+        lines = near_lines(a, bots[0] + 1, 1.0) if bots else []
+        seen_bot = near_counts(lines)
+        # (its own: within 30 units of its origin -- B's, if near, stand farther)
+        own_sheaths = sum(1 for l in lines if re.search(r"model=legholster\.mdl d=(\S+)", l) and
+                          float(re.search(r"model=legholster\.mdl d=(\S+)", l).group(1)) <= 30.0)
+        if own_sheaths >= 4:
+            break
+    s.metric("sync_bot", seen_bot)
+    s.note("bot: A draws round it: %s" % (seen_bot or "-"))
+    s.check("bot: its holster sheaths on its copy at A (4: the hips', the uppers')", own_sheaths >= 4,
+            "%d within 30 units; %s" % (own_sheaths, seen_bot or "no bot"))
     with open(os.path.join(s.out, "syncaudit_table.txt"), "w", encoding="ascii") as f:
         f.write("B %s, A VR mock, dedicated server; radius %g round B\n" % ("flat" if flat else "VR mock", SYNC_RADIUS))
-        f.write("\n".join(table) + "\n")
+        f.write("\n".join(rows_out + ["bot    A draws round it: %s" % (seen_bot or "-")]) + "\n")
 
 
 def run(args, test, lag=0.0, jitter=0.0, loss=0.0):

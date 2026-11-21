@@ -4010,12 +4010,12 @@ design (right as it is), **N** no such feature. Evidence: [run] syncaudit, [test
 | **The auto pump's stroke and its clacks** (`vr/autopump_back/home`) | G | his client's own animation after his shot: not seen or heard (the QC reload sounds are server sounds, heard) | B only [run] |
 | Flashlight, torso torch (belt, hand, gun, head; on/off, where it points) | S | VrDrawnLamp in the move and the avatar: his torch's model and its spot, spill and glow lights (agent/wpnsync); not its visible cone or cord | mp_wpnsync [test] |
 | Holstered weapons | S | VrDrawnHolsters (B6b) | mp_cosmetics [test]; holstered v_shot both [run] |
-| **Hip and leg holster sheaths** | G | not drawn on the copy (his holstered guns float at his thighs) | legholster x4 B only, VR and flat [run] |
-| **Wrist gadget and its straps** (VR) | G | not drawn on the copy; nor its screen's glow | vrgadget, vrgadget_strap x2, lights r10/r30 B only [run] |
-| **Ammo pouch and the rounds in it** | G | not drawn | vrpouch_ammo and 17 vr_shell_live B only [run] |
-| **Grenade pouch** (the back) | G | not drawn | vrpouch B only, VR and flat [run] |
-| **Ring of Shadows** | G | B sees his own body, hands and gear at alpha 0.3; A's copy of him is drawn fully opaque (the copy takes the place of Quake's eyes model). In deathmatch the ring does nothing | faded x23 B only, 0 on A [run] |
-| **Quad, Pentagram, Biosuit looks** | G | A gets only the entity light the server's effects give (one, r210); not the rim glow on hands and body, the two hand lights (r110) and their glow light (r220), nor the quad's arcs: vr_view.cpp reads `cl.items`, the own player's only | glow x3, lights B only [run]; vr_view.cpp:3365-3382 [code] |
+| Hip and leg holster sheaths | S | VrDrawnGear (syncfix batch 2): his sheaths as he drew them; a bot's (and its holstered weapons, what it carries) placed by each client on its body as drawn (view::holsterOnOther) | syncaudit idle, bot [run] |
+| Wrist gadget and its straps (VR) | S | VrDrawnGear (syncfix batch 2); not its screen's glow lights (r10/r30: its screen is his own) | syncaudit idle [run] |
+| Ammo pouch (**the rounds in it: G**) | S/G | the pouch: VrDrawnGear (syncfix batch 2); the rounds in it not yet (17 vr_shell_live B only) | syncaudit idle [run] |
+| Grenade pouch (the back) | S | VrDrawnGear (syncfix batch 2) | syncaudit idle [run] |
+| Ring of Shadows | S | the gear byte's ring bit (syncfix batch 1): his whole copy faded as he sees himself (view::powerupLookOf's alpha 0.3), deathmatch too | syncaudit ring [run] |
+| Quad, Pentagram, Biosuit looks | S | the gear byte's power-up bits (syncfix batch 1), drawn by the code that draws yours (view::powerupLookOf): the glow on his hands and body, its two hand lights, Quad's arcs | syncaudit quad [run] |
 | **Muzzle flash of another player's shot** | G | its light (r20, r30 at the shot) not seen; the shot's sound, thump and tail layers are | B only [run] |
 | **Spent casings from another player's gun** | G | none (his own client throws them) | vr_shell B only [run] |
 | Shot sounds, Quad's attack sound | S | server sounds; vr_gunsfx's layers made on each client | guncock, gun_thump, gun_tail, damage3 both [run] |
@@ -4041,7 +4041,7 @@ design (right as it is), **N** no such feature. Evidence: [run] syncaudit, [test
 | Toolgun, Setup, holster setup | L | single player only (section 1.3) | [code] |
 | HUD, the gadget's screen contents, haptics, menus, voice notes | L | his own | |
 
-Counts (43 rows): 22 synced, 11 gaps, 4 elsewhere, 4 local by design, 2 not features (the slide pose and the dead body synced by mpslide since the audit).
+Counts (43 rows): 27 synced, 6 gaps (the ammo pouch's rounds among them), 4 elsewhere, 4 local by design, 2 not features (the slide pose and the dead body synced by mpslide since the audit; batches 1-2 by syncfix: ROUND25.md "syncfix").
 
 **Side finding.** The Debug menu's Cheats rows (Quad, Pentagram, Ring, Biosuit: `impulse 190-193`) give a holstered
 shotgun in coop instead: the single-player test impulses (`VR_TestImpulse`) are skipped in coop, and weapons.qc's

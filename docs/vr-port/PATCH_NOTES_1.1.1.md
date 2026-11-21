@@ -59,6 +59,9 @@ The guide: [MULTIPLAYER.md](MULTIPLAYER.md).
 - **Other players' guns and torches as they are**: the heavy revolver's cylinder swinging out and its shells, a super
   shotgun broken open, magazines in or dropped and the rounds they show, the ammo screen's count, the Widowmaker's
   spinning barrels; another player's flashlight is drawn where he carries it and lights the world where it points.
+- **Other players' power-ups and gear**: a player with Quad Damage, the Pentagram or the Biosuit glows as you do (his
+  hands and body, the light from his hands, Quad's arcs), under the Ring of Shadows he is faded (in deathmatch too); his
+  holster sheaths, wrist gadget, grenade and ammo pouches are drawn on him, and a bot's holsters with what it carries.
 - **Everything you can do alone works together**: grabbing, throwing, melee and parries, climbing and mantling, the
   grapple, holsters and pouches, reloads, force grab; hand weapons and ammo to each other, knock weapons out of other
   players' hands in deathmatch.

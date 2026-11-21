@@ -564,6 +564,7 @@ void poseMove(VrMove& move)
         move.body.leanHold = hs.leanHold;
         view::netHolsters(move.holsters); // (and his holsters: B6b)
         flashlight::netLamp(move.lamp);   // (and his torch: wpnsync)
+        view::netGear(move.gear);         // (and his worn gear: syncfix)
     }
 
     move.headVel = hs.headVel;

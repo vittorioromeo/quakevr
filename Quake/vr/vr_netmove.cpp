@@ -152,6 +152,18 @@ constexpr void visitMove(WireMove& m, V& v)
         v.rel(hs.origin[i], o, drawnScale);
         v.abs(hs.angles[i], angScale);
     }
+    VrDrawnGear& gear = r.gear; // (his worn gear as drawn: the others draw it, syncfix)
+    v.integer(gear.shown);
+    v.integer(gear.mirrored);
+    for(int i = 0; i < VrDrawnGear::count; i++)
+    {
+        v.integer(gear.model[i]);
+        v.integer(gear.frame[i]);
+        v.integer(gear.skin[i]);
+        v.integer(gear.scale[i]);
+        v.rel(gear.origin[i], o, drawnScale);
+        v.abs(gear.angles[i], angScale);
+    }
     VrDrawnLamp& lamp = r.lamp; // (his torch as drawn: the others draw and light it, wpnsync)
     v.integer(lamp.flags);
     v.rel(lamp.origin, o, drawnScale);

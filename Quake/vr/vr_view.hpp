@@ -165,6 +165,14 @@ void printOwnLooks(int ent);
 // hands and body (and their copies in a mirror) the alias shader's code, -2 - 2 x its colour (r + 16g + 256b, 16 levels
 // a channel) - its strength (0..1); else 0.
 [[nodiscard]] float powerupGlow(const entity_t* e);
+// Your worn gear as drawn this frame, for the others (syncfix: the move's VrDrawnGear).
+void netGear(VrDrawnGear& out);
+// VrDrawnGear::model's model (1 the sheath, 2 the gadget, 3 its strap, 4 the grenade pouch, 5 the ammo pouch), or nullptr.
+[[nodiscard]] qmodel_t* gearModel(int index);
+// A holster's sheath and gun on another player's body (a bot's: no client drew them; syncfix), posed as yours are
+// (holsterOnBody, holsterOnBack): holster `holster` (body::Holster) at `pos`, the body's surface facing `out` there, the
+// body turned `yaw`. Returns the sheath's model (none for the shoulders, or with vr_leg_holster_model_enabled 0).
+qmodel_t* holsterOnOther(int holster, const glm::vec3& pos, const glm::vec3& out, float yaw, struct GearDraw& sheath, struct GearDraw& gun);
 
 // A player's power-ups as drawn on him (syncfix: yours from cl.items, another player's copy from his avatar's gear byte,
 // one code for both): the glow taking turns (its shader code and strength), its light from the hands, the quad's arcs,

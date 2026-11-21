@@ -6065,3 +6065,26 @@ navmesh", and "do bots use the navmesh? If not, should they?" (NAVMESH.md 22 and
   leader walks on and is followed; +back hands it back, it walks on; `vr_nav_follow 0` stops it. No teleporter (e1m1's
   is far from the start). `navfollow_vr` (B a mock headset: the play-space turn) 12/0. mp suite --only coop, cmdguard,
   predict, teleport: passed. scenario_check PASS.
+
+## syncfix: the sync audit's gaps, batches 1-2 (syncfix, 2026-11-21, `agent/syncfix`)
+
+- Batch 1, power-ups on the copy: the avatar's gear byte carries each player's Quad, Pentagram, Ring, Biosuit (its spare
+  bits 4-32: no new bytes). The look is one function for you and the copies (`view::powerupLookOf`: vr_view.cpp's glow
+  turns, the glow's shader code `powerupGlowCode`, its hand lights, Quad's arcs, the ring's 0.3 fade; vr_body_powerups
+  off: none). A copy's hands and body glow (`mpavatar::powerupGlow`, asked by `view::powerupGlow`), two hand lights per
+  copy (`emissive::otherPowerupLight`, keys after yours), Quad's arcs on its forearms (`shock::otherArmArcs`, armArcs'
+  per-hand code shared as `handArcs`), and under the Ring the whole copy faded (`forEachDrawn`), deathmatch too.
+- Side finding fixed: the harness's QC holster give moved from impulse 190-195 to 90-95 (QVR_TESTS only; mp_test.py's
+  two callers): in coop the Debug menu's power-up cheats (190-193) give the power-ups again.
+- Batch 2, worn gear: the client sends its sheaths (the hips' and the uppers'), wrist gadget, its two straps, grenade
+  pouch and ammo pouch as drawn (`VrDrawnGear` in the move, delta-coded; `view::netGear`), the server passes them in the
+  avatar (17 B a piece shown: model as `view::gearModel`'s index, the view's own models the server never precaches),
+  each client draws them on the copy by `view::drawGear` at his scale. Bots (his voice note 11-21): the server sends a
+  bot's holstered weapons (its QC holster models: what it carries) and `VrDrawnGear::solveBit`; each client places them
+  and their sheaths on the bot's body as last drawn (its skeleton) by your holsters' pose code (`view::holsterOnOther`:
+  holsterOnBody, holsterOnBack). `QVR_NET_VERSION` 42: the room service must be redeployed. avatarMaxBytes 260 -> 520
+  (it overflowed with the gear: a Host_Error on the server).
+- Not yet: the rounds in the ammo pouch, the gadget's screen glow lights; batches 3-5 (shot effects, wounds, sounds).
+- Checks: `mp_test.py syncaudit` (B VR and `--flat B`) has per-row checks now: quad's glow and hand lights, the ring's
+  fade (on the models A draws), the five gear models at idle, a coop bot's sheaths. Results: MP_PLAN.md's audit table.
+
