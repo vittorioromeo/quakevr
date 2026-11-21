@@ -1,0 +1,9 @@
+# humrepl_studio: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". The Texture Studio (Debug > Tools >
+# Texture Studio; vr_humstudio.cpp, docs/vr-port/ARMED_MONSTERS.md "Recolours by weapon"): five armed grunts lined up
+# before you, one per weapon category, the recolours' table and masks edited live on them.
+title Texture Studio: the armed humanoids' recolours and masks edited live (notarget, god)
+map vrtesthall
+god
+notarget
+cmd vr_humstudio_lineup 0
+hint Five armed grunts before you, one per weapon. Open the menu: Debug > Tools > Texture Studio. Pick a category (Explosive: the rocket launcher's grunt) and move Red, Strength, Lightness and Tint: the grunt changes as you move them. Show the Masks: clothes green, pack blue, the rest (faces, arms, metal) dark red. Click a palette row to cycle it; Line Up another type. Paint (menu closed): point at a grunt, the trigger paints, the grip erases, B/Y undoes. Save writes humlook.txt and humlook_masks.txt.

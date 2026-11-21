@@ -1,51 +1,49 @@
 # humlook.txt: the armed humanoids' recolours by the weapon they spawned with (docs/vr-port/ARMED_MONSTERS.md,
 # "Recolours by weapon"; the engine's vr_humlook.cpp, the shader's QVR_ALIAS_FS_RECOLOR). Read at load; vr_humlook_reload
-# reads it again, vr_humlook_info prints what the nearest armed humanoid wears. Phase 2's Texture Studio writes it.
+# reads it again, vr_humlook_info prints what the nearest armed humanoid wears. The Texture Studio (Debug > Tools) writes it.
 #
-# A row: <type> <category> <part>, then 13 numbers.
+# A row: <type> <category> <part> r g b strength light tint
 #   type      grunt, enforcer, knight, dknight (the armed monsters' rows, QC VR_AM_*)
 #   category  explosive (rockets, grenades), energy (lightning, plasma, lasers), flame, poison; the others (shells, nails,
 #             melee, the monster's own gun) have no row: as today
-#   part      clothes (its body's skin), pack (its worn backpack)
-# The pixels it changes (a range of the skin's colours, soft at its edges):
-#   hue        the range's middle hue (degrees)
-#   width      half its width (degrees; 180: every hue)
-#   feather    the soft edge past it (degrees)
-#   satmin     the least saturation counted (0..1: greys below it are left)
-#   lightmin   the least and the most lightness counted (0..1)
-#   lightmax
-# What it does to them (HSL), then a tint (the colour multiplied in, by `amount`: for near-white skins):
-#   shift      the hue turned by this (degrees)
-#   satmul     the saturation times this
-#   lightmul   the lightness times this
-#   tint r g b amount
+#   part      clothes (its body's masked texels), pack (its worn backpack, and a pack in its body's skin)
+# Which texels: humlook_masks.txt (their palette rows; a few painted by hand). Faces and flesh are never changed.
+#   r g b     the colour (0..1) the texels are dyed: each keeps its own lightness (its shading), in that colour
+#   strength  how much of the dye (0 none, 1 all)
+#   light     the texels' lightness times this
+#   tint      0: the dye (the colour at the texel's lightness); 1: the texel's own colour times the colour (keeps more
+#             of its detail, less of the colour); between: a mix
 #
-# type     category  part     hue width feather satmin lightmin lightmax  shift satmul lightmul  tint_r tint_g tint_b amount
-grunt      explosive clothes   40   18     8      0.15   0.03     0.30     -36   2.0    0.90      1 1 1 0
-grunt      energy    clothes   40   18     8      0.15   0.03     0.30     180   1.7    1.15      1 1 1 0
-grunt      flame     clothes   40   18     8      0.15   0.03     0.30     -18   2.4    1.45      1 1 1 0
-grunt      poison    clothes   40   18     8      0.15   0.03     0.30      65   1.6    1.10      1 1 1 0
-grunt      explosive pack      30   30    10      0.10   0.02     0.60     -30   1.9    1.05      1 1 1 0
-grunt      energy    pack      30   30    10      0.10   0.02     0.60     190   1.7    1.15      1 1 1 0
-grunt      flame     pack      30   30    10      0.10   0.02     0.60      -4   2.2    1.35      1 1 1 0
-grunt      poison    pack      30   30    10      0.10   0.02     0.60      70   1.6    1.10      1 1 1 0
-enforcer   explosive clothes   40   18     8      0.15   0.03     0.30     -36   2.0    0.90      1 1 1 0
-enforcer   energy    clothes   40   18     8      0.15   0.03     0.30     180   1.7    1.15      1 1 1 0
-enforcer   flame     clothes   40   18     8      0.15   0.03     0.30     -18   2.4    1.45      1 1 1 0
-enforcer   poison    clothes   40   18     8      0.15   0.03     0.30      65   1.6    1.10      1 1 1 0
-knight     explosive clothes   40   18     8      0.15   0.03     0.30     -36   2.0    0.90      1 1 1 0
-knight     energy    clothes   40   18     8      0.15   0.03     0.30     180   1.7    1.15      1 1 1 0
-knight     flame     clothes   40   18     8      0.15   0.03     0.30     -18   2.4    1.45      1 1 1 0
-knight     poison    clothes   40   18     8      0.15   0.03     0.30      65   1.6    1.10      1 1 1 0
-knight     explosive pack      30   30    10      0.10   0.02     0.60     -30   1.9    1.05      1 1 1 0
-knight     energy    pack      30   30    10      0.10   0.02     0.60     190   1.7    1.15      1 1 1 0
-knight     flame     pack      30   30    10      0.10   0.02     0.60      -4   2.2    1.35      1 1 1 0
-knight     poison    pack      30   30    10      0.10   0.02     0.60      70   1.6    1.10      1 1 1 0
-dknight    explosive clothes   40   18     8      0.15   0.03     0.30     -36   2.0    0.90      1 1 1 0
-dknight    energy    clothes   40   18     8      0.15   0.03     0.30     180   1.7    1.15      1 1 1 0
-dknight    flame     clothes   40   18     8      0.15   0.03     0.30     -18   2.4    1.45      1 1 1 0
-dknight    poison    clothes   40   18     8      0.15   0.03     0.30      65   1.6    1.10      1 1 1 0
-dknight    explosive pack      30   30    10      0.10   0.02     0.60     -30   1.9    1.05      1 1 1 0
-dknight    energy    pack      30   30    10      0.10   0.02     0.60     190   1.7    1.15      1 1 1 0
-dknight    flame     pack      30   30    10      0.10   0.02     0.60      -4   2.2    1.35      1 1 1 0
-dknight    poison    pack      30   30    10      0.10   0.02     0.60      70   1.6    1.10      1 1 1 0
+# type     category  part        r     g     b    strength light  tint
+grunt      explosive clothes   0.80  0.10  0.07    0.62   1.15   0.00
+grunt      explosive pack      0.80  0.10  0.07    0.72   1.15   0.00
+grunt      energy    clothes   0.18  0.40  0.95    0.58   1.20   0.00
+grunt      energy    pack      0.18  0.40  0.95    0.68   1.20   0.00
+grunt      flame     clothes   1.00  0.52  0.10    0.58   1.20   0.00
+grunt      flame     pack      1.00  0.52  0.10    0.68   1.20   0.00
+grunt      poison    clothes   0.35  0.78  0.18    0.58   1.10   0.00
+grunt      poison    pack      0.35  0.78  0.18    0.68   1.10   0.00
+enforcer   explosive clothes   0.80  0.10  0.07    0.62   1.15   0.00
+enforcer   explosive pack      0.80  0.10  0.07    0.72   1.15   0.00
+enforcer   energy    clothes   0.18  0.40  0.95    0.58   1.20   0.00
+enforcer   energy    pack      0.18  0.40  0.95    0.68   1.20   0.00
+enforcer   flame     clothes   1.00  0.52  0.10    0.58   1.20   0.00
+enforcer   flame     pack      1.00  0.52  0.10    0.68   1.20   0.00
+enforcer   poison    clothes   0.35  0.78  0.18    0.58   1.10   0.00
+enforcer   poison    pack      0.35  0.78  0.18    0.68   1.10   0.00
+knight     explosive clothes   0.80  0.10  0.07    0.46   1.15   0.00
+knight     explosive pack      0.80  0.10  0.07    0.72   1.15   0.00
+knight     energy    clothes   0.18  0.40  0.95    0.43   1.20   0.00
+knight     energy    pack      0.18  0.40  0.95    0.68   1.20   0.00
+knight     flame     clothes   1.00  0.52  0.10    0.43   1.20   0.00
+knight     flame     pack      1.00  0.52  0.10    0.68   1.20   0.00
+knight     poison    clothes   0.35  0.78  0.18    0.43   1.10   0.00
+knight     poison    pack      0.35  0.78  0.18    0.68   1.10   0.00
+dknight    explosive clothes   0.80  0.10  0.07    0.62   1.15   0.00
+dknight    explosive pack      0.80  0.10  0.07    0.72   1.15   0.00
+dknight    energy    clothes   0.18  0.40  0.95    0.58   1.20   0.00
+dknight    energy    pack      0.18  0.40  0.95    0.68   1.20   0.00
+dknight    flame     clothes   1.00  0.52  0.10    0.58   1.20   0.00
+dknight    flame     pack      1.00  0.52  0.10    0.68   1.20   0.00
+dknight    poison    clothes   0.35  0.78  0.18    0.58   1.10   0.00
+dknight    poison    pack      0.35  0.78  0.18    0.68   1.10   0.00

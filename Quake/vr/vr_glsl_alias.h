@@ -1278,38 +1278,38 @@ QVR_DENT_FUNCTIONS \
 "			result.rgb *= mix(vec3(1.0), st.rgb, st.w * smoothstep(sr.y, sr.z, in_texcoord.y));\n" \
 "	}\n"
 
-// an armed humanoid's recolour by the weapon it spawned with (vr/vr_humlook.cpp, quakevr/humlook.txt): HSL both ways
+// an armed humanoid's recolour by the weapon it spawned with (vr/vr_humlook.cpp, quakevr/humlook.txt): its skin's mask
+// (2 bits a Quake texel: 0 left, 1 clothes, 2 pack; built from the skin's palette rows and our painted texels) and the dye
+// that keeps the texel's shading: its luminance in the row's colour (pure: a red stays red, never pink), or its own colour
+// times the row's (tint), by the row's strength
 #define QVR_ALIAS_FS_RECOLOR_FUNCTIONS \
-"vec3 RecolorToHsl(vec3 c) // hue in degrees, saturation, lightness\n" \
+"layout(std430, binding=17) restrict readonly buffer HumMaskBuffer { uint HumMasks[]; }; // QVR: the recolours' masks (vr/vr_humlook.cpp)\n" \
+"vec3 HumDye(vec3 c, vec4 col, vec2 lt) // col: the colour, its strength; lt: x the lightness's factor, y the tint's share\n" \
 "{\n" \
-"	float mx = max(c.r, max(c.g, c.b)), mn = min(c.r, min(c.g, c.b)), d = mx - mn, l = 0.5 * (mx + mn);\n" \
-"	if (d < 1e-5)\n" \
-"		return vec3(0.0, 0.0, l);\n" \
-"	float s = d / (1.0 - abs(2.0 * l - 1.0) + 1e-6);\n" \
-"	float h = mx == c.r ? mod((c.g - c.b) / d, 6.0) : mx == c.g ? (c.b - c.r) / d + 2.0 : (c.r - c.g) / d + 4.0;\n" \
-"	return vec3(60.0 * h, s, l);\n" \
-"}\n" \
-"vec3 RecolorFromHsl(vec3 hsl)\n" \
-"{\n" \
-"	vec3 k = mod(vec3(0.0, 8.0, 4.0) + hsl.x / 30.0, 12.0);\n" \
-"	float a = hsl.y * min(hsl.z, 1.0 - hsl.z);\n" \
-"	return hsl.z - a * max(min(min(k - 3.0, 9.0 - k), vec3(1.0)), vec3(-1.0));\n" \
+"	float l = dot(c, vec3(0.299, 0.587, 0.114)) * lt.x;\n" \
+"	vec3 dyed = min(col.rgb * (l / max(dot(col.rgb, vec3(0.299, 0.587, 0.114)), 0.02)), vec3(1.0));\n" \
+"	vec3 tinted = min(c * lt.x * col.rgb / max(max(col.r, max(col.g, col.b)), 0.02), vec3(1.0));\n" \
+"	return mix(c, mix(dyed, tinted, lt.y), col.a);\n" \
 "}\n"
 
-// the skin's pixels in the row's colour range (soft-edged in hue, saturation and lightness) turned by its HSL change and
-// tint (Recolor: vr/vr_humlook.cpp instanceRows; [0].y 0: none)
+// the skin's masked texels dyed (Recolor: vr/vr_humlook.cpp instanceRows; [3].x 0: none); [3].w the mask shown (the
+// Texture Studio's overlay: clothes green, pack blue, the rest dark red)
 #define QVR_ALIAS_FS_RECOLOR \
 "	{\n" \
-"		vec4 ra = instances[in_instance].Recolor[0];\n" \
-"		if (ra.y > 0.0)\n" \
+"		vec4 rm = instances[in_instance].Recolor[3];\n" \
+"		if (rm.x > 0.0)\n" \
 "		{\n" \
-"			vec4 rb = instances[in_instance].Recolor[1], rc = instances[in_instance].Recolor[2];\n" \
-"			vec3 hsl = RecolorToHsl(result.rgb);\n" \
-"			float dh = abs(mod(hsl.x - ra.x + 540.0, 360.0) - 180.0);\n" \
-"			float w = (1.0 - smoothstep(ra.y, ra.y + ra.z, dh)) * smoothstep(ra.w - 0.04, ra.w + 0.04, hsl.y) *\n" \
-"				smoothstep(rb.x - 0.03, rb.x + 0.03, hsl.z) * (1.0 - smoothstep(rb.y - 0.03, rb.y + 0.03, hsl.z));\n" \
-"			if (w > 0.0)\n" \
-"				result.rgb = mix(result.rgb, RecolorFromHsl(vec3(mod(hsl.x + rb.z, 360.0), clamp(hsl.y * rb.w, 0.0, 1.0), clamp(hsl.z * rc.w, 0.0, 1.0))) * rc.rgb, w);\n" \
+"			ivec2 rs = ivec2(rm.yz);\n" \
+"			ivec2 rt = clamp(ivec2(fract(uv) * rm.yz), ivec2(0), rs - 1);\n" \
+"			uint ri = uint(rt.y * rs.x + rt.x);\n" \
+"			uint rk = (HumMasks[uint(rm.x) - 1u + (ri >> 4u)] >> ((ri & 15u) * 2u)) & 3u;\n" \
+"			vec4 rl = instances[in_instance].Recolor[2];\n" \
+"			if (rk == 1u)\n" \
+"				result.rgb = HumDye(result.rgb, instances[in_instance].Recolor[0], rl.xy);\n" \
+"			else if (rk == 2u)\n" \
+"				result.rgb = HumDye(result.rgb, instances[in_instance].Recolor[1], rl.zw);\n" \
+"			if (rm.w > 0.0)\n" \
+"				result.rgb = mix(result.rgb, rk == 1u ? vec3(0.1, 0.9, 0.2) : rk == 2u ? vec3(0.2, 0.4, 1.0) : vec3(0.4, 0.0, 0.0), rk == 0u ? 0.3 : 0.55);\n" \
 "		}\n" \
 "	}\n"
 

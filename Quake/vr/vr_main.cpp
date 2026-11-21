@@ -16,6 +16,7 @@
 #include "vr_agarmor.hpp"
 #include "vr_armourdata.hpp"
 #include "vr_armourstudio.hpp"
+#include "vr_humlook.hpp"
 #include "vr_adcrossbow.hpp"
 #include "vr_mapstyle.hpp"
 #include "vr_adguns.hpp"
@@ -2985,6 +2986,7 @@ extern "C" void VR_HostFrameEnd()
     qvr::modelwatch::frame(); // vr_model_watch: a loaded model whose file changed read again (vr_modelwatch.cpp)
     qvr::blender::frame(); // vr_blender_link: the Blender add-on's Show in Game (vr_blender.cpp)
     qvr::armourstudio::frame(); // armour.txt read again when it changed (vr_armour_watch); the Armour Studio's sliders and subject
+    qvr::humlook::studioFrame(); // the Texture Studio: its sliders laid into the recolours' table, its strokes (vr_humstudio.cpp)
     qvr::mapinstall::poll(); // a map download or unpacking that finished, taken here (vr_mapinstall.cpp)
     qvr::mpdownload::poll(); // a server's map package: mounted or installed, then joined again (vr_mpdownload.cpp)
     qvr::relight::poll(); // the in-game relighting's light process: its progress, its result (vr_relight.cpp)

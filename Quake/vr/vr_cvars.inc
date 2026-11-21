@@ -2903,6 +2903,22 @@ QVR_CVAR(vr_arena_xray_distance, "800", CVAR_ARCHIVE | QVR_RULE)         // ... 
 QVR_CVAR(vr_arena_xray_shown, "0", CVAR_ROM)                  // (read-only: the foes the last view outlined through walls; arena test 16 reads it)
 QVR_CVAR(vr_humlook, "1", CVAR_ARCHIVE)                        // 1: armed humanoids recoloured by the weapon they spawned with (quakevr/humlook.txt; vr_humlook.cpp, ARMED_MONSTERS.md "Recolours by weapon")
 QVR_CVAR(vr_humlook_known, "0", CVAR_ROM)                    // (read-only: the entities whose recolour the client knows; vr_ad_test 219 reads it)
+QVR_CVAR(vr_humlook_file, "humlook.txt", CVAR_NONE)          // debug (vr_humlook.cpp): the recolours' table, in quakevr/ (the tests point it elsewhere)
+QVR_CVAR(vr_humlook_masks_file, "humlook_masks.txt", CVAR_NONE) // debug (vr_humlook.cpp): which texels they dye (palette rows, painted texels), in quakevr/
+// The Texture Studio (Debug > Tools; vr_humstudio.cpp): the recolours' table and masks edited live
+QVR_CVAR(vr_humstudio_kind, "0", CVAR_NONE)       // debug: the row edited: 0 grunt, 1 enforcer, 2 knight, 3 death knight
+QVR_CVAR(vr_humstudio_cat, "1", CVAR_NONE)        // debug: ... its weapon category: 1 explosive, 2 energy, 3 flame, 4 poison, 5 shells, 6 nails, 7 melee, 8 its own gun
+QVR_CVAR(vr_humstudio_part, "0", CVAR_NONE)       // debug: ... its part: 0 clothes, 1 pack
+QVR_CVAR(vr_humstudio_r, "1", CVAR_NONE)          // debug: the row's colour (0..1), its red
+QVR_CVAR(vr_humstudio_g, "1", CVAR_NONE)          // debug: ... green
+QVR_CVAR(vr_humstudio_b, "1", CVAR_NONE)          // debug: ... blue
+QVR_CVAR(vr_humstudio_strength, "0", CVAR_NONE)   // debug: ... how much it dyes (0 none: the row off)
+QVR_CVAR(vr_humstudio_light, "1", CVAR_NONE)      // debug: ... the texels' lightness times this
+QVR_CVAR(vr_humstudio_tint, "0", CVAR_NONE)       // debug: ... 0 the dye, 1 the texel's own colour times the colour
+QVR_CVAR(vr_humstudio_overlay, "0", CVAR_NONE)    // debug: 1: the masks shown on the recoloured (clothes green, pack blue, the rest dark red)
+QVR_CVAR(vr_humstudio_paint, "0", CVAR_NONE)      // debug: 1: painting: a trigger (flat: attack) paints where you point on an armed humanoid, a grip erases, B/Y undoes
+QVR_CVAR(vr_humstudio_brush, "2", CVAR_NONE)      // debug: the brush's radius (skin texels)
+QVR_CVAR(vr_humstudio_class, "1", CVAR_NONE)      // debug: what it paints: 1 clothes, 2 pack, 3 never (left as it is), 0 erase (back to its palette row's)
 // Survival Arena's difficulty (QC/vr_arena.qc, VR_ARENA_Skill): every 1 above is today's arena at Normal skill, and
 // this moves the rest of them by the skill level -- the shape of the armed humanoids' vr_agrunt_ai_skill, its own knob.
 QVR_CVAR(vr_arena_skill_impact, "1", CVAR_ARCHIVE | QVR_RULE)           // Difficulty Impact: how much the skill level moves the arena (Easy softer, Hard and Nightmare harder); 0 skill changes nothing about it, Normal always as set

@@ -261,7 +261,8 @@ aren't Map Library packages aren't sent to joining players.
   Combat > Armed Grunts > Armed Humanoid Replacements: AD and Quoth Variants.
 - **Armed humanoids wear the colour of their weapon.** Rocket and grenade launchers red, lightning and plasma blue,
   flamethrowers orange, poison green, on their clothes and backpacks, so you see what is coming; the rest look as
-  before. Same page: Recolour by Weapon.
+  before. The dye keeps the cloth's shading, and their faces, arms and hands keep their own colour. Same page: Recolour
+  by Weapon. Debug > Tools > Texture Studio tunes the colours and which parts of each skin they dye, live.
 
 ## Performance
 
