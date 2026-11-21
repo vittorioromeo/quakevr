@@ -421,6 +421,7 @@ za::Vector<Item> pageDebugLogging()
         row(opt::vr_debug_flame_wobble),
         row(opt::vr_debug_wallbuttons),
         row(opt::vr_debug_pose_check),
+        row(opt::vr_debug_lift),
         row(opt::vr_debug_shots),
         row(opt::vr_debug_missiles),
         row(opt::vr_debug_throw),

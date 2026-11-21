@@ -5951,6 +5951,11 @@ QVR_CYCLE(vr_debug_pose_check, "Monster Poses",
     "parried ogre was, for half a second), drawn with a pose out of its model's range or a broken blend; "
     "And a Screenshot: a picture at each; Every Frame: each monster's drawn poses and how flat (a lot).",
     {0.f, "Off"}, {1.f, "Squashed Bodies"}, {3.f, "And a Screenshot"}, {2.f, "Every Frame"})
+QVR_CYCLE(vr_debug_lift, "Lift Riders",
+    "vr_debug_lift: you and the monsters riding a moving lift: how far your box, your drawn feet and your eye, and "
+    "the monsters' boxes and drawn bodies, sink into it, each ride's worst logged as the lift stops "
+    "(\"liftdebug:\"; a game you host). Every Frame: each rider every frame (a lot).",
+    {0.f, "Off"}, {1.f, "Each Ride"}, {2.f, "Every Frame"})
 QVR_TOGGLE(vr_debug_shots, "Shots and Damage",
     "Each hitscan shot (where it starts, its direction, what its pellets hit, headshots), each damage you deal "
     "(and when Quad's sound plays) and each prop a shot pushes. Needs Developer Messages.")
