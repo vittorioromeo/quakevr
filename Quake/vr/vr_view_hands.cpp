@@ -2331,7 +2331,8 @@ void updateFreeSpots(const hands::State& s)
                 handle = za::min(handle, glm::distance(at, reversed)); // (taken back reversed there: the flip grip)
             }
             float nearestSpot = 1e30f;
-            if(!weaponCarried[other])
+            // (A pole grip's weapon: its hotspots take nothing in VR, twohand::poleGrip.)
+            if(!weaponCarried[other] && !twohand::poleGrip(slot))
             {
                 for(int i = 0; i < weapons::maxHotspots; i++)
                 {

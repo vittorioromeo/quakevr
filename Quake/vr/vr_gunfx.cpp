@@ -129,6 +129,7 @@ constexpr ModelId modelIds[] = {
     {"progs/dw_shot3.mdl", WID_SUPER_SHOTGUN}, // Dwell's Rotary Shotgun ("progs/dw_shot3.mdl#vr")
     {"progs/dw_rifle.mdl", WID_SHOTGUN},       // Dwell's Rifle
     {"progs/dw_rail.mdl", WID_LIGHTNING},      // Dwell's Crystal Lance
+    {"progs/dw_lance.mdl", WID_LIGHTNING},     // the Crystal Lance as a lance (vr_dw_lance_pole)
     {"progs/v_nail.mdl", WID_NAILGUN},
     {"progs/v_lava.mdl", WID_NAILGUN},
     {"progs/v_nail2.mdl", WID_SUPER_NAILGUN},

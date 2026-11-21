@@ -419,7 +419,8 @@ void() DW_ModelsTest_Think =
     VR_Test_Check(data, "Dwell's data found (its folder)");
     VR_Test_Check(p.weaponmodel == (data ? "progs/dw_shot3.mdl#vr" : WeaponIdToModel(WID_SUPER_SHOTGUN, 0)),
         sprintf("the Rotary Shotgun drawn as itself (%s)", p.weaponmodel));
-    VR_Test_Check(p.weaponmodel2 == (data ? "progs/dw_rail.mdl#vr" : WeaponIdToModel(WID_LIGHTNING, 0)),
+    string lance = DW_LancePole() ? "progs/dw_lance.mdl#vr" : "progs/dw_rail.mdl#vr"; // (vr_dw_lance_pole)
+    VR_Test_Check(p.weaponmodel2 == (data ? lance : WeaponIdToModel(WID_LIGHTNING, 0)),
         sprintf("the Crystal Lance drawn as itself (%s)", p.weaponmodel2));
     VR_Test_Check(p.holsterweaponmodel0 == (data ? "progs/dw_rifle.mdl#vr" : WeaponIdToModel(WID_SHOTGUN, 0)),
         sprintf("the Rifle holstered drawn as itself (%s)", p.holsterweaponmodel0));
@@ -743,6 +744,54 @@ void(entity p) DW_StuckTest =
     t.enemy = b;
     t.think = DW_StuckTest_Think;
     t.nextthink = time + 0.05;
+};
+
+// vr_ad_test 217 (dwellwpn2): the Crystal Lance as a lance (vr_dw_lance_pole): in the main hand drawn with its lance model
+// (Dwell's world model's, slot 55) and dealt its crystal head's blow (DW_LanceHeld: DW_LanceMelee, not the gun's club);
+// with vr_dw_lance_pole 0 the pistol (dw_rail) and the gun's club again; the setting put back. "dwlance: N passed, M failed".
+float dw_lt_frames;
+float dw_lt_was;
+void() DW_LanceTest_Think =
+{
+    entity p = self.owner;
+    dw_lt_frames = dw_lt_frames + 1;
+    entity os = self;
+    if(dw_lt_frames == 3)
+    {
+        VR_Test_BeginFlags("dwlance", VR_TEST_LOUD);
+        VR_Test_Check(DW_Data(), "Dwell's data found (its folder)");
+        VR_Test_Check(p.weaponmodel == "progs/dw_lance.mdl#vr", sprintf("the Lance drawn as a lance (%s)", p.weaponmodel));
+        self = p;
+        VR_Test_Check(DW_LanceHeld(cVR_MainHand), "its blow the crystal head's (DW_LanceMelee)");
+        self = os;
+        cvar_set("vr_dw_lance_pole", "0");
+        p.weaponmodel = WeaponIdToModel(WID_LIGHTNING, 0); // (as a hand's draw sets it: swapped by AD_SyncWeaponModels)
+    }
+    else if(dw_lt_frames == 6)
+    {
+        VR_Test_Check(p.weaponmodel == "progs/dw_rail.mdl#vr", sprintf("vr_dw_lance_pole 0: the pistol (%s)", p.weaponmodel));
+        self = p;
+        VR_Test_Check(!DW_LanceHeld(cVR_MainHand), "vr_dw_lance_pole 0: the gun's club");
+        self = os;
+        cvar_set("vr_dw_lance_pole", ftos(dw_lt_was));
+        VR_Test_Verdict();
+        remove(self);
+        return;
+    }
+    self.nextthink = time;
+};
+
+void(entity p) DW_LanceTest =
+{
+    dw_lt_was = cvar("vr_dw_lance_pole");
+    cvar_set("vr_dw_lance_pole", "1");
+    DW_ModelsTest(p, 207);
+    dw_lt_frames = 0;
+    entity t = spawn();
+    t.classname = "dw_lancetest";
+    t.owner = p;
+    t.think = DW_LanceTest_Think;
+    t.nextthink = time;
 };
 
 void(entity p, float xRequest) DW_WeaponsTest =

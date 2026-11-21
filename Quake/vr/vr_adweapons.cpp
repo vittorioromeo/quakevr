@@ -104,6 +104,12 @@ struct Recipe
     float spinFromX{0.f};
     glm::vec3 spinAxisAt{0.f};
     int liftAlso{-1}; // a second grafted piece moved by `lift` (-1 none)
+    // Dwell support (dwellwpn2, the Crystal Lance from Dwell's world model): its open pieces (single faces, as Dwell draws
+    // them) kept open, no hole closed; and a model past the base model's corner moved so that, at the slot's Scale
+    // (keepScale, about the packed corner: vr_view.cpp), every point draws where it would inside the base model's corner
+    // (the base weapon's grip, hand and offsets keep their places). 0: placed as laid.
+    bool keepOpen{false};
+    float keepScale{0.f};
 };
 
 // The measurements (taken on AD 1.80 patch 1's models; ROUND22.md "AD's weapons as VR models"):
@@ -164,6 +170,18 @@ const Recipe recipes[] = {
         {5.f, 0.f, 45.7f}, {1.f, 0.f, 0.f}, {0.f, 0.f, 1.f}, 0.7f, {-0.88f, -0.04f, -10.86f}, {0.6f, 0.f, 2.7f}, {76, -1, -1},
         false, {0.f, 0.f, 0.f}, 0.f, {"progs/v_shot.mdl", 0, 0, 0, 0}, {219, 309, 349}, {-6.301f, -3.7943f, -6.5165f}, false,
         {0.f, 0.f, 0.f}, {0.f, 0.f, 0.f}, "progs/v_shot.mdl", true, noRect, rifleParts, -1, {0.f, 0.f, 0.f}},
+    // - The Crystal Lance as a lance (dwellwpn2; Dwell's world model g_rail.mdl, fr_0: a staff standing tilted 22.6 degrees
+    //   off upright, 67.5 long, its pole 2.2 thick about the line through (-10.49 -0.15 9.78) along (0.3843 0 0.9231), its
+    //   crystal head from 43 along it): laid along x, 1.5 times (101 long: 1.35 m at the slot's 0.35), the pole's point 20
+    //   along it (16 from the butt) over the lightning gun's grip (-4 0 7.3: the pole's underside on the grip's top), the
+    //   lightning gun's grip, trigger guard and trigger (these 1.75 up onto the pole) put on; then moved past the lightning
+    //   gun's corner (keepScale) so that slot 55's values, the lightning gun's, keep the hand on the grip. Its open faces
+    //   kept open, as Dwell draws them.
+    {"progs/dw_lance.mdl#vr", {"progs/g_rail.mdl", 672, 464, 256, 256, "dwell"}, "fr_0", {0.3843f, 0.f, 0.9231f},
+        {-0.9231f, 0.f, 0.3843f}, {1.f, 0.f, 0.f}, {0.f, 0.f, 1.f}, 1.5f, {-4.73f, -0.15f, 23.63f}, {-4.f, 0.f, 7.3f},
+        {-1, -1, -1}, false, {0.f, 0.f, 0.f}, 0.f, {"progs/v_light.mdl", 0, 0, 0, 0}, {234, 403, 493},
+        {-5.6211f, -9.3429f, -6.0018f}, false, {0.f, 0.f, 0.f}, {0.f, 0.f, 0.f}, "progs/v_light.mdl", true, noRect, nullptr,
+        403, {0.f, 0.f, 1.75f}, 0, 0.f, {0.f, 0.f, 0.f}, 493, true, 0.35f},
 };
 
 // The Plasma Gun's cell (the lightning gun's magazine and well, made by make_mags.py in v_light.mdl's space: the cell
@@ -1641,7 +1659,7 @@ void rifleParts(Parts& p)
     out.noteHi = parts.noteHi;
     memcpy(out.noteTop, parts.noteTop, sizeof(out.noteTop));
     out.made = static_cast<int>(o.tris.size() / 3) - static_cast<int>(adTris / 3) - out.grafted;
-    out.sealed = seal(o, r, skinW - 2, skinH - 2);
+    out.sealed = r.keepOpen ? 0 : seal(o, r, skinW - 2, skinH - 2);
     // Straight up from each grafted piece's vertices within 0.3 of its top: the first triangle met that is not a grafted
     // piece's (AD's, a made part, a hole's fan): the least gap's height.
     for(int k = 0; k < 3; k++)
@@ -1741,6 +1759,19 @@ void rifleParts(Parts& p)
     }
     out.cornerKept = lo.x >= r.corner.x - 1e-4f && lo.y >= r.corner.y - 1e-4f && lo.z >= r.corner.z - 1e-4f;
     lo = glm::min(lo, r.corner);
+    if(r.keepScale > 0.f)
+    {
+        // Past the corner (Recipe::keepScale): moved by (corner - lo) (1 - scale), so that drawn at that Scale about its
+        // own packed corner every point lands where it would about the base model's corner.
+        const glm::vec3 move = (r.corner - lo) * (1.f - r.keepScale);
+        for(glm::vec3& p : c.pos)
+        {
+            p += move;
+        }
+        lo += move;
+        hi += move;
+        out.cornerKept = true; // (moved to keep it: the settings' places hold)
+    }
     out.lo = lo;
     out.hi = hi;
     const glm::vec3 pack = glm::max((hi - lo) / 255.f, glm::vec3{1e-4f});
