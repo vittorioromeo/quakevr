@@ -397,6 +397,7 @@ frikbot/bot_move.qc
 frikbot/bot_nav.qc // QVR: the navmesh beside the waypoints (vr_bot_navmesh, NAVMESH.md 23)
 frikbot/bot_ed.qc
 vr_meleeonly_bot_test.qc // bots under Melee Only (vr_pickup_test 15; after FrikBot)
+vr_deathdrop_test.qc // a dying player's and bot's weapons dropped as they were (vr_dm_test 21; after FrikBot)
 
 waypoints/map_dm1.qc
 waypoints/map_dm2.qc
