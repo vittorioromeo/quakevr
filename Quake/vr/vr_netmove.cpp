@@ -1,6 +1,7 @@
 // vr_netmove.cpp -- a remote client's moves up as quantized deltas with repeats (vr_netmove.hpp; MP_PLAN.md, B7).
 
 #include "vr_netmove.hpp"
+#include "vr_seat.hpp"
 #include "vr_netsnap.hpp"
 #include "vr_engine.hpp"
 #include "vr_api.h"
@@ -389,7 +390,14 @@ struct ClientState
     double rtt{0.0};       // ... smoothed (0: none measured on this connection yet)
     double rttLast{0.0};   // ... the newest
 };
-ClientState clientState;
+struct SeatNetMove // the seat's (seat::Part::NetMove; splitscreen phase 5)
+{
+    ClientState clientState;
+};
+SeatNetMove& seatNetMove()
+{
+    return qvr::seat::part<SeatNetMove>(qvr::seat::current(), qvr::seat::Part::NetMove);
+}
 
 // (B20) The ticks over which the move buffer measures a client's jitter (2 s at 72 Hz): a spike's depth lasts this long.
 constexpr int lateWindow = 144;
@@ -413,6 +421,7 @@ struct ServerSlot
     int curLo{0}, curHi{0};    // ... the coming tick's so far
     bool curAny{false};
 };
+// seat-shared: the server's, each player slot's
 za::Vector<ServerSlot> serverSlots;
 
 [[nodiscard]] ServerSlot* slotOf(int slot, bool make)
@@ -551,7 +560,7 @@ void writeMoves(sizebuf_t* buf, const WireMove& m, bool record)
     {
         return; // (dumped after a signon, or a demo's: never sent, so never a base)
     }
-    ClientState& c = clientState;
+    ClientState& c = seatNetMove().clientState;
     const za::U32 seq = c.nextSeq++;
     c.first = c.first != 0 ? c.first : seq;
     const int at = static_cast<int>(seq % ring);
@@ -586,7 +595,7 @@ void writeMoves(sizebuf_t* buf, const WireMove& m, bool record)
 void parseAck()
 {
     const za::U32 seq = static_cast<za::U32>(MSG_ReadLong());
-    ClientState& c = clientState;
+    ClientState& c = seatNetMove().clientState;
     if(seq < c.nextSeq && seq > c.acked)
     {
         c.acked = seq;
@@ -601,7 +610,7 @@ void parseAck()
 
 void clientClear()
 {
-    ClientState& c = clientState;
+    ClientState& c = seatNetMove().clientState;
     c.acked = 0;
     c.first = 0;
     c.rtt = c.rttLast = 0.0;
@@ -611,6 +620,7 @@ void clientClear()
 namespace
 {
 // Forgotten when the client's state is cleared (vr_mem.hpp's resets): no acknowledged move: the next sent whole, B7.
+// seat-shared: the reset hook (it clears the current seat's)
 mem::Reset clientStateReset{"netmove", mem::ResetEvent::ClientState, mem::ResetPhase::State, &clientClear};
 } // namespace
 
@@ -618,25 +628,25 @@ double clientRoundTrip(double* newest)
 {
     if(newest)
     {
-        *newest = clientState.rttLast;
+        *newest = seatNetMove().clientState.rttLast;
     }
-    return clientState.rtt;
+    return seatNetMove().clientState.rtt;
 }
 
 za::U32 clientNewest()
 {
-    return clientState.nextSeq - 1;
+    return seatNetMove().clientState.nextSeq - 1;
 }
 
 za::U32 clientSent()
 {
-    const ClientState& c = clientState;
+    const ClientState& c = seatNetMove().clientState;
     return c.first != 0 ? c.nextSeq - c.first : 0;
 }
 
 za::U32 clientPending()
 {
-    const ClientState& c = clientState;
+    const ClientState& c = seatNetMove().clientState;
     if(c.first == 0)
     {
         return 0;
@@ -647,7 +657,7 @@ za::U32 clientPending()
 
 bool clientMoveAt(za::U32 seq, WireMove& m)
 {
-    const ClientState& c = clientState;
+    const ClientState& c = seatNetMove().clientState;
     if(seq == 0 || seq >= c.nextSeq || c.seqs[seq % ring] != seq)
     {
         return false;
@@ -903,6 +913,7 @@ namespace
 }
 
 // vr_mp_lockstep_movelog's scratch (big: off the stack).
+// seat-shared: scratch
 Quant moveLogQuant;
 
 // (B14e) A move the lockstep runs, every value as the world gets it (its pose clock the server's), 64 a line: two runs'
@@ -1028,6 +1039,7 @@ struct SelftestScratch
     Quant q, q2, base, read;
     byte data[4096];
 };
+// seat-shared: the self-test's scratch
 SelftestScratch selftestScratch;
 
 void fillMove(WireMove& m, int seed)

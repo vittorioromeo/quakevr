@@ -1,6 +1,7 @@
 // vr_netragdoll.cpp -- the server's ragdolls drawn by a remote client as the server has them (see the header; ragsync).
 
 #include "vr_netragdoll.hpp"
+#include "vr_seat.hpp"
 #include "vr_api_render.h"
 #include "vr_box3d.hpp"
 #include "vr_cvars.hpp"
@@ -127,12 +128,19 @@ struct ClientRags
     za::U32 stamp{0};
     long long parsed{0}, rejected{0}; // records read, and those whose rig did not fit (drawn animated)
 };
-ClientRags clientRags;
+struct SeatNetRagdoll // the seat's (seat::Part::NetRagdoll; splitscreen phase 5)
+{
+    ClientRags clientRags;
+};
+SeatNetRagdoll& seatNetRagdoll()
+{
+    return qvr::seat::part<SeatNetRagdoll>(qvr::seat::current(), qvr::seat::Part::NetRagdoll);
+}
 
 [[nodiscard]] Ring* ringOf(int num, bool make)
 {
     Ring* free = nullptr;
-    for(Ring& r : clientRags.rings)
+    for(Ring& r : seatNetRagdoll().clientRags.rings)
     {
         if(r.num == num)
         {
@@ -146,8 +154,8 @@ ClientRags clientRags;
     }
     if(!free)
     {
-        clientRags.rings.emplaceBack();
-        free = &clientRags.rings.back();
+        seatNetRagdoll().clientRags.rings.emplaceBack();
+        free = &seatNetRagdoll().clientRags.rings.back();
     }
     *free = Ring{};
     free->num = num;
@@ -263,7 +271,7 @@ void logClient()
         return;
     }
     bodyLog.lastClock = t;
-    for(const Ring& r : clientRags.rings)
+    for(const Ring& r : seatNetRagdoll().clientRags.rings)
     {
         if(r.num != 0 && r.n > 0)
         {
@@ -481,12 +489,12 @@ void clientParse()
     {
         return; // (a listen host draws its own server's: never a record's)
     }
-    clientRags.parsed++;
+    seatNetRagdoll().clientRags.parsed++;
     qmodel_t* model = cl_entities[num].model;
     const ragdoll::Rig* rig = model ? (authored ? ragdoll::rigFor(model) : ragdoll::derivedRigFor(model)) : nullptr;
     if(!rig || rig->authored != authored || in.bodies > rig->numBones)
     {
-        clientRags.rejected++; // (its rig not this client's: drawn animated, as before)
+        seatNetRagdoll().clientRags.rejected++; // (its rig not this client's: drawn animated, as before)
         if(Ring* r = ringOf(num, false))
         {
             dropRing(*r);
@@ -503,7 +511,7 @@ void clientParse()
         r->model = model;
         r->rig = rig;
     }
-    r->seen = clientRags.stamp;
+    r->seen = seatNetRagdoll().clientRags.stamp;
     if(r->n > 0 && !(in.time > r->at(r->n - 1).time))
     {
         return; // (the same pose: its record unchanged, read again with each snapshot)
@@ -522,14 +530,14 @@ void clientParse()
 
 void clientSnapshotBegin()
 {
-    clientRags.stamp++;
+    seatNetRagdoll().clientRags.stamp++;
 }
 
 void clientSnapshotEnd()
 {
-    for(Ring& r : clientRags.rings)
+    for(Ring& r : seatNetRagdoll().clientRags.rings)
     {
-        if(r.num != 0 && r.seen != clientRags.stamp)
+        if(r.num != 0 && r.seen != seatNetRagdoll().clientRags.stamp)
         {
             dropRing(r); // (out of his sight, gibbed, risen: none in the snapshot)
         }
@@ -538,12 +546,12 @@ void clientSnapshotEnd()
 
 void clientFrame()
 {
-    if(sv.active || cls.state != ca_connected || clientRags.rings.empty())
+    if(sv.active || cls.state != ca_connected || seatNetRagdoll().clientRags.rings.empty())
     {
         return;
     }
     const double clock = netsnap::interpActive() ? netsnap::interpTime() : cl.time;
-    for(Ring& r : clientRags.rings)
+    for(Ring& r : seatNetRagdoll().clientRags.rings)
     {
         if(r.num == 0 || r.n == 0)
         {
@@ -573,20 +581,20 @@ void clientFrame()
 
 void clientClear()
 {
-    for(Ring& r : clientRags.rings)
+    for(Ring& r : seatNetRagdoll().clientRags.rings)
     {
         if(r.num != 0)
         {
             dropRing(r);
         }
     }
-    clientRags.rings.clear();
+    seatNetRagdoll().clientRags.rings.clear();
 }
 
 int clientCount()
 {
     int n = 0;
-    for(const Ring& r : clientRags.rings)
+    for(const Ring& r : seatNetRagdoll().clientRags.rings)
     {
         n += r.num != 0 && r.n > 0 ? 1 : 0;
     }

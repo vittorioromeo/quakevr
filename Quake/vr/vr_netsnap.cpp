@@ -2,6 +2,7 @@
 // MP_PLAN.md, B7b).
 
 #include "vr_netsnap.hpp"
+#include "vr_seat.hpp"
 #include "vr_clientprefs.hpp"
 #include "vr_netmove.hpp"
 #include "vr_mpavatar.hpp"
@@ -380,7 +381,9 @@ int putVarint(za::U8* out, za::U32 v)
     return (base + static_cast<za::U32>(s)) & mask;
 }
 
+// seat-shared: scratch
 za::U8 fieldsBuf[fieldsMost];   // (an encoding by fields: encode's)
+// seat-shared: scratch
 za::U8 fieldsCheck[fieldsMost]; // (... its decoding: fieldsVerify's, decode's)
 
 // Each field's reference (`ref`): the base's value, or with `trend` (the base's older record, `older`; `ahead` frames past
@@ -634,22 +637,33 @@ struct Entry
     bool chosen{true};
     bool cosmetic{false}; // (B12c: a cosmetic fragment's: its own budget)
 };
+// seat-shared: the encode's scratch
 za::Vector<Entry> entries;   // (encode's scratch)
+// seat-shared: the encode's scratch
 za::Vector<za::I32> byPrio;  // (... the entries in priority order)
 constexpr int headMost = 3;  // an entry's head: a key's step under 2^19
-za::Vector<int> poseEntries; // the client: the pose entries read of each entity (vr_net_bytes poses; the rate's priorities)
-za::Vector<float> poseDists; // ... and the sum of its distances from us at each (their mean: where it was meanwhile)
-za::Vector<float> poseWeights; // ... and of its weights for us at each (weightOf's, from our view: near and ahead; B16)
 constexpr float nearUnits = 256.f; // a record's weight: 1 here, halving each this much farther ...
 constexpr float aheadWeight = 2.f; // ... twice ahead of his view (within 60 degrees), twice again another player's
-long long entOps[4][2]{};    // the client: the entities' entries read by op (gone, whole, delta, fields): count, bytes
+struct SeatNetSnapPoses // the seat's (seat::Part::NetSnapPoses; splitscreen phase 5)
+{
+    za::Vector<int> poseEntries; // the client: the pose entries read of each entity (vr_net_bytes poses; the rate's priorities)
+    za::Vector<float> poseDists; // ... and the sum of its distances from us at each (their mean: where it was meanwhile)
+    za::Vector<float> poseWeights; // ... and of its weights for us at each (weightOf's, from our view: near and ahead; B16)
+    long long entOps[4][2]{};    // the client: the entities' entries read by op (gone, whole, delta, fields): count, bytes
+};
+SeatNetSnapPoses& seatSnapPoses()
+{
+    return qvr::seat::part<SeatNetSnapPoses>(qvr::seat::current(), qvr::seat::Part::NetSnapPoses);
+}
 // The server: its snapshots' entity entries written, by entity number (vr_net_classes: by classname; B12c's gib storms)
 struct SentTally
 {
     long long bytes{0};
     int entries{0}, whole{0};
 };
+// seat-shared: the server's encode
 za::Vector<SentTally> sentByEnt;
+// seat-shared: the server's encode
 bool tallySent{false}; // (serverEnd's encode: not the self-test's)
 // (B19) vr_net_posewaits: one client slot's pose records as they went, by entity: how many, the frames each had waited
 // plus one summed, and its weight then summed (the rate's priorities as the server ran them: changed records only, so
@@ -665,7 +679,9 @@ struct PoseWaits
     za::Vector<PoseWait> byEnt;
     za::Vector<za::U8> written; // (serverEnd's encode: the pose records it wrote, by entity)
 };
+// seat-shared: the server's encode
 PoseWaits poseWaits;
+// seat-shared: the server's encode
 int cosmeticWritten{0}; // (encode's last: its cosmetic fragments' entries' bytes)
 
 } // namespace
@@ -915,8 +931,8 @@ bool decode(const Snapshot* base, int bodyLen, Snapshot& out, unsigned pflags, c
             tally[tallyClass] += entryAt - tallyAt; // (the entry before: its bytes to its class)
             if(tallyClass == 1 && tallyOp >= 0)
             {
-                entOps[tallyOp][0]++;
-                entOps[tallyOp][1] += entryAt - tallyAt;
+                seatSnapPoses().entOps[tallyOp][0]++;
+                seatSnapPoses().entOps[tallyOp][1] += entryAt - tallyAt;
             }
             tallyClass = keyClass(key);
             tallyOp = static_cast<int>(head & 3u);
@@ -924,24 +940,24 @@ bool decode(const Snapshot* base, int bodyLen, Snapshot& out, unsigned pflags, c
             const int e = key - poseKey;
             if(op != opGone && e >= 0 && e < 65536)
             {
-                if(e >= static_cast<int>(poseEntries.size()))
+                if(e >= static_cast<int>(seatSnapPoses().poseEntries.size()))
                 {
-                    poseEntries.resize(static_cast<za::SizeT>(e) + 1, 0);
-                    poseDists.resize(static_cast<za::SizeT>(e) + 1, 0.f);
-                    poseWeights.resize(static_cast<za::SizeT>(e) + 1, 0.f);
+                    seatSnapPoses().poseEntries.resize(static_cast<za::SizeT>(e) + 1, 0);
+                    seatSnapPoses().poseDists.resize(static_cast<za::SizeT>(e) + 1, 0.f);
+                    seatSnapPoses().poseWeights.resize(static_cast<za::SizeT>(e) + 1, 0.f);
                 }
-                poseEntries[static_cast<za::SizeT>(e)]++;
+                seatSnapPoses().poseEntries[static_cast<za::SizeT>(e)]++;
                 if(e < cl.num_entities && cl.viewentity > 0 && cl.viewentity < cl.num_entities)
                 {
                     const float* o = cl_entities[e].origin;
                     const float* me = cl_entities[cl.viewentity].origin;
                     const float d[3]{o[0] - me[0], o[1] - me[1], o[2] - me[2]};
                     const float dist = sqrtf(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]);
-                    poseDists[static_cast<za::SizeT>(e)] += dist;
+                    seatSnapPoses().poseDists[static_cast<za::SizeT>(e)] += dist;
                     vec3_t fwd, right, up;
                     AngleVectors(cl.viewangles, fwd, right, up);
                     const float dot = d[0] * fwd[0] + d[1] * fwd[1] + d[2] * fwd[2];
-                    poseWeights[static_cast<za::SizeT>(e)] +=
+                    seatSnapPoses().poseWeights[static_cast<za::SizeT>(e)] +=
                         nearUnits / (nearUnits + dist) * (dot > 0.5f * dist ? aheadWeight : 1.f);
                 }
             }
@@ -1008,8 +1024,8 @@ bool decode(const Snapshot* base, int bodyLen, Snapshot& out, unsigned pflags, c
         tally[tallyClass] += msg_readcount - tallyAt;
         if(tallyClass == 1 && tallyOp >= 0)
         {
-            entOps[tallyOp][0]++;
-            entOps[tallyOp][1] += msg_readcount - tallyAt;
+            seatSnapPoses().entOps[tallyOp][0]++;
+            seatSnapPoses().entOps[tallyOp][1] += msg_readcount - tallyAt;
         }
     }
     return msg_readcount == end && !msg_badread;
@@ -1046,6 +1062,7 @@ struct ServerSlot
     int sentHead{0}; // the next to write
     double nextSendAt{-1.0}; // (B13c, vr_net_sendhz) his next datagram's server time
 };
+// seat-shared: the server's, each player slot's
 za::Vector<ServerSlot> serverSlots;
 
 // Snapshot `sent` (just encoded) into his log: its targets' records and which were written.
@@ -1058,9 +1075,9 @@ void logSent(ServerSlot& s, const Snapshot& sent)
     l.fresh.clear();
     for(const Record& r : sent.records)
     {
-        const int cls = keyClass(r.key);
-        const int e = cls == 1 ? r.key : cls == 2 ? r.key - avatarKey : -1;
-        if(e <= 0 || e >= qcvm->num_edicts || (cls == 1 && !(static_cast<int>(EDICT_NUM(e)->v.flags) & (FL_MONSTER | FL_CLIENT))))
+        const int klass = keyClass(r.key);
+        const int e = klass == 1 ? r.key : klass == 2 ? r.key - avatarKey : -1;
+        if(e <= 0 || e >= qcvm->num_edicts || (klass == 1 && !(static_cast<int>(EDICT_NUM(e)->v.flags) & (FL_MONSTER | FL_CLIENT))))
         {
             continue;
         }
@@ -1075,22 +1092,22 @@ constexpr int netHeader = 8;       // NetQuake's datagram header (the bytes his 
 // A record's index in his waits (-1: his own state, never waiting): entities, avatars, poses by entity.
 [[nodiscard]] int waitIndex(int key)
 {
-    const int cls = keyClass(key);
+    const int klass = keyClass(key);
     const int ents = qcvm ? qcvm->max_edicts : 0;
-    const int e = cls == 1 ? key : cls == 2 ? key - avatarKey : cls == 4 ? key - poseKey : cls == 5 ? key - ragKey : -1;
+    const int e = klass == 1 ? key : klass == 2 ? key - avatarKey : klass == 4 ? key - poseKey : klass == 5 ? key - ragKey : -1;
     if(e < 0 || e >= ents)
     {
         return -1;
     }
-    return (cls == 1 ? 0 : cls == 2 ? 1 : cls == 4 ? 2 : 3) * ents + e;
+    return (klass == 1 ? 0 : klass == 2 ? 1 : klass == 4 ? 2 : 3) * ents + e;
 }
 constexpr int waitKinds = 4; // (waitIndex's: entities, avatars, poses, ragdolls)
 
 // A record's weight for the player at `eye` looking along `fwd`: nearer and ahead first.
 [[nodiscard]] float weightOf(int key, const float eye[3], const float fwd[3])
 {
-    const int cls = keyClass(key);
-    const int e = cls == 1 ? key : cls == 2 ? key - avatarKey : cls == 5 ? key - ragKey : key - poseKey;
+    const int klass = keyClass(key);
+    const int e = klass == 1 ? key : klass == 2 ? key - avatarKey : klass == 5 ? key - ragKey : key - poseKey;
     if(e <= 0 || e >= qcvm->num_edicts)
     {
         return 1.f;
@@ -1106,7 +1123,7 @@ constexpr int waitKinds = 4; // (waitIndex's: entities, avatars, poses, ragdolls
     const float dist = sqrtf(len2);
     float w = nearUnits / (nearUnits + dist);
     w *= dot > 0.5f * dist ? aheadWeight : 1.f;
-    w *= cls == 2 ? aheadWeight : 1.f;
+    w *= klass == 2 ? aheadWeight : 1.f;
     return w;
 }
 
@@ -1127,6 +1144,7 @@ struct Building
     int chargeSlot{-1};        // the slot whose datagram serverCharge charges (serverEnd's)
     double most{0.0};          // (his bucket's size: serverBegin's)
 };
+// seat-shared: the server's encode
 Building building;
 
 // (ragsync) The ragdolls' changed records under vr_net_ragdoll_bytes a snapshot: the highest priorities (near, ahead,
@@ -1227,8 +1245,8 @@ void holdPlayers(const Snapshot* base, za::U32 seq)
     const int own = bl.client && bl.client->edict ? NUM_FOR_EDICT(bl.client->edict) : 0;
     for(Record& r : bl.cur.records)
     {
-        const int cls = keyClass(r.key);
-        const int e = cls == 1 ? r.key : cls == 2 ? r.key - avatarKey : -1;
+        const int klass = keyClass(r.key);
+        const int e = klass == 1 ? r.key : klass == 2 ? r.key - avatarKey : -1;
         const Record* b = e >= 1 && e <= svs.maxclients && e != own ? findKey(*base, r.key) : nullptr;
         if(b)
         {
@@ -1614,7 +1632,14 @@ struct ClientState
     bool wantsWhole{false}; // a demo begun: 0 acknowledged until a whole one comes (the demo's start, vr_netsnap.hpp)
     ClientCounts counts;
 };
-ClientState clientState;
+struct SeatNetSnap // the seat's (seat::Part::NetSnap; splitscreen phase 5)
+{
+    ClientState clientState;
+};
+SeatNetSnap& seatNetSnap()
+{
+    return qvr::seat::part<SeatNetSnap>(qvr::seat::current(), qvr::seat::Part::NetSnap);
+}
 
 // What this client read, by kind (noteMessage, noteCommand; B12's byte table).
 struct ByteCounts
@@ -1626,7 +1651,14 @@ struct ByteCounts
     bool reliableMsg{false};
     int openAt{-1}, openCmd{0}, openSub{0}; // the command being read: where it began
 };
-ByteCounts byteCounts;
+struct SeatNetSnapBytes // the seat's (seat::Part::NetSnapBytes; splitscreen phase 5)
+{
+    ByteCounts byteCounts;
+};
+SeatNetSnapBytes& seatSnapBytes()
+{
+    return qvr::seat::part<SeatNetSnapBytes>(qvr::seat::current(), qvr::seat::Part::NetSnapBytes);
+}
 
 // ---- The interpolation buffer ----------------------------------------------------------------------------------------
 
@@ -1672,11 +1704,18 @@ struct Interp
     double delay{0.0};
     int holds{0};         // frames the draw time slowed near the newest message (a gap longer than the delay)
 };
-Interp interp;
+struct SeatNetSnapInterp // the seat's (seat::Part::NetSnapInterp; splitscreen phase 5)
+{
+    Interp interp;
+};
+SeatNetSnapInterp& seatSnapInterp()
+{
+    return qvr::seat::part<SeatNetSnapInterp>(qvr::seat::current(), qvr::seat::Part::NetSnapInterp);
+}
 
 void interpArrive(double t)
 {
-    Interp& ip = interp;
+    Interp& ip = seatSnapInterp().interp;
     if(!ip.valid || za::abs(t - ip.est) > snapAfter)
     {
         ip.valid = true;
@@ -1696,7 +1735,7 @@ void interpArrive(double t)
 // Entity `e`'s place in snapshot `seq` (the one read before it: `prevSeq`) into its history.
 void interpNote(int e, za::U32 prevSeq, za::U32 seq, bool fresh)
 {
-    Interp& ip = interp;
+    Interp& ip = seatSnapInterp().interp;
     if(e <= 0 || e >= cl.num_entities)
     {
         return;
@@ -1745,7 +1784,7 @@ void interpNote(int e, za::U32 prevSeq, za::U32 seq, bool fresh)
 void apply(const Snapshot& s, za::U32 prevSeq, za::U32 seq)
 {
     netrag::clientSnapshotBegin();
-    ClientCounts& counts = clientState.counts;
+    ClientCounts& counts = seatNetSnap().clientState.counts;
     const sizebuf_t savedMsg = net_message;
     const int savedCount = msg_readcount;
     const qboolean savedBad = msg_badread;
@@ -1795,12 +1834,12 @@ void apply(const Snapshot& s, za::U32 prevSeq, za::U32 seq)
 
 za::U32 clientAck()
 {
-    return clientState.wantsWhole ? 0u : clientState.last;
+    return seatNetSnap().clientState.wantsWhole ? 0u : seatNetSnap().clientState.last;
 }
 
 void clientWantWhole()
 {
-    clientState.wantsWhole = clientState.last != 0;
+    seatNetSnap().clientState.wantsWhole = seatNetSnap().clientState.last != 0;
 }
 
 void parse()
@@ -1812,7 +1851,7 @@ void parse()
         msg_badread = true; // (CL_ParseServerMessage: a bad server message)
         return;
     }
-    ClientState& c = clientState;
+    ClientState& c = seatNetSnap().clientState;
     const int bodyStart = msg_readcount;
     bool ok = seq > c.last && dist < static_cast<za::U32>(ring);
     const Snapshot* base = nullptr;
@@ -1829,7 +1868,7 @@ void parse()
         trend = Trend{&c.snaps[older % ring], static_cast<int>(seq - base->seq), static_cast<int>(base->seq - older)};
     }
     Snapshot& out = c.snaps[seq % ring];
-    ok = ok && decode(base, static_cast<int>(len), out, cl.protocolflags, trend.older ? &trend : nullptr, byteCounts.snap);
+    ok = ok && decode(base, static_cast<int>(len), out, cl.protocolflags, trend.older ? &trend : nullptr, seatSnapBytes().byteCounts.snap);
     out.baseSeq = ok && base ? base->seq : 0u;
     msg_readcount = bodyStart + static_cast<int>(len);
     msg_badread = false;
@@ -1863,14 +1902,14 @@ void parse()
 void clientClear()
 {
     netrag::clientClear();
-    ClientState& c = clientState;
+    ClientState& c = seatNetSnap().clientState;
     c.last = 0;
     for(Snapshot& s : c.snaps)
     {
         s.clear();
     }
-    interp.valid = false;
-    for(History& h : interp.of)
+    seatSnapInterp().interp.valid = false;
+    for(History& h : seatSnapInterp().interp.of)
     {
         h.n = 0;
         h.model = nullptr;
@@ -1880,17 +1919,18 @@ void clientClear()
 namespace
 {
 // Forgotten when the client's state is cleared (vr_mem.hpp's resets): no snapshot read: the server's next whole, B7b; the interpolation buffer empty.
+// seat-shared: the reset hook (it clears the current seat's)
 mem::Reset clientStateReset{"netsnap", mem::ResetEvent::ClientState, mem::ResetPhase::State, &clientClear};
 } // namespace
 
 ClientCounts clientCounts()
 {
-    return clientState.counts;
+    return seatNetSnap().clientState.counts;
 }
 
 void noteMessage(int kind)
 {
-    ByteCounts& b = byteCounts;
+    ByteCounts& b = seatSnapBytes().byteCounts;
     b.reliableMsg = kind == 1;
     b.openAt = -1;
     b.messages++;
@@ -1899,7 +1939,7 @@ void noteMessage(int kind)
 
 void noteCommand(int at)
 {
-    ByteCounts& b = byteCounts;
+    ByteCounts& b = seatSnapBytes().byteCounts;
     if(b.openAt >= 0 && at > b.openAt && !b.reliableMsg)
     {
         (b.openCmd == protocol::svc_quakevr ? b.qvr[b.openSub] : b.svc[b.openCmd]) += at - b.openAt;
@@ -1915,8 +1955,8 @@ void noteCommand(int at)
 
 void bytesReset()
 {
-    byteCounts = ByteCounts{};
-    memset(entOps, 0, sizeof(entOps));
+    seatSnapBytes().byteCounts = ByteCounts{};
+    memset(seatSnapPoses().entOps, 0, sizeof(seatSnapPoses().entOps));
 }
 
 // "mp_netbytes:" the bytes read since the connection (or `vr_net_bytes reset`): reliable and unreliable, the unreliable
@@ -1925,7 +1965,7 @@ void bytesReset()
 // snapshot's entity entries by op (ent_ops: gone, whole, byte by byte, by fields; each count/bytes).
 void bytesReport()
 {
-    const ByteCounts& b = byteCounts;
+    const ByteCounts& b = seatSnapBytes().byteCounts;
     long long snapEntries = 0;
     for(const long long n : b.snap)
     {
@@ -1969,19 +2009,19 @@ void bytesReport()
                "voice=%lld rest=%lld top=%s%d:%lld,%s%d:%lld,%s%d:%lld ent_ops=%lld/%lld,%lld/%lld,%lld/%lld,%lld/%lld\n",
         b.messages, b.reliable, b.unreliable, snap, b.snap[0], b.snap[1], b.snap[2], b.snap[3], b.snap[4], b.snap[5],
         snap - snapEntries, pose, avatar, ent, cd, sound, tent, voice, rest, top[0] >= 256 ? "q" : "", top[0] & 255, topN[0],
-        top[1] >= 256 ? "q" : "", top[1] & 255, topN[1], top[2] >= 256 ? "q" : "", top[2] & 255, topN[2], entOps[0][0], entOps[0][1],
-        entOps[1][0], entOps[1][1], entOps[2][0], entOps[2][1], entOps[3][0], entOps[3][1]);
+        top[1] >= 256 ? "q" : "", top[1] & 255, topN[1], top[2] >= 256 ? "q" : "", top[2] & 255, topN[2], seatSnapPoses().entOps[0][0], seatSnapPoses().entOps[0][1],
+        seatSnapPoses().entOps[1][0], seatSnapPoses().entOps[1][1], seatSnapPoses().entOps[2][0], seatSnapPoses().entOps[2][1], seatSnapPoses().entOps[3][0], seatSnapPoses().entOps[3][1]);
 }
 
 bool interpActive()
 {
-    return interp.valid && vr_net_interp.value != 0.f && clientState.last != 0 && cls.state == ca_connected &&
+    return seatSnapInterp().interp.valid && vr_net_interp.value != 0.f && seatNetSnap().clientState.last != 0 && cls.state == ca_connected &&
            !cls.demoplayback;
 }
 
 void interpFrame()
 {
-    Interp& ip = interp;
+    Interp& ip = seatSnapInterp().interp;
     if(!interpActive())
     {
         ip.lastReal = realtime;
@@ -2012,7 +2052,7 @@ void interpFrame()
 
 bool interpEntity(int num, float origin[3], float angles[3])
 {
-    const Interp& ip = interp;
+    const Interp& ip = seatSnapInterp().interp;
     if(!interpActive() || num == cl.viewentity || num <= 0 || num >= static_cast<int>(ip.of.size()))
     {
         return false;
@@ -2073,27 +2113,27 @@ bool interpEntity(int num, float origin[3], float angles[3])
 
 double interpTime()
 {
-    return interp.rt;
+    return seatSnapInterp().interp.rt;
 }
 
 double interpDelayMs()
 {
-    return interp.delay * 1000.0;
+    return seatSnapInterp().interp.delay * 1000.0;
 }
 
 int interpHolds()
 {
-    return interp.holds;
+    return seatSnapInterp().interp.holds;
 }
 
 double interpNewest()
 {
-    return interp.newest;
+    return seatSnapInterp().interp.newest;
 }
 
 bool interpSample(int num, int back, double& t, float origin[3])
 {
-    const Interp& ip = interp;
+    const Interp& ip = seatSnapInterp().interp;
     if(num <= 0 || num >= static_cast<int>(ip.of.size()))
     {
         return false;
@@ -2118,6 +2158,7 @@ struct SelftestScratch
     Snapshot base, cur, sent, read;
     byte data[4096];
 };
+// seat-shared: the self-test's scratch
 SelftestScratch selftestScratch;
 constexpr unsigned selftestFlags = PRFL_INT32COORD | PRFL_SHORTANGLE; // (Quake VR's server: PROTOCOL_RMQ's)
 
@@ -2578,22 +2619,22 @@ void init()
         if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "reset"))
         {
             bytesReset();
-            poseEntries.clear();
-            poseDists.clear();
-            poseWeights.clear();
+            seatSnapPoses().poseEntries.clear();
+            seatSnapPoses().poseDists.clear();
+            seatSnapPoses().poseWeights.clear();
         }
         bytesReport();
         if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "poses"))
         {
             // (each armed humanoid's pose entries read since the reset, and its mean distance from us at them: the rate's
             // priorities, B12)
-            for(za::SizeT e = 0; e < poseEntries.size(); e++)
+            for(za::SizeT e = 0; e < seatSnapPoses().poseEntries.size(); e++)
             {
-                if(poseEntries[e] > 0)
+                if(seatSnapPoses().poseEntries[e] > 0)
                 {
                     Con_Printf("mp_netprio: ent=%d dist=%.0f entries=%d weight=%.3f\n", static_cast<int>(e),
-                        e < poseDists.size() ? poseDists[e] / static_cast<float>(poseEntries[e]) : 0.f, poseEntries[e],
-                        e < poseWeights.size() ? poseWeights[e] / static_cast<float>(poseEntries[e]) : 0.f);
+                        e < seatSnapPoses().poseDists.size() ? seatSnapPoses().poseDists[e] / static_cast<float>(seatSnapPoses().poseEntries[e]) : 0.f, seatSnapPoses().poseEntries[e],
+                        e < seatSnapPoses().poseWeights.size() ? seatSnapPoses().poseWeights[e] / static_cast<float>(seatSnapPoses().poseEntries[e]) : 0.f);
                 }
             }
             Con_Printf("mp_netprio: done\n");

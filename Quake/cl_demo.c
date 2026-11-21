@@ -38,7 +38,9 @@ read from the demo file.
 */
 
 // from ProQuake: space to fill out the demo header for record at any time
+// seat-shared: one demo recorded or played (seat 0's: the demo's phase)
 static byte		*demo_head;
+// seat-shared: one demo recorded or played (seat 0's: the demo's phase)
 static int		*demo_head_sizes;
 
 // Demo rewinding
@@ -79,7 +81,7 @@ static struct
 		cshift_t	cshift;
 		char		lightstyles[MAX_LIGHTSTYLES][MAX_STYLESTRING];
 	}				prev;
-}					demo_rewind;
+}					demo_rewind; // seat-shared: one demo recorded or played (seat 0's: the demo's phase)
 
 /*
 ==============

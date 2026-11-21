@@ -10,6 +10,8 @@
 #include "vr_grip.hpp"
 #include "vr_hands.hpp"
 #include "vr_handsource.hpp"
+#include "vr_netsnap.hpp"
+#include "vr_predict.hpp"
 #include "vr_testkit.hpp"
 #include "vr_throw.hpp"
 #include "vr_visor.hpp"
@@ -30,7 +32,16 @@ struct Seats
     Seat all[maxSeats] = {{0}, {1}, {2}, {3}};
     Seat* cur = &all[0];
     int inPlay = 1;
+    clientseat_t net0{};                        // seat 0's client: the game's (CL_Init's, Host_Init's), as before
+    za::UniquePtr<clientseat_t> nets[maxSeats]; // seats 1-3's, made on first use (~3 MB each: the entity tables)
 } seats; // seat-shared: the seats' owner
+
+// Makes a seat current: its input, keys, view... and its client (cl_seat: client.h's cl, cls and entity tables).
+void makeCurrent(Seat& s)
+{
+    seats.cur = &s;
+    cl_seat = &netOf(s);
+}
 
 // seat <1-4> <command>: runs a command as that seat (its bindings: "seat 2 bind YBUTTON +jump"; its buttons)
 void seat_f()
@@ -477,6 +488,65 @@ void testHands()
     check(none3, "seat 3 has none of the hands' parts made (no code of them ran as seat 3)");
 }
 
+// Phase 5: each seat its own client. cl, cls and the entity tables follow the current seat (cl_seat: a scope, C's
+// CL_SeatSet); a fresh seat's is disconnected, its message buffer its own, its client world empty; what seat 1 writes
+// leaves seat 0's as it was; the VR client's parts (the prediction's totals, the snapshots' interpolation) each seat's.
+void testNet()
+{
+    Seat& s0 = at(0);
+    Seat& s1 = at(1);
+    const auto slot = [](Seat& s, const Part p) { return s.parts[static_cast<int>(p)].get(); };
+    clientseat_t* const n0 = &netOf(s0);
+    check(cl_seat == n0 && &cl == &n0->cstate && &cls == &n0->cstatic, "seat 0's client is the current one");
+    const cactive_t state0 = cls.state;
+    const int msg0 = cls.message.cursize;
+    const double time0 = cl.time;
+    const int vis0 = cl_numvisedicts;
+    const float radius0 = cl_dlights[0].radius;
+    entity_t* const ents0 = cl_entities;
+    za::U64 n = 0;
+    double sum = 0.0;
+    predict::correctionTotals(n, sum);
+    (void)netsnap::interpActive();
+    {
+        const Scope in1(s1);
+        clientseat_t* const n1 = &netOf(s1);
+        check(cl_seat == n1 && n1 != n0 && &cl == &n1->cstate && &cl_dlights[0] == &n1->dlights[0],
+              "a scope makes seat 1's client current");
+        check(cls.state == ca_disconnected && cls.demonum == -1 && cls.message.data == n1->messagebuf &&
+                  cls.message.maxsize == static_cast<int>(sizeof(n1->messagebuf)) && !cls.netcon && cls.signon == 0,
+              "a fresh seat's client: disconnected, out of the demo loop, its own message buffer");
+        check(cl_entities == nullptr && cl_numvisedicts == 0 && cl.time == 0.0 && cl.worldmodel == nullptr,
+              "a fresh seat's client world: empty");
+        cl.time = time0 + 123.0;
+        cl_numvisedicts = vis0 + 5;
+        cl_dlights[0].radius = radius0 + 9.f;
+        MSG_WriteByte(&cls.message, clc_nop);
+        za::U64 n1c = 1;
+        double s1c = 1.0;
+        predict::correctionTotals(n1c, s1c);
+        check(n1c == 0 && s1c == 0.0 && !netsnap::interpActive(),
+              "seat 1's prediction totals and interpolation: its own, empty");
+        const int was = CL_SeatSet(0);
+        check(cl_seat == n0 && cl.time == time0, "CL_SeatSet(0) makes seat 0's client current (C's way)");
+        CL_SeatSet(was);
+        check(cl_seat == n1 && cl.time == time0 + 123.0 && cls.message.cursize == 1, "... and seat 1's again after");
+        cl.time = 0.0; // (seat 1's left fresh: the test runs again the same)
+        cl_numvisedicts = 0;
+        cl_dlights[0].radius = 0.f;
+        SZ_Clear(&cls.message);
+    }
+    check(cl_seat == n0 && cls.state == state0 && cls.message.cursize == msg0 && cl.time == time0 &&
+              cl_numvisedicts == vis0 && cl_dlights[0].radius == radius0 && cl_entities == ents0,
+          "seat 0's client unchanged by seat 1's writes (state, message, time, visible entities, lights, entities)");
+    bool apart = true;
+    for(const Part p : {Part::PredictTotals, Part::NetSnapInterp})
+    {
+        apart = apart && slot(s0, p) != nullptr && slot(s1, p) != nullptr && slot(s0, p) != slot(s1, p);
+    }
+    check(apart, "the prediction's totals and the snapshots' interpolation: each seat's own part");
+}
+
 // vr_seat_test [2]: phase 1's buttons, phase 2's bindings and devices; then (2, queued by the first) the queued binds'
 // seats and the verdict "seat_test: N passed, M failed". No map needed.
 void test_f()
@@ -493,6 +563,7 @@ void test_f()
     testViewHud();
     testFlat();
     testHands();
+    testNet();
 }
 
 } // namespace
@@ -517,14 +588,32 @@ void setInPlay(const int n)
     seats.inPlay = n < 1 ? 1 : n > maxSeats ? maxSeats : n;
 }
 
+clientseat_t& netOf(Seat& s)
+{
+    if(!s.net)
+    {
+        if(s.index == 0)
+        {
+            s.net = &seats.net0;
+        }
+        else
+        {
+            seats.nets[s.index] = za::makeUnique<clientseat_t>();
+            s.net = seats.nets[s.index].get();
+            CL_SeatNetReady(s.net);
+        }
+    }
+    return *s.net;
+}
+
 Scope::Scope(Seat& s) : prev_(seats.cur)
 {
-    seats.cur = &s;
+    makeCurrent(s);
 }
 
 Scope::~Scope()
 {
-    seats.cur = prev_;
+    makeCurrent(*prev_);
 }
 
 void registerCommands()
@@ -575,9 +664,18 @@ extern "C" int CL_SeatIndex()
 extern "C" int CL_SeatSet(const int seat)
 {
     const int was = CL_SeatIndex();
-    qvr::seat::seats.cur = &qvr::seat::at(seat);
+    qvr::seat::makeCurrent(qvr::seat::at(seat));
     return was;
 }
+
+extern "C" clientseat_t* CL_SeatNetOf(const int seat)
+{
+    return &qvr::seat::netOf(qvr::seat::at(seat));
+}
+
+// The current seat's client (client.h's cl, cls, entity tables): seat 0's until a scope moves it (constant-initialized:
+// the game's C code reads it from its first frame).
+extern "C" clientseat_t* cl_seat = &qvr::seat::seats.net0; // seat-shared: which seat's client is current
 
 extern "C" int CL_SeatCount()
 {

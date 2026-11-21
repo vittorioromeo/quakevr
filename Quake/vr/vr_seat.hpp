@@ -68,6 +68,20 @@ enum class Part
     ToolgunGhosts, // vr_toolgun.cpp: the toolgun's ghosts (held, looked at)
     ToolgunBrush, // vr_toolgun_brush.cpp: the Brush tool's state
     ToolgunPanel, // vr_toolgun_panel.cpp: the toolgun's panel
+    ClientButtons, // vr_client.cpp: the hands' buttons as the move reads them
+    ClientThrown,  // vr_client.cpp: the grabs and the throws' estimates the move sends
+    ClientEntities,// vr_client.cpp: the client world's VR data by entity, the late brush models
+    ClientUnposed, // vr_client.cpp: the weapon posing mode's held move
+    ClientPrefs,   // vr_clientprefs.cpp: the preferences sent to the server
+    NetMove,       // vr_netmove.cpp: the client's moves sent and acknowledged
+    NetRagdoll,    // vr_netragdoll.cpp: the client's ragdolls from the server
+    NetSnapPoses,  // vr_netsnap.cpp: the client's tallies of the entries read (vr_net_bytes)
+    NetSnap,       // vr_netsnap.cpp: the client's snapshots read (the base, the acks)
+    NetSnapBytes,  // vr_netsnap.cpp: the client's bytes read by command
+    NetSnapInterp, // vr_netsnap.cpp: the client's interpolation between snapshots
+    Predict,       // vr_predict.cpp: the client's prediction (its moves replayed, the error's decay)
+    PredictTotals, // vr_predict.cpp: the prediction's correction totals
+    VoiceListen,   // vr_voicechat.cpp: what the client told the server it hears
     Count
 };
 
@@ -96,6 +110,7 @@ struct Seat
     seatkeys_t keys{};   // the keys held, the bindings, the mouse's motion (keys.c, in_sdl.c; C: Key_Seat)
     seatview_t view = freshView(); // the view's state and window area (view.c, gl_screen.c; C: V_SeatView)
     seathud_t hud{};     // the centre print, the scores shown (gl_screen.c, sbar.c; C: SCR_SeatHud)
+    clientseat_t* net = nullptr; // cls, cl, the entity tables (client.h; C: cl_seat, the current seat's): netOf() makes it
     za::UniquePtr<PartBase> parts[static_cast<int>(Part::Count)]; // the VR files' own (part<T>)
 };
 
@@ -112,6 +127,8 @@ template <typename T>
 
 Seat& current();   // the seat the running code is for (seat 0 outside a seat loop)
 Seat& at(int i);   // seat i, 0..maxSeats-1 (clamped)
+clientseat_t& netOf(Seat& s); // the seat's client (cls, cl, the entity tables): seat 0's the game's, the others made ready
+                              // on first use (client.h; phase 5)
 int inPlay();      // seats in play: 1 until the seat loop (phase 6)
 void setInPlay(int n); // 1..maxSeats: the seat loop's (phase 6); today vr_seat_test's, which sets it back
 

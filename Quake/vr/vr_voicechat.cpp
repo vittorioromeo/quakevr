@@ -1,4 +1,5 @@
 #include "vr_alloccount.h"
+#include "vr_seat.hpp"
 // vr_voicechat.cpp -- see vr_voicechat.hpp (the client: capture, encoding, sending, receiving, playing out, indicators;
 // the server's relay: vr_voicerelay.cpp).
 
@@ -117,8 +118,11 @@ struct Capture
     bool firstSaid = false;
     float level = 0.f; // the last frame's RMS (0..1)
 };
+// seat-shared: the PC's one microphone
 Capture cap;
+// seat-shared: the PC's one microphone
 bool pttHeld = false;
+// seat-shared: the PC's one microphone
 bool pttByHand = false;
 
 // What this client last told the server it hears (vr_voicechat_listen, tellListen): the speakers he muted, his voice
@@ -129,7 +133,14 @@ struct ListenSent
     unsigned muted = 0;
     bool off = false;
 };
-ListenSent listenSent;
+struct SeatVoiceListen // the seat's (seat::Part::VoiceListen; splitscreen phase 5)
+{
+    ListenSent listenSent;
+};
+SeatVoiceListen& seatListen()
+{
+    return qvr::seat::part<SeatVoiceListen>(qvr::seat::current(), qvr::seat::Part::VoiceListen);
+}
 
 } // namespace
 } // namespace qvr::voicechat
@@ -153,6 +164,7 @@ struct MenuText
     char players[MAX_SCOREBOARD][96]{};
     char own[96]{};
 };
+// seat-shared: the voice chat menu's (the menus: phase 9)
 MenuText menuText;
 
 // ---- Receiving -----------------------------------------------------------------------------------------------------
@@ -208,6 +220,7 @@ struct Speaker
     long long received = 0, played = 0, concealed = 0, recovered = 0, late = 0, overflow = 0, skipped = 0, underruns = 0,
               restarts = 0, spurts = 0, dups = 0, stretched = 0;
 };
+// seat-shared: the voices played (the mixer's: phase 8)
 Speaker speakers[MAX_SCOREBOARD];
 
 // Sequence `seq` given out (`how`: 1 its own data, 2 recovered or concealed), the next one due.
@@ -217,6 +230,7 @@ void advance(Speaker& sp, za::U8 how)
     sp.doneHow[sp.nextSeq % jitterSlots] = how;
     sp.nextSeq++;
 }
+// seat-shared: the self-test's
 bool clockOnly = false; // (the self-test: the play-out on the clock, no sound)
 
 // The played samples' history (emit), written only while vr_voicechat_report is in use: realtime of its last report.
@@ -224,6 +238,7 @@ struct History
 {
     double askedAt = -1.0;
 };
+// seat-shared: the voices played (the mixer's: phase 8)
 History history;
 
 [[nodiscard]] bool historyOn()
@@ -240,6 +255,7 @@ struct Scratch
     za::I16 capture[4096]{};
     unsigned char packet[maxFrameBytes]{};
 };
+// seat-shared: scratch
 Scratch scratch;
 
 // (the self-test's signals; the report's window)
@@ -247,6 +263,7 @@ struct SelftestScratch
 {
     za::Vector<float> ref, out;
 };
+// seat-shared: the self-test's scratch
 SelftestScratch selftestScratch;
 
 [[nodiscard]] bool active()
@@ -1670,7 +1687,7 @@ void tellListen()
 {
     if(cls.state != ca_connected || cls.signon != SIGNONS || cl.maxclients <= 1 || cls.demoplayback)
     {
-        listenSent.valid = false;
+        seatListen().listenSent.valid = false;
         return;
     }
     unsigned bits = 0;
@@ -1679,13 +1696,13 @@ void tellListen()
         bits |= muted(slot) ? 1u << slot : 0u;
     }
     const bool off = vr_voicechat.value == 0.f;
-    if(listenSent.valid && listenSent.muted == bits && listenSent.off == off)
+    if(seatListen().listenSent.valid && seatListen().listenSent.muted == bits && seatListen().listenSent.off == off)
     {
         return;
     }
     MSG_WriteByte(&cls.message, clc_stringcmd);
     MSG_WriteString(&cls.message, va("vr_voicechat_listen %u %d", bits, off ? 1 : 0));
-    listenSent = ListenSent{true, bits, off};
+    seatListen().listenSent = ListenSent{true, bits, off};
 }
 
 } // namespace

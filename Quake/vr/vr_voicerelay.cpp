@@ -58,6 +58,7 @@ struct Relay
 {
     RelaySlot slot[MAX_SCOREBOARD];
 };
+// seat-shared: the server's relay
 Relay relay;
 
 constexpr int messageHeaderBytes = 4; // [svc_quakevr][QVR_SVC_VOICE][byte slot][byte count]

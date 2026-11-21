@@ -104,6 +104,7 @@ namespace
 {
 
 // The old engine's particle presets' colour picks (vr_particles 0): a stream of their own, not the C library's rand().
+// seat-shared: a random stream (the old particles' colours)
 za::U32 puffState = 0x9E3779B9u;
 
 // QC/vr_defs.qc QVR_VRBITS0_*.
@@ -139,15 +140,22 @@ struct HandButtons
     bool flickReload{false};
 };
 
-HandButtons leftButtons, rightButtons;
-bool offhandAttack = false;
-bool offhandAttackImpulse = false; // pressed and released between two moves
-bool moveLmb = false;              // this move's +attack as cl_input.c read it (VR_MoveMainFire), for the off hand's bit
+struct SeatClientButtons // the seat's (seat::Part::ClientButtons; splitscreen phase 5)
+{
+    HandButtons leftButtons, rightButtons;
+    bool offhandAttack = false;
+    bool offhandAttackImpulse = false; // pressed and released between two moves
+    bool moveLmb = false;              // this move's +attack as cl_input.c read it (VR_MoveMainFire), for the off hand's bit
+};
+SeatClientButtons& seatButtons()
+{
+    return qvr::seat::part<SeatClientButtons>(qvr::seat::current(), qvr::seat::Part::ClientButtons);
+}
 
 // HAND_OFF is the left controller (vr_backend.hpp).
 [[nodiscard]] HandButtons& handButtons(int hand)
 {
-    return hand == HAND_OFF ? leftButtons : rightButtons;
+    return hand == HAND_OFF ? seatButtons().leftButtons : seatButtons().rightButtons;
 }
 
 // Whether a hand grips: its controller's grip key, or a flatscreen hand, which is closed. -flatscreenmode has no grip
@@ -169,12 +177,12 @@ bool moveLmb = false;              // this move's +attack as cl_input.c read it 
         expr = false;                            \
     }
 
-QVR_BUTTON_COMMANDS(GrabLeft, leftButtons.grab)
-QVR_BUTTON_COMMANDS(GrabRight, rightButtons.grab)
-QVR_BUTTON_COMMANDS(ReloadLeft, leftButtons.reload)
-QVR_BUTTON_COMMANDS(ReloadRight, rightButtons.reload)
-QVR_BUTTON_COMMANDS(FlickReloadLeft, leftButtons.flickReload)
-QVR_BUTTON_COMMANDS(FlickReloadRight, rightButtons.flickReload)
+QVR_BUTTON_COMMANDS(GrabLeft, seatButtons().leftButtons.grab)
+QVR_BUTTON_COMMANDS(GrabRight, seatButtons().rightButtons.grab)
+QVR_BUTTON_COMMANDS(ReloadLeft, seatButtons().leftButtons.reload)
+QVR_BUTTON_COMMANDS(ReloadRight, seatButtons().rightButtons.reload)
+QVR_BUTTON_COMMANDS(FlickReloadLeft, seatButtons().leftButtons.flickReload)
+QVR_BUTTON_COMMANDS(FlickReloadRight, seatButtons().rightButtons.flickReload)
 
 // By role rather than side: what the controller keys are bound to (quakevr/default.cfg).
 QVR_BUTTON_COMMANDS(GrabMain, handButtons(HAND_MAIN).grab)
@@ -186,23 +194,30 @@ QVR_BUTTON_COMMANDS(ReloadOff, handButtons(HAND_OFF).reload)
 
 void OffhandAttackDown_f()
 {
-    offhandAttack = true;
-    offhandAttackImpulse = true;
+    seatButtons().offhandAttack = true;
+    seatButtons().offhandAttackImpulse = true;
 }
 
 void OffhandAttackUp_f()
 {
-    offhandAttack = false;
+    seatButtons().offhandAttack = false;
 }
 
 // ----------------------------------------------------------------------------
 // Move
 
-bool wasGrabbing[2]{false, false};
 
 // The throw estimate taken when each hand let go.
-bool thrownValid[2]{false, false};
-throwing::Estimate thrown[2];
+struct SeatClientThrown // the seat's (seat::Part::ClientThrown; splitscreen phase 5)
+{
+    bool wasGrabbing[2]{false, false};
+    bool thrownValid[2]{false, false};
+    throwing::Estimate thrown[2];
+};
+SeatClientThrown& seatThrown()
+{
+    return qvr::seat::part<SeatClientThrown>(qvr::seat::current(), qvr::seat::Part::ClientThrown);
+}
 
 // A gun carried by its pump (the hand-off) has no aim, so the view gives it no muzzle; the melee and the parry
 // (QC vr_melee.qc) need its line all the same. Each weapon's muzzle is kept in the frame of the hand holding it
@@ -212,6 +227,7 @@ struct MuzzleOffset
     bool valid = false;
     glm::vec3 local{0.f};
 };
+// seat-shared: the weapons' settings
 za::Vector<MuzzleOffset> muzzleOffsets; // slot * 2 + mirrored
 
 // The throw estimate hand `h`'s move carries (buildMove) and `latest`, its newest sample's time. Every move carries one:
@@ -221,18 +237,18 @@ za::Vector<MuzzleOffset> muzzleOffsets; // slot * 2 + mirrored
 {
     const bool grabbing = gripping(h);
     latest = throwing::latestTime(h);
-    if(wasGrabbing[h] && !grabbing)
+    if(seatThrown().wasGrabbing[h] && !grabbing)
     {
         const double at = throwing::releaseAt(h);
-        if(!held::bothHandsThrow(h, at, true, thrown[h])) // a prop held in both hands: its own motion
+        if(!held::bothHandsThrow(h, at, true, seatThrown().thrown[h])) // a prop held in both hands: its own motion
         {
-            thrown[h] = throwing::release(1 << h, at);
+            seatThrown().thrown[h] = throwing::release(1 << h, at);
         }
-        thrownValid[h] = true;
+        seatThrown().thrownValid[h] = true;
 
         if(vr_debug_throw.value)
         {
-            const throwing::Estimate& e = thrown[h];
+            const throwing::Estimate& e = seatThrown().thrown[h];
             Con_Printf("throw %s: %.2f m/s (%.2f %.2f %.2f), spin %.1f rad/s, hand now %.2f m/s\n",
                 h == HAND_MAIN ? "main" : "off", glm::length(e.vel), e.vel.x, e.vel.y, e.vel.z,
                 glm::length(e.angVel), glm::length(hs.vel[h]));
@@ -251,14 +267,14 @@ za::Vector<MuzzleOffset> muzzleOffsets; // slot * 2 + mirrored
     }
     if(grabbing)
     {
-        thrownValid[h] = false;
+        seatThrown().thrownValid[h] = false;
     }
-    wasGrabbing[h] = grabbing;
+    seatThrown().wasGrabbing[h] = grabbing;
 
     throwing::Estimate e;
-    if(thrownValid[h])
+    if(seatThrown().thrownValid[h])
     {
-        e = thrown[h];
+        e = seatThrown().thrown[h];
     }
     else if(!held::bothHandsThrow(h, latest, false, e))
     {
@@ -320,7 +336,14 @@ za::Vector<MuzzleOffset> muzzleOffsets; // slot * 2 + mirrored
 }
 
 // The weapon posing mode's held move: the hands as they were when it began (buildMove, the client's frame).
-VrMove unposed;
+struct SeatClientUnposed // the seat's (seat::Part::ClientUnposed; splitscreen phase 5)
+{
+    VrMove unposed;
+};
+SeatClientUnposed& seatUnposed()
+{
+    return qvr::seat::part<SeatClientUnposed>(qvr::seat::current(), qvr::seat::Part::ClientUnposed);
+}
 
 // buildMove's phases: a hand's part of the move.
 void handMove(VrMove& move, const hands::State& hs, int h)
@@ -413,12 +436,12 @@ void setButtons(VrMove& move)
 {
     // Flatscreen play routes the mouse's buttons by what the hands hold (flatplay::routeFire: one weapon, the right
     // button is the ironsight's and fires nothing).
-    const bool rmb = offhandAttack || offhandAttackImpulse;
-    if(flatplay::active() ? flatplay::routeFire(moveLmb, rmb).fire[HAND_OFF] : rmb)
+    const bool rmb = seatButtons().offhandAttack || seatButtons().offhandAttackImpulse;
+    if(flatplay::active() ? flatplay::routeFire(seatButtons().moveLmb, rmb).fire[HAND_OFF] : rmb)
     {
         move.buttons |= QVR_BUTTON_OFFHANDATTACK;
     }
-    offhandAttackImpulse = false;
+    seatButtons().offhandAttackImpulse = false;
 
     if(vrActive() || flatplay::active())
     {
@@ -465,43 +488,43 @@ void poseMove(VrMove& move)
     const bool flying = flycam::on();
     if(posing::active() || flying)
     {
-        const glm::vec3 walked = move.origin - unposed.origin;
+        const glm::vec3 walked = move.origin - seatUnposed().unposed.origin;
         for(int h = 0; h < HAND_COUNT; h++)
         {
             VrHandMove& hand = move.hands[h];
-            hand = unposed.hands[h];
+            hand = seatUnposed().unposed.hands[h];
             hand.pos += walked;
             hand.tracked += walked;
             hand.throwPos += walked;
             hand.vel = hand.throwVel = hand.angVel = hand.throwFlick = hand.ownVel = glm::vec3{0.f};
             hand.velMag = 0.f;
-            move.hotspots[h] = unposed.hotspots[h];
-            move.muzzlePos[h] = unposed.muzzlePos[h] + walked;
-            move.loadPort[h] = unposed.loadPort[h] + walked;
-            move.loadPortAxis[h] = unposed.loadPortAxis[h];
-            move.loadPortFace[h] = unposed.loadPortFace[h];
-            move.launchOfs[h] = unposed.launchOfs[h];
+            move.hotspots[h] = seatUnposed().unposed.hotspots[h];
+            move.muzzlePos[h] = seatUnposed().unposed.muzzlePos[h] + walked;
+            move.loadPort[h] = seatUnposed().unposed.loadPort[h] + walked;
+            move.loadPortAxis[h] = seatUnposed().unposed.loadPortAxis[h];
+            move.loadPortFace[h] = seatUnposed().unposed.loadPortFace[h];
+            move.launchOfs[h] = seatUnposed().unposed.launchOfs[h];
             for(int i = 0; i < 4; i++)
             {
-                move.magBox[h][i] = unposed.magBox[h][i];
+                move.magBox[h][i] = seatUnposed().unposed.magBox[h][i];
             }
-            if(unposed.magBox[h][1] != glm::vec3{0.f})
+            if(seatUnposed().unposed.magBox[h][1] != glm::vec3{0.f})
             {
                 move.magBox[h][0] += walked;
             }
-            move.shotRot[h] = unposed.shotRot[h];
+            move.shotRot[h] = seatUnposed().unposed.shotRot[h];
         }
         // (Flying, also the state he stands in: two-handed aim, the flatscreen bits, the crouch held.)
         const int kept = VRBITS0_OFFHAND_GRABBING | VRBITS0_MAINHAND_GRABBING | VRBITS0_OFFHAND_RELOADING |
                          VRBITS0_MAINHAND_RELOADING |
                          (flying ? VRBITS0_2H_AIMING | VRBITS0_FLATPLAY | VRBITS0_FLATCROUCH : 0);
-        move.vrBits0 = static_cast<za::U16>(unposed.vrBits0 & kept);
+        move.vrBits0 = static_cast<za::U16>(seatUnposed().unposed.vrBits0 & kept);
         move.buttons &= ~(QVR_BUTTON_OFFHANDATTACK | QVR_BUTTON_OFFHANDSECONDARY | QVR_BUTTON_MAINHANDSECONDARY |
                           QVR_BUTTON_OFFHANDPRIMARY | QVR_BUTTON_MAINHANDPRIMARY);
     }
     else
     {
-        unposed = move;
+        seatUnposed().unposed = move;
     }
 }
 
@@ -597,19 +620,27 @@ void poseMove(VrMove& move)
 // ----------------------------------------------------------------------------
 // Per-entity VR data
 
-za::Vector<client::EntityVr> entityData;
 
 // Brush models precached after the map loaded (parsePrecacheModel): not drawn (client::lateBrushModel).
-za::InPlaceVector<const qmodel_t*, 32> lateBrushModels;
+struct SeatClientEntities // the seat's (seat::Part::ClientEntities; splitscreen phase 5)
+{
+    za::Vector<client::EntityVr> entityData;
+    za::InPlaceVector<const qmodel_t*, 32> lateBrushModels;
+};
+SeatClientEntities& seatClientEnts()
+{
+    return qvr::seat::part<SeatClientEntities>(qvr::seat::current(), qvr::seat::Part::ClientEntities);
+}
 
 // This file's own state of the map (the entities' VR data, the late brush models, the thrown hands' samples),
 // forgotten when the client's state is cleared (vr_mem.hpp's resets).
 void forgetClientState()
 {
-    entityData.clear();
-    lateBrushModels.clear();
-    thrownValid[0] = thrownValid[1] = false;
+    seatClientEnts().entityData.clear();
+    seatClientEnts().lateBrushModels.clear();
+    seatThrown().thrownValid[0] = seatThrown().thrownValid[1] = false;
 }
+// seat-shared: the reset hook (it clears the current seat's)
 mem::Reset clientStateReset{"client", mem::ResetEvent::ClientState, mem::ResetPhase::State, &forgetClientState};
 
 [[nodiscard]] bool vrProtocol()
@@ -727,9 +758,9 @@ void parsePrecacheModel()
         // A brush model's lightmaps and vertices are built with the map (R_NewMap): one loaded after is not drawn. The
         // toolgun's are precached with every map (QC VR_Toolgun_Precache).
         Con_DPrintf("late brush model %s: not drawn until the map loads again (precache it at the map's load)\n", name);
-        if(lateBrushModels.size() < lateBrushModels.capacity())
+        if(seatClientEnts().lateBrushModels.size() < seatClientEnts().lateBrushModels.capacity())
         {
-            lateBrushModels.pushBack(model);
+            seatClientEnts().lateBrushModels.pushBack(model);
         }
     }
 }
@@ -761,6 +792,7 @@ struct TestSprite
     double start = 0.0, until = -1.0;
     qmodel_t* model = nullptr;
 };
+// seat-shared: a test's
 TestSprite testSprite;
 
 // vr_particle_test <preset> [count] [distance]: a particle2 preset `distance` units in front of the view (64; tuning,
@@ -906,7 +938,7 @@ bool grabbing(int hand)
 
 bool offhandButton()
 {
-    return offhandAttack;
+    return seatButtons().offhandAttack;
 }
 
 bool attacking(int hand)
@@ -918,19 +950,19 @@ bool attacking(int hand)
     const bool lmb = (seat::current().input.attack.state & 1) != 0;
     if(flatplay::active()) // (the mouse's buttons as flatscreen play routes them)
     {
-        return flatplay::routeFire(lmb, offhandAttack).fire[hand];
+        return flatplay::routeFire(lmb, seatButtons().offhandAttack).fire[hand];
     }
-    return hand == HAND_MAIN ? lmb : offhandAttack;
+    return hand == HAND_MAIN ? lmb : seatButtons().offhandAttack;
 }
 
 const EntityVr* entityVr(int num)
 {
-    if(!vrProtocol() || num < 0 || num >= static_cast<int>(entityData.size()))
+    if(!vrProtocol() || num < 0 || num >= static_cast<int>(seatClientEnts().entityData.size()))
     {
         return nullptr;
     }
 
-    return &entityData[num];
+    return &seatClientEnts().entityData[num];
 }
 
 bool roomForCommand(int n)
@@ -950,7 +982,7 @@ int entityNumber(const entity_t* e, int limit)
 
 bool lateBrushModel(const qmodel_t* model)
 {
-    for(const qmodel_t* m : lateBrushModels)
+    for(const qmodel_t* m : seatClientEnts().lateBrushModels)
     {
         if(m == model)
         {
@@ -1007,12 +1039,12 @@ extern "C" void VR_OnClientClearState()
 
 extern "C" int VR_MoveMainFire(int lmb)
 {
-    moveLmb = lmb != 0 && !flycam::on(); // (the fly camera has the mouse: vr_flycam.cpp)
+    seatButtons().moveLmb = lmb != 0 && !flycam::on(); // (the fly camera has the mouse: vr_flycam.cpp)
     if(!flatplay::active())
     {
-        return moveLmb ? 1 : 0;
+        return seatButtons().moveLmb ? 1 : 0;
     }
-    return flatplay::routeFire(moveLmb, offhandAttack || offhandAttackImpulse).fire[HAND_MAIN] ? 1 : 0;
+    return flatplay::routeFire(seatButtons().moveLmb, seatButtons().offhandAttack || seatButtons().offhandAttackImpulse).fire[HAND_MAIN] ? 1 : 0;
 }
 
 extern "C" int VR_MoveJump(int state)
@@ -1046,7 +1078,7 @@ extern "C" void VR_WriteMoveExtras(sizebuf_t* buf, int forward, int side, int up
                 // them (the hands before he was put) gave the first eight moves' throw estimate (.throwPos, .throwAge)
                 // apart between two runs: mp_lockstep_throw's "8 moves differ")
                 throwing::reset();
-                thrownValid[0] = thrownValid[1] = false;
+                seatThrown().thrownValid[0] = seatThrown().thrownValid[1] = false;
             }
             m.vr = buildMove();
             if(vr_mp_test_cheat.value != 0.f)
@@ -1072,13 +1104,13 @@ extern "C" void VR_ParseEntityUpdate(int num, int bits)
         return;
     }
 
-    if(num >= static_cast<int>(entityData.size()))
+    if(num >= static_cast<int>(seatClientEnts().entityData.size()))
     {
-        entityData.resize(num + 1);
+        seatClientEnts().entityData.resize(num + 1);
     }
 
     // Absent bits mean "zero": the server never puts these in baselines.
-    client::EntityVr& data = entityData[num];
+    client::EntityVr& data = seatClientEnts().entityData[num];
     data.scale = (bits & U_QVR_SCALE) ? readFloats3() : glm::vec3{0.f};
     data.scaleOrigin = (bits & U_QVR_SCALEORIGIN) ? readCoords3() : glm::vec3{0.f};
     data.offset = (bits & U_QVR_OFFSET) ? readCoords3() : glm::vec3{0.f};
@@ -1100,12 +1132,12 @@ extern "C" void VR_ParseEntityUpdate(int num, int bits)
 
 extern "C" int VR_SuppressModelRotate(int num)
 {
-    return vrProtocol() && num >= 0 && num < static_cast<int>(entityData.size()) && entityData[num].noRotate;
+    return vrProtocol() && num >= 0 && num < static_cast<int>(seatClientEnts().entityData.size()) && seatClientEnts().entityData[num].noRotate;
 }
 
 extern "C" int VR_ModelSpins(int num)
 {
-    return vrProtocol() && num >= 0 && num < static_cast<int>(entityData.size()) && entityData[num].spin;
+    return vrProtocol() && num >= 0 && num < static_cast<int>(seatClientEnts().entityData.size()) && seatClientEnts().entityData[num].spin;
 }
 
 extern "C" int VR_ParseServerMessage(int cmd)
@@ -1372,6 +1404,7 @@ struct RopeStartState
     glm::vec3 lastOut{0.f}; // the start we put: the server's sent again only with its next beam
     double logAt = 0.0;     // vr_grapple_debug 2's next print
 };
+// seat-shared: a drawn effect's memory (the effects: phase 7)
 RopeStartState ropeStart;
 } // namespace
 

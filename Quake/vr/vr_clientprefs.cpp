@@ -1,6 +1,7 @@
 // vr_clientprefs.cpp -- see vr_clientprefs.hpp.
 
 #include "vr_clientprefs.hpp"
+#include "vr_seat.hpp"
 
 #include "vr_client.hpp"
 
@@ -177,35 +178,42 @@ struct State
     float slot[MAX_SCOREBOARD][prefCount]{};
     bool slotHas[MAX_SCOREBOARD]{};
 };
-State state;
+struct SeatClientPrefs // the seat's (seat::Part::ClientPrefs; splitscreen phase 5)
+{
+    State state;
+};
+SeatClientPrefs& seatPrefs()
+{
+    return qvr::seat::part<SeatClientPrefs>(qvr::seat::current(), qvr::seat::Part::ClientPrefs);
+}
 
 void resolve()
 {
-    if(state.resolved)
+    if(seatPrefs().state.resolved)
     {
         return;
     }
     for(int i = 0; i < prefCount; i++)
     {
         const cvar_t* var = Cvar_FindVar(prefNames[i]);
-        state.vars[i] = var ? var : tunableFind(prefNames[i]);
+        seatPrefs().state.vars[i] = var ? var : tunableFind(prefNames[i]);
     }
-    state.resolved = true;
+    seatPrefs().state.resolved = true;
     // The list against the settings' kinds (vr_cvars.inc's QVR_PREF): each setting of it says QVR_PREF (a tuning constant
     // has no row to say it), and none says it that is not in it.
     for(int i = 0; i < prefCount; i++)
     {
-        if(state.vars[i] && Cvar_FindVar(prefNames[i]) && cvars::kindOf(state.vars[i]) != cvars::Kind::Pref)
+        if(seatPrefs().state.vars[i] && Cvar_FindVar(prefNames[i]) && cvars::kindOf(seatPrefs().state.vars[i]) != cvars::Kind::Pref)
         {
             Con_Warning("vr_clientprefs: %s is a per-player preference, but its vr_cvars.inc row says %s\n", prefNames[i],
-                cvars::kindName(cvars::kindOf(state.vars[i])));
+                cvars::kindName(cvars::kindOf(seatPrefs().state.vars[i])));
         }
     }
     cvars::forEachWithKind([](const cvar_t* var, cvars::Kind kind) {
         bool listed = false;
         for(int i = 0; i < prefCount && !listed; i++)
         {
-            listed = state.vars[i] == var;
+            listed = seatPrefs().state.vars[i] == var;
         }
         if(kind == cvars::Kind::Pref && !listed)
         {
@@ -217,14 +225,14 @@ void resolve()
 
 [[nodiscard]] float ownValue(int i)
 {
-    return state.vars[i] ? state.vars[i]->value : 0.f;
+    return seatPrefs().state.vars[i] ? seatPrefs().state.vars[i]->value : 0.f;
 }
 
 // The slot of player edict number `num` whose preferences the server has, or -1.
 [[nodiscard]] int slotWithPrefs(int num)
 {
     const int slot = progs::clientSlotOfNum(num);
-    return slot >= 0 && state.slotHas[slot] ? slot : -1;
+    return slot >= 0 && seatPrefs().state.slotHas[slot] ? slot : -1;
 }
 
 constexpr float prefMost = 1e9f; // a preference's magnitude at most (none is near it)
@@ -247,9 +255,9 @@ void prefs_f()
         const float v = Q_atof(Cmd_Argv(3 + i));
         // (not finite: 0 -- Q_atof gives infinity for a number of 40 digits; and within what an int holds: the rates
         // are cast to one, vr_netsnap.cpp, vr_voicerelay.cpp)
-        state.slot[slot][i] = ZA_ISFINITE(v) ? za::clamp(v, -prefMost, prefMost) : 0.f;
+        seatPrefs().state.slot[slot][i] = ZA_ISFINITE(v) ? za::clamp(v, -prefMost, prefMost) : 0.f;
     }
-    state.slotHas[slot] = true;
+    seatPrefs().state.slotHas[slot] = true;
 }
 
 [[nodiscard]] int hexDigit(char c)
@@ -304,7 +312,7 @@ void rig_f()
             const glm::vec3 centre = moveguard::within(glm::vec3{c[0], c[1], c[2]}, moveguard::fistReachMetres * upm, bounded);
             const float radius = za::min(za::max(c[3], 0.f), moveguard::fistRadiusMetres * upm);
             bounded += radius < c[3] ? 1 : 0;
-            state.slotFist[slot][hand][first + s] = glm::vec4{centre, radius};
+            seatPrefs().state.slotFist[slot][hand][first + s] = glm::vec4{centre, radius};
         }
         moveguard::countFist(slot, bounded);
     }
@@ -313,7 +321,7 @@ void rig_f()
         za::Vector<glm::vec4> spheres;
         for(int s = 0; s < total; s++)
         {
-            spheres.pushBack(state.slotFist[slot][hand][s]);
+            spheres.pushBack(seatPrefs().state.slotFist[slot][hand][s]);
         }
         held::setPlayerFist(slot, hand, spheres);
     }
@@ -378,7 +386,7 @@ void rigFrame_f()
 // in the reliable buffer (else the next frame).
 void sendFrame()
 {
-    if(realtime < state.nextFrameSend)
+    if(realtime < seatPrefs().state.nextFrameSend)
     {
         return;
     }
@@ -392,10 +400,10 @@ void sendFrame()
         float v[rigFrameValueCount];
         frameValues(f, v);
         handRigValues(gripfit::ownRig(hand), v + frameValueCount);
-        bool moved = !state.frameWasSent[hand];
+        bool moved = !seatPrefs().state.frameWasSent[hand];
         for(int i = 0; i < rigFrameValueCount && !moved; i++)
         {
-            moved = za::abs(v[i] - state.frameSent[hand][i]) > frameStep;
+            moved = za::abs(v[i] - seatPrefs().state.frameSent[hand][i]) > frameStep;
         }
         if(!moved)
         {
@@ -413,9 +421,9 @@ void sendFrame()
         }
         MSG_WriteByte(&cls.message, clc_stringcmd);
         MSG_WriteString(&cls.message, text);
-        memcpy(state.frameSent[hand], v, sizeof(v));
-        state.frameWasSent[hand] = true;
-        state.nextFrameSend = realtime + static_cast<double>(za::max(vr_net_avatarcal_interval.value, 0.f));
+        memcpy(seatPrefs().state.frameSent[hand], v, sizeof(v));
+        seatPrefs().state.frameWasSent[hand] = true;
+        seatPrefs().state.nextFrameSend = realtime + static_cast<double>(za::max(vr_net_avatarcal_interval.value, 0.f));
         return;
     }
 }
@@ -470,24 +478,24 @@ void sendFrame()
 // reliable buffer (else the next frame).
 void sendRig()
 {
-    if(realtime < state.nextRigSend)
+    if(realtime < seatPrefs().state.nextRigSend)
     {
         return;
     }
     for(int hand = 0; hand < 2; hand++)
     {
-        if(state.nextChunk[hand] <= 0)
+        if(seatPrefs().state.nextChunk[hand] <= 0)
         {
             const Fist now = quantized(held::fist(hand));
-            if(state.fistWasSent[hand] && !moved(now, state.fistSent[hand]))
+            if(seatPrefs().state.fistWasSent[hand] && !moved(now, seatPrefs().state.fistSent[hand]))
             {
                 continue;
             }
-            state.fistGoing[hand] = now;
-            state.nextChunk[hand] = 0;
+            seatPrefs().state.fistGoing[hand] = now;
+            seatPrefs().state.nextChunk[hand] = 0;
         }
-        const Fist& now = state.fistGoing[hand];
-        const int first = za::max(state.nextChunk[hand], 0);
+        const Fist& now = seatPrefs().state.fistGoing[hand];
+        const int first = za::max(seatPrefs().state.nextChunk[hand], 0);
         const int last = za::min(first + rigChunk, now.n);
         char text[64 + rigChunk * 16];
         int n = q_snprintf(text, sizeof(text), "vr_rig %d %d %d %d ", rigCommandVersion, hand, now.n, first);
@@ -506,13 +514,13 @@ void sendRig()
         }
         MSG_WriteByte(&cls.message, clc_stringcmd);
         MSG_WriteString(&cls.message, text);
-        state.nextChunk[hand] = last;
+        seatPrefs().state.nextChunk[hand] = last;
         if(last >= now.n)
         {
-            state.fistSent[hand] = now;
-            state.fistWasSent[hand] = true;
-            state.nextChunk[hand] = -1;
-            state.nextRigSend = realtime + static_cast<double>(za::max(vr_net_avatarcal_interval.value, 0.f));
+            seatPrefs().state.fistSent[hand] = now;
+            seatPrefs().state.fistWasSent[hand] = true;
+            seatPrefs().state.nextChunk[hand] = -1;
+            seatPrefs().state.nextRigSend = realtime + static_cast<double>(za::max(vr_net_avatarcal_interval.value, 0.f));
         }
         return;
     }
@@ -526,7 +534,7 @@ void mpPrefs_f()
     if(cls.state == ca_connected && cl.viewentity > 0)
     {
         Con_Printf("mp_prefs_own: ent=%d sent=%d fist0=%d fist1=%d fistsum0=%.3f fistsum1=%.3f", cl.viewentity,
-            state.sent ? 1 : 0, static_cast<int>(held::fist(0).size()), static_cast<int>(held::fist(1).size()),
+            seatPrefs().state.sent ? 1 : 0, static_cast<int>(held::fist(0).size()), static_cast<int>(held::fist(1).size()),
             fistSum(held::fist(0)), fistSum(held::fist(1)));
         for(int h = 0; h < 2; h++)
         {
@@ -537,7 +545,7 @@ void mpPrefs_f()
         }
         for(int i = 0; i < prefCount; i++)
         {
-            const cvar_t* var = state.vars[i];
+            const cvar_t* var = seatPrefs().state.vars[i];
             if(var && var->default_string && strcmp(var->string, var->default_string) != 0)
             {
                 Con_Printf(" %s=%g", prefNames[i], var->value);
@@ -555,7 +563,7 @@ void mpPrefs_f()
             }
             const edict_t* player = (const edict_t*)((const byte*)sv.qcvm.edicts + (slot + 1) * sv.qcvm.edict_size);
             Con_Printf("mp_prefs_sv: ent=%d has=%d fist0=%d fist1=%d fistsum0=%.3f fistsum1=%.3f fistgrabs=%d", slot + 1,
-                state.slotHas[slot] ? 1 : 0, static_cast<int>(held::fistOf(player, 0).size()),
+                seatPrefs().state.slotHas[slot] ? 1 : 0, static_cast<int>(held::fistOf(player, 0).size()),
                 static_cast<int>(held::fistOf(player, 1).size()), fistSum(held::fistOf(player, 0)),
                 fistSum(held::fistOf(player, 1)), held::playerFistGrabs(slot));
             for(int h = 0; h < 2; h++)
@@ -567,11 +575,11 @@ void mpPrefs_f()
             }
             Con_Printf(" rigpts=%d", gripfit::rigPointCount());
             int same = 0;
-            for(int i = 0; i < prefCount && state.slotHas[slot]; i++)
+            for(int i = 0; i < prefCount && seatPrefs().state.slotHas[slot]; i++)
             {
-                if(state.slot[slot][i] != ownValue(i))
+                if(seatPrefs().state.slot[slot][i] != ownValue(i))
                 {
-                    Con_Printf(" %s=%g", prefNames[i], state.slot[slot][i]);
+                    Con_Printf(" %s=%g", prefNames[i], seatPrefs().state.slot[slot][i]);
                 }
                 else
                 {
@@ -622,7 +630,7 @@ int indexOf(const cvar_t* var)
     resolve();
     for(int i = 0; i < prefCount; i++)
     {
-        if(var && state.vars[i] == var)
+        if(var && seatPrefs().state.vars[i] == var)
         {
             return i;
         }
@@ -635,9 +643,9 @@ float value(int pref, const cvar_t* var, const edict_t* player)
     if(pref >= 0 && pref < prefCount && player && sv.active && qcvm == &sv.qcvm) // (a slot without them: the own)
     {
         const int slot = progs::clientSlot(player);
-        if(slot >= 0 && state.slotHas[slot])
+        if(slot >= 0 && seatPrefs().state.slotHas[slot])
         {
-            return state.slot[slot][pref];
+            return seatPrefs().state.slot[slot][pref];
         }
     }
     return var ? var->value : 0.f;
@@ -653,7 +661,7 @@ float forQc(int pref, const cvar_t* var)
             const int slot = slotWithPrefs(num);
             if(slot >= 0)
             {
-                return state.slot[slot][pref];
+                return seatPrefs().state.slot[slot][pref];
             }
             if(progs::clientSlotOfNum(num) >= 0)
             {
@@ -672,11 +680,11 @@ void send()
     }
     resolve();
     float now[prefCount];
-    bool changed = !state.sent;
+    bool changed = !seatPrefs().state.sent;
     for(int i = 0; i < prefCount; i++)
     {
         now[i] = ownValue(i);
-        changed = changed || now[i] != state.lastSent[i];
+        changed = changed || now[i] != seatPrefs().state.lastSent[i];
     }
     if(ownSlot() < 0) // (hosting: its own hands are in its slot already, publishOwn)
     {
@@ -684,7 +692,7 @@ void send()
         sendFrame();
     }
     heldpose::send(); // (the held weapon's drawn pose: vr_heldpose.cpp)
-    if(!changed || (state.sent && realtime < state.nextSend))
+    if(!changed || (seatPrefs().state.sent && realtime < seatPrefs().state.nextSend))
     {
         return;
     }
@@ -700,23 +708,24 @@ void send()
     }
     MSG_WriteByte(&cls.message, clc_stringcmd);
     MSG_WriteString(&cls.message, text);
-    memcpy(state.lastSent, now, sizeof(now));
-    state.sent = true;
-    state.nextSend = realtime + static_cast<double>(za::max(vr_net_avatarcal_interval.value, 0.f));
+    memcpy(seatPrefs().state.lastSent, now, sizeof(now));
+    seatPrefs().state.sent = true;
+    seatPrefs().state.nextSend = realtime + static_cast<double>(za::max(vr_net_avatarcal_interval.value, 0.f));
 }
 
 void clientClear()
 {
-    state.sent = false;
-    state.fistWasSent[0] = state.fistWasSent[1] = false;
-    state.nextChunk[0] = state.nextChunk[1] = -1;
-    state.frameWasSent[0] = state.frameWasSent[1] = false;
+    seatPrefs().state.sent = false;
+    seatPrefs().state.fistWasSent[0] = seatPrefs().state.fistWasSent[1] = false;
+    seatPrefs().state.nextChunk[0] = seatPrefs().state.nextChunk[1] = -1;
+    seatPrefs().state.frameWasSent[0] = seatPrefs().state.frameWasSent[1] = false;
     heldpose::clientClear();
 }
 
 namespace
 {
 // Forgotten when the client's state is cleared (vr_mem.hpp's resets): ours go up to the new server again.
+// seat-shared: the reset hook (it clears the current seat's)
 mem::Reset clientStateReset{"clientprefs", mem::ResetEvent::ClientState, mem::ResetPhase::State, &clientClear};
 } // namespace
 
@@ -724,7 +733,7 @@ void serverReset(int slot)
 {
     if(slot >= 0 && slot < MAX_SCOREBOARD)
     {
-        state.slotHas[slot] = false;
+        seatPrefs().state.slotHas[slot] = false;
         held::setPlayerFist(slot, 0, {});
         held::setPlayerFist(slot, 1, {});
         grip::setPlayerFrame(slot, 0, {});

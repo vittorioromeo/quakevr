@@ -62,6 +62,7 @@ struct Inbox
     bool on{false};
     bool skipping{false}; // (in a line longer than the read: dropped up to its end, mpreview D8)
 };
+// seat-shared: the MP tests' own
 Inbox inbox;
 
 // One player's entity as this client watched it.
@@ -75,7 +76,9 @@ struct Watched
     glm::vec3 last{0.f};     // last frame's origin
 };
 constexpr int watchedMost = MAX_SCOREBOARD + 1;
+// seat-shared: the MP tests' own
 Watched watched[watchedMost];
+// seat-shared: the MP tests' own
 bool joined = false; // signed on to a map (the last frame)
 
 // The harness's lockstep (vr_mp_lockstep, MP_PLAN B14b). Server: whether this frame steps the world, the steps since
@@ -89,6 +92,7 @@ struct Lockstep
     long long waits{0};
     bool greeted[MAX_SCOREBOARD]{}; // (B14e) the server: sent his one datagram since he came in (the next at a step)
 };
+// seat-shared: the MP tests' own
 Lockstep lockstep;
 
 // (B11) The game's score as this client last printed it: each scoreboard slot's name and frags ("mp_frags"), the
@@ -105,6 +109,7 @@ struct ScoreWatch
     int intermission{0};
     bool alive{true};
 };
+// seat-shared: the MP tests' own
 ScoreWatch scoreWatch;
 
 // vr_mp_trace <ent> <frames>: each frame, another player's copy as this client drew it (his entity and both hands: B7's
@@ -115,6 +120,7 @@ struct Trace
     int left{0};
     int lastFrame{-1};
 };
+// seat-shared: the MP tests' own
 Trace trace;
 
 // vr_mp_near's sounds: the last ones started on this game (S_StartSoundPitch, sound on), whoever started them.
@@ -132,6 +138,7 @@ struct Heard
     HeardSound ring[heardMost];
     int next{0};
 };
+// seat-shared: the MP tests' own
 Heard heard;
 
 constexpr double restTime = 0.25;  // s still before a move counts as one from rest
@@ -327,6 +334,7 @@ struct After
     double at{0.0};
     char label[64]{};
 };
+// seat-shared: the MP tests' own
 After after;
 
 void after_f()

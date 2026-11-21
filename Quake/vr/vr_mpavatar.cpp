@@ -53,9 +53,11 @@ namespace qvr::mpavatar
 namespace
 {
 
+// seat-shared: other players' copies, by player (the effects: phase 7)
 Avatar avatars[MAX_SCOREBOARD + 1]; // by player entity (0 unused)
 // The one before each (its msgTime: the last message it held at): drawn between the two in step with his entity's lerp
 // (vr_mp_avatar_lerp, blendedOf; MP_PLAN.md, B7).
+// seat-shared: other players' copies, by player (the effects: phase 7)
 Avatar previousAvatars[MAX_SCOREBOARD + 1];
 // The last ones each, by their messages' times: drawn at the interpolation buffer's time (vr_netsnap.cpp; B7b).
 constexpr int avatarHistoryLen = 8;
@@ -64,6 +66,7 @@ struct AvatarHistory
     Avatar of[avatarHistoryLen];
     int n{0}, head{0};
 };
+// seat-shared: other players' copies, by player (the effects: phase 7)
 AvatarHistory avatarHistories[MAX_SCOREBOARD + 1];
 
 void printCalibrations(); // (vr_mp_avatars: the calibrations, below)
@@ -119,6 +122,7 @@ struct DrawnAll
     Drawn of[MAX_SCOREBOARD + 1];
     int addedFrame{-1};
 };
+// seat-shared: other players' copies, by player (the effects: phase 7)
 DrawnAll drawn;
 
 // How long an avatar is drawn after its last message (an unchanged one comes every vr_net_avatar_keyframe frames).
@@ -909,6 +913,7 @@ struct CalState
     bool slotHas[MAX_SCOREBOARD]{};
     Calibration own; // this client's own, as its settings are now (addEntities: your dead body drawn as yours)
 };
+// seat-shared: other players' copies, by player (the effects: phase 7)
 CalState cal;
 
 // Player entity `e`'s calibration as this client has it: yours your own settings', another's as he sent it (null: none).
@@ -2070,6 +2075,7 @@ void clear()
 namespace
 {
 // Forgotten when the client's state is cleared (vr_mem.hpp's resets): the other players' avatars: the new server's come.
+// seat-shared: the reset hook (it clears the current seat's)
 mem::Reset clientStateReset{"mpavatar", mem::ResetEvent::ClientState, mem::ResetPhase::State, &clear};
 } // namespace
 

@@ -1,6 +1,7 @@
 // vr_predict.cpp -- a remote client's own walk predicted (vr_predict.hpp; MP_PLAN.md, B8).
 
 #include "vr_predict.hpp"
+#include "vr_seat.hpp"
 #include "vr_moveguard.hpp"
 #include "vr_units.hpp"
 #include "vr_api.h"
@@ -45,6 +46,7 @@ struct TraceLog
     bool now{false};
     const char* side{""};
 };
+// seat-shared: mp_tracelog's own (a test's)
 TraceLog traceLog;
 
 void logTrace(const char* what, const float* start, const float* end, const trace_t& t)
@@ -123,6 +125,7 @@ struct ServerSlot
     double waterNext{-1.0}; // ... the server's time of the frame after the one his moves found them in (a server frame
                             // may skip a host frame or a host frame run two: its own clock, SV_Physics's increment)
 };
+// seat-shared: the server's, each player slot's
 ServerSlot serverSlots[MAX_SCOREBOARD];
 
 // The grapple's rope from QuakeC's fields: the hook's length, reel speed (the stamina's share), payout and taut; the
@@ -534,7 +537,14 @@ struct ClientPredict
     double probeTime{0.0};
     vec3_t probeOrg{0.f, 0.f, 0.f};
 };
-ClientPredict cp;
+struct SeatPredict // the seat's (seat::Part::Predict; splitscreen phase 5)
+{
+    ClientPredict cp;
+};
+SeatPredict& seatPredict()
+{
+    return qvr::seat::part<SeatPredict>(qvr::seat::current(), qvr::seat::Part::Predict);
+}
 
 // (B13) The corrections since the game started and their lengths' sum (never reset: the net HUD's rate over its window);
 // only those of half a unit or more (a state's replay off by less is not seen: most states' are 0 to a few hundredths)
@@ -544,7 +554,14 @@ struct CorrectionTotals
     za::U64 n{0};
     double sum{0.0};
 };
-CorrectionTotals corrTotals;
+struct SeatPredictTotals // the seat's (seat::Part::PredictTotals; splitscreen phase 5)
+{
+    CorrectionTotals corrTotals;
+};
+SeatPredictTotals& seatPredictTotals()
+{
+    return qvr::seat::part<SeatPredictTotals>(qvr::seat::current(), qvr::seat::Part::PredictTotals);
+}
 
 // A brush model of the map (a door, a lift) in the newest message, unturned: a move meets it there.
 [[nodiscard]] bool brushMover(const entity_t& e)
@@ -557,12 +574,12 @@ CorrectionTotals corrTotals;
 // stop, seconds.
 float moverVel(int num, vec3_t out)
 {
-    for(int k = 0; k < cp.numMovers; k++)
+    for(int k = 0; k < seatPredict().cp.numMovers; k++)
     {
-        if(cp.movers[k].num == num)
+        if(seatPredict().cp.movers[k].num == num)
         {
-            VectorCopy(cp.movers[k].vel, out);
-            return cp.movers[k].left;
+            VectorCopy(seatPredict().cp.movers[k].vel, out);
+            return seatPredict().cp.movers[k].left;
         }
     }
     VectorCopy(vec3_origin, out);
@@ -575,11 +592,11 @@ float moverVel(int num, vec3_t out)
 // off, his place on it with it).
 void moverAt(int num, float t, vec3_t out)
 {
-    for(int k = 0; k < cp.numMovers; k++)
+    for(int k = 0; k < seatPredict().cp.numMovers; k++)
     {
-        if(cp.movers[k].num == num)
+        if(seatPredict().cp.movers[k].num == num)
         {
-            VectorMA(cp.movers[k].at, q_min(t, cp.movers[k].left), cp.movers[k].vel, out);
+            VectorMA(seatPredict().cp.movers[k].at, q_min(t, seatPredict().cp.movers[k].left), seatPredict().cp.movers[k].vel, out);
             return;
         }
     }
@@ -605,7 +622,7 @@ struct ClientBody final : pmove::Body
     static trace_t moverTrace(int k, const float* at, const float* start, const float* end)
     {
         const entity_t& e = cl_entities[k];
-        const bool narrow = (cp.bits & bitHullBrushModels) != 0;
+        const bool narrow = (seatPredict().cp.bits & bitHullBrushModels) != 0;
         vec3_t s, t;
         VectorSubtract(start, at, s);
         VectorSubtract(end, at, t);
@@ -614,7 +631,7 @@ struct ClientBody final : pmove::Body
         tr.fraction = 1.f;
         tr.allsolid = true;
         VectorCopy(end, tr.endpos);
-        if(!narrow || !hull::clientPlayerTrace(cl.worldmodel, e.model, cp.hullWidth, cp.rules.boxHeight, s, t, tr))
+        if(!narrow || !hull::clientPlayerTrace(cl.worldmodel, e.model, seatPredict().cp.hullWidth, seatPredict().cp.rules.boxHeight, s, t, tr))
         {
             hull_t* h = &e.model->hulls[1];
             SV_RecursiveHullCheck(h, h->firstclipnode, 0.f, 1.f, s, t, &tr);
@@ -674,7 +691,7 @@ struct ClientBody final : pmove::Body
         best.fraction = 1.f;
         best.allsolid = true;
         VectorCopy(end, best.endpos);
-        if(!hull::clientPlayerTrace(cl.worldmodel, cl.worldmodel, cp.hullWidth, cp.rules.boxHeight, start, end, best))
+        if(!hull::clientPlayerTrace(cl.worldmodel, cl.worldmodel, seatPredict().cp.hullWidth, seatPredict().cp.rules.boxHeight, start, end, best))
         {
             hull_t* hull = &cl.worldmodel->hulls[1];
             SV_RecursiveHullCheck(hull, hull->firstclipnode, 0.f, 1.f, const_cast<float*>(start), const_cast<float*>(end), &best);
@@ -747,8 +764,8 @@ struct ClientBody final : pmove::Body
     {
         // (VR_HullOverDropoff: a point at the box's leading edge, its feet, finds no floor within 34 units; with
         // vr_hull_edge_probe the narrowed box's edge, and a point in solid has floor)
-        const bool fix = (cp.bits & bitEdgeProbe) != 0;
-        const float edge = fix && cp.hullWidth > 0.f ? q_min(16.f, za::clamp(cp.hullWidth, 8.f, 32.f) * 0.5f) : 16.f;
+        const bool fix = (seatPredict().cp.bits & bitEdgeProbe) != 0;
+        const float edge = fix && seatPredict().cp.hullWidth > 0.f ? q_min(16.f, za::clamp(seatPredict().cp.hullWidth, 8.f, 32.f) * 0.5f) : 16.f;
         vec3_t start, stop;
         start[0] = stop[0] = origin[0] + vel[0] / speed * edge;
         start[1] = stop[1] = origin[1] + vel[1] / speed * edge;
@@ -804,7 +821,7 @@ struct ClientBody final : pmove::Body
 
 [[nodiscard]] bool clientActive()
 {
-    return vr_net_predict.value != 0.f && cp.have && (cp.bits & bitWalked) && netmove::clientUses() &&
+    return vr_net_predict.value != 0.f && seatPredict().cp.have && (seatPredict().cp.bits & bitWalked) && netmove::clientUses() &&
            cls.signon == SIGNONS && !cls.demoplayback && cl.worldmodel && cl.viewentity > 0 &&
            cl.viewentity < cl.num_entities;
 }
@@ -832,36 +849,36 @@ struct ClientBody final : pmove::Body
 bool replay(vec3_t out, vec3_t before)
 {
     ClientBody b;
-    VectorCopy(cp.origin, b.origin);
-    VectorCopy(cp.velocity, b.velocity);
-    b.flags = (cp.bits & bitOnGround ? FL_ONGROUND : 0) | (cp.bits & bitWaterJump ? FL_WATERJUMP : 0) |
-              (cp.bits & bitJumpReleased ? FL_JUMPRELEASED : 0);
-    VectorCopy(cp.groundNormal, b.groundNormal);
-    b.groundAge = cp.groundAge;
-    b.holdLeft = cp.holdLeft;
-    b.jumpDir[0] = cp.jumpDir[0];
-    b.jumpDir[1] = cp.jumpDir[1];
-    b.waterLevel = b.thinkLevel = cp.waterLevel;
-    b.waterType = cp.waterType;
-    b.crawl[0] = cp.crawl[0];
-    b.crawl[1] = cp.crawl[1];
-    b.slide = cp.slide; // (his moves slide as on the server: B14)
+    VectorCopy(seatPredict().cp.origin, b.origin);
+    VectorCopy(seatPredict().cp.velocity, b.velocity);
+    b.flags = (seatPredict().cp.bits & bitOnGround ? FL_ONGROUND : 0) | (seatPredict().cp.bits & bitWaterJump ? FL_WATERJUMP : 0) |
+              (seatPredict().cp.bits & bitJumpReleased ? FL_JUMPRELEASED : 0);
+    VectorCopy(seatPredict().cp.groundNormal, b.groundNormal);
+    b.groundAge = seatPredict().cp.groundAge;
+    b.holdLeft = seatPredict().cp.holdLeft;
+    b.jumpDir[0] = seatPredict().cp.jumpDir[0];
+    b.jumpDir[1] = seatPredict().cp.jumpDir[1];
+    b.waterLevel = b.thinkLevel = seatPredict().cp.waterLevel;
+    b.waterType = seatPredict().cp.waterType;
+    b.crawl[0] = seatPredict().cp.crawl[0];
+    b.crawl[1] = seatPredict().cp.crawl[1];
+    b.slide = seatPredict().cp.slide; // (his moves slide as on the server: B14)
     b.slideClock = 0.0;
-    b.staminaLeft = cp.staminaLeft;
-    b.mantle = cp.mantle;
-    b.hang = cp.hang;
-    b.grapple = cp.grapple; // (the grapple's rope holds and reels him as on the server: B8j part 4)
-    climb::TakeRules take = cp.take; // (his moves take holds as the server's do: B8j part 2)
-    climb::TakeMemory takeMem = cp.takeMem;
+    b.staminaLeft = seatPredict().cp.staminaLeft;
+    b.mantle = seatPredict().cp.mantle;
+    b.hang = seatPredict().cp.hang;
+    b.grapple = seatPredict().cp.grapple; // (the grapple's rope holds and reels him as on the server: B8j part 4)
+    climb::TakeRules take = seatPredict().cp.take; // (his moves take holds as the server's do: B8j part 2)
+    climb::TakeMemory takeMem = seatPredict().cp.takeMem;
     const za::U32 newest = netmove::clientNewest();
-    if(newest < cp.seq || newest - cp.seq >= static_cast<za::U32>(pastRing))
+    if(newest < seatPredict().cp.seq || newest - seatPredict().cp.seq >= static_cast<za::U32>(pastRing))
     {
         return false;
     }
-    if(cp.fresh)
+    if(seatPredict().cp.fresh)
     {
-        cp.swimN += cp.waterLevel >= 2 ? 1 : 0;
-        cp.crawlN += cp.bits & bitLying ? 1 : 0;
+        seatPredict().cp.swimN += seatPredict().cp.waterLevel >= 2 ? 1 : 0;
+        seatPredict().cp.crawlN += seatPredict().cp.bits & bitLying ? 1 : 0;
     }
     pmove::MoveNotes notes;
     netmove::WireMove m;
@@ -869,7 +886,7 @@ bool replay(vec3_t out, vec3_t before)
     int depth = 0;
     float lastDt = 0.f;
     VectorCopy(b.origin, before);
-    for(za::U32 s = cp.seq + 1; s <= newest; s++)
+    for(za::U32 s = seatPredict().cp.seq + 1; s <= newest; s++)
     {
         if(!netmove::clientMoveAt(s, m))
         {
@@ -888,19 +905,19 @@ bool replay(vec3_t out, vec3_t before)
             Con_Printf("mp_tracelog: cl move=%u o=%.9g %.9g %.9g v=%.9g %.9g %.9g fl=%d dt=%.9g\n", s, b.origin[0],
                 b.origin[1], b.origin[2], b.velocity[0], b.velocity[1], b.velocity[2], b.flags, in.dt);
         }
-        pmove::playerMove(b, in, cp.rules, &notes);
+        pmove::playerMove(b, in, seatPredict().cp.rules, &notes);
         if(traceLog.now)
         {
             Con_Printf("mp_tracelog: cl after o=%.9g %.9g %.9g v=%.9g %.9g %.9g\n", b.origin[0], b.origin[1], b.origin[2],
                 b.velocity[0], b.velocity[1], b.velocity[2]);
         }
         traceLog.now = false;
-        if(b.climbedNow && cp.fresh)
+        if(b.climbedNow && seatPredict().cp.fresh)
         {
-            cp.wclimbN++;
+            seatPredict().cp.wclimbN++;
             if(vr_mp_watch.value != 0.f)
             {
-                Con_Printf("mp_predict_wclimb: replay s=%u seq=%u z=%.2f vz=%.1f\n", s, cp.seq, b.origin[2], b.velocity[2]);
+                Con_Printf("mp_predict_wclimb: replay s=%u seq=%u z=%.2f vz=%.1f\n", s, seatPredict().cp.seq, b.origin[2], b.velocity[2]);
             }
         }
         if(take.enabled)
@@ -911,36 +928,36 @@ bool replay(vec3_t out, vec3_t before)
             }
             const bool hangBefore = b.hang.on;
             climb::replayTake(b, takeMem, take, in);
-            if(b.hang.on && !hangBefore && cp.fresh && vr_mp_watch.value != 0.f)
+            if(b.hang.on && !hangBefore && seatPredict().cp.fresh && vr_mp_watch.value != 0.f)
             {
-                Con_Printf("mp_predict_take: replay s=%u seq=%u z=%.2f\n", s, cp.seq, b.origin[2]);
+                Con_Printf("mp_predict_take: replay s=%u seq=%u z=%.2f\n", s, seatPredict().cp.seq, b.origin[2]);
             }
         }
         // The lift under him goes on after his move, carrying him; one moving into him pushes him.
         vec3_t liftAt;
         b.pushedNow = false;
         b.pushedBy = 0;
-        const float step = cp.serverTick > 0.f ? cp.serverTick : in.dt; // (B24: the movers go on by the server's tick)
+        const float step = seatPredict().cp.serverTick > 0.f ? seatPredict().cp.serverTick : in.dt; // (B24: the movers go on by the server's tick)
         const int on = b.moversAfter(step, liftAt);
-        cp.pushN += b.pushedNow && cp.fresh ? 1 : 0;
+        seatPredict().cp.pushN += b.pushedNow && seatPredict().cp.fresh ? 1 : 0;
         vec3_t onVel;
         landedMoving = landedMoving || (inAir && on > 0 && moverVel(on, onVel) > b.moveTime && VectorLength(onVel) > 0.f);
         lastDt = step;
         b.moveTime += step;
-        if(b.jumpedNow && s != cp.jumpTraced && vr_mp_watch.value != 0.f)
+        if(b.jumpedNow && s != seatPredict().cp.jumpTraced && vr_mp_watch.value != 0.f)
         {
-            cp.jumpTraced = s; // (each move's jump once: a replay that moves it to another move prints that one)
-            Con_Printf("mp_predict_jump: s=%u seq=%u bits=%d z=%.2f\n", s, cp.seq, cp.bits, cp.origin[2]);
+            seatPredict().cp.jumpTraced = s; // (each move's jump once: a replay that moves it to another move prints that one)
+            Con_Printf("mp_predict_jump: s=%u seq=%u bits=%d z=%.2f\n", s, seatPredict().cp.seq, seatPredict().cp.bits, seatPredict().cp.origin[2]);
         }
-        if(vr_mp_watch.value >= 2.f && cp.fresh)
+        if(vr_mp_watch.value >= 2.f && seatPredict().cp.fresh)
         {
             vec3_t gv;
             const float gl = b.ground > 0 ? moverVel(b.ground, gv) : 0.f;
             Con_Printf("mp_predict_m: s=%u seq=%u y=%.2f z=%.2f vz=%.1f fl=%d dt=%.4f box=%.1f on=%d ground=%d lift=%.2f "
-                "left=%.3f t=%.4f nm=%d\n", s, cp.seq, b.origin[1], b.origin[2], b.velocity[2], b.flags, in.dt,
-                cp.rules.boxHeight, on, b.ground, liftAt[2], gl, b.moveTime, cp.numMovers);
+                "left=%.3f t=%.4f nm=%d\n", s, seatPredict().cp.seq, b.origin[1], b.origin[2], b.velocity[2], b.flags, in.dt,
+                seatPredict().cp.rules.boxHeight, on, b.ground, liftAt[2], gl, b.moveTime, seatPredict().cp.numMovers);
         }
-        Past& p = cp.cur[s % pastRing];
+        Past& p = seatPredict().cp.cur[s % pastRing];
         p.seq = s;
         VectorCopy(b.origin, p.org);
         VectorCopy(b.velocity, p.vel);
@@ -951,47 +968,47 @@ bool replay(vec3_t out, vec3_t before)
         depth++;
     }
     VectorCopy(b.origin, out);
-    cp.depthSum += depth;
+    seatPredict().cp.depthSum += depth;
     const int ridden = (b.flags & FL_ONGROUND) && b.ground < cl.num_entities ? b.ground : 0;
     // The lift he stands on, drawn where his replay has it at his newest move (B8e: it goes on in the replay, carrying
     // him; B8d's carry between states, its newest place since the last, is that replay's own now).
-    const bool liftMoved = ridden > 0 && ridden == cp.ridden && !VectorCompare(cl_entities[ridden].msg_origins[0], cp.riddenAt);
-    cp.ridden = ridden;
-    VectorCopy(vec3_origin, cp.riddenVel);
+    const bool liftMoved = ridden > 0 && ridden == seatPredict().cp.ridden && !VectorCompare(cl_entities[ridden].msg_origins[0], seatPredict().cp.riddenAt);
+    seatPredict().cp.ridden = ridden;
+    VectorCopy(vec3_origin, seatPredict().cp.riddenVel);
     if(ridden > 0)
     {
-        VectorCopy(cl_entities[ridden].msg_origins[0], cp.riddenAt);
-        cp.riddenLeft = moverVel(ridden, cp.riddenVel);
-        cp.riddenAfter = b.moveTime;
-        cp.riddenBefore = b.moveTime - lastDt;
+        VectorCopy(cl_entities[ridden].msg_origins[0], seatPredict().cp.riddenAt);
+        seatPredict().cp.riddenLeft = moverVel(ridden, seatPredict().cp.riddenVel);
+        seatPredict().cp.riddenAfter = b.moveTime;
+        seatPredict().cp.riddenBefore = b.moveTime - lastDt;
     }
-    cp.landMovingN += cp.fresh && landedMoving ? 1 : 0;
+    seatPredict().cp.landMovingN += seatPredict().cp.fresh && landedMoving ? 1 : 0;
 
-    if(cp.fresh)
+    if(seatPredict().cp.fresh)
     {
         // His move's result against the server's (B14): the last replay's for the move this state is after, bit for bit.
-        const Past& mine = cp.past[cp.seq % pastRing];
-        cp.exactHeld += cp.slideBits & 128 ? 1 : 0; // (a move held to the server's clock: his time, not his moves')
-        if(mine.seq == cp.seq && (cp.bits & bitWalked) && !(cp.slideBits & 128))
+        const Past& mine = seatPredict().cp.past[seatPredict().cp.seq % pastRing];
+        seatPredict().cp.exactHeld += seatPredict().cp.slideBits & 128 ? 1 : 0; // (a move held to the server's clock: his time, not his moves')
+        if(mine.seq == seatPredict().cp.seq && (seatPredict().cp.bits & bitWalked) && !(seatPredict().cp.slideBits & 128))
         {
-            const bool same = memcmp(mine.org, cp.origin, sizeof(vec3_t)) == 0;
-            cp.exactN += same ? 1 : 0;
-            cp.exactMiss += same ? 0 : 1;
-            cp.exactMax = q_max(cp.exactMax, dist(mine.org, cp.origin));
+            const bool same = memcmp(mine.org, seatPredict().cp.origin, sizeof(vec3_t)) == 0;
+            seatPredict().cp.exactN += same ? 1 : 0;
+            seatPredict().cp.exactMiss += same ? 0 : 1;
+            seatPredict().cp.exactMax = q_max(seatPredict().cp.exactMax, dist(mine.org, seatPredict().cp.origin));
             if(!same && vr_mp_watch.value != 0.f)
             {
-                Con_Printf("mp_predict_exact_miss: seq=%u mine=%.6f %.6f %.6f sv=%.6f %.6f %.6f states=%d\n", cp.seq,
-                    mine.org[0], mine.org[1], mine.org[2], cp.origin[0], cp.origin[1], cp.origin[2], cp.states);
+                Con_Printf("mp_predict_exact_miss: seq=%u mine=%.6f %.6f %.6f sv=%.6f %.6f %.6f states=%d\n", seatPredict().cp.seq,
+                    mine.org[0], mine.org[1], mine.org[2], seatPredict().cp.origin[0], seatPredict().cp.origin[1], seatPredict().cp.origin[2], seatPredict().cp.states);
             }
-            cp.velMiss += memcmp(mine.vel, cp.velocity, sizeof(vec3_t)) == 0 ? 0 : 1;
-            cp.hashSv = hashOf(cp.hashSv, cp.origin);
-            cp.hashCl = hashOf(cp.hashCl, mine.org);
+            seatPredict().cp.velMiss += memcmp(mine.vel, seatPredict().cp.velocity, sizeof(vec3_t)) == 0 ? 0 : 1;
+            seatPredict().cp.hashSv = hashOf(seatPredict().cp.hashSv, seatPredict().cp.origin);
+            seatPredict().cp.hashCl = hashOf(seatPredict().cp.hashCl, mine.org);
         }
         // The correction: the newest move both this replay and the last one predicted, where each put him.
-        for(za::U32 s = newest; s > cp.seq; s--)
+        for(za::U32 s = newest; s > seatPredict().cp.seq; s--)
         {
-            Past was = cp.past[s % pastRing];
-            const Past& now = cp.cur[s % pastRing];
+            Past was = seatPredict().cp.past[s % pastRing];
+            const Past& now = seatPredict().cp.cur[s % pastRing];
             if(was.seq != s || now.seq != s)
             {
                 continue;
@@ -1003,7 +1020,7 @@ bool replay(vec3_t out, vec3_t before)
             if(was.on > 0 && was.on == now.on)
             {
                 VectorSubtract(was.liftAt, now.liftAt, lift);
-                cp.liftMax = q_max(cp.liftMax, VectorLength(lift));
+                seatPredict().cp.liftMax = q_max(seatPredict().cp.liftMax, VectorLength(lift));
             }
             vec3_t rel;
             for(int i = 0; i < 3; i++)
@@ -1013,38 +1030,38 @@ bool replay(vec3_t out, vec3_t before)
             const float c = VectorLength(rel);
             if(c > (vr_mp_watch.value >= 3.f ? 0.05f : 1.f) && vr_mp_watch.value != 0.f)
             {
-                Con_Printf("mp_predict_corr: c=%.2f s=%u seq=%u newest=%u bits=%d was=%.2f %.2f %.2f now=%.2f %.2f %.2f sv=%.2f %.2f %.2f vel=%.1f %.1f %.1f notes=%d%d%d\n", c, s, cp.seq, newest, cp.bits, was.org[0], was.org[1], was.org[2], now.org[0], now.org[1], now.org[2], cp.origin[0], cp.origin[1], cp.origin[2], cp.velocity[0], cp.velocity[1], cp.velocity[2], notes.wall ? 1 : 0, notes.stepped ? 1 : 0, notes.air ? 1 : 0);
+                Con_Printf("mp_predict_corr: c=%.2f s=%u seq=%u newest=%u bits=%d was=%.2f %.2f %.2f now=%.2f %.2f %.2f sv=%.2f %.2f %.2f vel=%.1f %.1f %.1f notes=%d%d%d\n", c, s, seatPredict().cp.seq, newest, seatPredict().cp.bits, was.org[0], was.org[1], was.org[2], now.org[0], now.org[1], now.org[2], seatPredict().cp.origin[0], seatPredict().cp.origin[1], seatPredict().cp.origin[2], seatPredict().cp.velocity[0], seatPredict().cp.velocity[1], seatPredict().cp.velocity[2], notes.wall ? 1 : 0, notes.stepped ? 1 : 0, notes.air ? 1 : 0);
             }
-            if(cp.transNow || cp.grappleOffNow)
+            if(seatPredict().cp.transNow || seatPredict().cp.grappleOffNow)
             {
                 // (the hang's mantle begun by the server's test, once a frame: the replay hung on until it heard; the
                 // grapple's hook come off, B8j part 4: the server's trigger, quick release or loosening)
-                if(cp.grappleOffNow)
+                if(seatPredict().cp.grappleOffNow)
                 {
-                    cp.grappleOffN++;
-                    cp.grappleOffMax = q_max(cp.grappleOffMax, c);
+                    seatPredict().cp.grappleOffN++;
+                    seatPredict().cp.grappleOffMax = q_max(seatPredict().cp.grappleOffMax, c);
                 }
                 else
                 {
-                    cp.transN++;
-                    cp.transMax = q_max(cp.transMax, c);
+                    seatPredict().cp.transN++;
+                    seatPredict().cp.transMax = q_max(seatPredict().cp.transMax, c);
                 }
                 if(c < snapAt)
                 {
                     for(int i = 0; i < 3; i++)
                     {
-                        cp.error[i] += was.org[i] - now.org[i];
-                        cp.transError[i] += was.org[i] - now.org[i];
+                        seatPredict().cp.error[i] += was.org[i] - now.org[i];
+                        seatPredict().cp.transError[i] += was.org[i] - now.org[i];
                     }
                 }
                 break;
             }
-            cp.corrN++;
-            cp.corrSum += c;
+            seatPredict().cp.corrN++;
+            seatPredict().cp.corrSum += c;
             if(c >= hudCorrectionMin)
             {
-                corrTotals.n++;
-                corrTotals.sum += c;
+                seatPredictTotals().corrTotals.n++;
+                seatPredictTotals().corrTotals.sum += c;
             }
             // (B18) The move that met a mover (landed on it moving, or pushed by it) in either replay: the server runs
             // the movers once a tick and his moves as they come, so one of his moves bunched with another in a tick
@@ -1053,80 +1070,80 @@ bool replay(vec3_t out, vec3_t before)
             const bool contact = was.contact || now.contact;
             if(contact)
             {
-                cp.contactN++;
-                cp.contactMax = q_max(cp.contactMax, c);
+                seatPredict().cp.contactN++;
+                seatPredict().cp.contactMax = q_max(seatPredict().cp.contactMax, c);
             }
-            cp.corrMax = contact ? cp.corrMax : q_max(cp.corrMax, c);
-            if(cp.grapple.on)
+            seatPredict().cp.corrMax = contact ? seatPredict().cp.corrMax : q_max(seatPredict().cp.corrMax, c);
+            if(seatPredict().cp.grapple.on)
             {
-                cp.grappleMax = q_max(cp.grappleMax, c); // (the grapple's rope in his moves: B8j part 4)
+                seatPredict().cp.grappleMax = q_max(seatPredict().cp.grappleMax, c); // (the grapple's rope in his moves: B8j part 4)
             }
-            const bool flat = !notes.wall && !notes.stepped && !notes.air && !notes.slope && (cp.bits & bitOnGround);
+            const bool flat = !notes.wall && !notes.stepped && !notes.air && !notes.slope && (seatPredict().cp.bits & bitOnGround);
             if(flat)
             {
-                cp.flatN++;
-                cp.flatMax = q_max(cp.flatMax, c);
+                seatPredict().cp.flatN++;
+                seatPredict().cp.flatMax = q_max(seatPredict().cp.flatMax, c);
             }
             if(notes.air)
             {
-                cp.airN++;
-                cp.airMax = contact ? cp.airMax : q_max(cp.airMax, c);
+                seatPredict().cp.airN++;
+                seatPredict().cp.airMax = contact ? seatPredict().cp.airMax : q_max(seatPredict().cp.airMax, c);
             }
             if(liftMoved)
             {
-                cp.rideN++;
+                seatPredict().cp.rideN++;
             }
             if(notes.swim)
             {
-                cp.swimMax = q_max(cp.swimMax, c);
+                seatPredict().cp.swimMax = q_max(seatPredict().cp.swimMax, c);
             }
             if(c >= snapAt)
             {
-                VectorCopy(vec3_origin, cp.error);
-                VectorCopy(vec3_origin, cp.liftError);
-                VectorCopy(vec3_origin, cp.transError);
+                VectorCopy(vec3_origin, seatPredict().cp.error);
+                VectorCopy(vec3_origin, seatPredict().cp.liftError);
+                VectorCopy(vec3_origin, seatPredict().cp.transError);
             }
             else
             {
                 for(int i = 0; i < 3; i++)
                 {
-                    cp.error[i] += was.org[i] - now.org[i];
-                    cp.liftError[i] += lift[i];
+                    seatPredict().cp.error[i] += was.org[i] - now.org[i];
+                    seatPredict().cp.liftError[i] += lift[i];
                 }
             }
             break;
         }
-        cp.fresh = false;
-        cp.transNow = cp.grappleOffNow = false;
+        seatPredict().cp.fresh = false;
+        seatPredict().cp.transNow = seatPredict().cp.grappleOffNow = false;
     }
-    memcpy(cp.past, cp.cur, sizeof(cp.past));
+    memcpy(seatPredict().cp.past, seatPredict().cp.cur, sizeof(seatPredict().cp.past));
     return true;
 }
 
 void probeCheck(const float* origin)
 {
-    if(!cp.probing || dist(origin, cp.probeOrg) <= 0.05f)
+    if(!seatPredict().cp.probing || dist(origin, seatPredict().cp.probeOrg) <= 0.05f)
     {
         return;
     }
-    cp.probing = false;
-    Con_Printf("mp_predict_moved: label=%s moves=%u frames=%d ms=%d predicted=%d\n", cp.probeLabel, netmove::clientNewest() - cp.probeMove, host_framecount - cp.probeFrame,
-        static_cast<int>((realtime - cp.probeTime) * 1000.0), cp.drawing ? 1 : 0);
+    seatPredict().cp.probing = false;
+    Con_Printf("mp_predict_moved: label=%s moves=%u frames=%d ms=%d predicted=%d\n", seatPredict().cp.probeLabel, netmove::clientNewest() - seatPredict().cp.probeMove, host_framecount - seatPredict().cp.probeFrame,
+        static_cast<int>((realtime - seatPredict().cp.probeTime) * 1000.0), seatPredict().cp.drawing ? 1 : 0);
 }
 
 void probe_f()
 {
-    q_strlcpy(cp.probeLabel, Cmd_Argc() > 1 ? Cmd_Argv(1) : "-", sizeof(cp.probeLabel));
+    q_strlcpy(seatPredict().cp.probeLabel, Cmd_Argc() > 1 ? Cmd_Argv(1) : "-", sizeof(seatPredict().cp.probeLabel));
     if(cls.signon != SIGNONS || cl.viewentity <= 0 || cl.viewentity >= cl.num_entities)
     {
         Con_Printf("vr_mp_predict_probe: not in a game\n");
         return;
     }
-    cp.probing = true;
-    cp.probeFrame = host_framecount;
-    cp.probeMove = netmove::clientNewest();
-    cp.probeTime = realtime;
-    VectorCopy(cl_entities[cl.viewentity].origin, cp.probeOrg);
+    seatPredict().cp.probing = true;
+    seatPredict().cp.probeFrame = host_framecount;
+    seatPredict().cp.probeMove = netmove::clientNewest();
+    seatPredict().cp.probeTime = realtime;
+    VectorCopy(cl_entities[cl.viewentity].origin, seatPredict().cp.probeOrg);
 }
 
 } // namespace
@@ -1375,16 +1392,16 @@ void parseState()
         }
     }
     const float serverTick = MSG_ReadFloat(); // (B24)
-    if(msg_badread || (cp.have && seq < cp.seq))
+    if(msg_badread || (seatPredict().cp.have && seq < seatPredict().cp.seq))
     {
         return; // (an older one: the snapshot's base kept past the room)
     }
     // (A snapshot parses its unchanged records again: the same state is not a new one.)
-    if(cp.have && seq == cp.seq && bits == cp.bits && VectorCompare(o, cp.origin) && VectorCompare(v, cp.velocity) &&
-        crawl[0] == cp.crawl[0] && crawl[1] == cp.crawl[1] && grapple.len == cp.grapple.len && slideBits == cp.slideBits && sl.lastZ == cp.slide.lastZ &&
-        memcmp(hang.owed, cp.hang.owed, sizeof(hang.owed)) == 0 &&
-        memcmp(hang.grips[0].lastRel, cp.hang.grips[0].lastRel, sizeof(hang.grips[0].lastRel)) == 0 &&
-        memcmp(hang.grips[1].lastRel, cp.hang.grips[1].lastRel, sizeof(hang.grips[1].lastRel)) == 0)
+    if(seatPredict().cp.have && seq == seatPredict().cp.seq && bits == seatPredict().cp.bits && VectorCompare(o, seatPredict().cp.origin) && VectorCompare(v, seatPredict().cp.velocity) &&
+        crawl[0] == seatPredict().cp.crawl[0] && crawl[1] == seatPredict().cp.crawl[1] && grapple.len == seatPredict().cp.grapple.len && slideBits == seatPredict().cp.slideBits && sl.lastZ == seatPredict().cp.slide.lastZ &&
+        memcmp(hang.owed, seatPredict().cp.hang.owed, sizeof(hang.owed)) == 0 &&
+        memcmp(hang.grips[0].lastRel, seatPredict().cp.hang.grips[0].lastRel, sizeof(hang.grips[0].lastRel)) == 0 &&
+        memcmp(hang.grips[1].lastRel, seatPredict().cp.hang.grips[1].lastRel, sizeof(hang.grips[1].lastRel)) == 0)
     {
         return;
     }
@@ -1396,112 +1413,113 @@ void parseState()
     r.crawl = (bits & bitCrawl) != 0;
     r.slide = (slideBits & 16) != 0; // (a headset's slide in his moves: B14)
     r.slideTuning = slideTuning;
-    cp.slide = sl;
-    cp.slideBits = slideBits;
-    cp.staminaLeft = staminaLeft;
-    cp.slideN += sl.on ? 1 : 0;
+    seatPredict().cp.slide = sl;
+    seatPredict().cp.slideBits = slideBits;
+    seatPredict().cp.staminaLeft = staminaLeft;
+    seatPredict().cp.slideN += sl.on ? 1 : 0;
     r.waterClimb = (climbBits & 1) != 0;
     r.climbHands = (climbBits >> 1) & 3;
-    cp.have = true;
-    cp.crawl[0] = crawl[0];
-    cp.crawl[1] = crawl[1];
-    cp.mantle = mantle;
-    cp.mantleN += mantle.on ? 1 : 0;
+    seatPredict().cp.have = true;
+    seatPredict().cp.crawl[0] = crawl[0];
+    seatPredict().cp.crawl[1] = crawl[1];
+    seatPredict().cp.mantle = mantle;
+    seatPredict().cp.mantleN += mantle.on ? 1 : 0;
     // (a hold taken, or the hang's mantle begun: the server's searches, once a frame: the replay learns of them now)
     // (B19: until a replay takes it -- two states read in one frame, the second already hanging, lost the take's)
-    cp.transNow = cp.transNow || (mantle.on && cp.hang.on) || (hang.on && !cp.hang.on);
-    cp.hang = hang;
-    cp.take = take;
-    cp.takeMem = takeMem;
-    cp.grappleOffNow = cp.grappleOffNow || (cp.grapple.on && !grapple.on); // (the hook come off: the server's, once a frame)
-    cp.grapple = grapple;
-    cp.grappleN += grapple.on ? 1 : 0;
+    seatPredict().cp.transNow = seatPredict().cp.transNow || (mantle.on && seatPredict().cp.hang.on) || (hang.on && !seatPredict().cp.hang.on);
+    seatPredict().cp.hang = hang;
+    seatPredict().cp.take = take;
+    seatPredict().cp.takeMem = takeMem;
+    seatPredict().cp.grappleOffNow = seatPredict().cp.grappleOffNow || (seatPredict().cp.grapple.on && !grapple.on); // (the hook come off: the server's, once a frame)
+    seatPredict().cp.grapple = grapple;
+    seatPredict().cp.grappleN += grapple.on ? 1 : 0;
     if(hang.on && (bits & bitWalked))
     {
-        cp.hangZ0 = cp.hangN == 0 ? o[2] : cp.hangZ0;
-        cp.hangN++;
-        cp.hangRise = q_max(cp.hangRise, o[2] - cp.hangZ0);
+        seatPredict().cp.hangZ0 = seatPredict().cp.hangN == 0 ? o[2] : seatPredict().cp.hangZ0;
+        seatPredict().cp.hangN++;
+        seatPredict().cp.hangRise = q_max(seatPredict().cp.hangRise, o[2] - seatPredict().cp.hangZ0);
     }
-    cp.holdLeft = q_max(static_cast<float>(teleportTime - cl.mtime[0]), -1.f);
-    cp.jumpDir[0] = jumpDir[0];
-    cp.jumpDir[1] = jumpDir[1];
-    cp.waterLevel = (climbBits >> 4) & 3; // (his next move's walk or swim goes by them: B11b part 2)
-    cp.waterType = waterOfCode((climbBits >> 6) & 3);
-    cp.numMovers = numMovers;
-    memcpy(cp.movers, movers, sizeof(movers));
-    cp.serverTick = serverTick > 0.f && serverTick < 0.1f ? serverTick : 0.f;
+    seatPredict().cp.holdLeft = q_max(static_cast<float>(teleportTime - cl.mtime[0]), -1.f);
+    seatPredict().cp.jumpDir[0] = jumpDir[0];
+    seatPredict().cp.jumpDir[1] = jumpDir[1];
+    seatPredict().cp.waterLevel = (climbBits >> 4) & 3; // (his next move's walk or swim goes by them: B11b part 2)
+    seatPredict().cp.waterType = waterOfCode((climbBits >> 6) & 3);
+    seatPredict().cp.numMovers = numMovers;
+    memcpy(seatPredict().cp.movers, movers, sizeof(movers));
+    seatPredict().cp.serverTick = serverTick > 0.f && serverTick < 0.1f ? serverTick : 0.f;
     if(bits & bitWaterJump)
     {
-        cp.wjN++;
+        seatPredict().cp.wjN++;
     }
-    cp.seq = seq;
-    cp.bits = bits;
-    VectorCopy(o, cp.origin);
-    VectorCopy(v, cp.velocity);
-    VectorCopy(n, cp.groundNormal);
-    cp.groundAge = age;
-    cp.rules = r;
-    cp.hullWidth = width;
-    cp.fresh = true;
-    cp.states++;
+    seatPredict().cp.seq = seq;
+    seatPredict().cp.bits = bits;
+    VectorCopy(o, seatPredict().cp.origin);
+    VectorCopy(v, seatPredict().cp.velocity);
+    VectorCopy(n, seatPredict().cp.groundNormal);
+    seatPredict().cp.groundAge = age;
+    seatPredict().cp.rules = r;
+    seatPredict().cp.hullWidth = width;
+    seatPredict().cp.fresh = true;
+    seatPredict().cp.states++;
 }
 
 void clientClear()
 {
-    const ClientPredict keep = cp; // (the report's counts and a probe span connections)
-    cp = ClientPredict{};
-    cp.states = keep.states;
-    cp.frames = keep.frames;
-    cp.unpredicted = keep.unpredicted;
-    cp.unWalked = keep.unWalked;
-    cp.depthSum = keep.depthSum;
-    cp.corrN = keep.corrN;
-    cp.flatN = keep.flatN;
-    cp.corrMax = keep.corrMax;
-    cp.corrSum = keep.corrSum;
-    cp.flatMax = keep.flatMax;
-    cp.airN = keep.airN;
-    cp.rideN = keep.rideN;
-    cp.airMax = keep.airMax;
-    cp.contactN = keep.contactN;
-    cp.contactMax = keep.contactMax;
-    cp.errMax = keep.errMax;
-    cp.swimN = keep.swimN;
-    cp.swimMax = keep.swimMax;
-    cp.liftMax = keep.liftMax;
-    cp.wjN = keep.wjN;
-    cp.landMovingN = keep.landMovingN;
-    cp.pushN = keep.pushN;
-    cp.crawlN = keep.crawlN;
-    cp.slideN = keep.slideN;
-    cp.exactN = keep.exactN;
-    cp.exactMiss = keep.exactMiss;
-    cp.velMiss = keep.velMiss;
-    cp.exactHeld = keep.exactHeld;
-    cp.exactMax = keep.exactMax;
-    cp.hashSv = keep.hashSv;
-    cp.hashCl = keep.hashCl;
-    cp.mantleN = keep.mantleN;
-    cp.hangN = keep.hangN;
-    cp.hangZ0 = keep.hangZ0;
-    cp.hangRise = keep.hangRise;
-    cp.transN = keep.transN;
-    cp.transMax = keep.transMax;
-    cp.wclimbN = keep.wclimbN;
-    cp.grappleN = keep.grappleN;
-    cp.grappleMax = keep.grappleMax;
+    const ClientPredict keep = seatPredict().cp; // (the report's counts and a probe span connections)
+    seatPredict().cp = ClientPredict{};
+    seatPredict().cp.states = keep.states;
+    seatPredict().cp.frames = keep.frames;
+    seatPredict().cp.unpredicted = keep.unpredicted;
+    seatPredict().cp.unWalked = keep.unWalked;
+    seatPredict().cp.depthSum = keep.depthSum;
+    seatPredict().cp.corrN = keep.corrN;
+    seatPredict().cp.flatN = keep.flatN;
+    seatPredict().cp.corrMax = keep.corrMax;
+    seatPredict().cp.corrSum = keep.corrSum;
+    seatPredict().cp.flatMax = keep.flatMax;
+    seatPredict().cp.airN = keep.airN;
+    seatPredict().cp.rideN = keep.rideN;
+    seatPredict().cp.airMax = keep.airMax;
+    seatPredict().cp.contactN = keep.contactN;
+    seatPredict().cp.contactMax = keep.contactMax;
+    seatPredict().cp.errMax = keep.errMax;
+    seatPredict().cp.swimN = keep.swimN;
+    seatPredict().cp.swimMax = keep.swimMax;
+    seatPredict().cp.liftMax = keep.liftMax;
+    seatPredict().cp.wjN = keep.wjN;
+    seatPredict().cp.landMovingN = keep.landMovingN;
+    seatPredict().cp.pushN = keep.pushN;
+    seatPredict().cp.crawlN = keep.crawlN;
+    seatPredict().cp.slideN = keep.slideN;
+    seatPredict().cp.exactN = keep.exactN;
+    seatPredict().cp.exactMiss = keep.exactMiss;
+    seatPredict().cp.velMiss = keep.velMiss;
+    seatPredict().cp.exactHeld = keep.exactHeld;
+    seatPredict().cp.exactMax = keep.exactMax;
+    seatPredict().cp.hashSv = keep.hashSv;
+    seatPredict().cp.hashCl = keep.hashCl;
+    seatPredict().cp.mantleN = keep.mantleN;
+    seatPredict().cp.hangN = keep.hangN;
+    seatPredict().cp.hangZ0 = keep.hangZ0;
+    seatPredict().cp.hangRise = keep.hangRise;
+    seatPredict().cp.transN = keep.transN;
+    seatPredict().cp.transMax = keep.transMax;
+    seatPredict().cp.wclimbN = keep.wclimbN;
+    seatPredict().cp.grappleN = keep.grappleN;
+    seatPredict().cp.grappleMax = keep.grappleMax;
 }
 
 namespace
 {
 // Forgotten when the client's state is cleared (vr_mem.hpp's resets): no state from the server: his own walk drawn as it comes until one, B8.
+// seat-shared: the reset hook (it clears the current seat's)
 mem::Reset clientStateReset{"predict", mem::ResetEvent::ClientState, mem::ResetPhase::State, &clientClear};
 } // namespace
 
 void correctionTotals(za::U64& n, double& sum)
 {
-    n = corrTotals.n;
-    sum = corrTotals.sum;
+    n = seatPredictTotals().corrTotals.n;
+    sum = seatPredictTotals().corrTotals.sum;
 }
 
 void report()
@@ -1513,26 +1531,26 @@ void report()
                "wclimb=%d wclimb_n=%d grapple=%d grapple_n=%d grapple_max=%.3f grapple_off_n=%d grapple_off_max=%.3f "
                "exact_n=%d exact_miss=%d exact_max=%.6f vel_miss=%d exact_held=%d contact_n=%d contact_max=%.3f "
                "hash_sv=%016llx hash_cl=%016llx seq=%u newest=%u\n",
-        vr_net_predict.value != 0.f && netmove::clientUses() ? 1 : 0, cp.bits & bitWalked ? 1 : 0, cp.states, cp.frames,
-        cp.unpredicted, cp.unWalked, cp.frames > 0 ? static_cast<double>(cp.depthSum) / cp.frames : 0.0, cp.corrN, cp.corrMax,
-        cp.corrN > 0 ? cp.corrSum / cp.corrN : 0.f, cp.flatN, cp.flatMax, cp.airN, cp.airMax, cp.rideN, VectorLength(cp.error),
-        cp.errMax, cp.rules.maxspeed, cp.rules.boxHeight, cp.rules.jumpSpeed, cp.swimN, cp.swimMax, cp.wjN,
-        cp.landMovingN, cp.liftMax, cp.pushN, cp.bits & bitLying ? 1 : 0, cp.rules.crawl ? 1 : 0, cp.crawlN, cp.slideN, cp.mantleN, cp.hangN, cp.hangRise, cp.transN, cp.transMax,
-        cp.rules.waterClimb ? 1 + cp.rules.climbHands : 0, cp.wclimbN, cp.grapple.on ? 1 : 0, cp.grappleN, cp.grappleMax, cp.grappleOffN, cp.grappleOffMax, cp.exactN, cp.exactMiss, cp.exactMax, cp.velMiss, cp.exactHeld,
-        cp.contactN, cp.contactMax, static_cast<unsigned long long>(cp.hashSv), static_cast<unsigned long long>(cp.hashCl), cp.seq,
+        vr_net_predict.value != 0.f && netmove::clientUses() ? 1 : 0, seatPredict().cp.bits & bitWalked ? 1 : 0, seatPredict().cp.states, seatPredict().cp.frames,
+        seatPredict().cp.unpredicted, seatPredict().cp.unWalked, seatPredict().cp.frames > 0 ? static_cast<double>(seatPredict().cp.depthSum) / seatPredict().cp.frames : 0.0, seatPredict().cp.corrN, seatPredict().cp.corrMax,
+        seatPredict().cp.corrN > 0 ? seatPredict().cp.corrSum / seatPredict().cp.corrN : 0.f, seatPredict().cp.flatN, seatPredict().cp.flatMax, seatPredict().cp.airN, seatPredict().cp.airMax, seatPredict().cp.rideN, VectorLength(seatPredict().cp.error),
+        seatPredict().cp.errMax, seatPredict().cp.rules.maxspeed, seatPredict().cp.rules.boxHeight, seatPredict().cp.rules.jumpSpeed, seatPredict().cp.swimN, seatPredict().cp.swimMax, seatPredict().cp.wjN,
+        seatPredict().cp.landMovingN, seatPredict().cp.liftMax, seatPredict().cp.pushN, seatPredict().cp.bits & bitLying ? 1 : 0, seatPredict().cp.rules.crawl ? 1 : 0, seatPredict().cp.crawlN, seatPredict().cp.slideN, seatPredict().cp.mantleN, seatPredict().cp.hangN, seatPredict().cp.hangRise, seatPredict().cp.transN, seatPredict().cp.transMax,
+        seatPredict().cp.rules.waterClimb ? 1 + seatPredict().cp.rules.climbHands : 0, seatPredict().cp.wclimbN, seatPredict().cp.grapple.on ? 1 : 0, seatPredict().cp.grappleN, seatPredict().cp.grappleMax, seatPredict().cp.grappleOffN, seatPredict().cp.grappleOffMax, seatPredict().cp.exactN, seatPredict().cp.exactMiss, seatPredict().cp.exactMax, seatPredict().cp.velMiss, seatPredict().cp.exactHeld,
+        seatPredict().cp.contactN, seatPredict().cp.contactMax, static_cast<unsigned long long>(seatPredict().cp.hashSv), static_cast<unsigned long long>(seatPredict().cp.hashCl), seatPredict().cp.seq,
         netmove::clientNewest());
     if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(0), "vr_mp_predict_report") && !q_strcasecmp(Cmd_Argv(1), "reset"))
     {
         // (vr_mp_predict_report reset: the counts from here, a test's setup left out; the states read go on)
-        cp.frames = cp.unpredicted = cp.unWalked = cp.corrN = cp.flatN = cp.airN = cp.rideN = 0;
-        cp.swimN = cp.wjN = cp.landMovingN = cp.pushN = cp.crawlN = cp.slideN = cp.mantleN = cp.hangN = cp.wclimbN = cp.grappleN = cp.grappleOffN = 0;
-        cp.hangRise = cp.transMax = cp.grappleMax = cp.grappleOffMax = 0.f;
-        cp.transN = cp.exactN = cp.exactMiss = cp.velMiss = cp.exactHeld = cp.contactN = 0;
-        cp.contactMax = 0.f;
-        cp.hashSv = cp.hashCl = 14695981039346656037ull;
-        cp.exactMax = 0.f;
-        cp.depthSum = 0;
-        cp.corrMax = cp.corrSum = cp.flatMax = cp.airMax = cp.errMax = cp.swimMax = cp.liftMax = 0.f;
+        seatPredict().cp.frames = seatPredict().cp.unpredicted = seatPredict().cp.unWalked = seatPredict().cp.corrN = seatPredict().cp.flatN = seatPredict().cp.airN = seatPredict().cp.rideN = 0;
+        seatPredict().cp.swimN = seatPredict().cp.wjN = seatPredict().cp.landMovingN = seatPredict().cp.pushN = seatPredict().cp.crawlN = seatPredict().cp.slideN = seatPredict().cp.mantleN = seatPredict().cp.hangN = seatPredict().cp.wclimbN = seatPredict().cp.grappleN = seatPredict().cp.grappleOffN = 0;
+        seatPredict().cp.hangRise = seatPredict().cp.transMax = seatPredict().cp.grappleMax = seatPredict().cp.grappleOffMax = 0.f;
+        seatPredict().cp.transN = seatPredict().cp.exactN = seatPredict().cp.exactMiss = seatPredict().cp.velMiss = seatPredict().cp.exactHeld = seatPredict().cp.contactN = 0;
+        seatPredict().cp.contactMax = 0.f;
+        seatPredict().cp.hashSv = seatPredict().cp.hashCl = 14695981039346656037ull;
+        seatPredict().cp.exactMax = 0.f;
+        seatPredict().cp.depthSum = 0;
+        seatPredict().cp.corrMax = seatPredict().cp.corrSum = seatPredict().cp.flatMax = seatPredict().cp.airMax = seatPredict().cp.errMax = seatPredict().cp.swimMax = seatPredict().cp.liftMax = 0.f;
     }
 }
 
@@ -2271,72 +2289,72 @@ extern "C" void VR_PredictRelink(int num, float* origin)
 {
     if(num != cl.viewentity)
     {
-        if(num == cp.ridden && num > 0 && cp.drawing)
+        if(num == seatPredict().cp.ridden && num > 0 && seatPredict().cp.drawing)
         {
             // (the lift he stands on: where his replay has it, between his newest move's start and end as he is drawn)
-            const float t = cp.riddenBefore + cp.drawFrac * (cp.riddenAfter - cp.riddenBefore);
+            const float t = seatPredict().cp.riddenBefore + seatPredict().cp.drawFrac * (seatPredict().cp.riddenAfter - seatPredict().cp.riddenBefore);
             moverAt(num, t, origin);
-            VectorAdd(origin, cp.liftError, origin);
+            VectorAdd(origin, seatPredict().cp.liftError, origin);
         }
         return;
     }
-    if(cp.frame == host_framecount)
+    if(seatPredict().cp.frame == host_framecount)
     {
-        if(cp.drawing)
+        if(seatPredict().cp.drawing)
         {
-            VectorCopy(cp.drawn, origin);
+            VectorCopy(seatPredict().cp.drawn, origin);
         }
         return;
     }
-    cp.frame = host_framecount;
-    const double since = cp.lastRelink > 0.0 ? q_min(realtime - cp.lastRelink, 0.25) : 0.0;
-    cp.lastRelink = realtime;
+    seatPredict().cp.frame = host_framecount;
+    const double since = seatPredict().cp.lastRelink > 0.0 ? q_min(realtime - seatPredict().cp.lastRelink, 0.25) : 0.0;
+    seatPredict().cp.lastRelink = realtime;
     const za::U32 newest = netmove::clientNewest();
-    if(newest != cp.lastNewest)
+    if(newest != seatPredict().cp.lastNewest)
     {
         netmove::WireMove m;
-        cp.lastNewest = newest;
-        cp.lastNewTime = realtime;
-        cp.lastDt = netmove::clientMoveAt(newest, m) ? inputOf(m, moveguard::unitsPerMetre(units::worldScale())).dt : 0.f;
+        seatPredict().cp.lastNewest = newest;
+        seatPredict().cp.lastNewTime = realtime;
+        seatPredict().cp.lastDt = netmove::clientMoveAt(newest, m) ? inputOf(m, moveguard::unitsPerMetre(units::worldScale())).dt : 0.f;
     }
     vec3_t predicted, before;
-    cp.drawing = clientActive() && replay(predicted, before);
-    if(!cp.drawing)
+    seatPredict().cp.drawing = clientActive() && replay(predicted, before);
+    if(!seatPredict().cp.drawing)
     {
         if(netmove::clientUses() && cls.signon == SIGNONS)
         {
-            cp.unpredicted++;
-            cp.unWalked += cp.have && !(cp.bits & bitWalked) ? 1 : 0; // (the server's frame not run move by move)
+            seatPredict().cp.unpredicted++;
+            seatPredict().cp.unWalked += seatPredict().cp.have && !(seatPredict().cp.bits & bitWalked) ? 1 : 0; // (the server's frame not run move by move)
         }
-        VectorCopy(vec3_origin, cp.error);
-        VectorCopy(vec3_origin, cp.transError);
-        cp.ridden = 0;
-        for(Past& p : cp.past)
+        VectorCopy(vec3_origin, seatPredict().cp.error);
+        VectorCopy(vec3_origin, seatPredict().cp.transError);
+        seatPredict().cp.ridden = 0;
+        for(Past& p : seatPredict().cp.past)
         {
             p.seq = 0;
         }
         probeCheck(origin);
         return;
     }
-    cp.frames++;
+    seatPredict().cp.frames++;
     // Frames drawn faster than moves are made (a 90 Hz headset on 72 Hz ticks, an uncapped window): between the place
     // before the newest move and after it, by the time since it was made over its frame's (no step a move, no
     // overshoot at a stop; a move's time behind).
     const float frac =
-        cp.lastDt > 0.f ? q_min(q_max(static_cast<float>((realtime - cp.lastNewTime) / cp.lastDt), 0.f), 1.f) : 1.f;
-    cp.drawFrac = frac;
+        seatPredict().cp.lastDt > 0.f ? q_min(q_max(static_cast<float>((realtime - seatPredict().cp.lastNewTime) / seatPredict().cp.lastDt), 0.f), 1.f) : 1.f;
+    seatPredict().cp.drawFrac = frac;
     const float k = expf(-static_cast<float>(since) / easeTime);
-    VectorScale(cp.error, k, cp.error);
-    VectorScale(cp.liftError, cp.ridden > 0 ? k : 0.f, cp.liftError);
-    VectorScale(cp.transError, k, cp.transError);
+    VectorScale(seatPredict().cp.error, k, seatPredict().cp.error);
+    VectorScale(seatPredict().cp.liftError, seatPredict().cp.ridden > 0 ? k : 0.f, seatPredict().cp.liftError);
+    VectorScale(seatPredict().cp.transError, k, seatPredict().cp.transError);
     vec3_t own; // (his offset on what he stands on, less a mantle's start: the transition's, counted apart)
-    VectorSubtract(cp.error, cp.liftError, own);
-    VectorSubtract(own, cp.transError, own);
-    cp.errMax = q_max(cp.errMax, VectorLength(own));
+    VectorSubtract(seatPredict().cp.error, seatPredict().cp.liftError, own);
+    VectorSubtract(own, seatPredict().cp.transError, own);
+    seatPredict().cp.errMax = q_max(seatPredict().cp.errMax, VectorLength(own));
     for(int i = 0; i < 3; i++)
     {
-        cp.drawn[i] = before[i] + frac * (predicted[i] - before[i]) + cp.error[i];
+        seatPredict().cp.drawn[i] = before[i] + frac * (predicted[i] - before[i]) + seatPredict().cp.error[i];
     }
-    VectorCopy(cp.drawn, origin);
+    VectorCopy(seatPredict().cp.drawn, origin);
     probeCheck(origin);
 }

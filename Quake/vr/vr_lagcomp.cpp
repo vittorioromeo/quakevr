@@ -52,6 +52,7 @@ struct History
     Frame ring[frames];
     int head{0}; // the next to write
 };
+// seat-shared: the server's
 History history;
 
 struct Seen
@@ -59,6 +60,7 @@ struct Seen
     bool valid{false};
     double time{0.0}, back{0.0};
 };
+// seat-shared: the server's, each player slot's
 Seen seen[MAX_SCOREBOARD];
 
 // begin's: each target moved, as it was before (`now`) and as put back (`then`): end puts it back, keeping what the
@@ -77,6 +79,7 @@ struct Saved
     int begun{0};
     int nested{0};
 };
+// seat-shared: the server's
 Saved saved;
 
 [[nodiscard]] bool isTarget(const edict_t* e)
@@ -423,6 +426,7 @@ void reset()
 namespace
 {
 // Forgotten with the server's world (vr_mem.hpp's resets): the targets kept (this world's from its first frame).
+// seat-shared: the server's reset hook
 mem::Reset serverWorldReset{"lagcomp", mem::ResetEvent::ServerWorld, mem::ResetPhase::State, &reset};
 } // namespace
 

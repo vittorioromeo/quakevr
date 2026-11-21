@@ -90,6 +90,7 @@ struct WoundQueue
     // vr_wounds_info's
     int mostQueued = 0, mostInFrame = 0, droppedTotal = 0, deferredTotal = 0;
 };
+// seat-shared: the wounds painted (the effects: phase 7)
 WoundQueue queue;
 
 // The kinds struck at a point of the body (kept in its frame); the liquids' are at a height of the world.

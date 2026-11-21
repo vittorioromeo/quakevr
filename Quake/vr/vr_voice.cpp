@@ -95,9 +95,11 @@ struct LoadStats
     double seconds{0.0};       // their transforms' time
     double audioSeconds{0.0};  // the sounds' length
 };
+// seat-shared: a test's
 LoadStats loadStats;
 
 // vr_voice_hear's next sound (the main thread's).
+// seat-shared: vr_voice_hear's (a test's)
 int hearNext{0};
 constexpr const char* hearSounds[] = {"player/pain2.wav", "player/death1.wav", "player/plyrjmp8.wav",
     "player/pain4.wav", "player/land2.wav", "player/gasp2.wav", "player/death3.wav", "player/pain6.wav",
