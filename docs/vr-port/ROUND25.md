@@ -7239,3 +7239,24 @@ hue band can't separate brown uniforms from brown flesh, and a full hue turn wit
 ## sceneorder
 
 - A scene whose `map` is not in the running campaign (an `ad_` map after a scene that left Quake's running) now makes the add-on campaign that has it (AD, Quoth, Dwell: rows 3+) the active one itself (`mapFoundOrCampaignSelected`, vr_scenario.cpp), so no scene depends on order. Fixed `humrepl_variants` "no map ad_crucial". scenario_check twice PASS (177 run, 0 failed); `humrepl_variants` and `ad_tears_window` alone OK.
+
+## holes2: the gaps the hole blockers still missed; tunable limits; report a miss (branch agent/holes2, 2026-11-22)
+
+- **His note (flat):** is the threshold customizable; a few gaps he still falls through. HULLS.md "Holes" (holes2) has
+  the detail. Four more searches at map load, each blocker kept only where hull 1 shows Quake's box can't reach into it:
+  diagonals between upright slanted prisms (slanted bars, turned grates, round holes; under 32 x 1.414 across), gaps
+  between two brush models (two func_walls, a door and a lift's travel), thin bars at two heights seen from above (a
+  louvred grate) and the world's thin gaps 32..48 along a line; the last two only over a fall with the way down open,
+  where Quake's box standing can't reach them. The census's reach test and the drop test now test the same shape.
+- **Settings** (next map load, or Rebuild Gap Blockers Now: `vr_hull_holes_rebuild`, a save and load):
+  `vr_hull_holes_max` 32, `_min` 8, `_wide` 48, `_diag` 1, `_models` 1, `_vert` 1 (Movement > Player Hitbox);
+  `_cells` 64, `_cell` 2, `_reach` 2 (Debug, beside Show Gap Blockers). `buildVersion` 4: every map's trees compile once
+  again.
+- **Report a miss:** Debug > Mark a Gap I Got Through (`vr_hull_holes_mark [radius] [note]`): map, position, settings,
+  the solids and the gaps on the lines through you, the blockers near; also added to `quakevr/hull_holes_marks.txt`.
+- **Test:** vrbrushholes gained a diagonal grate, a louvred grate and two func_walls; `vr_hull_holes_test` 23/0 on and
+  23/0 off; with diag, vert and models off exactly their six checks fail. Scenes `brushholes_diag`, `_louvre`, `_walls`
+  (`brushholes_grate` now starts north of the new louvred pit). Census: id1 38 maps and AD 14 maps, Quake's box reaches
+  0; ad_tears' search 1.02 s against 0.68 s without the new searches (low-impact run).
+- **Open:** Quoth not in the kit's base (not censused); `vr_hull_holes_rebuild` not run headless (it saves a game); bars
+  at two heights over an open pit get no blocker where Quake's box hanging below them could reach it.

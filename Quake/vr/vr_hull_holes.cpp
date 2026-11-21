@@ -12,7 +12,10 @@
 // box between the corners' faces holds only gap points and points inside the two brushes. Slanted faces are cut into
 // smaller cells. Pairs are looked at within each model (the world, a gate's bars, a func_wall grate: blockers that move
 // with it) and between the world and the brush models that stay or only travel a line (a func_wall, a door's or a lift's
-// whole travel as a box: blockers in the world's tree).
+// whole travel as a box: blockers in the world's tree), and between two of those. Since holes2 (2026-11-22) also along
+// the diagonals (slanted bars), seen from above (bars at two heights) and in the wide band (thin gaps up to
+// vr_hull_holes_wide), each kept only where hull 1 shows Quake's box can't reach into it (the last two: standing, over a
+// fall). The limits are settings (vr_hull_holes_*: Settings); vr_hull_holes_mark reports a miss.
 
 #include "vr_hull_internal.hpp"
 #include "vr_cvars.hpp"
@@ -1559,7 +1562,7 @@ void near_f()
 }
 
 // vr_hull_holes_test: on maps/vrbrushholes (Misc/quakevr/make_vrbrushholes_map.py: the places below), the player's box
-// and a narrow monster's (a grunt at vr_mhull_army 16) at a grate, a bar gate, a lift's edge and a pillar row; with
+// and a narrow monster's (a grunt at vr_mhull_army 16) at a grate, a bar gate, a lift's edge, a pillar row, a diagonal grate, a louvred grate and two func_walls; with
 // vr_hull_holes on they are stopped (and still get 8 units from a face), off they pass (the scene is a real hole).
 // Verdict: "brushholes: N passed, M failed" (off: "brushholes_off: ...").
 void holeTest_f()
