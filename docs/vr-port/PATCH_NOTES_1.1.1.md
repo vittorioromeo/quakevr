@@ -69,6 +69,11 @@ The guide: [MULTIPLAYER.md](MULTIPLAYER.md).
 - **Deathmatch with bots** (FrikBot: `impulse 100`) that fight, swing and grab with their hands like players.
 - **Bots with a flat-screen player's hands**: they dual wield, swing melee weapons overhead and parry blows by their
   skill; **co-op bots** (VR Settings > Play > Add Co-op Bot) fight the monsters beside you and follow you to the next level.
+- **Bots toned down by skill**: at the lower skills they aim off and behind a moving target, wait a moment before
+  firing at someone they've just seen, pause between bursts, turn slower and notice players from less far; their
+  melee swings are held raised a little before they come down, so you can see them coming and parry. They're the
+  size of a player now, and they draw and fire every gun they carry (the heavy revolver, the nail pistol and the
+  mission packs' guns too), falling back to their melee weapon only when out of ammo.
 - **Proximity voice chat** (Opus, with RNNoise noise suppression): push-to-talk or voice activation, heard at the
   talker's head; per-player mute and volume (VR Settings > HUD, Haptics and Sound > Sound > Voice Chat).
 - **Server Browser** (Multiplayer > Join Game): favourites, the servers you joined last and the LAN's, with their

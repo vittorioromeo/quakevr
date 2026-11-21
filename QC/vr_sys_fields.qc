@@ -149,6 +149,14 @@
 .float vr_botparry_until; // and comes down
 .float vr_botparry_next;  // no blow looked at again before this (one roll a blow)
 .float vr_botparries;     // its guards raised (the tests)
+.float vr_botwindup;      // its swing's extra hold at the top (s: its telegraph, bot_windup; set as the swing begins)
+// A bot toned down by its skill (his voice notes 2026-11-21; frikbot/bot_fight.qc bot_aim_point, bot_fire_ready):
+.vector vr_botaim_err;    // its aim's error now: _x right, _y up, each a share of the distance to its enemy
+.float vr_botaim_next;    // ... drawn again then
+.entity vr_botreact_of;   // the enemy it last reacted to
+.float vr_botreact_at;    // ... it may fire at him from then on (its reaction time)
+.float vr_botreact_seen;  // ... last ready to fire at him (bot_fire_ready)
+.float vr_botburst_until; // its burst of fire goes on until then, then a pause (its fire discipline)
 // A bot's off hand as a player's (MP B11 part 4; frikbot/bot_fight.qc bot_offhand_ai decides, bot_setvrfields moves it):
 .float vr_botpunch;       // its punch began at this time (0: none)
 .entity vr_botpunch_of;   // ... at whom

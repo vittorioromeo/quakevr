@@ -556,6 +556,7 @@ float(entity p) VR_HandLinesKept;
 // frikbot/bot_fight.qc bot_setvrfields): its sweep strikes nothing then, as a flat player's windup strikes nothing (its
 // .handsynth says so too); the strike's blow is the sweep's.
 float BOT_SWING_LEN = 0.8; // s: a bot's swing's next start no sooner (the flat swing's windup, strike and way back: 0.73)
+float(entity b) bot_windup; // (its extra hold at the top, by its skill: frikbot/bot_fight.qc; BOT_SWING_LEN's on top)
 float(entity p, float xHand) VR_HandButtonSwing =
 {
     return (xHand == cVR_MainHand) && !p.ishuman && (p.vr_botswing_ph == 1);

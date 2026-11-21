@@ -7,6 +7,8 @@
 
 #include "vr_cvars.hpp"
 
+#include <cstdlib>
+
 namespace qvr::units
 {
 
@@ -51,6 +53,29 @@ inline constexpr float modelEyeHeight = 1.646f;
 [[nodiscard]] inline float bodyScale()
 {
     return eyeHeight() / modelEyeHeight;
+}
+
+// vr_world_scale's default (a player who never changed it).
+[[nodiscard]] inline float defaultWorldScale()
+{
+    const float s = vr_world_scale.default_string ? static_cast<float>(std::atof(vr_world_scale.default_string)) : 0.f;
+    return s > 0.f ? s : 1.f;
+}
+
+// A bot's (FrikBot's) standing eye height in world units, its feet to its eyes: the default player's -- the eye height
+// the body models are made for (vr_height_calibration's default) at vr_world_scale's default. His voice notes
+// 2026-11-21: bots looked "very small compared to the player"; their box's view height (46 units) at world scale 1 drew
+// them some three quarters of a player's height. Its body (vr_server.cpp writeAvatars, vr_mpavatar.cpp setupBody), its
+// drawn head and its hands' pose (vr_builtins_melee.inc botflatpose) all take it.
+[[nodiscard]] inline float botEyeUnits()
+{
+    return modelEyeHeight * perMetre * defaultWorldScale();
+}
+
+// ... how far above its box's eyes (`boxEye`: its view height over its feet, DEFAULT_VIEWHEIGHT - mins_z) its drawn head is.
+[[nodiscard]] inline float botEyeRaise(float boxEye)
+{
+    return botEyeUnits() - boxEye;
 }
 
 } // namespace qvr::units
