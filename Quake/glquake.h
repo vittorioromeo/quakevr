@@ -646,6 +646,7 @@ typedef struct glprogs_s {
 	GLuint		alias_plain[3][3];	// QVR: [mode][poseverttype] alias_opaque without the per-model features no instance of a batch has (vr_gl_alias_plain; the ES profile only, else 0)
 	GLuint		alias_gore[3][3];	// QVR: [mode][poseverttype] alias_plain keeping the wounds and dents (vr_gl_alias_gore, C4x; the ES profile only, else 0)
 	GLuint		alias_skin[3][3];	// QVR: [mode][poseverttype] ... and the skin tone (vr_gl_alias_skin, C4y; the ES profile only, else 0)
+	GLuint		alias_body[3][3];	// QVR: [mode][poseverttype] alias_skin lit at its vertices: your body (vr_gl_alias_body, C5e; ES only)
 	GLuint		alias_depth[3];		// QVR: [poseverttype] the shadow maps' casters: depth only (no fragment shader)
 	GLuint		alias_depth_layered[3];	// QVR: [poseverttype] the same, drawn into all their faces at once (gl_viewport_layer_able; 0 without)
 	GLuint		woundpaint[3];		// QVR: [poseverttype] a model drawn into its wound mask (vr/vr_wounds.cpp)
@@ -681,7 +682,7 @@ void GL_DeleteShaders (void);
 GLuint GL_WorldDecalRetroProgram (int oit, int dither, qboolean pdo); // QVR
 // QVR: these groups' variants, made when first asked for under the ES profile (the PC makes them all at the start):
 // gl_shaders.c, GL_ShadersLazyStart
-enum { ALIASFORM_OPAQUE, ALIASFORM_PLAIN, ALIASFORM_GORE, ALIASFORM_SKIN, ALIASFORM_COUNT };
+enum { ALIASFORM_OPAQUE, ALIASFORM_PLAIN, ALIASFORM_GORE, ALIASFORM_SKIN, ALIASFORM_BODY, ALIASFORM_COUNT };
 qboolean GL_ShadersLazyStart (int oit, int dither, int mode); // made at the start (all on the PC; the defaults under ES)
 GLuint GL_WorldProgram (int oit, int dither, int mode);
 GLuint GL_AliasProgram (int oit, int mode, int alphatest, int poseverttype);

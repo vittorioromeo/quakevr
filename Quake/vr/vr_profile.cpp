@@ -1256,7 +1256,7 @@ void printPasses()
     Con_Printf("vr_gl_passes: %d alias batches (model, instances, draws, pass, first entity, skin, program, needs, "
                "triangles each)\n",
         static_cast<int>(glPasses.batches.size()));
-    static constexpr const char* forms[] = {"depth", "full", "opaque", "plain", "gore", "skin", "?", "?"};
+    static constexpr const char* forms[] = {"depth", "full", "opaque", "plain", "gore", "skin", "body", "?"};
     for(const AliasBatch& a : glPasses.batches)
     {
         Con_Printf("  alias %-28s %3d inst %2d draws %s ent %d skin %d %s needs %d tris %d\n", a.model, a.instances,

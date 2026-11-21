@@ -792,6 +792,8 @@ void R_FlushAliasInstances (qboolean showtris)
 			shadeprog = GL_AliasFormProgram (ALIASFORM_GORE, mode, poseverttype); // QVR: ... or all but the wounds and dents (vr_gl_alias_gore)
 		else if (GL_AliasFormAvailable (ALIASFORM_SKIN) && VR_AliasSkinUse (aliasneeds))
 			shadeprog = GL_AliasFormProgram (ALIASFORM_SKIN, mode, poseverttype); // QVR: ... or all but those and the skin tone (vr_gl_alias_skin)
+		if (shadeprog != glprogs.alias_opaque[mode][poseverttype] && VR_AliasBodyLight (ibuf.ent))
+			shadeprog = GL_AliasFormProgram (ALIASFORM_BODY, mode, poseverttype); // QVR: your body in those forms lit at its vertices (vr_gl_alias_body)
 	}
 	if (depthonly)
 		GL_UseProgram (layered ? glprogs.alias_depth_layered[poseverttype] : glprogs.alias_depth[poseverttype]);
@@ -1094,7 +1096,7 @@ void R_FlushAliasInstances (qboolean showtris)
 		for (hdr = mainhdr; hdr; hdr = Mod_NextSurface (hdr))
 			tris += hdr->numindexes / 3;
 		VR_GLAliasBatch (model->name, ibuf.count, draws0, aliasdepth, ibuf.ent >= cl_entities && ibuf.ent < cl_entities + cl_max_edicts ? (int)(ibuf.ent - cl_entities) : -1, ibuf.ent->skinnum,
-			depthonly ? 0 : shadeprog == glprogs.alias_plain[mode][poseverttype] ? 3 : shadeprog == glprogs.alias_gore[mode][poseverttype] ? 4 : shadeprog == glprogs.alias_skin[mode][poseverttype] ? 5 : shadeprog == glprogs.alias_opaque[mode][poseverttype] ? 2 : 1, aliasneeds, tris);
+			depthonly ? 0 : shadeprog == glprogs.alias_plain[mode][poseverttype] ? 3 : shadeprog == glprogs.alias_gore[mode][poseverttype] ? 4 : shadeprog == glprogs.alias_skin[mode][poseverttype] ? 5 : shadeprog == glprogs.alias_body[mode][poseverttype] ? 6 : shadeprog == glprogs.alias_opaque[mode][poseverttype] ? 2 : 1, aliasneeds, tris);
 	}
 	ibuf.count = 0;
 	GL_EndGroup ();

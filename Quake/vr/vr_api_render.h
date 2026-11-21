@@ -184,6 +184,7 @@ int VR_AliasPlainNeeds (const vraliasinstance_t *vr); // r_alias.c: the per-mode
 int VR_AliasPlainUse (int needs); // r_alias.c: a batch needing `needs` drawn by glprogs.alias_plain (vr_gl_alias_plain)
 int VR_AliasGoreUse (int needs); // r_alias.c: ... else by glprogs.alias_gore (vr_gl_alias_gore: needing only what it keeps)
 int VR_AliasSkinUse (int needs); // r_alias.c: ... else by glprogs.alias_skin (vr_gl_alias_skin: the same, skin tone kept too)
+int VR_AliasBodyLight (const entity_t *e); // r_alias.c: your body's batch in those forms drawn by glprogs.alias_body (vr_gl_alias_body)
 void VR_AliasDent (const struct entity_s *e, const void *aliashdr, float dent[4], float scale[4]); // instance: its flesh dents (vr_dents.cpp)
 void VR_BarrelMaskBind (void); // the hot barrels' triangle masks bound for the alias shaders (SSBO 16; vr_barrelmask.cpp)
 void VR_DentBind (void); // the flesh dents' rows bound for the alias shaders (SSBO 12), the changed ones written first

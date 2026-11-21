@@ -388,6 +388,21 @@ extern "C" int VR_AliasSkinUse(int needs)
     return (needs & static_cast<int>(vr_gl_alias_plain_mask.value) & ~skinKeeps) == 0 ? 1 : 0;
 }
 
+// C5e (QUEST_PLAN.md 6zp): r_alias.c: your body's batch, drawn by the plain, gore or skin form, drawn by the body form
+// instead (glprogs.alias_body: the skin form with QVR_APLAIN_VLIGHT): its light per vertex. Its pixels were ~4 times the
+// world's cost, ~4 of its ~5 ms in its per-pixel light with the torso in view (6zo). Only where the vertex light leaves
+// nothing out: no dynamic occlusion (QVR_ALIAS_VS_VLIGHT has none) and no shadowed lights (its loop reads no shadows).
+extern "C" int VR_AliasBodyLight(const entity_t* e)
+{
+    if(vr_gl_alias_body.value == 0.f || vr_gl_alias_plain.value == 0.f || !e || VR_ViewEntityGroup(e) != VR_DRAW_BODY)
+    {
+        return 0;
+    }
+    const bool occlusion = vr_ao_dynamic.value > 0.f || vr_ao_brush.value > 0.f;
+    const bool shadows = vr_shadow_dlights.value > 0.f || vr_shadow_maplights.value > 0.f;
+    return occlusion || shadows ? 0 : 1;
+}
+
 extern "C" int VR_AliasPlayerFirst(const entity_t* e)
 {
     // Your own models stand nearest the eye: drawn (opaque) before the world, the world's depth pre-pass and shading skip
