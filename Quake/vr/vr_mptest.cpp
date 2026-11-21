@@ -436,9 +436,9 @@ void status_f()
             // (B12: his rate, the changed records that waited for it and the snapshots with any)
             // (B12c: the cosmetic fragments' entries' bytes and their records that waited for their budget)
             Con_Printf("mp_netsnap: slot=%d sent=%d full=%d delta=%d cut=%d bytes=%lld seq=%u acked=%u rate=%d waited=%lld "
-                       "waitframes=%d cosmetic=%lld cwaited=%lld\n",
+                       "waitframes=%d cosmetic=%lld cwaited=%lld rwaited=%lld\n",
                 i, ns.sent, ns.full, ns.delta, ns.cut, ns.bytes, ns.seq, ns.acked, ns.rate, ns.waited, ns.waitFrames,
-                ns.cosmeticBytes, ns.cosmeticWaited);
+                ns.cosmeticBytes, ns.cosmeticWaited, ns.ragWaited); // (ragsync2: the ragdolls' records among them)
             // (then his main hand's gun's magazine: its weapon record's .wi_clip; B8h, rounds loaded by hand)
             const qvr::progs::FieldOffsets& pf = qvr::progs::fields();
             int clip = 0;

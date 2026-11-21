@@ -1175,6 +1175,13 @@ za::Vector<Item> pageDebugReports()
             .help("vr_mp_near <ent> [radius] [seconds]: the models this client draws, the lights and the sounds of the last "
                   "seconds round a player (0: you). Run it here and on another player's game with your entity number to "
                   "see what of you he gets (the sync audit's harness, mp_test.py syncaudit)."),
+        command("Network: Log Physics Bodies (5 s)", "vr_mp_bodylog 5 700")
+            .help("vr_mp_bodylog <seconds> [radius]: logs each tick the physics things within the radius (props, gibs, "
+                  "dropped weapons, every ragdoll part): a listen host the server's truth, a remote client what it draws "
+                  "(mp_bl, mp_bp lines). Run it on both games at once to compare (mp_test.py ragsync)."),
+        toggle("Network: Send Ragdolls' Parts", vr_net_ragdolls)
+            .help("vr_net_ragdolls: hosting, each ragdoll in a remote player's sight goes in his snapshots by its parts "
+                  "(drawn as the server has it); off, his game draws the corpse's death animation (as before ragsync)."),
         command("Network: Follow the Next Player (Navmesh)", "vr_nav_follow next")
             .help("vr_nav_follow next: you walk after the next other player along the navmesh (each press the next one; past "
                   "the last, off), your view turned and forward pressed as your own keys would. Your own move, look or "

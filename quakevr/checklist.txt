@@ -57,6 +57,10 @@ Flat-screen: in mp_local.ps1, aim down the sights (shotgun, nailgun, rocket laun
 Monsters hurt or killed unawares cry out; near or in-sight ones turn on you, ones behind walls come to look; ambushers stay put (map vralert, shoot V)
 Riding e1m1's big lift with a grunt: nobody sinks into it going up or down, and your view follows the lift without a stair dip {test:lift_riders}
 In a multiplayer game (add a bot with impulse 100), press the wrist gadget's outer button until the scoreboard page shows: every player with his colours, frags and name, most frags first, your row lit, ((o)) beside whoever talks; it should be readable at wrist distance and update when someone scores. In single player the button should never reach it.
+Coop, as a client: kill a grunt and knock one down near both players; the client sees the same fall, stagger and get-up as the host, no death animation
+Coop, as a client: a dead player's body tumbles the same for both
+Coop: throw a crate and a sword between the players; both see them tumble the same
+Coop, as a client: hold a corpse's arm and swing it; the limb stays in your hand
 
 [4. Flat screen]
 Flat-screen: walk forward into the tutorial's rung ladder (lesson 3): your hands take the rungs and you climb hand over hand at a steady pace, and climb over the top onto the platform. {test:flat_ladder}

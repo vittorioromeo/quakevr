@@ -6309,6 +6309,49 @@ His voice notes of 2026-11-21 (vrfiringrange 00-23-29, e1m1 01-04-14 and others)
 - Menus: `menu_paths.txt` regenerated; `vr_menu_path_check maps/vrcalibration.map` 0 missing. Scenes:
   `speed_toggle_click`, `vr_slide_legs`, `foveation_auto`, `revolver_swing` (and `vr_slide`'s title).
 
+## ragsync: ragdolls (dead and active) drawn by remote clients as the server has them (2026-11-21, `agent/ragsync`)
+
+- His words: ragdolls not synchronized in coop; props and other physics things should be. The audit and the design:
+  MP_PLAN.md, "Ragdolls and physics bodies in multiplayer". Only the ragdolls diverged: every other Box3D thing is an
+  entity, already interpolated with its turn slerped (crate 0.04 units, sword 0.35 degrees p95 while moving).
+- Each ragdoll in a remote client's sight is a snapshot record (QVR_SVC_RAGPOSE, `netsnap::ragKey`, vr_netragdoll.cpp):
+  parts quantized (eighths, smallest-three turns), delta-coded, PVS-culled, the moving ones under
+  `vr_net_ragdoll_bytes` (400) by priority, settled ones free; the client draws it between its last 24 poses at its
+  entities' clock (`ragdoll::publishNet`). `vr_net_ragdolls 0`: none sent (the death animation, as before).
+  QVR_NET_VERSION 42: the room service must be redeployed.
+- `mp_test.py ragsync` (13/2 in its last run; the two: a gib's and a backpack's p95 at B, notes now, the test checks
+  the thrown crate and sword): B's moving ragdoll parts against the server's p95 24.3 units, 153 degrees before (the
+  animation), 0.18 units, 0.21 degrees after; 3.0 KB/s for the play's two ragdolls, 0 B once settled.
+- Tools: `vr_mp_bodylog <seconds> [radius]` (mp_bl, mp_bp lines: a host's truth, a client's drawing).
+- Open: a remote client's hands on a ragdoll aren't led locally between poses (the listen host's
+  vr_ragdoll_held_local); dropped weapons and backpacks waited a little under the rate with ragdolls sent.
+
+## ragsync2: the others never wait behind the ragdolls; a remote client's hands lead a ragdoll he holds (2026-11-21, `agent/ragsync`)
+
+- **The regression** (ragsync's open item): with the ragdolls sent, a dropped shotgun and backpacks drifted 1.75-2.3
+  units p95 at B. Not his rate (80 KB/s): the remote datagram's 1400 bytes, where the encoder chose entries by priority
+  and a near ragdoll's 270-400 B record outranked them (and could take the first-finite rule's bucket debt). Now
+  (netsnap `encode`, its new `ragSoft`) a ragdoll's changed record is chosen after every other entry, whatever its
+  priority, never by the first-finite rule, and under a rate only from what his bucket would spill by his next datagram
+  (serverEnd: tokens + rate x period - the bucket's size): the others keep the room and the bucket they'd have had
+  without ragdolls. A link filled by the others starves the ragdolls (drawn between the poses they have), not them.
+  Self-test: `vr_netsnap_selftest` "a ragdoll's record (the highest priority) in the room the others leave" (15/0).
+- **Measured** (`mp_test.py ragsync`, last run): with the ragdolls sent, B's dropped shotgun, backpacks, crate and sword
+  0.04 units p95 while moving (as without); the ragdoll parts 0.46 units, 0.75 degrees p95 (0.15-0.19 when they came
+  first: the price, within the check's 2 / 3). An earlier run had one flung backpack 3.2 units p95 over a 0.8 s gib
+  burst; the last run none. New note: the changed records that waited over the play, the ragdolls' and the others'
+  (`vr_mp_status` mp_netsnap `rwaited=`): 268 others with ragdolls against 115 without in the last run (the second
+  play has the first's corpses and gibs in sight too; 443 against 662 in another run: the counts move run to run).
+- **A remote client's own hands on a ragdoll**: in his own snapshot a ragdoll he holds carries which hands hold it
+  (two bits in the flags byte) and where the server had them (his hand fields, int32 eighths, 12 bytes a hand, only
+  while held; `netsnap::serverPlayer`); `ragdoll::publishNet` fills the pose's held hands and the listen host's
+  `leadWithHands` (vr_ragdoll_held_local) moves the drawn ragdoll with his hands since: the limb in his hand at his
+  frame rate. Not harness-tested: no scenario has a remote client hold a ragdoll (his to try in VR: hold a corpse's arm
+  as a client and swing it; with vr_ragdoll_held_local 0 it trails by the interpolation delay).
+- Debug menu (Network): "Log Physics Bodies (5 s)" (vr_mp_bodylog 5 700), "Send Ragdolls' Parts" (vr_net_ragdolls).
+- Checks: ragsync 11/0; deathbody and the 20 that never started 22/22 with --only (netsafe included); the plain suite
+  62/63 (mp_dm's bot-parries-bot case under the suite's load, 27/0 alone in the --only run); single-player below.
+- QVR_NET_VERSION stays 42 (the wire changed within it; agent/syncfix also takes 42: the second to ship takes 43).
 ## checklist
 
 - 11 ticked lines retired (eye-tracking foveation (Quest Pro note), relight speed, slide view dip, reload port shove, no attract demos, Speed Button Toggle, Mantle When, Grappling Gun, Dwell d2end boss, Discord status, double-tap run). Kept: the Sliding line and the Dwell start/d1m1 line (voice notes). No scene retired: the only scene tag among them (vr_slide) is still used by the kept Sliding line.
