@@ -858,7 +858,6 @@ Quake/vr/doom/qvr_doom_dll.c|use_libsamplerate
 Quake/vr/vr_ad.cpp|mapState
 Quake/vr/vr_ad.cpp|tintState
 Quake/vr/vr_ad.cpp|versionWarned
-Quake/vr/vr_ad_gadget.inc|pageState
 Quake/vr/vr_ad_gearlights.inc|pageButton
 Quake/vr/vr_adcrossbow.cpp|boltSound
 Quake/vr/vr_adcrossbow.cpp|clientStateReset
@@ -2740,6 +2739,7 @@ Quake/vr/vr_netmove.cpp|clientStateReset
 Quake/vr/vr_netmove.cpp|moveLogQuant
 Quake/vr/vr_netmove.cpp|selftestScratch
 Quake/vr/vr_netmove.cpp|serverSlots
+Quake/vr/vr_netragdoll.cpp|clientRags
 Quake/vr/vr_netsnap.cpp|building
 Quake/vr/vr_netsnap.cpp|byPrio
 Quake/vr/vr_netsnap.cpp|byteCounts
@@ -3102,6 +3102,7 @@ Quake/vr/vr_ragdoll.cpp|getupPoints
 Quake/vr/vr_ragdoll.cpp|getupWatch
 Quake/vr/vr_ragdoll.cpp|gunCheckNext
 Quake/vr/vr_ragdoll.cpp|hiddenHeadNum
+Quake/vr/vr_ragdoll.cpp|netDraw
 Quake/vr/vr_ragdoll.cpp|rigCache
 Quake/vr/vr_ragdoll.cpp|skinMemos
 Quake/vr/vr_ragdoll.cpp|warmSite

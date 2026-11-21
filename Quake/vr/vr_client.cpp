@@ -8,6 +8,7 @@
 #include "vr_netmove.hpp"
 #include "vr_predict.hpp"
 #include "vr_netsnap.hpp"
+#include "vr_netragdoll.hpp"
 #include "vr_mpdownload.hpp"
 #include "vr_clientprefs.hpp"
 #include "vr_moveguard.hpp"
@@ -1168,6 +1169,7 @@ extern "C" int VR_ParseServerMessage(int cmd)
             break;
         }
         case QVR_SVC_RIGSEQ: rigseq::parseMessage(); break;
+        case QVR_SVC_RAGPOSE: netrag::clientParse(); break;
         case QVR_SVC_ARMOR: agarmor::parseEvent(); break;
         case QVR_SVC_XRAY: arenaxray::parseEvent(); break;
         case QVR_SVC_GORESOUND: goresound::parseEvent(); break;

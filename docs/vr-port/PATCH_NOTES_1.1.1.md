@@ -68,6 +68,10 @@ The guide: [MULTIPLAYER.md](MULTIPLAYER.md).
   calibration, moving smoothly between the server's updates. A sliding player is seen sliding (legs out in front, leant
   back), not crouched; a dead player's body is his own body (his build, skin tone, gloves, hands), not Quake's ranger,
   for everyone including himself.
+- **Ragdolls as the host has them**: dead monsters, staggering, knocked-down and climbing ones and dead players' bodies
+  fall, tumble and get up the same way for everyone (before, a joining player saw the death animation instead); props,
+  thrown weapons and gibs already moved the same for everyone, and still do while ragdolls are sent (the ragdolls only
+  use the room the rest leaves). A corpse you hold follows your hand smoothly, as for the host.
 - **Other players' guns and torches as they are**: the heavy revolver's cylinder swinging out and its shells, a super
   shotgun broken open, magazines in or dropped and the rounds they show, the ammo screen's count, the Widowmaker's
   spinning barrels; another player's flashlight is drawn where he carries it and lights the world where it points.
@@ -105,6 +109,9 @@ The guide: [MULTIPLAYER.md](MULTIPLAYER.md).
 - **A flat-screen player aiming down the sights looks the part** to others (and in the third-person camera): his head
   at his eye behind the rear sight, the cheek on the stock, the chest following the gun up and down, the arms holding
   the gun from below (no forearm across the face), standing, crouched or sliding.
+- **The scoreboard on your wrist**: in multiplayer the wrist gadget's outer button also turns to a scoreboard page:
+  every player's colours, frags and name in the scoreboard's order, your row lit, who is talking on voice chat, and in
+  coop the level's kills and secrets. Live, up to 16 players.
 
 **Single player only**: time scale and bullet time, saving at will (the host's level-start coop autosave instead),
 the crates Quake VR places about maps, Dimension of the Past and Dimension of the Machine.
@@ -114,6 +121,12 @@ for the routers hole punching can't get through (the host forwards his port, or 
 aren't Map Library packages aren't sent to joining players.
 
 ## Movement
+
+- **Riding a lift no longer sinks you or the monsters into it.** Going up, your eye trailed a rising lift by up to 12
+  units (the stair-step easing took the lift's rise for a step) and a monster riding it was drawn as far as 13 units
+  into it; now your eye rides with the lift (only a step's jump is eased: `vr_view_lift_follow`, 400 units a second;
+  0: as before) and a monster on a moving lift is drawn moving with it, both ways, flat and in the headset. How lifts
+  push, crush and turn back is unchanged. Debug > Logging > Lift Riders measures it.
 
 - **The heavy revolver's cylinder stays shut in a melee swing.** The wrist flick that swings it out is ignored while
   the gun's hand moves at a swing's speed and for a moment after it or after a blow lands; a deliberate flick still
@@ -165,6 +178,14 @@ aren't Map Library packages aren't sent to joining players.
   setting is kept for the next launch without it). **`-windowpos <x> <y>`** places it (its inside's top-left, in
   desktop pixels) instead of centring it.
 
+
+## Monsters
+
+- **The alarm spreads further.** A monster you hurt or kill before it noticed you cries out: the others within earshot
+  (800 units in the open, less round a corner or through a doorway, much less through solid walls) come to look, and
+  those near it or in sight of it turn on you, now for a kill in one shot too. Monsters placed in ambush keep Quake's
+  meaning: they don't hear it, and armed ones no longer leave their post for a fallen comrade's weapon. Combat > Stealth
+  AI > Cries Heard (0: off). The test map `vralert` shows each case.
 
 ## Performance
 

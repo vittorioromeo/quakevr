@@ -51,7 +51,7 @@ int VR_NoLiquidEffects(struct qmodel_s* model, const float* point);
 // Quake VR's network version, sent after NetQuake's in the connect request ("QVR", then this long; net_dgrm.c): a
 // server whose protocol is the VR one rejects a client without it or with another, with the reason (MP_PLAN.md, B2).
 // Raise it with any change to what client and server send each other.
-#define QVR_NET_VERSION				41 // (41: the players' guns' looks and torches in the avatar, their torch in the move, wpnsync; 40: a connect request gets a slot only with the server's cookie for its address, CCREP_CHALLENGE, mpfix A1; 39: the channels' first sequences drawn at random by each side, in the connect request and the accept, review 2026-11-18 finding 2; 38: what a remote client's hands hold, and where (QVR_SVC_HELDPLACE), B27; 37: the movers' exact places and the server's tick in the predict state, B24; 36: one server socket for every client, B23; 35: bots' hands solved by the clients, B11 part 3; 34: B13's selective acks, the version in the accept reply)
+#define QVR_NET_VERSION				42 // (42: the ragdolls' parts in the snapshot, QVR_SVC_RAGPOSE, ragsync; 41: the players' guns' looks and torches in the avatar, their torch in the move, wpnsync; 40: a connect request gets a slot only with the server's cookie for its address, CCREP_CHALLENGE, mpfix A1; 39: the channels' first sequences drawn at random by each side, in the connect request and the accept, review 2026-11-18 finding 2; 38: what a remote client's hands hold, and where (QVR_SVC_HELDPLACE), B27; 37: the movers' exact places and the server's tick in the predict state, B24; 36: one server socket for every client, B23; 35: bots' hands solved by the clients, B11 part 3; 34: B13's selective acks, the version in the accept reply)
 // A remote client's moves (vr/vr_netmove.hpp: quantized deltas with repeats; the loopback's stay clc_move; MP_PLAN.md, B7).
 #define QVR_CLC_MOVES				16
 // A client's voice frames (vr/vr_voicechat.hpp: Opus, 20 ms each; MP_PLAN.md, B10v), after his move.
@@ -532,6 +532,7 @@ int VR_ActiveWeaponStat (struct edict_s *ent);			// SV_WriteClientdataToMessage:
 int VR_EntityUpdateBits (struct edict_s *ent);			// SV_WriteEntitiesToClient, before U_EXTEND*
 void VR_WriteEntityUpdate (struct sizebuf_s *msg, struct edict_s *ent, int bits); // after the update
 int VR_StepLerpInterval (struct edict_s *ent);			// SV_WriteEntitiesToClient: U_LERPFINISH's byte for a stepping monster in the air (moved every server frame), -1 else (vr_server.cpp)
+int VR_StepRidesLift (struct edict_s *ent);				// SV_WriteEntitiesToClient: a stepping monster on a moving lift, sent without U_STEP (drawn as the lift is; vr_server.cpp)
 void VR_ParseEntityUpdate (int num, int bits);			// CL_ParseUpdate, after the fitz fields
 int VR_ParseServerMessage (int cmd);					// unknown svc: nonzero if handled
 void VR_NoteServerMessage (int kind);					// CL_ReadFromServer: a message read (1 reliable, 2 unreliable): the byte counts (vr_netsnap.cpp, vr_net_bytes)

@@ -1,33 +1,15 @@
 # Quake VR playtest checklist (VR menu > Checklist). One line = one thing to try: what to do and what to look for; tick what works, tell me what doesn't.
 # Reload List refreshes this page; no rebuild needed. Ticked items are retired (their marks stay in checklist_ticks.txt); older items are in git history.
-# Sections run in play-test order: the flat-screen sections first (what you'd try at the desk: flat weapons, the run setup, menus and the Map Library), then the headset's (body, melee, weapons, physics, the hub, the arena, recording and dev tools). A line that works in either mode sits where it is most natural to test. A line's text is the key of its tick: reword a line and it is untested again.
+# Sections are by feature (Dwell, Quoth, Multiplayer and bots, Flat screen, VR movement and comfort, Weapons, Armed humanoids and physics, the Survival Arena, Graphics, Menus, Installer and platforms, Recording and dev tools); empty ones are left out and a new feature gets its own. A line that fits two sits in the one it is most natural to test from. A line's text is the key of its tick: reword a line and it is untested again.
 # A flat-only line starts "Flat-screen:"; a line that works in either mode starts "Flat-screen or VR:" (try it in either); the rest are for the headset.
 # New lines from a ship land in a [New: not yet sorted] section at the top (or in the section a lines file names on its first line, "[section: <name>]"); the next sort moves them into place and drops that section.
 # A line ending in {test:<id>} has a Test button: it loads quakevr/scenarios/<id>.txt's scene (docs/vr-port/TESTING.md, "Checklist scenarios"); give new lines one whenever a scene fits. Flat-screen lines' scenes work under -flatscreenmode too (the game's mode is picked at start-up, not by the scene).
 # Lines are only for something new or changed you can see or feel: one line per flow, never "works as before". History of the sorts: git log of this file and docs/vr-port/CHECKLIST_REORG.md (latest: 2026-11-14 release audit, 94 lines down to 68, 71 with three from a later ship: the [New] section sorted, near-duplicates merged, every line cut to what to do and what to see, 3 new scenes; 2026-11-15: 17 ticked lines retired, the [New] section sorted). Misc/quakevr/checklist_tests_check.py checks every tag's scene file and the format (no "(agent/", "Test:", scratch or qvr-agents paths, .sh names; sections in order).
 
 [New: not yet sorted]
-Installer: the desktop now also gets a "Quake VR Unleashed (Flat Screen)" shortcut (own checkbox on the options page, on by default; check the Start menu, desktop and an uninstall).
-On the Quest Pro via Virtual Desktop with eye tracking forwarded to the PC: turn on Eye-Tracked Foveation (VR Settings, Graphics), restart VR and set vr_foveated_debug 1: the sharp area follows your eyes, and the log says eye tracking is on.
-Flat-screen: walk forward into the tutorial's rung ladder (lesson 3): your hands take the rungs and you climb hand over hand at a steady pace, and climb over the top onto the platform. {test:flat_ladder}
-Flat-screen: on the tutorial ladder's top, back off the edge facing away from the drop: you are lowered onto the rungs; hold back (or forward while looking down) to climb down to the floor, and jump on the ladder to push off it. {test:flat_ladder}
-Flat-screen: walking into plain walls, single ledges and stairs never starts a ladder climb, and the jump mantle still works as before. {test:flat_ladder}
-Sliding (VR, experimental; VR Settings > Locomotion): while running, pull the turning stick firmly straight down: you slide as on the desktop screen (faster at first, slowing to a stop; let go to stop, jump to keep the speed), with the slide's scrape and your drawn legs out in front. Check snap and smooth turns never slide, and that the pull feels neither too stiff nor too loose (Slide Stick Pull and Angle). {test:vr_slide}
-Flat-screen: hip-fire (no right button) at a grunt seen through a see-through teleporter, from well back and from right in front of the gate: the shots hit what the crosshair is on beyond it, as they do with the sights up. {test:flat_gate_hipfire}
-Run the installer with Arcane Dimensions 1.80 patch 1 in your Quake folder: the expansions list shows Arcane Dimensions as "ready (experimental)" with a check mark; an older AD copy shows a warning saying only 1.80 patch 1 is played.
-Install with the relight on and watch Relighting the maps: the big maps go first and the bar ends on small ones; note the total time in the log, and whether Skip still stops it at once.
-Installer: relighting covers Quake and the mission packs only (Map Library and Arcane Dimensions keep their own lighting; Graphics > Relighting relights them on demand)
-Graphics > Relighting, Relight This Map in e1m1 and in a big map (Arcane Dimensions' ad_mountain) with Bounced Light on: it should take about half as long as before and look the same as the old relight (corners, bounced colour, no blotches on small faces).
-Sliding in VR: your view now dips quickly but smoothly down to the desktop screen's sliding eye height while you slide and comes back up when it ends, your own head still moving one to one; check it feels comfortable (Slide View Time in VR Settings > Locomotion; Slide View off keeps the view at your real head) and that your drawn body lies back with its legs out on the floor as on the desktop screen. {test:vr_slide}
-Linux #82: Flatpak with SteamVR running: VR starts, or qvr_openxr.txt has OpenXR loader output lines for the report
-Flat-screen or VR: start the game and open the console: the start-up's steps are listed as "[startup +Xs] ... begin / end (took X ms)" with a summary of the slowest steps at the end, and quakevr/startup.log has the same lines; Debug > Startup > Startup Trace Summary repeats the summary.
-On the Quest, start the game with "adb logcat -s QuakeVR" running: each start-up step appears as it begins and ends, and during a long step a "still in <step>" line every 2 seconds says what it is doing; vr_android_export startup.log copies the file out.
-Reloading in VR: bring a round or magazine to the loading port: the gun and the off hand no longer shove each other apart near the port, so it seats where you aim
-A fight with several armed grunts and ragdolls: poses and limbs correct (posed models now batched)
-Flat screen and VR: no attract-mode demos play at start or when the menu idles; the main menu opens instead
-VR Settings > Locomotion > Speed Button: Toggle: click the stick once to sprint, again (or stop) to walk
-VR Settings > Climbing > Mantle When: on letting go / on jump: hang on a ledge, the climb-over waits for that
-Toolgun > Weapons: Grappling Gun is listed; spawn it, grab it, and it hooks
+Checklist: reorganized into feature sections (Dwell, Quoth, Multiplayer and bots, Flat screen, VR movement, ...); your ticked lines are retired
+
+[1. Dwell]
 Dwell: Select Campaign > Dwell, play start and d1m1 (triggered monsters wait, checkpoints autosave); Map Library: Ancient and Underdark Overbright udob1 load and play by Copper rules
 Dwell monsters from the toolgun Dwell pack in e1m1: Kamikaze rush and burst, Brute grenades and punch, Construct dive
 Dwell d1end and d2end boss fights to the end; Berserk melee; Crystal Lance through a line of monsters
@@ -37,19 +19,18 @@ Dwell's Rotary Shotgun reloads at the hip and spins up like the Widowmaker; the 
 Dwell's weapons keep their kind in holsters, after a save and a level change; Haste/Berserk/Wetsuit seconds on the wrist
 Dwell: an armed grunt picks up your thrown Rotary Shotgun / Crystal Lance and fires Dwell's shot; Haste yellow, Berserk red, both orange tint
 Dwell weapons have their own VR models (scenario dwell_vrmodels: grips, muzzles, sights, two-hand; tune Weapon Offsets); the Rotary's barrels spin; holster/wrist menu names by model (Widowmaker, Rifle...)
-Dwell d2end boss: read and dodge the bullet-hell shots, bat one back with a sword; the Sculptor spins, tilts, raises its shield and teleports
 Dwell: Copper armour pickups (0.3/0.5/0.7, excess kept) and key stacks in d1m1; shots on the Sculptor's ring (d2end) land
-Armed grunts you can't see cost far less on crowded maps (d2m8 idle 536k -> 274k QC instr/frame); new tunable vr_agrunt_pose_lod_frames (default 8, 1 = off)
-Discord status: once the app id is set, vr_discord 1 shows map, mode and VR/flat on your Discord profile
-Double-tap the stick to run (Locomotion and Controls > Double-Tap Stick to Run): 0.3 s window and half-push feel right
-Holster Calibration > Ammo Pouch Forward/Right/Up move the pouch and agree with Holster Setup's drag
-Melee against several armed grunts feels unchanged (their weapon-strike check now has a cheap pre-test)
 Dwell's Rotary Shotgun in hand: the ammo screen in a brown bezel with a bolt each side in the middle of its housing's back, readable as you aim; grip and trigger under your hand {test:dwell_rotary}
 Dwell's Crystal Lance in hand: the ammo screen in a dark metal bezel with violet studs on its handle's back; the trigger guard and trigger meet the blades' underside {test:dwell_lance}
 Dwell's Rifle in hand: the ammo screen in a brass bezel with brass nuts on its butt, readable as you aim {test:dwell_rifle}
-Multiplayer (agent/mp merged): host and join a coop game over the room service and play a level together; voice, held weapons and melee look right on both sides
-Ragdolls and props lying or sliding on floors and stairs feel as before (Box3D updated to upstream; Debug > Profiling > Physics Mesh Ghost Handling off to compare)
-Ragdoll climbs: an ogre knocked off a ledge's lip and caught straddling it (a leg still on the top) pulls itself up instead of letting go and falling
+Flat-screen or VR: with Dwell installed, play Quake's start and Scourge of Armagon's hip1m1: each plays its own soundtrack, not Dwell's music; Select Campaign > Dwell: its start map plays Dwell's own music
+Select Campaign > Dwell, start map: place both runes on the pedestals, walk through each opened portal and down its corridor: the teleporter at its end takes you to the episode's tunnel
+The toolgun's Dwell weapons and MG3 bloody shotguns lie on the floor as props, not floating; each taken into your hand works (no error, nothing vanishes), a bloody one gives its bonus {test:expbugs_props}
+Dwell's Kamikaze sees you, chases you screaming and bursts only when it reaches you, with an explosion drawn {test:expbugs_kamikaze}
+Dwell's Brute's ragdoll: the cannon stays on his left arm, no triangle stretches from his right hand across his arms {test:expbugs_brute}
+Dwell d2end: fight the Sculptor; when it flies or teleports onto you, you are put just outside it, never stuck inside moving with it
+
+[2. Quoth]
 Quoth (experimental): Debug > Quoth: Play (Developer); walk start's hub, play kellbase1 to its exit (the exit lock spawns the plasma gun)
 Quoth map from the Map Library (ne_marb): the waves spawn and the ring doors open
 Quoth (experimental): Setup with AD ticked installs Quoth; without AD the box is greyed with the reason
@@ -57,9 +38,10 @@ Quoth's e1m1quoth: from start's hub, the three ramp-room buttons open its door; 
 Quoth's kellbase1: press the three buttons; enforcers, then pyros, then eliminators arrive, and killing all 16 opens the exit lock and makes the plasma gun
 Quoth's lpqsp1: shoot the button by the vore trap; about 5 s later its secret door opens
 Quoth's metmon: each stage's switches unlock the next, and the fourth shuts down the portal sphere
-Discord status (on by default): with the Discord app running your profile shows Quake VR, the map and mode; Menu Settings > Discord Status off clears it; quitting the game is instant whether Discord is running or not
+
+[3. Multiplayer and bots]
+Multiplayer: host and join a coop game over the room service and play a level together; voice, held weapons and melee look right on both sides
 Multiplayer menu: Join Game and Host Game open their page directly (no IPX / TCP/IP page), no 'untested' note
--window opens a normal window you can drag, even with Borderless Window on; without -window it stays borderless
 Misc/quakevr/mp/mp_local.ps1 -Mode dm -Melee: host and a second window join, a bot duels you with melee
 mp_local.ps1: the host and the joining game open side by side, centred on the screen
 Flat-screen or VR: in mp_local.ps1, type vr_nav_follow next in the client's console (or Debug > Network: Follow the Next Player): it walks after the host along the navmesh through doors, stops a few steps short and follows on as he moves; your own key or mouse takes over at once, it walks on a second later; vr_nav_follow 0 stops it; Show Navmesh draws its path
@@ -69,40 +51,41 @@ Debug > Reports > Network: Drawn Near Me (vr_mp_near) in mp_local.ps1's client l
 Multiplayer: in one game take the heavy revolver and swing its cylinder out with B/Y; the other game shows it swung out with its shells, and they vanish there when you push them out
 Multiplayer: break a super shotgun open and drop a nailgun's magazine with B/Y; the other player sees the barrels drop open and the magazine gone, and your gun's ammo screen shows your clip
 Multiplayer: take your flashlight and switch it on; the other player sees the torch in your hand and its light on the walls where you point it, and it goes dark when you switch it off
-Flat-screen or VR: with Dwell installed, play Quake's start and Scourge of Armagon's hip1m1: each plays its own soundtrack, not Dwell's music; Select Campaign > Dwell: its start map plays Dwell's own music
-Select Campaign > Dwell, start map: place both runes on the pedestals, walk through each opened portal and down its corridor: the teleporter at its end takes you to the episode's tunnel
-The toolgun's Dwell weapons and MG3 bloody shotguns lie on the floor as props, not floating; each taken into your hand works (no error, nothing vanishes), a bloody one gives its bonus {test:expbugs_props}
-Dwell's Kamikaze sees you, chases you screaming and bursts only when it reaches you, with an explosion drawn {test:expbugs_kamikaze}
-Dwell's Brute's ragdoll: the cannon stays on his left arm, no triangle stretches from his right hand across his arms {test:expbugs_brute}
-Dwell d2end: fight the Sculptor; when it flies or teleports onto you, you are put just outside it, never stuck inside moving with it
-Click the moving stick once at a time with Speed Button: Toggle: each click switches the speed once, never twice {test:speed_toggle_click}
-With Default Speed: Run, double-tap the stick: you walk until you let go {test:speed_toggle_click}
-Sliding is on by default in VR: slide and look left or right: your hips and legs keep pointing the way you slide, the chest turned back to your body {test:vr_slide_legs}
-With eye tracking (Quest Pro) the clear middle of foveation follows your eyes with no setting or restart; without it, it stays centred, and the menu line says which {test:foveation_auto}
-Pistol-whip with the heavy revolver: the cylinder stays shut; a deliberate wrist flick still opens it {test:revolver_swing}
 Bots at skill 0-1 miss, hesitate and pause between bursts; same height as you; they draw the revolver with a revolver loadout (mp_local.ps1 -Mode dm -Bots 1)
 mp_local.ps1 dm with bots at skill 0-1: a bot's sword swing is held up before it comes down, it lands on you, and you can parry it
 Flat-screen: in mp_local.ps1, aim down the sights (shotgun, nailgun, rocket launcher) level, up and down, standing, crouched and sliding, while the other window watches from the side: the head sits behind the rear sight with the cheek on the stock, the arms hold the gun from below, nothing crosses the face
+Monsters hurt or killed unawares cry out; near or in-sight ones turn on you, ones behind walls come to look; ambushers stay put (map vralert, shoot V)
+Riding e1m1's big lift with a grunt: nobody sinks into it going up or down, and your view follows the lift without a stair dip {test:lift_riders}
+In a multiplayer game (add a bot with impulse 100), press the wrist gadget's outer button until the scoreboard page shows: every player with his colours, frags and name, most frags first, your row lit, ((o)) beside whoever talks; it should be readable at wrist distance and update when someone scores. In single player the button should never reach it.
+Coop, as a client: kill a grunt and knock one down near both players; the client sees the same fall, stagger and get-up as the host, no death animation
+Coop, as a client: a dead player's body tumbles the same for both
+Coop: throw a crate and a sword between the players; both see them tumble the same
+Coop, as a client: hold a corpse's arm and swing it; the limb stays in your hand
 
-[1. Flat-screen: weapons and hands]
+[4. Flat screen]
+Flat-screen: walk forward into the tutorial's rung ladder (lesson 3): your hands take the rungs and you climb hand over hand at a steady pace, and climb over the top onto the platform. {test:flat_ladder}
+Flat-screen: on the tutorial ladder's top, back off the edge facing away from the drop: you are lowered onto the rungs; hold back (or forward while looking down) to climb down to the floor, and jump on the ladder to push off it. {test:flat_ladder}
+Flat-screen: walking into plain walls, single ledges and stairs never starts a ladder climb, and the jump mantle still works as before. {test:flat_ladder}
+Flat-screen: hip-fire (no right button) at a grunt seen through a see-through teleporter, from well back and from right in front of the gate: the shots hit what the crosshair is on beyond it, as they do with the sights up. {test:flat_gate_hipfire}
 
-[2. Flat-screen: Run Setup, presets and mutators]
+[5. VR movement and comfort]
+Sliding (VR, experimental; VR Settings > Locomotion): while running, pull the turning stick firmly straight down: you slide as on the desktop screen (faster at first, slowing to a stop; let go to stop, jump to keep the speed), with the slide's scrape and your drawn legs out in front. Check snap and smooth turns never slide, and that the pull feels neither too stiff nor too loose (Slide Stick Pull and Angle). {test:vr_slide}
+Click the moving stick once at a time with Speed Button: Toggle: each click switches the speed once, never twice {test:speed_toggle_click}
+With Default Speed: Run, double-tap the stick: you walk until you let go {test:speed_toggle_click}
+Sliding is on by default in VR: slide and look left or right: your hips and legs keep pointing the way you slide, the chest turned back to your body {test:vr_slide_legs}
 
-[3. Flat-screen: menus, campaigns and the Map Library]
-Installer: install into a fresh folder and pick Snap 45, Left-handed and Medium on "Set up the game": the game has them. Change Turning in the game, run Update, change only Turn Speed: Turning stays yours.
-Flat-screen or VR: open Search (the corner's button), type "recoil", then pick Show: Cvars, Tunables and Both in the new row over the text box (mouse, laser and sticks): the results change at once and only show that kind, Both shows all of them.
+[6. Weapons and holsters]
+Holster Calibration > Ammo Pouch Forward/Right/Up move the pouch and agree with Holster Setup's drag
+Pistol-whip with the heavy revolver: the cylinder stays shut; a deliberate wrist flick still opens it {test:revolver_swing}
 
-[4. VR: body and gear]
+[7. Armed humanoids, ragdolls and physics]
+A fight with several armed grunts and ragdolls: poses and limbs correct (posed models now batched)
+Armed grunts you can't see cost far less on crowded maps (d2m8 idle 536k -> 274k QC instr/frame); new tunable vr_agrunt_pose_lod_frames (default 8, 1 = off)
+Melee against several armed grunts feels unchanged (their weapon-strike check now has a cheap pre-test)
+Ragdolls and props lying or sliding on floors and stairs feel as before (Box3D updated to upstream; Debug > Profiling > Physics Mesh Ghost Handling off to compare)
+Ragdoll climbs: an ogre knocked off a ledge's lip and caught straddling it (a leg still on the top) pulls itself up instead of letting go and falling
 
-[5. VR: melee and embedded blades]
-
-[6. VR: weapons and grips]
-
-[7. VR: physics, bodies and gore]
-
-[8. VR: the hub]
-
-[9. VR: Survival Arena (Select Campaign > Arena Mode)]
+[8. Survival Arena (Select Campaign > Arena Mode)]
 Play the arena a while: it feels good and each new wave starts without a hitch; note anything to improve. {test:arena_run}
 Survival Arena from wave 6 (Normal): grunts and enforcers bring the heavy revolver, burst rifle, laser rifle, the knights' swords, chainsaw, Mjolnir and the Super Axe, each first on one foe at its wave; their drops are yours to fire. {test:arena_newguns}
 Survival Arena with Arcane Dimensions' data: from wave 11 (Normal) the waves also bring AD's soldiers' guns, the Widowmaker, Shadow Axe and Plasma Gun, and AD's swords, hammer and mace.
@@ -115,7 +98,25 @@ Survival Arena budget director (on by default: Combat > Survival Arena > Budget 
 - A clear's supplies grow with the wave and lean on how you're doing: badly hurt, more medkits (a megahealth when very low); untouched, now and then a quad, a ring or late a pentagram; red armour from wave 22.
 Debug > Tools > Arena Wave Editor: build a wave with an armed grunt, dual axes, red armour and infected with shambler, save it, assign it to Normal and play from wave 1: the panel readable, laser, stick scrolling and panel keys work. {test:vrarena_calm}
 
-[10. VR: recording and dev tools]
+[9. Graphics and performance]
+With eye tracking (Quest Pro) the clear middle of foveation follows your eyes with no setting or restart; without it, it stays centred, and the menu line says which {test:foveation_auto}
+
+[10. Menus and settings]
+Discord status (on by default): with the Discord app running your profile shows Quake VR, the map and mode; Menu Settings > Discord Status off clears it; quitting the game is instant whether Discord is running or not
+Flat-screen or VR: open Search (the corner's button), type "recoil", then pick Show: Cvars, Tunables and Both in the new row over the text box (mouse, laser and sticks): the results change at once and only show that kind, Both shows all of them.
+
+[11. Installer, start-up and platforms]
+Installer: the desktop now also gets a "Quake VR Unleashed (Flat Screen)" shortcut (own checkbox on the options page, on by default; check the Start menu, desktop and an uninstall).
+Run the installer with Arcane Dimensions 1.80 patch 1 in your Quake folder: the expansions list shows Arcane Dimensions as "ready (experimental)" with a check mark; an older AD copy shows a warning saying only 1.80 patch 1 is played.
+Install with the relight on and watch Relighting the maps: the big maps go first and the bar ends on small ones; note the total time in the log, and whether Skip still stops it at once.
+Installer: relighting covers Quake and the mission packs only (Map Library and Arcane Dimensions keep their own lighting; Graphics > Relighting relights them on demand)
+Linux #82: Flatpak with SteamVR running: VR starts, or qvr_openxr.txt has OpenXR loader output lines for the report
+Flat-screen or VR: start the game and open the console: the start-up's steps are listed as "[startup +Xs] ... begin / end (took X ms)" with a summary of the slowest steps at the end, and quakevr/startup.log has the same lines; Debug > Startup > Startup Trace Summary repeats the summary.
+On the Quest, start the game with "adb logcat -s QuakeVR" running: each start-up step appears as it begins and ends, and during a long step a "still in <step>" line every 2 seconds says what it is doing; vr_android_export startup.log copies the file out.
+-window opens a normal window you can drag, even with Borderless Window on; without -window it stays borderless
+Installer: install into a fresh folder and pick Snap 45, Left-handed and Medium on "Set up the game": the game has them. Change Turning in the game, run Update, change only Turn Speed: Turning stays yours.
+
+[12. Recording and dev tools]
 Takes: with OBS running, press TAKE on the wrist gadget, act, press STOP: a small blinking red light in the headset only, then the rating prompt; KEEP renames OBS's file to <date>_<scene>_t01_keep, REJECT moves it to rejected/. Left grip + X then Y marks in and out (vr_take_list shows them, X / Y do nothing in game); SET UP, knock props about, RETAKE: the scene comes back and a new take starts. {test:takes}
 Takes, Clip That: in a take session press CLIP (or F8): OBS's folder gets a <date>_<scene>_tNN_clip file of the last seconds, rated like a take. Flat-screen: F7 starts and stops a take (a REC line top right), keypad 1 / 2 / 3 rate it, F8 clips, Home / PgUp mark in and out. {test:takes}
 Takes: record a voice note in a take, shoot a few takes with marks, rate some keep and maybe, transcribe, press END: OBS's folder gets session_<date>/ with the files, session.json and timeline.fcpxml, which Resolve imports as the keep takes trimmed to their marks, then the maybe ones, the notes as markers. {test:takes}

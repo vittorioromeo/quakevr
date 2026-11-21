@@ -421,6 +421,7 @@ za::Vector<Item> pageDebugLogging()
         row(opt::vr_debug_flame_wobble),
         row(opt::vr_debug_wallbuttons),
         row(opt::vr_debug_pose_check),
+        row(opt::vr_debug_lift),
         row(opt::vr_debug_shots),
         row(opt::vr_debug_missiles),
         row(opt::vr_debug_throw),
@@ -1154,6 +1155,8 @@ za::Vector<Item> pageDebugReports()
         command("Sight Lines", "vr_sight_lines").help("vr_sight_lines: every weapon's sight line (Align Sights)."),
         command("Sight Check", "vr_sight_check").help("vr_sight_check: the held weapon's sights against its aim."),
         command("Wrist Gadget", "vr_gadget_info").help("vr_gadget_info: the gadget's pose (once it has been drawn) and the hologram's messages up now."),
+        command("Wrist Gadget Next Page", "vr_gadget_page 1").help("vr_gadget_page 1: the wrist gadget's next page, as its outer button (the HUD, Arcane Dimensions' page with its data loaded, the scoreboard in multiplayer), and prints the one shown."),
+        command("Wrist Gadget Scoreboard", "vr_gadget_scores").help("vr_gadget_scores: the wrist gadget's scoreboard page's rows as it draws them (multiplayer: each player's frags, in the scoreboard's order, you, talking)."),
         command("View Text Follow", "vr_view_text_status").help("vr_view_text_status: the messages in front of you: the yaw they follow now (vr_view_text_smooth) and the head's."),
         header("Other"),
         command("Limits", "vr_limits")
@@ -1176,6 +1179,13 @@ za::Vector<Item> pageDebugReports()
             .help("vr_mp_near <ent> [radius] [seconds]: the models this client draws, the lights and the sounds of the last "
                   "seconds round a player (0: you). Run it here and on another player's game with your entity number to "
                   "see what of you he gets (the sync audit's harness, mp_test.py syncaudit)."),
+        command("Network: Log Physics Bodies (5 s)", "vr_mp_bodylog 5 700")
+            .help("vr_mp_bodylog <seconds> [radius]: logs each tick the physics things within the radius (props, gibs, "
+                  "dropped weapons, every ragdoll part): a listen host the server's truth, a remote client what it draws "
+                  "(mp_bl, mp_bp lines). Run it on both games at once to compare (mp_test.py ragsync)."),
+        toggle("Network: Send Ragdolls' Parts", vr_net_ragdolls)
+            .help("vr_net_ragdolls: hosting, each ragdoll in a remote player's sight goes in his snapshots by its parts "
+                  "(drawn as the server has it); off, his game draws the corpse's death animation (as before ragsync)."),
         command("Network: Follow the Next Player (Navmesh)", "vr_nav_follow next")
             .help("vr_nav_follow next: you walk after the next other player along the navmesh (each press the next one; past "
                   "the last, off), your view turned and forward pressed as your own keys would. Your own move, look or "

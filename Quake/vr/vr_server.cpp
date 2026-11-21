@@ -55,6 +55,7 @@
 #include "vr_netmove.hpp"
 #include "vr_predict.hpp"
 #include "vr_netsnap.hpp"
+#include "vr_netragdoll.hpp"
 
 
 using namespace qvr;
@@ -970,6 +971,17 @@ extern "C" void VR_SnapEnd(sizebuf_t* msg)
                 }
             }
             qvr::netsnap::serverRecord(qvr::netsnap::poseKey + e, w.poseJoin, len);
+        }
+    }
+    // (ragsync) The ragdolls in its sight: a record each, their parts as the server last stepped them (vr_netragdoll.cpp).
+    if(qvr::vr_net_ragdolls.value != 0.f)
+    {
+        for(int e = 1; e < qcvm->num_edicts; e++)
+        {
+            if(scopedInSight(r, e))
+            {
+                qvr::netrag::serverRecord(e);
+            }
         }
     }
     qvr::netsnap::serverEnd(msg);
@@ -2131,6 +2143,23 @@ extern "C" int VR_StepLerpInterval(edict_t* ent)
     }
     const int interval = static_cast<int>(host_frametime * 255.0 + 0.5);
     return interval < 1 ? 1 : interval > 25 ? 25 : interval;
+}
+
+// A stepping monster standing on a moving lift (a MOVETYPE_PUSH it rides, moving): the lift moves it every server
+// frame, so it is sent without U_STEP and drawn as the lift is (between the last two messages), not along its steps to
+// its next think. Drawn to its think it fell ~13 units behind the drawn lift riding e1m1's plat up, and ~1.8 drawn over
+// a frame (the step lerp's finish counts from the message's time, its start from the client's: vr_debug_lift; his note
+// of 2026-11-21, riders "compressed by the lift"). Its own steps on a moving lift are drawn over the frame too.
+extern "C" int VR_StepRidesLift(edict_t* ent)
+{
+    if(static_cast<int>(ent->v.movetype) != MOVETYPE_STEP || !(static_cast<int>(ent->v.flags) & FL_ONGROUND) ||
+       ent->v.groundentity <= 0)
+    {
+        return 0;
+    }
+    const edict_t* g = PROG_TO_EDICT(ent->v.groundentity);
+    return !g->free && static_cast<int>(g->v.movetype) == MOVETYPE_PUSH &&
+           (g->v.velocity[0] != 0.f || g->v.velocity[1] != 0.f || g->v.velocity[2] != 0.f);
 }
 
 namespace

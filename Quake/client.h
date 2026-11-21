@@ -373,6 +373,7 @@ typedef struct seatview_s
 	cshift_t	contents;			// v_cshift's empty contents' tint (cshift_empty; the demo rewind keeps it)
 	float		gunyaw, gunpitch;	// CalcGunAngle's smoothing (its old statics)
 	float		stepz;				// V_CalcRefdef's stair smoothing (its old static oldz)
+	float		liftz;				// the view entity's height last frame (a lift's rise followed: VR_ViewLiftRise)
 	vrect_t		rect;				// the window area this seat's view and HUD are drawn in: the whole window until
 									// the layouts (SPLITSCREEN.md phases 7, 11: SCR_SeatRect)
 	vrect_t		viewrect;			// the 3D view's part of it (scr_vrect: viewsize, the status bar's room)

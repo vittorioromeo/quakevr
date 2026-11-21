@@ -875,6 +875,15 @@ static void V_CalcRefdef (seatview_t *sv)
 	}
 //johnfitz
 
+	// QVR: carried up by a lift (a rise no faster than vr_view_lift_follow units a second) the view rides with it; only a
+	// step's jump is smoothed (at Quake's 80 units a second the eye fell up to 12 units behind a rising plat)
+	{
+		float rise = ent->origin[2] - sv->liftz;
+		sv->liftz = ent->origin[2];
+		if (cl.onground && rise > 0)
+			sv->stepz += VR_ViewLiftRise (rise, (float)(cl.time - cl.oldtime));
+	}
+
 // smooth out stair step ups
 	if (!noclip_anglehack && cl.onground && ent->origin[2] - sv->stepz > 0) //johnfitz -- added exception for noclip
 	//FIXME: noclip_anglehack is set on the server, so in a nonlocal game this won't work.

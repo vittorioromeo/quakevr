@@ -5185,6 +5185,9 @@ QVR_SLIDER(vr_stealth_share_near, "Near Monsters Join", 0.f, 1000.f, 16.f, "%.0f
     "A monster this near another that turns Alert or attacks (in line, not through a wall) does too. 0: off.")
 QVR_SLIDER(vr_stealth_share_view, "Monsters in Sight Join", 0.f, 3000.f, 50.f, "%.0f units", noExt,
     "One that sees another attack within this does too (turning Alert: within half). 0: off.")
+QVR_SLIDER(vr_stealth_share_hear, "Cries Heard", 0.f, 2000.f, 50.f, "%.0f units", noExt,
+    "A monster you hurt or kill before it noticed you cries out: the others within this (less round walls and "
+    "doors, much less through solid walls) come to look. Those in ambush don't hear it. 0: off.")
 QVR_TOGGLE(vr_stealth_flashlight, "Flashlight Beams",
     "Your flashlight on a monster: it comes towards the light (and its glare shows you). Its beam seen "
     "landing nearby: it looks about for where it came from.")
@@ -5948,6 +5951,11 @@ QVR_CYCLE(vr_debug_pose_check, "Monster Poses",
     "parried ogre was, for half a second), drawn with a pose out of its model's range or a broken blend; "
     "And a Screenshot: a picture at each; Every Frame: each monster's drawn poses and how flat (a lot).",
     {0.f, "Off"}, {1.f, "Squashed Bodies"}, {3.f, "And a Screenshot"}, {2.f, "Every Frame"})
+QVR_CYCLE(vr_debug_lift, "Lift Riders",
+    "vr_debug_lift: you and the monsters riding a moving lift: how far your box, your drawn feet and your eye, and "
+    "the monsters' boxes and drawn bodies, sink into it, each ride's worst logged as the lift stops "
+    "(\"liftdebug:\"; a game you host). Every Frame: each rider every frame (a lot).",
+    {0.f, "Off"}, {1.f, "Each Ride"}, {2.f, "Every Frame"})
 QVR_TOGGLE(vr_debug_shots, "Shots and Damage",
     "Each hitscan shot (where it starts, its direction, what its pellets hit, headshots), each damage you deal "
     "(and when Quad's sound plays) and each prop a shot pushes. Needs Developer Messages.")
