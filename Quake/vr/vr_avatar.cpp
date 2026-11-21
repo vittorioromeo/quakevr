@@ -413,7 +413,7 @@ struct SeenAds
 // a little back along the line.
 constexpr float seenGunElbowOut = 0.8f;
 constexpr float seenSupportElbowOut = 0.25f;
-constexpr float seenGunElbowBack = 0.3f;
+constexpr float seenGunElbowBack = 0.f;
 
 // The spine from the head. The top of the neck is found behind and below the eyes. A crouch lowers
 // the pelvis straight down under the neck (the legs bend) and tilts the back forward about it, as a
@@ -1327,7 +1327,10 @@ void solveArm(Body& b, int side, const HandPose& handPose)
     {
         const bool gunArm = (side == 0 ? HAND_OFF : HAND_MAIN) == b.seenHand;
         const glm::vec3 outward = b.seenRight * (side == 0 ? -1.f : 1.f);
-        const glm::vec3 way = safeNormalize(-b.seenUp + outward * (gunArm ? seenGunElbowOut : seenSupportElbowOut) -
+        // (down: half the gun's, half the world's -- the gun's alone, looking down 40, took the gun hand's elbow back to the
+        // eye's height behind the head, a wing up by the face from in front)
+        const glm::vec3 down = safeNormalize(-b.seenUp - UP, -UP);
+        const glm::vec3 way = safeNormalize(down + outward * (gunArm ? seenGunElbowOut : seenSupportElbowOut) -
                                                 b.seenDir * (gunArm ? seenGunElbowBack : 0.f),
             -cUp);
         pole = glm::mix(pole, way * glm::length(pole), b.seenAds);

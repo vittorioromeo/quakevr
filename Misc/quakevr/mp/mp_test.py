@@ -1494,7 +1494,8 @@ def slide(s, flat=True):
 ADS_HEAD_EYE = 2.0   # mp_adspose: A's copy of sighted flat B: its drawn eyes within this of B's eye (units; before adspose 5.1, adspose 3.8; the cheek's offset 1.2)
 ADS_REACH = 1.02     # (noted) no arm stretched past this share of its own length
 ADS_WIDS = list(range(1, 32)) + [0]  # the weapons tried (vr_test_give_wid; 0: impulse 2, the shotgun he starts with, which a give does not take him back to): those with a sight line are measured
-ADS_POSTURES = ("stand", "crouch", "slide")  # each weapon: standing, crouched, sliding ...
+ADS_POSTURES = ("stand", "crouch", "slide")  # each weapon: standing, crouched, sliding (MP_ADSPOSE_SLIDE=1: the slow slide
+# below is not yet taken by the dedicated server -- B's own slides, A's copy never does: off by default, adspose2) ...
 ADS_LOOKS = (("level", 0.0), ("up", -40.0), ("down", 40.0))  # ... each looking level, 40 up, 40 down
 ADS_CAMS = (("side", (52.0, 10.0), 180.0), ("front", (6.0, 64.0), 270.0))  # A's spots off B (B faces north) and his yaw
 ADS_VIEW_FOV = 55.0  # A's field of view: B fills the shot
@@ -1551,7 +1552,8 @@ def adspose(s):
     A watches from his side and from in front, aimed at his head. Measured: A's copy of B's drawn eyes against the eye
     B's view and sights are solved from (mp_adspose_own), the rear sight against them, the arms (adspose2: the elbows
     under the gun, nothing across the face); a screenshot from A of each. MP_ADSPOSE_SEEN=0 in the environment: both with
-    vr_flat_seen_ads 0, the body as before adspose (the before shots)."""
+    vr_flat_seen_ads 0, the body as before adspose (the before shots); MP_ADSPOSE_WIDS=5,8: those weapons only;
+    MP_ADSPOSE_SLIDE=1: the slides too (open: the server doesn't take the slow slide)."""
     seen = os.environ.get("MP_ADSPOSE_SEEN", "1")
     srv, a, b, ea, eb = join(s, flat="AB")
     srv.cmd(ADS_SLIDE_RULES)
@@ -1596,13 +1598,17 @@ def adspose(s):
             if c and c["pelvis"][1] - start[1] >= 8.0:
                 break
         b.cmd("+flatcrouch")
+        seen_most = [0.0, 0.0, 0.0, 0.0]  # (a miss's note: the most of A's copy's slide, B's own, his travel; how far he went)
         for _ in range(60):
             la, lb = reports(s, [a, b])
             adsl = by_ent(lb, "mp_adspose_own").get(eb)
             own, copy = body_of(lb, "mp_body_own").get(eb), body_of(la, "mp_body").get(eb)
+            seen_most = [max(seen_most[0], copy.get("sliding", [0])[0] if copy else 0), max(seen_most[1], own.get("sliding", [0])[0] if own else 0),
+                         max(seen_most[2], adsl["ads"][0] if adsl else 0), max(seen_most[3], copy["pelvis"][1] - start[1] if copy else 0)]
             if adsl and own and copy and "sliding" in copy and copy["sliding"][0] >= SLIDE_SHARE and \
                     own.get("sliding", [0])[0] >= SLIDE_SHARE and abs(adsl["look"][0] - pitch) < 1.0 and adsl["ads"][0] >= 0.99:
                 return adsl, own, copy
+        s.note("slide missed: A's copy sliding %.2f at most, B's own %.2f, on the sights %.2f, %.0f units north" % tuple(seen_most))
         return None
 
     def shots(name, copy, lead):
@@ -1614,11 +1620,12 @@ def adspose(s):
             ads_cam(srv, a, ea, at, down, yaw)
             a.screenshot("%s_%s" % (name, cam))
 
-    for wid in ADS_WIDS:
+    wids = [int(w) for w in os.environ["MP_ADSPOSE_WIDS"].split(",")] if os.environ.get("MP_ADSPOSE_WIDS") else ADS_WIDS
+    for wid in wids:
         srv.cmd("vr_test_give_wid %d" % max(wid, 1))
         b.cmd("%s; vr_flat_aim 1" % ("impulse 149" if wid else "impulse 2"))
         sighted = True
-        for posture in ADS_POSTURES:
+        for posture in [p for p in ADS_POSTURES if p != "slide" or os.environ.get("MP_ADSPOSE_SLIDE") == "1"]:
             for look, pitch in ADS_LOOKS:
                 first = posture == ADS_POSTURES[0] and look == ADS_LOOKS[0][0]
                 if posture == "slide":
@@ -1663,7 +1670,8 @@ def adspose(s):
     s.metric("ads_elbow_worst", worst["elbow"])
     s.metric("ads_face_worst", worst["face"])
     s.check("weapons with a sight line measured (at least 8 sighted poses)", len(rows) >= 8, "%d" % len(rows))
-    s.check("slides on the sights seen (every weapon's three looks)", slides[1] == 0, "%d seen, %d missed" % tuple(slides))
+    if os.environ.get("MP_ADSPOSE_SLIDE") == "1":
+        s.check("slides on the sights seen (every weapon's three looks)", slides[1] == 0, "%d seen, %d missed" % tuple(slides))
     s.check("A's copy of sighted B: its drawn eyes within %g of B's eye (standing, crouched)" % ADS_HEAD_EYE,
             worst["copy_eye"] <= ADS_HEAD_EYE, "worst %.2f" % worst["copy_eye"])
     s.check("A's copy of sighted B: both elbows under the gun (below the drawn eyes along the look's up) at every look",

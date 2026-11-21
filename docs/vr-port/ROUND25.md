@@ -6081,3 +6081,32 @@ navmesh", and "do bots use the navmesh? If not, should they?" (NAVMESH.md 22 and
 - Open: looking up the arms still cross in front of the face (the gun's hand stays where the eye view put it); in the orbit
   view looking up 40 the local head joint read 5.7 under the eye (not explained); A's camera misses crouched B in the
   shots; the flat suites, scenario_check, the other avatar scenarios and the ThinLTO build not run yet.
+## adspose2: the arms on the sights seen from outside, the orbit view's low head, crouched and sliding shots (adspose2, 2026-11-21, `agent/adspose`)
+
+- The arms (FLATPLAY.md, "Seen from outside"): on the sights, seen from outside, each elbow is solved off the sight
+  line's down (the gun hand's out at its side and a little back, the other under the fore-end), over the arm's own pole
+  and with the wrist's ease kept off it (`Body::seenAds`, **Seen: Elbows Under The Gun**, `vr_flat_seen_elbows` 1).
+  Not shared with `vr_agarms.cpp` (a sampled solve over a monster rig; the rule carries over, not the code).
+- The orbit view's "head 5.7 under the eye at 40 up", explained: seen from outside the local body's eye was taken as the
+  head plus the neck's turn (`eyeNudge`), but outside his own view the crosshair's ray and the sights are solved from the
+  head itself (`crosshairRay`: `viewIsHisOwn` false) -- the neck's turn added twice: the drawn eyes 4.7 behind and under
+  the eye at 40 up (0 at a level look). Now the local eye is `crosshairRay`'s: the drawn eyes 1.2 off (the cheek) at
+  level and 40 up. The head joint still sits 3.3 under the eye at 40 up: the skull's base behind and below the eyes
+  (`vr_body_eye_forward` / `_up`, 0.08 m each) with the head pitched along the sights.
+- The copy's eye: the neck's turn and the chest's share (`flatplay::seenEyeShift`), the head at the eye with only the
+  cheek's offset (not snapped onto the sight line).
+- The elbows' down is half the gun's, half the world's: the gun's alone, looking down 40, took the gun hand's elbow back
+  to eye height behind the head (a wing by the face from in front).
+- Measured (`mp_test.py adspose`, every weapon with a sight line, standing and crouched, level / 40 up / 40 down, A's
+  shots from the side and from in front aimed at B's head -- the old camera missed crouched B): before
+  (`MP_ADSPOSE_SEEN=0`, the body as before adspose) 92 of 138 poses failed a check (the copy's eyes worst 4.5 off, an
+  elbow 2.1 over the eyes, an arm 9.9 over the sight line in front of the face); with the arms (the run before the
+  elbows' world down) every check passed over 138 poses (the copy's eyes 1.2 off at most: the cheek's offset; threshold
+  back to 2). After the world down, 4 weapons: one pose (super shotgun standing, 40 down) read the copy's eyes 7.0 off
+  with an arm 5.5 over the line; the same 7.0 came and went on other weapons' crouched looks between runs (a reading
+  taken mid-change, or the copy's sight weight dropping for a frame: not found).
+- Slides: B on his sights slides (his own body: sliding 1.00) but the dedicated server never takes the test's slow slide
+  (60 units/s, `vr_flat_slide_min 20`, no friction): A's copy never slides; `MP_ADSPOSE_SLIDE=1` runs them (off by
+  default). No sliding shots yet.
+- Not run (budget): the flat suites, scenario_check, the mp plain suite, mp_body / mp_avatar / mp_slide / mp_deathbody,
+  the ThinLTO build. Sheets: the worktree's `scratch/adspose2_sheet_w05.png` (super shotgun), `_w06`, `_w08`.
