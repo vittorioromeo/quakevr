@@ -3926,6 +3926,20 @@ glm::vec3 neckTurn(const glm::vec3& aim)
     return (pitchedFwd - levelFwd) * forward + (pitchedUp - levelUp) * upward;
 }
 
+glm::vec3 seenEyeShift(const glm::vec3& aim)
+{
+    if(vr_flat_eye_pivot.value == 0.f)
+    {
+        return glm::vec3{0.f};
+    }
+    // (the chest's share of the look as chestPitch has it, less the melee's lean, which another player's copy doesn't know)
+    const float lean = glm::radians(aim.x * za::clamp(aim.x > 0.f ? vr_flat_chest_down.value : vr_flat_chest_up.value, 0.f, 1.f));
+    glm::vec3 levelFwd{}, right{}, levelUp{};
+    hands::angleVectors({0.f, aim.y, 0.f}, levelFwd, right, levelUp);
+    const float lever = za::clamp(vr_flat_eye_lean.value, 0.f, eyeLeanMax);
+    return neckTurn(aim) + (levelFwd * za::sin(lean) + levelUp * (za::cos(lean) - 1.f)) * lever;
+}
+
 glm::vec3 eyeNudge(const glm::vec3& aim)
 {
     return camShiftWorld(aim);

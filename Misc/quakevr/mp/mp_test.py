@@ -1491,92 +1491,187 @@ def slide(s, flat=True):
             copy[0] >= SLIDE_SHARE and copy[1] < -1.0, "sliding %.2f, pitch %.1f; after %d reports" % (copy + (n,)))
 
 
-ADS_HEAD_EYE = 4.0   # mp_adspose: A's copy of sighted flat B: its drawn eyes within this of B's eye (units; before adspose 5.1)
-ADS_REAR_EYE = 22.0  # and the rear sight within this of the drawn eyes (the relief, 14 at most, plus the cheek's offset)
-ADS_REACH = 1.02     # and no arm stretched past this share of its own length (shoulder to wrist over upper + forearm)
+ADS_HEAD_EYE = 2.0   # mp_adspose: A's copy of sighted flat B: its drawn eyes within this of B's eye (units; before adspose 5.1, adspose 3.8; the cheek's offset 1.2)
+ADS_REACH = 1.02     # (noted) no arm stretched past this share of its own length
 ADS_WIDS = list(range(1, 32)) + [0]  # the weapons tried (vr_test_give_wid; 0: impulse 2, the shotgun he starts with, which a give does not take him back to): those with a sight line are measured
-ADS_POSTURES = ("stand", "crouch", "up", "down")  # each weapon: standing level, crouched level, looking up 40, down 40
-ADS_SHOTS_FOR = ("stand", "crouch")  # postures screenshotted for every weapon (all four for the first two weapons)
-ADS_VIEW_OFF = (52.0, 10.0)  # A watches from B's right side (B faces north), this far east and north of B
-ADS_VIEW_FOV = 55.0          # A's field of view: B fills the shot
+ADS_POSTURES = ("stand", "crouch", "slide")  # each weapon: standing, crouched, sliding ...
+ADS_LOOKS = (("level", 0.0), ("up", -40.0), ("down", 40.0))  # ... each looking level, 40 up, 40 down
+ADS_CAMS = (("side", (52.0, 10.0), 180.0), ("front", (6.0, 64.0), 270.0))  # A's spots off B (B faces north) and his yaw
+ADS_VIEW_FOV = 55.0  # A's field of view: B fills the shot
+ADS_VIEW_HEIGHT = 22.0  # A's eye above his origin (A aims at B's copy's head: crouched or sliding B in the shot too)
+ADS_FACE_W = 0.08    # metres: the face's half width and ...
+ADS_FACE_AHEAD = (-0.12, 0.45)  # ... its depth along the sights off the drawn eyes: an arm above the sight line there crosses the face
+ADS_SLIDE_START = 40.0  # a slide starts this far south of the spot, slowly (the rules below), A's camera following
+ADS_SLIDE_RULES = "vr_flat_slide_min 20; vr_flat_slide_boost 0; vr_flat_slide_friction 0; vr_flat_slide_end 5; vr_flat_slide_stamina 0; vr_flat_slide_cooldown 0"
+ADS_SLIDE_WALK = "cl_alwaysrun 0; cl_forwardspeed 60"  # B's walk into the slide: 60 units/s, kept (no friction)
 
 
-def adspose_numbers(own, adsl, copy):
-    """B's own body (mp_body_own), his ADS line (mp_adspose_own) and A's copy of his body (mp_body) -> the measures:
-    eye to the copy's drawn eyes, rear sight to them, his own drawn eyes to his eye, the arms' reach shares."""
-    out = {"copy_eye": dist(copy["headeye"], adsl["eye"]), "own_eye": dist(own["headeye"], adsl["eye"]),
-           "rear_eye": dist(adsl["rear"], copy["headeye"]), "head_up": adsl["eye"][2] - copy["headeye"][2]}
+def seg_points(a, b, n=12):
+    return [[a[i] + (b[i] - a[i]) * k / n for i in range(3)] for k in range(n + 1)]
+
+
+def adspose_numbers(own, adsl, copy, pitch):
+    """B's own body (mp_body_own), his ADS line (mp_adspose_own) and A's copy of his body (mp_body) at a look `pitch`
+    (B faces north) -> the measures: eye to the copy's drawn eyes, rear sight to them, the arms' reach; per arm its elbow
+    above the copy's drawn eyes along the look's up (under the gun: negative), and how far any of it stands above the
+    sight line in front of the face (nothing across the face: negative)."""
+    out = {"copy_eye": dist(copy["headeye"], adsl["eye"]), "rear_eye": dist(adsl["rear"], copy["headeye"]),
+           "head_up": adsl["eye"][2] - copy["headeye"][2]}
+    p = math.radians(pitch)
+    fwd, up, right = (0.0, math.cos(p), -math.sin(p)), (0.0, math.sin(p), math.cos(p)), (1.0, 0.0, 0.0)
+    m = copy["m2w"][0]
+    e = copy["headeye"]
+    dot = lambda v, w: sum(x * y for x, y in zip(v, w))
     for h in (0, 1):
-        out["reach%d" % h] = dist(copy["shoulder%d" % h], copy["wrist%d" % h])
+        S, E, W = copy["shoulder%d" % h], copy["elbow%d" % h], copy["wrist%d" % h]
+        out["reach%d" % h] = dist(S, W)
+        out["elbow%d" % h] = dot([E[i] - e[i] for i in range(3)], up)
+        face = -99.0
+        for q in seg_points(S, E) + seg_points(E, W):
+            d = [q[i] - e[i] for i in range(3)]
+            if abs(dot(d, right)) < ADS_FACE_W * m and ADS_FACE_AHEAD[0] * m < dot(d, fwd) < ADS_FACE_AHEAD[1] * m:
+                face = max(face, dot(d, up))
+        out["face%d" % h] = face
     return out
+
+
+def ads_cam(srv, a, ea, at, pitch, yaw, tries=60):
+    """A put at `at` looking `pitch` down, `yaw` (setpos), until the server has him there (a definite end: `tries`)."""
+    a.cmd("setpos %.1f %.1f %.1f %.1f %.1f 0; noclip" % (at[0], at[1], at[2], pitch, yaw))
+    for _ in range(tries):
+        got = org_of(status(srv), "mp_client", "slot", ea - 1)
+        if got and math.hypot(got[0] - at[0], got[1] - at[1]) <= 4:
+            return
+    raise StepFailed("A never put at %s" % (at,))
 
 
 def adspose(s):
     """adspose (2026-11-21): his words, "The ADS pose for some weapons looks silly". A flat B holds each weapon with a
-    sight line on its sights (vr_flat_aim 1), standing, crouched, looking up and down; flat A watches from his side.
-    Measured: A's copy of B's drawn head's eyes against the eye B's view and sights are solved from (mp_adspose_own), the
-    rear sight against those drawn eyes, the arms' reach; a screenshot from A of each."""
+    sight line on its sights (vr_flat_aim 1), standing, crouched and sliding, each looking level, 40 up and 40 down; flat
+    A watches from his side and from in front, aimed at his head. Measured: A's copy of B's drawn eyes against the eye
+    B's view and sights are solved from (mp_adspose_own), the rear sight against them, the arms (adspose2: the elbows
+    under the gun, nothing across the face); a screenshot from A of each. MP_ADSPOSE_SEEN=0 in the environment: both with
+    vr_flat_seen_ads 0, the body as before adspose (the before shots)."""
+    seen = os.environ.get("MP_ADSPOSE_SEEN", "1")
     srv, a, b, ea, eb = join(s, flat="AB")
+    srv.cmd(ADS_SLIDE_RULES)
     put_at(srv, b, eb, OPEN_SPOT, 90)
-    put_at(srv, a, ea, (OPEN_SPOT[0] + ADS_VIEW_OFF[0], OPEN_SPOT[1] + ADS_VIEW_OFF[1], OPEN_SPOT[2]), 180)
-    b.cmd("god; notarget")
-    a.cmd("god; notarget; impulse 1; fov %g" % ADS_VIEW_FOV)
+    put_at(srv, a, ea, (OPEN_SPOT[0] + ADS_CAMS[0][1][0], OPEN_SPOT[1] + ADS_CAMS[0][1][1], OPEN_SPOT[2]), ADS_CAMS[0][2])
+    b.cmd("god; notarget; vr_flat_seen_ads %s; %s; %s" % (seen, ADS_SLIDE_RULES, ADS_SLIDE_WALK))
+    a.cmd("god; notarget; impulse 1; fov %g; vr_flat_seen_ads %s" % (ADS_VIEW_FOV, seen))
     b.quiet(r"mp_(move|pos): ", 0.5, 20, "both at rest")
-    rows, shots, worst = [], 0, {"copy_eye": 0.0, "rear_eye": 0.0, "reach": 0.0}
-    last_model, stand_up = "", None
+    rows, worst = [], {"copy_eye": 0.0, "rear_eye": 0.0, "elbow": -99.0, "face": -99.0}
+    last_model, stand_up, slides = "", None, [0, 0]
+
+    def settle(pitch, crouched, first):
+        """B's weapon in his hand, on its sights at the look and the crouch asked for, A's copy of his body still over 3
+        reports running -> (adsl, own, copy, model) or None (no sight line). A definite end: 80 reports (the travel is 18
+        frames, the stance's ease 29, the crouch's)."""
+        got, still, model = None, 0, "-"
+        for k in range(80):
+            la, lb = reports(s, [a, b])
+            adsl = by_ent(lb, "mp_adspose_own").get(eb)
+            own, copy = body_of(lb, "mp_body_own").get(eb), body_of(la, "mp_body").get(eb)
+            m = next((re.search(r"wmodel=(\S+)", l) for l in lb if l.startswith("mp_adspose_own:")), None)
+            model = m.group(1) if m else "-"
+            ready = adsl and own and copy and (model != last_model or not first or k >= 30) and \
+                abs(adsl["look"][0] - pitch) < 1.0 and (adsl["sight"][0] == 0 or adsl["ads"][0] >= 0.99) and \
+                (stand_up is None or (adsl["eyeup"][0] < stand_up - 4.0) == crouched)
+            if ready and got and all(dist(got[2][j], copy[j]) < 0.05 for j in ("headeye", "wrist0", "wrist1")):
+                still += 1
+            else:
+                still = 0
+            got = (adsl, own, copy, model) if ready else None
+            if still >= 3:
+                return got
+        return None
+
+    def slide_at(pitch):
+        """B walks north into a slow slide (the rules above) on his sights at the look -> (adsl, own, copy) while A's copy
+        of him slides and he is on them, or None (a definite end: 40 + 60 reports)."""
+        start = (OPEN_SPOT[0], OPEN_SPOT[1] - ADS_SLIDE_START, OPEN_SPOT[2])
+        b.cmd("-flatcrouch; setpos %.1f %.1f %.1f %.1f 90 0; noclip; +forward" % (start[0], start[1], start[2], pitch))
+        for _ in range(40):
+            c = body_of(reports(s, [a])[0], "mp_body").get(eb)
+            if c and c["pelvis"][1] - start[1] >= 8.0:
+                break
+        b.cmd("+flatcrouch")
+        for _ in range(60):
+            la, lb = reports(s, [a, b])
+            adsl = by_ent(lb, "mp_adspose_own").get(eb)
+            own, copy = body_of(lb, "mp_body_own").get(eb), body_of(la, "mp_body").get(eb)
+            if adsl and own and copy and "sliding" in copy and copy["sliding"][0] >= SLIDE_SHARE and \
+                    own.get("sliding", [0])[0] >= SLIDE_SHARE and abs(adsl["look"][0] - pitch) < 1.0 and adsl["ads"][0] >= 0.99:
+                return adsl, own, copy
+        return None
+
+    def shots(name, copy, lead):
+        """A at each camera spot off B's copy (`lead`: units north he moves meanwhile), aimed at its head; a shot each."""
+        aim = [copy["headeye"][0], copy["headeye"][1] + lead, copy["headeye"][2] - 8.0]
+        for cam, off, yaw in ADS_CAMS:
+            at = (copy["pelvis"][0] + off[0], copy["pelvis"][1] + off[1] + lead, OPEN_SPOT[2])
+            down = math.degrees(math.atan2(at[2] + ADS_VIEW_HEIGHT - aim[2], math.hypot(aim[0] - at[0], aim[1] - at[1])))
+            ads_cam(srv, a, ea, at, down, yaw)
+            a.screenshot("%s_%s" % (name, cam))
+
     for wid in ADS_WIDS:
         srv.cmd("vr_test_give_wid %d" % max(wid, 1))
         b.cmd("%s; vr_flat_aim 1" % ("impulse 149" if wid else "impulse 2"))
+        sighted = True
         for posture in ADS_POSTURES:
-            pitch = {"up": -40.0, "down": 40.0}.get(posture, 0.0)
-            b.cmd("%s; setpos %.1f %.1f %.1f %.1f 90 0; noclip" % ("+flatcrouch" if posture == "crouch" else "-flatcrouch",
-                  OPEN_SPOT[0], OPEN_SPOT[1], OPEN_SPOT[2], pitch))
-            got, still, model = None, 0, "-"
-            # Settled: B's new weapon in his hand (its model), on its sights, at the look and the crouch asked for, and A's
-            # copy of his body still over 3 reports running. (A definite end: 80 reports; the travel is 18 frames, the
-            # stance's ease 29, the crouch's.)
-            for k in range(80):
-                la, lb = reports(s, [a, b])
-                adsl = by_ent(lb, "mp_adspose_own").get(eb)
-                own, copy = body_of(lb, "mp_body_own").get(eb), body_of(la, "mp_body").get(eb)
-                m = next((re.search(r"wmodel=(\S+)", l) for l in lb if l.startswith("mp_adspose_own:")), None)
-                model = m.group(1) if m else "-"
-                ready = adsl and own and copy and (model != last_model or posture != ADS_POSTURES[0] or k >= 30) and \
-                    abs(adsl["look"][0] - pitch) < 1.0 and (adsl["sight"][0] == 0 or adsl["ads"][0] >= 0.99) and \
-                    (stand_up is None or (adsl["eyeup"][0] < stand_up - 4.0) == (posture == "crouch"))
-                if ready and got and all(dist(got[2][j], copy[j]) < 0.05 for j in ("headeye", "wrist0", "wrist1")):
-                    still += 1
+            for look, pitch in ADS_LOOKS:
+                first = posture == ADS_POSTURES[0] and look == ADS_LOOKS[0][0]
+                if posture == "slide":
+                    got = slide_at(pitch)
+                    slides[0 if got else 1] += 1
+                    if not got:
+                        b.cmd("-forward; -flatcrouch")
+                        s.note("wid %d %s slide %s: no slide on the sights seen" % (wid, last_model, look))
+                        continue
+                    adsl, own, copy = got
+                    model = last_model
                 else:
-                    still = 0
-                got = (adsl, own, copy, la) if ready else None
-                if still >= 3:
-                    break
-            if not got or got[0]["sight"][0] == 0:
-                break  # (no sight line on it: the next weapon)
-            adsl, own, copy, la = got
-            last_model = model
-            if posture == "stand":
-                stand_up = adsl["eyeup"][0]
-            n = adspose_numbers(own, adsl, copy)
-            rows.append((wid, model, posture, n))
-            s.note("wid %d %s %s: eye->copy's drawn eyes %.1f (B's own %.1f, eye above them %.1f), rear sight->drawn eyes %.1f, "
-                   "shoulder->wrist %.1f %.1f" % (wid, model, posture, n["copy_eye"], n["own_eye"], n["head_up"], n["rear_eye"],
-                                                  n["reach0"], n["reach1"]))
-            worst["copy_eye"] = max(worst["copy_eye"], n["copy_eye"])
-            worst["rear_eye"] = max(worst["rear_eye"], n["rear_eye"])
-            if posture in ADS_SHOTS_FOR or shots < 8:
-                a.screenshot("ads_w%02d_%s" % (wid, posture))
-                shots += 1
-    b.cmd("vr_flat_aim 0; -flatcrouch")
+                    b.cmd("-forward; %s; setpos %.1f %.1f %.1f %.1f 90 0; noclip" % (
+                        "+flatcrouch" if posture == "crouch" else "-flatcrouch", OPEN_SPOT[0], OPEN_SPOT[1], OPEN_SPOT[2], pitch))
+                    got = settle(pitch, posture == "crouch", first)
+                    if not got or got[0]["sight"][0] == 0:
+                        sighted = False
+                        break  # (no sight line on it: the next weapon)
+                    adsl, own, copy, model = got
+                    last_model = model
+                    if first:
+                        stand_up = adsl["eyeup"][0]
+                n = adspose_numbers(own, adsl, copy, pitch)
+                rows.append((wid, model, posture, look, n))
+                s.note("wid %d %s %s %s: eye->copy's drawn eyes %.1f (eye above them %.1f), rear sight->drawn eyes %.1f, "
+                       "reach %.1f %.1f, elbows over the eyes %.1f %.1f, arms over the line before the face %.1f %.1f" % (
+                           wid, model, posture, look, n["copy_eye"], n["head_up"], n["rear_eye"], n["reach0"], n["reach1"],
+                           n["elbow0"], n["elbow1"], n["face0"], n["face1"]))
+                if posture != "slide":  # (a slide's reports are frames apart while he moves: the copy's eyes not judged)
+                    worst["copy_eye"] = max(worst["copy_eye"], n["copy_eye"])
+                    worst["rear_eye"] = max(worst["rear_eye"], n["rear_eye"])
+                worst["elbow"] = max(worst["elbow"], n["elbow0"], n["elbow1"])
+                worst["face"] = max(worst["face"], n["face0"], n["face1"])
+                shots("ads_w%02d_%s_%s" % (wid, posture, look), copy, 18.0 if posture == "slide" else 0.0)
+                if posture == "slide":
+                    b.cmd("-forward; -flatcrouch")
+            if not sighted:
+                break
+    b.cmd("vr_flat_aim 0; -flatcrouch; -forward")
     s.metric("ads_rows", len(rows))
     s.metric("ads_copy_eye_worst", worst["copy_eye"])
-    s.metric("ads_rear_eye_worst", worst["rear_eye"])
+    s.metric("ads_elbow_worst", worst["elbow"])
+    s.metric("ads_face_worst", worst["face"])
     s.check("weapons with a sight line measured (at least 8 sighted poses)", len(rows) >= 8, "%d" % len(rows))
-    s.check("A's copy of sighted B: its drawn eyes within %g of B's eye" % ADS_HEAD_EYE, worst["copy_eye"] <= ADS_HEAD_EYE,
-            "worst %.2f" % worst["copy_eye"])
+    s.check("slides on the sights seen (every weapon's three looks)", slides[1] == 0, "%d seen, %d missed" % tuple(slides))
+    s.check("A's copy of sighted B: its drawn eyes within %g of B's eye (standing, crouched)" % ADS_HEAD_EYE,
+            worst["copy_eye"] <= ADS_HEAD_EYE, "worst %.2f" % worst["copy_eye"])
+    s.check("A's copy of sighted B: both elbows under the gun (below the drawn eyes along the look's up) at every look",
+            worst["elbow"] < 0.0, "worst %.2f above" % worst["elbow"])
+    s.check("A's copy of sighted B: no arm above the sight line in front of the face at any look", worst["face"] <= 0.0,
+            "worst %.2f above" % worst["face"])
     # (the rear sight's distance is B's own relief, not the copy's: the laser cannon's is 24 to 29; noted, not judged)
-    s.note("the rear sight off the copy's drawn eyes: worst %.2f (over %g: no cheek on the stock)" % (worst["rear_eye"],
-           ADS_REAR_EYE))
+    s.note("the rear sight off the copy's drawn eyes: worst %.2f" % worst["rear_eye"])
 
 
 def dolls_of(lines):

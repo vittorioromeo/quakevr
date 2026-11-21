@@ -174,6 +174,8 @@ void printSkeleton(const char* what, int e, const char* model, const avatar::Ske
     printVec("shoulder1", k.shoulder[HAND_MAIN]);
     printVec("ankle0", k.ankle[0]);
     printVec("ankle1", k.ankle[1]);
+    printVec("elbow0", k.elbow[HAND_OFF]);
+    printVec("elbow1", k.elbow[HAND_MAIN]);
 }
 
 // His guns and torch as last drawn (wpnsync; the harness's mp_wpnsync): each hand's look as received and what was drawn
