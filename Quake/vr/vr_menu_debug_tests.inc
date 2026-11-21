@@ -389,6 +389,16 @@ za::Vector<Item> pageDebugTests()
         command("Quoth: Second Names and Spawners Test", "vr_ad_test 211")
             .help("Any map: an entity used by its second name (Quoth's targetname2), the map's monster spawner (kellbase1's "
                   "exit lock) and two grunts from a made one ahead of you. The console prints each check and a verdict."),
+        command("AD and Quoth Variants: Armed Test", "vr_ad_test 219") // vr_humrepl_test.qc
+            .help("In Arcane Dimensions' rules (an AD map, or e1m1 in its campaign): each AD and Quoth soldier variant made "
+                  "ahead of you is its armed humanoid with its gun, health and recolour; one's death fires its target. The "
+                  "console prints each check and a verdict."),
+        command("AD and Quoth Variants: Map Census", "vr_ad_test 220")
+            .help("This map's monsters, armed humanoids, variants replaced and variants left as AD made them, one line."),
+        command("Armed Humanoids: Recolour Row", "vr_ad_test 221")
+            .help("Five armed humanoids of the row in scratch1 (0 grunts, 1 enforcers, 2 knights, 3 death knights) ahead of "
+                  "you, one per recolour: a shotgun (as it is), a rocket launcher, the thunderbolt, a flamethrower, a "
+                  "poison sprayer (AD's guns with AD's data). vr_humlook_info prints the nearest one's look."),
         command("Quoth: Drive This Map's Flow", "vr_ad_test 212")
             .help("Plays the map's flow for you, a round a second: every trigger you could walk into touched, every monster "
                   "awake killed by you (god mode), so waves, spawners and counters run. On ne_marb, metmon, lpqsp1, "

@@ -2762,7 +2762,8 @@ QVR_CVAR(vr_agrunt_repl_dual, "0.1", CVAR_ARCHIVE | QVR_RULE)        // (his, 20
 QVR_CVAR(vr_agrunt_repl_gunaxe, "0.15", CVAR_ARCHIVE | QVR_RULE)     // 0..1: the chance of a gun and a melee weapon (axe or dagger, by vr_agrunt_w_axe/_dagger; the gun, the blade up close)
 QVR_CVAR(vr_agrunt_repl_id, "1", CVAR_ARCHIVE | QVR_RULE)         // 1: in Quake's own campaigns (id1, Dimension of the Past, the Machine Games' ones) and their custom maps
 QVR_CVAR(vr_agrunt_repl_mp, "1", CVAR_ARCHIVE | QVR_RULE)         // 1: in the mission packs (Scourge of Armagon, Dissolution of Eternity)
-QVR_CVAR(vr_agrunt_repl_ad, "1", CVAR_ARCHIVE | QVR_RULE)         // 1: in Arcane Dimensions' maps too: its plain grunts, enforcers, knights and death knights replaced (AD's own variants never: QC VR_AGR_ADVariant); 0 until 2026-11-01
+QVR_CVAR(vr_agrunt_repl_ad, "1", CVAR_ARCHIVE | QVR_RULE)         // 1: in Arcane Dimensions' maps too: its plain grunts, enforcers, knights and death knights replaced (AD's own variants by vr_agrunt_repl_variants; its point knights and ghosts never: QC VR_AGR_ADVariant); 0 until 2026-11-01
+QVR_CVAR(vr_agrunt_repl_variants, "1", CVAR_ARCHIVE | QVR_RULE) // 1: Arcane Dimensions' and Quoth's own humanoid variants (rocket, grenade and plasma soldiers, defenders, eliminators, pyros, fumigators, crossbow knights) are armed humanoids holding their gun (QC vr_humrepl.qc VR_HUM_Replace; with vr_agrunt_repl and vr_agrunt_repl_ad; crossbow knights with vr_agknight)
 QVR_CVAR(vr_agrunt_repl_seed, "0", CVAR_ARCHIVE | QVR_RULE)       // shuffles every map's loadouts (the same seed: the same loadouts)
 QVR_CVAR(vr_fresh_map_seeds, "1", CVAR_ARCHIVE | QVR_RULE)        // 1: crates and barrels, rocks, armed replacements and their armour rolled from the run's seed (vr_run_seed: a new run, a new layout; a level change, a restart, a loaded save keep the run's), or anew at each map start outside a run; 0: the same every time (the map's name). Off in a test session (vr_backend mock). vr_map_seed_info
 QVR_CVAR(vr_map_seed, "0", CVAR_NONE)                  // tests, repro: > 0 every map load's content seed (vr_map_seed_info prints the one in play); -1 a fresh one even in a test session; 0 vr_fresh_map_seeds'
@@ -2897,6 +2898,8 @@ QVR_CVAR(vr_arena_xray, "1", CVAR_ARCHIVE | QVR_RULE)                    // 1: a
 QVR_CVAR(vr_arena_xray_left, "2", CVAR_ARCHIVE | QVR_RULE)               // ... once this many of its foes are left (up, and still to come)
 QVR_CVAR(vr_arena_xray_distance, "800", CVAR_ARCHIVE | QVR_RULE)         // ... and only those farther than this from your eyes (units; 0: at any distance)
 QVR_CVAR(vr_arena_xray_shown, "0", CVAR_ROM)                  // (read-only: the foes the last view outlined through walls; arena test 16 reads it)
+QVR_CVAR(vr_humlook, "1", CVAR_ARCHIVE)                        // 1: armed humanoids recoloured by the weapon they spawned with (quakevr/humlook.txt; vr_humlook.cpp, ARMED_MONSTERS.md "Recolours by weapon")
+QVR_CVAR(vr_humlook_known, "0", CVAR_ROM)                    // (read-only: the entities whose recolour the client knows; vr_ad_test 219 reads it)
 // Survival Arena's difficulty (QC/vr_arena.qc, VR_ARENA_Skill): every 1 above is today's arena at Normal skill, and
 // this moves the rest of them by the skill level -- the shape of the armed humanoids' vr_agrunt_ai_skill, its own knob.
 QVR_CVAR(vr_arena_skill_impact, "1", CVAR_ARCHIVE | QVR_RULE)           // Difficulty Impact: how much the skill level moves the arena (Easy softer, Hard and Nightmare harder); 0 skill changes nothing about it, Normal always as set

@@ -935,8 +935,15 @@ QVR_TOGGLE(vr_agrunt_repl_mp, "Mission Packs",
     "Scourge of Armagon and Dissolution of Eternity (vr_agrunt_repl_mp).")
 QVR_TOGGLE(vr_agrunt_repl_ad, "Arcane Dimensions",
     "Arcane Dimensions' maps too: their plain grunts, enforcers, knights and death knights by the usual rules; AD's "
-    "own variants (rocket, grenade and plasma soldiers, defenders, eliminators, point knights) stay as AD made them "
+    "own variants by the next switch (its point knights, death knights and the rest stay as AD made them) "
     "(vr_agrunt_repl_ad).")
+QVR_TOGGLE(vr_agrunt_repl_variants, "AD and Quoth Variants",
+    "Arcane Dimensions' and Quoth's own soldiers are armed humanoids holding their own gun: rocket, grenade and plasma "
+    "soldiers as grunts, defenders, eliminators, pyros and fumigators as enforcers, crossbow knights as knights, with "
+    "their health (where replacements play in AD's maps; vr_agrunt_repl_variants).")
+QVR_TOGGLE(vr_humlook, "Recolour by Weapon",
+    "Armed humanoids wear the colour of the weapon they came with: rockets and grenades red, lightning and plasma blue, "
+    "flamethrowers orange, poison green; their backpacks too (quakevr/humlook.txt; vr_humlook).")
 
 // vr_menu_gameplay.inc: pageArmedAI
 QVR_SLIDER(vr_agrunt_ai_skill, "Difficulty Impact", 0.f, 3.f, 0.1f, "%.1fx", ext(0.f, 10.f),

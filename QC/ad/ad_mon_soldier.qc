@@ -444,6 +444,7 @@ void() ad_monster_army_rocket =
 {	
 	// Check all spawn exceptions (monsters.qc)
 	if (ad_monster_checkspawn() == ad_TRUE) return;
+	if (VR_HUM_Replace(VR_HUM_V_ROCKET)) return; // AD support: an armed humanoid with its gun (vr_humrepl.qc; vr_agrunt_repl_variants)
 	
 	self.ad_classtype = ad_CT_MONARMYROCKET;
 	precache_model (ad_MODEL_PROJ_ROCKET);
@@ -474,6 +475,7 @@ void() ad_monster_army_grenade =
 {	
 	// Check all spawn exceptions (monsters.qc)
 	if (ad_monster_checkspawn() == ad_TRUE) return;
+	if (VR_HUM_Replace(VR_HUM_V_GRENADE)) return; // AD support: an armed humanoid with its gun (vr_humrepl.qc; vr_agrunt_repl_variants)
 	
 	self.ad_classtype = ad_CT_MONARMYGRENADE;
 	precache_model (ad_MODEL_PROJ_GRENADE);
@@ -501,6 +503,7 @@ void() ad_monster_army_plasma =
 {	
 	// Check all spawn exceptions (monsters.qc)
 	if (ad_monster_checkspawn() == ad_TRUE) return;
+	if (VR_HUM_Replace(VR_HUM_V_PLASMA)) return; // AD support: an armed humanoid with its gun (vr_humrepl.qc; vr_agrunt_repl_variants)
 	
 	self.ad_classtype = ad_CT_MONARMYPLASMA;
 	precache_model (ad_MODEL_PROJ_PLASMA);

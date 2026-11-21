@@ -3562,6 +3562,7 @@ void(float kind) VR_AM_Spawn =
     self.vr_ag_born_ranged = VR_WP_CarriesRanged(self); // (whoever arms it: the toolgun, a wave, a map's "weapon")
     VR_AgArmor_Spawn(self); // (its armour by the skill: vr_agarmor.qc)
     VR_WP_Spawn(self);      // (its backpack on its back if it carries a ranged weapon: vr_wornpack.qc)
+    VR_HUM_Look(self);      // (its recolour by what it holds: vr_humrepl.qc)
 };
 
 // Its weapons from its keys (as VR_AM_Spawn's: "weapon" decoded to `want`, `flags`, `inst`; "weapon2" `want2`,

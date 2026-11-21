@@ -649,6 +649,7 @@ void() ad_monster_dcrossbow =
 {
 	// Check all spawn exceptions (monsters.qc)
 	if (ad_monster_checkspawn() == ad_TRUE) return;
+	if (VR_HUM_Replace(VR_HUM_V_CROSSBOW)) return; // AD support: an armed humanoid with its gun (vr_humrepl.qc; vr_agrunt_repl_variants)
 
 	self.mdl = "progs/mon_dcrossbow.mdl";			// crossbow guy
 	self.ad_headmdl = "progs/h_dcrossbow.mdl";
