@@ -13,6 +13,7 @@
 #include "vr_clientprefs.hpp"
 #include "vr_moveguard.hpp"
 #include "vr_arenaxray.hpp"
+#include "vr_humlook.hpp"
 #include "vr_modelmetadata.hpp"
 #include "vr_client.hpp"
 #include "vr_handsource.hpp"
@@ -868,6 +869,7 @@ void init()
     brainjiggle::registerCommands();
     Cmd_AddCommand("vr_walltorch_tilt_test", walltorch::tiltTest);
     shock::registerCommands();
+    humlook::registerCommands();
     smoulder::registerCommands();
     comfortfade::registerCommands();
     lowceil::registerCommands();
@@ -1175,6 +1177,7 @@ extern "C" int VR_ParseServerMessage(int cmd)
         case QVR_SVC_RAGPOSE: netrag::clientParse(); break;
         case QVR_SVC_ARMOR: agarmor::parseEvent(); break;
         case QVR_SVC_XRAY: arenaxray::parseEvent(); break;
+        case QVR_SVC_HUMLOOK: humlook::parseEvent(); break;
         case QVR_SVC_GORESOUND: goresound::parseEvent(); break;
         case QVR_SVC_WEAPONGONE: wounds::parseWeaponGone(); break;
         case QVR_SVC_CATCHBLEND: drawblend::parseCatch(); break;

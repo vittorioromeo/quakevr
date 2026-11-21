@@ -657,6 +657,7 @@ void(entity g) VR_AGR_Resolve =
     VR_AM_ArmAll(want, flags, inst, want2, 0);
     VR_AGR_MarkNative(self);
     VR_WP_Refit(self); // (its pack by its new loadout: no player has seen it yet)
+    VR_HUM_Look(self); // (its recolour by it: vr_humrepl.qc)
     VR_AG_Log(sprintf("replacement rolled: %s%s%s", self.vr_ag_prop ? self.vr_ag_prop.netname : "fists",
         self.vr_ag_prop2 ? " and " : "", self.vr_ag_prop2 ? self.vr_ag_prop2.netname : ""));
     self = oldself;
