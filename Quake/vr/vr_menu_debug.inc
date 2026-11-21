@@ -1513,6 +1513,83 @@ za::Vector<Item> pageArmourStudio()
     };
 }
 
+[[nodiscard]] const char* textureStudioStatus()
+{
+    return qvr::humlook::studioStatus();
+}
+
+[[nodiscard]] const char* textureStudioRowHelp(int)
+{
+    return "The skin's palette row (its 8-bit indices / 16) counted as clothes (dyed by the clothes' row), pack (by the pack's "
+           "row) or none (never changed: faces, flesh, metal). Click to cycle. Rows 1 and 10 are the browns and tans of the "
+           "uniforms and leather, 7 the flesh, 4 the blood.";
+}
+
+// The Texture Studio (vr_humstudio.cpp; ARMED_MONSTERS.md "Recolours by weapon"): the armed humanoids' recolours and masks.
+za::Vector<Item> pageTextureStudio()
+{
+    za::Vector<Item> items{
+        info(textureStudioStatus),
+        command("Line Up the Type Ahead", "vr_humstudio_lineup")
+            .help("vr_humstudio_lineup: five of the type below ahead of you, one per category (a shotgun as it is, a rocket "
+                  "launcher, the thunderbolt, a flamethrower, a poison sprayer: AD's guns with AD's data), the last row gone."),
+        cycle("Type", vr_humstudio_kind, {{0.f, "Grunt"}, {1.f, "Enforcer"}, {2.f, "Knight"}, {3.f, "Death Knight"}})
+            .help("vr_humstudio_kind: the row of the table edited, and whose mask the palette rows below edit."),
+        cycle("Weapon Category", vr_humstudio_cat,
+            {{1.f, "Explosive"}, {2.f, "Energy"}, {3.f, "Flame"}, {4.f, "Poison"}, {5.f, "Shells"}, {6.f, "Nails"},
+                {7.f, "Melee"}, {8.f, "Its Own Gun"}})
+            .help("vr_humstudio_cat: the weapon it spawned with (shells, nails, melee and its own gun have no row: give one a "
+                  "strength to make one)."),
+        cycle("Part", vr_humstudio_part, {{0.f, "Clothes"}, {1.f, "Pack"}})
+            .help("vr_humstudio_part: its body's clothes, or its pack (its worn backpack, and the pack in an enforcer's skin)."),
+        header("Colour"),
+        slider("Red", vr_humstudio_r, 0.f, 1.f, 0.05f, "%.2f").help("vr_humstudio_r: the colour the texels are dyed."),
+        slider("Green", vr_humstudio_g, 0.f, 1.f, 0.05f, "%.2f").help("vr_humstudio_g: ..."),
+        slider("Blue", vr_humstudio_b, 0.f, 1.f, 0.05f, "%.2f").help("vr_humstudio_b: ..."),
+        slider("Strength", vr_humstudio_strength, 0.f, 1.f, 0.05f, "%.2f")
+            .help("vr_humstudio_strength: how much of the dye (0: none, the row off). Each texel keeps its own lightness, so "
+                  "its shading stays."),
+        slider("Lightness", vr_humstudio_light, 0.25f, 2.f, 0.05f, "%.2f")
+            .help("vr_humstudio_light: the dyed texels' lightness times this."),
+        slider("Tint", vr_humstudio_tint, 0.f, 1.f, 0.05f, "%.2f")
+            .help("vr_humstudio_tint: 0 the dye (the colour at each texel's lightness: a red stays red); 1 the texel's own "
+                  "colour times the colour (more of its detail, less of the colour)."),
+        header("Mask"),
+        toggle("Show the Masks", vr_humstudio_overlay)
+            .help("vr_humstudio_overlay: on the recoloured humanoids, the clothes texels green, the pack's blue, the rest "
+                  "(never changed) dark red."),
+        command("This Skin's Own Rows (Toggle)", "vr_humstudio_ownrows")
+            .help("vr_humstudio_ownrows: the rows below edit this skin alone (its own rows, from its kind's), or all the "
+                  "type's skins again."),
+    };
+    for(int r = 0; r < 16; r++)
+    {
+        items.pushBack(row(qvr::humlook::studioRowText, textureStudioRowHelp, qvr::humlook::studioRowPick, r, -1));
+    }
+    items.pushBack(toggle("Paint (Menu Closed)", vr_humstudio_paint)
+            .help("vr_humstudio_paint: with the menu closed, point at an armed humanoid: in the headset a trigger paints, its "
+                  "grip erases (back to its row's), B/Y undoes; on a flat screen the crosshair, attack paints. Where rows "
+                  "are shared (an enforcer's pack)."));
+    items.pushBack(cycle("Paint As", vr_humstudio_class, {{1.f, "Clothes"}, {2.f, "Pack"}, {3.f, "Never"}, {0.f, "Erase"}})
+            .help("vr_humstudio_class: what a stroke paints: clothes, pack, never (left as it is, whatever its row), or "
+                  "erase (back to its row's)."));
+    items.pushBack(slider("Brush Radius", vr_humstudio_brush, 0.f, 12.f, 1.f, "%.0f texels")
+            .help("vr_humstudio_brush: the brush's radius in the skin's texels."));
+    items.pushBack(command("Undo", "vr_humstudio_undo").help("vr_humstudio_undo: the last stroke or row change undone."));
+    items.pushBack(command("Clear This Skin's Painting", "vr_humstudio_clearpaint")
+            .help("vr_humstudio_clearpaint: its painted texels back to their rows' (undoable)."));
+    items.pushBack(header("File"));
+    items.pushBack(command("Save", "vr_humstudio_save")
+            .help("vr_humstudio_save: quakevr/humlook.txt (the colours) and quakevr/humlook_masks.txt (the rows and painted "
+                  "texels) written."));
+    items.pushBack(command("Reload (Unsaved Edits Lost)", "vr_humlook_reload")
+            .help("vr_humlook_reload: both files read again."));
+    items.pushBack(command("Check the Masks", "vr_humstudio_check")
+            .help("vr_humstudio_check: per mask its clothes and pack texels and how many are on the flesh and blood rows, "
+                  "to the console."));
+    return items;
+}
+
 za::Vector<Item> pageDebugTools()
 {
     return {
@@ -1520,6 +1597,9 @@ za::Vector<Item> pageDebugTools()
         open("Armour Studio", pageIndex(pageArmourStudio))
             .help("The armour's plates tweaked by hand per kind and piece (moved, turned, scaled, further off the skin, longer, "
                   "more rows), live on a subject ahead of you; saved to quakevr/data/armour.txt."),
+        open("Texture Studio", pageIndex(pageTextureStudio))
+            .help("The armed humanoids' recolours by weapon: each row's colour, strength, lightness and tint, and which "
+                  "texels they dye (palette rows, painted texels), live on a row lined up ahead; saved to quakevr/humlook.txt."),
         header("Blood Feedback"),
         command("Blood Feedback Report", "vr_blood_info"),
         command("Damage Protocol Preview", "vr_blood_test packet right").help("Round-trip a 20-damage hit through the real packet reader, including existing hand feedback and Screen Tints. Cosmetic debug preview."),

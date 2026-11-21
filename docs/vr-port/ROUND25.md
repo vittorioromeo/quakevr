@@ -7109,3 +7109,34 @@ softlock in kellbase1 at (-8, -959.8, 664.1).
   (`developer 1`: "quoth: kellbase1's corridor: shut in, the top doors opened again"). In the arena: nothing.
 - **Checklist scene:** `ad_mod_ladder` (ad_crucial's ladder; a scene named `mod_...` ran after one that left AD's
   folders: "no map").
+
+## humrepl2: the recolours dye only clothes and packs, keep the shading; the Texture Studio (branch agent/humrepl2, 2026-11-21)
+
+His verdict on phase 1: "The recolors look a bit unnatural and also affect the skin/faces of the enemies." The cause: a
+hue band can't separate brown uniforms from brown flesh, and a full hue turn with a saturation boost flattens the shading.
+
+- **The rows (each skin's 8-bit histogram, `scratch/humrepl2_skins.py`):** grunt (vrgrunt = id1 soldier, 256x256)
+  rows 1 30866, 10 15825, 7 9301, 6 5274, 4 1079; enforcer (576x384) 0 74933, 1 59349, 10 41345, 7 18996, 3 10256, 6 6325;
+  knight (256x256) 10 32138, 1 9560, 4 6237, 7 5602, 6 3647; death knight (512x196) 1 56793, 10 25496, 7 6425, 4 4326;
+  backpack.mdl (128x128) 1 14980, 7 859. Regions: uniforms and leather rows 1 and 10 (browns, tans), the enforcer's
+  trousers 3, flesh 7 (peach), blood 4, the knights' plates 10, the enforcer's shoulder pads 6. Separating: flesh (7)
+  from cloth (1, 10) everywhere; not separating: the grunt's arm and face highlights sit on row 10 like its uniform
+  (fixed by the flesh neighbourhood), the enforcer's baked pack shares its armour's rows (fixed by painted texels), the
+  knights' blood and red cloth share row 4 (left alone). AD's `mon_*.mdl` skins vary (mon_hknight row 8 23041, row 3
+  5781; mon_enforcer row 3 24049): they get their key's rows; candidates for the studio's own rows.
+- **Masks** (`vr_humlook.cpp`, `quakevr/humlook_masks.txt`): per skin and key, 2 bits a texel, made as it is first drawn
+  from the model file's indices; painted texels, else flesh (`flesh 7`, and `fleshnear 0.35 2`: a quarter-plus of the
+  5x5 neighbours flesh), else the row's class. SSBO 17 (`HumMasks`, 512 KB, rewritten when edited), bound beside the
+  barrel masks (r_alias.c `VR_HumlookBind`). The instance's `Recolor` grew to four rows (the ragdoll's copy too).
+- **Dye** (`HumDye`): the texel's luminance (times `light`) in the row's colour, clamped (a red stays red), or with `tint`
+  its own colour times the colour; by `strength`. Table: `r g b strength light tint` (the old 13-number rows are gone).
+- **Texture Studio** (Debug > Tools; `vr_humstudio.cpp`): see ARMED_MONSTERS.md "Recolours by weapon". Painting shares
+  one stroke path for VR and flat: only the ray differs (a hand's aim / the view's centre); flat's attack is eaten while
+  painting (cl_input.c `VR_HumStudioAttack`), VR's trigger, grip and B/Y (vr_input.cpp). The ray meets the posed model
+  (its frame's first pose, not interpolated) and its triangle's ST gives the texel.
+- **Tests:** `Misc/quakevr/humrepl2_test.sh` PASS (5 masks: vrgrunt 46691 clothes, vrenforcer 90875 clothes + 20075
+  pack, vrknight, vrhknight 56793, backpack 14980; 0 texels on the flesh or blood rows; a stroke 113 texels, undone);
+  `humrepl_test.sh` 46/0; `vr_multiview_check` 99/0; screenshots `humrepl_shots.sh` (before/after per type x category,
+  and `overlay`). Not tested: the studio's sliders and row toggles by hand in the menu (the cvars and commands are).
+- **Open:** AD's own skins unlooked at; the knights' red cloth (row 4, shared with blood) not dyed; flesh rule's share is
+  file-only (not on the page).
