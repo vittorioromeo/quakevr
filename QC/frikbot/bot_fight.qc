@@ -194,7 +194,9 @@ void() bot_dodge_stuff =
                             tsz = bot_size_player(foe) + vlen(foe.origin - self.origin) * 0.5;
                             if(tsz < foesz)
                             {
-                                if(fov(foe) || foe.b_sound > time || self.b_skill == 3)
+                                // (QVR: and near enough for its skill to notice, bot_notice: heard, anywhere)
+                                if((fov(foe) && vlen(foe.origin - self.origin) <= bot_notice(self)) ||
+                                   foe.b_sound > time || self.b_skill == 3)
                                 {
                                     if(fisible(foe))
                                     {
@@ -241,10 +243,13 @@ vector(float wid) weapon_range =
     if(wid == WID_LIGHTNING)        { return '350 0 512'; }
     if(wid == WID_LASER_CANNON)     { return '350 0 512'; }
 
-    bprint("Invalid wid in bot weapon_range: '");
-    bprint(ftos(wid));
-    bprint("'\n");
-
+    // QVR: every other weapon by its kind (the armed humanoids' classes, VR_AG_Class): Quake VR's own (the revolver, the
+    // nail pistol, the flare gun), the enemies' guns, AD's, the chainsaw (a bprint for each before: his revolver run's bot
+    // never chose it)
+    float c = VR_AG_Class(wid);
+    if(c == VR_AG_CLASS_MELEE || c == VR_AG_CLASS_FISTS) { return '48 0 64'; }
+    if(c == VR_AG_CLASS_EXPLOSIVE)                         { return '180 48 3000'; }
+    if(c == VR_AG_CLASS_AUTO)                              { return '180 0 3000'; }
     return '128 8 3000';
 };
 /*
@@ -272,96 +277,55 @@ float() bot_melee_weapon =
     return WID_AXE;
 };
 
+// QVR: the guns a bot chooses from, the best first (FrikBot's order, with Quake VR's and the mission packs' own in it:
+// his voice note 2026-11-21, a bot with the revolver loadout only ever swung its dagger, the revolver not in the list).
+// The single-use guns (the enemies', AD's, the flare gun: their only ammo their clip) are not drawn from its
+// inventory: its off hand takes them up and fires them until spent (bot_offhand_ai).
+float BOT_PICKS = 11;
+float(float i) bot_pick_nth =
+{
+    return i == 0 ? WID_ROCKET_LAUNCHER : i == 1 ? WID_LIGHTNING : i == 2 ? WID_LASER_CANNON : i == 3 ? WID_SUPER_NAILGUN :
+        i == 4 ? WID_GRENADE_LAUNCHER : i == 5 ? WID_PROXIMITY_GUN : i == 6 ? WID_SUPER_SHOTGUN : i == 7 ? WID_NAILGUN :
+        i == 8 ? WID_REVOLVER : i == 9 ? WID_SHOTGUN : WID_NAILPISTOL;
+};
+
+// QVR: whether the bot has `wid` and the ammo for a shot of it (two for the double-barrelled guns' two shells and the
+// super nailgun's two nails; the lightning gun not under water). The gun it holds counts what its clip holds too (a
+// loaded revolver with no shells left still fires).
+float(float wid) bot_can_fire =
+{
+    if(!bot_has_usable(wid) || (wid == WID_LIGHTNING && self.waterlevel > 1))
+    {
+        return FALSE;
+    }
+    float aid = WeaponIdToAmmoId(wid, 0);
+    if(aid == AID_NONE)
+    {
+        return TRUE;
+    }
+    float need = (wid == WID_SUPER_SHOTGUN || wid == WID_SUPER_NAILGUN) ? 2 : 1;
+    float have = VR_AmmoUtil_GetAmmoCountByAmmoId(self, aid);
+    if(wid == self.weapon && WeaponIdToSupportsReload(wid))
+    {
+        have = have + VRGetEntWeaponClip(self, cVR_MainHand);
+    }
+    return have >= need;
+};
+
 float(float brange) bot_pick_weapon =
 {
-    float wid;
-    vector v;
-
-    if( (bot_has_usable(WID_ROCKET_LAUNCHER)) &&
-        (VR_AmmoUtil_GetAmmoCountByAmmoId(self, AID_ROCKETS) >= 1))
+    for(float i = 0; i < BOT_PICKS; i++)
     {
-        wid = WID_ROCKET_LAUNCHER;
-        v = weapon_range(wid);
-
-        if(brange == -1 || (brange >= v_y && brange <= v_z))
+        float wid = bot_pick_nth(i);
+        if(bot_can_fire(wid))
         {
-            return wid;
+            vector v = weapon_range(wid);
+            if(brange == -1 || (brange >= v_y && brange <= v_z))
+            {
+                return wid;
+            }
         }
     }
-
-    if(self.waterlevel <= 1 &&
-       (bot_has_usable(WID_LIGHTNING)) &&
-       (VR_AmmoUtil_GetAmmoCountByAmmoId(self, AID_CELLS) >= 1))
-    {
-        wid = WID_LIGHTNING;
-        v = weapon_range(wid);
-
-        if(brange == -1 || (brange >= v_y && brange <= v_z))
-        {
-            return wid;
-        }
-    }
-
-    if((bot_has_usable(WID_SUPER_NAILGUN)) &&
-       (VR_AmmoUtil_GetAmmoCountByAmmoId(self, AID_NAILS) >= 2))
-    {
-        wid = WID_SUPER_NAILGUN;
-        v = weapon_range(wid);
-
-        if(brange == -1 || (brange >= v_y && brange <= v_z))
-        {
-            return wid;
-        }
-    }
-
-    if((bot_has_usable(WID_GRENADE_LAUNCHER)) &&
-       (VR_AmmoUtil_GetAmmoCountByAmmoId(self, AID_ROCKETS) >= 1))
-    {
-        wid = WID_GRENADE_LAUNCHER;
-        v = weapon_range(wid);
-
-        if(brange == -1 || (brange >= v_y && brange <= v_z))
-        {
-            return wid;
-        }
-    }
-
-    if((bot_has_usable(WID_SUPER_SHOTGUN)) &&
-       (VR_AmmoUtil_GetAmmoCountByAmmoId(self, AID_SHELLS) >= 2))
-    {
-        wid = WID_SUPER_SHOTGUN;
-        v = weapon_range(wid);
-
-        if(brange == -1 || (brange >= v_y && brange <= v_z))
-        {
-            return wid;
-        }
-    }
-
-    if((bot_has_usable(WID_NAILGUN)) &&
-       (VR_AmmoUtil_GetAmmoCountByAmmoId(self, AID_NAILS) >= 1))
-    {
-        wid = WID_NAILGUN;
-        v = weapon_range(wid);
-
-        if(brange == -1 || (brange >= v_y && brange <= v_z))
-        {
-            return wid;
-        }
-    }
-
-    if((bot_has_usable(WID_SHOTGUN)) &&
-       (VR_AmmoUtil_GetAmmoCountByAmmoId(self, AID_SHELLS) >= 1))
-    {
-        wid = WID_SHOTGUN;
-        v = weapon_range(wid);
-
-        if(brange == -1 || (brange >= v_y && brange <= v_z))
-        {
-            return wid;
-        }
-    }
-
     return bot_melee_weapon();
 };
 
@@ -378,6 +342,90 @@ void(float brange) bot_weapon_switch =
     }
     self.weapon = wid;
     W_SetCurrentAmmo();
+};
+
+// QVR: a bot toned down by its skill (his voice notes 2026-11-21: "relentless, even with the easiest difficulty mode on
+// ... super precise, super fast, and super aggressive ... toned down quite a lot, especially at the lower
+// difficulties"). Before, its guns were turned dead on its enemy's middle every frame and fired the moment it saw him.
+// Now, by its skill (b_skill 0-3, the `skill` it was added at):
+// - its aim (bot_aim_point): off by an error drawn every BOT_AIM_REDRAW seconds (bot_aim_err degrees at most) and
+//   behind a moving enemy (where he was bot_aim_lag seconds ago), both times vr_bot_aim_error;
+// - its reaction (bot_fire_ready): an enemy just seen is fired at only after bot_react seconds, times vr_bot_reaction;
+// - its fire discipline (bot_fire_ready): bursts of bot_burst seconds with pauses of bot_pause between them;
+// - its turn (bot_phys.qc CL_KeyMove: skills 0 and 1 turn at bot_turn of a keyboard player's speed);
+// - its aggression (bot_dodge_stuff): it notices players no further than bot_notice units (unless it heard them);
+// - its melee swing's telegraph (bot_windup): held raised vr_bot_swing_windup seconds at skill 0, less the higher.
+float(float sk, float a, float b, float c, float d) bot_by_skill =
+{
+    sk = max(0, min(3, rint(sk)));
+    return sk == 0 ? a : sk == 1 ? b : sk == 2 ? c : d;
+};
+float(entity b) bot_aim_err = { return bot_by_skill(b.b_skill, 6, 4, 2.5, 1.2); };       // degrees
+float(entity b) bot_aim_lag = { return bot_by_skill(b.b_skill, 0.12, 0.08, 0.05, 0.02); }; // s
+float(entity b) bot_react   = { return bot_by_skill(b.b_skill, 0.8, 0.55, 0.35, 0.2); };  // s
+float(entity b) bot_burst   = { return bot_by_skill(b.b_skill, 0.9, 1.2, 1.8, 3); };      // s
+float(entity b) bot_pause   = { return bot_by_skill(b.b_skill, 0.7, 0.5, 0.3, 0.15); };   // s
+float(entity b) bot_turn    = { return bot_by_skill(b.b_skill, 0.6, 0.8, 1, 1); };         // of the keys' turn speed
+float(entity b) bot_notice  = { return bot_by_skill(b.b_skill, 800, 1200, 1800, 100000); }; // units
+float BOT_AIM_REDRAW = 0.35; // s
+
+// Where the bot (self) aims at `e` this frame: his middle, behind him as he moves, off by its error.
+vector(entity e) bot_aim_point =
+{
+    vector mid = (e.absmin + e.absmax) * 0.5;
+    float scale = max(0, cvar_hget(cvarh_vr_bot_aim_error));
+    if(scale <= 0)
+    {
+        return mid;
+    }
+    if(time >= self.vr_botaim_next)
+    {
+        // (a point in a disc: its share of the distance, up to tan(bot_aim_err))
+        float ang = bot_aim_err(self) * scale * (3.14159265 / 180);
+        float r = (sin(ang) / cos(ang)) * sqrt(random());
+        float a = random() * 2 * 3.14159265;
+        self.vr_botaim_err = '1 0 0' * (r * cos(a)) + '0 1 0' * (r * sin(a));
+        self.vr_botaim_next = time + BOT_AIM_REDRAW * (0.75 + random() * 0.5);
+    }
+    vector at = mid - e.velocity * (bot_aim_lag(self) * scale);
+    vector eye = self.origin + self.view_ofs;
+    float dist = vlen(at - eye);
+    makevectors(vectoangles(at - eye));
+    return at + (v_right * self.vr_botaim_err_x + v_up * self.vr_botaim_err_y) * dist;
+};
+
+// Whether the bot (self) may fire at its enemy now (bot_shoot: he is in its sight and its weapon's range): its reaction
+// to him done, its burst on (not a pause).
+float() bot_fire_ready =
+{
+    // (a new enemy, or the last one again after a second with no shot at him: out of sight, out of range)
+    if(self.enemy != self.vr_botreact_of || time - self.vr_botreact_seen > 1)
+    {
+        self.vr_botreact_of = self.enemy;
+        self.vr_botreact_at = time + bot_react(self) * max(0, cvar_hget(cvarh_vr_bot_reaction));
+        self.vr_botburst_until = 0;
+    }
+    self.vr_botreact_seen = time;
+    if(time < self.vr_botreact_at)
+    {
+        return FALSE;
+    }
+    if(time >= self.vr_botburst_until)
+    {
+        if(self.vr_botburst_until > 0 &&
+           time < self.vr_botburst_until + bot_pause(self) * max(0, cvar_hget(cvarh_vr_bot_reaction)))
+        {
+            return FALSE; // (its pause)
+        }
+        self.vr_botburst_until = time + bot_burst(self);
+    }
+    return TRUE;
+};
+
+// How long bot `b`'s melee swing is held raised at its top beyond a player's (its telegraph).
+float(entity b) bot_windup =
+{
+    return max(0, cvar_hget(cvarh_vr_bot_swing_windup)) * bot_by_skill(b.b_skill, 1, 0.75, 0.5, 0.25);
 };
 
 // QVR (MP bots phase 1): its melee weapon's guard, as a flat-screen player's (the right button held: vr_flatplay.cpp's
@@ -401,7 +449,7 @@ float(entity a) bot_blow_coming =
     {
         if(!a.ishuman)
         {
-            return a.vr_botswing > 0 && time - a.vr_botswing < BOT_PARRY_SWING;
+            return a.vr_botswing > 0 && time - a.vr_botswing < BOT_PARRY_SWING + a.vr_botwindup;
         }
         if(VR_AG_Class(VRGetEntWeapon(a, cVR_MainHand)) == VR_AG_CLASS_MELEE && VRHandsTracked(a) && !VR_FlatPlay(a) &&
            vlen(a.handvel) > BOT_PARRY_HANDV)
@@ -677,9 +725,9 @@ void() bot_setvrfields =
     vector aimAt = '0 0 0';
     if(self.enemy && self.enemy.health > 0 && self.enemy != self)
     {
-        aimAt = (self.enemy.absmin + self.enemy.absmax) * 0.5;
+        aimAt = bot_aim_point(self.enemy); // (off by its skill's error: bot_aim_point)
     }
-    self.vr_botswing_ph = botflatpose(self, aimAt, self.vr_botswing, self.vr_botparry);
+    self.vr_botswing_ph = botflatpose(self, aimAt, self.vr_botswing, self.vr_botparry, self.vr_botwindup);
     float synth = 0;
     if(self.vr_botswing_ph == 1)
     {
@@ -774,6 +822,9 @@ void() bot_shoot =
     g = angcomp(self.v_angle_y, self.b_angle_y);
     if(fabs(g) > 30)
         return; // not again!
+
+    if(!bot_fire_ready())
+        return; // QVR: its reaction to a new enemy, its pause between bursts (its skill's)
 
     bot_setvrfields();
     self.button0 = TRUE;

@@ -21,6 +21,7 @@
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
+#include "Zancle/Math/Exp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Sqrt.hpp"
@@ -142,6 +143,11 @@ bool move(Slide& s, const MoveIn& in, const Tuning& t, const float* wishdir, flo
     {
         if(!ground || (!pressed && !landed) || speed < za::max(t.least, 1.f) || now < s.cooldownUntil) // (>= 1: the boost divides by it)
         {
+            if(pressed && vr_flatplay_debug.value)
+            {
+                Con_Printf("slide: none on the press: ground %d, speed %.0f (least %.0f), cooldown %.2f s left\n", ground ? 1 : 0,
+                    speed, t.least, za::max(0.0, s.cooldownUntil - now));
+            }
             return false;
         }
         // Too tired for its first part: no slide, a plain crouch (the decision of 2026-11-10: not a weaker slide; the
@@ -154,6 +160,10 @@ bool move(Slide& s, const MoveIn& in, const Tuning& t, const float* wishdir, flo
                 Con_Printf("slide: none: %.1f stamina left, its first part is %.1f\n", in.staminaLeft, t.staminaPart);
             }
             return false;
+        }
+        if(vr_flatplay_debug.value)
+        {
+            Con_Printf("slide: on at %.0f u/s (least %.0f)\n", speed, t.least);
         }
         s.on = true;
         s.starts++;
@@ -238,6 +248,9 @@ struct Case
     float x, y;     // the turning stick held
     bool letGo;     // let go 0.15 s into the slide
     int camera;     // vr_slide_camera (the view's drop: checked in the full slides)
+    int legs{-1};   // vr_slide_legs, the legs' way checked 0.5 s in (-1: 1, not checked)
+    float look{0.f}; // the head turned this far left as the slide starts (the moving stick let go; no steering by it:
+                     // vr_flat_slide_steer 0 for the case, as vr_move_hold keeps the stick 0.4 s, forward the new view's)
 };
 
 constexpr Case cases[] = {
@@ -252,6 +265,8 @@ constexpr Case cases[] = {
     {"straight down", 1, -1, true, false, 0.f, -1.f, false, 1},
     {"straight down, let go mid-slide", 1, -1, true, false, 0.f, -1.f, true, 1},
     {"straight down, vr_slide_camera 0", 1, -1, true, false, 0.f, -1.f, false, 0},
+    {"straight down, the head turned 60 left (the legs the slide's way)", 1, -1, true, false, 0.f, -1.f, false, 1, 1, 60.f},
+    {"straight down, the head turned 60 left, vr_slide_legs 0", 1, -1, true, false, 0.f, -1.f, false, 1, 0, 60.f},
 };
 constexpr int caseCount = static_cast<int>(sizeof(cases) / sizeof(cases[0]));
 constexpr int sweepFrames = 12;  // the rim sweep's frames, right to down
@@ -266,6 +281,8 @@ struct VrTest
     float slideWas{0.f};   // vr_slide, vr_snap_turn, vr_slide_camera before
     float snapWas{0.f};
     float cameraWas{1.f};
+    float legsWas{1.f};
+    float steerWas{45.f};
     // The view's height (the eyes over the box's floor): before the slide, its lowest in it, when it first came within 5%
     // of the drop's way down (the flat slide's eyes) and back up after it; the pose printed mid-slide.
     float eye0{0.f};
@@ -296,6 +313,31 @@ void check(bool ok, const char* what)
         Con_Printf("vrslide: PASS %s\n", what);
     }
     vrTest.tally.check(ok, "vrslide", what);
+}
+
+// The legs' way 0.5 s into a slide with the head turned (Case::look): the hips to the ankles (both sides' middles) seen
+// from above, against the slide's way (its speed) and the tracked body's yaw. vr_slide_legs 1: the slide's way (the
+// flat slide's turn: the body turned under vr_flat_slide_legs_twist off it); 0: the body's. The body turned 15 or more.
+void checkLegs(const Case& c, const edict_t* pl)
+{
+    avatar::Skeleton k;
+    char line[256];
+    if(!avatar::skeleton(k) || !k.legs)
+    {
+        q_snprintf(line, sizeof(line), "%s: no body posed", c.name);
+        check(false, line);
+        return;
+    }
+    const glm::vec3 d = 0.5f * (k.ankle[0] + k.ankle[1]) - 0.5f * (k.hip[0] + k.hip[1]);
+    const float legs = geom::yawOf(glm::vec3{d.x, d.y, 0.f});
+    const float way = geom::yawOf(glm::vec3{pl->v.velocity[0], pl->v.velocity[1], 0.f});
+    const float body = hands::current().bodyYaw;
+    const float offWay = geom::yawDelta(legs, way);
+    const float offBody = geom::yawDelta(legs, body);
+    q_snprintf(line, sizeof(line), "%s: the legs %.0f off the slide's way, %.0f off the body (turned %.0f off the way)", c.name,
+        static_cast<double>(offWay), static_cast<double>(offBody), static_cast<double>(geom::yawDelta(body, way)));
+    const float turned = za::abs(geom::yawDelta(body, way));
+    check(turned > 15.f && (c.legs != 0 ? za::abs(offWay) < 10.f : za::abs(offBody) < 10.f), line);
 }
 
 void stick(const char* hand, float x, float y)
@@ -428,6 +470,12 @@ void testFrame()
             if(s.on && t.slideAt < 0.0)
             {
                 t.slideAt = now;
+                if(c.look != 0.f)
+                {
+                    char cmd[96];
+                    q_snprintf(cmd, sizeof(cmd), "vr_mock_stick off 0 0\nvr_mock_look 0 %g\n", static_cast<double>(c.look));
+                    Cbuf_InsertText(cmd);
+                }
             }
             if(s.on && !s.airborne && t.slideAt >= 0.0 && now - t.slideAt > 0.05)
             {
@@ -448,6 +496,10 @@ void testFrame()
                 {
                     printPose("vrslide_pose", pl);
                     t.posed = true;
+                    if(c.legs >= 0)
+                    {
+                        checkLegs(c, pl);
+                    }
                 }
             }
             if(!c.slides)
@@ -520,6 +572,11 @@ void testFrame()
         }
         case 3: // standing up again after it (his own head's height), the view back up at it
         {
+            // (The head turned back now, frames before the next case's setpos, which turns the play space by the head.)
+            if(t.frame++ == 0 && c.look != 0.f)
+            {
+                Cbuf_InsertText("vr_mock_look 0 0\n");
+            }
             const float way = t.eye0 - slideEye();
             if(t.upAt < 0.0 && za::abs(viewEye(pl) - t.eye0) < 0.05f * way)
             {
@@ -556,7 +613,8 @@ void testFrame()
             {
                 char cmd[96];
                 const Case& n = cases[t.index];
-                q_snprintf(cmd, sizeof(cmd), "vr_slide %d\nvr_slide_camera %d\n", n.slide, n.camera);
+                q_snprintf(cmd, sizeof(cmd), "vr_slide %d\nvr_slide_camera %d\nvr_slide_legs %d\nvr_flat_slide_steer %g\n", n.slide,
+                    n.camera, n.legs >= 0 ? n.legs : 1, n.look != 0.f ? 0.0 : static_cast<double>(t.steerWas));
                 Cbuf_InsertText(cmd);
                 if(n.snap >= 0)
                 {
@@ -570,8 +628,8 @@ void testFrame()
         default:
         {
             char cmd[96];
-            q_snprintf(cmd, sizeof(cmd), "vr_mock_stick main 0 0\nvr_mock_stick off 0 0\nvr_slide %g\nvr_snap_turn %g\nvr_slide_camera %g\n",
-                t.slideWas, t.snapWas, t.cameraWas);
+            q_snprintf(cmd, sizeof(cmd), "vr_mock_look 0 0\nvr_mock_stick main 0 0\nvr_mock_stick off 0 0\nvr_slide %g\nvr_snap_turn %g\nvr_slide_camera %g\nvr_slide_legs %g\nvr_flat_slide_steer %g\n",
+                t.slideWas, t.snapWas, t.cameraWas, t.legsWas, t.steerWas);
             Cbuf_InsertText(cmd);
             t.tally.verdict("vrslide");
             t = VrTest{};
@@ -617,6 +675,8 @@ void vrTest_f()
     vrTest.slideWas = vr_slide.value;
     vrTest.snapWas = vr_snap_turn.value;
     vrTest.cameraWas = vr_slide_camera.value;
+    vrTest.legsWas = vr_slide_legs.value;
+    vrTest.steerWas = vr_flat_slide_steer.value;
     vrTest.phase = 1;
     progs::ServerVm vm;
     vrTest.phaseAt = qcvm->time;
@@ -781,6 +841,104 @@ bool headsetSliding()
 bool headsetPose()
 {
     return vr_slide.value != 0.f && vr_slide_body.value != 0.f && sv.active && svs.maxclients >= 1 && server.slide[1].on;
+}
+
+// The slide's turn of the body (vr_slide.hpp LegsTurn): flatscreen play's (flatplay poseHands; his words 2026-11-08:
+// no stance turn, the leant-back trunk turned off the view bent the legs, eased out over vr_flat_slide_turn_time; the
+// hips and legs to the slide's way, the chest turned back to the view, at most vr_flat_slide_legs_twist off it) and a
+// headset's (headsetLegs: the view is the tracked body's yaw).
+float legsTurnStep(LegsTurn& t, bool slide, bool legs, float view, float rest, glm::vec2 vel, double dt)
+{
+    if(dt > 0.0)
+    {
+        const float step = static_cast<float>(dt) / za::clamp(vr_flat_slide_turn_time.value, 0.02f, 1.f);
+        t.lin += za::clamp((slide ? 1.f : 0.f) - t.lin, -step, step);
+    }
+    // (Taken once a frame, with the easing's step: the frame's later poses had the server's newer velocity, and its
+    // change went into the body past the easing below -- a step of 11 degrees in a frame sliding sideways.)
+    if(slide && glm::length(vel) > 60.f && (dt > 0.0 || !t.easing))
+    {
+        t.yaw = geom::yawOf(glm::vec3{vel, 0.f});
+    }
+    const float share = geom::smooth01(t.lin);
+    float off = 0.f;
+    if(legs && share > 0.f)
+    {
+        off = geom::yawDelta(t.yaw, view);
+        const float most = za::clamp(vr_flat_slide_legs_twist.value, 0.f, 90.f);
+        // Sliding away from the view (his note 2026-11-10: "Sliding backwards or diagonally backwards while looking
+        // ahead looks a bit jittery/funky -- the legs should still stay in front"): the legs come back to the view
+        // as the slide's way goes past vr_flat_slide_back_start off it, all of the way by vr_flat_slide_back_full
+        // (on the back, the legs out in front, as a forward slide). Straight back the way's side flipped with every
+        // twitch of the view, and the hips swung from one most twist to the other.
+        const float backStart = za::clamp(vr_flat_slide_back_start.value, 0.f, 180.f);
+        const float backFull = za::clamp(vr_flat_slide_back_full.value, backStart, 180.f);
+        const float back = geom::smoothstep(backStart, backFull, za::fabs(off), 0.01f);
+        off = za::clamp(off, -most, most) * (1.f - back) * share;
+    }
+    // The hips eased after it (his note 2026-11-08: the body turned in abrupt steps sliding): the slide's way follows the
+    // velocity, which steps with the server's frames and the steering, and a look past the twist's limit drags them
+    // round at once. The lag fades with the slide's share; the chest stays on the view (the twist takes the lag too).
+    const float want = view + rest * (1.f - share) + off;
+    const float smooth = za::clamp(vr_flat_slide_turn_smooth.value, 0.f, 1.f);
+    if(share > 0.f && smooth > 0.f)
+    {
+        if(!t.easing)
+        {
+            t.easing = true;
+            t.lag = t.lagRate = 0.f;
+            t.yaw0 = want;
+        }
+        else if(dt > 0.0)
+        {
+            const float step = static_cast<float>(dt);
+            const float omega = 4.74f / za::max(0.02f, smooth); // (95% of a step in `smooth`: vr_avatar_pitch.cpp's easePitch)
+            const float x = za::clamp(geom::yawDelta(t.yaw0, want), -120.f, 120.f);
+            const float temp = (t.lagRate + omega * x) * step;
+            const float decay = za::exp(-omega * step);
+            t.lagRate = (t.lagRate - omega * temp) * decay;
+            t.lag = (x + temp) * decay;
+            t.yaw0 = want + t.lag;
+        }
+    }
+    else
+    {
+        t.easing = false;
+        t.lag = t.lagRate = 0.f;
+    }
+    const float lag = t.lag * share;
+    t.twist = -(off + lag);
+    return want + lag;
+}
+
+// A headset's slide legs (vr_slide_legs): the step's state and its clock (vr_gametime; the hands are placed more than
+// once a frame, the easing steps once).
+struct HeadsetLegs
+{
+    LegsTurn turn;
+    double lastTime{-1e9};
+    float off{0.f};
+};
+HeadsetLegs headsetLegsState; // seat-shared: the headset wearer's legs (one headset, one VR player)
+
+void headsetLegs(float bodyYaw)
+{
+    HeadsetLegs& h = headsetLegsState;
+    const double dt = h.lastTime > -1e8 ? za::clamp(vr_gametime - h.lastTime, 0.0, 0.1) : 0.0;
+    h.lastTime = vr_gametime;
+    const float hips = legsTurnStep(h.turn, headsetPose(), vr_slide_legs.value != 0.f, bodyYaw, 0.f,
+        glm::vec2{cl.velocity[0], cl.velocity[1]}, dt);
+    h.off = geom::yawDelta(hips, bodyYaw);
+}
+
+float headsetLegsOff()
+{
+    return headsetLegsState.off;
+}
+
+float headsetLegsTwist()
+{
+    return headsetLegsState.turn.twist;
 }
 
 bool headsetRising(const edict_t* ent)

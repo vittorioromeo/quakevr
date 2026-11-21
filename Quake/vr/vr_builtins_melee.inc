@@ -697,17 +697,21 @@ void PF_botmovewalk()
     predict::botWalk(PROG_TO_EDICT(pr_global_struct->self), G_VECTOR(OFS_RETURN));
 }
 
-// float botflatpose(entity e, vector target, float swingAt, float parry): bot `e`'s hands posed by flat-screen play's
-// own code (flatplay::poseBot; MP bots phase 1): its weapons' places off its shoulders, one or two, each turned at
-// `target` ('0 0 0': along its view), its main hand's overhead swing begun at `swingAt` (the server's time; 0: none) and
-// its guard's share `parry` (0..1) -> .handpos/.handrot, .offhandpos/.offhandrot. Returns the swing's phase: 0 none, 1
-// its windup (strikes nothing), 2 the strike and after it.
+// float botflatpose(entity e, vector target, float swingAt, float parry, float windup): bot `e`'s hands posed by
+// flat-screen play's own code (flatplay::poseBot; MP bots phase 1): its weapons' places off its shoulders, one or two,
+// each turned at `target` ('0 0 0': along its view), its main hand's overhead swing begun at `swingAt` (the server's
+// time; 0: none), held raised at its top `windup` seconds longer than a player's (its telegraph) and its guard's share
+// `parry` (0..1) -> .handpos/.handrot, .offhandpos/.offhandrot. Returns the swing's phase: 0 none, 1 its windup (strikes
+// nothing), 2 the strike and after it.
 void PF_botflatpose()
 {
     edict_t* e = G_EDICT(OFS_PARM0);
     const FieldOffsets& f = fields();
     flatplay::BotPoseIn in;
     in.origin = geom::vec(e->v.origin);
+    // (its eyes at its box's view height, as a flat-screen player's are, its arms the default player's: below. Raised
+    // to its drawn head, units::botEyeRaise, the swing's top went 6 units higher and its blow missed or struck a wall
+    // first -- vr_dm_test 2, 3, 9 and 15's blows lost, bots2 2026-11-21.)
     in.eye = in.origin + geom::vec(e->v.view_ofs);
     in.aim = geom::vec(e->v.v_angle);
     in.target = geom::vec(G_VECTOR(OFS_PARM1));
@@ -724,8 +728,9 @@ void PF_botflatpose()
     in.now = qcvm->time;
     in.swingAt = G_FLOAT(OFS_PARM2) > 0.f ? static_cast<double>(G_FLOAT(OFS_PARM2)) : -1e9;
     in.parry = za::clamp(G_FLOAT(OFS_PARM3), 0.f, 1.f);
-    // (its standing eyes over its feet, as its body is drawn: vr_server.cpp's avatar of a bot)
-    in.eyeHeight = za::max(1.f, (e->v.view_ofs[2] - e->v.mins[2]) / units::metresToUnits());
+    in.windup = za::clamp(G_FLOAT(OFS_PARM4), 0.f, 2.f);
+    // (its standing eye height, the default player's as its body is drawn: units::botEyeUnits)
+    in.eyeHeight = za::max(1.f, units::botEyeUnits() / units::metresToUnits());
     flatplay::BotPoseOut out;
     flatplay::poseBot(in, out);
     for(int h = 0; h < HAND_COUNT; h++)

@@ -169,6 +169,7 @@ void() VR_TestsFrame =
     VR_V1116Test_Frame(); // VR: his 11-16 notes: looping sounds stopped, no wet shine on the never wet (vr_v1116_test, vr_v1116_test.qc)
     VR_PlayerDisarmTest_Frame(); // VR: the player disarmed (vr_pd_test, vr_playerdisarm_test.qc)
     VR_DMRulesTest_Frame(); // VR: deathmatch's rules with VR weapons and bots (vr_dm_test, vr_dmrules_test.qc)
+    VR_BotsTest_Frame(); // VR: bots from his 2026-11-21 notes (vr_dm_test 13-15, vr_bots_test.qc)
     VR_ProjInheritTest_Frame(); // VR: what projectiles keep of your motion (vr_projinherit_test, vr_projinherit_test.qc)
     VR_GrenFuseTest_Frame(); // VR: one fuse for every grenade, the launched ones' countdown (vr_grenfuse_test, vr_grenfuse_test.qc)
     VR_FlatKeysTest_Frame(); // VR: the flatscreen keys seen by the game code (vr_flatkeys_test, vr_flatkeys_test.qc)

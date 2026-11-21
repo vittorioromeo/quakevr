@@ -2765,6 +2765,26 @@ SweepNumbers sweepNumbers(const hands::State& s)
     return n;
 }
 
+bool rearSight(const hands::State& s, int h, glm::vec3& rear, const char** model)
+{
+    view::WeaponFrame wf;
+    if(!flatplay::active() || !view::weaponFrame(s, h, wf))
+    {
+        return false;
+    }
+    if(model)
+    {
+        *model = wf.model ? wf.model->name : "none";
+    }
+    const sightalign::SightLine line = sightalign::sightLine(wf.model);
+    if(!line.valid)
+    {
+        return false;
+    }
+    rear = glm::vec3{wf.modelToWorld * glm::vec4{line.rear, 1.f}};
+    return true;
+}
+
 } // namespace qvr::flatsight
 
 // gl_screen.c (VR_FlatAdsFov, vr_api.h): the flatscreen FOV, narrowed while the ironsight is on. Off, or outside the

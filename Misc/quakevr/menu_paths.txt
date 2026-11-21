@@ -59,7 +59,7 @@ vr_holster_weapons_draw_shoulder|0|Holster Calibration|Shoulder Holster Weapons|
 vr_menu_move_towards|0|VR Settings - Locomotion and Controls|Move Towards|VR Settings > Locomotion and Controls > Move Towards
 cl_alwaysrun|0|VR Settings - Locomotion and Controls|Default Speed|VR Settings > Locomotion and Controls > Default Speed
 vr_sprint_toggle|0|VR Settings - Locomotion and Controls|Speed Button|VR Settings > Locomotion and Controls > Speed Button
-vr_move_doubletap|0|VR Settings - Locomotion and Controls|Double-Tap Stick to Run|VR Settings > Locomotion and Controls > Double-Tap Stick to Run
+vr_move_doubletap|0|VR Settings - Locomotion and Controls|Double-Tap for Other Speed|VR Settings > Locomotion and Controls > Double-Tap for Other Speed
 vr_deadzone|0|VR Settings - Locomotion and Controls|Stick Deadzone|VR Settings > Locomotion and Controls > Stick Deadzone
 vr_move_curve|0|VR Settings - Locomotion and Controls|Stick Response Curve|VR Settings > Locomotion and Controls > Stick Response Curve
 vr_move_autorun|0|VR Settings - Locomotion and Controls|Walk Into Run|VR Settings > Locomotion and Controls > Walk Into Run
@@ -1421,16 +1421,18 @@ vr_move_autorun_threshold|1|Locomotion|Run From Push|Advanced VR Options > Movem
 cl_forwardspeed|1|Locomotion|Movement Speed|Advanced VR Options > Movement > Locomotion > Movement Speed
 cl_alwaysrun|1|Locomotion|Default Speed|Advanced VR Options > Movement > Locomotion > Default Speed
 vr_sprint_toggle|1|Locomotion|Speed Button|Advanced VR Options > Movement > Locomotion > Speed Button
-vr_move_doubletap|1|Locomotion|Double-Tap Stick to Run|Advanced VR Options > Movement > Locomotion > Double-Tap Stick to Run
+vr_stick_click_debounce|1|Locomotion|Stick Click Debounce|Advanced VR Options > Movement > Locomotion > Stick Click Debounce
+vr_move_doubletap|1|Locomotion|Double-Tap for Other Speed|Advanced VR Options > Movement > Locomotion > Double-Tap for Other Speed
 vr_move_doubletap_window|1|Locomotion|Double-Tap Window|Advanced VR Options > Movement > Locomotion > Double-Tap Window
 cl_movespeedkey|1|Locomotion|Running Mult.|Advanced VR Options > Movement > Locomotion > Running Mult.
 vr_crouch_speed|1|Locomotion|Slower When Crouched|Advanced VR Options > Movement > Locomotion > Slower When Crouched
 vr_crouch_speed_scale|1|Locomotion|Crouched Speed|Advanced VR Options > Movement > Locomotion > Crouched Speed
 vr_slope_walk|1|Locomotion|Walk Up Slopes Slowly|Advanced VR Options > Movement > Locomotion > Walk Up Slopes Slowly
-vr_slide|1|Locomotion|Sliding (VR, Experimental)|Advanced VR Options > Movement > Locomotion > Sliding (VR, Experimental)
+vr_slide|1|Locomotion|Sliding|Advanced VR Options > Movement > Locomotion > Sliding
 vr_slide_stick_threshold|1|Locomotion|Slide Stick Pull|Advanced VR Options > Movement > Locomotion > Slide Stick Pull
 vr_slide_stick_angle|1|Locomotion|Slide Stick Angle|Advanced VR Options > Movement > Locomotion > Slide Stick Angle
 vr_slide_body|1|Locomotion|Slide Body Pose|Advanced VR Options > Movement > Locomotion > Slide Body Pose
+vr_slide_legs|1|Locomotion|Slide Legs Follow Slide|Advanced VR Options > Movement > Locomotion > Slide Legs Follow Slide
 vr_slide_camera|1|Locomotion|Slide View|Advanced VR Options > Movement > Locomotion > Slide View
 vr_slide_camera_time|1|Locomotion|Slide View Time|Advanced VR Options > Movement > Locomotion > Slide View Time
 vr_flat_aim_mode|1|Locomotion|Right Click Ironsight|Advanced VR Options > Movement > Locomotion > Right Click Ironsight
@@ -4403,6 +4405,11 @@ vr_flat_pistol_in|2|Tunables|Pistol In|Advanced VR Options > Debug > Tunables > 
 vr_flat_pistol_up|2|Tunables|Pistol Up|Advanced VR Options > Debug > Tunables > Pistol Up
 vr_flat_ads_turn|2|Tunables|Ironsight Torso Turn|Advanced VR Options > Debug > Tunables > Ironsight Torso Turn
 vr_flat_ads_lean|2|Tunables|Ironsight Chest Lean|Advanced VR Options > Debug > Tunables > Ironsight Chest Lean
+vr_flat_seen_ads|2|Tunables|Seen: Cheek On The Stock|Advanced VR Options > Debug > Tunables > Seen: Cheek On The Stock
+vr_flat_seen_cheek_roll|2|Tunables|Seen: Cheek Tilt|Advanced VR Options > Debug > Tunables > Seen: Cheek Tilt
+vr_flat_seen_cheek_side|2|Tunables|Seen: Head Off The Sights|Advanced VR Options > Debug > Tunables > Seen: Head Off The Sights
+vr_flat_seen_elbows|2|Tunables|Seen: Elbows Under The Gun|Advanced VR Options > Debug > Tunables > Seen: Elbows Under The Gun
+vr_flat_seen_chest|2|Tunables|Seen: Chest With The Look|Advanced VR Options > Debug > Tunables > Seen: Chest With The Look
 vr_flat_up_elbow|2|Tunables|Look Up: Elbow Under Gun|Advanced VR Options > Debug > Tunables > Look Up: Elbow Under Gun
 vr_flat_up_elbow_out|2|Tunables|Look Up: Elbow Out|Advanced VR Options > Debug > Tunables > Look Up: Elbow Out
 vr_flat_wall_arm_keep|2|Tunables|Wall: Push Back Keeps Arm|Advanced VR Options > Debug > Tunables > Wall: Push Back Keeps Arm
@@ -5262,6 +5269,7 @@ vr_handsource_force|2|Debug - Reports|Force Hands Synthesized|Advanced VR Option
 |2|Debug - Reports|Official Campaign Status|Advanced VR Options > Debug > Reports > Official Campaign Status
 |2|Debug - Reports|Dopa Finale Text|Advanced VR Options > Debug > Reports > Dopa Finale Text
 |2|Debug - Reports|Campaign File Sources|Advanced VR Options > Debug > Reports > Campaign File Sources
+|2|Debug - Reports|Music File|Advanced VR Options > Debug > Reports > Music File
 |2|Debug - Reports|Mission Pack Status|Advanced VR Options > Debug > Reports > Mission Pack Status
 |2|Debug - Reports|Headset|Advanced VR Options > Debug > Reports > Headset
 |2|Debug - Reports|OpenXR Runtime Choice|Advanced VR Options > Debug > Reports > OpenXR Runtime Choice
@@ -5295,6 +5303,7 @@ vr_handsource_force|2|Debug - Reports|Force Hands Synthesized|Advanced VR Option
 |2|Debug - Reports|Cut the Nearest Monster's Arm Off|Advanced VR Options > Debug > Reports > Cut the Nearest Monster's Arm Off
 |2|Debug - Reports|Cut Both Its Legs Off|Advanced VR Options > Debug > Reports > Cut Both Its Legs Off
 |2|Debug - Reports|Ragdolls|Advanced VR Options > Debug > Reports > Ragdolls
+|2|Debug - Reports|Dwell Brute's Spanning Triangles|Advanced VR Options > Debug > Reports > Dwell Brute's Spanning Triangles
 |2|Debug - Reports|Every Ragdoll Rig|Advanced VR Options > Debug > Reports > Every Ragdoll Rig
 |2|Debug - Reports|Grunt's Ragdoll Rig|Advanced VR Options > Debug > Reports > Grunt's Ragdoll Rig
 |2|Debug - Reports|Smooth Animation Check|Advanced VR Options > Debug > Reports > Smooth Animation Check

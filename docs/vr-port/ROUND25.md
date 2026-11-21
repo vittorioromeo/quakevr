@@ -6092,6 +6092,101 @@ navmesh", and "do bots use the navmesh? If not, should they?" (NAVMESH.md 22 and
   is far from the start). `navfollow_vr` (B a mock headset: the play-space turn) 12/0. mp suite --only coop, cmdguard,
   predict, teleport: passed. scenario_check PASS.
 
+## adspose: a sighted flat player seen from outside (adspose, 2026-11-21, `agent/adspose`, unfinished)
+
+- His words: "The ADS pose for some weapons looks silly". Measured (`mp_test.py adspose`: flat B on his sights with every
+  weapon that has a sight line, standing, crouched, looking 40 up and down; flat A at his side): A's copy's drawn eyes were
+  0 off B's eye at a level look but 2.8 to 5.1 off at the looks (the copy's head is the head B sends; his view's eye is that
+  turned about his neck, `vr_flat_eye_pivot`), the head turning back with the look under a gun that stays on the eye's ray.
+  The local body seen from outside (orbit, third-person camera) kept the eye view's crouch shoulder drop and chest carry
+  (its head 3.4 under the eye crouched): from the side, the gun over the head and the arms up past it.
+- Now (FLATPLAY.md, "Seen from outside"): the drawn eyes at the eye at every look (`flatplay::neckTurn` on the copy), and on
+  the sights the head behind the rear sight along the line, tilted 14 degrees onto the stock, its middle 1.2 off the line,
+  the chest pitched 0.4 of the look (`vr_flat_seen_*`, Debug > Tunables). After: worst 3.8 (the shotguns 1.2 to 1.9: the
+  cheek offset). Shots: the worktree's `scratch/adspose_before/`, `scratch/adspose_after/`, `scratch/adspose_sp_seen*.png`.
+- Open: looking up the arms still cross in front of the face (the gun's hand stays where the eye view put it); in the orbit
+  view looking up 40 the local head joint read 5.7 under the eye (not explained); A's camera misses crouched B in the
+  shots; the flat suites, scenario_check, the other avatar scenarios and the ThinLTO build not run yet.
+## adspose2: the arms on the sights seen from outside, the orbit view's low head, crouched and sliding shots (adspose2, 2026-11-21, `agent/adspose`)
+
+- The arms (FLATPLAY.md, "Seen from outside"): on the sights, seen from outside, each elbow is solved off the sight
+  line's down (the gun hand's out at its side and a little back, the other under the fore-end), over the arm's own pole
+  and with the wrist's ease kept off it (`Body::seenAds`, **Seen: Elbows Under The Gun**, `vr_flat_seen_elbows` 1).
+  Not shared with `vr_agarms.cpp` (a sampled solve over a monster rig; the rule carries over, not the code).
+- The orbit view's "head 5.7 under the eye at 40 up", explained: seen from outside the local body's eye was taken as the
+  head plus the neck's turn (`eyeNudge`), but outside his own view the crosshair's ray and the sights are solved from the
+  head itself (`crosshairRay`: `viewIsHisOwn` false) -- the neck's turn added twice: the drawn eyes 4.7 behind and under
+  the eye at 40 up (0 at a level look). Now the local eye is `crosshairRay`'s: the drawn eyes 1.2 off (the cheek) at
+  level and 40 up. The head joint still sits 3.3 under the eye at 40 up: the skull's base behind and below the eyes
+  (`vr_body_eye_forward` / `_up`, 0.08 m each) with the head pitched along the sights.
+- The copy's eye: the neck's turn and the chest's share (`flatplay::seenEyeShift`), the head at the eye with only the
+  cheek's offset (not snapped onto the sight line).
+- The elbows' down is half the gun's, half the world's: the gun's alone, looking down 40, took the gun hand's elbow back
+  to eye height behind the head (a wing by the face from in front).
+- Measured (`mp_test.py adspose`, every weapon with a sight line, standing and crouched, level / 40 up / 40 down, A's
+  shots from the side and from in front aimed at B's head -- the old camera missed crouched B): before
+  (`MP_ADSPOSE_SEEN=0`, the body as before adspose) 92 of 138 poses failed a check (the copy's eyes worst 4.5 off, an
+  elbow 2.1 over the eyes, an arm 9.9 over the sight line in front of the face); with the arms (the run before the
+  elbows' world down) every check passed over 138 poses (the copy's eyes 1.2 off at most: the cheek's offset; threshold
+  back to 2). After the world down, 4 weapons: one pose (super shotgun standing, 40 down) read the copy's eyes 7.0 off
+  with an arm 5.5 over the line; the same 7.0 came and went on other weapons' crouched looks between runs (a reading
+  taken mid-change, or the copy's sight weight dropping for a frame: not found).
+- Slides: B on his sights slides (his own body: sliding 1.00) but the dedicated server never takes the test's slow slide
+  (60 units/s, `vr_flat_slide_min 20`, no friction): A's copy never slides; `MP_ADSPOSE_SLIDE=1` runs them (off by
+  default). No sliding shots yet.
+- Not run (budget): the flat suites, scenario_check, the mp plain suite, mp_body / mp_avatar / mp_slide / mp_deathbody,
+  the ThinLTO build. Sheets: the worktree's `scratch/adspose2_sheet_w05.png` (super shotgun), `_w06`, `_w08`.
+## Bots (his voice notes 2026-11-21; agent/bots)
+
+Items 1-4 of the brief done and tested; 5 (disarm volumes on bots and players), 6 (hitboxes on bots and players) and
+phase 2 (the navmesh/waypoint design) not started (out of budget).
+
+- **Toned down by skill** (frikbot/bot_fight.qc, after bot_weapon_switch): before, botflatpose turned the guns dead on
+  the enemy's middle every frame and bot_shoot fired the moment the view was within 30 degrees. Now `bot_aim_point`
+  aims at his middle less his velocity times 0.12/0.08/0.05/0.02 s (skills 0-3) plus an error in a disc of
+  6/4/2.5/1.2 degrees redrawn every ~0.35 s (both times `vr_bot_aim_error`, default 1; 0 dead on);
+  `bot_fire_ready` (in bot_shoot) holds fire 0.8/0.55/0.35/0.2 s after a new enemy (or the same one after a second
+  with no shot at him) and fires in bursts of 0.9/1.2/1.8/3 s with pauses of 0.7/0.5/0.3/0.15 s (both times
+  `vr_bot_reaction`; 0 at once, no pauses); skills 0/1 turn at 0.6/0.8 of the keys' speed (bot_phys.qc CL_KeyMove);
+  bot_dodge_stuff notices a player in its view no further than 800/1200/1800 units (skill 3 and heard: anywhere).
+  vr_dm_test 13 (a bot 250 units from the human strafing 250 u/s, 64 each way, its shotgun 10 s a case, dm4):
+
+  | skill | aim error, reaction | first shot | shots | hits |
+  |---|---|---|---|---|
+  | 0 | 1, 1 | 0.86 s | 12 | 3 (25%) |
+  | 1 | 1, 1 | 0.68 s | 17 | 5 (29%) |
+  | 2 | 1, 1 | 0.39 s | 19 | 15 (79%) |
+  | 3 | 1, 1 | 0.32 s | 19 | 19 (100%) |
+  | 0 | 0, 0 (before) | 0.18 s | 20 | 20 (100%) |
+  | 1 | 0, 0 (before) | 0.17 s | 20 | 20 (100%) |
+
+  ("before" is the new code with both tunables 0: dead on, at once, no pauses; the turn and notice limits stay.)
+- **Size** (vr_units.hpp botEyeUnits): a bot's body was drawn at its box's eye height (46 units = 1.46 m at the
+  host's scale 1.2) with no calibration's world scale (setupBody's default units::perMetre, scale 1): 38 units of eye
+  height against a default player's 51.8. Now its eye height is the default player's (modelEyeHeight 1.646 m at
+  vr_world_scale's default 1.2, `units::botEyeUnits`): the server sends 1.646 m (writeAvatars), the client draws a bot
+  at the default scale (setupBody, bots only: the solveBit hands), its drawn head is raised to it (writeAvatars'
+  head, `botEyeRaise`) and its hands are posed from that eye and arm span (botflatpose). `vr_mp_avatars`' mp_body line
+  prints `eyeunits=` (feet to eyes in units). Not checked in a harness run yet: mp_test.py dm's bot body lines will
+  show it (a bot's eyeunits should be ~51.8).
+- **Weapons** (bot_pick_weapon, weapon_range): the revolver, the nail pistol, the laser cannon and the proximity gun
+  were not in FrikBot's list, so his revolver-loadout bot (the run's Starting gun, vr_run_startgun.qc) only had its
+  melee holster's dagger. Now a list (bot_pick_nth) with ammo checks (bot_can_fire: two shells/nails for the double
+  guns, the held gun's clip counted); weapon_range's unknown weapons by their armed-humanoid class instead of a bprint.
+  vr_run_meleeonly: CVAR_NONE, never written to a config; mp_local.ps1 -Melee sets it on the host's command line only,
+  and Run Setup's new game sets every mutator from the screen's picks (his cfg: vr_runpick_meleeonly 0); nothing keeps
+  it. vr_dm_test 14: revolver only + shells: drawn and fired at the human (0.69 s); no ammo: its melee weapon; a nail
+  pistol: drawn.
+- **Wind-up** (`vr_bot_swing_windup` 0.3 s at skill 0, x1/0.75/0.5/0.25 by skill; bot_windup, set at W_Fire_Melee in
+  .vr_botwindup): botflatpose's 5th argument holds the overhead swing at its top that much longer (flatplay
+  swingTimes(extraTop), the bot's swing only); the next swing, its attack_finished and the other bots' parry window
+  (bot_blow_coming) grow by it. vr_dm_test 15 (two bots 36 apart, dm6): skill 1's blow lands 0.639 s after its start
+  (a player's strike from 0.32 s). Open: with windup 0 the blow did not land on the held bot in two runs (case 1,
+  printed only), and the skill 0 defender's parry passed one run of two: the test needs a look.
+- **Reaction semantic** found by the test: a bot held in place never set the human as its enemy (FrikBot's look),
+  so vr_bots_test sets it when unset; the run's console adds one bot per run however many `impulse 100`s it sends,
+  so test 15 adds the second by BotConnect itself.
+
 ## expbugs: Dwell, Quoth and campaign bugs from his 2026-11-21 notes (expbugs, 2026-11-21, `agent/expbugs`)
 
 Details in DWELL.md 9.8. Each note's cause and fix:
@@ -6161,3 +6256,118 @@ SPLITSCREEN.md section 9 has the design; in short (seats numbered from 0 as in t
   check in mp_dm, mp_lagcomp, mp_coopbots). To look at separately: the mp base's link and a per-run port.
 - In VR (the author): nothing changes with one seat. With a gamepad: it drives the game as before; `in_pads` lists
   it as pad 1 driving seat 1. With two gamepads plugged in: both open, the second drives nothing (until the seat loop).
+## adspose3: the flat aiming pose's checks, the intermittent 7.0, sliding seen from outside (adspose3, 2026-11-21, `agent/adspose`)
+
+- **The 7.0 (adspose2's "a reading taken mid-change"), found: the test, not the pose.** In the bad rows A's copy was the
+  pose of the look before (super shotgun standing, 40 down: its arms' reach 12.2 / 5.4, the 40-up row's to the decimal).
+  `settle` took the copy as still when it was unchanged over 3 reports, but the copy is posed from the interpolated
+  avatar (`blendedOf`, behind B's last message by the interpolation's delay), longer than 3 reports on a free machine:
+  an unchanged copy could still be the old pose. Now each pose waits for B still (eye and rear sight over two reports)
+  and for the copy posed from an avatar B sent after that: `mp_adspose_own:` carries `stime=` (the server's time of B's
+  last message), `mp_body:` `posedat=` (the server's time of the avatar the copy was drawn from: `Drawn::posedAt`), the
+  copy taken once `posedat` is 0.1 s past B's still `stime` (`ADS_POSED_AFTER`).
+- **Sliding over the network.** The slow slide never started on the dedicated server because the slide's start (40
+  units south of the spot) is inside the wall behind e1m1's coop starts: the server put B 40 north of the spot instead,
+  against what stops him there, at rest (new debug lines with `vr_flatplay_debug`: `slide: none on the press: ground,
+  speed (least), cooldown` and `slide: on at N u/s`; the server's read "speed 0"). Now B starts at the spot, the server's
+  word that he is there, walks (60 u/s asked: about half on his sights; 30 slid not at all) 4 units north as the server
+  has him, then crouches: he has 38 units before he is stopped. A slide row waits for his eye's height steady in the slide
+  (the crouch's ease) and the copy posed after it. Moving, the copy runs the interpolation's delay behind along the way
+  (8.5 units): its eyes' height is judged (0.00 off), not the whole distance. Slides are on by default
+  (`MP_ADSPOSE_SLIDE=0` leaves them out). No pose problem seen sliding: the body leant back, the head behind the sights,
+  the elbows under the gun.
+- **Results** (`mp_test.py adspose`, every weapon with a sight line: 25 weapons x stand / crouch / slide x level / 40 up /
+  40 down = 225 poses), three runs in a row 12/0 each: the copy's eyes within 1.20 of B's eye standing and crouched (the
+  cheek's offset), sliding 0.00 in height, elbows under the gun (worst 0.34 below the eyes), no arm above the line before
+  the face (worst 0.71 below), 75 of 75 slides seen. Sheets (before = `MP_ADSPOSE_SEEN=0`, after; side and front): the
+  worktree's `scratch/adspose3_sheet_w05.png` (super shotgun), `_w06` (nailgun), `_w08` (rocket launcher).
+- **Checks:** flatplay 31/0, flatsight 12/0, flathands 76/0, flatmelee 12/0, flatslide (with the lean, the slide pose,
+  prone dual, flatmantle) 26/0, flatreload 54/0; mp_body 13/0, mp_avatar 18/0, mp_slide 8/0, mp_deathbody 20/0; the mp
+  plain suite 75 of 76 scenarios (mp_predict's crawl 242 of 250 lying states, then 31/0 alone); scenario_check 140 of
+  143 (the three expbugs_* scenes: Dwell's Brute, Kamikaze, Rotary Shotgun "not made" in its AD folders, from
+  origin/next's merge); Dev and ThinLTO builds 0 warnings.
+- **Testing note:** an mp_test.py run and a run.sh test in the same worktree at once disturb each other (the run.sh
+  script's commands reached the mp server: it loaded vrtesthall and quit), and a build mid-run rewrites progs.dat under
+  running games: every check above was run alone.
+## bots2: the bots' items 1-4 verified, the wind-up's lost blows fixed (2026-11-21, `agent/bots`)
+
+Items 5 (disarm at the drawn weapon) and 6 (hitboxes on bots and players) not started (out of budget); findings below.
+
+- **Lost blows were the size, not the wind-up.** The Bots section posed a bot's hands from its drawn head
+  (`botEyeRaise`, 6 units over its box's eyes) with the default player's arms. Its overhead swing's top then went that
+  much higher and the blow struck a wall first (the pommel on the way down) or missed: vr_dm_test 15's windup-0 case
+  never landed and its parry case failed by turns; mp_dm's vr_dm_test 2, 3 (a bot's blow on the human, read and parried)
+  and 9 (bot parries bot) failed. Shown with an env switch: the old pose 3/0, the raised one 2/1. Now
+  `PF_botflatpose` poses from the box's eyes (`view_ofs`, as a flat-screen player's camera) with the default player's
+  eye height for its arms (`units::botEyeUnits`): a default-size flat player's hands. The body and head are still drawn
+  at the default player's size (mp_body `eyeunits=51.8` for both bots in mp_dm, the head 51 units over the feet).
+- **vr_dm_test 15** now checks the windup-0 case (the old swing: lands in its strike, 0.32-0.55 s; 0.403 s) and holds
+  `vr_bot_aim_error` 0 meanwhile (the aim's random error moved the blade's way case to case; test 13 measures it).
+  Three runs: 4/0 each (windup 0.3 at skill 1: lands 0.597 s; windup 0: 0.403 s; the skill-0 parry).
+- **Checks:** mp_test dm 27/0 (was 24/3), coopbots 13/0; the plain suite: 62 scenarios, one failure (mp_predict's
+  "corrections on flat ground", max 0.000 over 47 states, under the suite's load; alone 31/0); scenario_check PASS
+  (143 run, 0 failed); Dev and ThinLTO builds 0 warnings. No screenshot of a bot beside a player (the numbers above).
+- **Item 5 findings:** VR_PDG_Gap reads VR_Parry_WeaponLine (the hand, `.muzzlepos`, the blade shape) and
+  `weaponhotspot` (heldpose's slot). A human's muzzle and hotspots come from his client's drawing; a bot has no heldpose
+  slot (no hotspots) and its muzzle is `handpos + 24 forward` (bot_setvrfields), while each client places its weapon by
+  `view::solveHands` -> setupWeapon (the weapon and hand offsets). The fix: one placement of a bot's weapon in its hand
+  (inHand, muzzle, hotspots) made on the server (the dedicated one has no view: the offsets' math must run there) into
+  its heldpose slot and `.muzzlepos`, sent with its avatar and drawn as is (no solveBit re-solve).
+- **Item 6 findings:** Show Hit Zones (`vr_debug_hitzones`, vr_hitmodel.cpp zonesDraw) draws only zones the QC sends
+  (zoneAdd) and only with `sv.active` (the host); players and bots are drawn as vrbody avatars, not their entity's model.
+## comfort2: one click one switch, the double tap's other speed, slide and eye foveation by default, the revolver's swing (comfort2, 2026-11-21, `agent/comfort2`)
+
+His voice notes of 2026-11-21 (vrfiringrange 00-23-29, e1m1 01-04-14 and others).
+
+- **The speed toggle switching twice: the click bounces.** His takes' replays (`NOTES.md`
+  vrfiringrange_2026-11-21_00-23-29_replay.csv, the off hand's buttons bit 16) show 34 stick clicks, 9 of them followed
+  11-44 ms after letting go by a press of 11-33 ms (one or two frames at 90 Hz): a second press, so a second `+speed`
+  and the toggle switched back. His real clicks are 100 ms long or more and 367 ms apart at the least. The click is read
+  on one path only (OpenXR's thumbstick/click into `buttonChanged`); the bounce is the switch's. **Fix:**
+  `vr_stick_click_debounce` (0.08 s; Advanced > Movement > Locomotion > Stick Click Debounce; 0 off):
+  `debounceStickClicks` (vr_input.cpp, in `update` before anything reads the buttons, both sticks, live or a take's) swallows
+  a press that comes within the window of the click's letting go (or of a bounce's), its letting go too; a press still
+  held past the window is a press then. `vr_debug_buttons` prints each swallowed bounce. **Test** `stickclick_test.sh`
+  4/0: a clean click one press; his bounce pattern one press, one bounce swallowed; debounce off the same click two
+  presses (the cause); two clicks 0.3 s apart both count. (The keys' commands run only after a test script, which holds
+  the command buffer, so the test counts the presses leaving the debounce: `vr_doubletap_test state` prints them.)
+- **The double tap is the Default Speed's other** (his ask: with Default Speed: Run it walks): in `VR_AdjustMove`
+  a double tap's run gives `cl_alwaysrun`'s other, whatever the speed button (held or toggled) says; otherwise the speed
+  button's choice as before. Row renamed "Double-Tap for Other Speed". `doubletap_test.sh` 8/0 (new: Default Speed:
+  Run, a long push runs at 320, the taps walk at 200, and still walk with the speed toggle switched).
+- **VR sliding on by default** (`vr_slide` 1; row "Sliding", no longer "Experimental"): the turning stick's straight
+  pull down on foot slides; its down is no `+movedown` there (swimming it still dives). **The legs the slide's way**
+  (`vr_slide_legs` 1, Slide Legs Follow Slide, after Slide Body Pose): the flat slide's turn (hips and legs to the
+  slide's way, at most `vr_flat_slide_legs_twist`, back to the view past `vr_flat_slide_back_start`, eased by
+  `_turn_smooth`) moved out of flatplay's poseHands into `slide::legsTurnStep` (vr_slide.cpp, `slide::LegsTurn`), which
+  flat play calls as before (its view the look, its rest the long gun's stance) and a headset's slide calls once a frame
+  from vr_hands.cpp (`slide::headsetLegs`: its view the tracked body's yaw). The avatar turns the local headset body's
+  frame by `headsetLegsOff` and the chest back by `headsetLegsTwist`, the flat body's twist code shared (`twistChest` in
+  solveTorso); `hands::State::bodyYaw` itself is untouched (holsters, movement mode 4). Not shared: another player's
+  body (no velocity-based legs there yet). **Test** `vrslide_test.sh` 2/0 (`vr_slide_test` 40/0): two new cases slide
+  with the head turned 60 left as the slide starts (the body turns 27 off the way): `vr_slide_legs` 1, the legs (hips to
+  ankles) 0 degrees off the slide's way; 0, on the body's. Those cases set `vr_flat_slide_steer 0` (vr_move_hold keeps
+  the stick 0.4 s, forward the new view's) and turn the head back during the stand-up (setpos turns the play space by
+  the head). flatslide_test 26/0 (the moved turn).
+- **Eye-tracked foveation by default** (`vr_foveated_gaze` 1): XR_EXT_eye_gaze_interaction is asked for at VR start
+  whenever the runtime offers it (the permission point on PC runtimes: no separate permission API; a runtime that
+  refuses reports no eye tracker); the gaze while tracked, the lens centre otherwise (no tracker, a blink), frame by
+  frame, nothing to set or restart. `Backend::eyeTracking()` (NotOffered, NotAsked, NoTracker, Ready; OpenXR from its
+  start-up probe, the mock from `vr_mock_eye_tracking`, 1). VR Settings > Graphics (advanced): a line under Eye-Tracked
+  Foveation, `foveated::gazeStatus` ("your eyes (eye tracking)", "the lens centre (no eye tracking in this headset)",
+  "... (no eye tracker shared with the PC)", "... (your eyes not tracked now)", "... (eye tracking from the next VR
+  start)" after turning it back on). Off asks for nothing. **Test** `foveated_gaze_test.sh` 3/0: the mock's gaze
+  (20 right, 5 up) followed and the line says the eyes; `vr_mock_eye_tracking 0` the next frames: the lens centre, the
+  gaze ignored, the line says so; back on: the eyes again (`vr_foveated_gaze_test` 10/0 each).
+- **The heavy revolver's cylinder shut in a melee swing.** `VR_Revolver_SwingGuard` (QC vr_revolver.qc, each frame in
+  `VR_Revolver_ReloadFrame`): the flick open is refused while the gun's hand moves at `vr_revolver_open_swing_speed`
+  (2 m/s against his body; a blow is `vr_melee_speed`'s 3.2) or faster, for `vr_revolver_open_swing_hold` (0.35 s) after
+  it last did, and as long after his last blow landed (`.vr_blow_time`). The flick home and B/Y are never refused.
+  `vr_reload_debug` prints each refusal. **Test** `vr_rv_test 1` (developer 1): the guard's steps (0.8 m/s goes, 3.5
+  refused, right after refused, 0.4 s after goes, 0.1 s after a blow refused, 0.5 s goes, off goes); live, the mock
+  hand moved 4 units in a frame then the +150 roll that opens it: shut, refused once; past the hold the same roll opens
+  it. 47 passed, 1 failed: "a grunt's body: dead to 2 slugs ... the last 17.6" (its second slug hits part 2, not the
+  body), also with the grunt frozen in its first frame; it passed in the 11-15 baselines; not caused by the guard as far
+  as I can see (only the step's timing changed): **open**.
+- Menus: `menu_paths.txt` regenerated; `vr_menu_path_check maps/vrcalibration.map` 0 missing. Scenes:
+  `speed_toggle_click`, `vr_slide_legs`, `foveation_auto`, `revolver_swing` (and `vr_slide`'s title).
