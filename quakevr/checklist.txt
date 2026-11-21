@@ -8,7 +8,6 @@
 
 [New: not yet sorted]
 Installer: the desktop now also gets a "Quake VR Unleashed (Flat Screen)" shortcut (own checkbox on the options page, on by default; check the Start menu, desktop and an uninstall).
-On the Quest Pro via Virtual Desktop with eye tracking forwarded to the PC: turn on Eye-Tracked Foveation (VR Settings, Graphics), restart VR and set vr_foveated_debug 1: the sharp area follows your eyes, and the log says eye tracking is on.
 Flat-screen: walk forward into the tutorial's rung ladder (lesson 3): your hands take the rungs and you climb hand over hand at a steady pace, and climb over the top onto the platform. {test:flat_ladder}
 Flat-screen: on the tutorial ladder's top, back off the edge facing away from the drop: you are lowered onto the rungs; hold back (or forward while looking down) to climb down to the floor, and jump on the ladder to push off it. {test:flat_ladder}
 Flat-screen: walking into plain walls, single ledges and stairs never starts a ladder climb, and the jump mantle still works as before. {test:flat_ladder}
@@ -17,17 +16,10 @@ Flat-screen: hip-fire (no right button) at a grunt seen through a see-through te
 Run the installer with Arcane Dimensions 1.80 patch 1 in your Quake folder: the expansions list shows Arcane Dimensions as "ready (experimental)" with a check mark; an older AD copy shows a warning saying only 1.80 patch 1 is played.
 Install with the relight on and watch Relighting the maps: the big maps go first and the bar ends on small ones; note the total time in the log, and whether Skip still stops it at once.
 Installer: relighting covers Quake and the mission packs only (Map Library and Arcane Dimensions keep their own lighting; Graphics > Relighting relights them on demand)
-Graphics > Relighting, Relight This Map in e1m1 and in a big map (Arcane Dimensions' ad_mountain) with Bounced Light on: it should take about half as long as before and look the same as the old relight (corners, bounced colour, no blotches on small faces).
-Sliding in VR: your view now dips quickly but smoothly down to the desktop screen's sliding eye height while you slide and comes back up when it ends, your own head still moving one to one; check it feels comfortable (Slide View Time in VR Settings > Locomotion; Slide View off keeps the view at your real head) and that your drawn body lies back with its legs out on the floor as on the desktop screen. {test:vr_slide}
 Linux #82: Flatpak with SteamVR running: VR starts, or qvr_openxr.txt has OpenXR loader output lines for the report
 Flat-screen or VR: start the game and open the console: the start-up's steps are listed as "[startup +Xs] ... begin / end (took X ms)" with a summary of the slowest steps at the end, and quakevr/startup.log has the same lines; Debug > Startup > Startup Trace Summary repeats the summary.
 On the Quest, start the game with "adb logcat -s QuakeVR" running: each start-up step appears as it begins and ends, and during a long step a "still in <step>" line every 2 seconds says what it is doing; vr_android_export startup.log copies the file out.
-Reloading in VR: bring a round or magazine to the loading port: the gun and the off hand no longer shove each other apart near the port, so it seats where you aim
 A fight with several armed grunts and ragdolls: poses and limbs correct (posed models now batched)
-Flat screen and VR: no attract-mode demos play at start or when the menu idles; the main menu opens instead
-VR Settings > Locomotion > Speed Button: Toggle: click the stick once to sprint, again (or stop) to walk
-VR Settings > Climbing > Mantle When: on letting go / on jump: hang on a ledge, the climb-over waits for that
-Toolgun > Weapons: Grappling Gun is listed; spawn it, grab it, and it hooks
 Dwell: Select Campaign > Dwell, play start and d1m1 (triggered monsters wait, checkpoints autosave); Map Library: Ancient and Underdark Overbright udob1 load and play by Copper rules
 Dwell monsters from the toolgun Dwell pack in e1m1: Kamikaze rush and burst, Brute grenades and punch, Construct dive
 Dwell d1end and d2end boss fights to the end; Berserk melee; Crystal Lance through a line of monsters
@@ -37,11 +29,8 @@ Dwell's Rotary Shotgun reloads at the hip and spins up like the Widowmaker; the 
 Dwell's weapons keep their kind in holsters, after a save and a level change; Haste/Berserk/Wetsuit seconds on the wrist
 Dwell: an armed grunt picks up your thrown Rotary Shotgun / Crystal Lance and fires Dwell's shot; Haste yellow, Berserk red, both orange tint
 Dwell weapons have their own VR models (scenario dwell_vrmodels: grips, muzzles, sights, two-hand; tune Weapon Offsets); the Rotary's barrels spin; holster/wrist menu names by model (Widowmaker, Rifle...)
-Dwell d2end boss: read and dodge the bullet-hell shots, bat one back with a sword; the Sculptor spins, tilts, raises its shield and teleports
 Dwell: Copper armour pickups (0.3/0.5/0.7, excess kept) and key stacks in d1m1; shots on the Sculptor's ring (d2end) land
 Armed grunts you can't see cost far less on crowded maps (d2m8 idle 536k -> 274k QC instr/frame); new tunable vr_agrunt_pose_lod_frames (default 8, 1 = off)
-Discord status: once the app id is set, vr_discord 1 shows map, mode and VR/flat on your Discord profile
-Double-tap the stick to run (Locomotion and Controls > Double-Tap Stick to Run): 0.3 s window and half-push feel right
 Holster Calibration > Ammo Pouch Forward/Right/Up move the pouch and agree with Holster Setup's drag
 Melee against several armed grunts feels unchanged (their weapon-strike check now has a cheap pre-test)
 Dwell's Rotary Shotgun in hand: the ammo screen in a brown bezel with a bolt each side in the middle of its housing's back, readable as you aim; grip and trigger under your hand {test:dwell_rotary}
