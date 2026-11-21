@@ -7086,3 +7086,87 @@ set up the pose in flat mode".
   both hands) and `scratch/ls_final_flat.png`; before: `scratch/ls_before_*.png`.
 - Left: his fit in VR (Weapon Offsets slot 56: Pitch, Hand, Shot Pitch); the Shot Pitch slider now reaches +-180 (it was +-45; the
   lance's 92.5); the thrust and its damage unchanged (not re-measured).
+## checklist2: ticked lines retired, a Test scene on every line, multiplayer scenes with bots (agent/checklist2, 2026-11-21)
+
+His words (2026-11-21): retire the ticked items, give every line at least a minimal Test scenario, and a way to test MP
+lines from the checklist: a local MP session with a bot that stays still and isn't hostile (disarm in MP).
+
+- **Retired:** 18 lines ticked in his checklist_ticks.txt with no voice note since (the newest notes are 00:47 today,
+  before the last sort): the reorganized-checklist line, 6 Dwell (pack monsters, Rotary reload, Rifle screen, music
+  per campaign, runes and portals, props, Kamikaze, Brute ragdoll, Lance pole, Rotary gauntlet), Quoth's e1m1quoth,
+  the 3 flat ladder lines and flat hip-fire through a gate, Discord status, Search "recoil". Kept though ticked: the
+  Sliding line and the Dwell start/d1m1 line (his voice notes on them: legs during a slide; stuck in the Sculptor).
+  Scenes only they used moved to scratch (dwell_rifle, dwell_lance_pole, dwell_rotary_gauntlet, expbugs_props,
+  expbugs_kamikaze, expbugs_brute, flat_ladder, flat_gate_hipfire). The [New] section's 5 lines sorted (pouchbody to
+  Weapons, noclip_fly to VR movement, shove_no_blood and the two humrepl lines to Armed humanoids); 106 lines.
+- **Every line tagged** (78 newly; 106 lines, 44 scenes used). New minimal scenes, none
+  with a `hint` so each line's text floats: `hub_start` (start, nothing set: installer, start-up, menus, Quoth maps),
+  `shotgun_hall`, `agrunts_fight`, `ogre_hall`, `monsters_unaware`, `dwell_monsters`, `dwell_bosses`,
+  `dwell_sculptor`, `dwell_items`, `dwell_grunt_pickup`; existing ones reused (dwell_vrmodels, arena_run).
+  `checklist_tests_check.py` now FAILS an untagged line (also in `--lines`, so a ship's lines need a tag) and checks
+  the new directives.
+- **Multiplayer scenes** (Quake/vr/vr_scenario.cpp; TESTING.md, "Checklist scenarios"): `mp coop|dm` loads the map as
+  a local 4-slot game (`vr_scenario slots`, set while no server runs: maxplayers' slots without its `listen 1`, so no
+  socket is opened; the slots before come back with the next single-player scene or once no game runs; deathmatch and
+  coop put back with the scene's settings). `bot passive|active <fwd> <left> ["<weapon>" [main|off]]` adds a FrikBot
+  (QC ClientNextAvailable + BotConnect, as impulse 100) and puts it at its spot facing you, the toolgun weapon taken
+  into its hand (VR_ADMelee_Take). passive: vr_bot_freeze 1 and vr_bot_parry_chance 0 (stands, presses nothing, takes
+  hits; put back at its spot with its weapon when it respawns); active: a normal bot (coop teammate / dm hunter).
+  FrikBot's coop bot return (scratch1) is cleared at a scene's start: a returning bot took the slot of the scene's and
+  respawned it at the map's start. 12 scenes: mp_dm_passive, mp_dm_disarm, mp_dm_disarmviz, mp_dm_hitzones,
+  mp_dm_melee, mp_dm_hostile, mp_dm_navmesh, mp_dm_dagger, mp_coop_bot, mp_coop_passive, mp_coop_guns,
+  mp_coop_bodies; on the 41 multiplayer lines (two-player lines get the host's half; their second window stays
+  mp_local.ps1: an in-process scene has no second client).
+- **Tests:** `checklist_tests_check.py` 89 passed, 0 failed (106 of 106 lines tagged);
+  `--lines` with an untagged line: 1 problem, exit 1. The new scenes' runall (-loopbackonly): 24 run, 0 failed; every
+  passive bot moved 1 unit in 3 s with its weapon held (sword 13, shotgun 4), active ones 250-520. `scenario_check.sh`
+  (now -loopbackonly; SCNMP/SCNBOT) PASS: 169 run, 0 failed, 0 skipped. Dev and ThinLTO builds 0 warnings.
+- **Not covered by runall:** a passive bot's re-placing after a respawn (needs it killed: try it in VR in mp_dm_passive).
+
+## modladders: Quoth's and AD's ladders on our climbing; kellbase1's corridor (branch agent/modladders, 2026-11-21)
+
+His words: Quoth/AD ladders (kellbase1) climbable like VR brush ladders, the flat IK ladder there too; a possible
+softlock in kellbase1 at (-8, -959.8, 664.1).
+
+- **What was wrong:** Quoth's `trigger_ladder` plays as AD's (QUOTH.md). kellbase1's six are thin brushes (2-14 units)
+  over drawn ladders (a non-solid ladder on a pillar, a player clip 22 units behind *48). A hand was held anywhere in the
+  volume (no rungs: `ladderHold`'s fallback took the hand's own height), and only within the touch distance (1.6 units)
+  of a 2-unit slab; the flat ladder's probes (20 units ahead) never landed in it: "0 ledges ahead". In flat play the QC
+  also bypassed AD's jump climb (`VR_AD_LadderManual`) by the hands-tracked bit alone, so with Ladders off nothing climbed.
+- **Fix (vr_climb.cpp):** `ladderHold` gives a ladder with no real rung in reach its own rungs, `ladderRungStep` (16)
+  apart down from the volume's top (`origin + maxs`, not the link's padded box), the hold clamped into the volume; a hand
+  in the wall behind a volume holds it within `ladderInWall` (12); findHold's lenient stage tries the ladder with the
+  leniency radius across (the flat ladder's radius 16 finds the slab). Real rungs still come first (`rungNear`).
+  `flatLadderFrame` stops drawing the body in past `ladderInBox` (8) beyond its holds (a free-standing ladder has no wall).
+  QC `VR_AD_LadderManual`: flat play is manual only with `vr_flat_ladder` on (else AD's/Quoth's own jump climb).
+- **Test:** `Misc/quakevr/modladder_test.sh` 5/0: kellbase1 flat up and over the top (mantled, feet 896, 11 hand
+  changes), down looking down; `vr_flat_ladder 0` Quoth's jump climb (feet 640..882) and AD's on ad_test3; VR hands
+  (`vr_climb_try`) exact holds at 705/721/769/785/881 (rungs 16 apart), none over the top or with Hand-Climbed Ladders off.
+  `vr_flatladder_test` takes a map table (vrtutorial, kellbase1, ad_test3) and sets each case on its floor (and
+  `oldorigin`). flatladder_test.sh 2/0 (vrtutorial unchanged). ad_world_test.sh's flat-ladder holds now expect the
+  nearest rung (not run here).
+- **Down from the top** (follow-up): a volume rung faces the eye (`ladderHold`'s `eye`: the mount looks from over the
+  drop) and carries `Ledge::volume`; `flatLadderMount` takes volume rungs up to `ladderVolumeGap` (24) past the floor's
+  edge (kellbase1's catwalk edge is 20 past its ladder), its top rung one under the edge, and hangs with the box
+  `ladderInBox` into the rungs (the clip behind). VR: from the catwalk a hand reaching down holds the top rung (881).
+- **Tests now:** modladder_test.sh 9/0 (kellbase1 flat up / down from the top / looking down, its jump climb; AD's
+  ad_e1m1 wall ladder the same four; VR holds incl. from the top; the corridor fail-safe and its negative).
+  flatladder_test.sh 2/0, ad_world_test.sh PASS, scenario_check 154/0. Not run: the other climb suites (only volume
+  ladders' paths changed).
+- **Not done:** ad_test3's ladder (real stepped rungs) does not take from its floor in flat play (2 ledges found, not a
+  pair in reach): pre-existing, real-rung geometry.
+- **kellbase1's corridor:** the corridor between the top doors (y -1176, `topdoors`: TOGGLE doors) and the south exit
+  doors (y -720, `exitlock`, "locked"). `topdoors` is toggled by three things: `topcount` (3 sentinels killed below,
+  "the top doors are open"), the corridor's `trigger_once` at y -740 (closes them 1 s after you reach the exit doors) and
+  `exitcount` (16 arena kills: wires 4 defenders, then the platform buttons' enforcers, pyros, eliminators; it also opens
+  every `exitlock` door). A normal route gets there first: the lower chain is all below the arena, from the start
+  (z 48): 4 pyros (2 placed at z -48, 2 by `hotstuff`) feed `pyrocount`, which opens the `hatch` and spawns 3 sentinels
+  (z 112, -640) feeding `topcount`; the 900-unit ladders *25, *26 (z -255..639) climb from there to the top doors' south
+  side. Entering the corridor then, before the arena's 16 kills, shuts you in: the map's own logic (ours don't change
+  it: `vr_ad_test 212` drives the flow to "its last stage (exitlock) reached in round 4", armed replacements on). Shown
+  from the entity chain, not walked.
+- **Fail-safe** (QC `vr_quoth.qc` `VR_Quoth_KellThink`, kellbase1 only, once a map): a living player in the corridor
+  10 s with the top doors and the south exit doors shut and no living monster in it gets the top doors toggled open
+  (`developer 1`: "quoth: kellbase1's corridor: shut in, the top doors opened again"). In the arena: nothing.
+- **Checklist scene:** `ad_mod_ladder` (ad_crucial's ladder; a scene named `mod_...` ran after one that left AD's
+  folders: "no map").

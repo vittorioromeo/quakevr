@@ -290,6 +290,7 @@ struct Ledge
     bool prop{false};
     ledges::Edge propEdge;
     ledges::Sample propSample;
+    bool volume{false}; // AD support: a ladder volume's own rung (ladderHold), no solid under it
 };
 
 // How near a ledge the hand's point must be to be AT it (Grab Leniency 0; the leniency adds its distance round that):
@@ -824,15 +825,24 @@ constexpr float ladderRungDepth = 32.f;
 // AD support: closely spaced rungs can fail the general ledge's 32-unit drop rule. A ladder may
 // relax that drop only: its hold must still be on an actual walkable solid top within hand-touch distance. A ladder with
 // no real rung within reach of the hand (rungNear: a flat ladder-textured wall, or rungs farther apart than a reach) is
-// held anywhere in its volume (or within the touch distance of it), facing the body, so no ladder is left unclimbable.
-// `lowest`: the lowest a rung may be (the feet plus Lowest Ledge).
-[[nodiscard]] za::Optional<Ledge> ladderHold(edict_t* player, const glm::vec3& hand, float lowest)
+// held in its volume (or within the touch distance of it, plus `slack` across: findHold's leniency), facing the body,
+// so no ladder is left unclimbable: on its own rungs, ladderRungStep apart down from the volume's top (a Quoth or AD
+// ladder is a trigger_ladder brush over a ladder drawn on a wall, his request 2026-11-21), so a hand takes the nearest as
+// a brush ladder's rung and the flat ladder (findRungs) finds two one over the other. `lowest`: the lowest a real rung
+// may be (the feet plus Lowest Ledge).
+constexpr float ladderRungStep = 16.f; // units: a ladder volume's own rungs, down from its top
+constexpr float ladderInWall = 12.f;   // units: how far into the wall behind a ladder volume a hand still holds it
+
+[[nodiscard]] za::Optional<Ledge> ladderHold(edict_t* player, const glm::vec3& hand, const glm::vec3& eye, float lowest, float slack = 0.f)
 {
     const int ofs = progs::fields().vr_climb_ladder;
     if(ofs < 0 || vr_climb_ladders.value == 0.f) { return za::nullOpt; }
     const Touch k = touch();
     const glm::vec2 toBody = towardsBody(seekerOf(player), hand);
     const glm::vec3 out{toBody.x, toBody.y, 0.f}, up{0.f, 0.f, 1.f};
+    // (A hand pushed into the wall a thin trigger_ladder brush stands in front of holds it too.)
+    glm::vec3 probe = hand;
+    const float across = slack + (SV_PointContents(&probe[0]) == CONTENTS_SOLID ? ladderInWall : 0.f);
     for(int i = 1; i < qcvm->num_edicts; ++i)
     {
         edict_t* e = EDICT_NUM(i);
@@ -840,7 +850,8 @@ constexpr float ladderRungDepth = 32.f;
         bool inside = true;
         for(int axis = 0; axis < 3; ++axis)
         {
-            inside = inside && hand[axis] >= e->v.absmin[axis] - k.front && hand[axis] <= e->v.absmax[axis] + k.front;
+            const float margin = k.front + (axis < 2 ? across : 0.f);
+            inside = inside && hand[axis] >= e->v.absmin[axis] - margin && hand[axis] <= e->v.absmax[axis] + margin;
         }
         if(!inside) { continue; }
         // Probe just inside the rung, not the trigger's broad box or a guessed rung spacing.
@@ -858,10 +869,18 @@ constexpr float ladderRungDepth = 32.f;
             {
                 continue; // a real rung within reach: the hand must take that
             }
+            // The volume's own rung nearest the hand, where the hand is across the volume (clamped into it).
+            const float lo = e->v.origin[2] + e->v.mins[2], hi = e->v.origin[2] + e->v.maxs[2]; // (not the link's padded box)
+            const float down = za::clamp(za::round((hi - hand.z) / ladderRungStep), 0.f, za::floor((hi - lo) / ladderRungStep));
             Ledge l;
-            l.top = hand.z;
-            l.out = out;
-            l.hold = hand;
+            l.top = hi - down * ladderRungStep;
+            // (Facing the eye: a headset's head is with the body; the flat ladder's mount looks from over the drop.)
+            const glm::vec2 toEye{eye.x - hand.x, eye.y - hand.y};
+            l.out = glm::length(toEye) > 1.f ? glm::vec3{glm::normalize(toEye), 0.f} : out;
+            l.volume = true;
+            const glm::vec3 org = vec(e->v.origin);
+            l.hold = glm::vec3{za::clamp(hand.x, org.x + e->v.mins[0], org.x + e->v.maxs[0]),
+                za::clamp(hand.y, org.y + e->v.mins[1], org.y + e->v.maxs[1]), l.top + ledges::holdLift};
             return za::Optional<Ledge>{l};
         }
         Ledge l;
@@ -923,7 +942,7 @@ constexpr float ladderRungDepth = 32.f;
     }
     if(s.player)
     {
-        if(const za::Optional<Ledge> rung = ladderHold(s.player, hand, lowest)) { return rung; } // AD support: actual solid only
+        if(const za::Optional<Ledge> rung = ladderHold(s.player, hand, headPos, lowest)) { return rung; } // AD support: actual solid only
     }
     if(radius <= 0.f)
     {
@@ -998,6 +1017,16 @@ constexpr float ladderRungDepth = 32.f;
         case Check::covered: st.covered++; break;
         case Check::unreached: st.covered++; break;
         case Check::unseen: st.unseen++; break;
+        }
+    }
+    if(s.player)
+    {
+        // AD support: a ladder volume within the leniency across (the flat ladder's probes, in the wall behind a thin
+        // trigger_ladder brush; a hand just off one).
+        if(const za::Optional<Ledge> rung = ladderHold(s.player, hand, headPos, lowest, radius))
+        {
+            lenient = true;
+            return rung;
         }
     }
     return finish(nullptr);
@@ -3206,6 +3235,7 @@ constexpr float ladderGap = 40.f;   // units: the most two rungs may be apart in
 constexpr float ladderStack = 10.f; // and along the look (one over the other)
 constexpr int maxRungs = 16;
 constexpr float ladderInBox = 8.f;  // units: rungs looked for this far inside the box's front too
+constexpr float ladderVolumeGap = 24.f; // units: how far past a floor's edge a ladder volume's rungs may stand (flatLadderMount)
 
 struct Rungs
 {
@@ -3407,21 +3437,47 @@ bool flatLadderMount(edict_t* ent, Climber& c, const VrMove& move, const glm::ve
     {
         return false;
     }
-    const Ledge& lip = r.at[r.count - 1];
-    const Ledge& below = r.at[r.count - 2];
+    Ledge lip = r.at[r.count - 1];
+    Ledge below = r.at[r.count - 2];
     const float gap = lip.top - below.top;
-    if(za::abs(lip.top - feet) > 8.f || gap <= 4.f || gap > ladderGap || za::abs(glm::dot(lip.hold - below.hold, fwd)) > ladderStack ||
-        glm::dot(origin - lip.hold, fwd) > ent->v.maxs[0] + 8.f)
+    // AD support: a ladder volume's rungs (a Quoth or AD ladder standing free at a floor's edge, kellbase1's up to its
+    // catwalk) may stand up to ladderVolumeGap beyond the lip, the lip itself the floor's edge.
+    const bool volume = below.volume;
+    const glm::vec3 line = volume ? below.hold : lip.hold;
+    // (A volume's top rung may be one under the floor's edge, the edge itself the real ledge facing another way.)
+    if(za::abs(lip.top - feet) > (lip.volume ? ladderRungStep + 8.f : 8.f) || gap <= 4.f || gap > ladderGap ||
+        (!volume && za::abs(glm::dot(lip.hold - below.hold, fwd)) > ladderStack) ||
+        glm::dot(origin - line, fwd) > ent->v.maxs[0] + 8.f + (volume ? ladderVolumeGap : 0.f))
     {
         return false;
     }
-    // Hanging: the box's front just off the lip's line, the feet so the rung under it is just in reach.
-    const glm::vec3 to{lip.hold.x + lip.out.x * (ent->v.maxs[0] + 1.f), lip.hold.y + lip.out.y * (ent->v.maxs[0] + 1.f),
-        below.top - vr_climb_min_height.value - ent->v.mins[2] - 1.f};
-    const glm::vec3 mid{to.x, to.y, origin.z};
-    const trace_t over = tracePlayer(ent, origin, mid);
-    const trace_t down = tracePlayer(ent, mid, to);
-    if(over.startsolid || over.fraction < 1.f || down.allsolid || down.fraction < 1.f)
+    // Hanging: the box's front just off the lip's line, the feet so the rung under it is just in reach. A volume's
+    // ladder: off its rungs on this side, else (a floor's edge over it, a clip) on the far side, facing back to the top,
+    // the box ladderInBox into its rungs as flatLadderFrame keeps it.
+    const float hangZ = below.top - vr_climb_min_height.value - ent->v.mins[2] - 1.f;
+    const auto tryHang = [&](const glm::vec3& to, glm::vec3& mid) {
+        mid = glm::vec3{to.x, to.y, origin.z};
+        const trace_t over = tracePlayer(ent, origin, mid);
+        const trace_t down = tracePlayer(ent, mid, to);
+        return !over.startsolid && over.fraction >= 1.f && !down.allsolid && down.fraction >= 1.f;
+    };
+    const float off = volume ? ent->v.maxs[0] - ladderInBox - 0.5f : ent->v.maxs[0] + 1.f;
+    glm::vec3 to{line.x + lip.out.x * off, line.y + lip.out.y * off, hangZ};
+    glm::vec3 mid;
+    bool ok = tryHang(to, mid);
+    if(!ok && volume)
+    {
+        const float back = ent->v.maxs[0] - ladderInBox - 0.5f;
+        to = glm::vec3{line.x - lip.out.x * back, line.y - lip.out.y * back, hangZ};
+        ok = tryHang(to, mid);
+        if(ok)
+        {
+            lip.out = -lip.out;
+            below.out = -below.out;
+            lip.hold = glm::vec3{below.hold.x, below.hold.y, lip.hold.z}; // (the top hand on the ladder's own top rung)
+        }
+    }
+    if(!ok)
     {
         if(vr_climb_debug.value >= 2.f)
         {
@@ -3492,6 +3548,23 @@ int flatLadderFrame(edict_t* ent, Climber& c, const VrMove& move, double time)
     const float shoulderUp = ladderShoulder(ent, move).z - origin.z;
     const float speed = c.phase == Phase::Slipping ? pmove::hangSlipSink : za::clamp(vr_flat_ladder_speed.value, 20.f, 400.f);
     glm::vec3 target = origin + carry + glm::vec3{0.f, 0.f, static_cast<float>(dir) * speed * dt} - out * (40.f * dt);
+    if(held > 0)
+    {
+        // (Drawn in to the rungs, the box's front no further than ladderInBox past them: a ladder standing free, a Quoth
+        // or AD trigger_ladder over a non-solid ladder, has no wall to stop it.)
+        glm::vec3 holds{0.f};
+        for(const Grip& g : c.grips)
+        {
+            holds += g.active ? holdNow(g) : glm::vec3{0.f};
+        }
+        holds /= static_cast<float>(held);
+        const float ahead = (target.x - holds.x) * out.x + (target.y - holds.y) * out.y;
+        const float least = ent->v.maxs[0] - ladderInBox;
+        if(ahead < least)
+        {
+            target += glm::vec3{out.x, out.y, 0.f} * (least - ahead);
+        }
+    }
     const float highest = top - ent->v.mins[2] + 2.f;
     const float lowest = low - armReach() - shoulderUp;
     target.z = za::clamp(target.z, za::min(lowest, origin.z + carry.z), za::max(highest, origin.z + carry.z));

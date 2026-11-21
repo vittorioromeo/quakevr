@@ -1,0 +1,7 @@
+# mp_coop_bot: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title A coop game in the test hall with a bot teammate that moves and fights beside you
+mp coop
+map vrtesthall
+start 0 -288 25 90
+god
+bot active 128 0

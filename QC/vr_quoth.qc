@@ -71,6 +71,53 @@ void(entity e) VR_Quoth_MoreTargets =
     e.ad_target3 = e.ad_target4 = e.ad_killtarget2 = "";
 };
 
+// kellbase1's corridor (modladders, his report 2026-11-21): between its top doors (`topdoors`, y -1176: TOGGLE doors
+// that its lower chain's counter opens, "the top doors are open") and its south exit doors (`exitlock`, y -720, open only
+// after the arena's 16 kills). The corridor's trigger_once by the exit doors toggles the top doors shut behind you, so
+// coming up from below before the arena shuts you in. A fail-safe, once a map: a living player in the corridor for 10 s
+// with the top doors and the south exit doors shut and no living monster in it gets the top doors opened again.
+float vr_quoth_kell_trapped; // (seconds so)
+
+float(entity e) VR_Quoth_KellInCorridor =
+{
+    return e.origin_x > -159 && e.origin_x < 223 && e.origin_y > -1169 && e.origin_y < -745 && e.origin_z > 600 &&
+        e.origin_z < 800;
+};
+
+float(string name, float southOnly) VR_Quoth_KellDoorsShut =
+{
+    local entity d;
+    for (d = find(world, targetname, name); d; d = find(d, targetname, name))
+        if (d.classname == "func_door" && (!southOnly || d.absmax_y < -700) && (vlen(d.origin - d.pos1) > 1 || d.velocity != '0 0 0'))
+            return FALSE;
+    return TRUE;
+};
+
+void() VR_Quoth_KellThink =
+{
+    local entity e, p = world;
+    self.nextthink = time + 1;
+    for (e = VR_Player(); e; e = VR_NextPlayer(e))
+        if (e.health > 0 && VR_Quoth_KellInCorridor(e))
+            p = e;
+    for (e = nextent(world); e && p; e = nextent(e))
+        if ((e.flags & FL_MONSTER) && e.health > 0 && VR_Quoth_KellInCorridor(e))
+            p = world;
+    if (!p || !VR_Quoth_KellDoorsShut("topdoors", FALSE) || !VR_Quoth_KellDoorsShut("exitlock", TRUE))
+    {
+        vr_quoth_kell_trapped = 0;
+        return;
+    }
+    vr_quoth_kell_trapped = vr_quoth_kell_trapped + 1;
+    if (vr_quoth_kell_trapped < 10)
+        return;
+    dprint("quoth: kellbase1's corridor: shut in, the top doors opened again\n");
+    activator = p;
+    self.target = "topdoors";
+    ad_SUB_UseTargets();
+    remove(self);
+};
+
 // StartFrame: once a map, every entity with a targetname2 or targetname3 gets an alias for each (an entity never used
 // by that name would be a door that never opens, a counter that never counts); one with a target3, target4 or
 // killtarget2 its relays.
@@ -80,6 +127,13 @@ void() VR_Quoth_Frame =
     if (vr_quoth_aliased)
         return;
     vr_quoth_aliased = 1;
+    if (mapname == "kellbase1" && find(world, targetname, "topdoors") && find(world, targetname, "exitlock"))
+    {
+        e = spawn();
+        e.classname = "vr_quoth_kellguard";
+        e.think = VR_Quoth_KellThink;
+        e.nextthink = time + 1;
+    }
     for (e = nextent(world); e; e = nextent(e))
         if (e.classname != "vr_quoth_alias" && e.classname != "vr_quoth_relay")
         {

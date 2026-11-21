@@ -1,0 +1,8 @@
+# mp_dm_dagger: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title Deathmatch: a passive bot holding a dagger, a shotgun in your hand
+mp dm
+map dm3
+start 632 -648 88 0
+god
+give "Shotgun" main
+bot passive 128 0 "Dagger"

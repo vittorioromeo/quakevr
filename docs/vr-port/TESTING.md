@@ -108,7 +108,24 @@ spawnarmed monster_vr_grunt 2 2 200 40             # an armed humanoid by weapon
 cvar vr_debug_melee_blades 1                        # set for the test, put back after (never saved)
 cmd impulse 9                                       # console commands, after everything is placed
 hint Swing at them: ...                             # optional; default the checklist line's text
+mp dm                                               # a local multiplayer game (coop|dm): see below
+bot passive 128 0 "Knight's Sword"                  # a bot (passive|active) at fwd, left facing you, a Weapons entry in its hand [main|off]
 ```
+
+- **Multiplayer scenes** (`mp coop|dm`, then `bot` lines): the map loads as a local game of 4 client slots, you and
+  up to three FrikBots, all in this one game: nothing is opened on the network (no `listen 1`: the slots are set by
+  `vr_scenario slots`, not `maxplayers`), so no second client can join it; a line that needs a second player's view
+  keeps its hands-on test in `Misc/quakevr/mp/mp_local.ps1`, and the scene gives the host's half. `deathmatch`/`coop`
+  are set for the test and put back; the slots before come back with the next single-player scene (or once no game
+  runs). A `bot` joins as `impulse 100` does, then is put at its spot facing you: `passive` stands still, presses
+  nothing (never attacks or parries: `vr_bot_freeze 1`, `vr_bot_parry_chance 0`), takes hits, and is put back at its
+  spot when it respawns (with its weapon); `active` plays as a bot (coop: a teammate that moves and fights monsters;
+  dm: hunts you, so add `god`). One mode a scene (`vr_bot_freeze` is the game's). A coop game's bots from before are
+  not brought back (FrikBot's `scratch1` cleared). Spots: vrtesthall in coop (`start 0 -288 25 90`), dm3 in
+  deathmatch (`start 632 -648 88 0`: 128 ahead is clear). runall prints `SCNMP` (the game) and `SCNBOT` per bot (still
+  in; a passive one moved at most 32 units with its weapon still held: otherwise FAIL). Scenes: `mp_dm_passive`,
+  `mp_dm_disarm` (a sword bot and a shotgun bot), `mp_dm_melee`, `mp_dm_hostile`, `mp_coop_bot`, `mp_coop_passive`,
+  `mp_coop_bodies`... (`vr_scenario list`).
 
 - Spawn names are the toolgun panel's labels exactly (`vr_toolgun_spawnlist`, Quake/vr/vr_toolgun.cpp `spawnables`,
   vr_toolgun_packs.inc, vr_ad_spawns.inc): "Grunt", "Wooden Crate", "Explosive Box", "Armed Grunt: Shotgun",
@@ -144,8 +161,10 @@ hint Swing at them: ...                             # optional; default the chec
   (`spawn "Armed Grunt: ..."` and `spawnarmed` alike); unset, each wears its own roll as on a map.
   Armed knights need `cvar vr_agknight 1` (`monster_vr_knight`), armed death knights `cvar vr_agdknight 1`
   (`monster_vr_hknight`; weapon 0 is his own sword). A Debug > Tests setup works as a `cmd` (`cmd vr_agarmor_test 6`).
-- No scene for menu-only items (graphics presets, menu layout), calibration or seated play: leave those untagged; nor
-  for the flat-screen Rig Studio, startup and config checks, load times, or what needs late arena waves or a long play.
+- **Every line has a scene** (checklist_tests_check fails on an untagged line, in `--lines` too): at least a minimal
+  one, the map, where you stand and what is given. Menu, installer and start-up lines use `hub_start` (Quake's start,
+  nothing set); a line for an add-on's own maps (Dwell, Quoth) uses its toolgun entries in the test hall or
+  `hub_start`. A shared minimal scene has no `hint`, so each line's own text floats as the hint.
 
 **Every new checklist line gets a test when one makes sense.** A line is `<what to do>: <what you should see>
 {test:<id>}`; when shipping one, reuse a scene whose setup fits (`vr_scenario list`; the same id on many lines is
