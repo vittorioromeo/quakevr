@@ -9,11 +9,13 @@ TREE=C:/OHWorkspace/qvr-agents/$AGENT
 pass=0; failn=0
 for kind in fast slow; do
     MOCK=$TREE/Misc/quakevr/vrtrailer_swing_$kind.mock bash $HERE/vrtrailer_test.sh $AGENT > $TREE/scratch/superaxe_decap_$kind.log 2>&1
+    cp $TREE/scratch/vrtrailer_test.log $TREE/scratch/superaxe_decap_${kind}_game.log # (the game's lines, kept per swing)
     cut=$(grep -m1 "PASS the swing beheaded him\|FAIL the swing beheaded him" $TREE/scratch/superaxe_decap_$kind.log)
     if echo "$cut" | grep -q "^vrtrailer: PASS"; then
         pass=$((pass + 1)); echo "superaxe_decap: PASS $kind slash: ${cut:39:110}"
     else
-        failn=$((failn + 1)); echo "superaxe_decap: FAIL $kind slash: no beheading ($(grep -a -m1 "decap: no" $TREE/scratch/vrtrailer_test.log | cut -c1-110))"
+        why=$(awk '/STEP swing/,/STEP reset/' $TREE/scratch/superaxe_decap_${kind}_game.log | grep -a -m1 "decap: no\|agarmor\|smallgib" | cut -c1-110)
+        failn=$((failn + 1)); echo "superaxe_decap: FAIL $kind slash: no beheading ($why)"
     fi
 done
 echo "superaxe_decap: $pass passed, $failn failed"

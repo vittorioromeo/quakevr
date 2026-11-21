@@ -7264,5 +7264,8 @@ hue band can't separate brown uniforms from brown flesh, and a full hue turn wit
   skill's armour roll gave him a helmet, which then stopped the cut: "agarmor: the helmet stops the head pop").
 - **New check** `Misc/quakevr/superaxe_decap_test.sh <agent>`: the scene with a 0.16 s and a 0.5 s swing
   (vrtrailer_swing_fast/_slow.mock): both behead (20.4 and 6.6 m/s): 2 passed. Scene `superaxe_behead`.
-- **Not run (budget):** the melee/decap/dismember suites, scenario_check, the ThinLTO build. The dagger's Blade From 0.05
-  now also sets where it beheads from (it already set its striking points).
+- **Other blades with their own Blade From** (weapons.txt: only these; slot 25, the glowing Super Axe, inherits 24's):
+  the Super Axe 0.6 -> 0.15; his dagger (slot 51, bl_from 0.05) stays at 0.4: its guard spans 0 .. 0.2 of its line
+  (vr_blade_dump fit 52), so a sword's own start never goes nearer the hand than its kind's (VR_Decap_BladeFrom: max;
+  only axes, whose heads differ in size, take theirs as it is). The dagger's striking points keep his 0.05.
+- **Suites:** SUITES_PLACEHOLDER

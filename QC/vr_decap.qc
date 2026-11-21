@@ -22,14 +22,18 @@ float VR_DECAP_BLADE_AXE = 0.6;    // an axe's head (25..37 units up its 40)
 // to the tip: the weapon's own Blade From (Edit Blade Shape: `xOwnFrom`, its blow's mh_bfrom or VR_Melee_Line's
 // vr_mline_from_x; its striking points are laid from there, VR_Melee_LayoutFrom) when it has one, else its kind's. (Before
 // 2026-11-21 always the kind's: the Super Axe's crescent edge, drawn from 0.15 of its line by his Blade Shape, read as
-// "the hilt or handle" below 0.6 and never beheaded there; ROUND25.md "axelag".)
+// "the hilt or handle" below 0.6 and never beheaded there; ROUND25.md "axelag".) A sword's never nearer its hand than its
+// kind's (its guard comes first: his dagger's Blade From 0.05 lays its striking points from its guard, which spans 0 ..
+// 0.2 of its line, vr_blade_dump fit 52; it beheads from 0.4 as before). Only axes' heads differ enough in size to need
+// their own.
 float(float xThing, float xOwnFrom) VR_Decap_BladeFrom =
 {
+    float kind = (xThing == VR_MTHING_AXE) ? VR_DECAP_BLADE_AXE : VR_DECAP_BLADE_SWORD;
     if(xOwnFrom > 0 && xOwnFrom < 1)
     {
-        return xOwnFrom;
+        return (xThing == VR_MTHING_AXE) ? xOwnFrom : max(kind, xOwnFrom);
     }
-    return (xThing == VR_MTHING_AXE) ? VR_DECAP_BLADE_AXE : VR_DECAP_BLADE_SWORD;
+    return kind;
 };
 float VR_DECAP_DIED_LATE = 0.3;    // s: a thrown axe's blade going in this soon after its hit box killed the monster still beheads it
 float VR_DECAP_SPURT_TICK = 0.05;  // s between the fountain's spurts
