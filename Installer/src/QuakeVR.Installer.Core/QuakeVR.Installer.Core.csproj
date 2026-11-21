@@ -11,4 +11,11 @@
   <ItemGroup>
     <InternalsVisibleTo Include="QuakeVR.Installer.SelfTest" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- "Make reliefs for Dwell and Quoth" (Reliefs/ReliefMaker.cs): PBRify's two CC0 models as ONNX
+         (Misc/quakevr/pbr_export_onnx.py), run by onnxruntime with DirectML (CPU when DirectML fails). The installer's
+         only NuGet package; its native DLLs go inside the single-file QuakeVR-Setup.exe. -->
+    <PackageReference Include="Microsoft.ML.OnnxRuntime.DirectML" Version="1.22.0" />
+    <EmbeddedResource Include="Reliefs\Models\*.onnx" LogicalName="QuakeVR.Reliefs.%(Filename).onnx" />
+  </ItemGroup>
 </Project>

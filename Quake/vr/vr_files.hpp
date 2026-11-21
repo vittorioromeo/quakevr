@@ -166,4 +166,9 @@ struct Identity
 // check's; the derived-data cache's unless vr_cache_dir). The first base dir before any is set.
 [[nodiscard]] za::String baseCacheDir();
 
+// The reliefs Setup makes on the player's machine for the mods whose textures may not be shipped (Dwell, Quoth:
+// Installer Reliefs/ReliefMaker.cs), `<last base dir>/reliefs`: `textures/pbr/<hash>_norm.png` and its provenance.txt,
+// as AD's bundle in quakevr (vr_pbr.cpp searches it below every game folder).
+[[nodiscard]] za::String reliefsDir();
+
 } // namespace qvr::files

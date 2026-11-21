@@ -3832,6 +3832,7 @@ void COM_InitFilesystem (void) //johnfitz -- modified based on topaz's tutorial
 	 * any set gamedirs, such as those from -game command line
 	 * arguments or by the 'game' console command will be freed
 	 * up to here upon a new game command. */
+	VR_AddReliefsPath (); // QVR
 	com_base_searchpaths = com_searchpaths;
 	COM_ResetGameDirectories("");
 
