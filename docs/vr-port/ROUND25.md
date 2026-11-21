@@ -7268,4 +7268,7 @@ hue band can't separate brown uniforms from brown flesh, and a full hue turn wit
   the Super Axe 0.6 -> 0.15; his dagger (slot 51, bl_from 0.05) stays at 0.4: its guard spans 0 .. 0.2 of its line
   (vr_blade_dump fit 52), so a sword's own start never goes nearer the hand than its kind's (VR_Decap_BladeFrom: max;
   only axes, whose heads differ in size, take theirs as it is). The dagger's striking points keep his 0.05.
-- **Suites:** SUITES_PLACEHOLDER
+- **Suites:** decap_test.sh, limbs_test.sh, melee_arc_test.sh exit 0 (decap: the axe's and sword's slashes behead,
+  stab, pommel and slow slash refused); vrtrailer 9/9; scenario_check PASS (178 run, 0 failed); Dev and ThinLTO built,
+  0 warnings. superaxe_decap_test.sh: slow 5 of 5, fast 4 of 5 (one run killed him without a beheading, its reason lost:
+  the test now keeps each swing's game log, `scratch/superaxe_decap_<kind>_game.log`, and names the refusal).
