@@ -86,7 +86,7 @@ void() CL_KeyMove = // CL_BaseMove + CL_AdjustAngles
 
     if(self.b_skill != 2) // use mouse emulation
     {
-        anglespeed = 1.5 * real_frametime;
+        anglespeed = 1.5 * real_frametime * bot_turn(self); // QVR: slower at skills 0 and 1 (bot_fight.qc bot_turn)
         // 1.5 is the default cl_anglespeedkey & bot always has +speed
         self.v_angle_y = self.v_angle_y + anglespeed * CL_KeyState(KEY_LOOKLEFT) * 140;
         // 140 is default cl_yawspeed

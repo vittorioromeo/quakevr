@@ -109,6 +109,10 @@ void send();
 // Hosting (clientprefs::ownSlot), before each server frame: this game's own hands' drawn poses (placed), ground spots and
 // holster presses into its slot, as a remote player's messages put his (none while it is not connected).
 void publishOwn();
+// Server, before each server frame (bots3): each bot's hands into its slot, its weapons as every client draws them
+// (server::botHeld: view::placeHeld's place, hotspots), in the hand's frame (placed on its hand now by the readers): the
+// players' disarm grab (QC VR_PDG_Gap's weaponhotspot) takes a bot's weapon where it is drawn.
+void placeBots();
 // Client: a new connection: they go up again.
 void clientClear();
 // Server: the slot's player left or a new one came.

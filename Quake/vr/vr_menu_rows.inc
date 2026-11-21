@@ -2502,9 +2502,12 @@ QVR_CYCLE(vr_sprint_toggle, "Speed Button",
     "Speed: Run. Toggle: click it to switch, click again to switch back; it switches back by itself when you "
     "stop, die, change level or open the menu (vr_sprint_toggle).",
     {0.f, "Hold"}, {1.f, "Toggle"})
-QVR_TOGGLE(vr_move_doubletap, "Double-Tap Stick to Run",
-    "On: push the moving stick twice quickly the same way (push, let go, push again) to run until you let it go back "
-    "to the middle. Works beside the speed button: either one makes you run (vr_move_doubletap).")
+QVR_SLIDER(vr_stick_click_debounce, "Stick Click Debounce", 0.f, 0.15f, 0.01f, "%.2f s", ext(0.f, 0.25f),
+    "A stick click pressed again this soon after letting go is the switch bouncing and is ignored, so one click "
+    "never counts twice (the speed toggle switching back at once). 0: off (vr_stick_click_debounce).")
+QVR_TOGGLE(vr_move_doubletap, "Double-Tap for Other Speed",
+    "On: push the moving stick twice quickly the same way (push, let go, push again) for the other speed than Default "
+    "Speed until you let it go back to the middle: run, or walk with Default Speed: Run (vr_move_doubletap).")
 QVR_SLIDER(vr_move_doubletap_window, "Double-Tap Window", 0.1f, 0.6f, 0.05f, "%.2f s", ext(0.05f, 2.f),
     "How quick a double tap must be: the first push let go within this, and the second begun within this after.")
 QVR_SLIDER_BYNAME(cl_movespeedkey, "Running Mult.", 1.f, 3.f, 0.05f, "%.2f", ext(), "How much faster running is than walking.")
@@ -2548,8 +2551,8 @@ QVR_TOGGLE(vr_slope_walk, "Walk Up Slopes Slowly",
     "with the stick pushed only a little you still walk up slopes and stairs with a smooth ramp over them "
     "from a standstill. Off: Quake's (under about a quarter stick you never got going up one; going down "
     "you ran a little faster). Flat floors are the same either way (vr_slope_walk).")
-QVR_TOGGLE(vr_slide, "Sliding (VR, Experimental)",
-    "Experimental. While running, pull the turning stick straight down (firmly, within a narrow angle of straight "
+QVR_TOGGLE(vr_slide, "Sliding",
+    "While running, pull the turning stick straight down (firmly, within a narrow angle of straight "
     "down, from the middle: a turn never does it) to slide as on the desktop screen: faster at first, down a slope "
     "faster still, ending when you slow, let go or jump (the jump keeps the speed). Let go of the stick to stop. "
     "While held, the stick's down does nothing else (on foot; swimming it still dives). Off: as before (vr_slide).")
@@ -2561,6 +2564,9 @@ QVR_SLIDER(vr_slide_stick_angle, "Slide Stick Angle", 5.f, 45.f, 1.f, "%.0f deg"
 QVR_TOGGLE(vr_slide_body, "Slide Body Pose",
     "Sliding (VR): your drawn body leans back with its legs out in front while you slide, as on the desktop screen; "
     "with Slide View on it is the desktop screen's slide pose, hung from the lowered view (vr_slide_body).")
+QVR_TOGGLE(vr_slide_legs, "Slide Legs Follow Slide",
+    "Sliding (VR): with Slide Body Pose, your drawn hips and legs point the way you slide, the chest turned back to "
+    "your body, as on the desktop screen. Off: the legs face where your body faces (vr_slide_legs).")
 QVR_TOGGLE(vr_slide_camera, "Slide View",
     "Sliding (VR): your view moves quickly but smoothly down to the desktop screen's sliding eye height while you slide "
     "and back up when it ends, on top of your own head's movement (still one to one). Off: the view stays at your real "
@@ -4735,8 +4741,10 @@ QVR_CYCLE(vr_foveated, "Foveated Rendering",
     "cards only.",
     {0.f, "Off"}, {1.f, "Conservative"}, {2.f, "Balanced"}, {3.f, "Aggressive"})
 QVR_TOGGLE(vr_foveated_gaze, "Eye-Tracked Foveation",
-    "With an eye-tracking headset (Quest Pro via Virtual Desktop with eye tracking shared to the PC, Varjo...): "
-    "the sharp middle of Foveated Rendering follows your eyes. Takes effect at the next VR start.")
+    "On: with an eye-tracking headset (Quest Pro via Virtual Desktop with eye tracking shared to the PC, Varjo...) "
+    "the sharp middle of Foveated Rendering follows your eyes; without one (or while your eyes are not tracked) it "
+    "stays in the middle of the lens. The line below says which. Off: always the middle, no eye tracker asked for "
+    "(turned back on, it is used from the next VR start).")
 
 // vr_menu_settings.inc: pageVrsGraphics
 QVR_TOGGLE_BYNAME(vr_taa, "Temporal Antialiasing (TAA)",
@@ -5177,6 +5185,9 @@ QVR_SLIDER(vr_stealth_share_near, "Near Monsters Join", 0.f, 1000.f, 16.f, "%.0f
     "A monster this near another that turns Alert or attacks (in line, not through a wall) does too. 0: off.")
 QVR_SLIDER(vr_stealth_share_view, "Monsters in Sight Join", 0.f, 3000.f, 50.f, "%.0f units", noExt,
     "One that sees another attack within this does too (turning Alert: within half). 0: off.")
+QVR_SLIDER(vr_stealth_share_hear, "Cries Heard", 0.f, 2000.f, 50.f, "%.0f units", noExt,
+    "A monster you hurt or kill before it noticed you cries out: the others within this (less round walls and "
+    "doors, much less through solid walls) come to look. Those in ambush don't hear it. 0: off.")
 QVR_TOGGLE(vr_stealth_flashlight, "Flashlight Beams",
     "Your flashlight on a monster: it comes towards the light (and its glare shows you). Its beam seen "
     "landing nearby: it looks about for where it came from.")
@@ -5940,6 +5951,11 @@ QVR_CYCLE(vr_debug_pose_check, "Monster Poses",
     "parried ogre was, for half a second), drawn with a pose out of its model's range or a broken blend; "
     "And a Screenshot: a picture at each; Every Frame: each monster's drawn poses and how flat (a lot).",
     {0.f, "Off"}, {1.f, "Squashed Bodies"}, {3.f, "And a Screenshot"}, {2.f, "Every Frame"})
+QVR_CYCLE(vr_debug_lift, "Lift Riders",
+    "vr_debug_lift: you and the monsters riding a moving lift: how far your box, your drawn feet and your eye, and "
+    "the monsters' boxes and drawn bodies, sink into it, each ride's worst logged as the lift stops "
+    "(\"liftdebug:\"; a game you host). Every Frame: each rider every frame (a lot).",
+    {0.f, "Off"}, {1.f, "Each Ride"}, {2.f, "Every Frame"})
 QVR_TOGGLE(vr_debug_shots, "Shots and Damage",
     "Each hitscan shot (where it starts, its direction, what its pellets hit, headshots), each damage you deal "
     "(and when Quad's sound plays) and each prop a shot pushes. Needs Developer Messages.")

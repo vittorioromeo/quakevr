@@ -37,6 +37,7 @@
 #include "vr_seated.hpp"
 #include "vr_shock.hpp"
 #include "vr_units.hpp"
+#include "vr_view.hpp"
 #include "vr_portals.hpp"
 #include "vr_testkit.hpp"
 #include "vr_tips.hpp"
@@ -55,6 +56,7 @@
 #include "vr_netmove.hpp"
 #include "vr_predict.hpp"
 #include "vr_netsnap.hpp"
+#include "vr_netragdoll.hpp"
 
 
 using namespace qvr;
@@ -970,6 +972,17 @@ extern "C" void VR_SnapEnd(sizebuf_t* msg)
                 }
             }
             qvr::netsnap::serverRecord(qvr::netsnap::poseKey + e, w.poseJoin, len);
+        }
+    }
+    // (ragsync) The ragdolls in its sight: a record each, their parts as the server last stepped them (vr_netragdoll.cpp).
+    if(qvr::vr_net_ragdolls.value != 0.f)
+    {
+        for(int e = 1; e < qcvm->num_edicts; e++)
+        {
+            if(scopedInSight(r, e))
+            {
+                qvr::netrag::serverRecord(e);
+            }
         }
     }
     qvr::netsnap::serverEnd(msg);
@@ -2133,6 +2146,23 @@ extern "C" int VR_StepLerpInterval(edict_t* ent)
     return interval < 1 ? 1 : interval > 25 ? 25 : interval;
 }
 
+// A stepping monster standing on a moving lift (a MOVETYPE_PUSH it rides, moving): the lift moves it every server
+// frame, so it is sent without U_STEP and drawn as the lift is (between the last two messages), not along its steps to
+// its next think. Drawn to its think it fell ~13 units behind the drawn lift riding e1m1's plat up, and ~1.8 drawn over
+// a frame (the step lerp's finish counts from the message's time, its start from the client's: vr_debug_lift; his note
+// of 2026-11-21, riders "compressed by the lift"). Its own steps on a moving lift are drawn over the frame too.
+extern "C" int VR_StepRidesLift(edict_t* ent)
+{
+    if(static_cast<int>(ent->v.movetype) != MOVETYPE_STEP || !(static_cast<int>(ent->v.flags) & FL_ONGROUND) ||
+       ent->v.groundentity <= 0)
+    {
+        return 0;
+    }
+    const edict_t* g = PROG_TO_EDICT(ent->v.groundentity);
+    return !g->free && static_cast<int>(g->v.movetype) == MOVETYPE_PUSH &&
+           (g->v.velocity[0] != 0.f || g->v.velocity[1] != 0.f || g->v.velocity[2] != 0.f);
+}
+
 namespace
 {
 // What a thing that is not a weapon prop tells its loot beam (vr_lootbeams.cpp), sent with U_QVR_WEAPONUID and weapon id
@@ -2417,8 +2447,7 @@ void writeAvatars()
         // weapons go instead, for each client to place its hands and weapons on as it places its own
         // (VrDrawnHand::solveBit, view::solveHands); its head at its eyes, its body a standing player's of its eye height.
         edict_t* const ent = c.active ? c.edict : EDICT_NUM(i + 1);
-        const bool bot = !c.active && !ent->free && ent->v.modelindex != 0.f && f.ishuman >= 0 &&
-                         fieldFloatOr(ent, f.ishuman, 1.f) == 0.f && !strcmp(PR_GetString(ent->v.classname), "player");
+        const bool bot = server::isBot(i);
         if(!bot && (!c.active || !c.spawned || !c.edict || !m))
         {
             continue;
@@ -2429,10 +2458,9 @@ void writeAvatars()
         {
             body.valid = true;
             body.yaw = ent->v.v_angle[1];
-            // (its own eye height, metres: its standing eyes over its feet -- the model's default drew it smaller than a
-            // human of the same box; B11 part 3, part 3. Standing: a dead bot's lowered view is not its height)
-            body.headHeight = body.standingHeight =
-                (static_cast<float>(DEFAULT_VIEWHEIGHT) - ent->v.mins[2]) / units::metresToUnits();
+            // (its eye height, metres: the default player's, drawn at the default world scale (units::botEyeUnits; his
+            // notes 2026-11-21: "the same height as the player"); a dead bot's lowered view is not its height)
+            body.headHeight = body.standingHeight = units::modelEyeHeight;
             for(int h = 0; h < 2; h++)
             {
                 VrDrawnHand& d = drawn[h];
@@ -2441,6 +2469,13 @@ void writeAvatars()
                 d.handAngles = fieldVec(ent, handFields(h).rot);
                 d.weaponModel = static_cast<za::U16>(h ? SV_ModelIndex(PR_GetString(ent->v.weaponmodel)) : modelIndexOfField(ent, f.weaponmodel2));
                 d.weaponFrame = static_cast<za::U8>(za::clamp(static_cast<int>(h ? ent->v.weaponframe : fieldFloatOr(ent, f.weaponframe2, 0.f)), 0, 255));
+                // (bots3) its weapon where the server has it (its disarm volume's, its muzzle's): every client draws it there
+                if(view::HeldPlace p; server::botHeld(ent, h, p))
+                {
+                    d.flags |= VrDrawnHand::weaponBit;
+                    d.weaponOrigin = p.origin;
+                    d.weaponAngles = p.angles;
+                }
             }
         }
         // (offsets from the origin his client placed them from: the hands as drawn on his body, wherever the server has it)
@@ -2456,7 +2491,10 @@ void writeAvatars()
         MSG_WriteShort(&tmp, i + 1);
         MSG_WriteByte(&tmp, mpavatar::movesByte(ent, m && (m->move.vrBits0 & protocol::moveFlatplayBit) != 0));
         // (rebaseHands moves the head and its base along together)
-        writeEighths(&tmp, m ? m->move.headPos - m->base : v3(ent->v.view_ofs));
+        // (a bot's head: its eyes raised to the default player's height, units::botEyeRaise)
+        writeEighths(&tmp, m ? m->move.headPos - m->base
+                             : v3(ent->v.view_ofs) + glm::vec3{0.f, 0.f,
+                                   units::botEyeRaise(static_cast<float>(DEFAULT_VIEWHEIGHT) - ent->v.mins[2])});
         writeAngles16(&tmp, m ? m->move.headAngles : v3(ent->v.v_angle));
         writeBodyPose(&tmp, m ? m->move.body : body); // (his body's yaw, crouch and lean, as his client poses it: B2d)
         const VrDrawnHand* const hands = m ? m->move.drawn : drawn;
@@ -2523,6 +2561,7 @@ extern "C" void VR_ServerFrameBegin()
     // This game's own player's drawn weapon poses, ground spots and holster presses into his slot, as a remote player's
     // messages put his: the server's readers ask the slot alone (MP_PLAN B11a).
     qvr::heldpose::publishOwn();
+    qvr::heldpose::placeBots(); // (bots3: each bot's weapons as every client draws them)
 }
 
 extern "C" void VR_ServerFrameEnd()
@@ -2590,6 +2629,31 @@ extern "C" void VR_ServerFrameEnd()
 
 namespace qvr::server
 {
+
+bool isBot(int slot)
+{
+    if(!sv.active || slot < 0 || slot >= svs.maxclients || svs.clients[slot].active || slot + 1 >= sv.qcvm.num_edicts)
+    {
+        return false;
+    }
+    const FieldOffsets& f = fields();
+    edict_t* const ent = EDICT_NUM(slot + 1);
+    return !ent->free && ent->v.modelindex != 0.f && f.ishuman >= 0 && fieldFloatOr(ent, f.ishuman, 1.f) == 0.f &&
+           !strcmp(PR_GetString(ent->v.classname), "player");
+}
+
+bool botHeld(edict_t* bot, int hand, view::HeldPlace& out)
+{
+    const FieldOffsets& f = fields();
+    const int index = hand ? SV_ModelIndex(PR_GetString(bot->v.weaponmodel)) : modelIndexOfField(bot, f.weaponmodel2);
+    qmodel_t* const model = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
+    const progs::HandFields& hf = progs::handFields(hand);
+    if(!model || hf.pos < 0 || hf.rot < 0)
+    {
+        return false;
+    }
+    return view::placeHeld(model, hand, fieldVec(bot, hf.pos), fieldVec(bot, hf.rot), out);
+}
 
 // vr_dumpplayer: prints the local player's VR fields as the server sees them.
 void dumpPlayer_f()

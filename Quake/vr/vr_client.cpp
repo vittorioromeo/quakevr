@@ -8,6 +8,7 @@
 #include "vr_netmove.hpp"
 #include "vr_predict.hpp"
 #include "vr_netsnap.hpp"
+#include "vr_netragdoll.hpp"
 #include "vr_mpdownload.hpp"
 #include "vr_clientprefs.hpp"
 #include "vr_moveguard.hpp"
@@ -1170,6 +1171,7 @@ extern "C" int VR_ParseServerMessage(int cmd)
             break;
         }
         case QVR_SVC_RIGSEQ: rigseq::parseMessage(); break;
+        case QVR_SVC_RAGPOSE: netrag::clientParse(); break;
         case QVR_SVC_ARMOR: agarmor::parseEvent(); break;
         case QVR_SVC_XRAY: arenaxray::parseEvent(); break;
         case QVR_SVC_GORESOUND: goresound::parseEvent(); break;
@@ -1328,7 +1330,7 @@ extern "C" void VR_TuneDlight(int kind, int ent, void* dlight)
     {
         color(0.6f, 0.8f, 1.f);
     }
-    else if(strstr(n, "dw_rail")) // (Dwell's Crystal Lance: its crystals' violet)
+    else if(strstr(n, "dw_rail") || strstr(n, "dw_lance")) // (Dwell's Crystal Lance: its crystals' violet)
     {
         color(0.8f, 0.55f, 1.f);
     }

@@ -117,8 +117,37 @@ for the others. Any PC with Quake VR installed can run one (the same port rule a
   melee sweep a player's is, and you can parry it), and **raise their guard** against a blow they see coming, more often
   and sooner the higher their skill (`skill` when added; `vr_bot_parry_chance` forces a chance, `vr_bot_dual_wield 0`
   turns the second gun off).
+- **Bots by skill** (the `skill` they were added at, 0-3): the lower, the more their aim strays and lags behind a moving
+  target (`vr_bot_aim_error`, 1: by skill, 0: dead on), the longer they wait before firing at someone they've just seen
+  and pause between bursts (`vr_bot_reaction`), the slower they turn and the less far they notice players; their melee
+  swing is held raised before it comes down (`vr_bot_swing_windup`, 0.3 s at skill 0, less the higher). They draw any
+  gun they carry that has ammo (the revolver, the nail pistol, the mission packs' guns), else their melee weapon. They
+  are drawn at a default player's size (1.646 m eyes at world scale 1.2); their hands are posed as a default-size
+  flat-screen player's (from their box's eyes, a default player's arms), so their blows reach what a player's do.
 - **Co-op bots**: in a co-op game a bot fights the monsters beside you, never the players, follows the players loosely,
   and comes along to the next level with what it had (as a player who left and came back does).
+- **A bot's weapon is where you see it**: the server places it in the bot's hand (with the weapon's own offsets) and
+  every player draws it there; a grab on it (or a blow, a parry, a shot) is measured on that weapon.
+- **Debug views on players and bots**: Debug > Show Disarm Volumes outlines each other player's (and bot's) held
+  weapon as a grab (orange: the weapon's line and its hotspots, Players Can Disarm Each Other's reach round them) and a
+  shot (magenta on the weapon, cyan on the hand) test it; Debug > Show Hit Zones outlines their positional damage zones
+  (head red, body green, limbs yellow, legs blue) on their box. The host draws the server's own volumes and zones; a
+  player who joined rebuilds them from what he draws (the host's rules, the weapon as drawn, a standing box: a
+  crouched player's zones are drawn standing there, and the hotspots are left out). Your own are not drawn.
+
+## The scoreboard on the wrist
+
+- In a multiplayer game (coop or deathmatch, bots included) the wrist gadget has an extra page: the **scoreboard**.
+  Press the gadget's **outer button** (the one that turns to Arcane Dimensions' page) to go through the pages: the HUD,
+  AD's page (with AD's data loaded), the scoreboard, and back to the HUD. Single player has no scoreboard page.
+- It shows the game's own scoreboard's rows in its order (the most frags first): each player's colours, frags and name,
+  your row on a lit strip, and `((o))` beside whoever is talking on voice chat (you too while you send). In coop the
+  level's kills and secrets are above the players (the game's coop scoreboard). It updates live; up to 11 players at the
+  gadget's text size, all 16 in smaller text.
+- Ping isn't shown: a NetQuake client doesn't know the other players' pings (the host's `status` lists them).
+- Flat-screen play has no wrist gadget: its scoreboard is the game's own (**TAB**, and at death).
+- Debug > Reports: **Wrist Gadget Next Page** (`vr_gadget_page 1`) and **Wrist Gadget Scoreboard** (`vr_gadget_scores`,
+  the page's rows in the console). Test: `mp_test.py wristscore`.
 
 ## Voice chat
 

@@ -125,7 +125,10 @@ void debugDraw();    // vr_debug_hits (the view, each frame)
 // (its colour). A server frame's zones replace the last's. For precise targets, body/head definitions partition the
 // standing mesh and the resulting colored polygons follow the actual rendered animation; otherwise reference wires.
 void zoneAdd(int num, int zone, const glm::vec3& lo, const glm::vec3& hi, float radius);
-void zonesDraw(); // (the view, each frame)
+void zonesDraw(); // (the view, each frame; bots4: a client rebuilds the other players' zones, no server sending them)
+// (bots4) Player entity `ent`'s zones drawn last frame or this one: how many, his head's centre. False: none.
+// (vr_mp_avatars' mp_debugviz line.)
+[[nodiscard]] bool playerZonesDrawn(int ent, int& count, glm::vec3& head);
 // vr_hitzones_check, vr_hitmodel_stats, vr_hitmodel_bench, vr_hitmodel_check (vr_hitmodel_diag.cpp)
 void registerDiagCommands();
 

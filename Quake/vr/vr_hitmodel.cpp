@@ -15,6 +15,7 @@
 #include "vr_jobs.hpp"
 #include "vr_lines.hpp"
 #include "vr_modelcollide.hpp"
+#include "vr_mpavatar.hpp"
 #include "vr_profile.hpp"
 #include "vr_progs.hpp"
 #include "vr_props.hpp"
@@ -1936,26 +1937,94 @@ bool animatedDecap(const Zone& decap, const Zone* head, const entity_t& e, bool 
 }
 }
 
+namespace
+{
+// (bots4) A player's zones on a client, where no server sends them (QC VR_Decap_DebugFrame's for a client: keep in step):
+// his standing box (client.qc's setsize; crouching is not sent) and PositionalHead's "player" head.
+constexpr glm::vec3 playerMins{-16.f, -16.f, -24.f};
+constexpr glm::vec3 playerMaxs{16.f, 16.f, 26.f};
+constexpr glm::vec3 playerHead{4.f, 0.f, 23.f};
+constexpr float playerHeadRadius = 7.2f;
+
+// (bots4) Each player's zones as last drawn (the harness's mp_debugviz line): the host frame, how many, the head's centre.
+struct PlayerZonesShown
+{
+    int frame{-1};
+    int count{0};
+    glm::vec3 head{0.f};
+};
+za::Array<PlayerZonesShown, MAX_SCOREBOARD + 1> playerZonesShown{};
+
+[[nodiscard]] bool isPlayerNum(int num)
+{
+    return num >= 1 && num <= za::min(cl.maxclients, MAX_SCOREBOARD);
+}
+
+// (bots4) A client's rebuild: each other player drawn here, his zones on his entity as drawn (the box path below turns
+// them with its yaw), as the QC lays them out from his box.
+void playerZones(za::Vector<Zone>& out)
+{
+    const float w = playerMaxs.x - playerMins.x, side = w * 0.35f, outer = w * 0.75f;
+    for(int e = 1; isPlayerNum(e); e++)
+    {
+        if(e == cl.viewentity || !mpavatar::drawnNow(e))
+        {
+            continue;
+        }
+        out.pushBack(Zone{e, 0, {playerMins.x, -side, 0.f}, {playerMaxs.x, side, playerMaxs.z}, 0.f});
+        out.pushBack(Zone{e, 3, {playerMins.x, -side, playerMins.z}, {playerMaxs.x, side, 0.f}, 0.f});
+        out.pushBack(Zone{e, 2, {playerMins.x, side, playerMins.z}, {playerMaxs.x, outer, playerMaxs.z}, 0.f});
+        out.pushBack(Zone{e, 2, {playerMins.x, -outer, playerMins.z}, {playerMaxs.x, -side, playerMaxs.z}, 0.f});
+        out.pushBack(Zone{e, 1, playerHead, playerHead, playerHeadRadius});
+    }
+}
+} // namespace
+
+bool playerZonesDrawn(int ent, int& count, glm::vec3& head)
+{
+    if(!isPlayerNum(ent) || playerZonesShown[static_cast<za::SizeT>(ent)].frame < host_framecount - 1)
+    {
+        return false;
+    }
+    count = playerZonesShown[static_cast<za::SizeT>(ent)].count;
+    head = playerZonesShown[static_cast<za::SizeT>(ent)].head;
+    return true;
+}
+
 void zonesDraw()
 {
     zoneSamples.clear(); zoneModels = zoneFallbacks = zoneDecapModels = 0; zonePieces = {}; zonePoseHash = 2166136261u;
-    // (Stale: the option just turned off, a map change, the QC sending none; a frame's zones last a 0.25 s at most.)
-    if(!vr_debug_hitzones.value || !sv.active || zones.empty() || sv.qcvm.time < zonesTime || sv.qcvm.time - zonesTime > 0.25)
+    if(!vr_debug_hitzones.value)
     {
         return;
     }
+    // (bots4) A client (no server here): the other players' zones rebuilt from their entities as drawn (the monsters'
+    // need the server's QC: the host's alone).
+    const bool client = !sv.active && cls.state == ca_connected && !cls.demoplayback;
+    za::Vector<Zone> rebuilt;
+    if(client && static_cast<int>(vr_debug_hitzones.value) != 2)
+    {
+        playerZones(rebuilt);
+    }
+    // (Stale: the option just turned off, a map change, the QC sending none; a frame's zones last a 0.25 s at most.)
+    else if(!sv.active || zones.empty() || sv.qcvm.time < zonesTime || sv.qcvm.time - zonesTime > 0.25)
+    {
+        return;
+    }
+    const za::Vector<Zone>& list = client ? rebuilt : zones;
     static constexpr int ringSteps = 24;
     constexpr float width = 0.2f;
     // One colored animated surface per entity. The QC supplies its actual head centre/radius and body side threshold.
+    // (Not a player's: player.mdl is not what is drawn of him; his zones are outlined on his box, below.)
     za::Vector<int> animated;
     if(static_cast<int>(vr_debug_hitzones.value) != 2)
     {
-        for(const Zone& body : zones)
+        for(const Zone& body : list)
         {
-            if(body.zone != 0 || body.num <= 0 || body.num >= cl.num_entities) { continue; }
+            if(body.zone != 0 || body.num <= 0 || body.num >= cl.num_entities || isPlayerNum(body.num)) { continue; }
             const entity_t& e = cl_entities[body.num];
             if(!e.model || e.msgtime != cl.mtime[0]) { continue; }
-            for(const Zone& head : zones)
+            for(const Zone& head : list)
             {
                 if(head.num == body.num && head.zone == 1)
                 {
@@ -1970,19 +2039,19 @@ void zonesDraw()
     // struck mapped to the standing pose); Decapitation alone: with the head's sphere (1) over it.
     const bool decapAlone = static_cast<int>(vr_debug_hitzones.value) == 2;
     za::Vector<int> decapAnimated;
-    for(const Zone& decap : zones)
+    for(const Zone& decap : list)
     {
         if(decap.zone != 4 || decap.num <= 0 || decap.num >= cl.num_entities) { continue; }
         const entity_t& e = cl_entities[decap.num];
         if(!e.model || e.msgtime != cl.mtime[0]) { continue; }
         const Zone* head = nullptr;
-        for(const Zone& h : zones)
+        for(const Zone& h : list)
         {
             head = !head && h.num == decap.num && h.zone == 1 ? &h : head;
         }
         if(animatedDecap(decap, decapAlone ? head : nullptr, e, decapAlone)) { decapAnimated.pushBack(decap.num); }
     }
-    for(const Zone& z : zones)
+    for(const Zone& z : list)
     {
         const auto in = [&](const za::Vector<int>& nums) { return za::anyOf(nums.begin(), nums.end(), [&](int num) { return num == z.num; }); };
         if(z.zone != 4 && in(animated)) { continue; }
@@ -1991,8 +2060,10 @@ void zonesDraw()
         {
             continue;
         }
+        // (bots4) A player (a bot, a human): not the viewer's own; his entity's model may be none (his avatar is drawn).
+        const bool player = isPlayerNum(z.num);
         const entity_t& ent = cl_entities[z.num];
-        if(!ent.model || ent.msgtime != cl.mtime[0])
+        if((!player && !ent.model) || ent.msgtime != cl.mtime[0] || (player && z.num == cl.viewentity))
         {
             continue;
         }
@@ -2001,6 +2072,16 @@ void zonesDraw()
         const glm::vec3 f{za::cos(yaw), za::sin(yaw), 0.f}, l{-f.y, f.x, 0.f}, u{0.f, 0.f, 1.f};
         const glm::vec3 o{ent.origin[0], ent.origin[1], ent.origin[2]};
         const auto at = [&](const glm::vec3& p) { return o + f * p.x + l * p.y + u * p.z; };
+        if(player)
+        {
+            PlayerZonesShown& s = playerZonesShown[static_cast<za::SizeT>(z.num)];
+            if(s.frame != host_framecount)
+            {
+                s = PlayerZonesShown{host_framecount, 0, glm::vec3{0.f}};
+            }
+            s.count++;
+            s.head = z.zone == 1 ? at(z.hi) : s.head;
+        }
         const glm::vec4 c = zoneColours[static_cast<za::SizeT>(za::clamp(z.zone, 0, 4))];
         if(z.radius <= 0.f)
         {

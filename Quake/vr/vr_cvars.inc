@@ -299,7 +299,10 @@ QVR_CVAR(vr_net_movebuffer, "2", CVAR_NONE)        // hosting: a remote client's
 QVR_CVAR(vr_net_movebuffer_max, "10", CVAR_NONE)    // hosting (B20): the move buffer's depth follows each client's jitter, from vr_net_movebuffer up to this many moves (the spread of his moves' lateness over the last 2 s: a jittery link's moves still run one a tick); at or under vr_net_movebuffer: a fixed depth
 QVR_CVAR(vr_net_permove_skip, "0", CVAR_NONE)      // debug, hosting: these of a remote client's moves left to QuakeC once a frame, as before their phases (bit 1: the hands' climb out of the water, B8j part 3; 2: the grapple's rope, B8j part 4): to check a test sees them unpredicted
 QVR_CVAR(vr_bot_parry_chance, "-1", CVAR_NONE)     // a bot's chance (percent) to raise its melee weapon's guard against a blow it sees coming (MP bots phase 1: frikbot/bot_fight.qc bot_parry_frame); -1: by its skill (25, 50, 75, 90 for skills 0-3), its reaction's delay by its skill too (0.3, 0.2, 0.12, 0.06 s)
-QVR_CVAR(vr_bot_dual_wield, "1", CVAR_NONE)        // bots hold a second weapon that pairs with their main one (the players' and armed humanoids' rule, QC VR_AG_Pairs) in their off hand and fire both (MP bots phase 1); 0: their off hand only punches and grabs (MP B11 part 4)
+QVR_CVAR(vr_bot_aim_error, "1", CVAR_NONE)         // bots' aim error and tracking lag, times their skill's (his voice notes 2026-11-21: "super precise ... toned down"; frikbot/bot_fight.qc bot_aim_point: 6, 4, 2.5, 1.2 degrees and 0.12, 0.08, 0.05, 0.02 s behind a moving target for skills 0-3); 0: aimed dead on (as before)
+QVR_CVAR(vr_bot_reaction, "1", CVAR_NONE)          // bots' reaction time before they fire at an enemy just seen, times their skill's (bot_fire_ready: 0.8, 0.55, 0.35, 0.2 s for skills 0-3) and its pauses between bursts of fire (0.7, 0.5, 0.3, 0.15 s); 0: at once, no pauses (as before)
+QVR_CVAR(vr_bot_swing_windup, "0.3", CVAR_NONE)    // seconds a bot's melee swing is held raised before it comes down, beyond a player's swing, at skill 0 (his voice note 2026-11-21: "not very telegraphed"); skills 1-3 three quarters, half, a quarter of it (bot_windup); 0: a player's swing
+QVR_CVAR(vr_bot_dual_wield, "1", CVAR_NONE)       // bots hold a second weapon that pairs with their main one (the players' and armed humanoids' rule, QC VR_AG_Pairs) in their off hand and fire both (MP bots phase 1); 0: their off hand only punches and grabs (MP B11 part 4)
 QVR_CVAR(vr_pmove_bots, "1", CVAR_NONE)            // bots (FrikBot) walk through vr_pmove.cpp's moves as players do, their stick (QC .movevect) as a move each frame (MP_PLAN B11 part 3, part 3: one movement code); 0, the fallback: FrikBot's own copy of Quake's physics in QuakeC (bot_phys.qc)
 QVR_CVAR(vr_pmove_own, "1", CVAR_NONE)             // this game's own player (single player, a listen host's) walks through vr_pmove.cpp's moves as a remote client's do, one move a frame (MP_PLAN B11b: one movement module; on by default, his call 2026-11-16); 0, the fallback: sv_phys.c's SV_WalkMove and QuakeC's PlayerPreThink, as before
 QVR_CVAR(vr_pmove_trace, "0", CVAR_NONE)           // debug, tests: 1 each server frame prints the players' walk state after their physics ("pmtrace: ..."), to compare two runs frame by frame (B11b)
@@ -312,6 +315,8 @@ QVR_CVAR(vr_net_rate_max, "80000", CVAR_ARCHIVE | QVR_OWN) // hosting: the most 
 QVR_CVAR(vr_net_sendhz, "72", CVAR_NONE)         // hosting: a remote player's datagrams a second (his snapshot, the broadcast's events held between; vr_netsnap.cpp, MP_PLAN B13c). 72 (or more): one each server frame, as before; 36: every other frame, about half the bytes, his game draws the others a frame later
 QVR_CVAR(vr_net_test_hold, "0", CVAR_NONE)      // debug, tests (hosting): the other players' updates (entities and avatars) to a remote client wait this many snapshots in each one more, as his rate's waits do (the base's record kept): the lag compensation's rewind at the places he was sent, tested (vr_lagcomp.cpp; MP_PLAN B13c). 0: off
 QVR_CVAR(vr_net_cosmetic_bytes, "128", CVAR_NONE) // hosting: a remote client's datagram carries at most this many bytes of cosmetic fragments' updates (vr_smallgib, vr_explosion_debris: nothing touches them), the nearest and longest waiting first; the others wait and his client draws them between the places it has (vr_netsnap.cpp; MP_PLAN B12c: a gib storm's cost). 0: no budget of their own
+QVR_CVAR(vr_net_ragdolls, "1", CVAR_NONE)       // hosting: the ragdolls' parts (dead and active ones, knocked down, a dead player's body) in each remote client's snapshot, PVS-culled and delta-coded, drawn by his client as the server has them (vr_netragdoll.cpp; MP_PLAN "Ragdolls and physics bodies in multiplayer", ragsync). 0: none sent, his client draws their death animations as before
+QVR_CVAR(vr_net_ragdoll_bytes, "400", CVAR_NONE) // hosting: a remote client's snapshot carries at most this many bytes of moving ragdolls' parts (a grunt's about 270), the nearest, those ahead and the longest waiting first; the others wait and his client draws them between the poses it has (settled ones cost nothing). 0: no budget of their own
 QVR_CVAR(vr_net_cosmetic_fill, "352", CVAR_NONE) // hosting: the cosmetic fragments take only what the snapshot's other updates leave under this many bytes (at least a quarter of vr_net_cosmetic_bytes): a heavy fight's own updates leave a gib storm less, a remote client's link in combat under ~35 KB/s (vr_netsnap.cpp; MP_PLAN B18: mp_armed's 36.6 KB/s, a grunt gibbed in the window). 0: no such limit
 QVR_CVAR(vr_net_voice_bytes, "8000", CVAR_NONE)  // hosting: each client's voice chat budget, B/s (the others' voices relayed to him, each frame twice when it allows: NetQuake drops a datagram overtaken by a newer one; at most half his vr_net_rate; the oldest first, frames waiting over 0.3 s dropped: vr_voicerelay.cpp, MP_PLAN B10v). 0: no voice relayed
 QVR_CVAR(vr_voicechat, "1", CVAR_ARCHIVE)         // multiplayer: voice chat (your microphone sent while you talk, the others heard at their heads: vr_voicechat.cpp, MP_PLAN B10v); 0 neither. Single player: nothing
@@ -738,10 +743,16 @@ QVR_CVAR(vr_foveated, "3", CVAR_ARCHIVE)               // fixed foveated renderi
 QVR_CVAR(vr_foveated_debug, "0", CVAR_NONE)            // show the shading rates (yellow 2x2, red 4x4) and vr_upscale_radius (cyan) in the eyes and the mirror
 // Eye-tracked foveation (ROUND25.md, "Quest Pro"): the full-rate region follows the eyes' gaze, not the lens centre
 // (XR_EXT_eye_gaze_interaction: Quest Pro via Virtual Desktop with eye tracking forwarded, Varjo, Vive Pro Eye...).
-// The extension is asked for at VR start: a change takes effect at the next one. Off by default until tried.
-QVR_CVAR(vr_foveated_gaze, "0", CVAR_ARCHIVE)
+// 1 (the default since his ask, 2026-11-21: "if we detect that eye tracking is available, we use it; if we don't, we
+// just foveate in the centre"): the extension asked for at VR start when the runtime offers it; the gaze used while
+// tracked, the lens centre otherwise (no tracker, a blink), frame by frame, nothing to restart. 0: never asked for (no
+// tracker started, no permission asked); set back to 1, it is used from the next VR start (the menu line says so).
+QVR_CVAR(vr_foveated_gaze, "1", CVAR_ARCHIVE)
 // Mock backend: a gaze "right up" in degrees from the head's forward ("": no eye tracking), for vr_foveated_gaze.
 QVR_CVAR(vr_mock_gaze, "", CVAR_NONE)
+// Mock backend: 1 it has an eye tracker (EyeTracking::Ready, vr_mock_gaze its gaze); 0 the runtime offers none
+// (NotOffered, no gaze): the foveation's fallback to the lens centre, switched live (vr_foveated_gaze_test).
+QVR_CVAR(vr_mock_eye_tracking, "1", CVAR_NONE)
 
 QVR_CVAR(vr_enabled, "0", CVAR_NONE)
 // No main hand setting (ROUND21.md, "Handedness: separate options"): the hands are the physical ones, and each thing
@@ -784,12 +795,17 @@ QVR_CVAR(vr_move_autorun_threshold, "0.9", CVAR_ARCHIVE)
 // the held buttons let go); when this is set to 0. 0 (the default): held, as Quake's.
 // (A player's ask, 2026-11-19: click the stick to sprint rather than hold it.)
 QVR_CVAR(vr_sprint_toggle, "0", CVAR_ARCHIVE)
-// 1: run by double-tapping the moving stick (vr_input.cpp doubleTapStep; a tester's idea, 2026-11-18): a quick push
+// Seconds after a stick click lets go during which a new press is the switch bouncing, not a click (vr_input.cpp
+// debounceStickClicks): his Quest controllers' takes (NOTES.md vrfiringrange_2026-11-21_00-23-29) show a let go
+// followed 11-44 ms later by a press of 11-33 ms, read as a second click (the sprint toggle switched twice); his real
+// clicks are 100 ms long or more, 367 ms apart at the least. Both sticks, every use of the click. 0: off.
+QVR_CVAR(vr_stick_click_debounce, "0.08", CVAR_ARCHIVE)
+// 1: the other speed by double-tapping the moving stick (vr_input.cpp doubleTapStep; a tester's idea, 2026-11-18): a quick push
 // (half its travel or more past the deadzone, let go within vr_move_doubletap_window seconds), let go (under a quarter of
-// its travel), and a push the same way (within 45 degrees) within the window again: running until the stick is let go
-// (or as the sprint toggle ends: death, the intermission, a new map, a menu). It runs whatever the speed button says:
-// running is the speed button's choice (held, or vr_sprint_toggle's switch, against the Default Speed) or this. The VR
-// stick's only (not keys, not a gamepad). 0 (the default): off.
+// its travel), and a push the same way (within 45 degrees) within the window again: the Default Speed's other (cl_alwaysrun 0:
+// running; 1: walking; his ask, 2026-11-21) until the stick is let go (or as the sprint toggle ends: death, the
+// intermission, a new map, a menu), whatever the speed button says. The VR stick's only (not keys, not a gamepad).
+// 0 (the default): off.
 QVR_CVAR(vr_move_doubletap, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_move_doubletap_window, "0.3", CVAR_ARCHIVE) // seconds: the first push's most, and the gap's
 // The least speed (units a second) a push just past the deadzone asks on the ground (vr_input.cpp moveMinSpeed): -1
@@ -2679,6 +2695,12 @@ QVR_CVAR(vr_revolver_open_flick_speed, "400", CVAR_ARCHIVE) // the flick open's 
 QVR_CVAR(vr_revolver_open_flick_angle, "120", CVAR_ARCHIVE) // and its wrist flick: degrees it must roll that way in one go
 QVR_CVAR(vr_revolver_close_flick_speed, "350", CVAR_ARCHIVE) // the flick shut (always on: the wrist rolled the other way, the cylinder swung home): its force, degrees a second
 QVR_CVAR(vr_revolver_close_flick_angle, "75", CVAR_ARCHIVE) // and its wrist flick, degrees
+// A melee swing is no flick (his note 2026-11-21: "if I'm doing a melee attack, I often open the cylinder"): the flick
+// open is refused while the gun's hand moves this fast (m/s, against his body; vr_melee_speed's blow is 3.2) and for
+// vr_revolver_open_swing_hold seconds after it last did, or after a blow of his landed (QC VR_Revolver_SwingGuard).
+// A deliberate flick, the wrist rolled with the arm near still, still opens it. 0: no guard.
+QVR_CVAR(vr_revolver_open_swing_speed, "2", CVAR_ARCHIVE)
+QVR_CVAR(vr_revolver_open_swing_hold, "0.35", CVAR_ARCHIVE) // seconds
 QVR_CVAR(vr_revolver_open_flick_time, "0.25", CVAR_ARCHIVE) // the flick open's time window: its wrist flick must be rolled within this many seconds of the flick's start (0: no limit)
 QVR_CVAR(vr_revolver_open_button, "1", CVAR_ARCHIVE) // B/Y (its eject button) swings the cylinder out; out, B/Y pushes the ejector
 QVR_CVAR(vr_revolver_close_button, "0", CVAR_ARCHIVE) // out, B/Y swings it home instead (an accessibility option: the shells then leave by the hand's push or the ejector rod alone)
@@ -2810,6 +2832,10 @@ QVR_CVAR(vr_player_disarm_slip, "15", CVAR_ARCHIVE | QVR_RULE)      // cm: ... a
 QVR_CVAR(vr_dm_gibs_max, "64", CVAR_ARCHIVE)                  // deathmatch: the most loose gibs and heads lying about; past it the oldest go first (not one held, skewered or pulled; small gibs and limbs have their own caps). 0: no cap (QC vr_dmloose.qc; MP_PLAN B13b)
 QVR_CVAR(vr_dm_weapons_max, "32", CVAR_ARCHIVE)               // deathmatch: the most dropped and thrown weapons lying about (each also gone after 10 s); past it the oldest go first. 0: no cap (QC vr_dmloose.qc; MP_PLAN B13b)
 QVR_CVAR(vr_dm_test, "0", CVAR_NONE)                        // deathmatch's rules' test on a deathmatch server with a human and a bot (QC vr_dmrules_test.qc; Debug > Tests > Deathmatch Rules; mp_test.py dm)
+QVR_CVAR(vr_dm_test_who, "0", CVAR_NONE)                    // vr_dm_test 16-18's victim (QC vr_botgrab_test.qc; mp_test.py botgrab): 0 the first bot, 1 the second living human
+QVR_CVAR(vr_dm_test_x, "0", CVAR_NONE)                      // vr_dm_test 17-18's grab point (world; the harness's, where a client draws the victim's weapon)
+QVR_CVAR(vr_dm_test_y, "0", CVAR_NONE)                      // ... its y
+QVR_CVAR(vr_dm_test_z, "0", CVAR_NONE)                      // ... its z
 QVR_CVAR(vr_pd_test, "0", CVAR_NONE)                        // the player disarm's test (QC vr_playerdisarm_test.qc; Debug > Tests > Player Disarm): 1 shots at your gun and body, the option off
 QVR_CVAR(vr_agrunt_shotdisarm_debug, "0", CVAR_NONE)          // 1: prints each shot's part (weapon/hand/body), the damage adding up, the roll; 2: also shows the hit volumes (sparks)
 QVR_CVAR(vr_agrunt_fall_drop, "1", CVAR_ARCHIVE | QVR_RULE)  // 1: knocked down (on the floor, not a stagger) it drops its weapon beside it, and takes it back when it gets up
@@ -4176,6 +4202,8 @@ QVR_CVAR(vr_mg3_status, "0", CVAR_ROM)
 QVR_CVAR(vr_ad_status, "0", CVAR_ROM) // Arcane Dimensions' data (campaign 6; vr_gamedir.cpp, vr_ad.cpp): 0 missing, 1 1.80 patch 1 (the latest), 2 incomplete/corrupt, 3 another version (refused)
 QVR_CVAR(vr_dwell_status, "0", CVAR_ROM) // Dwell's data (campaign 7; vr_gamedir.cpp, vr_dwell.cpp): 0 missing, 1 v2.2, 2 incomplete/corrupt, 3 another version (refused)
 QVR_CVAR(vr_quoth_status, "0", CVAR_ROM) // Quoth's data (campaign 8; vr_gamedir.cpp, vr_quoth.cpp): 0 missing, 1 2.2, 2 incomplete/corrupt, 3 another version (refused)
+QVR_CVAR(vr_dw_lance_pole, "1", CVAR_ARCHIVE) // Dwell's Crystal Lance (dwellwpn2): 1 a two-handed lance (its model from Dwell's world model, the lightning gun's grip under its pole, weapons.txt slot 55; the other hand anywhere on its pole, sliding: a pole grip; its crystal head's blow a blade's, QC DW_LanceMelee; its beam from the head's tip), 0 the pistol from Dwell's view model (slot 53)
+QVR_CVAR(vr_dw_rotary_gauntlet, "1", CVAR_ARCHIVE) // Dwell's Rotary Shotgun (dwellwpn3): 1 held as a gauntlet, the super nailgun's way (its model from Dwell's view model laid round the super nailgun's hand, weapons.txt slot 56: the hand inside its housing), its shell port on the housing's inner side (the Widowmaker's tube and handful: vr_reload_port_widow_*), 0 the super shotgun's grip under it (slot 52; no port: loaded at the pouch)
 QVR_CVAR(vr_ruleset, "0", CVAR_ROM)   // the ruleset the map now running plays by (vr_rules.cpp: its campaign's, else its entities' signals): 0 Quake's, 1 Machine Games', 2 Arcane Dimensions', 3 Copper's; QC VR_Ruleset()
 QVR_CVAR(vr_ad_rules, "0", CVAR_ROM)  // the map now running plays by AD's rules (vr_ruleset 2: the AD campaign, or AD's signals in its entities while AD's data is mounted); AD's code and tests
 QVR_CVAR(vr_ad_evil, "0", CVAR_NONE)          // AD's Evil skill (decision 30; QC vr_ad_player.qc AD_Evil): with Nightmare (skill 3) and AD's data installed, any campaign plays Evil: 50 health at most (megahealth 100), the Shadow Axe's blows, AD's monsters at its skill 4. A game's choice like skill (kept in its saves); AD's own skill 4 sets it
@@ -4255,6 +4283,7 @@ QVR_CVAR(vr_stealth_seethrough, "1", CVAR_ARCHIVE | QVR_RULE)  // fences, grates
 QVR_CVAR(vr_stealth_investigate, "1", CVAR_ARCHIVE | QVR_RULE)  // an Alert monster walks to what it heard or saw (0: it only turns and looks)
 QVR_CVAR(vr_stealth_share_near, "256", CVAR_ARCHIVE | QVR_RULE) // units: a monster this near another that turns Alert or Hostile does too (0: none)
 QVR_CVAR(vr_stealth_share_view, "1000", CVAR_ARCHIVE | QVR_RULE) // units: one that sees it turn Hostile within this does too (Alert: half)
+QVR_CVAR(vr_stealth_share_hear, "800", CVAR_ARCHIVE | QVR_RULE) // units: a monster hurt or killed by you unawares cries out, heard this far (round walls less): Alert at it (0: none)
 QVR_CVAR(vr_stealth_flashlight, "1", CVAR_ARCHIVE | QVR_RULE)   // the flashlight's beam alerts monsters it lights or that see it
 QVR_CVAR(vr_stealth_sneak, "1.25", CVAR_ARCHIVE | QVR_RULE)     // damage times this to a monster that hasn't noticed anything (1: none)
 QVR_CVAR(vr_stealth_ambush_deaf, "1", CVAR_ARCHIVE | QVR_RULE)  // monsters placed in ambush (spawnflag 1) don't hear noises or other monsters (Quake's meaning)
@@ -4275,6 +4304,11 @@ QVR_CVAR(vr_anim_smooth_rig, "1", CVAR_ARCHIVE)      // ... and a rigged monster
 QVR_CVAR(vr_anim_smooth_rebuild, "1", CVAR_ARCHIVE)  // a rigged monster drawn from its fitted skeleton every frame (vr_animsmooth.cpp): each vertex its rest place on its bone moved with it, the frames' rounding gone (any Model Animation); a vertex its bone fits worse keeps the frames' place
 QVR_CVAR(vr_monster_lerp_continue, "1", CVAR_ARCHIVE | QVR_RULE) // a monster's next step drawn on from where it is drawn, not from its last step's end (no snap: the dogs' turns)
 QVR_CVAR(vr_debug_drawn_moves, "", CVAR_NONE)       // a part of model names (progs/dog): those monsters drawn jumping between frames logged ("drawnmove:")
+QVR_CVAR(vr_debug_lift, "0", CVAR_NONE)              // 1: the player and monsters riding a moving lift: how far their boxes, drawn models and the drawn eye sink into it, each ride's worst logged as it stops ("liftdebug:"; a local game)
+QVR_CVAR(vr_debug_lift_player, "-999", CVAR_NONE)    // (read-only, for tests) the last ride's worst sink of the player (box or drawn feet), -999 none measured
+QVR_CVAR(vr_debug_lift_eye, "-999", CVAR_NONE)       // ... and of his drawn eye (under its height over his feet standing still)
+QVR_CVAR(vr_debug_lift_monster, "-999", CVAR_NONE)   // (read-only, for tests) ... and of a monster riding it (box or drawn)
+QVR_CVAR(vr_view_lift_follow, "400", CVAR_ARCHIVE)   // the eye rides a rising lift (a rise no faster than this, units a second) instead of Quake's stair smoothing lagging it up to 12 units behind; 0: Quake's
 QVR_CVAR(vr_debug_pose_check, "0", CVAR_NONE)        // 1: monsters drawn collapsed logged ("posecheck:": held squashed between two poses over 0.2 s, a pose out of range, a blend not in 0..1, an uneven scale; vr_posecheck.cpp); 2: every frame of theirs; 3: as 1, and a screenshot at each long squash
 QVR_CVAR(vr_debug_pose_check_model, "", CVAR_NONE)  // ... only models whose names contain this (progs/knight)
 QVR_CVAR(vr_stealth_debug_meters, "0", CVAR_NONE)    // each monster's state and suspicion meter drawn over it (Debug > Tests > Stealth AI)
@@ -4412,10 +4446,11 @@ QVR_CVAR(vr_flat_lean, "1", CVAR_ARCHIVE)             // flatscreen play: Q / E 
 QVR_CVAR(vr_flat_lean_toggle, "0", CVAR_ARCHIVE)        // the lean keys: 0 lean while held; 1 a press leans, the next press of the same key (or the other's) stands straight
 QVR_CVAR(vr_flat_lean_mouse, "1", CVAR_ARCHIVE)         // flatscreen play: 1 the mouse (and the stick, the gyro) turn the view along the screen as it is rolled -- leant, strafing, hit -- straight up is up the tilted screen; 0 Quake's yaw and pitch, the roll ignored (vr_flatmove.cpp VR_FlatLookTurn)
 QVR_CVAR(vr_flat_slide, "1", CVAR_ARCHIVE)              // flatscreen play: crouching while running faster than vr_flat_slide_min slides (vr_flat_slide_*; vr_flatmove.cpp); 0 off
-QVR_CVAR(vr_slide, "0", CVAR_ARCHIVE)                   // experimental: a headset slides too, the turning stick pulled straight down while running faster than vr_flat_slide_min (the flat slide's own: vr_flat_slide_*; vr_slide.cpp); 0 off (the stick's down is +movedown as ever)
+QVR_CVAR(vr_slide, "1", CVAR_ARCHIVE)                   // a headset slides too (on by default since his ask, 2026-11-21), the turning stick pulled straight down while running faster than vr_flat_slide_min (the flat slide's own: vr_flat_slide_*; vr_slide.cpp); 0 off (the stick's down is +movedown as ever)
 QVR_CVAR(vr_slide_stick_threshold, "0.85", CVAR_ARCHIVE) // vr_slide: how far down the turning stick must be pulled (0.5..0.99 of its reach), from the middle
 QVR_CVAR(vr_slide_stick_angle, "20", CVAR_ARCHIVE)      // vr_slide: within this many degrees of straight down (5..45; a turn swept round to it never counts)
 QVR_CVAR(vr_slide_body, "1", CVAR_ARCHIVE)              // vr_slide: the drawn body takes the flat slide's pose (the trunk leant back, the legs out in front); 0 none
+QVR_CVAR(vr_slide_legs, "1", CVAR_ARCHIVE)              // vr_slide_body: the hips and legs point the slide's way, the chest turned back to the tracked body's, as the flat slide's (vr_flat_slide_legs and its tunables; slide::legsTurnStep; his ask, 2026-11-21); 0 the legs face the tracked body
 QVR_CVAR(vr_slide_camera, "1", CVAR_ARCHIVE)            // vr_slide: the view (the head, eyes, hands and body with it) eases down to the flat slide's eye height while sliding and back up after, on top of the tracked head (vr_slide.cpp viewDrop); 0 the view stays at the real head
 QVR_CVAR(vr_slide_camera_time, "0.15", CVAR_ARCHIVE)    // vr_slide_camera: seconds (0.05..0.5) the view takes down and back up (95% of the way; critically damped, no overshoot)
 QVR_CVAR(vr_flat_speed_fov, "1", CVAR_ARCHIVE)          // flatscreen play: faster than the run along the floor (a slide, a bunny hop chain) the view widens, eased (vr_flat_speed_fov_*; vr_flatspeedfov.cpp); 0 off

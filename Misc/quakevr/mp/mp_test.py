@@ -100,6 +100,9 @@ Tests:
     coopbots (MP bots phase 1) a dedicated coop server on e1m1: A adds a bot (impulse 100); the server's QC test brings a
              grunt in front of it: it kills it, never taking a player for its enemy; A through e1m1's exit: on e1m2 the
              bot is back with what it had (its super nailgun).
+    wristscore  (2026-11-21) the wrist gadget's multiplayer scoreboard page: A alone on e1m1 has none; on a deathmatch
+             server A and B join, A adds a bot and kills it: both pages list the three with their scoreboard's frags,
+             in its order, each marked as himself; A's page shown, its image dumped (A_wristscore.png).
     lockstep (B14b) two runs of the same play on a lockstep server (vr_mp_lockstep: one move of each client a world
              step, by number; vr_fixed_frames 1, sv_random_seed 1; its clients vr_mp_lockstep_ahead 4): A and B join
              e1m1, the world held at steps 36, 360 and 720 (vr_mp_lockstep_until) for the inputs (B walks north, A's
@@ -163,7 +166,7 @@ import traceback
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
-from mp_harness import LINKS, Instance, Session, StepFailed, fields, format_kinds, kind_rates  # noqa: E402
+from mp_harness import GAMES, LINKS, Instance, Session, StepFailed, fields, format_kinds, kind_rates  # noqa: E402
 from mp_nat import Nat  # noqa: E402
 from mp_load import Load  # noqa: E402
 import subprocess  # noqa: E402
@@ -1515,6 +1518,228 @@ def slide(s, flat=True):
             copy[0] >= SLIDE_SHARE and copy[1] < -1.0, "sliding %.2f, pitch %.1f; after %d reports" % (copy + (n,)))
 
 
+ADS_HEAD_EYE = 2.0   # mp_adspose: A's copy of sighted flat B: its drawn eyes within this of B's eye (units; before adspose 5.1, adspose 3.8; the cheek's offset 1.2)
+ADS_REACH = 1.02     # (noted) no arm stretched past this share of its own length
+ADS_WIDS = list(range(1, 32)) + [0]  # the weapons tried (vr_test_give_wid; 0: impulse 2, the shotgun he starts with, which a give does not take him back to): those with a sight line are measured
+ADS_POSTURES = ("stand", "crouch", "slide")  # each weapon: standing, crouched, sliding (the slow slide below; MP_ADSPOSE_SLIDE=0: none) ...
+ADS_LOOKS = (("level", 0.0), ("up", -40.0), ("down", 40.0))  # ... each looking level, 40 up, 40 down
+ADS_CAMS = (("side", (52.0, 10.0), 180.0), ("front", (6.0, 64.0), 270.0))  # A's spots off B (B faces north) and his yaw
+ADS_VIEW_FOV = 55.0  # A's field of view: B fills the shot
+ADS_VIEW_HEIGHT = 22.0  # A's eye above his origin (A aims at B's copy's head: crouched or sliding B in the shot too)
+ADS_FACE_W = 0.08    # metres: the face's half width and ...
+ADS_FACE_AHEAD = (-0.12, 0.45)  # ... its depth along the sights off the drawn eyes: an arm above the sight line there crosses the face
+ADS_POSED_AFTER = 0.1  # s of the server's time: B's moves after his still message reach the server and come back to A
+ADS_SLIDE_START = 0.0  # a slide starts this far south of the spot, slowly (the rules below), A's camera following (adspose3: 0 -- 40 south was in the wall behind the coop starts, the server put him 40 north of the spot, stuck)
+ADS_SLIDE_RULES = "vr_flat_slide_min 20; vr_flat_slide_boost 0; vr_flat_slide_friction 0; vr_flat_slide_end 5; vr_flat_slide_stamina 0; vr_flat_slide_cooldown 0"
+ADS_SLIDE_WALK = "cl_alwaysrun 0; cl_forwardspeed 60"  # B's walk into the slide, kept (no friction): on his sights about half
+# that (adspose3: 30 slid not at all, under vr_flat_slide_min 20); he has 38 units north of the spot before he is stopped
+
+
+def seg_points(a, b, n=12):
+    return [[a[i] + (b[i] - a[i]) * k / n for i in range(3)] for k in range(n + 1)]
+
+
+def adspose_numbers(own, adsl, copy, pitch):
+    """B's own body (mp_body_own), his ADS line (mp_adspose_own) and A's copy of his body (mp_body) at a look `pitch`
+    (B faces north) -> the measures: eye to the copy's drawn eyes, rear sight to them, the arms' reach; per arm its elbow
+    above the copy's drawn eyes along the look's up (under the gun: negative), and how far any of it stands above the
+    sight line in front of the face (nothing across the face: negative)."""
+    out = {"copy_eye": dist(copy["headeye"], adsl["eye"]), "rear_eye": dist(adsl["rear"], copy["headeye"]),
+           "head_up": adsl["eye"][2] - copy["headeye"][2]}
+    p = math.radians(pitch)
+    fwd, up, right = (0.0, math.cos(p), -math.sin(p)), (0.0, math.sin(p), math.cos(p)), (1.0, 0.0, 0.0)
+    m = copy["m2w"][0]
+    e = copy["headeye"]
+    dot = lambda v, w: sum(x * y for x, y in zip(v, w))
+    for h in (0, 1):
+        S, E, W = copy["shoulder%d" % h], copy["elbow%d" % h], copy["wrist%d" % h]
+        out["reach%d" % h] = dist(S, W)
+        out["elbow%d" % h] = dot([E[i] - e[i] for i in range(3)], up)
+        face = -99.0
+        for q in seg_points(S, E) + seg_points(E, W):
+            d = [q[i] - e[i] for i in range(3)]
+            if abs(dot(d, right)) < ADS_FACE_W * m and ADS_FACE_AHEAD[0] * m < dot(d, fwd) < ADS_FACE_AHEAD[1] * m:
+                face = max(face, dot(d, up))
+        out["face%d" % h] = face
+    return out
+
+
+def ads_cam(srv, a, ea, at, pitch, yaw, tries=60):
+    """A put at `at` looking `pitch` down, `yaw` (setpos), until the server has him there (a definite end: `tries`)."""
+    a.cmd("setpos %.1f %.1f %.1f %.1f %.1f 0; noclip" % (at[0], at[1], at[2], pitch, yaw))
+    for _ in range(tries):
+        got = org_of(status(srv), "mp_client", "slot", ea - 1)
+        if got and math.hypot(got[0] - at[0], got[1] - at[1]) <= 4:
+            return
+    raise StepFailed("A never put at %s" % (at,))
+
+
+def adspose(s):
+    """adspose (2026-11-21): his words, "The ADS pose for some weapons looks silly". A flat B holds each weapon with a
+    sight line on its sights (vr_flat_aim 1), standing, crouched and sliding, each looking level, 40 up and 40 down; flat
+    A watches from his side and from in front, aimed at his head. Measured: A's copy of B's drawn eyes against the eye
+    B's view and sights are solved from (mp_adspose_own), the rear sight against them, the arms (adspose2: the elbows
+    under the gun, nothing across the face); a screenshot from A of each. MP_ADSPOSE_SEEN=0 in the environment: both with
+    vr_flat_seen_ads 0, the body as before adspose (the before shots); MP_ADSPOSE_WIDS=5,8: those weapons only;
+    MP_ADSPOSE_SLIDE=0: no slides (adspose3: they start on the dedicated server, B walked into them from the spot)."""
+    seen = os.environ.get("MP_ADSPOSE_SEEN", "1")
+    srv, a, b, ea, eb = join(s, flat="AB")
+    srv.cmd(ADS_SLIDE_RULES)
+    put_at(srv, b, eb, OPEN_SPOT, 90)
+    put_at(srv, a, ea, (OPEN_SPOT[0] + ADS_CAMS[0][1][0], OPEN_SPOT[1] + ADS_CAMS[0][1][1], OPEN_SPOT[2]), ADS_CAMS[0][2])
+    b.cmd("god; notarget; vr_flat_seen_ads %s; %s; %s" % (seen, ADS_SLIDE_RULES, ADS_SLIDE_WALK))
+    a.cmd("god; notarget; impulse 1; fov %g; vr_flat_seen_ads %s" % (ADS_VIEW_FOV, seen))
+    b.quiet(r"mp_(move|pos): ", 0.5, 20, "both at rest")
+    rows, worst = [], {"copy_eye": 0.0, "rear_eye": 0.0, "elbow": -99.0, "face": -99.0, "slide_up": 0.0}
+    last_model, stand_up, slides = "", None, [0, 0]
+
+    def settle(pitch, crouched, first):
+        """B's weapon in his hand, on its sights at the look and the crouch asked for and still (his eye and rear sight
+        over two reports), A's copy of his body posed from an avatar B sent after that (the server's times: B's message
+        when he was still, the copy's drawn time ADS_POSED_AFTER later) and still over 3 reports running -> (adsl, own,
+        copy, model) or None (no sight line). A definite end: 120 reports (the travel is 18 frames, the stance's ease 29,
+        the crouch's). adspose3: the copy was taken still while it still showed the look before (the interpolation's
+        delay is longer than 3 reports): its eyes 7.0 off, an arm over the line."""
+        got, still, model, prev_b, still_since = None, 0, "-", None, None
+        for k in range(120):
+            la, lb = reports(s, [a, b])
+            adsl = by_ent(lb, "mp_adspose_own").get(eb)
+            own, copy = body_of(lb, "mp_body_own").get(eb), body_of(la, "mp_body").get(eb)
+            m = next((re.search(r"wmodel=(\S+)", l) for l in lb if l.startswith("mp_adspose_own:")), None)
+            model = m.group(1) if m else "-"
+            b_ready = adsl and own and copy and (model != last_model or not first or k >= 30) and \
+                abs(adsl["look"][0] - pitch) < 1.0 and (adsl["sight"][0] == 0 or adsl["ads"][0] >= 0.99) and \
+                (stand_up is None or (adsl["eyeup"][0] < stand_up - 4.0) == crouched)
+            b_still = b_ready and prev_b is not None and dist(prev_b["eye"], adsl["eye"]) < 0.05 and \
+                dist(prev_b["rear"], adsl["rear"]) < 0.05
+            still_since = (still_since if still_since is not None else prev_b["stime"][0]) if b_still else None
+            prev_b = adsl if b_ready else None
+            ready = b_still and "posedat" in copy and copy["posedat"][0] >= still_since + ADS_POSED_AFTER
+            if ready and got and all(dist(got[2][j], copy[j]) < 0.05 for j in ("headeye", "wrist0", "wrist1")):
+                still += 1
+            else:
+                still = 0
+            got = (adsl, own, copy, model) if ready else None
+            if still >= 3:
+                return got
+        return None
+
+    def slide_at(pitch):
+        """B walks north into a slow slide (the rules above) on his sights at the look -> (adsl, own, copy) while A's copy
+        of him slides and he is on them, or None (a definite end: 60 + 80 + 150 reports)."""
+        start = (OPEN_SPOT[0], OPEN_SPOT[1] - ADS_SLIDE_START, OPEN_SPOT[2])
+        # (adspose3: B at the start as the server has him first, then walking 4 units north of it as the server has him --
+        # the copy's place was read before, still at the spot 40 north of the start, and the crouch went at once with B at
+        # rest on the server: "slide: none on the press: speed 0"; 4 units: his walk's speed reached)
+        b.cmd("-forward; -flatcrouch")
+        b.cmd("setpos %.1f %.1f %.1f %.1f 90 0; noclip" % (start[0], start[1], start[2], pitch))
+        got = None
+        for _ in range(60):
+            got = org_of(status(srv), "mp_client", "slot", eb - 1)
+            if got and math.hypot(got[0] - start[0], got[1] - start[1]) <= 4:
+                break
+        b.cmd("+forward")
+        for _ in range(80):
+            got = org_of(status(srv), "mp_client", "slot", eb - 1)
+            if got and got[1] - start[1] >= 4.0:
+                break
+        b.cmd("+flatcrouch")
+        seen_most = [0.0, 0.0, 0.0, 0.0]  # (a miss's note: the most of A's copy's slide, B's own, his travel; how far he went)
+        prev_up, low_since = None, None
+        for _ in range(150):
+            la, lb = reports(s, [a, b])
+            adsl = by_ent(lb, "mp_adspose_own").get(eb)
+            own, copy = body_of(lb, "mp_body_own").get(eb), body_of(la, "mp_body").get(eb)
+            seen_most = [max(seen_most[0], copy.get("sliding", [0])[0] if copy else 0), max(seen_most[1], own.get("sliding", [0])[0] if own else 0),
+                         max(seen_most[2], adsl["ads"][0] if adsl else 0), max(seen_most[3], copy["pelvis"][1] - start[1] if copy else 0)]
+            b_on = adsl and own and own.get("sliding", [0])[0] >= SLIDE_SHARE and abs(adsl["look"][0] - pitch) < 1.0 and \
+                adsl["ads"][0] >= 0.99
+            # (adspose3: B down in his slide -- his eye's height over his origin still over two reports: the crouch's ease
+            # gone -- and A's copy posed from his avatar after that: taken at once, the copy still came down, 6 over)
+            low = b_on and prev_up is not None and abs(adsl["eyeup"][0] - prev_up) < 0.05
+            low_since = (low_since if low_since is not None else adsl["stime"][0]) if low else None
+            prev_up = adsl["eyeup"][0] if b_on else None
+            if low and copy and "sliding" in copy and copy["sliding"][0] >= SLIDE_SHARE and \
+                    copy.get("posedat", [0])[0] >= low_since + ADS_POSED_AFTER:
+                return adsl, own, copy
+        s.note("slide missed: A's copy sliding %.2f at most, B's own %.2f, on the sights %.2f, %.0f units north" % tuple(seen_most))
+        return None
+
+    def shots(name, copy, lead):
+        """A at each camera spot off B's copy (`lead`: units north he moves meanwhile), aimed at its head; a shot each."""
+        aim = [copy["headeye"][0], copy["headeye"][1] + lead, copy["headeye"][2] - 8.0]
+        for cam, off, yaw in ADS_CAMS:
+            at = (copy["pelvis"][0] + off[0], copy["pelvis"][1] + off[1] + lead, OPEN_SPOT[2])
+            down = math.degrees(math.atan2(at[2] + ADS_VIEW_HEIGHT - aim[2], math.hypot(aim[0] - at[0], aim[1] - at[1])))
+            ads_cam(srv, a, ea, at, down, yaw)
+            a.screenshot("%s_%s" % (name, cam))
+
+    wids = [int(w) for w in os.environ["MP_ADSPOSE_WIDS"].split(",")] if os.environ.get("MP_ADSPOSE_WIDS") else ADS_WIDS
+    for wid in wids:
+        srv.cmd("vr_test_give_wid %d" % max(wid, 1))
+        b.cmd("%s; vr_flat_aim 1" % ("impulse 149" if wid else "impulse 2"))
+        sighted = True
+        for posture in [p for p in ADS_POSTURES if p != "slide" or os.environ.get("MP_ADSPOSE_SLIDE", "1") == "1"]:
+            for look, pitch in ADS_LOOKS:
+                first = posture == ADS_POSTURES[0] and look == ADS_LOOKS[0][0]
+                if posture == "slide":
+                    got = slide_at(pitch)
+                    slides[0 if got else 1] += 1
+                    if not got:
+                        b.cmd("-forward; -flatcrouch")
+                        s.note("wid %d %s slide %s: no slide on the sights seen" % (wid, last_model, look))
+                        continue
+                    adsl, own, copy = got
+                    model = last_model
+                else:
+                    b.cmd("-forward; %s; setpos %.1f %.1f %.1f %.1f 90 0; noclip" % (
+                        "+flatcrouch" if posture == "crouch" else "-flatcrouch", OPEN_SPOT[0], OPEN_SPOT[1], OPEN_SPOT[2], pitch))
+                    got = settle(pitch, posture == "crouch", first)
+                    if not got or got[0]["sight"][0] == 0:
+                        sighted = False
+                        break  # (no sight line on it: the next weapon)
+                    adsl, own, copy, model = got
+                    last_model = model
+                    if first:
+                        stand_up = adsl["eyeup"][0]
+                n = adspose_numbers(own, adsl, copy, pitch)
+                rows.append((wid, model, posture, look, n))
+                s.note("wid %d %s %s %s: eye->copy's drawn eyes %.1f (eye above them %.1f), rear sight->drawn eyes %.1f, "
+                       "reach %.1f %.1f, elbows over the eyes %.1f %.1f, arms over the line before the face %.1f %.1f" % (
+                           wid, model, posture, look, n["copy_eye"], n["head_up"], n["rear_eye"], n["reach0"], n["reach1"],
+                           n["elbow0"], n["elbow1"], n["face0"], n["face1"]))
+                if posture != "slide":
+                    worst["copy_eye"] = max(worst["copy_eye"], n["copy_eye"])
+                    worst["rear_eye"] = max(worst["rear_eye"], n["rear_eye"])
+                else:  # (moving, the copy is the interpolation's delay behind along the way: its eyes' height judged)
+                    worst["slide_up"] = max(worst["slide_up"], abs(n["head_up"]))
+                worst["elbow"] = max(worst["elbow"], n["elbow0"], n["elbow1"])
+                worst["face"] = max(worst["face"], n["face0"], n["face1"])
+                shots("ads_w%02d_%s_%s" % (wid, posture, look), copy, 10.0 if posture == "slide" else 0.0)
+                if posture == "slide":
+                    b.cmd("-forward; -flatcrouch")
+            if not sighted:
+                break
+    b.cmd("vr_flat_aim 0; -flatcrouch; -forward")
+    s.metric("ads_rows", len(rows))
+    s.metric("ads_copy_eye_worst", worst["copy_eye"])
+    s.metric("ads_elbow_worst", worst["elbow"])
+    s.metric("ads_face_worst", worst["face"])
+    s.check("weapons with a sight line measured (at least 8 sighted poses)", len(rows) >= 8, "%d" % len(rows))
+    if os.environ.get("MP_ADSPOSE_SLIDE", "1") == "1":
+        s.check("slides on the sights seen (every weapon's three looks)", slides[1] == 0, "%d seen, %d missed" % tuple(slides))
+        s.check("A's copy of sighted sliding B: its drawn eyes within %g of B's eye's height" % ADS_HEAD_EYE,
+                worst["slide_up"] <= ADS_HEAD_EYE, "worst %.2f" % worst["slide_up"])
+    s.check("A's copy of sighted B: its drawn eyes within %g of B's eye (standing, crouched)" % ADS_HEAD_EYE,
+            worst["copy_eye"] <= ADS_HEAD_EYE, "worst %.2f" % worst["copy_eye"])
+    s.check("A's copy of sighted B: both elbows under the gun (below the drawn eyes along the look's up) at every look",
+            worst["elbow"] < 0.0, "worst %.2f above" % worst["elbow"])
+    s.check("A's copy of sighted B: no arm above the sight line in front of the face at any look", worst["face"] <= 0.0,
+            "worst %.2f above" % worst["face"])
+    # (the rear sight's distance is B's own relief, not the copy's: the laser cannon's is 24 to 29; noted, not judged)
+    s.note("the rear sight off the copy's drawn eyes: worst %.2f" % worst["rear_eye"])
+
+
 def dolls_of(lines):
     """"mp_doll:" lines -> {player ent: fields (avatar_fields) with "model" and "dollmodel"}."""
     out = {}
@@ -1587,6 +1812,212 @@ def deathbody(s):
     deathbody_case(s, srv, a, b, ea, eb, a, ea, models, -0.5, "A")
     s.check("A respawned (his trigger)", respawn_if_dead(srv, a, ea))
     deathbody_case(s, srv, a, b, ea, eb, b, eb, models, 0.6, "B")
+
+
+RAG_BL = re.compile(r"mp_bl: side=(\w+) t=(\S+) n=(\d+) m=(\S+) o=(\S+) a=(\S+) rag=(\d)")
+RAG_BP = re.compile(r"mp_bp: side=(\w+) t=(\S+) n=(\d+) b=(\d+) p=(\S+) q=(\S+) src=(\w+)")
+RAG_SECONDS = 16  # each side's vr_mp_bodylog: game time (the play below and its settling)
+
+
+def rag_vec(text):
+    return [float(x) for x in text.split(",")]
+
+
+def rag_quat(a):
+    """Quake angles (pitch, yaw, roll; degrees) -> a quaternion (w, x, y, z): one fixed convention for both sides."""
+    p, y, r = [math.radians(v) / 2.0 for v in a]
+    cy, sy, cp, sp, cr, sr = math.cos(y), math.sin(y), math.cos(p), math.sin(p), math.cos(r), math.sin(r)
+    return (cy * cp * cr + sy * sp * sr, cy * cp * sr - sy * sp * cr, cy * sp * cr + sy * cp * sr, sy * cp * cr - cy * sp * sr)
+
+
+def rag_qang(q1, q2):
+    d = abs(sum(x * y for x, y in zip(q1, q2))) / max(1e-9, math.sqrt(sum(x * x for x in q1) * sum(y * y for y in q2)))
+    return math.degrees(2.0 * math.acos(min(1.0, d)))
+
+
+def rag_kind(model, rag):
+    m = model.lower()
+    if rag:
+        return "ragdoll"
+    for key, kind in (("h_", "head"), ("gib", "gib"), ("crate", "crate"), ("barrel", "barrel"), ("sword", "weapon"),
+                      ("w_", "weapon"), ("g_", "weapon"), ("debris", "chunk"), ("soldier", "monster"), ("grunt", "monster")):
+        if key in m.split("/")[-1]:
+            return kind
+    return m.split("/")[-1]
+
+
+def rag_series(lines, side):
+    """vr_mp_bodylog lines of `side` -> ({ent: [(t, origin, quat, model, rag)]}, {(ent, part): [(t, pos, quat, src)]})."""
+    ents, parts = {}, {}
+    for l in lines:
+        m = RAG_BL.match(l)
+        if m and m.group(1) == side:
+            ents.setdefault(int(m.group(3)), []).append((float(m.group(2)), rag_vec(m.group(5)), rag_quat(rag_vec(m.group(6))),
+                                                          m.group(4), m.group(7) == "1"))
+            continue
+        m = RAG_BP.match(l)
+        if m and m.group(1) == side:
+            parts.setdefault((int(m.group(3)), int(m.group(4))), []).append(
+                (float(m.group(2)), rag_vec(m.group(5)), tuple(rag_vec(m.group(6))), m.group(7)))
+    return ents, parts
+
+
+def rag_errors(host, client):
+    """Each client sample against the host's (the server's, every tick) at its time, interpolated -> [(pos error, turn
+    error, moving, client sample)]; moving: the host's moved more than 0.05 units or 0.1 degrees over that tick."""
+    out = []
+    for key, cs in client.items():
+        hs = host.get(key)
+        if not hs or len(hs) < 2:
+            continue
+        times = [h[0] for h in hs]
+        j = 0
+        for c in cs:
+            t = c[0]
+            while j + 1 < len(hs) and times[j + 1] < t:
+                j += 1
+            if j + 1 >= len(hs) or not (times[j] <= t <= times[j + 1]) or times[j + 1] - times[j] > 0.05:
+                continue
+            h0, h1 = hs[j], hs[j + 1]
+            f = (t - h0[0]) / max(1e-9, h1[0] - h0[0])
+            p = [x + (y - x) * f for x, y in zip(h0[1], h1[1])]
+            q0, q1 = h0[2], h1[2]
+            sgn = 1.0 if sum(x * y for x, y in zip(q0, q1)) >= 0 else -1.0
+            q = tuple(x + (sgn * y - x) * f for x, y in zip(q0, q1))
+            moving = dist(h0[1], h1[1]) > 0.05 or rag_qang(q0, q1) > 0.1
+            out.append((dist(p, c[1]), rag_qang(q, c[2]), moving, c))
+    return out
+
+
+def rag_stats(errs):
+    if not errs:
+        return None
+    pe = sorted(e[0] for e in errs)
+    re_ = sorted(e[1] for e in errs)
+    n = len(pe)
+    return {"n": n, "pos_mean": sum(pe) / n, "pos_p95": pe[min(n - 1, int(0.95 * n))], "pos_max": pe[-1],
+            "rot_mean": sum(re_) / n, "rot_p95": re_[min(n - 1, int(0.95 * n))], "rot_max": re_[-1]}
+
+
+def ragsync_phase(s, srv, a, b, eb, on, left):
+    """One play with vr_net_ragdolls `on`: a grunt knocked down (an active ragdoll) and killed (a dead one), a crate and
+    a sword thrown tumbling, another grunt knocked down and gibbed; both sides log what they have each tick (vr_mp_bodylog:
+    A the server's, B what he draws) -> {kind: stats} of B against A, and B's ragdoll bytes a second while it moved and
+    once settled."""
+    label = "ragdolls%d" % on
+    since = srv.mark()
+    srv.cmd("vr_net_ragdolls %d; vr_physics_spawn monster_army 200 %d" % (on, left))
+    srv.wait(r"vr_physics_spawn: \d+ monster_army at", 20, since, "a grunt ahead (%s)" % label)
+    sn0 = snap_status(srv, eb)
+    since_a, since_b = a.mark(), b.mark()
+    b.cmd("vr_net_bytes reset; vr_mp_bodylog %d 700" % RAG_SECONDS)
+    b.wait(r"mp_bodylog: seconds=", 10, since_b)
+    # (the play, in counted frames of the logic: the knockdown's fall, the corpse's, the throws' flights and landings)
+    steps = ((0.0, "vr_mp_bodylog %d 700" % RAG_SECONDS), (0.5, "vr_knockdown_test 0"), (2.0, "vr_knockdown_test 3"),
+             (3.0, "vr_physics_spawn vr_crate 120 %d; vr_physics_spawn weapon_knight_sword 110 %d" % (left - 40, left + 40)),
+             (0.15, "vr_physics_fling vr_crate 260 90 260; vr_physics_fling weapon_knight_sword 300 90 300"),
+             (0.5, "vr_physics_spawn monster_army 170 %d" % left), (0.5, "vr_knockdown_test 0"), (0.5, "vr_knockdown_test 4"))
+    for i, (after, cmd) in enumerate(steps):
+        if after > 0:
+            # (the server's game time, counted: vr_mp_after)
+            mark = srv.mark()
+            srv.cmd("vr_mp_after %.2f rag%d_%d" % (after, on, i))
+            srv.wait(r"mp_after: .* rag%d_%d" % (on, i), 60, mark, "%s step %d" % (label, i))
+        srv.cmd(cmd)
+    a.wait(r"mp_bodylog: done", 120, since_a, "A's log (%s)" % label)
+    b.wait(r"mp_bodylog: done", 120, since_b, "B's log (%s)" % label)
+    sn1 = snap_status(srv, eb)
+    # (ragsync2) B's changed records that waited over the play (his rate, the datagram's room), the ragdolls' among them
+    waits = {k: int(sn1.get(k, 0)) - int(sn0.get(k, 0)) for k in ("waited", "rwaited", "sent")}
+    s.note("%s: B's snapshots %d, changed records that waited %d (ragdolls' %d, the others' %d)" % (
+        label, waits["sent"], waits["waited"], waits["rwaited"], waits["waited"] - waits["rwaited"]))
+    s.metric("%s_waited_others" % label, waits["waited"] - waits["rwaited"])
+    since_bb = b.mark()
+    b.cmd("vr_net_bytes")
+    _, moved = b.wait(r"mp_netbytes: ", 10, since_bb)
+    moved_rag = int(fields(moved)["snap_rag"])
+    # Settled: two seconds more, B's ragdoll bytes then.
+    since_bb = b.mark()
+    b.cmd("vr_net_bytes reset; echo mp_ragsettle_begin")
+    b.wait(r"mp_ragsettle_begin", 10, since_bb)
+    mark = srv.mark()
+    srv.cmd("vr_mp_after 2 ragsettled%d" % on)  # (two seconds of the server's game time, counted)
+    srv.wait(r"mp_after: .* ragsettled%d" % on, 60, mark, "two settled seconds")
+    since_bb = b.mark()
+    b.cmd("vr_net_bytes")
+    _, settled = b.wait(r"mp_netbytes: ", 30, since_bb)
+    settled_rag = int(fields(settled)["snap_rag"])
+    ha, pa = rag_series(a.lines[since_a:], "sv")
+    hb, pb = rag_series(b.lines[since_b:], "cl")
+    out = {}
+    for err in rag_errors(ha, hb):
+        c = err[3]
+        model, rag = c[3], c[4]
+        out.setdefault(("entity", rag_kind(model, rag)), []).append(err)
+    for err in rag_errors(pa, pb):
+        out.setdefault(("parts", err[3][3]), []).append(err)
+    table = {}
+    for key, errs in sorted(out.items()):
+        mv = [e for e in errs if e[2]]
+        st, sm = rag_stats(errs), rag_stats(mv)
+        table[key] = (st, sm)
+        s.note("%s %s %s: all n=%d pos mean %.2f p95 %.2f max %.2f u, turn mean %.2f p95 %.2f max %.2f deg; moving %s" % (
+            label, key[0], key[1], st["n"], st["pos_mean"], st["pos_p95"], st["pos_max"], st["rot_mean"], st["rot_p95"],
+            st["rot_max"], ("n=%d pos mean %.2f p95 %.2f max %.2f u, turn mean %.2f p95 %.2f max %.2f deg" % (
+                sm["n"], sm["pos_mean"], sm["pos_p95"], sm["pos_max"], sm["rot_mean"], sm["rot_p95"], sm["rot_max"]))
+            if sm else "none"))
+    secs = RAG_SECONDS
+    s.note("%s: B's ragdoll bytes %d over the play (%.0f B/s), %d over 2 s settled" % (label, moved_rag, moved_rag / secs,
+                                                                                    settled_rag))
+    s.metric("%s_rag_Bps" % label, round(moved_rag / secs))
+    s.metric("%s_rag_settled_B" % label, settled_rag)
+    return table, moved_rag, settled_rag
+
+
+def ragsync(s):
+    """ragsync (2026-11-21): his words, "Ragdolls don't seem to be synchronized. Especially in coop, they should be,
+    for active ragdolls" and "Can you check if props and other physics entities are synchronized?". A VR listen host A and
+    a flat client B side by side in vrtesthall; the same play twice (ragsync_phase), the ragdolls' parts out of B's
+    snapshot (vr_net_ragdolls 0, as before) and in it: B's drawn things against the server's at the same server time.
+    With them: B draws the ragdolls by their parts (not the animation), within RAG_PART_POS units and RAG_PART_TURN
+    degrees of the server's while they move (p95); the props, gibs and the thrown sword within RAG_ENT_POS / RAG_ENT_TURN;
+    settled ragdolls cost B nothing."""
+    srv, a, b, ea, eb = join(s, listen=True, flat="B", level="vrtesthall", srv_first="developer 1",
+                             first=lambda srv, a, ea: put_at(srv, a, ea, (-260.0, HALL_START_Y - 60.0, HALL_Z), 90))
+    a.cmd("god; notarget")
+    b.cmd("god; notarget")
+    put_at(srv, b, eb, ARMED_B, 90)
+    before, _, _ = ragsync_phase(s, srv, a, b, eb, 0, -70)
+    after, moved, settled = ragsync_phase(s, srv, a, b, eb, 1, 70)
+    parts = after.get(("parts", "rag"))
+    s.check("with vr_net_ragdolls 1 B draws the ragdolls by their parts", parts is not None and parts[0]["n"] > 500,
+            "%d part samples drawn by parts; %s by the animation" % (
+                parts[0]["n"] if parts else 0, after.get(("parts", "anim"), (None,))[0]["n"] if after.get(("parts", "anim")) else 0))
+    if parts and parts[1]:
+        sm = parts[1]
+        s.check("moving ragdoll parts at B within %.1f units and %.1f degrees of the server's (p95)" % (RAG_PART_POS, RAG_PART_TURN),
+                sm["pos_p95"] <= RAG_PART_POS and sm["rot_p95"] <= RAG_PART_TURN,
+                "p95 %.2f units, %.2f degrees (max %.2f, %.2f)" % (sm["pos_p95"], sm["rot_p95"], sm["pos_max"], sm["rot_max"]))
+    anim = before.get(("parts", "anim"))
+    if anim and anim[1] and parts and parts[1]:
+        s.note("ragdoll parts while moving, p95: before %.1f units %.1f degrees (the animation), after %.2f units %.2f degrees" % (
+            anim[1]["pos_p95"], anim[1]["rot_p95"], parts[1]["pos_p95"], parts[1]["rot_p95"]))
+    for key, (st, sm) in sorted(after.items()):
+        # (the props thrown: the crate and the sword; gibs, heads, the dropped weapons and backpacks are notes: the
+        # small gibs' cosmetic budget and the rate's waits are B12c's, as without ragdolls)
+        if key[0] != "entity" or not sm or key[1] not in ("crate", "weapon"):
+            continue
+        s.check("%s at B within %.1f units and %.1f degrees of the server's while it moves (p95)" % (key[1], RAG_ENT_POS, RAG_ENT_TURN),
+                sm["pos_p95"] <= RAG_ENT_POS and sm["rot_p95"] <= RAG_ENT_TURN,
+                "p95 %.2f units, %.2f degrees over %d samples" % (sm["pos_p95"], sm["rot_p95"], sm["n"]))
+    s.check("B's ragdoll bytes while they moved", moved > 0, "%d B" % moved)
+    s.check("settled ragdolls cost B (almost) nothing (under 2%% of the moving play's bytes a second)",
+            settled / 2.0 <= 0.02 * moved / (RAG_SECONDS) + 1, "%d B in 2 s settled; %d B in %.0f s of play" % (
+                settled, moved, RAG_SECONDS))
+
+
+RAG_PART_POS, RAG_PART_TURN = 2.0, 3.0  # a moving ragdoll part at B against the server's, p95 (units, degrees)
+RAG_ENT_POS, RAG_ENT_TURN = 2.0, 3.0    # a moving prop, gib or weapon
 
 
 def cosmetics_b6b(s, srv, a, b, ea, eb):
@@ -6402,6 +6833,169 @@ def frag_table(inst, since=0):
     return table
 
 
+BOTGRAB_OFF = 14.0  # mp_botgrab: units the second grab is off the drawn weapon's middle (square to it): nothing taken
+
+
+def botgrab_case(s, srv, a, who, ent, label):
+    """(bots3) vr_dm_test 16 holds the victim (`who` 0 the bot, 1 B) still; A's client's drawing of its weapon (mp_drawnwpn,
+    entity `ent`'s main hand) gives the grab's points: BOTGRAB_OFF units off it nothing is taken hold of (vr_dm_test 18),
+    at its middle it is taken (17)."""
+    for test, off in ((18, BOTGRAB_OFF), (17, 0.0)):
+        since = srv.mark()
+        since_a = a.mark()
+        srv.cmd("vr_dm_test_who %d; vr_dm_test 16" % who)
+        _, ready = a.wait(r"dmtest: hold: .*(ready|FAIL)", 30, since_a, "%s: the victim held" % label)
+        if "FAIL" in ready:
+            s.check("%s: the victim held (vr_dm_test 16)" % label, False, ready.strip())
+            return
+
+        def drawn(lines):
+            return [avatar_fields(l) for l in lines[0] if l.startswith("mp_drawnwpn: ent=%d side=1 " % ent)]
+        (la,), _ = reports_until(s, [a], drawn, "%s: A draws the victim's weapon" % label)
+        w = drawn([la])[-1]
+        butt, muzzle = w["butt"], w["muzzle"]
+        mid = [(p + q) * 0.5 for p, q in zip(butt, muzzle)]
+        axis = [q - p for p, q in zip(butt, muzzle)]
+        side = [axis[1], -axis[0], 0.0]  # (level, square to the weapon)
+        n = math.sqrt(sum(c * c for c in side)) or 1.0
+        at = [m + c / n * off for m, c in zip(mid, side)] if any(side) else [mid[0], mid[1], mid[2] + off]
+        since = srv.mark()
+        srv.cmd("vr_dm_test_x %.2f; vr_dm_test_y %.2f; vr_dm_test_z %.2f; vr_dm_test %d" % (at[0], at[1], at[2], test))
+        _, verdict = srv.wait(r"dmtest: \d+ passed, \d+ failed", 30, since, "%s: vr_dm_test %d's verdict" % (label, test))
+        got = [l.strip() for l in srv.lines[since:] if "dmtest: " in l or "pdisarm: " in l]
+        s.check("%s: %s (vr_dm_test %d; drawn butt %s, muzzle %s)" % (
+            label, "a grab %g units off the drawn weapon takes nothing" % off if off else
+            "a grab at the drawn weapon's middle takes it", test, butt, muzzle), " 0 failed" in verdict,
+            "%s %s" % (verdict.strip(), got[-4:]))
+
+
+def botgrab(s):
+    """(bots3; his notes 2026-11-21: "if I try to grab their weapon where it visually is, nothing happens") The disarm
+    grab at another's weapon where it is drawn: on a dedicated deathmatch server B is held 64 units in front of A (vr_dm_test 16), holding a
+    shotgun out; then a bot held there (vr_dm_test 16). For each, A's client reports where it draws the victim's weapon
+    (vr_mp_avatars' mp_drawnwpn), and the server closes A's empty hand there: taken (vr_dm_test 17); BOTGRAB_OFF units off
+    it: nothing (18). The bot's weapon is placed by the server (view::placeHeld) and drawn there by every client."""
+    srv = s.server(dedicated=True)
+    srv.start()
+    srv.cmd("coop 0; deathmatch 1; noexit 1; fraglimit 0; timelimit %d; skill 1; map %s; vr_mp_status" % (
+        DM_TIMELIMIT, DM_MAP))
+    srv.wait(r"mp_server: map=%s" % DM_MAP, 120, what="the server on %s" % DM_MAP)
+    a = s.client("A").start()
+    b = s.client("B").start()
+    a.cmd(s.connect_cmd(a))
+    _, ja = a.wait(r"mp_event: .*joined map=%s" % DM_MAP, 120, what="A joined %s" % DM_MAP)
+    b.cmd(s.connect_cmd(b))
+    _, jb = b.wait(r"mp_event: .*joined map=%s" % DM_MAP, 120, what="B joined %s" % DM_MAP)
+    ea, eb = int(fields(ja)["self"]), int(fields(jb)["self"])
+    a.cmd("name A; %s" % EMPTY_HAND)
+    b.cmd("name B")
+    # (his gun held out, his grip held: the test's hold gives him a shotgun, deathmatch having no test gives)
+    b.cmd("%s; vr_mock_button main grip 1; vr_mock_button off grip 0" % HOLD_OUT)
+    botgrab_case(s, srv, a, 1, eb, "player B")
+    # a bot (FrikBot: impulse 100 on the server through A), held in front of A by the test
+    since_a = a.mark()
+    a.cmd("impulse 100")
+    a.wait(r"mp_frags: .*named=1", 10, since_a, "the bot named at A")
+    bots = []
+    for _ in range(10):
+        bots = sorted(slot for slot in frag_table(a) if slot not in (ea - 1, eb - 1))
+        if bots:
+            break
+        since_c = a.mark()
+        wait_quietly(a, r"mp_frags: ", 5, since_c, "the bot listed at A")
+    s.check("A lists the bot", len(bots) == 1, "%s" % frag_table(a))
+    if bots:
+        botgrab_case(s, srv, a, 0, bots[0] + 1, "the bot")
+
+
+def debugviz_case(s, srv, a, who, ent, label, host):
+    """(bots4) vr_dm_test 16 holds the victim (`who` 0 the bot, 1 B) in front of A; A's mp_debugviz line for entity `ent`:
+    his disarm volumes (the host's from its QC, a client's rebuilt from the weapon it draws) along his drawn weapon, and
+    his five hit zones with the head zone at his drawn head."""
+    since_a = a.mark()
+    srv.cmd("vr_dm_test_who %d; vr_dm_test 16" % who)
+    _, ready = a.wait(r"dmtest: hold: .*(ready|FAIL)", 30, since_a, "%s: the victim held" % label)
+    if "FAIL" in ready:
+        s.check("%s: the victim held (vr_dm_test 16)" % label, False, ready.strip())
+        return
+
+    def pick(lines, prefix):
+        return [avatar_fields(l) for l in lines[0] if l.startswith(prefix)]
+
+    def done(lines):
+        return pick(lines, "mp_debugviz: ent=%d " % ent) and pick(lines, "mp_drawnwpn: ent=%d side=1 " % ent) and \
+            pick(lines, "mp_avatar: ent=%d " % ent)
+    got = reports_until(s, [a], done, "%s: A reports his debug views" % label)
+    if not got:
+        return
+    (la,), _ = got
+    srv.cmd("vr_dm_test 0")  # (the hold let go: the next case's vr_dm_test 16 picks its victim afresh)
+    v = pick([la], "mp_debugviz: ent=%d " % ent)[-1]
+    w = pick([la], "mp_drawnwpn: ent=%d side=1 " % ent)[-1]
+    av = pick([la], "mp_avatar: ent=%d " % ent)[-1]
+    # (the grab capsule's line against the drawn weapon's butt and muzzle: a client's is the drawn line itself; a host's
+    # the server's (VR_Parry_WeaponLine: the butt and the melee's far end), within a few units of it)
+    off = max(math.dist(v["grab0"], w["butt"]), math.dist(v["grab1"], w["muzzle"]))
+    most = 0.5 if not host else DEBUGVIZ_HOST_OFF
+    s.check("%s: A draws his disarm volumes along the weapon he draws (%s)" % (label, "the host's" if host else
+            "a client's rebuild"), v["volumes"][0] >= 2 and off <= most,
+            "volumes %d, grab line %s..%s, drawn %s..%s, %.1f units off (at most %g)" % (
+                v["volumes"][0], v["grab0"], v["grab1"], w["butt"], w["muzzle"], off, most))
+    head_off = math.dist(v["head"], av["head"])
+    s.check("%s: A draws his five hit zones, the head's at his drawn head" % label,
+            v["zones"][0] == 5 and head_off <= DEBUGVIZ_HEAD_OFF,
+            "zones %d, head zone %s, drawn head %s, %.1f units apart (at most %g)" % (
+                v["zones"][0], v["head"], av["head"], head_off, DEBUGVIZ_HEAD_OFF))
+
+
+DEBUGVIZ_HOST_OFF = 4.0  # mp_debugviz: units the host's grab line (the server's) may be off the weapon A draws
+DEBUGVIZ_HEAD_OFF = 16.0  # ... units the head zone (his box's fixed head) may be off the head drawn
+
+
+def debugviz(s, listen):
+    """(bots4; his note: "The show disarm volumes debug view doesn't seem to work on bots", "being able to see their
+    hitboxes would be great ... make sure it also works with bots and players") Show Disarm Volumes and Show Hit Zones on
+    a deathmatch with B and a bot, each held in front of A (vr_dm_test 16): on a dedicated server A is a client and
+    rebuilds them (debugviz); A hosting (debugviz_listen) draws the server's own. A's vr_mp_avatars' mp_debugviz lines."""
+    rules = "vr_player_disarm_pvp 1; vr_player_disarm_grab 1; vr_player_disarm 1"
+    level = "coop 0; deathmatch 1; noexit 1; fraglimit 0; timelimit %d; skill 1; %s; map %s; vr_mp_status" % (
+        DM_TIMELIMIT, rules, DM_MAP)
+    if listen:
+        a = srv = s.server(dedicated=False, name="A")
+        srv.start()
+        srv.cmd("disconnect; maxplayers 4; listen 1; " + level)
+    else:
+        srv = s.server(dedicated=True)
+        srv.start()
+        srv.cmd(level)
+    srv.wait(r"mp_server: map=%s" % DM_MAP, 120, what="the server on %s" % DM_MAP)
+    if not listen:
+        a = s.client("A").start()
+    b = s.client("B").start()
+    if not listen:
+        a.cmd(s.connect_cmd(a))
+    _, ja = a.wait(r"mp_event: .*joined map=%s" % DM_MAP, 120, what="A joined %s" % DM_MAP)
+    b.cmd(s.connect_cmd(b))
+    _, jb = b.wait(r"mp_event: .*joined map=%s" % DM_MAP, 120, what="B joined %s" % DM_MAP)
+    ea, eb = int(fields(ja)["self"]), int(fields(jb)["self"])
+    a.cmd("name A; %s; vr_debug_disarm 1; vr_debug_hitzones 1" % EMPTY_HAND)
+    b.cmd("name B; %s; vr_mock_button main grip 1; vr_mock_button off grip 0" % HOLD_OUT)
+    debugviz_case(s, srv, a, 1, eb, "player B", listen)
+    since_a = a.mark()
+    a.cmd("impulse 100")
+    a.wait(r"mp_frags: .*named=1", 10, since_a, "the bot named at A")
+    bots = []
+    for _ in range(10):
+        bots = sorted(slot for slot in frag_table(a) if slot not in (ea - 1, eb - 1))
+        if bots:
+            break
+        since_c = a.mark()
+        wait_quietly(a, r"mp_frags: ", 5, since_c, "the bot listed at A")
+    s.check("A lists the bot", len(bots) == 1, "%s" % frag_table(a))
+    if bots:
+        debugviz_case(s, srv, a, 0, bots[0] + 1, "the bot", listen)
+
+
 def deathmatch(s):
     """(B11) A dedicated deathmatch server (deathmatch 1, fraglimit 3) on dm4: A and B (B through the proxy) join at
     deathmatch starts; A adds two FrikBot bots (impulse 100): both clients list four players, the bots move;
@@ -6634,6 +7228,134 @@ def deathmatch(s):
     asserts = [i for i, l in enumerate(a.lines) if l.startswith("Assertion failure")]
     s.check("no QC assertion in the match (A's log)", not asserts,
             "%s" % [" ".join(x.strip() for x in a.lines[i:i + 3]) for i in asserts[:2]])
+
+
+def wrist_rows(inst, what):
+    """vr_gadget_scores at `inst`: the wrist gadget's scoreboard page's rows as it draws them -> (its head line's fields,
+    [(slot, name, frags, you)] in the page's order). A definite end: the head line, then its last row's line."""
+    since = inst.mark()
+    inst.cmd("vr_gadget_scores")
+    _, head = inst.wait(r"wristscore: page=", 20, since, what)
+    hf = fields(head)
+    n = int(hf["rows"])
+    if n:
+        inst.wait(r"wristscore: row=%d " % (n - 1), 10, since, what)
+    inst.mark()
+    rows = []
+    for l in inst.lines[since:]:
+        if "wristscore: row=" in l:
+            l = l[l.index("wristscore: row="):]
+            f = fields(l)
+            rows.append((int(f["slot"]), l.split('name="', 1)[1].split('"', 1)[0], int(f["frags"]), f["you"] == "1"))
+    return hf, rows
+
+
+def wrist_rows_agree(inst, own_slot, what, tries=6):
+    """The page's rows at `inst` against its own scoreboard (mp_frags): the same players and frags, in the scoreboard's
+    order (the most frags first), `own_slot` marked as him -> (ok, detail). Again (up to `tries`) when a frag between the
+    two (a bot's own death in dm4's lava) made them differ."""
+    detail = ""
+    for _ in range(tries):
+        hf, rows = wrist_rows(inst, what)
+        table = frag_table(inst)
+        same = sorted((slot, name, frags) for slot, name, frags, _ in rows) == sorted(
+            (slot, name, frags) for slot, (name, frags) in table.items())
+        ordered = all(rows[i][2] >= rows[i + 1][2] for i in range(len(rows) - 1))
+        you = [slot for slot, _, _, y in rows if y] == [own_slot]
+        detail = "page %s; rows %s; scoreboard %s" % (hf, rows, table)
+        if same and ordered and you:
+            return True, detail
+    return False, detail
+
+
+def wristscore(s):
+    """(wristscore) The wrist gadget's multiplayer scoreboard page (vr_gadget_scores.inc; MULTIPLAYER.md, "The scoreboard
+    on the wrist"). A alone on e1m1 first (single player): his gadget's pages never reach the scoreboard (vr_gadget_page
+    three times) and vr_gadget_scores lists nobody. Then a dedicated deathmatch server on dm4 (no frag limit): A and B
+    join, A adds a FrikBot bot (impulse 100) and kills it (the server's vr_hurt, A the attacker): at A and at B the page's
+    rows (vr_gadget_scores: the rows it draws) are the three players with the frags of the client's own scoreboard
+    (mp_frags), A's kill counted, in the scoreboard's order, each client marked as himself; A's gadget turned to the page
+    (vr_gadget_page) shows it, its image dumped (vr_gadget_screen_dump: <out>/A_wristscore.png)."""
+    a = s.client("A").start()
+    since = a.mark()
+    a.cmd("disconnect; maxplayers 1; coop 0; deathmatch 0; map e1m1")
+    a.wait(r"mp_event: .*joined map=e1m1 .*maxclients=1", 120, since, "A alone on e1m1")
+    since = a.mark()
+    a.cmd("vr_gadget_page 1; vr_gadget_page 1; vr_gadget_page 1")
+    a.wait(r"gadget page: ", 10, since, "A's pages")
+    while len([l for l in a.lines[since:] if "gadget page: " in l]) < 3:
+        a.wait(r"gadget page: ", 10, a.mark(), "A's three pages")
+    pages = [l.split("gadget page: ", 1)[1].split()[0] for l in a.lines[since:] if "gadget page: " in l]
+    hf, rows = wrist_rows(a, "A's page in single player")
+    s.check("single player: no scoreboard page (the pages never reach it, it lists nobody)",
+            "2" not in pages and hf["available"] == "0" and not rows, "pages %s; %s" % (pages, hf))
+
+    srv = s.server(dedicated=True)
+    srv.start()
+    srv.cmd("coop 0; deathmatch 1; noexit 1; fraglimit 0; timelimit %d; skill 1; map %s; vr_mp_status" % (
+        DM_TIMELIMIT, DM_MAP))
+    srv.wait(r"mp_server: map=%s" % DM_MAP, 120, what="the server on %s" % DM_MAP)
+    b = s.client("B", proxy=True).start()
+    since_a = a.mark()
+    a.cmd(s.connect_cmd(a))
+    _, ja = a.wait(r"mp_event: .*joined map=%s" % DM_MAP, 120, since_a, "A joined %s" % DM_MAP)
+    b.cmd(s.connect_cmd(b))
+    _, jb = b.wait(r"mp_event: .*joined map=%s" % DM_MAP, 120, what="B joined %s" % DM_MAP)
+    ea, eb = int(fields(ja)["self"]), int(fields(jb)["self"])
+    since_a, since_b = a.mark(), b.mark()
+    a.cmd("impulse 100")
+    a.wait(r"mp_frags: .*named=1", 10, since_a, "the bot named at A")
+    b.wait(r"mp_frags: .*named=1", 10, since_b, "the bot named at B")
+    for c in (a, b):  # (the bot's own name, not FrikBot's placeholder: as deathmatch's)
+        for _ in range(10):
+            if len(frag_table(c)) >= 3 and all(n != "FrikBot" for n, _ in frag_table(c).values()):
+                break
+            if not wait_quietly(c, r"mp_frags: .*named=1", 5, c.mark(), "another name at %s" % c.name):
+                break
+    ta, tb = frag_table(a), frag_table(b)
+    bots = sorted(slot for slot in ta if slot not in (ea - 1, eb - 1))
+    s.check("both clients list three players (A, B, a bot)", len(ta) == 3 and len(tb) == 3 and len(bots) == 1,
+            "A: %s; B: %s" % (ta, tb))
+    if len(bots) != 1:
+        return
+
+    # A kills the bot (vr_hurt: the bot's slot, A the attacker): his frag at both clients
+    mine = ta.get(ea - 1, ("", 0))[1]
+    since_a, since_b = a.mark(), b.mark()
+    srv.cmd("vr_hurt 1000 %d %d" % (bots[0], ea))
+    got_a = wait_or_none(a, r"mp_frags: .*slot=%d named=1 .*frags=%d" % (ea - 1, mine + 1), 10, since_a)
+    got_b = wait_or_none(b, r"mp_frags: .*slot=%d named=1 .*frags=%d" % (ea - 1, mine + 1), 10, since_b)
+    s.check("A kills the bot: his frag (%d) at A and B" % (mine + 1), got_a is not None and got_b is not None,
+            "A: %s; B: %s" % (got_a, got_b))
+    for c, own in ((a, ea - 1), (b, eb - 1)):
+        ok, detail = wrist_rows_agree(c, own, "%s's page" % c.name)
+        s.check("%s's wrist page lists the three with the scoreboard's frags, in its order, him marked" % c.name, ok,
+                detail)
+
+    # A's gadget turned to the page (the outer button's turn: past AD's page if its data is loaded)
+    turned = None
+    for _ in range(3):
+        since_a = a.mark()
+        a.cmd("vr_gadget_page 1")
+        _, line = a.wait(r"gadget page: ", 10, since_a, "A's next page")
+        if line.split("gadget page: ", 1)[1].startswith("2"):
+            turned = line
+            break
+    hf, rows = wrist_rows(a, "A's page shown")  # (a later frame: the page drawn before the dump)
+    s.check("A's gadget turned to the scoreboard page shows it", turned is not None and hf["shown"] == "1",
+            "%s; %s" % (turned, hf))
+    since_a = a.mark()
+    a.cmd("vr_gadget_screen_dump mp_A_wristscore")
+    _, line = a.wait(r"vr_gadget_screen_dump: |no screen yet", 20, since_a, "A's gadget screen dumped")
+    if "no screen yet" not in line:
+        rel = line.split("vr_gadget_screen_dump: ", 1)[1].split(" (", 1)[0].strip()
+        for game in [g for g in GAMES if g != "-game"][::-1] + ["id1"]:
+            p = os.path.join(s.base, game, rel)
+            if os.path.exists(p):
+                out = os.path.join(s.out, "A_wristscore.png")
+                os.replace(p, out)  # (moved out of the shared base)
+                s.note("screenshot (A's wrist scoreboard page): %s" % out)
+                break
 
 
 # ---- B13: the server browser, the net HUD, the soak ----
@@ -8481,8 +9203,12 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             slide(s)
         elif test == "mp_slide_vr":
             slide(s, flat=False)
+        elif test == "mp_adspose":
+            adspose(s)
         elif test == "mp_deathbody":
             deathbody(s)
+        elif test == "mp_ragsync":
+            ragsync(s)
         elif test == "mp_loss":
             lossy(s)
         elif test == "mp_predict":
@@ -8535,8 +9261,16 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             lockstep_throw(s)
         elif test == "mp_dm":
             deathmatch(s)
+        elif test == "mp_botgrab":
+            botgrab(s)
+        elif test == "mp_debugviz":
+            debugviz(s, False)
+        elif test == "mp_debugviz_listen":
+            debugviz(s, True)
         elif test == "mp_coopbots":
             coopbots(s)
+        elif test == "mp_wristscore":
+            wristscore(s)
         elif test == "mp_syncaudit":
             syncaudit(s, args.flat or "")
         elif test in ("mp_voice", "mp_voice_lossy"):
@@ -8600,6 +9334,7 @@ SUITE = [
     ("mp_flatbody", ()),
     ("mp_slide", ()),
     ("mp_slide_vr", ()),
+    ("mp_adspose", ()),
     ("mp_deathbody", ()),
     ("mp_loss", ()),
     ("mp_predict", ()),
@@ -8612,6 +9347,10 @@ SUITE = [
     ("mp_voice_lossy", (50, 30, 0.05)),
     ("mp_dm", ()),
     ("mp_coopbots", ()),
+    ("mp_botgrab", ()),
+    ("mp_debugviz", ()),
+    ("mp_debugviz_listen", ()),
+    ("mp_wristscore", ()),
     ("mp_lockstep", ()),
     ("mp_lockstep_dm", ()),
     ("mp_lockstep_throw", ()),
@@ -8632,7 +9371,7 @@ SUITE = [
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "deathbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "wpnsync", "wpnsync_flat", "navfollow", "navfollow_listen", "navfollow_vr", "syncaudit"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "debugviz", "debugviz_listen", "wristscore", "wpnsync", "wpnsync_flat", "navfollow", "navfollow_listen", "navfollow_vr", "syncaudit", "ragsync"])
     ap.add_argument("--base", required=True, help="the game folder (id1, quakevr...)")
     ap.add_argument("--exe", default=EXE)
     ap.add_argument("--out", default=os.path.join(REPO, "scratch", "mp"))
@@ -8694,7 +9433,7 @@ def main_run(args):
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
     elif args.test in ("bandwidth", "wpnsync", "wpnsync_flat", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground",
-                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "deathbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "navfollow", "navfollow_listen", "navfollow_vr", "syncaudit"):
+                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "debugviz", "debugviz_listen", "wristscore", "navfollow", "navfollow_listen", "navfollow_vr", "syncaudit", "ragsync"):
         ok = run(args, "mp_" + args.test)
     elif args.test == "voice":
         ok = run(args, "mp_voice", args.lag, args.jitter, args.loss)

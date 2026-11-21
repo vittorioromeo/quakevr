@@ -12,7 +12,11 @@ that ships in 1.1.1.
   weapons and powerups work as variants of ours. Dwell's Rotary Shotgun, Crystal Lance and Rifle look like themselves
   in your hands, holsters and on armed grunts (made from Dwell's own models, with a grip to hold), the Rotary's four
   barrels turning as you fire; each shows its ammo screen in a riveted bezel on its back, as our guns do; the holster menu (flat and on the wrist) names them, and AD's Widowmaker, Shadow Axe
-  and Plasma Gun too. Dwell's weapons
+  and Plasma Gun too. The Crystal Lance is now a two-handed lance, made from Dwell's own pickup model: hold its grip
+  and put your other hand anywhere on its pole (it slides along it) to aim it, swing its crystal head as a blade, and
+  fire its beam from the tip (Settings: `vr_dw_lance_pole 0` brings back the pistol). The Rotary Shotgun is held as a
+  gauntlet, your hand inside its housing as in the super nailgun, and its shell port is a block on the housing's inner
+  side: hold a handful of shells from the pouch there to fill its tube (`vr_dw_rotary_gauntlet 0`: the old grip). Dwell's weapons
   now stay what they are in your holsters, through saves, level changes and coop rejoins; the Rotary Shotgun reloads
   and spins up as the Widowmaker; Haste, Berserk and the Wetsuit show their seconds left on the wrist (and the flat
   visor), and Haste and Berserk tint the screen in Dwell's colours. An armed grunt that picks up one of Dwell's
@@ -30,6 +34,11 @@ that ships in 1.1.1.
 
 ## Graphics
 
+- **Eye-tracked foveation by default.** With an eye-tracking headset (a Quest Pro through Virtual Desktop with eye
+  tracking shared to the PC, Varjo...) the sharp middle of Foveated Rendering follows your eyes without setting
+  anything; without one, or while your eyes are not tracked, it stays in the middle of the lens. A line under VR
+  Settings > Graphics > Eye-Tracked Foveation (`vr_foveated_gaze`, now on) says which is in use. Off never asks for
+  the eye tracker.
 - **Relighting about twice as fast.** Quake VR now ships its own build of ericw-tools' `light` (2.0.0-alpha11-qvr1)
   for the relighting (Graphics > Relighting, the installer's relight of the official maps, Download ericw-tools). With
   Bounced Light on (the default) it traces the bounced light from fewer samples and shares it between neighbours:
@@ -63,6 +72,10 @@ The guide: [MULTIPLAYER.md](MULTIPLAYER.md).
   calibration, moving smoothly between the server's updates. A sliding player is seen sliding (legs out in front, leant
   back), not crouched; a dead player's body is his own body (his build, skin tone, gloves, hands), not Quake's ranger,
   for everyone including himself.
+- **Ragdolls as the host has them**: dead monsters, staggering, knocked-down and climbing ones and dead players' bodies
+  fall, tumble and get up the same way for everyone (before, a joining player saw the death animation instead); props,
+  thrown weapons and gibs already moved the same for everyone, and still do while ragdolls are sent (the ragdolls only
+  use the room the rest leaves). A corpse you hold follows your hand smoothly, as for the host.
 - **Other players' guns and torches as they are**: the heavy revolver's cylinder swinging out and its shells, a super
   shotgun broken open, magazines in or dropped and the rounds they show, the ammo screen's count, the Widowmaker's
   spinning barrels; another player's flashlight is drawn where he carries it and lights the world where it points.
@@ -83,6 +96,16 @@ The guide: [MULTIPLAYER.md](MULTIPLAYER.md).
 - **Deathmatch with bots** (FrikBot: `impulse 100`) that fight, swing and grab with their hands like players.
 - **Bots with a flat-screen player's hands**: they dual wield, swing melee weapons overhead and parry blows by their
   skill; **co-op bots** (VR Settings > Play > Add Co-op Bot) fight the monsters beside you and follow you to the next level.
+- **Grab a bot's weapon where you see it**: a bot's weapon is placed once, by the server, and every player draws it
+  there, so closing your hand on it takes it (grabbing beside it no longer does); its blows and parries come from that
+  weapon too.
+- **Debug > Show Disarm Volumes and Show Hit Zones work on bots and other players**, hosting or joining: the volumes
+  a grab and a shot on their weapon test, and their head, body, limb and leg zones, outlined on them.
+- **Bots toned down by skill**: at the lower skills they aim off and behind a moving target, wait a moment before
+  firing at someone they've just seen, pause between bursts, turn slower and notice players from less far; their
+  melee swings are held raised a little before they come down, so you can see them coming and parry. They're the
+  size of a player now, and they draw and fire every gun they carry (the heavy revolver, the nail pistol and the
+  mission packs' guns too), falling back to their melee weapon only when out of ammo.
 - **Proximity voice chat** (Opus, with RNNoise noise suppression): push-to-talk or voice activation, heard at the
   talker's head; per-player mute and volume (VR Settings > HUD, Haptics and Sound > Sound > Voice Chat).
 - **Server Browser** (Multiplayer > Join Game): favourites, the servers you joined last and the LAN's, with their
@@ -99,6 +122,12 @@ The guide: [MULTIPLAYER.md](MULTIPLAYER.md).
   players' pings every minute (`vr_sv_status`), pings in `status`, nobody can pause them.
 - **Hardened against broken packets**: a malformed message from a player drops only him; a malformed one from a
   server ends that game with the reason instead of closing Quake VR (also a damaged demo in single player).
+- **A flat-screen player aiming down the sights looks the part** to others (and in the third-person camera): his head
+  at his eye behind the rear sight, the cheek on the stock, the chest following the gun up and down, the arms holding
+  the gun from below (no forearm across the face), standing, crouched or sliding.
+- **The scoreboard on your wrist**: in multiplayer the wrist gadget's outer button also turns to a scoreboard page:
+  every player's colours, frags and name in the scoreboard's order, your row lit, who is talking on voice chat, and in
+  coop the level's kills and secrets. Live, up to 16 players.
 
 **Single player only**: time scale and bullet time, saving at will (the host's level-start coop autosave instead),
 the crates Quake VR places about maps, Dimension of the Past and Dimension of the Machine.
@@ -109,7 +138,19 @@ aren't Map Library packages aren't sent to joining players.
 
 ## Movement
 
-- **Sliding in VR: the desktop screen's slide, view and body.** While you slide in VR (Sliding (VR, Experimental)),
+- **Riding a lift no longer sinks you or the monsters into it.** Going up, your eye trailed a rising lift by up to 12
+  units (the stair-step easing took the lift's rise for a step) and a monster riding it was drawn as far as 13 units
+  into it; now your eye rides with the lift (only a step's jump is eased: `vr_view_lift_follow`, 400 units a second;
+  0: as before) and a monster on a moving lift is drawn moving with it, both ways, flat and in the headset. How lifts
+  push, crush and turn back is unchanged. Debug > Logging > Lift Riders measures it.
+
+- **The heavy revolver's cylinder stays shut in a melee swing.** The wrist flick that swings it out is ignored while
+  the gun's hand moves at a swing's speed and for a moment after it or after a blow lands; a deliberate flick still
+  opens it (`vr_revolver_open_swing_speed`, 2 m/s; `vr_revolver_open_swing_hold`, 0.35 s).
+- **Sliding in VR is on by default** (VR Settings > Locomotion > Sliding, `vr_slide`): while running, pull the turning
+  stick straight down to slide. Your drawn hips and legs now point the way you slide, the chest turned back to your
+  body, as on the desktop screen (Slide Legs Follow Slide, `vr_slide_legs`, on).
+- **Sliding in VR: the desktop screen's slide, view and body.** While you slide in VR (Sliding),
   your view now moves quickly but smoothly down to the desktop screen's sliding eye height and back up when the slide
   ends, on top of your own head's movement; your drawn body takes exactly the desktop screen's slide pose, its legs out
   on the floor. VR Settings > Locomotion: Slide View (`vr_slide_camera`, on; off keeps the view at your real head) and
@@ -122,11 +163,14 @@ aren't Map Library packages aren't sent to joining players.
   makes a click of the speed button (the left stick's click as shipped, or Shift) switch between walking and running
   instead of holding it. The switch ends by itself, back to your Default Speed, when you stop moving for a moment, die,
   change level or open the menu. Hold (the default) is as before.
-- **Run by double-tapping the stick.** VR Settings > Locomotion and Controls > Double-Tap Stick to Run
-  (`vr_move_doubletap`, off by default): push the moving stick twice quickly the same way (push, let go, push again) to
-  run until you let the stick go back to the middle. It works beside the speed button: either one makes you run. How
-  quick the taps must be: Advanced VR Options > Movement > Locomotion > Double-Tap Window (`vr_move_doubletap_window`,
-  0.3 s).
+- **The other speed by double-tapping the stick.** VR Settings > Locomotion and Controls > Double-Tap for Other
+  Speed (`vr_move_doubletap`, off by default): push the moving stick twice quickly the same way (push, let go, push
+  again) for the other speed than your Default Speed until you let the stick go back to the middle: run, or walk
+  if your Default Speed is Run, whatever the speed button says. How quick the taps must be: Advanced VR Options >
+  Movement > Locomotion > Double-Tap Window (`vr_move_doubletap_window`, 0.3 s).
+- **A stick click never counts twice.** The thumbstick's click can bounce as it is let go (a second press a few
+  hundredths of a second later), which switched the speed toggle straight back. Such a press is now ignored
+  (Advanced VR Options > Movement > Locomotion > Stick Click Debounce, `vr_stick_click_debounce`, 0.08 s).
 - **Ammo pouch position sliders.** VR Settings > Holster Calibration now has Ammo Pouch Forward, Right and Up beside the
   holsters' rows (the standing pouch; they agree with Holster Setup's drag and drop), and Reset Holsters resets the pouch
   too.
@@ -150,6 +194,14 @@ aren't Map Library packages aren't sent to joining players.
   setting is kept for the next launch without it). **`-windowpos <x> <y>`** places it (its inside's top-left, in
   desktop pixels) instead of centring it.
 
+
+## Monsters
+
+- **The alarm spreads further.** A monster you hurt or kill before it noticed you cries out: the others within earshot
+  (800 units in the open, less round a corner or through a doorway, much less through solid walls) come to look, and
+  those near it or in sight of it turn on you, now for a kill in one shot too. Monsters placed in ambush keep Quake's
+  meaning: they don't hear it, and armed ones no longer leave their post for a fallen comrade's weapon. Combat > Stealth
+  AI > Cries Heard (0: off). The test map `vralert` shows each case.
 
 ## Performance
 

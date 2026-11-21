@@ -33,6 +33,8 @@ dispatch vr_selfshot_test QC/vr_selfshot_test.qc VR_SelfShotTest_Frame ask
 dispatch vr_v1116_test QC/vr_v1116_test.qc VR_V1116Test_Frame vr_v16_on
 dispatch vr_pd_test QC/vr_playerdisarm_test.qc VR_PlayerDisarmTest_Frame ask
 dispatch vr_dm_test QC/vr_dmrules_test.qc VR_DMRulesTest_Frame ask
+dispatch vr_dm_test QC/vr_bots_test.qc VR_BotsTest_Frame ask
+dispatch vr_dm_test QC/vr_botgrab_test.qc VR_BotGrabTest_Frame ask
 dispatch vr_projinherit_test QC/vr_projinherit_test.qc VR_ProjInheritTest_Frame ask
 dispatch vr_grenfuse_test QC/vr_grenfuse_test.qc VR_GrenFuseTest_Frame ask
 dispatch vr_flatmove_test QC/vr_flatmove_test.qc VR_FlatMoveTest_Frame ask
@@ -148,6 +150,8 @@ vr_ad_test       214      dwell/dw_test.qc                Dwell's start: the spa
 vr_ad_test       213      dwell/dw_test.qc                Dwell's map pickups taken by the body (weapon_touch, no assertion), the toolgun's Dwell weapons and MG3 bloody shotguns laid as props with their variant or bit, a bloody prop taken by the hand (dwell_weapons_test.sh)
 vr_ad_test       210      dwell/dw_test.qc                the Sculptor's ring (d2end): shots hit it past its old 96-unit box and fly through its hole (DW_D2_FightBox, precise hits)
 vr_ad_test       205-208  dwell/dw_test.qc               Dwell's weapons drawn as their own VR models (made from Dwell's view models) in the hands and a holster, AD's Widowmaker still its own; 206-208 one alone in the main hand (dwell_vrmodels_test.sh's screenshots)
+vr_ad_test       217      dwell/dw_test.qc               the Crystal Lance as a lance (vr_dw_lance_pole): its lance model and crystal head blow, the pistol and the club with the setting off (dwell_lance_test.sh)
+vr_ad_test       218      dwell/dw_test.qc               the Rotary Shotgun as a gauntlet (vr_dw_rotary_gauntlet): its gauntlet model, its shell port found and its tube filled there a handful at a time, the super shotgun's grip with the setting off (dwell_rotary_test.sh)
 
 vr_agrunt_test   1        vr_armedgrunt_test.qc            every weapon in turn ahead of you
 vr_agrunt_test   2        vr_armedgrunt_test.qc            reload, disarm, re-arm, drop (the sequence)
@@ -773,6 +777,12 @@ vr_dm_test       9        vr_dmrules_test.qc               a bot parries a timed
 vr_dm_test       10       vr_dmrules_test.qc               a bot dual wields (MP bots phase 1): a nailgun in its main hand and a super nailgun of its own: its off hand takes the gun that pairs, and its AI fires both at the human
 vr_dm_test       11       vr_dmrules_test.qc               a bot in a coop game (MP bots phase 1, mp_test.py coopbots): a grunt of the map brought 120 units in front of it: it kills it, never taking a player for its enemy; given a super nailgun first (the level change carries it)
 vr_dm_test       12       vr_dmrules_test.qc               lag compensation once per shot (mpreview B2, mp_test.py lagcomp): a remote human's 14-pellet blast and lightning bolt each begin one rewind, their pellets' and lines' tracelines inside it
+vr_dm_test       13       vr_bots_test.qc                  bots toned down by skill (his notes 2026-11-21): a bot held 350 units from the human strafing 250 u/s, its shotgun for 5 s at skills 0-3, then 0 and 1 dead on and at once (vr_bot_aim_error 0, vr_bot_reaction 0): a table line each (first shot, shots, hits); skill 0 fires after its reaction and hits less than dead on
+vr_dm_test       14       vr_bots_test.qc                  a bot's weapons: only a revolver of its own and shells (his revolver loadout): drawn and fired at the human; no shells and its clip empty: its melee weapon; a nail pistol and nails: that
+vr_dm_test       15       vr_bots_test.qc                  a bot's swing telegraphed (vr_bot_swing_windup): two bots 36 apart, skill 1's blow lands windup x 0.75 later than with none; a skill 0 bot (parry chance 100) parries it
+vr_dm_test       16       vr_botgrab_test.qc               bots3 (mp_test.py botgrab): the grab's victim held (vr_dm_test_who 0 the first bot: 64 units in front of the human, armed, still; 1 the second human: armed), `dmtest: hold: ... ready`
+vr_dm_test       17       vr_botgrab_test.qc               bots3: the human's empty hand closes at vr_dm_test_x/y/z (where his client draws the victim's weapon) and pulls: the weapon taken
+vr_dm_test       18       vr_botgrab_test.qc               bots3: the same grab at a point off the drawn weapon: nothing taken hold of
 
 vr_projinherit_test 1     vr_projinherit_test.qc           projectiles keep your motion: strafing, nails and rockets on the aim, grenades their share; a hand swing in grenades only
 vr_grenfuse_test 1        vr_grenfuse_test.qc              one fuse for every grenade: hand, launcher and ogre grenades go off together after arming, each lit with its countdown (none with vr_grenade_countdown 0)

@@ -108,6 +108,12 @@ void writeDrawnHand(sizebuf_t* buf, const VrDrawnHand& h, const glm::vec3& origi
         writeAngles16(buf, h.handAngles);
         MSG_WriteShort(buf, h.weaponModel);
         MSG_WriteByte(buf, h.weaponFrame);
+        if(h.flags & VrDrawnHand::weaponBit)
+        {
+            // (bots3: its weapon where the server placed it, view::placeHeld: drawn there by every client)
+            writeEighths(buf, h.weaponOrigin, origin);
+            writeAngles16(buf, h.weaponAngles);
+        }
         return;
     }
     if(h.flags & VrDrawnHand::handBit)
@@ -325,6 +331,11 @@ VrDrawnHand readDrawnHand(const glm::vec3& origin)
         h.handAngles = readAngles16();
         h.weaponModel = static_cast<za::U16>(MSG_ReadShort());
         h.weaponFrame = static_cast<za::U8>(MSG_ReadByte());
+        if(h.flags & VrDrawnHand::weaponBit)
+        {
+            h.weaponOrigin = readEighths(origin);
+            h.weaponAngles = readAngles16();
+        }
         return h;
     }
     if(h.flags & VrDrawnHand::handBit)

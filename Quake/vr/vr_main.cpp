@@ -542,6 +542,7 @@ void VR_Status_f()
                 : twohand::carrying(1 - h)          ? " (anywhere: both hands on the carried weapon)"
                 : freeMode == twohand::FREE_SUPPORT ? " (anywhere: supporting)"
                 : freeMode == twohand::FREE_RIGID   ? " (anywhere: rigid)"
+                : freeMode == twohand::FREE_POLE    ? " (anywhere: on its pole)"
                                                     : " (anywhere: as a foregrip)",
                 twohand::carrying(h) ? ", carrying off its handle" : "");
         }

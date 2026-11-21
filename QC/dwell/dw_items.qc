@@ -207,15 +207,66 @@ string(float xVar) DW_VariantName =
 // Dwell's weapons drawn as themselves (DWELL.md 9.6): their VR models, made from Dwell's own view models as they load
 // (engine vr_adweapons.cpp: Dwell's v_shot3.mdl, v_rail.mdl, v_rifle.mdl read in place from its folder, laid as the
 // weapon they are a variant of; weapons.txt slots 52-54), never written anywhere. Without Dwell's data: ours.
+float() DW_LancePole;
+float() DW_RotaryGauntlet;
 string(float xWid) DW_VRModelOf =
 {
-    if(xWid == WID_SUPER_SHOTGUN) { return "progs/dw_shot3.mdl#vr"; }
-    if(xWid == WID_LIGHTNING) { return "progs/dw_rail.mdl#vr"; }
+    if(xWid == WID_SUPER_SHOTGUN) { return DW_RotaryGauntlet() ? "progs/dw_rotary.mdl#vr" : "progs/dw_shot3.mdl#vr"; }
+    if(xWid == WID_LIGHTNING) { return DW_LancePole() ? "progs/dw_lance.mdl#vr" : "progs/dw_rail.mdl#vr"; }
     if(xWid == WID_SHOTGUN) { return "progs/dw_rifle.mdl#vr"; }
     return "";
 };
 
-nosave float dw_vrmodels_made; // the models precached this server (bits 1 2 4; a loaded game precaches them again)
+// The Crystal Lance held as a lance (dwellwpn2; vr_dw_lance_pole, 1 by default): its model made from Dwell's world model
+// (a staff with the crystal head, the lightning gun's grip under its pole; slot 55), the other hand anywhere on its pole
+// (the engine's pole grip), its crystal head's blow a blade's (DW_LanceMelee); 0: the pistol from Dwell's view model.
+float() DW_LancePole = { return cvar_hget(cvarh_vr_dw_lance_pole) != 0; };
+
+// The Rotary Shotgun held as a gauntlet (dwellwpn3; vr_dw_rotary_gauntlet, 1 by default): its model laid round the super
+// nailgun's hand (slot 56: the hand inside its housing), its shell port on the housing's inner side (the engine's load
+// point: the Widowmaker's tube, a handful a touch); 0: the super shotgun's grip under it (slot 52).
+float() DW_RotaryGauntlet = { return cvar_hget(cvarh_vr_dw_rotary_gauntlet) != 0; };
+
+// The Crystal Lance's blow held as a lance (VR_Melee_Deal; the melee sweep along its blow line to its crystal head, slot
+// 55's bl_*): the axe's damage (vr_dmg_axe, before the swing's speed and weight: VRMeleeDmg), a blade's sounds, blood
+// and wall chop (W_FireAxe's), where W_GunMelee clubs.
+void(float xHand) DW_LanceMelee =
+{
+    float xdmg = VRMeleeDmg(xHand, cvar_hget(cvarh_vr_dmg_axe));
+    if(!VRDoMeleeAttackTracelineFor(xHand, 22, 13)) { return; }
+    vector org = trace_endpos - v_forward * 4;
+    if(trace_ent.takedamage)
+    {
+        trace_ent.axhitme = 1;
+        entity victim = trace_ent; // (T_Damage may trace: an explosive box blowing up)
+        if(T_Damage_VRMelee(trace_ent, self, self, xdmg)) { VR_HitBloodSplash(victim, org, xdmg); }
+        if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
+        {
+            VRMeleeHapticByHand(xHand);
+            VR_SoundVaried(self, VRGetHandChannel(xHand), VR_Melee_HitSoundOn(victim, "fisthit.wav", TRUE), 1.0, ATTN_NORM);
+            VRSetMeleeHitSoundPlayed(xHand, TRUE);
+        }
+        return;
+    }
+    VR_Melee_WallMark(xHand, xdmg, FALSE); // its head's chop (vr_decal_melee)
+    if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
+    {
+        VRMeleeHapticByHand(xHand);
+        VR_SoundVaried(self, VRGetHandChannel(xHand), "player/axhit2.wav", 1, ATTN_NORM);
+        VRSetMeleeHitSoundPlayed(xHand, TRUE);
+    }
+    BroadcastGunshotEffect(org);
+};
+
+// The weapon in `xHand` is the Crystal Lance held as a lance.
+float(float xHand) DW_LanceHeld =
+{
+    if(!DW_LancePole() || VRGetEntWeapon(self, xHand) != WID_LIGHTNING) { return FALSE; }
+    entity inst = VRGetEntWeaponInst(self, xHand);
+    return inst != world && inst.wi_dwvar == DW_VAR_LANCE;
+};
+
+nosave float dw_vrmodels_made; // the models precached this server (bits 1 2 4 8 16; a loaded game precaches them again)
 
 // The model a weapon of kind `xWid` with record `xInst` is drawn with when it is Dwell's ("": not Dwell's, or no data).
 string(float xWid, entity xInst) DW_WeaponModel =
@@ -223,6 +274,8 @@ string(float xWid, entity xInst) DW_WeaponModel =
     if(xInst == world || !xInst.wi_dwvar || DW_VariantFor(xWid) != xInst.wi_dwvar || !DW_Data()) { return ""; }
     string m = DW_VRModelOf(xWid);
     float bit = pow(2, xInst.wi_dwvar - 1);
+    if(xInst.wi_dwvar == DW_VAR_LANCE && DW_LancePole()) { bit = 8; } // (its own model: either may be drawn this server)
+    if(xInst.wi_dwvar == DW_VAR_ROTARY && DW_RotaryGauntlet()) { bit = 16; } // (the same)
     if(!(dw_vrmodels_made & bit))
     {
         dw_vrmodels_made = dw_vrmodels_made | bit;

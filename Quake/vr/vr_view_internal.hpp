@@ -225,6 +225,12 @@ constexpr LoadPort loadPorts[] = {
     {modelmeta::Id::AdVrWidowmaker, {6.5f, 3.6f, 5.6f},
         {&vr_reload_port_widow_x, &vr_reload_port_widow_y, &vr_reload_port_widow_z}, &vr_reload_port_widow_radius, false,
         false, 0.f, true},
+    // Dwell support (dwellwpn3): the Rotary Shotgun as a gauntlet's shell port (vr_adweapons.cpp rotaryGauntletParts: the
+    // opening's middle, on the block on its housing's inner side). The QC loads it as the Widowmaker (its tube, a handful
+    // a touch, vr_reload_port_widow_radius), so the Widowmaker's Load Point offsets move it too.
+    {modelmeta::Id::DwVrRotary, {5.f, 7.25f, 0.f},
+        {&vr_reload_port_widow_x, &vr_reload_port_widow_y, &vr_reload_port_widow_z}, &vr_reload_port_widow_radius, false,
+        false, 0.f, true},
     // The launchers' muzzles (front loaded; QC vr_reload.qc, "Front-loaded launchers"): the middle of the barrel's mouth
     // (measured on the models: the grenade launcher's hexagonal barrel ends at x 31.4, its middle 5.9 up; the rocket
     // launcher's tube at x 56.1, 4.55 up), the way in back along the barrel (-x), the opening facing forward.

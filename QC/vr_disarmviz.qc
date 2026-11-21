@@ -23,6 +23,7 @@
 // And each player's hands (while any is held): the line a strike is measured from (the hand to its weapon's muzzle) and
 // its blow's line the parry sweeps (VR_Blow's last). The engine adds the fists as the grab measures them (which weapon a
 // grip takes now), and the hits the tests mark (VR_DV_Mark: vr_armedgrunt*.qc, guarded by vr_dv_on).
+// (bots4) And each living player's held weapons, bots' and humans' (VR_DV_Player): what another's grab and a shot test.
 
 float VR_DV_W_HIT = 1;     // the kinds (vr_disarmviz.cpp Kind: keep in step)
 float VR_DV_W_SHOT = 2;
@@ -36,6 +37,10 @@ float VR_DV_P_STRIKE = 9;
 float VR_DV_P_SWEEP = 10;
 float VR_DV_TUG = 11;
 float VR_DV_H_HIT = 20;    // (12-19: the directional parry's)
+float VR_DV_PL_GRAB = 21;  // (bots4) a player's held weapon (a bot's, a human's): another's grab (VR_PDG_Gap: its line)
+float VR_DV_PL_SPOT = 22;  // ... a hotspot of it (the grab's reach round it)
+float VR_DV_PL_SHOT_W = 23; // ... a shot's on it (VR_PD_Meet: VR_AGS_W_RADIUS + vr_agrunt_vol_shot_weapon)
+float VR_DV_PL_SHOT_H = 24; // ... a shot's on the hand holding it (VR_AGS_H_RADIUS + vr_agrunt_vol_shot_hand)
 
 void(entity e, vector at, float what, string why) VR_DV_Mark =
 {
@@ -140,6 +145,51 @@ void(entity pl, float h) VR_DV_Hand =
     }
 };
 
+// (bots4) Player `v`'s held weapons (a bot's, a human's): what another player's grab measures (VR_PDG_Gap: the weapon's
+// line and its hotspots, vr_player_disarm_reach round them; while players may take each other's) and what a shot meets
+// (VR_PD_Meet: its line and the hand, while shots disarm players). A client rebuilds these from the weapon it draws
+// (vr_disarmviz.cpp clientPlayers).
+void(entity v) VR_DV_Player =
+{
+    float grab = cvar_hget(cvarh_vr_player_disarm_pvp) && cvar_hget(cvarh_vr_player_disarm_grab);
+    float reach = cvar_hget(cvarh_vr_player_disarm_reach) * 0.01 * VRMetersToUnits();
+    float shot = VR_PD_Can(v);
+    float parts = cvar_hget(cvarh_vr_agrunt_shotdisarm_parts);
+    for(float vh = 0; vh < 2; vh++)
+    {
+        entity was = self;
+        self = v; // (VR_Parry_WeaponLine's helpers read self, as VR_PDG_Gap)
+        float ok = VR_Parry_WeaponLine(v, vh);
+        self = was;
+        if(ok)
+        {
+            vector a = vr_parry_butt;
+            vector b = vr_parry_end;
+            if(grab)
+            {
+                debugdisarm(v, VR_DV_PL_GRAB, a, b, reach);
+                for(float i = 0; i < 4; i++)
+                {
+                    vector hs = weaponhotspot(v, vh, i);
+                    if(hs != '0 0 0')
+                    {
+                        debugdisarm(v, VR_DV_PL_SPOT, hs, hs, reach);
+                    }
+                }
+            }
+            if(shot && parts != 1)
+            {
+                debugdisarm(v, VR_DV_PL_SHOT_W, a, b, VR_AGS_W_RADIUS + cvar_hget(cvarh_vr_agrunt_vol_shot_weapon));
+            }
+            if(shot && parts != 0)
+            {
+                vector hp = VRGetEntHandPos(v, vh);
+                debugdisarm(v, VR_DV_PL_SHOT_H, hp, hp, VR_AGS_H_RADIUS + cvar_hget(cvarh_vr_agrunt_vol_shot_hand));
+            }
+        }
+    }
+};
+
 // StartFrame: everything above, while vr_debug_disarm is on (off: one cvar read).
 void() VR_DV_Frame =
 {
@@ -160,6 +210,13 @@ void() VR_DV_Frame =
             held = held + 1;
         }
         p = find(p, classname, "vr_ag_weapon");
+    }
+    for(entity v = pl; v; v = VR_NextPlayer(v))
+    {
+        if((v.flags & FL_CLIENT) && v.health > 0 && v.deadflag == DEAD_NO)
+        {
+            VR_DV_Player(v);
+        }
     }
     while(held && pl)
     {

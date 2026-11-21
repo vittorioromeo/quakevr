@@ -12,6 +12,7 @@
 #include "vr_progs.hpp"
 #include "vr_testkit.hpp"
 #include "vr_mem.hpp"
+#include "vr_netragdoll.hpp"
 
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -671,7 +672,7 @@ int cosmeticWritten{0}; // (encode's last: its cosmetic fragments' entries' byte
 
 int encode(const Snapshot* base, const Snapshot& cur, sizebuf_t* body, int budget, Snapshot& sent, unsigned pflags,
     const Trend* trend, const float* prio, za::U8* unsent, int soft, const za::U8* cosmetic, int cosmeticBudget,
-    int cosmeticFill)
+    int cosmeticFill, int ragSoft)
 {
     sent.records.clear();
     sent.bytes.clear();
@@ -685,6 +686,7 @@ int encode(const Snapshot* base, const Snapshot& cur, sizebuf_t* body, int budge
     entries.clear();
     int need = body->cursize;
     int cosmeticNeed = 0;
+    bool ragChanged = false; // (ragsync2: a ragdoll's changed record, under ragSoft)
     for(za::SizeT bi = 0, ci = 0; bi < bn || ci < cn;)
     {
         const Record* b = bi < bn ? &base->records[bi] : nullptr;
@@ -730,6 +732,7 @@ int encode(const Snapshot* base, const Snapshot& cur, sizebuf_t* body, int budge
         e.cosmetic = cosmetic && e.ci >= 0 && cosmetic[e.ci] != 0;
         need += headMost + e.size;
         cosmeticNeed += e.cosmetic ? headMost + e.size : 0;
+        ragChanged = ragChanged || (e.ci >= 0 && keyClass(e.key) == 5);
         entries.emplaceBack(e);
     }
     // (B12c: the cosmetic fragments' own budget, by priority; without priorities they go as the rest. B18: and only the
@@ -741,7 +744,8 @@ int encode(const Snapshot* base, const Snapshot& cur, sizebuf_t* body, int budge
         cosmeticBudget = za::min(cosmeticBudget, za::max(cosmeticBudget / 4, cosmeticFill - (need - cosmeticNeed)));
     }
     const bool cosmeticOver = prio && cosmeticBudget >= 0 && cosmeticNeed > cosmeticBudget;
-    if(need > soft || cosmeticOver)
+    ragSoft = ragSoft < 0 ? soft : za::min(ragSoft, soft);
+    if(need > soft || cosmeticOver || (prio && ragChanged && need > ragSoft))
     {
         int used = body->cursize;
         if(!prio)
@@ -761,8 +765,15 @@ int encode(const Snapshot* base, const Snapshot& cur, sizebuf_t* body, int budge
             {
                 byPrio.emplaceBack(static_cast<za::I32>(i));
             }
-            std::stable_sort(byPrio.begin(), byPrio.end(), [](za::I32 a, za::I32 b) {
-                return entries[static_cast<za::SizeT>(a)].prio > entries[static_cast<za::SizeT>(b)].prio;
+            // (ragsync2) A ragdoll's changed record goes only in the room every other entry leaves (after them all,
+            // whatever its priority, and never past his bucket: the first-finite rule below is theirs): the ragdolls
+            // under vr_net_ragdoll_bytes take from the ragdolls only (mp_ragsync: a dropped shotgun and backpacks 1.75-2.3
+            // units p95 behind with the ragdolls ahead of them in a 1400-byte datagram, 0.04 without).
+            const auto last = [](const Entry& e) { return e.prio != INFINITY && keyClass(e.key) == 5; };
+            std::stable_sort(byPrio.begin(), byPrio.end(), [&last](za::I32 a, za::I32 b) {
+                const Entry& ea = entries[static_cast<za::SizeT>(a)];
+                const Entry& eb = entries[static_cast<za::SizeT>(b)];
+                return last(ea) != last(eb) ? !last(ea) : ea.prio > eb.prio;
             });
             int cosmeticUsed = 0;
             bool firstFinite = true;
@@ -771,7 +782,8 @@ int encode(const Snapshot* base, const Snapshot& cur, sizebuf_t* body, int budge
                 Entry& e = entries[static_cast<za::SizeT>(i)];
                 const int cost = headMost + e.size;
                 const bool cosmeticRoom = !e.cosmetic || !cosmeticOver || cosmeticUsed + cost <= cosmeticBudget;
-                e.chosen = e.prio == INFINITY ? used + cost <= budget : used + cost <= soft && cosmeticRoom;
+                e.chosen = e.prio == INFINITY ? used + cost <= budget : used + cost <= (last(e) ? ragSoft : soft) && cosmeticRoom;
+                firstFinite = firstFinite && !last(e);
                 // (B12c) Under a rate (soft under the datagram's room), the highest priority goes even past what his
                 // bucket holds now when it fits the datagram and the bucket is not in debt: the bucket goes below
                 // zero and the next datagrams carry only what must go until it is paid back (his rate held on
@@ -1065,19 +1077,20 @@ constexpr int netHeader = 8;       // NetQuake's datagram header (the bytes his 
 {
     const int cls = keyClass(key);
     const int ents = qcvm ? qcvm->max_edicts : 0;
-    const int e = cls == 1 ? key : cls == 2 ? key - avatarKey : cls == 4 ? key - poseKey : -1;
+    const int e = cls == 1 ? key : cls == 2 ? key - avatarKey : cls == 4 ? key - poseKey : cls == 5 ? key - ragKey : -1;
     if(e < 0 || e >= ents)
     {
         return -1;
     }
-    return (cls == 1 ? 0 : cls == 2 ? 1 : 2) * ents + e;
+    return (cls == 1 ? 0 : cls == 2 ? 1 : cls == 4 ? 2 : 3) * ents + e;
 }
+constexpr int waitKinds = 4; // (waitIndex's: entities, avatars, poses, ragdolls)
 
 // A record's weight for the player at `eye` looking along `fwd`: nearer and ahead first.
 [[nodiscard]] float weightOf(int key, const float eye[3], const float fwd[3])
 {
     const int cls = keyClass(key);
-    const int e = cls == 1 ? key : cls == 2 ? key - avatarKey : key - poseKey;
+    const int e = cls == 1 ? key : cls == 2 ? key - avatarKey : cls == 5 ? key - ragKey : key - poseKey;
     if(e <= 0 || e >= qcvm->num_edicts)
     {
         return 1.f;
@@ -1109,9 +1122,80 @@ struct Building
     za::Vector<float> prio;    // each record's priority (cur's order)
     za::Vector<za::U8> unsent; // each record that waited
     za::Vector<za::U8> cosmetic; // each record a cosmetic fragment's (B12c)
+    za::Vector<za::U8> held;     // each ragdoll's record held as the base's (ragsync: holdRagdolls)
+    za::Vector<za::SizeT> ragOrder; // (holdRagdolls: the changed ones, by priority)
     int chargeSlot{-1};        // the slot whose datagram serverCharge charges (serverEnd's)
+    double most{0.0};          // (his bucket's size: serverBegin's)
 };
 Building building;
+
+// (ragsync) The ragdolls' changed records under vr_net_ragdoll_bytes a snapshot: the highest priorities (near, ahead,
+// waited longest: bl.prio) go, the rest are held as the base's (unchanged: not sent, both sides keep the base's, his
+// client draws between the poses it has) and wait, their priority growing. A new one (not in the base) always goes, and
+// the first changed one whatever its size. A settled ragdoll costs nothing: its record is unchanged (its pose's time
+// too: ragdoll::serverPose). -> the records held.
+int holdRagdolls(const Snapshot* base)
+{
+    Building& bl = building;
+    const za::SizeT n = bl.cur.records.size();
+    bl.held.clear();
+    bl.held.resize(n, 0);
+    const int cap = static_cast<int>(vr_net_ragdoll_bytes.value);
+    if(cap <= 0 || !base)
+    {
+        return 0;
+    }
+    za::Vector<za::SizeT>& order = bl.ragOrder;
+    order.clear();
+    int used = 0;
+    for(za::SizeT i = 0; i < n; i++)
+    {
+        const Record& r = bl.cur.records[i];
+        if(keyClass(r.key) != 5)
+        {
+            continue;
+        }
+        const Record* b = findKey(*base, r.key);
+        if(!b)
+        {
+            used += r.len;
+            continue;
+        }
+        if(b->len == r.len && memcmp(bl.cur.data(r), base->data(*b), static_cast<size_t>(r.len)) == 0)
+        {
+            continue;
+        }
+        // (by priority, the highest first: an insertion, a few ragdolls)
+        za::SizeT at = order.size();
+        order.pushBack(i);
+        while(at > 0 && bl.prio[order[at - 1]] < bl.prio[i])
+        {
+            order[at] = order[at - 1];
+            at--;
+        }
+        order[at] = i;
+    }
+    int held = 0;
+    for(const za::SizeT i : order)
+    {
+        Record& r = bl.cur.records[i];
+        if(used == 0 || used + r.len <= cap)
+        {
+            used += r.len;
+            continue;
+        }
+        const Record* b = findKey(*base, r.key);
+        r.at = static_cast<za::I32>(bl.cur.bytes.size());
+        r.len = b->len;
+        if(b->len > 0)
+        {
+            bl.cur.bytes.emplaceBackRange(base->data(*b), static_cast<za::SizeT>(b->len));
+        }
+        bl.held[i] = 1;
+        held++;
+    }
+    return held;
+}
 
 // (B12c) A cosmetic fragment's entity: a small gib or an explosion's chunk (nothing touches them: vr_smallgibs.qc,
 // vr_explosiondebris.cpp), whose updates have a budget of their own (vr_net_cosmetic_bytes).
@@ -1237,6 +1321,7 @@ bool serverBegin(client_t* client)
     {
         const double most = za::max(static_cast<double>(b.rate) * rateBurst, static_cast<double>(DATAGRAM_MTU + netHeader));
         s.tokens = s.filledAt < 0.0 || now < s.filledAt ? most : za::min(most, s.tokens + b.rate * (now - s.filledAt));
+        b.most = most;
     }
     s.filledAt = now;
     return true;
@@ -1256,6 +1341,11 @@ void serverCharge(int bytes)
 bool serverRecording()
 {
     return building.on;
+}
+
+int serverPlayer()
+{
+    return building.on && building.client && building.client->edict ? NUM_FOR_EDICT(building.client->edict) : 0;
 }
 
 void serverTake(sizebuf_t* msg, int at, int key)
@@ -1313,16 +1403,26 @@ void serverEnd(sizebuf_t* msg)
         budget = za::min(budget, static_cast<int>(s->tokens) - msg->cursize - broadcast - netHeader - 6);
     }
     budget = za::max(budget, 0);
+    // (ragsync2) The ragdolls' room: after every other record, only what his bucket would spill by his next datagram
+    // (what it cannot hold anyway): the others never wait behind the ragdolls, in this datagram or the ones after it.
+    int ragSoft = budget;
+    if(bl.rate > 0)
+    {
+        const double hz = vr_net_sendhz.value;
+        const double period = hz > 0.0 && hz < 72.0 - 0.5 ? 1.0 / za::max(hz, 1.0) : 1.0 / 72.0;
+        const int spill = static_cast<int>(s->tokens + bl.rate * period - bl.most);
+        ragSoft = za::max(za::min(budget, spill - msg->cursize - broadcast - netHeader - 6), 0);
+    }
     // Each record's priority: his own state always first; the others by weight (near, ahead, a player) times their wait.
     const za::SizeT n = bl.cur.records.size();
     bl.prio.resize(n);
     bl.unsent.clear();
     bl.unsent.resize(n, 0);
     const int ents = qcvm->max_edicts;
-    if(static_cast<int>(s->waits.size()) != 3 * ents)
+    if(static_cast<int>(s->waits.size()) != waitKinds * ents)
     {
         s->waits.clear();
-        s->waits.resize(static_cast<za::SizeT>(3 * ents), 0);
+        s->waits.resize(static_cast<za::SizeT>(waitKinds * ents), 0);
     }
     float eye[3]{}, fwd[3]{1.f, 0.f, 0.f};
     if(const edict_t* p = bl.client ? bl.client->edict : nullptr)
@@ -1345,6 +1445,7 @@ void serverEnd(sizebuf_t* msg)
         bl.prio[i] = keyClass(key) == 0 || keyClass(key) == 3 ? INFINITY
                                                               : weightOf(key, eye, fwd) * (1.f + (wi >= 0 ? s->waits[static_cast<za::SizeT>(wi)] : 0));
     }
+    s->counts.ragHeld += holdRagdolls(base);
     // (B12b: the base's own base, kept by both sides: the moving things' trend)
     Trend trend;
     const za::U32 older = base ? base->baseSeq : 0u;
@@ -1358,12 +1459,17 @@ void serverEnd(sizebuf_t* msg)
     tallySent = true;
     encode(base, bl.cur, &body, room, sent, sv.protocolflags, trend.older ? &trend : nullptr, bl.prio.data(), bl.unsent.data(),
         za::min(budget, room), bl.cosmetic.data(), cosmeticBudget > 0 ? cosmeticBudget : -1,
-        static_cast<int>(vr_net_cosmetic_fill.value));
+        static_cast<int>(vr_net_cosmetic_fill.value), ragSoft);
     tallySent = false;
+    for(za::SizeT i = 0; i < n; i++)
+    {
+        bl.unsent[i] = bl.unsent[i] || bl.held[i] ? 1 : 0; // (a ragdoll held: it waited, holdRagdolls)
+    }
     int cosmeticWaited = 0;
     for(za::SizeT i = 0; i < n; i++)
     {
         cosmeticWaited += bl.unsent[i] && bl.cosmetic[i] ? 1 : 0;
+        s->counts.ragWaited += bl.unsent[i] && keyClass(bl.cur.records[i].key) == 5 ? 1 : 0;
     }
     sent.baseSeq = base ? base->seq : 0u;
     int waited = 0;
@@ -1633,6 +1739,7 @@ void interpNote(int e, za::U32 prevSeq, za::U32 seq, bool fresh)
 // into their histories when it is a new one (`prevSeq`: the one read before it; else 0 and seq 0).
 void apply(const Snapshot& s, za::U32 prevSeq, za::U32 seq)
 {
+    netrag::clientSnapshotBegin();
     ClientCounts& counts = clientState.counts;
     const sizebuf_t savedMsg = net_message;
     const int savedCount = msg_readcount;
@@ -1662,6 +1769,7 @@ void apply(const Snapshot& s, za::U32 prevSeq, za::U32 seq)
         }
         counts.bad += msg_badread || msg_readcount != r.len ? 1 : 0;
     }
+    netrag::clientSnapshotEnd(); // (the ragdolls not in it: gone, drawn animated again)
     net_message = savedMsg;
     msg_readcount = savedCount;
     msg_badread = savedBad;
@@ -1749,6 +1857,7 @@ void parse()
 
 void clientClear()
 {
+    netrag::clientClear();
     ClientState& c = clientState;
     c.last = 0;
     for(Snapshot& s : c.snaps)
@@ -1851,9 +1960,9 @@ void bytesReport()
         }
     }
     Con_Printf("mp_netbytes: messages=%lld reliable=%lld unreliable=%lld snap=%lld snap_cd=%lld snap_ent=%lld snap_av=%lld "
-               "snap_pred=%lld snap_pose=%lld snap_hdr=%lld pose=%lld avatar=%lld ent=%lld cd=%lld sound=%lld tent=%lld "
+               "snap_pred=%lld snap_pose=%lld snap_rag=%lld snap_hdr=%lld pose=%lld avatar=%lld ent=%lld cd=%lld sound=%lld tent=%lld "
                "voice=%lld rest=%lld top=%s%d:%lld,%s%d:%lld,%s%d:%lld ent_ops=%lld/%lld,%lld/%lld,%lld/%lld,%lld/%lld\n",
-        b.messages, b.reliable, b.unreliable, snap, b.snap[0], b.snap[1], b.snap[2], b.snap[3], b.snap[4],
+        b.messages, b.reliable, b.unreliable, snap, b.snap[0], b.snap[1], b.snap[2], b.snap[3], b.snap[4], b.snap[5],
         snap - snapEntries, pose, avatar, ent, cd, sound, tent, voice, rest, top[0] >= 256 ? "q" : "", top[0] & 255, topN[0],
         top[1] >= 256 ? "q" : "", top[1] & 255, topN[1], top[2] >= 256 ? "q" : "", top[2] & 255, topN[2], entOps[0][0], entOps[0][1],
         entOps[1][0], entOps[1][1], entOps[2][0], entOps[2][1], entOps[3][0], entOps[3][1]);
@@ -2261,6 +2370,49 @@ void selftest_f()
                "record sent (%d waited)", fillBytes[0], fillBytes[1], fillOthers));
     }
     {
+        // (ragsync2) A ragdoll's record goes only in the room the others leave: every record changed, a new ragdoll's
+        // (240 bytes) with the highest priority, a soft budget all the others fit in but not it too: none of them waits,
+        // the ragdoll does; read back the same
+        t.cur = t.base;
+        const za::SizeT n = t.cur.records.size();
+        float prio[65]{};
+        za::U8 unsent[65]{};
+        for(za::SizeT i = 0; i < n && i < 64; i++)
+        {
+            t.cur.bytes[t.cur.records[i].at] ^= 0x01;
+            prio[i] = t.cur.records[i].key == clientdataKey ? INFINITY : 1.f;
+        }
+        sizebuf_t buf{};
+        buf.data = t.data;
+        buf.maxsize = sizeof(t.data);
+        encode(&t.base, t.cur, &buf, 4096, t.sent, selftestFlags, nullptr, prio, unsent, -1);
+        const int othersBytes = buf.cursize;
+        za::U8 rag[240];
+        for(int k = 0; k < 240; k++)
+        {
+            rag[k] = static_cast<za::U8>(k * 7 + 1);
+        }
+        t.cur.add(ragKey + 300, rag, 240);
+        t.cur.sortByKey();
+        const za::SizeT ri = t.cur.records.size() - 1;
+        bool ragOk = n < 64 && t.cur.records[ri].key == ragKey + 300;
+        prio[ri] = 100.f;
+        memset(unsent, 0, sizeof(unsent));
+        buf.cursize = 0;
+        encode(&t.base, t.cur, &buf, 4096, t.sent, selftestFlags, nullptr, prio, unsent, othersBytes + 3 * static_cast<int>(n) + 8);
+        net_message = buf;
+        MSG_BeginReading();
+        ragOk = ragOk && decode(&t.base, buf.cursize, t.read, selftestFlags, nullptr) && sameSnapshot(t.read, t.sent);
+        int othersWaited = 0;
+        for(za::SizeT i = 0; i < ri; i++)
+        {
+            othersWaited += unsent[i];
+        }
+        ragOk = ragOk && othersWaited == 0 && unsent[ri];
+        check(ragOk, va("a ragdoll's record (the highest priority) in the room the others leave: %d of %d others waited, the "
+                        "ragdoll %s", othersWaited, static_cast<int>(n), unsent[ri] ? "waited" : "went"));
+    }
+    {
         // B12b: entity updates by their fields. A grunt (300: a long number) and its weapon (301) stepping: origins,
         // yaw, frame and lerp changed, the weapon's tail not; then the grunt's layout changed (its pitch now sent, its
         // lerp not): read back the same, in fewer bytes than byte by byte (the delta of the same, measured by encode)
@@ -2389,6 +2541,7 @@ void classesReport()
 void init()
 {
     Cmd_AddCommand("vr_netsnap_selftest", selftest_f);
+    netrag::init();
     Cmd_AddCommand("vr_net_classes", [] {
         if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "reset"))
         {

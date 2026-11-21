@@ -42,4 +42,8 @@ void drawDebug(int eye, GLuint fbo, int width, int height, int sceneWidth, int s
 // (vr_foveated_gaze); "vr_foveated_gaze_test: N passed, M failed".
 void gazeTest_f();
 
+// What the foveation's full-rate centre follows now (VR Settings > Graphics' line under Eye-Tracked Foveation): the
+// eyes while the eye tracker tracks them, else the lens centre and why (no tracker, off, from the next VR start...).
+[[nodiscard]] const char* gazeStatus();
+
 } // namespace qvr::foveated

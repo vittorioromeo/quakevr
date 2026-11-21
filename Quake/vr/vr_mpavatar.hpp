@@ -112,6 +112,13 @@ void addEntities();
 // The power-up glow's shader code on `e` if it is another player's copy's hand or body (view::powerupGlow), else 0.
 [[nodiscard]] float powerupGlow(const entity_t* e);
 
+// (bots4) Player entity `ent`'s weapon in hand `side` ([0] off, [1] main) as drawn last frame or this one: its butt and
+// muzzle, and the hand holding it. False: none drawn there. (A client's Show Disarm Volumes: vr_disarmviz.cpp.)
+[[nodiscard]] bool drawnWeapon(int ent, int side, glm::vec3& butt, glm::vec3& muzzle, glm::vec3& hand);
+
+// (bots4) Player entity `ent`'s copy was drawn last frame or this one (a client's Show Hit Zones: vr_hitmodel.cpp).
+[[nodiscard]] bool drawnNow(int ent);
+
 // A new connection: no avatars.
 void clear();
 

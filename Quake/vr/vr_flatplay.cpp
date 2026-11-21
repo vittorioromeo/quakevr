@@ -353,21 +353,9 @@ constexpr float breathRate = 1.6f; // rad/s
 constexpr float breathUp = 0.2f;
 constexpr float breathSide = 0.1f;
 
-// The slide's turn of the body (poseHands): its eased share (no stance turn, the hips and legs to the slide's way), the
-// slide's way (degrees, kept from the last frame it was moving) and the chest's turn back to the view (trunkTwist).
-struct SlideTurn
-{
-    float lin{0.f};
-    float yaw{0.f};
-    float twist{0.f};
-    // The hips' yaw eased after where they are asked to face (vr_flat_slide_turn_smooth): its lag behind it (degrees) and
-    // the lag's rate, a critically damped spring; `easing` while a slide's share holds it.
-    float lag{0.f};
-    float lagRate{0.f};
-    float yaw0{0.f}; // the eased yaw last frame
-    bool easing{false};
-};
-SlideTurn slideTurn;
+// The slide's turn of the body (poseHands; slide::LegsTurn, a headset's slide shares it): the chest's turn back to the
+// view is trunkTwist.
+slide::LegsTurn slideTurn;
 
 // Sliding: the walk's bob (the drawn view's, the hands', the body's ride) times this, vr_flat_slide_bob of it at a full
 // slide pose (no walk: the feet stayed on the floor while the body bobbed through it).
@@ -421,12 +409,7 @@ constexpr float eyeOffMax = 8.f; // vr_flat_eye_fwd / vr_flat_eye_up: the eye of
     {
         return glm::vec3{0.f, 0.f, 0.f};
     }
-    const float forward = za::clamp(vr_flat_eye_fwd.value, 0.f, eyeOffMax);
-    const float upward = za::clamp(vr_flat_eye_up.value, 0.f, eyeOffMax);
-    glm::vec3 pitchedFwd{}, levelFwd{}, right{}, pitchedUp{}, levelUp{};
-    hands::angleVectors({viewAngles.x, viewAngles.y, 0.f}, pitchedFwd, right, pitchedUp);
-    hands::angleVectors({0.f, viewAngles.y, 0.f}, levelFwd, right, levelUp);
-    return (pitchedFwd - levelFwd) * forward + (pitchedUp - levelUp) * upward + chestCarry(viewAngles);
+    return neckTurn(viewAngles) + chestCarry(viewAngles);
 }
 
 // The eye's whole move in the world: the neck's turn, and the nudge along the axes of the view it is drawn with (the drawn view's
@@ -548,9 +531,10 @@ struct SwingTimes
     float wind, top, strike, dwell, back;
 };
 
-[[nodiscard]] SwingTimes swingTimes()
+// (A bot's held at its top longer, by its BotPoseIn::windup: its blow telegraphed, his voice note 2026-11-21.)
+[[nodiscard]] SwingTimes swingTimes(float extraTop = 0.f)
 {
-    return {za::clamp(vr_flat_swing_wind.value, 0.05f, 1.f), za::clamp(vr_flat_swing_top.value, 0.f, 0.5f),
+    return {za::clamp(vr_flat_swing_wind.value, 0.05f, 1.f), za::clamp(vr_flat_swing_top.value, 0.f, 0.5f) + extraTop,
         za::clamp(vr_flat_swing_strike.value, 0.05f, 0.5f), za::clamp(vr_flat_swing_dwell.value, 0.f, 0.5f),
         za::clamp(vr_flat_swing_back.value, 0.05f, 1.f)};
 }
@@ -899,7 +883,7 @@ constexpr float dualProneTurnMost = 45.f;
     // (A bot's: its main hand's swing on the server's clock, poseBot. The same swing.)
     const bool botSwing = bot != nullptr && h == HAND_MAIN;
     const double t = botSwing ? bot->now - bot->swingAt : vr_gametime - fs.punchAt[h];
-    const SwingTimes w = swingTimes();
+    const SwingTimes w = swingTimes(botSwing ? bot->windup : 0.f);
     const float len = botSwing ? w.wind + w.top + w.strike + w.dwell + w.back : punchLen(h);
     if((!botSwing && (bot != nullptr || !fs.punchOverhead[h])) || t < 0.0 || t > len)
     {
@@ -3258,71 +3242,8 @@ void poseHands(hands::State& s, const glm::vec3& aim)
     // Sliding (vr_flatmove.cpp; his words 2026-11-08): no stance turn (the leant-back trunk turned off the view bent the
     // legs), eased out over vr_flat_slide_turn_time; and with vr_flat_slide_legs the hips and legs face the slide's way,
     // the chest turned back to the view (trunkTwist), at most vr_flat_slide_legs_twist off it.
-    {
-        SlideTurn& t = slideTurn;
-        const bool slide = flatmove::slidePose();
-        if(dt > 0.0)
-        {
-            const float step = static_cast<float>(dt) / za::clamp(vr_flat_slide_turn_time.value, 0.02f, 1.f);
-            t.lin += za::clamp((slide ? 1.f : 0.f) - t.lin, -step, step);
-        }
-        const glm::vec2 vel{cl.velocity[0], cl.velocity[1]};
-        // (Taken once a frame, with the easing's step: the frame's later poses had the server's newer velocity, and its
-        // change went into the body past the easing below -- a step of 11 degrees in a frame sliding sideways.)
-        if(slide && glm::length(vel) > 60.f && (dt > 0.0 || !t.easing))
-        {
-            t.yaw = geom::yawOf(glm::vec3{vel, 0.f});
-        }
-        const float share = geom::smooth01(t.lin);
-        float off = 0.f;
-        if(vr_flat_slide_legs.value != 0.f && share > 0.f)
-        {
-            off = geom::yawDelta(t.yaw, aim.y);
-            const float most = za::clamp(vr_flat_slide_legs_twist.value, 0.f, 90.f);
-            // Sliding away from the view (his note 2026-11-10: "Sliding backwards or diagonally backwards while looking
-            // ahead looks a bit jittery/funky -- the legs should still stay in front"): the legs come back to the view
-            // as the slide's way goes past vr_flat_slide_back_start off it, all of the way by vr_flat_slide_back_full
-            // (on the back, the legs out in front, as a forward slide). Straight back the way's side flipped with every
-            // twitch of the view, and the hips swung from one most twist to the other.
-            const float backStart = za::clamp(vr_flat_slide_back_start.value, 0.f, 180.f);
-            const float backFull = za::clamp(vr_flat_slide_back_full.value, backStart, 180.f);
-            const float back = geom::smoothstep(backStart, backFull, za::fabs(off), 0.01f);
-            off = za::clamp(off, -most, most) * (1.f - back) * share;
-        }
-        // The hips eased after it (his note 2026-11-08: the body turned in abrupt steps sliding): the slide's way follows the
-        // velocity, which steps with the server's frames and the steering, and a look past the twist's limit drags them
-        // round at once. The lag fades with the slide's share; the chest stays on the view (the twist takes the lag too).
-        const float want = aim.y + flatsight::stanceYaw() * (1.f - share) + off;
-        const float smooth = za::clamp(vr_flat_slide_turn_smooth.value, 0.f, 1.f);
-        if(share > 0.f && smooth > 0.f)
-        {
-            if(!t.easing)
-            {
-                t.easing = true;
-                t.lag = t.lagRate = 0.f;
-                t.yaw0 = want;
-            }
-            else if(dt > 0.0)
-            {
-                const float step = static_cast<float>(dt);
-                const float omega = 4.74f / za::max(0.02f, smooth); // (95% of a step in `smooth`: vr_avatar_pitch.cpp's easePitch)
-                const float x = za::clamp(geom::yawDelta(t.yaw0, want), -120.f, 120.f);
-                const float temp = (t.lagRate + omega * x) * step;
-                const float decay = za::exp(-omega * step);
-                t.lagRate = (t.lagRate - omega * temp) * decay;
-                t.lag = (x + temp) * decay;
-                t.yaw0 = want + t.lag;
-            }
-        }
-        else
-        {
-            t.easing = false;
-            t.lag = t.lagRate = 0.f;
-        }
-        const float lag = t.lag * share;
-        t.twist = -(off + lag);
-        s.bodyYaw = want + lag;
-    }
+    s.bodyYaw = slide::legsTurnStep(slideTurn, flatmove::slidePose(), vr_flat_slide_legs.value != 0.f, aim.y,
+        flatsight::stanceYaw(), glm::vec2{cl.velocity[0], cl.velocity[1]}, dt);
 
     const float reach = za::clamp(vr_flat_reach.value, 0.25f, 3.f);
 
@@ -3917,6 +3838,34 @@ glm::vec3 headLean(const glm::vec3& aim)
     return active() && vr_flat_eye_pivot.value != 0.f ? chestCarry(aim) : glm::vec3{0.f};
 }
 
+glm::vec3 neckTurn(const glm::vec3& aim)
+{
+    if(vr_flat_eye_pivot.value == 0.f)
+    {
+        return glm::vec3{0.f};
+    }
+    const float forward = za::clamp(vr_flat_eye_fwd.value, 0.f, eyeOffMax);
+    const float upward = za::clamp(vr_flat_eye_up.value, 0.f, eyeOffMax);
+    glm::vec3 pitchedFwd{}, levelFwd{}, right{}, pitchedUp{}, levelUp{};
+    hands::angleVectors({aim.x, aim.y, 0.f}, pitchedFwd, right, pitchedUp);
+    hands::angleVectors({0.f, aim.y, 0.f}, levelFwd, right, levelUp);
+    return (pitchedFwd - levelFwd) * forward + (pitchedUp - levelUp) * upward;
+}
+
+glm::vec3 seenEyeShift(const glm::vec3& aim)
+{
+    if(vr_flat_eye_pivot.value == 0.f)
+    {
+        return glm::vec3{0.f};
+    }
+    // (the chest's share of the look as chestPitch has it, less the melee's lean, which another player's copy doesn't know)
+    const float lean = glm::radians(aim.x * za::clamp(aim.x > 0.f ? vr_flat_chest_down.value : vr_flat_chest_up.value, 0.f, 1.f));
+    glm::vec3 levelFwd{}, right{}, levelUp{};
+    hands::angleVectors({0.f, aim.y, 0.f}, levelFwd, right, levelUp);
+    const float lever = za::clamp(vr_flat_eye_lean.value, 0.f, eyeLeanMax);
+    return neckTurn(aim) + (levelFwd * za::sin(lean) + levelUp * (za::cos(lean) - 1.f)) * lever;
+}
+
 glm::vec3 eyeNudge(const glm::vec3& aim)
 {
     return camShiftWorld(aim);
@@ -4334,7 +4283,7 @@ void poseBot(const BotPoseIn& in, BotPoseOut& out)
         out.pos[h] = s.pos[h];
         out.rot[h] = s.rot[h];
     }
-    const SwingTimes w = swingTimes();
+    const SwingTimes w = swingTimes(in.windup);
     const double t = in.now - in.swingAt;
     out.swingPhase = t < 0.0 || t > w.wind + w.top + w.strike + w.dwell + w.back ? 0 : t < w.wind ? 1 : 2;
     bot = nullptr;
