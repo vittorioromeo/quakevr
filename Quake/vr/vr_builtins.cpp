@@ -37,6 +37,7 @@
 #include "vr_highlights.hpp"
 #include "vr_hitmodel.hpp"
 #include "vr_mapstyle.hpp"
+#include "vr_mpavatar.hpp"
 #include "vr_selfshot.hpp"
 #include "vr_hitreact.hpp"
 #include "vr_motion.hpp"
@@ -794,6 +795,21 @@ void PF_fileexists()
     G_FLOAT(OFS_RETURN) = COM_FileExists(G_STRING(OFS_PARM0), nullptr) ? 1.f : 0.f;
 }
 
+// vector(entity p) avatarbody: player p's avatar body as his dead body takes it (QC vr_deathdoll.qc; avatardoll): x his build
+// (0..3: progs/vrdoll_lean, vrdoll, vrdoll_brawny, vrdoll_fem), y its size (model units -> world units), z 1; '-1 0 0' none
+// (not a player, vr_mp_body 0, his body mode none: id's ranger). mpavatar::serverBody.
+void PF_avatarbody()
+{
+    const int num = NUM_FOR_EDICT(G_EDICT(OFS_PARM0));
+    float* out = G_VECTOR(OFS_RETURN);
+    int build = 0;
+    float scale = 1.f;
+    const bool has = num >= 1 && num <= svs.maxclients && mpavatar::serverBody(num - 1, build, scale);
+    out[0] = has ? static_cast<float>(build) : -1.f;
+    out[1] = has ? scale : 0.f;
+    out[2] = has ? 1.f : 0.f;
+}
+
 // float(string folder, float track) campaignmusic: a campaign's own CD track's number for target_vr_music
 // (vr_music.cpp: "hipnotic", 4 is Scourge of Armagon's "Ranger Infiltration"), 0 when the player's Quake doesn't have
 // it (no such campaign or track, no music file in its folders or the owned installs, external music off).
@@ -1094,6 +1110,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"botflatpose", PF_botflatpose},
     {"botcarryparms", PF_botcarryparms},
     {"fileexists", PF_fileexists},
+    {"avatarbody", PF_avatarbody},
     {"campaignmusic", PF_campaignmusic},
     {"highlighting", PF_highlighting},
     {"highlight", PF_highlight},

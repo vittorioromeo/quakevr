@@ -195,10 +195,25 @@ and its `provenance.txt` (the engine searches `<last basedir>\reliefs` below eve
 `VR_AddReliefsPath`). Progress in the status line; Cancel skips the rest (the next Setup run makes only the missing
 ones); a failure is a note on the Done page, never a failed install. The uninstaller removes the folder. Measured: Dwell
 and Quoth, 2323 textures, 1768 made in 115 s on an RTX 4090 (DirectML), 82 MB. Parity: 60 AD textures against
-`pbr_generate.py` (PyTorch): mean texel difference 0.0001, worst 1. CLI: `qvr-setup reliefs --target <install>
-[--mods "<dir>;<dir>"] [--palette-dirs ...] [--texture-roots ...] [--quakevr <dir>] [--cpu] [--limit N]`.
+`pbr_generate.py` (PyTorch): mean texel difference 0.0001, worst 1. CLI: `qvr-setup reliefs --target <folder>
+[--quake <Quake>] [--mods "<dir>;<dir>"] [--palette-dirs ...] [--texture-roots ...] [--quakevr <dir>] [--cpu] [--limit N]`
+(by itself it finds the folder's `dwell` or `dwellv2p2` and `quoth`, Quake's palette in them, the folder's `id1` or the
+install record's Quake; it prints how many reliefs were there and ends with `reliefs: N made, M already existed`).
+
+**Make reliefs only** (`Core/Reliefs/ReliefTarget.cs`, shared by the window and the CLI): the step alone on a folder
+that already plays Quake VR, nothing else installed or changed (only `<folder>\reliefs` is written). Offered on the
+Welcome page as a card with a "Make reliefs only" button when a folder has Dwell (`dwell`, else `dwellv2p2`) and/or
+Quoth (`quoth`) and is either Setup's own install (install.json: the folder given, Setup's copy, Apps & Features, the
+default folder) or a Quake folder with a `quakevr` folder in it (a hand or developer install, found by the quiet Quake
+detection or given with `--target`); the engine reads `<last basedir>\reliefs`, so that folder is where they go. The run
+skips the statement, the package and the options: the Install page's log, then the Done page ("Reliefs for Dwell and
+Quoth are ready") with how many were made and how many already existed. A folder that already has them makes 0.
 Self-tests: `reliefs: ...` (images and packing; a made-up texture set end to end on the CPU: made, skipped, frames
-shared, holes flat, kept, made again when missing, removed by uninstall).
+shared, holes flat, kept, made again when missing, removed by uninstall) and `reliefs-only: ...` (a made-up developer
+folder: offered, 4 made, nothing outside `reliefs` changed, a second run 0 made and 4 existing; Setup's install offered,
+`dwell` before `dwellv2p2`; folders without `quakevr` or the mods not). The screenshot harness drives the window's
+flow on a made-up folder (`1g-welcome-reliefs-only.png`, `5c-done-reliefs-only.png`; exit 1 unless offered, ended on
+Done with its count, and nothing else written) and prints whether this PC's folders are offered.
 
 ## Packages
 

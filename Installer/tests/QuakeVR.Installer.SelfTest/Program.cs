@@ -1626,6 +1626,50 @@ var tests = new List<(string Name, Action Body)>
         Uninstaller.Uninstall(target, new UninstallOptions());
         True(!Directory.Exists(ReliefMaker.Folder(target)) && !Directory.Exists(target), "uninstall removed the reliefs folder and the install");
     }),
+    ("reliefs-only: an existing folder like a developer's (Quake with quakevr, dwellv2p2 and quoth; no install.json): offered, makes them, writes only reliefs; a second run makes 0; Setup's own install offered; folders without Quake VR or the mods not", () =>
+    {
+        var quake = Dir("ro-Quake");
+        Directory.CreateDirectory(Path.Combine(quake, "id1", "gfx"));
+        File.WriteAllBytes(Path.Combine(quake, "id1", "gfx", "palette.lmp"), ReliefFixtures.Palette());
+        Directory.CreateDirectory(Path.Combine(quake, "quakevr", "textures", "pbr"));
+        byte Stone(int x, int y) => (byte)(90 + (x * 7 + y * 3) % 30 + ((x / 8 + y / 8) % 2) * 20);
+        foreach (var (mod, name, seed) in new[] { (Dwell.AltFolder, "d", 1), (Quoth.Folder, "q", 2) })
+        {
+            Directory.CreateDirectory(Path.Combine(quake, mod, "maps"));
+            File.WriteAllBytes(Path.Combine(quake, mod, "maps", name + ".bsp"), ReliefFixtures.Bsp(
+                ($"{name}wall", 32, 32, (x, y) => (byte)(Stone(x, y) + seed)),
+                ($"{name}floor", 16, 16, (x, y) => (byte)(40 + (x ^ y) + seed))));
+        }
+        string[] Outside() => [.. Directory.EnumerateFileSystemEntries(quake, "*", SearchOption.AllDirectories)
+            .Where(p => !p.StartsWith(ReliefMaker.Folder(quake), StringComparison.OrdinalIgnoreCase))
+            .Select(p => $"{p} {(File.Exists(p) ? new FileInfo(p).Length : -1)}").Order()];
+        var before = Outside();
+        var plain = Dir("ro-plain-quake");
+        Directory.CreateDirectory(Path.Combine(plain, Quoth.Folder, "maps"));
+        var noMods = Dir("ro-no-mods");
+        Directory.CreateDirectory(Path.Combine(noMods, "quakevr"));
+        var found = ReliefTarget.Find([(plain, null), (noMods, null), (quake, null), (quake, null)]);
+        Eq(1, found.Count, "only the folder with quakevr and a mod is offered, once");
+        var t = found[0];
+        Eq("Dwell and Quoth", t.ModsText, "both mods found");
+        Eq($"{Path.Combine(quake, Dwell.AltFolder)};{Path.Combine(quake, Quoth.Folder)}", string.Join(";", t.ModDirs), "dwellv2p2 and quoth found by name");
+        True(!t.OwnInstall && t.QuakeVrDir is not null && t.Existing == 0, "a hand install: quakevr, no install.json, no reliefs yet");
+        var first = t.Run(forceCpu: true, null, CancellationToken.None);
+        Eq("4 made, 0 already existed", ReliefTarget.Outcome(first), first.Describe());
+        Eq(4, ReliefTarget.For(quake).Existing, "the folder now has them");
+        True(before.SequenceEqual(Outside()), "nothing outside <folder>\\reliefs was written or changed");
+        var second = ReliefTarget.For(quake).Run(forceCpu: true, null, CancellationToken.None);
+        Eq("0 made, 4 already existed", ReliefTarget.Outcome(second), "a second run makes none");
+        // Setup's own install: offered from its install.json (dwell before dwellv2p2 when both are there).
+        var own = Path.Combine(run, "ro-QuakeVR");
+        new InstallEngine().Install(new InstallPlan { PackagePath = Fixtures.MakePackage(Dir("ro-pkg"), "1.0.0"), TargetDir = own, QuakeDir = quake }, null, CancellationToken.None);
+        Directory.CreateDirectory(Path.Combine(own, Dwell.Folder, "maps"));
+        Directory.CreateDirectory(Path.Combine(own, Dwell.AltFolder, "maps"));
+        var mine = ReliefTarget.For(own);
+        True(mine.Offered && mine.OwnInstall, "Setup's install with Dwell is offered");
+        Eq(Path.Combine(own, Dwell.Folder), mine.ModDirs.Single(), "dwell wins over dwellv2p2");
+        True(mine.PaletteDirs.Contains(Path.Combine(quake, "id1")), "the install record's Quake id1 is where the palette is read");
+    }),
     ("arcane dimensions: a failed or cancelled download never fails the install", () =>
     {
         using var server = new LocalHttpServer();

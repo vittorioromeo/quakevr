@@ -8,6 +8,7 @@
 
 [New: not yet sorted]
 Checklist: reorganized into feature sections (Dwell, Quoth, Multiplayer and bots, Flat screen, VR movement, ...); your ticked lines are retired
+Body Type set to Only Hands: the ammo pouch gives a shell and a magazine, the grenade pouch at the small of the back gives a grenade, and both sit where they are with the body drawn {test:pouchbody}
 
 [1. Dwell]
 Dwell: Select Campaign > Dwell, play start and d1m1 (triggered monsters wait, checkpoints autosave); Map Library: Ancient and Underdark Overbright udob1 load and play by Copper rules
@@ -80,6 +81,9 @@ A hit player's copy shows the wound (both arms share one); it clears when he res
 Flat-screen or VR: Kill a bot or player holding a dagger (hand or holster): the dropped prop is a dagger, guns keep their magazine.
 Flat-screen or VR: Host deathmatch, Select Campaign > Dwell: no error, players spawn at start's coop spots.
 Flat-screen or VR: A respawned player's old body still looks like him (his build, skin and gloves), not Quake's ranger.
+Host a game with a room code: Host Game says whether your port 26000 is reachable (and the net HUD while hosting); forward UDP 26000 on your router and host again: it should read reachable (after redeploying the room service)
+Show Navmesh (any setting) draws each navmesh-walking bot's path in magenta, with a white post at its next corner, on the host and when joined as a client (vr_bot_navmesh 1, deathmatch with bots)
+Kill a player and a bot in coop (and yourself in single player): each corpse is that player's own body shape and size, its limbs bending like a person's, and a tall player's corpse is visibly longer than a short one's
 
 [4. Flat screen]
 Flat-screen: walk forward into the tutorial's rung ladder (lesson 3): your hands take the rungs and you climb hand over hand at a steady pace, and climb over the top onto the platform. {test:flat_ladder}
@@ -138,6 +142,7 @@ Run Setup with Dwell or Quoth installed: the Options page has "Make reliefs for 
 Run Setup again (Update): the reliefs step says they were all kept and makes nothing; uninstall removes the reliefs folder from the Quake VR folder.
 Play Dwell's d1m1 and look at the brick walls and door frames up close: they have AD-like depth now (made by Setup on your PC); compare with Generated Companion Maps (VR Settings, Graphics) off, from the next map, if in doubt.
 Play Quoth's kellbase1: the pillar panels and the ceiling have AD-like depth now (Setup's reliefs), with no shimmering or wrong-way lighting on them.
+Run Setup on your existing Quake VR folder: it offers Make reliefs only; the second run makes none
 
 [12. Recording and dev tools]
 Takes: with OBS running, press TAKE on the wrist gadget, act, press STOP: a small blinking red light in the headset only, then the rating prompt; KEEP renames OBS's file to <date>_<scene>_t01_keep, REJECT moves it to rejected/. Left grip + X then Y marks in and out (vr_take_list shows them, X / Y do nothing in game); SET UP, knock props about, RETAKE: the scene comes back and a new take starts. {test:takes}

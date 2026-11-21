@@ -3473,6 +3473,16 @@ his: B10v's VR checks, internet play with two machines, the rendezvous service d
   raced: the wait now includes them, 2/2), runs 2 and 3: both clean (46 scenarios, mp_nat 12/0). SP: scenario_check 136/0, load_models 4/0 (vr_run_check not run: no canonical script; nothing SP-side changed but the Join Game page). ThinLTO 0 warnings.
 - **Open**: real routers (his two machines; a symmetric NAT gives the message, no relay); IPv6; a public room list
   (`vr_mp_public`) not built; the menus not seen in a headset.
+- **Later (2026-11-21, "portcheck"): the port check, rendezvous protocol version 3.** A registered host sends
+  PROBECHECK (version 3; REGISTER and JOIN stay version 2) with his game port (`net_hostport`); the service sends one
+  PROBE from a second socket (another source port) to his outside IP at that port, then PROBING. The probe got in:
+  reachable; PROBING and no probe in 2 s: not reachable; a version 2 service's BADVERSION, none, or no answer: unknown.
+  Limits: one probe per registration, only from the room's address and to its IP, 64 bytes of replies to a 64-byte
+  request. Shown on Host Game (above the room code), the net HUD while hosting (`port 26000 reachable`), the console
+  once and `vr_mp_roomcode` (net.h `NET_PortCheck`/`NET_PortCheckText`). Tests: `test_rendezvous.py` 44/0 (the probe,
+  its limits, version 2 served as 2, `--newest 2`), `mp_test.py nat` 18/0 (off: unknown; cone NAT without a forward:
+  not reachable; forwarded: reachable; a version 2 service: code still given, unknown), roomui (the HUD line).
+  The relay: BACKLOG.md, low priority (his decision).
 
 Next phase: B24 -- his: deploy the room service and try a room code between two real routers; ours: the lift's
 DIST_EPSILON misses (B21 item 3) and a 60-minute soak with the change twice; a relay only if real punches fail often.
@@ -4022,6 +4032,26 @@ model (the one we use for the IK) and use that as a corpse ragdoll?"
   Costs: a rig (an afternoon with the Rig Studio), the QC body model switch, the engine's owner field and look; risk:
   the vrbody mesh's proportions per build (a rig per build, or one rig scaled). Its value over the fix above: the
   corpse's limbs are the avatar's own lengths (no stretched ranger proportions), grabs and gibs on the real shape.
+- **Built (avatardoll, 2026-11-21)**, a little apart from the plan: the ragdoll code rigs a Quake .mdl (fromAuthored needs
+  PV_QUAKE1 vertices), so each build's body is written as one (`Misc/quakevr/make_vrdoll.py`: `progs/vrdoll_lean.mdl`,
+  `vrdoll.mdl`, `vrdoll_brawny.mdl`, `vrdoll_fem.mdl`, the md5mesh's bind pose, feet at -24, a quarter-size palette skin)
+  with its authored rig (`quakevr/rigs/vrdoll*.rig2.txt`: 19 bones from the md5 skeleton, the forearm's twist helpers its
+  forearm, the wrist its hand; the md5's own weights; the armed grunt's limits; the elbow and knee axes from the straight
+  bind pose). Seed tables without seeds (authored only, never derived). The server: QC `VR_DeathDoll_Avatar` asks
+  `avatarbody(p)` (`mpavatar::serverBody`: his build and size from the calibration the server keeps per slot -- his world
+  scale times his eye height over 1.646 m, as setupBody draws him; single player your own settings; no calibration, a
+  bot: the default build at the default world scale; vr_mp_body 0 or his body mode none: none) and makes the body his
+  build's model, `model_scale` his size (the feet kept on the floor), no death animation. Box3D builds its ragdoll from the
+  rig at that scale; ragsync sends it as any (19 parts, its scale); every client still draws the dead player's avatar on
+  it through mpbugs4's doll slots (`addDolls` takes `progs/vrdoll*` too; `dollPose` finds the same bone names, so the drawn
+  body follows the physics bones one to one, his look, hands and arm lengths his own). id's ranger stays the fallback
+  (vr_mp_body 0, body mode none, a worldspawn without `VR_DeathDoll_Precache`, data without the models). Test:
+  `mp_deathbody` 34/0 (a short brawny A at 1.55 m, a tall lean B at 1.95 m: each body his build's vrdoll, 19 parts at
+  host and client, the leg 21.8-21.95 model units at its scale, B's scale over A's 1.258 = 1.95 / 1.55; the slots and
+  looks as before); `vr_mp_avatars`' `mp_doll_rig:` line (parts, scale, the left leg's drawn length). Not done: the arm
+  lengths and shoulders in the physics (the rig is scaled uniformly; the drawn arms are his), a flat player's body at
+  his flat-screen height (the server takes his VR height), a client of an older server (the ranger as before) and one
+  with `vr_net_ragdolls 0` (the doll's single frame: standing).
 
 ## Sync audit 2026-11-21: every player feature, seen by another player or not
 

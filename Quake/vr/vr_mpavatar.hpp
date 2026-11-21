@@ -149,6 +149,11 @@ struct Calibration
 [[nodiscard]] const Calibration* calibrationOf(int ent);
 // The server's side: client `slot`'s world scale as his calibration says (vr_world_scale) -> false: none came yet.
 [[nodiscard]] bool serverWorldScale(int slot, float& scale);
+// The server's side (QC's avatarbody: a dead player's body as his avatar's own, avatardoll): client `slot`'s body build
+// (vr_body_build 0..3) and its size (progs/vrdoll*.mdl's model units -> world units: his world scale times his eye height
+// over the model's) as his calibration says; single player your own settings; no calibration (a bot): the default build
+// at the default world scale. False: none (vr_mp_body 0, his body mode none): id's ranger.
+[[nodiscard]] bool serverBody(int slot, int& build, float& scale);
 // VR_WriteMoveExtras: this client's calibration up, when changed (multiplayer only).
 void sendCalibration();
 // vr_client.cpp's dispatch: QVR_SVC_AVATARCAL's body.

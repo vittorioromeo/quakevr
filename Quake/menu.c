@@ -7227,6 +7227,10 @@ void M_GameOptions_Draw (void)
 		M_PrintWhite (160, 184, NET_RoomCode ());
 		M_Print (160 + 8 * 7, 184, "(C: copy)");
 	}
+	// QVR: (2026-11-21) the port check (net_dgrm.c): whether players behind any router can reach this host's port,
+	// above the room code (3 lines at most; white when reachable)
+	if (sv.active && svs.maxclients > 1)
+		M_PrintWordWrap (0, 152, NET_PortCheckText (false), 320, 24, NET_PortCheck () != NET_PORTCHECK_REACHABLE);
 
 // line cursor
 	M_DrawArrowCursor (144, gameoptions_cursor_table[gameoptions_cursor]);

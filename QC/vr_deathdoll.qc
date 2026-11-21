@@ -11,6 +11,53 @@
 
 float VR_DEATHDOLL_MAXSPEED = 400; // units/s: the fastest a body is thrown when made (a blast throws it too: vr_box3d.cpp)
 
+// The avatar's own ragdoll (avatardoll, MP_PLAN.md "The avatar's own ragdoll"): the body is his avatar's build as a .mdl
+// (Misc/quakevr/make_vrdoll.py: its authored rig quakevr/rigs/vrdoll*.rig2.txt), sized to his height and world scale
+// (avatarbody: his calibration as the server has it, single player your settings, a bot the default build), so the
+// ragdoll's parts are his body's own; each client draws his avatar (build, look, hands) on its bones (vr_mpavatar.cpp
+// addDolls). id's ranger (progs/player.mdl) where there is none: vr_mp_body 0, his body mode none, a worldspawn that did not
+// precache them (VR_DeathDoll_Precache), a data folder without them.
+float vr_deathdoll_models; // TRUE: this map precached every build's model
+
+void() VR_DeathDoll_Precache =
+{
+    if(fileexists("progs/vrdoll_lean.mdl") && fileexists("progs/vrdoll.mdl") && fileexists("progs/vrdoll_brawny.mdl") &&
+       fileexists("progs/vrdoll_fem.mdl"))
+    {
+        precache_model("progs/vrdoll_lean.mdl");
+        precache_model("progs/vrdoll.mdl");
+        precache_model("progs/vrdoll_brawny.mdl");
+        precache_model("progs/vrdoll_fem.mdl");
+        vr_deathdoll_models = TRUE;
+    }
+};
+
+// Body b made as p's avatar's own (TRUE), or not (FALSE: id's ranger). Its feet where his were (the model's at -24 scaled).
+float(entity b, entity p) VR_DeathDoll_Avatar =
+{
+    if(!vr_deathdoll_models)
+    {
+        return FALSE;
+    }
+    vector ab = avatarbody(p);
+    if(ab_x < 0 || ab_y <= 0)
+    {
+        return FALSE;
+    }
+    if(ab_x < 1)      { setmodel(b, "progs/vrdoll_lean.mdl"); }
+    else if(ab_x < 2) { setmodel(b, "progs/vrdoll.mdl"); }
+    else if(ab_x < 3) { setmodel(b, "progs/vrdoll_brawny.mdl"); }
+    else              { setmodel(b, "progs/vrdoll_fem.mdl"); }
+    setsize(b, VEC_HULL_MIN, VEC_HULL_MAX);
+    b.model_scale = '1 1 1' * (ab_y - 1); // (an offset from 1: the engine's ragdoll and drawing scale)
+    b.frame = 0;
+    if(ab_y > 1)
+    {
+        setorigin(b, b.origin + '0 0 24' * (ab_y - 1)); // (the feet, at -24 * size, on the floor)
+    }
+    return TRUE;
+};
+
 // Whether `p` has a ragdoll body lying there now.
 float(entity p) VR_DeathDoll_Has =
 {
@@ -90,6 +137,11 @@ float(entity p) VR_DeathDoll_Make =
     b.vr_deathdoll_last = last;
     b.think = VR_DeathDoll_Anim;
     b.nextthink = time + 0.1;
+    if(VR_DeathDoll_Avatar(b, p))
+    {
+        b.think = SUB_Null; // (one frame, no death animation: a client drawing no ragdoll draws it standing)
+        b.nextthink = 0;
+    }
 
     VR_Corpse_Arm(b); // (a corpse lying still: the engine's ragdoll at once, gibbed by enough damage)
     b.solid = SOLID_NOT_BUT_TOUCHABLE;
