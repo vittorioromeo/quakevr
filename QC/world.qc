@@ -436,6 +436,7 @@ void() worldspawn =
     precache_sound("misc/foot7.wav");
 
     precache_model("progs/player.mdl");
+    VR_DeathDoll_Precache(); // (the avatar's own ragdolls, each build's: vr_deathdoll.qc)
     precache_model("progs/eyes.mdl");
     precache_model("progs/h_player.mdl");
 

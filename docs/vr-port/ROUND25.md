@@ -6815,6 +6815,37 @@ Branch `agent/reliefs`. His choice of 2026-11-21: PBRify's CC0 models as ONNX, r
   (`--authored`) do not apply to these mods. The window itself was not run (no GUI here): the Options row and the
   step's progress want a look in Setup.
 
+## avatardoll: a dead player's ragdoll is his avatar's own body (avatardoll, 2026-11-21, `agent/avatardoll`)
+
+His words: "Yes [build it]. The ragdoll should match the player's customisation, size, etc." (MP_PLAN.md, "Still the
+ranger after a respawn": the plan, and "Built (avatardoll)": the design as built.)
+
+- **What it is.** The body QC vr_deathdoll.qc makes is no longer `progs/player.mdl`: `VR_DeathDoll_Avatar` asks the
+  new builtin `avatarbody(p)` (`mpavatar::serverBody`) for his build and size and makes it his build's
+  `progs/vrdoll_lean|vrdoll|vrdoll_brawny|vrdoll_fem.mdl`, `model_scale` his size (world scale x eye height / 1.646 m,
+  the drawing's own formula; the feet kept on the floor), no death animation. Box3D rigs it from its authored rig
+  (`quakevr/rigs/vrdoll*.rig2.txt`, 19 parts) at that scale; ragsync sends it; every client draws his avatar on it
+  (mpbugs4's doll slots, `addDolls` takes `progs/vrdoll*`), the bones one to one by name. Single player: your own
+  settings (the death camera and the Immersive view in its head bone work as before); bots: the default build at the
+  default world scale. id's ranger stays the fallback: vr_mp_body 0, body mode none, a mod's worldspawn that does not
+  call `VR_DeathDoll_Precache` (world.qc does), data without the models.
+- **The models and rigs** (`Misc/quakevr/make_vrdoll.py`, genguard-owned): each build's md5mesh bind pose as a .mdl
+  (1250 vertices, the feet at -24, a 128x512 palette skin from vrbody_00_00.tga: seen only where no avatar can be drawn
+  on it), its rig: the md5 skeleton's 19 bones (calves the shins, the forearm twist helpers the forearm, the wrist the
+  hand), the md5's own weights, the armed grunt's joint limits, the elbows' and knees' hinge axes from the straight bind
+  pose. Their seed tables carry no seeds: authored only, never derived (`warmRigs`, `derivedRigFor`, `vr_ragdoll_rig_sweep`
+  skip them).
+- **Tests.** `mp_test.py deathbody` 34/0 (grown: a short brawny A at 1.55 m and a tall lean B at 1.95 m; each body his
+  build's vrdoll at host and client, 19 parts, the leg 21.8-21.95 model units at its scale (rest 22.06), the client's
+  scale the host's, B's over A's 1.258 = 1.95 / 1.55; legs 24.7 and 31.2 units). `vr_mp_avatars` prints
+  `mp_doll_rig: ent doll parts dollscale leg`. Single player e1m1 `vr_hurt 110 0`: `vrdoll.mdl#rig2`, 19 parts, scale
+  1.128, drawn as vrbody_bare. `mp_test.py ragsync` 11/0; climb_test 6/6; active_test no FAIL; stagger_test 1 FAIL (the
+  grunt's beaten backpedal falls: BACKLOG's known one, no monster code touched); scenario_check 150 run / 0 failed;
+  Dev and ThinLTO builds 0 warnings. Screenshot of both bodies (dark at e1m1's start; `MP_DEATHBODY_SHOT=1`):
+  `scratch/mp/mp_deathbody_*/A_deathbody_two.png`.
+- **Not done.** The physics rig is scaled uniformly (his arm length and shoulders are the drawn body's only); a flat
+  player's body is his VR height, not his flat-screen height (the server cannot tell him flat there); a client with
+  `vr_net_ragdolls 0` draws the doll's single frame (standing); no Rig Studio range-of-motion pass on the new rigs yet.
 ## flakehunt: the bots' paths in Show Navmesh; known failing tests (flakehunt, 2026-11-21, `agent/flakehunt`)
 
 His words: "15. Yes" (hunt the flakes); "8. I still need to try [vr_bot_navmesh]. Ensure the debug view works here too."
