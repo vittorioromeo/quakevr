@@ -80,6 +80,7 @@ A hit player's copy shows the wound (both arms share one); it clears when he res
 Flat-screen or VR: Kill a bot or player holding a dagger (hand or holster): the dropped prop is a dagger, guns keep their magazine.
 Flat-screen or VR: Host deathmatch, Select Campaign > Dwell: no error, players spawn at start's coop spots.
 Flat-screen or VR: A respawned player's old body still looks like him (his build, skin and gloves), not Quake's ranger.
+Host a game with a room code: Host Game says whether your port 26000 is reachable (and the net HUD while hosting); forward UDP 26000 on your router and host again: it should read reachable (after redeploying the room service)
 
 [4. Flat screen]
 Flat-screen: walk forward into the tutorial's rung ladder (lesson 3): your hands take the rungs and you climb hand over hand at a steady pace, and climb over the top onto the platform. {test:flat_ladder}
