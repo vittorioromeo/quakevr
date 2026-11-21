@@ -103,7 +103,7 @@ void updateRecoveries()
             pos[k] = glm::mix(fromPivot, toPivot, w) - rot[k] * pivot;
         }
         ragdoll::publish(rec.num, rec.rig, rec.count, rot.data(), pos.data(), rec.scale, qcvm->time + host_frametime, 0, 0,
-            limbsBleed(ent));
+            limbsBleed(ent, rec.since));
         i++;
     }
 }
@@ -512,6 +512,7 @@ void handBack(edict_t* ent, RagdollBodies& r, int frame, float yaw, const glm::v
     rec.rig = r.rig;
     rec.scale = r.scale;
     rec.count = r.count;
+    rec.since = r.born;
     for(int b = 0; b < r.count; b++)
     {
         const b3WorldTransform xf = b3Body_GetTransform(r.body[static_cast<za::SizeT>(b)]);
@@ -572,7 +573,7 @@ void handBack(edict_t* ent, RagdollBodies& r, int frame, float yaw, const glm::v
     }
     // (Drawn as it lay until the step's blend: no frame of its animated model in between.)
     ragdoll::publish(num, rec.rig, rec.count, rec.rot.data(), rec.pos.data(), rec.scale, qcvm->time + host_frametime, 0, 0,
-        limbsBleed(ent));
+        limbsBleed(ent, rec.since));
 }
 
 } // namespace

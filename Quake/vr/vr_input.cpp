@@ -1796,7 +1796,7 @@ constexpr int noclipFlyCaseCount = static_cast<int>(sizeof(noclipFlyCases) / siz
 constexpr int noclipFlyLook = 10;   // frames the look settles over before the push
 constexpr int noclipFlySkip = 8;    // the push's first frames, unmeasured (the move reaching the server)
 constexpr int noclipFlyDrive = 48;  // frames pushed
-constexpr float noclipFlyHandUp = -30.f; // (vr_mock_hand_turn's pitch: down positive)
+constexpr float noclipFlyHandUp = 100.f; // (the mock's moving hand rests 70 down: turned 100 up, it points 30 up)
 constexpr float noclipFlyTolerance = 3.f; // degrees
 
 struct NoclipFlyTest

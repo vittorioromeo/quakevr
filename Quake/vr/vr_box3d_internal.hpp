@@ -451,6 +451,7 @@ struct Recovery
     za::Array<glm::quat, ragdoll::maxBones> rot{};
     za::Array<glm::vec3, ragdoll::maxBones> pos{};
     double start{0.0};
+    double since{0.0}; // its ragdoll's making (RagdollBodies::born): limbsBleed's
     float duration{0.35f};
     int frame{-1}, prevFrame{-1};
     double changed{0.0}; // the server time its frame changed (the think that changed it: due then)
@@ -970,8 +971,11 @@ void markSlotActive(int num); // slot `num` given a body (its kind set: createBo
 
 void dropGrabsOf(int num); // (below: "Ragdolls")
 // Whether the ragdoll of `ent` bleeds from its limbs flung fast (ragdoll::publish's `bleeds`): a corpse's always, a live
-// one's (knocked down, staggering, getting up) only once it has bled (QC .vr_bloodied: a wound that bled, never a shove's).
-[[nodiscard]] bool limbsBleed(edict_t* ent);
+// one's (knocked down, staggering, getting up) only for blood drawn since its ragdoll was made at `since` (server time),
+// or just before (bledGrace: a hit that came with the shove): QC .vr_bled_at, a wound that bled, never a shove's. A
+// wound from long before does not bleed again from every limb as a later shove flings it (his note 2026-11-21).
+constexpr double bledGrace = 1.0; // s: blood drawn this long before its ragdoll was made still bleeds (shot and shoved)
+[[nodiscard]] bool limbsBleed(edict_t* ent, double since);
 void destroyBody(Slot& s);
 
 // The world model's faces as a triangle mesh (metres), sky and liquids left out, wound counter-clockwise seen from

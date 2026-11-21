@@ -88,11 +88,17 @@ void(entity e, vector at, vector dir, float damage) VR_Wound_Pellet =
 };
 
 .float vr_bloodied; // it has bled: a blow, a shot, a blast that drew blood (not a shove's or a bash's, a burn, a fall, a
-                    // liquid); a live ragdoll's limbs flung fast bleed only then (the engine reads it: box3d limbsBleed)
+                    // liquid)
+.float vr_bled_at;  // and when it last did: a live ragdoll's limbs flung fast bleed only for blood drawn as it went down
+                    // or since (the engine reads it: box3d limbsBleed; his note 2026-11-21: a shove alone never bleeds)
 
 // From T_DamageImpl, as `take` is taken: the blow's kind, where it struck and which way it went.
 void(entity targ, entity inflictor, entity attacker, float take) VR_Wound_Hit =
 {
+    if(take > 0 && VR_Hit_Bleeds(inflictor, attacker))
+    {
+        targ.vr_bled_at = time;
+    }
     if(take > 0 && !targ.vr_bloodied && VR_Hit_Bleeds(inflictor, attacker))
     {
         targ.vr_bloodied = TRUE;
