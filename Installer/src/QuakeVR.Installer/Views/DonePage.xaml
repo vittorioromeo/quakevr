@@ -11,8 +11,8 @@
                     </Image.Effect>
                 </Image>
                 <StackPanel>
-                    <TextBlock Text="Quake VR: Unleashed is ready" Style="{StaticResource PageTitle}" />
-                    <TextBlock Style="{StaticResource PageSubtitle}" Text="Start your VR software, put on your headset, and press Play." />
+                    <TextBlock Text="{Binding DoneTitle}" Style="{StaticResource PageTitle}" />
+                    <TextBlock Style="{StaticResource PageSubtitle}" Text="{Binding DoneSubtitle}" />
                 </StackPanel>
             </DockPanel>
 

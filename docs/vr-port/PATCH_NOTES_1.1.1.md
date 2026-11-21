@@ -38,6 +38,8 @@ that ships in 1.1.1.
   have now reaches Dwell's and Quoth's: the installer makes it on your PC from your own copies, with the same free
   models ("Make reliefs for Dwell and Quoth", ticked when either is installed; a few minutes on a graphics card, only
   the missing ones at later runs). It is kept in the Quake VR folder's `reliefs` folder and removed by the uninstaller.
+  Already playing Dwell or Quoth in a Quake VR folder of your own? Setup finds it and offers **Make reliefs only** on
+  its first page: just the missing reliefs, nothing else installed or changed.
 - **Eye-tracked foveation by default.** With an eye-tracking headset (a Quest Pro through Virtual Desktop with eye
   tracking shared to the PC, Varjo...) the sharp middle of Foveated Rendering follows your eyes without setting
   anything; without one, or while your eyes are not tracked, it stays in the middle of the lens. A line under VR
