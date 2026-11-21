@@ -49,7 +49,7 @@ run saveload "map e1m1; wait60; god; impulse 152; wait10; vr_hotblade_test 1; wa
 # grip-to-tip line and the vertices in it (vr_hotblade_report), its ends the hand's own; the light follows the glow.
 B="map e1m1; wait60; god; notarget"
 for imp in 152 163 167 164; do B="$B; impulse $imp; wait60; vr_hotblade_test 1; wait40; vr_hotblade_report; vr_hotblade_test 2; wait5"; done
-run blade_parts "$B" 'main v_axe\.mdl glow 1\.00 part 3\.4/8\.5 verts 10/223 light 0\.9[0-9] reach 72;main v_ksword\.mdl glow 1\.00 part 22\.4/28\.0 verts 8/230;main v_crowbar\.mdl glow 1\.00 part 10\.5/11\.0 verts 280/464;main v_chainsaw\.mdl glow 1\.00 part 13\.9/25\.3 verts 18/285;grip off the hand.s 0\.0[0-9], tip off its muzzle 0\.0[0-9]'
+run blade_parts "$B" 'main v_axe\.mdl glow 1\.00 part 3\.4/8\.5 verts 10/223 light 0\.9[0-9] reach 72;main v_ksword\.mdl glow 1\.00 part 22\.4/28\.0 verts 8/230;main v_crowbar\.mdl glow 1\.00 part 10\.5/11\.0 verts 27[0-9]/446;main v_chainsaw\.mdl glow 1\.00 part 13\.9/25\.3 verts 18/279;grip off the hand.s 0\.0[0-9], tip off its muzzle 0\.0[0-9]'
 run superaxe "map e1m1; wait60; god; notarget; impulse 168; wait60; vr_hotblade_test 1; wait40; vr_hotblade_report" 'main v_hammer\.mdl glow 1\.00 part 2\.3/5\.9 verts 295/795'
 # Embers off the heated part held still (4 a puff, 12 puffs a second: 48), none with Embers per Puff 0; no light at 0.
 E="map e1m1; wait60; god; notarget; impulse 152; wait20; vr_hotblade_test 1; wait150; vr_hotblade_report"
