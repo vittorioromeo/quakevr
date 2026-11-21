@@ -131,8 +131,9 @@ hint Swing at them: ...                             # optional; default the chec
   directives, one map that exists, `give` main|off, `spawn` offsets), the untagged lines and the unused scenes listed.
 - Check before committing: `vr_scenario validate` (SCNOK/SCNERR per file: the map, entries, settings, commands; and
   every checklist tag's file; SCNSUM) and `vr_scenario runall quit [<id>...]` (each run in turn for 3 s of game time,
-  SCNRUN OK/FAIL with the first problem: an entry not available here, a spot in a wall, a QC error, a given weapon no
-  longer in its hand; SCNHANDS per scene: each hand's given weapon then and now; SCNRUNSUM). A one-off eyeshot:
+  SCNRUN OK/FAIL with the first problem: a spot in a wall, a QC error, a given weapon no longer in its hand; SCNRUN
+  SKIP with the toolgun's reason when a give/spawn entry is an add-on's not here (Dwell, AD, an MG3 campaign item:
+  nothing placed, not a failure); SCNHANDS per scene: each hand's given weapon then and now; SCNRUNSUM). A one-off eyeshot:
   `vr_scenario <id>;wait120;screenshot`.
 - A `give` puts the weapon in the hand as if just grabbed, in either grip mode: with `vr_weapon_grip_mode 0` (hold) it
   stays, the grip unpressed, until that hand's grip is pressed (from then on the grip holds it: let go on release);

@@ -86,6 +86,7 @@ enum SvcQuakeVr : int
     QVR_SVC_RAGPOSE = 51,         // [short entity][byte bodies | 128 the authored rig][long cut bones][byte flags: 1 bleeds][float scale][float pose time][long3 the root part's place * 8][6 bytes its turn: smallest three] then each other part [short3 from the root * 8][6 bytes its turn]: a ragdoll's parts as the server last stepped them (vr_netragdoll.cpp; a snapshot record, ragKey + entity, multiplayer only, ragsync)
     QVR_SVC_RIGSEQ = 37,      // [short entity][byte 1 start, 0 stop][start: string name][float server time]: a Rig Studio sequence started on a monster by QC, or stopped (vr_rigseq.cpp), reliable
 };
+inline constexpr int ADHUD_DATA = 1 << 13; // STAT_QVR_ADHUD: AD's data in play on the server (vr_ad.cpp clientDataInPlay)
 inline constexpr int ropeEnded = 255; // QVR_SVC_ROPE's count: the beam's rope ended (no corners follow)
 
 // Client -> server: clc_move VR block button bits.
@@ -159,7 +160,8 @@ enum Stat : int
     // AD support: Arcane Dimensions' row on the wrist gadget (QC vr_ad_items.qc AD_HudUpdate): what is held (bits 0-5
     // the artifacts Lava Shield, Air Tank, Blast Belt, Jump Boots, Sharp Shooter, Nail Piercer; 6-8 the debuffs
     // burning, poisoned, bleeding; 9-12 the custom keys), the custom keys' HUD skins (4 bits each), the soonest
-    // artifact's seconds left (0: none ends).
+    // artifact's seconds left (0: none ends). Bit 13 (ADHUD_DATA, the engine's): AD's data in play on the server
+    // (its vr_ad_mounted), so a client in a remote game follows the server's, not its own last map's.
     STAT_QVR_ADHUD = STAT_QVR_FOEGRABMAINX + 3,
     STAT_QVR_ADKEYS,
     STAT_QVR_ADTIME,

@@ -6554,6 +6554,25 @@ wristscore). `QVR_NET_VERSION` stays 42: nothing new is sent (the client rebuild
   scenario_check PASS (148 scenes), vr_agrunt_test 97 (Show Disarm Volumes) 5/0 with Show Hit Zones on; Dev and
   ThinLTO builds 0 warnings.
 
+## smallfix: scenario skips, the wrist AD page in a remote game, vr_rv_test 1, ragsync (2026-11-21, `agent/smallfix`)
+
+- **Scenes needing an add-on**: `vr_scenario runall` skips a scene whose give/spawn names a toolgun entry this game cannot
+  make (toolgun `spawnableAvailable`: Dwell, AD, an MG3 campaign item): `SCNRUN|<id>|SKIP|line N: "<entry>": <why>`,
+  nothing placed, not a failure; `SCNRUNSUM|N run|M failed|K skipped`. There was no declaration to copy (the dwell_*
+  scenes only use `cmd vr_ad_test`): the toolgun's own availability is the rule. A probe scene (an MG3 upgrade) skipped.
+- **The wrist AD page in a remote game**: STAT_QVR_ADHUD bit 13 (`protocol::ADHUD_DATA`, set by the server from its
+  `vr_ad_mounted`); `ad::clientDataInPlay()` (vr_ad.cpp) is the local cvar with a local server, the bit on a remote one;
+  the gadget's page checks use it. `mp_test.py wristscore` 11/0 with a new check (B's AD page offered as the server's
+  game); every agent base has AD's data, so the server-without-AD case is not exercised.
+- **vr_rv_test 1** "a grunt's body": its grunts were armed replacements (vr_agrunt_repl, on by default) with a random
+  weapon; a shotgun before the chest stopped the first body slug (VR_AGS_Shot, 0 dealt: the game is right). The test
+  spawns plain grunts now (vr_agrunt_repl 0 around the spawn) and its slug lines say what each hit. 48/0.
+- **mp_ragsync**: the settled-bytes check waits up to 5 windows of 2 s for a quiet one (noted). The crate/sword p95
+  failures are the game's (2 of 3 runs here): in the ragdolls-on play B draws the blasted crate at exact server-tick
+  places 1-2 ticks AHEAD of its interpolation clock (not lerped, as if `netsnap::interpEntity` returned false and the
+  NetQuake path drew the newest), only during the gib blast; in the ragdolls-off play the same crate is 0.04 u p95.
+  Open: suspect `h.model != ent.model` in interpEntity (a model swapped by the ragdoll pass?) or netrag's client frame.
+  Tools: `scratch/smallfix_raglag.py <run dir>` (worst samples, best time shift), `smallfix_raggap.py <dir> <ent> <t0> <t1>`.
 ## botnav: bots' waypoints and the navmesh together, vr_bot_navmesh (2026-11-21, `agent/botnav`)
 
 His voice note (2026-11-21): keep FrikBot's waypoints (they make the bots go for powerups, weapons, health on any map),

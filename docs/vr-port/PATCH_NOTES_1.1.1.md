@@ -123,7 +123,8 @@ The guide: [MULTIPLAYER.md](MULTIPLAYER.md).
   the gun from below (no forearm across the face), standing, crouched or sliding.
 - **The scoreboard on your wrist**: in multiplayer the wrist gadget's outer button also turns to a scoreboard page:
   every player's colours, frags and name in the scoreboard's order, your row lit, who is talking on voice chat, and in
-  coop the level's kills and secrets. Live, up to 16 players.
+  coop the level's kills and secrets. Live, up to 16 players. Its Arcane Dimensions page is offered only when the
+  server you joined has Arcane Dimensions' data, not because your last local game did.
 
 **Single player only**: time scale and bullet time, saving at will (the host's level-start coop autosave instead),
 the crates Quake VR places about maps, Dimension of the Past and Dimension of the Machine.
