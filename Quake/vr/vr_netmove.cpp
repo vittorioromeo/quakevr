@@ -31,6 +31,10 @@ namespace
 constexpr float posScale = 64.f;             // places and offsets: 64ths of a unit
 constexpr float drawnScale = 8.f;            // the drawn hands' and holsters' places: eighths (as the avatar sends them)
 constexpr float angScale = 65536.f / 360.f;  // angles: 65536ths of a turn (not wrapped: the value as it was)
+// (syncfix4) The worn gear's places and turns in their frames, coarser: quarters and 4096ths of a turn (0.09 deg); the
+// finer steps changed with every move from the frames' own rounding (mp_loss's link up at its bound).
+constexpr float gearScale = 4.f;
+constexpr float gearAngScale = 4096.f / 360.f;
 constexpr float velScale = 1024.f;           // speeds (metres or units a second), angular speeds
 constexpr float unitScale = 4096.f;          // unit directions
 constexpr float timeScale = 1000.f;          // the client's time, throw ages: milliseconds
@@ -177,8 +181,8 @@ constexpr void visitMove(WireMove& m, V& v)
         const bool shown = (gear.shown & (1 << i)) != 0;
         glm::vec3 at = shown ? gear.origin[i] : from;
         glm::vec3 ang = shown ? gear.angles[i] : turn;
-        v.framed(at, from, turn[1], drawnScale);
-        v.turned(ang, turn, angScale);
+        v.framed(at, from, turn[1], gearScale);
+        v.turned(ang, turn, gearAngScale);
         if(shown)
         {
             v.store(gear.origin[i], at); // (the dequantizer's: the quantizer only reads the move)

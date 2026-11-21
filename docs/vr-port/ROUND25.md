@@ -6596,3 +6596,26 @@ wristscore). `QVR_NET_VERSION` stays 42: nothing new is sent (the client rebuild
   (mp_wpnsync_flat's torch 10.6 units off once, 16/0 on the rerun; mp_coopbots vr_dm_test 11, BACKLOG's rare flake);
   scenario_check PASS (148 scenes), vr_agrunt_test 97 (Show Disarm Volumes) 5/0 with Show Hit Zones on; Dev and
   ThinLTO builds 0 warnings.
+
+## syncfix4: agent/syncfix's checks before it ships (syncfix4, 2026-11-21, `agent/syncfix`)
+
+- Merged origin/next: `QVR_SVC_EJECTOTHER` is 52 now (next took 51 for QVR_SVC_RAGPOSE); both sides' notes on
+  QVR_NET_VERSION 42's line (one version for both: the room service is redeployed once).
+- The worn gear in the move: its places in quarters, its turns in 4096ths of a turn (`gearScale`, `gearAngScale` in
+  vr_netmove.cpp; were eighths and 65536ths). mp_loss's "B's link up walking at 10% loss" (bound 12288 B/s) read 12975
+  in the plain suite (fail) and 12239 alone; with the coarser steps 11636 (mean 144 B a move; origin/next 9672, 119 B).
+  The margin is still small: the rest is the gear's real motion on a walking body.
+- The test harness: `sa_shockarcs_test.sh` and `waterzap_test.sh` given only the agent name never ended (`shift 2`
+  failed with one argument left and the option loop spun): the last syncfix worker stalled there.
+- Checks: syncaudit 25/0 (B VR and `--flat B`), netsafe 14/0, before and after the change; the plain suite 63 of 65
+  tests clean, mp_loss (above) and mp_debugviz_listen (a bot's disarm volumes 55 units off the weapon drawn, once) both
+  pass alone; sa_shockarcs 4/0, gunfx 73/0, spentshake 4/0, holsterzones 13/0, flatholster 54/0, armorgear 2/0, dead_gear
+  9/0, pouch 29/0, pouchcatch 7/0, pouch_slider 6/0, gadget_tap_melee 11/0, holsteritems, holsters2, holstersetup and
+  magholster with no failure. On origin/next too, the same failures: flateject 15/2 (`rv`: the test still wants the
+  revolver's open pose from before his 11-11 defaults; `ssgold`'s second casing sideways) and gadget_lock 13/4 (C and H).
+  After the gear change: mp_moves 20/0, mp_fuzz 17/0, mp_avatar 18/0, mp_wpnsync 16/0. Dev and ThinLTO builds 0 warnings.
+- Bytes per player (the plain suite's mp_bytes, B's link, origin/next of 03:20 then this branch): the up link +5% to
+  +49% (mp_coop 5488 -> 6950 B/s, mp_loss 8911 -> 9624, mp_predict 12738 -> 17391), the avatars' share of the down link
+  about twice (mp_coop 627 -> 1379 B/s), the down link within -10% .. +15% (mp_rejoin's +37%: its join burst).
+- A bot's holsters: syncaudit's four pictures (vr_bot_freeze, A's head torch) show it still and centred from the front and
+  back, slightly off centre from the sides, the hips at the frame's lower edge.
