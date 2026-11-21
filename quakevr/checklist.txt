@@ -9,6 +9,10 @@
 [New: not yet sorted]
 Checklist: reorganized into feature sections (Dwell, Quoth, Multiplayer and bots, Flat screen, VR movement, ...); your ticked lines are retired
 Body Type set to Only Hands: the ammo pouch gives a shell and a magazine, the grenade pouch at the small of the back gives a grenade, and both sit where they are with the body drawn {test:pouchbody}
+Flat-screen or VR: In noclip, look up or down and move forward: you fly along the look; strafing stays level, jump and crouch go straight up and down {test:noclip_fly}
+Flat-screen or VR: Shove grunts and a knight down: no blood from their limbs, even on one you shot a few seconds earlier; shoot one while it lies there and its limbs bleed {test:shove_no_blood}
+Arcane Dimensions' rocket, grenade and plasma soldiers, defenders, eliminators, pyros, fumigators and crossbow knights are armed humanoids holding their own gun: disarm them, tug and shoot the guns out {test:humrepl_variants}
+Armed humanoids wear their weapon's colour on clothes and backpack: rockets red, lightning and plasma blue, flamethrower orange, poison green; shotguns, nails and melee as before (too strong? skin tinted too?) {test:humrepl_looks}
 
 [1. Dwell]
 Dwell: Select Campaign > Dwell, play start and d1m1 (triggered monsters wait, checkpoints autosave); Map Library: Ancient and Underdark Overbright udob1 load and play by Copper rules
