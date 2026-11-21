@@ -3979,7 +3979,7 @@ not their own customized player model".
   gloves, both hands, its pelvis 7.7-7.9 units from the doll's origin. Single player: `vr_hurt 110 0` drew
   `mp_doll` with the brawny build and tone -0.50 (a screenshot from `vr_mock_camera`).
 
-### Still the ranger after a respawn (mpbugs3, 2026-11-21: found, not fixed; the avatar ragdoll rig planned)
+### Still the ranger after a respawn (mpbugs3 found it, mpbugs4 fixed it, 2026-11-21; the avatar ragdoll rig planned)
 
 His words: "Killed bot/player ragdolls are still the Quake ranger model. Could it be possible to rig our own custom
 model (the one we use for the IK) and use that as a corpse ragdoll?"
@@ -3994,12 +3994,16 @@ model (the one we use for the IK) and use that as a corpse ragdoll?"
   copy was drawn this frame (`drawn.of[p].frame == host_framecount`: his living copy, added first by `addEntities`), so
   only a body whose owner is dead (not sent) gets the copy. Not bots, flat players, ragsync or the colormap: those all
   work (the bot's body carries its colormap, `f + 1`).
-- **The fix (next)**: doll slots beside the players' (`drawn.of[MAX_SCOREBOARD + 1 + k]`, k < 8: the nearest bodies
-  first), each with its owner's player number; `setup`, `setupBody` and `drawPowerups` take the slot (`Drawn&`) and the
-  owner (`calOf`, `avatars`, the look) apart, the per-player keyed side effects (`flashlight::drawOther`,
-  `emissive::otherPowerupLight`, `gadget::otherGlow`, `view::otherQuadArcs`, the morph state of `avatar::poseOther`)
-  skipped or keyed by the slot for a doll; the look-mask loop and the `mp_doll` report walk the slots too. Harness
-  check: `mp_deathbody` gains a case "B dies, respawns, A and B still draw his old body as his own" (both sides).
+- **The fix (mpbugs4, built)**: 8 doll slots past the players' (`drawn.of[firstDollSlot + k]`, `avatar::dollSlots`;
+  `Drawn::owner` the body's owner). `assignDollSlots`: the bodies in sight nearest first; a body takes its owner's own
+  slot while his copy is not drawn (he lies dead: the nearest of his bodies), else the doll slot it had last (its pose's
+  state goes on), else a free one (`avatar::forgetOther`, its plates resynced); past 8, the ranger. `setup`,
+  `setupBody` and `drawPowerups` take the slot and the owner apart: the calibration, look and armour the owner's; the
+  posed body's state (`avatar::poseOther`'s `others[]`, now `avatar::otherKeys` long), its skeleton and pauldrons the
+  slot's; a doll has no torch, and the power-up lights and arcs are keyed by the slot (none past the players'). `lookOf`
+  and `weaponOwner` read `Drawn::owner`; the look masks and the `mp_doll` report (`slot=`) walk every slot. Harness:
+  `mp_deathbody` (23/0): B respawns, A (the host, his ragdoll: doll slot 17) and B himself (a client: his own slot)
+  still draw B's old body as B's build.
 - **The avatar's own ragdoll (planned, not built)**: today the body is the ranger's ragdoll (player.mdl's rig,
   player_bones.json) with the avatar's mesh posed onto its bones each frame (`solveDoll`). For the avatar's own:
   1. A rig2 for `progs/vrbody.mdl` (`quakevr/rigs/vrbody.rig2.txt`, `make_rig2.py`): its 20 bones from the md5mesh's

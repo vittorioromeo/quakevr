@@ -142,7 +142,9 @@ The guide: [MULTIPLAYER.md](MULTIPLAYER.md).
 
 - **Fixed**: a dead player's or bot's holstered dagger dropped as a knight's sword (every weapon he drops is now the
   weapon he had: its kind, magazine and variant); starting a campaign without deathmatch starts (Dwell from Select
-  Campaign) in a deathmatch game stopped the game ("runaway loop error"): players now spawn at its coop starts.
+  Campaign) in a deathmatch game stopped the game ("runaway loop error"): players now spawn at its coop starts; a
+  player's or bot's old body turned back into Quake's ranger once he respawned: every body still lying looks like him
+  (his build, skin and gloves).
 
 **Single player only**: time scale and bullet time, saving at will (the host's level-start coop autosave instead),
 the crates Quake VR places about maps, Dimension of the Past and Dimension of the Machine.
