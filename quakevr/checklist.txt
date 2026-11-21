@@ -8,6 +8,7 @@
 
 [New: not yet sorted]
 Checklist: reorganized into feature sections (Dwell, Quoth, Multiplayer and bots, Flat screen, VR movement, ...); your ticked lines are retired
+Body Type set to Only Hands: the ammo pouch gives a shell and a magazine, the grenade pouch at the small of the back gives a grenade, and both sit where they are with the body drawn {test:pouchbody}
 
 [1. Dwell]
 Dwell: Select Campaign > Dwell, play start and d1m1 (triggered monsters wait, checkpoints autosave); Map Library: Ancient and Underdark Overbright udob1 load and play by Copper rules

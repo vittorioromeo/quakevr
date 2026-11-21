@@ -6932,3 +6932,21 @@ it); an in-game indication of whether the chosen port is forwarded.
   0 warnings, ThinLTO 0 warnings.
 - **He must redeploy the service** (`bash Misc/rendezvous/update.sh vittorioromeo.com`) for real games to read
   reachable/not reachable; until then they read unknown and room codes work as before.
+
+## pouchbody: the pouches with the body hidden
+
+- **His note (2026-11-21, Quest):** "with vr_body_mode 0 I was not able to interact with the ammo pouch". Why: with the
+  body hidden, `body::ammoPouchPosition` and `body::pouchPosition` (vr_body.cpp) returned the old placement carried by
+  the pelvis, skipping the step that puts it on the torso's ring (`ammoPouchOnTheBody`, `pouchOnTheBody`). That point is
+  inside the player's own body (the torso's ring there, clearance included: ammo pouch 0.86, grenade pouch 0.47; 1 is
+  the surface), and the ammo pouch's zone is thin (depth 0.2 times its reach: 1 unit each way), so its box ran from the
+  belly's surface to 5 cm in front of it: a real controller could hardly get in. The grab test was never gated on the
+  body; the mock hands reach any point, so the old tests passed in every mode.
+- **Fix:** both pouches are put on the ring whether the body is drawn or not (mode 0 now has mode 2's places; the
+  armour plates' forward step and the legs' follow stay with the drawn body, which they need). The holsters were
+  already outside the torso in mode 0 (hips 1.78, chest 1.00) and are unchanged; modes 1-3 are unchanged.
+- **Diagnostic:** `vr_body_crouch_report` also prints `gear ring: body <mode> lhip .. rhip .. lupper .. rupper .. ammo ..
+  grenade ..` (under 1: inside the player, out of a real hand's reach).
+- **Test:** `Misc/quakevr/reload/pouchbody_test.sh` 12/0: with `vr_body_mode` 0, 2 and 3 every gear ring at least 1
+  (mode 0 was 0.86 and 0.47 before the fix: FAIL), a shell from the ammo pouch, a magazine from it seated in the nailgun,
+  a grenade from the grenade pouch. Checklist scene `pouchbody` (Only Hands, the shotgun and the nailgun, ammo).

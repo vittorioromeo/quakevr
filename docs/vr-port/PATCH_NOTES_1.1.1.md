@@ -205,6 +205,9 @@ aren't Map Library packages aren't sent to joining players.
 - **Ammo pouch position sliders.** VR Settings > Holster Calibration now has Ammo Pouch Forward, Right and Up beside the
   holsters' rows (the standing pouch; they agree with Holster Setup's drag and drop), and Reset Holsters resets the pouch
   too.
+- **Fixed: the pouches with Body Type Only Hands.** With the body hidden (`vr_body_mode 0`) the ammo pouch and the
+  grenade pouch sat inside your own belly and back, out of your hand's reach. They are now where they are with the body
+  drawn, on the front and the back of your belt.
 
 ## Menus
 
