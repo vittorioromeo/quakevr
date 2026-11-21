@@ -58,6 +58,8 @@ void frame(const hands::State& s);
 // Arcs crawling over the hands and forearms (Quad Damage's, and the shock's): `bolts` for each hand, and a longer one
 // from the fingers to the elbow at `longChance`; `seed` shapes them (the same in both eyes: once per frame).
 void armArcs(const hands::State& s, unsigned seed, int bolts, float longChance);
+// The same on another player's copy (syncfix: his Quad): each wrist ([0] off, [1] main) and the way its hand points.
+void otherArmArcs(const glm::vec3 wrist[2], const glm::vec3 along[2], unsigned seed, int bolts, float longChance);
 
 // AD support: a plasma bolt in flight (entity `ent` at `at`, going `along`, a direction or zero): a few small arcs
 // crackling round it, trailing back, reshaped every frame, some flickering out (vr_adgun_plasma_fx: how many, 0 none).

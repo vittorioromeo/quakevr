@@ -4779,12 +4779,13 @@ void() ImpulseCommands =
     }
 
 #ifdef QVR_TESTS
-    // Tests (not deathmatch; not in a release's progs: any coop player could give himself one): impulse 190 + a holster
+    // Tests (not deathmatch; not in a release's progs: any coop player could give himself one): impulse 90 + a holster
     // slot (0..5, the holsterweapon<slot> fields) puts a loaded shotgun in that holster (the multiplayer harness's
-    // mp_cosmetics: another player's holstered weapons).
-    if(!deathmatch && self.impulse >= 190 && self.impulse < 196)
+    // mp_cosmetics: another player's holstered weapons). (syncfix: it was 190 + the slot, which in coop took the Debug
+    // menu's power-up cheats, impulse 190-193, below.)
+    if(!deathmatch && self.impulse >= 90 && self.impulse < 96)
     {
-        float hs = self.impulse - 190;
+        float hs = self.impulse - 90;
         self.impulse = 0;
         VR_WeaponUtil_EntAddWeapon(self, WID_SHOTGUN);
         entity hsInst = WeaponInst_New(WeaponIdToBaseClipSize(WID_SHOTGUN));

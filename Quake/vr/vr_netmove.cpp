@@ -13,8 +13,10 @@
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/IsFinite.hpp"
 #include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/Fmod.hpp"
 #include "Zancle/Math/Round.hpp"
+#include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Sqrt.hpp"
 #include "Zancle/Container/Vector.hpp"
 
@@ -29,6 +31,10 @@ namespace
 constexpr float posScale = 64.f;             // places and offsets: 64ths of a unit
 constexpr float drawnScale = 8.f;            // the drawn hands' and holsters' places: eighths (as the avatar sends them)
 constexpr float angScale = 65536.f / 360.f;  // angles: 65536ths of a turn (not wrapped: the value as it was)
+// (syncfix4) The worn gear's places and turns in their frames, coarser: quarters and 4096ths of a turn (0.09 deg); the
+// finer steps changed with every move from the frames' own rounding (mp_loss's link up at its bound).
+constexpr float gearScale = 4.f;
+constexpr float gearAngScale = 4096.f / 360.f;
 constexpr float velScale = 1024.f;           // speeds (metres or units a second), angular speeds
 constexpr float unitScale = 4096.f;          // unit directions
 constexpr float timeScale = 1000.f;          // the client's time, throw ages: milliseconds
@@ -152,6 +158,37 @@ constexpr void visitMove(WireMove& m, V& v)
         v.rel(hs.origin[i], o, drawnScale);
         v.abs(hs.angles[i], angScale);
     }
+    VrDrawnGear& gear = r.gear; // (his worn gear as drawn: the others draw it, syncfix)
+    v.integer(gear.shown);
+    v.integer(gear.mirrored);
+    v.integer(gear.wrist);
+    // (syncfix3) Each piece from what it is worn on: the gadget and its straps from the hand that wears them (place and
+    // turn), the rest from his body (its yaw): unchanged while he walks, turns or swings his arms, so the delta from the
+    // acknowledged move stays empty (the move up grew by half under 10% loss sent from his origin).
+    const VrDrawnHand& wristHand = r.drawn[gear.wrist ? 1 : 0];
+    const glm::vec3 bodyTurn{0.f, b.yaw, 0.f};
+    for(int i = 0; i < VrDrawnGear::count; i++)
+    {
+        v.integer(gear.model[i]);
+        v.integer(gear.frame[i]);
+        v.integer(gear.skin[i]);
+        v.integer(gear.scale[i]);
+        const bool onWrist = i >= VrDrawnGear::gadget && i < VrDrawnGear::pouch;
+        const glm::vec3& from = onWrist ? wristHand.handOrigin : o;
+        const glm::vec3& turn = onWrist ? wristHand.handAngles : bodyTurn;
+        // (a piece not drawn: zeros from its frame, not the world's origin seen from a moving frame -- that changed with
+        // every move; read back, it is left as it was)
+        const bool shown = (gear.shown & (1 << i)) != 0;
+        glm::vec3 at = shown ? gear.origin[i] : from;
+        glm::vec3 ang = shown ? gear.angles[i] : turn;
+        v.framed(at, from, turn[1], gearScale);
+        v.turned(ang, turn, gearAngScale);
+        if(shown)
+        {
+            v.store(gear.origin[i], at); // (the dequantizer's: the quantizer only reads the move)
+            v.store(gear.angles[i], ang);
+        }
+    }
     VrDrawnLamp& lamp = r.lamp; // (his torch as drawn: the others draw and light it, wpnsync)
     v.integer(lamp.flags);
     v.rel(lamp.origin, o, drawnScale);
@@ -165,6 +202,9 @@ struct Counter
     constexpr void real(float&, float) { n++; }
     constexpr void abs(glm::vec3&, float) { n += 3; }
     constexpr void rel(glm::vec3&, const glm::vec3&, float) { n += 3; }
+    constexpr void framed(glm::vec3&, const glm::vec3&, float, float) { n += 3; }
+    constexpr void turned(glm::vec3&, const glm::vec3&, float) { n += 3; }
+    constexpr void store(glm::vec3&, const glm::vec3&) {}
     template <class T>
     constexpr void integer(T&)
     {
@@ -204,6 +244,22 @@ struct Quantizer
             q.v[i++] = toQuant(x[k] - o[k], scale);
         }
     }
+    void framed(glm::vec3& x, const glm::vec3& o, float yaw, float scale)
+    {
+        const glm::vec3 d = x - o;
+        const float c = za::cos(glm::radians(yaw)), s = za::sin(glm::radians(yaw));
+        q.v[i++] = toQuant(d.x * c + d.y * s, scale);
+        q.v[i++] = toQuant(d.y * c - d.x * s, scale);
+        q.v[i++] = toQuant(d.z, scale);
+    }
+    void turned(glm::vec3& a, const glm::vec3& ref, float scale)
+    {
+        for(int k = 0; k < 3; k++)
+        {
+            q.v[i++] = toQuant(a[k] - ref[k], scale);
+        }
+    }
+    void store(glm::vec3&, const glm::vec3&) {}
     template <class T>
     void integer(T& x)
     {
@@ -240,6 +296,22 @@ struct Dequantizer
             x[k] = o[k] + static_cast<float>(q.v[i++]) / scale;
         }
     }
+    // (from `o` in the frame turned by `yaw` degrees: Quantizer::framed's inverse)
+    void framed(glm::vec3& x, const glm::vec3& o, float yaw, float scale)
+    {
+        const float c = za::cos(glm::radians(yaw)), s = za::sin(glm::radians(yaw));
+        const float fx = static_cast<float>(q.v[i++]) / scale, fy = static_cast<float>(q.v[i++]) / scale;
+        const float fz = static_cast<float>(q.v[i++]) / scale;
+        x = glm::vec3{o.x + fx * c - fy * s, o.y + fx * s + fy * c, o.z + fz};
+    }
+    void turned(glm::vec3& a, const glm::vec3& ref, float scale)
+    {
+        for(int k = 0; k < 3; k++)
+        {
+            a[k] = ref[k] + static_cast<float>(q.v[i++]) / scale;
+        }
+    }
+    void store(glm::vec3& x, const glm::vec3& value) { x = value; }
     template <class T>
     void integer(T& x)
     {
