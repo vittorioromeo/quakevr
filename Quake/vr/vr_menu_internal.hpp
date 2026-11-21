@@ -100,7 +100,6 @@
 
 extern "C" {
 extern float m_mousex, m_mousey; // menu.c: the mouse in menu coordinates
-extern qboolean keydown[MAX_KEYS]; // keys.c
 extern cvar_t ui_mouse_sound; // menu.c
 extern cvar_t vr_zone_threadcheck; // zone.c
 extern cvar_t snd_mixasync; // snd_dma.c

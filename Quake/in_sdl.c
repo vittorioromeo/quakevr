@@ -35,9 +35,9 @@ https://github.com/yquake2/yquake2/blob/master/src/client/input/sdl.c
 extern cvar_t ui_mouse;
 extern cvar_t language;
 
-static qboolean windowhasfocus = true;	//just in case sdl fails to tell us...
-static textmode_t textmode = TEXTMODE_OFF;
-static keydevice_t lastactivetype = KD_NONE;
+static qboolean windowhasfocus = true;	//just in case sdl fails to tell us... -- seat-shared: the window's
+static textmode_t textmode = TEXTMODE_OFF;	// seat-shared: the window's text input (the console and menus': one, phase 9)
+static keydevice_t lastactivetype = KD_NONE;	// seat-shared: the menus' button glyphs (one menu, phase 9)
 
 static cvar_t in_debugkeys = {"in_debugkeys", "0", CVAR_NONE};
 
@@ -55,7 +55,7 @@ static cvar_t in_debugkeys = {"in_debugkeys", "0", CVAR_NONE};
 
 // the gamepad alt modifier button is pressed
 // => K_x_BTN turns into K_x_BTN_ALT
-qboolean joy_altmodifier_pressed = false;
+// QVR: splitscreen: a seat's (seatkeys_t altmodifier)
 
 // SDL2 Game Controller cvars
 cvar_t	joy_deadzone_look = { "joy_deadzone_look", "0.175", CVAR_ARCHIVE };
@@ -92,14 +92,68 @@ cvar_t gyro_calibration_z = {"gyro_calibration_z", "0", CVAR_ARCHIVE};
 
 cvar_t gyro_noise_thresh = {"gyro_noise_thresh", "1.5", CVAR_ARCHIVE};
 
-static SDL_JoystickID		joy_active_instanceid = -1;
-static int					joy_active_device = -1;
-static SDL_GameController	*joy_active_controller = NULL;
-static gamepadtype_t		joy_active_type = GAMEPAD_NONE;
-static char					joy_active_name[256];
-static qboolean				joy_has_rumble = false;
+typedef struct joyaxis_s
+{
+	float x;
+	float y;
+} joyaxis_t;
 
-static qboolean	no_mouse = false;
+typedef struct joy_buttonstate_s
+{
+	qboolean buttondown[SDL_CONTROLLER_BUTTON_MAX];
+} joybuttonstate_t;
+
+typedef struct axisstate_s
+{
+	float axisvalue[SDL_CONTROLLER_AXIS_MAX]; // normalized to +-1
+} joyaxisstate_t;
+
+typedef struct joyflick_s
+{
+	float	yaw;
+	float	pitch;
+	float	yaw_delta;
+	float	prev_lerp_frac;
+	float	prev_angle;
+	float	prev_scale;
+} joyflick_t;
+
+// QVR: splitscreen (docs/vr-port/SPLITSCREEN.md, phase 2): up to four game controllers open at once, each driving a
+// seat (Ironwail opened one: the joy_active_* globals, now pad 0's fields). Pad 0 is the controller Ironwail would
+// use (joy_device, IN_UseNextGamepad: chosen as before); pads 1-3 are the others plugged in. The keyboard and mouse
+// are always seat 0's; controllers join as the seats after it (IN_PadSeat): with one seat in play pad 0 drives seat
+// 0, exactly as before, and the other pads are open but drive nothing.
+typedef struct joypad_s
+{
+	SDL_GameController	*controller;	// NULL: no controller here (a mock pad has none either)
+	SDL_JoystickID		instanceid;
+	int					device;			// its SDL device index, -1: none
+	gamepadtype_t		type;
+	char				name[256];		// (SDL_GameControllerName returns NULL once unplugged)
+	qboolean			has_rumble;
+	qboolean			gyro_present;
+	joybuttonstate_t	buttonstate;
+	joyaxisstate_t		axisstate;
+	double				buttontimer[SDL_CONTROLLER_BUTTON_MAX];
+	double				emulatedkeytimer[6];
+	double				scrolltimer;	// the look stick scrolling the console
+	float				gyro_yaw, gyro_pitch, gyro_raw_mag;
+	float				gyro_center_frac, gyro_center_amount;
+	joyflick_t			flick;
+	int					seat;			// the seat it drove at its last poll (-1: none): let go of there when that changes
+	qboolean			mock;			// vr_seat_test's pad: its buttons and sticks from IN_MockPad*, no controller
+	joybuttonstate_t	mockbuttons;
+	joyaxisstate_t		mockaxes;
+} joypad_t;
+
+#define MAX_JOYPADS 4
+static joypad_t joy_pads[MAX_JOYPADS] = // seat-shared: the controllers open, each driving the seat IN_PadSeat names
+{
+	{NULL, -1, -1}, {NULL, -1, -1}, {NULL, -1, -1}, {NULL, -1, -1}
+};
+#define joy_primary (&joy_pads[0])
+
+static qboolean	no_mouse = false; // seat-shared: the system's mouse (-nomouse)
 
 static const int buttonremap[] =
 {
@@ -110,32 +164,52 @@ static const int buttonremap[] =
 	K_MOUSE5	/* forward button	*/
 };
 
-/* total accumulated mouse movement since last frame */
-static int		total_dx = 0, total_dy = 0;
-static float	gyro_yaw = 0.f, gyro_pitch = 0.f, gyro_raw_mag = 0.f;
-static float	gyro_center_frac = 0.f, gyro_center_amount = 0.f;
+// QVR: the mouse's motion since the last move is seat 0's (seatkeys_t mouse_dx, mouse_dy: was total_dx, total_dy);
+// the gyro's readings, centring and the flick stick are each pad's (joypad_t).
 
 // used for gyro calibration
 #define GYRO_CALIBRATION_SAMPLES	300
-static float gyro_accum[3] = {0.f, 0.f, 0.f};
-static unsigned int updates_countdown = 0;
+static float gyro_accum[3] = {0.f, 0.f, 0.f};	// seat-shared: the calibration's (pad 0's: the Options menu's gamepad)
+static unsigned int updates_countdown = 0;		// seat-shared: the calibration's
 
-static qboolean gyro_present = false;
-static qboolean gyro_button_pressed = false;
-
-static struct
+static void IN_ResetFlickState (joypad_t *pad)
 {
-	float	yaw;
-	float	pitch;
-	float	yaw_delta;
-	float	prev_lerp_frac;
-	float	prev_angle;
-	float	prev_scale;
-} flick;
+	memset (&pad->flick, 0, sizeof (pad->flick));
+}
 
-static void IN_ResetFlickState (void)
+/*
+================
+IN_PadSeat -- QVR (splitscreen)
+
+The seat pad k drives, -1 none. Seat 0 is the keyboard and mouse; with n seats in play pads 0..n-2 drive seats
+1..n-1 and pad n-1 drives seat 0 (the keyboard player's own pad: with one seat, pad 0, as before); the rest none.
+================
+*/
+int IN_PadSeat (int k)
 {
-	memset (&flick, 0, sizeof (flick));
+	const int n = CL_SeatsInPlay ();
+
+	if (k < 0 || k >= MAX_JOYPADS || (!joy_pads[k].controller && !joy_pads[k].mock))
+		return -1;
+	if (k + 1 < n)
+		return k + 1;
+	return k == n - 1 ? 0 : -1;
+}
+
+// the pad driving a seat (NULL: none)
+static joypad_t *IN_SeatPad (int seat)
+{
+	int k;
+
+	for (k = 0; k < MAX_JOYPADS; k++)
+		if (IN_PadSeat (k) == seat)
+			return &joy_pads[k];
+	return NULL;
+}
+
+static int IN_PadIndex (const joypad_t *pad)
+{
+	return (int) (pad - joy_pads);
 }
 
 static int SDLCALL IN_FilterMouseEvents (const SDL_Event *event)
@@ -293,8 +367,8 @@ void IN_Activate (void)
 	IN_HideCursor();
 	IN_EndIgnoringMouseEvents();
 
-	total_dx = 0;
-	total_dy = 0;
+	Key_SeatOf (0)->mouse_dx = 0; // QVR: the mouse is seat 0's
+	Key_SeatOf (0)->mouse_dy = 0;
 }
 
 void IN_Deactivate (qboolean free_cursor)
@@ -326,48 +400,43 @@ void IN_DeactivateForMenu (void)
 	IN_Deactivate(modestate == MS_WINDOWED || ui_mouse.value);
 }
 
-static qboolean IN_UseController (int device_index)
+// QVR: a pad closed: the slot free again (its seat's keys are not let go here, as Ironwail's pad was not)
+static void IN_ClosePad (joypad_t *pad)
+{
+	if (pad->controller)
+	{
+#if SDL_VERSION_ATLEAST (2, 0, 9)
+		if (pad->has_rumble)
+			SDL_GameControllerRumble (pad->controller, 0, 0, 100);
+#if SDL_VERSION_ATLEAST(2, 0, 14)
+		if (SDL_GameControllerHasLED (pad->controller))
+			SDL_GameControllerSetLED (pad->controller, 0, 0, 0);
+#endif // SDL_VERSION_ATLEAST (2, 0, 14)
+#endif // SDL_VERSION_ATLEAST (2, 0, 9)
+		SDL_GameControllerClose (pad->controller);
+	}
+	memset (pad, 0, sizeof (*pad));
+	pad->instanceid = -1;
+	pad->device = -1;
+	pad->type = GAMEPAD_NONE;
+}
+
+// QVR: the pad holding a controller instance (NULL: none)
+static joypad_t *IN_PadForInstance (SDL_JoystickID id)
+{
+	int k;
+
+	for (k = 0; k < MAX_JOYPADS; k++)
+		if (joy_pads[k].controller && joy_pads[k].instanceid == id)
+			return &joy_pads[k];
+	return NULL;
+}
+
+// QVR: a controller opened into a pad (Ironwail's IN_UseController's opening, for any pad)
+static qboolean IN_OpenPad (joypad_t *pad, int device_index)
 {
 	SDL_GameController *gamecontroller;
 	const char *controllername;
-
-	if (device_index == joy_active_device)
-		return true;
-
-	if (joy_active_device != -1)
-	{
-#if SDL_VERSION_ATLEAST (2, 0, 9)
-		if (joy_has_rumble)
-			SDL_GameControllerRumble (joy_active_controller, 0, 0, 100);
-#if SDL_VERSION_ATLEAST(2, 0, 14)
-		if (SDL_GameControllerHasLED (joy_active_controller))
-			SDL_GameControllerSetLED (joy_active_controller, 0, 0, 0);
-#endif // SDL_VERSION_ATLEAST (2, 0, 14)
-#endif // SDL_VERSION_ATLEAST (2, 0, 9)
-		SDL_GameControllerClose (joy_active_controller);
-
-		// Only show "gamepad removed" message when disabling the gamepad altogether,
-		// not when switching to a different device
-		if (device_index == -1)
-			Con_Printf ("Gamepad removed: %s\n", joy_active_name);
-
-		joy_active_name[0] = '\0';
-		joy_active_controller = NULL;
-		joy_active_instanceid = -1;
-		joy_active_device = -1;
-		joy_active_type = GAMEPAD_NONE;
-		Cvar_SetValueQuick (&joy_device, -1);
-		gyro_present = false;
-		gyro_yaw = gyro_pitch = gyro_raw_mag = 0.f;
-		joy_has_rumble = false;
-		IN_ResetFlickState ();
-	}
-
-	if (device_index == -1)
-		return true;
-
-	if (device_index < 0 || device_index >= SDL_NumJoysticks ())
-		return false;
 
 	gamecontroller = SDL_GameControllerOpen (device_index);
 	if (!gamecontroller)
@@ -379,29 +448,32 @@ static qboolean IN_UseController (int device_index)
 	controllername = SDL_GameControllerName (gamecontroller);
 	if (!controllername)
 		controllername = "[Unknown gamepad]";
-	Con_Printf ("Using gamepad: %s\n", controllername);
+	if (pad == joy_primary)
+		Con_Printf ("Using gamepad: %s\n", controllername);
+	else
+		Con_Printf ("Gamepad %d (splitscreen): %s\n", IN_PadIndex (pad) + 1, controllername);
 
-	joy_active_controller = gamecontroller;
-	joy_active_instanceid = SDL_JoystickInstanceID (SDL_GameControllerGetJoystick (gamecontroller));
-	joy_active_device = device_index;
-	Cvar_SetValueQuick (&joy_device, device_index);
+	IN_ClosePad (pad);
+	pad->controller = gamecontroller;
+	pad->instanceid = SDL_JoystickInstanceID (SDL_GameControllerGetJoystick (gamecontroller));
+	pad->device = device_index;
 	// Save controller name so we can print it when unplugged (SDL_GameControllerName would return NULL)
-	q_strlcpy (joy_active_name, controllername, sizeof (joy_active_name));
+	q_strlcpy (pad->name, controllername, sizeof (pad->name));
 
 	// Save controller family so we can show more appropriate button names
 #if SDL_VERSION_ATLEAST(2, 0, 12)
-	switch (SDL_GameControllerGetType (joy_active_controller))
+	switch (SDL_GameControllerGetType (pad->controller))
 	{
 	default:
 	case SDL_CONTROLLER_TYPE_XBOX360:
 	case SDL_CONTROLLER_TYPE_XBOXONE:
-		joy_active_type = GAMEPAD_XBOX;
+		pad->type = GAMEPAD_XBOX;
 		break;
 
 	case SDL_CONTROLLER_TYPE_PS3:
 	case SDL_CONTROLLER_TYPE_PS4:
 	case SDL_CONTROLLER_TYPE_PS5:
-		joy_active_type = GAMEPAD_PLAYSTATION;
+		pad->type = GAMEPAD_PLAYSTATION;
 		break;
 
 	case SDL_CONTROLLER_TYPE_NINTENDO_SWITCH_PRO:
@@ -410,26 +482,26 @@ static qboolean IN_UseController (int device_index)
 	case SDL_CONTROLLER_TYPE_NINTENDO_SWITCH_JOYCON_RIGHT:
 	case SDL_CONTROLLER_TYPE_NINTENDO_SWITCH_JOYCON_PAIR:
 #endif // SDL_VERSION_ATLEAST(2, 24, 0)
-		joy_active_type = GAMEPAD_NINTENDO;
+		pad->type = GAMEPAD_NINTENDO;
 		break;
 	}
 #else
 	// No controller type info (old SDL headers), assume Xbox-compatible
-	joy_active_type = GAMEPAD_XBOX;
+	pad->type = GAMEPAD_XBOX;
 #endif // SDL_VERSION_ATLEAST(2, 0, 12)
 
 #if SDL_VERSION_ATLEAST(2, 0, 14)
-	if (SDL_GameControllerHasLED (joy_active_controller))
+	if (SDL_GameControllerHasLED (pad->controller))
 	{
 		// orange LED, seemed fitting for Quake
-		SDL_GameControllerSetLED (joy_active_controller, 80, 20, 0);
+		SDL_GameControllerSetLED (pad->controller, 80, 20, 0);
 	}
-	if (SDL_GameControllerHasSensor (joy_active_controller, SDL_SENSOR_GYRO)
-		&& !SDL_GameControllerSetSensorEnabled (joy_active_controller, SDL_SENSOR_GYRO, SDL_TRUE))
+	if (SDL_GameControllerHasSensor (pad->controller, SDL_SENSOR_GYRO)
+		&& !SDL_GameControllerSetSensorEnabled (pad->controller, SDL_SENSOR_GYRO, SDL_TRUE))
 	{
-		gyro_present = true;
+		pad->gyro_present = true;
 #if SDL_VERSION_ATLEAST(2, 0, 16)
-		Con_Printf ("Gyro sensor enabled at %g Hz\n", SDL_GameControllerGetSensorDataRate (joy_active_controller, SDL_SENSOR_GYRO));
+		Con_Printf ("Gyro sensor enabled at %g Hz\n", SDL_GameControllerGetSensorDataRate (pad->controller, SDL_SENSOR_GYRO));
 #else
 		Con_printf ("Gyro sensor enabled.\n")
 #endif // SDL_VERSION_ATLEAST(2, 0, 16)
@@ -441,8 +513,80 @@ static qboolean IN_UseController (int device_index)
 #endif // SDL_VERSION_ATLEAST(2, 0, 14)
 
 #if SDL_VERSION_ATLEAST (2, 0, 9)
-	joy_has_rumble = SDL_GameControllerHasRumble (joy_active_controller);
+	pad->has_rumble = SDL_GameControllerHasRumble (pad->controller);
 #endif // SDL_VERSION_ATLEAST (2, 0, 9)
+	return true;
+}
+
+// QVR: pads 1-3: every other game controller plugged in, opened into a free pad; the ones unplugged closed (their
+// device indices brought up to date). Pad 0 (IN_UseController) is chosen first, as before.
+static void IN_RefreshExtraPads (void)
+{
+	int i, k, count;
+	joypad_t *pad;
+
+	if (!SDL_WasInit (SDL_INIT_GAMECONTROLLER))
+		return;
+	count = SDL_NumJoysticks ();
+	for (k = 1; k < MAX_JOYPADS; k++)
+	{
+		pad = &joy_pads[k];
+		if (!pad->controller)
+			continue;
+		pad->device = -1;
+		for (i = 0; i < count; i++)
+			if (SDL_JoystickGetDeviceInstanceID (i) == pad->instanceid)
+				pad->device = i;
+		if (pad->device == -1)
+		{
+			Con_Printf ("Gamepad removed: %s\n", pad->name);
+			IN_ClosePad (pad);
+		}
+	}
+	for (i = 0; i < count; i++)
+	{
+		if (!SDL_IsGameController (i) || IN_PadForInstance (SDL_JoystickGetDeviceInstanceID (i)))
+			continue;
+		for (k = 1; k < MAX_JOYPADS && joy_pads[k].controller; k++)
+			;
+		if (k == MAX_JOYPADS)
+			break;
+		IN_OpenPad (&joy_pads[k], i);
+	}
+}
+
+static qboolean IN_UseController (int device_index)
+{
+	joypad_t *other;
+
+	if (device_index == joy_primary->device)
+		return true;
+
+	if (joy_primary->device != -1)
+	{
+		// Only show "gamepad removed" message when disabling the gamepad altogether,
+		// not when switching to a different device
+		if (device_index == -1)
+			Con_Printf ("Gamepad removed: %s\n", joy_primary->name);
+
+		IN_ClosePad (joy_primary);
+		Cvar_SetValueQuick (&joy_device, -1);
+	}
+
+	if (device_index == -1)
+		return true;
+
+	if (device_index < 0 || device_index >= SDL_NumJoysticks ())
+		return false;
+
+	// QVR: open already as another pad: that pad gives it up (IN_RefreshExtraPads opens the one pad 0 had in its place)
+	other = IN_PadForInstance (SDL_JoystickGetDeviceInstanceID (device_index));
+	if (other && other != joy_primary)
+		IN_ClosePad (other);
+
+	if (!IN_OpenPad (joy_primary, device_index))
+		return false;
+	Cvar_SetValueQuick (&joy_device, device_index);
 	return true;
 }
 
@@ -451,20 +595,21 @@ static void IN_SetupJoystick (void)
 	int	count = SDL_NumJoysticks ();
 	int	device_index = CLAMP (-1, (int)joy_device.value, count - 1);
 	IN_UseController (device_index);
+	IN_RefreshExtraPads (); // QVR: splitscreen: the other controllers
 }
 
 static qboolean IN_RemapJoystick (void)
 {
 	int i, count;
 
-	if (joy_active_instanceid == -1)
+	if (joy_primary->instanceid == -1)
 		return false;
 
 	for (i = 0, count = SDL_NumJoysticks (); i < count; i++)
 	{
-		if (SDL_JoystickGetDeviceInstanceID (i) == joy_active_instanceid)
+		if (SDL_JoystickGetDeviceInstanceID (i) == joy_primary->instanceid)
 		{
-			joy_active_device = i;
+			joy_primary->device = i;
 			Cvar_SetValueQuick (&joy_device, i);
 			return true;
 		}
@@ -532,23 +677,29 @@ void IN_StartupJoystick (void)
 
 void IN_ShutdownJoystick (void)
 {
+	int k;
+
 	IN_UseController (-1);
+	for (k = 1; k < MAX_JOYPADS; k++) // QVR: splitscreen: the other pads
+		IN_ClosePad (&joy_pads[k]);
 	SDL_QuitSubSystem(SDL_INIT_GAMECONTROLLER);
 }
 
+// QVR: the menus' gamepad (its name, type, rumble, gyro; the gyro's calibration) is pad 0's: one menu (SPLITSCREEN.md,
+// phase 9)
 qboolean IN_HasGamepad (void)
 {
-	return joy_active_controller != NULL;
+	return joy_primary->controller != NULL;
 }
 
 const char *IN_GetGamepadName (void)
 {
-	return joy_active_controller ? joy_active_name : NULL;
+	return joy_primary->controller ? joy_primary->name : NULL;
 }
 
 gamepadtype_t IN_GetGamepadType (void)
 {
-	return joy_active_type;
+	return joy_primary->type;
 }
 
 void IN_UseNextGamepad (int dir, qboolean allow_disable)
@@ -558,7 +709,7 @@ void IN_UseNextGamepad (int dir, qboolean allow_disable)
 	numdev = SDL_NumJoysticks ();
 	numiter = allow_disable ? numdev : numdev - 1;
 
-	for (i = 0, j = joy_active_device + dir; i < numiter; i++, j += dir)
+	for (i = 0, j = joy_primary->device + dir; i < numiter; i++, j += dir)
 	{
 		if (j < -1)
 			j = numdev - 1;
@@ -568,33 +719,100 @@ void IN_UseNextGamepad (int dir, qboolean allow_disable)
 			j = allow_disable ? -1 : 0;
 
 		if ((j == -1 || SDL_IsGameController (j)) && IN_UseController (j))
-			return;
+			break; // QVR: was return (the other pads brought up to date below)
 	}
+	IN_RefreshExtraPads (); // QVR: splitscreen: the one pad 0 gave up opened as another pad
 }
 
 qboolean IN_HasRumble (void)
 {
-	return joy_has_rumble;
+	return joy_primary->has_rumble;
 }
 
+// QVR: splitscreen: the gyro and alt modifier buttons are the seat's whose bind runs them (seatkeys_t)
 void IN_GyroActionDown (void)
 {
-	gyro_button_pressed = true;
+	Key_Seat ()->gyrobutton = true;
 }
 
 void IN_GyroActionUp (void)
 {
-	gyro_button_pressed = false;
+	Key_Seat ()->gyrobutton = false;
 }
 
 static void IN_JoyAltModifierDown (void)
 {
-	joy_altmodifier_pressed = true;
+	Key_Seat ()->altmodifier = true;
 }
 
 static void IN_JoyAltModifierUp (void)
 {
-	joy_altmodifier_pressed = false;
+	Key_Seat ()->altmodifier = false;
+}
+
+/*
+================
+IN_Pads_f -- QVR (splitscreen)
+
+in_pads: the controllers open and the seat each drives (Debug menu: Splitscreen pads)
+================
+*/
+static void IN_Pads_f (void)
+{
+	int k, seat;
+	const joypad_t *pad;
+
+	Con_Printf ("%d seat(s) in play; seat 1: keyboard and mouse\n", CL_SeatsInPlay ());
+	for (k = 0; k < MAX_JOYPADS; k++)
+	{
+		pad = &joy_pads[k];
+		seat = IN_PadSeat (k);
+		if (!pad->controller && !pad->mock)
+			Con_Printf ("pad %d: -\n", k + 1);
+		else
+			Con_Printf ("pad %d: %s (device %d)%s, %s%s\n", k + 1, pad->mock ? "mock pad" : pad->name, pad->device,
+				k == 0 ? ", the Options menu's" : "", seat < 0 ? "drives no seat" : "drives seat ",
+				seat < 0 ? "" : va ("%d", seat + 1));
+	}
+}
+
+/*
+================
+IN_MockPad, IN_MockPadButton, IN_MockPadAxes -- QVR (vr_seat_test)
+
+A pad without a controller, its buttons and sticks set by the test, polled by IN_Commands as a real one is.
+================
+*/
+void IN_MockPad (int k, qboolean on)
+{
+	joypad_t *pad;
+
+	if (k < 0 || k >= MAX_JOYPADS || joy_pads[k].controller)
+		return;
+	pad = &joy_pads[k];
+	memset (pad, 0, sizeof (*pad));
+	pad->instanceid = -1;
+	pad->device = -1;
+	pad->seat = -1;
+	pad->mock = on;
+	if (on)
+		q_strlcpy (pad->name, "mock pad", sizeof (pad->name));
+}
+
+void IN_MockPadButton (int k, int button, qboolean down)
+{
+	if (k >= 0 && k < MAX_JOYPADS && button >= 0 && button < SDL_CONTROLLER_BUTTON_MAX)
+		joy_pads[k].mockbuttons.buttondown[button] = down;
+}
+
+void IN_MockPadAxes (int k, float lx, float ly, float rx, float ry)
+{
+	if (k < 0 || k >= MAX_JOYPADS)
+		return;
+	joy_pads[k].mockaxes.axisvalue[SDL_CONTROLLER_AXIS_LEFTX] = lx;
+	joy_pads[k].mockaxes.axisvalue[SDL_CONTROLLER_AXIS_LEFTY] = ly;
+	joy_pads[k].mockaxes.axisvalue[SDL_CONTROLLER_AXIS_RIGHTX] = rx;
+	joy_pads[k].mockaxes.axisvalue[SDL_CONTROLLER_AXIS_RIGHTY] = ry;
 }
 
 /*
@@ -606,7 +824,7 @@ Called when joy_device changes
 */
 static void Joy_Device_f (cvar_t *cvar)
 {
-	if ((int)cvar->value != joy_active_device)
+	if ((int)cvar->value != joy_primary->device)
 		IN_SetupJoystick ();
 }
 
@@ -635,7 +853,10 @@ Called when joy_flick changes
 */
 static void Joy_Flick_f (cvar_t *cvar)
 {
-	IN_ResetFlickState ();
+	int k;
+
+	for (k = 0; k < MAX_JOYPADS; k++) // QVR: every pad's
+		IN_ResetFlickState (&joy_pads[k]);
 }
 
 /*
@@ -721,6 +942,7 @@ void IN_Init (void)
 	Cmd_AddCommand ("-gyroaction", IN_GyroActionUp);
 	Cmd_AddCommand ("+altmodifier", IN_JoyAltModifierDown);
 	Cmd_AddCommand ("-altmodifier", IN_JoyAltModifierUp);
+	Cmd_AddCommand ("in_pads", IN_Pads_f); // QVR: splitscreen: the controllers open, the seat each drives
 
 	IN_Activate();
 	IN_StartupJoystick();
@@ -752,53 +974,35 @@ static float IN_FovScale (void)
 	return tan (DEG2RAD (lookfov) * 0.5f) / tan (DEG2RAD (scr_fov.value) * 0.5f) * VR_FlatAimSens (lookfov, scr_fov.value);
 }
 
+// QVR: splitscreen: the mouse is seat 0's (its motion goes to seat 0's mouse_dx/dy whichever seat is current)
 void IN_MouseMotion(int dx, int dy)
 {
+	seatkeys_t *mouse = Key_SeatOf (0);
+
 	if (!windowhasfocus)
 		dx = dy = 0;	//don't change view angles etc while unfocused.
 	if (cls.state != ca_connected || cls.signon != SIGNONS || key_dest != key_game || CL_InCutscene ())
 	{
-		total_dx = 0;
-		total_dy = 0;
+		mouse->mouse_dx = 0;
+		mouse->mouse_dy = 0;
 		return;
 	}
 	if (VR_FlatToolgunMouse (dx, dy)) // QVR: flatscreen play's toolgun panel cursor, or its adjust key held: not the view's
 		return;
-	total_dx += dx;
-	total_dy += dy;
+	mouse->mouse_dx += dx;
+	mouse->mouse_dy += dy;
 }
 
 // QVR: the tests' mouse (vr_flatleanmouse_test; vr/vr_flatmove.cpp): counts as if the mouse moved, the window's focus
-// aside (the headless window has none).
+// aside (the headless window has none). Seat 0's, as the mouse.
 void IN_MockMouseMotion (int dx, int dy)
 {
 	if (cls.state != ca_connected || cls.signon != SIGNONS || key_dest != key_game)
 		return;
-	total_dx += dx;
-	total_dy += dy;
+	Key_SeatOf (0)->mouse_dx += dx;
+	Key_SeatOf (0)->mouse_dy += dy;
 }
 
-typedef struct joyaxis_s
-{
-	float x;
-	float y;
-} joyaxis_t;
-
-typedef struct joy_buttonstate_s
-{
-	qboolean buttondown[SDL_CONTROLLER_BUTTON_MAX];
-} joybuttonstate_t;
-
-typedef struct axisstate_s
-{
-	float axisvalue[SDL_CONTROLLER_AXIS_MAX]; // normalized to +-1
-} joyaxisstate_t;
-
-static joybuttonstate_t joy_buttonstate;
-static joyaxisstate_t joy_axisstate;
-
-static double joy_buttontimer[SDL_CONTROLLER_BUTTON_MAX];
-static double joy_emulatedkeytimer[6];
 
 #ifdef __WATCOMC__ /* OW1.9 doesn't have powf() / sqrtf() */
 #define powf pow
@@ -954,7 +1158,7 @@ static void IN_JoyKeyEvent(qboolean wasdown, qboolean isdown, int key, double *t
 	}
 }
 
-static joyaxis_t IN_GetLookAxis (joyaxisstate_t *state)
+static joyaxis_t IN_GetLookAxis (const joyaxisstate_t *state)
 {
 	joyaxis_t axis;
 	axis.x = state->axisvalue[joy_swapmovelook.value ? SDL_CONTROLLER_AXIS_LEFTX : SDL_CONTROLLER_AXIS_RIGHTX];
@@ -962,7 +1166,7 @@ static joyaxis_t IN_GetLookAxis (joyaxisstate_t *state)
 	return axis;
 }
 
-static joyaxis_t IN_GetMoveAxis (joyaxisstate_t *state)
+static joyaxis_t IN_GetMoveAxis (const joyaxisstate_t *state)
 {
 	joyaxis_t axis;
 	axis.x = state->axisvalue[joy_swapmovelook.value ? SDL_CONTROLLER_AXIS_RIGHTX : SDL_CONTROLLER_AXIS_LEFTX];
@@ -970,73 +1174,95 @@ static joyaxis_t IN_GetMoveAxis (joyaxisstate_t *state)
 	return axis;
 }
 
-static qboolean IN_JoyActive (void)
+// QVR: splitscreen: a pad counts as in use (its gyro, its rumble): driving seat 0, as Ironwail's pad did (always, or
+// after the last device used was a gamepad); driving a controller's seat, always
+static qboolean IN_JoyActive (joypad_t *pad)
 {
-	return joy_active_controller != NULL && (joy_always_active.value || lastactivetype == KD_GAMEPAD);
+	if (!pad || (!pad->controller && !pad->mock))
+		return false;
+	return joy_always_active.value || lastactivetype == KD_GAMEPAD || IN_PadSeat (IN_PadIndex (pad)) > 0;
 }
 
 /*
 ================
-IN_Commands
+IN_PadEmit -- QVR (splitscreen: Ironwail's IN_Commands' events, for any pad)
 
-Emit key events for game controller buttons, including emulated buttons for analog sticks/triggers
+A pad's new buttons and sticks: key events for what changed, in the current seat (the pad's), then kept as its state
 ================
 */
-void IN_Commands (void)
+static void IN_PadEmit (joypad_t *pad, const joybuttonstate_t *newbuttons, const joyaxisstate_t *newaxisstate)
 {
-	joyaxisstate_t newaxisstate;
 	int i;
 	const float stickthreshold = 0.9;
 	const float triggerthreshold = joy_deadzone_trigger.value;
-	
-	if (!joy_active_controller)
-		return;
 
 	// emit key events for controller buttons
 	for (i = 0; i < SDL_CONTROLLER_BUTTON_MAX; i++)
 	{
-		qboolean newstate = SDL_GameControllerGetButton(joy_active_controller, (SDL_GameControllerButton)i);
-		qboolean oldstate = joy_buttonstate.buttondown[i];
-		
-		joy_buttonstate.buttondown[i] = newstate;
-		
+		qboolean newstate = newbuttons->buttondown[i];
+		qboolean oldstate = pad->buttonstate.buttondown[i];
+
+		pad->buttonstate.buttondown[i] = newstate;
+
 		// NOTE: This can cause a reentrant call of IN_Commands, via SCR_ModalMessage when confirming a new game.
-		IN_JoyKeyEvent(oldstate, newstate, IN_KeyForControllerButton((SDL_GameControllerButton)i), &joy_buttontimer[i]);
+		IN_JoyKeyEvent(oldstate, newstate, IN_KeyForControllerButton((SDL_GameControllerButton)i), &pad->buttontimer[i]);
 	}
-	
-	for (i = 0; i < SDL_CONTROLLER_AXIS_MAX; i++)
-	{
-		newaxisstate.axisvalue[i] = SDL_GameControllerGetAxis(joy_active_controller, (SDL_GameControllerAxis)i) / 32768.0f;
-	}
-	
+
 	// emit emulated arrow keys so the analog sticks can be used in the menu
 	if (key_dest != key_game)
 	{
-		joyaxis_t old_move = IN_GetMoveAxis (&joy_axisstate);
-		joyaxis_t new_move = IN_GetMoveAxis (&newaxisstate);
-		IN_JoyKeyEvent(old_move.x < -stickthreshold, new_move.x < -stickthreshold, K_LEFTARROW,		&joy_emulatedkeytimer[0]);
-		IN_JoyKeyEvent(old_move.x >  stickthreshold, new_move.x >  stickthreshold, K_RIGHTARROW,	&joy_emulatedkeytimer[1]);
-		IN_JoyKeyEvent(old_move.y < -stickthreshold, new_move.y < -stickthreshold, K_UPARROW,		&joy_emulatedkeytimer[2]);
-		IN_JoyKeyEvent(old_move.y >  stickthreshold, new_move.y >  stickthreshold, K_DOWNARROW,		&joy_emulatedkeytimer[3]);
+		joyaxis_t old_move = IN_GetMoveAxis (&pad->axisstate);
+		joyaxis_t new_move = IN_GetMoveAxis (newaxisstate);
+		IN_JoyKeyEvent(old_move.x < -stickthreshold, new_move.x < -stickthreshold, K_LEFTARROW,		&pad->emulatedkeytimer[0]);
+		IN_JoyKeyEvent(old_move.x >  stickthreshold, new_move.x >  stickthreshold, K_RIGHTARROW,	&pad->emulatedkeytimer[1]);
+		IN_JoyKeyEvent(old_move.y < -stickthreshold, new_move.y < -stickthreshold, K_UPARROW,		&pad->emulatedkeytimer[2]);
+		IN_JoyKeyEvent(old_move.y >  stickthreshold, new_move.y >  stickthreshold, K_DOWNARROW,		&pad->emulatedkeytimer[3]);
 	}
 	else if (lastactivetype != KD_GAMEPAD)
 	{
-		if (IN_AxisMagnitude (IN_GetLookAxis (&newaxisstate)) > joy_deadzone_look.value ||
-			IN_AxisMagnitude (IN_GetMoveAxis (&newaxisstate)) > joy_deadzone_move.value)
+		if (IN_AxisMagnitude (IN_GetLookAxis (newaxisstate)) > joy_deadzone_look.value ||
+			IN_AxisMagnitude (IN_GetMoveAxis (newaxisstate)) > joy_deadzone_move.value)
 			lastactivetype = KD_GAMEPAD;
 	}
+
+	// emit emulated keys for the analog triggers
+	IN_JoyKeyEvent(pad->axisstate.axisvalue[SDL_CONTROLLER_AXIS_TRIGGERLEFT] > triggerthreshold,  newaxisstate->axisvalue[SDL_CONTROLLER_AXIS_TRIGGERLEFT] > triggerthreshold, K_LTRIGGER, &pad->emulatedkeytimer[4]);
+	IN_JoyKeyEvent(pad->axisstate.axisvalue[SDL_CONTROLLER_AXIS_TRIGGERRIGHT] > triggerthreshold, newaxisstate->axisvalue[SDL_CONTROLLER_AXIS_TRIGGERRIGHT] > triggerthreshold, K_RTRIGGER, &pad->emulatedkeytimer[5]);
+
+	pad->axisstate = *newaxisstate;
+}
+
+/*
+================
+IN_PadPoll -- QVR (splitscreen: the rest of Ironwail's IN_Commands, for any pad)
+
+A pad read (its controller, or a mock pad's set state), its events emitted in the current seat (the pad's), the look
+stick scrolling the console, the rumble
+================
+*/
+static void IN_PadPoll (joypad_t *pad)
+{
+	joybuttonstate_t newbuttons;
+	joyaxisstate_t newaxisstate;
+	int i;
+
+	for (i = 0; i < SDL_CONTROLLER_BUTTON_MAX; i++)
+		newbuttons.buttondown[i] = pad->mock ? pad->mockbuttons.buttondown[i] : SDL_GameControllerGetButton(pad->controller, (SDL_GameControllerButton)i);
+	for (i = 0; i < SDL_CONTROLLER_AXIS_MAX; i++)
+		newaxisstate.axisvalue[i] = pad->mock ? pad->mockaxes.axisvalue[i] : SDL_GameControllerGetAxis(pad->controller, (SDL_GameControllerAxis)i) / 32768.0f;
+
+	IN_PadEmit (pad, &newbuttons, &newaxisstate);
 
 	// scroll console with look stick
 	if (key_dest == key_console)
 	{
 		const float scrollthreshold = 0.1f;
 		const float maxscrollspeed = 72.f; // lines per second
-		const float scrollinterval = 1.f / maxscrollspeed; 
-		static double timer = 0.0;
+		const float scrollinterval = 1.f / maxscrollspeed;
 		joyaxis_t raw, deadzone, eased;
 		float scale;
 
-		raw = IN_GetLookAxis (&newaxisstate);
+		raw = IN_GetLookAxis (&pad->axisstate);
 		deadzone = IN_ApplyDeadzone (raw, joy_deadzone_look.value, joy_outer_threshold_look.value);
 		eased = IN_ApplyEasing (deadzone, joy_exponent.value);
 		if (joy_invert.value)
@@ -1046,37 +1272,75 @@ void IN_Commands (void)
 		if (scale > scrollthreshold)
 		{
 			scale = (scale - scrollthreshold) / (1.f - scrollthreshold);
-			timer -= scale * host_rawframetime;
-			if (timer < 0.0)
+			pad->scrolltimer -= scale * host_rawframetime;
+			if (pad->scrolltimer < 0.0)
 			{
-				int ticks = (int) ceil (-timer / scrollinterval);
-				timer += ticks * scrollinterval;
+				int ticks = (int) ceil (-pad->scrolltimer / scrollinterval);
+				pad->scrolltimer += ticks * scrollinterval;
 				Con_Scroll (eased.y < 0.0f ? ticks : -ticks);
 			}
 		}
 		else
 		{
-			timer = 0.0;
+			pad->scrolltimer = 0.0;
 		}
 	}
 
-	// emit emulated keys for the analog triggers
-	IN_JoyKeyEvent(joy_axisstate.axisvalue[SDL_CONTROLLER_AXIS_TRIGGERLEFT] > triggerthreshold,  newaxisstate.axisvalue[SDL_CONTROLLER_AXIS_TRIGGERLEFT] > triggerthreshold, K_LTRIGGER, &joy_emulatedkeytimer[4]);
-	IN_JoyKeyEvent(joy_axisstate.axisvalue[SDL_CONTROLLER_AXIS_TRIGGERRIGHT] > triggerthreshold, newaxisstate.axisvalue[SDL_CONTROLLER_AXIS_TRIGGERRIGHT] > triggerthreshold, K_RTRIGGER, &joy_emulatedkeytimer[5]);
-	
-	joy_axisstate = newaxisstate;
-
 #if SDL_VERSION_ATLEAST (2, 0, 9)
-	if (joy_has_rumble && !IN_IsCalibratingGyro () && joy_rumble.value > 0.f && IN_JoyActive ())
+	if (pad->controller && pad->has_rumble && !IN_IsCalibratingGyro () && joy_rumble.value > 0.f && IN_JoyActive (pad))
 	{
 		float strength = CLAMP (0.f, joy_rumble.value, 1.f) * 0xffff;
 		float lofreq = GetClampedFraction (S_GetLoFreqLevel (), 0.067f, 0.45f);
 		float hifreq = GetClampedFraction (S_GetHiFreqLevel (), 0.061f, 0.45f);
 		hifreq *= hifreq;
-		SDL_GameControllerRumble (joy_active_controller, lofreq * strength, hifreq * strength, 100);
+		SDL_GameControllerRumble (pad->controller, lofreq * strength, hifreq * strength, 100);
 	}
 #endif // SDL_VERSION_ATLEAST (2, 0, 9)
 }
+
+/*
+================
+IN_Commands
+
+Emit key events for game controller buttons, including emulated buttons for analog sticks/triggers
+
+QVR: splitscreen: every pad's, each with its seat current (IN_PadSeat: the device names its seat), so its binds
+press that seat's buttons. A pad whose seat changed (seats joined or left, unplugged) lets go there first.
+================
+*/
+void IN_Commands (void)
+{
+	joybuttonstate_t nobuttons;
+	joyaxisstate_t noaxes;
+	joypad_t *pad;
+	int k, seat, prev;
+
+	memset (&nobuttons, 0, sizeof (nobuttons));
+	memset (&noaxes, 0, sizeof (noaxes));
+	for (k = 0; k < MAX_JOYPADS; k++)
+	{
+		pad = &joy_pads[k];
+		seat = IN_PadSeat (k);
+		if (seat != pad->seat)
+		{
+			if (pad->seat >= 0)
+			{
+				prev = CL_SeatSet (pad->seat);
+				IN_PadEmit (pad, &nobuttons, &noaxes);
+				CL_SeatSet (prev);
+			}
+			pad->seat = seat;
+			if (seat > 0 && !Key_SeatHasBindings (seat)) // a controller's seat with no bindings yet: seat 0's to start
+				Key_SeatCopyBindings (seat, 0);
+		}
+		if (seat < 0)
+			continue;
+		prev = CL_SeatSet (seat);
+		IN_PadPoll (pad);
+		CL_SeatSet (prev);
+	}
+}
+
 
 /*
 ================
@@ -1101,15 +1365,16 @@ void IN_JoyMove (usercmd_t *cmd)
 	joyaxis_t moveRaw, moveDeadzone, moveEased;
 	joyaxis_t lookRaw, lookDeadzone, lookEased;
 	extern	cvar_t	sv_maxspeed;
+	joypad_t *pad = IN_SeatPad (CL_SeatIndex ()); // QVR: splitscreen: the pad driving the seat moving
 
-	if (!joy_active_controller)
+	if (!pad)
 		return;
 
 	if (cl.paused || key_dest != key_game)
 		return;
 
-	moveRaw = IN_GetMoveAxis (&joy_axisstate);
-	lookRaw = IN_GetLookAxis (&joy_axisstate);
+	moveRaw = IN_GetMoveAxis (&pad->axisstate);
+	lookRaw = IN_GetLookAxis (&pad->axisstate);
 
 	moveDeadzone = IN_ApplyDeadzone(moveRaw, joy_deadzone_move.value, joy_outer_threshold_move.value);
 	lookDeadzone = IN_ApplyDeadzone(lookRaw, joy_deadzone_look.value, joy_outer_threshold_look.value);
@@ -1134,7 +1399,7 @@ void IN_JoyMove (usercmd_t *cmd)
 		return;
 
 	// handle flick stick if enabled
-	if (joy_flick.value && gyro_present && gyro_enable.value)
+	if (joy_flick.value && pad->gyro_present && gyro_enable.value)
 	{
 		float		angle, scale, lerp_frac, delta;
 		qboolean	isactive, wasactive;
@@ -1145,19 +1410,19 @@ void IN_JoyMove (usercmd_t *cmd)
 
 		// handle state transitions
 		isactive = scale > joy_flick_deadzone.value;
-		wasactive = flick.prev_scale > joy_flick_deadzone.value;
+		wasactive = pad->flick.prev_scale > joy_flick_deadzone.value;
 		if (isactive != wasactive)
 		{
 			if (!wasactive) // start new flick
 			{
-				flick.prev_lerp_frac = 0.f;
-				flick.yaw = angle;
-				flick.pitch = cl.viewangles[PITCH];
+				pad->flick.prev_lerp_frac = 0.f;
+				pad->flick.yaw = angle;
+				pad->flick.pitch = cl.viewangles[PITCH];
 			}
 		}
 		else if (isactive) // continuous adjustments
 		{
-			delta = AngleDifference (angle, flick.prev_angle);
+			delta = AngleDifference (angle, pad->flick.prev_angle);
 			if (joy_flick_noise_thresh.value > 0.f) // filter small movements
 			{
 				float filter_scale = fabs (delta) / joy_flick_noise_thresh.value;
@@ -1165,40 +1430,40 @@ void IN_JoyMove (usercmd_t *cmd)
 				{
 					filter_scale = LERP (0.05f, 1.f, filter_scale * filter_scale);
 					delta *= filter_scale;
-					angle = NormalizeAngle (flick.prev_angle + delta);
+					angle = NormalizeAngle (pad->flick.prev_angle + delta);
 				}
 			}
-			flick.yaw_delta += delta;
+			pad->flick.yaw_delta += delta;
 		}
 
 		// apply yaw adjustment
 		if (joy_flick_adjust_speed.value > 0.f)
-			delta = flick.yaw_delta * q_min (1.0, host_rawframetime * joy_flick_adjust_speed.value);
+			delta = pad->flick.yaw_delta * q_min (1.0, host_rawframetime * joy_flick_adjust_speed.value);
 		else
-			delta = flick.yaw_delta;
+			delta = pad->flick.yaw_delta;
 		if (fabs (delta) > 0.01)
 		{
 			cl.viewangles[YAW] -= delta;
-			flick.yaw_delta -= delta;
+			pad->flick.yaw_delta -= delta;
 		}
 
 		// advance angle animation
 		if (joy_flick_time.value > 0.f)
 		{
-			lerp_frac = flick.prev_lerp_frac + host_rawframetime / joy_flick_time.value;
+			lerp_frac = pad->flick.prev_lerp_frac + host_rawframetime / joy_flick_time.value;
 			lerp_frac = CLAMP (0.f, lerp_frac, 1.f);
 		}
 		else
 			lerp_frac = 1.f;
 
-		delta = IN_FlickStickEasing (lerp_frac) - IN_FlickStickEasing (flick.prev_lerp_frac);
-		cl.viewangles[YAW] -= flick.yaw * delta;
-		cl.viewangles[PITCH] -= flick.pitch * delta * CLAMP (0.f, joy_flick_recenter.value, 1.f);
+		delta = IN_FlickStickEasing (lerp_frac) - IN_FlickStickEasing (pad->flick.prev_lerp_frac);
+		cl.viewangles[YAW] -= pad->flick.yaw * delta;
+		cl.viewangles[PITCH] -= pad->flick.pitch * delta * CLAMP (0.f, joy_flick_recenter.value, 1.f);
 
 		// update state
-		flick.prev_scale = scale;
-		flick.prev_angle = angle;
-		flick.prev_lerp_frac = lerp_frac;
+		pad->flick.prev_scale = scale;
+		pad->flick.prev_angle = angle;
+		pad->flick.prev_lerp_frac = lerp_frac;
 	}
 	else // traditional joystick look
 	{
@@ -1206,7 +1471,7 @@ void IN_JoyMove (usercmd_t *cmd)
 		// QVR: flatscreen play's ironsight slows the stick as it does the mouse (vr_flataimsens.cpp); exactly 1 otherwise
 		const float aim = VR_FlatAimStickScale (VR_FlatLookFov (r_refdef.basefov));
 
-		IN_ResetFlickState ();
+		IN_ResetFlickState (pad);
 
 		right = lookEased.x * joy_sensitivity_yaw.value * host_rawframetime * aim;
 		down = lookEased.y * joy_sensitivity_pitch.value * (joy_invert.value ? -1.0 : 1.0) * host_rawframetime * aim;
@@ -1240,10 +1505,11 @@ static float IN_RecenterEasing (float frac)
 void IN_GyroMove(usercmd_t *cmd)
 {
 	float scale, duration, lerp_frac;
+	joypad_t *pad = IN_SeatPad (CL_SeatIndex ()); // QVR: splitscreen: the pad driving the seat moving
 	if (!gyro_enable.value)
 		return;
 
-	if (!IN_JoyActive ())
+	if (!IN_JoyActive (pad))
 		return;
 
 	if (cl.paused || key_dest != key_game)
@@ -1256,15 +1522,15 @@ void IN_GyroMove(usercmd_t *cmd)
 	switch ((int)gyro_mode.value)
 	{
 	case GYRO_BUTTON_DISABLES:
-		if (gyro_button_pressed)
+		if (Key_Seat ()->gyrobutton)
 			return;
 		break;
 	case GYRO_BUTTON_ENABLES:
-		if (!gyro_button_pressed)
+		if (!Key_Seat ()->gyrobutton)
 			return;
 		break;
 	case GYRO_BUTTON_INVERTS_DIR:
-		if (gyro_button_pressed)
+		if (Key_Seat ()->gyrobutton)
 			scale = -scale;
 		break;
 	default:
@@ -1273,8 +1539,8 @@ void IN_GyroMove(usercmd_t *cmd)
 
 	// apply gyro
 	{
-		float right = -(scale * gyro_yaw * gyro_yawsensitivity.value);
-		float down = -(scale * gyro_pitch * gyro_pitchsensitivity.value);
+		float right = -(scale * pad->gyro_yaw * gyro_yawsensitivity.value);
+		float down = -(scale * pad->gyro_pitch * gyro_pitchsensitivity.value);
 		if (VR_FlatLookTurn (&right, &down)) // QVR: flatscreen play's view rolled: along the rolled screen (see IN_MouseMove)
 		{
 			cl.viewangles[YAW] -= right;
@@ -1282,8 +1548,8 @@ void IN_GyroMove(usercmd_t *cmd)
 		}
 		else
 		{
-			cl.viewangles[YAW] += scale * gyro_yaw * gyro_yawsensitivity.value;
-			cl.viewangles[PITCH] -= scale * gyro_pitch * gyro_pitchsensitivity.value;
+			cl.viewangles[YAW] += scale * pad->gyro_yaw * gyro_yawsensitivity.value;
+			cl.viewangles[PITCH] -= scale * pad->gyro_pitch * gyro_pitchsensitivity.value;
 		}
 	}
 
@@ -1300,22 +1566,22 @@ void IN_GyroMove(usercmd_t *cmd)
 	// store angle delta and reset centering anim if centerview was used this frame
 	if (cl.lastcenterstart == cl.time)
 	{
-		gyro_center_frac = 0.f;
-		gyro_center_amount = cl.idealpitch - cl.viewangles[PITCH];
+		pad->gyro_center_frac = 0.f;
+		pad->gyro_center_amount = cl.idealpitch - cl.viewangles[PITCH];
 	}
 
 	// try to roughly mimic the look of the default pitch drift code
-	if (gyro_center_amount != 0.f && v_centerspeed.value > 0.f)
+	if (pad->gyro_center_amount != 0.f && v_centerspeed.value > 0.f)
 	{
-		duration = fabs (gyro_center_amount / v_centerspeed.value);
-		lerp_frac = gyro_center_frac + host_rawframetime / duration;
+		duration = fabs (pad->gyro_center_amount / v_centerspeed.value);
+		lerp_frac = pad->gyro_center_frac + host_rawframetime / duration;
 		lerp_frac = CLAMP (0.f, lerp_frac, 1.f);
 	}
 	else
 		lerp_frac = 1.f;
-	scale = IN_RecenterEasing (lerp_frac) - IN_RecenterEasing (gyro_center_frac);
-	gyro_center_frac = lerp_frac;
-	cl.viewangles[PITCH] += gyro_center_amount * scale;
+	scale = IN_RecenterEasing (lerp_frac) - IN_RecenterEasing (pad->gyro_center_frac);
+	pad->gyro_center_frac = lerp_frac;
+	cl.viewangles[PITCH] += pad->gyro_center_amount * scale;
 
 	/* johnfitz -- variable pitch clamping */
 	if (cl.viewangles[PITCH] > cl_maxpitch.value)
@@ -1332,11 +1598,12 @@ void IN_MouseMove(usercmd_t *cmd)
 
 	sens = sensitivity.value * IN_FovScale ();
 
-	dmx = total_dx * sens;
-	dmy = total_dy * sens;
+	// QVR: splitscreen: the current seat's mouse motion (seat 0's: the mouse's; the others have none)
+	dmx = Key_Seat ()->mouse_dx * sens;
+	dmy = Key_Seat ()->mouse_dy * sens;
 
-	total_dx = 0;
-	total_dy = 0;
+	Key_Seat ()->mouse_dx = 0;
+	Key_Seat ()->mouse_dy = 0;
 
 	if (mlook && !(CL_SeatInput()->strafe.state & 1) && !lookstrafe.value)
 	{
@@ -1562,8 +1829,8 @@ void IN_StartGyroCalibration (void)
 {
 #if SDL_VERSION_ATLEAST (2, 0, 9)
 	// Disable rumble temporarily
-	if (joy_has_rumble)
-		SDL_GameControllerRumble (joy_active_controller, 0, 0, 100);
+	if (joy_primary->has_rumble)
+		SDL_GameControllerRumble (joy_primary->controller, 0, 0, 100);
 #endif // SDL_VERSION_ATLEAST (2, 0, 9)
 
 	gyro_accum[0] = 0.0;
@@ -1612,24 +1879,24 @@ static qboolean IN_UpdateGyroCalibration (const float newsample[3])
 
 qboolean IN_HasGyro (void)
 {
-	return gyro_present;
+	return joy_primary->gyro_present;
 }
 
 float IN_GetRawGyroMagnitude (void)
 {
-	if (!gyro_present)
+	if (!joy_primary->gyro_present)
 		return 0.f;
-	return gyro_raw_mag;
+	return joy_primary->gyro_raw_mag;
 }
 
 float IN_GetRawLookMagnitude (void)
 {
 	joyaxis_t axis;
-	if (!joy_active_controller)
+	if (!joy_primary->controller)
 		return 0.f;
 
-	axis.x = joy_axisstate.axisvalue[joy_swapmovelook.value ? SDL_CONTROLLER_AXIS_LEFTX : SDL_CONTROLLER_AXIS_RIGHTX];
-	axis.y = joy_axisstate.axisvalue[joy_swapmovelook.value ? SDL_CONTROLLER_AXIS_LEFTY : SDL_CONTROLLER_AXIS_RIGHTY];
+	axis.x = joy_primary->axisstate.axisvalue[joy_swapmovelook.value ? SDL_CONTROLLER_AXIS_LEFTX : SDL_CONTROLLER_AXIS_RIGHTX];
+	axis.y = joy_primary->axisstate.axisvalue[joy_swapmovelook.value ? SDL_CONTROLLER_AXIS_LEFTY : SDL_CONTROLLER_AXIS_RIGHTY];
 
 	return IN_AxisMagnitude (axis);
 }
@@ -1637,11 +1904,11 @@ float IN_GetRawLookMagnitude (void)
 float IN_GetRawMoveMagnitude (void)
 {
 	joyaxis_t axis;
-	if (!joy_active_controller)
+	if (!joy_primary->controller)
 		return 0.f;
 
-	axis.x = joy_axisstate.axisvalue[joy_swapmovelook.value ? SDL_CONTROLLER_AXIS_RIGHTX : SDL_CONTROLLER_AXIS_LEFTX];
-	axis.y = joy_axisstate.axisvalue[joy_swapmovelook.value ? SDL_CONTROLLER_AXIS_RIGHTY : SDL_CONTROLLER_AXIS_LEFTY];
+	axis.x = joy_primary->axisstate.axisvalue[joy_swapmovelook.value ? SDL_CONTROLLER_AXIS_RIGHTX : SDL_CONTROLLER_AXIS_LEFTX];
+	axis.y = joy_primary->axisstate.axisvalue[joy_swapmovelook.value ? SDL_CONTROLLER_AXIS_RIGHTY : SDL_CONTROLLER_AXIS_LEFTY];
 
 	return IN_AxisMagnitude (axis);
 }
@@ -1649,11 +1916,11 @@ float IN_GetRawMoveMagnitude (void)
 float IN_GetRawTriggerMagnitude (void)
 {
 	float left, right;
-	if (!joy_active_controller)
+	if (!joy_primary->controller)
 		return 0.f;
 
-	left = fabs (joy_axisstate.axisvalue[SDL_CONTROLLER_AXIS_TRIGGERLEFT]);
-	right = fabs (joy_axisstate.axisvalue[SDL_CONTROLLER_AXIS_TRIGGERRIGHT]);
+	left = fabs (joy_primary->axisstate.axisvalue[SDL_CONTROLLER_AXIS_TRIGGERLEFT]);
+	right = fabs (joy_primary->axisstate.axisvalue[SDL_CONTROLLER_AXIS_TRIGGERRIGHT]);
 
 	return q_max (left, right);
 
@@ -1681,11 +1948,32 @@ static float IN_FilterGyroSample (float prev, float cur)
 	return cur;
 }
 
+// QVR: vr_seat_test's keyboard: a real SDL key event for a Quake key (its scancode), handled as the keyboard's
+void IN_MockKeyboardKey (int key, qboolean down)
+{
+	SDL_Event event;
+	int sc;
+
+	for (sc = 0; sc < SDL_NUM_SCANCODES && IN_SDL2_ScancodeToQuakeKey ((SDL_Scancode) sc) != key; sc++)
+		;
+	if (sc == SDL_NUM_SCANCODES)
+		return;
+	memset (&event, 0, sizeof (event));
+	event.type = down ? SDL_KEYDOWN : SDL_KEYUP;
+	event.key.state = down ? SDL_PRESSED : SDL_RELEASED;
+	event.key.keysym.scancode = (SDL_Scancode) sc;
+	SDL_PushEvent (&event);
+	IN_SendKeyEvents ();
+}
+
 void IN_SendKeyEvents (void)
 {
 	SDL_Event event;
 	int key;
 	qboolean down;
+	// QVR: splitscreen: the events here are the keyboard's and the mouse's (the pads are polled: IN_Commands), always
+	// seat 0's: its keys, its binds (the device names its seat)
+	int seat = CL_SeatSet (0);
 
 	// QVR: in the headset the sounds play on without the window's focus (the player is in the headset, not at the
 	// desktop): never blocked then, nor left blocked from a flat screen's lost focus as VR starts
@@ -1789,25 +2077,26 @@ void IN_SendKeyEvents (void)
 
 #if SDL_VERSION_ATLEAST(2, 0, 14)
 		case SDL_CONTROLLERSENSORUPDATE:
-			if (event.csensor.sensor == SDL_SENSOR_GYRO && event.csensor.which == joy_active_instanceid)
+			if (event.csensor.sensor == SDL_SENSOR_GYRO && IN_PadForInstance (event.csensor.which)) // QVR: any pad's
 			{
-				float prev_yaw = gyro_yaw;
-				float prev_pitch = gyro_pitch;
+				joypad_t *pad = IN_PadForInstance (event.csensor.which);
+				float prev_yaw = pad->gyro_yaw;
+				float prev_pitch = pad->gyro_pitch;
 
-				if (IN_UpdateGyroCalibration (event.csensor.data))
+				if (pad == joy_primary && IN_UpdateGyroCalibration (event.csensor.data)) // QVR: the calibration: pad 0's
 					break;
 
 				if (!gyro_turning_axis.value)
-					gyro_yaw = event.csensor.data[1] - gyro_calibration_y.value; // yaw
+					pad->gyro_yaw = event.csensor.data[1] - gyro_calibration_y.value; // yaw
 				else
-					gyro_yaw = -(event.csensor.data[2] - gyro_calibration_z.value); // roll
-				gyro_pitch = event.csensor.data[0] - gyro_calibration_x.value;
+					pad->gyro_yaw = -(event.csensor.data[2] - gyro_calibration_z.value); // roll
+				pad->gyro_pitch = event.csensor.data[0] - gyro_calibration_x.value;
 
 				// Save unfiltered magnitude to display in the UI
-				gyro_raw_mag = RAD2DEG (sqrt (gyro_yaw*gyro_yaw + gyro_pitch*gyro_pitch));
+				pad->gyro_raw_mag = RAD2DEG (sqrt (pad->gyro_yaw*pad->gyro_yaw + pad->gyro_pitch*pad->gyro_pitch));
 
-				gyro_yaw = IN_FilterGyroSample (prev_yaw, gyro_yaw);
-				gyro_pitch = IN_FilterGyroSample (prev_pitch, gyro_pitch);
+				pad->gyro_yaw = IN_FilterGyroSample (prev_yaw, pad->gyro_yaw);
+				pad->gyro_pitch = IN_FilterGyroSample (prev_pitch, pad->gyro_pitch);
 			}
 			break;
 
@@ -1816,11 +2105,13 @@ void IN_SendKeyEvents (void)
 		case SDL_CONTROLLERDEVICEADDED:
 			if (!IN_RemapJoystick ())
 				IN_UseController (event.jdevice.which);
+			IN_RefreshExtraPads (); // QVR: splitscreen: or opened as another pad
 			break;
 		case SDL_CONTROLLERDEVICEREMOVED:
 		case SDL_CONTROLLERDEVICEREMAPPED:
 			if (!IN_RemapJoystick ())
 				IN_SetupJoystick ();
+			IN_RefreshExtraPads (); // QVR: splitscreen: the other pads' gone ones closed
 			break;
 #if SDL_VERSION_ATLEAST (2, 0, 14)
 		case SDL_LOCALECHANGED:
@@ -1838,5 +2129,6 @@ void IN_SendKeyEvents (void)
 			break;
 		}
 	}
+	CL_SeatSet (seat); // QVR
 }
 

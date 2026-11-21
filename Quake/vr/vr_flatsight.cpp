@@ -92,8 +92,6 @@
 
 #include <glm/gtc/quaternion.hpp>
 
-extern "C" qboolean keydown[MAX_KEYS]; // keys.c (the game's own key state, as flatplay reads E and V from it)
-
 namespace qvr::flatsight
 {
 

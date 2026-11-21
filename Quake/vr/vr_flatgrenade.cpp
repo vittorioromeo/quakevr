@@ -30,8 +30,6 @@
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "vr_zancle.hpp"
-
-extern "C" qboolean keydown[MAX_KEYS]; // keys.c
 extern "C" int Key_StringToKeynum(const char* str); // keys.c
 
 namespace qvr::flatgrenade
@@ -141,7 +139,7 @@ void frame(bool on)
 
     // G: the game picks the hand and runs it (QC VR_FlatGrenade_Key).
     const int k = vr_flat_key_grenade.string[0] ? Key_StringToKeynum(vr_flat_key_grenade.string) : -1;
-    const bool down = key_dest == key_game && k > 0 && k < MAX_KEYS && keydown[k] != 0;
+    const bool down = key_dest == key_game && k > 0 && k < MAX_KEYS && Key_Seat()->down[k] != 0;
     if(down && !gs.keyDown)
     {
         gs.presses++;

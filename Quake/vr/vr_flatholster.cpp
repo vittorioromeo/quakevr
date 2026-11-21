@@ -30,8 +30,6 @@
 #include <stdio.h>
 #include <string.h>
 #include "vr_seat.hpp"
-
-extern "C" qboolean keydown[MAX_KEYS];             // keys.c
 extern "C" int Key_StringToKeynum(const char* str); // keys.c
 extern "C" int VR_FlatHudClip(int left, int* clip, int* clipSize); // vr_flathud.cpp
 
@@ -462,7 +460,7 @@ void pressAt()
 {
     const char* k = vr_flat_key_holster_menu.string;
     const int key = k[0] ? Key_StringToKeynum(k) : -1;
-    return key > 0 && key < MAX_KEYS && keydown[key] != 0;
+    return key > 0 && key < MAX_KEYS && Key_Seat()->down[key] != 0;
 }
 
 // vr_flat_holster_menu_mode 1: a press opens it, clicks, the next press closes it; 0: held, let go on a button.

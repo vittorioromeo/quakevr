@@ -202,9 +202,25 @@ typedef enum
 } keydevicemask_t;
 
 extern keydest_t	key_dest;
-extern	char	*keybindings[MAX_KEYS];
 
-extern qboolean joy_altmodifier_pressed;
+// QVR: splitscreen (docs/vr-port/SPLITSCREEN.md, phase 2): the keys held, the bindings and the device state a player
+// has his own of (Ironwail's keydown[], keybindings[], joy_altmodifier_pressed, the gyro button, the mouse's motion):
+// a seat's. Key_Event acts on the current seat's; a device's events make its seat current first (in_sdl.c: the
+// keyboard and mouse are seat 0's, each game controller its seat's), and the commands its binds queue run as that
+// seat (cmd.c's seat markers). C++: seat::current().keys (vr_seat.hpp).
+typedef struct seatkeys_s
+{
+	qboolean	down[MAX_KEYS];		// held (was keydown[])
+	char		*bindings[MAX_KEYS];	// what each key runs (was keybindings[]); seat 0's are the config's
+	qboolean	altmodifier;		// +altmodifier held: K_x_BTN turns into K_x_BTN_ALT (was joy_altmodifier_pressed)
+	qboolean	gyrobutton;			// +gyroaction held (was in_sdl.c's gyro_button_pressed)
+	int			mouse_dx, mouse_dy;	// the mouse's motion since the last move (only seat 0 has the mouse)
+} seatkeys_t;
+
+seatkeys_t *Key_Seat (void);			// the current seat's (vr_seat.cpp)
+seatkeys_t *Key_SeatOf (int seat);		// seat 0..3's
+void Key_SeatCopyBindings (int to, int from);	// a seat's bindings made a copy of another's (a pad's seat at its join)
+qboolean Key_SeatHasBindings (int seat);
 
 #define		CMDLINES 64
 

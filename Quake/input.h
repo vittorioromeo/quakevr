@@ -35,6 +35,16 @@ void IN_Commands (void);
 void IN_MouseMotion(int dx, int dy);
 void IN_MockMouseMotion (int dx, int dy); // QVR: the tests' mouse (focus aside; vr_flatleanmouse_test)
 
+// QVR: splitscreen (docs/vr-port/SPLITSCREEN.md, phase 2): up to four game controllers open, pad k driving the seat
+// IN_PadSeat names (-1: none); vr_seat_test's mock pads (no controller, polled by IN_Commands as one)
+int IN_PadSeat (int k);
+void IN_MockPad (int k, qboolean on);
+void IN_MockPadButton (int k, int button, qboolean down);	// button: SDL_GameControllerButton
+void IN_MockPadAxes (int k, float lx, float ly, float rx, float ry);
+void IN_JoyMove (usercmd_t *cmd);
+void IN_MouseMove (usercmd_t *cmd);
+void IN_MockKeyboardKey (int key, qboolean down); // a key event as the keyboard's (an SDL event, IN_SendKeyEvents)
+
 //
 // controller gyro
 //

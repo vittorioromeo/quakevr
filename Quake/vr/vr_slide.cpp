@@ -29,8 +29,6 @@
 #include <glm/gtc/constants.hpp>
 #include <glm/trigonometric.hpp>
 
-extern "C" qboolean keydown[MAX_KEYS]; // keys.c
-
 namespace qvr::slide
 {
 
@@ -425,7 +423,7 @@ void testFrame()
                 stick("main", c.x, c.y);
             }
             t.frame++;
-            t.downKey = t.downKey || keydown[K_DPAD_DOWN];
+            t.downKey = t.downKey || Key_Seat()->down[K_DPAD_DOWN];
             t.peak = za::max(t.peak, speed);
             if(s.on && t.slideAt < 0.0)
             {

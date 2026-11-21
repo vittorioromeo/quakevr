@@ -35,8 +35,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <unistd.h>
 #endif
 
-extern qboolean	keydown[256];
-
 int 		con_linewidth;
 
 float		con_cursorspeed = 4;
@@ -698,7 +696,7 @@ static void Con_UpdateMouseState (void)
 		return;
 	}
 
-	if (!keydown[K_MOUSE1])
+	if (!Key_Seat ()->down[K_MOUSE1])
 		Con_SetMouseState (CMS_NOTPRESSED);
 	else if (con_mousestate == CMS_NOTPRESSED)
 		Con_SetMouseState (CMS_PRESSED);
@@ -1979,7 +1977,7 @@ static qboolean CompleteBindKeys (const char *partial, void *unused)
 	{
 		const char *name = Key_KeynumToString (i);
 		if (strcmp (name, "<UNKNOWN KEYNUM>") != 0)
-			Con_AddToTabList (name, partial, keybindings[i]);
+			Con_AddToTabList (name, partial, Key_Seat ()->bindings[i]);
 	}
 
 	return true;
@@ -1995,11 +1993,11 @@ static qboolean CompleteUnbindKeys (const char *partial, void *unused)
 
 	for (i = 0; i < MAX_KEYS; i++)
 	{
-		if (keybindings[i])
+		if (Key_Seat ()->bindings[i])
 		{
 			const char *name = Key_KeynumToString (i);
 			if (strcmp (name, "<UNKNOWN KEYNUM>") != 0)
-				Con_AddToTabList (name, partial, keybindings[i]);
+				Con_AddToTabList (name, partial, Key_Seat ()->bindings[i]);
 		}
 	}
 
@@ -2268,12 +2266,12 @@ void Con_TabComplete (tabcomplete_t mode)
 
 		//find current match -- can't save a pointer because the list will be rebuilt each time
 		t = tablist;
-		match = keydown[K_SHIFT] ? t->prev->name : t->name;
+		match = Key_Seat ()->down[K_SHIFT] ? t->prev->name : t->name;
 		do
 		{
 			if (!q_strcasecmp (t->name, partial))
 			{
-				match = keydown[K_SHIFT] ? t->prev->name : t->next->name;
+				match = Key_Seat ()->down[K_SHIFT] ? t->prev->name : t->next->name;
 				break;
 			}
 			t = t->next;
@@ -2623,7 +2621,7 @@ void Con_DrawConsole (int lines, qboolean drawbg, qboolean drawinput)
 			ofs.col = x;
 			if (con_hotlink && Con_OfsInRange (&ofs, &con_hotlink->begin, &con_hotlink->end))
 			{
-				if (keydown[K_MOUSE1])
+				if (Key_Seat ()->down[K_MOUSE1])
 					c &= 0x7f;
 				Draw_Character ((x + 1)<<3, y + 2, '_' | (c & 0x80));
 			}

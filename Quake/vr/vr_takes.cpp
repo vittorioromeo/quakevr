@@ -1763,7 +1763,7 @@ void defaultKeys()
     for(const Key& k : keys)
     {
         const int n = Key_StringToKeynum(k.key);
-        if(n >= 0 && (!keybindings[n] || !keybindings[n][0]))
+        if(n >= 0 && (!Key_Seat()->bindings[n] || !Key_Seat()->bindings[n][0]))
         {
             Key_SetBinding(n, k.command);
         }

@@ -89,8 +89,6 @@
 #include "vr_api_render.h"
 
 #include <math.h>
-
-extern "C" qboolean keydown[MAX_KEYS]; // keys.c
 extern "C" int Key_StringToKeynum(const char* str); // keys.c: a key's number from its bind name (vr_flat_key_swap, ...)
 
 namespace qvr::flatplay
@@ -1501,7 +1499,7 @@ namespace
 [[nodiscard]] bool flatKeyHeld(const cvar_t& c)
 {
     const int k = c.string[0] ? Key_StringToKeynum(c.string) : -1;
-    return k > 0 && k < MAX_KEYS && keydown[k] != 0;
+    return k > 0 && k < MAX_KEYS && Key_Seat()->down[k] != 0;
 }
 } // namespace
 
@@ -1774,12 +1772,12 @@ namespace
 void pollKeysFlat()
 {
     const bool inGame = key_dest == key_game;
-    const bool ctrl = inGame && keydown[K_CTRL] != 0;
+    const bool ctrl = inGame && Key_Seat()->down[K_CTRL] != 0;
     const bool flash = inGame && flatKeyHeld(vr_flat_key_flashlight);
     // H (vr_flat_key_drop; G until 2026-11-10, his words: "Rebind drop to 'H' and free the 'G' key up": G is the quick
     // grenade now, vr_flatgrenade.cpp).
     const int dropKey = vr_flat_key_drop.string[0] ? Key_StringToKeynum(vr_flat_key_drop.string) : -1;
-    const bool drop = inGame && dropKey > 0 && dropKey < MAX_KEYS && keydown[dropKey] != 0;
+    const bool drop = inGame && dropKey > 0 && dropKey < MAX_KEYS && Key_Seat()->down[dropKey] != 0;
 
     if(ctrl && !keyState.keyCtrl)
     {
@@ -1816,8 +1814,8 @@ void pollKeysFlat()
     // Q and Z, each the key its cvar names (a bind name: Key_StringToKeynum), read like F and H.
     const int swapKey = Key_StringToKeynum(vr_flat_key_swap.string);
     const int timeKey = Key_StringToKeynum(vr_flat_key_bullettime.string);
-    const bool swap = inGame && swapKey > 0 && swapKey < MAX_KEYS && keydown[swapKey] != 0;
-    const bool slow = inGame && timeKey > 0 && timeKey < MAX_KEYS && keydown[timeKey] != 0;
+    const bool swap = inGame && swapKey > 0 && swapKey < MAX_KEYS && Key_Seat()->down[swapKey] != 0;
+    const bool slow = inGame && timeKey > 0 && timeKey < MAX_KEYS && Key_Seat()->down[timeKey] != 0;
     if(swap && !keyState.keySwap)
     {
         swapHands(vr_flat_key_swap.string);
@@ -1840,7 +1838,7 @@ void pollKeysFlat()
     keyState.keyTime = slow;
     // X (vr_flat_key_prone): lie down, get up (vr_prone_toggle's toggle).
     const int proneKey = Key_StringToKeynum(vr_flat_key_prone.string);
-    const bool proneDown = inGame && proneKey > 0 && proneKey < MAX_KEYS && keydown[proneKey] != 0;
+    const bool proneDown = inGame && proneKey > 0 && proneKey < MAX_KEYS && Key_Seat()->down[proneKey] != 0;
     if(proneDown && !keyState.keyProne)
     {
         toggleProne("flatscreen key");
@@ -1862,7 +1860,7 @@ void pollKeysFlat()
     }
     // Mouse 5 (vr_flat_key_shove): a shove.
     const int shoveKey = Key_StringToKeynum(vr_flat_key_shove.string);
-    const bool shove = inGame && shoveKey > 0 && shoveKey < MAX_KEYS && keydown[shoveKey] != 0;
+    const bool shove = inGame && shoveKey > 0 && shoveKey < MAX_KEYS && Key_Seat()->down[shoveKey] != 0;
     if(shove && !fs.keyShove)
     {
         startShove(vr_flat_key_shove.string);
@@ -1946,7 +1944,7 @@ void crouchRelease_f()
 // that), and a `bind CTRL ...` said on the console during the mode takes it away until the mode asks for it again.
 [[nodiscard]] bool ctrlHolds()
 {
-    return ctrlBind.taken && keybindings[K_CTRL] && !q_strcasecmp(keybindings[K_CTRL], "+flatcrouch");
+    return ctrlBind.taken && Key_Seat()->bindings[K_CTRL] && !q_strcasecmp(Key_Seat()->bindings[K_CTRL], "+flatcrouch");
 }
 
 void takeCtrlBind()
@@ -1962,7 +1960,7 @@ void takeCtrlBind()
     // something else has just changed Ctrl's bind -- a config, a `bind CTRL ...` said on the console, an unbindall -- and
     // that value is the plain game's, so it is what the mode gives back before the engine writes its config out. Keeping
     // only the first one remembered would keep the empty state of that first frame and write it out as the player's bind.
-    q_strlcpy(ctrlBind.was, keybindings[K_CTRL] ? keybindings[K_CTRL] : "", sizeof(ctrlBind.was));
+    q_strlcpy(ctrlBind.was, Key_Seat()->bindings[K_CTRL] ? Key_Seat()->bindings[K_CTRL] : "", sizeof(ctrlBind.was));
     Key_SetBinding(K_CTRL, "+flatcrouch");
     ctrlBind.taken = true;
     if(vr_flatplay_debug.value)
@@ -4099,7 +4097,7 @@ void status_f()
         keyState.crouches, keyState.toggles, keyState.drops, keyState.ratio,
         (keyState.cmdHeld || keyState.keyCtrl) ? 1 : 0, crouchDrop(),
         za::clamp(vr_flat_crouch_drop.value, 0.f, 40.f), za::clamp(vr_flat_crouch_time.value, 0.05f, 2.f),
-        keybindings[K_CTRL] ? keybindings[K_CTRL] : "nothing", vr_flat_crouch_fire.value);
+        Key_Seat()->bindings[K_CTRL] ? Key_Seat()->bindings[K_CTRL] : "nothing", vr_flat_crouch_fire.value);
     Con_Printf("  the game code: reloading %s (R; auto %s), body interactions on, 1, 2 and the wheel cycle (empty hand "
                "included) the weapons collected into the left and right hand, an ammo or health box grabbed with E taken at once.\n",
         vr_flat_reload.value != 0.f ? "at the hip holsters" : "off", vr_flat_autoreload.value != 0.f ? "on" : "off");

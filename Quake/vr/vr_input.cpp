@@ -64,9 +64,6 @@
 #include "Zancle/String/String.hpp"
 #include "vr_api.h"
 #include "vr_seat.hpp"
-
-
-extern "C" qboolean keydown[MAX_KEYS]; // keys.c
 extern "C" cvar_t sv_maxspeed;          // sv_user.c: the stick's top speed fits it (moveTopSpeed)
 extern "C" cvar_t sv_accelerate, sv_stopspeed, sv_friction; // sv_user.c, sv_phys.c: the stick's least speed (moveMinSpeed)
 
@@ -87,9 +84,9 @@ void keyEvent(int key, bool down)
         Key_Event(key, down);
         return;
     }
-    const bool was = keydown[key] != 0;
-    keydown[key] = down;
-    const char* kb = keybindings[key];
+    const bool was = Key_Seat()->down[key] != 0;
+    Key_Seat()->down[key] = down;
+    const char* kb = Key_Seat()->bindings[key];
     if(!kb || down == was)
     {
         return;
@@ -134,7 +131,7 @@ void logButton(int h, const ButtonKeys& b, bool now, int key, const char* takenB
                        : b.button == &HandInput::primary   ? (h == HAND_MAIN ? "lower face button (A)" : "lower face button (X)")
                        : b.button == &HandInput::secondary ? (h == HAND_MAIN ? "upper face button (B)" : "upper face button (Y)")
                                                            : "stick click";
-    const char* kb = keybindings[key];
+    const char* kb = Key_Seat()->bindings[key];
     Con_Printf("VR buttons: %s hand's %s %s: key %s (bound to \"%s\")%s%s%s\n", h == HAND_MAIN ? "main" : "off", name,
         now ? "pressed" : "let go", Key_KeynumToString(key), kb ? kb : "", takenBy ? ", taken by " : "", takenBy ? takenBy : "",
         !takenBy && key_dest != key_game ? " (not in the game: no reel or unreel)" : "");
@@ -871,7 +868,7 @@ char bindingsRepair[256];
 
 [[nodiscard]] bool bindsGrab(int key)
 {
-    const char* b = keybindings[key];
+    const char* b = Key_Seat()->bindings[key];
     return b && q_strcasestr(b, "grab");
 }
 
@@ -1765,7 +1762,7 @@ void guardBindings()
         return;
     }
 
-    const auto bound = [](int key) { return keybindings[key] ? keybindings[key] : ""; };
+    const auto bound = [](int key) { return Key_Seat()->bindings[key] ? Key_Seat()->bindings[key] : ""; };
     q_snprintf(bindingsRepair, sizeof(bindingsRepair),
         "no grab on %s controller's keys (LTRIGGER \"%s\", LSHOULDER \"%s\", RSHOULDER \"%s\", ABUTTON \"%s\")",
         !grabs[0] && !grabs[1] ? "either" : !grabs[0] ? "the left" : "the right", bound(K_LTRIGGER), bound(K_LSHOULDER),
@@ -1792,7 +1789,7 @@ void guardBindings()
 
 void describeBindings(char* out, size_t size)
 {
-    const auto bound = [](int key) { return keybindings[key] ? keybindings[key] : ""; };
+    const auto bound = [](int key) { return Key_Seat()->bindings[key] ? Key_Seat()->bindings[key] : ""; };
     q_snprintf(out, size,
         "LTRIGGER \"%s\", RTRIGGER \"%s\", LSHOULDER \"%s\", RSHOULDER \"%s\", XBUTTON \"%s\", ABUTTON \"%s\", YBUTTON \"%s\", "
         "BBUTTON \"%s\"%s%s",

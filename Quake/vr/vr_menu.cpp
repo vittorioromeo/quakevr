@@ -49,7 +49,6 @@
 extern "C" cvar_t scr_fov; // gl_screen.c (Aim Sensitivity's help)
 extern "C" int Key_StringToKeynum(const char* str);   // keys.c: a key's number from its bind name
 extern "C" const char* Key_KeynumToString(int keynum); // keys.c: and its name
-extern "C" char* keybindings[MAX_KEYS];                // keys.c: what each key is bound to (the Flat Keys rows' conflicts)
 extern "C" void M_VRKeyCapture(qboolean on);           // menu.c: a key row waits for a key
 
 namespace menu_detail
@@ -3486,7 +3485,7 @@ bool fineForced = false; // (vr_menu_slider_step's "fine": the modifier as if he
 
 [[nodiscard]] bool fineHeld()
 {
-    return fineForced || keydown[K_SHIFT] || keydown[K_LSHOULDER] || keydown[K_RSHOULDER];
+    return fineForced || Key_Seat()->down[K_SHIFT] || Key_Seat()->down[K_LSHOULDER] || Key_Seat()->down[K_RSHOULDER];
 }
 
 [[nodiscard]] float sliderStep(const Item& item)
@@ -3627,9 +3626,9 @@ cvar_t* keyCapture{nullptr};
             return true;
         }
     }
-    if(keybindings[key] && keybindings[key][0])
+    if(Key_Seat()->bindings[key] && Key_Seat()->bindings[key][0])
     {
-        q_snprintf(out, size, "Quake: %s", keybindings[key]);
+        q_snprintf(out, size, "Quake: %s", Key_Seat()->bindings[key]);
         return true;
     }
     return false;
@@ -4282,7 +4281,7 @@ bool dropDownMousemove(float cx, float cy)
     DropDown& d = ui().dropDown;
     if(d.scrollGrab)
     {
-        if(keydown[K_MOUSE1])
+        if(Key_Seat()->down[K_MOUSE1])
         {
             dropDownScrollTo(cy);
             return true;
@@ -6072,7 +6071,7 @@ extern "C" void VR_Menu_Draw()
     }
     stepFolds(ui().page, list);
 
-    if(!keydown[K_MOUSE1])
+    if(!Key_Seat()->down[K_MOUSE1])
     {
         ui().sliderGrab = ui().scrollGrab = false;
     }
@@ -6216,7 +6215,7 @@ extern "C" void VR_Menu_Key(int key, int repeat)
 
     if(ui().sliderGrab || ui().scrollGrab)
     {
-        if(!keydown[K_MOUSE1] || key == K_ESCAPE || key == K_BBUTTON || key == K_MOUSE2)
+        if(!Key_Seat()->down[K_MOUSE1] || key == K_ESCAPE || key == K_BBUTTON || key == K_MOUSE2)
         {
             ui().sliderGrab = ui().scrollGrab = false;
         }
@@ -6448,7 +6447,7 @@ extern "C" void VR_Menu_Mousemove(float cx, float cy)
 
     if(ui().sliderGrab || ui().scrollGrab)
     {
-        if(!keydown[K_MOUSE1])
+        if(!Key_Seat()->down[K_MOUSE1])
         {
             ui().sliderGrab = ui().scrollGrab = false;
             return;

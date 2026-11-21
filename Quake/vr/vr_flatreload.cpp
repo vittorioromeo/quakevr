@@ -31,8 +31,6 @@
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
 #include "vr_zancle.hpp"
-
-extern "C" qboolean keydown[MAX_KEYS]; // keys.c
 extern "C" int Key_StringToKeynum(const char* str); // keys.c
 
 namespace qvr::flatreload
@@ -180,7 +178,7 @@ void frame(bool on)
 
     // R: the game reloads every hand whose gun can take rounds (QC VR_FlatReload_Key).
     const int k = vr_flat_key_reload.string[0] ? Key_StringToKeynum(vr_flat_key_reload.string) : -1;
-    const bool down = key_dest == key_game && k > 0 && k < MAX_KEYS && keydown[k] != 0;
+    const bool down = key_dest == key_game && k > 0 && k < MAX_KEYS && Key_Seat()->down[k] != 0;
     if(down && !rs.keyDown)
     {
         rs.presses++;
@@ -195,7 +193,7 @@ void frame(bool on)
     // B: the main hand's weapon to its other ammo (impulse 43: the headset's weapon button, QC VR_Impulse_WeaponButton;
     // a weapon without one: nothing). Not with the toolgun in hand: B is its adjust key there (vr_flat_key_toolgun_adjust).
     const int ka = vr_flat_key_ammo.string[0] ? Key_StringToKeynum(vr_flat_key_ammo.string) : -1;
-    const bool ammoDown = key_dest == key_game && ka > 0 && ka < MAX_KEYS && keydown[ka] != 0;
+    const bool ammoDown = key_dest == key_game && ka > 0 && ka < MAX_KEYS && Key_Seat()->down[ka] != 0;
     if(ammoDown && !rs.ammoDown && toolgun::heldHand() != HAND_MAIN)
     {
         Cbuf_InsertText("impulse 43\n");

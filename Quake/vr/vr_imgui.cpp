@@ -211,7 +211,7 @@ constexpr const char* toolToggles[] = {"vr_armourstudio_window"};
 
 [[nodiscard]] bool bindsToolToggle(const int quakeKey)
 {
-    const char* b = quakeKey >= 0 && quakeKey < MAX_KEYS ? keybindings[quakeKey] : nullptr;
+    const char* b = quakeKey >= 0 && quakeKey < MAX_KEYS ? Key_Seat()->bindings[quakeKey] : nullptr;
     if(!b)
     {
         return false;

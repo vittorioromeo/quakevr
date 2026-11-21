@@ -363,6 +363,10 @@ typedef struct seatinput_s
 
 seatinput_t *CL_SeatInput (void);			// the current seat's (vr_seat.cpp)
 seatinput_t *CL_SeatInputOf (int seat);	// seat 0..3's (seat 0's: the config's +mlook line)
+int CL_SeatIndex (void);					// the current seat (0 outside a seat loop)
+int CL_SeatSet (int seat);					// makes a seat current, returns the one that was (C's seat::Scope: set it back)
+int CL_SeatCount (void);					// the seats there are (seat::maxSeats)
+int CL_SeatsInPlay (void);					// the seats playing (seat::inPlay; 1 until the seat loop)
 float CL_KeyState (kbutton_t *key);			// a button's share of the frame held (clears its edges)
 
 void CL_InitInput (void);

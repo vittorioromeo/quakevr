@@ -33,8 +33,6 @@
 
 #include <glm/geometric.hpp>
 #include <glm/trigonometric.hpp>
-
-extern "C" qboolean keydown[MAX_KEYS];             // keys.c
 extern "C" int Key_StringToKeynum(const char* str); // keys.c
 extern "C" cvar_t sv_maxspeed;                      // sv_user.c
 
@@ -292,7 +290,7 @@ ClientState client;
 [[nodiscard]] bool keyHeld(const char* bindName)
 {
     const int k = Key_StringToKeynum(bindName);
-    return key_dest == key_game && k > 0 && k < MAX_KEYS && keydown[k] != 0;
+    return key_dest == key_game && k > 0 && k < MAX_KEYS && Key_Seat()->down[k] != 0;
 }
 
 [[nodiscard]] glm::vec3 levelRight(float yawDeg)

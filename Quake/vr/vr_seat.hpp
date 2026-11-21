@@ -9,6 +9,9 @@
 // says which and why. Until the seat loop (phase 6) there is one seat in play: seat 0, always current.
 //
 // Phase 1: the command buttons and the impulse (seatinput_t, client.h: cl_input.c's in_forward... globals).
+// Phase 2: the keys held, the bindings, the alt modifier and gyro buttons, the mouse's motion (seatkeys_t, keys.h);
+// the devices: the keyboard and mouse are seat 0's, game controllers join as seats 1-3 (in_sdl.c's pads); the
+// commands a seat's binds queue run as that seat (cmd.c's seat markers); `seat <n> <command>` runs one as seat n.
 #pragma once
 
 #include "vr_engine.hpp"
@@ -22,11 +25,13 @@ struct Seat
 {
     int index = 0;
     seatinput_t input{}; // the +command buttons and the impulse (cl_input.c; C: CL_SeatInput)
+    seatkeys_t keys{};   // the keys held, the bindings, the mouse's motion (keys.c, in_sdl.c; C: Key_Seat)
 };
 
 Seat& current();   // the seat the running code is for (seat 0 outside a seat loop)
 Seat& at(int i);   // seat i, 0..maxSeats-1 (clamped)
 int inPlay();      // seats in play: 1 until the seat loop (phase 6)
+void setInPlay(int n); // 1..maxSeats: the seat loop's (phase 6); today vr_seat_test's, which sets it back
 
 // Makes a seat current for its lifetime, the previous one again after it (the seat loop, the tests).
 class Scope

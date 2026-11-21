@@ -23,8 +23,6 @@
 
 #include <string.h>
 
-extern "C" qboolean keydown[MAX_KEYS]; // keys.c (the game's own key state)
-
 using namespace qvr;
 using namespace qvr::rigstudio::detail;
 
@@ -483,9 +481,9 @@ void typingTestTick()
             check(!strcmp(st.search, "arm"), va("the search typed \"armx\" + Backspace: \"%s\" (want \"arm\")", st.search));
             const int n = filteredBones();
             check(n > 0 && n < st.numBones, va("the Outliner filtered: %d of %d bones", n, st.numBones));
-            check(st.tool == Tool::Select && !keydown[static_cast<int>('r')] && !keydown[static_cast<int>('a')] && key_dest == key_game,
+            check(st.tool == Tool::Select && !Key_Seat()->down[static_cast<int>('r')] && !Key_Seat()->down[static_cast<int>('a')] && key_dest == key_game,
                 va("while typing: the tool %d (want Select 0), the game's keys r %d a %d, key_dest %d", static_cast<int>(st.tool),
-                    static_cast<int>(keydown[static_cast<int>('r')]), static_cast<int>(keydown[static_cast<int>('a')]),
+                    static_cast<int>(Key_Seat()->down[static_cast<int>('r')]), static_cast<int>(Key_Seat()->down[static_cast<int>('a')]),
                     static_cast<int>(key_dest)));
             queueReset();
             tap(SDL_SCANCODE_RETURN, SDLK_RETURN);

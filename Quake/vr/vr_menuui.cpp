@@ -77,7 +77,6 @@
 
 extern "C" {
 extern float m_mousex, m_mousey; // menu.c: the menus' mouse, in menu coordinates
-extern qboolean keydown[MAX_KEYS]; // keys.c: the left button still held (the flat panel's corner dragged)
 extern cvar_t ui_mouse;           // menu.c: the desktop mouse in the menus
 int Key_StringToKeynum(const char* str); // keys.c: a key's number from its name (vr_mock_key)
 void Char_Event(int key);                // keys.c: a letter typed (vr_mock_key text)
@@ -2716,7 +2715,7 @@ extern "C" int VR_MenuFlatMouse(int screenx, int screeny)
 {
     FlatPanel& f = flatPanelState;
     f.mouse = {static_cast<float>(screenx - glx), static_cast<float>(screeny - gly)};
-    if(f.dragging && (!keydown[K_MOUSE1] || !menuui::flatPanel()))
+    if(f.dragging && (!Key_Seat()->down[K_MOUSE1] || !menuui::flatPanel()))
     {
         f.dragging = false; // (let go: VR_MenuDrawFlatPanel notices it too, without a move)
     }
@@ -2740,7 +2739,7 @@ extern "C" int VR_MenuFlatMouse(int screenx, int screeny)
 extern "C" void VR_MenuDrawFlatPanel()
 {
     FlatPanel& f = flatPanelState;
-    if(f.dragging && (!keydown[K_MOUSE1] || !menuui::flatPanel()))
+    if(f.dragging && (!Key_Seat()->down[K_MOUSE1] || !menuui::flatPanel()))
     {
         f.dragging = false;
         f.corner = flatCornerAt(f.mouse);

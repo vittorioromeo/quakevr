@@ -892,6 +892,10 @@ za::Vector<Item> pageDebugReports()
 {
     return {
         header("Flatscreen Play"),
+        command("Splitscreen: Gamepads and Seats", "in_pads")
+            .help("in_pads: the game controllers open (up to four) and the seat each drives, to the console. Seat 1 is the "
+                  "keyboard and mouse; controllers join as seats 2-4 once splitscreen plays more seats. One seat (today): "
+                  "pad 1 drives seat 1 as always, the others nothing."),
         command("Flatscreen Play Status", "vr_flatplay_status")
             .help("-flatscreenmode: the VR gameplay on the desktop screen. Whether the mode is on, its keys, and what it "
                   "stands in for (R reloading at the hips, the flashlight worn, 1 and 2 cycling the weapons collected)."),

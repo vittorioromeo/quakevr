@@ -42,10 +42,9 @@ int		history_line = 0;
 
 keydest_t	key_dest;
 
-char		*keybindings[MAX_KEYS];
-qboolean	consolekeys[MAX_KEYS];	// if true, can't be rebound while in console
-qboolean	menubound[MAX_KEYS];	// if true, can't be rebound while in menu
-qboolean	keydown[MAX_KEYS];
+qboolean	consolekeys[MAX_KEYS];	// if true, can't be rebound while in console -- seat-shared: a table set once (Key_Init)
+qboolean	menubound[MAX_KEYS];	// if true, can't be rebound while in menu -- seat-shared: a table set once (Key_Init)
+// QVR: splitscreen: keydown[] and keybindings[] are a seat's (seatkeys_t, keys.h; Key_Seat)
 
 typedef struct
 {
@@ -344,7 +343,7 @@ void Key_Console (int key)
 		key_tabpartial[0] = 0;
 		if (key_linepos > 1)
 		{
-			int numchars = keydown[K_CTRL] ? key_linepos - Key_FindWordBoundary (-1) : 1;
+			int numchars = Key_Seat ()->down[K_CTRL] ? key_linepos - Key_FindWordBoundary (-1) : 1;
 			SDL_assert (numchars > 0);
 			workline += key_linepos - numchars;
 			len = strlen (workline);
@@ -360,7 +359,7 @@ void Key_Console (int key)
 		workline += key_linepos;
 		if (*workline)
 		{
-			int numchars = keydown[K_CTRL] ? Key_FindWordBoundary (1) - key_linepos : 1;
+			int numchars = Key_Seat ()->down[K_CTRL] ? Key_FindWordBoundary (1) - key_linepos : 1;
 			SDL_assert (numchars > 0);
 			len = strlen (workline);
 			SDL_assert ((int)len >= numchars);
@@ -370,7 +369,7 @@ void Key_Console (int key)
 		return;
 
 	case K_HOME:
-		if (keydown[K_CTRL])
+		if (Key_Seat ()->down[K_CTRL])
 		{
 			//skip initial empty lines
 			int i, x;
@@ -395,7 +394,7 @@ void Key_Console (int key)
 		return;
 
 	case K_END:
-		if (keydown[K_CTRL])
+		if (Key_Seat ()->down[K_CTRL])
 			con_backscroll = 0;
 		else	key_linepos = strlen(workline);
 		Con_TabComplete (TABCOMPLETE_AUTOHINT);
@@ -404,19 +403,19 @@ void Key_Console (int key)
 
 	case K_PGUP:
 	case K_MWHEELUP:
-		Con_Scroll (keydown[K_CTRL] ? ((con_vislines>>3) - 4) : 2);
+		Con_Scroll (Key_Seat ()->down[K_CTRL] ? ((con_vislines>>3) - 4) : 2);
 		return;
 
 	case K_PGDN:
 	case K_MWHEELDOWN:
-		Con_Scroll (keydown[K_CTRL] ? -((con_vislines>>3) - 4) : -2);
+		Con_Scroll (Key_Seat ()->down[K_CTRL] ? -((con_vislines>>3) - 4) : -2);
 		return;
 
 	case K_LEFTARROW:
 	case K_DPAD_LEFT:
 		if (key_linepos > 1)
 		{
-			if (keydown[K_CTRL])
+			if (Key_Seat ()->down[K_CTRL])
 				key_linepos = Key_FindWordBoundary (-1);
 			else
 				key_linepos--;
@@ -440,7 +439,7 @@ void Key_Console (int key)
 		}
 		else
 		{
-			if (keydown[K_CTRL])
+			if (Key_Seat ()->down[K_CTRL])
 				key_linepos = Key_FindWordBoundary (1);
 			else
 				key_linepos++;
@@ -500,9 +499,9 @@ void Key_Console (int key)
 		return;
 
 	case K_INS:
-		if (keydown[K_SHIFT])		/* Shift-Ins paste */
+		if (Key_Seat ()->down[K_SHIFT])		/* Shift-Ins paste */
 			PasteToConsole();
-		else if (keydown[K_CTRL])
+		else if (Key_Seat ()->down[K_CTRL])
 		{
 			Con_CopySelectionToClipboard ();
 			return;
@@ -514,13 +513,13 @@ void Key_Console (int key)
 	case 'v':
 	case 'V':
 #if defined(PLATFORM_OSX) || defined(PLATFORM_MAC)
-		if (keydown[K_COMMAND]) {	/* Cmd+v paste (Mac-only) */
+		if (Key_Seat ()->down[K_COMMAND]) {	/* Cmd+v paste (Mac-only) */
 			PasteToConsole();
 			Con_TabComplete (TABCOMPLETE_AUTOHINT);
 			return;
 		}
 #endif
-		if (keydown[K_CTRL]) {		/* Ctrl+v paste */
+		if (Key_Seat ()->down[K_CTRL]) {		/* Ctrl+v paste */
 			PasteToConsole();
 			Con_TabComplete (TABCOMPLETE_AUTOHINT);
 			return;
@@ -529,7 +528,7 @@ void Key_Console (int key)
 
 	case 'a':
 	case 'A':
-		if (keydown[K_CTRL]) {		/* Ctrl+A: select whole buffer */
+		if (Key_Seat ()->down[K_CTRL]) {		/* Ctrl+A: select whole buffer */
 			Con_SelectAll();
 			return;
 		}
@@ -537,7 +536,7 @@ void Key_Console (int key)
 
 	case 'c':
 	case 'C':
-		if (keydown[K_CTRL]) {		/* Ctrl+C: abort the line -- S.A */
+		if (Key_Seat ()->down[K_CTRL]) {		/* Ctrl+C: abort the line -- S.A */
 			if (Con_CopySelectionToClipboard ())
 				return;
 			Con_Printf ("%s\n", workline);
@@ -657,7 +656,7 @@ void Char_Message (int key)
 ===================
 Key_StringToKeynum
 
-Returns a key number to be used to index keybindings[] by looking at
+Returns a key number to be used to index Key_Seat ()->bindings[] by looking at
 the given string.  Single ascii characters return themselves, while
 the K_* names are matched up.
 ===================
@@ -751,15 +750,15 @@ void Key_SetBinding (int keynum, const char *binding)
 		return;
 
 // free old bindings
-	if (keybindings[keynum])
+	if (Key_Seat ()->bindings[keynum])
 	{
-		Z_Free (keybindings[keynum]);
-		keybindings[keynum] = NULL;
+		Z_Free (Key_Seat ()->bindings[keynum]);
+		Key_Seat ()->bindings[keynum] = NULL;
 	}
 
 // allocate memory for new binding
 	if (binding)
-		keybindings[keynum] = Z_Strdup(binding);
+		Key_Seat ()->bindings[keynum] = Z_Strdup(binding);
 }
 
 /*
@@ -807,7 +806,7 @@ int Key_GetKeysForCommand (const char *command, int *keys, int maxkeys, keydevic
 
 	for (i = 0; i < MAX_KEYS; i++)
 	{
-		if (keybindings[i] && !strcmp (keybindings[i], command))
+		if (Key_Seat ()->bindings[i] && !strcmp (Key_Seat ()->bindings[i], command))
 		{
 			if ((Key_GetDeviceMaskForKeynum (i) & devmask) == 0)
 				continue;
@@ -827,7 +826,7 @@ Key_IsKeyGamepadAltModifier
 */
 qboolean Key_IsKeyGamepadAltModifier (int keynum)
 {
-	return Cmd_IsGamepadAltModifier( keybindings[keynum] );
+	return Cmd_IsGamepadAltModifier( Key_Seat ()->bindings[keynum] );
 }
 
 /*
@@ -839,7 +838,7 @@ qboolean Key_GetGamepadAltModifierState (void)
 {
 	int keynum;
 	for (keynum = 0; keynum < MAX_KEYS; keynum++)
-		if (keydown[keynum] && Key_IsKeyGamepadAltModifier (keynum))
+		if (Key_Seat ()->down[keynum] && Key_IsKeyGamepadAltModifier (keynum))
 			return true;
 	return false;
 }
@@ -875,7 +874,7 @@ void Key_Unbindall_f (void)
 
 	for (i = 0; i < MAX_KEYS; i++)
 	{
-		if (keybindings[i])
+		if (Key_Seat ()->bindings[i])
 			Key_SetBinding (i, NULL);
 	}
 }
@@ -892,9 +891,9 @@ void Key_Bindlist_f (void)
 	count = 0;
 	for (i = 0; i < MAX_KEYS; i++)
 	{
-		if (keybindings[i] && *keybindings[i])
+		if (Key_Seat ()->bindings[i] && *Key_Seat ()->bindings[i])
 		{
-			Con_SafePrintf ("   %s \"%s\"\n", Key_KeynumToString(i), keybindings[i]);
+			Con_SafePrintf ("   %s \"%s\"\n", Key_KeynumToString(i), Key_Seat ()->bindings[i]);
 			count++;
 		}
 	}
@@ -927,8 +926,8 @@ void Key_Bind_f (void)
 
 	if (c == 2)
 	{
-		if (keybindings[b])
-			Con_Printf ("\"%s\" = \"%s\"\n", Cmd_Argv(1), keybindings[b] );
+		if (Key_Seat ()->bindings[b])
+			Con_Printf ("\"%s\" = \"%s\"\n", Cmd_Argv(1), Key_Seat ()->bindings[b] );
 		else
 			Con_Printf ("\"%s\" is not bound\n", Cmd_Argv(1) );
 		return;
@@ -956,14 +955,15 @@ Writes lines containing "bind key value"
 void Key_WriteBindings (FILE *f)
 {
 	int	i;
+	char **bindings = Key_SeatOf (0)->bindings; // QVR: seat 0's, the config's (the other seats': the profiles' phase)
 
 	// unbindall before loading stored bindings:
 	if (cfg_unbindall.value)
 		fprintf (f, "unbindall\n");
 	for (i = 0; i < MAX_KEYS; i++)
 	{
-		if (keybindings[i] && *keybindings[i])
-			fprintf (f, "bind \"%s\" \"%s\"\n", Key_KeynumToString(i), keybindings[i]);
+		if (bindings[i] && *bindings[i])
+			fprintf (f, "bind \"%s\" \"%s\"\n", Key_KeynumToString(i), bindings[i]);
 	}
 }
 
@@ -1199,21 +1199,21 @@ void Key_EventWithKeycode (int key, qboolean down, int keycode)
 		return;
 
 // handle fullscreen toggle
-	if (down && (key == K_ENTER || key == K_KP_ENTER) && keydown[K_ALT])
+	if (down && (key == K_ENTER || key == K_KP_ENTER) && Key_Seat ()->down[K_ALT])
 	{
 		VID_Toggle();
 		return;
 	}
 
 // evil hack for the gamepad alt modifier button, which turns K_x_BTN into K_x_BTN_ALT
-	if (joy_altmodifier_pressed && key >= K_LTHUMB && key < K_LTHUMB_ALT)
+	if (Key_Seat ()->altmodifier && key >= K_LTHUMB && key < K_LTHUMB_ALT)
 	{
 		// make sure key is not the altmodifier itself (which we won't turn into *_ALT)
 		if (!Key_IsKeyGamepadAltModifier (key))
 		{
 			int altkey = key + (K_LTHUMB_ALT - K_LTHUMB);
 			// allow fallback to binding with non-alt key
-			if (keybindings[altkey] != NULL || keybindings[key] == NULL)
+			if (Key_Seat ()->bindings[altkey] != NULL || Key_Seat ()->bindings[key] == NULL)
 				key = altkey;
 		}
 	}
@@ -1221,12 +1221,12 @@ void Key_EventWithKeycode (int key, qboolean down, int keycode)
 // handle autorepeats and stray key up events
 	if (down)
 	{
-		if (keydown[key])
+		if (Key_Seat ()->down[key])
 		{
 			if (key_dest == key_game && !con_forcedup)
 				return; // ignore autorepeats in game mode
 		}
-		else if (key >= 200 && !keybindings[key] && key_dest == key_game && !cls.demoplayback)
+		else if (key >= 200 && !Key_Seat ()->bindings[key] && key_dest == key_game && !cls.demoplayback)
 		{
 			int optkey;
 			if (Key_GetKeysForCommand ("menu_options", &optkey, 1, KDM_ANY))
@@ -1235,11 +1235,11 @@ void Key_EventWithKeycode (int key, qboolean down, int keycode)
 				Con_Printf ("%s is unbound, use Options menu to set.\n", Key_KeynumToFriendlyString (key));
 		}
 	}
-	else if (!keydown[key])
+	else if (!Key_Seat ()->down[key])
 		return; // ignore stray key up events
 
-	wasdown = keydown[key];
-	keydown[key] = down;
+	wasdown = Key_Seat ()->down[key];
+	Key_Seat ()->down[key] = down;
 
 	if (key_inputgrab.active)
 	{
@@ -1255,7 +1255,7 @@ void Key_EventWithKeycode (int key, qboolean down, int keycode)
 // generate char events if we want text input without popping up an on-screen keyboard
 // when a physical one isn't present, e.g. when using a searchable menu on the Steam Deck.
 // Note: shift modifier is currently not supported for emulated char events.
-	if (down && !keydown[K_SHIFT] && IN_EmulatedCharEvents ())
+	if (down && !Key_Seat ()->down[K_SHIFT] && IN_EmulatedCharEvents ())
 		Char_Event (keycode);
 
 // handle escape specialy, so the user can never unbind it
@@ -1264,7 +1264,7 @@ void Key_EventWithKeycode (int key, qboolean down, int keycode)
 		if (!down)
 			return;
 
-		if (keydown[K_SHIFT])
+		if (Key_Seat ()->down[K_SHIFT])
 		{
 			Con_ToggleConsole_f();
 			return;
@@ -1293,7 +1293,7 @@ void Key_EventWithKeycode (int key, qboolean down, int keycode)
 	}
 
 // if Print Screen isn't bound, take a screenshot
-	if (key == K_PRINTSCREEN && !keybindings[key])
+	if (key == K_PRINTSCREEN && !Key_Seat ()->bindings[key])
 	{
 		if (down && !wasdown)
 			Cbuf_AddText ("screenshot\n");
@@ -1368,7 +1368,7 @@ void Key_EventWithKeycode (int key, qboolean down, int keycode)
 // downs can be matched with ups
 	if (!down)
 	{
-		kb = keybindings[key];
+		kb = Key_Seat ()->bindings[key];
 		if (kb && kb[0] == '+')
 		{
 			q_snprintf (cmd, sizeof (cmd), "-%s %i\n", kb+1, key);
@@ -1391,7 +1391,7 @@ void Key_EventWithKeycode (int key, qboolean down, int keycode)
 	{
 		if (key_dest == key_game && VR_FlatKeyOwned (key)) // QVR: flatscreen play reads this key itself (VR_FlatKeyOwned)
 			return;
-		kb = keybindings[key];
+		kb = Key_Seat ()->bindings[key];
 		if (kb)
 		{
 			if (kb[0] == '+')
@@ -1442,10 +1442,10 @@ void Char_Event (int key)
 		return;
 
 #if defined(PLATFORM_OSX) || defined(PLATFORM_MAC)
-	if (keydown[K_COMMAND])
+	if (Key_Seat ()->down[K_COMMAND])
 		return;
 #endif
-	if (keydown[K_CTRL])
+	if (Key_Seat ()->down[K_CTRL])
 		return;
 
 	if (key_inputgrab.active)
@@ -1517,12 +1517,19 @@ Key_ClearStates
 */
 void Key_ClearStates (void)
 {
-	int	i;
+	int	i, s, prev;
 
-	for (i = 0; i < MAX_KEYS; i++)
+	// QVR: every seat's keys let go (the window's focus, the input grab: all players' at once), each as its own seat so
+	// its +command binds release its own buttons. One seat in play: seat 0's, as before; the others hold nothing.
+	for (s = 0; s < CL_SeatCount (); s++)
 	{
-		if (keydown[i])
-			Key_Event (i, false);
+		prev = CL_SeatSet (s);
+		for (i = 0; i < MAX_KEYS; i++)
+		{
+			if (Key_Seat ()->down[i])
+				Key_Event (i, false);
+		}
+		CL_SeatSet (prev);
 	}
 }
 

@@ -179,7 +179,6 @@ CL_UpdateDemoSpeed
 */
 static void CL_UpdateDemoSpeed (void)
 {
-	extern qboolean keydown[256];
 	int adjust;
 
 	if (key_dest != key_game)
@@ -188,8 +187,8 @@ static void CL_UpdateDemoSpeed (void)
 		return;
 	}
 
-	adjust = (keydown[K_RIGHTARROW] - keydown[K_LEFTARROW] +
-			  keydown[K_DPAD_RIGHT] - keydown[K_DPAD_LEFT]);
+	adjust = (Key_Seat ()->down[K_RIGHTARROW] - Key_Seat ()->down[K_LEFTARROW] +
+			  Key_Seat ()->down[K_DPAD_RIGHT] - Key_Seat ()->down[K_DPAD_LEFT]);
 
 	if (adjust)
 	{
@@ -202,7 +201,7 @@ static void CL_UpdateDemoSpeed (void)
 		cls.demospeed = cls.basedemospeed * !cls.demopaused;
 	}
 
-	if (keydown[K_SHIFT] || keydown[K_CTRL])
+	if (Key_Seat ()->down[K_SHIFT] || Key_Seat ()->down[K_CTRL])
 		cls.demospeed *= 0.25f;
 
 	if (cls.demospeed > 0.f)

@@ -22,8 +22,6 @@
 
 #include <glm/geometric.hpp>
 #include "vr_seat.hpp"
-
-extern "C" qboolean keydown[MAX_KEYS];                  // keys.c
 extern "C" int Key_StringToKeynum(const char* str);     // keys.c
 
 namespace qvr::flycam
@@ -132,7 +130,7 @@ void fly()
         const seatinput_t& in = seat::current().input;
         const float fwd = held(in.forward) - held(in.back);
         const float side = held(in.moveright) - held(in.moveleft);
-        const float up = za::max(held(in.jump), held(in.up)) - za::max(held(in.down), keydown[K_CTRL] ? 1.f : 0.f);
+        const float up = za::max(held(in.jump), held(in.up)) - za::max(held(in.down), Key_Seat()->down[K_CTRL] ? 1.f : 0.f);
         glm::vec3 f, r, u;
         hands::angleVectors(cam.turn, f, r, u);
         wish = f * fwd + r * side + glm::vec3{0.f, 0.f, up};
@@ -141,7 +139,7 @@ void fly()
         {
             wish /= len;
         }
-        fast = keydown[K_SHIFT] || (in.speed.state & 1) != 0;
+        fast = Key_Seat()->down[K_SHIFT] || (in.speed.state & 1) != 0;
     }
     const float speed = za::max(vr_flat_flycam_speed.value, 1.f) * (fast ? za::max(vr_flat_flycam_fast.value, 0.1f) : 1.f);
     const glm::vec3 target = wish * speed;
@@ -533,7 +531,7 @@ glm::vec3 eyeAngles()
 void frame(bool flatOn)
 {
     const int k = vr_flat_key_flycam.string[0] ? Key_StringToKeynum(vr_flat_key_flycam.string) : -1;
-    const bool key = flatOn && key_dest == key_game && k > 0 && k < MAX_KEYS && keydown[k] != 0;
+    const bool key = flatOn && key_dest == key_game && k > 0 && k < MAX_KEYS && Key_Seat()->down[k] != 0;
     if(key && !cam.keyWas)
     {
         setCvar(!cam.on);

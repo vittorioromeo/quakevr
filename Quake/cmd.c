@@ -98,6 +98,20 @@ sizebuf_t	cmd_text;
 static int	cbuf_start;
 cmdlimits_t	cmd_limits;
 
+// QVR: splitscreen (docs/vr-port/SPLITSCREEN.md, phase 2): text runs as the seat that queued it. A key's bind queued by
+// seat 1's controller must press seat 1's +forward, though the buffer runs later in the host frame. Where the queueing
+// seat changes, the buffer gets a marker line ("_seat <n>", Cbuf_MarkSeat); Cbuf_Execute runs each line as the seat
+// the last marker before it named (cbuf_headseat), and makes the seat that called it current again after. With one
+// seat nothing is ever marked: the buffer is as it was.
+static int	cbuf_headseat;	// seat-shared: the command buffer's own (the seat its next line runs as)
+static int	cbuf_tailseat;	// seat-shared: the command buffer's own (the seat its last text runs as)
+
+static void Cbuf_Seat_f (void)
+{
+	cbuf_headseat = CLAMP (0, Q_atoi (Cmd_Argv (1)), CL_SeatCount () - 1);
+	CL_SeatSet (cbuf_headseat);
+}
+
 /*
 ============
 Cbuf_Init
@@ -165,6 +179,44 @@ static qboolean Cbuf_Reserve (int l)
 	return true;
 }
 
+/*
+============
+Cbuf_WriteSeat, Cbuf_MarkSeat, Cbuf_SeatAtEnd -- QVR (splitscreen: see cbuf_headseat)
+
+A marker line at the end (its own line: text before it may lack its newline); one only where the queueing seat is
+not the one the buffer's end already runs as; the seat the buffer's end runs as, read from its markers.
+============
+*/
+static qboolean Cbuf_WriteSeat (int seat)
+{
+	char	m[16];
+	int		l = q_snprintf (m, sizeof (m), "\n_seat %d\n", seat);
+
+	if (!Cbuf_Reserve (l))
+		return false;
+	SZ_Write (&cmd_text, m, l);
+	return true;
+}
+
+static void Cbuf_MarkSeat (void)
+{
+	int seat = CL_SeatIndex ();
+
+	if (seat != cbuf_tailseat && Cbuf_WriteSeat (seat))
+		cbuf_tailseat = seat;
+}
+
+static int Cbuf_SeatAtEnd (void)
+{
+	const char	*t = (const char *) cmd_text.data;
+	int			i, seat = cbuf_headseat;
+
+	for (i = cbuf_start; i + 6 < cmd_text.cursize; i++)
+		if ((i == cbuf_start || t[i - 1] == '\n') && !strncmp (t + i, "_seat ", 6))
+			seat = Q_atoi (t + i + 6);
+	return seat;
+}
+
 
 /*
 ============
@@ -179,6 +231,8 @@ void Cbuf_AddText (const char *text)
 
 	l = Q_strlen (text);
 
+	Cbuf_MarkSeat (); // QVR: splitscreen: run as the seat queueing it
+
 	if (!Cbuf_Reserve (l)) // QVR: the buffer grows
 	{
 		// QVR: only out of memory (Cbuf_Reserve says so)
@@ -189,6 +243,7 @@ void Cbuf_AddText (const char *text)
 }
 void Cbuf_AddTextLen (const char *text, int l)
 {
+	Cbuf_MarkSeat (); // QVR: splitscreen: run as the seat queueing it
 	if (!Cbuf_Reserve (l)) // QVR: the buffer grows
 	{
 		// QVR: only out of memory (Cbuf_Reserve says so)
@@ -225,6 +280,7 @@ void Cbuf_TailToFront (int bytes)
 	memcpy (tail, cmd_text.data + cmd_text.cursize - bytes, bytes);
 	tail[bytes] = 0;
 	cmd_text.cursize -= bytes;
+	cbuf_tailseat = Cbuf_SeatAtEnd (); // QVR: splitscreen: a marker may have left with the tail
 	if (tail[bytes - 1] == '\n')
 		tail[bytes - 1] = 0; // (InsertText adds its own)
 	Cbuf_InsertText (tail);
@@ -244,6 +300,7 @@ void Cbuf_InsertText (const char *text)
 {
 	char	*temp;
 	int		templen;
+	int		head = cbuf_headseat, tailseat = cbuf_tailseat; // QVR: splitscreen (cbuf_headseat)
 
 // copy off any commands still remaining in the exec buffer
 	Cbuf_Compact (); // QVR: without the text already run
@@ -263,6 +320,9 @@ void Cbuf_InsertText (const char *text)
 		temp = NULL;	// shut up compiler
 
 // add the entire text of the file
+	// QVR: splitscreen: inserted by another seat than the read position's, it runs as that seat (Cbuf_AddText marks
+	// it), and the rest as before (a marker back)
+	cbuf_tailseat = head;
 	Cbuf_AddText (text);
 	if (!Cbuf_Reserve (1 + templen)) // QVR: room for the rest (the buffer grows; out of memory, the rest is lost)
 	{
@@ -270,6 +330,9 @@ void Cbuf_InsertText (const char *text)
 		return;
 	}
 	SZ_Write (&cmd_text, "\n", 1);
+	if (Cbuf_SeatAtEnd () != head) // QVR: (the text may hold markers of its own: Cbuf_TailToFront's)
+		Cbuf_WriteSeat (head);
+	cbuf_tailseat = templen ? tailseat : head; // QVR
 // add the copied off data
 	if (templen)
 	{
@@ -298,9 +361,12 @@ void Cbuf_Execute (void)
 	char	stackline[1024]; // QVR: a line of any length: here, or malloc'd
 	char	*line;
 	int		quotes, comment;
+	int		caller = CL_SeatIndex (); // QVR: splitscreen: current again after (cbuf_headseat)
 
 	while (cmd_text.cursize > cbuf_start && !cmd_wait) // QVR: from the read position (cbuf_start)
 	{
+		CL_SeatSet (cbuf_headseat); // QVR: splitscreen: each line as the seat that queued it (a nested run may have left another current)
+
 // find a \n or ; line break
 		text = (char *)cmd_text.data + cbuf_start; // QVR
 		len = cmd_text.cursize - cbuf_start;
@@ -343,7 +409,11 @@ void Cbuf_Execute (void)
 			VR_HeapFree (line);
 	}
 	if (cbuf_start >= cmd_text.cursize) // QVR: all of it run
+	{
 		cmd_text.cursize = cbuf_start = 0;
+		cbuf_headseat = cbuf_tailseat = 0; // QVR: splitscreen: empty, nothing marked
+	}
+	CL_SeatSet (caller); // QVR
 }
 
 /*
@@ -885,6 +955,7 @@ void Cmd_Init (void)
 	Cmd_AddCommand ("alias",Cmd_Alias_f);
 	Cmd_AddCommand ("cmd", Cmd_ForwardToServer);
 	Cmd_AddCommand ("wait", Cmd_Wait_f);
+	Cmd_AddCommand ("_seat", Cbuf_Seat_f); // QVR: splitscreen: the command buffer's seat markers (cbuf_headseat)
 
 	Cmd_AddCommand ("apropos", Cmd_Apropos_f);
 	Cmd_AddCommand ("find", Cmd_Apropos_f);

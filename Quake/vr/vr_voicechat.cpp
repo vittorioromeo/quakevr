@@ -133,7 +133,6 @@ ListenSent listenSent;
 
 } // namespace
 } // namespace qvr::voicechat
-extern "C" qboolean keydown[MAX_KEYS];             // keys.c
 extern "C" int Key_StringToKeynum(const char* str); // keys.c
 namespace qvr::voicechat
 {
@@ -145,7 +144,7 @@ namespace
 [[nodiscard]] bool pttWanted()
 {
     const int k = vr_flat_key_voicechat.string[0] ? Key_StringToKeynum(vr_flat_key_voicechat.string) : -1;
-    return pttHeld || (key_dest == key_game && k > 0 && k < MAX_KEYS && keydown[k]);
+    return pttHeld || (key_dest == key_game && k > 0 && k < MAX_KEYS && Key_Seat()->down[k]);
 }
 
 // The Voice Chat page's texts (playerLine, ownLine).

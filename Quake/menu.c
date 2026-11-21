@@ -93,7 +93,6 @@ extern char crosshair_char;
 extern qboolean quake64;
 
 enum m_state_e m_state;
-extern qboolean	keydown[256];
 float m_mousex, m_mousey;
 int m_lastkey = -1; // last key pressed
 qboolean m_ignoremouseframe;
@@ -838,7 +837,7 @@ qboolean M_List_Key (menulist_t *list, int key)
 	case K_BACKSPACE:
 		if (list->search.len)
 		{
-			if (keydown[K_CTRL])
+			if (Key_Seat ()->down[K_CTRL])
 				M_List_ClearSearch (list);
 			else
 			{
@@ -2904,7 +2903,7 @@ void M_Maps_Draw (void)
 	namecols = (int) CLAMP (14, mapsmenu.cols * 0.375f, 56) & ~1;
 	desccols = mapsmenu.cols - 1 - namecols;
 
-	if (!keydown[K_MOUSE1])
+	if (!Key_Seat ()->down[K_MOUSE1])
 		mapsmenu.scrollbar_grab = false;
 
 	M_List_Update (&mapsmenu.list);
@@ -3090,7 +3089,7 @@ void M_Maps_Mousemove (float cx, float cy)
 
 	if (mapsmenu.scrollbar_grab)
 	{
-		if (!keydown[K_MOUSE1])
+		if (!Key_Seat ()->down[K_MOUSE1])
 		{
 			mapsmenu.scrollbar_grab = false;
 			return;
@@ -5642,7 +5641,7 @@ void M_Options_Draw (void)
 	float alpha;
 	qpic_t	*p;
 
-	if (slider_grab && !keydown[K_MOUSE1])
+	if (slider_grab && !Key_Seat ()->down[K_MOUSE1])
 		M_ReleaseSliderGrab ();
 
 	M_Options_UpdateLayout ();
@@ -5740,7 +5739,7 @@ static void M_Options_ResetDefaults (void)
 
 void M_Options_Key (int k)
 {
-	if (!keydown[K_MOUSE1])
+	if (!Key_Seat ()->down[K_MOUSE1])
 		M_ReleaseSliderGrab ();
 
 	if (slider_grab)
@@ -5870,7 +5869,7 @@ void M_Options_Mousemove (float cx, float cy)
 	if (slider_grab)
 	{
 		float frac;
-		if (!keydown[K_MOUSE1])
+		if (!Key_Seat ()->down[K_MOUSE1])
 		{
 			M_ReleaseSliderGrab ();
 			return;
@@ -6189,7 +6188,7 @@ void M_UnbindCommand (const char *command)
 
 	for (j = 0; j < MAX_KEYS; j++)
 	{
-		b = keybindings[j];
+		b = Key_Seat ()->bindings[j];
 		if (!b)
 			continue;
 		if (!strcmp (b, command) )
@@ -7798,7 +7797,7 @@ void M_Mods_Draw (void)
 	int namecols, desccols;
 	int flash;
 
-	if (!keydown[K_MOUSE1])
+	if (!Key_Seat ()->down[K_MOUSE1])
 		modsmenu.scrollbar_grab = false;
 
 	M_Mods_UpdateLayout ();
@@ -8001,7 +8000,7 @@ void M_Mods_Mousemove (float cx, float cy)
 
 	if (modsmenu.scrollbar_grab)
 	{
-		if (!keydown[K_MOUSE1])
+		if (!Key_Seat ()->down[K_MOUSE1])
 		{
 			modsmenu.scrollbar_grab = false;
 			return;
