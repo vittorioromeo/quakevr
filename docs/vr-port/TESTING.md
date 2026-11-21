@@ -91,6 +91,8 @@ on `agtest: test N over: P passed, F failed` (`-QuitOn "test N over"`).
 
 ## Checklist scenarios: how to write one
 
+A scene needing an add-on's map (`map ad_crucial`: Arcane Dimensions, Quoth, Dwell) needs no declaration: the loader switches to the campaign that has the map, so the scene runs alone or after any other.
+
 A checklist line gets a one-press test scene by ending with ` {test:<id>}` (the tag is not shown, not part of the
 item's key: adding one keeps its tick). `<id>` names `quakevr/scenarios/<id>.txt`; several lines may share one. Test
 loads the map fresh, places everything, closes the menu and floats the hint (the line's text, or the file's `hint`)
