@@ -78,6 +78,7 @@ struct Drawn
     glm::vec3 handWrist[2]{glm::vec3{0.f}, glm::vec3{0.f}};
     float eyeHeight{0.f};
     bool seated{false};
+    double posedAt{0.0}; // the server's time of the avatar it was posed from (interpolated: the time drawn; the report's)
     // His holstered weapons (B6b: as he drew them, body::Holster's order) and pauldrons on his body (his look).
     view::ViewEntity holster[VrDrawnHolsters::count];
     // His guns' parts as yours are drawn (wpnsync: the revolver's crane and cylinder, the super shotgun broken open, the
@@ -265,8 +266,8 @@ void printAvatar(int e, const Avatar& a, bool hands)
         (void)avatar::otherPitch(e, pitch, lying, sliding);
         float climbWeight = 0.f;
         (void)avatar::otherClimb(e, climbWeight);
-        Con_Printf(" eyeheight=%.3f yaw=%.1f moves=%d pitch=%.1f lying=%.2f sliding=%.2f slide=%d climb=%.2f seated=%d\n",
-            d.eyeHeight, a.body.yaw, a.moves, pitch, lying, sliding, a.sliding ? 1 : 0, climbWeight, d.seated ? 1 : 0);
+        Con_Printf(" eyeheight=%.3f yaw=%.1f moves=%d pitch=%.1f lying=%.2f sliding=%.2f slide=%d climb=%.2f seated=%d posedat=%.3f\n",
+            d.eyeHeight, a.body.yaw, a.moves, pitch, lying, sliding, a.sliding ? 1 : 0, climbWeight, d.seated ? 1 : 0, d.posedAt);
         view::printPauldrons("mp_pauldron", e, d.pauldron);
         if(const view::ViewEntity* plate = d.plateReport >= 0 ? &d.plate[d.plateReport] : nullptr;
             plate && plate->visible && plate->ent.model && !d.plateBones[d.plateReport].empty())
@@ -376,8 +377,10 @@ void avatars_f()
                 Con_Printf("mp_adspose_own: ent=%d", cl.viewentity);
                 printVec("eye", org);
                 printVec("rear", sight ? rear : org);
-                Con_Printf(" sight=%d ads=%.2f look=%.1f eyeup=%.2f wmodel=%s\n", sight ? 1 : 0, flatsight::adsShare(),
-                    cl.viewangles[0], org.z - s.playerOrigin.z, model);
+                // (stime: the server's time of his last message -- the harness waits for another player's copy posed
+                // from an avatar later than it, adspose3)
+                Con_Printf(" sight=%d ads=%.2f look=%.1f eyeup=%.2f stime=%.3f wmodel=%s\n", sight ? 1 : 0, flatsight::adsShare(),
+                    cl.viewangles[0], org.z - s.playerOrigin.z, cl.mtime[0], model);
                 // The drawn head (with it, as seen from outside) against the eye: its top and its lowest point above the
                 // head joint, and how far its face stands ahead of the eye (along the look, level).
                 za::Vector<glm::vec3> verts;
@@ -1577,6 +1580,9 @@ void addEntities()
         render::drawnPlace(cl_entities[e], origin, angles);
         setup(e, blendedOf(e), origin);
         d.doll = 0;
+        // (the server's time it shows: blendedOf's -- the interpolation's, the lerp's, or the last message as it came)
+        d.posedAt = vr_mp_avatar_lerp.value == 0.f ? a.msgTime
+                                                    : za::min(netsnap::interpActive() ? netsnap::interpTime() : cl.time, a.msgTime);
         addDrawn(e, &cl_entities[e]); // (in his player model's place: it would stand round the body)
     }
     addDolls();

@@ -144,6 +144,11 @@ bool move(Slide& s, const MoveIn& in, const Tuning& t, const float* wishdir, flo
     {
         if(!ground || (!pressed && !landed) || speed < za::max(t.least, 1.f) || now < s.cooldownUntil) // (>= 1: the boost divides by it)
         {
+            if(pressed && vr_flatplay_debug.value)
+            {
+                Con_Printf("slide: none on the press: ground %d, speed %.0f (least %.0f), cooldown %.2f s left\n", ground ? 1 : 0,
+                    speed, t.least, za::max(0.0, s.cooldownUntil - now));
+            }
             return false;
         }
         // Too tired for its first part: no slide, a plain crouch (the decision of 2026-11-10: not a weaker slide; the
@@ -156,6 +161,10 @@ bool move(Slide& s, const MoveIn& in, const Tuning& t, const float* wishdir, flo
                 Con_Printf("slide: none: %.1f stamina left, its first part is %.1f\n", in.staminaLeft, t.staminaPart);
             }
             return false;
+        }
+        if(vr_flatplay_debug.value)
+        {
+            Con_Printf("slide: on at %.0f u/s (least %.0f)\n", speed, t.least);
         }
         s.on = true;
         s.starts++;
