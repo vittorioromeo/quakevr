@@ -3082,7 +3082,14 @@ void publishNet(int num, const NetPose& older, const NetPose& newer, double cloc
     p.prevTime = older.time;
     p.time = newer.time;
     p.poseTime = newer.time;
-    p.heldBy = p.prevHeldBy = 0; // (the hands' lead: the listen host's own, vr_ragdoll_held_local; MP_PLAN's open item)
+    // (ragsync2) His own hands on it: led with them since these poses (leadWithHands), as the listen host's.
+    p.heldBy = hands::current().valid ? newer.heldBy & 3 : 0;
+    p.prevHeldBy = older.heldBy & 3;
+    for(int h = 0; h < 2; h++)
+    {
+        p.hand[h] = newer.hand[h];
+        p.prevHand[h] = older.hand[h];
+    }
     for(int b = 0; b < newer.bodies; b++)
     {
         const za::SizeT i = static_cast<za::SizeT>(b);

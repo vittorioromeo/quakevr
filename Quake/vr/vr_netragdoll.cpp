@@ -2,6 +2,7 @@
 
 #include "vr_netragdoll.hpp"
 #include "vr_api_render.h"
+#include "vr_box3d.hpp"
 #include "vr_cvars.hpp"
 #include "vr_netsnap.hpp"
 #include "vr_progs.hpp"
@@ -29,7 +30,7 @@ constexpr float quatMost = 0.70710678f;      // the smallest three's range (the 
 constexpr float quatSteps = 16383.f;         // ... in 15 bits each
 constexpr int ringLen = 24;                  // poses kept per ragdoll on the client: a third of a second at 72 Hz, past
                                              // the interpolation buffer's longest delay (0.25 s: a jittery link's)
-constexpr int recordMost = 18 + 18 + 12 * ragdoll::maxBones; // QVR_SVC_RAGPOSE's bytes at most
+constexpr int recordMost = 18 + 18 + 24 + 12 * ragdoll::maxBones; // QVR_SVC_RAGPOSE's bytes at most (24: his hands)
 
 // ---- The message ---------------------------------------------------------------------------------------------------
 
@@ -106,6 +107,8 @@ struct Sample
     float scale{1.f};
     za::Array<glm::quat, ragdoll::maxBones> rot{};
     za::Array<glm::vec3, ragdoll::maxBones> pos{};
+    int heldBy{0}; // (ragsync2: his own hands on it, and where the server had them)
+    glm::vec3 hand[2]{glm::vec3{0.f}, glm::vec3{0.f}};
 };
 struct Ring
 {
@@ -168,6 +171,9 @@ void dropRing(Ring& r)
     p.time = s.time;
     p.rot = s.rot.data();
     p.pos = s.pos.data();
+    p.heldBy = s.heldBy;
+    p.hand[0] = s.hand[0];
+    p.hand[1] = s.hand[1];
     return p;
 }
 
@@ -366,12 +372,26 @@ bool serverWrite(int num, sizebuf_t* m)
     {
         return false;
     }
+    // (ragsync2) The snapshot's own player's hands holding it, and where the server has them (his sent hands, the
+    // holds' targets): his client leads its drawing with his hands since (vr_ragdoll_held_local), as the listen host's.
+    const int player = netsnap::serverPlayer();
+    int heldBy = 0;
+    glm::vec3 hand[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+    for(int h = 0; h < 2 && player > 0 && player < qcvm->num_edicts; h++)
+    {
+        box3d::RagdollHold hold;
+        if(box3d::ragdollHold(player, h, hold) && hold.num == num)
+        {
+            heldBy |= 1 << h;
+            hand[h] = progs::fieldVec(EDICT_NUM(player), progs::handFields(h).pos);
+        }
+    }
     MSG_WriteByte(m, protocol::svc_quakevr);
     MSG_WriteByte(m, protocol::QVR_SVC_RAGPOSE);
     MSG_WriteShort(m, num);
     MSG_WriteByte(m, p.bodies | (p.rig->authored ? 128 : 0));
     MSG_WriteLong(m, static_cast<int>(p.cut));
-    MSG_WriteByte(m, p.bleeds ? 1 : 0);
+    MSG_WriteByte(m, (p.bleeds ? 1 : 0) | heldBy << 1);
     MSG_WriteFloat(m, p.scale);
     MSG_WriteLong(m, static_cast<int>(std::llround(p.time * 1000.0))); // (ms: a float's would lose them in hours)
     const glm::vec3 root = p.pos[0];
@@ -387,6 +407,13 @@ bool serverWrite(int num, sizebuf_t* m)
             MSG_WriteShort(m, static_cast<int>(za::clamp(std::lround((p.pos[b][k] - root[k]) * posScale), -32767l, 32767l)));
         }
         writeQuat(m, p.rot[b]);
+    }
+    for(int h = 0; h < 2; h++)
+    {
+        for(int k = 0; k < 3 && (heldBy & (1 << h)); k++)
+        {
+            MSG_WriteLong(m, static_cast<int>(std::lround(hand[h][k] * posScale)));
+        }
     }
     return true;
 }
@@ -416,7 +443,9 @@ void clientParse()
     in.bodies = nb & 63;
     const bool authored = (nb & 128) != 0;
     in.cut = static_cast<uint32_t>(MSG_ReadLong());
-    in.bleeds = (MSG_ReadByte() & 1) != 0;
+    const int flags = MSG_ReadByte();
+    in.bleeds = (flags & 1) != 0;
+    in.heldBy = (flags >> 1) & 3;
     in.scale = MSG_ReadFloat();
     in.time = static_cast<double>(MSG_ReadLong()) / 1000.0;
     if(in.bodies <= 0 || in.bodies > ragdoll::maxBones)
@@ -440,6 +469,13 @@ void clientParse()
         }
         in.pos[static_cast<za::SizeT>(b)] = root + d;
         in.rot[static_cast<za::SizeT>(b)] = readQuat();
+    }
+    for(int h = 0; h < 2; h++)
+    {
+        for(int k = 0; k < 3 && (in.heldBy & (1 << h)); k++)
+        {
+            in.hand[h][k] = static_cast<float>(MSG_ReadLong()) / posScale;
+        }
     }
     if(msg_badread || num <= 0 || num >= cl_max_edicts || sv.active)
     {

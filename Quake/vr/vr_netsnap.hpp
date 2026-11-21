@@ -94,10 +94,11 @@ struct Trend
 };
 // `cosmetic` (one a `cur` record, or nullptr) marks the cosmetic fragments' records, whose changed entries take at most
 // `cosmeticBudget` bytes (by priority, with `prio`; B12c), the rest waiting as a rate's do; with `cosmeticFill` (> 0)
-// only what the other entries leave under that many bytes of body (B18).
+// only what the other entries leave under that many bytes of body (B18). With `prio`, the ragdolls' changed records
+// (keyClass 5) go only in the room every other entry leaves, under `ragSoft` bytes of body too (>= 0; ragsync2).
 int encode(const Snapshot* base, const Snapshot& cur, sizebuf_t* body, int budget, Snapshot& sent, unsigned pflags,
     const Trend* trend, const float* prio = nullptr, za::U8* unsent = nullptr, int soft = -1, const za::U8* cosmetic = nullptr,
-    int cosmeticBudget = -1, int cosmeticFill = -1);
+    int cosmeticBudget = -1, int cosmeticFill = -1, int ragSoft = -1);
 // `tally` (keyClasses counts, or nullptr): each entry's bytes added by its key's class (keyClass).
 [[nodiscard]] bool decode(const Snapshot* base, int bodyLen, Snapshot& out, unsigned pflags, const Trend* trend,
     long long* tally = nullptr);
@@ -113,6 +114,8 @@ inline constexpr int keyClasses = 6; // 0 the player state, 1 an entity, 2 an av
 // (B13c) vr_net_sendhz: whether a remote snapshot client gets his datagram this server frame (on his beat), else held.
 [[nodiscard]] bool serverSendsNow(client_t* client);
 [[nodiscard]] bool serverRecording();
+// (ragsync2) The player entity of the client whose snapshot is being made (0: none): his own hands' holds in it.
+[[nodiscard]] int serverPlayer();
 // (review 2026-11-18, finding 12) What a remote client may be sent a second, B/s (0: no cap): his vr_net_rate under the
 // server's vr_net_rate_max (his 0: the server's). The snapshot's bucket and the voice relay's share of it.
 [[nodiscard]] int clientRate(const client_t* client);
@@ -137,6 +140,7 @@ struct ServerCounts
     long long cosmeticBytes{0}; // (B12c) the cosmetic fragments' entries' bytes ...
     long long cosmeticWaited{0}; // ... and their changed records that waited for their budget (or his rate)
     long long ragHeld{0};  // (ragsync) ragdolls' changed records held by vr_net_ragdoll_bytes
+    long long ragWaited{0}; // (ragsync2) ragdolls' records that waited (held, or no room left by the others)
     za::U32 seq{0}, acked{0};
 };
 [[nodiscard]] ServerCounts serverCounts(int slot);

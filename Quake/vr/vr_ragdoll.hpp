@@ -199,6 +199,10 @@ struct NetPose
     double time{0.0};
     const glm::quat* rot{nullptr};
     const glm::vec3* pos{nullptr};
+    // (ragsync2) The client's own hands holding it (1 the off hand, 2 the main) and where the server had them at that
+    // pose (world units): his drawing led with his hands since, as the listen host's (vr_ragdoll_held_local).
+    int heldBy{0};
+    glm::vec3 hand[2]{glm::vec3{0.f}, glm::vec3{0.f}};
 };
 [[nodiscard]] bool serverPose(int num, NetPose& out);
 void publishNet(int num, const NetPose& older, const NetPose& newer, double clock);

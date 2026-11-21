@@ -1872,7 +1872,7 @@ def rag_stats(errs):
             "rot_mean": sum(re_) / n, "rot_p95": re_[min(n - 1, int(0.95 * n))], "rot_max": re_[-1]}
 
 
-def ragsync_phase(s, srv, a, b, on, left):
+def ragsync_phase(s, srv, a, b, eb, on, left):
     """One play with vr_net_ragdolls `on`: a grunt knocked down (an active ragdoll) and killed (a dead one), a crate and
     a sword thrown tumbling, another grunt knocked down and gibbed; both sides log what they have each tick (vr_mp_bodylog:
     A the server's, B what he draws) -> {kind: stats} of B against A, and B's ragdoll bytes a second while it moved and
@@ -1881,6 +1881,7 @@ def ragsync_phase(s, srv, a, b, on, left):
     since = srv.mark()
     srv.cmd("vr_net_ragdolls %d; vr_physics_spawn monster_army 200 %d" % (on, left))
     srv.wait(r"vr_physics_spawn: \d+ monster_army at", 20, since, "a grunt ahead (%s)" % label)
+    sn0 = snap_status(srv, eb)
     since_a, since_b = a.mark(), b.mark()
     b.cmd("vr_net_bytes reset; vr_mp_bodylog %d 700" % RAG_SECONDS)
     b.wait(r"mp_bodylog: seconds=", 10, since_b)
@@ -1898,6 +1899,12 @@ def ragsync_phase(s, srv, a, b, on, left):
         srv.cmd(cmd)
     a.wait(r"mp_bodylog: done", 120, since_a, "A's log (%s)" % label)
     b.wait(r"mp_bodylog: done", 120, since_b, "B's log (%s)" % label)
+    sn1 = snap_status(srv, eb)
+    # (ragsync2) B's changed records that waited over the play (his rate, the datagram's room), the ragdolls' among them
+    waits = {k: int(sn1.get(k, 0)) - int(sn0.get(k, 0)) for k in ("waited", "rwaited", "sent")}
+    s.note("%s: B's snapshots %d, changed records that waited %d (ragdolls' %d, the others' %d)" % (
+        label, waits["sent"], waits["waited"], waits["rwaited"], waits["waited"] - waits["rwaited"]))
+    s.metric("%s_waited_others" % label, waits["waited"] - waits["rwaited"])
     since_bb = b.mark()
     b.cmd("vr_net_bytes")
     _, moved = b.wait(r"mp_netbytes: ", 10, since_bb)
@@ -1953,8 +1960,8 @@ def ragsync(s):
     a.cmd("god; notarget")
     b.cmd("god; notarget")
     put_at(srv, b, eb, ARMED_B, 90)
-    before, _, _ = ragsync_phase(s, srv, a, b, 0, -70)
-    after, moved, settled = ragsync_phase(s, srv, a, b, 1, 70)
+    before, _, _ = ragsync_phase(s, srv, a, b, eb, 0, -70)
+    after, moved, settled = ragsync_phase(s, srv, a, b, eb, 1, 70)
     parts = after.get(("parts", "rag"))
     s.check("with vr_net_ragdolls 1 B draws the ragdolls by their parts", parts is not None and parts[0]["n"] > 500,
             "%d part samples drawn by parts; %s by the animation" % (
