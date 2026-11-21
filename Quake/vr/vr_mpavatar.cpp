@@ -489,6 +489,33 @@ void avatars_f()
                 Con_Printf(" doll=%d dollmodel=%s ragdoll=%d dollat=%.1f %.1f %.1f look=%d tone=%.2f gloves=%d hands=%d %d\n",
                     d.doll, de.model ? de.model->name : "-", ragdoll::published(d.doll) ? 1 : 0, de.origin[0], de.origin[1],
                     de.origin[2], kind, look.tone, look.gloves, d.hand[0].visible ? 1 : 0, d.hand[1].visible ? 1 : 0);
+                // (avatardoll: its ragdoll's parts, their scale, and its left leg's length as drawn: hip to knee to ankle)
+                glm::quat rot;
+                glm::vec3 pos;
+                float scale = 1.f;
+                const ragdoll::Rig* rig = nullptr;
+                int parts = 0;
+                float leg = 0.f;
+                if(ragdoll::drawnPart(d.doll, 0, rot, pos, scale, &rig) && rig)
+                {
+                    parts = rig->numBones;
+                    glm::vec3 at[3];
+                    const char* const names[3] = {"thigh_l", "shin_l", "foot_l"};
+                    bool all = true;
+                    for(int j = 0; j < 3; j++)
+                    {
+                        int b = 0;
+                        while(b < rig->numBones && strcmp(rig->bones[b].name, names[j]) != 0)
+                        {
+                            b++;
+                        }
+                        float s = 1.f;
+                        all = all && b < rig->numBones && ragdoll::drawnPart(d.doll, b, rot, pos, s);
+                        at[j] = all ? rot * (s * rig->bones[b].pivot) + pos : glm::vec3{0.f};
+                    }
+                    leg = all ? glm::distance(at[0], at[1]) + glm::distance(at[1], at[2]) : 0.f;
+                }
+                Con_Printf("mp_doll_rig: ent=%d doll=%d parts=%d dollscale=%.3f leg=%.2f\n", d.owner, d.doll, parts, scale, leg);
             }
         }
         view::printOwnLooks(cl.viewentity);
@@ -1251,6 +1278,34 @@ bool serverWorldScale(int slot, float& scale)
     return true;
 }
 
+bool serverBody(int slot, int& build, float& scale)
+{
+    if(slot < 0 || slot >= MAX_SCOREBOARD || vr_mp_body.value == 0.f)
+    {
+        return false;
+    }
+    // (single player: no calibration is sent, your own settings are the server's)
+    const bool own = svs.maxclients <= 1;
+    const Calibration c = own ? ownCalibration() : cal.slot[slot];
+    if(!own && !cal.slotHas[slot])
+    {
+        // (none came: a bot, or a client that sends none -- the default build at the default player's height and world
+        // scale, as setupBody draws one: units::botEyeUnits)
+        build = view::BodyDraw{}.build;
+        scale = units::defaultWorldScale();
+        return true;
+    }
+    if(c.v[calBody] == 0)
+    {
+        return false; // (his body off: id's ranger, as his living copy is his player model)
+    }
+    build = za::clamp(c.v[calBuild], 0, 3);
+    // (the body's size as setupBody draws it: his world scale's units a metre, his eyes' height over the model's)
+    scale = (static_cast<float>(c.v[calScale]) / 1000.f) * (static_cast<float>(c.v[calHeight]) / 1000.f) / units::modelEyeHeight;
+    scale = za::clamp(scale, 0.5f, 2.f);
+    return true;
+}
+
 void sendCalibration()
 {
     if(cls.state != ca_connected || cls.signon != SIGNONS || cls.demoplayback || cl.maxclients <= 1)
@@ -1873,9 +1928,9 @@ void addDolls()
         const int num = static_cast<int>(e - cl_entities);
         const qmodel_t* source = ragdoll::sourceModel(e); // (a ragdoll drawn with its skinned copy: its .mdl)
         qmodel_t* model = const_cast<qmodel_t*>(source ? source : e->model);
-        if(strcmp(model->name, "progs/player.mdl") != 0)
+        if(strcmp(model->name, "progs/player.mdl") != 0 && strncmp(model->name, "progs/vrdoll", 12) != 0)
         {
-            continue;
+            continue; // (id's ranger, or his avatar's own ragdoll: avatardoll's progs/vrdoll*.mdl)
         }
         int p = 0;
         for(int k = 0; k < cl.maxclients && k < MAX_SCOREBOARD && !p; k++)

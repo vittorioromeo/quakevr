@@ -1760,22 +1760,64 @@ def dolls_of(lines):
     return out
 
 
+DOLL_PARTS = 19  # avatardoll: the avatar's own ragdoll's parts (quakevr/rigs/vrdoll*.rig2.txt, Misc/quakevr/make_vrdoll.py)
+DOLL_LEG = 22.06  # ... its left leg's rest length, hip to knee to ankle (model units)
+DOLL_SHORT, DOLL_TALL = 1.55, 1.95  # the two players' eye heights (m) in mp_deathbody
+
+
+def doll_rigs_of(lines):
+    """"mp_doll_rig:" lines -> {player ent: (doll, parts, dollscale, leg)}."""
+    out = {}
+    for l in lines:
+        m = re.match(r"mp_doll_rig: ent=(\d+) doll=(\d+) parts=(\d+) dollscale=(\S+) leg=(\S+)", l.strip())
+        if m:
+            out[int(m.group(1))] = (int(m.group(2)), int(m.group(3)), float(m.group(4)), float(m.group(5)))
+    return out
+
+
+def doll_model_of(body_model):
+    """His avatar's model (progs/vrbody_brawny_bare.mdl) -> his dead body's model on the server (progs/vrdoll_brawny.mdl)."""
+    return body_model.replace("_bare", "").replace("vrbody", "vrdoll")
+
+
 def deathbody_case(s, srv, a, b, ea, eb, victim, ev, own_models, tone, label):
     """`victim` (entity `ev`) killed whole (vr_hurt 110: health -10, not gibbed: his ragdoll body, vr_deathdoll.qc):
-    A and B each draw his body as his own body (mp_doll: his build's model in his look), not id's ranger."""
+    A and B each draw his body as his own body (mp_doll: his build's model in his look), not id's ranger. avatardoll: the
+    body the server made is his avatar's own ragdoll (his build's progs/vrdoll*.mdl, its 19 parts, the avatar rig's
+    proportions at his size), sent to B (ragsync) as the host has it."""
     since = srv.mark()
     srv.cmd("vr_hurt 110 %d" % (ev - 1))
     dead = wait_quietly(srv, r"vr_hurt: .* dead", 10, since, "%s dead on the server" % label)
     s.check("%s killed whole (vr_hurt 110)" % label, dead is not None, dead[1].strip() if dead else "no vr_hurt line")
-    seen, n = {}, 0
+    seen, rigs, n = {}, {}, 0
     for n in range(1, 41):
         la, lb = reports(s, [a, b])
         for who, lines in (("A", la), ("B", lb)):
             d = dolls_of(lines).get(ev)
             if d and who not in seen:
                 seen[who] = d
-        if len(seen) == 2:
+            r = doll_rigs_of(lines).get(ev)
+            if r and r[1] > 0 and who not in rigs:
+                rigs[who] = r
+        if len(seen) == 2 and len(rigs) == 2:
             break
+    for who in ("A", "B"):
+        d, r = seen.get(who), rigs.get(who)
+        want = doll_model_of(own_models[ev])
+        s.check("%s: %s's body on the server is %s's avatar's own (%s), a ragdoll of its %d parts at %s" % (
+                label, label, label, want, DOLL_PARTS, who), d is not None and r is not None and
+                d["dollmodel"].split("#")[0] == want and r[1] == DOLL_PARTS,
+                "doll %s, %s parts, ragdoll %s" % (d["dollmodel"] if d else "-", r[1] if r else "no", d.get("ragdoll") if d else "-"))
+        if r:
+            s.check("%s: its parts follow the avatar rig at its size at %s (the leg %.2f = %.2f x %.3f)" % (
+                    label, who, r[3], DOLL_LEG, r[2]), r[2] > 0.0 and abs(r[3] / r[2] - DOLL_LEG) < 0.5,
+                    "leg %.2f, scale %.3f: %.2f model units" % (r[3], r[2], r[3] / max(r[2], 1e-6)))
+    if "A" in rigs and "B" in rigs:
+        s.check("%s: B's ragdoll the host's size (ragsync: scale %.3f, %.3f)" % (label, rigs["A"][2], rigs["B"][2]),
+                abs(rigs["A"][2] - rigs["B"][2]) < 0.01)
+    for who in ("A", "B"):
+        if who in rigs:
+            seen[who]["rig"] = rigs[who]
     for who in ("A", "B"):
         d = seen.get(who)
         viewer = "%s (his own)" % who if (who == "A") == (ev == ea) else who
@@ -1802,8 +1844,9 @@ def deathbody(s):
     B himself draw B's. Each doll's copy: the dead player's build's model, his skin tone and gloves, his jointed hands,
     lying where the doll is."""
     srv, a, b, ea, eb = join(s, listen=True, flat="B")
-    a.cmd("vr_body_build 2; vr_skin_tone -0.5; vr_gloves 2")
-    b.cmd("vr_body_build 0; vr_skin_tone 0.6; vr_gloves 2")
+    # (avatardoll: a short A and a tall B, their bodies' ragdolls sized so)
+    a.cmd("vr_body_build 2; vr_skin_tone -0.5; vr_gloves 2; vr_height_calibration %.2f" % DOLL_SHORT)
+    b.cmd("vr_body_build 0; vr_skin_tone 0.6; vr_gloves 2; vr_height_calibration %.2f" % DOLL_TALL)
 
     def dressed(lines):
         la, lb = lines
@@ -1815,10 +1858,26 @@ def deathbody(s):
     (la, lb), n = reports_until(s, [a, b], dressed, "each draws the other in his own build", 40)
     models = {ea: body_of(la, "mp_body_own")[ea]["model"], eb: body_of(lb, "mp_body_own")[eb]["model"]}
     s.note("builds: A %s, B %s (after %d reports)" % (models[ea], models[eb], n))
-    deathbody_case(s, srv, a, b, ea, eb, a, ea, models, -0.5, "A")
+    seen_a = deathbody_case(s, srv, a, b, ea, eb, a, ea, models, -0.5, "A")
     s.check("A respawned (his trigger)", respawn_if_dead(srv, a, ea))
     seen_b = deathbody_case(s, srv, a, b, ea, eb, b, eb, models, 0.6, "B")
+    ra, rb = seen_a.get("A", {}).get("rig"), seen_b.get("A", {}).get("rig")
+    want = DOLL_TALL / DOLL_SHORT
+    s.check("the tall B's body is the short A's scaled by their heights (%.2f / %.2f = %.3f)" % (DOLL_TALL, DOLL_SHORT, want),
+            ra is not None and rb is not None and abs(rb[2] / ra[2] - want) < 0.03 * want,
+            "A %.3f, B %.3f: %.3f" % (ra[2], rb[2], rb[2] / ra[2]) if ra and rb else "a ragdoll not seen")
+    if ra and rb:
+        s.note("legs: short A %.2f, tall B %.2f units" % (ra[3], rb[3]))
     deathbody_respawned(s, srv, a, b, eb, models, seen_b, "B")
+    da, db = seen_a.get("A"), seen_b.get("A")
+    if da and db and os.environ.get("MP_DEATHBODY_SHOT") == "1":
+        # (both bodies lying, seen from above beside them by the host, alive again: a screenshot)
+        mid = [(da["dollat"][k] + db["dollat"][k]) / 2.0 for k in range(3)]
+        at = (mid[0] - 60.0, mid[1], mid[2] + 4.0)
+        ads_cam(srv, a, ea, at, 0.0, 0.0)
+        a.cmd("vr_mock_camera 0 2.2 -0.9 62 0")  # (the eyes 2.2 m up and ahead, looking 62 degrees down at them)
+        reports(s, [a])  # (a frame drawn from there first)
+        s.note("screenshot (A's short brawny body and B's tall lean one, seen by A): %s" % a.screenshot("deathbody_two"))
 
 
 def dolls_all(lines):
