@@ -4403,6 +4403,10 @@ vr_flat_pistol_in|2|Tunables|Pistol In|Advanced VR Options > Debug > Tunables > 
 vr_flat_pistol_up|2|Tunables|Pistol Up|Advanced VR Options > Debug > Tunables > Pistol Up
 vr_flat_ads_turn|2|Tunables|Ironsight Torso Turn|Advanced VR Options > Debug > Tunables > Ironsight Torso Turn
 vr_flat_ads_lean|2|Tunables|Ironsight Chest Lean|Advanced VR Options > Debug > Tunables > Ironsight Chest Lean
+vr_flat_seen_ads|2|Tunables|Seen: Cheek On The Stock|Advanced VR Options > Debug > Tunables > Seen: Cheek On The Stock
+vr_flat_seen_cheek_roll|2|Tunables|Seen: Cheek Tilt|Advanced VR Options > Debug > Tunables > Seen: Cheek Tilt
+vr_flat_seen_cheek_side|2|Tunables|Seen: Head Off The Sights|Advanced VR Options > Debug > Tunables > Seen: Head Off The Sights
+vr_flat_seen_chest|2|Tunables|Seen: Chest With The Look|Advanced VR Options > Debug > Tunables > Seen: Chest With The Look
 vr_flat_up_elbow|2|Tunables|Look Up: Elbow Under Gun|Advanced VR Options > Debug > Tunables > Look Up: Elbow Under Gun
 vr_flat_up_elbow_out|2|Tunables|Look Up: Elbow Out|Advanced VR Options > Debug > Tunables > Look Up: Elbow Out
 vr_flat_wall_arm_keep|2|Tunables|Wall: Push Back Keeps Arm|Advanced VR Options > Debug > Tunables > Wall: Push Back Keeps Arm

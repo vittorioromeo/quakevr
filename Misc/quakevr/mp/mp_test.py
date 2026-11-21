@@ -1491,6 +1491,93 @@ def slide(s, flat=True):
             copy[0] >= SLIDE_SHARE and copy[1] < -1.0, "sliding %.2f, pitch %.1f; after %d reports" % (copy + (n,)))
 
 
+ADS_HEAD_EYE = 3.0   # mp_adspose: A's copy of sighted flat B: its drawn head's eyes within this of B's own eye (units)
+ADS_REAR_EYE = 22.0  # and the rear sight within this of the drawn eyes (the relief, 14 at most, plus the cheek's offset)
+ADS_REACH = 1.02     # and no arm stretched past this share of its own length (shoulder to wrist over upper + forearm)
+ADS_WIDS = list(range(1, 32)) + [0]  # the weapons tried (vr_test_give_wid; 0: impulse 2, the shotgun he starts with, which a give does not take him back to): those with a sight line are measured
+ADS_POSTURES = ("stand", "crouch", "up", "down")  # each weapon: standing level, crouched level, looking up 40, down 40
+ADS_SHOTS_FOR = ("stand", "crouch")  # postures screenshotted for every weapon (all four for the first two weapons)
+ADS_VIEW_OFF = (52.0, 10.0)  # A watches from B's right side (B faces north), this far east and north of B
+ADS_VIEW_FOV = 55.0          # A's field of view: B fills the shot
+
+
+def adspose_numbers(own, adsl, copy):
+    """B's own body (mp_body_own), his ADS line (mp_adspose_own) and A's copy of his body (mp_body) -> the measures:
+    eye to the copy's drawn eyes, rear sight to them, his own drawn eyes to his eye, the arms' reach shares."""
+    out = {"copy_eye": dist(copy["headeye"], adsl["eye"]), "own_eye": dist(own["headeye"], adsl["eye"]),
+           "rear_eye": dist(adsl["rear"], copy["headeye"]), "head_up": adsl["eye"][2] - copy["headeye"][2]}
+    for h in (0, 1):
+        out["reach%d" % h] = dist(copy["shoulder%d" % h], copy["wrist%d" % h])
+    return out
+
+
+def adspose(s):
+    """adspose (2026-11-21): his words, "The ADS pose for some weapons looks silly". A flat B holds each weapon with a
+    sight line on its sights (vr_flat_aim 1), standing, crouched, looking up and down; flat A watches from his side.
+    Measured: A's copy of B's drawn head's eyes against the eye B's view and sights are solved from (mp_adspose_own), the
+    rear sight against those drawn eyes, the arms' reach; a screenshot from A of each."""
+    srv, a, b, ea, eb = join(s, flat="AB")
+    put_at(srv, b, eb, OPEN_SPOT, 90)
+    put_at(srv, a, ea, (OPEN_SPOT[0] + ADS_VIEW_OFF[0], OPEN_SPOT[1] + ADS_VIEW_OFF[1], OPEN_SPOT[2]), 180)
+    b.cmd("god; notarget")
+    a.cmd("god; notarget; impulse 1; fov %g" % ADS_VIEW_FOV)
+    b.quiet(r"mp_(move|pos): ", 0.5, 20, "both at rest")
+    rows, shots, worst = [], 0, {"copy_eye": 0.0, "rear_eye": 0.0, "reach": 0.0}
+    last_model, stand_up = "", None
+    for wid in ADS_WIDS:
+        srv.cmd("vr_test_give_wid %d" % max(wid, 1))
+        b.cmd("%s; vr_flat_aim 1" % ("impulse 149" if wid else "impulse 2"))
+        for posture in ADS_POSTURES:
+            pitch = {"up": -40.0, "down": 40.0}.get(posture, 0.0)
+            b.cmd("%s; setpos %.1f %.1f %.1f %.1f 90 0; noclip" % ("+flatcrouch" if posture == "crouch" else "-flatcrouch",
+                  OPEN_SPOT[0], OPEN_SPOT[1], OPEN_SPOT[2], pitch))
+            got, still, model = None, 0, "-"
+            # Settled: B's new weapon in his hand (its model), on its sights, at the look and the crouch asked for, and A's
+            # copy of his body still over 3 reports running. (A definite end: 80 reports; the travel is 18 frames, the
+            # stance's ease 29, the crouch's.)
+            for k in range(80):
+                la, lb = reports(s, [a, b])
+                adsl = by_ent(lb, "mp_adspose_own").get(eb)
+                own, copy = body_of(lb, "mp_body_own").get(eb), body_of(la, "mp_body").get(eb)
+                m = next((re.search(r"wmodel=(\S+)", l) for l in lb if l.startswith("mp_adspose_own:")), None)
+                model = m.group(1) if m else "-"
+                ready = adsl and own and copy and (model != last_model or posture != ADS_POSTURES[0] or k >= 30) and \
+                    abs(adsl["look"][0] - pitch) < 1.0 and (adsl["sight"][0] == 0 or adsl["ads"][0] >= 0.99) and \
+                    (stand_up is None or (adsl["eyeup"][0] < stand_up - 4.0) == (posture == "crouch"))
+                if ready and got and all(dist(got[2][j], copy[j]) < 0.05 for j in ("headeye", "wrist0", "wrist1")):
+                    still += 1
+                else:
+                    still = 0
+                got = (adsl, own, copy, la) if ready else None
+                if still >= 3:
+                    break
+            if not got or got[0]["sight"][0] == 0:
+                break  # (no sight line on it: the next weapon)
+            adsl, own, copy, la = got
+            last_model = model
+            if posture == "stand":
+                stand_up = adsl["eyeup"][0]
+            n = adspose_numbers(own, adsl, copy)
+            rows.append((wid, model, posture, n))
+            s.note("wid %d %s %s: eye->copy's drawn eyes %.1f (B's own %.1f, eye above them %.1f), rear sight->drawn eyes %.1f, "
+                   "shoulder->wrist %.1f %.1f" % (wid, model, posture, n["copy_eye"], n["own_eye"], n["head_up"], n["rear_eye"],
+                                                  n["reach0"], n["reach1"]))
+            worst["copy_eye"] = max(worst["copy_eye"], n["copy_eye"])
+            worst["rear_eye"] = max(worst["rear_eye"], n["rear_eye"])
+            if posture in ADS_SHOTS_FOR or shots < 8:
+                a.screenshot("ads_w%02d_%s" % (wid, posture))
+                shots += 1
+    b.cmd("vr_flat_aim 0; -flatcrouch")
+    s.metric("ads_rows", len(rows))
+    s.metric("ads_copy_eye_worst", worst["copy_eye"])
+    s.metric("ads_rear_eye_worst", worst["rear_eye"])
+    s.check("weapons with a sight line measured (at least 8 sighted poses)", len(rows) >= 8, "%d" % len(rows))
+    s.check("A's copy of sighted B: its drawn eyes within %g of B's eye" % ADS_HEAD_EYE, worst["copy_eye"] <= ADS_HEAD_EYE,
+            "worst %.2f" % worst["copy_eye"])
+    s.check("the rear sight within %g of the copy's drawn eyes" % ADS_REAR_EYE, worst["rear_eye"] <= ADS_REAR_EYE,
+            "worst %.2f" % worst["rear_eye"])
+
+
 def dolls_of(lines):
     """"mp_doll:" lines -> {player ent: fields (avatar_fields) with "model" and "dollmodel"}."""
     out = {}
@@ -8090,6 +8177,8 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             slide(s)
         elif test == "mp_slide_vr":
             slide(s, flat=False)
+        elif test == "mp_adspose":
+            adspose(s)
         elif test == "mp_deathbody":
             deathbody(s)
         elif test == "mp_loss":
@@ -8205,6 +8294,7 @@ SUITE = [
     ("mp_flatbody", ()),
     ("mp_slide", ()),
     ("mp_slide_vr", ()),
+    ("mp_adspose", ()),
     ("mp_deathbody", ()),
     ("mp_loss", ()),
     ("mp_predict", ()),
@@ -8237,7 +8327,7 @@ SUITE = [
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "deathbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "navfollow", "navfollow_listen", "navfollow_vr"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "navfollow", "navfollow_listen", "navfollow_vr"])
     ap.add_argument("--base", required=True, help="the game folder (id1, quakevr...)")
     ap.add_argument("--exe", default=EXE)
     ap.add_argument("--out", default=os.path.join(REPO, "scratch", "mp"))
@@ -8299,7 +8389,7 @@ def main_run(args):
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
     elif args.test in ("bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground",
-                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "deathbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "navfollow", "navfollow_listen", "navfollow_vr"):
+                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "navfollow", "navfollow_listen", "navfollow_vr"):
         ok = run(args, "mp_" + args.test)
     elif args.test == "voice":
         ok = run(args, "mp_voice", args.lag, args.jitter, args.loss)

@@ -2061,6 +2061,10 @@ QVR_TUNABLE(vr_flat_pistol_in, "2") // and this much nearer the middle of the ch
 QVR_TUNABLE(vr_flat_pistol_up, "4") // and this much higher than Gun Down
 QVR_TUNABLE(vr_flat_ads_turn, "15") // the ironsight in a two-handed stance: the torso turns this much further (degrees, 0..30), the free hand's shoulder forward to the gun
 QVR_TUNABLE(vr_flat_ads_lean, "10") // and the chest leans this far forward into the gun (degrees, 0..30); the head and the eye stay
+QVR_TUNABLE(vr_flat_seen_ads, "1") // seen from outside (others, the third-person camera): a flat player on his sights has his drawn eyes behind the rear sight, the cheek on the stock (0: off)
+QVR_TUNABLE(vr_flat_seen_cheek_roll, "14") // ... the head tilted this far onto the stock (degrees, 0..30)
+QVR_TUNABLE(vr_flat_seen_cheek_side, "1.2") // ... its middle this far off the sight line away from the gun, the aiming eye over the line (units, 0..4)
+QVR_TUNABLE(vr_flat_seen_chest, "0.4") // ... the chest pitched by this share of the look, the shoulders with the gun (0..1)
 QVR_TUNABLE(vr_flat_up_elbow, "1") // looking up with the free hand on a gun's hotspot, its elbow goes down under the gun and out instead of up in front of the eye: this share of it (0..1) from 15 deg up, all by 60
 QVR_TUNABLE(vr_flat_up_elbow_out, "0.5") // and that elbow's way out at its own side, per its way down (0..2; 0: straight under the gun)
 QVR_TUNABLE(vr_flat_wall_arm_keep, "9") // a wall pushes a hipfire gun back towards its shoulder until the hand is this far from it (0..20 units; less: further back)
