@@ -15,4 +15,11 @@
     <Product>Quake VR Installer</Product>
     <Copyright>GPL-2.0-or-later</Copyright>
   </PropertyGroup>
+  <!-- onnxruntime's NuGet package (Core's reliefs step) carries its import library, onnxruntime.lib: never needed at run
+       time, and a single-file publish would leave it beside QuakeVR-Setup.exe (make_release.ps1 refuses extra files). -->
+  <Target Name="QvrDropImportLibraries" AfterTargets="ComputeResolvedFilesToPublishList">
+    <ItemGroup>
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="'%(Extension)' == '.lib'" />
+    </ItemGroup>
+  </Target>
 </Project>
