@@ -1,0 +1,12 @@
+# mp_coop_bodies: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title A coop game: a still bot, two grunts and a crate; a sword and a shotgun in your hands
+mp coop
+map vrtesthall
+start 0 -288 25 90
+god
+give "Knight's Sword" main
+give "Shotgun" off
+bot passive 160 -64
+spawn "Grunt" 280 80
+spawn "Grunt" 320 0
+spawn "Wooden Crate" 96 64

@@ -4,6 +4,7 @@
 
 #include "vr_view_internal.hpp"
 #include "vr_edictindex.hpp"
+#include "vr_flatplay.hpp"
 #include "vr_flatsight.hpp"
 #include "vr_progs.hpp"
 #include "vr_physics.hpp"
@@ -3177,6 +3178,28 @@ void steadyOther(const HandPose& hp, glm::vec3& pos, glm::vec3& handRot, bool& h
             }
             const glm::quat from = glm::quat_cast(anglesBasis(handRot)), to = glm::quat_cast(anglesBasis(attached));
             handRot = basisAngles(glm::mat3_cast(glm::slerp(from, to, gripBlend)));
+            // Flatscreen play, a pole weapon held as a spear (lancespear): the hand's grip channel closed round the pole
+            // (the line from the holding hand to the tip) where it holds it, then rolled about the pole by
+            // vr_flat_pole_off_roll.
+            if(flatplay::active() && twohand::poleWeapon(otherSlot) && s.muzzleValid[other])
+            {
+                const glm::vec3 hilt{entities.weapon[other].ent.origin[0], entities.weapon[other].ent.origin[1],
+                    entities.weapon[other].ent.origin[2]};
+                const glm::vec3 along = s.muzzle[other] - hilt;
+                if(glm::length(along) > 1.f)
+                {
+                    glm::vec3 at = pos, turn = handRot;
+                    alignChannel(hand, mirrored, hilt, along, at, turn);
+                    const glm::quat roll = glm::angleAxis(
+                        glm::radians(za::clamp(vr_flat_pole_off_roll.value, -180.f, 180.f)) * (mirrored ? -1.f : 1.f),
+                        glm::normalize(along));
+                    at = hilt + roll * (at - hilt);
+                    turn = basisAngles(glm::mat3_cast(roll) * anglesBasis(turn));
+                    pos = glm::mix(pos, at, gripBlend);
+                    const glm::quat was = glm::quat_cast(anglesBasis(handRot)), now = glm::quat_cast(anglesBasis(turn));
+                    handRot = basisAngles(glm::mat3_cast(glm::slerp(was, now, gripBlend)));
+                }
+            }
             // The super shotgun open: the hand on its fore-end turned down with the barrels (the author: it kept the
             // shut gun's turn, as if it held nothing).
             if(heldSpot && heldSpot->ssgTurned)

@@ -1,0 +1,8 @@
+# mp_dm_hostile: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title Deathmatch with a bot that hunts and shoots you (god mode on)
+mp dm
+map dm3
+start 632 -648 88 0
+god
+give "Shotgun" main
+bot active 256 0

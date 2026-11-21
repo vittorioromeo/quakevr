@@ -1,0 +1,10 @@
+# brushholes_show: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". The gap blockers' debug view
+# (vr_hull_holes_show) on vrbrushholes, facing the bar gate, the grate to its left and the pillars to the right.
+title Gap blockers: the debug view
+map vrbrushholes
+start -100 -100 24 110
+god
+notarget
+cvar vr_hull_holes_show 1
+cvar vr_hull_holes_show_range 2048
+hint Look round: the gate's bars show magenta boxes between them and yellow by the wall, the grate's holes and the pillar gaps cyan, the lift's slots yellow; the counts float in front of you.

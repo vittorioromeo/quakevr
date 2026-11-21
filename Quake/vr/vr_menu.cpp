@@ -964,6 +964,7 @@ za::Vector<Item> pageHitbox()
                   "32 units (you stop 16 from each wall: 0.6 m); 16 stops you 8 away (0.3 m)."),
         row(opt::vr_hull_edge_probe),
         row(opt::vr_hull_brushmodels),
+        row(opt::vr_hull_holes),
         header("Monsters, Players and Boxes"),
         cycle("Width Against Them", vr_hull_ent_width, ents)
             .help("How wide you are against monsters, other players and solid boxes, both ways (you walking into them, "

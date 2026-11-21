@@ -8,4 +8,4 @@ notarget
 cvar vr_dw_lance_pole 1
 spawn "Grunt" 160 0
 cmd vr_ad_test 207
-hint Right hand: the Crystal Lance. Put your left hand anywhere on its pole and slide it along: the lance follows. Swing the crystal head at the grunt (a blade's blow), then fire: the beam leaves the tip. Tune it in Weapon Offsets (slot 56).
+hint Right hand: the Crystal Lance, a plain pole held like a spear (the pole through your fist: tip your hand forward to level it). Put your left hand anywhere on its pole and slide it along: the lance follows. Swing the crystal head at the grunt (a blade's blow), then fire: the beam leaves the tip. Tune it in Weapon Offsets (slot 56).

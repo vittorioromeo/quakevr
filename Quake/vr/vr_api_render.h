@@ -178,6 +178,7 @@ typedef struct vraliasinstance_s
 	float		stump[4]; // a ragdoll's stumps (vr_ragdoll.cpp stumpLook; the shaders' StumpFlesh): its cut bones (bits 0..23, as a whole number; 0 none), how far round their joints the cut's flesh reaches (units)
 	float		nails[4]; // painted nails (vr_view.cpp nailLook; the shaders' Nails): the polish's rgb, w 1 + its gloss (0 none)
 	float		barrel[4]; // a hot gun barrel's glow (vr_hotblade.cpp barrelInstance; the shaders' Barrel): 1 + its mask's place in BarrelMasks (1 + first word; 1 alone: no mask; 0: not a barrel), its ramp along the rest pose's x (x * [1] + [2]), [3] 1: the mask shown flat (painted)
+	float		recolor[3][4]; // an armed humanoid's recolour by its weapon (vr_humlook.cpp instanceRows; the shaders' Recolor): the range, the change, the tint ([0][1] 0: none)
 } vraliasinstance_t;
 int VR_AliasPlainNeeds (const vraliasinstance_t *vr); // r_alias.c: the per-model features an instance turns on (vr_gl_alias_plain_mask's bits; vr_render.cpp)
 int VR_AliasPlainUse (int needs); // r_alias.c: a batch needing `needs` drawn by glprogs.alias_plain (vr_gl_alias_plain)

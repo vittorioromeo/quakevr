@@ -2169,6 +2169,14 @@ QVR_TUNABLE(vr_flat_melee_2h_out, "-3") // and this far further out at its own s
 QVR_TUNABLE(vr_flat_melee_2h_pitch, "-10") // and turned up this far over the hold (degrees; negative: the weapon's top leans forward)
 QVR_TUNABLE(vr_flat_melee_2h_yaw, "-10") // and this far out to its own side (degrees; negative inwards)
 QVR_TUNABLE(vr_flat_melee_2h_roll, "-15") // and rolled this far, its top out to its own side (degrees; negative: the top leans in across the body)
+// The spear pose (lancespear: a pole weapon, its own Other Hand Anywhere 3, the Crystal Lance): the holding hand over the
+// gun's hold (its pole already along the crosshair's way: its Shot Pitch), the other hand on the pole ahead of it.
+QVR_TUNABLE(vr_flat_pole_fwd, "2") // the spear pose: the holding hand this far further ahead than a gun's hold (units)
+QVR_TUNABLE(vr_flat_pole_up, "-2") // and this far higher (units; negative lower)
+QVR_TUNABLE(vr_flat_pole_out, "3") // and this far further out at its own side (units; negative in towards the middle)
+QVR_TUNABLE(vr_flat_pole_roll, "0") // and rolled this far about its pole (degrees)
+QVR_TUNABLE(vr_flat_pole_off_along, "16") // the other hand on the pole this far ahead of the holding hand (units; negative behind it)
+QVR_TUNABLE(vr_flat_pole_off_roll, "0") // and rolled this far about the pole from where it closes on it (degrees)
 QVR_TUNABLE(vr_flat_melee_2h_parry_fwd, "0") // the parry's guard held in two hands: the hand this far further ahead than the one-handed guard (units)
 QVR_TUNABLE(vr_flat_melee_2h_parry_up, "0") // and this far higher (units; negative lower)
 QVR_TUNABLE(vr_flat_melee_2h_parry_out, "0") // and this far further out at its own side (units; negative inwards)

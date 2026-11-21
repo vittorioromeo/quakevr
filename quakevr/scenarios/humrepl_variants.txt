@@ -1,0 +1,10 @@
+# humrepl_variants: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". AD's and Quoth's humanoid
+# variants as armed humanoids (docs/vr-port/ARMED_MONSTERS.md, "AD's and Quoth's variants"; vr_agrunt_repl_variants):
+# vr_ad_test 219 makes each before you in ad_crucial (the AD map with the most of them: 21 rocket, 17 plasma soldiers,
+# 33 defenders...), kills one (its target's check) and prints its checks. Needs Arcane Dimensions mounted (Play >
+# Official Campaigns > Arcane Dimensions, or -game ad): elsewhere its map isn't found.
+title AD's soldiers as armed humanoids: eight variants before you (god)
+map ad_crucial
+god
+cmd vr_ad_test 219
+hint Eight of Arcane Dimensions' soldiers made before you, each an armed humanoid holding its own gun: rocket (red), grenade (red) and plasma (blue) soldiers as grunts; a defender (shotgun), an eliminator (plasma, blue), a pyro (flamethrower, orange) and a fumigator (poison, green) as enforcers; a crossbow knight. Disarm them, tug their guns, shoot the guns out, take them. The map's own soldiers further in are the same.

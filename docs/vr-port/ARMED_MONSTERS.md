@@ -192,6 +192,75 @@ ghost; the arms are the model's (no IK on a ghost). Debug > Toolgun: "Armed Huma
   player (`VR_AGR_Frame`), a spawner's at once. Precaches at worldspawn: `VR_AGR_Precache`.
 - Tests `vr_agrunt_test 70..73` (`QC/vr_armedrepl_test.qc`); scenes `agrunt_repl_gunaxe`, `agrunt_repl_map`.
 
+## AD's and Quoth's variants (ROUND25.md, "humrepl")
+
+His words (2026-11-21): "replace the 'hardcoded' humanoid variants introduced by these expansions with the closest
+corresponding armed humanoid version". `vr_agrunt_repl_variants` (1; with `vr_agrunt_repl` and AD's scope,
+`vr_agrunt_repl_ad`; the crossbow knight with `vr_agknight`): AD's spawn function of each replaced variant (Quoth's maps
+play by AD's rules, so Quoth's too) calls `VR_HUM_Replace` (`QC/vr_humrepl.qc`) after AD's own spawn exceptions, and the
+variant becomes the armed row of its build holding its gun, with its health (the map's `health`, else AD's). It becomes
+that row's monster (classname and spawn: the path AD's maps' plain grunts and knights already take), marked a
+replacement (`.vr_agr`: trigger-spawn keys kept), `.vr_hum_variant` the variant; it rolls nothing. Its gun is not native:
+the armed layer fires it (AD's guns as the player has them, `vr_ad_enemyguns.qc`).
+
+| Variant (placed: AD, Quoth) | What it is | Becomes | Lost | Gained |
+| --- | --- | --- | --- | --- |
+| `monster_army_rocket` (51, 73) | AD's `mon_soldier` (our grunt's mesh), red jacket, rockets, backs off up close | grunt + Rocket Soldier's Launcher (`WID_ADROCKET`), 45 hp | its red skin (the recolour gives red), its back-off, its obituary | everything armed: disarms, tugs, parries, the gun shot out or taken, its pack, its ragdoll holding the gun |
+| `monster_army_grenade` (25, 0) | the same, green jacket, grenades | grunt + Grenade Soldier's Launcher, 60 hp | green (explosives are red here) | as above |
+| `monster_army_plasma` (39, 0) | the same, blue jacket, plasma bolts | grunt + Plasma Soldier's Rifle, 75 hp | | as above, blue |
+| `monster_defender` (83, 117) | AD's `mon_enforcer`, shotgun, armour | enforcer + Defender's Shotgun, 100 hp | its own skin | as above (shells: no recolour) |
+| `monster_eliminator` (57, 49) | `mon_enforcer`, plasma gun | enforcer + Centurion's Plasma Gun (the eliminator's own is gone: `WID_ADELIMINATOR`), 120 hp | | as above, blue |
+| `monster_pyro` (13, 44) | `mon_pyro`: an enforcer's build scaled 1.35, armoured, flamethrower, burns | enforcer + Pyro's Flamethrower, 100 hp | its bulk and model | as above, orange. The enforcer, not the grunt: its build (AD's own rig for it is the enforcer's) and its armoured close-range role |
+| `monster_fumigator` (11, 0) | the pyro's build, poison sprayer | enforcer + Fumigator's Poison Sprayer, 100 hp | | as above, green |
+| `monster_dcrossbow` (387, 0) | AD's crossbow knight | knight + Crossbow Knight's Crossbow, 75 hp | its model and skin | as above (no recolour) |
+
+Left as AD made them (phase 1; each a candidate the author may want, noted in ROUND25.md "humrepl"):
+
+| Variant | Why not now |
+| --- | --- |
+| `monster_dknight` (475) / Quoth's `monster_death_knight` (95) | AD's own death knight (its model, its magic): the armed death knight with its sword (`VR_ADMELEE_DKNIGHT`) would fit, but it is a third of AD's knights: AD's balance changes most; his word first |
+| `monster_dguard` (254) / `monster_death_guard`, `monster_deathguard` (Quoth 57, 13) | a sword soldier: a knight with the Death Guard's Sword would fit; with the death knights |
+| `monster_dsergeant` (30), `monster_dfury` (69) | the flail and two fury swords on an armed knight: the flail's chain on an armed hand untested |
+| `monster_hell_knight` 8192, `monster_hell_pointknight` (4) | the lightning point knight: a turret-like caster, 4 placed |
+| `monster_zombiek` (435), `monster_dknightghost` (13) | undead (getting up again, a ghost): not what an armed humanoid is |
+| `monster_justice` (17), `monster_judicator`, `monster_dprince` | bosses, oversized |
+| `monster_centurion` (46) | a flyer on its hover board (no armed row flies) |
+| `monster_jim` (52), `monster_seeker` (21), `monster_freddie` (11) | robots: no humanoid rig (Freddie's gun is his arm) |
+
+Tests: `vr_ad_test 219` (`Misc/quakevr/humrepl_test.sh`: each variant its row, gun, health, look, counted once; a death
+fires its target; off: AD's; looks by weapon; the client's looks), `vr_ad_test 198` (its rocket soldier armed now);
+the maps' census `Misc/quakevr/humrepl_census.sh` (`vr_ad_test 220` on the 23 AD and 10 Quoth maps placing them, the
+setting off and on: the same monster counts, none left).
+
+## Recolours by weapon (ROUND25.md, "humrepl")
+
+His words: "cheap ways of improving/changing the appearance of the armed humanoids to make it obvious to the player
+what they're fighting against ... run-time conditional hue/tint recolors on their textures, and also ... on the
+backpacks". Every armed humanoid, however armed (a variant, a replacement's roll, the toolgun, a wave, a map's
+`weapon`), gets a look from the weapon it holds as it is armed (`VR_HUM_Look`, called by `VR_AM_Spawn` and
+`VR_AGR_Resolve`): `.vr_hum_look` = its row x 16 + the weapon's category (`VR_HUM_CAT_*`: 1 explosive, 2 energy, 3 flame,
+4 poison, 5 shells, 6 nails, 7 melee, 8 its own gun; a gun beside a blade: the gun's). It keeps it (a disarmed rocket
+grunt stays red). Its worn pack takes its wearer's (the engine: `.vr_wp_wearer`, plus 4096).
+
+- The engine (`Quake/vr/vr_humlook.cpp`): each entity's look sent where it changes (`QVR_SVC_HUMLOOK`, reliable; with the
+  spawn state), the table `quakevr/humlook.txt` (read at first use; `vr_humlook_reload`), the alias instance's three
+  `Recolor` rows filled from it (`instanceRows`, `VR_AliasInstance`, drawn instances only).
+- The shader (`vr_glsl_alias.h` `QVR_ALIAS_FS_RECOLOR`, after the skin is read, before the light): the pixels in the row's
+  colour range (hue +- width, soft over `feather`; saturation over `satmin`; lightness between `lightmin` and
+  `lightmax`) turned by the row's HSL change (`shift`, `satmul`, `lightmul`) and its tint (`tint r g b`, by `amount`: for
+  near-white skins). On whatever the model draws (Quake's skin, a replacement, a retro texture): no mod file is changed
+  or copied. One branch on a per-instance value: free on everything else; GLES and multiview alike (instance data).
+- The table: a row per `<type> <category> <part>` (`grunt enforcer knight dknight`; `explosive energy flame poison`, any
+  other category name or number too; `clothes` the body, `pack` the backpack). Shipped: explosives red, energy blue,
+  flame orange, poison green, on the four rows' brown cloth and leather (hue 40 +-18, lightness under 0.3: the flesh's
+  lighter pinks left alone) and on the pack's canvas; shells, nails, melee and own guns have no row (as they were).
+- `vr_humlook` (1) turns the drawing off; `vr_humlook_info [entity]` prints the table's size, the client's looks and the
+  nearest armed humanoid's look and row; `vr_humlook_known` (read-only) the looks the client knows.
+- Screens: `Misc/quakevr/humrepl_shots.sh` (`vr_ad_test 221`: a row of each type, one per category, in vrtesthall).
+- Phase 2: a mask per skin of our own (a texture beside the model's, read as the recolour's weight instead of the colour
+  range: the enforcer's baked pack, the knights' metal apart from their leather), and the Texture Studio (the table's
+  rows edited live per type, category and part, written back to `humlook.txt`).
+
 ## Adding a monster
 
 1. Find its gun's vertices (vr_monstermods.cpp `knownSwords` has the stock monsters'), add a `MODELS` row to

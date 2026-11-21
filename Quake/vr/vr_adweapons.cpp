@@ -171,18 +171,18 @@ const Recipe recipes[] = {
         {5.f, 0.f, 45.7f}, {1.f, 0.f, 0.f}, {0.f, 0.f, 1.f}, 0.7f, {-0.88f, -0.04f, -10.86f}, {0.6f, 0.f, 2.7f}, {76, -1, -1},
         false, {0.f, 0.f, 0.f}, 0.f, {"progs/v_shot.mdl", 0, 0, 0, 0}, {219, 309, 349}, {-6.301f, -3.7943f, -6.5165f}, false,
         {0.f, 0.f, 0.f}, {0.f, 0.f, 0.f}, "progs/v_shot.mdl", true, noRect, rifleParts, -1, {0.f, 0.f, 0.f}},
-    // - The Crystal Lance as a lance (dwellwpn2; Dwell's world model g_rail.mdl, fr_0: a staff standing tilted 22.6 degrees
-    //   off upright, 67.5 long, its pole 2.2 thick about the line through (-10.49 -0.15 9.78) along (0.3843 0 0.9231), its
-    //   crystal head from 43 along it): laid along x, 1.5 times (101 long: 1.35 m at the slot's 0.35), the pole's point 20
-    //   along it (16 from the butt) over the lightning gun's grip (-4 0 7.3: the pole's underside on the grip's top), the
-    //   lightning gun's grip, trigger guard and trigger (these 1.75 up onto the pole) put on; then moved past the lightning
-    //   gun's corner (keepScale) so that slot 55's values, the lightning gun's, keep the hand on the grip. Its open faces
-    //   kept open, as Dwell draws them.
+    // - The Crystal Lance as a lance held like a spear (lancespear; Dwell's world model g_rail.mdl, fr_0: a staff standing
+    //   tilted 22.6 degrees off upright, 67.5 long, its pole 2.2 thick about the line through (-10.49 -0.15 9.78) along
+    //   (0.3843 0 0.9231), its crystal head from 43 along it): a plain pole and its head, nothing put on (no handle, no
+    //   trigger), laid as the axe's handle lies in the fist (v_axe.mdl: along (0.3419 0 0.9397), vr_axestick.cpp), 1.5
+    //   times (101 long: 1.35 m at the slot's 0.34), the pole's point 20 along it (16 from the butt) where the axe's handle
+    //   goes through the fist (1.72 0 0.63); then moved past the axe's corner (keepScale) so that slot 55's hand values,
+    //   the axe's, close the fist round the pole. Its open faces kept open, as Dwell draws them.
     {"progs/dw_lance.mdl#vr", {"progs/g_rail.mdl", 672, 464, 256, 256, "dwell"}, "fr_0", {0.3843f, 0.f, 0.9231f},
-        {-0.9231f, 0.f, 0.3843f}, {1.f, 0.f, 0.f}, {0.f, 0.f, 1.f}, 1.5f, {-4.73f, -0.15f, 23.63f}, {-4.f, 0.f, 7.3f},
-        {-1, -1, -1}, false, {0.f, 0.f, 0.f}, 0.f, {"progs/v_light.mdl", 0, 0, 0, 0}, {234, 403, 493},
-        {-5.6211f, -9.3429f, -6.0018f}, false, {0.f, 0.f, 0.f}, {0.f, 0.f, 0.f}, "progs/v_light.mdl", true, noRect, nullptr,
-        403, {0.f, 0.f, 1.75f}, 0, 0.f, {0.f, 0.f, 0.f}, 493, true, 0.35f},
+        {-0.9231f, 0.f, 0.3843f}, {0.3419f, 0.f, 0.9397f}, {-0.9397f, 0.f, 0.3419f}, 1.5f, {-4.73f, -0.15f, 23.63f},
+        {1.72f, 0.f, 0.63f}, {-1, -1, -1}, false, {0.f, 0.f, 0.f}, 0.f, {nullptr, 0, 0, 0, 0}, {-1, -1, -1},
+        {-2.997f, -1.6813f, -3.9006f}, false, {0.f, 0.f, 0.f}, {0.f, 0.f, 0.f}, "progs/v_axe.mdl", true, noRect, nullptr,
+        -1, {0.f, 0.f, 0.f}, 0, 0.f, {0.f, 0.f, 0.f}, -1, true, 0.34f},
     // - The Rotary Shotgun as a gauntlet (dwellwpn3; his notes 2026-11-21: "the same sort of grip as the super nailgun,
     //   so you put your hand inside it"): Dwell's view model as above, laid round the super nailgun's hand: as it is (1:
     //   40 long, the super nailgun 42.7; its housing 19 long, 13 wide and 11 tall, the super nailgun's 18 x 12 x 15), its

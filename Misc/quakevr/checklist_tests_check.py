@@ -4,7 +4,9 @@ Misc/quakevr/scenario_check.sh: vr_scenario validate and runall).
 For every "{test:<id>}" tag in quakevr/checklist.txt: quakevr/scenarios/<id>.txt exists and parses as vr_scenario.cpp
 reads it (each line a known directive with its arguments, exactly one `map`, a `give` into main or off, a `spawn`'s
 quoted name and offsets, a `start`'s numbers), and its map is one of ours (quakevr/maps/<map>.bsp) or an id, mission
-pack or Arcane Dimensions map. Lists the untagged lines and the scene files no line uses (bench_* are the benchmarks').
+pack or Arcane Dimensions map; an `mp coop|dm` line before any `bot passive|active <fwd> <left> ["<weapon>" [main|off]]`
+(one mode a scene). Every item line must have a tag (an untagged one fails: at least a minimal scene, the map, the spawn
+and what is given); lists the scene files no line uses (bench_* are the benchmarks').
 Also the format: no "(agent/", "Test:" / "Test scene:" outside the tag, no scratch/ qvr-agents paths or .sh names, no
 "[ ]" / "- [ ]" prefix, and the section headers in order ([New...] (a ship's unsorted lines), [Failed...] and [0. ...]
 optional, then 1, 2, 3 with no gap or duplicate). `checklist_tests_check.py --lines <file>` vets only the item lines of a cl_lines file (for cl_insert.py).
@@ -15,7 +17,8 @@ import sys
 
 TREE = sys.argv[1] if len(sys.argv) > 1 and sys.argv[1] != "--lines" else os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..")
 GAME = os.path.join(TREE, "quakevr")
-DIRECTIVES = {"title", "hint", "map", "start", "god", "notarget", "health", "give", "spawn", "spawnarmed", "cvar", "cmd"}
+DIRECTIVES = {"title", "hint", "map", "start", "god", "notarget", "health", "give", "spawn", "spawnarmed", "cvar", "cmd",
+              "mp", "bot"}
 EXTERNAL_MAP = re.compile(r"^(start|end|e[1-4]m[1-9]|dm[1-6]|hip[1-3]m[1-6]|hipdm1|hipend|r[12]m[1-8]|ctf\w*|ad_\w+)$")
 NUM = re.compile(r"^-?\d+(\.\d+)?$")
 
@@ -44,6 +47,8 @@ def check_scene(sid):
         return
     maps = []
     problems = []
+    mp = False
+    bots = set()
     for n, raw in enumerate(open(path, encoding="utf-8-sig"), 1):
         line = raw.strip()
         if not line or line.startswith("#") or line.startswith("//"):
@@ -62,6 +67,19 @@ def check_scene(sid):
             problems.append(f"line {n}: spawn needs \"<entry>\" fwd left [up] [yaw]")
         elif d in ("cvar", "cmd", "title", "hint", "health") and len(w) < 2:
             problems.append(f"line {n}: {d} needs an argument")
+        elif d == "mp":
+            if len(w) != 2 or w[1].lower() not in ("coop", "dm"):
+                problems.append(f"line {n}: mp coop|dm")
+            mp = True
+        elif d == "bot":
+            if not (4 <= len(w) <= 6 and w[1].lower() in ("passive", "active") and NUM.match(w[2]) and NUM.match(w[3]) and
+                    (len(w) < 6 or w[5].lower() in ("main", "off"))):
+                problems.append(f"line {n}: bot passive|active <fwd> <left> [\"<weapon>\" [main|off]]")
+            bots.add(w[1].lower() if len(w) > 1 else "")
+    if bots and not mp:
+        problems.append("bot lines need an mp line")
+    if len(bots) > 1:
+        problems.append("bots in two modes (one a scene)")
     if len(maps) != 1:
         problems.append(f"{len(maps)} map lines (one needed)")
     elif not (os.path.isfile(os.path.join(GAME, "maps", maps[0] + ".bsp")) or EXTERNAL_MAP.match(maps[0])):
@@ -84,6 +102,8 @@ def line_problems(line):
     out = [what for rx, what in BAD_FORMS if rx.search(body)]
     if "{test:" in body:
         out.append("a {test:...} tag that is not at the very end")
+    elif body == line:
+        out.append("no {test:<id>} tag (every line has a Test scene: at least the map, the spawn and what is given)")
     return out
 
 

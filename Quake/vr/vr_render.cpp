@@ -32,6 +32,7 @@
 #include "vr_api.h" // (VR_GLESForm)
 #include "vr_dirparryviz.hpp"
 #include "vr_hitreact.hpp"
+#include "vr_humlook.hpp"
 #include "vr_flamewobble.hpp"
 #include "vr_brainjiggle.hpp"
 #include "vr_toolgun.hpp"
@@ -683,6 +684,14 @@ extern "C" void VR_AliasInstance(const entity_t* e, const float matrix[16], cons
     {
         ZA_MEMSET(out->skintint, 0, sizeof(out->skintint));
         ZA_MEMSET(out->skintintrange, 0, sizeof(out->skintintrange));
+    }
+    if(standard) // an armed humanoid's recolour by the weapon it spawned with (vr_humlook.cpp)
+    {
+        humlook::instanceRows(e, out->recolor);
+    }
+    else
+    {
+        ZA_MEMSET(out->recolor, 0, sizeof(out->recolor));
     }
     ZA_MEMSET(out->skintone, 0, sizeof(out->skintone));
     ZA_MEMSET(out->glove, 0, sizeof(out->glove));

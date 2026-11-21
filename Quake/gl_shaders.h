@@ -1636,6 +1636,7 @@ NOISE_FUNCTIONS
 "	vec4	Stump; // QVR: a ragdoll's stumps (vr/vr_ragdoll.cpp stumpLook): x its cut bones (bits 0..23), y how far round their joints the cut's flesh reaches (units; StumpFlesh)\n"\
 "	vec4	Nails; // QVR: painted nails (vr/vr_view.cpp nailLook): the polish's rgb, w 1 + its gloss (0 none; NailTex its mask)\n"\
 "	vec4	Barrel; // QVR: a hot gun barrel's glow (vr/vr_hotblade.cpp barrelInstance): x 1 (no mask) or 2 + its mask's first word in BarrelMasks (0: not a barrel), yz its ramp along the rest pose's x (x * y + z), w 1: the mask shown flat (painted)\n"\
+"	vec4	Recolor[3]; // QVR: an armed humanoid's recolour by its weapon (vr/vr_humlook.cpp): [0] the range's hue, half width, feather (degrees), least saturation; [1] least and most lightness, the hue's turn, the saturation's factor; [2] the tint (mixed in), the lightness's factor ([0].y 0: none)\n"\
 "	ivec4	Motion; // QVR: temporal AA (vr/vr_temporal.cpp): x its vertices' slot this frame in MotionCur, y last frame's in MotionPrev (-1 none), z 1: one of the player's own, drawn at the flatscreen model FOV\n"\
 "};\n"\
 "\n"\
@@ -1900,6 +1901,7 @@ QVR_TEMPORAL_BLOCK // QVR: temporal AA's motion vectors (vr/vr_temporal.cpp)
 QVR_TEMPORAL_FS_OUTPUT
 "\n"
 QVR_ALIAS_FS_FUNCTIONS // QVR: per-pixel lights, normal maps, ambient, wounds, morphs
+QVR_ALIAS_FS_RECOLOR_FUNCTIONS // QVR: HSL for the armed humanoids' recolours (vr/vr_humlook.cpp)
 QVR_BEHIND_SHOWN_GATE_ALIAS // QVR: see-through models behind a teleporter shown in this view (QVR_ALIAS_FS_GLOW)
 QVR_ALIAS_FS_LITE // QVR: the ES lite form's switches compiled out of main (GL_AliasLiteDefines; QUEST_PLAN.md 6q)
 "void main()\n"
@@ -1948,6 +1950,7 @@ QVR_ALIAS_FS_PARALLAX // QVR: parallax occlusion mapping on the skin's heights
 "	vec4 result = Retro > 0 ? RetroSample(Tex, uv, duvdx, duvdy, true) : textureGrad(Tex, uv, duvdx, duvdy);\n"
 "#endif\n"
 QVR_ALIAS_FS_SKINTINT // QVR: bare forearms' ends tinted to the hand's skin
+QVR_ALIAS_FS_RECOLOR // QVR: an armed humanoid's recolour by its weapon (vr/vr_humlook.cpp)
 "#ifdef QVR_PROBE_AMIN\n" // QVR: vr_gles_define's probe (C4m): the models' floor, the skin times the vertex light
 "	out_fragcolor = vec4(result.rgb * in_color.rgb, 1.0);\n"
 "	return;\n"
