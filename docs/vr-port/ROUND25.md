@@ -6887,3 +6887,44 @@ SPLITSCREEN.md section 12 has the details; in short (seats numbered from 0 as in
 - hotblade_test.sh: 27 of 30, `holster`, `blade_parts` and `superaxe` fail **the same on origin/next's engine**
   (checked: its Quake/ built and run): stale expectations (the hammer's part 2.8/7.0, verts 172/795; the crowbar's and
   chainsaw's vertex counts; the holstered axe found lying), not syncfix5's.
+## split5: splitscreen phase 5, the client and its netcode per seat (split5, 2026-11-21, `agent/split`)
+
+SPLITSCREEN.md section 13 has the details; in short (seats numbered from 0 as in the code):
+
+- **The seat's client** (`clientseat_t`, client.h; `Seat::net`, `seat::netOf`): `cls`, `cl` and the client world's
+  tables (static and temporary entities, light styles, dynamic lights, beams, visible entities, `cl_entities`,
+  `cl_max_edicts`, the update count). `cl_seat` points at the current seat's (`seat::Scope`, C's `CL_SeatSet`); the old
+  names are macros over it, so the ~4,600 uses are unchanged. Nothing else may be named `cl` or `cls` (it fails to
+  compile, never silently): 424 locals and members named `cls` became `klass`, four `cl` locals renamed. Seat 0's client
+  is the game's own as before; seats 1-3's are made on first use, disconnected, with their own message buffer.
+- **The VR client's net state: the seat's parts** (14 new `seat::Part`s): prediction (`vr_predict`), the snapshots read
+  and their interpolation (`vr_netsnap`), the moves sent (`vr_netmove`), the net ragdolls, `vr_client`'s move buttons,
+  throws, entity data and posing move, the preferences sent, voice chat's listen state.
+- Marked shared: the server's halves, scratch, the reset hooks, the demo (seat 0's), the microphone and the voices played
+  (phase 8), the voice menu (9), other players' copies and the drawn effects' memories (phase 7).
+- `vr_seat_test` 70 of 70 (61 + 9: the client follows the seat both ways, a fresh seat's is disconnected with an empty
+  world and its own buffer, seat 1's writes leave seat 0's alone, prediction and interpolation per seat).
+- `seat_state` allowlist 3,697 -> 3,591. Merging next: the pump strokes, barrel heats, slides and wounds of other
+  players marked shared (phase 7).
+- **His answers** (2026-11-21) to the open questions are in SPLITSCREEN.md section 7: layouts customizable, the default
+  from the monitor's aspect; menus and pause options (coop's default: the menu pauses, seat 1 alone the full menu);
+  autosave only; drop-in/out; a default controller layout with aim assist off by default; a VR host with flat seats,
+  last. The branch merges into next once the join screen works and he has tried it. Effort left: 20-29 worker-days.
+- **Before and after** (the merged base `a7a2fb591` and phase 5, same machine, quick builds; QC 0 warnings, Dev and ThinLTO 0
+  warnings): the net
+  self-tests 44 ok / 1 fail on both (netrag's 200 turns within 0.02 degrees: 0.056, already on the base); scenario_check
+  150 run / 0 failed on both; 70 suites (load_models, held/grip, throws, toolgun, the 52 `flat*_test.sh`, the seat test):
+  66 identical (same exit, the same failing checks by name; the seat test 61 -> 70 by its new checks), three differ:
+  flatswap fails on the base only; flatswing 4/1 (8 of 11 knight swings landed) is 5/0 on a rerun (run-to-run, as in
+  split4b); flatxhair's `pixels open` fails after (6 green px, centroid 482.2 vs 480.0; base 5 px, 481.0: the bound
+  is 1.5) twice, the same both times. Its logic checks all pass (the crosshair snapped on the centre at 480.0 270.0 as
+  before), and every pellet check's distance moved (open 0.6 -> 1.5 px, dual 1.6 -> 0.8, flush 0.7 -> 1.8, flushold
+  1.5 -> 0.1): the shared random stream (QC's pellet spread and the client's particles draw from one `rand()`) runs
+  in another order on the new exe, so a pellet's mark lands one pixel inside the crosshair's ring. A fragile pixel
+  check (split4b found flatxhair failing on its base too), not a behaviour change; to look at with phase 7's per-seat
+  render if it stays. **The MP plain suite** (`--base qbase.7 --port 28770`, the same order): 64 of 67 before
+  (mp_ground 15/1, its known grip flake; mp_melee 26/4; mp_loss 15/1), 66 of 67 after (mp_debugviz_listen 7/1: the
+  bot's disarm volumes drawn 55 units off the weapon; 8/0 before): 7/1 and 8/0 on two reruns (a flake). Logs: scratch/split5_before,
+  scratch/split5_after, scratch/split5_rerun.
+- In VR (the author): nothing changes with one seat: single player, coop and deathmatch play, prediction, the other
+  players' movement and bodies, voice chat, demos, as before.
