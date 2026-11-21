@@ -58,6 +58,37 @@ struct Follow
 Follow follows[maxSlots];
 double serverTimeSeen = -1.0; // (a new server's clock starts again: everything off)
 
+// ---- Server: the bots' plans (vr_bot_navmesh, botStep) -----------------------------------------------------------------
+
+constexpr float botStopPlayer = 48.f; // a bot walking to a player stands this far short of him (along the path); an item: on it
+
+struct Bot
+{
+    int goal = 0; // the goal's edict number its plan is for (0: none)
+    Plan plan;
+    Steer steer;
+    za::U32 serial = 0; // its plan's (a new one: the steering starts again)
+    Input last;
+    float left = 0.f; // the path left from its feet at its last step
+};
+Bot bots[maxSlots];
+double botTimeSeen = -1.0; // (a new server's clock starts again: every plan dropped)
+
+// The path's length from `feet` on from corner `next`.
+float pathLeft(const nav::PathCorner* corners, int count, int next, const glm::vec3& feet)
+{
+    if(count < 2 || next >= count)
+    {
+        return 0.f;
+    }
+    float left = flatDist(feet, corners[next].at);
+    for(int i = next; i + 1 < count; ++i)
+    {
+        left += glm::length(corners[i + 1].at - corners[i].at);
+    }
+    return left;
+}
+
 // ---- Client: what the server sent, the steering, the hand-back ----------------------------------------------------------
 
 struct Client
@@ -321,6 +352,78 @@ Input steer(Steer& s, const nav::PathCorner* corners, int count, za::U32 serial,
         s.stuckSince = now;
     }
     return in;
+}
+
+// ---- Bots ---------------------------------------------------------------------------------------------------------------
+
+glm::vec3 botStep(const edict_t* bot, const edict_t* goal, int what)
+{
+    const glm::vec3 feet = feetOf(bot);
+    const int slot = NUM_FOR_EDICT(const_cast<edict_t*>(bot)) - 1;
+    if(slot < 0 || slot >= svs.maxclients || slot >= maxSlots)
+    {
+        return what == 0 ? feet : glm::vec3{0.f};
+    }
+    const double now = qcvm->time;
+    if(now < botTimeSeen)
+    {
+        for(Bot& b : bots)
+        {
+            b = {};
+        }
+    }
+    botTimeSeen = now;
+    Bot& b = bots[slot];
+    if(what == 1)
+    {
+        const int flags = (b.last.move ? botWalk : 0) | (b.last.jump ? botJump : 0) | (b.last.arrived ? botArrived : 0) |
+                          (b.plan.partial ? botPartial : 0);
+        return {static_cast<float>(b.plan.state), static_cast<float>(flags), b.left};
+    }
+    if(what == 2)
+    {
+        b = {};
+        return glm::vec3{0.f};
+    }
+    const int goalNum = NUM_FOR_EDICT(const_cast<edict_t*>(goal));
+    if(what == 3)
+    {
+        nav::PathCorner corners[maxCorners];
+        bool partial = false;
+        const glm::vec3 to = feetOf(goal);
+        const int n = goalNum ? nav::followPath(bot, feet, to, corners, maxCorners, partial) : 0;
+        if(n < 2)
+        {
+            return {n < 0 ? -1.f : 0.f, 0.f, 0.f};
+        }
+        // (a path of maxCorners may be cut short: its length then a lower bound, on in a line to the goal)
+        const float len = pathLeft(corners, n, 0, feet) + (n == maxCorners ? glm::length(to - corners[n - 1].at) : 0.f);
+        return {partial ? 0.f : 1.f, len, static_cast<float>(n)};
+    }
+    if(!goalNum)
+    {
+        b = {};
+        return feet;
+    }
+    if(goalNum != b.goal)
+    {
+        b = {};
+        b.goal = goalNum;
+    }
+    if(replan(b.plan, bot, goal, now))
+    {
+        ++b.serial;
+    }
+    if(b.plan.state != stateOn)
+    {
+        b.last = {};
+        b.left = 0.f;
+        return feet;
+    }
+    const float stop = (static_cast<int>(goal->v.flags) & FL_CLIENT) ? botStopPlayer : 0.f;
+    b.last = steer(b.steer, b.plan.corners, b.plan.count, b.serial, feet, now, stop);
+    b.left = pathLeft(b.plan.corners, b.plan.count, b.steer.next, feet);
+    return b.last.arrived ? feetOf(goal) : b.plan.corners[b.steer.next].at;
 }
 
 // ---- vr_nav_follow ----------------------------------------------------------------------------------------------------
