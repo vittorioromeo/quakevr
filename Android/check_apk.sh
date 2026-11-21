@@ -45,13 +45,14 @@ grep -q "org.khronos.openxr.runtime_broker" <<< "$manifest"; check "the runtime 
 grep -q "org.khronos.openxr.OpenXRRuntimeService" <<< "$manifest"; check "the runtime service's query" $?
 vrLines=0
 for line in com.oculus.intent.category.VR org.khronos.openxr.intent.category.IMMERSIVE_HMD \
-	android.hardware.vr.headtracking com.oculus.vr.focusaware; do
+	android.hardware.vr.headtracking com.oculus.vr.focusaware com.meta.permission.FOCUSED_BODY_TRACKING \
+	com.oculus.permission.BODY_TRACKING com.oculus.software.body_tracking; do
 	if grep -q "\"$line\"" <<< "$manifest"; then vrLines=$((vrLines + 1)); fi
 done
 if [ "$kind" = "flat" ]; then
 	[ "$vrLines" = "0" ]; check "no VR lines in the flat-panel manifest ($vrLines found)" $?
 else
-	[ "$vrLines" = "4" ]; check "the 4 VR lines in the manifest ($vrLines found)" $?
+	[ "$vrLines" = "7" ]; check "the 7 VR lines in the manifest (body tracking's 3 too; $vrLines found)" $?
 fi
 if [ -f "$lib" ]; then
 	"$llvm/llvm-readelf$exe" -d "$(win "$lib")" | grep -q "NEEDED.*\[libopenxr_loader.so\]"; check "libquakevr.so needs libopenxr_loader.so" $?
