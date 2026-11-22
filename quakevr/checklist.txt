@@ -17,6 +17,7 @@ Dwell's Crystal Lance: a coiled cord runs from the butt of its pole into a cell 
 Dwell's Crystal Lance in both hands: close your off hand on the pole, loosen your weapon hand's grip (not all the way) and move it along the pole: it slides towards the head or the butt while the Lance stays in your off hand, and stays there when you close it again. Check the grip never drops the Lance while loose (tune Pole Slide Grip in Physics if it does). {test:dwell_lance_pole}
 Dwell's Crystal Lance in both hands: slide your off hand along the pole: it stays on the pole all the way (before, its place drifted off the pole). {test:dwell_lance_pole}
 Dwell's Crystal Lance: thrust it straight forward into a monster, head first: a heavier hit than a swing; a thrust landing on the shaft short of the crystal head is only a weak poke. {test:dwell_lance_pole}
+On the Quest, music from Ogg files plays: the start map's and each episode's soundtrack (the rerelease's Ogg tracks copied by Setup), looping at the end of the track. {test:hub_start}
 
 [1. Dwell]
 Dwell's Crystal Lance fired: a violet lightning beam from the crystal tip through every monster on its line, violet sparks where it enters and leaves each and where it stops, a firm kick back and up, and the crystal head glowing violet for a moment after each shot. {test:dwell_lance_pole}
