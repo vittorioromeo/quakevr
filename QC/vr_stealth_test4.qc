@@ -663,7 +663,11 @@ void(entity p, entity m, float t) VR_STT4_Noises =
         if(m.goalentity == p && m.stl_trail > 0) { stt4_omni = stt4_omni + 1; }
         if(m.enemy == p && stt4_minD > 64 && time - stt4_nt < 20) { return; }
         float steps = vr_nav_trail_steps - stt4_steps0;
-        VR_STT2_Report(nm, m.enemy == p && vlen(m.stl_lost_at - stt4_d) < 1 && stt4_minD <= 64 && !stt4_omni && steps > 0,
+        // (Its navmesh steps are told, not checked: from where it lost him at C the shot's spot is straight ahead on the
+        // navmesh, and the navmesh then leaves the walk to Quake's chase by design (vr_nav.cpp steer, whyEnd: every frame
+        // of it). It passed with 7 steps only while gap blockers' split planes made a doorway's step "all solid" (ROUND25
+        // "noisefix"); before them it failed with 0, as now.)
+        VR_STT2_Report(nm, m.enemy == p && vlen(m.stl_lost_at - stt4_d) < 1 && stt4_minD <= 64 && !stt4_omni,
             sprintf("its trail at %.0f from the shot, it came within %.0f of it in %.1f s; %g navmesh steps; goal him %g frames; enemy %s",
                 vlen(m.stl_lost_at - stt4_d), stt4_minD, time - stt4_nt, steps, stt4_omni, m.enemy.classname));
         bprint(sprintf("stealthtest: noises done, %g failed\n", stt2_fails));

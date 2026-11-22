@@ -103,13 +103,21 @@ lying 0 1
 lying 1 2
 
 # 6. Loose rounds by contact slide in too (the lying guns' and a held one's).
-slide() { # <gun> <step> [open]: the lying gun, a loose round by test step <step>
-    local S="$BASE;impulse $1;wait3;vr_test_weaponinst 7;impulse 120;wait3;give s 30;give n 100;give r 20;vr_mock_hand main 0.25 1.1 -0.3 0 0 0"
+# ("up", the shell dropped onto it, since gunoffsets 2026-11-22: the gun let go of low, level and upside down, its port
+# up, on vrfiringrange's flat floor. Let go of pointing down at e1m1's start, how it came to rest hung on the shotgun's
+# drawn place on its origin (vr_wofs_y/yaw/z_02): with the shipped ones it often lay on the step port down, where nothing
+# dropped from above can go in (0 frames), or slid off it onto its side; with the frozen old ones it lay port down 1 time
+# in 3. Its load is the same either way.)
+slide() { # <gun> <step> [open|up]: the lying gun, a loose round by test step <step>
+    local B="$BASE" H=""
+    [ "$3" = up ] && B="map vrfiringrange;wait60;setpos 250 -656.7 41 0 0 0;wait10;${BASE#map e1m1;wait60;}" && H=";vr_mock_hand off -0.15 0.45 -0.40 0 0 180;wait30"
+    local S="$B;impulse $1;wait3;vr_test_weaponinst 7;impulse 120;wait3;give s 30;give n 100;give r 20;vr_mock_hand main 0.25 1.1 -0.3 0 0 0"
     case $1 in
         154|155|158) S="$S;vr_mock_hand off -0.15 1.0 -0.40 80 0 0;wait10;vr_reload_test 5;impulse 125;wait2";;
         *) S="$S;vr_mock_hand off -0.6 1.0 -0.40 50 0 0;wait10;vr_reload_test 6;impulse 125;wait60;vr_mock_hand off -0.15 1.0 -0.40 80 0 0;wait10";;
     esac
     [ "$3" = open ] && S="$S;vr_reload_test 15;impulse 125;wait20"
+    S="$S$H"
     tb_run_sh -Script "$S;vr_reload_test 20;impulse 125;wait120;vr_debug_collect_fx 1;vr_reload_test $2;impulse 125;wait150;toggleconsole;quit" -Filter "^reload: .*(into the|seated in)|^collect fx" 2>&1
 }
 slid() { # <log> <model>: 1 if the loose round went in and its copy slid from near the port to the end of the path
@@ -119,7 +127,7 @@ slid() { # <log> <model>: 1 if the loose round went in and its copy slid from ne
     echo "$1" | grep -q "lying about (a loose round by contact)" && echo "$1" | grep -q "collect fx: $2 gone in" &&
         awk -v f="$first" -v l="$last" 'BEGIN { print (f != "" && f < 40 && l > 0.9) ? 1 : 0 }' || echo 0
 }
-for row in "154 21 progs/vr_shell_live.mdl shotgun_tossed_in" "154 26 progs/vr_shell_live.mdl shotgun_dropped_onto" "155 21 progs/vr_shell_pair.mdl super_shotgun_open,_the_pair_tossed_in open" "158 21 progs/grenade.mdl grenade_launcher_tossed_in"; do
+for row in "154 21 progs/vr_shell_live.mdl shotgun_tossed_in" "154 26 progs/vr_shell_live.mdl shotgun_dropped_onto up" "155 21 progs/vr_shell_pair.mdl super_shotgun_open,_the_pair_tossed_in open" "158 21 progs/grenade.mdl grenade_launcher_tossed_in"; do
     set -- $row; name=${4//_/ }
     log=$(slide $1 $2 $5)
     check $(slid "$log" $3) "lying $name: the loose round slides in ($(echo "$log" | grep -c "(lying) t") frames drawn going in)"
