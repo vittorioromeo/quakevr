@@ -166,9 +166,23 @@ void(entity p) VR_HUM_Test =
 
 // vr_ad_test 221 (humrepl_shots.sh): a row of armed humanoids of row scratch1 before you, one per category: a shotgun (as
 // it is), a rocket launcher, the thunderbolt, AD's flamethrower and poison sprayer (AD's data mounted), the last row's
-// gone first. Prints "humlineup: row K: N made". The Texture Studio's Line Up (vr_humstudio.cpp) calls VR_HUM_LineupKind.
+// gone first. Prints "humlineup: row K: N made". The Texture Studio's Line Up (vr_humstudio.cpp) calls VR_HUM_LineupKind
+// with its options (`opts`, bits): 1 no backpacks, 2 no armour, 4 no weapons drawn, 8 a backpack on a stand of its own at
+// the row's end (its look the row's explosive one's pack), 16 the row turned `turn` degrees from facing you.
 .float vr_humt_row; // one of 221's row
-void(entity p, float kind) VR_HUM_LineupKind =
+.float vr_humt_yaw; // ... its yaw facing you (VR_HUM_LineupTurn turns it from there)
+void(entity p, float kind, float opts, float turn) VR_HUM_LineupTurn =
+{
+    entity e = findflags(world, vr_humt_row, 1);
+    while(e)
+    {
+        e.angles_y = anglemod(e.vr_humt_yaw + turn);
+        e.ideal_yaw = e.angles_y;
+        e = findflags(e, vr_humt_row, 1);
+    }
+};
+
+void(entity p, float kind, float opts, float turn) VR_HUM_LineupKind =
 {
     entity e = findflags(world, vr_humt_row, 1);
     while(e)
@@ -198,22 +212,59 @@ void(entity p, float kind) VR_HUM_LineupKind =
     for(i = 0; i < 5; i++)
     {
         entity g = spawn();
-        setorigin(g, p.origin + fw * 150 + rt * (i - 2) * 44);
+        setorigin(g, p.origin + fw * 170 + rt * (i - 2) * 64); // (64 apart: one's held-out gun arm clear of the next)
         g.angles_y = vectoyaw(p.origin - g.origin);
         g.weapon = w[i];
         self = g;
         VR_AM_Spawn(kind);
         self = os;
         g.vr_humt_row = 1;
+        g.vr_humt_yaw = g.angles_y;
+        if((opts & 1) && g.vr_wp_pack)
+        {
+            remove(g.vr_wp_pack);
+            g.vr_wp_pack = world;
+            g.vr_wp_worn = 0;
+        }
+        if(opts & 2)
+        {
+            VR_AgArmor_Give(g, 0, 0);
+        }
+        if(opts & 4)
+        {
+            if(g.vr_ag_prop) { g.vr_ag_prop.alpha = 0.001; } // (drawn not at all: ENTALPHA_ZERO; held as before)
+            if(g.vr_ag_prop2) { g.vr_ag_prop2.alpha = 0.001; }
+        }
         made = made + (g.vr_ag ? 1 : 0);
         bprint(sprintf("humlineup: %g at %v (you %v), armed %g, look %g\n", i, g.origin, p.origin, g.vr_ag, g.vr_hum_look));
+    }
+    if(opts & 8)
+    {
+        precache_model("progs/backpack.mdl");
+        entity pk = spawn();
+        pk.classname = "vr_humt_pack";
+        setmodel(pk, "progs/backpack.mdl");
+        pk.vr_ag_kind = kind;
+        VR_WP_Size(pk);
+        pk.solid = SOLID_NOT;
+        pk.movetype = MOVETYPE_NONE;
+        setorigin(pk, p.origin + fw * 110 + rt * 96 - '0 0 8'); // (before the row's right half: in a flat view's field too)
+        pk.angles_y = vectoyaw(p.origin - pk.origin) + 180; // (its back to you: the side a wearer shows)
+        pk.vr_humt_yaw = pk.angles_y;
+        pk.vr_hum_look = kind * 16 + VR_HUM_CAT_EXPLOSIVE + 4096; // (its own look: a worn pack's, its wearer's + 4096)
+        pk.vr_humt_row = 1;
+        bprint(sprintf("humlineup: a pack on its stand at %v\n", pk.origin));
+    }
+    if(opts & 16)
+    {
+        VR_HUM_LineupTurn(p, kind, opts, turn);
     }
     bprint(sprintf("humlineup: row %g: %g made\n", kind, made));
 };
 
 void(entity p) VR_HUM_Lineup =
 {
-    VR_HUM_LineupKind(p, rint(cvar_hget(cvarh_scratch1)));
+    VR_HUM_LineupKind(p, rint(cvar_hget(cvarh_scratch1)), 0, 0);
 };
 
 void() VR_HUM_CensusNow =

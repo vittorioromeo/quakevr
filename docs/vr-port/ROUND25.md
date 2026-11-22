@@ -7508,3 +7508,27 @@ becomes possible in that state".
   (the grip 64 units off, cases 8/9, standing or staggering; this file's "vr_embed_test 13" notes above). Flat:
   `vr_flatitems_test 10` (routing, ironsight with an empty hand) 63/0, 7 (a prop beside the gun) 13/0, flathands 76/0,
   flatmelee2h 16/0, flatads 6/1 (its "launchers", the outdated expectation of ROUND24.md).
+
+## studio2: Texture Studio painting hits what you aim at (agent/studio2, 2026-11-22)
+
+His words (flat): hands, forearms and parts next to the backpacks hard to paint, something else painted; the back of a
+grunt's head intercepted by the backpack; wants packs paintable alone, a lineup without packs and armour, a cursor.
+
+- Cause: the pick posed the .mdl's animation frame (not the drawn body: rig2 skinning with the arms' IK solve), ignored
+  the entity's scale and transforms, and took every keyed entity, the worn pack included. Now `modelcollide::drawnTriangles`
+  (as drawn), only `vr_humstudio_target`'s (0: the part picked; 1 bodies, 2 packs, 3 either), UV from the triangle's
+  barycentrics (.mdl order).
+- Brush `vr_humstudio_brush` is now cm on the surface (default 4; 0 one texel): texels within it on any triangle (no x
+  wrap across the skin halves). Cursor `vr_humstudio_cursor` 1: mask value 3 drawn yellow by the shader wherever the skin
+  shows it, plus the skin's flat view top right (`studioDraw2D`, gl_screen.c's 2D pass).
+- Lineup (QC `VR_HUM_LineupKind(p, kind, opts, turn)`): nopack 1, noarmour 1, noweapon 0 (props' alpha 0.001), packstand 1
+  (a backpack with its own .vr_hum_look before the row's right half), `vr_humstudio_turn` (`VR_HUM_LineupTurn`), 64 apart
+  (44 let an enforcer's gun arm reach into its neighbour: rays at its hand met the neighbour). Hold Still is
+  `vr_agrunt_freeze`. No T/A pose frame in the stock models.
+- His saved humlook.txt / humlook_masks.txt promoted to the shipped files (read and written back identical by the test).
+  `vr_humstudio_check` no longer counts hand-painted texels on flesh rows (his paint is meant).
+- Tests: `Misc/quakevr/humstudio2_test.sh` PASS (round trip identical; `vr_humstudio_picktest` 130 passed, 0 failed:
+  hands, forearm, back of the head, back beside the pack, a stroke and its undo, and through a pack on the knights' and
+  death knights' (10); grunts and enforcers have no level ray from behind with a pack first: skipped). humrepl2_test PASS
+  (5 masks, 0 on flesh). Dev build 0 warnings.
+- Not seen in a screenshot (the mock view's ray met no one): the yellow cursor and the skin view; check in flat and VR.
