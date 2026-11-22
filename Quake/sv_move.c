@@ -166,10 +166,12 @@ qboolean SV_movestep (edict_t *ent, vec3_t move, qboolean relink)
 
 	trace = SV_Move (neworg, ent->v.mins, ent->v.maxs, end, false, ent);
 
-	if (trace.allsolid)
-		return false;
-
-	if (trace.startsolid)
+	// Quake VR: an "all solid" from the raised start is tried from the wished height too, as a start in solid is. A hull
+	// trace that starts in solid stops as "all solid" at the first plane with solid past it (SV_QuakeHullCheck), though
+	// it would come out lower down: under a low lintel the raised box is in it, and a split plane through the lintel (the
+	// gap blockers', vr_hull_holes, split e1m1's doorway lintels so) ended the step there: grunts stood stuck at doorways.
+	// Where the whole way down is solid the lower start is too, so that still fails.
+	if (trace.startsolid || trace.allsolid)
 	{
 		neworg[2] -= STEPSIZE;
 		trace = SV_Move (neworg, ent->v.mins, ent->v.maxs, end, false, ent);
