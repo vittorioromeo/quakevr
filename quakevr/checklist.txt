@@ -10,6 +10,9 @@
 VR hub: choose Dimension of the Past, step into the teleporter, press Start on the Run Setup: you land on its start map and stay there (if the hub comes back, record a voice note at once: the log now says what opened and confirmed the main menu's VR Hub). {test:hub_start_test}
 VR hub: the four new lecterns west of the campaigns (between the two left braziers): Arcane Dimensions, Dwell and Quoth then the teleporter start that mod; Arena Mode opens the arena's Run Setup; a mod not installed says so on its lectern. {test:hub_start_test}
 Flat-screen: Quoth's kellbase1 ladders (the catwalk's and the pillars'): walk forward into one and your hands close on the drawn bars themselves, as in a headset; climb up and over, back off the top onto it, and climb down to the floor. {test:ad_mod_ladder}
+Graphics Presets > Standalone on PC: picks, the line says Standalone, High afterwards restores your MSAA and image size. {test:hub_start}
+Graphics Presets > Standalone, then shoot a grunt and pop one of its limbs from arm's length: the blood right at your eyes is thinner but the stump's fountain still pours at once; from a few steps away the blood looks as on High. {test:flat_blood_pointblank}
+On the Quest (Standalone preset) a fight, explosions and torch-lit rooms run as smoothly as before this merge, and the loading panel shows on a first start while the shaders compile. {test:hub_start}
 
 [1. Dwell]
 Dwell's Crystal Lance fired: a violet lightning beam from the crystal tip through every monster on its line, violet sparks where it enters and leaves each and where it stops, a firm kick back and up, and the crystal head glowing violet for a moment after each shot. {test:dwell_lance_pole}
