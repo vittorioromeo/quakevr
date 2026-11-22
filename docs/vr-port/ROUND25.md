@@ -7729,3 +7729,18 @@ fixes (QC/vr_playerdisarm.qc: which blows count, the rolls, feedback before the 
   out). `vr_pd_test 2` times out in case 0 (the gun-and-axe grunt backs off to ~200 units and shoots after its first
   blow) on this branch and on origin/next's QC alike: pre-existing, not chased. Scene `pd_jolts`.
 
+## ropes3: flat-screen rope climbing, rope to rope, another climber's pose (agent/ropes3, 2026-11-22)
+
+Phase 3's rest (ROPES.md "Climbing (flat-screen)", "Multiplayer", "Tests", "Known limits").
+- Flat-screen play climbs the ropes (`vr_flat_rope` 1, Options > Flat-Screen > Ropes; tunable `vr_flat_rope_look` 25):
+  walk or jump into one, look up/down + forward climbs hand over hand at the flat ladder's speed, looking level the move
+  keys pump the swing, jump lets go keeping it; down at the floor he steps off. `vr_climb.cpp` flatRope, flatRopeFrame,
+  ropeTake, flatRopeDir; `climbrope::grabAlong` (a hold along a rope, on the rider's line).
+- `vr_rope_flat_test` / `Misc/quakevr/climb/rope_flat_test.sh`: walked in, up, down, and rope to rope (pumped to 355
+  units/s, let go at the forward peak, the next rope caught after 0.75 s): 6 passed. rope_climb_test.sh 8+6+6 and
+  flatladder_test.sh 2/2 still pass.
+- MP: the client draws each rope between its last two messages (as entities), so a swinging rider and his rope keep
+  together; `vr_mp_avatars` prints `mp_ropepose` (another player's wrists, ankles from the rope); `mp_test.py ropeclimb`
+  (flat A on a rope, B watching) runs but fails its pose checks (wrists 9-25 units off, ankles 11-24): open, in
+  ROPES.md's known limits, kept out of the suite.
+

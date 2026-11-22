@@ -6807,6 +6807,10 @@ QVR_TOGGLE(vr_flat_ladder, "Ladders",
     "Playing on the desktop screen (-flatscreenmode): walk forward into a ladder of rungs or stacked ledges to take "
     "hold of it, as a headset's hands do. Forward climbs it hand over hand (looking down, or back: down), jump pushes "
     "off, and at the top you climb over (needs Climbing on; tuning: Debug > Tunables; vr_flat_ladder).")
+QVR_TOGGLE(vr_flat_rope, "Ropes",
+    "Playing on the desktop screen (-flatscreenmode): walk or jump into a climbable rope or chain to take hold of it. "
+    "Forward looking up climbs it hand over hand, looking down climbs down; looking ahead, the move keys swing it "
+    "(rope to rope), and jump lets go, keeping the swing (needs Climbing and Climbable Ropes on; vr_flat_rope).")
 QVR_SLIDER(vr_flat_mantle_time, "Mantle Window", 0.f, 3.f, 0.05f, "%.2f s", noExt,
     "Playing on the desktop screen: how long after the jump leaves the ground a ledge may still be mantled, the jump "
     "key held all along (vr_flat_mantle_time).")

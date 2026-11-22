@@ -1227,6 +1227,11 @@ struct Climber
     int flatLadders{0};              // ladder climbs it started (vr_flatladder_test)
     bool flatMount{false};           // the mantle's way runs backwards: off the ladder's top onto its rungs (flatLadderMount)
     Ledge flatMountRungs[2];         // and the rungs it takes there (the higher, the lower)
+    // Flatscreen play's rope (flatRope): both grips on a climbable rope, the body moved by the keys (flatRopeFrame).
+    bool flatRope{false};
+    int flatRopes{0};                // rope climbs it started (vr_rope_flat_test)
+    int flatRopeLeft{0};             // the rope it last let go of, and when (not taken again for flatRopeRetake)
+    double flatRopeLeftAt{-1.0};
     // Hanging or slipping: holding on with one hand or both.
     bool hanging() const
     {
@@ -1958,6 +1963,8 @@ void followRopes(edict_t* ent, Climber& c)
     }
 }
 
+[[nodiscard]] int flatRopeDir(edict_t* ent, const VrMove* move); // (below: flat play's rope, the keys' climb)
+
 // Told to the ropes each frame (climbrope::ride): the rope this climber's hands hold, his highest and lowest hand on it
 // (a rope's rider: his weight on it, its swing his). A hand on a ledge too: the ledge holds him, no ride.
 void reportRopes(edict_t* ent, const Climber& c)
@@ -1990,6 +1997,10 @@ void reportRopes(edict_t* ent, const Climber& c)
         const float yaw = glm::radians(ent->v.v_angle[1]);
         const glm::vec3 fwd{za::cos(yaw), za::sin(yaw), 0.f}, right{za::sin(yaw), -za::cos(yaw), 0.f};
         glm::vec3 push = fwd * cmd.forwardmove + right * cmd.sidemove;
+        if(c.flatRope && flatRopeDir(ent, server::clientMove(ent)) != 0)
+        {
+            push = glm::vec3{0.f}; // (flat play: the keys climb it now, looking up or down; flatRopeFrame)
+        }
         const float len = glm::length(push);
         push = len > 1.f ? push / len * (za::min(len / pumpFullMove, 1.f) * za::max(vr_rope_pump.value, 0.f)) : glm::vec3{0.f};
         climbrope::setPump(client, push);
@@ -2551,6 +2562,7 @@ void transition(edict_t* ent, Climber& c, Phase to, Why why, const VrMove* move,
     switch(to)
     {
     case Phase::Free:
+    {
         if(why == Why::Exhausted)
         {
             for(int h = 0; h < 2; h++)
@@ -2562,8 +2574,15 @@ void transition(edict_t* ent, Climber& c, Phase to, Why why, const VrMove* move,
             }
             staminaSound(ent, "player/gasp1.wav", staminaWarn());
         }
+        const bool flatRopeWas = c.flatRope;
+        if(flatRopeWas)
+        {
+            c.flatRopeLeft = c.grips[1].rope ? c.grips[1].entNum : c.grips[0].entNum;
+            c.flatRopeLeftAt = time;
+        }
         letGoAll(c);
         c.flatLadder = false;
+        c.flatRope = false;
         c.flatMount = false;
         if(why != Why::NoMove)
         {
@@ -2571,7 +2590,8 @@ void transition(edict_t* ent, Climber& c, Phase to, Why why, const VrMove* move,
         }
         if(why == Why::Released)
         {
-            fallFlung(ent, c, move, held, time); // (the fall, flung by the hands' release)
+            // (the fall, flung by the hands' release; flat play's rope: its swing only, the drawn hands fling nothing)
+            fallFlung(ent, c, flatRopeWas ? nullptr : move, held, time);
         }
         else if(why == Why::Exhausted)
         {
@@ -2587,6 +2607,7 @@ void transition(edict_t* ent, Climber& c, Phase to, Why why, const VrMove* move,
             Con_Printf("climb: falls, flung at (0 0 0)\n");
         }
         return;
+    }
     case Phase::Hanging:
         if(from == Phase::Free && staminaOn(ent))
         {
@@ -2611,6 +2632,7 @@ void transition(edict_t* ent, Climber& c, Phase to, Why why, const VrMove* move,
     case Phase::Mantling:
         c.grips[0].active = c.grips[1].active = false;
         c.flatLadder = false;
+        c.flatRope = false;
         c.flatHolds[0].on = c.flatHolds[1].on = false; // (a flat mantle puts its own after: flatMantle)
         c.owed = glm::vec3{0.f};
         if(c.gruntAt < 0.0 && !c.flatMount) // (lowering onto a ladder: no effort)
@@ -2657,6 +2679,7 @@ namespace
 void flatMantle(edict_t* ent, Climber& c, const VrMove* move, double time); // (below)
 void triggeredMantle(edict_t* ent, Climber& c, const VrMove* move, bool enabled);
 void flatLadder(edict_t* ent, Climber& c, const VrMove* move, double time);
+void flatRope(edict_t* ent, Climber& c, const VrMove* move, double time);
 }
 
 extern "C" void VR_ClimbPreThink(edict_t* ent)
@@ -2709,9 +2732,10 @@ static void climbPreThink(edict_t* ent)
     triggeredMantle(ent, c, move, enabled); // (vr_climb_mantle_trigger: before the grips let go)
     for(int h = 0; h < 2; h++)
     {
-        if(c.flatLadder && c.hanging())
+        if((c.flatLadder || c.flatRope) && c.hanging())
         {
-            c.take.pressedLast[h] = move && (move->vrBits0 & grabBit[h]); // (a flat ladder's holds are its own: flatLadderFrame)
+            // (a flat ladder's holds are its own: flatLadderFrame; a flat rope's, flatRopeFrame)
+            c.take.pressedLast[h] = move && (move->vrBits0 & grabBit[h]);
             continue;
         }
         gripHand(ent, c, move, enabled, time, h, inMoves);
@@ -2743,6 +2767,10 @@ static void climbPreThink(edict_t* ent)
         if(c.phase == Phase::Free)
         {
             flatLadder(ent, c, move, time); // (and vr_flat_ladder)
+        }
+        if(c.phase == Phase::Free)
+        {
+            flatRope(ent, c, move, time); // (and vr_flat_rope)
         }
     }
     else
@@ -3289,7 +3317,7 @@ void triggeredMantle(edict_t* ent, Climber& c, const VrMove* move, bool enabled)
     const bool jumpPress = jump && !c.mantleJumpWas; // (a jump held as the hand took hold waits for the next press)
     c.mantleJumpWas = jump;
     const int trigger = mantleTrigger();
-    if(trigger == 0 || !enabled || !move || !c.hanging() || c.flatLadder)
+    if(trigger == 0 || !enabled || !move || !c.hanging() || c.flatLadder || c.flatRope)
     {
         return;
     }
@@ -3859,6 +3887,253 @@ int flatLadderFrame(edict_t* ent, Climber& c, const VrMove& move, double time)
     }
     return 1;
 }
+
+// Flatscreen play's ropes (vr_flat_rope; the climbable ropes and chains, vr_climbrope.cpp, docs/vr-port/ROPES.md "Climbing
+// (flat-screen)"). A headset's hands take a rope hand over hand; here walking forward into one, or meeting one in the
+// air (a jump, a fall, a swing off another rope), takes it with both hands, the hang the headset's rope hang (its
+// rider: his weight swings it, the holds on its line, the QC's climbing bits, the drawn hands, the feet round it, the
+// stamina), only the body is moved by the keys as on the flat ladder (flatLadderFrame): looking up past
+// vr_flat_rope_look, forward climbs up (looking down, down; back the other way; the move up / down keys too) at
+// vr_flat_ladder_speed, the hands going hand over hand along it; looking nearer level the move keys pump its swing
+// (reportRopes); jump lets go keeping the swing (ropeJump). The body hangs with the rope flatRopeGap ahead of its
+// middle, the view's way (turning goes round the rope).
+constexpr float flatRopeGap = 10.f;    // units: the rope this far ahead of the box's middle (the chest's front)
+constexpr float flatRopeStep = 12.f;   // units along the rope: a hand's new hold past the other's
+constexpr float flatRopeTurn = 120.f;  // units/s the body goes round the rope (turning) or in under it at most
+constexpr float flatRopeRetake = 1.f;  // seconds the rope let go of isn't taken again (off one, the next one is taken)
+
+// Which way the keys climb the rope: the move up / down keys; forward looking up past vr_flat_rope_look up, looking down
+// down (back: the other way); 0 none (looking nearer level: the keys pump its swing instead).
+int flatRopeDir(edict_t* ent, const VrMove* move)
+{
+    const int client = NUM_FOR_EDICT(ent) - 1;
+    if(client < 0 || client >= svs.maxclients)
+    {
+        return 0;
+    }
+    const usercmd_t& cmd = svs.clients[client].cmd;
+    if(za::abs(cmd.upmove) > 1.f)
+    {
+        return cmd.upmove > 0.f ? 1 : -1;
+    }
+    const int f = cmd.forwardmove > 1.f ? 1 : cmd.forwardmove < -1.f ? -1 : 0;
+    if(!move || f == 0 || za::abs(move->headAngles.x) < za::clamp(vr_flat_rope_look.value, 5.f, 80.f))
+    {
+        return 0;
+    }
+    return move->headAngles.x < 0.f ? f : -f; // (pitch: down is +)
+}
+
+// Hand `h` takes rope hold `grab`: a grip on it as a headset's (ropeHold's ledge), drawn there if the hand is empty.
+void ropeTake(edict_t* ent, Climber& c, const VrMove& move, int h, const climbrope::Grab& grab)
+{
+    Grip& g = c.grips[h];
+    const bool was = g.active;
+    g.active = true;
+    g.owned = false;
+    g.serial++;
+    Ledge l;
+    l.rope = true;
+    l.ent = EDICT_NUM(grab.ent);
+    l.ropeS = grab.s;
+    l.ropeD = grab.d;
+    l.hold = grab.at;
+    l.top = grab.at.z;
+    const glm::vec3 toBody{ent->v.origin[0] - grab.at.x, ent->v.origin[1] - grab.at.y, 0.f};
+    l.out = glm::length(toBody) > 1e-3f ? glm::normalize(toBody) : glm::vec3{1.f, 0.f, 0.f};
+    (void)holdLedge(g, l);
+    g.allowed = armReach();
+    g.relAtGrab = g.lastRel = handRel(ent, move, h);
+    g.grabOffset = glm::vec3{0.f};
+    g.grabVel = was ? g.grabVel : vec(ent->v.velocity); // (the swing he brings to it: the rider's first)
+    c.flatShow[h] = handEmpty(ent, &move, h);
+    if(c.flatShow[h])
+    {
+        physsound::grab(ent, g.hold, l.ent);
+    }
+    if(debug())
+    {
+        Con_Printf("climb: flat rope: %s hand takes rope %d %.1f along (at %.1f, feet at %.1f)\n", handName(h), grab.ent, grab.s,
+            grab.at.z, ent->v.origin[2] + ent->v.mins[2]);
+    }
+}
+
+// Free: walking forward into a rope (on the ground, not looking down past vr_flat_rope_look), or meeting one in the air,
+// takes it: the main hand half an arm over the shoulders, the off hand flatRopeStep under it.
+void flatRope(edict_t* ent, Climber& c, const VrMove* move, double time)
+{
+    if(!move || vr_flat_rope.value == 0.f || vr_rope_climb.value == 0.f || !hull::isFlat(ent) || ent->v.waterlevel >= 2.f ||
+        time < c.noGrabUntil)
+    {
+        return;
+    }
+    const int client = NUM_FOR_EDICT(ent) - 1;
+    if(client < 0 || client >= svs.maxclients)
+    {
+        return;
+    }
+    const bool ground = (static_cast<int>(ent->v.flags) & FL_ONGROUND) != 0;
+    const usercmd_t& cmd = svs.clients[client].cmd;
+    if(ground && (cmd.forwardmove <= 1.f || move->headAngles.x > za::clamp(vr_flat_rope_look.value, 5.f, 80.f)))
+    {
+        return;
+    }
+    const glm::vec3 origin = vec(ent->v.origin);
+    const glm::vec3 shoulder = ladderShoulder(ent, *move);
+    const float yaw = glm::radians(move->headAngles.y);
+    const glm::vec3 fwd{za::cos(yaw), za::sin(yaw), 0.f};
+    const float reach = ent->v.maxs[0] + za::clamp(vr_flat_ladder_reach.value, 4.f, 48.f);
+    climbrope::Grab grab;
+    if(!climbrope::findGrab(glm::vec3{origin.x, origin.y, shoulder.z}, reach, grab) ||
+        (grab.ent == c.flatRopeLeft && time - c.flatRopeLeftAt < flatRopeRetake) ||
+        grab.at.z < origin.z + ent->v.mins[2] + vr_climb_min_height.value || grab.at.z > shoulder.z + armReach())
+    {
+        return;
+    }
+    const glm::vec3 to{grab.at.x - origin.x, grab.at.y - origin.y, 0.f};
+    if(ground && glm::length(to) > 1.f && glm::dot(glm::normalize(to), fwd) < 0.5f)
+    {
+        return; // (walking: the rope ahead)
+    }
+    // (Along the rope from the point met: up to half an arm over the shoulders, hanging about straight.)
+    climbrope::Grab hi, lo;
+    const float up = za::max(0.f, shoulder.z + 0.5f * armReach() - grab.at.z);
+    if(!climbrope::grabAlong(grab.ent, client, grab.s - up, hi) || !climbrope::grabAlong(grab.ent, client, hi.s + flatRopeStep, lo))
+    {
+        return;
+    }
+    ropeTake(ent, c, *move, 1, hi);
+    ropeTake(ent, c, *move, 0, lo);
+    c.flatRope = true;
+    c.flatRopes++;
+    c.owed = glm::vec3{0.f};
+    c.noRoom = false;
+    c.lastOrigin = origin;
+    transition(ent, c, Phase::Hanging, Why::Took);
+    if(debug())
+    {
+        Con_Printf("climb: flat rope: takes rope %d at (%.1f %.1f %.1f), %s\n", grab.ent, origin.x, origin.y, origin.z,
+            ground ? "walked into" : "in the air");
+    }
+}
+
+// A flat rope's frame (hangFrame's): the body under the hands, the rope ahead of it (going round it as he turns), carried
+// by the holds' motion (the swing), moved up or down by the keys (the shoulders no higher than the top hand, no lower
+// than an arm under the lowest); hand over hand along it; the ground ends it going down, as the rope's end does (let go,
+// the swing kept); the stamina as any hang's.
+int flatRopeFrame(edict_t* ent, Climber& c, const VrMove& move, double time)
+{
+    if(vr_flat_rope.value == 0.f || vr_rope_climb.value == 0.f || !hull::isFlat(ent))
+    {
+        transition(ent, c, Phase::Free, Why::Forced);
+        return 0;
+    }
+    const int client = NUM_FOR_EDICT(ent) - 1;
+    int held = 0, hi = -1, lo = -1;
+    glm::vec3 carry{0.f};
+    for(int h = 0; h < 2; h++)
+    {
+        const Grip& g = c.grips[h];
+        if(g.active && g.rope)
+        {
+            carry += holdNow(g) - g.lastHold;
+            held++;
+            hi = hi < 0 || g.ropeS < c.grips[hi].ropeS ? h : hi;
+            lo = lo < 0 || g.ropeS >= c.grips[lo].ropeS ? h : lo;
+        }
+    }
+    if(held == 0)
+    {
+        transition(ent, c, Phase::Free, Why::Forced);
+        return 0;
+    }
+    carry /= static_cast<float>(held);
+    const int dir = c.phase == Phase::Slipping ? -1 : flatRopeDir(ent, &move);
+    const float dt = static_cast<float>(host_frametime);
+    const glm::vec3 origin = vec(ent->v.origin);
+    const float shoulderUp = ladderShoulder(ent, move).z - origin.z;
+    const float speed = c.phase == Phase::Slipping ? pmove::hangSlipSink : za::clamp(vr_flat_ladder_speed.value, 20.f, 400.f);
+    const float yaw = glm::radians(move.headAngles.y);
+    const glm::vec3 fwd{za::cos(yaw), za::sin(yaw), 0.f};
+    const glm::vec3 low = holdNow(c.grips[lo]), high = holdNow(c.grips[hi]);
+    glm::vec3 target = origin + carry + glm::vec3{0.f, 0.f, static_cast<float>(dir) * speed * dt};
+    // (Level: to its place behind the rope, at most flatRopeTurn a second: turning goes round it.)
+    const glm::vec3 place{low.x - fwd.x * flatRopeGap, low.y - fwd.y * flatRopeGap, target.z};
+    if(const glm::vec3 d = place - target; glm::length(d) > 1e-3f)
+    {
+        target += d * za::min(1.f, flatRopeTurn * dt / glm::length(d));
+    }
+    const float highest = high.z - shoulderUp + 2.f;
+    const float lowest = low.z - armReach() - shoulderUp;
+    target.z = za::clamp(target.z, za::min(lowest, origin.z + carry.z), za::max(highest, origin.z + carry.z));
+    moveBody(ent, target);
+    const glm::vec3 now = vec(ent->v.origin);
+    // (The body couldn't go where the swing took it, level: a wall; the swing stopped that way, as the headset's hang.)
+    climbrope::riderBlocked(client, glm::vec3{target.x - now.x, target.y - now.y, 0.f});
+    setVec(ent->v.velocity, glm::vec3{0.f});
+    ent->v.flags = static_cast<float>(static_cast<int>(ent->v.flags) & ~FL_ONGROUND);
+    c.lastOrigin = now;
+    SV_CheckWater(ent);
+    for(int h = 0; h < 2; h++)
+    {
+        Grip& g = c.grips[h];
+        g.lastHold = holdNow(g);
+        g.lastRel = handRel(ent, move, h);
+        c.flatShow[h] = g.active && handEmpty(ent, &move, h);
+    }
+    const bool held2[2] = {c.grips[0].active, c.grips[1].active};
+    if(dir < 0)
+    {
+        // Down at the ground: off the rope, standing.
+        const trace_t below = tracePlayer(ent, now, now - glm::vec3{0.f, 0.f, 2.f});
+        if(!below.startsolid && below.fraction < 1.f && below.plane.normal[2] >= 0.7f)
+        {
+            transition(ent, c, Phase::Free, Why::Forced);
+            ent->v.flags = static_cast<float>(static_cast<int>(ent->v.flags) | FL_ONGROUND);
+            if(debug())
+            {
+                Con_Printf("climb: flat rope: down at the ground at (%.1f %.1f %.1f), lets go\n", now.x, now.y, now.z);
+            }
+            return 1;
+        }
+    }
+    // Hand over hand: going up, the lower hand (once under the shoulders) flatRopeStep over the other's; going down, the
+    // higher (once half an arm over them) flatRopeStep under the other's. (Not past the rope's top or its free end.)
+    const glm::vec3 shoulder = ladderShoulder(ent, move);
+    const int ropeEnt = c.grips[hi].entNum;
+    climbrope::Grab next;
+    if(held == 2 && dir > 0 && holdNow(c.grips[lo]).z < shoulder.z &&
+        climbrope::grabAlong(ropeEnt, client, c.grips[hi].ropeS - flatRopeStep, next) && next.s < c.grips[hi].ropeS - 1.f)
+    {
+        ropeTake(ent, c, move, lo, next);
+    }
+    else if(held == 2 && dir < 0 && holdNow(c.grips[hi]).z > shoulder.z + 0.5f * armReach() &&
+            climbrope::grabAlong(ropeEnt, client, c.grips[lo].ropeS + flatRopeStep, next) && next.s > c.grips[lo].ropeS + 1.f)
+    {
+        ropeTake(ent, c, move, hi, next);
+    }
+    else if(held == 1 && climbrope::grabAlong(ropeEnt, client, c.grips[hi].ropeS + flatRopeStep, next))
+    {
+        ropeTake(ent, c, move, 1 - hi, next); // (one hand on it: the other takes it under)
+    }
+    if(dir < 0 && now.z <= lowest + 0.5f)
+    {
+        // At the rope's end over a drop (no more of it under the lowest hand): let go, the swing kept.
+        c.grips[0].active = c.grips[1].active = false;
+        transition(ent, c, Phase::Free, Why::Released, nullptr, held2);
+        if(debug())
+        {
+            Con_Printf("climb: flat rope: at its end, lets go at (%.1f %.1f %.1f)\n", now.x, now.y, now.z);
+        }
+        return 1;
+    }
+    hangStamina(ent, c, time);
+    if(c.draining && fields().vr_climb_drain >= 0)
+    {
+        fieldFloat(ent, fields().vr_climb_drain) = 1.f;
+    }
+    return 1;
+}
 } // namespace
 
 namespace
@@ -3919,6 +4194,10 @@ int hangFrame(edict_t* ent, Climber& c, double time)
     if(c.flatLadder)
     {
         return flatLadderFrame(ent, c, *move, time); // (flatscreen play's ladder: the keys move the body)
+    }
+    if(c.flatRope)
+    {
+        return flatRopeFrame(ent, c, *move, time); // (and its rope)
     }
 
     // The pull: what the holding hands moved relative to the body since the last frame, the other way, each weighted
@@ -4505,8 +4784,8 @@ bool holdOf(const Climber* c, int h, glm::vec3& hold, glm::vec3& out)
     const Climber::FlatHold* flat = c && !c->grips[h].active && c->phase == Phase::Mantling && c->flatHolds[h].on
                                         ? &c->flatHolds[h]
                                         : nullptr;
-    // (A flat ladder's hand holding a weapon keeps it: not drawn on its rung, flatLadderFrame.)
-    if(!c || (!(c->grips[h].active && (!c->flatLadder || c->flatShow[h])) && !flat))
+    // (A flat ladder's hand holding a weapon keeps it: not drawn on its rung, flatLadderFrame; a flat rope's too.)
+    if(!c || (!(c->grips[h].active && ((!c->flatLadder && !c->flatRope) || c->flatShow[h])) && !flat))
     {
         return false;
     }
@@ -4687,6 +4966,13 @@ int qvr::climb::flatMantles(edict_t* ent, bool& mantling)
     const Climber* c = climberOf(ent);
     mantling = c && c->phase == Phase::Mantling;
     return c ? c->flatMantles : 0;
+}
+
+int qvr::climb::flatRopes(edict_t* ent, bool& climbing)
+{
+    const Climber* c = climberOf(ent);
+    climbing = c && c->flatRope && c->hanging();
+    return c ? c->flatRopes : 0;
 }
 
 int qvr::climb::flatLadders(edict_t* ent, bool& climbing)

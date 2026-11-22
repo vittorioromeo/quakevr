@@ -37,6 +37,9 @@ Step onto vrbrushholes' drain (a frame round a square hole exactly as wide as Qu
 With You Can Be Disarmed on, let a knight's sword land on your shotgun (not across it): your hand is knocked aside, buzzes, rattles and "Your grip on your weapon loosens!" shows; a second blow within 3 seconds knocks the gun out. {test:pd_jolts}
 With You Can Be Disarmed on, let an armed grunt punch your body twice within 3 seconds while holding the shotgun: the first warns, the second knocks the gun out; a dog's bite never does. {test:pd_jolts}
 With You Can Be Disarmed on, take an enforcer's laser on your gun: one laser only warns, a second soon after knocks it out; check the warning reads clearly before the drop. {test:pd_jolts}
+Flat-screen: walk forward into a rope or chain and look up while holding forward; you should climb it with the hands going hand over hand on it, and looking down climbs you back down until you step off at the floor. {test:ropes}
+Flat-screen: on a rope, look straight ahead and hold forward to pump the swing towards the next rope, then press jump near the top of the swing; you should fly off with the swing and catch the next rope. {test:ropes}
+Flat-screen or VR: with a second player watching in multiplayer, climb a rope and swing on it; on his screen your hands should stay on the rope and your feet wrapped round it as it swings. {test:ropes}
 
 [1. Dwell]
 Dwell: Select Campaign > Dwell, play start and d1m1 (triggered monsters wait, checkpoints autosave); Map Library: Ancient and Underdark Overbright udob1 load and play by Copper rules {test:hub_start}

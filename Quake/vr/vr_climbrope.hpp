@@ -57,6 +57,10 @@ struct Grab
 };
 // Server: the rope piece nearest `hand` within `reach` units of its surface (not at its top) -> true and the hold there.
 [[nodiscard]] bool findGrab(const glm::vec3& hand, float reach, Grab& out);
+// Server: the hold `s` units along rope `ent` from its top (kept off its top and its free end) as client `client` would
+// have it now: on his rider's line (his own), or on its points. False: the rope is gone. (Flat play's hand over hand,
+// vr_climb.cpp flatRopeFrame.)
+[[nodiscard]] bool grabAlong(int ent, int client, float s, Grab& out);
 // Server: where a hold of client `client` (0-based) on rope `ent` is now: on its rider's line (his own), or on its points.
 // False: the rope is gone.
 [[nodiscard]] bool holdAt(int ent, int client, float s, float d, glm::vec3& at);
@@ -74,6 +78,8 @@ void setPump(int client, const glm::vec3& accel);
 [[nodiscard]] bool riding(int client, int& ent, glm::vec3& handVel);
 // Client: the rope passing within `within` units of `near` -> true, and its point at height `z` (or its bottom end).
 [[nodiscard]] bool clientRopeAt(const glm::vec3& near, float within, float z, glm::vec3& at);
+// Client: how far `p` is from the nearest rope's pieces (units; 1e9: none). (vr_mp_avatars' mp_ropepose.)
+[[nodiscard]] float clientRopeDistance(const glm::vec3& p);
 
 // Client: QVR_SVC_CLIMBROPE.
 void parse();
