@@ -1542,7 +1542,20 @@ za::Vector<Item> pageTextureStudio()
         info(textureStudioStatus),
         command("Line Up the Type Ahead", "vr_humstudio_lineup")
             .help("vr_humstudio_lineup: five of the type below ahead of you, one per category (a shotgun as it is, a rocket "
-                  "launcher, the thunderbolt, a flamethrower, a poison sprayer: AD's guns with AD's data), the last row gone."),
+                  "launcher, the thunderbolt, a flamethrower, a poison sprayer: AD's guns with AD's data), the last row gone, "
+                  "with the options below."),
+        toggle("Line Up Without Backpacks", vr_humstudio_nopack)
+            .help("vr_humstudio_nopack: the lineup wears no backpacks (they get in the way of the backs and heads; paint a "
+                  "pack on its own stand)."),
+        toggle("Line Up a Backpack on a Stand", vr_humstudio_packstand)
+            .help("vr_humstudio_packstand: a backpack alone at the lineup's right end, its back to you, to paint (Part: Pack)."),
+        toggle("Line Up Without Armour", vr_humstudio_noarmour).help("vr_humstudio_noarmour: the lineup wears no armour plates."),
+        toggle("Line Up Without Weapons Drawn", vr_humstudio_noweapon)
+            .help("vr_humstudio_noweapon: the lineup's weapons are not drawn (still held: the hands stay where they hold them)."),
+        toggle("Hold Still", vr_agrunt_freeze)
+            .help("vr_agrunt_freeze: every armed humanoid holds still in its idle pose, its AI held (the turntable's turn stays)."),
+        slider("Turntable", vr_humstudio_turn, 0.f, 345.f, 15.f, "%.0f deg")
+            .help("vr_humstudio_turn: the lineup turned in place this far from facing you (with Hold Still they stay turned)."),
         cycle("Type", vr_humstudio_kind, {{0.f, "Grunt"}, {1.f, "Enforcer"}, {2.f, "Knight"}, {3.f, "Death Knight"}})
             .help("vr_humstudio_kind: the row of the table edited, and whose mask the palette rows below edit."),
         cycle("Weapon Category", vr_humstudio_cat,
@@ -1583,8 +1596,14 @@ za::Vector<Item> pageTextureStudio()
     items.pushBack(cycle("Paint As", vr_humstudio_class, {{1.f, "Clothes"}, {2.f, "Pack"}, {3.f, "Never"}, {0.f, "Erase"}})
             .help("vr_humstudio_class: what a stroke paints: clothes, pack, never (left as it is, whatever its row), or "
                   "erase (back to its row's)."));
-    items.pushBack(slider("Brush Radius", vr_humstudio_brush, 0.f, 12.f, 1.f, "%.0f texels")
-            .help("vr_humstudio_brush: the brush's radius in the skin's texels."));
+    items.pushBack(cycle("Paint On", vr_humstudio_target, {{0.f, "The Part Picked"}, {1.f, "Bodies"}, {2.f, "Packs"}, {3.f, "Either"}})
+            .help("vr_humstudio_target: what the ray paints: the part picked (Clothes: the bodies, a pack in the way passed "
+                  "through; Pack: the packs), bodies, packs, or whichever is nearest."));
+    items.pushBack(slider("Brush Radius", vr_humstudio_brush, 0.f, 20.f, 0.5f, "%.1f cm")
+            .help("vr_humstudio_brush: the brush's radius on the model's surface (0: the texel under the ray alone)."));
+    items.pushBack(toggle("Show the Brush", vr_humstudio_cursor)
+            .help("vr_humstudio_cursor: while painting, the texels the brush would change shown yellow on the model (on every "
+                  "place its skin repeats them) and on the skin's flat view in the top right."));
     items.pushBack(command("Undo", "vr_humstudio_undo").help("vr_humstudio_undo: the last stroke or row change undone."));
     items.pushBack(command("Clear This Skin's Painting", "vr_humstudio_clearpaint")
             .help("vr_humstudio_clearpaint: its painted texels back to their rows' (undoable)."));
@@ -1597,6 +1616,9 @@ za::Vector<Item> pageTextureStudio()
     items.pushBack(command("Check the Masks", "vr_humstudio_check")
             .help("vr_humstudio_check: per mask its clothes and pack texels and how many are on the flesh and blood rows, "
                   "to the console."));
+    items.pushBack(command("Check the Pick", "vr_humstudio_picktest")
+            .help("vr_humstudio_picktest: each type lined up in turn, rays at its hands, forearm, the back of its head and its "
+                  "back beside the pack must paint the texel there (pass/fail lines to the console)."));
     return items;
 }
 

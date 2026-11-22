@@ -2912,7 +2912,7 @@ QVR_CVAR(vr_arena_xray, "1", CVAR_ARCHIVE | QVR_RULE)                    // 1: a
 QVR_CVAR(vr_arena_xray_left, "2", CVAR_ARCHIVE | QVR_RULE)               // ... once this many of its foes are left (up, and still to come)
 QVR_CVAR(vr_arena_xray_distance, "800", CVAR_ARCHIVE | QVR_RULE)         // ... and only those farther than this from your eyes (units; 0: at any distance)
 QVR_CVAR(vr_arena_xray_shown, "0", CVAR_ROM)                  // (read-only: the foes the last view outlined through walls; arena test 16 reads it)
-QVR_CVAR(vr_humlook, "1", CVAR_ARCHIVE)                        // 1: armed humanoids recoloured by the weapon they spawned with (quakevr/humlook.txt; vr_humlook.cpp, ARMED_MONSTERS.md "Recolours by weapon")
+QVR_CVAR(vr_humlook, "1", CVAR_ARCHIVE | QVR_OWN)              // 1: armed humanoids recoloured by the weapon they spawned with (quakevr/humlook.txt; vr_humlook.cpp, ARMED_MONSTERS.md "Recolours by weapon"); each viewer's own (how his game draws them; mpopen: mp_rules)
 QVR_CVAR(vr_humlook_known, "0", CVAR_ROM)                    // (read-only: the entities whose recolour the client knows; vr_ad_test 219 reads it)
 QVR_CVAR(vr_humlook_file, "humlook.txt", CVAR_NONE)          // debug (vr_humlook.cpp): the recolours' table, in quakevr/ (the tests point it elsewhere)
 QVR_CVAR(vr_humlook_masks_file, "humlook_masks.txt", CVAR_NONE) // debug (vr_humlook.cpp): which texels they dye (palette rows, painted texels), in quakevr/
@@ -2928,8 +2928,15 @@ QVR_CVAR(vr_humstudio_light, "1", CVAR_NONE)      // debug: ... the texels' ligh
 QVR_CVAR(vr_humstudio_tint, "0", CVAR_NONE)       // debug: ... 0 the dye, 1 the texel's own colour times the colour
 QVR_CVAR(vr_humstudio_overlay, "0", CVAR_NONE)    // debug: 1: the masks shown on the recoloured (clothes green, pack blue, the rest dark red)
 QVR_CVAR(vr_humstudio_paint, "0", CVAR_NONE)      // debug: 1: painting: a trigger (flat: attack) paints where you point on an armed humanoid, a grip erases, B/Y undoes
-QVR_CVAR(vr_humstudio_brush, "2", CVAR_NONE)      // debug: the brush's radius (skin texels)
+QVR_CVAR(vr_humstudio_brush, "4", CVAR_NONE)      // debug: the brush's radius on the model's surface (cm; 0: the texel under the ray alone): the texels within it, on whatever triangles carry them
 QVR_CVAR(vr_humstudio_class, "1", CVAR_NONE)      // debug: what it paints: 1 clothes, 2 pack, 3 never (left as it is), 0 erase (back to its palette row's)
+QVR_CVAR(vr_humstudio_target, "0", CVAR_NONE)     // debug: what the ray paints on: 0 the part picked (clothes: the bodies, the packs passed through; pack: the packs), 1 bodies, 2 packs, 3 either (the nearest)
+QVR_CVAR(vr_humstudio_cursor, "1", CVAR_NONE)     // debug: 1 while painting, the texels the brush would change shown yellow (on every model with that skin) and the skin's flat view in the top right
+QVR_CVAR(vr_humstudio_nopack, "1", CVAR_NONE)     // debug: 1 the lineup wears no backpacks (vr_humstudio_packstand shows one alone)
+QVR_CVAR(vr_humstudio_noarmour, "1", CVAR_NONE)   // debug: 1 the lineup wears no armour plates
+QVR_CVAR(vr_humstudio_noweapon, "0", CVAR_NONE)   // debug: 1 the lineup's weapons not drawn (held as before)
+QVR_CVAR(vr_humstudio_packstand, "1", CVAR_NONE)  // debug: 1 a backpack on a stand of its own at the lineup's end, to paint
+QVR_CVAR(vr_humstudio_turn, "0", CVAR_NONE)       // debug: the lineup turned this many degrees from facing you (a turntable; with Hold Still, vr_agrunt_freeze, they stay so)
 // Survival Arena's difficulty (QC/vr_arena.qc, VR_ARENA_Skill): every 1 above is today's arena at Normal skill, and
 // this moves the rest of them by the skill level -- the shape of the armed humanoids' vr_agrunt_ai_skill, its own knob.
 QVR_CVAR(vr_arena_skill_impact, "1", CVAR_ARCHIVE | QVR_RULE)           // Difficulty Impact: how much the skill level moves the arena (Easy softer, Hard and Nightmare harder); 0 skill changes nothing about it, Normal always as set

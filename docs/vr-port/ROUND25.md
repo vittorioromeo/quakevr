@@ -7449,6 +7449,46 @@ hitscan's always did.
   before (the lightning bolt's limb case kills nothing there, untouched by this); scenario_check PASS (179 run, 0
   failed); Dev and ThinLTO built, 0 warnings.
 
+## mpopen: the open multiplayer items (agent/mpopen, 2026-11-22)
+
+- **1. Net version 43** (vr_api.h's history line): QVR_SVC_BOTPATH 53 (flakehunt) and QVR_SVC_HUMLOOK 54 (humrepl)
+  landed on 42, and 42 itself was two wires (syncfix4 coarsened the worn gear in the move and added
+  QVR_SVC_EJECTOTHER 52 after ragsync had shipped 42). brushholes, bladeone and projheadpop changed no message. mp_version
+  passes: old and new builds refuse each other with the reason.
+- **2. Another player's gore on his copy**: every client runs a struck player's gore as he runs his own, through the
+  same code (vr_playergore.cpp: spots on his copy's capsules, `selfshot::buildCopy`; vr_bloodstream.cpp): his blood
+  streams (so their pour's sound is heard by every client, not only his), the splash and the drips for
+  `otherDripSeconds` after his last wound, by the viewer's vr_player_gore settings; forgotten when he lives again or
+  leaves (vr_wounds.cpp copyLives).
+- **3. Small effects**: the slide's scuff and scrape, the mantle grunt (climb::grunt: SV_StartSound), the ammo screen's
+  r20 light and the barrel heat's r30 were already everyone's (syncaudit checks them). New: his auto pump drawn
+  stroking on his copy (`view::posePump` shared with yours, `autopump::otherTravel`), his casings thrown out of it.
+  mp_syncaudit: the gore, pour and stroke checks, the lights by their exact keys (33 passed).
+- **4. Thrown props and ragdolls at the client** (mp_ragsync): the brief's 10-20 unit crate/sword drift did not come
+  back in 20 runs (positions p95 0.03-0.05 every run); two other faults did. (a) A crate tipped on end (pitch 90) has
+  two equal angle readings that the server's alternate tick to tick; `interpEntity` slerped them as view angles, but an
+  alias model is drawn with its pitch inverted (held::axesFromAngles), so the two were different turns and the crate
+  was drawn spinning between them (143 degrees off, p95 3.4, 1 run in 5): now slerped as drawn (pitch negated around
+  `mpavatar::slerpAngles`). (b) The ragdolls' pose ring (24, a third of a second) was shorter than the interpolation
+  clock's furthest lag after a hitch (delay 0.25 + snap 0.25 s), so the parts were drawn held at the oldest pose, ahead
+  (p95 9.3 units, 1 run in 5): ring 40, with `netsnap::interpReach` and static_asserts tying both histories to it.
+  vr_mp_bodylog's client lines now say how each entity was interpolated (`way= h= rs= why=`, `netsnap::interpWay`).
+  10 runs after: 10/10, crate and sword p95 0.04-0.05 units and 0.01-1.44 degrees.
+- **5. Test noise.** The suite's order effect ("server exited waiting for the server on e1m1" from some scenario on,
+  each passing alone) was a port clash, not state left by a scenario: every run used the fixed base 27500, so two
+  suites at once (another worker's, a kit run) took each other's server port. mp_harness.py now gives each checkout
+  its own block of 32 ports (`default_base_port`: 27600 + crc32(checkout) % 60 * 32, never 27500), moves a scenario to
+  the next free block when its block is held at the start (`free_base_port`, said in a note), notes any game or port
+  still held when a scenario ends, and a game that exits while waited for now shows its last lines (a refused bind is
+  readable). mp_loss's up-link check: the mean packet times 72 against 12288 B/s (B sends a packet a frame, and his
+  frames a second followed the machine's load: 9525-12975 B/s run to run; now 8712). vr_pickup_test 15: 10/10 (13/0)
+  since flakehunt's fix; nothing to change. mp_debugviz_listen's bot case: explained, not fixed (BACKLOG section 1):
+  vr_bot_freeze stills the swing but also its drawn weapon at a listen host. mp_rules: `vr_humlook` (humrepl, on Armed
+  Humanoid Replacements, a rule page) had no kind: QVR_OWN (how each viewer's game draws them).
+- **Checks:** the plain suite in order in 3 slices (each under 40 min; 66 scenarios + mp_netsafe each): 64 passed;
+  mp_rules (vr_humlook) and mp_debugviz_listen (the freeze) failed; after the kind and the revert both pass (16/0,
+  8/0). No scenario left a game or port held. mp_ragsync 10/10, vr_pickup_test 15 10/10, mp_syncaudit 33/0.
+
 ## vrcenterprint2: VR centre messages drawn by the flat visor's own popup code (agent/vrcenterprint2, 2026-11-22)
 
 - **His verdict (11-22):** vrcenterprint's panel (the contents image, a plain black box with a thin line) was not the flat
@@ -7528,3 +7568,26 @@ the loopback message as a remote one does); nothing mode-specific yet (P2 is VR'
   entries. scenario_check PASS (185 run, 0 failed). Dev and ThinLTO built, 0 warnings.
 - **Left (P2, P3):** the VR grab and hand-over-hand climb with the legs' IK and momentum on letting go, the flat
   auto-climb, the pumped swing to a cap, the climber's pose in MP; the toolgun's Remove/Physgun aiming at ropes.
+## studio2: Texture Studio painting hits what you aim at (agent/studio2, 2026-11-22)
+
+His words (flat): hands, forearms and parts next to the backpacks hard to paint, something else painted; the back of a
+grunt's head intercepted by the backpack; wants packs paintable alone, a lineup without packs and armour, a cursor.
+
+- Cause: the pick posed the .mdl's animation frame (not the drawn body: rig2 skinning with the arms' IK solve), ignored
+  the entity's scale and transforms, and took every keyed entity, the worn pack included. Now `modelcollide::drawnTriangles`
+  (as drawn), only `vr_humstudio_target`'s (0: the part picked; 1 bodies, 2 packs, 3 either), UV from the triangle's
+  barycentrics (.mdl order).
+- Brush `vr_humstudio_brush` is now cm on the surface (default 4; 0 one texel): texels within it on any triangle (no x
+  wrap across the skin halves). Cursor `vr_humstudio_cursor` 1: mask value 3 drawn yellow by the shader wherever the skin
+  shows it, plus the skin's flat view top right (`studioDraw2D`, gl_screen.c's 2D pass).
+- Lineup (QC `VR_HUM_LineupKind(p, kind, opts, turn)`): nopack 1, noarmour 1, noweapon 0 (props' alpha 0.001), packstand 1
+  (a backpack with its own .vr_hum_look before the row's right half), `vr_humstudio_turn` (`VR_HUM_LineupTurn`), 64 apart
+  (44 let an enforcer's gun arm reach into its neighbour: rays at its hand met the neighbour). Hold Still is
+  `vr_agrunt_freeze`. No T/A pose frame in the stock models.
+- His saved humlook.txt / humlook_masks.txt promoted to the shipped files (read and written back identical by the test).
+  `vr_humstudio_check` no longer counts hand-painted texels on flesh rows (his paint is meant).
+- Tests: `Misc/quakevr/humstudio2_test.sh` PASS (round trip identical; `vr_humstudio_picktest` 130 passed, 0 failed:
+  hands, forearm, back of the head, back beside the pack, a stroke and its undo, and through a pack on the knights' and
+  death knights' (10); grunts and enforcers have no level ray from behind with a pack first: skipped). humrepl2_test PASS
+  (5 masks, 0 on flesh). Dev build 0 warnings.
+- Not seen in a screenshot (the mock view's ray met no one): the yellow cursor and the skin view; check in flat and VR.
