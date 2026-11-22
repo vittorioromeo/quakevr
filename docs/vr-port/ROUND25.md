@@ -7829,5 +7829,8 @@ Phase 3's rest (ROPES.md "Climbing (flat-screen)", "Multiplayer", "Tests", "Know
   load (`--load 26-30` on 32 CPUs, games at normal priority): mp_predict's state-count checks (swam 144-149 of 150,
   flat ground 11-20 of 50, own move 5-16 moves) and mp_guard's B6 segment (11-19 of 20 compared), and joins timing
   out; not chased (the counts are of states that come slower under such load).
-- Checks: mp_guard 10/10 and mp_predict 10/10 at `--load 12` (bases/mp; no honest rewind held, every rest gap 0.00).
+- Checks: mp_guard 10/10 and mp_predict 10/10 at `--load 12` (bases/mp; no honest rewind held, every settled rest gap
+  0.00). The plain suite in 3 slices in order (10, 17, 15 min; each with mp_netsafe): 67 of 68 passed; mp_ground's
+  "B's grip takes the shotgun by that hotspot" failed once and passed 2/2 alone. scenario_check PASS (191 run, 0
+  failed). Dev and ThinLTO builds 0 warnings.
 
