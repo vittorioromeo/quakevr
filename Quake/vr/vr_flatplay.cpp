@@ -34,6 +34,7 @@
 #include "vr_seat.hpp"
 #include "vr_api.h"
 #include "vr_avatar.hpp"
+#include "vr_axestick.hpp"
 #include "vr_bullettime.hpp"
 #include "vr_cvars.hpp"
 #include "vr_tunables.hpp"
@@ -1195,6 +1196,28 @@ void twoHandPose(hands::State& s, int h, const glm::vec3& fwd, const glm::vec3& 
         vr_flat_melee_2h_pitch, vr_flat_melee_2h_yaw, vr_flat_melee_2h_roll);
 }
 
+// The spear pose (lancespear; his notes 2026-11-21: "it should be held like a spear"): a pole weapon in hand `h` (its own
+// Other Hand Anywhere 3, the Crystal Lance), already aimed along the crosshair's way (its Shot Pitch is its pole's, so the
+// pole points there), moved by vr_flat_pole_fwd/_up/_out (`fwd`, `right`, `up`: the frame the hands are placed in) and
+// rolled about the pole by _roll (no other turn: the beam goes along the pole to the crosshair). The other hand goes on
+// the pole (vr_view_weapon.cpp chooseGrip, vr_flat_pole_off_along; vr_view_hands.cpp steadyOther, _off_roll).
+void polePose(hands::State& s, int h, const glm::vec3& fwd, const glm::vec3& right, const glm::vec3& up)
+{
+    const int slot = heldIn(h);
+    if(!twohand::poleWeapon(slot))
+    {
+        return;
+    }
+    const float side = h == HAND_OFF ? -1.f : 1.f;
+    const auto units = [](const Tunable& t) { return za::clamp(t.value, -20.f, 20.f); };
+    s.pos[h] += fwd * units(vr_flat_pole_fwd) + right * (side * units(vr_flat_pole_out)) + up * units(vr_flat_pole_up);
+    const glm::vec3 pole = hands::forward(weapons::shotAngles(s.rot[h], slot, h == HAND_OFF));
+    const glm::quat turn = glm::angleAxis(glm::radians(za::clamp(vr_flat_pole_roll.value, -90.f, 90.f)) * side, pole);
+    glm::vec3 f, r, u;
+    hands::angleVectors(s.rot[h], f, r, u);
+    s.rot[h] = hands::anglesFromVectors(glm::normalize(turn * f), glm::normalize(turn * u));
+}
+
 // The parry's guard held in two hands (vr_flat_melee_2h_parry_*): over the guard's pose, by both shares (only in the stance).
 void twoHandParryPose(hands::State& s, int h, const glm::vec3& fwd, const glm::vec3& right, const glm::vec3& up)
 {
@@ -2147,7 +2170,7 @@ namespace
 
 bool holdsThing(int h)
 {
-    return h >= 0 && h < HAND_COUNT && (carriedBy(h) != 0 || held::heldEntity(h) != 0);
+    return h >= 0 && h < HAND_COUNT && (carriedBy(h) != 0 || held::heldEntity(h) != 0 || axestick::handOnBlade(h));
 }
 
 bool propInFist(int h)
@@ -2270,7 +2293,24 @@ int routeProbePunches[HAND_COUNT]{0, 0}; // seat-shared: a probe's own (vr_flat_
 // (QC vr_flatitems_test 10) and printed: bits 1 LMB fires the main hand, 2 LMB the off hand, 4 RMB the main hand, 8 RMB
 // the off hand, 16 RMB is the ironsight's, 32 the ironsight is up (flatsight::adsShare), 64 the main hand punched (struck
 // with what it holds) since the last `start`, 128 the off hand did. Only the hands' contents decide the routing
-// (routeButtons: not a wall, a reload or a swap). `start` only notes the punch counts.
+// (routeButtons: not a wall, a reload or a swap). `start` only notes the punch counts. And the hands' holds (vr_embed_test 52):
+// 256 a hand on the other hand's gun (its two-handed grip, going to it, or the stance's look), 512 the main hand drawn on the
+// blade it holds stuck in a body (within probeOnBlade of the blade's origin), 1024 the off hand.
+constexpr float probeOnBlade = 16.f; // units
+
+// How far `h` is drawn from the blade stuck in a body it holds (units); -1: none, or not drawn.
+[[nodiscard]] float drawnFromBlade(int h)
+{
+    const int ent = axestick::heldStat(h) / 4;
+    glm::vec3 pos, rot;
+    if(ent <= 0 || ent >= cl.num_entities || !view::drawnHandPose(h, pos, rot))
+    {
+        return -1.f;
+    }
+    const entity_t& e = cl_entities[ent];
+    return glm::distance(pos, glm::vec3{e.origin[0], e.origin[1], e.origin[2]});
+}
+
 void routeProbe_f()
 {
     if(Cmd_Argc() > 1 && q_strcasecmp(Cmd_Argv(1), "start") == 0)
@@ -2285,12 +2325,19 @@ void routeProbe_f()
                (r.fire[HAND_OFF] ? 8 : 0) | (r.rmbAims ? 16 : 0) | (flatsight::adsShare() > 0.f ? 32 : 0);
     bits |= (fs().punches[HAND_MAIN] != routeProbePunches[HAND_MAIN] ? 64 : 0) |
             (fs().punches[HAND_OFF] != routeProbePunches[HAND_OFF] ? 128 : 0);
+    const auto onGun = [](int h) {
+        return twohand::helping(h) || flatsight::adsHelper(h) || flatsight::lookShare(h) > 0.f;
+    };
+    const float bladeMain = drawnFromBlade(HAND_MAIN);
+    const float bladeOff = drawnFromBlade(HAND_OFF);
+    bits |= (onGun(HAND_MAIN) || onGun(HAND_OFF) ? 256 : 0) | (bladeMain >= 0.f && bladeMain < probeOnBlade ? 512 : 0) |
+            (bladeOff >= 0.f && bladeOff < probeOnBlade ? 1024 : 0);
     Cvar_SetValueQuick(&vr_flat_route_seen, static_cast<float>(bits));
     Con_Printf("flatroute: %d (main weapon %d thing %d, off weapon %d thing %d; LMB main %d off %d, RMB main %d off %d, "
-               "aims %d, ads %.2f, punched main %d off %d)\n",
+               "aims %d, ads %.2f, punched main %d off %d; on the gun %d, drawn from its blade main %.1f off %.1f)\n",
         bits, heldIn(HAND_MAIN), holdsThing(HAND_MAIN) ? 1 : 0, heldIn(HAND_OFF), holdsThing(HAND_OFF) ? 1 : 0, bits & 1,
         (bits >> 1) & 1, (bits >> 2) & 1, (bits >> 3) & 1, (bits >> 4) & 1, static_cast<double>(flatsight::adsShare()),
-        (bits >> 6) & 1, (bits >> 7) & 1);
+        (bits >> 6) & 1, (bits >> 7) & 1, (bits >> 8) & 1, static_cast<double>(bladeMain), static_cast<double>(bladeOff));
 }
 
 } // namespace
@@ -3486,6 +3533,7 @@ void poseHands(hands::State& s, const glm::vec3& aim)
             stepTwoHand(s, h, static_cast<float>(dt));
         }
         twoHandPose(s, h, fwd, right, up);
+        polePose(s, h, fwd, right, up);
 
         // The melee parry's guard (vr_flat_parry_*: the right mouse button held), over the hold; a swing goes from it.
         // (Held in two hands: vr_flat_melee_2h_parry_* over it.)

@@ -15,8 +15,8 @@
 // Only monsters with a ragdoll rig (vr_ragdoll.cpp seedTables: their bone named "head") and a head gib here
 // (VR_Decap_HeadModel) are beheaded; the rest die as before. Ragdolls off: nothing.
 
-float VR_DECAP_BLADE_SWORD = 0.4;  // the blade proper: from this share of the way from the grip to the tip (VR_MELEE_BLADE_FROM)
-float VR_DECAP_BLADE_AXE = 0.6;    // an axe's head (25..37 units up its 40)
+// Where the blade proper (what beheads and cuts limbs) starts: the drawn shape's Blade Start, VR_Blade_From
+// (vr_melee_params.qc; docs/vr-port/BLADES.md). No start of decap's own (ROUND25.md "axelag", "bladeone").
 float VR_DECAP_DIED_LATE = 0.3;    // s: a thrown axe's blade going in this soon after its hit box killed the monster still beheads it
 float VR_DECAP_SPURT_TICK = 0.05;  // s between the fountain's spurts
 float VR_DECAP_BEAT = 2.2;         // Hz: its pulses
@@ -280,13 +280,16 @@ float(float xHand, vector xAt, float xLive) VR_Decap_Slash =
     {
         return 0;
     }
-    float f = ((xAt - b.mh_grip) * line) / (len * len); // (the grip 0, the tip 1, the pommel below 0)
+    // (The grip 0, the tip 1, the pommel below 0.) A live blow's own: the drawn blade's point that struck (mh_c_f; its
+    // contact lies up to the swept radius off it: the Super Axe's Blade From 0.05 struck at 0.04); a corpse's where it met.
+    float f = xLive ? b.mh_c_f : VR_Blade_Along(b.mh_grip, b.mh_far, xAt);
+    float from = VR_Blade_From(thing, b.mh_bfrom);  // (the drawn Blade Start: the only shape rule here)
     float how = QVR_DECAP_SWING;
     string no = "";
     if(thing == VR_MTHING_SAW)
     {
         how = QVR_DECAP_SAW;
-        if(f < VR_SAW_BAR_START || (xLive && b.mh_kind == VR_MKIND_POMMEL))
+        if(f < from || (xLive && b.mh_kind == VR_MKIND_POMMEL))
         {
             no = "the chainsaw's body or handle";
         }
@@ -295,7 +298,7 @@ float(float xHand, vector xAt, float xLive) VR_Decap_Slash =
     {
         no = (b.mh_kind == VR_MKIND_STAB) ? "a stab" : "a pommel or hilt";
     }
-    else if(f < ((thing == VR_MTHING_AXE) ? VR_DECAP_BLADE_AXE : VR_DECAP_BLADE_SWORD))
+    else if(f < from)
     {
         no = (f < 0) ? "the pommel" : "the hilt or handle";
     }
@@ -462,7 +465,13 @@ float(entity targ, entity attacker, float xDamage) VR_Decap_HeadBlow =
     {
         return FALSE;
     }
-    if(VR_Decap_OnMeleeHead(targ, b.mh_c_pos, b.mh_c_dir))
+    float onHead = VR_Decap_OnMeleeHead(targ, b.mh_c_pos, b.mh_c_dir);
+    if(!onHead)
+    {
+        dprint(sprintf("decap: no: the blade's contact off %s's head zone (%.1f units below its origin's top, %.2f along the blade)\n",
+            targ.classname, targ.origin_z + targ.maxs_z - b.mh_c_pos_z, b.mh_c_f));
+    }
+    if(onHead)
     {
         float how = VR_Decap_Slash(hit_hand, b.mh_c_pos, TRUE);
         if(how && VR_Decap_Arm(targ, attacker, b.mh_c_pos, vr_decap_slashvel, how))

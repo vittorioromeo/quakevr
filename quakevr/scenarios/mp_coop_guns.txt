@@ -1,0 +1,10 @@
+# mp_coop_guns: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title A coop game: the heavy revolver and super shotgun in your hands, a still bot with a shotgun to watch
+mp coop
+map vrtesthall
+start 0 -288 25 90
+god
+notarget
+give "Heavy Revolver" main
+give "Super Shotgun" off
+bot passive 160 0 "Shotgun"

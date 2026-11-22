@@ -47,8 +47,14 @@ mock toss keeps the hand's speed; a slow toss may hit the open palm after the 0.
 - **Baseline 2026-11-12, still failing alone** (ROUND25.md "basefix1112": first-bad merges by bisect, alone, seed 1):
   agrunt 16's hunt check (the drawn grip 2.7-2.8 units off the drawn hand hull, limit 2.5; its vertex checks fixed,
   ROUND25.md "agfails2"), stealth props_round (knight within 77
-  units; since housing_nailpistol: likely a seeded run's butterfly), vrtrailer (no beheading: fails alone at 330f70409
-  too). Older: agrunt 3, 91, 92; 213 fixed 2026-11-13 (adtests).
+  units; since housing_nailpistol: likely a seeded run's butterfly). Older: agrunt 3, 91, 92; 213 fixed 2026-11-13
+  (adtests).
+- **vrtrailer: the test's swing, not the game** (ROUND25.md "testenv", 2026-11-21): it has failed since 11-10 (passed
+  only in the 11-07 lanes; release12's "3 of 3 on 2026-11-12" was weapon_catch's, not this test's). Its mock (10-08)
+  was written for vr_gunangle 39.5 and an estimated Super Axe line; the defaults went to 70 on 10-16 and the axe's blow
+  line moved to the blade's edge on 11-10 (a1da23a80), with the head-zone path rule. The mock now carries its settings
+  and the measured line; still open: a swing path whose blade crosses the neck sideways (now 8 of 9: killed, "a stab
+  (0.82)" at 0.63 along the blade).
 - **Baseline 2026-11-13** (ROUND25.md "basefix1113"): agrunt 12/47 and teleporters_chase fixed (the tests); arena 11
   failed under load only (25/0 alone, 2 of 2); ragdoll_ragtest's catch as above (31/0 alone, 2 of 2).
 - **r2m1 (Rogue): a counted monster that is no monster edict is inherited, not ours** (r2m1 branch, 2026-11-13): stock

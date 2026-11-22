@@ -511,8 +511,12 @@ za::Vector<Item> pageDebugAutomation()
             .help("Prints the map's gap blockers (the world's, with brush models, in brush models), the time they took, "
                   "and whether Quake's box fits anywhere into one (it never should)."),
         command("Gap Blockers Test", "vr_hull_holes_test")
-            .help("On vrbrushholes: your box and a narrow monster's at its grate, bar gate, lift edge and pillars "
-                  "(stopped with the blockers on, through with them off); prints brushholes: N passed, M failed."),
+            .help("On vrbrushholes: your box and a narrow monster's at its grate, bar gate, lift edge, pillars, "
+                  "diagonal grate, louvred grate and two func_walls (stopped with the blockers on, through with them "
+                  "off); prints brushholes: N passed, M failed."),
+        command("Mark a Gap I Got Through", "vr_hull_holes_mark")
+            .help("Prints and logs (quakevr/hull_holes_marks.txt) where you are and the gap geometry round you, for a "
+                  "gap you got through that you shouldn't have (vr_hull_holes_mark [radius] [note])."),
         command("Shots Hit Test", "vr_hull_hittest")
             .help("Prints how many of 1600 grunt-like shots from 300 units round you hit your box at Width Shots Hit "
                   "(vr_hull_hittest [distance] [spread])."),

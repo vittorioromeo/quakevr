@@ -1,0 +1,9 @@
+# mp_dm_navmesh: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title Deathmatch: a navmesh-walking bot (vr_bot_navmesh 1) with Show Navmesh on
+mp dm
+map dm3
+start 632 -648 88 0
+god
+cvar vr_bot_navmesh 1
+cvar vr_nav_debug 1
+bot active 256 0

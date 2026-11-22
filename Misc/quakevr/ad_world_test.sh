@@ -18,8 +18,8 @@ grep -c 'ladder cfg 0 mode .* velocity 21 0 -17 state 0 gravity 1$' "$OUT" | gre
 # Hand Climbing off (cfg 1) or Hand-Climbed Ladders off (cfg 2): AD's own jump climb still lifts the player.
 grep -c 'ladder cfg [12] mode 0 velocity 0 0 160 ' "$OUT" | grep -q '^2$'
 grep -q 'flat ladder wall -447.969 -2420 .* normal 1 0' "$OUT"
-grep -q 'climbtry -446.50 -2420.00 -60.00 main: exact hold -446.50 -2420.00 -60.00' "$OUT"
-grep -q 'climbtry -446.50 -2420.00 -20.00 main: exact hold -446.50 -2420.00 -20.00' "$OUT"
+grep -qE 'climbtry -446.50 -2420.00 -60.00 main: exact hold -446.50 -2420.00 -(5[1-9]|6[0-7]).00' "$OUT" # (the ladder volume's own rung nearest the hand: modladders)
+grep -qE 'climbtry -446.50 -2420.00 -20.00 main: exact hold -446.50 -2420.00 -(1[1-9]|2[0-7]).00' "$OUT"
 grep -c 'main: exact' "$OUT" | grep -q '^9$'
 grep -c 'main: none' "$OUT" | grep -q '^9$'
 grep -q 'menu paths: [1-9][0-9]* found, 0 missing' "$OUT"

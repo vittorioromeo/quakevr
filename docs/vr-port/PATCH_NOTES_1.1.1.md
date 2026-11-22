@@ -12,9 +12,11 @@ that ships in 1.1.1.
   weapons and powerups work as variants of ours. Dwell's Rotary Shotgun, Crystal Lance and Rifle look like themselves
   in your hands, holsters and on armed grunts (made from Dwell's own models, with a grip to hold), the Rotary's four
   barrels turning as you fire; each shows its ammo screen in a riveted bezel on its back, as our guns do; the holster menu (flat and on the wrist) names them, and AD's Widowmaker, Shadow Axe
-  and Plasma Gun too. The Crystal Lance is now a two-handed lance, made from Dwell's own pickup model: hold its grip
-  and put your other hand anywhere on its pole (it slides along it) to aim it, swing its crystal head as a blade, and
-  fire its beam from the tip (Settings: `vr_dw_lance_pole 0` brings back the pistol). The Rotary Shotgun is held as a
+  and Plasma Gun too. The Crystal Lance is now a two-handed lance, made from Dwell's own pickup model: a plain pole
+  with its crystal head (no handle, no buttons), held like a spear, the pole through your fist; put your other hand
+  anywhere on its pole (it slides along it) to aim it, swing its crystal head as a blade, and fire its beam from the
+  tip, along the pole. In flatscreen play it is held as a spear in both hands, its pose set by the Spear settings
+  (Debug > Tunables, `vr_flat_pole_*`). (Settings: `vr_dw_lance_pole 0` brings back the pistol). The Rotary Shotgun is held as a
   gauntlet, your hand inside its housing as in the super nailgun, and its shell port is a block on the housing's inner
   side: hold a handful of shells from the pouch there to fill its tube (`vr_dw_rotary_gauntlet 0`: the old grip). Dwell's weapons
   now stay what they are in your holsters, through saves, level changes and coop rejoins; the Rotary Shotgun reloads
@@ -31,6 +33,9 @@ that ships in 1.1.1.
 - **Quoth (experimental).** Quoth 2.2's own maps (Select Campaign > Quoth) and custom maps made for Quoth play by
   Arcane Dimensions' rules, so they need AD. The installer offers Quoth (free, by Kell, Necros and Preach), downloaded
   from Quaddicted and installed as released: ticked when Arcane Dimensions is chosen, greyed out without it.
+- **Heavy revolver headshots pop heads in Arcane Dimensions and Quoth too.** Where shells fly as projectiles (AD's and
+  Quoth's maps, or Projectile Rules set to AD's), a heavy revolver's headshot kill never popped the head, and its slug
+  did a big monster no extra damage. Its slug now follows the same head pop and big-body rules as everywhere else.
 
 ## Graphics
 
@@ -167,6 +172,14 @@ the crates Quake VR places about maps, Dimension of the Past and Dimension of th
 for the routers hole punching can't get through (the host forwards his port, or a virtual LAN); custom maps that
 aren't Map Library packages aren't sent to joining players.
 
+## Weapons
+
+- **Flat screen: a blade stuck in an enemy keeps its hand.** Dual wielding a blade and a gun, a blade that stays in an
+  enemy now keeps the hand that swung it on its handle until it comes out or the hand lets go; meanwhile the gun stays
+  one-handed, the right mouse button fires the left hand's weapon and the ironsight stays down, as when dual wielding.
+  Before, the hand let go of the blade to hold the gun in both hands, and the ironsight came up. In the headset too, a
+  hand holding a stuck blade no longer takes the other gun's two-handed grip.
+
 ## Movement
 
 - **Noclip flies where you look.** Moving forward in noclip now goes the way the camera points, so looking up or down
@@ -177,7 +190,12 @@ aren't Map Library packages aren't sent to joining players.
   a lift and its shaft's wall. Each map now gets invisible blockers in exactly those gaps when it loads (nothing in
   the map files changes; shots and sight go through them), so you are stopped where Quake stopped you, and still get
   as close to walls, bars and pillars as your width lets you. Settings > Movement > Player Hitbox > Close Gaps Quake's
-  Box Never Fit (`vr_hull_holes`, on; takes effect at the next map load).
+  Box Never Fit (`vr_hull_holes`, on; takes effect at the next map load). The blockers now also close gaps between
+  slanted bars, turned grates and round holes, between two brush models (two func_walls, a door and a lift), and
+  between bars at two heights you'd fall through, always only where Quake's own box can't reach. The limits are
+  settings beside it (Narrower Than: 32, Wider Than: 8, and more), with Rebuild Gap Blockers Now to apply them without
+  leaving the map; if you still get through a gap you shouldn't, Debug > Mark a Gap I Got Through writes down where and
+  why (`quakevr/hull_holes_marks.txt`) so it can be fixed.
 - **Riding a lift no longer sinks you or the monsters into it.** Going up, your eye trailed a rising lift by up to 12
   units (the stair-step easing took the lift's rise for a step) and a monster riding it was drawn as far as 13 units
   into it; now your eye rides with the lift (only a step's jump is eased: `vr_view_lift_follow`, 400 units a second;
@@ -199,6 +217,10 @@ aren't Map Library packages aren't sent to joining players.
   (`vr_climb_mantle_trigger`): High Enough (the default, as before: at once), Let Go (hang and look over the top, pull
   up when your last hand lets go; let go lower and you drop), Jump, or Let Go or Jump. Flatscreen mantles and ladders
   are unchanged.
+- **Quoth's and Arcane Dimensions' ladders climb like ours.** A mod's ladder drawn on a wall or a pillar (Quoth's
+  kellbase1) now has rungs 16 units apart for your hands, as a ladder made of real rungs: grip and climb hand over hand,
+  and over the top. On the desktop screen, walking into one climbs it as the tutorial's ladder (Desktop Screen Play >
+  Ladders); with Ladders off, the mod's own climb (hold jump) works there again.
 - **Sprint by clicking the stick.** VR Settings > Locomotion and Controls > Speed Button (`vr_sprint_toggle`): Toggle
   makes a click of the speed button (the left stick's click as shipped, or Shift) switch between walking and running
   instead of holding it. The switch ends by itself, back to your Default Speed, when you stop moving for a moment, die,
@@ -220,6 +242,7 @@ aren't Map Library packages aren't sent to joining players.
 
 ## Menus
 
+- **Centre messages in the headset look like the flat screen's.** The game's centre prints in front of your head (a key needed, a secret found, a map's text) and the maps' own view messages now appear in the visor's message panel: its font, black face and frame, colours and wrapping, in a size that reads at the menu's distance. (`vr_center_panel 0` brings back the old look; `vr_center_panel_scale` sizes it.)
 - **Search filter (development builds).** The Search page has a "Show: Both / Cvars / Tunables" row over its text
   box: the menus' settings alone, the Tunables pages' constants alone, or both (the default). The results update
   at once; the choice lasts until the game quits. Release builds have no tunables, so they show no row and search
@@ -240,6 +263,11 @@ aren't Map Library packages aren't sent to joining players.
 
 ## Monsters
 
+- **Cuts follow each blade's drawn shape.** Beheading, cutting off limbs, a cut limb sticking to the blade, cutting
+  hoses and the chainsaw's bar all used their own idea of where a blade starts, so the Super Axe's inner curve counted
+  as its handle and never took a head or a limb off. Now every one of them uses the blade's shape as drawn in the
+  blade shape editor (where its cutting part starts, its curve, its own line), the same shape melee blows already
+  use: what the editor shows as the blade cuts, and what it shows as the handle doesn't.
 - **A shove never makes an enemy bleed.** An enemy you had hurt earlier, even a single pellet long before, bled from
   every limb as a later shove sent it sprawling. Now a knocked-down or staggering enemy's limbs bleed only for blood
   drawn as it went down or while it is down (shot as you shove it, cut while it lies there); a corpse's still do.
@@ -255,7 +283,8 @@ aren't Map Library packages aren't sent to joining players.
   Combat > Armed Grunts > Armed Humanoid Replacements: AD and Quoth Variants.
 - **Armed humanoids wear the colour of their weapon.** Rocket and grenade launchers red, lightning and plasma blue,
   flamethrowers orange, poison green, on their clothes and backpacks, so you see what is coming; the rest look as
-  before. Same page: Recolour by Weapon.
+  before. The dye keeps the cloth's shading, and their faces, arms and hands keep their own colour. Same page: Recolour
+  by Weapon. Debug > Tools > Texture Studio tunes the colours and which parts of each skin they dye, live.
 
 ## Performance
 

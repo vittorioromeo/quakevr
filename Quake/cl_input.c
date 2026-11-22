@@ -169,8 +169,8 @@ void IN_SpeedUp(void) {KeyUp(&CL_SeatInput()->speed);}
 void IN_StrafeDown(void) {KeyDown(&CL_SeatInput()->strafe);}
 void IN_StrafeUp(void) {KeyUp(&CL_SeatInput()->strafe);}
 
-void IN_AttackDown(void) {KeyDown(&CL_SeatInput()->attack);}
-void IN_AttackUp(void) {KeyUp(&CL_SeatInput()->attack);}
+void IN_AttackDown(void) {if (VR_HumStudioAttack (1)) return; KeyDown(&CL_SeatInput()->attack);} // QVR: the Texture Studio's strokes while it paints (vr/vr_humstudio.cpp)
+void IN_AttackUp(void) {if (VR_HumStudioAttack (0)) return; KeyUp(&CL_SeatInput()->attack);} // QVR
 
 void IN_UseDown (void) {KeyDown(&CL_SeatInput()->use);}
 void IN_UseUp (void) {KeyUp(&CL_SeatInput()->use);}

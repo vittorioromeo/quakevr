@@ -141,6 +141,9 @@ enum FreeMode : int
 // The weapon of `slot` held by a pole grip in this mode of play (FREE_POLE, not flat play): its hotspots never take the
 // other hand (the view's free candidate ignores them, as applyHand does).
 [[nodiscard]] bool poleGrip(int slot);
+// The weapon of `slot` is a pole weapon (its own Other Hand Anywhere is FREE_POLE: the Crystal Lance held like a spear),
+// in any mode of play: flat play poses it as a spear (vr_flat_pole_*; lancespear).
+[[nodiscard]] bool poleWeapon(int slot);
 
 // The view, each frame: whether the empty `hand`'s palm is on the other hand's weapon (held or carried), far enough from
 // its handle and (held by its handle) from its grip and blade hotspots (vr_weapon_grab_anywhere_min).

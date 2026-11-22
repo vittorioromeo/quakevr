@@ -1520,6 +1520,12 @@ void chooseGrip(const WeaponFrame& wf)
         s.grip2H[hand] = worldHotspots[hand][chosen].pos;
         s.grip2HBias[hand] = worldHotspots[hand][chosen].bias;
         s.grip2HSticky[hand] = weapons::hotspot(slot, chosen).sticky;
+        // Flatscreen play, a pole weapon held as a spear (lancespear; twohand::poleWeapon): the other hand on its pole,
+        // vr_flat_pole_off_along ahead of the holding hand on the line to its tip, whatever grip was chosen.
+        if(flatplay::active() && twohand::poleWeapon(slot) && s.muzzleValid[hand] && glm::distance(s.muzzle[hand], held.pos) > 1.f)
+        {
+            s.grip2H[hand] = held.pos + glm::normalize(s.muzzle[hand] - held.pos) * za::clamp(vr_flat_pole_off_along.value, -40.f, 60.f);
+        }
         if(chosen == magSpot[hand])
         {
             // The magazine is taken within Pull Reach of its box (vr_twohand.cpp takes a grip within gripTakeUnits of its

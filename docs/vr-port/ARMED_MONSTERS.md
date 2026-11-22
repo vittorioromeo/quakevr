@@ -243,23 +243,44 @@ backpacks". Every armed humanoid, however armed (a variant, a replacement's roll
 grunt stays red). Its worn pack takes its wearer's (the engine: `.vr_wp_wearer`, plus 4096).
 
 - The engine (`Quake/vr/vr_humlook.cpp`): each entity's look sent where it changes (`QVR_SVC_HUMLOOK`, reliable; with the
-  spawn state), the table `quakevr/humlook.txt` (read at first use; `vr_humlook_reload`), the alias instance's three
-  `Recolor` rows filled from it (`instanceRows`, `VR_AliasInstance`, drawn instances only).
-- The shader (`vr_glsl_alias.h` `QVR_ALIAS_FS_RECOLOR`, after the skin is read, before the light): the pixels in the row's
-  colour range (hue +- width, soft over `feather`; saturation over `satmin`; lightness between `lightmin` and
-  `lightmax`) turned by the row's HSL change (`shift`, `satmul`, `lightmul`) and its tint (`tint r g b`, by `amount`: for
-  near-white skins). On whatever the model draws (Quake's skin, a replacement, a retro texture): no mod file is changed
-  or copied. One branch on a per-instance value: free on everything else; GLES and multiview alike (instance data).
-- The table: a row per `<type> <category> <part>` (`grunt enforcer knight dknight`; `explosive energy flame poison`, any
-  other category name or number too; `clothes` the body, `pack` the backpack). Shipped: explosives red, energy blue,
-  flame orange, poison green, on the four rows' brown cloth and leather (hue 40 +-18, lightness under 0.3: the flesh's
-  lighter pinks left alone) and on the pack's canvas; shells, nails, melee and own guns have no row (as they were).
-- `vr_humlook` (1) turns the drawing off; `vr_humlook_info [entity]` prints the table's size, the client's looks and the
-  nearest armed humanoid's look and row; `vr_humlook_known` (read-only) the looks the client knows.
-- Screens: `Misc/quakevr/humrepl_shots.sh` (`vr_ad_test 221`: a row of each type, one per category, in vrtesthall).
-- Phase 2: a mask per skin of our own (a texture beside the model's, read as the recolour's weight instead of the colour
-  range: the enforcer's baked pack, the knights' metal apart from their leather), and the Texture Studio (the table's
-  rows edited live per type, category and part, written back to `humlook.txt`).
+  spawn state), the table `quakevr/humlook.txt` and the masks `quakevr/humlook_masks.txt` (read at first use;
+  `vr_humlook_reload`), the alias instance's four `Recolor` rows (`instanceRows`, `VR_AliasInstance`, drawn instances only).
+- Which texels (phase 2, ROUND25.md "humrepl2"; his verdict on phase 1: "The recolors look a bit unnatural and also affect
+  the skin/faces of the enemies": a hue band can't tell brown cloth from brown flesh). A mask per skin, 2 bits a Quake
+  texel (left, clothes, pack), made as the skin is first drawn from its 8-bit palette indices (read from the model's
+  file: `progs/vrgrunt.mdl#rig2` reads `vrgrunt.mdl`), in one storage buffer the shader reads (`HumMasks`, SSBO 17;
+  rewritten when edited). A texel's class: painted by hand if it is, else never if its row is flesh (`flesh 7`) or a
+  quarter-plus of its 5x5 neighbours are (`fleshnear 0.35 2`: the grunt's arms and face have tan highlights on the
+  uniform's row 10), else its row's class for its key (`rows grunt clothes 1 10`, enforcer 1 3 10, knight 1 10, dknight 1,
+  the worn pack's canvas `rows pack pack 1`). The rows (the skins' histograms): uniforms and leather 1 and 10 (browns,
+  tans), the enforcer's trousers 3, flesh 7, blood 4, knights' plates 10. Where rows are shared, our painted texels: the
+  enforcer's baked backpack (`paint progs/vrenforcer.mdl ... pack`, its two pieces' clothes-row texels). A skin's own rows
+  (`skinrows`) override its key's. AD's own models (`mon_*.mdl`) get their key's rows (not looked at one by one).
+- The dye (`vr_glsl_alias.h` `QVR_ALIAS_FS_RECOLOR`, after the skin is read, before the light): a clothes texel by the
+  clothes' row, a pack texel by the pack's (the enforcer's baked pack too), each keeping its own luminance in the row's
+  colour (`HumDye`: a red stays red, never pink; clamped, not desaturated), or with `tint` its own colour times the
+  colour, by `strength`, its lightness times `light`. On whatever the model draws (Quake's skin, a replacement, a retro
+  texture: the mask at the Quake skin's size): no mod file is changed or copied. One branch on a per-instance value.
+- The table: `<type> <category> <part> r g b strength light tint` (`grunt enforcer knight dknight`; `explosive energy flame
+  poison`, any other category name or number too; `clothes` the body, `pack` the backpack). Shipped (subtler than phase 1):
+  explosives red, energy blue, flame orange, poison green, strength 0.58-0.62 (knights' plates 0.75 of it, packs +0.1);
+  shells, nails, melee and own guns have no row (as they were).
+- `vr_humlook` (1) turns the drawing off; `vr_humlook_info [entity]` prints the table, the masks (their clothes and pack
+  texels), the client's looks and the nearest armed humanoid's look and row; `vr_humlook_known` (read-only) the looks the
+  client knows; `vr_humlook_file`, `vr_humlook_masks_file` the files (in quakevr/).
+- The Texture Studio (Debug > Tools > Texture Studio; `vr_humstudio.cpp`, his ask: "An in-game tool to tweak the
+  recoloring and masks would also be good"): Line Up (five of the type ahead, one per category: QC `VR_HUM_LineupKind`),
+  Type, Weapon Category, Part; Red, Green, Blue, Strength, Lightness, Tint (`vr_humstudio_*`, laid into the table as they
+  move); Show the Masks (`vr_humstudio_overlay`: clothes green, pack blue, the rest dark red); the 16 palette rows of the
+  type's skin, each cycled none / clothes / pack (the type's rows, or with This Skin's Own Rows that skin's); Paint with the
+  menu closed (`vr_humstudio_paint`: VR either hand's ray, its trigger paints `vr_humstudio_class` (clothes, pack, never,
+  erase) with `vr_humstudio_brush`, its grip erases, B/Y undoes; flat the crosshair, attack paints) on the posed model's
+  skin texel under the ray (the same strokes, only the ray differs); Undo (24 steps), Clear This Skin's Painting, Save
+  (both files), Reload, Check the Masks (`vr_humstudio_check [masks]`: per mask its texels, any on the flesh's or blood's
+  rows, a PASS/FAIL line).
+- Tests: `Misc/quakevr/humrepl2_test.sh` (each type lined up, a stroke and its undo, `vr_humstudio_check 5`: no mask
+  texel on the flesh or blood rows; "humrepl2_test: PASS"). Screens: `Misc/quakevr/humrepl_shots.sh [out] [overlay]`
+  (`vr_ad_test 221`: each type's row before and after, or the masks shown).
 
 ## Adding a monster
 

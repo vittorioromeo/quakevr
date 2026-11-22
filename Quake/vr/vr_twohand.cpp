@@ -53,6 +53,7 @@
 #include "vr_protocol.hpp"
 #include "vr_units.hpp"
 #include "vr_view.hpp"
+#include "vr_axestick.hpp"
 #include "vr_weapons.hpp"
 #include "vr_seat.hpp"
 #include "vr_geom.hpp"
@@ -76,6 +77,14 @@ namespace
 {
 
 using weapons::Key;
+
+// Whether `h` may take the other hand's weapon as its helping hand: empty (held::handEmpty: no weapon, nothing carried, no
+// ledge), and not holding a blade stuck in a body (axestick::handOnBlade: its weapon left in the body, the hand still on it;
+// his words 2026-11-21: "The hand should instead keep holding onto the embedded blade until it comes back or it is detached").
+[[nodiscard]] bool helperFree(int h)
+{
+    return held::handEmpty(h) && !axestick::handOnBlade(h);
+}
 
 enum Wpn2HMode : int
 {
@@ -377,10 +386,10 @@ void applySword(hands::State& s, const glm::vec3 (&originalRots)[2], int holding
     }
     helpingPos += hands::redirect(off, originalRots[holding]);
 
-    // (An empty hand: no weapon, and not carrying a box either: held::handEmpty.)
+    // (An empty hand: no weapon, and not carrying a box either: held::handEmpty; nor on a blade stuck in a body: helperFree.)
     const bool wasHeld = th().shouldAim[holding];
     // (Flatscreen: let go as a gun's grip is, flatLetsGo; not at a wall, below.)
-    const bool canGrab = client::grabbing(helping) && held::handEmpty(helping) && (wasHeld || !carry2h::reachesSkewered(helping)) &&
+    const bool canGrab = client::grabbing(helping) && helperFree(helping) && (wasHeld || !carry2h::reachesSkewered(helping)) &&
                          !flatLetsGo(holding, helping);
 
     // The grips (round 18). The grip point below the holding hand (GRIP_FOREGRIP): the blade along the
@@ -691,7 +700,7 @@ bool updateFree(hands::State& s, const glm::vec3 (&originalRots)[2], int holding
         off = glm::distance(s.pos[helping], holdingPos + hands::redirect(g.point, rot0));
     }
 
-    if(!client::grabbing(helping) || !held::handEmpty(helping))
+    if(!client::grabbing(helping) || !helperFree(helping))
     {
         endFree(holding, "the grip let go", 0.f, 0.f);
         return false;
@@ -768,7 +777,7 @@ FreeGrip& beginFree(const hands::State& s, const glm::vec3 (&originalRots)[2], i
 bool startFree(const hands::State& s, const glm::vec3 (&originalRots)[2], int holding, int helping, int slot)
 {
     if(!vr_weapon_grab_anywhere.value || slot < 0 || th().shouldAim[holding] || th().aimTransition[holding] > 0.f ||
-        !client::grabbing(helping) || !held::handEmpty(helping) || carrying(helping) || !candidate(helping) ||
+        !client::grabbing(helping) || !helperFree(helping) || carrying(helping) || !candidate(helping) ||
         !freshGrab(helping) || carry2h::reachesSkewered(helping))
     {
         return false;
@@ -793,7 +802,7 @@ bool startFree(const hands::State& s, const glm::vec3 (&originalRots)[2], int ho
 bool startRetake(const hands::State& s, const glm::vec3 (&originalRots)[2], int holding, int helping, int slot)
 {
     if(!vr_weapon_grab_anywhere.value || slot < 0 || th().shouldAim[holding] || th().aimTransition[holding] > 0.f ||
-        !client::grabbing(helping) || !held::handEmpty(helping) || carrying(helping) || !th().carryPoseValid[helping] ||
+        !client::grabbing(helping) || !helperFree(helping) || carrying(helping) || !th().carryPoseValid[helping] ||
         !th().carryPose[helping].free || vr_gametime - th().carryLast[helping] >= 0.5 || th().retakeFrom[helping] == th().carryLast[helping])
     {
         return false;
@@ -909,7 +918,7 @@ void reportWhyLetGo(const GripCheck& gc)
     const glm::vec3& lineAxis = gc.lineAxis;
     if(wasHeld && !th().shouldAim[holding])
     {
-        if(!client::grabbing(helping) || !held::handEmpty(helping))
+        if(!client::grabbing(helping) || !helperFree(helping))
         {
             reportLetGo(holding, "the grip let go", 0.f, 0.f, stick);
         }
@@ -1081,7 +1090,7 @@ void applyFixed(hands::State& s, const glm::vec3 (&originalRots)[2], int holding
     // (flatplay::punching: a flatscreen hand is always gripping, so a free hand on a grip lets go of it by its punch; the
     // mode's own clock, never running in a headset. And at a wall, halfway into the wall state: flatsight::wallLetGo.)
     const bool canGrab = client::grabbing(helping) && wpnMode != WPN_2H_FORBIDDEN &&
-                         held::handEmpty(helping) && beforeMuzzle && !handpose::gunColliding(holding) &&
+                         helperFree(helping) && beforeMuzzle && !handpose::gunColliding(holding) &&
                          flatsight::wallLetGo(holding) < 0.5f && !flatLetsGo(holding, helping);
     // A cup (a two-handed pistol grip) is held wherever the hands point: it doesn't aim.
     const bool cup = fixedMode && s.grip2HCup[holding];
@@ -1548,7 +1557,7 @@ void applyCarried(hands::State& s, int holding, int helping)
     {
         const carry2h::Frame object = carriedInBoth(s, holding);
         const float off = glm::distance(s.pos[helping], carry2h::onGrip(g.hold, object, helping).pos);
-        const bool gripping = client::grabbing(helping) && held::handEmpty(helping);
+        const bool gripping = client::grabbing(helping) && helperFree(helping);
         if(gripping && off <= freeKeep())
         {
             g.lastOn = vr_gametime;
@@ -1569,7 +1578,7 @@ void applyCarried(hands::State& s, int holding, int helping)
     g.on = false;
     transition(g.t, false, 5.f); // (let go of: its share in support eased out, as a hotspot's)
     // The other hand taking hold of it anywhere but its handle (which takes it back: HS_CARRIED_GRIP).
-    if(!vr_weapon_grab_anywhere.value || !client::grabbing(helping) || !held::handEmpty(helping) || carrying(helping) ||
+    if(!vr_weapon_grab_anywhere.value || !client::grabbing(helping) || !helperFree(helping) || carrying(helping) ||
         !candidate(helping) || !freshGrab(helping))
     {
         return;
@@ -1661,7 +1670,12 @@ void armFlatGrip(int helping, bool armed)
 
 bool poleGrip(int slot)
 {
-    return slot >= 0 && !flatplay::active() && freeModeFor(slot) == FREE_POLE;
+    return !flatplay::active() && poleWeapon(slot);
+}
+
+bool poleWeapon(int slot)
+{
+    return slot >= 0 && freeModeFor(slot) == FREE_POLE;
 }
 
 bool freeHelping(int hand)

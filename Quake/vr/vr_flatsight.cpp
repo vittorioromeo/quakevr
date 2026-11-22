@@ -760,8 +760,10 @@ bool adsApplies()
     // before the wall is kept.)
     const bool tilted = vr_flat_wall_block_ads.value != 0.f && st().holding >= 0 && st().upAngle[st().holding] > tiltBlocksFire;
     // (Nor while the gun goes to the hip to reload, vr_flatreload.cpp: the key's ask is kept, and the sight comes back after.)
+    // (Nor with the other hand busy, from the console too: a prop in it, or a blade it holds stuck in a body, flatplay::holdsThing;
+    // his words 2026-11-21: "ADS also becomes possible in that state". The sight comes back once it is free.)
     return flatplay::active() && st().ads && st().holding >= 0 && sightalign::alignable(st().holding) && !tilted &&
-           !flatreload::busy(st().holding);
+           !flatreload::busy(st().holding) && emptyHand(st().helping);
 }
 
 // The weapon's way back from a wall, a unit vector in the view's frame: towards the hand's shoulder in hipfire, along the

@@ -2023,6 +2023,7 @@ enum class LadderKind : za::U8
     LookDown, // up it, then looking down: down it to the ground
     PushOff,  // up it, then jump: away from it
     None,     // forward into it for 1.5 s: no ladder
+    Fallback, // (vr_flat_ladder 0) jump held in a mod's trigger_ladder: the mod's own climb lifts him
 };
 struct LadderCase
 {
@@ -2030,12 +2031,16 @@ struct LadderCase
     LadderKind kind;
     float x, y, z, yaw;
     float riseTo; // None: the feet must come this high (stairs); -1e9 none
+    float ground; // the feet at the ladder's foot
+    float top;    // and on its top
+    float line;   // the rungs' line: how far along the look (yaw) from the origin 0 0 0 (Up ends 9 past it)
+    bool free;    // the ladder stands free (non-solid): climbed down, he ends anywhere within 36 of its line
 };
 constexpr LadderCase ladderCases[] = {
-    {"the tutorial ladder, up and over the top", LadderKind::Up, 2933.f, 704.f, 24.f, 0.f, -1e9f},
-    {"the tutorial ladder, down from its top", LadderKind::Down, 2982.f, 704.f, 180.f, 0.f, -1e9f},
-    {"the tutorial ladder, down looking down", LadderKind::LookDown, 2933.f, 704.f, 24.f, 0.f, -1e9f},
-    {"the tutorial ladder, jump pushes off", LadderKind::PushOff, 2933.f, 704.f, 24.f, 0.f, -1e9f},
+    {"the tutorial ladder, up and over the top", LadderKind::Up, 2933.f, 704.f, 24.f, 0.f, -1e9f, 0.f, 156.f, 2951.f},
+    {"the tutorial ladder, down from its top", LadderKind::Down, 2982.f, 704.f, 180.f, 0.f, -1e9f, 0.f, 156.f, 2951.f},
+    {"the tutorial ladder, down looking down", LadderKind::LookDown, 2933.f, 704.f, 24.f, 0.f, -1e9f, 0.f, 156.f, 2951.f},
+    {"the tutorial ladder, jump pushes off", LadderKind::PushOff, 2933.f, 704.f, 24.f, 0.f, -1e9f, 0.f, 156.f, 2951.f},
     {"a plain wall (the ladder block's face, its top 156)", LadderKind::None, 2942.f, 490.f, 24.f, 0.f, -1e9f},
     {"a single ledge 48 high", LadderKind::None, 1182.f, -848.f, -120.f, 0.f, -1e9f},
     {"a single ledge 96 high", LadderKind::None, 430.f, -768.f, -120.f, 0.f, -1e9f},
@@ -2044,6 +2049,65 @@ constexpr LadderCase ladderCases[] = {
     // (Alone only, vr_flatladder_test 9, with vr_flat_ladder 0: the switch.)
     {"the tutorial ladder, vr_flat_ladder 0", LadderKind::None, 2933.f, 704.f, 24.f, 0.f, -1e9f},
 };
+
+// A mod's ladders (his request 2026-11-21: Quoth's and AD's trigger_ladder brushes climb as the tutorial's rungs, on
+// the ladder volume's own rungs: vr_climb.cpp ladderHold). Quoth's kellbase1 (vr_campaign_native quoth): the ladder up
+// the pillar's south face, its trigger_ladder brush 25..39 x, -659..-657 y, 641..895 z. AD's ad_test3: its ladder's
+// brush -495..-465 x, -103..-73 y, 225..327 z (facing east).
+constexpr LadderCase quothLadderCases[] = {
+    // (Its ladder stands free, non-solid, a player clip 22 units behind it: he hangs in it, so no push-off case. Its top
+    // is the catwalk's edge, 20 units past it.)
+    {"Quoth's kellbase1 ladder, up and over the top", LadderKind::Up, 32.f, -664.f, 664.f, 90.f, -1e9f, 640.f, 896.f, -658.f, true},
+    {"Quoth's kellbase1 ladder, down from its top", LadderKind::Down, 17.f, -619.f, 920.f, 90.f, -1e9f, 640.f, 896.f, -658.f, true},
+    {"Quoth's kellbase1 ladder, down looking down", LadderKind::LookDown, 32.f, -664.f, 664.f, 90.f, -1e9f, 640.f, 896.f, -658.f,
+        true},
+    // (Alone only, with vr_flat_ladder 0: Quoth's own climb, AD's jump ladder.)
+    {"Quoth's kellbase1 ladder, vr_flat_ladder 0: jump climbs it", LadderKind::Fallback, 32.f, -664.f, 664.f, 90.f, -1e9f, 640.f,
+        896.f, -658.f, true},
+};
+
+// (Its ladder is real rungs, steps in its wall, the trigger_ladder over them: the flat ladder's own case; here AD's own
+// climb alone.)
+constexpr LadderCase adLadderCases[] = {
+    // (Alone only, with vr_flat_ladder 0: AD's own climb.)
+    {"AD's ad_test3 ladder, vr_flat_ladder 0: jump climbs it", LadderKind::Fallback, -504.f, -88.f, 252.f, 0.f, -1e9f, 228.f, 352.f,
+        -496.f, true},
+};
+
+// AD's ad_e1m1: its wall ladder's trigger_ladder brush 2497..2559 x, -303..-297 y, 1..159 z (facing north).
+constexpr LadderCase adE1m1LadderCases[] = {
+    {"AD's ad_e1m1 ladder, up and over the top", LadderKind::Up, 2528.f, -318.f, 25.f, 90.f, -1e9f, 0.f, 160.f, -300.f, true},
+    {"AD's ad_e1m1 ladder, down from its top", LadderKind::Down, 2528.f, -264.f, 184.f, 90.f, -1e9f, 0.f, 160.f, -300.f, true},
+    {"AD's ad_e1m1 ladder, down looking down", LadderKind::LookDown, 2528.f, -318.f, 25.f, 90.f, -1e9f, 0.f, 160.f, -300.f, true},
+    // (Alone only, with vr_flat_ladder 0: AD's own climb.)
+    {"AD's ad_e1m1 ladder, vr_flat_ladder 0: jump climbs it", LadderKind::Fallback, 2528.f, -312.f, 25.f, 90.f, -1e9f, 0.f, 160.f,
+        -300.f, true},
+};
+
+struct LadderMap
+{
+    const char* map;
+    const LadderCase* cases;
+    int count; // (the last one alone only)
+};
+constexpr LadderMap ladderMaps[] = {
+    {"vrtutorial", ladderCases, static_cast<int>(sizeof(ladderCases) / sizeof(ladderCases[0]))},
+    {"kellbase1", quothLadderCases, static_cast<int>(sizeof(quothLadderCases) / sizeof(quothLadderCases[0]))},
+    {"ad_test3", adLadderCases, static_cast<int>(sizeof(adLadderCases) / sizeof(adLadderCases[0]))},
+    {"ad_e1m1", adE1m1LadderCases, static_cast<int>(sizeof(adE1m1LadderCases) / sizeof(adE1m1LadderCases[0]))},
+};
+
+[[nodiscard]] const LadderMap* ladderMapNow()
+{
+    for(const LadderMap& m : ladderMaps)
+    {
+        if(!q_strcasecmp(sv.name, m.map))
+        {
+            return &m;
+        }
+    }
+    return nullptr;
+}
 
 void ladderTestFrame()
 {
@@ -2072,12 +2136,19 @@ void ladderTestFrame()
     const int ladders = climb::flatLadders(pl, climbing);
     (void)climb::flatMantles(pl, mantling);
     const float feet = pl->v.origin[2] + pl->v.mins[2];
-    constexpr int caseCount = static_cast<int>(sizeof(ladderCases) / sizeof(ladderCases[0]));
-    if(t.phase != 1 && now - t.phaseAt > 10.0)
+    const LadderMap* lm = ladderMapNow();
+    if(!lm)
+    {
+        t = LadderTest{};
+        return;
+    }
+    const int caseCount = lm->count;
+    const LadderCase* cases = lm->cases;
+    if(t.phase != 1 && now - t.phaseAt > (t.phase == 3 ? 20.0 : 10.0))
     {
         char line[200];
-        q_snprintf(line, sizeof(line), "case %d timed out (step %d, ground %d, on the ladder %d, feet at %.1f)", t.index, t.phase,
-            ground ? 1 : 0, climbing ? 1 : 0, feet);
+        q_snprintf(line, sizeof(line), "case %d timed out (step %d, ground %d, on the ladder %d, feet at %.1f, at %.1f %.1f)", t.index,
+            t.phase, ground ? 1 : 0, climbing ? 1 : 0, feet, pl->v.origin[0], pl->v.origin[1]);
         testCheck(t.tally, tag, false, line);
         Cbuf_InsertText("-forward\n-back\n-jump\n");
         t.index++;
@@ -2095,22 +2166,32 @@ void ladderTestFrame()
             return;
         }
         {
-            const LadderCase& k = ladderCases[t.index];
+            const LadderCase& k = cases[t.index];
             t.pitch = 0.f;
             t.yaw = k.yaw;
-            pl->v.origin[0] = k.x;
-            pl->v.origin[1] = k.y;
-            pl->v.origin[2] = k.z;
+            // (Set down on the floor under the place: a map's floor needn't be where the case says to the unit; and its old
+            // origin too, which SV_CheckStuck would put him back at.)
+            vec3_t from{k.x, k.y, k.z + 1.f}, to{k.x, k.y, k.z - 64.f};
+            const trace_t drop = SV_Move(from, pl->v.mins, pl->v.maxs, to, MOVE_NOMONSTERS, pl);
+            const float z = drop.allsolid || drop.startsolid ? k.z : drop.endpos[2];
+            if(drop.allsolid || drop.startsolid)
+            {
+                Con_Printf("flatladder: case %d's place (%.1f %.1f %.1f) is in solid (%s)\n", t.index, k.x, k.y, k.z, drop.ent ? PR_GetString(drop.ent->v.classname) : "?");
+            }
+            pl->v.origin[0] = pl->v.oldorigin[0] = k.x;
+            pl->v.origin[1] = pl->v.oldorigin[1] = k.y;
+            pl->v.origin[2] = pl->v.oldorigin[2] = z;
             pl->v.velocity[0] = pl->v.velocity[1] = pl->v.velocity[2] = 0.f;
             SV_LinkEdict(pl, false);
         }
         next(2);
         break;
     case 2: // settled: the keys (past the climb's 0.4 s without a new hold after the last case's)
-        t.frames = ground && !climbing && !mantling ? t.frames + 1 : 0;
+        // (In a mod's trigger_ladder with its own climb on, he floats: no ground.)
+        t.frames = (ground || cases[t.index].kind == LadderKind::Fallback) && !climbing && !mantling ? t.frames + 1 : 0;
         if(t.frames >= 40)
         {
-            const LadderCase& k = ladderCases[t.index];
+            const LadderCase& k = cases[t.index];
             t.laddersBefore = ladders;
             t.climbFrames = 0;
             t.mantled = false;
@@ -2119,13 +2200,13 @@ void ladderTestFrame()
             t.lastSerial = -1;
             t.minFeet = t.maxFeet = feet;
             t.turned = false;
-            Cbuf_InsertText(k.kind == LadderKind::Down ? "+back\n" : "+forward\n");
+            Cbuf_InsertText(k.kind == LadderKind::Down ? "+back\n" : k.kind == LadderKind::Fallback ? "+jump\n" : "+forward\n");
             next(3);
         }
         break;
     case 3: // the keys held, until the case's end
     {
-        const LadderCase& k = ladderCases[t.index];
+        const LadderCase& k = cases[t.index];
         const int bits = cl.stats[protocol::STAT_QVR_CLIMB];
         if(climbing)
         {
@@ -2139,7 +2220,8 @@ void ladderTestFrame()
         t.minFeet = za::min(t.minFeet, feet);
         t.maxFeet = za::max(t.maxFeet, feet);
         const bool climbed = ladders > t.laddersBefore;
-        if(!t.turned && climbing && ((k.kind == LadderKind::LookDown && feet >= 60.f) || (k.kind == LadderKind::PushOff && feet >= 50.f)))
+        if(!t.turned && climbing &&
+            ((k.kind == LadderKind::LookDown && feet >= k.ground + 60.f) || (k.kind == LadderKind::PushOff && feet >= k.ground + 50.f)))
         {
             t.turned = true;
             if(k.kind == LadderKind::LookDown)
@@ -2155,33 +2237,41 @@ void ladderTestFrame()
         bool ok = false;
         char line[300];
         line[0] = 0;
-        const float x = pl->v.origin[0];
+        // How far past the rungs' line along the look (the tutorial's: x less 2951).
+        const float yawRad = glm::radians(k.yaw);
+        const float x = pl->v.origin[0] * za::cos(yawRad) + pl->v.origin[1] * za::sin(yawRad) - k.line;
         switch(k.kind)
         {
         case LadderKind::Up:
             t.frames = t.mantled && ground && !mantling ? t.frames + 1 : 0;
             done = t.frames >= 5;
-            ok = climbed && t.mantled && za::abs(feet - 156.f) < 2.f && x > 2960.f && t.serials >= 4;
-            q_snprintf(line, sizeof(line), "%s: %s, %s, feet at %.1f, x %.1f; %d hand changes, hands drawn off %d main %d", k.name,
-                climbed ? "took the ladder" : "never took it", t.mantled ? "mantled" : "no mantle", feet, x, t.serials, t.handBits & 1,
-                (t.handBits >> 1) & 1);
+            ok = climbed && t.mantled && za::abs(feet - k.top) < 2.f && x > 9.f && t.serials >= 4;
+            q_snprintf(line, sizeof(line), "%s: %s, %s, feet at %.1f, %.1f past the rungs; %d hand changes, hands drawn off %d main %d",
+                k.name, climbed ? "took the ladder" : "never took it", t.mantled ? "mantled" : "no mantle", feet, x, t.serials,
+                t.handBits & 1, (t.handBits >> 1) & 1);
             break;
         case LadderKind::Down:
         case LadderKind::LookDown:
             t.frames = climbed && ground && !climbing && (k.kind == LadderKind::Down || t.turned) ? t.frames + 1 : 0;
             done = t.frames >= 5;
             // (Down: lowered onto it off its top by the mantle's way backwards; looking down: no mantle.)
-            ok = climbed && (k.kind == LadderKind::Down) == t.mantled && za::abs(feet) < 2.f && t.climbFrames >= 36 && x > 2915.f &&
-                 x < 2945.f && (k.kind == LadderKind::Down || t.maxFeet >= 60.f);
-            q_snprintf(line, sizeof(line), "%s: %s, %d frames on it, the feet from %.1f down to %.1f, x %.1f%s", k.name,
-                climbed ? "took the ladder" : "never took it", t.climbFrames, t.maxFeet, feet, x, t.mantled ? ", mantled" : "");
+            ok = climbed && (k.kind == LadderKind::Down) == t.mantled && za::abs(feet - k.ground) < 2.f && t.climbFrames >= 36 &&
+                 (k.free ? za::abs(x) < 36.f : x > -36.f && x < -6.f) && (k.kind == LadderKind::Down || t.maxFeet >= k.ground + 60.f);
+            q_snprintf(line, sizeof(line), "%s: %s, %d frames on it, the feet from %.1f down to %.1f, %.1f off the rungs%s", k.name,
+                climbed ? "took the ladder" : "never took it", t.climbFrames, t.maxFeet, feet, -x, t.mantled ? ", mantled" : "");
             break;
         case LadderKind::PushOff:
             t.frames = t.turned && ground && !climbing ? t.frames + 1 : 0;
             done = t.frames >= 5;
-            ok = climbed && x < 2925.f; // (away from it, landed)
-            q_snprintf(line, sizeof(line), "%s: %s, landed at x %.1f (the rungs at 2951), feet at %.1f", k.name,
-                climbed ? "took the ladder" : "never took it", x, feet);
+            ok = climbed && x < -26.f; // (away from it, landed)
+            q_snprintf(line, sizeof(line), "%s: %s, landed %.1f off the rungs, feet at %.1f", k.name,
+                climbed ? "took the ladder" : "never took it", -x, feet);
+            break;
+        case LadderKind::Fallback:
+            done = now - t.phaseAt >= 1.5;
+            ok = !climbed && t.maxFeet >= k.ground + 48.f;
+            q_snprintf(line, sizeof(line), "%s: %s, the feet %.1f..%.1f", k.name, climbed ? "took the flat ladder" : "the mod's climb",
+                t.minFeet, t.maxFeet);
             break;
         case LadderKind::None:
             done = now - t.phaseAt >= 1.5;
@@ -2206,9 +2296,10 @@ void ladderTestFrame()
 
 void ladderTest_f()
 {
-    if(!flatplay::active() || !sv.active)
+    if(!flatplay::active() || !sv.active || !ladderMapNow())
     {
-        Con_Printf("vr_flatladder_test: flat-screen play (-flatscreenmode) in a game you host, on map vrtutorial\n");
+        Con_Printf("vr_flatladder_test: flat-screen play (-flatscreenmode) in a game you host, on map vrtutorial (or Quoth's "
+                   "kellbase1, AD's ad_test3: their trigger_ladder brushes)\n");
         return;
     }
     client.ladderTest = LadderTest{};

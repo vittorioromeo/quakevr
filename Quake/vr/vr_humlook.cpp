@@ -6,11 +6,13 @@
 #include "vr_api_render.h"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
+#include "vr_files.hpp"
 #include "vr_progs.hpp"
 #include "vr_protocol.hpp"
 
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
+#include "Zancle/String/String.hpp"
 
 #include <cstdio>
 #include <cstdlib>
@@ -20,24 +22,18 @@ namespace qvr::humlook
 {
 namespace
 {
-constexpr const char* fileName = "humlook.txt";
 // The table's names: the rows (QC VR_AM_* order) and the categories (QC VR_HUM_CAT_*; 0 none).
 constexpr const char* kindNames[] = {"grunt", "enforcer", "knight", "dknight"};
 constexpr const char* categoryNames[] = {
     "none", "explosive", "energy", "flame", "poison", "shells", "nails", "melee", "own",
 };
 constexpr const char* partNames[] = {"clothes", "pack"};
+// The masks' keys: a kind's body, or a worn pack (any kind's).
+constexpr const char* keyNames[] = {"grunt", "enforcer", "knight", "dknight", "pack"};
+// A texel's class names (Paint values; a palette row's class: none, clothes or pack).
+constexpr const char* classNames[] = {"none", "clothes", "pack", "never"};
 
-// A row of the table, as the shader takes it (vr_glsl_alias.h QVR_ALIAS_FS_RECOLOR): a (the range's hue, half width,
-// feather, least saturation), b (least and most lightness, the hue's turn, the saturation's factor), c (the tint mixed
-// in by its amount, the lightness's factor).
-struct Spec
-{
-    bool set{false};
-    float a[4]{};
-    float b[4]{};
-    float c[4]{};
-};
+constexpr int bufferWords = 1 << 17; // the masks' buffer (512 KB: an enforcer's 576x384 skin takes 13824 words)
 
 struct Table
 {
@@ -47,6 +43,63 @@ struct Table
 };
 // seat-shared: the looks' table, loaded once
 Table table;
+
+struct MaskSet
+{
+    unsigned char rows[numKeys][16]{}; // each key's palette rows' classes (ClassNone, ClassClothes, ClassPack)
+    // Flesh: its rows (never dyed by any class), and a texel of a dyed row left as it is where at least `nearShare` of
+    // the texels within `nearRadius` are flesh (the highlights of arms and faces share the uniforms' tans: a grunt's).
+    bool flesh[16]{};
+    float nearShare{0.35f};
+    int nearRadius{2};
+    bool loaded{false};
+};
+
+// The flesh round each texel (Skin::nearFlesh): its texels within the radius on the flesh's rows, over their count.
+void markNearFlesh(Skin& s, const MaskSet& m)
+{
+    const int w = s.w, h = s.h, r = za::clamp(m.nearRadius, 0, 8);
+    s.nearFlesh.clear();
+    s.nearFlesh.resize(static_cast<za::SizeT>(w * h), 0);
+    if(m.nearShare <= 0.f || m.nearShare > 1.f)
+    {
+        return;
+    }
+    // (a summed-area table of the flesh texels: each window counted in four reads)
+    za::Vector<int> sum;
+    sum.resize(static_cast<za::SizeT>((w + 1) * (h + 1)), 0);
+    for(int y = 0; y < h; y++)
+    {
+        for(int x = 0; x < w; x++)
+        {
+            const int f = m.flesh[s.texels[static_cast<za::SizeT>(y * w + x)] >> 4] ? 1 : 0;
+            sum[static_cast<za::SizeT>((y + 1) * (w + 1) + x + 1)] = f + sum[static_cast<za::SizeT>(y * (w + 1) + x + 1)] +
+                sum[static_cast<za::SizeT>((y + 1) * (w + 1) + x)] - sum[static_cast<za::SizeT>(y * (w + 1) + x)];
+        }
+    }
+    for(int y = 0; y < h; y++)
+    {
+        for(int x = 0; x < w; x++)
+        {
+            const int x0 = za::max(x - r, 0), x1 = za::min(x + r + 1, w), y0 = za::max(y - r, 0), y1 = za::min(y + r + 1, h);
+            const int n = sum[static_cast<za::SizeT>(y1 * (w + 1) + x1)] - sum[static_cast<za::SizeT>(y0 * (w + 1) + x1)] -
+                sum[static_cast<za::SizeT>(y1 * (w + 1) + x0)] + sum[static_cast<za::SizeT>(y0 * (w + 1) + x0)];
+            s.nearFlesh[static_cast<za::SizeT>(y * w + x)] =
+                static_cast<float>(n) >= m.nearShare * static_cast<float>((x1 - x0) * (y1 - y0)) ? 1 : 0;
+        }
+    }
+}
+// seat-shared: the masks' file, loaded once
+MaskSet maskSet;
+// seat-shared: the masks known (assets)
+za::Vector<Skin> skins; // the masks known: read from the masks' file, or made for a drawn skin
+
+// seat-shared: the GPU's copy of the masks
+GLuint buffer = 0;
+// seat-shared: with buffer
+int bufferUsed = 0;
+// seat-shared: scratch text
+char pathText[MAX_OSPATH];
 
 // seat-shared: the server's, per entity
 za::Vector<unsigned short> sent;  // the server's: per entity, what the clients were last told
@@ -69,86 +122,398 @@ int numLooks = 0;
     return end && end != name && *end == '\0' ? static_cast<int>(v) : -1;
 }
 
-void load()
+// The next line of `text` (cut there, its comment gone), or nullptr at the end.
+[[nodiscard]] char* nextLine(char*& text)
+{
+    if(!text || !*text)
+    {
+        return nullptr;
+    }
+    char* line = text;
+    char* next = strchr(line, '\n');
+    if(next)
+    {
+        *next++ = '\0';
+    }
+    text = next;
+    char* hash = strchr(line, '#');
+    if(hash)
+    {
+        *hash = '\0';
+    }
+    return line;
+}
+
+void loadTable()
 {
     table = Table{};
     table.loaded = true;
-    char* data = reinterpret_cast<char*>(COM_LoadMallocFile(fileName, nullptr));
+    char* data = reinterpret_cast<char*>(COM_LoadMallocFile(tableName(), nullptr));
     if(!data)
     {
-        Con_DPrintf("humlook: no %s (no recolours)\n", fileName);
+        Con_DPrintf("humlook: no %s (no recolours)\n", tableName());
         return;
     }
-    char* line = data;
+    char* cursor = data;
     int lineNo = 0;
-    while(line && *line)
+    while(char* line = nextLine(cursor))
     {
-        char* next = strchr(line, '\n');
-        if(next)
-        {
-            *next++ = '\0';
-        }
         lineNo++;
-        char* hash = strchr(line, '#');
-        if(hash)
-        {
-            *hash = '\0';
-        }
         char kind[32], cat[32], part[32];
-        float v[13];
-        const int got = sscanf(line, "%31s %31s %31s %f %f %f %f %f %f %f %f %f %f %f %f %f", kind, cat, part, &v[0],
-            &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9], &v[10], &v[11], &v[12]);
+        float v[6];
+        const int got = sscanf(line, "%31s %31s %31s %f %f %f %f %f %f", kind, cat, part, &v[0], &v[1], &v[2], &v[3],
+            &v[4], &v[5]);
         if(got <= 0)
         {
-            line = next;
             continue;
         }
         const int k = nameIndex(kind, kindNames, static_cast<int>(countof(kindNames)));
         const int c = nameIndex(cat, categoryNames, static_cast<int>(countof(categoryNames)));
         const int p = nameIndex(part, partNames, static_cast<int>(countof(partNames)));
-        if(got != 16 || k < 0 || k >= maxKinds || c <= 0 || c >= maxCategories || p < 0 || p > 1)
+        if(got != 9 || k < 0 || k >= maxKinds || c <= 0 || c >= maxCategories || p < 0 || p > 1)
         {
-            Con_Warning("%s:%d: not a row (<type> <category> <part> and 13 numbers)\n", fileName, lineNo);
-            line = next;
+            Con_Warning("%s:%d: not a row (<type> <category> <part> r g b strength light tint)\n", tableName(), lineNo);
             continue;
         }
         Spec& s = table.specs[k][c][p];
         s.set = true;
-        const float amount = za::clamp(v[12], 0.f, 1.f);
-        const float a[4] = {v[0], za::clamp(v[1], 0.001f, 180.f), za::max(v[2], 0.001f), v[3]};
-        const float b[4] = {v[4], v[5], v[6], za::max(v[7], 0.f)};
-        const float cc[4] = {1.f + (v[9] - 1.f) * amount, 1.f + (v[10] - 1.f) * amount, 1.f + (v[11] - 1.f) * amount,
-            za::max(v[8], 0.f)};
-        memcpy(s.a, a, sizeof(a));
-        memcpy(s.b, b, sizeof(b));
-        memcpy(s.c, cc, sizeof(cc));
+        for(int i = 0; i < 3; i++)
+        {
+            s.rgb[i] = za::clamp(v[i], 0.f, 1.f);
+        }
+        s.strength = za::clamp(v[3], 0.f, 1.f);
+        s.light = za::clamp(v[4], 0.f, 4.f);
+        s.tint = za::clamp(v[5], 0.f, 1.f);
         table.rows++;
-        line = next;
     }
     free(data);
-    Con_DPrintf("humlook: %d rows from %s\n", table.rows, fileName);
+    Con_DPrintf("humlook: %d rows from %s\n", table.rows, tableName());
 }
 
-[[nodiscard]] const Spec* specOf(int look)
+// "a-b" or "a": texel ranges into `paint` as `klass`.
+void readRanges(const char* text, Skin& s, unsigned char klass)
 {
-    if(look <= 0)
+    const int n = s.w * s.h;
+    const char* p = text;
+    while(*p)
     {
-        return nullptr;
+        char* end = nullptr;
+        const long a = strtol(p, &end, 10);
+        if(end == p)
+        {
+            p++;
+            continue;
+        }
+        long b = a;
+        p = end;
+        if(*p == '-')
+        {
+            b = strtol(p + 1, &end, 10);
+            p = end;
+        }
+        for(long t = za::max(a, 0L); t <= b && t < n; t++)
+        {
+            s.paint[static_cast<za::SizeT>(t)] = klass;
+        }
     }
+}
+
+[[nodiscard]] Skin* findSkin(const char* model, int skin, int key)
+{
+    for(Skin& s : skins)
+    {
+        if(s.skin == skin && s.key == key && !q_strcasecmp(s.model.cStr(), model))
+        {
+            return &s;
+        }
+    }
+    return nullptr;
+}
+
+[[nodiscard]] Skin& addSkin(const char* model, int skin, int key)
+{
+    Skin* s = findSkin(model, skin, key);
+    if(s)
+    {
+        return *s;
+    }
+    skins.pushBack(Skin{});
+    Skin& made = skins.back();
+    made.model = za::String{model};
+    made.skin = skin;
+    made.key = key;
+    return made;
+}
+
+void loadMasks()
+{
+    maskSet = MaskSet{};
+    maskSet.loaded = true;
+    maskSet.flesh[7] = true; // (Quake's peach row; a `flesh` line says otherwise)
+    bool fleshRead = false;
+    skins.clear();
+    bufferUsed = 0;
+    char* data = reinterpret_cast<char*>(COM_LoadMallocFile(masksName(), nullptr));
+    if(!data)
+    {
+        Con_DPrintf("humlook: no %s (no masks: nothing recoloured)\n", masksName());
+        return;
+    }
+    char* cursor = data;
+    int lineNo = 0;
+    while(char* line = nextLine(cursor))
+    {
+        lineNo++;
+        char what[16], a[MAX_QPATH], b[32] = "", c[32], d[32];
+        int used = 0;
+        const int got = sscanf(line, "%15s %63s %31s%n", what, a, b, &used);
+        if(got < 2 || (got < 3 && q_strcasecmp(what, "flesh")))
+        {
+            continue;
+        }
+        if(!q_strcasecmp(what, "rows")) // rows <key> <class> <row>...: a key's palette rows of that class
+        {
+            const int key = nameIndex(a, keyNames, numKeys);
+            const int klass = nameIndex(b, classNames, 3);
+            if(key < 0 || key >= numKeys || klass < 0)
+            {
+                Con_Warning("%s:%d: rows <grunt|enforcer|knight|dknight|pack> <none|clothes|pack> <row>...\n", masksName(), lineNo);
+                continue;
+            }
+            for(const char* p = line + used; *p;)
+            {
+                char* end = nullptr;
+                const long r = strtol(p, &end, 10);
+                if(end == p)
+                {
+                    break;
+                }
+                p = end;
+                if(r >= 0 && r < 16)
+                {
+                    maskSet.rows[key][r] = static_cast<unsigned char>(klass);
+                }
+            }
+            continue;
+        }
+        // skinrows <model> <skin> <key> <class> <row>... / paint <model> <skin> <key> <w> <h> <class> <ranges>...
+        int used2 = 0;
+        if(!q_strcasecmp(what, "skinrows") && sscanf(line + used, "%31s %31s%n", c, d, &used2) == 2)
+        {
+            const int key = nameIndex(c, keyNames, numKeys);
+            const int klass = nameIndex(d, classNames, 3);
+            if(key < 0 || key >= numKeys || klass < 0)
+            {
+                Con_Warning("%s:%d: skinrows <model> <skin> <key> <class> <row>...\n", masksName(), lineNo);
+                continue;
+            }
+            Skin& s = addSkin(a, atoi(b), key);
+            if(!s.ownRows)
+            {
+                s.ownRows = true;
+                memset(s.rows, 0, sizeof(s.rows));
+            }
+            for(const char* p = line + used + used2; *p;)
+            {
+                char* end = nullptr;
+                const long r = strtol(p, &end, 10);
+                if(end == p)
+                {
+                    break;
+                }
+                p = end;
+                if(r >= 0 && r < 16)
+                {
+                    s.rows[r] = static_cast<unsigned char>(klass);
+                }
+            }
+            continue;
+        }
+        char klassName[32];
+        int w = 0, h = 0;
+        if(!q_strcasecmp(what, "paint") && sscanf(line + used, "%31s %d %d %31s%n", c, &w, &h, klassName, &used2) == 4)
+        {
+            const int key = nameIndex(c, keyNames, numKeys);
+            const int klass = nameIndex(klassName, classNames, 4);
+            if(key < 0 || key >= numKeys || klass <= 0 || w <= 0 || h <= 0 || w * h > bufferWords * 8)
+            {
+                Con_Warning("%s:%d: paint <model> <skin> <key> <w> <h> <clothes|pack|never> <texel ranges>...\n", masksName(), lineNo);
+                continue;
+            }
+            Skin& s = addSkin(a, atoi(b), key);
+            if(s.paint.empty() || s.w != w || s.h != h)
+            {
+                s.w = w;
+                s.h = h;
+                s.paint.clear();
+                s.paint.resize(static_cast<za::SizeT>(w * h), 0);
+            }
+            readRanges(line + used + used2, s, static_cast<unsigned char>(klass));
+            continue;
+        }
+        if(!q_strcasecmp(what, "flesh")) // flesh <row>...: the flesh's rows
+        {
+            if(!fleshRead)
+            {
+                memset(maskSet.flesh, 0, sizeof(maskSet.flesh));
+                fleshRead = true;
+            }
+            for(const char* p = line + strlen(what) + 1; *p;)
+            {
+                char* end = nullptr;
+                const long r = strtol(p, &end, 10);
+                if(end == p)
+                {
+                    break;
+                }
+                p = end;
+                maskSet.flesh[za::clamp(static_cast<int>(r), 0, 15)] = true;
+            }
+            continue;
+        }
+        if(!q_strcasecmp(what, "fleshnear")) // fleshnear <share> <radius>
+        {
+            maskSet.nearShare = static_cast<float>(atof(a));
+            maskSet.nearRadius = atoi(b);
+            continue;
+        }
+        Con_Warning("%s:%d: not a line (rows, skinrows, paint, flesh, fleshnear)\n", masksName(), lineNo);
+    }
+    free(data);
+    Con_DPrintf("humlook: masks from %s: %d skins of our own\n", masksName(), static_cast<int>(skins.size()));
+}
+
+void ensureLoaded()
+{
     if(!table.loaded)
     {
-        load();
+        loadTable();
     }
-    const int part = (look & partPack) ? 1 : 0;
-    const int body = look & (partPack - 1);
-    const int kind = body / maxCategories;
-    const int cat = body % maxCategories;
-    if(kind < 0 || kind >= maxKinds || cat <= 0)
+    if(!maskSet.loaded)
     {
-        return nullptr;
+        loadMasks();
     }
-    const Spec& s = table.specs[kind][cat][part];
-    return s.set ? &s : nullptr;
+}
+
+// The skin's 8-bit texels from its model's file (an MDL: the skins' block; a group's first picture), or false.
+[[nodiscard]] bool readTexels(Skin& s)
+{
+    s.read = true;
+    int size = 0;
+    byte* data = COM_LoadMallocFile(s.model.cStr(), nullptr);
+    size = data ? com_filesize : 0;
+    if(!data)
+    {
+        return false;
+    }
+    bool ok = false;
+    if(size >= 84 && !memcmp(data, "IDPO", 4))
+    {
+        const int numskins = LittleLong(*reinterpret_cast<const int*>(data + 48));
+        const int w = LittleLong(*reinterpret_cast<const int*>(data + 52));
+        const int h = LittleLong(*reinterpret_cast<const int*>(data + 56));
+        int p = 84;
+        const int want = za::clamp(s.skin, 0, za::max(numskins - 1, 0));
+        for(int i = 0; i < numskins && w > 0 && h > 0 && w * h <= bufferWords * 8; i++)
+        {
+            if(p + 4 > size)
+            {
+                break;
+            }
+            const int type = LittleLong(*reinterpret_cast<const int*>(data + p));
+            p += 4;
+            int pics = 1;
+            if(type != 0)
+            {
+                pics = p + 4 <= size ? LittleLong(*reinterpret_cast<const int*>(data + p)) : 0;
+                p += 4 + 4 * za::max(pics, 0);
+            }
+            if(i == want && pics > 0 && p + w * h <= size)
+            {
+                if(!s.paint.empty() && (s.w != w || s.h != h))
+                {
+                    Con_Warning("humlook: %s skin %d is %dx%d, its painted mask %dx%d (dropped)\n", s.model.cStr(), s.skin, w,
+                        h, s.w, s.h);
+                    s.paint.clear();
+                }
+                s.w = w;
+                s.h = h;
+                s.texels.clear();
+                s.texels.resize(static_cast<za::SizeT>(w * h), 0);
+                memcpy(s.texels.data(), data + p, static_cast<size_t>(w * h));
+                if(s.paint.empty())
+                {
+                    s.paint.resize(static_cast<za::SizeT>(w * h), 0);
+                }
+                markNearFlesh(s, maskSet);
+                ok = true;
+                break;
+            }
+            p += w * h * za::max(pics, 0);
+        }
+    }
+    free(data);
+    if(!ok)
+    {
+        Con_DPrintf("humlook: %s skin %d: no 8-bit skin (not recoloured)\n", s.model.cStr(), s.skin);
+    }
+    return ok;
+}
+
+// The mask's words: each texel's class (painted, else its palette row's), 2 bits each.
+void build(Skin& s, za::Vector<za::U32>& words)
+{
+    const int n = s.w * s.h;
+    words.clear();
+    words.resize(static_cast<za::SizeT>((n + 15) / 16), 0u);
+    for(int t = 0; t < n; t++)
+    {
+        const unsigned klass = classAt(s, t);
+        words[static_cast<za::SizeT>(t >> 4)] |= klass << ((t & 15) * 2);
+    }
+}
+
+// Its mask in the buffer (written again when changed): its first word, or -1.
+[[nodiscard]] int upload(Skin& s)
+{
+    if(!s.read)
+    {
+        (void)readTexels(s);
+    }
+    if(s.texels.empty())
+    {
+        return -1;
+    }
+    const int words = (s.w * s.h + 15) / 16;
+    if(!buffer)
+    {
+        buffer = GL_CreateBuffer(GL_SHADER_STORAGE_BUFFER, GL_DYNAMIC_DRAW, "vr humlook masks",
+            sizeof(za::U32) * bufferWords, nullptr);
+    }
+    if(s.first < 0)
+    {
+        if(bufferUsed + words > bufferWords) // (full: from the start again, the others written again when next drawn)
+        {
+            bufferUsed = 0;
+            for(Skin& other : skins)
+            {
+                other.first = -1;
+            }
+        }
+        s.first = bufferUsed;
+        bufferUsed += words;
+        s.dirty = true;
+    }
+    if(s.dirty)
+    {
+        za::Vector<za::U32> bits;
+        build(s, bits);
+        GL_BindBuffer(GL_SHADER_STORAGE_BUFFER, buffer);
+        GL_BufferSubDataFunc(GL_SHADER_STORAGE_BUFFER, static_cast<GLintptr>(s.first) * static_cast<GLintptr>(sizeof(za::U32)),
+            static_cast<GLsizeiptr>(words) * static_cast<GLsizeiptr>(sizeof(za::U32)), bits.data());
+        s.dirty = false;
+    }
+    return s.first;
 }
 
 [[nodiscard]] int ownLook(edict_t* e, int ofs)
@@ -183,11 +548,6 @@ void writeState(sizebuf_t* msg, int num, unsigned short look)
     MSG_WriteShort(msg, look);
 }
 
-[[nodiscard]] int lookOf(int num)
-{
-    return num >= 0 && num < static_cast<int>(looks.size()) ? looks[static_cast<za::SizeT>(num)] : 0;
-}
-
 void describe(int look)
 {
     const int part = (look & partPack) ? 1 : 0;
@@ -196,25 +556,32 @@ void describe(int look)
     const int cat = body % maxCategories;
     Con_Printf("  look %d: %s %s %s", look, kind < static_cast<int>(countof(kindNames)) ? kindNames[kind] : "?",
         cat < static_cast<int>(countof(categoryNames)) ? categoryNames[cat] : "?", partNames[part]);
-    const Spec* s = specOf(look);
-    if(!s)
+    const Spec* s = kind < maxKinds && cat > 0 ? spec(kind, cat, part) : nullptr;
+    if(!s || !s->set)
     {
         Con_Printf(": no row (as it is)\n");
         return;
     }
-    Con_Printf(": hue %g +-%g (soft %g) sat >= %g light %g..%g -> turn %g sat x%g light x%g tint %g %g %g\n", s->a[0],
-        s->a[1], s->a[2], s->a[3], s->b[0], s->b[1], s->b[2], s->b[3], s->c[3], s->c[0], s->c[1], s->c[2]);
+    Con_Printf(": colour %g %g %g strength %g light %g tint %g\n", s->rgb[0], s->rgb[1], s->rgb[2], s->strength, s->light,
+        s->tint);
 }
 
 // vr_humlook_info [entity]: the table, the client's looks, and the server's armed humanoid nearest you (or that one).
 void info_f()
 {
-    if(!table.loaded)
+    ensureLoaded();
+    Con_Printf("humlook: %d rows from %s, %d skins' masks, %d looks known by the client, vr_humlook %g\n", table.rows,
+        tableName(), static_cast<int>(skins.size()), numLooks, vr_humlook.value);
+    for(const Skin& s : skins)
     {
-        load();
+        int count[4] = {};
+        for(int t = 0; t < s.w * s.h && !s.texels.empty(); t++)
+        {
+            count[classAt(s, t)]++;
+        }
+        Con_Printf("  mask %s skin %d (%s): %dx%d, %s, clothes %d pack %d texels\n", s.model.cStr(), s.skin, keyNames[s.key],
+            s.w, s.h, s.texels.empty() ? "not read" : s.ownRows ? "its own rows" : "its kind's rows", count[1], count[2]);
     }
-    Con_Printf("humlook: %d rows from %s, %d looks known by the client, vr_humlook %g\n", table.rows, fileName, numLooks,
-        vr_humlook.value);
     if(!sv.active || progs::fields().vr_hum_look < 0)
     {
         return;
@@ -251,7 +618,274 @@ void info_f()
     Con_Printf("  entity %d (%s), the client's look %d:\n", best, PR_GetString(e->v.classname), lookOf(best));
     describe(stateOf(e));
 }
+
+// Where a file of quakevr/ is written: quakevr/ in the last base folder that has one (as vr_armourdata.cpp's).
+[[nodiscard]] const char* writePath(const char* name)
+{
+    for(int i = com_numbasedirs - 1; i >= 0; i--)
+    {
+        char dir[MAX_OSPATH];
+        q_snprintf(dir, sizeof(dir), "%s/quakevr", com_basedirs[i]);
+        if(files::isDirectory(dir) || i == 0)
+        {
+            q_snprintf(pathText, sizeof(pathText), "%s/%s", dir, name);
+            return pathText;
+        }
+    }
+    q_snprintf(pathText, sizeof(pathText), "quakevr/%s", name);
+    return pathText;
+}
+
+constexpr const char* tableHead =
+    "# humlook.txt: the armed humanoids' recolours by the weapon they spawned with (docs/vr-port/ARMED_MONSTERS.md,\n"
+    "# \"Recolours by weapon\"; the engine's vr_humlook.cpp, the shader's QVR_ALIAS_FS_RECOLOR). Read at load; vr_humlook_reload\n"
+    "# reads it again, vr_humlook_info prints what the nearest armed humanoid wears. The Texture Studio (Debug > Tools) writes it.\n"
+    "#\n"
+    "# A row: <type> <category> <part> r g b strength light tint\n"
+    "#   type      grunt, enforcer, knight, dknight (the armed monsters' rows, QC VR_AM_*)\n"
+    "#   category  explosive (rockets, grenades), energy (lightning, plasma, lasers), flame, poison; the others (shells, nails,\n"
+    "#             melee, the monster's own gun) have no row: as today\n"
+    "#   part      clothes (its body's masked texels), pack (its worn backpack, and a pack in its body's skin)\n"
+    "# Which texels: humlook_masks.txt (their palette rows; a few painted by hand). Faces and flesh are never changed.\n"
+    "#   r g b     the colour (0..1) the texels are dyed: each keeps its own lightness (its shading), in that colour\n"
+    "#   strength  how much of the dye (0 none, 1 all)\n"
+    "#   light     the texels' lightness times this\n"
+    "#   tint      0: the dye (the colour at the texel's lightness); 1: the texel's own colour times the colour (keeps more\n"
+    "#             of its detail, less of the colour); between: a mix\n"
+    "#\n"
+    "# type     category  part        r     g     b    strength light  tint\n";
+
+constexpr const char* masksHead =
+    "# humlook_masks.txt: which texels of the armed humanoids' skins the recolours dye (humlook.txt; vr_humlook.cpp).\n"
+    "# Made from each skin's 8-bit palette rows as the model loads: no texture is changed or copied. The Texture Studio\n"
+    "# (Debug > Tools) writes it.\n"
+    "#   rows <key> <class> <row>...      a key's palette rows (0..15: index / 16) of that class; the others: none\n"
+    "#        key: grunt, enforcer, knight, dknight (their bodies), pack (a worn backpack); class: clothes, pack, none\n"
+    "#   skinrows <model> <skin> <key> <class> <row>...   one skin's own rows instead of its key's\n"
+    "#   paint <model> <skin> <key> <w> <h> <class> <texels>...   texels painted by hand (y * w + x, ranges a-b): clothes,\n"
+    "#        pack, or never (left as it is whatever its row); only on a skin of that size\n"
+    "#   flesh <row>...                  the flesh's rows: never dyed (default 7)\n"
+    "#   fleshnear <share> <radius>      a dyed row's texel left as it is where this share of the texels within the radius\n"
+    "#        are flesh (an arm's or a face's highlights on the uniforms' tans; 0: off)\n"
+    "# Their palette rows (scratch analysis, ROUND25 \"humrepl2\"): the uniforms and leather are rows 1 and 10 (browns, tans),\n"
+    "# flesh row 7 (peach), blood row 4 (reds): rows keep faces and flesh out where a hue band could not.\n";
+
 } // namespace
+
+const char* tableName()
+{
+    return vr_humlook_file.string && vr_humlook_file.string[0] ? vr_humlook_file.string : "humlook.txt";
+}
+
+const char* masksName()
+{
+    return vr_humlook_masks_file.string && vr_humlook_masks_file.string[0] ? vr_humlook_masks_file.string
+                                                                           : "humlook_masks.txt";
+}
+
+Spec* spec(int kind, int cat, int part)
+{
+    ensureLoaded();
+    if(kind < 0 || kind >= maxKinds || cat <= 0 || cat >= maxCategories || part < 0 || part > 1)
+    {
+        return nullptr;
+    }
+    return &table.specs[kind][cat][part];
+}
+
+unsigned char* keyRows(int key)
+{
+    ensureLoaded();
+    return key >= 0 && key < numKeys ? maskSet.rows[key] : nullptr;
+}
+
+unsigned classAt(const Skin& s, int t)
+{
+    const unsigned char p = t >= 0 && t < static_cast<int>(s.paint.size()) ? s.paint[static_cast<za::SizeT>(t)] : 0;
+    if(p != ClassNone)
+    {
+        return p == ClassNever ? 0u : p;
+    }
+    if(t < 0 || t >= static_cast<int>(s.texels.size()))
+    {
+        return 0u;
+    }
+    const int row = s.texels[static_cast<za::SizeT>(t)] >> 4;
+    if(maskSet.flesh[row] || (t < static_cast<int>(s.nearFlesh.size()) && s.nearFlesh[static_cast<za::SizeT>(t)]))
+    {
+        return 0u; // (flesh, and a dyed row's texel amid it)
+    }
+    return s.ownRows ? s.rows[row] : maskSet.rows[s.key][row];
+}
+
+Skin* skinFor(const qmodel_t* model, int skinnum, int key)
+{
+    ensureLoaded();
+    if(!model || model->type != mod_alias || key < 0 || key >= numKeys)
+    {
+        return nullptr;
+    }
+    char name[MAX_QPATH]; // (its file: a derived model's name without its "#rig2" and the like)
+    q_strlcpy(name, model->name, sizeof(name));
+    char* hash = strchr(name, '#');
+    if(hash)
+    {
+        *hash = '\0';
+    }
+    Skin& s = addSkin(name, za::max(skinnum, 0), key);
+    if(!s.read)
+    {
+        (void)readTexels(s);
+    }
+    return s.texels.empty() ? nullptr : &s;
+}
+
+int keyOf(int look)
+{
+    if(look <= 0)
+    {
+        return -1;
+    }
+    if(look & partPack)
+    {
+        return keyPack;
+    }
+    const int kind = (look & (partPack - 1)) / maxCategories;
+    return kind >= 0 && kind < keyPack ? kind : -1;
+}
+
+int lookOf(int num)
+{
+    return num >= 0 && num < static_cast<int>(looks.size()) ? looks[static_cast<za::SizeT>(num)] : 0;
+}
+
+za::Vector<Skin>& allSkins()
+{
+    ensureLoaded();
+    return skins;
+}
+
+void reload()
+{
+    loadTable();
+    loadMasks();
+}
+
+bool saveTable()
+{
+    ensureLoaded();
+    za::String out{tableHead};
+    char line[256];
+    for(int k = 0; k < static_cast<int>(countof(kindNames)); k++)
+    {
+        for(int c = 1; c < static_cast<int>(countof(categoryNames)); c++)
+        {
+            for(int p = 0; p < 2; p++)
+            {
+                const Spec& s = table.specs[k][c][p];
+                if(s.set)
+                {
+                    q_snprintf(line, sizeof(line), "%-10s %-9s %-8s %5.2f %5.2f %5.2f   %5.2f  %5.2f  %5.2f\n", kindNames[k],
+                        categoryNames[c], partNames[p], s.rgb[0], s.rgb[1], s.rgb[2], s.strength, s.light, s.tint);
+                    out += line;
+                }
+            }
+        }
+    }
+    return files::writeText(writePath(tableName()), out.cStr());
+}
+
+bool saveMasks()
+{
+    ensureLoaded();
+    za::String out{masksHead};
+    char line[512];
+    q_strlcpy(line, "flesh", sizeof(line));
+    for(int r = 0; r < 16; r++)
+    {
+        if(maskSet.flesh[r])
+        {
+            q_strlcat(line, va(" %d", r), sizeof(line));
+        }
+    }
+    out += line;
+    out += va("\nfleshnear %g %d\n", maskSet.nearShare, maskSet.nearRadius);
+    for(int key = 0; key < numKeys; key++)
+    {
+        for(int klass = ClassClothes; klass <= ClassPack; klass++)
+        {
+            q_snprintf(line, sizeof(line), "rows %-8s %-7s", keyNames[key], classNames[klass]);
+            bool any = false;
+            for(int r = 0; r < 16; r++)
+            {
+                if(maskSet.rows[key][r] == klass)
+                {
+                    q_strlcat(line, va(" %d", r), sizeof(line));
+                    any = true;
+                }
+            }
+            if(any)
+            {
+                out += line;
+                out += "\n";
+            }
+        }
+    }
+    for(const Skin& s : skins)
+    {
+        if(s.ownRows)
+        {
+            q_snprintf(line, sizeof(line), "skinrows %s %d %s none\n", s.model.cStr(), s.skin, keyNames[s.key]);
+            out += line;
+            for(int klass = ClassClothes; klass <= ClassPack; klass++)
+            {
+                q_snprintf(line, sizeof(line), "skinrows %s %d %s %s", s.model.cStr(), s.skin, keyNames[s.key], classNames[klass]);
+                for(int r = 0; r < 16; r++)
+                {
+                    if(s.rows[r] == klass)
+                    {
+                        q_strlcat(line, va(" %d", r), sizeof(line));
+                    }
+                }
+                out += line;
+                out += "\n";
+            }
+        }
+        for(int klass = ClassClothes; klass <= ClassNever; klass++)
+        {
+            // (the texels in runs, a line every 24 runs)
+            int runs = 0;
+            const int n = static_cast<int>(s.paint.size());
+            for(int t = 0; t < n;)
+            {
+                if(s.paint[static_cast<za::SizeT>(t)] != klass)
+                {
+                    t++;
+                    continue;
+                }
+                int e = t;
+                while(e + 1 < n && s.paint[static_cast<za::SizeT>(e + 1)] == klass)
+                {
+                    e++;
+                }
+                if(runs % 24 == 0)
+                {
+                    q_snprintf(line, sizeof(line), "%spaint %s %d %s %d %d %s", runs ? "\n" : "", s.model.cStr(), s.skin,
+                        keyNames[s.key], s.w, s.h, classNames[klass]);
+                    out += line;
+                }
+                out += e > t ? va(" %d-%d", t, e) : va(" %d", t);
+                runs++;
+                t = e + 1;
+            }
+            if(runs)
+            {
+                out += "\n";
+            }
+        }
+    }
+    return files::writeText(writePath(masksName()), out.cStr());
+}
 
 void serverFrame()
 {
@@ -326,27 +960,73 @@ void parseEvent()
 void registerCommands()
 {
     Cmd_AddCommand("vr_humlook_reload", [] {
-        load();
-        Con_Printf("humlook: %d rows from %s\n", table.rows, fileName);
+        reload();
+        Con_Printf("humlook: %d rows from %s, masks from %s\n", table.rows, tableName(), masksName());
     });
     Cmd_AddCommand("vr_humlook_info", info_f);
+    studioInit();
 }
 
-void instanceRows(const entity_t* e, float rows[3][4])
+void instanceRows(const entity_t* e, float rows[4][4])
 {
-    memset(rows, 0, sizeof(float) * 12);
+    memset(rows, 0, sizeof(float) * 16);
     if(vr_humlook.value == 0.f || numLooks <= 0 || !cl_entities || e < cl_entities || e >= cl_entities + cl_max_edicts)
     {
         return;
     }
-    const Spec* s = specOf(lookOf(static_cast<int>(e - cl_entities)));
-    if(!s)
+    const int look = lookOf(static_cast<int>(e - cl_entities));
+    const int key = keyOf(look);
+    if(key < 0)
     {
         return;
     }
-    memcpy(rows[0], s->a, sizeof(s->a));
-    memcpy(rows[1], s->b, sizeof(s->b));
-    memcpy(rows[2], s->c, sizeof(s->c));
+    const int part = key == keyPack ? 1 : 0;
+    const int body = look & (partPack - 1);
+    const Spec* clothes = part ? nullptr : spec(body / maxCategories, body % maxCategories, 0);
+    const Spec* pack = spec(body / maxCategories, body % maxCategories, 1);
+    clothes = clothes && clothes->set ? clothes : nullptr;
+    pack = pack && pack->set ? pack : nullptr;
+    const bool overlay = studioOverlay();
+    if(!clothes && !pack && !overlay)
+    {
+        return;
+    }
+    Skin* s = skinFor(e->model, e->skinnum, key);
+    const int first = s ? upload(*s) : -1;
+    if(first < 0)
+    {
+        return;
+    }
+    if(clothes)
+    {
+        rows[0][0] = clothes->rgb[0];
+        rows[0][1] = clothes->rgb[1];
+        rows[0][2] = clothes->rgb[2];
+        rows[0][3] = clothes->strength;
+        rows[2][0] = clothes->light;
+        rows[2][1] = clothes->tint;
+    }
+    if(pack)
+    {
+        rows[1][0] = pack->rgb[0];
+        rows[1][1] = pack->rgb[1];
+        rows[1][2] = pack->rgb[2];
+        rows[1][3] = pack->strength;
+        rows[2][2] = pack->light;
+        rows[2][3] = pack->tint;
+    }
+    rows[3][0] = static_cast<float>(first + 1);
+    rows[3][1] = static_cast<float>(s->w);
+    rows[3][2] = static_cast<float>(s->h);
+    rows[3][3] = overlay ? 1.f : 0.f;
 }
 
 } // namespace qvr::humlook
+
+extern "C" void VR_HumlookBind(void)
+{
+    if(qvr::humlook::buffer)
+    {
+        GL_BindBufferRange(GL_SHADER_STORAGE_BUFFER, 17, qvr::humlook::buffer, 0, sizeof(za::U32) * qvr::humlook::bufferWords);
+    }
+}

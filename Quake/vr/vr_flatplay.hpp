@@ -40,7 +40,9 @@ void swapHands(const char* what);
 [[nodiscard]] int heldIn(int h);
 
 // Whether `h` holds anything that is not a weapon: a prop, an item, a torch (STAT_QVR_CARRYMAIN / _CARRYOFF, or drawn in
-// it: held::heldEntity). Such a hand is not free to steady the other hand's gun: that gun is held one-handed (his note
+// it: held::heldEntity), or a blade stuck in a body (axestick::handOnBlade: still held, drawn on it; his words 2026-11-21: "The
+// hand should instead keep holding onto the embedded blade"). Such a hand is not free to steady the other hand's gun: that gun is
+// held one-handed, no ironsight, each mouse button its own hand's, as dual wielding (his note
 // 2026-11-10; vr_flatsight.cpp, vr_twohand.cpp).
 [[nodiscard]] bool holdsThing(int h);
 

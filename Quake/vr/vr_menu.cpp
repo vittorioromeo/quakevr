@@ -964,6 +964,15 @@ za::Vector<Item> pageHitbox()
         row(opt::vr_hull_edge_probe),
         row(opt::vr_hull_brushmodels),
         row(opt::vr_hull_holes),
+        row(opt::vr_hull_holes_max),
+        row(opt::vr_hull_holes_min),
+        row(opt::vr_hull_holes_wide),
+        row(opt::vr_hull_holes_diag),
+        row(opt::vr_hull_holes_models),
+        row(opt::vr_hull_holes_vert),
+        command("Rebuild Gap Blockers Now", "vr_hull_holes_rebuild")
+            .help("Finds the gap blockers again with the settings above without leaving the map: saves the game "
+                  "(holes_rebuild) and loads it. One player only (vr_hull_holes_rebuild)."),
         header("Monsters, Players and Boxes"),
         cycle("Width Against Them", vr_hull_ent_width, ents)
             .help("How wide you are against monsters, other players and solid boxes, both ways (you walking into them, "

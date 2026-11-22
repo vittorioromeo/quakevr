@@ -394,6 +394,8 @@ static void SCR_CheckDrawCenterString (seathud_t *hud)
 			return;
 		if (VR_CenterPrintOnVisor (hud->centerstring, SCR_CenterPrintFade (hud))) // QVR: flatscreen play's visor's popup shows it
 			return;
+		if (VR_CenterPrintInView (hud->centerstring, SCR_CenterPrintFade (hud))) // QVR: the headset's panel, in the flat visor popup's style (vr_panel.cpp)
+			return;
 	}
 
 	SCR_DrawCenterString (hud);

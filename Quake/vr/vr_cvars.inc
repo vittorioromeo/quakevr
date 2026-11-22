@@ -15,6 +15,15 @@ QVR_CVAR(vr_hull_ent_width, "-1", CVAR_ARCHIVE | QVR_RULE)        // the player'
 QVR_CVAR(vr_hull_edge_probe, "1", CVAR_ARCHIVE | QVR_RULE)       // Quake's "over a ledge" friction test (double friction) looks down from your box's leading edge (half its width ahead; Quake: 16), and a point inside a step has floor under it; 0: Quake's (under a stairs' clip ramp that point was inside the steps: walking up slowed to a crawl, a jump there went nowhere)
 QVR_CVAR(vr_hull_brushmodels, "1", CVAR_ARCHIVE | QVR_RULE)       // the narrow width against brush models too (doors, lifts, func_walls, external .bsp models), not only the world
 QVR_CVAR(vr_hull_holes, "1", CVAR_ARCHIVE | QVR_RULE)       // gaps Quake's 32 box never fit (grates, bars, pillar rows, a lift's edge) closed by invisible blockers for the narrower boxes (yours, narrow monsters'), found at map load (vr_hull_holes.cpp, HULLS.md "Holes"); 0: open, as the compiled widths leave them. Takes effect at the next map load
+QVR_CVAR(vr_hull_holes_max, "32", CVAR_ARCHIVE | QVR_RULE)  // vr_hull_holes: gaps narrower than this along x or y are closed (32: Quake's box; wider ones only where hull 1 shows Quake's box can't reach them; between the world and a brush model at most 32). Next map load (vr_hull_holes_rebuild)
+QVR_CVAR(vr_hull_holes_min, "8", CVAR_ARCHIVE | QVR_RULE)   // vr_hull_holes: gaps narrower than this are left open (8: the narrowest compiled box gets into none of them)
+QVR_CVAR(vr_hull_holes_wide, "48", CVAR_ARCHIVE | QVR_RULE) // vr_hull_holes: the world's gaps from vr_hull_holes_max up to this over a fall, closed only where hull 1 shows Quake's box can't stand reaching them (its shape: a crossbar below, a narrowing); 0 off
+QVR_CVAR(vr_hull_holes_diag, "1", CVAR_ARCHIVE | QVR_RULE)  // vr_hull_holes: gaps across slanted bars, rotated grates and round holes too (along the diagonals, under 45.25 = 32 x 1.414), kept only where hull 1 shows Quake's box can't reach them
+QVR_CVAR(vr_hull_holes_models, "1", CVAR_ARCHIVE | QVR_RULE) // vr_hull_holes: gaps between two brush models too (two func_walls, a door and a lift's travel), in the world's tree
+QVR_CVAR(vr_hull_holes_vert, "1", CVAR_ARCHIVE | QVR_RULE)  // vr_hull_holes: the world's gaps seen from above over a fall (bars at two heights, a louvred grate), kept only where hull 1 shows Quake's box can't stand reaching them
+QVR_CVAR(vr_hull_holes_cells, "64", CVAR_ARCHIVE | QVR_RULE) // vr_hull_holes: the most tests a pair of slanted faces gets (cut into cells; past it, the rest is left open)
+QVR_CVAR(vr_hull_holes_cell, "2", CVAR_ARCHIVE | QVR_RULE)  // vr_hull_holes: the smallest cell a slanted face's area is cut into (units)
+QVR_CVAR(vr_hull_holes_reach, "2", CVAR_ARCHIVE | QVR_RULE) // vr_hull_holes: a blocker that Quake's box (hull 1) can reach into by more than this is left out (units; hull 1 is rounded by a unit or so)
 QVR_CVAR(vr_hull_holes_show, "0", CVAR_NONE)           // the gap blockers drawn round the view (vr_hull_holes.cpp): the world's cyan, the world's against a brush model yellow, a brush model's own magenta (moving with it), left out as Quake's box reaches them red; their counts in front of you
 QVR_CVAR(vr_hull_holes_show_range, "1024", CVAR_NONE)  // vr_hull_holes_show: blockers this far from the view are drawn (units)
 QVR_CVAR(vr_hull_cache, "1", CVAR_ARCHIVE)            // the world's compiled hulls kept on disk (cache/hulls, vr_hull.cpp: trees that took 250 ms or more; vrstart cold 10 s to under 1): 0 compiled at every load; 2 read, then compiled anyway and compared (vr_hull_stats)
@@ -874,7 +883,7 @@ QVR_CVAR(vr_melee_fist_to_y, "0.7656", CVAR_ARCHIVE)   // right (mirrored for th
 QVR_CVAR(vr_melee_fist_to_z, "-4.2209", CVAR_ARCHIVE)  // up
 QVR_CVAR(vr_melee_fist_width, "0.291", CVAR_ARCHIVE)   // times the swept points' radius (QC VR_MELEE_RADIUS x vr_melee_range_multiplier)
 QVR_CVAR(vr_melee_fist_mirror, "1", CVAR_ARCHIVE) // 1: the off hand's line is the main hand's mirrored (its right offsets negated); 0: as they are
-QVR_CVAR(vr_melee_sweep_test, "0", CVAR_NONE) // Debug > Tests: the QC's swept-blade test (vr_melee.qc VR_Melee_SweepTest): scripted sweeps past a target dummy ("meleesweep:" lines, PASS or FAIL); 2 the main hand's blade dumped, 3 its edited shape, 4 the empty hand's fist line (vr_melee_fist_*: "fistline:"), 6 one swing, many hits (the sword_multi scene: "meleemulti:")
+QVR_CVAR(vr_melee_sweep_test, "0", CVAR_NONE) // Debug > Tests: the QC's swept-blade test (vr_melee.qc VR_Melee_SweepTest): scripted sweeps past a target dummy ("meleesweep:" lines, PASS or FAIL); 2 the main hand's blade dumped, 3 its edited shape, 4 the empty hand's fist line (vr_melee_fist_*: "fistline:"), 6 one swing, many hits (the sword_multi scene: "meleemulti:"), 7 every bladed weapon's drawn Blade Start the one start ("bladeone:")
 QVR_CVAR(vr_melee_wall_hold, "0.2", CVAR_ARCHIVE | QVR_RULE)  // s a weapon (a fist holding a prop) that went into a wall or the floor hard enough may land its blow there while it stays at it: the hand held off the wall slows, so a blow judged a frame or two after it met the wall (at the speed it came in at) still counts (QC vr_melee.qc VR_Melee_WallHeld); 0: only in the frame it crosses the surface, and never steeply down onto the floor (as before round 22)
 // Strikes let past the level (ROUND22.md, "Swords past the floor"): a hand swinging at least vr_melee_world_pass_speed,
 // the far part of what it holds near a monster, a corpse or a ragdoll (within vr_melee_world_pass_reach), has that part
@@ -983,7 +992,9 @@ QVR_CVAR(vr_messages_hologram_time, "5", CVAR_ARCHIVE) // seconds a message stay
 QVR_CVAR(vr_messages_hologram_size, "1", CVAR_ARCHIVE) // its text's size (1: about 8 mm characters)
 QVR_CVAR(vr_messages_hologram_height, "10", CVAR_ARCHIVE) // cm its bottom floats over the gadget as seen
 QVR_CVAR(vr_messages_hologram_effect, "1", CVAR_ARCHIVE) // the hologram look: the beam from the screen, scanlines, flicker, glitches, the projection as it appears (0 plain glowing text, up to 2)
-QVR_CVAR(vr_view_text_smooth, "0.12", CVAR_ARCHIVE)     // the messages in front of you (the maps' view messages: VR Calibration's boards' texts, its steps, Body Calibration's poses; and the centre prints on the head's panel) follow your head's turn smoothed: seconds to catch up most of the way (0 at once; the author's note vrstart_2026-10-23_01-23-46)
+QVR_CVAR(vr_center_panel_scale, "2", CVAR_ARCHIVE)     // the centre panel's size (vr_center_panel) as a multiple of the HUD's own text size (1: the flat screen's 8 pixel characters at the menu's scale: small at the menu's distance; 0.25 .. 8)
+QVR_CVAR(vr_center_panel, "1", CVAR_ARCHIVE)         // 1: the game's centre prints in front of the head (not on the wrist's hologram) and the maps' view messages as the flat screen's: the visor popup's panel (its font, black face, frame line, colours, wrapping and fade); 0: as before (Quake's own centre print on the 2D canvas, the view messages as 3D text)
+QVR_CVAR(vr_view_text_smooth,"0.12", CVAR_ARCHIVE)     // the messages in front of you (the maps' view messages: VR Calibration's boards' texts, its steps, Body Calibration's poses; and the centre prints on the head's panel) follow your head's turn smoothed: seconds to catch up most of the way (0 at once; the author's note vrstart_2026-10-23_01-23-46)
 QVR_CVAR(vr_messages_hologram_only, "1", CVAR_ARCHIVE) // QVR round 21: 1: the game's messages never show in front of you; they wait in the hologram until you look at the gadget, and a new one (not a pickup) chimes from the gadget and buzzes its hand while it is out of view
 QVR_CVAR(vr_loading_notice, "1", CVAR_ARCHIVE)        // (off in 1.0.0, config 122: its campaign-switch crash, fixed in 1.0.1: ROUND22.md, "The Loading... crash, root cause") "Loading..." in front of you before a level change (changelevel, a map transition, map, load, restart: vr_loading.cpp): the load waits until two headset frames showed it, as the runtime keeps showing the last frame while the game loads; 0 off, 1 in the headset, 2 the mock headset too (tests)
 QVR_CVAR(vr_loading_hold, "0", CVAR_NONE)            // seconds the notice stays before the load starts (0: two frames), to look at it
@@ -2903,6 +2914,22 @@ QVR_CVAR(vr_arena_xray_distance, "800", CVAR_ARCHIVE | QVR_RULE)         // ... 
 QVR_CVAR(vr_arena_xray_shown, "0", CVAR_ROM)                  // (read-only: the foes the last view outlined through walls; arena test 16 reads it)
 QVR_CVAR(vr_humlook, "1", CVAR_ARCHIVE)                        // 1: armed humanoids recoloured by the weapon they spawned with (quakevr/humlook.txt; vr_humlook.cpp, ARMED_MONSTERS.md "Recolours by weapon")
 QVR_CVAR(vr_humlook_known, "0", CVAR_ROM)                    // (read-only: the entities whose recolour the client knows; vr_ad_test 219 reads it)
+QVR_CVAR(vr_humlook_file, "humlook.txt", CVAR_NONE)          // debug (vr_humlook.cpp): the recolours' table, in quakevr/ (the tests point it elsewhere)
+QVR_CVAR(vr_humlook_masks_file, "humlook_masks.txt", CVAR_NONE) // debug (vr_humlook.cpp): which texels they dye (palette rows, painted texels), in quakevr/
+// The Texture Studio (Debug > Tools; vr_humstudio.cpp): the recolours' table and masks edited live
+QVR_CVAR(vr_humstudio_kind, "0", CVAR_NONE)       // debug: the row edited: 0 grunt, 1 enforcer, 2 knight, 3 death knight
+QVR_CVAR(vr_humstudio_cat, "1", CVAR_NONE)        // debug: ... its weapon category: 1 explosive, 2 energy, 3 flame, 4 poison, 5 shells, 6 nails, 7 melee, 8 its own gun
+QVR_CVAR(vr_humstudio_part, "0", CVAR_NONE)       // debug: ... its part: 0 clothes, 1 pack
+QVR_CVAR(vr_humstudio_r, "1", CVAR_NONE)          // debug: the row's colour (0..1), its red
+QVR_CVAR(vr_humstudio_g, "1", CVAR_NONE)          // debug: ... green
+QVR_CVAR(vr_humstudio_b, "1", CVAR_NONE)          // debug: ... blue
+QVR_CVAR(vr_humstudio_strength, "0", CVAR_NONE)   // debug: ... how much it dyes (0 none: the row off)
+QVR_CVAR(vr_humstudio_light, "1", CVAR_NONE)      // debug: ... the texels' lightness times this
+QVR_CVAR(vr_humstudio_tint, "0", CVAR_NONE)       // debug: ... 0 the dye, 1 the texel's own colour times the colour
+QVR_CVAR(vr_humstudio_overlay, "0", CVAR_NONE)    // debug: 1: the masks shown on the recoloured (clothes green, pack blue, the rest dark red)
+QVR_CVAR(vr_humstudio_paint, "0", CVAR_NONE)      // debug: 1: painting: a trigger (flat: attack) paints where you point on an armed humanoid, a grip erases, B/Y undoes
+QVR_CVAR(vr_humstudio_brush, "2", CVAR_NONE)      // debug: the brush's radius (skin texels)
+QVR_CVAR(vr_humstudio_class, "1", CVAR_NONE)      // debug: what it paints: 1 clothes, 2 pack, 3 never (left as it is), 0 erase (back to its palette row's)
 // Survival Arena's difficulty (QC/vr_arena.qc, VR_ARENA_Skill): every 1 above is today's arena at Normal skill, and
 // this moves the rest of them by the skill level -- the shape of the armed humanoids' vr_agrunt_ai_skill, its own knob.
 QVR_CVAR(vr_arena_skill_impact, "1", CVAR_ARCHIVE | QVR_RULE)           // Difficulty Impact: how much the skill level moves the arena (Easy softer, Hard and Nightmare harder); 0 skill changes nothing about it, Normal always as set
