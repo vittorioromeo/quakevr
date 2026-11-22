@@ -242,7 +242,7 @@ aren't Map Library packages aren't sent to joining players.
 
 ## Menus
 
-- **Centre messages in the headset look like the flat screen's.** The game's centre prints in front of your head (a key needed, a secret found, a map's text) and the maps' own view messages now appear in the visor's message panel: its font, black face and frame, colours and wrapping, in a size that reads at the menu's distance. (`vr_center_panel 0` brings back the old look; `vr_center_panel_scale` sizes it.)
+- **Centre messages in the headset look like the flat screen's.** The game's centre prints in front of your head (a key needed, a secret found, a map's text) and the maps' own view messages now appear in the flat visor's own message popup, drawn by the same code: its dark glass pill with cut corners, glowing bevelled frame, font, wrapping, scanlines, pop-in and fade, in a size that reads at the menu's distance. (`vr_center_panel 0` brings back the old look; `vr_center_panel_scale` sizes it.)
 - **Search filter (development builds).** The Search page has a "Show: Both / Cvars / Tunables" row over its text
   box: the menus' settings alone, the Tunables pages' constants alone, or both (the default). The results update
   at once; the choice lasts until the game quits. Release builds have no tunables, so they show no row and search
