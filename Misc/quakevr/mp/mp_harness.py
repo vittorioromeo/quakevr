@@ -235,6 +235,9 @@ class Instance:
         a = [self.s.exe, "-basedir", self.s.base] + GAMES + [
             "-condebug", "-condebugfile", self.log, "-cmdinbox", self.inbox,
             "-foreignconfigs", "-noconfigwrite", "-noaddons", "-nomic",
+            # (testspeed: no start-up map, the vrstart hub a VR game loads before anything: 6 s per game before its
+            # connect or map command could run; a listen host's "disconnect;" in join() is then a no-op)
+            "-nostartmap",
             "-ip", "127.0.0.1", "-port", str(self.port)] + ([] if self.sound else ["-nosound"])
         if self.dedicated:
             a += ["-dedicated", str(self.dedicated)]
