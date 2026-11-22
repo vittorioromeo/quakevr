@@ -536,19 +536,16 @@ void visorCenter(const Palette& pal, float w)
     }
 }
 
-void visorRender(const VisorInput& in)
+// Panel `p` drawn into its image (a dry run first: the same as last time, nothing to do).
+void visorRenderPanel(int p, const VisorInput& in, const Palette& pal, const Readout& r)
 {
-    const Palette pal = palette();
-    const Readout r = readout();
-    visor.centerSize = visorCenterLayout(in.center);
-    for(int p = 0; p < VisorPanelCount; p++)
     {
         const glm::vec2 size = p == VisorCenter ? visor.centerSize : glm::vec2{visorSizes[p][0], visorSizes[p][1]};
         const int w = static_cast<int>(size.x), h = static_cast<int>(size.y);
         if(w <= 0 || h <= 0)
         {
             visor.shown[p] = false; // (the centre print's popup with nothing to show)
-            continue;
+            return;
         }
         gfx::RenderTarget& t = visor.targets[p];
         const int texels = p == VisorSideLeft || p == VisorSideRight ? visorSideTexels : visorTexels;
@@ -556,7 +553,7 @@ void visorRender(const VisorInput& in)
         {
             Con_Warning("VR: a visor panel's framebuffer is incomplete\n");
             visor.shown[p] = false;
-            continue;
+            return;
         }
         const auto contents = [&] {
             fill(0.f, 0.f, static_cast<float>(w), static_cast<float>(h), visorBlack);
@@ -584,7 +581,7 @@ void visorRender(const VisorInput& in)
         const unsigned long long signature = gfx::draw2D::endSignature();
         if(visor.shown[p] && visor.signatures[p] == signature && visor.drawnInto[p] == t.tex && vr_flat_visor_cache.value != 0.f)
         {
-            continue;
+            return;
         }
         visor.signatures[p] = signature;
         visor.drawnInto[p] = t.tex;
@@ -594,4 +591,24 @@ void visorRender(const VisorInput& in)
         gfx::end2D();
         visor.shown[p] = true;
     }
+}
+
+void visorRender(const VisorInput& in)
+{
+    const Palette pal = palette();
+    const Readout r = readout();
+    visor.centerSize = visorCenterLayout(in.center);
+    for(int p = 0; p < VisorPanelCount; p++)
+    {
+        visorRenderPanel(p, in, pal, r);
+    }
+}
+
+// The centre print's popup alone (the headset's centre panel: vr_panel.cpp).
+void visorRenderCenter(const char* text)
+{
+    VisorInput in;
+    in.center = text ? text : "";
+    visor.centerSize = visorCenterLayout(in.center);
+    visorRenderPanel(VisorCenter, in, palette(), Readout{});
 }

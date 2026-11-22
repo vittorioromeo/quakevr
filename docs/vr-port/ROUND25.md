@@ -7292,3 +7292,20 @@ hue band can't separate brown uniforms from brown flesh, and a full hue turn wit
   stab, pommel and slow slash refused); vrtrailer 9/9; scenario_check PASS (178 run, 0 failed); Dev and ThinLTO built,
   0 warnings. superaxe_decap_test.sh: slow 5 of 5, fast 4 of 5 (one run killed him without a beheading, its reason lost:
   the test now keeps each swing's game log, `scratch/superaxe_decap_<kind>_game.log`, and names the refusal).
+
+## vrcenterprint: VR centre messages in the flat screen's style (agent/vrcenterprint, 2026-11-22)
+
+- **What.** The game's centre prints shown in front of the head (the hologram on the wrist still takes them while it is in view;
+  `vr_messages_hologram_only` waits in it) and the maps' view messages (QC `viewmessage`, the arena's lines in view) are drawn
+  as the flat screen's: the visor popup's panel (`visorCenterLayout`/`visorCenter` in `vr_gadget_visor.inc`: the gadget font,
+  black face, frame line, phosphor colour, lines wrapped to `vr_flat_visor_center_width`, Quake's own breaks, blank lines
+  before and after dropped) with Quake's fade (`con_notifyfade`) and timing (`scr_centertime`; a view message's own seconds).
+  The old looks (Quake's text on the 2D canvas; a view message as 3D text) are `vr_center_panel 0`.
+- **How.** `visorRender`'s per-panel body is `visorRenderPanel` (the visor loops it; `gadget::renderCenterPanel` draws only the
+  centre popup into its image). `vr_panel.cpp`: `VR_CenterPrintInView` (called by `SCR_CheckDrawCenterString` after the wrist and
+  the visor) and `panel::centerShow` (the view messages, `vr_worldtext.cpp`) claim the panel for the frame; `VR_End2D` renders
+  the image, `drawCenterPanel` shows it next frame on the HUD's head-following place (`hudAngles`, `vr_view_text_smooth`,
+  `vr_menu_distance`), at Quake's height (line 70 of 200, 48 over 4 lines), as a textured quad with a frame line. One visor
+  pixel is one menu pixel: `vr_center_panel_scale` (2) makes it larger than the HUD's own text, small at the menu's distance.
+- **Test aids.** `vr_center_panel_info` (the claim, image size, draws); `vr_message_test center <text>` (`\n` for a new line).
+  Screenshots: `scratch/vcp_*.png` in the worktree (eyeshots, `vr_eyeshot 3`).

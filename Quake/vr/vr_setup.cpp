@@ -13,6 +13,7 @@
 #include "vr_main.hpp"
 #include "vr_mem.hpp"
 #include "vr_menu.hpp"
+#include "vr_panel.hpp"
 #include "vr_progs.hpp"
 #include "vr_still.hpp"
 #include "vr_text3d.hpp"
@@ -983,6 +984,7 @@ void viewTextStatus_f()
 void init()
 {
     Cmd_AddCommand("vr_view_text_status", viewTextStatus_f);
+    Cmd_AddCommand("vr_center_panel_info", panel::centerStatus);
     Cmd_AddCommand("vr_setup", setup_f);
     Cmd_AddCommand("vr_setup_option", option_f);
     Cmd_AddCommand("vr_setup_skip", skip_f);
