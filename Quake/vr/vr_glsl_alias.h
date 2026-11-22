@@ -452,9 +452,7 @@
 ALIAS_FRAMEDATA_BUFFER \
 LIGHT_BUFFER \
 "layout(location=19) out vec3 out_vlight;\n" \
-"#ifndef QVR_APLAIN_VFLAT\n" /* C5f: the dynamic lights added flat on the CPU (no loop, no output) */ \
 "layout(location=20) out vec3 out_vdyn;\n" \
-"#endif\n" \
 "vec3 VertexLights(vec3 pos, vec3 n)\n" \
 "{\n" \
 "	vec3 total = vec3(0.);\n" \
@@ -506,9 +504,7 @@ LIGHT_BUFFER \
 "		}\n" \
 "		float vvao = clamp(out_vao, 0.0, 1.0);\n" \
 "		out_vlight = out_color.rgb * vamb * vvao;\n" \
-"#ifndef QVR_APLAIN_VFLAT\n" \
 "		out_vdyn = VertexLights(lerpedVert, vn) * sqrt(vvao);\n" \
-"#endif\n" \
 "	}\n" \
 "#endif\n"
 
@@ -774,9 +770,7 @@ SPECULAR_AA_FUNCTIONS
 "layout(location=18) in vec4 in_stump; // QVR: a stump's flesh (StumpFlesh): xyz the rest pose's place, w how near a cut joint (1 its reach)\n" \
 "#ifdef QVR_APLAIN_VLIGHT\n" \
 "layout(location=19) in vec3 in_vlight; // QVR: the own light worked out at the vertices (QVR_ALIAS_VS_VLIGHT)\n" \
-"#ifndef QVR_APLAIN_VFLAT\n" \
-"layout(location=20) in vec3 in_vdyn; // QVR: ... and the dynamic lights (C5f VFLAT: in the own light, added on the CPU)\n" \
-"#endif\n" \
+"layout(location=20) in vec3 in_vdyn; // QVR: ... and the dynamic lights\n" \
 "#endif\n" \
 "layout(std430, binding=16) restrict readonly buffer BarrelMaskBuffer { uint BarrelMasks[]; }; // QVR: hot barrels' triangles, a bit each (vr/vr_barrelmask.cpp)\n"
 
@@ -788,7 +782,7 @@ SPECULAR_AA_FUNCTIONS
 "vec3 ModelDynamicLights(vec3 n, vec3 bumped, out vec3 spec)\n" \
 "{\n" \
 "	spec = vec3(0.);\n" \
-"	if ((ShadowFlags & 8u) == 0u || NumLights == 0u)\n" \
+"	if ((ShadowFlags & 8u) == 0u || NumLights == 0u || BatchDlightsFlat > 0.5) /* C5h: or added flat on the CPU (r_alias.c) */\n" \
 "		return vec3(0.);\n" \
 "	ivec3 cluster_coord;\n" \
 "	cluster_coord.x = int(floor(in_coord.x));\n" \
@@ -1687,10 +1681,7 @@ QVR_ALIAS_FS_PLAIN
 "#endif\n" \
 "	if (dent.depth > 0.0) // QVR: a dent's bowl shaded by the model's light whatever the bumps' share of it: its far wall lit, its near one dark\n" \
 "		own_light *= max(1.0 + 1.2 * dot(bumped - n * dot(bumped, n), in_bumplight.xyz * inversesqrt(max(dot(in_bumplight.xyz, in_bumplight.xyz), 1e-6))), 0.3);\n" \
-"#if defined(QVR_APLAIN_VLIGHT) && defined(QVR_APLAIN_VFLAT)\n" \
-"	vec3 dyn_light = vec3(0.0); // (C5f: added flat to the own light on the CPU, Quake's way: r_alias.c R_AliasLightFinish)\n" \
-"	spec = vec3(0.0);\n" \
-"#elif defined(QVR_APLAIN_VLIGHT)\n" \
+"#if defined(QVR_APLAIN_VLIGHT)\n" \
 "	vec3 dyn_light = in_vdyn; // (C4y: no sheen from them)\n" \
 "	spec = vec3(0.0);\n" \
 "#else\n" \

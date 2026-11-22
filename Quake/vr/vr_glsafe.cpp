@@ -21,7 +21,6 @@
 // A start ends well at the first map's 30th drawn frame, or at a quit or an error (Sys_Error: not a crash).
 
 #include "vr_cvars.hpp"
-#include "vr_dlightmap.hpp"
 #include "vr_engine.hpp"
 #include "vr_startlog.hpp"
 #include "vr_api.h"
@@ -564,10 +563,7 @@ extern "C" int VR_GLESWorldLite(void)
         // C4k: the models' plain form, its features from bit 9 (gl_shaders.c GL_AliasPlainDefines; vr_render.cpp
         // VR_AliasPlainNeeds)
         lite |= (static_cast<int>(vr_gl_alias_plain_mask.value) & 1023) << 9;
-        if(dlightmap::aliasBodyMode() >= 2.f)
-        {
-            lite |= 1 << 29; // C5f: your body's form with its dynamic lights added flat on the CPU (QVR_APLAIN_VFLAT)
-        }
+        // (C5f's bit 29, your body's own flat-lit form, gone in C5h: the usual form skips the loop, r_alias.c)
     }
     if(vr_gl_world_lite.value < 2.f)
     {

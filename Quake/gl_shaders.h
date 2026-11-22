@@ -1654,6 +1654,7 @@ QVR_STEREO_VIEWS /* QVR: single-pass stereo (multiview twins only) */ \
 "	mat4	ViewProj;\n"\
 "	vec3	EyePos;\n"\
 "#endif\n"\
+"	float	BatchDlightsFlat; // QVR (C5h): 1 the batch's dynamic lights added flat on the CPU (your body, vr_gl_alias_body 2): ModelDynamicLights skips them\n"\
 "	vec4	Fog;\n"\
 "	float	ScreenDither;\n"\
 "	float	FlatFovScale; // QVR: flatscreen play's model FOV (vr/vr_flatplay.cpp modelFov): x and y's scale round the view axis, 0 none\n"\

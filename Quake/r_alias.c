@@ -86,7 +86,7 @@ struct ibuf_s {
 	struct {
 		float	matviewproj[16];
 		vec3_t	eyepos;
-		float	_pad;
+		float	dlightsflat; // QVR (C5h): the shader's BatchDlightsFlat: 1 the batch's dynamic lights added flat on the CPU (your body, vr_gl_alias_body 2)
 		vec4_t	fog;
 		float	dither;
 		float	flatfov[3]; // QVR: the shader's FlatFovScale, FlatFovNear, FlatFovFar (VR_FlatModelFovNumbers)
@@ -790,6 +790,7 @@ void R_FlushAliasInstances (qboolean showtris)
 	GLuint		vrbonebuf;	// QVR
 	GLbyte		*vrboneofs;	// QVR
 	GLuint		shadeprog;	// QVR: the shading program (glprogs.alias, or its opaque form without discard)
+	qboolean	dlightsflat;	// QVR (C5h): the batch's dynamic lights added flat on the CPU (BatchDlightsFlat)
 	int			draws0;		// QVR: the draw count before the batch (vr_gl_passes)
 
 	if (!ibuf.count)
@@ -837,10 +838,17 @@ void R_FlushAliasInstances (qboolean showtris)
 			shadeprog = GL_AliasFormProgram (ALIASFORM_GORE, mode, poseverttype); // QVR: ... or all but the wounds and dents (vr_gl_alias_gore)
 		else if (GL_AliasFormAvailable (ALIASFORM_SKIN) && VR_AliasSkinUse (aliasneeds))
 			shadeprog = GL_AliasFormProgram (ALIASFORM_SKIN, mode, poseverttype); // QVR: ... or all but those and the skin tone (vr_gl_alias_skin)
-		if (shadeprog != glprogs.alias_opaque[mode][poseverttype] && VR_AliasBodyLight (ibuf.ent))
-			shadeprog = GL_AliasFormProgram (ALIASFORM_BODY, mode, poseverttype); // QVR: your body in those forms lit at its vertices (vr_gl_alias_body)
+		if (shadeprog != glprogs.alias_opaque[mode][poseverttype] && VR_AliasBodyLight (ibuf.ent) && !VR_AliasBodyFlat (ibuf.ent))
+			shadeprog = GL_AliasFormProgram (ALIASFORM_BODY, mode, poseverttype); // QVR: your body in those forms lit at its vertices (vr_gl_alias_body 1)
 	}
-	if (!shadeprog || shadeprog != glprogs.alias_body[mode][poseverttype]) // QVR (C5f): your body's light with its dynamic lights added flat, drawn by a form adding them per pixel: the light without them
+	// QVR (C5h, QUEST_PLAN.md 6zs): your body under vr_gl_alias_body 2: its dynamic lights added flat on the CPU, drawn by
+	// the form it would take anyway with the shader's loop over them skipped for the batch (BatchDlightsFlat). Its own
+	// program (C5f) cost the Quest 3 ~3.3 ms more than that form running the same code. A batch mixing it with others: the
+	// light without them, the loop adding them.
+	dlightsflat = ibuf.count > 0;
+	for (i = 0; i < ibuf.count; i++)
+		dlightsflat = dlightsflat && aliasinstflat[i];
+	if (!dlightsflat)
 		for (i = 0; i < ibuf.count; i++)
 			if (aliasinstflat[i])
 				VectorCopy (aliasinstperpixel[i], ibuf.inst[i].lightcolor);
@@ -894,6 +902,7 @@ void R_FlushAliasInstances (qboolean showtris)
 	if (aliasxray) // QVR: an outline through walls fades into black fog, not into the fog's colour (it is added on)
 		ibuf.global.fog[0] = ibuf.global.fog[1] = ibuf.global.fog[2] = 0.f;
 	ibuf.global.dither = r_framedata.screendither;
+	ibuf.global.dlightsflat = dlightsflat ? 1.f : 0.f; // QVR (C5h)
 
 	numvrbones = poseverttype == PV_IQM ? (aliasdepth ? VR_AliasShadowBonePoses (ibuf.ent, &vrbones) : VR_AliasBonePoses (ibuf.ent, &vrbones)) : 0; // QVR: the shadow maps' with your head
 	if (numvrbones && ibuf.count > 1) // QVR: posed models batched (R_AliasPosedJoin): each instance's bones after the last's
