@@ -411,7 +411,8 @@ void testFrame()
             check(seen1.model && d1 <= 2.f, va("seat 1 sees seat 2's player where he is (%.1f units)", static_cast<double>(d1)));
             check(seen0.model && d0 <= 2.f, va("seat 2 sees seat 1's player where he is (%.1f units)", static_cast<double>(d0)));
             leave(1);
-            check(!plays(1) && IN_PadSeat(pad) == 0, "seat 2 left: out of play, pad 0 back to seat 1");
+            // (split11: the pad that left drives no seat while the game runs, not seat 1's as its spare: its Start or A joins)
+            check(!plays(1) && IN_PadSeat(pad) < 0, "seat 2 left: out of play, its pad drives no seat (its Start or A joins again)");
             go(Step::WaitLeft);
             return;
         }

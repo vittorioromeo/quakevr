@@ -683,8 +683,8 @@ void testStage()
             {
                 return;
             }
-            mcheck(IN_PadSeat(seatPad) == 0 && key_dest == key_game && !VR_SeatMenusOn(),
-                "A again: seat 2 leaves, pad 1 back to seat 1, no menu open");
+            mcheck(IN_PadSeat(seatPad) < 0 && key_dest == key_game && !VR_SeatMenusOn(), // (split11: the pad that left drives no seat)
+                "A again: seat 2 leaves, its pad drives no seat (its Start or A joins), no menu open");
             finish();
             return;
         default: finish(); return;

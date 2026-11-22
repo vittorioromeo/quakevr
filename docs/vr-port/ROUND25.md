@@ -8854,3 +8854,28 @@ model changes.
   `vr_mock_button main secondary` did not flip it (no "revgrip: ... flips" print, no refusal print); open.
 - **Tests**: `dwell_lance_test.sh` 12/0 (new: the beam fired, 6 cells from the pouch's 100). Note for test writers: the
   mock trigger (`vr_mock_button main trigger 1`) did not fire the Lance; `+attack` does.
+
+## split11: splitscreen fixes from his first try (branch agent/split, 2026-11-22)
+
+- **Merged origin/next** (75 commits; one conflict, host.c's SV_Physics condition: both sides' terms). Fixes after it:
+  vr_climb.cpp's `pins()` (next's climb change met phase 7's seat pins), next's new test statics marked seat-shared,
+  the seat_state allowlist tightened (3,585 -> 3,584).
+- **Seat 2 saw the host as id's ranger**: vr_mpavatar's copies are each seat's (`seat::Part::MpAvatars`).
+- **Seat 2 had no hands, weapon or body**: `VR_SetupViewEntities` adds the view entities once a seat, not once a frame.
+- **A hit, burn or water squashed a tile into half its height** (a stale hub frame in the rest): `R_WarpScaleView`'s
+  texture scale from the scene targets' size (`SCR_SceneTargetSize`), not the seat pass's tile-sized `vid`.
+- **Controllers in flat play**: a pad seat's layout (`seat::padLayout`: holster menu on d-pad up, crouch, reload, swap,
+  drop, force grab, flashlight, punch, the left hand on LT) where seat 1's copied bindings leave a button free or as the
+  VR controllers'; `flatplay::seatFrame` steps each controller seat's flat keys (only seat 1's ran); the look stick moves
+  the holster menu's cursor. Keyboard-only still: leans, lie down, shove, quick grenade, bullet time, next ammo, gear
+  lights, push-to-talk, fly camera, toolgun keys (SPLITSCREEN.md section 21 has the list).
+- **Hot-join from a pad**: a pad that left drives no seat; a free pad's Start or A joins a running local game directly
+  (no menu, the press opens nothing); no key repeat for pads no seat polls (a held Start's repeat opened the seat menu
+  as the join screen shut); join screen: Y/Tab shows the layout, help lines for drop-in.
+- **Tests** (Release, Dev 0 warnings, QC 0 warnings; no ThinLTO or flat/MP suites, the new standing rule): vr_seat_test
+  70/0, split_join_test.sh 113/0 (was 81: the pad-only, layout, holster-menu and drop-in stages), seat_play_test.sh 55/0,
+  seat_render_test.sh 200/0 (was 156: own view entities, avatars, flashes; correlation 0.66-0.93 fixed, 0.16/-0.25 with
+  the bug; with the three fixes reverted the three new checks fail), seat_menu_test.sh 62/0 (its and seat_play's "pad
+  back to seat 1" now "drives no seat"); smoke e1m1 VR mock and flat. Pictures `qvr-kit/scratch/split11_join_<n><mode>.png`,
+  `split11_render_<n>seats.png` (normal, then every flash on).
+- In VR (the author): nothing changes. Flatscreen with a controller: SPLITSCREEN.md section 21, "How to try it".

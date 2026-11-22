@@ -803,7 +803,8 @@ full menu, the other seats their own small menu.
    on a joined controller**.
 5. Look at: each player in his own tile, his controller moving only him; a controller's Start in the game opens that
    seat's own small menu (phase 9); Escape is still yours. To drop in or out mid-game: Escape > Multiplayer >
-   Splitscreen again: a new controller's A joins the running game, B leaves it, Start goes back to the game.
+   Splitscreen again: a new controller's A joins the running game, B leaves it, Start goes back to the game; or
+   (split11, section 21) a free controller's Start or A in the game joins it directly.
 6. Without controllers nothing changes (one seat, as before). Debug > Network has "Splitscreen: Join Screen".
 
 ### What it does
@@ -835,3 +836,67 @@ full menu, the other seats their own small menu.
   starts in the harness's map, so Start Game asks first and a pad's A answers. 2 coop 19/0, 3 dm 20/0, 4 coop 21/0, 4 dm
   21/0.
 - **Before and after**: ROUND25.md "split10" (the flat and MP failures are origin/next's, run on it here).
+
+## 21. Split11 (2026-11-22): fixes from his first try
+
+(Seats numbered 1-4 as the screen shows them.) His try: flatscreen, a controller as seat 2, deathmatch, his own config.
+
+### How to try it (for him)
+
+1. Plug in a controller, start flatscreen (`qvr-kit/scratch/play_splitscreen.ps1` or no headset), **Multiplayer >
+   Splitscreen**. On the join screen **Y** (or Tab) shows the controller's buttons in the game; again shows the rows.
+2. Press **A** on the controller (seat 2), **Start** to play. Look at:
+   - each seat sees the other as the IK body (seat 2 saw you as id's ranger before);
+   - seat 2 has its own hands, weapon and body (it had none);
+   - get hit, burned, go under water: each tile keeps its full picture (a flash used to squash one tile into half its
+     height for as long as the flash lasted, a stale frame from the hub in the other half).
+3. The controller in the game (seat 2-4; where your config bound a button yourself, yours is kept): **RT** fire / right
+   hand, **LT** left hand or sights, **A** jump, **B** crouch, **X** reload, **Y** swap hands, **RB/LB** next and previous
+   weapon, **d-pad up held** the holster menu (the weapon wheel: the right stick points, let go over a slot; the view
+   stays), **d-pad down** drop, **d-pad left** force grab, **d-pad right** flashlight, **left stick click** run, **right
+   stick click** punch, **Back** scores, **Start** that seat's menu (its Controls page lists the seat's buttons; Leave
+   Seat there).
+4. Hot-join: leave a seat (its menu's Leave Seat, or B on the join screen): the console says "Controller n: Start or A
+   joins the game again"; press **Start or A** on that controller in the game: it joins straight away, no menu, and the
+   press opens nothing. Any spare controller's Start or A joins too. Works with no keyboard: the pads alone choose the
+   join screen's rows (d-pad) and start the game.
+
+### What changed
+
+- **Bodies** (vr_mpavatar.cpp): the other players' avatars, their histories and what was drawn of them were one shared
+  set: each seat's client skipped its own player as it read them and `addEntities` ran once a frame (seat 1's pass),
+  so seat 2's pass added none and drew the host's plain player model. Now each seat's own (`seat::Part::MpAvatars`,
+  `copies()`); one seat: seat 0's, as before. The calibrations (`cal`) stay shared (the server's slots are in it).
+- **First-person hands, weapons, body** (vr_view.cpp `VR_SetupViewEntities`): the view entities were added once a
+  frame (a modal redraw's guard); now once a seat (`lastAddedFrame` by seat); the shared memories' effects after it
+  (debris, fire, blood streams, wounds, drips, shells) stay once a frame. `view::ownEntitiesAdded` for the test.
+- **The flash bug** (gl_rmain.c `R_WarpScaleView`): its texture scale was the view's size over `vid`'s, which a seat's
+  pass shrinks to its tile, while the scene targets keep the window's size: the whole target was drawn into the tile.
+  Any warp did it: a damage or bonus flash, water, the pain's blood (`needwarpscale`). `SCR_SceneTargetSize` gives the
+  targets' size (the window's vid size, also in a pass).
+- **Controller layout** (vr_seat.cpp `seat::padLayout`, applied when a pad's seat copies seat 1's bindings): a button
+  takes the flat command where seat 1's copy leaves it unbound or as the VR controllers' binding (vr_bindings.cfg: the
+  grips on the shoulders, the stick's swim up/down, the off hand's reload) or default.cfg's (LT +jump). Flat play's keys
+  that had only a keyboard/mouse path and now have a button: holster menu (mouse 3), crouch (Ctrl), reload (R), swap
+  (3), drop (H), force grab (mouse 4), flashlight (F), punch (V), the left hand / sights (RMB), weapon cycling (wheel).
+  Still keyboard-only (no button left): leans Q/E, lie down, shove (mouse 5), quick grenade G, bullet time Z, next
+  ammo, gear lights 9, push-to-talk, fly camera, the toolgun's keys.
+- **Controller seats step flat play** (vr_flatplay.cpp `flatplay::seatFrame`, from `VR_BeginFrame` in each seat's
+  Scope): only seat 1's flat frame ran, so `+flatholsters`, `+flatcrouch` and the other flat keys did nothing in seats
+  2-4. The mode's cvars, the fly camera, the tests, the Ctrl bind and the slide's scrape stay seat 1's.
+- **The look stick moves the holster menu's / toolgun panel's cursor** while one is open (in_sdl.c `IN_JoyMove`, through
+  `VR_FlatToolgunMouse` as the mouse does; 900 counts a second at full tilt).
+- **Drop-in** (in_sdl.c `IN_PadDropIn`, vr_seatplay.cpp `VR_SeatDropIn`): a pad that left its seat drives no seat while
+  a local multiplayer game runs (`IN_PadSetUnseated`; before, it became seat 1's spare pad, so its Start opened seat 1's
+  menu); a pad driving no seat joins on Start or A. Pads no seat polls are kept as read with no key repeat
+  (`IN_PadKeepAsRead`, also the join screen's): a held Start's repeat opened the seat's menu as the join screen shut.
+- **Join screen**: Y or Tab toggles the controller layout in the rows' place; help lines say the pads' join and the
+  in-game Start/A drop-in.
+- **Tests**: `vr_seat_render_test` (seat_render_test.sh) grew: each seat adds its own view entities; each seat sees the
+  others as IK avatars; every flash on every seat (damage and burn shifts, water, the pain's blood) with each tile's
+  picture (`seatview_t.probegrid`, 8x8 blocks of the view's luminance) compared before (correlation of the inner blocks
+  above 0.5: 0.66-0.93 fixed, 0.16 and -0.25 with the bug), a screenshot, and back within 6 levels after. With the three
+  fixes reverted it fails all three (checked once). `split_join_test`: the dm row by a pad; the pad layout; d-pad up
+  opens seat 2's holster menu and its stick moves the cursor, not the view; the seat leaves in the game, its pad drives
+  no seat, its Start joins directly with no menu, then again with A.
+- **Before and after**: ROUND25.md "split11".
