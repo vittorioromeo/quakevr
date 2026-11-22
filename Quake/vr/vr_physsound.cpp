@@ -887,9 +887,13 @@ void ropeGrab(edict_t* player, const glm::vec3& at, int rope, bool chain)
     {
         return;
     }
-    // A chain: the metal hold's grip (its links in the fist); a rope: the slap ropes always made (no texture: stone's).
-    const int k = static_cast<int>(chain ? GrabKind::Metal : grabKindOf(""));
-    if(ropeEmit(rope, grabSets[k], state.grabs[k], volume, at, chain ? jitter() : 1.f))
+    // A chain: the metal hold's grip (its links in the fist); a rope (ropes6): the soft material's thud (the fibres in the
+    // fist: a backpack's, not the stone slap it once made), a headset's grip or flat-screen play's alike.
+    const int k = static_cast<int>(GrabKind::Metal), soft = static_cast<int>(Material::Soft);
+    constexpr int medium = 1;
+    const bool made = chain ? ropeEmit(rope, grabSets[k], state.grabs[k], volume, at, jitter())
+                            : ropeEmit(rope, impactSets[soft][medium], state.impacts[soft][medium], volume, at, jitter());
+    if(made)
     {
         b.ropeGrabNext = qcvm->time + ropeGap;
         b.ropeNext = za::max(b.ropeNext, qcvm->time + ropeGap); // (no clink over the grip)

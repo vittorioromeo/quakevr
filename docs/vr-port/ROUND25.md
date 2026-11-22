@@ -8369,3 +8369,31 @@ His notes dm3_2026-11-22_16-15-02, 16-17-59, 16-18-21.
   30/0 and 12/0. After merging origin/next (vrnotes1122b's revolver): mp_botrevolver 5/0, mp_deathlook 19/0.
 - Kit note: `build.sh --lto` builds the ReleaseLTO exe; mp_test.py runs the Release one (`build.sh <name>`): rebuild
   that after a merge, or the suite runs a stale exe ("cvar_hmake: unknown" lines for the new cvars).
+
+## ropes6: VR rope climbing from his notes (agent/ropes6, 2026-11-22)
+
+His notes vrropes_2026-11-22_15-43-18, 15-43-56, 15-45-10, 15-48-30 ("Climbing ropes in VR feels nice"). ROPES.md
+"Climbing (VR)", "Tests", "Known limits".
+- **Grip (VR):** `vr_rope_hand_grip` default 2 (was 1: flat only): the rope through the fist, the right hand's knuckles to
+  the right, the left's to the left, in VR too (the same ropeTurn as flat). His cfg had no saved value. `climb::drawnBack`
+  (the hold turn's back of the hand) for the climb test's `grip` check: worst 1.00 of 1.
+- **Regrab kick (4), cause:** `climbrope::riderBlocked` moved the bob back by the body's miss without its last place, so
+  the shift became speed: in VR a pull leaves the body ~0.4 units short of where the hands took it (rope at rest), and
+  each regrab kicked the swing 58-61 units/s at the hands. Now bob and bobPrev move together (its speed into the miss
+  still dropped: a wall still stops the swing). Swings, pumps, jumps onto it and pushes untouched (rope_pump 6/0,
+  rope_jump 6/0, rope_flat 6/0 incl. rope to rope, rope_hands 6/0).
+- **Sounds (2):** a pull up grunts (`vr_climb.cpp` ropePullGrunt in hangFramePart: once a grip, when the body has risen
+  15 cm over that grip's hold since taking it; at most every 0.6 s; `climb::grunt`, the mantle's list): `vr_rope_grunt`
+  0.4 (QVR_RULE), `vr_rope_grunt_sound` 2 (the jump's, deeper: told apart from a jump off). Not in flat play (its keys
+  climb steadily, no pulls). A rope's grip now makes the soft material's thud (soft_m, `vr_physsound_grab`) in VR and
+  flat alike (was the stone slap in flat, silent in VR); `climbrope::grabbed` lost its `vr` flag. Haptics unchanged.
+  Climbing page: Rope Pull Grunt, Rope Pull Grunt Sound.
+- **Legs on a short rope (3):** `ropeFoot` took the rope's end as a foothold at every height (clientRopeAt returns the
+  bottom where the rope doesn't reach): a short rope ending near the hip pulled the feet up to it, the higher ankle 13
+  units over the pelvis. Now the feet wrap only where its lowest point reaches 0.6 of a leg under the hip (fully from
+  0.85, eased between) and skip heights under its end; else they hang (28 under the pelvis). Shared by your body and
+  another's copy. `clientRopeAt` gives the lowest point's height (`bottom`).
+- Tests: rope_climb_test.sh 10+6+6+4+3 (new plays rope_calm: swing 2.5 u/s at the hands (bound 25; was 61), free end 8.3
+  (30), 4 grunts; rope_short: `vr_rope_climb_test <play> 425`; rope_climb adds grip and "no grunt climbing down or on a
+  mere grab"; with `vr_rope_hand_grip 1` its grip check fails at 0.15), rope_sound_test 6/0, vr_rope_test 16/0,
+  mp_test.py ropeclimb 12/0. ThinLTO 0 warnings.
