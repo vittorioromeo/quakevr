@@ -2069,9 +2069,10 @@ constexpr LadderCase quothLadderCases[] = {
 // (Its ladder is real rungs, steps in its wall, the trigger_ladder over them: the flat ladder's own case; here AD's own
 // climb alone.)
 constexpr LadderCase adLadderCases[] = {
+    {"AD's ad_test3 ladder, up and over the top", LadderKind::Up, -512.f, -88.f, 252.f, 0.f, -1e9f, 228.f, 352.f, -495.f},
     // (Alone only, with vr_flat_ladder 0: AD's own climb.)
-    {"AD's ad_test3 ladder, vr_flat_ladder 0: jump climbs it", LadderKind::Fallback, -504.f, -88.f, 252.f, 0.f, -1e9f, 228.f, 352.f,
-        -496.f, true},
+    {"AD's ad_test3 ladder, vr_flat_ladder 0: jump climbs it", LadderKind::Fallback, -512.f, -88.f, 252.f, 0.f, -1e9f, 228.f, 352.f,
+        -495.f, true},
 };
 
 // AD's ad_e1m1: its wall ladder's trigger_ladder brush 2497..2559 x, -303..-297 y, 1..159 z (facing north).

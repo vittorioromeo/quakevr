@@ -5,6 +5,7 @@
 #include "vr_api_render.h"
 #include "vr_box3d.hpp"
 #include "vr_cvars.hpp"
+#include "vr_mpavatar.hpp"
 #include "vr_netsnap.hpp"
 #include "vr_progs.hpp"
 #include "vr_protocol.hpp"
@@ -499,6 +500,7 @@ void clientParse()
     seatNetRagdoll().clientRags.parsed++;
     qmodel_t* model = cl_entities[num].model;
     const ragdoll::Rig* rig = model ? (authored ? ragdoll::rigFor(model) : ragdoll::derivedRigFor(model)) : nullptr;
+    rig = authored ? mpavatar::clientDollRig(rig, &cl_entities[num], in.scale) : rig; // (a dead player's doll: his proportions, as the server's)
     if(!rig || rig->authored != authored || in.bodies > rig->numBones)
     {
         seatNetRagdoll().clientRags.rejected++; // (its rig not this client's: drawn animated, as before)

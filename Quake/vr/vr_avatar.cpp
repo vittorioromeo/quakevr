@@ -413,6 +413,7 @@ struct SeenAds
 // solveArm on the sights seen from outside (Body::seenAds): the elbows' way off the gun's down, out at the arm's side by
 // these shares of it (the gun hand's well out: a rifleman's raised a little; the other under the fore-end), the gun hand's
 // a little back along the line.
+constexpr float ropeHipsMostDeg = 45.f; // the trunk turned at most this far about the neck towards a rope (ropeHips)
 constexpr float seenGunElbowOut = 0.8f;
 constexpr float seenSupportElbowOut = 0.25f;
 constexpr float seenGunElbowBack = 0.f;
@@ -579,6 +580,19 @@ void solveTorso(const hands::State& s, Body& b, float scale = 0.f, bool crouchPo
         const glm::vec3 spine = top0 - pelvis0;
         const float angle = za::asin(za::min(1.f, tiltReach / za::max(glm::length(spine), 1e-3f)));
         turn = glm::mat3_cast(glm::angleAxis(angle, safeNormalize(glm::cross(UP, leanDir), b.left)));
+    }
+    // (ropes4) On a climbable rope (updateClimbing's ropeWrap, last frame's): the trunk turned about the neck so the hips
+    // come in to the rope under the hands (ropeHips), the legs round it within reach -- not hanging behind as off a ledge.
+    if(glm::vec3 in; crouchPose && detail::ropeHips(top - turn * (top0 - pelvis0), in))
+    {
+        const glm::vec3 from = -turn * (top0 - pelvis0);
+        const glm::vec3 to = from + in;
+        const float angle = za::min(za::acos(za::clamp(glm::dot(glm::normalize(from), glm::normalize(to)), -1.f, 1.f)),
+            glm::radians(ropeHipsMostDeg));
+        if(const glm::vec3 axis = glm::cross(from, to); angle > 1e-4f && glm::length(axis) > 1e-6f)
+        {
+            turn = glm::mat3_cast(glm::angleAxis(angle, glm::normalize(axis))) * turn;
+        }
     }
     const glm::vec3 pelvis = top - turn * (top0 - pelvis0);
 
@@ -1028,14 +1042,13 @@ struct ArmLengths
 };
 [[nodiscard]] ArmLengths armLengths(float m2w)
 {
-    const float length = CLAMP(0.5f, subject ? subject->armLength : vr_body_arm_length.value, 2.f);
+    const float length = subject ? subject->armLength : vr_body_arm_length.value;
     const float cm = detail::metresToUnits() * 0.01f;
     ArmLengths r;
     // (another player's: his measurements and tweaks, from his calibration: MP_PLAN B3c)
     const bodycal::Arms a = detail::arms();
-    const float mu = a.measuredCm[0], mf = a.measuredCm[1];
-    r.upper = za::max(5.f * cm, (mu > 0.f ? mu * cm : boneLength(UpperArmL, ForearmL) * m2w * length) + a.tweakCm[0] * cm);
-    r.fore = za::max(5.f * cm, (mf > 0.f ? mf * cm : boneLength(ForearmL, HandL) * m2w * length) + a.tweakCm[1] * cm);
+    r.upper = armBoneLength(boneLength(UpperArmL, ForearmL) * m2w, length, a.measuredCm[0], a.tweakCm[0], cm);
+    r.fore = armBoneLength(boneLength(ForearmL, HandL) * m2w, length, a.measuredCm[1], a.tweakCm[1], cm);
     r.calibrated = a.calibrated();
     return r;
 }
@@ -1800,6 +1813,11 @@ void armBones(float& upper, float& fore)
 {
     upper = boneLength(UpperArmL, ForearmL);
     fore = boneLength(ForearmL, HandL);
+}
+
+float armBoneLength(float modelLen, float armLength, float measuredCm, float tweakCm, float cm)
+{
+    return za::max(5.f * cm, (measuredCm > 0.f ? measuredCm * cm : modelLen * CLAMP(0.5f, armLength, 2.f)) + tweakCm * cm);
 }
 
 Frame uprightChest(const hands::State& s, float yaw, float eyeHeight)

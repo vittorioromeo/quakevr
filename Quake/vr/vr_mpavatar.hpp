@@ -14,6 +14,10 @@ namespace qvr::view
 struct SkinLook;
 struct ViewEntity;
 }
+namespace qvr::ragdoll
+{
+struct Rig;
+}
 
 namespace qvr::mpavatar
 {
@@ -154,6 +158,12 @@ struct Calibration
 // over the model's) as his calibration says; single player your own settings; no calibration (a bot): the default build
 // at the default world scale. False: none (vr_mp_body 0, his body mode none): id's ranger.
 [[nodiscard]] bool serverBody(int slot, int& build, float& scale);
+// A dead player's ragdoll's rig (`rig`: progs/vrdoll*.mdl's authored rig, at size `scale`) in his body's proportions:
+// his arms' lengths and shoulders as his avatar is drawn (ragdoll::proportioned; backlog1122c); `rig` for any other
+// model. The server's side: by his entity number (`owner`: the body's colormap), his calibration as serverBody takes it.
+[[nodiscard]] const ragdoll::Rig* serverDollRig(const ragdoll::Rig* rig, int owner, float scale);
+// ... the client's: the doll entity `e` (its colours his), his calibration as this client has it (calibrationOf).
+[[nodiscard]] const ragdoll::Rig* clientDollRig(const ragdoll::Rig* rig, const entity_t* e, float scale);
 // VR_WriteMoveExtras: this client's calibration up, when changed (multiplayer only).
 void sendCalibration();
 // vr_client.cpp's dispatch: QVR_SVC_AVATARCAL's body.

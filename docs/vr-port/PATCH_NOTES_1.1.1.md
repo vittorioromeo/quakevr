@@ -169,7 +169,9 @@ The guide: [MULTIPLAYER.md](MULTIPLAYER.md).
   (his build, skin and gloves).
 - **New**: a dead player's ragdoll is his own body, not Quake's ranger's rigged under it: his build's shape at his height,
   its limbs his body's own lengths, falling, grabbed and struck as any ragdoll and seen the same by every player; single
-  player your own corpse too (the death camera and third person), and the bots' in their build.
+  player your own corpse too (the death camera and third person), and the bots' in their build. Its arms are his arms'
+  length and its shoulders where his are (his Body Calibration or arm length setting), and a flat-screen player's corpse
+  is his flat-screen body height.
 
 **Single player only**: time scale and bullet time, saving at will (the host's level-start coop autosave instead),
 the crates Quake VR places about maps, Dimension of the Past and Dimension of the Machine.
@@ -204,7 +206,8 @@ aren't Map Library packages aren't sent to joining players.
   it, your legs wrap round it, and letting go or jumping off mid-swing keeps its speed. The toolgun's Remove and
   physgun aim at them, and Clear Props removes the ones you made. On the desktop screen, walk or jump into one to
   grab it: look up or down and hold forward to climb, look ahead and use the move keys to swing it, and jump off at the
-  top of a swing to catch the next rope. Try them in the new test map `vrropes`.
+  top of a swing to catch the next rope. In multiplayer, other players on a rope are drawn gripping it, their hips in
+  close and their legs wrapped round it, even while it swings. Try them in the new test map `vrropes`.
 - **Noclip flies where you look.** Moving forward in noclip now goes the way the camera points, so looking up or down
   flies up or down; strafing stays level and jump and crouch still go straight up and down. Flat and in the headset
   (there, what steers your walking steers the flight: the head, or the moving hand with hand-relative movement).

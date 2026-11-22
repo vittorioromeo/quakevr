@@ -41,7 +41,8 @@ make_release.ps1 -Bump patch -Publish -Final -RunTests          # 3. the release
    and the GitHub release don't exist yet, `gh auth status`, the tools, no tuned value left unpromoted (`-TunablesCfg`), the notes are edited (no DRAFT line), the test
    worktree holds this commit's files, `origin/master` is an ancestor of HEAD ("Branches"), the Quake for the smoke
    launch (below).
-2. **Tests** (`-RunTests`, "Tests before publishing"): the headless suite, one test at a time; a failure stops here.
+2. **Tests** (`-RunTests`, "Tests before publishing"): the headless suite in parallel lanes (a beta: its smoke
+   profile); a failure stops here.
 3. **VERSION** (with `-Bump`/`-BumpVersion`): `VERSION` = the new version, committed alone ("Version x.y.z"), locally.
 4. **Build and check** ("What the script does"): engine, QuakeC, package, installer, their self-tests, the zip against
    the allowlist, latest.json, the packaged installer's install, the smoke launch.
@@ -81,14 +82,21 @@ uploaded is `release-body.md`: the notes plus the files' sizes and SHA-256.
 
 `-RunTests` runs `Misc\release\run_test_suite.py` before anything is built: the Misc\quakevr test scripts that give a
 verdict (41: reloading, melee, carry and grabs, parry, throws, teleporter chase, stealth, the update notice, the OpenXR
-runtime choice...; `python Misc\release\run_test_suite.py --list`), one at a time through the kit's headless mock
-headset, on a **kit worktree** holding this commit's files: `-TestAgent <name>` (or `QVR_TEST_AGENT`; default this
+runtime choice...; `python Misc\release\run_test_suite.py --list`), in parallel lanes (`-TestJobs N`; default by the
+CPU count, at most 4; TESTING.md, "The release suite: lanes and profiles") through the kit's headless mock headset, on
+a **kit worktree** holding this commit's files: `-TestAgent <name>` (or `QVR_TEST_AGENT`; default this
 checkout's name when it is one: `C:\OHWorkspace\qvr-agents\<name>`, made by the kit's `new_agent.sh <name> <commit>`).
 The worktree is built first (kit `build.sh`). A test fails on a non-zero exit, a `FAIL` / `FAILURES n` / `n failed`
 line, or its timeout; each test's output is in `out\release\<v>\tests\<name>.log`, the summary in `summary.txt`. Any
 failure stops the release (nothing committed, built or pushed). `-AllowFlaky` lets the known-flaky ones (marked in the
 runner's list: the teleporter chase, Quake's random AI) only warn, `-FlakyTests a,b` adds more; `-TestOnly <regex>`
-runs a part. The whole suite takes over an hour. Alone: `python Misc\release\run_test_suite.py <agent> --build`.
+runs a part. Alone: `python Misc\release\run_test_suite.py <agent> --build [--profile beta]`.
+
+Two profiles (`-TestProfile`): **full**, every test, for final releases (always: a final release refuses `beta`);
+**beta**, a short smoke set for the betas, the default for an `x.y.z-betaN` version (or `-Beta`): the checklist scenes
+(scenario_check), the engine's self-checks, a level change and its stats, the settings page, the update notice, and a
+handful of core gameplay tests (pickup_mag, reload_eject, throw_spin, mapgun_pickup, grip_state, slopes); about 10 min.
+`-TestProfile full` runs everything for a beta too.
 
 ### If it stops
 
