@@ -65,6 +65,9 @@ Quoth (experimental): Setup with AD ticked installs Quoth; without AD the box is
 Quoth's kellbase1: press the three buttons; enforcers, then pyros, then eliminators arrive, and killing all 16 opens the exit lock and makes the plasma gun {test:hub_start}
 Quoth's lpqsp1: shoot the button by the vore trap; about 5 s later its secret door opens {test:hub_start}
 Quoth's metmon: each stage's switches unlock the next, and the fourth shuts down the portal sphere {test:hub_start}
+An enforcer armed with an energy weapon (thunderbolt, plasma, laser) drops a blue backpack when killed, an explosive one's a red pack, a flame one's orange, a poison one's green; grunts' packs as before. {test:humrepl_looks}
+Quoth's kellbase1: the doorway's energy field shows as a sheet of pale blue sparks, and the enforcer behind it stops short of it instead of walking into it again and again. {test:quoth_kellbase_field}
+Quoth's kellbase1 ladders (the pillars' and the catwalk's): your hands close on the drawn rungs themselves, at their height, climbing up and down. {test:ad_mod_ladder}
 
 [3. Multiplayer and bots]
 Multiplayer: host and join a coop game over the room service and play a level together; voice, held weapons and melee look right on both sides {test:mp_coop_bot}
