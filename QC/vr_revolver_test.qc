@@ -974,7 +974,7 @@ void() VR_Revolver_TestFrame =
         }
         else if(f13 >= 180 && f13 < 190)
         {
-            VR_Revolver_Hand(p, cVR_MainHand).rvh_held_at = time; // (a shell in the other hand, or one just gone in)
+            VR_Revolver_Hand(p, cVR_MainHand).rvh_loaded_at = time; // (a shell just gone in)
             VR_RVT_HandMove(way13 * 1.6);
         }
         else if(f13 == 192)
@@ -1005,6 +1005,9 @@ void() VR_Revolver_TestFrame =
             }
             else
             {
+                // (The other hand holding a shell meanwhile, as VR_Revolver_OtherHand marks it each frame: his note
+                // dm3_2026-11-22_16-14-25, the push must drop them whatever it holds.)
+                VR_Revolver_Hand(p, cVR_MainHand).rvh_held_at = time;
                 VR_RVT_HandMove(way13 * 1.6);
             }
         }

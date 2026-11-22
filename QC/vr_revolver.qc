@@ -72,6 +72,7 @@ float RV_SWING = -95;        // the crane's swing out, degrees about the bore (+
 .float rvh_rod;     // until when its ejector rod is drawn pushed
 .float rvh_spun;    // its last swipe
 .float rvh_held_at; // the last time the other hand held anything (a shell) or a shell went in: no spin a moment after
+.float rvh_loaded_at; // the last time a shell went in: no push out a moment after (the gun brought back from loading)
 .float rvh_sec;     // B/Y held last frame
 .float rvh_ejrun;   // the hand's push along the chambers' way out: how far so far (m),
 .float rvh_ejpeak;  // its fastest (m/s),
@@ -635,7 +636,7 @@ float(float xGunHand, entity xRound, float xHeld) VR_Revolver_LoadInto =
     }
     VR_Revolver_SetChamber(g, i, 1);
     entity rh = VR_Revolver_Hand(self, xGunHand);
-    if(rh) { rh.rvh_held_at = time; } // (no spin from the swipe away after it: vr_revolver_spin_hold)
+    if(rh) { rh.rvh_held_at = rh.rvh_loaded_at = time; } // (no spin from the swipe away after it, nor a push out: vr_revolver_spin_hold)
     float clip = VRGetEntWeaponClip(self, xGunHand);
     VRSetEntWeaponClip(self, xGunHand, clip + 1);
     xRound.vr_ammo_count = xRound.vr_ammo_count - 1;
@@ -1028,10 +1029,11 @@ void(float xHand, entity h, entity r) VR_Revolver_ReloadFrame =
         VR_Revolver_Close(xHand, r, vr_rv_lasthow);
         return;
     }
-    // The hand's push the way its chambers open: its shells leave with it. (Not just after loading or with a shell in the
-    // other hand, which is when a gun is brought back to it quickly; not two-handed.)
+    // The hand's push the way its chambers open: its shells leave with it, whatever the other hand holds (his note
+    // dm3_2026-11-22_16-14-25: a shell ready in the off hand, the flick down dropped nothing). Not just after a shell
+    // went in, which is when a gun is brought back to it quickly; not two-handed.
     if(VR_Revolver_Push(h, xHand) && VR_Revolver_Count(r, 0) < RV_CHAMBERS && !VRGet2HAiming(self) &&
-       time >= h.rvh_held_at + max(0, cvar_hget(cvarh_vr_revolver_spin_hold)))
+       time >= h.rvh_loaded_at + max(0, cvar_hget(cvarh_vr_revolver_spin_hold)))
     {
         VR_Revolver_Eject(xHand, r, sprintf("a push of the hand (%.2f m/s over %.0f cm)", h.rvh_ejpeak, h.rvh_ejrun * 100), vr_rv_push);
         h.rvh_ejrun = h.rvh_ejpeak = h.rvh_ejframes = 0;
