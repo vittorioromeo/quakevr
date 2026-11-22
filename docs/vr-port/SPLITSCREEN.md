@@ -232,7 +232,7 @@ ends with the effort left re-estimated (below).
 | 7 | Per-seat render: rectangles, per-view caches; the effects (each seat's client world); the drawn body (`vr_avatar*`) and climbing's client pins (4b's leftovers); sounds per seat listener (phase 8's, brought in) | done (3: tiles and layouts; bodies, pins, effects; sounds, the effects' spawners, the visor) | ~~2~~ answered: the tiles follow the chosen layout (phase 11) |
 | 8 | The shared effects' other memories fed once (decals and shells from Quake VR's messages, gore's state), the static sounds and underwater muffling per seat, the shadow and portal caches checked with several views (flat TAA per tile moved to phase 11) | done (1; section 18) | - |
 | 9 | Menus and console per seat (`key_dest` as each seat sees it, `Key_SeatDest`): seat 1 the full menu and the console, seats 2-4 their seat menu in their tile, each pad its own seat's; the menu pauses coop (`scr_splitmenu`, `scr_splitpause`) | done (1; section 19) | ~~4~~ answered: options; coop's default: the menu pauses, only seat 1's is the full menu |
-| 10 | **Next.** UX: Multiplayer > Splitscreen and the join screen (**the phase he tries before `agent/split` merges into next**) | 2-3 | ~~3, 4, 6~~ answered (drop-in/out: the join screen also joins a running game) |
+| 10 | UX: Multiplayer > Splitscreen and the join screen (**the phase he tries before `agent/split` merges into next**: "How to try it", section 20) | done (1; section 20) | ~~3, 4, 6~~ answered (drop-in/out: the join screen also joins a running game) |
 | 11 | UX: layouts (2 side by side or stacked, 3, 4): all switchable, the default from the monitor's aspect; flat TAA per tile (a history a seat, sized as its tile: phase 8's leftover) | 2-3 | ~~2~~ answered: customizable; ultrawide side by side; 3: one wide on top, two below |
 | 12 | UX: KB/M plus up to 4 controllers: the flat controller layout, per-seat profiles (the cvars a player owns) | 3-4 | ~~7~~ answered: a default controller layout; aim assist, off by default |
 | 13 | UX: per-seat HUD scale and seat menus, pause | 1-2 | ~~4~~ answered (pause and menu options) |
@@ -261,7 +261,10 @@ what the shared memories left: section 17). **After phase 8: 12-19 worker-days**
 day to a day, moved to phase 11 with the tiles' sizes; next: phase 9, the menus per seat; then phase 10's join screen,
 which he tries before the merge into next). **After phase 9: 11-17 worker-days** (9 took one of its two: one question
 per key, "where do this seat's keys go", answered in one place; phase 13's pause and seat-menu options exist as cvars,
-leaving it the per-seat HUD scale and the options' menu rows; next: phase 10's join screen).
+leaving it the per-seat HUD scale and the options' menu rows; next: phase 10's join screen). **After phase 10: 9-15
+worker-days** (10 took one of its two to three: phases 6 and 9's joins, leaves and pads made the screen a menu over
+them; the layout row and picture are phase 11's first part; next: he tries the join screen, then the merge into next
+on his word, phase 11 after).
 
 ## 7. Questions for him (the phase that needs each)
 
