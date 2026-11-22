@@ -766,6 +766,10 @@ za::Vector<Item> pageDebugProfiling()
         row(opt::vr_particle_saturate_batches),
         row(opt::vr_particle_saturate_opacity),
         row(opt::vr_debug_particle_waste),
+        command("Blood by Emitter", "vr_blood_emitters")
+            .help("vr_blood_emitters: the blood particles each emitter made since the last reset (hit blood, trails, "
+                  "gib trails, mist, drips, specks, droplets), and how many within 48 units of the eye (where Thinner "
+                  "Blood Nearer works). In the console, vr_blood_emitters reset starts again."),
         command("Particle Fill Waste Report", "vr_particle_waste_report")
             .help("vr_particle_waste_report: since the last report, the particles' shaded fragments and the share that "
                   "were invisible or faint, by texture, for all of them and for the big ones (console)."),

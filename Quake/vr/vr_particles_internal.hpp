@@ -240,7 +240,19 @@ void soak(Particle& p, float lifeMult = 1.f); // (vr_particles_blood.cpp)
 // ... a drop at org made or not by that share (always made when it is 1: no random number taken).
 [[nodiscard]] bool nearBloodMade(const glm::vec3& org);
 void blood(const glm::vec3& org, const glm::vec3& dir, int count);
-void bloodTrail(const glm::vec3& org, const glm::vec3& dir, int count);
+// The blood emitters (vr_blood_emitters' tally by emitter; vr_particles_blood.cpp).
+enum class BloodFrom
+{
+    Hit,
+    Trail,
+    GibTrail,
+    Mist,
+    Drip,
+    Specks,
+    Droplet,
+    Count
+};
+void bloodTrail(const glm::vec3& org, const glm::vec3& dir, int count, BloodFrom from = BloodFrom::Trail);
 void lightning(const glm::vec3& org, int count);
 void smoke(const glm::vec3& org, int count, bool big);
 void steam(const glm::vec3& org, int count);

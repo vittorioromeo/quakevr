@@ -19,7 +19,18 @@ namespace detail
 // vr_blood_tally / vr_blood_tally_drawn (diagnostics; vr_flatblood_test): the blood particles an emitter made (those
 // past `before` in the pool), and those made where the view draws them: ahead of the eye past the near plane
 // (vr_nearclip), not inside the near cull (vr_particle_near_cull).
-void tallyBlood(za::SizeT before)
+// vr_blood_emitters (pcopt E): the blood particles each emitter made since its reset, and of those the ones made within
+// 48 units of the eye (where vr_blood_near's cap matters).
+constexpr const char* bloodFromNames[] = {"hit blood", "hit blood trail", "gib trail", "mist", "drip", "specks", "droplet"};
+static_assert(sizeof(bloodFromNames) / sizeof(bloodFromNames[0]) == static_cast<int>(BloodFrom::Count));
+struct BloodEmitterTally
+{
+    int made[static_cast<int>(BloodFrom::Count)]{};
+    int near[static_cast<int>(BloodFrom::Count)]{};
+};
+static BloodEmitterTally bloodEmitters;
+
+void tallyBlood(za::SizeT before, BloodFrom from)
 {
     if(pool.size() <= before)
     {
@@ -32,11 +43,15 @@ void tallyBlood(za::SizeT before)
     const float cull = nearLimits().cull;
     const float nearPlane = za::max(vr_nearclip.value, 0.f);
     int drawn = 0;
+    int near = 0;
     for(za::SizeT i = before; i < pool.size(); i++)
     {
         const glm::vec3 d = pool[i].org - eye;
         drawn += glm::dot(d, fwd) > nearPlane && glm::length(d) >= cull ? 1 : 0;
+        near += glm::length(d) < 48.f ? 1 : 0;
     }
+    bloodEmitters.made[static_cast<int>(from)] += static_cast<int>(pool.size() - before);
+    bloodEmitters.near[static_cast<int>(from)] += near;
     Cvar_SetValueQuick(&vr_blood_tally, vr_blood_tally.value + static_cast<float>(pool.size() - before));
     Cvar_SetValueQuick(&vr_blood_tally_drawn, vr_blood_tally_drawn.value + static_cast<float>(drawn));
 }
@@ -63,10 +78,11 @@ bool nearBloodMade(const glm::vec3& org)
 struct BloodTally
 {
     za::SizeT before = pool.size();
-    BloodTally() = default;
+    BloodFrom from;
+    explicit BloodTally(BloodFrom f) : from{f} {}
     BloodTally(const BloodTally&) = delete;
     BloodTally& operator=(const BloodTally&) = delete;
-    ~BloodTally() { tallyBlood(before); }
+    ~BloodTally() { tallyBlood(before, from); }
 };
 
 // Blood let in a liquid (water::bloodInLiquid, vr_water_blood: one point test a burst, not a particle): its spray
@@ -91,7 +107,7 @@ void soak(Particle& p, float lifeMult)
 
 void blood(const glm::vec3& org, const glm::vec3& dir, int count)
 {
-    const BloodTally tally; // (vr_blood_tally)
+    const BloodTally tally{BloodFrom::Hit}; // (vr_blood_tally)
     const bool wet = water::bloodInLiquid(org);
     mist(org, dir, count, wet);
     constexpr int colors[] = {247, 248, 249, 250, 251};
@@ -146,9 +162,9 @@ void blood(const glm::vec3& org, const glm::vec3& dir, int count)
 }
 
 // Behind a flying gib, a few steps apart: a faint smear left in the air and drops falling from it.
-void bloodTrail(const glm::vec3& org, const glm::vec3& dir, int count)
+void bloodTrail(const glm::vec3& org, const glm::vec3& dir, int count, BloodFrom from)
 {
-    const BloodTally tally; // (vr_blood_tally)
+    const BloodTally tally{from}; // (vr_blood_tally)
     constexpr int colors[] = {247, 248, 249, 250, 251};
     const bool wet = water::bloodInLiquid(org); // (a gib sinking: a trail of little clouds, hanging)
     make(static_cast<float>(count), [&](Particle& p, int) {
@@ -272,10 +288,36 @@ void sparkles(const glm::vec3& org, int count, int lo, int hi, float alphaLo, fl
 }
 } // namespace detail
 
+// vr_blood_emitters [reset]: each emitter's blood particles since the last reset (Debug > Profiling; pcopt E).
+void bloodEmitters_f()
+{
+    auto& t = detail::bloodEmitters;
+    if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "reset"))
+    {
+        t = detail::BloodEmitterTally{};
+        Con_Printf("blood emitters reset\n");
+        return;
+    }
+    int all = 0;
+    int allNear = 0;
+    for(int i = 0; i < static_cast<int>(detail::BloodFrom::Count); i++)
+    {
+        Con_Printf("blood emitter %-16s made %7d, within 48 units %6d\n", detail::bloodFromNames[i], t.made[i], t.near[i]);
+        all += t.made[i];
+        allNear += t.near[i];
+    }
+    Con_Printf("blood emitters: made %d, within 48 units %d (vr_blood_near %g, vr_blood_near_mult %g)\n", all, allNear,
+        vr_blood_near.value, vr_blood_near_mult.value);
+}
+
 void bloodMist(const glm::vec3& org, const glm::vec3& dir, int count)
 {
-    const BloodTally tally; // (vr_blood_tally)
-    if(enabled())
+    const BloodTally tally{BloodFrom::Mist}; // (vr_blood_tally)
+    if(const float keep = nearBloodKeep(org); keep < 1.f) // (close up: vr_blood_near)
+    {
+        count = static_cast<int>(static_cast<float>(count) * keep + 0.5f);
+    }
+    if(enabled() && count > 0)
     {
         lastMistTime = -1.0; // (asked for: never merged with the last)
         mist(org, dir, count);
@@ -284,7 +326,7 @@ void bloodMist(const glm::vec3& org, const glm::vec3& dir, int count)
 
 void bloodDrip(const glm::vec3& org, float fall, float floorZ, float size, const glm::vec3& color, float alpha)
 {
-    const BloodTally tally; // (vr_blood_tally)
+    const BloodTally tally{BloodFrom::Drip}; // (vr_blood_tally)
     if(!vr_particles.value || !ensureAtlas() || !nearBloodMade(org))
     {
         return;
@@ -307,7 +349,7 @@ void bloodDrip(const glm::vec3& org, float fall, float floorZ, float size, const
 
 void bloodSpecks(const glm::vec3& org, const glm::vec3& normal, int count, const glm::vec3& color, float alpha)
 {
-    const BloodTally tally; // (vr_blood_tally)
+    const BloodTally tally{BloodFrom::Specks}; // (vr_blood_tally)
     if(!vr_particles.value || !ensureAtlas() || !nearBloodMade(org))
     {
         return;
@@ -331,7 +373,7 @@ void bloodSpecks(const glm::vec3& org, const glm::vec3& normal, int count, const
 
 void bloodDroplet(const glm::vec3& org, const glm::vec3& vel, float size, float life, const glm::vec3& color, float floorZ, bool wet)
 {
-    const BloodTally tally; // (vr_blood_tally)
+    const BloodTally tally{BloodFrom::Droplet}; // (vr_blood_tally)
     if(!vr_particles.value || pool.size() >= maxParticles || !ensureAtlas() || !nearBloodMade(org))
     {
         return;
