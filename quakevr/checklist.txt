@@ -118,6 +118,7 @@ Flat-screen or VR: set Movement > Player Hitbox > Close Gaps: Slanted Bars off a
 [6. Weapons and holsters]
 Holster Calibration > Ammo Pouch Forward/Right/Up move the pouch and agree with Holster Setup's drag {test:shotgun_hall}
 Pistol-whip with the heavy revolver: the cylinder stays shut; a deliberate wrist flick still opens it {test:revolver_swing}
+Flat-screen or VR: with Arcane Dimensions' projectile shells (AD or Quoth maps, or Projectile Rules set to AD's), shoot a grunt in the head with the heavy revolver: the head pops every time, as in Quake's own maps; a body shot doesn't pop it, and an ogre still takes about four body slugs. {test:revolver_adheadpop}
 
 [7. Armed humanoids, ragdolls and physics]
 A fight with several armed grunts and ragdolls: poses and limbs correct (posed models now batched) {test:agrunts_fight}
