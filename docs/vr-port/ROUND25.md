@@ -7592,6 +7592,71 @@ grunt's head intercepted by the backpack; wants packs paintable alone, a lineup 
   (5 masks, 0 on flesh). Dev build 0 warnings.
 - Not seen in a screenshot (the mock view's ray met no one): the yellow cursor and the skin view; check in flat and VR.
 
+## backlog1122: small backlog fixes (branch agent/backlog1122, 2026-11-22)
+
+- **Checklist:** 8 lines ticked in his checklist_ticks.txt with no voice note since (none after 2026-11-21 00:47) retired:
+  the reorganized-checklist line, noclip flight, shove without blood, Quoth's e1m1quoth, and the four armed-grunt
+  batching/LOD/strike-check/Box3D lines. Kept though ticked (as checklist2): Sliding and the Dwell start/d1m1 line (their
+  voice notes). Their scenes (noclip_fly, shove_no_blood, agrunts_fight) stay. checklist_tests_check: 8 lines from later
+  ships are untagged (not this branch's).
+- **His hull-hole mark (Quoth's start, -0.2 2273.8 -392):** the "ground decoration" is a frame of 8-wide bars round a
+  32 x 32 hole over a 16-high pit. The map is Quoth's `start` (his console history: Quoth maps just before; id1's,
+  Dwell's and Hey's start don't match; the kit's base lacked Quoth: a junction to the dagger base's copy). At the
+  default limit (32) the line test took only gaps under it, so exactly 32 was never closed, though Quake's box only
+  bridges it (hull 1 solid, the clip brush recovery doesn't fill it there); at his 46 the hole's blocker was merged with
+  a neighbour Quake's box reaches and dropped whole (the top half survived through another pair). Rule now: a model's
+  own gaps count up to the limit itself (hull 1's check decides, as before; brush-model pairs, the line test alone,
+  stay under 32), and a dropped merged box is split back into its pieces, each checked, the kept ones merged again
+  (`splitDropped`; HULLS.md "backlog1122"). buildVersion 5.
+  Test: vrbrushholes gained the drain (Quoth's 22 pieces copied, a step up to it; scene `brushholes_drain`);
+  `vr_hull_holes_test` 27/0 on and 27/0 off (the drain falls with holes off, and with the old rule, max 31.8: 25/2).
+  Census: id1 38 maps reach 0 (10,626 own, 1,302 diagonal, 88 over a fall; most 26 ms, e2m2), Quoth start 0 (and at
+  max 46: 0, no box left out at the mark), ad_tears 0 (600 ms search) and ad_azad 0; prone_vent_test 11/0.
+- **Checklist tags (coordinator's extra):** 6 untagged lines in [2. Quoth] were copies of the tagged ones just below
+  (a ship's duplicate): dropped. kellbase1's corridor line tagged `hub_start` (as the other Quoth lines: a scene naming
+  kellbase1 needs Quoth in the base); the AD grates line got a minimal new scene `ad_azad_grates` (map ad_azad).
+  checklist_tests_check 116 passed, 0 failed; validate 186 files, 0 with errors.
+- **Item 5, the expbugs_* scenes:** already retired by checklist2 (moved out with their lines); in a base without Dwell
+  the remaining Dwell scenes skip: scenario_check (Dwell and Quoth moved out of the kit's base) PASS, 185 run, 0 failed,
+  5 skipped (dwell_bosses, dwell_grunt_pickup, dwell_items, dwell_monsters, dwell_sculptor: "not on the search path").
+- **Item 1 (ad_test3's ladder, flat), looked at, not fixed:** an "up" case for it (feet 228 at -504 -88 facing east)
+  finds the rungs ahead (tops 268, 284, 296, 300; holds 18 units ahead, out -x) but `flatLadderFrame`'s pair test takes
+  none ("2 ledges ahead, no ladder"); the case's start is also inside a func_wall (its rungs?). Left with the case
+  out (vr_flatladder_test's indices unchanged). Not done either: items 2, 3, 4 and the rest of 5 (per-tree MP bases and
+  a free port; vr_pickup_test 15 on next).
+## flatkeys: flat keys in Options > Controls, not a separate page (agent/flatkeys, 2026-11-22)
+
+BACKLOG 3 (his call 2026-11-16, GitHub #83): "Integrate them into Options > Controls' key binding list (a "Quake VR (flat
+screen)" group, same rebind/clear UI as the binds, conflicts with binds shown both ways), drop the separate page (or keep
+only a link to Controls), and make the keys play nicely with the bind system (a key bound to both a bind and a flat key:
+pick one rule and show it). Keep `vr_flat_key_*` working for configs."
+
+- **Controls** (menu.c, keys menu): on the Keyboard & Mouse tab, after the binds, a blank line, the title "Quake VR (flat
+  screen)", the rule "In flat play these win over binds", then a row per flat key (`menukeybind_t.flatkey` = 1 + its
+  index; its command is the cvar's name). Enter + a key sets the cvar (`VR_FlatKeySet`, the default's spelling kept where
+  it is the default's key), Backspace/Del clears it (""), Escape cancels: the binds' own UI and code paths, only the
+  store differs. Headers are rows with a description and no command (not selectable, never merged as separators, not
+  matched by the search).
+- **The rule** (unchanged in the engine, now shown): in flat play a flat key's key does the flat action and its bind does
+  not run (`VR_FlatKeyOwned`, keys.c Key_Event); out of flat play (VR, or flat play off) the bind runs. Both rows mark a
+  clashing key with "!" after its name (a flat key's: also bound, or another flat key's; a bind's: a flat key's), and the
+  cursor row's first clash is spelt out under the list (`M_Keys_Clash`): "! k in flat play: Drop, not Next weapon" (the
+  short form without the key name past 40 characters), or "! 3 is also Swap hands" between two flat keys. Nothing is
+  unbound automatically (conservative: the player clears the side he does not want; for #83, clear Force Grab/Shove and
+  mouse 4/5 do their binds). Defaults already clash where the flat key wins anyway, e.g. Swap hands on 3 (Super Shotgun).
+- **One list** (vr_flatmove.cpp): `flatKeyList` + `flatKeyLabels` (static_assert'ed the same length) feed
+  `VR_FlatKeyOwned`, Controls (`VR_FlatKeyCount/Label/CvarName/Get/Set/For`, vr_api.h) and `VR_FlatKeysReset`.
+- **VR menu**: the Flat Keys page is gone (pageFlatKeys, its 18 QVR_KEY rows, the menu table entry). Locomotion > Desktop
+  Screen Play keeps "Flat Keys (Options > Controls)" (`M_Menu_Keys_At("vr_flat_key_lean_left")`: Controls opened, the
+  keyboard tab, the cursor on Lean left) and "Reset Flat Keys". The VR menu's key row (Item::Key, M_VRKeyCapture) stays
+  for Voice Chat's Push-to-Talk row (vr_menu_voicechat.inc: a VR page where the key belongs; also in the Controls group).
+- `menu_keys [row]` (a command, a row's name or a `vr_flat_key_*` cvar) opens Controls on that row; with developer 1 it
+  prints `menu_keys: at "<row>" (<command>) <clash note>`. Bug avoided: the row name is copied before M_Menu_Keys_f, whose
+  bindlist.lst parsing re-tokenizes over Cmd_Argv.
+- Gamepad tab: no flat group (flat play's keys are keyboard and mouse keys; decision, conservative).
+- Test: `Misc/quakevr/flatkeybind_test.sh <agent>` (rewritten for Controls; flat-screen, fast mode, ends on
+  "flatkeybind: done"): 9 passed, 0 failed (link, rebind, Escape, clash both ways, the new key fires (k drops) and the
+  old does nothing, clear, reset).
 ## adhumaudit: which of AD's remaining humanoids could be armed humanoids (agent/adhumaudit, 2026-11-22; audit only)
 
 His words: "it would be nice for those to become armed humanoid too ... Please do an audit first". The audit is

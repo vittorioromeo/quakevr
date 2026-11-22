@@ -1060,10 +1060,6 @@ vr_agrunt_shotdisarm_proj_max|1|Armed Grunts|Projectile: Most Chance|Advanced VR
 vr_player_disarm|1|Armed Grunts|You Can Be Disarmed|Advanced VR Options > Combat > Armed Grunts > You Can Be Disarmed
 vr_player_disarm_pvp|1|Armed Grunts|You Can Be Disarmed by Players|Advanced VR Options > Combat > Armed Grunts > You Can Be Disarmed by Players
 vr_player_disarm_chance|1|Armed Grunts|Your Disarm Chance|Advanced VR Options > Combat > Armed Grunts > Your Disarm Chance
-vr_player_disarm_jolts|1|Armed Grunts|Your Disarm: Jolts|Advanced VR Options > Combat > Armed Grunts > Your Disarm: Jolts
-vr_player_disarm_window|1|Armed Grunts|Your Disarm: Jolt Kept|Advanced VR Options > Combat > Armed Grunts > Your Disarm: Jolt Kept
-vr_player_disarm_heavy|1|Armed Grunts|Your Disarm: Heavy Blow|Advanced VR Options > Combat > Armed Grunts > Your Disarm: Heavy Blow
-vr_player_disarm_shot|1|Armed Grunts|Your Disarm: Shot Damage|Advanced VR Options > Combat > Armed Grunts > Your Disarm: Shot Damage
 vr_player_disarm_grab|1|Armed Grunts|Players: Grab and Pull Disarms|Advanced VR Options > Combat > Armed Grunts > Players: Grab and Pull Disarms
 vr_player_disarm_pull|1|Armed Grunts|Players: Disarm Pull|Advanced VR Options > Combat > Armed Grunts > Players: Disarm Pull
 vr_player_disarm_reach|1|Armed Grunts|Players: Disarm Grab Reach|Advanced VR Options > Combat > Armed Grunts > Players: Disarm Grab Reach
@@ -1442,6 +1438,8 @@ vr_slide_body|1|Locomotion|Slide Body Pose|Advanced VR Options > Movement > Loco
 vr_slide_legs|1|Locomotion|Slide Legs Follow Slide|Advanced VR Options > Movement > Locomotion > Slide Legs Follow Slide
 vr_slide_camera|1|Locomotion|Slide View|Advanced VR Options > Movement > Locomotion > Slide View
 vr_slide_camera_time|1|Locomotion|Slide View Time|Advanced VR Options > Movement > Locomotion > Slide View Time
+|1|Locomotion|Flat Keys (Options > Controls)|Advanced VR Options > Movement > Locomotion > Flat Keys (Options > Controls)
+|1|Locomotion|Reset Flat Keys|Advanced VR Options > Movement > Locomotion > Reset Flat Keys
 vr_flat_aim_mode|1|Locomotion|Right Click Ironsight|Advanced VR Options > Movement > Locomotion > Right Click Ironsight
 vr_flat_aim_zoom|1|Locomotion|Right Click Aim|Advanced VR Options > Movement > Locomotion > Right Click Aim
 vr_flat_aim_sens|1|Locomotion|Aim Sensitivity|Advanced VR Options > Movement > Locomotion > Aim Sensitivity
@@ -5667,7 +5665,6 @@ vr_debug_doom|2|Debug - Tests|Doom: Debug|Advanced VR Options > Debug > Tests > 
 |2|Debug - Tests|AD and Quoth Variants: Armed Test|Advanced VR Options > Debug > Tests > AD and Quoth Variants: Armed Test
 |2|Debug - Tests|AD and Quoth Variants: Map Census|Advanced VR Options > Debug > Tests > AD and Quoth Variants: Map Census
 |2|Debug - Tests|Armed Humanoids: Recolour Row|Advanced VR Options > Debug > Tests > Armed Humanoids: Recolour Row
-|2|Debug - Tests|Armed Humanoids: AD Model Beside Its Row|Advanced VR Options > Debug > Tests > Armed Humanoids: AD Model Beside Its Row
 |2|Debug - Tests|Quoth: Drive This Map's Flow|Advanced VR Options > Debug > Tests > Quoth: Drive This Map's Flow
 |2|Debug - Tests|Arcane Dimensions: Widowmaker Pickup Ahead|Advanced VR Options > Debug > Tests > Arcane Dimensions: Widowmaker Pickup Ahead
 |2|Debug - Tests|Arcane Dimensions: Upgraded Weapons Ahead|Advanced VR Options > Debug > Tests > Arcane Dimensions: Upgraded Weapons Ahead
@@ -5771,7 +5768,6 @@ vr_test_spawn_tilt|2|Debug - Tests|Box Tilted|Advanced VR Options > Debug > Test
 |2|Debug - Tests|Wet Check: Nothing Wet Near|Advanced VR Options > Debug > Tests > Wet Check: Nothing Wet Near
 |2|Debug - Tests|Shoot Yourself: Ordinary Firing|Advanced VR Options > Debug > Tests > Shoot Yourself: Ordinary Firing
 |2|Debug - Tests|Player Disarm: Shots on Your Gun|Advanced VR Options > Debug > Tests > Player Disarm: Shots on Your Gun
-|2|Debug - Tests|Player Disarm: The Rules, Blow by Blow|Advanced VR Options > Debug > Tests > Player Disarm: The Rules, Blow by Blow
 |2|Debug - Tests|Deathmatch Rules: Weapons and Bots|Advanced VR Options > Debug > Tests > Deathmatch Rules: Weapons and Bots
 |2|Debug - Tests|Deathmatch: Parry a Bot's Swing|Advanced VR Options > Debug > Tests > Deathmatch: Parry a Bot's Swing
 |2|Debug - Tests|Deathmatch: A Bot Punches You|Advanced VR Options > Debug > Tests > Deathmatch: A Bot Punches You
@@ -6084,8 +6080,6 @@ vr_test_grenade_yours|2|Debug - Tests|Dud Is Yours|Advanced VR Options > Debug >
 vr_debug_pain|2|Debug - Tests|Print Hits|Advanced VR Options > Debug > Tests > Print Hits
 |2|Debug - Tests|Report the Hooks|Advanced VR Options > Debug > Tests > Report the Hooks
 |2|Debug - Tests|Print the Ropes|Advanced VR Options > Debug > Tests > Print the Ropes
-|2|Debug - Tests|Print the Climbable Ropes|Advanced VR Options > Debug > Tests > Print the Climbable Ropes
-|2|Debug - Tests|Test the Climbable Ropes|Advanced VR Options > Debug > Tests > Test the Climbable Ropes
 |2|Debug - Tests|Deplete Stamina|Advanced VR Options > Debug > Tests > Deplete Stamina
 |2|Debug - Tests|Nearly Empty|Advanced VR Options > Debug > Tests > Nearly Empty
 |2|Debug - Tests|Half Stamina|Advanced VR Options > Debug > Tests > Half Stamina
@@ -8612,28 +8606,6 @@ vr_stealth_debug_meters_range|2|Stealth AI Tests|Meters Within|Advanced VR Optio
 vr_stealth_debug|2|Stealth AI Tests|Log|Advanced VR Options > Combat > Stealth AI > Tests > Log
 vr_stealth_light_force|2|Stealth AI Tests|Force the Light on You|Advanced VR Options > Combat > Stealth AI > Tests > Force the Light on You
 |2|Stealth AI Tests|Reset This Page|Advanced VR Options > Combat > Stealth AI > Tests > Reset This Page
-@page|1|Flat Keys||Advanced VR Options > Movement > Locomotion > Flat Keys
-|1|Flat Keys|Lean Left|Advanced VR Options > Movement > Locomotion > Flat Keys > Lean Left
-|1|Flat Keys|Lean Right|Advanced VR Options > Movement > Locomotion > Flat Keys > Lean Right
-|1|Flat Keys|Lie Down|Advanced VR Options > Movement > Locomotion > Flat Keys > Lie Down
-|1|Flat Keys|Swap Hands|Advanced VR Options > Movement > Locomotion > Flat Keys > Swap Hands
-|1|Flat Keys|Force Grab|Advanced VR Options > Movement > Locomotion > Flat Keys > Force Grab
-|1|Flat Keys|Shove|Advanced VR Options > Movement > Locomotion > Flat Keys > Shove
-|1|Flat Keys|Punch|Advanced VR Options > Movement > Locomotion > Flat Keys > Punch
-|1|Flat Keys|Reload|Advanced VR Options > Movement > Locomotion > Flat Keys > Reload
-|1|Flat Keys|Next Ammo Type|Advanced VR Options > Movement > Locomotion > Flat Keys > Next Ammo Type
-|1|Flat Keys|Drop|Advanced VR Options > Movement > Locomotion > Flat Keys > Drop
-|1|Flat Keys|Quick Grenade|Advanced VR Options > Movement > Locomotion > Flat Keys > Quick Grenade
-|1|Flat Keys|Bullet Time|Advanced VR Options > Movement > Locomotion > Flat Keys > Bullet Time
-|1|Flat Keys|Flashlight|Advanced VR Options > Movement > Locomotion > Flat Keys > Flashlight
-|1|Flat Keys|Push-to-Talk|Advanced VR Options > Movement > Locomotion > Flat Keys > Push-to-Talk
-|1|Flat Keys|Holster Menu|Advanced VR Options > Movement > Locomotion > Flat Keys > Holster Menu
-|1|Flat Keys|Fly Camera|Advanced VR Options > Movement > Locomotion > Flat Keys > Fly Camera
-|1|Flat Keys|Toolgun|Advanced VR Options > Movement > Locomotion > Flat Keys > Toolgun
-|1|Flat Keys|Toolgun Panel|Advanced VR Options > Movement > Locomotion > Flat Keys > Toolgun Panel
-|1|Flat Keys|Toolgun Adjust|Advanced VR Options > Movement > Locomotion > Flat Keys > Toolgun Adjust
-|1|Flat Keys|Reset Flat Keys|Advanced VR Options > Movement > Locomotion > Flat Keys > Reset Flat Keys
-|1|Flat Keys|Reset This Page|Advanced VR Options > Movement > Locomotion > Flat Keys > Reset This Page
 @page|1|Visor HUD Look||Advanced VR Options > Movement > Locomotion > Visor HUD Look
 vr_flat_visor|1|Visor HUD Look|Visor HUD|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Visor HUD
 vr_flat_visor_scale|1|Visor HUD Look|Visor Panel Size|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Visor Panel Size
