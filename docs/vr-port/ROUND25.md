@@ -7801,3 +7801,33 @@ Phase 3's rest (ROPES.md "Climbing (flat-screen)", "Multiplayer", "Tests", "Know
   (flat A on a rope, B watching) runs but fails its pose checks (wrists 9-25 units off, ankles 11-24): open, in
   ROPES.md's known limits, kept out of the suite.
 
+## mpflakes: mp_guard's honest rewinds, mp_predict's rest and lift (agent/mpflakes, 2026-11-22)
+
+- **mp_guard "A's honest moves: rewinds N held"** (a load flake: 0 of 6 idle, 3-4 of 4 with `--load 30`): the server held
+  an honest client's view time when his move's `time` (his newest message) was older than 2 x rtt + 0.5 s at the moment
+  the move *ran*. The new `mp_guard_held: ... rewind` lines (vr_mp_guard_debug) showed two causes, both from frame
+  hitches under load: (a) a client hitch of 0.5-0.9 s, after which his frame's catch-up ticks send a burst of moves all
+  naming his newest message from before it; (b) the server's move buffer then ran them one a tick, adding its own wait
+  (e.g. time 36.644 run at 37.172-37.256, one tick apart). Now the age is judged at the move's first read
+  (`netmove::serverCame`: each kept move's arrival) less a quiet allowance: the silence before its packet (from the
+  slot's reset at its connection or map), spent as the server's time goes on (`quiet = max(gap, quiet - gap)` a packet).
+  A liar gains only as much as he stays silent, and lag compensation stays capped by `vr_net_lagcomp_most`; the cheat's
+  view a second back and newest message two back are still held (B's counts unchanged). The lockstep's moves are judged
+  as they run, as before (the same every run).
+- **mp_predict "at rest B stands where the server has him" 1.4-1.9 off**: the test's wait was counted from a planned
+  state number; when the legs' polls had overshot it (load), the read came at once, B's own copy stopped and the
+  server's still sliding to his stop a round trip behind. `rest_gap` (mp_test.py) now reads the server's copy until it
+  stands still over 36 of B's states counted from then (at most 5 reads), then B's; it notes the old immediate gap too:
+  at `--load 26` it was 9.90 and 0.20 units in 2 of 5 runs (both pass settled), 0.00-0.10 at `--load 12`. Used on the
+  walk's and the lift's rest checks.
+- **The lift landing** (ROUND25 "lift landing 1.354"): the bound is a unit when the server's buffer ran every tick one
+  move during the segment, else a lift step; the ticks were counted from after B's prediction snapped over the lift, so
+  a bunched tick between his put-over and that read (1 run of 10 had one) was missed and the strict bound applied. Now
+  counted from before the put-over (`b_predict_lift_buffer_off_early` metric). Not reproduced in 20 runs (contact 0.000
+  every run).
+- Not player-facing beyond MULTIPLAYER.md's line on a stalled player (no PATCH_NOTES line). Seen only under extreme
+  load (`--load 26-30` on 32 CPUs, games at normal priority): mp_predict's state-count checks (swam 144-149 of 150,
+  flat ground 11-20 of 50, own move 5-16 moves) and mp_guard's B6 segment (11-19 of 20 compared), and joins timing
+  out; not chased (the counts are of states that come slower under such load).
+- Checks: mp_guard 10/10 and mp_predict 10/10 at `--load 12` (bases/mp; no honest rewind held, every rest gap 0.00).
+
