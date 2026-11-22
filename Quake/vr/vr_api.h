@@ -51,7 +51,7 @@ int VR_NoLiquidEffects(struct qmodel_s* model, const float* point);
 // Quake VR's network version, sent after NetQuake's in the connect request ("QVR", then this long; net_dgrm.c): a
 // server whose protocol is the VR one rejects a client without it or with another, with the reason (MP_PLAN.md, B2).
 // Raise it with any change to what client and server send each other.
-#define QVR_NET_VERSION				42 // (42: the ragdolls' parts in the snapshot, QVR_SVC_RAGPOSE, ragsync; a bot's weapons placed by the server in its avatar, bots3; the players' worn gear in the move and the avatar, their power-ups in its gear byte, a bot's holstered weapons, syncfix; 41: the players' guns' looks and torches in the avatar, their torch in the move, wpnsync; 40: a connect request gets a slot only with the server's cookie for its address, CCREP_CHALLENGE, mpfix A1; 39: the channels' first sequences drawn at random by each side, in the connect request and the accept, review 2026-11-18 finding 2; 38: what a remote client's hands hold, and where (QVR_SVC_HELDPLACE), B27; 37: the movers' exact places and the server's tick in the predict state, B24; 36: one server socket for every client, B23; 35: bots' hands solved by the clients, B11 part 3; 34: B13's selective acks, the version in the accept reply)
+#define QVR_NET_VERSION				44 // (44: the room-scale budget left in QVR_SVC_PREDICT, onecopy (review B6); 43: QVR_SVC_BOTPATH 53, flakehunt; QVR_SVC_HUMLOOK 54, humrepl; and 42 was two wires: syncfix4 coarsened the worn gear in the move and added QVR_SVC_EJECTOTHER 52 after ragsync had shipped 42, mpopen; 42: the ragdolls' parts in the snapshot, QVR_SVC_RAGPOSE, ragsync; a bot's weapons placed by the server in its avatar, bots3; the players' worn gear in the move and the avatar, their power-ups in its gear byte, a bot's holstered weapons, syncfix; 41: the players' guns' looks and torches in the avatar, their torch in the move, wpnsync; 40: a connect request gets a slot only with the server's cookie for its address, CCREP_CHALLENGE, mpfix A1; 39: the channels' first sequences drawn at random by each side, in the connect request and the accept, review 2026-11-18 finding 2; 38: what a remote client's hands hold, and where (QVR_SVC_HELDPLACE), B27; 37: the movers' exact places and the server's tick in the predict state, B24; 36: one server socket for every client, B23; 35: bots' hands solved by the clients, B11 part 3; 34: B13's selective acks, the version in the accept reply)
 // A remote client's moves (vr/vr_netmove.hpp: quantized deltas with repeats; the loopback's stay clc_move; MP_PLAN.md, B7).
 #define QVR_CLC_MOVES				16
 // A client's voice frames (vr/vr_voicechat.hpp: Opus, 20 ms each; MP_PLAN.md, B10v), after his move.
@@ -643,6 +643,16 @@ int VR_SlideStepUp (struct edict_s *ent); // SV_WalkMove: nonzero while a slide 
 int VR_SlideMove (struct edict_s *ent, int onground, const float *wishdir, float wishspeed, float *velocity); // SV_AirMove: a slide (vr_flat_slide flatscreen, vr_slide a headset; vr_slide.cpp): nonzero when it moved him on the ground this frame (no friction, no walk)
 int VR_LeanHitBoxes (struct edict_s *touch, float (*boxes)[6]); // SV_MoveRun: a flat-screen player's leant upper body (vr_flat_lean_hit; vr_flatmove.cpp), world boxes (mins, maxs) out of his own box; their count (0: none)
 int VR_FlatKeyOwned (int key); // Key_Event: a key flatscreen play reads itself (vr_flatmove.cpp): its bind does not run while the mode runs
+// The flat keys (vr_flat_key_*; vr_flatmove.cpp), Options > Controls' "Quake VR (flat screen)" group (menu.c): index i in the
+// menu's order. Get: the key (-1 none); Set: key -1 clears; For: the flat key on `key` other than `skip` (-1 none).
+int VR_FlatKeyCount (void);
+const char *VR_FlatKeyLabel (int i);
+const char *VR_FlatKeyCvarName (int i);
+int VR_FlatKeyGet (int i);
+void VR_FlatKeySet (int i, int key);
+int VR_FlatKeyFor (int key, int skip);
+void VR_FlatKeysReset (void); // every flat key back to its default
+void M_Menu_Keys_At (const char *row); // menu.c: Options > Controls with the cursor on a row (a command, a name, a vr_flat_key_* cvar): the VR menu's Flat Keys button
 int VR_FlatToolgunMouse (int dx, int dy); // IN_MouseMotion: 1 the mouse is flatscreen play's toolgun's (its panel's cursor, its adjust key held; vr_flatplay.cpp): the view does not turn
 int VR_FlatToolgunEscape (void); // Key_Event's Esc in the game: 1 it closed flatscreen play's toolgun panel (no menu)
 void VR_FlatMoveScale (float *forwardmove, float *sidemove); // CL_BaseMove: leaning, the move keys slower (vr_flat_lean_speed; vr_flatmove.cpp)
@@ -792,7 +802,8 @@ void VR_MenuDrawBannerColumn (void);					// M_Draw, before the page: the VR menu
 void VR_MenuBrandPreload (void);					// Host_Init, after Draw_Init: the menus' images (the banner, Ko-fi's logo) loaded, not at the first menu draw
 void VR_MenuDrawVersion (void);						// M_Draw, before the page: "Quake VR: Unleashed - v1.0" / "by Vittorio Romeo" / a "Support on Ko-fi" link, in a box in the bottom right corner (vr_menu_version)
 void VR_MenuRecolor (float *params);					// Draw_SetMenuRecolor: the gui shader's MenuRecolor (vr_menu_recolor; x 0: off)
-int VR_HumStudioAttack (int down);					// IN_AttackDown/Up: the Texture Studio's stroke while it paints (vr_humstudio.cpp; 1: eaten)
+void VR_HumStudioDraw2D (void);					// SCR_UpdateScreen's 2D pass: the Texture Studio's skin view while it paints (vr_humstudio.cpp)
+int VR_HumStudioAttack (int pressed);					// IN_AttackDown/Up: the Texture Studio's stroke while it paints (vr_humstudio.cpp; 1: eaten)
 int VR_MenuKey (int key, int repeat);					// M_Keydown: nonzero if the buttons took the key (a click on one, the sticks' selection on them)
 void VR_MenuBounds (int *left, int *top, int *width, int *height);	// M_UpdateBounds: the menus laid out from the canvas's bounds beside the corner's buttons
 void VR_MenuSavePositions (void);						// Host_WriteConfigurationToFile: each VR page's selection and scroll into vr_menu_positions

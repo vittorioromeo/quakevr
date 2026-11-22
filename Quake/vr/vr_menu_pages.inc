@@ -182,44 +182,6 @@
     };
 }
 
-// Every flat key back to its default (the Flat Keys page's Reset).
-void resetFlatKeys()
-{
-    for(cvar_t* c : qvr::flatplay::keyCvars())
-    {
-        Cvar_SetQuick(c, c->default_string);
-    }
-}
-
-// Locomotion > Desktop Screen Play > Flat Keys: the keys flat play reads itself (vr_flat_key_*; vr_flatplay.hpp keyCvars).
-[[nodiscard]] za::Vector<Item> pageFlatKeys()
-{
-    return {
-        info([]() -> const char* { return "Enter or a click, then the key; Escape keeps it; Backspace clears"; }),
-        row(opt::vr_flat_key_lean_left),
-        row(opt::vr_flat_key_lean_right),
-        row(opt::vr_flat_key_prone),
-        row(opt::vr_flat_key_swap),
-        row(opt::vr_flat_key_grab),
-        row(opt::vr_flat_key_shove),
-        row(opt::vr_flat_key_punch),
-        row(opt::vr_flat_key_reload),
-        row(opt::vr_flat_key_ammo),
-        row(opt::vr_flat_key_drop),
-        row(opt::vr_flat_key_grenade),
-        row(opt::vr_flat_key_bullettime),
-        row(opt::vr_flat_key_flashlight),
-        row(opt::vr_flat_key_voicechat),
-        row(opt::vr_flat_key_holster_menu),
-        row(opt::vr_flat_key_flycam),
-        row(opt::vr_flat_key_toolgun),
-        row(opt::vr_flat_key_toolgun_menu),
-        row(opt::vr_flat_key_toolgun_adjust),
-        action("Reset Flat Keys", resetFlatKeys)
-            .help("Every key on this page back to its default. A key shown with a mark is also another flat key's, or has a Quake binding: the flat key wins while flat play runs."),
-    };
-}
-
 // Locomotion > Desktop Screen Play > Third-Person Camera: the flat-screen over-the-shoulder camera (vr_flattp.cpp).
 [[nodiscard]] za::Vector<Item> pageFlatThirdPerson()
 {
@@ -345,8 +307,12 @@ void resetFlatKeys()
         row(opt::vr_slide_camera),
         row(opt::vr_slide_camera_time),
         header("Desktop Screen Play"),
-        open("Flat Keys", pageIndex(pageFlatKeys))
-            .help("The keys flat play reads itself (leans, swap, grab, shove, punch, reload, drop, grenade, bullet time, flashlight, holster menu...): rebind each here, press a key."),
+        action("Flat Keys (Options > Controls)", []() { M_Menu_Keys_At("vr_flat_key_lean_left"); })
+            .help("The keys flat play reads itself (leans, swap, grab, shove, punch, reload, drop, grenade, bullet time, flashlight, holster menu...) "
+                  "are in Options > Controls, their own group at the end of the keyboard's list: rebind or clear them there as any bind. "
+                  "A key that is both a flat key and a bind is marked !: in flat play the flat key wins."),
+        action("Reset Flat Keys", []() { VR_FlatKeysReset(); })
+            .help("Every flat key (Options > Controls, the Quake VR (flat screen) group) back to its default."),
         row(opt::vr_flat_aim_mode),
         row(opt::vr_flat_aim_zoom),
         row(opt::vr_flat_aim_sens),
@@ -414,6 +380,7 @@ void resetFlatKeys()
         row(opt::vr_flat_mantle_time),
         row(opt::vr_flat_mantle_grunt_delay),
         row(opt::vr_flat_ladder),
+        row(opt::vr_flat_rope),
         row(opt::vr_flat_slide),
         row(opt::vr_flat_tp),
         open("Third-Person Camera", pageIndex(pageFlatThirdPerson))

@@ -680,6 +680,26 @@ void PF_grapplehold()
         G_VECTOR(OFS_PARM2), G_FLOAT(OFS_PARM3), G_FLOAT(OFS_PARM4) != 0.f, G_FLOAT(OFS_PARM5));
 }
 
+// float grapplereel(entity h, float dist, float shortest): hook `h`'s reel this frame on a prop or a monster `dist` away
+// (the rope's whole way), pmove::grappleReel (the player's grappleStep's rule: one copy, BACKLOG 9 item 4): h.gh_len
+// shortened at .gh_speed times .gh_stamina_mult ramped since .gh_reel, never under `shortest` -> how fast the load
+// should come (braked as it arrives).
+void PF_grapplereel()
+{
+    edict_t* h = G_EDICT(OFS_PARM0);
+    const FieldOffsets& f = fields();
+    if(f.gh_len < 0)
+    {
+        G_FLOAT(OFS_RETURN) = 0.f;
+        return;
+    }
+    float len = fieldFloat(h, f.gh_len);
+    const float full = fieldFloatOr(h, f.gh_speed, 0.f) * fieldFloatOr(h, f.gh_stamina_mult, 1.f);
+    const float age = pr_global_struct->time - fieldFloatOr(h, f.gh_reel, 0.f);
+    G_FLOAT(OFS_RETURN) = pmove::grappleReel(len, full, age, G_FLOAT(OFS_PARM1), G_FLOAT(OFS_PARM2), pr_global_struct->frametime);
+    setFieldFloat(h, f.gh_len, len);
+}
+
 // float botmovethink(vector move): bot self's frame through the moves a player's walk runs (vr_pmove.cpp; vr_pmove_bots:
 // MP_PLAN B11 part 3, part 3): its stick `move` (FrikBot's .movevect) queued as one move, the frame's flags set as a
 // client's (.vr_movejump...). 1: it walks through them this frame (FrikBot's SV_ClientThink then leaves its walk, and its
@@ -923,6 +943,7 @@ void PF_physicsblast()
 {
     const float* p = G_VECTOR(OFS_PARM0);
     box3d::blast(geom::vec(p), G_FLOAT(OFS_PARM1));
+    climbrope::blast(geom::vec(p), G_FLOAT(OFS_PARM1)); // (the climbable ropes thrown too)
 }
 
 // float(entity e, string key) propvalue: a setting of the prop `e` is (Held Object Offsets, vr_props.inc, by its

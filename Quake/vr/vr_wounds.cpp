@@ -1160,31 +1160,10 @@ PlayerCapsules playerCapsules(entity_t* const own[3])
     return selfshot::build(own);
 }
 
-// Another player's copy's (syncfix5): yours (selfshot::build) round his drawn body and hands -- the torso and the legs
-// round the pelvis, each forearm back from the hand along its drawn way, the hand.
+// Another player's copy's (syncfix5): selfshot::buildCopy, shared with his gore (vr_playergore.cpp).
 PlayerCapsules copyCapsules(entity_t* const copy[3])
 {
-    PlayerCapsules out;
-    const glm::vec3 up{0.f, 0.f, 1.f};
-    if(copy[0])
-    {
-        const glm::vec3 pelvis = geom::vec(copy[0]->origin);
-        out.pushBack({pelvis - up * 4.f, pelvis + up * 24.f, 7.5f, selfshot::PartTorso});
-        out.pushBack({pelvis - up * 30.f, pelvis - up * 4.f, 6.f, selfshot::PartLegs});
-    }
-    for(int hand = 0; hand < 2; hand++)
-    {
-        if(const entity_t* h = copy[1 + hand])
-        {
-            const int part = hand == 0 ? selfshot::PartOffForearm : selfshot::PartMainForearm;
-            vec3_t a{-h->angles[0], h->angles[1], h->angles[2]}, f, r, u;
-            AngleVectors(a, f, r, u);
-            const glm::vec3 c = geom::vec(h->origin), fwd = geom::vec(f);
-            out.pushBack({c - fwd * 12.f, c - fwd * 2.f, 2.3f, part});
-            out.pushBack({c - fwd * 2.f, c + fwd * 3.f, 3.2f, part + 1});
-        }
-    }
-    return out;
+    return selfshot::buildCopy(copy);
 }
 
 // Each other player's copy's wounds (syncfix5): kept on him and on his dead body, forgotten when he lives again (his copy
@@ -1408,7 +1387,7 @@ void wound(const Target& t, const Event& ev)
             {
                 return;
             }
-            if(!ownStruck.have && t.view)
+            if(!ownStruck.have && (t.view || t.copy))
             {
                 ownStruck = OwnStruck{true, at, n, way, part};
             }
@@ -1699,10 +1678,12 @@ void apply(const Event& ev)
         rng = seed;
         wound(targets[i], ev);
     }
-    if(ev.num == cl.viewentity && ownStruck.have && !bloodOnly)
+    if((ev.num == cl.viewentity || onCopy) && ownStruck.have && !bloodOnly)
     {
-        // Your own gore from where it was painted (vr_player_gore; a re-opened wound's paint is not a new hit).
-        playergore::onWound(ownStruck.at, ownStruck.normal, ownStruck.way, ownStruck.part, ev.kind, ev.amount);
+        // Your own gore from where it was painted (vr_player_gore; a re-opened wound's paint is not a new hit); another
+        // player's on his copy the same (mpopen: his stream, its pour heard, his splash and drips).
+        playergore::onWound(ownStruck.at, ownStruck.normal, ownStruck.way, ownStruck.part, ev.kind, ev.amount,
+            ev.num == cl.viewentity ? 0 : ev.num);
     }
     static_cast<void>(vrand::xorshift01(rng));
     if(bloodOnly && !reopenSpread)
@@ -3470,6 +3451,7 @@ void copyLives()
             {
                 Con_Printf("wounds: player %d's copy's wounds forgotten (%s)\n", p, left ? "he left" : "he lives again");
             }
+            playergore::forgetOther(p); // (his drips too)
             cw = CopyWounds{};
             continue;
         }

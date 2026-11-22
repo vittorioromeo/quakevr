@@ -23,6 +23,7 @@
 #include "vr_gearlights.hpp"
 #include "vr_profile.hpp"
 #include "vr_rope.hpp"
+#include "vr_climbrope.hpp"
 #include "vr_portals.hpp"
 #include "vr_screenstyle.hpp"
 
@@ -1817,6 +1818,7 @@ extern "C" void VR_DrawSceneOpaque()
     magholster::drawOpaque(); // the magnetic holsters' chains (vr_magholster.cpp)
     flail::drawOpaque();      // AD support: the death sergeant's flail's chain (vr_flail.cpp)
     rope::drawOpaque(); // the grappling hook's ropes (vr_rope.cpp)
+    climbrope::drawOpaque(); // the climbable ropes and chains (vr_climbrope.cpp)
 
     if(!(cl.protocolflags & PRFL_QUAKEVR))
     {

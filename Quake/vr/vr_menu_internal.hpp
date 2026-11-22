@@ -820,7 +820,6 @@ za::Vector<Item> pageLightningWater();
 [[nodiscard]] za::Vector<Item> pageLocomotionSettings();
 [[nodiscard]] za::Vector<Item> pageVisorSettings();
 [[nodiscard]] za::Vector<Item> pageFlatThirdPerson();
-[[nodiscard]] za::Vector<Item> pageFlatKeys();
 za::Vector<Item> pageMain();
 [[nodiscard]] za::Vector<Item> pageMeleeSettings();
 [[nodiscard]] za::Vector<Item> pageMenuSettings();

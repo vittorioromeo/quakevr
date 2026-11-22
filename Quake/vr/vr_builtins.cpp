@@ -54,6 +54,7 @@
 #include "vr_propthink.hpp"
 #include "vr_protocol.hpp"
 #include "vr_ropesim.hpp"
+#include "vr_climbrope.hpp"
 #include "vr_body.hpp"
 #include "vr_bodycontact.hpp"
 #include "vr_magholster.hpp"
@@ -1105,6 +1106,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"watersplash", PF_watersplash},
     {"waterclimb", PF_waterclimb},
     {"grapplehold", PF_grapplehold},
+    {"grapplereel", PF_grapplereel},
     {"botmovethink", PF_botmovethink},
     {"botmovewalk", PF_botmovewalk},
     {"botflatpose", PF_botflatpose},
@@ -1258,6 +1260,7 @@ void onEdictFree(edict_t* ed)
     {
         physics::forgetEntity(num);
         ropesim::forget(num);
+        climbrope::forget(num); // (a climbable rope: the clients told it is gone)
         box3d::toolForget(num); // (the toolgun's pins and joints on it)
         toolgun::forget(num);   // (and what its tools hold)
         brushes::edictFreed(num); // (a box made in the game: its brush goes with it)

@@ -7,10 +7,7 @@
 # Lines are only for something new or changed you can see or feel: one line per flow, never "works as before". History of the sorts: git log of this file and docs/vr-port/CHECKLIST_REORG.md (latest: 2026-11-14 release audit, 94 lines down to 68, 71 with three from a later ship: the [New] section sorted, near-duplicates merged, every line cut to what to do and what to see, 3 new scenes; 2026-11-15: 17 ticked lines retired, the [New] section sorted). Misc/quakevr/checklist_tests_check.py checks every tag's scene file and the format (no "(agent/", "Test:", scratch or qvr-agents paths, .sh names; sections in order).
 
 [New: not yet sorted]
-Checklist: reorganized into feature sections (Dwell, Quoth, Multiplayer and bots, Flat screen, VR movement, ...); your ticked lines are retired
 Body Type set to Only Hands: the ammo pouch gives a shell and a magazine, the grenade pouch at the small of the back gives a grenade, and both sit where they are with the body drawn {test:pouchbody}
-Flat-screen or VR: In noclip, look up or down and move forward: you fly along the look; strafing stays level, jump and crouch go straight up and down {test:noclip_fly}
-Flat-screen or VR: Shove grunts and a knight down: no blood from their limbs, even on one you shot a few seconds earlier; shoot one while it lies there and its limbs bleed {test:shove_no_blood}
 Arcane Dimensions' rocket, grenade and plasma soldiers, defenders, eliminators, pyros, fumigators and crossbow knights are armed humanoids holding their own gun: disarm them, tug and shoot the guns out {test:humrepl_variants}
 Armed humanoids wear their weapon's colour on clothes and backpack: rockets red, lightning and plasma blue, flamethrower orange, poison green; shotguns, nails and melee as before (too strong? skin tinted too?) {test:humrepl_looks}
 Walk over vrbrushholes' grate: you never drop through its holes {test:brushholes_grate}
@@ -18,7 +15,7 @@ Push into the gaps of vrbrushholes' bar gate: you can't slip between the bars, b
 Walk to the far edges of vrbrushholes' raised lift: you can't drop into the slot beside it {test:brushholes_lift}
 Squeeze between vrbrushholes' pillars: you can't pass, but get as close as to any wall {test:brushholes_pillars}
 Turn on Debug > Show Gap Blockers on vrbrushholes: coloured boxes fill the gaps of the gate, grate, lift slots and pillars, with their counts in front of you {test:brushholes_show}
-AD maps (ad_azad, ad_tears): grates, bars and pillar rows stop you without blocking any path you could walk before
+AD maps (ad_azad, ad_tears): grates, bars and pillar rows stop you without blocking any path you could walk before {test:ad_azad_grates}
 # A line ending in {test:<id>} has a Test button: it loads quakevr/scenarios/<id>.txt's scene (docs/vr-port/TESTING.md, "Checklist scenarios"); every line ends in one (at least a minimal scene: the map, where you stand, what is given). Multiplayer lines' scenes start a local game with bots (passive: stand still, never attack, take hits; or active), nothing opened on the network. Flat-screen lines' scenes work under -flatscreenmode too (the game's mode is picked at start-up, not by the scene).
 # Lines are only for something new or changed you can see or feel: one line per flow, never "works as before". History of the sorts: git log of this file and docs/vr-port/CHECKLIST_REORG.md (latest: 2026-11-14 release audit, 94 lines down to 68, 71 with three from a later ship: the [New] section sorted, near-duplicates merged, every line cut to what to do and what to see, 3 new scenes; 2026-11-15: 17 ticked lines retired, the [New] section sorted). Misc/quakevr/checklist_tests_check.py checks every line has a tag, every tag's scene file and the format (no "(agent/", "Test:", scratch or qvr-agents paths, .sh names; sections in order).
 Dwell's Crystal Lance is a plain pole with its crystal head (no handle, no buttons) held like a spear: the pole runs through your fist (tip your hand forward to level it), your other hand slides anywhere along it, and the beam leaves the tip along the pole. {test:dwell_lance_pole}
@@ -31,6 +28,27 @@ Swing the Super Axe at a grunt's neck with the inner curve of its head, near you
 VR centre messages now look like the flat screen's: touch a locked door (or turn the wrist hologram off) and check the message appears in front of your head in the black framed visor-style panel, readable, wrapped, following your head, fading out; a map's own view message (a tutorial text) looks the same. {test:vr_center_message}
 Flat-screen: dual wield the axe and the shotgun and swing the axe into a grunt until it stays in: the right hand stays on the axe's handle, the shotgun stays one-handed (no left hand on it), the right mouse button fires the shotgun and the ironsight never comes up; once the axe comes out (or the hand lets go of it), the usual pose and ironsight rules return. {test:flat_embed_dual}
 VR centre messages now use the flat visor's own message popup: touch a locked door (or turn the wrist hologram off) and check the message in front of your head is the dark glass pill with cut corners and a glowing green bevelled frame, like the flat screen's, popping in and fading out; long and multi-line messages wrap as on the flat screen, and a map's view message (a tutorial text) looks the same. {test:vr_center_message}
+Flat-screen or VR: in the Texture Studio with Paint on, point at a lined-up grunt's hand, forearm and the back of its head: a yellow cursor (and the skin's flat view, top right) shows the texels the brush would change, and the stroke paints exactly there, not the backpack or the gun. {test:humrepl_studio}
+Flat-screen or VR: Texture Studio Line Up: no backpacks and no armour by default, a backpack alone on a stand at the right end (Part: Pack paints it), and Hold Still with Turntable turns the row round to paint backs. {test:humrepl_studio}
+Flat-screen or VR: in the ropes hall, walk into the hanging ropes and chains and push them with your hands: they swing and settle smoothly, never jitter, and the chains look like iron links. {test:ropes}
+Flat-screen or VR: shoot a rope and throw a grenade next to one: the shot nudges it, the explosion flings it, and it lies on the floor where it is longer than the drop. {test:ropes}
+Flat-screen or VR: with the toolgun, Spawn > Props > Ropes: change Rope Settings (length, thickness, pieces, pin the bottom), aim at the floor under the ceiling and spawn a Rope and a Chain: each hangs from the ceiling with your settings. {test:ropes}
+Step onto vrbrushholes' drain (a frame round a square hole exactly as wide as Quake's box) and stand over the hole: you never drop into it {test:brushholes_drain}
+With You Can Be Disarmed on, let a knight's sword land on your shotgun (not across it): your hand is knocked aside, buzzes, rattles and "Your grip on your weapon loosens!" shows; a second blow within 3 seconds knocks the gun out. {test:pd_jolts}
+With You Can Be Disarmed on, let an armed grunt punch your body twice within 3 seconds while holding the shotgun: the first warns, the second knocks the gun out; a dog's bite never does. {test:pd_jolts}
+With You Can Be Disarmed on, take an enforcer's laser on your gun: one laser only warns, a second soon after knocks it out; check the warning reads clearly before the drop. {test:pd_jolts}
+Flat-screen: walk forward into a rope or chain and look up while holding forward; you should climb it with the hands going hand over hand on it, and looking down climbs you back down until you step off at the floor. {test:ropes}
+Flat-screen: on a rope, look straight ahead and hold forward to pump the swing towards the next rope, then press jump near the top of the swing; you should fly off with the swing and catch the next rope. {test:ropes}
+Flat-screen or VR: with a second player watching in multiplayer, climb a rope and swing on it; on his screen your hands should stay on the rope and your feet wrapped round it as it swings. {test:ropes}
+Hook an explosive box, a zombie and then a far wall with the grappling hook and hold B/Y each time: the load (or you) comes in fast, slows as it arrives and stops short of the gun, as before. {test:grapple_reel}
+Multiplayer: in a game on another machine, walk round your play space quickly and lean far out; your own view never snaps back. {test:mp_coop_passive}
+Hold the lava nailgun and lava super nailgun (both hands, lava nails loaded): each looks as before, now its nailgun's model in the lava skin; the screen, magazine and grip sit exactly as on the plain nailgun, and pressing the button changes only the skin. {test:gun_variants_nail}
+Hold the multi-rocket launcher and the plasma Thunderbolt: each is its plain gun's model in the other skin, its screen, cell and grip where the plain gun has them; switching ammo changes nothing but the skin. {test:gun_variants_rock}
+Flat-screen: press 9 with a gun in hand: the visor's panels and the gun's ammo screen dim, 9 again lights them; Options > Controls lists it as "Gear lights" under Quake VR (flat screen), with no "!" clash mark. {test:flat_gear_lights}
+Flat-screen or VR: in multiplayer, watch another player climb a rope, hang on it and swing it; his hands should grip the rope and move up it hand over hand, his hips stay close to it with the legs wrapped round it, and none of it should drift off the rope while it swings. {test:ropes}
+On a rope in VR, look at your own hands and legs; the hands should sit on the rope (not beside it as on a ledge) and the hips come in close to it with the feet wrapped round it. {test:ropes}
+Flat-screen: in Arcane Dimensions' ad_test3 walk forward into the stepped ladder from its floor: the hands take two rungs and forward climbs it and over the top (it used to do nothing). {test:ad_test3_ladder}
+Flat-screen: set Flat Body Height low (about 1.4 m) and die: your corpse is your flat body's size, not your headset height's. {test:flat_force_grab}
 
 [1. Dwell]
 Dwell: Select Campaign > Dwell, play start and d1m1 (triggered monsters wait, checkpoints autosave); Map Library: Ancient and Underdark Overbright udob1 load and play by Copper rules {test:hub_start}
@@ -46,15 +64,8 @@ Dwell's Crystal Lance in hand: the ammo screen in a dark metal bezel with violet
 Dwell d2end: fight the Sculptor; when it flies or teleports onto you, you are put just outside it, never stuck inside moving with it {test:dwell_sculptor}
 
 [2. Quoth]
-Quoth (experimental): Debug > Quoth: Play (Developer); walk start's hub, play kellbase1 to its exit (the exit lock spawns the plasma gun)
-Quoth map from the Map Library (ne_marb): the waves spawn and the ring doors open
-Quoth (experimental): Setup with AD ticked installs Quoth; without AD the box is greyed with the reason
-Quoth's e1m1quoth: from start's hub, the three ramp-room buttons open its door; play it to its exit
-Quoth's kellbase1: press the three buttons; enforcers, then pyros, then eliminators arrive, and killing all 16 opens the exit lock and makes the plasma gun
-Quoth's lpqsp1: shoot the button by the vore trap; about 5 s later its secret door opens
-Quoth's metmon: each stage's switches unlock the next, and the fourth shuts down the portal sphere
 Quoth/AD ladders: climb kellbase1's pillar ladders up, over the top and back down onto them, with VR hands and in flat {test:ad_mod_ladder}
-kellbase1: come up from below into the top-doors corridor before clearing the arena: after 10 s the doors behind you reopen, so you are never stuck
+kellbase1: come up from below into the top-doors corridor before clearing the arena: after 10 s the doors behind you reopen, so you are never stuck {test:hub_start}
 Quoth (experimental): Debug > Quoth: Play (Developer); walk start's hub, play kellbase1 to its exit (the exit lock spawns the plasma gun) {test:hub_start}
 Quoth map from the Map Library (ne_marb): the waves spawn and the ring doors open {test:hub_start}
 Quoth (experimental): Setup with AD ticked installs Quoth; without AD the box is greyed with the reason {test:hub_start}
@@ -105,8 +116,13 @@ Host a game with a room code: Host Game says whether your port 26000 is reachabl
 Show Navmesh (any setting) draws each navmesh-walking bot's path in magenta, with a white post at its next corner, on the host and when joined as a client (vr_bot_navmesh 1, deathmatch with bots) {test:mp_dm_navmesh}
 Kill a player and a bot in coop (and yourself in single player): each corpse is that player's own body shape and size, its limbs bending like a person's, and a tall player's corpse is visibly longer than a short one's {test:mp_coop_bodies}
 Run the mp_dm_passive scene: a local deathmatch with a bot that stands still facing you; kill it and it comes back to the same spot, still passive {test:mp_dm_passive}
+Shoot the passive bot a few times: blood pours from where it was hit, its wounds and bleeding as on your own body, and you hear the pour land. {test:mp_dm_passive}
+Let the bot shoot at you with its shotgun: after each shot its pump strokes back and forward with the clacks, its ammo screen lit and its barrel glowing as it heats. {test:mp_dm_hostile}
 
 [4. Flat screen]
+Flat-screen: open Options > Controls and scroll to the end of the keyboard and mouse list: the "Quake VR (flat screen)" group lists every flat key (leans, swap, force grab, shove... toolgun adjust); rebind one with Enter and a key, clear one with Backspace, and check it works in game. {test:flat_force_grab}
+Flat-screen: in Options > Controls bind mouse 4 to something (say Attack): both its row and Force Grab's show "!", and the note under the list says mouse 4 is Force Grab in flat play; clear Force Grab and mouse 4 now does your binding in game. {test:flat_force_grab}
+Flat-screen or VR: VR menu > Locomotion > Desktop Screen Play: "Flat Keys (Options > Controls)" opens Controls on the flat keys' group, and "Reset Flat Keys" puts them all back. {test:hub_start}
 
 [5. VR movement and comfort]
 Sliding (VR, experimental; VR Settings > Locomotion): while running, pull the turning stick firmly straight down: you slide as on the desktop screen (faster at first, slowing to a stop; let go to stop, jump to keep the speed), with the slide's scrape and your drawn legs out in front. Check snap and smooth turns never slide, and that the pull feels neither too stiff nor too loose (Slide Stick Pull and Angle). {test:vr_slide}
@@ -118,6 +134,11 @@ Flat-screen or VR: walk onto the louvred grate and step into the gaps between it
 Flat-screen or VR: walk into the 24-unit gap between the two panels (two func_walls): you stop at its mouth. {test:brushholes_walls}
 Flat-screen or VR: at a gap you still slip or fall through, use Debug > Mark a Gap I Got Through; check the console report names the map, your position and the gaps round you, and quakevr/hull_holes_marks.txt has it. {test:brushholes_diag}
 Flat-screen or VR: set Movement > Player Hitbox > Close Gaps: Slanted Bars off and press Rebuild Gap Blockers Now: you stay where you were, and now drop through the diagonal grate. {test:brushholes_diag}
+Grip a rope or chain with either hand and climb it hand over hand, up and down; the body hangs and swings with it. {test:ropes}
+Let go or press jump mid-swing: you keep the rope's speed (a jump adds a hop up). {test:ropes}
+While hanging on a rope, look down: your legs wrap round the rope under your hands. {test:ropes}
+Hold the stick forward while hanging on a rope: the swing builds up with each swing out, to a cap, enough to reach the next rope. {test:ropes}
+Toolgun on a rope: Remove deletes it, the physgun drags its top, and Clear Props removes the ropes you made but keeps the map's. {test:ropes}
 
 [6. Weapons and holsters]
 Holster Calibration > Ammo Pouch Forward/Right/Up move the pouch and agree with Holster Setup's drag {test:shotgun_hall}
@@ -125,10 +146,6 @@ Pistol-whip with the heavy revolver: the cylinder stays shut; a deliberate wrist
 Flat-screen or VR: with Arcane Dimensions' projectile shells (AD or Quoth maps, or Projectile Rules set to AD's), shoot a grunt in the head with the heavy revolver: the head pops every time, as in Quake's own maps; a body shot doesn't pop it, and an ogre still takes about four body slugs. {test:revolver_adheadpop}
 
 [7. Armed humanoids, ragdolls and physics]
-A fight with several armed grunts and ragdolls: poses and limbs correct (posed models now batched) {test:agrunts_fight}
-Armed grunts you can't see cost far less on crowded maps (d2m8 idle 536k -> 274k QC instr/frame); new tunable vr_agrunt_pose_lod_frames (default 8, 1 = off) {test:agrunts_fight}
-Melee against several armed grunts feels unchanged (their weapon-strike check now has a cheap pre-test) {test:agrunts_fight}
-Ragdolls and props lying or sliding on floors and stairs feel as before (Box3D updated to upstream; Debug > Profiling > Physics Mesh Ghost Handling off to compare) {test:agrunts_fight}
 Ragdoll climbs: an ogre knocked off a ledge's lip and caught straddling it (a leg still on the top) pulls itself up instead of letting go and falling {test:ogre_hall}
 
 [8. Survival Arena (Select Campaign > Arena Mode)]

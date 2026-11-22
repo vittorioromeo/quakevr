@@ -157,6 +157,54 @@ def command_net_problem(text, state):
     return None
 
 
+PORT_BLOCK = 32  # (mpopen) the ports one scenario may use from its base port: the server's, then each client's and proxy's
+
+
+def busy_ports(port, count=PORT_BLOCK):
+    """The ports of [port, port + count) another game or process holds on 127.0.0.1 (UDP: the games' sockets)."""
+    import socket
+    busy = []
+    for p in range(port, port + count):
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        try:
+            sock.bind(("127.0.0.1", p))
+        except OSError:
+            busy.append(p)
+        finally:
+            sock.close()
+    return busy
+
+
+def default_base(repo):
+    """(backlog1122b) Each checkout's own game folder: the kit's bases/<checkout name>/qbase (new_agent.sh's, the one
+    run.sh's runs use), so two workers' suites no longer share bases/mp/qbase (its autoexec.cfg, saves, crash folder).
+    None if the checkout has none (the author's: --base is then required)."""
+    import sys
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    import qvrtest  # (Misc/quakevr: the kit's folder, qvrtest.KIT)
+    path = os.path.join(qvrtest.KIT, "bases", os.path.basename(os.path.normpath(repo)), "qbase")
+    return path if os.path.isdir(os.path.join(path, "id1")) else None
+
+
+def default_base_port(repo):
+    """(mpopen) Each checkout its own block of ports (27600 on; never the shared 27500): two workers' suites at once
+    no longer took each other's server port ("server exited waiting for the server on e1m1")."""
+    import zlib
+    return 27600 + (zlib.crc32(os.path.abspath(repo).lower().encode("utf-8")) % 60) * PORT_BLOCK
+
+
+def free_base_port(port, tries=40):
+    """`port` if its block is free, else the next free block -> (base port, the busy ports found at `port`)."""
+    first = busy_ports(port)
+    if not first:
+        return port, []
+    for k in range(1, tries):
+        p = port + k * PORT_BLOCK
+        if p + PORT_BLOCK < 65536 and not busy_ports(p):
+            return p, first
+    return port, first
+
+
 class Instance:
     def __init__(self, session, name, port, dedicated=0, flat=False, extra=(), net_guard_test=False):
         self.s = session
@@ -282,7 +330,11 @@ class Instance:
             if hit:
                 return hit
             if self.proc and self.proc.poll() is not None:
-                raise StepFailed("%s exited (code %s) waiting for %s" % (self.name, self.proc.returncode, what or pattern))
+                # (mpopen: its last lines in the failure -- a bind refused, an error at start -- not only its exit)
+                self.read()
+                tail = " | ".join(l.strip() for l in self.lines[-3:] if l.strip())
+                raise StepFailed("%s exited (code %s) waiting for %s; its last lines: %s" % (
+                    self.name, self.proc.returncode, what or pattern, tail or "-"))
             if time.monotonic() > deadline:
                 raise StepFailed("%s: timed out after %g s waiting for %s" % (self.name, timeout, what or pattern))
             time.sleep(0.02)
@@ -501,6 +553,12 @@ class Session:
                     flush=True)
                 if w["kinds"]:
                     print("mp_bytes: %s down by kind, B/s: %s" % (self.test, format_kinds(w["kinds"])), flush=True)
+        # (mpopen) nothing of this scenario left holding its ports (the next scenario's): its games all gone
+        alive = [i.name for i in self.instances if i.proc and i.proc.poll() is None]
+        held = busy_ports(self.port, self.next_port - self.port + 1)
+        if alive or held:
+            self.note("left over after the scenario: games %s, ports %s held" % (alive or "-", held or "-"))
+            print("  note: %s: left over: games %s, ports %s held" % (self.test, alive or "-", held or "-"), flush=True)
         passed = sum(1 for c in self.checks if c[1])
         failed = len(self.checks) - passed
         summary = {"test": self.test, "passed": passed, "failed": failed,

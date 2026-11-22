@@ -2837,10 +2837,14 @@ QVR_CVAR(vr_agrunt_shotdisarm_proj_chance, "0.2", CVAR_ARCHIVE | QVR_RULE) // ..
 QVR_CVAR(vr_agrunt_shotdisarm_proj_ref, "9", CVAR_ARCHIVE | QVR_RULE)     // ... the damage that chance is for (a nail's): more damage, more chance
 QVR_CVAR(vr_agrunt_shotdisarm_proj_near, "4", CVAR_ARCHIVE | QVR_RULE)    // ... units past the weapon or hand a miss still rolls, its chance down to 0 there
 QVR_CVAR(vr_agrunt_shotdisarm_proj_max, "0.8", CVAR_ARCHIVE | QVR_RULE)   // ... the most one projectile's chance (a rocket's direct hit)
-QVR_CVAR(vr_player_disarm, "0", CVAR_ARCHIVE | QVR_RULE)                 // 1 (PvE): enemies' shots and blows on your held weapon or its hand knock it out by the armed grunts' rules (vr_playerdisarm.qc); 0 until it is polished (his call, 2026-11-16)
+QVR_CVAR(vr_player_disarm, "0", CVAR_ARCHIVE | QVR_RULE)                 // 1 (PvE): enemies' shots and blows on your held weapon or its hand jolt it; enough jolts knock it out (vr_playerdisarm.qc, "PvE's own rule"); 0 until he turns it on (his call, 2026-11-16)
 QVR_CVAR(vr_player_disarm_pvp, "1", CVAR_ARCHIVE | QVR_RULE)             // 1 (PvP, multiplayer): other players' (bots' too) shots, blows and grabs disarm you by the same rules (vr_playerdisarm.qc, vr_playerdisarm_grab.qc)
 QVR_CVAR(vr_player_disarm_sound, "1", CVAR_ARCHIVE | QVR_OWN)           // your weapon knocked out: its sounds' volume (the clang at the weapon for everyone near, vr/disarm_clang.wav; the alert to you alone, vr/disarm_sting.wav; 0 silent; QC VR_PD_Disarm)
-QVR_CVAR(vr_player_disarm_chance, "1", CVAR_ARCHIVE | QVR_RULE)          // times the armed grunts' chance for your weapon (1 the same; at most certain; 0 never)
+QVR_CVAR(vr_player_disarm_chance, "1", CVAR_ARCHIVE | QVR_RULE)          // PvE: the knock-out's chance once the jolts are reached (1 certain; 0 never); PvP: times the armed grunts' chance (at most certain)
+QVR_CVAR(vr_player_disarm_jolts, "2", CVAR_ARCHIVE | QVR_RULE)           // PvE: jolts on one hand that knock its weapon out (1: the first does; each one short warns: the hand knocked aside, a buzz, a rattle)
+QVR_CVAR(vr_player_disarm_window, "3", CVAR_ARCHIVE | QVR_RULE)          // PvE: s a jolt is kept (from the last one; then the grip recovers)
+QVR_CVAR(vr_player_disarm_heavy, "15", CVAR_ARCHIVE | QVR_RULE)          // PvE: a blow of this much damage is heavy: on your weapon 2 jolts (out at once), on your body 1 (lighter body blows: only an armed humanoid's fist)
+QVR_CVAR(vr_player_disarm_shot, "12", CVAR_ARCHIVE | QVR_RULE)           // PvE: shots' and projectiles' damage on your weapon or its hand (adding up over vr_agrunt_shotdisarm_window) for each jolt
 QVR_CVAR(vr_player_disarm_grab, "1", CVAR_ARCHIVE | QVR_RULE)            // 1 (and vr_player_disarm_pvp):an empty hand closed on another player's held weapon (as drawn, not too fast: vr_agrunt_grab_speed) and pulled away from him hard enough takes it into that hand (QC vr_playerdisarm_grab.qc)
 QVR_CVAR(vr_player_disarm_pull, "1.5", CVAR_ARCHIVE | QVR_RULE)     // m/s: ... the pull's least speed away from him (your hand against his)
 QVR_CVAR(vr_player_disarm_reach, "8", CVAR_ARCHIVE | QVR_RULE)      // cm: ... the hand at most this far from his weapon's drawn line or a hotspot of it as it closes
@@ -2912,7 +2916,7 @@ QVR_CVAR(vr_arena_xray, "1", CVAR_ARCHIVE | QVR_RULE)                    // 1: a
 QVR_CVAR(vr_arena_xray_left, "2", CVAR_ARCHIVE | QVR_RULE)               // ... once this many of its foes are left (up, and still to come)
 QVR_CVAR(vr_arena_xray_distance, "800", CVAR_ARCHIVE | QVR_RULE)         // ... and only those farther than this from your eyes (units; 0: at any distance)
 QVR_CVAR(vr_arena_xray_shown, "0", CVAR_ROM)                  // (read-only: the foes the last view outlined through walls; arena test 16 reads it)
-QVR_CVAR(vr_humlook, "1", CVAR_ARCHIVE)                        // 1: armed humanoids recoloured by the weapon they spawned with (quakevr/humlook.txt; vr_humlook.cpp, ARMED_MONSTERS.md "Recolours by weapon")
+QVR_CVAR(vr_humlook, "1", CVAR_ARCHIVE | QVR_OWN)              // 1: armed humanoids recoloured by the weapon they spawned with (quakevr/humlook.txt; vr_humlook.cpp, ARMED_MONSTERS.md "Recolours by weapon"); each viewer's own (how his game draws them; mpopen: mp_rules)
 QVR_CVAR(vr_humlook_known, "0", CVAR_ROM)                    // (read-only: the entities whose recolour the client knows; vr_ad_test 219 reads it)
 QVR_CVAR(vr_humlook_file, "humlook.txt", CVAR_NONE)          // debug (vr_humlook.cpp): the recolours' table, in quakevr/ (the tests point it elsewhere)
 QVR_CVAR(vr_humlook_masks_file, "humlook_masks.txt", CVAR_NONE) // debug (vr_humlook.cpp): which texels they dye (palette rows, painted texels), in quakevr/
@@ -2928,8 +2932,15 @@ QVR_CVAR(vr_humstudio_light, "1", CVAR_NONE)      // debug: ... the texels' ligh
 QVR_CVAR(vr_humstudio_tint, "0", CVAR_NONE)       // debug: ... 0 the dye, 1 the texel's own colour times the colour
 QVR_CVAR(vr_humstudio_overlay, "0", CVAR_NONE)    // debug: 1: the masks shown on the recoloured (clothes green, pack blue, the rest dark red)
 QVR_CVAR(vr_humstudio_paint, "0", CVAR_NONE)      // debug: 1: painting: a trigger (flat: attack) paints where you point on an armed humanoid, a grip erases, B/Y undoes
-QVR_CVAR(vr_humstudio_brush, "2", CVAR_NONE)      // debug: the brush's radius (skin texels)
+QVR_CVAR(vr_humstudio_brush, "4", CVAR_NONE)      // debug: the brush's radius on the model's surface (cm; 0: the texel under the ray alone): the texels within it, on whatever triangles carry them
 QVR_CVAR(vr_humstudio_class, "1", CVAR_NONE)      // debug: what it paints: 1 clothes, 2 pack, 3 never (left as it is), 0 erase (back to its palette row's)
+QVR_CVAR(vr_humstudio_target, "0", CVAR_NONE)     // debug: what the ray paints on: 0 the part picked (clothes: the bodies, the packs passed through; pack: the packs), 1 bodies, 2 packs, 3 either (the nearest)
+QVR_CVAR(vr_humstudio_cursor, "1", CVAR_NONE)     // debug: 1 while painting, the texels the brush would change shown yellow (on every model with that skin) and the skin's flat view in the top right
+QVR_CVAR(vr_humstudio_nopack, "1", CVAR_NONE)     // debug: 1 the lineup wears no backpacks (vr_humstudio_packstand shows one alone)
+QVR_CVAR(vr_humstudio_noarmour, "1", CVAR_NONE)   // debug: 1 the lineup wears no armour plates
+QVR_CVAR(vr_humstudio_noweapon, "0", CVAR_NONE)   // debug: 1 the lineup's weapons not drawn (held as before)
+QVR_CVAR(vr_humstudio_packstand, "1", CVAR_NONE)  // debug: 1 a backpack on a stand of its own at the lineup's end, to paint
+QVR_CVAR(vr_humstudio_turn, "0", CVAR_NONE)       // debug: the lineup turned this many degrees from facing you (a turntable; with Hold Still, vr_agrunt_freeze, they stay so)
 // Survival Arena's difficulty (QC/vr_arena.qc, VR_ARENA_Skill): every 1 above is today's arena at Normal skill, and
 // this moves the rest of them by the skill level -- the shape of the armed humanoids' vr_agrunt_ai_skill, its own knob.
 QVR_CVAR(vr_arena_skill_impact, "1", CVAR_ARCHIVE | QVR_RULE)           // Difficulty Impact: how much the skill level moves the arena (Easy softer, Hard and Nightmare harder); 0 skill changes nothing about it, Normal always as set
@@ -3691,6 +3702,21 @@ QVR_CVAR(vr_grapple_stagger, "1", CVAR_ARCHIVE | QVR_RULE)          // small mon
 QVR_CVAR(vr_grapple_stamina, "0", CVAR_ARCHIVE | QVR_RULE)          // stamina a second reeling a monster in costs (the parry/shove/strike pool); short of it, it comes slower. 0: free
 QVR_CVAR(vr_grapple_haptics, "1", CVAR_ARCHIVE | QVR_OWN)          // strength of the rope's haptics (the hook biting, the reel, the rope snapping taut); 0 none
 QVR_CVAR(vr_grapple_drop_grace, "0.12", CVAR_ARCHIVE | QVR_RULE)    // seconds the trigger let go waits before the hook comes off: dropping or passing the gun by then keeps it in
+QVR_CVAR(vr_rope_iterations, "16", CVAR_ARCHIVE | QVR_RULE)       // climbable ropes (vr_climbrope.cpp, docs/vr-port/ROPES.md): passes a step pulling each piece back to its length (more: a stiffer, less stretchy rope; 1-64)
+QVR_CVAR(vr_rope_hands, "1", CVAR_ARCHIVE | QVR_RULE)            // the players' hands push the climbable ropes (a sphere round each); 0: they pass through
+QVR_CVAR(vr_rope_debug, "0", CVAR_NONE)                         // climbable ropes: print each rope as it is made
+QVR_CVAR(vr_rope_climb, "1", CVAR_ARCHIVE | QVR_RULE)            // the climbable ropes can be held and climbed (a grip at the rope, either hand; ROPES.md "Climbing"); 0: only pushed
+QVR_CVAR(vr_rope_swing_drag, "0.15", CVAR_ARCHIVE | QVR_RULE)    // per second, of a climber's swing on a rope lost to the air (the rope's own damping is its rope_damping)
+QVR_CVAR(vr_rope_pump, "300", CVAR_ARCHIVE | QVR_RULE)           // units/s/s the stick (or WASD) pushes a climber's swing on a rope its way (pumping it, rope to rope); 0: none
+QVR_CVAR(vr_rope_swing_cap, "350", CVAR_ARCHIVE | QVR_RULE)      // units/s at the hands the pump builds a rope's swing to at most (a push, a jump onto it, can swing it faster)
+QVR_CVAR(vr_rope_jump, "200", CVAR_ARCHIVE | QVR_RULE)          // units/s up a jump off a rope adds to the rope's swing at the hands (jump while holding one); 0: a jump lets go only
+QVR_CVAR(vr_rope_spawn_length, "256", CVAR_ARCHIVE | QVR_OWN)    // the toolgun's ropes (Spawn > Props > Ropes > Rope Settings): length (units)
+QVR_CVAR(vr_rope_spawn_thickness, "1.5", CVAR_ARCHIVE | QVR_OWN) // ... thickness (units across)
+QVR_CVAR(vr_rope_spawn_segments, "0", CVAR_ARCHIVE | QVR_OWN)    // ... pieces (0: one every 16 units)
+QVR_CVAR(vr_rope_spawn_mass, "0", CVAR_ARCHIVE | QVR_OWN)        // ... mass (kg, the whole rope; 0: 5 a rope, 20 a chain)
+QVR_CVAR(vr_rope_spawn_stiffness, "1", CVAR_ARCHIVE | QVR_OWN)   // ... stiffness (0.05-1: each pass's share of a stretched piece's pull back)
+QVR_CVAR(vr_rope_spawn_damping, "0.5", CVAR_ARCHIVE | QVR_OWN)   // ... damping (per second, of its swing lost to the air)
+QVR_CVAR(vr_rope_spawn_pinned, "0", CVAR_ARCHIVE | QVR_OWN)      // ... its bottom pinned where it first hangs (1) or free (0)
 QVR_CVAR(vr_grapple_rope_sim, "1", CVAR_ARCHIVE | QVR_RULE)         // the rope is a physical thing (vr_ropesim.cpp): it hangs, lies and wraps round the world and the props, never through them, and pulls along where it lies; 0: a straight line (drawn sagging)
 QVR_CVAR(vr_grapple_trigger_release, "0", CVAR_ARCHIVE | QVR_RULE)  // the trigger let go: 0 nothing (the hook stays in: the detach button on the gun takes it off); 1 it comes straight back (as the reel-in button); 2 it comes loose on its rope (reel it in with B/Y)
 QVR_CVAR(vr_grapple_shootable, "1", CVAR_ARCHIVE | QVR_RULE)        // shooting a hook that is in the world or a door (any weapon) takes it off
@@ -4456,8 +4482,9 @@ QVR_CVAR(vr_flat_toolgun_panel_size, "0.75", CVAR_ARCHIVE) // flatscreen play: t
 QVR_CVAR(vr_flat_toolgun_panel_x, "0.5", CVAR_ARCHIVE)  // flatscreen play: the toolgun panel's middle across the window (0 left .. 1 right; kept on the window)
 QVR_CVAR(vr_flat_toolgun_panel_y, "0.5", CVAR_ARCHIVE)  // flatscreen play: the toolgun panel's middle down the window (0 top .. 1 bottom; kept on the window)
 QVR_CVAR(vr_flat_holsters, "1", CVAR_ARCHIVE | QVR_PREF)           // flatscreen play carries what a headset does: six holsters and two hands, the weapon keys doing nothing (3 swaps the hands), the wheel's button holding the holster menu (vr_flatholster.cpp, QC vr_flatholster.qc); 0: the number keys and the wheel cycle through every weapon collected, as before 2026-11-10
-QVR_CVAR(vr_flat_key_flashlight, "f", CVAR_ARCHIVE)     // the key that switches the flashlight (vr_flashlight_toggle; vr_flatplay.cpp pollKeysFlat), by its bind name; "" none (menu: Locomotion > Desktop Screen Play > Flat Keys)
-QVR_CVAR(vr_flat_key_punch, "v", CVAR_ARCHIVE)          // the key that punches with the right hand (vr_flatplay.cpp pollKeys: a fist thrown out; the fire buttons punch too), by its bind name; "" none
+QVR_CVAR(vr_flat_key_flashlight, "f", CVAR_ARCHIVE)     // the key that switches the flashlight (vr_flashlight_toggle; vr_flatplay.cpp pollKeysFlat), by its bind name; "" none (menu: Options > Controls, Quake VR (flat screen))
+QVR_CVAR(vr_flat_key_gearlights, "9", CVAR_ARCHIVE)    // the key that dims and lights the gear (vr_gear_lights_toggle: the visor, the guns' ammo screens; the wrist gadget's side button in VR), by its bind name; "" none (9: bound to nothing by default.cfg)
+QVR_CVAR(vr_flat_key_punch, "v", CVAR_ARCHIVE)         // the key that punches with the right hand (vr_flatplay.cpp pollKeys: a fist thrown out; the fire buttons punch too), by its bind name; "" none
 QVR_CVAR(vr_flat_key_voicechat, "CAPSLOCK", CVAR_ARCHIVE) // multiplayer voice chat's push-to-talk key, held (vr_voicechat.cpp; flat play owns it, VR reads it too); by its bind name; "" none
 QVR_CVAR(vr_flat_key_holster_menu, "mouse3", CVAR_ARCHIVE) // flatscreen play: the holster menu's key (a bind name; "" none; how it opens and picks: vr_flat_holster_menu_mode)
 QVR_CVAR(vr_flat_holster_menu_mode, "0", CVAR_ARCHIVE) // flatscreen play: 0 hold the key, hover a button and let go: that button (let go over nothing: just closed; a left click while held clicks too, and then letting go only closes); 1 a press opens it, left clicks as many as wanted, the next press (or Esc) closes it (his words 2026-11-10)
@@ -4522,6 +4549,7 @@ QVR_CVAR(vr_flat_mantle_look_max, "90", CVAR_ARCHIVE)   // flatscreen mantle: de
 QVR_CVAR(vr_flat_mantle_grunt_delay, "0.35", CVAR_ARCHIVE) // flatscreen mantle: seconds after the jump left the ground before the mantle's grunt (vr_climb_mantle_grunt) plays, so the jump's own grunt has ended and it is heard (0..1; 0: as the mantle starts)
 QVR_CVAR(vr_flat_mantle_time, "1", CVAR_ARCHIVE)        // flatscreen mantle: seconds after the jump left the ground that a ledge may still be mantled (the jump key held all along)
 QVR_CVAR(vr_flat_ladder, "1", CVAR_ARCHIVE)             // flatscreen play: 1 ledge ladders (vr_climb.cpp flatLadder; needs vr_climb): walking forward into a stack of graspable ledges (rungs) takes hold of them, as a headset's hands do; forward climbs hand over hand (looking down or back: down), jump pushes off, the top mantles over; 0 off (tuning: vr_flat_ladder_speed, _look_down, _push, _reach)
+QVR_CVAR(vr_flat_rope, "1", CVAR_ARCHIVE)               // flatscreen play: 1 climbable ropes (vr_climb.cpp flatRope; needs vr_climb and vr_rope_climb): walking or jumping into a rope takes hold of it, both hands on it; forward looking up climbs it hand over hand, looking down climbs down (or the move up / down keys), looking level the move keys pump its swing, jump lets go keeping the swing; 0 off (tuning: vr_flat_rope_look, vr_flat_ladder_speed, _reach)
 QVR_CVAR(vr_flat_hud, "1", CVAR_ARCHIVE)               // the status bar at hudstyle 1 (vr_flathud.cpp): 1 flatscreen play's own (portrait and health over the ammo bar in the middle, each hand's ammo at its own bottom corner, the bullet time bar); 0 Ironwail's
 // The visor HUD (vr_visor.cpp; ROUND24.md, "Flat-screen visor HUD"): flatscreen play's HUD as a helmet's visor, the wrist
 // gadget's screens in small 3D panels near the view's corners.

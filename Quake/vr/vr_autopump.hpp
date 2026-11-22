@@ -25,6 +25,9 @@ void otherFired(int ent, int hand);
 
 // How far back the fore-end of the shotgun in `hand` is now, in its model's units (0 at rest, or off).
 [[nodiscard]] float travel(int hand);
+// (mpopen) ... of another player's (entity `ent`) in his `hand`, from his shot (otherFired): his copy's fore-end drawn
+// stroking as yours (view::drawGunParts; vr_autopump_hold holds his too).
+[[nodiscard]] float otherTravel(int ent, int hand);
 
 // The game time the stroke of the shot fired at about `shot` (within a tenth of a second) reaches the back, in
 // `rear`, and how fast it went back on average (model units per second of game time) in `backSpeed`: false without

@@ -10,6 +10,7 @@
 #include "vr_agarmor.hpp"
 #include "vr_arenaxray.hpp"
 #include "vr_humlook.hpp"
+#include "vr_climbrope.hpp"
 #include "vr_box3d.hpp"
 #include "vr_heldpose.hpp"
 #include "vr_hitmodel.hpp"
@@ -2347,6 +2348,7 @@ extern "C" void VR_WriteClientSpawnState(sizebuf_t* msg)
         agarmor::serverWriteAll(msg); // (the armed humanoids' armour: vr_agarmor.cpp)
         arenaxray::serverWriteAll(msg); // (the arena's last foes, seen through walls: vr_arenaxray.cpp)
         humlook::serverWriteAll(msg); // (the armed humanoids' recolours by weapon: vr_humlook.cpp)
+        climbrope::serverWriteAll(msg); // (the climbable ropes: vr_climbrope.cpp)
         mpavatar::serverWriteAll(msg); // (the players' avatar calibrations: vr_mpavatar.cpp; multiplayer)
     }
 }
@@ -2541,7 +2543,9 @@ void writeAvatars()
         }
         MSG_WriteLong(&tmp, static_cast<int>(ent->v.weapon));
         MSG_WriteLong(&tmp, static_cast<int>(fieldFloatOr(ent, f.weapon2, 0.f)));
-        mpavatar::writeHolds(&tmp, ent, origin); // (his climbing holds, as the moves byte says: B5c)
+        // (his climbing holds, as the moves byte says: B5c; the server's points, so from his entity's origin as sent, which
+        // every client draws him at -- not his client's: ropes4, a rider's moved by his rope since his move)
+        mpavatar::writeHolds(&tmp, ent, v3(ent->v.origin));
         // (his holstered weapons as he drew them: B6b; a bot's, what it carries, placed by each client: syncfix)
         const VrDrawnHolsters botHolsters = bot ? botHolstered(ent) : noHolsters;
         writeDrawnHolsters(&tmp, m ? m->move.holsters : botHolsters, origin, false);
@@ -2622,6 +2626,7 @@ extern "C" void VR_ServerFrameEnd()
     QVR_TRACY_CALL("sv end: armour", qvr::agarmor::serverFrame()); // the armed humanoids' armour sent where it changed (vr_agarmor.cpp)
     qvr::arenaxray::serverFrame(); // the arena's last foes marked or not, sent where it changed (vr_arenaxray.cpp)
     qvr::humlook::serverFrame(); // the armed humanoids' recolours by weapon, sent where they changed (vr_humlook.cpp)
+    QVR_TRACY_CALL("sv end: climbable ropes", qvr::climbrope::serverFrame()); // the climbable ropes stepped, pushed, sent (vr_climbrope.cpp)
     qvr::rigstudio::serverFrame(); // the Rig Studio's scene: its subject made and held (nothing while closed)
 
     // The next move read starts the next frame's buttons and bits (VR_MoveMerges; any protocol: the buttons too).

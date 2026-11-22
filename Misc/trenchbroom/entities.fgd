@@ -759,6 +759,45 @@ player is told what is missing. A point entity, despite its name."
 Puffs Quake VR's big smoke particles from its origin, ten times a second, for ever. A point entity, despite its
 name." []
 
+@PointClass base(Appearflags, Targetname) color(140 102 51) size(-4 -4 -4, 4 4 4) = vr_rope : "Quake VR: climbable rope
+
+A physical rope hanging from its origin (put it just under a ceiling or a beam): it swings, falls, lies on the floor where it is longer than the drop, and is pushed by hands, players, monsters, props, explosions and shots. Drawn as a rope; Style 1: as a chain (the same behaviour). docs/vr-port/ROPES.md."
+[
+	rope_length(float) : "Length" : 256 : "Units, from its origin down (longer than the drop: the rest lies on the floor)."
+	rope_thickness(float) : "Thickness" : "1.5" : "Units across."
+	rope_segments(integer) : "Pieces" : 0 : "Its pieces (points - 1); 0: one every 16 units (2 to 64)."
+	rope_mass(float) : "Mass" : 0 : "Kg, the whole rope (explosions and shots throw a light one further); 0: 5 a rope, 20 a chain."
+	rope_stiffness(float) : "Stiffness" : 1 : "0.05 to 1: how little it stretches."
+	rope_damping(float) : "Damping" : "0.5" : "Per second: how fast its swing dies down."
+	target(target_destination) : "Bottom pinned at" : "" : "Its bottom held at that entity's origin (an info_notnull)."
+	spawnflags(flags) =
+	[
+		1 : "Pinned" : 0 : "Its bottom held where it first hangs."
+	]
+	rope_style(choices) : "Style" : 0 : "How it is drawn (it behaves the same)." =
+	[
+		0 : "Rope"
+		1 : "Chain"
+	]
+]
+
+@PointClass base(Appearflags, Targetname) color(102 102 115) size(-4 -4 -4, 4 4 4) = vr_chain : "Quake VR: climbable chain
+
+A vr_rope drawn as a chain of iron links (20 kg by default), with the same keys and behaviour. docs/vr-port/ROPES.md."
+[
+	rope_length(float) : "Length" : 256 : "Units, from its origin down (longer than the drop: the rest lies on the floor)."
+	rope_thickness(float) : "Thickness" : "1.5" : "Units across."
+	rope_segments(integer) : "Pieces" : 0 : "Its pieces (points - 1); 0: one every 16 units (2 to 64)."
+	rope_mass(float) : "Mass" : 0 : "Kg, the whole rope (explosions and shots throw a light one further); 0: 5 a rope, 20 a chain."
+	rope_stiffness(float) : "Stiffness" : 1 : "0.05 to 1: how little it stretches."
+	rope_damping(float) : "Damping" : "0.5" : "Per second: how fast its swing dies down."
+	target(target_destination) : "Bottom pinned at" : "" : "Its bottom held at that entity's origin (an info_notnull)."
+	spawnflags(flags) =
+	[
+		1 : "Pinned" : 0 : "Its bottom held where it first hangs."
+	]
+]
+
 @PointClass base(Appearflags, Angle) = vr_dummy : "Training dummy (Quake VR)" []
 
 // ------------------------------------------------------------------------------------------------------------------

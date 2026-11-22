@@ -258,9 +258,11 @@ The engine's aids (`Quake/vr/vr_mptest.cpp`):
   `--load N` (`mp_load.py`) keeps N busy CPU workers at normal priority for the run, as other builds and tests do
   (`--load 16`: the reference; `--load-duty` each one's share of the time); `suite --only a,b`, `--suite-repeat N`.
 
-Running it (the kit's base for this worktree; `--reset-autoexec` empties its `id1/autoexec.cfg`, which the kit's
-runs leave with their script):
+Running it (in a worker's checkout `--base` defaults to its own kit base, `bases/<checkout>/qbase`, whose
+`id1/autoexec.cfg` the kit's runs leave with their script: emptied automatically; elsewhere pass `--base` and
+`--reset-autoexec`; the ports are the checkout's own block from 27600, a busy block skipped to the next free one):
 
+    python Misc/quakevr/mp/mp_test.py suite
     python Misc/quakevr/mp/mp_test.py suite --base C:/OHWorkspace/qvr-kit/bases/mp/qbase --reset-autoexec
     python Misc/quakevr/mp/mp_test.py coop --listen --flat B --port 27600 --base ...    (a listen host, flat B)
     python Misc/quakevr/mp/mp_test.py coop --lag 150 --jitter 20 --loss 0.02 --base ...
@@ -3910,8 +3912,8 @@ The deep review before agent/mp goes into next (`qvr-kit/scratch/mprev_B.md`, `m
 | B3 (medium) | The prediction replay looped over every client entity in each trace | Fixed: the four loops go over `worldtrace::brushModelEntities()` (vr_trace.cpp's per-message brush list, now shared), same entities in the same order |
 | B4 (medium) | Two player walks (vr_pmove.cpp and sv_phys.c) | Left: a large refactor, BACKLOG.md section 9 |
 | B5 (low) | A reused edict was rewound to its previous occupant's place | Fixed: `entryAt` skips frames older than the edict's `freetime` |
-| B6 (low) | The room-scale budget clamps the server's walk, not the replay's | Left (BACKLOG.md 9): a protocol field and a cheater-only correction |
-| B7 (low) | Per-client snapshot encode work | Left (BACKLOG.md 9): an optimisation of the encoder's two passes |
+| B6 (low) | The room-scale budget clamps the server's walk, not the replay's | Done (onecopy, 2026-11-22): the budget left in QVR_SVC_PREDICT (`QVR_NET_VERSION` 44), his replay runs `moveguard::budget` on a copy; mp_guard's B6 checks |
+| B7 (low) | Per-client snapshot encode work | Done (onecopy, 2026-11-22): the write pass writes the first pass's verified field encodings; `isCosmetic` once per entity a frame |
 | B8 (low) | The 100-unit teleport cut at low send rates | Fixed: `netsnap::teleportCut(span)` (100 units, or 4000 u/s times the samples' gap), shared by interpEntity and lag compensation's drawnAt |
 | D1 (low) | Single player ran the PvP disarm projectile scan | Fixed: `VR_PD_Can` counts PvP only in coop or deathmatch |
 | D2 (low) | "mp_event: joined/left" printed in every game | Fixed: only with `vr_mp_watch` (the harness sets it on every game) |

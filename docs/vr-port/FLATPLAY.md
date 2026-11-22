@@ -108,6 +108,7 @@ moved by `fullConfigChanges`, a sparse config never held it); `""` none |
 | Mouse 5 | a shove: an open hand pushed out in front of you, the headset's one-hand shove (`vr_flat_key_shove`, `vr_flat_shove_*`; QC `VR_FlatShove`). Since 2026-11-10 it winds up first (drawn back, the palm turning to the target, fingers up: `vr_flat_shove_wind_*`, `_palm*`), then pushes fast (`vr_flat_shove_push_time`; it lands at the push's end), holds (`_hold_time`) and comes back (`_recover_time`; each part its own seconds since round 2, 2026-11-10, replacing `vr_flat_shove_time` and its shares); the shoving hand's place follows the pose critically damped, 95% of the way in `vr_flat_shove_smooth` (0.08 s; his note 2026-11-10, "add some fast smoothing": the push moved it 30 units in a frame at 60 fps, 13 at 144, now 19 and 8.5; the times and the landing unchanged, the hand trails by about 0.03 s; `smoothShove`; test `Misc/quakevr/flatshovesmooth_test.sh`) at a point `vr_flat_shove_aim_up` over what the crosshair hits (`vr_flat_melee_aim_hit`), with a quiet, lighter copy of the fist's swish (`vr_flat_shove_swish`, `_swish_pitch`). Both hands push when both are free, when each holds a weapon (kept held, palms out, as the armed humanoids shove: `vr_flat_shove_both_armed`), and always with `vr_flat_shove_both_always 1`. A free hand on a two-handed weapon's grip lets go of it to push (`flatplay::shoving`, as for a punch; it used to stay on the grip, so the shove never showed). On their way back the hands' physics bodies pass through ragdolls and corpses (`vr_flat_shove_pass_bodies`; .handsynth 16/32), so what they shoved is not dragged back. The view's own motion of the hands never swings, flicks or pries anything (ROUND24.md, "Hand motion source"). |
 | Left Ctrl | crouches while it is held, stands up as it is let go; `+flatcrouch` and `-flatcrouch` hold and release the same from the console (see Crouching below). Right Ctrl is the same key to the engine (`K_CTRL`: `Quake/in_sdl.c`). While the mode runs it is the crouch key **only** â€” the plain game's `+attack` is taken off it, so holding Ctrl crouches and fires nothing; `vr_flat_crouch_fire 1` gives Ctrl its own bind back and then it fires as it crouches (see Ctrl's firing bind below) |
 | `F` | switches the flashlight: the engine's own `vr_flashlight_toggle`; put out, it stays out (a level change and a saved game included) |
+| `9` | dims and lights the gear: the wrist gadget's side button in VR (`vr_gear_lights_toggle`, `vr_gearlights.cpp`: the visor's panels and the guns' ammo screens dimmed to `vr_gear_lights_screen_dim`, their light with them; kept in the config). The key is `vr_flat_key_gearlights` (default `9`, bound to nothing by `default.cfg`; `""` none). Since 2026-11-22 (Hotkeys, below) |
 | `H` | lets go of what a hand holds, the off hand first and the main hand after (his words 2026-11-10: "drops the object held in the non-dominant hand first"; the main hand first until then) (`impulse 47` -> `VR_Forcegrab_FlatDrop`, `QC/vr_wpnforcegrab.qc`): a weapon out of the hand the way the game drops one -- never handed to the other hand on its grip (his words 2026-11-10: the grip hand caught a dropped Enforcer's rifle as a prop) -- a box or a prop carried in it let go at his feet (physics again, free to take again); carried in both hands, one press frees both. The key is `vr_flat_key_drop` (default `h`; `G` until 2026-11-10, then hard-coded: no saved bind to move) |
 | `G` | the quick grenade (The quick grenade, below): `vr_flat_key_grenade` (default `g`; `""` none) |
 
@@ -1298,3 +1299,36 @@ the shoulder and how much of each leg is clear. Test: `vr_flat_tp_test` (Debug >
 <agent> [shots]`): off as before, at the offsets in the open, pulled in backed into a wall, a 6 s walk turning and strafing
 round e1m1's start never with the camera in a wall or one between it and the eye, the shot on the crosshair's point
 (within 2 units plus 1% of the range, 6 px), both sight modes.
+
+## Hotkeys: what the headset does that a key does (and doesn't)
+
+The audit of BACKLOG 3's "Hotkeys for the remaining VR interactions" (2026-11-22, agent/flathotkeys). Keys are the
+defaults; every flat key is rebound in Options > Controls, "Quake VR (flat screen)". Free keys today (bound by neither
+`default.cfg` nor a flat key): J, P, U, Y, 9 (now the gear lights), `[`, `]`, `;`, `'` (Home and PgUp are the
+animation recorder's with `vr_takes_keys 1`). K/L are `+grableft`/`+grabright` and N/M, O/I the reloads (the desktop
+binds for the headset's grips and reloads; a flat grab could reuse K/L).
+
+| VR interaction | In the headset | Flat screen | Proposal |
+|---|---|---|---|
+| Parry | a melee weapon held into the blow | RMB with one melee weapon (Parry guard) | dual melee, a gun's block: none (his call: RMB is the left hand's blow there) |
+| Ammo switch | the gun's weapon button (impulse 42/43) | B (main hand); 7 and 8 (`default.cfg`: impulse 42/43, off and main hand) | done |
+| Throw | let go of the grip while swinging: a weapon, a prop, a dagger, a body | G throws the quick grenade; H drops at the feet; nothing else is thrown | **his call**: a throw that swings the hand and opens it at speed, so the headset's own throw (hand speed, spin) does the rest; on H held (tap still drops: H changes) or its own key (J, free) |
+| Shove | an open hand pushed out | mouse 5 | done |
+| Punch, overhead swing | the hand's own motion | V, the fire buttons | done |
+| Climb | either empty hand on a ledge or rung (`vr_climb`): hang, hand over hand, shimmy | automatic: the mantle (`vr_flat_mantle`), ladders (`vr_flat_ladder`), ropes (`vr_flat_rope`) | hanging, shimmy: VR only (two tracked hands; the mantle takes the ledges in reach) |
+| Grapple | trigger fires; B/Y held reels, A/X unreels; the gun's buttons detach or bring the hook back | LMB fires, letting go brings it back (Rogue's pull, as for a bot); B detaches | rope swing, reel, unreel: VR only now (**his call**: e.g. with the grapple in hand RMB held reels, the grapple having no ironsight) |
+| Holding enemies, taking an armed grunt's gun | an empty hand's grip closing on it (`vr_foegrab`; the tug-of-war) | none: a flat hand is always closed, so no grip ever starts | **his call**: a grab key reaching the empty hand out and closing it on what it meets (a foe, a gun, a ledge); K/L (`+grableft`/`+grabright`) could be that key |
+| Force grab | point and grip | mouse 4 | done |
+| Drop | open the hand | H | done |
+| Swap hands, holsters, weapon wheel | reach and grip | 3; mouse 3 (holster menu); 1, 2 and the wheel | done |
+| Reload | magazines, pump, break-open, revolver flicks | R (the flat trip); the immersive parts VR only (`vr_flat_reload`) | done |
+| Two-handed grip, two-handed melee | the free hand on the grip | automatic | done |
+| Carry in both hands, slam | two grips | LMB strikes with what the hand holds | both hands: VR only |
+| Bullet time | the gadget tap or the stick press | Z | done |
+| Flashlight | its own control (`vr_flashlight_toggle`) | F | done |
+| Gear lights | the gadget's side button | **9 (new: `vr_flat_key_gearlights`)** | done |
+| Gadget pages, Doom on the wrist | the gadget's buttons | none | VR only: the wrist's screen (the flat visor shows the HUD) |
+| Lean, crouch, lie down | the body | Q/E, Ctrl, X | done |
+| Swimming strokes | the arms | the move keys and jump | VR only |
+| Voice chat, toolgun | a button; the toolgun's panel | Caps Lock; F7, mouse 3, B | done |
+| Teleport, turning, recentre, height | the headset's own | the mouse turns | VR only |

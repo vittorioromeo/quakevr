@@ -2058,9 +2058,10 @@ constexpr LadderCase quothLadderCases[] = {
 // (Its ladder is real rungs, steps in its wall, the trigger_ladder over them: the flat ladder's own case; here AD's own
 // climb alone.)
 constexpr LadderCase adLadderCases[] = {
+    {"AD's ad_test3 ladder, up and over the top", LadderKind::Up, -512.f, -88.f, 252.f, 0.f, -1e9f, 228.f, 352.f, -495.f},
     // (Alone only, with vr_flat_ladder 0: AD's own climb.)
-    {"AD's ad_test3 ladder, vr_flat_ladder 0: jump climbs it", LadderKind::Fallback, -504.f, -88.f, 252.f, 0.f, -1e9f, 228.f, 352.f,
-        -496.f, true},
+    {"AD's ad_test3 ladder, vr_flat_ladder 0: jump climbs it", LadderKind::Fallback, -512.f, -88.f, 252.f, 0.f, -1e9f, 228.f, 352.f,
+        -495.f, true},
 };
 
 // AD's ad_e1m1: its wall ladder's trigger_ladder brush 2497..2559 x, -303..-297 y, 1..159 z (facing north).
@@ -2651,16 +2652,87 @@ extern "C" int VR_LeanHitBoxes(edict_t* touch, float (*boxes)[6])
 
 namespace
 {
-// Every key flat play reads itself, in the menu's order (Locomotion > Desktop Screen Play > Flat Keys): the cvars a key's
-// bind name is kept in. Key_Event leaves these keys' binds off (VR_FlatKeyOwned); the Flat Keys page rebinds them.
+// Every key flat play reads itself, in the menu's order (Options > Controls, its "Quake VR (flat screen)" group: menu.c
+// M_Keys_Populate): the cvars a key's bind name is kept in, and the rows' names. Key_Event leaves these keys' binds off
+// while flat play runs (VR_FlatKeyOwned: the flat key wins); Controls rebinds them (VR_FlatKeySet).
 cvar_t* const flatKeyList[] = {&vr_flat_key_lean_left, &vr_flat_key_lean_right, &vr_flat_key_prone, &vr_flat_key_swap, &vr_flat_key_grab, &vr_flat_key_shove, &vr_flat_key_punch,
-    &vr_flat_key_reload, &vr_flat_key_ammo, &vr_flat_key_drop, &vr_flat_key_grenade, &vr_flat_key_bullettime, &vr_flat_key_flashlight, &vr_flat_key_voicechat, &vr_flat_key_holster_menu, &vr_flat_key_flycam,
+    &vr_flat_key_reload, &vr_flat_key_ammo, &vr_flat_key_drop, &vr_flat_key_grenade, &vr_flat_key_bullettime, &vr_flat_key_flashlight, &vr_flat_key_gearlights, &vr_flat_key_voicechat, &vr_flat_key_holster_menu, &vr_flat_key_flycam,
     &vr_flat_key_toolgun, &vr_flat_key_toolgun_menu, &vr_flat_key_toolgun_adjust};
+const char* const flatKeyLabels[] = {"Lean left", "Lean right", "Lie down", "Swap hands", "Force grab", "Shove", "Punch", "Reload", "Next ammo type", "Drop",
+    "Quick grenade", "Bullet time", "Flashlight", "Gear lights", "Push-to-talk", "Holster menu", "Fly camera", "Toolgun", "Toolgun panel", "Toolgun adjust"};
+static_assert(std::size(flatKeyList) == std::size(flatKeyLabels), "a label for every flat key");
+
+[[nodiscard]] int flatKeyNum(const cvar_t& c)
+{
+    const int key = c.string[0] ? Key_StringToKeynum(c.string) : -1;
+    return key > 0 && key < MAX_KEYS ? key : -1;
+}
+
+[[nodiscard]] bool flatKeyIndexOk(int i)
+{
+    return i >= 0 && i < static_cast<int>(std::size(flatKeyList));
+}
 } // namespace
 
 std::span<cvar_t* const> qvr::flatplay::keyCvars()
 {
     return flatKeyList;
+}
+
+extern "C" int VR_FlatKeyCount(void)
+{
+    return static_cast<int>(std::size(flatKeyList));
+}
+
+extern "C" const char* VR_FlatKeyLabel(int i)
+{
+    return flatKeyIndexOk(i) ? flatKeyLabels[i] : "";
+}
+
+extern "C" const char* VR_FlatKeyCvarName(int i)
+{
+    return flatKeyIndexOk(i) ? flatKeyList[i]->name : "";
+}
+
+extern "C" int VR_FlatKeyGet(int i)
+{
+    return flatKeyIndexOk(i) ? flatKeyNum(*flatKeyList[i]) : -1;
+}
+
+extern "C" void VR_FlatKeySet(int i, int key)
+{
+    if(!flatKeyIndexOk(i))
+    {
+        return;
+    }
+    cvar_t* const var = flatKeyList[i];
+    const char* const name = key > 0 && key < MAX_KEYS ? Key_KeynumToString(key) : "";
+    // The name as the default spells it where it is the default's key (a sparse config).
+    Cvar_SetQuick(var, var->default_string && !q_strcasecmp(var->default_string, name) ? var->default_string : name);
+}
+
+extern "C" int VR_FlatKeyFor(int key, int skip)
+{
+    if(key <= 0 || key >= MAX_KEYS)
+    {
+        return -1;
+    }
+    for(int i = 0; i < static_cast<int>(std::size(flatKeyList)); i++)
+    {
+        if(i != skip && flatKeyNum(*flatKeyList[i]) == key)
+        {
+            return i;
+        }
+    }
+    return -1;
+}
+
+extern "C" void VR_FlatKeysReset(void)
+{
+    for(cvar_t* c : flatKeyList)
+    {
+        Cvar_SetQuick(c, c->default_string);
+    }
 }
 
 extern "C" int VR_FlatKeyOwned(int key)

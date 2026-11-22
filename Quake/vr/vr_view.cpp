@@ -207,7 +207,7 @@ constexpr MagMount magMounts[] = {
         {7.36f, 0.f, -4.72f}, QVR_WELL_OFFSETS(nail), 0},
     {modelmeta::Id::VNail2, "progs/vr_mag_on_v_nail2.mdl", "4.7417 4.8402 0.2747", "progs/vr_magwell_on_v_nail2.mdl", {7.2f, 5.17f, 1.76f},
         {7.2f, 9.56f, 3.45f}, QVR_WELL_OFFSETS(snail), 1},
-    {modelmeta::Id::VLava2, "progs/vr_mag_on_v_lava2.mdl", "4.7401 4.8594 0.2797", "progs/vr_magwell_on_v_lava2.mdl", {7.2f, 5.17f, 1.76f},
+    {modelmeta::Id::VLava2, "progs/vr_mag_on_v_lava2.mdl", "4.7417 4.8402 0.2747", "progs/vr_magwell_on_v_lava2.mdl", {7.2f, 5.17f, 1.76f},
         {7.2f, 9.56f, 3.45f}, QVR_WELL_OFFSETS(snail), 1},
     {modelmeta::Id::VLight, "progs/vr_mag_on_v_light.mdl", "7.0097 0.5622 3.9392", "progs/vr_magwell_on_v_light.mdl", {11.6f, 0.f, 3.f},
         {11.6f, 0.f, -0.6f}, QVR_WELL_OFFSETS(light), 2},
@@ -2751,6 +2751,40 @@ void setGunPart(view::ViewEntity& part, const view::ViewEntity& gun, qmodel_t* m
 // own entity is not drawn then (drawnAsPump). The renderer moves an entity's frame blending on as it draws it: the
 // body's, copied from the gun's, is copied back to the gun's each frame (the anchors read it: the hands, the muzzle).
 // Not for a shotgun model other than Quake VR's (a mod's: other frames or header).
+// The shotgun `gun` drawn as its auto pump's two parts, its fore-end `back` model units back (setupPumps: yours; drawGunParts:
+// another player's, mpopen): `body` and `pump` placed (and the gun's frame blending kept from the body's last frame: the
+// renderer moves the body's on, not the hidden gun's); false (both hidden) if it is not stroking or not Quake VR's shotgun.
+[[nodiscard]] bool posePump(view::ViewEntity& gun, float back, view::ViewEntity& body, view::ViewEntity& pump)
+{
+    const bool shotgun = gun.visible && gun.ent.model && gun.ent.model->type == mod_alias &&
+                         modelmeta::get(gun.ent.model).is(modelmeta::Id::VShot);
+    if(body.visible && body.lastModel == gun.ent.model)
+    {
+        copyLerp(gun.ent, body.ent);
+    }
+    qmodel_t* const bodyModel = shotgun && back > 0.f ? viewModel(pumpBodyModelName) : nullptr;
+    qmodel_t* const pumpModel = bodyModel ? viewModel(pumpModelName) : nullptr;
+    bool fits = bodyModel && pumpModel && bodyModel->type == mod_alias && pumpModel->type == mod_alias;
+    if(fits)
+    {
+        const auto* g = static_cast<const aliashdr_t*>(Mod_Extradata(gun.ent.model));
+        for(qmodel_t* m : {bodyModel, pumpModel})
+        {
+            const auto* h = static_cast<const aliashdr_t*>(Mod_Extradata(m));
+            fits = fits && h->numframes == g->numframes && h->numposes == g->numposes &&
+                   VectorCompare(h->scale, g->scale) && VectorCompare(h->scale_origin, g->scale_origin);
+        }
+    }
+    if(!fits)
+    {
+        body.visible = pump.visible = false;
+        return false;
+    }
+    setGunPart(body, gun, bodyModel, 0.f);
+    setGunPart(pump, gun, pumpModel, back);
+    return true;
+}
+
 void setupPumps()
 {
     bool isShotgun[2]{};
@@ -2770,31 +2804,11 @@ void setupPumps()
             where[hand][1] = p.y;
             where[hand][2] = p.z;
         }
-        if(body.visible && body.lastModel == gun.ent.model)
-        {
-            copyLerp(gun.ent, body.ent);
-        }
         const float back = shotgun ? autopump::travel(hand) : 0.f;
-        qmodel_t* const bodyModel = back > 0.f ? viewModel(pumpBodyModelName) : nullptr;
-        qmodel_t* const pumpModel = bodyModel ? viewModel(pumpModelName) : nullptr;
-        bool fits = bodyModel && pumpModel && bodyModel->type == mod_alias && pumpModel->type == mod_alias;
-        if(fits)
+        if(!posePump(gun, back, body, pump))
         {
-            const auto* g = static_cast<const aliashdr_t*>(Mod_Extradata(gun.ent.model));
-            for(qmodel_t* m : {bodyModel, pumpModel})
-            {
-                const auto* h = static_cast<const aliashdr_t*>(Mod_Extradata(m));
-                fits = fits && h->numframes == g->numframes && h->numposes == g->numposes &&
-                       VectorCompare(h->scale, g->scale) && VectorCompare(h->scale_origin, g->scale_origin);
-            }
-        }
-        if(!fits)
-        {
-            body.visible = pump.visible = false;
             continue;
         }
-        setGunPart(body, gun, bodyModel, 0.f);
-        setGunPart(pump, gun, pumpModel, back);
         if(vr_debug_weaponfx.value >= 2.f)
         {
             Con_Printf("autopump hand %d t %.3f travel %.3f\n", hand, cl.time, back);
@@ -3622,9 +3636,18 @@ void drawGunParts(ViewEntity& gun, const VrGunLook& look, GunParts& g, bool held
         parts = ssgHeldParts(gun, g.ssg, look.clip, p[GunParts::SsgFrame], p[GunParts::SsgBarrels]);
         parts = revolverParts(gun, g.rv, look.revolver, p[GunParts::RvFrame], p[GunParts::RvCrane], p[GunParts::RvCyl],
                     &p[GunParts::RvShell], -1) || parts;
+        // (mpopen) his shotgun's auto pump stroking after his shot, as yours (setupPumps)
+        const float back = player > 0 ? autopump::otherTravel(player, side) : 0.f;
+        const bool pumped = posePump(gun, back, p[GunParts::PumpBody], p[GunParts::Pump]);
+        if(pumped && vr_debug_weaponfx.value >= 2.f)
+        {
+            Con_Printf("autopump player %d hand %d drawn t %.3f travel %.3f\n", player, side, cl.time, back);
+        }
+        parts = pumped || parts;
     }
     else
     {
+        p[GunParts::PumpBody].visible = p[GunParts::Pump].visible = false;
         // As your own holsters' (setupSsgParts, setupMagazines): no revolver in parts, no magazine sliding.
         parts = ssgHolsterParts(gun, g.ssg, look.flags, look.clip, breaks, p[GunParts::SsgFrame], p[GunParts::SsgBarrels]);
         setMagazine(p[GunParts::MagIn], gun, look.has(VrGunLook::magsShownBit) && !(look.flags & weaponFlagNoMag), false,

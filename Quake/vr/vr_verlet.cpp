@@ -109,7 +109,7 @@ void limitPieces(glm::vec3* p, glm::vec3* prev, const char* pinned, za::SizeT n,
 }
 
 void collide(glm::vec3* p, glm::vec3* prev, const glm::vec3* from, const char* pinned, za::SizeT n, float rad, float slide,
-    int* traces, char* touching)
+    int* traces, char* touching, bool serverWorld)
 {
     int count = 0;
     const auto touch = [&](za::SizeT i) {
@@ -127,7 +127,7 @@ void collide(glm::vec3* p, glm::vec3* prev, const glm::vec3* from, const char* p
     }
     const auto trace = [&](const glm::vec3& a, const glm::vec3& b) {
         count++;
-        return worldtrace::world(a, b);
+        return serverWorld ? worldtrace::serverLine(a, b, nullptr) : worldtrace::world(a, b);
     };
     for(za::SizeT i = 0; i < n; i++)
     {
