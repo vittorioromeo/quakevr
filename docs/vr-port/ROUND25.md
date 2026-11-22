@@ -7295,5 +7295,6 @@ hitscan's always did.
   vr_revolver_dmg_random 0): 7 passed (ogre 52 hitscan, 50 AD's). Without the fix: 5 passed, 2 failed (AD's head shot,
   the ogre 30). Scene `revolver_adheadpop`.
 - **Checks:** ad_pop_odds_test.sh PASS (3 volleys topped up to their final chance); limbs_test.sh live on the grunt as
-  before (the lightning bolt's limb case kills nothing there, untouched by this).
+  before (the lightning bolt's limb case kills nothing there, untouched by this); scenario_check PASS (179 run, 0
+  failed); Dev and ThinLTO built, 0 warnings.
 
