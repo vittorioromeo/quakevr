@@ -75,6 +75,31 @@ Capsules build(entity_t* const own[3])
     return out;
 }
 
+Capsules buildCopy(entity_t* const copy[3])
+{
+    Capsules out;
+    const glm::vec3 up{0.f, 0.f, 1.f};
+    if(copy[0])
+    {
+        const glm::vec3 pelvis = geom::vec(copy[0]->origin);
+        out.pushBack({pelvis - up * 4.f, pelvis + up * 24.f, 7.5f, PartTorso});
+        out.pushBack({pelvis - up * 30.f, pelvis - up * 4.f, 6.f, PartLegs});
+    }
+    for(int hand = 0; hand < 2; hand++)
+    {
+        if(const entity_t* h = copy[1 + hand])
+        {
+            const int part = hand == 0 ? PartOffForearm : PartMainForearm;
+            vec3_t a{-h->angles[0], h->angles[1], h->angles[2]}, f, r, u;
+            AngleVectors(a, f, r, u);
+            const glm::vec3 c = geom::vec(h->origin), fwd = geom::vec(f);
+            out.pushBack({c - fwd * 12.f, c - fwd * 2.f, 2.3f, part});
+            out.pushBack({c - fwd * 2.f, c + fwd * 3.f, 3.2f, part + 1});
+        }
+    }
+    return out;
+}
+
 Capsules current()
 {
     entity_t* own[3]{};

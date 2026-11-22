@@ -37,6 +37,10 @@ using Capsules = za::InPlaceVector<Capsule, 7>;
 // the body is posed): the torso and the legs, each forearm from the elbow to the wrist, each hand past the wrist.
 [[nodiscard]] Capsules build(entity_t* const own[3]);
 
+// Another player's copy's (syncfix5; mpavatar::woundTargets): the same round his drawn body and hands -- the torso and the
+// legs round the pelvis, each forearm back from the hand along its drawn way, the hand. His wounds' and his gore's.
+[[nodiscard]] Capsules buildCopy(entity_t* const copy[3]);
+
 // As drawn now (view::woundTargets), and the head round the eyes (the view's place and angles: PartHead).
 [[nodiscard]] Capsules current();
 

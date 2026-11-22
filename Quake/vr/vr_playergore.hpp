@@ -41,10 +41,20 @@ struct Spot
     bool onSkin{false};
     unsigned vert[3]{0u, 0u, 0u};
     glm::vec3 bary{1.f, 0.f, 0.f};
+    int ent{0}; // 0: yours; else another player's entity, the spot on his copy's capsules (mpopen; never on his skin)
 };
 
-// `at` on your capsule `part` as drawn now: its spot. False if that part is not drawn.
-[[nodiscard]] bool bind(const glm::vec3& at, int part, Spot& out);
+// Whether `ent` is another player drawn as his copy now (mpavatar::woundTargets): his gore is this file's, on the copy.
+[[nodiscard]] bool copyDrawn(int ent);
+
+// The entity whose body `spot` is on (yours: cl.viewentity).
+[[nodiscard]] int entOf(const Spot& spot);
+
+// The yaw its capsules' frames turn with (yours: your view's; another player's: his copy's body).
+[[nodiscard]] float bodyYaw(const Spot& spot);
+
+// `at` on your capsule `part` as drawn now (`ent` > 0: another player's copy's): its spot. False if not drawn.
+[[nodiscard]] bool bind(const glm::vec3& at, int part, Spot& out, int ent = 0);
 
 // Where `spot` is drawn now and the surface's outward normal there; false if its part is not drawn.
 [[nodiscard]] bool where(const Spot& spot, glm::vec3& at, glm::vec3& normal);
@@ -56,7 +66,16 @@ struct Spot
 
 // A wound on you struck (vr_wounds.cpp, as it is painted): at `at` (normal `n`) on capsule `part`, the blow going `way`,
 // wound kind `kind` (QVR_WOUND_*), `amount` its damage. Its stream, drips and splash.
-void onWound(const glm::vec3& at, const glm::vec3& n, const glm::vec3& way, int part, int kind, int amount);
+// `ent` > 0 (mpopen): another player struck, on his copy as its wound is painted (syncfix5): every client runs his gore
+// as he does his own -- his stream (and so its pour's sound), splash and drips (for otherDripSeconds after his last
+// wound: his health is not known here), by this client's vr_player_gore settings.
+void onWound(const glm::vec3& at, const glm::vec3& n, const glm::vec3& way, int part, int kind, int amount, int ent = 0);
+
+// Another player's gore forgotten (vr_wounds.cpp's copyLives: he lives again or left): his drips stop.
+void forgetOther(int ent);
+
+// Another player's drips falling now (his last wound within otherDripSeconds; the check's).
+[[nodiscard]] int othersBleeding();
 
 // Once a frame (vr_view.cpp, after the wounds): the drips.
 void frame();
