@@ -7938,3 +7938,40 @@ Phase 3's rest (ROPES.md "Climbing (flat-screen)", "Multiplayer", "Tests", "Know
   (flat A on a rope, B watching) runs but fails its pose checks (wrists 9-25 units off, ankles 11-24): open, in
   ROPES.md's known limits, kept out of the suite.
 
+
+## split6: splitscreen phase 6, the loopback grown to 4, the seat loop, server slots (split6, 2026-11-22, `agent/split`)
+
+What it does: SPLITSCREEN.md section 14 (seats 2-4 join a running coop or deathmatch game by `seat_join <pad>` or the
+Debug menu's Network page, take free server slots as network players do, play headless until phase 7, leave and come
+back by name; while more than one seat plays only the level-start coop autosave saves).
+
+- **Merging next twice** (2026-11-22): the Texture Studio's attack on the seat's `+attack`, flat play's new route bits
+  and the busy-hand ironsight rule on the seat's state, the ropes' panel state, the visor's centre panel, netsnap's
+  `interpWay` and the menu's key conflicts on the seat's accessors and bindings; `vr_humlook.cpp`'s and
+  `vr_humstudio.cpp`'s locals renamed off `cl`/`cls` (client.h's macros); 20 newcomers marked seat-shared (section 14).
+- **Before and after** (the before: `dc0b03248`, the merged base with flatxhair's fix; the after: phase 6, then next
+  merged twice; same machine, quick builds, the author's game running, so low-impact mode): the net self-tests 44 ok / 1
+  fail on both (netrag's turn, already on the base); `vr_seat_test` 70/70; `vr_seat_play_test` coop 28/0, deathmatch
+  27/0; 70 suites (load_models, held/grip, throws, toolgun, the 52 `flat*_test.sh`): identical but flatsight (timed out
+  at 25 min on the before run, 12/0 after), flatslide (`flatslidepose` on e1m1 58/2 once, a slide's end crouched 0;
+  60/0 on a rerun: a flake), flatswap (the Knight's Sword fails on both, the failing direction differs run to run) and
+  flatswing (8 of 11 knight swings landed twice after, 9 before: the knight trials' known spread, 7-10 of 11, BACKLOG's
+  random run to run; next's blade starts came in with the merge). scenario_check 184/0 after the first merge; 188/1
+  after the second (bench_crowd_ad's known AD crowd flake, "what it placed is gone after 3.0 s"), 188/0 on a rerun.
+- **The MP plain suite**: the before run's is void (it ran on another agent's base, `bases/mp/qbase.7`, while that agent's
+  test batch used it: its server ran that batch's configs on vrfiringrange; 64 of 67 scenarios failed "server exited
+  waiting for the server on e1m1"). The after, on menuvis's own base (`bases/menuvis/qbase.8`, port 28791) in six chunks
+  of `--only` (each under 40 min): 61 of 66 clean plus netsafe 14/0 (mp_melee 26/0, 26/4 on split5's base). Five
+  failed: mp_ground 15/1 (its known grip flake, also on split5's base), mp_rules 15/1 (`vr_humlook` without its kind:
+  next's, fixed by next's `QVR_OWN`; 16/0 after the second merge), mp_loss 14/2 (10% loss's jumps, 15/1 on split5's
+  base; 16/0 rerun), mp_debugviz_listen 7/1 (the bot's disarm volumes 55 units off, as split5's after once; 8/0 rerun),
+  mp_adspose 11/1 twice (`slides on the sights seen`: 7 missed, then 1; most misses with A's copy sliding fully but the
+  eye-steady and posed-after window missed, one with B's own slide never begun): open, not yet run on a base exe.
+- **What hung before** (the stopped worker's): it waited idle 3.2 hours on its before batch (`split6_suites.sh`, run
+  in the foreground of its turn with no log checks) and again on the after batch, which the coordinator stopped at
+  flatmenu_esc; in the before batch flatsight ran into its 25-minute timeout and the MP suite (a 3-hour timeout) ran
+  57 minutes on the shared base above. Logs: F:/QVR-Parked/2026-11-22/menuvis_split6/ (split6_before, split6_after,
+  split6_after2, split6_final).
+- Dev and ThinLTO 0 warnings, QC 0 warnings.
+- In VR (the author): nothing changes with one seat (single player, coop and deathmatch, demos, saves); seats 2-4 are
+  for tests until the join screen (phase 10) and are not drawn until phase 7.

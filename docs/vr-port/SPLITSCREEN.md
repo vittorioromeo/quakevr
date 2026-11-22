@@ -557,5 +557,8 @@ His answer to question 3 (2026-11-21): seat 1 is always the keyboard and mouse; 
   with health 70 and 50 nails as he left; deathmatch, spawned again. Coop 28 of 28, deathmatch 27 of 27.
 - **`seat_state` allowlist: 3,591 -> 3,588** (net_loop.c's three into the seat's client). Merging next brought 14
   newcomers, all marked shared (the looks' table and the server's sends, the client's drawn looks: phase 7; navfollow's
-  server bots and its debug paths; the hull holes' pool site and timings; the port check's text; a test's).
+  server bots and its debug paths; the hull holes' pool site and timings; the port check's text; a test's); two more
+  merges (2026-11-22) 20, all shared: the Texture Studio (one editor: seat 1's), the headset's centre panel and visor
+  pass (the headset is seat 1's), the ropes (the server's; the drawn ones: phase 7), other players' gore copies (phase
+  7), the hole blockers' settings, tests, scratch and reset hooks.
 - **Before and after**: ROUND25.md "split6".
