@@ -7318,3 +7318,40 @@ hitscan's always did.
   before (the lightning bolt's limb case kills nothing there, untouched by this); scenario_check PASS (179 run, 0
   failed); Dev and ThinLTO built, 0 warnings.
 
+
+## embeddual: flat dual wielding, an embedded blade keeps its hand (agent/embeddual, 2026-11-22)
+
+His words (2026-11-21, flat): "When dual-wielding a bladed weapon and a gun, if the bladed weapon gets embedded into an
+enemy, the hand that is supposed to wield it stops holding it visually and goes to hold the gun in a 2H pose ... ADS also
+becomes possible in that state".
+
+- **Why:** a held stab or swing that stays in (QC/vr_embedhold.qc) empties the hand's weapon slot (VR_HOLD_EMBED: the blade
+  is a stuck thrown_weapon, the hand on it). Flat play read the hand's contents only from its weapon, carry and held
+  entity, so it saw one gun and an empty hand: `flatsight` pinned that hand to the gun's two-handed grip (its drawing won
+  over the embed pin's), the stance came on, RMB became the ironsight's and the ironsight came up.
+- **One check, shared:** `axestick::handOnBlade(h)` / `heldStat(h)` (vr_axestick.hpp; client: STAT_QVR_EMBEDMAIN /
+  _EMBEDOFF), now used by every reader of those stats (vr_avatar.cpp's arm stretch, vr_handpose.cpp's wall stop,
+  vr_modelcollide.cpp, vr_gadgetlock.cpp, vr_view_hands.cpp's embed pin) and by:
+  - **flat:** `flatplay::holdsThing` (a hand on a stuck blade is busy as with a prop): emptyHand is false for it, so no grip
+    pin, no stance, no two-handed melee stance; routeButtons gives each button its own hand (RMB no ironsight); and
+    `flatsight::adsApplies` now also asks for an empty other hand, so `vr_flat_aim 1` from the console is refused too (also
+    with a prop in the other hand, which matches FLATPLAY.md's rule: "the ironsight only with one gun and an empty other
+    hand"). The blade's hand keeps whatever pose flat gives an empty hand; the drawn hand is the shared embed pin
+    (vr_view_hands.cpp embedPinStep, as in VR), and QC's rules let go past arm reach (`vr_embed_arm_letgo`) as before.
+  - **VR and flat:** vr_twohand.cpp's helping hand (`helperFree`: held::handEmpty and not on a stuck blade) for the hotspot
+    hold, the free grips and the carry grips: a hand holding a stuck blade never takes the other gun's two-handed grip (VR
+    could, for the frames before QC's off-axis pull freed the blade). held::handEmpty itself is unchanged: it mirrors QC's
+    VRIsHandEmpty, which flat E's force grab (the recall) relies on.
+- **Probe:** `vr_flat_route_probe` gained bits 256 (a hand on the other hand's gun: twohand helping, the grip pin or the
+  stance's look), 512 / 1024 (the main / off hand drawn within 16 units of the stuck blade it holds; the distances printed).
+- **Test** `vr_embed_test 52` (embeddual, QC/vr_embeddual_test.qc, `Misc/quakevr/embeddual_test.sh`; -flatscreenmode,
+  vrtesthall; Debug > Tests "Flat Dual Wielding: an Embedded Blade Keeps Its Hand Check"): an axe and a shotgun, the
+  axe's flat swing (`vr_flat_punch`) into a grunt until it stays in (retries a miss, at most 4): case 0 axe main, case 1
+  axe off. Embedded: drawn on the blade (0.0 units), no hand on the gun, VRGet2HAiming 0, the ironsight down though asked
+  for, LMB main / RMB off; case 0 VR_Embed_Free: the axe back in the hand, dual again; case 1 VR_Embed_DropHand: the free
+  hand on the gun and the ironsight up (ads 1.00). 16 passed, 0 failed. With the fix disabled: 5 passed, 5 failed (the
+  hand drawn off the blade, on the gun, the ironsight up, RMB the ironsight's). Scene `flat_embed_dual`.
+- **Checks:** Dev and ThinLTO built, 0 warnings; scenario_check PASS (183 run, 0 failed); embed tests 33 (embedgrip) 15/0, 24 (embedfeel) 22/0, 13 (embededge) 62/4: the known run-to-run four
+  (the grip 64 units off, cases 8/9, standing or staggering; this file's "vr_embed_test 13" notes above). Flat:
+  `vr_flatitems_test 10` (routing, ironsight with an empty hand) 63/0, 7 (a prop beside the gun) 13/0, flathands 76/0,
+  flatmelee2h 16/0, flatads 6/1 (its "launchers", the outdated expectation of ROUND24.md).
