@@ -71,7 +71,7 @@ try {
         $holsters = if ($case.Count -gt 6) { $case[6] } else { 0 }
         $expectedHand = if ($case.Count -gt 7 -and $case[7] -ne 'holster') { 'off' } else { 'main' }
         $what = "$kind reload=$reload mode=$holsters before=$before"
-        $m = [regex]::Match($output, "(?s)PICKUP_BEGIN $i\r?\n(.*?)PICKUP_END $i\b")
+        $m = [regex]::Match($output, "(?s)PICKUP_BEGIN $i\b(.*?)PICKUP_END $i\b")
         $seg = $m.Groups[1].Value
         $why = ''
         if (-not $m.Success) { $why = 'its run never ended' }

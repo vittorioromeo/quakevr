@@ -45,6 +45,11 @@ tb_main()
     [ -n "$TB_STATS" ] && { cat "$TB_DIR/stats.json"; echo " collect $((t1 - t0)) s, batch $((SECONDS - t1)) s"; } >&2
     echo 0 > "$TB_DIR/count"
     : > "$TB_DIR/solos"
+    # (The index in memory for the replay: a run's hash -> its collected cases. tb_run_sh mostly runs in a $(...)
+    # subshell, which inherits it; what it hands out goes to the used file.)
+    unset TB_IDX; declare -gA TB_IDX
+    local ih ik
+    while read -r ih ik; do TB_IDX[$ih]+="$ik "; done < "$TB_DIR/index"
     TB_PASS=replay
     local t2=$SECONDS rc
     "$fn" "$@"
@@ -58,22 +63,24 @@ tb_main()
 # tb_run_sh <run.sh arguments after the agent>: in place of "bash $KIT/run.sh $AGENT <arguments>".
 tb_run_sh()
 {
-    local n
+    # (Bash builtins wherever they do: a process started under Git bash costs 0.1-1 s on a loaded machine, and the two
+    # passes of a 100-case suite started ~8 a case: minutes, 2026-11-22. Now one md5sum a case a pass.)
+    local n h k u out
     case "$TB_PASS" in
     collect)
-        n=$(( $(cat "$TB_DIR/count") + 1 )); echo $n > "$TB_DIR/count"
+        read -r n < "$TB_DIR/count"; n=$((n + 1)); echo $n > "$TB_DIR/count"
         printf '%s\0' "$@" > "$TB_DIR/case_$n.args"
-        echo "$(printf '%s\0' "$@" | md5sum | cut -c1-32) $n" >> "$TB_DIR/index"
+        h=$(printf '%s\0' "$@" | md5sum)
+        echo "${h:0:32} $n" >> "$TB_DIR/index"
         return 0 ;;
     replay)
         # The first collected run with the same arguments not handed out yet (by arguments, not by position: a run
         # retried a different number of times than in the first pass leaves the others where they were).
-        local h k
-        h=$(printf '%s\0' "$@" | md5sum | cut -c1-32)
-        for k in $(grep "^$h " "$TB_DIR/index" | cut -d' ' -f2); do
-            grep -qx "$k" "$TB_DIR/used" && continue
+        h=$(printf '%s\0' "$@" | md5sum); h=${h:0:32}
+        for k in ${TB_IDX[$h]}; do
+            while read -r u; do [ "$u" = "$k" ] && continue 2; done < "$TB_DIR/used"
             echo "$k" >> "$TB_DIR/used"
-            if [ -s "$TB_DIR/out_$k.txt" ]; then cat "$TB_DIR/out_$k.txt"; return 0; fi
+            if [ -s "$TB_DIR/out_$k.txt" ]; then IFS= read -r -d '' out < "$TB_DIR/out_$k.txt"; printf '%s' "$out"; return 0; fi
             break
         done
         echo "$*" >> "$TB_DIR/solos"
