@@ -231,8 +231,8 @@ ends with the effort left re-estimated (below).
 | 6 | The loopback grown to 4, the seat loop (each seat's client frame in its `Scope`), own slots: two seats join a listen server and play (headless test: two seats move apart) | done (1) | ~~5, 6~~ answered: autosave only; drop-in/out (a seat joins or leaves a running game) |
 | 7 | Per-seat render: rectangles, per-view caches; the effects (each seat's client world); the drawn body (`vr_avatar*`) and climbing's client pins (4b's leftovers); sounds per seat listener (phase 8's, brought in) | done (3: tiles and layouts; bodies, pins, effects; sounds, the effects' spawners, the visor) | ~~2~~ answered: the tiles follow the chosen layout (phase 11) |
 | 8 | The shared effects' other memories fed once (decals and shells from Quake VR's messages, gore's state), the static sounds and underwater muffling per seat, the shadow and portal caches checked with several views (flat TAA per tile moved to phase 11) | done (1; section 18) | - |
-| 9 | **Next.** Menus and console per seat (`key_dest`, the stack): seat 1 opens the full menu, the others their seat menu; the menu pauses coop (options) | 2 | ~~4~~ answered: options; coop's default: the menu pauses, only seat 1's is the full menu |
-| 10 | UX: Multiplayer > Splitscreen and the join screen (**the phase he tries before `agent/split` merges into next**) | 2-3 | ~~3, 4, 6~~ answered (drop-in/out: the join screen also joins a running game) |
+| 9 | Menus and console per seat (`key_dest` as each seat sees it, `Key_SeatDest`): seat 1 the full menu and the console, seats 2-4 their seat menu in their tile, each pad its own seat's; the menu pauses coop (`scr_splitmenu`, `scr_splitpause`) | done (1; section 19) | ~~4~~ answered: options; coop's default: the menu pauses, only seat 1's is the full menu |
+| 10 | **Next.** UX: Multiplayer > Splitscreen and the join screen (**the phase he tries before `agent/split` merges into next**) | 2-3 | ~~3, 4, 6~~ answered (drop-in/out: the join screen also joins a running game) |
 | 11 | UX: layouts (2 side by side or stacked, 3, 4): all switchable, the default from the monitor's aspect; flat TAA per tile (a history a seat, sized as its tile: phase 8's leftover) | 2-3 | ~~2~~ answered: customizable; ultrawide side by side; 3: one wide on top, two below |
 | 12 | UX: KB/M plus up to 4 controllers: the flat controller layout, per-seat profiles (the cvars a player owns) | 3-4 | ~~7~~ answered: a default controller layout; aim assist, off by default |
 | 13 | UX: per-seat HUD scale and seat menus, pause | 1-2 | ~~4~~ answered (pause and menu options) |
@@ -259,7 +259,9 @@ climbing's pins per seat, other players' copies posed once per frame, the visor 
 7: 13-20 worker-days** (parts 2 and 3 took one each of the 3-4 left; part 3 took phase 8's listeners, so phase 8 is now
 what the shared memories left: section 17). **After phase 8: 12-19 worker-days** (8 took one; flat TAA per tile, half a
 day to a day, moved to phase 11 with the tiles' sizes; next: phase 9, the menus per seat; then phase 10's join screen,
-which he tries before the merge into next).
+which he tries before the merge into next). **After phase 9: 11-17 worker-days** (9 took one of its two: one question
+per key, "where do this seat's keys go", answered in one place; phase 13's pause and seat-menu options exist as cvars,
+leaving it the per-seat HUD scale and the options' menu rows; next: phase 10's join screen).
 
 ## 7. Questions for him (the phase that needs each)
 
@@ -734,3 +736,50 @@ His answer to question 3 (2026-11-21): seat 1 is always the keyboard and mouse; 
   muffled alone and another seat's clear; the static sounds none twice. 2 seats 33/33, 3 seats 40/40, 4 seats 48/48,
   torches 35/35.
 - **Before and after**: ROUND25.md "split8".
+
+## 19. Phase 9 (2026-11-22): menus and console per seat
+
+(Seats numbered from 0 as in the code; the console, the menus and his answers say seats 1-4.)
+
+His answer (section 7, question 4): customizable; by default in coop the menu pauses the game, and only seat 1 opens the
+full menu, the other seats their own small menu.
+
+- **Where a seat's keys go** (`Key_SeatDest`, keys.c; the phase's `SeatMenu` is the seat's part `Part::SeatMenu`,
+  vr_seatmenu.cpp): seat 0's is `key_dest`, as always (the full menu, the console, the message line are his). A seat
+  1-3's is `key_menu` while its own seat menu is open, else `key_game`: never the full menu or the console. With one
+  seat in play, or `scr_splitmenu 1`, every seat's is `key_dest` (as before this phase). `Key_EventWithKeycode` routes by
+  it (its 15 `key_dest` reads are the seat's `dest`; `con_forcedup` and the full menu's key grab are seat 0's only); so
+  do the pad's stick arrows (`IN_PadEmit`), the stick's move and look (`IN_JoyMove`, `IN_GyroMove`: a seat with its menu
+  open stops moving, the others play on), the console's stick scroll, the centre print and the intermission overlay in
+  a tile. The mouse and the mouse wheel stay seat 0's (`key_dest`).
+- **The seat menu**: a seat 1-3's Start (escape) or `togglemenu` opens it; drawn in its tile (`VR_SeatMenuDraw`, the
+  seat's pass after its HUD) and driven by its own pad only (d-pad or stick arrows, A, B; each pad's events are its
+  seat's since phase 2): Resume; Look Sensitivity (x0.25-x4, the seat's own on its stick, `VR_SeatLookScale`); Invert
+  Look (its own, on top of `joy_invert`); Controls (its pad's buttons for attack, jump, the weapons, run, scores); Leave
+  Seat (asked first; the seat leaves on A's release, so the press never reaches seat 0 when the pad goes back to him).
+  Opening it lets go of the seat's held buttons (`CL_ReleaseMoveButtons`, the current seat's); a seat joining or
+  leaving comes in with its menu shut. Its sensitivity and invert stay in the process (not saved): phase 12's profiles
+  give each seat its own cvars. Seat 0's look reads exactly 1 and no invert.
+- **The console is seat 0's**: `Con_ToggleConsole_f` does nothing for seats 1-3 (a pad's bind, or `togglemenu` while
+  the console is up with `scr_splitmenu 1`).
+- **The pause** (`VR_SeatMenusPause`, in `Host_ServerFrame`'s physics and `SV_RunClients`' think conditions beside the
+  single-player menu pause): while more than one seat plays a local game, seat 0's full menu or any seat menu open holds
+  the server. **`scr_splitpause`** (archived, default 1): 0 never, 1 in coop (a game without deathmatch), 2 in coop and
+  deathmatch. A network player in the game: never (the game runs on for him; phase 14). Each tile but the menu's shows
+  "paused: seat n's menu" (or "paused" for seat 1's full menu, drawn over the window anyway).
+- **`scr_splitmenu`** (archived, default 0): 1 gives every seat's Start the full menu (one menu, driven by any pad, as
+  before this phase). Both cvars are phase 13's menu rows; the console and the Debug menu have them now (Debug >
+  Network: "Splitscreen: Seat 2's Menu", `seat_menu <n>`, its help naming both cvars).
+- **One seat in play: nothing changes** (`Key_SeatDest` is `key_dest`, `VR_SeatMenusPause` is 0, the look's scale exactly
+  1, the console and menus as before).
+- **`vr_seat_menu_test`** (`Misc/quakevr/seat_menu_test.sh <agent> [shots] [prefix]`: coop and deathmatch on e1m1,
+  maxplayers 4, flatscreen; verdict `seat_menu_test: N passed, M failed`, 31 checks a run): one seat, pad 0's Start opens
+  and shuts the full menu (no pause); seat 2 joins by pad 0 (pad 1 then drives seat 1); seat 2's Start opens its own menu
+  and not the full one; coop holds the server's time 12 frames, deathmatch runs on; its d-pad moves its cursor, raises
+  its sensitivity (the stick's scale is seat 2's, seat 1's exactly 1), toggles its invert; its stick walks no one while
+  the menu is open and its arrow moves only its menu; seat 1's pad opens the full menu meanwhile, pad 0 still drives
+  seat 2's menu under it and pad 1's d-pad leaves it alone; seat 2's B shuts its menu only; the full menu pauses coop and
+  not deathmatch; shut, the game runs; seat 2's toggleconsole does nothing; `scr_splitpause 0` runs coop on, 2 pauses
+  deathmatch; `scr_splitmenu 1` gives seat 2 the full menu; a picture of seat 2's menu in its tile; Leave Seat asks, then
+  seat 2 leaves on A's release and pad 0 drives seat 1 again. Coop 31/31, deathmatch 31/31.
+- **Before and after**: ROUND25.md "split9".
