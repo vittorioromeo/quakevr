@@ -57,6 +57,9 @@ In the ropes hall, grab a rope overhead whose end hangs near your legs: your leg
 [1. Dwell]
 Dwell's weapons keep their kind in holsters, after a save and a level change; Haste/Berserk/Wetsuit seconds on the wrist {test:dwell_items}
 Dwell's Rotary Shotgun in hand: the ammo screen in a brown bezel with a bolt each side in the middle of its housing's back, readable as you aim; grip and trigger under your hand {test:dwell_rotary}
+Dwell's Crystal Lance fired: a violet lightning beam from the crystal tip through every monster on its line, violet sparks where it enters and leaves each and where it stops, a firm kick back and up, and the crystal head glowing violet for a moment after each shot. {test:dwell_lance_pole}
+Dwell's Crystal Lance feels about 20% heavier when you swing it, and has no magazine: each shot takes 6 cells straight from your pouch. {test:dwell_lance_pole}
+Dwell's Crystal Lance: press B (the eject button) to turn your grip over, crystal head down, as with a sword. {test:dwell_lance_pole}
 
 [2. Quoth]
 Quoth/AD ladders: climb kellbase1's pillar ladders up, over the top and back down onto them, with VR hands and in flat {test:ad_mod_ladder}
