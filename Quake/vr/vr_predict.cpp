@@ -17,10 +17,13 @@
 #include "vr_trace.hpp"
 #include "vr_mem.hpp"
 
+#include "Zancle/Base/Memcmp.hpp"
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Memmove.hpp"
+#include "Zancle/Base/Memset.hpp"
 #include "Zancle/Math/Clamp.hpp"
 
 #include <math.h>
-#include <string.h>
 
 extern "C" void VR_PortalClientCross(edict_t* ent); // vr_portals_gates.cpp
 
@@ -611,7 +614,7 @@ struct ClientBody final : pmove::Body
         VectorSubtract(start, at, s);
         VectorSubtract(end, at, t);
         trace_t tr;
-        memset(&tr, 0, sizeof(tr));
+        ZA_MEMSET(&tr, 0, sizeof(tr));
         tr.fraction = 1.f;
         tr.allsolid = true;
         VectorCopy(end, tr.endpos);
@@ -671,7 +674,7 @@ struct ClientBody final : pmove::Body
     trace_t trace(const float* start, const float* end) override
     {
         trace_t best;
-        memset(&best, 0, sizeof(best));
+        ZA_MEMSET(&best, 0, sizeof(best));
         best.fraction = 1.f;
         best.allsolid = true;
         VectorCopy(end, best.endpos);
@@ -712,7 +715,7 @@ struct ClientBody final : pmove::Body
     {
         // (the world's hull 0, then the brush models where they will be: MOVE_NOMONSTERS)
         trace_t best;
-        memset(&best, 0, sizeof(best));
+        ZA_MEMSET(&best, 0, sizeof(best));
         best.fraction = 1.f;
         best.allsolid = true;
         VectorCopy(end, best.endpos);
@@ -729,7 +732,7 @@ struct ClientBody final : pmove::Body
             VectorSubtract(start, at, s);
             VectorSubtract(end, at, t);
             trace_t tr;
-            memset(&tr, 0, sizeof(tr));
+            ZA_MEMSET(&tr, 0, sizeof(tr));
             tr.fraction = 1.f;
             tr.allsolid = true;
             VectorCopy(t, tr.endpos);
@@ -756,7 +759,7 @@ struct ClientBody final : pmove::Body
         start[2] = origin[2] - 24.f;
         stop[2] = start[2] - 34.f;
         trace_t tr;
-        memset(&tr, 0, sizeof(tr));
+        ZA_MEMSET(&tr, 0, sizeof(tr));
         tr.fraction = 1.f;
         tr.allsolid = true;
         VectorCopy(stop, tr.endpos);
@@ -781,7 +784,7 @@ struct ClientBody final : pmove::Body
             VectorSubtract(start, at, s);
             VectorSubtract(stop, at, t);
             trace_t et;
-            memset(&et, 0, sizeof(et));
+            ZA_MEMSET(&et, 0, sizeof(et));
             et.fraction = 1.f;
             et.allsolid = true;
             VectorCopy(t, et.endpos);
@@ -821,7 +824,7 @@ struct ClientBody final : pmove::Body
 [[nodiscard]] za::U64 hashOf(za::U64 h, const float* v)
 {
     unsigned char bytes[sizeof(vec3_t)];
-    memcpy(bytes, v, sizeof(bytes));
+    ZA_MEMCPY(bytes, v, sizeof(bytes));
     for(const unsigned char c : bytes)
     {
         h = (h ^ c) * 1099511628211ull;
@@ -978,7 +981,7 @@ bool replay(vec3_t out, vec3_t before)
         cp.exactHeld += cp.slideBits & 128 ? 1 : 0; // (a move held to the server's clock: his time, not his moves')
         if(mine.seq == cp.seq && (cp.bits & bitWalked) && !(cp.slideBits & 128))
         {
-            const bool same = memcmp(mine.org, cp.origin, sizeof(vec3_t)) == 0;
+            const bool same = ZA_MEMCMP(mine.org, cp.origin, sizeof(vec3_t)) == 0;
             cp.exactN += same ? 1 : 0;
             cp.exactMiss += same ? 0 : 1;
             cp.exactMax = q_max(cp.exactMax, dist(mine.org, cp.origin));
@@ -987,7 +990,7 @@ bool replay(vec3_t out, vec3_t before)
                 Con_Printf("mp_predict_exact_miss: seq=%u mine=%.6f %.6f %.6f sv=%.6f %.6f %.6f states=%d\n", cp.seq,
                     mine.org[0], mine.org[1], mine.org[2], cp.origin[0], cp.origin[1], cp.origin[2], cp.states);
             }
-            cp.velMiss += memcmp(mine.vel, cp.velocity, sizeof(vec3_t)) == 0 ? 0 : 1;
+            cp.velMiss += ZA_MEMCMP(mine.vel, cp.velocity, sizeof(vec3_t)) == 0 ? 0 : 1;
             cp.hashSv = hashOf(cp.hashSv, cp.origin);
             cp.hashCl = hashOf(cp.hashCl, mine.org);
         }
@@ -1103,7 +1106,7 @@ bool replay(vec3_t out, vec3_t before)
         cp.fresh = false;
         cp.transNow = cp.grappleOffNow = false;
     }
-    memcpy(cp.past, cp.cur, sizeof(cp.past));
+    ZA_MEMCPY(cp.past, cp.cur, sizeof(cp.past));
     return true;
 }
 
@@ -1194,7 +1197,7 @@ void serverQueue(client_t* client, const netmove::WireMove& m)
     ServerSlot& s = serverSlots[slot];
     if(s.n == maxQueued)
     {
-        memmove(&s.queue[0], &s.queue[1], sizeof(s.queue[0]) * (maxQueued - 1));
+        ZA_MEMMOVE(&s.queue[0], &s.queue[1], sizeof(s.queue[0]) * (maxQueued - 1));
         s.n--;
     }
     pmove::Input in = inputOf(m, moveguard::unitsPerMetre(moveguard::slotScale(slot)));
@@ -1387,9 +1390,9 @@ void parseState()
     // (A snapshot parses its unchanged records again: the same state is not a new one.)
     if(cp.have && seq == cp.seq && bits == cp.bits && VectorCompare(o, cp.origin) && VectorCompare(v, cp.velocity) &&
         crawl[0] == cp.crawl[0] && crawl[1] == cp.crawl[1] && grapple.len == cp.grapple.len && slideBits == cp.slideBits && sl.lastZ == cp.slide.lastZ &&
-        memcmp(hang.owed, cp.hang.owed, sizeof(hang.owed)) == 0 &&
-        memcmp(hang.grips[0].lastRel, cp.hang.grips[0].lastRel, sizeof(hang.grips[0].lastRel)) == 0 &&
-        memcmp(hang.grips[1].lastRel, cp.hang.grips[1].lastRel, sizeof(hang.grips[1].lastRel)) == 0)
+        ZA_MEMCMP(hang.owed, cp.hang.owed, sizeof(hang.owed)) == 0 &&
+        ZA_MEMCMP(hang.grips[0].lastRel, cp.hang.grips[0].lastRel, sizeof(hang.grips[0].lastRel)) == 0 &&
+        ZA_MEMCMP(hang.grips[1].lastRel, cp.hang.grips[1].lastRel, sizeof(hang.grips[1].lastRel)) == 0)
     {
         return;
     }
@@ -1434,7 +1437,7 @@ void parseState()
     cp.waterLevel = (climbBits >> 4) & 3; // (his next move's walk or swim goes by them: B11b part 2)
     cp.waterType = waterOfCode((climbBits >> 6) & 3);
     cp.numMovers = numMovers;
-    memcpy(cp.movers, movers, sizeof(movers));
+    ZA_MEMCPY(cp.movers, movers, sizeof(movers));
     cp.serverTick = serverTick > 0.f && serverTick < 0.1f ? serverTick : 0.f;
     if(bits & bitWaterJump)
     {

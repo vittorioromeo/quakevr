@@ -5,6 +5,7 @@
 #include "vr_engine.hpp"
 #include "vr_progs.hpp"
 
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -838,7 +839,7 @@ State state;
 void parse()
 {
     const char* text = vr_agrunt_poses.string ? vr_agrunt_poses.string : "";
-    if(state.everParsed && strcmp(state.parsed.cStr(), text) == 0)
+    if(state.everParsed && ZA_STRCMP(state.parsed.cStr(), text) == 0)
     {
         return;
     }
@@ -1154,7 +1155,7 @@ StretchState stretchState;
 void parseStretch()
 {
     const char* text = vr_agrunt_ik_stretch.string ? vr_agrunt_ik_stretch.string : "";
-    if(stretchState.everParsed && strcmp(stretchState.parsed.cStr(), text) == 0)
+    if(stretchState.everParsed && ZA_STRCMP(stretchState.parsed.cStr(), text) == 0)
     {
         return;
     }
@@ -1234,7 +1235,7 @@ void key_f()
         Con_Printf("vr_agrunt_pose_key: %d is no key's code\n", c);
         return;
     }
-    if(Cmd_Argc() == 3 && !strcmp(Cmd_Argv(2), "reset"))
+    if(Cmd_Argc() == 3 && !ZA_STRCMP(Cmd_Argv(2), "reset"))
     {
         const int t = agpose::editTarget(c); // (a class's Pickup with no override: the shared key's)
         parse();
@@ -1378,12 +1379,12 @@ void dumpPickup()
 
 void dump_f()
 {
-    if(Cmd_Argc() == 2 && !strcmp(Cmd_Argv(1), "all"))
+    if(Cmd_Argc() == 2 && !ZA_STRCMP(Cmd_Argv(1), "all"))
     {
         dumpAll();
         return;
     }
-    if(Cmd_Argc() == 2 && !strcmp(Cmd_Argv(1), "pickup"))
+    if(Cmd_Argc() == 2 && !ZA_STRCMP(Cmd_Argv(1), "pickup"))
     {
         dumpPickup();
         return;

@@ -23,6 +23,7 @@
 #include "Zancle/Algorithm/Find.hpp"
 #include "Zancle/Base/GetArraySize.hpp"
 #include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Ceil.hpp"
@@ -40,7 +41,6 @@
 #include <glm/gtc/quaternion.hpp>
 
 #include <stdio.h>
-#include <string.h>
 
 namespace qvr::weight
 {
@@ -403,7 +403,7 @@ void table_f()
     for(int slot = 0; slot < weapons::numSlots; slot++)
     {
         const char* id = weapons::cvar(slot, Key::ID)->string;
-        if(!id[0] || !strcmp(id, "-1"))
+        if(!id[0] || !ZA_STRCMP(id, "-1"))
         {
             continue;
         }
@@ -413,7 +413,7 @@ void table_f()
     for(int slot = 0; slot < props::numSlots; slot++)
     {
         const char* id = props::cvar(slot, props::Key::ID)->string;
-        if(!id[0] || !strcmp(id, "-1"))
+        if(!id[0] || !ZA_STRCMP(id, "-1"))
         {
             continue;
         }
@@ -511,7 +511,7 @@ void throwTable_f()
     for(int slot = 0; slot < weapons::numSlots; slot++)
     {
         const char* id = weapons::cvar(slot, weapons::Key::ID)->string;
-        if(id[0] && strcmp(id, "-1") && weapons::value(slot, weapons::Key::Mass) > 0.f)
+        if(id[0] && ZA_STRCMP(id, "-1") && weapons::value(slot, weapons::Key::Mass) > 0.f)
         {
             row(va("w%d", slot + 1), id, weapons::value(slot, weapons::Key::Mass));
         }
@@ -519,7 +519,7 @@ void throwTable_f()
     for(int slot = 0; slot < props::numSlots; slot++)
     {
         const char* id = props::cvar(slot, props::Key::ID)->string;
-        if(id[0] && strcmp(id, "-1") && props::value(slot, props::Key::Mass) > 0.f)
+        if(id[0] && ZA_STRCMP(id, "-1") && props::value(slot, props::Key::Mass) > 0.f)
         {
             row(va("p%d", slot + 1), id, props::value(slot, props::Key::Mass));
         }
@@ -653,7 +653,7 @@ void heavyTest_f()
     for(int slot = 0; slot < weapons::numSlots; slot++)
     {
         const char* id = weapons::cvar(slot, Key::ID)->string;
-        if((only >= 0 && slot != only) || !id[0] || !strcmp(id, "-1") || slot == weapons::fistSlot() ||
+        if((only >= 0 && slot != only) || !id[0] || !ZA_STRCMP(id, "-1") || slot == weapons::fistSlot() ||
             weapons::value(slot, Key::Mass) <= 0.01f)
         {
             continue;
@@ -784,7 +784,7 @@ void heavyWiggle_f()
     for(int slot = 0; slot < weapons::numSlots; slot++)
     {
         const char* id = weapons::cvar(slot, Key::ID)->string;
-        if((only >= 0 && slot != only) || !id[0] || !strcmp(id, "-1") || slot == weapons::fistSlot() ||
+        if((only >= 0 && slot != only) || !id[0] || !ZA_STRCMP(id, "-1") || slot == weapons::fistSlot() ||
             weapons::value(slot, Key::Mass) <= 0.01f || (only < 0 && heft(slot) <= 0.f))
         {
             continue;

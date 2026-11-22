@@ -21,8 +21,11 @@
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/Macros.hpp"
 #include "Zancle/Base/Memcmp.hpp"
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Memset.hpp"
 #include "Zancle/Base/PtrDiffT.hpp"
 #include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Chrono/Clock.hpp"
 #include "Zancle/Concurrency/AtomicMutex.hpp"
 #include "Zancle/Concurrency/LockGuard.hpp"
@@ -42,8 +45,6 @@
 #include "vr_zancle.hpp"
 #include "vr_srvrandom.hpp"
 
-#include <atomic>
-#include <string.h>
 namespace qvr::hull
 {
 using namespace detail;
@@ -3162,7 +3163,7 @@ namespace detail
 trace_t treeTrace(const Tree& t, int head, const glm::vec3& start, const glm::vec3& end)
 {
     trace_t tr;
-    memset(&tr, 0, sizeof(tr));
+    ZA_MEMSET(&tr, 0, sizeof(tr));
     tr.fraction = 1.f;
     tr.allsolid = true;
     VectorCopy(end, tr.endpos);
@@ -3495,7 +3496,7 @@ int monsterClassOf(const edict_t* ent)
         const char* s = name ? PR_GetString(name) : "";
         for(int k = 0; k < monsterClassCount; ++k)
         {
-            if(!strcmp(s, monsterClasses[k].classname))
+            if(!ZA_STRCMP(s, monsterClasses[k].classname))
             {
                 c.classes[i] = static_cast<signed char>(k);
                 break;
@@ -3811,7 +3812,7 @@ za::U64 diskSum(const void* data, za::SizeT size, za::U64 h)
     for(; i + 8 <= size; i += 8)
     {
         za::U64 w;
-        memcpy(&w, c + i, 8);
+        ZA_MEMCPY(&w, c + i, 8);
         h = (h ^ w) * 0x9E3779B97F4A7C15ull;
         h ^= h >> 29;
     }
@@ -3870,7 +3871,7 @@ bool diskRead(Tree& t, const DiskJob& d, int& rebounded)
     Sys_fseek(in, 0, SEEK_SET);
     DiskHeader h{};
     bool ok = size >= static_cast<qfileofs_t>(sizeof(h)) && fread(&h, 1, sizeof(h), in) == sizeof(h) &&
-              memcmp(h.magic, diskMagic, 4) == 0 && h.version == diskVersion && h.world == d.world &&
+              ZA_MEMCMP(h.magic, diskMagic, 4) == 0 && h.version == diskVersion && h.world == d.world &&
               h.ext[0] == t.ext.x && h.ext[1] == t.ext.y && h.ext[2] == t.ext.z && h.nodes > 0 && h.root >= 0 &&
               static_cast<za::U32>(h.root) < h.nodes &&
               size == static_cast<qfileofs_t>(sizeof(h) + za::SizeT{h.nodes} * sizeof(mclipnode_t) +
@@ -3901,7 +3902,7 @@ bool diskRead(Tree& t, const DiskJob& d, int& rebounded)
     }
     if(!ok)
     {
-        ++diskCounts.rejected;
+        diskCounts.rejected.fetchAddSeqCst(1);
         diskcache::noteRejected(diskcache::Product::Hulls);
         diskcache::noteMiss(diskcache::Product::Hulls, "(the world's tree, rejected)");
         return false;
@@ -3923,7 +3924,7 @@ bool diskRead(Tree& t, const DiskJob& d, int& rebounded)
 void diskWrite(const Tree& t, const DiskJob& d, int rebounded)
 {
     DiskHeader h{};
-    memcpy(h.magic, diskMagic, 4);
+    ZA_MEMCPY(h.magic, diskMagic, 4);
     h.version = diskVersion;
     h.world = d.world;
     h.ext[0] = t.ext.x;
@@ -3940,7 +3941,7 @@ void diskWrite(const Tree& t, const DiskJob& d, int rebounded)
         {t.planes.data(), t.planes.size() * sizeof(mplane_t)}};
     if(diskcache::writeAtomic(d.path, parts, 3))
     {
-        ++diskCounts.written;
+        diskCounts.written.fetchAddSeqCst(1);
         diskcache::noteWrite(diskcache::Product::Hulls, parts[0].size + parts[1].size + parts[2].size);
     }
 }
@@ -4074,8 +4075,8 @@ void diskOrCompile(Tree& t, const Brushes& b, GateWork w)
     if(diskRead(t, d, rebounded))
     {
         const auto ns = za::Clock::nowNanoseconds() - t0;
-        ++diskCounts.read;
-        diskCounts.readUs += static_cast<long long>(ns / 1000);
+        diskCounts.read.fetchAddSeqCst(1);
+        diskCounts.readUs.fetchAddSeqCst(static_cast<long long>(ns / 1000));
         t.ms += za::nanosecondsToMilliseconds(ns);
         t.fromDisk = true;
         if(d.mode == 2) // compiled anyway into a fresh tree, compared
@@ -4090,13 +4091,13 @@ void diskOrCompile(Tree& t, const Brushes& b, GateWork w)
                               fresh.planes.size() == t.planes.size() &&
                               ZA_MEMCMP(fresh.nodes.data(), t.nodes.data(), t.nodes.size() * sizeof(mclipnode_t)) == 0 &&
                               ZA_MEMCMP(fresh.planes.data(), t.planes.data(), t.planes.size() * sizeof(mplane_t)) == 0;
-            ++(same ? diskCounts.same : diskCounts.differed);
+            (same ? diskCounts.same : diskCounts.differed).fetchAddSeqCst(1);
             diskcache::noteChecked(diskcache::Product::Hulls, same, "(the world's tree)");
         }
         t.cutBack = rebounded;
         return;
     }
-    ++diskCounts.missed;
+    diskCounts.missed.fetchAddSeqCst(1);
     gatedCompile(ZA_MOVE(w));
 }
 
@@ -5002,7 +5003,7 @@ bool clipPortal(const edict_t* ent, const float* start, const float* mins, const
         box[i].dist = (i & 1) ? -br.mins[axis] : br.maxs[axis];
         box[i].grows = 1.f;
     }
-    memset(&trace, 0, sizeof(trace));
+    ZA_MEMSET(&trace, 0, sizeof(trace));
     trace.fraction = 1.f;
     VectorCopy(end, trace.endpos);
     for(int k = 0; k < count - 1; k++)

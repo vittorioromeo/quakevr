@@ -13,11 +13,11 @@
 #include "vr_main.hpp"
 #include "vr_units.hpp"
 
+#include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 
-#include <string.h>
 
 namespace qvr::touch
 {
@@ -345,7 +345,7 @@ void Ui::draw() const
         if(d.label && d.label[0])
         {
             const float size = 8.f;
-            const float tw = size * static_cast<float>(strlen(d.label));
+            const float tw = size * static_cast<float>(ZA_STRLEN(d.label));
             gfx::draw2D::color({1.f, 1.f, d.held ? 0.6f : 1.f, za::min(1.f, a * 1.4f)});
             gfx::draw2D::text(d.r.x + (d.r.w - tw) * 0.5f, d.r.y + (d.r.h - size) * 0.5f, size, d.label);
             gfx::draw2D::color({1.f, 1.f, 1.f, 1.f});

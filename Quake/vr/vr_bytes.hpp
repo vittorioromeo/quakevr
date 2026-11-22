@@ -5,9 +5,9 @@
 
 #include "vr_engine.hpp"
 
+#include "Zancle/Base/Memcpy.hpp"
 #include "Zancle/Base/SizeT.hpp"
 
-#include <string.h>
 
 namespace qvr::bytes
 {
@@ -16,13 +16,13 @@ namespace qvr::bytes
 [[nodiscard]] inline int le32(const byte* b, const size_t at)
 {
     int v;
-    memcpy(&v, b + at, 4);
+    ZA_MEMCPY(&v, b + at, 4);
     return LittleLong(v);
 }
 [[nodiscard]] inline float lef32(const byte* b, const size_t at)
 {
     float v;
-    memcpy(&v, b + at, 4);
+    ZA_MEMCPY(&v, b + at, 4);
     return LittleFloat(v);
 }
 
@@ -37,7 +37,7 @@ struct View
         int v = 0;
         if(at + 4 <= size)
         {
-            memcpy(&v, data + at, 4);
+            ZA_MEMCPY(&v, data + at, 4);
         }
         return LittleLong(v);
     }
@@ -46,7 +46,7 @@ struct View
         short v = 0;
         if(at + 2 <= size)
         {
-            memcpy(&v, data + at, 2);
+            ZA_MEMCPY(&v, data + at, 2);
         }
         return LittleShort(v);
     }
@@ -56,7 +56,7 @@ struct View
         float v = 0.f;
         if(at + 4 <= size)
         {
-            memcpy(&v, data + at, 4);
+            ZA_MEMCPY(&v, data + at, 4);
         }
         return LittleFloat(v);
     }

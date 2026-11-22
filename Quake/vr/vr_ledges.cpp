@@ -47,7 +47,10 @@
 #include "Zancle/Algorithm/LowerBound.hpp"
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Memset.hpp"
 #include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Swap.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Array.hpp"
@@ -65,7 +68,6 @@
 #include "vr_zancle.hpp"
 #include "vr_geom.hpp"
 
-#include <string.h>
 
 namespace qvr::ledges
 {
@@ -141,8 +143,8 @@ void readClipBrushes(const qmodel_t* w)
     const za::Vector<unsigned char> lump = relight::mapBspxLump(w->name, "BRUSHLIST");
     const unsigned char* const d = lump.data();
     const za::SizeT n = lump.size();
-    const auto i32At = [&](za::SizeT at) { int v = 0; memcpy(&v, d + at, 4); return v; };
-    const auto f32At = [&](za::SizeT at) { float v = 0.f; memcpy(&v, d + at, 4); return v; };
+    const auto i32At = [&](za::SizeT at) { int v = 0; ZA_MEMCPY(&v, d + at, 4); return v; };
+    const auto f32At = [&](za::SizeT at) { float v = 0.f; ZA_MEMCPY(&v, d + at, 4); return v; };
     za::SizeT at = 0;
     while(at + 16 <= n)
     {
@@ -160,8 +162,8 @@ void readClipBrushes(const qmodel_t* w)
             brush.maxs = glm::vec3{f32At(at + 12), f32At(at + 16), f32At(at + 20)};
             short contents = 0;
             unsigned short planes = 0;
-            memcpy(&contents, d + at + 24, 2);
-            memcpy(&planes, d + at + 26, 2);
+            ZA_MEMCPY(&contents, d + at + 24, 2);
+            ZA_MEMCPY(&planes, d + at + 26, 2);
             at += 28;
             if(at + static_cast<za::SizeT>(planes) * 16 > n)
             {
@@ -191,7 +193,7 @@ void readClipBrushes(const qmodel_t* w)
     {
         return nullptr;
     }
-    if(strcmp(worldClips.world, w->name) || worldClips.vertexes != w->numvertexes || worldClips.surfaces != w->numsurfaces)
+    if(ZA_STRCMP(worldClips.world, w->name) || worldClips.vertexes != w->numvertexes || worldClips.surfaces != w->numsurfaces)
     {
         readClipBrushes(w);
     }
@@ -215,7 +217,7 @@ struct Hull
     [[nodiscard]] trace_t trace(const glm::vec3& a, const glm::vec3& b) const
     {
         trace_t tr;
-        memset(&tr, 0, sizeof(tr));
+        ZA_MEMSET(&tr, 0, sizeof(tr));
         tr.fraction = 1.f;
         tr.allsolid = true;
         vec3_t s{a.x, a.y, a.z}, e{b.x, b.y, b.z};
@@ -700,7 +702,7 @@ struct Cache
 [[nodiscard]] bool cacheCurrent()
 {
     const qmodel_t* w = worldModel();
-    return w && !strcmp(cache.world, w->name) && cache.vertexes == w->numvertexes && cache.surfaces == w->numsurfaces;
+    return w && !ZA_STRCMP(cache.world, w->name) && cache.vertexes == w->numvertexes && cache.surfaces == w->numsurfaces;
 }
 
 int dropped = 0;       // generation()
@@ -785,7 +787,7 @@ void ledges_f()
         Con_Printf("vr_ledges: no map\n");
         return;
     }
-    if(Cmd_Argc() > 1 && !strcmp(Cmd_Argv(1), "rebuild"))
+    if(Cmd_Argc() > 1 && !ZA_STRCMP(Cmd_Argv(1), "rebuild"))
     {
         resetCache();
     }

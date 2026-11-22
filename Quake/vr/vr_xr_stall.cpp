@@ -8,6 +8,7 @@
 #include "vr_tracy.h"
 #include "vr_xr_runtime.hpp"
 
+#include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/String/String.hpp"
 
@@ -171,7 +172,7 @@ void note(const char* line)
 {
     xrruntime::logLine(line);
 #ifdef QVR_TRACY
-    size_t length = strlen(line);
+    size_t length = ZA_STRLEN(line);
     while(length && line[length - 1] == '\n')
     {
         length--;

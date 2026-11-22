@@ -230,9 +230,21 @@ float() DW_RotaryGauntlet = { return cvar_hget(cvarh_vr_dw_rotary_gauntlet) != 0
 // The Crystal Lance's blow held as a lance (VR_Melee_Deal; the melee sweep along its blow line to its crystal head, slot
 // 55's bl_*): the axe's damage (vr_dmg_axe, before the swing's speed and weight: VRMeleeDmg), a blade's sounds, blood
 // and wall chop (W_FireAxe's), where W_GunMelee clubs.
+// A thrust (dwellweap2; docs/vr-port/POLEWEAPONS.md "Thrust"): the blow read as a stab (VR_Melee_Decide: driven along
+// its line, far end first) lands with the crystal head alone (the point that struck at or past vr_dw_lance_head of the
+// line from the hand to the tip): its damage times vr_dw_lance_thrust (the stab's damage already grows with the speed
+// along the line, VRMeleeDmg); a stab on the shaft short of the head is a poke, vr_dw_lance_poke of it.
 void(float xHand) DW_LanceMelee =
 {
     float xdmg = VRMeleeDmg(xHand, cvar_hget(cvarh_vr_dmg_axe));
+    entity b = VR_Blow(xHand);
+    if(b.mh_kind == VR_MKIND_STAB)
+    {
+        float head = (b.mh_c_f >= cvar_hget(cvarh_vr_dw_lance_head));
+        xdmg = xdmg * (head ? cvar_hget(cvarh_vr_dw_lance_thrust) : cvar_hget(cvarh_vr_dw_lance_poke));
+        dprint(sprintf("dwlance: a thrust, %s (%.2f of the line, %.1f m/s): %.0f damage\n",
+            head ? "the head" : "the shaft, a poke", b.mh_c_f, b.mh_speed, xdmg));
+    }
     if(!VRDoMeleeAttackTracelineFor(xHand, 22, 13)) { return; }
     vector org = trace_endpos - v_forward * 4;
     if(trace_ent.takedamage)

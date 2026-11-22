@@ -144,6 +144,11 @@ enum FreeMode : int
 // The weapon of `slot` is a pole weapon (its own Other Hand Anywhere is FREE_POLE: the Crystal Lance held like a spear),
 // in any mode of play: flat play poses it as a spear (vr_flat_pole_*; lancespear).
 [[nodiscard]] bool poleWeapon(int slot);
+// The holding hand's own slide along its pole weapon's pole (POLEWEAPONS.md, "The main hand slides too"; his note
+// vrtesthall_2026-11-22_15-40-11): units the hand has moved from the handle towards the tip (negative: towards the butt),
+// and the pole's way in the hand's frame (as hands::redirect takes it). The view draws the weapon moved back along the
+// pole by that much (its muzzle and blade line follow the drawn weapon). False when the hand has not slid.
+[[nodiscard]] bool poleShift(int holding, float& along, glm::vec3& axis);
 
 // The view, each frame: whether the empty `hand`'s palm is on the other hand's weapon (held or carried), far enough from
 // its handle and (held by its handle) from its grip and blade hotspots (vr_weapon_grab_anywhere_min).

@@ -44,6 +44,10 @@
 #include "vr_geom.hpp"
 #include "Zancle/Container/InPlaceVector.hpp"
 #include "Zancle/Math/Round.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strncmp.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include "vr_toolgun_icons.hpp"
 #include "vr_api.h"
 
@@ -568,7 +572,7 @@ const char* campaignTag(int index)
 {
     const int tags = static_cast<int>(vr_menu_group_tags.value);
     const char* tag = VR_CampaignTag(index);
-    if(VR_CampaignExperimental(index) && !strcmp(tag, "experimental"))
+    if(VR_CampaignExperimental(index) && !ZA_STRCMP(tag, "experimental"))
     {
         return tag; // (always shown, at the right of its title: his call 2026-11-15)
     }
@@ -1841,8 +1845,8 @@ void resetHolsters()
 // pitch and yaw: Reset Hand Offsets resets those). The world's scale is a choice: reset.
 [[nodiscard]] bool keptOnResetAll(const cvar_t& var)
 {
-    const size_t n = strlen(var.name);
-    if(n > 8 && !strcmp(var.name + n - 8, "_version"))
+    const size_t n = ZA_STRLEN(var.name);
+    if(n > 8 && !ZA_STRCMP(var.name + n - 8, "_version"))
     {
         return true;
     }
@@ -2167,7 +2171,7 @@ void addMenuDetail(za::Vector<Item>& list, int page)
     // page's own sections: Item::Minor, vr_menu_minor_scale and _alpha). A page that made its own "Advanced" header
     // (Campaign: its extra rows) shares it.
     const bool ownHeader = za::anyOf(list.begin(), list.end(), [](const Item& item) {
-        return item.kind == Item::Header && item.look == Item::Minor && item.label && !strcmp(item.label, "Advanced");
+        return item.kind == Item::Header && item.look == Item::Minor && item.label && !ZA_STRCMP(item.label, "Advanced");
     });
     if(!ownHeader)
     {
@@ -2224,7 +2228,7 @@ Folds folds;
     {
         size_t end = list.find(';', start);
         end = end == za::StringView::nPos ? list.size() : end;
-        if(end - start == key.size() && !strncmp(list.data() + start, key.cStr(), key.size()))
+        if(end - start == key.size() && !ZA_STRNCMP(list.data() + start, key.cStr(), key.size()))
         {
             return true;
         }
@@ -2244,7 +2248,7 @@ void setFolded(int page, const char* header, bool fold)
         size_t end = list.find(';', start);
         end = end == za::StringView::nPos ? list.size() : end;
         const za::StringView entry = list.substrByPosLen(start, end - start);
-        if(!entry.empty() && !(entry.size() == key.size() && !strncmp(entry.data(), key.cStr(), key.size())))
+        if(!entry.empty() && !(entry.size() == key.size() && !ZA_STRNCMP(entry.data(), key.cStr(), key.size())))
         {
             next += next.empty() ? "" : ";";
             next += entry;
@@ -2592,7 +2596,7 @@ int wrapHelp(const char* text, int columns, int* starts = nullptr, int* lengths 
         {
             break;
         }
-        int n = static_cast<int>(strlen(p));
+        int n = static_cast<int>(ZA_STRLEN(p));
         if(n > columns)
         {
             n = columns;
@@ -2707,7 +2711,7 @@ void consoleEdges(float& left, float& right);
         int left = 0;
         for(const Item& item : menuPages.built[ui().page])
         {
-            const int len = item.label ? static_cast<int>(strlen(item.label)) : 0;
+            const int len = item.label ? static_cast<int>(ZA_STRLEN(item.label)) : 0;
             const int dim = item.kind == Item::Header || item.look != Item::Normal ? letterSize(item) : 8;
             const int x = item.kind == Item::Header ? (320 - dim * len) / 2 - dim - 10 // (its fold arrow and bar left of it)
                           : iconRowOn(item) ? iconRowLeft(item)
@@ -3419,8 +3423,8 @@ constexpr const char* flatOnlyCvars[] = {"vr_flat_tonemap", "vr_flat_bloom", "vr
 
 [[nodiscard]] bool cvarNamed(const cvar_t* cvar, const char* pattern)
 {
-    const size_t n = strlen(pattern);
-    return n > 0 && pattern[n - 1] == '*' ? strncmp(cvar->name, pattern, n - 1) == 0 : strcmp(cvar->name, pattern) == 0;
+    const size_t n = ZA_STRLEN(pattern);
+    return n > 0 && pattern[n - 1] == '*' ? ZA_STRNCMP(cvar->name, pattern, n - 1) == 0 : ZA_STRCMP(cvar->name, pattern) == 0;
 }
 
 // The mode a row's setting is for: its own (vrOnly(), flatOnly()), else its cvar's (the lists above).
@@ -3522,7 +3526,7 @@ bool fineForced = false; // (vr_menu_slider_step's "fine": the modifier as if he
 // steps are on (their size's).
 void sliderText(const Item& item, float value, char* buf, size_t size)
 {
-    const char* dot = strstr(item.format, "%");
+    const char* dot = ZA_STRSTR(item.format, "%");
     while(dot && *dot && *dot != '.' && *dot != 'f')
     {
         dot++;
@@ -3540,7 +3544,7 @@ void sliderText(const Item& item, float value, char* buf, size_t size)
     }
     char format[32];
     const size_t at = static_cast<size_t>(dot - item.format) + 1;
-    if(n == own || at + 2 >= sizeof(format) || strlen(item.format) + 1 >= sizeof(format))
+    if(n == own || at + 2 >= sizeof(format) || ZA_STRLEN(item.format) + 1 >= sizeof(format))
     {
         q_snprintf(buf, size, item.format, value);
         return;
@@ -3664,7 +3668,7 @@ void drawKeyRow(const Item& item, int y, bool selected)
     char other[48];
     if(keyConflict(*item.cvar, other, sizeof(other)))
     {
-        M_PrintWhite(midPos + 8 * (static_cast<int>(strlen(name)) + 2), y, va("! %s", other));
+        M_PrintWhite(midPos + 8 * (static_cast<int>(ZA_STRLEN(name)) + 2), y, va("! %s", other));
     }
 }
 
@@ -3750,7 +3754,7 @@ void change(const Item& item, int dir, bool repeat = false)
 [[nodiscard]] bool isToggle(const Item& item)
 {
     return item.choices.size() == 2 && item.choices[0].value == 0.f && item.choices[1].value == 1.f &&
-           !strcmp(item.choices[0].label, "Off") && !strcmp(item.choices[1].label, "On");
+           !ZA_STRCMP(item.choices[0].label, "Off") && !ZA_STRCMP(item.choices[1].label, "On");
 }
 
 // The list row under the mouse as drawn (a long text's next line itself, a button row), or -1.
@@ -4090,7 +4094,7 @@ void openDropDown(const Item& item, int row)
     int longest = 1;
     for(const Choice& c : item.choices)
     {
-        longest = q_max(longest, static_cast<int>(strlen(c.label)));
+        longest = q_max(longest, static_cast<int>(ZA_STRLEN(c.label)));
     }
     longest = q_min(longest, 30);
 
@@ -4341,7 +4345,7 @@ void drawItemLooked(const Item& item, int y, float open, bool selected);
 // (Select Campaign's run line: never cut mid-word; the row's help has it whole).
 void fitAtWord(const char* text, int chars, char* out, size_t size)
 {
-    const int len = static_cast<int>(strlen(text));
+    const int len = static_cast<int>(ZA_STRLEN(text));
     if(len <= chars)
     {
         q_strlcpy(out, text, size);
@@ -4405,12 +4409,12 @@ void drawGroupRow(const Item& item, int y, bool selected)
         return;
     }
     const char* tagLeft = item.look == Item::Lead && item.tagLeftArg ? item.tagLeftArg(item.arg) : "";
-    const int tagLeftLen = static_cast<int>(strlen(tagLeft));
+    const int tagLeftLen = static_cast<int>(ZA_STRLEN(tagLeft));
     const int textX = item.look == Item::Sub ? indent + markRoom : indent + (tagLeftLen > 0 ? minorDim * tagLeftLen + 6 : 0);
-    const int textEnd = textX + dim * static_cast<int>(strlen(text));
+    const int textEnd = textX + dim * static_cast<int>(ZA_STRLEN(text));
     int barEnd = textEnd;
     int tagX = 0;
-    const int tagLen = static_cast<int>(strlen(tag));
+    const int tagLen = static_cast<int>(ZA_STRLEN(tag));
     if(tagLen > 0)
     {
         if(item.look == Item::Lead)
@@ -4522,7 +4526,7 @@ void drawItemLooked(const Item& item, int y, float open, bool selected)
         // Its letters (vr_menu_header_scale) from its row's bottom up into the gap above it; the fold's arrow left of
         // them, turned down while open.
         const int dim = letterSize(item);
-        const int len = static_cast<int>(strlen(item.label));
+        const int len = static_cast<int>(ZA_STRLEN(item.label));
         const int x = (320 - dim * len) / 2;
         const int ty = y + fullHeight(item) - dim;
         const bool fold = foldsOn(ui().page);
@@ -4547,7 +4551,7 @@ void drawItemLooked(const Item& item, int y, float open, bool selected)
     {
         // A button of its own across the middle (Run Setup's Start), lit while selected.
         const int dim = letterSize(item);
-        const int len = static_cast<int>(strlen(item.label));
+        const int len = static_cast<int>(ZA_STRLEN(item.label));
         const float w = za::fmax(static_cast<float>(dim * (len + 6)), 120.f);
         const float x0 = 160.f - w * 0.5f;
         const float half = static_cast<float>(fullHeight(item)) * 0.5f;
@@ -4583,7 +4587,7 @@ void drawItemLooked(const Item& item, int y, float open, bool selected)
     {
         char text[41];
         q_strlcpy(text, item.infoArg ? item.infoArg(item.arg) : item.info ? item.info() : "", sizeof(text));
-        M_Print((320 - 8 * static_cast<int>(strlen(text))) / 2, y, text);
+        M_Print((320 - 8 * static_cast<int>(ZA_STRLEN(text))) / 2, y, text);
         return;
     }
 
@@ -4615,7 +4619,7 @@ void drawItemLooked(const Item& item, int y, float open, bool selected)
             char text[41];
             const bool picked = selected && b == CLAMP(0, ui().button, item.buttons - 1);
             q_snprintf(text, sizeof(text), picked ? "[ %s ]" : "%s", item.buttonLabel(item.arg, b));
-            const int x = b * cell + (cell - 8 * static_cast<int>(strlen(text))) / 2;
+            const int x = b * cell + (cell - 8 * static_cast<int>(ZA_STRLEN(text))) / 2;
             const bool dim = item.buttonDim && item.buttonDim(item.arg, b);
             const int tint = item.buttonTint ? item.buttonTint(item.arg, b) : 0;
             pushTint(tint, dim ? 0.35f : 1.f);
@@ -4670,7 +4674,7 @@ void drawItemLooked(const Item& item, int y, float open, bool selected)
     // Its letters' size (a footer's smaller, Run Setup's Difficulty bigger: Item::Look), centred in its row as it is
     // unfolded; the selected row's bar from its label to its value's end (vr_menu_hl_fit).
     const int dim = item.look == Item::Normal ? 8 : letterSize(item);
-    const int labelX = midPos - 28 - dim * static_cast<int>(strlen(item.label));
+    const int labelX = midPos - 28 - dim * static_cast<int>(ZA_STRLEN(item.label));
     const bool marked = item.cvar && item.kind != Item::Action && changedSetting(*item.cvar);
     const int y8 = y + (fullHeight(item) - 8) / 2; // (the widgets' own size: sliders, switches, key rows)
     y += (fullHeight(item) - dim) / 2;
@@ -4712,7 +4716,7 @@ void drawItemLooked(const Item& item, int y, float open, bool selected)
             {
                 M_DrawSlider(midPos, y8, CLAMP(0.f, range, 1.f), text);
             }
-            right = midPos + 96 + 8 * static_cast<int>(strlen(buf));
+            right = midPos + 96 + 8 * static_cast<int>(ZA_STRLEN(buf));
             break;
         }
         case Item::Cycle:
@@ -4732,7 +4736,7 @@ void drawItemLooked(const Item& item, int y, float open, bool selected)
                 {
                     M_PrintEx(midPos, y, dim, choice);
                 }
-                right = midPos + dim * static_cast<int>(strlen(choice));
+                right = midPos + dim * static_cast<int>(ZA_STRLEN(choice));
             }
             break;
         case Item::Action:
@@ -4984,7 +4988,7 @@ void anchorTest()
         const auto inHi = [&](int i) {
             for(int j = 0; j < static_cast<int>(hi.size()); j++)
             {
-                if(selectable(hi[j]) && !strcmp(rowLabel(hi[j]), rowLabel(lo[i])) && !strcmp(rowSection(hi, j), rowSection(lo, i)))
+                if(selectable(hi[j]) && !ZA_STRCMP(rowLabel(hi[j]), rowLabel(lo[i])) && !ZA_STRCMP(rowSection(hi, j), rowSection(lo, i)))
                 {
                     return j;
                 }
@@ -5037,10 +5041,10 @@ void anchorTest()
         q_snprintf(line, sizeof(line), "%s: the other panel on \"%s\" (row %d, want %d), its fourth line (%d)",
             levelName(level), c >= 0 && c < static_cast<int>(list.size()) ? rowLabel(list[c]) : "?", c, want,
             c - other.scrolls[page]);
-        check(c == want && !strcmp(rowLabel(list[c]), secondLabel.cStr()) && c - other.scrolls[page] == 3, line);
+        check(c == want && !ZA_STRCMP(rowLabel(list[c]), secondLabel.cStr()) && c - other.scrolls[page] == 3, line);
         q_snprintf(line, sizeof(line), "%s: the panel that rebuilt it on \"%s\" (want \"%s\")", levelName(level),
             c0 >= 0 && c0 < static_cast<int>(list.size()) ? rowLabel(list[c0]) : "?", firstLabel.cStr());
-        check(c0 == (level == LevelDeveloper ? firstHi : first) && !strcmp(rowLabel(list[c0]), firstLabel.cStr()), line);
+        check(c0 == (level == LevelDeveloper ? firstHi : first) && !ZA_STRCMP(rowLabel(list[c0]), firstLabel.cStr()), line);
     }
 
     menuInstances[1] = panelWas;
@@ -5239,7 +5243,7 @@ void changedTest()
             const double d = var && var->default_string ? strtod(var->default_string, &end) : 0.0;
             if(!var || vars[1] || var == vars[0] || var->callback || wrapperCvar(*var) || keptOnResetAll(*var) ||
                 serverrules::locked(var) || !end || end == var->default_string || *end || za::abs(d) > 100.0 ||
-                strcmp(var->string, var->default_string) != 0 || q_strncasecmp(var->name, "vr_", 3))
+                ZA_STRCMP(var->string, var->default_string) != 0 || q_strncasecmp(var->name, "vr_", 3))
             {
                 continue;
             }
@@ -5273,7 +5277,7 @@ void changedTest()
     resetAll(); // (pressed twice)
     q_snprintf(line, sizeof(line), "Reset All: %s kept \"%s\" (the same number), %s back to \"%s\"", a.name, a.string,
         b.name, b.string);
-    check(!strcmp(a.string, other.cStr()) && !strcmp(b.string, b.default_string), line);
+    check(!ZA_STRCMP(a.string, other.cStr()) && !ZA_STRCMP(b.string, b.default_string), line);
 
     Cvar_SetQuick(&a, a.default_string);
     tally.verdict("menu_changed_test");
@@ -5347,11 +5351,11 @@ void pageResetTest()
     for(int i = 0; i < static_cast<int>(changed.size()); i++)
     {
         const Item& item = changed[i];
-        if(item.kind == Item::Header && item.label && !strncmp(item.label, shotHeader.cStr(), shotHeader.size()))
+        if(item.kind == Item::Header && item.label && !ZA_STRNCMP(item.label, shotHeader.cStr(), shotHeader.size()))
         {
             x1Header = i;
         }
-        if(item.kind == Item::Header && item.label && !strncmp(item.label, "Prop: ", 6) && propHeader < 0)
+        if(item.kind == Item::Header && item.label && !ZA_STRNCMP(item.label, "Prop: ", 6) && propHeader < 0)
         {
             propHeader = i;
         }
@@ -5364,9 +5368,9 @@ void pageResetTest()
     char line[256];
     q_snprintf(line, sizeof(line), "Changed Settings lists hotspot 1 X under the shotgun (\"%s\" under \"%s\")",
         x1Row >= 0 ? changed[x1Row].label : "none", x1Header >= 0 ? changed[x1Header].label : "none");
-    check(x1Row > x1Header && x1Header >= 0 && strstr(changed[x1Row].label, "Hotspot 1"), line);
+    check(x1Row > x1Header && x1Header >= 0 && ZA_STRSTR(changed[x1Row].label, "Hotspot 1"), line);
     check(x2Row > x1Header && pitchRow > x1Header && nailRow >= 0, "and hotspot 2 X, Shot Pitch, the nailgun's");
-    check(x2Row >= 0 && strstr(changed[x2Row].label, "Hotspot 2") != nullptr, "hotspot 2 X labelled Hotspot 2");
+    check(x2Row >= 0 && ZA_STRSTR(changed[x2Row].label, "Hotspot 2") != nullptr, "hotspot 2 X labelled Hotspot 2");
     q_snprintf(line, sizeof(line), "a prop's Mass under its name (\"%s\" under \"%s\")",
         propRow >= 0 ? changed[propRow].label : "none", propHeader >= 0 ? changed[propHeader].label : "none");
     check(propRow > propHeader && propHeader >= 0, line);
@@ -5375,7 +5379,7 @@ void pageResetTest()
     resetThisPage();
     check(changedSetting(*x1), "one press only arms it");
     resetThisPage();
-    check(!changedSetting(*x1) && !strcmp(x1->string, x1->default_string), "Reset This Page: hotspot 1 X at its default");
+    check(!changedSetting(*x1) && !ZA_STRCMP(x1->string, x1->default_string), "Reset This Page: hotspot 1 X at its default");
     check(changedSetting(*x2) && changedSetting(*pitch) && changedSetting(*nailX1),
         "hotspot 2 X, Shot Pitch (another page) and the nailgun's hotspot kept");
     check(vr_weapon_hotspot.value == 1.f, "the hotspot picked kept (the menu's state)");
@@ -5402,7 +5406,7 @@ int checkPageIds(bool verbose)
     {
         for(int q = 0; q < p; q++)
         {
-            if(!strcmp(pages[p].title, pages[q].title))
+            if(!ZA_STRCMP(pages[p].title, pages[q].title))
             {
                 Con_Printf("menu ids: FAIL pages %d and %d are both \"%s\"\n", q, p, pages[p].title);
                 problems++;
@@ -5485,7 +5489,7 @@ void menuExpectCommand(const char* text)
 {
     char want[128];
     q_strlcpy(want, text[0] == '"' ? text + 1 : text, sizeof(want));
-    for(size_t n = strlen(want); n > 0 && (want[n - 1] == ' ' || want[n - 1] == '"' || want[n - 1] == '\n'); n--)
+    for(size_t n = ZA_STRLEN(want); n > 0 && (want[n - 1] == ' ' || want[n - 1] == '"' || want[n - 1] == '\n'); n--)
     {
         want[n - 1] = 0;
     }
@@ -5737,7 +5741,7 @@ void qvr::menu::command_f()
         const int page = ui().page;
         for(const Item& item : items(page))
         {
-            if(item.kind == Item::Header && item.label && !q_strncasecmp(item.label, name, strlen(name)))
+            if(item.kind == Item::Header && item.label && !q_strncasecmp(item.label, name, ZA_STRLEN(name)))
             {
                 setFolded(page, item.label, fold);
             }
@@ -5761,7 +5765,7 @@ void qvr::menu::command_f()
     // menu_vr title <page title> (unquoted words): that page opened, as menu_vr <its number>.
     if(Cmd_Argc() > 2 && !q_strcasecmp(Cmd_Argv(1), "title"))
     {
-        const char* title = Cmd_Args() + strlen(Cmd_Argv(1)) + 1;
+        const char* title = Cmd_Args() + ZA_STRLEN(Cmd_Argv(1)) + 1;
         for(int p = PageMain; p < pageCount; p++)
         {
             if(!q_strcasecmp(pages[p].title, title))
@@ -5894,7 +5898,7 @@ void qvr::menu::command_f()
             {
                 for(int i = 0; i < static_cast<int>(list.size()); i++)
                 {
-                    if(list[i].label && selectable(list[i]) && !q_strncasecmp(list[i].label, Cmd_Argv(2), strlen(Cmd_Argv(2))))
+                    if(list[i].label && selectable(list[i]) && !q_strncasecmp(list[i].label, Cmd_Argv(2), ZA_STRLEN(Cmd_Argv(2))))
                     {
                         row = i;
                         break;
@@ -5956,14 +5960,14 @@ namespace
         "vr_gadget_z", "vr_gadget_pitch", "vr_gadget_yaw", "vr_gadget_roll"};
     for(const char* p : prefixes)
     {
-        if(!strncmp(name, p, strlen(p)))
+        if(!ZA_STRNCMP(name, p, ZA_STRLEN(p)))
         {
             return true;
         }
     }
     for(const char* n : names)
     {
-        if(!strcmp(name, n))
+        if(!ZA_STRCMP(name, n))
         {
             return true;
         }
@@ -6108,7 +6112,7 @@ extern "C" void VR_Menu_Draw()
         q_snprintf(refused, sizeof(refused), "%.22s: in panel %d", pages[ui().refusedPage].title, ui().refusedBy + 1);
         name = refused;
     }
-    M_PrintWhite((320 - 8 * static_cast<int>(strlen(name))) / 2, l.top + 28, name);
+    M_PrintWhite((320 - 8 * static_cast<int>(ZA_STRLEN(name))) / 2, l.top + 28, name);
 
     const int n = static_cast<int>(list.size());
     if(ui().flashCentre && ui().flashPage == ui().page)

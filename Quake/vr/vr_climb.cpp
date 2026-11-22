@@ -170,11 +170,12 @@
 #include "Zancle/Algorithm/StableSort.hpp"
 #include "Zancle/Base/GetArraySize.hpp"
 #include "Zancle/Base/IsFinite.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
+#include "Zancle/Math/Acos.hpp"
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Clamp.hpp"
-#include "Zancle/Math/Acos.hpp"
 #include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/Floor.hpp"
 #include "Zancle/Math/Hypot.hpp"
@@ -5006,7 +5007,7 @@ bool qvr::climb::grunt(edict_t* ent, float choice, float volume)
     }
     for(int i = 1; i < MAX_SOUNDS && sv.sound_precache[i]; i++)
     {
-        if(!strcmp(sv.sound_precache[i], sample))
+        if(!ZA_STRCMP(sv.sound_precache[i], sample))
         {
             SV_StartSound(ent, 2, sample, static_cast<int>(za::lround(255.f * volume)), 1.f); // (CHAN_VOICE, ATTN_NORM)
             return true;

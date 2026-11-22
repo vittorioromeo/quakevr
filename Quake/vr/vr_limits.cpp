@@ -17,6 +17,8 @@
 #include "vr_weapons.hpp"
 
 #include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "vr_api.h"
 
@@ -94,7 +96,7 @@ double lastTimeCommand = 0.0; // "vr_limits time"'s last (Sys_DoubleTime; 0: non
 void command_f()
 {
     // "vr_limits time": the time since the last one (a stress test's timing: vr_limits time; exec big.cfg; vr_limits time).
-    if(Cmd_Argc() > 1 && !strcmp(Cmd_Argv(1), "time"))
+    if(Cmd_Argc() > 1 && !ZA_STRCMP(Cmd_Argv(1), "time"))
     {
         double& last = lastTimeCommand;
         const double now = Sys_DoubleTime();
@@ -104,7 +106,7 @@ void command_f()
     }
     // "vr_limits stress <n>": n more cvars (qvr_stress_00000...), not saved: the stress test of the cvar count (ROUND21.md,
     // "Hardcoded limits audit": a config setting 50,000 of them).
-    if(Cmd_Argc() > 2 && !strcmp(Cmd_Argv(1), "stress"))
+    if(Cmd_Argc() > 2 && !ZA_STRCMP(Cmd_Argv(1), "stress"))
     {
         const int n = Q_atoi(Cmd_Argv(2));
         const double start = Sys_DoubleTime();
@@ -116,11 +118,11 @@ void command_f()
         return;
     }
     // "vr_limits cvarlen <name>": a cvar value's length (Con_Printf shows at most 4095 characters of it).
-    if(Cmd_Argc() > 2 && !strcmp(Cmd_Argv(1), "cvarlen"))
+    if(Cmd_Argc() > 2 && !ZA_STRCMP(Cmd_Argv(1), "cvarlen"))
     {
         const cvar_t* var = Cvar_FindVar(Cmd_Argv(2));
-        Con_Printf("vr_limits cvarlen: %s: %d characters, ends \"%s\"\n", Cmd_Argv(2), var ? static_cast<int>(strlen(var->string)) : -1,
-            var ? var->string + (strlen(var->string) > 8 ? strlen(var->string) - 8 : 0) : "");
+        Con_Printf("vr_limits cvarlen: %s: %d characters, ends \"%s\"\n", Cmd_Argv(2), var ? static_cast<int>(ZA_STRLEN(var->string)) : -1,
+            var ? var->string + (ZA_STRLEN(var->string) > 8 ? ZA_STRLEN(var->string) - 8 : 0) : "");
         return;
     }
 

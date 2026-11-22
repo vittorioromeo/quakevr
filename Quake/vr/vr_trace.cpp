@@ -8,6 +8,7 @@
 #include "vr_hull.hpp"
 #include "vr_geom.hpp"
 
+#include "Zancle/Base/Memset.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Vocabulary/Optional.hpp"
 #include "vr_api.h"
@@ -22,7 +23,7 @@ namespace
 trace_t hullTrace(hull_t* hull, const glm::vec3& origin, const glm::vec3& start, const glm::vec3& end)
 {
     trace_t tr;
-    memset(&tr, 0, sizeof(tr));
+    ZA_MEMSET(&tr, 0, sizeof(tr));
     tr.fraction = 1.f;
     tr.allsolid = true;
     vec3_t a{start.x - origin.x, start.y - origin.y, start.z - origin.z};
@@ -193,7 +194,7 @@ trace_t world(const glm::vec3& start, const glm::vec3& end, bool brushEntities, 
         *hitEntity = 0;
     }
     trace_t tr;
-    memset(&tr, 0, sizeof(tr));
+    ZA_MEMSET(&tr, 0, sizeof(tr));
     tr.fraction = 1.f;
     tr.endpos[0] = end.x;
     tr.endpos[1] = end.y;

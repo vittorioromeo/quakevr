@@ -31,6 +31,7 @@
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/Macros.hpp"
 #include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Chrono/Clock.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
@@ -1069,15 +1070,15 @@ void readBrushEnts(const char* text, za::Vector<BrushEnt>& ents)
             {
                 break;
             }
-            if(!strcmp(key, "classname"))
+            if(!ZA_STRCMP(key, "classname"))
             {
                 strncpy(e.classname, value, sizeof(e.classname) - 1);
             }
-            else if(!strcmp(key, "model") && value[0] == '*')
+            else if(!ZA_STRCMP(key, "model") && value[0] == '*')
             {
                 e.sub = atoi(value + 1);
             }
-            else if(!strcmp(key, "origin"))
+            else if(!ZA_STRCMP(key, "origin"))
             {
                 double x = 0.0, y = 0.0, z = 0.0;
                 if(sscanf(value, "%lf %lf %lf", &x, &y, &z) == 3)
@@ -1085,20 +1086,20 @@ void readBrushEnts(const char* text, za::Vector<BrushEnt>& ents)
                     e.origin = glm::dvec3{x, y, z};
                 }
             }
-            else if(!strcmp(key, "angle"))
+            else if(!ZA_STRCMP(key, "angle"))
             {
                 e.angle = atof(value);
             }
-            else if(!strcmp(key, "lip"))
+            else if(!ZA_STRCMP(key, "lip"))
             {
                 e.lip = atof(value);
                 e.hasLip = true;
             }
-            else if(!strcmp(key, "height"))
+            else if(!ZA_STRCMP(key, "height"))
             {
                 e.height = atof(value);
             }
-            else if(!strcmp(key, "targetname") && value[0])
+            else if(!ZA_STRCMP(key, "targetname") && value[0])
             {
                 e.targeted = true;
             }
@@ -1457,11 +1458,11 @@ void addHoles(Brushes& b, const qmodel_t* world)
             continue; // (a model moved by its origin: its brushes aren't where they are drawn here)
         }
         const auto sub = static_cast<za::SizeT>(e.sub);
-        if(!strcmp(e.classname, "func_wall") && !e.targeted)
+        if(!ZA_STRCMP(e.classname, "func_wall") && !e.targeted)
         {
             addSolids(b, sub, 1, solids, lo, hi);
         }
-        else if(!strcmp(e.classname, "func_plat") || !strcmp(e.classname, "func_door"))
+        else if(!ZA_STRCMP(e.classname, "func_plat") || !ZA_STRCMP(e.classname, "func_door"))
         {
             addSolids(b, sub, -1, solids, lo, hi); // (its bounds alone)
             if(lo.x > hi.x)
@@ -1552,7 +1553,7 @@ void addHoles(Brushes& b, const qmodel_t* world)
     };
     for(const BrushEnt& e : ents)
     {
-        if(e.sub >= subCount || !strings::startsWith(e.classname, "func_") || !strcmp(e.classname, "func_illusionary") ||
+        if(e.sub >= subCount || !strings::startsWith(e.classname, "func_") || !ZA_STRCMP(e.classname, "func_illusionary") ||
             (b.subs[static_cast<za::SizeT>(e.sub)].numBrushes < 2 && !attachedTo(e.sub)))
         {
             continue;
@@ -1784,7 +1785,7 @@ void holeTestDm1(edict_t* player, bool on)
     for(int i = 1; i < sv.qcvm.num_edicts && found < 2; ++i)
     {
         edict_t* e = EDICT_NUM(i);
-        if(!e->free && !strcmp(PR_GetString(e->v.classname), "door") && !strcmp(PR_GetString(e->v.targetname), "t2"))
+        if(!e->free && !ZA_STRCMP(PR_GetString(e->v.classname), "door") && !ZA_STRCMP(PR_GetString(e->v.targetname), "t2"))
         {
             bars[found++] = e;
         }
@@ -1831,12 +1832,12 @@ void holeTest_f()
     const char* name = on ? "brushholes" : "brushholes_off";
     testkit::Tally t;
     edict_t* player = progs::localPlayer();
-    if(player && sv.worldmodel && !strcmp(sv.worldmodel->name, "maps/dm1.bsp"))
+    if(player && sv.worldmodel && !ZA_STRCMP(sv.worldmodel->name, "maps/dm1.bsp"))
     {
         holeTestDm1(player, on);
         return;
     }
-    if(!player || !sv.worldmodel || strcmp(sv.worldmodel->name, "maps/vrbrushholes.bsp"))
+    if(!player || !sv.worldmodel || ZA_STRCMP(sv.worldmodel->name, "maps/vrbrushholes.bsp"))
     {
         t.check(false, name, "needs maps/vrbrushholes.bsp");
         t.verdict(name);

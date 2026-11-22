@@ -13,6 +13,9 @@
 #include "vr_testkit.hpp"
 #include "vr_view.hpp"
 
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Atan2.hpp"
@@ -25,7 +28,6 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 extern "C" int VR_IsActive(void);
 
@@ -308,8 +310,8 @@ void readAnims(const qmodel_t* m)
     const aliashdr_t* named = hdr;
     for(const auto& s : sources)
     {
-        const bool unnamed = hdr && hdr->numframes > 0 && (!hdr->frames[0].name[0] || !strncmp(hdr->frames[0].name, "frame", 5));
-        qmodel_t* src = unnamed && !strcmp(m->name, s[0]) ? Mod_ForName(s[1], false) : nullptr;
+        const bool unnamed = hdr && hdr->numframes > 0 && (!hdr->frames[0].name[0] || !ZA_STRNCMP(hdr->frames[0].name, "frame", 5));
+        qmodel_t* src = unnamed && !ZA_STRCMP(m->name, s[0]) ? Mod_ForName(s[1], false) : nullptr;
         named = src && src->type == mod_alias ? static_cast<const aliashdr_t*>(Mod_Extradata(src)) : named;
     }
     char lastKey[16]{};
@@ -317,13 +319,13 @@ void readAnims(const qmodel_t* m)
     {
         char name[16];
         q_strlcpy(name, named && i < named->numframes ? named->frames[i].name : hdr->frames[i].name, sizeof(name));
-        size_t n = strlen(name);
+        size_t n = ZA_STRLEN(name);
         while(n > 0 && ((name[n - 1] >= '0' && name[n - 1] <= '9') || name[n - 1] == '_'))
         {
             name[--n] = '\0';
         }
         Anim* last = anims.count > 0 ? &anims.list[anims.count - 1] : nullptr;
-        if(last && !strcmp(lastKey, name))
+        if(last && !ZA_STRCMP(lastKey, name))
         {
             last->frames++;
             continue;
@@ -387,7 +389,7 @@ void keepSubject()
     {
         return;
     }
-    if(st.subject && (!sv.active || strcmp(st.subjectMap, sv.name) != 0))
+    if(st.subject && (!sv.active || ZA_STRCMP(st.subjectMap, sv.name) != 0))
     {
         st.running = false; // (a new map: the studio closed)
         st.subject = 0;

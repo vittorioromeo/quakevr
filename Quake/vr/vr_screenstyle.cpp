@@ -3,6 +3,7 @@
 #include "vr_screenstyle.hpp"
 #include "vr_cvars.hpp"
 #include "vr_gunvariants.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 
 
 namespace qvr::screenstyle
@@ -384,7 +385,7 @@ const Style& forModel(const char* model, bool mirrored)
         }
         for(size_t i = 0; i < tableSize; i++)
         {
-            if(as ? !strcmp(table[i].stem, as) : stemIs(model, table[i].stem))
+            if(as ? !ZA_STRCMP(table[i].stem, as) : stemIs(model, table[i].stem))
             {
                 return mirrored ? mirroredTable.styles[i] : table[i].style;
             }

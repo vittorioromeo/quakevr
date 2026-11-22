@@ -10,8 +10,13 @@
 #include "vr_progs.hpp"
 #include "vr_protocol.hpp"
 
+#include "Zancle/Base/Memcmp.hpp"
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Memset.hpp"
+#include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/MinMax.hpp"
 #include "Zancle/String/String.hpp"
 
 #include <cstdio>
@@ -301,7 +306,7 @@ void loadMasks()
             if(!s.ownRows)
             {
                 s.ownRows = true;
-                memset(s.rows, 0, sizeof(s.rows));
+                ZA_MEMSET(s.rows, 0, sizeof(s.rows));
             }
             for(const char* p = line + used + used2; *p;)
             {
@@ -345,10 +350,10 @@ void loadMasks()
         {
             if(!fleshRead)
             {
-                memset(maskSet.flesh, 0, sizeof(maskSet.flesh));
+                ZA_MEMSET(maskSet.flesh, 0, sizeof(maskSet.flesh));
                 fleshRead = true;
             }
-            for(const char* p = line + strlen(what) + 1; *p;)
+            for(const char* p = line + ZA_STRLEN(what) + 1; *p;)
             {
                 char* end = nullptr;
                 const long r = strtol(p, &end, 10);
@@ -397,7 +402,7 @@ void ensureLoaded()
         return false;
     }
     bool ok = false;
-    if(size >= 84 && !memcmp(data, "IDPO", 4))
+    if(size >= 84 && !ZA_MEMCMP(data, "IDPO", 4))
     {
         const int numskins = LittleLong(*reinterpret_cast<const int*>(data + 48));
         const int w = LittleLong(*reinterpret_cast<const int*>(data + 52));
@@ -430,7 +435,7 @@ void ensureLoaded()
                 s.h = h;
                 s.texels.clear();
                 s.texels.resize(static_cast<za::SizeT>(w * h), 0);
-                memcpy(s.texels.data(), data + p, static_cast<size_t>(w * h));
+                ZA_MEMCPY(s.texels.data(), data + p, static_cast<size_t>(w * h));
                 if(s.paint.empty())
                 {
                     s.paint.resize(static_cast<za::SizeT>(w * h), 0);
@@ -967,7 +972,7 @@ void registerCommands()
 
 void instanceRows(const entity_t* e, float rows[4][4])
 {
-    memset(rows, 0, sizeof(float) * 16);
+    ZA_MEMSET(rows, 0, sizeof(float) * 16);
     if(vr_humlook.value == 0.f || numLooks <= 0 || !cl_entities || e < cl_entities || e >= cl_entities + cl_max_edicts)
     {
         return;

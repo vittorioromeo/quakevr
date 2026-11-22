@@ -16,12 +16,13 @@
 #include "Zancle/Algorithm/Erase.hpp"
 #include "Zancle/Base/Macros.hpp"
 #include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
 #include "vr_api.h"
 
-#include <string.h>
 
 extern "C" cvar_t con_notifyfade, con_notifyfadetime; // (console.c: the centre print's fade at the end of its time)
 
@@ -182,7 +183,7 @@ void serverSetText(int handle, const char* text)
         za::String expanded;
         expanded.append(text, static_cast<za::SizeT>(at - text));
         expanded.append(setup::exitBoardName());
-        expanded.append(at + strlen(exitToken));
+        expanded.append(at + ZA_STRLEN(exitToken));
         serverSetText(handle, expanded.cStr());
         return;
     }
@@ -244,7 +245,7 @@ void serverWriteAll(sizebuf_t* msg)
 void serverFloatText(const glm::vec3& pos, const char* text, const glm::vec3& color, float scale)
 {
     sizebuf_t* msg = &sv.datagram;
-    const int size = 2 + 3 * 4 + 4 + static_cast<int>(strlen(text)) + 1;
+    const int size = 2 + 3 * 4 + 4 + static_cast<int>(ZA_STRLEN(text)) + 1;
     if(sv.state != ss_active || msg->cursize + size > msg->maxsize)
     {
         return;
@@ -340,7 +341,7 @@ void clientParseViewMessage(bool arena)
     }
     viewMessage.arena = arena;
     viewMessage.text.clear();
-    const char* blank = strstr(text, "\n\n");
+    const char* blank = ZA_STRSTR(text, "\n\n");
     for(const char* c = text; *c; c++)
     {
         viewMessage.text += static_cast<char>(blank && c < blank ? (*c | 0x80) : *c);
@@ -432,7 +433,7 @@ const za::Vector<WorldText>& serverTextList()
 
 bool isPanel(const char* text)
 {
-    return !strncmp(text, "{arena:", 7);
+    return !ZA_STRNCMP(text, "{arena:", 7);
 }
 
 glm::vec2 halfSize(const WorldText& t)

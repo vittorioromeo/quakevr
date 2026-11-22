@@ -3,10 +3,12 @@
 #include "vr_sha256.hpp"
 #include "vr_engine.hpp"
 
+#include "Zancle/Base/Memcmp.hpp"
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Container/Vector.hpp"
 
 #include <stdio.h>
-#include <string.h>
 
 #if defined(_M_X64) || defined(__x86_64__)
 #include <immintrin.h>
@@ -208,7 +210,7 @@ void Hasher::update(const void* data, za::SizeT n)
     if(held)
     {
         const za::SizeT take = n < 64 - held ? n : 64 - held;
-        memcpy(block + held, p, take);
+        ZA_MEMCPY(block + held, p, take);
         held += take;
         p += take;
         n -= take;
@@ -227,7 +229,7 @@ void Hasher::update(const void* data, za::SizeT n)
     }
     if(n)
     {
-        memcpy(block, p, n);
+        ZA_MEMCPY(block, p, n);
         held = n;
     }
 }
@@ -238,7 +240,7 @@ Digest Hasher::finish()
     za::U8 tail[128] = {};
     if(held)
     {
-        memcpy(tail, block, held);
+        ZA_MEMCPY(tail, block, held);
     }
     tail[held] = 0x80;
     const za::SizeT tailBytes = held + 1 + 8 <= 64 ? 64 : 128;
@@ -272,7 +274,7 @@ void toHex(const Digest& d, char (&out)[65])
 
 bool matches(const Digest& d, const char* hex)
 {
-    if(!hex || strlen(hex) != 64)
+    if(!hex || ZA_STRLEN(hex) != 64)
     {
         return false;
     }
@@ -333,7 +335,7 @@ void selfTest_f()
     for(const Vector& v : vectors)
     {
         total++;
-        const za::SizeT len = strlen(v.text);
+        const za::SizeT len = ZA_STRLEN(v.text);
         Digest d;
         if(v.repeat == 1)
         {
@@ -345,7 +347,7 @@ void selfTest_f()
             buf.resize(len * static_cast<za::SizeT>(v.repeat));
             for(int i = 0; i < v.repeat; i++)
             {
-                memcpy(buf.data() + i * len, v.text, len);
+                ZA_MEMCPY(buf.data() + i * len, v.text, len);
             }
             d = of(buf.data(), buf.size());
         }
@@ -364,12 +366,12 @@ void selfTest_f()
     for(const Vector& v : vectors)
     {
         total++;
-        const za::SizeT len = strlen(v.text);
+        const za::SizeT len = ZA_STRLEN(v.text);
         za::Vector<char> buf;
         buf.resize(len * static_cast<za::SizeT>(v.repeat));
         for(int i = 0; i < v.repeat; i++)
         {
-            memcpy(buf.data() + i * len, v.text, len);
+            ZA_MEMCPY(buf.data() + i * len, v.text, len);
         }
         Hasher hasher;
         za::SizeT at = 0;
@@ -417,7 +419,7 @@ void selfTest_f()
             t0 = Sys_DoubleTime();
             const Digest b = of(data.data(), n);
             portableMs += (Sys_DoubleTime() - t0) * 1000.0;
-            same += memcmp(a.bytes, b.bytes, sizeof(a.bytes)) == 0;
+            same += ZA_MEMCMP(a.bytes, b.bytes, sizeof(a.bytes)) == 0;
         }
         shaNiOn = true;
         total++;

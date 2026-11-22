@@ -21,15 +21,16 @@
 #include "vr_view.hpp"
 #include "vr_weapons.hpp"
 
+#include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Acos.hpp"
 #include "Zancle/Math/Atan2.hpp"
-#include "Zancle/Math/Sqrt.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/Fabs.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
+#include "Zancle/Math/Sqrt.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/Vocabulary/Span.hpp"
 #include "vr_zancle.hpp"
@@ -39,7 +40,6 @@
 #include <glm/gtc/quaternion.hpp>
 
 #include <stdio.h>
-#include <string.h>
 #include <time.h>
 
 namespace qvr::posestudio
@@ -1733,7 +1733,7 @@ void drawPanel()
             (hovered ? lines::glow : lines::line)(c[i], c[(i + 1) % 4], hovered ? 0.25f : 0.12f, color, color);
         }
         const char* label = buttonLabel(b);
-        const float chars = za::max(12.f, static_cast<float>(strlen(label))); // ("Every Weapon")
+        const float chars = za::max(12.f, static_cast<float>(ZA_STRLEN(label))); // ("Every Weapon")
         const float scale = za::min(BUTTON_WIDTH * 0.85f * m2u / (8.f * chars), BUTTON_HEIGHT * 0.55f * m2u / 8.f);
         text3d::queue(label, at, angles, text3d::Align::Centre, scale);
     }

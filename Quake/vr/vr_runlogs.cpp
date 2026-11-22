@@ -24,6 +24,10 @@
 #include "vr_runlogs.hpp"
 #include "vr_xr_runtime.hpp"
 
+#include "Zancle/Base/Memmove.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
 #include "vr_api.h"
@@ -372,7 +376,7 @@ struct Names
 
 int compareNames(const void* a, const void* b)
 {
-    return strcmp(static_cast<const char*>(a), static_cast<const char*>(b));
+    return ZA_STRCMP(static_cast<const char*>(a), static_cast<const char*>(b));
 }
 
 void listNames(const char* dir, bool folders, Names& out)
@@ -390,8 +394,8 @@ void listNames(const char* dir, bool folders, Names& out)
         q_snprintf(path, sizeof(path), "%s/%s", dir, e->d_name);
         struct stat st{};
         const bool folder = stat(path, &st) == 0 && S_ISDIR(st.st_mode);
-        if(folder == folders && strcmp(e->d_name, ".") && strcmp(e->d_name, "..") && out.count < maxNames &&
-            strlen(e->d_name) < nameSize)
+        if(folder == folders && ZA_STRCMP(e->d_name, ".") && ZA_STRCMP(e->d_name, "..") && out.count < maxNames &&
+            ZA_STRLEN(e->d_name) < nameSize)
         {
             q_strlcpy(out.name[out.count++], e->d_name, nameSize);
         }
@@ -409,8 +413,8 @@ void listNames(const char* dir, bool folders, Names& out)
     do
     {
         const bool folder = (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
-        if(folder == folders && strcmp(fd.cFileName, ".") && strcmp(fd.cFileName, "..") && out.count < maxNames &&
-            strlen(fd.cFileName) < nameSize)
+        if(folder == folders && ZA_STRCMP(fd.cFileName, ".") && ZA_STRCMP(fd.cFileName, "..") && out.count < maxNames &&
+            ZA_STRLEN(fd.cFileName) < nameSize)
         {
             q_strlcpy(out.name[out.count++], fd.cFileName, nameSize);
         }
@@ -429,7 +433,7 @@ void listRuns(const char* parent, Names& out)
     {
         if(runTime(out.name[i], nullptr))
         {
-            memmove(out.name[kept++], out.name[i], nameSize);
+            ZA_MEMMOVE(out.name[kept++], out.name[i], nameSize);
         }
     }
     out.count = kept;
@@ -605,7 +609,7 @@ const char* osVersion()
         char line[256];
         while(fgets(line, sizeof(line), f))
         {
-            if(!strncmp(line, "PRETTY_NAME=", 12))
+            if(!ZA_STRNCMP(line, "PRETTY_NAME=", 12))
             {
                 const char* v = line + 12 + (line[12] == '"');
                 q_strlcpy(pretty, v, sizeof(pretty));
@@ -686,7 +690,7 @@ void dosTime(time_t t, uint16_t& time, uint16_t& date)
 
 void zipAdd(Zip& z, const char* name, const char* data, size_t size, time_t when)
 {
-    const size_t nameLength = strlen(name);
+    const size_t nameLength = ZA_STRLEN(name);
     if(!z.f || z.failed || nameLength >= sizeof(ZipEntry::name) || z.offset + size + 512 > 0xF0000000ull)
     {
         return;
@@ -726,7 +730,7 @@ bool zipFinish(Zip& z)
     const uint64_t start = z.offset;
     for(const ZipEntry& e : z.entries)
     {
-        const size_t nameLength = strlen(e.name);
+        const size_t nameLength = ZA_STRLEN(e.name);
         unsigned char header[46];
         unsigned char* p = header;
         put32(p, 0x02014b50u);
@@ -894,7 +898,7 @@ bool makeReport(bool lastRun, char* out, size_t outSize)
     for(int i = 0; i < files.count; i++)
     {
         q_snprintf(path, sizeof(path), "%s/%s", crash, files.name[i]);
-        if(!strcmp(files.name[i], "gl_startup.log") || writtenAt(path) >= since)
+        if(!ZA_STRCMP(files.name[i], "gl_startup.log") || writtenAt(path) >= since)
         {
             zipAddFile(z, va("crash/%s", files.name[i]), path);
         }

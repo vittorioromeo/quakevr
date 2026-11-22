@@ -30,16 +30,21 @@
 
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/Memcmp.hpp"
+#include "Zancle/Base/Memcpy.hpp"
 #include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Concurrency/Atomic.hpp"
 #include "Zancle/Concurrency/AtomicMutex.hpp"
 #include "Zancle/Concurrency/LockGuard.hpp"
 #include "Zancle/Concurrency/Thread.hpp"
 #include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/MinMax.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/String/ToString.hpp"
 #include "Zancle/Vocabulary/UniquePtr.hpp"
-#include "Zancle/Math/MinMax.hpp"
 
 #include "miniz.h" // (the engine's C header, which guards itself for C++)
 
@@ -352,7 +357,7 @@ za::String baseName(const za::String& path)
 // ".bsp" / ".BSP".
 bool endsFolded(const za::String& s, const char* suffix)
 {
-    const za::SizeT n = strlen(suffix);
+    const za::SizeT n = ZA_STRLEN(suffix);
     return s.size() >= n && !q_strcasecmp(s.cStr() + (s.size() - n), suffix);
 }
 
@@ -398,7 +403,7 @@ bool safePath(const char* name, za::String& out)
     {
         return false;
     }
-    const za::SizeT n = static_cast<za::SizeT>(strlen(name));
+    const za::SizeT n = static_cast<za::SizeT>(ZA_STRLEN(name));
     if(n > 512)
     {
         return false;
@@ -546,13 +551,13 @@ bool bspVersionOk(const char* data, za::SizeT n, za::String& what)
                             (static_cast<za::U32>(static_cast<unsigned char>(data[2])) << 16) |
                             (static_cast<za::U32>(static_cast<unsigned char>(data[3])) << 24);
     char tag[5]{};
-    memcpy(tag, data, 4);
+    ZA_MEMCPY(tag, data, 4);
     if(version == 29)
     {
         what = "29";
         return true;
     }
-    if(!memcmp(tag, "2PSB", 4) || !memcmp(tag, "BSP2", 4) || !memcmp(tag, "Q64", 3))
+    if(!ZA_MEMCMP(tag, "2PSB", 4) || !ZA_MEMCMP(tag, "BSP2", 4) || !ZA_MEMCMP(tag, "Q64", 3))
     {
         what = za::String{tag, 4};
         return true;
@@ -1165,13 +1170,13 @@ bool extractZip(const za::String& zipFile, Job& job, za::String& why)
         }
         const char* d = static_cast<const char*>(k.data);
         za::I32 dirOfs = 0, dirLen = 0;
-        if(k.size < 12 || memcmp(d, "PACK", 4))
+        if(k.size < 12 || ZA_MEMCMP(d, "PACK", 4))
         {
             notes += "pak" + za::toString(pak.number) + ".pak is not a pak; ";
             continue;
         }
-        memcpy(&dirOfs, d + 4, 4);
-        memcpy(&dirLen, d + 8, 4);
+        ZA_MEMCPY(&dirOfs, d + 4, 4);
+        ZA_MEMCPY(&dirLen, d + 8, 4);
         if(dirOfs < 12 || dirLen < 0 || dirLen % 64 || static_cast<za::U64>(dirOfs) + static_cast<za::U64>(dirLen) > k.size)
         {
             notes += "pak" + za::toString(pak.number) + ".pak is damaged; ";
@@ -1180,7 +1185,7 @@ bool extractZip(const za::String& zipFile, Job& job, za::String& why)
         for(za::I32 e = 0; e < dirLen / 64; e++)
         {
             char raw[57] = {};
-            memcpy(raw, d + dirOfs + e * 64, 56);
+            ZA_MEMCPY(raw, d + dirOfs + e * 64, 56);
             if(gameCode(za::String{raw}))
             {
                 why = za::String{"its pak"} + za::toString(pak.number) + ".pak carries its own game code (" + raw +
@@ -1197,9 +1202,9 @@ bool extractZip(const za::String& zipFile, Job& job, za::String& why)
             }
             char raw[57] = {};
             za::I32 pos = 0, len = 0;
-            memcpy(raw, d + dirOfs + e * 64, 56);
-            memcpy(&pos, d + dirOfs + e * 64 + 56, 4);
-            memcpy(&len, d + dirOfs + e * 64 + 60, 4);
+            ZA_MEMCPY(raw, d + dirOfs + e * 64, 56);
+            ZA_MEMCPY(&pos, d + dirOfs + e * 64 + 56, 4);
+            ZA_MEMCPY(&len, d + dirOfs + e * 64 + 60, 4);
             za::String name;
             if(pos < 0 || len < 0 || static_cast<za::U64>(pos) + static_cast<za::U64>(len) > k.size ||
                !safePath(raw, name) || skippedFile(name))
@@ -1275,7 +1280,7 @@ float trimmedCapMb = -1.f;
 [[nodiscard]] bool cachedZipName(const char* name, za::String& sha)
 {
     constexpr za::SizeT shaLength = 64;
-    if(strlen(name) != shaLength + 4 || strcmp(name + shaLength, ".zip") != 0)
+    if(ZA_STRLEN(name) != shaLength + 4 || ZA_STRCMP(name + shaLength, ".zip") != 0)
     {
         return false;
     }
@@ -1315,7 +1320,7 @@ void listCache(za::Vector<CachedZip>& out, int* others)
         });
     za::quickSort(out.begin(), out.end(),
         [](const CachedZip& a, const CachedZip& b)
-        { return a.stamp != b.stamp ? a.stamp < b.stamp : strcmp(a.sha.cStr(), b.sha.cStr()) < 0; });
+        { return a.stamp != b.stamp ? a.stamp < b.stamp : ZA_STRCMP(a.sha.cStr(), b.sha.cStr()) < 0; });
 }
 
 [[nodiscard]] za::U64 cacheCapBytes()
@@ -1374,8 +1379,8 @@ void removeStaleParts()
         [&](const char* name, bool isDirectory)
         {
             za::String sha;
-            const za::SizeT n = strlen(name);
-            if(!isDirectory && n > 5 && !strcmp(name + n - 5, ".part") && cachedZipName(za::String{name, n - 5}.cStr(), sha))
+            const za::SizeT n = ZA_STRLEN(name);
+            if(!isDirectory && n > 5 && !ZA_STRCMP(name + n - 5, ".part") && cachedZipName(za::String{name, n - 5}.cStr(), sha))
             {
                 parts.pushBack(partPath(sha));
             }
@@ -1740,7 +1745,7 @@ bool busy(const za::String& sha)
 
 bool localAddress(const char* url)
 {
-    const char* p = strstr(url, "://");
+    const char* p = ZA_STRSTR(url, "://");
     p = p ? p + 3 : url;
     const za::SizeT authority = strcspn(p, "/?#");
     const za::String auth{p, authority};
@@ -1750,7 +1755,7 @@ bool localAddress(const char* url)
     if(*h == '[') // an IPv6 address: [::1]:8080
     {
         const char* close = strchr(h, ']');
-        host = za::String{h + 1, static_cast<za::SizeT>(close ? close - h - 1 : strlen(h + 1))};
+        host = za::String{h + 1, static_cast<za::SizeT>(close ? close - h - 1 : ZA_STRLEN(h + 1))};
     }
     else
     {
@@ -2047,7 +2052,7 @@ void packageMaps(const za::String& sha, za::Vector<za::String>& out)
             out.pushBack(lowered(za::String{f.path.substrByPosLen(5, f.path.size() - 9)}));
         }
     }
-    za::quickSort(out.begin(), out.end(), [](const za::String& a, const za::String& b) { return strcmp(a.cStr(), b.cStr()) < 0; });
+    za::quickSort(out.begin(), out.end(), [](const za::String& a, const za::String& b) { return ZA_STRCMP(a.cStr(), b.cStr()) < 0; });
 }
 
 za::String startMap(const za::String& sha, za::String* why, int* mapCount)
@@ -2173,7 +2178,7 @@ bool mapHasSkillSelect(const char* map, const za::String& sha)
         text.resize(static_cast<za::SizeT>(head[2]));
         if(fseek(f, base + head[1], SEEK_SET) == 0 && fread(&text[0], 1, text.size(), f) == text.size())
         {
-            found = strstr(text.cStr(), "\"trigger_setskill\"") != nullptr;
+            found = ZA_STRSTR(text.cStr(), "\"trigger_setskill\"") != nullptr;
         }
     }
     fclose(f);
@@ -2514,7 +2519,7 @@ void uninstall_f()
     int matches = 0;
     for(const Installed& p : installedList())
     {
-        if(arg[0] && !q_strncasecmp(p.sha.cStr(), arg, strlen(arg)))
+        if(arg[0] && !q_strncasecmp(p.sha.cStr(), arg, ZA_STRLEN(arg)))
         {
             sha = p.sha;
             matches++;

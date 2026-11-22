@@ -19,6 +19,8 @@
 #include "Zancle/Algorithm/AnyOf.hpp"
 #include "Zancle/Algorithm/Find.hpp"
 #include "Zancle/Base/GetArraySize.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Base/Swap.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
@@ -34,7 +36,6 @@
 #include "vr_zancle.hpp"
 #include "vr_geom.hpp"
 
-#include <string.h>
 
 namespace qvr::crates
 {
@@ -93,7 +94,7 @@ using geom::vec;
 {
     for(int i = 1; i < MAX_MODELS && sv.model_precache[i]; i++)
     {
-        if(!strcmp(sv.model_precache[i], name))
+        if(!ZA_STRCMP(sv.model_precache[i], name))
         {
             return sv.models[i];
         }
@@ -556,12 +557,12 @@ void list_f()
     {
         edict_t* e = EDICT_NUM(i);
         const char* cls = e->free ? "" : PR_GetString(e->v.classname);
-        if(!strcmp(cls, "vr_crate_piece"))
+        if(!ZA_STRCMP(cls, "vr_crate_piece"))
         {
             pieces++;
             continue;
         }
-        if(strcmp(cls, "vr_crate") != 0)
+        if(ZA_STRCMP(cls, "vr_crate") != 0)
         {
             continue;
         }
@@ -602,7 +603,7 @@ void list_f()
     for(int i = 1; i < qcvm->num_edicts; i++)
     {
         edict_t* e = EDICT_NUM(i);
-        const int model = e->free || strcmp(PR_GetString(e->v.classname), "vr_crate") ? -1 : modelIndexOf(PR_GetString(e->v.model));
+        const int model = e->free || ZA_STRCMP(PR_GetString(e->v.classname), "vr_crate") ? -1 : modelIndexOf(PR_GetString(e->v.model));
         if(model >= 0)
         { boxes.pushBack(Box{i, vec(e->v.origin), held::axesFromAngles(e->v.angles, false), models[model].half * sizeOf(model)}); }
     }
@@ -655,7 +656,7 @@ void goto_f()
 {
     const int count = static_cast<int>(placements.size());
     int i = Cmd_Argc() > 1 ? Q_atoi(Cmd_Argv(1)) : (count ? gotoNext++ % count : 0);
-    if(Cmd_Argc() > 1 && !strcmp(Cmd_Argv(1), "crowbar"))
+    if(Cmd_Argc() > 1 && !ZA_STRCMP(Cmd_Argv(1), "crowbar"))
     {
         if(crowbars.empty())
         {
@@ -741,7 +742,7 @@ int plan()
     // The player's start: well clear (where the map begins, and the way out of it).
     for(debris::Obstacle& ob : pl.obstacles)
     {
-        if(!strncmp(ob.why, "info_player", 11))
+        if(!ZA_STRNCMP(ob.why, "info_player", 11))
         {
             ob.lo -= glm::vec3{64.f, 64.f, 0.f};
             ob.hi += glm::vec3{64.f, 64.f, 0.f};
@@ -1256,7 +1257,7 @@ int putPlaced(edict_t* e)
     for(int i = svs.maxclients + 1; i < qcvm->num_edicts; i++)
     {
         const edict_t* c = EDICT_NUM(i);
-        if(i == self || c->free || strcmp(PR_GetString(c->v.classname), "vr_crate") || c->v.origin[2] >= at.z)
+        if(i == self || c->free || ZA_STRCMP(PR_GetString(c->v.classname), "vr_crate") || c->v.origin[2] >= at.z)
         {
             continue;
         }

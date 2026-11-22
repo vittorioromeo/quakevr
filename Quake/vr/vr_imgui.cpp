@@ -7,11 +7,12 @@
 #include "thirdparty/imgui/imgui_impl_opengl3.h"
 #include "thirdparty/imgui/imgui_impl_sdl2.h"
 #include "vr_api.h"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strncmp.hpp"
 
 #include <SDL.h>
 
 #include <stdio.h>
-#include <string.h>
 
 extern "C" int VR_IsActive(void);
 
@@ -222,8 +223,8 @@ constexpr const char* toolToggles[] = {"vr_armourstudio_window"};
     }
     for(const char* t : toolToggles)
     {
-        const size_t n = strlen(t);
-        if(!strncmp(b, t, n) && (b[n] == '\0' || b[n] == ' ' || b[n] == ';' || b[n] == '"'))
+        const size_t n = ZA_STRLEN(t);
+        if(!ZA_STRNCMP(b, t, n) && (b[n] == '\0' || b[n] == ' ' || b[n] == ';' || b[n] == '"'))
         {
             return true;
         }

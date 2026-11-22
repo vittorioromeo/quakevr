@@ -37,6 +37,11 @@
 #include "vr_testkit.hpp"
 
 #include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/Macros.hpp"
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Chrono/Clock.hpp"
 #include "Zancle/Chrono/Time.hpp"
 #include "Zancle/Concurrency/Atomic.hpp"
@@ -247,7 +252,7 @@ struct Pipe
         }
         sockaddr_un addr{};
         addr.sun_family = AF_UNIX;
-        if(strlen(path) >= sizeof(addr.sun_path))
+        if(ZA_STRLEN(path) >= sizeof(addr.sun_path))
         {
             close();
             return false;
@@ -344,8 +349,8 @@ struct Pipe
         za::Vector<char> buf;
         buf.resize(8 + json.size());
         const za::U32 header[2] = {op, static_cast<za::U32>(json.size())}; // (every platform built is little endian)
-        memcpy(buf.data(), header, 8);
-        memcpy(buf.data() + 8, json.data(), json.size());
+        ZA_MEMCPY(buf.data(), header, 8);
+        ZA_MEMCPY(buf.data() + 8, json.data(), json.size());
         return all(buf.data(), buf.size(), true, ioTimeoutMs);
     }
 
@@ -430,12 +435,12 @@ void setError(const char* text)
 {
     char key[64];
     snprintf(key, sizeof(key), "\"%s\":\"", field);
-    const char* at = strstr(json.cStr(), key);
+    const char* at = ZA_STRSTR(json.cStr(), key);
     if(!at)
     {
         return za::String{};
     }
-    at += strlen(key);
+    at += ZA_STRLEN(key);
     const char* end = strchr(at, '"');
     return end ? za::String{at, static_cast<za::SizeT>(end - at)} : za::String{};
 }
@@ -512,7 +517,7 @@ struct Connection
                 setError(message.empty() ? "Discord closed the connection" : message.cStr());
                 return false;
             }
-            else if(op == opFrame && strstr(json.cStr(), "\"evt\":\"ERROR\""))
+            else if(op == opFrame && ZA_STRSTR(json.cStr(), "\"evt\":\"ERROR\""))
             {
                 setError(jsonField(json, "message").cStr());
             }
@@ -535,7 +540,7 @@ struct Connection
             za::U32 op = 0;
             za::String json;
             if(pipe.sendFrame(opHandshake, hello) && pipe.readFrame(op, json, readyTimeoutMs) && op == opFrame
-                && strstr(json.cStr(), "\"evt\":\"READY\""))
+                && ZA_STRSTR(json.cStr(), "\"evt\":\"READY\""))
             {
                 za::LockGuard lock{mutex};
                 status.connected = true;
@@ -698,7 +703,7 @@ struct Key
     [[nodiscard]] bool operator==(const Key& o) const
     {
         return on == o.on && mode == o.mode && wave == o.wave && vr == o.vr && campaign == o.campaign
-            && !strcmp(map, o.map);
+            && !ZA_STRCMP(map, o.map);
     }
 };
 
@@ -851,7 +856,7 @@ void presenceFrame()
 {
     const Key k = readKey();
     current = k;
-    if(k.mode != Mode::Menus && strcmp(mapStartFor, k.map) != 0)
+    if(k.mode != Mode::Menus && ZA_STRCMP(mapStartFor, k.map) != 0)
     {
         q_strlcpy(mapStartFor, k.map, sizeof(mapStartFor));
         mapStart = static_cast<long long>(time(nullptr));
@@ -950,11 +955,11 @@ struct FakeDiscord
 
     void reply(za::U32 op, const char* json)
     {
-        const za::U32 header[2] = {op, static_cast<za::U32>(strlen(json))};
+        const za::U32 header[2] = {op, static_cast<za::U32>(ZA_STRLEN(json))};
         za::Vector<char> buf;
         buf.resize(8 + header[1]);
-        memcpy(buf.data(), header, 8);
-        memcpy(buf.data() + 8, json, header[1]);
+        ZA_MEMCPY(buf.data(), header, 8);
+        ZA_MEMCPY(buf.data() + 8, json, header[1]);
         OVERLAPPED o{};
         o.hEvent = ev;
         ResetEvent(ev);
@@ -1006,7 +1011,7 @@ struct FakeDiscord
         while(in.size() >= 8)
         {
             za::U32 header[2];
-            memcpy(header, in.data(), 8);
+            ZA_MEMCPY(header, in.data(), 8);
             if(in.size() < 8 + header[1])
             {
                 break;
@@ -1041,7 +1046,7 @@ struct FakeDiscord
         za::Vector<const FakeFrame*> out;
         for(const FakeFrame& f : frames)
         {
-            if(f.op == opFrame && strstr(f.json.cStr(), "\"cmd\":\"SET_ACTIVITY\""))
+            if(f.op == opFrame && ZA_STRSTR(f.json.cStr(), "\"cmd\":\"SET_ACTIVITY\""))
             {
                 out.pushBack(&f);
             }
@@ -1111,7 +1116,7 @@ void next(Step s)
     test.entered = false;
 }
 
-[[nodiscard]] bool inMap(const char* map) { return cls.state == ca_connected && cls.signon == SIGNONS && !strcmp(cl.mapname, map); }
+[[nodiscard]] bool inMap(const char* map) { return cls.state == ca_connected && cls.signon == SIGNONS && !ZA_STRCMP(cl.mapname, map); }
 
 #ifdef _WIN32
 // The newest activity's frame, when more than `than` were recorded.
@@ -1121,7 +1126,7 @@ void next(Step s)
     return static_cast<int>(a.size()) > than ? a.back() : nullptr;
 }
 
-[[nodiscard]] bool has(const FakeFrame* f, const char* text) { return f && strstr(f->json.cStr(), text) != nullptr; }
+[[nodiscard]] bool has(const FakeFrame* f, const char* text) { return f && ZA_STRSTR(f->json.cStr(), text) != nullptr; }
 
 [[nodiscard]] int activityCount() { return static_cast<int>(test.fake.activities().size()); }
 
@@ -1176,8 +1181,8 @@ void testFrame()
             if(const FakeFrame* f = newestAfter(0))
             {
                 const FakeFrame& hello = test.fake.frames[0];
-                check(hello.op == opHandshake && strstr(hello.json.cStr(), "\"v\":1")
-                          && strstr(hello.json.cStr(), "\"client_id\":\"123456789012345678\""),
+                check(hello.op == opHandshake && ZA_STRSTR(hello.json.cStr(), "\"v\":1")
+                          && ZA_STRSTR(hello.json.cStr(), "\"client_id\":\"123456789012345678\""),
                       "the handshake: version 1, the application id");
                 check(has(f, "\"details\":\"the Slipgate Complex\""), "single player: the map's title");
                 check(has(f, "Quake \\u00b7 Single player \\u00b7 VR\""), "single player: campaign, mode, VR");

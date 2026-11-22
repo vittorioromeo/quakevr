@@ -17,6 +17,9 @@
 #include "vr_geom.hpp"
 
 #include "Zancle/Algorithm/Sort.hpp"
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -1426,7 +1429,7 @@ void writeMdl(const Build& b, const glm::vec3& from, int flags, float sizeField,
     b.baseH = m.skinH;
     b.skinH = m.skinH + extraRows;
     b.skin.resize(static_cast<za::SizeT>(b.skinW * b.skinH), static_cast<byte>(0));
-    memcpy(b.skin.data(), m.skin, static_cast<size_t>(m.skinW) * static_cast<size_t>(m.skinH));
+    ZA_MEMCPY(b.skin.data(), m.skin, static_cast<size_t>(m.skinW) * static_cast<size_t>(m.skinH));
     b.atlasY = m.skinH;
 
     // The rifle as it is.
@@ -1541,12 +1544,12 @@ void makeTank(int variant, Built& out)
 
 int tankVariantOf(const char* name)
 {
-    const char* at = name ? strstr(name, tankSuffix) : nullptr;
+    const char* at = name ? ZA_STRSTR(name, tankSuffix) : nullptr;
     if(!at)
     {
         return -1;
     }
-    const char* d = at + strlen(tankSuffix);
+    const char* d = at + ZA_STRLEN(tankSuffix);
     return (d[0] == '0' + Pyro || d[0] == '0' + Fumigator) && d[1] == 0 ? d[0] - '0' : -1;
 }
 
@@ -1560,7 +1563,7 @@ byte* tankFile(const char* name, unsigned int* path_id)
     Built b;
     makeTank(variant, b);
     byte* out = static_cast<byte*>(VR_HeapMalloc(b.file.size() + 1));
-    memcpy(out, b.file.data(), b.file.size());
+    ZA_MEMCPY(out, b.file.data(), b.file.size());
     out[b.file.size()] = 0;
     com_filesize = static_cast<int>(b.file.size());
     if(path_id)
@@ -1578,12 +1581,12 @@ glm::vec3 tankOutlet()
 
 int variantOf(const char* name)
 {
-    const char* at = name ? strstr(name, variantSuffix) : nullptr;
+    const char* at = name ? ZA_STRSTR(name, variantSuffix) : nullptr;
     if(!at)
     {
         return -1;
     }
-    const char* d = at + strlen(variantSuffix);
+    const char* d = at + ZA_STRLEN(variantSuffix);
     const int v = d[0] >= '0' && d[0] < '0' + variantCount && d[1] == 0 ? d[0] - '0' : -1;
     return v == EliminatorLegacy ? Centurion : v; // (an older save's eliminator's gun: the centurion's, its twin)
 }
@@ -1604,7 +1607,7 @@ byte* variantFile(const char* name, unsigned int* path_id)
         return COM_LoadMallocFile(baseModel, path_id);
     }
     byte* out = static_cast<byte*>(VR_HeapMalloc(b.file.size() + 1));
-    memcpy(out, b.file.data(), b.file.size());
+    ZA_MEMCPY(out, b.file.data(), b.file.size());
     out[b.file.size()] = 0;
     com_filesize = static_cast<int>(b.file.size());
     Con_DPrintf("AD gun model: %s made: %d triangles, %d vertices%s (%.1f ms)\n", name, b.tris, b.verts,
@@ -1636,12 +1639,12 @@ const FireFeel& fireFeel(int variant)
 
 byte* flashFile(const char* name, unsigned int* path_id)
 {
-    const char* at = name ? strstr(name, flashSuffix) : nullptr;
+    const char* at = name ? ZA_STRSTR(name, flashSuffix) : nullptr;
     if(!at)
     {
         return nullptr;
     }
-    const char* d = at + strlen(flashSuffix);
+    const char* d = at + ZA_STRLEN(flashSuffix);
     const int variant = d[0] >= '0' && d[0] < '0' + variantCount && d[1] == 0 ? d[0] - '0' : -1;
     byte* src = COM_LoadMallocFile(VR_ModelFile(flashBase), path_id);
     if(!src || variant < 0)

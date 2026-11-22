@@ -94,6 +94,7 @@
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Base/Memcpy.hpp"
 #include "vr_api.h"
 
 extern "C" cvar_t v_iyaw_level, v_iroll_level, v_ipitch_level; // (view.c)
@@ -1201,7 +1202,7 @@ void propQueriesTest_f()
     vr_prop_query_verify.value = 1.f;
     physics::testModelQueries();
     float saved[OFS_PARM3 + 3 - OFS_PARM0];
-    memcpy(saved, qcvm->globals + OFS_PARM0, sizeof(saved));
+    ZA_MEMCPY(saved, qcvm->globals + OFS_PARM0, sizeof(saved));
     const glm::vec3 player = geom::vec(progs::playerEdict()->v.origin);
     for(int k = 0; k < 96; k++)
     {
@@ -1213,7 +1214,7 @@ void propQueriesTest_f()
         G_FLOAT(OFS_PARM3) = k % 2 == 0 ? -1.f : .85f;
         PF_findportalcone();
     }
-    memcpy(qcvm->globals + OFS_PARM0, saved, sizeof(saved));
+    ZA_MEMCPY(qcvm->globals + OFS_PARM0, saved, sizeof(saved));
     vr_prop_query_verify.value = verify;
     PR_PopQCVM(oldVm);
     Con_Printf("prop force-grab queries: PASS 96 exact ordered-chain comparisons\n");

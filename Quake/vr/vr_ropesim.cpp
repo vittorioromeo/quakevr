@@ -30,6 +30,7 @@
 #include "Zancle/Algorithm/Remove.hpp"
 #include "Zancle/Base/PtrDiffT.hpp"
 #include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -346,7 +347,7 @@ void testAim_f()
     progs::ServerVm vm;
     edict_t* hook = nullptr;
     progs::forEachEdict(1, [&](edict_t* e) {
-        if(static_cast<int>(e->v.movetype) == MOVETYPE_FLYMISSILE && !strcmp(PR_GetString(e->v.classname), "hook"))
+        if(static_cast<int>(e->v.movetype) == MOVETYPE_FLYMISSILE && !ZA_STRCMP(PR_GetString(e->v.classname), "hook"))
         {
             hook = e;
         }

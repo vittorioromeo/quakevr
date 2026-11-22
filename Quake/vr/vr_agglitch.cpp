@@ -11,6 +11,8 @@
 #include "vr_tonemap.hpp"
 
 #include "Zancle/Algorithm/Sort.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Acos.hpp"
@@ -22,7 +24,6 @@
 #include "vr_zancle.hpp"
 #include "vr_geom.hpp"
 
-#include <string.h>
 
 using namespace qvr;
 
@@ -117,7 +118,7 @@ State state;
 {
     for(za::SizeT i = 0; i < names.size(); i++)
     {
-        if(!strcmp(names[i].cStr(), s))
+        if(!ZA_STRCMP(names[i].cStr(), s))
         {
             return static_cast<int>(i);
         }
@@ -480,7 +481,7 @@ void note(const Sample& s)
     for(int k = 0; k < numMetrics; k++)
     {
         const float v = r.m[k] / metricBadValue[k];
-        if(v > sev && (!focus[0] || strstr(focus, metricNames[k])))
+        if(v > sev && (!focus[0] || ZA_STRSTR(focus, metricNames[k])))
         {
             sev = v;
             worst = k;

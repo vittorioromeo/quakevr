@@ -5,6 +5,11 @@
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 
+#include "Zancle/Base/Memcmp.hpp"
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
@@ -170,7 +175,7 @@ struct Reader
         int v = 0;
         if(b)
         {
-            memcpy(&v, b, 4);
+            ZA_MEMCPY(&v, b, 4);
         }
         return LittleLong(v);
     }
@@ -180,7 +185,7 @@ struct Reader
         float v = 0.f;
         if(b)
         {
-            memcpy(&v, b, 4);
+            ZA_MEMCPY(&v, b, 4);
         }
         return LittleFloat(v);
     }
@@ -627,7 +632,7 @@ struct Tri
 {
     Reader r{file.data(), file.size()};
     const unsigned char* ident = r.take(4);
-    if(!ident || memcmp(ident, "IDPO", 4) || r.i32() != ALIAS_VERSION)
+    if(!ident || ZA_MEMCMP(ident, "IDPO", 4) || r.i32() != ALIAS_VERSION)
     {
         return false;
     }
@@ -676,7 +681,7 @@ struct Tri
         if(i == 0)
         {
             out.skin.resize(skinBytes);
-            memcpy(out.skin.data(), pixels, skinBytes);
+            ZA_MEMCPY(out.skin.data(), pixels, skinBytes);
         }
     }
     za::Vector<StVert> st;
@@ -728,7 +733,7 @@ struct Tri
                 return false;
             }
             char frameName[17]{};
-            memcpy(frameName, name, 16);
+            ZA_MEMCPY(frameName, name, 16);
             const bool byPlace = detailed && !frameName[0] && frameAt == detailStandIndex;
             frameAt++;
             if(q_strcasecmp(frameName, standFrame) && !byPlace)
@@ -886,7 +891,7 @@ enum class Kind
 [[nodiscard]] Kind kindOf(const char* name)
 {
     constexpr const char* prefix = "progs/vrbody_";
-    const size_t n = strlen(prefix);
+    const size_t n = ZA_STRLEN(prefix);
     if(!name || q_strncasecmp(name, prefix, n))
     {
         return Kind::None;
@@ -898,7 +903,7 @@ enum class Kind
     }
     p += 5;
     const char* dot = strchr(p, '.');
-    const size_t len = dot ? static_cast<size_t>(dot - p) : strlen(p);
+    const size_t len = dot ? static_cast<size_t>(dot - p) : ZA_STRLEN(p);
     if(len == 0)
     {
         return Kind::Skin;
@@ -1062,7 +1067,7 @@ void onPoseChanged(cvar_t*)
     const Pose q = pose();
     for(const Placed& p : placed)
     {
-        if(!p.mod || p.mod->type != mod_alias || strcmp(p.mod->name, p.name))
+        if(!p.mod || p.mod->type != mod_alias || ZA_STRCMP(p.mod->name, p.name))
         {
             continue;
         }
@@ -1267,7 +1272,7 @@ extern "C" int VR_RangerHeadMesh(void* mod, const char* model, int mesh, const c
         mins.z - (detailed ? detailSink : sink) - ranger.mins.z * scale};
 
     auto* out = static_cast<iqmvert_t*>(Hunk_Alloc(static_cast<int>(sizeof(iqmvert_t) * total)));
-    memcpy(out, in, sizeof(iqmvert_t) * static_cast<size_t>(nv));
+    ZA_MEMCPY(out, in, sizeof(iqmvert_t) * static_cast<size_t>(nv));
     for(size_t i = 0; i < ranger.pos.size() && !detailed; i++)
     {
         iqmvert_t& v = out[static_cast<size_t>(nv) + i];
@@ -1456,19 +1461,19 @@ when he is not drawn so (vr_body_ranger_head_model 0, no detailed head found). V
 */
 extern "C" char* VR_RangerHeadExtend(const char* name, const char* md5mesh)
 {
-    if(!name || !md5mesh || q_strncasecmp(name, "progs/vrbody", 12) || !strstr(md5mesh, "shader \"vrbody\"") || !active() ||
+    if(!name || !md5mesh || q_strncasecmp(name, "progs/vrbody", 12) || !ZA_STRSTR(md5mesh, "shader \"vrbody\"") || !active() ||
         !ranger.detailed)
     {
         return nullptr;
     }
-    const char* count = strstr(md5mesh, "numMeshes");
-    const char* joints = strstr(md5mesh, "joints");
+    const char* count = ZA_STRSTR(md5mesh, "numMeshes");
+    const char* joints = ZA_STRSTR(md5mesh, "joints");
     const char* open = joints ? strchr(joints, '{') : nullptr;
     if(!count || !open)
     {
         return nullptr;
     }
-    count += strlen("numMeshes");
+    count += ZA_STRLEN("numMeshes");
     char* end = nullptr;
     const long meshes = strtol(count, &end, 10);
     if(meshes < 1 || meshes > 8 || end == count)
@@ -1585,7 +1590,7 @@ extern "C" int VR_RangerHeadPaints(const void* surfIn)
 {
     const auto* surf = static_cast<const aliashdr_t*>(surfIn);
     const gltexture_t* tex = surf && surf->numskins > 0 ? surf->gltextures[0][0] : nullptr;
-    return tex && !strcmp(tex->name, headTexName) ? 1 : 0;
+    return tex && !ZA_STRCMP(tex->name, headTexName) ? 1 : 0;
 }
 
 bool qvr::rangerhead::headBlock(float lo[2], float hi[2])
@@ -1601,7 +1606,7 @@ bool qvr::rangerhead::hasOwnMesh(const char* modelName)
 {
     for(const Placed& p : placed)
     {
-        if(p.detailed && modelName && !strcmp(p.name, modelName))
+        if(p.detailed && modelName && !ZA_STRCMP(p.name, modelName))
         {
             return true;
         }
@@ -1625,7 +1630,7 @@ void qvr::rangerhead::check_f()
     int skinned = 0;
     for(const Placed& p : placed)
     {
-        auto* hdr = p.mod && p.mod->type == mod_alias && !strcmp(p.mod->name, p.name) ? static_cast<aliashdr_t*>(Cache_Check(&p.mod->cache)) : nullptr;
+        auto* hdr = p.mod && p.mod->type == mod_alias && !ZA_STRCMP(p.mod->name, p.name) ? static_cast<aliashdr_t*>(Cache_Check(&p.mod->cache)) : nullptr;
         if(!hdr)
         {
             continue;
@@ -1638,7 +1643,7 @@ void qvr::rangerhead::check_f()
         }
         const bool own = last != hdr && last->numverts == static_cast<int>(ranger.pos.size()) && last->numindexes == static_cast<int>(ranger.tris.size());
         headMeshes += own ? 1 : 0;
-        skinned += own && last->gltextures[0][0] && !strcmp(last->gltextures[0][0]->name, headTexName) ? 1 : 0;
+        skinned += own && last->gltextures[0][0] && !ZA_STRCMP(last->gltextures[0][0]->name, headTexName) ? 1 : 0;
     }
     Con_Printf("rangerhead_check: %d bodies placed, %d with the detailed head's mesh, %d with his skin\n", bodies, headMeshes, skinned);
     if(wantDetailed)

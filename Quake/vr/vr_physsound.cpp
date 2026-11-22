@@ -34,7 +34,9 @@
 #include "vr_random.hpp"
 
 #include "Zancle/Algorithm/Sort.hpp"
+#include "Zancle/Base/Memcpy.hpp"
 #include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -45,7 +47,6 @@
 #include "vr_api.h"
 
 #include <stdlib.h>
-#include <string.h>
 
 using namespace qvr;
 
@@ -511,7 +512,7 @@ Material materialOf(edict_t* ent, const qmodel_t* model)
     }
     const char* cls = ent ? PR_GetString(ent->v.classname) : "";
     const bool gib = ent && (static_cast<int>(ent->v.flags) & physics::FL_FORCEGRABBABLE) && !(static_cast<int>(ent->v.flags) & FL_ITEM);
-    const bool weapon = !strcmp(cls, "thrown_weapon") || !strncmp(cls, "weapon_", 7) || !strncmp(cls, "item_key", 8) ||
+    const bool weapon = !ZA_STRCMP(cls, "thrown_weapon") || !ZA_STRNCMP(cls, "weapon_", 7) || !ZA_STRNCMP(cls, "item_key", 8) ||
                         info.has(modelmeta::Trait::WorldWeapon) || info.has(modelmeta::Trait::WeaponItem) || info.has(modelmeta::Trait::ViewWeapon);
     if(weapon || !gib)
     {
@@ -651,13 +652,13 @@ void stealthNoise(int num, float volume)
         return;
     }
     globalvars_t saved;
-    memcpy(&saved, pr_global_struct, sizeof saved);
+    ZA_MEMCPY(&saved, pr_global_struct, sizeof saved);
     pr_global_struct->time = qcvm->time;
     G_INT(OFS_PARM0) = EDICT_TO_PROG(EDICT_NUM(num));
     G_FLOAT(OFS_PARM1) = volume;
     PR_ExecuteProgram(fn);
     globalvars_t& g = *pr_global_struct;
-    memcpy(g.pad, saved.pad, sizeof g.pad);
+    ZA_MEMCPY(g.pad, saved.pad, sizeof g.pad);
     g.self = saved.self;
     g.other = saved.other;
     g.msg_entity = saved.msg_entity;

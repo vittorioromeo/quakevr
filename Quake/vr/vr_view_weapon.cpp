@@ -10,6 +10,7 @@
 #include "vr_nailslide.hpp"
 #include "vr_cvars.hpp"
 #include "vr_tunables.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -179,7 +180,7 @@ namespace
         {"owned/mg3/progs/v_hammer.mdl", STAT_CELLS}, {"owned/mg3/progs/v_hammer_glow.mdl", STAT_CELLS}}; // (the Super Axe's burst)
     for(const auto& [name, stat] : ammo)
     {
-        if(model && !strcmp(model->name, name))
+        if(model && !ZA_STRCMP(model->name, name))
         {
             return cl.stats[stat];
         }
@@ -1615,6 +1616,16 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame, bool flo
         // (Its Reverse Grip move: the weapon's place, and the handle's that its line to the tip starts from: drawnAs.)
         held.pos += reverseShift(slot, mirrored, flip, held.rot);
         drawnAs[hand] = held;
+    }
+    // A pole weapon the hand has slid along (vr_twohand.cpp poleShift; the main hand slides too): drawn moved back along
+    // its pole by as much, the hand where it is; its muzzle (anchorPosition below) and handle (drawnAs) with it.
+    if(float along = 0.f; !floating && own && !carried && slot >= 0)
+    {
+        if(glm::vec3 axis{0.f}; twohand::poleShift(hand, along, axis))
+        {
+            held.pos -= hands::redirect(axis, held.rot) * along;
+            drawnAs[hand] = held;
+        }
     }
 
     // Just out of a body into the hand (vr_view_hands.cpp embedEase): eased from where the blade was, as the hand holding it is, by

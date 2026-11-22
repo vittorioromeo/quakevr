@@ -3,11 +3,12 @@
 #include "vr_ao_internal.hpp"
 #include "vr_diskcache.hpp"
 #include "vr_sha256.hpp"
+#include "Zancle/Base/Memcmp.hpp"
+#include "Zancle/Base/Memcpy.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
 
 #include <stdio.h>
-#include <string.h>
 
 using namespace qvr;
 using namespace qvr::ao::detail;
@@ -63,7 +64,7 @@ namespace qvr::ao::detail
     const auto put = [&bytes](const void* data, size_t n) {
         const size_t at = bytes.size();
         bytes.resize(at + n);
-        memcpy(bytes.data() + at, data, n);
+        ZA_MEMCPY(bytes.data() + at, data, n);
     };
     const char tag[8] = {'q', 'v', 'r', 'a', 'o', 'k', 'e', 'y'};
     put(tag, sizeof(tag));
@@ -104,9 +105,9 @@ namespace qvr::ao::detail
     }
     const size_t count = static_cast<size_t>(job.numposes) * job.numverts;
     FileHeader h;
-    bool ok = fread(&h, 1, sizeof(h), in) == sizeof(h) && memcmp(h.magic, FILE_MAGIC, 4) == 0 && h.version == BAKE_VERSION &&
+    bool ok = fread(&h, 1, sizeof(h), in) == sizeof(h) && ZA_MEMCMP(h.magic, FILE_MAGIC, 4) == 0 && h.version == BAKE_VERSION &&
               h.numverts == static_cast<za::U32>(job.numverts) && h.numposes == static_cast<za::U32>(job.numposes) &&
-              memcmp(h.key, key.bytes, sizeof(h.key)) == 0 && h.payloadBytes == count;
+              ZA_MEMCMP(h.key, key.bytes, sizeof(h.key)) == 0 && h.payloadBytes == count;
     if(ok)
     {
         vis.resize(count);
@@ -120,11 +121,11 @@ namespace qvr::ao::detail
 [[nodiscard]] bool writeBake(const za::String& path, const BakeJob& job, const sha256::Digest& key)
 {
     FileHeader h{};
-    memcpy(h.magic, FILE_MAGIC, 4);
+    ZA_MEMCPY(h.magic, FILE_MAGIC, 4);
     h.version = BAKE_VERSION;
     h.numverts = static_cast<za::U32>(job.numverts);
     h.numposes = static_cast<za::U32>(job.numposes);
-    memcpy(h.key, key.bytes, sizeof(h.key));
+    ZA_MEMCPY(h.key, key.bytes, sizeof(h.key));
     h.payloadBytes = job.vis.size();
     h.payloadHash = fnv64(job.vis.data(), job.vis.size());
     const diskcache::Part parts[] = {{&h, sizeof(h)}, {job.vis.data(), job.vis.size()}};

@@ -29,6 +29,12 @@
 #include "vr_strings.hpp"
 #include "vr_testkit.hpp"
 #include "vr_tunables.hpp"
+#include "Zancle/Base/Memcmp.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strstr.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/MinMax.hpp"
 
 #include <cctype>
 #include <cstdarg>
@@ -161,7 +167,7 @@ void parseLastStartLine(LastStart& r, const char* line)
     }
     if(strings::startsWith(line, aliveLine))
     {
-        r.lastMs = za::max(r.lastMs, atof(line + strlen(aliveLine)));
+        r.lastMs = za::max(r.lastMs, atof(line + ZA_STRLEN(aliveLine)));
         return;
     }
     if(!line[0] || strings::startsWith(line, "=="))
@@ -173,16 +179,16 @@ void parseLastStartLine(LastStart& r, const char* line)
     const double ms = strtod(line, &end);
     const char* text = end && strings::startsWith(end, " ms  ") ? end + 5 : line;
     r.lastMs = za::max(r.lastMs, ms);
-    if(strstr(text, "safe mode: on (automatic"))
+    if(ZA_STRSTR(text, "safe mode: on (automatic"))
     {
         r.autoSafe = true;
     }
-    if(strings::startsWith(text, setBegun) && strstr(text, " begun"))
+    if(strings::startsWith(text, setBegun) && ZA_STRSTR(text, " begun"))
     {
         r.inSet = true;
         r.shaderBeganMs = ms;
     }
-    else if(r.inSet && strings::startsWith(text, setBegun) && strstr(text, " done"))
+    else if(r.inSet && strings::startsWith(text, setBegun) && ZA_STRSTR(text, " done"))
     {
         r.inSet = false;
         r.shaderMs += ms - r.shaderBeganMs;
@@ -320,8 +326,8 @@ void applyEsKeep(const char* list)
     char kept[256] = "";
     for(const EsKeepName& k : esKeepNames)
     {
-        const size_t n = strlen(k.name);
-        for(const char* at = strstr(list, k.name); at; at = strstr(at + 1, k.name))
+        const size_t n = ZA_STRLEN(k.name);
+        for(const char* at = ZA_STRSTR(list, k.name); at; at = ZA_STRSTR(at + 1, k.name))
         {
             if((at == list || at[-1] == ',') && (at[n] == 0 || at[n] == ','))
             {
@@ -453,7 +459,7 @@ extern "C" void VR_GLStartupBegin(void)
         Con_Printf("\x02GL safe mode %s: optional GL features off (gl_startup.log; Debug > Startup; vr_glsafe_retry, "
                    "or delete gl_startup.log, tries the full renderer again)\n", glsafe.why + 3);
     }
-    else if(strcmp(glsafe.why, "off") != 0)
+    else if(ZA_STRCMP(glsafe.why, "off") != 0)
     {
         Con_Printf("GL safe mode %s\n", glsafe.why); // (a stopped start that was not counted: said)
     }
@@ -471,8 +477,8 @@ extern "C" void VR_GLStartupVendor(const char* vendor, const char* renderer, con
     }
     VR_GLStep("GL_VENDOR %s; GL_RENDERER %s; GL_VERSION %s", vendor ? vendor : "?", renderer ? renderer : "?",
         version ? version : "?");
-    const bool amd = (vendor && (strstr(vendor, "ATI") || strstr(vendor, "AMD"))) ||
-                     (renderer && (strstr(renderer, "Radeon") || strstr(renderer, "AMD")));
+    const bool amd = (vendor && (ZA_STRSTR(vendor, "ATI") || ZA_STRSTR(vendor, "AMD"))) ||
+                     (renderer && (ZA_STRSTR(renderer, "Radeon") || ZA_STRSTR(renderer, "AMD")));
     glsafe.vendorOff = amd && vr_gl_workarounds.value != 0.f ? amdDefaults : 0u;
     if(glsafe.vendorOff)
     {
@@ -535,7 +541,7 @@ extern "C" int VR_GLESForm(int form)
 // C4m (QUEST_PLAN.md 6t): vr_gles_define no longer what the ES shaders were made with (GL_WorldLiteCheck makes them again).
 extern "C" int VR_GLESDefineChanged(void)
 {
-    return VR_GLESForm(VR_GLES_FORM_GLSL) && strcmp(vr_gles_define.string, glsafe.esDefineUsed.cStr()) != 0;
+    return VR_GLESForm(VR_GLES_FORM_GLSL) && ZA_STRCMP(vr_gles_define.string, glsafe.esDefineUsed.cStr()) != 0;
 }
 
 // The lite form's bits the settings give, ES or not (VR_GLESWorldLite: the PC's share of them, vr_gl_pc_forms).
@@ -945,7 +951,7 @@ void appendMemberCopies(za::String& out, const GlslStruct& st, const za::String&
         const GlslStruct* st = nullptr;
         for(int k = 0; k < count && typeEnd > t; k++)
         {
-            if(structs[k].nameLen == typeEnd - t && memcmp(structs[k].name, s + t, typeEnd - t) == 0)
+            if(structs[k].nameLen == typeEnd - t && ZA_MEMCMP(structs[k].name, s + t, typeEnd - t) == 0)
             {
                 st = &structs[k];
             }
@@ -1000,7 +1006,7 @@ void appendMemberCopies(za::String& out, const GlslStruct& st, const za::String&
     constexpr size_t wordLen = sizeof(word) - 1;
     za::String out;
     size_t copied = 0;
-    for(const char* p = strstr(s, word); p; p = strstr(p + wordLen, word))
+    for(const char* p = ZA_STRSTR(s, word); p; p = ZA_STRSTR(p + wordLen, word))
     {
         const size_t at = static_cast<size_t>(p - s);
         const bool startsWord = at == 0 || !(isalnum(static_cast<unsigned char>(s[at - 1])) || s[at - 1] == '_');

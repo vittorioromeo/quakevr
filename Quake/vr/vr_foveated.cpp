@@ -21,11 +21,12 @@
 #include "Zancle/Base/GetArraySize.hpp"
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Clamp.hpp"
-#include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Cos.hpp"
+#include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Tan.hpp"
 
 
@@ -590,13 +591,13 @@ void gazeTest_f()
             tally.check(gazed && za::abs(on.x - want.x) <= static_cast<float>(tileWidth) &&
                             za::abs(on.y - want.y) <= static_cast<float>(tileHeight),
                 name, "mock gaze: the centre follows it");
-            tally.check(strstr(gazeStatus(), "your eyes") != nullptr, name, "the menu line says the eyes");
+            tally.check(ZA_STRSTR(gazeStatus(), "your eyes") != nullptr, name, "the menu line says the eyes");
         }
         else
         {
             // (vr_mock_eye_tracking 0: the runtime offers none; the same frame's foveation, nothing restarted.)
             tally.check(!gazed && on == live.centre, name, "no eye tracker: the lens centre, the gaze ignored");
-            tally.check(strstr(gazeStatus(), "no eye tracking") != nullptr, name, "the menu line says the lens centre");
+            tally.check(ZA_STRSTR(gazeStatus(), "no eye tracking") != nullptr, name, "the menu line says the lens centre");
         }
     }
     tally.verdict(name);

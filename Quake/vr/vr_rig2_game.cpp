@@ -31,15 +31,17 @@
 #include "vr_rigseq.hpp"
 #include "vr_geom.hpp"
 
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strstr.hpp"
+#include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Acos.hpp"
 #include "Zancle/Math/Atan2.hpp"
-#include "Zancle/Math/Cos.hpp"
-#include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Sqrt.hpp"
-#include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
 #include "vr_api.h"
 
@@ -417,7 +419,7 @@ void keep(int set, int ent, const Rig& a, const rigpose::Rigid* F, double now, d
         return;
     }
     // (one rig's poses: the grunt's and the enforcer's joints are named alike but turn from other rest poses)
-    if(recorder.only[0] ? !strstr(a.model.cStr(), recorder.only) : recorder.model[0] && strcmp(a.model.cStr(), recorder.model) != 0)
+    if(recorder.only[0] ? !ZA_STRSTR(a.model.cStr(), recorder.only) : recorder.model[0] && ZA_STRCMP(a.model.cStr(), recorder.model) != 0)
     {
         return;
     }
@@ -501,9 +503,9 @@ const za::Vector<Stretches>& recordedStretches(int set)
 void record_f()
 {
     const char* what = Cmd_Argc() > 1 ? Cmd_Argv(1) : "";
-    if(!strcmp(what, "ragdoll") || !strcmp(what, "armed") || !strcmp(what, "all"))
+    if(!ZA_STRCMP(what, "ragdoll") || !ZA_STRCMP(what, "armed") || !ZA_STRCMP(what, "all"))
     {
-        recorder.mask = !strcmp(what, "ragdoll") ? 1 : !strcmp(what, "armed") ? 2 : 3;
+        recorder.mask = !ZA_STRCMP(what, "ragdoll") ? 1 : !ZA_STRCMP(what, "armed") ? 2 : 3;
         recorder.most = Cmd_Argc() > 2 ? za::max(atoi(Cmd_Argv(2)), 1) : 50;
         recorder.every = Cmd_Argc() > 3 ? za::max(static_cast<float>(atof(Cmd_Argv(3))), 0.05f) : 0.5f;
         recorder.ragEvery = Cmd_Argc() > 3 ? za::max(recorder.every, 0.25f) : 0.25f;
@@ -511,7 +513,7 @@ void record_f()
         recorder.only[0] = 0;
         for(int i = 4; i < Cmd_Argc(); i++)
         {
-            if(!strcmp(Cmd_Argv(i), "check"))
+            if(!ZA_STRCMP(Cmd_Argv(i), "check"))
             {
                 recorder.checkFull = true;
             }
@@ -521,11 +523,11 @@ void record_f()
             }
         }
     }
-    else if(!strcmp(what, "off"))
+    else if(!ZA_STRCMP(what, "off"))
     {
         recorder.mask = 0;
     }
-    else if(!strcmp(what, "clear"))
+    else if(!ZA_STRCMP(what, "clear"))
     {
         const int mask = recorder.mask, most = recorder.most;
         char only[sizeof(recorder.only)];
@@ -1051,7 +1053,7 @@ void animFixture(const char* kind, const char* modelName)
         Con_Printf("rig2anim fixture: FAIL: no rig for %s\n", modelName);
         return;
     }
-    if(!strcmp(kind, "off"))
+    if(!ZA_STRCMP(kind, "off"))
     {
         rigdata::reload(model);
         Con_Printf("rig2anim fixture: %s read from its files again\n", modelName);
@@ -1074,7 +1076,7 @@ void animFixture(const char* kind, const char* modelName)
             m.boneName[b] = rig->bones[b].name;
         }
     }
-    if(!strcmp(kind, "seq"))
+    if(!ZA_STRCMP(kind, "seq"))
     {
         for(za::SizeT i = 0; i < m.seqs.size(); i++)
         {
@@ -1095,7 +1097,7 @@ void animFixture(const char* kind, const char* modelName)
         Con_Printf("rig2anim fixture: %s: sequence rstest (10 frames at 10 fps; fire 3, footstep 7)\n", modelName);
         return;
     }
-    if(strcmp(kind, "keys"))
+    if(ZA_STRCMP(kind, "keys"))
     {
         Con_Printf("usage: vr_rig2anim_check fixture keys|seq|off [model]\n");
         return;
@@ -1180,7 +1182,7 @@ void animCheck_f()
         return;
     }
     const char* what = Cmd_Argv(1);
-    if(!strcmp(what, "end"))
+    if(!ZA_STRCMP(what, "end"))
     {
         qvr::testkit::verdict("rig2anim check", animCheck.passed, animCheck.failed);
         Cvar_SetValueQuick(&vr_rig2anim_check_passed, static_cast<float>(animCheck.passed)); // (QC's test reads them)
@@ -1188,12 +1190,12 @@ void animCheck_f()
         animCheck = AnimCheck{};
         return;
     }
-    if(!strcmp(what, "fixture"))
+    if(!ZA_STRCMP(what, "fixture"))
     {
         animFixture(Cmd_Argc() > 2 ? Cmd_Argv(2) : "", Cmd_Argc() > 3 ? Cmd_Argv(3) : "progs/vrgrunt.mdl");
         return;
     }
-    const bool keepNow = !strcmp(what, "keep");
+    const bool keepNow = !ZA_STRCMP(what, "keep");
     const float frame = Cmd_Argc() > 2 ? Q_atof(Cmd_Argv(2)) : 0.f;
     int seen = 0;
     for(int i = 0; i < cl_numvisedicts && cl_entities; i++)
@@ -1344,7 +1346,7 @@ void motionReport()
         {
             continue;
         }
-        for(int f = 1; motionRun.dump[0] && strstr(t.model->name, motionRun.dump) && f < frames && f < 80; f++)
+        for(int f = 1; motionRun.dump[0] && ZA_STRSTR(t.model->name, motionRun.dump) && f < frames && f < 80; f++)
         {
             const auto step = [&](int p) {
                 return glm::length(t.pts[static_cast<za::SizeT>(f * motionPoints + p)] -

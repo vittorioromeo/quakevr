@@ -34,7 +34,11 @@
 #include "Zancle/Algorithm/StableSort.hpp"
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/Macros.hpp"
+#include "Zancle/Base/Memcmp.hpp"
 #include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Concurrency/Atomic.hpp"
 #include "Zancle/Concurrency/AtomicMutex.hpp"
 #include "Zancle/Concurrency/LockGuard.hpp"
@@ -199,8 +203,8 @@ void addPart(Index& idx, Text& field, const char* value)
     {
         field.off = static_cast<za::U32>(idx.text.size());
     }
-    field.len += static_cast<za::U32>(strlen(value));
-    appendRaw(idx, value, strlen(value));
+    field.len += static_cast<za::U32>(ZA_STRLEN(value));
+    appendRaw(idx, value, ZA_STRLEN(value));
     idx.text.pushBack('\0');
 }
 
@@ -235,7 +239,7 @@ void parseEntry(Index& idx, const jsonentry_t* e, za::Vector<za::String>& zipNam
     }
 
     Entry out;
-    out.sha256 = addField(idx, sha, strlen(sha));
+    out.sha256 = addField(idx, sha, ZA_STRLEN(sha));
     if(const double* bytes = JSON_FindNumber(e, "bytes"))
     {
         out.bytes = static_cast<za::U64>(za::max(*bytes, 0.0));
@@ -257,12 +261,12 @@ void parseEntry(Index& idx, const jsonentry_t* e, za::Vector<za::String>& zipNam
             const za::SizeT keyLen = static_cast<za::SizeT>(eq - tag->string);
             const auto isKey = [&](const char* name)
             {
-                return strlen(name) == keyLen && !memcmp(tag->string, name, keyLen);
+                return ZA_STRLEN(name) == keyLen && !ZA_MEMCMP(tag->string, name, keyLen);
             };
             const char* value = eq + 1;
             if(isKey("title"))
             {
-                out.title = addField(idx, value, strlen(value));
+                out.title = addField(idx, value, ZA_STRLEN(value));
             }
             else if(isKey("author"))
             {
@@ -303,13 +307,13 @@ void parseEntry(Index& idx, const jsonentry_t* e, za::Vector<za::String>& zipNam
     {
         if(const char* extract = JSON_FindString(install, "extract"))
         {
-            out.extract = addField(idx, extract, strlen(extract));
+            out.extract = addField(idx, extract, ZA_STRLEN(extract));
         }
     }
 
     if(const char* description = JSON_FindString(e, "description"))
     {
-        out.description = addField(idx, description, strlen(description));
+        out.description = addField(idx, description, ZA_STRLEN(description));
     }
 
     if(const jsonentry_t* urls = JSON_Find(e, "urls", JSON_ARRAY))
@@ -363,10 +367,10 @@ constexpr const char* ratingsUrl = "https://www.quaddicted.com/static/archive/qu
 // An attribute's value in [tag, end), copied (empty when it is not there).
 za::String xmlAttribute(const char* tag, const char* end, const char* name)
 {
-    const za::SizeT n = strlen(name);
+    const za::SizeT n = ZA_STRLEN(name);
     for(const char* p = tag; p + n + 2 < end; p++)
     {
-        if(p[-1] == ' ' && !memcmp(p, name, n) && p[n] == '=' && p[n + 1] == '"')
+        if(p[-1] == ' ' && !ZA_MEMCMP(p, name, n) && p[n] == '=' && p[n + 1] == '"')
         {
             const char* v = p + n + 2;
             const char* q = v;
@@ -415,7 +419,7 @@ int addRatings(Index& idx, const za::Vector<za::String>& zipNames, za::Vector<ch
     {
         byZip.try_emplace(folded(zipNames[i].cStr()), i); // (the first of equal names, as the scan found)
     }
-    for(const char* p = strstr(body.data(), "<file "); p; p = strstr(p + 1, "<file "))
+    for(const char* p = ZA_STRSTR(body.data(), "<file "); p; p = ZA_STRSTR(p + 1, "<file "))
     {
         const char* end = strchr(p, '>');
         if(!end)
@@ -929,12 +933,12 @@ struct ByQuery
             c = b->score() - a->score();
             if(!c)
             {
-                c = strcmp(idx.field(b->date), idx.field(a->date)); // (then the newest)
+                c = ZA_STRCMP(idx.field(b->date), idx.field(a->date)); // (then the newest)
             }
         }
         else if(sort == Sort::Date)
         {
-            c = strcmp(idx.field(a->date), idx.field(b->date));
+            c = ZA_STRCMP(idx.field(a->date), idx.field(b->date));
             if(newestFirst)
             {
                 c = -c;

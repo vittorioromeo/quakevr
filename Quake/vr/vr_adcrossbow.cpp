@@ -12,6 +12,7 @@
 #include "vr_weapons.hpp"
 #include "vr_audio.hpp"
 
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Acos.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -20,7 +21,6 @@
 #include "Zancle/Math/MinMax.hpp"
 #include "vr_api_render.h"
 
-#include <string.h>
 
 namespace qvr::adcrossbow
 {
@@ -97,11 +97,11 @@ Known known;
     {
         known.model = m;
         known.bow = false;
-        if(!strcmp(m->name, gunModelName))
+        if(!ZA_STRCMP(m->name, gunModelName))
         {
             const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(const_cast<qmodel_t*>(m)));
-            known.bow = hdr && hdr->numframes == 1 + addedFrames && !strcmp(hdr->frames[1].name, frameNames[0]) &&
-                        !strcmp(hdr->frames[2].name, frameNames[1]);
+            known.bow = hdr && hdr->numframes == 1 + addedFrames && !ZA_STRCMP(hdr->frames[1].name, frameNames[0]) &&
+                        !ZA_STRCMP(hdr->frames[2].name, frameNames[1]);
         }
     }
     return known.bow;

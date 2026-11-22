@@ -11,6 +11,9 @@
 #include "vr_geom.hpp"
 
 #include "Zancle/Algorithm/Erase.hpp"
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -110,7 +113,7 @@ struct Words
     void split(const char* line, int len)
     {
         len = za::min(len, static_cast<int>(sizeof(buf)) - 1);
-        memcpy(buf, line, static_cast<size_t>(len));
+        ZA_MEMCPY(buf, line, static_cast<size_t>(len));
         buf[len] = 0;
         n = 0;
         char* p = buf;
@@ -131,7 +134,7 @@ struct Words
             }
         }
     }
-    [[nodiscard]] bool is(int i, const char* s) const { return i < n && !strcmp(w[i], s); }
+    [[nodiscard]] bool is(int i, const char* s) const { return i < n && !ZA_STRCMP(w[i], s); }
     [[nodiscard]] float f(int i) const { return i < n ? strtof(w[i], nullptr) : 0.f; }
     [[nodiscard]] glm::vec3 v3(int i) const { return glm::vec3{f(i), f(i + 1), f(i + 2)}; }
     [[nodiscard]] const char* s(int i) const { return i < n ? w[i] : ""; }
@@ -141,7 +144,7 @@ struct Words
 {
     for(int b = 0; b < rig.numBones; b++)
     {
-        if(!strcmp(rig.bones[b].name, name))
+        if(!ZA_STRCMP(rig.bones[b].name, name))
         {
             return b;
         }
@@ -151,11 +154,11 @@ struct Words
 
 [[nodiscard]] rigdata::Interp interpOf(const char* s)
 {
-    if(!strcmp(s, "linear"))
+    if(!ZA_STRCMP(s, "linear"))
     {
         return rigdata::Interp::Linear;
     }
-    if(!strcmp(s, "step"))
+    if(!ZA_STRCMP(s, "step"))
     {
         return rigdata::Interp::Step;
     }
@@ -231,7 +234,7 @@ void forLines(const char* text, F&& f)
     while(*p)
     {
         const char* e = strchr(p, '\n');
-        const int len = e ? static_cast<int>(e - p) : static_cast<int>(strlen(p));
+        const int len = e ? static_cast<int>(e - p) : static_cast<int>(ZA_STRLEN(p));
         w.split(p, len);
         if(w.n > 0 && !f(w))
         {
@@ -525,10 +528,10 @@ void loadEntry(Entry& e)
     {
         za::Vector<za::String> names;
         const char* suffix = rig->authored ? ".anim2.txt" : ".anim.txt";
-        const size_t sn = strlen(suffix);
+        const size_t sn = ZA_STRLEN(suffix);
         files::forEachEntry(dir, [&](const char* name, bool isDir) {
-            const size_t n = strlen(name);
-            if(!isDir && n > sn && !strcmp(name + n - sn, suffix))
+            const size_t n = ZA_STRLEN(name);
+            if(!isDir && n > sn && !ZA_STRCMP(name + n - sn, suffix))
             {
                 names.pushBack(za::String{name});
             }
@@ -536,7 +539,7 @@ void loadEntry(Entry& e)
         // (in name order: the same on every system)
         for(za::SizeT i = 1; i < names.size(); i++)
         {
-            for(za::SizeT j = i; j > 0 && strcmp(names[j].cStr(), names[j - 1].cStr()) < 0; j--)
+            for(za::SizeT j = i; j > 0 && ZA_STRCMP(names[j].cStr(), names[j - 1].cStr()) < 0; j--)
             {
                 za::String t = names[j];
                 names[j] = names[j - 1];
@@ -1020,7 +1023,7 @@ bool readRig(const char* text, const ragdoll::Rig& rig, ModelData& m, za::String
             AnimOverride* found = nullptr;
             for(AnimOverride& o : m.overrides)
             {
-                found = !strcmp(o.anim.cStr(), w.s(1)) ? &o : found;
+                found = !ZA_STRCMP(o.anim.cStr(), w.s(1)) ? &o : found;
             }
             if(!found)
             {
@@ -1374,7 +1377,7 @@ int animGroups(const aliashdr_t* hdr, AnimGroup* out, int max)
     {
         char name[16];
         q_strlcpy(name, hdr->frames[f].name, sizeof(name));
-        int len = static_cast<int>(strlen(name));
+        int len = static_cast<int>(ZA_STRLEN(name));
         while(len > 0 && name[len - 1] >= '0' && name[len - 1] <= '9')
         {
             name[--len] = 0;
@@ -1383,7 +1386,7 @@ int animGroups(const aliashdr_t* hdr, AnimGroup* out, int max)
         {
             q_strlcpy(name, "frames", sizeof(name));
         }
-        if(n > 0 && !strcmp(out[n - 1].name, name))
+        if(n > 0 && !ZA_STRCMP(out[n - 1].name, name))
         {
             out[n - 1].count++;
             continue;
@@ -1397,7 +1400,7 @@ int animGroups(const aliashdr_t* hdr, AnimGroup* out, int max)
         g.first = f;
         g.count = 1;
     }
-    if(n >= 1 && !strcmp(out[0].name, "frames") && out[0].first == 0)
+    if(n >= 1 && !ZA_STRCMP(out[0].name, "frames") && out[0].first == 0)
     {
         // (unnamed frames: id's names where the count is one of the armed humanoids')
         const NamedRun* runs = out[0].count == 114 ? soldierRuns : out[0].count == 102 ? enforcerRuns : nullptr;
@@ -1448,7 +1451,7 @@ int frameOfName(const aliashdr_t* hdr, const char* name)
     // By its group's name and its number in it (stand1: the stand group's first; the unnamed frames' id names too).
     char prefix[16];
     q_strlcpy(prefix, name, sizeof(prefix));
-    int len = static_cast<int>(strlen(prefix));
+    int len = static_cast<int>(ZA_STRLEN(prefix));
     while(len > 0 && prefix[len - 1] >= '0' && prefix[len - 1] <= '9')
     {
         prefix[--len] = 0;

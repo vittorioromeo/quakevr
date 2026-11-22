@@ -37,6 +37,9 @@
 #include "vr_brushes.hpp"
 #include "vr_toolpanel.hpp"
 
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Container/InPlaceVector.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -251,7 +254,7 @@ int paragraph(float x, float y, float width, float dim, const char* s, bool gold
     int lines = 0;
     while(*s)
     {
-        int n = static_cast<int>(strlen(s));
+        int n = static_cast<int>(ZA_STRLEN(s));
         if(n > perLine)
         {
             n = perLine;
@@ -564,7 +567,7 @@ int dropdown(Ui& ui, const Rect& r, const char* label, const char* const* labels
 {
     DropList& d = ps.drop;
     int picked = -1;
-    if(d.picked >= 0 && !strcmp(d.pickedFor, label))
+    if(d.picked >= 0 && !ZA_STRCMP(d.pickedFor, label))
     {
         picked = d.picked < n ? d.picked : -1;
         d.picked = -1;
@@ -577,7 +580,7 @@ int dropdown(Ui& ui, const Rect& r, const char* label, const char* const* labels
         q_strlcpy(d.name, label, sizeof(d.name));
         d.page = chosen >= 0 ? chosen / listPerPage(n) : 0;
     }
-    const bool open = d.name[0] && !strcmp(d.name, label);
+    const bool open = d.name[0] && !ZA_STRCMP(d.name, label);
     if(open)
     {
         d.labels = labels;
@@ -767,7 +770,7 @@ bool thumbTile(Ui& ui, const Rect& r, int entry)
         const bool chosen = available && toolgun::selectedSpawnable() == entry; // AD support
         const bool hover = available && hovering(r); // AD support
         tile(r, chosen, hover);
-        const bool side = !strcmp(toolgun::spawnableSection(entry), "Weapons");
+        const bool side = !ZA_STRCMP(toolgun::spawnableSection(entry), "Weapons");
         const gfx::Picture* pic = toolgun::icons::get(toolgun::spawnableModel(entry), toolgun::spawnableSkin(entry), side);
         const float size = 36.f;
         if(pic)
@@ -781,7 +784,7 @@ bool thumbTile(Ui& ui, const Rect& r, int entry)
         }
         // Its name: one line, or split at the space nearest its middle.
         const bool gold = !available || (!chosen && !hover); // AD support: unavailable entries stay visible
-        const int len = static_cast<int>(strlen(name));
+        const int len = static_cast<int>(ZA_STRLEN(name));
         const float dim = 6.f;
         if(len * dim <= r.w() - 3.f || !strchr(name, ' '))
         {
@@ -816,7 +819,7 @@ constexpr int armedEntry = -2; // the grid's Armed Humanoid tile (Monsters, afte
 // (vr_toolgun_select, the Debug menus).
 [[nodiscard]] bool armedPackHidden(int i)
 {
-    return vr_toolgun_armed_tiles.value == 0.f && !strncmp(toolgun::spawnablePack(i), "Armed ", 6);
+    return vr_toolgun_armed_tiles.value == 0.f && !ZA_STRNCMP(toolgun::spawnablePack(i), "Armed ", 6);
 }
 
 struct SpawnGrid
@@ -844,16 +847,16 @@ const SpawnGrid& spawnGrid(int perPage)
     g.perPage = perPage;
     g.entries.clear();
     g.groupPages.clear();
-    const auto inSection = [](int i) { return !strcmp(toolgun::spawnableSection(i), sections[ps.section]) && !armedPackHidden(i); };
+    const auto inSection = [](int i) { return !ZA_STRCMP(toolgun::spawnableSection(i), sections[ps.section]) && !armedPackHidden(i); };
     za::InPlaceVector<const char*, maxPacks> packs;
     packs.pushBack("");
     for(int i = 0; i < toolgun::spawnableCount(); i++)
     {
         const char* pack = toolgun::spawnablePack(i);
-        bool known = !strcmp(pack, "AD");
+        bool known = !ZA_STRCMP(pack, "AD");
         for(int k = 0; k < static_cast<int>(packs.size()) && !known; k++)
         {
-            known = !strcmp(packs[k], pack);
+            known = !ZA_STRCMP(packs[k], pack);
         }
         if(inSection(i) && !known && packs.size() < packs.capacity() - 1)
         {
@@ -867,7 +870,7 @@ const SpawnGrid& spawnGrid(int perPage)
         bool first = true;
         for(int i = 0; i < toolgun::spawnableCount() && entries.size() < entries.capacity(); i++)
         {
-            if(!inSection(i) || strcmp(toolgun::spawnablePack(i), packs[k]))
+            if(!inSection(i) || ZA_STRCMP(toolgun::spawnablePack(i), packs[k]))
             {
                 continue;
             }

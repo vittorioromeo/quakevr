@@ -14,6 +14,7 @@
 
 #include "vr_engine.hpp"
 #include "vr_nav.hpp"
+#include "Zancle/Base/IntTypes.hpp"
 
 namespace qvr::navfollow
 {

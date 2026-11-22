@@ -11,6 +11,7 @@
 #include "vr_tunables.hpp"
 #include "vr_api.h"
 #include "vr_api_render.h"
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Math/Acos.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
@@ -752,7 +753,7 @@ testkit::Tally platesModelTally;
 void platesModelCheck_f()
 {
     testkit::Tally& c = platesModelTally;
-    if(Cmd_Argc() > 1 && !strcmp(Cmd_Argv(1), "end"))
+    if(Cmd_Argc() > 1 && !ZA_STRCMP(Cmd_Argv(1), "end"))
     {
         c.verdict("ppmodel");
         c.reset();
@@ -766,8 +767,8 @@ void platesModelCheck_f()
     const int build = avatar::bodyBuild();
     char want[MAX_QPATH];
     q_snprintf(want, sizeof(want), "%s#armor", bodyName);
-    const bool bodyOk = !strcmp(bodyName, bodyModelName(build, drawnBare));
-    const bool plateOk = plate.ent.model && plate.ent.model->type == mod_alias && !strcmp(plateName, want);
+    const bool bodyOk = !ZA_STRCMP(bodyName, bodyModelName(build, drawnBare));
+    const bool plateOk = plate.ent.model && plate.ent.model->type == mod_alias && !ZA_STRCMP(plateName, want);
     const bool ok = c.check(bodyOk && plateOk && playerPlates.entityPieces[0] != 0);
     Con_Printf("ppmodel: %s build %d, body %s, plates %s (pieces %d)\n", ok ? "ok" : "FAIL", build, bodyName, plateName, playerPlates.entityPieces[0]);
 }

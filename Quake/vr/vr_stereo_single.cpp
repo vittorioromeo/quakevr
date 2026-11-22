@@ -27,6 +27,7 @@
 #include "SDL.h"
 #endif
 
+#include "Zancle/Base/Memcpy.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Tan.hpp"
@@ -640,7 +641,7 @@ extern "C" int VR_StereoSingleViewReady()
 
 extern "C" void VR_StereoSingleFrustum(mplane_t* frustum)
 {
-    memcpy(frustum, stereosingle::state.frustum, sizeof(stereosingle::state.frustum));
+    ZA_MEMCPY(frustum, stereosingle::state.frustum, sizeof(stereosingle::state.frustum));
 }
 
 extern "C" void VR_StereoSingleEyeOrigin(int eye, float out[3])
@@ -651,8 +652,8 @@ extern "C" void VR_StereoSingleEyeOrigin(int eye, float out[3])
 extern "C" void VR_StereoSingleEyeMatrices(int eye, float proj[16], float view[16])
 {
     const stereosingle::EyeView& v = stereosingle::state.eyes[eye & 1];
-    memcpy(proj, v.proj, sizeof(v.proj));
-    memcpy(view, v.view, sizeof(v.view));
+    ZA_MEMCPY(proj, v.proj, sizeof(v.proj));
+    ZA_MEMCPY(view, v.view, sizeof(v.view));
 }
 
 extern "C" unsigned VR_StereoSingleClusterTexture()
@@ -703,7 +704,7 @@ extern "C" unsigned VR_StereoSingleBeginScene()
     stereosingle::ViewsBlock block;
     for(int eye = 0; eye < 2; eye++)
     {
-        memcpy(block.viewProj[eye], s.eyes[eye].viewProj, sizeof(block.viewProj[eye]));
+        ZA_MEMCPY(block.viewProj[eye], s.eyes[eye].viewProj, sizeof(block.viewProj[eye]));
         block.eyePos[eye][0] = s.eyes[eye].origin[0];
         block.eyePos[eye][1] = s.eyes[eye].origin[1];
         block.eyePos[eye][2] = s.eyes[eye].origin[2];

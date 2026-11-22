@@ -24,12 +24,12 @@
 #include "vr_testkit.hpp"
 #include "vr_units.hpp"
 
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "vr_api.h"
 
-#include <string.h>
 
 using namespace qvr;
 
@@ -358,7 +358,7 @@ void test_f()
     LastMove& l = lastMove;
     const float minF = za::clamp(vr_closequarters_min.value, 0.f, 1.f);
     const float strafe = za::clamp(vr_closequarters_strafe.value, 0.f, 1.f);
-    if(!strcmp(step, "start"))
+    if(!ZA_STRCMP(step, "start"))
     {
         l = LastMove{};
         cqTally = testkit::Tally{};
@@ -369,7 +369,7 @@ void test_f()
         }
         return;
     }
-    if(!strcmp(step, "coast"))
+    if(!ZA_STRCMP(step, "coast"))
     {
         edict_t* const p = progs::localPlayer();
         if(!p)
@@ -398,7 +398,7 @@ void test_f()
         Cbuf_AddText("+forward\n");
         return;
     }
-    if(!strcmp(step, "approach"))
+    if(!ZA_STRCMP(step, "approach"))
     {
         if(!sv.active)
         {
@@ -419,7 +419,7 @@ void test_f()
         l = LastMove{};
         return;
     }
-    if(!strcmp(step, "live"))
+    if(!ZA_STRCMP(step, "live"))
     {
         // Only Live Foes (vr_closequarters_live): the grunt standing counts; knocked down (its ragdoll made, alive) it
         // doesn't, and does again with the option off.
@@ -432,7 +432,7 @@ void test_f()
         for(int i = 1; i < qcvm->num_edicts && !grunt; i++)
         {
             edict_t* const e = EDICT_NUM(i);
-            grunt = !e->free && !strcmp(PR_GetString(e->v.classname), "monster_army") && e->v.health > 0.f ? e : nullptr;
+            grunt = !e->free && !ZA_STRCMP(PR_GetString(e->v.classname), "monster_army") && e->v.health > 0.f ? e : nullptr;
         }
         cqTally.check(grunt != nullptr && liveEnemy(grunt), name, "the grunt standing: a live foe");
         // (the knockdown's mark, .vr_knockdown 1: a living ragdoll's, QC vr_knockdown.qc; the test's grunts here are

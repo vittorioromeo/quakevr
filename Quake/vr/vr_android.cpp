@@ -10,11 +10,15 @@
 #include "vr_engine.hpp"
 #include "vr_files.hpp"
 #include "vr_testkit.hpp"
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Memset.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strncmp.hpp"
+#include "Zancle/Base/Strstr.hpp"
 
-#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
-#include <cstring>
 
 #ifdef __ANDROID__
 #include <SDL_system.h>
@@ -133,7 +137,7 @@ bool resolveExport(char (&out)[maxPath], const char* path, const char* gameDir, 
         copyPath(out, path);
         return Sys_FileType(out) != FS_ENT_NONE;
     }
-    const char* rest = !strncmp(path, "profile/", 8) ? path + 8 : nullptr;
+    const char* rest = !ZA_STRNCMP(path, "profile/", 8) ? path + 8 : nullptr;
     const char* const tries[][2] = {{gameDir, path}, {internal, path}, {internal, rest}};
     bool first = true;
     for(const auto& tr : tries)
@@ -173,7 +177,7 @@ bool fakeRequested(int argc, char** argv)
         }
     }
     const char* env = getenv("QVR_FAKE_ANDROID");
-    return env && *env && strcmp(env, "0") != 0;
+    return env && *env && ZA_STRCMP(env, "0") != 0;
 #endif
 }
 
@@ -189,7 +193,7 @@ struct LogCapture
 
 void captureLine(const char* line)
 {
-    const size_t n = strlen(line);
+    const size_t n = ZA_STRLEN(line);
     if(logCapture.lines == 0)
     {
         q_strlcpy(logCapture.first, line, sizeof logCapture.first);
@@ -217,7 +221,7 @@ void test_f()
     t.check(android.base[0] != '\0', name, "no base folder");
     char expect[maxPath];
     q_snprintf(expect, sizeof expect, "%s/quakevr/crash", android.base);
-    t.check(!strcmp(android.crashDir, expect), name, "crash folder not <base>/quakevr/crash");
+    t.check(!ZA_STRCMP(android.crashDir, expect), name, "crash folder not <base>/quakevr/crash");
     t.check(Sys_FileType(android.crashDir) & FS_ENT_DIRECTORY, name, "crash folder not made");
 
     // The crash handler (vr_crash.cpp) reports into the same folder: a file put there is seen through its path.
@@ -235,7 +239,7 @@ void test_f()
     SDL_AtomicLock(&logLines.lock);
     const size_t pending = logLines.len; // (text of the game's own, waiting for its newline: kept aside)
     char kept[logLineSize];
-    memcpy(kept, logLines.line, pending);
+    ZA_MEMCPY(kept, logLines.line, pending);
     logLines.len = 0;
     logLines.sink = captureLine;
     SDL_AtomicUnlock(&logLines.lock);
@@ -243,12 +247,12 @@ void test_f()
     logText("abc");
     logText("def\nghi\n");
     t.check(logCapture.lines == 2, name, va("%d log lines from \"abc\" \"def\\nghi\\n\", not 2", logCapture.lines));
-    t.check(!strcmp(logCapture.first, "abcdef") && !strcmp(logCapture.second, "ghi"), name, "log lines not joined");
+    t.check(!ZA_STRCMP(logCapture.first, "abcdef") && !ZA_STRCMP(logCapture.second, "ghi"), name, "log lines not joined");
     logText("jkl");
     t.check(logCapture.lines == 2, name, "a line without its newline sent");
     logText("\n");
     char longLine[2600];
-    memset(longLine, 'x', sizeof longLine - 2);
+    ZA_MEMSET(longLine, 'x', sizeof longLine - 2);
     longLine[sizeof longLine - 2] = '\n';
     longLine[sizeof longLine - 1] = '\0';
     logCapture = {};
@@ -258,7 +262,7 @@ void test_f()
             static_cast<int>(logCapture.chars)));
     SDL_AtomicLock(&logLines.lock);
     logLines.sink = nullptr;
-    memcpy(logLines.line, kept, pending);
+    ZA_MEMCPY(logLines.line, kept, pending);
     logLines.len = pending;
     SDL_AtomicUnlock(&logLines.lock);
 
@@ -277,9 +281,9 @@ void test_f()
     // vr_android_export's sources: the game folder's first, then the app's files (cfgDir standing in for them), and
     // "profile/<rest>" there as <rest>; a path in neither not found.
     char found[maxPath];
-    t.check(resolveExport(found, CONFIG_NAME, android.crashDir, cfgDir) && strstr(found, "config_test"), name,
+    t.check(resolveExport(found, CONFIG_NAME, android.crashDir, cfgDir) && ZA_STRSTR(found, "config_test"), name,
         va("export: %s not found in the app's files (%s)", CONFIG_NAME, found));
-    t.check(resolveExport(found, "profile/" CONFIG_NAME, android.crashDir, cfgDir) && strstr(found, "config_test"), name,
+    t.check(resolveExport(found, "profile/" CONFIG_NAME, android.crashDir, cfgDir) && ZA_STRSTR(found, "config_test"), name,
         va("export: profile/%s not taken as the app's %s (%s)", CONFIG_NAME, CONFIG_NAME, found));
     t.check(resolveExport(found, "config_test", android.crashDir, nullptr), name, "export: a game-folder path not found");
     t.check(!resolveExport(found, "no_such_file.txt", android.crashDir, cfgDir), name, "export: a missing file found");

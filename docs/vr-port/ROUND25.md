@@ -9526,3 +9526,57 @@ testaudit #3 and #7 (kit `F:\QVR-Parked\2026-11-22\testspeed\kit\testaudit_repor
   The verdicts matched (flatitems, flatplay, flatladder rerun with the hold; flatmove, flatslide, flatpose proven with
   the loop), but the faithful form is the loop for a closing waitN and the hold only with no closing quit
   (a `vr_waitquiton N wait` mode). reload_test.sh's one -QuitOn case (`reload magnails lying:`) now batches: not rerun.
+## dwellweap2: the Crystal Lance's cord, sliding weapon hand, thrust, B flip (agent/dwellweap2, 2026-11-22)
+
+dwellweap's leftovers (POLEWEAPONS.md "Built in dwellweap2" has the detail). Not built: the Rotary Shotgun model list
+(the muzzle flare at the bottom, the hand's hole and handle, the shell port 10% bigger, black and inset, deeper gaps
+between the barrels, open muzzles, the screen in a wedge on top) and impaling (a spear's; the Lance is an energy tip).
+- **Cord**: `vr_cellcord.cpp` (the laser cannon's coiled cell cord) gains the Lance: from the butt of its pole (its
+  model's lowest point, leaving along the pole) into a cell in the pouch; loose and swinging with no cells; QC
+  `VR_Reload_PlayerFrame` shows cells in the pouch while it is held. `vr_cellcord_lance` 1 (Weapons > Reloading > Cell
+  Cords), `vr_cellcord_lance_x/y/z` 0 (Cord Points). Reuses the cell cord whole (not the AD hose: the cord already plugs
+  into the pouch's cells and unplugs without them).
+- **Weapon hand slides** (`vr_twohand.cpp` `PoleSlide`, `poleShift`; the view moves the drawn weapon back along the pole,
+  so muzzle, blade line and cord follow): off hand closed (analog grip >= `vr_pole_slide_grip` 0.6), weapon hand loose
+  (under it). `vr_pole_slide` 1. Both in Physics next to Other Hand Anywhere. A button-only grip never slides.
+- **Pole axis fix**: the pole grip's axis is the hand-to-tip line; `bladeDirection` (the 2H aim's way) lay ~70 degrees
+  off the Lance's pole (the off hand's tip limit was 9 units, the tip 27 away), so the off hand's place left the pole.
+- **Thrust**: QC `DW_LanceMelee` on a stab: the head (`mh_c_f` >= `vr_dw_lance_head` 0.55) x`vr_dw_lance_thrust` 1.5,
+  the shaft x`vr_dw_lance_poke` 0.4 (tunables by the axe's damage).
+- **B flip**: works; dwellweap's test pressed B for 2 frames, under a player frame.
+- **Tests**: `dwell_lance_test.sh` 29/0 (new: cord 7, flip 2, main slide 5, thrust 3). No useful side screenshot (the
+  mock camera at e1m1's start looked into walls); none saved.
+## zancle2: atomics, clocks, Tracy and the C string calls on Zancle (agent/zancle2, 2026-11-22)
+
+- **struggle_test's failures predate zancle:** before the zancle merge (0ea5f3574) 7 passed / 7 failed, the same drag
+  cases (legpull, legpull1, headdrag, shoulderdrag "walked 6 units", armdrag's swat > 0.4, legpull's no weights;
+  legdrag also counted that run); origin/next 6/6. Not chased here.
+- **Phase 3:** `std::atomic` -> `za::Atomic` (box3d gun pieces and hull disk counts, diskcache, imgprefetch, jobs,
+  warmup, startlog, xr_runtime, bodytrack_xr): every implicit operation (`++`, `+=`, `x = v`, `.load()`,
+  `.exchange()`, `compare_exchange_strong`) is now its explicit SeqCst call, as std's operators were; explicit
+  orders map 1:1 (`fetchAddRelaxed`, `storeRelease`, `za::atomicThreadFence<...>`). vr_voicechat's steady_clock
+  timings -> `za::Clock::nowNanoseconds()`. vr_tracy.cpp (compiled only by Release-Tracy; checked with an MSBuild
+  ClCompile of that configuration into scratch): Atomic (the source table's spin lock an exchange/store),
+  `za::AtomicMutex`/`LockGuard`, ankerl maps, `za::String`/`StringView`/`Vector`, ZA_ string calls; its two
+  `std::deque`s stay (stable addresses). Kept and allowlisted with reasons: `wallMs` (system_clock epoch ms) in
+  vr_mptest/vr_voicechat, compared across processes (`za::Clock`'s epoch is unspecified). The Quest merge's 7 uses
+  converted; the Android native build compiles (build-android, `cmake --build ... --target ironwail`).
+- **Phases 4-5:** unqualified (and `std::`) `strcmp strncmp strlen strstr memcpy memset memcmp memmove memchr` ->
+  `ZA_STRCMP`... (`Zancle/Base/<Name>.hpp`, `__builtin_*`: the same calls) in 80 files, vr_ad .. vr_cleanskins (644
+  calls); comments and strings untouched; `<cstring>`/`<string.h>` dropped where no other string.h name is left
+  (quakedef.h's `<string.h>` stays the source for `strchr` and friends). Left: ~1,980 calls in 217 files.
+- **Counts (the allowlist):** std:: 156 -> 40, standard header includes 31 -> 9.
+- **Tests:** release build 0 warnings each phase; smoke e1m1 with vr_hull_stats, vr_gun_pieces_cache_stats,
+  vr_image_prefetch_info, vr_cache_warmup_info (counters move); startuplog 3/0; vr_voicechat_selftest 24/0;
+  vr_android_test (-fakeandroid) 16/0. Not yet run: Misc/quakevr/check_nopch.sh (after the last phase).
+- **No-PCH (zancle2, after phase 5):** check_nopch.sh found 12 files using a PCH Zancle header (MinMax, Clamp, String,
+  Sort, IntTypes) or Base/Macros.hpp's ZA_MOVE without including it; fixed. `scratch/zancle2_pchinc.py`-style check
+  (each PCH header a file uses, reachable through its own includes) runs with every later phase.
+- **Phases 6-8 (zancle2):** the C string/memory calls -> ZA_ in 120 more files (vr_client .. vr_predict, 1,066 calls);
+  release build 0 warnings and no-PCH build ok each phase; smoke e1m1, vr_android_test 16/0, vr_voicechat_selftest
+  24/0, vr_menu_path_check 0 missing; Android native build compiles. Left: 914 calls in 97 files (vr_profile ..).
+- **Phases 9-11 (zancle2, the last):** the C string/memory calls -> ZA_ in the remaining 98 files (vr_cellcord ..
+  vr_xr_stall, 915 calls); every Quake/vr file we own is converted (what's left of those names: imgui, third-party).
+  Release build 0 warnings and no-PCH build ok each phase; the std_uses allowlist refreshed (std:: 40, std headers 8;
+  `qvr_checks std_uses` 95 uses counting the `*` files). Tests: smoke e1m1, vr_android_test 16/0,
+  vr_voicechat_selftest 24/0, startuplog 3/0, mp_test coop 12/0; Android native build compiles.

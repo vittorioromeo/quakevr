@@ -12,6 +12,8 @@
 #include "vr_testkit.hpp"
 #include "vr_cvars.hpp"
 #include "vr_tunables.hpp"
+#include "Zancle/Base/Memcmp.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Swap.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -1062,7 +1064,7 @@ bool emptyHandSpheres(const hands::State& s, int hand, bool fist, za::Vector<glm
     // The posed spheres (rig space) are the pose's and the rig's alone: the open and the closed hand's kept from the last
     // frame while both are the same (the settings unchanged), not posed again four times a frame.
     PosedSpheresMemo& memo = posedSpheresMemo.memos[static_cast<za::SizeT>(hand * 2 + (fist ? 1 : 0))];
-    if(!memo.valid || memo.generation != handrig::generation() || memcmp(&memo.pose, &pose, sizeof(pose)) != 0)
+    if(!memo.valid || memo.generation != handrig::generation() || ZA_MEMCMP(&memo.pose, &pose, sizeof(pose)) != 0)
     {
         grasp::posedSpheres(pose, memo.spheres);
         memo.valid = true;
@@ -1110,12 +1112,12 @@ GhostRecoil ghostRecoilIgnored; // (the "ignored" phase's, kept for the verdict)
 void ghostRecoilTest_f()
 {
     const char* step = Cmd_Argc() > 1 ? Cmd_Argv(1) : "";
-    if(!strcmp(step, "start"))
+    if(!ZA_STRCMP(step, "start"))
     {
         ghostRecoil = GhostRecoil{};
         return;
     }
-    if(!strcmp(step, "ignored"))
+    if(!ZA_STRCMP(step, "ignored"))
     {
         ghostRecoilIgnored = ghostRecoil;
         ghostRecoil = GhostRecoil{};
@@ -1157,12 +1159,12 @@ bool obsRecClean{false};    // (... and Recording Mode on, debug markers hidden,
 void ghostBodyTest_f()
 {
     const char* step = Cmd_Argc() > 1 ? Cmd_Argv(1) : "";
-    if(!strcmp(step, "start"))
+    if(!ZA_STRCMP(step, "start"))
     {
         ghostBody = GhostBody{};
         return;
     }
-    if(!strcmp(step, "hidden"))
+    if(!ZA_STRCMP(step, "hidden"))
     {
         ghostBodyHidden = ghostBody;
         ghostBody = GhostBody{};
@@ -1188,14 +1190,14 @@ void ghostBodyTest_f()
 void obsRecTest_f()
 {
     const char* step = Cmd_Argc() > 1 ? Cmd_Argv(1) : "";
-    if(!strcmp(step, "start"))
+    if(!ZA_STRCMP(step, "start"))
     {
         ghostRec = GhostBody{};
         return;
     }
     testkit::Tally t;
     constexpr const char* name = "vr_obsrec_test";
-    if(!strcmp(step, "hidden"))
+    if(!ZA_STRCMP(step, "hidden"))
     {
         ghostRecHidden = ghostRec;
         ghostRec = GhostBody{};
@@ -1203,7 +1205,7 @@ void obsRecTest_f()
         obsRecDefaults = true;
         for(const cvar_t* v : {&vr_obsrec_ghost_hands, &vr_obsrec_debug, &vr_obsrec_messages})
         {
-            obsRecDefaults = obsRecDefaults && !strcmp(v->default_string, "1") && !strcmp(v->string, "1");
+            obsRecDefaults = obsRecDefaults && !ZA_STRCMP(v->default_string, "1") && !ZA_STRCMP(v->string, "1");
         }
         obsRecClean = recordingClean() && obs::hides(obs::Hide::Debug);
         return;
@@ -1228,12 +1230,12 @@ void obsRecTest_f()
 void ghostClimbTest_f()
 {
     const char* step = Cmd_Argc() > 1 ? Cmd_Argv(1) : "";
-    if(!strcmp(step, "start"))
+    if(!ZA_STRCMP(step, "start"))
     {
         ghostClimb = GhostBody{};
         return;
     }
-    if(!strcmp(step, "hidden"))
+    if(!ZA_STRCMP(step, "hidden"))
     {
         ghostClimbHidden = ghostClimb;
         ghostClimb = GhostBody{};
@@ -2537,7 +2539,7 @@ void embedProbeWrite()
     {
         return;
     }
-    if(!strcmp(vr_embed_probe.string, "reset"))
+    if(!ZA_STRCMP(vr_embed_probe.string, "reset"))
     {
         // (The hand's place on the weapon held is kept: taken before the blade went in.)
         const EmbedProbe was = embedProbe;

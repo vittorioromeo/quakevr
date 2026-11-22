@@ -11,6 +11,10 @@
 #include "vr_rig2.hpp"
 #include "vr_cvars.hpp"
 #include "vr_tunables.hpp"
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -45,7 +49,7 @@ constexpr double recentBlastTime = 0.6; // s: a blast this recent throws a ragdo
     const char* classname = ad::vrClass(PR_GetString(ent->v.classname)); // AD support: AD's monsters as their nearest class
     for(const RagdollClass& c : ragdollClasses)
     {
-        if(!strcmp(classname, c.classname) && c.own[i]->value >= 0.f)
+        if(!ZA_STRCMP(classname, c.classname) && c.own[i]->value >= 0.f)
         {
             return c.own[i]->value;
         }
@@ -91,7 +95,7 @@ const Tunable* const groupLimitCvars[ragactive::channelCount] = {&vr_ragdoll_lim
     const char* classname = PR_GetString(ent->v.classname);
     for(const ActiveClass& c : activeClasses)
     {
-        if(!strcmp(classname, c.classname))
+        if(!ZA_STRCMP(classname, c.classname))
         {
             return &c;
         }
@@ -362,7 +366,7 @@ void commitGunPrep(za::Vector<GunPrepWork>& work, int most, const char* list, do
     for(GunPrepWork& w : work)
     {
         const PropHullKey key{w.model, -2, {}};
-        if(strcmp(w.model->name, w.name) != 0 || za::anyOf(gunShapes.entries.begin(), gunShapes.entries.end(),
+        if(ZA_STRCMP(w.model->name, w.name) != 0 || za::anyOf(gunShapes.entries.begin(), gunShapes.entries.end(),
             [&](const GunShapeCache::Entry& e) { return e.key == key && e.most == most; }))
         {
             continue;
@@ -448,11 +452,11 @@ void prepareHeldGuns()
             G_FLOAT(OFS_PARM0) = static_cast<float>(k);
             PR_ExecuteProgram(modelOf);
             const char* name = PR_GetString(G_INT(OFS_RETURN));
-            const size_t length = strlen(name);
+            const size_t length = ZA_STRLEN(name);
             if(length && used + length + 2 < sizeof(list))
             {
                 list[used++] = ' ';
-                memcpy(list + used, name, length + 1);
+                ZA_MEMCPY(list + used, name, length + 1);
                 used += length;
             }
         }
@@ -475,13 +479,13 @@ void prepareHeldGuns()
         }
         char name[MAX_QPATH];
         const size_t n = za::min(static_cast<size_t>(end - p), sizeof(name) - 1);
-        memcpy(name, p, n);
+        ZA_MEMCPY(name, p, n);
         name[n] = 0;
         p = end;
         qmodel_t* model = nullptr;
         for(int i = 1; n && i < MAX_MODELS && sv.models[i]; i++)
         {
-            if(!strcmp(sv.models[i]->name, name))
+            if(!ZA_STRCMP(sv.models[i]->name, name))
             {
                 model = sv.models[i];
                 break;
@@ -792,7 +796,7 @@ int looseHolder(const ragdoll::Rig& rig, int loose)
     for(int o = 0; o < rig.numBones; o++)
     {
         if(rig.bones[o].joint == ragdoll::Joint::Loose ||
-            (rig.looseInHands && strncmp(rig.bones[o].name, "forearm", 7) != 0)) // (held in a hand: Rig::looseInHands)
+            (rig.looseInHands && ZA_STRNCMP(rig.bones[o].name, "forearm", 7) != 0)) // (held in a hand: Rig::looseInHands)
         {
             continue;
         }
@@ -1068,7 +1072,7 @@ void createRagdollJoints(CreateWork& w, edict_t* ent, int num)
             // Corpses need shoulder contact too: the upper arm is directly jointed to the chest.
             // preSolve exempts the socket itself, so its necessary joint overlap cannot fight the constraint.
             base.collideConnected = !r.knocked && !bone.framed && // (the authored rig: on its clavicle, its chest no neighbour)
-                strncmp(bone.name, "upperarm", 8) == 0;
+                ZA_STRNCMP(bone.name, "upperarm", 8) == 0;
         };
         if(bone.joint == ragdoll::Joint::Ball)
         {
@@ -2683,7 +2687,7 @@ void writeRagdoll(edict_t* ent, Slot& s)
         for(int b = 0; b < r.count; b++)
         {
             const ragdoll::Bone& bone = rig.bones[b];
-            if(partCut(r, b) || bone.parent < 0 || strncmp(bone.name, "upperarm", 8) != 0) { continue; }
+            if(partCut(r, b) || bone.parent < 0 || ZA_STRNCMP(bone.name, "upperarm", 8) != 0) { continue; }
             const b3BodyId parent = r.body[static_cast<za::SizeT>(bone.parent)];
             za::Array<b3JointId, ragdoll::maxBones> attached{};
             const int count = b3Body_GetJoints(r.body[static_cast<za::SizeT>(b)], attached.data(), ragdoll::maxBones);

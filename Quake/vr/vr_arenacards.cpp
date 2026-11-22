@@ -29,6 +29,8 @@
 #include "vr_toolpanel.hpp"
 
 #include "Zancle/Base/Exchange.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
@@ -37,7 +39,6 @@
 #include "Zancle/Math/Sin.hpp"
 
 #include <stdio.h>
-#include <string.h>
 
 using namespace qvr;
 
@@ -328,7 +329,7 @@ void paragraphCentred(float cx, float y, float width, float dim, const char* s, 
     int lines = 0;
     while(*s && lines < maxLines)
     {
-        int n = static_cast<int>(strlen(s));
+        int n = static_cast<int>(ZA_STRLEN(s));
         if(n > perLine)
         {
             n = perLine;
@@ -343,7 +344,7 @@ void paragraphCentred(float cx, float y, float width, float dim, const char* s, 
         }
         char line[96];
         q_strlcpy(line, s, static_cast<size_t>(za::min(static_cast<int>(sizeof(line)), n + 1)));
-        const float len = static_cast<float>(strlen(line));
+        const float len = static_cast<float>(ZA_STRLEN(line));
         text(cx - len * dim * 0.5f, y + lines * (dim + 2.f), dim, line, false);
         lines++;
         s += n;
@@ -383,7 +384,7 @@ void drawCard(int i)
     const float textLines = 5.f;
     const float textH = textLines * 8.f;
     const float picSize = za::max(8.f, za::min(r.w() - 16.f, r.h() - bandH - textH - 10.f));
-    const bool side = !strncmp(c.model, "progs/v_", 8); // (a gun's model: from its side, its length across)
+    const bool side = !ZA_STRNCMP(c.model, "progs/v_", 8); // (a gun's model: from its side, its length across)
     if(const gfx::Picture* pic = c.model[0] ? toolgun::icons::get(c.model, 0, side) : nullptr)
     {
         gfx::draw2D::picture(*pic, r.cx() - picSize * 0.5f, r.y0 + bandH + 3.f, picSize, picSize);

@@ -18,7 +18,11 @@
 #include "Zancle/String/String.hpp"
 #include "vr_api.h"
 
-#include <atomic>
+#include "Zancle/Concurrency/Atomic.hpp"
+#include "Zancle/Base/Memcmp.hpp"
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
 
 namespace
 {
@@ -55,12 +59,12 @@ const ProductInfo& infoOf(Product p)
 
 struct Counts
 {
-    std::atomic<long long> hits{0}, misses{0}, written{0}, rejected{0}, same{0}, differed{0}, missesInPlay{0};
-    std::atomic<long long> bytesRead{0}, bytesWritten{0}, readUs{0};
+    za::Atomic<long long> hits{0}, misses{0}, written{0}, rejected{0}, same{0}, differed{0}, missesInPlay{0};
+    za::Atomic<long long> bytesRead{0}, bytesWritten{0}, readUs{0};
 };
 Counts counts[static_cast<int>(Product::Count)];
 
-std::atomic<bool> playing{false};
+za::Atomic<bool> playing{false};
 
 // Models loaded from their files while a map is in play (VR_NoteModelLoad: the main thread's): a first use the map's
 // load didn't precache, its load the frame's hitch. vr_cache_info counts them; developer 1 prints each.
@@ -93,7 +97,7 @@ void prune(Product p, const za::String& kindDir, const char* build)
     QVR_TRACY_SCOPE(tracyScope, "disk cache prune");
     za::Vector<za::String> others;
     qvr::files::forEachEntry(kindDir.cStr(), [&](const char* name, bool) {
-        if(strcmp(name, build) != 0)
+        if(ZA_STRCMP(name, build) != 0)
         {
             others.pushBack(kindDir + "/" + name);
         }
@@ -174,7 +178,7 @@ bool readFile(const za::String& path, const char (&magic)[5], unsigned& a, unsig
     char m[4];
     unsigned header[3];
     bool ok = size >= headerSize && fread(m, 1, sizeof(m), in) == sizeof(m) &&
-              fread(header, 1, sizeof(header), in) == sizeof(header) && memcmp(m, magic, 4) == 0 && header[0] == version;
+              fread(header, 1, sizeof(header), in) == sizeof(header) && ZA_MEMCMP(m, magic, 4) == 0 && header[0] == version;
     if(ok)
     {
         a = header[1];
@@ -195,7 +199,7 @@ constexpr za::SizeT writesMost = 64;
 // The program pack's write under way (progWrite): one at a time, each waiting for the last (two on the pool at once,
 // the older renamed into place after the newer would win). Finished with the others (VR_TexCacheFinishWrites).
 qvr::jobs::Future<void> progWriting;
-std::atomic<bool> progWriteFailed{false}; // (a worker's failure, said on the main thread: the console isn't a worker's)
+za::Atomic<bool> progWriteFailed{false}; // (a worker's failure, said on the main thread: the console isn't a worker's)
 
 constexpr char normalMagic[5] = "QVRN";
 
@@ -283,18 +287,18 @@ int modeOf(Product p)
 void noteHit(Product p, size_t bytes, double seconds)
 {
     Counts& c = counts[static_cast<int>(p)];
-    ++c.hits;
-    c.bytesRead += static_cast<long long>(bytes);
-    c.readUs += static_cast<long long>(seconds * 1e6);
+    c.hits.fetchAddSeqCst(1);
+    c.bytesRead.fetchAddSeqCst(static_cast<long long>(bytes));
+    c.readUs.fetchAddSeqCst(static_cast<long long>(seconds * 1e6));
 }
 
 void noteMiss(Product p, const char* what)
 {
     Counts& c = counts[static_cast<int>(p)];
-    ++c.misses;
-    if(playing.load(std::memory_order_relaxed))
+    c.misses.fetchAddSeqCst(1);
+    if(playing.loadRelaxed())
     {
-        ++c.missesInPlay;
+        c.missesInPlay.fetchAddSeqCst(1);
         if(developer.value)
         {
             Con_DPrintf("cache miss in play: %s %s (made now)\n", kindOf(p), what ? what : "");
@@ -305,34 +309,34 @@ void noteMiss(Product p, const char* what)
 void noteWrite(Product p, size_t bytes)
 {
     Counts& c = counts[static_cast<int>(p)];
-    ++c.written;
-    c.bytesWritten += static_cast<long long>(bytes);
+    c.written.fetchAddSeqCst(1);
+    c.bytesWritten.fetchAddSeqCst(static_cast<long long>(bytes));
 }
 
 void noteRejected(Product p)
 {
-    ++counts[static_cast<int>(p)].rejected;
+    counts[static_cast<int>(p)].rejected.fetchAddSeqCst(1);
 }
 
 void noteChecked(Product p, bool same, const char* what)
 {
     Counts& c = counts[static_cast<int>(p)];
-    ++(same ? c.same : c.differed);
+    (same ? c.same : c.differed).fetchAddSeqCst(1);
     if(!same)
     {
         Con_Warning("%s cache check: %s differs from its file (%lld of %lld so far)\n", kindOf(p), what ? what : "",
-            c.differed.load(), c.same.load() + c.differed.load());
+            c.differed.loadSeqCst(), c.same.loadSeqCst() + c.differed.loadSeqCst());
     }
 }
 
 void setInPlay(bool inPlay)
 {
-    playing.store(inPlay, std::memory_order_relaxed);
+    playing.storeRelaxed(inPlay);
 }
 
 bool inPlay()
 {
-    return playing.load(std::memory_order_relaxed);
+    return playing.loadRelaxed();
 }
 
 bool read(Product p, const char* build, unsigned long long key, const char* ext, const char (&magic)[5], unsigned& a,
@@ -368,7 +372,7 @@ int readRgbaAt(const za::String& folder, unsigned long long key, unsigned char* 
     {
         return 3;
     }
-    memcpy(rgba, data.data(), data.size());
+    ZA_MEMCPY(rgba, data.data(), data.size());
     seconds = Sys_DoubleTime() - t0;
     return 1;
 }
@@ -401,11 +405,11 @@ void write(Product p, const char* build, unsigned long long key, const char* ext
     za::Vector<unsigned char> bytes;
     const unsigned header[3] = {version, a, b};
     bytes.resize(4 + sizeof(header) + length);
-    memcpy(bytes.data(), magic, 4);
-    memcpy(bytes.data() + 4, header, sizeof(header));
+    ZA_MEMCPY(bytes.data(), magic, 4);
+    ZA_MEMCPY(bytes.data() + 4, header, sizeof(header));
     if(length)
     {
-        memcpy(bytes.data() + 4 + sizeof(header), data, length);
+        ZA_MEMCPY(bytes.data() + 4 + sizeof(header), data, length);
     }
     while(!writes.empty() && writes.front().ready())
     {
@@ -468,9 +472,9 @@ void info_f()
         Con_Printf("  %-10s %-24s %s %g: %lld files, %.1f MB on disk; this session %lld read (%.1f MB, %.1f ms), %lld "
                    "missed (%lld in play), %lld written (%.1f MB), %lld rejected, checked %lld same %lld differed\n",
             info.kind, info.what, info.mode ? info.mode->name : "(always)", info.mode ? info.mode->value : 1.f, files, static_cast<double>(bytes) / 1048576.0,
-            c.hits.load(), static_cast<double>(c.bytesRead.load()) / 1048576.0, static_cast<double>(c.readUs.load()) / 1000.0,
-            c.misses.load(), c.missesInPlay.load(), c.written.load(), static_cast<double>(c.bytesWritten.load()) / 1048576.0,
-            c.rejected.load(), c.same.load(), c.differed.load());
+            c.hits.loadSeqCst(), static_cast<double>(c.bytesRead.loadSeqCst()) / 1048576.0, static_cast<double>(c.readUs.loadSeqCst()) / 1000.0,
+            c.misses.loadSeqCst(), c.missesInPlay.loadSeqCst(), c.written.loadSeqCst(), static_cast<double>(c.bytesWritten.loadSeqCst()) / 1048576.0,
+            c.rejected.loadSeqCst(), c.same.loadSeqCst(), c.differed.loadSeqCst());
     }
     Con_Printf("  all: %lld files, %.1f MB\n", allFiles, static_cast<double>(allBytes) / 1048576.0);
     Con_Printf("  models loaded in play: %lld (%.1f ms, the worst %.1f ms)\n", modelLoadsInPlay.count,
@@ -505,7 +509,7 @@ namespace
         qvr::diskcache::noteRejected(p);
         return 0;
     }
-    memcpy(rgba, data.data(), data.size());
+    ZA_MEMCPY(rgba, data.data(), data.size());
     return 1;
 }
 
@@ -621,13 +625,13 @@ void progLoad()
         progCache.loadNote = "no pack for this driver yet (the first start, a new driver or a cleared cache)";
         return;
     }
-    if(bytes.size() < 12 || memcmp(bytes.data(), progMagic, 4) != 0)
+    if(bytes.size() < 12 || ZA_MEMCMP(bytes.data(), progMagic, 4) != 0)
     {
         progCache.loadNote = "the pack is not one (cut short or damaged): every program made again";
         return;
     }
     unsigned header[2];
-    memcpy(header, bytes.data() + 4, sizeof(header));
+    ZA_MEMCPY(header, bytes.data() + 4, sizeof(header));
     if(header[0] != progVersion && header[0] != 1)
     {
         progCache.loadNote = "the pack is an older layout: every program made again";
@@ -643,7 +647,7 @@ void progLoad()
             progCache.loadNote = "the pack is not one (cut short or damaged): every program made again";
             return;
         }
-        memcpy(&packSession, bytes.data() + 12, 4);
+        ZA_MEMCPY(&packSession, bytes.data() + 12, 4);
         at = 16;
     }
     progCache.session = packSession + 1;
@@ -657,13 +661,13 @@ void progLoad()
         {
             break;
         }
-        memcpy(&e.key, bytes.data() + at, 8);
-        memcpy(&e.format, bytes.data() + at + 8, 4);
-        memcpy(&length, bytes.data() + at + 12, 4);
+        ZA_MEMCPY(&e.key, bytes.data() + at, 8);
+        ZA_MEMCPY(&e.format, bytes.data() + at + 8, 4);
+        ZA_MEMCPY(&length, bytes.data() + at + 12, 4);
         e.session = packSession;
         if(stamped)
         {
-            memcpy(&e.session, bytes.data() + at + 16, 4);
+            ZA_MEMCPY(&e.session, bytes.data() + at + 16, 4);
         }
         at += entryHead;
         if(length > bytes.size() - at)
@@ -671,7 +675,7 @@ void progLoad()
             break;
         }
         e.data.resize(length);
-        memcpy(e.data.data(), bytes.data() + at, length);
+        ZA_MEMCPY(e.data.data(), bytes.data() + at, length);
         at += length;
         progCache.entries.pushBack(static_cast<ProgEntry&&>(e));
     }
@@ -728,28 +732,28 @@ void progWrite()
     za::Vector<char> bytes;
     const unsigned header[3] = {progVersion, static_cast<unsigned>(progCache.entries.size()), progCache.session};
     bytes.resize(16);
-    memcpy(bytes.data(), progMagic, 4);
-    memcpy(bytes.data() + 4, header, sizeof(header));
+    ZA_MEMCPY(bytes.data(), progMagic, 4);
+    ZA_MEMCPY(bytes.data() + 4, header, sizeof(header));
     for(const ProgEntry& e : progCache.entries)
     {
         const size_t at = bytes.size();
         const unsigned length = static_cast<unsigned>(e.data.size());
         const unsigned session = e.used ? progCache.session : e.session;
         bytes.resize(at + 20 + length);
-        memcpy(bytes.data() + at, &e.key, 8);
-        memcpy(bytes.data() + at + 8, &e.format, 4);
-        memcpy(bytes.data() + at + 12, &length, 4);
-        memcpy(bytes.data() + at + 16, &session, 4);
+        ZA_MEMCPY(bytes.data() + at, &e.key, 8);
+        ZA_MEMCPY(bytes.data() + at + 8, &e.format, 4);
+        ZA_MEMCPY(bytes.data() + at + 12, &length, 4);
+        ZA_MEMCPY(bytes.data() + at + 16, &session, 4);
         if(length)
         {
-            memcpy(bytes.data() + at + 20, e.data.data(), length);
+            ZA_MEMCPY(bytes.data() + at + 20, e.data.data(), length);
         }
     }
     // The file written on the game's pool (the pack is up to 128 MB: a program made in play, or a queued set's
     // every-10-s save, waited for it on the main thread); its bytes made here, from the entries the main thread changes.
     const za::String dir = rootDir() + "/programs";
     const za::String path = progPath(progCache.driver);
-    if(progWriteFailed.exchange(false))
+    if(progWriteFailed.exchangeSeqCst(false))
     {
         Con_DPrintf("vr_program_cache: %s not written (the last time)\n", path.cStr());
     }
@@ -760,7 +764,7 @@ void progWrite()
         const qvr::diskcache::Part part{bytes.data(), bytes.size()};
         if(!qvr::diskcache::writeAtomic(path, &part, 1))
         {
-            progWriteFailed.store(true);
+            progWriteFailed.storeSeqCst(true);
         }
     });
     progCache.dirty = false;
@@ -791,7 +795,7 @@ extern "C" int VR_ProgCacheOn(void)
 
 extern "C" unsigned long long VR_ProgCacheKey(unsigned long long h, const char* text)
 {
-    const size_t n = text ? strlen(text) : 0;
+    const size_t n = text ? ZA_STRLEN(text) : 0;
     h = qvr::diskcache::wideHash(h ? h : qvr::diskcache::fnvStart, &n, sizeof(n)); // (each part's length first: no run-ons)
     return qvr::diskcache::wideHash(h, text ? text : "", n);
 }
@@ -861,7 +865,7 @@ extern "C" void VR_ProgCacheAdd(unsigned long long key, unsigned format, const v
     e->format = format;
     e->used = true;
     e->data.resize(static_cast<size_t>(length));
-    memcpy(e->data.data(), data, static_cast<size_t>(length));
+    ZA_MEMCPY(e->data.data(), data, static_cast<size_t>(length));
     progCache.dirty = true;
     if(!progCache.batch)
     {

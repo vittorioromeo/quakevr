@@ -10,11 +10,13 @@
 #include "vr_protocol.hpp"
 #include "vr_units.hpp"
 
+#include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/PtrDiffT.hpp"
 #include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
-#include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Fabs.hpp"
@@ -26,7 +28,6 @@
 #include "vr_api.h"
 
 #include <stdlib.h>
-#include <string.h>
 
 namespace qvr::props
 {
@@ -94,20 +95,20 @@ enum class Own : za::U8
         return Own::None;
     }
     // The nails in flight (vr_nail_scale): Quake's, Dissolution of Eternity's lava nails and, AD support, AD's.
-    if(!strcmp(name, "progs/spike.mdl") || !strcmp(name, "progs/s_spike.mdl") || !strcmp(name, "progs/lspike.mdl") ||
-        !strcmp(name, "progs/proj_ng.mdl") || !strcmp(name, "progs/proj_ngred.mdl") || !strcmp(name, "progs/proj_sng.mdl"))
+    if(!ZA_STRCMP(name, "progs/spike.mdl") || !ZA_STRCMP(name, "progs/s_spike.mdl") || !ZA_STRCMP(name, "progs/lspike.mdl") ||
+        !ZA_STRCMP(name, "progs/proj_ng.mdl") || !ZA_STRCMP(name, "progs/proj_ngred.mdl") || !ZA_STRCMP(name, "progs/proj_sng.mdl"))
     {
         return Own::Nail;
     }
-    if(!strcmp(name, "progs/proxbomb.mdl"))
+    if(!ZA_STRCMP(name, "progs/proxbomb.mdl"))
     {
         return Own::Prox;
     }
-    if(!strcmp(name, "progs/grenade.mdl") || !strcmp(name, "progs/mervup.mdl"))
+    if(!ZA_STRCMP(name, "progs/grenade.mdl") || !ZA_STRCMP(name, "progs/mervup.mdl"))
     {
         return Own::Grenade;
     }
-    return !strcmp(name, "progs/missile.mdl") ? Own::Rocket : Own::None;
+    return !ZA_STRCMP(name, "progs/missile.mdl") ? Own::Rocket : Own::None;
 }
 
 // Each slot's, by its vr_prop_id_NN (size(): many times a frame for every entity drawn or touched), found again
@@ -152,7 +153,7 @@ void onChanged(cvar_t* var)
 
 [[nodiscard]] bool freeId(const char* id)
 {
-    return !id[0] || !strcmp(id, "-1");
+    return !id[0] || !ZA_STRCMP(id, "-1");
 }
 
 void resetSlot(int slot)
@@ -186,7 +187,7 @@ void migrate()
     {
         return za::fabs(x - y) < 1e-6;
     }
-    return !strcmp(s, d);
+    return !ZA_STRCMP(s, d);
 }
 
 // The slots given shipped defaults since a config version (quakevr/data/props.txt): {the configVersion that gives it, the slot}.
@@ -245,7 +246,7 @@ struct Chosen
 {
     for(int other = 0; other < numSlots; other++)
     {
-        if(other != shipped && !strcmp(cvarAt(other, Key::ID).string, model) && freeId(cvarAt(other, Key::ID).default_string))
+        if(other != shipped && !ZA_STRCMP(cvarAt(other, Key::ID).string, model) && freeId(cvarAt(other, Key::ID).default_string))
         {
             return other;
         }
@@ -315,7 +316,7 @@ void takeShippedSlots(int fromConfigVersion)
     for(const ShippedSlot& s : shippedSlots)
     {
         cvar_t& id = cvarAt(s.slot, Key::ID);
-        if(!freeId(id.string) && strcmp(id.string, id.default_string) != 0)
+        if(!freeId(id.string) && ZA_STRCMP(id.string, id.default_string) != 0)
         {
             // Another model's (claimed by the config): before 201 it was kept there, and the shipped model claimed
             // another slot with the keys' defaults. (A slot shipped later moves it at its own version.)
@@ -399,7 +400,7 @@ int slotsUsed()
     for(int slot = 0; slot < numSlots; slot++)
     {
         const char* id = cvarAt(slot, Key::ID).string;
-        n += id[0] && strcmp(id, "-1") != 0;
+        n += id[0] && ZA_STRCMP(id, "-1") != 0;
     }
     return n;
 }
@@ -418,7 +419,7 @@ int slotForModel(const char* model)
     int found = -1;
     for(int slot = 0; slot < numSlots; slot++)
     {
-        if(!strcmp(cvarAt(slot, Key::ID).string, model))
+        if(!ZA_STRCMP(cvarAt(slot, Key::ID).string, model))
         {
             found = slot;
             break;
@@ -589,7 +590,7 @@ Key keyByName(const char* name)
     // grab's reach), by their text; else the keys' names in turn.
     for(const RecentName& r : recentNames)
     {
-        if(r.name[0] && !strcmp(r.name, name))
+        if(r.name[0] && !ZA_STRCMP(r.name, name))
         {
             return r.key;
         }
@@ -603,7 +604,7 @@ Key keyByName(const char* name)
             break;
         }
     }
-    if(strlen(name) < sizeof(recentNames[0].name))
+    if(ZA_STRLEN(name) < sizeof(recentNames[0].name))
     {
         RecentName& r = recentNames[recentNamesNext];
         recentNamesNext = (recentNamesNext + 1) % static_cast<int>(sizeof(recentNames) / sizeof(recentNames[0]));
@@ -644,7 +645,7 @@ int claimSlot(const char* model)
         for(int key = 0; key < numKeys && untouched; key++)
         {
             const cvar_t& var = cvarAt(slot, static_cast<Key>(key));
-            untouched = static_cast<Key>(key) == Key::ID || !strcmp(var.string, var.default_string);
+            untouched = static_cast<Key>(key) == Key::ID || !ZA_STRCMP(var.string, var.default_string);
         }
         if(untouched)
         {
@@ -730,7 +731,7 @@ void printSlot(int slot, Part part)
     for(int key = 0; key < numKeys; key++)
     {
         const cvar_t& var = cvarAt(slot, static_cast<Key>(key));
-        if(inPart(static_cast<Key>(key), part) && strcmp(var.string, var.default_string) != 0)
+        if(inPart(static_cast<Key>(key), part) && ZA_STRCMP(var.string, var.default_string) != 0)
         {
             Con_Printf("    %s \"%s\" // was \"%s\"\n", keyNames[key], var.string, var.default_string);
         }
@@ -769,7 +770,7 @@ void dump_f()
             for(int key = 0; key < numKeys; key++)
             {
                 const cvar_t& var = cvarAt(slot, static_cast<Key>(key));
-                changed += strcmp(var.string, var.default_string) != 0;
+                changed += ZA_STRCMP(var.string, var.default_string) != 0;
             }
             Con_Printf("prop slot %d (_%02d) %s: %d changed\n", slot, slot + 1, cvarAt(slot, Key::ID).string, changed);
             n++;
@@ -777,7 +778,7 @@ void dump_f()
         Con_Printf("props: %d slots used (vr_prop_dump <slot> ... | all prints a slot's values)\n", n);
         return;
     }
-    const bool all = !strcmp(Cmd_Argv(1), "all");
+    const bool all = !ZA_STRCMP(Cmd_Argv(1), "all");
     for(int arg = 1; arg < (all ? 2 : Cmd_Argc()); arg++)
     {
         const int from = all ? 0 : Q_atoi(Cmd_Argv(arg));

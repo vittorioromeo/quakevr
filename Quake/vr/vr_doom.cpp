@@ -16,6 +16,12 @@
 
 #include "doom/qvr_doom_api.h"
 
+#include "Zancle/Base/Memcmp.hpp"
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strncmp.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Acos.hpp"
@@ -197,7 +203,7 @@ struct Md5
         while(n > 0)
         {
             const size_t take = za::min(n, static_cast<size_t>(64 - used));
-            memcpy(block + used, p, take);
+            ZA_MEMCPY(block + used, p, take);
             used += static_cast<int>(take);
             p += take;
             n -= take;
@@ -285,7 +291,7 @@ Catalog catalog;
 
 [[nodiscard]] bool endsWithWad(const char* name)
 {
-    const size_t n = strlen(name);
+    const size_t n = ZA_STRLEN(name);
     return n > 4 && !q_strcasecmp(name + n - 4, ".wad");
 }
 
@@ -310,7 +316,7 @@ Catalog catalog;
         return false;
     }
     unsigned char header[12];
-    bool ok = fread(header, 1, 12, f) == 12 && !memcmp(header, "IWAD", 4);
+    bool ok = fread(header, 1, 12, f) == 12 && !ZA_MEMCMP(header, "IWAD", 4);
     map01 = false;
     if(ok)
     {
@@ -324,7 +330,7 @@ Catalog catalog;
             {
                 break;
             }
-            if(!memcmp(entry + 8, "MAP01", 5))
+            if(!ZA_MEMCMP(entry + 8, "MAP01", 5))
             {
                 map01 = true;
                 break;
@@ -392,7 +398,7 @@ void addWad(const char* path, const char* fileName, const char* source, bool any
         md5File(full.cStr(), md5);
         for(const Known& k : knownWads)
         {
-            if(!strcmp(md5, k.md5))
+            if(!ZA_STRCMP(md5, k.md5))
             {
                 w.known = w.official = true;
                 w.name = k.name;
@@ -496,7 +502,7 @@ void scanSteam()
     if(files::readText(vdf, text))
     {
         const char* p = text.cStr();
-        while((p = strstr(p, "\"path\"")) != nullptr)
+        while((p = ZA_STRSTR(p, "\"path\"")) != nullptr)
         {
             p += 6;
             const char* open = strchr(p, '"');
@@ -698,9 +704,9 @@ bool makeWav(const unsigned char* dmx, int length, za::Vector<unsigned char>& ou
         *p++ = static_cast<unsigned char>(v);
         *p++ = static_cast<unsigned char>(v >> 8);
     };
-    memcpy(p, "RIFF", 4), p += 4;
+    ZA_MEMCPY(p, "RIFF", 4), p += 4;
     u32(static_cast<uint32_t>(36 + count));
-    memcpy(p, "WAVEfmt ", 8), p += 8;
+    ZA_MEMCPY(p, "WAVEfmt ", 8), p += 8;
     u32(16);
     u16(1);
     u16(1);
@@ -708,9 +714,9 @@ bool makeWav(const unsigned char* dmx, int length, za::Vector<unsigned char>& ou
     u32(static_cast<uint32_t>(rate));
     u16(1);
     u16(8);
-    memcpy(p, "data", 4), p += 4;
+    ZA_MEMCPY(p, "data", 4), p += 4;
     u32(static_cast<uint32_t>(count));
-    memcpy(p, samples, static_cast<size_t>(count));
+    ZA_MEMCPY(p, samples, static_cast<size_t>(count));
     return true;
 }
 
@@ -773,7 +779,7 @@ void hostSoundStart(void*, int channel, const char* lump, const void* dmx, int l
         return;
     }
     char lumpName[9] = {};
-    memcpy(lumpName, lump, 8);
+    ZA_MEMCPY(lumpName, lump, 8);
     for(char& c : lumpName)
     {
         c = static_cast<char>(c >= 'A' && c <= 'Z' ? c - 'A' + 'a' : c);
@@ -1490,7 +1496,7 @@ void key_f()
     }
     const int key = keyNamed(Cmd_Argv(1));
     const char* how = Cmd_Argc() > 2 ? Cmd_Argv(2) : "tap";
-    if(!strcmp(how, "tap"))
+    if(!ZA_STRCMP(how, "tap"))
     {
         pulse(key);
         return;
@@ -1894,7 +1900,7 @@ extern "C" byte* VR_SndMemory(const char* name, int* size)
     {
         return ring;
     }
-    if(strncmp(name, "doom/", 5) != 0)
+    if(ZA_STRNCMP(name, "doom/", 5) != 0)
     {
         return nullptr;
     }
@@ -1904,7 +1910,7 @@ extern "C" byte* VR_SndMemory(const char* name, int* size)
         {
             const za::Vector<unsigned char>& wav = sounds.wavs[i];
             byte* copy = static_cast<byte*>(VR_HeapMalloc(wav.size()));
-            memcpy(copy, wav.data(), wav.size());
+            ZA_MEMCPY(copy, wav.data(), wav.size());
             *size = static_cast<int>(wav.size());
             return copy;
         }
