@@ -29,7 +29,6 @@
 #include "Zancle/Vocabulary/Span.hpp"
 #include "vr_api.h"
 
-#include <algorithm>
 #include <string.h>
 
 extern "C" cvar_t gl_texture_anisotropy; // gl_texmgr.c
@@ -1890,7 +1889,7 @@ extern "C" void VR_ConfigWriteTables(FILE* f)
             }
         }
     }
-    std::sort(changed.begin(), changed.end(), [](const cvar_t* a, const cvar_t* b) { return strcmp(a->name, b->name) < 0; });
+    za::quickSort(changed.begin(), changed.end(), [](const cvar_t* a, const cvar_t* b) { return strcmp(a->name, b->name) < 0; });
     for(const cvar_t* var : changed)
     {
         fprintf(f, "%s \"%s\"\n", var->name, var->string);

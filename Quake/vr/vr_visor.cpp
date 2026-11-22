@@ -16,22 +16,26 @@
 #include "vr_stereo.hpp"
 
 #include "Zancle/Base/Exchange.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Container/Array.hpp"
+#include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
+#include "Zancle/Math/Ceil.hpp"
 #include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Floor.hpp"
 #include "Zancle/Math/Fmod.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Pow.hpp"
 #include "Zancle/Math/Sin.hpp"
-#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Sqrt.hpp"
 #include "vr_zancle.hpp"
 #include "vr_api.h"
 #include "vr_api_render.h"
 
 #include <glm/gtc/constants.hpp>
 
-#include <cmath>
 #include <cstdio>
-#include <cstring>
 
 namespace qvr::visor
 {
@@ -373,7 +377,7 @@ void drawGlass(float aspect)
             const float u = -1.f + 2.f * static_cast<float>(i) / static_cast<float>(gridX - 1);
             const float v = -1.f + 2.f * static_cast<float>(j) / static_cast<float>(gridY - 1);
             // How far out (a squircle: 1 at the edges' middles, 1.19 in the corners).
-            const float r = std::pow(std::pow(za::abs(u), 4.f) + std::pow(za::abs(v), 4.f), 0.25f);
+            const float r = za::pow(za::pow(za::abs(u), 4.f) + za::pow(za::abs(v), 4.f), 0.25f);
             gfx::Vertex out{{u, v, 0.5f}};
             if(pass == 0)
             {
@@ -657,7 +661,7 @@ void useSlot(LayerPass& lp, const PanelLayer& pl, int s)
 [[nodiscard]] bool plateColour(glm::vec3& out)
 {
     float r = 0.f, g = 0.f, b = 0.f;
-    if(std::sscanf(vr_flat_visor_depth_color.string, "%f %f %f", &r, &g, &b) != 3)
+    if(sscanf(vr_flat_visor_depth_color.string, "%f %f %f", &r, &g, &b) != 3)
     {
         return false;
     }
@@ -1060,7 +1064,7 @@ const cvar_t* const layerCvars[] = {&vr_flat_visor_scale, &vr_flat_visor_warp, &
     {
         add(c->value);
     }
-    sig = diskcache::fnv(sig, vr_flat_visor_depth_color.string, std::strlen(vr_flat_visor_depth_color.string));
+    sig = diskcache::fnv(sig, vr_flat_visor_depth_color.string, ZA_STRLEN(vr_flat_visor_depth_color.string));
     for(int p = 0; p < VisorPanelCount; p++)
     {
         const gadget::VisorImage img = gadget::visorImage(p);
@@ -1076,8 +1080,8 @@ const cvar_t* const layerCvars[] = {&vr_flat_visor_scale, &vr_flat_visor_warp, &
 {
     const glm::vec4 b = layerPass.panels[p].screen;
     pad += layerPass.swayPad * scale;
-    return {za::max(0, static_cast<int>(std::floor(b.x * scale - pad))), za::max(0, static_cast<int>(std::floor(b.y * scale - pad))),
-        za::min(w, static_cast<int>(std::ceil(b.z * scale + pad))), za::min(h, static_cast<int>(std::ceil(b.w * scale + pad)))};
+    return {za::max(0, static_cast<int>(za::floor(b.x * scale - pad))), za::max(0, static_cast<int>(za::floor(b.y * scale - pad))),
+        za::min(w, static_cast<int>(za::ceil(b.z * scale + pad))), za::min(h, static_cast<int>(za::ceil(b.w * scale + pad)))};
 }
 
 // Each panel shown this frame's rectangle (boxOf) as a scissor in the framebuffer (the view at x, y from its bottom
@@ -1157,7 +1161,7 @@ void eachBox(int x, int y, int w, int h, float scale, float pad, F&& draw)
             eachBox(bx0, by0, bw0, bh0, scale, pad, fn);
         }
     };
-    const int passes = radius < 0.5f ? 0 : za::clamp(static_cast<int>(std::ceil(std::sqrt(2.f * radius))), 1, 6);
+    const int passes = radius < 0.5f ? 0 : za::clamp(static_cast<int>(za::ceil(za::sqrt(2.f * radius))), 1, 6);
     const float step = passes ? za::clamp(radius / (0.5f * static_cast<float>(passes * passes)), 0.5f, 3.f) : 0.f;
     float reach = 4.f + za::clamp(vr_flat_visor_glass_distort.value, 0.f, 3.f) * static_cast<float>(h) / 1080.f * 6.f; // (the bend)
     for(int i = 0; i < passes; i++)
@@ -1420,7 +1424,7 @@ HeadsetPass headsetPass;
 [[nodiscard]] Layer headsetLayer()
 {
     const float scale = za::clamp(vr_flat_visor_scale.value, 0.5f, 2.f);
-    const int h = static_cast<int>(std::ceil(headsetTexels * 62.f / (0.115f * scale)));
+    const int h = static_cast<int>(za::ceil(headsetTexels * 62.f / (0.115f * scale)));
     Layer L = layerFor(8 * h, h); // (wide: its height sets the unit)
     L.k = 0.f;
     L.zoom = 1.f;
@@ -1436,7 +1440,7 @@ HeadsetPass headsetPass;
     {
         add(c->value);
     }
-    sig = diskcache::fnv(sig, vr_flat_visor_depth_color.string, std::strlen(vr_flat_visor_depth_color.string));
+    sig = diskcache::fnv(sig, vr_flat_visor_depth_color.string, ZA_STRLEN(vr_flat_visor_depth_color.string));
     const gadget::VisorImage img = gadget::visorImage(gadget::VisorCenter);
     const PanelSignature panel = panelSignature(gadget::VisorCenter);
     add(img.size), add(img.shown), add(panel.mount), add(panel.picture);
@@ -1633,7 +1637,7 @@ void renderPanels()
 void claimCenter(const char* text, float alpha)
 {
     auto& c = state.center;
-    if(c.fade <= 0.f || std::strncmp(c.text.data(), text, c.text.size() - 1) != 0)
+    if(c.fade <= 0.f || ZA_STRNCMP(c.text.data(), text, c.text.size() - 1) != 0)
     {
         q_strlcpy(c.text.data(), text, c.text.size());
         c.popAt = state.clock;

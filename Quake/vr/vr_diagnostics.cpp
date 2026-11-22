@@ -26,7 +26,6 @@
 
 #include <cstdarg>
 #include <cstdio>
-#include <cstring>
 #include <ctime>
 
 #ifdef _WIN32

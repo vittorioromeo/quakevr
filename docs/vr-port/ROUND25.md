@@ -8532,3 +8532,40 @@ His decision 2026-11-22 (kellbase item 3, "share it"). FLATPLAY.md "Ladders".
   728 ... 872). modladder_test.sh's fallback case moved to index 6. Runs: modladder_test.sh 10/0 (kellbase1 flat 6/0,
   AD ad_e1m1 3/0, VR hands' exact holds unchanged), flatladder_test.sh 2/0, ad_test3 ladder 1/0 and fallback 1/0;
   ThinLTO 0 warnings.
+
+## zancle: std:: to Zancle, includes trimmed (agent/zancle, 2026-11-22)
+
+His standing rule restated: our C++ uses Zancle wherever it has an equivalent and includes only what it uses.
+
+- **The mapping:** `docs/vr-port/ZANCLE.md` (std -> Zancle, its header, the traps: exact-type math templates, integer
+  `abs`, `min`/`max` types, `remainder` vs fmod, sort stability, atomic orders; the no-equivalent list: allocator hooks'
+  `std::align_val_t`/`nothrow_t`, `std::filesystem` behind `qvr::files`, `std::source_location` in the jobs, the
+  ordered map in vr_motion_review, `vr_zancle_diag.cpp`'s std comparison, third-party interfaces). Zancle's swap is
+  `za::genericSwap`.
+- **The check:** `qvr_checks std_uses` (Tools/qvr_checks/std_uses.cpp, in `all`, so every build): counts `std::<name>`
+  in the code (comments and strings ignored) and every C++ standard header include except the C ones Zancle has
+  nothing for (cstdio, cstdarg, cstdlib, ctime, cctype, ...), per file in Quake/vr (not external/), against
+  `Misc/quakevr/std_uses_allowlist.txt` (`<file> <name> <max>  # why`; `*` for a whole file). Over a cap fails.
+  `python Misc/quakevr/std_uses_allowlist.py` rewrites the caps from `qvr_checks std_uses --list`, keeping each why.
+- **Phases:** 1 (42 files a..h: AD, box3d, flat play, hit reactions, holster zones), 2 (36 files h..v: humans, impacts,
+  menu, monster groups, net ragdolls and snapshots, active ragdolls, temporal, view, visor). Mechanical: C string calls
+  -> `ZA_STRCMP`..., math -> `za::` templates, traits -> `ZA_IS_...`, int types -> `za::U32`..., `std::array` ->
+  `za::Array`, `std::span` -> `za::Span`, `std::size` -> `za::getArraySize`, sorts -> `za::quickSort`/`stableSort`,
+  `lower_bound` -> `za::lowerBound`; C stdio/stdlib (`sscanf`, `snprintf`, `atof`, `atoi`, `strchr`) lose the `std::`
+  (no Zancle equivalent); `<cmath>`, `<cstring>`, `<cstdint>`, `<algorithm>`, `<type_traits>`, `<utility>`,
+  `<array>`, `<span>`, `<initializer_list>` dropped where nothing std-qualified is left (unqualified C calls come from
+  quakedef.h's C headers). Every converted call compiled against the exact-type templates (no mixed promotions
+  found). One ordering change: vr_admelee.cpp's normal welding sorts equal vertices by index (a total order, so each
+  run's normals sum in one fixed order; std::sort left ties in an unspecified one). Sorts on unique keys (cvar names,
+  snapshot record keys) are unchanged; vr_netsnap's per-class byte table (a diagnostic print) may order ties
+  differently.
+- **Counts:** std:: uses in code 441 -> 208, standard header includes 90 -> 29 (`qvr_checks std_uses --list`).
+- **Left (phase 3):** the atomics (`std::atomic` -> `za::Atomic`: no operators, so every `++`/`+=`/implicit load in the
+  hull/box3d/disk caches' stats, imgprefetch, warmup, startlog, xr_runtime, jobs needs its explicit order:
+  `std::atomic`'s operators are seq_cst), `std::chrono` in vr_mptest/vr_voicechat (-> `za::Clock`), vr_tracy.cpp
+  (mutex, deque, unordered_map, strings: -> `za::AtomicMutex`, ankerl, `za::String`), and the kept list above. Not in
+  scope and noted: ~2,600 unqualified C string calls (`strcmp`, `memcpy`, ...) could become the `ZA_` builtins too.
+- **Tests:** release build 0 warnings each phase; phase 1: smoke e1m1, flat_gate_aim 6/0, hitreact_test exit 0,
+  struggle_test 6/6 (armdrag, shoulderdrag drag: vr_box3d_struggle.cpp's only change was std::str* -> the same
+  builtins, so not this branch's; not chased); phase 2: smoke e1m1, mp_test ragsync 11/0, active_test no fail,
+  NaN or crash line.

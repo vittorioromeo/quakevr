@@ -12,8 +12,6 @@
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "vr_api.h"
 #include "vr_api_render.h"
-#include <cstring>
-#include <initializer_list>
 
 namespace qvr::pbr
 {

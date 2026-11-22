@@ -177,7 +177,7 @@ void resets_f()
     }
     else if(!ZA_STRCMP(what, "trace") && argc > 2)
     {
-        traceResets(std::atoi(Cmd_Argv(2)) != 0);
+        traceResets(atoi(Cmd_Argv(2)) != 0);
     }
     else if(!ZA_STRCMP(what, "record"))
     {
@@ -186,7 +186,7 @@ void resets_f()
     }
     else if(!ZA_STRCMP(what, "check") && argc > 4)
     {
-        checkRecorded(Cmd_Argv(2), std::atoi(Cmd_Argv(3)), std::atoi(Cmd_Argv(4)));
+        checkRecorded(Cmd_Argv(2), atoi(Cmd_Argv(3)), atoi(Cmd_Argv(4)));
     }
     else if(!ZA_STRCMP(what, "test"))
     {

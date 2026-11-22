@@ -41,7 +41,6 @@
 #include "Zancle/String/String.hpp"
 #include "vr_api.h"
 
-#include <cstring>
 
 using namespace qvr;
 using namespace qvr::ragdoll::detail;
@@ -3272,7 +3271,7 @@ namespace
 // An upper arm by its name (the active ragdolls' limb chains' rule: vr_ragactive.cpp's).
 [[nodiscard]] bool upperArmBone(const char* n)
 {
-    return std::strncmp(n, "upperarm_", 9) == 0 || std::strncmp(n, "arm_", 4) == 0;
+    return ZA_STRNCMP(n, "upperarm_", 9) == 0 || ZA_STRNCMP(n, "arm_", 4) == 0;
 }
 
 // A tug-of-war's held arm drawn longer (his note 2026-11-01: "a tunable IK stretch multiplier that applies to the

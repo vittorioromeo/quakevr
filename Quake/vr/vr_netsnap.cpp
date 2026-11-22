@@ -14,13 +14,15 @@
 #include "vr_mem.hpp"
 #include "vr_netragdoll.hpp"
 
+#include "Zancle/Algorithm/LowerBound.hpp"
+#include "Zancle/Algorithm/Sort.hpp"
+#include "Zancle/Algorithm/StableSort.hpp"
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 
-#include <algorithm>
 #include <string.h>
 
 extern "C" void CL_ParseUpdate(int bits);  // cl_parse.c: an entity's update (its first byte read)
@@ -47,7 +49,7 @@ void Snapshot::add(int key, const za::U8* d, int len)
 
 void Snapshot::sortByKey()
 {
-    std::sort(records.begin(), records.end(), [](const Record& a, const Record& b) { return a.key < b.key; });
+    za::quickSort(records.begin(), records.end(), [](const Record& a, const Record& b) { return a.key < b.key; });
 }
 
 const za::U8* Snapshot::data(const Record& r) const
@@ -186,7 +188,7 @@ void addFrom(Snapshot& to, const Snapshot& from, const Record& r)
 {
     const Record* const first = s.records.data();
     const Record* const last = first + s.records.size();
-    const Record* const r = std::lower_bound(first, last, key, [](const Record& x, int k) { return x.key < k; });
+    const Record* const r = za::lowerBound(first, last, key, [](const Record& x, int k) { return x.key < k; });
     return r != last && r->key == key ? r : nullptr;
 }
 
@@ -778,7 +780,7 @@ int encode(const Snapshot* base, const Snapshot& cur, sizebuf_t* body, int budge
             // under vr_net_ragdoll_bytes take from the ragdolls only (mp_ragsync: a dropped shotgun and backpacks 1.75-2.3
             // units p95 behind with the ragdolls ahead of them in a 1400-byte datagram, 0.04 without).
             const auto last = [](const Entry& e) { return e.prio != INFINITY && keyClass(e.key) == 5; };
-            std::stable_sort(byPrio.begin(), byPrio.end(), [&last](za::I32 a, za::I32 b) {
+            za::stableSort(byPrio.begin(), byPrio.end(), [&last](za::I32 a, za::I32 b) {
                 const Entry& ea = entries[static_cast<za::SizeT>(a)];
                 const Entry& eb = entries[static_cast<za::SizeT>(b)];
                 return last(ea) != last(eb) ? !last(ea) : ea.prio > eb.prio;
@@ -1599,7 +1601,7 @@ int serverSentTimes(int slotNum, int key, double upTo, double* out, int most, do
         oldest = l.time;
         const za::I32* const first = l.keys.data();
         const za::I32* const last = first + l.keys.size();
-        const za::I32* const at = std::lower_bound(first, last, static_cast<za::I32>(key));
+        const za::I32* const at = za::lowerBound(first, last, static_cast<za::I32>(key));
         if(at == last || *at != key)
         {
             sightBegan = true;
@@ -2582,7 +2584,7 @@ void classesReport()
             hit->whole += t.whole;
             hit->ents++;
         }
-        std::sort(by.begin(), by.end(), [](const ByClass& a, const ByClass& b) { return a.bytes > b.bytes; });
+        za::quickSort(by.begin(), by.end(), [](const ByClass& a, const ByClass& b) { return a.bytes > b.bytes; });
         for(za::SizeT i = 0; i < by.size() && i < 10; i++)
         {
             Con_Printf("mp_netclass: class=%s bytes=%lld entries=%d whole=%d ents=%d\n", by[i].name[0] ? by[i].name : "(none)",

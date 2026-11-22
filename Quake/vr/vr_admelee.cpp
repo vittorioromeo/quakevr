@@ -5,11 +5,12 @@
 #include "vr_bytes.hpp"
 #include "vr_admelee.hpp"
 
+#include "Zancle/Algorithm/Sort.hpp"
+#include "Zancle/Base/InitializerList.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "vr_api.h"
 
-#include <algorithm>
 #include <math.h>
 #include <string.h>
 
@@ -596,7 +597,7 @@ void heavyHandle(Mesh& m, const Heavy& h)
     const glm::vec3 dir = glm::normalize(to - from);
     const float top = to.x;
     za::Vector<glm::vec2> prof;
-    const auto part = [&](std::initializer_list<glm::vec2> pts, const float* s, const float* t) {
+    const auto part = [&](za::InitializerList<glm::vec2> pts, const float* s, const float* t) {
         prof.clear();
         for(const glm::vec2 q : pts)
         {
@@ -760,7 +761,8 @@ void shade(Mesh& m)
         const glm::vec3 &p = m.pos[x], &q = m.pos[y];
         return p.x != q.x ? p.x < q.x : (p.y != q.y ? p.y < q.y : p.z < q.z);
     };
-    std::sort(order.begin(), order.end(), less);
+    // Equal vertices (one group, one position) by index: each run's normals sum in one fixed order.
+    za::quickSort(order.begin(), order.end(), [&](int x, int y) { return less(x, y) || (!less(y, x) && x < y); });
     for(size_t i = 0; i < order.size();)
     {
         size_t j = i + 1;
@@ -923,7 +925,7 @@ void check(const Mesh& m, Built& out)
         const glm::vec3 &p = m.pos[x], &q = m.pos[y];
         return p.x != q.x ? p.x < q.x : (p.y != q.y ? p.y < q.y : p.z < q.z);
     };
-    std::sort(order.begin(), order.end(), less);
+    za::quickSort(order.begin(), order.end(), less);
     int ids = 0;
     for(size_t i = 0; i < order.size(); i++)
     {
@@ -944,7 +946,7 @@ void check(const Mesh& m, Built& out)
         }
         out.volume += glm::dot(m.pos[m.tri[i]], glm::cross(m.pos[m.tri[i + 1]], m.pos[m.tri[i + 2]]));
     }
-    std::sort(edges.begin(), edges.end());
+    za::quickSort(edges.begin(), edges.end());
     out.openEdges = out.overEdges = 0;
     for(size_t i = 0; i < edges.size();)
     {

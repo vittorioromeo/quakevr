@@ -32,6 +32,7 @@
 
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Array.hpp"
+#include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "vr_api.h"
 
@@ -152,7 +153,7 @@ void chamberCheck(const Item& it, const glm::vec3& end)
     const glm::vec3 o = view::modelPoint(g.prop, glm::vec3{0.f});
     const glm::mat3 m{view::modelPoint(g.prop, {1.f, 0.f, 0.f}) - o, view::modelPoint(g.prop, {0.f, 1.f, 0.f}) - o,
         view::modelPoint(g.prop, {0.f, 0.f, 1.f}) - o};
-    if(std::abs(glm::determinant(m)) < 1e-9f)
+    if(za::abs(glm::determinant(m)) < 1e-9f)
     {
         return false;
     }

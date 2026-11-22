@@ -4,7 +4,6 @@
 // multi-rocket launcher, the plasma Thunderbolt) is its base model with another skin. What the engine keeps per model
 // is the base's for a variant: look a model's name up through resolve() where a table is keyed by it.
 
-#include <cstring>
 
 namespace qvr::gunvariants
 {

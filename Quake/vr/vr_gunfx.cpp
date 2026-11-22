@@ -22,11 +22,12 @@
 #include "vr_weapons.hpp"
 
 #include "Zancle/Base/GetArraySize.hpp"
+#include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
+#include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Sqrt.hpp"
-#include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Random/FastNonCryptoRng.hpp"
 
 #include <stdlib.h>
@@ -1086,7 +1087,7 @@ void openBarrels(Muzzle& m, float deg, int hand)
         return;
     }
     const glm::mat3 basis{f.x, f.y, f.z};
-    if(std::abs(glm::determinant(basis)) < 1e-9f)
+    if(za::abs(glm::determinant(basis)) < 1e-9f)
     {
         return;
     }

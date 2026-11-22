@@ -46,7 +46,6 @@
 #include "vr_api.h"
 
 #include <cstdio>
-#include <cstring>
 #include <ctime>
 
 namespace

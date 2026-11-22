@@ -25,7 +25,6 @@
 #include "vr_api.h"
 
 #include <cstdio>
-#include <cstring>
 
 extern "C" {
 int VR_ActiveCampaign(void);

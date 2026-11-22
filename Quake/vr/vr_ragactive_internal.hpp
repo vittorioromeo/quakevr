@@ -22,7 +22,6 @@
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Sqrt.hpp"
 
-#include <cstring>
 
 #include "vr_ledges.hpp"
 

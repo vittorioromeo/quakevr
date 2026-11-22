@@ -43,6 +43,7 @@
 #include "Zancle/Math/Sqrt.hpp"
 #include "vr_geom.hpp"
 #include "Zancle/Container/InPlaceVector.hpp"
+#include "Zancle/Math/Round.hpp"
 #include "vr_toolgun_icons.hpp"
 #include "vr_api.h"
 
@@ -3584,7 +3585,7 @@ float stepSlider(const Item& item, int dir, bool repeat)
     // author's note vrfiringrange_2026-10-07_22-23-40); a fine one on the fine steps' grid.
     const double grid = fineHeld() ? static_cast<double>(item.step) * CLAMP(0.01f, vr_menu_fine_step.value, 1.f)
                                    : static_cast<double>(item.step);
-    float v = static_cast<float>(std::round((static_cast<double>(cur) + dir * static_cast<double>(step)) / grid) * grid);
+    float v = static_cast<float>(za::round((static_cast<double>(cur) + dir * static_cast<double>(step)) / grid) * grid);
 
     float lo = item.min;
     float hi = item.max;
