@@ -20,7 +20,9 @@ namespace qvr::lagcomp
 // The frame's targets kept (VR_ServerFrameEnd, after the hit model tracks); none while no remote client plays.
 void serverFrame();
 // What client slot `slot`'s newest move saw: the newest message's server time and how far behind it the others were.
-void noteMove(int slot, float time, float viewBack);
+// `cameAt`/`quiet`: when the server first read the move and the silence allowance it came with (netmove::serverCame):
+// its time's age is judged at its arrival, not after the server's own move buffer kept it.
+void noteMove(int slot, float time, float viewBack, double cameAt, double quiet);
 void reset(); // a new map (the history and the clients' times)
 
 // The trace's scope: `shooter` (a client edict) puts the targets back where he saw them; false: nothing moved (off, not a

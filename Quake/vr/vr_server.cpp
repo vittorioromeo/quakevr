@@ -1908,7 +1908,8 @@ void applyVrMove(client_t* client, const VrMove& sent)
 void applyNetMove(client_t* client, const netmove::WireMove& m, bool /*newest*/)
 {
     VR_ApplyClientMove(client, m.time, &m.viewAngles[0], m.forward, m.side, m.up, m.buttons, m.impulse);
-    lagcomp::noteMove(static_cast<int>(client - svs.clients), m.time, m.viewBack); // (what he saw: his shots', B8b)
+    const netmove::Came came = netmove::serverCame();
+    lagcomp::noteMove(static_cast<int>(client - svs.clients), m.time, m.viewBack, came.at, came.quiet); // (his shots', B8b)
     applyVrMove(client, m.vr);
     predict::serverQueue(client, m); // (his walk runs move by move in the frame's physics, B8)
 }
