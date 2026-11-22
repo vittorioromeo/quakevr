@@ -313,7 +313,11 @@ grunt stays red). Its worn pack takes its wearer's (the engine: `.vr_wp_wearer`,
   the worn pack's canvas `rows pack pack 1`). The rows (the skins' histograms): uniforms and leather 1 and 10 (browns,
   tans), the enforcer's trousers 3, flesh 7, blood 4, knights' plates 10. Where rows are shared, our painted texels: the
   enforcer's baked backpack (`paint progs/vrenforcer.mdl ... pack`, its two pieces' clothes-row texels). A skin's own rows
-  (`skinrows`) override its key's. AD's own models (`mon_*.mdl`) get their key's rows (not looked at one by one).
+  (`skinrows`) override its key's. AD's own models (`mon_*.mdl`) are never dyed: every armed humanoid, AD's variants
+  too, draws our models (`vr_am_model`: vrgrunt, vrenforcer, vrknight, vrhknight; the masks a run of AD's variants makes:
+  those three, the worn pack, h_guard). Checked (ROUND25 "backlog1122b"): were they ever drawn, mon_enforcer's and
+  mon_pyro's masks keep their flesh (bare shoulders on row 7), mon_soldier's would dye its face's cheeks (rows 1 and 10:
+  a `paint ... never` over its face then).
 - The dye (`vr_glsl_alias.h` `QVR_ALIAS_FS_RECOLOR`, after the skin is read, before the light): a clothes texel by the
   clothes' row, a pack texel by the pack's (the enforcer's baked pack too), each keeping its own luminance in the row's
   colour (`HumDye`: a red stays red, never pink; clamped, not desaturated), or with `tint` its own colour times the

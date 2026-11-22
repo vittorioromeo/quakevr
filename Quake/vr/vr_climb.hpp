@@ -146,6 +146,14 @@ void calcStats(edict_t* ent, int* statsi);
 float drawnHand(const hands::State& s, int hand, const glm::mat3& handTurn, glm::vec3& pos, glm::vec3& rot,
     glm::vec3& lightShift);
 
+// Client: whether the hold at `hold` (world) is on a climbable rope as this client draws it (climbrope::clientRopeDistance).
+[[nodiscard]] bool ropeHold(const glm::vec3& hold);
+
+// Client: where the palm's middle of a hand on a rope's hold goes from it (ropes4): towards the climber (`out`) by the
+// rope's near side, not vr_climb_hand_*'s ledge offsets (which put a hand on a rope off it). Yours and another player's
+// (vr_mpavatar.cpp: his held hands pinned there).
+[[nodiscard]] glm::vec3 ropeHandOffset(const glm::vec3& out);
+
 // Client: how far the drawn `hand` is on its hold, as drawnHand last made it (0..1): a flat mantle's free hand leaves the
 // other hand's gun for it (vr_view_hands.cpp).
 [[nodiscard]] float drawnShare(int hand);

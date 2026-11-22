@@ -34,9 +34,8 @@ Tests:
              step of the server's, closed; B draws A's jointed hands (and his weapon's model) where A drew them; the
              bytes it costs and the avatars the server sent and skipped as unchanged.
     avatarcal  each client's avatar calibration (height, arm length, gloves, body...) reaches the other and the server.
-    ropeclimb  (not in the suite yet: his hands and feet read 10-25 units off the rope, ROPES.md "Known limits")
-             another player's climbing pose on a rope: flat A walks into one and climbs it, B sees his hands on it and
-             his feet round it, still and swinging, then off it
+    ropeclimb  (ropes4) another player's climbing pose on a rope: flat A walks into one and climbs it, B sees his hands
+             on it and his feet round it, hanging still and swinging, then off it
     ropes    climbable ropes (QVR_SVC_CLIMBROPE): a rope and a chain the server hangs reach B with the server's points;
              pushed, B sees them swing; at rest again, B's copies within a unit of the server's.
     body     B draws A's body (avatar::poseOther: the code that poses A's own): A's build's model, its wrists at A's drawn
@@ -176,7 +175,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
 from mp_harness import GAMES, LINKS, Instance, Session, StepFailed, fields, format_kinds, kind_rates  # noqa: E402
-from mp_harness import busy_ports, default_base_port, free_base_port  # noqa: E402
+from mp_harness import busy_ports, default_base, default_base_port, free_base_port  # noqa: E402
 from mp_nat import Nat  # noqa: E402
 from mp_load import Load  # noqa: E402
 import subprocess  # noqa: E402
@@ -1282,6 +1281,17 @@ def ropeclimb(s):
     if not risen:
         raise StepFailed("A on the rope")
 
+    # Hanging still (ropes4): the server's A at rest on it between two reads, the hand over hand climb over (his copy's
+    # hands go from hold to hold eased, its legs wrap the rope over a third of a second: no pose to judge mid-climb).
+    prev, still = risen, None
+    for _ in range(60):
+        at = a_at()
+        if at and prev and max(abs(at[i] - prev[i]) for i in range(3)) < 1.0:
+            still = at
+            break
+        prev = at
+    s.check("A hangs still on the rope (the server has him at %s)" % (still,), still is not None, "the server's A at %s" % prev)
+
     def pose(lines):
         return by_ent(lines[0], "mp_ropepose").get(ea)
 
@@ -1967,15 +1977,17 @@ def dolls_of(lines):
 DOLL_PARTS = 19  # avatardoll: the avatar's own ragdoll's parts (quakevr/rigs/vrdoll*.rig2.txt, Misc/quakevr/make_vrdoll.py)
 DOLL_LEG = 22.06  # ... its left leg's rest length, hip to knee to ankle (model units)
 DOLL_SHORT, DOLL_TALL = 1.55, 1.95  # the two players' eye heights (m) in mp_deathbody
+DOLL_ARM_A = 1.2  # backlog1122c: A's vr_body_arm_length (B keeps 1): his ragdoll's arms that much longer than the model's
 
 
 def doll_rigs_of(lines):
-    """"mp_doll_rig:" lines -> {player ent: (doll, parts, dollscale, leg)}."""
+    """"mp_doll_rig:" lines -> {player ent: (doll, parts, dollscale, leg, arm, restarm)}."""
     out = {}
     for l in lines:
-        m = re.match(r"mp_doll_rig: ent=(\d+) doll=(\d+) parts=(\d+) dollscale=(\S+) leg=(\S+)", l.strip())
+        m = re.match(r"mp_doll_rig: ent=(\d+) doll=(\d+) parts=(\d+) dollscale=(\S+) leg=(\S+)(?: arm=(\S+) restarm=(\S+))?", l.strip())
         if m:
-            out[int(m.group(1))] = (int(m.group(2)), int(m.group(3)), float(m.group(4)), float(m.group(5)))
+            out[int(m.group(1))] = (int(m.group(2)), int(m.group(3)), float(m.group(4)), float(m.group(5)),
+                                    float(m.group(6) or 0), float(m.group(7) or 0))
     return out
 
 
@@ -2016,9 +2028,19 @@ def deathbody_case(s, srv, a, b, ea, eb, victim, ev, own_models, tone, label):
             s.check("%s: its parts follow the avatar rig at its size at %s (the leg %.2f = %.2f x %.3f)" % (
                     label, who, r[3], DOLL_LEG, r[2]), r[2] > 0.0 and abs(r[3] / r[2] - DOLL_LEG) < 0.5,
                     "leg %.2f, scale %.3f: %.2f model units" % (r[3], r[2], r[3] / max(r[2], 1e-6)))
+    # (backlog1122c: the ragdoll in his body's proportions, his arms as his avatar's: A's vr_body_arm_length, B's 1)
+    want_arm = DOLL_ARM_A if ev == ea else 1.0
+    for who in ("A", "B"):
+        r = rigs.get(who)
+        if r:
+            s.check("%s: its arm %s's arm length at %s (%.2f over the model's %.2f = %.3f, want %.2f)" % (
+                    label, label, who, r[4], r[5], r[4] / max(r[5], 1e-6), want_arm),
+                    r[5] > 0.0 and abs(r[4] / r[5] - want_arm) < 0.03)
     if "A" in rigs and "B" in rigs:
         s.check("%s: B's ragdoll the host's size (ragsync: scale %.3f, %.3f)" % (label, rigs["A"][2], rigs["B"][2]),
                 abs(rigs["A"][2] - rigs["B"][2]) < 0.01)
+        s.check("%s: B's ragdoll the host's proportions (arm %.2f, %.2f)" % (label, rigs["A"][4], rigs["B"][4]),
+                abs(rigs["A"][4] - rigs["B"][4]) < 0.15)
     for who in ("A", "B"):
         if who in rigs:
             seen[who]["rig"] = rigs[who]
@@ -2048,9 +2070,15 @@ def deathbody(s):
     B himself draw B's. Each doll's copy: the dead player's build's model, his skin tone and gloves, his jointed hands,
     lying where the doll is."""
     srv, a, b, ea, eb = join(s, listen=True, flat="B")
-    # (avatardoll: a short A and a tall B, their bodies' ragdolls sized so)
-    a.cmd("vr_body_build 2; vr_skin_tone -0.5; vr_gloves 2; vr_height_calibration %.2f" % DOLL_SHORT)
-    b.cmd("vr_body_build 0; vr_skin_tone 0.6; vr_gloves 2; vr_height_calibration %.2f" % DOLL_TALL)
+    # (avatardoll: a short A and a tall B, their bodies' ragdolls sized so; backlog1122c: their arms unmeasured, untweaked:
+    # the model's times vr_body_arm_length, A's longer)
+    arms = "vr_bodycal_upper_arm 0; vr_bodycal_forearm 0; vr_body_tweak_upper_arm 0; vr_body_tweak_forearm 0"
+    a.cmd("vr_body_build 2; vr_skin_tone -0.5; vr_gloves 2; vr_height_calibration %.2f; vr_body_arm_length %g; %s" % (
+        DOLL_SHORT, DOLL_ARM_A, arms))
+    b.cmd("vr_body_arm_length 1; %s" % arms)
+    # (B plays flat: his body is his flat body height's, backlog1122b)
+    b.cmd("vr_body_build 0; vr_skin_tone 0.6; vr_gloves 2; vr_height_calibration %.2f; vr_flat_body_height %.2f" % (
+        DOLL_TALL, DOLL_TALL))
 
     def dressed(lines):
         la, lb = lines
@@ -9847,6 +9875,7 @@ SUITE = [
     ("mp_avatar", ()),
     ("mp_avatarcal", ()),
     ("mp_ropes", ()),
+    ("mp_ropeclimb", ()),
     ("mp_body", ()),
     ("mp_prefs", ()),
     ("mp_grab", ()),
@@ -9910,7 +9939,9 @@ SUITE = [
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "debugviz", "debugviz_listen", "wristscore", "wpnsync", "wpnsync_flat", "navfollow", "navfollow_listen", "navfollow_vr", "botnavdebug", "botnavdebug_listen", "syncaudit", "ragsync", "ropes", "ropeclimb"])
-    ap.add_argument("--base", required=True, help="the game folder (id1, quakevr...)")
+    tree_base = default_base(REPO)
+    ap.add_argument("--base", required=tree_base is None, default=tree_base,
+                    help="the game folder (id1, quakevr...; default: this checkout's own, the kit's bases/<checkout>/qbase)")
     ap.add_argument("--exe", default=EXE)
     ap.add_argument("--out", default=os.path.join(REPO, "scratch", "mp"))
     ap.add_argument("--port", type=int, default=default_base_port(REPO),
@@ -9961,7 +9992,9 @@ def main_run(args):
     FUZZ_SEED = args.seed
     AMMO_PART = args.part if args.part in ("give", "use") else ""
     autoexec = os.path.join(args.base, "id1", "autoexec.cfg")
-    if args.reset_autoexec:
+    # (The checkout's own base, the default: its autoexec is the last run.sh run's script, rewritten by each: emptied.)
+    tree_base = default_base(REPO)
+    if args.reset_autoexec or (tree_base and os.path.normcase(os.path.abspath(args.base)) == os.path.normcase(os.path.abspath(tree_base))):
         with open(autoexec, "w", encoding="ascii") as f:
             f.write("// emptied by mp_test.py --reset-autoexec (the harness drives its games through -cmdinbox)\n")
     elif os.path.exists(autoexec):

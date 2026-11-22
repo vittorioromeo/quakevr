@@ -122,7 +122,14 @@ each rope between its last two messages' points as the entities are drawn (P3, `
 so a player hanging on it, drawn between his entity's last two places, stays with it as it swings (the feet round it,
 `clientRopeAt`, read the same points); a rope the latest message didn't move stands as sent. A listen server's own
 client draws from the same message, through the loopback: one path. Another player's holds come with his avatar
-(`avatarHold*`), his drawn hands as his client drew them.
+(`avatarHold*`), from his entity's origin as sent (ropes4: they were from his client's origin, which the rope had moved
+him from). His places (head, hands) come from his client's origin, which on a rope isn't where the server has him (his
+hands read 15-60 units off the server's holds): holding a rope, his copy is moved by his held palms' mean way to the
+server's holds (`vr_mpavatar.cpp` ropeShift, at most 48 units, eased over 0.15 s), then each held hand pinned with its
+palm's middle on its hold (ropePinHands; a new hold, hand over hand, eased to as yours is). A hand on a rope, yours
+or his, has its palm's middle 2.5 cm this side of the rope (`climb::ropeHandOffset`), not `vr_climb_hand_*`'s ledge
+offsets (which put it beside the rope). On a rope the trunk turns about the neck so the hips come in to 12 cm from it
+(`vr_avatar_climb.cpp` ropeHips, at most 45 degrees), the legs then round it within reach, yours and his.
 
 ## Defaults where the spec is silent (his call; each a setting or key)
 
@@ -193,19 +200,18 @@ client draws from the same message, through the loopback: one path. Another play
   climbed down looking down (off it standing, 9 hand changes); rope to rope on the swinging row: set in the air by its
   first rope (taken), the forward key pumps it (355 units/s at the hands in 6.2 s), jump at the swing's forward peak,
   the next rope caught 0.75 s later: 6 passed. Debug > Tests > Climbable Ropes > Test the Flat-Screen Rope Climb.
-- `mp_test.py ropeclimb` (not in the suite yet; `--base` as `ropes`): flat A walks into a rope the server hangs on
-  vrropes and climbs it, B (VR, proxy) checks A's drawn wrists and ankles against the rope as B has it
-  (`vr_mp_avatars`' `mp_ropepose`), still and swinging, then A jumps off. It fails today: see the known limits.
+- `mp_test.py ropeclimb` (in the MP suite since ropes4; `--base` as `ropes`): flat A walks into a rope the server hangs
+  on vrropes and climbs it, hangs still (the server's A at rest between two reads), B (VR, proxy) checks A's drawn
+  wrists (10) and ankles (12) against the rope as B has it (`vr_mp_avatars`' `mp_ropepose`, with each held wrist from
+  the server's hold, each hold, the pelvis, head and origin from the rope), then swinging (6 more each), then A jumps
+  off. ropes4: hanging 1.6-3.3 and 1.8-7.8, swinging 10.5-12.5 and 6.4-14.1 (3 runs; were 17-35 and 27-46).
 - Checklist scene `ropes` (vrropes, the toolgun given).
 
 ## Known limits (P1)
 
-- Another player on a rope, seen in MP (`mp_test.py ropeclimb`, 2026-11-22): his climbing weight is right (1.0) and the
-  feet go round the rope, but his drawn wrists read 9-25 units from the rope and his ankles 11-24 (more swinging), and
-  15-60 from the server's holds as his avatar sends them: his client's drawn hands (and the holds' place relative to his
-  lerped origin) lag the swing. Drawing the rope between messages (above) brought the feet in by about 3 units. Next:
-  pin another player's held hands to the server's holds (as the trunk and feet already use them), and check the
-  avatar's hold offsets for ropes.
+- Another player swinging on a rope (`mp_test.py ropeclimb`): his held wrists sit on the server's holds (under a unit),
+  but the latest hold reads up to about 10 units from the rope as drawn between messages: the rope's points come a frame
+  behind his holds at a full swing.
 - The toolgun's Remove and Physgun aim at a rope by its pieces (P2; `climbrope::pick`); the physgun moves its top. The
   aimed rope isn't outlined (no model to glow). Clear Props (`vr_scene_clean props`) takes the ropes made after the
   map's first 1.5 s (QC VR_Scene_IsRuntimeProp), as the props.

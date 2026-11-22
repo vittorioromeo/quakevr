@@ -169,7 +169,9 @@ The guide: [MULTIPLAYER.md](MULTIPLAYER.md).
   (his build, skin and gloves).
 - **New**: a dead player's ragdoll is his own body, not Quake's ranger's rigged under it: his build's shape at his height,
   its limbs his body's own lengths, falling, grabbed and struck as any ragdoll and seen the same by every player; single
-  player your own corpse too (the death camera and third person), and the bots' in their build.
+  player your own corpse too (the death camera and third person), and the bots' in their build. Its arms are his arms'
+  length and its shoulders where his are (his Body Calibration or arm length setting), and a flat-screen player's corpse
+  is his flat-screen body height.
 
 **Single player only**: time scale and bullet time, saving at will (the host's level-start coop autosave instead),
 the crates Quake VR places about maps, Dimension of the Past and Dimension of the Machine.
@@ -204,7 +206,8 @@ aren't Map Library packages aren't sent to joining players.
   it, your legs wrap round it, and letting go or jumping off mid-swing keeps its speed. The toolgun's Remove and
   physgun aim at them, and Clear Props removes the ones you made. On the desktop screen, walk or jump into one to
   grab it: look up or down and hold forward to climb, look ahead and use the move keys to swing it, and jump off at the
-  top of a swing to catch the next rope. Try them in the new test map `vrropes`.
+  top of a swing to catch the next rope. In multiplayer, other players on a rope are drawn gripping it, their hips in
+  close and their legs wrapped round it, even while it swings. Try them in the new test map `vrropes`.
 - **Noclip flies where you look.** Moving forward in noclip now goes the way the camera points, so looking up or down
   flies up or down; strafing stays level and jump and crouch still go straight up and down. Flat and in the headset
   (there, what steers your walking steers the flight: the head, or the moving hand with hand-relative movement).
@@ -273,6 +276,8 @@ aren't Map Library packages aren't sent to joining players.
   "Reset Flat Keys" stays beside it). A key that is both a flat key and a binding is marked with "!" on both rows, and
   the row under the cursor says what it does: in flat-screen play the flat key wins (for example mouse 4 is Force
   Grab, not your binding, until you clear Force Grab). The `vr_flat_key_*` settings work in configs as before.
+- **Flat screen: 9 dims the gear lights**, as the wrist gadget's side button does in the headset: the visor's panels
+  and the guns' ammo screens dim, and 9 again lights them. Rebind it in Controls ("Gear lights").
 - **Centre messages in the headset look like the flat screen's.** The game's centre prints in front of your head (a key needed, a secret found, a map's text) and the maps' own view messages now appear in the flat visor's own message popup, drawn by the same code: its dark glass pill with cut corners, glowing bevelled frame, font, wrapping, scanlines, pop-in and fade, in a size that reads at the menu's distance. (`vr_center_panel 0` brings back the old look; `vr_center_panel_scale` sizes it.)
 - **Search filter (development builds).** The Search page has a "Show: Both / Cvars / Tunables" row over its text
   box: the menus' settings alone, the Tunables pages' constants alone, or both (the default). The results update

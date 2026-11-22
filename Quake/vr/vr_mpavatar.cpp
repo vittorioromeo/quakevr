@@ -47,6 +47,7 @@
 #include "vr_mem.hpp"
 #include "vr_gadget.hpp"
 #include "vr_geom.hpp"
+#include "vr_grasp.hpp"
 
 namespace qvr::mpavatar
 {
@@ -115,6 +116,22 @@ struct Drawn
     int plateSlots{0}, plateShown{0}; // as last drawn (the report's)
     za::Vector<float> plateBones[plateCount];
     za::Vector<float> bridgeBones;
+    // (ropes4) On a rope: the copy's move onto the server's holds and how far it is on (ropeShift), each held hand's
+    // palm from its place as last drawn, what is left of its way to its hold and how far on (ropePinHands); cl.time then.
+    glm::vec3 shift{0.f};
+    float shiftWeight{0.f};
+    bool palmKnown[2]{false, false};
+    glm::vec3 palmFromHand[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+    glm::vec3 handPin[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+    float handPinWeight[2]{0.f, 0.f};
+    // ... and each hand on a rope this frame, where its palm goes (eased from hold to hold: its hold from his origin as last
+    // seen, the one it eases from and how far)
+    bool ropeHeld[2]{false, false};
+    glm::vec3 palmTarget[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+    glm::vec3 holdWas[2]{glm::vec3{1e9f}, glm::vec3{1e9f}};
+    glm::vec3 regrabFrom[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+    float regrabAlong[2]{1.f, 1.f};
+    double pinTime{-1.0};
 };
 // By player entity (0 unused), then the doll slots (avatar::otherKeys - avatar::dollSlots on: a dead player's bodies while
 // his own slot is taken, by his living copy or a nearer body of his; mpbugs4, 2026-11-21: once he respawned, his old body
@@ -132,6 +149,9 @@ DrawnAll drawn;
 constexpr double staleAfter = 1.0;
 // Frames undrawn after which his copy counts as first drawn again (his plates' morphs: resync).
 constexpr int freshAfterFrames = 36;
+constexpr float ropePinTime = 0.15f;  // s: his copy eased onto the server's rope holds and off (ropeShift, ropePinHands)
+constexpr float ropeShiftMost = 48.f; // units: ropeShift moves his copy at most
+constexpr float ropeRegrab = 8.f;     // units: a hand's hold (from his origin) moved this far in a frame went hand over hand
 
 glm::vec3 readEighths()
 {
@@ -353,10 +373,12 @@ void printAvatar(int e, const Avatar& a, bool hands)
                 // (and each held wrist's distance from the server's hold, as sent: his drawn hand against the hold)
                 const float h0 = (a.moves & avatarHoldOff) ? glm::distance(d.handWrist[0], origin + a.holdAt[0]) : -1.f;
                 const float h1 = (a.moves & avatarHoldMain) ? glm::distance(d.handWrist[1], origin + a.holdAt[1]) : -1.f;
+                const float r0 = (a.moves & avatarHoldOff) ? near(origin + a.holdAt[0]) : -1.f;
+                const float r1 = (a.moves & avatarHoldMain) ? near(origin + a.holdAt[1]) : -1.f;
                 Con_Printf("mp_ropepose: ent=%d wrist0=%.1f wrist1=%.1f ankle0=%.1f ankle1=%.1f toe0=%.1f toe1=%.1f climb=%.2f "
-                           "hold0=%.1f hold1=%.1f\n",
+                           "hold0=%.1f hold1=%.1f holdrope0=%.1f holdrope1=%.1f pelvis=%.1f org=%.1f head=%.1f placed=%.1f\n",
                     e, w0, w1, near(d.skeleton.ankle[0]), near(d.skeleton.ankle[1]), near(d.skeleton.toe[0]), near(d.skeleton.toe[1]),
-                    climbWeight, h0, h1);
+                    climbWeight, h0, h1, r0, r1, near(d.skeleton.pelvis), near(origin), near(d.skeleton.head), near(d.placedAt));
             }
         }
         view::printPauldrons("mp_pauldron", e, d.pauldron);
@@ -515,27 +537,41 @@ void avatars_f()
                 float scale = 1.f;
                 const ragdoll::Rig* rig = nullptr;
                 int parts = 0;
-                float leg = 0.f;
+                float leg = 0.f, arm = 0.f, restArm = 0.f;
                 if(ragdoll::drawnPart(d.doll, 0, rot, pos, scale, &rig) && rig)
                 {
                     parts = rig->numBones;
-                    glm::vec3 at[3];
-                    const char* const names[3] = {"thigh_l", "shin_l", "foot_l"};
-                    bool all = true;
-                    for(int j = 0; j < 3; j++)
-                    {
-                        int b = 0;
-                        while(b < rig->numBones && strcmp(rig->bones[b].name, names[j]) != 0)
+                    // (a chain's length as drawn: its three bones' pivots; backlog1122c: the left arm, shoulder to elbow
+                    // to wrist, in his proportions, beside the model's own arm at his size)
+                    const auto chain = [&](const char* const (&names)[3], float& rest) {
+                        glm::vec3 at[3], was[3];
+                        bool all = true;
+                        const qmodel_t* source = ragdoll::sourceModel(&de); // (drawn with its skinned copy: its .mdl)
+                        qmodel_t* mdl = const_cast<qmodel_t*>(source ? source : de.model);
+                        const ragdoll::Rig* base = mdl ? ragdoll::rigFor(mdl) : nullptr;
+                        for(int j = 0; j < 3; j++)
                         {
-                            b++;
+                            int b = 0;
+                            while(b < rig->numBones && strcmp(rig->bones[b].name, names[j]) != 0)
+                            {
+                                b++;
+                            }
+                            float s = 1.f;
+                            all = all && b < rig->numBones && ragdoll::drawnPart(d.doll, b, rot, pos, s);
+                            at[j] = all ? rot * (s * rig->bones[b].pivot) + pos : glm::vec3{0.f};
+                            was[j] = all && base && b < base->numBones ? s * base->bones[b].pivot : glm::vec3{0.f};
                         }
-                        float s = 1.f;
-                        all = all && b < rig->numBones && ragdoll::drawnPart(d.doll, b, rot, pos, s);
-                        at[j] = all ? rot * (s * rig->bones[b].pivot) + pos : glm::vec3{0.f};
-                    }
-                    leg = all ? glm::distance(at[0], at[1]) + glm::distance(at[1], at[2]) : 0.f;
+                        rest = glm::distance(was[0], was[1]) + glm::distance(was[1], was[2]);
+                        return all ? glm::distance(at[0], at[1]) + glm::distance(at[1], at[2]) : 0.f;
+                    };
+                    const char* const legNames[3] = {"thigh_l", "shin_l", "foot_l"};
+                    const char* const armNames[3] = {"upperarm_l", "forearm_l", "hand_l"};
+                    float restLeg = 0.f;
+                    leg = chain(legNames, restLeg);
+                    arm = chain(armNames, restArm);
                 }
-                Con_Printf("mp_doll_rig: ent=%d doll=%d parts=%d dollscale=%.3f leg=%.2f\n", d.owner, d.doll, parts, scale, leg);
+                Con_Printf("mp_doll_rig: ent=%d doll=%d parts=%d dollscale=%.3f leg=%.2f arm=%.2f restarm=%.2f\n", d.owner, d.doll,
+                    parts, scale, leg, arm, restArm);
             }
         }
         view::printOwnLooks(cl.viewentity);
@@ -681,10 +717,8 @@ void solveBotGear(const Drawn& d, float yaw, VrDrawnHolsters& hs, view::GearDraw
     }
 }
 
-// Avatar `e`'s hands and weapons placed on his entity as drawn now at `origin` (its lerp: they ride it between messages).
-// `doll`: his dead body's pose (addDolls), the hands at its wrists. Drawn in `slot` (his own, e; a dead body's: a doll
-// slot, firstDollSlot on, whose keyed effects -- lights, glows -- are not his: a doll has none).
-void setup(int slot, int e, const Avatar& a, const glm::vec3& origin, const avatar::DollPose* doll = nullptr)
+// setup's hands, weapons, gear and torch (his body after, once his held hands are pinned: ropePinHands).
+void setupHands(int slot, int e, const Avatar& a, const glm::vec3& origin, const avatar::DollPose* doll)
 {
     Drawn& d = drawn.of[slot];
     d.frame = host_framecount;
@@ -794,7 +828,138 @@ void setup(int slot, int e, const Avatar& a, const glm::vec3& origin, const avat
     {
         flashlight::drawOther(e, a.lamp, origin, d.lamp);
     }
-    setupBody(slot, e, a, origin, doll);
+}
+
+// (ropes4) A hand of his on a rope's hold (the server's, on a rope as this client draws it): where its palm's middle goes
+// (the hold, by climb::ropeHandOffset as yours), world. False: not holding a rope with it.
+[[nodiscard]] bool ropePalmTarget(const Avatar& a, const glm::vec3& origin, int side, glm::vec3& target)
+{
+    if(!(a.moves & (side ? avatarHoldMain : avatarHoldOff)) || !climb::ropeHold(origin + a.holdAt[side]))
+    {
+        return false;
+    }
+    target = origin + a.holdAt[side] + climb::ropeHandOffset(a.holdOut[side]);
+    return true;
+}
+
+// (ropes4) His places (head, hands, gear) come from his client's origin, which on a rope (the server moves him with it)
+// isn't where the server has him: his hands on the rope as his client drew them were 15-60 units off the server's holds
+// here, his body and feet off the rope with them. Holding a rope, the whole copy is moved by his held palms' mean way to
+// the server's holds (the trunk and feet go with it; ropeShiftMost at most), eased on and off over ropePinTime; `d`
+// keeps each hand's palm from its place as last drawn. A hand gone hand over hand to a new hold (its place from his origin
+// moved over ropeRegrab) eases there over ropePinTime, as yours does (climb::drawnHand), not in a message's step. Sets
+// each hand's target (`d.ropeHeld`, `d.palmTarget`, world). Returns the move (units, world).
+[[nodiscard]] glm::vec3 ropeShift(Drawn& d, const Avatar& a, const glm::vec3& origin, float dt, bool doll)
+{
+    glm::vec3 sum{0.f};
+    int n = 0;
+    for(int side = 0; side < 2; side++)
+    {
+        glm::vec3 target;
+        d.ropeHeld[side] = !doll && ropePalmTarget(a, origin, side, target);
+        if(!d.ropeHeld[side])
+        {
+            d.regrabAlong[side] = 1.f;
+            d.holdWas[side] = glm::vec3{1e9f};
+            continue;
+        }
+        const glm::vec3 off = target - origin; // (from his origin: the hold rides his swing)
+        if(glm::distance(off, d.holdWas[side]) > ropeRegrab && d.holdWas[side].x < 1e8f)
+        {
+            d.regrabFrom[side] = glm::mix(d.regrabFrom[side], d.holdWas[side], geom::smooth01(d.regrabAlong[side]));
+            d.regrabAlong[side] = 0.f;
+        }
+        d.holdWas[side] = off;
+        d.regrabAlong[side] = za::min(1.f, d.regrabAlong[side] + dt / ropePinTime);
+        d.palmTarget[side] = origin + glm::mix(d.regrabFrom[side], off, geom::smooth01(d.regrabAlong[side]));
+        if(d.regrabAlong[side] >= 1.f)
+        {
+            d.regrabFrom[side] = off;
+        }
+        if(d.palmKnown[side])
+        {
+            sum += d.palmTarget[side] - (origin + a.hands[side].handOrigin + d.palmFromHand[side]);
+            n++;
+        }
+    }
+    if(n > 0)
+    {
+        d.shift = sum / static_cast<float>(n);
+        if(const float l = glm::length(d.shift); l > ropeShiftMost)
+        {
+            d.shift *= ropeShiftMost / l;
+        }
+        d.shiftWeight = za::min(1.f, d.shiftWeight + dt / ropePinTime);
+    }
+    else
+    {
+        d.shiftWeight = za::max(0.f, d.shiftWeight - dt / ropePinTime);
+    }
+    return d.shift * geom::smooth01(d.shiftWeight);
+}
+
+// (ropes4) Each hand of his on a rope's hold, as drawn (moved by ropeShift): what is left of its palm's way to the hold
+// (`origin`: his entity's, the server's), its hand and weapon moved by it, eased on and off as ropeShift; its palm from its
+// place kept for ropeShift's next frame.
+void ropePinHands(Drawn& d, const Avatar& a, const glm::vec3& origin, const glm::vec3& shift, float dt)
+{
+    for(int side = 0; side < 2; side++)
+    {
+        view::ViewEntity& h = d.hand[side];
+        const bool held = d.ropeHeld[side] && h.visible && h.ent.model;
+        d.palmKnown[side] = held;
+        if(held)
+        {
+            const glm::vec3 palm = view::modelPoint(h, grasp::palmCentre());
+            d.palmFromHand[side] = palm - (origin + shift + a.hands[side].handOrigin);
+            d.handPin[side] = d.palmTarget[side] - palm;
+            d.handPinWeight[side] = za::min(1.f, d.handPinWeight[side] + dt / ropePinTime);
+        }
+        else
+        {
+            d.handPinWeight[side] = za::max(0.f, d.handPinWeight[side] - dt / ropePinTime);
+        }
+        if(d.handPinWeight[side] > 0.f)
+        {
+            const glm::vec3 by = d.handPin[side] * geom::smooth01(d.handPinWeight[side]);
+            for(view::ViewEntity* ve : {&h, &d.weapon[side]})
+            {
+                ve->ent.origin[0] += by.x;
+                ve->ent.origin[1] += by.y;
+                ve->ent.origin[2] += by.z;
+            }
+        }
+    }
+}
+
+// Avatar `e`'s hands and weapons placed on his entity as drawn now at `origin` (its lerp: they ride it between messages).
+// `doll`: his dead body's pose (addDolls), the hands at its wrists. Drawn in `slot` (his own, e; a dead body's: a doll
+// slot, firstDollSlot on, whose keyed effects -- lights, glows -- are not his: a doll has none). On a rope, moved onto the
+// server's holds (ropeShift, ropePinHands).
+void setup(int slot, int e, const Avatar& a, const glm::vec3& origin, const avatar::DollPose* doll = nullptr)
+{
+    Drawn& d = drawn.of[slot];
+    const float dt = d.pinTime >= 0.0 ? static_cast<float>(za::clamp(cl.time - d.pinTime, 0.0, 0.1)) : 0.f;
+    d.pinTime = cl.time;
+    const glm::vec3 shift = ropeShift(d, a, origin, dt, doll != nullptr);
+    if(shift == glm::vec3{0.f})
+    {
+        setupHands(slot, e, a, origin, doll);
+        ropePinHands(d, a, origin, shift, dt);
+        setupBody(slot, e, a, origin, doll);
+    }
+    else
+    {
+        // (his places from the moved origin; the server's holds -- world points -- kept where they are)
+        Avatar moved = a;
+        for(glm::vec3& at : moved.holdAt)
+        {
+            at -= shift;
+        }
+        setupHands(slot, e, moved, origin + shift, doll);
+        ropePinHands(d, a, origin, shift, dt);
+        setupBody(slot, e, moved, origin + shift, doll);
+    }
     drawPowerups(slot, doll ? 0 : a.powerups);
 }
 
@@ -1320,10 +1485,94 @@ bool serverBody(int slot, int& build, float& scale)
         return false; // (his body off: id's ranger, as his living copy is his player model)
     }
     build = za::clamp(c.v[calBuild], 0, 3);
-    // (the body's size as setupBody draws it: his world scale's units a metre, his eyes' height over the model's)
-    scale = (static_cast<float>(c.v[calScale]) / 1000.f) * (static_cast<float>(c.v[calHeight]) / 1000.f) / units::modelEyeHeight;
+    // (the body's size as setupBody draws it: his world scale's units a metre, his eyes' height over the model's; a
+    // flat-screen player's his flat body height, as his living avatar is drawn: the server knows him flat from his moves)
+    const bool flat = (own && flatplay::active()) || (sv.active && slot < svs.maxclients && hull::isFlat(EDICT_NUM(slot + 1)));
+    const int height = c.v[flat ? calFlatHeight : calHeight];
+    scale = (static_cast<float>(c.v[calScale]) / 1000.f) * (static_cast<float>(height) / 1000.f) / units::modelEyeHeight;
     scale = za::clamp(scale, 0.5f, 2.f);
     return true;
+}
+
+namespace
+{
+
+// Calibration `c`'s (null: none came, a bot's: the default body's) arms and shoulders on the doll rig `rig` (its rest
+// units at size `scale` are world units): his upper arm's and forearm's drawn lengths over the rig's (setupBody's
+// Subject, avatar::armBoneLength: measured, else the model's times his arm length, his tweaks on top), his shoulders'
+// offset (metres of the model at his scale, as solveArm's clavicle: back, up, out) in its rest units.
+[[nodiscard]] ragdoll::Proportions dollProportions(const Calibration* c, const ragdoll::Rig& rig, float scale)
+{
+    ragdoll::Proportions p;
+    int upper = -1, fore = -1;
+    for(int b = 0; b < rig.numBones; b++)
+    {
+        upper = strcmp(rig.bones[b].name, "upperarm_l") == 0 ? b : upper;
+        fore = strcmp(rig.bones[b].name, "forearm_l") == 0 ? b : fore;
+    }
+    if(upper < 0 || fore < 0 || scale <= 0.f)
+    {
+        return p;
+    }
+    const float worldScale = c ? static_cast<float>(c->v[calScale]) / 1000.f : units::defaultWorldScale();
+    const float cm = units::perMetre * worldScale * 0.01f;
+    const float armLength = c ? static_cast<float>(c->v[calArm]) / 1000.f : 1.f;
+    const int bones[2] = {upper, fore};
+    float ratio[2];
+    for(int k = 0; k < 2; k++)
+    {
+        const ragdoll::Bone& bone = rig.bones[bones[k]];
+        const float modelLen = glm::distance(bone.pivot, bone.end) * scale;
+        const float measured = c ? static_cast<float>(c->v[calUpper + k]) / 10.f : 0.f;
+        const float tweak = c ? static_cast<float>(c->v[calTweakUpper + k]) / 10.f : 0.f;
+        ratio[k] = modelLen > 1e-3f ? avatar::armBoneLength(modelLen, armLength, measured, tweak, cm) / modelLen : 1.f;
+    }
+    p.upper = ratio[0];
+    p.fore = ratio[1];
+    const glm::vec3 so = c ? glm::vec3{static_cast<float>(c->v[calShoulders]), static_cast<float>(c->v[calShoulders + 1]),
+                                 static_cast<float>(c->v[calShoulders + 2])} /
+                                 1000.f
+                           : bodycal::defaultArms().shoulderOffset;
+    p.shoulder = glm::vec3{-so.x, so.y, so.z} * units::perMetre; // (back -> forward)
+    return p;
+}
+
+[[nodiscard]] bool isDollRig(const ragdoll::Rig* rig)
+{
+    return rig && rig->model && strncmp(rig->model->name, "progs/vrdoll", 12) == 0;
+}
+
+} // namespace
+
+const ragdoll::Rig* serverDollRig(const ragdoll::Rig* rig, int owner, float scale)
+{
+    if(!isDollRig(rig) || owner < 1 || owner > MAX_SCOREBOARD)
+    {
+        return rig;
+    }
+    // (as serverBody: single player your own settings, a client his calibration, none (a bot) the default body)
+    const int slot = owner - 1;
+    const bool own = svs.maxclients <= 1;
+    const Calibration c = own ? ownCalibration() : cal.slot[slot];
+    const ragdoll::Proportions p = dollProportions(own || cal.slotHas[slot] ? &c : nullptr, *rig, scale);
+    const ragdoll::Rig* out = ragdoll::proportioned(rig, p);
+    Con_DPrintf("dollrig: owner %d, %s, scale %.3f: upper arm x%.3f, forearm x%.3f, shoulders %.2f %.2f %.2f%s\n", owner,
+        rig->model->name, scale, p.upper, p.fore, p.shoulder.x, p.shoulder.y, p.shoulder.z, out == rig ? " (the model's own)" : "");
+    return out;
+}
+
+const ragdoll::Rig* clientDollRig(const ragdoll::Rig* rig, const entity_t* e, float scale)
+{
+    if(!isDollRig(rig) || !e)
+    {
+        return rig;
+    }
+    int p = 0;
+    for(int k = 0; k < cl.maxclients && k < MAX_SCOREBOARD && !p; k++)
+    {
+        p = e->colormap == cl.scores[k].translations ? k + 1 : 0;
+    }
+    return p > 0 ? ragdoll::proportioned(rig, dollProportions(calOf(p), *rig, scale)) : rig;
 }
 
 void sendCalibration()
@@ -1810,6 +2059,14 @@ void addDrawn(int e, const entity_t* replace)
 [[nodiscard]] bool dollPose(const entity_t* e, int num, qmodel_t* model, avatar::DollPose& out, VrDrawnHand hands[2])
 {
     const ragdoll::Rig* rig = ragdoll::rigFor(model);
+    {
+        // (its ragdoll's own rig where it has one: a dead player's doll in his proportions, serverDollRig/clientDollRig)
+        glm::quat q;
+        glm::vec3 t;
+        float s = 1.f;
+        const ragdoll::Rig* drawnRig = nullptr;
+        rig = ragdoll::drawnPart(num, 0, q, t, s, &drawnRig) && drawnRig ? drawnRig : rig;
+    }
     if(!rig)
     {
         return false;

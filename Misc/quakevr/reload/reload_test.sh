@@ -37,6 +37,7 @@
 #      pouched, spent enemy guns' smoke and crackle, the pouch's shells.
 # Prints PASS/FAIL per check; exits 1 on a failure.
 AGENT=$1; KIT=${KIT:-C:/OHWorkspace/qvr-kit}
+export TB_COLLECT_STUBS=${TB_COLLECT_STUBS-1} # (the collect pass without its log-reading tools: testbatch.sh)
 export TB_NODRAW=${TB_NODRAW-1} # (batched: no check reads the drawing; the screenshot runs go alone, drawn)
 fail=0
 source "$(dirname "$0")/../qvrtest.sh"
@@ -286,24 +287,27 @@ check $(echo "$om" | grep -oE "back [0-9]+" | awk '$2 > 60 {bad=1} END {print ba
 # The fired shot waits out the barrels' heat glow (red, in the sights' box seen from above: 46/395 at once, 46/0 2 s on).
 SHOTS=C:/OHWorkspace/qvr-kit/bases/$AGENT/qbase${QVR_LANE:+.lane$QVR_LANE}/quakevr/screenshots
 SEE="vr_weapon_screen 0;vr_gadget_screen_text_white 1;vr_shells 0;r_particles 0;vr_muzzle_flash 0;vr_mock_hand off -0.1 1.3 -0.5 60 0 0;vr_mock_hand main 0.45 0.9 -0.1 0 0 0;vr_shot_hide 5;vr_mock_camera -0.1 1.62 -0.3 55 0;wait20"
-tb_run_sh -Clean -Script "${SSG/vr_reload_debug 1/vr_reload_debug 0};$SEE;screenshot;$FIRE;wait140;screenshot;$FLICK;screenshot;$FLICK;screenshot;toggleconsole;quit" -Filter "^x" > /dev/null 2>&1
-s1=$($PY "$SSGCHECKS" sights $(ls -tr $SHOTS/*.png | tail -4))
-check $(echo "$s1" | awk '{ok = 1; for(i = 2; i <= NF; i++) { split($i, a, "/"); if(a[1] < 15 || a[2] > a[1] / 2) ok = 0 } print ok}') "the super shotgun's sights keep their colour shut, fired, open, shut again ($s1: recoloured/red pixels)"
-tb_run_sh -Clean -Script "${SSG/impulse 155/impulse 154};$SEE;wait30;screenshot;vr_autopump_hold 0.4;wait20;screenshot;vr_autopump_hold -1;wait20;screenshot;toggleconsole;quit" -Filter "^x" > /dev/null 2>&1
-s2=$($PY "$SSGCHECKS" sights $(ls -tr $SHOTS/*.png | tail -3))
-check $(echo "$s2" | awk '{ok = 1; for(i = 2; i <= NF; i++) { split($i, a, "/"); if(a[1] < 15 || a[2] > a[1] / 2) ok = 0 } print ok}') "the shotgun's sights keep their colour as it pumps (its parts drawn) ($s2)"
+SEESIDE="vr_weapon_screen 0;vr_shells 0;r_particles 0;vr_muzzle_flash 0;vr_mock_hand off -0.1 1.3 -0.5 0 0 0;vr_mock_hand main 0.45 0.9 -0.1 0 0 0;vr_shot_hide 5;vr_mock_camera 0.35 1.38 -0.62 8 90;wait20" # (from the side)
+BLOODY="vr_gore_spatter_test propoff;wait2;vr_gore_spatter_test propoff;wait2;vr_gore_spatter_test propoff -1;wait10"
+gearshots() { echo "${SSG/vr_reload_debug 1/vr_reload_debug 0;vr_gore_gear $1};$SEESIDE;$FIRE;$BLOODY;screenshot;$BY;screenshot;$FLICK;screenshot"; }
+# (Drawn games, alone: the sights' two runs and the blood's clean one in one game, each from its own "map", 2026-11-22;
+# the bloody one in its own game, so no blood of it is on the clean one's hand. Were four games.)
+tb_run_sh -Clean -Script "${SSG/vr_reload_debug 1/vr_reload_debug 0};$SEE;screenshot;$FIRE;wait140;screenshot;$FLICK;screenshot;$FLICK;screenshot;${SSG/impulse 155/impulse 154};$SEE;wait30;screenshot;vr_autopump_hold 0.4;wait20;screenshot;vr_autopump_hold -1;wait20;screenshot;$(gearshots 0);toggleconsole;quit" -Filter "^x" -Timeout 360 > /dev/null 2>&1
+mapfile -t PNGS < <(ls $SHOTS/*.png 2>/dev/null | LC_ALL=C sort) # (by name, the order taken: a PNG is written by a thread, its time can come out of order)
+[ ${#PNGS[@]} = 10 ] || { echo "  (the sights' and clean blood's game: ${#PNGS[@]} screenshots, not 10)"; PNGS=(); }
+s1=$($PY "$SSGCHECKS" sights ${PNGS[@]:0:4})
+check $(echo "$s1" | awk '{ok = NF == 5; for(i = 2; i <= NF; i++) { split($i, a, "/"); if(a[1] < 15 || a[2] > a[1] / 2) ok = 0 } print ok}') "the super shotgun's sights keep their colour shut, fired, open, shut again ($s1: recoloured/red pixels)"
+s2=$($PY "$SSGCHECKS" sights ${PNGS[@]:4:3})
+b0=$($PY "$SSGCHECKS" blood ${PNGS[@]:7:3})
+check $(echo "$s2" | awk '{ok = NF == 4; for(i = 2; i <= NF; i++) { split($i, a, "/"); if(a[1] < 15 || a[2] > a[1] / 2) ok = 0 } print ok}') "the shotgun's sights keep their colour as it pumps (its parts drawn) ($s2)"
 log=$(tb_run_sh -Script "$SSG;vr_reload_ssg_break 0;$FIRE;$REP;$FLICK;$REP;toggleconsole;quit" -Filter "$F7" 2>&1)
 holds=$(echo "$log" | grep "^reload: off hand")
 check $(h 1 | grep -q "weapon 5 clip 0 " && h 2 | grep -q "weapon 5 clip 2 " && ! echo "$log" | grep -q "broken open" && echo 1 || echo 0) "Break Open off: the flick reloads it as before"
 # The blood on the super shotgun stays on it broken open (the author's note vrfiringrange_2026-10-08_22-03-33: its parts
 # read the gun's mask, their taller skin's rows mapped): shot shut, open, shut again, bloody (vr_gore_gear 1) and clean
-# (0: the hand's blood alone); the gun's own blood (the difference) open at least 60% of what it is shut.
-SEESIDE="vr_weapon_screen 0;vr_shells 0;r_particles 0;vr_muzzle_flash 0;vr_mock_hand off -0.1 1.3 -0.5 0 0 0;vr_mock_hand main 0.45 0.9 -0.1 0 0 0;vr_shot_hide 5;vr_mock_camera 0.35 1.38 -0.62 8 90;wait20" # (from the side)
-BLOODY="vr_gore_spatter_test propoff;wait2;vr_gore_spatter_test propoff;wait2;vr_gore_spatter_test propoff -1;wait10"
-for gear in 1 0; do
-    tb_run_sh -Clean -Script "${SSG/vr_reload_debug 1/vr_reload_debug 0;vr_gore_gear $gear};$SEESIDE;$FIRE;$BLOODY;screenshot;$BY;screenshot;$FLICK;screenshot;toggleconsole;quit" -Filter "^x" > /dev/null 2>&1
-    [ $gear = 1 ] && b1=$($PY "$SSGCHECKS" blood $(ls -tr $SHOTS/*.png | tail -3)) || b0=$($PY "$SSGCHECKS" blood $(ls -tr $SHOTS/*.png | tail -3))
-done
+# (0: the hand's blood alone, b0 above); the gun's own blood (the difference) open at least 60% of what it is shut.
+tb_run_sh -Clean -Script "$(gearshots 1);toggleconsole;quit" -Filter "^x" > /dev/null 2>&1
+b1=$($PY "$SSGCHECKS" blood $(ls $SHOTS/*.png | LC_ALL=C sort | tail -3))
 check $(echo "$b1 $b0" | awk '{ shut = $2 - $6; open = $3 - $7; again = $4 - $8; print (shut > 300 && open > 0.6 * shut && again > 0.6 * shut) ? 1 : 0 }') "the super shotgun's blood stays on it open and shut again (bloody $b1, clean $b0: shut, open, shut)"
 
 # 8. The author's magazine notes (ROUND21.md, "Immersive reloading: magazines, both grips, the pull"): the gun in the MAIN

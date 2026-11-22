@@ -44,6 +44,11 @@ Hook an explosive box, a zombie and then a far wall with the grappling hook and 
 Multiplayer: in a game on another machine, walk round your play space quickly and lean far out; your own view never snaps back. {test:mp_coop_passive}
 Hold the lava nailgun and lava super nailgun (both hands, lava nails loaded): each looks as before, now its nailgun's model in the lava skin; the screen, magazine and grip sit exactly as on the plain nailgun, and pressing the button changes only the skin. {test:gun_variants_nail}
 Hold the multi-rocket launcher and the plasma Thunderbolt: each is its plain gun's model in the other skin, its screen, cell and grip where the plain gun has them; switching ammo changes nothing but the skin. {test:gun_variants_rock}
+Flat-screen: press 9 with a gun in hand: the visor's panels and the gun's ammo screen dim, 9 again lights them; Options > Controls lists it as "Gear lights" under Quake VR (flat screen), with no "!" clash mark. {test:flat_gear_lights}
+Flat-screen or VR: in multiplayer, watch another player climb a rope, hang on it and swing it; his hands should grip the rope and move up it hand over hand, his hips stay close to it with the legs wrapped round it, and none of it should drift off the rope while it swings. {test:ropes}
+On a rope in VR, look at your own hands and legs; the hands should sit on the rope (not beside it as on a ledge) and the hips come in close to it with the feet wrapped round it. {test:ropes}
+Flat-screen: in Arcane Dimensions' ad_test3 walk forward into the stepped ladder from its floor: the hands take two rungs and forward climbs it and over the top (it used to do nothing). {test:ad_test3_ladder}
+Flat-screen: set Flat Body Height low (about 1.4 m) and die: your corpse is your flat body's size, not your headset height's. {test:flat_force_grab}
 
 [1. Dwell]
 Dwell: Select Campaign > Dwell, play start and d1m1 (triggered monsters wait, checkpoints autosave); Map Library: Ancient and Underdark Overbright udob1 load and play by Copper rules {test:hub_start}
@@ -113,6 +118,7 @@ Kill a player and a bot in coop (and yourself in single player): each corpse is 
 Run the mp_dm_passive scene: a local deathmatch with a bot that stands still facing you; kill it and it comes back to the same spot, still passive {test:mp_dm_passive}
 Shoot the passive bot a few times: blood pours from where it was hit, its wounds and bleeding as on your own body, and you hear the pour land. {test:mp_dm_passive}
 Let the bot shoot at you with its shotgun: after each shot its pump strokes back and forward with the clacks, its ammo screen lit and its barrel glowing as it heats. {test:mp_dm_hostile}
+Set a long arm length (VR Settings, body, arm length 1.3, or your Body Calibration) and get killed in a game with another player: your corpse's arms are as long as your living body's, its hands at its wrists (not stretched or bent short), seen the same by the other player. {test:mp_coop_bodies}
 
 [4. Flat screen]
 Flat-screen: open Options > Controls and scroll to the end of the keyboard and mouse list: the "Quake VR (flat screen)" group lists every flat key (leans, swap, force grab, shove... toolgun adjust); rebind one with Enter and a key, clear one with Backspace, and check it works in game. {test:flat_force_grab}

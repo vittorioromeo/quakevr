@@ -29,10 +29,14 @@ PORT = 8767
 BASH = "C:/Program Files/Git/bin/bash.exe" if os.path.isfile("C:/Program Files/Git/bin/bash.exe") else "bash"
 # The feeds' versions, from the repository's VERSION (MAJOR.MINOR.PATCH): newer (PATCH + 1), the same, older, and the
 # cached one (PATCH + 2). (Literal 0.9.x until 2026-10-09: VERSION became 1.0.0 and the "newer" feeds were older.)
-_V = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "VERSION")).read().strip().split("-")[0]
+# The same is VERSION whole, its prerelease tag too: a beta's final release is newer than it (semver: 1.2.0-beta1 <
+# 1.2.0; a feed of 1.2.0 for "the same" failed on 2026-11-22, VERSION 1.2.0-beta1). V_FINAL: the core alone.
+_VFULL = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "VERSION")).read().strip()
+_V = _VFULL.split("-")[0]
 _MA, _MI, _PA = (int(x) for x in _V.split("."))
 V_NEWER = f"{_MA}.{_MI}.{_PA + 1}"
-V_SAME = _V
+V_SAME = _VFULL
+V_FINAL = _V
 V_OLDER = f"{_MA - 1}.9.9" if _MA > 0 else f"0.{_MI - 1}.9"
 V_CACHED = f"{_MA}.{_MI}.{_PA + 2}"
 PAGE = f"https://github.com/vittorioromeo/quakevr/releases/tag/v{V_NEWER}"
@@ -124,8 +128,16 @@ def main():
                          f"vr_update_url {base}/missing.json", "vr_update_check_now startup", "wait180", "echo vr_update_404_done",
                          "vr_update_status",
                          f'vr_update_url "{base}/missing.json {base}/newer.json"', "vr_update_check_now", "wait240", "vr_update_status",
+                         # (prerelease order, semver: a beta below its final and above the last release, betas in turn)
+                         f"vr_update_compare {V_SAME} {V_FINAL}", "vr_update_compare 1.2.0-beta1 1.1.0",
+                         "vr_update_compare 1.2.0 1.2.0-beta1", "vr_update_compare 1.2.0-beta1 1.2.0-beta2",
+                         "vr_update_compare 1.2.0-beta1 1.2.0-beta1",
                          "toggleconsole", "quit"])
         print("--- same/older/404:", out.strip()[:2500])
+        cmp_expect = [(V_SAME, "<" if V_SAME != V_FINAL else "==", V_FINAL), ("1.2.0-beta1", ">", "1.1.0"),
+                      ("1.2.0", ">", "1.2.0-beta1"), ("1.2.0-beta1", "<", "1.2.0-beta2"), ("1.2.0-beta1", "==", "1.2.0-beta1")]
+        for a, op, b in cmp_expect:
+            check(f"compare: {a} {op} {b}", f"vr_update_compare: {a} {op} {b}" in out)
         parts = out.split("vr_update_404_done")
         check("same: not newer, no notice", re.search(r"latest " + re.escape(V_SAME) + r" \(2026-10-01 12345678\) from \S+same\.json \(asked\): not newer .*?update check: no notice", out))
         check("older: not newer, no notice", re.search(r"latest " + re.escape(V_OLDER) + r" \(2026-09-01 12345678\) from \S+older\.json \(asked\): not newer .*?update check: no notice", out))
