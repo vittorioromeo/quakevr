@@ -169,6 +169,7 @@ void(entity victim, entity pellet, float damage) VR_AD_PelletHit;
 void(entity pellet) VR_AD_PelletPrepare;
 void(entity pellet) VR_AD_PelletLaunch;
 float(entity shooter, float speed) VR_AD_PelletSpeed;
+const float VR_AD_SHELL_FASTER = 1.3; // AD's and Quoth's shell projectiles, players' and monsters': 30% over AD's speeds (backlog1122d)
 void(entity missile) VR_AD_Ordnance;
 void(entity flame, float poison) VR_ADGun_StreamFx;        // a flamethrower's flame (a pyro's, a fumigator's): our fire too
 float(entity flame, float xStep) VR_ADGun_FlameDoused;     // ... into water: out at the surface (TRUE: remove it)
