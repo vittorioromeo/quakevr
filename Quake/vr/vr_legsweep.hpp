@@ -13,6 +13,6 @@ namespace qvr::legsweep
 {
 
 void init();        // vr_legsweep_table
-void serverFrame(); // VR_ServerFrameEnd, before foegrab::serverFrame: the hands' things against the humanoids' legs
+void serverFrame(bool worldRan); // VR_ServerFrameEnd, before foegrab::serverFrame: the hands' things against the humanoids' legs (paused, !worldRan: the hands' tracks forgotten: no sweep, none from the pause's move)
 
 } // namespace qvr::legsweep

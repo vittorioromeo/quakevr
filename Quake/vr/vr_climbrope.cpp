@@ -14,13 +14,16 @@
 
 #include "vr_climbrope.hpp"
 
+#include "vr_avatar.hpp"
 #include "vr_box3d.hpp"
 #include "vr_climb.hpp"
 #include "vr_coil.hpp"
 #include "vr_cvars.hpp"
+#include "vr_fatigue.hpp"
 #include "vr_geom.hpp"
 #include "vr_gfx.hpp"
 #include "vr_mem.hpp"
+#include "vr_physsound.hpp"
 #include "vr_profile.hpp"
 #include "vr_progs.hpp"
 #include "vr_protocol.hpp"
@@ -139,7 +142,7 @@ struct ClientRope
     za::Vector<glm::vec3> prev;  // the message's before (P3: drawn between the two, as the entities are: shownOf)
     za::Vector<glm::vec3> shown; // the points as drawn this frame
     double msgTime{-1.0};        // the server's time of the message that last sent it (cl.mtime[0] then)
-    int shownFrame{-1};
+    double shownTime{-1.0};      // the client time it was made for (-1: to make again)
     float thickness{1.5f};
     bool chain{false};
     coil::Cord cord;
@@ -650,9 +653,12 @@ struct RopeTest
     za::Vector<glm::vec3> before;
     glm::vec3 feet{0.f};
     glm::vec3 fwd{1.f, 0.f, 0.f};
+    int kept{0};         // the ropes Clear Props should keep (made as the map loaded)
+    float chainBorn{0.f}; // B's .vr_born
 };
 RopeTest test;
 constexpr const char* testName = "vr_rope_test";
+constexpr float sceneLoaded = 1.5f; // QC VR_SCENE_LOADED (vr_cheats.qc): what's made later is Clear Props'
 
 void testCheck(bool ok, const char* what)
 {
@@ -923,8 +929,19 @@ void testFrame()
         if(t.frames >= 2)
         {
             testCheck(t.thing && ropeOf(t.thing), "a rope made for Clear Props");
+            // What Clear Props should keep: the ropes made as the map loaded (QC VR_SCENE_LOADED, vr_cheats.qc: the map's
+            // own, born before its first 1.5 s). The test's chain is one of them only when the test began that early
+            // (`map vrropes; wait60; vr_rope_test` begins it at 2 s: then it goes too).
             t.before.clear();
             t.before.resize(ropes.size()); // (the count before)
+            t.kept = 0;
+            const int bornOfs = progs::fields().vr_born;
+            const auto bornOf = [bornOfs](int ent) { return bornOfs >= 0 ? progs::fieldFloat(EDICT_NUM(ent), bornOfs) : 0.f; };
+            for(const auto& kv : ropes)
+            {
+                t.kept += bornOf(kv.first) <= sceneLoaded ? 1 : 0;
+            }
+            t.chainBorn = b ? bornOf(t.chainB) : 0.f;
             Cbuf_AddText("vr_scene_clean props\n");
             next(13);
         }
@@ -934,10 +951,13 @@ void testFrame()
         {
             testCheck(t.thing && !ropeOf(t.thing) && clientRopes.find(t.thing) == clientRopes.end(),
                 "Clear Props removes a rope made since the map loaded");
-            char what[96];
-            q_snprintf(what, sizeof(what), "Clear Props keeps the map's and the early ones (%d of %d)",
-                static_cast<int>(ropes.size()), static_cast<int>(t.before.size()));
-            testCheck(ropes.size() + 1 == t.before.size(), what);
+            char what[128];
+            const bool chainEarly = t.chainBorn <= sceneLoaded;
+            q_snprintf(what, sizeof(what),
+                "Clear Props keeps the map's and the early ones (%d of %d, want %d; the chain born at %.2f s %s)",
+                static_cast<int>(ropes.size()), static_cast<int>(t.before.size()), t.kept, t.chainBorn,
+                chainEarly ? "kept" : "gone");
+            testCheck(static_cast<int>(ropes.size()) == t.kept && (ropeOf(t.chainB) != nullptr) == chainEarly, what);
             t.thing = 0;
             next(99);
         }
@@ -1502,11 +1522,562 @@ void flatTest_f()
     flatTest.stage = 1;
 }
 
+// ---------------------------------------------------------------------------------------------------------------------
+// vr_rope_hands_test (ropes5, ROPES.md "Tests"; flat-screen play, -flatscreenmode, in vrropes): the drawn hands on the
+// row's first rope, its first chain and the heavy chain, each taken in the air, hanging still (2 s) then pumped (3 s).
+// Each drawn frame (clientFrame) each hand drawn on its hold is sampled: the palm's second difference frame to frame
+// (smooth motion ~0; a step some frames and not others, the jitter), the arm's (palm less shoulder: the drawn arm's
+// vibration), and how far the palm's middle is off the rope as drawn (from its drawn pieces, less its half thickness;
+// < 0 in it). Best with the client faster than the server (vr_fixed_frames_rate 144), as a monitor or a headset.
+// Counted server frames; the limits a safety net (FAIL timed out).
+struct HandStat
+{
+    int n{0};
+    float jitSum{0.f}, jitMax{0.f}; // the palm's second difference (units)
+    float armSum{0.f}, armMax{0.f}; // the arm's (palm less shoulder)
+    float gapSum{0.f}, gapMax{0.f}; // off the drawn rope (units)
+    float shakeMax{0.f};            // the tired arms' shake in the drawn hand (vr_fatigue; units)
+};
+struct HandSampler
+{
+    bool on{false};
+    int frame{-1};
+    HandStat stat;
+    glm::vec3 palm[2][2]{}; // each hand's last two frames' palm and arm
+    glm::vec3 arm[2][2]{};
+    int have[2]{0, 0};
+};
+HandSampler handSampler;
+
+const za::Vector<glm::vec3>& shownOf(ClientRope& c); // (below: the client's rope as drawn this frame)
+
+struct HandsTest
+{
+    int stage{0}; // 0 off
+    int frames{0};
+    int target{0};
+    testkit::Tally tally;
+    float pitch{0.f};
+};
+HandsTest handsTest;
+constexpr const char* handsTestName = "vr_rope_hands_test";
+// (vrropes: the row's first rope, its first chain (1.5 thick), the heavy chain (3 thick, 40 kg); where he is set by each)
+constexpr glm::vec3 handsTestAt[3] = {{-300.f, 0.f, 170.f}, {-108.f, 0.f, 170.f}, {-12.f, 400.f, 380.f}};
+constexpr const char* handsTestWhat[3] = {"rope", "chain", "heavy chain"};
+constexpr float handsJitterMost = 1.f;  // units: a palm's or arm's second difference a frame, at most (smooth: well under)
+constexpr float handsGapMost = 1.f;     // units: the palm's middle off the drawn rope's surface at most (in it is fine)
+// Swinging, pumped: the means (were 1.9 and 5.5 at 144 Hz; now about 0.06 and 0.2); a rare hand change on the heavy
+// chain while pumped jumps (its maxima reported, not checked: ROPES.md "Known limits").
+constexpr float handsSwingJitterMean = 0.3f;
+constexpr float handsSwingGapMean = 0.5f;
+
+void handSamplerStart()
+{
+    handSampler = HandSampler{};
+    handSampler.on = true;
+}
+
+// Client, each frame drawn (clientFrame): the drawn hands on their holds sampled.
+void handSamplerFrame()
+{
+    HandSampler& s = handSampler;
+    if(!s.on || cls.signon != SIGNONS || s.frame == host_framecount)
+    {
+        return;
+    }
+    s.frame = host_framecount;
+    for(int h = 0; h < 2; h++)
+    {
+        glm::vec3 palm{0.f};
+        avatar::Shoulder sh;
+        if(climb::drawnShare(h) < 0.999f || !climb::drawnPalm(h, palm) || !avatar::shoulder(h, sh))
+        {
+            s.have[h] = 0;
+            continue;
+        }
+        glm::vec3 shakePos{0.f}, shakeAngles{0.f};
+        fatigue::shake(h, shakePos, shakeAngles);
+        palm += shakePos; // (as drawn: vr_view_hands.cpp's placeController)
+        s.stat.shakeMax = za::max(s.stat.shakeMax, glm::length(shakePos));
+        const glm::vec3 arm = palm - sh.joint;
+        if(s.have[h] >= 2)
+        {
+            const float jit = glm::length(palm - 2.f * s.palm[h][0] + s.palm[h][1]);
+            const float armJit = glm::length(arm - 2.f * s.arm[h][0] + s.arm[h][1]);
+            float thick = 1.5f;
+            float best = 1e9f;
+            for(auto& kv : clientRopes)
+            {
+                const za::Vector<glm::vec3>& q = shownOf(kv.second);
+                for(za::SizeT j = 0; j + 1 < q.size(); j++)
+                {
+                    float ta = 0.f, tb = 0.f;
+                    if(const float d = geom::segmentsDistance(palm, palm, q[j], q[j + 1], ta, tb); d < best)
+                    {
+                        best = d;
+                        thick = kv.second.thickness;
+                    }
+                }
+            }
+            const float gap = best - 0.5f * thick;
+            s.stat.n++;
+            s.stat.jitSum += jit;
+            s.stat.jitMax = za::max(s.stat.jitMax, jit);
+            s.stat.armSum += armJit;
+            s.stat.armMax = za::max(s.stat.armMax, armJit);
+            s.stat.gapSum += gap;
+            s.stat.gapMax = za::max(s.stat.gapMax, gap);
+        }
+        s.palm[h][1] = s.palm[h][0];
+        s.palm[h][0] = palm;
+        s.arm[h][1] = s.arm[h][0];
+        s.arm[h][0] = arm;
+        s.have[h] = za::min(s.have[h] + 1, 2);
+    }
+}
+
+// The sampler's numbers since handSamplerStart checked: `what` (rope, chain), `how` (hanging, swinging).
+void handsTestReport(HandsTest& t, const char* what, const char* how, bool swinging)
+{
+    const HandStat& st = handSampler.stat;
+    handSampler.on = false;
+    const float n = static_cast<float>(za::max(st.n, 1));
+    const bool ok = st.n >= 72 && (swinging ? st.jitSum / n <= handsSwingJitterMean && st.armSum / n <= handsSwingJitterMean &&
+                                                  st.gapSum / n <= handsSwingGapMean
+                                            : st.jitMax <= handsJitterMost && st.armMax <= handsJitterMost && st.gapMax <= handsGapMost);
+    const char* line = va("%s %s: %d samples; palm jitter mean %.3f max %.3f, arm jitter mean %.3f max %.3f, off the drawn %s "
+                          "mean %.2f max %.2f (shake at most %.2f)",
+        what, how, st.n, st.jitSum / n, st.jitMax, st.armSum / n, st.armMax, what, st.gapSum / n, st.gapMax, st.shakeMax);
+    t.tally.check(ok, handsTestName, line);
+    if(ok)
+    {
+        Con_Printf("%s: PASS %s\n", handsTestName, line);
+    }
+}
+
+void handsTestEnd(HandsTest& t, bool timedOut, const char* what)
+{
+    if(timedOut)
+    {
+        t.tally.check(false, handsTestName, va("timed out: %s", what));
+    }
+    Cbuf_AddText("-forward\n-jump\n");
+    handSampler.on = false;
+    t.tally.verdict(handsTestName);
+    t.stage = 0;
+}
+
+void handsTestFrame()
+{
+    HandsTest& t = handsTest;
+    t.frames++;
+    edict_t* player = firstPlayer();
+    if(!player)
+    {
+        return;
+    }
+    const int client = NUM_FOR_EDICT(player) - 1;
+    cl.viewangles[PITCH] = t.pitch;
+    cl.viewangles[YAW] = 0.f;
+    bool climbing = false;
+    (void)climb::flatRopes(player, climbing);
+    int ent = 0;
+    glm::vec3 v{0.f};
+    const bool riding = climbing && climbrope::riding(client, ent, v);
+    const char* what = handsTestWhat[t.target];
+    switch(t.stage)
+    {
+    case 1: // off any rope: set by the next one in the air
+        if(t.frames < 36 || (climbing && t.frames < 72 * 3))
+        {
+            return;
+        }
+        flatTestPlace(player, handsTestAt[t.target], 0.f);
+        t.stage = 2;
+        t.frames = 0;
+        return;
+    case 2: // taken
+        if(riding)
+        {
+            t.stage = 3;
+            t.frames = 0;
+        }
+        else if(t.frames > 72 * 2)
+        {
+            handsTestEnd(t, true, va("taking the %s in the air", what));
+        }
+        return;
+    case 3: // eased onto it (the hands' pins in, the take's swing damped a little): sampled hanging
+        t.pitch = -40.f; // (looking up at the hands, no key held: no climb)
+        if(t.frames == 36)
+        {
+            handSamplerStart();
+        }
+        else if(t.frames == 108)
+        {
+            Cbuf_AddText("screenshot\n"); // (the grip seen: the kit's -Out composes it)
+        }
+        else if(t.frames >= 36 + 144)
+        {
+            t.pitch = 0.f; // (level: the move keys pump)
+            handsTestReport(t, what, "hanging", false);
+            handSamplerStart();
+            Cbuf_AddText("+forward\n"); // (looking level: the pump)
+            t.stage = 4;
+            t.frames = 0;
+        }
+        return;
+    case 4: // pumped
+        if(!riding)
+        {
+            t.tally.check(false, handsTestName, va("%s swinging: fell off", what));
+            handsTestEnd(t, false, "");
+        }
+        else if(t.frames >= 216)
+        {
+            handsTestReport(t, what, va("swinging (%.0f units/s at the hands)", glm::length(glm::vec2{v.x, v.y})), true);
+            Cbuf_AddText("-forward\n+jump\n");
+            t.stage = 5;
+            t.frames = 0;
+        }
+        return;
+    case 5: // let go
+        if(t.frames == 6)
+        {
+            Cbuf_AddText("-jump\n");
+        }
+        else if(t.frames >= 12)
+        {
+            if(++t.target >= 3)
+            {
+                handsTestEnd(t, false, "");
+                return;
+            }
+            t.stage = 1;
+            t.frames = 0;
+        }
+        return;
+    default:
+        return;
+    }
+}
+
+void handsTest_f()
+{
+    if(!sv.active || !progs::bindings().isVrProgs || progs::fields().rope_length < 0)
+    {
+        Con_Printf("%s: FAIL usage: vr_rope_hands_test in flat-screen play (-flatscreenmode), map vrropes\n", handsTestName);
+        testkit::verdict(handsTestName, 0, 1);
+        return;
+    }
+    handsTest = HandsTest{};
+    handsTest.stage = 1;
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// vr_rope_pause_test (ropes5, ROPES.md "Tests"; flat-screen play, -flatscreenmode, in vrropes, single player): the map's
+// ropes pushed swinging; paused (`pause`, F8's), their points (the server's and as the client draws them) stand still
+// over a second; unpaused, they swing on; the menu open (single player's pause), still again. Counted drawn frames
+// (the server's stand still while paused).
+struct PauseTest
+{
+    int stage{0}; // 0 off
+    int frames{0};
+    testkit::Tally tally;
+    za::Vector<glm::vec3> mark; // the points at the mark: the server's, then the client's as drawn
+};
+PauseTest pauseTest;
+constexpr const char* pauseTestName = "vr_rope_pause_test";
+
+void pauseTestPoints(za::Vector<glm::vec3>& out)
+{
+    out.clear();
+    for(auto& kv : ropes)
+    {
+        for(const glm::vec3& p : kv.second.p)
+        {
+            out.pushBack(p);
+        }
+    }
+    for(auto& kv : clientRopes)
+    {
+        for(const glm::vec3& p : shownOf(kv.second))
+        {
+            out.pushBack(p);
+        }
+    }
+}
+
+// The most any point moved since the mark (1e9: the ropes changed).
+float pauseTestMoved(const PauseTest& t)
+{
+    za::Vector<glm::vec3> now;
+    pauseTestPoints(now);
+    if(now.size() != t.mark.size() || now.empty())
+    {
+        return 1e9f;
+    }
+    float most = 0.f;
+    for(za::SizeT i = 0; i < now.size(); i++)
+    {
+        most = za::max(most, glm::distance(now[i], t.mark[i]));
+    }
+    return most;
+}
+
+void pauseTestEnd(PauseTest& t)
+{
+    t.tally.verdict(pauseTestName);
+    t.stage = 0;
+}
+
+// Client, each frame drawn.
+void pauseTestFrame()
+{
+    PauseTest& t = pauseTest;
+    if(cls.signon != SIGNONS)
+    {
+        return;
+    }
+    t.frames++;
+    const auto next = [](int stage) {
+        pauseTest.stage = stage;
+        pauseTest.frames = 0;
+    };
+    switch(t.stage)
+    {
+    case 1: // pushed: swinging
+        if(t.frames == 1)
+        {
+            Cbuf_AddText("vr_rope_push 0 400 0\n");
+        }
+        else if(t.frames >= 72)
+        {
+            Cbuf_AddText("pause\n");
+            next(2);
+        }
+        return;
+    case 2: // paused: still
+    case 4: // the menu open: still
+        if(t.frames == 12)
+        {
+            pauseTestPoints(t.mark);
+        }
+        else if(t.frames >= 12 + 72)
+        {
+            const float moved = pauseTestMoved(t);
+            const bool ok = moved <= 0.01f;
+            const char* how = t.stage == 2 ? "paused (pause, F8)" : "the menu open";
+            t.tally.check(ok, pauseTestName, va("%s: the ropes' points moved at most %.3f units in a second (%d points)", how, moved,
+                                                 static_cast<int>(t.mark.size())));
+            if(ok)
+            {
+                Con_Printf("%s: PASS %s: the ropes' points moved at most %.3f units in a second\n", pauseTestName, how, moved);
+            }
+            pauseTestPoints(t.mark);
+            Cbuf_AddText(t.stage == 2 ? "pause\n" : "togglemenu\n");
+            next(t.stage + 1);
+        }
+        return;
+    case 3: // unpaused: swinging on
+    case 5: // the menu closed
+        if(t.frames >= 36)
+        {
+            const float moved = pauseTestMoved(t);
+            const bool ok = moved >= 0.5f && moved < 1e8f;
+            t.tally.check(ok, pauseTestName, va("%s: swinging on (moved %.2f units in half a second)",
+                                                 t.stage == 3 ? "unpaused" : "the menu closed", moved));
+            if(t.stage == 5)
+            {
+                pauseTestEnd(t);
+                return;
+            }
+            Cbuf_AddText("togglemenu\n");
+            next(4);
+        }
+        return;
+    default:
+        return;
+    }
+}
+
+void pauseTest_f()
+{
+    if(!sv.active || svs.maxclients > 1 || ropes.empty())
+    {
+        Con_Printf("%s: FAIL usage: vr_rope_pause_test in single player, map vrropes\n", pauseTestName);
+        testkit::verdict(pauseTestName, 0, 1);
+        return;
+    }
+    pauseTest = PauseTest{};
+    pauseTest.stage = 1;
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// vr_rope_sound_test (ropes5, ROPES.md "Tests"; single player, best in vrropes): a free rope and a free chain made ahead,
+// settled; still, both quiet; a headset's grip on each (the rope silent, the chain's metal grip), a flat-screen one (the
+// rope's slap, the chain's metal grip; a second at once on the chain held back); both pushed swinging, the chain's links
+// clink (rate-limited), the rope stays quiet. Counted server frames; the sounds as physsound sent them (ropeSoundInfo).
+struct SoundTest
+{
+    int stage{0}; // 0 off
+    int frames{0};
+    testkit::Tally tally;
+    int rope{0}, chain{0};
+    int ropeCount{0}, chainCount{0}; // their sounds at the mark
+};
+SoundTest soundTest;
+constexpr const char* soundTestName = "vr_rope_sound_test";
+
+void soundTestFrame()
+{
+    SoundTest& t = soundTest;
+    t.frames++;
+    edict_t* player = firstPlayer();
+    const auto next = [](int stage) {
+        soundTest.stage = stage;
+        soundTest.frames = 0;
+    };
+    const auto check = [](bool ok, const char* what) {
+        soundTest.tally.check(ok, soundTestName, what);
+        if(ok)
+        {
+            Con_Printf("%s: PASS %s\n", soundTestName, what);
+        }
+    };
+    Rope* r = ropeOf(t.rope);
+    Rope* c = ropeOf(t.chain);
+    int rn = 0, cn = 0;
+    const char* rLast = physsound::ropeSoundInfo(t.rope, rn);
+    const char* cLast = physsound::ropeSoundInfo(t.chain, cn);
+    const auto mark = [rn, cn]() {
+        soundTest.ropeCount = rn;
+        soundTest.chainCount = cn;
+    };
+    const auto mid = [](const Rope* x) { return x->p[x->p.size() / 2]; };
+    switch(t.stage)
+    {
+    case 1:
+    {
+        const float yaw = glm::radians(player->v.angles[1]);
+        const glm::vec3 fwd{za::cos(yaw), za::sin(yaw), 0.f};
+        const glm::vec3 side{-fwd.y, fwd.x, 0.f};
+        const glm::vec3 feet = vecOf(player->v.origin) + glm::vec3{0.f, 0.f, player->v.mins[2]};
+        edict_t* er = box3d::spawnClass("vr_rope", feet + fwd * 128.f + side * 48.f, glm::vec3{0.f});
+        edict_t* ec = box3d::spawnClass("vr_chain", feet + fwd * 128.f - side * 48.f, glm::vec3{0.f});
+        if(!er || !ec)
+        {
+            check(false, "the test's rope and chain spawned");
+            next(99);
+            break;
+        }
+        placeWith(er, feet + fwd * 128.f + side * 48.f, 150.f, 0.f, 8, 0.f, 0.f, 0.f, false);
+        placeWith(ec, feet + fwd * 128.f - side * 48.f, 150.f, 0.f, 8, 0.f, 0.f, 0.f, false);
+        t.rope = NUM_FOR_EDICT(er);
+        t.chain = NUM_FOR_EDICT(ec);
+        next(2);
+        break;
+    }
+    case 2: // settling
+        if(t.frames >= 144)
+        {
+            mark();
+            next(3);
+        }
+        break;
+    case 3: // still for a second: quiet; then a headset's grips
+        if(t.frames >= 72 && r && c)
+        {
+            check(rn == t.ropeCount && cn == t.chainCount,
+                va("still for a second, both quiet (rope %d, chain %d sounds; fastest %.1f and %.1f u/s)", rn - t.ropeCount,
+                    cn - t.chainCount, r->speed, c->speed));
+            mark();
+            qvr::climbrope::grabbed(player, t.rope, mid(r), true);
+            qvr::climbrope::grabbed(player, t.chain, mid(c), true);
+            next(4);
+        }
+        else if(t.frames >= 72)
+        {
+            check(false, "the rope and the chain made");
+            next(99);
+        }
+        break;
+    case 4:
+        check(rn == t.ropeCount && cn == t.chainCount + 1 && strstr(cLast, "grab_metal"),
+            va("a headset's grip: the rope silent (%d), the chain's metal grip (%d: %s)", rn - t.ropeCount, cn - t.chainCount, cLast));
+        mark();
+        next(5);
+        break;
+    case 5: // a flat-screen grip on each (after the chain's grips' gap), and at once another on the chain
+        if(t.frames >= 18)
+        {
+            qvr::climbrope::grabbed(player, t.rope, mid(r), false);
+            qvr::climbrope::grabbed(player, t.chain, mid(c), false);
+            qvr::climbrope::grabbed(player, t.chain, mid(c), false);
+            next(6);
+        }
+        break;
+    case 6:
+        check(rn == t.ropeCount + 1 && strstr(rLast, "grab_stone"),
+            va("a flat-screen grip on the rope: its slap (%d: %s)", rn - t.ropeCount, rLast));
+        check(cn == t.chainCount + 1 && strstr(cLast, "grab_metal"),
+            va("on the chain: its metal grip, the second at once held back (%d: %s)", cn - t.chainCount, cLast));
+        mark();
+        // Both pushed sideways (as a shove: the speed added to every point but the top).
+        for(Rope* x : {r, c})
+        {
+            for(za::SizeT i = 1; i < x->p.size(); i++)
+            {
+                x->kick[i] += glm::vec3{180.f, 180.f, 0.f} * (static_cast<float>(i) / static_cast<float>(x->p.size() - 1));
+            }
+        }
+        next(7);
+        break;
+    case 7: // swinging for two seconds
+        if(t.frames >= 144)
+        {
+            const int clinks = cn - t.chainCount;
+            check(clinks >= 2 && clinks <= 9 && strstr(cLast, "metal_l"),
+                va("swung, the chain's links clink: %d in 2 s (2 to 9: rate-limited), %s", clinks, cLast));
+            check(rn == t.ropeCount, va("swung, the rope stays quiet (%d)", rn - t.ropeCount));
+            next(99);
+        }
+        break;
+    default:
+        for(const int e : {t.rope, t.chain})
+        {
+            if(e > 0 && !EDICT_NUM(e)->free)
+            {
+                ED_Free(EDICT_NUM(e));
+            }
+        }
+        t.tally.verdict(soundTestName);
+        t.stage = 0;
+        break;
+    }
+}
+
+void soundTest_f()
+{
+    if(!sv.active || svs.maxclients > 1 || !progs::bindings().isVrProgs || progs::fields().rope_length < 0 || !firstPlayer())
+    {
+        Con_Printf("%s: FAIL usage: vr_rope_sound_test in single player with Quake VR's progs\n", soundTestName);
+        testkit::verdict(soundTestName, 0, 1);
+        return;
+    }
+    soundTest = SoundTest{};
+    soundTest.stage = 1;
+}
+
 void serverReset()
 {
     ropes.clear();
+    soundTest = SoundTest{};
     climbTest = ClimbTest{};
     flatTest = FlatTest{};
+    handsTest = HandsTest{};
+    handSampler = HandSampler{};
+    pauseTest = PauseTest{};
     for(auto& client : handsSeen)
     {
         for(HandSeen& h : client)
@@ -1528,13 +2099,16 @@ mem::Reset clientStateReset{"climbrope", mem::ResetEvent::ClientState, mem::Rese
 // The client's rope as drawn this frame (and held, the climbers' feet round it): between the last two messages' points
 // as the entities are drawn (CL_LerpPoint's fraction: the server's time between them), so a player hanging on it, drawn
 // there too, stays on it as it swings (P3, ROPES.md "Multiplayer"); a rope the latest message didn't move stands as sent.
+// Made again whenever the client's time moved (ropes5: it was kept a host frame, and the frame's first ask can come
+// before its time moves on (the server's tick), so a client drawing faster than the server drew it a tick at a time:
+// the hands on it shook).
 const za::Vector<glm::vec3>& shownOf(ClientRope& c)
 {
-    if(c.shownFrame == host_framecount)
+    if(c.shownTime == cl.time)
     {
         return c.shown;
     }
-    c.shownFrame = host_framecount;
+    c.shownTime = cl.time;
     const double span = cl.mtime[0] - cl.mtime[1];
     const bool lerp = c.msgTime == cl.mtime[0] && c.prev.size() == c.p.size() && span > 1e-4 && span < 0.25;
     const float f = lerp ? static_cast<float>(za::clamp((cl.time - cl.mtime[1]) / span, 0.0, 1.0)) : 1.f;
@@ -1606,6 +2180,18 @@ void init()
     Cmd_AddCommand("vr_rope_climb_test", climbTest_f);
     Cmd_AddCommand("vr_rope_climb_check", climbCheck_f);
     Cmd_AddCommand("vr_rope_flat_test", flatTest_f);
+    Cmd_AddCommand("vr_rope_hands_test", handsTest_f);
+    Cmd_AddCommand("vr_rope_pause_test", pauseTest_f);
+    Cmd_AddCommand("vr_rope_sound_test", soundTest_f);
+}
+
+void clientFrame()
+{
+    handSamplerFrame();
+    if(pauseTest.stage)
+    {
+        pauseTestFrame();
+    }
 }
 
 bool isRopeClass(const char* classname)
@@ -1613,7 +2199,7 @@ bool isRopeClass(const char* classname)
     return !strcmp(classname, "vr_rope") || !strcmp(classname, "vr_chain");
 }
 
-void serverFrame()
+void serverFrame(bool worldRan)
 {
     if(!sv.active || sv.paused || !progs::bindings().isVrProgs || progs::fields().rope_length < 0)
     {
@@ -1633,6 +2219,14 @@ void serverFrame()
     {
         flatTestFrame();
     }
+    if(handsTest.stage)
+    {
+        handsTestFrame();
+    }
+    if(soundTest.stage && worldRan)
+    {
+        soundTestFrame();
+    }
     // New ropes (a map's, the toolgun's): rope entities with no rope yet.
     for(int num = svs.maxclients + 1; num < sv.qcvm.num_edicts; num++)
     {
@@ -1647,7 +2241,7 @@ void serverFrame()
     {
         return;
     }
-    const float dt = za::clamp(static_cast<float>(host_frametime), 0.f, 0.1f);
+    const float dt = worldRan ? za::clamp(static_cast<float>(host_frametime), 0.f, 0.1f) : 0.f; // (paused: they stand, ropes5)
     if(dt <= 0.f)
     {
         return;
@@ -1663,7 +2257,21 @@ void serverFrame()
             r.rider = Rider{}; // (let go: the rope swings on as he left it)
         }
         step(r, dt);
+        if(r.params.chain)
+        {
+            physsound::chainMoves(kv.first, r.p[r.p.size() / 2], r.speed); // its links' clink (ropes5)
+        }
         send(kv.first, r);
+    }
+}
+
+void grabbed(edict_t* player, int ent, const glm::vec3& at, bool vr)
+{
+    const auto it = ropes.find(ent);
+    const bool chain = it != ropes.end() && it->second.params.chain;
+    if(chain || !vr)
+    {
+        physsound::ropeGrab(player, at, ent, chain);
     }
 }
 
@@ -1962,7 +2570,7 @@ void parse()
         c.prev = c.p;
     }
     c.msgTime = cl.mtime[0];
-    c.shownFrame = -1;
+    c.shownTime = -1.0;
     c.p.resize(static_cast<za::SizeT>(n));
     glm::vec3 at{0.f};
     for(int i = 0; i < n; i++)
@@ -2026,6 +2634,50 @@ bool clientRopeAt(const glm::vec3& near, float within, float z, glm::vec3& at)
             break;
         }
     }
+    return true;
+}
+
+bool clientRopeNearest(const glm::vec3& near, float within, glm::vec3& at, glm::vec3& up, float& thickness)
+{
+    ClientRope* best = nullptr;
+    float bestDist = within;
+    for(auto& kv : clientRopes)
+    {
+        const za::Vector<glm::vec3>& q = shownOf(kv.second);
+        for(za::SizeT j = 0; j + 1 < q.size(); j++)
+        {
+            float ta = 0.f, tb = 0.f;
+            if(const float d = geom::segmentsDistance(near, near, q[j], q[j + 1], ta, tb); d < bestDist)
+            {
+                bestDist = d;
+                best = &kv.second;
+            }
+        }
+    }
+    if(!best)
+    {
+        return false;
+    }
+    // On its curve as drawn (drawOpaque's: through the points as shown this frame), as far straight from its top as
+    // `near` is: a hold keeps that while it hangs (on the rider's line, straight from the top), so the point found moves
+    // as smoothly as the drawn rope does (the nearest point slid along a bent curve as `near`, a tick ahead, moved).
+    smoothInto(shownOf(*best), scratch.smooth);
+    const za::Vector<glm::vec3>& q = scratch.smooth;
+    if(q.size() < 2)
+    {
+        return false;
+    }
+    const float want = glm::distance(near, q[0]);
+    za::SizeT j = 0;
+    while(j + 2 < q.size() && glm::distance(q[j + 1], q[0]) < want)
+    {
+        j++;
+    }
+    const float da = glm::distance(q[j], q[0]), db = glm::distance(q[j + 1], q[0]);
+    at = glm::mix(q[j], q[j + 1], db - da > 1e-4f ? za::clamp((want - da) / (db - da), 0.f, 1.f) : 1.f);
+    const glm::vec3 piece = q[j] - q[j + 1]; // (the points go from its top down)
+    up = glm::length(piece) > 1e-4f ? glm::normalize(piece) : glm::vec3{0.f, 0.f, 1.f};
+    thickness = best->thickness;
     return true;
 }
 

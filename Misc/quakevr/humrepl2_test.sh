@@ -13,7 +13,7 @@ S="sv_random_seed 7;map vrtesthall;wait60;god;notarget"
 for k in 0 1 2 3; do
     S="$S;vr_humstudio_lineup $k;wait30"
 done
-S="$S;vr_humstudio_paint 1;vr_humstudio_class 3;vr_humstudio_brush 6;vr_humstudio_stroke 1 2;vr_humstudio_stroke 0"
+S="$S;vr_humstudio_paint 1;vr_humstudio_class 1;vr_humstudio_brush 6;vr_humstudio_stroke 1 2;vr_humstudio_stroke 0"
 S="$S;vr_humstudio_undo;vr_humstudio_paint 0;vr_humstudio_check 5;toggleconsole;quit"
 OUT=$(bash "$K/run.sh" "$NAME" -Script "$S" -Filter "humstudio|humlineup: row|Host_Error|SV_Error" -QuitOn "humstudio_check: [0-9]+ masks" -Timeout 180 2>&1)
 echo "$OUT" | grep -v "skin 0 "

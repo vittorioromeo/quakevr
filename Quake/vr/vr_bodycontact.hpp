@@ -28,7 +28,7 @@ void init(); // registers vr_body_contact_status
 
 // Server: a player and a monster overlapping (neither held by the other, stepped in) pushed apart a little
 // (VR_ServerFrameEnd).
-void serverFrame();
+void serverFrame(bool worldRan); // (paused, !worldRan: none pushed; the debug shows gathered)
 
 // The level gap between a player's body and a monster's as their moves meet (units; 0 touching or overlapping): his box
 // and its as the hull code narrows them (vr_hull_ent_width, vr_mhull_ents), each inset (vr_body_monster_inset). QC's

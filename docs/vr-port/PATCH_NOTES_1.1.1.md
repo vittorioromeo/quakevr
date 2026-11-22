@@ -336,6 +336,8 @@ aren't Map Library packages aren't sent to joining players.
   packs), the brush is a size on the model, and a yellow cursor plus a flat view of the skin show which texels a stroke
   will change. The lineup can come without backpacks, armour or weapons, with a backpack on its own stand, held still
   and turned like a turntable.
+- **Recoloured armed monsters repainted.** The weapon recolours of the grunts, enforcers, knights and death knights (and
+  their backpacks) dye new parts of the skins, and the grunts' and death knights' backpack colours are retuned.
 
 ## Performance
 
