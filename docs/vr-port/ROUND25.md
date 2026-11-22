@@ -2108,6 +2108,25 @@ pages; with live preview the player kept walking once the menu opened.
   temporary hunk lists (SV_PushMove, SV_TouchLinks, VR physics) are mallocs now. If they ever show in a profile, they
   can move to their files' mem::Scratch. nh_after/nh_after2 are the runs with garbage NoFill blocks (above).
 
+## quest1: standalone Quest plan, SIMD layer, GLES compat mode (agent/quest, 2026-11-14)
+
+Phase C1 of the Quest port (docs/vr-port/QUEST_PLAN.md: research, the audit with file:line, the decision, phases
+C2-C7, the install list for his approval). Branch `agent/quest`, not shipped by the coordinator.
+
+- **Decision:** one renderer with an OpenGL ES 3.2 profile (no PC cost: chosen at start-up), Vulkan as the long-term
+  path and the fallback. The renderer's GL 4.4/4.5 extras already have fallbacks (safe mode's gates); 14 small groups
+  of desktop-only calls remain (`vr_gles_report`). The Quest's real problem is the tiler's budget (full-screen passes,
+  multiview into the swapchain for foveation), planned for C5/C6.
+- **`Quake/vr/vr_simd.hpp`** (SSE2 / NEON / scalar backends): the AO bake's ray kernel, the audio anti-alias filter and
+  the interpolation taps use it, so they build on ARM; the spin wait is Zancle's `ZA_CPU_RELAX`. `vr_simd_test`:
+  58880 passed, 0 failed (SSE2 against scalar, bit for bit). Audio goldens bit-identical before/after; `vr_ao_bench
+  sse reference soldier` the same bytes. NEON compiled for aarch64-linux-android with the PC's clang (not run yet).
+- **`-glescompat`** (`QVR_GLES_COMPAT=1` for bench.sh): bindless, multi-bind, clip control, layered casters and NV
+  foveation off; `VR_GLESCompat()` for C2's gates; `vr_gles_report` lists the live switches and the pending rows.
+- `Misc/quakevr/bench/quest_budget.cfg` (Quest-like settings for budget runs), `Misc/quakevr/gles_audit.py` (the
+  audit's counts). Budget runs (QUEST_PLAN.md section 6): the Quest-like settings halve the eyes' GPU time on the PC;
+  the GLES profile adds 15-60% back (layered casters, bindless, clip control off), to split in C2.
+- Not done: anything that needs an install (NDK, SDK, loader): C3 onwards.
 ## mp1: multiplayer audit, plan and test harness (agent/mp, 2026-11-14; never shipped by the coordinator)
 
 - **docs/vr-port/MP_PLAN.md**: the state re-verified against the code and with real runs (what works, what is broken,
@@ -2280,12 +2299,42 @@ the window's zones, worst frames and GPU passes; map loads by stage. Everything 
   QvrReleaseVersion=1.1.0) builds with no error or warning.
 - Scripts: scratch/hf_*.sh, hf_*.py (hf_bisect.sh: the per-site bisection; the fill switch was temporary, removed).
 
+## Quest C2a: every program as ES 3.2 GLSL under -glescompat, the first ES call forms (branch agent/quest, 2026-11-14)
+
+- **What:** `-glescompat` (or `QVR_GLES_COMPAT=1`) now compiles every shader as `#version 320 es` with precisions
+  (`VR_GLShaderSource`, vr_glsafe.cpp: the one glShaderSource for the engine and the VR passes), so the PC's NVIDIA
+  driver checks them the way an ES driver would; a failure there is printed and counted (`vr_gles_report`), not
+  fatal; `-glesverbose` prints each error with its source line. The GLSL was made ES-valid (229 failing programs to
+  0) without changing what the desktop compiles to; ES-only image formats (`VR_GLESImageFormat`); NIS off on ES.
+  ES forms of glGetBufferSubData, glClearTexImage, glDrawBuffer, glClearDepth/glDepthRange, glPolygonMode
+  (`gfx::readBuffer`, `gfx::clearTexture`, `gfx::drawNoColour`, the float forms, `VR_GLPolygonMode`). No PC default
+  or behaviour changes without the flag. Details and open items: QUEST_PLAN.md section 5b.
+- **PC fix (own commit):** the particles' `Support[16]` overlapped the fragment shader's `Taper`/`InkAlpha` uniform
+  locations (20, 21): a link error on a strict linker; now 40-55.
+- **Tests:** `QVR_GLES_COMPAT=1`: scenario_check 129/0 (0 shader errors), load_models_test 4/0; the water mesh read
+  back the same both ways (hash 0b34a576). PC: scenario_check 129/0, load_models_test 4/0, vr_simd_test 58880/0.
+- **Next:** C2b (QUEST_PLAN.md's last line): the 9 rows `vr_gles_report` still lists, ES runs of the render tests,
+  no-child-process mode, the `QVR_FAKE_ANDROID` skeleton.
 ## mpsp: two single-player-relevant fixes from agent/mp
 
 - Cherry-picked 27537ab7c: every move read since the server's last frame counts (buttons and VR bits ORed, so a press and release between two ticks is not lost); per-slot move state reset on connect and drop (sv_user.c, host.c, sv_main.c, vr_server.cpp).
 - net_dgrm.c only from dd49030c2: a second client from the same IP on another port no longer closes the first one's connection (only the exact address and port counts as a duplicate); the harness and engine-aid parts of that commit stay on agent/mp.
 - Checks: dev and ReleaseLTO 1.1.0 builds, scenario_check, load_models_test, flatkeys/flatholster/flatswap, throw_trigger_test, vr_run_check 9/0.
 
+## Quest C2b: the rest of the desktop-only GL calls under -glescompat (branch agent/quest, 2026-11-14)
+
+- **What:** every `glGetTexImage` goes through `gfx::readTexImage` (`VR_GLGetTexImage`); under `-glescompat` it reads
+  the ES way (a framebuffer and `glReadPixels`; depth drawn as bits into R32UI first). `glMultiDrawElementsIndirect`
+  becomes a `glDrawElementsIndirect` loop there (`VR_GLESInstallForms`); texture views, the LOD bias parameter, the
+  statistics debug commands and the sRGB switch read are off under it. `-glesclipcontrol` (`QVR_GLES_CLIP_CONTROL=1`)
+  keeps `EXT_clip_control` under `-glescompat`. Debug > Startup: OpenGL ES Report, ES Texture Read-Back Test
+  (`vr_gles_readback_test`). PC defaults and behaviour unchanged. Details: QUEST_PLAN.md section 5c.
+- **Found:** without clip control (plain `-glescompat`) the shadows, reflections and portals are off, so the GLES
+  bench column of QUEST_PLAN.md section 6 ran without them (corrected there).
+- **Tests:** `vr_gles_readback_test` PC 4243/0, ES + clip control 4243/0 (4199 textures, 42 envmap levels, 2 atlases,
+  bit for bit), plain ES 4199/0; ES + clip control: scenario_check 129/0, load_models_test 4/0; PC: scenario_check
+  129/0, load_models_test 4/0, vr_simd_test 58880/0; dev and ThinLTO builds 0 warnings.
+- **Next:** C2c (QUEST_PLAN.md's last line).
 ## mpN (B2d): other players' bodies, posed by your own body's code (agent/mp, 2026-11-14; never shipped by the coordinator)
 
 - Another player's body is drawn in his player model's place, posed by `vr_avatar.cpp`'s pose() itself
@@ -2329,6 +2378,58 @@ Details and numbers in [PERF_1_1.md](PERF_1_1.md) ("Second pass", "Needs his cal
 - Checks: `load_models_test.sh` 4/0, `scenario_check.sh` 129 files 0 errors, 129 run 0 failed, the ReleaseLTO 1.1.0 build.
 - Cherry-picked c206e9a74 (agent/quest): particles' Support[16] uniform at locations 40-55, no longer overlapping the fragment shader's Taper/InkAlpha (20/21; a strict-linker link error). Checks: dev and ReleaseLTO 1.1.0 builds, scenario_check 129/0, flatblood_test 1 (particles drawn).
 
+## Quest C2c: the render paths under ES, the Android layer's skeleton, no child processes (branch agent/quest, 2026-11-14)
+
+- **What:** `Misc/quakevr/gles_render_test.sh <agent>` draws e1m1 (TAA, map-light shadows, envmap, PBR) on the PC and
+  under `-glescompat -glesclipcontrol` and compares the eye, the envmap dump and every texture's hash.
+  `vr_android.cpp`: the Android platform layer's skeleton (base and crash folders, a signal-safe crash report with
+  an unwinder stack, logcat), its Android calls in one `os` namespace with PC stand-ins; off on the PC unless
+  `-fakeandroid` (`QVR_FAKE_ANDROID=1`). `VR_ChildProcesses()`: none on Android or with `-nochildprocesses`; the
+  relighting and the motion review's Re-evaluate refuse with a message. Debug > Startup: Android Layer Test
+  (`vr_android_test`). PC defaults and behaviour unchanged. Details: QUEST_PLAN.md section 5d.
+- **Merge fix:** origin/next's envmap averages read through a pixel pack buffer with `glGetTexImage`; under
+  `-glescompat` they now read each texture through `VR_GLGetTexImage` into memory (the PC path unchanged).
+- **Tests:** gles_render 8/0 (eye 0.0005 of the pixels moved, mean 1.03 per channel; envmap identical; 3599 textures
+  the same bits; 0 shader errors), taaparticles under ES 2/0, vr_android_test 14/0 under `-fakeandroid`; PC:
+  scenario_check 129/0, load_models_test 4/0, vr_simd_test 58880/0; dev and ThinLTO builds 0 warnings.
+- **Next:** C3 (QUEST_PLAN.md's last line): needs his approval of the installs.
+
+## Quest C2d: the ES profile's cost split and cut, the Quest preset's draft (branch agent/quest, 2026-11-14)
+
+- **What:** `-gleskeep <list>` (`QVR_GLES_KEEP`, under `-glescompat` only) keeps a switch's PC form (bindless,
+  multibind, layer, clip, glsl, foveation, views) for a bench run each; `VR_GLESForm()`. The split (QUEST_PLAN.md
+  6b): NVIDIA's foveation off was most of the ES profile's +32..+88% (the Quest has its own FFR), and the layered
+  shadow casters off the rest (combined: shadow pass 0.09 -> 2.0 ms). ES GLSL, precisions, image formats, multi-bind:
+  nothing measurable; bindless: up to -0.37 ms. With the fix below and the foveation counted, the ES profile costs 0
+  to +15% over the PC's Quest-like settings.
+- **PC fix (all GPUs):** the face-at-a-time shadow path (`vr_shadow_layered 0`, GPUs without a viewport-layer
+  extension, ES) drew each face's alias casters in list order, breaking the alias renderer's instanced batches at
+  every model change: 1806 draws and 1.16 ms of GPU for 12 faces in the combined bench; now sorted by model and skin
+  as the layered path's: 1025 draws, 0.11 ms, the same depth (`vr_shadow_layered_check`: 0 texels differ).
+- **`vr_quest_preset <0|1|2|mine>`** (vr_gfxpresets.cpp; Debug > Startup): the Low preset plus 27 rows at Quest 3
+  72 Hz / 90 Hz / Quest 2 72 Hz (scale 0.9 / 0.75 / 0.65 with dynamic resolution, no upscale or TAA, MSAA 2x at 72,
+  one shadowed light, 2048 atlas, bloom off at 90, particle, decal, ragdoll, gib and limb caps). Refuses outside
+  `-glescompat`/Android. Bench cfgs `Misc/quakevr/bench/quest_preset_*.cfg`. The expected Quest budget
+  (QUEST_PLAN.md 6c): quiet play fits the Quest 3 at 72 and 90 Hz; the bench's stress fights are over on GPU and CPU.
+- **Tests:** gles_render 8/0, scenario_check 129/0, load_models_test 4/0, vr_simd_test 58880/0, vr_gles_report 0
+  shader errors; dev and ThinLTO builds 0 warnings.
+
+## Quest C2e: the CPU side, the bound path's draws, the noperspective fallback (branch agent/quest, 2026-11-14)
+
+- **noperspective fallback:** where the ES driver lacks `NV_shader_noperspective_interpolation` (and under
+  **`-glesnoext`** / `QVR_GLES_NOEXT=1`, to test it) the ES header defines `QVR_NOPERSP_W`: the light tile coordinate
+  (world and model shaders) and the retro affine texture coordinate (`r_softemu_mdl_warp`) go out times
+  `gl_Position.w` and come in times `gl_FragCoord.w`, the exact screen-linear value. PC shaders unchanged.
+  `gles_render_test` gained the comparison (12 checks): identical image with and without the extension.
+- **`vr_profile_dump` draws column:** each scope's draw calls a frame. Idle e1m1 under ES + the Quest preset: 118 of
+  an eye's 150 draws are the world's bound path (one indirect draw a texture batch; 2 with bindless). Texture arrays
+  for the world are the next no-install phase (QUEST_PLAN.md 6d), not done here.
+- **CPU split** (QUEST_PLAN.md 6d): a 48-monster fight under the Quest preset, 4.41 ms main thread: QuakeC 1.80, of it
+  the armed humanoids' weapon props 1.18 (`VR_AGP_Pose` 0.77); the client's armed-arms relink 0.36; all alias
+  instance set-up 0.59. Idle e1m1: the props 0.82 of QC's 1.19 ms (posed every frame, asleep or not). No cut made:
+  the candidates change behaviour of a key feature (his call: poses of unseen holders, a Quest cap on armed
+  replacements) or are worth ~2%.
+- **Tests:** gles_render 12/0 (the -glesnoext image identical; a deliberately broken fallback fails it), scenario_check 129/0, load_models_test 4/0, vr_simd_test 58880/0; dev and ThinLTO builds 0 warnings.
 ## mpN (B3b, part 1): the multiplayer suite reliable (agent/mp, 2026-11-14; never shipped by the coordinator)
 
 - **A grip's edge seen once** (`vr_server.cpp`, single player too): a player's `.vrbits0` was rewritten only when one of
@@ -2439,6 +2540,25 @@ Details and numbers in [PERF_1_1.md](PERF_1_1.md) ("Second pass", "Needs his cal
   +1-2 heap allocs a frame listed. Fixed: `load_reloads` crashed (Host_ClearMemory kept `cl_entities` after freeing
   it; a campaign switch's CL_ForgetModels wrote it: unmapped since nohunk). Now NULL there, as at start-up.
 
+## questN: Quest C2f, the world's textures in texture arrays for the bound path (agent/quest, 2026-11-14)
+
+- **`vr_world_texarrays`** (tunable: 0 off, 1 under the ES profile (default), 2 any bound path; the PC with bindless
+  never uses it) and `vr_world_texarrays_report`. vr/vr_worldarrays.cpp makes, at each map's load, sets of four
+  `GL_TEXTURE_2D_ARRAY`s (texture, fullbright, normal, specular) for the world's textures alike in size, levels and
+  format (`glCopyImageSubData` copies: mips, external packs, generated normal maps; shared defaults one layer); each
+  call is checked against the maps copied (a changed map: the bound path that frame, the arrays made again).
+- **Draws**: the world programs' array twins (`QVR_WORLD_ARRAYS`, gl_shaders.c `GL_WorldArraysProgram`; the retro,
+  parallax and bump helpers spliced for both sampler types by `QVR_SAMPLER_TWINS`); r_world.c groups a flush's calls
+  by set and draws each group's single-instance calls as one draw: their indices merged by a compute pass beside the
+  gather (same barrier), each vertex's call from a static vertex-to-command buffer (r_brush.c) and the flush's
+  command-to-call table. The liquids' programs keep a draw a texture.
+- **Numbers** (idle e1m1, ES + clip control + `vr_quest_preset 0`): world+brush 118 -> 25 draws an eye, eye 151 -> 58;
+  25 sets, 77 textures, 8.9 MB of copies. The eye identical with and without (also at PC defaults with normal maps and
+  PBR companions). This PC's GPU and CPU unchanged within
+  noise (8 core scenarios, ThinLTO; two repeats where it looked moved); a twin compiled in play (1.8 s frame) fixed by
+  compiling them at the arrays' making.
+- **Tests**: `gles_render_test` 18 checks (6 new: the arrays drawn, off draws none, identical to a draw a texture).
+- Details, open items: QUEST_PLAN.md section 6e.
 ## mpN (B4b): coop autosaves, the exit and intermission, a real death and respawn (agent/mp, 2026-11-14; never shipped by the coordinator)
 - A coop game autosaves as each level starts (`sv_autosave`, `vr_autosave_level_start`; dedicated servers too): once every
   player is in and alive and none in danger (each player's `Host_AutosaveUnsafe`, `vr_autosave_safe_maxdelay` as in single
@@ -2513,6 +2633,48 @@ Details and numbers in [PERF_1_1.md](PERF_1_1.md) ("Second pass", "Needs his cal
   failed once, passed on the rerun), load_models 4/0, vr_run_check 12/0. Next: B5c (climbing, swimming in water, the
   blade's directional parry, palm shove, sub-tick melee). Details: MP_PLAN.md, "B5b results".
 
+## questN: Quest C2g, the eye's sub-image; the PC's translucent decal program hitch (agent/quest, 2026-11-14)
+
+- **C2f's skipped checks** (after merging `origin/next` 4c4ac5b3f): scenario_check 129/0, load_models_test 4/0,
+  vr_simd_test 58880/0, the release configuration (ReleaseLTO, `-p:QvrReleaseVersion=1.1.0`) 0 warnings.
+- **PC hitch, on `next` too (fixed in bd2277d6c, its own commit)**: the translucent brush models' program with the
+  decals' retro code (OIT) was made the first time one was drawn with a retro mark about: 2.5-3.1 s frozen in
+  ad_tears, ad_crucial, ad_necrokeep (19 AD maps have translucent brush models). Now made in the load's last frame when
+  the map has one (`decals::prepareTranslucent`); none in play after it (`scratch/questN_hitch.sh`). developer 1 prints
+  "GL program made in play: <name>, <ms>" for any program made after the signon.
+- **C2g** (QUEST_PLAN.md 6f): the tone curve, grade, bloom's composite and dither were already one pass; the extra
+  full-screen pass under the Quest preset was the bilinear resample into the runtime's image. `vr_eye_subimage` (Auto:
+  the ES profile only) post-processes the eye straight into the image's lower left part and the layer shows that part
+  (OpenXR `subImage.imageRect`): the resample is gone, the part identical to the old resample target
+  (gles_render_test 21/0). The UI is drawn at the eye's size there.
+
+## questN: Quest C3, the Android build (agent/quest, 2026-11-14)
+
+- **The build** (`Android/README.md`, QUEST_PLAN.md 6g): the NDK's toolchain (27.2, clang 18) with the top-level
+  CMakeLists.txt (`Android/android.cmake`: `libquakevr.so` + SDL2 2.30.9 from source, GLES 3.2, `-ffp-contract=off`
+  everywhere: 0 FMA instructions in the library), `Android/build_native.sh`, `Android/package_apk.sh` (the APK from the
+  SDK's build tools, no Gradle plugin download: 20.2 MB, signed with a debug key, verified), the Gradle project (not
+  run: its plugin download waits for his approval). Tools installed under `F:\QuakeVRDev` (QUEST_PLAN.md section 7).
+- **Android only**: an ES 3.2 context, the ES profile always on, `vr_quest_preset 0` on the first run, the console in
+  logcat (`VR_AndroidLog`). One crash handler: vr_crash.cpp's POSIX one, the unwinder's stack and logcat on Android;
+  vr_android.cpp only sets its folder (`vr_android_test` under `-fakeandroid`: 12/0).
+- **Fixed for clang 18 (the PC unchanged)**: Zancle's temporary-binding trait and interference sizes, the deducing-this
+  lambda in vr_climb.cpp, `__rdtsc` in vr_findradius.cpp, a format call without arguments. **PC bug (6b8e74432)**:
+  `VR_CrtHeapLoadHold` was missing without mimalloc (a Linux `-DQVR_MIMALLOC=OFF` build failed to link).
+- **Not done**: the first boot (no emulator; the headset's is C4b). Next: C4a, OpenXR on Android compiled and packaged.
+
+## questN: Quest C4a, OpenXR on Android compiled and packaged (agent/quest, 2026-11-14)
+
+- **What** (QUEST_PLAN.md 6h): Khronos' Android loader (1.1.53 AAR, `QVR_OPENXR_ANDROID_DIR`) linked and packaged;
+  `xrInitializeLoaderKHR` with SDL's JavaVM and activity, `XR_KHR_android_create_instance`, `XR_KHR_opengl_es_enable`
+  (SDL's EGL display/config/context, vr_xr_linuxgl.cpp EGL-only on Android), ES swapchain images; the Quest's runtime
+  extensions (`vr_backend_openxr_quest.cpp`: refresh rate, CPU/GPU levels, fixed foveation; cvars `vr_xr_refresh_rate`,
+  `vr_xr_cpu_level`, `vr_xr_gpu_level`, `vr_xr_foveation`, all 0 = the runtime's own), requested on Android alone;
+  the manifest's VR category, IMMERSIVE_HMD, head tracking, focus awareness, the loader's permissions and queries
+  (`QVR_ANDROID_FLAT=1`: the flat-panel APK without them). Multiview not used (the renderer's per-eye copy: C5).
+- **Checked without a device**: `Android/check_apk.sh`: VR APK 18/0, flat APK 18/0 (the VR APK as flat: 17/1). The
+  arm64 build 0 warnings; the PC unchanged (the extensions never requested there; its swapchain create info as before).
+- **Next**: C4b, the headset's first boot (his Quest in developer mode).
 ## perfpicks: his five performance calls (branch agent/perfpicks, 2026-11-14; partial: see "Left")
 
 - **Navmesh, big maps** (`1bc1a031a`, NAVMESH.md 20 "Big maps"): a class's first props' batch lands on
@@ -2602,6 +2764,21 @@ Cherry-picked bd2277d6c (translucent brush models' retro decal program made in t
 
 Cherry-picked 6b8e74432: VR_CrtHeapLoadHold now defined without mimalloc (QVR_MIMALLOC=OFF Linux link). Checked: dev build, ReleaseLTO, WSL no-mimalloc link, load_models 352/0.
 
+## questN: Quest C4b, the headset's first boot (agent/quest, 2026-11-14)
+
+- **What** (QUEST_PLAN.md 6i): both APKs on his Quest 3 over adb (unworn: woken every 5 s), his paks and the quakevr
+  folder (4054 files, 382 MB; Android/README.md's recipe: a tar stream, chmod). The flat APK reaches e1m1 with sound; the
+  VR APK's OpenXR session runs (ES binding, swapchains, states through sleep/wake), the four vr_xr_* cvars apply
+  (refresh 90, foveation 2 seen in VrApi), the runtime label now reads "the system's runtime".
+- **Fixed**: the Android base folder (Sys_Init used the cwd), -game quakevr from the activity, the ES version check, ES
+  entry points by their EXT/OES names, Adreno's GLSL (no textureQueryLod; macros without parameters refused:
+  SCREEN_SPACE_NOISE/SUPPRESS_BANDING are functions now, PC too, same code; an empty fragment shader for the depth-only
+  programs under the ES form), -glesverbose reads Adreno's errors, qvr_openxr.txt mirrored to logcat, package_apk.sh's
+  relative output folder and one debug key for both APKs. Merge fix: R_PrewarmTranslucentDecalPrograms was defined twice.
+- **Measured**: GL ES resolves every [?] row (clip control, clip/cull distance, depth clamp, noperspective, timer queries,
+  multiview: all yes); e1m1 at vr_quest_preset 0, 72 Hz: 24 FPS, app GPU 13.0 ms, CPU+GPU 34.6 ms, both under 40% busy
+  (a sync to find); ~55 s of shader compiles before the first frame.
+- **Next**: C4c, the headset worn (the image, controllers, sound) and the 35 ms frame.
 ## mpN (B5d): a blade's directional parry between players (agent/mp, 2026-11-14; never shipped by the coordinator)
 - Another player's melee-weapon swing (sword, axe, crowbar; not the chainsaw, not a fist) is judged by the directional
   parry, as an armed humanoid's: VR_DRP_Eval's third kind reads his swing's line from his hand lines (`handlineat`), the
@@ -2815,6 +2992,24 @@ well-timed parries."
   written, Continue "just now"; co-op refused); `vr_gameplay_preset_test` 27/0; `vr_gameplay_classic_check` 2/0 in VR
   and in flat. Dev and Release-TracyFull builds 0 warnings. Scenario `flat_aim_zoom`.
 
+## Quest C4c: the black world on the headset, first part (branch `agent/quest`, 2026-11-14)
+
+QUEST_PLAN.md section 6j has the detail. On the Quest 3 over adb, with the headset unworn:
+- **OpenGL ES errors that Adreno reports (`-gldebug`) and a desktop driver under `-glescompat` accepts, fixed:** TexMgr
+  uploads from `GL_RGB`/`GL_RG8` internal formats are now RGBA8 under the ES profile, so every texture uploads; the
+  light-cluster and palette-LUT image textures are now immutable (`glTexStorage3D`); eyeshots read back as RGBA; the
+  depth-only array/multiview twins now get an empty fragment shader. After the fixes, `-gldebug` shows no error in a frame.
+- **Android:** `EXT_clip_control` is used when the driver has it (the Quest 3 does; `-glesnoclipcontrol` turns it
+  off). While VR runs there is no window image and no swap (`vr_android_window` 0). The APK is debuggable.
+- **New debug tools (Debug > Startup):** `vr_gl_probe 1` (the eye framebuffers by numbers, the scene's primitives,
+  the frame data's upload read back, a clear-and-read self-test) and `vr_android_export <path>` (files copied to where
+  `adb shell run-as` reads them).
+- **Still black:** the eye's composite is 0% non-black even though the scene draws 31-35 k primitives, the frame
+  UBO uploads byte for byte and the self-test reads back. The vertex side is fine, so the next suspects are on the
+  fragment side (depth/stencil state, the world fragment shader's inputs). The PC's ES mode draws the same scene.
+- **"Save error."** is Android only and now says why: e1m1's autosave hits "string -14: a freed engine string".
+- PC unchanged: every change is behind the ES profile or `__ANDROID__`, except that eyeshots now read RGBA (same files)
+  and "Save error." gives a reason.
 ## mpN (B6c): other players' armour plates; Locomotion's balance rules (agent/mp, 2026-11-14; never shipped by the coordinator)
 - Another player's armour plates (the server's `QVR_SVC_ARMOR` word on him, already sent to every client) are drawn on
   his copy of the body by your plates' code: the plates' model and joints' leather over his build's body, his armour's
@@ -2925,6 +3120,21 @@ front, side, back; nothing of it in your own view when looking down or leaning.
   `maps_skill_test` in the tree. Shots: qvr-kit/scratch/runsetup3_shots/ (r3_before.png, r3_after.png: left the Levels
   list's e1m1, right New Game).
 
+## Quest C4c continued: the black eye scene bisected (branch `agent/quest`, 2026-11-14)
+
+QUEST_PLAN.md section 6j ("The bisection") has the numbers. On the Quest 3 over adb, the headset unworn, e1m1's start:
+- **New probes (Debug > Startup):** `vr_gl_probe 2` paints the eye blue after its clear (no depth test), `3` paints red
+  after the scene where the depth still holds the clear value, `4`/`5` draw the world's own vertices and indices in
+  green through the frame UBO's ViewProj (5: the first instance's SSBO matrix too), `6` to `8` add the world's clip
+  distances. `vr_gl_probe 1` also reads back the world's GPU-written buffers (cull commands, indices, vertices), the
+  instance upload, the draw state and each program's validation and buffer-block layout at the first world draws;
+  `vr_gl_probe_fix` (1 clip distances off, 2 culling off) acts on the world's draws.
+- **Found:** the scene target, its copy to the composite and the readback work (2: 100% blue); no scene draw writes a
+  colour or a depth (3: 100% red): the world, its depth pass, the models, showtris alike; every buffer, the UBO/SSBO
+  layouts and bindings, the state and the programs' validation are as on the PC; a minimal program with the same data,
+  transform, instance SSBO and clip distances draws (4 to 8: 100% green). The fault is inside the real scene programs
+  on Adreno. Next: a constant fragment output switched in through the ES header, then the vertex shader cut down.
+- PC unchanged: the probes act only while `vr_gl_probe` or `vr_gl_probe_fix` is set.
 ## mpN (B7, part 1): moves up as quantized deltas with repeats; other players' hands lerped (agent/mp, 2026-11-14; never shipped by the coordinator)
 
 - A remote client's moves go up as `QVR_CLC_MOVES` (`vr_netmove.cpp`; `QVR_NET_VERSION` 17): 324 integers a move,
@@ -3071,6 +3281,20 @@ self-driven across the load by saved globals): `vr_scenario waterdrips`, once pl
   (2 new: Back is the press's state, a hand change kept), `vr_gore_preset_test` 15/0, `vr_gameplay_classic_check` 4/0.
   menu_paths.txt regenerated (the new Debug row).
 
+## Quest C4d: the black world fixed; the program binary cache (branch `agent/quest`, 2026-11-14)
+
+QUEST_PLAN.md section 6k has the numbers. On the Quest 3 over adb, the headset unworn, e1m1's start:
+- **Cause:** Adreno (0837.0.9) reads a struct copied whole out of a buffer wrong (`Instance instance =
+  instance_data[i];`): the copy's matrix drops every vertex, in every world and model program. Found with
+  `-glesdefine` (macros in the ES header switching the shaders' `QVR_PROBE_*` cuts: a constant fragment colour, the
+  plain transform, no invariance, draw 0, no clipping).
+- **Fix (ES form only):** `vr_glsafe.cpp` rewrites each such copy member by member; `-glesstructcopy` turns it off.
+  The world and the models draw (99.5% of the eye not black, was 0%). The PC's GLSL is untouched.
+- **Program binary cache:** `vr_program_cache` (1: on under OpenGL ES, 2: also on the PC, 0: off; read before the
+  window opens) keeps each program's driver binary in `<cache>/programs/<driver hash>.bin`, keyed by the exact text
+  compiled. Quest, process start to e1m1's first frame: 65.1 s cold, 8.3 s warm (shaders 51.1 s to 0.18 s). The
+  driver's EGL blob cache keeps nothing for the app.
+- **Checks:** gles_render_test 21/0, scenario_check 150/0, load_models_test 4/0; Release and ReleaseLTO 0 warnings.
 ## mpN (B8b, part 1): the suite's three fixed; lag compensation for shots (agent/mp, 2026-11-14; never shipped by the coordinator)
 
 - **Client commands no longer overflow cls.message** (any client of any server): the VR client's own commands (prefs,
@@ -3123,6 +3347,20 @@ self-driven across the load by saved globals): `vr_scenario waterdrips`, once pl
 - No saving in the arena (`vrarena`): `VR_ArenaNoSave` (vr_runsetup.cpp) makes `VR_RunIronmanRefusesSave` refuse `save`/quicksave/Save menu with "No saving in Arena Mode"; the quicksave tool is greyed with that reason. Loading stays allowed.
 - Tests: `vr_runsetup_screen_test` (five rows), `vr_runlaunch_test` (Ironman off with the pick on; save and quicksave write nothing). menu_paths unchanged by rows removal except Ironman.
 
+## Quest C4e: from 2 FPS to ~39 on the Quest 3 (branch `agent/quest`, 2026-11-14)
+
+QUEST_PLAN.md section 6l has the numbers. e1m1's start over adb, the headset unworn:
+- **CPU (370 ms in "models"):** ES has no `GL_ARB_buffer_storage`, so `GL_Upload` was a `glBufferSubData` into a
+  buffer in use, which Adreno copies whole. `GL_EXT_buffer_storage` (Android) now gives the persistent mapped frame
+  buffers: under 1 ms.
+- **GPU (the world's fragment shader, ~280 ms):** the ES struct copy of C4d copied `Light.gateinverse[3]` with a
+  loop; the index into a local struct's array kept the whole `Light` in scratch memory for every pixel. Literal-size
+  arrays are now copied unrolled (`vr_glsafe.cpp` `appendMemberCopies`). Found with `-glesdefine QVR_PROBE_*` cuts
+  (gl_shaders.h: CUT1-5, LCOUNT, NOSHADOW, SIMPLELOOP, NOPARALLAX, NORETRO, NOCARVE; kept for the next split).
+- **MSAA:** `vr_quest_preset 0` now `vid_fsaa 0` (2x cost ~100 ms: resolved through memory).
+- **Frame:** 424 ms -> 25.6 ms (39 FPS); without the world 14.1 ms (72 Hz). `vr_profile_slow_ms` (Debug > Profiling,
+  250 as before) keeps slow frames in the profiler's averages.
+- **Checks:** gles_render_test 21/0, scenario_check 150/0, load_models_test 4/0; dev and LTO builds 0 warnings.
 ## mpN (B8c, part 1): mp_loss's last jumps; lag compensation for melee (agent/mp, 2026-11-14; never shipped by the coordinator)
 
 - **The interpolation buffer** (`vr_netsnap.cpp`): its clock slows to a stop within half a tick of the newest message
@@ -3220,6 +3458,18 @@ His flat report: a Run Setup Style (Classic, then Unleashed) took effect only wh
 
 His report: after quickload the dripping came back but the wet glint did not. The shine (the alias shader wet coat, `wounds::wetCoat`) read `Mask::wetLeft` / `handWetLeft`, set only by a liquid wound event (the rising edge); a load restoring vr_drips wetness never set them. Fix, no new state: `wetCoat` takes its seconds-left from `drips::wetOf(e)` (drips wetness times dryTime, max with the old values); a thing with no wet mask (a loaded game) shines all over. `Misc/quakevr/saveload_test.sh` checks `vr_wounds_info` `wet: coat`: each coat shining before the save shines after (flat 5, VR 5). BACKLOG: flat 2H melee pose item added.
 
+## Quest C4f: the squares are the bloom; sRGB written raw on ES (branch `agent/quest`, 2026-11-15)
+
+QUEST_PLAN.md section 6m has the runs. On the Quest 3 over adb, the headset unworn:
+- **Squares / flicker / black views:** the coloured and black squares over the eyes come from the bloom chain after any
+  change of the eyes' size (render scale, dynamic resolution); `vr_bloom 0` clears them in the same launch. Cause inside
+  `vr_bloom.cpp` not found (not the scene targets' contents, not NaNs in the bright pass, not retro). `vr_quest_preset 0`
+  now has `vr_bloom 0`.
+- **sRGB:** ES encoded the game's already gamma-encoded colours again into the sRGB swapchain (pale); now
+  `EXT_sRGB_write_control` turns that off at session start (`-glessrgbencode` keeps the encoding).
+- **Tools:** world probes `QVR_PROBE_LOD0/LM/UV/RETRO/LUTI` (`-glesdefine`); `eyeshot:` logs a failed read. The
+  swapchain image reads back as zeros on the Quest: use `vr_eyeshot 2`.
+- **Not reached:** the frame time (the unworn headset holds frames), the lite ES world shader, MSAA on chip.
 ## mpN B8e (agent/mp): swimming and the movers' motion predicted
 
 A remote client's swim now runs move by move through `vr_pmove.cpp` (each move's own water level; SV_WaterJump's carry,
@@ -3431,6 +3681,18 @@ research notes and the behaviour. Settings (archived): `vr_flat_tp` 0, `_back` 5
   1.5 on the sides along +x (the fins are straight), walls and back on a dark vent texel; new vertices follow the face in every shot frame.
   Exported with `blend_export.py`: 935 -> 1027 triangles, anchors ok, holes check 0 see-through, 0 flipped; normal map re-baked,
   `fx_gfx_mask` rewritten. Scene `mrl_vents`; load_models_test 4/4. Blender before/after: kit `scratch/mrlvents_shots/`.
+## Quest C4g: the stretched world and opaque water were `centroid`; the lite ES world (branch `agent/quest`, 2026-11-15)
+
+QUEST_PLAN.md section 6n has the runs. On the Quest 3 over adb, the headset unworn:
+- **World and brush models stretched and crawling, water opaque:** not float precision (the ES header was already
+  highp). Adreno interpolates the world shader's other inputs wrong once its `centroid` lightmap coordinates are read:
+  the texture coordinates came out as noise. The ES text now drops `centroid` (`vr_glsafe.cpp` `dropCentroid`;
+  `-glescentroid` keeps it); no MSAA in the Quest preset, so nothing is lost. e1m1 and vrtesthall's pool as the PC's.
+- **Lite ES world:** with parallax (`vr_parallax`/`vr_normalmaps` 0) or carved decals (`vr_decal_carve` 0) off, the ES
+  world programs leave their code out, made again when those settings change (`GL_WorldLiteCheck`, once a frame);
+  `-glesfull` keeps the whole shader. GPU 21.0-21.5 -> 17.7-18.6 ms a frame at e1m1's start (still ~50 fps).
+- **Tools:** probes `QVR_PROBE_CUT3T`, `UVLATE`, `NOCENTROID`; `vr_gles_report` prints the interface limits.
+- PC unchanged: gles_render_test 21/0, scenario_check 155/0, load_models_test 4/0.
 
 ## mpN B8g (agent/mp): the lying box's crawl predicted
 
@@ -3510,6 +3772,36 @@ thumb up but put the knuckles in. The right answer is neither: no turn at all re
 
 MRL (slot 14, v_multi2.mdl) now holds no offset keys of its own: it inherits the rocket launcher (slot 6) for the ammo screen (wpntxt_*), button (wpnbtn_*), finger/hand_*, grips (x/y/z/pitch/yaw, 2h_*), hotspot and muzzle; only id, inherit and its fx_* shot effects stay. His config had no vr_wofs values for either slot. 52 ticked lines retired from checklist.txt (those he spoke of at 03:xx kept); 19 scenes only they used moved out (kept any still named by code, docs, or other lines). No flat screenshot taken.
 
+## Quest C4h: the frame outside the world's shading; the avatar's 10 ms (branch `agent/quest`, 2026-11-15)
+
+QUEST_PLAN.md section 6o has the runs. On the Quest 3 over adb, the headset unworn, e1m1's start:
+- **The window's mirror** was still drawn on Android although the immersive app shows no window: 3.4 ms of GPU a
+  frame. `VR_NoWindow` now turns the window's view off (no mirror, no window HUD or canvas over it).
+- **The "11 ms in the right eye's scene setup"** of most launches was the avatar's fragment shading: the unworn
+  headset's pose put the right eye inside the stretched body, all hidden behind the world yet shaded in full (also
+  when drawn after the world: Adreno does no early depth rejection for the alias programs). Worn: check the body.
+- **Cuts**: `vr_gl_invalidate` (-1: ES; depth after the scene, the image before the post-process), `vr_tonemap 2` in
+  the Quest preset (32-bit float scene: -1.4 ms, the same image). Made and left off: `vr_eye_targets_split` (no gain),
+  `vr_gl_foveation` (QCOM foveation on our scene: no effect yet).
+- **Tools**: `vr_gl_passes 1` (Debug > Profiling, List the Frame's Render Passes), `-glesdefine QVR_PROBE_ALIASCONST`,
+  `ovrgpuprofiler` (built into the Quest: per-pass binning/direct mode, loads, stores; `scratch/c4h_gpuprof.sh`).
+- GPU a frame: before 21.0 ms (0.9 fixed); now 17.6 (0.9 fixed), 11.4 with the preset's dynamic resolution: the frame at 72 Hz (13.89 ms). PC: gles_render_test 21/0, scenario_check 137/0, load_models_test 4/0.
+
+## Quest C4i: the world's dead features, opaque models, a fight measured; the compositor's picture (branch `agent/quest`, 2026-11-15)
+
+QUEST_PLAN.md section 6p has the runs. On the Quest 3 over adb, unworn:
+- **`adb shell screencap`** reads the compositor's final picture (both eyes, what the headset shows): `scratch/c4i_cap.sh`.
+- **Opaque models without `discard`** (`vr_gl_alias_opaque`, -1: the ES profile only): a tiler rejects their hidden
+  pixels before shading them.
+- **`vr_gl_world_lite` 2**: every world feature his settings turn off (normal maps, dynamic AO, caustics, retro
+  lighting, retro textures, detail) compiled out: world 12.9 -> 8.2 ms; the captures under it looked untextured, so the
+  default stays 1 (C4g's) until checked.
+- **Permanent decals' bakes under a scissor** (a tiler stored whole atlas layers for a few quads); **bloom passes
+  clamped** (its black view after a resize, now seen in the compositor's picture; unchecked after);
+  **`vr_menu_render_scale`** (-1: 1 on the Quest) keeps the menu sharp under dynamic resolution. Bullet time with bloom
+  off: drawn (the black view was bloom's).
+- GPU (before -> after, lite 2): e1m1 0.9 fixed 14.7 -> 11.3 ms, dynamic 15.7 -> 12.3 (72 Hz); a fight of 13 monsters
+  0.9 fixed 31-39 -> 24-25, dynamic 18.5 -> 14.9. PC: gles_render_test 21/0, scenario_check 137/0, load_models_test 4/0.
 ## mpN B10: player-to-player interactions (agent/mp)
 
 - Grab-disarm of another player (QC vr_pdisarm.qc, VR_Player_Disarm): grip closed on his drawn weapon (8 cm of its line
@@ -3636,6 +3928,52 @@ the same exact rules" as enemies; an option, on by default, single player and mu
 - **Defaults** since the audit (c94b2b300): 4 changed (his Menu Look pair, the ranger head's size and side), 25 new,
   no debug or test switch on by default, no personal setting promoted.
 
+## Quest C4j: the lite world's flat walls (retro textures), its default 2, r_oit 0, the models' lite form (branch `agent/quest`, 2026-11-15)
+
+QUEST_PLAN.md section 6q has the runs. On the Quest 3 over adb, unworn:
+- **`vr_gl_world_lite 2`'s flat walls**: compiling out retro textures (`RetroBegin`) made Adreno read every world texture
+  at its smallest mip (found by `-glesdefine` bisection and probes on `screencap` captures). Lite 2 no longer compiles
+  retro textures out; captured textured; **its default is now 2** (ES only).
+- **Bloom after a resolution change**: drawn (C4i's clamp fixed the black view).
+- **`r_oit 0` in the Quest preset** (-0.6 to -1 ms GPU); **`vr_gl_alias_lite`** (1, ES only: the models' programs without
+  parallax and retro lighting when the settings turn them off; -0.2 to -0.5 ms in the fight).
+- Timings on a frozen fight (`sv_freezenonclients 1`): the moving one drifted +-8 ms between variants. GPU 0.9 fixed:
+  e1m1 14.7 -> 12.3 ms, the fight ~33 -> 26.9; the models' shading is ~5 ms of the fight (next phase).
+- PC: gles_render_test 21/0, scenario_check 138/0, load_models_test 4/0, dev and LTO builds 0 warnings.
+
+## Quest C4k: the models' plain form, the fight split, the lite world's derivative bug narrowed (branch `agent/quest`, 2026-11-15)
+
+QUEST_PLAN.md section 6r has the runs. On the Quest 3 over adb, unworn:
+- **`vr_gl_alias_plain`** (-1: ES only; `vr_gl_alias_plain_mask` 255): an opaque batch whose instances turn none of
+  skin tone/gloves/nails, glows, wounds, dents, stumps, normal map, morph, rim light on is drawn by a program without
+  their code (`VR_AliasPlainNeeds` per instance, OR-ed per batch). Frozen fight GPU 19.9 -> 17.9 ms (0.9 fixed);
+  dynamic resolution 12.8. Captured: monsters textured and lit as before. Debug > Profiling rows.
+- **His headset config**: `vr_body_mode` 0 and `vr_xr_unfocused` 0 had come back from test launches (closing the console
+  at a map's start saves the launch's settings); set back to 3 and 1. Every test launch now passes `-noconfigwrite`.
+- The fight split: models 4.5 ms, their fragment shader ~5; the world's lights' loop ~6.5 ms of code presence (its lights
+  1 ms: `r_dynamic 0`; shadow, torch, debris lights 0).
+- The lite world's flat walls without RetroBegin: not the `Retro` initializer, not an input prefetch, not where the
+  derivatives are taken, not the implicit level: main()'s `dFdx(uv)` itself is wrong in that compile. Lite 2 keeps the
+  retro code.
+- One render pass an eye: not done (a CPU mark of the world under ES, a rewrite of the flushes, ~0.25 ms a split).
+- PC: gles_render_test 21/0, scenario_check PASS, load_models_test 4/0, dev and LTO builds 0 warnings.
+
+## Quest C4l: the lights' loop's cost is its shadow code; the lights' lite form (branch `agent/quest`, 2026-11-15)
+
+QUEST_PLAN.md section 6s has the runs. On the Quest 3 over adb, unworn, until its battery ran out at 11:05:
+- **The world's lights' loop** (frozen fight, GPU ms): ~22 with it, 16.1 compiled out, 14.5 as a plain point-light
+  loop, 17.4 without shadow code; its lights themselves ~1. The cost is the shadow code's presence: the portal lights'
+  path -3.7 ms, the spot shadows -3.2, a second copy of the shadow filter -2.5; the map lights' shadows, DarkPlaces'
+  falloff and the filter's other kernels 0. The start moves by none of them.
+- **`vr_gl_lights_lite`** (1; with `vr_gl_world_lite` 2, ES only): out of the lights' loops the code the settings
+  leave unused (portal lights under `vr_portals` 0, as the Low and Quest presets have; map light shadows; DarkPlaces
+  falloff; the other filter kernels), and a spot's and a point light's shadow read by one filter's code. Debug >
+  Profiling row. The two parts that matter measured apart, not yet together on the headset (`scratch/c4l_batch3.sh`
+  is ready: A/B, captures).
+- Built as probes, unmeasured: the models' retro textures out (`QVR_ALITE_NORETRO`), and the derivative bug's
+  workaround (`QVR_PROBE_WIAO`: the coordinates' derivatives by `interpolateAtOffset`, read by `textureGrad`).
+- PC: gles_render_test 21/0, the eye under `-glescompat` the same bits with the lite form on and off, scenario_check
+  138/0, load_models_test 4/0, dev and LTO builds 0 warnings.
 ## mpN B8i part 1: the hang predicted; mp_ground's sword retake (agent/mp, 2026-11-15)
 
 - **mp_ground's sword retake (3 of 4 runs failing): the test's, not the game's, not flipgrip's.** The harness put B's hand in
@@ -3723,6 +4061,20 @@ the same exact rules" as enemies; an option, on by default, single player and mu
   the final 1.1.0. Stale known issues fixed: AD's sky flicker (fixed 10-27, e5f54c30e, the NaN fog) and the AD hub's
   lower slipgates (ad_hub_test) moved to Fixes.
 - For the final 1.1: re-read PATCH_NOTES_1.1.md against what lands after the RC (add lines, drop the RC sentence).
+## Quest C4m: probes in one launch; the lights' lite form off; NORETRO unsafe (branch `agent/quest`, 2026-11-15)
+
+QUEST_PLAN.md section 6t has the runs (Quest 3 over adb, unworn; GPU timer queries, the fight frozen).
+- **`vr_gles_define`** (new, empty; ES only, Debug's tunables): `-glesdefine`'s shader probes in a session, the shaders
+  made again when it changes. A/Bs now run in one launch, each variant between baselines (+-0.1 ms; separate launches
+  differ by up to 3 ms, which is what C4l's probe gains were).
+- **`vr_gl_lights_lite` now 0**: in one launch it cost +0.6 ms of the fight (three batches), the start 0, the pictures
+  the same. Its one useful part (one shadow filter) saves 0.3; the rest 0. The spot-shadow code left costs nothing.
+- **NORETRO stays off**: -1.2 ms (world and models), but its walls are flat (Adreno's wrong derivatives, C4j) with the
+  lights' lite form off and textured with it on: no safe cut. The `interpolateAtOffset` workaround costs +7.8 ms.
+- **The models' shader** split by early-return probes (`QVR_PROBE_AMIN`, `ALOOKEND`, `ALIGHTEND`, `ARIMEND`): the look
+  0, the light 1.4 ms, the sheens 0.4, the tail (glows, fog, output) 1.0; single parts of the light out gain nothing.
+- PC unchanged (the PC never takes the ES forms): gles_render_test 21/0, scenario_check 138/0, load_models_test 4/0,
+  dev and LTO builds 0 warnings.
 ## mpN B11a: the host's own held-weapon state through its slot (agent/mp, 2026-11-15)
 
 - origin/next merged (patch notes, release docs). The water climb left to QuakeC (`predictclimb --part waterclimb
@@ -3911,6 +4263,17 @@ His flat-screen notes (2026-11-16) and the coordinator's disarm-sound item.
   Kenney `error_003` (instant, 0.3 s, ~1.4 kHz); the Medieval pack's minute-long takes unused. CREDITS.md. vr_pd_test 1
   11/11 (sounds started for each disarm).
 
+## Quest C4n: the perf recorder for his played session (branch `agent/quest`, 2026-11-16)
+
+- `vr_perf_record` (0, not saved; Debug > Profiling > Perf Recorder): every frame's CPU, GPU (the profiler's timestamp
+  queries) and OpenXR times (display periods missed) and its events (shader compiles and binary-cache programs,
+  texture/model/sound loads, runtime lightmaps, map loads, saves, decal bakes, navmesh job waits, QuakeC and Box3D,
+  `VR_TimeAdd` work) to a CSV; `Misc/quakevr/quest/perf_report.py` ranks the hitches by cause and the passes by cost.
+  Details: QUEST_PLAN.md 6u. The PC unchanged with it off (a flag's test a frame).
+- Scripted sessions on the unworn headset (fights, an autosave, a changelevel, demo1): the struggle is the GPU's
+  sustained cost (e1m1's fight 21 ms p50, demo1 22 ms, against 13.9), then fight CPU spikes and one ~400 ms frame a
+  map in an eye's CPU; mid-game shader compiles 1 (0.3 ms), uploads small. `vr_gl_foveation` still no effect: its
+  texture is not the one the scene is drawn into (6u). `vr_perf_mark <label>` new.
 ## MP B12b: the entities by their fields, the reliable window's resends (agent/mp, 2026-11-15)
 
 - **Snapshot entity entries by their fields** (`vr_netsnap.cpp`, op 3, `QVR_NET_VERSION` 32): NetQuake's update split
@@ -3950,6 +4313,19 @@ His flat-screen notes (2026-11-16) and the coordinator's disarm-sound item.
 - Scenes classic_drops and magthrow gave "Grunt Burst Rifle" (renamed "Burst Rifle" by flat1116): fixed, plus the comments in pose_*_guns. The saves keep the old netname (harmless). `scenario_check`: 141 run, 0 failed.
 - flattoolgun_test 11/0; `vr_run_armed_check` 13 PASS / 0 FAIL (run mutators set before `vr_run start`).
 
+## Quest C4o: foveation ruled out on our targets; the fight's GPU is its big lights (branch `agent/quest`, 2026-11-16)
+
+- `vr_gl_foveation` (QCOM on our eye targets, now the scene fbo too and every focal point set) has no effect on the
+  Quest 3 in any form (GPU, ovrgpuprofiler bins, eyeshots); foveated depth makes the eye framebuffers incomplete
+  (0x8BFF): now made again without foveation instead of a `Sys_Error`. `vr_gl_foveation_parts` (new, 1; Debug >
+  Profiling) for the experiment. Foveation needs the scene drawn into the swapchain (C5). `vr_xr_foveation` changed
+  mid-game crashes in `xrEndFrame` (open).
+- The ~400 ms frames and C4n's 20-500 ms CPU spikes were the unworn headset's session stopping and resuming: the perf
+  recorder marks session changes and `perf_report.py` reports them as `xr:session`. Live fights' CPU: p50 8 ms, over
+  budget in 4% of frames (not moved to jobs). The GPU spikes are big dynamic lights: ~+5 ms of world shading each at 0.65.
+- Quest preset: `vr_dynres_min` 0.55 / 0.5 / 0.5 (was 0.65 / 0.6 / 0.55): live-fight frames over 1.5 periods 7-17% ->
+  5-7%; the scripted session's e1m2 period p95 27.3 -> 19.8 ms, e1m1 GPU p50 21.3 -> 19.6. The PC unchanged (the preset
+  is ES/Android only). Details: QUEST_PLAN.md 6v.
 ## trailertitles (agent/trailertitles)
 
 - `Misc/trailer/titles/`: the QVR Feature Title Fusion macro (Pirata One title, Cinzel subtitle, grimy red rule, soft
@@ -3960,6 +4336,19 @@ His flat-screen notes (2026-11-16) and the coordinator's disarm-sound item.
   reruns update in place (`--dry-run`, `--rebuild`, `--check`).
 - Checked in Resolve Studio 21.1 (project "QVR Titles Preview"): two titles rendered at 1080p60, top-right and
   bottom-left; a rerun reports "updated" for both, no duplicates. Not checked: 4K, IM Fell English.
+## Quest C4p: big lights' cost found and cut; vr_xr_foveation guarded; C5's probe (branch `agent/quest`, 2026-11-16)
+
+- A big dynamic light cost the Quest 3 ~3.4 ms of world shading at 0.55 for the shadow/portal/DarkPlaces code compiled
+  into the light loop (run or not), not for its work. `vr_gl_lights_plain` (new tunable, 1, ES only): with every light
+  plain the world's loop has none of it; the Quest preset's `vr_shadow_dlights` now 0 (dynamic lights cast no shadows on
+  the Quest). Three full-view test lights: world 14.7 -> 7.1-7.6 ms, GPU 16.7 -> 9 ms; live fight GPU p50 8-11 ms at the
+  0.55 floor, 72 Hz held at p50. `vr_test_dlights` (new command, Debug > Profiling) for still-scene light costs.
+- `vr_xr_foveation` mid-game now makes new eye swapchains (works), but foveated swapchains crash the runtime in
+  `xrEndFrame` anyway (launch too): applied only with `-xrfoveation`. `vr_xr_direct` (new probe, 0): the scene straight
+  into the swapchain images, no post-process (-1 ms); the runtime's foveation showed no effect through it.
+- PC: gles_render_test 21/0 (a first run lost the arrays check's images, -1 means; 21/0 again), scenario_check 141/0,
+  load_models_test 4/0, dev and LTO builds 0 warnings. Details:
+  QUEST_PLAN.md 6w.
 
 ## MP B13: the join through reordering (selective acks); deathmatch with bots (agent/mp, 2026-11-16)
 
@@ -4214,6 +4603,43 @@ The 1.1 readiness audit's baseline regressions. Both were the tests, not the gam
   never reached the north room", seed 3), which is older than the one-way teleporter change (vr1116b). It is not
   related to that change. Not touched.
 
+## Quest C4q/C4r: the plain loops with DarkPlaces' falloff; foveation's crash narrowed; the Quest's saves fixed (branch `agent/quest`, 2026-11-16)
+
+- C4p's plain lights' loop was never on with the Quest preset (its `vr_dlight_falloff` 1 excluded it): the plain loops
+  now take either falloff, the models' loop too. Still scene, 3 big lights: GPU span 16.0 -> 9.8-10.3 ms; live fight
+  at the 0.55 floor: 72 Hz held, frames over 1.5 periods 3.0-3.3% -> 1.3-2.2%, 3-light frames' world 8.7-9.3 -> 6.1 ms.
+- Foveation's `xrEndFrame` crash: probes `vr_xr_foveation_flags` and `vr_xr_foveation_probe` (not saved); the Quest
+  detaches the eye image before `xrReleaseSwapchainImage` (the PC's order unchanged). Level 3 at launch ran 1,509
+  frames without a crash (it crashed after ~100 before); no GPU gain outside `vr_xr_direct`. Still behind
+  `-xrfoveation`.
+- **Every Quest save failed** ("a freed engine string"): `SaveData_KnownString` took arm64's malloc tag in the pointer's
+  top byte (Android's heap tagging) for a corrupt pointer. The top byte is now ignored on arm64; x64 unchanged.
+  Not yet checked on the headset (offline): `scratch/c4s_check.sh` checks the save and foveation once it is back.
+- PC: dev build 0 warnings, gles_render_test, scenario_check, load_models_test (QUEST_PLAN.md 6x); the Android APK
+  builds. Details: QUEST_PLAN.md 6x.
+
+## Quest C4s: the Quest's saves work; foveation no longer crashes; e1m3 was the demo (branch `agent/quest`, 2026-11-16)
+
+- On the headset: C4r's save fix works (autosaves, save and load); foveation level 3 with the new release order ran
+  1,041 frames without a crash (no GPU gain, still behind `-xrfoveation`).
+- C4n's scripted session again (plain loops, 0.55 floor): period / GPU p50 e1m1 23.3 / 20.7 -> 18.4 / 15.9 ms, e1m2
+  14.7 / 11.1 -> 14.1 / 10.1, demo1 23.6 / 22.0 -> 19.4 / 18.1; GPU hitches' time over budget 36 s -> 13 s.
+- e1m3's 22 ms was `playdemo`'s flat render (no eye passes, nothing submitted to the runtime). e1m3 played holds 72 Hz
+  at 0.55 in all 8 places measured (GPU 4.7-11.0 ms). The left eye's extra GPU in fights is not steady (0.3-2.6 ms
+  between parts, none frozen, not decals or particles): not pursued. No code change. Details: QUEST_PLAN.md 6y.
+
+## Quest C4t: the world without the lights' loop where none reaches it; demos in the headset (branch `agent/quest`, 2026-11-16)
+
+- e1m1 by place (10 places, 0.55 fixed): 72 Hz everywhere, GPU 4.7-8.4 ms; the body +0 to +0.9 ms (+2.6 at one).
+  C4s's "e1m1 walk" row was the unworn headset's asleep start (flat frames) plus a heavier scripted fight.
+- The lite world shader by stage (0.9): the lights' loop costs ~4 ms merely compiled in (the lights 0.4). New
+  **`vr_gl_world_unlit`** (tunable, 1; ES only; Debug > Profiling): views where no light's sphere touches the world
+  (BSP walk) or a brush entity use world programs without the loop. Adreno drew garbage until the cluster inputs
+  were kept read. Places it applies to: world -1.4 to -2.3 ms, span -1.7 to -2.9 at 0.55; the session's e1m1 period
+  16.9 -> 15.1 ms, GPU 15.1 -> 12.4.
+- **Demos (PC too)**: id's demos drew only the flat view in the headset (`hands::update` needed `PRFL_QUAKEVR`); now
+  drawn in the eyes. demo1's eye GPU (~21 ms, world 3) is open.
+- PC: dev build 0 warnings, gles_render_test 21/0. Details: QUEST_PLAN.md 6z.
 ## MP B11 part 3, part 1: bots' hands apart; the grab on a bot's gun (agent/mp, 2026-11-16)
 
 - **Bots' hands apart** (FrikBot `bot_setvrfields`): the main hand on the bot's right, the off hand on its left (both
@@ -4271,6 +4697,17 @@ His note: the titles look great, previewing them in DaVinci takes forever.
   `--bake`'s render (the retest of the reuse path); not reopened (GUI), so the reuse path and `--unbake` are unchecked.
   A bake of both titles took 271 s of wall time (the renders alone should take about 80 s: not explained).
 
+## Quest C4u: demo1's GPU was the player's own models; lights out of view leave the world unlit (branch `agent/quest`, 2026-11-16)
+
+- demo1 on the Quest 3 drew the whole player rig (hands, body, guns, holsters, the wrist gadget) at the controllers'
+  poses since C4t's demo fix, lit per pixel by its own lights at the face: ~18 ms of GPU. In id's demos (other
+  protocols) the head is now placed but the player's models hidden (`hands::demoViewOnly`), on the Quest and under
+  `-glescompat` only: the PC's window shows the flat demo again (identical to before C4t). **demo1: period 21.5 ->
+  14.0 ms, GPU 20.9 -> 6.5.** The eye scopes' "unattributed" time is the Adreno running a pass's draws at its resolve.
+- The world-unlit test (`vr_gl_world_unlit`) now ignores a light whose sphere reaches no leaf of the view's PVS (no
+  gain at e1m2's start: its torches are in the PVS and the unworn controllers' small lights touch the floor).
+- New debug command `vr_dlights_list` (Debug > Profiling): the live dynamic lights with key, radius and distance.
+- PC: scenario_check PASS, load_models_test 4/0, flat timedemo demo1 runs. Details: QUEST_PLAN.md 6za.
 ## MP B11 part 3, part 3: bots walk as players do; a bot's swing parried (agent/mp, 2026-11-16)
 
 - **Bots walk through the players' movement code** (`vr_pmove_bots`, default 1; Debug > Reports): FrikBot's stick is
@@ -4428,6 +4865,62 @@ His timing notes (extra scope):
   rerun kept all three baked. Test timelines, bins and jobs (mine and ts_* / QVR - Stab Test) removed from the
   preview project, which is closed again (Resolve left on its untitled project, as found).
 
+## Quest C4v: the world split by surface where lights reach it; the rig's small lights' switch (branch `agent/quest`, 2026-11-16)
+
+- Under the ES profile (the Quest) `vr_gl_world_unlit 2` (new default): where dynamic lights reach the walls, only the
+  surfaces a light's sphere touches are drawn with the world's lights' loop; the rest with the loop-free program, in one
+  flush. The GPU cull sends the lit surfaces to a second command per texture and now runs after the lights are known.
+  e1m2's start (0.55): GPU 5.76 -> 5.17 ms, world 4.08 -> 3.41. The picture the same (PC `-glescompat`: max 4 of 765).
+  The PC's own path unchanged.
+- `vr_rig_lights_world` (cvar, default 1, Quest preset row 1 at every level: his look call): 0 keeps the guns' screen
+  lights and the wrist gadget's lights off the walls (they still light the hands and gear) under the Quest's plain
+  lights' loop: ~0.34 ms more at e1m2's start, and most of e1m1's walk unlit. Debug > Profiling has both settings.
+- e1m1's frozen fight: 9 monsters cost ~2.7 ms of GPU and 71 draws at 0.55; the models' plain form saves 3.1 ms.
+- The perf recorder has a `split` column. PC: scenario_check PASS, load_models_test 4/0, gles_render_test 21/0.
+  Details: QUEST_PLAN.md 6zb.
+
+## Quest C4w: the monsters' draws batched, the world models' pre-pass off on the Quest, the split's empty lit draws (branch `agent/quest`, 2026-11-16)
+
+- **Alias sort key (PC bug, from Ironwail)**: every alias model's key was the name's hash masked to 4 bits (16 keys),
+  so models sharing one drew in entity order, a batch each (an armed grunt and its gun interleaved); the models made in
+  memory ("#rig2", "#armor", "#bridge") had no key of their own. `Mod_AliasSortKey` (gl_model.c): 15 bits, both.
+- `vr_alias_batch_posed` (default 1, Debug > Profiling): the world's posed models of one model and skin (armed grunts on
+  the authored rig, their armour, ragdolls; not your own) batch, their bones in one buffer (r_alias.c `R_AliasPosedJoin`).
+- `vr_alias_prepass_world` (default 1: the PC as before; **the Quest preset 0**): the world's models without the depth
+  pre-pass (the Quest draws the eyes apart, so each model batch was two draws).
+- `vr_gl_world_lit_skip` (default 1; ES only): the split by surface draws only the lit commands of textures a reaching
+  light can fill (a CPU walk of the view's PVS leaves, r_world.c `R_WorldLitTextures`).
+- `vr_gl_passes` also lists the frame's alias batches. `vr_rig_lights_world` left at 1 (his call).
+- Headset, e1m1's frozen fight lifted into the unworn headset's downward view (0.55): GPU 4.81 -> 4.00 ms, draws 219 ->
+  149 (the models' share 2.2 -> 1.4 ms); e1m2's start 192 -> 180 draws. PC eyes 0.000% over 8 for each switch.
+- PC: dev build 0 warnings; gles_render_test 21/0; load_models_test 4/0; scenario_check PASS (138 run; a first run failed bench_crowd_ad's placement once, the rerun passed). Details: QUEST_PLAN.md 6zc.
+
+## Quest C4x: the gore form of the models' shader; the live fight measured (branch `agent/quest`, 2026-11-16)
+
+- `vr_gl_alias_gore` (tunable, default 1; ES only, Debug > Tunables): a solid model batch that needs only wounds (or
+  the wet coat) and dents among the plain form's features is drawn by the plain form keeping those
+  (`glprogs.alias_gore`), not the whole shader: in a live fight the grunts, their guns and packs, the dogs and your
+  hands all bleed, so they had all left the plain form. e1m1's live fight on the Quest 3: GPU 12.9 -> 11.8 ms.
+- The models' programs compile the dynamic occlusion out when the settings leave no occluder (`QVR_ALITE_NOAO`, as the
+  world's lite bit 8): the same picture, no measurable gain.
+- `vr_gl_passes` gives each alias batch's program, its feature bits and triangles.
+- The frozen, lifted fight of C4w was not the session's: the live fight costs the models ~8.5 ms of GPU at the floor
+  scale (blood: the whole shader; near monsters filling the view). Scripted session: e1m1 period / GPU 16.1 / 14.5 ->
+  14.3 / 10.7 ms (its unlit share moved with the unworn controllers), e1m2 14.0 / 9.6, the demo unchanged.
+- PC: dev build 0 warnings; gles_render_test 21/0; scenario_check PASS; load_models_test 4/0. Details: QUEST_PLAN.md 6zd.
+
+## Quest C4y: the live fight split; the skin form; the models' vertex light measured and left off (branch `agent/quest`, 2026-11-16)
+
+- `vr_gl_alias_skin` (tunable, default 1; ES only, Debug > Tunables): your body, which kept the whole models' shader for
+  its skin tone, is drawn by the plain form keeping skin tone, wounds and dents (`glprogs.alias_skin`). The same picture
+  (PC `-glescompat` eyes 0.000% over 8); on the Quest 3 nothing measurable (the body ~0.2 ms in all).
+- `vr_gl_alias_vlight` (tunable, default 0, a probe): the plain, gore and skin forms lit at their vertices. No gain on the
+  Quest 3 (8.37 ms either way), so off: the models' shading cost is not their light's math.
+- e1m1's live fight split: models ~6.4 ms of 10.7 (~1 geometry, the rest fragment shading), lights 0.4, particles 0.
+  The live fight drifts too much to bisect; `scratch/c4y_frozen.sh` freezes it once the monsters are close (stable to
+  0.1 ms). A program remake alone moves a frozen scene by up to 0.6 ms: switches that rebuild shaders need consistent rounds.
+- SpaceWarp: `XR_FB_space_warp` is offered by the runtime; feasible (motion and depth swapchains, a motion pass), not done.
+- PC: dev and LTO builds 0 warnings; gles_render_test 21/0; scenario_check PASS; load_models_test 4/0. Details: QUEST_PLAN.md 6ze.
 ## MP B10v part 2: the Voice Chat page, a Push-to-Talk key (agent/mp, 2026-11-16)
 
 - **VR Settings > HUD, Haptics and Sound > Voice Chat** (`vr_menu_voicechat.inc`; also from Debug > Reports, whose Voice
@@ -4732,6 +5225,12 @@ His request: bake all 27 title wordings (9 sections x 3) to pick from.
   file's text, INSTALLER.md (Relit maps, First-start relight, Preparation run). Self-test "game preparation" checks
   the engine sources use `official` in both places. Installer 0 warnings, self-tests 41/41; engine dev built 0 warnings.
 
+## Quest 1.1.0 refresh: the sideload package for his trip (branch `agent/quest`, 2026-11-17)
+
+- `origin/next` (1.1.0) merged into `agent/quest` without conflicts; the VR APK rebuilt (0 warnings, `check_apk.sh` 18/0,
+  20.8 MB). A self-contained package for a Linux laptop: the APK, the game folder as one tar (395 MB, no id data) and a
+  README with the adb commands (install, paks, data, launch, logcat, crash files). Details: QUEST_PLAN.md 6zf.
+- PC: dev build 0 warnings (QC 0); gles_render_test 21/0; scenario_check PASS (136 run, 0 failed); load_models_test 4/0.
 ## MP B15: in and out of a coop game in progress (agent/mp, 2026-11-17)
 
 - **The choice:** MP_PLAN's last "next phase" (B11 part 2) was already done. What a first public beta meets first and no
@@ -5159,6 +5658,45 @@ His Quest 3 report: after an install and a new data push, minutes of Meta's thre
   portable C++, no `__ANDROID__` paths of its own); `vr_startup_trace check` 4 passed, 0 failed (3 heartbeat lines);
   scenario_check 136/136 PASS; load_models_test 4 passed, 0 failed.
 
+## questsync: the Quest's slow frames after the first launch (branch agent/quest, 2026-11-17)
+
+- His Quest 3: the first launch after the 1.1.0 package smooth, later ones 19/72 with CPU and GPU mostly idle; a launch
+  with `+exec default.cfg +vr_quest_preset 0` smooth: a value in his saved config (QUEST_PLAN.md 6zg; which one: open).
+- New: `vr_gl_sync_count N` / `vr_gl_sync_report` (GL calls that make the CPU wait, per frame; PC ES path 1.00, the
+  frame fence, with any settings: not a GL sync); `vr_quest_check` at each Android start (the differing Quest rows
+  logged; MSAA and bloom set back, `vr_quest_guard`); the program cache's miss reason in the start-up trace; the
+  Android build's `-DQVR_QC=OFF`. Package `<kit>/scratch/quest_apk2/`. PC defaults and behaviour unchanged.
+
+## questN: the safe-mode loop and the shader recompiles (branch agent/quest, 2026-11-17)
+
+- His adb findings: the 19 fps was automatic GL safe mode after a start stopped during a long shader compile; the dots
+  were full recompiles per shader-set change (QUEST_PLAN.md 6zh).
+- Automatic safe mode now needs a crash (the handler writes `== crashed` to gl_startup.log) or a death within 20 s of
+  the shaders; a start stopped in a compile, after a slow one or after living on is not counted, and the log says so.
+  Under OpenGL ES safe mode keeps persistent mapped buffers. `vr_glsafe_judge_test` (Debug > Tests) 10/0.
+- Shader sets: none remade while commands run or before the first frame's commands (`cbuf_executing`, cmd.c); the
+  first set takes the last session's lite form (ES only): one set per start with a stable config. Each set logged
+  ("GL shaders: set N this run ..."). The program cache keeps several sets (pack v2: per-program last session; 24
+  sessions or 128 MB).
+- `vr_quest_check` also caps `vr_shadow_dlights` (0) and `vr_dynres_min` (0.55); the Quest's refresh-rate choice is
+  logged; `vr_android_export perf` exports the app's perf CSVs. Package `<kit>/scratch/quest_apk3/`.
+- PC: behaviour unchanged (the remake deferral and safe mode's kept buffers act only on the ES path; the crash marker
+  and the set lines are log-only). One PC-visible change: a Host_Error now resets `cbuf_executing` (new counter).
+
+## questshaders: the game boots with a progress panel while the shaders compile (branch agent/quest, 2026-11-18)
+
+- Why so long: ~145 programs a set, 15.8 MB of GLSL (über-shaders, ~109 KB each); Adreno ~0.35-0.5 s a program; the
+  program cache makes later starts fast (QUEST_PLAN.md 6zi).
+- Under the ES profile (the Quest, `-glescompat`) the set is queued (`GL_CreateShadersAsync`) and made frame by frame
+  (`GL_ShadersPump`: 8 ms of submits, the driver's parallel compile polled with `GL_COMPLETION_STATUS_KHR`, never
+  waited for; one at a time without it). Meanwhile each frame shows the loading panel (`vr/vr_shaderload.cpp`: "Compiling
+  shaders: N / M", a bar; CPU-drawn, the OpenXR quad layer and the window) and nothing else runs; no time passes.
+  The settings' remakes go the same way. `-shadersasync 0|1` / `QVR_SHADERS_ASYNC`; `-noparallelshaders`;
+  `-shaderloadshot <tga>`; `-shadersasynctest` (verdict `shaders_async_test`). Program cache flushed every 10 s.
+- PC (`-glescompat -fakeandroid`): 145 programs in 0.65 s over 37 frames (longest frame's work 12.7 ms); cache cold
+  6-9 s, warm 0.6 s; one at a time 0.65 s; 4/0 each. The PC's own GLSL unchanged (one call). gles_render_test's PC run
+  now queues its shaders too (`QVR_SHADERS_ASYNC=1`: the same start, the scrap's pics in the same order).
+- Debug > Startup > Recompile Shaders (Loading Panel) (`vr_shader_reload_queued`). Package `<kit>/scratch/quest_apk4/`.
 ## MP B25b: B25's acceptance; a coop join's telefrag; mp_dm's restart (agent/mp, 2026-11-18; never shipped by the coordinator)
 
 - **Coop telefrag (MP only)**: a player joining or coming back to a coop game took the next start in turn and
@@ -5277,6 +5815,23 @@ and MP-only parts left on their branches.
   nothing elsewhere: on by default on the PC too (0: a batch each, as before). Review: when an instance's bone count disagreed, the batch copied the first instance's bones through a pointer a later
   VR_AliasBonePoses call may have reused: it copies the first's copy. The world-lit-skip split (ES) left behind.
 
+## agent/quest: next (f2f11c10e, the extract1118 items) merged in (branch agent/quest, 2026-11-18)
+
+Each extracted item kept once, as next reviewed it, the Quest-only parts on top:
+
+- **Perf recorder** (vr_perfrec.cpp/hpp): next's file, plus the Quest's unlit/split columns, the Quest cvar snapshot in
+  the header and the Android folder; vr_test_dlights clears only its own lights (next's). `Misc/quakevr/quest/perf_report.py`
+  (the same file) dropped for next's `Misc/quakevr/perf_report.py`.
+- **vr_gl_passes** (vr_profile.cpp): next's `glPasses` state and comments, plus the Quest's program form and needs
+  columns (VR_GLAliasBatch keeps the Quest's signature); beginPhase reads the clock once (next's).
+- **GL safe-mode judging, sync counter** (vr_glsafe.cpp): the Quest's file (ES compat, the lite first set, the program
+  cache's lines) with next's review fixes: `strings::startsWith`, a "done" without a "begun" ignored, judgeLastStart a
+  bool, the "no log" judge case, `-gltestdie` and the unused shader-time total dropped, the sync availability check
+  no longer sticky once vr_gl_sync_count is 0.
+- **Posed batching**: next's bone-copy fix in R_FlushAliasInstances; the cvars, toggles and menu rows once (Debug >
+  Profiling, next's place; the Quest's copies in Profiling and Memory dropped); VR_WorldLitSkip (ES) kept.
+- Bloom clamp: next's comment. gl_shaders.c: the Quest's (the queued set, the program cache, the ES empty fragment
+  shader), which already had next's perf event.
 ## MP bots phase 1: a flat-screen player's hands -- dual wield, the overhead swing and the guard; coop bots (agent/mp, 2026-11-18; never shipped by the coordinator)
 
 - **SP-relevant**: `vr_flatplay.cpp` gains `poseBot` (a bot's hands posed by flat play's own functions: targetOffset,
@@ -5932,6 +6487,16 @@ holsters were right. Now:
 - Not verified: the headset; the left hand (the housings are symmetric, the screens' offsets mirror). Seen, not this
   work's: the Rotary's big rear face (a hole cap) draws as a dark red/yellow checker in the game's light.
 
+## The Quest after the merge of next: first headset launch (c4z, 2026-11-20, `agent/quest`)
+
+- Boots on the Quest 3 (adb, unworn): one shader set per start from the program cache (~1 s), e1m1 in 5-7 s, no app
+  errors in logcat; both eyes correct with next's dynamic resolution (0.65 drawn inside 0.90 targets), foveation and
+  `vr_xr_direct`. Details, numbers and the per-map table: QUEST_PLAN.md 6zk.
+- Fixed: `vr_quest_check` (and the first run's `vr_quest_preset 0`) now runs after the configs and before the command
+  line's +commands (`cmd_before_stuffcmds`, cmd.c; it ran after a +exec'd file's waits). Foveation's focal point and
+  fall-off follow the part dynamic resolution draws (vr_stereo.cpp `foveateEye`). PC unaffected (Android only / QCOM).
+- Open: the right eye ~2 ms over the left in e1m2's fight; Adreno compiles the queued shaders one at a time (no
+  parallel compile: frames up to 1.1 s on a cold start).
 ## Quoth's maps under AD's rules, phase 1 (quoth, 2026-11-20, `agent/quoth`)
 
 Docs: `QUOTH.md` (how it plays, the shim's inferred semantics, acceptance). Quoth 2.2 has no source and may not be
@@ -6815,6 +7380,27 @@ Branch `agent/reliefs`. His choice of 2026-11-21: PBRify's CC0 models as ONNX, r
   (`--authored`) do not apply to these mods. The window itself was not run (no GUI here): the Options row and the
   step's progress want a look in Setup.
 
+## Quest standalone: body tracking's permission, the world's GPU cost (questopt, 2026-11-21; branch agent/quest)
+
+- Body tracking on the Quest itself: the APK declared no body tracking permission, so the runtime made no tracker
+  (the PC through Virtual Desktop needs none). The manifest now declares `com.oculus.permission.BODY_TRACKING`,
+  `com.meta.permission.FOCUSED_BODY_TRACKING` and the optional `com.oculus.software.body_tracking` feature;
+  `vr_bodytrack_xr.cpp` asks for the grant on its own thread (Android only) before making the tracker. The headset
+  (unworn) now makes the full-body tracker. PC unchanged.
+- The world's GPU cost and the culling audit: QUEST_PLAN.md 6zl (PVS, frustum, backface and the visibility mask work;
+  PBR costs nothing measurable; dynamic resolution sat at its floor in 86% of his e1m1 frames; the recorder's
+  world_brush is the eye's whole main pass on a tiler).
+
+## Quest C5b: his worn session's switches ranked; dynamic lights in the lightmap (questc5b, 2026-11-21; branch agent/quest)
+
+- His 17:24 session by stretch (his console log dates the switches, cumulative): body off is the clearest gain (the
+  spawn view's main pass -1.0 ms; GPU over budget 15% -> 6% over the stretch); the lights on the walls cost ~1.5-2 ms
+  where they reach; the rig's lights alone nothing. Body tracking: the tracker was made while worn; the log can't tell
+  whether the elbows were tracked. QUEST_PLAN.md 6zm.
+- `vr_gl_world_dlmap` (default 0; Debug > Profiling and Memory, `vr_gl_world_dlmap_info`): the ES profile's dynamic
+  lights added into the lightmap on the CPU once a frame and the world drawn without the lights' loop
+  (`vr/vr_dlightmap.cpp`, hooked in `VR_WorldLightsCheck`). PC unchanged. Not yet measured on the headset (it was in the
+  dark), not in the Quest preset.
 ## avatardoll: a dead player's ragdoll is his avatar's own body (avatardoll, 2026-11-21, `agent/avatardoll`)
 
 His words: "Yes [build it]. The ragdoll should match the player's customisation, size, etc." (MP_PLAN.md, "Still the
@@ -6951,6 +7537,35 @@ it); an in-game indication of whether the chosen port is forwarded.
   (mode 0 was 0.86 and 0.47 before the fix: FAIL), a shell from the ammo pouch, a magazine from it seated in the nailgun,
   a grenade from the grenade pouch. Checklist scene `pouchbody` (Only Hands, the shotgun and the nailgun, ammo).
 
+## Quest C5c: the body's triangles, batched lightmap uploads, loads past a throttling runtime (questc5c, 2026-11-21; branch agent/quest)
+
+- **Why the body cost so much**: the bare forearms (`vr_body_bracers 0`, the shipped look) were lofted with 144 sides
+  from the shoulder to the wrist (`make_vrbody.py`: 144 to follow the jointed hand's wrist section), 9,800 of the
+  body's 10,874 triangles. Now 24 sides up to the last forearm ring and 144 only from there to the wrist and the lip
+  over the hand, joined by a stitched band (`loft(hi_sides, hi_from)`): **4,154 triangles, 2,372 vertices** (was
+  10,874 / 5,732); every build's bare mesh regenerated (the clothed meshes byte-identical; the skins not rewritten).
+  PC mock, e1m1's spawn looking down (`vr_mock_look 60 0`, `vr_model_fragments 32`): the body group 0.099 -> **0.072
+  ms** a pass, 27,446 -> 13,110 vertex runs, 98.6k -> 66.2k fragment runs (the thin triangles' quads cost fragments
+  too). Quest (unworn, frozen fight, 0.55): GPU span 3.71 -> 3.55 ms with the new mesh.
+- **`vr_alias_prepass_body`** (new, 1; Debug > Profiling and Memory > Body Pre-pass): the body's depth pre-pass off.
+  Slower on both: PC 0.091 ms a pass against 0.072, the Quest +0.33 ms span. Stays 1 (an A/B switch).
+- **`vr_gl_world_dlmap_batch`** (new, 1; Debug > Profiling and Memory): with `vr_gl_world_dlmap 1` the frame's lit and
+  restored texel blocks go into a CPU copy of the lightmap and up in one `glTexSubImage2D` per band of 16 rows, not
+  one per surface. Quest, frozen fight with 3 big test lights (`scratch/c5c_run2.sh`, 4 rounds interleaved): the loop
+  GPU span **9.79** ms (world 7.40); the lightmap path unbatched 5.47 ms GPU, 6.61 ms CPU, frames missed (period
+  14.71); **batched 3.96 ms GPU (world 2.19, the lights' own cost ~0.2), 1.81 ms CPU** (busy 6.24 -> 7.89); no test
+  lights 3.78. PC: 141 uploads -> 16, the picture the same (its difference under two frames' own noise).
+  `vr_gl_world_dlmap` stays 0 (the 16-unit lightmap look is his call); with the batch it is the big cut.
+- **Loads past a throttling runtime** (`vr_backend_openxr_frame.cpp`, `loadThrottled`): while the client is not signed
+  on and the last `xrWaitFrame` blocked 250 ms or more, host frames run unwaited (`paceUnwaited`), `xrWaitFrame` tried
+  again every 0.5 s; the log notes it (`OpenXR: xrWaitFrame blocked ... during a load`, `the load ended; N host frames
+  ...`). A normal headset's 14 ms waits never trigger it. PC OpenXR shares the backend.
+- **Unworn headset tests**: with `prox_close` held, the still headset's Guardian dialog relaunched every 10-30 s and
+  the app never started (`am start` said Starting, no process). **Without `prox_close`** the unworn, still headset in
+  a lit room gave full 72 Hz frames (period 14.0 ms) and e1m1 loaded in seconds: `scratch/c5c_ab.sh` holds the sensor
+  only with `PROX=1`.
+- **The ledger**: `docs/vr-port/QUEST_OPTIMISATIONS.md`, every Quest renderer optimisation so far with its measured
+  gain, cvar, ES-only flag and a judgement for the PC.
 ## release12: the 1.2.0-rc.1 pre-release stopped at the release tests (release12, 2026-11-21, `agent/release12`)
 
 - **Notes:** `docs/vr-port/RELEASE_NOTES_1.2.md` (user-facing, grouped; Known issues: no splitscreen, Quest standalone
@@ -7238,6 +7853,33 @@ softlock in kellbase1 at (-8, -959.8, 664.1).
   (`developer 1`: "quoth: kellbase1's corridor: shut in, the top doors opened again"). In the arena: nothing.
 - **Checklist scene:** `ad_mod_ladder` (ad_crucial's ladder; a scene named `mod_...` ran after one that left AD's
   folders: "no map").
+## Quest C5d: the body's worn cost found; a posed head for unworn GPU tests (questc5d, 2026-11-21; branch agent/quest)
+
+- **Why the body costs ~1 ms worn**: its fragment shading, in proportion to the pixels it covers, and nothing else (no
+  second pass, no world lights, not its vertices: in a level view with the body out of sight it costs nothing). Quest at
+  1.0: pitch 35 (forearms, hands, holsters) +1.9 ms span; pitch 70 (the torso in the lower half) +11.9 ms. The floor
+  it hides was cheap (the main pass 5.33 -> 5.16), so its pixels add up. The recorder's "world_brush" holds it (the
+  tiler's timers measure the whole binned pass). PC: 0.07 ms a pass, the eyes on/off within 0.02 ms.
+- **Inside its shader** (pitch 70, 0.7, `vr_gles_define` early-return probes): texture 0.6, look (skin tone, wounds,
+  dents) 0.15, **light ~4 ms** (per-pixel dynamic lights on models 1.85 with his `vr_dlight_models 1`: the rig's two
+  lights reach every body pixel; the own light's ambient and bumps 0.9), tail 0.85. Details: QUEST_PLAN.md 6zo.
+- **`vr_debug_head_pose`** (new, 0; Debug > Profiling and Memory > Pose the Head, with `vr_debug_head_pitch` 0 and
+  `vr_debug_hands_front` 0; OpenXR only): the rendered head set level at the pitch, 1.65 m high, the hands in front at
+  the waist; the layers keep the runtime's poses. An unworn headset draws a worn view (`scratch/c5d_ab.sh`).
+- **Worn A/B for him**: `qvr-kit/scratch/quest_worn_ab.py push`, `exec quest_worn_ab.cfg` in the game (3 min: base,
+  body off, dlmap, both, 3 rounds, each marked), then `quest_worn_ab.py report`.
+- **Open (C5e)**: the cut (a body-only light form), `vr_depth_float 0`, the resolution step. Unworn runs over ~11 ms
+  GPU are paced at 40-55 ms by the runtime: measure at 0.7.
+## Quest C5e: the body lit at its vertices, measured slower (questc5e, 2026-11-22; branch agent/quest)
+
+- **`vr_gl_alias_body`** (new tunable, 0; Debug > Tunables, "Body Lit at Vertices (Quest)"; ES only): your body drawn by
+  its own form, the skin form with the ambient cube and the dynamic lights per vertex (`glprogs.alias_body`, C4y's
+  vertex light), only with no dynamic occlusion and no shadowed lights. The look holds (PC `-glescompat` 0.5% of
+  pixels over 8 levels; Quest eyeshots at pitch 35 and 70 alike).
+- **Slower on the Quest 3** (posed head, 0.7, span): pitch 35 8.09 -> 11.24 ms (body off 7.35), pitch 70 13.31 -> 16.80
+  (off 6.68): the vertex shader's loop over every light, per bin. So 0, a probe. QUEST_PLAN.md 6zp has the next road
+  (the dynamic lights compiled out of the body's form, Quake's flat add on the CPU).
+- The perf trace's forms list names it ("body"); the batches' form is printed by `vr_gl_passes`.
 
 ## testenv: why vrtrailer fails on v1.1.0 too -- the test's swing, written for old settings (2026-11-21, `agent/testenv`)
 
@@ -7512,6 +8154,23 @@ hitscan's always did.
   scratch/vcp2/side.png).
 
 
+## Quest C5f: why the body costs; its lights Quake's way (vr_gl_alias_body 2); dlmap pairs (questc5f, 2026-11-22; branch agent/quest)
+
+- **Why the body is expensive**: the pixels it covers times the work per pixel. Close to the eyes it covers much of the
+  view, and each of its pixels runs the models' whole shader (~3-4 ns a pixel on the Quest 3, the world ~1-2; its light
+  ~4 of ~5 ms at pitch 70). Already in place, so not the cause: drawn before the world (`vr_alias_player_first`) with a
+  depth pre-pass (no overdraw inside it); fixed foveation does not reach it (`vr_xr_foveation` 0 and guarded, and the
+  runtime foveates only the swapchain images, not our scene targets). QUEST_PLAN.md 6zq.
+- **`vr_gl_alias_body 2`** (Debug > Tunables > "Body Lighting (Quest)" > "Quake's Way"; ES only; default 0 until timed):
+  the body's dynamic lights added to its light on the CPU once a frame (`r_alias.c` `R_AliasLightFinishBody`, each as
+  the per-pixel loop gives its origin: `VR_DlightFlatLit`), its form with only the ambient cube at its vertices
+  (`QVR_APLAIN_VFLAT`); a batch another form draws gets the light without them. PC `-glescompat` looking down with the
+  flashlight: mean 4.4 levels, 16% of pixels over 8. Probes `QVR_PROBE_AMEDIUMP`, `ANOFOG`, `ANOFB`.
+- **dlmap pairs** for him: `qvr-kit/scratch/dlmap_compare_*.png` (PC, 1024x1024 eyeshots): big lights much brighter and
+  flatter in the lightmap (doorway mean 60 -> 105), torches alike. No `_lmscale` scene exists (no LMSHIFT support, none
+  in the installed AD).
+- **Not done**: the APK (vr_menu.cpp's NDK compile went past the 40-minute job limit under load), so no Quest numbers:
+  the per-part table (`scratch/c5f_parts.sh`), Quake's way timed, the FFR probe, `vr_depth_float 0`, the resolution step.
 ## embeddual: flat dual wielding, an embedded blade keeps its hand (agent/embeddual, 2026-11-22)
 
 His words (2026-11-21, flat): "When dual-wielding a bladed weapon and a gun, if the bladed weapon gets embedded into an
@@ -7549,6 +8208,54 @@ becomes possible in that state".
   `vr_flatitems_test 10` (routing, ironsight with an empty hand) 63/0, 7 (a prop beside the gun) 13/0, flathands 76/0,
   flatmelee2h 16/0, flatads 6/1 (its "launchers", the outdated expectation of ROUND24.md).
 
+## Quest C5g: dlmap as bright as the loop, its own texture; vr_menu.cpp at -Os on Android; Quake's way timed (questc5g, 2026-11-22; branch agent/quest)
+
+- **APK build time**: the NDK's clang spent 1096 of vr_menu.cpp's 1199 s at -O3 in one pass, the *PostRA Machine
+  Instruction Scheduler* (`-ftime-report`); -O1 still ran past 600 s, -Os takes 17 s. `Android/android.cmake` compiles
+  that file alone at -Os (menu code). The whole native build after a merge (every file): 4 min 25 s, the APK 5 min 37 s
+  (was over 18 min for vr_menu.cpp alone; c5f's 40-minute job limit killed it). 0 warnings, check_apk 20/20.
+- **dlmap's brightness**: the light was added into the lightmap's bytes, so the world shader's curve on the baked light
+  (vr_light_contrast 2.5 about Quake's full light, the fill light 0.1, vr_light_cap 1.75) bent it too, and the bytes
+  clipped at 255; and on the PC's defaults (normal maps: the parallax program; OIT) the world never took the unlit form,
+  so c5f's pairs showed the lightmap's light *on top of* the loop's (counted twice). Now the lights are summed into
+  their own texture (RGB10_A2, as big as the lightmap and laid out as it: `DlightTex`, unit 15, 4x range), which
+  glprogs.world_unlit adds where the loop adds its own (`dynamic_light`: after the curve, under the same cap rule); the
+  lightmap itself is never written. Same falloff, angle term and colour as the loop (DarkPlaces' or Quake's); what is
+  left: the 16-unit grid and the loop's sheen (vr_specular 0.2 on the Quest), which the texture has no direction for.
+- **The pairs again, under the Quest preset** (PC -glescompat, the same 7 frames, 922x922 left eyes,
+  `qvr-kit/scratch/dlmap_compare_*.png`; c5f's parked in `F:/QVR-Parked/2026-11-22/quest_c5f/dlmap_pairs_c5f`):
+  | scene | c5f means (0 / 1) | now means (0 / 1) | now diff mean / p95 / max |
+  |---|---|---|---|
+  | ad_azad | 80.1 / 108.6 | 83.6 / 80.2 | 3.56 / 14 / 149 |
+  | corridor_rocket | 58.5 / 45.6 | 59.1 / 55.0 | 4.24 / 36 / 203 |
+  | doorway | 63.0 / 111.1 | 56.3 / 56.2 | 0.74 / 4 / 59 |
+  | sweep1 | 58.9 / 66.7 | 60.0 / 57.0 | 3.06 / 18 / 113 |
+  | sweep2 | 56.5 / 69.3 | 57.8 / 57.0 | 0.87 / 5 / 60 |
+  | sweep3 | 69.2 / 74.1 | 69.2 / 63.6 | 5.62 / 41 / 153 |
+  | torch_wall | 24.7 / 25.6 | 23.8 / 24.8 | 1.61 / 8 / 196 |
+  Darker by 0-6 levels where a big light is close (the sheen and the grid's peak); no seams (the image's steps 0.98-1.00 of the loop's; torch_wall 1.07: its flicker).
+- **One choice: `vr_gl_quake_dlights`** ("Quake-Style Dynamic Lights (Quest)", Debug > Profiling and Memory, archived,
+  default 0): the world's light texture (as vr_gl_world_dlmap 1) and your body's flat add (as vr_gl_alias_body 2) at
+  once; each light as the per-pixel loop gives it, added after the baked light's curve (`qvr::dlightmap::quakeLights`).
+- **On the Quest** (posed head, 0.7 fixed, the Quest's switches, 3 rounds interleaved, gpu_span ms):
+  | scene | loop | world in texture | Quake both (vr_gl_quake_dlights) | body flat only | no test lights |
+  |---|---|---|---|---|---|
+  | frozen fight, 3 big lights, 0.55 | 11.33 (period 41.6: 24 Hz) | **7.00** (72 Hz; CPU +1.50) | 8.24 | - | 6.10 |
+  | posed head pitch 35, 0.7, test lights | 7.77 | 8.17 | 10.52 | 9.98 | 8.63 |
+  | body, pitch 70 (off / per pixel / Quake's way / vertex) | 6.08 / 11.10 / 13.71 / 13.74 | | | | |
+  | body, pitch 35 (off / per pixel / Quake's way / vertex) | 5.87 / 7.81 / 10.57 / 10.65 | | | | |
+  Quake's way on the body is **slower** (+2.6 ms at 70, +2.8 at 35; period 50 ms at 70 for both of its forms), so it
+  stays off; the Quest preset gets `vr_gl_world_dlmap 1` (all three levels) and `vr_gl_quake_dlights` stays 0.
+- **Reliefs**: no relief on the Quest preset (vr_normalmaps 0), so the flatness there is the missing sheen and the
+  16-unit grid, not bumps. A cheap fix exists for the PC look: a second texture (RGBA8) with the summed lights'
+  dominant direction per texel (as AD's .lux), the shader bending the texel's light by the bumped normal and giving it
+  the sheen: one more fetch and ~10 ALU a pixel, the direction summed on the CPU (+30% of the build). Not done: no
+  gain where dlmap is meant to run.
+- **Not done (budget)**: the per-part body table, `vr_depth_float 0`, the resolution step, Quest eyeshots of the pairs,
+  the foveation measurement (`vr_xr_direct 1` + `-xrfoveation`, `vr_xr_foveation 3`). What blocks vr_xr_direct as a
+  default (from its help and 6v): no post-process at all (no tone curve: bright colours clip; no bloom, grade, AA
+  resolve), single-pass stereo off (each eye drawn alone: more CPU and draws), only the scene reaches the swapchain.
+  Why Quake's way on the body is slower is open (both its forms the same: the form's program itself, not its light).
 ## Faster release tests: lanes, a beta profile, quicker batches (branch agent/testspeed, 2026-11-22)
 
 - **run_test_suite.py**: tests in parallel lanes (`--jobs N`; 0: a lane per 8 CPUs, at most 4, 2 while the author's
@@ -7733,6 +8440,46 @@ His words: "it would be nice for those to become armed humanoid too ... Please d
   (the 12 screenshots), `Misc/quakevr/adhum_mdl.py` (builds and frame groups from AD's paks read in place),
   `Misc/quakevr/adhum_census.py` (placements in AD's and Quoth's paks). Screens: `C:\OHWorkspace\qvr-kit\scratch\adhumaudit_*.png`.
 
+## Quest C5h: why the body's Quake way was slower (its own program), fixed and on; D24 depth; the per-part table (questc5h, 2026-11-22; branch agent/quest)
+
+- **Why vr_gl_alias_body 2 was slower** (posed head, 0.7, interleaved, gpu_span ms; levels 3 unless said). Not a CPU
+  stall: the period's 50 ms is all in xrWaitFrame (41.9 ms), the runtime pacing the app down once the GPU crosses ~12 ms
+  (the busy CPU only rises in that state; single-pass stereo is off on the Quest, so no multiview fallback). Two GPU costs:
+  | probe (pitch 70) | per pixel (skin form) | body form (C5f) |
+  |---|---|---|
+  | models' fragments a constant (ALIASCONST) | 4.79 | 6.97 (old: ambient at the vertices) / 5.38 (ambient per pixel) |
+  | 0.5 scale, same light data (vr_dlight_models 0) | 5.37 | 8.70 |
+  | 0.5 scale, same code (QVR_APLAIN_NODLIGHTS) | 4.78 | 8.50 |
+  The vertex ambient cost ~2 ms on the vertex side (gone with it per pixel), and the body's own program
+  (glprogs.alias_body) ran the *same* code ~3.3 ms slower than the skin form running it, whatever the light data:
+  something of the driver's for that program object (not found; the fix does without it).
+- **The fix**: vr_gl_alias_body 2 draws your body by the form it takes anyway, with the light loop skipped for its batch
+  (`BatchDlightsFlat`, the instance buffer's padding after EyePos; r_alias.c sets it when every instance of the batch is
+  flat-lit), its lights added flat on the CPU as before. C5f's VFLAT form and its lite bit 29 are gone; the body form is
+  vr_gl_alias_body 1's alone. Same picture as C5f's (PC -glescompat, the flashlight on: mean 5.03 at pitch 70, 2.09 at 35
+  vs per pixel; C5f's 5.02 / 2.09).
+  | 0.7, 3 rounds | off | per pixel | Quake's way | vertex (1) |
+  |---|---|---|---|---|
+  | pitch 70 | 6.19 | 11.65 | **10.63** | 13.71 (period 50) |
+  | pitch 35 | 5.74 | 8.71 | **7.98** | 10.96 |
+  | frozen fight, 3 big lights, 0.55 (world in the texture / + body) | | | 6.90 / 7.02 | |
+  The body's cost above off: 5.46 -> 4.44 ms at 70, 2.97 -> 2.24 at 35. **The Quest preset sets vr_gl_quake_dlights 1**
+  (the world's light texture and the body's flat add, one choice).
+- **The per-part table** (pitch 70, 0.7, 2 rounds; vr_gles_define probes act on every model): off 5.99, full 11.31,
+  const 5.43, tex 6.12, look 5.69, light-end 9.93, rim-end 9.98, no dlights 8.07, no ambient 9.83, no skin 10.60, no
+  wounds/dents 10.55, no fog 10.51, mediump 10.83, no specular AA 10.43, no fullbright 10.26. The light loop (-3.2 with
+  every model's off) is the one big part; the rest are 0.3-1.0 each.
+- **vr_depth_float 0** (D24S8; the eyes' targets are made again when it changes, so interleaved in one session, 4 rounds,
+  no launch noise): pitch 0 5.30 -> 4.93, pitch 35 8.93 -> 7.74. Same picture on the PC (pairs within the flicker).
+  **The Quest preset sets vr_depth_float 0** (near plane 1 unit; held items never cut).
+- **Resolution** (levels 0): the frozen fight at 0.55 / 0.65 / 0.75: 7.02 / 7.99 / 11.30 ms (period held to 0.65);
+  the posed head at pitch 35 at the base 0.9 / 1.0: 11.23 (period 35) / 12.83 (period 55), float depth. No room for a
+  higher base; the floor could go to 0.65 in fights, but `questMusts` caps vr_dynres_min at 0.55 (C4o's live fights):
+  left at 0.55, his call (a live fight at 0.65 first).
+- **Quest eyeshots of the dlmap pairs**: setpos doesn't move the posed VR player on the Quest, so the e1m1 scenes came
+  out at the spawn without their lights; only e1m2's torch wall is valid: means 28 / 26 (dlmap 1 two levels darker, as
+  the PC's pair). Needs a scene-based placement (vr_scenario) next time.
+- Checks: PC Dev 0 warnings, APK 0 warnings, check_apk 20/20, scenario_check (below).
 ## onemodel: one model per gun, not one per ammo type (agent/onemodel, 2026-11-22)
 
 BACKLOG.md 8, his words (2026-11-16): "rather than having different models for the ammo types, we should be able to
@@ -8156,6 +8903,39 @@ ROPES.md "Tests", "Known limits". His words: chains work well, minor adjustments
   multiply on top; vanilla's hitscan untouched. `vr_ad_test 58` now prints `adshots-test: speed PASS|FAIL` (ad_shots
   test's FAIL scan catches it): player 2601 (AD 2000 x 1.3), enemy 1241 (950 x 1.3); at the settings x2: 5210, 2450.
 
+## Quest C5i: the Quest's dynres floor 0.65, built and installed for his test (questc5i, 2026-11-22; branch agent/quest)
+
+- His call: the Quest 3 72 Hz preset's `vr_dynres_min` 0.55 -> 0.65 (`vr_gfxpresets.cpp` questRows); the 90 Hz and
+  Quest 2 columns stay 0.5; `vr_quest_check`'s ceiling for it 0.55 -> 0.65 (a ceiling: lower saved values kept). PC
+  untouched (the Quest table runs only under -glescompat / Android).
+- APK `build-android/apk/QuakeVR.apk` (21.9 MB): native 0 warnings, check_apk 20/0; `adb install -r` Success; progs.dat
+  and the merge's changed models (onemodel's variants) and `data/weapons.txt` pushed (md5s match).
+- His saved config on the headset predated C5g/C5h (7 rows off the preset: vr_dynres_min 0.55, vr_torch_lights 0,
+  vr_rig_lights_world 0, vr_gl_world_dlmap 0, vr_gl_quake_dlights 0, vr_depth_float 1, vr_alias_prepass_world 1).
+  Backed up with `writeconfig ironwail_before_c5i` (in the game folder), then `vr_quest_preset 0` and `writeconfig`.
+  A plain start now reads vr_dynres_min 0.65, vr_gl_quake_dlights 1, vr_depth_float 0; no probes (vr_gl_alias_body 0,
+  vr_gles_define empty).
+- Frozen fight (C5h's e1m1 scene, the preset, 2 rounds, gpu_span ms): dynres 10.38 / 10.42 at scale 0.90 (its
+  ceiling: the floor is not reached), period 13.99 (72 Hz held); fixed 0.65 5.96 / 5.95.
+- Found, not fixed: `vr_gl_world_dlmap` and `vr_alias_prepass_world` are CVAR_NONE, so the preset's values for them
+  last one session; a saved config starts them at 0 / 1 (dlmap is covered by vr_gl_quake_dlights 1; the pre-pass, C4w
+  -0.49 ms, is not).
+
+## Quest C5j: the Quest preset's last two rows saved; his crash looked into (questc5j, 2026-11-22; branch agent/quest)
+
+- `vr_gl_world_dlmap` (default 0) and `vr_alias_prepass_world` (default 1) are now CVAR_ARCHIVE: they were the only
+  Quest preset rows that were not saved. The config is sparse, so on PC nothing changes (a line is written only when a
+  value differs from its default; checked with writeconfig: no line at the defaults, both lines once changed).
+- On the headset (APK build 14259, 6b3cac7; native 0 warnings, check_apk 20/0, `adb install -r` Success): his config
+  got the two values once (`+vr_gl_world_dlmap 1 +vr_alias_prepass_world 0 +writeconfig`; nothing else touched). Two
+  plain starts after that: both reach the start map and draw eye frames, with no crash. The second start reads
+  vr_gl_world_dlmap 1, vr_alias_prepass_world 0 and vr_dynres_min 0.65, with "quest preset: Quest 3 (72 Hz)".
+- His 14:31 crash on the c5i APK (SIGSEGV 0x30 in the Adreno driver under xrEndFrame): the activity was not shown for
+  the first 2 minutes (native start at 14:30:13), and the load blocked while it was paused (map load 70 s, the session
+  made while paused). The crash came on the second eye frame after the session was focused. Not the preset rows.
+  Putting the headset to sleep during the load did not reproduce it. QUEST_PLAN 6zu has the details.
+- Found: a fresh install's first start compiles 73 programs (24 s) with the loading panel in the window only (the
+  session starts after the configs), so the headset shows Meta's dots then.
 ## humlook3: his new Texture Studio painting is the shipped default (agent/humlook3, 2026-11-22)
 - His humlook.txt (grunt explosive/energy/flame/poison pack rows, dknight explosive clothes+pack) and humlook_masks.txt
   (paint lines: backpack, enforcer, grunt, knight, death knight; the death knight's skin newly painted) copied to quakevr/.
@@ -8189,4 +8969,18 @@ ROPES.md "Tests", "Known limits".
   the maximum. Tried and reverted (no change in the spread): feet looking for the rope round his drawn palms instead of
   the server's holds; ropeHips pulling towards the rope itself instead of the holds' way in. Not fixed: needs the
   copy's trunk nearer the rope (the neck), or the bound at ~22 for the swing check.
+
+## Quest C5k: the shader compile's loading panel in the headset on a first start (questc5k, 2026-11-22; branch agent/quest)
+
+QUEST_PLAN 6zv has the details.
+- The backend started only after the first frame's configs (`vr_enabled` is 0 until quakevr.cfg), after the start map
+  too. Now a start-up set that compiles a program from its sources (`GL_ShadersCompiling`) starts it in the loading
+  frame (`qvr::startForLoading`): the backend the command line names (`-vrmock`, `+vr_backend`), else openxr on Android
+  only (a PC run naming none never starts the real runtime early). After the configs: kept with `vr_enabled 1` and the
+  same backend, else the usual restart. All from the cache: as before. PCVR compiles in GL_Init (no panel, no gap).
+- Quest (build 14276, 0 warnings, check_apk 20/0, installed): cold start 73 compiled in 20.4 s, "loading panel: 69
+  frames (20 in the headset...)" (FOCUSED 4.3 s after launch; unworn sleep gaps), kept after the configs. Warm start:
+  453 ms from the cache, no early start, start-up 9.5 s as before. His program pack put back.
+- PC ES runs: shaders_async_test 4/0 (its floor 100 -> 50 programs: the ES set is 73); the configs' `vr_enabled 0`
+  restarts (stops) it.
 

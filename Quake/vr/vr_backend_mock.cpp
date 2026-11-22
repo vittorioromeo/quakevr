@@ -2156,6 +2156,12 @@ public:
         return &hidden_;
     }
 
+    // (as OpenXR's projection layer would show the part: nothing here reads the images after the frame)
+    bool setEyeImageRect(int /* eye */, int /* width */, int /* height */) override
+    {
+        return true;
+    }
+
     [[nodiscard]] unsigned acquireEyeImage(int eye) override
     {
         return textures[eye];

@@ -4976,7 +4976,7 @@ QVR_TOGGLE(vr_alias_batch_posed, "Batch Posed Models",
     "vr_alias_batch_posed: the world's posed models of one model and skin (armed grunts, their armour, ragdolls) "
     "drawn as one batch, their bones in one buffer (On), or a batch each (Off, as before). The same images.")
 QVR_TOGGLE(vr_perf_record, "Perf Recorder",
-    "Every frame's CPU, GPU and OpenXR times and its events (shader compiles, uploads, loads, saves) to a CSV while on: profile/perf/. Misc/quakevr/perf_report.py ranks the hitches.")
+    "Every frame's CPU, GPU and OpenXR times and its events (shader compiles, uploads, loads, saves) to a CSV while on: profile/perf/ (on the Quest the app's files/perf/). Misc/quakevr/perf_report.py ranks the hitches.")
 QVR_TOGGLE(vr_xr_log_timing, "OpenXR Timing Log",
     "A line a second in quakevr/qvr_openxr.txt while VR runs: frames rendered, frames missed, each OpenXR call's time and the session's state.")
 QVR_TOGGLE(vr_visibility_mask, "Hide Lens Corners",
@@ -6165,6 +6165,10 @@ QVR_CYCLE(vr_profile_hitch, "Hitch Log",
     "While the profiler runs (the panel, a capture), frames that take this long go to the console and "
     "quakevr/profile/hitches_<date>_<time>.csv, with what took their time.",
     {0.f, "Off"}, {1.5f, "Over 1.5 Frames"}, {2.f, "Over 2 Frames"}, {3.f, "Over 3 Frames"})
+QVR_CYCLE(vr_profile_slow_ms, "Slow Frames Kept",
+    "vr_profile_slow_ms: the profiler leaves frames longer than this out of its averages (a map load, a hitch). Raise "
+    "it on a device whose every frame is that slow, to see where those frames go.",
+    {250.f, "Under 250 ms"}, {1000.f, "Under 1 s"}, {5000.f, "Under 5 s"})
 QVR_CYCLE(vr_renderdoc_delay, "Capture Delay",
     "vr_renderdoc_delay: seconds from the press to the capture, to close the menu or get into position.",
     {0.f, "None"}, {1.f, "1 s"}, {3.f, "3 s"})
@@ -6290,6 +6294,33 @@ QVR_TOGGLE(vr_alias_prepass_own, "Own Models Pre-pass",
     "vr_alias_prepass_own: your hands and what they hold drawn into the depth first, then shaded once a "
     "pixel (On; not while a gun morphs), or shaded as drawn (Off, as before): the glove over the hand, the "
     "fingers over the palm and a gun's own parts shaded once. The same images either way.")
+QVR_TOGGLE(vr_alias_prepass_body, "Body Pre-pass",
+    "vr_alias_prepass_body: your body drawn into the depth first, then shaded once a pixel (On, as before), or "
+    "shaded as drawn (Off): its skinning run once a view instead of twice. The same images either way; Off is "
+    "the Quest preset's when it measures faster there.")
+QVR_TOGGLE(vr_debug_head_pose, "Pose the Head (Unworn Tests)",
+    "vr_debug_head_pose: for GPU tests on a headset lying on a table (OpenXR): the view drawn level at the Head "
+    "Pitch below, its direction and place kept (the headset still shows it as tracked). Off: as tracked.")
+QVR_SLIDER(vr_debug_head_pitch, "Head Pitch", -90.f, 90.f, 5.f, "%.0f deg", noExt,
+    "vr_debug_head_pitch: the posed head's pitch, down positive (Pose the Head).")
+QVR_TOGGLE(vr_debug_hands_front, "Hands in Front (Unworn Tests)",
+    "vr_debug_hands_front: with Pose the Head, both hands held in front of the posed head at the waist, as a worn "
+    "view's forearms (the controllers' own poses ignored).")
+QVR_TOGGLE(vr_gl_world_lit_skip, "Skip Empty Lit Commands (Quest)",
+    "vr_gl_world_lit_skip: with the world split by surface (Unlit World Shader By Surface, the Quest), only the "
+    "textures with a surface a reaching light touches get their lit draw (On), or every texture (Off, as before). "
+    "The same picture, fewer draws.")
+QVR_TOGGLE(vr_gl_quake_dlights, "Quake-Style Dynamic Lights (Quest)",
+    "vr_gl_quake_dlights: under the ES profile (the Quest), the dynamic lights as Quake added them, once a frame: on "
+    "the world summed into a texture at the lightmap's 16-unit grid, on your body added to its light as one colour "
+    "(On), or per pixel (Off). As bright either way; flatter (no sheen, no bumps), and much cheaper on the Quest.")
+QVR_TOGGLE(vr_gl_world_dlmap, "Dynamic Lights in the Lightmap (Quest)",
+    "vr_gl_world_dlmap: under the ES profile (the Quest), the dynamic lights added into the lightmap once a frame "
+    "(Quake's own way, its 16-unit grid) and the world drawn without the lights' loop (On), or lit per pixel "
+    "(Off, the default). Models and particles are lit per pixel either way.")
+QVR_TOGGLE(vr_gl_world_dlmap_batch, "Batch Lightmap Uploads (Quest)",
+    "vr_gl_world_dlmap_batch: with Dynamic Lights in the Lightmap, the frame's changed lightmap texels sent in "
+    "one upload per band of 16 rows (On), or one upload per surface (Off, as before). The same picture.")
 QVR_CYCLE(vr_shadow_setup_share, "Shadow Caster Set-up Shared",
     "vr_shadow_setup_share: each animated shadow caster set up once for all the frame's shadow lights (its "
     "whole instance copied into each light's draw, drawn without textures) and the first eye taking the "

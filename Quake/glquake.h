@@ -157,6 +157,9 @@ extern	const char	*gl_version;
 	x(void,			GetProgramiv, (GLuint program, GLenum pname, GLint *params))\
 	x(void,			UseProgram, (GLuint program))\
 	x(void,			LinkProgram, (GLuint program))\
+	x(void,			ProgramBinary, (GLuint program, GLenum binaryFormat, const void *binary, GLsizei length)) /* QVR: the program cache (GL 4.1, GL ES 3.0) */\
+	x(void,			GetProgramBinary, (GLuint program, GLsizei bufSize, GLsizei *length, GLenum *binaryFormat, void *binary)) /* QVR */\
+	x(void,			ProgramParameteri, (GLuint program, GLenum pname, GLint value)) /* QVR */\
 	x(void,			GetProgramInfoLog, (GLuint program, GLsizei bufSize, GLsizei *length, GLchar *infoLog))\
 	x(GLuint,		CreateShader, (GLenum type))\
 	x(void,			DeleteShader, (GLuint shader))\
@@ -192,7 +195,10 @@ extern	const char	*gl_version;
 	x(void,			FramebufferTexture2D, (GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level))\
 	x(GLenum,		CheckFramebufferStatus, (GLenum target))\
 	x(void,			BlitFramebuffer, (GLint srcX0, GLint srcY0, GLint srcX1, GLint srcY1, GLint dstX0, GLint dstY0, GLint dstX1, GLint dstY1, GLbitfield mask, GLenum filter))\
+	x(void,			InvalidateFramebuffer, (GLenum target, GLsizei numAttachments, const GLenum *attachments)) /* QVR: GL 4.3, ES 3.0: a tiler's stores cut (vr_gl_invalidate) */\
 	x(void,			DrawBuffers, (GLsizei n, const GLenum *bufs))\
+	x(void,			ClearDepthf, (GLfloat d)) /* QVR: the float forms, ES's only ones (QUEST_PLAN.md) */\
+	x(void,			DepthRangef, (GLfloat n, GLfloat f))\
 	x(void,			ClearBufferfv, (GLenum buffer, GLint drawbuffer, const GLfloat *value))\
 	x(void,			BlendFunci, (GLuint buf, GLenum sfactor, GLenum dfactor))\
 	x(void,			DebugMessageCallback, (GLDEBUGPROC callback, const void *userParam))\
@@ -245,6 +251,13 @@ extern	const char	*gl_version;
 	x(void,			ClipControl, (GLenum origin, GLenum depth))\
 
 #define GL_ZERO_TO_ONE		0x935F
+
+#ifndef GL_PROGRAM_BINARY_LENGTH // QVR: the program cache (gl_shaders.c; GL 4.1, GL ES 3.0)
+#define GL_PROGRAM_BINARY_LENGTH			0x8741
+#endif
+#ifndef GL_PROGRAM_BINARY_RETRIEVABLE_HINT
+#define GL_PROGRAM_BINARY_RETRIEVABLE_HINT	0x8257
+#endif
 
 #define QGL_ALL_FUNCTIONS(x)\
 	QGL_CORE_FUNCTIONS(x)\
@@ -433,6 +446,8 @@ typedef struct gpulight_s {
 	float gateplane[4], gatelo[4], gatehi[4], gateinverse[3][4], gateshadow[4]; // QVR: a single portal traversal
 } gpulight_t;
 
+#define QVR_WORLD_LIT_SPHERES 16 // QVR: the lights the world's cull splits the lit surfaces by, at most (C4v; more: no split)
+
 typedef struct gpulightbuffer_s {
 	float		lightstyles[MAX_LIGHTSTYLES];
 	gpulight_t	lights[MAX_DLIGHTS];
@@ -501,6 +516,9 @@ extern gpuframedata_t r_framedata;
 
 void R_AnimateLight (void);
 void R_MarkSurfaces (void);
+const byte *R_ViewVis (void); // QVR: the PVS R_MarkSurfaces chose for the view (VR_WorldLightsCheck)
+void R_MarkSurfacesLate (void); // QVR: the world's cull under the ES profile, after R_PushDlights (C4v: the split by surface)
+void R_WorldLitLeavesBuild (void); // QVR: the world leaves' boxes for the split's lit commands (C4w, r_world.c)
 qboolean R_CullBox (vec3_t emins, vec3_t emaxs);
 qboolean R_CullModelForEntity (entity_t *e);
 void R_EntityMatrix (float matrix[16], vec3_t origin, vec3_t angles, unsigned char scale);
@@ -613,6 +631,7 @@ typedef struct glprogs_s {
 	/* 3d */
 	GLuint		world[2][3][3];		// [OIT][standard/dithered/banded][solid/alpha test/water]
 	GLuint		world_pdo[3];		// QVR: [standard/dithered/banded] solid, not OIT, writing the parallax hits' depth (vr_parallax_depth_write)
+	GLuint		world_unlit[3][2];	// QVR: [dither][alphatest] world[0][dither][alphatest] without the lights' loop (vr_gl_world_unlit; the ES profile only, else 0)
 	GLuint		world_decal_retro[2][3];	// QVR: [OIT][standard/dithered/banded] solid, with the decals' retro textures' code (world[][][solid] and world_pdo go without it, NO_DECAL_RETRO): made when first needed (GL_WorldDecalRetroProgram)
 	GLuint		world_pdo_decal_retro[3];	// QVR: [standard/dithered/banded] world_pdo's, the same
 	GLuint		water[2][2];		// [OIT][dither]
@@ -623,6 +642,11 @@ typedef struct glprogs_s {
 	GLuint		skycubemap[2][2];	// [anim][dither]
 	GLuint		skyboxside[2];		// [dither]
 	GLuint		alias[2][3][2][3];	// [OIT][mode:standard/dithered/noperspective][alpha test][poseverttype]
+	GLuint		alias_opaque[3][3];	// QVR: [mode][poseverttype] alias[0][mode][0][poseverttype] without discard (vr_gl_alias_opaque; the ES profile only, else 0)
+	GLuint		alias_plain[3][3];	// QVR: [mode][poseverttype] alias_opaque without the per-model features no instance of a batch has (vr_gl_alias_plain; the ES profile only, else 0)
+	GLuint		alias_gore[3][3];	// QVR: [mode][poseverttype] alias_plain keeping the wounds and dents (vr_gl_alias_gore, C4x; the ES profile only, else 0)
+	GLuint		alias_skin[3][3];	// QVR: [mode][poseverttype] ... and the skin tone (vr_gl_alias_skin, C4y; the ES profile only, else 0)
+	GLuint		alias_body[3][3];	// QVR: [mode][poseverttype] alias_skin lit at its vertices: your body (vr_gl_alias_body, C5e; ES only)
 	GLuint		alias_depth[3];		// QVR: [poseverttype] the shadow maps' casters: depth only (no fragment shader)
 	GLuint		alias_depth_layered[3];	// QVR: [poseverttype] the same, drawn into all their faces at once (gl_viewport_layer_able; 0 without)
 	GLuint		woundpaint[3];		// QVR: [poseverttype] a model drawn into its wound mask (vr/vr_wounds.cpp)
@@ -635,6 +659,7 @@ typedef struct glprogs_s {
 	GLuint		clear_indirect;
 	GLuint		gather_indirect;
 	GLuint		cull_mark;
+	GLuint		world_arrays_merge;	// QVR: made when first needed (GL_WorldArraysMergeProgram)
 	GLuint		cluster_lights;
 	GLuint		palette_init[3];	// [metric:naive/riemersma/oklab]
 	GLuint		palette_postprocess;
@@ -645,8 +670,33 @@ extern glprogs_t glprogs;
 void GL_UseProgram (GLuint program);
 void GL_ClearCachedProgram (void);
 void GL_CreateShaders (void);
+qboolean GL_ShadersAsyncOn (void); // QVR: the set queued, made over the loading panel's frames (gl_shaders.c; QUEST_PLAN.md 6zi)
+void GL_CreateShadersAsync (qboolean vrprograms); // QVR
+qboolean GL_ShadersPending (void); // QVR: a queued set not done yet: nothing draws, the frames show the loading panel
+qboolean GL_ShadersPump (double budget); // QVR: once a frame while pending (vr/vr_shaderload.cpp): false once done
+void GL_ShadersProgress (int *done, int *total, const char **last); // QVR
+int GL_ShadersCompiling (void); // QVR: the pending set's programs so far compiled from their sources (not from the program cache)
+void VID_LoadingSize (int *w, int *h); // QVR: the loading panel's frames in the window (gl_vidsdl.c)
+void VID_LoadingSwap (void); // QVR
+void GL_WorldLiteCheck (void); // QVR: the shaders made again when the ES lite world no longer fits the settings
 void GL_DeleteShaders (void);
 GLuint GL_WorldDecalRetroProgram (int oit, int dither, qboolean pdo); // QVR
+// QVR: these groups' variants, made when first asked for under the ES profile (the PC makes them all at the start):
+// gl_shaders.c, GL_ShadersLazyStart
+enum { ALIASFORM_OPAQUE, ALIASFORM_PLAIN, ALIASFORM_GORE, ALIASFORM_SKIN, ALIASFORM_BODY, ALIASFORM_COUNT };
+qboolean GL_ShadersLazyStart (int oit, int dither, int mode); // made at the start (all on the PC; the defaults under ES)
+GLuint GL_WorldProgram (int oit, int dither, int mode);
+GLuint GL_AliasProgram (int oit, int mode, int alphatest, int poseverttype);
+qboolean GL_AliasFormAvailable (int form); // the form exists here (the ES profile's; plain, gore, skin: with the lite models' bits)
+GLuint GL_AliasFormProgram (int form, int mode, int poseverttype); // 0: not available
+GLuint GL_WaterProgram (int oit, int dither);
+GLuint GL_ParticlesProgram (int oit, int dither);
+int R_AliasShaderMode (void); // QVR: r_alias.c: the models' ALIASSHADER_* for the software emulation's settings
+void R_PrewarmSelectedPrograms (void); // QVR: r_world.c: the ES profile's variants the settings draw with, at a map's load
+GLuint GL_WorldArraysProgram (GLuint program, qboolean *depthonly); // QVR: the world's textures in arrays (vr/vr_worldarrays.cpp)
+GLuint GL_WorldArraysMergeProgram (void); // QVR
+int GL_WorldRigLightsOff (void); // QVR: the world's programs skip the rig's small lights (C4v; vr_rig_lights_world 0)
+void R_BModelCallTextures (texture_t *t, gltexture_t *out[4]); // QVR: a world call's four maps as the bound path binds them (r_world.c)
 void R_PrewarmDecalPrograms (qboolean pdo); // QVR: those made in the map's load (vr/vr_decals.cpp prepare)
 void R_PrewarmTranslucentDecalPrograms (void); // QVR: the translucent brush models' (vr/vr_decals.cpp prepareTranslucent)
 void R_WorldFragments_f (void); // QVR: vr_world_fragments (r_world.c)
@@ -659,6 +709,7 @@ int GL_MultiviewPrepare (int async); // QVR: every ported program's twin begun n
 int GL_MultiviewPending (void); // QVR: ... how many are still compiling (async)
 int GL_MultiviewCheck (void (*report) (const char *name, int ported, int ok, const char *log, void *ctx), void *ctx); // QVR: vr_multiview_check
 void GL_ReloadShaders_f (void); // QVR: tests (vr_shader_reload)
+void GL_ReloadShadersQueued_f (void); // QVR: vr_shader_reload_queued (the loading panel; Debug > Startup)
 
 typedef struct glframebufs_s {
 	GLint			max_color_tex_samples;

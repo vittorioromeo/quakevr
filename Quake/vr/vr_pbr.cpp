@@ -359,7 +359,7 @@ void stats_f()
                     const size_t n = static_cast<size_t>(nm->width) * nm->height;
                     byte* rgba = static_cast<byte*>(VR_HeapMalloc(n * 4));
                     GL_Bind(GL_TEXTURE0, nm);
-                    glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, rgba);
+                    VR_GLGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, rgba);
                     int lo = 255, hi = 0;
                     for(size_t p = 0; p < n; ++p)
                     {
@@ -389,7 +389,7 @@ void audit_f()
         const size_t bytes = static_cast<size_t>(nm->width) * nm->height * 4;
         byte* pixels = static_cast<byte*>(VR_HeapMalloc(bytes));
         GL_Bind(GL_TEXTURE0, nm);
-        glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+        VR_GLGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
         char digest[65];
         hashSource(pixels, SRC_RGBA, nm->width, nm->height, digest);
         const size_t count = bytes / 4;

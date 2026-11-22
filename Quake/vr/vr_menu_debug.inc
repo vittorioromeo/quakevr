@@ -519,6 +519,29 @@ za::Vector<Item> pageDebugProfiling()
         row(opt::vr_profile_overlay),
         row(opt::vr_profile_csv),
         row(opt::vr_profile_hitch),
+        row(opt::vr_profile_slow_ms),
+        command("Foveate Scene Colours Only", "vr_gl_foveation_parts 1")
+            .help("vr_gl_foveation_parts 1: Scene Foveation (the Quest's GPU) on the eyes' scene colours only."),
+        command("Foveate Scene Colours and Depth", "vr_gl_foveation_parts 3")
+            .help("vr_gl_foveation_parts 3: Scene Foveation on the eyes' colours and their depth/stencil (and 7: the "
+                  "order-independent transparency targets too). A framebuffer the driver won't take turns it off."),
+        command("Scene Straight into the Headset's Images", "vr_xr_direct 1; vr_stereo_single 0")
+            .help("vr_xr_direct 1 (a probe, the Quest only): each eye's scene drawn straight into the headset's image, no "
+                  "post-process (no tone curve: bright colours clip), single-pass stereo off; vr_xr_foveation then reaches "
+                  "the scene. vr_xr_direct 0 and vr_stereo_single 1 undo it."),
+        command("Rig Lights Off the Walls (Quest)", "vr_rig_lights_world 0")
+            .help("vr_rig_lights_world 0: under the ES profile's plain lights' loop (the Quest), the small lights of your "
+                  "own gear (the guns' screens, the wrist gadget) light your hands and gear only, not the walls: cheaper "
+                  "on the Quest (QUEST_PLAN.md 6zb). The look is the question; vr_rig_lights_world 1 (the default) undoes it."),
+        command("Rig Lights on the Walls", "vr_rig_lights_world 1")
+            .help("vr_rig_lights_world 1 (the default): the rig's small lights light the walls too."),
+        row(opt::vr_gl_world_lit_skip),
+        row(opt::vr_gl_quake_dlights),
+        row(opt::vr_gl_world_dlmap),
+        row(opt::vr_gl_world_dlmap_batch),
+        command("Print Dynamic Lightmap Info (Quest)", "vr_gl_world_dlmap_info")
+            .help("vr_gl_world_dlmap_info: whether the dynamic lights are in the lightmap this frame, how many lights and "
+                  "texel blocks, and the CPU time of the last build."),
         command("Capture Frame (RenderDoc)", "vr_renderdoc_capture")
             .help("vr_renderdoc_capture: a RenderDoc capture of the next frame (both eyes: the desktop window's present ends "
                   "the frame), after the delay below; the console and a message show the file's path. Only when the game "
@@ -676,6 +699,10 @@ za::Vector<Item> pageDebugProfiling()
         row(opt::vr_alias_cull_posed),
         row(opt::vr_alias_player_first),
         row(opt::vr_alias_prepass_own),
+        row(opt::vr_alias_prepass_body),
+        row(opt::vr_debug_head_pose),
+        row(opt::vr_debug_head_pitch),
+        row(opt::vr_debug_hands_front),
         command("Lazy OIT Clear Stats", "vr_oit_stats")
             .help("vr_oit_stats: since the last time, the views with a translucent pass, how many drew something "
                   "translucent (water, slime, lava, a translucent model or particles) and how many skipped the clear."),
@@ -878,9 +905,49 @@ za::Vector<Item> pageDebugProfiling()
         command("Retry the Full Renderer", "vr_glsafe_retry")
             .help("vr_glsafe_retry: the automatic safe mode (kept after a start that crashed, or a safe start that was stopped) "
                   "off from the next start."),
+        command("Recompile Shaders (Loading Panel)", "vr_shader_reload_queued")
+            .help("vr_shader_reload_queued: the engine's shaders compiled again as at a start under OpenGL ES: queued, the "
+                  "loading panel (Compiling shaders: N / M) shown until done; the timings in the console."),
+        command("OpenGL ES Report", "vr_gles_report")
+            .help("vr_gles_report: the Quest (OpenGL ES 3.2) profile: what -glescompat turns off, the desktop-only GL "
+                  "calls given their ES form and those still pending, and the shader errors an ES compile gave."),
+        command("Quest Preset: Quest 3 72 Hz", "vr_quest_preset 0")
+            .help("vr_quest_preset 0 (1: Quest 3 at 90 Hz, 2: Quest 2; mine: back as before): the Low graphics preset, "
+                  "then the Quest's draft rows (resolution, MSAA, shadows, bloom, particles, marks, bodies). Only under "
+                  "-glescompat: the PC's settings stay."),
+        command("Quest Settings Check", "vr_quest_check")
+            .help("vr_quest_check (each Android start runs it after the saved config): the Quest rows that differ from "
+                  "the nearest Quest preset, and MSAA and bloom set back (vr_quest_guard 0: only said)."),
+        command("GL Sync Report", "vr_gl_sync_report")
+            .help("vr_gl_sync_report: the GL calls that made the CPU wait for the GPU since the last report, per frame "
+                  "(vr_gl_sync_count N: every N seconds)."),
+        command("ES Texture Read-Back Test", "vr_gles_readback_test")
+            .help("vr_gles_readback_test: every texture, the envmap and the shadow atlases read back by glGetTexImage "
+                  "and by its OpenGL ES form (a framebuffer and glReadPixels), compared byte for byte; the verdict to "
+                  "the console."),
         command("Safe Mode Judge Test", "vr_glsafe_judge_test")
             .help("vr_glsafe_judge_test: which stopped starts turn on automatic GL safe mode (a crash, a quick death "
                   "after the shaders) and which don't (stopped in a shader compile, after a slow one, after living on)."),
+        command("Android Layer Test", "vr_android_test")
+            .help("vr_android_test: the Android platform layer (start with -fakeandroid on the PC): the base and crash "
+                  "folders, the crash handler's signals and a report written as a crash writes it, no child processes; "
+                  "the verdict to the console."),
+        command("Eye Framebuffers Probe", "vr_gl_probe 1")
+            .help("vr_gl_probe 1: the next frame's eye framebuffers by numbers (complete or not, the share of pixels "
+                  "not black after the scene, the post-process and the UI) and a clear-and-read self-test; to the console."),
+        command("Eye Probe: Blue Under the Scene", "vr_gl_probe 2")
+            .help("vr_gl_probe 2: the probe, with the eye painted blue after its clear (no depth test): blue left after "
+                  "the scene means its fragments were rejected, black means they wrote 0."),
+        command("Eye Probe: Red Where Nothing Drew", "vr_gl_probe 3")
+            .help("vr_gl_probe 3: the probe, with red painted after the scene where the depth still holds the clear's "
+                  "value (nothing drew there)."),
+        command("Eye Probe: the World's Data in Green", "vr_gl_probe 4")
+            .help("vr_gl_probe 4: the probe, with the world's vertices and indices drawn in green through the frame's "
+                  "ViewProj by a minimal program (5: through the first instance's matrix too; 6 to 8: with the world's "
+                  "clip distances): green means the data and the transform are good."),
+        command("Android: Export Eye Images", "vr_android_export eyeshots")
+            .help("vr_android_export eyeshots: the eye images (vr_eyeshot) copied into the app's internal export/ "
+                  "folder, which a debuggable APK's `adb shell run-as` reads (Android only)."),
         header("Diagnostics"),
         command("Game Code and Folders", "vr_gamecode")
             .help("vr_gamecode: the folders the game reads from (its base dirs, game dirs and search path) and where its "

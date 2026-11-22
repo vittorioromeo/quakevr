@@ -19,6 +19,7 @@
 #include "vr_client.hpp"
 #include "vr_collectfx.hpp"
 #include "vr_cvars.hpp"
+#include "vr_dlightmap.hpp"
 #include "vr_tunables.hpp"
 #include "vr_flatplay.hpp"
 #include "vr_held.hpp"
@@ -29,6 +30,7 @@
 #include "vr_rig2.hpp"
 #include "vr_rigstudio.hpp"
 #include "vr_strings.hpp"
+#include "vr_api.h" // (VR_GLESForm)
 #include "vr_dirparryviz.hpp"
 #include "vr_hitreact.hpp"
 #include "vr_humlook.hpp"
@@ -257,6 +259,11 @@ extern "C" int VR_AliasCullPosedOn(const entity_t* e, int depth)
     return mode && (!e || depth || !view::keepsBareLight(e)) ? mode : 0;
 }
 
+extern "C" int VR_WorldLitSkip()
+{
+    return vr_gl_world_lit_skip.value != 0.f ? 1 : 0;
+}
+
 extern "C" int VR_AliasBatchPosed()
 {
     return vr_alias_batch_posed.value != 0.f ? 1 : 0;
@@ -274,7 +281,7 @@ extern "C" int VR_AliasDepthPrepass(const entity_t* e)
     const int group = VR_ViewEntityGroup(e);
     if(group == VR_DRAW_BODY || group == VR_DRAW_MIRROR)
     {
-        return 1;
+        return vr_alias_prepass_body.value != 0.f ? 1 : 0;
     }
     // Your hands and what they hold (vr_alias_prepass_own): the glove's shell over the hand and the fingers over the
     // palm shaded the hands' pixels about twice, a gun's own parts about 1.4 times (vr_model_fragments). Not while a
@@ -285,6 +292,126 @@ extern "C" int VR_AliasDepthPrepass(const entity_t* e)
     }
     const view::ViewEntity* ve = view::find(e);
     return ve && ve->morph == 0.f;
+}
+
+// C4i: the models' program without discard (glprogs.alias_opaque, made under the ES profile only): every discard of
+// the models' fragment shader is a morph's (a view entity's: VR_AliasMorph) or a see-through model's behind a gate, so
+// an opaque draw of anything not morphing never needs one. r_alias.c keeps a morphing entity out of others' batches.
+extern "C" int VR_AliasOpaqueForm(const entity_t* e)
+{
+    // (no opaque form outside the ES profile: 0 there, so the batches don't split on a morph for no program's sake,
+    // R_Alias_CanAddToBatch, and Auto means what its text says)
+    if(vr_gl_alias_opaque.value == 0.f || !e || !VR_GLESForm(VR_GLES_FORM_GLSL))
+    {
+        return 0;
+    }
+    if(!VR_IsViewEntity(e))
+    {
+        return 1;
+    }
+    const view::ViewEntity* ve = view::find(e);
+    return !ve || ve->morph == 0.f ? 1 : 0;
+}
+
+// C4k: the models' plain form (glprogs.alias_plain; QUEST_PLAN.md 6r): the per-model features an instance's data turns on,
+// as the bits of vr_gl_alias_plain_mask (gl_shaders.c GL_AliasPlainDefines; the shaders' QVR_ALIAS_FS_PLAIN): each the
+// switch the fragment shader tests for it.
+extern "C" int VR_AliasPlainNeeds(const vraliasinstance_t* vr)
+{
+    int needs = 0;
+    if(vr->skintone[3] > 0.f || vr->glove[3] > 0.f || vr->nails[3] > 0.f || vr->gloveshell[0] > 0.f || vr->skintint[3] > 0.f)
+    {
+        needs |= 1; // skin tone, gloves, nails, a glove's shell, a forearm's tint
+    }
+    if(vr->glow[0] != 0.f)
+    {
+        needs |= 2; // in_glow: hot blades and barrels, power-ups, force grab, the counter, the toolgun
+    }
+    if(fabsf(vr->wound[0]) >= 0.5f || (vr->gloveshell[3] > 0.5f && vr->gloveshell[2] > 0.f))
+    {
+        needs |= 4; // its wound mask, or the wet coat all over (WoundsAt)
+    }
+    if(vr->dent[1] >= 0.5f)
+    {
+        needs |= 8;
+    }
+    if(vr->stump[0] > 0.5f)
+    {
+        needs |= 16;
+    }
+    if(vr->ao[2] > 0.f)
+    {
+        needs |= 32; // its normal map's strength (bumpk)
+    }
+    if(vr->ambient[2][3] != 0.f)
+    {
+        needs |= 64; // in_morph
+    }
+    if(vr->surface[0] > 0.f || vr->surface[1] > 0.f)
+    {
+        needs |= 128; // rim light, reflections (ModelRimReflect)
+    }
+    return needs;
+}
+
+// r_alias.c: a batch whose instances need `needs` may be drawn by glprogs.alias_plain (2: every one, a probe).
+extern "C" int VR_AliasPlainUse(int needs)
+{
+    if(vr_gl_alias_plain.value == 0.f)
+    {
+        return 0;
+    }
+    return vr_gl_alias_plain.value >= 2.f || (needs & static_cast<int>(vr_gl_alias_plain_mask.value)) == 0 ? 1 : 0;
+}
+
+// C4x (QUEST_PLAN.md 6zd): r_alias.c: a batch the plain form can't draw may be drawn by its gore form
+// (glprogs.alias_gore) when it needs only the wounds (or the wet coat) and dents it keeps: in a live fight the monsters,
+// their guns and packs (blood on them) and your hands needed the whole shader (e1m1's live fight -0.7 ms on the Quest 3).
+extern "C" int VR_AliasGoreUse(int needs)
+{
+    if(vr_gl_alias_plain.value == 0.f || vr_gl_alias_gore.value == 0.f)
+    {
+        return 0;
+    }
+    constexpr int goreKeeps = 4 | 8; // as vr_api.h VR_ALIAS_GORE_NEEDS (gl_shaders.c's gore programs)
+    return (needs & static_cast<int>(vr_gl_alias_plain_mask.value) & ~goreKeeps) == 0 ? 1 : 0;
+}
+
+// C4y (QUEST_PLAN.md 6ze): r_alias.c: ... else by its skin form (glprogs.alias_skin) when it needs only the skin tone
+// (gloves, nails) besides those: your body, which kept the whole shader for its skin tone.
+extern "C" int VR_AliasSkinUse(int needs)
+{
+    if(vr_gl_alias_plain.value == 0.f || vr_gl_alias_skin.value == 0.f)
+    {
+        return 0;
+    }
+    constexpr int skinKeeps = 1 | 4 | 8; // as vr_api.h VR_ALIAS_SKIN_NEEDS (gl_shaders.c's skin programs)
+    return (needs & static_cast<int>(vr_gl_alias_plain_mask.value) & ~skinKeeps) == 0 ? 1 : 0;
+}
+
+// C5e (QUEST_PLAN.md 6zp): r_alias.c: your body's batch, drawn by the plain, gore or skin form, drawn by the body form
+// instead (glprogs.alias_body: the skin form with QVR_APLAIN_VLIGHT): its light per vertex. Its pixels were ~4 times the
+// world's cost, ~4 of its ~5 ms in its per-pixel light with the torso in view (6zo). Only where the vertex light leaves
+// nothing out: no dynamic occlusion (QVR_ALIAS_VS_VLIGHT has none) and no shadowed lights (its loop reads no shadows).
+// A probe (vr_gl_alias_body 0): measured slower on the Quest 3 (6zp: pitch 35 +3.2 ms, pitch 70 +3.5 at 0.7).
+extern "C" int VR_AliasBodyLight(const entity_t* e)
+{
+    if(dlightmap::aliasBodyMode() == 0.f || vr_gl_alias_plain.value == 0.f || !e || VR_ViewEntityGroup(e) != VR_DRAW_BODY)
+    {
+        return 0;
+    }
+    const bool occlusion = vr_ao_dynamic.value > 0.f || vr_ao_brush.value > 0.f;
+    const bool shadows = vr_shadow_dlights.value > 0.f || vr_shadow_maplights.value > 0.f;
+    return occlusion || shadows ? 0 : 1;
+}
+
+// C5f (QUEST_PLAN.md 6zq): r_alias.c R_AliasLightFinishBody: your body's dynamic lights added flat to its light on the
+// CPU as Quake did (vr_gl_alias_body 2; the shader's loop over them was ~1.85 ms of its ~5 with the torso in view, 6zo).
+// C5h (6zs): drawn by the form it takes anyway, the loop skipped for its batch (BatchDlightsFlat); C5f's own form for it
+// cost ~3.3 ms more running the same code. A batch mixing it with others gets the light without them back.
+extern "C" int VR_AliasBodyFlat(const entity_t* e)
+{
+    return dlightmap::aliasBodyMode() >= 2.f && VR_AliasBodyLight(e) && VR_AliasOpaqueForm(e) ? 1 : 0;
 }
 
 extern "C" int VR_AliasPlayerFirst(const entity_t* e)

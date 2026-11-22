@@ -35,6 +35,7 @@
 #include "vr_stereo.hpp"
 #include "vr_testkit.hpp"
 #include "vr_api_render.h"
+#include "vr_api.h"
 
 #if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
 #include <SDL2/SDL.h>
@@ -287,7 +288,11 @@ void main()
 constexpr const char* maskCs = R"(#version 430
 layout(local_size_x = 16, local_size_y = 16) in;
 layout(binding = 0) uniform usampler2D Stencil;
+#ifdef GL_ES
+layout(binding = 3, rgba8) uniform writeonly highp image2D MaskOut; // (ES 3.1 has no r8 images: VR_GLESImageFormat)
+#else
 layout(binding = 3, r8) uniform writeonly image2D MaskOut;
+#endif
 void main()
 {
     ivec2 p = ivec2(gl_GlobalInvocationID.xy);
@@ -399,10 +404,6 @@ struct TemporalBlock // std140: QVR_TEMPORAL_BLOCK (vr_glsl.h)
     float size[4];   // xy 1 / the eye's size
 };
 
-using GetBufferSubDataFn = void(APIENTRY*)(GLenum, GLintptr, GLsizeiptr, void*);
-using ClearTexImageFn = void(APIENTRY*)(GLuint, GLint, GLenum, GLenum, const void*);
-GetBufferSubDataFn getBufferSubData = nullptr;
-ClearTexImageFn clearTexImage = nullptr;
 using GetFbAttachmentFn = void(APIENTRY*)(GLenum, GLenum, GLenum, GLint*);
 GetFbAttachmentFn getFbAttachment = nullptr; // (vr_temporal_attachcheck's)
 testkit::Tally attachTally;                  // vr_temporal_attachcheck's checks
@@ -486,7 +487,7 @@ bool invert4(const float* m, float* out)
 [[nodiscard]] GLuint compile(GLenum type, const char* source, const char* name)
 {
     const GLuint shader = GL_CreateShaderFunc(type);
-    GL_ShaderSourceFunc(shader, 1, &source, nullptr);
+    VR_GLShaderSource(shader, 1, &source); // (-glescompat: as ES 3.2 GLSL)
     GL_CompileShaderFunc(shader);
     if(!gfx::compiled(shader, name))
     {
@@ -527,8 +528,6 @@ bool invert4(const float* m, float* out)
         state.resolveProgram = program(nullptr, GL_COMPUTE_SHADER, resolveCs, "vr taa resolve");
         state.maskProgram = program(nullptr, GL_COMPUTE_SHADER, maskCs, "vr taa mask");
         state.applyProgram = program(applyVs, GL_FRAGMENT_SHADER, applyFs, "vr taa apply");
-        getBufferSubData = reinterpret_cast<GetBufferSubDataFn>(SDL_GL_GetProcAddress("glGetBufferSubData"));
-        clearTexImage = reinterpret_cast<ClearTexImageFn>(SDL_GL_GetProcAddress("glClearTexImage"));
         state.failed = !state.resolveProgram || !state.maskProgram || !state.applyProgram;
         for(GLuint* p : {&state.resolveProgram, &state.maskProgram, &state.applyProgram})
         {
@@ -583,7 +582,7 @@ void ensureTextures(int width, int height)
         e.valid = false;
     }
     state.motionTex = makeTexture(GL_RGBA32F, width, height, GL_NEAREST, "taa motion");
-    state.maskTex = makeTexture(GL_R8, width, height, GL_NEAREST, "taa reactive mask");
+    state.maskTex = makeTexture(VR_GLESImageFormat(GL_R8), width, height, GL_NEAREST, "taa reactive mask");
     state.displayTex = makeTexture(GL_RGBA16F, width, height, GL_NEAREST, "taa debug view");
     for(EyeState& e : state.eyes)
     {
@@ -593,10 +592,9 @@ void ensureTextures(int width, int height)
             e.depth[i] = makeTexture(GL_R32F, width, height, GL_NEAREST, "taa history depth");
         }
     }
-    if(clearTexImage) // (no stale stamp can match)
     {
-        const float none[4] = {0.f, 0.f, 0.f, -1.f};
-        clearTexImage(state.motionTex, 0, GL_RGBA, GL_FLOAT, none);
+        const float none[4] = {0.f, 0.f, 0.f, -1.f}; // (no stale stamp can match)
+        gfx::clearTexture(state.motionTex, none);
     }
     state.texWidth = width;
     state.texHeight = height;
@@ -852,15 +850,20 @@ void registerCommands()
     Cmd_AddCommand("vr_temporal_error",
         []
         {
-            if(!state.statsBuffer || !getBufferSubData)
+            if(!state.statsBuffer)
             {
                 Con_Printf("vr_temporal_error: no data (vr_temporal_debug 3 in the headset first)\n");
                 return;
             }
             std::uint32_t stats[statsViews * 4] = {};
             GL_BindBuffer(GL_SHADER_STORAGE_BUFFER, state.statsBuffer);
-            getBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(stats), stats);
+            const bool read = gfx::readBuffer(GL_SHADER_STORAGE_BUFFER, 0, sizeof(stats), stats);
             GL_BindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+            if(!read)
+            {
+                Con_Printf("vr_temporal_error: the statistics could not be read back\n");
+                return;
+            }
             for(int eye = state.flat ? flatView : 0; eye < (state.flat ? statsViews : 2); eye++)
             {
                 const std::uint32_t* s = stats + eye * 4;
@@ -1139,7 +1142,7 @@ extern "C" void VR_TemporalResolve(unsigned fbo, unsigned color, unsigned depth)
         GL_UseProgram(state.maskProgram);
         GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, depth);
         glTexParameteri(GL_TEXTURE_2D, GL_DEPTH_STENCIL_TEXTURE_MODE, GL_STENCIL_INDEX);
-        GL_BindImageTextureFunc(3, state.maskTex, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_R8);
+        GL_BindImageTextureFunc(3, state.maskTex, 0, GL_FALSE, 0, GL_WRITE_ONLY, VR_GLESImageFormat(GL_R8));
         GL_DispatchComputeFunc(groupsX, groupsY, 1);
         glTexParameteri(GL_TEXTURE_2D, GL_DEPTH_STENCIL_TEXTURE_MODE, GL_DEPTH_COMPONENT);
         GL_MemoryBarrierFunc(GL_TEXTURE_FETCH_BARRIER_BIT | GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);

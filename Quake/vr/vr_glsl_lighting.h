@@ -3,13 +3,58 @@
 
 #pragma once
 
+// the bumped normal (SHADOW_FUNCTIONS, twice: QVR_SAMPLER_TWINS, vr_retro.h)
+#define QVR_BUMPED_NORMAL_FUNCS \
+"vec3 BumpedNormalFrame(QVR_S tex, vec2 uv, vec2 duvdx, vec2 duvdy, vec3 dpdx, vec3 dpdy, vec3 n, float strength, bool axes)\n"\
+"{\n"\
+"	vec3 dp2perp = cross(dpdy, n);\n"\
+"	vec3 dp1perp = cross(n, dpdx);\n"\
+"	vec3 t = dp2perp * duvdx.x + dp1perp * duvdy.x;\n"\
+"	vec3 b = dp2perp * duvdx.y + dp1perp * duvdy.y;\n"\
+"	float k = inversesqrt(max(max(dot(t, t), dot(b, b)), 1e-24));\n"\
+"	if (axes)\n"\
+"	{\n"\
+"		t *= inversesqrt(max(dot(t, t), 1e-24));\n"\
+"		b *= inversesqrt(max(dot(b, b), 1e-24));\n"\
+"		k = 1.0;\n"\
+"	}\n"\
+"	vec4 s = RetroAux(tex, uv, duvdx, duvdy); // QVR: smooth, or the retro textures' blocks (vr_retro.h)\n"\
+"	vec2 m = s.xy * 2.0 - 1.0; // x and y (RG8): z makes it unit length\n"\
+"	float z = sqrt(max(1.0 - dot(m, m), 0.0025));\n"\
+"	if (Parallax.w > 0. && s.z > 0.25) // QVR: RGBA maps keep z: the mip's averaged normal, shorter where the normals under it differ (SpecularAA)\n"\
+"	{\n"\
+"		vec2 size = vec2(textureSize(tex, 0).xy), ex = duvdx * size, ey = duvdy * size;\n"\
+"		float len = length(s.xyz * 2.0 - 1.0), minified = clamp(0.5 * log2(max(max(dot(ex, ex), dot(ey, ey)), 1e-8)), 0.0, 1.0);\n"\
+"		BumpSpread = max(1.0 - len - 0.004, 0.0) / max(len, 0.1) * strength * strength * minified; // 0.004: 8 bits' rounding; not magnified (a blend of two texels is a slope)\n"\
+"	}\n"\
+"	m *= strength;\n"\
+"	return normalize((t * m.x - b * m.y) * k + n * z);\n"\
+"}\n"\
+"vec3 BumpedNormalK(QVR_S tex, vec2 uv, vec2 duvdx, vec2 duvdy, vec3 dpdx, vec3 dpdy, vec3 n, float strength)\n"\
+"{\n"\
+"	return BumpedNormalFrame(tex, uv, duvdx, duvdy, dpdx, dpdy, n, strength, true);\n"\
+"}\n"\
+"vec3 BumpedNormal(QVR_S tex, vec2 uv, vec2 duvdx, vec2 duvdy, vec3 dpdx, vec3 dpdy, vec3 n, float multiplier)\n"\
+"{\n"\
+"	return BumpedNormalFrame(tex, uv, duvdx, duvdy, dpdx, dpdy, n, LightTweak.w * multiplier, false);\n"\
+"}\n"
+
 // shadows and per-pixel light (vr/vr_lighting.cpp). Needs the frame data and LIGHT_BUFFER.
 // ShadowFlags: bits 0-1 filter (1, 4, 9 or 16 taps), 4 dynamic lights uncapped, 8 per-pixel
 // dynamic lights on models, 16 DarkPlaces' falloff (a light's minlight is then its ambient), 32
 // models lit on a par with the world (vr_model_light_parity). A light's six faces (+x -x +y -y +z -z; right and up below, forward
 // the axis) sit 3 x 2 from its origin in the atlas; depth is reversed, SHADOW_NEAR / distance
 // along the face's axis; each face has a border of SHADOW_BORDER texels for filtering.
+// QVR: vr_gles_define's probes (C4m; QUEST_PLAN.md 6t): one of the lights' lite form's parts (gl_shaders.c
+// GL_LightsLiteDefines) taken back out, in a session, to time each alone.
+#define QVR_LIGHTS_LITE_PROBES \
+"#ifdef QVR_PROBE_LLKEEP_ONEF\n#undef QVR_LITE_ONEFILTER\n#endif\n" \
+"#ifdef QVR_PROBE_LLKEEP_PORTAL\n#undef QVR_LITE_NOPORTALLIGHT\n#endif\n" \
+"#ifdef QVR_PROBE_LLKEEP_MAPSHADOW\n#undef QVR_LITE_NOMAPSHADOW\n#endif\n" \
+"#ifdef QVR_PROBE_LLKEEP_FALLOFF\n#undef QVR_LITE_NODLFALLOFF\n#endif\n" \
+"#ifdef QVR_PROBE_LLKEEP_FILT\n#undef QVR_LITE_SHADOWFILT\n#endif\n"
 #define SHADOW_FUNCTIONS \
+QVR_LIGHTS_LITE_PROBES \
 "layout(binding=4) uniform sampler2DShadow ShadowAtlas;\n"\
 "layout(binding=5) uniform sampler2DShadow ShadowStatic;\n"\
 "\n"\
@@ -30,6 +75,9 @@ QVR_RETROLIGHT_GLSL /* QVR: retro lighting (vr_retrolight.h) */ \
 "float ShadowFilter(sampler2DShadow atlas, vec2 texel, float ref)\n"\
 "{\n"\
 "	vec2 inv = 1.0 / vec2(textureSize(atlas, 0));\n"\
+"#ifdef QVR_LITE_SHADOWFILT\n" /* QVR: the ES lite form (C4l, QUEST_PLAN.md 6s): the kernel vr_shadow_filter chooses as a constant, the other three's code out (retro lighting off) */ \
+"	const uint filt = uint(QVR_LITE_SHADOWFILT);\n"\
+"#else\n"\
 "	uint filt = ShadowFlags & 3u;\n"\
 "	if (RetroLight[3].x > 0.) // QVR: retro lighting's hard shadows: one tap; 2: on the shadow map's texels (blocky)\n"\
 "	{\n"\
@@ -37,6 +85,7 @@ QVR_RETROLIGHT_GLSL /* QVR: retro lighting (vr_retrolight.h) */ \
 "		if (RetroLight[3].x > 1.5)\n"\
 "			texel = floor(texel) + 0.5;\n"\
 "	}\n"\
+"#endif\n"\
 "	if (filt == 0u)\n"\
 "		return ShadowTap(atlas, texel, inv, ref);\n"\
 "	if (filt == 1u)\n"\
@@ -104,7 +153,8 @@ QVR_RETROLIGHT_GLSL /* QVR: retro lighting (vr_retrolight.h) */ \
 "\n"\
 "// A spot light's shadow: one tile (l.shadow: xy origin, z size), a perspective projection about its direction,\n"\
 "// l.shadow2.x the tangent of the tile's half angle (inside its border); right and up as vr_lighting.cpp's spotFrame.\n"\
-"float SpotShadow(Light l, vec3 pos, vec3 n)\n"\
+"// SpotShadowAt: where it reads (xy the atlas texel, z the reference depth); SpotShadow: the filtered compare there.\n"\
+"vec3 SpotShadowAt(Light l, vec3 pos, vec3 n)\n"\
 "{\n"\
 "	vec3 fwd = normalize(l.spot.xyz);\n"\
 "	vec3 right = normalize(cross(fwd, abs(fwd.z) < 0.9 ? vec3(0., 0., 1.) : vec3(1., 0., 0.)));\n"\
@@ -117,13 +167,21 @@ QVR_RETROLIGHT_GLSL /* QVR: retro lighting (vr_retrolight.h) */ \
 "	float z = max(dot(d, fwd), SHADOW_NEAR);\n"\
 "	vec2 st = clamp(vec2(dot(d, right), dot(d, up)) / (z * spread), -1.0, 1.0);\n"\
 "	float k = 1.0 - 2.0 * SHADOW_BORDER / size;\n"\
-"	return ShadowFilter(ShadowAtlas, l.shadow.xy + (st * (0.5 * k) + 0.5) * size, SHADOW_NEAR / z * (1.0 + 0.002 * ShadowBias));\n"\
+"	return vec3(l.shadow.xy + (st * (0.5 * k) + 0.5) * size, SHADOW_NEAR / z * (1.0 + 0.002 * ShadowBias));\n"\
+"}\n"\
+"float SpotShadow(Light l, vec3 pos, vec3 n)\n"\
+"{\n"\
+"	vec3 at = SpotShadowAt(l, pos, n);\n"\
+"	return ShadowFilter(ShadowAtlas, at.xy, at.z);\n"\
 "}\n"\
 "\n"\
 "// A virtual light follows exactly the movement transform. Its straight ray in the destination\n"\
 "// represents the folded source/exit path; attenuation therefore keeps its full travelled distance.\n"\
 "float PortalLightPath(Light l, vec3 pos)\n"\
 "{\n"\
+"#if defined(QVR_PROBE_NOGATE) || defined(QVR_LITE_NOPORTALLIGHT)\n" /* QVR: -glesdefine's probe (C4l); the ES lite form (C4l): no portal lights (vr_portals 0: none made) */ \
+"    return 1.0;\n"\
+"#endif\n"\
 "    if (l.gatelo.w <= 0.0) return 1.0;\n"\
 "    float a = dot(l.origin, l.gateplane.xyz) - l.gateplane.w;\n"\
 "    float b = dot(pos, l.gateplane.xyz) - l.gateplane.w;\n"\
@@ -136,13 +194,39 @@ QVR_RETROLIGHT_GLSL /* QVR: retro lighting (vr_retrolight.h) */ \
 "    return ShadowLookup(ShadowAtlas, l.gateshadow.xyz, sourceEntry - sourceLight);\n"\
 "}\n"\
 "\n"\
+"#ifdef QVR_LITE_ONEFILTER\n" /* QVR: the ES lite form (C4l; QUEST_PLAN.md 6s): a spot's and a point light's shadow map read by one */ \
+"// filter's code (SpotShadow's and ShadowLookup's two copies of it cost ~2.5 ms of the Quest 3's GPU in a fight, by their\n"\
+"// presence alone): the filtered compare of a dynamic light's shadow map (l.shadow.z > 0) at pos (normal n).\n"\
+"float DlightShadowMap(Light l, vec3 pos, vec3 n)\n"\
+"{\n"\
+"	vec3 at;\n"\
+"	if (l.shadow2.x > 0.)\n"\
+"		at = SpotShadowAt(l, pos, n);\n"\
+"	else\n"\
+"	{\n"\
+"		float cell;\n"\
+"		vec3 f = ShadowFace(l.shadow.z, ShadowOffset(pos - l.origin, n, l.shadow.z), cell);\n"\
+"		at = vec3(l.shadow.xy + f.xy, f.z);\n"\
+"	}\n"\
+"	return ShadowFilter(ShadowAtlas, at.xy, at.z);\n"\
+"}\n"\
+"#endif\n"\
+"\n"\
 "// A dynamic light's shadow at pos (normal n), times its cone there (SpotCone: 1 for a point light). l.shadow2.y: the share\n"\
 "// its shadow lets through (fading in or out: vr_lighting.cpp's selectDlights; 0 a full shadow).\n"\
 "float LightShadow(Light l, vec3 pos, vec3 n, float cone)\n"\
 "{\n"\
+"#ifdef QVR_PROBE_NOSHADOW\n" /* QVR: -glesdefine's probe (C4e): no shadow code */ \
+"	return cone;\n"\
+"#endif\n"\
 "	cone *= PortalLightPath(l, pos);\n"\
 "	if (l.shadow.z <= 0. || cone <= 0.)\n"\
 "		return cone;\n"\
+"#ifdef QVR_PROBE_NOSPOTSHADOW\n" /* QVR: -glesdefine's probe (C4l): no spot lights' shadow code */ \
+"	if (false)\n"\
+"#elif defined(QVR_LITE_ONEFILTER)\n" \
+"	return cone * mix(RetroShadowQuant(DlightShadowMap(l, pos, n)), 1.0, l.shadow2.y);\n"\
+"#endif\n"\
 "	if (l.shadow2.x > 0.)\n"\
 "		return cone * mix(RetroShadowQuant(SpotShadow(l, pos, n)), 1.0, l.shadow2.y); // QVR: in retro lighting's levels\n"\
 "	return cone * mix(RetroShadowQuant(ShadowLookup(ShadowAtlas, l.shadow.xyz, ShadowOffset(pos - l.origin, n, l.shadow.z))), 1.0, l.shadow2.y);\n"\
@@ -194,39 +278,7 @@ QVR_RETROLIGHT_GLSL /* QVR: retro lighting (vr_retrolight.h) */ \
 "// the world's flat faces, the same in both eyes. The derivatives come from the caller (taken before any discard).\n"\
 "// QVR: `axes` (models) makes t and b each of unit length, as a baker's tangent frame has them (Blender's): model\n"\
 "// skins are rarely square (512 x 178), and scaled together, a slope along the long side came out a third as steep.\n"\
-"vec3 BumpedNormalFrame(sampler2D tex, vec2 uv, vec2 duvdx, vec2 duvdy, vec3 dpdx, vec3 dpdy, vec3 n, float strength, bool axes)\n"\
-"{\n"\
-"	vec3 dp2perp = cross(dpdy, n);\n"\
-"	vec3 dp1perp = cross(n, dpdx);\n"\
-"	vec3 t = dp2perp * duvdx.x + dp1perp * duvdy.x;\n"\
-"	vec3 b = dp2perp * duvdx.y + dp1perp * duvdy.y;\n"\
-"	float k = inversesqrt(max(max(dot(t, t), dot(b, b)), 1e-24));\n"\
-"	if (axes)\n"\
-"	{\n"\
-"		t *= inversesqrt(max(dot(t, t), 1e-24));\n"\
-"		b *= inversesqrt(max(dot(b, b), 1e-24));\n"\
-"		k = 1.0;\n"\
-"	}\n"\
-"	vec4 s = RetroAux(tex, uv, duvdx, duvdy); // QVR: smooth, or the retro textures' blocks (vr_retro.h)\n"\
-"	vec2 m = s.xy * 2.0 - 1.0; // x and y (RG8): z makes it unit length\n"\
-"	float z = sqrt(max(1.0 - dot(m, m), 0.0025));\n"\
-"	if (Parallax.w > 0. && s.z > 0.25) // QVR: RGBA maps keep z: the mip's averaged normal, shorter where the normals under it differ (SpecularAA)\n"\
-"	{\n"\
-"		vec2 size = vec2(textureSize(tex, 0)), ex = duvdx * size, ey = duvdy * size;\n"\
-"		float len = length(s.xyz * 2.0 - 1.0), minified = clamp(0.5 * log2(max(max(dot(ex, ex), dot(ey, ey)), 1e-8)), 0.0, 1.0);\n"\
-"		BumpSpread = max(1.0 - len - 0.004, 0.0) / max(len, 0.1) * strength * strength * minified; // 0.004: 8 bits' rounding; not magnified (a blend of two texels is a slope)\n"\
-"	}\n"\
-"	m *= strength;\n"\
-"	return normalize((t * m.x - b * m.y) * k + n * z);\n"\
-"}\n"\
-"vec3 BumpedNormalK(sampler2D tex, vec2 uv, vec2 duvdx, vec2 duvdy, vec3 dpdx, vec3 dpdy, vec3 n, float strength)\n"\
-"{\n"\
-"	return BumpedNormalFrame(tex, uv, duvdx, duvdy, dpdx, dpdy, n, strength, true);\n"\
-"}\n"\
-"vec3 BumpedNormal(sampler2D tex, vec2 uv, vec2 duvdx, vec2 duvdy, vec3 dpdx, vec3 dpdy, vec3 n, float multiplier)\n"\
-"{\n"\
-"	return BumpedNormalFrame(tex, uv, duvdx, duvdy, dpdx, dpdy, n, LightTweak.w * multiplier, false);\n"\
-"}\n"\
+QVR_SAMPLER_TWINS(QVR_BUMPED_NORMAL_FUNCS)\
 "\n"\
 "// The baked light on the bumps (vr_normalmap_baked: LightTweak.y): a light from a guessed direction, towards where\n"\
 "// the lightmap gets brighter over the surface (dlum: the screen derivatives of its brightness lum) and a little from\n"\
@@ -246,6 +298,9 @@ QVR_RETROLIGHT_GLSL /* QVR: retro lighting (vr_retrolight.h) */ \
 "// light gave and something moving now blocks, where the world itself does not (the baked light has that).\n"\
 "float MapLightShadow(Light l, vec3 pos, vec3 n, vec3 lit)\n"\
 "{\n"\
+"#if defined(QVR_PROBE_NOSHADOW) || defined(QVR_LITE_NOMAPSHADOW)\n" /* QVR: -glesdefine's probe (C4e): no shadow code; the ES lite form (C4l): no map light shadows (vr_shadow_maplights 0: no light has one) */ \
+"	return 1.0;\n"\
+"#endif\n"\
 "	vec3 d = pos - l.origin;\n"\
 "	float dist = length(d);\n"\
 "	float given = (l.shadow2.z - dist * l.shadow2.w) * (0.5 + 0.5 * max(dot(n, -d / max(dist, 1e-3)), 0.0)) / 255.0;\n"\

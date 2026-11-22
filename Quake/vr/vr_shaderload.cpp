@@ -1,0 +1,281 @@
+// vr_shaderload.cpp -- the loading panel while the engine's shaders are queued (gl_shaders.c GL_CreateShadersAsync,
+// QUEST_PLAN.md 6zi): each frame the set pumped (GL_ShadersPump: a few milliseconds of submits, the driver's threads
+// polled), then "Compiling shaders: N / M" with a progress bar drawn on the CPU into a small image (the console font,
+// no shader needed) and shown as the runtime's panel (an OpenXR quad layer: the headset keeps getting frames, no
+// runtime dots) and in the window (a blit). Nothing else runs meanwhile (host.c _Host_Frame returns after it).
+
+#include "vr_backend.hpp"
+#include "vr_engine.hpp"
+#include "vr_main.hpp"
+#include "vr_testkit.hpp"
+
+#include "vr_api.h"
+
+#include "Zancle/Math/MinMax.hpp"
+
+#include <stdio.h>
+#include <string.h>
+
+namespace
+{
+
+constexpr int imageWidth = 768;
+constexpr int imageHeight = 192;
+constexpr double pumpBudget = 0.008; // seconds of submits a frame (one program at least)
+
+struct LoadState
+{
+    unsigned char pixels[imageWidth * imageHeight * 4]; // RGBA, bottom row first (GL's)
+    GLuint windowTexture = 0, windowFbo = 0;            // the window's copy (a blit)
+    bool firstShown = false;                            // the first loading frame noted in the start-up trace
+    double started = 0.0;                               // its time (Sys_DoubleTime)
+    int frames = 0, panelFrames = 0, windowFrames = 0;  // this set's loading frames; those shown in the headset, in the window
+    int lastDone = -1, steps = 0;                       // the progress seen: how many times it moved
+    bool shotWritten = false;                           // -shaderloadshot's image written
+    bool earlyStarted = false;                          // the VR session started for it (qvr::startForLoading)
+};
+LoadState load;
+
+void put(int x, int y, unsigned rgba)
+{
+    if(x < 0 || y < 0 || x >= imageWidth || y >= imageHeight)
+    {
+        return;
+    }
+    unsigned char* p = load.pixels + ((imageHeight - 1 - y) * imageWidth + x) * 4;
+    memcpy(p, &rgba, 4);
+}
+
+void fill(int x0, int y0, int w, int h, unsigned rgba)
+{
+    for(int y = y0; y < y0 + h; y++)
+    {
+        for(int x = x0; x < x0 + w; x++)
+        {
+            put(x, y, rgba);
+        }
+    }
+}
+
+[[nodiscard]] unsigned rgba(int r, int g, int b)
+{
+    const unsigned char c[4] = {static_cast<unsigned char>(r), static_cast<unsigned char>(g), static_cast<unsigned char>(b), 255};
+    unsigned v;
+    memcpy(&v, c, 4);
+    return v;
+}
+
+// A line in the console font (gfx.wad's conchars: 16x16 characters of 8x8, palette 0 clear), `scale` image pixels a
+// font pixel, centred; at most as many characters as fit.
+void text(const char* s, int y, int scale, bool alt)
+{
+    lumpinfo_t* info = nullptr;
+    const byte* font = static_cast<const byte*>(W_GetLumpName("conchars", &info));
+    if(!font || !info || info->disksize < 128 * 128)
+    {
+        return;
+    }
+    const int fit = (imageWidth - 24) / (8 * scale); // (clear of the edge)
+    const int n = za::min(static_cast<int>(strlen(s)), fit);
+    const int x0 = (imageWidth - n * 8 * scale) / 2;
+    for(int i = 0; i < n; i++)
+    {
+        const int c = (static_cast<unsigned char>(s[i]) & 127) | (alt ? 128 : 0);
+        const byte* glyph = font + (c / 16) * 128 * 8 + (c % 16) * 8;
+        for(int gy = 0; gy < 8; gy++)
+        {
+            for(int gx = 0; gx < 8; gx++)
+            {
+                const byte index = glyph[gy * 128 + gx];
+                if(index)
+                {
+                    fill(x0 + (i * 8 + gx) * scale, y + gy * scale, scale, scale, d_8to24table[index] | 0xff000000u);
+                }
+            }
+        }
+    }
+}
+
+void drawImage(int done, int total, const char* last, double seconds)
+{
+    const unsigned background = rgba(18, 14, 10);
+    fill(0, 0, imageWidth, imageHeight, background);
+    const unsigned edge = rgba(110, 80, 40);
+    fill(0, 0, imageWidth, 3, edge);
+    fill(0, imageHeight - 3, imageWidth, 3, edge);
+    fill(0, 0, 3, imageHeight, edge);
+    fill(imageWidth - 3, 0, 3, imageHeight, edge);
+
+    text("QUAKE VR", 14, 4, true);
+    text(va("Compiling shaders: %d / %d", done, total), 58, 2, false);
+
+    const int barX = 48, barY = 88, barW = imageWidth - 96, barH = 22;
+    fill(barX - 2, barY - 2, barW + 4, barH + 4, edge);
+    fill(barX, barY, barW, barH, rgba(30, 24, 18));
+    const int filled = total > 0 ? barW * za::min(done, total) / total : 0;
+    fill(barX, barY, filled, barH, rgba(200, 150, 60));
+
+    text(last && *last ? last : "", 124, 2, false);
+    text(VR_ProgCacheOn() ? va("%.0f s - the next starts take them from the program cache", seconds) : va("%.0f s", seconds),
+        156, 2, true);
+}
+
+// The image as a TGA (-shaderloadshot <file>: the panel's look checked without a headset).
+void writeShot(const char* path)
+{
+    FILE* f = fopen(path, "wb");
+    if(!f)
+    {
+        Con_SafePrintf("-shaderloadshot: %s not written\n", path);
+        return;
+    }
+    const unsigned char header[18] = {0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, static_cast<unsigned char>(imageWidth & 255),
+        static_cast<unsigned char>(imageWidth >> 8), static_cast<unsigned char>(imageHeight & 255),
+        static_cast<unsigned char>(imageHeight >> 8), 32, 8};
+    fwrite(header, 1, sizeof(header), f);
+    for(int i = 0; i < imageWidth * imageHeight; i++)
+    {
+        const unsigned char* p = load.pixels + i * 4;
+        const unsigned char bgra[4] = {p[2], p[1], p[0], p[3]};
+        fwrite(bgra, 1, 4, f);
+    }
+    fclose(f);
+    Con_SafePrintf("-shaderloadshot: the loading panel's image in %s\n", path);
+}
+
+void upload(GLuint texture)
+{
+    GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, texture);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, imageWidth, imageHeight, GL_RGBA, GL_UNSIGNED_BYTE, load.pixels);
+}
+
+// The headset: the image into the runtime's panel (its quad layer) and the frame ended with no eyes.
+void toHeadset()
+{
+    qvr::Backend* be = qvr::backend();
+    if(!be || !be->frameActive())
+    {
+        return;
+    }
+    const unsigned image = qvr::frameState().shouldRender ? be->acquirePanelImage(imageWidth, imageHeight) : 0;
+    if(image)
+    {
+        upload(image);
+        be->releasePanelImage();
+        load.panelFrames++;
+    }
+    be->endFrame(false);
+}
+
+// The window: the image blitted in, centred at its aspect, then shown.
+void toWindow()
+{
+    if(VR_NoWindow())
+    {
+        return;
+    }
+    if(!load.windowTexture)
+    {
+        glGenTextures(1, &load.windowTexture);
+        GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, load.windowTexture);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, imageWidth, imageHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        GL_GenFramebuffersFunc(1, &load.windowFbo);
+        GL_BindFramebufferFunc(GL_READ_FRAMEBUFFER, load.windowFbo);
+        GL_FramebufferTexture2DFunc(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, load.windowTexture, 0);
+    }
+    upload(load.windowTexture);
+    int w = 0, h = 0;
+    VID_LoadingSize(&w, &h);
+    if(w <= 0 || h <= 0)
+    {
+        return;
+    }
+    GL_BindFramebufferFunc(GL_FRAMEBUFFER, 0);
+    glDisable(GL_SCISSOR_TEST);
+    glViewport(0, 0, w, h);
+    glClearColor(0.f, 0.f, 0.f, 1.f);
+    glClear(GL_COLOR_BUFFER_BIT);
+    const int dw = za::min(w * 9 / 10, (h * 9 / 10) * imageWidth / imageHeight);
+    const int dh = dw * imageHeight / imageWidth;
+    GL_BindFramebufferFunc(GL_READ_FRAMEBUFFER, load.windowFbo);
+    GL_BlitFramebufferFunc(0, 0, imageWidth, imageHeight, (w - dw) / 2, (h - dh) / 2, (w - dw) / 2 + dw, (h - dh) / 2 + dh,
+        GL_COLOR_BUFFER_BIT, GL_LINEAR);
+    GL_BindFramebufferFunc(GL_FRAMEBUFFER, 0);
+    VID_LoadingSwap();
+    load.windowFrames++;
+}
+
+} // namespace
+
+extern "C" int VR_ShadersLoadingFrame(void)
+{
+    if(!GL_ShadersPump(pumpBudget))
+    {
+        return 0;
+    }
+    const double now = Sys_DoubleTime();
+    if(!load.firstShown)
+    {
+        load.firstShown = true;
+        load.started = now;
+        load.frames = load.panelFrames = load.windowFrames = load.steps = 0;
+        load.lastDone = -1;
+        load.earlyStarted = false;
+        VR_StepBegin("shaders queued: the loading panel's frames"); // (the start-up trace: ended at VR_ShadersLoaded)
+    }
+    int done = 0, total = 0;
+    const char* last = "";
+    GL_ShadersProgress(&done, &total, &last);
+    if(done != load.lastDone)
+    {
+        load.steps++;
+        load.lastDone = done;
+    }
+    load.frames++;
+    // A program compiled from its sources (a first start, a changed set: seconds, not the cache's fraction of one): the
+    // VR session started now, before the configs, so the panel reaches the headset (QUEST_PLAN.md 6zv). All from the
+    // cache: the start-up as before (the session after the configs).
+    if(GL_ShadersCompiling() > 0 && qvr::startForLoading())
+    {
+        load.earlyStarted = true;
+    }
+    drawImage(done, total, last, now - load.started);
+    const int shot = COM_CheckParm("-shaderloadshot");
+    if(shot && shot + 1 < com_argc && !load.shotWritten && done * 2 >= total)
+    {
+        load.shotWritten = true;
+        writeShot(com_argv[shot + 1]);
+    }
+    toHeadset();
+    toWindow();
+    return 1;
+}
+
+// The set done (GL_ShadersPump): the trace's step ended; -shadersasynctest's verdict (frames flowed while it compiled,
+// the progress moved, no frame's work over 50 ms).
+extern "C" void VR_ShadersLoaded(int programs, int frames, double ms, double maxwork, double maxgap)
+{
+    if(load.firstShown)
+    {
+        VR_StepEnd();
+    }
+    Con_SafePrintf("loading panel: %d frames (%d in the headset, %d in the window), progress moved %d times%s\n", load.frames,
+        load.panelFrames, load.windowFrames, load.steps, load.earlyStarted ? "; the VR session started early for it" : "");
+    if(COM_CheckParm("-shadersasynctest"))
+    {
+        constexpr const char* name = "shaders_async_test";
+        qvr::testkit::Tally t;
+        Con_SafePrintf("%s: %d programs, %d pumps, %d loading frames, %.0f ms, progress moved %d times, longest frame's work "
+                       "%.1f ms (between frames %.1f ms)\n",
+            name, programs, frames, load.frames, ms, load.steps, maxwork, maxgap);
+        t.check(programs > 50, name, "the set queued (over 50 programs: the ES set is 73 since its lite world)");
+        t.check(frames > 2 && load.frames > 2, name, "frames flowed while it compiled");
+        t.check(load.steps > 2, name, "the progress moved");
+        t.check(maxwork < 50.0, name, "a frame's work over 50 ms");
+        t.verdict(name);
+    }
+    load.firstShown = false;
+}

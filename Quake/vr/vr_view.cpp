@@ -5545,7 +5545,7 @@ extern "C" void VR_SetupViewEntities()
             return;
         }
     }
-    if(!s.valid || cl.intermission)
+    if(!s.valid || cl.intermission || hands::demoViewOnly()) // (an id demo's view: not the player's models, C4u)
     {
         forEachEntity([](view::ViewEntity& ve) { ve.visible = false; });
         for(RigHand& rh : rigHands)

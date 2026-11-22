@@ -341,6 +341,10 @@ aren't Map Library packages aren't sent to joining players.
 
 ## Performance
 
+- **Your body draws lighter.** The bare forearms of your drawn body were made of 144-sided rings from the shoulder
+  to the wrist; only the wrist, where the arm meets the hand, needs them now. The body has 62% fewer triangles and
+  costs about a quarter less GPU time, in VR and flatscreen, looking the same.
+
 - **Crowded maps run lighter.** Armed grunts you can't see (behind walls, or far off and out of view) and that
   haven't noticed you cost far less to run; Dwell's biggest map (d2m8, 250 armed grunts) about half. They wake,
   aim and fight exactly as before the moment you see them, hit them or they notice you.

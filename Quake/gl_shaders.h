@@ -242,8 +242,8 @@ QVR_BLOOD_UNIFORMS // QVR
 "	coord &= 15;\n"\
 "	coord.y ^= coord.x;\n"\
 "	uint v = uint(coord.y | (coord.x << 8));	// 0  0  0  0 | x3 x2 x1 x0 |  0  0  0  0 | y3 y2 y1 y0\n"\
-"	v = (v ^ (v << 2)) & 0x3333;				// 0  0 x3 x2 |  0  0 x1 x0 |  0  0 y3 y2 |  0  0 y1 y0\n"\
-"	v = (v ^ (v << 1)) & 0x5555;				// 0 x3  0 x2 |  0 x1  0 x0 |  0 y3  0 y2 |  0 y1  0 y0\n"\
+"	v = (v ^ (v << 2)) & 0x3333u;				// 0  0 x3 x2 |  0  0 x1 x0 |  0  0 y3 y2 |  0  0 y1 y0\n"\
+"	v = (v ^ (v << 1)) & 0x5555u;				// 0 x3  0 x2 |  0 x1  0 x0 |  0 y3  0 y2 |  0 y1  0 y0\n"\
 "	v |= v >> 7;								// 0 x3  0 x2 |  0 x1  0 x0 | x3 y3 x2 y2 | x1 y1 x0 y0\n"\
 "	v = bitfieldReverse(v) >> 24;				// 0  0  0  0 |  0  0  0  0 | y0 x0 y1 x1 | y2 x2 y3 x3\n"\
 "	return float(v) * (1.0/256.0);\n"\
@@ -300,8 +300,9 @@ SOFTWARE.*/\
 "}\n"\
 "\n"\
 "#define DITHER_NOISE(uv) tri(bayer01(ivec2(uv)))\n"\
-"#define SCREEN_SPACE_NOISE() DITHER_NOISE(floor(gl_FragCoord.xy)+0.5)\n"\
-"#define SUPPRESS_BANDING() bayer(ivec2(gl_FragCoord.xy))\n"\
+"// QVR: functions, not macros without parameters: the Quest's Adreno compiler refuses those (QUEST_PLAN.md, C4b)\n"\
+"float SCREEN_SPACE_NOISE() { return DITHER_NOISE(floor(gl_FragCoord.xy)+0.5); }\n"\
+"float SUPPRESS_BANDING() { return bayer(ivec2(gl_FragCoord.xy)); }\n"\
 
 ////////////////////////////////////////////////////////////////
 
@@ -443,9 +444,14 @@ QVR_FRAMEDATA_FIELDS /* QVR: the frame data's Quake VR fields (lights, liquids, 
 ////////////////////////////////////////////////////////////////
 
 #define LIGHT_CLUSTER_IMAGE(mode) \
-"layout(rg32ui, binding=0) uniform " mode " uimage3D LightClusters;\n"\
+"#ifdef GL_ES\n" /* QVR: ES 3.1 has no rg32ui images: the clusters' texture is rgba32ui there (VR_GLESImageFormat) */ \
+"#define QVR_CLUSTER_FORMAT rgba32ui\n"\
+"#else\n"\
+"#define QVR_CLUSTER_FORMAT rg32ui\n"\
+"#endif\n"\
+"layout(QVR_CLUSTER_FORMAT, binding=0) uniform " mode " uimage3D LightClusters;\n"\
 "#ifdef QVR_MULTIVIEW\n" /* QVR: single-pass stereo: the right eye's clusters (vr/vr_stereo_single.cpp) */ \
-"layout(rg32ui, binding=1) uniform " mode " uimage3D LightClustersRight;\n"\
+"layout(QVR_CLUSTER_FORMAT, binding=1) uniform " mode " uimage3D LightClustersRight;\n"\
 "#define QVR_LOAD_CLUSTER(c) (QVR_VIEW == 0 ? imageLoad(LightClusters, c) : imageLoad(LightClustersRight, c))\n"\
 "#else\n"\
 "#define QVR_LOAD_CLUSTER(c) imageLoad(LightClusters, c)\n"\
@@ -488,7 +494,7 @@ DRAW_ELEMENTS_INDIRECT_COMMAND \
 "	uvec2	sppadding;\n"\
 "#else\n"\
 "	int		baseinstance;\n"\
-"	int		padding;\n"\
+"	int		layer; // QVR: its textures' layer in their arrays (QVR_WORLD_ARRAYS: vr/vr_worldarrays.cpp)\n"\
 "#endif // BINDLESS\n"\
 "	vec4	uvclamp; // QVR: parallax mapping's rays stay in s .x to .z, t .y to .w, repeating (none where .z <= .x)\n"\
 "	vec4	detail; // QVR: the texture's detail (vr/vr_detail.cpp): s and t scales (s < 0: axes swapped), strength (0 none), layer\n"\
@@ -567,6 +573,10 @@ DRAW_ELEMENTS_INDIRECT_COMMAND \
 "	layout(location=0) uniform int DrawID;\n"\
 "	#define DRAW_ID			DrawID\n"\
 "#endif\n"\
+"#ifdef QVR_PROBE_DRAWID0\n" /* QVR: -glesdefine's probe (vr/vr_glsafe.cpp): every call as the first */ \
+"	#undef DRAW_ID\n"\
+"	#define DRAW_ID			0\n"\
+"#endif\n"\
 "\n"\
 
 ////////////////////////////////////////////////////////////////
@@ -621,6 +631,7 @@ DRAW_ELEMENTS_INDIRECT_COMMAND \
 
 static const char world_vertex_shader[] =
 BINDLESS_VERTEX_HEADER
+QVR_WORLD_ARRAYS_VS // QVR: the bound path's array twins: many calls a draw (vr/vr_worldarrays.cpp)
 FRAMEDATA_BUFFER
 LIGHT_BUFFER
 WORLD_CALLDATA_BUFFER
@@ -634,7 +645,9 @@ QVR_WORLD_VS_PERMDECALS // QVR: the permanent decals' layer (vr/vr_permdecals.cp
 QVR_TEMPORAL_BLOCK // QVR: temporal AA's motion vectors (vr/vr_temporal.cpp)
 QVR_TEMPORAL_VS_OUTPUT
 "\n"
+"#ifndef QVR_PROBE_NOINVARIANT // QVR: -glesdefine's probe (vr/vr_glsafe.cpp)\n"
 "invariant gl_Position; // QVR: the opaque world's depth pre-pass (glprogs.world_depth) gives the very same depths\n"
+"#endif\n"
 "layout(location=0) flat out uint out_flags;\n"
 "layout(location=1) flat out float out_alpha;\n"
 "layout(location=2) out vec3 out_pos;\n"
@@ -643,11 +656,22 @@ QVR_TEMPORAL_VS_OUTPUT
 "#else\n"
 "	layout(location=3) out vec2 out_uv;\n"
 "#endif\n"
+"#ifdef QVR_PROBE_NOCENTROID\n" // QVR: -glesdefine's probe (C4g): the lightmap coordinates not centroid
+"layout(location=4) out vec2 out_lmuv;\n"
+"#else\n"
 "layout(location=4) centroid out vec2 out_lmuv;\n"
+"#endif\n"
 "layout(location=5) out float out_depth;\n"
+"#ifdef QVR_NOPERSP_W // QVR: ES without NV_shader_noperspective_interpolation: w-multiplied (vr/vr_glsafe.cpp esHeader)\n"
+"layout(location=6) out vec2 out_coord;\n"
+"#else\n"
 "layout(location=6) noperspective out vec2 out_coord;\n"
+"#endif\n"
 "layout(location=7) flat out vec4 out_styles;\n"
 "layout(location=8) flat out float out_lmofs;\n"
+"#ifdef QVR_WORLD_ARRAYS\n" // QVR
+"	layout(location=9) flat out float out_layer;\n"
+"#endif\n"
 "#if BINDLESS\n"
 "	layout(location=9) flat out uvec4 out_samplers;\n"
 QVR_WORLD_VS_OUTPUTS // QVR: the world vertex shader's Quake VR outputs
@@ -695,6 +719,9 @@ QVR_WORLD_VS_OUTPUTS // QVR: the world vertex shader's Quake VR outputs
 "	out_grimepages = in_grime.zw; // QVR\n"
 "	out_depth = gl_Position.w;\n"
 "	out_coord = (gl_Position.xy / gl_Position.w * 0.5 + 0.5) * vec2(LIGHT_TILES_X, LIGHT_TILES_Y);\n"
+"#ifdef QVR_NOPERSP_W // QVR\n"
+"	out_coord *= gl_Position.w;\n"
+"#endif\n"
 "	out_flags = call.flags;\n"
 "#if MODE == " QS_STRINGIFY (WORLDSHADER_WATER) "\n"
 "	out_alpha = instance.alpha < 0.0 ? call.wateralpha : instance.alpha;\n"
@@ -725,6 +752,9 @@ QVR_WORLD_VS_OUTPUTS // QVR: the world vertex shader's Quake VR outputs
 "	if ((call.flags & CF_NOLIGHTMAP) != 0u)\n"
 "		out_styles.xy = vec2(1., -1.);\n"
 "	out_lmofs = in_lmofs;\n"
+"#ifdef QVR_WORLD_ARRAYS\n" // QVR
+"	out_layer = float(call.layer);\n"
+"#endif\n"
 "#if BINDLESS\n"
 "	out_samplers.xy = call.txhandle;\n"
 "	if ((call.flags & CF_USE_FULLBRIGHT) != 0u)\n"
@@ -732,6 +762,15 @@ QVR_WORLD_VS_OUTPUTS // QVR: the world vertex shader's Quake VR outputs
 "	else\n"
 "		out_samplers.zw = out_samplers.xy;\n"
 "	out_nmsampler = uvec4(call.nmhandle, call.sphandle); // QVR: and the specular map\n"
+"#endif\n"
+"#ifdef QVR_PROBE_VSPOS\n" // QVR: -glesdefine's probe (vr/vr_glsafe.cpp): the plain transform, nothing clipped
+"	gl_Position = ViewProj * vec4(in_pos, 1.0);\n"
+"	gl_ClipDistance[1] = 1.0;\n"
+"	gl_ClipDistance[2] = 1.0;\n"
+"#endif\n"
+"#ifdef QVR_PROBE_NOCLIP\n" // QVR: nothing clipped
+"	gl_ClipDistance[1] = 1.0;\n"
+"	gl_ClipDistance[2] = 1.0;\n"
 "#endif\n"
 "}\n";
 
@@ -754,7 +793,18 @@ QVR_WORLD_DEPTH_FS_MAIN;
 static const char world_fragment_shader[] =
 "#if BINDLESS\n"
 "	#extension GL_ARB_bindless_texture : require\n"
+"	#define QVR_WUV(x) (x)\n"
+"#elif defined(QVR_WORLD_ARRAYS)\n" // QVR: the bound path's array twins (vr/vr_worldarrays.cpp): the call's layer in all four
+"	layout(binding=0) uniform sampler2DArray Tex;\n"
+"	layout(binding=1) uniform sampler2DArray FullbrightTex;\n"
+"	layout(binding=3) uniform sampler2DArray NormalTex;\n"
+"	layout(binding=11) uniform sampler2DArray SpecTex;\n"
+"	#define QVR_WLAYER_DECL\n"
+"	float WLayer = 0.0;\n"
+"	#define QVR_WUV(x) vec3(x, WLayer)\n"
+"	layout(location=9) flat in float in_layer;\n"
 "#else\n"
+"	#define QVR_WUV(x) (x)\n"
 "	layout(binding=0) uniform sampler2D Tex;\n"
 "	layout(binding=1) uniform sampler2D FullbrightTex;\n"
 "	layout(binding=3) uniform sampler2D NormalTex; // QVR\n"
@@ -762,6 +812,9 @@ static const char world_fragment_shader[] =
 "#endif\n"
 "layout(binding=2) uniform sampler2D LMTex;\n"
 "layout(binding=9) uniform sampler2D LuxTex; // QVR: the baked light's directions (deluxemaps: r_brush.c), as LMTex\n"
+"#ifdef QVR_NOLIGHTS\n"
+"layout(binding=15) uniform sampler2D DlightTex; // QVR: C5g, the dynamic lights summed on the CPU (vr_gl_world_dlmap), as LMTex\n"
+"#endif\n"
 "\n"
 FRAMEDATA_BUFFER
 "#define OIT_MAX SceneTone.x // QVR: translucent faces as bright as opaque ones in the eyes' float scene (a teleporter's view through)\n"
@@ -783,9 +836,18 @@ LIQUID_FUNCTIONS // QVR
 "#else\n"
 "	layout(location=3) in vec2 in_uv;\n"
 "#endif\n"
+"#ifdef QVR_PROBE_NOCENTROID\n" // QVR: -glesdefine's probe (C4g)
+"layout(location=4) in vec2 in_lmuv;\n"
+"#else\n"
 "layout(location=4) centroid in vec2 in_lmuv;\n"
+"#endif\n"
 "layout(location=5) in float in_depth;\n"
+"#ifdef QVR_NOPERSP_W // QVR: ES without NV_shader_noperspective_interpolation: w-multiplied (vr/vr_glsafe.cpp esHeader)\n"
+"layout(location=6) in vec2 in_coord_w;\n"
+"#define in_coord (in_coord_w * gl_FragCoord.w)\n"
+"#else\n"
 "layout(location=6) noperspective in vec2 in_coord;\n"
+"#endif\n"
 "layout(location=7) flat in vec4 in_styles;\n"
 "layout(location=8) flat in float in_lmofs;\n"
 "#if BINDLESS\n"
@@ -800,6 +862,7 @@ QVR_TEMPORAL_FS_OUTPUT
 "\n"
 QVR_WORLD_FS_FUNCTIONS // QVR: detail, parallax, specular anti-aliasing, the baked light's bumps
 QVR_PARALLAX_DEPTH_OUT // QVR: pixel depth offset (vr_parallax_depth_write): PDO 1 in glprogs.world_pdo only (solid, not OIT)
+QVR_WORLD_FS_LITE // QVR: the ES lite world's features compiled out of main (VR_GLESWorldLite; QUEST_PLAN.md 6p)
 "void main()\n"
 "{\n"
 "#if MODE == " QS_STRINGIFY (WORLDSHADER_WATER) "\n" // QVR: first (before any early return)
@@ -810,9 +873,16 @@ QVR_PARALLAX_DEPTH_OUT // QVR: pixel depth offset (vr_parallax_depth_write): PDO
 "#if QVR_PDO\n"
 "	gl_FragDepth = gl_FragCoord.z; // QVR: the surface's own, unless the parallax mapping's hit is further\n"
 "#endif\n"
+"#ifdef QVR_PROBE_FSCONST\n" // QVR: -glesdefine's probe (vr/vr_glsafe.cpp): a constant magenta
+"	out_fragcolor = vec4(1.0, 0.0, 1.0, 1.0);\n"
+"	return;\n"
+"#endif\n"
 "#if " QS_STRINGIFY (SHOW_WORLD_NORMALS) "\n"
 "	out_fragcolor = vec4(0.5 + 0.5 * normalize(cross(dFdx(in_pos), dFdy(in_pos))), 0.75);\n"
 "	return;\n"
+"#endif\n"
+"#ifdef QVR_WORLD_ARRAYS\n"
+"	WLayer = in_layer; // QVR\n"
 "#endif\n"
 "	vec3 fullbright = vec3(0.);\n"
 "	vec2 uv = in_uv;\n"
@@ -823,6 +893,10 @@ QVR_PARALLAX_DEPTH_OUT // QVR: pixel depth offset (vr_parallax_depth_write): PDO
 "#endif\n"
 "	vec3 dpdx = dFdx(in_pos), dpdy = dFdy(in_pos); // QVR: the surface's frame, for the normal map (before any discard)\n"
 "	vec2 duvdx = dFdx(uv), duvdy = dFdy(uv);\n"
+"#ifdef QVR_PROBE_WIAO\n" // QVR: -glesdefine's probe (C4l): the coordinates' derivatives without dFdx (interpolateAtOffset), the colour read by textureGrad
+"	duvdx = (interpolateAtOffset(in_uv, vec2(0.25, 0.0)) - interpolateAtOffset(in_uv, vec2(-0.25, 0.0))) * 2.0;\n"
+"	duvdy = (interpolateAtOffset(in_uv, vec2(0.0, 0.25)) - interpolateAtOffset(in_uv, vec2(0.0, -0.25))) * 2.0;\n"
+"#endif\n"
 "	vec3 facing = normalize(cross(dpdx, dpdy)); // QVR: the surface's normal, towards the viewer\n"
 "	facing = dot(facing, EyePos - in_pos) < 0. ? -facing : facing;\n"
 "	vec3 specular_light = vec3(0.); // QVR: dynamic lights' sheen, added over the texture\n"
@@ -836,9 +910,38 @@ QVR_PARALLAX_DEPTH_OUT // QVR: pixel depth offset (vr_parallax_depth_write): PDO
 "	// QVR: parallax occlusion mapping (vr_parallax) moves where the textures are read; their mip level is still\n"
 "	// the surface's (the moved coordinates jump where the height field hides itself)\n"
 "	vec2 puv = uv;\n"
+"#ifdef QVR_PROBE_WNOPF\n" // QVR: -glesdefine's probe (C4k): the coordinates no longer the input's own (a uniform's branch that never moves them)
+"	if (RetroInfo.w > 1e30)\n"
+"		puv = uv = uv + 1.0;\n"
+"#endif\n"
+"#ifndef QVR_PROBE_NORETRO\n" // QVR: -glesdefine's probe (C4e): no retro textures' start
 "	RetroBegin(in_retro.z, in_retro.xy, duvdx, duvdy, dpdx, dpdy, facing);\n" // QVR: retro textures (vr_retro.h; Retro 0: none); before the carved decals (their retro style's blocks)
+"#endif\n"
+"#ifdef QVR_PROBE_RETRO\n" // QVR: -glesdefine's probe (C4f): red the pixel's retro set, green the call's, blue retro on (RetroInfo.x)
+"	out_fragcolor = vec4(Retro > 0 ? 1.0 : 0.0, in_retro.z > 0.0 ? 1.0 : 0.0, RetroInfo.x > 0.0 ? 1.0 : 0.0, 1.0);\n"
+"	return;\n"
+"#endif\n"
+"#ifdef QVR_PROBE_LUTI\n" // QVR: -glesdefine's probe (C4f): the palette table's index for the texture's colour (grey), red where it is over 255
+"	{\n"
+"		uint li = texelFetch(RetroLUT, ivec3(clamp(textureLod(Tex, QVR_WUV(uv), 0.0).rgb, 0.0, 1.0) * 127.0 + 0.5), 0).x;\n"
+"		out_fragcolor = li > 255u ? vec4(1.0, 0.0, 0.0, 1.0) : vec4(vec3(float(li) / 255.0), 1.0);\n"
+"		return;\n"
+"	}\n"
+"#endif\n"
+"#ifdef QVR_PROBE_UV\n" // QVR: -glesdefine's probe (C4f): the texture coordinates (red, green: their fractions), blue retro lighting on
+"	out_fragcolor = vec4(fract(in_uv), RetroLight[2].w > 0. ? 1.0 : 0.0, 1.0);\n"
+"	return;\n"
+"#endif\n"
+"#ifdef QVR_PROBE_LOD0\n" // QVR: -glesdefine's probe (C4f): the texture's top level, nothing else
+"	out_fragcolor = vec4(textureLod(Tex, QVR_WUV(uv), 0.0).rgb, 1.0);\n"
+"	return;\n"
+"#endif\n"
 "#if MODE == " QS_STRINGIFY (WORLDSHADER_SOLID) "\n"
+"#if defined(QVR_PROBE_NOPARALLAX) || defined(QVR_LITE_NOPARALLAX)\n" // QVR: -glesdefine's probe (C4e); the ES lite world (C4g: VR_GLESWorldLite): no parallax code
+"	bool parallax = false;\n" // (a carved decal sets it: its moved coordinates read with textureGrad)
+"#else\n"
 "	bool parallax = in_pdepth > 0.; // the instance's depth: the world's, an item box's (vr_parallax_items)\n"
+"#endif\n"
 "	ParallaxPlane = Parallax3.x; // QVR: where the polygon sits in the relief (1: its bottom, vr_lighting.cpp)\n"
 "	if (parallax)\n"
 "		puv = ParallaxUV(NormalTex, uv, duvdx, duvdy, dpdx, dpdy, facing, in_pos - EyePos, in_pdepth, Parallax.z, in_uvclamp);\n"
@@ -846,7 +949,13 @@ QVR_PARALLAX_DEPTH_OUT // QVR: pixel depth offset (vr_parallax_depth_write): PDO
 "	if (ParallaxDist != 0. && Parallax2.w > 0.) // QVR: the hit's depth (bounded by the pre-pass's: glprogs.world_depth_pdo; nearer: raised)\n"
 "		gl_FragDepth = ParallaxFragDepth(ViewProj, in_pos, normalize(in_pos - EyePos), ParallaxDist, (in_flags & CF_USE_POLYGON_OFFSET) != 0u);\n"
 "#endif\n"
+"#if defined(QVR_PROBE_NOCARVE) || defined(QVR_LITE_NOCARVE)\n" // QVR: -glesdefine's probe (C4e); the ES lite world (C4g): no carved decals' code
+"	const bool carve_on = false;\n"
+"	const vec3 carve_bend = vec3(0.), carve_light = vec3(0.);\n"
+"	const float carve_dark = 1.;\n"
+"#else\n"
 QVR_WORLD_FS_CARVE // QVR: the carved decals (vr/vr_decals.cpp): their craters move where the textures are read, as parallax does
+"#endif\n"
 "#else\n"
 "	const bool parallax = false;\n" // QVR: no parallax mapping here
 "	const bool carve_on = false;\n"
@@ -860,29 +969,45 @@ QVR_WORLD_FS_CARVE // QVR: the carved decals (vr/vr_decals.cpp): their craters m
 "		RetroLightBegin(rl_t, dFdx(rl_t), dFdy(rl_t), dpdx, dpdy, RetroLight[0]);\n"
 "	}\n"
 "	if ((in_flags & CF_USE_FULLBRIGHT) != 0u)\n" // QVR: parallax: the moved coordinates
-"		fullbright = Retro > 0 ? RetroSample(FullbrightTex, puv, duvdx, duvdy, false).rgb : parallax ? textureGrad(FullbrightTex, puv, duvdx, duvdy).rgb : texture(FullbrightTex, uv).rgb;\n"
+"		fullbright = Retro > 0 ? RetroSample(FullbrightTex, puv, duvdx, duvdy, false).rgb : parallax ? textureGrad(FullbrightTex, QVR_WUV(puv), duvdx, duvdy).rgb : texture(FullbrightTex, QVR_WUV(uv)).rgb;\n"
 "	vec4 result;\n"
 "	if (Retro > 0)\n" // QVR
 "		result = RetroSample(Tex, puv, duvdx, duvdy, true);\n"
 "	else\n"
 "	{\n"
-"#if DITHER >= 2\n"
+"#if defined(QVR_PROBE_WIAO)\n"
+"	result = textureGrad(Tex, QVR_WUV(puv), duvdx, duvdy);\n"
+"#elif DITHER >= 2\n"
 "	if (parallax)\n"
-"		result = textureGrad(Tex, puv, duvdx * 0.5, duvdy * 0.5); // QVR: a mip bias of -1\n"
+"		result = textureGrad(Tex, QVR_WUV(puv), duvdx * 0.5, duvdy * 0.5); // QVR: a mip bias of -1\n"
 "	else\n"
-"		result = texture(Tex, uv, -1.0);\n"
+"		result = texture(Tex, QVR_WUV(uv), -1.0);\n"
 "#elif DITHER\n"
 "	if (parallax)\n"
-"		result = textureGrad(Tex, puv, duvdx * 0.70710678, duvdy * 0.70710678); // QVR: -0.5\n"
+"		result = textureGrad(Tex, QVR_WUV(puv), duvdx * 0.70710678, duvdy * 0.70710678); // QVR: -0.5\n"
 "	else\n"
-"		result = texture(Tex, uv, -0.5);\n"
+"		result = texture(Tex, QVR_WUV(uv), -0.5);\n"
 "#else\n"
 "	if (parallax)\n"
-"		result = textureGrad(Tex, puv, duvdx, duvdy); // QVR\n"
+"		result = textureGrad(Tex, QVR_WUV(puv), duvdx, duvdy); // QVR\n"
 "	else\n"
-"		result = texture(Tex, uv);\n"
+"		result = texture(Tex, QVR_WUV(uv));\n"
 "#endif\n"
 "	}\n" // QVR
+"#ifdef QVR_PROBE_WLOD\n" // QVR: -glesdefine's probe (C4k): the level from main()'s derivatives, read by textureLod
+"	{\n"
+"#ifdef QVR_PROBE_WLODFRESH\n" // (the derivatives taken again here)
+"		vec2 wts = vec2(textureSize(Tex, 0).xy), wdx = dFdx(in_uv) * wts, wdy = dFdy(in_uv) * wts;\n"
+"#else\n"
+"		vec2 wts = vec2(textureSize(Tex, 0).xy), wdx = duvdx * wts, wdy = duvdy * wts;\n"
+"#endif\n"
+"		result = textureLod(Tex, QVR_WUV(uv), max(0.5 * log2(max(dot(wdx, wdx), dot(wdy, wdy))), 0.0));\n"
+"	}\n"
+"#endif\n"
+"#ifdef QVR_PROBE_CUT1\n" // QVR: -glesdefine's probe (C4e): the world's fragment shader cut here
+"	out_fragcolor = result;\n"
+"	return;\n"
+"#endif\n"
 "#if MODE == " QS_STRINGIFY (WORLDSHADER_ALPHATEST) "\n"
 "	// QVR: alpha to coverage (vr_alpha_coverage with MSAA: ShadowFlags 64; opaque draws): the alpha sharpened to\n"
 "	// about a pixel's width round the cutoff gives the samples covered (smooth edges); without it, Quake's test\n"
@@ -894,6 +1019,10 @@ QVR_WORLD_FS_CARVE // QVR: the carved decals (vr/vr_decals.cpp): their craters m
 QVR_WORLD_FS_DETAIL // QVR: detail textures close by; a liquid's unlit texture
 QVR_WORLD_FS_WOUNDS // QVR: a held prop's blood (vr/vr_wounds.cpp)
 QVR_WORLD_FS_DECALS // QVR: the decals on the world (vr/vr_decals.cpp)
+"#ifdef QVR_PROBE_CUT2\n" // QVR: -glesdefine's probe (C4e): the world's fragment shader cut here
+"	out_fragcolor = result;\n"
+"	return;\n"
+"#endif\n"
 "\n"
 "	vec2 lmuv = in_lmuv;\n"
 "#if DITHER\n"
@@ -903,6 +1032,10 @@ QVR_WORLD_FS_DECALS // QVR: the decals on the world (vr/vr_decals.cpp)
 "	if (rl_lightmapped)\n" // QVR: retro lighting: the lightmap on its blocky grid (vr_retrolight.h)
 "		lmuv = RetroLightmapUV(lmuv, vec2(textureSize(LMTex, 0).xy) * 16.);\n"
 "	vec4 lm0 = textureLod(LMTex, lmuv, 0.);\n"
+"#ifdef QVR_PROBE_LM\n" // QVR: -glesdefine's probe (C4f): the lightmap's first style as read
+"	out_fragcolor = vec4(lm0.rgb, 1.0);\n"
+"	return;\n"
+"#endif\n"
 "	vec3 total_light;\n"
 "	if (in_styles.y < 0.) // single style fast path\n"
 "		total_light = in_styles.x * lm0.xyz;\n"
@@ -926,12 +1059,43 @@ QVR_WORLD_FS_DECALS // QVR: the decals on the world (vr/vr_decals.cpp)
 "			);\n"
 "		}\n"
 "	}\n"
+"#ifdef QVR_PROBE_CUT3\n" // QVR: -glesdefine's probe (C4e): the world's fragment shader cut here
+"	out_fragcolor = vec4(result.rgb * total_light * 2.0, 1.0);\n"
+"	return;\n"
+"#endif\n"
+"#ifdef QVR_PROBE_CUT3T\n" // QVR: -glesdefine's probe (C4g): the texture alone at CUT3, the light kept live
+"	out_fragcolor = vec4(result.rgb, 1.0);\n"
+"	if (total_light.r == 12345.678)\n"
+"		out_fragcolor.rgb = total_light;\n"
+"	return;\n"
+"#endif\n"
 "\n"
 QVR_WORLD_FS_LIGHT // QVR: light contrast, normal maps in the baked light, specular
 "	vec3 dynamic_light = vec3(0.);\n" // QVR: out here, for retro lighting's levels after the lights
 "	vec3 rl_pos = RetroLightAt(in_pos, RetroLight[1].w); // QVR: retro lighting: where the dynamic lights are found (their blocks)\n"
 "	vec3 rl_spos = RetroShadowAt(in_pos, rl_pos), rl_mpos = RetroShadowAt(in_pos, in_pos); // ... their shadows; the map lights'\n"
+"#ifdef QVR_PROBE_CUT5\n" // QVR: -glesdefine's probe (C4e): the world's fragment shader cut before the lights' loop
+"	out_fragcolor = vec4(result.rgb * total_light * 2.0, 1.0);\n"
+"	return;\n"
+"#endif\n"
+"#ifdef QVR_PROBE_LCOUNT\n" // QVR: -glesdefine's probe (C4e): the lights in the pixel's cluster (red: 8 or more)
+"	{\n"
+"		ivec3 cc = ivec3(int(floor(in_coord.x)), int(floor(in_coord.y)), max(int(floor(log2(in_depth) * ZLogScale + ZLogBias)), 0));\n"
+"		uvec2 cd = NumLights > 0u ? QVR_LOAD_CLUSTER(cc).xy : uvec2(0u);\n"
+"		out_fragcolor = vec4(float(bitCount(cd.x) + bitCount(cd.y)) / 8.0, float(NumLights) / 64.0, 0.25, 1.0);\n"
+"		return;\n"
+"	}\n"
+"#endif\n"
+"#ifdef QVR_NOLIGHTS\n" // QVR: glprogs.world_unlit (C4t): the cluster's inputs still read, under a branch never taken (Adreno's
+"	if (NumLights > 0x7fffffffu)\n" // compiler: its picture broke with them unread, QUEST_PLAN.md 6z)
+"		result.rgb += vec3(in_coord, in_depth);\n"
+"	dynamic_light = textureLod(DlightTex, lmuv, 0.).rgb * 4.0;\n" // QVR: C5g, vr_gl_world_dlmap's lights (vr_dlightmap.cpp: lightScale; black when off), as the loop's
+"#endif\n"
+"#if defined(QVR_PROBE_NOLOOP) || defined(QVR_NOLIGHTS)\n" // QVR: -glesdefine's probe (C4l): the lights' loop compiled out, the rest of the shader kept; glprogs.world_unlit (C4t)
+"	if (false)\n"
+"#else\n"
 "	if (NumLights > 0u)\n"
+"#endif\n"
 "	{\n"
 "		uint i, ofs;\n"
 "		ivec3 cluster_coord;\n"
@@ -946,7 +1110,11 @@ QVR_WORLD_FS_LIGHT // QVR: light contrast, normal maps in the baked light, specu
 "			total_light = vec3(ivec3((cluster_idx + 1) * 0x45d9f3b) >> ivec3(0, 8, 16) & 255) / 255.0;\n"
 "#endif // SHOW_ACTIVE_LIGHT_CLUSTERS\n"
 // QVR: no plane made here: facing is made first, in every mode, for the normal map
+"#ifdef QVR_LITE_NODLFALLOFF\n" // QVR: the ES lite form (C4l): no DarkPlaces falloff (vr_dlight_falloff 0), its code out
+"			const bool darkplaces = false;\n"
+"#else\n"
 "			bool darkplaces = (ShadowFlags & 16u) != 0u; // QVR\n"
+"#endif\n"
 "			bool rl_spos_same = rl_spos == rl_pos; // QVR: the shadows' place is the lights' (the cones share their direction)\n"
 "			vec3 to_eye = normalize(EyePos - rl_pos); // QVR: once for all lights' sheen\n"
 "			for (i = 0u, ofs = 0u; i < 2u; i++, ofs += 32u)\n"
@@ -956,7 +1124,64 @@ QVR_WORLD_FS_LIGHT // QVR: light contrast, normal maps in the baked light, specu
 "				{\n"
 "					int j = findLSB(mask);\n"
 "					mask ^= 1u << j;\n"
-"					Light l = Lights[ofs + j];\n"
+"#ifdef QVR_PROBE_SIMPLELOOP\n" // QVR: -glesdefine's probe (C4e): a plain point light, its members read in place
+"					{ uint k = ofs + uint(j); float dd = length(Lights[k].origin - in_pos); dynamic_light += max(0., Lights[k].radius - dd) / 256. * Lights[k].color; continue; }\n"
+"#endif\n"
+"#if defined(QVR_LITE_PLAINLIGHT) || defined(QVR_PROBE_PLAINLIGHT)\n" // QVR: the ES lite form (C4p, QUEST_PLAN.md 6w): plain lights alone
+"					{\n" // (no dynamic lights' or map lights' shadows, portal lights: their code out of the loop; a spot's cone kept; C4q: DarkPlaces' falloff kept, the Quest preset has it)
+"						uint pk = ofs + uint(j);\n"
+"#ifdef QVR_LITE_RIGNOWORLD\n" // QVR: C4v, the rig's small lights (VR_DlightShadow's mark) on the player's models only
+"						if (Lights[pk].shadow2.w < 0.0)\n"
+"							continue;\n"
+"#endif\n"
+"						vec4 po = vec4(Lights[pk].origin, Lights[pk].radius);\n"
+"						vec3 ptl = po.xyz - rl_pos;\n"
+"						float pml = Lights[pk].minlight;\n"
+"						float padd;\n"
+"						vec3 pdir;\n"
+"						if (darkplaces)\n" // (as QVR_WORLD_FS_LIGHT_SHADOW's)
+"						{\n"
+"							float pd2 = dot(ptl, ptl);\n"
+"							if (pd2 >= po.w * po.w)\n"
+"								continue;\n"
+"							float pinv = inversesqrt(max(pd2, 1e-12));\n"
+"							pdir = ptl * pinv;\n"
+"							padd = DarkPlacesAtten(pd2 * pinv, po.w);\n"
+"						}\n"
+"						else\n"
+"						{\n"
+"							float pdist = dot(ptl, facing);\n"
+"							float prad = po.w - abs(pdist);\n"
+"							if (prad < pml)\n"
+"								continue;\n"
+"							float pmin = prad - pml;\n"
+"							pdist = length(rl_pos - (po.xyz - facing * pdist));\n"
+"							padd = clamp((pmin - pdist) / 16.0, 0.0, 1.0) * max(0., prad - pdist) / 256.;\n"
+"							pdir = normalize(ptl);\n"
+"						}\n"
+"						if (padd <= 0.)\n"
+"							continue;\n"
+"						vec4 psp = Lights[pk].spot;\n"
+"						padd *= 1.0 - smoothstep(0.0, 1.0, psp.w + dot(psp.xyz, rl_spos_same ? pdir : normalize(po.xyz - rl_spos)));\n" // SpotCone
+"						float pndl = dot(bumped, pdir);\n"
+"						vec3 pcol = Lights[pk].color;\n"
+"						float pamb = darkplaces ? pml : 0.0;\n" // LightAngleDP (halved: the lightmap is doubled), or LightAngle and the sheen doubled
+"						float pscale = darkplaces ? 1.0 : 2.0;\n"
+"						specular_light += padd * pscale * LightSpecular(bumped, pndl, pdir, to_eye) * pcol;\n"
+"						dynamic_light += padd * (darkplaces ? 0.5 : 1.0) * mix(1.0, pamb + (1.0 - pamb) * pscale * max(pndl, 0.0), DlightAngle) * pcol;\n"
+"					}\n"
+"#else\n"
+"#ifdef QVR_PROBE_LEANLOAD\n" // QVR: -glesdefine's probe (C4p): the light's members read one by one, a portal light's only for one
+"					uint lk = ofs + uint(j);\n"
+"					Light l;\n"
+"					l.origin = Lights[lk].origin; l.radius = Lights[lk].radius; l.color = Lights[lk].color; l.minlight = Lights[lk].minlight;\n"
+"					l.shadow = Lights[lk].shadow; l.shadow2 = Lights[lk].shadow2; l.spot = Lights[lk].spot; l.gatelo = Lights[lk].gatelo;\n"
+"					l.gateplane = l.gatehi = l.gateinverse[0] = l.gateinverse[1] = l.gateinverse[2] = l.gateshadow = vec4(0.);\n"
+"					if (l.gatelo.w > 0.)\n"
+"						l = Lights[lk];\n"
+"#else\n"
+"					Light l = Lights[ofs + uint(j)];\n"
+"#endif\n"
 QVR_WORLD_FS_LIGHT_SHADOW // QVR: a light's shadow and spot cone
 "					// mimics R_AddDynamicLights, up to a point\n"
 "					float rad = l.radius;\n"
@@ -978,10 +1203,15 @@ QVR_WORLD_FS_LIGHT_SHADOW // QVR: a light's shadow and spot cone
 "					specular_light += add * 2.0 * LightSpecular(bumped, ndl, dir, to_eye) * l.color; // QVR\n"
 "					add *= LightAngle(ndl, 0.0); // QVR\n"
 "					dynamic_light += add * l.color;\n"
+"#endif\n" // QVR: (the plain form)
 "				}\n"
 "			}\n"
 "		}\n"
 "	}\n"
+"#ifdef QVR_PROBE_CUT4\n" // QVR: -glesdefine's probe (C4e): the world's fragment shader cut here
+"	out_fragcolor = vec4(result.rgb * total_light * 2.0, 1.0);\n"
+"	return;\n"
+"#endif\n"
 "#if MODE == " QS_STRINGIFY (WORLDSHADER_ALPHATEST) "\n" // QVR: retro lighting's levels (vr_retrolight.h; no derivatives after the discard)
 "	if (RetroLight[2].w > 0.)\n"
 "		RetroLightWorld(total_light, dynamic_light, rl_lightmapped, false);\n"
@@ -1029,6 +1259,14 @@ QVR_WORLD_FS_ALPHA // QVR: alpha to coverage; the liquid's alpha and refraction
 "	out_fragcolor.rgb = floor(out_fragcolor.rgb * 255. + 0.5) * (1./255.);\n"
 "#elif DITHER == 0\n"
 "	if (ScreenDither != 0.) out_fragcolor.rgb += SUPPRESS_BANDING() * ScreenDither; // QVR: 0 in the eyes (vr_dither: VR_SceneDither): no noise made to be multiplied by 0\n"
+"#endif\n"
+"#ifdef QVR_PROBE_UVLATE\n" // QVR: -glesdefine's probe (C4g): the texture coordinates' fractions, the whole shader kept live
+"	{\n"
+"		vec4 keep = out_fragcolor;\n" // (kept live by a test no colour passes: a NaN fails it too)
+"		out_fragcolor = vec4(fract(in_uv), fract(in_lmuv.x * 64.0), 1.0);\n"
+"		if (keep.r == 12345.678)\n"
+"			out_fragcolor = keep;\n"
+"	}\n"
 "#endif\n"
 "#if QVR_PDO\n"
 "	if (Parallax2.w > 1.5) // QVR: vr_parallax_debug 1: red how deep below the surface its depth was written, of the full depth; green how high over it (ParallaxPlane); blue the surface's own (no hit)\n"
@@ -1416,6 +1654,7 @@ QVR_STEREO_VIEWS /* QVR: single-pass stereo (multiview twins only) */ \
 "	mat4	ViewProj;\n"\
 "	vec3	EyePos;\n"\
 "#endif\n"\
+"	float	BatchDlightsFlat; // QVR (C5h): 1 the batch's dynamic lights added flat on the CPU (your body, vr_gl_alias_body 2): ModelDynamicLights skips them\n"\
 "	vec4	Fog;\n"\
 "	float	ScreenDither;\n"\
 "	float	FlatFovScale; // QVR: flatscreen play's model FOV (vr/vr_flatplay.cpp modelFov): x and y's scale round the view axis, 0 none\n"\
@@ -1447,7 +1686,9 @@ ALIAS_INSTANCE_BUFFER
 "#else\n"
 "#define ALIAS_INSTANCE_ID gl_InstanceID\n"
 "#endif\n"
+"#ifndef QVR_PROBE_NOINVARIANT // QVR: -glesdefine's probe (vr/vr_glsafe.cpp)\n"
 "invariant gl_Position; // QVR: the models' depth pre-pass (glprogs.alias_depth) gives the very same depths\n"
+"#endif\n"
 "\n"
 "struct PoseVertex\n"
 "{\n"
@@ -1470,12 +1711,12 @@ ALIAS_INSTANCE_BUFFER
 "	vec3 bind_pos; // QVR: in_pos, a bare forearm's hand's end inside the arm folded in (QVR_ALIAS_VS_HANDFOLD)\n"
 "	PoseVertex GetPoseVertex(uint pose)\n"
 "	{\n"
-"		mat3x4 blendmat = BonePoses[pose + in_indices.x] * in_weights.x;\n"
-"		blendmat += BonePoses[pose + in_indices.y] * in_weights.y;\n"
+"		mat3x4 blendmat = BonePoses[pose + uint(in_indices.x)] * in_weights.x;\n"
+"		blendmat += BonePoses[pose + uint(in_indices.y)] * in_weights.y;\n"
 "		if (in_weights.z + in_weights.w > 0.0)\n"
 "		{\n"
-"			blendmat += BonePoses[pose + in_indices.z] * in_weights.z;\n"
-"			blendmat += BonePoses[pose + in_indices.w] * in_weights.w;\n"
+"			blendmat += BonePoses[pose + uint(in_indices.z)] * in_weights.z;\n"
+"			blendmat += BonePoses[pose + uint(in_indices.w)] * in_weights.w;\n"
 "		}\n"
 "		mat4x3 anim = transpose(blendmat);\n"
 "		return PoseVertex((anim * vec4(bind_pos, 1.0)).xyz, (anim * vec4(in_nor.xyz, 0.0)).xyz);\n"
@@ -1502,11 +1743,11 @@ ALIAS_INSTANCE_BUFFER
 "\n"
 "	PoseVertex GetPoseVertex (uint pose)\n"
 "	{\n"
-"		uvec2 data = PackedPosNor[pose + gl_VertexID];\n"
+"		uvec2 data = PackedPosNor[pose + uint(gl_VertexID)];\n"
 "#if POSEVERTTYPE == 2 // PV_MD3\n"
 "		PoseVertex ret;\n"
 "		ret.pos = vec3((ivec3(data.xxy >> uvec3(0, 16, 0)) & 65535) - 32768);\n"
-"		vec2 spherical = vec2((data.yy >> uvec2(16, 24)) & 255) * (2.0 * 3.14159265 / 255.0);\n"
+"		vec2 spherical = vec2((data.yy >> uvec2(16, 24)) & 255u) * (2.0 * 3.14159265 / 255.0);\n"
 "		float sinlat = sin(spherical.x);\n"
 "		float coslat = cos(spherical.x);\n"
 "		float sinlng = sin(spherical.y);\n"
@@ -1516,7 +1757,7 @@ ALIAS_INSTANCE_BUFFER
 "		ret.nor.z = coslat;\n"
 "		return ret;\n"
 "#else // PV_QUAKE1\n"
-"		return PoseVertex(Dequantised(vec3((data.xxx >> uvec3(0, 8, 16)) & 255), pose + gl_VertexID), unpackSnorm4x8(data.y).xyz); // QVR: dequantised\n"
+"		return PoseVertex(Dequantised(vec3((data.xxx >> uvec3(0, 8, 16)) & 255u), pose + uint(gl_VertexID)), unpackSnorm4x8(data.y).xyz); // QVR: dequantised\n"
 "#endif // POSEVERTTYPE\n"
 "	}\n"
 "\n"
@@ -1525,6 +1766,7 @@ ALIAS_INSTANCE_BUFFER
 QVR_ALIAS_VS_FUNCTIONS // QVR: the recoil steadied (ZeroBlend), the poses' occlusion
 QVR_DENT_FUNCTIONS // QVR: flesh dents (vr/vr_dents.cpp)
 QVR_FLATFOV_POINT_GLSL // QVR: flatscreen play's model FOV (vr/vr_flatfov_glsl.h)
+QVR_ALIAS_VS_VLIGHT_DECL // QVR: the plain forms' light at the vertices (C4y)
 "float r_avertexnormal_dot(vec3 vertexnormal, vec3 dir) // from MH \n"
 "{\n"
 "	float d = dot(vertexnormal, dir);\n"
@@ -1534,7 +1776,7 @@ QVR_FLATFOV_POINT_GLSL // QVR: flatscreen play's model FOV (vr/vr_flatfov_glsl.h
 "		return 1.0 + d;\n"
 "}\n"
 "\n"
-"#if MODE == " QS_STRINGIFY (ALIASSHADER_NOPERSP) "\n"
+"#if MODE == " QS_STRINGIFY (ALIASSHADER_NOPERSP) " && !defined(QVR_NOPERSP_W) // QVR: ES without the extension: w-multiplied\n"
 "	layout(location=0) noperspective out vec2 out_texcoord;\n"
 "#else\n"
 "	layout(location=0) out vec2 out_texcoord;\n"
@@ -1558,8 +1800,8 @@ QVR_TEMPORAL_VS_OUTPUT
 "	out_pdepth = inst.Glow.w; // QVR: parallax mapping's depth (vr_parallax_models)\n"
 "	out_texcoord = in_uv;\n"
 QVR_ALIAS_VS_HANDFOLD // QVR: a bare forearm's hand's end inside the arm folded in (vr/vr_view.cpp skinTint)
-"	PoseVertex pose1 = GetPoseVertex(inst.Pose1);\n"
-"	PoseVertex pose2 = GetPoseVertex(inst.Pose2);\n"
+"	PoseVertex pose1 = GetPoseVertex(uint(inst.Pose1));\n"
+"	PoseVertex pose2 = GetPoseVertex(uint(inst.Pose2));\n"
 "	mat4x3 worldmatrix = transpose(mat3x4(inst.WorldMatrix[0], inst.WorldMatrix[1], inst.WorldMatrix[2]));\n"
 "	vec3 lerpedPos = mix(pose1.pos, pose2.pos, inst.Blend);\n"
 QVR_ALIAS_VS_SMOOTH // QVR: r_lerpmodels 3: along a spline through four poses, the limbs swung round their joints
@@ -1606,12 +1848,19 @@ QVR_ALIAS_VS_SHADE // QVR: the model's light direction and shade (vr_model_light
 "	out_color = clamp(inst.LightColor * vec4(vec3(shade), 1.0), 0.0, 1.0);\n"
 "	uint overbright = floatBitsToUint(Fog.w) >> 31;\n"
 "	out_color.rgb = ldexp(out_color.rgb, ivec3(overbright));\n"
+QVR_ALIAS_VS_VLIGHT // QVR: ... worked out (C4y)
 QVR_ALIAS_VS_WOUNDSIDE // QVR: which side's wound mask it reads (your body's: one a side, vr/vr_wounds.cpp)
 QVR_ALIAS_VS_RETRO // QVR: its retro textures' set (your body's: by part, vr/vr_retro.cpp)
 "#ifdef WOUNDPAINT // QVR: drawn into its wound mask (vr/vr_wounds.cpp), laid out by the skin's coordinates\n"
 "	gl_Position = vec4(in_uv * 2.0 - 1.0, 0.0, 1.0);\n"
 "	if (inst.WoundSide.z > 0.5 && abs(out_woundside - (inst.WoundSide.z - 1.0)) > 0.5) // the other side's: not in this layer\n"
 "		gl_Position = vec4(4.0, 4.0, 0.0, 1.0);\n"
+"#endif\n"
+"#ifdef QVR_NOPERSP_W // QVR: ES without NV_shader_noperspective_interpolation (vr/vr_glsafe.cpp esHeader)\n"
+"	out_coord *= gl_Position.w;\n"
+"#if MODE == " QS_STRINGIFY (ALIASSHADER_NOPERSP) "\n"
+"	out_texcoord *= gl_Position.w;\n"
+"#endif\n"
 "#endif\n"
 "}\n";
 
@@ -1640,7 +1889,10 @@ NOISE_FUNCTIONS
 "layout(binding=8) uniform sampler2D GloveHeightTex; // QVR: ... its relief, made a normal map as it loaded (vr_render.cpp gloveHeightToNormals)\n"
 "layout(binding=9) uniform sampler2D NailTex; // QVR: painted nails' mask (vr_nails; make_nail_mask.py): R the polish's cover\n"
 "\n"
-"#if MODE == " QS_STRINGIFY (ALIASSHADER_NOPERSP) "\n"
+"#if MODE == " QS_STRINGIFY (ALIASSHADER_NOPERSP) " && defined(QVR_NOPERSP_W) // QVR: ES without the extension: w-multiplied\n"
+"	layout(location=0) in vec2 in_texcoord_w;\n"
+"	#define in_texcoord (in_texcoord_w * gl_FragCoord.w)\n"
+"#elif MODE == " QS_STRINGIFY (ALIASSHADER_NOPERSP) "\n"
 "	layout(location=0) noperspective in vec2 in_texcoord;\n"
 "#else\n"
 "	layout(location=0) in vec2 in_texcoord;\n"
@@ -1656,11 +1908,23 @@ QVR_TEMPORAL_FS_OUTPUT
 QVR_ALIAS_FS_FUNCTIONS // QVR: per-pixel lights, normal maps, ambient, wounds, morphs
 QVR_ALIAS_FS_RECOLOR_FUNCTIONS // QVR: HSL for the armed humanoids' recolours (vr/vr_humlook.cpp)
 QVR_BEHIND_SHOWN_GATE_ALIAS // QVR: see-through models behind a teleporter shown in this view (QVR_ALIAS_FS_GLOW)
+QVR_ALIAS_FS_LITE // QVR: the ES lite form's switches compiled out of main (GL_AliasLiteDefines; QUEST_PLAN.md 6q)
+"#ifdef QVR_PROBE_AMEDIUMP\n" // QVR: vr_gles_define's probe (C5f): main's own floats at medium precision (the functions above keep highp)
+"precision mediump float;\n"
+"#endif\n"
 "void main()\n"
 "{\n"
 "	QVR_TEMPORAL_WRITE(0.0); // QVR: first (before any early return)\n"
+"#if defined(QVR_PROBE_FSCONST) || defined(QVR_PROBE_ALIASCONST)\n" // QVR: -glesdefine's probe (vr/vr_glsafe.cpp): a constant magenta (ALIASCONST: the models' alone, C4h)
+"	out_fragcolor = vec4(1.0, 0.0, 1.0, 1.0);\n"
+"	return;\n"
+"#endif\n"
 "	vec2 uv = in_texcoord;\n"
+"#ifdef QVR_APLAIN_NOSKIN\n" // QVR: the models' plain form (QVR_ALIAS_FS_PLAIN)
+"	const bool gloveShell = false;\n"
+"#else\n"
 "	bool gloveShell = uv.x >= 1.5 && instances[in_instance].GloveShell.x > 0.0; // QVR: a glove's shell (its u 2 along)\n"
+"#endif\n"
 "	if (gloveShell)\n"
 "		uv.x -= 2.0;\n"
 "	vec3 dpdx = dFdx(in_pos), dpdy = dFdy(in_pos); // QVR: for the normal map (before any discard)\n"
@@ -1672,8 +1936,13 @@ QVR_BEHIND_SHOWN_GATE_ALIAS // QVR: see-through models behind a teleporter shown
 "		vec2 rl_size = vec2(textureSize(Tex, 0)) * (rl_r.w > 0.0 ? rl_r.w : 1.0);\n"
 "		RetroLightBegin(uv * rl_size, duvdx * rl_size, duvdy * rl_size, dpdx, dpdy, RetroLight[4]);\n"
 "	}\n"
+"#ifdef QVR_APLAIN_NOMORPH\n" // QVR: the models' plain form (QVR_ALIAS_FS_PLAIN)
+"	const vec3 morphSeam = vec3(0.0);\n"
+"	const bool morphShown = true;\n"
+"#else\n"
 "	vec3 morphSeam; // QVR\n"
 "	bool morphShown = Morph(morphSeam); // QVR: discarded at the end (after the derivatives)\n"
+"#endif\n"
 "#if MODE == " QS_STRINGIFY (ALIASSHADER_NOPERSP) "\n"
 // QVR: no half-texel shift back to the software renderer's texel corners (upstream's `uv -= 0.5 / size`): the skin is
 // read at the texel centres the mesh's ST put the vertices on (gl_mesh.c's + 0.5), as the standard path reads it. Quake VR's
@@ -1690,6 +1959,10 @@ QVR_ALIAS_FS_PARALLAX // QVR: parallax occlusion mapping on the skin's heights
 "#endif\n"
 QVR_ALIAS_FS_SKINTINT // QVR: bare forearms' ends tinted to the hand's skin
 QVR_ALIAS_FS_RECOLOR // QVR: an armed humanoid's recolour by its weapon (vr/vr_humlook.cpp)
+"#ifdef QVR_PROBE_AMIN\n" // QVR: vr_gles_define's probe (C4m): the models' floor, the skin times the vertex light
+"	out_fragcolor = vec4(result.rgb * in_color.rgb, 1.0);\n"
+"	return;\n"
+"#endif\n"
 "#if ALPHATEST\n"
 "	// QVR: alpha to coverage (vr_alpha_coverage with MSAA; opaque draws): the alpha sharpened to about a pixel's\n"
 "	// width round the cutoff gives the samples covered; without it, Quake's test\n"
@@ -1699,6 +1972,10 @@ QVR_ALIAS_FS_RECOLOR // QVR: an armed humanoid's recolour by its weapon (vr/vr_h
 "		discard;\n"
 "#endif\n"
 QVR_ALIAS_FS_LIGHT // QVR: wounds, normal maps, occlusion, the model's light
+"#ifdef QVR_PROBE_ALIGHTEND\n" // QVR: vr_gles_define's probe (C4m): the models' shader ended after their light
+"	out_fragcolor = vec4(result.rgb * light + spec, 1.0);\n"
+"	return;\n"
+"#endif\n"
 "#if ALPHATEST\n"
 "	result.rgb *= light;\n"
 "#else\n"
@@ -1709,6 +1986,10 @@ QVR_ALIAS_FS_LIGHT // QVR: wounds, normal maps, occlusion, the model's light
 "	result.rgb += GloveSheen(bumped, leatherGloss * leatherCover); // QVR: a glove's leather's soft sheen\n"
 "	result.rgb += NailGloss(bumped, nailCover, nails.w - 1.0); // QVR: painted nails' gloss (vr_nail_gloss)\n"
 "	result.rgb += ModelRimReflect(n, bumped, skin, result.a); // QVR: rim light and reflections (vr/vr_envmap.cpp)\n"
+"#ifdef QVR_PROBE_ARIMEND\n" // QVR: vr_gles_define's probe (C4m): the models' shader ended before its glows, fog and output
+"	out_fragcolor = vec4(result.rgb, 1.0);\n"
+"	return;\n"
+"#endif\n"
 "#if POSEVERTTYPE == 2 \n"
 "	result.a *= in_color.a;\n"
 "#else\n"
@@ -1720,14 +2001,18 @@ QVR_ALIAS_FS_LIGHT // QVR: wounds, normal maps, occlusion, the model's light
 "#endif\n"
 "#if MODE == " QS_STRINGIFY (ALIASSHADER_NOPERSP) "\n"
 "	vec3 fullbright = textureLod(FullbrightTex, uv, 0.).rgb;\n" // QVR: fullbright: dimmed or boosted (QVR_ALIAS_FS_GLOW)
+"#elif defined(QVR_PROBE_ANOFB)\n" // QVR: vr_gles_define's probe (C5f): no fullbright fetch
+"	vec3 fullbright = vec3(0.0);\n"
 "#else\n"
 "	vec3 fullbright = Retro > 0 ? RetroSample(FullbrightTex, uv, duvdx, duvdy, false).rgb : textureGrad(FullbrightTex, uv, duvdx, duvdy).rgb; // QVR: uv moved by parallax mapping; retro textures\n"
 "#endif\n"
 QVR_ALIAS_FS_GLOW // QVR: fullbrights, wounds' glow, force grab's glow, morphs
 "	result.rgb = clamp(result.rgb, 0.0, SceneTone.x); // QVR: above 1 in the eyes' float scene (vr_tonemap)\n"
+"#ifndef QVR_PROBE_ANOFOG\n" // QVR: vr_gles_define's probe (C5f): no fog
 "	float fog = exp2(abs(Fog.w) * -dot(in_pos, in_pos));\n"\
 "	fog = clamp(fog, 0.0, 1.0);\n"
 "	result.rgb = mix(Fog.rgb, result.rgb, fog);\n"
+"#endif\n"
 "	out_fragcolor = result;\n"
 "#if MODE == " QS_STRINGIFY (ALIASSHADER_DITHER) " || MODE == " QS_STRINGIFY (ALIASSHADER_NOPERSP) "\n"
 "	// Note: sign bit is used as overbright flag\n"
@@ -2015,11 +2300,24 @@ static const char clear_indirect_compute_shader[] =
 "\n"
 WORLD_DRAW_BUFFER
 "\n"
+"#ifdef QVR_LITSPLIT\n" // QVR: the ES profile's (C4v): the world's commands, then its lit ones (the whole buffer bound)
+"layout(location=0) uniform int WorldCmds;\n"
+"layout(location=1) uniform int LitFirst;\n"
+"layout(location=2) uniform int LitCmds;\n"
+"#endif\n"
+"\n"
 "void main()\n"
 "{\n"
 "	uint thread_id = gl_GlobalInvocationID.x;\n"
-"	if (thread_id < cmds.length())\n"
+"#ifdef QVR_LITSPLIT\n"
+"	if (thread_id < uint(WorldCmds))\n"
 "		cmds[thread_id].count = 0u;\n"
+"	if (thread_id < uint(LitCmds))\n"
+"		cmds[uint(LitFirst) + thread_id].count = 0u;\n"
+"#else\n"
+"	if (thread_id < uint(cmds.length()))\n"
+"		cmds[thread_id].count = 0u;\n"
+"#endif\n"
 "}\n";
 
 ////////////////////////////////////////////////////////////////
@@ -2059,17 +2357,63 @@ DRAW_ELEMENTS_INDIRECT_COMMAND
 "void main()\n"
 "{\n"
 "	uint thread_id = gl_GlobalInvocationID.x;\n"
-"	uint num_calls = remap_data.length();\n"
+"	uint num_calls = uint(remap_data.length());\n"
 "	if (thread_id >= num_calls)\n"
 "		return;\n"
 "	DrawRemap remap = remap_data[thread_id];\n"
 "	DrawElementsIndirectCommand cmd = src_cmds[remap.src_call];\n"
+"#ifdef GL_ES\n" // QVR: ES 3.1's field is reservedMustBeZero (a nonzero one: undefined); ES has no bindless, whose gl_BaseInstanceARB read it, and these draws have no instanced attribute
+"	cmd.baseInstance = 0u;\n"
+"#else\n"
 "	cmd.baseInstance = remap.instance_data / MAX_INSTANCES;\n"
+"#endif\n"
 "	cmd.instanceCount = (remap.instance_data % MAX_INSTANCES) + 1u;\n"
 "	if (cmd.count == 0u)\n"
 "		cmd.instanceCount = 0u;\n"
 "	dst_cmds[thread_id] = cmd;\n"
 "}\n";
+
+////////////////////////////////////////////////////////////////
+//
+// QVR: the bound path's array twins (vr/vr_worldarrays.cpp): the calls drawn as one, their gathered indices copied
+// one after another (a workgroup a call, in their order), each group's draw command written by its last
+//
+////////////////////////////////////////////////////////////////
+
+static const char world_arrays_merge_compute_shader[] =
+"layout(local_size_x=64) in;\n"
+"\n"
+DRAW_ELEMENTS_INDIRECT_COMMAND
+"\n"
+"layout(location=0) uniform int IndexBase; // the destination's first index in its buffer\n"
+"layout(std430, binding=5) restrict readonly buffer SrcCmdBuffer { DrawElementsIndirectCommand src_cmds[]; };\n"
+"layout(std430, binding=6) restrict writeonly buffer DstCmdBuffer { DrawElementsIndirectCommand dst_cmds[]; };\n"
+"layout(std430, binding=7) restrict readonly buffer ItemBuffer { uvec4 items[]; }; // x the command, y the group's first item, z its indices' start, w its group (+ 0x80000000: its last)\n"
+"layout(std430, binding=8) restrict readonly buffer SrcIndexBuffer { uint src_indices[]; };\n"
+"layout(std430, binding=9) restrict writeonly buffer DstIndexBuffer { uint dst_indices[]; };\n"
+"\n"
+"void main()\n"
+"{\n"
+"	uint item = gl_WorkGroupID.x;\n"
+"	uvec4 it = items[item];\n"
+"	uint ofs = it.z;\n"
+"	for (uint j = it.y; j < item; j++)\n"
+"		ofs += src_cmds[items[j].x].count;\n"
+"	uint count = src_cmds[it.x].count, first = src_cmds[it.x].firstIndex;\n"
+"	for (uint i = gl_LocalInvocationID.x; i < count; i += 64u)\n"
+"		dst_indices[ofs + i] = src_indices[first + i];\n"
+"	if (gl_LocalInvocationID.x == 0u && it.w >= 0x80000000u)\n"
+"	{\n"
+"		DrawElementsIndirectCommand cmd;\n"
+"		cmd.count = ofs + count - it.z;\n"
+"		cmd.instanceCount = 1u;\n"
+"		cmd.firstIndex = uint(IndexBase) + it.z;\n"
+"		cmd.baseVertex = 0u;\n"
+"		cmd.baseInstance = 0u;\n"
+"		dst_cmds[it.w & 0x7fffffffu] = cmd;\n"
+"	}\n"
+"}\n";
+
 
 ////////////////////////////////////////////////////////////////
 //
@@ -2093,10 +2437,10 @@ DRAW_ELEMENTS_INDIRECT_COMMAND
 "};\n"
 "\n"
 "#define CMD_COUNT(base)			rawcmds[base]\n"
-"#define CMD_INSTANCE_COUNT(base)	rawcmds[base + 1]\n"
-"#define CMD_FIRST_INDEX(base)		rawcmds[base + 2]\n"
-"#define CMD_BASE_VERTEX(base)		rawcmds[base + 3]\n"
-"#define CMD_BASE_INSTANCE(base)	rawcmds[base + 4]\n"
+"#define CMD_INSTANCE_COUNT(base)	rawcmds[base + 1u]\n"
+"#define CMD_FIRST_INDEX(base)		rawcmds[base + 2u]\n"
+"#define CMD_BASE_VERTEX(base)		rawcmds[base + 3u]\n"
+"#define CMD_BASE_INSTANCE(base)	rawcmds[base + 4u]\n"
 "#define SIZEOF_CMD					5 /* uints */\n"
 "\n"
 "layout(std430, binding=2) restrict writeonly buffer IndexBuffer\n"
@@ -2141,12 +2485,12 @@ DRAW_ELEMENTS_INDIRECT_COMMAND
 "};\n"
 "\n"
 "#define SURF_PLANE(base)			uintBitsToFloat(rawsurfaces[base])\n"
-"#define SURF_FRAMECOUNT(base)		rawsurfaces[base + 1].x\n"
-"#define SURF_TEXNUM(base)			rawsurfaces[base + 1].y\n"
-"#define SURF_NUMEDGES(base)		rawsurfaces[base + 1].z\n"
-"#define SURF_FIRSTVERT(base)		rawsurfaces[base + 1].w\n"
-"#define SURF_MINS(base)			uintBitsToFloat(rawsurfaces[base + 2].xyz)\n"
-"#define SURF_MAXS(base)			uintBitsToFloat(rawsurfaces[base + 3].xyz)\n"
+"#define SURF_FRAMECOUNT(base)		rawsurfaces[base + 1u].x\n"
+"#define SURF_TEXNUM(base)			rawsurfaces[base + 1u].y\n"
+"#define SURF_NUMEDGES(base)		rawsurfaces[base + 1u].z\n"
+"#define SURF_FIRSTVERT(base)		rawsurfaces[base + 1u].w\n"
+"#define SURF_MINS(base)			uintBitsToFloat(rawsurfaces[base + 2u].xyz)\n"
+"#define SURF_MAXS(base)			uintBitsToFloat(rawsurfaces[base + 3u].xyz)\n"
 "#define SIZEOF_SURFACE				4 /* uvec4s */\n"
 "\n"
 "layout(std140, binding=1) uniform FrameCullUBO\n"
@@ -2156,12 +2500,16 @@ DRAW_ELEMENTS_INDIRECT_COMMAND
 "	uint	oldskyleaf;\n"
 "	uint	framecount;\n"
 "	vec3	vieworg2; // QVR: single-pass stereo: the other eye's (else vieworg)\n"
+"#ifdef QVR_LITSPLIT\n" // QVR: the ES profile's split by surface (C4v, r_world.c R_WorldLitSplit)
+"	uvec4	litinfo; // x the spheres (0: no split), y the first lit command, z the textures split (solid and fences)\n"
+"	vec4	litspheres[" QS_STRINGIFY (QVR_WORLD_LIT_SPHERES) "]; // the lights reaching the world: centre, radius\n"
+"#endif\n"
 "};\n"
 "\n"
 "void main()\n"
 "{\n"
 "	uint thread_id = gl_GlobalInvocationID.x;\n"
-"	if (thread_id >= marksurfs.length())\n"
+"	if (thread_id >= uint(marksurfs.length()))\n"
 "		return;\n"
 "	MarkSurface mark = marksurfs[thread_id];\n"
 "\n"
@@ -2207,6 +2555,21 @@ DRAW_ELEMENTS_INDIRECT_COMMAND
 "	uint numedges = SURF_NUMEDGES(surfbase);\n"
 "	uint firstvert = SURF_FIRSTVERT(surfbase);\n"
 "	uint cmdbase = texnum * uint(SIZEOF_CMD);\n"
+"#ifdef QVR_LITSPLIT\n" // QVR: a solid or fence surface a light's sphere touches: to its texture's lit command (C4v)
+"	if (texnum < litinfo.z)\n"
+"	{\n"
+"		for (uint l = 0u; l < litinfo.x; l++)\n"
+"		{\n"
+"			vec4 s = litspheres[l];\n"
+"			vec3 d = max(max(mins - s.xyz, s.xyz - maxs), vec3(0.0));\n"
+"			if (dot(d, d) <= s.w * s.w)\n"
+"			{\n"
+"				cmdbase = (litinfo.y + texnum) * uint(SIZEOF_CMD);\n"
+"				break;\n"
+"			}\n"
+"		}\n"
+"	}\n"
+"#endif\n"
 "	// some bsps out there have faces with < 2 edges, which would cause underflow below\n"
 "	numedges = max(numedges, 2u);\n"
 "	uint ofs = CMD_FIRST_INDEX(cmdbase) + atomicAdd(CMD_COUNT(cmdbase), 3u * (numedges - 2u));\n"
@@ -2337,7 +2700,7 @@ QVR_CLUSTER_SPOT_BOUNDS // QVR: a spot light's bounding sphere
 "	ComputeClusterExtents();\n"
 "\n"
 "	uint clustermask[MAX_LIGHTS / 32];\n"
-"	for (i = 0u; i < clustermask.length(); i++)\n"
+"	for (i = 0u; i < uint(clustermask.length()); i++)\n"
 "		clustermask[i] = 0u;\n"
 "	for (i = 0u; i < numlights; i++)\n"
 "		if (LightTouchesCluster(local_lights[i]))\n"
@@ -2358,7 +2721,11 @@ static const char palette_init_compute_shader[] =
 "\n"
 PALETTE_BUFFER
 "\n"
+"#ifdef GL_ES\n" // QVR: ES 3.1 has no r8ui images: r32ui there (VR_GLESImageFormat)
+"layout(r32ui, binding=0) uniform writeonly uimage3D PaletteLUT;\n"
+"#else\n"
 "layout(r8ui, binding=0) uniform writeonly uimage3D PaletteLUT;\n"
+"#endif\n"
 "\n"
 "vec3 sRGBToLinearRGB(vec3 v)\n"
 "{\n"
@@ -2416,7 +2783,7 @@ PALETTE_BUFFER
 "void main()\n"
 "{\n"
 "	uint groupsize = gl_WorkGroupSize.x * gl_WorkGroupSize.y * gl_WorkGroupSize.z;\n"
-"	uint numpasses = (256 + (groupsize - 1u)) / groupsize;\n"
+"	uint numpasses = (256u + (groupsize - 1u)) / groupsize;\n"
 "	uint i, ofs;\n"
 "	for (i = 0u, ofs = 0u; i < numpasses; i++, ofs += groupsize)\n"
 "	{\n"
@@ -2429,7 +2796,7 @@ PALETTE_BUFFER
 "\n"
 "	uvec3 gid = gl_GlobalInvocationID + UnpackRGB8(uint(Offset));\n"
 "	vec3 target = NormalizeColor((gid << 1) + (gid >> 6));\n"
-"	uint bestidx = 0;\n"
+"	uint bestidx = 0u;\n"
 "	float bestdist = 1e+32;\n"
 "	for (i = 0u; i < 256u; i++)\n"
 "	{\n"
