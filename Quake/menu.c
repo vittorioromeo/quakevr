@@ -1133,6 +1133,11 @@ M_ToggleMenu_f
 */
 void M_ToggleMenu_f (void)
 {
+	if (CL_SeatIndex () != 0 && VR_SeatMenusOn ()) // QVR: splitscreen phase 9: a seat 2-4's togglemenu: its seat menu
+	{
+		VR_SeatMenuToggle ();
+		return;
+	}
 	m_entersound = true;
 
 	if (key_dest == key_menu)

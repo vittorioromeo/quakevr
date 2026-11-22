@@ -391,7 +391,7 @@ static void SCR_CheckDrawCenterString (seathud_t *hud)
 		return;
 	if (!M_ForcedCenterPrint (NULL))
 	{
-		if (key_dest != key_game)
+		if (Key_SeatDest () != key_game) // QVR: splitscreen phase 9: the seat's own (its seat menu, or seat 1's menus)
 			return;
 		if (cl.paused) //johnfitz -- don't show centerprint during a pause
 			return;
@@ -2487,9 +2487,9 @@ joining (not signed on yet) shows its tile dark with a line.
 */
 static void SCR_DrawSeatHud (seathud_t *hud)
 {
-	if (cl.intermission == 1 && key_dest == key_game)
+	if (cl.intermission == 1 && Key_SeatDest () == key_game) // (phase 9: the seat's own menu or the game)
 		Sbar_IntermissionOverlay ();
-	else if (cl.intermission == 2 && key_dest == key_game)
+	else if (cl.intermission == 2 && Key_SeatDest () == key_game)
 	{
 		Sbar_FinaleOverlay ();
 		SCR_CheckDrawCenterString (hud);
@@ -2532,6 +2532,7 @@ static void SCR_DrawSeats (void)
 			VectorCopy (vright, sv->drawnright); // (its sound listener's)
 			GL_Set2D ();
 			SCR_DrawSeatHud (SCR_SeatHud ());
+			VR_SeatMenuDraw (); // (phase 9: a seat 2-4's own menu in its tile, or the pause's note)
 		}
 		else
 		{

@@ -202,6 +202,10 @@ typedef enum
 } keydevicemask_t;
 
 extern keydest_t	key_dest;
+// QVR: splitscreen phase 9: where the current seat's keys go. Seat 1's (and every seat's with one seat in play, or with
+// scr_splitmenu 1): key_dest, as always. A seat 2-4's: key_menu while its own seat menu is open (vr_seatmenu.cpp), else
+// key_game: never the full menu or the console, which are seat 1's.
+keydest_t Key_SeatDest (void);
 
 // QVR: splitscreen (docs/vr-port/SPLITSCREEN.md, phase 2): the keys held, the bindings and the device state a player
 // has his own of (Ironwail's keydown[], keybindings[], joy_altmodifier_pressed, the gyro button, the mouse's motion):

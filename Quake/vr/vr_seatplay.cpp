@@ -498,4 +498,5 @@ extern "C" void CL_SeatFrame()
         testFrame();
     }
     renderTestFrame();
+    menuTestFrame();
 }

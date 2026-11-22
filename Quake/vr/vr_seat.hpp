@@ -94,6 +94,8 @@ enum class Part
     AvatarOthers,  // vr_avatar.cpp: the other players' and dolls' bodies as this seat's client poses them
     ViewPlates,    // vr_view_body.cpp: your armour plates' morphs
     ClimbPins,     // vr_climb.cpp: each hand's drawn place eased onto its hold
+    // Phase 9: menus per seat.
+    SeatMenu,      // vr_seatmenu.cpp: a seat 2-4's own menu (open, cursor, its look sensitivity and invert)
     Count
 };
 
@@ -185,5 +187,10 @@ void registerPlayCommands();
 // Phase 7 (vr_seatrender.cpp): vr_seat_render_test (each seat drawn in its tile), its per-frame step (CL_SeatFrame's).
 void registerRenderCommands();
 void renderTestFrame();
+
+// Phase 9 (vr_seatmenu.cpp): seats 2-4's own menus, the menus' pause, vr_seat_menu_test, its per-frame step.
+void registerMenuCommands();
+void menuTestFrame();
+void closeMenu(int i); // seat i's menu shut (a seat joining or leaving)
 
 } // namespace qvr::seat

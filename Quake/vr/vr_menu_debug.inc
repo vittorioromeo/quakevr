@@ -1197,6 +1197,10 @@ za::Vector<Item> pageDebugReports()
                   "things are kept for his return by name."),
         command("Splitscreen: Seats Status", "seat_status")
             .help("seat_status: each seat, its pad, its connection, signon and server slot."),
+        command("Splitscreen: Seat 2's Menu", "seat_menu 2")
+            .help("seat_menu <n>: opens or shuts seat n's own menu in its tile, as its pad's Start does (Resume, Look "
+                  "Sensitivity, Invert Look, Controls, Leave Seat; driven by its pad). scr_splitmenu 1 gives every seat "
+                  "the full menu instead; scr_splitpause: 0 a menu never pauses, 1 in coop (default), 2 also deathmatch."),
         command("Network: Drawn Near Me", "vr_mp_near 0")
             .help("vr_mp_near <ent> [radius] [seconds]: the models this client draws, the lights and the sounds of the last "
                   "seconds round a player (0: you). Run it here and on another player's game with your entity number to "

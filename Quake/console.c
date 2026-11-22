@@ -753,6 +753,8 @@ extern int history_line; //johnfitz
 
 void Con_ToggleConsole_f (void)
 {
+	if (CL_SeatIndex () != 0) // QVR: splitscreen phase 9: the console is seat 1's (a seat 2-4's bind does nothing)
+		return;
 	if (key_dest == key_console/* || (key_dest == key_game && con_forcedup)*/)
 	{
 		key_lines[edit_line][1] = 0;	// clear any typing

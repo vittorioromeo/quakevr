@@ -627,6 +627,7 @@ void setPlays(const int i, const bool on, const int pad)
     }
     seats.playing = on ? seats.playing | (1u << i) : seats.playing & ~(1u << i);
     seats.pad[i] = on ? pad : -1;
+    closeMenu(i); // (phase 9: a seat comes in or goes out with its menu shut)
 }
 
 clientseat_t* netIfMade(const int i)

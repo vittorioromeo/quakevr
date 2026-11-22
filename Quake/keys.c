@@ -42,6 +42,15 @@ int		history_line = 0;
 
 keydest_t	key_dest;
 
+// QVR: splitscreen phase 9 (keys.h): where the current seat's keys go
+keydest_t Key_SeatDest (void)
+{
+	int seat = CL_SeatIndex ();
+	if (seat == 0 || !VR_SeatMenusOn ())
+		return key_dest;
+	return VR_SeatMenuIsOpen (seat) ? key_menu : key_game;
+}
+
 qboolean	consolekeys[MAX_KEYS];	// if true, can't be rebound while in console -- seat-shared: a table set once (Key_Init)
 qboolean	menubound[MAX_KEYS];	// if true, can't be rebound while in menu -- seat-shared: a table set once (Key_Init)
 // QVR: splitscreen: keydown[] and keybindings[] are a seat's (seatkeys_t, keys.h; Key_Seat)
@@ -1194,6 +1203,11 @@ void Key_EventWithKeycode (int key, qboolean down, int keycode)
 	char	*kb;
 	char	cmd[1024];
 	qboolean wasdown;
+	// QVR: splitscreen phase 9: the current seat's own destination (seat 1's: key_dest; a seat 2-4's: its seat menu or
+	// the game, Key_SeatDest), and the console forced up only for seat 1
+	const qboolean seatmenu = CL_SeatIndex () != 0 && VR_SeatMenusOn ();
+	const keydest_t dest = Key_SeatDest ();
+	const qboolean forcedup = con_forcedup && !seatmenu;
 
 	if (key < 0 || key >= MAX_KEYS)
 		return;
@@ -1223,10 +1237,10 @@ void Key_EventWithKeycode (int key, qboolean down, int keycode)
 	{
 		if (Key_Seat ()->down[key])
 		{
-			if (key_dest == key_game && !con_forcedup)
+			if (dest == key_game && !forcedup)
 				return; // ignore autorepeats in game mode
 		}
-		else if (key >= 200 && !Key_Seat ()->bindings[key] && key_dest == key_game && !cls.demoplayback)
+		else if (key >= 200 && !Key_Seat ()->bindings[key] && dest == key_game && !cls.demoplayback)
 		{
 			int optkey;
 			if (Key_GetKeysForCommand ("menu_options", &optkey, 1, KDM_ANY))
@@ -1241,7 +1255,7 @@ void Key_EventWithKeycode (int key, qboolean down, int keycode)
 	wasdown = Key_Seat ()->down[key];
 	Key_Seat ()->down[key] = down;
 
-	if (key_inputgrab.active)
+	if (key_inputgrab.active && !seatmenu) // QVR: (the full menu's grab is seat 1's)
 	{
 		if (down)
 		{
@@ -1258,6 +1272,20 @@ void Key_EventWithKeycode (int key, qboolean down, int keycode)
 	if (down && !Key_Seat ()->down[K_SHIFT] && IN_EmulatedCharEvents ())
 		Char_Event (keycode);
 
+// QVR: splitscreen phase 9: a seat 2-4's own menu has its keys while open (each pad drives its own seat's menu), and
+// its Start (escape) opens or shuts it: never the full menu or the console (seat 1's)
+	if (seatmenu && (dest == key_menu || key == K_ESCAPE))
+	{
+		if (key == K_ESCAPE && dest != key_menu)
+		{
+			if (down)
+				VR_SeatMenuToggle ();
+		}
+		else
+			VR_SeatMenuKey (key, down);
+		return;
+	}
+
 // handle escape specialy, so the user can never unbind it
 	if (key == K_ESCAPE)
 	{
@@ -1270,10 +1298,10 @@ void Key_EventWithKeycode (int key, qboolean down, int keycode)
 			return;
 		}
 
-		if (key_dest == key_game && VR_FlatToolgunEscape ()) // QVR: closes flatscreen play's toolgun panel, no menu
+		if (dest == key_game && VR_FlatToolgunEscape ()) // QVR: closes flatscreen play's toolgun panel, no menu
 			return;
 
-		switch (key_dest)
+		switch (dest)
 		{
 		case key_message:
 			Key_Message (key);
@@ -1286,7 +1314,7 @@ void Key_EventWithKeycode (int key, qboolean down, int keycode)
 			M_ToggleMenu_f ();
 			break;
 		default:
-			Sys_Error ("Bad key_dest");
+			Sys_Error ("Bad dest");
 		}
 
 		return;
@@ -1301,15 +1329,15 @@ void Key_EventWithKeycode (int key, qboolean down, int keycode)
 	}
 
 // QVR: the ragdoll tool's keys in the game (vr_ragtool.cpp)
-	if (key_dest == key_game && VR_RagtoolKey (key, down))
+	if (dest == key_game && VR_RagtoolKey (key, down))
 		return;
 
 // QVR: the Survival Arena's perk cards: their number keys while they are shown (vr_arenacards.cpp)
-	if (key_dest == key_game && VR_ArenaCardsKey (key, down))
+	if (dest == key_game && VR_ArenaCardsKey (key, down))
 		return;
 
 // demo controls
-	if (cls.demoplayback && key_dest == key_game)
+	if (cls.demoplayback && dest == key_game)
 	{
 		switch (key)
 		{
@@ -1378,18 +1406,18 @@ void Key_EventWithKeycode (int key, qboolean down, int keycode)
 	}
 
 // during demo playback, most keys bring up the main menu
-	if (cls.demoplayback && down && consolekeys[key] && key_dest == key_game && key != K_TAB)
+	if (cls.demoplayback && down && consolekeys[key] && dest == key_game && key != K_TAB)
 	{
 		M_ToggleMenu_f ();
 		return;
 	}
 
 // if not a consolekey, send to the interpreter no matter what mode is
-	if ((key_dest == key_menu && menubound[key] && !M_WaitingForKeyBinding ()) ||
-	    (key_dest == key_console && !consolekeys[key]) ||
-	    (key_dest == key_game && (!con_forcedup || !consolekeys[key])))
+	if ((dest == key_menu && menubound[key] && !M_WaitingForKeyBinding ()) ||
+	    (dest == key_console && !consolekeys[key]) ||
+	    (dest == key_game && (!forcedup || !consolekeys[key])))
 	{
-		if (key_dest == key_game && VR_FlatKeyOwned (key)) // QVR: flatscreen play reads this key itself (VR_FlatKeyOwned)
+		if (dest == key_game && VR_FlatKeyOwned (key)) // QVR: flatscreen play reads this key itself (VR_FlatKeyOwned)
 			return;
 		kb = Key_Seat ()->bindings[key];
 		if (kb)
@@ -1411,7 +1439,7 @@ void Key_EventWithKeycode (int key, qboolean down, int keycode)
 	if (!down)
 		return;		// other systems only care about key down events
 
-	switch (key_dest)
+	switch (dest)
 	{
 	case key_message:
 		Key_Message (key);
@@ -1425,7 +1453,7 @@ void Key_EventWithKeycode (int key, qboolean down, int keycode)
 		Key_Console (key);
 		break;
 	default:
-		Sys_Error ("Bad key_dest");
+		Sys_Error ("Bad dest");
 	}
 }
 

@@ -475,6 +475,16 @@ void R_ParticleTruncate (int n);
 clientseat_t *CL_SeatNetIfMade (int seat);	// seat 0..3's client if ever made (NULL: never used)
 void CL_SeatName (int seat, char *out, size_t size);	// the player's name for seat n: cl_name, then "<cl_name> <n+1>"
 void CL_SeatFrame (void);					// once a host frame: seats joining (connecting) or gone (vr_seatplay.cpp)
+// Splitscreen phase 9 (vr_seatmenu.cpp): seats 2-4's own menus, drawn in their tiles; seat 1 has the full menu and the
+// console. scr_splitmenu 0 (default): a seat 2-4's Start opens its seat menu; 1: the full menu, as before phase 9.
+int VR_SeatMenusOn (void);					// scr_splitmenu 0 with more than one seat in play: seats 2-4 have their own menus
+int VR_SeatMenuIsOpen (int seat);			// seat 1..3's menu open
+void VR_SeatMenuToggle (void);				// the current seat's (1-3) menu opened or shut (its Start)
+void VR_SeatMenuKey (int key, int down);	// a key of the current seat (1-3) while its menu is open
+void VR_SeatMenuDraw (void);				// the current seat's menu (or the pause's note) in its tile (gl_screen.c's seat pass)
+int VR_SeatMenusPause (void);				// scr_splitpause: a menu open (seat 1's full one or a seat menu) holds the local game
+float VR_SeatLookScale (void);				// the current seat's stick look sensitivity (seat 0: exactly 1)
+int VR_SeatInvertLook (void);				// the current seat's own look invert (seat 0: 0)
 void CL_SeatConnectLocal (void);			// the current seat (1-3) connects to the local server (cl_main.c)
 void CL_SeatDisconnect (void);				// the current seat (1-3) leaves its server, the game running on (cl_main.c)
 qboolean Host_SeatsMaySave (const char *name);	// more than one seat: the level-start coop autosave only (host_cmd.c)

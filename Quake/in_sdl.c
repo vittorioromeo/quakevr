@@ -1219,7 +1219,7 @@ static void IN_PadEmit (joypad_t *pad, const joybuttonstate_t *newbuttons, const
 	}
 
 	// emit emulated arrow keys so the analog sticks can be used in the menu
-	if (key_dest != key_game)
+	if (Key_SeatDest () != key_game) // QVR: splitscreen phase 9: the pad's seat's (its seat menu, or seat 1's menus)
 	{
 		joyaxis_t old_move = IN_GetMoveAxis (&pad->axisstate);
 		joyaxis_t new_move = IN_GetMoveAxis (newaxisstate);
@@ -1264,7 +1264,7 @@ static void IN_PadPoll (joypad_t *pad)
 	IN_PadEmit (pad, &newbuttons, &newaxisstate);
 
 	// scroll console with look stick
-	if (key_dest == key_console)
+	if (Key_SeatDest () == key_console) // QVR: (seat 1's console only)
 	{
 		const float scrollthreshold = 0.1f;
 		const float maxscrollspeed = 72.f; // lines per second
@@ -1380,7 +1380,7 @@ void IN_JoyMove (usercmd_t *cmd)
 	if (!pad)
 		return;
 
-	if (cl.paused || key_dest != key_game)
+	if (cl.paused || Key_SeatDest () != key_game) // QVR: splitscreen phase 9: the moving seat's (its seat menu open: no move)
 		return;
 
 	moveRaw = IN_GetMoveAxis (&pad->axisstate);
@@ -1479,12 +1479,14 @@ void IN_JoyMove (usercmd_t *cmd)
 	{
 		float right, down;
 		// QVR: flatscreen play's ironsight slows the stick as it does the mouse (vr_flataimsens.cpp); exactly 1 otherwise
-		const float aim = VR_FlatAimStickScale (VR_FlatLookFov (r_refdef.basefov));
+		// QVR: splitscreen phase 9: a seat 2-4's own sensitivity and invert (its seat menu); seat 1's exactly 1 and none
+		const float aim = VR_FlatAimStickScale (VR_FlatLookFov (r_refdef.basefov)) * VR_SeatLookScale ();
+		const qboolean invert = (joy_invert.value != 0.f) != (VR_SeatInvertLook () != 0);
 
 		IN_ResetFlickState (pad);
 
 		right = lookEased.x * joy_sensitivity_yaw.value * host_rawframetime * aim;
-		down = lookEased.y * joy_sensitivity_pitch.value * (joy_invert.value ? -1.0 : 1.0) * host_rawframetime * aim;
+		down = lookEased.y * joy_sensitivity_pitch.value * (invert ? -1.0 : 1.0) * host_rawframetime * aim;
 		if (VR_FlatLookTurn (&right, &down)) // QVR: flatscreen play's view rolled: along the rolled screen (see IN_MouseMove)
 		{
 			cl.viewangles[YAW] -= right;
@@ -1493,7 +1495,7 @@ void IN_JoyMove (usercmd_t *cmd)
 		else
 		{
 			cl.viewangles[YAW] -= lookEased.x * joy_sensitivity_yaw.value * host_rawframetime * aim;
-			cl.viewangles[PITCH] += lookEased.y * joy_sensitivity_pitch.value * (joy_invert.value ? -1.0 : 1.0) * host_rawframetime * aim;
+			cl.viewangles[PITCH] += lookEased.y * joy_sensitivity_pitch.value * (invert ? -1.0 : 1.0) * host_rawframetime * aim;
 		}
 
 		if (lookEased.x != 0 || lookEased.y != 0)
@@ -1522,7 +1524,7 @@ void IN_GyroMove(usercmd_t *cmd)
 	if (!IN_JoyActive (pad))
 		return;
 
-	if (cl.paused || key_dest != key_game)
+	if (cl.paused || Key_SeatDest () != key_game) // QVR: splitscreen phase 9: the moving seat's (its seat menu open: no move)
 		return;
 
 	if (CL_InCutscene ())
