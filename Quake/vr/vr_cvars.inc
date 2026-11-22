@@ -3796,7 +3796,7 @@ QVR_CVAR(vr_rope_spawn_damping, "0.5", CVAR_ARCHIVE | QVR_OWN)   // ... damping 
 QVR_CVAR(vr_rope_spawn_pinned, "0", CVAR_ARCHIVE | QVR_OWN)      // ... its bottom pinned where it first hangs (1) or free (0)
 QVR_CVAR(vr_rope_spawn_span, "0", CVAR_ARCHIVE | QVR_OWN)        // ... (ropes7) 0: hung from the ceiling; else strung from 80 over the ghost to this many units ahead (the ghost's facing), its end pinned there
 QVR_CVAR(vr_rope_spawn_rise, "0", CVAR_ARCHIVE | QVR_OWN)        // ... a strung rope's end this many units higher (negative: lower) than its start
-QVR_CVAR(vr_rope_spawn_slack, "0.1", CVAR_ARCHIVE | QVR_OWN)     // ... a strung rope's slack: its length over the straight line between its ends (0.1: 10% longer)
+QVR_CVAR(vr_rope_spawn_slack, "0.02", CVAR_ARCHIVE | QVR_OWN)    // ... a strung rope's slack: its length over the straight line between its ends (0.02: 2% longer; a 256 span then sags about 26 under a climber)
 QVR_CVAR(vr_rope_spawn_metal, "0", CVAR_ARCHIVE | QVR_OWN)       // ... a pole's look and sounds: 1 metal, 0 wood
 QVR_CVAR(vr_rope_spawn_pole_thickness, "3", CVAR_ARCHIVE | QVR_OWN) // ... a pole's thickness (units across)
 QVR_CVAR(vr_rope_monkey_angle, "45", CVAR_ARCHIVE | QVR_RULE)    // (ropes7) degrees from straight up and down past which a rope pinned at both ends (or a pole) is traversed hanging under it, hand over hand along it (a monkey traverse), not climbed
