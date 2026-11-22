@@ -1060,6 +1060,10 @@ vr_agrunt_shotdisarm_proj_max|1|Armed Grunts|Projectile: Most Chance|Advanced VR
 vr_player_disarm|1|Armed Grunts|You Can Be Disarmed|Advanced VR Options > Combat > Armed Grunts > You Can Be Disarmed
 vr_player_disarm_pvp|1|Armed Grunts|You Can Be Disarmed by Players|Advanced VR Options > Combat > Armed Grunts > You Can Be Disarmed by Players
 vr_player_disarm_chance|1|Armed Grunts|Your Disarm Chance|Advanced VR Options > Combat > Armed Grunts > Your Disarm Chance
+vr_player_disarm_jolts|1|Armed Grunts|Your Disarm: Jolts|Advanced VR Options > Combat > Armed Grunts > Your Disarm: Jolts
+vr_player_disarm_window|1|Armed Grunts|Your Disarm: Jolt Kept|Advanced VR Options > Combat > Armed Grunts > Your Disarm: Jolt Kept
+vr_player_disarm_heavy|1|Armed Grunts|Your Disarm: Heavy Blow|Advanced VR Options > Combat > Armed Grunts > Your Disarm: Heavy Blow
+vr_player_disarm_shot|1|Armed Grunts|Your Disarm: Shot Damage|Advanced VR Options > Combat > Armed Grunts > Your Disarm: Shot Damage
 vr_player_disarm_grab|1|Armed Grunts|Players: Grab and Pull Disarms|Advanced VR Options > Combat > Armed Grunts > Players: Grab and Pull Disarms
 vr_player_disarm_pull|1|Armed Grunts|Players: Disarm Pull|Advanced VR Options > Combat > Armed Grunts > Players: Disarm Pull
 vr_player_disarm_reach|1|Armed Grunts|Players: Disarm Grab Reach|Advanced VR Options > Combat > Armed Grunts > Players: Disarm Grab Reach
@@ -5665,6 +5669,7 @@ vr_debug_doom|2|Debug - Tests|Doom: Debug|Advanced VR Options > Debug > Tests > 
 |2|Debug - Tests|AD and Quoth Variants: Armed Test|Advanced VR Options > Debug > Tests > AD and Quoth Variants: Armed Test
 |2|Debug - Tests|AD and Quoth Variants: Map Census|Advanced VR Options > Debug > Tests > AD and Quoth Variants: Map Census
 |2|Debug - Tests|Armed Humanoids: Recolour Row|Advanced VR Options > Debug > Tests > Armed Humanoids: Recolour Row
+|2|Debug - Tests|Armed Humanoids: AD Model Beside Its Row|Advanced VR Options > Debug > Tests > Armed Humanoids: AD Model Beside Its Row
 |2|Debug - Tests|Quoth: Drive This Map's Flow|Advanced VR Options > Debug > Tests > Quoth: Drive This Map's Flow
 |2|Debug - Tests|Arcane Dimensions: Widowmaker Pickup Ahead|Advanced VR Options > Debug > Tests > Arcane Dimensions: Widowmaker Pickup Ahead
 |2|Debug - Tests|Arcane Dimensions: Upgraded Weapons Ahead|Advanced VR Options > Debug > Tests > Arcane Dimensions: Upgraded Weapons Ahead
@@ -5768,6 +5773,7 @@ vr_test_spawn_tilt|2|Debug - Tests|Box Tilted|Advanced VR Options > Debug > Test
 |2|Debug - Tests|Wet Check: Nothing Wet Near|Advanced VR Options > Debug > Tests > Wet Check: Nothing Wet Near
 |2|Debug - Tests|Shoot Yourself: Ordinary Firing|Advanced VR Options > Debug > Tests > Shoot Yourself: Ordinary Firing
 |2|Debug - Tests|Player Disarm: Shots on Your Gun|Advanced VR Options > Debug > Tests > Player Disarm: Shots on Your Gun
+|2|Debug - Tests|Player Disarm: The Rules, Blow by Blow|Advanced VR Options > Debug > Tests > Player Disarm: The Rules, Blow by Blow
 |2|Debug - Tests|Deathmatch Rules: Weapons and Bots|Advanced VR Options > Debug > Tests > Deathmatch Rules: Weapons and Bots
 |2|Debug - Tests|Deathmatch: Parry a Bot's Swing|Advanced VR Options > Debug > Tests > Deathmatch: Parry a Bot's Swing
 |2|Debug - Tests|Deathmatch: A Bot Punches You|Advanced VR Options > Debug > Tests > Deathmatch: A Bot Punches You
@@ -6080,6 +6086,8 @@ vr_test_grenade_yours|2|Debug - Tests|Dud Is Yours|Advanced VR Options > Debug >
 vr_debug_pain|2|Debug - Tests|Print Hits|Advanced VR Options > Debug > Tests > Print Hits
 |2|Debug - Tests|Report the Hooks|Advanced VR Options > Debug > Tests > Report the Hooks
 |2|Debug - Tests|Print the Ropes|Advanced VR Options > Debug > Tests > Print the Ropes
+|2|Debug - Tests|Print the Climbable Ropes|Advanced VR Options > Debug > Tests > Print the Climbable Ropes
+|2|Debug - Tests|Test the Climbable Ropes|Advanced VR Options > Debug > Tests > Test the Climbable Ropes
 |2|Debug - Tests|Deplete Stamina|Advanced VR Options > Debug > Tests > Deplete Stamina
 |2|Debug - Tests|Nearly Empty|Advanced VR Options > Debug > Tests > Nearly Empty
 |2|Debug - Tests|Half Stamina|Advanced VR Options > Debug > Tests > Half Stamina
