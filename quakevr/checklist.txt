@@ -107,6 +107,8 @@ Host a game with a room code: Host Game says whether your port 26000 is reachabl
 Show Navmesh (any setting) draws each navmesh-walking bot's path in magenta, with a white post at its next corner, on the host and when joined as a client (vr_bot_navmesh 1, deathmatch with bots) {test:mp_dm_navmesh}
 Kill a player and a bot in coop (and yourself in single player): each corpse is that player's own body shape and size, its limbs bending like a person's, and a tall player's corpse is visibly longer than a short one's {test:mp_coop_bodies}
 Run the mp_dm_passive scene: a local deathmatch with a bot that stands still facing you; kill it and it comes back to the same spot, still passive {test:mp_dm_passive}
+Shoot the passive bot a few times: blood pours from where it was hit, its wounds and bleeding as on your own body, and you hear the pour land. {test:mp_dm_passive}
+Let the bot shoot at you with its shotgun: after each shot its pump strokes back and forward with the clacks, its ammo screen lit and its barrel glowing as it heats. {test:mp_dm_hostile}
 
 [4. Flat screen]
 
