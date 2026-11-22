@@ -354,6 +354,24 @@ void testFrame()
                 static_cast<double>(flatDistance(p1->v.origin, t.start1)), t.frames));
             check(flatDistance(p0->v.origin, t.start0) < 1.f, va("seat 1 stays where it was (%.1f units)",
                 static_cast<double>(flatDistance(p0->v.origin, t.start0))));
+            // (deathmatch spawns them out of each other's sight, and the server sends only what a player may see: seat
+            // 2's player is put beside seat 1's, on the first free side, for the "seen" checks)
+            if(flatDistance(p0->v.origin, p1->v.origin) > 128.f)
+            {
+                const progs::ServerVm vm; // (the server's world: SV_Move, SV_LinkEdict)
+                constexpr float sides[4][2] = {{56.f, 0.f}, {-56.f, 0.f}, {0.f, 56.f}, {0.f, -56.f}};
+                for(const auto& side : sides)
+                {
+                    vec3_t to = {p0->v.origin[0] + side[0], p0->v.origin[1] + side[1], p0->v.origin[2]};
+                    const trace_t tr = SV_Move(p0->v.origin, p1->v.mins, p1->v.maxs, to, MOVE_NORMAL, p0);
+                    if(tr.fraction == 1.f && !tr.startsolid && !tr.allsolid)
+                    {
+                        VectorCopy(to, p1->v.origin);
+                        SV_LinkEdict(p1, false);
+                        break;
+                    }
+                }
+            }
             go(Step::WaitSeen);
             return;
         }

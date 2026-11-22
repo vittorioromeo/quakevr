@@ -18,7 +18,7 @@ for MODE in coop dm; do
     if [ $MODE = coop ]; then RULES="deathmatch 0; coop 1"; else RULES="coop 0; deathmatch 1"; fi
     bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -QuitOn "seat_play_test: [0-9]+ passed" -Timeout 240 \
         -Filter "^seat_play_test|^seat |seat_join|Host_Error|SV_Error|Sys_Error" \
-        -Script "$RULES; maxplayers 4; vr_seat_play_test; map e1m1; toggleconsole; quit" > "$LOG" 2>&1
+        -Script "$RULES; maxplayers 4; vr_seat_play_test; map e1m1" > "$LOG" 2>&1
     echo "== $MODE"
     grep -a "seat_play_test\|Host_Error\|SV_Error\|Sys_Error" "$LOG"
     V=$(grep -a "seat_play_test: [0-9]* passed" "$LOG" | tail -1)
