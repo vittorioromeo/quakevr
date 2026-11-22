@@ -4,9 +4,11 @@
 
 #include "vr_relight_internal.hpp"
 #include "vr_cvars.hpp"
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/Vector.hpp"
-#include "Zancle/String/String.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/String/String.hpp"
 #include "vr_api.h"
 
 extern "C" {
@@ -688,7 +690,7 @@ void lightEntity(za::String& out, const V3& origin, double value, double wait, c
             continue;
         }
         char name[17] = {};
-        memcpy(name, b.data + base, 16);
+        ZA_MEMCPY(name, b.data + base, 16);
         const int width = b.i32(base + 16), height = b.i32(base + 20), pix = b.i32(base + 24);
         const za::String low = qvr::strings::lower(za::StringView{name});
         const za::SizeT npix = width > 0 && height > 0 ? static_cast<za::SizeT>(width) * static_cast<za::SizeT>(height) : 0;
@@ -697,7 +699,7 @@ void lightEntity(za::String& out, const V3& origin, double value, double wait, c
         if(low.size() && low[0] == '*' && pix > 0 && width * height)
         {
             const Rule rule = textureRule(rules, game, map, name);
-            if(rule.hasKind && !strcmp(rule.kind, "liquid") && pixels)
+            if(rule.hasKind && !ZA_STRCMP(rule.kind, "liquid") && pixels)
             {
                 Glow g;
                 g.name = za::String{name};
@@ -730,11 +732,11 @@ void lightEntity(za::String& out, const V3& origin, double value, double wait, c
             continue;
         }
         const Rule rule = textureRule(rules, game, map, name);
-        if(rule.hasKind && !strcmp(rule.kind, "liquid"))
+        if(rule.hasKind && !ZA_STRCMP(rule.kind, "liquid"))
         {
             continue;
         }
-        int kind = rule.hasKind ? (!strcmp(rule.kind, "fixture") ? 0 : !strcmp(rule.kind, "glow") ? 1 : 3) :
+        int kind = rule.hasKind ? (!ZA_STRCMP(rule.kind, "fixture") ? 0 : !ZA_STRCMP(rule.kind, "glow") ? 1 : 3) :
                                   (low.toStringView().find(za::StringView{"light"}) != za::StringView::nPos ||
                                       low.toStringView().find(za::StringView{"lamp"}) != za::StringView::nPos) ? 0 : 1;
         if(kind == 3)

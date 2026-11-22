@@ -6,11 +6,14 @@
 #include "vr_engine.hpp"
 #include "vr_files.hpp"
 
+#include "Zancle/Base/Memcmp.hpp"
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Memset.hpp"
+#include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
 
 #include <stdlib.h>
-#include <string.h>
 
 namespace qvr::relight::vis
 {
@@ -31,7 +34,7 @@ constexpr const char* games[] = {"id1", "hipnotic", "rogue"};
     int v = 0;
     if(at + 4 <= size)
     {
-        memcpy(&v, d + at, 4);
+        ZA_MEMCPY(&v, d + at, 4);
     }
     return LittleLong(v);
 }
@@ -41,7 +44,7 @@ constexpr const char* games[] = {"id1", "hipnotic", "rogue"};
     unsigned short v = 0;
     if(at + 2 <= size)
     {
-        memcpy(&v, d + at, 2);
+        ZA_MEMCPY(&v, d + at, 2);
     }
     return static_cast<unsigned short>(LittleShort(static_cast<short>(v)));
 }
@@ -51,7 +54,7 @@ constexpr const char* games[] = {"id1", "hipnotic", "rogue"};
     short v = 0;
     if(at + 2 <= size)
     {
-        memcpy(&v, d + at, 2);
+        ZA_MEMCPY(&v, d + at, 2);
     }
     return LittleShort(v);
 }
@@ -168,7 +171,7 @@ bool find(const char* game, const char* map, Patch& out)
     while(pos + 40 <= size)
     {
         char name[33]{};
-        memcpy(name, d + pos, 32);
+        ZA_MEMCPY(name, d + pos, 32);
         const int length = i32(d, size, pos + 32);
         const int visLength = i32(d, size, pos + 36);
         if(length <= 0 || visLength < 0)
@@ -184,12 +187,12 @@ bool find(const char* game, const char* map, Patch& out)
             out.visibility.resize(static_cast<za::SizeT>(visLength));
             if(visLength)
             {
-                memcpy(out.visibility.data(), d + visAt, static_cast<za::SizeT>(visLength));
+                ZA_MEMCPY(out.visibility.data(), d + visAt, static_cast<za::SizeT>(visLength));
             }
             out.leafs.resize(static_cast<za::SizeT>(leafLength));
             if(leafLength)
             {
-                memcpy(out.leafs.data(), d + leafAt, static_cast<za::SizeT>(leafLength));
+                ZA_MEMCPY(out.leafs.data(), d + leafAt, static_cast<za::SizeT>(leafLength));
             }
             found = true;
         }
@@ -213,8 +216,8 @@ bool fits(const unsigned char* bsp, za::SizeT size, const Patch& patch)
     for(za::SizeT at = 0; at < length; at += leafSize)
     {
         const za::SizeT n = za::SizeT{24} <= length - at ? za::SizeT{24} : length - at;
-        if(memcmp(bsp + offset + at, patch.leafs.data() + at, n < 4 ? n : 4) ||
-            (n > 8 && memcmp(bsp + offset + at + 8, patch.leafs.data() + at + 8, n - 8)))
+        if(ZA_MEMCMP(bsp + offset + at, patch.leafs.data() + at, n < 4 ? n : 4) ||
+            (n > 8 && ZA_MEMCMP(bsp + offset + at + 8, patch.leafs.data() + at + 8, n - 8)))
         {
             return false;
         }
@@ -255,13 +258,13 @@ Liquids liquids(const unsigned char* d, za::SizeT size)
             continue;
         }
         char name[17]{};
-        memcpy(name, d + tOfs + static_cast<za::SizeT>(mip), 16);
+        ZA_MEMCPY(name, d + tOfs + static_cast<za::SizeT>(mip), 16);
         q_strlwr(name);
-        if(name[0] != '*' || !strncmp(name, "*lava", 5) || !strncmp(name, "*slime", 6))
+        if(name[0] != '*' || !ZA_STRNCMP(name, "*lava", 5) || !ZA_STRNCMP(name, "*slime", 6))
         {
             continue;
         }
-        faceKind[f] = !strncmp(name, "*tele", 5) ? kindTele : kindWater;
+        faceKind[f] = !ZA_STRNCMP(name, "*tele", 5) ? kindTele : kindWater;
     }
     const za::SizeT numLeafs = lLen / leafSize;
     const int visLeafs = i32(d, size, modOfs + 52);
@@ -312,7 +315,7 @@ Liquids liquids(const unsigned char* d, za::SizeT size)
         const int visOfs = i32(d, size, leafAt(i) + 4);
         if(visOfs < 0 || vLen == 0)
         {
-            memset(vis.data(), 0xff, row);
+            ZA_MEMSET(vis.data(), 0xff, row);
         }
         else
         {

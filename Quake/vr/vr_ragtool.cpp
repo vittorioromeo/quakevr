@@ -19,6 +19,7 @@
 #include "vr_toolgun.hpp"
 #include "vr_geom.hpp"
 
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
@@ -27,7 +28,6 @@
 #include "vr_api.h"
 
 #include <stdio.h>
-#include <string.h>
 
 using namespace qvr;
 
@@ -349,7 +349,7 @@ void listModels()
     tool.modelCount = 0;
     for(int i = 0; i < toolgun::spawnableCount() && tool.modelCount < mostModels; i++)
     {
-        if(strcmp(toolgun::spawnableSection(i), "Monsters") != 0 || !toolgun::spawnableAvailable(i))
+        if(ZA_STRCMP(toolgun::spawnableSection(i), "Monsters") != 0 || !toolgun::spawnableAvailable(i))
         {
             continue;
         }
@@ -663,7 +663,7 @@ void save_f()
         {
             continue;
         }
-        const bool differs = v->default_string && strcmp(v->string, v->default_string) != 0;
+        const bool differs = v->default_string && ZA_STRCMP(v->string, v->default_string) != 0;
         changed += differs ? 1 : 0;
         fprintf(f, "%s \"%s\"%s%s%s\n", p.cvar, v->string, differs ? " // default \"" : "",
             differs ? v->default_string : "", differs ? "\"" : "");
@@ -709,7 +709,7 @@ void params_f()
     {
         const cvar_t* v = settingByName(p.cvar); // (a setting or a tuning constant)
         missing += v ? 0 : 1;
-        const bool differs = v && v->default_string && strcmp(v->string, v->default_string) != 0;
+        const bool differs = v && v->default_string && ZA_STRCMP(v->string, v->default_string) != 0;
         changed += differs ? 1 : 0;
         if(only < 0 || only == p.group)
         {
@@ -723,7 +723,7 @@ void params_f()
 
 void reset_f()
 {
-    const int only = Cmd_Argc() > 1 && strcmp(Cmd_Argv(1), "all") != 0 ? Q_atoi(Cmd_Argv(1)) : -1;
+    const int only = Cmd_Argc() > 1 && ZA_STRCMP(Cmd_Argv(1), "all") != 0 ? Q_atoi(Cmd_Argv(1)) : -1;
     int n = 0;
     for(const ragtool::Param& p : params)
     {
@@ -744,7 +744,7 @@ void start_f()
     tool.on = true;
     tool.flagStarted = true;
     listModels();
-    const bool here = Cmd_Argc() > 1 && !strcmp(Cmd_Argv(1), "here");
+    const bool here = Cmd_Argc() > 1 && !ZA_STRCMP(Cmd_Argv(1), "here");
     if(here && inGame())
     {
         tool.staged = false; // (found on the next server frame, where the player stands)
@@ -809,7 +809,7 @@ void behaviours_f()
 {
     for(int i = 0; i < behaviourTotal; i++)
     {
-        if(!strcmp(behaviours[i].name, name))
+        if(!ZA_STRCMP(behaviours[i].name, name))
         {
             return i;
         }
@@ -984,7 +984,7 @@ void serverFrame()
     {
         return;
     }
-    if(tool.wantMap && strcmp(sv.name, vr_ragtool_map.string) != 0)
+    if(tool.wantMap && ZA_STRCMP(sv.name, vr_ragtool_map.string) != 0)
     {
         return; // (the room not loaded yet)
     }

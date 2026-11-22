@@ -16,12 +16,13 @@
 #include "thirdparty/imgui/imgui.h"
 #include "thirdparty/imgui/imgui_internal.h"
 
-#include "Zancle/Math/Abs.hpp"
+#include "Zancle/Base/Memset.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Abs.hpp"
 
 #include <SDL.h>
 
-#include <string.h>
 
 extern "C" qboolean keydown[MAX_KEYS]; // keys.c (the game's own key state)
 
@@ -202,7 +203,7 @@ void pushFrame()
             break;
         }
         SDL_Event ev;
-        memset(&ev, 0, sizeof(ev));
+        ZA_MEMSET(&ev, 0, sizeof(ev));
         switch(e.kind)
         {
         case EvKind::Key:
@@ -480,7 +481,7 @@ void typingTestTick()
                 return;
             }
             // (still in the field: the game's keys not down, the tool as it was though R and A were typed)
-            check(!strcmp(st.search, "arm"), va("the search typed \"armx\" + Backspace: \"%s\" (want \"arm\")", st.search));
+            check(!ZA_STRCMP(st.search, "arm"), va("the search typed \"armx\" + Backspace: \"%s\" (want \"arm\")", st.search));
             const int n = filteredBones();
             check(n > 0 && n < st.numBones, va("the Outliner filtered: %d of %d bones", n, st.numBones));
             check(st.tool == Tool::Select && !keydown[static_cast<int>('r')] && !keydown[static_cast<int>('a')] && key_dest == key_game,
@@ -496,7 +497,7 @@ void typingTestTick()
         {
             return;
         }
-        check(!strcmp(st.search, "arm"), va("Enter: the field let go, the search kept: \"%s\"", st.search));
+        check(!ZA_STRCMP(st.search, "arm"), va("Enter: the field let go, the search kept: \"%s\"", st.search));
         nextStep();
         return;
     case 5: // the console's key (no field typed in): the console opens; again: it closes

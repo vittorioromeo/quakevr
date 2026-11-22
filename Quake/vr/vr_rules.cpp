@@ -20,6 +20,9 @@
 #include "vr_engine.hpp"
 #include "vr_strings.hpp"
 
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
 #include "vr_api.h"
@@ -45,7 +48,7 @@ struct Names
     {
         for(size_t i = 0; i < count; ++i)
         {
-            if(!strcmp(items[i], s)) { return true; }
+            if(!ZA_STRCMP(items[i], s)) { return true; }
         }
         return false;
     }
@@ -175,8 +178,8 @@ constexpr Ruleset rulesets[] = {
     if(r.keptOurs.has(classname)) { return false; }
     return r.ownedClashes.has(classname) ||
            !(startsWith(classname, "monster_") || startsWith(classname, "item_") || startsWith(classname, "weapon_") ||
-               startsWith(classname, "info_player_") || !strcmp(classname, "info_intermission") ||
-               !strcmp(classname, "trigger_changelevel") || !strcmp(classname, "worldspawn"));
+               startsWith(classname, "info_player_") || !ZA_STRCMP(classname, "info_intermission") ||
+               !ZA_STRCMP(classname, "trigger_changelevel") || !ZA_STRCMP(classname, "worldspawn"));
 }
 static_assert(countof(rulesets) == qvr::rules::Count, "one row a ruleset, in Id order");
 
@@ -208,7 +211,7 @@ struct MapRules
 void addSignal(Detection& d, const char* what)
 {
     ++d.signals;
-    if(strlen(d.first) + strlen(what) + 3 < sizeof(d.first))
+    if(ZA_STRLEN(d.first) + ZA_STRLEN(what) + 3 < sizeof(d.first))
     {
         if(d.first[0]) { q_strlcat(d.first, ", ", sizeof(d.first)); }
         q_strlcat(d.first, what, sizeof(d.first));
@@ -244,7 +247,7 @@ void countSignals(const char* data)
                 {
                     addSignal(mapRules.found[r.id], key);
                 }
-                if(counting[r.id] && world && r.worldValue.key && !strcmp(key, r.worldValue.key))
+                if(counting[r.id] && world && r.worldValue.key && !ZA_STRCMP(key, r.worldValue.key))
                 {
                     for(size_t i = 0; i < r.worldValue.values.count; ++i)
                     {
@@ -254,9 +257,9 @@ void countSignals(const char* data)
                     }
                 }
             }
-            if(strcmp(key, "classname")) { continue; }
+            if(ZA_STRCMP(key, "classname")) { continue; }
             bool dup = false;
-            for(const za::String& s : seen) { dup |= !strcmp(s.cStr(), com_token); }
+            for(const za::String& s : seen) { dup |= !ZA_STRCMP(s.cStr(), com_token); }
             if(dup) { continue; }
             seen.pushBack(za::String{com_token});
             int owner = -1;
@@ -424,8 +427,8 @@ extern "C" int VR_Rules_ToolgunPrefixed(const char* classname, const char** plai
 {
     for(const Ruleset& r : rulesets)
     {
-        const size_t n = r.prefix ? strlen(r.prefix) : 0;
-        if(!n || strncmp(classname, r.prefix, n)) { continue; }
+        const size_t n = r.prefix ? ZA_STRLEN(r.prefix) : 0;
+        if(!n || ZA_STRNCMP(classname, r.prefix, n)) { continue; }
         *plain = classname + n;
         return mapRules.id == r.id || (r.toolgunOutside && r.toolgunOutside(classname + n)) ? 1 : -1;
     }
