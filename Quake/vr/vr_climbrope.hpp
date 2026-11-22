@@ -85,8 +85,9 @@ void riderBlocked(int client, const glm::vec3& missed);
 void setPump(int client, const glm::vec3& accel);
 // Server: the rope client `client` rides (true), its velocity at his lowest hand (units/s).
 [[nodiscard]] bool riding(int client, int& ent, glm::vec3& handVel);
-// Client: the rope passing within `within` units of `near` -> true, and its point at height `z` (or its bottom end).
-[[nodiscard]] bool clientRopeAt(const glm::vec3& near, float within, float z, glm::vec3& at);
+// Client: the rope passing within `within` units of `near` -> true, and its point at height `z` (or its bottom end;
+// `bottom`: its lowest point's height, ropes6).
+[[nodiscard]] bool clientRopeAt(const glm::vec3& near, float within, float z, glm::vec3& at, float* bottom = nullptr);
 // Client: the rope passing within `within` units of `near` -> true: its point as drawn this frame (on its curve through
 // the points as shown) as far straight from its top as `near` is, its way up there (unit, towards its top) and its thickness (ropes5: a hand drawn
 // on it, climb::ropePalm).

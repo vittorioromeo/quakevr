@@ -6,16 +6,20 @@
 #   rope_jump   up, the nudge, a jump: up by vr_rope_jump over the rope's own, its level speed kept
 #   rope_pump   up, the forward key held 6 s: the swing pumped to at least 250 units/s at the hands, no more than the cap
 #   rope_calm   (ropes6) four pulls up hand over hand, the body close to it: up at least 50, the swing at the hands at
-#               most 25 units/s and its free end at most 30 (each regrab barely moves it), a pull grunts (2 or more)
+#               most 25 units/s and its free end at most 30 (each regrab barely moves it), each pull grunts (3 or 4)
+#   rope_short  (ropes6) a short rope (425 long: its end near his legs) taken overhead with both hands and pulled up off
+#               the floor: the feet hang at least 10 units under the pelvis, not reaching up for its end
 # Each ends on its verdict line ("vr_rope_climb_test: N passed, M failed").
 AGENT=${1:?agent}; shift
-PLAYS=${*:-rope_climb rope_jump rope_pump rope_calm}
+PLAYS=${*:-rope_climb rope_jump rope_pump rope_calm rope_short}
 KIT=${KIT:-C:/OHWorkspace/qvr-kit}
 HERE=$(cd "$(dirname "$0")" && pwd -W 2>/dev/null || pwd)
 D=C:/OHWorkspace/qvr-agents/$AGENT/scratch/climb
 python "$HERE/rope_plays.py" "$D" > /dev/null || exit 1
 for play in $PLAYS; do
     echo "== $play"
-    bash "$KIT/run.sh" "$AGENT" -Script "map vrropes; vr_rope_climb_test \"$D/$play.txt\"" -Filter "vr_rope_climb_test" \
+    length=""
+    [ "$play" = rope_short ] && length=425
+    bash "$KIT/run.sh" "$AGENT" -Script "map vrropes; vr_rope_climb_test \"$D/$play.txt\" $length" -Filter "vr_rope_climb_test" \
         -QuitOn "vr_rope_climb_test: [0-9]+ passed" -Timeout 120 | grep "vr_rope_climb_test: \(FAIL\|[0-9]* passed\)"
 done

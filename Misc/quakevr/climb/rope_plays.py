@@ -154,6 +154,26 @@ def calm():
     return p
 
 
+def short():
+    # (ropes6; rope_climb_test.sh hangs a short rope for it, its end near the legs) both hands take it overhead and pull
+    # him up off the floor: the feet hang under him, not reaching up for its end
+    p = Play()
+    top, low = 2.05, 1.2
+    p.rope(0.5, "off", top)
+    p.rope(0.5, "main", top)
+    p.cmd(0.6, "+graboff")
+    p.cmd(0.7, "+grabmain")
+    p.check(0.9, "held 2")
+    p.rope(1.0, "off", top)
+    p.rope(1.0, "main", top)
+    p.rope(1.8, "off", low)
+    p.rope(1.8, "main", low)
+    p.check(2.6, "held 2")
+    p.check(2.6, "legs 10")
+    p.check(2.7, "done")
+    return p
+
+
 if __name__ == "__main__":
     out = sys.argv[1] if len(sys.argv) > 1 else "."
     os.makedirs(out, exist_ok=True)
@@ -161,4 +181,5 @@ if __name__ == "__main__":
     jump().write(os.path.join(out, "rope_jump.txt"))
     pump().write(os.path.join(out, "rope_pump.txt"))
     calm().write(os.path.join(out, "rope_calm.txt"))
+    short().write(os.path.join(out, "rope_short.txt"))
     print("rope plays written to", out)
