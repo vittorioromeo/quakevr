@@ -3698,6 +3698,16 @@ QVR_CVAR(vr_grapple_stagger, "1", CVAR_ARCHIVE | QVR_RULE)          // small mon
 QVR_CVAR(vr_grapple_stamina, "0", CVAR_ARCHIVE | QVR_RULE)          // stamina a second reeling a monster in costs (the parry/shove/strike pool); short of it, it comes slower. 0: free
 QVR_CVAR(vr_grapple_haptics, "1", CVAR_ARCHIVE | QVR_OWN)          // strength of the rope's haptics (the hook biting, the reel, the rope snapping taut); 0 none
 QVR_CVAR(vr_grapple_drop_grace, "0.12", CVAR_ARCHIVE | QVR_RULE)    // seconds the trigger let go waits before the hook comes off: dropping or passing the gun by then keeps it in
+QVR_CVAR(vr_rope_iterations, "16", CVAR_ARCHIVE | QVR_RULE)       // climbable ropes (vr_climbrope.cpp, docs/vr-port/ROPES.md): passes a step pulling each piece back to its length (more: a stiffer, less stretchy rope; 1-64)
+QVR_CVAR(vr_rope_hands, "1", CVAR_ARCHIVE | QVR_RULE)            // the players' hands push the climbable ropes (a sphere round each); 0: they pass through
+QVR_CVAR(vr_rope_debug, "0", CVAR_NONE)                         // climbable ropes: print each rope as it is made
+QVR_CVAR(vr_rope_spawn_length, "256", CVAR_ARCHIVE | QVR_OWN)    // the toolgun's ropes (Spawn > Props > Ropes > Rope Settings): length (units)
+QVR_CVAR(vr_rope_spawn_thickness, "1.5", CVAR_ARCHIVE | QVR_OWN) // ... thickness (units across)
+QVR_CVAR(vr_rope_spawn_segments, "0", CVAR_ARCHIVE | QVR_OWN)    // ... pieces (0: one every 16 units)
+QVR_CVAR(vr_rope_spawn_mass, "0", CVAR_ARCHIVE | QVR_OWN)        // ... mass (kg, the whole rope; 0: 5 a rope, 20 a chain)
+QVR_CVAR(vr_rope_spawn_stiffness, "1", CVAR_ARCHIVE | QVR_OWN)   // ... stiffness (0.05-1: each pass's share of a stretched piece's pull back)
+QVR_CVAR(vr_rope_spawn_damping, "0.5", CVAR_ARCHIVE | QVR_OWN)   // ... damping (per second, of its swing lost to the air)
+QVR_CVAR(vr_rope_spawn_pinned, "0", CVAR_ARCHIVE | QVR_OWN)      // ... its bottom pinned where it first hangs (1) or free (0)
 QVR_CVAR(vr_grapple_rope_sim, "1", CVAR_ARCHIVE | QVR_RULE)         // the rope is a physical thing (vr_ropesim.cpp): it hangs, lies and wraps round the world and the props, never through them, and pulls along where it lies; 0: a straight line (drawn sagging)
 QVR_CVAR(vr_grapple_trigger_release, "0", CVAR_ARCHIVE | QVR_RULE)  // the trigger let go: 0 nothing (the hook stays in: the detach button on the gun takes it off); 1 it comes straight back (as the reel-in button); 2 it comes loose on its rope (reel it in with B/Y)
 QVR_CVAR(vr_grapple_shootable, "1", CVAR_ARCHIVE | QVR_RULE)        // shooting a hook that is in the world or a door (any weapon) takes it off

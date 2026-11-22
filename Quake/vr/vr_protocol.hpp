@@ -87,6 +87,7 @@ enum SvcQuakeVr : int
     QVR_SVC_EJECTOTHER = 52,      // [short player entity] then QVR_SVC_EJECT's: another player's spent casings out of his copy's weapon (vr_shells.cpp; to the others who see him, syncfix2)
     QVR_SVC_BOTPATH = 53,         // [byte bot's client slot][byte next corner][byte count, 0 none] x ([byte link][coord3 corner]): a bot's navmesh path (vr_bot_navmesh), sent when it changes to the clients drawing it (their vr_nav_debug on: the "vr_nav_botpaths 1" client command; vr_navfollow.cpp), reliable
     QVR_SVC_HUMLOOK = 54,         // [short entity, -1 all cleared][short look: its row * 16 + its weapon category, + 4096 its worn pack; 0 none]: an armed humanoid's recolour by the weapon it spawned with (QC .vr_hum_look; vr_humlook.cpp serverFrame on a change, serverWriteAll with the spawn state), reliable
+    QVR_SVC_CLIMBROPE = 55,       // [short entity][byte flags: 1 a chain, 2 gone][byte thickness * 16][byte count] then the first point [coord3] and each next [short3 from the one before * 8]: a climbable rope's points (vr_climbrope.cpp; where it moved, every 0.5 s at rest: unreliable; gone: reliable)
     QVR_SVC_RIGSEQ = 37,      // [short entity][byte 1 start, 0 stop][start: string name][float server time]: a Rig Studio sequence started on a monster by QC, or stopped (vr_rigseq.cpp), reliable
 };
 inline constexpr int ADHUD_DATA = 1 << 13; // STAT_QVR_ADHUD: AD's data in play on the server (vr_ad.cpp clientDataInPlay)
