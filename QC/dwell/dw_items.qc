@@ -341,9 +341,14 @@ void(float xHand) dw_fire_lance =
         vector end = trace_endpos;
         T_Damage(hit, self, self, 150);
         if(hit.health <= 0) { hit.velocity = hit.velocity + dir * 400 + '0 0 175'; }
+        // (dwellweap: the bolt crackling through it, violet crystal sparks where it enters and leaves)
+        particle(end, dir * 30, 148 + rint(random() * 6), 40);
+        particle(end + dir * 24, dir * 60, 148 + rint(random() * 6), 24);
         ignore = hit;
         src = end + dir * 4;
     }
+    particle(trace_endpos - dir * 2, dir * -40, 148 + rint(random() * 6), 32); // (and where it stops)
+    dprint(sprintf("dwlance: the beam through %g bodies, %.0f long\n", n, vlen(trace_endpos - start)));
     WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
     WriteByte(MSG_BROADCAST, TE_LIGHTNING2);
     WriteEntity(MSG_BROADCAST, dw_beam_prop ? dw_beam_prop : self); // (an armed grunt's: from its gun, as its lightning)
