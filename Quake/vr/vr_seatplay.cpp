@@ -82,8 +82,9 @@ struct Joins
 }
 
 // Seat s (1-3) into play, joined by pad k: it connects in the next frames (CL_SeatFrame). Returns false (printed) when
-// it can't: no seat left, the pad already a seat's, no local game with room.
-bool join(const int s, const int pad)
+// it can't: no seat left, the pad already a seat's, no local game with room (needGame: the join screen's seats come in
+// before the game, which they join when it starts).
+bool join(const int s, const int pad, const bool needGame = true)
 {
     if(s < 1 || s >= maxSeats || plays(s))
     {
@@ -98,12 +99,16 @@ bool join(const int s, const int pad)
             return false;
         }
     }
-    if(!sv.active || svs.maxclients <= 1)
+    if(!needGame && (!sv.active || svs.maxclients <= 1))
+    {
+        // (no local multiplayer game: the seat waits for the next one)
+    }
+    else if(!sv.active || svs.maxclients <= 1)
     {
         Con_Printf("seat_join: splitscreen needs a local multiplayer game (coop or deathmatch, maxplayers 2 or more)\n");
         return false;
     }
-    if(freeSlots() < 1)
+    else if(freeSlots() < 1)
     {
         Con_Printf("seat_join: the game is full (maxplayers %d)\n", svs.maxclients);
         return false;
@@ -447,6 +452,29 @@ void playTest_f()
 
 } // namespace
 
+int joinPad(const int pad)
+{
+    const int s = freeSeat();
+    return join(s, pad, false) ? s : -1;
+}
+
+void leaveSeat(const int s)
+{
+    leave(s);
+}
+
+int seatOfPad(const int pad)
+{
+    for(int s = 1; s < maxSeats; s++)
+    {
+        if(plays(s) && padOf(s) == pad)
+        {
+            return s;
+        }
+    }
+    return -1;
+}
+
 void registerPlayCommands()
 {
     Cmd_AddCommand("seat_join", join_f);
@@ -481,6 +509,10 @@ extern "C" void CL_SeatFrame()
         {
             if(svs.maxclients <= 1 || freeSlots() < 1)
             {
+                if(M_Splitscreen_Open())
+                {
+                    continue; // (the join screen up over a game with no room: its seats wait for the game it starts)
+                }
                 if(!joins.toldFull[s])
                 {
                     Con_Printf("seat %d: no room in this game (maxplayers %d): it leaves\n", s + 1, svs.maxclients);
@@ -499,4 +531,5 @@ extern "C" void CL_SeatFrame()
     }
     renderTestFrame();
     menuTestFrame();
+    joinTestFrame();
 }

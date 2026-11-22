@@ -1310,6 +1310,73 @@ static void IN_PadPoll (joypad_t *pad)
 
 /*
 ================
+IN_PadsToJoinScreen -- QVR (splitscreen phase 10)
+
+While the join screen is up (M_Splitscreen_OwnsPads) every pad is the screen's: a pad's A joins, its B leaves...
+whichever seat it drives (vr/vr_splitjoin.cpp reads them with IN_PadDown, IN_PadAxis). No key events: on the first
+frame each pad lets go in its seat; then its state is kept as read, so a button still held when the screen shuts
+(Start, which starts the game) is not pressed again in the pad's new seat.
+================
+*/
+static qboolean joy_joinscreen = false; // seat-shared: the join screen had the pads last frame (one screen: seat 1's)
+
+static void IN_PadsToJoinScreen (const joybuttonstate_t *nobuttons, const joyaxisstate_t *noaxes)
+{
+	joypad_t *pad;
+	int k, i, seat, prev;
+
+	for (k = 0; k < MAX_JOYPADS; k++)
+	{
+		pad = &joy_pads[k];
+		if (!pad->controller && !pad->mock)
+			continue;
+		if (!joy_joinscreen && pad->seat >= 0) // (let go in its seat: the buttons that opened the screen)
+		{
+			prev = CL_SeatSet (pad->seat);
+			IN_PadEmit (pad, nobuttons, noaxes);
+			CL_SeatSet (prev);
+		}
+		for (i = 0; i < SDL_CONTROLLER_BUTTON_MAX; i++)
+			pad->buttonstate.buttondown[i] = pad->mock ? pad->mockbuttons.buttondown[i] : SDL_GameControllerGetButton (pad->controller, (SDL_GameControllerButton)i);
+		for (i = 0; i < SDL_CONTROLLER_AXIS_MAX; i++)
+			pad->axisstate.axisvalue[i] = pad->mock ? pad->mockaxes.axisvalue[i] : SDL_GameControllerGetAxis (pad->controller, (SDL_GameControllerAxis)i) / 32768.0f;
+	}
+	joy_joinscreen = true;
+	M_Splitscreen_Pads (); // (it joins and leaves seats)
+	for (k = 0; k < MAX_JOYPADS; k++) // (each pad's seat now: no letting go there when the screen shuts)
+	{
+		pad = &joy_pads[k];
+		seat = IN_PadSeat (k);
+		if (seat != pad->seat && seat > 0 && !Key_SeatHasBindings (seat))
+			Key_SeatCopyBindings (seat, 0);
+		pad->seat = seat;
+	}
+}
+
+// QVR: splitscreen phase 10: pad k's name (NULL: no pad there), a button held, a stick's axis (as last read)
+const char *IN_PadName (int k)
+{
+	if (k < 0 || k >= MAX_JOYPADS || (!joy_pads[k].controller && !joy_pads[k].mock))
+		return NULL;
+	return joy_pads[k].name;
+}
+
+qboolean IN_PadDown (int k, int button)
+{
+	if (!IN_PadName (k) || button < 0 || button >= SDL_CONTROLLER_BUTTON_MAX)
+		return false;
+	return joy_pads[k].buttonstate.buttondown[button];
+}
+
+float IN_PadAxis (int k, int axis)
+{
+	if (!IN_PadName (k) || axis < 0 || axis >= SDL_CONTROLLER_AXIS_MAX)
+		return 0.f;
+	return joy_pads[k].axisstate.axisvalue[axis];
+}
+
+/*
+================
 IN_Commands
 
 Emit key events for game controller buttons, including emulated buttons for analog sticks/triggers
@@ -1327,6 +1394,12 @@ void IN_Commands (void)
 
 	memset (&nobuttons, 0, sizeof (nobuttons));
 	memset (&noaxes, 0, sizeof (noaxes));
+	if (M_Splitscreen_OwnsPads ()) // QVR: splitscreen phase 10: the join screen reads every pad itself
+	{
+		IN_PadsToJoinScreen (&nobuttons, &noaxes);
+		return;
+	}
+	joy_joinscreen = false;
 	for (k = 0; k < MAX_JOYPADS; k++)
 	{
 		pad = &joy_pads[k];

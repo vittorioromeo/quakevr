@@ -39,6 +39,8 @@ void SCR_SeatRect (int seat, vrect_t *out); // seat's tile of the window (top-le
 void SCR_SeatWindow (vrect_t *out);	// the window the tiles are laid out in (0, 0, its width and height)
 int SCR_SeatsDrawn (void);			// the seats laid out in tiles (1: the window is seat 0's, as always)
 int SCR_SplitLayout (void);			// the layout drawn: 1 side by side, 2 stacked, 3 one wide on top, 4 grid (scr_splitlayout)
+int SCR_SplitLayoutFor (int n);		// phase 10: the layout n seats would have (the join screen's preview)
+void SCR_LayoutTileOf (int n, int i, int w, int h, vrect_t *out); // tile i of n seats in a w x h window (SCR_SplitLayoutFor's)
 qboolean SCR_CenterPrintShowing (void); // QVR: a centre print is up (the tips wait: vr_tips.cpp)
 
 void SCR_BeginLoadingPlaque (void);

@@ -41,6 +41,9 @@ int IN_PadSeat (int k);
 void IN_MockPad (int k, qboolean on);
 void IN_MockPadButton (int k, int button, qboolean down);	// button: SDL_GameControllerButton
 void IN_MockPadAxes (int k, float lx, float ly, float rx, float ry);
+const char *IN_PadName (int k);				// phase 10's join screen: pad k's name (NULL: no pad there)
+qboolean IN_PadDown (int k, int button);	// its button held (SDL_GameControllerButton), as last read
+float IN_PadAxis (int k, int axis);			// its axis (SDL_GameControllerAxis), -1..1, as last read
 void IN_JoyMove (usercmd_t *cmd);
 void IN_MouseMove (usercmd_t *cmd);
 void IN_MockKeyboardKey (int key, qboolean down); // a key event as the keyboard's (an SDL event, IN_SendKeyEvents)

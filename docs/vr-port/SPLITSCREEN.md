@@ -783,3 +783,49 @@ full menu, the other seats their own small menu.
   deathmatch; `scr_splitmenu 1` gives seat 2 the full menu; a picture of seat 2's menu in its tile; Leave Seat asks, then
   seat 2 leaves on A's release and pad 0 drives seat 1 again. Coop 31/31, deathmatch 31/31.
 - **Before and after**: ROUND25.md "split9".
+
+## 20. Phase 10 (2026-11-22): Multiplayer > Splitscreen, the join screen
+
+(Seats numbered 1-4 as the screen shows them; the code's seat 0 is seat 1.)
+
+### How to try it (for him)
+
+1. Plug in one to three game controllers (any SDL one: Xbox, PlayStation, Switch Pro). The keyboard and mouse are seat 1.
+2. Start the game flatscreen (no headset; with a headset the Multiplayer menu is as it was), then **Main menu >
+   Multiplayer > Splitscreen** (the fourth row).
+3. On each controller press **A** (or Start): it takes the next seat (2, 3, 4), its name shows on its line and the
+   picture on the right shows the tiles the seats will have. **B** on a joined controller gives its seat back.
+4. Choose with the keyboard's arrows (or any controller's d-pad): Game (Cooperative or Deathmatch), Map, Skill, Layout
+   (Auto, Side by side, Stacked, One wide on top, Grid: the picture follows). Then **Enter on Start Game**, or **Start
+   on a joined controller**.
+5. Look at: each player in his own tile, his controller moving only him; a controller's Start in the game opens that
+   seat's own small menu (phase 9); Escape is still yours. To drop in or out mid-game: Escape > Multiplayer >
+   Splitscreen again: a new controller's A joins the running game, B leaves it, Start goes back to the game.
+6. Without controllers nothing changes (one seat, as before). Debug > Network has "Splitscreen: Join Screen".
+
+### What it does
+
+- **The row**: Multiplayer's fourth row, Splitscreen (`M_Splitscreen_Shown`: not with a headset, `VR_IsActive`), drawn in
+  the rows' big letters; `menu_splitscreen` opens the screen too (the Debug menu's row).
+- **The screen** (vr/vr_splitjoin.cpp, `m_splitscreen`, appended to `m_state_e` so no menu's number changes): seat 1
+  "Keyboard and mouse", seats 2-4 their controller's name or "A on a controller joins"; the layout's picture
+  (`SCR_LayoutTileOf`, gl_screen.c's own tiles for n seats, the window's aspect, `scr_splitlayout`) in the seats'
+  colours; rows Game, Map (the Host Game page's levels, the game's own: id1, hipnotic, rogue), Skill, Layout, Start
+  Game, and with a local multiplayer game running Back to the Game. Start Game: `maxplayers 4` (room for a later
+  drop-in), coop or deathmatch, skill, `campaign 0`, the map; a game already running is ended after a question.
+- **The pads are the screen's** while it is up (`M_Splitscreen_OwnsPads`; in_sdl.c `IN_PadsToJoinScreen`): no pad's
+  keys reach a menu or a seat; each pad lets go in its seat on the first frame, then its state is kept as read, so the
+  Start that starts the game is not pressed again in the pad's new seat (no seat menu from it). An unjoined pad's A or
+  Start joins (`seat::joinPad`: the next free seat, no game needed), its B backs out to Multiplayer; a joined pad's B
+  leaves (`seat::leaveSeat`), its Start starts the game or goes back to the running one; any pad's d-pad or left stick
+  moves through the rows and changes them.
+- **Seats before the game**: a seat joined with no local multiplayer game is in play and waits; CL_SeatFrame connects it
+  when the game starts (phase 6). While the screen is up over a game with no room (single player) its seats are not
+  sent away; backed out to that game, they are (phase 6's "no room" line).
+- **`vr_split_join_test <seats 2-4> <coop|dm>`** (`Misc/quakevr/split_join_test.sh <agent> [shots] [prefix]`: 2 seats
+  coop, 3 deathmatch, 4 coop, 4 deathmatch; verdict `split_join_test: N passed, M failed`): from no game, Multiplayer >
+  Splitscreen by the menu's keys; pad 1's A joins seat 2 and reaches no menu, its B leaves, its Start joins again; the
+  other pads' A join seats 3-4; the keyboard's right arrow on Game picks deathmatch (and a dm map); a picture; a joined
+  pad's Start starts the game: every seat signs on in its own slot driven by its own pad, the mode, maxplayers 4 and the
+  map as chosen, no seat menu opened by that Start; a picture of the tiles; then over the running game the screen again:
+  the last pad's B leaves (its slot freed), its A joins the running game again, its Start goes back to the game.

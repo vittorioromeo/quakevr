@@ -1188,6 +1188,10 @@ za::Vector<Item> pageDebugReports()
         command("Network: Players Seen", "vr_mp_status")
             .help("vr_mp_status: the players this client sees (entity, name, where, whether the last message carried them) "
                   "and, hosting, the server's clients. The multiplayer harness (Misc/quakevr/mp) reads the same lines."),
+        command("Splitscreen: Join Screen", "menu_splitscreen")
+            .help("menu_splitscreen: the join screen (Multiplayer > Splitscreen, flatscreen): controllers join with A or "
+                  "Start, leave with B; a joined controller's Start starts the game (or goes back to it). "
+                  "Without a controller: seat_mockpad <pad> 1, then seat_join <pad> (a pretend one, the console's)."),
         command("Splitscreen: Join a Seat (Pad 1)", "seat_join 0")
             .help("seat_join <pad>: that controller's player joins this local coop or deathmatch game (maxplayers 2 or "
                   "more) as the next free seat, in a server slot of its own. Seats 2-4 play headless until the per-seat "

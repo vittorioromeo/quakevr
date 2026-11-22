@@ -52,8 +52,23 @@ enum m_state_e {
 	m_vr, // QVR: vr/vr_menu.cpp
 	m_credits, // QVR: native official campaign ending
 	m_confirm, // QVR: a question over the menu it came from, with two buttons (M_Confirm)
-	m_autosaves // QVR: Load Autosave, and the death menu (M_Menu_Autosaves_f, M_CheckDeathMenu)
+	m_autosaves, // QVR: Load Autosave, and the death menu (M_Menu_Autosaves_f, M_CheckDeathMenu)
+	m_splitscreen // QVR: Multiplayer > Splitscreen, the join screen (vr/vr_splitjoin.cpp)
 };
+
+// QVR: splitscreen phase 10 (docs/vr-port/SPLITSCREEN.md): the join screen (vr/vr_splitjoin.cpp)
+void M_Menu_MultiPlayer_f (void);
+void M_Menu_Splitscreen_f (void);
+void M_Splitscreen_Draw (void);
+void M_Splitscreen_Key (int key);
+void M_Splitscreen_Mousemove (int cx, int cy);
+qboolean M_Splitscreen_Open (void);		// the join screen is up (seat 1's menu)
+qboolean M_Splitscreen_OwnsPads (void);	// it reads every pad (IN_Commands sends no pad's keys)
+void M_Splitscreen_Pads (void);			// IN_Commands, while it owns them: the pads' presses (joins, leaves...)
+qboolean M_Splitscreen_Shown (void);	// Multiplayer has the Splitscreen row (flatscreen; not with a headset)
+int M_NetLevelCount (void);				// the Host Game page's levels (the game's own: id1, hipnotic, rogue)
+const char *M_NetLevelName (int i);
+const char *M_NetLevelDesc (int i);
 
 extern enum m_state_e m_state;
 extern enum m_state_e m_return_state;

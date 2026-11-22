@@ -558,8 +558,13 @@ int SCR_SeatsDrawn (void)
 
 int SCR_SplitLayout (void)
 {
+	return SCR_SplitLayoutFor (SCR_SeatsDrawn ());
+}
+
+int SCR_SplitLayoutFor (int n)
+{
 	vrect_t win;
-	int n = SCR_SeatsDrawn (), layout = (int) scr_splitlayout.value;
+	int layout = (int) scr_splitlayout.value;
 	if (layout >= 1 && layout <= 4)
 		return layout;
 	SCR_SeatWindow (&win);
@@ -614,6 +619,16 @@ static void SCR_LayoutTile (int layout, int n, int i, int w, int h, vrect_t *out
 	out->width = (col + 1) * w / cols - out->x;
 	out->y = row * h / rows;
 	out->height = (row + 1) * h / rows - out->y;
+}
+
+void SCR_LayoutTileOf (int n, int i, int w, int h, vrect_t *out)
+{
+	out->x = 0;
+	out->y = 0;
+	out->width = w;
+	out->height = h;
+	if (n > 1)
+		SCR_LayoutTile (SCR_SplitLayoutFor (n), n, i, w, h, out);
 }
 
 void SCR_SeatRect (int seat, vrect_t *out)

@@ -3248,12 +3248,14 @@ void M_Skill_Mousemove (float cx, float cy)
 /* MULTIPLAYER MENU */
 
 int	m_multiplayer_cursor;
-#define	MULTIPLAYER_ITEMS	3
+#define	MULTIPLAYER_ITEMS	(M_Splitscreen_Shown () ? 4 : 3) // QVR: splitscreen phase 10: the Splitscreen row (flatscreen)
 
 
 void M_Menu_MultiPlayer_f (void)
 {
 	IN_DeactivateForMenu();
+	if (m_multiplayer_cursor >= MULTIPLAYER_ITEMS) // QVR: (the Splitscreen row gone: a headset since)
+		m_multiplayer_cursor = 0;
 	key_dest = key_menu;
 	m_state = m_multiplayer;
 	m_entersound = true;
@@ -3269,6 +3271,13 @@ void M_MultiPlayer_Draw (void)
 	M_DrawPic ( (320-p->width)/2, 4, p);
 	M_DrawBigRowBar (72, 32, "gfx/mp_menu.lmp", m_multiplayer_cursor); // QVR: Menu Look
 	M_DrawRowsPic (72, 32, "gfx/mp_menu.lmp");
+	if (M_Splitscreen_Shown ()) // QVR: splitscreen phase 10: the fourth row, in the rows' letters when they have them
+	{
+		if (VR_BigFont_CanDraw ("SPLITSCREEN"))
+			VR_BigFont_Draw (72, 32 + 3 * 20, "SPLITSCREEN");
+		else
+			M_PrintEx (74, 32 + 3 * 20 + 1, 16, "SPLITSCREEN");
+	}
 
 	M_DrawQuakeCursor (54, 32 + m_multiplayer_cursor * 20);
 
@@ -3318,6 +3327,10 @@ void M_MultiPlayer_Key (int key)
 
 		case 2:
 			M_Menu_Setup_f ();
+			break;
+
+		case 3: // QVR: splitscreen phase 10
+			M_Menu_Splitscreen_f ();
 			break;
 		}
 	}
@@ -7279,6 +7292,44 @@ episode_t	rogueepisodes[] =
 	{"Deathmatch Arena", 16, 1}
 };
 
+// QVR: splitscreen phase 10: the Host Game page's levels for the join screen (vr/vr_splitjoin.cpp), the game's own
+static const level_t *M_NetLevels (int *count)
+{
+	if (hipnotic)
+	{
+		*count = (int) countof (hipnoticlevels);
+		return hipnoticlevels;
+	}
+	if (rogue)
+	{
+		*count = (int) countof (roguelevels);
+		return roguelevels;
+	}
+	*count = (int) countof (levels);
+	return levels;
+}
+
+int M_NetLevelCount (void)
+{
+	int n;
+	M_NetLevels (&n);
+	return n;
+}
+
+const char *M_NetLevelName (int i)
+{
+	int n;
+	const level_t *l = M_NetLevels (&n);
+	return i >= 0 && i < n ? l[i].name : "";
+}
+
+const char *M_NetLevelDesc (int i)
+{
+	int n;
+	const level_t *l = M_NetLevels (&n);
+	return i >= 0 && i < n ? l[i].description : "";
+}
+
 int	startepisode;
 int	startlevel;
 int maxplayers;
@@ -8802,6 +8853,10 @@ void M_DrawPanel (void)
 	case m_autosaves: // QVR
 		M_Autosaves_Draw ();
 		break;
+
+	case m_splitscreen: // QVR: splitscreen phase 10
+		M_Splitscreen_Draw ();
+		break;
 	}
 
 	VR_MenuDrawOverlay (); // QVR: the "Back to game" button
@@ -8953,6 +9008,10 @@ void M_Keydown (int key, qboolean repeat)
 	case m_autosaves: // QVR
 		M_Autosaves_Key (key);
 		return;
+
+	case m_splitscreen: // QVR: splitscreen phase 10
+		M_Splitscreen_Key (key);
+		return;
 	}
 }
 
@@ -9080,6 +9139,10 @@ void M_Mousemove (int screenx, int screeny)
 
 	case m_autosaves: // QVR
 		M_Autosaves_Mousemove (x, y);
+		return;
+
+	case m_splitscreen: // QVR: splitscreen phase 10
+		M_Splitscreen_Mousemove ((int) x, (int) y);
 		return;
 	}
 }
