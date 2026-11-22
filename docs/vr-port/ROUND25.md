@@ -7292,3 +7292,29 @@ hue band can't separate brown uniforms from brown flesh, and a full hue turn wit
   stab, pommel and slow slash refused); vrtrailer 9/9; scenario_check PASS (178 run, 0 failed); Dev and ThinLTO built,
   0 warnings. superaxe_decap_test.sh: slow 5 of 5, fast 4 of 5 (one run killed him without a beheading, its reason lost:
   the test now keeps each swing's game log, `scratch/superaxe_decap_<kind>_game.log`, and names the refusal).
+
+## projheadpop: heavy revolver head pops with AD's projectile slugs (agent/projheadpop, 2026-11-22)
+
+His note (2026-11-21): where shells fly as projectiles (AD, Quoth) a heavy revolver's headshot never popped the head;
+hitscan's always did.
+
+- **Why:** AD_FirePellets (vr_ad_bridge.qc) gave each pellet its head-pop identity (`vr_ad_shotweapon`) from the gun in
+  hand, and only for the shotgun, the super shotgun and the burst rifle's id shotgun: the revolver's slug flew with 0, so
+  VR_AD_PelletHit's VR_Decap_Pellet / VR_Decap_BlastArm never armed it. Its big-body rule (`vr_pellet_heavy_mult`,
+  applied in FireBulletsImpl) was lost too: the globals are cleared before the pellet lands (an ogre took ~30 a slug
+  instead of hitscan's ~50).
+- **Fix (one rule for both paths):** the pellet now takes the firing function's own `vr_decap_weapon` (what hitscan's
+  VR_Decap_HeadBlastArm uses: shotgun, super shotgun, Widowmaker, Dwell's guns, the revolver), falling back to the old
+  gun-in-hand rule when it's unset (direct AD_FirePellets callers: the AD shot tests). The big-body rule is one helper,
+  `VR_PelletHeavy` (vr_defs.qc), used by FireBulletsImpl and, from the pellet's `vr_ad_heavymult` / `vr_ad_heavyhealth`,
+  by VR_AD_PelletHit. Quoth's maps run under AD's rules, so the same path. Pops stay the player's only (BlastArm's
+  FL_CLIENT test), as in hitscan: an armed grunt's revolver pops no heads either way.
+- **New test** `vr_rv_test 6` (rvpop, vr_revolver_test.qc; e1m1, `-QuitOn "rvpop: [0-9]+ passed"`): a slug fired as
+  W_FireRevolver fires it at a plain grunt's head and body, hitscan (vr_ad_projectiles 1) and AD's (2); AD's shotgun
+  blast at a head (vr_decap_pop_roll 0); a slug into an ogre's body both ways (vr_positional_damage 0,
+  vr_revolver_dmg_random 0): 7 passed (ogre 52 hitscan, 50 AD's). Without the fix: 5 passed, 2 failed (AD's head shot,
+  the ogre 30). Scene `revolver_adheadpop`.
+- **Checks:** ad_pop_odds_test.sh PASS (3 volleys topped up to their final chance); limbs_test.sh live on the grunt as
+  before (the lightning bolt's limb case kills nothing there, untouched by this); scenario_check PASS (179 run, 0
+  failed); Dev and ThinLTO built, 0 warnings.
+

@@ -2415,10 +2415,7 @@ void(float shotcount, vector dir, vector spread, vector src, float xRange, float
             VR_SmallGib_Pellet(trace_ent, trace_endpos);
             if(debugShots && posDmgType == VR_REGION_HEAD) { hitsHead++; }
             adjDmg = (vr_pellet_damage ? vr_pellet_damage : 4) * PositionalDamageFactor(posDmgType);
-            if(vr_pellet_heavy_mult > 0 && (trace_ent.flags & FL_MONSTER) && trace_ent.max_health >= vr_pellet_heavy_health)
-            {
-                adjDmg = adjDmg * vr_pellet_heavy_mult; // VR: a revolver's slug into a big body (vr_revolver.qc)
-            }
+            adjDmg = VR_PelletHeavy(trace_ent, adjDmg, vr_pellet_heavy_mult, vr_pellet_heavy_health); // VR: a revolver's slug into a big body (vr_revolver.qc)
             vr_pellet_last = adjDmg;
             vr_pellet_last_part = posDmgType;
             vr_pellet_last_ent = trace_ent;
