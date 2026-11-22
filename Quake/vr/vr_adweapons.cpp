@@ -1756,27 +1756,41 @@ void rotaryHousingShell(Parts& p)
 // inner side (+y: towards the body held in the right hand, mirrored in the left; the side slopes out from y 6.3 at x 8.2
 // to 7.4 at x -1.8), its outer face flat at y 7.2, a dark opening in a raised rim there, the Widowmaker's way
 // (widowmakerParts). vr_view_internal.hpp loadPorts (DwVrRotary): the opening's middle (5 7.25 0).
+// His notes 2026-11-22 ("the place where you put the shells in should be a little bit bigger, maybe 10% bigger, and its
+// internal color should be black and look a little bit more inset. At the moment, it looks a bit too shiny"): the
+// opening 10% bigger each way (3.96 x 1.21, was 3.6 x 1.1), a pocket 0.6 deep into the block, its walls and floor black
+// (the bores' texels: it was a dark box standing out of the face in the caps' dark grey, which draws pale); the block
+// reaches into the housing's wall (rotaryHousingShell: the side is 5.46 out at most).
 void rotaryGauntletParts(Parts& p)
 {
     rotaryHousingShell(p);
     rotaryScreenWedge(p);
     dwBarrels(p);
     Out& o = p.o;
-    const float cs = static_cast<float>(p.capS), ct = static_cast<float>(p.capT);
-    const Rect dark{cs, ct, cs, ct, false};
+    const float bs = static_cast<float>(p.boreS), bt = static_cast<float>(p.boreT);
+    const Rect black{bs, bt, bs, bt, false};
     const Rect plate{184.f, 142.f, 200.f, 158.f, false}; // (Dwell's brown housing plate, as the bezel's)
     const Rect plateAlong{184.f, 142.f, 200.f, 158.f, true};
+    constexpr float bx0 = 2.5f, bx1 = 7.5f, by0 = 4.7f, face = 7.1f, bz = 1.f, deep = 0.6f;
+    constexpr float px0 = 3.02f, px1 = 6.98f, pz0 = -0.605f, pz1 = 0.605f, rim = 0.25f, proud = 0.25f;
     const Rect blockFaces[4] = {plate, plateAlong, plate, plate};
-    box(o, {2.5f, 4.7f, -1.f}, {7.5f, 7.1f, 1.f}, blockFaces, plate, plate);
+    box(o, {bx0, by0, -bz}, {bx1, face - deep, bz}, blockFaces, plate, plate);
+    // The block's outer part a frame round the pocket (each part's face towards it black), the pocket's floor black.
+    box(o, {bx0, face - deep, -bz}, {px0, face, bz}, blockFaces, plate, black);
+    box(o, {px1, face - deep, -bz}, {bx1, face, bz}, blockFaces, black, plate);
+    const Rect frameTop[4] = {black, plateAlong, plate, plate};    // (its underside faces the pocket)
+    const Rect frameBottom[4] = {plate, plateAlong, black, plate}; // (its top faces it)
+    box(o, {px0, face - deep, pz1}, {px1, face, bz}, frameTop, plate, plate);
+    box(o, {px0, face - deep, -bz}, {px1, face, pz0}, frameBottom, plate, plate);
+    box(o, {px0, face - deep - 0.05f, pz0}, {px1, face - deep + 0.03f, pz1}, {black, black, black, black}, black, black);
+    // The raised rim round the opening, its inner faces black.
     const Rect rimFaces[4] = {plateAlong, plateAlong, plateAlong, plateAlong};
-    const Rect rimTop[4] = {dark, plateAlong, plateAlong, plateAlong};   // (its underside faces the opening)
-    const Rect rimBottom[4] = {plateAlong, plateAlong, dark, plateAlong}; // (its top faces it)
-    constexpr float px0 = 3.2f, px1 = 6.8f, pz0 = -0.55f, pz1 = 0.55f, rim = 0.25f, side = 7.2f, proud = 0.25f;
-    box(o, {px0, side - 0.3f, pz0}, {px1, side + 0.05f, pz1}, {dark, dark, dark, dark}, dark, dark);
-    box(o, {px0 - rim, side - 0.1f, pz1}, {px1 + rim, side + proud, pz1 + rim}, rimTop, plateAlong, plateAlong);
-    box(o, {px0 - rim, side - 0.1f, pz0 - rim}, {px1 + rim, side + proud, pz0}, rimBottom, plateAlong, plateAlong);
-    box(o, {px0 - rim, side - 0.1f, pz0}, {px0, side + proud, pz1}, rimFaces, plateAlong, dark);
-    box(o, {px1, side - 0.1f, pz0}, {px1 + rim, side + proud, pz1}, rimFaces, dark, plateAlong);
+    const Rect rimTop[4] = {black, plateAlong, plateAlong, plateAlong};
+    const Rect rimBottom[4] = {plateAlong, plateAlong, black, plateAlong};
+    box(o, {px0 - rim, face - 0.05f, pz1}, {px1 + rim, face + proud, pz1 + rim}, rimTop, plateAlong, plateAlong);
+    box(o, {px0 - rim, face - 0.05f, pz0 - rim}, {px1 + rim, face + proud, pz0}, rimBottom, plateAlong, plateAlong);
+    box(o, {px0 - rim, face - 0.05f, pz0}, {px0, face + proud, pz1}, rimFaces, plateAlong, black);
+    box(o, {px1, face - 0.05f, pz0}, {px1 + rim, face + proud, pz1}, rimFaces, black, plateAlong);
 }
 
 void lanceParts(Parts& p)
