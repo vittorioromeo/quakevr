@@ -34,9 +34,8 @@ Tests:
              step of the server's, closed; B draws A's jointed hands (and his weapon's model) where A drew them; the
              bytes it costs and the avatars the server sent and skipped as unchanged.
     avatarcal  each client's avatar calibration (height, arm length, gloves, body...) reaches the other and the server.
-    ropeclimb  (not in the suite yet: his hands and feet read 10-25 units off the rope, ROPES.md "Known limits")
-             another player's climbing pose on a rope: flat A walks into one and climbs it, B sees his hands on it and
-             his feet round it, still and swinging, then off it
+    ropeclimb  (ropes4) another player's climbing pose on a rope: flat A walks into one and climbs it, B sees his hands
+             on it and his feet round it, hanging still and swinging, then off it
     ropes    climbable ropes (QVR_SVC_CLIMBROPE): a rope and a chain the server hangs reach B with the server's points;
              pushed, B sees them swing; at rest again, B's copies within a unit of the server's.
     body     B draws A's body (avatar::poseOther: the code that poses A's own): A's build's model, its wrists at A's drawn
@@ -1280,6 +1279,17 @@ def ropeclimb(s):
             "the server's A at %s" % a_at())
     if not risen:
         raise StepFailed("A on the rope")
+
+    # Hanging still (ropes4): the server's A at rest on it between two reads, the hand over hand climb over (his copy's
+    # hands go from hold to hold eased, its legs wrap the rope over a third of a second: no pose to judge mid-climb).
+    prev, still = risen, None
+    for _ in range(60):
+        at = a_at()
+        if at and prev and max(abs(at[i] - prev[i]) for i in range(3)) < 1.0:
+            still = at
+            break
+        prev = at
+    s.check("A hangs still on the rope (the server has him at %s)" % (still,), still is not None, "the server's A at %s" % prev)
 
     def pose(lines):
         return by_ent(lines[0], "mp_ropepose").get(ea)
@@ -9807,6 +9817,7 @@ SUITE = [
     ("mp_avatar", ()),
     ("mp_avatarcal", ()),
     ("mp_ropes", ()),
+    ("mp_ropeclimb", ()),
     ("mp_body", ()),
     ("mp_prefs", ()),
     ("mp_grab", ()),

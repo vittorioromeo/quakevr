@@ -83,7 +83,8 @@ namespace
 constexpr float CLIMB_STEP_TIME = 0.35f; // seconds a step to a new hold takes (vr_body_climb_feet_speed 1)
 constexpr float CLIMB_STEP_OUT = 0.12f;  // metres the stepping foot swings out from the face past its own length (its toes clear the lips)
 constexpr float CLIMB_RUNGS = 16.f;      // units: a face's spots at this spacing (a flat ladder's rungs)
-constexpr float CLIMB_ROPE_NEAR = 6.f;   // units: the holds' middle this close to a climbable rope holds that rope
+constexpr float CLIMB_ROPE_NEAR = 12.f;  // units: the holds' middle this close to a climbable rope holds that rope (ropes4: 6 lost it swinging)
+constexpr float CLIMB_ROPE_BELLY = 0.12f; // m: the hips on a rope come in to this far this side of it (ropeHips)
 
 [[nodiscard]] float smooth01(float x)
 {
@@ -368,6 +369,25 @@ namespace
 
 namespace detail
 {
+
+bool ropeHips(const glm::vec3& pelvis, glm::vec3& in)
+{
+    const Climbing& c = climbing;
+    const float w = smooth01(c.ropeWrap) * c.weight;
+    glm::vec3 at{0.f};
+    if(w <= 0.f || !climbrope::clientRopeAt(c.holdMid, CLIMB_ROPE_NEAR, pelvis.z, at))
+    {
+        return false;
+    }
+    const glm::vec3 dir = safeNormalize(glm::vec3{c.in.x, c.in.y, 0.f}, glm::vec3{0.f});
+    const float gap = glm::dot(glm::vec3{at.x - pelvis.x, at.y - pelvis.y, 0.f}, dir) - CLIMB_ROPE_BELLY * metresToUnits();
+    if(gap <= 0.f || dir == glm::vec3{0.f})
+    {
+        return false;
+    }
+    in = dir * (gap * w);
+    return true;
+}
 
 void updateClimbing(const Body& b, float dt, bool legs)
 {

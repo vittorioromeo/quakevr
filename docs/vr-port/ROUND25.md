@@ -7744,3 +7744,21 @@ Phase 3's rest (ROPES.md "Climbing (flat-screen)", "Multiplayer", "Tests", "Know
   (flat A on a rope, B watching) runs but fails its pose checks (wrists 9-25 units off, ankles 11-24): open, in
   ROPES.md's known limits, kept out of the suite.
 
+## ropes4: another player's rope-climbing pose in MP (agent/ropes4, 2026-11-22)
+
+ROPES.md "Multiplayer", "Tests", "Known limits".
+- Cause: another player's head and hands come from his client's origin, which on a rope (the server moves him with it)
+  isn't where the server has him, and his holds were sent from that origin too: his drawn hands read 15-60 units off
+  the server's holds, his body and feet off the rope with them; his trunk also hung behind the hands as off a ledge.
+- Server: the holds go from his entity's origin as sent (`vr_server.cpp`, writeHolds' origin): every client draws him
+  there. Client: holding a rope, his copy is moved by his held palms' mean way to the server's holds (`vr_mpavatar.cpp`
+  ropeShift, 48 units at most, eased 0.15 s), each held hand then pinned on its hold (ropePinHands; a new hold eased to).
+- Shared with your own body: a hand on a rope has its palm's middle 2.5 cm this side of it (`climb::ropeHandOffset`,
+  `climb::ropeHold`), not the ledge offsets `vr_climb_hand_*` (which put it beside the rope); the trunk turns about the
+  neck so the hips come in to 12 cm from the rope (`vr_avatar_climb.cpp` ropeHips, folded into solveTorso's turn, at
+  most 45 degrees), yours and his. The rope-nearness tolerances went from 6 to 12 units (at a full swing the latest hold
+  is a frame off the rope as drawn).
+- `mp_test.py ropeclimb` waits for A hanging still before its first check and is in the MP suite: 3 runs 11/11
+  (hanging wrists 1.6-3.3, ankles 1.8-7.8; swinging 10.5-12.5, 6.4-14.1). rope_climb_test.sh 8+6+6, rope_flat_test.sh,
+  mp_test.py ropes 9/9 still pass.
+
