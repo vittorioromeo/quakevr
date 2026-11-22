@@ -278,7 +278,22 @@ grunt stays red). Its worn pack takes its wearer's (the engine: `.vr_wp_wearer`,
   skin texel under the ray (the same strokes, only the ray differs); Undo (24 steps), Clear This Skin's Painting, Save
   (both files), Reload, Check the Masks (`vr_humstudio_check [masks]`: per mask its texels, any on the flesh's or blood's
   rows, a PASS/FAIL line).
-- Tests: `Misc/quakevr/humrepl2_test.sh` (each type lined up, a stroke and its undo, `vr_humstudio_check 5`: no mask
+- The pick (studio2, his words: "sometimes when I want to paint an area something else get painted ... hands, forearms,
+  or parts of the enemies next to the backpacks"; "the backpack is intercepting the correct target"): the ray meets the
+  model as drawn (`modelcollide::drawnTriangles`: a live one's on its authored rig with its arms solved, not its .mdl
+  frame, which put hands and forearms elsewhere), only what `vr_humstudio_target` names (0 the part picked: Clothes the
+  bodies, packs passed through; 1 bodies, 2 packs, 3 either), its texel from the place on the triangle (its corners'
+  skin coordinates, in the .mdl's order). The brush (`vr_humstudio_brush`, cm on the surface, 0 one texel): every texel
+  within it of the point hit, on whichever triangles carry it (no wrapping across the skin's halves). The cursor
+  (`vr_humstudio_cursor`): the brush's texels drawn yellow (mask value 3, the shader's `rk == 3u`) wherever the skin
+  shows them, and the skin's flat view in the top right (`studioDraw2D`, the 2D pass: masks tinted, brush yellow).
+  Lineup options (QC `VR_HUM_LineupKind`'s bits): no backpacks (`vr_humstudio_nopack`, default 1), no armour (1), no
+  weapons drawn (0), a backpack alone on a stand (`vr_humstudio_packstand` 1, its own look), turned
+  (`vr_humstudio_turn`, `VR_HUM_LineupTurn`); Hold Still is `vr_agrunt_freeze`. No T/A pose: the stock models have no
+  such frame (Hold Still's idle pose instead).
+- Tests: `Misc/quakevr/humstudio2_test.sh` (the shipped files read and written back the same; `vr_humstudio_picktest`:
+  each type, packs on, rays at the hands, forearm, back of the head and back beside the pack paint the texel there, a
+  stroke and its undo; "humstudio2_test: PASS"), `Misc/quakevr/humrepl2_test.sh` (each type lined up, a stroke and its undo, `vr_humstudio_check 5`: no mask
   texel on the flesh or blood rows; "humrepl2_test: PASS"). Screens: `Misc/quakevr/humrepl_shots.sh [out] [overlay]`
   (`vr_ad_test 221`: each type's row before and after, or the masks shown).
 
