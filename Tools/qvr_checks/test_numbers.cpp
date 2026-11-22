@@ -13,6 +13,7 @@
 #include "common.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <map>
 #include <optional>
 #include <regex>
@@ -344,6 +345,70 @@ struct Leaf
     std::string looseFunc; // empty: not loose
 };
 
+// A C string literal's text at s[i] (the opening quote), escapes kept as written; i past its closing quote. nullopt if
+// s[i] is not a quote or the literal doesn't close on the line.
+std::optional<std::string> quoted(std::string_view s, size_t& i)
+{
+    if(i >= s.size() || s[i] != '"')
+    {
+        return std::nullopt;
+    }
+    std::string text;
+    for(size_t k = i + 1; k < s.size(); ++k)
+    {
+        if(s[k] == '\\' && k + 1 < s.size())
+        {
+            text += s[k];
+            text += s[++k];
+        }
+        else if(s[k] == '"')
+        {
+            i = k + 1;
+            return text;
+        }
+        else
+        {
+            text += s[k];
+        }
+    }
+    return std::nullopt;
+}
+
+// The commands of a line's `command("<label>", "<command>"` menu rows (the second literal of each). By hand, not by
+// std::regex: an alternation repeated over a long literal (a 700-character row) runs VS 2022's STL out of stack
+// (regex_error error_stack, make_release's build), where VS 2026's copes.
+std::vector<std::string> commandRowCommands(std::string_view line)
+{
+    std::vector<std::string> cmds;
+    auto skipWs = [&](size_t i) {
+        while(i < line.size() && (line[i] == ' ' || line[i] == '\t'))
+        {
+            ++i;
+        }
+        return i;
+    };
+    for(size_t at = line.find("command("); at != std::string_view::npos; at = line.find("command(", at + 1))
+    {
+        const bool wordStart = at == 0 || !(std::isalnum(static_cast<unsigned char>(line[at - 1])) || line[at - 1] == '_');
+        size_t i = skipWs(at + 8);
+        if(!wordStart || !quoted(line, i))
+        {
+            continue;
+        }
+        i = skipWs(i);
+        if(i >= line.size() || line[i] != ',')
+        {
+            continue;
+        }
+        i = skipWs(i + 1);
+        if(auto cmd = quoted(line, i))
+        {
+            cmds.push_back(std::move(*cmd));
+        }
+    }
+    return cmds;
+}
+
 } // namespace
 
 int checkTestNumbers(const Ctx& ctx, const Args& args, Out& out)
@@ -634,7 +699,6 @@ int checkTestNumbers(const Ctx& ctx, const Args& args, Out& out)
     {
         cvars.insert(c);
     }
-    const std::regex cmdRe(R"re(\bcommand\(\s*"(?:[^"\\]|\\.)*"\s*,\s*"((?:[^"\\]|\\.)*)")re");
     const std::regex testRe(R"(\b(vr_\w+_test)\s+(\d+))");
     for(const char* ext : {".inc", ".cpp", ".hpp"})
     {
@@ -660,10 +724,8 @@ int checkTestNumbers(const Ctx& ctx, const Args& args, Out& out)
                 {
                     continue;
                 }
-                const std::string l(line);
-                for(std::sregex_iterator it(l.begin(), l.end(), cmdRe), end; it != end; ++it)
+                for(const std::string& cmd : commandRowCommands(line))
                 {
-                    const std::string cmd = (*it)[1].str();
                     for(std::sregex_iterator t(cmd.begin(), cmd.end(), testRe), tend; t != tend; ++t)
                     {
                         const std::string cvar = (*t)[1].str();

@@ -1,6 +1,7 @@
 // vr_modelcollide.cpp -- see vr_modelcollide.hpp.
 
 #include "vr_modelcollide.hpp"
+#include "vr_axestick.hpp"
 #include "vr_mem.hpp"
 #include "vr_protocol.hpp"
 #include "vr_geom.hpp"
@@ -819,7 +820,7 @@ void gather(const glm::vec3& lo, const glm::vec3& hi, Stats& stats)
         return "vr_model_collide 0";
     }
     // (Its place only says how the blade slides: QC/vr_embedhold.qc. Stopped at the body, it would never go deeper.)
-    if(cl.stats[hand == HAND_MAIN ? protocol::STAT_QVR_EMBEDMAIN : protocol::STAT_QVR_EMBEDOFF] > 0)
+    if(axestick::handOnBlade(hand))
     {
         return "holding a blade in a body";
     }

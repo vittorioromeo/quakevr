@@ -629,7 +629,8 @@ The right mouse button with one weapon held and the other hand empty (held, or a
 his words 2026-11-05, "no need for dedicated ADS button"), or `vr_flat_aim` from the console, turns the ironsight on: the held weapon is brought
 onto its sight line (see The ironsight's solve, below), and the field of view narrows by `vr_flat_aim_fov`: `gl_screen.c` asks
 `VR_FlatAdsFov` where it chooses `r_refdef.basefov`, and the mouse look's own measure comes from the same `basefov` (`in_sdl.c`'s
-`IN_FovScale`), so the look and the crosshair keep their feel. It refuses while dual wielding, and on a weapon with no sight
+`IN_FovScale`), so the look and the crosshair keep their feel. It refuses while dual wielding, while the other hand holds anything (a
+prop, an item, a blade it holds stuck in a body: `flatplay::holdsThing`, from the console too), and on a weapon with no sight
 line (the melee weapons; the fallback is no ironsight at all, the hipfire pose stays and the view does not narrow).
 `vr_flatplay_status` prints both hands and the ironsight, and `vr_flatplay_debug 2` adds a `flatsight:` line each frame
 with where the muzzle stands off the crosshair before and after the move, the eye relief and how far a wall has it back.

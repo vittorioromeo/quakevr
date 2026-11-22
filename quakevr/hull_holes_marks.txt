@@ -1,0 +1,109 @@
+mark: maps/start.bsp at -0.2 2273.8 -392.0 (feet -416.0), angles -17 76, time 20.7; your width 16
+mark: settings now: on 1 max 32 min 8 wide 48 diag 1 models 1 vert 1 cells 64 cell 2 reach 2; as built: max 46 min 8 wide 48 diag 1 models 1 vert 1 cells 64 cell 2 reach 2
+mark: Quake's box fits with its centre here (by height off yours): -32:no +0:no +32:yes +64:yes +96:yes +128:no
+mark: solid 0: -224.0 2352.0 -224.0 .. 224.0 2512.0 -128.0, 6 planes
+mark: solid 1: 64.0 2352.0 -416.0 .. 224.0 2512.0 -224.0, 6 planes
+mark: solid 2: 24.0 2352.0 -264.0 .. 64.0 2512.0 -224.0, 7 planes
+mark: solid 3: 24.0 2352.0 -416.0 .. 64.0 2512.0 -376.0, 7 planes
+mark: solid 4: 16.0 2368.0 -400.0 .. 24.0 2400.0 -384.0, 6 planes
+mark: solid 5: -24.0 2368.0 -400.0 .. -16.0 2400.0 -384.0, 6 planes
+mark: solid 6: -24.0 2360.0 -400.0 .. 24.0 2368.0 -384.0, 6 planes
+mark: solid 7: -64.0 2352.0 -264.0 .. -24.0 2512.0 -224.0, 7 planes
+mark: solid 8: -64.0 2352.0 -416.0 .. -24.0 2512.0 -376.0, 7 planes
+mark: solid 9: -224.0 2352.0 -416.0 .. -64.0 2512.0 -224.0, 6 planes
+mark: solid 10: -224.0 2352.0 -464.0 .. 224.0 2512.0 -416.0, 6 planes
+mark: solid 11: -114.5 2352.0 -672.0 .. 224.0 2544.0 -464.0, 10 planes
+mark: solid 12: -224.0 2352.0 -672.0 .. 64.0 2544.0 -464.0, 7 planes, slanted:
+mark:   plane 0.7071 0.7071 -0.0000 dist 1708.37
+mark: solid 13: -1088.0 2352.0 -672.0 .. -32.0 3264.0 1024.0, 7 planes, slanted:
+mark:   plane 0.7071 -0.7071 0.0000 dist -2330.62
+mark: solid 14: -704.0 2336.0 -192.0 .. 704.0 2352.0 1024.0, 6 planes
+mark: solid 15: 32.0 2336.0 -448.0 .. 96.0 2352.0 -384.0, 7 planes
+mark: solid 16: 32.0 2336.0 -256.0 .. 96.0 2352.0 -192.0, 7 planes
+mark: solid 17: -96.0 2336.0 -448.0 .. -32.0 2352.0 -384.0, 7 planes
+mark: solid 18: -96.0 2336.0 -256.0 .. -32.0 2352.0 -192.0, 7 planes
+mark: solid 19: -704.0 2336.0 -448.0 .. -96.0 2352.0 -192.0, 6 planes
+mark: solid 20: -704.0 2336.0 -672.0 .. 704.0 2352.0 -448.0, 6 planes
+mark: solid 21: -272.0 2256.0 -192.0 .. 272.0 2336.0 -128.0, 6 planes
+mark: solid 22: -208.0 2128.0 -160.0 .. 208.0 2256.0 -128.0, 8 planes, slanted:
+mark:   plane -0.7071 -0.7071 -0.0000 dist -1419.87
+mark:   plane 0.7071 -0.7071 0.0000 dist -1419.87
+mark: solid 23: -64.0 2248.0 -192.0 .. 64.0 2256.0 -176.0, 6 planes
+mark: solid 24: -272.0 1792.0 -192.0 .. 192.0 2256.0 -128.0, 9 planes, slanted:
+mark:   plane 0.7071 -0.7071 0.0000 dist -1148.34
+mark:   plane -0.7071 -0.7071 0.0000 dist -1385.93
+mark:   plane 0.7071 0.7071 0.0000 dist 1419.87
+mark: solid 25: 80.0 2272.0 -248.0 .. 96.0 2336.0 -192.0, 7 planes
+mark: solid 26: 64.0 2256.0 -232.0 .. 80.0 2336.0 -192.0, 7 planes
+mark: solid 27: 40.0 2248.0 -216.0 .. 64.0 2336.0 -192.0, 7 planes
+mark: solid 28: -48.0 2240.0 -200.0 .. 48.0 2336.0 -192.0, 8 planes
+mark: solid 29: 8.0 2240.0 -224.0 .. 72.0 2336.0 -200.0, 7 planes
+mark: solid 30: 64.0 2240.0 -352.0 .. 96.0 2336.0 -224.0, 7 planes
+mark: solid 31: 24.0 2240.0 -264.0 .. 64.0 2336.0 -224.0, 7 planes
+mark: solid 32: 8.0 2280.0 -228.0 .. 24.0 2296.0 -224.0, 6 planes
+mark: solid 33: 80.0 2232.0 -344.0 .. 96.0 2240.0 -296.0, 6 planes
+mark: solid 34: 8.0 2176.0 -280.0 .. 80.0 2208.0 -208.0, 8 planes
+mark: solid 35: 8.0 2176.0 -224.0 .. 24.0 2208.0 -208.0, 7 planes
+mark: solid 36: 64.0 2176.0 -320.0 .. 80.0 2208.0 -264.0, 7 planes
+mark: solid 37: 60.0 2172.0 -352.0 .. 84.0 2212.0 -320.0, 6 planes
+mark: solid 38: -8.0 2168.0 -232.0 .. 8.0 2336.0 -200.0, 9 planes
+mark: solid 39: -72.0 2240.0 -224.0 .. -8.0 2336.0 -200.0, 7 planes
+mark: solid 40: -24.0 2280.0 -228.0 .. -8.0 2296.0 -224.0, 6 planes
+mark: solid 41: -64.0 2240.0 -264.0 .. -24.0 2336.0 -224.0, 7 planes
+mark: solid 42: -96.0 2240.0 -352.0 .. -64.0 2336.0 -224.0, 7 planes
+mark: solid 43: -96.0 2232.0 -344.0 .. -80.0 2240.0 -296.0, 6 planes
+mark: solid 44: -24.0 2176.0 -224.0 .. -8.0 2208.0 -208.0, 7 planes
+mark: solid 45: -80.0 2176.0 -320.0 .. -64.0 2208.0 -264.0, 7 planes
+mark: solid 46: -80.0 2176.0 -280.0 .. -8.0 2208.0 -208.0, 8 planes
+mark: solid 47: -84.0 2172.0 -352.0 .. -60.0 2212.0 -320.0, 6 planes
+mark: 108 solids within 96 (and 256 above) (the first 48 listed)
+mark: line at z -415.0 along x: gap 50.06 (-25.03 .. 25.03; limit 46.00)
+mark: line at z -415.0 along diagonal x+y: gap 70.80 (1572.55 .. 1643.35; limit 65.05)
+mark: line at z -415.0 along diagonal x-y: gap 70.80 (-1643.06 .. -1572.26; limit 65.05)
+mark: line at z -392.0 along x: gap 32.00 (-16.00 .. 16.00; limit 46.00)
+mark: line at z -392.0 along y: gap 32.00 (2256.00 .. 2288.00; limit 46.00)
+mark: line at z -392.0 along diagonal x+y: gap 42.44 (1585.33 .. 1627.77; limit 65.05)
+mark: line at z -392.0 along diagonal x-y: gap 43.03 (-1628.06 .. -1585.03; limit 65.05)
+mark: line at z -244.0 along x: gap 88.00 (-44.00 .. 44.00; limit 46.00)
+mark: line at z -396.0 along x: gap 32.00 (-16.00 .. 16.00; limit 46.00)
+mark: line at z -396.0 along diagonal x+y: gap 42.44 (1585.33 .. 1627.77; limit 65.05)
+mark: line at z -396.0 along diagonal x-y: gap 43.03 (-1628.06 .. -1585.03; limit 65.05)
+mark: blocker (model 0, the world's own): -84.0 2212.0 -352.0 .. -64.0 2240.0 -320.0
+mark: blocker (model 0, the world's own): -64.0 2204.0 -408.0 .. -56.0 2208.0 -400.0
+mark: blocker (model 0, the world's own): -64.0 2336.0 -416.0 .. -44.0 2352.0 -396.0
+mark: blocker (model 0, the world's own): -60.0 2192.0 -424.0 .. -32.0 2198.0 -416.0
+mark: blocker (model 0, the world's own): -60.0 2198.0 -416.0 .. -32.0 2201.0 -414.0
+mark: blocker (model 0, the world's own): -60.0 2198.0 -422.0 .. -32.0 2204.0 -416.0
+mark: blocker (model 0, the world's own): -60.0 2201.0 -416.0 .. -32.0 2204.0 -412.0
+mark: blocker (model 0, the world's own): -56.0 2224.0 -408.0 .. -40.0 2240.0 -400.0
+mark: blocker (model 0, the world's own): -52.0 2288.0 -388.0 .. -24.0 2315.5 -386.0
+mark: blocker (model 0, the world's own): -52.0 2360.0 -388.0 .. -24.0 2390.0 -386.0
+mark: blocker (model 0, the world's own): -48.0 2288.0 -392.0 .. -24.0 2318.0 -388.0
+mark: blocker (model 0, the world's own): -48.0 2360.0 -392.0 .. -24.0 2392.0 -388.0
+mark: blocker (model 0, the world's own): -44.0 2288.0 -396.0 .. -16.0 2296.0 -394.0
+mark: blocker (model 0, the world's own): -44.0 2320.0 -396.0 .. -16.0 2328.0 -394.0
+mark: blocker (model 0, the world's own): -44.0 2336.0 -401.0 .. -41.5 2352.0 -398.5
+mark: blocker (model 0, the world's own): -44.0 2336.0 -406.0 .. -39.0 2352.0 -401.0
+mark: blocker (model 0, the world's own): -44.0 2336.0 -416.0 .. -34.0 2352.0 -406.0
+mark: blocker (model 0, the world's own): -40.0 2288.0 -400.0 .. -24.0 2318.0 -392.0
+mark: blocker (model 0, the world's own): -40.0 2360.0 -400.0 .. -24.0 2392.0 -392.0
+mark: blocker (model 0, the world's own): -40.0 2288.0 -400.0 .. -16.0 2296.0 -396.0
+mark: blocker (model 0, the world's own): -40.0 2320.0 -400.0 .. -16.0 2328.0 -396.0
+mark: blocker (model 0, the world's own): -40.0 2224.0 -404.0 .. -38.0 2240.0 -402.0
+mark: blocker (model 0, the world's own): -40.0 2224.0 -408.0 .. -36.0 2240.0 -404.0
+mark: blocker (model 0, the world's own): -39.0 2336.0 -406.0 .. -36.5 2352.0 -403.5
+mark: left out (Quake's box reaches it): -52.0 2256.0 -388.0 .. -24.0 2278.0 -386.0
+mark: left out (Quake's box reaches it): -48.0 2256.0 -392.0 .. -24.0 2280.0 -388.0
+mark: left out (Quake's box reaches it): -40.0 2250.0 -400.0 .. -24.0 2252.0 -396.0
+mark: left out (Quake's box reaches it): -40.0 2252.0 -400.0 .. -24.0 2280.0 -392.0
+mark: left out (Quake's box reaches it): 24.0 2250.0 -400.0 .. 40.0 2252.0 -396.0
+mark: left out (Quake's box reaches it): 24.0 2252.0 -400.0 .. 40.0 2256.0 -392.0
+mark: left out (Quake's box reaches it): 24.0 2256.0 -400.0 .. 40.0 2288.0 -392.0
+mark: left out (Quake's box reaches it): 24.0 2256.0 -392.0 .. 48.0 2288.0 -388.0
+mark: left out (Quake's box reaches it): 24.0 2256.0 -388.0 .. 52.0 2288.0 -386.0
+mark: left out (Quake's box reaches it): 32.0 2240.0 -399.5 .. 40.5 2243.0 -397.0
+mark: left out (Quake's box reaches it): 32.0 2240.0 -402.0 .. 56.0 2243.0 -397.0
+mark: left out (Quake's box reaches it): 32.0 2240.0 -397.0 .. 56.0 2249.0 -392.0
+mark: left out (Quake's box reaches it): 32.0 2243.0 -399.5 .. 56.0 2246.0 -397.0
+mark: 91 blockers and 13 left out within 96; added to C:\Program Files (x86)\Steam\steamapps\common\Quake/quakevr/hull_holes_marks.txt
+

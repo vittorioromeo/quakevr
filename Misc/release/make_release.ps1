@@ -705,19 +705,19 @@ if ($hostedKeys.Count -and -not $DryRun -and -not $Local) {
     [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
     $releases = @{} # (each support release's API answer, read once)
     foreach ($k in $hostedKeys) {
-        $tag = SupportTag $k
+        $supportTag = SupportTag $k
         try {
-            if (-not $releases.ContainsKey($tag)) {
-                $releases[$tag] = Invoke-RestMethod -UseBasicParsing -TimeoutSec 30 -Headers @{ Accept = "application/vnd.github+json" } `
-                    -Uri "https://api.github.com/repos/$($support.repo)/releases/tags/$tag"
+            if (-not $releases.ContainsKey($supportTag)) {
+                $releases[$supportTag] = Invoke-RestMethod -UseBasicParsing -TimeoutSec 30 -Headers @{ Accept = "application/vnd.github+json" } `
+                    -Uri "https://api.github.com/repos/$($support.repo)/releases/tags/$supportTag"
             }
-            $rel = $releases[$tag]
+            $rel = $releases[$supportTag]
             $e = SupportFile $k
             $a = @($rel.assets | Where-Object { $_.name -eq $e.file }) | Select-Object -First 1
-            if (-not $a) { Problem "support release $tag has no $($e.file)" -OnlineOnly; continue }
+            if (-not $a) { Problem "support release $supportTag has no $($e.file)" -OnlineOnly; continue }
             $digest = if ($a.PSObject.Properties["digest"] -and $a.digest) { "$($a.digest)" } else { "" }
             if ([long]$a.size -ne [long]$e.size -or ($digest -and $digest -ne "sha256:$($e.sha256)")) {
-                Problem "$($e.file) on $tag is $($a.size) bytes, $digest; support_assets.json says $($e.size), sha256:$($e.sha256)" -OnlineOnly
+                Problem "$($e.file) on $supportTag is $($a.size) bytes, $digest; support_assets.json says $($e.size), sha256:$($e.sha256)" -OnlineOnly
                 continue
             }
             $u = SupportUrl $k
@@ -725,7 +725,7 @@ if ($hostedKeys.Count -and -not $DryRun -and -not $Local) {
                 $r = Invoke-WebRequest -UseBasicParsing -Method Head -TimeoutSec 30 -Uri $u
                 Say "hosted ${k}: $u answers ($($r.StatusCode)); $($a.size) bytes, $(if ($digest) { 'digest matches' } else { 'no digest from GitHub' })"
             } catch { Problem "hosted ${k}: $u does not answer ($($_.Exception.Message))" -OnlineOnly }
-        } catch { Problem "could not read the support release $tag from GitHub's API ($($_.Exception.Message))" -OnlineOnly }
+        } catch { Problem "could not read the support release $supportTag from GitHub's API ($($_.Exception.Message))" -OnlineOnly }
     }
 }
 # The Quake for the smoke launch: -QuakeDir, QVR_QUAKE_DIR, else the one the installer picks by itself (its Steam, GOG

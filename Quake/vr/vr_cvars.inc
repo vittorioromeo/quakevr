@@ -992,7 +992,9 @@ QVR_CVAR(vr_messages_hologram_time, "5", CVAR_ARCHIVE) // seconds a message stay
 QVR_CVAR(vr_messages_hologram_size, "1", CVAR_ARCHIVE) // its text's size (1: about 8 mm characters)
 QVR_CVAR(vr_messages_hologram_height, "10", CVAR_ARCHIVE) // cm its bottom floats over the gadget as seen
 QVR_CVAR(vr_messages_hologram_effect, "1", CVAR_ARCHIVE) // the hologram look: the beam from the screen, scanlines, flicker, glitches, the projection as it appears (0 plain glowing text, up to 2)
-QVR_CVAR(vr_view_text_smooth, "0.12", CVAR_ARCHIVE)     // the messages in front of you (the maps' view messages: VR Calibration's boards' texts, its steps, Body Calibration's poses; and the centre prints on the head's panel) follow your head's turn smoothed: seconds to catch up most of the way (0 at once; the author's note vrstart_2026-10-23_01-23-46)
+QVR_CVAR(vr_center_panel_scale, "2", CVAR_ARCHIVE)     // the centre panel's size (vr_center_panel) as a multiple of the HUD's own text size (1: the flat screen's 8 pixel characters at the menu's scale: small at the menu's distance; 0.25 .. 8)
+QVR_CVAR(vr_center_panel, "1", CVAR_ARCHIVE)         // 1: the game's centre prints in front of the head (not on the wrist's hologram) and the maps' view messages as the flat screen's: the flat visor's own centre popup (its glass face, cut corners, glowing bevelled frame, font, wrapping, scanlines, pop in and fade: visor::renderHeadsetCenter); 0: as before (Quake's own centre print on the 2D canvas, the view messages as 3D text)
+QVR_CVAR(vr_view_text_smooth,"0.12", CVAR_ARCHIVE)     // the messages in front of you (the maps' view messages: VR Calibration's boards' texts, its steps, Body Calibration's poses; and the centre prints on the head's panel) follow your head's turn smoothed: seconds to catch up most of the way (0 at once; the author's note vrstart_2026-10-23_01-23-46)
 QVR_CVAR(vr_messages_hologram_only, "1", CVAR_ARCHIVE) // QVR round 21: 1: the game's messages never show in front of you; they wait in the hologram until you look at the gadget, and a new one (not a pickup) chimes from the gadget and buzzes its hand while it is out of view
 QVR_CVAR(vr_loading_notice, "1", CVAR_ARCHIVE)        // (off in 1.0.0, config 122: its campaign-switch crash, fixed in 1.0.1: ROUND22.md, "The Loading... crash, root cause") "Loading..." in front of you before a level change (changelevel, a map transition, map, load, restart: vr_loading.cpp): the load waits until two headset frames showed it, as the runtime keeps showing the last frame while the game loads; 0 off, 1 in the headset, 2 the mock headset too (tests)
 QVR_CVAR(vr_loading_hold, "0", CVAR_NONE)            // seconds the notice stays before the load starts (0: two frames), to look at it
@@ -2926,8 +2928,15 @@ QVR_CVAR(vr_humstudio_light, "1", CVAR_NONE)      // debug: ... the texels' ligh
 QVR_CVAR(vr_humstudio_tint, "0", CVAR_NONE)       // debug: ... 0 the dye, 1 the texel's own colour times the colour
 QVR_CVAR(vr_humstudio_overlay, "0", CVAR_NONE)    // debug: 1: the masks shown on the recoloured (clothes green, pack blue, the rest dark red)
 QVR_CVAR(vr_humstudio_paint, "0", CVAR_NONE)      // debug: 1: painting: a trigger (flat: attack) paints where you point on an armed humanoid, a grip erases, B/Y undoes
-QVR_CVAR(vr_humstudio_brush, "2", CVAR_NONE)      // debug: the brush's radius (skin texels)
+QVR_CVAR(vr_humstudio_brush, "4", CVAR_NONE)      // debug: the brush's radius on the model's surface (cm; 0: the texel under the ray alone): the texels within it, on whatever triangles carry them
 QVR_CVAR(vr_humstudio_class, "1", CVAR_NONE)      // debug: what it paints: 1 clothes, 2 pack, 3 never (left as it is), 0 erase (back to its palette row's)
+QVR_CVAR(vr_humstudio_target, "0", CVAR_NONE)     // debug: what the ray paints on: 0 the part picked (clothes: the bodies, the packs passed through; pack: the packs), 1 bodies, 2 packs, 3 either (the nearest)
+QVR_CVAR(vr_humstudio_cursor, "1", CVAR_NONE)     // debug: 1 while painting, the texels the brush would change shown yellow (on every model with that skin) and the skin's flat view in the top right
+QVR_CVAR(vr_humstudio_nopack, "1", CVAR_NONE)     // debug: 1 the lineup wears no backpacks (vr_humstudio_packstand shows one alone)
+QVR_CVAR(vr_humstudio_noarmour, "1", CVAR_NONE)   // debug: 1 the lineup wears no armour plates
+QVR_CVAR(vr_humstudio_noweapon, "0", CVAR_NONE)   // debug: 1 the lineup's weapons not drawn (held as before)
+QVR_CVAR(vr_humstudio_packstand, "1", CVAR_NONE)  // debug: 1 a backpack on a stand of its own at the lineup's end, to paint
+QVR_CVAR(vr_humstudio_turn, "0", CVAR_NONE)       // debug: the lineup turned this many degrees from facing you (a turntable; with Hold Still, vr_agrunt_freeze, they stay so)
 // Survival Arena's difficulty (QC/vr_arena.qc, VR_ARENA_Skill): every 1 above is today's arena at Normal skill, and
 // this moves the rest of them by the skill level -- the shape of the armed humanoids' vr_agrunt_ai_skill, its own knob.
 QVR_CVAR(vr_arena_skill_impact, "1", CVAR_ARCHIVE | QVR_RULE)           // Difficulty Impact: how much the skill level moves the arena (Easy softer, Hard and Nightmare harder); 0 skill changes nothing about it, Normal always as set

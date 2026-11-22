@@ -31,13 +31,13 @@ enforcer   flame     clothes   1.00  0.52  0.10    0.58   1.20   0.50
 enforcer   flame     pack      1.00  0.52  0.10    0.68   1.20   0.00
 enforcer   poison    clothes   0.35  0.78  0.18    0.58   1.10   0.60
 enforcer   poison    pack      0.35  0.78  0.18    0.68   1.10   0.00
-knight     explosive clothes   0.80  0.10  0.07    0.46   1.15   0.00
+knight     explosive clothes   0.80  0.10  0.07    0.60   0.65   1.00
 knight     explosive pack      0.80  0.10  0.07    0.72   1.15   0.00
-knight     energy    clothes   0.18  0.40  0.95    0.43   1.20   0.00
+knight     energy    clothes   0.18  0.40  0.95    0.43   1.20   0.70
 knight     energy    pack      0.18  0.40  0.95    0.68   1.20   0.00
-knight     flame     clothes   1.00  0.52  0.10    0.43   1.20   0.00
+knight     flame     clothes   1.00  0.52  0.10    0.50   1.10   1.00
 knight     flame     pack      1.00  0.52  0.10    0.68   1.20   0.00
-knight     poison    clothes   0.35  0.78  0.18    0.43   1.10   0.00
+knight     poison    clothes   0.35  0.78  0.18    0.30   1.10   1.00
 knight     poison    pack      0.35  0.78  0.18    0.68   1.10   0.00
 dknight    explosive clothes   0.80  0.10  0.07    0.62   1.15   0.00
 dknight    explosive pack      0.80  0.10  0.07    0.72   1.15   0.00

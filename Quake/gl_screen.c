@@ -389,6 +389,8 @@ void SCR_CheckDrawCenterString (void)
 			return;
 		if (VR_CenterPrintOnVisor (scr_centerstring, SCR_CenterPrintFade ())) // QVR: flatscreen play's visor's popup shows it
 			return;
+		if (VR_CenterPrintInView (scr_centerstring, SCR_CenterPrintFade ())) // QVR: the headset's panel, in the flat visor popup's style (vr_panel.cpp)
+			return;
 	}
 
 	SCR_DrawCenterString ();
@@ -2405,6 +2407,7 @@ void SCR_UpdateScreen (void)
 		SCR_DrawSaving ();
 		SCR_DrawRelight (); // QVR
 		SCR_DrawTakes (); // QVR
+		VR_HumStudioDraw2D (); // QVR: the Texture Studio's skin view while it paints (vr/vr_humstudio.cpp)
 	}
 
 	Draw_ResetClipping (); // QVR: (and flushed) a clip rectangle left on (a mod's QC without drawresetcliparea) would cut the canvas's draw into the window and the next frame's clears

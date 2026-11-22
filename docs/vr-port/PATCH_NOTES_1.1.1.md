@@ -178,6 +178,14 @@ the crates Quake VR places about maps, Dimension of the Past and Dimension of th
 for the routers hole punching can't get through (the host forwards his port, or a virtual LAN); custom maps that
 aren't Map Library packages aren't sent to joining players.
 
+## Weapons
+
+- **Flat screen: a blade stuck in an enemy keeps its hand.** Dual wielding a blade and a gun, a blade that stays in an
+  enemy now keeps the hand that swung it on its handle until it comes out or the hand lets go; meanwhile the gun stays
+  one-handed, the right mouse button fires the left hand's weapon and the ironsight stays down, as when dual wielding.
+  Before, the hand let go of the blade to hold the gun in both hands, and the ironsight came up. In the headset too, a
+  hand holding a stuck blade no longer takes the other gun's two-handed grip.
+
 ## Movement
 
 - **Noclip flies where you look.** Moving forward in noclip now goes the way the camera points, so looking up or down
@@ -240,6 +248,7 @@ aren't Map Library packages aren't sent to joining players.
 
 ## Menus
 
+- **Centre messages in the headset look like the flat screen's.** The game's centre prints in front of your head (a key needed, a secret found, a map's text) and the maps' own view messages now appear in the flat visor's own message popup, drawn by the same code: its dark glass pill with cut corners, glowing bevelled frame, font, wrapping, scanlines, pop-in and fade, in a size that reads at the menu's distance. (`vr_center_panel 0` brings back the old look; `vr_center_panel_scale` sizes it.)
 - **Search filter (development builds).** The Search page has a "Show: Both / Cvars / Tunables" row over its text
   box: the menus' settings alone, the Tunables pages' constants alone, or both (the default). The results update
   at once; the choice lasts until the game quits. Release builds have no tunables, so they show no row and search
@@ -282,6 +291,11 @@ aren't Map Library packages aren't sent to joining players.
   flamethrowers orange, poison green, on their clothes and backpacks, so you see what is coming; the rest look as
   before. The dye keeps the cloth's shading, and their faces, arms and hands keep their own colour. Same page: Recolour
   by Weapon. Debug > Tools > Texture Studio tunes the colours and which parts of each skin they dye, live.
+- **Texture Studio: painting hits what you aim at.** Hands, forearms and the backs of heads paint where you point (the
+  model as it is drawn, arms posed), a backpack no longer takes a stroke meant for its wearer (Paint On picks bodies or
+  packs), the brush is a size on the model, and a yellow cursor plus a flat view of the skin show which texels a stroke
+  will change. The lineup can come without backpacks, armour or weapons, with a backpack on its own stand, held still
+  and turned like a turntable.
 
 ## Performance
 
