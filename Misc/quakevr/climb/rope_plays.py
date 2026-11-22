@@ -81,6 +81,7 @@ def climb():
     p.rope(5.0, "off", 1.75)
     p.cmd(5.1, "+graboff")
     p.check(5.3, "held 2")
+    p.check(5.3, "grip 2")
     p.check(5.3, "mark")
     p.check(5.3, "nudge 150")
     p.check(5.6, "moved 15")
@@ -121,10 +122,40 @@ def pump():
     return p
 
 
+def calm():
+    # (ropes6) climbing up hand over hand, the body close to the rope: four pulls (the main hand, then the off, ...),
+    # each regrab higher; the rope's swing at the hands and its free end barely move (calm: at most these units/s)
+    p = Play()
+    p.rope(0.5, "off", 1.45)
+    p.cmd(0.7, "+graboff")
+    p.check(0.9, "held 1")
+    p.check(1.0, "mark")
+    t = 1.0
+    hold, free = "off", "main"
+    for _ in range(4):
+        grab = {"off": "+graboff", "main": "+grabmain"}
+        drop = {"off": "-graboff", "main": "-grabmain"}
+        p.key(t, free, (AT[free] * 6, 1.3, -0.3))
+        p.rope(t + 0.4, free, 1.85)
+        p.cmd(t + 0.5, grab[free])
+        p.rope(t + 0.6, free, 1.85)
+        p.cmd(t + 0.65, drop[hold])
+        p.rope(t + 0.65, hold, 1.45)
+        p.rope(t + 1.4, free, 1.25)
+        p.key(t + 0.9, hold, (AT[hold] * 6, 1.3, -0.3))
+        t += 1.4
+        hold, free = free, hold
+    p.check(t + 0.1, "rose 50")
+    p.check(t + 0.1, "calm 25 30")
+    p.check(t + 0.2, "done")
+    return p
+
+
 if __name__ == "__main__":
     out = sys.argv[1] if len(sys.argv) > 1 else "."
     os.makedirs(out, exist_ok=True)
     climb().write(os.path.join(out, "rope_climb.txt"))
     jump().write(os.path.join(out, "rope_jump.txt"))
     pump().write(os.path.join(out, "rope_pump.txt"))
+    calm().write(os.path.join(out, "rope_calm.txt"))
     print("rope plays written to", out)

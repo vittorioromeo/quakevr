@@ -5,9 +5,11 @@
 #               the fall keeps the rope's speed at the hands
 #   rope_jump   up, the nudge, a jump: up by vr_rope_jump over the rope's own, its level speed kept
 #   rope_pump   up, the forward key held 6 s: the swing pumped to at least 250 units/s at the hands, no more than the cap
+#   rope_calm   (ropes6) four pulls up hand over hand, the body close to it: up at least 50, the swing at the hands at
+#               most 25 units/s and its free end at most 30 (each regrab barely moves it), a pull grunts (2 or more)
 # Each ends on its verdict line ("vr_rope_climb_test: N passed, M failed").
 AGENT=${1:?agent}; shift
-PLAYS=${*:-rope_climb rope_jump rope_pump}
+PLAYS=${*:-rope_climb rope_jump rope_pump rope_calm}
 KIT=${KIT:-C:/OHWorkspace/qvr-kit}
 HERE=$(cd "$(dirname "$0")" && pwd -W 2>/dev/null || pwd)
 D=C:/OHWorkspace/qvr-agents/$AGENT/scratch/climb
