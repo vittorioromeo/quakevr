@@ -859,8 +859,10 @@ constexpr float ladderInWall = 12.f;   // units: how far into the wall behind a 
 // static one: kellbase1's pillar ladders, his note 2026-11-22 16:06, "the position of the hands and the ledges doesn't
 // match the actual rungs"), within drawnRungMargin behind or before it (across its thinner side: not its rails' caps
 // beside it) and inside its height. The top nearest `z` and that rung's footprint (its faces at that top), or nothing:
-// no rung drawn there (the volume's own rungs then).
+// no rung drawn there (the volume's own rungs then): none within drawnRungReach of `z`, or a single top only (no ladder
+// drawn: ad_e1m1's has one face at its top, which took every hand on it, and the flat ladder found one rung).
 constexpr float drawnRungMargin = 12.f; // units: how far before or behind a ladder volume its drawn rungs are looked for
+constexpr float drawnRungReach = 40.f;  // units: the farthest from `z` a drawn rung is still its (the flat ladder's ladderGap)
 
 struct DrawnRung
 {
@@ -883,6 +885,7 @@ struct DrawnRung
         hi[axis] = vol->v.origin[axis] + vol->v.maxs[axis] + grow;
     }
     za::Optional<DrawnRung> best;
+    float topLow = 1e30f, topHigh = -1e30f; // (all its tops: a ladder has two or more)
     const auto overlaps = [&](const float* mn, const float* mx) {
         return mn[0] <= hi.x && mx[0] >= lo.x && mn[1] <= hi.y && mx[1] >= lo.y && mn[2] <= hi.z && mx[2] >= lo.z;
     };
@@ -927,6 +930,8 @@ struct DrawnRung
                 continue;
             }
             const float top = fmax[2];
+            topLow = za::min(topLow, top);
+            topHigh = za::max(topHigh, top);
             glm::vec2 rlo{1e30f}, rhi{-1e30f}; // (its ridge: its vertices at its top, a bar's line)
             for(int i = 0; i < surf.numedges; ++i)
             {
@@ -948,6 +953,10 @@ struct DrawnRung
                 best = za::Optional<DrawnRung>{DrawnRung{top, rlo, rhi}};
             }
         }
+    }
+    if(!best || topHigh - topLow < 4.f || za::abs(best->top - z) > drawnRungReach)
+    {
+        return za::nullOpt;
     }
     return best;
 }
