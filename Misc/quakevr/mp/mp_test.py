@@ -102,6 +102,9 @@ Tests:
              link; --listen: A hosts.
     dm       (B11) a dedicated deathmatch server on dm4 (fraglimit 3): A and B join at deathmatch starts; two FrikBot bots
              added (impulse 100): four players listed at both, the bots move; A killed by a bot (vr_hurt) and respawned by his trigger, then A frags the bots (vr_hurt) to the fraglimit; the fraglimit ends the match: the intermission at both, their scoreboards the same.
+    botrevolver  (vrnotes1122a) a dedicated deathmatch server: A adds a bot; the server's vr_dm_test 14: the bot draws
+             and fires a revolver of its own at A (slugs, not trigger pulls), and one it took loaded (his, by a
+             disarm) in either hand, without shells of its own.
     coopbots (MP bots phase 1) a dedicated coop server on e1m1: A adds a bot (impulse 100); the server's QC test brings a
              grunt in front of it: it kills it, never taking a player for its enemy; A through e1m1's exit: on e1m2 the
              bot is back with what it had (its super nailgun).
@@ -7485,6 +7488,46 @@ def botgear(s):
     srv.cmd("vr_dm_test 0")
 
 
+def botrevolver(s):
+    """(vrnotes1122a; his voice note 2026-11-22: a bot wielding the heavy revolver aimed at him and never shot) On a
+    dedicated deathmatch server A adds a bot; the server's QC test vr_dm_test 14 arms it: a revolver of its own and shells,
+    drawn and fired at A (three slugs: its trigger let go between them); then a revolver it took loaded (by a disarm) in
+    its main hand with no shells of its own, and in its off hand beside its shotgun: three slugs each (a bot never
+    reloads: a taken gun's clip goes with its ammo, frikbot/bot_fight.qc bot_clips_to_ammo)."""
+    srv = s.server(dedicated=True)
+    srv.start()
+    srv.cmd("coop 0; deathmatch 1; noexit 1; fraglimit 0; timelimit %d; skill 1; map %s; vr_mp_status" % (
+        DM_TIMELIMIT, DM_MAP))
+    srv.wait(r"mp_server: map=%s" % DM_MAP, 120, what="the server on %s" % DM_MAP)
+    a = s.client("A").start()
+    a.cmd(s.connect_cmd(a))
+    _, ja = a.wait(r"mp_event: .*joined map=%s" % DM_MAP, 120, what="A joined %s" % DM_MAP)
+    ea = int(fields(ja)["self"])
+    a.cmd("name A")
+    since_a = a.mark()
+    a.cmd("impulse 100")
+    a.wait(r"mp_frags: .*named=1", 10, since_a, "the bot named at A")
+    bots = []
+    for _ in range(10):
+        bots = sorted(slot for slot in frag_table(a) if slot != ea - 1)
+        if bots:
+            break
+        since_c = a.mark()
+        wait_quietly(a, r"mp_frags: ", 5, since_c, "the bot listed at A")
+    s.check("A lists the bot", len(bots) == 1, "%s" % frag_table(a))
+    if not bots:
+        return
+    since_srv = srv.mark()
+    srv.cmd("vr_dm_test 14")
+    _, verdict = srv.wait(r"dmtest: \d+ passed, \d+ failed", 90, since_srv, "vr_dm_test 14's verdict")
+    got = [l.strip() for l in srv.lines[since_srv:] if "dmtest: " in l]
+    for l in got:
+        if "PASS" in l or "FAIL" in l:
+            s.note(l)
+    s.check("the bot fires the revolver at A: its own, and one it took loaded in either hand (vr_dm_test 14)",
+            " 0 failed" in verdict and "FAIL" not in " ".join(got), "%s %s" % (verdict.strip(), got[-4:]))
+
+
 def debugviz_case(s, srv, a, who, ent, label, host):
     """(bots4) vr_dm_test 16 holds the victim (`who` 0 the bot, 1 B) in front of A; A's mp_debugviz line for entity `ent`:
     his disarm volumes (the host's from its QC, a client's rebuilt from the weapon it draws) along his drawn weapon, and
@@ -9936,6 +9979,8 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             deathmatch(s)
         elif test == "mp_botgear":
             botgear(s)
+        elif test == "mp_botrevolver":
+            botrevolver(s)
         elif test == "mp_botgrab":
             botgrab(s)
         elif test == "mp_debugviz":
@@ -10026,6 +10071,7 @@ SUITE = [
     ("mp_coopbots", ()),
     ("mp_botgrab", ()),
     ("mp_botgear", ()),
+    ("mp_botrevolver", ()),
     ("mp_debugviz", ()),
     ("mp_debugviz_listen", ()),
     ("mp_wristscore", ()),
@@ -10049,7 +10095,7 @@ SUITE = [
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "botgear", "debugviz", "debugviz_listen", "wristscore", "wpnsync", "wpnsync_flat", "navfollow", "navfollow_listen", "navfollow_vr", "botnavdebug", "botnavdebug_listen", "syncaudit", "ragsync", "ropes", "ropeclimb"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "botgear", "botrevolver", "debugviz", "debugviz_listen", "wristscore", "wpnsync", "wpnsync_flat", "navfollow", "navfollow_listen", "navfollow_vr", "botnavdebug", "botnavdebug_listen", "syncaudit", "ragsync", "ropes", "ropeclimb"])
     tree_base = default_base(REPO)
     ap.add_argument("--base", required=tree_base is None, default=tree_base,
                     help="the game folder (id1, quakevr...; default: this checkout's own, the kit's bases/<checkout>/qbase)")
@@ -10116,7 +10162,7 @@ def main_run(args):
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
     elif args.test in ("bandwidth", "wpnsync", "wpnsync_flat", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground",
-                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "botgear", "debugviz", "debugviz_listen", "wristscore", "navfollow", "navfollow_listen", "navfollow_vr", "botnavdebug", "botnavdebug_listen", "syncaudit", "ragsync", "ropes", "ropeclimb"):
+                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "botgear", "botrevolver", "debugviz", "debugviz_listen", "wristscore", "navfollow", "navfollow_listen", "navfollow_vr", "botnavdebug", "botnavdebug_listen", "syncaudit", "ragsync", "ropes", "ropeclimb"):
         ok = run(args, "mp_" + args.test)
     elif args.test == "voice":
         ok = run(args, "mp_voice", args.lag, args.jitter, args.loss)

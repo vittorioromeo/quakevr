@@ -91,6 +91,7 @@ float RV_SWING = -95;        // the crane's swing out, degrees about the bore (+
 .float vr_rv_cyl2;
 
 float vr_rv_shots;       // shots fired (tests)
+float vr_rv_bot_slugs;   // ... of them by bots (vr_dm_test 14)
 float vr_rv_dry;         // clicks on empty or spent chambers (tests)
 float vr_rv_ej_spent;    // spent and live shells dropped (tests)
 float vr_rv_ej_live;
@@ -379,6 +380,7 @@ void(float xHand) W_FireRevolver =
         return;
     }
     float client = (self.flags & FL_CLIENT) != 0;
+    vr_rv_bot_slugs = vr_rv_bot_slugs + (client && !self.ishuman);
     float vol = max(0, min(4, cvar_hget(cvarh_vr_revolver_volume)));
     // Its blast: its own (his note 2026-10-29: powerful, intense, not the super shotgun's), layered as it loads from the
     // game's own sounds (the super shotgun's lower, an explosion's crack, the action's clack: vr_audio.cpp layeredSounds).
