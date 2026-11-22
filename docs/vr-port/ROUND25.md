@@ -7539,3 +7539,8 @@ becomes possible in that state".
   parts for the lanes would cut the suite's critical path. reload_worldparts failed once in six runs ("1 screens" at
   the old 320-unit range), reload_test's sights check once before the name-order fix. The kit's run_baseline.py has its
   own copy of the lane rules (qvrtest.lane_keys could replace it).
+- **Proof**: map flames igniting at half vr_burn_self_time (QC, reverted): the batched mapflameburn failed 6 of 16.
+  The beta profile in 4 lanes: 8.2 min, 9 passed; settings_page failed in lane 1 (a lane's config is put back before
+  each game) and is now lane 0 (PASS); two failures not from this branch: update_notice ("same" serves 1.2.0, newer
+  than this 1.2.0-beta1: the test's versions need the beta's) and scenario_check (ENGINE CRASH, access violation in
+  qvr::visor update, vr_visor.cpp:230, map vrtesthall, 98 s in).
