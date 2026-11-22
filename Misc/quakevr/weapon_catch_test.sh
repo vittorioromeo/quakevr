@@ -5,7 +5,7 @@
 # lowered onto its middle (vr_mock_hand_to main weapon 0.5 <cm>) a step at a time, the grip pressed fresh at each,
 # vr_debug_carry 2 printing the server's fist gap, developer 1 the take (vr_box3d_hand_props 0: the hand doesn't push it):
 #   1. in the air (sv_gravity 0, so it floats; not resting on anything): not taken while the fist is off it (no slack),
-#      taken once the fist touches it (gap <= 0).
+#      taken once the fist touches it (gap <= 0); the palm's middle lowered onto it (weaponpalm), not the hand's point.
 #   2. (retired 2026-10-16 with vr_weapon_grab_box: the old box catch, taken from 12 cm over it, is gone.)
 #   3. lying on the floor (vrfiringrange): taken with the fist within vr_weapon_grab_slack (set to 5 cm here: the shipped
 #      0 since 2026-10-08, the author's, leaves only the handle's leniency) of it
@@ -22,9 +22,9 @@ export TB_NODRAW=${TB_NODRAW-1} # (batched frames not drawn: no check here reads
 tb_body() {
 fail=0
 check() { if [ "$1" = "1" ]; then echo "PASS $2"; else echo "FAIL $2"; fail=1; fi; }
-run() { # <setup> <heights>: the server's gap (cm) at each take ("taken <gap> <allowed>"), and "first <gap>" the gap seen first
+run() { # <setup> <heights> [<aim: weapon (the hand's point), weaponpalm>]: the server's gap (cm) at each take ("taken <gap> <allowed>"), and "first <gap>" the gap seen first
     local S="vr_fixed_frames 1;vr_agrunt_repl 0;sv_random_seed $SEED;$1;developer 1;vr_debug_carry 2;vr_box3d_hand_props 0"
-    for h in $2; do S="$S;vr_mock_hand_to main weapon 0.5 $h;wait6;+grabmain;vr_mock_button main grip 1;wait3;-grabmain;vr_mock_button main grip 0;wait15"; done
+    for h in $2; do S="$S;vr_mock_hand_to main ${3:-weapon} 0.5 $h;wait6;+grabmain;vr_mock_button main grip 1;wait3;-grabmain;vr_mock_button main grip 0;wait15"; done
     tb_run_sh -Script "$S;toggleconsole;quit" -Filter "weapon: Crowbar taken|grab: main hand, thrown|rror" 2>&1 |
         awk '/the fist/{match($0, /, -?[0-9.]+ cm/); g=substr($0, RSTART+2, RLENGTH-5); match($0, /allowed [0-9.]+/); a=substr($0, RSTART+8, RLENGTH-8); if(!f){print "first " g; f=1}}
              /taken into/{print "taken " g " " a; exit} /rror/{print "error"}'
@@ -33,9 +33,14 @@ AIR="map e1m1;wait60;sv_gravity 0;impulse 217;wait30"
 # (vr_weapon_catch_handle_leniency 0: since the mid-air catches (0660bdf2f) a weapon in the air is taken at its handle
 # with that much more, 6 cm; the hand here is lowered onto the crowbar's middle, within vr_weapon_grab_anywhere_min of
 # its handle, and was taken 5.5 cm off it (allowed 6). Off, the check is the fist's own again.)
-log=$(run "vr_weapon_catch_handle_leniency 0;$AIR" "12 9 6 4 2 1 0 -1 -2 -3")
+# (The palm's middle lowered onto it (weaponpalm), from 30 cm over its top, since gunoffsets (2026-11-22): the hand's
+# point, the fist's front top, put on the bar can pass beside it, and whether it did hung on how the bar lay: with the
+# shipped crowbar offsets (vr_wofs_pitch_24 10, its drawn bar turned about its origin) the fist stopped 2.2-7 cm off it
+# at every height; the frozen old ones (pitch 0) met it at -0.19. The catch itself is the same either way.)
+log=$(run "vr_weapon_catch_handle_leniency 0;$AIR" "30 24 20 17 15 13 12 11 10 9 8 7 6 5 4 3 2 1 0" weaponpalm)
 t=$(echo "$log" | grep "^taken")
-check $(echo "$t" | awk '{print ($2 <= 0 && $3 == 0) ? 1 : 0}') "in the air: taken only with the fist on it, no slack ($t)"
+f=$(echo "$log" | grep "^first")
+check $(echo "$t $f" | awk '{print ($2 <= 0 && $3 == 0 && $5 > 0) ? 1 : 0}') "in the air: taken only with the fist on it, no slack, not while off it ($t; $f)"
 FLOOR="vr_weapon_grab_slack 5;vr_weapon_grab_handle_leniency 0;map vrfiringrange;wait60;setpos 221.2 -656.7 41 0 0 0;wait10;impulse 217;wait90;setpos 250 -656.7 41 0 0 0;wait10"
 log=$(run "$FLOOR" "12 9 6 4 2 0 -1 -2")
 t=$(echo "$log" | grep "^taken")
