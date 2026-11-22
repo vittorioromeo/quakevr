@@ -2,6 +2,7 @@
 // they share is vr_avatar_internal.hpp.
 
 #include "vr_modelmetadata.hpp"
+#include "vr_axestick.hpp"
 #include "vr_trace.hpp"
 #include "vr_progs.hpp"
 #include "vr_avatar.hpp"
@@ -1104,7 +1105,7 @@ ArmEase armEase;
 // his note 2026-11-05, "a little bit of IK stretch like we did for the enemies"), eased in and back (once a frame of game time).
 [[nodiscard]] float armStretchNow(int side)
 {
-    const bool onBlade = !posingOther() && cl.stats[side == 1 ? protocol::STAT_QVR_EMBEDMAIN : protocol::STAT_QVR_EMBEDOFF] > 0;
+    const bool onBlade = !posingOther() && axestick::handOnBlade(side);
     float& w = armEase.embed[side];
     double& at = armEase.embedTime[side];
     const float dt = at >= 0.0 ? static_cast<float>(CLAMP(0.0, vr_gametime - at, 0.1)) : 0.f;

@@ -33,6 +33,7 @@
 #include "vr_engine.hpp"
 #include "vr_api.h"
 #include "vr_avatar.hpp"
+#include "vr_axestick.hpp"
 #include "vr_bullettime.hpp"
 #include "vr_cvars.hpp"
 #include "vr_tunables.hpp"
@@ -2127,7 +2128,7 @@ namespace
 
 bool holdsThing(int h)
 {
-    return h >= 0 && h < HAND_COUNT && (carriedBy(h) != 0 || held::heldEntity(h) != 0);
+    return h >= 0 && h < HAND_COUNT && (carriedBy(h) != 0 || held::heldEntity(h) != 0 || axestick::handOnBlade(h));
 }
 
 bool propInFist(int h)
@@ -2250,7 +2251,24 @@ int routeProbePunches[HAND_COUNT]{0, 0};
 // (QC vr_flatitems_test 10) and printed: bits 1 LMB fires the main hand, 2 LMB the off hand, 4 RMB the main hand, 8 RMB
 // the off hand, 16 RMB is the ironsight's, 32 the ironsight is up (flatsight::adsShare), 64 the main hand punched (struck
 // with what it holds) since the last `start`, 128 the off hand did. Only the hands' contents decide the routing
-// (routeButtons: not a wall, a reload or a swap). `start` only notes the punch counts.
+// (routeButtons: not a wall, a reload or a swap). `start` only notes the punch counts. And the hands' holds (vr_embed_test 52):
+// 256 a hand on the other hand's gun (its two-handed grip, going to it, or the stance's look), 512 the main hand drawn on the
+// blade it holds stuck in a body (within probeOnBlade of the blade's origin), 1024 the off hand.
+constexpr float probeOnBlade = 16.f; // units
+
+// How far `h` is drawn from the blade stuck in a body it holds (units); -1: none, or not drawn.
+[[nodiscard]] float drawnFromBlade(int h)
+{
+    const int ent = axestick::heldStat(h) / 4;
+    glm::vec3 pos, rot;
+    if(ent <= 0 || ent >= cl.num_entities || !view::drawnHandPose(h, pos, rot))
+    {
+        return -1.f;
+    }
+    const entity_t& e = cl_entities[ent];
+    return glm::distance(pos, glm::vec3{e.origin[0], e.origin[1], e.origin[2]});
+}
+
 void routeProbe_f()
 {
     if(Cmd_Argc() > 1 && q_strcasecmp(Cmd_Argv(1), "start") == 0)
@@ -2265,12 +2283,19 @@ void routeProbe_f()
                (r.fire[HAND_OFF] ? 8 : 0) | (r.rmbAims ? 16 : 0) | (flatsight::adsShare() > 0.f ? 32 : 0);
     bits |= (fs.punches[HAND_MAIN] != routeProbePunches[HAND_MAIN] ? 64 : 0) |
             (fs.punches[HAND_OFF] != routeProbePunches[HAND_OFF] ? 128 : 0);
+    const auto onGun = [](int h) {
+        return twohand::helping(h) || flatsight::adsHelper(h) || flatsight::lookShare(h) > 0.f;
+    };
+    const float bladeMain = drawnFromBlade(HAND_MAIN);
+    const float bladeOff = drawnFromBlade(HAND_OFF);
+    bits |= (onGun(HAND_MAIN) || onGun(HAND_OFF) ? 256 : 0) | (bladeMain >= 0.f && bladeMain < probeOnBlade ? 512 : 0) |
+            (bladeOff >= 0.f && bladeOff < probeOnBlade ? 1024 : 0);
     Cvar_SetValueQuick(&vr_flat_route_seen, static_cast<float>(bits));
     Con_Printf("flatroute: %d (main weapon %d thing %d, off weapon %d thing %d; LMB main %d off %d, RMB main %d off %d, "
-               "aims %d, ads %.2f, punched main %d off %d)\n",
+               "aims %d, ads %.2f, punched main %d off %d; on the gun %d, drawn from its blade main %.1f off %.1f)\n",
         bits, heldIn(HAND_MAIN), holdsThing(HAND_MAIN) ? 1 : 0, heldIn(HAND_OFF), holdsThing(HAND_OFF) ? 1 : 0, bits & 1,
         (bits >> 1) & 1, (bits >> 2) & 1, (bits >> 3) & 1, (bits >> 4) & 1, static_cast<double>(flatsight::adsShare()),
-        (bits >> 6) & 1, (bits >> 7) & 1);
+        (bits >> 6) & 1, (bits >> 7) & 1, (bits >> 8) & 1, static_cast<double>(bladeMain), static_cast<double>(bladeOff));
 }
 
 } // namespace
