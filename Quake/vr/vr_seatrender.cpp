@@ -572,11 +572,11 @@ void flashesOn()
     cl.cshifts[CSHIFT_DAMAGE].destcolor[0] = 255;
     cl.cshifts[CSHIFT_DAMAGE].destcolor[1] = 0;
     cl.cshifts[CSHIFT_DAMAGE].destcolor[2] = 0;
-    cl.cshifts[CSHIFT_DAMAGE].percent = 120;
+    cl.cshifts[CSHIFT_DAMAGE].percent = 60;
     cl.cshifts[CSHIFT_BONUS].destcolor[0] = 255;
     cl.cshifts[CSHIFT_BONUS].destcolor[1] = 96;
     cl.cshifts[CSHIFT_BONUS].destcolor[2] = 0;
-    cl.cshifts[CSHIFT_BONUS].percent = 60;
+    cl.cshifts[CSHIFT_BONUS].percent = 30;
     cl.forceunderwater = true;
 }
 
@@ -588,34 +588,38 @@ void flashesOff()
     blood::clear();
 }
 
-// How far picture b is from picture a, up to a brightness and contrast change (a tint, a flash): the RMS of b less its
-// least-squares fit a * k + c, in luminance units. A view squashed into part of its tile (the warp's texture scale
-// from the tile's size: split11's bug) or a stale picture in it leaves a large residue.
-[[nodiscard]] float pictureResidue(const byte* a, const byte* b)
+// How alike pictures a and b are, whatever their brightness and contrast (a tint, a flash): the correlation of their
+// blocks' luminance, -1..1 (0 for a flat picture). A view squashed into part of its tile (the warp's texture scale from
+// the tile's size: split11's bug) or a stale picture in it does not follow the view's own: low.
+[[nodiscard]] float pictureCorrelation(const byte* a, const byte* b)
 {
-    constexpr int n = SEAT_PROBEGRID * SEAT_PROBEGRID;
+    // (the inner blocks: the pain's blood lies round the screen's edges)
+    constexpr int g = SEAT_PROBEGRID;
     double ma = 0.0, mb = 0.0;
-    for(int i = 0; i < n; i++)
+    int n = 0;
+    for(int y = 1; y < g - 1; y++)
     {
-        ma += a[i];
-        mb += b[i];
+        for(int x = 1; x < g - 1; x++)
+        {
+            ma += a[y * g + x];
+            mb += b[y * g + x];
+            n++;
+        }
     }
     ma /= n;
     mb /= n;
-    double sab = 0.0, saa = 0.0;
-    for(int i = 0; i < n; i++)
+    double sab = 0.0, saa = 0.0, sbb = 0.0;
+    for(int y = 1; y < g - 1; y++)
     {
-        sab += (a[i] - ma) * (b[i] - mb);
-        saa += (a[i] - ma) * (a[i] - ma);
+        for(int x = 1; x < g - 1; x++)
+        {
+            const double da = a[y * g + x] - ma, db = b[y * g + x] - mb;
+            sab += da * db;
+            saa += da * da;
+            sbb += db * db;
+        }
     }
-    const double k = saa > 1e-6 ? sab / saa : 0.0;
-    double res = 0.0;
-    for(int i = 0; i < n; i++)
-    {
-        const double d = b[i] - (mb + k * (a[i] - ma));
-        res += d * d;
-    }
-    return static_cast<float>(std::sqrt(res / n));
+    return saa > 1e-6 && sbb > 1e-6 ? static_cast<float>(sab / std::sqrt(saa * sbb)) : 0.f;
 }
 
 [[nodiscard]] float pictureDiff(const byte* a, const byte* b)
@@ -641,7 +645,7 @@ void flashesOff()
     return true;
 }
 
-constexpr float flashResidueMax = 12.f; // luminance units: a flashed tile still its own view (a broken one: 30+)
+constexpr float flashAlikeMin = 0.5f; // a flashed tile's picture still its view's (pictureCorrelation: 0.7-0.9 here, a broken one < 0.2)
 constexpr float backDiffMax = 6.f;      // a tile back to its picture once the flashes are off
 
 void testFrame()
@@ -772,10 +776,10 @@ void testFrame()
             for(int s = 0; s < t.seats; s++)
             {
                 const seatview_t* v = V_SeatViewOf(s);
-                const float residue = pictureResidue(t.base[s], v->probegrid);
-                check(v->blend[3] > 0.2f && residue < flashResidueMax,
-                    va("seat %d flashed (damage, burn, water, pain): its tile still its view (tint %.2f, residue %.1f)", s + 1,
-                        static_cast<double>(v->blend[3]), static_cast<double>(residue)));
+                const float alike = pictureCorrelation(t.base[s], v->probegrid);
+                check(v->blend[3] > 0.15f && alike > flashAlikeMin,
+                    va("seat %d flashed (damage, burn, water, pain): its tile still its view (tint %.2f, alike %.2f)", s + 1,
+                        static_cast<double>(v->blend[3]), static_cast<double>(alike)));
             }
             Cbuf_AddText("screenshot\n");
             go(Step::FlashShot);
