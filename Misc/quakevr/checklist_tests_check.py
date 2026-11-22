@@ -19,7 +19,9 @@ TREE = sys.argv[1] if len(sys.argv) > 1 and sys.argv[1] != "--lines" else os.pat
 GAME = os.path.join(TREE, "quakevr")
 DIRECTIVES = {"title", "hint", "map", "start", "god", "notarget", "health", "give", "spawn", "spawnarmed", "cvar", "cmd",
               "mp", "bot"}
-EXTERNAL_MAP = re.compile(r"^(start|end|e[1-4]m[1-9]|dm[1-6]|hip[1-3]m[1-6]|hipdm1|hipend|r[12]m[1-8]|ctf\w*|ad_\w+)$")
+# (Quoth's own maps, quoth_maps.sh's OWN, as AD's ad_*: a scene on them needs Quoth installed, not a map of ours.)
+EXTERNAL_MAP = re.compile(r"^(start|end|e[1-4]m[1-9]|dm[1-6]|hip[1-3]m[1-6]|hipdm1|hipend|r[12]m[1-8]|ctf\w*|ad_\w+|"
+                          r"e1m[12]quoth|ne_basetest|kelltest[1-5]|kellbase1|breakable)$")
 NUM = re.compile(r"^-?\d+(\.\d+)?$")
 
 passed = 0
@@ -83,7 +85,7 @@ def check_scene(sid):
     if len(maps) != 1:
         problems.append(f"{len(maps)} map lines (one needed)")
     elif not (os.path.isfile(os.path.join(GAME, "maps", maps[0] + ".bsp")) or EXTERNAL_MAP.match(maps[0])):
-        problems.append(f"map {maps[0]} not in quakevr/maps nor an id, mission pack or AD map")
+        problems.append(f"map {maps[0]} not in quakevr/maps nor an id, mission pack, AD or Quoth map")
     check(not problems, f"{sid}: " + "; ".join(problems))
 
 
