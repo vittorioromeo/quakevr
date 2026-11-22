@@ -1,0 +1,11 @@
+# agrunts_fight: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title Three armed grunts (shotgun, axe, sword) and a crate; a sword and a shotgun in your hands
+map vrtesthall
+start 0 -288 25 90
+god
+give "Knight's Sword" main
+give "Shotgun" off
+spawn "Armed Grunt: Shotgun" 300 -100
+spawn "Armed Grunt: Axe" 280 0
+spawn "Armed Grunt: Sword" 300 100
+spawn "Wooden Crate" 120 -80

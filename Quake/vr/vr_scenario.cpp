@@ -63,6 +63,29 @@ struct Setting
     za::String value;
 };
 
+// A `bot` line: a FrikBot added once the map is in, put at fwd/left facing you, a toolgun Weapons entry in a hand.
+struct Bot
+{
+    float fwd{0.f}, left{0.f};
+    Give weapon; // entry -1: none (its own loadout)
+    int line{0};
+};
+
+enum class Mp : int
+{
+    None, // single player
+    Coop,
+    Dm
+};
+
+// `bot passive`: stands still, presses nothing (no attack, no parry), takes hits, put back at its spot when it
+// respawns; `bot active`: plays as a bot does (coop: a teammate that moves with you and fights monsters; dm: hunts you).
+enum class BotMode : int
+{
+    Passive,
+    Active
+};
+
 struct Scenario
 {
     za::String id, title, map, hint;
@@ -72,11 +95,31 @@ struct Scenario
     bool hasStartYaw{false};
     bool god{false}, notarget{false};
     float health{0.f};
+    Mp mp{Mp::None}; // `mp coop|dm`: a local multiplayer game (mpSlots slots, nothing opened on the network)
+    BotMode botMode{BotMode::Passive};
     za::Vector<Give> gives;
     za::Vector<Spawn> spawns;
+    za::Vector<Bot> bots;
     za::Vector<Setting> cvars;
     za::Vector<za::String> cmds;
 };
+
+// A bot as placed: its edict, its spot and facing, the weapon it was given (runall: still there, still holding it;
+// a passive one put back at its spot after a respawn).
+struct PlacedBot
+{
+    int num{0};
+    int line{0};
+    int weaponEntry{-1};
+    int hand{1};
+    glm::vec3 at{0.f};
+    float yaw{0.f};
+    float weapon{-1.f}; // its main hand's weapon once given (-1: none given)
+    bool dead{false};
+};
+
+// An `mp` scene's game: this many client slots (you and up to three bots), with `listen 0` kept (no socket opened).
+static constexpr int mpSlots = 4;
 
 // A spawn line's entity as placed: runall checks it is still there (or, freed, that what it made stands at its spot:
 // a func_weapon_grabbable makes its weapon as a new entity).
@@ -92,6 +135,7 @@ struct Placed
 struct State
 {
     za::Vector<Placed> placed;      // the current placing's spawn lines' entities
+    za::Vector<PlacedBot> bots;     // and its bot lines' bots
     Scenario run;
     za::String lastHint;            // Reset Test's hint (the checklist line's)
     testbatch::CvarSnapshot saved;  // each setting changed: its value before (put back; the tests' one snapshot)
@@ -102,7 +146,7 @@ struct State
     za::String hint;                // the hint shown
     za::String skipWhy;             // runall: why the current one is skipped (an add-on it needs not here), "" to run it
     za::Vector<const char*> live;   // while the config is written: each changed setting's own string (put back after)
-    auto members() { return qvr::mem::list(placed, run, lastHint, saved, errors, notes, queue, error, hint, skipWhy, live); }
+    auto members() { return qvr::mem::list(placed, bots, run, lastHint, saved, errors, notes, queue, error, hint, skipWhy, live); }
 };
 mem::Cache<State> state{"scenario", mem::Never};
 
@@ -125,10 +169,31 @@ double placedAt = 0.0;      // the server's time when the current one was placed
 // runall: each scene runs this long in game time; a hand given a weapon must still hold it then (it stays until let go).
 static constexpr double runAllHoldSeconds = 3.0;
 bool swapped = false;       // the config's write: the saved values swapped in (VR_ScenarioConfigWrite)
+int slotsBefore = 0;        // an `mp` scene changed the client slots: how many there were before (0: not changed)
 
 [[nodiscard]] za::String dirPath()
 {
     return za::String{com_gamedir} + "/scenarios";
+}
+
+// A scene's map: found in the running campaign, or else in the add-on campaign (Arcane Dimensions, Quoth, Dwell: rows
+// 3 and up) that has it, which is made the active one first (no map started: the scene's own `map` follows). So a scene
+// needing an add-on's map never depends on the campaign the scene before it left running.
+bool mapFoundOrCampaignSelected(const char* map)
+{
+    const za::String file = za::String{"maps/"} + map + ".bsp"; // (a copy: va()'s buffer is reused by the switch)
+    if(COM_FileExists(file.cStr(), nullptr))
+    {
+        return true;
+    }
+    for(int i = 3; i < VR_CampaignCount(); ++i)
+    {
+        if(VR_CampaignInstalled(i) && VR_SelectCampaignNoMap(i) && COM_FileExists(file.cStr(), nullptr))
+        {
+            return true;
+        }
+    }
+    return false;
 }
 
 [[nodiscard]] za::String filePath(const char* id)
@@ -316,7 +381,7 @@ bool read(const char* id, Scenario& out)
                 return;
             }
             out.map = w[1];
-            if(!COM_FileExists(va("maps/%s.bsp", w[1].cStr()), nullptr))
+            if(!mapFoundOrCampaignSelected(w[1].cStr()))
             {
                 // (an AD map is found only while Arcane Dimensions is the running campaign: Play > Official Campaigns)
                 error(lineNo, va("no map maps/%s.bsp%s", w[1].cStr(),
@@ -435,6 +500,54 @@ bool read(const char* id, Scenario& out)
             }
             out.spawns.pushBack(ZA_MOVE(s));
         }
+        else if(!q_strcasecmp(d, "mp"))
+        {
+            if(w.size() != 2 || (q_strcasecmp(w[1].cStr(), "coop") && q_strcasecmp(w[1].cStr(), "dm")))
+            {
+                error(lineNo, "mp coop|dm");
+                return;
+            }
+            out.mp = !q_strcasecmp(w[1].cStr(), "dm") ? Mp::Dm : Mp::Coop;
+        }
+        else if(!q_strcasecmp(d, "bot"))
+        {
+            // bot passive|active <fwd> <left> ["<weapon>" [main|off]]
+            Bot b;
+            b.line = lineNo;
+            const bool passive = w.size() >= 2 && !q_strcasecmp(w[1].cStr(), "passive");
+            const bool active = w.size() >= 2 && !q_strcasecmp(w[1].cStr(), "active");
+            if(w.size() < 4 || w.size() > 6 || (!passive && !active) || !number(w[2], b.fwd) || !number(w[3], b.left) ||
+                (w.size() == 6 && q_strcasecmp(w[5].cStr(), "main") && q_strcasecmp(w[5].cStr(), "off")))
+            {
+                error(lineNo, "bot passive|active <fwd> <left> [<weapon> [main|off]]");
+                return;
+            }
+            const BotMode mode = passive ? BotMode::Passive : BotMode::Active;
+            if(!out.bots.empty() && mode != out.botMode)
+            {
+                error(lineNo, "every bot of a scene in the same mode (vr_bot_freeze is the game's)");
+                return;
+            }
+            out.botMode = mode;
+            if(w.size() >= 5)
+            {
+                b.weapon.what = w[4];
+                b.weapon.line = lineNo;
+                b.weapon.hand = w.size() == 6 && !q_strcasecmp(w[5].cStr(), "off") ? 0 : 1;
+                b.weapon.entry = findEntry(w[4].cStr());
+                if(b.weapon.entry < 0 || strcmp(toolgun::spawnableSection(b.weapon.entry), "Weapons") != 0)
+                {
+                    error(lineNo, va("\"%s\" is not a toolgun Weapons entry", w[4].cStr()));
+                    return;
+                }
+            }
+            if(static_cast<int>(out.bots.size()) + 1 >= mpSlots)
+            {
+                error(lineNo, va("at most %d bots (%d slots)", mpSlots - 1, mpSlots));
+                return;
+            }
+            out.bots.pushBack(ZA_MOVE(b));
+        }
         else if(!q_strcasecmp(d, "cvar"))
         {
             if(w.size() != 3)
@@ -467,6 +580,28 @@ bool read(const char* id, Scenario& out)
     if(out.map.empty())
     {
         error(0, "no map line");
+    }
+    if(!out.bots.empty() && out.mp == Mp::None)
+    {
+        error(0, "bot lines need an mp line (coop or dm)");
+    }
+    if(out.mp != Mp::None)
+    {
+        // The game's rules and the bots' mode set first (the file's own cvar lines after them win), put back after.
+        za::Vector<Setting> implied;
+        implied.pushBack(Setting{za::String{"deathmatch"}, za::String{out.mp == Mp::Dm ? "1" : "0"}});
+        implied.pushBack(Setting{za::String{"coop"}, za::String{out.mp == Mp::Coop ? "1" : "0"}});
+        const bool passive = !out.bots.empty() && out.botMode == BotMode::Passive;
+        implied.pushBack(Setting{za::String{"vr_bot_freeze"}, za::String{passive ? "1" : "0"}});
+        if(passive)
+        {
+            implied.pushBack(Setting{za::String{"vr_bot_parry_chance"}, za::String{"0"}});
+        }
+        for(Setting& c : out.cvars)
+        {
+            implied.pushBack(ZA_MOVE(c));
+        }
+        out.cvars = ZA_MOVE(implied);
     }
     return state.errors.empty();
 }
@@ -553,6 +688,128 @@ void note(const char* text)
 {
     state.notes.pushBack(za::String{text});
     Con_Printf("vr_scenario: %s\n", text);
+}
+
+// A bot put at its spot facing `faceYaw`, still, given its weapon (again: after a respawn it has its own loadout).
+void putBot(edict_t* b, PlacedBot& pb)
+{
+    for(int k = 0; k < 3; k++)
+    {
+        b->v.origin[k] = pb.at[k];
+        b->v.oldorigin[k] = pb.at[k];
+        b->v.velocity[k] = 0.f;
+    }
+    b->v.angles[PITCH] = b->v.angles[ROLL] = 0.f;
+    b->v.angles[YAW] = pb.yaw;
+    b->v.v_angle[PITCH] = b->v.v_angle[ROLL] = 0.f;
+    b->v.v_angle[YAW] = pb.yaw;
+    SV_LinkEdict(b, true);
+    if(pb.weaponEntry < 0)
+    {
+        return;
+    }
+    za::Vector<int> taken;
+    edict_t* w = toolgun::spawnEntryAt(pb.weaponEntry, pb.at, pb.yaw);
+    if(!w || !takeIntoHand(b, w, pb.hand, taken))
+    {
+        note(va("line %d: the bot's \"%s\" not given", pb.line, toolgun::spawnableName(pb.weaponEntry)));
+        return;
+    }
+    const int weapon2 = progs::fields().weapon2;
+    pb.weapon = pb.hand == 1 ? b->v.weapon : weapon2 >= 0 ? progs::fieldFloat(b, weapon2) : -1.f;
+}
+
+// The scene's bots added (QC BotConnect, as `impulse 100` does: you its connecting player), each put at its spot.
+void placeBots(edict_t* p, const glm::vec3& feet, const glm::vec3& fwd, const glm::vec3& left)
+{
+    state.bots.clear();
+    const Scenario& s = state.run;
+    const func_t connect = progs::findFunction("BotConnect");
+    const func_t next = progs::findFunction("ClientNextAvailable");
+    if(s.bots.empty())
+    {
+        return;
+    }
+    if(!connect || !next)
+    {
+        note("no bots in these progs (BotConnect)");
+        return;
+    }
+    for(const Bot& bl : s.bots)
+    {
+        // The slot BotConnect takes (QC ClientNextAvailable: the highest free one, -1 full), its entity the slot's + 1.
+        const int oldSelf = pr_global_struct->self;
+        pr_global_struct->time = qcvm->time;
+        pr_global_struct->self = EDICT_TO_PROG(p);
+        PR_ExecuteProgram(next);
+        const int slot = static_cast<int>(G_FLOAT(OFS_RETURN));
+        if(slot >= 0)
+        {
+            pr_global_struct->self = EDICT_TO_PROG(p);
+            G_FLOAT(OFS_PARM0) = 0.f;
+            G_FLOAT(OFS_PARM1) = 0.f;
+            G_FLOAT(OFS_PARM2) = skill.value;
+            PR_ExecuteProgram(connect);
+        }
+        pr_global_struct->self = oldSelf;
+        edict_t* b = slot >= 0 && slot + 1 < qcvm->num_edicts ? EDICT_NUM(slot + 1) : nullptr;
+        if(b && (b->free || strcmp(PR_GetString(b->v.classname), "player") != 0))
+        {
+            b = nullptr;
+        }
+        if(!b)
+        {
+            note(va("line %d: no bot joined (the game full: %d slots?)", bl.line, svs.maxclients));
+            continue;
+        }
+        glm::vec3 at = feet + fwd * bl.fwd + left * bl.left;
+        vec3_t zero{0.f, 0.f, 0.f};
+        vec3_t from{at.x, at.y, feet.z + 64.f}, down{at.x, at.y, feet.z - 1024.f};
+        const trace_t tr = SV_Move(from, zero, zero, down, MOVE_NOMONSTERS, p);
+        if(tr.startsolid || tr.allsolid)
+        {
+            note(va("line %d: the bot placed in a wall (fwd %.0f, left %.0f)", bl.line, bl.fwd, bl.left));
+        }
+        at.z = (tr.fraction < 1.f && !tr.startsolid ? tr.endpos[2] : feet.z) - b->v.mins[2] + 1.f;
+        PlacedBot pb;
+        pb.num = NUM_FOR_EDICT(b);
+        pb.line = bl.line;
+        pb.weaponEntry = bl.weapon.entry;
+        pb.hand = bl.weapon.hand;
+        pb.at = at;
+        pb.yaw = glm::degrees(glm::atan(feet.y - at.y, feet.x - at.x));
+        putBot(b, pb);
+        state.bots.pushBack(pb);
+        Con_DPrintf("vr_scenario: line %d: bot (edict %d) at %.0f %.0f %.0f\n", bl.line, pb.num, at.x, at.y, at.z);
+    }
+}
+
+// A passive bot that died and respawned elsewhere put back at its spot (with its weapon), for the next try.
+void keepBots()
+{
+    if(state.run.botMode != BotMode::Passive || state.bots.empty() || !sv.active)
+    {
+        return;
+    }
+    const progs::ServerVm vm;
+    for(PlacedBot& pb : state.bots)
+    {
+        edict_t* b = pb.num < qcvm->num_edicts ? EDICT_NUM(pb.num) : nullptr;
+        if(!b || b->free)
+        {
+            continue;
+        }
+        if(b->v.health < 1.f)
+        {
+            pb.dead = true;
+        }
+        else if(pb.dead && b->v.deadflag == 0.f)
+        {
+            pb.dead = false;
+            putBot(b, pb);
+            Con_DPrintf("vr_scenario: line %d: the bot respawned, put back at its spot\n", pb.line);
+        }
+    }
 }
 
 // Everything placed: you, your hands, what stands around you, the commands; the hint shown.
@@ -718,6 +975,8 @@ void place()
             NUM_FOR_EDICT(e), e->v.origin[0], e->v.origin[1], e->v.origin[2]);
     }
 
+    placeBots(p, feet, fwd, left);
+
     for(const za::String& c : s.cmds)
     {
         Cbuf_AddText(c.cStr());
@@ -733,6 +992,12 @@ void place()
     Con_Printf("SCNPLACED|%s|%d of %d spawned|%d given|%d problems|hands: main %.0f, off %.0f\n", s.id.cStr(), made,
         static_cast<int>(s.spawns.size()), static_cast<int>(s.gives.size()), static_cast<int>(state.notes.size()),
         p->v.weapon, weapon2 >= 0 ? progs::fieldFloat(p, weapon2) : -1.f);
+    if(s.mp != Mp::None)
+    {
+        Con_Printf("SCNMP|%s|%s|%d slots|deathmatch %.0f coop %.0f|%d of %d bots %s\n", s.id.cStr(),
+            s.mp == Mp::Dm ? "dm" : "coop", svs.maxclients, deathmatch.value, coop.value, static_cast<int>(state.bots.size()),
+            static_cast<int>(s.bots.size()), s.botMode == BotMode::Passive ? "passive" : "active");
+    }
 }
 
 void runNext()
@@ -948,7 +1213,36 @@ bool start(const char* id, const char* hint)
     reloaded = false;
     phaseSince = realtime;
     Con_Printf("vr_scenario: %s: loading %s\n", id, state.run.map.cStr());
-    Cbuf_InsertText(va("map %s\n", state.run.map.cStr())); // (next: before the rest of a script)
+    // An mp scene: a game of mpSlots client slots, set while no server runs (`vr_scenario slots`: as maxplayers does,
+    // but no `listen 1`: nothing opened on the network; the bots are in-process). The slots before come back with the
+    // next single-player scene, or once no game runs.
+    // FrikBot brings a coop game's bots back on the next map (their slots in scratch1, QC BotInit): a scene starts with
+    // only its own (a bot coming back into a slot a scene's bot took respawned it at the map's start).
+    if(cvar_t* const saved = Cvar_FindVar("scratch1"); saved && saved->value != 0.f)
+    {
+        Cvar_SetQuick(saved, "0");
+    }
+    const int slots = state.run.mp != Mp::None ? mpSlots : slotsBefore > 0 ? slotsBefore : 0;
+    if(slots > 0 && slots != svs.maxclients)
+    {
+        if(state.run.mp != Mp::None && slotsBefore == 0)
+        {
+            slotsBefore = svs.maxclients;
+        }
+        else if(state.run.mp == Mp::None)
+        {
+            slotsBefore = 0;
+        }
+        Cbuf_InsertText(va("disconnect\nvr_scenario slots %d\nmap %s\n", slots, state.run.map.cStr()));
+    }
+    else
+    {
+        if(state.run.mp == Mp::None)
+        {
+            slotsBefore = 0;
+        }
+        Cbuf_InsertText(va("map %s\n", state.run.map.cStr())); // (next: before the rest of a script)
+    }
     if(!runAll)
     {
         notectx::testRun(state.run.id.cStr()); // (named in the voice notes that follow)
@@ -1053,10 +1347,16 @@ void frame()
         }
         return;
     }
+    if(phase == Idle && slotsBefore > 0 && !sv.active && cls.state != ca_connected)
+    {
+        svs.maxclients = slotsBefore; // (an mp scene's slots back once no game runs: a new game's own maxplayers after)
+        slotsBefore = 0;
+    }
     if(phase != Active)
     {
         return;
     }
+    keepBots();
     if(runAll && !state.skipWhy.empty())
     {
         runAllSkipped++;
@@ -1099,6 +1399,29 @@ void frame()
             }
             Con_Printf("SCNKEPT|%s|%d of %d placed still there\n", state.run.id.cStr(), there,
                 static_cast<int>(state.placed.size()));
+            // Each bot still in the game; a passive one where it was put (it stood still) with its weapon in hand.
+            for(const PlacedBot& pb : state.bots)
+            {
+                edict_t* b = pb.num < qcvm->num_edicts ? EDICT_NUM(pb.num) : nullptr;
+                const bool in = b && !b->free && !strcmp(PR_GetString(b->v.classname), "player");
+                const float moved = in ? glm::distance(geom::vec(b->v.origin), pb.at) : 0.f;
+                const float hand = !in ? -1.f : pb.hand == 1 ? b->v.weapon : weapon2 >= 0 ? progs::fieldFloat(b, weapon2) : -1.f;
+                const bool passive = state.run.botMode == BotMode::Passive;
+                Con_Printf("SCNBOT|%s|line %d|%s|moved %.0f|weapon given %.0f now %.0f\n", state.run.id.cStr(), pb.line,
+                    !in ? "GONE" : passive ? "passive" : "active", moved, pb.weapon, hand);
+                if(!in)
+                {
+                    note(va("line %d: the bot left the game", pb.line));
+                }
+                else if(passive && moved > 32.f)
+                {
+                    note(va("line %d: the passive bot moved %.0f units", pb.line, moved));
+                }
+                else if(passive && pb.weapon >= 0.f && hand != pb.weapon)
+                {
+                    note(va("line %d: the passive bot's weapon left its hand (%.0f, now %.0f)", pb.line, pb.weapon, hand));
+                }
+            }
         }
         if(!held)
         {
@@ -1170,16 +1493,27 @@ void command_f()
     {
         where();
     }
+    else if(!q_strcasecmp(a, "slots"))
+    {
+        // (an mp scene's: the client slots while no server runs, the network left as it is)
+        if(sv.active || Cmd_Argc() < 3)
+        {
+            Con_Printf("vr_scenario slots <n>: only while no game runs (now %d)\n", svs.maxclients);
+            return;
+        }
+        svs.maxclients = za::clamp(Q_atoi(Cmd_Argv(2)), 1, svs.maxclientslimit);
+    }
     else if(a[0] && a[0] != '?')
     {
         start(a, Cmd_Argc() >= 3 ? Cmd_Argv(2) : "");
     }
     else
     {
-        Con_Printf("vr_scenario <id> [hint] | reset | stop | hint | list | validate | runall | where: a test scene "
-                   "(quakevr/scenarios/<id>.txt) run, the last run again, ended (its settings put back), its hint shown "
-                   "again; the files listed, checked (SCNOK/SCNERR/SCNSUM), each run in turn (SCNRUN); where you stand "
-                   "(a start line, the walls, the nearest liquid). Now: %s\n",
+        Con_Printf("vr_scenario <id> [hint] | reset | stop | hint | list | validate | runall | where | slots <n>: a test "
+                   "scene (quakevr/scenarios/<id>.txt) run, the last run again, ended (its settings put back), its hint "
+                   "shown again; the files listed, checked (SCNOK/SCNERR/SCNSUM), each run in turn (SCNRUN); where you "
+                   "stand (a start line, the walls, the nearest liquid); an mp scene's client slots (no game running). "
+                   "Now: %s\n",
             phase == Idle ? "none" : state.run.id.cStr());
     }
 }

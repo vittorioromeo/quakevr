@@ -504,6 +504,19 @@ za::Vector<Item> pageDebugAutomation()
                   "a monster's, with Narrower Monsters on)."),
         command("Hitbox Probe", "vr_hull_probe")
             .help("Prints which of the map's brushes your box is in, and by how much (when you're stuck); vr_hull_probe <entity>: a monster's."),
+        command("Gap Blockers Near You", "vr_hull_holes_near")
+            .help("Lists the invisible blockers within 256 units of you (gaps Quake's box never fit, closed for narrower "
+                  "boxes: vr_hull_holes; vr_hull_holes_near <radius>)."),
+        command("Gap Blockers Census", "vr_hull_holes_census")
+            .help("Prints the map's gap blockers (the world's, with brush models, in brush models), the time they took, "
+                  "and whether Quake's box fits anywhere into one (it never should)."),
+        command("Gap Blockers Test", "vr_hull_holes_test")
+            .help("On vrbrushholes: your box and a narrow monster's at its grate, bar gate, lift edge, pillars, "
+                  "diagonal grate, louvred grate and two func_walls (stopped with the blockers on, through with them "
+                  "off); prints brushholes: N passed, M failed."),
+        command("Mark a Gap I Got Through", "vr_hull_holes_mark")
+            .help("Prints and logs (quakevr/hull_holes_marks.txt) where you are and the gap geometry round you, for a "
+                  "gap you got through that you shouldn't have (vr_hull_holes_mark [radius] [note])."),
         command("Shots Hit Test", "vr_hull_hittest")
             .help("Prints how many of 1600 grunt-like shots from 300 units round you hit your box at Width Shots Hit "
                   "(vr_hull_hittest [distance] [spread])."),

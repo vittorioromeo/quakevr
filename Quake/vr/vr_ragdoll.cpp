@@ -3589,6 +3589,7 @@ void printDrawInfo()
         QVR_RAG_FIELD(gloveshell);
         QVR_RAG_FIELD(stump);
         QVR_RAG_FIELD(nails);
+        field("recolor", &inst[0].recolor[0][0], &inst[1].recolor[0][0], 16);
 #undef QVR_RAG_FIELD
         Con_Printf("  %d of the instance's values differ (its occlusion group %g/%g, retro textures' set %g/%g)\n", differ,
             inst[0].ao[0], inst[1].ao[0], inst[0].retro[0], inst[1].retro[0]);

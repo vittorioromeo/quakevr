@@ -613,6 +613,7 @@ vr_meleerules.qc // enemy melee's rules: each blow's rule for Show Melee Arcs, a
 vr_disarmviz.qc // Debug > Show Disarm Volumes: the armed humanoids' disarm volumes (the engine draws them: vr_disarmviz.cpp)
 vr_armedrepl.qc
 vr_wornpack.qc // worn backpacks (armed ones with a ranged weapon)
+vr_humrepl.qc // AD's and Quoth's humanoid variants armed; the recolours by weapon
 // Survival Arena: the wave director (the waves, their ladder, their boss, their drops).
 vr_arena.qc
 vr_arena_director.qc // Survival Arena: the budget director's waves (vr_arena_director 1; the planner: vr_arenadirector.cpp)
@@ -759,4 +760,5 @@ dwell/dw_test.qc
 // Quoth's maps under AD's rules: the classnames and keys AD lacks (QUOTH.md).
 vr_quoth.qc
 vr_quoth_test.qc
+vr_humrepl_test.qc
 vr_rules_test.qc

@@ -935,8 +935,15 @@ QVR_TOGGLE(vr_agrunt_repl_mp, "Mission Packs",
     "Scourge of Armagon and Dissolution of Eternity (vr_agrunt_repl_mp).")
 QVR_TOGGLE(vr_agrunt_repl_ad, "Arcane Dimensions",
     "Arcane Dimensions' maps too: their plain grunts, enforcers, knights and death knights by the usual rules; AD's "
-    "own variants (rocket, grenade and plasma soldiers, defenders, eliminators, point knights) stay as AD made them "
+    "own variants by the next switch (its point knights, death knights and the rest stay as AD made them) "
     "(vr_agrunt_repl_ad).")
+QVR_TOGGLE(vr_agrunt_repl_variants, "AD and Quoth Variants",
+    "Arcane Dimensions' and Quoth's own soldiers are armed humanoids holding their own gun: rocket, grenade and plasma "
+    "soldiers as grunts, defenders, eliminators, pyros and fumigators as enforcers, crossbow knights as knights, with "
+    "their health (where replacements play in AD's maps; vr_agrunt_repl_variants).")
+QVR_TOGGLE(vr_humlook, "Recolour by Weapon",
+    "Armed humanoids wear the colour of the weapon they came with: rockets and grenades red, lightning and plasma blue, "
+    "flamethrowers orange, poison green; their backpacks too (quakevr/humlook.txt; vr_humlook).")
 
 // vr_menu_gameplay.inc: pageArmedAI
 QVR_SLIDER(vr_agrunt_ai_skill, "Difficulty Impact", 0.f, 3.f, 0.1f, "%.1fx", ext(0.f, 10.f),
@@ -1147,6 +1154,13 @@ QVR_CYCLE(vr_nav_cache, "Navmeshes on Disk",
     "The monsters' navmeshes kept on disk (cache/navmesh) and read at the map's next load instead of built again. "
     "Check: read, then built anyway and compared. Off: built at every load (vr_nav_cache).",
     {0.f, "Off"}, {1.f, "On"}, {2.f, "Check"})
+QVR_TOGGLE(vr_hull_holes_show, "Show Gap Blockers",
+    "Draws the invisible blockers that close gaps Quake's box never fit (Close Gaps Quake's Box Never Fit): the "
+    "world's cyan, between the world and a door, lift or func_wall yellow, a door's or func_wall's own magenta "
+    "(they move with it), and red the ones left out because Quake's own box reaches into them. Their counts float "
+    "in front of you (vr_hull_holes_show).")
+QVR_SLIDER(vr_hull_holes_show_range, "Gap Blockers Range", 256.f, 4096.f, 256.f, "%.0f", noExt,
+    "How far from you the gap blockers are drawn, in units (vr_hull_holes_show_range).")
 QVR_CYCLE(vr_nav_debug, "Show Navmesh",
     "The monsters' navmesh drawn round you: its polygons by area (ground teal, water blue, slime green, lava orange, "
     "blocked by a door or lift red) and edges. Paths: also each chasing monster's path (yellow, its next corner a "
@@ -5523,6 +5537,37 @@ QVR_TOGGLE(vr_hull_edge_probe, "Ledge Test Fix",
 QVR_TOGGLE(vr_hull_brushmodels, "Doors, Lifts and Walls Too",
     "The width above against brush models as well (doors, lifts, trains, func_walls, the firing range's "
     "panels and tables). Off: only the world's walls; brush models meet Quake's box.")
+QVR_TOGGLE(vr_hull_holes, "Close Gaps Quake's Box Never Fit",
+    "Gaps narrower than Quake's 32-unit box (between a grate's bars, a gate's bars, a row of pillars, a lift and "
+    "its shaft) get invisible blockers, so your narrower box (and narrow monsters') can't slip or fall through "
+    "where Quake's never could; you still get as close as your width lets you everywhere else. Takes effect at "
+    "the next map load (vr_hull_holes).")
+QVR_SLIDER(vr_hull_holes_max, "Close Gaps: Narrower Than", 16.f, 48.f, 1.f, "%.0f units", noExt,
+    "Gaps narrower than this along a line get blockers (32: Quake's box). Past 32 they are kept only where Quake's "
+    "own box can't reach them; between the map and a door, lift or func_wall never past 32. Next map load, or "
+    "Rebuild Gap Blockers Now (vr_hull_holes_max).")
+QVR_SLIDER(vr_hull_holes_min, "Close Gaps: Wider Than", 0.f, 24.f, 1.f, "%.0f units", noExt,
+    "Gaps narrower than this are left open (8: the narrowest box gets into none of them) (vr_hull_holes_min).")
+QVR_SLIDER(vr_hull_holes_wide, "Close Gaps: Over a Fall Up To", 0.f, 96.f, 4.f, "%.0f units", noExt,
+    "Thin bars' and grates' gaps over a fall from Narrower Than up to this, closed only where Quake's box standing "
+    "can't reach into them (a crossbar below, a narrowing). 0: off (vr_hull_holes_wide).")
+QVR_TOGGLE(vr_hull_holes_diag, "Close Gaps: Slanted Bars",
+    "Gaps between slanted bars, turned grates and round holes too, across the diagonals (Quake's box needs 45 "
+    "units there), kept only where Quake's own box can't reach them (vr_hull_holes_diag).")
+QVR_TOGGLE(vr_hull_holes_models, "Close Gaps: Between Brush Models",
+    "Gaps between two brush models too (two func_walls, a door and a lift), not only between them and the map "
+    "(vr_hull_holes_models).")
+QVR_TOGGLE(vr_hull_holes_vert, "Close Gaps: Seen From Above",
+    "Gaps between bars at two heights (a louvred grate) that you'd fall through, closed over a fall where Quake's "
+    "box standing can't reach into them (vr_hull_holes_vert).")
+QVR_SLIDER(vr_hull_holes_cells, "Close Gaps: Tests a Slanted Pair", 16.f, 512.f, 16.f, "%.0f", noExt,
+    "The most cells a pair of slanted faces is cut into to find its gap; past it the rest stays open (64) "
+    "(vr_hull_holes_cells).")
+QVR_SLIDER(vr_hull_holes_cell, "Close Gaps: Smallest Cell", 0.5f, 8.f, 0.5f, "%.1f units", noExt,
+    "The smallest cell a slanted pair's facing area is cut into (2) (vr_hull_holes_cell).")
+QVR_SLIDER(vr_hull_holes_reach, "Close Gaps: Quake's Box Reach", 0.f, 8.f, 0.5f, "%.1f units", noExt,
+    "A blocker Quake's own box can reach into by more than this is left out (2: hull 1 is rounded by a unit or "
+    "so) (vr_hull_holes_reach).")
 QVR_TOGGLE(vr_hull_hit_head, "Height Shots Hit: Your Head's",
     "Shots and missiles meet you only up to the top of your head: crouched behind a crate, those flying "
     "over it miss you (Quake's box stands as tall), and monsters' bullets aim no higher than your body. "

@@ -361,6 +361,10 @@ za::Vector<Item> pageDebugTests()
                   "needed): the stick fully forward, a thumb slipping 0.82..1.0, his thumb as recorded 0.61..0.91; each "
                   "must keep its full speed within 2%, and the steps drawn be even; then pushes at 16 angles, the heading "
                   "within 0.5 degrees. Results on the console."),
+        command("Noclip: Flies Where You Look", "vr_noclip_fly_test")
+            .help("vr_noclip_fly_test: from where you stand (64 up), noclip and the move pushed at 45 up, 45 down and "
+                  "level: the flight climbs as the look does; a strafe stays level, the up key goes straight up; with a "
+                  "headset the stick too, the head and a hand steering. Puts you back on foot. Results on the console."),
         command("Teleport: Smooth + Teleport", "vr_teleport_both_test here")
             .help("vr_teleport_both_test here (the mock headset; headless from vrtesthall without \"here\"): Smooth + "
                   "Teleport from where you stand, open floor ahead needed. The moving stick walks and never teleports; "
@@ -385,6 +389,16 @@ za::Vector<Item> pageDebugTests()
         command("Quoth: Second Names and Spawners Test", "vr_ad_test 211")
             .help("Any map: an entity used by its second name (Quoth's targetname2), the map's monster spawner (kellbase1's "
                   "exit lock) and two grunts from a made one ahead of you. The console prints each check and a verdict."),
+        command("AD and Quoth Variants: Armed Test", "vr_ad_test 219") // vr_humrepl_test.qc
+            .help("In Arcane Dimensions' rules (an AD map, or e1m1 in its campaign): each AD and Quoth soldier variant made "
+                  "ahead of you is its armed humanoid with its gun, health and recolour; one's death fires its target. The "
+                  "console prints each check and a verdict."),
+        command("AD and Quoth Variants: Map Census", "vr_ad_test 220")
+            .help("This map's monsters, armed humanoids, variants replaced and variants left as AD made them, one line."),
+        command("Armed Humanoids: Recolour Row", "vr_ad_test 221")
+            .help("Five armed humanoids of the row in scratch1 (0 grunts, 1 enforcers, 2 knights, 3 death knights) ahead of "
+                  "you, one per recolour: a shotgun (as it is), a rocket launcher, the thunderbolt, a flamethrower, a "
+                  "poison sprayer (AD's guns with AD's data). vr_humlook_info prints the nearest one's look."),
         command("Quoth: Drive This Map's Flow", "vr_ad_test 212")
             .help("Plays the map's flow for you, a round a second: every trigger you could walk into touched, every monster "
                   "awake killed by you (god mode), so waves, spawners and counters run. On ne_marb, metmon, lpqsp1, "
@@ -880,6 +894,11 @@ za::Vector<Item> pageDebugTests()
             .help("vr_melee_sweep_test 6 on the sword_multi scene (loaded first): scripted sword swings that land: the "
                   "floor then a corpse's limb (cut off), two grunts side by side, the wall then a grunt by it; with One "
                   "Swing, Many Hits off then on (meleemulti: lines, PASS or FAIL with it on)."),
+        command("Blade Starts Test", "vr_melee_sweep_test 7")
+            .help("vr_melee_sweep_test 7: each bladed weapon (sword, dagger, axe, Super Axe, chainsaw, AD's swords) put in "
+                  "your main hand in turn: its drawn Blade Start is where melee, beheading, limb cuts and skewering all "
+                  "start its edge; a point on the edge cuts, one between the hand and the start doesn't (bladeone: lines, "
+                  "PASS or FAIL). Your main hand's weapon is replaced."),
         header("Parry"),
         command("Check the Parry Pose", "impulse 249")
             .help("Developer 1: whether each held weapon blocks a blow from ahead, and its angle and position."),

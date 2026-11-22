@@ -427,6 +427,7 @@ void() ad_monster_defender =
 {
 	// Check all spawn exceptions (monsters.qc)
 	if (ad_monster_checkspawn() == ad_TRUE) return;
+	if (VR_HUM_Replace(VR_HUM_V_DEFENDER)) return; // AD support: an armed humanoid with its gun (vr_humrepl.qc; vr_agrunt_repl_variants)
 	
 	self.ad_classtype = ad_CT_MONDEFENDER;
 	precache_model (ad_MODEL_PROJ_GRENADE);
@@ -470,6 +471,7 @@ void() ad_monster_eliminator =
 {
 	// Check all spawn exceptions (monsters.qc)
 	if (ad_monster_checkspawn() == ad_TRUE) return;
+	if (VR_HUM_Replace(VR_HUM_V_ELIMINATOR)) return; // AD support: an armed humanoid with its gun (vr_humrepl.qc; vr_agrunt_repl_variants)
 	
 	self.ad_classtype = ad_CT_MONELIMATOR;
 	precache_model (ad_MODEL_PROJ_PLASMA);

@@ -123,8 +123,9 @@ float() VR_AGR_InScope =
 // One of Arcane Dimensions' own variants under a standard monster's classname, in AD's rules: a lightning point knight
 // (monster_hell_knight with spawnflags 8192, AD's MON_POINT_KNIGHT) or a ghost (4096, MON_GHOST_ONLY). AD's other
 // variants have classnames of their own, spawned by AD's functions (monster_army_rocket, _grenade, _plasma;
-// monster_defender, monster_eliminator; monster_hell_pointknight; monster_dknight, monster_death_knight): never
-// replaced, as no replacement runs there. Left as AD made them (his note 23:37: AD's own grunts to revisit).
+// monster_defender, monster_eliminator; monster_hell_pointknight; monster_dknight, monster_death_knight): not through
+// here (their own spawn functions: the soldiers, defenders, eliminators, pyros, fumigators and crossbow knights by
+// vr_agrunt_repl_variants, vr_humrepl.qc VR_HUM_Replace, his ask of 2026-11-21; the rest left as AD made them).
 float(entity e) VR_AGR_ADVariant =
 {
     return AD_Rules() && (e.spawnflags & (8192 | 4096));
@@ -657,6 +658,7 @@ void(entity g) VR_AGR_Resolve =
     VR_AM_ArmAll(want, flags, inst, want2, 0);
     VR_AGR_MarkNative(self);
     VR_WP_Refit(self); // (its pack by its new loadout: no player has seen it yet)
+    VR_HUM_Look(self); // (its recolour by it: vr_humrepl.qc)
     VR_AG_Log(sprintf("replacement rolled: %s%s%s", self.vr_ag_prop ? self.vr_ag_prop.netname : "fists",
         self.vr_ag_prop2 ? " and " : "", self.vr_ag_prop2 ? self.vr_ag_prop2.netname : ""));
     self = oldself;

@@ -5128,12 +5128,15 @@ weapon 53
 // slot 55: progs/dw_lance.mdl#vr (vr_wofs_*_56)
 weapon 55
 {
-    // Dwell support (dwellwpn2): the Crystal Lance as a lance (vr_dw_lance_pole), made from Dwell's world model as it
-    // loads (vr_adweapons.cpp recipes), the lightning gun's grip on under its pole, moved so these values (slot 53's,
-    // the lightning gun's) keep the hand on the grip. The other hand holds it anywhere on its pole (anygrip_mode 3: a
-    // pole grip, sliding; hs1 its fixed two-handed hold in flat play); its blow line runs to the crystal head's tip
-    // (bl_near: the butt behind the hand); its muzzle (muzzle_av) the head's tip. Its anchors (_av) slot 53's moved
-    // with the model (14.651 0.1246 0: vr_adweapon_models' box). A first fit: his values become these.
+    // Dwell support (dwellwpn2, lancespear): the Crystal Lance as a plain pole held like a spear (vr_dw_lance_pole),
+    // made from Dwell's world model as it loads (vr_adweapons.cpp recipes): no handle, no button, no ammo screen; its
+    // pole laid as the axe's handle lies in the fist, so these hand values (slot 0's, the axe's: pitch, x y z, hand_*,
+    // fgr_*) close the fist round it; shot_pitch 92.5 the pole's way from the hand's aim (70 up in the model, turned 22.5
+    // by pitch + 7), so the beam goes along the pole. The other hand holds it anywhere on its pole (anygrip_mode 3: a
+    // pole grip, sliding; in flat play the spear pose, vr_flat_pole_*, puts it on the pole, hs1 only marking a two-handed
+    // hold); its blow line runs to the crystal head's tip (bl_near: the butt behind the hand); its muzzle (muzzle_av) the
+    // head's tip. Its anchors (_av) the axe's moved with the model (2.995 5.18 12.03: keepScale, from vr_adweapon_models'
+    // box). A first fit: his values become these.
     2h_fxd_hp "0.0"
     2h_fxd_hr "-90.400024"
     2h_fxd_hy "-32.650013"
@@ -5146,20 +5149,20 @@ weapon 55
     2h_yaw "-9.399998"
     2h_z "1"
     ch_mode_z "0.0"
-    hand_av "11.9316 -1.441 10.8636"
-    hand_x "2.723392"
-    hand_y "0.7647"
-    hand_z "-1.891204"
+    hand_av "2.13 5.19 9.06"
+    hand_x "3.4"
+    hand_y "0"
+    hand_z "3.6"
     hide_hand "0.0"
     id "progs/dw_lance.mdl#vr"
     pickup_tier "3"
-    muzzle_av "87.59 0.25 7.37"
+    muzzle_av "31.02 5.3 84.96"
     muzzle_x "0"
     muzzle_y "0"
     muzzle_z "0"
-    pitch "-7"
+    pitch "15.5"
     roll "0.0"
-    scale "0.35"
+    scale "0.34"
     wpnbtn_av "11.9316 -1.441 10.8636"
     wpnbtn_pitch "0.0"
     wpnbtn_roll "0.0"
@@ -5167,7 +5170,7 @@ weapon 55
     wpnbtn_y "-0.7"
     wpnbtn_yaw "0.0"
     wpnbtn_z "-1"
-    wpnbtnmode "1"
+    wpnbtnmode "0"
     wpntxt_av "10.6778 0.1098 6.1355"
     wpntxt_pitch "0.0"
     wpntxt_roll "0.0"
@@ -5176,23 +5179,18 @@ weapon 55
     wpntxt_y "0"
     wpntxt_yaw "0.0"
     wpntxt_z "0"
-    wpntxtmode "1"
-    x "2.3"
-    y "6.2"
+    wpntxtmode "0"
+    x "-0.9"
+    y "1.17"
     yaw "0"
-    z "0.7"
-    fgr_thumb_x "-0.05"
-    fgr_thumb_y "-0.05"
-    fgr_thumb_z "-0.4"
-    fgr_bias_thumb "-0.02"
-    fgr_bias_middle "0.6"
-    fgr_bias_ring "0"
-    fgr_bias_pinky "-0.06"
+    z "-0.4"
+    fgr_thumb_x "0.75"
+    fgr_bias_thumb "-0.58"
     hs1_type "1"
     hs1_x "6.1763"
     hs1_y "-4.3760"
     hs1_z "-3.2253"
-    hs2_type "3"
+    hs2_type "0"
     hs2_x "-6.548889"
     hs2_y "-5.476501"
     hs2_z "-3.37859"
@@ -5252,6 +5250,7 @@ weapon 55
     wpntxt_font "1"
     anygrip_mode "3"
     bl_near "0.32"
+    shot_pitch "92.5"
 }
 // slot 54: progs/dw_rifle.mdl#vr (vr_wofs_*_55)
 weapon 54

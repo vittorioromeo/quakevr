@@ -144,6 +144,16 @@ float vr_pellet_damage; // FireBulletsImpl's damage a pellet while a shotgun fir
 // vr_pellet_heavy_health or more full health (0: none). The last pellet's damage dealt, its part and what it hit (tests).
 float vr_pellet_heavy_mult;
 float vr_pellet_heavy_health;
+// A slug's damage `xDamage` into `targ` by that rule (`xMult`, `xHealth`): hitscan's (FireBulletsImpl) and AD's
+// projectile slug's (VR_AD_PelletHit), one rule.
+float(entity targ, float xDamage, float xMult, float xHealth) VR_PelletHeavy =
+{
+    if(xMult > 0 && (targ.flags & FL_MONSTER) && targ.max_health >= xHealth)
+    {
+        return xDamage * xMult;
+    }
+    return xDamage;
+};
 float vr_pellet_last;
 float vr_pellet_last_part;
 entity vr_pellet_last_ent;

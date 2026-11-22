@@ -1278,6 +1278,41 @@ QVR_DENT_FUNCTIONS \
 "			result.rgb *= mix(vec3(1.0), st.rgb, st.w * smoothstep(sr.y, sr.z, in_texcoord.y));\n" \
 "	}\n"
 
+// an armed humanoid's recolour by the weapon it spawned with (vr/vr_humlook.cpp, quakevr/humlook.txt): its skin's mask
+// (2 bits a Quake texel: 0 left, 1 clothes, 2 pack; built from the skin's palette rows and our painted texels) and the dye
+// that keeps the texel's shading: its luminance in the row's colour (pure: a red stays red, never pink), or its own colour
+// times the row's (tint), by the row's strength
+#define QVR_ALIAS_FS_RECOLOR_FUNCTIONS \
+"layout(std430, binding=17) restrict readonly buffer HumMaskBuffer { uint HumMasks[]; }; // QVR: the recolours' masks (vr/vr_humlook.cpp)\n" \
+"vec3 HumDye(vec3 c, vec4 col, vec2 lt) // col: the colour, its strength; lt: x the lightness's factor, y the tint's share\n" \
+"{\n" \
+"	float l = dot(c, vec3(0.299, 0.587, 0.114)) * lt.x;\n" \
+"	vec3 dyed = min(col.rgb * (l / max(dot(col.rgb, vec3(0.299, 0.587, 0.114)), 0.02)), vec3(1.0));\n" \
+"	vec3 tinted = min(c * lt.x * col.rgb / max(max(col.r, max(col.g, col.b)), 0.02), vec3(1.0));\n" \
+"	return mix(c, mix(dyed, tinted, lt.y), col.a);\n" \
+"}\n"
+
+// the skin's masked texels dyed (Recolor: vr/vr_humlook.cpp instanceRows; [3].x 0: none); [3].w the mask shown (the
+// Texture Studio's overlay: clothes green, pack blue, the rest dark red)
+#define QVR_ALIAS_FS_RECOLOR \
+"	{\n" \
+"		vec4 rm = instances[in_instance].Recolor[3];\n" \
+"		if (rm.x > 0.0)\n" \
+"		{\n" \
+"			ivec2 rs = ivec2(rm.yz);\n" \
+"			ivec2 rt = clamp(ivec2(fract(uv) * rm.yz), ivec2(0), rs - 1);\n" \
+"			uint ri = uint(rt.y * rs.x + rt.x);\n" \
+"			uint rk = (HumMasks[uint(rm.x) - 1u + (ri >> 4u)] >> ((ri & 15u) * 2u)) & 3u;\n" \
+"			vec4 rl = instances[in_instance].Recolor[2];\n" \
+"			if (rk == 1u)\n" \
+"				result.rgb = HumDye(result.rgb, instances[in_instance].Recolor[0], rl.xy);\n" \
+"			else if (rk == 2u)\n" \
+"				result.rgb = HumDye(result.rgb, instances[in_instance].Recolor[1], rl.zw);\n" \
+"			if (rm.w > 0.0)\n" \
+"				result.rgb = mix(result.rgb, rk == 1u ? vec3(0.1, 0.9, 0.2) : rk == 2u ? vec3(0.2, 0.4, 1.0) : vec3(0.4, 0.0, 0.0), rk == 0u ? 0.3 : 0.55);\n" \
+"		}\n" \
+"	}\n"
+
 // parallax occlusion mapping on the skin's heights
 #define QVR_ALIAS_FS_PARALLAX \
 "	// QVR: parallax occlusion mapping (vr_parallax_models) on the skin's heights, in the triangle's own frame, with\n" \

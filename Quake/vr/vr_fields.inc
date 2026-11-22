@@ -301,6 +301,7 @@ QVR_FIELD(vr_xdebris) // an explosion's chunk (vr_explosiondebris.cpp): when it 
 QVR_FIELD(vr_ar_type) // an armed humanoid's armour (vr_agarmor.qc): 0 none, 1 green, 2 yellow, 3 red (vr_agarmor.cpp sends it to the clients)
 QVR_FIELD(vr_ar_mask) // its armour pieces still on (bits: vr_agarmor.hpp's Piece)
 QVR_FIELD(vr_xray) // one of a Survival Arena wave's last foes (QC vr_arena.qc VR_ARENA_XrayMark): sent past the PVS, outlined through walls (vr_arenaxray.cpp)
+QVR_FIELD(vr_hum_look) // an armed humanoid's recolour (QC vr_humrepl.qc VR_HUM_Look): its row * 16 + its weapon category, + 4096 on its worn pack; 0 none (vr_humlook.cpp sends it)
 QVR_FIELD(vr_wp_state) // a worn backpack's (QC vr_wornpack.qc): 1 on a living one, 2 on a dead one, 3 off; worn (1, 2) it keeps its angles (U_QVR_NOROTATE: no EF_ROTATE spin)
 QVR_FIELD(vr_wp_size) // a worn backpack's (QC vr_wornpack.qc): its size as drawn (its kind's vr_worn_backpack_<kind>_scale)
 QVR_FIELD(vr_wp_wearer) // a worn backpack's or lift zone's wearer (QC vr_wornpack.qc): the Rig Studio's census
@@ -329,7 +330,8 @@ QVR_FIELD(vr_deathdoll) // a player's ragdoll body's player (an entity; QC vr_de
 QVR_FIELD(vr_deathdoll_pushtime) // when a hit's knockback last pushed a player (QC combat.qc T_Damage): close quarters doesn't brake it (vr_closequarters.cpp)
 QVR_FIELD(vr_deathdoll_body) // a dead player's ragdoll body (an entity; QC vr_deathdoll.qc): he is not sent to the others while it is (sv_main.c)
 QVR_FIELD(vr_knockdown) // a monster knocked down by a shove (QC vr_knockdown.qc): 1 a ragdoll while alive (vr_box3d.cpp), 2 getting up
-QVR_FIELD(vr_bloodied) // it has bled (QC vr_wounds.qc VR_Wound_Hit: a wound that bleeds, not a shove's): a live ragdoll's limbs flung bleed (box3d::limbsBleed)
+QVR_FIELD(vr_bloodied) // it has bled (QC vr_wounds.qc VR_Wound_Hit: a wound that bleeds, not a shove's): a live ragdoll's limbs flung bleed (box3d::limbsBleed; a progs without vr_bled_at)
+QVR_FIELD(vr_bled_at) // when it last bled (QC vr_wounds.qc VR_Wound_Hit): a live ragdoll's limbs flung bleed only for blood drawn as it went down or since (box3d::limbsBleed)
 QVR_FIELD(vr_depleted) // a weapon prop that can never be fired again: a single-use enemy gun, empty (QC vr_enemyguns.qc): no loot beam (vr_server.cpp, bit 31 of its id)
 QVR_FIELD(vr_shock_until) // lightning killed it or struck it dead (QC vr_shock.qc): its ragdoll convulses until then (vr_box3d.cpp, "Shocked ragdolls")
 QVR_FIELD(vr_shock_len) // ... the shock's length (s): the convulsions fade over it

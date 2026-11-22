@@ -1139,6 +1139,28 @@ void twoHandPose(hands::State& s, int h, const glm::vec3& fwd, const glm::vec3& 
         vr_flat_melee_2h_pitch, vr_flat_melee_2h_yaw, vr_flat_melee_2h_roll);
 }
 
+// The spear pose (lancespear; his notes 2026-11-21: "it should be held like a spear"): a pole weapon in hand `h` (its own
+// Other Hand Anywhere 3, the Crystal Lance), already aimed along the crosshair's way (its Shot Pitch is its pole's, so the
+// pole points there), moved by vr_flat_pole_fwd/_up/_out (`fwd`, `right`, `up`: the frame the hands are placed in) and
+// rolled about the pole by _roll (no other turn: the beam goes along the pole to the crosshair). The other hand goes on
+// the pole (vr_view_weapon.cpp chooseGrip, vr_flat_pole_off_along; vr_view_hands.cpp steadyOther, _off_roll).
+void polePose(hands::State& s, int h, const glm::vec3& fwd, const glm::vec3& right, const glm::vec3& up)
+{
+    const int slot = heldIn(h);
+    if(!twohand::poleWeapon(slot))
+    {
+        return;
+    }
+    const float side = h == HAND_OFF ? -1.f : 1.f;
+    const auto units = [](const Tunable& t) { return za::clamp(t.value, -20.f, 20.f); };
+    s.pos[h] += fwd * units(vr_flat_pole_fwd) + right * (side * units(vr_flat_pole_out)) + up * units(vr_flat_pole_up);
+    const glm::vec3 pole = hands::forward(weapons::shotAngles(s.rot[h], slot, h == HAND_OFF));
+    const glm::quat turn = glm::angleAxis(glm::radians(za::clamp(vr_flat_pole_roll.value, -90.f, 90.f)) * side, pole);
+    glm::vec3 f, r, u;
+    hands::angleVectors(s.rot[h], f, r, u);
+    s.rot[h] = hands::anglesFromVectors(glm::normalize(turn * f), glm::normalize(turn * u));
+}
+
 // The parry's guard held in two hands (vr_flat_melee_2h_parry_*): over the guard's pose, by both shares (only in the stance).
 void twoHandParryPose(hands::State& s, int h, const glm::vec3& fwd, const glm::vec3& right, const glm::vec3& up)
 {
@@ -3439,6 +3461,7 @@ void poseHands(hands::State& s, const glm::vec3& aim)
             stepTwoHand(s, h, static_cast<float>(dt));
         }
         twoHandPose(s, h, fwd, right, up);
+        polePose(s, h, fwd, right, up);
 
         // The melee parry's guard (vr_flat_parry_*: the right mouse button held), over the hold; a swing goes from it.
         // (Held in two hands: vr_flat_melee_2h_parry_* over it.)

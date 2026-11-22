@@ -174,8 +174,8 @@ void IN_SpeedUp(void) {KeyUp(&in_speed);}
 void IN_StrafeDown(void) {KeyDown(&in_strafe);}
 void IN_StrafeUp(void) {KeyUp(&in_strafe);}
 
-void IN_AttackDown(void) {KeyDown(&in_attack);}
-void IN_AttackUp(void) {KeyUp(&in_attack);}
+void IN_AttackDown(void) {if (VR_HumStudioAttack (1)) return; KeyDown(&in_attack);} // QVR: the Texture Studio's strokes while it paints (vr/vr_humstudio.cpp)
+void IN_AttackUp(void) {if (VR_HumStudioAttack (0)) return; KeyUp(&in_attack);} // QVR
 
 void IN_UseDown (void) {KeyDown(&in_use);}
 void IN_UseUp (void) {KeyUp(&in_use);}

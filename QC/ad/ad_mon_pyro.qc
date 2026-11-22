@@ -356,6 +356,7 @@ void() ad_pyro_die =
 void() ad_monster_pyro =
 {
 	if (deathmatch) { remove(self); return; }
+	if (VR_HUM_Replace(VR_HUM_V_PYRO)) return; // AD support: an armed humanoid with its gun (vr_humrepl.qc; vr_agrunt_repl_variants)
 	
 	self.mdl = "progs/mon_pyro.mdl";
 	self.ad_headmdl = "progs/h_pyro.mdl";
@@ -431,6 +432,7 @@ void() ad_monster_fumigator =
 {
 	// Check all spawn exceptions (monsters.qc)
 	if (ad_monster_checkspawn() == ad_TRUE) return;
+	if (VR_HUM_Replace(VR_HUM_V_FUMIGATOR)) return; // AD support: an armed humanoid with its gun (vr_humrepl.qc; vr_agrunt_repl_variants)
 	
 	self.mdl = "progs/mon_fumigator.mdl";
 	self.ad_headmdl = "progs/h_pyro.mdl";

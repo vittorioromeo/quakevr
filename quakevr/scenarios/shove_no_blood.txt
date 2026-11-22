@@ -1,0 +1,13 @@
+# shove_no_blood: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". A shove alone never bleeds
+# (ROUND25.md, "fixes1121"; his note 2026-11-21: blood from every limb when a shove made an enemy an active ragdoll).
+# Knockdowns' Chance 100 so each shove puts it down.
+title A shove never bleeds, even on an enemy hurt earlier
+map vrtesthall
+god
+notarget
+cvar vr_knockdown_chance 100
+give "Shotgun" main
+spawn "Grunt" 90 0
+spawn "Grunt" 110 60
+spawn "Knight" 130 -60
+hint Every shove knocks them down. Shove a grunt: no blood from its limbs as it falls. Shoot the other grunt once, wait a few seconds, then shove it: still no blood from its limbs. Shoot one while it lies there and move it: now its limbs bleed.

@@ -8,6 +8,9 @@ float vr_ad_test_health;           // a reading the next step compares with
 void(entity p) VR_Rules_PathCornerTest; // (vr_rules_test.qc, after Copper's files: 199)
 void(entity p) VR_Quoth_Test; // (vr_quoth_test.qc)
 void(entity p) VR_Quoth_Play; // (vr_quoth_test.qc, last: 212)
+void(entity p) VR_HUM_Test; // (vr_humrepl_test.qc: 219)
+void() VR_HUM_Census; // (vr_humrepl_test.qc: 220)
+void(entity p) VR_HUM_Lineup; // (vr_humrepl_test.qc: 221)
 void(entity p) VR_RN_Test; // (vr_rules_test.qc: 209)
 void(entity p) DW_RingHitTest; // (dwell/dw_test.qc: 210)
 void(entity p) DW_BossTest; // (dwell/dw_test.qc, after Dwell's files: 200)
@@ -247,6 +250,9 @@ void(float request, entity p) AD_RulesTest =
     if(request == 213) { DW_PickupTest(p); return; } // Dwell's pickups taken, the toolgun's Dwell and bloody props: dwell/dw_test.qc
     if(request == 211) { VR_Quoth_Test(p); return; } // Quoth's targetname2 and spawners: vr_quoth_test.qc
     if(request == 212) { VR_Quoth_Play(p); return; } // a Quoth map's flow driven to its last stage: vr_quoth_test.qc
+    if(request == 219) { VR_HUM_Test(p); return; } // AD's and Quoth's humanoid variants armed, their looks: vr_humrepl_test.qc
+    if(request == 220) { VR_HUM_Census(); return; } // the map's variants census (one line): vr_humrepl_test.qc
+    if(request == 221) { VR_HUM_Lineup(p); return; } // a row of armed humanoids, one per recolour (scratch1 the row): vr_humrepl_test.qc
     if(request == 209) { VR_RN_Test(p); return; } // the ruleset's numbers through our touches: vr_rules_test.qc
     if(request == 199) { VR_Rules_PathCornerTest(p); return; } // our monsters on AD's and Copper's path_corners, the th_* guard: vr_rules_test.qc
     if(request == 183) { AD_PelletMatTest(p); return; } // AD's projectile pellets into a tank, a crate, a grunt: vr_ad_shots_test.qc
@@ -390,7 +396,9 @@ void(float request, entity p) AD_RulesTest =
         self = os;
         VR_Test_Check(!k2.vr_ag, "AD's point knight (spawnflags 8192) skipped");
         entity r1 = AD_TestSpawn("monster_army_rocket", ad_monster_army_rocket, at + v_forward * 80);
-        VR_Test_Check(!r1.vr_ag, "AD's rocket soldier (monster_army_rocket) skipped");
+        // (AD's soldier variants are armed humanoids with vr_agrunt_repl_variants, since 2026-11-21: vr_humrepl.qc)
+        VR_Test_Check((r1.vr_ag != 0) == (cvar_hget(cvarh_vr_agrunt_repl_variants) != 0),
+            sprintf("AD's rocket soldier (monster_army_rocket) armed as vr_agrunt_repl_variants says (%g)", r1.vr_ag));
         VR_Test_Verdict();
         return;
     }

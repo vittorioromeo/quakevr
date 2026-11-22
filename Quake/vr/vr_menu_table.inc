@@ -53,6 +53,7 @@ struct Page
 [[nodiscard]] za::Vector<Item> pageDebugReports();
 [[nodiscard]] za::Vector<Item> pageDebugTools();
 [[nodiscard]] za::Vector<Item> pageArmourStudio();
+[[nodiscard]] za::Vector<Item> pageTextureStudio();
 [[nodiscard]] za::Vector<Item> pageDebugTests();
 [[nodiscard]] za::Vector<Item> pageDebugAutomation();
 [[nodiscard]] za::Vector<Item> pageDebugCheats();
@@ -470,6 +471,7 @@ inline constexpr Page pages[] = {
     {"Ammo Screen Font", pageFontSurface<2>, pageScreens}, // (Surface::Ammo)
     {"World Text Font", pageFontSurface<3>, pageScreens}, // (Surface::World)
     {"Armour Studio", pageArmourStudio, pageDebugTools, LevelDeveloper}, // (vr_menu_debug.inc; vr_armourstudio.cpp)
+    {"Texture Studio", pageTextureStudio, pageDebugTools, LevelDeveloper}, // (vr_menu_debug.inc; vr_humstudio.cpp)
     {"Animation Recorder", pageAnimRecorder, pageDebug, LevelDeveloper}, // (vr_menu_debug.inc; vr_animrec.cpp, ANIMATIONS.md)
     {"Visor HUD Look", pageVisorSettings, pageLocomotionSettings}, // (vr_menu_pages.inc; vr_visor.cpp)
     {"Third-Person Camera", pageFlatThirdPerson, pageLocomotionSettings}, // (vr_menu_pages.inc; vr_flattp.cpp)

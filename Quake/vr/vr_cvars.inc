@@ -14,7 +14,19 @@ QVR_CVAR(vr_hull_width, "16", CVAR_ARCHIVE | QVR_RULE)            // the player'
 QVR_CVAR(vr_hull_ent_width, "-1", CVAR_ARCHIVE | QVR_RULE)        // the player's width against monsters, players and solid boxes (8-32; 0: Quake's 32; -1: vr_hull_width's)
 QVR_CVAR(vr_hull_edge_probe, "1", CVAR_ARCHIVE | QVR_RULE)       // Quake's "over a ledge" friction test (double friction) looks down from your box's leading edge (half its width ahead; Quake: 16), and a point inside a step has floor under it; 0: Quake's (under a stairs' clip ramp that point was inside the steps: walking up slowed to a crawl, a jump there went nowhere)
 QVR_CVAR(vr_hull_brushmodels, "1", CVAR_ARCHIVE | QVR_RULE)       // the narrow width against brush models too (doors, lifts, func_walls, external .bsp models), not only the world
-QVR_CVAR(vr_hull_cache, "1", CVAR_ARCHIVE)             // the world's compiled hulls kept on disk (cache/hulls, vr_hull.cpp: trees that took 250 ms or more; vrstart cold 10 s to under 1): 0 compiled at every load; 2 read, then compiled anyway and compared (vr_hull_stats)
+QVR_CVAR(vr_hull_holes, "1", CVAR_ARCHIVE | QVR_RULE)       // gaps Quake's 32 box never fit (grates, bars, pillar rows, a lift's edge) closed by invisible blockers for the narrower boxes (yours, narrow monsters'), found at map load (vr_hull_holes.cpp, HULLS.md "Holes"); 0: open, as the compiled widths leave them. Takes effect at the next map load
+QVR_CVAR(vr_hull_holes_max, "32", CVAR_ARCHIVE | QVR_RULE)  // vr_hull_holes: gaps narrower than this along x or y are closed (32: Quake's box; wider ones only where hull 1 shows Quake's box can't reach them; between the world and a brush model at most 32). Next map load (vr_hull_holes_rebuild)
+QVR_CVAR(vr_hull_holes_min, "8", CVAR_ARCHIVE | QVR_RULE)   // vr_hull_holes: gaps narrower than this are left open (8: the narrowest compiled box gets into none of them)
+QVR_CVAR(vr_hull_holes_wide, "48", CVAR_ARCHIVE | QVR_RULE) // vr_hull_holes: the world's gaps from vr_hull_holes_max up to this over a fall, closed only where hull 1 shows Quake's box can't stand reaching them (its shape: a crossbar below, a narrowing); 0 off
+QVR_CVAR(vr_hull_holes_diag, "1", CVAR_ARCHIVE | QVR_RULE)  // vr_hull_holes: gaps across slanted bars, rotated grates and round holes too (along the diagonals, under 45.25 = 32 x 1.414), kept only where hull 1 shows Quake's box can't reach them
+QVR_CVAR(vr_hull_holes_models, "1", CVAR_ARCHIVE | QVR_RULE) // vr_hull_holes: gaps between two brush models too (two func_walls, a door and a lift's travel), in the world's tree
+QVR_CVAR(vr_hull_holes_vert, "1", CVAR_ARCHIVE | QVR_RULE)  // vr_hull_holes: the world's gaps seen from above over a fall (bars at two heights, a louvred grate), kept only where hull 1 shows Quake's box can't stand reaching them
+QVR_CVAR(vr_hull_holes_cells, "64", CVAR_ARCHIVE | QVR_RULE) // vr_hull_holes: the most tests a pair of slanted faces gets (cut into cells; past it, the rest is left open)
+QVR_CVAR(vr_hull_holes_cell, "2", CVAR_ARCHIVE | QVR_RULE)  // vr_hull_holes: the smallest cell a slanted face's area is cut into (units)
+QVR_CVAR(vr_hull_holes_reach, "2", CVAR_ARCHIVE | QVR_RULE) // vr_hull_holes: a blocker that Quake's box (hull 1) can reach into by more than this is left out (units; hull 1 is rounded by a unit or so)
+QVR_CVAR(vr_hull_holes_show, "0", CVAR_NONE)           // the gap blockers drawn round the view (vr_hull_holes.cpp): the world's cyan, the world's against a brush model yellow, a brush model's own magenta (moving with it), left out as Quake's box reaches them red; their counts in front of you
+QVR_CVAR(vr_hull_holes_show_range, "1024", CVAR_NONE)  // vr_hull_holes_show: blockers this far from the view are drawn (units)
+QVR_CVAR(vr_hull_cache, "1", CVAR_ARCHIVE)            // the world's compiled hulls kept on disk (cache/hulls, vr_hull.cpp: trees that took 250 ms or more; vrstart cold 10 s to under 1): 0 compiled at every load; 2 read, then compiled anyway and compared (vr_hull_stats)
 QVR_CVAR(vr_hull_async, "1", CVAR_NONE)               // a monster's box size first met in play (no tree from the load: AD's delayed spawns, the test spawner) compiled on the pool while it moves with Quake's hull, not in the frame (ad_tears' 40x88: a 1.3-1.9 s hitch); 0: compiled at its first move, the frame waiting (vr_hull.cpp, "Trees compiled in play")
 QVR_CVAR(vr_hull_keep, "1", CVAR_ARCHIVE)             // maps whose brushes and compiled hulls are kept in memory for a load of the same map again (a death's reload, restart, a changelevel back; 0: off)
 QVR_CVAR(vr_body_monster_inset, "4", CVAR_ARCHIVE | QVR_RULE)     // units (0-12) each level side of the player's box and a monster's comes in where the two bodies meet (both ways; twice as close face to face): the map, monsters against monsters, shots and melee keep their boxes (vr_bodycontact.cpp)
@@ -871,7 +883,7 @@ QVR_CVAR(vr_melee_fist_to_y, "0.7656", CVAR_ARCHIVE)   // right (mirrored for th
 QVR_CVAR(vr_melee_fist_to_z, "-4.2209", CVAR_ARCHIVE)  // up
 QVR_CVAR(vr_melee_fist_width, "0.291", CVAR_ARCHIVE)   // times the swept points' radius (QC VR_MELEE_RADIUS x vr_melee_range_multiplier)
 QVR_CVAR(vr_melee_fist_mirror, "1", CVAR_ARCHIVE) // 1: the off hand's line is the main hand's mirrored (its right offsets negated); 0: as they are
-QVR_CVAR(vr_melee_sweep_test, "0", CVAR_NONE) // Debug > Tests: the QC's swept-blade test (vr_melee.qc VR_Melee_SweepTest): scripted sweeps past a target dummy ("meleesweep:" lines, PASS or FAIL); 2 the main hand's blade dumped, 3 its edited shape, 4 the empty hand's fist line (vr_melee_fist_*: "fistline:"), 6 one swing, many hits (the sword_multi scene: "meleemulti:")
+QVR_CVAR(vr_melee_sweep_test, "0", CVAR_NONE) // Debug > Tests: the QC's swept-blade test (vr_melee.qc VR_Melee_SweepTest): scripted sweeps past a target dummy ("meleesweep:" lines, PASS or FAIL); 2 the main hand's blade dumped, 3 its edited shape, 4 the empty hand's fist line (vr_melee_fist_*: "fistline:"), 6 one swing, many hits (the sword_multi scene: "meleemulti:"), 7 every bladed weapon's drawn Blade Start the one start ("bladeone:")
 QVR_CVAR(vr_melee_wall_hold, "0.2", CVAR_ARCHIVE | QVR_RULE)  // s a weapon (a fist holding a prop) that went into a wall or the floor hard enough may land its blow there while it stays at it: the hand held off the wall slows, so a blow judged a frame or two after it met the wall (at the speed it came in at) still counts (QC vr_melee.qc VR_Melee_WallHeld); 0: only in the frame it crosses the surface, and never steeply down onto the floor (as before round 22)
 // Strikes let past the level (ROUND22.md, "Swords past the floor"): a hand swinging at least vr_melee_world_pass_speed,
 // the far part of what it holds near a monster, a corpse or a ragdoll (within vr_melee_world_pass_reach), has that part
@@ -2762,7 +2774,8 @@ QVR_CVAR(vr_agrunt_repl_dual, "0.1", CVAR_ARCHIVE | QVR_RULE)        // (his, 20
 QVR_CVAR(vr_agrunt_repl_gunaxe, "0.15", CVAR_ARCHIVE | QVR_RULE)     // 0..1: the chance of a gun and a melee weapon (axe or dagger, by vr_agrunt_w_axe/_dagger; the gun, the blade up close)
 QVR_CVAR(vr_agrunt_repl_id, "1", CVAR_ARCHIVE | QVR_RULE)         // 1: in Quake's own campaigns (id1, Dimension of the Past, the Machine Games' ones) and their custom maps
 QVR_CVAR(vr_agrunt_repl_mp, "1", CVAR_ARCHIVE | QVR_RULE)         // 1: in the mission packs (Scourge of Armagon, Dissolution of Eternity)
-QVR_CVAR(vr_agrunt_repl_ad, "1", CVAR_ARCHIVE | QVR_RULE)         // 1: in Arcane Dimensions' maps too: its plain grunts, enforcers, knights and death knights replaced (AD's own variants never: QC VR_AGR_ADVariant); 0 until 2026-11-01
+QVR_CVAR(vr_agrunt_repl_ad, "1", CVAR_ARCHIVE | QVR_RULE)         // 1: in Arcane Dimensions' maps too: its plain grunts, enforcers, knights and death knights replaced (AD's own variants by vr_agrunt_repl_variants; its point knights and ghosts never: QC VR_AGR_ADVariant); 0 until 2026-11-01
+QVR_CVAR(vr_agrunt_repl_variants, "1", CVAR_ARCHIVE | QVR_RULE) // 1: Arcane Dimensions' and Quoth's own humanoid variants (rocket, grenade and plasma soldiers, defenders, eliminators, pyros, fumigators, crossbow knights) are armed humanoids holding their gun (QC vr_humrepl.qc VR_HUM_Replace; with vr_agrunt_repl and vr_agrunt_repl_ad; crossbow knights with vr_agknight)
 QVR_CVAR(vr_agrunt_repl_seed, "0", CVAR_ARCHIVE | QVR_RULE)       // shuffles every map's loadouts (the same seed: the same loadouts)
 QVR_CVAR(vr_fresh_map_seeds, "1", CVAR_ARCHIVE | QVR_RULE)        // 1: crates and barrels, rocks, armed replacements and their armour rolled from the run's seed (vr_run_seed: a new run, a new layout; a level change, a restart, a loaded save keep the run's), or anew at each map start outside a run; 0: the same every time (the map's name). Off in a test session (vr_backend mock). vr_map_seed_info
 QVR_CVAR(vr_map_seed, "0", CVAR_NONE)                  // tests, repro: > 0 every map load's content seed (vr_map_seed_info prints the one in play); -1 a fresh one even in a test session; 0 vr_fresh_map_seeds'
@@ -2897,6 +2910,24 @@ QVR_CVAR(vr_arena_xray, "1", CVAR_ARCHIVE | QVR_RULE)                    // 1: a
 QVR_CVAR(vr_arena_xray_left, "2", CVAR_ARCHIVE | QVR_RULE)               // ... once this many of its foes are left (up, and still to come)
 QVR_CVAR(vr_arena_xray_distance, "800", CVAR_ARCHIVE | QVR_RULE)         // ... and only those farther than this from your eyes (units; 0: at any distance)
 QVR_CVAR(vr_arena_xray_shown, "0", CVAR_ROM)                  // (read-only: the foes the last view outlined through walls; arena test 16 reads it)
+QVR_CVAR(vr_humlook, "1", CVAR_ARCHIVE)                        // 1: armed humanoids recoloured by the weapon they spawned with (quakevr/humlook.txt; vr_humlook.cpp, ARMED_MONSTERS.md "Recolours by weapon")
+QVR_CVAR(vr_humlook_known, "0", CVAR_ROM)                    // (read-only: the entities whose recolour the client knows; vr_ad_test 219 reads it)
+QVR_CVAR(vr_humlook_file, "humlook.txt", CVAR_NONE)          // debug (vr_humlook.cpp): the recolours' table, in quakevr/ (the tests point it elsewhere)
+QVR_CVAR(vr_humlook_masks_file, "humlook_masks.txt", CVAR_NONE) // debug (vr_humlook.cpp): which texels they dye (palette rows, painted texels), in quakevr/
+// The Texture Studio (Debug > Tools; vr_humstudio.cpp): the recolours' table and masks edited live
+QVR_CVAR(vr_humstudio_kind, "0", CVAR_NONE)       // debug: the row edited: 0 grunt, 1 enforcer, 2 knight, 3 death knight
+QVR_CVAR(vr_humstudio_cat, "1", CVAR_NONE)        // debug: ... its weapon category: 1 explosive, 2 energy, 3 flame, 4 poison, 5 shells, 6 nails, 7 melee, 8 its own gun
+QVR_CVAR(vr_humstudio_part, "0", CVAR_NONE)       // debug: ... its part: 0 clothes, 1 pack
+QVR_CVAR(vr_humstudio_r, "1", CVAR_NONE)          // debug: the row's colour (0..1), its red
+QVR_CVAR(vr_humstudio_g, "1", CVAR_NONE)          // debug: ... green
+QVR_CVAR(vr_humstudio_b, "1", CVAR_NONE)          // debug: ... blue
+QVR_CVAR(vr_humstudio_strength, "0", CVAR_NONE)   // debug: ... how much it dyes (0 none: the row off)
+QVR_CVAR(vr_humstudio_light, "1", CVAR_NONE)      // debug: ... the texels' lightness times this
+QVR_CVAR(vr_humstudio_tint, "0", CVAR_NONE)       // debug: ... 0 the dye, 1 the texel's own colour times the colour
+QVR_CVAR(vr_humstudio_overlay, "0", CVAR_NONE)    // debug: 1: the masks shown on the recoloured (clothes green, pack blue, the rest dark red)
+QVR_CVAR(vr_humstudio_paint, "0", CVAR_NONE)      // debug: 1: painting: a trigger (flat: attack) paints where you point on an armed humanoid, a grip erases, B/Y undoes
+QVR_CVAR(vr_humstudio_brush, "2", CVAR_NONE)      // debug: the brush's radius (skin texels)
+QVR_CVAR(vr_humstudio_class, "1", CVAR_NONE)      // debug: what it paints: 1 clothes, 2 pack, 3 never (left as it is), 0 erase (back to its palette row's)
 // Survival Arena's difficulty (QC/vr_arena.qc, VR_ARENA_Skill): every 1 above is today's arena at Normal skill, and
 // this moves the rest of them by the skill level -- the shape of the armed humanoids' vr_agrunt_ai_skill, its own knob.
 QVR_CVAR(vr_arena_skill_impact, "1", CVAR_ARCHIVE | QVR_RULE)           // Difficulty Impact: how much the skill level moves the arena (Easy softer, Hard and Nightmare harder); 0 skill changes nothing about it, Normal always as set

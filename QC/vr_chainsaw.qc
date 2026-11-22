@@ -62,7 +62,6 @@ float VR_SAW_LOOP_CUT = 3;
 float VR_SAW_LOOP_START = 4; // the start's sound, then the idle
 
 float VR_SAW_TICK = 0.1;      // seconds between cuts
-float VR_SAW_BAR_START = 0.55; // the bar out of the engine block: this share of the way from the hand (the rear handle) to the tip
 float VR_SAW_BAR_HALF = 3;     // units: half the bar's height with its teeth (a gib's box is grown by it)
 
 // .sawcord (the engine, from the client's move: vr_chainsaw.cpp): the off hand holds the cord of the main hand's
@@ -339,7 +338,15 @@ float(float xHand) VR_Chainsaw_Cut =
 {
     vector hand = VRGetHandPos(xHand);
     vector tip = VRGetMuzzlePos(xHand);
-    vector root = hand + (tip - hand) * VR_SAW_BAR_START;
+    float from = VR_BLADE_FROM_SAW;
+    if(VR_Melee_Line(self, xHand, VR_MTHING_SAW) && !vr_mline_free)
+    {
+        // Its drawn line (Line Start, Blade Tip) and Blade Start, as every blade's (VR_Blade_From; docs/vr-port/BLADES.md).
+        hand = vr_mline_grip;
+        tip = vr_mline_far;
+        from = VR_Blade_From(VR_MTHING_SAW, vr_mline_from_x);
+    }
+    vector root = hand + (tip - hand) * from;
     vector mid = (root + tip) * 0.5;
 
     // What the bar is in: the models of monsters and their corpses (the box's broad phase grown by a model's reach); a
