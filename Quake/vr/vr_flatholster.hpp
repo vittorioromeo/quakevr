@@ -25,6 +25,8 @@ void frame(bool on);
 [[nodiscard]] bool open();
 // vr_seat_test: the current seat's +flatholsters held (the command alone).
 [[nodiscard]] bool holdCommand();
+// split11 (split_join_test): how far its cursor is from the middle of the panel, where it opens (panel units).
+[[nodiscard]] float cursorFromMiddleX();
 
 // The time scale it asks for (timescale::wanted): vr_flat_holster_menu_timescale while open, else 1.
 [[nodiscard]] float timeScale();

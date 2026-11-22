@@ -948,6 +948,51 @@ extern "C" qboolean Key_SeatHasBindings(const int seat)
     return false;
 }
 
+namespace
+{
+// split11: a controller seat's own layout for flat play, whose own keys (vr_flat_key_*: the holster menu, reload, swap,
+// crouch, ...) are the keyboard's and the mouse's (vr_seat.hpp, PadAction). The gamepad keys are the VR controllers'
+// too (quakevr/vr_bindings.cfg: the grips on the shoulders, the main stick's up and down swimming): a button seat 1's
+// copy has unbound or as the VR controllers' (or default.cfg's) binding, `stock`, takes the flat command; a button he
+// bound himself keeps his.
+constexpr qvr::seat::PadAction padDefaults[] = {
+    {K_RTRIGGER, "+attack", nullptr, "Fire (right)"},              // (the left mouse button)
+    {K_LTRIGGER, "+offhandattack", "+jump", "Left hand"},          // (the right mouse button; default.cfg's +jump)
+    {K_ABUTTON, "+jump", nullptr, "Jump"},
+    {K_BBUTTON, "+flatcrouch", "impulse 10", "Crouch"},            // (Ctrl)
+    {K_XBUTTON, "impulse 55", "+reloadoff", "Reload"},             // (R)
+    {K_YBUTTON, "impulse 48", "impulse 12", "Swap hands"},         // (3)
+    {K_RSHOULDER, "impulse 10", "+grabmain", "Next weapon"},       // (the wheel; a flat hand is always closed)
+    {K_LSHOULDER, "impulse 12", "+graboff", "Prev weapon"},
+    {K_DPAD_UP, "+flatholsters", "+moveup", "Holster menu"},       // (mouse 3: the weapon wheel; the look stick points)
+    {K_DPAD_DOWN, "impulse 47", "+movedown", "Drop"},              // (H)
+    {K_DPAD_LEFT, "impulse 46", nullptr, "Force grab"},            // (mouse 4)
+    {K_DPAD_RIGHT, "vr_flashlight_toggle", nullptr, "Flashlight"}, // (F)
+    {K_LTHUMB, "+speed", nullptr, "Run"},                          // (Shift)
+    {K_RTHUMB, "vr_flat_punch main", "+reloadmain", "Punch"},      // (V)
+    // (Back is Tab, the scores, and Start the seat's menu: Ironwail maps them, no binding)
+};
+
+// The current seat's bindings: the controller layout where a button is unbound or stock.
+void applyPadDefaults()
+{
+    for(const qvr::seat::PadAction& d : padDefaults)
+    {
+        const char* b = Key_Seat()->bindings[d.key];
+        if(!b || !b[0] || (d.stock && !strcmp(b, d.stock)))
+        {
+            Key_SetBinding(d.key, d.command);
+        }
+    }
+}
+} // namespace
+
+const qvr::seat::PadAction* qvr::seat::padLayout(int& count)
+{
+    count = static_cast<int>(std::size(padDefaults));
+    return padDefaults;
+}
+
 extern "C" void Key_SeatCopyBindings(const int to, const int from)
 {
     if(Key_SeatOf(to) == Key_SeatOf(from))
@@ -958,6 +1003,10 @@ extern "C" void Key_SeatCopyBindings(const int to, const int from)
     for(int k = 0; k < MAX_KEYS; k++)
     {
         Key_SetBinding(k, Key_SeatOf(from)->bindings[k]); // (Key_SetBinding: the current seat's, its own copy)
+    }
+    if(to > 0)
+    {
+        applyPadDefaults(); // (a controller's seat: split11's layout where seat 1's leaves a button free)
     }
     CL_SeatSet(prev);
 }

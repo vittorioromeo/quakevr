@@ -2621,6 +2621,14 @@ extern "C" void VR_BeginFrame()
         gearlights::frame(); // the gear lights eased (the side button: the view's, as the gadget is drawn)
         flashlight::flicks(); // the held torch turned over by a flick of the wrist (likewise)
         flatplay::frame(); // -flatscreenmode: its keys, and the settings the mode stands in for (before the hands are posed)
+        for(int s = 1; s < seat::maxSeats; s++) // splitscreen (split11): each controller seat's own flat-play keys and commands
+        {
+            if(seat::plays(s))
+            {
+                const seat::Scope in(seat::at(s));
+                flatplay::seatFrame();
+            }
+        }
         ragtool::clientFrame(); // -ragtool: the ragdoll tool started once the game is up (vr_ragtool.cpp)
         armourstudio::windowFrame(); // vr_armourstudio_window: its ImGui window (first: it closes when another tool opens)
         rigstudio::clientFrame(); // vr_rigstudio: its ImGui frame and windows (vr_rigstudio.cpp; nothing while closed)

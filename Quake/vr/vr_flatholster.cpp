@@ -559,6 +559,11 @@ bool open()
     return st().open;
 }
 
+float cursorFromMiddleX()
+{
+    return st().cursor.x - panelW * 0.5f;
+}
+
 bool holdCommand()
 {
     return st().cmdHeld;

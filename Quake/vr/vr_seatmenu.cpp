@@ -71,21 +71,6 @@ struct SeatMenuState
     return scr_splitmenu.value == 0.f && inPlay() > 1;
 }
 
-struct Binding
-{
-    const char* label;
-    const char* command;
-};
-
-constexpr Binding controls[] = {
-    {"Attack", "+attack"},
-    {"Jump", "+jump"},
-    {"Next Weapon", "impulse 10"},
-    {"Previous Weapon", "impulse 12"},
-    {"Run", "+speed"},
-    {"Scores", "+showscores"},
-};
-
 void shut(SeatMenuState& m)
 {
     m.open = false;
@@ -195,22 +180,26 @@ void drawItem(const int y, const char* label, const char* value, const bool sele
 void drawMenu(const int s, const SeatMenuState& m)
 {
     GL_SetCanvas(CANVAS_MENU);
-    M_DrawTextBox(64, 48, 24, 10);
     if(m.controls)
     {
-        M_PrintWhite(80, 60, va("seat %d: controls", s + 1));
-        int y = 76;
-        for(const Binding& b : controls)
+        // split11: flat play's whole controller layout (seat::padLayout), each with the seat's own button for it
+        int count = 0;
+        const PadAction* layout = padLayout(count);
+        M_DrawTextBox(32, 20, 30, count + 4);
+        M_PrintWhite(48, 30, va("seat %d: controls", s + 1));
+        int y = 44;
+        for(int i = 0; i < count; i++)
         {
             int keys[1] = {-1};
-            const bool bound = Key_GetKeysForCommand(b.command, keys, 1, KDM_GAMEPAD) > 0;
-            M_Print(80, y, b.label);
-            M_PrintWhite(200, y, bound ? Key_KeynumToFriendlyString(keys[0]) : "-");
-            y += 10;
+            const bool bound = Key_GetKeysForCommand(layout[i].command, keys, 1, KDM_GAMEPAD) > 0;
+            M_Print(48, y, layout[i].label);
+            M_PrintWhite(208, y, bound ? Key_KeynumToFriendlyString(keys[0]) : "-");
+            y += 8;
         }
-        M_Print(80, y + 6, "B: back");
+        M_Print(48, y + 4, "B: back");
         return;
     }
+    M_DrawTextBox(64, 48, 24, 10);
     M_PrintWhite(80, 60, va("seat %d", s + 1));
     drawItem(76, "Resume", nullptr, m.cursor == ItemResume);
     drawItem(88, "Look Sensitivity", va("x%.2f", static_cast<double>(m.lookScale)), m.cursor == ItemSens);

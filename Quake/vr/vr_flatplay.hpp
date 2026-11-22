@@ -123,6 +123,8 @@ void init();
 // own fire state: with a weapon a swing strikes with it, that button starts that hand's punch), the cvars the mode
 // stands in for (reloading off, the flashlight worn with F switching it, body interactions on), vr_flatplay itself.
 void frame();
+// Splitscreen (split11): a controller seat's (2-4) own part of frame(), run in its Scope after seat 1's frame().
+void seatFrame();
 
 // The crouch Left Ctrl / +flatcrouch holds, eased 0 standing .. 1 crouched, and how far it puts his head down (units):
 // vr_hands.cpp's flat branch lowers his head and his height with it, view.c's VR_FlatViewDrop the drawn view. 0 standing,

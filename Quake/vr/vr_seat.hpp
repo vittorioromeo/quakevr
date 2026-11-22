@@ -150,6 +150,18 @@ void setInPlay(int n); // the first n seats in play, seat i driven by pad i-1 (v
 [[nodiscard]] int padOf(int i);  // the pad that joined seat i (1-3; -1: none). Seat 0: the keyboard and mouse, and the
                                  // first pad no seat has (in_sdl.c's IN_PadSeat)
 void setPlays(int i, bool on, int pad); // seat i (1-3) in or out of play, joined by that pad (vr_seatplay.cpp)
+
+// split11: a controller seat's layout for flat play (its keys are the keyboard's and the mouse's): each button's
+// command, given where seat 1's copied bindings leave the button unbound or as default.cfg has it (`stock`). The seat
+// menu's Controls page lists the seat's buttons for these commands; the join screen shows the layout.
+struct PadAction
+{
+    int key;
+    const char* command;
+    const char* stock; // default.cfg's binding it replaces (null: only an unbound button)
+    const char* label;
+};
+[[nodiscard]] const PadAction* padLayout(int& count);
 [[nodiscard]] clientseat_t* netIfMade(int i); // seat i's client if it was ever made (nullptr: never used)
 // A shared effect's emitter run once a frame (phase 7 part 3; CL_SeatEffectFirst's SEATFX_VR): the first drawn seat to run
 // it this frame does, the others skip it (key: the emitter's, e.g. an entity's number). One seat: always.

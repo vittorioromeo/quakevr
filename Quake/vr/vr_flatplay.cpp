@@ -2667,6 +2667,30 @@ void frame()
     flatxhair::frame(); // vr_flat_xhair_turntest's mouse (vr_flatxhair.cpp)
 }
 
+void seatFrame()
+{
+    // Splitscreen (split11): a controller seat's own part of frame(), in its Scope (VR_BeginFrame): its keys and buttons'
+    // commands stepped as seat 1's are (the holster menu, crouch, reload, the force grab, the grenade, the swap, the
+    // lean, the ironsight), from its own parts. The mode's settings, the fly camera, the tests, the Ctrl bind and the
+    // slide's scrape (one listener's) stay seat 1's frame().
+    if(!active() || cls.signon != SIGNONS)
+    {
+        return;
+    }
+    flatsight::frame();
+    flatspeedfov::frame(true);
+    flathit::frame();
+    probeTwoHand();
+    flatswap::probe();
+    pollKeys();
+    pollKeysFlat();
+    flatreload::frame(true);
+    flatfgrab::frame(true);
+    flatgrenade::frame(true);
+    flatswap::frame(true);
+    flatmove::frame(true);
+}
+
 namespace
 {
 
