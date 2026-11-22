@@ -236,8 +236,9 @@ class Instance:
             "-condebug", "-condebugfile", self.log, "-cmdinbox", self.inbox,
             "-foreignconfigs", "-noconfigwrite", "-noaddons", "-nomic",
             # (testspeed: no start-up map, the vrstart hub a VR game loads before anything: 6 s per game before its
-            # connect or map command could run; a listen host's "disconnect;" in join() is then a no-op)
-            "-nostartmap",
+            # connect or map command could run; a listen host's "disconnect;" in join() is then a no-op;
+            # QVR_MP_STARTMAP=1: the hub as before, to compare)
+            ] + ([] if os.environ.get("QVR_MP_STARTMAP") == "1" else ["-nostartmap"]) + [
             "-ip", "127.0.0.1", "-port", str(self.port)] + ([] if self.sound else ["-nosound"])
         if self.dedicated:
             a += ["-dedicated", str(self.dedicated)]

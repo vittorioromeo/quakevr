@@ -9945,6 +9945,15 @@ def syncaudit(s, flat):
 
 
 def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
+    # (testspeed) the games start without the hub (mp_harness: -nostartmap), except these scenarios, which failed
+    # without it every time (mp_flow: the Load Autosave list; mp_predict(climb): "A on start" timed out) and passed with
+    # it: why is open (BACKLOG). QVR_MP_STARTMAP=1 in the environment: the hub for every scenario.
+    if test in STARTMAP_SCENARIOS and os.environ.get("QVR_MP_STARTMAP") != "1":
+        os.environ["QVR_MP_STARTMAP"] = "1"
+        try:
+            return run(args, test, lag, jitter, loss)
+        finally:
+            os.environ.pop("QVR_MP_STARTMAP", None)
     # (mpopen) the scenario's block of ports free first: a game left over (or another run's) holding its server port made
     # the next scenarios' servers exit at start; the next free block then, said
     port, busy = free_base_port(args.port)
@@ -10214,6 +10223,7 @@ SUITE = [
 # --profile all (releases, nightly): adspose (screenshots for a person, measurements), fuzz (the corrupting proxy),
 # rejoin_keep, voice_lossy. The default profile is the rest. --only runs the names it gives whatever the profile.
 LONG = {"mp_adspose", "mp_fuzz", "mp_rejoin_keep", "mp_voice_lossy"}
+STARTMAP_SCENARIOS = {"mp_flow", "mp_predict", "mp_predictclimb"}  # (run(): still with the start-up hub)
 
 
 def in_profile(name, profile):
