@@ -19,6 +19,7 @@
 #      tossed into the held shotgun slides in as before (QVR_CFX_INTO_GUN).
 # Prints PASS/FAIL per check (and the numbers); exits 1 on a failure.
 AGENT=$1; KIT=${KIT:-C:/OHWorkspace/qvr-kit}
+export TB_COLLECT_STUBS=${TB_COLLECT_STUBS-1} # (the collect pass without its log-reading tools: testbatch.sh)
 export TB_NODRAW=${TB_NODRAW-1} # (batched frames not drawn: no check here reads the drawing; testbatch.sh)
 # (The body: tb_main plays its runs as batches, testbatch.sh; TB_SLOW=1: each alone by run.sh, as before.)
 tb_body() {
@@ -70,7 +71,10 @@ check $(! echo "$log" | grep -q "into the" && echo 1 || echo 0) "lying shotgun: 
 log=$(lying 155 held)
 check $(echo "$log" | grep -q "can't take it" && ! echo "$log" | grep -q "into the" && echo 1 || echo 0) "lying super shotgun shut: a shell held at its breech taps, stays out"
 
-# 4. The Box3D step with six guns lying in a heap where the off hand's gun sweeps through them.
+# 4. The Box3D step with six guns lying in a heap where the off hand's gun sweeps through them. Numbers only, no check,
+# and timing runs (run.sh --exclusive: they wait for every other game on the machine to end, 1200 s and a timeout in the
+# 1.2.0-beta1 suite): with QVR_TEST_TIMINGS=1 only (build.sh --lto first).
+if [ "$QVR_TEST_TIMINGS" = 1 ]; then
 HEAP=""
 for g in 154 156 157 161 155 160; do HEAP="$HEAP;impulse $g;wait3;vr_test_weaponinst 7;impulse 120;wait3;vr_mock_hand off 0 1.0 -0.40 80 0 0;wait5;vr_reload_test 20;impulse 125;wait10"; done
 SWEEP=$(awk 'BEGIN { for(i = 0; i < 120; i++) printf "vr_mock_hand off %.3f 0.35 -0.45 0 %d 0;wait1;", 0.25 * sin(i / 6), (i * 7) % 360 }')
@@ -80,6 +84,7 @@ for p in 12 1; do
     echo "pieces $p: $ms"
 done
 echo "(the profile's box3d step and reach: their average and worst per frame)"
+else echo "(4. the Box3D step's timings: QVR_TEST_TIMINGS=1)"; fi
 
 # 5. A shell into the shotgun lying about: its slide; the lying gun's screen.
 S="$BASE;impulse 154;wait3;vr_test_weaponinst 7;impulse 120;wait3;give s 30;vr_mock_hand main 0.25 1.1 -0.3 0 0 0;vr_mock_hand off -0.15 1.0 -0.40 80 0 0;wait10;vr_reload_test 5;impulse 125;wait2;vr_reload_test 20;impulse 125;wait120;vr_debug_collect_fx 1;+grabmain;vr_mock_button main grip 1;wait10;vr_reload_test 22;impulse 125;wait5;vr_reload_test 22;impulse 125;wait150"
