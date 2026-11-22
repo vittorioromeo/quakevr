@@ -225,6 +225,7 @@ struct FlatKeys
 {
     bool keyCtrl{false};    // Left Ctrl, last frame (Right Ctrl is the same key code: in_sdl.c maps both to K_CTRL)
     bool keyFlash{false};   // F, last frame
+    bool keyGear{false};    // 9 (vr_flat_key_gearlights), last frame
     bool keyDrop{false};    // H (vr_flat_key_drop), last frame
     bool keySwap{false};    // Q (vr_flat_key_swap), last frame
     bool keyTime{false};    // Z (vr_flat_key_bullettime), last frame
@@ -1783,6 +1784,7 @@ void pollKeysFlat()
     const bool inGame = key_dest == key_game;
     const bool ctrl = inGame && keydown[K_CTRL] != 0;
     const bool flash = inGame && flatKeyHeld(vr_flat_key_flashlight);
+    const bool gear = inGame && flatKeyHeld(vr_flat_key_gearlights);
     // H (vr_flat_key_drop; G until 2026-11-10, his words: "Rebind drop to 'H' and free the 'G' key up": G is the quick
     // grenade now, vr_flatgrenade.cpp).
     const int dropKey = vr_flat_key_drop.string[0] ? Key_StringToKeynum(vr_flat_key_drop.string) : -1;
@@ -1808,6 +1810,17 @@ void pollKeysFlat()
             Con_Printf("flatplay: %s: the flashlight\n", vr_flat_key_flashlight.string);
         }
     }
+    // 9 (vr_flat_key_gearlights): the wrist gadget's side button in VR, the gear lights dimmed or lit (the visor, the
+    // guns' ammo screens). The same switch as the console's (vr_gearlights.cpp toggle), queued the F's way.
+    if(gear && !keyState.keyGear)
+    {
+        Cbuf_InsertText("vr_gear_lights_toggle\n");
+        if(vr_flatplay_debug.value)
+        {
+            Con_Printf("flatplay: %s: gear lights\n", vr_flat_key_gearlights.string);
+        }
+    }
+    keyState.keyGear = gear;
     if(drop && !keyState.keyDrop)
     {
         keyState.drops++;

@@ -7744,3 +7744,26 @@ Phase 3's rest (ROPES.md "Climbing (flat-screen)", "Multiplayer", "Tests", "Know
   (flat A on a rope, B watching) runs but fails its pose checks (wrists 9-25 units off, ankles 11-24): open, in
   ROPES.md's known limits, kept out of the suite.
 
+## flathotkeys: hotkeys for the remaining VR interactions, audited; 9 dims the gear lights (agent/flathotkeys, 2026-11-22)
+
+BACKLOG 3: "**Hotkeys for the remaining VR interactions** (2026-11-05): audit what is left (parry, ammo switch, throw,
+shove, climb...) and propose a key or leave it VR-only."
+
+- **The audit**: FLATPLAY.md, "Hotkeys: what the headset does that a key does (and doesn't)": each VR interaction, its
+  flat way, and done / VR only / his call. Already covered: parry (RMB, one melee weapon), ammo switch (B; and 7/8,
+  `default.cfg`'s impulse 42/43, both hands), shove, punch, force grab, drop, swap, holsters, reload, bullet time,
+  flashlight, leans, crouch, prone, voice chat, toolgun; climbing is automatic (mantle, ladders, ropes).
+- **Implemented (uncontroversial, no clash)**: `vr_flat_key_gearlights` (default `9`: bound to nothing by default.cfg, no
+  flat key on it; `""` none), the wrist gadget's side button: `vr_gear_lights_toggle` queued as F queues the flashlight
+  (vr_flatplay.cpp pollKeysFlat; the console's own switch, so VR and flat share it). In the flat-key list
+  (vr_flatmove.cpp `flatKeyList`/`flatKeyLabels`: "Gear lights" after Flashlight), so Controls lists it, rebinds, clears,
+  resets and owns it in flat play with no new code. Seen: the visor's panels dim (two screenshots, 9 off/on).
+- **For his call** (not built): a flat **throw** (a swing that opens the hand at speed, the headset's throw doing the rest;
+  on H held, changing H, or J); a flat **grab** (an empty hand reaching out and closing on what it meets: holding enemies
+  (`vr_foegrab`), an armed grunt's gun's tug-of-war, a ledge to hang from; flat hands are always closed, so no grip ever
+  starts today; K/L `+grableft`/`+grabright` could be its keys); the **grapple's rope** in flat (reel/unreel: today
+  Rogue's pull, as for a bot); a **parry when dual wielding** melee (RMB is the left hand's blow there).
+- VR only (no key proposed): ledge hanging and shimmy, two-handed carry, swimming strokes, the gadget's pages and Doom,
+  teleport/turning/recentre, the immersive reload parts.
+- Test: `Misc/quakevr/flatkeybind_test.sh <agent>` + the gear case (Controls' row with no clash, 9 dims then lights,
+  `vr_gear_lights` 0 then 1): 13 passed, 0 failed. Scenario `flat_gear_lights`.
