@@ -14,10 +14,12 @@
 
 #include "vr_climbrope.hpp"
 
+#include "vr_avatar.hpp"
 #include "vr_box3d.hpp"
 #include "vr_climb.hpp"
 #include "vr_coil.hpp"
 #include "vr_cvars.hpp"
+#include "vr_fatigue.hpp"
 #include "vr_geom.hpp"
 #include "vr_gfx.hpp"
 #include "vr_mem.hpp"
@@ -1502,11 +1504,393 @@ void flatTest_f()
     flatTest.stage = 1;
 }
 
+// ---------------------------------------------------------------------------------------------------------------------
+// vr_rope_hands_test (ropes5, ROPES.md "Tests"; flat-screen play, -flatscreenmode, in vrropes): the drawn hands on the
+// row's first rope, its first chain and the heavy chain, each taken in the air, hanging still (2 s) then pumped (3 s).
+// Each drawn frame (clientFrame) each hand drawn on its hold is sampled: the palm's second difference frame to frame
+// (smooth motion ~0; a step some frames and not others, the jitter), the arm's (palm less shoulder: the drawn arm's
+// vibration), and how far the palm's middle is off the rope as drawn (from its drawn pieces, less its half thickness;
+// < 0 in it). Best with the client faster than the server (vr_fixed_frames_rate 144), as a monitor or a headset.
+// Counted server frames; the limits a safety net (FAIL timed out).
+struct HandStat
+{
+    int n{0};
+    float jitSum{0.f}, jitMax{0.f}; // the palm's second difference (units)
+    float armSum{0.f}, armMax{0.f}; // the arm's (palm less shoulder)
+    float gapSum{0.f}, gapMax{0.f}; // off the drawn rope (units)
+    float shakeMax{0.f};            // the tired arms' shake in the drawn hand (vr_fatigue; units)
+};
+struct HandSampler
+{
+    bool on{false};
+    int frame{-1};
+    HandStat stat;
+    glm::vec3 palm[2][2]{}; // each hand's last two frames' palm and arm
+    glm::vec3 arm[2][2]{};
+    int have[2]{0, 0};
+};
+HandSampler handSampler;
+
+const za::Vector<glm::vec3>& shownOf(ClientRope& c); // (below: the client's rope as drawn this frame)
+
+struct HandsTest
+{
+    int stage{0}; // 0 off
+    int frames{0};
+    int target{0};
+    testkit::Tally tally;
+    float pitch{0.f};
+};
+HandsTest handsTest;
+constexpr const char* handsTestName = "vr_rope_hands_test";
+// (vrropes: the row's first rope, its first chain (1.5 thick), the heavy chain (3 thick, 40 kg); where he is set by each)
+constexpr glm::vec3 handsTestAt[3] = {{-300.f, 0.f, 170.f}, {-108.f, 0.f, 170.f}, {-12.f, 400.f, 380.f}};
+constexpr const char* handsTestWhat[3] = {"rope", "chain", "heavy chain"};
+constexpr float handsJitterMost = 0.5f; // units: a palm's or arm's second difference a frame, at most (smooth: well under)
+constexpr float handsGapMost = 1.f;     // units: the palm's middle off the drawn rope's surface at most (in it is fine)
+
+void handSamplerStart()
+{
+    handSampler = HandSampler{};
+    handSampler.on = true;
+}
+
+// Client, each frame drawn (clientFrame): the drawn hands on their holds sampled.
+void handSamplerFrame()
+{
+    HandSampler& s = handSampler;
+    if(!s.on || cls.signon != SIGNONS || s.frame == host_framecount)
+    {
+        return;
+    }
+    s.frame = host_framecount;
+    for(int h = 0; h < 2; h++)
+    {
+        glm::vec3 palm{0.f};
+        avatar::Shoulder sh;
+        if(climb::drawnShare(h) < 0.999f || !climb::drawnPalm(h, palm) || !avatar::shoulder(h, sh))
+        {
+            s.have[h] = 0;
+            continue;
+        }
+        glm::vec3 shakePos{0.f}, shakeAngles{0.f};
+        fatigue::shake(h, shakePos, shakeAngles);
+        palm += shakePos; // (as drawn: vr_view_hands.cpp's placeController)
+        s.stat.shakeMax = za::max(s.stat.shakeMax, glm::length(shakePos));
+        const glm::vec3 arm = palm - sh.joint;
+        if(s.have[h] >= 2)
+        {
+            const float jit = glm::length(palm - 2.f * s.palm[h][0] + s.palm[h][1]);
+            const float armJit = glm::length(arm - 2.f * s.arm[h][0] + s.arm[h][1]);
+            float thick = 1.5f;
+            float best = 1e9f;
+            for(auto& kv : clientRopes)
+            {
+                const za::Vector<glm::vec3>& q = shownOf(kv.second);
+                for(za::SizeT j = 0; j + 1 < q.size(); j++)
+                {
+                    float ta = 0.f, tb = 0.f;
+                    if(const float d = geom::segmentsDistance(palm, palm, q[j], q[j + 1], ta, tb); d < best)
+                    {
+                        best = d;
+                        thick = kv.second.thickness;
+                    }
+                }
+            }
+            const float gap = best - 0.5f * thick;
+            s.stat.n++;
+            s.stat.jitSum += jit;
+            s.stat.jitMax = za::max(s.stat.jitMax, jit);
+            s.stat.armSum += armJit;
+            s.stat.armMax = za::max(s.stat.armMax, armJit);
+            s.stat.gapSum += gap;
+            s.stat.gapMax = za::max(s.stat.gapMax, gap);
+        }
+        s.palm[h][1] = s.palm[h][0];
+        s.palm[h][0] = palm;
+        s.arm[h][1] = s.arm[h][0];
+        s.arm[h][0] = arm;
+        s.have[h] = za::min(s.have[h] + 1, 2);
+    }
+}
+
+// The sampler's numbers since handSamplerStart checked: `what` (rope, chain), `how` (hanging, swinging).
+void handsTestReport(HandsTest& t, const char* what, const char* how)
+{
+    const HandStat& st = handSampler.stat;
+    handSampler.on = false;
+    const float n = static_cast<float>(za::max(st.n, 1));
+    const bool ok = st.n >= 72 && st.jitMax <= handsJitterMost && st.armMax <= handsJitterMost && st.gapMax <= handsGapMost;
+    const char* line = va("%s %s: %d samples; palm jitter mean %.3f max %.3f, arm jitter mean %.3f max %.3f, off the drawn %s "
+                          "mean %.2f max %.2f (shake at most %.2f)",
+        what, how, st.n, st.jitSum / n, st.jitMax, st.armSum / n, st.armMax, what, st.gapSum / n, st.gapMax, st.shakeMax);
+    t.tally.check(ok, handsTestName, line);
+    if(ok)
+    {
+        Con_Printf("%s: PASS %s\n", handsTestName, line);
+    }
+}
+
+void handsTestEnd(HandsTest& t, bool timedOut, const char* what)
+{
+    if(timedOut)
+    {
+        t.tally.check(false, handsTestName, va("timed out: %s", what));
+    }
+    Cbuf_AddText("-forward\n-jump\n");
+    handSampler.on = false;
+    t.tally.verdict(handsTestName);
+    t.stage = 0;
+}
+
+void handsTestFrame()
+{
+    HandsTest& t = handsTest;
+    t.frames++;
+    edict_t* player = firstPlayer();
+    if(!player)
+    {
+        return;
+    }
+    const int client = NUM_FOR_EDICT(player) - 1;
+    cl.viewangles[PITCH] = 0.f;
+    cl.viewangles[YAW] = 0.f;
+    bool climbing = false;
+    (void)climb::flatRopes(player, climbing);
+    int ent = 0;
+    glm::vec3 v{0.f};
+    const bool riding = climbing && climbrope::riding(client, ent, v);
+    const char* what = handsTestWhat[t.target];
+    switch(t.stage)
+    {
+    case 1: // off any rope: set by the next one in the air
+        if(t.frames < 36 || (climbing && t.frames < 72 * 3))
+        {
+            return;
+        }
+        flatTestPlace(player, handsTestAt[t.target], 0.f);
+        t.stage = 2;
+        t.frames = 0;
+        return;
+    case 2: // taken
+        if(riding)
+        {
+            t.stage = 3;
+            t.frames = 0;
+        }
+        else if(t.frames > 72 * 2)
+        {
+            handsTestEnd(t, true, va("taking the %s in the air", what));
+        }
+        return;
+    case 3: // eased onto it (the hands' pins in, the take's swing damped a little): sampled hanging
+        if(t.frames == 36)
+        {
+            handSamplerStart();
+        }
+        else if(t.frames >= 36 + 144)
+        {
+            handsTestReport(t, what, "hanging");
+            handSamplerStart();
+            Cbuf_AddText("+forward\n"); // (looking level: the pump)
+            t.stage = 4;
+            t.frames = 0;
+        }
+        return;
+    case 4: // pumped
+        if(!riding)
+        {
+            t.tally.check(false, handsTestName, va("%s swinging: fell off", what));
+            handsTestEnd(t, false, "");
+        }
+        else if(t.frames >= 216)
+        {
+            handsTestReport(t, what, va("swinging (%.0f units/s at the hands)", glm::length(glm::vec2{v.x, v.y})));
+            Cbuf_AddText("-forward\n+jump\n");
+            t.stage = 5;
+            t.frames = 0;
+        }
+        return;
+    case 5: // let go
+        if(t.frames == 6)
+        {
+            Cbuf_AddText("-jump\n");
+        }
+        else if(t.frames >= 12)
+        {
+            if(++t.target >= 3)
+            {
+                handsTestEnd(t, false, "");
+                return;
+            }
+            t.stage = 1;
+            t.frames = 0;
+        }
+        return;
+    default:
+        return;
+    }
+}
+
+void handsTest_f()
+{
+    if(!sv.active || !progs::bindings().isVrProgs || progs::fields().rope_length < 0)
+    {
+        Con_Printf("%s: FAIL usage: vr_rope_hands_test in flat-screen play (-flatscreenmode), map vrropes\n", handsTestName);
+        testkit::verdict(handsTestName, 0, 1);
+        return;
+    }
+    handsTest = HandsTest{};
+    handsTest.stage = 1;
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// vr_rope_pause_test (ropes5, ROPES.md "Tests"; flat-screen play, -flatscreenmode, in vrropes, single player): the map's
+// ropes pushed swinging; paused (`pause`, F8's), their points (the server's and as the client draws them) stand still
+// over a second; unpaused, they swing on; the menu open (single player's pause), still again. Counted drawn frames
+// (the server's stand still while paused).
+struct PauseTest
+{
+    int stage{0}; // 0 off
+    int frames{0};
+    testkit::Tally tally;
+    za::Vector<glm::vec3> mark; // the points at the mark: the server's, then the client's as drawn
+};
+PauseTest pauseTest;
+constexpr const char* pauseTestName = "vr_rope_pause_test";
+
+void pauseTestPoints(za::Vector<glm::vec3>& out)
+{
+    out.clear();
+    for(auto& kv : ropes)
+    {
+        for(const glm::vec3& p : kv.second.p)
+        {
+            out.pushBack(p);
+        }
+    }
+    for(auto& kv : clientRopes)
+    {
+        for(const glm::vec3& p : shownOf(kv.second))
+        {
+            out.pushBack(p);
+        }
+    }
+}
+
+// The most any point moved since the mark (1e9: the ropes changed).
+float pauseTestMoved(const PauseTest& t)
+{
+    za::Vector<glm::vec3> now;
+    pauseTestPoints(now);
+    if(now.size() != t.mark.size() || now.empty())
+    {
+        return 1e9f;
+    }
+    float most = 0.f;
+    for(za::SizeT i = 0; i < now.size(); i++)
+    {
+        most = za::max(most, glm::distance(now[i], t.mark[i]));
+    }
+    return most;
+}
+
+void pauseTestEnd(PauseTest& t)
+{
+    t.tally.verdict(pauseTestName);
+    t.stage = 0;
+}
+
+// Client, each frame drawn.
+void pauseTestFrame()
+{
+    PauseTest& t = pauseTest;
+    if(cls.signon != SIGNONS)
+    {
+        return;
+    }
+    t.frames++;
+    const auto next = [](int stage) {
+        pauseTest.stage = stage;
+        pauseTest.frames = 0;
+    };
+    switch(t.stage)
+    {
+    case 1: // pushed: swinging
+        if(t.frames == 1)
+        {
+            Cbuf_AddText("vr_rope_push 0 400 0\n");
+        }
+        else if(t.frames >= 72)
+        {
+            Cbuf_AddText("pause\n");
+            next(2);
+        }
+        return;
+    case 2: // paused: still
+    case 4: // the menu open: still
+        if(t.frames == 12)
+        {
+            pauseTestPoints(t.mark);
+        }
+        else if(t.frames >= 12 + 72)
+        {
+            const float moved = pauseTestMoved(t);
+            const bool ok = moved <= 0.01f;
+            const char* how = t.stage == 2 ? "paused (pause, F8)" : "the menu open";
+            t.tally.check(ok, pauseTestName, va("%s: the ropes' points moved at most %.3f units in a second (%d points)", how, moved,
+                                                 static_cast<int>(t.mark.size())));
+            if(ok)
+            {
+                Con_Printf("%s: PASS %s: the ropes' points moved at most %.3f units in a second\n", pauseTestName, how, moved);
+            }
+            pauseTestPoints(t.mark);
+            Cbuf_AddText(t.stage == 2 ? "pause\n" : "togglemenu\n");
+            next(t.stage + 1);
+        }
+        return;
+    case 3: // unpaused: swinging on
+    case 5: // the menu closed
+        if(t.frames >= 36)
+        {
+            const float moved = pauseTestMoved(t);
+            const bool ok = moved >= 0.5f && moved < 1e8f;
+            t.tally.check(ok, pauseTestName, va("%s: swinging on (moved %.2f units in half a second)",
+                                                 t.stage == 3 ? "unpaused" : "the menu closed", moved));
+            if(t.stage == 5)
+            {
+                pauseTestEnd(t);
+                return;
+            }
+            Cbuf_AddText("togglemenu\n");
+            next(4);
+        }
+        return;
+    default:
+        return;
+    }
+}
+
+void pauseTest_f()
+{
+    if(!sv.active || svs.maxclients > 1 || ropes.empty())
+    {
+        Con_Printf("%s: FAIL usage: vr_rope_pause_test in single player, map vrropes\n", pauseTestName);
+        testkit::verdict(pauseTestName, 0, 1);
+        return;
+    }
+    pauseTest = PauseTest{};
+    pauseTest.stage = 1;
+}
+
 void serverReset()
 {
     ropes.clear();
     climbTest = ClimbTest{};
     flatTest = FlatTest{};
+    handsTest = HandsTest{};
+    handSampler = HandSampler{};
+    pauseTest = PauseTest{};
     for(auto& client : handsSeen)
     {
         for(HandSeen& h : client)
@@ -1606,6 +1990,17 @@ void init()
     Cmd_AddCommand("vr_rope_climb_test", climbTest_f);
     Cmd_AddCommand("vr_rope_climb_check", climbCheck_f);
     Cmd_AddCommand("vr_rope_flat_test", flatTest_f);
+    Cmd_AddCommand("vr_rope_hands_test", handsTest_f);
+    Cmd_AddCommand("vr_rope_pause_test", pauseTest_f);
+}
+
+void clientFrame()
+{
+    handSamplerFrame();
+    if(pauseTest.stage)
+    {
+        pauseTestFrame();
+    }
 }
 
 bool isRopeClass(const char* classname)
@@ -1613,9 +2008,9 @@ bool isRopeClass(const char* classname)
     return !strcmp(classname, "vr_rope") || !strcmp(classname, "vr_chain");
 }
 
-void serverFrame()
+void serverFrame(bool worldRan)
 {
-    if(!sv.active || sv.paused || !progs::bindings().isVrProgs || progs::fields().rope_length < 0)
+    if(!worldRan || !sv.active || sv.paused || !progs::bindings().isVrProgs || progs::fields().rope_length < 0)
     {
         return;
     }
@@ -1632,6 +2027,10 @@ void serverFrame()
     if(flatTest.stage)
     {
         flatTestFrame();
+    }
+    if(handsTest.stage)
+    {
+        handsTestFrame();
     }
     // New ropes (a map's, the toolgun's): rope entities with no rope yet.
     for(int num = svs.maxclients + 1; num < sv.qcvm.num_edicts; num++)

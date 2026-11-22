@@ -18,9 +18,14 @@ namespace qvr::climbrope
 
 void init(); // vr_rope_info, vr_rope_test
 
+// Client, once a host frame after it is drawn (VR_HostFrameEnd): the client-side tests' samples and steps
+// (vr_rope_hands_test, vr_rope_pause_test).
+void clientFrame();
+
 // Server, once a frame after the physics (vr_server.cpp's frame end): new rope entities found and made, every rope
-// stepped (pushed by what meets it), sent to the clients where it moved.
-void serverFrame();
+// stepped (pushed by what meets it), sent to the clients where it moved. `worldRan`: SV_Physics ran this frame; false
+// (paused: `pause`, single player's menu or console): the ropes stand as they are (ropes5).
+void serverFrame(bool worldRan);
 
 // Server: a new client's spawn state (VR_WriteClientSpawnState): every rope as it is now.
 void serverWriteAll(sizebuf_t* msg);

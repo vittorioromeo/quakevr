@@ -157,5 +157,8 @@ float drawnHand(const hands::State& s, int hand, const glm::mat3& handTurn, glm:
 // Client: how far the drawn `hand` is on its hold, as drawnHand last made it (0..1): a flat mantle's free hand leaves the
 // other hand's gun for it (vr_view_hands.cpp).
 [[nodiscard]] float drawnShare(int hand);
+// Client: where drawnHand last put the drawn `hand`'s palm middle on its hold (world) -> true; false: not on one.
+// (vr_rope_hands_test's samples.)
+[[nodiscard]] bool drawnPalm(int hand, glm::vec3& palm);
 
 } // namespace qvr::climb

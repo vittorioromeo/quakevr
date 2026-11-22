@@ -1488,6 +1488,7 @@ Host_ServerFrame
 void Host_ServerFrame (void)
 {
 	int		i, active; //johnfitz
+	qboolean	worldran = false; // QVR: SV_Physics ran (the climbable ropes stand while paused)
 	edict_t	*ent; //johnfitz
 
 // run the world state
@@ -1515,7 +1516,10 @@ void Host_ServerFrame (void)
 // always pause in single player if in console or menus
 	VR_ProfileBegin ("SV_Physics"); // QVR: profile
 	if (!sv.paused && !VR_RuntimeMenuPause () && !VR_RagtoolHolds () && !VR_RigStudioHolds () && !VR_LockstepHolds () && (svs.maxclients > 1 || key_dest == key_game || VR_MenuRunsGame ())) // QVR: live preview in VR; the runtime's menu pauses; the ragdoll tool's pause
+	{
 		SV_Physics ();
+		worldran = true; // QVR
+	}
 	VR_ProfileEnd (); // QVR
 
 //johnfitz -- devstats
@@ -1535,7 +1539,7 @@ void Host_ServerFrame (void)
 //johnfitz
 
 	if (!VR_LockstepHolds ()) // QVR: (a held lockstep frame changes nothing: its frame end waits for the step)
-		VR_ServerFrameEnd (); // QVR
+		VR_ServerFrameEnd (worldran); // QVR
 
 // send all messages to the clients
 	VR_ProfileBegin ("send"); // QVR: profile

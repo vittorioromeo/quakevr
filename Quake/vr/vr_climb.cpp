@@ -4985,6 +4985,16 @@ float qvr::climb::drawnShare(int hand)
     return w * w * (3.f - 2.f * w);
 }
 
+bool qvr::climb::drawnPalm(int hand, glm::vec3& palm)
+{
+    if(hand < 0 || hand > 1 || pins[hand].weight <= 0.f)
+    {
+        return false;
+    }
+    palm = pins[hand].hold();
+    return true;
+}
+
 int qvr::climb::flatMantles(edict_t* ent, bool& mantling)
 {
     const Climber* c = climberOf(ent);

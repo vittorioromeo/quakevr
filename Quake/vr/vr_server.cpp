@@ -2606,7 +2606,7 @@ extern "C" void VR_ServerFrameBegin()
     qvr::heldpose::placeBots(); // (bots3: each bot's weapons as every client draws them)
 }
 
-extern "C" void VR_ServerFrameEnd()
+extern "C" void VR_ServerFrameEnd(int worldRan)
 {
     QVR_TRACY_SCOPE(zoneFrameEnd, "VR server frame end"); // (profiling builds only, as the steps' zones)
     QVR_TRACY_CALL("sv end: weapon insts", sweepWeaponInsts()); // the weapons' records nothing has any more: freed, their ids gone
@@ -2627,7 +2627,7 @@ extern "C" void VR_ServerFrameEnd()
     QVR_TRACY_CALL("sv end: armour", qvr::agarmor::serverFrame()); // the armed humanoids' armour sent where it changed (vr_agarmor.cpp)
     qvr::arenaxray::serverFrame(); // the arena's last foes marked or not, sent where it changed (vr_arenaxray.cpp)
     qvr::humlook::serverFrame(); // the armed humanoids' recolours by weapon, sent where they changed (vr_humlook.cpp)
-    QVR_TRACY_CALL("sv end: climbable ropes", qvr::climbrope::serverFrame()); // the climbable ropes stepped, pushed, sent (vr_climbrope.cpp)
+    QVR_TRACY_CALL("sv end: climbable ropes", qvr::climbrope::serverFrame(worldRan != 0)); // the climbable ropes stepped, pushed, sent (vr_climbrope.cpp; paused: they stand)
     qvr::rigstudio::serverFrame(); // the Rig Studio's scene: its subject made and held (nothing while closed)
 
     // The next move read starts the next frame's buttons and bits (VR_MoveMerges; any protocol: the buttons too).
