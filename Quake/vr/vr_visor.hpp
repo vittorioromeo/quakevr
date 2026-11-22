@@ -22,6 +22,7 @@ namespace qvr::visor
 
 // The visor is the HUD now: flatscreen play, vr_flat_visor, in a map (not its intermission), viewsize under 120, no CSQC HUD.
 [[nodiscard]] bool active();
+[[nodiscard]] bool booted(); // the current seat's panels powered on (their boot sweep done: vr_flat_visor_boot)
 
 // The notify lines are the visor's (vr_flat_visor_log), not the screen's top left.
 [[nodiscard]] bool logShown();

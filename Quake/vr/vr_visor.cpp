@@ -1611,10 +1611,21 @@ int damagePending()
 
 bool active()
 {
-    // (splitscreen: the visor's panels and passes are one view's, phase 13's per seat: each tile the classic HUD)
+    // (splitscreen: each seat's, in its tile: its panels rendered before its view, VR_VisorSeatPanels)
     return flatplay::active() && vr_flat_visor.value != 0.f && cls.state == ca_connected && cls.signon == SIGNONS &&
-           cl.worldmodel && !cl.intermission && scr_viewsize.value < 120.f && !cl.qcvm.extfuncs.CSQC_DrawHud &&
-           SCR_SeatsDrawn() <= 1;
+           cl.worldmodel && !cl.intermission && scr_viewsize.value < 120.f && !cl.qcvm.extfuncs.CSQC_DrawHud;
+}
+
+bool booted()
+{
+    for(int p = 0; p < VisorPanelCount; p++)
+    {
+        if(state().input.boot[p] < 1.f)
+        {
+            return false;
+        }
+    }
+    return true;
 }
 
 bool logShown()
@@ -1709,6 +1720,13 @@ extern "C" int VR_CenterPrintOnVisor(const char* text, float alpha)
 
 // R_RenderView, after the window's view and its look: the visor over it, into `framebuffer` at (x, y, w, h); the window's
 // own view only (never an eye's, nor a teleporter's offscreen camera).
+// Splitscreen, seats in tiles: the current seat's panels' images, rendered in its pass before its view composites them
+// (gl_screen.c SCR_DrawSeats; one set of panel images, each seat's in turn; one seat: VR_End2D's, as before).
+extern "C" void VR_VisorSeatPanels(void)
+{
+    visor::renderPanels();
+}
+
 extern "C" void VR_DrawVisor(unsigned framebuffer, int x, int y, int w, int h)
 {
     if(stereo::isRenderingEye() || VR_PortalDrawing())

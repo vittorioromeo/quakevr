@@ -410,6 +410,7 @@ unsigned VR_SceneDepthFormat (unsigned format);	// GL_CreateFrameBuffers: the sc
 int VR_FlatBulletTimeLook (void);	// flatscreen play, bullet time's look on the window: the post-process pass is needed (vr_tonemap.cpp)
 int VR_FlatLook (void);	// flatscreen play's look (glow, grade, vignette) on: the post-process's target is needed (vr_flatlook.cpp)
 void VR_FlatLookApply (void);	// R_RenderView, after R_WarpScaleView: flatscreen play's look over the window's view, before the HUD (vr_flatlook.cpp)
+void VR_VisorSeatPanels (void);	// splitscreen, seats in tiles: the current seat's visor panels' images, in its pass before its view (vr_visor.cpp)
 void VR_DrawVisor (unsigned framebuffer, int x, int y, int w, int h);	// R_RenderView, after VR_FlatLookApply: flatscreen play's visor HUD over the window's view, into `framebuffer` at the view's rectangle (vr_visor.cpp)
 void VR_DrawFlatCrosshair (unsigned framebuffer, int x, int y, int w, int h);	// R_RenderView, after VR_DrawVisor: flatscreen play's visor crosshair (vr_flat_xhair) over the window's view, outside the visor's lens (vr_flatxhair.cpp)
 float VR_FlatNearPlane (void);	// flatscreen play's near plane, on the window's targets with float depth (vr_stereo.cpp); 0: the desktop's is kept

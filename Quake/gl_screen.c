@@ -2524,6 +2524,7 @@ static void SCR_DrawSeats (void)
 		{
 			if (s != was)
 				V_UpdateBlend (); // (the caller's seat's is done)
+			VR_VisorSeatPanels (); // its visor's panels (drawn over its view; rendered at its last HUD's)
 			VR_WindowViewBegin ();
 			VR_FlatRenderView ();
 			VR_WindowViewEnd ();

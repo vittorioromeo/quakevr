@@ -13,9 +13,12 @@
 #include "vr_seat.hpp"
 
 #include "vr_avatar.hpp"
+#include "vr_cvars.hpp"
+#include "vr_emissive.hpp"
 #include "vr_engine.hpp"
 #include "vr_geom.hpp"
 #include "vr_particles.hpp"
+#include "vr_visor.hpp"
 
 #include "Zancle/Math/Abs.hpp"
 #include "vr_testkit.hpp"
@@ -34,6 +37,7 @@ enum class Step
     WaitGame,   // seat 1 (index 0) in the game
     WaitJoined, // seats 2..n signed on
     WaitDrawn,  // every seat's view drawn a few times, turned its own way
+    WaitBooted, // every seat's visor powered on (its boot sweep), then the screenshot
     WaitShot,   // the screenshot taken (the frame after its command)
     WaitAlone,  // the seats left: seat 1 drawn in the whole window again
 };
@@ -45,6 +49,7 @@ struct RenderTest
     Step step = Step::Off;
     int frames = 0;            // in this step
     int seats = 2;             // the seats the test plays with
+    bool torches = false;      // vr_seat_render_test <n> torches: each seat's own torch lights checked (a map with torches)
     int drawnAt[maxSeats] = {}; // each seat's drawn count when the step began
     float notifyTime = 3.f;     // con_notifytime before (the notify lines hidden while the markers are read)
 } renderTest;
@@ -318,6 +323,21 @@ void checkEffects()
         va("a Quake VR event all %d seats read: its particles once (%d; one seat's: %d)", n, all, own));
 }
 
+// Part 3 (vr_seat_render_test <n> torches, on a map with torches by the starts: e1m6): each drawn seat's torch lights
+// are its own client's, chosen by its own eye (VR_TorchLights in its relink): some lit, all near its eye.
+void checkTorches()
+{
+    for(int s = 0; s < renderTest.seats; s++)
+    {
+        const Scope in(at(s));
+        const seatview_t* v = V_SeatViewOf(s);
+        float farthest = 0.f;
+        const int lit = emissive::torchLightsLit(glm::vec3{v->drawnorg[0], v->drawnorg[1], v->drawnorg[2]}, farthest);
+        check(lit > 0 && farthest < 1200.f, va("seat %d's own torch lights by its eye (%d lit, the farthest %.0f units off)",
+            s + 1, lit, static_cast<double>(farthest)));
+    }
+}
+
 // The channels playing sfx (S_StartSound's; read right after a start: its S_MixJoin left no mix posted).
 [[nodiscard]] const channel_t* channelOf(const sfx_t* sfx, int* count)
 {
@@ -436,6 +456,28 @@ void testFrame()
             checkBodies();
             checkEffects();
             checkSounds();
+            if(t.torches)
+            {
+                checkTorches();
+            }
+            for(int s = 0; s < t.seats; s++) // (part 3: each seat's flat visor, drawn in its tile: the screenshot shows it)
+            {
+                const Scope in(at(s));
+                check((visor::active() ? 1 : 0) == (vr_flat_visor.value != 0.f ? 1 : 0),
+                    va("seat %d's visor HUD as vr_flat_visor %g says (%d)", s + 1, static_cast<double>(vr_flat_visor.value),
+                        visor::active() ? 1 : 0));
+            }
+            go(Step::WaitBooted);
+            return;
+        case Step::WaitBooted:
+            for(int s = 0; s < t.seats; s++) // (each seat's visor powered on before the screenshot: its panels shown)
+            {
+                const Scope in(at(s));
+                if(visor::active() && !visor::booted())
+                {
+                    return;
+                }
+            }
             Cbuf_AddText("screenshot\n"); // (screenshots/: run.sh -Out composes it)
             go(Step::WaitShot);
             return;
@@ -468,11 +510,12 @@ void testFrame()
     }
 }
 
-// vr_seat_render_test [n]: n seats (2-4, default 2) drawn, each in its tile.
+// vr_seat_render_test [n] [torches]: n seats (2-4, default 2) drawn, each in its tile (torches: each seat's torch lights).
 void renderTest_f()
 {
     renderTest = RenderTest{};
     renderTest.seats = Cmd_Argc() > 1 ? Q_atoi(Cmd_Argv(1)) : 2;
+    renderTest.torches = Cmd_Argc() > 2 && !q_strcasecmp(Cmd_Argv(2), "torches");
     if(renderTest.seats < 2 || renderTest.seats > maxSeats)
     {
         Con_Printf("vr_seat_render_test <2-%d>\n", maxSeats);

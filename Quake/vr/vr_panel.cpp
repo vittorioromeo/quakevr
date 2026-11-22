@@ -812,9 +812,9 @@ extern "C" void VR_End2D(void (*windowHud)())
     if(!drawingToCanvas)
     {
         text3d::renderScreens(); // world-board images also belong to the ordinary flat-screen view
-        visor::renderPanels();   // (flatscreen play's visor HUD: its panels' images, shown in the next frame's view)
-        if(SCR_SeatsDrawn() <= 1) // (seats in tiles: each seat's in its tile, VR_FlatSeatPanels)
+        if(SCR_SeatsDrawn() <= 1) // (seats in tiles: each seat's in its pass, VR_VisorSeatPanels and VR_FlatSeatPanels)
         {
+            visor::renderPanels(); // (flatscreen play's visor HUD: its panels' images, shown in the next frame's view)
             VR_FlatSeatPanels();
         }
         return;

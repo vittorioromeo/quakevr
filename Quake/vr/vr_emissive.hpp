@@ -56,4 +56,8 @@ void powerupGlowLight(int key, const glm::vec3& pos, float strength, float radiu
 // files are another game's; the torches' lights (by entity, with the world they were placed in).
 void onGameDirChanged();
 
+// The torch lights lit in the current client's dynamic lights (VR_TorchLights'; splitscreen: each drawn seat's own), and
+// the farthest of them from `eye` (vr_seat_render_test).
+[[nodiscard]] int torchLightsLit(const glm::vec3& eye, float& farthest);
+
 } // namespace qvr::emissive

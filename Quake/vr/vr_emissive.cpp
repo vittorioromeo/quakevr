@@ -1013,6 +1013,22 @@ extern "C" void VR_BeamLights(int index, qmodel_t* model, const float* start, co
 // warm light onto the room. The nearest vr_torch_lights in the source/destination PVS within
 // torchLightDistance, each fading in and out as it is chosen or dropped (vr_torch_light_shadows of
 // them cast shadows: the most important, held a while); brightness vr_torch_light_scale.
+int qvr::emissive::torchLightsLit(const glm::vec3& eye, float& farthest)
+{
+    int n = 0;
+    farthest = 0.f;
+    for(int i = 0; i < MAX_DLIGHTS; i++)
+    {
+        const dlight_t& dl = cl_dlights[i];
+        if(dl.key <= torchLightKey && dl.key > torchLightKey - maxTorchLights && dl.die >= cl.time && dl.radius > 0.f)
+        {
+            n++;
+            farthest = za::max(farthest, glm::distance(eye, glm::vec3{dl.origin[0], dl.origin[1], dl.origin[2]}));
+        }
+    }
+    return n;
+}
+
 extern "C" void VR_TorchLights(void)
 {
     QVR_PROFILE("torch lights");
