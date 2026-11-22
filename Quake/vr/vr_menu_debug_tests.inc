@@ -1585,6 +1585,9 @@ za::Vector<Item> pageDebugTests()
         command("Test the Climbable Ropes", "vr_rope_test")
             .help("vr_rope_test: a rope and a chain made 128 units ahead, settled, thrown by an explosion, shot, pushed by a crate and a dog; "
                   "the client's copy compared (best in vrropes: its own ropes counted too). Prints PASS/FAIL lines."),
+        command("Test the Flat-Screen Rope Climb", "vr_climb_stamina 0; vr_rope_flat_test")
+            .help("vr_rope_flat_test (flat-screen play, map vrropes; climbing stamina turned off): a rope walked into, climbed up and down, "
+                  "then rope to rope on the swinging row (pumped, let go at the peak, the next caught). Prints PASS/FAIL lines."),
         header("Stamina"),
         info([]() -> const char* { return staminaReadout(); }),
         command("Deplete Stamina", "vr_stamina_set 0").help("vr_stamina_set 0: no stamina left (tired arms: heavy hands; shaking while you hang). Hanging with none, your hands let go."),

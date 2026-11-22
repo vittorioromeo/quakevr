@@ -136,6 +136,10 @@ mem::Scratch<RopeScratch> scratch{"climbrope"};
 struct ClientRope
 {
     za::Vector<glm::vec3> p;
+    za::Vector<glm::vec3> prev;  // the message's before (P3: drawn between the two, as the entities are: shownOf)
+    za::Vector<glm::vec3> shown; // the points as drawn this frame
+    double msgTime{-1.0};        // the server's time of the message that last sent it (cl.mtime[0] then)
+    int shownFrame{-1};
     float thickness{1.5f};
     bool chain{false};
     coil::Cord cord;
@@ -1521,6 +1525,27 @@ void clientReset()
 mem::Reset serverWorldReset{"climbrope", mem::ResetEvent::ServerWorld, mem::ResetPhase::State, &serverReset};
 mem::Reset clientStateReset{"climbrope", mem::ResetEvent::ClientState, mem::ResetPhase::State, &clientReset};
 
+// The client's rope as drawn this frame (and held, the climbers' feet round it): between the last two messages' points
+// as the entities are drawn (CL_LerpPoint's fraction: the server's time between them), so a player hanging on it, drawn
+// there too, stays on it as it swings (P3, ROPES.md "Multiplayer"); a rope the latest message didn't move stands as sent.
+const za::Vector<glm::vec3>& shownOf(ClientRope& c)
+{
+    if(c.shownFrame == host_framecount)
+    {
+        return c.shown;
+    }
+    c.shownFrame = host_framecount;
+    const double span = cl.mtime[0] - cl.mtime[1];
+    const bool lerp = c.msgTime == cl.mtime[0] && c.prev.size() == c.p.size() && span > 1e-4 && span < 0.25;
+    const float f = lerp ? static_cast<float>(za::clamp((cl.time - cl.mtime[1]) / span, 0.0, 1.0)) : 1.f;
+    c.shown.resize(c.p.size());
+    for(za::SizeT i = 0; i < c.p.size(); i++)
+    {
+        c.shown[i] = lerp ? glm::mix(c.prev[i], c.p[i], f) : c.p[i];
+    }
+    return c.shown;
+}
+
 // The client's curve through the points: each piece cut in four along a Catmull-Rom spline.
 void smoothInto(const za::Vector<glm::vec3>& p, za::Vector<glm::vec3>& out)
 {
@@ -1929,6 +1954,15 @@ void parse()
     ClientRope& c = clientRopes[num];
     c.chain = (flags & flagChain) != 0;
     c.thickness = static_cast<float>(thick) / 16.f;
+    // (The last message's points kept to draw between: only when it came in the message just before this one.)
+    const bool again = c.msgTime == cl.mtime[0]; // (sent twice in one message: the first's prev kept)
+    const bool follows = again || (c.msgTime == cl.mtime[1] && c.p.size() == static_cast<za::SizeT>(n));
+    if(!again)
+    {
+        c.prev = c.p;
+    }
+    c.msgTime = cl.mtime[0];
+    c.shownFrame = -1;
     c.p.resize(static_cast<za::SizeT>(n));
     glm::vec3 at{0.f};
     for(int i = 0; i < n; i++)
@@ -1939,18 +1973,22 @@ void parse()
         }
         c.p[static_cast<za::SizeT>(i)] = at;
     }
+    if(!follows)
+    {
+        c.prev = c.p; // (a rope at rest until now, or a new one: no lerp from a stale place)
+    }
 }
 
 float clientRopeDistance(const glm::vec3& p)
 {
     float best = 1e9f;
-    for(const auto& kv : clientRopes)
+    for(auto& kv : clientRopes)
     {
-        const ClientRope& c = kv.second;
-        for(za::SizeT j = 0; j + 1 < c.p.size(); j++)
+        const za::Vector<glm::vec3>& q = shownOf(kv.second);
+        for(za::SizeT j = 0; j + 1 < q.size(); j++)
         {
             float ta = 0.f, tb = 0.f;
-            best = za::min(best, geom::segmentsDistance(p, p, c.p[j], c.p[j + 1], ta, tb));
+            best = za::min(best, geom::segmentsDistance(p, p, q[j], q[j + 1], ta, tb));
         }
     }
     return best;
@@ -1958,18 +1996,18 @@ float clientRopeDistance(const glm::vec3& p)
 
 bool clientRopeAt(const glm::vec3& near, float within, float z, glm::vec3& at)
 {
-    const ClientRope* best = nullptr;
+    const za::Vector<glm::vec3>* best = nullptr;
     float bestDist = within;
-    for(const auto& kv : clientRopes)
+    for(auto& kv : clientRopes)
     {
-        const ClientRope& c = kv.second;
-        for(za::SizeT j = 0; j + 1 < c.p.size(); j++)
+        const za::Vector<glm::vec3>& q = shownOf(kv.second);
+        for(za::SizeT j = 0; j + 1 < q.size(); j++)
         {
             float ta = 0.f, tb = 0.f;
-            if(const float d = geom::segmentsDistance(near, near, c.p[j], c.p[j + 1], ta, tb); d < bestDist)
+            if(const float d = geom::segmentsDistance(near, near, q[j], q[j + 1], ta, tb); d < bestDist)
             {
                 bestDist = d;
-                best = &c;
+                best = &q;
             }
         }
     }
@@ -1978,10 +2016,10 @@ bool clientRopeAt(const glm::vec3& near, float within, float z, glm::vec3& at)
         return false;
     }
     // Down the rope from its top to where it crosses `z` (or its bottom).
-    at = best->p.back();
-    for(za::SizeT j = 0; j + 1 < best->p.size(); j++)
+    at = best->back();
+    for(za::SizeT j = 0; j + 1 < best->size(); j++)
     {
-        const glm::vec3 a = best->p[j], b = best->p[j + 1];
+        const glm::vec3 a = (*best)[j], b = (*best)[j + 1];
         if((a.z - z) * (b.z - z) <= 0.f && za::abs(a.z - b.z) > 1e-3f)
         {
             at = glm::mix(a, b, (a.z - z) / (a.z - b.z));
@@ -2009,7 +2047,7 @@ void drawOpaque()
         if(build)
         {
             QVR_PROFILE("climbable ropes build");
-            smoothInto(c.p, scratch.smooth);
+            smoothInto(shownOf(c), scratch.smooth);
             c.cord.shape(scratch.smooth.data(), scratch.smooth.size(), styleOf(c));
             const bool built = c.cord.build(vecOf(r_refdef.vieworg), scratch.rings, c.sides);
             c.batch = built ? gfx::uploadTube(scratch.rings) : gfx::TubeBatch{};

@@ -91,14 +91,38 @@ grip, pulled down), down (a lower grip, pushed up); stamina drains as on any hol
 - Multiplayer: the holds move, so a remote client's hang runs in the server's frame, as on a prop's or a lift's holds
   (no move-by-move prediction while he hangs on a rope; the server's position is sent each frame).
 
+## Climbing (flat-screen)
+
+Flat-screen play (`vr_flat_rope` 1, Options > Flat-Screen; needs `vr_climb` and `vr_rope_climb`; `vr_climb.cpp`
+flatRope, flatRopeFrame), the flat ladder's way (`flatLadder`) on a rope:
+
+- **Taking it:** walking forward into a rope (on the ground, not looking down past `vr_flat_rope_look`), or meeting one in
+  the air (a jump, a fall, a swing off another rope): a rope within `vr_flat_ladder_reach` (16) of the box's side at the
+  shoulders, at least `vr_climb_min_height` over the feet, at most an arm over the shoulders. Both hands take it: the
+  main hand half an arm over the shoulders, the off hand 12 units under it. The hang is the headset's rope hang (his
+  weight rides it, `climbrope::ride`; the swing he brings to it swings it: walking in at full speed swings it well).
+- **The keys:** looking up past `vr_flat_rope_look` (25 degrees), forward climbs up at `vr_flat_ladder_speed` (100;
+  looking down, down; back the other way; the move up / down keys too); the hands go hand over hand along it (the lower
+  one, once under the shoulders, 12 units over the other; going down the higher, once half an arm over them, 12 under).
+  Looking nearer level the move keys pump its swing (the pump's rules above, the view's yaw). Jump lets go keeping the
+  swing and `vr_rope_jump` up; down at the floor he lets go standing; at the rope's end over a drop he lets go (falling,
+  the swing kept). The rope the body leaves isn't taken again for a second (so a swing off one catches the next).
+- **The body:** under the hands, the rope 10 units ahead of its middle the view's way (turning goes round the rope, at
+  most 120 units/s), carried by the holds' motion; the shoulders no higher than the top hand, no lower than an arm under
+  the lowest. A body that can't follow the swing (a wall) stops it (`climbrope::riderBlocked`). Hands holding a weapon
+  keep it, as on the flat ladder (the other hand is drawn on the rope).
+
 ## Multiplayer
 
 The server's ropes go to every client (`QVR_SVC_CLIMBROPE` 55, `Quake/vr/vr_protocol.hpp`): its entity, chain or rope,
 thickness, the first point as a coordinate and each next as eighths of a unit from the one before (as the grappling
 hook rope's corners). Unreliable, whenever a point moved over a quarter of a unit since the last send, else every half
 second; a new client gets every rope with his spawn state; a rope removed is sent reliably as gone. The client draws
-the last points it got (no interpolation: the server sends every frame a rope moves). A listen server's own client
-draws from the same message, through the loopback: one path.
+each rope between its last two messages' points as the entities are drawn (P3, `shownOf`: CL_LerpPoint's fraction),
+so a player hanging on it, drawn between his entity's last two places, stays with it as it swings (the feet round it,
+`clientRopeAt`, read the same points); a rope the latest message didn't move stands as sent. A listen server's own
+client draws from the same message, through the loopback: one path. Another player's holds come with his avatar
+(`avatarHold*`), his drawn hands as his client drew them.
 
 ## Defaults where the spec is silent (his call; each a setting or key)
 
@@ -111,8 +135,12 @@ draws from the same message, through the loopback: one path.
   up; letting go keeps at most 1000 units/s; one rider a rope; a pinned rope doesn't swing; no mantle from a rope; the
   grab's reach is the ledges' (touch + 4 cm + leniency).
 - P3 (part): the pump pushes only while the swing goes its way, 300 units/s/s to a cap of 350 units/s at the hands.
-- Not yet (P3): the flat auto-climb (at the ladders' speed), the rope-to-rope swing test, the climber's pose checked in
-  MP.
+- P3, flat-screen (2026-11-22, the author asleep: each a setting or a constant to change): the climb at the flat
+  ladder's speed and reach (`vr_flat_ladder_speed`, `_reach`); looking up or down past 25 degrees climbs, nearer level
+  the keys pump (`vr_flat_rope_look`), so one key set does both; walking in takes it only looking no further down than
+  that (no retake while climbing down off it); the hands 12 units apart, the rope 10 units ahead of the body, the body
+  turning round it at 120 units/s at most; the rope let go of not taken again for 1 s; the swing a run brings to it is
+  kept (the physics' rule: a jump onto a rope swings it); the drawn hands fling nothing (only the rope's swing).
 
 ## Files
 
@@ -160,11 +188,24 @@ draws from the same message, through the loopback: one path.
 - `mp_test.py ropes` (`Misc/quakevr/mp`; dedicated server, A, and B through the proxy): the server hangs a rope and a
   chain (`vr_rope_spawn`); B has both with the server's points and style (bottom within a unit); pushed
   (`vr_rope_push`), B sees both swing (over 20 units); B's copies within a unit of the server's after. 9 passed.
+- `Misc/quakevr/climb/rope_flat_test.sh <agent>` (`vr_rope_flat_test`, flat-screen, in vrropes, climbing stamina off):
+  a rope hung near the floor walked into (taken), climbed looking up (the feet up 80, 5 hand changes, both hands drawn),
+  climbed down looking down (off it standing, 9 hand changes); rope to rope on the swinging row: set in the air by its
+  first rope (taken), the forward key pumps it (355 units/s at the hands in 6.2 s), jump at the swing's forward peak,
+  the next rope caught 0.75 s later: 6 passed. Debug > Tests > Climbable Ropes > Test the Flat-Screen Rope Climb.
+- `mp_test.py ropeclimb` (not in the suite yet; `--base` as `ropes`): flat A walks into a rope the server hangs on
+  vrropes and climbs it, B (VR, proxy) checks A's drawn wrists and ankles against the rope as B has it
+  (`vr_mp_avatars`' `mp_ropepose`), still and swinging, then A jumps off. It fails today: see the known limits.
 - Checklist scene `ropes` (vrropes, the toolgun given).
 
 ## Known limits (P1)
 
-- Flat-screen play doesn't climb it yet (P3); pumping the swing is P3's.
+- Another player on a rope, seen in MP (`mp_test.py ropeclimb`, 2026-11-22): his climbing weight is right (1.0) and the
+  feet go round the rope, but his drawn wrists read 9-25 units from the rope and his ankles 11-24 (more swinging), and
+  15-60 from the server's holds as his avatar sends them: his client's drawn hands (and the holds' place relative to his
+  lerped origin) lag the swing. Drawing the rope between messages (above) brought the feet in by about 3 units. Next:
+  pin another player's held hands to the server's holds (as the trunk and feet already use them), and check the
+  avatar's hold offsets for ropes.
 - The toolgun's Remove and Physgun aim at a rope by its pieces (P2; `climbrope::pick`); the physgun moves its top. The
   aimed rope isn't outlined (no model to glow). Clear Props (`vr_scene_clean props`) takes the ropes made after the
   map's first 1.5 s (QC VR_Scene_IsRuntimeProp), as the props.
