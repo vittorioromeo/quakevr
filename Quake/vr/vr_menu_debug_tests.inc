@@ -894,6 +894,11 @@ za::Vector<Item> pageDebugTests()
             .help("vr_melee_sweep_test 6 on the sword_multi scene (loaded first): scripted sword swings that land: the "
                   "floor then a corpse's limb (cut off), two grunts side by side, the wall then a grunt by it; with One "
                   "Swing, Many Hits off then on (meleemulti: lines, PASS or FAIL with it on)."),
+        command("Blade Starts Test", "vr_melee_sweep_test 7")
+            .help("vr_melee_sweep_test 7: each bladed weapon (sword, dagger, axe, Super Axe, chainsaw, AD's swords) put in "
+                  "your main hand in turn: its drawn Blade Start is where melee, beheading, limb cuts and skewering all "
+                  "start its edge; a point on the edge cuts, one between the hand and the start doesn't (bladeone: lines, "
+                  "PASS or FAIL). Your main hand's weapon is replaced."),
         header("Parry"),
         command("Check the Parry Pose", "impulse 249")
             .help("Developer 1: whether each held weapon blocks a blow from ahead, and its angle and position."),

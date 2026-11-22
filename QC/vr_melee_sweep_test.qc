@@ -966,10 +966,159 @@ void(entity p) VR_Melee_LineEndsTest =
     remove(b);
 };
 
+// ---- vr_melee_sweep_test 7 (ROUND25 "bladeone"; docs/vr-port/BLADES.md): every bladed weapon's drawn Blade Start is the
+// one start every system uses. Each weapon given to the main hand in turn and, once drawn (its slot the same two frames
+// running), its line (VR_Melee_Line) checked: its own Blade From kept exactly; the melee's first striking point there;
+// a point halfway along the blade proper is on the edge (VR_Blade_OnEdge), sharp (VR_Melee_PartAt), beheads as far as
+// the shape goes (VR_Decap_Slash: not refused as "the hilt or handle") and a skewered limb sits there (VR_Blade_EdgePoint);
+// a point halfway from the hand to the start is off the edge, blunt, refused by the shape, and skewers onto the start.
+// Ends `bladeone: N passed, M failed`.
+float vr_b1_on;     // the test runs
+float vr_b1_i;      // the weapon on test (VR_B1_Pick)
+float vr_b1_frames; // frames since it was given
+float vr_b1_slot;   // its slot last frame (-2: none yet)
+float vr_b1_same;   // frames its slot stayed so
+float vr_b1_wid;
+float vr_b1_flags;
+string vr_b1_name;
+float VR_B1_N = 11; // (AD's justice knight's and judicator's swords: given so, the hand holds no sword: not drawn)
+float VR_B1_GIVEUP = 90; // frames: a weapon not drawn by then fails "not drawn"
+
+void(float xI) VR_B1_Pick =
+{
+    vr_b1_wid = WID_SWORD;
+    vr_b1_flags = 0;
+    vr_b1_name = "the knight's sword";
+    if(xI == 1) { vr_b1_flags = VR_ADMelee_Flags(VR_SWORDKIND_DAGGER); vr_b1_name = "the dagger"; }
+    else if(xI == 2) { vr_b1_wid = WID_AXE; vr_b1_name = "the axe"; }
+    else if(xI == 3) { vr_b1_wid = WID_SUPERAXE; vr_b1_name = "the Super Axe"; }
+    else if(xI == 4) { vr_b1_wid = WID_CHAINSAW; vr_b1_name = "the chainsaw"; }
+    else if(xI == 5) { vr_b1_flags = VR_ADMelee_Flags(VR_ADMELEE_FURY); vr_b1_name = "the death fury's sword"; }
+    else if(xI == 6) { vr_b1_flags = VR_ADMelee_Flags(VR_ADMELEE_DKNIGHT); vr_b1_name = "the death knight's sword"; }
+    else if(xI == 7) { vr_b1_flags = VR_ADMelee_Flags(VR_ADMELEE_ZKNIGHT); vr_b1_name = "the zombie knight's sword"; }
+    else if(xI == 8) { vr_b1_flags = VR_ADMelee_Flags(VR_ADMELEE_DGUARD); vr_b1_name = "the death guard's sword"; }
+    else if(xI == 9) { vr_b1_flags = VR_ADMelee_Flags(VR_ADMELEE_PHANTOM); vr_b1_name = "the phantom swordsman's sword"; }
+    else if(xI == 10) { vr_b1_flags = VR_ADMelee_Flags(VR_ADMELEE_DPRINCE); vr_b1_name = "the dark prince's sword"; }
+    else if(xI == 11) { vr_b1_flags = VR_ADMelee_Flags(VR_ADMELEE_JUSTICE); vr_b1_name = "the justice knight's sword"; }
+    else if(xI == 12) { vr_b1_flags = VR_ADMelee_Flags(VR_ADMELEE_JUDGE); vr_b1_name = "the judicator's sword"; }
+};
+
+void(float xI) VR_B1_Give =
+{
+    vr_b1_i = xI;
+    vr_b1_frames = 0;
+    vr_b1_slot = -2;
+    vr_b1_same = 0;
+    VR_B1_Pick(xI);
+    VRSetEntWeapon(self, cVR_MainHand, vr_b1_wid);
+    VRSetEntWeaponFlags(self, cVR_MainHand, vr_b1_flags);
+    VRSetEntWeaponInst(self, cVR_MainHand, WeaponInst_New(0));
+    W_SetCurrentAmmoFor(cVR_MainHand);
+};
+
+// Whether VR_Decap_Slash's refusal is the shape's (the blade's start), for a slash laid along the line at share `xF`.
+float(float xThing, float xOwn, float xF) VR_B1_DecapShapeNo =
+{
+    entity b = VR_Blow(cVR_MainHand);
+    b.mh_thing = xThing;
+    b.mh_grip = vr_mline_grip;
+    b.mh_far = vr_mline_far;
+    b.mh_rgrip = vr_mline_grip;
+    b.mh_rfar = vr_mline_far;
+    b.mh_bfrom = xOwn;
+    b.mh_free = FALSE;
+    b.mh_kind = VR_MKIND_SLASH;
+    b.mh_wid = vr_b1_wid;
+    b.mh_c_f = xF; // (the point that struck: there)
+    vr_decap_quiet = TRUE;
+    VR_Decap_Slash(cVR_MainHand, vr_mline_grip + (vr_mline_far - vr_mline_grip) * xF, TRUE);
+    vr_decap_quiet = FALSE;
+    return vr_decap_no == "the hilt or handle" || vr_decap_no == "the chainsaw's body or handle" || vr_decap_no == "the pommel";
+};
+
+void(entity p) VR_B1_Check =
+{
+    float thing = VR_Melee_Thing(p, cVR_MainHand);
+    float own = vr_mline_from_x;
+    float from = VR_Blade_From(thing, own);
+    string n = sprintf("%s (slot %g, own Blade From %g)", vr_b1_name, vr_mline_slot, own);
+    VR_Test_Print(sprintf("bladeone: %s: Blade Start %.3f of a %.1f-unit line\n", n, from, vlen(vr_mline_far - vr_mline_grip)));
+    if(own > 0 && own < 1)
+    {
+        VR_Test_Check(from == own, sprintf("%s: its own Blade From is the start (%.3f)", n, from));
+    }
+    VR_Melee_Layout(thing);
+    VR_Melee_LayoutFrom(own);
+    float f0 = -1;
+    for(float i = 0; i < vr_mpt_n && f0 < 0; ++i)
+    {
+        if(VR_Melee_Strikes(vr_mpt_kind[i]) && vr_mpt_f[i] > 0 && vr_mpt_f[i] < 1)
+        {
+            f0 = vr_mpt_f[i];
+        }
+    }
+    VR_Test_Check(fabs(f0 - from) < 0.0001, sprintf("%s: the melee's first striking point at the start (%.3f)", n, f0));
+    float on = from + (1 - from) * 0.5;
+    float off = from * 0.5;
+    VR_Melee_PartAt(thing, on, own);
+    float sharpOn = !vr_mpart_blunt;
+    VR_Melee_PartAt(thing, off, own);
+    float bluntOff = vr_mpart_blunt;
+    VR_Test_Check(VR_Blade_OnEdge(thing, own, on, 0) && sharpOn && !VR_B1_DecapShapeNo(thing, own, on),
+        sprintf("%s: %.2f along is the edge: sharp, cuts (decap: %s)", n, on, vr_decap_no));
+    VR_Test_Check(!VR_Blade_OnEdge(thing, own, off, 0) && bluntOff && VR_B1_DecapShapeNo(thing, own, off),
+        sprintf("%s: %.2f along is off it: blunt, no cut (decap: %s)", n, off, vr_decap_no));
+    vector line = vr_mline_far - vr_mline_grip;
+    VR_Blade_EdgePoint(thing, vr_mline_grip + line * on);
+    float skOn = vr_blade_f;
+    VR_Blade_EdgePoint(thing, vr_mline_grip + line * off);
+    VR_Test_Check(fabs(skOn - on) < 0.0001 && fabs(vr_blade_f - from) < 0.0001,
+        sprintf("%s: a limb skewers where it was cut on the edge (%.3f), at the start off it (%.3f)", n, skOn, vr_blade_f));
+};
+
+void(entity p) VR_B1_Frame =
+{
+    entity was = self;
+    self = p;
+    vr_b1_frames++;
+    float thing = VR_Melee_Thing(p, cVR_MainHand);
+    float ok = VR_Melee_Line(p, cVR_MainHand, thing) && !vr_mline_free && vr_mline_slot >= 0;
+    float slot = ok ? vr_mline_slot : -1;
+    vr_b1_same = (slot == vr_b1_slot) ? vr_b1_same + 1 : 0;
+    vr_b1_slot = slot;
+    if(ok && vr_b1_same >= 2)
+    {
+        VR_B1_Check(p);
+    }
+    else if(vr_b1_frames < VR_B1_GIVEUP)
+    {
+        self = was;
+        return;
+    }
+    else
+    {
+        VR_Test_Check(FALSE, sprintf("%s: not drawn after %g frames (thing %g)", vr_b1_name, vr_b1_frames, thing));
+    }
+    if(vr_b1_i + 1 >= VR_B1_N)
+    {
+        vr_b1_on = FALSE;
+        VR_Test_Verdict();
+    }
+    else
+    {
+        VR_B1_Give(vr_b1_i + 1);
+    }
+    self = was;
+};
+
 // Every server frame (StartFrame): the test asked for (vr_melee_sweep_test: 1 the sweep, 2 the blade's dump, 3 its shape,
-// 4 the fist's line, 5 the line's own ends, 6 one swing, many things).
+// 4 the fist's line, 5 the line's own ends, 6 one swing, many things, 7 every blade's start as drawn).
 void() VR_Melee_SweepTestFrame =
 {
+    if(vr_b1_on && VR_Player() != world)
+    {
+        VR_B1_Frame(VR_Player());
+    }
     float mode = cvar_hget(cvarh_vr_melee_sweep_test);
     if(!mode)
     {
@@ -1000,6 +1149,15 @@ void() VR_Melee_SweepTestFrame =
     else if(mode == 6)
     {
         VR_Melee_MultiTest(p);
+    }
+    else if(mode == 7)
+    {
+        VR_Test_BeginFlags("bladeone", VR_TEST_LOUD);
+        vr_b1_on = TRUE;
+        entity was = self;
+        self = p;
+        VR_B1_Give(0);
+        self = was;
     }
     else
     {

@@ -600,6 +600,7 @@ vr_melee_sweep_test 3        vr_melee_sweep_test.qc           (VR_Melee_BladeSha
 vr_melee_sweep_test 4        vr_melee_sweep_test.qc           (VR_Melee_FistLineTest)
 vr_melee_sweep_test 5        vr_melee_sweep_test.qc           (VR_Melee_LineEndsTest)
 vr_melee_sweep_test 6        vr_melee_sweep_test.qc           (VR_Melee_MultiTest)
+vr_melee_sweep_test 7        vr_melee_sweep_test.qc           (VR_B1_Frame: every bladed weapon's drawn Blade Start the one start: bladeone)
 
 vr_mg3_test      1        vr_mg3_test.qc                   (MG3_T_Report)
 vr_mg3_test      2        vr_mg3_test.qc                   (MG3_SetUpgradeMask)
