@@ -9453,3 +9453,24 @@ His standing rule restated: our C++ uses Zancle wherever it has an equivalent an
   struggle_test 6/6 (armdrag, shoulderdrag drag: vr_box3d_struggle.cpp's only change was std::str* -> the same
   builtins, so not this branch's; not chased); phase 2: smoke e1m1, mp_test ragsync 11/0, active_test no fail,
   NaN or crash line.
+
+## dwellweap2: the Crystal Lance's cord, sliding weapon hand, thrust, B flip (agent/dwellweap2, 2026-11-22)
+
+dwellweap's leftovers (POLEWEAPONS.md "Built in dwellweap2" has the detail). Not built: the Rotary Shotgun model list
+(the muzzle flare at the bottom, the hand's hole and handle, the shell port 10% bigger, black and inset, deeper gaps
+between the barrels, open muzzles, the screen in a wedge on top) and impaling (a spear's; the Lance is an energy tip).
+- **Cord**: `vr_cellcord.cpp` (the laser cannon's coiled cell cord) gains the Lance: from the butt of its pole (its
+  model's lowest point, leaving along the pole) into a cell in the pouch; loose and swinging with no cells; QC
+  `VR_Reload_PlayerFrame` shows cells in the pouch while it is held. `vr_cellcord_lance` 1 (Weapons > Reloading > Cell
+  Cords), `vr_cellcord_lance_x/y/z` 0 (Cord Points). Reuses the cell cord whole (not the AD hose: the cord already plugs
+  into the pouch's cells and unplugs without them).
+- **Weapon hand slides** (`vr_twohand.cpp` `PoleSlide`, `poleShift`; the view moves the drawn weapon back along the pole,
+  so muzzle, blade line and cord follow): off hand closed (analog grip >= `vr_pole_slide_grip` 0.6), weapon hand loose
+  (under it). `vr_pole_slide` 1. Both in Physics next to Other Hand Anywhere. A button-only grip never slides.
+- **Pole axis fix**: the pole grip's axis is the hand-to-tip line; `bladeDirection` (the 2H aim's way) lay ~70 degrees
+  off the Lance's pole (the off hand's tip limit was 9 units, the tip 27 away), so the off hand's place left the pole.
+- **Thrust**: QC `DW_LanceMelee` on a stab: the head (`mh_c_f` >= `vr_dw_lance_head` 0.55) x`vr_dw_lance_thrust` 1.5,
+  the shaft x`vr_dw_lance_poke` 0.4 (tunables by the axe's damage).
+- **B flip**: works; dwellweap's test pressed B for 2 frames, under a player frame.
+- **Tests**: `dwell_lance_test.sh` 29/0 (new: cord 7, flip 2, main slide 5, thrust 3). No useful side screenshot (the
+  mock camera at e1m1's start looked into walls); none saved.
