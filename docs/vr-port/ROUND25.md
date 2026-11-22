@@ -8007,3 +8007,21 @@ hitscan's always did.
   before (the lightning bolt's limb case kills nothing there, untouched by this); scenario_check PASS (179 run, 0
   failed); Dev and ThinLTO built, 0 warnings.
 
+
+## Quest C5f: why the body costs; its lights Quake's way (vr_gl_alias_body 2); dlmap pairs (questc5f, 2026-11-22; branch agent/quest)
+
+- **Why the body is expensive**: the pixels it covers times the work per pixel. Close to the eyes it covers much of the
+  view, and each of its pixels runs the models' whole shader (~3-4 ns a pixel on the Quest 3, the world ~1-2; its light
+  ~4 of ~5 ms at pitch 70). Already in place, so not the cause: drawn before the world (`vr_alias_player_first`) with a
+  depth pre-pass (no overdraw inside it); fixed foveation does not reach it (`vr_xr_foveation` 0 and guarded, and the
+  runtime foveates only the swapchain images, not our scene targets). QUEST_PLAN.md 6zq.
+- **`vr_gl_alias_body 2`** (Debug > Tunables > "Body Lighting (Quest)" > "Quake's Way"; ES only; default 0 until timed):
+  the body's dynamic lights added to its light on the CPU once a frame (`r_alias.c` `R_AliasLightFinishBody`, each as
+  the per-pixel loop gives its origin: `VR_DlightFlatLit`), its form with only the ambient cube at its vertices
+  (`QVR_APLAIN_VFLAT`); a batch another form draws gets the light without them. PC `-glescompat` looking down with the
+  flashlight: mean 4.4 levels, 16% of pixels over 8. Probes `QVR_PROBE_AMEDIUMP`, `ANOFOG`, `ANOFB`.
+- **dlmap pairs** for him: `qvr-kit/scratch/dlmap_compare_*.png` (PC, 1024x1024 eyeshots): big lights much brighter and
+  flatter in the lightmap (doorway mean 60 -> 105), torches alike. No `_lmscale` scene exists (no LMSHIFT support, none
+  in the installed AD).
+- **Not done**: the APK (vr_menu.cpp's NDK compile went past the 40-minute job limit under load), so no Quest numbers:
+  the per-part table (`scratch/c5f_parts.sh`), Quake's way timed, the FFR probe, `vr_depth_float 0`, the resolution step.
