@@ -214,7 +214,9 @@ His copy's pelvis now hangs within half a unit of where his own game has his (`m
 - Hooks: `vr_server.cpp` (frame end, spawn state), `vr_client.cpp` (parse), `vr_text3d.cpp` (drawn), `vr_builtins.cpp`
   (an edict freed), `vr_builtins_melee.inc` (physicsblast), `vr_builtins_ragdoll.inc` (physicsshot).
 - The test map: `quakevr/maps/vrropes` from `Misc/quakevr/make_vrropes_map.py` (`--compile`): four swinging ropes 192
-  apart (rope, chain, rope, chain) and a ledge to jump from, a pinned rope, a heavy chain, a rope longer than the drop.
+  apart (rope, chain, rope, chain) and a ledge to jump from, a pinned rope, a heavy chain, a rope longer than the drop;
+  (ropes7) a wooden and a metal pole (south-west, ceiling to floor), a rope strung level 100 high (far north, 2% slack)
+  and a diagonal one (east, 230 down to 90): monkey traverses.
 
 ## Commands and settings
 
@@ -232,8 +234,8 @@ His copy's pelvis now hangs within half a unit of where his own game has his (`m
 
 - `vr_rope_test` (Debug > Tests > Climbable Ropes > Test the Climbable Ropes; best in vrropes:
   `map vrropes; wait60; vr_rope_test`, `-QuitOn "vr_rope_test: [0-9]+ passed"`): a rope from map keys (10 pieces) and a
-  chain placed as the toolgun places one (6 pieces, pinned, 2 thick) made 128 units ahead; vrropes' own counted (7, 3
-  chains, 1 pinned); settled (counted frames): the rope hangs straight its length, the chain's ends held; the client's
+  chain placed as the toolgun places one (6 pieces, pinned, 2 thick) made 128 units ahead; vrropes' own counted (ropes7:
+  11, 3 chains, 5 pinned, 2 poles, 2 monkey traverses); settled (counted frames): the rope hangs straight its length, the chain's ends held; the client's
   copy within half a unit of the server's, the chain drawn as a chain; an explosion throws it, a shot through it pushes
   it, a crate set down on its end and a dog standing in it push it aside; removed, it is gone from the server and the
   client; the toolgun's aim meets the chain (Remove, the physgun); Clear Props removes a rope made later and keeps the

@@ -9549,8 +9549,13 @@ His notes vrropes_2026-11-22_15-47-23, 16-09-28. ROPES.md "Poles", "Strung ropes
   (`flatMonkeyFrame`), legs hanging (`clientRopeMonkey`, flag 16 in QVR_SVC_CLIMBROPE; another player's copy alike).
   Vertical ropes untouched: their rider, pump, jump and legs code paths are unchanged.
 - Tests: rope_climb_test.sh pole_wood 9/0, pole_metal 9/0, monkey_drop 6/0, monkey_jump 6/0; rope_climb 10/0,
-  rope_jump 6/0, rope_calm 4/0, rope_short 3/0; rope_flat_test.sh pole 4/0, strung 4/0 (sagged 82.1 to 77.7 under him, forward 80.6, back 40.3). **rope_pump 5/1**
-  (238 units/s, bound 250; deterministic): no vertical-rider code changed here, not compared against origin/next
-  (out of budget): open.
-- Not done (out of budget): item 3, the hall (a pole of each material, a level and a diagonal rope in vrropes; then
-  vr_rope_test's map counts), and the MP check (mp_test.py ropeclimb on a strung rope).
+  rope_jump 6/0, rope_calm 4/0, rope_short 3/0; rope_flat_test.sh pole 4/0, strung 4/0 (sagged 82.1 to 77.7 under
+  him, forward 80.6, back 40.3). **rope_pump 5/1** (238 units/s, bound 250): the same 238 on the branch's base
+  (53b869dc7, built and run in this tree): not this branch's; open (the play or the bound, not the pumping, which he likes).
+- **The hall (3):** vrropes gains a wooden and a metal pole (south-west, ceiling to floor), a rope strung level 100 high
+  (far north, 2% slack) and a diagonal one (east, 230 down to 90), posts under the strung ends; recompiled.
+  vr_rope_test counts them (11, 3 chains, 5 pinned, 2 poles, 2 monkey traverses): 16/0. A pole with no `rope_length`
+  now stands to the floor (it stopped 256 down). mp_test.py ropeclimb 12/0 (pelvis 13.4 vs A's own 13.2). Not built: an
+  MP check on a strung rope (another player's hanging legs share `ropeFoot`'s monkey skip; untested in MP). Screenshots:
+  kit scratch ropes7_poles.png, ropes7_hall.png (the level and the diagonal rope), ropes7_monkey.png (eye view hanging
+  under the strung rope).

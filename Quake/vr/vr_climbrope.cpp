@@ -247,6 +247,10 @@ void make(edict_t* e, int num)
         pr.length = za::clamp(glm::distance(r.top, r.bottom) * (1.f + (pr.pole ? 0.f : slack)), 16.f, 2048.f);
     }
     r.params.pinned = pr.pinned || targeted || pr.pole;
+    if(pr.pole && !targeted && progs::fieldFloatOr(e, f.rope_length, 0.f) <= 0.f)
+    {
+        pr.length = 2048.f; // (a pole with no length: down to the floor, found below)
+    }
     glm::vec3 end = targeted ? r.bottom : r.top - glm::vec3{0.f, 0.f, pr.length};
     // (A free rope longer than the drop: the points below the floor lie on it. A pole stands on the floor there.)
     float floorZ = -1e9f;
@@ -998,7 +1002,7 @@ void testFrame()
             "a toolgun-placed chain made: 6 pieces, pinned, 2 thick");
         if(!ZA_STRCMP(sv.name, "vrropes"))
         {
-            int count = 0, chains = 0, targeted = 0;
+            int count = 0, chains = 0, targeted = 0, poles = 0, monkeys = 0;
             for(const auto& kv : ropes)
             {
                 if(kv.first == t.ropeA || kv.first == t.chainB)
@@ -1008,10 +1012,13 @@ void testFrame()
                 count++;
                 chains += kv.second.params.chain ? 1 : 0;
                 targeted += kv.second.params.pinned ? 1 : 0;
+                poles += kv.second.params.pole ? 1 : 0;      // (ropes7: the wood and metal poles)
+                monkeys += monkeyOf(kv.second) ? 1 : 0;       // (ropes7: the level and the diagonal rope)
             }
-            char what[96];
-            q_snprintf(what, sizeof(what), "vrropes' own ropes made (%d, %d chains, %d pinned)", count, chains, targeted);
-            testCheck(count >= 6 && chains >= 2 && targeted >= 1, what);
+            char what[128];
+            q_snprintf(what, sizeof(what), "vrropes' own ropes made (%d, %d chains, %d pinned, %d poles, %d monkey traverses)", count,
+                chains, targeted, poles, monkeys);
+            testCheck(count >= 11 && chains >= 3 && targeted >= 5 && poles == 2 && monkeys == 2, what);
         }
         next(3);
         break;
