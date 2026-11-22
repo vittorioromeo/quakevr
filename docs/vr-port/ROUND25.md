@@ -8428,3 +8428,38 @@ seat; phase 10's join screen is the one he tries before the merge into next).
   VR_Carry_TrySecondHand -> carryreach -> vr_carry2h.cpp `reaches` -> held::grabTouch (vr_held.cpp): a fist sphere's
   inside test is by its nearest triangle's facing; the head's open neck seam may make a deep sphere read as outside.
 - New scene `doorway_grunt` (a grunt beyond that doorway, you south of it).
+
+## split9: splitscreen phase 9, menus and console per seat (split9, 2026-11-22, `agent/split`)
+
+What it does: SPLITSCREEN.md section 19 (the phase table and the effort left updated: next phase 10, the join screen
+he tries before the merge into next). His answer followed: by default only seat 1 opens the full menu and the menu
+pauses coop; both customizable.
+
+- **Where a seat's keys go** (`Key_SeatDest`, keys.c): seat 1's is `key_dest`; a seat 2-4's is its own seat menu or the
+  game, never the full menu or the console. Key events, the pad's stick arrows, the stick's move and look, the centre
+  print and the intermission in a tile read it. One seat in play, or `scr_splitmenu 1`: `key_dest` for all, as before.
+- **The seat menu** (vr_seatmenu.cpp; a seat's part): a seat 2-4's Start opens it in its tile, driven by its pad only:
+  Resume, Look Sensitivity (x0.25-x4), Invert Look (its own; not saved until phase 12's profiles), Controls (its pad's
+  buttons), Leave Seat (asked first; leaves on A's release). The console is seat 1's (`Con_ToggleConsole_f` does
+  nothing for seats 2-4).
+- **The pause**: `scr_splitpause` (archived, default 1: coop; 0 never; 2 coop and deathmatch): with more than one seat,
+  seat 1's full menu or any seat menu holds the server (beside the single-player menu pause, in the physics and the
+  clients' think); never with a network player in the game. Other tiles show "paused: seat n's menu".
+- **`scr_splitmenu`** (archived, default 0): 1 gives every seat's Start the full menu (as before this phase). Debug >
+  Network: "Splitscreen: Seat 2's Menu" (`seat_menu <n>`).
+- **Tests**: `Misc/quakevr/seat_menu_test.sh` (new; coop 31/0, deathmatch 31/0; screenshots
+  `qvr-kit/scratch/split9_coop.png`, `split9_dm.png`: seat 2's menu in its tile, seat 1's tile "paused: seat 2's menu" in
+  coop); `vr_seat_test` 70/0; `seat_play_test.sh` 55/0; `seat_render_test.sh` 2/3/4 seats and torches 156/0;
+  scenario_check 194 run, 0 failed.
+- **Flat suites** (all 52 `flat*_test.sh`, four chunks; quick build, low-impact mode): 40 clean. **flatmenu_esc** 5/2
+  was stale since 11-20 (Options is `m_state` 9 since the IPX page went, the test looked for 10): fixed, 7/0. The other
+  ten failing ones fail the same on the phase's base (`5b6362326`, phase 8 with next merged; run there): flat_fling
+  (the cut head 0 u/s), flatads (launchers 0 of 2; the base's full run timed out at recoil, its section c alone the
+  same 0 of 2), flateject (ssgold; ssg once, not on a rerun), flatfix 15/4, flatfx 8/2 (wid 22, 25 sights), flatgate 3/2,
+  flatlagbob 4/1, flatsweep 382/5, flatvisuals 7/1, flatwall 16/1; flatswap's Knight's Sword (passed on the base once,
+  failed twice here: its known run-to-run flake, split6). None of them touches menus or keys; next's to look at.
+- **MP plain suite** (menuvis's base `bases/menuvis/qbase.8`, six `--only` chunks of 5-7 min): 67 of 68 scenarios clean
+  plus netsafe 14/0; mp_debugviz_listen 7/1 (the bot's disarm volumes off, as split5/6 saw), 7/1 again on a rerun and the same to the unit on the phase's base: not from this phase; next's to look at.
+- Dev and ThinLTO 0 warnings, QC 0 warnings.
+- In VR (the author): nothing changes (one seat). Flatscreen with seats (`seat_mockpad`/`seat_join`, or real pads): a
+  second player's Start opens his own small menu in his tile and pauses coop; your Escape still opens the full menu.
