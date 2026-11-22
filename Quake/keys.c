@@ -46,6 +46,7 @@ char		*keybindings[MAX_KEYS];
 qboolean	consolekeys[MAX_KEYS];	// if true, can't be rebound while in console
 qboolean	menubound[MAX_KEYS];	// if true, can't be rebound while in menu
 qboolean	keydown[MAX_KEYS];
+int		key_lastpress = -1; // QVR: the last key pressed (Key_EventWithKeycode)
 
 typedef struct
 {
@@ -1240,6 +1241,8 @@ void Key_EventWithKeycode (int key, qboolean down, int keycode)
 
 	wasdown = keydown[key];
 	keydown[key] = down;
+	if (down)
+		key_lastpress = key; // QVR: the last key pressed (menu.c: what opened the main menu, its VR Hub line)
 
 	if (key_inputgrab.active)
 	{

@@ -1469,6 +1469,18 @@ int	m_main_cursor = 6; // QVR: MAIN_CAMPAIGNS (below): the playing group's first
 int m_main_mods;
 qboolean m_main_continue_offered; // QVR: the cursor put on Continue once, at the menu's first opening with a save to continue
 qboolean m_main_autosaves; // QVR: an autosave to load (Load Autosave's row shown), as the menu's opening found
+// QVR: how the main menu last opened and how its VR Hub row was answered, for M_Main_StartHub's console line (his
+// e5start_2026-11-22_15-29-11: the hub's Start landed in Dimension of the Past, then the main menu's VR Hub confirm
+// took him back 3.3 s later; not reproduced with the mock: the next time, the voice note's log says what did it).
+static struct
+{
+	double time; // realtime it opened
+	int from; // the menu state it opened from (-1: the game)
+	int key; // the last key pressed before (key_lastpress)
+	int rowkey; // the key that chose VR Hub
+	double rowtime;
+	float laserx, lasery; // the mouse (the laser) then
+} m_main_opened = {0.0, -1, -1, -1, 0.0, 0.f, 0.f};
 
 enum
 {
@@ -1531,6 +1543,12 @@ static qboolean M_Main_GroupStart (int item)
 
 void M_Menu_Main_f (void)
 {
+	if (key_dest != key_menu || m_state != m_main) // QVR: when and from where it opened (M_Main_StartHub's line)
+	{
+		m_main_opened.time = realtime;
+		m_main_opened.from = key_dest == key_menu ? (int) m_state : -1;
+		m_main_opened.key = key_lastpress;
+	}
 	IN_DeactivateForMenu();
 	key_dest = key_menu;
 	m_state = m_main;
@@ -1861,6 +1879,11 @@ static void M_Main_StartHub (void)
 	IN_Activate ();
 	key_dest = key_game;
 	m_state = m_none;
+	Con_Printf ("[skipnotify]VR Hub: the main menu opened %.1f s ago (from %s, after key %s); VR Hub chosen by %s %.1f s ago "
+		"(the mouse at %.0f %.0f), confirmed by %s\n", realtime - m_main_opened.time,
+		m_main_opened.from < 0 ? "the game" : va ("menu %d", m_main_opened.from), Key_KeynumToString (m_main_opened.key),
+		Key_KeynumToString (m_main_opened.rowkey), realtime - m_main_opened.rowtime, m_main_opened.laserx,
+		m_main_opened.lasery, Key_KeynumToString (key_lastpress));
 	VR_StartHub ();
 }
 
@@ -1926,6 +1949,10 @@ void M_Main_Key (int key)
 			break;
 
 		case MAIN_VRHUB: // QVR: the hub, as the Play page's VR Hub (VR_StartHub)
+			m_main_opened.rowkey = key;
+			m_main_opened.rowtime = realtime;
+			m_main_opened.laserx = m_mousex;
+			m_main_opened.lasery = m_mousey;
 			M_Confirm (sv.active
 				? "Go to the VR Hub?\n\nThe game in progress ends: you go\nto the hub, where Quake VR starts."
 				: "Go to the VR Hub?\n\nWhere Quake VR starts.",
