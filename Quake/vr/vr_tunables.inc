@@ -743,6 +743,8 @@ QVR_TUNABLE(vr_revolver_flick_sustain, "0.3") // a flick goes on while the roll 
 QVR_TUNABLE(vr_revolver_close_push_speed, "0.8") // m/s that push must reach (the hands' relative speed, along the cylinder's way home)
 QVR_TUNABLE(vr_revolver_flick_hand_weight, "150") // the flicks' force: degrees a second of roll each m/s of the hand's own motion the same way adds (0: the roll alone)
 QVR_TUNABLE(vr_revolver_flick_hand_cap, "1") // and that help at most, times the roll itself (so the hand alone, with no roll, is no force)
+QVR_TUNABLE(vr_revolver_flick_wrist_lever, "0.1") // the swing guard (vr_revolver_open_flick_arm_share): metres from the wrist's axis to the controller (its roll in metres; the turn's part of the hand's speed)
+QVR_TUNABLE(vr_revolver_flick_motion_time, "0.2") // and the moment it weighs the wrist's and the arm's motion over (s: older motion fades)
 QVR_TUNABLE(vr_revolver_eject_travel, "0.05") // out, the hand's motion the way the chambers open, accumulated, must come to this (m), having reached vr_revolver_eject_speed
 QVR_TUNABLE(vr_revolver_eject_window, "0.2") // seconds that motion fades over (what it accumulates over)
 QVR_TUNABLE(vr_revolver_eject_cone, "60") // a frame further off that way than this adds nothing, resets nothing (degrees)

@@ -265,7 +265,8 @@ void(float xHand, float xAttackFinished, float* xOutAttackFinished) VR_NailPisto
     {
         dprint(sprintf("nailpistol: the trigger, hand %g, re-arm %g\n", xHand, rearm));
     }
-    if(rearm)
+    // (Hasted, full auto while it has a round: VR_Haste_FullAuto; empty, still a click a pull.)
+    if(rearm && !(VR_Haste_FullAuto(self) && W_CheckNoAmmo(xHand)))
     {
         return;
     }

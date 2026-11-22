@@ -8246,3 +8246,37 @@ His notes dm3_2026-11-22_16-15-02, 16-17-59, 16-18-21.
   non-player edict that has them (never .vr_ar_*: combat reads those); setupBody reads the doll entity's state
   (`d.doll` set before setup in addDolls/addEntities); an mp test (B armoured, killed, respawned with other armour:
   A's mp_doll plates unchanged). The calibration look (calOf(owner)) is live too, but rarely changes.
+## vrnotes1122b: revolver flicks, Haste on every gun (agent/vrnotes1122b, 2026-11-22)
+
+- **The flick down with a shell held** (dm3_2026-11-22_16-14-25): the eject push (`VR_Revolver_ReloadFrame`) waited
+  `vr_revolver_spin_hold` after `rvh_held_at`, which `VR_Revolver_OtherHand` refreshes every frame the other hand holds
+  anything: with a shell ready in the off hand no push ever counted. It now waits on `rvh_loaded_at` (a shell just went
+  in) only; the spin keeps `rvh_held_at`.
+- **Wrist flick against arm swing** (vrfiringrange_2026-11-22_16-11-57): the old guard refused a flick open with the
+  hand at 2 m/s or faster (`vr_revolver_open_swing_speed`, retired). His replay shows why it refused everything: his
+  flicks roll 150-360 degrees at 2000-3500 deg/s and the controller, 5-15 cm off the wrist's axis, moves 3.5-5.6 m/s
+  from that turn alone. `VR_Revolver_Flick` now keeps two fading sums over `vr_revolver_flick_motion_time` (0.2 s): the
+  wrist's (its roll in radians x `vr_revolver_flick_wrist_lever`, 0.1 m) and the arm's (the hand's speed less its turn
+  rate x the lever, i.e. travel the turn doesn't explain). A flick open is refused when the arm's share is over
+  `vr_revolver_open_flick_arm_share` (0.45; menu: Weapons > Reloading > Heavy Revolver > Flick Open Arm Share; 1 no
+  guard), then for `vr_revolver_open_swing_hold` (0.35 s), and after a landed blow as before. The flick home is never
+  refused. Offline on his two revolver replays (the trigger simulated at the flick's thresholds): his flicks 0.03-0.31,
+  his swings (hand 8-10 m/s, 1-1.7 m travel) 0.53-0.75. `vr_reload_debug 1` prints the share on each open and refusal.
+- **Haste on every gun** (vrtesthall_2026-11-22_15-59-17): Haste (Dwell's; Dissolution's Hell Magic rune alike) works
+  through `RuneApplyHell` on a weapon's next attack time; the frame-driven guns (nailguns, lava nailguns, lightning gun,
+  laser cannon) fire once per 0.1 s animation frame and never asked it. `VR_Haste_FramePace` (rogue_runes.qc) paces
+  those frames by it (0.06 s hasted), their attack times too; the Mjolnir swing, the proximity gun, AD's plasma gun and
+  the lightning gun's first bolt now pass through it as well. Dry clicks stay unhasted.
+- **Full auto under Haste** (15-59-37): `vr_haste_full_auto` (1; Combat > Weapon Damage > Guns) lets the nail pistol,
+  the heavy revolver and the flare gun skip their re-arm (`VR_Haste_FullAuto`) while hasted: they fire again while the
+  trigger is held, each at its cooldown x Haste's 0.6 (the nail pistol 0.072 s, the revolver 0.18 s). Empty or spent,
+  still one click a pull.
+- Tests: `vr_np_test 7` (nphaste, Debug > Tests > Nail Pistol): 12/0 (nailgun 15 -> 24 shots in 1.5 s, lightning 16 ->
+  25, shotgun 3 -> 5; nail pistol 1 -> 12, revolver 1 -> 6, flare gun 1 -> 2). `vr_rv_test 1` 49/0 (step 12 now a 7 m/s
+  swing rolling the wrist: refused, arm share 0.78; then a still-hand wrist flick: out, share 0.18; step 13 pushes the
+  shells out with the other hand holding). Its tests need `developer 1` (dprint). Scenario `haste_guns`. nptest 39/0,
+  flaretest 22/0. His replays played in the game (`vr_motion_play <notes>/<take>_replay.csv`, `vr_reload_debug 1`):
+  vrfiringrange_16-11-57 5 flicks open (arm share 0.06-0.43), 7 swings refused (0.50-0.73); e1m1_2026-11-21_01-03-41
+  7 open (0.06-0.26), 7 refused (0.54-0.80). (The replays live in his notes folder, not the repo: no committed test.)
+- Note: `VR_RVT_Flicks` sets `vr_revolver_flick_hand_weight` / `_cap` with `cvar_set`, but they are tunables
+  ("Cvar_Set: variable not found"): its force check runs at the defaults (150, 1), which it expects anyway.

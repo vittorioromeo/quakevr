@@ -60,6 +60,10 @@ Flat-screen or VR: push a rope or chain swinging, then open the menu (or the con
 Flat-screen or VR: take a chain with your hand and swing it or climb it: a quiet metal grip as each hand takes it and a soft clink of the links while it moves fast, never a constant rattle; a rope keeps its own (a slap in flat-screen play, silent in VR); Climbing's Chain Sounds slider sets the chain's volume. {test:ropes}
 Flat-screen or VR: in multiplayer, watch another player hang on a rope and swing it hard: his body hangs close under his hands as it does in his own game, and his feet stay wrapped round the rope even at the ends of the swing (the knees bending to take it higher up), never dangling beside it. {test:ropes}
 Flat-screen: climb a rope, swing it hard and look down at your own legs at the ends of the swing: the feet stay on the rope, taking it higher up with the knees bent when it slants away under you. {test:ropes}
+Heavy revolver: swing the cylinder out, take a shell in the off hand, then flick the gun down (muzzle up, push back along the bore): the shells drop even with the shell held. {test:revolver_swing}
+Heavy revolver: a quick wrist roll towards the cylinder's side opens it again, even a fast one; a melee swing (the arm doing the work) never opens it. If it is too strict or too loose, tune Weapons > Reloading > Heavy Revolver > Flick Open Arm Share (0.45; lower is stricter). {test:revolver_swing}
+Pick up Haste and hold the trigger on the nailgun and the lightning gun: they fire clearly faster than without it, as the shotgun does. {test:haste_guns}
+Pick up Haste and hold the trigger on the nail pistol, the heavy revolver and the flare gun: they keep firing full auto (fast) while it lasts, one shot a pull again once it wears off. {test:haste_guns}
 
 [1. Dwell]
 Dwell: Select Campaign > Dwell, play start and d1m1 (triggered monsters wait, checkpoints autosave); Map Library: Ancient and Underdark Overbright udob1 load and play by Copper rules {test:hub_start}
