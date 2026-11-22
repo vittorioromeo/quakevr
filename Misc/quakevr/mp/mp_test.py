@@ -1977,15 +1977,17 @@ def dolls_of(lines):
 DOLL_PARTS = 19  # avatardoll: the avatar's own ragdoll's parts (quakevr/rigs/vrdoll*.rig2.txt, Misc/quakevr/make_vrdoll.py)
 DOLL_LEG = 22.06  # ... its left leg's rest length, hip to knee to ankle (model units)
 DOLL_SHORT, DOLL_TALL = 1.55, 1.95  # the two players' eye heights (m) in mp_deathbody
+DOLL_ARM_A = 1.2  # backlog1122c: A's vr_body_arm_length (B keeps 1): his ragdoll's arms that much longer than the model's
 
 
 def doll_rigs_of(lines):
-    """"mp_doll_rig:" lines -> {player ent: (doll, parts, dollscale, leg)}."""
+    """"mp_doll_rig:" lines -> {player ent: (doll, parts, dollscale, leg, arm, restarm)}."""
     out = {}
     for l in lines:
-        m = re.match(r"mp_doll_rig: ent=(\d+) doll=(\d+) parts=(\d+) dollscale=(\S+) leg=(\S+)", l.strip())
+        m = re.match(r"mp_doll_rig: ent=(\d+) doll=(\d+) parts=(\d+) dollscale=(\S+) leg=(\S+)(?: arm=(\S+) restarm=(\S+))?", l.strip())
         if m:
-            out[int(m.group(1))] = (int(m.group(2)), int(m.group(3)), float(m.group(4)), float(m.group(5)))
+            out[int(m.group(1))] = (int(m.group(2)), int(m.group(3)), float(m.group(4)), float(m.group(5)),
+                                    float(m.group(6) or 0), float(m.group(7) or 0))
     return out
 
 
@@ -2026,9 +2028,19 @@ def deathbody_case(s, srv, a, b, ea, eb, victim, ev, own_models, tone, label):
             s.check("%s: its parts follow the avatar rig at its size at %s (the leg %.2f = %.2f x %.3f)" % (
                     label, who, r[3], DOLL_LEG, r[2]), r[2] > 0.0 and abs(r[3] / r[2] - DOLL_LEG) < 0.5,
                     "leg %.2f, scale %.3f: %.2f model units" % (r[3], r[2], r[3] / max(r[2], 1e-6)))
+    # (backlog1122c: the ragdoll in his body's proportions, his arms as his avatar's: A's vr_body_arm_length, B's 1)
+    want_arm = DOLL_ARM_A if ev == ea else 1.0
+    for who in ("A", "B"):
+        r = rigs.get(who)
+        if r:
+            s.check("%s: its arm %s's arm length at %s (%.2f over the model's %.2f = %.3f, want %.2f)" % (
+                    label, label, who, r[4], r[5], r[4] / max(r[5], 1e-6), want_arm),
+                    r[5] > 0.0 and abs(r[4] / r[5] - want_arm) < 0.03)
     if "A" in rigs and "B" in rigs:
         s.check("%s: B's ragdoll the host's size (ragsync: scale %.3f, %.3f)" % (label, rigs["A"][2], rigs["B"][2]),
                 abs(rigs["A"][2] - rigs["B"][2]) < 0.01)
+        s.check("%s: B's ragdoll the host's proportions (arm %.2f, %.2f)" % (label, rigs["A"][4], rigs["B"][4]),
+                abs(rigs["A"][4] - rigs["B"][4]) < 0.15)
     for who in ("A", "B"):
         if who in rigs:
             seen[who]["rig"] = rigs[who]
@@ -2058,9 +2070,15 @@ def deathbody(s):
     B himself draw B's. Each doll's copy: the dead player's build's model, his skin tone and gloves, his jointed hands,
     lying where the doll is."""
     srv, a, b, ea, eb = join(s, listen=True, flat="B")
-    # (avatardoll: a short A and a tall B, their bodies' ragdolls sized so)
-    a.cmd("vr_body_build 2; vr_skin_tone -0.5; vr_gloves 2; vr_height_calibration %.2f" % DOLL_SHORT)
-    b.cmd("vr_body_build 0; vr_skin_tone 0.6; vr_gloves 2; vr_height_calibration %.2f" % DOLL_TALL)
+    # (avatardoll: a short A and a tall B, their bodies' ragdolls sized so; backlog1122c: their arms unmeasured, untweaked:
+    # the model's times vr_body_arm_length, A's longer)
+    arms = "vr_bodycal_upper_arm 0; vr_bodycal_forearm 0; vr_body_tweak_upper_arm 0; vr_body_tweak_forearm 0"
+    a.cmd("vr_body_build 2; vr_skin_tone -0.5; vr_gloves 2; vr_height_calibration %.2f; vr_body_arm_length %g; %s" % (
+        DOLL_SHORT, DOLL_ARM_A, arms))
+    b.cmd("vr_body_arm_length 1; %s" % arms)
+    # (B plays flat: his body is his flat body height's, backlog1122b)
+    b.cmd("vr_body_build 0; vr_skin_tone 0.6; vr_gloves 2; vr_height_calibration %.2f; vr_flat_body_height %.2f" % (
+        DOLL_TALL, DOLL_TALL))
 
     def dressed(lines):
         la, lb = lines

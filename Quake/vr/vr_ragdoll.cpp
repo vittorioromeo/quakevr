@@ -2735,6 +2735,154 @@ void retireAuthored()
     authoredRigs.failed.clear();
 }
 
+// ----------------------------------------------------------------------------
+// Proportioned rigs (backlog1122c): an authored rig's copy in a body's own proportions (proportioned).
+
+namespace
+{
+
+// A proportioned rig's key: its base and the proportions rounded (thousandths of the lengths, hundredths of a unit).
+struct ProportionKey
+{
+    const Rig* base{nullptr};
+    int v[5]{};
+    [[nodiscard]] bool operator==(const ProportionKey& o) const
+    {
+        return base == o.base && v[0] == o.v[0] && v[1] == o.v[1] && v[2] == o.v[2] && v[3] == o.v[3] && v[4] == o.v[4];
+    }
+};
+struct ProportionedRigs
+{
+    za::Vector<za::UniquePtr<Rig>> rigs; // (kept: ragdolls point to them)
+    za::Vector<ProportionKey> keys;      // rigs[i]'s
+    auto members() { return mem::list(rigs, keys); }
+};
+mem::Cache<ProportionedRigs> proportionedRigs{"ragdoll rigs (proportioned)", mem::GameDirChange};
+constexpr za::SizeT mostProportioned = 64; // (more: the base rig; a player's own changes of size make a few)
+
+[[nodiscard]] int boneNamed(const Rig& rig, const char* name)
+{
+    for(int b = 0; b < rig.numBones; b++)
+    {
+        if(strcmp(rig.bones[b].name, name) == 0)
+        {
+            return b;
+        }
+    }
+    return -1;
+}
+
+// `r` (a copy of its base) in proportions `p`: each bone's rest geometry moved as its parent's deformation moves its pivot,
+// then stretched along itself by its own ratio (the upper arms', the forearms'); the clavicles moved by the shoulders'
+// offset as well. Its poses' turns kept, their places moved with the pivots (the parent's posed turn carries a pivot's
+// move): a joint stays where its parent's part has it. False: a side's arm bones not found by their names.
+[[nodiscard]] bool proportion(Rig& r, const Proportions& p)
+{
+    float ratio[maxBones];
+    glm::vec3 shift[maxBones]; // the shoulders' offset, the clavicles' own
+    for(int b = 0; b < maxBones; b++)
+    {
+        ratio[b] = 1.f;
+        shift[b] = glm::vec3{0.f};
+    }
+    const char* const names[2][4] = {{"clavicle_l", "upperarm_l", "forearm_l", "hand_l"}, {"clavicle_r", "upperarm_r", "forearm_r", "hand_r"}};
+    for(const auto& side : names)
+    {
+        const int clav = boneNamed(r, side[0]), upper = boneNamed(r, side[1]), fore = boneNamed(r, side[2]);
+        if(clav < 0 || upper < 0 || fore < 0 || boneNamed(r, side[3]) < 0)
+        {
+            return false;
+        }
+        const Bone& c = r.bones[clav];
+        const glm::vec3 along = c.end - c.pivot;
+        const glm::vec3 out = glm::length(along) > 1e-4f ? glm::normalize(along) : glm::vec3{0.f};
+        shift[clav] = glm::vec3{p.shoulder.x, 0.f, p.shoulder.y} + out * p.shoulder.z;
+        ratio[upper] = p.upper;
+        ratio[fore] = p.fore;
+    }
+    // Each bone's deformation: x -> x + move + dir * dot(x - pivot, dir) * (ratio - 1) (its old pivot and unit direction).
+    glm::vec3 move[maxBones], dir[maxBones], oldPivot[maxBones];
+    for(int b = 0; b < r.numBones; b++)
+    {
+        Bone& bone = r.bones[b];
+        oldPivot[b] = bone.pivot;
+        const glm::vec3 len = bone.end - bone.pivot;
+        dir[b] = glm::length(len) > 1e-4f ? glm::normalize(len) : glm::vec3{0.f};
+        const int parent = bone.parent;
+        move[b] = shift[b];
+        if(parent >= 0 && parent < b)
+        {
+            const glm::vec3 d = bone.pivot - oldPivot[parent];
+            move[b] += move[parent] + dir[parent] * (glm::dot(d, dir[parent]) * (ratio[parent] - 1.f));
+        }
+        const auto deform = [&](const glm::vec3& x) { return x + move[b] + dir[b] * (glm::dot(x - oldPivot[b], dir[b]) * (ratio[b] - 1.f)); };
+        bone.end = deform(bone.end);
+        for(glm::vec3& v : bone.points)
+        {
+            v = deform(v);
+        }
+        bone.pivot += move[b];
+    }
+    for(int pose = 0; pose < r.numPoses; pose++)
+    {
+        glm::vec3 dt[maxBones];
+        for(int b = 0; b < r.numBones; b++)
+        {
+            const za::SizeT i = static_cast<za::SizeT>(pose * r.numBones + b);
+            const int parent = r.bones[b].parent;
+            const bool hasParent = parent >= 0 && parent < b;
+            const glm::quat rp = hasParent ? r.poseRot[static_cast<za::SizeT>(pose * r.numBones + parent)] : glm::quat{1.f, 0.f, 0.f, 0.f};
+            dt[b] = (hasParent ? dt[parent] : glm::vec3{0.f}) + rp * move[b] - r.poseRot[i] * move[b];
+            r.posePos[i] += dt[b];
+        }
+    }
+    return true;
+}
+
+} // namespace
+
+const Rig* proportioned(const Rig* rig, const Proportions& p)
+{
+    if(!rig || !rig->authored)
+    {
+        return rig;
+    }
+    ProportionKey key;
+    key.base = rig;
+    key.v[0] = static_cast<int>(lroundf(za::clamp(p.upper, 0.25f, 4.f) * 1000.f));
+    key.v[1] = static_cast<int>(lroundf(za::clamp(p.fore, 0.25f, 4.f) * 1000.f));
+    for(int k = 0; k < 3; k++)
+    {
+        key.v[2 + k] = static_cast<int>(lroundf(za::clamp(p.shoulder[k], -20.f, 20.f) * 100.f));
+    }
+    if(key.v[0] == 1000 && key.v[1] == 1000 && key.v[2] == 0 && key.v[3] == 0 && key.v[4] == 0)
+    {
+        return rig;
+    }
+    for(za::SizeT i = 0; i < proportionedRigs.keys.size(); i++)
+    {
+        if(proportionedRigs.keys[i] == key)
+        {
+            return proportionedRigs.rigs[i].get();
+        }
+    }
+    if(proportionedRigs.rigs.size() >= mostProportioned)
+    {
+        return rig;
+    }
+    za::UniquePtr<Rig> made = za::makeUnique<Rig>(*rig);
+    const Proportions q{static_cast<float>(key.v[0]) / 1000.f, static_cast<float>(key.v[1]) / 1000.f,
+        glm::vec3{static_cast<float>(key.v[2]), static_cast<float>(key.v[3]), static_cast<float>(key.v[4])} / 100.f};
+    if(!proportion(*made, q))
+    {
+        return rig;
+    }
+    const Rig* out = made.get();
+    proportionedRigs.rigs.pushBack(static_cast<za::UniquePtr<Rig>&&>(made));
+    proportionedRigs.keys.pushBack(key);
+    return out;
+}
+
 void bonePose(const Rig& rig, int pose, int b, glm::quat& rot, glm::vec3& pos)
 {
     pose = za::clamp(pose, 0, rig.numPoses - 1);

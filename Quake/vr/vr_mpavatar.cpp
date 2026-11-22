@@ -537,27 +537,41 @@ void avatars_f()
                 float scale = 1.f;
                 const ragdoll::Rig* rig = nullptr;
                 int parts = 0;
-                float leg = 0.f;
+                float leg = 0.f, arm = 0.f, restArm = 0.f;
                 if(ragdoll::drawnPart(d.doll, 0, rot, pos, scale, &rig) && rig)
                 {
                     parts = rig->numBones;
-                    glm::vec3 at[3];
-                    const char* const names[3] = {"thigh_l", "shin_l", "foot_l"};
-                    bool all = true;
-                    for(int j = 0; j < 3; j++)
-                    {
-                        int b = 0;
-                        while(b < rig->numBones && strcmp(rig->bones[b].name, names[j]) != 0)
+                    // (a chain's length as drawn: its three bones' pivots; backlog1122c: the left arm, shoulder to elbow
+                    // to wrist, in his proportions, beside the model's own arm at his size)
+                    const auto chain = [&](const char* const (&names)[3], float& rest) {
+                        glm::vec3 at[3], was[3];
+                        bool all = true;
+                        const qmodel_t* source = ragdoll::sourceModel(&de); // (drawn with its skinned copy: its .mdl)
+                        qmodel_t* mdl = const_cast<qmodel_t*>(source ? source : de.model);
+                        const ragdoll::Rig* base = mdl ? ragdoll::rigFor(mdl) : nullptr;
+                        for(int j = 0; j < 3; j++)
                         {
-                            b++;
+                            int b = 0;
+                            while(b < rig->numBones && strcmp(rig->bones[b].name, names[j]) != 0)
+                            {
+                                b++;
+                            }
+                            float s = 1.f;
+                            all = all && b < rig->numBones && ragdoll::drawnPart(d.doll, b, rot, pos, s);
+                            at[j] = all ? rot * (s * rig->bones[b].pivot) + pos : glm::vec3{0.f};
+                            was[j] = all && base && b < base->numBones ? s * base->bones[b].pivot : glm::vec3{0.f};
                         }
-                        float s = 1.f;
-                        all = all && b < rig->numBones && ragdoll::drawnPart(d.doll, b, rot, pos, s);
-                        at[j] = all ? rot * (s * rig->bones[b].pivot) + pos : glm::vec3{0.f};
-                    }
-                    leg = all ? glm::distance(at[0], at[1]) + glm::distance(at[1], at[2]) : 0.f;
+                        rest = glm::distance(was[0], was[1]) + glm::distance(was[1], was[2]);
+                        return all ? glm::distance(at[0], at[1]) + glm::distance(at[1], at[2]) : 0.f;
+                    };
+                    const char* const legNames[3] = {"thigh_l", "shin_l", "foot_l"};
+                    const char* const armNames[3] = {"upperarm_l", "forearm_l", "hand_l"};
+                    float restLeg = 0.f;
+                    leg = chain(legNames, restLeg);
+                    arm = chain(armNames, restArm);
                 }
-                Con_Printf("mp_doll_rig: ent=%d doll=%d parts=%d dollscale=%.3f leg=%.2f\n", d.owner, d.doll, parts, scale, leg);
+                Con_Printf("mp_doll_rig: ent=%d doll=%d parts=%d dollscale=%.3f leg=%.2f arm=%.2f restarm=%.2f\n", d.owner, d.doll,
+                    parts, scale, leg, arm, restArm);
             }
         }
         view::printOwnLooks(cl.viewentity);
@@ -1480,6 +1494,87 @@ bool serverBody(int slot, int& build, float& scale)
     return true;
 }
 
+namespace
+{
+
+// Calibration `c`'s (null: none came, a bot's: the default body's) arms and shoulders on the doll rig `rig` (its rest
+// units at size `scale` are world units): his upper arm's and forearm's drawn lengths over the rig's (setupBody's
+// Subject, avatar::armBoneLength: measured, else the model's times his arm length, his tweaks on top), his shoulders'
+// offset (metres of the model at his scale, as solveArm's clavicle: back, up, out) in its rest units.
+[[nodiscard]] ragdoll::Proportions dollProportions(const Calibration* c, const ragdoll::Rig& rig, float scale)
+{
+    ragdoll::Proportions p;
+    int upper = -1, fore = -1;
+    for(int b = 0; b < rig.numBones; b++)
+    {
+        upper = strcmp(rig.bones[b].name, "upperarm_l") == 0 ? b : upper;
+        fore = strcmp(rig.bones[b].name, "forearm_l") == 0 ? b : fore;
+    }
+    if(upper < 0 || fore < 0 || scale <= 0.f)
+    {
+        return p;
+    }
+    const float worldScale = c ? static_cast<float>(c->v[calScale]) / 1000.f : units::defaultWorldScale();
+    const float cm = units::perMetre * worldScale * 0.01f;
+    const float armLength = c ? static_cast<float>(c->v[calArm]) / 1000.f : 1.f;
+    const int bones[2] = {upper, fore};
+    float ratio[2];
+    for(int k = 0; k < 2; k++)
+    {
+        const ragdoll::Bone& bone = rig.bones[bones[k]];
+        const float modelLen = glm::distance(bone.pivot, bone.end) * scale;
+        const float measured = c ? static_cast<float>(c->v[calUpper + k]) / 10.f : 0.f;
+        const float tweak = c ? static_cast<float>(c->v[calTweakUpper + k]) / 10.f : 0.f;
+        ratio[k] = modelLen > 1e-3f ? avatar::armBoneLength(modelLen, armLength, measured, tweak, cm) / modelLen : 1.f;
+    }
+    p.upper = ratio[0];
+    p.fore = ratio[1];
+    const glm::vec3 so = c ? glm::vec3{static_cast<float>(c->v[calShoulders]), static_cast<float>(c->v[calShoulders + 1]),
+                                 static_cast<float>(c->v[calShoulders + 2])} /
+                                 1000.f
+                           : bodycal::defaultArms().shoulderOffset;
+    p.shoulder = glm::vec3{-so.x, so.y, so.z} * units::perMetre; // (back -> forward)
+    return p;
+}
+
+[[nodiscard]] bool isDollRig(const ragdoll::Rig* rig)
+{
+    return rig && rig->model && strncmp(rig->model->name, "progs/vrdoll", 12) == 0;
+}
+
+} // namespace
+
+const ragdoll::Rig* serverDollRig(const ragdoll::Rig* rig, int owner, float scale)
+{
+    if(!isDollRig(rig) || owner < 1 || owner > MAX_SCOREBOARD)
+    {
+        return rig;
+    }
+    // (as serverBody: single player your own settings, a client his calibration, none (a bot) the default body)
+    const int slot = owner - 1;
+    const bool own = svs.maxclients <= 1;
+    const Calibration c = own ? ownCalibration() : cal.slot[slot];
+    const ragdoll::Proportions p = dollProportions(own || cal.slotHas[slot] ? &c : nullptr, *rig, scale);
+    const ragdoll::Rig* out = ragdoll::proportioned(rig, p);
+    Con_DPrintf("dollrig: owner %d, %s, scale %.3f: upper arm x%.3f, forearm x%.3f, shoulders %.2f %.2f %.2f%s\n", owner,
+        rig->model->name, scale, p.upper, p.fore, p.shoulder.x, p.shoulder.y, p.shoulder.z, out == rig ? " (the model's own)" : "");
+    return out;
+}
+
+const ragdoll::Rig* clientDollRig(const ragdoll::Rig* rig, const entity_t* e, float scale)
+{
+    if(!isDollRig(rig) || !e)
+    {
+        return rig;
+    }
+    int p = 0;
+    for(int k = 0; k < cl.maxclients && k < MAX_SCOREBOARD && !p; k++)
+    {
+        p = e->colormap == cl.scores[k].translations ? k + 1 : 0;
+    }
+    return p > 0 ? ragdoll::proportioned(rig, dollProportions(calOf(p), *rig, scale)) : rig;
+}
+
 void sendCalibration()
 {
     if(cls.state != ca_connected || cls.signon != SIGNONS || cls.demoplayback || cl.maxclients <= 1)
@@ -1964,6 +2059,14 @@ void addDrawn(int e, const entity_t* replace)
 [[nodiscard]] bool dollPose(const entity_t* e, int num, qmodel_t* model, avatar::DollPose& out, VrDrawnHand hands[2])
 {
     const ragdoll::Rig* rig = ragdoll::rigFor(model);
+    {
+        // (its ragdoll's own rig where it has one: a dead player's doll in his proportions, serverDollRig/clientDollRig)
+        glm::quat q;
+        glm::vec3 t;
+        float s = 1.f;
+        const ragdoll::Rig* drawnRig = nullptr;
+        rig = ragdoll::drawnPart(num, 0, q, t, s, &drawnRig) && drawnRig ? drawnRig : rig;
+    }
     if(!rig)
     {
         return false;

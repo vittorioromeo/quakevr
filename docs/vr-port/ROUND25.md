@@ -7549,6 +7549,41 @@ becomes possible in that state".
   `vr_flatitems_test 10` (routing, ironsight with an empty hand) 63/0, 7 (a prop beside the gun) 13/0, flathands 76/0,
   flatmelee2h 16/0, flatads 6/1 (its "launchers", the outdated expectation of ROUND24.md).
 
+## Faster release tests: lanes, a beta profile, quicker batches (branch agent/testspeed, 2026-11-22)
+
+- **run_test_suite.py**: tests in parallel lanes (`--jobs N`; 0: a lane per 8 CPUs, at most 4, 2 while the author's
+  game runs; the kit's `QVR_LANE`: own game folder, lock and batch copies). `qvrtest.lane_keys` keeps apart lane-0
+  scripts, "alone" ones (timing runs; mapgun_pickup's `quakevr/maps/e1m3.ent`), testbatch suites (at most
+  `--batch-jobs` 2) and "tele" (the vrteleporters builders and stealth); the summary in the suite's order.
+  `--profile full|beta` (PROFILES); scenario_check joined the suite.
+- **make_release.ps1**: `-TestProfile full|beta` (default beta for an x.y.z-betaN version, or `-Beta`; a final
+  release refuses beta), `-TestJobs N`. RELEASING.md "Tests before publishing", TESTING.md "The release suite: lanes
+  and profiles".
+- **testbatch.sh**: `tb_run_sh` starts no process (its index: the runs' arguments, in memory; was ~8 processes a run
+  in each pass, each 0.1-1 s under Git bash on a loaded machine). `TB_COLLECT_STUBS=1` (the reload suites): the
+  collect pass's grep/sed/cut/tr/head/tail/wc/paste/sort/python are no-ops (a run whose arguments then come out
+  different is still played, alone: correct, only slower; `TB_STATS` lists them, with the replay's time).
+- **Tests** (no case removed): reload_gunshape's and reload_magcollide's Box3D timing sections (`run.sh --exclusive`,
+  waiting for every game on the machine: gunshape timed out at 1200 s in the 1.2.0-beta1 suite; numbers only, no
+  check) run with `QVR_TEST_TIMINGS=1` only. throw_spin (18 games one after another) and mapflameburn (16) batched,
+  undrawn, checked by builtins / one Python at the end; mapgun_pickup in one game (one fixture: a weapon of each kind on
+  its own e1m3 item spot, each case reloading the map). reload_test's four screenshot games are two (the sights' and
+  the clean blood's in one; the bloody one alone, so no blood reaches the clean hand), its PNGs read in name order (a
+  PNG is written by a thread: by time they can come out of order).
+- **Times** (s; before: one run; after: median of three (min-max); the machine shared with five workers, its load
+  swinging ~5x: a suite's game time is 10-80 s, the rest the shell between runs): mapgun_pickup 295 -> 40 (16-51),
+  throw_spin 651 -> 78 (33-91), mapflameburn 377 -> 96 (47-150), reload_gunshape 1200+ timeout -> 93 (76-313),
+  reload_magcollide 399 -> 96 (22-127), reload_front 415 -> 102 (94-334), reload_contact 368 -> 177 (73-255),
+  reload_eject 502 -> 272 (102-356), reload 1358 -> 621 (539-852).
+- **Open**: reload_test is still the longest (its collect pass ~250 s: its own checks' subshells); splitting it into
+  parts for the lanes would cut the suite's critical path. reload_worldparts failed once in six runs ("1 screens" at
+  the old 320-unit range), reload_test's sights check once before the name-order fix. The kit's run_baseline.py has its
+  own copy of the lane rules (qvrtest.lane_keys could replace it).
+- **Proof**: map flames igniting at half vr_burn_self_time (QC, reverted): the batched mapflameburn failed 6 of 16.
+  The beta profile in 4 lanes: 8.2 min, 9 passed; settings_page failed in lane 1 (a lane's config is put back before
+  each game) and is now lane 0 (PASS); two failures not from this branch: update_notice ("same" serves 1.2.0, newer
+  than this 1.2.0-beta1: the test's versions need the beta's) and scenario_check (ENGINE CRASH, access violation in
+  qvr::visor update, vr_visor.cpp:230, map vrtesthall, 98 s in).
 ## Ropes (phase 1 of 3: the physical rope and chain)
 
 His spec of 2026-11-21; the reference is `ROPES.md` (keys, settings, files, defaults, limits). Phase 1 done: map
@@ -7892,3 +7927,33 @@ shove, climb...) and propose a key or leave it VR-only."
 - **update_notice_test:** its "same" feed now serves VERSION whole (1.2.0-beta1, not 1.2.0: a beta's final is newer,
   semver), and it checks `vr_update_compare`'s prerelease order (1.2.0-beta1 > 1.1.0, < 1.2.0, < 1.2.0-beta2). The
   game's logic was already right (vr_update.cpp `comparePre`: a 1.1.0 feed gives a beta no notice, 1.2.0 does): all passed.
+## backlog1122c: the last backlog1122 items (branch agent/backlog1122c, 2026-11-22)
+
+- **1. Avatar-doll corpses: his proportions on the physics rig.** A dead player's ragdoll (progs/vrdoll*.mdl) is no longer
+  his build's rig scaled uniformly: `ragdoll::proportioned` (vr_ragdoll.cpp) makes a copy of the authored rig in a body's
+  proportions (each upper arm and forearm stretched along itself, its girth kept; each clavicle and all on it moved by the
+  shoulders' offset; its poses' places moved with the pivots), one per rounded set, kept like the rigs (64 at most, then
+  the model's own). The proportions are his avatar's (`mpavatar::serverDollRig` / `clientDollRig`, `dollProportions`):
+  his upper arm and forearm by the drawn arms' own rule, now one function (`avatar::armBoneLength`: measured cm, else the
+  model's times vr_body_arm_length, his tweaks on top; armLengths calls it), his shoulders' offset as solveArm moves the
+  clavicle (back, up, out; uncalibrated the default body's 4 cm forward). The server takes his calibration as serverBody
+  does (owner: the body's colormap); a remote client takes the one it has for him (the body's colours) when a ragsync
+  record comes, so both have the same rig; `dollPose` reads the published rig. The vrdoll .mdl drawn on its own (no
+  avatar to draw on it) keeps the model's arms (a gap at the elbow when his differ). `developer 1` prints `dollrig:`
+  (owner, model, scale, the arm ratios, the shoulders); vr_mp_avatars' `mp_doll_rig` line gained `arm` (shoulder to elbow
+  to wrist, as drawn) and `restarm` (the model's at his size).
+- Test: `mp_test.py deathbody` 40/0 (new: A's arm length 1.2, unmeasured: his doll's arm 19.59 over the model's 16.31 =
+  1.201 at the host, 1.207 at B; B's 1.000 / 0.999). It had been failing its "tall B" check since backlog1122b (B plays
+  flat, so his corpse is his flat body height's): B now sets vr_flat_body_height too. Single player e1m1 with the kit
+  base's measured arms: upper x0.954, forearm x1.019, the arm 16.04 against 16.28.
+- **Range of Motion pass** (`vr_rig2_check` and its envelope on the four builds; limits unchanged, the grunt's): each
+  build 22/13 (brawny 16/19), the grunt's own rig 22/13; the doll's joints outside the grunt's failing set are the neck
+  (envelope: back clean to 0 of -25, twist 20-25 of 35), the elbows (85-90 of 125), the knees (13 of 130), the hips back
+  (0 of -30). Tried the neck at -10 / +-25 in make_vrdoll.py: still FAIL, and neck+head failed too (its holes are the
+  md5's open neck seam, 90 open edges, not the limits): reverted. The elbows', knees' and hips' creases are the linear
+  skin's at any bend a ragdoll needs (and the drawn avatar is the md5 posed by solveDoll, not this mesh). Left for his
+  eye: Rig Studio > Range of Motion on a vrdoll if a corpse's neck or shoulders ever look wrong.
+- **2. Not done** (budget): flatfg2h, twohand_regrip, noises_clue, nav_lift_down, gadget_lock. Reproduced on this branch:
+  gadget_lock 13/4 (C: the crate in both hands still double-taps, a tap counted once locked; H: the side button's one
+  press and the one after letting go), flatfg2h 10/1 (key 3: the axe's drawn off hand leaves the grip, 5.95 a frame
+  against the launcher's 2.90). ThinLTO 0 warnings.
