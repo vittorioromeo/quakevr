@@ -977,10 +977,17 @@ void place()
 
     placeBots(p, feet, fwd, left);
 
+    // The scene's commands next, in order, ahead of what the console buffer still holds: added at its end they waited
+    // behind a test script's "vr_scenario X;wait9000;quit" and never ran (nav_lift_down's reach test: no verdict).
+    za::String cmds;
     for(const za::String& c : s.cmds)
     {
-        Cbuf_AddText(c.cStr());
-        Cbuf_AddText("\n");
+        cmds += c;
+        cmds += "\n";
+    }
+    if(!cmds.empty())
+    {
+        Cbuf_InsertText(cmds.cStr());
     }
 
     state.hint = !s.hint.empty() ? s.hint : !state.lastHint.empty() ? state.lastHint : s.title;
