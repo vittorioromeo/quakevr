@@ -8456,6 +8456,30 @@ His notes vrropes_2026-11-22_15-43-18, 15-43-56, 15-45-10, 15-48-30 ("Climbing r
   mere grab"; with `vr_rope_hand_grip 1` its grip check fails at 0.15), rope_sound_test 6/0, vr_rope_test 16/0,
   mp_test.py ropeclimb 12/0. ThinLTO 0 warnings.
 
+## flatgreen: the flat suites that failed on origin/next (agent/flatgreen, 2026-11-22)
+
+- Runs on origin/next 100c70337 in this tree (Release no-LTO, three lanes): first with the old full baseline (a control),
+  then with `Misc/quakevr/test_baseline.cfg`. "Old" = the old baseline, "new" = the shipped-defaults baseline.
+
+| suite | before (old / new) | after | cause | fix |
+|---|---|---|---|---|
+| flat_fling | FAIL / FAIL (0 u/s) | PASS | bladeone (2da083685): a live blow's decap reads `mh_c_f`; `VR_Decap_TestBlow` never set it, so every test slash struck "0.00 along the blade" (also decap_test.sh's live/axe/...: no FAIL lines there, eyeballed) | test helper sets `mh_c_f = xF`, `mh_bfrom = 0` |
+| flatads | 6/1 / 6/1 | 7/0 | zoom-only aim (0ab8a76f7; his fsight_mode 1): `vr_flat_sight_check` returned before `flatgunview` for the launchers | the check prints the drawn place for zoom guns too, then returns |
+| flatfx | 8/2 / 8/2 | 10/0 | the centurion guns (wid 22, 25) are zoom-only by his tuning (5475ff16a) | zoom guns: "zooms in fully" (t 1.00, fov 10+ under hip); guns with sights as before |
+| flatwall | 16/1 / - | 17/0 | the same: 4 of the 24 sighted two-handed holds left | `vr_flat_aim_zoom 0` (as flatsight): every gun's ironsight hold read |
+| flatfix | 15/4 / (pending) | (pending) | "taken over N s" wraps onto the status line's 2nd console line: vr_flat_aim_time read empty | the line and its wrapped lines joined. Its two hotspot checks (grip hotspot ahead of the held hand; 2 of 3 holds) open |
+| flatlagbob | 4/1 / 3/2 | open | his defaults (ROUND24: `vr_flat_bob` 0 -> 1) plus a smaller forward bob: with `vr_flat_bob 0`, level, the hands' forward range 0.67 at bob_fwd 0 and 1.13 at 2 (the check wants +1.0; `bobFwd` 0.6 x 2 x feel.amp should give ~2.4) | not fixed: feel.amp or the step rate changed after 97446fada; worth a bisect (one 65 s run a step) |
+| flathands | 76/0 / 75/1 | open | new baseline only: swap2h "the off hand off the grip to the empty hand's guard (none)" | not looked into |
+| flatsweep | 382/5 / 382/11 | open | new: hand_head ads 0.842 vs listed 0.763 (4 rows), settled wall/long/stand/hip | not looked into (known-list drift or the shipped offsets) |
+| flateject | 16/1 / 15/2 | open | ssgold sideways speeds; new: "vr: the same stroke out of the chambers first" | not looked into |
+| flatgate | 3/2 (old) | open | case 0: the player never crosses a seamless gate in one run (crossings 0), crosses but keeps pitch 0 ("was 0.00": setpos's pitch not yet applied at state 1) in another: timing-dependent | not fixed |
+| flatmove | 10/0 / 7/3 | open | baseline-caused: passes on the old one (cl_alwaysrun, HUD scale suspects) | not fixed |
+| flatsight | 11/1 (old, once) | - | flake: 4 guns at `t 0.00` (the aim not taken) with the eye nudged | not fixed |
+| flatswap | no verdict (Knight's Sword, 3 runs) | - | the known flake | not fixed |
+
+- Also: `checklist_tests_check.py` knows Quoth's own maps (quoth_maps.sh's OWN) as it knows AD's: 94/0.
+- MP suites (mp_melee, mp_slide_vr, mp_predictslide, the flakes): not run (out of budget).
+- Seen once: "Warning: [SV] check DP_QC_SINCOSSQRTPOW before calling (: VR_Decap_Judge)" with developer 1.
 ## dwellweap: the Crystal Lance's shot, weight, feed and grip flip; pole weapons' design (agent/dwellweap, 2026-11-22)
 
 His notes vrtesthall_2026-11-22_15-38-38 .. 16-01-25. Built (one commit each): items 1, 5 and part of 2 and 3; item 6 as
@@ -8489,3 +8513,22 @@ Full write-up: `BUILD_SPEED.md` (measurements, top TUs and headers, what landed,
   inputs' hash matches the last clean compile; bash builtins instead of small processes. With it: no-op 23-28 -> 5.5-9 s,
   a .cpp touch 33-38 -> 6-11 s, a QC edit 36 -> 12 s, vr_hands.hpp 166 -> 98 s (noisy, shared machine).
 - No source includes or std:: touched (the zancle worker's area): the heaviest headers are listed for it in BUILD_SPEED.md.
+## flatladder: flat-screen ladders on the drawn rungs too (agent/flatladder, 2026-11-22)
+
+His decision 2026-11-22 (kellbase item 3, "share it"). FLATPLAY.md "Ladders".
+- **One rung source.** `flatRungSearch` is gone: `ladderHold`'s volume fallback asks `drawnRung` for flat play's ladder
+  as for a headset's hands, and a held rung says so (`Ledge::drawn`). The flat window over the feet (Lowest Ledge to
+  the shoulders plus an arm, about 31 units) holds one bar 24 or 32 apart, so `findRungs` takes `drawnBelow`: once the
+  window saw a drawn rung, a second pass probes down to that far under it and keeps drawn rungs alone (other holds
+  never, and the window's own probes are unchanged, so a ladder with no drawn rungs finds exactly what it did). Getting
+  on (`flatLadder`), going down hand over hand and the lowering off the top (`flatLadderMount`) pass ladderGap (40);
+  going up passes 0. The mount's top rung may be up to ladderGap under the floor's edge when drawn (kellbase1's
+  catwalk: its top bar 24 under; the volume's own top rung keeps 24).
+- **`drawnRung` guard (VR too):** AD's ad_e1m1 ladder has a non-solid model with one up-facing face (at its top, 160)
+  over its volume, so every hand on it took that "rung" (flat: one rung, 0 of 3). A drawn ladder now needs two or more
+  tops, and the nearest within `drawnRungReach` (40) of the hand; else the volume's own 16-unit rungs, as before.
+- **Tests:** `vr_flatladder_test` on kellbase1 gains the pillar ladder (x -64, 256 up to 640, bars 32 apart): up and
+  over, down from its top, down looking down; the catwalk's three now climb its bars (rungs 656/680 taken, then 704,
+  728 ... 872). modladder_test.sh's fallback case moved to index 6. Runs: modladder_test.sh 10/0 (kellbase1 flat 6/0,
+  AD ad_e1m1 3/0, VR hands' exact holds unchanged), flatladder_test.sh 2/0, ad_test3 ladder 1/0 and fallback 1/0;
+  ThinLTO 0 warnings.

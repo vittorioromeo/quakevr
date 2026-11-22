@@ -65,6 +65,10 @@ void(vector xAt, float xThing, float xKind, float xF, float xAlong, float xSpeed
     b.mh_c_pos = xAt;
     b.mh_c_dir = way;
     b.mh_c_ent = world;
+    // (bladeone, 2da083685: a live blow's decap reads the struck point's own share, mh_c_f, not the contact's projection.
+    // The made-up blow struck at `xAt`, `xF` along its line; its blade starts at its kind's Blade From.)
+    b.mh_c_f = xF;
+    b.mh_bfrom = 0;
 };
 
 // The made-up blow (VR_Decap_TestBlow) swept through `xAt` (its points from 10 units short of their line's place to 10
