@@ -8132,3 +8132,9 @@ All three were the tests, not the game; no player-facing change.
   and AD's own monsters'), multiplies by `VR_AD_SHELL_FASTER` 1.3; the Player/Enemy Pellet Speed settings stay 1 and
   multiply on top; vanilla's hitscan untouched. `vr_ad_test 58` now prints `adshots-test: speed PASS|FAIL` (ad_shots
   test's FAIL scan catches it): player 2601 (AD 2000 x 1.3), enemy 1241 (950 x 1.3); at the settings x2: 5210, 2450.
+
+## humlook3: his new Texture Studio painting is the shipped default (agent/humlook3, 2026-11-22)
+- His humlook.txt (grunt explosive/energy/flame/poison pack rows, dknight explosive clothes+pack) and humlook_masks.txt
+  (paint lines: backpack, enforcer, grunt, knight, death knight; the death knight's skin newly painted) copied to quakevr/.
+- humstudio2_test PASS (130 passed, round trip identical); humrepl2_test PASS after its stroke used class 1 (class 3 had
+  nothing left to change on the death knight's now fully painted skin).
