@@ -757,6 +757,20 @@ bool spawn(const glm::vec3& org, const glm::vec3& dir, Preset preset, int count)
             return true;
         }
         count = za::max(1, static_cast<int>(static_cast<float>(count) * mult + 0.5f));
+        // Close up (vr_blood_near, the Standalone preset's gore cap): fewer, down to vr_blood_near_mult at the eye, where
+        // each drop and cloud covers much of the view (the GPU's fill); a share of one made by chance, so a gib's trail
+        // of single drops thins out too.
+        // (The streams' droplets, drips and specks: nearBloodMade, each.)
+        if(const float keep = nearBloodKeep(org); keep < 1.f)
+        {
+            const float want = static_cast<float>(count) * keep;
+            const int whole = static_cast<int>(want);
+            count = whole + (vrand::range(rng, 0.f, 1.f) < want - static_cast<float>(whole) ? 1 : 0);
+            if(count <= 0)
+            {
+                return true;
+            }
+        }
     }
 
     if(!vr_particles.value || !ensureAtlas())

@@ -45,13 +45,13 @@
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Sqrt.hpp"
 #include "Zancle/Container/Vector.hpp"
+#include "Zancle/Trait/IsTriviallyCopyable.hpp"
 #include "vr_api.h"
 
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
 #include <string.h>
-#include <type_traits>
 
 using namespace qvr;
 
@@ -1017,7 +1017,7 @@ namespace
 
 static_assert(sizeof(ArmPose) <= poselive::poseBytes, "the Live tape's room for an arm pose");
 static_assert(sizeof(entity_t) <= poselive::entBytes, "the Live tape's room for an entity");
-static_assert(std::is_trivially_copyable_v<ArmPose>, "copied as bytes");
+static_assert(ZA_IS_TRIVIALLY_COPYABLE(ArmPose), "copied as bytes");
 
 // The subject as the game had it when paused (put back on Play): its arm pose, its solve's state, its entity.
 struct LiveHeld

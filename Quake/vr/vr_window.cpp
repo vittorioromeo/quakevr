@@ -17,6 +17,7 @@
 // follows the head at the margin's edge, and settles as soon as the head stops).
 
 #include "vr_engine.hpp"
+#include "vr_api.h"
 #include "vr_window.hpp"
 
 #include "vr_cvars.hpp"
@@ -180,7 +181,9 @@ float spectatorScale()
 
 void update(const FrameState& frame, const hands::State& s)
 {
-    if(vr_mirror.value <= 0.f)
+    // (VR_NoWindow: the Quest's immersive app has no window to show it; its mirror cost the Quest 3 ~2.6 ms of GPU a
+    // frame, its UI over the mirrored eye more: QUEST_PLAN.md 6o)
+    if(vr_mirror.value <= 0.f || VR_NoWindow())
     {
         currentView = View::Off;
     }

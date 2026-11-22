@@ -616,6 +616,16 @@ size_t gl_bmodel_indirect_buffer_size = 0;
 GLuint gl_bmodel_surf_buffer = 0;
 GLuint gl_bmodel_marksurf_buffer = 0;
 GLuint gl_bmodel_marksurf_buffer_size = 0;
+// QVR: the bound path's world textures in arrays (vr/vr_worldarrays.cpp, r_world.c): each vertex's command (its
+// model's texture: firstcmd + its index), and each command's indices at most (0: a runtime brush's slot, not merged)
+GLuint gl_bmodel_vertcmd_buffer = 0;
+int *gl_bmodel_cmdcap = NULL;
+int gl_bmodel_numcmds = 0;
+// QVR: the world's lit commands (C4v, under the ES profile only; vr_gl_world_unlit 2): a second command for each of the
+// world's solid and fence textures, after every other command, whose indices (a copy of the world's ranges after
+// every other index) the GPU's cull fills with the surfaces a dynamic light touches; the first command (-1: none)
+int gl_bmodel_litcmd_first = -1;
+int gl_bmodel_litcmd_count = 0;
 
 /*
 ==================
@@ -629,6 +639,14 @@ void GL_DeleteBModelBuffers (void)
 	GL_DeleteBuffer (gl_bmodel_indirect_buffer);
 	GL_DeleteBuffer (gl_bmodel_surf_buffer);
 	GL_DeleteBuffer (gl_bmodel_marksurf_buffer);
+	GL_DeleteBuffer (gl_bmodel_vertcmd_buffer); // QVR
+	VR_WorldArraysClear ();
+	gl_bmodel_vertcmd_buffer = 0;
+	VR_HeapFree (gl_bmodel_cmdcap);
+	gl_bmodel_cmdcap = NULL;
+	gl_bmodel_numcmds = 0;
+	gl_bmodel_litcmd_first = -1; // QVR
+	gl_bmodel_litcmd_count = 0;
 	gl_bmodel_vbo = 0;
 	gl_bmodel_vbo_size = 0;
 	gl_bmodel_ibo = 0;
@@ -835,6 +853,8 @@ void GL_BuildBModelMarkBuffers (void)
 	bmodel_gpu_marksurf_t *mark;
 	bmodel_draw_indirect_t *cmds;
 	bmodel_gpu_surf_t *surfs;
+	GLuint		*vertcmd = NULL; // QVR: the bound path's (gl_bmodel_vertcmd_buffer)
+	int			numverts = (int) (gl_bmodel_vbo_size / sizeof (glvert_t)); // QVR
 
 	if (!cl.worldmodel)
 		return;
@@ -856,6 +876,19 @@ void GL_BuildBModelMarkBuffers (void)
 	brush_reserve.firstindex = numtris * 3;
 	numtex += brush_reserve.slots * QVR_BRUSH_SLOT_CMDS;
 	numtris += brush_reserve.slots * QVR_BRUSH_SLOT_INDEXES / 3;
+	// QVR: the world's lit commands after all (C4v; the ES profile's split by surface, r_world.c R_WorldLitSplit), and
+	// room for the world's indices once more
+	gl_bmodel_litcmd_first = -1;
+	gl_bmodel_litcmd_count = 0;
+	if (glprogs.world_unlit[0][0] && cl.worldmodel->texofs[TEXTYPE_CUTOUT + 1] > 0)
+	{
+		gl_bmodel_litcmd_first = numtex;
+		gl_bmodel_litcmd_count = cl.worldmodel->texofs[TEXTYPE_CUTOUT + 1];
+		numtex += gl_bmodel_litcmd_count;
+		for (i = 0; i < cl.worldmodel->nummodelsurfaces; i++)
+			numtris += q_max (cl.worldmodel->surfaces[i + cl.worldmodel->firstmodelsurface].numedges, 2) - 2;
+	}
+	R_WorldLitLeavesBuild (); // QVR: which lit commands a view's lights can fill (C4w)
 
 	// count marksurfaces used by worldmodel leafs
 	for (i = 0; i < cl.worldmodel->numleafs; i++)
@@ -934,6 +967,21 @@ void GL_BuildBModelMarkBuffers (void)
 		for (i = 0, s = m->surfaces + m->firstmodelsurface; i < m->nummodelsurfaces; i++, s++)
 			cmds[m->firstcmd + texidx[s->texinfo->texnum]].count += (q_max (s->numedges, 2) - 2) * 3;
 	}
+	for (i = 0; i < gl_bmodel_litcmd_count; i++) // QVR: a lit command's indices at most: its texture's (C4v)
+		cmds[gl_bmodel_litcmd_first + i].count = cmds[cl.worldmodel->firstcmd + i].count;
+
+	if (!gl_bindless_able && numverts > 0) // QVR: the bound path's arrays (vr/vr_worldarrays.cpp): each command's capacity, each vertex's command
+	{
+		gl_bmodel_numcmds = numtex;
+		gl_bmodel_cmdcap = (int *) VR_HeapCalloc (numtex, sizeof (gl_bmodel_cmdcap[0]));
+		vertcmd = (GLuint *) VR_HeapCalloc (numverts, sizeof (vertcmd[0]));
+		if (!gl_bmodel_cmdcap || !vertcmd)
+			Sys_Error ("GL_BuildBModelMarkBuffers: out of memory (%d vertex commands)", numverts);
+		for (i = 0; i < brush_reserve.firstcmd; i++)
+			gl_bmodel_cmdcap[i] = cmds[i].count;
+		for (i = 0; i < gl_bmodel_litcmd_count; i++) // QVR: the lit commands (C4v)
+			gl_bmodel_cmdcap[gl_bmodel_litcmd_first + i] = cmds[gl_bmodel_litcmd_first + i].count;
+	}
 
 	// compute per-drawcall index buffer offsets
 	sum = 0;
@@ -959,6 +1007,9 @@ void GL_BuildBModelMarkBuffers (void)
 		for (i = 0, s = m->surfaces + m->firstmodelsurface; i < m->nummodelsurfaces; i++, s++)
 		{
 			bmodel_draw_indirect_t *draw = &cmds[m->firstcmd + texidx[s->texinfo->texnum]];
+			if (vertcmd) // QVR: its vertices' command
+				for (k = 0; k < s->numedges && s->vbo_firstvert + k < numverts; k++)
+					vertcmd[s->vbo_firstvert + k] = m->firstcmd + texidx[s->texinfo->texnum];
 			for (k = 2; k < s->numedges; k++)
 			{
 				idx[draw->firstIndex++] = s->vbo_firstvert;
@@ -975,6 +1026,13 @@ void GL_BuildBModelMarkBuffers (void)
 		cmds[i].firstIndex = sum;
 		sum += cmds[i].count;
 	}
+	for (i = 0, sum = brush_reserve.firstindex + brush_reserve.slots * QVR_BRUSH_SLOT_INDEXES; i < gl_bmodel_litcmd_count; i++)
+	{ // QVR: past the runtime brushes' slots (their commands are empty here), empty until the cull fills them (C4v)
+		cmds[gl_bmodel_litcmd_first + i].firstIndex = sum;
+		sum += cmds[gl_bmodel_litcmd_first + i].count;
+		cmds[gl_bmodel_litcmd_first + i].count = 0;
+	}
+	SDL_assert (gl_bmodel_litcmd_count == 0 || sum <= numtris * 3);
 
 	// create gpu buffers
 	gl_bmodel_indirect_buffer = GL_CreateBuffer (GL_SHADER_STORAGE_BUFFER, GL_DYNAMIC_DRAW, "bmodel indirect cmds",
@@ -989,6 +1047,15 @@ void GL_BuildBModelMarkBuffers (void)
 	gl_bmodel_marksurf_buffer = GL_CreateBuffer (GL_SHADER_STORAGE_BUFFER, GL_STATIC_DRAW, "bmodel marksurfs",
 		sizeof(mark[0]) * nummark, mark
 	);
+
+	if (vertcmd) // QVR
+	{
+		gl_bmodel_vertcmd_buffer = GL_CreateBuffer (GL_SHADER_STORAGE_BUFFER, GL_STATIC_DRAW, "bmodel vertex commands",
+			sizeof (vertcmd[0]) * numverts, vertcmd
+		);
+		VR_HeapFree (vertcmd);
+		VR_WorldArraysNewMap ();
+	}
 
 	// free cpu-side arrays
 	VR_HeapFree (texidx);

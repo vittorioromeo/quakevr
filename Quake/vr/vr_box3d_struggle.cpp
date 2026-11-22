@@ -9,10 +9,14 @@
 #include "vr_ragtool.hpp"
 #include "vr_text3d.hpp"
 
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strncmp.hpp"
+#include "Zancle/Base/Strstr.hpp"
+#include "Zancle/Container/Array.hpp"
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
-#include "Zancle/Container/Array.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/Vocabulary/Span.hpp"
 #include "vr_cvars.hpp"
@@ -20,7 +24,6 @@
 
 #include <cstdio>
 #include <cstdlib>
-#include <cstring>
 
 namespace box3d::detail
 {
@@ -97,7 +100,7 @@ constexpr int mostVoices = 10;
 {
     for(int i = 1; i < MAX_SOUNDS && sv.sound_precache[i]; i++)
     {
-        if(!std::strcmp(sample, sv.sound_precache[i]))
+        if(!ZA_STRCMP(sample, sv.sound_precache[i]))
         {
             return true;
         }
@@ -120,13 +123,13 @@ int voicesOf(edict_t* ent, za::Array<const char*, mostVoices>& out, int& idleFro
     int n = 0;
     idleFrom = 0;
     const auto add = [&](const char* s) {
-        if(!s || !*s || n >= mostVoices || std::strstr(s, "sight") || !precachedSound(s))
+        if(!s || !*s || n >= mostVoices || ZA_STRSTR(s, "sight") || !precachedSound(s))
         {
             return;
         }
         for(int i = 0; i < n; i++)
         {
-            if(!std::strcmp(out[static_cast<za::SizeT>(i)], s))
+            if(!ZA_STRCMP(out[static_cast<za::SizeT>(i)], s))
             {
                 return;
             }
@@ -138,7 +141,7 @@ int voicesOf(edict_t* ent, za::Array<const char*, mostVoices>& out, int& idleFro
     {
         for(const char* field : voiceFields)
         {
-            const bool idle = std::strstr(field, "idle") != nullptr;
+            const bool idle = ZA_STRSTR(field, "idle") != nullptr;
             if(idle == (pass == 1))
             {
                 const eval_t* v = GetEdictFieldValueByName(ent, field);
@@ -147,13 +150,13 @@ int voicesOf(edict_t* ent, za::Array<const char*, mostVoices>& out, int& idleFro
         }
         for(const VoiceSet& set : voiceSets)
         {
-            if(std::strcmp(set.classname, name))
+            if(ZA_STRCMP(set.classname, name))
             {
                 continue;
             }
             for(const char* sample : set.samples)
             {
-                if(sample && (std::strstr(sample, "idle") != nullptr) == (pass == 1))
+                if(sample && (ZA_STRSTR(sample, "idle") != nullptr) == (pass == 1))
                 {
                     add(sample);
                 }
@@ -445,29 +448,29 @@ void struggleStatus_f()
         const int headPart = r->rig->head > 0 && r->rig->head < r->count ? r->rig->head : 0;
         const glm::vec3 ownHead = glmv(b3Body_GetWorldCenter(r->body[static_cast<za::SizeT>(headPart)]));
         const char* heldName = r->rig->bones[g.part].name;
-        const size_t heldLen = std::strlen(heldName);
+        const size_t heldLen = ZA_STRLEN(heldName);
         float legs = 0.f;
         int legCount = 0;
         for(int b = 0; b < r->count; b++)
         {
             const ragdoll::Bone& bone = r->rig->bones[b];
             const char* n = bone.name;
-            const size_t len = std::strlen(n);
+            const size_t len = ZA_STRLEN(n);
             const auto at3 = [&](int part, const glm::vec3& rest) {
                 return glmv(b3Body_GetWorldPoint(r->body[static_cast<za::SizeT>(part)], b3v(rest * k)));
             };
-            if(!std::strncmp(n, "forearm_", 8))
+            if(!ZA_STRNCMP(n, "forearm_", 8))
             {
                 const glm::vec3 tip = at3(b, bone.end);
                 gap = za::min(gap, glm::distance(tip, eye));
                 toHead = za::min(toHead, glm::distance(tip, ownHead));
                 // (Not the arm it is held by: its side's letter, the names' last.)
-                if(!(heldLen > 0 && len > 0 && n[len - 1] == heldName[heldLen - 1] && std::strstr(heldName, "arm")))
+                if(!(heldLen > 0 && len > 0 && n[len - 1] == heldName[heldLen - 1] && ZA_STRSTR(heldName, "arm")))
                 {
                     toHand = za::min(toHand, glm::distance(tip, at));
                 }
             }
-            if(!std::strncmp(n, "shin_", 5) && bone.parent > 0)
+            if(!ZA_STRNCMP(n, "shin_", 5) && bone.parent > 0)
             {
                 const ragdoll::Bone& thigh = r->rig->bones[bone.parent];
                 const float full = (glm::length(bone.pivot - thigh.pivot) + glm::length(bone.end - bone.pivot)) * k;
@@ -505,7 +508,7 @@ void struggleStatus_f()
     // vr_struggle_status hurt <n>: the held ones' health down by n (tests: at 0 or less its struggle ends as dead).
     if(Cmd_Argc() > 2 && !q_strcasecmp(Cmd_Argv(1), "hurt"))
     {
-        const float n = static_cast<float>(std::atof(Cmd_Argv(2)));
+        const float n = static_cast<float>(atof(Cmd_Argv(2)));
         for(const World::RagdollGrab& g : world->ragdollGrabs)
         {
             EDICT_NUM(g.num)->v.health -= n;

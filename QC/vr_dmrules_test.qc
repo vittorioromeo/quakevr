@@ -203,8 +203,8 @@ void(float ask) VR_DMT_Run =
         VR_Test_Check((it.think2 == SUB_regen || it.think2 == VR_PickupObj_Regen) && fabs(it.nextthink2 - (time + it.wait)) < 0.1 && it.wait == 30,
             sprintf("dm 1: it comes back in its wait (%g s; in %.1f s)", it.wait, it.nextthink2 - time));
         VR_Test_Check(vr_dmt_drop == world || (vr_dmt_drop.classname == "thrown_weapon" &&
-            fabs(GetThrownWeaponTimeout(vr_dmt_drop) - (time + 10)) < 0.1),
-            sprintf("dm 1: the weapon the bot let go of for it (%s) is removed in 10 s", vr_dmt_drop.classname));
+            fabs(GetThrownWeaponTimeout(vr_dmt_drop) - (time + VR_WPN_DM_LIFETIME)) < 0.1),
+            sprintf("dm 1: the weapon the bot let go of for it (%s) is removed in %g s", vr_dmt_drop.classname, VR_WPN_DM_LIFETIME));
         it.nextthink2 = time + 0.05; // (its wait pulled forward)
         if(vr_dmt_drop)
         {

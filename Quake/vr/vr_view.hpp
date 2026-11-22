@@ -179,11 +179,11 @@ int posePouchItems(const ViewEntity& pouch, bool placed, int kind, int count, Vi
 // VrDrawnGear::model's model (1 the sheath, 2 the gadget, 3 its strap, 4 the grenade pouch, 5 the ammo pouch), or nullptr.
 [[nodiscard]] qmodel_t* gearModel(int index);
 // A holster's sheath and gun on another player's body (a bot's: no client drew them; syncfix), posed as yours are
-// (holsterOnBody, holsterOnBack): holster `holster` (body::Holster) at `pos`, the body's surface facing `out` there, the
-// body turned `yaw`, `weapon` in it (its own Holstered pose, as yours). Returns the sheath's model (none for the
-// shoulders, or with vr_leg_holster_model_enabled 0).
-qmodel_t* holsterOnOther(int holster, const glm::vec3& pos, const glm::vec3& out, float yaw, const qmodel_t* weapon,
-    struct GearDraw& sheath, struct GearDraw& gun);
+// (holsterOnBody, holsterOnBack): holster `holster` (body::Holster) at `pos`, the body's surface facing `out` there with
+// `surfaceUp` up along it (body::HolsterPlate's; the shoulders' unused), the body turned `yaw`, `weapon` in it (its own
+// Holstered pose, as yours). Returns the sheath's model (none for the shoulders, or with vr_leg_holster_model_enabled 0).
+qmodel_t* holsterOnOther(int holster, const glm::vec3& pos, const glm::vec3& out, const glm::vec3& surfaceUp, float yaw,
+    const qmodel_t* weapon, struct GearDraw& sheath, struct GearDraw& gun);
 
 // A player's power-ups as drawn on him (syncfix: yours from cl.items, another player's copy from his avatar's gear byte,
 // one code for both): the glow taking turns (its shader code and strength), its light from the hands, the quad's arcs,

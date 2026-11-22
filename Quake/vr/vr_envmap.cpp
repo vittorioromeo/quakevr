@@ -12,6 +12,8 @@
 #include "vr_view.hpp"
 #include "vr_weapons.hpp"
 #include "vr_api_render.h"
+#include "vr_api.h"
+#include "vr_glutil.hpp"
 
 #if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
 #include <SDL2/SDL.h>
@@ -277,7 +279,21 @@ void averageColors(za::Span<const gltexture_t* const> textures,
     }
     const float* px = nullptr;
     GLuint pack = 0;
-    if(total > 0)
+    za::Vector<float> host; // ES: no glGetTexImage into a pack buffer; each read through gfx::readTexImage
+    if(total > 0 && VR_GLESCompat())
+    {
+        host.resize(total / sizeof(float));
+        for(const AverageRead& r : reads)
+        {
+            if(r.w > 0)
+            {
+                GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, r.tex->texnum);
+                VR_GLGetTexImage(GL_TEXTURE_2D, r.level, GL_RGBA, GL_FLOAT, host.data() + r.offset / sizeof(float));
+            }
+        }
+        px = host.data();
+    }
+    else if(total > 0)
     {
         pack = GL_CreateBuffer(GL_PIXEL_PACK_BUFFER, GL_STREAM_READ, "vr envmap averages", total, nullptr);
         for(const AverageRead& r : reads)
@@ -285,7 +301,9 @@ void averageColors(za::Span<const gltexture_t* const> textures,
             if(r.w > 0)
             {
                 GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, r.tex->texnum);
+#ifndef __ANDROID__ // (Android: always the ES branch above)
                 glGetTexImage(GL_TEXTURE_2D, r.level, GL_RGBA, GL_FLOAT, reinterpret_cast<void*>(r.offset));
+#endif
             }
         }
         px = static_cast<const float*>(GL_MapBufferRangeFunc(GL_PIXEL_PACK_BUFFER, 0, static_cast<GLsizeiptr>(total),
@@ -519,9 +537,11 @@ void buildWorld()
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
     GL_ObjectLabelFunc(GL_TEXTURE, cube, -1, "vr envmap");
 
-    // One view per face, so that only the face just drawn gets its mipmaps made again (not all six).
+    // One view per face, so that only the face just drawn gets its mipmaps made again (not all six). Not under
+    // -glescompat (ES 3.2 has no texture views; OES/EXT_texture_view on the Quest: [?]): the whole cube's mipmaps.
     using TextureViewFn = void(APIENTRY*)(GLuint, GLenum, GLuint, GLenum, GLuint, GLuint, GLuint, GLuint);
-    if(const auto textureView = reinterpret_cast<TextureViewFn>(SDL_GL_GetProcAddress("glTextureView")))
+    if(const auto textureView =
+            VR_GLESForm(VR_GLES_FORM_VIEWS) ? nullptr : reinterpret_cast<TextureViewFn>(SDL_GL_GetProcAddress("glTextureView")))
     {
         glGenTextures(6, faceViews);
         for(int f = 0; f < 6; f++)
@@ -968,7 +988,7 @@ void dump_f()
     GL_BindNative(GL_TEXTURE0, GL_TEXTURE_CUBE_MAP, cube);
     for(int f = 0; f < 6; f++)
     {
-        glGetTexImage(GL_TEXTURE_CUBE_MAP_POSITIVE_X + f, 0, GL_RGB, GL_FLOAT, face.data());
+        VR_GLGetTexImage(GL_TEXTURE_CUBE_MAP_POSITIVE_X + f, 0, GL_RGB, GL_FLOAT, face.data());
         for(int y = 0; y < size; y++)
         {
             for(int x = 0; x < size; x++)
@@ -994,6 +1014,24 @@ void dump_f()
 void init()
 {
     Cmd_AddCommand("vr_envmap_dump", dump_f);
+}
+
+void readbackTest(int& passed, int& failed)
+{
+    if(!cube || facesDone < 6)
+    {
+        return;
+    }
+    GL_BindNative(GL_TEXTURE0, GL_TEXTURE_CUBE_MAP, cube);
+    for(int f = 0; f < 6; f++)
+    {
+        for(int level = 0; level < levels; level++)
+        {
+            const int same = gfx::readTexImageSame(GL_TEXTURE_CUBE_MAP_POSITIVE_X + f, level, GL_RGBA, GL_FLOAT, "envmap");
+            (same > 0 ? passed : failed)++;
+        }
+    }
+    GL_BindNative(GL_TEXTURE0, GL_TEXTURE_CUBE_MAP, 0);
 }
 
 void shutdown()

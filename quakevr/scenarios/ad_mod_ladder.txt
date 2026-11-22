@@ -6,4 +6,4 @@ map ad_crucial
 start -417 -2420 -107 90
 god
 notarget
-hint In a headset: grip the ladder ahead and climb hand over hand, over the top. With -flatscreenmode: walk forward into it (Ladders on): your hands take its rungs and you climb; with Desktop Screen Play > Ladders off, hold jump in it (AD's own climb). Quoth's kellbase1 (Quoth 2.2 installed) has the ladder-on-a-pillar kind (a drawn ladder, no real rungs): the pillar ladders off its arena; there the hands take rungs 16 units apart.
+hint In a headset: grip the ladder ahead and climb hand over hand, over the top. With -flatscreenmode: walk forward into it (Ladders on): your hands take its rungs and you climb; with Desktop Screen Play > Ladders off, hold jump in it (AD's own climb). Quoth's kellbase1 (Quoth 2.2 installed) has the ladder-on-a-pillar kind (a drawn ladder, no real rungs): the pillar ladders off its arena; there the hands take the drawn rungs themselves (32 units apart; 24 on the catwalk's), in a headset and with -flatscreenmode alike.

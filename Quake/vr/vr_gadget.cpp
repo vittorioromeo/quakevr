@@ -1031,6 +1031,7 @@ void light(int key, const Pose& pose, float out, float radius, float k)
         lighting::dlightLook(dl, 0.f, 0.f);
     }
     lighting::dlightNoShadow(dl);
+    lighting::dlightRig(dl);
 }
 
 // The screen's light, in its colour. There are no spot lights: the beam is a light well in front of

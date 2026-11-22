@@ -12,12 +12,13 @@
 #include "vr_testkit.hpp"
 #include "vr_cvars.hpp"
 #include "vr_tunables.hpp"
+#include "Zancle/Base/Swap.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
-#include "Zancle/String/String.hpp"
+#include "Zancle/Math/Acos.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
-#include "Zancle/Base/Swap.hpp"
+#include "Zancle/String/String.hpp"
 #include "vr_api.h"
 #include <glm/gtc/type_ptr.hpp>
 
@@ -2681,7 +2682,7 @@ void embedDrawnHand(const hands::State& s, int hand, bool mirrored, glm::vec3& p
     {
         // (vr_embed_probe: the hand drawn on the handle against its controller: either grip, as the hand holds it.)
         const glm::quat q = glm::normalize(glm::quat_cast(anglesBasis(onRot) * glm::transpose(anglesBasis(rot))));
-        embedProbe.handleCtl = za::max(embedProbe.handleCtl, glm::degrees(2.f * std::acos(za::min(1.f, za::fabs(q.w)))));
+        embedProbe.handleCtl = za::max(embedProbe.handleCtl, glm::degrees(2.f * za::acos(za::min(1.f, za::fabs(q.w)))));
     }
     pin.lastCtlPos = pos;
     pin.lastCtlRot = rot;
@@ -2932,7 +2933,7 @@ void embedGripProbe(int hand, bool armed, int slot, const glm::vec3& pos, const 
     }
     const glm::quat q = glm::normalize(glm::quat_cast(relTurn * glm::transpose(embedProbe.heldTurn[hand])));
     embedProbe.handleOff = za::max(embedProbe.handleOff, glm::distance(relPos, embedProbe.heldPos[hand]) / units::metresToUnits() * 100.f);
-    embedProbe.handleTurn = za::max(embedProbe.handleTurn, glm::degrees(2.f * std::acos(za::min(1.f, za::fabs(q.w)))));
+    embedProbe.handleTurn = za::max(embedProbe.handleTurn, glm::degrees(2.f * za::acos(za::min(1.f, za::fabs(q.w)))));
 }
 } // namespace
 

@@ -76,6 +76,9 @@ Cmd_CfgMarker_f
 */
 static qboolean in_cfg_exec = false;
 qboolean config_not_loaded = false; // QVR: the saved config was too large to run (Cmd_Exec_f)
+// QVR: text run once ahead of the command line's +commands, after the configs quake.rc runs (Cmd_StuffCmds_f): the
+// Quest's vr_quest_check or first run's vr_standalone_preset 0 (host.c), which else ran after them all, after a +exec'd file's waits too (QUEST_PLAN.md 6zk)
+const char *cmd_before_stuffcmds = NULL;
 static void Cmd_CfgMarker_f (void)
 {
 	in_cfg_exec = false;
@@ -291,6 +294,8 @@ Cbuf_Execute
 Spike: reworked 'wait' for renderer/server rate independance
 ============
 */
+int cbuf_executing; // QVR: Cbuf_Execute's depth: a config's commands running (GL_WorldLiteCheck waits for their end; Host_Frame's abort resets it)
+
 void Cbuf_Execute (void)
 {
 	int		i, len; // QVR: len
@@ -299,6 +304,7 @@ void Cbuf_Execute (void)
 	char	*line;
 	int		quotes, comment;
 
+	cbuf_executing++; // QVR
 	while (cmd_text.cursize > cbuf_start && !cmd_wait) // QVR: from the read position (cbuf_start)
 	{
 // find a \n or ; line break
@@ -342,6 +348,7 @@ void Cbuf_Execute (void)
 		if (line != stackline) // QVR
 			VR_HeapFree (line);
 	}
+	cbuf_executing--; // QVR
 	if (cbuf_start >= cmd_text.cursize) // QVR: all of it run
 		cmd_text.cursize = cbuf_start = 0;
 }
@@ -392,6 +399,11 @@ void Cmd_StuffCmds_f (void)
 	cmds[j] = 0;
 
 	Cbuf_InsertText (cmds);
+	if (cmd_before_stuffcmds) // QVR: ahead of them (inserted after: runs first), once
+	{
+		Cbuf_InsertText (cmd_before_stuffcmds);
+		cmd_before_stuffcmds = NULL;
+	}
 }
 
 /*

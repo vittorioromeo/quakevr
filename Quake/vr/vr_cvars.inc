@@ -602,6 +602,9 @@ QVR_CVAR(vr_xr_skip_incompatible_layers, "1", CVAR_ARCHIVE)
 // or Meta's menu): 1 the eyes are not rendered, the last frame is shown again (world-locked: the runtime reprojects
 // it; the GPU left to the runtime's menu); 0 they are rendered as usual.
 QVR_CVAR(vr_xr_unfocused, "1", CVAR_ARCHIVE)
+// Android (the Quest) while VR runs: 0 the app's window gets no flat image and no present (the system never shows it:
+// the headset's frames only); 1 drawn and presented as on the PC (the flat-panel APK). No effect on the PC.
+QVR_CVAR(vr_android_window, "0", CVAR_NONE)
 // While the runtime's own menu has the focus (as vr_xr_unfocused): 1 a single player game paused as the game's own
 // menu pauses it (the world and its time stand still; the sounds faded to vr_xr_unfocused_volume, the music paused),
 // resumed as the focus comes back; 0 it runs on (multiplayer always does: the server isn't paused for one player).
@@ -643,6 +646,28 @@ QVR_CVAR(vr_debug_mirror_vsync, "0", CVAR_NONE)
 // of the panel's area on Auto), at the next VR start: smaller images cost less to render, copy (SteamVR's OpenGL path
 // copies each into its own textures) and keep in video memory. 0.5 .. 1.
 QVR_CVAR(vr_xr_eye_scale, "1", CVAR_ARCHIVE)
+// The Quest's runtime (Android; the PC's runtimes never get these extensions; vr_backend_openxr_quest.cpp), applied
+// while the session runs, again when changed; 0 leaves the runtime's own. vr_xr_refresh_rate: the display's refresh
+// rate in Hz (XR_FB_display_refresh_rate; the nearest one offered, e.g. 72, 90, 120). vr_xr_cpu_level and
+// vr_xr_gpu_level (XR_EXT_performance_settings): 1 power savings, 2 sustained low, 3 sustained high, 4 boost.
+// vr_xr_foveation (XR_FB_foveation): the eye images' fixed foveation, 1 low, 2 medium, 3 high (dynamic: off).
+QVR_CVAR(vr_xr_refresh_rate, "0", CVAR_ARCHIVE)
+// vr_quest_check (each Android start, after the saved config; vr_gfxpresets.cpp): 1 the settings that break the Quest's
+// frames (MSAA, bloom) set back, each said in the log; 0 only said.
+QVR_CVAR(vr_quest_guard, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_xr_cpu_level, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_xr_gpu_level, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_xr_foveation, "0", CVAR_ARCHIVE)
+// C4q (QUEST_PLAN.md 6x; a probe): the eye swapchains' foveation create flags, read when they are made: 1 scaled bins
+// (XR_SWAPCHAIN_CREATE_FOVEATION_SCALED_BIN_BIT_FB), 0 none (Meta's GLES sample's: the runtime's choice).
+QVR_CVAR(vr_xr_foveation_flags, "1", CVAR_NONE)
+// C4q (6x; a probe): bits narrowing the foveated images' crash in xrEndFrame: 1 late acquire and the image's invalidate
+// allowed with them (off with vr_xr_foveation and -xrfoveation since C4p), 2 the eye image released before it is detached
+// from the engine's framebuffer (the order before C4q).
+QVR_CVAR(vr_xr_foveation_probe, "0", CVAR_NONE)
+// C5's first path (QUEST_PLAN.md 6w; a probe, the ES profile only): 1 draws each eye's scene straight into its swapchain
+// image (no post-process: no tone curve), so vr_xr_foveation reaches the scene; one pass an eye (not single-pass stereo).
+QVR_CVAR(vr_xr_direct, "0", CVAR_NONE)
 // The headset panel's pixels per eye, "WxH", for the menu's status box (the runtime's resolution and the eyes' as a
 // share of it, and its warning); "" looked up by the headset's name (Quest 2, 3, 3S, Pro, Index, Vive, Reverb G2,
 // Pico 4...: SteamVR names none, Virtual Desktop and Meta do).
@@ -681,6 +706,17 @@ QVR_CVAR(vr_alias_player_first, "1", CVAR_NONE)
 // Debug > Profiling and Memory > Own Models Pre-pass: 1 your hands and what they hold drawn into the depth first (as your
 // body and the world's models are), then shaded once a pixel (not while a gun morphs); 0 shaded as drawn (the A/B).
 QVR_CVAR(vr_alias_prepass_own, "1", CVAR_NONE)
+// Debug > Profiling and Memory > Body Pre-pass: (C5c, QUEST_PLAN.md 6zn) 1 your body (and its mirror image) drawn into
+// the depth first, then shaded once a pixel, as before; 0 shaded as drawn: its skinning run once a view, not twice (the
+// Quest preset's choice when it measures faster: a tiler's own hidden surface removal does the pre-pass's work).
+QVR_CVAR(vr_alias_prepass_body, "1", CVAR_NONE)
+// Debug > Profiling and Memory > Pose the Head: (C5d, QUEST_PLAN.md 6zo) for GPU tests on an unworn headset, OpenXR only:
+// 1 the rendered head set level at vr_debug_head_pitch degrees (down positive) and 1.65 m high, its yaw kept, the eyes
+// with it (the layers still carry the runtime's poses); vr_debug_hands_front 1 also puts both hands in front of it at
+// the waist (a worn view's forearms). 0 as tracked.
+QVR_CVAR(vr_debug_head_pose, "0", CVAR_NONE)
+QVR_CVAR(vr_debug_head_pitch, "0", CVAR_NONE)
+QVR_CVAR(vr_debug_hands_front, "0", CVAR_NONE)
 // Debug > Profiling and Memory > Keep Light Casters: 1 each dynamic light's world shadow casters kept between frames
 // while it stays inside the sphere they were collected for (a moving light's collected 24 units wider; vr_lighting.cpp
 // collectWorldCached; vr_shadow_caster_stats); 0 collected again for each light each frame; 2 (a check) the wider set
@@ -700,7 +736,7 @@ QVR_CVAR(vr_xr_log_timing, "0", CVAR_NONE) // (1 before vr_cfg_version 202)
 // app's internal files/perf/, else <game>/profile/perf/) until set back to 0 (a new file each time); not saved.
 // Debug > Profiling > World Models Pre-pass: 1 the world's models (monsters, items) drawn into the depth first, then
 // shaded once a pixel (as before); 0 shaded as drawn: a draw a batch less (the A/B; from agent/quest).
-QVR_CVAR(vr_alias_prepass_world, "1", CVAR_NONE)
+QVR_CVAR(vr_alias_prepass_world, "1", CVAR_ARCHIVE) // saved (C5j): the Quest preset sets 0, kept across starts
 // Debug > Profiling > Batch Posed Models: 1 the world's posed models of one model and skin (armed grunts on the
 // authored rig, their armour, ragdolls) drawn as one batch, their bones in one buffer (PC ThinLTO: ragdolls_32_active
 // -0.11 ms GPU, combat_48 even; ROUND25); 0 a batch each, as before.
@@ -994,7 +1030,7 @@ QVR_CVAR(vr_messages_hologram_time, "5", CVAR_ARCHIVE) // seconds a message stay
 QVR_CVAR(vr_messages_hologram_size, "1", CVAR_ARCHIVE) // its text's size (1: about 8 mm characters)
 QVR_CVAR(vr_messages_hologram_height, "10", CVAR_ARCHIVE) // cm its bottom floats over the gadget as seen
 QVR_CVAR(vr_messages_hologram_effect, "1", CVAR_ARCHIVE) // the hologram look: the beam from the screen, scanlines, flicker, glitches, the projection as it appears (0 plain glowing text, up to 2)
-QVR_CVAR(vr_center_panel_scale, "2", CVAR_ARCHIVE)     // the centre panel's size (vr_center_panel) as a multiple of the HUD's own text size (1: the flat screen's 8 pixel characters at the menu's scale: small at the menu's distance; 0.25 .. 8)
+QVR_CVAR(vr_center_panel_scale, "1.4", CVAR_ARCHIVE)   // (2 before his note vrtutorial_2026-11-22_15-30-43: "25 to 35% smaller") the centre panel's size (vr_center_panel) as a multiple of the HUD's own text size (1: the flat screen's 8 pixel characters at the menu's scale: small at the menu's distance; 0.25 .. 8)
 QVR_CVAR(vr_center_panel, "1", CVAR_ARCHIVE)         // 1: the game's centre prints in front of the head (not on the wrist's hologram) and the maps' view messages as the flat screen's: the flat visor's own centre popup (its glass face, cut corners, glowing bevelled frame, font, wrapping, scanlines, pop in and fade: visor::renderHeadsetCenter); 0: as before (Quake's own centre print on the 2D canvas, the view messages as 3D text)
 QVR_CVAR(vr_view_text_smooth,"0.12", CVAR_ARCHIVE)     // the messages in front of you (the maps' view messages: VR Calibration's boards' texts, its steps, Body Calibration's poses; and the centre prints on the head's panel) follow your head's turn smoothed: seconds to catch up most of the way (0 at once; the author's note vrstart_2026-10-23_01-23-46)
 QVR_CVAR(vr_messages_hologram_only, "1", CVAR_ARCHIVE) // QVR round 21: 1: the game's messages never show in front of you; they wait in the hologram until you look at the gadget, and a new one (not a pickup) chimes from the gadget and buzzes its hand while it is out of view
@@ -1149,7 +1185,7 @@ QVR_CVAR(vr_tutorial_started, "0", CVAR_ARCHIVE)      // 1: the tutorial (vrtuto
 // The trailer scene (maps/vrtrailer; QC vr_trailer.qc): Debug > Tests > Trailer Scene.
 QVR_CVAR(vr_trailer_reset, "0", CVAR_NONE)            // 1: the scene as at its start (the grunt, the Super Axe on its pedestal, the player at the start); QC sets it back to 0
 QVR_CVAR(vr_trailer_log, "0", CVAR_NONE)              // 1: the grunt's state (enemy, frame, think, stealth, oblivious), the axe's and the player's places, four times a second
-QVR_CVAR(vr_tutorial_goto, "0", CVAR_NONE)            // in vrtutorial, a change to N (1..12) puts you at lesson N's checkpoint (QC vr_tutorial.qc VR_Tutorial_Frame)
+QVR_CVAR(vr_tutorial_goto, "0", CVAR_NONE)            // in vrtutorial, a change to N (1..15) puts you at lesson N's checkpoint (QC vr_tutorial.qc VR_Tutorial_Frame)
 QVR_CVAR(vr_installer_applied, "", CVAR_ARCHIVE)      // the stamp of installer_settings.cfg (Setup's settings page) last run: it runs once (vr_installer_settings in quake.rc; vr_cvars.cpp)
 QVR_CVAR(vr_setup_pending, "0", CVAR_ARCHIVE)        // 1: VR Calibration starts the next time the headset is on and no game runs (set at a first start, no saved config: vr_migrate_config new; cleared as it starts; vr_setup.cpp)
 QVR_CVAR(vr_comfort_preset, "0", CVAR_NONE)          // Locomotion's Comfort (vr_menu.cpp presets; not saved: the settings it sets are): 1 Comfortable, 2 Moderate, 3 Full Freedom; 0 Custom (shown when the settings match none)
@@ -2189,6 +2225,25 @@ QVR_CVAR(vr_explosion_debris_max, "96", CVAR_ARCHIVE) // oldest retired first, h
 QVR_CVAR(vr_explosion_debris_mp_max, "24", CVAR_ARCHIVE) // most at once in multiplayer (server entities: each in sight costs every remote client's datagram about 26 bytes a frame while it lives); -1: as in single player (vr_explosion_debris_max), 0: none
 QVR_CVAR(vr_explosion_debris_trail, "1", CVAR_ARCHIVE) // trail density, 0 off
 QVR_CVAR(vr_explosion_debris_lights, "8", CVAR_ARCHIVE) // nearest glowing chunks, cap 16 of the shared dlights
+QVR_CVAR(vr_rig_lights_world, "1", CVAR_ARCHIVE) // (C4v, QUEST_PLAN.md 6zb; a cvar: the Quest preset sets it) 1: the rig's small lights (the guns' screen lights, the wrist gadget's two) light the walls as well as the hands and gear. 0 (the Quest preset's choice; his look call, so 1 there for now): they light the player's own models only, the world's shader skipping them (under the ES profile's plain lights' loop: vr_gl_lights_plain, QVR_LITE_RIGNOWORLD) and the world's unlit test ignoring them (vr_gl_world_unlit). No effect elsewhere (the PC's shaders).
+// Debug > Profiling and Memory > Skip Empty Lit Commands (Quest): (C4w, QUEST_PLAN.md 6zc) 1 the world split by surface
+// (vr_gl_world_unlit 2) draws only the lit commands of textures with a surface a reaching light's sphere touches in the
+// view's PVS (r_world.c R_WorldLitTextures: a CPU walk of the leaves); 0 every texture's lit command, as C4v (the A/B).
+QVR_CVAR(vr_gl_world_lit_skip, "1", CVAR_NONE)
+// Debug > Profiling and Memory > Dynamic Lights in the Lightmap (Quest): (C5b, QUEST_PLAN.md 6zm) 1: under the ES
+// profile the dynamic lights are added into the lightmap's texels on the CPU once a frame (Quake's own way, the
+// lightmap's 16-unit grid) and the world is drawn without the lights' loop; 0 (default): the loop, per pixel. The
+// models and particles take the lights per pixel either way. No effect on the PC's shaders (no unlit world form).
+QVR_CVAR(vr_gl_world_dlmap, "0", CVAR_ARCHIVE) // saved (C5j): the Quest preset sets 1, kept across starts
+// Debug > Profiling and Memory > Quake-Style Dynamic Lights (Quest): (C5g, QUEST_PLAN.md 6zr) 1: under the ES profile
+// both of Quake's ways at once: the world's dynamic lights summed into a light texture once a frame (as
+// vr_gl_world_dlmap 1) and your body's added to its light on the CPU (as vr_gl_alias_body 2), each light as the
+// per-pixel loop gives it; 0 (default): as those two say (qvr::dlightmap::quakeLights). No effect on the PC's shaders.
+QVR_CVAR(vr_gl_quake_dlights, "0", CVAR_ARCHIVE)
+// Debug > Profiling and Memory > Batch Lightmap Uploads (Quest): (C5c) with vr_gl_world_dlmap, 1 the frame's lit and
+// restored texel blocks gathered into a copy of the lightmap and uploaded once per band of 16 rows; 0 one upload per
+// surface, as C5b (the A/B). The same picture.
+QVR_CVAR(vr_gl_world_dlmap_batch, "1", CVAR_NONE)
 QVR_CVAR(vr_explosion_debris_light_radius, "48", CVAR_ARCHIVE) // units at world scale 1
 
 QVR_CVAR(vr_particle_mult, "1", CVAR_ARCHIVE)         // how many of them
@@ -2283,6 +2338,7 @@ QVR_CVAR(vr_profile_overlay, "0", CVAR_NONE)           // the profiler's panel (
 QVR_CVAR(vr_profile_gpu, "4", CVAR_NONE)               // the profiler's GPU times: its GPU scopes' timer queries on one frame in this many (each stalls the GPU a little: 1 every frame, 4 a quarter of the cost; 0 none, the CPU's times alone)
 QVR_CVAR(vr_profile_detail, "1", CVAR_NONE)            // 2: the profiler also times every trace (SV_Move) and every QuakeC builtin call apart (dearer)
 QVR_CVAR(vr_profile_csv, "0", CVAR_NONE)               // 1: the profiler writes a row a second, a column per system, to <gamedir>/profile/systems_<date>_<time>.csv
+QVR_CVAR(vr_profile_slow_ms, "250", CVAR_NONE)         // the profiler leaves frames longer than this (ms) out of its averages (a load, a hitch); raise it on a device whose every frame is slower (the Quest's first boots)
 QVR_CVAR(vr_profile_hitch, "1.5", CVAR_NONE)           // while the profiler collects, frames over this many budgets (refresh periods) are logged with their breakdown (console, profile/hitches_*.csv); 0 off
 QVR_CVAR(vr_bench_profiler, "0", CVAR_NONE)          // an external CPU profiler (VTune with -start-paused) collects only: 1 inside benchmark windows (vr_bench_begin, from its first recorded frame to its end); 2 inside map loads (the command to the first frame drawn); 0 as it was started. vr_profiler_collect 0|1 by hand
 QVR_CVAR(vr_dlight_models, "1", CVAR_ARCHIVE)          // dynamic lights light models per pixel, by angle and shadowed (0: Quake's flat)
@@ -2326,6 +2382,8 @@ QVR_CVAR(vr_gib_speed_heavy, "1", CVAR_ARCHIVE)      // explosions, rockets, gre
 QVR_CVAR(vr_gore_spray, "1", CVAR_ARCHIVE)             // how many splats a hit or a gibbing sprays onto the walls, floor and ceiling round it (0 none)
 QVR_CVAR(vr_gore_preset, "0", CVAR_NONE)               // the Gore preset shown (vr_gorepresets.cpp; not saved: the settings are): 1 Full (the defaults), 2 Minimal, 3 Off; 0 Custom (shown when the settings match none)
 QVR_CVAR(vr_blood_amount, "1", CVAR_ARCHIVE)           // how much blood a hit or a cut throws (the blood particles' count, times this; 0: none at all, Quake's dots too)
+QVR_CVAR(vr_blood_near, "0", CVAR_ARCHIVE)             // units: blood (a hit's, a gib's trail) made nearer the eyes than this makes fewer particles, down to vr_blood_near_mult at the eye (0 off; the Standalone preset's close-up gore cap: the GPU's fill near the eyes)
+QVR_CVAR(vr_blood_near_mult, "1", CVAR_ARCHIVE)        // ... how many at the eye, times the usual (rising to all of them at vr_blood_near)
 QVR_CVAR(vr_gore_decal_dark, "1", CVAR_ARCHIVE)        // how much the gore's blood marks darken as they spread and dry, times their own (1: as it was; 0: they keep their red)
 QVR_CVAR(vr_gore_size, "1", CVAR_ARCHIVE)              // how big the gore's splats, pools and runs are
 QVR_CVAR(vr_gore_pools, "1", CVAR_ARCHIVE)             // pools of blood spreading under corpses and gibs: their size (0 none)
@@ -2474,6 +2532,8 @@ QVR_CVAR(vr_dlight_falloff, "1", CVAR_ARCHIVE)         // dynamic lights: 1 Dark
 QVR_CVAR(vr_specular, "0.2", CVAR_ARCHIVE)           // sheen of dynamic lights on the world and models (Blinn, exponent 32; 0 off)
 QVR_CVAR(vr_specular_aa, "1", CVAR_ARCHIVE)            // specular anti-aliasing: the sheen (and the water's glints) widened where bumps are smaller than a pixel, so it doesn't sparkle as the head moves (0 off; 2 stronger)
 QVR_CVAR(vr_normalmap_cache, "1", CVAR_NONE)       // the normal maps made from skins kept on disk (cache/normalmaps: the same texels, 0.2 s less in the first load); 0 made every time; 2 made and compared with the file (vr_diskcache.cpp)
+QVR_CVAR(vr_gl_foveation_parts, "1", CVAR_NONE)   // vr_gl_foveation's attachments (the Quest): 1 the eyes' scene colours, 2 their depth/stencil, 4 the OIT targets (the colours always); an incomplete framebuffer turns foveation off (vr_stereo.cpp; QUEST_PLAN.md 6v)
+QVR_CVAR(vr_program_cache, "1", CVAR_ARCHIVE)      // the GL programs' binaries kept on disk (cache/programs, vr_diskcache.cpp; read before the window opens: a change applies at the next start): 1 on on Android (the Quest: ~51 s of shader compiles at every start; not the PC's -glescompat), 2 also on the PC, 0 off
 QVR_CVAR(vr_cache_dir, "", CVAR_NONE)              // the derived-data cache's root (vr_diskcache.hpp, docs/vr-port/CACHES.md): empty <base>/cache (shared by every game folder); a folder: that one (tests: an empty folder is a first-ever session)
 QVR_CVAR(vr_mdl_dequant_cache, "1", CVAR_NONE)     // .mdl dequantisations kept on disk (cache/dequant, vr_mdldequant.cpp: the same offsets and normals read back); 0 computed at every load; 2 computed and compared with the file
 QVR_CVAR(vr_ragdoll_rig_cache, "1", CVAR_NONE)     // the monsters' ragdoll rigs kept on disk (cache/rigs, vr_ragdoll.cpp: tens of ms a kind, at every map load); 0 derived every session; 2 derived and compared with the file
@@ -2518,7 +2578,7 @@ QVR_CVAR(vr_bloom_white, "0.76", CVAR_ARCHIVE)          // bloom of white and pa
 QVR_CVAR(vr_bloom_color, "1.25", CVAR_ARCHIVE)          // bloom of coloured lights (red buttons, blue panels), times vr_bloom
 QVR_CVAR(vr_bloom_adapt, "4", CVAR_ARCHIVE)           // bloom weakens the more of the view glows (0: never)
 // Tone mapping, dither, grading (round 17; vr_tonemap.cpp, ROUND17.md (removed 2026-10-06; git history)).
-QVR_CVAR(vr_tonemap, "1", CVAR_ARCHIVE)               // the eyes' scene in floats, its brightest rolled off by a filmic shoulder instead of clipped (lights keep their colour); 0: Quake's clamp
+QVR_CVAR(vr_tonemap, "2", CVAR_ARCHIVE)               // (2: the float scene in 32 bits, R11F_G11F_B10F: -0.33 ms of a PC GPU at 3072 eyes, the same picture; QUEST_OPTIMISATIONS.md "PC results"; 1: RGBA16F) the eyes' scene in floats, its brightest rolled off by a filmic shoulder instead of clipped (lights keep their colour); 0: Quake's clamp
 QVR_CVAR(vr_exposure, "1", CVAR_ARCHIVE)              // brightness before the tone curve (with vr_tonemap; 1: as Quake)
 QVR_CVAR(vr_dither, "1", CVAR_ARCHIVE)                // the eyes' last dither into 8 bits, against banding: 0 off, 1 fixed on the screen (each eye its own), 2 changing each frame, 3 the same in both eyes
 QVR_CVAR(vr_grade, "1", CVAR_ARCHIVE)                 // colour grade (quakevr/gfx/vr/grade_*.png): 0 off, 1 Quake VR (film), 2 cold, 3 warm, 4 by episode
@@ -2539,6 +2599,8 @@ QVR_CVAR(vr_flat_taa, "0", CVAR_ARCHIVE)               // flat-screen temporal a
 QVR_CVAR(vr_taa, "0", CVAR_ARCHIVE)                    // 1: temporal anti-aliasing (replaces MSAA in the eyes)
 QVR_CVAR(vr_taa_sharpen, "0.3", CVAR_ARCHIVE)          // sharpening after the resolve (0 off; 1 strong)
 QVR_CVAR(vr_temporal_debug, "0", CVAR_NONE)            // 1: the motion vectors in the eyes; 2: the reactive mask and rejected history; 3: the reprojection test (vr_temporal_error)
+QVR_CVAR(vr_gl_probe_fix, "0", CVAR_NONE)           // the probe's bisection on the world's bound-path draws (tonemap::probeState): 1 clip distances off, 2 culling off (the cache's GL_SetState not told)
+QVR_CVAR(vr_gl_probe, "0", CVAR_NONE)               // 1: the next frame's eye framebuffers by numbers (completeness, the share not black at each stage: tonemap::glProbe), then 0; 2/3 also paint blue under the scene / red where nothing drew (glProbeDraw); 4 to 8 the world's data in green by a minimal program (glProbeWorld)
 QVR_CVAR(vr_eyeshot, "0", CVAR_NONE)                // 1: save the next frame's eye images to <gamedir>/eyeshots (2: also the float scene, .pfm; 3: with the UI, as the headset shows it)
 // Liquids (vr_water.cpp): 0 everywhere is Quake's look.
 QVR_CVAR(vr_map_liquid_alpha, "0", CVAR_ARCHIVE)      // a map's own wateralpha, lavaalpha, slimealpha, telealpha (its worldspawn keys) win over r_wateralpha and the others (Ironwail's rule); 0: your settings always
@@ -2707,16 +2769,24 @@ QVR_CVAR(vr_nailpistol_screen_ride, "1", CVAR_ARCHIVE | QVR_RULE)   // 1: its am
 // muzzle up, the ejector), a shell at a time from the pouch into its chambers, swung home (a flick, a push).
 QVR_CVAR(vr_revolver_heavy_mult, "1.75", CVAR_ARCHIVE | QVR_RULE) // a slug into a big body (a monster of vr_revolver_heavy_health or more full health: an ogre, a fiend...) deals this many times as much (an ogre: 4-5 in the body)
 QVR_CVAR(vr_revolver_cooldown, "0.3", CVAR_ARCHIVE | QVR_RULE) // s at least from a shot to the next (each a new pull: double action)
+// His note vrtesthall_2026-11-22_15-59-37: while Haste (Dwell's; or Dissolution's Hell Magic rune) is active, the
+// semi-automatic guns (the nail pistol, the heavy revolver, the flare gun) fire again while the trigger is held, each
+// shot at its cooldown times Haste's (RuneApplyHell: 0.6, the rune 2/3): the nail pistol about 14 a second, the
+// revolver about 5.5 (QC VR_Haste_FullAuto). 0: one shot a pull as ever.
+QVR_CVAR(vr_haste_full_auto, "1", CVAR_ARCHIVE | QVR_RULE)
 QVR_CVAR(vr_revolver_open_flick, "1", CVAR_ARCHIVE) // immersive reloading: a flick of the wrist towards the cylinder's side (left in the right hand) swings it out
 QVR_CVAR(vr_revolver_open_flick_speed, "400", CVAR_ARCHIVE) // the flick open's force: degrees a second the wrist must roll at, at its fastest
 QVR_CVAR(vr_revolver_open_flick_angle, "120", CVAR_ARCHIVE) // and its wrist flick: degrees it must roll that way in one go
 QVR_CVAR(vr_revolver_close_flick_speed, "350", CVAR_ARCHIVE) // the flick shut (always on: the wrist rolled the other way, the cylinder swung home): its force, degrees a second
 QVR_CVAR(vr_revolver_close_flick_angle, "75", CVAR_ARCHIVE) // and its wrist flick, degrees
-// A melee swing is no flick (his note 2026-11-21: "if I'm doing a melee attack, I often open the cylinder"): the flick
-// open is refused while the gun's hand moves this fast (m/s, against his body; vr_melee_speed's blow is 3.2) and for
-// vr_revolver_open_swing_hold seconds after it last did, or after a blow of his landed (QC VR_Revolver_SwingGuard).
-// A deliberate flick, the wrist rolled with the arm near still, still opens it. 0: no guard.
-QVR_CVAR(vr_revolver_open_swing_speed, "2", CVAR_ARCHIVE)
+// A melee swing is no flick (his note 2026-11-21: "if I'm doing a melee attack, I often open the cylinder"), a flick
+// mostly of the wrist is (his note vrfiringrange_2026-11-22_16-11-57: the hand's raw speed refused every real flick,
+// whose controller moves 3-6 m/s from the wrist's turn alone). The hand's motion over the last moment is split in two
+// (QC VR_Revolver_Flick): the wrist's, its roll at vr_revolver_flick_wrist_lever metres, and the arm's, the hand's
+// travel its turn doesn't explain. The flick open is refused when the arm's share of the two is over this (his replays:
+// flicks 0.05-0.31, swings 0.53-0.75), for vr_revolver_open_swing_hold seconds after, and after a blow of his landed
+// (QC VR_Revolver_SwingGuard). 1: no guard. (vr_revolver_open_swing_speed, the hand's raw speed, retired.)
+QVR_CVAR(vr_revolver_open_flick_arm_share, "0.45", CVAR_ARCHIVE)
 QVR_CVAR(vr_revolver_open_swing_hold, "0.35", CVAR_ARCHIVE) // seconds
 QVR_CVAR(vr_revolver_open_flick_time, "0.25", CVAR_ARCHIVE) // the flick open's time window: its wrist flick must be rolled within this many seconds of the flick's start (0: no limit)
 QVR_CVAR(vr_revolver_open_button, "1", CVAR_ARCHIVE) // B/Y (its eject button) swings the cylinder out; out, B/Y pushes the ejector
@@ -3712,7 +3782,9 @@ QVR_CVAR(vr_rope_swing_drag, "0.15", CVAR_ARCHIVE | QVR_RULE)    // per second, 
 QVR_CVAR(vr_rope_pump, "300", CVAR_ARCHIVE | QVR_RULE)           // units/s/s the stick (or WASD) pushes a climber's swing on a rope its way (pumping it, rope to rope); 0: none
 QVR_CVAR(vr_rope_swing_cap, "350", CVAR_ARCHIVE | QVR_RULE)      // units/s at the hands the pump builds a rope's swing to at most (a push, a jump onto it, can swing it faster)
 QVR_CVAR(vr_rope_jump, "200", CVAR_ARCHIVE | QVR_RULE)          // units/s up a jump off a rope adds to the rope's swing at the hands (jump while holding one); 0: a jump lets go only
-QVR_CVAR(vr_rope_hand_grip, "1", CVAR_ARCHIVE | QVR_OWN)        // a hand on a climbable rope drawn gripping it (the rope through the fist, the knuckles away from the body; vr_climb.cpp ropeTurn): 1 in flat-screen play, 2 in VR too; 0 as on a ledge (vr_climb_hand_pitch/yaw/roll), display only
+QVR_CVAR(vr_rope_grunt, "0.4", CVAR_ARCHIVE | QVR_RULE)         // volume (0..1) of the player's short exertion grunt as a headset's pull lifts him up a climbable rope (once a grip, when the body has risen 15 cm over its hold; at most every 0.6 s; vr_climb.cpp ropePullGrunt; ropes6); 0 off
+QVR_CVAR(vr_rope_grunt_sound, "2", CVAR_ARCHIVE | QVR_OWN)      // the rope pull's grunt (the mantle's list, vr_climb.cpp mantleGrunts): 0 the jump's, 1 a hard landing's, 2 the jump's deeper (the default: told apart from a jump off the rope), 3 a hard landing's deeper, 4 a short pain grunt
+QVR_CVAR(vr_rope_hand_grip, "2", CVAR_ARCHIVE | QVR_OWN)        // a hand on a climbable rope drawn gripping it (the rope through the fist, the knuckles outwards: the right hand's to the right, the left's to the left; vr_climb.cpp ropeTurn): 1 in flat-screen play only, 2 in VR too (ropes6); 0 as on a ledge (vr_climb_hand_pitch/yaw/roll), display only
 QVR_CVAR(vr_rope_spawn_length, "256", CVAR_ARCHIVE | QVR_OWN)    // the toolgun's ropes (Spawn > Props > Ropes > Rope Settings): length (units)
 QVR_CVAR(vr_rope_spawn_thickness, "1.5", CVAR_ARCHIVE | QVR_OWN) // ... thickness (units across)
 QVR_CVAR(vr_rope_spawn_segments, "0", CVAR_ARCHIVE | QVR_OWN)    // ... pieces (0: one every 16 units)
@@ -4457,6 +4529,14 @@ QVR_CVAR(vr_flat_grab_preview, "1", CVAR_ARCHIVE)      // flatscreen play: 1 wha
 QVR_CVAR(vr_flat_key_reload, "r", CVAR_ARCHIVE)         // the key that reloads (impulse 55: every hand whose gun's clip has room and whose ammo has rounds; vr_flatreload.cpp, QC vr_flatreload.qc), by its bind name; "" none
 QVR_CVAR(vr_flat_key_ammo, "b", CVAR_ARCHIVE)           // flat-screen: the key that switches the main hand's weapon to its other ammo (impulse 43, as the headset's weapon button: QC ToggleSecondaryAmmo: the rocket and grenade launchers' multi-rockets and -grenades, the thunderbolt's plasma, the hell knight's sword...; nothing for one without); not with the toolgun in hand (B is its adjust key there), by its bind name; "" none
 QVR_CVAR(vr_flat_key_drop, "h", CVAR_ARCHIVE)           // the key that lets go of what a hand holds (impulse 47, QC VR_Forcegrab_FlatDrop: the off hand first, his words 2026-11-10), by its bind name; "" none (G until 2026-11-10, his words: "Rebind drop to 'H' and free the 'G' key up")
+// The holsters' number keys (his words 2026-11-22; vr_flat_holsters on only: off, 1 .. 7 pick weapons as before; vr_flatplay.cpp
+// pollKeysFlat, QC vr_flatholster.qc VR_FlatHolster_Cycle / _Put). "Left" and "right" as the holster menu's: the off hand, the main hand.
+QVR_CVAR(vr_flat_key_cycle_left, "1", CVAR_ARCHIVE)     // the key that cycles the left hand through the holstered weapons, holster order, then the empty hand (impulse 86); by its bind name; "" none
+QVR_CVAR(vr_flat_key_cycle_right, "2", CVAR_ARCHIVE)    // the same for the right hand (impulse 87); by its bind name; "" none
+QVR_CVAR(vr_flat_key_holster_left, "4", CVAR_ARCHIVE)   // the key that puts the left hand's weapon in a free holster (the one it came from, else the nearest on its side; impulse 88); by its bind name; "" none
+QVR_CVAR(vr_flat_key_holster_right, "5", CVAR_ARCHIVE)  // the same for the right hand (impulse 89); by its bind name; "" none
+QVR_CVAR(vr_flat_key_drop_left, "6", CVAR_ARCHIVE)      // the key that drops what the left hand holds (impulse 78: the holster menu's left DROP); by its bind name; "" none
+QVR_CVAR(vr_flat_key_drop_right, "7", CVAR_ARCHIVE)     // the same for the right hand (impulse 79); by its bind name; "" none
 QVR_CVAR(vr_flat_key_grenade, "g", CVAR_ARCHIVE)        // the quick grenade key (impulse 57, QC vr_flatgrenade.qc; vr_flatgrenade.cpp): a free hand fetches the back pouch's grenade, the fire button arms it, held winds up, let go throws; by its bind name; "" none
 QVR_CVAR(vr_flat_grenade, "1", CVAR_ARCHIVE)            // flat-screen play: 1 the quick grenade key (vr_flat_key_grenade) takes a grenade from the pouch; 0 it does nothing
 QVR_CVAR(vr_flat_grenade_arm_mode, "1", CVAR_ARCHIVE | QVR_PREF)   // the quick grenade's fire button: 1 a press arms it (its fuse runs), the next press held winds up the throw and its release throws; 0 one press: it arms, held winds up, let go throws

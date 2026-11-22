@@ -10,12 +10,14 @@
 #include "vr_particles.hpp"
 #include "vr_units.hpp"
 
+#include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/UIntPtrT.hpp"
+#include "Zancle/Container/AnkerlUnorderedDense.hpp"
+#include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Ceil.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Exp.hpp"
 #include "Zancle/Math/MinMax.hpp"
-#include "Zancle/Container/Vector.hpp"
-#include "Zancle/Container/AnkerlUnorderedDense.hpp"
 
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -41,7 +43,7 @@ constexpr float gustShare = 0.5f;      // at this share of the hand's speed
 constexpr float jumpSpeed = 15.f;      // m/s: faster is a jump (a teleport, tracking lost and found): no push
 constexpr float subStep = 1.f / 120.f; // seconds: the springs' longest step
 constexpr float handSmooth = 0.03f;    // seconds: the hands' speeds smoothed over about this (a frame's jitter is no push)
-constexpr std::uintptr_t sourceBit = std::uintptr_t{1} << (sizeof(std::uintptr_t) * 8 - 1); // sources' keys (not pointers)
+constexpr za::UIntPtrT sourceBit = za::UIntPtrT{1} << (sizeof(za::UIntPtrT) * 8 - 1); // sources' keys (not pointers)
 
 struct Wobble
 {
@@ -54,7 +56,7 @@ struct Wobble
 
 struct Source
 {
-    std::uintptr_t key;
+    za::UIntPtrT key;
     glm::vec3 foot;
     float height;
     int carrier;
@@ -62,7 +64,7 @@ struct Source
 
 struct Springs
 {
-    ankerl::unordered_dense::map<std::uintptr_t, Wobble> wobbles;
+    ankerl::unordered_dense::map<za::UIntPtrT, Wobble> wobbles;
     za::Vector<Source> sources;     // the flames drawn by their own code, registered since the last frame()
     za::Vector<Source> lastSources; // ... the last frame's (vr_flame_wobble_info)
     auto members() { return mem::list(wobbles, sources, lastSources); }
@@ -114,7 +116,7 @@ int pushes = 0, looked = 0; // since vr_flame_wobble_info
     return glm::distance(p, a + ab * t);
 }
 
-void describe(std::uintptr_t key, char* out, int size)
+void describe(za::UIntPtrT key, char* out, int size)
 {
     const auto* e = reinterpret_cast<const entity_t*>(key);
     if(key & sourceBit)
@@ -137,7 +139,7 @@ void describe(std::uintptr_t key, char* out, int size)
 }
 
 // The fast hands near a flame from `foot` to `tip`: their push on its spring this frame.
-void pushFlame(std::uintptr_t key, const glm::vec3& foot, const glm::vec3& tip, float height, int carrier)
+void pushFlame(za::UIntPtrT key, const glm::vec3& foot, const glm::vec3& tip, float height, int carrier)
 {
     looked++;
     const float threshold = za::max(0.f, vr_flame_wobble_speed.value);
@@ -224,7 +226,7 @@ void pushModels()
             return;
         }
         const glm::vec3 up = held::axesFromAngles(e.angles, false)[2];
-        pushFlame(reinterpret_cast<std::uintptr_t>(&e), origin + up * (base * scale), origin + up * (top * scale),
+        pushFlame(reinterpret_cast<za::UIntPtrT>(&e), origin + up * (base * scale), origin + up * (top * scale),
             (top - base) * scale, -1);
     };
     for(int i = 0; i < cl.num_statics; i++)
@@ -394,13 +396,13 @@ void frame()
     springs.sources.clear();
 }
 
-glm::vec2 source(std::uint32_t key, const glm::vec3& foot, float height, int carrier)
+glm::vec2 source(za::U32 key, const glm::vec3& foot, float height, int carrier)
 {
     if(!vr_flame_wobble.value)
     {
         return glm::vec2{0.f};
     }
-    const std::uintptr_t k = sourceBit | key;
+    const za::UIntPtrT k = sourceBit | key;
     if(springs.sources.size() < 512)
     {
         springs.sources.pushBack(Source{k, foot, height, carrier});
@@ -415,7 +417,7 @@ void leanModel(const entity_t* e, float matrix[16])
     {
         return;
     }
-    const auto it = springs.wobbles.find(reinterpret_cast<std::uintptr_t>(e));
+    const auto it = springs.wobbles.find(reinterpret_cast<za::UIntPtrT>(e));
     float base = 0.f, top = 0.f;
     if(it == springs.wobbles.end() || !flameModel(*e, base, top))
     {

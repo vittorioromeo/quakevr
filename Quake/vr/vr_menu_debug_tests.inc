@@ -789,6 +789,8 @@ za::Vector<Item> pageDebugTests()
             .help("vr_flatswap_test 1 (-flatscreenmode only): every weapon held alone in the right hand, swapped with 3: the two-handed release, pass and attach, the weapon in the left hand after (flatswap_test: lines)."),
         command("Flat Swap: Props And Weapons", "vr_flatswap_test 2")
             .help("vr_flatswap_test 2 (-flatscreenmode only): a shotgun and a brick, two bricks, a brick and an empty hand, a brick in both, swapped with 3: each hand ends with what the other held (flatswap_test: lines)."),
+        command("Flat Holster Number Keys", "vr_flatswap_test 6")
+            .help("vr_flatswap_test 6 (-flatscreenmode only): the holsters' number keys pressed: 1/2 cycle each hand through the holsters and the empty hand, 4/5 holster, 6/7 drop, the rocket launcher's grip (flatswap_test: lines)."),
         command("Flat Items: Hold And Shoot", "vr_flatitems_test 1")
             .help("vr_flatitems_test 1 (-flatscreenmode only): armour, a key, the biosuit, a rune, shells and health each grabbed with E into the off hand, the shotgun fired through it (flatitems: lines)."),
         command("Flat Items: Walk Over", "vr_flatitems_test 2")
@@ -1324,6 +1326,10 @@ za::Vector<Item> pageDebugTests()
                   "each wound a nail's (a dent and blood), blood spawned, nothing set on fire; a lava nail's a burn "
                   "(\"nailtest: N passed, M failed\")."),
         row(opt::vr_nailslide_debug),
+        command("Haste on Every Gun Test", "vr_np_test 7")
+            .help("Each gun fired 1.5 s with its trigger held, without Haste then with it: the nailgun, the lightning gun and "
+                  "the shotgun 1.4 times as often or more; the nail pistol, the heavy revolver and the flare gun one shot a "
+                  "pull, hasted full auto (\"nphaste: N passed, M failed\")."),
         command("Nail Pistol Aim Test", "vr_np_test 5")
             .help("Headless (it moves the mock hands): its nails along the shot line (the red laser), flight and impact within "
                   "0.2 degrees, at several poses and distances, both hands (\"npaim: N passed, M failed\"). In the headset: "

@@ -1,0 +1,4 @@
+// Quake VR's Android project: the Android Gradle Plugin (8.7: Gradle 8.9 or newer; F:/QuakeVRDev has Gradle 8.10.2).
+plugins {
+    id 'com.android.application' version '8.7.3' apply false
+}

@@ -46,6 +46,10 @@ struct MirrorPresents
 [[nodiscard]] Backend* backend();
 // A backend (re)start asked for (start-up, a vr_backend change) and not yet made: it happens at the next frame's start.
 [[nodiscard]] bool backendRestartPending();
+// The start-up's shader compile (vr_shaderload.cpp): the backend started before the configs, so the headset shows the
+// loading panel instead of the runtime's dots; once a run, at the first frame, with no backend yet. True if one runs.
+// The configs then keep it (vr_enabled 1, the same backend) or restart it as usual.
+bool startForLoading();
 [[nodiscard]] const FrameState& frameState();
 
 // QVR round 21: the frames' rate and cost, averaged over half a second, for the wrist gadget's FPS counter

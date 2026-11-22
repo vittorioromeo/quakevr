@@ -17,12 +17,12 @@
 #include "vr_trace.hpp"
 
 #include "Zancle/Base/GetArraySize.hpp"
+#include "Zancle/Container/Array.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Random/FastNonCryptoRng.hpp"
 #include "vr_api.h"
 
-#include <array>
 #include <stdlib.h>
 #include <string.h>
 
@@ -105,9 +105,9 @@ constexpr const char* woodM[takes] = {"vr/phys/wood_m1.wav", "vr/phys/wood_m2.wa
 constexpr const char* metalL[takes] = {"vr/phys/metal_l1.wav", "vr/phys/metal_l2.wav", "vr/phys/metal_l3.wav"};
 constexpr const char* rics[takes] = {"weapons/ric1.wav", "weapons/ric2.wav", "weapons/ric3.wav"};
 
-constexpr std::array<LayeredSound, surfaceSets * takes> makeSurfaceSounds()
+constexpr za::Array<LayeredSound, surfaceSets * takes> makeSurfaceSounds()
 {
-    std::array<LayeredSound, surfaceSets * takes> out{};
+    za::Array<LayeredSound, surfaceSets * takes> out{};
     for(int i = 0; i < takes; i++)
     {
         const float f = static_cast<float>(i);
@@ -135,7 +135,7 @@ constexpr std::array<LayeredSound, surfaceSets * takes> makeSurfaceSounds()
     return out;
 }
 
-constexpr std::array<LayeredSound, surfaceSets * takes> surfaceSounds = makeSurfaceSounds();
+constexpr za::Array<LayeredSound, surfaceSets * takes> surfaceSounds = makeSurfaceSounds();
 
 constexpr SoundSet soundSets[] = {
     {{nullptr, nullptr, nullptr, nullptr}, {0.f, 0.f, 0.f, 0.f}},
@@ -195,7 +195,7 @@ constexpr int materials = static_cast<int>(Material::Count);
 constexpr int kinds = static_cast<int>(HitKind::Count);
 constexpr int clientKinds = static_cast<int>(HitKind::Bolt) + 1; // (the world's hits: bullet, nail, super nail, bolt)
 
-using Table = std::array<std::array<Row, kinds>, materials>;
+using Table = za::Array<za::Array<Row, kinds>, materials>;
 
 // The things' effects, as the five QC ladders sent them (TraceAttack, spawn_touchblood, VR_HitBlood, VR_HitNonFlesh,
 // VR_HitBloodSplash; and the chainsaw's, a thrown thing's). Where they disagreed, each ladder's own row keeps its

@@ -251,6 +251,7 @@ void(float request, entity p) AD_RulesTest =
     if(request == 213) { DW_PickupTest(p); return; } // Dwell's pickups taken, the toolgun's Dwell and bloody props: dwell/dw_test.qc
     if(request == 211) { VR_Quoth_Test(p); return; } // Quoth's targetname2 and spawners: vr_quoth_test.qc
     if(request == 212) { VR_Quoth_Play(p); return; } // a Quoth map's flow driven to its last stage: vr_quoth_test.qc
+    if(request == 223) { VR_Quoth_FieldTest(p); return; } // kellbase1's energy field: drawn, monsters keep off it: vr_quoth_test.qc
     if(request == 219) { VR_HUM_Test(p); return; } // AD's and Quoth's humanoid variants armed, their looks: vr_humrepl_test.qc
     if(request == 220) { VR_HUM_Census(); return; } // the map's variants census (one line): vr_humrepl_test.qc
     if(request == 221) { VR_HUM_Lineup(p); return; } // a row of armed humanoids, one per recolour (scratch1 the row): vr_humrepl_test.qc

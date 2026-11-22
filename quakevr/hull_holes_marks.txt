@@ -107,3 +107,51 @@ mark: left out (Quake's box reaches it): 32.0 2240.0 -397.0 .. 56.0 2249.0 -392.
 mark: left out (Quake's box reaches it): 32.0 2243.0 -399.5 .. 56.0 2246.0 -397.0
 mark: 91 blockers and 13 left out within 96; added to C:\Program Files (x86)\Steam\steamapps\common\Quake/quakevr/hull_holes_marks.txt
 
+mark: maps/vrbrushholes.bsp at 580.0 36.0 24.0 (feet 0.0), angles 3 -128, time 23.5; your width 16
+mark: settings now: on 1 max 32 min 8 wide 48 diag 1 models 1 vert 1 cells 64 cell 2 reach 2; as built: max 32 min 8 wide 48 diag 1 models 1 vert 1 cells 64 cell 2 reach 2
+mark: Quake's box fits with its centre here (by height off yours): -32:no +0:no +32:no +64:no +96:no +128:yes
+mark: solid 0: 588.0 -320.0 0.0 .. 640.0 96.0 128.0, 6 planes
+mark: solid 1: 448.0 44.0 0.0 .. 588.0 96.0 128.0, 6 planes
+mark: solid 2: -568.0 -64.0 -8.0 .. 1104.0 848.0 0.0, 6 planes
+mark: solid 3: -568.0 -848.0 -208.0 .. 1104.0 848.0 -8.0, 6 planes
+mark: 4 solids within 96 (and 256 above)
+mark: line at z 1.0 along diagonal x-y: gap 22.72 (373.31 .. 396.02; limit 45.25)
+mark: line at z 24.0 along diagonal x-y: gap 22.72 (373.31 .. 396.02; limit 45.25)
+mark: blocker (model 0, with a brush model): 448.0 24.0 0.0 .. 568.0 44.0 128.0
+mark: blocker (model 0, with a brush model): 568.0 -96.0 0.0 .. 588.0 24.0 128.0
+mark: 2 blockers and 0 left out within 96; added to C:\Program Files (x86)\Steam\steamapps\common\Quake/quakevr/hull_holes_marks.txt
+
+mark: maps/dm1.bsp at 431.5 1344.0 -120.0 (feet -144.0), angles -4 89, time 36.0; your width 16
+mark: settings now: on 1 max 32 min 8 wide 48 diag 1 models 1 vert 1 cells 64 cell 2 reach 2; as built: max 32 min 8 wide 48 diag 1 models 1 vert 1 cells 64 cell 2 reach 2
+mark: Quake's box fits with its centre here (by height off yours): -32:no +0:yes +32:yes +64:no +96:no +128:no
+mark: solid 0: 512.0 1376.0 -0.0 .. 544.0 1664.0 152.0, 6 planes
+mark: solid 1: 512.0 1264.0 -240.0 .. 544.0 1664.0 0.0, 6 planes
+mark: solid 2: 512.0 1232.0 48.0 .. 544.0 1264.0 176.0, 6 planes
+mark: solid 3: 512.0 1088.0 -240.0 .. 544.0 1264.0 48.0, 6 planes
+mark: solid 4: 352.0 1208.0 0.0 .. 384.0 1512.0 152.0, 6 planes
+mark: solid 5: 352.0 1344.0 -16.0 .. 512.0 1664.0 0.0, 6 planes
+mark: solid 6: 480.0 1280.0 -16.0 .. 512.0 1344.0 0.0, 6 planes
+mark: solid 7: 416.0 1280.0 -16.0 .. 480.0 1344.0 -4.0, 6 planes
+mark: solid 8: 416.0 960.0 -16.0 .. 512.0 1280.0 0.0, 6 planes
+mark: solid 9: 352.0 960.0 -16.0 .. 416.0 1344.0 0.0, 6 planes
+mark: solid 10: 320.0 1360.0 -16.0 .. 352.0 1472.0 0.0, 6 planes
+mark: solid 11: -240.0 1328.0 -16.0 .. 352.0 1360.0 288.0, 6 planes
+mark: solid 12: 256.0 1312.0 64.0 .. 352.0 1328.0 192.0, 6 planes
+mark: solid 13: 192.0 1312.0 -16.0 .. 352.0 1328.0 64.0, 6 planes
+mark: solid 14: 200.0 1124.0 -16.0 .. 352.0 1312.0 0.0, 6 planes
+mark: solid 15: 352.0 1348.0 -28.0 .. 512.0 1372.0 -16.0, 6 planes
+mark: solid 16: 480.0 1352.0 -144.0 .. 496.0 1368.0 -28.0, 6 planes
+mark: solid 17: 376.0 1352.0 -144.0 .. 392.0 1368.0 -28.0, 6 planes
+mark: solid 18: 320.0 1360.0 -144.0 .. 352.0 1536.0 -16.0, 6 planes
+mark: solid 19: 172.0 1344.0 -144.0 .. 352.0 1360.0 -16.0, 6 planes
+mark: solid 20: -240.0 1360.0 -240.0 .. 512.0 1664.0 -144.0, 6 planes
+mark: solid 21: -704.0 688.0 -240.0 .. 512.0 1360.0 -144.0, 6 planes
+mark: 22 solids within 96 (and 256 above)
+mark: line at z -22.0 along diagonal x-y: gap 119.60 (-650.94 .. -531.34; limit 45.25)
+mark: blocker (model 0, the world's own): 352.0 1352.0 -144.0 .. 376.0 1368.0 -28.0
+mark: blocker (model 0, the world's own): 496.0 1352.0 -144.0 .. 512.0 1368.0 -28.0
+mark: blocker (model 0, with a brush model): 392.0 1352.0 -144.0 .. 412.0 1368.0 -28.0
+mark: blocker (model 0, with a brush model): 428.0 1352.0 -256.0 .. 448.0 1368.0 -24.0
+mark: blocker (model 0, with a brush model): 464.0 1352.0 -144.0 .. 480.0 1368.0 -28.0
+mark: 5 blockers and 0 left out within 96; added to C:\Program Files (x86)\Steam\steamapps\common\Quake/quakevr/hull_holes_marks.txt
+

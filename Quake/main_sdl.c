@@ -144,6 +144,12 @@ int main(int argc, char *argv[])
 
 	isDedicated = (COM_CheckParm("-dedicated") != 0);
 
+	{ // QVR: on Android (or -fakeandroid on the PC) the external files folder and the Android crash handler (vr_android.cpp)
+		const char *androidBase = VR_AndroidStart (argc, argv);
+		if (androidBase)
+			parms.basedir = androidBase;
+	}
+
 	VR_InstallCrashHandler (); // QVR: a crash or fatal error writes a report with its stack (quakevr/crash; vr_crash.cpp)
 
 	Sys_InitSDL ();

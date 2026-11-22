@@ -11,6 +11,7 @@
 #include "vr_tunables.hpp"
 #include "vr_api.h"
 #include "vr_api_render.h"
+#include "Zancle/Math/Acos.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 
@@ -249,7 +250,7 @@ void setupBody(const hands::State& s)
 {
     const glm::vec3 d = fingertip - (at - face * za::max(vr_weapon_button_depth.value, 0.f));
     const float len = glm::length(d);
-    angle = len > 0.05f ? glm::degrees(std::acos(CLAMP(-1.f, glm::dot(d / len, face), 1.f))) : 0.f;
+    angle = len > 0.05f ? glm::degrees(za::acos(CLAMP(-1.f, glm::dot(d / len, face), 1.f))) : 0.f;
     return vr_weapon_button_cone.value >= 180.f || angle <= vr_weapon_button_cone.value;
 }
 

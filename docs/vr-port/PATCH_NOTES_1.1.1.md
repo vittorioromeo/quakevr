@@ -63,6 +63,12 @@ that ships in 1.1.1.
   start) now turns on only when the last start crashed, or died within seconds of building its shaders. Closing the
   game while it compiles its shaders on the first start, or after a slow compile, no longer puts the next start in
   safe mode; the start-up log (`quakevr/crash/gl_startup.log`) and the console say why either way.
+- **Standalone graphics preset.** VR Settings > Graphics Presets has a new **Standalone** preset: the settings made
+  for the standalone Quest (a steady 72 frames a second first: a smaller image with dynamic resolution, no MSAA,
+  shadows or bloom, the dynamic lights Quake's way, fewer particles, marks and gibs). The Quest picks it on its first
+  start; on a PC it is the lightest preset with Quake VR's look. Picking another preset or My Settings afterwards
+  puts back the image size, MSAA and the rest it changed. Blood near your eyes can be thinned out with Thinner Blood
+  Nearer (`vr_blood_near`, off by default).
 
 ## Multiplayer beta
 
@@ -236,9 +242,14 @@ aren't Map Library packages aren't sent to joining players.
   0: as before) and a monster on a moving lift is drawn moving with it, both ways, flat and in the headset. How lifts
   push, crush and turn back is unchanged. Debug > Logging > Lift Riders measures it.
 
-- **The heavy revolver's cylinder stays shut in a melee swing.** The wrist flick that swings it out is ignored while
-  the gun's hand moves at a swing's speed and for a moment after it or after a blow lands; a deliberate flick still
-  opens it (`vr_revolver_open_swing_speed`, 2 m/s; `vr_revolver_open_swing_hold`, 0.35 s).
+- **The heavy revolver's cylinder stays shut in a melee swing, and a wrist flick still opens it.** The hand's motion is
+  split into the wrist's roll and the arm's travel: a flick mostly of the wrist swings it out, a swing mostly of the
+  arm never does, nor for a moment after it or after a blow lands (Weapons > Reloading > Heavy Revolver > Flick Open
+  Arm Share, `vr_revolver_open_flick_arm_share`, 0.45; `vr_revolver_open_swing_hold`, 0.35 s).
+- **The heavy revolver's flick down drops its shells whatever the other hand holds** (a shell ready to load).
+- **Haste speeds every gun**: the nailguns, the lightning gun and the laser cannon too, not only the shotguns and
+  launchers. While it lasts, the nail pistol, the heavy revolver and the flare gun fire full auto with the trigger held
+  (Combat > Weapon Damage > Haste: Full Auto, `vr_haste_full_auto`).
 - **Sliding in VR is on by default** (VR Settings > Locomotion > Sliding, `vr_slide`): while running, pull the turning
   stick straight down to slide. Your drawn hips and legs now point the way you slide, the chest turned back to your
   body, as on the desktop screen (Slide Legs Follow Slide, `vr_slide_legs`, on).
@@ -340,6 +351,10 @@ aren't Map Library packages aren't sent to joining players.
   their backpacks) dye new parts of the skins, and the grunts' and death knights' backpack colours are retuned.
 
 ## Performance
+
+- **Your body draws lighter.** The bare forearms of your drawn body were made of 144-sided rings from the shoulder
+  to the wrist; only the wrist, where the arm meets the hand, needs them now. The body has 62% fewer triangles and
+  costs about a quarter less GPU time, in VR and flatscreen, looking the same.
 
 - **Crowded maps run lighter.** Armed grunts you can't see (behind walls, or far off and out of view) and that
   haven't noticed you cost far less to run; Dwell's biggest map (d2m8, 250 armed grunts) about half. They wake,

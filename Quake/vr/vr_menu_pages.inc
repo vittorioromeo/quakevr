@@ -451,6 +451,8 @@
         row(opt::vr_climb_slide).extend().help("When your body can't follow your hands along a ledge (past your arm's reach, against a wall), the hand slides along it and stays on your controller. Off: it stays where it took hold, and drifts away from your controller."),
         row(opt::vr_physsound_grab),
         row(opt::vr_physsound_chain),
+        row(opt::vr_rope_grunt),
+        cycle("Rope Pull Grunt Sound", "vr_rope_grunt_sound", gruntChoices()).help("Which grunt a pull up a rope makes. The jump's, deeper (the default), so it is told apart from a jump off the rope."),
         row(opt::vr_climb_mantle_height),
         row(opt::vr_climb_mantle_trigger),
         row(opt::vr_climb_mantle_slope),
@@ -1029,6 +1031,7 @@ void resetHandMoves()
         row(opt::vr_revolver_open_flick_speed),
         row(opt::vr_revolver_open_flick_angle),
         row(opt::vr_revolver_open_flick_time),
+        row(opt::vr_revolver_open_flick_arm_share),
         row(opt::vr_revolver_open_button),
         header("Dropping the Shells"),
         row(opt::vr_revolver_eject_speed),
@@ -1334,6 +1337,11 @@ void resetHandMoves()
         action("Ultra", []() { gfxpresets::menuApply(4); })
             .help("Past the defaults, for fast graphics cards: 12 shadowed dynamic lights and 6 map lights out to 4096 "
                   "units, more torch lights, particles at full resolution, the finer bloom, deeper parallax steps."),
+        action("Standalone", gfxpresets::menuApplyStandalone)
+            .help("The best settings for a standalone headset (the Quest 3, picked on its first start): Low, then a "
+                  "steady 72 frames a second first. A smaller image with dynamic resolution, no MSAA, shadows, bloom "
+                  "or order-independent transparency, the dynamic lights Quake's way, and capped particles, marks, "
+                  "gibs, ragdolls and blood near your eyes. The least GPU time with Quake VR's look."),
         header("Your Own"),
         action("My Settings", gfxpresets::menuRestoreMine)
             .help("Your own graphics settings back, exactly as they were before you first picked a preset (or as you "
@@ -1954,6 +1962,8 @@ void addFoamRows(za::Vector<Item>& items, const FoamRows& r)
         row(opt::vr_particle_near_fade),
         row(opt::vr_particle_near_cull),
         row(opt::vr_particle_max_screen),
+        row(opt::vr_blood_near),
+        row(opt::vr_blood_near_mult),
         row(opt::vr_particle_retro_min_blocks),
         row(opt::vr_particle_halfres),
         row(opt::vr_particle_trim),

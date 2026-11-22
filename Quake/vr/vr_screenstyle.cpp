@@ -4,7 +4,6 @@
 #include "vr_cvars.hpp"
 #include "vr_gunvariants.hpp"
 
-#include <cstring>
 
 namespace qvr::screenstyle
 {

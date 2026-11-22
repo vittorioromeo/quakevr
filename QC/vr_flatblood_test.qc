@@ -96,6 +96,7 @@ void() VR_FBT_Finish =
     vr_gore_test_only = world;
     vr_fbt_on = 0;
     VR_Test_Verdict();
+    localcmd("vr_blood_emitters\n"); // (pcopt E: the blood by emitter after the verdict; its last line "blood emitters: made")
 };
 
 vector() VR_FBT_Mid =

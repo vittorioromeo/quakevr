@@ -12,9 +12,10 @@
 #include "vr_tunables.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
-#include "Zancle/String/String.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Sin.hpp"
+#include "Zancle/String/String.hpp"
 #include "vr_api.h"
 
 namespace view_detail
@@ -1649,8 +1650,8 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame, bool flo
     if(const float k = floating || !own ? 0.f : shock::gunShake(hand) * vr_enemygun_spent_shake.value; k > 0.f)
     {
         const float t = static_cast<float>(vr_gametime);
-        drawnPos += k * glm::vec3{std::sin(t * 97.f), std::sin(t * 113.f + 1.3f), std::sin(t * 89.f + 2.1f)};
-        drawnAngles += 4.f * k * glm::vec3{std::sin(t * 71.f + 0.7f), std::sin(t * 83.f + 2.9f), std::sin(t * 101.f + 4.2f)};
+        drawnPos += k * glm::vec3{za::sin(t * 97.f), za::sin(t * 113.f + 1.3f), za::sin(t * 89.f + 2.1f)};
+        drawnAngles += 4.f * k * glm::vec3{za::sin(t * 71.f + 0.7f), za::sin(t * 83.f + 2.9f), za::sin(t * 101.f + 4.2f)};
     }
     // Placed as every player's held weapon is (view::drawGear); the flare gun's barrels fired: its skin by its clip
     // (floating, a pose's: loaded).

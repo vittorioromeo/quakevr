@@ -1,8 +1,0 @@
-# brushholes_pillars: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". vrbrushholes' row of pillars
-# 16 wide with 24-unit gaps (Misc/quakevr/make_vrbrushholes_map.py).
-title Gap blockers: a row of pillars
-map vrbrushholes
-start 368 360 24 90
-god
-notarget
-hint Squeeze between the pillars ahead: you can't pass, but you still get as close to them as to any wall.

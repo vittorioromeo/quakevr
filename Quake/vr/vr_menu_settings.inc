@@ -597,9 +597,9 @@ void resetBodyEquipment()
         row(opt::gl_texture_anisotropy),
         slider("Bloom", "vr_bloom", 0.f, 1.5f, 0.02f, "%.2f").extend()
             .help("A glow around lamps, glowing panels, flashes and explosions (0: off)."),
-        toggle("Tone Mapping", "vr_tonemap")
+        cycle("Tone Mapping", vr_tonemap, {{0.f, "Off"}, {1.f, "On (64-bit)"}, {2.f, "On"}})
             .help("Bright lights, lava and explosions keep their colour and detail instead of turning flat yellow and "
-                  "white."),
+                  "white. On (64-bit): a finer float scene, slower, the same picture."),
         toggle("Bump Mapping", "vr_normalmaps")
             .help("Walls and floors get bumps and grooves that catch the light. From the next map."),
         row(opt::vr_pbr),

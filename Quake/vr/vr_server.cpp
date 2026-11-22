@@ -51,9 +51,10 @@
 #include "Zancle/Base/Memcpy.hpp"
 #include "Zancle/Container/InPlaceVector.hpp"
 #include "Zancle/Container/Vector.hpp"
-#include "Zancle/Math/MinMax.hpp"
-#include "Zancle/Vocabulary/Optional.hpp"
 #include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Round.hpp"
+#include "Zancle/Vocabulary/Optional.hpp"
 #include "vr_api.h"
 #include "vr_netmove.hpp"
 #include "vr_predict.hpp"
@@ -2386,7 +2387,7 @@ void writeEighths(sizebuf_t* msg, const glm::vec3& v)
 {
     for(int i = 0; i < 3; i++)
     {
-        MSG_WriteShort(msg, static_cast<int>(za::clamp(std::round(v[i] * 8.f), -32767.f, 32767.f)));
+        MSG_WriteShort(msg, static_cast<int>(za::clamp(za::round(v[i] * 8.f), -32767.f, 32767.f)));
     }
 }
 
