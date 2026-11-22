@@ -7897,3 +7897,7 @@ shove, climb...) and propose a key or leave it VR-only."
   md5's open neck seam, 90 open edges, not the limits): reverted. The elbows', knees' and hips' creases are the linear
   skin's at any bend a ragdoll needs (and the drawn avatar is the md5 posed by solveDoll, not this mesh). Left for his
   eye: Rig Studio > Range of Motion on a vrdoll if a corpse's neck or shoulders ever look wrong.
+- **2. Not done** (budget): flatfg2h, twohand_regrip, noises_clue, nav_lift_down, gadget_lock. Reproduced on this branch:
+  gadget_lock 13/4 (C: the crate in both hands still double-taps, a tap counted once locked; H: the side button's one
+  press and the one after letting go), flatfg2h 10/1 (key 3: the axe's drawn off hand leaves the grip, 5.95 a frame
+  against the launcher's 2.90). ThinLTO 0 warnings.
