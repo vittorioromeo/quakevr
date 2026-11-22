@@ -9569,6 +9569,33 @@ between the barrels, open muzzles, the screen in a wedge on top) and impaling (a
 - **Tests:** release build 0 warnings each phase; smoke e1m1 with vr_hull_stats, vr_gun_pieces_cache_stats,
   vr_image_prefetch_info, vr_cache_warmup_info (counters move); startuplog 3/0; vr_voicechat_selftest 24/0;
   vr_android_test (-fakeandroid) 16/0. Not yet run: Misc/quakevr/check_nopch.sh (after the last phase).
+
+## dwellrotary: the Rotary Shotgun model fixes (agent/dwellrotary, 2026-11-22)
+
+His notes of 2026-11-22 (vrtesthall 15-57-29, 16-01-25), all in `vr_adweapons.cpp` (Dwell's view model laid by a
+recipe; nothing of Dwell's shipped). Items 1, 4, 5 on both Rotary models; 2, 3, 6 on the gauntlet (the default):
+- **Flare:** Dwell's skin has the muzzle flash painted in the housing's texel column, on its lower faces' rows:
+  `Recipe::skinPatch` (`rotaryFlashPatch`) paints like rows of the other side over it.
+- **Barrels and muzzles:** Dwell's cross-shaped barrel shell (flat lobes, solid front) and its open clamps off
+  (`Recipe::dropMore`, up to 11 seeds); `dwBarrels` makes four round barrels (r 1.6, 2.35 out) round a core rod, each
+  front a ring into a black bore, closed clamp blocks bridging the gaps; all turning (spin frames as before), the
+  muzzle unchanged (37.51 0 -0.07). check_mdl_holes: both models ok, 0 open loops (the old clamps: 8 see-through).
+- **Hole and handle:** Dwell's housing and back plate off; `rotaryHousingShell` makes its octagon again (5.46 out at
+  the back, 4.53 at the collar, Dwell's texel bands), open at the back in a 0.6 rim, black inside to a floor at x 4, a
+  flat handle top to bottom where the super nailgun's is (slot 56 has slot 4's hand values). The caps' dark grey
+  (`capS`/`capT`) draws nearly white in the game's light: black (the bores' texels) inside, Dwell's barrel metal on the
+  muzzle rings.
+- **Shell port:** opening 3.96 x 1.21 (10% up), a 0.6-deep pocket with black walls and floor (it was a cap-grey box
+  standing out of the face: the "shiny" look); load point unchanged (5 7.25 0).
+- **Screen:** `rotaryScreenWedge`: the super nailgun's wedge (19-degree rear slope, bezel 1.8h x 1.2h, corner bolts,
+  near-black window; h 2.013) on the housing's top at the back; `vr_screenstyle.cpp` aliases dw_rotary to "nail2";
+  weapons.txt slot 56: wpntxt_pitch 70.5, wpntxt_scale 0.3, wpntxt_av -1.430 0.0599 6.241 with wpntxt_x/z -0.022/0.063
+  (the anchor snaps to a vertex): vr_debug_screen_where centre -1.369 0 6.091 (designed -1.371 0 6.096). His config
+  holds no slot 56 values.
+- Scene `dwell_rotary` now shows the gauntlet (it showed the setting-0 super shotgun grip), the super nailgun left.
+- Not changed: the setting-0 model (dw_shot3) keeps its screen on the housing's back, its own grip.
+- **Tests:** release build 0 warnings; dwell_rotary 3/0 (dwrotary 8/0), dwell_vrmodels 13/0, dwell_weapons 9/0;
+  scenario runall dwell_rotary OK; shots kit `scratch/dwellrotary_*.png` (before, each item, after).
 - **No-PCH (zancle2, after phase 5):** check_nopch.sh found 12 files using a PCH Zancle header (MinMax, Clamp, String,
   Sort, IntTypes) or Base/Macros.hpp's ZA_MOVE without including it; fixed. `scratch/zancle2_pchinc.py`-style check
   (each PCH header a file uses, reachable through its own includes) runs with every later phase.

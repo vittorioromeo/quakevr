@@ -67,6 +67,7 @@ constexpr Rect noRect{0.f, 0.f, 0.f, 0.f, false};
 constexpr const char* missingSourceWhy = "AD's model (the release measured) not found"; // (AD's data missing: no fault)
 
 struct Parts;
+struct SkinPatch;
 void widowmakerParts(Parts& p);
 void plasmaParts(Parts& p);
 void rotaryParts(Parts& p);
@@ -114,7 +115,23 @@ struct Recipe
     // (the base weapon's grip, hand and offsets keep their places). 0: placed as laid.
     bool keepOpen{false};
     float keepScale{0.f};
+    // Dwell support (dwellrotary): a band of the source's skin painted over from other rows of it (null: none), and up to
+    // eleven more pieces taken off (as `drop`; -1 none: a recipe that gives any lists all eleven).
+    const SkinPatch* skinPatch{nullptr};
+    int dropMore[11]{-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
 };
+
+// Texels s0..s1 of rows t0..t1 of the made skin copied from rows further down the same columns: those before `split`
+// from shiftLo rows down, the others from shiftHi (each face's band onto a like one, its seams kept where they were).
+struct SkinPatch
+{
+    int s0, s1, t0, t1, split, shiftLo, shiftHi;
+};
+// Dwell's Rotary Shotgun (dwellrotary; his notes 2026-11-22: "at the bottom, I can see the muzzle flare texture"): its
+// skin's muzzle flash (s 204..238, t 66..98: the dropped flash's texels) is painted inside the housing's column, on the
+// rows its lower faces take (the lower inner diagonal t 43..80, the bottom 80..102). Painted over with the like rows
+// of the other side (the lower outer diagonal t 102..138, the outer side 138..161).
+constexpr SkinPatch rotaryFlashPatch{200, 242, 60, 102, 80, 59, 58};
 
 // The measurements (taken on AD 1.80 patch 1's models; ROUND22.md "AD's weapons as VR models"):
 // - The Shadow Axe (v_shadaxe3.mdl, frame0: AD's axe in its right hand): the arm and hand (the piece holding vertex 257)
@@ -164,7 +181,8 @@ const Recipe recipes[] = {
     {"progs/dw_shot3.mdl#vr", {"progs/v_shot3.mdl", 260, 286, 256, 256, "dwell"}, "frame1", {1.f, 0.f, 0.f}, {0.f, 0.f, 1.f},
         {1.f, 0.f, 0.f}, {0.f, 0.f, 1.f}, 0.8f, {-2.88f, -0.11f, -20.71f}, {0.6f, 0.f, 2.6f}, {4, -1, -1}, false, {0.f, 0.f, 0.f},
         0.f, {"progs/v_shot2.mdl", 0, 0, 0, 0}, {151, 241, 281}, {-15.5775f, -4.6938f, -4.2402f}, false, {0.f, 0.f, 0.f},
-        {0.f, 0.f, 0.f}, "progs/v_shot2.mdl", true, noRect, rotaryParts, -1, {0.f, 0.f, 0.f}, 4, 16.5f, {0.f, -0.11f, -15.28f}},
+        {0.f, 0.f, 0.f}, "progs/v_shot2.mdl", true, noRect, rotaryParts, -1, {0.f, 0.f, 0.f}, 4, 16.5f, {0.f, -0.11f, -15.28f},
+        -1, false, 0.f, &rotaryFlashPatch, {0, 28, 106, 114, 172, 206, 228, 236, 241, -1, -1}},
     {"progs/dw_rail.mdl#vr", {"progs/v_rail.mdl", 311, 339, 256, 256, "dwell"}, "frame1", {23.6f, 0.f, 6.7f},
         {-6.7f, 0.f, 23.6f}, {1.f, 0.f, 0.f}, {0.f, 0.f, 1.f}, 0.88f, {11.94f, -0.17f, -18.17f}, {-4.f, 0.f, 6.2f}, {-1, -1, -1},
         false, {0.f, 0.f, 0.f}, 0.f, {"progs/v_light.mdl", 0, 0, 0, 0}, {234, 403, 493}, {-5.6211f, -9.3429f, -6.0018f}, false,
@@ -197,7 +215,8 @@ const Recipe recipes[] = {
         {0.f, 0.f, 1.f}, {1.f, 0.f, 0.f}, {0.f, 0.f, 1.f}, 1.f, {-2.88f, -0.11f, -20.71f}, {-2.6f, 0.f, -5.5f}, {4, -1, -1},
         false, {0.f, 0.f, 0.f}, 0.f, {"progs/v_nail2.mdl", 0, 0, 0, 0}, {-1, -1, -1}, {-5.1024f, -7.6303f, -8.4464f},
         false, {0.f, 0.f, 0.f}, {0.f, 0.f, 0.f}, "progs/v_nail2.mdl", true, noRect, rotaryGauntletParts, -1,
-        {0.f, 0.f, 0.f}, 4, 16.5f, {0.f, -0.11f, -15.28f}},
+        {0.f, 0.f, 0.f}, 4, 16.5f, {0.f, -0.11f, -15.28f}, -1, false, 0.f, &rotaryFlashPatch,
+        {0, 11, 129, 28, 106, 114, 172, 206, 228, 236, 241}},
 };
 
 // The Plasma Gun's cell (the lightning gun's magazine and well, made by make_mags.py in v_light.mdl's space: the cell
@@ -469,7 +488,8 @@ struct Mesh
 }
 
 // Per triangle of `m`: whether it is in a welded piece holding one of `seeds` (-1: none).
-[[nodiscard]] za::Vector<bool> piecesOf(const Mesh& m, const int (&seeds)[3])
+template <int N>
+[[nodiscard]] za::Vector<bool> piecesOf(const Mesh& m, const int (&seeds)[N])
 {
     const za::Vector<int> w = weldExact(m.pos);
     za::Vector<int> parent;
@@ -896,6 +916,10 @@ struct Parts
     glm::vec3 noteLo{0.f}, noteHi{0.f};
     float noteTop[noteBins]{};
     glm::vec3 corner{0.f}; // the recipe's: the model is packed from it (its grid: a made part laid on it, the housing)
+    // The recipe's laying of the source (a source point q is drawn at layTo + (q - layFrom) * layK: its axes kept, as the
+    // Rotary Shotgun's recipes have them; dwBarrels).
+    float layK{1.f};
+    glm::vec3 layFrom{0.f}, layTo{0.f};
     // An ammo screen housing made (vr_adweapon_models prints it: the table entry's numbers, vr_screenstyle.cpp).
     bool housing{false};
     glm::vec3 housingGlass{0.f};
@@ -1477,40 +1501,313 @@ constexpr Housing lanceHousingSpec{{0.f, 6.14f}, -1, -3.93f, 10, 25, 5, 2, 2, 1,
 constexpr Housing rifleHousingSpec{{0.f, 2.745f}, -1, 0.905f, 27, 31, 12, 3, 4, 2, 33.f, 4.f, 2.f, 0.04f, {232.f, 60.f},
     8.f, {325.f, 216.f}, -1.f, 0.f, 0.f, 0.f, 1.f, 2.f, 0.5f};
 
+// The Rotary Shotgun's four barrels (dwellrotary; his notes 2026-11-22: "make the geometry in between the barrels a little
+// bit deeper, so that it looks like there's actually separate barrels", and "the muzzle is completely solid. It should
+// also have holes at the front that match the shapes of the barrels"). Dwell's are one cross-shaped shell (four flat
+// sided lobes 3.2 wide, their inner corners 2.26 from the axis) with a solid front: taken off (Recipe::dropMore), made
+// again in the source's frame (laid as the recipe lays it): four round barrels (radius 1.6, their axes 2.35 above,
+// below and either side of the turning axis: the lobes' tips where they were, 3.95 out) from Dwell's lobes' start
+// (x 16.66) to their front (37.23), separate down to 1.66 from the axis between them, round a core rod (radius 1.3) that
+// stops 0.8 short of the front; each barrel's front a ring in to its bore (radius 0.95, 2 deep, black). Dwell's barrel
+// strips on them (a lobe's three faces across, its front section on the last 4.63), all turning as Dwell's did.
+void frameBox(Out& o, const glm::vec3& origin, const glm::vec3& u, const glm::vec3& v, const glm::vec3& n, const glm::vec3& lo,
+    const glm::vec3& hi, const Rect& r);
+
+void dwBarrels(Parts& p)
+{
+    Out& o = p.o;
+    const auto lay = [&](const glm::vec3& q) { return p.layTo + (q - p.layFrom) * p.layK; };
+    const float k = p.layK;
+    const glm::vec3 axis = lay({0.f, -0.11f, -15.28f});
+    const float x0 = lay({16.66f, 0.f, 0.f}).x, x1 = lay({37.23f, 0.f, 0.f}).x;
+    const Rect body{12.f, 162.f, 54.f, 37.f, false};
+    const Rect front{12.f, 34.f, 54.f, 1.f, false};
+    const Rect breech{12.f, 37.f, 54.f, 37.f, false};
+    const Rect core{54.f, 162.f, 65.f, 37.f, false};
+    const glm::vec2 c{axis.y, axis.z};
+    // (Their fronts' rings on Dwell's barrel metal, not the caps' dark grey: that draws pale, nearly white, in the game's
+    // light.)
+    const int capS = p.capS, capT = p.capT;
+    p.capS = 40;
+    p.capT = 20;
+    o.spinning = true;
+    for(const glm::vec2 d : {glm::vec2{0.f, 1.f}, glm::vec2{-1.f, 0.f}, glm::vec2{0.f, -1.f}, glm::vec2{1.f, 0.f}})
+    {
+        barrel(p, c + d * (2.35f * k), 1.6f * k, 0.95f * k, x0, x1, 4.63f * k, 2.f * k, body, front, breech);
+    }
+    extrude(o, circle(c, 1.3f * k), x0, x1 - 0.8f * k, &core, 1, false, true, &breech, &breech);
+    // Dwell's clamps (open three-faced pieces in the cross's inner corners, seen through once the barrels are apart:
+    // taken off too) made again closed: a block in each gap between two barrels, 1.4..3.3 out from the axis and 1 wide,
+    // bridging them, at Dwell's two places along them (x 22.06..23.86, 29.26..31.31), on Dwell's clamp texels.
+    const Rect clampTex{1.f, 182.f, 15.f, 204.f, false};
+    for(const glm::vec2 xs : {glm::vec2{22.06f, 23.86f}, glm::vec2{29.26f, 31.31f}})
+    {
+        const float cx0 = lay({xs.x, 0.f, 0.f}).x, cx1 = lay({xs.y, 0.f, 0.f}).x;
+        for(const glm::vec2 d : {glm::vec2{1.f, 1.f}, glm::vec2{-1.f, 1.f}, glm::vec2{-1.f, -1.f}, glm::vec2{1.f, -1.f}})
+        {
+            const glm::vec2 out = d * 0.70711f, side{-out.y, out.x};
+            frameBox(o, glm::vec3{0.f, c.x, c.y}, glm::vec3{1.f, 0.f, 0.f}, glm::vec3{0.f, out.x, out.y},
+                glm::vec3{0.f, side.x, side.y}, {cx0, 1.4f * k, -0.5f * k}, {cx1, 3.3f * k, 0.5f * k}, clampTex);
+        }
+    }
+    o.spinning = false;
+    p.capS = capS;
+    p.capT = capT;
+    p.muzzle = glm::vec3{x1, axis.y, axis.z}; // (the barrels' front's middle, on the turning axis)
+    p.muzzleSet = true;
+}
+
 void rotaryParts(Parts& p)
 {
     housing(p, rotaryHousingSpec);
+    dwBarrels(p);
 }
 
-// The Rotary Shotgun as a gauntlet (dwellwpn3): the same window on its back (x -2.6 at k 1, y -5.55..7.36, z -5.5..5.46;
-// the barrels' axis at y 0, z 0), the steps of the super nailgun's corner (Y 0.059, Z 0.055: 2x9 by 19 for the same
-// 1.06 x 1.04), so vr_screenstyle.cpp takes its entry whole (an alias).
-constexpr Housing rotaryGauntletHousingSpec{{0.f, 0.f}, -1, -2.71f, 9, 19, 4, 2, 1, 2, 11.f, 1.5f, 0.75f, 0.04f,
-    {192.f, 150.f}, 8.f, {8.f, 188.f}, -1.f, 0.f, 0.f, 0.f};
+// A box in the frame (origin; u, v, n), from lo to hi along them: every face `r`'s texels, its corners on the rect's.
+void frameBox(Out& o, const glm::vec3& origin, const glm::vec3& u, const glm::vec3& v, const glm::vec3& n, const glm::vec3& lo,
+    const glm::vec3& hi, const Rect& r)
+{
+    const glm::vec3 ax[3] = {u, v, n};
+    const auto at = [&](const glm::vec3& f) { return origin + u * f.x + v * f.y + n * f.z; };
+    for(int k = 0; k < 3; k++)
+    {
+        for(int side = 0; side < 2; side++)
+        {
+            const int a = (k + 1) % 3, b = (k + 2) % 3;
+            glm::vec3 f = lo;
+            f[k] = side ? hi[k] : lo[k];
+            const int g = o.newGroup();
+            int vv[4];
+            for(int c = 0; c < 4; c++)
+            {
+                glm::vec3 q = f;
+                q[a] = (c == 1 || c == 2) ? hi[a] : lo[a];
+                q[b] = c >= 2 ? hi[b] : lo[b];
+                const glm::ivec2 st = texelOf(r, (c == 1 || c == 2) ? 1.f : 0.f, c >= 2 ? 1.f : 0.f);
+                vv[c] = o.vert(at(q), st.x, st.y, g);
+            }
+            const glm::vec3 outward = ax[k] * (side ? 1.f : -1.f);
+            face(o, vv[0], vv[1], vv[2], outward);
+            face(o, vv[0], vv[2], vv[3], outward);
+        }
+    }
+}
+
+// The Rotary Shotgun as a gauntlet: its housing's outer size (Dwell's octagon, as wide as tall about the barrels' axis:
+// y 0, z 0) at x: 5.46 out to x -1.83 (its back plate), narrowing to 4.53 at 7.25 (its front collar's); and its housing
+// texels' s there (Dwell's housing column: 254 at the back plate, 198 at the collar).
+[[nodiscard]] float rotaryHousingSize(float x)
+{
+    return x <= -1.83f ? 5.46f : 5.46f - (za::min(x, 7.25f) + 1.83f) * (0.93f / 9.08f);
+}
+[[nodiscard]] float rotaryHousingS(float x)
+{
+    return 254.f - (za::clamp(x, -2.6f, 7.85f) + 2.6f) * (68.f / 10.45f);
+}
+
+// Its ammo screen (dwellrotary item 6; his notes 2026-11-22: "on its top with a bit of a wedge like we did for the super
+// nailgun"): the super nailgun's wedge (make_screen_housing_nail2.py; vr_screenstyle.cpp "nail2") on the housing's top
+// at its back end, in window heights h (the window 46.04 x 28.56 font pixels as the super nailgun's, at weapons.txt
+// slot 56's wpntxt_scale 0.3: h 2.013, a font pixel 0.0705): its rear face rises at 19 degrees (the super nailgun's:
+// weapons.txt's wpntxt_pitch 70.5 tilts the glass with it, facing up to the eye) from the housing's back top edge (x
+// -2.6, z 5.46), 0.08h below the bezel and 0.1h above it to a peak; its front slope down onto the housing's top at x 3;
+// its sides upright 2.05 out (inside the top's edges, 2.26 out at the back); its bottom 0.3 under the top (in it). In the
+// sloped face the bezel 1.8h x 1.2h standing 0.1h proud (a 0.1h frame of Dwell's brown housing plate round the window),
+// the window's floor near black, a bolt head at each corner; the glass 0.05h behind the bezel's front, its middle at
+// (-1.371 0 6.096: weapons.txt slot 56's wpntxt_av with vr_screenstyle.cpp's "nail2" offset taken out).
+constexpr float rotaryH = 2.013f;
+constexpr float rotarySlope = 19.f;
+
+void rotaryScreenWedge(Parts& p)
+{
+    Out& o = p.o;
+    const float sn = za::sin(glm::radians(rotarySlope)), cn = za::cos(glm::radians(rotarySlope));
+    const glm::vec3 up{cn, 0.f, sn}, out{-sn, 0.f, cn}, across{0.f, 1.f, 0.f};
+    const glm::vec3 back{-2.6f, 0.f, 5.46f};
+    const float h = rotaryH, low = 0.08f * h, bezelV = 1.2f * h, peakV = low + bezelV + 0.1f * h;
+    const glm::vec3 peak = back + up * peakV;
+    constexpr float frontX = 3.f, halfY = 2.05f, under = 0.3f;
+    const auto topZ = [](float x) { return rotaryHousingSize(x); };
+    // The wedge's side profile (x z), round it: its back's foot, the back top edge, the peak, the front's top and foot.
+    const glm::vec2 prof[5] = {{back.x, topZ(back.x) - under}, {back.x, back.z}, {peak.x, peak.z}, {frontX, topZ(frontX)},
+        {frontX, topZ(frontX) - under}};
+    glm::vec2 pc{0.f};
+    float zLo = 1e30f, zHi = -1e30f;
+    for(const glm::vec2& q : prof)
+    {
+        pc += q * 0.2f;
+        zLo = za::min(zLo, q.y);
+        zHi = za::max(zHi, q.y);
+    }
+    // Its faces in Dwell's housing texels: the slopes and bottom on the top's band (t 197..219 across), the sides on
+    // the outer side's (t 138..161 up).
+    for(int i = 0; i < 5; i++)
+    {
+        const glm::vec2 a = prof[i], b = prof[(i + 1) % 5];
+        const int g = o.newGroup();
+        const int v0 = o.vert({a.x, -halfY, a.y}, texel(rotaryHousingS(a.x)), 197, g);
+        const int v1 = o.vert({b.x, -halfY, b.y}, texel(rotaryHousingS(b.x)), 197, g);
+        const int v2 = o.vert({b.x, halfY, b.y}, texel(rotaryHousingS(b.x)), 219, g);
+        const int v3 = o.vert({a.x, halfY, a.y}, texel(rotaryHousingS(a.x)), 219, g);
+        const glm::vec2 m = (a + b) * 0.5f - pc;
+        face(o, v0, v1, v2, glm::vec3{m.x, 0.f, m.y});
+        face(o, v0, v2, v3, glm::vec3{m.x, 0.f, m.y});
+    }
+    for(const float sy : {-1.f, 1.f})
+    {
+        const int g = o.newGroup();
+        const auto t = [&](float z) { return texel(161.f - (z - zLo) / (zHi - zLo) * 23.f); };
+        const int c = o.vert({pc.x, sy * halfY, pc.y}, texel(rotaryHousingS(pc.x)), t(pc.y), g);
+        int ring[5];
+        for(int i = 0; i < 5; i++)
+        {
+            ring[i] = o.vert({prof[i].x, sy * halfY, prof[i].y}, texel(rotaryHousingS(prof[i].x)), t(prof[i].y), g);
+        }
+        for(int i = 0; i < 5; i++)
+        {
+            face(o, c, ring[i], ring[(i + 1) % 5], glm::vec3{0.f, sy, 0.f});
+        }
+    }
+    // The bezel (a frame of four bars), the window's floor and the bolts, in the sloped face's frame: u across, v up the
+    // slope, n out of it; its origin the window's middle on the face.
+    const glm::vec3 origin = back + up * (low + 0.5f * bezelV);
+    const float U = 0.9f * h, V = 0.6f * h, wu = 0.8f * h, wv = 0.5f * h, proud = 0.1f * h;
+    const float bs = static_cast<float>(p.boreS), bt = static_cast<float>(p.boreT);
+    const Rect plate{184.f, 142.f, 200.f, 158.f, false}; // (Dwell's brown housing plate)
+    const Rect black{bs, bt, bs, bt, false};
+    const Rect bolt{6.f, 186.f, 10.f, 190.f, false}; // (Dwell's bolt head)
+    frameBox(o, origin, across, up, out, {wu, -V, -0.1f}, {U, V, proud}, plate);
+    frameBox(o, origin, across, up, out, {-U, -V, -0.1f}, {-wu, V, proud}, plate);
+    frameBox(o, origin, across, up, out, {-wu, wv, -0.1f}, {wu, V, proud}, plate);
+    frameBox(o, origin, across, up, out, {-wu, -V, -0.1f}, {wu, -wv, proud}, plate);
+    frameBox(o, origin, across, up, out, {-wu, -wv, -0.1f}, {wu, wv, 0.02f}, black);
+    const float boltR = 0.07f * h, boltU = 0.5f * (U + wu), boltV = 0.5f * (V + wv);
+    for(const float su : {-1.f, 1.f})
+    {
+        for(const float sv : {-1.f, 1.f})
+        {
+            frameBox(o, origin, across, up, out, {su * boltU - boltR, sv * boltV - boltR, proud - 0.02f},
+                {su * boltU + boltR, sv * boltV + boltR, proud + 0.06f * h}, bolt);
+        }
+    }
+    p.housing = true;
+    p.housingGlass = origin + out * (proud - 0.05f * h);
+    p.housingWindow = {2.f * wu, 2.f * wv};
+    p.housingOnFace = 4;
+}
+
+// Its housing, hollow with a handle inside (dwellrotary item 2; his notes 2026-11-22: "the place where the hand goes, it
+// should be actually a hole with a handle inside, just like we do for the super nailgun"). Dwell's housing (a solid
+// octagon with a plate on its back) taken off (Recipe::dropMore) and made again as the super nailgun's is (v_nail2.mdl:
+// a shell open at the back, a flat handle across its middle from top to bottom): its outside Dwell's octagon
+// (rotaryHousingSize: 5.46 out at the back, 4.53 at its front collar x 7.25..8.45, closed at 8.45 where Dwell's neck
+// goes on), each face on its band of Dwell's housing column (rotaryHousingS along it); open at the back (x -2.6) in a
+// rim 0.6 wide, the hole black inside, its floor at x 4 (past the fingers round the handle); the handle
+// where the super nailgun's is (the same hand values hold it: weapons.txt slot 56 is slot 4's), x -0.3..2.5, 0.9 wide,
+// into the walls above and below, on Dwell's brown housing plate.
+constexpr float rotaryWall = 0.6f, rotaryHoleFloor = 4.f;
+
+[[nodiscard]] za::Vector<glm::vec2> rotaryOctagon(float s)
+{
+    constexpr float q = 0.4142f; // (tan 22.5 degrees: a regular octagon's corners)
+    return {{s, q * s}, {q * s, s}, {-q * s, s}, {-s, q * s}, {-s, -q * s}, {-q * s, -s}, {q * s, -s}, {s, -q * s}};
+}
+
+void rotaryHousingShell(Parts& p)
+{
+    Out& o = p.o;
+    // Each face's band of Dwell's housing column (t at its first corner, at its last), round from the inner side's
+    // upper diagonal (y+ z+): Dwell's octagon unrolled.
+    constexpr float band[8][2] = {{254.f, 219.f}, {219.f, 197.f}, {197.f, 161.f}, {161.f, 138.f}, {138.f, 102.f},
+        {102.f, 80.f}, {80.f, 43.f}, {34.f, 11.f}};
+    const int cs = p.boreS, ct = p.boreT; // (the hole black: the caps' dark grey draws pale in the game's light)
+    // The faces from ring (xa, size sa) to ring (xb, sb): outside in the bands, or (inside) dark facing the axis.
+    const auto ringToRing = [&](float xa, float sa, float xb, float sb, bool inside) {
+        const za::Vector<glm::vec2> a = rotaryOctagon(sa), b = rotaryOctagon(sb);
+        for(int i = 0; i < 8; i++)
+        {
+            const int j = (i + 1) % 8;
+            const int g = o.newGroup();
+            const auto v = [&](float x, const glm::vec2& q, float t) {
+                return inside ? o.vert({x, q.x, q.y}, cs, ct, g) : o.vert({x, q.x, q.y}, texel(rotaryHousingS(x)), texel(t), g);
+            };
+            const int a0 = v(xa, a[i], band[i][0]), a1 = v(xa, a[j], band[i][1]);
+            const int b0 = v(xb, b[i], band[i][0]), b1 = v(xb, b[j], band[i][1]);
+            const glm::vec2 m = (a[i] + a[j]) * (inside ? -0.5f : 0.5f);
+            face(o, a0, b0, b1, glm::vec3{0.f, m.x, m.y});
+            face(o, a0, b1, a1, glm::vec3{0.f, m.x, m.y});
+        }
+    };
+    constexpr float xBack = -2.6f, xPlate = -1.83f, xCollar = 7.25f, xFront = 8.45f;
+    ringToRing(xBack, rotaryHousingSize(xBack), xPlate, rotaryHousingSize(xPlate), false);
+    ringToRing(xPlate, rotaryHousingSize(xPlate), xCollar, rotaryHousingSize(xCollar), false);
+    ringToRing(xCollar, rotaryHousingSize(xCollar), xFront, rotaryHousingSize(xFront), false);
+    const Rect plate{184.f, 142.f, 200.f, 158.f, false}; // (Dwell's brown housing plate)
+    cap(o, rotaryOctagon(rotaryHousingSize(xFront)), xFront, 1.f, plate);
+    // The hole: its walls, its floor, the rim round it.
+    const float sBack = rotaryHousingSize(xBack) - rotaryWall, sFloor = rotaryHousingSize(rotaryHoleFloor) - rotaryWall;
+    ringToRing(xBack, sBack, rotaryHoleFloor, sFloor, true);
+    const float bs = static_cast<float>(p.boreS), bt = static_cast<float>(p.boreT);
+    cap(o, rotaryOctagon(sFloor), rotaryHoleFloor, -1.f, Rect{bs, bt, bs, bt, false});
+    const za::Vector<glm::vec2> rimOut = rotaryOctagon(rotaryHousingSize(xBack)), rimIn = rotaryOctagon(sBack);
+    for(int i = 0; i < 8; i++)
+    {
+        const int j = (i + 1) % 8;
+        const int g = o.newGroup();
+        const int s0 = texel(254.f), s1 = texel(250.f);
+        const int a0 = o.vert({xBack, rimOut[i].x, rimOut[i].y}, s0, texel(band[i][0]), g);
+        const int a1 = o.vert({xBack, rimOut[j].x, rimOut[j].y}, s0, texel(band[i][1]), g);
+        const int b0 = o.vert({xBack, rimIn[i].x, rimIn[i].y}, s1, texel(band[i][0]), g);
+        const int b1 = o.vert({xBack, rimIn[j].x, rimIn[j].y}, s1, texel(band[i][1]), g);
+        face(o, a0, a1, b1, glm::vec3{-1.f, 0.f, 0.f});
+        face(o, a0, b1, b0, glm::vec3{-1.f, 0.f, 0.f});
+    }
+    // The handle, top to bottom across the hole, into its walls.
+    const float hz = rotaryHousingSize(-0.3f) - rotaryWall * 0.5f;
+    const Rect plateAlong{184.f, 142.f, 200.f, 158.f, true};
+    const Rect handleFaces[4] = {plate, plateAlong, plate, plateAlong};
+    box(o, {-0.3f, -0.45f, -hz}, {2.5f, 0.45f, hz}, handleFaces, plate, plate);
+}
 
 // Its shell port (his notes 2026-11-21: "I cannot find a way to reload the rotary shotgun"): a block on the housing's
 // inner side (+y: towards the body held in the right hand, mirrored in the left; the side slopes out from y 6.3 at x 8.2
 // to 7.4 at x -1.8), its outer face flat at y 7.2, a dark opening in a raised rim there, the Widowmaker's way
 // (widowmakerParts). vr_view_internal.hpp loadPorts (DwVrRotary): the opening's middle (5 7.25 0).
+// His notes 2026-11-22 ("the place where you put the shells in should be a little bit bigger, maybe 10% bigger, and its
+// internal color should be black and look a little bit more inset. At the moment, it looks a bit too shiny"): the
+// opening 10% bigger each way (3.96 x 1.21, was 3.6 x 1.1), a pocket 0.6 deep into the block, its walls and floor black
+// (the bores' texels: it was a dark box standing out of the face in the caps' dark grey, which draws pale); the block
+// reaches into the housing's wall (rotaryHousingShell: the side is 5.46 out at most).
 void rotaryGauntletParts(Parts& p)
 {
-    housing(p, rotaryGauntletHousingSpec);
+    rotaryHousingShell(p);
+    rotaryScreenWedge(p);
+    dwBarrels(p);
     Out& o = p.o;
-    const float cs = static_cast<float>(p.capS), ct = static_cast<float>(p.capT);
-    const Rect dark{cs, ct, cs, ct, false};
+    const float bs = static_cast<float>(p.boreS), bt = static_cast<float>(p.boreT);
+    const Rect black{bs, bt, bs, bt, false};
     const Rect plate{184.f, 142.f, 200.f, 158.f, false}; // (Dwell's brown housing plate, as the bezel's)
     const Rect plateAlong{184.f, 142.f, 200.f, 158.f, true};
+    constexpr float bx0 = 2.5f, bx1 = 7.5f, by0 = 4.7f, face = 7.1f, bz = 1.f, deep = 0.6f;
+    constexpr float px0 = 3.02f, px1 = 6.98f, pz0 = -0.605f, pz1 = 0.605f, rim = 0.25f, proud = 0.25f;
     const Rect blockFaces[4] = {plate, plateAlong, plate, plate};
-    box(o, {2.5f, 5.9f, -1.f}, {7.5f, 7.1f, 1.f}, blockFaces, plate, plate);
+    box(o, {bx0, by0, -bz}, {bx1, face - deep, bz}, blockFaces, plate, plate);
+    // The block's outer part a frame round the pocket (each part's face towards it black), the pocket's floor black.
+    box(o, {bx0, face - deep, -bz}, {px0, face, bz}, blockFaces, plate, black);
+    box(o, {px1, face - deep, -bz}, {bx1, face, bz}, blockFaces, black, plate);
+    const Rect frameTop[4] = {black, plateAlong, plate, plate};    // (its underside faces the pocket)
+    const Rect frameBottom[4] = {plate, plateAlong, black, plate}; // (its top faces it)
+    box(o, {px0, face - deep, pz1}, {px1, face, bz}, frameTop, plate, plate);
+    box(o, {px0, face - deep, -bz}, {px1, face, pz0}, frameBottom, plate, plate);
+    box(o, {px0, face - deep - 0.05f, pz0}, {px1, face - deep + 0.03f, pz1}, {black, black, black, black}, black, black);
+    // The raised rim round the opening, its inner faces black.
     const Rect rimFaces[4] = {plateAlong, plateAlong, plateAlong, plateAlong};
-    const Rect rimTop[4] = {dark, plateAlong, plateAlong, plateAlong};   // (its underside faces the opening)
-    const Rect rimBottom[4] = {plateAlong, plateAlong, dark, plateAlong}; // (its top faces it)
-    constexpr float px0 = 3.2f, px1 = 6.8f, pz0 = -0.55f, pz1 = 0.55f, rim = 0.25f, side = 7.2f, proud = 0.25f;
-    box(o, {px0, side - 0.3f, pz0}, {px1, side + 0.05f, pz1}, {dark, dark, dark, dark}, dark, dark);
-    box(o, {px0 - rim, side - 0.1f, pz1}, {px1 + rim, side + proud, pz1 + rim}, rimTop, plateAlong, plateAlong);
-    box(o, {px0 - rim, side - 0.1f, pz0 - rim}, {px1 + rim, side + proud, pz0}, rimBottom, plateAlong, plateAlong);
-    box(o, {px0 - rim, side - 0.1f, pz0}, {px0, side + proud, pz1}, rimFaces, plateAlong, dark);
-    box(o, {px1, side - 0.1f, pz0}, {px1 + rim, side + proud, pz1}, rimFaces, dark, plateAlong);
+    const Rect rimTop[4] = {black, plateAlong, plateAlong, plateAlong};
+    const Rect rimBottom[4] = {plateAlong, plateAlong, black, plateAlong};
+    box(o, {px0 - rim, face - 0.05f, pz1}, {px1 + rim, face + proud, pz1 + rim}, rimTop, plateAlong, plateAlong);
+    box(o, {px0 - rim, face - 0.05f, pz0 - rim}, {px1 + rim, face + proud, pz0}, rimBottom, plateAlong, plateAlong);
+    box(o, {px0 - rim, face - 0.05f, pz0}, {px0, face + proud, pz1}, rimFaces, plateAlong, black);
+    box(o, {px1, face - 0.05f, pz0}, {px1 + rim, face + proud, pz1}, rimFaces, black, plateAlong);
 }
 
 void lanceParts(Parts& p)
@@ -1561,7 +1858,12 @@ void rifleParts(Parts& p)
     }
 
     // The grafted pieces' texels: their rectangle of the Quake VR model's skin, copied under AD's.
-    const za::Vector<bool> dropped = piecesOf(src, r.drop);
+    za::Vector<bool> dropped = piecesOf(src, r.drop);
+    const za::Vector<bool> droppedMore = piecesOf(src, r.dropMore);
+    for(za::SizeT t = 0; t < dropped.size(); t++)
+    {
+        dropped[t] = dropped[t] || droppedMore[t];
+    }
     const za::Vector<bool> grafted = r.graft.path ? piecesOf(graft, r.graftSeeds) : za::Vector<bool>{};
     int rx0 = 1 << 30, ry0 = 1 << 30, rx1 = -1, ry1 = -1;
     for(za::SizeT t = 0; t < grafted.size(); t++)
@@ -1589,6 +1891,18 @@ void rifleParts(Parts& p)
     for(int y = 0; y < src.skinH; y++)
     {
         ZA_MEMCPY(skin.data() + static_cast<size_t>(y) * skinW, src.skin.data() + static_cast<size_t>(y) * src.skinW, static_cast<size_t>(src.skinW));
+    }
+    if(const SkinPatch* sp = r.skinPatch)
+    {
+        for(int y = sp->t0; y <= sp->t1; y++)
+        {
+            const int from = y + (y < sp->split ? sp->shiftLo : sp->shiftHi);
+            for(int x = sp->s0; x <= sp->s1 && from < src.skinH && x < src.skinW; x++)
+            {
+                skin[static_cast<za::SizeT>(y) * static_cast<za::SizeT>(skinW) + static_cast<za::SizeT>(x)] =
+                    src.skin[static_cast<za::SizeT>(from) * static_cast<za::SizeT>(src.skinW) + static_cast<za::SizeT>(x)];
+            }
+        }
     }
     for(int y = 0; y < gh; y++)
     {
@@ -1693,6 +2007,9 @@ void rifleParts(Parts& p)
     }
     Parts parts{o, graft, -rx0, src.skinH - ry0, skinW - 2, skinH - 2, 1, skinH - 2};
     parts.corner = r.corner;
+    parts.layK = r.k;
+    parts.layFrom = r.srcPivot;
+    parts.layTo = r.dstPivot;
     if(r.parts)
     {
         r.parts(parts);

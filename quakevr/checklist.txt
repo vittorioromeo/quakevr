@@ -22,6 +22,10 @@ Dwell's Crystal Lance: thrust it straight forward into a monster, head first: a 
 Dwell's Crystal Lance fired: a violet lightning beam from the crystal tip through every monster on its line, violet sparks where it enters and leaves each and where it stops, a firm kick back and up, and the crystal head glowing violet for a moment after each shot. {test:dwell_lance_pole}
 Dwell's Crystal Lance feels about 20% heavier when you swing it, and has no magazine: each shot takes 6 cells straight from your pouch. {test:dwell_lance_pole}
 Dwell's Crystal Lance: press B (the eject button) to turn your grip over, crystal head down, as with a sword. {test:dwell_lance_pole}
+Dwell's Rotary Shotgun in hand: your hand goes into a hole at the back of its housing round a handle inside, as in the super nailgun in your left hand; inside the hole is black. {test:dwell_rotary}
+Dwell's Rotary Shotgun: the ammo screen sits on the housing's top at the back in a wedge like the super nailgun's, tilted up to your eye in a riveted brown bezel, readable as you aim. {test:dwell_rotary}
+Dwell's Rotary Shotgun: the shell port on the inner side is a little bigger, black and set into the gun (not shiny); reloading there still fills it. {test:dwell_rotary}
+Dwell's Rotary Shotgun: four separate round barrels with deep gaps between them, open holes at the front, still turning as you fire; no orange flare on the housing's underside. {test:dwell_rotary}
 
 [2. Quoth]
 Quoth map from the Map Library (ne_marb): the waves spawn and the ring doors open {test:hub_start}
