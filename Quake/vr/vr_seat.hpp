@@ -22,6 +22,8 @@
 // Phase 6: the seats in play (a bit each; seats 1-3 joined by a pad), each with its own loopback connection and server
 // slot; the host frame runs each playing seat's client frame with it current (host.c). Seats 1-3 run headless until
 // phase 7 (CL_SeatHeadless: no view, no sound, none of the shared effects).
+// Phase 7: in flatscreen play each seat drawn in its tile; its body (avatar::seatSwitched), climbing pins and plates its
+// own; the shared effects fed once per event by the drawn seats (CL_SeatEffectFirst).
 #pragma once
 
 #include "vr_engine.hpp"

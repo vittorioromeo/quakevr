@@ -612,3 +612,44 @@ His answer to question 3 (2026-11-21): seat 1 is always the keyboard and mouse; 
   a seat's frame on shared state); other players' copies (`vr_mpavatar`, gore, ropes drawn) posed once per frame, not
   per seat's relink; the visor per seat; the shadow and portal caches per view checked with several views.
 - **Before and after**: ROUND25.md "split7".
+
+## 16. Phase 7, part 2 (2026-11-22): each seat's body, pins and effects
+
+(Seats numbered from 0 as in the code.)
+
+- **Your drawn body, the current seat's** (vr_avatar.cpp): the posed body's globals (the pose, the skin, the skeleton,
+  the arms' eases and forearms, the gait, stance, wading, climbing feet and body pitch: what `swapOther` already swapped
+  for another player's body) are the current seat's. `seat::makeCurrent` calls `avatar::seatSwitched(from, to)` as the
+  current seat changes: two swaps park the leaving seat's body in its part (`Part::AvatarSelf`) and bring the next one's
+  in. One seat: never switched. The other players' and dolls' bodies are each seat's (`Part::AvatarOthers`): each
+  seat's client poses the bodies it sees, its own entities, with its own memory (one seat: seat 0's, as before).
+- **Climbing's drawn pins** (vr_climb.cpp: each hand eased onto its hold, `Part::ClimbPins`) and **your plates' morphs**
+  (vr_view_body.cpp, `Part::ViewPlates`; a new level resyncs every seat's) are each seat's. The climbers themselves are
+  the server's (shared).
+- **The shared effects fed once per event** (`CL_SeatEffectFirst`, vr_seat.cpp; client.h's `SEATFX_*`): the particles
+  are one pool, simulated once and drawn in every tile. Each seat's client reads an event its seat can see (the server
+  sends it to every client in sight), so the first drawn seat this frame to feed it does and the others skip it (its
+  kind, a key and its place rounded to a unit; a later seat's own event, out of the earlier seats' sight, is fed). Fed so:
+  Quake's effects (r_part.c: the explosions, the blob, the particle effects, lava and teleport splashes, the bright
+  field) with Quake VR's particles behind them, the entities' trails and the explosion debris's (by entity number: the
+  server's, the same in every client). A seat not drawn feeds nothing (`R_AllocParticle` too); one seat: always fed.
+- **Each drawn seat's lights**: its relink runs with its own last drawn eye in `r_refdef.vieworg` (tiles only), so the
+  torch and flame lights (`VR_TorchLights`, `VR_FlameLights`: now every drawn seat's, into its own client's dynamic
+  lights) and the projectiles' lights are chosen by its own eye. The taken torches' flames and the test sprite stay seat
+  0's (shared memories).
+- **The toolgun panel and the holster menu** (`VR_FlatSeatPanels`): one seat, from `VR_End2D` as before; seats in tiles,
+  each seat's in its tile's pass (gl_screen.c's `SCR_DrawSeatHud`), from its own parts.
+- **`vr_seat_render_test`** grew: each seat's body posed (`avatar::skeleton` in its scope) at its own player (the
+  nearest seat player to the posed head); an explosion every seat reads in a frame adds one explosion's particles (372,
+  as one seat's), one only the last seat reads adds its own; an entity's trail fed by one seat. 2 seats 20/20, 3 seats
+  26/26, 4 seats 33/33.
+- **`seat_state` allowlist: 3,588 -> 3,585** (the others' bodies, the pins, the plates). The swapped body globals stay
+  listed (they hold the current seat's; the parked ones are the seats').
+- **Left of phase 7** (2-3 days): the other Quake VR effect spawners (gore and blood, impacts, the gun effects, debris,
+  drips, water: ~20 files calling `particles::` directly) not fed through `CL_SeatEffectFirst` yet (with tiles they
+  spawn once per seat that sees them); sounds per seat listener (phase 8: each seat's listener mixed, the shared world
+  sounds started once: `CL_SeatEffectFirst`'s `SEATFX_SOUND` is reserved for it; the sound starts still headless for
+  seats 1-3); the flat visor per seat scaled to its tile and flat TAA per tile (still off while tiles are drawn); the
+  shadow and portal caches per view checked with several views; the torch lights per seat checked on a map with torches
+  near the start (e1m1's has none).
+- **Before and after**: ROUND25.md "split7b".

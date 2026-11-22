@@ -445,7 +445,8 @@ void testFlat()
     bool none3 = true;
     for(int p = static_cast<int>(Part::FlatPlay); p < static_cast<int>(Part::Count); ++p)
     {
-        none3 = none3 && slot(at(3), static_cast<Part>(p)) == nullptr;
+        // (the parked body excepted: any switch to and from the seat parks it, avatar::seatSwitched)
+        none3 = none3 && (slot(at(3), static_cast<Part>(p)) == nullptr || static_cast<Part>(p) == Part::AvatarSelf);
     }
     check(apart, "flat play, the holsters and the sight: each seat's own part");
     check(none3, "seat 3 has none of flat play's parts made (no code of it ran as seat 3)");
@@ -490,7 +491,8 @@ void testHands()
     bool none3 = true;
     for(int p = static_cast<int>(Part::Hands); p < static_cast<int>(Part::Count); ++p)
     {
-        none3 = none3 && slot(at(3), static_cast<Part>(p)) == nullptr;
+        // (the parked body excepted: any switch to and from the seat parks it, avatar::seatSwitched)
+        none3 = none3 && (slot(at(3), static_cast<Part>(p)) == nullptr || static_cast<Part>(p) == Part::AvatarSelf);
     }
     check(apart, "the rig, the hands' sources, frames and throws: each seat's own part");
     check(none3, "seat 3 has none of the hands' parts made (no code of them ran as seat 3)");
