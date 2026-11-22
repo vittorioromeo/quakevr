@@ -1502,11 +1502,11 @@ void renderVisor(const VisorInput& in)
     visorRender(in);
 }
 
-void renderCenterPanel(const char* text)
+void renderCenterPanel(const char* text, float boot)
 {
     QVR_GPU_PROFILE("center panel");
     const fontstyle::Use font{fontstyle::Surface::Gadget};
-    visorRenderCenter(text);
+    visorRenderCenter(text, boot);
 }
 
 VisorImage renderHolsterMenu(const HolsterMenuView& view)

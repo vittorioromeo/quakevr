@@ -190,9 +190,10 @@ struct HolsterMenuView
 [[nodiscard]] VisorImage renderHolsterMenu(const HolsterMenuView& view);
 
 void renderVisor(const VisorInput& in);
-// Only the centre print's popup, for `text` ("" none): the headset's centre panel (vr_panel.cpp) shows that image as the
-// visor does, on a panel of its own (visorImage(VisorCenter); the visor itself runs only in flatscreen play).
-void renderCenterPanel(const char* text);
+// Only the centre print's popup's contents, for `text` ("" none) at its power-on sweep `boot` (VisorInput's): the
+// headset's centre panel (visor::renderHeadsetCenter) mounts that image as the visor does, on a texture of its own
+// (visorImage(VisorCenter); the visor itself runs only in flatscreen play).
+void renderCenterPanel(const char* text, float boot);
 [[nodiscard]] VisorImage visorImage(int panel);
 [[nodiscard]] glm::vec4 visorPhosphor(); // the screens' colour at full strength (Shade::Screen's static)
 [[nodiscard]] VisorColors visorColors();

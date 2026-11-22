@@ -7381,3 +7381,25 @@ hitscan's always did.
   before (the lightning bolt's limb case kills nothing there, untouched by this); scenario_check PASS (179 run, 0
   failed); Dev and ThinLTO built, 0 warnings.
 
+## vrcenterprint2: VR centre messages drawn by the flat visor's own popup code (agent/vrcenterprint2, 2026-11-22)
+
+- **His verdict (11-22):** vrcenterprint's panel (the contents image, a plain black box with a thin line) was not the flat
+  visor's centre message (a dark glass pill, cut corners, a glowing bevelled frame). Now the headset draws the flat one.
+- **How (vr_visor.cpp):** the flat visor's per-panel code takes its pass (`drawPanel`, `useSlot`, `drawList`,
+  `packAtlas`, `buildPanels(lp, layer, ss, only)`); its per-panel uniforms (`panelUniforms`) and scanlines
+  (`scanUniforms`) are shared by the window's composite and the headset's. `renderHeadsetCenter` (VR_End2D, the headset's
+  frames): `update()` steps the popup's fade and pop in as the flat one does (`vr_flat_visor_center_pop`, `_center_fade`,
+  Quake's `con_notifyfade`), the contents image (`gadget::renderCenterPanel(text, boot)`: its power-on scan), then the
+  centre popup alone built into a second atlas (`buildPanels(..., VisorCenter)`: back plate, glass face, sheen, glows,
+  bevelled frame) on a layer of its own (no lens, zoom, sway or glass: a virtual pixel 4 texels, the view's height chosen
+  so layerFor's unit gives the flat edges' and glows' width against the text at `vr_flat_visor_scale`), composited by
+  the flat layer program into a texture of the popup's box (`visor::headsetCenter`). vr_panel.cpp draws it premultiplied
+  on the HUD's head-following place, its text where it was (Quake's height). Claims: `visor::claimCenter` (the flat
+  `VR_CenterPrintOnVisor`, `VR_CenterPrintInView`, `panel::centerShow`'s view messages): one state, one fade.
+- **Not in the headset:** the glass's blur of the view behind (defaults: 6 px blur, no tint or desaturation; the face
+  lets the world through at `vr_flat_visor_opacity` instead: there is no view behind a world quad to frost).
+- **Checks:** `vr_center_panel_info` prints the popup's fade, pop, box and contents (visor pixels). Side by side, flat
+  screenshot and VR eyeshot of the same short, long and 3-line messages: the same box sizes (216x38 for the 3 lines), frame
+  hue within 8%, a glow past the frame and a dark face in both (scratch/vcp2_side.ps1: 3 passed, 0 failed;
+  scratch/vcp2/side.png).
+
