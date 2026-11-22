@@ -7905,3 +7905,35 @@ shove, climb...) and propose a key or leave it VR-only."
   teleport/turning/recentre, the immersive reload parts.
 - Test: `Misc/quakevr/flatkeybind_test.sh <agent>` + the gear case (Controls' row with no clash, 9 dims then lights,
   `vr_gear_lights` 0 then 1): 13 passed, 0 failed. Scenario `flat_gear_lights`.
+
+## baselinecfg: test runs start from the shipped defaults (agent/baselinecfg, 2026-11-22)
+
+- **What the old baseline did**: the agents' `quakevr/ironwail.cfg.baseline` was a 14,472-line full config
+  (vr_cfg_version 141, 8,321 vr_wofs_* lines). After its migration, a run's settings (`vr_config_test dumpfull`,
+  against a run from the new file) differed in 585: 566 weapon offsets in 30 of the 32 slots (stale against weapons.txt),
+  the author's personal settings (body calibration, Height 1.5474, vr_xr_runtime 1, vr_notes 1, menu positions),
+  cl_alwaysrun 1, the HUD scales 3 and vr_torch_light_shadows 4. Its binds after load differed only in `bind e +moveup`.
+  Kit detail: run.ps1 copies the baseline over a lane-0 run's config only *after* the run, so a changed baseline reaches
+  the second run from then on (copy it to `quakevr/ironwail.cfg` too).
+- **New `Misc/quakevr/test_baseline.cfg`** (committed): `vr_config_defaults`, the four version markers (cfg 224, wofs 79,
+  props 68, bindings 3: read as a saved config of this build) and `vr_tutorial_started 1`, each with a comment. Nothing
+  else: no window, input or logging settings are needed (run.ps1's command line and autoexec carry them). This tree's
+  baseline is that file. TESTING.md "The test baseline config: the shipped defaults".
+- **Suite before -> after** (4 lanes; the beta profile, then the rest of the full suite in three chunks): beta 11/1 ->
+  11/1 (update_notice both times: the beta-version failure testspeed already noted); the 33 other tests 33/0 -> 30/3;
+  teleporters_chase and stealth failed (flaky, warned) both times.
+  - **xr_runtime** (test relied on a stale value, fixed): "+vr_xr_runtime 1 on the command line: said so" read the
+    author's own vr_xr_runtime 1 from the old config. The kit's script is the autoexec, and the game quits before
+    quake.rc's `stuffcmds` applies the command line. The test now sets `vr_xr_runtime 1` before CMDLINE1: PASS.
+  - **weapon_catch "in the air"** and **reload_gunshape "lying shotgun dropped onto: the loose round slides in"**: both
+    fail with the shipped weapon offsets in every run (weapon_catch: two suite runs and one alone; gunshape: two). Both also fail with the old baseline minus only its vr_wofs_*
+    lines, so the weapon offsets cause them. weapon_catch: with the shipped crowbar (19.9 units long) the dropped
+    crowbar comes to rest on the floor ("0 u/s on the ground", z 104) under sv_gravity 0, and the fist stops 7.13 cm
+    from its surface at every hand height from 12 down to -3 cm. The case's setup no longer gives a crowbar in the air:
+    the test needs a new setup (the shipped default is probably fine). gunshape: 0 frames of the shell going in, where
+    the old offsets gave 33. This is the author's 2026-10-08 complaint (a shell dropped onto a lying shotgun), so it
+    may be player-facing with the shipped shotgun offsets. **Open, not decided**: worth a worker each.
+- **Kit (not changed: other trees test tonight)**: `new_agent.sh` still copies the cleanup checkout's full config.
+  `qvr-kit/scratch/new_agent.sh.baselinecfg` is the proposed copy (it copies the tree's `Misc/quakevr/test_baseline.cfg`
+  when the tree has one). Existing trees switch with `cp Misc/quakevr/test_baseline.cfg quakevr/ironwail.cfg.baseline`
+  (and the same to `quakevr/ironwail.cfg`).
