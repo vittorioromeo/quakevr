@@ -8215,3 +8215,35 @@ client world; one seat drawn exactly as before).
   gadget_lock 13/4 (C: the crate in both hands still double-taps, a tap counted once locked; H: the side button's one
   press and the one after letting go), flatfg2h 10/1 (key 3: the axe's drawn off hand leaves the grip, 5.95 a frame
   against the launcher's 2.90). ThinLTO 0 warnings.
+
+## split7b: splitscreen phase 7 part 2, each seat's body, pins and effects (split7b, 2026-11-22, `agent/split`)
+
+What it does: SPLITSCREEN.md section 16. Items 1-2 of the brief's 4 done; 3 (sounds per seat listener) and 4 (the visor
+per seat, flat TAA per tile) left for a part 3 (budget).
+
+- **The drawn body per seat**: vr_avatar's posed-body globals are the current seat's; `seat::makeCurrent` calls
+  `avatar::seatSwitched` (two `swapOther`s: the leaving seat's body parked in `Part::AvatarSelf`, the next one's in). The
+  other players' and dolls' bodies are each seat's (`Part::AvatarOthers`). Climbing's drawn pins (`Part::ClimbPins`) and
+  your plates' morphs (`Part::ViewPlates`) too. One seat: no switch, the same globals.
+- **The shared effects fed once per event** (`CL_SeatEffectFirst`, `SEATFX_*` in client.h): Quake's particle effects
+  (r_part.c, with Quake VR's particles behind them), trails and debris trails: the first drawn seat this frame feeds an
+  event, a later seat's identical one is skipped; a seat not drawn feeds nothing. Each drawn seat's torch and flame
+  lights now its own (its relink with its own drawn eye in `r_refdef.vieworg`, tiles only). The toolgun panel and the
+  holster menu drawn in each seat's tile (`VR_FlatSeatPanels`).
+- **Merging next** (twice): the ragdoll's proportioned rigs (data) marked seat-shared; the visor's freed-leaf fix
+  (`state.` -> the seat's `state()`). The first test batch, before that merge, crashed once in scenario_check (the
+  freed view leaf next fixed: `eyeUnderwater` during a map load).
+- **Tests** (quick builds; low-impact mode while the author's game ran): `seat_render_test.sh` 2 seats 20/0, 3 seats 26/0,
+  4 seats 33/0 (each seat's body posed at its own player; an explosion all seats read: 372 particles, as one seat's; one
+  only the last seat reads: its own 372; a trail fed by one seat; screenshots `qvr-kit/scratch/split7b_{2,3,4}seats.png`);
+  `vr_seat_test` 70/0 (its "seat 3 has none of the parts made" checks pass over the parked body: any switch makes it);
+  `seat_play_test.sh` 55/0; flatplay 31/0, visor 37/0, flatxhair 31/0, flathands 76/0; scenario_check 193 run, 0
+  failed; MP chunk on `qbase.8`: netsafe 14/0, coop 12/0, campaign_listen 18/0, flow 17/0, dm 27/0, adspose 12/0, and
+  adspose three more times 12/0 each (part 1's 6/1 "A never put at" not seen again in 4 runs). Dev and ThinLTO 0
+  warnings, QC 0 warnings.
+- **Left of phase 7**: SPLITSCREEN.md section 16's list (the other ~20 Quake VR effect spawners not fed once yet; sounds
+  per seat listener; the visor per seat and flat TAA per tile; the shadow and portal caches with several views; the
+  torch lights per seat on a map with torches by the start).
+- In VR (the author): nothing changes (one seat). Flatscreen with seats (`seat_mockpad 0 1; seat_join 0` in a coop
+  game): each tile shows its own body, its own toolgun panel and holster menu; an explosion both seats see is drawn
+  once.
