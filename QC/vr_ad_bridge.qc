@@ -1741,9 +1741,12 @@ void(entity missile) VR_AD_Ordnance =
     }
 };
 
-// AD native monsters and Quake VR's bridge both pass through this launch hook, exactly once.
+// AD native monsters and Quake VR's bridge both pass through this launch hook, exactly once: every shell projectile
+// (AD's and Quoth's rules; vanilla's are hitscan) 30% over AD's speed (VR_AD_SHELL_FASTER), a monster's times
+// vr_ad_enemy_pellet_speed too.
 float(entity shooter, float speed) VR_AD_PelletSpeed =
 {
+    speed = speed * VR_AD_SHELL_FASTER;
     return speed * ((shooter.flags & FL_MONSTER) ? max(0.1, cvar_hget(cvarh_vr_ad_enemy_pellet_speed)) : 1);
 };
 

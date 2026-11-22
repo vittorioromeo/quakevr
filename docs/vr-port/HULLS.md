@@ -712,6 +712,16 @@ input don't have them.
   model's own gaps count up to the limit itself (hull 1's check as before; with brush models still under 32, the line
   test alone there), and a dropped merged box is put back as its pieces, each checked on its own and the kept ones
   merged again (`splitDropped`). `buildVersion` 5.
+- **backlog1122d (2026-11-22): a lift's corner, and doors' blockers.** Your mark on vrbrushholes (580, 36): the lift's
+  slots east and north were each blocked, but the 20 x 20 square between them was not (no pair faces across it: the
+  plat's corner is diagonal to the shaft's) and a 16 box fell down there. A blocker is space no point of Quake's box
+  was ever in, so it can count as a solid: `crossCorners` pairs each blocker with a brush model with the solids near
+  it (both ways, along x and y; the line test alone, as those pairs) and adds the gaps under the limit. Your mark on
+  DM1 (431.5, 1344): the grate's two middle bars are func_doors that sink into the floor, and their blockers were
+  found against each door's whole travel as a box, in the world's tree, so they stayed standing in the opened way.
+  Now a door's pairs use its closed box and their blockers go in the door's own tree (`Solid::attach`), moving with
+  it; lifts keep their whole travel (the shaft's slots stay shut wherever the plat is). `vr_hull_holes_test` has a
+  lift-corner check (29 on and off) and, on dm1, the grate shut and opened (`brushholes_dm1`). `buildVersion` 6.
 
 Census (`vr_hull_cache 0`, a low-impact run, so the times are rough):
 
