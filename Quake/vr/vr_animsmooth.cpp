@@ -48,6 +48,9 @@
 #include "vr_rigstudio.hpp"
 
 #include "Zancle/Algorithm/Sort.hpp"
+#include "Zancle/Base/Memcmp.hpp"
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
@@ -124,7 +127,7 @@ struct Key
     const qmodel_t* model{nullptr};
     [[nodiscard]] bool operator==(const Key& o) const
     {
-        return !memcmp(poses, o.poses, sizeof(poses)) && !memcmp(span, o.span, sizeof(span)) && blend == o.blend &&
+        return !ZA_MEMCMP(poses, o.poses, sizeof(poses)) && !ZA_MEMCMP(span, o.span, sizeof(span)) && blend == o.blend &&
                tension == o.tension && rigError == o.rigError && mode == o.mode && rebuildError == o.rebuildError &&
                model == o.model;
     }
@@ -160,7 +163,7 @@ void splitName(const char* name, char* prefix, int& number)
     {
         digits--;
     }
-    memcpy(prefix, name, static_cast<size_t>(digits));
+    ZA_MEMCPY(prefix, name, static_cast<size_t>(digits));
     prefix[digits] = '\0';
     number = digits < n ? atoi(name + digits) : -1;
 }
@@ -208,7 +211,7 @@ namespace qvr::animsmooth::detail
         // (numbers alone, the knight's "1" .. "97", name no animation: the file's order, a guess)
         m.namedNext[static_cast<za::SizeT>(f)] = na >= 0 && nb >= 0 && a[0] && b[0];
         // The same animation, numbered on (or unnamed, or unnumbered: the shambler's: the file's order)
-        const bool on = !strcmp(a, b) && (na < 0 || nb < 0 || nb == na + 1);
+        const bool on = !ZA_STRCMP(a, b) && (na < 0 || nb < 0 || nb == na + 1);
         if(on)
         {
             m.next[static_cast<za::SizeT>(f)] = static_cast<int16_t>(f + 1);
@@ -721,7 +724,7 @@ bool swings(const SmoothModel& m, const int poses[4], const rigpose::Spline& s, 
     rigpose::alongSlots(rig, keys, s, still, now); // (the keys made above: not looked up again per bone)
     if(nowOut)
     {
-        memcpy(static_cast<void*>(nowOut), now, sizeof(rigpose::Rigid) * static_cast<size_t>(rig.numBones));
+        ZA_MEMCPY(static_cast<void*>(nowOut), now, sizeof(rigpose::Rigid) * static_cast<size_t>(rig.numBones));
     }
     if(none)
     {
@@ -962,7 +965,7 @@ void keysOf(const entity_t* e, const aliashdr_t* hdr, SmoothModel& m, Memo& memo
         za::Vector<glm::vec4>& rowsOut = swingsOf(channel);
         const za::SizeT at = rowsOut.size();
         rowsOut.resize(at + static_cast<za::SizeT>(memo.numRows));
-        memcpy(static_cast<void*>(rowsOut.data() + at), memo.rows, sizeof(glm::vec4) * static_cast<size_t>(memo.numRows));
+        ZA_MEMCPY(static_cast<void*>(rowsOut.data() + at), memo.rows, sizeof(glm::vec4) * static_cast<size_t>(memo.numRows));
         smooth[2] = -1 - static_cast<int>(at);
         return 1;
     }
@@ -1010,7 +1013,7 @@ void keysOf(const entity_t* e, const aliashdr_t* hdr, SmoothModel& m, Memo& memo
         // B: the limbs' swings
         const za::SizeT at = swing.size();
         swing.resize(at + static_cast<za::SizeT>(memo.numRows));
-        memcpy(swing.data() + at, memo.rows, sizeof(glm::vec4) * static_cast<size_t>(memo.numRows));
+        ZA_MEMCPY(swing.data() + at, memo.rows, sizeof(glm::vec4) * static_cast<size_t>(memo.numRows));
         smooth[2] = rebuild ? -1 - static_cast<int>(at) : 1 + static_cast<int>(at);
     }
     return 1;
@@ -1295,7 +1298,7 @@ extern "C" int VR_AnimSmoothKeep(int channel, int first, int count)
     kept.resize(at + static_cast<za::SizeT>(count));
     if(count)
     {
-        memcpy(static_cast<void*>(kept.data() + at), swing.data() + first, sizeof(glm::vec4) * static_cast<size_t>(count));
+        ZA_MEMCPY(static_cast<void*>(kept.data() + at), swing.data() + first, sizeof(glm::vec4) * static_cast<size_t>(count));
     }
     return static_cast<int>(at);
 }
@@ -1311,7 +1314,7 @@ extern "C" int VR_AnimSmoothReplay(int channel, int kept, int count, int newbatc
     if(count > 0)
     {
         swing.resize(at + static_cast<za::SizeT>(count));
-        memcpy(static_cast<void*>(swing.data() + at), batches.kept.data() + kept, sizeof(glm::vec4) * static_cast<size_t>(count));
+        ZA_MEMCPY(static_cast<void*>(swing.data() + at), batches.kept.data() + kept, sizeof(glm::vec4) * static_cast<size_t>(count));
     }
     return static_cast<int>(at);
 }
@@ -1323,7 +1326,7 @@ extern "C" int VR_AnimSmoothRowsEqual(int channel, int first, int kept, int coun
     {
         return 1;
     }
-    return memcmp(swing.data() + first, batches.kept.data() + kept, sizeof(glm::vec4) * static_cast<size_t>(count)) == 0;
+    return ZA_MEMCMP(swing.data() + first, batches.kept.data() + kept, sizeof(glm::vec4) * static_cast<size_t>(count)) == 0;
 }
 
 extern "C" int VR_AnimSmooth(const entity_t* e, const void* aliashdr, int pose1, int pose2, float blend, int zeroblend,

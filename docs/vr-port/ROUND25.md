@@ -9481,3 +9481,27 @@ His standing rule restated: our C++ uses Zancle wherever it has an equivalent an
   struggle_test 6/6 (armdrag, shoulderdrag drag: vr_box3d_struggle.cpp's only change was std::str* -> the same
   builtins, so not this branch's; not chased); phase 2: smoke e1m1, mp_test ragsync 11/0, active_test no fail,
   NaN or crash line.
+
+## zancle2: atomics, clocks, Tracy and the C string calls on Zancle (agent/zancle2, 2026-11-22)
+
+- **struggle_test's failures predate zancle:** before the zancle merge (0ea5f3574) 7 passed / 7 failed, the same drag
+  cases (legpull, legpull1, headdrag, shoulderdrag "walked 6 units", armdrag's swat > 0.4, legpull's no weights;
+  legdrag also counted that run); origin/next 6/6. Not chased here.
+- **Phase 3:** `std::atomic` -> `za::Atomic` (box3d gun pieces and hull disk counts, diskcache, imgprefetch, jobs,
+  warmup, startlog, xr_runtime, bodytrack_xr): every implicit operation (`++`, `+=`, `x = v`, `.load()`,
+  `.exchange()`, `compare_exchange_strong`) is now its explicit SeqCst call, as std's operators were; explicit
+  orders map 1:1 (`fetchAddRelaxed`, `storeRelease`, `za::atomicThreadFence<...>`). vr_voicechat's steady_clock
+  timings -> `za::Clock::nowNanoseconds()`. vr_tracy.cpp (compiled only by Release-Tracy; checked with an MSBuild
+  ClCompile of that configuration into scratch): Atomic (the source table's spin lock an exchange/store),
+  `za::AtomicMutex`/`LockGuard`, ankerl maps, `za::String`/`StringView`/`Vector`, ZA_ string calls; its two
+  `std::deque`s stay (stable addresses). Kept and allowlisted with reasons: `wallMs` (system_clock epoch ms) in
+  vr_mptest/vr_voicechat, compared across processes (`za::Clock`'s epoch is unspecified). The Quest merge's 7 uses
+  converted; the Android native build compiles (build-android, `cmake --build ... --target ironwail`).
+- **Phases 4-5:** unqualified (and `std::`) `strcmp strncmp strlen strstr memcpy memset memcmp memmove memchr` ->
+  `ZA_STRCMP`... (`Zancle/Base/<Name>.hpp`, `__builtin_*`: the same calls) in 80 files, vr_ad .. vr_cleanskins (644
+  calls); comments and strings untouched; `<cstring>`/`<string.h>` dropped where no other string.h name is left
+  (quakedef.h's `<string.h>` stays the source for `strchr` and friends). Left: ~1,980 calls in 217 files.
+- **Counts (the allowlist):** std:: 156 -> 40, standard header includes 31 -> 9.
+- **Tests:** release build 0 warnings each phase; smoke e1m1 with vr_hull_stats, vr_gun_pieces_cache_stats,
+  vr_image_prefetch_info, vr_cache_warmup_info (counters move); startuplog 3/0; vr_voicechat_selftest 24/0;
+  vr_android_test (-fakeandroid) 16/0. Not yet run: Misc/quakevr/check_nopch.sh (after the last phase).

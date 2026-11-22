@@ -43,7 +43,7 @@
 #include "vr_zancle.hpp"
 #include "vr_srvrandom.hpp"
 
-#include <atomic>
+#include "Zancle/Concurrency/Atomic.hpp"
 #include <string.h>
 
 namespace qvr::hull::detail
@@ -253,8 +253,8 @@ inline Pending pending;
 // The disk cache's counts this session (vr_hull_stats), added to by the trees' jobs.
 struct DiskCounts
 {
-    std::atomic<int> read{0}, written{0}, missed{0}, rejected{0}, same{0}, differed{0};
-    std::atomic<long long> readUs{0};
+    za::Atomic<int> read{0}, written{0}, missed{0}, rejected{0}, same{0}, differed{0};
+    za::Atomic<long long> readUs{0};
 };
 
 inline DiskCounts diskCounts;

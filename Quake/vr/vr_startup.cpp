@@ -15,6 +15,7 @@
 
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
+#include "Zancle/Algorithm/Sort.hpp"
 #include "vr_api.h"
 
 #ifdef _WIN32

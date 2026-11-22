@@ -24,6 +24,7 @@
 #include "vr_audio.hpp"
 
 #include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/Memcmp.hpp"
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Ceil.hpp"
@@ -37,7 +38,6 @@
 
 #include <glm/gtc/quaternion.hpp>
 
-#include <string.h>
 
 namespace qvr::chainsaw
 {
@@ -190,7 +190,7 @@ const Handle& handleOf(const qmodel_t* model)
         const glm::vec3 a = at(seated[v]);
         lo = za::min(lo, a.x);
         hi = za::max(hi, a.x);
-        if(memcmp(seated[v].v, pulled[v].v, 3) != 0)
+        if(ZA_MEMCMP(seated[v].v, pulled[v].v, 3) != 0)
         {
             seat += a;
             hole += at(pulled[v]);

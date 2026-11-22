@@ -27,7 +27,9 @@
 #include "Zancle/Base/Macros.hpp"
 #include "Zancle/Base/PtrDiffT.hpp"
 #include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Base/Swap.hpp"
 #include "Zancle/Container/Array.hpp"
@@ -1646,7 +1648,7 @@ History history;
 
 [[nodiscard]] bool sameText(const za::String& a, const za::String& b)
 {
-    return !strcmp(a.cStr(), b.cStr());
+    return !ZA_STRCMP(a.cStr(), b.cStr());
 }
 
 void loadHistory()
@@ -1770,7 +1772,7 @@ void recordChange(const za::String& before)
     files::forPieces(settings, ';', [&](za::StringView item) {
         const char* at = item.data();
         const za::SizeT n = ZA_STRLEN(name);
-        if(item.size() > n && !strncmp(at, name, n) && at[n] == '=')
+        if(item.size() > n && !ZA_STRNCMP(at, name, n) && at[n] == '=')
         {
             out = static_cast<float>(atof(za::String(item.substrByPosLen(n + 1, item.size() - n - 1)).cStr()));
         }

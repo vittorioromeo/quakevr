@@ -42,7 +42,6 @@
 #include "vr_zancle.hpp"
 #include "vr_srvrandom.hpp"
 
-#include <atomic>
 #include <string.h>
 
 namespace qvr::hull
@@ -278,9 +277,9 @@ void stats_f()
         static_cast<unsigned long long>(kept.misses));
     Con_Printf("hull: disk cache (vr_hull_cache %d, this session): %d trees read (%.1f ms), %d compiled (no file), %d "
                "written, %d files amiss; compared (2): %d the same, %d different\n",
-        static_cast<int>(vr_hull_cache.value), diskCounts.read.load(), static_cast<double>(diskCounts.readUs.load()) / 1000.0,
-        diskCounts.missed.load(), diskCounts.written.load(), diskCounts.rejected.load(), diskCounts.same.load(),
-        diskCounts.differed.load());
+        static_cast<int>(vr_hull_cache.value), diskCounts.read.loadSeqCst(), static_cast<double>(diskCounts.readUs.loadSeqCst()) / 1000.0,
+        diskCounts.missed.loadSeqCst(), diskCounts.written.loadSeqCst(), diskCounts.rejected.loadSeqCst(), diskCounts.same.loadSeqCst(),
+        diskCounts.differed.loadSeqCst());
 }
 
 // vr_hull_keeptest: the map's brushes and its trees' world models built again from scratch, their hashes against the

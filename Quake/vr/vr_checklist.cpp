@@ -12,6 +12,7 @@
 
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/Macros.hpp"
+#include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
@@ -214,11 +215,11 @@ void readFolds()
     }
     for(const za::String& l : lines)
     {
-        if(l.size() > collapsedPrefixLength && !strncmp(l.cStr(), collapsedPrefix, collapsedPrefixLength))
+        if(l.size() > collapsedPrefixLength && !ZA_STRNCMP(l.cStr(), collapsedPrefix, collapsedPrefixLength))
         {
             state.collapsedNames.insert(za::String{l.cStr() + collapsedPrefixLength});
         }
-        else if(l.size() > expandedPrefixLength && !strncmp(l.cStr(), expandedPrefix, expandedPrefixLength))
+        else if(l.size() > expandedPrefixLength && !ZA_STRNCMP(l.cStr(), expandedPrefix, expandedPrefixLength))
         {
             state.expandedNames.insert(za::String{l.cStr() + expandedPrefixLength});
         }
@@ -296,7 +297,7 @@ void readTicks()
     {
         for(za::String& l : lines)
         {
-            if(l.size() > failPrefixLength && !strncmp(l.cStr(), failPrefix, failPrefixLength))
+            if(l.size() > failPrefixLength && !ZA_STRNCMP(l.cStr(), failPrefix, failPrefixLength))
             {
                 state.failedTexts.insert(za::String{l.cStr() + failPrefixLength});
             }
@@ -360,7 +361,7 @@ void writeTicks()
         return l;
     }
     const size_t open = l.rfind('{');
-    if(open == za::StringView::nPos || l.size() - open < 7 || strncmp(l.cStr() + open, "{test:", 6) != 0)
+    if(open == za::StringView::nPos || l.size() - open < 7 || ZA_STRNCMP(l.cStr() + open, "{test:", 6) != 0)
     {
         return l;
     }

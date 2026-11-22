@@ -18,7 +18,7 @@
 #include "Zancle/String/String.hpp"
 #include "vr_api.h"
 
-#include <atomic>
+#include "Zancle/Concurrency/Atomic.hpp"
 
 namespace
 {
@@ -55,12 +55,12 @@ const ProductInfo& infoOf(Product p)
 
 struct Counts
 {
-    std::atomic<long long> hits{0}, misses{0}, written{0}, rejected{0}, same{0}, differed{0}, missesInPlay{0};
-    std::atomic<long long> bytesRead{0}, bytesWritten{0}, readUs{0};
+    za::Atomic<long long> hits{0}, misses{0}, written{0}, rejected{0}, same{0}, differed{0}, missesInPlay{0};
+    za::Atomic<long long> bytesRead{0}, bytesWritten{0}, readUs{0};
 };
 Counts counts[static_cast<int>(Product::Count)];
 
-std::atomic<bool> playing{false};
+za::Atomic<bool> playing{false};
 
 // Models loaded from their files while a map is in play (VR_NoteModelLoad: the main thread's): a first use the map's
 // load didn't precache, its load the frame's hitch. vr_cache_info counts them; developer 1 prints each.
@@ -195,7 +195,7 @@ constexpr za::SizeT writesMost = 64;
 // The program pack's write under way (progWrite): one at a time, each waiting for the last (two on the pool at once,
 // the older renamed into place after the newer would win). Finished with the others (VR_TexCacheFinishWrites).
 qvr::jobs::Future<void> progWriting;
-std::atomic<bool> progWriteFailed{false}; // (a worker's failure, said on the main thread: the console isn't a worker's)
+za::Atomic<bool> progWriteFailed{false}; // (a worker's failure, said on the main thread: the console isn't a worker's)
 
 constexpr char normalMagic[5] = "QVRN";
 
@@ -283,18 +283,18 @@ int modeOf(Product p)
 void noteHit(Product p, size_t bytes, double seconds)
 {
     Counts& c = counts[static_cast<int>(p)];
-    ++c.hits;
-    c.bytesRead += static_cast<long long>(bytes);
-    c.readUs += static_cast<long long>(seconds * 1e6);
+    c.hits.fetchAddSeqCst(1);
+    c.bytesRead.fetchAddSeqCst(static_cast<long long>(bytes));
+    c.readUs.fetchAddSeqCst(static_cast<long long>(seconds * 1e6));
 }
 
 void noteMiss(Product p, const char* what)
 {
     Counts& c = counts[static_cast<int>(p)];
-    ++c.misses;
-    if(playing.load(std::memory_order_relaxed))
+    c.misses.fetchAddSeqCst(1);
+    if(playing.loadRelaxed())
     {
-        ++c.missesInPlay;
+        c.missesInPlay.fetchAddSeqCst(1);
         if(developer.value)
         {
             Con_DPrintf("cache miss in play: %s %s (made now)\n", kindOf(p), what ? what : "");
@@ -305,34 +305,34 @@ void noteMiss(Product p, const char* what)
 void noteWrite(Product p, size_t bytes)
 {
     Counts& c = counts[static_cast<int>(p)];
-    ++c.written;
-    c.bytesWritten += static_cast<long long>(bytes);
+    c.written.fetchAddSeqCst(1);
+    c.bytesWritten.fetchAddSeqCst(static_cast<long long>(bytes));
 }
 
 void noteRejected(Product p)
 {
-    ++counts[static_cast<int>(p)].rejected;
+    counts[static_cast<int>(p)].rejected.fetchAddSeqCst(1);
 }
 
 void noteChecked(Product p, bool same, const char* what)
 {
     Counts& c = counts[static_cast<int>(p)];
-    ++(same ? c.same : c.differed);
+    (same ? c.same : c.differed).fetchAddSeqCst(1);
     if(!same)
     {
         Con_Warning("%s cache check: %s differs from its file (%lld of %lld so far)\n", kindOf(p), what ? what : "",
-            c.differed.load(), c.same.load() + c.differed.load());
+            c.differed.loadSeqCst(), c.same.loadSeqCst() + c.differed.loadSeqCst());
     }
 }
 
 void setInPlay(bool inPlay)
 {
-    playing.store(inPlay, std::memory_order_relaxed);
+    playing.storeRelaxed(inPlay);
 }
 
 bool inPlay()
 {
-    return playing.load(std::memory_order_relaxed);
+    return playing.loadRelaxed();
 }
 
 bool read(Product p, const char* build, unsigned long long key, const char* ext, const char (&magic)[5], unsigned& a,
@@ -468,9 +468,9 @@ void info_f()
         Con_Printf("  %-10s %-24s %s %g: %lld files, %.1f MB on disk; this session %lld read (%.1f MB, %.1f ms), %lld "
                    "missed (%lld in play), %lld written (%.1f MB), %lld rejected, checked %lld same %lld differed\n",
             info.kind, info.what, info.mode ? info.mode->name : "(always)", info.mode ? info.mode->value : 1.f, files, static_cast<double>(bytes) / 1048576.0,
-            c.hits.load(), static_cast<double>(c.bytesRead.load()) / 1048576.0, static_cast<double>(c.readUs.load()) / 1000.0,
-            c.misses.load(), c.missesInPlay.load(), c.written.load(), static_cast<double>(c.bytesWritten.load()) / 1048576.0,
-            c.rejected.load(), c.same.load(), c.differed.load());
+            c.hits.loadSeqCst(), static_cast<double>(c.bytesRead.loadSeqCst()) / 1048576.0, static_cast<double>(c.readUs.loadSeqCst()) / 1000.0,
+            c.misses.loadSeqCst(), c.missesInPlay.loadSeqCst(), c.written.loadSeqCst(), static_cast<double>(c.bytesWritten.loadSeqCst()) / 1048576.0,
+            c.rejected.loadSeqCst(), c.same.loadSeqCst(), c.differed.loadSeqCst());
     }
     Con_Printf("  all: %lld files, %.1f MB\n", allFiles, static_cast<double>(allBytes) / 1048576.0);
     Con_Printf("  models loaded in play: %lld (%.1f ms, the worst %.1f ms)\n", modelLoadsInPlay.count,
@@ -749,7 +749,7 @@ void progWrite()
     // every-10-s save, waited for it on the main thread); its bytes made here, from the entries the main thread changes.
     const za::String dir = rootDir() + "/programs";
     const za::String path = progPath(progCache.driver);
-    if(progWriteFailed.exchange(false))
+    if(progWriteFailed.exchangeSeqCst(false))
     {
         Con_DPrintf("vr_program_cache: %s not written (the last time)\n", path.cStr());
     }
@@ -760,7 +760,7 @@ void progWrite()
         const qvr::diskcache::Part part{bytes.data(), bytes.size()};
         if(!qvr::diskcache::writeAtomic(path, &part, 1))
         {
-            progWriteFailed.store(true);
+            progWriteFailed.storeSeqCst(true);
         }
     });
     progCache.dirty = false;

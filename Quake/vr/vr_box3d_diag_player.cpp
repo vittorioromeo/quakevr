@@ -12,6 +12,8 @@
 #include "vr_hands.hpp"
 #include "vr_units.hpp"
 #include "vr_cvars.hpp"
+#include "Zancle/Base/Memset.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
@@ -28,7 +30,7 @@ void player_f()
     }
     const progs::ServerVm vm;
     edict_t* p = progs::playerEdict();
-    if(Cmd_Argc() > 2 && !strcmp(Cmd_Argv(1), "onto"))
+    if(Cmd_Argc() > 2 && !ZA_STRCMP(Cmd_Argv(1), "onto"))
     {
         const za::Vector<edict_t*> list = entitiesNamed(Cmd_Argv(2));
         if(list.empty())
@@ -48,7 +50,7 @@ void player_f()
         setFlag(p, FL_ONGROUND, false);
         SV_LinkEdict(p, false);
     }
-    else if(Cmd_Argc() > 4 && !strcmp(Cmd_Argv(1), "near"))
+    else if(Cmd_Argc() > 4 && !ZA_STRCMP(Cmd_Argv(1), "near"))
     {
         // near <number | classname> <direction> <distance>: on the floor the entity's box stands on, <distance> units
         // from its middle towards <direction> (degrees of yaw), facing it (a run-up at a prop from a side).
@@ -261,7 +263,7 @@ void shotBench_f()
         vec3_t a, b;
         line(i, a, b);
         trace_t tr;
-        memset(&tr, 0, sizeof(tr));
+        ZA_MEMSET(&tr, 0, sizeof(tr));
         tr.fraction = 1.f;
         const ShotShape p = shotShape(prop, world->slots[static_cast<size_t>(g)], zero, zero);
         hits += traceProp(p, glm::dvec3{a[0], a[1], a[2]}, glm::dvec3{b[0], b[1], b[2]}, tr) ? 1 : 0;
@@ -304,7 +306,7 @@ void fire_f()
     dfunction_t* fn = nullptr;
     for(int i = 1; i < qcvm->progs->numfunctions && !fn; i++)
     {
-        fn = !strcmp(PR_GetString(qcvm->functions[i].s_name), "VR_Test_Fire") ? &qcvm->functions[i] : nullptr;
+        fn = !ZA_STRCMP(PR_GetString(qcvm->functions[i].s_name), "VR_Test_Fire") ? &qcvm->functions[i] : nullptr;
     }
     if(!fn || player->free)
     {
@@ -499,7 +501,7 @@ void knockdownTest_f()
     }
     for(int i = 1; i < qcvm->progs->numfunctions && !fn; i++)
     {
-        fn = !strcmp(PR_GetString(qcvm->functions[i].s_name), "VR_Knockdown_Test") ? &qcvm->functions[i] : nullptr;
+        fn = !ZA_STRCMP(PR_GetString(qcvm->functions[i].s_name), "VR_Knockdown_Test") ? &qcvm->functions[i] : nullptr;
     }
     if(!fn || player->free)
     {

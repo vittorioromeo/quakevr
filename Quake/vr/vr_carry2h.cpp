@@ -21,11 +21,12 @@
 #include "vr_view.hpp"
 #include "vr_geom.hpp"
 
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
-#include "Zancle/Math/Fabs.hpp"
-#include "Zancle/Math/Fmax.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Fabs.hpp"
+#include "Zancle/Math/Fmax.hpp"
 #include "Zancle/Math/MinMax.hpp"
 
 
@@ -657,12 +658,12 @@ void gripTest_f()
 {
     constexpr const char* name = "vr_carry2h_grip_test";
     const char* step = Cmd_Argc() > 1 ? Cmd_Argv(1) : "";
-    if(!strcmp(step, "start"))
+    if(!ZA_STRCMP(step, "start"))
     {
         gripTally.reset();
         gripSample = GripSample{};
     }
-    else if(!strcmp(step, "hand") && Cmd_Argc() > 5)
+    else if(!ZA_STRCMP(step, "hand") && Cmd_Argc() > 5)
     {
         // hand <main|off> <x> <y> <z>: that hand put at a point in the frame of the crate nearest the main hand.
         edict_t* const player = sv.active ? progs::localPlayer() : nullptr;
@@ -677,7 +678,7 @@ void gripTest_f()
         for(int i = 1; i < qcvm->num_edicts; i++)
         {
             edict_t* e = EDICT_NUM(i);
-            const float d = e->free || strcmp(PR_GetString(e->v.classname), "vr_crate") ? 1e9f : glm::distance(geom::vec(e->v.origin), from);
+            const float d = e->free || ZA_STRCMP(PR_GetString(e->v.classname), "vr_crate") ? 1e9f : glm::distance(geom::vec(e->v.origin), from);
             if(d < best)
             {
                 best = d;
@@ -699,12 +700,12 @@ void gripTest_f()
         Cbuf_InsertText(va("vr_mock_hand_to %s %f %f %f\n", Cmd_Argv(2), static_cast<double>(at.x), static_cast<double>(at.y),
             static_cast<double>(at.z)));
     }
-    else if(!strcmp(step, "sample"))
+    else if(!ZA_STRCMP(step, "sample"))
     {
         gripSample = GripSample{};
         gripSample.on = true;
     }
-    else if(!strcmp(step, "check") && Cmd_Argc() > 4)
+    else if(!ZA_STRCMP(step, "check") && Cmd_Argc() > 4)
     {
         const float m2u = units::metresToUnits();
         const float cm[3]{gripSample.most[0] / m2u * 100.f, gripSample.most[1] / m2u * 100.f, gripSample.moved / m2u * 100.f};
@@ -723,7 +724,7 @@ void gripTest_f()
         gripTally.check(cm[0] <= limit && cm[1] <= limit, name, va("%s: a hand off its grip past %.1f cm", Cmd_Argv(2), static_cast<double>(limit)));
         gripSample.on = false;
     }
-    else if(!strcmp(step, "end"))
+    else if(!ZA_STRCMP(step, "end"))
     {
         gripTally.verdict(name);
     }
@@ -738,12 +739,12 @@ void dragTest_f()
     constexpr const char* name = "vr_carry_drag_test";
     const char* step = Cmd_Argc() > 1 ? Cmd_Argv(1) : "";
     const char* label = Cmd_Argc() > 2 ? Cmd_Argv(2) : step;
-    if(!strcmp(step, "start"))
+    if(!ZA_STRCMP(step, "start"))
     {
         dragTally.reset();
         return;
     }
-    if(!strcmp(step, "end"))
+    if(!ZA_STRCMP(step, "end"))
     {
         dragTally.verdict(name);
         return;
@@ -759,7 +760,7 @@ void dragTest_f()
     const float load = moveScale(player), scale = VR_CarryMoveScale(player);
     Con_Printf("%s: %s: %d bodies, %.1f kg, cut %.3f, move scale %.3f (props' %.3f)\n", name, label, d.bodies, d.mass, d.cut,
         scale, load);
-    if(!strcmp(step, "held"))
+    if(!ZA_STRCMP(step, "held"))
     {
         const float want = za::clamp(vr_carry_drag.value * d.mass / dragGruntKg, 0.f, vr_carry_drag_max.value);
         dragTally.check(d.bodies == 1 && d.mass >= 60.f && d.mass <= 100.f, name, va("%s: one grunt's body (%.1f kg)", label, d.mass));
