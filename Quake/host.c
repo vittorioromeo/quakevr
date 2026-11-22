@@ -925,6 +925,9 @@ void Host_ClearMemory (void)
 	// QVR: cl_entities was on the map's hunk (CL_ClearState): gone with it, so nothing writes it before the next map's
 	// (CL_ForgetModels at a campaign switch wrote freed blocks: the hunk's blocks are the heap's since nohunk)
 	cl_entities = NULL; // as at start-up, before any map
+	// QVR: the view's leaf was the old world's, freed with it: cleared now as R_NewMap does later, since a console print
+	// while the next map loads redraws the screen (the headset's centre popup read its contents: the crash of 11-22)
+	r_viewleaf = NULL;
 	cl_max_edicts = 0;
 	Temp_FreeToMark (0); // QVR: the temporary stack (zone.h; empty unless an error unwound past a free)
 	cls.signon = 0; // not CL_ClearSignons()
