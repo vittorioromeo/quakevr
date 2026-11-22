@@ -2382,6 +2382,8 @@ QVR_CVAR(vr_gib_speed_heavy, "1", CVAR_ARCHIVE)      // explosions, rockets, gre
 QVR_CVAR(vr_gore_spray, "1", CVAR_ARCHIVE)             // how many splats a hit or a gibbing sprays onto the walls, floor and ceiling round it (0 none)
 QVR_CVAR(vr_gore_preset, "0", CVAR_NONE)               // the Gore preset shown (vr_gorepresets.cpp; not saved: the settings are): 1 Full (the defaults), 2 Minimal, 3 Off; 0 Custom (shown when the settings match none)
 QVR_CVAR(vr_blood_amount, "1", CVAR_ARCHIVE)           // how much blood a hit or a cut throws (the blood particles' count, times this; 0: none at all, Quake's dots too)
+QVR_CVAR(vr_blood_near, "0", CVAR_ARCHIVE)             // units: blood (a hit's, a gib's trail) made nearer the eyes than this makes fewer particles, down to vr_blood_near_mult at the eye (0 off; the Standalone preset's close-up gore cap: the GPU's fill near the eyes)
+QVR_CVAR(vr_blood_near_mult, "1", CVAR_ARCHIVE)        // ... how many at the eye, times the usual (rising to all of them at vr_blood_near)
 QVR_CVAR(vr_gore_decal_dark, "1", CVAR_ARCHIVE)        // how much the gore's blood marks darken as they spread and dry, times their own (1: as it was; 0: they keep their red)
 QVR_CVAR(vr_gore_size, "1", CVAR_ARCHIVE)              // how big the gore's splats, pools and runs are
 QVR_CVAR(vr_gore_pools, "1", CVAR_ARCHIVE)             // pools of blood spreading under corpses and gibs: their size (0 none)

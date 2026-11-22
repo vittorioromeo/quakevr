@@ -3,8 +3,11 @@
 #include "vr_gfxpresets.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
+#include "vr_files.hpp"
 #include "vr_presets.hpp"
 #include "vr_api.h"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/String/String.hpp"
 
 namespace qvr::gfxpresets
 {
@@ -119,13 +122,14 @@ constexpr presetcore::Table table{"graphics", "VR Settings > Graphics Presets", 
     static_cast<int>(sizeof(presetRows) / sizeof(presetRows[0])), levelNames, levelCount};
 presetcore::Kind presetKind{table};
 
-// The Quest (standalone, OpenGL ES; QUEST_PLAN.md section 6c, C6's groundwork): the Low preset, then these rows, at
-// three targets. A draft from the PC's numbers under the ES profile scaled to the XR2 Gen 2 (estimates, not device
-// measurements: C6 sets them from the headset's). Only under -glescompat (and on Android): the PC's settings are
-// never touched by it. The resolution: the share of the runtime's recommended eye size, the rest of the frame from
-// dynamic resolution (vr_dynres) once C6 ties it to the GPU's frame time; no upscaling pass (the compositor scales).
+// Standalone (the Quest's preset, OpenGL ES; QUEST_PLAN.md section 6c on): the Low preset, then these rows, at three
+// targets, measured on the headset (the QUEST_PLAN sections in the comments). Listed with the graphics presets on every
+// platform (his call 2026-11-22: "the best settings for Quest standalone that provide a decent graphical experience
+// but prioritize hitting a stable 72FPS"); picked on the Quest's first start (host.c). The resolution: the share of
+// the runtime's recommended eye size, the rest of the frame from dynamic resolution; no upscaling pass (the
+// compositor scales).
 // clang-format off
-constexpr presetcore::Row questRows[] = {
+constexpr presetcore::Row standaloneRows[] = {
     //                                   Q3 72 Hz  Q3 90 Hz  Q2 72 Hz
     // The eyes' pixels: the GPU's biggest lever (every pass scales with it)
     {&vr_render_scale,                {"0.9",    "0.75",   "0.65"}},
@@ -180,47 +184,109 @@ constexpr presetcore::Row questRows[] = {
 };
 // clang-format on
 
-constexpr int questLevelCount = 3;
-constexpr const char* questLevelNames[questLevelCount] = {"Quest 3 (72 Hz)", "Quest 3 (90 Hz)", "Quest 2 (72 Hz)"};
-constexpr presetcore::Table questTable{"quest", "vr_quest_preset (-glescompat)", questRows,
-    static_cast<int>(sizeof(questRows) / sizeof(questRows[0])), questLevelNames, questLevelCount};
-presetcore::Kind questKind{questTable};
+constexpr int standaloneLevelCount = 3;
+constexpr const char* standaloneLevelNames[standaloneLevelCount] = {"Quest 3 (72 Hz)", "Quest 3 (90 Hz)", "Quest 2 (72 Hz)"};
+constexpr presetcore::Table standaloneTable{"standalone", "VR Settings > Graphics Presets > Standalone", standaloneRows,
+    static_cast<int>(sizeof(standaloneRows) / sizeof(standaloneRows[0])), standaloneLevelNames, standaloneLevelCount};
+presetcore::Kind standaloneKind{standaloneTable};
+constexpr int levelLow = 1; // Standalone starts from it
+char standaloneStateText[96]{}; // gfxpresets::stateName's "Standalone (Quest 2 (72 Hz))"
+char menuStateText[112]{};      // gfxpresets::menuStateLine's "Now: ..."
 
-// vr_quest_preset [0 Quest 3 72 Hz | 1 Quest 3 90 Hz | 2 Quest 2 72 Hz | mine]: the Low preset, then the Quest's rows.
-void questPresetCmd()
+// Its rows' values from before were kept in quest_my_settings.cfg until the preset was named Standalone (2026-11-22):
+// moved to standalone_my_settings.cfg the first time it is asked for, when there is none of the new name.
+void migrateQuestMine()
 {
-    if(!VR_GLESCompat() && !VR_Android())
+    const za::String now = standaloneKind.minePath();
+    const za::String old = za::String{com_gamedir} + "/quest_my_settings.cfg";
+    if(!files::exists(now.cStr()) && files::exists(old.cStr()) && files::rename(old.cStr(), now.cStr()))
     {
-        Con_Printf("vr_quest_preset: the Quest's settings, only under -glescompat (or on Android)\n");
-        return;
+        Con_DPrintf("standalone preset: %s moved to %s\n", old.cStr(), now.cStr());
     }
+}
+
+bool isStandaloneRow(const cvar_t* var)
+{
+    for(const presetcore::Row& row : standaloneRows)
+    {
+        if(row.var == var)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+// The Standalone level the settings match: its rows at that level, and every graphics row it leaves alone at Low's.
+int matchStandalone()
+{
+    const int level = standaloneKind.matchingLevel();
+    if(level < 0)
+    {
+        return -1;
+    }
+    for(const presetcore::Row& row : presetRows)
+    {
+        if(!isStandaloneRow(row.var) && !presetcore::same(row.var->string, presetKind.target(row, levelLow)))
+        {
+            return -1;
+        }
+    }
+    return level;
+}
+
+// Another preset or My Settings picked while on Standalone: its own rows (the resolution, MSAA, the light paths...) set
+// back to what they were before it, which the graphics presets' rows don't reach; then the pick sets its rows.
+void leaveStandalone()
+{
+    migrateQuestMine();
+    if(standaloneKind.matchingLevel() >= 0 && standaloneKind.restoreMine())
+    {
+        Con_DPrintf("standalone preset: its rows set back as they were before it\n");
+    }
+}
+
+void applyStandaloneLevel(int level)
+{
+    migrateQuestMine();
+    presetKind.apply(levelLow);
+    standaloneKind.apply(level);
+}
+
+// vr_standalone_preset [0 Quest 3 72 Hz | 1 Quest 3 90 Hz | 2 Quest 2 72 Hz | mine] (vr_quest_preset, its old name):
+// the Low preset, then the Standalone rows.
+void standalonePresetCmd()
+{
+    const char* const cmd = Cmd_Argv(0);
     if(Cmd_Argc() < 2)
     {
-        Con_Printf("vr_quest_preset <level>: the Low graphics preset, then the Quest's rows (\"mine\": as before)\n");
-        for(int i = 0; i < questLevelCount; i++)
+        Con_Printf("%s <level>: the Low graphics preset, then the Standalone rows (\"mine\": as before)\n", cmd);
+        for(int i = 0; i < standaloneLevelCount; i++)
         {
-            Con_Printf("  %d %s\n", i, questLevelNames[i]);
+            Con_Printf("  %d %s\n", i, standaloneLevelNames[i]);
         }
-        questKind.printStatus();
+        migrateQuestMine();
+        standaloneKind.printStatus();
         return;
     }
     if(!q_strcasecmp(Cmd_Argv(1), "mine"))
     {
-        if(!questKind.restoreMine() || !presetKind.restoreMine())
+        migrateQuestMine();
+        if(!standaloneKind.restoreMine() || !presetKind.restoreMine())
         {
-            Con_Printf("vr_quest_preset: no settings kept from before yet\n");
+            Con_Printf("%s: no settings kept from before yet\n", cmd);
         }
         return;
     }
     const int level = Q_atoi(Cmd_Argv(1));
-    if(level < 0 || level >= questLevelCount)
+    if(level < 0 || level >= standaloneLevelCount)
     {
-        Con_Printf("vr_quest_preset: 0 to %d\n", questLevelCount - 1);
+        Con_Printf("%s: 0 to %d\n", cmd, standaloneLevelCount - 1);
         return;
     }
-    presetKind.apply(1); // Low
-    questKind.apply(level);
-    Con_Printf("vr_quest_preset: %s (the Low preset and %d rows)\n", questLevelNames[level], questTable.rowCount);
+    applyStandaloneLevel(level);
+    Con_Printf("%s: Standalone, %s (the Low preset and %d rows)\n", cmd, standaloneLevelNames[level],
+        standaloneTable.rowCount);
 }
 
 // The Quest's must-haves (vr_quest_check): saved settings that break the headset's frames, whatever the config says.
@@ -240,9 +306,9 @@ const QuestMust questMusts[] = {
     {&vr_dynres_min, "0.65", "the dynamic resolution's floor above the Quest preset's keeps fights GPU-bound (his saved PC value: 51 -> 63 fps)", true},
 };
 
-// vr_quest_check (Android starts, after the saved config; Debug > Startup): the Quest rows that differ from the nearest
-// Quest preset printed (the log names what a slow start runs with), and the must-haves above set back, each said; with
-// vr_quest_guard 0 only printed.
+// vr_quest_check (Android starts, after the saved config; Debug > Startup): the Standalone rows that differ from the
+// nearest Standalone level printed (the log names what a slow start runs with), and the must-haves above set back, each
+// said; with vr_quest_guard 0 only printed.
 void questCheckCmd()
 {
     if(!VR_GLESCompat() && !VR_Android())
@@ -250,7 +316,8 @@ void questCheckCmd()
         Con_Printf("vr_quest_check: the Quest's settings, only under -glescompat (or on Android)\n");
         return;
     }
-    questKind.printStatus();
+    migrateQuestMine();
+    standaloneKind.printStatus();
     for(const QuestMust& m : questMusts)
     {
         if(m.atMost ? m.var->value <= Q_atof(m.value) : !q_strcasecmp(m.var->string, m.value))
@@ -277,16 +344,20 @@ void onPresetCvar(cvar_t* var)
     {
         return;
     }
-    if(level == levelMine)
+    if(level == levelStandalone)
     {
-        if(!presetKind.restoreMine())
+        applyStandaloneLevel(0);
+    }
+    else if(level == levelMine)
+    {
+        if(!restoreMine())
         {
             Con_Printf("vr_graphics_preset: no My Settings kept yet\n");
         }
     }
     else
     {
-        presetKind.apply(level);
+        apply(level);
     }
     Cvar_SetQuick(var, "-1");
 }
@@ -301,6 +372,11 @@ void saveCmd()
 // Custom is made of).
 void statusCmd()
 {
+    if(const int level = matchStandalone(); level >= 0)
+    {
+        Con_Printf("graphics preset: Standalone, %s\n", standaloneLevelNames[level]);
+        return;
+    }
     presetKind.printStatus();
 }
 
@@ -318,12 +394,35 @@ const char* levelName(int level)
 
 void apply(int level)
 {
+    leaveStandalone();
     presetKind.apply(level);
 }
 
 bool restoreMine()
 {
+    if(!presetKind.hasMine())
+    {
+        return false;
+    }
+    leaveStandalone();
     return presetKind.restoreMine();
+}
+
+void applyStandalone(int level)
+{
+    applyStandaloneLevel(za::clamp(level, 0, standaloneLevelCount - 1));
+}
+
+void menuApplyStandalone()
+{
+    const bool first = !presetKind.hasMine();
+    applyStandaloneLevel(0);
+    presetKind.setNote(first ? "Standalone set. Your own settings were kept as My Settings." : "Standalone set.");
+}
+
+int standaloneLevel()
+{
+    return matchStandalone();
 }
 
 void saveMine()
@@ -348,12 +447,22 @@ bool matchesMine()
 
 const char* stateName()
 {
+    if(presetKind.matchingLevel() < 0)
+    {
+        if(const int level = matchStandalone(); level >= 0)
+        {
+            q_snprintf(standaloneStateText, sizeof(standaloneStateText), level == 0 ? "Standalone" : "Standalone (%s)",
+                standaloneLevelNames[level]);
+            return standaloneStateText;
+        }
+    }
     return presetKind.stateName();
 }
 
 const char* menuStateLine()
 {
-    return presetKind.menuStateLine();
+    q_snprintf(menuStateText, sizeof(menuStateText), "Now: %s", stateName());
+    return menuStateText;
 }
 
 const char* menuNoteLine()
@@ -363,11 +472,16 @@ const char* menuNoteLine()
 
 void menuApply(int level)
 {
+    leaveStandalone();
     presetKind.menuApply(level);
 }
 
 void menuRestoreMine()
 {
+    if(presetKind.hasMine())
+    {
+        leaveStandalone();
+    }
     presetKind.menuRestoreMine();
 }
 
@@ -381,7 +495,8 @@ void init()
     Cvar_SetCallback(&vr_graphics_preset, onPresetCvar);
     Cmd_AddCommand("vr_graphics_preset_save", saveCmd);
     Cmd_AddCommand("vr_graphics_preset_status", statusCmd);
-    Cmd_AddCommand("vr_quest_preset", questPresetCmd);
+    Cmd_AddCommand("vr_standalone_preset", standalonePresetCmd);
+    Cmd_AddCommand("vr_quest_preset", standalonePresetCmd); // its old name (scripts, the bench's configs)
     Cmd_AddCommand("vr_quest_check", questCheckCmd);
 }
 

@@ -90,7 +90,7 @@ hip, chest and back holsters, the ammo pouch (Immersive reloading) and the grena
 | **Display** | Headset Gamma, Headset Contrast |
 | **Scaling** | Render Scale, Upscaling (bilinear, FSR, NIS), Sharpening, Foveated Rendering (off, conservative, balanced, aggressive) |
 | **Graphics** | Retro Textures, Retro Lighting, Antialiasing (off, 2x, 4x, 8x), Bloom, Tone Mapping, Bump Mapping, Parallax Mapping |
-| **Graphics Presets** | The [presets](#graphics-presets) (Off, Low, Medium, High as shipped, Ultra), *My Settings*, *Save as My Settings*, and a line saying which the settings match now |
+| **Graphics Presets** | The [presets](#graphics-presets) (Off, Low, Medium, High as shipped, Ultra, Standalone), *My Settings*, *Save as My Settings*, and a line saying which the settings match now |
 | **Reset** | *Reset All to Defaults* (press twice within 3 seconds) |
 
 The settings that were on this page before (October 2026) are on their topic's pages: the Comfort preset, Turning
@@ -555,9 +555,11 @@ hand off its second grip), **jump** (a hand or elbow jerking).
 
 | Variable | Default | |
 |---|---|---|
-| `vr_graphics_preset` | (not saved) | applies 0 Off (Quake), 1 Low, 2 Medium, 3 High, 4 Ultra, 5 My Settings, then goes back to -1 |
+| `vr_graphics_preset` | (not saved) | applies 0 Off (Quake), 1 Low, 2 Medium, 3 High, 4 Ultra, 5 My Settings, 6 Standalone, then goes back to -1 |
 | `vr_graphics_preset_save` | (command) | *Save as My Settings* |
 | `vr_graphics_preset_status` | (command) | prints which preset the settings match, and when Custom the settings that differ from the nearest |
+| `vr_standalone_preset` | (command) | Standalone at a level: 0 Quest 3 72 Hz (the menu's), 1 Quest 3 90 Hz, 2 Quest 2 72 Hz; `mine` sets back what it changed (`vr_quest_preset` is its old name) |
+| `vr_blood_near`, `vr_blood_near_mult` | 0, 1 | blood made nearer the eyes than this many units makes fewer particles, down to the multiplier at the eye (Standalone's close-up gore cap; 0: off) |
 | `vr_relit_maps` | 1 | use the relit maps when present (next map) |
 | `vr_bloom` | 0.08 (shipped) | bloom strength |
 | `vr_light_contrast` | 2.5 (shipped) | how dark the shade is |

@@ -388,7 +388,7 @@ void VR_GLESInstallForms (void);	// GL_Init, the functions loaded: -glescompat: 
 const char *VR_AndroidStart (int argc, char **argv);	// main, first: on Android (or -fakeandroid on the PC) the base folder and the crash reports' folder (<base>/quakevr/crash; the handler: vr_crash.cpp's); the base folder to use, or NULL (vr_android.cpp; QUEST_PLAN.md C2c, C3)
 int VR_Android (void);	// nonzero: an Android build, or the PC's fake-Android mode (-fakeandroid, QVR_FAKE_ANDROID)
 void VR_AndroidLog (const char *text);	// Sys_Printf on Android: the console's text into logcat, a line a message (vr_android.cpp)
-int VR_AndroidFirstRun (void);	// Host_Init's end: nonzero on Android's first run (no config in the game folder yet): vr_quest_preset 0 follows quake.rc
+int VR_AndroidFirstRun (void);	// Host_Init's end: nonzero on Android's first run (no config in the game folder yet): vr_standalone_preset 0 follows quake.rc
 int VR_ChildProcesses (void);	// nonzero: processes of our own may start (relighting's light, the motion review's evaluation copy); 0 on Android and with -nochildprocesses
 void VR_AndroidInit (void);	// VR_Init: vr_android_test
 int VR_GLESCompat (void);	// nonzero: -glescompat, the renderer kept to what OpenGL ES 3.2 has (vr_glsafe.cpp; QUEST_PLAN.md)

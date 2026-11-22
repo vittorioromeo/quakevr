@@ -90,6 +90,7 @@ public:
     void menuApply(int level);
     void menuRestoreMine();
     void menuSaveMine(); // pressed twice within 3 seconds (it replaces what was kept)
+    void setNote(const char* text); // the menu's note line (also for a button of its own: the Standalone preset's)
 
     [[nodiscard]] za::String minePath() const;
 
@@ -106,7 +107,6 @@ private:
     void loadMine();
     void writeMine();
     void captureMine();
-    void setNote(const char* text);
     [[nodiscard]] const Row* findRow(const char* name) const;
 
     const Table& t;

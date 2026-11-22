@@ -911,13 +911,13 @@ za::Vector<Item> pageDebugProfiling()
         command("OpenGL ES Report", "vr_gles_report")
             .help("vr_gles_report: the Quest (OpenGL ES 3.2) profile: what -glescompat turns off, the desktop-only GL "
                   "calls given their ES form and those still pending, and the shader errors an ES compile gave."),
-        command("Quest Preset: Quest 3 72 Hz", "vr_quest_preset 0")
-            .help("vr_quest_preset 0 (1: Quest 3 at 90 Hz, 2: Quest 2; mine: back as before): the Low graphics preset, "
-                  "then the Quest's draft rows (resolution, MSAA, shadows, bloom, particles, marks, bodies). Only under "
-                  "-glescompat: the PC's settings stay."),
+        command("Standalone Preset: Quest 2 72 Hz", "vr_standalone_preset 2")
+            .help("vr_standalone_preset 2 (0: Quest 3 at 72 Hz, the Graphics Presets page's Standalone; 1: Quest 3 at "
+                  "90 Hz; mine: back as before; vr_quest_preset is its old name): the Low graphics preset, then the "
+                  "Standalone rows (resolution, MSAA, shadows, bloom, particles, marks, bodies, blood near the eyes)."),
         command("Quest Settings Check", "vr_quest_check")
-            .help("vr_quest_check (each Android start runs it after the saved config): the Quest rows that differ from "
-                  "the nearest Quest preset, and MSAA and bloom set back (vr_quest_guard 0: only said)."),
+            .help("vr_quest_check (each Android start runs it after the saved config): the Standalone rows that differ "
+                  "from the nearest Standalone level, and MSAA and bloom set back (vr_quest_guard 0: only said)."),
         command("GL Sync Report", "vr_gl_sync_report")
             .help("vr_gl_sync_report: the GL calls that made the CPU wait for the GPU since the last report, per frame "
                   "(vr_gl_sync_count N: every N seconds)."),

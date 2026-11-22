@@ -3846,6 +3846,10 @@ QVR_SLIDER_BYNAME(vr_particle_near_cull, "Particles Hidden Nearer", 0.f, 50.f, 1
     "Particles nearer your eyes than this are not drawn at all (0: all drawn).")
 QVR_SLIDER_BYNAME(vr_particle_max_screen, "Largest Particle", 0.f, 1.f, 0.05f, "%.2f", noExt,
     "A particle is never drawn larger than this part of the view's height across: a bigger one is shrunk round its centre (cheaper on the GPU, no single puff filling the view). 0: no limit.")
+QVR_SLIDER_BYNAME(vr_blood_near, "Thinner Blood Nearer", 0.f, 256.f, 8.f, "%.0f units", noExt,
+    "Blood made nearer your eyes than this (a hit's, a gib's trail) makes fewer particles, down to Blood at the Eyes right at them: the same look, less of the GPU's time on a cloud filling the view (the Standalone preset's). 0: off.")
+QVR_SLIDER_BYNAME(vr_blood_near_mult, "Blood at the Eyes", 0.f, 1.f, 0.05f, "%.2f", noExt,
+    "With Thinner Blood Nearer: how much of the usual blood is made right at your eyes, rising to all of it at that distance.")
 QVR_SLIDER_BYNAME(vr_particle_retro_min_blocks, "Retro Particle Detail", 0.f, 16.f, 1.f, "%.0f blocks", noExt,
     "With retro particles (Retro Textures > Particles), at least this many blocks across each particle's texture: small drops and sparks keep their shape instead of turning into one flat square, big near your eyes. 0: blocks in world units alone.")
 QVR_TOGGLE_BYNAME(vr_particle_halfres, "Half-Res Heavy Particles",

@@ -2179,8 +2179,8 @@ void Host_Init (void)
 	// johnfitz -- in case the vid mode was locked during vid_init, we can unlock it now.
 		// note: two leading newlines because the command buffer swallows one of them.
 		Cbuf_AddText ("\n\nvid_unlock\n");
-		if (VR_AndroidFirstRun ()) // QVR: Android's first run (no config yet): the Quest 3's graphics settings (vr_android.cpp)
-			cmd_before_stuffcmds = "vr_quest_preset 0\n";
+		if (VR_AndroidFirstRun ()) // QVR: Android's first run (no config yet): the Standalone graphics preset, its Quest 3 level (vr_android.cpp)
+			cmd_before_stuffcmds = "vr_standalone_preset 0\n";
 		else if (VR_Android ()) // QVR: later runs: the saved settings checked against the Quest's (vr/vr_gfxpresets.cpp)
 			cmd_before_stuffcmds = "vr_quest_check\n";
 		// QVR: both after the configs, before the command line's +map/+exec (cmd.c Cmd_StuffCmds_f; they ran after

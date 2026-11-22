@@ -77,7 +77,7 @@ Cmd_CfgMarker_f
 static qboolean in_cfg_exec = false;
 qboolean config_not_loaded = false; // QVR: the saved config was too large to run (Cmd_Exec_f)
 // QVR: text run once ahead of the command line's +commands, after the configs quake.rc runs (Cmd_StuffCmds_f): the
-// Quest's vr_quest_check or first run's vr_quest_preset 0 (host.c), which else ran after them all, after a +exec'd file's waits too (QUEST_PLAN.md 6zk)
+// Quest's vr_quest_check or first run's vr_standalone_preset 0 (host.c), which else ran after them all, after a +exec'd file's waits too (QUEST_PLAN.md 6zk)
 const char *cmd_before_stuffcmds = NULL;
 static void Cmd_CfgMarker_f (void)
 {

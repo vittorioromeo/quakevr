@@ -73,9 +73,9 @@ arOffDraws=$(grep -a "^world arrays last frame" "$S/esoff.log" | tail -1)
 # (vr_eyeshot 1: the part) against the same scene's resample target with it off (vr_eyeshot 2): the same size,
 # identical. The PC (vr_render_scale 0.9, bilinear, the setting at its default) still fills the image.
 SUBRUN="sv_random_seed 7; vr_particle_seed 7; map e1m1; wait120"
-SCRIPT="vr_quest_preset 0; vr_dynres 0; vr_eye_subimage 0; $SUBRUN; vr_eyeshot 2; wait3; toggleconsole; quit"
+SCRIPT="vr_standalone_preset 0; vr_dynres 0; vr_eye_subimage 0; $SUBRUN; vr_eyeshot 2; wait3; toggleconsole; quit"
 mkdir -p "$S/qoff" "$S/qsub" "$S/pcsub"; run qoff QVR_GLES_COMPAT=1 QVR_GLES_CLIP_CONTROL=1
-SCRIPT="vr_quest_preset 0; vr_dynres 0; $SUBRUN; vr_eyeshot 1; wait3; toggleconsole; quit"
+SCRIPT="vr_standalone_preset 0; vr_dynres 0; $SUBRUN; vr_eyeshot 1; wait3; toggleconsole; quit"
 run qsub QVR_GLES_COMPAT=1 QVR_GLES_CLIP_CONTROL=1
 SCRIPT="vr_render_scale 0.9; vr_upscale 0; vr_dynres 0; $SUBRUN; vr_eyeshot 1; wait3; toggleconsole; quit"
 run pcsub
