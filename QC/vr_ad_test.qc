@@ -11,6 +11,7 @@ void(entity p) VR_Quoth_Play; // (vr_quoth_test.qc, last: 212)
 void(entity p) VR_HUM_Test; // (vr_humrepl_test.qc: 219)
 void() VR_HUM_Census; // (vr_humrepl_test.qc: 220)
 void(entity p) VR_HUM_Lineup; // (vr_humrepl_test.qc: 221)
+void(entity p) VR_HUM_Overlay; // (vr_humrepl_test.qc: 222)
 void(entity p) VR_RN_Test; // (vr_rules_test.qc: 209)
 void(entity p) DW_RingHitTest; // (dwell/dw_test.qc: 210)
 void(entity p) DW_BossTest; // (dwell/dw_test.qc, after Dwell's files: 200)
@@ -253,6 +254,7 @@ void(float request, entity p) AD_RulesTest =
     if(request == 219) { VR_HUM_Test(p); return; } // AD's and Quoth's humanoid variants armed, their looks: vr_humrepl_test.qc
     if(request == 220) { VR_HUM_Census(); return; } // the map's variants census (one line): vr_humrepl_test.qc
     if(request == 221) { VR_HUM_Lineup(p); return; } // a row of armed humanoids, one per recolour (scratch1 the row): vr_humrepl_test.qc
+    if(request == 222) { VR_HUM_Overlay(p); return; } // an AD humanoid model beside and over its nearest armed row's (scratch1 the pair): vr_humrepl_test.qc
     if(request == 209) { VR_RN_Test(p); return; } // the ruleset's numbers through our touches: vr_rules_test.qc
     if(request == 199) { VR_Rules_PathCornerTest(p); return; } // our monsters on AD's and Copper's path_corners, the th_* guard: vr_rules_test.qc
     if(request == 183) { AD_PelletMatTest(p); return; } // AD's projectile pellets into a tank, a crate, a grunt: vr_ad_shots_test.qc

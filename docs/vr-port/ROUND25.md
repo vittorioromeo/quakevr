@@ -7591,3 +7591,20 @@ grunt's head intercepted by the backpack; wants packs paintable alone, a lineup 
   death knights' (10); grunts and enforcers have no level ray from behind with a pack first: skipped). humrepl2_test PASS
   (5 masks, 0 on flesh). Dev build 0 warnings.
 - Not seen in a screenshot (the mock view's ray met no one): the yellow cursor and the skin view; check in flat and VR.
+
+## adhumaudit: which of AD's remaining humanoids could be armed humanoids (agent/adhumaudit, 2026-11-22; audit only)
+
+His words: "it would be nice for those to become armed humanoid too ... Please do an audit first". The audit is
+`ARMED_MONSTERS.md`, "Audit 2" (the table, the notes, a proposed phase 2); nothing is converted.
+
+- Verdicts: convert (small) the death knight (+ Quoth's), AD's death guard, Quoth's death guard and death lord; convert with
+  work the death fury; not now the death sergeant (its flail: no monster-held flail); not worth it the point knight, the
+  zombie knight, the justice knight, the bosses, the centurion, the skull wizard, the robots; the ghost is scenery.
+- Findings: AD's `monster_dguard` (30 hp, the knight's build) and Quoth's `monster_death_guard` (125 hp, a hell knight
+  reskin with a fireball) are different monsters (phase 1 grouped them). Quoth's death guard and death lord have id's hell
+  knight's frames frame for frame and builds within 5% of our death knight's: the best fits for keeping AD's look. The
+  death knight family (dknight, sergeant, prince) share one 870-vertex body close to our death knight (+2% tall).
+- Tools: `vr_ad_test 222` (QC `VR_HUM_Overlay`, vr_humrepl_test.qc; Debug > Tests > "Armed Humanoids: AD Model Beside
+  Its Row": still props, ours / overlaid / AD's / side-on, scratch1 the pair 0-11), `Misc/quakevr/adhumaudit_shots.sh`
+  (the 12 screenshots), `Misc/quakevr/adhum_mdl.py` (builds and frame groups from AD's paks read in place),
+  `Misc/quakevr/adhum_census.py` (placements in AD's and Quoth's paks). Screens: `C:\OHWorkspace\qvr-kit\scratch\adhumaudit_*.png`.
