@@ -59,7 +59,7 @@ float VR_MELEE_WRIST_PUNCH = 2;    // a punch's wrist speed, times vr_melee_wris
 // The blade's start (Edit Blade Shape's purple Blade Start, "kind's") of a weapon with no Blade From of its own: its kind's
 // first striking point (VR_Melee_Layout lays them from here; the editor draws the start there). One table for every blade
 // system: VR_Blade_From (docs/vr-port/BLADES.md).
-float VR_BLADE_FROM_SWORD = 0.27;   // the blade's root, just past the guard
+float VR_BLADE_FROM_SWORD = 0.27;   // the blade's root, just past the guard (the engine's blade::swordKindFrom: keep the same)
 float VR_BLADE_FROM_AXE = 0.75;     // the head
 float VR_BLADE_FROM_CLUB = 0.3;     // a torch's head
 float VR_BLADE_FROM_SAW = 0.55;     // the bar out of the engine block (was vr_chainsaw.qc VR_SAW_BAR_START)

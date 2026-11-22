@@ -18,6 +18,11 @@ inline constexpr int spinePoints = 5;
     return static_cast<float>(i + 1) / static_cast<float>(spinePoints + 1);
 }
 
+// The Blade Start of a weapon stuck by its point (weapons.txt embed 1: a sword's kind) with no Blade From of its own: QC
+// VR_BLADE_FROM_SWORD's (vr_melee_params.qc, the kind table every QC blade system reads; docs/vr-port/BLADES.md). Keep
+// the two the same.
+inline constexpr float swordKindFrom = 0.27f;
+
 struct Shape
 {
     float nearBack{-1.f}; // the near end behind the hand, a share of the line (-1: the kind's own, QC VR_Melee_NearBack)

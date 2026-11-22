@@ -48,14 +48,29 @@ a pommel or hilt strike (the blow's kind); the speeds (`vr_decap_speed`, `vr_emb
 | Hose cut | vr_ad_enemyguns.qc `VR_HoseCut_Melee` | `VR_SAW_BAR_START` or `VR_Decap_BladeFrom` | `VR_Blade_From` |
 | Chainsaw's running cut | vr_chainsaw.qc `VR_Chainsaw_Cut` | raw hand to muzzle, 0.55 of it | the drawn line (`VR_Melee_Line`) and `VR_Blade_From` |
 | Embedding by a stab | vr_embedhold.qc `VR_Embed_StabWhy` | the drawn line; tip within `vr_embed_stab_tip` % of it | kept (a stab by the tip: motion) |
-| Embedding by the edge, a thrown blade's contact, a thrown axe's beheading | engine vr_axestick.cpp `bladeFromKeys` | `bl_from`, else a guessed 0.25 | engine: `bl_from` as drawn; open: the guess for slots with none |
-| Reversed grip's guard | engine vr_view_weapon.cpp | `bl_from`, else 0.15 | open (a grip rule; slots with none) |
+| Embedding by the edge, a thrown blade's contact, a thrown axe's beheading | engine vr_axestick.cpp `bladeFromKeys` | `bl_from`, else a guessed 0.25 | point blades (`embed` 1, a sword's kind): `bl_from`, else `blade::swordKindFrom` (vr_blade.hpp, = QC `VR_BLADE_FROM_SWORD`); edge blades use their drawn `em_*` edges |
+| Reversed grip's guard | engine vr_view_weapon.cpp | `bl_from`, else 0.15 | open: where the guard is, not where the edge starts (his reversed-grip offsets are tuned on it) |
 | Two-handed grip on a blade | engine vr_weapons.cpp `bladeFrom(Hotspot)`, vr_twohand.cpp | the blade hotspot's own range (at least 0.3) | not blade geometry: his hotspots |
 | Blade on blade, parries | vr_armedgrunt_parry.qc | the grunt's weapon line, `vr_agrunt_blade_hand_zone` (m from the hand) | kept (a hand zone, not a shape) |
 
-Open: the engine has no weapon kind, so a slot without `bl_from` still gets a guess in vr_axestick.cpp (0.25) and
-vr_view_weapon.cpp (0.15); giving every bladed slot its kind's start in weapons.txt would end both. The stab test's
-"outer half" (`f >= 0.5`) is a fixed share; tying it to the blade proper would retune melee stabs.
+The engine has no weapon kind; its only stand-in is `embed` (1 by the point: a sword's kind; 2 by the edge, drawn edges of
+its own), so vr_axestick.cpp takes the sword's start from one engine constant kept equal to QC's. Open: vr_view_weapon.cpp's
+0.15 (the guard, a grip rule); the stab test's "outer half" (`f >= 0.5`), a fixed share: tying it to the blade proper would
+retune melee stabs.
+
+A blade with its own start and few striking points (an axe's: two) has them laid evenly from its start to its tip, as
+many as the layout holds (`VR_Melee_LayoutFrom`): two points at the Super Axe's 0.05 and its tip swept the straight chord,
+not the crescent bowed 0.38 of the line off it.
+
+## His shapes against their models (`vr_blade_dump fit`, 2026-11-22)
+
+- **Super Axe** (fit 25; the line 8.8 units): the handle's vertices hug the line at 0.0 .. 0.1 (25, 32 of them, +0.6 ..
+  +2.7 off); the crescent's from 0.2 (17, then 38 .. 55 a tenth to 0.8). His curve runs +1.6 at 0.1, +2.8 at 0.2, most
+  +3.4 at 0.4, +1.3 at 0.9, its nearest vertex 0.4 .. 2.3 units away. His Blade From 0.05 lies on the handle: the edge
+  cuts from there.
+- **Dagger** (fit 52; the line 10.2 units): the guard and grip at 0.0 .. 0.2 (72, 60, 6 vertices, -2.8 .. +2.3 off);
+  past 0.2 hardly any vertex within the slice (the blade's thin vertices 0.4 .. 3.1 units off the straight line, no
+  curve of its own). His Blade From 0.05 lies inside the guard: the guard cuts.
 
 ## The check
 

@@ -7303,3 +7303,20 @@ hue band can't separate brown uniforms from brown flesh, and a full hue turn wit
   compared against next). superaxe_decap: fast PASS, **slow FAIL**: with his 0.05 the slow chop's struck point gives
   29.6 damage on a 30-health grunt and smallgib's chance 1.12 gibs him before any beheading (vrtrailer 8/9 the same).
   Not a shape refusal; open.
+
+## bladeone2: the Super Axe's slow chop, the engine's point blades, the checks (agent/bladeone, 2026-11-22)
+
+- **The slow chop was not small gibs.** With his Blade From 0.05 the Super Axe's two striking points (0.05 and the tip)
+  swept the straight chord, not the crescent: the slow chop met the grunt with its tip, 5.9 units under the head zone
+  ("decap: no: the blade's contact off monster_army's head zone", a new dprint). `VR_Melee_LayoutFrom` now lays a blade
+  with its own start and few striking points evenly from the start to the tip (9 points: the Super Axe's 6 on the
+  crescent, on its curve). The coordinator's decap-over-smallgib rule was not needed (no beheading-qualified blow was
+  gibbed) and is not added. superaxe_decap 5 runs: fast 5/5, slow 5/5; vrtrailer 9/9.
+- **Engine:** vr_axestick.cpp's point blades (`embed` 1, a sword's kind) with no `bl_from` take `blade::swordKindFrom`
+  (vr_blade.hpp, = QC `VR_BLADE_FROM_SWORD` 0.27) instead of a guessed 0.25. vr_view_weapon.cpp's reversed-grip 0.15
+  stays (the guard, a grip rule his offsets are tuned on).
+- **Fit** (BLADES.md, "His shapes against their models"): the Super Axe's 0.05 lies on the handle (the crescent from 0.2);
+  the dagger's 0.05 inside its guard (0 .. 0.2). For him; not changed.
+- **embed 1 on origin/next's QC** (same engine): 59/2 and 48/13 (the side-on bounce, then a corpse/knocked-down cascade):
+  the same failures as the branch's 47/14, 57/4, 56/5. Flaky on next too, not bladeone's.
+- Debug > Tests > "Blade Starts Test" (`vr_melee_sweep_test 7`). ThinLTO built, 0 warnings.
