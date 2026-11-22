@@ -56,7 +56,15 @@ float VR_MELEE_WRIST_BACK = 0.2;   // m behind the controller (along its own axi
                                    // when it wiggles (fitted on the author's wiggles with fists, sword, axe and gun: 17-24 cm)
 float VR_MELEE_WRIST_PUNCH = 2;    // a punch's wrist speed, times vr_melee_wrist_speed: a fist has no lever, the arm carries it (the
                                    // author's punches carry the wrist 3.5 m/s and more, his fists wiggled at the dummy 1.5 at most)
-float VR_MELEE_BLADE_FROM = 0.4;   // the blade proper: from this share of the way from the hand to the tip
+// The blade's start (Edit Blade Shape's purple Blade Start, "kind's") of a weapon with no Blade From of its own: its kind's
+// first striking point (VR_Melee_Layout lays them from here; the editor draws the start there). One table for every blade
+// system: VR_Blade_From (docs/vr-port/BLADES.md).
+float VR_BLADE_FROM_SWORD = 0.27;   // the blade's root, just past the guard (the engine's blade::swordKindFrom: keep the same)
+float VR_BLADE_FROM_AXE = 0.75;     // the head
+float VR_BLADE_FROM_CLUB = 0.3;     // a torch's head
+float VR_BLADE_FROM_SAW = 0.55;     // the bar out of the engine block (was vr_chainsaw.qc VR_SAW_BAR_START)
+float VR_BLADE_FROM_CROWBAR = 0.2;  // the bar past the tape
+float VR_BLADE_FROM_GUN = 0.5;      // the barrel
 float VR_MELEE_GOOD = 2;           // times the least speed: a blow of strength 1
 float VR_MELEE_WEAKEST = 0.5;      // the strength at the least speed
 float VR_MELEE_STRONGEST = 1.75;   // and the most (the author's flatter curve, round 22: was 2; the damage caps then bound
@@ -166,7 +174,7 @@ float VR_MPT_FIST = 3;  // the fist and the knuckles
 float VR_MPT_BLUNT = 4; // a weapon carried off its handle (VR_Melee_FreeLayout): its pommel, hilt, handle or butt, struck
                         // with as its blade is (at once, at a swing's speeds) but a pommel (butt) strike
 
-// How long the pommel's (the near end's) touch waits for the blade proper (VR_MELEE_BLADE_FROM out), s
+// How long the pommel's (the near end's) touch waits for the blade proper (VR_Blade_From out), s
 // (vr_melee_pommel_wait): a cut from close by is the blade's (the author's close chops draw the weapon back along its
 // line, as a pommel strike does). Only a pommel strike waits; a blade, a head and a fist land at once.
 float() VR_Melee_PommelWait =
@@ -981,7 +989,7 @@ void(float xThing) VR_Melee_Layout =
         VR_MPT(0, -1, VR_MPT_NEAR, "the pommel");
         VR_MPT(1, 0, VR_MPT_GRIP, "the hilt");
         VR_MPT(2, 0.12, VR_MPT_GRIP, "the guard");
-        VR_MPT(3, 0.27, VR_MPT_EDGE, "the blade's root");
+        VR_MPT(3, VR_BLADE_FROM_SWORD, VR_MPT_EDGE, "the blade's root");
         VR_MPT(4, 0.42, VR_MPT_EDGE, "mid-blade");
         VR_MPT(5, 0.57, VR_MPT_EDGE, "mid-blade");
         VR_MPT(6, 0.72, VR_MPT_EDGE, "the blade");
@@ -993,7 +1001,7 @@ void(float xThing) VR_Melee_Layout =
         VR_MPT(0, -1, VR_MPT_NEAR, "the handle's end");
         VR_MPT(1, 0, VR_MPT_GRIP, "the handle");
         VR_MPT(2, 0.45, VR_MPT_GRIP, "the handle");
-        VR_MPT(3, 0.75, VR_MPT_EDGE, "the head");
+        VR_MPT(3, VR_BLADE_FROM_AXE, VR_MPT_EDGE, "the head");
         VR_MPT(4, 1, VR_MPT_EDGE, "the head");
     }
     else if(xThing == VR_MTHING_CLUB)
@@ -1001,19 +1009,19 @@ void(float xThing) VR_Melee_Layout =
         // (A wall torch: its head is most of what is past the hand.)
         VR_MPT(0, -1, VR_MPT_NEAR, "the club's end");
         VR_MPT(1, 0, VR_MPT_GRIP, "the handle");
-        VR_MPT(2, 0.3, VR_MPT_EDGE, "the head");
+        VR_MPT(2, VR_BLADE_FROM_CLUB, VR_MPT_EDGE, "the head");
         VR_MPT(3, 0.55, VR_MPT_EDGE, "the head");
         VR_MPT(4, 0.8, VR_MPT_EDGE, "the head");
         VR_MPT(5, 1, VR_MPT_EDGE, "the head's top");
     }
     else if(xThing == VR_MTHING_SAW)
     {
-        // The engine block (0 .. 0.55 of the way to the tip: vr_chainsaw.qc VR_SAW_BAR_START) is where the hands are;
+        // The engine block (0 .. VR_BLADE_FROM_SAW of the way to the tip) is where the hands are;
         // the bar strikes, as an axe's head.
         VR_MPT(0, -1, VR_MPT_NEAR, "the rear handle");
         VR_MPT(1, 0, VR_MPT_GRIP, "the grip");
         VR_MPT(2, 0.3, VR_MPT_GRIP, "the engine");
-        VR_MPT(3, 0.55, VR_MPT_EDGE, "the bar's root");
+        VR_MPT(3, VR_BLADE_FROM_SAW, VR_MPT_EDGE, "the bar's root");
         VR_MPT(4, 0.78, VR_MPT_EDGE, "the bar");
         VR_MPT(5, 1, VR_MPT_EDGE, "the bar's tip");
     }
@@ -1024,7 +1032,7 @@ void(float xThing) VR_Melee_Layout =
         // back, on the bar's line (the claw curls out ahead of it, the way a chop goes).
         VR_MPT(0, -1, VR_MPT_NEAR, "the chisel end");
         VR_MPT(1, 0, VR_MPT_GRIP, "the grip");
-        VR_MPT(2, 0.2, VR_MPT_EDGE, "the bar");
+        VR_MPT(2, VR_BLADE_FROM_CROWBAR, VR_MPT_EDGE, "the bar");
         VR_MPT(3, 0.38, VR_MPT_EDGE, "the bar");
         VR_MPT(4, 0.56, VR_MPT_EDGE, "the bar");
         VR_MPT(5, 0.73, VR_MPT_EDGE, "the bar");
@@ -1035,31 +1043,105 @@ void(float xThing) VR_Melee_Layout =
     {
         VR_MPT(0, -1, VR_MPT_NEAR, "the butt");
         VR_MPT(1, 0, VR_MPT_GRIP, "the grip");
-        VR_MPT(2, 0.5, VR_MPT_EDGE, "the barrel");
+        VR_MPT(2, VR_BLADE_FROM_GUN, VR_MPT_EDGE, "the barrel");
         VR_MPT(3, 1, VR_MPT_EDGE, "the muzzle");
     }
 };
 
-// The name of the part of a weapon of `xThing` at `xFh` (its handle 0, its tip 1) and whether it is blunt there (into
-// vr_mpart_blunt: VR_MPT_BLUNT, held anywhere on it): as VR_Melee_Layout's points.
-float vr_mpart_blunt;
-string(float xThing, float xFh) VR_Melee_PartAt =
+// ---- The drawn blade (docs/vr-port/BLADES.md): every system that asks where a blade is, where it cuts, beheads,
+// dismembers, sticks or skewers asks these, over the line VR_Melee_Line lays (Line Start, Blade Tip, the curve) and its
+// Blade Start. No system keeps a start of its own. What stays per system is about motion (a slash across the edge, not a
+// stab along it; a pommel strike; speeds), never the shape.
+
+// The kind's blade start (VR_BLADE_FROM_*: its layout's first striking point; a fist's its knuckles), a share of the line.
+float(float xThing) VR_Blade_KindFrom =
 {
-    vr_mpart_blunt = FALSE;
     if(xThing == VR_MTHING_SWORD)
     {
-        vr_mpart_blunt = (xFh < 0.2);
-        return xFh < -0.15 ? "the pommel" : (xFh < 0.06 ? "the hilt" : (xFh < 0.2 ? "the guard" : (xFh > 0.93 ? "the tip" : "the blade")));
+        return VR_BLADE_FROM_SWORD;
     }
     if(xThing == VR_MTHING_AXE)
     {
-        vr_mpart_blunt = (xFh < 0.6);
-        return xFh < -0.12 ? "the handle's end" : (xFh < 0.6 ? "the handle" : "the head");
+        return VR_BLADE_FROM_AXE;
+    }
+    if(xThing == VR_MTHING_CLUB)
+    {
+        return VR_BLADE_FROM_CLUB;
     }
     if(xThing == VR_MTHING_SAW)
     {
-        vr_mpart_blunt = (xFh < 0.45);
-        return xFh < -0.05 ? "the rear handle" : (xFh < 0.45 ? "the engine" : (xFh > 0.93 ? "the bar's tip" : "the bar"));
+        return VR_BLADE_FROM_SAW;
+    }
+    if(xThing == VR_MTHING_CROWBAR)
+    {
+        return VR_BLADE_FROM_CROWBAR;
+    }
+    if(xThing == VR_MTHING_GUN)
+    {
+        return VR_BLADE_FROM_GUN;
+    }
+    return 1; // a fist: its knuckles
+};
+
+// Where the blade proper starts on the line of a weapon of `xThing`, a share of the way from the grip (0) to the tip (1):
+// its own Blade From as he drew it (`xOwnFrom`: a blow's mh_bfrom, VR_Melee_Line's vr_mline_from_x), else its kind's.
+// As drawn: no floor, no per-system start (before 2026-11-22 decap, limbs, skewer and the hose cut kept their own: a
+// sword's 0.4, an axe's 0.6, a sword's own never nearer than 0.4; the melee's first blade point 0.4; ROUND25 "bladeone").
+float(float xThing, float xOwnFrom) VR_Blade_From =
+{
+    if(xOwnFrom > 0 && xOwnFrom < 1)
+    {
+        return xOwnFrom;
+    }
+    return VR_Blade_KindFrom(xThing);
+};
+
+// `xAt`'s place along the line from `xGrip` to `xFar` (0 the grip, 1 the tip, below 0 past the hand: the pommel).
+float(vector xGrip, vector xFar, vector xAt) VR_Blade_Along =
+{
+    vector line = xFar - xGrip;
+    float l2 = line * line;
+    return l2 > 0.0001 ? ((xAt - xGrip) * line) / l2 : 0;
+};
+
+// Whether share `xF` of the line is on the blade proper (its start to the tip, `xSlack` of the line past it).
+float(float xThing, float xOwnFrom, float xF, float xSlack) VR_Blade_OnEdge =
+{
+    return xF >= VR_Blade_From(xThing, xOwnFrom) && xF <= 1 + xSlack;
+};
+
+// The blade proper's point nearest `xAt` on the line VR_Melee_Line last laid (vr_mline_*; its curve: VR_Melee_At) of a
+// weapon of `xThing`; its share into vr_blade_f.
+float vr_blade_f;
+vector(float xF) VR_Melee_At;
+vector(float xThing, vector xAt) VR_Blade_EdgePoint =
+{
+    float from = VR_Blade_From(xThing, vr_mline_free ? -1 : vr_mline_from_x);
+    vr_blade_f = min(1, max(from, VR_Blade_Along(vr_mline_grip, vr_mline_far, xAt)));
+    return VR_Melee_At(vr_blade_f);
+};
+
+// The name of the part of a weapon of `xThing` at `xFh` (its handle 0, its tip 1) and whether it is blunt there (into
+// vr_mpart_blunt: VR_MPT_BLUNT, held anywhere on it): a blade's below its start (VR_Blade_From, `xOwnFrom` its own).
+float vr_mpart_blunt;
+string(float xThing, float xFh, float xOwnFrom) VR_Melee_PartAt =
+{
+    vr_mpart_blunt = FALSE;
+    float from = VR_Blade_From(xThing, xOwnFrom);
+    if(xThing == VR_MTHING_SWORD)
+    {
+        vr_mpart_blunt = (xFh < from);
+        return xFh < -0.15 ? "the pommel" : (xFh < min(0.06, from) ? "the hilt" : (xFh < from ? "the guard" : (xFh > 0.93 ? "the tip" : "the blade")));
+    }
+    if(xThing == VR_MTHING_AXE)
+    {
+        vr_mpart_blunt = (xFh < from);
+        return xFh < -0.12 ? "the handle's end" : (xFh < from ? "the handle" : "the head");
+    }
+    if(xThing == VR_MTHING_SAW)
+    {
+        vr_mpart_blunt = (xFh < from);
+        return xFh < -0.05 ? "the rear handle" : (xFh < from ? "the engine" : (xFh > 0.93 ? "the bar's tip" : "the bar"));
     }
     if(xThing == VR_MTHING_CROWBAR)
     {
@@ -1114,7 +1196,7 @@ entity(entity p, float xThing, vector xDir) VR_Corpse_StrikeAlong =
         vector ax = t - h;
         float fh = ((vr_cstrike_at - h) * ax) / max(0.001, ax * ax);
         vr_cstrike_fh = fh;
-        string part = VR_Melee_PartAt(xThing, fh);
+        string part = VR_Melee_PartAt(xThing, fh, vr_mline_from_x);
         vr_cstrike_blunt = vr_mpart_blunt;
         if(cvar_hget(cvarh_developer) >= 2)
         {
@@ -1140,7 +1222,7 @@ entity(entity p, float xHand, vector xDir) VR_Corpse_StrikeLine =
 // prop held anywhere is all of it), each as VR_Melee_PartAt has it; those at the hand strike nothing. Their place on the
 // line (vr_mpt_f) is from the grip (the hand) to the far end, which may be either end: past the hand, away from the far
 // end, they are negative.
-void(float xThing, float xHs, float xTip, float xGw, float xBack) VR_Melee_FreeLayout =
+void(float xThing, float xHs, float xTip, float xGw, float xBack, float xOwnFrom) VR_Melee_FreeLayout =
 {
     float i;
     for(i = 0; i < 9; ++i)
@@ -1149,7 +1231,7 @@ void(float xThing, float xHs, float xTip, float xGw, float xBack) VR_Melee_FreeL
         float fh = sh * (1 + xBack) - xBack;
         vr_mpt_f[i] = (sh - xHs) / ((xTip ? 1 : 0) - xHs);
         vr_mpt_fh[i] = fh;
-        vr_mpt_name[i] = VR_Melee_PartAt(xThing, fh);
+        vr_mpt_name[i] = VR_Melee_PartAt(xThing, fh, xOwnFrom);
         if(fabs(sh - xHs) <= xGw)
         {
             vr_mpt_kind[i] = VR_MPT_GRIP;
@@ -1192,6 +1274,36 @@ void(float xFrom) VR_Melee_LayoutFrom =
             vr_mpt_f[i] = f >= f0 ? xFrom + (f - f0) * (1 - xFrom) / (1 - f0) : f * xFrom / f0;
         }
     }
+    // A kind with few striking points (an axe's head: two) can't follow an edge drawn from far down its line: two points
+    // at the Super Axe's Blade From 0.05 and its tip swept the straight chord, not the crescent bowed 0.38 of the line off
+    // it (its slow chop met the grunt with its tip, under the head: bladeone). Its striking part (the layout's last points)
+    // sampled evenly from the start to the tip, as many points as the layout holds, on the curve (VR_Melee_At).
+    float i0 = -1;
+    for(i = 0; i < vr_mpt_n && i0 < 0; ++i)
+    {
+        if(VR_Melee_Strikes(vr_mpt_kind[i]) && vr_mpt_f[i] > 0)
+        {
+            i0 = i;
+        }
+    }
+    float m = 9 - i0; // (vr_mpt_f[9])
+    if(i0 < 0 || m <= vr_mpt_n - i0)
+    {
+        return;
+    }
+    float kind = vr_mpt_kind[i0];
+    string nm = vr_mpt_name[i0];
+    string tipNm = vr_mpt_name[vr_mpt_n - 1];
+    for(i = 0; i < m; ++i)
+    {
+        float k = i0 + i;
+        float s = i / (m - 1);
+        vr_mpt_f[k] = xFrom + (1 - xFrom) * s;
+        vr_mpt_fh[k] = f0 + (1 - f0) * s; // (its part's name and bluntness as the kind's own points there)
+        vr_mpt_kind[k] = kind;
+        vr_mpt_name[k] = i == m - 1 ? tipNm : nm;
+    }
+    vr_mpt_n = 9;
 };
 
 // The points of what `b`'s hand holds (as it was last tracked).
@@ -1199,7 +1311,7 @@ void(entity b) VR_Melee_LayoutOf =
 {
     if(b.mh_free)
     {
-        VR_Melee_FreeLayout(b.mh_thing, b.mh_free_hs, b.mh_free_tip, b.mh_free_gw, b.mh_free_back);
+        VR_Melee_FreeLayout(b.mh_thing, b.mh_free_hs, b.mh_free_tip, b.mh_free_gw, b.mh_free_back, b.mh_bfrom);
     }
     else
     {

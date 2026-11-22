@@ -33,6 +33,9 @@ that ships in 1.1.1.
 - **Quoth (experimental).** Quoth 2.2's own maps (Select Campaign > Quoth) and custom maps made for Quoth play by
   Arcane Dimensions' rules, so they need AD. The installer offers Quoth (free, by Kell, Necros and Preach), downloaded
   from Quaddicted and installed as released: ticked when Arcane Dimensions is chosen, greyed out without it.
+- **Heavy revolver headshots pop heads in Arcane Dimensions and Quoth too.** Where shells fly as projectiles (AD's and
+  Quoth's maps, or Projectile Rules set to AD's), a heavy revolver's headshot kill never popped the head, and its slug
+  did a big monster no extra damage. Its slug now follows the same head pop and big-body rules as everywhere else.
 
 ## Graphics
 
@@ -252,10 +255,11 @@ aren't Map Library packages aren't sent to joining players.
 
 ## Monsters
 
-- **The Super Axe beheads and cuts limbs reliably.** Blows with the inner curve of its head (the part of its blade
-  nearest your hands) counted as hits with the handle and never took a head or a limb off; now an axe's own blade
-  shape decides where its cutting part starts, and the Super Axe's starts where its crescent edge does (a sword
-  still never cuts with its guard or hilt).
+- **Cuts follow each blade's drawn shape.** Beheading, cutting off limbs, a cut limb sticking to the blade, cutting
+  hoses and the chainsaw's bar all used their own idea of where a blade starts, so the Super Axe's inner curve counted
+  as its handle and never took a head or a limb off. Now every one of them uses the blade's shape as drawn in the
+  blade shape editor (where its cutting part starts, its curve, its own line), the same shape melee blows already
+  use: what the editor shows as the blade cuts, and what it shows as the handle doesn't.
 - **A shove never makes an enemy bleed.** An enemy you had hurt earlier, even a single pellet long before, bled from
   every limb as a later shove sent it sprawling. Now a knocked-down or staggering enemy's limbs bleed only for blood
   drawn as it went down or while it is down (shot as you shove it, cut while it lies there); a corpse's still do.

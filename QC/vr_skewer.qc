@@ -952,7 +952,7 @@ void(float xHand, entity b) VR_Skewer_SwingHit =
 
 // The head or limb `g` just cut off `c` at `xCut` (the neck, the joint) by `by`'s blow of `xHow` (VR_Decap_Cut, VR_Limb_Cut): his note
 // 2026-11-06, "the cut off limb should get stuck on the blade that cut it off". A swing's cut by a hand whose blade goes onto it
-// (VR_Skewer_CutBlade) with its edge at the cut (the blade proper: an axe's head, a sword past VR_DECAP_BLADE_SWORD; within
+// (VR_Skewer_CutBlade) with its edge at the cut (the blade proper as drawn: VR_Blade_EdgePoint, from its Blade Start; within
 // VR_SKEWER_CUT_REACH): it rides that hand, its cut end moved onto the edge, turned as it was. TRUE: on it.
 float(entity g, entity c, entity by, float xHow, vector xCut) VR_Skewer_CutOn =
 {
@@ -971,10 +971,7 @@ float(entity g, entity c, entity by, float xHow, vector xCut) VR_Skewer_CutOn =
         {
             continue;
         }
-        vector line = vr_mline_far - vr_mline_grip;
-        float from = VR_Decap_BladeFrom(th, vr_mline_free ? -1 : vr_mline_from_x);
-        float s = vlen(line) > 0.01 ? ((xCut - vr_mline_grip) * line) / (line * line) : 0;
-        vector at = vr_mline_grip + line * min(1, max(from, s));
+        vector at = VR_Blade_EdgePoint(th, xCut); // (the drawn edge's nearest point: its curve, from its Blade Start)
         float d = vlen(xCut - at);
         if(d < bestD)
         {
