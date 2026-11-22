@@ -77,7 +77,7 @@ R_AllocParticle
 */
 particle_t *R_AllocParticle (void)
 {
-	if (CL_SeatHeadless ()) // QVR: splitscreen: a headless seat's effects are not drawn (phase 7: each seat's world)
+	if (!CL_SeatDrawn ()) // QVR: splitscreen: a seat not drawn spawns nothing (the drawn seats feed the one pool once: CL_SeatEffectFirst)
 		return NULL;
 	if (r_numactiveparticles < r_numparticles)
 	{
@@ -138,6 +138,8 @@ void R_EntityParticles (entity_t *ent)
 	vec3_t		forward;
 	float		dist;
 
+	if (!CL_SeatEffectFirst (SEATFX_BRIGHTFIELD, (int)(ent - cl_entities), NULL)) // QVR: splitscreen: once per entity
+		return;
 	dist = 64;
 //	count = 50;
 
@@ -227,6 +229,8 @@ void R_ParticleExplosion (vec3_t org)
 	int			i, j;
 	particle_t	*p;
 
+	if (!CL_SeatEffectFirst (SEATFX_EXPLOSION, 0, org)) // QVR: splitscreen: the shared pool fed once per event
+		return;
 	if (VR_ParticleExplosion (org)) // QVR: Quake VR's particles
 		return;
 
@@ -270,6 +274,8 @@ void R_ParticleExplosion2 (vec3_t org, int colorStart, int colorLength)
 	particle_t	*p;
 	int			colorMod = 0;
 
+	if (!CL_SeatEffectFirst (SEATFX_EXPLOSION2, colorStart, org)) // QVR: splitscreen: the shared pool fed once per event
+		return;
 	if (VR_ParticleExplosion2 (org, colorStart, colorLength)) // QVR: Quake VR's particles
 		return;
 
@@ -301,6 +307,8 @@ void R_BlobExplosion (vec3_t org)
 	int			i, j;
 	particle_t	*p;
 
+	if (!CL_SeatEffectFirst (SEATFX_BLOB, 0, org)) // QVR: splitscreen: the shared pool fed once per event
+		return;
 	if (VR_BlobExplosion (org)) // QVR: Quake VR's particles
 		return;
 
@@ -344,6 +352,8 @@ void R_RunParticleEffect (vec3_t org, vec3_t dir, int color, int count)
 	int			i, j;
 	particle_t	*p;
 
+	if (!CL_SeatEffectFirst (SEATFX_EFFECT, color * 1024 + count, org)) // QVR: splitscreen: the shared pool fed once per event
+		return;
 	if (VR_RunParticleEffect (org, dir, color, count)) // QVR: Quake VR's particles
 		return;
 
@@ -402,6 +412,8 @@ void R_LavaSplash (vec3_t org)
 	float		vel;
 	vec3_t		dir;
 
+	if (!CL_SeatEffectFirst (SEATFX_LAVA, 0, org)) // QVR: splitscreen: the shared pool fed once per event
+		return;
 	if (VR_LavaSplash (org)) // QVR: Quake VR's particles
 		return;
 
@@ -442,6 +454,8 @@ void R_TeleportSplash (vec3_t org)
 	float		vel;
 	vec3_t		dir;
 
+	if (!CL_SeatEffectFirst (SEATFX_TELEPORT, 0, org)) // QVR: splitscreen: the shared pool fed once per event
+		return;
 	if (VR_TeleportSplash (org)) // QVR: Quake VR's particles
 		return;
 

@@ -8,11 +8,15 @@
 // marker's pixel read back after the frame's draw) and a picture of its own (the tiles' middles differ); a screenshot
 // of the layout; then the seats leave and the one seat left is drawn in the whole window again. Verdict
 // "seat_render_test: N passed, M failed".
-// Phase 7 part 2: each seat's own drawn body (vr_avatar: posed at its own player, its own feet's steps).
+// Phase 7 part 2: each seat's own drawn body (vr_avatar: posed at its own player); the shared particles fed once per
+// event (an explosion every seat reads drawn once, one only a later seat reads drawn too).
 #include "vr_seat.hpp"
 
 #include "vr_avatar.hpp"
 #include "vr_engine.hpp"
+#include "vr_particles.hpp"
+
+#include "Zancle/Math/Abs.hpp"
 #include "vr_testkit.hpp"
 
 #include <cmath>
@@ -238,6 +242,50 @@ void checkBodies()
     }
 }
 
+// The shared particle pool fed once per event (CL_SeatEffectFirst): an explosion every seat's client reads in a frame adds
+// one explosion's particles, one only a later seat reads adds its own; an entity's trail is one seat's a frame.
+void checkEffects()
+{
+    const int n = renderTest.seats;
+    vec3_t org;
+    if(!playerOrigin(0, org))
+    {
+        return;
+    }
+    org[2] += 64.f;
+    const int before = particles::liveCount();
+    for(int s = 0; s < n; s++)
+    {
+        const Scope in(at(s));
+        R_ParticleExplosion(org);
+    }
+    const int once = particles::liveCount() - before;
+    {
+        const Scope in(at(0));
+        R_ParticleExplosion(org);
+    }
+    const int again = particles::liveCount() - before - once;
+    check(once > 0 && again > 0 && za::abs(again - once) <= once / 4,
+        va("an explosion all %d seats read: its particles once (%d; one seat's: %d)", n, once, again));
+    org[0] += 48.f;
+    const int before2 = particles::liveCount();
+    {
+        const Scope in(at(n - 1));
+        R_ParticleExplosion(org);
+    }
+    check(particles::liveCount() > before2, va("an explosion only seat %d reads: its particles (%d)", n,
+        particles::liveCount() - before2));
+    // An entity's trail (entity numbers are the server's: the same in every seat's client): one seat's a frame.
+    constexpr int trailKey = MAX_EDICTS - 1; // (no entity of the test's)
+    int fed = 0;
+    for(int s = 0; s < n; s++)
+    {
+        const Scope in(at(s));
+        fed += CL_SeatEffectFirst(SEATFX_TRAIL, trailKey, nullptr) ? 1 : 0;
+    }
+    check(fed == 1, va("an entity's trail fed by one seat of %d (%d)", n, fed));
+}
+
 void testFrame()
 {
     RenderTest& t = renderTest;
@@ -297,6 +345,7 @@ void testFrame()
             checkTiles();
             checkViews();
             checkBodies();
+            checkEffects();
             Cbuf_AddText("screenshot\n"); // (screenshots/: run.sh -Out composes it)
             go(Step::WaitShot);
             return;

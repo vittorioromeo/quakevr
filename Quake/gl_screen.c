@@ -2500,6 +2500,7 @@ static void SCR_DrawSeatHud (seathud_t *hud)
 		SCR_DrawCrosshair ();
 		SCR_CheckDrawCenterString (hud);
 		SCR_DrawSbar ();
+		VR_FlatSeatPanels (); // the seat's toolgun panel and holster menu, in its tile (one seat: VR_End2D's)
 	}
 }
 

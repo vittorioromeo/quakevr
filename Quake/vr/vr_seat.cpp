@@ -750,6 +750,52 @@ extern "C" qboolean CL_SeatDrawn()
     return qvr::seat::current().index == 0 || SCR_SeatsDrawn() > 1;
 }
 
+namespace
+{
+// The events the seats fed to the shared effects this frame (CL_SeatEffectFirst; with tiles drawn only).
+struct EffectFed
+{
+    int kind = -1, key = 0, seat = 0, frame = -1;
+    int org[3] = {};
+};
+constexpr int effectsRemembered = 512;
+struct EffectsFed
+{
+    EffectFed ring[effectsRemembered];
+    int next = 0;
+} effectsFed; // seat-shared: the shared effects' feed, across the seats
+} // namespace
+
+extern "C" qboolean CL_SeatEffectFirst(const int kind, const int key, const float* org)
+{
+    if(!CL_SeatDrawn())
+    {
+        return false;
+    }
+    if(SCR_SeatsDrawn() <= 1)
+    {
+        return true;
+    }
+    const int seat = qvr::seat::current().index;
+    int at[3] = {};
+    for(int i = 0; org && i < 3; i++)
+    {
+        at[i] = static_cast<int>(org[i] < 0.f ? org[i] - 0.5f : org[i] + 0.5f);
+    }
+    for(const EffectFed& e : effectsFed.ring)
+    {
+        if(e.frame == host_framecount && e.kind == kind && e.key == key && e.seat != seat && e.org[0] == at[0] &&
+            e.org[1] == at[1] && e.org[2] == at[2])
+        {
+            return false;
+        }
+    }
+    EffectFed& slot = effectsFed.ring[effectsFed.next];
+    effectsFed.next = (effectsFed.next + 1) % effectsRemembered;
+    slot = EffectFed{kind, key, seat, host_framecount, {at[0], at[1], at[2]}};
+    return true;
+}
+
 extern "C" clientseat_t* CL_SeatNetIfMade(const int seat)
 {
     return qvr::seat::netIfMade(seat);

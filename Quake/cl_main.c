@@ -597,7 +597,8 @@ static void CL_RocketTrail (entity_t *ent, int type)
 	ent->traildelay -= cl.time - cl.oldtime;
 	if (ent->traildelay > 0.f)
 		return;
-	if (!VR_EntityTrail ((int)(ent - cl_entities), type)) // QVR: Quake VR's particles
+	// QVR: splitscreen: the entity's trail drawn from one seat's client a frame (CL_SeatEffectFirst)
+	if (CL_SeatEffectFirst (SEATFX_TRAIL, (int)(ent - cl_entities), NULL) && !VR_EntityTrail ((int)(ent - cl_entities), type)) // QVR: Quake VR's particles
 		R_RocketTrail (ent->trailorg, ent->origin, type);
 	CL_ResetTrail (ent);
 }
@@ -850,7 +851,8 @@ void CL_RelinkEntities (void)
 			CL_RocketTrail (ent, 6);
 		else
 		{
-			VR_ExplosionDebrisTrail (i); // QVR: an explosion's chunk: its fire trail from where it was drawn last
+			if (CL_SeatEffectFirst (SEATFX_DEBRIS, i, NULL)) // QVR: splitscreen: one seat's trail a frame
+				VR_ExplosionDebrisTrail (i); // QVR: an explosion's chunk: its fire trail from where it was drawn last
 			CL_ResetTrail (ent);
 		}
 		VR_ProjectileLight (i); // QVR: hell knight flames, scrag spit, vore balls and lasers light up the room
@@ -979,6 +981,8 @@ int CL_ReadFromServer (void)
 	CL_CheckServerSilence (); // QVR: (B16)
 	if (!CL_SeatDrawn ()) // QVR: splitscreen: a seat not drawn keeps its client world as read (a seat in a tile relinks its own)
 		return 0;
+	if (SCR_SeatsDrawn () > 1) // QVR: splitscreen: the relink's choices by the eye (the lights near it) from this seat's own
+		VectorCopy (V_SeatView ()->drawnorg, r_refdef.vieworg); // (its tile's pass sets the refdef again)
 
 	VR_ProfileBegin ("relink"); // QVR: profile
 	CL_RelinkEntities ();
@@ -990,9 +994,9 @@ int CL_ReadFromServer (void)
 	{
 		VR_WallTorchFlames (); // QVR: taken wall torches' flames (vr_walltorch.cpp)
 		VR_TestEffects (); // QVR: vr_particle_test quake's sprite (vr_client.cpp)
-		VR_TorchLights (); // QVR: torches and flames flicker light onto the room
-		VR_FlameLights (); // QVR: the flamethrowers' streams light the room (vr/vr_emissive.cpp)
 	}
+	VR_TorchLights (); // QVR: torches and flames flicker light onto the room (each drawn seat's own lights: phase 7)
+	VR_FlameLights (); // QVR: the flamethrowers' streams light the room (vr/vr_emissive.cpp)
 
 //johnfitz -- devstats
 

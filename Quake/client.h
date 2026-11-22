@@ -448,6 +448,13 @@ qboolean CL_SeatHeadless (void);			// the current seat is one of seats 1-3: no s
 											// the shared world (seat 0's world has them; phases 7-8 for the rest)
 qboolean CL_SeatDrawn (void);				// the current seat's view is drawn (seat 0, or any seat in a tile: phase 7):
 											// its entities relinked each frame
+// Phase 7 part 2: the shared effects (one particle pool, drawn in every tile; the world's sounds) fed once per event. Each
+// seat's client reads the same event (an explosion, a puff, a sound) when it is in that seat's sight: the first seat
+// this frame to feed it does, the others skip it (kind, key and the place rounded to a unit; key: an entity's number for
+// its trail, or 0). A seat not drawn feeds nothing; one seat drawn: always true, as before.
+enum { SEATFX_EXPLOSION, SEATFX_EXPLOSION2, SEATFX_BLOB, SEATFX_EFFECT, SEATFX_LAVA, SEATFX_TELEPORT, SEATFX_TRAIL,
+	SEATFX_BRIGHTFIELD, SEATFX_DEBRIS, SEATFX_SOUND };
+qboolean CL_SeatEffectFirst (int kind, int key, const float *org);
 clientseat_t *CL_SeatNetIfMade (int seat);	// seat 0..3's client if ever made (NULL: never used)
 void CL_SeatName (int seat, char *out, size_t size);	// the player's name for seat n: cl_name, then "<cl_name> <n+1>"
 void CL_SeatFrame (void);					// once a host frame: seats joining (connecting) or gone (vr_seatplay.cpp)

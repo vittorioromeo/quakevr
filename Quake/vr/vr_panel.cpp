@@ -799,14 +799,24 @@ extern "C" int VR_SbarInCanvas()
     return handSbar() ? 2 : 0;
 }
 
+// Flatscreen play's panels over the window, the current seat's: the toolgun's panel and the holster menu, each with its
+// cursor (one seat: from VR_End2D; seats in tiles: each seat's pass, in its tile: gl_screen.c's SCR_DrawSeatHud).
+extern "C" void VR_FlatSeatPanels(void)
+{
+    toolgun::panel::drawFlat(); // (the toolgun's panel, its cursor on it)
+    flatholster::draw();        // (the holster menu, its cursor on it: vr_flatholster.cpp)
+}
+
 extern "C" void VR_End2D(void (*windowHud)())
 {
     if(!drawingToCanvas)
     {
         text3d::renderScreens(); // world-board images also belong to the ordinary flat-screen view
         visor::renderPanels();   // (flatscreen play's visor HUD: its panels' images, shown in the next frame's view)
-        toolgun::panel::drawFlat(); // (flatscreen play: the toolgun's panel over the window, its cursor on it)
-        flatholster::draw(); // (flatscreen play: the holster menu, its cursor on it: vr_flatholster.cpp)
+        if(SCR_SeatsDrawn() <= 1) // (seats in tiles: each seat's in its tile, VR_FlatSeatPanels)
+        {
+            VR_FlatSeatPanels();
+        }
         return;
     }
     drawingToCanvas = false;

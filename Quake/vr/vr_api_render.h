@@ -108,6 +108,7 @@ float VR_SoftSpriteFade (float radius);				// ... how close in front of the scen
 // The 2D layer (gl_screen.c, gl_vidsdl.c): drawn to a canvas shown in the headset.
 void VR_Begin2D (void);									// SCR_UpdateScreen, before GL_Set2D
 void VR_End2D (void (*windowHud) (void));				// SCR_UpdateScreen, after Draw_Flush: windowHud draws the HUD on the window, under the canvas
+void VR_FlatSeatPanels (void);								// flatscreen play: the current seat's toolgun panel and holster menu over the window (VR_End2D; a seat's tile pass)
 int VR_SbarInCanvas (void);								// SCR_DrawSbar: 1 to draw the HUD as usual, 0 to leave it to VR_End2D's windowHud, 2 both (the canvas's a classic status bar, for a hand)
 int VR_CanvasBlend (void);								// GL_SetStateEx, alpha blending: nonzero if it set the blend
 int VR_CanvasPixels (int *width, int *height);			// GL_Set2D, Draw_SetClipRect: nonzero while the 2D pass draws into the headset's canvas, its size in pixels (vr_menu_resolution: not the window's)
