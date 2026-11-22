@@ -2037,4 +2037,14 @@ void debugDraw(const glm::vec3& eye, const glm::vec3& headAngles)
     }
 }
 
+int heldStat(int hand)
+{
+    return hand == HAND_MAIN || hand == HAND_OFF ? cl.stats[hand == HAND_MAIN ? protocol::STAT_QVR_EMBEDMAIN : protocol::STAT_QVR_EMBEDOFF] : 0;
+}
+
+bool handOnBlade(int hand)
+{
+    return heldStat(hand) > 0;
+}
+
 } // namespace qvr::axestick
