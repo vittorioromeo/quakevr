@@ -52,6 +52,7 @@ static class QuestTests
         var music = Directory.CreateDirectory(Path.Combine(quake, "id1", "music")).FullName;
         File.WriteAllText(Path.Combine(music, "Track02.ogg"), "ogg");
         File.WriteAllText(Path.Combine(music, "Track03.WAV"), "wav");
+        File.WriteAllText(Path.Combine(music, "Track04.mp3"), "mp3"); // (no MP3 codec on the Quest: stays on the PC)
         var target = Path.Combine(dir(name + "-pc"), "QuakeVR");
         new InstallEngine().Install(new InstallPlan
         {
@@ -154,21 +155,21 @@ static class QuestTests
         {
             var s = MakeSetup(dir, "quest-plan");
             var paths = s.Files.Select(f => f.DevicePath).ToHashSet(StringComparer.Ordinal);
-            // (music: bgmusic.c asks for music/trackNN.<ext> through the search path, lower case, and the Quest build decodes WAV only;
+            // (music: bgmusic.c asks for music/trackNN.<ext> through the search path, lower case, and the Quest build decodes WAV and Ogg;
             // relit maps: VR_ModelFile's relit_custom/<game>/maps/<map>.bsp in a game folder, <game> as the headset names it)
             foreach (var p in new[] { "quakevr/progs.dat", "quakevr/default.cfg", "quakevr/maps/vrhub.bsp", "id1/pak0.pak", "id1/pak1.pak",
-                         "id1/music/track03.wav", "hipnotic/pak0.pak", "id1/textures/wall1.png", "hipnotic/textures/h_wall.png",
+                         "id1/music/track03.wav", "id1/music/track02.ogg", "hipnotic/pak0.pak", "id1/textures/wall1.png", "hipnotic/textures/h_wall.png",
                          "quakevr/relit_custom/id1/maps/e1m1.bsp", "quakevr/relit_custom/id1/maps/e1m1.lit", "quakevr/relit_custom/id1/maps/e1m1.relight" })
             {
                 True(paths.Contains(p), $"{p} goes to the Quest");
             }
-            foreach (var p in new[] { "id1/music/track02.ogg", "quakevr/relit_custom/ID1/maps/e1m1.bsp", "quakevr/relit_custom/id1/maps/e1m3.bsp",
+            foreach (var p in new[] { "id1/music/track04.mp3", "quakevr/relit_custom/ID1/maps/e1m1.bsp", "quakevr/relit_custom/id1/maps/e1m3.bsp",
                          "quakevr/relit_custom/rogue/maps/r1m1.bsp", "quakevr/relit_custom/_stale/maps/e1m2.bsp" })
             {
                 True(!paths.Contains(p), $"{p}: not for the Quest");
             }
-            Eq(4, paths.Count(p => p.StartsWith("quakevr/relit_custom/", StringComparison.Ordinal) || p.StartsWith("id1/music/", StringComparison.Ordinal)),
-                "only e1m1's relit copy and the WAV track");
+            Eq(5, paths.Count(p => p.StartsWith("quakevr/relit_custom/", StringComparison.Ordinal) || p.StartsWith("id1/music/", StringComparison.Ordinal)),
+                "only e1m1's relit copy and the WAV and Ogg tracks");
             Eq(Path.Combine(s.Install, "quakevr", "relit_custom", "ID1", "maps", "e1m1.lit"),
                 s.Files.Single(f => f.DevicePath == "quakevr/relit_custom/id1/maps/e1m1.lit").Source, "ID1's relit copy as id1's");
             foreach (var p in paths)

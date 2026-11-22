@@ -142,8 +142,8 @@ both at once works, and at least one is needed. Quest is another target of the s
   `quakevr/tools/`, `quakevr/xr_layers/`, `.exe/.dll/.pdb/.bat`), plus what the PC game reads in place from the
   player's Quake: `id1/pak*.pak` and the music (lower case: Android's names are case-sensitive; from where the
   detection finds it, the rerelease's first, into `id1/music/`, where bgmusic.c's `music/trackNN.<ext>` finds it; only
-  `QuestFiles.MusicFormats`, WAV today: the Quest build has no Ogg/MP3/FLAC codec yet, so the stores' Ogg soundtracks
-  stay on the PC), the official expansions `ExpansionDetector` finds ready (their paks and the engine's resource list),
+  `QuestFiles.MusicFormats`: WAV and Ogg, the Quest build's codecs (stb_vorbis), so the stores' Ogg soundtracks go
+  too; no MP3/FLAC there), the official expansions `ExpansionDetector` finds ready (their paks and the engine's resource list),
   AD/Dwell/Quoth copies found by their `FindExisting` when Setup did not install its own, and the maps the PC game
   relit (`quakevr/relit_custom/<game>/maps/*.bsp/.lit/.lux/.relight`, the copies with their note, only for the games
   the headset gets, `<game>` as the headset names it: the Quest cannot relight, and VR_ModelFile loads these while the

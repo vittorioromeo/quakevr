@@ -25,10 +25,10 @@ public static class QuestFiles
     /// <summary>The player's own files in a mod folder found on this PC (other engines' saves and configs): left behind.</summary>
     static readonly string[] PlayerExtensions = [".sav", ".dem", ".log"];
 
-    /// <summary>The music formats the Quest build plays: only WAV (Android/android.cmake builds no codecs yet, CMakeLists.txt's
-    /// USE_CODEC_WAVE alone), so the stores' Ogg soundtracks stay on the PC (100 MB the game could not play). Add a format
-    /// here when the Quest build gets its codec.</summary>
-    public static readonly string[] MusicFormats = [".wav"];
+    /// <summary>The music formats the Quest build plays: WAV and Ogg Vorbis (Android/android.cmake: stb_vorbis), so the
+    /// stores' Ogg soundtracks go too; MP3/FLAC stay on the PC (no codec there). Add a format here when the Quest build
+    /// gets its codec.</summary>
+    public static readonly string[] MusicFormats = [".wav", ".ogg"];
     /// <summary>A relit copy's files (vr_relight.cpp: the map, its .lit and .lux, and the .relight note naming its source).</summary>
     static readonly string[] RelitExtensions = [".bsp", ".lit", ".lux", ".relight"];
 
