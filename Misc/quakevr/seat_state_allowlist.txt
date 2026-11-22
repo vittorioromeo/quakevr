@@ -2997,7 +2997,6 @@ Quake/vr/vr_shells.cpp|landings
 Quake/vr/vr_shells.cpp|lastFrame
 Quake/vr/vr_shells.cpp|lastRun
 Quake/vr/vr_shells.cpp|pending
-Quake/vr/vr_shells.cpp|rng
 Quake/vr/vr_shells.cpp|shells
 Quake/vr/vr_shells.cpp|tracks
 Quake/vr/vr_shock.cpp|arcEye

@@ -870,7 +870,7 @@ struct DrawnRung
 
 // While flatscreen play's ladder looks for rungs (findRungs): the volume's own rungs, 16 apart, so two stand in its
 // window over the feet (drawn ones 24 or 32 apart may not); only a headset's hands take the drawn rungs.
-bool flatRungSearch = false;
+bool flatRungSearch = false; // seat-shared: set only around one ladder search (findRungs), never across frames
 
 [[nodiscard]] za::Optional<DrawnRung> drawnRung(const edict_t* vol, float z)
 {
@@ -5230,22 +5230,22 @@ float qvr::climb::drawnShare(int hand)
 
 bool qvr::climb::drawnPalm(int hand, glm::vec3& palm)
 {
-    if(hand < 0 || hand > 1 || pins[hand].weight <= 0.f)
+    if(hand < 0 || hand > 1 || pins()[hand].weight <= 0.f)
     {
         return false;
     }
-    palm = pins[hand].hold();
+    palm = pins()[hand].hold();
     return true;
 }
 
 bool qvr::climb::drawnBack(int hand, glm::vec3& back)
 {
-    if(hand < 0 || hand > 1 || pins[hand].weight <= 0.f)
+    if(hand < 0 || hand > 1 || pins()[hand].weight <= 0.f)
     {
         return false;
     }
     // (The hand model's left is a right hand's palm side; the off hand's mirrored model has it the other way.)
-    const glm::mat3 m = turnOn(pins[hand].toOut, pins[hand].toUp, hand == 0);
+    const glm::mat3 m = turnOn(pins()[hand].toOut, pins()[hand].toUp, hand == 0);
     back = hand == 0 ? m[1] : -m[1];
     return true;
 }

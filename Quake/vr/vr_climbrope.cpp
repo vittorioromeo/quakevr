@@ -1617,7 +1617,7 @@ struct HandSampler
     glm::vec3 arm[2][2]{};
     int have[2]{0, 0};
 };
-HandSampler handSampler;
+HandSampler handSampler; // seat-shared: a test's state
 
 const za::Vector<glm::vec3>& shownOf(ClientRope& c); // (below: the client's rope as drawn this frame)
 
@@ -1629,7 +1629,7 @@ struct HandsTest
     testkit::Tally tally;
     float pitch{0.f};
 };
-HandsTest handsTest;
+HandsTest handsTest; // seat-shared: a test's state
 constexpr const char* handsTestName = "vr_rope_hands_test";
 // (vrropes: the row's first rope, its first chain (1.5 thick), the heavy chain (3 thick, 40 kg); where he is set by each)
 constexpr glm::vec3 handsTestAt[3] = {{-300.f, 0.f, 170.f}, {-108.f, 0.f, 170.f}, {-12.f, 400.f, 380.f}};
@@ -1856,7 +1856,7 @@ struct PauseTest
     testkit::Tally tally;
     za::Vector<glm::vec3> mark; // the points at the mark: the server's, then the client's as drawn
 };
-PauseTest pauseTest;
+PauseTest pauseTest; // seat-shared: a test's state
 constexpr const char* pauseTestName = "vr_rope_pause_test";
 
 void pauseTestPoints(za::Vector<glm::vec3>& out)
@@ -1996,7 +1996,7 @@ struct SoundTest
     int rope{0}, chain{0};
     int ropeCount{0}, chainCount{0}; // their sounds at the mark
 };
-SoundTest soundTest;
+SoundTest soundTest; // seat-shared: a test's state
 constexpr const char* soundTestName = "vr_rope_sound_test";
 
 void soundTestFrame()
