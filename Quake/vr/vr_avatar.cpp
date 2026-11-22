@@ -1042,14 +1042,13 @@ struct ArmLengths
 };
 [[nodiscard]] ArmLengths armLengths(float m2w)
 {
-    const float length = CLAMP(0.5f, subject ? subject->armLength : vr_body_arm_length.value, 2.f);
+    const float length = subject ? subject->armLength : vr_body_arm_length.value;
     const float cm = detail::metresToUnits() * 0.01f;
     ArmLengths r;
     // (another player's: his measurements and tweaks, from his calibration: MP_PLAN B3c)
     const bodycal::Arms a = detail::arms();
-    const float mu = a.measuredCm[0], mf = a.measuredCm[1];
-    r.upper = za::max(5.f * cm, (mu > 0.f ? mu * cm : boneLength(UpperArmL, ForearmL) * m2w * length) + a.tweakCm[0] * cm);
-    r.fore = za::max(5.f * cm, (mf > 0.f ? mf * cm : boneLength(ForearmL, HandL) * m2w * length) + a.tweakCm[1] * cm);
+    r.upper = armBoneLength(boneLength(UpperArmL, ForearmL) * m2w, length, a.measuredCm[0], a.tweakCm[0], cm);
+    r.fore = armBoneLength(boneLength(ForearmL, HandL) * m2w, length, a.measuredCm[1], a.tweakCm[1], cm);
     r.calibrated = a.calibrated();
     return r;
 }
@@ -1814,6 +1813,11 @@ void armBones(float& upper, float& fore)
 {
     upper = boneLength(UpperArmL, ForearmL);
     fore = boneLength(ForearmL, HandL);
+}
+
+float armBoneLength(float modelLen, float armLength, float measuredCm, float tweakCm, float cm)
+{
+    return za::max(5.f * cm, (measuredCm > 0.f ? measuredCm * cm : modelLen * CLAMP(0.5f, armLength, 2.f)) + tweakCm * cm);
 }
 
 Frame uprightChest(const hands::State& s, float yaw, float eyeHeight)

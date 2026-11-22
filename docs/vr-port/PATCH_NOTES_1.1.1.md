@@ -169,7 +169,9 @@ The guide: [MULTIPLAYER.md](MULTIPLAYER.md).
   (his build, skin and gloves).
 - **New**: a dead player's ragdoll is his own body, not Quake's ranger's rigged under it: his build's shape at his height,
   its limbs his body's own lengths, falling, grabbed and struck as any ragdoll and seen the same by every player; single
-  player your own corpse too (the death camera and third person), and the bots' in their build.
+  player your own corpse too (the death camera and third person), and the bots' in their build. Its arms are his arms'
+  length and its shoulders where his are (his Body Calibration or arm length setting), and a flat-screen player's corpse
+  is his flat-screen body height.
 
 **Single player only**: time scale and bullet time, saving at will (the host's level-start coop autosave instead),
 the crates Quake VR places about maps, Dimension of the Past and Dimension of the Machine.
