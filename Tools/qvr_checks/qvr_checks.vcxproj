@@ -54,6 +54,7 @@
     <ClCompile Include="cvars_qc.cpp" />
     <ClCompile Include="canonical.cpp" />
     <ClCompile Include="qc_compiles.cpp" />
+    <ClCompile Include="std_uses.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="common.hpp" />
