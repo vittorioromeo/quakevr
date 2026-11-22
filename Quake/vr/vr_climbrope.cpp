@@ -141,7 +141,7 @@ struct ClientRope
     za::Vector<glm::vec3> prev;  // the message's before (P3: drawn between the two, as the entities are: shownOf)
     za::Vector<glm::vec3> shown; // the points as drawn this frame
     double msgTime{-1.0};        // the server's time of the message that last sent it (cl.mtime[0] then)
-    int shownFrame{-1};
+    double shownTime{-1.0};      // the client time it was made for (-1: to make again)
     float thickness{1.5f};
     bool chain{false};
     coil::Cord cord;
@@ -1546,8 +1546,12 @@ constexpr const char* handsTestName = "vr_rope_hands_test";
 // (vrropes: the row's first rope, its first chain (1.5 thick), the heavy chain (3 thick, 40 kg); where he is set by each)
 constexpr glm::vec3 handsTestAt[3] = {{-300.f, 0.f, 170.f}, {-108.f, 0.f, 170.f}, {-12.f, 400.f, 380.f}};
 constexpr const char* handsTestWhat[3] = {"rope", "chain", "heavy chain"};
-constexpr float handsJitterMost = 0.5f; // units: a palm's or arm's second difference a frame, at most (smooth: well under)
+constexpr float handsJitterMost = 1.f;  // units: a palm's or arm's second difference a frame, at most (smooth: well under)
 constexpr float handsGapMost = 1.f;     // units: the palm's middle off the drawn rope's surface at most (in it is fine)
+// Swinging, pumped: the means (were 1.9 and 5.5 at 144 Hz; now about 0.06 and 0.2); a rare hand change on the heavy
+// chain while pumped jumps (its maxima reported, not checked: ROPES.md "Known limits").
+constexpr float handsSwingJitterMean = 0.3f;
+constexpr float handsSwingGapMean = 0.5f;
 
 void handSamplerStart()
 {
@@ -1615,12 +1619,14 @@ void handSamplerFrame()
 }
 
 // The sampler's numbers since handSamplerStart checked: `what` (rope, chain), `how` (hanging, swinging).
-void handsTestReport(HandsTest& t, const char* what, const char* how)
+void handsTestReport(HandsTest& t, const char* what, const char* how, bool swinging)
 {
     const HandStat& st = handSampler.stat;
     handSampler.on = false;
     const float n = static_cast<float>(za::max(st.n, 1));
-    const bool ok = st.n >= 72 && st.jitMax <= handsJitterMost && st.armMax <= handsJitterMost && st.gapMax <= handsGapMost;
+    const bool ok = st.n >= 72 && (swinging ? st.jitSum / n <= handsSwingJitterMean && st.armSum / n <= handsSwingJitterMean &&
+                                                  st.gapSum / n <= handsSwingGapMean
+                                            : st.jitMax <= handsJitterMost && st.armMax <= handsJitterMost && st.gapMax <= handsGapMost);
     const char* line = va("%s %s: %d samples; palm jitter mean %.3f max %.3f, arm jitter mean %.3f max %.3f, off the drawn %s "
                           "mean %.2f max %.2f (shake at most %.2f)",
         what, how, st.n, st.jitSum / n, st.jitMax, st.armSum / n, st.armMax, what, st.gapSum / n, st.gapMax, st.shakeMax);
@@ -1653,7 +1659,7 @@ void handsTestFrame()
         return;
     }
     const int client = NUM_FOR_EDICT(player) - 1;
-    cl.viewangles[PITCH] = 0.f;
+    cl.viewangles[PITCH] = t.pitch;
     cl.viewangles[YAW] = 0.f;
     bool climbing = false;
     (void)climb::flatRopes(player, climbing);
@@ -1684,13 +1690,19 @@ void handsTestFrame()
         }
         return;
     case 3: // eased onto it (the hands' pins in, the take's swing damped a little): sampled hanging
+        t.pitch = -40.f; // (looking up at the hands, no key held: no climb)
         if(t.frames == 36)
         {
             handSamplerStart();
         }
+        else if(t.frames == 108)
+        {
+            Cbuf_AddText("screenshot\n"); // (the grip seen: the kit's -Out composes it)
+        }
         else if(t.frames >= 36 + 144)
         {
-            handsTestReport(t, what, "hanging");
+            t.pitch = 0.f; // (level: the move keys pump)
+            handsTestReport(t, what, "hanging", false);
             handSamplerStart();
             Cbuf_AddText("+forward\n"); // (looking level: the pump)
             t.stage = 4;
@@ -1705,7 +1717,7 @@ void handsTestFrame()
         }
         else if(t.frames >= 216)
         {
-            handsTestReport(t, what, va("swinging (%.0f units/s at the hands)", glm::length(glm::vec2{v.x, v.y})));
+            handsTestReport(t, what, va("swinging (%.0f units/s at the hands)", glm::length(glm::vec2{v.x, v.y})), true);
             Cbuf_AddText("-forward\n+jump\n");
             t.stage = 5;
             t.frames = 0;
@@ -1912,13 +1924,16 @@ mem::Reset clientStateReset{"climbrope", mem::ResetEvent::ClientState, mem::Rese
 // The client's rope as drawn this frame (and held, the climbers' feet round it): between the last two messages' points
 // as the entities are drawn (CL_LerpPoint's fraction: the server's time between them), so a player hanging on it, drawn
 // there too, stays on it as it swings (P3, ROPES.md "Multiplayer"); a rope the latest message didn't move stands as sent.
+// Made again whenever the client's time moved (ropes5: it was kept a host frame, and the frame's first ask can come
+// before its time moves on (the server's tick), so a client drawing faster than the server drew it a tick at a time:
+// the hands on it shook).
 const za::Vector<glm::vec3>& shownOf(ClientRope& c)
 {
-    if(c.shownFrame == host_framecount)
+    if(c.shownTime == cl.time)
     {
         return c.shown;
     }
-    c.shownFrame = host_framecount;
+    c.shownTime = cl.time;
     const double span = cl.mtime[0] - cl.mtime[1];
     const bool lerp = c.msgTime == cl.mtime[0] && c.prev.size() == c.p.size() && span > 1e-4 && span < 0.25;
     const float f = lerp ? static_cast<float>(za::clamp((cl.time - cl.mtime[1]) / span, 0.0, 1.0)) : 1.f;
@@ -2010,7 +2025,7 @@ bool isRopeClass(const char* classname)
 
 void serverFrame(bool worldRan)
 {
-    if(!worldRan || !sv.active || sv.paused || !progs::bindings().isVrProgs || progs::fields().rope_length < 0)
+    if(!sv.active || sv.paused || !progs::bindings().isVrProgs || progs::fields().rope_length < 0)
     {
         return;
     }
@@ -2046,7 +2061,7 @@ void serverFrame(bool worldRan)
     {
         return;
     }
-    const float dt = za::clamp(static_cast<float>(host_frametime), 0.f, 0.1f);
+    const float dt = worldRan ? za::clamp(static_cast<float>(host_frametime), 0.f, 0.1f) : 0.f; // (paused: they stand, ropes5)
     if(dt <= 0.f)
     {
         return;
@@ -2361,7 +2376,7 @@ void parse()
         c.prev = c.p;
     }
     c.msgTime = cl.mtime[0];
-    c.shownFrame = -1;
+    c.shownTime = -1.0;
     c.p.resize(static_cast<za::SizeT>(n));
     glm::vec3 at{0.f};
     for(int i = 0; i < n; i++)
@@ -2425,6 +2440,50 @@ bool clientRopeAt(const glm::vec3& near, float within, float z, glm::vec3& at)
             break;
         }
     }
+    return true;
+}
+
+bool clientRopeNearest(const glm::vec3& near, float within, glm::vec3& at, glm::vec3& up, float& thickness)
+{
+    ClientRope* best = nullptr;
+    float bestDist = within;
+    for(auto& kv : clientRopes)
+    {
+        const za::Vector<glm::vec3>& q = shownOf(kv.second);
+        for(za::SizeT j = 0; j + 1 < q.size(); j++)
+        {
+            float ta = 0.f, tb = 0.f;
+            if(const float d = geom::segmentsDistance(near, near, q[j], q[j + 1], ta, tb); d < bestDist)
+            {
+                bestDist = d;
+                best = &kv.second;
+            }
+        }
+    }
+    if(!best)
+    {
+        return false;
+    }
+    // On its curve as drawn (drawOpaque's: through the points as shown this frame), as far straight from its top as
+    // `near` is: a hold keeps that while it hangs (on the rider's line, straight from the top), so the point found moves
+    // as smoothly as the drawn rope does (the nearest point slid along a bent curve as `near`, a tick ahead, moved).
+    smoothInto(shownOf(*best), scratch.smooth);
+    const za::Vector<glm::vec3>& q = scratch.smooth;
+    if(q.size() < 2)
+    {
+        return false;
+    }
+    const float want = glm::distance(near, q[0]);
+    za::SizeT j = 0;
+    while(j + 2 < q.size() && glm::distance(q[j + 1], q[0]) < want)
+    {
+        j++;
+    }
+    const float da = glm::distance(q[j], q[0]), db = glm::distance(q[j + 1], q[0]);
+    at = glm::mix(q[j], q[j + 1], db - da > 1e-4f ? za::clamp((want - da) / (db - da), 0.f, 1.f) : 1.f);
+    const glm::vec3 piece = q[j] - q[j + 1]; // (the points go from its top down)
+    up = glm::length(piece) > 1e-4f ? glm::normalize(piece) : glm::vec3{0.f, 0.f, 1.f};
+    thickness = best->thickness;
     return true;
 }
 

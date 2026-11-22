@@ -831,15 +831,11 @@ void setupHands(int slot, int e, const Avatar& a, const glm::vec3& origin, const
 }
 
 // (ropes4) A hand of his on a rope's hold (the server's, on a rope as this client draws it): where its palm's middle goes
-// (the hold, by climb::ropeHandOffset as yours), world. False: not holding a rope with it.
+// (on the rope as drawn this frame, by climb::ropePalm as yours: ropes5), world. False: not holding a rope with it.
 [[nodiscard]] bool ropePalmTarget(const Avatar& a, const glm::vec3& origin, int side, glm::vec3& target)
 {
-    if(!(a.moves & (side ? avatarHoldMain : avatarHoldOff)) || !climb::ropeHold(origin + a.holdAt[side]))
-    {
-        return false;
-    }
-    target = origin + a.holdAt[side] + climb::ropeHandOffset(a.holdOut[side]);
-    return true;
+    return (a.moves & (side ? avatarHoldMain : avatarHoldOff)) &&
+           climb::ropePalm(origin + a.holdAt[side], a.holdOut[side], target, nullptr);
 }
 
 // (ropes4) His places (head, hands, gear) come from his client's origin, which on a rope (the server moves him with it)

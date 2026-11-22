@@ -150,6 +150,7 @@
 #include "vr_box3d.hpp"
 #include "vr_climbrope.hpp"
 #include "vr_cvars.hpp"
+#include "vr_flatplay.hpp"
 #include "vr_tunables.hpp"
 #include "vr_engine.hpp"
 #include "vr_hands.hpp"
@@ -4475,6 +4476,7 @@ struct Pin
     float inTime{0.06f};   // seconds this hold's ease takes (longer for a hold further from the hand)
     glm::vec3 offset{0.f}; // the looks' offset on the hold (vr_climb_hand_*)
     glm::vec3 fromOut{1.f, 0.f, 0.f}, toOut{1.f, 0.f, 0.f}; // the holds' ways out (the hand's turn on them)
+    glm::vec3 fromUp{0.f}, toUp{0.f}; // on a rope: its way up at the hold, as drawn (0: a ledge's hold; ropeTurn)
     double last{-1.0};
     [[nodiscard]] float eased() const
     {
@@ -4495,6 +4497,7 @@ constexpr float yawSteps = 256.f;   // the holds' ways out in the stats: a byte 
 constexpr int mantleStatBit = 1 << 30; // STAT_QVR_CLIMB: mantling now (bits 0-29 the holds')
 constexpr float ropeHoldNear = 12.f;   // units: a hold this near a drawn rope is on it (a frame's swing between them and more: ropeHold)
 constexpr float ropeHandOut = 0.025f;  // m: a hand on a rope, its palm's middle from the rope towards the climber (ropeHandOffset)
+constexpr float ropeHandSurface = 0.4f; // of its thickness: at least this far (a thick chain's surface, a little in: ropePalm)
 
 // The time the drawn hand takes to ease `dist` units.
 [[nodiscard]] float easeTime(float dist)
@@ -4543,6 +4546,25 @@ constexpr float ropeHandOut = 0.025f;  // m: a hand on a rope, its palm's middle
     glm::mat3 m{front, -up * side, left * side};
     m = glm::mat3_cast(glm::angleAxis(-glm::radians(vr_climb_hand_pitch.value), left)) * m;
     return m * glm::mat3_cast(glm::angleAxis(glm::radians(vr_climb_hand_roll.value) * side, glm::vec3{1.f, 0.f, 0.f}));
+}
+
+// (ropes5) The drawn hand's turn gripping a rope whose way up at the hold is `up` (as drawn), the hold's way out (towards
+// the climber) `out`: the rope through the fist as a gun's grip is held (the thumb's side up the rope, the palm against
+// it), the front (the knuckles) away from the body; the same for either hand (the left hand's model mirrors it).
+[[nodiscard]] glm::mat3 ropeTurn(const glm::vec3& out, const glm::vec3& up)
+{
+    glm::vec3 front = -(out - up * glm::dot(out, up));
+    front = glm::length(front) > 1e-4f ? glm::normalize(front) : glm::vec3{1.f, 0.f, 0.f};
+    return glm::mat3{front, glm::cross(up, front), up};
+}
+
+// The drawn hand's turn on a hold: gripping a rope (`up` set: ropeTurn) where vr_rope_hand_grip has it (1 flat-screen
+// play, 2 VR too), else as on a ledge (holdTurn).
+[[nodiscard]] glm::mat3 turnOn(const glm::vec3& out, const glm::vec3& up, bool mirrored)
+{
+    const int grip = static_cast<int>(vr_rope_hand_grip.value);
+    const bool rope = glm::length(up) > 0.5f && (grip >= 2 || (grip == 1 && flatplay::active()));
+    return rope ? ropeTurn(out, up) : holdTurn(out, mirrored);
 }
 
 } // namespace
@@ -4865,6 +4887,25 @@ glm::vec3 qvr::climb::ropeHandOffset(const glm::vec3& out)
     return out * (ropeHandOut * units::metresToUnits());
 }
 
+bool qvr::climb::ropePalm(const glm::vec3& hold, const glm::vec3& out, glm::vec3& palm, glm::vec3* up)
+{
+    glm::vec3 at{0.f};
+    glm::vec3 ropeUp{0.f, 0.f, 1.f};
+    float thickness = 0.f;
+    if(!climbrope::clientRopeNearest(hold, ropeHoldNear, at, ropeUp, thickness))
+    {
+        return false;
+    }
+    glm::vec3 o = out - ropeUp * glm::dot(out, ropeUp); // (square to the rope where it is held)
+    o = glm::length(o) > 1e-4f ? glm::normalize(o) : out;
+    palm = at + o * za::max(ropeHandOut * units::metresToUnits(), ropeHandSurface * thickness);
+    if(up)
+    {
+        *up = ropeUp;
+    }
+    return true;
+}
+
 float qvr::climb::drawnHand(const hands::State& s, int hand, const glm::mat3& handTurn, glm::vec3& pos, glm::vec3& rot,
     glm::vec3& lightShift)
 {
@@ -4886,13 +4927,25 @@ float qvr::climb::drawnHand(const hands::State& s, int hand, const glm::mat3& ha
         const glm::vec3 at = glm::vec3{static_cast<float>(cl.stats[first]), static_cast<float>(cl.stats[first + 1]),
                                  static_cast<float>(cl.stats[first + 2])} /
                              statScale;
-        pin.offset = ropeHold(at) ? ropeHandOffset(out) : handOffset(out, hand); // (ropes4: a rope's, on it)
-        const glm::vec3 hold = at + pin.offset;
+        // (ropes4: a rope's, on it; ropes5: on the rope as drawn this frame, not the server's hold a tick old: no
+        // step a server frame in the hand, no gap where the drawn rope is between messages or bent off the line)
+        glm::vec3 hold{0.f};
+        glm::vec3 ropeUp{0.f};
+        if(ropePalm(at, out, hold, &ropeUp))
+        {
+            pin.offset = hold - at;
+        }
+        else
+        {
+            pin.offset = handOffset(out, hand);
+            hold = at + pin.offset;
+        }
         const int serial = (bits >> (2 + 6 * hand)) & 63;
         if(pin.weight <= 0.f)
         {
             pin.from = pin.to = hold;
             pin.fromOut = out;
+            pin.fromUp = ropeUp;
             pin.along = 1.f;
             const float dist = glm::distance(hold, hands::palmPoint(s, hand));
             pin.inTime = easeTime(dist);
@@ -4906,11 +4959,13 @@ float qvr::climb::drawnHand(const hands::State& s, int hand, const glm::mat3& ha
         {
             pin.from = pin.hold(); // taken again before the hand was back: on to the new hold
             pin.fromOut = glm::normalize(glm::mix(pin.fromOut, pin.toOut, pin.eased()) + glm::vec3{1e-4f, 0.f, 0.f});
+            pin.fromUp = pin.toUp;
             pin.along = 0.f;
             pin.inTime = easeTime(glm::distance(hold, pin.from));
         }
         pin.to = hold; // (a hold on a moving brush model moves)
         pin.toOut = out;
+        pin.toUp = ropeUp;
         pin.serial = serial;
         pin.along = za::min(1.f, pin.along + dt / pin.inTime);
         pin.weight = za::min(1.f, pin.weight + dt / pin.inTime);
@@ -4930,7 +4985,8 @@ float qvr::climb::drawnHand(const hands::State& s, int hand, const glm::mat3& ha
     // controller's, as it was), eased in and out with the hand's place.
     const glm::mat3 drawn = anglesAxes(rot) * handTurn;
     const bool mirrored = hand == 0; // (the off hand: the left hand's model, as vr_view.cpp draws it)
-    const glm::quat onFrom = glm::quat_cast(holdTurn(pin.fromOut, mirrored)), onTo = glm::quat_cast(holdTurn(pin.toOut, mirrored));
+    const glm::quat onFrom = glm::quat_cast(turnOn(pin.fromOut, pin.fromUp, mirrored)),
+                    onTo = glm::quat_cast(turnOn(pin.toOut, pin.toUp, mirrored));
     const glm::quat qDrawn = glm::normalize(glm::quat_cast(drawn));
     const glm::quat qHold = glm::normalize(glm::slerp(onFrom, onTo, pin.eased()));
     const glm::quat qBlend = glm::slerp(qHold, qDrawn, CLAMP(0.f, vr_climb_hand_turn_blend.value, 1.f));

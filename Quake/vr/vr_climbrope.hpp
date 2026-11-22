@@ -83,6 +83,10 @@ void setPump(int client, const glm::vec3& accel);
 [[nodiscard]] bool riding(int client, int& ent, glm::vec3& handVel);
 // Client: the rope passing within `within` units of `near` -> true, and its point at height `z` (or its bottom end).
 [[nodiscard]] bool clientRopeAt(const glm::vec3& near, float within, float z, glm::vec3& at);
+// Client: the rope passing within `within` units of `near` -> true: its point as drawn this frame (on its curve through
+// the points as shown) as far straight from its top as `near` is, its way up there (unit, towards its top) and its thickness (ropes5: a hand drawn
+// on it, climb::ropePalm).
+[[nodiscard]] bool clientRopeNearest(const glm::vec3& near, float within, glm::vec3& at, glm::vec3& up, float& thickness);
 // Client: how far `p` is from the nearest rope's pieces (units; 1e9: none). (vr_mp_avatars' mp_ropepose.)
 [[nodiscard]] float clientRopeDistance(const glm::vec3& p);
 
