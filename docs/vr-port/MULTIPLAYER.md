@@ -111,6 +111,8 @@ for the others. Any PC with Quake VR installed can run one (the same port rule a
 - The host's game autosaves at each level's start (a coop save: the host can load it and the others join again).
 - Players see each other's real heads, hands, fingers, held weapons and bodies (sized by each one's own calibration),
   can hand weapons and ammo to each other, and pick up what the others dropped.
+- A hit player's wounds and bleeding show on him for everyone (blood pouring, drops, drips: you hear the pour land),
+  and his gun's small things as yours: the auto pump's stroke and clacks, the ammo screen's light, the barrel's heat glow.
 
 ## Deathmatch and bots
 
