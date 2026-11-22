@@ -2095,6 +2095,17 @@ front at the waist, the layers still carrying the runtime's poses: an unworn hea
   -1.19, in-session A/B). Resolution: no room for a higher base; the fight's floor could be 0.65 (7.99 ms) but
   questMusts caps it at 0.55: his call. ROUND25 "Quest C5h".
 
+## 6zt. C5i: the dynres floor 0.65 (his call), installed for his test (2026-11-22; adb, unworn)
+
+- Quest 3 72 Hz preset `vr_dynres_min` 0.55 -> **0.65** (90 Hz and Quest 2 unchanged, 0.5); `vr_quest_check`'s ceiling
+  for it 0.55 -> 0.65 (else it set the new floor back). PC unchanged. The frozen fight (C5h's scene, the preset, 2
+  rounds): dynres sits at its ceiling 0.90, 10.4 ms GPU, period 14.0 (72 Hz held); fixed 0.65 5.96 ms.
+- His headset's saved config held the old preset rows (dynres_min 0.55, torch/rig world lights 0, dlmap/quake_dlights
+  0, depth_float 1, prepass 1): kept as `ironwail_before_c5i.cfg` in the game folder, then `vr_quest_preset 0` saved.
+- **Found**: `vr_gl_world_dlmap` and `vr_alias_prepass_world` are not archived, so after the first session a saved
+  config starts them at their PC defaults (0 / 1); dlmap is covered by `vr_gl_quake_dlights 1`, the pre-pass is not
+  (C4w: -0.49 ms lost). ROUND25 "Quest C5i".
+
 ## 7. Installs (done 2026-11-14 at his approval, by the coordinator)
 
 Installed under `F:\QuakeVRDev` (`env.sh` / `env.ps1` there set `JAVA_HOME`, `ANDROID_HOME`, `ANDROID_SDK_ROOT`,

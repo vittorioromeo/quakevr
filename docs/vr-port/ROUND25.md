@@ -8879,3 +8879,21 @@ All three were the tests, not the game; no player-facing change.
   and AD's own monsters'), multiplies by `VR_AD_SHELL_FASTER` 1.3; the Player/Enemy Pellet Speed settings stay 1 and
   multiply on top; vanilla's hitscan untouched. `vr_ad_test 58` now prints `adshots-test: speed PASS|FAIL` (ad_shots
   test's FAIL scan catches it): player 2601 (AD 2000 x 1.3), enemy 1241 (950 x 1.3); at the settings x2: 5210, 2450.
+
+## Quest C5i: the Quest's dynres floor 0.65, built and installed for his test (questc5i, 2026-11-22; branch agent/quest)
+
+- His call: the Quest 3 72 Hz preset's `vr_dynres_min` 0.55 -> 0.65 (`vr_gfxpresets.cpp` questRows); the 90 Hz and
+  Quest 2 columns stay 0.5; `vr_quest_check`'s ceiling for it 0.55 -> 0.65 (a ceiling: lower saved values kept). PC
+  untouched (the Quest table runs only under -glescompat / Android).
+- APK `build-android/apk/QuakeVR.apk` (21.9 MB): native 0 warnings, check_apk 20/0; `adb install -r` Success; progs.dat
+  and the merge's changed models (onemodel's variants) and `data/weapons.txt` pushed (md5s match).
+- His saved config on the headset predated C5g/C5h (7 rows off the preset: vr_dynres_min 0.55, vr_torch_lights 0,
+  vr_rig_lights_world 0, vr_gl_world_dlmap 0, vr_gl_quake_dlights 0, vr_depth_float 1, vr_alias_prepass_world 1).
+  Backed up with `writeconfig ironwail_before_c5i` (in the game folder), then `vr_quest_preset 0` and `writeconfig`.
+  A plain start now reads vr_dynres_min 0.65, vr_gl_quake_dlights 1, vr_depth_float 0; no probes (vr_gl_alias_body 0,
+  vr_gles_define empty).
+- Frozen fight (C5h's e1m1 scene, the preset, 2 rounds, gpu_span ms): dynres 10.38 / 10.42 at scale 0.90 (its
+  ceiling: the floor is not reached), period 13.99 (72 Hz held); fixed 0.65 5.96 / 5.95.
+- Found, not fixed: `vr_gl_world_dlmap` and `vr_alias_prepass_world` are CVAR_NONE, so the preset's values for them
+  last one session; a saved config starts them at 0 / 1 (dlmap is covered by vr_gl_quake_dlights 1; the pre-pass, C4w
+  -0.49 ms, is not).

@@ -130,7 +130,7 @@ constexpr presetcore::Row questRows[] = {
     // The eyes' pixels: the GPU's biggest lever (every pass scales with it)
     {&vr_render_scale,                {"0.9",    "0.75",   "0.65"}},
     {&vr_dynres,                      {"1",      "1",      "1"}},
-    {&vr_dynres_min,                  {"0.55",   "0.5",    "0.5"}},   // fights sit at the floor (C4o: 0.65 -> 0.55, frames over 1.5 periods 7-17% -> 5-7%, a big light's world -2.5 ms)
+    {&vr_dynres_min,                  {"0.65",   "0.5",    "0.5"}},   // his call 2026-11-22 (C5i): 0.55 -> 0.65 now the world's lights are Quake's way (C5g/C5h: the fight 11.3 -> 7.0 ms); C4o had cut 0.65 -> 0.55
     {&vr_upscale,                     {"0",      "0",      "0"}},     // bilinear: no full-size pass
     {&vid_fsaa,                       {"0",      "0",      "0"}},     // off: 2x cost the Quest 3 ~100 ms a frame (C4e: e1m1 138 -> 41 ms; the float scene's MSAA resolved through memory, not on chip)
     {&vr_taa,                         {"0",      "0",      "0"}},     // its history reads and writes: bandwidth
@@ -237,7 +237,7 @@ const QuestMust questMusts[] = {
     // his saved config's two PC values against the Quest preset (adb session of 2026-11-17: 44 fps of 72 with both,
     // 51 with the first set back, 63 with both)
     {&vr_shadow_dlights, "0", "the dynamic lights' shadow maps cost the Quest 3 ~4 ms a frame (44 -> 51 fps, his saved config)", true},
-    {&vr_dynres_min, "0.55", "the dynamic resolution's floor above the Quest preset's keeps fights GPU-bound (51 -> 63 fps)", true},
+    {&vr_dynres_min, "0.65", "the dynamic resolution's floor above the Quest preset's keeps fights GPU-bound (his saved PC value: 51 -> 63 fps)", true},
 };
 
 // vr_quest_check (Android starts, after the saved config; Debug > Startup): the Quest rows that differ from the nearest
