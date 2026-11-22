@@ -289,9 +289,31 @@ float(float i) bot_pick_nth =
         i == 8 ? WID_REVOLVER : i == 9 ? WID_SHOTGUN : WID_NAILPISTOL;
 };
 
+// QVR: a bot never reloads, so its guns fire from its ammo, never a clip (VRIsWeaponReloadingEnabledFor: humans only).
+// A loaded gun in its hands (taken from a player by a disarm, picked up, the revolver loadout's) has its clip's rounds
+// put with its ammo, each AI frame (his voice note 2026-11-22: a bot holding a revolver it took aimed and never shot:
+// its own shells spent, it clicked on the six in the clip, or dropped it for its axe). vr_dm_test 14.
+void() bot_clips_to_ammo =
+{
+    for(float hand = 0; hand < 2; hand++)
+    {
+        float xHand = hand == 0 ? cVR_MainHand : cVR_OffHand;
+        float n = VRGetEntWeaponClip(self, xHand);
+        float wid = VRGetEntWeapon(self, xHand);
+        if(n > 0 && WeaponIdToSupportsReload(wid))
+        {
+            float aid = WeaponIdToAmmoId(wid, VRGetEntWeaponFlags(self, xHand));
+            if(aid != AID_NONE)
+            {
+                VR_AmmoUtil_SetAmmoCountByAmmoId(self, aid, VR_AmmoUtil_GetAmmoCountByAmmoId(self, aid) + n);
+            }
+            VRSetEntWeaponClip(self, xHand, 0);
+        }
+    }
+};
+
 // QVR: whether the bot has `wid` and the ammo for a shot of it (two for the double-barrelled guns' two shells and the
-// super nailgun's two nails; the lightning gun not under water). The gun it holds counts what its clip holds too (a
-// loaded revolver with no shells left still fires).
+// super nailgun's two nails; the lightning gun not under water). Its guns' clips are its ammo (bot_clips_to_ammo).
 float(float wid) bot_can_fire =
 {
     if(!bot_has_usable(wid) || (wid == WID_LIGHTNING && self.waterlevel > 1))
@@ -304,12 +326,7 @@ float(float wid) bot_can_fire =
         return TRUE;
     }
     float need = (wid == WID_SUPER_SHOTGUN || wid == WID_SUPER_NAILGUN) ? 2 : 1;
-    float have = VR_AmmoUtil_GetAmmoCountByAmmoId(self, aid);
-    if(wid == self.weapon && WeaponIdToSupportsReload(wid))
-    {
-        have = have + VRGetEntWeaponClip(self, cVR_MainHand);
-    }
-    return have >= need;
+    return VR_AmmoUtil_GetAmmoCountByAmmoId(self, aid) >= need;
 };
 
 float(float brange) bot_pick_weapon =
