@@ -13,13 +13,16 @@
 #include "vr_seat.hpp"
 
 #include "vr_avatar.hpp"
+#include "vr_blood.hpp"
 #include "vr_cvars.hpp"
 #include "vr_emissive.hpp"
 #include "vr_engine.hpp"
 #include "vr_geom.hpp"
+#include "vr_mpavatar.hpp"
 #include "vr_particles.hpp"
 #include "vr_protocol.hpp"
 #include "vr_api.h"
+#include "vr_view.hpp"
 #include "vr_visor.hpp"
 
 #include "Zancle/Math/Abs.hpp"
@@ -41,6 +44,10 @@ enum class Step
     WaitDrawn,  // every seat's view drawn a few times, turned its own way
     WaitBooted, // every seat's visor powered on (its boot sweep), then the screenshot
     WaitShot,   // the screenshot taken (the frame after its command)
+    FlashBase,  // split11: no seat under water; each seat's picture read (its probe grid), then every flash on every seat
+    FlashOn,    // the flashes held (damage, burn, water, the pain's blood); each tile still its own view; a screenshot
+    FlashShot,  // the screenshot taken; the flashes off
+    FlashOff,   // each tile back to its picture (nothing stuck)
     WaitAlone,  // the seats left: seat 1 drawn in the whole window again
 };
 
@@ -54,6 +61,7 @@ struct RenderTest
     bool torches = false;      // vr_seat_render_test <n> torches: each seat's own torch lights checked (a map with torches)
     int drawnAt[maxSeats] = {}; // each seat's drawn count when the step began
     float notifyTime = 3.f;     // con_notifytime before (the notify lines hidden while the markers are read)
+    byte base[maxSeats][SEAT_PROBEGRID * SEAT_PROBEGRID] = {}; // split11: each seat's picture before the flashes
 } renderTest;
 
 constexpr int stepFrames = 1440; // a step's give-up (20 s of game time): a FAIL "timed out"
@@ -247,6 +255,43 @@ void checkBodies()
         }
         check(nearest == s && best < 32.f, va("seat %d's body posed at its own player (%.1f units; nearest seat %d)", s + 1,
             static_cast<double>(best), nearest + 1));
+    }
+    // split11: each seat's pass adds its own first-person hands, weapons and body (seats 2-4 drew none: the view
+    // entities went in once a frame, by seat 1's pass).
+    for(int s = 0; s < n; s++)
+    {
+        int frame = -1;
+        const int added = view::ownEntitiesAdded(s, frame);
+        check(added >= 2 && frame >= host_framecount - 1,
+            va("seat %d draws its own hands, weapons and body (%d view entities, %d frames ago)", s + 1, added,
+                host_framecount - frame));
+    }
+    // split11: every seat sees every other seat's player as his IK avatar (vr_mpavatar's copies, each seat's own), not the
+    // player model: seat 2 saw the host as id's ranger (one shared set of copies, added once a frame by seat 1's pass).
+    for(int s = 0; s < n; s++)
+    {
+        int seen = 0;
+        char missing[32] = "";
+        for(int o = 0; o < n; o++)
+        {
+            const clientseat_t* net = CL_SeatNetIfMade(o);
+            if(o == s || !net)
+            {
+                continue;
+            }
+            const int ent = net->cstate.viewentity;
+            const Scope in(at(s));
+            if(mpavatar::drawnNow(ent))
+            {
+                seen++;
+            }
+            else
+            {
+                q_strlcat(missing, va(" %d", o + 1), sizeof(missing));
+            }
+        }
+        check(seen == n - 1, va("seat %d sees the other %d seats as IK avatars (%d; missing:%s)", s + 1, n - 1, seen,
+            missing[0] ? missing : " none"));
     }
 }
 
@@ -519,6 +564,86 @@ void checkWater()
     cl.forceunderwater = false;
 }
 
+// split11: every flash on seat s (the current one): a hit's damage flash, a burn's (fire's orange, as the bonus shift
+// carries it), the water's warp (cl.forceunderwater) and the pain's blood on the screen (vr_blood). Held each frame (the
+// shifts decay).
+void flashesOn()
+{
+    cl.cshifts[CSHIFT_DAMAGE].destcolor[0] = 255;
+    cl.cshifts[CSHIFT_DAMAGE].destcolor[1] = 0;
+    cl.cshifts[CSHIFT_DAMAGE].destcolor[2] = 0;
+    cl.cshifts[CSHIFT_DAMAGE].percent = 120;
+    cl.cshifts[CSHIFT_BONUS].destcolor[0] = 255;
+    cl.cshifts[CSHIFT_BONUS].destcolor[1] = 96;
+    cl.cshifts[CSHIFT_BONUS].destcolor[2] = 0;
+    cl.cshifts[CSHIFT_BONUS].percent = 60;
+    cl.forceunderwater = true;
+}
+
+void flashesOff()
+{
+    cl.cshifts[CSHIFT_DAMAGE].percent = 0;
+    cl.cshifts[CSHIFT_BONUS].percent = 0;
+    cl.forceunderwater = false;
+    blood::clear();
+}
+
+// How far picture b is from picture a, up to a brightness and contrast change (a tint, a flash): the RMS of b less its
+// least-squares fit a * k + c, in luminance units. A view squashed into part of its tile (the warp's texture scale
+// from the tile's size: split11's bug) or a stale picture in it leaves a large residue.
+[[nodiscard]] float pictureResidue(const byte* a, const byte* b)
+{
+    constexpr int n = SEAT_PROBEGRID * SEAT_PROBEGRID;
+    double ma = 0.0, mb = 0.0;
+    for(int i = 0; i < n; i++)
+    {
+        ma += a[i];
+        mb += b[i];
+    }
+    ma /= n;
+    mb /= n;
+    double sab = 0.0, saa = 0.0;
+    for(int i = 0; i < n; i++)
+    {
+        sab += (a[i] - ma) * (b[i] - mb);
+        saa += (a[i] - ma) * (a[i] - ma);
+    }
+    const double k = saa > 1e-6 ? sab / saa : 0.0;
+    double res = 0.0;
+    for(int i = 0; i < n; i++)
+    {
+        const double d = b[i] - (mb + k * (a[i] - ma));
+        res += d * d;
+    }
+    return static_cast<float>(std::sqrt(res / n));
+}
+
+[[nodiscard]] float pictureDiff(const byte* a, const byte* b)
+{
+    constexpr int n = SEAT_PROBEGRID * SEAT_PROBEGRID;
+    int sum = 0;
+    for(int i = 0; i < n; i++)
+    {
+        sum += za::abs(static_cast<int>(a[i]) - static_cast<int>(b[i]));
+    }
+    return static_cast<float>(sum) / n;
+}
+
+[[nodiscard]] bool drawnSince(const int wanted)
+{
+    for(int s = 0; s < renderTest.seats; s++)
+    {
+        if(V_SeatViewOf(s)->drawnframes - renderTest.drawnAt[s] < wanted)
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+constexpr float flashResidueMax = 12.f; // luminance units: a flashed tile still its own view (a broken one: 30+)
+constexpr float backDiffMax = 6.f;      // a tile back to its picture once the flashes are off
+
 void testFrame()
 {
     RenderTest& t = renderTest;
@@ -612,6 +737,78 @@ void testFrame()
             if(t.frames < 4)
             {
                 return;
+            }
+            for(int s = 0; s < t.seats; s++)
+            {
+                const Scope in(at(s));
+                cl.forceunderwater = false;
+            }
+            go(Step::FlashBase);
+            return;
+        case Step::FlashBase:
+            if(!drawnSince(drawsWanted))
+            {
+                return;
+            }
+            for(int s = 0; s < t.seats; s++)
+            {
+                memcpy(t.base[s], V_SeatViewOf(s)->probegrid, sizeof(t.base[s]));
+                const Scope in(at(s));
+                flashesOn();
+                blood::onDamage(10, 30, nullptr); // (the pain's blood: a neutral hit)
+            }
+            go(Step::FlashOn);
+            return;
+        case Step::FlashOn:
+            for(int s = 0; s < t.seats; s++)
+            {
+                const Scope in(at(s));
+                flashesOn();
+            }
+            if(!drawnSince(drawsWanted))
+            {
+                return;
+            }
+            for(int s = 0; s < t.seats; s++)
+            {
+                const seatview_t* v = V_SeatViewOf(s);
+                const float residue = pictureResidue(t.base[s], v->probegrid);
+                check(v->blend[3] > 0.2f && residue < flashResidueMax,
+                    va("seat %d flashed (damage, burn, water, pain): its tile still its view (tint %.2f, residue %.1f)", s + 1,
+                        static_cast<double>(v->blend[3]), static_cast<double>(residue)));
+            }
+            Cbuf_AddText("screenshot\n");
+            go(Step::FlashShot);
+            return;
+        case Step::FlashShot:
+            for(int s = 0; s < t.seats; s++)
+            {
+                const Scope in(at(s));
+                flashesOn();
+            }
+            if(t.frames < 4)
+            {
+                return;
+            }
+            for(int s = 0; s < t.seats; s++)
+            {
+                const Scope in(at(s));
+                flashesOff();
+            }
+            go(Step::FlashOff);
+            return;
+        case Step::FlashOff:
+            if(!drawnSince(drawsWanted))
+            {
+                return;
+            }
+            for(int s = 0; s < t.seats; s++)
+            {
+                const seatview_t* v = V_SeatViewOf(s);
+                const float diff = pictureDiff(t.base[s], v->probegrid);
+                check(v->blend[3] == 0.f && diff < backDiffMax,
+                    va("seat %d's flashes over: its tile back to its picture (tint %.2f, off by %.1f)", s + 1,
+                        static_cast<double>(v->blend[3]), static_cast<double>(diff)));
             }
             for(int s = t.seats - 1; s >= 1; s--)
             {

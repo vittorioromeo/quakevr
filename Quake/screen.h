@@ -38,6 +38,7 @@ void SCR_ClearCenterString (void); // QVR: the current seat's centre print gone 
 void SCR_SeatRect (int seat, vrect_t *out); // seat's tile of the window (top-left origin; one seat: the whole window)
 void SCR_SeatWindow (vrect_t *out);	// the window the tiles are laid out in (0, 0, its width and height)
 int SCR_SeatsDrawn (void);			// the seats laid out in tiles (1: the window is seat 0's, as always)
+void SCR_SceneTargetSize (int *w, int *h); // split11: the size the scene targets were made for (the window's vid size, also in a seat's pass; R_WarpScaleView)
 int SCR_SplitLayout (void);			// the layout drawn: 1 side by side, 2 stacked, 3 one wide on top, 4 grid (scr_splitlayout)
 int SCR_SplitLayoutFor (int n);		// phase 10: the layout n seats would have (the join screen's preview)
 void SCR_LayoutTileOf (int n, int i, int w, int h, vrect_t *out); // tile i of n seats in a w x h window (SCR_SplitLayoutFor's)

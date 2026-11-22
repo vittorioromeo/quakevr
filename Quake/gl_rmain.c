@@ -2435,8 +2435,12 @@ void R_WarpScaleView (void)
 
 	GL_BeginGroup ("Warp/scale view");
 
-	smax = srcw/(float)vid.width;
-	tmax = srch/(float)vid.height;
+	{
+		int targetw, targeth; // QVR: splitscreen (split11): the targets' size, not a seat's tile's (gl_screen.c)
+		SCR_SceneTargetSize (&targetw, &targeth);
+		smax = srcw/(float)targetw;
+		tmax = srch/(float)targeth;
+	}
 
 	GL_UseProgram (glprogs.warpscale[water_warp]);
 	GL_SetState (GLS_BLEND_OPAQUE | GLS_NO_ZTEST | GLS_NO_ZWRITE | GLS_CULL_NONE | GLS_ATTRIBS(0));

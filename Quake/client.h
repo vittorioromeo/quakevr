@@ -398,6 +398,7 @@ seatinput_t *CL_SeatInputOf (int seat);	// seat 0..3's (seat 0's: the config's +
 // QVR: splitscreen phase 3: a seat's view (view.c's globals and statics) and the window area it is drawn in. The view's
 // and HUD's draws take the seat's (V_RenderView, SCR_UpdateScreen's 2D pass: the current seat's, passed down); a
 // message or command that changes them (a hit's kick, v_cshift, a centre print, +showscores) the current seat's.
+#define SEAT_PROBEGRID 8 // split11: seatview_t's probegrid, blocks a side
 typedef struct seatview_s
 {
 	vec3_t		punchangles[2];		// cl.punchangle as the view saw it: 0 now, 1 before (johnfitz's v_punchangles)
@@ -417,6 +418,7 @@ typedef struct seatview_s
 	vec3_t		drawnright;			// ... and its right (vright): the seat's sound listener (snd_dma.c)
 	byte		probe[4];			// scr_seatmarkers 2: its marker's pixel read back after the frame (rgb)
 	unsigned	probesum;			// ... and a checksum of the tile's middle (each tile a picture of its own)
+	byte		probegrid[SEAT_PROBEGRID * SEAT_PROBEGRID]; // split11: its view's picture in blocks (mean luminance; the flash test)
 } seatview_t;
 
 // QVR: splitscreen phase 3: a seat's HUD state (gl_screen.c's centre print, sbar.c's scores shown).

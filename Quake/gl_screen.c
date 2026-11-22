@@ -651,8 +651,21 @@ typedef struct
 	int		width, height, guiwidth, guiheight;
 } scrwindow_t;
 
+// split11: the window's vid sizes while a seat's pass has made its tile the window (null outside a pass). The scene
+// targets keep the window's size: a view rendered into their corner is warped into its tile from there, so the warp's
+// texture scale is the view's part of the targets (SCR_SceneTargetSize), not of the tile; a damage or burn flash, water
+// or the blood (needwarpscale) drew the whole target squashed into the tile, its stale rest in the other part.
+static const scrwindow_t *scr_passwindow; // seat-shared: set only inside SCR_DrawSeats' pass, never across frames
+
+void SCR_SceneTargetSize (int *w, int *h)
+{
+	*w = scr_passwindow ? scr_passwindow->width : vid.width;
+	*h = scr_passwindow ? scr_passwindow->height : vid.height;
+}
+
 static void SCR_SeatPassBegin (const vrect_t *tile, scrwindow_t *saved)
 {
+	scr_passwindow = saved;
 	saved->glx = glx;
 	saved->gly = gly;
 	saved->glwidth = glwidth;
@@ -674,6 +687,7 @@ static void SCR_SeatPassBegin (const vrect_t *tile, scrwindow_t *saved)
 
 static void SCR_SeatPassEnd (const scrwindow_t *saved)
 {
+	scr_passwindow = NULL;
 	glx = saved->glx;
 	gly = saved->gly;
 	glwidth = saved->glwidth;
@@ -711,6 +725,39 @@ static void SCR_SeatProbe (seatview_t *sv)
 	for (i = 0; i < (int) sizeof (block); i++)
 		hash = (hash ^ block[i]) * 16777619u;
 	sv->probesum = hash;
+	// split11: the view's picture in SEAT_PROBEGRID^2 blocks, its mean luminance each (the view's upper part: 5% to 65% of
+	// its height, 5% to 95% of its width, clear of the status bar), for vr_seat_render_test's flash checks.
+	{
+		const vrect_t *v = &r_refdef.vrect;
+		int x0 = glx + v->x + v->width / 20, w = v->width * 9 / 10;
+		int top = v->y + v->height / 20, h = v->height * 3 / 5;
+		int y0 = gly + glheight - top - h, bx, by, x, y;
+		byte *px;
+		if (w < SEAT_PROBEGRID || h < SEAT_PROBEGRID)
+			return;
+		px = (byte *) malloc ((size_t) w * h * 3);
+		if (!px)
+			return;
+		glPixelStorei (GL_PACK_ALIGNMENT, 1);
+		glReadPixels (x0, y0, w, h, GL_RGB, GL_UNSIGNED_BYTE, px);
+		glPixelStorei (GL_PACK_ALIGNMENT, 4);
+		for (by = 0; by < SEAT_PROBEGRID; by++)
+			for (bx = 0; bx < SEAT_PROBEGRID; bx++)
+			{
+				double sum = 0.0;
+				int n = 0;
+				for (y = by * h / SEAT_PROBEGRID; y < (by + 1) * h / SEAT_PROBEGRID; y++)
+					for (x = bx * w / SEAT_PROBEGRID; x < (bx + 1) * w / SEAT_PROBEGRID; x++)
+					{
+						const byte *p = px + ((size_t) y * w + x) * 3;
+						sum += 0.299 * p[0] + 0.587 * p[1] + 0.114 * p[2];
+						n++;
+					}
+				// (rows read bottom up: the grid's first row the top)
+				sv->probegrid[(SEAT_PROBEGRID - 1 - by) * SEAT_PROBEGRID + bx] = (byte) (n ? sum / n + 0.5 : 0);
+			}
+		free (px);
+	}
 }
 
 static void SCR_CalcRefdef (void)
