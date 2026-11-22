@@ -812,6 +812,9 @@ static const char world_fragment_shader[] =
 "#endif\n"
 "layout(binding=2) uniform sampler2D LMTex;\n"
 "layout(binding=9) uniform sampler2D LuxTex; // QVR: the baked light's directions (deluxemaps: r_brush.c), as LMTex\n"
+"#ifdef QVR_NOLIGHTS\n"
+"layout(binding=15) uniform sampler2D DlightTex; // QVR: C5g, the dynamic lights summed on the CPU (vr_gl_world_dlmap), as LMTex\n"
+"#endif\n"
 "\n"
 FRAMEDATA_BUFFER
 "#define OIT_MAX SceneTone.x // QVR: translucent faces as bright as opaque ones in the eyes' float scene (a teleporter's view through)\n"
@@ -1086,6 +1089,7 @@ QVR_WORLD_FS_LIGHT // QVR: light contrast, normal maps in the baked light, specu
 "#ifdef QVR_NOLIGHTS\n" // QVR: glprogs.world_unlit (C4t): the cluster's inputs still read, under a branch never taken (Adreno's
 "	if (NumLights > 0x7fffffffu)\n" // compiler: its picture broke with them unread, QUEST_PLAN.md 6z)
 "		result.rgb += vec3(in_coord, in_depth);\n"
+"	dynamic_light = textureLod(DlightTex, lmuv, 0.).rgb * 4.0;\n" // QVR: C5g, vr_gl_world_dlmap's lights (vr_dlightmap.cpp: lightScale; black when off), as the loop's
 "#endif\n"
 "#if defined(QVR_PROBE_NOLOOP) || defined(QVR_NOLIGHTS)\n" // QVR: -glesdefine's probe (C4l): the lights' loop compiled out, the rest of the shader kept; glprogs.world_unlit (C4t)
 "	if (false)\n"

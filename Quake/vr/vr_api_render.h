@@ -278,6 +278,7 @@ void VR_BrushWound (const struct entity_s *e, float wound[4], float box[4]);	// 
 unsigned VR_WoundTexture (void);							// the wound masks' texture array (0: none; vr_wounds.cpp)
 unsigned VR_WoundFineTexture (void);						// your own body's and hands' finer masks (vr_wounds_own_res; 0: none)
 unsigned VR_WoundBloodTexture (void);						// ... the blood on them that isn't yours (one channel; 0: none)
+unsigned VR_DlightmapTexture (void);						// vr_gl_world_dlmap: the frame's dynamic lights in a texture laid out as the lightmap (DlightTex, unit 15; 0: not this frame)
 void VR_WoundFrameData (float out[2]);						// the fine masks' relief: burns', blood's (Water3.zw in the frame data)
 void VR_RetroLightFrameData (float out[24]);					// retro lighting (vr_retrolight.cpp): the frame data's RetroLight[6]
 float VR_RetroLightSkinScale (const struct qmodel_s *model, const void *aliashdr, int skinnum);	// ... a Quake texel's share of the skin's texture (the alias Retro.w)

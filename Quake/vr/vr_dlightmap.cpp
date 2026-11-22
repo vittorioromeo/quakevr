@@ -1,9 +1,11 @@
 // The dynamic lights in the lightmap (vr_gl_world_dlmap; C5b, QUEST_PLAN.md 6zm): Quake's own way, for the ES
 // profile (the Quest). Once a frame the texels of the world's surfaces (and the unturned brush entities') a dynamic
-// light reaches get the light added on the CPU, as GLQuake's R_AddDynamicLights did, and those blocks are uploaded
-// into the lightmap; the next frame puts back the map's own texels where no light is any more. The world is then
-// drawn with its form without the lights' loop (glprogs.world_unlit, VR_WorldUnlit): the per-pixel loop that cost the
-// Quest's fights most of their world pass (6z, 6zl) is gone, at the lightmap's 16-unit grid (the old look).
+// light reaches get the light summed on the CPU, as GLQuake's R_AddDynamicLights did, and those blocks are uploaded
+// into a texture laid out as the lightmap (C5g: its own, DlightTex; not the lightmap, whose light the shader curves:
+// vr_light_contrast, the fill light, vr_light_cap); the next frame makes dark again where no light is any more. The
+// world is then drawn with its form without the lights' loop (glprogs.world_unlit, VR_WorldUnlit), which adds that
+// texture's light where the loop adds its own (dynamic_light: as bright, the same cap): the per-pixel loop that cost
+// the Quest's fights most of their world pass (6z, 6zl) is gone, at the lightmap's 16-unit grid (the old look).
 // The models, particles and everything else still take the lights per pixel (they read the lights' buffer).
 // The falloffs are the shaders' (vr_dlight_falloff: DarkPlaces' or Quake's, vr_dlight_angle, a spot's cone), computed
 // at each texel's place on the surface.
@@ -109,11 +111,47 @@ bool atlasValid = false; // Written::atlas mirrors the texture (false after an u
 int uploadsLast = 0;    // the last frame's glTexSubImage2D calls (vr_gl_world_dlmap_info)
 int uploadedTexels = 0; // ... and their texels
 
+// C5g: the light texture (dlTexture, as big as the lightmap, laid out as it): RGB10_A2, the light over lightScale in
+// each 10-bit channel (a step of 1/256 of Quake's full light: finer than the lightmap's own; up to twice its brightest).
+constexpr float lightScale = 4.f;
+GLuint dlTexture = 0;
+int dlWidth = 0, dlHeight = 0;
+
+[[nodiscard]] unsigned packLight(const glm::vec3& v)
+{
+    const auto ch = [](float c) {
+        return static_cast<unsigned>(za::clamp(c * (1023.f / lightScale) + 0.5f, 0.f, 1023.f));
+    };
+    return ch(v.r) | (ch(v.g) << 10) | (ch(v.b) << 20) | (3u << 30);
+}
+
 void bindLightmap()
 {
-    // (GL_Bind skips a texture already bound there, unit and all: the null texture first makes it select unit 0)
-    GL_Bind(GL_TEXTURE0, nullptr);
-    GL_Bind(GL_TEXTURE0, lightmap_texture);
+    // (GL_BindNative skips a texture already bound there, unit and all: the null texture first makes it select unit 0)
+    GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, 0);
+    GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, dlTexture);
+}
+
+// The light texture for this lightmap: made dark (a new map's, or a new size).
+void makeTexture()
+{
+    if(dlTexture)
+    {
+        GL_DeleteNativeTexture(dlTexture);
+        dlTexture = 0;
+    }
+    dlWidth = lightmap_width;
+    dlHeight = lightmap_height;
+    za::Vector<unsigned>& dark = scratch.texels;
+    dark.assign(static_cast<size_t>(dlWidth) * static_cast<size_t>(dlHeight), 0u);
+    glGenTextures(1, &dlTexture);
+    bindLightmap();
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB10_A2, dlWidth, dlHeight, 0, GL_RGBA, GL_UNSIGNED_INT_2_10_10_10_REV, dark.data());
+    GL_ObjectLabelFunc(GL_TEXTURE, dlTexture, -1, "dynamic lightmap"); // (vr_vram_report)
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 }
 
 void upload(int x, int y, int w, int h, const unsigned* texels)
@@ -142,13 +180,13 @@ void upload(int x, int y, int w, int h, const unsigned* texels)
         return;
     }
     bindLightmap();
-    glTexSubImage2D(GL_TEXTURE_2D, 0, x, y, w, h, GL_RGBA, GL_UNSIGNED_BYTE, texels);
+    glTexSubImage2D(GL_TEXTURE_2D, 0, x, y, w, h, GL_RGBA, GL_UNSIGNED_INT_2_10_10_10_REV, texels);
     uploadsLast++;
     uploadedTexels += w * h;
 }
 
 // A frame's uploads begin: batched (vr_gl_world_dlmap_batch, the atlas fits the bands) into the atlas, its copy of the
-// map's texels made when it is not the texture's (a new map, or after unbatched frames).
+// texture's texels made when it is not the texture's (a new map, or after unbatched frames).
 void beginUploads()
 {
     uploadsLast = uploadedTexels = 0;
@@ -161,9 +199,8 @@ void beginUploads()
     }
     if(!atlasValid || written.atlas.size() != size)
     {
-        // (the texture holds the map's texels and last frame's blocks; those are put back or written again this frame)
-        written.atlas.resize(size);
-        memcpy(written.atlas.data(), lightmap_data, size * sizeof(unsigned));
+        // (the texture is dark but for last frame's blocks; those are made dark or written again this frame)
+        written.atlas.assign(size, 0u);
         atlasValid = true;
     }
     for(Band& b : bands)
@@ -193,7 +230,7 @@ void endUploads()
             glPixelStorei(GL_UNPACK_ROW_LENGTH, lightmap_width);
             bound = true;
         }
-        glTexSubImage2D(GL_TEXTURE_2D, 0, b.x0, b.y0, b.x1 - b.x0, b.y1 - b.y0, GL_RGBA, GL_UNSIGNED_BYTE,
+        glTexSubImage2D(GL_TEXTURE_2D, 0, b.x0, b.y0, b.x1 - b.x0, b.y1 - b.y0, GL_RGBA, GL_UNSIGNED_INT_2_10_10_10_REV,
             written.atlas.data() + static_cast<size_t>(b.y0) * lightmap_width + b.x0);
         uploadsLast++;
         uploadedTexels += (b.x1 - b.x0) * (b.y1 - b.y0);
@@ -204,16 +241,11 @@ void endUploads()
     }
 }
 
-// The map's own texels of the block back in the lightmap.
+// The block dark again in the light texture.
 void restore(const Block& b)
 {
     za::Vector<unsigned>& t = scratch.texels;
-    t.resize(static_cast<size_t>(b.w) * static_cast<size_t>(b.h));
-    for(int r = 0; r < b.h; r++)
-    {
-        memcpy(t.data() + static_cast<size_t>(r) * b.w, lightmap_data + static_cast<size_t>(b.y + r) * lightmap_width + b.x,
-            static_cast<size_t>(b.w) * sizeof(unsigned));
-    }
+    t.assign(static_cast<size_t>(b.w) * static_cast<size_t>(b.h), 0u);
     upload(b.x, b.y, b.w, b.h, t.data());
 }
 
@@ -358,10 +390,9 @@ void lightSurface(const msurface_t* s, const Light* lights, const glm::ivec2* fi
         return;
     }
 
-    // The block: one style's texels (RGB a texel), or with 3-4 styles the red, green and blue blocks side by side
-    // (each texel the styles' one channel: style 0 in its low byte), as GL_FillSurfaceLightmap packed them.
-    const int taps = s->styles[1] == 255 ? 1 : s->styles[2] == 255 ? 2 : 3;
-    const int w = taps == 3 ? smax * 3 : smax;
+    // C5g: the block in the light texture, at the surface's first style's place in the lightmap (the shader reads it
+    // where it reads that style), the light as the per-pixel loop's dynamic_light, packed (packLight).
+    const int w = smax;
     const lightmap_t& lm = lightmaps[s->lightmaptexturenum];
     const int x0 = lm.xofs + s->light_s, y0 = lm.yofs + s->light_t;
     if(x0 < 0 || y0 < 0 || x0 + w > lightmap_width || y0 + tmax > lightmap_height)
@@ -370,29 +401,9 @@ void lightSurface(const msurface_t* s, const Light* lights, const glm::ivec2* fi
     }
     za::Vector<unsigned>& texels = scratch.texels;
     texels.resize(static_cast<size_t>(w) * static_cast<size_t>(tmax));
-    const auto addByte = [](unsigned texel, int shift, float v) {
-        const int was = static_cast<int>((texel >> shift) & 0xffu);
-        const int now = za::min(255, was + static_cast<int>(v * 255.f + 0.5f));
-        return (texel & ~(0xffu << shift)) | (static_cast<unsigned>(now) << shift);
-    };
-    for(int t = 0; t < tmax; t++)
+    for(size_t i = 0; i < texels.size(); i++)
     {
-        unsigned* row = texels.data() + static_cast<size_t>(t) * w;
-        memcpy(row, lightmap_data + static_cast<size_t>(y0 + t) * lightmap_width + x0, static_cast<size_t>(w) * sizeof(unsigned));
-        const glm::vec3* in = sums.data() + static_cast<size_t>(t) * smax;
-        for(int si = 0; si < smax; si++)
-        {
-            if(taps == 3)
-            {
-                row[si] = addByte(row[si], 0, in[si].r);
-                row[si + smax] = addByte(row[si + smax], 0, in[si].g);
-                row[si + smax * 2] = addByte(row[si + smax * 2], 0, in[si].b);
-            }
-            else
-            {
-                row[si] = addByte(addByte(addByte(row[si], 0, in[si].r), 8, in[si].g), 16, in[si].b);
-            }
-        }
+        texels[i] = packLight(sums[i]);
     }
     upload(x0, y0, w, tmax, texels.data());
     const int index = static_cast<int>(s - cl.worldmodel->surfaces);
@@ -425,11 +436,12 @@ void lightPairs(const Light* lights, bool darkplaces, float angle)
 void build()
 {
     frameStamp++;
-    if(madeFor != lightmap_texture)
+    if(madeFor != lightmap_texture || dlWidth != lightmap_width || dlHeight != lightmap_height || !dlTexture)
     {
-        written.blocks.clear(); // a new map's lightmap: nothing of ours in it
+        written.blocks.clear(); // a new map's lightmap: a new light texture, dark
         atlasValid = false;
         madeFor = lightmap_texture;
+        makeTexture();
     }
     beginUploads();
     za::Vector<int>& stamps = written.surfStamp;
@@ -593,3 +605,8 @@ void registerCommands()
 }
 
 } // namespace qvr::dlightmap
+
+extern "C" unsigned VR_DlightmapTexture(void)
+{
+    return qvr::dlightmap::frameActive ? qvr::dlightmap::dlTexture : 0u;
+}

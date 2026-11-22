@@ -50,6 +50,9 @@ macro(qvr_android_target)
 	target_link_libraries(ironwail PRIVATE GLESv3 EGL android log)
 	# A missing symbol fails the link, not the app's start (dlopen).
 	target_link_options(ironwail PRIVATE "-Wl,--no-undefined")
+	# The menus' giant file at -Os (C5g, QUEST_PLAN.md 6zr): the NDK's clang 18 took ~18 minutes on it at -O3 and more
+	# than 10 at -O1, 17 seconds at -Os; menu code, nothing a frame waits on.
+	set_source_files_properties("${CMAKE_SOURCE_DIR}/Quake/vr/vr_menu.cpp" PROPERTIES COMPILE_OPTIONS "-Os")
 	if (QVR_OPENXR_ANDROID_DIR AND EXISTS "${QVR_OPENXR_ANDROID_LOADER}")
 		add_library(qvr_openxr_loader SHARED IMPORTED)
 		set_target_properties(qvr_openxr_loader PROPERTIES IMPORTED_LOCATION "${QVR_OPENXR_ANDROID_LOADER}")

@@ -1511,6 +1511,10 @@ static void R_DrawBrushModels_Real (entity_t **ents, int count, brushpass_t pass
 	{ // QVR: and the deluxemaps
 		GL_Bind (GL_TEXTURE2, r_fullbright_cheatsafe ? greytexture : lightmap_texture);
 		GL_Bind (GL_TEXTURE9, lux_texture); // QVR: the light's directions (deluxemaps: LuxTex; read only with ShadowFlags 128)
+		if (VR_DlightmapTexture ()) // QVR: the dynamic lights in a texture (vr_gl_world_dlmap: DlightTex, read by glprogs.world_unlit)
+			GL_BindNative (GL_TEXTURE15, GL_TEXTURE_2D, VR_DlightmapTexture ());
+		else
+			GL_Bind (GL_TEXTURE15, blacktexture);
 		GL_BindNative (GL_TEXTURE13, GL_TEXTURE_2D_ARRAY, VR_WoundTexture ()); // QVR: a held prop's blood (WoundMasks: BoxWounds)
 		VR_BindDecals (); // QVR: the decals on the world (vr/vr_decals.cpp: buffers 3 and 4, the atlas on unit 14)
 	}
