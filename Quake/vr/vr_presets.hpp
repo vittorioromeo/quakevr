@@ -57,7 +57,8 @@ public:
     void apply(int level);
 
     // My Settings set back; false: none kept.
-    bool restoreMine();
+    // missingToDefault: a row the file lacks (added since it was kept) goes back to its default (leaving Standalone)
+    bool restoreMine(bool missingToDefault = false);
 
     // Save as My Settings: the current values of every row kept (written over what was kept).
     void saveMine();

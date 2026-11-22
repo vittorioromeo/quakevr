@@ -149,7 +149,7 @@ constexpr presetcore::Row standaloneRows[] = {
     {&vr_shadow_distance,             {"768",    "640",    "512"}},
     // Post-processing: bloom's chain of half-size passes off at 90 Hz and on the Quest 2 (the tone curve kept: the look)
     {&vr_bloom,                       {"0",      "0",      "0"}},     // off: the Quest 3 showed its chain as squares (C4f)
-    {&vr_tonemap,                     {"2",      "2",      "2"}},     // the float scene in 32 bits (R11F_G11F_B10F), not 64: -1.4 ms of the Quest 3's GPU, the same picture (C4h)
+    {&vr_tonemap,                     {"2",      "2",      "2"}},     // (the PC default too since pcopt) the float scene in 32 bits (R11F_G11F_B10F), not 64: -1.4 ms of the Quest 3's GPU, the same picture (C4h)
     {&vr_heat_haze,                   {"0",      "0",      "0"}},
     {&vr_water_reflections,           {"0",      "0",      "0"}},     // (the envmap)
     {&vr_rim_light,                   {"0",      "0",      "0"}},     // (the envmap)
@@ -181,6 +181,11 @@ constexpr presetcore::Row standaloneRows[] = {
     {&vr_limbs_max,                   {"12",     "8",      "8"}},
     {&vr_explosion_debris_max,        {"32",     "24",     "16"}},
     {&vr_gore_dents_max,              {"6",      "4",      "4"}},
+    // Close-up blood thinned (pcopt E): a limb popped 4-30 units off the eye made 413 particles within 48 units, 64 at
+    // 128 / 0.3 (its fountain still pours from the first frames: vr_flatblood_test 5); 96 leaves blood a few steps off
+    // (the gib fight's 48-80 units) nearer to as it was
+    {&vr_blood_near,                  {"96",     "96",     "96"}},
+    {&vr_blood_near_mult,             {"0.3",    "0.3",    "0.3"}},
 };
 // clang-format on
 
@@ -240,7 +245,7 @@ int matchStandalone()
 void leaveStandalone()
 {
     migrateQuestMine();
-    if(standaloneKind.matchingLevel() >= 0 && standaloneKind.restoreMine())
+    if(standaloneKind.matchingLevel() >= 0 && standaloneKind.restoreMine(true)) // (rows added since: their defaults)
     {
         Con_DPrintf("standalone preset: its rows set back as they were before it\n");
     }
